@@ -231,6 +231,14 @@ async function nominatim(params: Record<string, string>): Promise<Achado[]> {
  * segue pra rua, bairro ou cidade, e a precisão diz a verdade.
  */
 interface CepAchado { lat: number; lng: number; cidade: string; uf: string }
+/** Sem chave, a AwesomeAPI dá HTTP 429 pro IP da Vercel (medido em 08/10/2026:
+ *  o IP é dividido com muita gente). Com `AWESOMEAPI_KEY` na Vercel (a conta
+ *  gratuita deles dá uma), o servidor volta a achar o CEP sem mexer em código.
+ *  Enquanto isso, quem acha o CEP é o navegador (ver mapa-arrendamento.js). */
+const cabecalhoCep = (): Record<string, string> => {
+  const chave = (process.env.AWESOMEAPI_KEY || '').trim();
+  return { 'User-Agent': UA, Accept: 'application/json', ...(chave ? { 'x-api-key': chave } : {}) };
+};
 /** `recusou` = o serviço não respondeu de verdade (não é "CEP não existe"). O
  *  ponto sai sem o CEP e volta marcado `parcial`, pra ser refeito depois. */
 async function cepGeo(cep: string): Promise<{ achado: CepAchado | null; recusou: boolean }> {
@@ -238,7 +246,7 @@ async function cepGeo(cep: string): Promise<{ achado: CepAchado | null; recusou:
   let out: CepAchado | null = null;
   try {
     const r = await fetch(`https://cep.awesomeapi.com.br/json/${cep}`,
-      { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+      { headers: cabecalhoCep(), signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const j = await r.json() as { lat?: string; lng?: string; city?: string; state?: string };
       if (j.lat && j.lng) out = { lat: Number(j.lat), lng: Number(j.lng), cidade: j.city || '', uf: j.state || '' };
@@ -351,8 +359,8 @@ export function guardadoServe(v: Guardado | null, agora = Date.now()): boolean {
 
 /** Lê só as chaves pedidas, em blocos: um `like 'ep_geo:%'` corta em 1000 linhas
  *  calado quando o cache crescer. */
-async function lerCache(chaves: string[]): Promise<Map<string, Ponto>> {
-  const achou = new Map<string, Ponto>();
+async function lerCache(chaves: string[]): Promise<Map<string, PontoAchado>> {
+  const achou = new Map<string, PontoAchado>();
   for (let i = 0; i < chaves.length; i += 100) {
     const { data, error } = await supabase.from('system_state').select('key, value')
       .in('key', chaves.slice(i, i + 100));
@@ -361,7 +369,7 @@ async function lerCache(chaves: string[]): Promise<Map<string, Ponto>> {
       const v = row.value;
       if (v && guardadoServe(v)) {
         achou.set(row.key, { lat: v.lat!, lng: v.lng!, precisao: v.precisao as Precisao,
-          municipio: String(v.municipio || ''), uf: String(v.uf || '') });
+          municipio: String(v.municipio || ''), uf: String(v.uf || ''), ...(v.parcial ? { parcial: true } : {}) });
       }
     }
   }
@@ -381,7 +389,7 @@ export interface ItemGeo { k: string; endereco?: string | null; cidade?: string 
 export interface RespostaGeo {
   /** k → ponto; null quando a cidade não dá pra saber. Quem ficou pra próxima
    *  chamada NÃO aparece aqui (e conta em `pendentes`). */
-  pontos: Record<string, Ponto | null>;
+  pontos: Record<string, PontoAchado | null>;
   pendentes: number;
 }
 
@@ -401,7 +409,7 @@ export async function geocodificarLote(
     else porChave.set(chave, { mun, endereco: String(it.endereco || ''), ks: [it.k] });
   }
 
-  let cache = new Map<string, Ponto>();
+  let cache = new Map<string, PontoAchado>();
   try {
     cache = await lerCache(Array.from(porChave.keys()));
   } catch (err) {
@@ -418,9 +426,9 @@ export async function geocodificarLote(
     try {
       const achado = await localizar(g.endereco, g.mun);
       await gravarCache(chave, achado);
-      // `parcial` é do cache; a tela recebe o ponto e a precisão, que já dizem a verdade.
-      const { parcial: _parcial, ...ponto } = achado;
-      g.ks.forEach(k => { pontos[k] = ponto; });
+      // `parcial` vai junto: é a deixa pra tela tentar o CEP pelo navegador, que
+      // não toma o 429 do IP da Vercel (ver mapa-arrendamento.js).
+      g.ks.forEach(k => { pontos[k] = achado; });
     } catch (err) {
       // Nominatim fora: fica pendente, a próxima chamada tenta de novo.
       logger.warn(LOG, 'geocodificação falhou, fica pra próxima', err);

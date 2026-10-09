@@ -211,10 +211,34 @@ describe('geocodificarLote', () => {
     const endereco = 'Rua Sem Nome No Mapa, 9 · Centro · Araguari-MG · CEP 38440-123';
     const r = await geocodificarLote([{ k: 'a', endereco, cidade: '', ddd: '34' }], { maxNovos: 1 });
     expect(r.pendentes).toBe(0);
-    expect(r.pontos.a).toMatchObject({ precisao: 'cidade', uf: 'MG' });
-    expect(r.pontos.a).not.toHaveProperty('parcial');
+    // `parcial` vai pra tela: é a deixa pro navegador tentar o CEP por conta própria.
+    expect(r.pontos.a).toMatchObject({ precisao: 'cidade', uf: 'MG', parcial: true });
     const mun = resolverMunicipio(endereco, '', '34')!;
     expect(estado[chaveCache(endereco, mun)]).toMatchObject({ precisao: 'cidade', parcial: true, v: 2 });
+    // e quem lê do cache também recebe a marca
+    vi.restoreAllMocks();
+    const f = vi.spyOn(globalThis, 'fetch');
+    const de = await geocodificarLote([{ k: 'b', endereco, cidade: '', ddd: '34' }]);
+    expect(de.pontos.b).toMatchObject({ parcial: true });
+    expect(f).not.toHaveBeenCalled();
+  }, 20000);
+
+  it('com AWESOMEAPI_KEY no ambiente, a chave vai no cabeçalho do CEP', async () => {
+    process.env.AWESOMEAPI_KEY = 'chave-de-teste';
+    const chamadas: { url: string; headers: Record<string, string> }[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: unknown, init?: RequestInit) => {
+      chamadas.push({ url: String(url), headers: (init?.headers || {}) as Record<string, string> });
+      if (String(url).includes('awesomeapi')) return new Response('limite', { status: 503 });
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    try {
+      await geocodificarLote([{ k: 'a', endereco: 'Rua Outra Sem Mapa, 3 · Centro · Araguari-MG · CEP 38440-456', cidade: '', ddd: '34' }],
+        { maxNovos: 1 });
+      const cep = chamadas.find(c => c.url.includes('awesomeapi'));
+      expect(cep?.headers['x-api-key']).toBe('chave-de-teste');
+    } finally {
+      delete process.env.AWESOMEAPI_KEY;
+    }
   }, 20000);
 
   it('Nominatim fora: fica pendente e não grava ponto ruim no cache', async () => {
