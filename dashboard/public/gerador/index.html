@@ -903,6 +903,8 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
    e' so' o X da NEXUS (o logo inteiro nao se le' nessa altura); opacidade .85
    porque o X ja' e' fino e a .6 de antes o apagava. */
 .ep-pagefoot .ep-foot-esq{display:flex;align-items:center;gap:6px;min-width:0}
+.ep-pagefoot .ep-rubr{display:flex;align-items:flex-end;gap:7px;white-space:nowrap}
+.ep-pagefoot .ep-rubr i{display:inline-block;width:30px;height:10px;border-bottom:1px solid #b8c0cc}
 .ep-foot-logo{height:4.6mm;width:auto;opacity:.85;flex:0 0 auto}
 /* Orçamento SOLAR (IO_FOOT_LOGO): mantém a .6 de antes; o .85 é só pro X fino da NEXUS. */
 .ep-foot-logo.io{opacity:.6}
@@ -4488,18 +4490,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              cessão e a obra: o dono do imóvel quando o cedente é inquilino (Lei
              8.245/91, arts. 13 e 23, VI), o inquilino quando o imóvel está alugado,
              o condomínio. Em branco, não sai no papel. -->
-        <div class="orc-note" style="grid-column:1/-1;margin-top:10px" data-ctr-tipos="arrend termo_arr"><b>Interveniente anuente:</b> quem também assina para autorizar a cessão e a obra. Inquilino não cede sozinho: o dono do imóvel assina aqui. Em branco, não sai no papel.</div>
-        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>Interveniente anuente (nome ou razão social)</label>
+        <div class="orc-note" style="grid-column:1/-1;margin-top:10px" data-ctr-tipos="arrend termo_arr socio50"><b>Interveniente anuente:</b> quem também assina para autorizar a cessão e a obra. Inquilino não cede sozinho: o dono do imóvel assina aqui. Em branco, não sai no papel.</div>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr socio50"><label>Interveniente anuente (nome ou razão social)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-nome" placeholder="Ex.: o dono do imóvel" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>CPF/CNPJ do interveniente</label>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr socio50"><label>CPF/CNPJ do interveniente</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-doc" placeholder="CPF ou CNPJ"></div></div>
-        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>Representante do interveniente (se empresa)</label>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr socio50"><label>Representante do interveniente (se empresa)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-rep" placeholder="Quem assina pela empresa ou condomínio"></div></div>
-        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>CPF do representante do interveniente</label>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr socio50"><label>CPF do representante do interveniente</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-rep-doc" placeholder="000.000.000-00"></div></div>
-        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>Endereço do interveniente</label>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr socio50"><label>Endereço do interveniente</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-end" placeholder="Rua, número, cidade"></div></div>
-        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>O interveniente é</label>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr socio50"><label>O interveniente é</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-int-qualidade">
             <option value="proprietario">Proprietário do imóvel</option>
             <option value="locatario">Locatário (inquilino) do imóvel</option>
@@ -4615,18 +4617,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-aviso" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
         <div class="eletro-field"><label>Prazo máximo para ligar o ponto</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-implant" inputmode="numeric" min="1" value="180" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
-        <div class="eletro-field"><label>Vagas cedidas</label>
-          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-vagas" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
-        <div class="eletro-field"><label>Área cedida (opcional)</label>
-          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-area" inputmode="decimal" placeholder="—"><span class="suf">m²</span></div></div>
-        <div class="eletro-field"><label>Horário do ponto</label>
-          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-horario" onchange="ctrResumo()">
-            <option value="24h">24 horas, todos os dias</option>
-            <option value="estab">O horário do estabelecimento</option>
-            <option value="outro">Outro (escrever ao lado)</option>
-          </select></div></div>
-        <div class="eletro-field" id="ctr-arr-f-horario"><label>Horário combinado</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-horario-txt" placeholder="Ex.: das 6h às 23h, de segunda a sábado"></div></div>
         <div class="eletro-field"><label>Energia do ponto</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-energia">
             <option value="uc">Ligação própria, em nome da NEXUS</option>
@@ -4668,6 +4658,26 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            estudar o ponto (promessa unilateral, CC art. 466), ou só registra a
            intenção. As condições da cessão vêm do cartão Arrendamento, e a minuta
            do contrato vai anexada: é o que faz a promessa valer (CC art. 462). -->
+      <!-- A ÁREA DO PONTO (09/10/2026): vagas, metragem e horário valem no
+           arrendamento, no termo do arrendador e no 50/50, em que o sócio cede o
+           próprio local (S50-08). -->
+      <div class="card" data-ctr-tipos="arrend termo_arr socio50 termo_inv" data-ctr-socmodo="socio50 fora">
+        <div class="calc-card-title"><span class="dot"></span>A área do ponto</div>
+        <div class="orc-note" style="grid-column:1/-1" data-ctr-tipos="termo_inv">No termo do 50/50, estes campos saem na minuta do contrato de sociedade anexada.</div>
+        <div class="eletro-field"><label>Vagas cedidas</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-vagas" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
+        <div class="eletro-field"><label>Área cedida (opcional)</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-area" inputmode="decimal" placeholder="—"><span class="suf">m²</span></div></div>
+        <div class="eletro-field"><label>Horário do ponto</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-horario" onchange="ctrResumo()">
+            <option value="24h">24 horas, todos os dias</option>
+            <option value="estab">O horário do estabelecimento</option>
+            <option value="outro">Outro (escrever ao lado)</option>
+          </select></div></div>
+        <div class="eletro-field" id="ctr-arr-f-horario"><label>Horário combinado</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-horario-txt" placeholder="Ex.: das 6h às 23h, de segunda a sábado"></div></div>
+      </div>
+
       <!-- O IMÓVEL (09/10/2026): matrícula, IPTU e unidade consumidora saem no
            termo e no contrato de arrendamento (ARR-10). -->
       <div class="card" data-ctr-tipos="arrend termo_arr">
@@ -4813,8 +4823,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            tirar e acrescentar item. Linha do kit que ninguem tocou aqui segue o
            Orcamento; tocou, manda o contrato. As linhas sao montadas por JS e
            NAO tem id: o "Comecar novo" limpa por id (ver ctrEstadoZerar). -->
-      <div class="card" data-ctr-tipos="completo socio50 cotas">
+      <div class="card" data-ctr-tipos="completo socio50 cotas termo_inv">
         <div class="calc-card-title"><span class="dot"></span><span id="ctr-esc-tit">Escopo: o que entra no preço</span></div>
+        <div class="orc-note" style="margin-top:-2px" data-ctr-tipos="termo_inv">No termo, esta lista sai na minuta anexada: é ela que o investidor rubrica.</div>
         <div class="orc-note" style="margin-top:-2px" data-ctr-tipos="socio50 cotas">Na sociedade, esta lista diz o que o <b>investimento</b> cobre: é a implantação que a NEXUS executa com o capital.</div>
         <div class="orc-note" style="margin-top:-2px">Marcado sai como <b>Incluído</b>. Desmarcado vai para <b>Não incluído</b>, que é onde a briga costuma nascer. O nome de cada item pode ser reescrito, e o <b>×</b> tira o item do contrato. Mexer aqui não muda o Orçamento.</div>
         <div class="ctr-esp" id="ctr-esc-esp"></div>
@@ -13896,12 +13907,16 @@ function nxCompletoDeck(d) {
   // A folha da foto tinha 12% de ocupação — título e uma frase sobre uma foto
   // de página inteira, a mais vazia do documento. Como BANDA no alto, ela
   // ilustra exatamente o que a lista embaixo está vendendo.
+  // Link gravado antes de 09/10/2026 não traz o kit: vale o kit da casa, sem o
+  // App Usuários (saiu em 05/10) e com padrão, trafo e cobertura.
   const DENTRO = (Array.isArray(d.inclui) && d.inclui.length) ? d.inclui : [
-    'Carregador ' + (d.modelo || 'NEXUS'), 'App Usuários NEXUS', 'Projeto de engenharia',
-    'Homologação na concessionária', 'Infraestrutura elétrica', 'Infraestrutura civil',
-    'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
+    'Carregador ' + (d.modelo || 'NEXUS'), 'Projeto de engenharia', 'Homologação na concessionária',
+    'Padrão de entrada 200A', 'Transformador 220/380', 'Infraestrutura elétrica e cabeamento', 'Infraestrutura civil',
+    'Cobertura', 'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
   const FORA = (Array.isArray(d.excluiPor) && d.excluiPor.length) ? d.excluiPor
     : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+  const AVISO_FORA = d.avisoFora || 'Reforço da rede ou obra exigida pela distribuidora, se houver, é orçado à parte depois do parecer de acesso.';
+  const KON = d.kitOn || { cobert: true, civil: true };
 
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>${marca}
@@ -13912,7 +13927,7 @@ function nxCompletoDeck(d) {
       <div class="ilu">imagem ilustrativa do projeto</div>
       <div class="txt">
         <div class="t">Assim fica<span class="g"> o seu ponto</span></div>
-        <div class="d">Cobertura, sinalização, piso demarcado e a máquina ligada. Obra civil e elétrica inclusas, e a equipe é nossa.</div>
+        <div class="d">${KON.cobert !== false ? 'Cobertura, sinalização' : 'Sinalização'}, piso demarcado e a máquina ligada. ${KON.civil !== false ? 'Obra civil e elétrica inclusas' : 'Obra elétrica inclusa'}, e a equipe é nossa.</div>
       </div>
     </div>
     <div class="nx-kick" style="margin-top:14px">O que está dentro do valor, e o que não está</div>
@@ -13921,7 +13936,7 @@ function nxCompletoDeck(d) {
         <ul class="nx-lista">${DENTRO.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>
       <div class="nx-col fora"><div class="h">Por sua conta</div>
         <ul class="nx-lista">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
-        <div class="nx-aviso">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</div></div>
+        <div class="nx-aviso">${esc(AVISO_FORA)}</div></div>
     </div>
     <div class="nx-tarja nx-fim">${brl(E.invest)} · ${SOC ? 'o seu aporte na sociedade' : 'valor total do projeto, chave na mão'}</div>
   </div>
@@ -14165,12 +14180,16 @@ function epCompletoA4(d) {
   // A lista do que está dentro é a MESMA do deck (D.inclui quando o consultor
   // mexeu, senão a lista fechada da casa). Duas listas diferentes pro mesmo
   // valor é como nasce aditivo depois de assinado.
+  // Link gravado antes de 09/10/2026 não traz o kit: vale o kit da casa, sem o
+  // App Usuários (saiu em 05/10) e com padrão, trafo e cobertura.
   const DENTRO = (Array.isArray(d.inclui) && d.inclui.length) ? d.inclui : [
-    'Carregador ' + (d.modelo || 'NEXUS'), 'App Usuários NEXUS', 'Projeto de engenharia',
-    'Homologação na concessionária', 'Infraestrutura elétrica', 'Infraestrutura civil',
-    'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
+    'Carregador ' + (d.modelo || 'NEXUS'), 'Projeto de engenharia', 'Homologação na concessionária',
+    'Padrão de entrada 200A', 'Transformador 220/380', 'Infraestrutura elétrica e cabeamento', 'Infraestrutura civil',
+    'Cobertura', 'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
   const FORA = (Array.isArray(d.excluiPor) && d.excluiPor.length) ? d.excluiPor
     : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+  const AVISO_FORA = d.avisoFora || 'Reforço da rede ou obra exigida pela distribuidora, se houver, é orçado à parte depois do parecer de acesso.';
+  const KON = d.kitOn || { cobert: true, civil: true };
 
   const MEDOS = [
     ['“vai virar um canteiro de obra no meu terreno”', 'A obra é nossa. Equipe própria, infraestrutura elétrica e civil inclusas.'],
@@ -14208,7 +14227,7 @@ function epCompletoA4(d) {
       <div class="ep-box">
         <h3>Por sua conta</h3>
         <ul class="ep-lista fora">${FORA.map(i => `<li>${orcEsc(i)}</li>`).join('')}</ul>
-        <p class="ep-p aviso">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</p>
+        <p class="ep-p aviso">${orcEsc(AVISO_FORA)}</p>
       </div>
     </div>
     <div class="ep-faixa-verde">${brl(E.invest)} · valor total do projeto, chave na mão</div>
@@ -14251,8 +14270,9 @@ function epCompletoA4(d) {
   epPrint(host, epNomeArq('Orcamento', d.cliente));
 }
 
-function epCompletoPayload(versao, comSociedade) {
+function epCompletoPayload(versao, comSociedade, invPapel) {
   const p = eletroParams();
+  if (invPapel > 0 && !comSociedade) p.invest = invPapel;
   const r = computeEletro(p);
   // MODO SOCIEDADE. O documento e' o mesmo; o sujeito e' outro. Quem entra numa
   // sociedade nao compra o posto, entra nele: o "investimento" dele e' o aporte,
@@ -14332,8 +14352,10 @@ function epCompletoPayload(versao, comSociedade) {
         + 'saem do faturamento antes da divisão do lucro. Valores válidos durante o prazo desta proposta. '
         + 'Esta proposta não é o contrato da sociedade: aporte, cota, prestação de contas e saída '
         + 'são firmados em instrumento próprio.'
-      : ORC_OBS_PADRAO,
+      : (orcVal('orc-obs') || ORC_OBS_PADRAO),
     modelo: epEquipRotulo(t.equip) || 'Carregador NEXUS',
+    // CM-05: o kit marcado no Orçamento, o mesmo do contrato e do banco.
+    ...(() => { const k = epKitDoPapel(epEquipRotulo(t.equip) || 'NEXUS'); return { inclui: k.inclui, excluiPor: k.fora, avisoFora: k.aviso, kitOn: k.on }; })(),
     quantidade: orcEpQtdCarregadores(), bicos: p.plugs,
     ent: {
       carros: p.carros, carga: p.carga, precoKwh: p.precoKwh, custoKwh: p.custoKwh,
@@ -14896,10 +14918,57 @@ function epDeckImprimir(d, nomeArq) {
 }
 
 // modo: 'pdf' imprime aqui mesmo; 'link' grava e copia o endereco do cliente.
+// ═══ O PREÇO VENDIDO E O KIT NOS ORÇAMENTOS DO SIMULADOR (09/10/2026) ═══
+// CM-04: com desconto, frete ou preço negociado no Orçamento, o contrato, o
+// recibo e o banco saíam com um valor e o Básico e o Completo com outro. Agora
+// o consultor escolhe na hora de emitir, e a conta do retorno segue o preço
+// que ele escolheu. A conta é a do orcLerItens, refeita aqui para não depender
+// de a aba Orçamento ter sido aberta depois da última mudança no Simulador.
+function epPrecoVendido() {
+  const sim = elMilhar('el-invest');
+  const vEl = document.getElementById('orc-valor');
+  const sub = vEl && vEl.dataset.tocado === '1' ? ctrMoeda(vEl.value) : sim;
+  const frete = ctrMoeda(orcVal('orc-frete')), desc = ctrMoeda(orcVal('orc-desc'));
+  const total = Math.max(0, sub + frete - desc);
+  return { sim, total, desc, frete, negociado: !!(vEl && vEl.dataset.tocado === '1'), difere: total > 0 && sim > 0 && Math.abs(total - sim) >= 1 };
+}
+// Devolve o investimento do papel quando o consultor escolhe o do Orçamento,
+// ou null para seguir o Simulador.
+function epPrecoPergunta() {
+  const v = epPrecoVendido();
+  if (!v.difere) return null;
+  const como = [v.negociado && 'preço negociado', v.desc > 0 && 'desconto', v.frete > 0 && 'frete'].filter(Boolean).join(', ');
+  return confirm(`O Orçamento está em ${ORC_MONEY(v.total)}${como ? ' (' + como + ')' : ''} e o Simulador em ${ORC_MONEY(v.sim)}.\n\n`
+    + `O contrato, o recibo e a proposta de banco saem com ${ORC_MONEY(v.total)}.\n\n`
+    + `OK: este papel também sai com ${ORC_MONEY(v.total)}, e o retorno é calculado sobre ele.\nCancelar: sai com o valor do Simulador.`) ? v.total : null;
+}
+// CM-05: o que está dentro do valor é o kit marcado no Orçamento. Sem a aba
+// aberta, vale o kit da casa (tudo marcado), que é o que o contrato também usa.
+function epKitDoPapel(modelo) {
+  const temKit = document.querySelectorAll('#orc-kit .orc-kit-row').length > 0;
+  const on = id => temKit ? orcKitMarcado(id) : !((EP_KIT.find(k => k.id === id) || {}).extra);
+  const nomes = {
+    carreg: ['Carregador ' + (modelo || 'NEXUS')], proj: ['Projeto de engenharia', 'Homologação na concessionária'],
+    padrao: ['Padrão de entrada 200A'], trafo: ['Transformador 220/380'], cabo: ['Infraestrutura elétrica e cabeamento'],
+    civil: ['Infraestrutura civil'], cobert: ['Cobertura'], mao: ['Mão de obra e instalação'],
+  };
+  const ordem = ['carreg', 'proj', 'padrao', 'trafo', 'cabo', 'civil', 'cobert', 'mao'];
+  const inclui = [], fora = ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+  ordem.forEach(id => (on(id) ? inclui : fora).push(...nomes[id]));
+  inclui.push('Garantia de 24 meses da instalação');
+  const falta = [!on('padrao') && 'Padrão de entrada', !on('trafo') && 'transformador'].filter(Boolean);
+  const aviso = falta.length
+    ? `${falta.join(' e ').replace(/^t/, 'T')}, se o seu padrão não aguentar a carga. ${falta.length > 1 ? 'Orçados' : 'Orçado'} depois da medição.`
+    : 'Reforço da rede ou obra exigida pela distribuidora, se houver, é orçado à parte depois do parecer de acesso.';
+  return { inclui, fora, aviso, marcado: on, on: { cobert: on('cobert'), civil: on('civil'), padrao: on('padrao'), trafo: on('trafo') } };
+}
+
 function epCompletoGerar(modo, comSociedade) {
   epCompletoAplicar();
   const p = eletroParams();
   if (!(p.invest > 0)) { alert('Defina o investimento total para emitir o Orçamento Completo.'); return; }
+  const invPapel = comSociedade ? null : epPrecoPergunta();
+  if (invPapel) p.invest = invPapel;
   const r = computeEletro(p);
   if (r.payback == null) {
     alert('Com estes números o projeto não se paga em 10 anos, então o Orçamento Completo não pode ser emitido.\n\nAjuste carros por dia, preço do kWh ou o investimento e tente de novo.');
@@ -14907,7 +14976,7 @@ function epCompletoGerar(modo, comSociedade) {
   }
   eletroSalvarHistorico();
   eletroUltimoSalvar();
-  const d = epCompletoPayload('completa', comSociedade);
+  const d = epCompletoPayload('completa', comSociedade, invPapel);
   const nome = epNomeArq(comSociedade ? 'Sociedade' : 'Orcamento', d.cliente);
 
   if (modo === 'pdf') {
@@ -14952,6 +15021,8 @@ function epCompletoApresentacao(versao) {
     alert('Defina o "Investimento total" no Simulador para gerar o Orçamento Completo.');
     return;
   }
+  const invPapel = epPrecoPergunta();
+  if (invPapel) p.invest = invPapel;
   const r = computeEletro(p);
   // A mesma trava que o deck tem do outro lado, só que aqui o consultor ainda
   // consegue consertar: payback nulo quer dizer que o projeto não se paga em 10
@@ -14962,7 +15033,7 @@ function epCompletoApresentacao(versao) {
   }
   eletroSalvarHistorico();   // registra no histórico (fire-and-forget)
   eletroUltimoSalvar();      // guarda o estado local: daqui saem as outras abas
-  const d = epCompletoPayload(versao);
+  const d = epCompletoPayload(versao, false, invPapel);
 
   // A ABA ABRE PRIMEIRO, e isso é de propósito: navegador bloqueia popup que
   // nasce depois de um await, então abrir só no fim do INSERT faria o documento
@@ -15740,6 +15811,9 @@ function eletroImprimir() {
   const anos = x => x == null ? '—' : elAnos1(x);
   const tirTxt = x => x == null ? '—' : elPct1(x);
   const outros = d.n > 1;
+  // S50-12: no 50/50 o local é do sócio, e a remuneração dele sai do
+  // faturamento antes da divisão. Ela é dinheiro dele, não só custo do posto.
+  const localMes = !outros && r.arrend > 0 ? r.fatMes * r.arrend : 0;
 
   // ── A FRASE. Sai dos numeros, com as mesmas ramificacoes do Simulador, mas
   // contada do ponto de vista de QUEM VAI ASSINAR: o dinheiro dele, a parte dele.
@@ -15750,8 +15824,8 @@ function eletroImprimir() {
   // ── Hero: os QUATRO numeros que decidem a entrada na sociedade.
   const hero = [
     ['Seu aporte', money(d.aporte), pctS + '% do lucro'],
-    ['Seu lucro por mês', money(parteS(r.lucroMes)), 'em regime pleno'],
-    ['Retorno do seu capital', anos(d.socio.payback), 'payback simples'],
+    ['Seu lucro por mês', money(parteS(r.lucroMes)), localMes ? `em regime pleno, mais ${money(localMes)} pelo local` : 'em regime pleno'],
+    ['Retorno do seu capital', anos(d.socio.payback), localMes ? 'payback simples, sem contar o local' : 'payback simples'],
     ['Sua rentabilidade', tirTxt(d.socio.tir), d.socio.tir == null ? 'não alcançada em 10 anos' : 'ao ano (TIR)'],
   ].map(h => `<div class="pl-hero"><div class="k">${h[0]}</div><div class="v">${h[1]}</div><div class="s">${h[2]}</div></div>`).join('');
 
@@ -15768,6 +15842,7 @@ function eletroImprimir() {
     `<tr${cls ? ' class="' + cls + '"' : ''}><td>${quem}</td><td class="num">${aporte}</td><td class="num">${cota}</td><td class="num">${mes}</td><td class="num">${dez}</td></tr>`;
   const quadro = [
     qs('<b>Você</b>', money(d.aporte), pctS + '%', money(parteS(r.lucroMes)), money(d.socio.acumulado10), 'hl'),
+    localMes ? qs('Você, pelo local <span class="sub">' + elPctRot(r.arrend) + ' do faturamento, pago antes da divisão</span>', '—', '—', money(localMes), '—') : '',
     outros ? qs(`Demais sócios (${d.nOutros}) · ${pctS}% cada`, money(d.aporteOutros), socPct(d.cotaOutros * 100) + '%',
                 money(r.lucroMes * d.cotaOutros), money(d.outros.acumulado10)) : '',
     qs('NEXUS <span class="sub">' + (d.aporteNexus > 0 ? 'capital, obra e administração' : 'trabalho, obra e administração') + '</span>',
@@ -15969,7 +16044,7 @@ function eletroImprimir() {
         <h3>Custos que saem ANTES da divisão</h3>
         <table class="ep-kv">${kv([
           ['Software NEXUS', seTem('el-software', (r.software * 100).toLocaleString('pt-BR') + '%')],
-          ['Arrendamento do ponto', seTem('el-arrend', (r.arrend * 100).toLocaleString('pt-BR') + '%')],
+          [localMes ? 'Remuneração do local (paga a você)' : 'Arrendamento do ponto', seTem('el-arrend', (r.arrend * 100).toLocaleString('pt-BR') + '%')],
           ['Manutenção', seTem('el-manut', money(r.manutMes || 0) + ' / mês')],
           ['Imposto (Simples Nacional)', seTem('el-imposto', (r.imposto * 100).toLocaleString('pt-BR') + '%')],
           ['Internet local', seTem('el-assinatura', money(r.assinat))],
@@ -17023,7 +17098,7 @@ function orcEpPayload() {
     obs: orcVal('orc-obs') || ORC_OBS_PADRAO,
     tiles: orc1EpTiles(),
     linhas: orc1EpLinhas(),
-    fin: orc1EpFinanceiro(r.total),
+    fin: orc1EpFinanceiro(r.total, r.total),
     pag: pg,
     vendedor: { nome: vendNome, contato: vendTel },
     empresa: orc1EpEmpresa(),
@@ -17743,8 +17818,10 @@ function orc1EpMateriais(r) {
 
 // Bloco financeiro: o retorno estimado (quando o Simulador tem números) de um
 // lado, o investimento do outro, e os três indicadores da operação embaixo.
-function orc1EpFinanceiro(total) {
-  const r = computeEletro(eletroParams());
+function orc1EpFinanceiro(total, investPapel) {
+  const pp = eletroParams();
+  if (investPapel > 0) pp.invest = investPapel;
+  const r = computeEletro(pp);
   const temSim = r.investTotal > 0 && r.fatMes > 0;
   return {
     heroL: temSim
@@ -18149,6 +18226,8 @@ function eletroTelaA4() {
 
 function epBasicoImprimir() {
   const p = eletroParams();
+  const invPapel = p.invest > 0 ? epPrecoPergunta() : null;
+  if (invPapel) p.invest = invPapel;
   const r = computeEletro(p);
   const t = eletroTextos();
   const total = r.investTotal;
@@ -18159,13 +18238,20 @@ function epBasicoImprimir() {
 
   // O Básico sai do Simulador, sem passar pelo kit: então lista o escopo fechado
   // em vez de itens marcados. Nada aqui promete item que o consultor não escolheu.
+  // CM-05: o escopo é o kit marcado no Orçamento (sem a aba aberta, o kit da
+  // casa), o mesmo que o contrato e o banco imprimem.
+  const kb = epKitDoPapel(t.equip || '');
   const itensBasico = { itens: [
-    { desc: 'Carregador', variante: t.equip || '' },
-    { desc: 'Projeto de engenharia e homologação na concessionária', variante: '' },
-    { desc: 'Mão de obra e instalação', variante: '' },
-    { desc: 'Infraestrutura elétrica e civil', variante: '' },
-    { desc: 'Suporte e garantia de 24 meses da instalação', variante: '' },
-  ], subtotal: total, frete: 0, desconto: 0, total };
+    ['carreg', { desc: 'Carregador', variante: t.equip || '', qtd: orcEpQtdCarregadores() }],
+    ['proj', { desc: 'Projeto de engenharia e homologação na concessionária', variante: '' }],
+    ['padrao', { desc: 'Padrão de entrada 200A', variante: '' }],
+    ['trafo', { desc: 'Transformador 220/380', variante: '' }],
+    ['cabo', { desc: 'Infraestrutura elétrica e cabeamento', variante: '' }],
+    ['civil', { desc: 'Infraestrutura civil', variante: '' }],
+    ['cobert', { desc: 'Cobertura', variante: '' }],
+    ['mao', { desc: 'Mão de obra e instalação', variante: '' }],
+    ['', { desc: 'Suporte e garantia de 24 meses da instalação', variante: '' }],
+  ].filter(([id]) => !id || kb.marcado(id)).map(([, i]) => i), subtotal: total, frete: 0, desconto: 0, total };
 
   const html = orc1HTML({
     tema: 'ep',
@@ -18181,8 +18267,8 @@ function epBasicoImprimir() {
     linhas: orc1EpLinhasRotulo(orc1EpLinhas({ cidade: t.cidade })),
     compTitulo: 'Composição do Sistema',
     compHTML: orc1EpMateriais(itensBasico),
-    ...orc1EpFinanceiro(total),
-    obs: ORC_OBS_PADRAO,
+    ...orc1EpFinanceiro(total, total),
+    obs: orcVal('orc-obs') || ORC_OBS_PADRAO,
     // O card manda. Antes a condicao era cravada nesta linha, e o Basico prometia
     // "18x" e "ate 72x" mesmo com o consultor tendo desmarcado os dois — medido
     // nos quatro casos de marcacao em 26/09/2026.
@@ -19280,7 +19366,8 @@ function ctrTipoUi() {
   pane.querySelectorAll('[data-ctr-tipos],[data-ctr-socmodo],[data-ctr-ta],[data-ctr-ti]').forEach(el => {
     const ds = el.dataset;
     const ok = (!ds.ctrTipos || ds.ctrTipos.split(/\s+/).includes(t))
-      && (!ds.ctrSocmodo || ds.ctrSocmodo === modo)
+      // Lista de modos; "fora" é o tipo sem sociedade (arrendamento e termo do arrendador).
+      && (!ds.ctrSocmodo || ds.ctrSocmodo.split(/\s+/).includes(modo || 'fora'))
       && (!ds.ctrTa || ds.ctrTa === nivel)
       && (!ds.ctrTi || ds.ctrTi.split(/\s+/).includes(uso));
     el.classList.toggle('ctr-fora', !ok);
@@ -20546,7 +20633,7 @@ function ctrDados() {
     // qualificação civil da parte, que só sai no papel quando escrita.
     nomes: ctrNomes(tipo),
     ta: tipo === 'termo_arr' ? ctrTA() : null, ti: (tipo === 'termo_inv' || ctrEhSoc(tipo)) ? ctrTI() : null,
-    interv: (tipo === 'arrend' || tipo === 'termo_arr') ? ctrInterv() : null,
+    interv: (tipo === 'arrend' || tipo === 'termo_arr' || tipo === 'socio50') ? ctrInterv() : null,
     eqv: tipo === 'equip' ? ctrEqv() : null, eqAtraso: ctrInt('ctr-eq-atraso', 30),
     qualif: orcVal('ctr-qualif'),
     // Numero do contrato. NAO herda mais do recibo: dois instrumentos diferentes
@@ -20645,7 +20732,8 @@ const CTR_OPC = [
     dicas: { socio50: 'Dados dos usuários tratados só pela NEXUS para operar o ponto; o sócio recebe números agregados. Marca e software continuam da NEXUS.',
              cotas: 'Dados dos usuários tratados só pela NEXUS para operar o ponto; o sócio recebe números agregados. Marca e software continuam da NEXUS.',
              arrend: 'O dono do local recebe só números agregados, nunca dado pessoal de motorista: mandar lista com placa ou telefone é tratamento sem base legal.' } },
-  { id: 'anuencia', tipos: ['completo', 'socio50'], rot: 'Autorização do dono do imóvel', padrao: () => epFichaNaoDono(),
+  { id: 'anuencia', tipos: ['completo', 'socio50', 'termo_inv'], so: t => t !== 'termo_inv' || (orcVal('ctr-ti-uso') !== 'adesao' && orcVal('ctr-ti-modelo') === 'socio50'),
+    rot: 'Autorização do dono do imóvel', padrao: () => epFichaNaoDono(),
     dica: 'Para inquilino ou quem representa o dono: a anuência escrita do proprietário vem junto com os documentos. Nasce marcada quando o formulário diz que o local não é dele.' },
   { id: 'reajuste', tipos: CTR_OB, rot: 'Reajuste se o início atrasar', padrao: false,
     dica: 'Se a obra demorar mais de 60 dias para começar por causa do cliente, o saldo corrige pelo IPCA e o equipamento importado pelo câmbio.' },
@@ -20716,7 +20804,7 @@ const CTR_OPC = [
   { id: 'ti_match', tipos: ['termo_inv'], rot: 'Autoriza apresentar ao dono do local', padrao: false,
     dica: 'Consentimento para mostrar nome, cidade e valor do aporte ao dono do ponto. Marque só se ele autorizou.' },
 ];
-function ctrOpcDoTipo(t) { return CTR_OPC.filter(o => !o.tipos || o.tipos.includes(t)); }
+function ctrOpcDoTipo(t) { return CTR_OPC.filter(o => (!o.tipos || o.tipos.includes(t)) && (!o.so || o.so(t))); }
 let ctrOpc = {};
 function ctrOpcOn(id) {
   if (Object.prototype.hasOwnProperty.call(ctrOpc, id)) return !!ctrOpc[id];
@@ -21053,9 +21141,21 @@ function ctrDeclSocio(d, C, I, e, pct, op, lacuna) {
       : 'A SÓCIA OSTENSIVA não paga ao SÓCIO PARTICIPANTE, e o SÓCIO PARTICIPANTE não recebe de ninguém, valor por indicar outros investidores.') : ''),
   ]);
 }
+// A área cedida pelo sócio no 50/50 (S50-08): os mesmos campos do arrendamento.
+function ctrAreaPonto(e, lacuna) {
+  const vagas = Math.max(1, Math.round(orcNum(ctrCampo('ctr-arr-vagas')) || 1)), area = orcVal('ctr-arr-area');
+  const h = orcVal('ctr-arr-horario') || '24h', ht = orcVal('ctr-arr-horario-txt');
+  return {
+    area: `a área de <b>${vagas} vaga(s) de estacionamento</b>${area ? `, com cerca de ${e(area)} m²,` : ''} destinada(s) à recarga, com a base e a proteção do equipamento e o trajeto do cabeamento, necessária à instalação, à operação e ao acesso do PONTO`,
+    horario: { '24h': '24 (vinte e quatro) horas por dia, todos os dias', estab: 'no horário de funcionamento do estabelecimento', outro: ht ? e(ht) : lacuna }[h] || lacuna,
+  };
+}
 function ctrModeloSociedade(d) {
   const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
   const s = d.soc, P = d.socP;
+  const ap = ctrAreaPonto(e, lacuna);
+  const ivS = d.tipo === 'socio50' && d.interv && d.interv.nome ? d.interv : null;
+  const ivDonoS = !!ivS && ivS.papel === 'proprietario';
   const cotas = d.tipo === 'cotas';
   const socio50 = d.tipo === 'socio50';
   const arrendLocal = s.arrend > 0;
@@ -21107,12 +21207,14 @@ function ctrModeloSociedade(d) {
     C('local', 'Do local', [
       I('local.cessao', socio50
         ? (arrendLocal
-          ? `O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE e durante toda a vigência dela, a área do local necessária à instalação, à operação e ao acesso do PONTO, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, valor que integra os custos da operação da {{i:resultado.custos}} e é pago até o dia ${P.dia} do mês seguinte ao da apuração, junto com o demonstrativo da {{i:resultado.divisao}}.`
-          : 'O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE, durante toda a vigência dela e sem remuneração, a área do local necessária à instalação, à operação e ao acesso do PONTO, como parte da sua contribuição.')
+          ? `O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE e durante toda a vigência dela, ${ap.area}, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, valor que integra os custos da operação da {{i:resultado.custos}} e é pago até o dia ${P.dia} do mês seguinte ao da apuração, junto com o demonstrativo da {{i:resultado.divisao}}.`
+          : `O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE, durante toda a vigência dela e sem remuneração, ${ap.area}, como parte da sua contribuição.`)
         : `O local é objeto de contrato de cessão de área firmado pela SÓCIA OSTENSIVA com o titular do imóvel, cuja cópia fica à disposição dos sócios e cujo custo${arrendLocal ? `, de <b>${pct(s.arrend)}% do faturamento bruto</b>,` : ', se houver,'} integra os custos da operação da {{i:resultado.custos}}. A SÓCIA OSTENSIVA mantém esse contrato em vigor durante toda a vigência da SOCIEDADE, e a perda do local por fato imputável a ela é descumprimento da {{c:rescisao}}.`),
-      I('local.acesso', socio50 ? 'O SÓCIO PARTICIPANTE assegura o acesso livre dos usuários durante o horário de funcionamento do PONTO definido pela SÓCIA OSTENSIVA e o das equipes de manutenção a qualquer tempo, e não instala nem autoriza, no mesmo imóvel, outra estação de recarga aberta ao público.' : ''),
-      I('opc.anuencia', socio50 && op('anuencia') ? 'Não sendo o SÓCIO PARTICIPANTE proprietário do imóvel, ele apresenta, na assinatura, a anuência escrita do proprietário para a instalação, e a SOCIEDADE não ultrapassa o prazo do direito dele sobre o local.' : ''),
-      I('local.proprietario', socio50 && !op('anuencia') ? 'O SÓCIO PARTICIPANTE declara ser proprietário do imóvel, com a posse direta.' : ''),
+      I('local.acesso', socio50 ? `O SÓCIO PARTICIPANTE assegura o acesso livre dos usuários ao PONTO ${ap.horario}, e o das equipes de manutenção a qualquer tempo, e não instala nem autoriza, no mesmo imóvel, outra estação de recarga aberta ao público.` : ''),
+      // S50-09: o dono do imóvel assina como interveniente ou dá o termo de anuência.
+      I('local.dono', ivS ? `O INTERVENIENTE ANUENTE${ivDonoS ? ', proprietário do imóvel,' : ''} autoriza a instalação e a cessão da {{i:local.cessao}} por todo o prazo da {{c:prazo}}${ivDonoS ? '. Terminando antes o direito do SÓCIO PARTICIPANTE sobre o local, ele assume a cessão nas mesmas condições ou, recusando, aplica-se a {{i:rescisao.descumprimento}}, sendo culpado o SÓCIO PARTICIPANTE' : ''}.` : ''),
+      I('opc.anuencia', socio50 && !ivDonoS && op('anuencia') ? 'Não sendo o SÓCIO PARTICIPANTE proprietário do imóvel, ele apresenta, na assinatura, o termo de anuência do proprietário, que autoriza a instalação e a cessão da {{i:local.cessao}} por todo o prazo da {{c:prazo}}. Terminando antes o direito do SÓCIO PARTICIPANTE sobre o local, o proprietário assume a cessão nas mesmas condições ou, recusando, aplica-se a {{i:rescisao.descumprimento}}, sendo culpado o SÓCIO PARTICIPANTE.' : ''),
+      I('local.proprietario', socio50 && !ivDonoS && !op('anuencia') ? (ivS ? 'O SÓCIO PARTICIPANTE declara ser proprietário do imóvel.' : 'O SÓCIO PARTICIPANTE declara ser proprietário do imóvel, com a posse direta.') : ''),
       I('local.protecao', socio50 ? 'O SÓCIO PARTICIPANTE não obstrui, não desliga e não bloqueia o PONTO; comunica à SÓCIA OSTENSIVA, em 5 (cinco) dias, penhora, execução ou desapropriação que alcance o imóvel; e, vendendo-o ou dando-o em garantia, faz constar do instrumento a existência da cessão da {{i:local.cessao}}. Recusada pelo adquirente a continuidade da cessão, aplica-se a {{i:rescisao.descumprimento}}, sendo culpado o SÓCIO PARTICIPANTE.' : ''),
       I('local.bens', 'Os equipamentos são bens móveis, removíveis, e não se incorporam ao imóvel. Saindo o PONTO do local, a SÓCIA OSTENSIVA os retira em até 30 (trinta) dias e recompõe a área.'),
       I('local.energia', 'A ligação do PONTO à rede, a demanda contratada e o consumo de energia correm por conta da SOCIEDADE, como custo da operação. Obra de conexão exigida pela concessionária segue a {{i:capital.adicional}}.'),
@@ -21882,7 +21984,7 @@ function ctrBlocosDoc(d, opts) {
   const N = d.nomes || ctrNomes(d.tipo);
   const cab = ctrCabecalho(d);
   const dataTxt = d.data.toLocaleDateString('pt-BR');
-  const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
+  const endCli = epEndParte(d.contratanteEnd, d.cep, d.cidade);
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
   // Interveniente anuente: quem também assina para autorizar a cessão e a obra.
   const iv = d.interv && d.interv.nome ? d.interv : null;
@@ -21922,8 +22024,8 @@ function ctrBlocosDoc(d, opts) {
       </div>
       <div class="ep-ctr-tit">${cab.titulo}</div>
       <div class="ep-ctr-sub">${cab.sub}</div>`,
-    `<p class="ep-ctr-p"><b>${N.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}${d.empresa.socio ? `, neste ato representada por <b>${e(d.empresa.socio)}</b>${d.empresa.socioCpf ? ', CPF nº ' + e(d.empresa.socioCpf) : ''}` : ', neste ato representada na forma do seu contrato social'}.</p>`,
-    `<p class="ep-ctr-p"><b>${N.deles}:</b> ${vazio(d.contratante)}${d.qualif ? ', ' + e(d.qualif) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${d.ie ? ', inscrição estadual nº ' + e(d.ie) : ''}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
+    `<p class="ep-ctr-p"><b>${N.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(epFoneBR(d.empresa.tel)) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}${d.empresa.socio ? `, neste ato representada por <b>${e(d.empresa.socio)}</b>${d.empresa.socioCpf ? ', CPF nº ' + e(d.empresa.socioCpf) : ''}` : ', neste ato representada na forma do seu contrato social'}.</p>`,
+    `<p class="ep-ctr-p"><b>${N.deles}:</b> ${vazio(d.contratante)}${d.qualif ? ', ' + e(d.qualif) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${d.ie ? ', inscrição estadual nº ' + e(d.ie) : ''}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(epFoneBR(d.tel)) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
     iv ? `<p class="ep-ctr-p"><b>INTERVENIENTE ANUENTE:</b> ${e(iv.nome)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(iv.doc)}${iv.end ? ', com endereço em ' + e(iv.end) : ''}${iv.rep ? `, neste ato representado(a) por <b>${e(iv.rep)}</b>${iv.repDoc ? ', CPF nº ' + e(iv.repDoc) : ''}` : ''}, na qualidade de ${e(iv.qualidade)}, que assina este instrumento para anuir à cessão e às obras.</p>` : '',
     `<p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>`,
     ...blocosClausulas,
@@ -21968,6 +22070,19 @@ function ctrAnexos(d) {
   return out;
 }
 
+// "34991234567" vira "(34) 99123-4567"; o que não tiver 10 ou 11 dígitos fica.
+function epFoneBR(s) {
+  const dg = String(s || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  if (dg.length === 11) return `(${dg.slice(0, 2)}) ${dg.slice(2, 7)}-${dg.slice(7)}`;
+  if (dg.length === 10) return `(${dg.slice(0, 2)}) ${dg.slice(2, 6)}-${dg.slice(6)}`;
+  return String(s || '');
+}
+// O endereço da parte ganha a cidade do Simulador (a do ponto) só quando não
+// traz cidade e UF: dono que mora em outra cidade saía com a cidade errada.
+function epEndParte(end, cep, cidade) {
+  const temUF = /(\/|-|,)\s*[A-Z]{2}\s*$|\/\s*[A-Z]{2}\b/.test(String(end || ''));
+  return [end, cep, temUF ? '' : cidade].filter(Boolean).join(', ');
+}
 function ctrHTML(d) {
   const e = orcEsc;
   // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
@@ -21975,7 +22090,8 @@ function ctrHTML(d) {
   // pessoa física no pé de todas as folhas.
   const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
   const cab = ctrCabecalho(d);
-  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span><span>Página ${n} de ${tot}</span></div>`;
+  const nRub = 2 + (d.interv && d.interv.nome ? 1 : 0);
+  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span>${tot > 1 ? `<span class="ep-rubr">Rubricas ${'<i></i>'.repeat(nRub)}</span>` : ''}<span>Página ${n} de ${tot}</span></div>`;
   const blocos = ctrBlocosDoc(d);
   ctrAnexos(d).forEach(a => blocos.push(EP_QUEBRA, ...a));
   return `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
@@ -22456,7 +22572,7 @@ function procHTML(d) {
   const e = orcEsc;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const dataTxt = d.data.toLocaleDateString('pt-BR');
-  const endCli = [d.outorganteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
+  const endCli = epEndParte(d.outorganteEnd, d.cep, d.cidade);
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
   // Uma folha nao se numera: "Página 1 de 1" e' ruido, e foi essa contagem
   // fixa que escondeu o vazamento pra 2 folhas. Fica so' a identificacao, que
@@ -22729,7 +22845,7 @@ function anuHTML(d) {
   const imovelTxt = locImovelTxt(d.imovel);
   const obra = d.caso === 'dono_obra';
   const objeto = {
-    dono_cessao: `O ANUENTE declara conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : ''}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>. Declara ter recebido cópia do instrumento.`,
+    dono_cessao: `O ANUENTE declara conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : d.tipo === 'termo_inv' ? ', e o contrato de sociedade em conta de participação na forma da minuta anexa a ele' : ''}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>. Declara ter recebido cópia do instrumento.`,
     inquilino_cessao: `O ANUENTE declara ser locatário do IMÓVEL, de propriedade de ${cedente}, e conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : ''}, firmado entre o CEDENTE e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>, abrindo mão da posse da área cedida enquanto o instrumento durar. Declara ter recebido cópia do instrumento.`,
     dono_obra: `O ANUENTE declara conhecer o ${instrumento}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, para o fornecimento e a instalação de estação de recarga de veículos elétricos no IMÓVEL, e <b>autoriza de forma expressa e específica</b> a instalação. Declara ter recebido cópia do instrumento.`,
   }[d.caso];
@@ -22747,7 +22863,8 @@ function anuHTML(d) {
     'Esta anuência é <b>irrevogável</b> pelo prazo do instrumento e das suas renovações, e a sua revogação não produz efeito contra a NEXUS.',
     d.caso === 'dono_cessao' && d.locacaoCurta
       ? 'Terminada a locação do CEDENTE antes do fim do instrumento ou das suas renovações, o ANUENTE <b>assume a posição de CEDENTE nas mesmas condições</b>, desde o dia seguinte ao fim da locação, e passa a receber a remuneração dali em diante.'
-      : d.caso === 'dono_cessao' && d.arr ? 'O ANUENTE declara que a locação do CEDENTE vigora, no mínimo, até o fim do prazo do instrumento.' : '',
+      : d.caso === 'dono_cessao' && d.arr ? 'O ANUENTE declara que a locação do CEDENTE vigora, no mínimo, até o fim do prazo do instrumento.'
+      : d.caso === 'dono_cessao' && (ctrEhSoc(d.tipo) || d.tipo === 'termo_inv') ? 'Terminando antes o direito do CEDENTE sobre o local, o ANUENTE <b>assume a cessão nas mesmas condições</b>, até o fim do prazo do instrumento.' : '',
     d.caso === 'dono_cessao' ? 'Enquanto o CEDENTE for parte do instrumento, a remuneração da cessão é dele, e esta anuência não dá ao ANUENTE direito a remuneração nenhuma.'
       : 'A remuneração da cessão é do CEDENTE, e esta anuência não dá ao ANUENTE direito a remuneração nenhuma.',
     d.caso === 'dono_cessao' ? 'Vendendo o IMÓVEL, o ANUENTE faz constar a existência do instrumento no contrato de venda e faz o adquirente assumir, no mesmo contrato, o dever de respeitá-lo até o fim da vigência e das suas renovações. Não o fazendo, responde perante a NEXUS pelas perdas e danos.' : '',
