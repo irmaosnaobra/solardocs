@@ -134,6 +134,110 @@ html[data-mode="app"].tabelas-aberta .container,
 html[data-mode="app"].redes-aberto .container,
 html[data-mode="app"].crm-aberto .container,
 html[data-mode="app"].leads-aberto .container{margin-left:0!important}
+/* ===== Fechamento solar (09/10/2026): contrato, procuração e recibo ===== */
+html[data-mode="app"].fechamento-solar-aberto #app-sidebar,
+html[data-mode="app"].fechamento-solar-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].fechamento-solar-aberto .container{margin-left:0!important}
+#fechamentoSolarSection{max-width:860px;margin:0 auto}
+#fechamentoSolarSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:20px 18px;margin-bottom:16px}
+.fs-sub{font-size:12.5px;color:#94A3B8;line-height:1.5;margin-top:10px}
+.fs-opc{font-weight:600;color:#64748B;text-transform:none;letter-spacing:0;font-size:11.5px}
+.fs-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 14px}
+.fs-grid.g3{grid-template-columns:repeat(3,1fr)}
+.fs-grid.g4{grid-template-columns:repeat(4,1fr)}
+.fs-grid .s2{grid-column:1/-1}
+.fs-f{min-width:0}
+.fs-f label{display:block;font-size:13px;font-weight:600;color:#E5E7EB;margin-bottom:7px}
+.fs-f label .hint{font-weight:400;color:#94A3B8;font-size:11.5px}
+.fs-f input,.fs-f select,.fs-f textarea,.fs-puxar input,.fs-pag select,.fs-pag input{width:100%;box-sizing:border-box;padding:12px 14px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;font-weight:600;outline:none;transition:border-color .2s;min-height:46px}
+.fs-f textarea{resize:vertical;line-height:1.45;min-height:84px}
+.fs-f input:focus,.fs-f select:focus,.fs-f textarea:focus,.fs-puxar input:focus,.fs-pag select:focus,.fs-pag input:focus{border-color:#F59E0B}
+.fs-f input::placeholder,.fs-f textarea::placeholder,.fs-puxar input::placeholder{color:#475569;font-weight:400}
+.fs-f input[type=date],.fs-pag input[type=date]{color-scheme:dark}
+.fs-erro,.fs-f input.fs-erro,.fs-pag input.fs-erro{border-color:#F87171!important;box-shadow:0 0 0 3px rgba(248,113,113,.18)}
+.fs-inp{position:relative}
+.fs-inp .pre,.fs-inp .suf{position:absolute;top:50%;transform:translateY(-50%);color:#94A3B8;font-size:14px;font-weight:600;pointer-events:none}
+.fs-inp .pre{left:14px}
+.fs-inp .suf{right:14px}
+.fs-inp.has-pre input{padding-left:42px}
+.fs-inp.has-suf input{padding-right:72px}
+.fs-puxar{display:flex;gap:10px;align-items:stretch}
+.fs-puxar input{flex:1}
+.fs-btn-sec{flex:0 0 auto;min-height:46px;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#243349;color:#E5E7EB;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.fs-btn-sec:hover{border-color:#F59E0B;color:#fff}
+.fs-tabs{display:flex;gap:8px;margin:0 0 16px;overflow-x:auto;scrollbar-width:none}
+.fs-tabs::-webkit-scrollbar{display:none}
+.fs-tab{flex:1 0 auto;min-height:48px;padding:10px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#94A3B8;font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap}
+.fs-tab:hover{color:#E5E7EB;background:rgba(255,255,255,.08)}
+.fs-tab.ativa{color:#fff;background:rgba(245,158,11,.18);border-color:#F59E0B}
+.fs-det{padding:0}
+.fs-det>summary{cursor:pointer;list-style:none;padding:18px;font-size:12px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.7px;min-height:44px}
+.fs-det>summary::-webkit-details-marker{display:none}
+.fs-det>summary::before{content:'+';display:inline-block;width:18px;color:#F59E0B;font-size:16px;font-weight:800}
+.fs-det[open]>summary::before{content:'\2212'}
+.fs-det>.fs-sub,.fs-det>.fs-grid{margin-left:18px;margin-right:18px}
+.fs-det[open]{padding-bottom:18px}
+.fs-pag{display:grid;grid-template-columns:150px 160px minmax(0,1fr) 46px;gap:10px;margin-bottom:10px;align-items:center}
+.fs-x{min-height:46px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0f1a2e;color:#F87171;font-size:22px;line-height:1;cursor:pointer}
+.fs-resumo{margin-top:12px;font-size:13.5px;color:#94A3B8}
+.fs-resumo b{color:#fff}
+.fs-resumo b.ok{color:#4ADE80}
+.fs-msg{display:none;margin:0 0 12px;padding:13px 15px;border-radius:12px;border:1px solid rgba(248,113,113,.5);background:rgba(248,113,113,.12);color:#fecaca;font-size:14px;font-weight:700;line-height:1.45}
+.fs-msg.on{display:block}
+.fs-btn-main{display:block;width:100%;min-height:54px;margin:0 0 18px;border-radius:14px;border:0;background:#F59E0B;color:#1a1204;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;letter-spacing:.2px}
+.fs-btn-main:hover{background:#FBBF24}
+.fs-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.fs-h:last-of-type{border-bottom:0}
+.fs-h .i{min-width:0;font-size:14px;color:#E5E7EB}
+.fs-h .i b{color:#fff}
+.fs-h .i small{display:block;color:#94A3B8;font-size:12px;margin-top:2px}
+.fs-h .ed{color:#fbbf24;font-size:11.5px}
+.fs-h .a{display:flex;gap:8px;flex:0 0 auto}
+@media(max-width:620px){
+  .fs-grid,.fs-grid.g3{grid-template-columns:1fr}
+  .fs-grid.g4{grid-template-columns:1fr 1fr}
+  .fs-pag{grid-template-columns:1fr 1fr 46px}
+  .fs-pag .fs-inp{grid-column:1/3}
+  .fs-pag .fs-x{grid-row:1;grid-column:3}
+  .fs-h{flex-direction:column;align-items:stretch}
+  .fs-h .a .fs-btn-sec{flex:1}
+  #fechamentoSolarSection .card{padding:16px 14px}
+}
+/* O papel solar: marca Irmãos na Obra no lugar da NEXUS. Reaproveita .ep-doc/.ep-page/.ep-ctr-*. */
+.sol-brand{display:flex;align-items:center;gap:11px;margin-bottom:0}
+.sol-logo{height:17mm;width:17mm;object-fit:contain;flex:none;border-radius:50%}
+.ep-ctr-topo .sol-logo{height:13mm;width:13mm}
+.sol-mk{font-size:15px;font-weight:900;color:#0B1A2B;line-height:1.1;letter-spacing:-.2px}
+.sol-brand{min-width:0}
+#fs-uf{text-transform:uppercase}
+.sol-mk small{display:block;white-space:nowrap;font-size:8.5px;letter-spacing:.3px;color:#B45309;font-weight:800;margin-top:3px;text-transform:uppercase}
+.sol-sec{background:#0B1A2B;color:#fff;border-left:5px solid #F59E0B;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:6px 12px;border-radius:3px;margin:14px 0 10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-partes{display:flex;gap:12px;margin:0 0 10px}
+.sol-parte{flex:1;border:1px solid #e5e7eb;border-left:3px solid #F59E0B;border-radius:5px;padding:8px 11px;font-family:var(--serif);font-size:11.5px;line-height:1.5;color:#22303d;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-parte .cap{font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#B45309;margin-bottom:3px}
+.sol-res{width:100%;border-collapse:collapse;margin:2px 0 10px;color:#22303d;break-inside:avoid;page-break-inside:avoid}
+.sol-res td{padding:5px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-family:var(--serif);font-size:11.5px;line-height:1.45}
+.sol-res td.k{width:34%;font-family:Arial,Helvetica,sans-serif;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#0B1A2B}
+.sol-nt{font-size:11px;font-style:italic;color:#4b5563;padding-left:10px;border-left:2px solid #d1d5db}
+.sol-ul{margin:0 0 10px;padding:0 0 0 20px;list-style:disc;font-family:var(--serif);font-size:12.5px;color:#22303d;line-height:1.6;text-align:justify}
+.sol-ul li{margin:0 0 4px}
+.ep-ctr-p .rot,.ep-ctr-li .rot{font-weight:700;color:#1a1a1a}
+.sol-card{border:1px solid #e5e7eb;border-left:3px solid #F59E0B;background:#f9fafb;border-radius:5px;padding:8px 12px;margin:0 0 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-card .cap{font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#B45309;margin-bottom:5px}
+.sol-card .kv{display:grid;grid-template-columns:1fr 1fr;gap:5px 18px}
+.sol-card .kv>div{display:flex;flex-direction:column;gap:1px}
+.sol-card .kv .s2{grid-column:1/-1}
+.sol-card .kv .k{font-size:8.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#6b7684}
+.sol-card .kv .v{font-size:11.5px;font-weight:700;color:#12253F;line-height:1.35}
+.sol-card .kv .v.bl{border-bottom:1px solid #b9c2ce;min-height:14px}
+.sol-outs{display:flex;flex-direction:column;gap:6px;margin:0 0 8px}
+.sol-out{border:1px solid #e5e7eb;border-left:3px solid #0B1A2B;border-radius:4px;padding:6px 11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-out .ot{font-size:8.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#0B1A2B;margin-bottom:3px}
+.sol-out .oq{font-family:var(--serif);font-size:11.5px;line-height:1.5;color:#22303d;text-align:justify}
+.sol-out .lst{margin:0;padding-left:18px;font-family:var(--serif);font-size:11.5px;line-height:1.5;color:#22303d;text-align:justify}
+.sol-out .lst li{margin-bottom:4px}
+.sol-banco{margin-top:12px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:5px;background:#f9fafb;font-size:10.5px;line-height:1.5;color:#374151;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-banco b{color:#0B1A2B}
 /* ===== Calculadora (fullscreen como CRM/Redes/Leads) ===== */
 html[data-mode="app"].calc-aberto #app-sidebar,
 html[data-mode="app"].calc-aberto .sb-mobile-toggle{display:none!important}
@@ -2283,7 +2387,7 @@ html[data-mode="app"] .container > #historicoSection{
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
     display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
@@ -2993,6 +3097,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div class="solar-subnav" role="tablist" aria-label="Solar">
     <button type="button" class="solar-subtab" data-aba="gerador" onclick="navGerador()">Gerar proposta</button>
     <button type="button" class="solar-subtab" data-aba="historico" onclick="navHistorico()">Histórico</button>
+    <button type="button" class="solar-subtab" data-aba="fechamento" onclick="navFechamentoSolar()">Fechamento</button>
     <button type="button" class="solar-subtab" data-aba="leads" onclick="navLeads()">Leads</button>
     <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
     <button type="button" class="solar-subtab" data-aba="calc" onclick="navCalc()">Calculadora</button>
@@ -6041,6 +6146,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
       <div class="tbl-rodape">💡 Use os botões acima para <strong>ativar/desativar</strong> equipamentos no gerador de propostas. Desativados não aparecem na lista de linha ao criar proposta.</div>
     </div>
+  </div>
+
+  <!-- ============= TELA: FECHAMENTO SOLAR (contrato, procuração, recibo) ============= -->
+  <div id="fechamentoSolarSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>Fechamento</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="voltarDoFechamento()">← Voltar</button>
+    </div>
+    <div class="fs-sub" style="margin:-6px 0 16px">Contrato, procuração e recibo de quem fechou, no modelo do SolarDoc, prontos para imprimir ou salvar em PDF.</div>
+    <div id="fs-corpo"></div>
   </div>
 
   <!-- ============= TELA 6: LEADS (Instagram/Meta) ============= -->
@@ -9222,6 +9339,8 @@ function historicoPagProxima() {
 }
 
 async function abrirHistorico() {
+  const fsecH = document.getElementById('fechamentoSolarSection'); if (fsecH) fsecH.style.display = 'none';
+  document.documentElement.classList.remove('fechamento-solar-aberto');
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('propostaSection').style.display = 'none';
   document.getElementById('expiradoSection').style.display = 'none';
@@ -9334,8 +9453,15 @@ function voltarDoHistorico() {
 // ela roda no DOMContentLoaded e em deep link, e uma const no topo do script
 // estaria em zona morta se alguém a chamasse antes da linha dela.
 function marcarNavAtivo(id) {
-  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc' };
+  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento' };
   const aba = ABA_SOLAR[id] || null;
+  // Rede de segurança: qualquer tela que se abra por aqui fecha o Fechamento solar,
+  // mesmo que a lista escondida à mão da função dela não o conheça.
+  if (id !== 'nav-fechamento-solar') {
+    const fsec = document.getElementById('fechamentoSolarSection');
+    if (fsec) fsec.style.display = 'none';
+    document.documentElement.classList.remove('fechamento-solar-aberto');
+  }
   document.querySelectorAll('#app-sidebar .sb-item').forEach(b => b.classList.remove('ativo'));
   document.documentElement.classList.toggle('solar-aberto', !!aba);
   document.querySelectorAll('.solar-subtab').forEach(b => b.classList.toggle('ativa', b.dataset.aba === aba));
@@ -9346,17 +9472,17 @@ function marcarNavAtivo(id) {
 // diferente; com a régua dá para ir de Leads direto para Tabelas, e sem isto uma
 // tela ficaria empilhada sobre a outra.
 function telasSolarLimpar() {
-  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
+  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
     .forEach(t => { const el = document.getElementById(t); if (el) el.style.display = 'none'; });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
   document.getElementById('formSection').style.display = '';
   // Kit ligado ou desligado em Tabelas vale assim que a pessoa volta pela régua
   // (antes só o "Voltar" de Tabelas reaplicava).
@@ -9524,10 +9650,11 @@ function navRedes() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   document.getElementById('leadsSection').style.display = 'none';
+  document.getElementById('fechamentoSolarSection').style.display = 'none';
   const sec = document.getElementById('redesSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('redes-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto');
   marcarNavAtivo('nav-redes');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -9543,14 +9670,14 @@ let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 function navCalc() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('calcSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('calc-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-calc');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -9560,14 +9687,14 @@ function navCalc() {
 function navEletroposto() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('eletroSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('eletro-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-eletroposto');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -19156,6 +19283,8 @@ function epPrevSaida() {
     epPapelGrava({ id: s.hist.id, html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, editado: !!s.editado, em: new Date().toISOString() });
     s.hist = null;
   }
+  // Gancho de quem tem histórico próprio (Fechamento solar): roda uma vez, na saída.
+  if (s.aoSair) { const f = s.aoSair; s.aoSair = null; try { f({ html, editado: !!s.editado }); } catch (e) {} }
   if (s.opts) { orc1Imprimir(s.html, s.arquivo, s.opts); return; }
   const host = document.getElementById('eletro-print'); host.innerHTML = html; epPrint(host, s.arquivo);
 }
@@ -24817,6 +24946,1084 @@ async function varrerAdLibraryEstudio() {
   } catch (e) { showToast && showToast('Erro na varredura'); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// FECHAMENTO SOLAR (09/10/2026): contrato, procuração e recibo de quem fechou
+//
+// Pedido do dono: "Fechamento com contrato e procuração, utiliza os da SolarDoc
+// de referência, e recibo também". O texto jurídico vem de
+// api/src/services/templateService.ts (contratoSolarM1/M2, procuracaoM1/M2/M3,
+// reciboM1), com duas adaptações: sem travessão e sem o crédito do SolarDoc.
+//
+// Quem assina é a AIOROS GROUP LTDA (razão social SEMPRE colada ao CNPJ), com a
+// marca Irmãos na Obra. A marca NEXUS e o logo dela NUNCA entram em papel solar
+// (epEmitGet().nome é a marca NEXUS: não se usa aqui).
+//
+// A impressão reaproveita a esteira do eletroposto (epPreview, epPrevSaida,
+// orc1Imprimir, epPaginar, classes .ep-*). O histórico NÃO: papel solar vai para
+// 'sol_fech_hist_v1', nunca para 'orc_hist_v1' (o do eletroposto). A 2ª via usa o
+// mesmo IndexedDB (epPapelGrava / epHistSegundaVia), que é chaveado por id.
+// ═══════════════════════════════════════════════════════════════════════════
+const SOL_HIST_KEY = 'sol_fech_hist_v1';
+const FS_FORMAS = ['Pix', 'Espécie', 'Transferência', 'Cartão', 'Boleto', 'Cheque'];
+const solEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const SOL_LACUNA = '<span class="ep-rec-vazio"></span>';
+const solV = v => (v == null || String(v).trim() === '') ? SOL_LACUNA : solEsc(String(v).trim());
+
+// "27.400,00", "27400", "R$ 27.400,50" e "145.000" valem o que o olho lê. Nunca
+// type=number para dinheiro: "145.000" virava 145 e a vírgula zerava o campo.
+function solParseBRL(v) {
+  let s = String(v == null ? '' : v).replace(/R\$|\s/g, '');
+  if (!s) return 0;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  return isFinite(n) && n > 0 ? n : 0;
+}
+const solFmt = n => (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const solFmtKwp = n => { const k = Math.round((Number(n) || 0) * 100) / 100; return k ? String(k).replace('.', ',') : ''; };
+function solNumExt(v) {
+  const raw = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  if (!isFinite(raw) || raw < 0) return String(v == null ? '' : v);
+  return recExInt(Math.floor(raw));
+}
+// "5 (cinco)"; vazio vira lacuna
+// "1 (um) ano" / "25 (vinte e cinco) anos"; vazio vira lacuna
+const solUn = (v, sing, plu) => { const t = String(v == null ? '' : v).trim(); return t ? solNumComExt(t) + ' ' + (parseInt(t, 10) === 1 ? sing : plu) : SOL_LACUNA + ' ' + plu; };
+const solNumComExt = v => { const t = String(v == null ? '' : v).trim(); return t ? solEsc(t) + ' (' + solEsc(solNumExt(t)) + ')' : SOL_LACUNA; };
+function solExtenso(n) { return n > 0 ? recExtenso(n) : 'valor a ser definido'; }
+function solHoje() { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); } catch (e) { return new Date().toISOString().slice(0, 10); } }
+function solDataLonga(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date();
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+function solDataCurta(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+// Logradouro, Bairro, Cidade/UF (vazio quando nada foi preenchido)
+function solEnd(end, bairro, cidade, uf) {
+  const cu = [cidade, uf].filter(Boolean).join('/');
+  return [end, bairro, cu].map(p => String(p || '').trim()).filter(Boolean).join(', ');
+}
+const solLimpaArq = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+
+// ── A emitente (AIOROS GROUP LTDA, marca Irmãos na Obra) ──
+function solEmp() {
+  const e = epEmitGet();
+  const cnpj = String(e.cnpj || '').trim() || CNPJ_CERTO;
+  const razao = String(e.razao || '').trim() || RAZAO_CERTA;
+  return {
+    razao, cnpj,
+    end: [e.end, e.cidade].filter(Boolean).join(', '),
+    tel: e.tel || '', socio: e.socio || '', socioCpf: e.socioCpf || '',
+    pix: e.pix || '', conta: e.conta || '',
+  };
+}
+// "AIOROS GROUP LTDA (Irmãos na Obra), inscrita no CNPJ sob o nº ..., com sede em ..."
+function solQualifEmp(emp) {
+  return `<b>${solEsc(emp.razao)}</b> (Irmãos na Obra), inscrita no CNPJ sob o nº ${solEsc(emp.cnpj)}${emp.end ? ', com sede em ' + solEsc(emp.end) : ''}`;
+}
+
+// ── Cabeçalhos e rodapé de papel solar (a marca da casa, nunca a NEXUS) ──
+const SOL_LOGO = '<img class="sol-logo" src="/gerador/logo.png" alt="Irmãos na Obra">';
+// A razão social sai sempre colada ao CNPJ, logo sob a marca (o timbre do SolarDoc)
+const solMarca = () => { const emp = solEmp(); return `<div class="ep-brand sol-brand">${SOL_LOGO}<div class="sol-mk">Irmãos na Obra<small>${solEsc(emp.razao)} · CNPJ ${solEsc(emp.cnpj)}</small></div></div>`; };
+function solTopoHTML(titulo, dataStr, rows) {
+  const rowsHTML = (rows || []).filter(r => r && r[1])
+    .map(r => `<div class="rowf"><span>${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
+  return `<div class="ep-topo">${solMarca()}
+      <div class="ep-propbox">
+        <div class="t">${titulo}</div>
+        <div class="rowf"><span>Data</span><span class="v">${dataStr}</span></div>
+        ${rowsHTML}
+      </div>
+    </div>`;
+}
+function solTopoCtr(ident) {
+  return `<div class="ep-ctr-topo">${solMarca()}<div class="ep-ctr-ident">${ident}</div></div>`;
+}
+const solRodape = (rot, cliente, n, tot, rubricas) =>
+  `<div class="ep-pagefoot"><span class="ep-foot-esq">${IO_FOOT_LOGO}<span>${solEsc(rot)}${cliente ? ' · ' + solEsc(cliente) : ''}</span></span>${rubricas ? `<span class="ep-rubr">Rubricas ${'<i></i>'.repeat(rubricas)}</span>` : ''}<span>${(n && tot) ? 'Página ' + n + ' de ' + tot : 'Documento de uma via'}</span></div>`;
+
+// ═══ Tela ═══
+let fsMontado = false, fsAbaAtual = 'contrato', fsOrigemKey = '', fsListaMapa = {}, fsListaCarregada = false, fsListaCarregando = false;
+const fsEl = id => document.getElementById(id);
+const fsVal = id => { const el = fsEl(id); return el ? String(el.value == null ? '' : el.value).trim() : ''; };
+function fsSet(id, v, forcar) {
+  const el = fsEl(id); if (!el) return;
+  if (!forcar && el.dataset.tocado === '1') return;
+  el.value = v == null ? '' : String(v);
+  el.classList.remove('fs-erro');
+  if (forcar) delete el.dataset.tocado;
+}
+function fsTocar(el) { el.dataset.tocado = '1'; el.classList.remove('fs-erro'); }
+function fsMoeda(el) { const n = solParseBRL(el.value); if (n > 0) el.value = solFmt(n); }
+
+// Um campo da tela. o.pre = prefixo (R$), o.suf = sufixo, o.sel = opções, o.area = linhas.
+function fsF(id, rot, o) {
+  o = o || {};
+  let ctl;
+  if (o.sel) {
+    ctl = `<select id="${id}" onchange="fsTocar(this)${o.on ? ';' + o.on : ''}">${o.sel.map(x => { const p = Array.isArray(x) ? x : [x, x]; return `<option value="${solEsc(p[0])}">${solEsc(p[1])}</option>`; }).join('')}</select>`;
+  } else if (o.area) {
+    ctl = `<textarea id="${id}" rows="${o.area}" oninput="fsTocar(this)" placeholder="${solEsc(o.ph || '')}"></textarea>`;
+  } else {
+    ctl = `<input id="${id}" type="${o.type || 'text'}"${o.mode ? ` inputmode="${o.mode}"` : ''}${o.max ? ` maxlength="${o.max}"` : ''} autocomplete="off" oninput="fsTocar(this)${o.oninput ? ';' + o.oninput : ''}"${o.blur ? ` onblur="${o.blur}"` : ''} placeholder="${solEsc(o.ph || '')}">`;
+    if (o.pre) ctl = `<div class="fs-inp has-pre"><span class="pre">${o.pre}</span>${ctl}</div>`;
+    else if (o.suf) ctl = `<div class="fs-inp has-suf">${ctl}<span class="suf">${o.suf}</span></div>`;
+  }
+  return `<div class="fs-f${o.cls ? ' ' + o.cls : ''}"${o.fid ? ` id="${o.fid}"` : ''}><label for="${id}">${rot}${o.hint ? ` <span class="hint">${o.hint}</span>` : ''}</label>${ctl}</div>`;
+}
+const fsCard = (tit, corpo, extra) => `<div class="card"${extra || ''}><div class="calc-card-title"><span class="dot"></span>${tit}</div>${corpo}</div>`;
+
+function fsMontar() {
+  const host = fsEl('fs-corpo'); if (!host) return;
+  const dinheiro = { pre: 'R$', mode: 'decimal', blur: 'fsMoeda(this)', ph: '0,00' };
+  host.innerHTML =
+    fsCard('Puxar de uma proposta', `
+      <div class="fs-puxar"><input id="fs-pux" list="fs-pux-list" autocomplete="off" placeholder="Digite o nome do cliente ou o código" onchange="fsPuxarDigitado()" aria-label="Proposta solar">
+        <datalist id="fs-pux-list"></datalist>
+        <button type="button" class="fs-btn-sec" onclick="fsPuxarDigitado()">Puxar</button></div>
+      <div class="fs-sub" id="fs-pux-msg">Traz o cliente, o sistema e o valor da proposta. Tudo continua editável.</div>`) +
+    fsCard('Cliente', `<div class="fs-grid">
+      ${fsF('fs-nome', 'Nome completo ou razão social', { cls: 's2', ph: 'Como está no documento' })}
+      ${fsF('fs-tipo', 'Tipo', { sel: [['PF', 'Pessoa física'], ['PJ', 'Pessoa jurídica']], on: 'fsTipoMudou()' })}
+      ${fsF('fs-doc', '<span id="fs-doc-rot">CPF</span> ou CNPJ', { mode: 'numeric', blur: 'fsDocFmt(this)', ph: '000.000.000-00' })}
+      ${fsF('fs-rep', 'Representante legal <span class="hint">(nome e CPF)</span>', { cls: 's2', fid: 'fs-f-rep', ph: 'Quem assina pela empresa' })}
+      ${fsF('fs-cep', 'CEP', { mode: 'numeric', blur: 'fsCepFmt(this)', ph: '00000-000' })}
+      ${fsF('fs-tel', 'Telefone', { mode: 'tel', blur: 'fsFoneFmt(this)', ph: '(34) 99999-9999' })}
+      ${fsF('fs-end', 'Endereço <span class="hint">(rua e número)</span>', { cls: 's2' })}
+      ${fsF('fs-bairro', 'Bairro')}
+      ${fsF('fs-cidade', 'Cidade')}
+      ${fsF('fs-uf', 'UF', { max: 2, ph: 'MG' })}
+    </div>`) +
+    `<div class="fs-tabs" role="tablist" aria-label="Documento">
+      <button type="button" class="fs-tab" role="tab" data-aba="contrato" onclick="fsAba('contrato')">Contrato</button>
+      <button type="button" class="fs-tab" role="tab" data-aba="procuracao" onclick="fsAba('procuracao')">Procuração</button>
+      <button type="button" class="fs-tab" role="tab" data-aba="recibo" onclick="fsAba('recibo')">Recibo</button>
+    </div>
+    <div id="fs-pane-contrato">` +
+      fsCard('Modelo do contrato', `<div class="fs-grid">
+        ${fsF('fs-c-modelo', 'Modelo', { cls: 's2', sel: [['2', 'Padrão (14 cláusulas)'], ['1', 'Completo (15 cláusulas)']] })}
+        ${fsF('fs-c-num', 'Nº do contrato <span class="hint">(opcional)</span>', { ph: '001/2026' })}
+        ${fsF('fs-c-data', 'Data', { type: 'date' })}
+        ${fsF('fs-c-foro', 'Cidade e foro', { cls: 's2', ph: 'Uberlândia' })}
+      </div>`) +
+      fsCard('Sistema contratado', `<div class="fs-grid">
+        ${fsF('fs-c-kwp', 'Potência', { suf: 'kWp', mode: 'decimal', ph: '5,40' })}
+        ${fsF('fs-c-geracao', 'Geração média estimada', { suf: 'kWh/mês', mode: 'decimal', ph: '700' })}
+        ${fsF('fs-c-nmod', 'Nº de módulos', { mode: 'numeric', ph: '10' })}
+        ${fsF('fs-c-mod', 'Marca e potência do módulo', { ph: 'Ex.: TCL 600W' })}
+        ${fsF('fs-c-ninv', 'Nº de inversores', { mode: 'numeric', ph: '1' })}
+        ${fsF('fs-c-tinv', 'Tipo do inversor', { sel: [['on-grid', 'On-grid'], ['híbrido', 'Híbrido'], ['off-grid', 'Off-grid'], ['microinversor', 'Microinversor']] })}
+        ${fsF('fs-c-minv', 'Marca e modelo do inversor', { cls: 's2', ph: 'Ex.: SAJ 6K' })}
+        ${fsF('fs-c-endinst', 'Endereço de instalação <span class="hint">(vazio = endereço do cliente)</span>', { cls: 's2' })}
+      </div>`) +
+      fsCard('Bateria <span class="fs-opc">opcional</span>', `<div class="fs-grid">
+        ${fsF('fs-c-bat-marca', 'Marca e modelo', { cls: 's2', ph: 'Deixe vazio se não houver' })}
+        ${fsF('fs-c-bat-qtd', 'Quantidade', { mode: 'numeric' })}
+        ${fsF('fs-c-bat-cap', 'Capacidade de cada uma', { suf: 'kWh', mode: 'decimal' })}
+        ${fsF('fs-c-bat-gar', 'Garantia', { suf: 'anos', mode: 'numeric' })}
+      </div>`) +
+      fsCard('Valor e pagamento', `<div class="fs-grid">
+        ${fsF('fs-c-valor', 'Valor total', Object.assign({ cls: 's2' }, dinheiro, { ph: '27.400,00' }))}
+        ${fsF('fs-c-pagto', 'Condições de pagamento', { cls: 's2', area: 3, ph: 'Ex.: Entrada de R$ 5.000,00 no Pix e saldo em 12x no cartão.' })}
+      </div>`) +
+      fsCard('Prazos <span class="fs-opc">dias</span>', `<div class="fs-grid g3">
+        ${fsF('fs-c-pproj', 'Projeto', { mode: 'numeric' })}
+        ${fsF('fs-c-paprov', 'Aprovação', { mode: 'numeric' })}
+        ${fsF('fs-c-pinst', 'Instalação <span class="hint">(úteis)</span>', { mode: 'numeric' })}
+      </div>`) +
+      fsCard('Garantias', `<div class="fs-grid g4">
+        ${fsF('fs-c-gmod', 'Módulos <span class="hint">(anos)</span>', { mode: 'numeric' })}
+        ${fsF('fs-c-ginv', 'Inversor <span class="hint">(anos)</span>', { mode: 'numeric' })}
+        ${fsF('fs-c-ginst', 'Instalação', { mode: 'numeric' })}
+        ${fsF('fs-c-ginstun', 'Unidade', { sel: [['anos', 'anos'], ['meses', 'meses']] })}
+      </div>`) +
+    `</div>
+    <div id="fs-pane-procuracao" style="display:none">` +
+      fsCard('Modelo e concessionária', `<div class="fs-grid">
+        ${fsF('fs-p-modelo', 'Modelo', { cls: 's2', sel: [['1', 'Padrão'], ['2', 'Jurídico'], ['3', 'Concessionária e ANEEL']], on: 'fsProcModelo()' })}
+        ${fsF('fs-p-uc', 'Unidade consumidora <span class="hint">(nº da instalação na conta de luz)</span>', { cls: 's2', mode: 'numeric', ph: 'Obrigatória nos modelos Padrão e Jurídico' })}
+        ${fsF('fs-p-conc', 'Concessionária', { ph: 'CEMIG' })}
+        ${fsF('fs-p-data', 'Data', { type: 'date' })}
+        ${fsF('fs-p-cidade', 'Cidade do documento', { cls: 's2', ph: 'Uberlândia' })}
+        ${fsF('fs-p-socio', 'Sócio administrador da AIOROS <span class="hint">(nome)</span>', { cls: 's2', fid: 'fs-f-socio', ph: 'Quem assina pela empresa no modelo ANEEL' })}
+      </div>`) +
+      `<details class="card fs-det"><summary>Outorgados: engenheiro e técnico <span class="fs-opc">editável</span></summary>
+        <div class="fs-sub" style="margin:10px 0 12px">Vêm do cadastro da empresa. Campo vazio vira linha em branco no papel: nenhum número de registro é inventado.</div>
+        <div class="fs-grid">
+          ${fsF('fs-p-eng-nome', 'Engenheiro: nome', { cls: 's2' })}
+          ${fsF('fs-p-eng-nac', 'Nacionalidade')}${fsF('fs-p-eng-ec', 'Estado civil')}
+          ${fsF('fs-p-eng-prof', 'Profissão')}${fsF('fs-p-eng-crea', 'CREA <span class="hint">(com a sigla e o número)</span>')}
+          ${fsF('fs-p-eng-rg', 'RG')}${fsF('fs-p-eng-cpf', 'CPF', { mode: 'numeric' })}
+          ${fsF('fs-p-eng-end', 'Endereço', { cls: 's2' })}
+          ${fsF('fs-p-tec-nome', 'Técnico: nome', { cls: 's2' })}
+          ${fsF('fs-p-tec-nac', 'Nacionalidade')}${fsF('fs-p-tec-ec', 'Estado civil')}
+          ${fsF('fs-p-tec-crt', 'CRT ou CFT <span class="hint">(com a sigla e o número)</span>')}${fsF('fs-p-tec-rg', 'RG')}
+          ${fsF('fs-p-tec-cpf', 'CPF', { mode: 'numeric', cls: 's2' })}
+          ${fsF('fs-p-tec-end', 'Endereço', { cls: 's2' })}
+        </div>
+      </details>` +
+      `<details class="card fs-det" id="fs-det-tec23" style="display:none"><summary>Técnicos 2 e 3 <span class="fs-opc">só no modelo ANEEL, opcional</span></summary>
+        <div class="fs-sub" style="margin:10px 0 12px">Ficam guardados neste aparelho.</div>
+        <div class="fs-grid">
+          ${fsF('fs-p-tec2-nome', 'Técnico 2: nome', { cls: 's2' })}
+          ${fsF('fs-p-tec2-nac', 'Nacionalidade')}${fsF('fs-p-tec2-ec', 'Estado civil')}
+          ${fsF('fs-p-tec2-crt', 'CRT ou CFT <span class="hint">(com a sigla e o número)</span>')}${fsF('fs-p-tec2-rg', 'RG')}
+          ${fsF('fs-p-tec2-cpf', 'CPF', { mode: 'numeric', cls: 's2' })}
+          ${fsF('fs-p-tec2-end', 'Endereço', { cls: 's2' })}
+          ${fsF('fs-p-tec3-nome', 'Técnico 3: nome', { cls: 's2' })}
+          ${fsF('fs-p-tec3-nac', 'Nacionalidade')}${fsF('fs-p-tec3-ec', 'Estado civil')}
+          ${fsF('fs-p-tec3-crt', 'CRT ou CFT <span class="hint">(com a sigla e o número)</span>')}${fsF('fs-p-tec3-rg', 'RG')}
+          ${fsF('fs-p-tec3-cpf', 'CPF', { mode: 'numeric', cls: 's2' })}
+          ${fsF('fs-p-tec3-end', 'Endereço', { cls: 's2' })}
+        </div>
+      </details>` +
+    `</div>
+    <div id="fs-pane-recibo" style="display:none">` +
+      fsCard('Recibo', `<div class="fs-grid">
+        ${fsF('fs-r-num', 'Nº do recibo', { ph: '001/2026' })}
+        ${fsF('fs-r-data', 'Data do recibo', { type: 'date' })}
+        ${fsF('fs-r-datactr', 'Contrato firmado em <span class="hint">(opcional)</span>', { type: 'date' })}
+        ${fsF('fs-r-valctr', 'Valor total do contrato', Object.assign({}, dinheiro, { ph: '27.400,00', oninput: 'fsRecResumo()', blur: 'fsMoeda(this);fsRecResumo()' }))}
+        ${fsF('fs-r-desc', 'Referente à <span class="hint">(complete a frase)</span>', { cls: 's2', ph: 'instalação de usina fotovoltaica de 5,4 kWp' })}
+        ${fsF('fs-r-endinst', 'Local da instalação <span class="hint">(vazio = o do contrato)</span>', { cls: 's2' })}
+        ${fsF('fs-r-cidade', 'Cidade do documento', { cls: 's2', ph: 'Uberlândia' })}
+      </div>`) +
+      fsCard('Pagamentos recebidos', `<div id="fs-r-pags"></div>
+        <button type="button" class="fs-btn-sec" onclick="fsPagAdd()">+ Adicionar pagamento</button>
+        <div class="fs-resumo" id="fs-r-resumo"></div>`) +
+      fsCard('Dados para receber o saldo <span class="fs-opc">opcional</span>', `<div class="fs-grid">
+        ${fsF('fs-r-banco', 'Banco')}${fsF('fs-r-ag', 'Agência', { mode: 'numeric' })}
+        ${fsF('fs-r-conta', 'Conta')}${fsF('fs-r-pix', 'Chave Pix')}
+      </div>`) +
+    `</div>
+    <div id="fs-msg" class="fs-msg" role="alert"></div>
+    <button type="button" class="fs-btn-main" onclick="fsEmitir()">Ver e imprimir</button>` +
+    fsCard('Papéis emitidos', `<div id="fs-hist"></div>`, ' id="fs-hist-card"');
+
+  // padrões da casa (SolarDoc)
+  const p = { 'fs-c-data': solHoje(), 'fs-p-data': solHoje(), 'fs-r-data': solHoje(),
+    'fs-c-foro': 'Uberlândia', 'fs-p-cidade': 'Uberlândia', 'fs-r-cidade': 'Uberlândia', 'fs-p-conc': 'CEMIG',
+    'fs-c-pproj': '5', 'fs-c-paprov': '40', 'fs-c-pinst': '10', 'fs-c-gmod': '25', 'fs-c-ginv': '10', 'fs-c-ginst': '1', 'fs-c-ginstun': 'anos' };
+  Object.keys(p).forEach(k => fsSet(k, p[k], true));
+  fsPagAdd();
+  try { const o = JSON.parse(localStorage.getItem('sol_fech_tecs_v1') || '{}'); Object.keys(o).forEach(k => { const x = fsEl(k); if (x) x.value = o[k]; }); } catch (e) {}
+  host.addEventListener('input', fsAoMudar); host.addEventListener('change', fsAoMudar);
+  fsTipoMudou(); fsProcModelo();
+}
+
+// do cadastro da empresa (editável): só entra onde o consultor ainda não mexeu
+function fsPrefillEmpresa() {
+  const e = epEmitGet();
+  const m = { 'fs-p-eng-nome': e.engNome, 'fs-p-eng-nac': e.engNac, 'fs-p-eng-ec': e.engEc, 'fs-p-eng-prof': e.engProf, 'fs-p-eng-crea': e.engCrea,
+    'fs-p-eng-rg': e.engRg, 'fs-p-eng-cpf': e.engCpf, 'fs-p-eng-end': e.engEnd,
+    'fs-p-tec-nome': e.tecNome, 'fs-p-tec-nac': e.tecNac, 'fs-p-tec-ec': e.tecEc, 'fs-p-tec-crt': e.tecCrt, 'fs-p-tec-rg': e.tecRg,
+    'fs-p-tec-cpf': e.tecCpf, 'fs-p-tec-end': e.tecEnd, 'fs-p-socio': e.socio, 'fs-r-pix': e.pix, 'fs-r-conta': e.conta };
+  Object.keys(m).forEach(k => fsSet(k, m[k] || '', false));
+}
+
+function fsAba(qual) {
+  fsAbaAtual = ['contrato', 'procuracao', 'recibo'].includes(qual) ? qual : 'contrato';
+  ['contrato', 'procuracao', 'recibo'].forEach(a => {
+    const pane = fsEl('fs-pane-' + a); if (pane) pane.style.display = a === fsAbaAtual ? '' : 'none';
+  });
+  document.querySelectorAll('#fechamentoSolarSection .fs-tab').forEach(b => {
+    const on = b.dataset.aba === fsAbaAtual;
+    b.classList.toggle('ativa', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  if (fsAbaAtual === 'recibo') fsRecSincroniza();
+  fsMsg('');
+}
+function fsTipoMudou() {
+  const pj = fsVal('fs-tipo') === 'PJ';
+  const rep = fsEl('fs-f-rep'); if (rep) rep.style.display = pj ? '' : 'none';
+  const rot = fsEl('fs-doc-rot'); if (rot) rot.textContent = pj ? 'CNPJ' : 'CPF';
+  const doc = fsEl('fs-doc'); if (doc) doc.placeholder = pj ? '00.000.000/0000-00' : '000.000.000-00';
+}
+function fsProcModelo() {
+  const m3 = fsVal('fs-p-modelo') === '3';
+  const s = fsEl('fs-f-socio'); if (s) s.style.display = m3 ? '' : 'none';
+  const t = fsEl('fs-det-tec23'); if (t) t.style.display = m3 ? '' : 'none';
+  const uc = fsEl('fs-p-uc'); if (uc) uc.placeholder = m3 ? 'Não consta no modelo ANEEL' : 'Obrigatória nos modelos Padrão e Jurídico';
+}
+function fsDocFmt(el) {
+  const d = el.value.replace(/\D/g, '');
+  const tipo = fsEl('fs-tipo');
+  if (d.length === 11) { el.value = d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4'); if (tipo.dataset.tocado !== '1') { tipo.value = 'PF'; fsTipoMudou(); } }
+  else if (d.length === 14) { el.value = d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5'); if (tipo.dataset.tocado !== '1') { tipo.value = 'PJ'; fsTipoMudou(); } }
+}
+function fsCepFmt(el) { const d = el.value.replace(/\D/g, ''); if (d.length === 8) el.value = d.replace(/(\d{5})(\d{3})/, '$1-$2'); }
+function fsFoneFmt(el) { const f = epFoneBR(el.value); if (f) el.value = f; }
+function fsMsg(txt, ids, silencioso) {
+  const m = fsEl('fs-msg'); if (!m) return;
+  document.querySelectorAll('#fechamentoSolarSection .fs-erro').forEach(el => el.classList.remove('fs-erro'));
+  if (!txt) { m.classList.remove('on'); m.textContent = ''; return; }
+  m.textContent = txt; m.classList.add('on');
+  const els = (ids || []).filter(Boolean);
+  els.forEach(el => el.classList.add('fs-erro'));
+  const primeiro = els[0];
+  if (silencioso) return;
+  if (primeiro) { try { primeiro.focus({ preventScroll: true }); primeiro.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
+  else { try { m.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
+}
+
+// ── Prefill: da proposta aberta nesta sessão e de uma proposta do banco ──
+function fsAplicarDados(d, forcar, row) {
+  if (!d) return;
+  row = row || {};
+  const f = !!forcar;
+  const cid = String(d.cidade || '').split(',').map(s => s.trim());
+  fsSet('fs-nome', d.nome || row.cliente_nome || '', f);
+  fsSet('fs-tel', d.telefone ? epFoneBR(d.telefone) : '', f);
+  fsSet('fs-cidade', cid[0] || row.cliente_cidade || '', f);
+  fsSet('fs-uf', String(cid[1] || row.cliente_uf || '').toUpperCase(), f);
+  const it = d.item || {}, tab = d.tab || {};
+  const kwp = solFmtKwp(it.kwp);
+  fsSet('fs-c-kwp', kwp, f);
+  fsSet('fs-c-nmod', it.n || '', f);
+  let mod = String(tab.mod || '').trim();
+  if (mod && tab.pot && !/\d\s*w/i.test(mod)) mod += ' ' + tab.pot + 'W';
+  fsSet('fs-c-mod', mod, f);
+  fsSet('fs-c-ninv', d.qtdInv || it.invs || '', f);
+  fsSet('fs-c-minv', tab.inv || '', f);
+  const bat = d.bateria && d.bateria.incluir ? d.bateria : null;
+  fsSet('fs-c-tinv', bat ? 'híbrido' : 'on-grid', f);
+  const g = Number(d.mediaMensalGerada || it.g) || 0;
+  fsSet('fs-c-geracao', g ? Math.round(g).toLocaleString('pt-BR') : '', f);
+  fsSet('fs-c-bat-marca', bat ? (bat.modelo || '') : '', f);
+  fsSet('fs-c-bat-qtd', bat ? (bat.qtd || '') : '', f);
+  fsSet('fs-c-bat-cap', bat && bat.capacidade > 0 ? String(bat.capacidade).replace('.', ',') : '', f);
+  fsSet('fs-c-bat-gar', bat && bat.garantiaAnos > 0 ? bat.garantiaAnos : '', f);
+  // precoOrcamento = precoVista = o valor do investimento que o cliente viu (com o acréscimo de distância)
+  const preco = Number(d.precoVista || d.precoOrcamento) || 0;
+  fsSet('fs-c-valor', preco ? solFmt(preco) : '', f);
+  fsSet('fs-c-pagto', preco ? 'À vista via Pix: R$ ' + solFmt(preco) + '.' : '', f);
+  if (d.garPaineis) fsSet('fs-c-gmod', d.garPaineis, f);
+  if (d.garInv) fsSet('fs-c-ginv', d.garInv, f);
+  if (d.garInstalacao) fsSet('fs-c-ginst', d.garInstalacao, f);
+  fsSet('fs-r-valctr', preco ? solFmt(preco) : '', f);
+  fsSet('fs-r-desc', kwp ? 'instalação de usina fotovoltaica de ' + kwp + ' kWp' : '', f);
+  fsTipoMudou();
+}
+// Identidade da fonte: o código da proposta quando existe, senão nome + kWp + preço
+const fsChave = (d, row) => { row = row || {}; const cod = row.codigo || d.codigo; return cod ? 'c:' + cod : ['n', d.nome, (d.item || {}).kwp, d.precoVista].join('|'); };
+// solar de verdade: fora eletroposto e equipamento (mesma regra do histórico, tipo e dados.produto)
+const fsEhSolar = r => { if (!r) return false; const pr = r.produto || (r.dados && r.dados.produto); return !(r.tipo === 'eletroposto' || pr === 'eletroposto' || pr === 'equipamento'); };
+let fsVistoKey = '';
+// Trocou de cliente: tudo que é DO cliente e a proposta não traz sai da tela, senão o papel sai
+// com o nome de B e o CPF e o endereço de A.
+function fsLimparCliente() {
+  ['fs-doc', 'fs-cep', 'fs-end', 'fs-bairro', 'fs-rep', 'fs-c-endinst', 'fs-r-endinst', 'fs-p-uc', 'fs-r-datactr', 'fs-c-num'].forEach(id => fsSet(id, '', true));
+  fsSet('fs-tipo', 'PF', true);
+  const host = fsEl('fs-r-pags'); if (host) { host.innerHTML = ''; fsPagAdd(); }
+  fsTipoMudou();
+}
+function fsAplicarFonte(d, row) {
+  const key = fsChave(d, row);
+  if (key !== fsOrigemKey) { fsLimparCliente(); fsAplicarDados(d, true, row); }
+  else fsAplicarDados(d, false, row);   // o mesmo cliente de novo: o que foi digitado fica
+  fsOrigemKey = key;
+  fsRevalida();
+}
+// A proposta aberta na sessão só entra quando é NOVA desde a última vez que a tela a viu.
+function fsPrefillAtual() {
+  const d = (typeof dadosAtual !== 'undefined') ? dadosAtual : null;
+  if (!d || !d.nome || !d.item || !fsEhSolar({ dados: d })) return;
+  const key = fsChave(d);
+  if (key === fsVistoKey) return;
+  fsVistoKey = key;
+  fsAplicarFonte(d);
+  const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Dados da proposta de ' + d.nome + ' carregados. Tudo continua editável.';
+}
+// o valor do contrato e a frase do recibo acompanham o contrato enquanto o consultor não mexer no recibo
+function fsRecSincroniza() {
+  fsSet('fs-r-valctr', fsVal('fs-c-valor'), false);
+  const k = fsVal('fs-c-kwp');
+  if (k) fsSet('fs-r-desc', 'instalação de usina fotovoltaica de ' + k + ' kWp', false);
+  fsRecSugerir(); fsRecResumo();
+}
+
+async function fsCarregarLista() {
+  if (fsListaCarregada || fsListaCarregando) return;
+  fsListaCarregando = true;
+  try {
+    const rows = await supaGet('propostas?select=codigo,tipo,produto:dados->>produto,cliente_nome,cliente_cidade,cliente_uf,created_at&order=created_at.desc&limit=300');
+    const dl = fsEl('fs-pux-list'); if (!dl) return;
+    fsListaMapa = {};
+    (rows || []).filter(r => r && r.codigo && fsEhSolar(r)).forEach(r => {
+      const cid = [r.cliente_cidade, r.cliente_uf].filter(Boolean).join('/');
+      const dt = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '';
+      const label = [r.cliente_nome || 'Sem nome', cid, dt, '#' + r.codigo].filter(Boolean).join(' · ');
+      fsListaMapa[label] = r.codigo;
+    });
+    dl.innerHTML = Object.keys(fsListaMapa).map(l => `<option value="${solEsc(l)}"></option>`).join('');
+    fsListaCarregada = Object.keys(fsListaMapa).length > 0;
+  } catch (e) {
+    const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Não consegui listar as propostas agora. Digite o código da proposta ou preencha os campos à mão.';
+  } finally { fsListaCarregando = false; }
+}
+async function fsPuxarDigitado() {
+  const el = fsEl('fs-pux'); if (!el) return;
+  const v = el.value.trim();
+  let cod = fsListaMapa[v] || '';
+  if (!cod) { const m = /^#?(\d{6,12})$/.exec(v); if (m) cod = m[1]; }
+  if (!cod) return;
+  const msg = fsEl('fs-pux-msg');
+  try {
+    if (msg) msg.textContent = 'Buscando a proposta...';
+    const arr = await supaGet('propostas?codigo=eq.' + encodeURIComponent(cod) + '&select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,dados&limit=1');
+    if (!arr || !arr.length) { if (msg) msg.textContent = 'Proposta não encontrada.'; return; }
+    const row = arr[0], d = row.dados || {};
+    if (!fsEhSolar(row)) { if (msg) msg.textContent = 'A proposta ' + cod + ' é de eletroposto ou equipamento, não de solar.'; return; }
+    fsAplicarFonte(d, row);
+    if (msg) msg.textContent = 'Proposta ' + row.codigo + ' de ' + (d.nome || row.cliente_nome || 'cliente') + ' carregada. Tudo continua editável.';
+    el.value = '';
+  } catch (e) { if (msg) msg.textContent = 'Erro ao buscar a proposta. Tente de novo.'; }
+}
+
+// ── Pagamentos do recibo ──
+function fsPagAdd(p) {
+  const host = fsEl('fs-r-pags'); if (!host) return;
+  p = p || {};
+  const row = document.createElement('div'); row.className = 'fs-pag';
+  row.innerHTML = `<select class="fs-pag-forma" aria-label="Forma de pagamento">${FS_FORMAS.map(f => `<option${f === (p.forma || 'Pix') ? ' selected' : ''}>${f}</option>`).join('')}</select>` +
+    `<input class="fs-pag-data" type="date" aria-label="Data do pagamento" value="${solEsc(p.data || solHoje())}">` +
+    `<div class="fs-inp has-pre"><span class="pre">R$</span><input class="fs-pag-valor" inputmode="decimal" autocomplete="off" aria-label="Valor do pagamento" placeholder="0,00" value="${solEsc(p.valor || '')}" oninput="fsTocar(this);fsRecResumo()" onblur="fsMoeda(this);fsRecResumo()"></div>` +
+    `<button type="button" class="fs-x" aria-label="Remover pagamento" onclick="fsPagDel(this)">&times;</button>`;
+  host.appendChild(row);
+  fsRecResumo();
+}
+function fsPagDel(btn) {
+  const host = fsEl('fs-r-pags'); if (!host) return;
+  if (host.querySelectorAll('.fs-pag').length <= 1) { const v = host.querySelector('.fs-pag-valor'); if (v) v.value = ''; }
+  else btn.closest('.fs-pag').remove();
+  fsRecResumo();
+}
+const fsPagsRaw = () => [...document.querySelectorAll('#fs-r-pags .fs-pag')].map(r => ({
+  forma: r.querySelector('.fs-pag-forma').value, data: r.querySelector('.fs-pag-data').value, valor: r.querySelector('.fs-pag-valor').value }));
+const fsPags = () => fsPagsRaw().map(p => ({ forma: p.forma, data: p.data, valor: solParseBRL(p.valor) })).filter(p => p.valor > 0);
+function fsRecResumo() {
+  const el = fsEl('fs-r-resumo'); if (!el) return;
+  const pago = fsPags().reduce((s, p) => s + p.valor, 0);
+  const tot = solParseBRL(fsVal('fs-r-valctr'));
+  el.innerHTML = pago > 0
+    ? `Total recebido <b>R$ ${solFmt(pago)}</b>${tot > 0 ? ` · ${pago >= tot - 0.005 ? '<b class="ok">quitado</b>' : 'saldo em aberto <b>R$ ' + solFmt(tot - pago) + '</b>'}` : ''}`
+    : 'Informe ao menos um pagamento com valor.';
+}
+function fsHistList() { try { return JSON.parse(localStorage.getItem(SOL_HIST_KEY) || '[]') || []; } catch (e) { return []; } }
+function fsRecProx() {
+  const ano = solHoje().slice(0, 4); let max = 0;
+  fsHistList().forEach(h => {
+    if (h.tipo !== 'Recibo') return;
+    const m = /^(\d+)\/(\d{4})$/.exec(String(h.num || '').trim());
+    if (m && m[2] === ano) max = Math.max(max, +m[1]);
+  });
+  return String(max + 1).padStart(3, '0') + '/' + ano;
+}
+function fsRecSugerir() {
+  const el = fsEl('fs-r-num'); if (!el) return;
+  if (!el.value || el.dataset.tocado !== '1') el.value = fsRecProx();
+}
+
+// ── Histórico próprio (nunca o orc_hist_v1 do eletroposto) ──
+function fsHistAdd(e) {
+  const l = fsHistList(); l.unshift(e);
+  if (l.length > 200) l.length = 200;
+  try { localStorage.setItem(SOL_HIST_KEY, JSON.stringify(l)); }
+  catch (er) { if (typeof showToast === 'function') showToast('O aparelho recusou guardar o histórico (espaço cheio).'); }
+}
+function fsHistRender() {
+  const host = fsEl('fs-hist'); if (!host) return;
+  const l = fsHistList();
+  if (!l.length) { host.innerHTML = '<div class="fs-sub">Nenhum papel emitido neste aparelho ainda. Os que você imprimir aparecem aqui.</div>'; return; }
+  host.innerHTML = l.slice(0, 40).map(h => `<div class="fs-h"><div class="i"><b>${solEsc(h.tipo)}</b> · ${solEsc(h.cliente || 'Sem nome')}${h.editado ? ' <span class="ed">texto editado</span>' : ''}<small>${solEsc(h.data || '')}${h.num ? ' · nº ' + solEsc(h.num) : ''}${h.valor > 0 ? ' · R$ ' + solFmt(h.valor) : ''}</small></div>` +
+    `<div class="a"><button type="button" class="fs-btn-sec" onclick="fsReabrir('${solEsc(h.id)}')">Reabrir</button><button type="button" class="fs-btn-sec" onclick="epHistSegundaVia('${solEsc(h.id)}')">2ª via</button></div></div>`).join('') +
+    (l.length > 40 ? `<div class="fs-sub">Mostrando os 40 mais recentes de ${l.length}.</div>` : '');
+}
+function fsSnap() {
+  const campos = {};
+  document.querySelectorAll('#fechamentoSolarSection input[id^="fs-"], #fechamentoSolarSection select[id^="fs-"], #fechamentoSolarSection textarea[id^="fs-"]').forEach(el => { if (el.id !== 'fs-pux') campos[el.id] = el.value; });
+  return { aba: fsAbaAtual, campos, pags: fsPagsRaw() };
+}
+function fsReabrir(id) {
+  const h = fsHistList().find(x => x.id === id);
+  if (!h || !h.snap) return;
+  Object.keys(h.snap.campos || {}).forEach(k => { const el = fsEl(k); if (el) { el.value = h.snap.campos[k]; el.dataset.tocado = '1'; } });
+  const host = fsEl('fs-r-pags'); if (host) host.innerHTML = '';
+  (h.snap.pags && h.snap.pags.length ? h.snap.pags : [{}]).forEach(p => fsPagAdd(p));
+  fsOrigemKey = 'reaberto:' + id;
+  fsTipoMudou(); fsProcModelo(); fsRecResumo();
+  fsAba(h.snap.aba || 'contrato');
+  const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Leitura dos campos ──
+function fsCli() {
+  const tipo = fsVal('fs-tipo') === 'PJ' ? 'PJ' : 'PF';
+  const c = { nome: fsVal('fs-nome'), tipo, pj: tipo === 'PJ', doc: fsVal('fs-doc'), cep: fsVal('fs-cep'), end: fsVal('fs-end'), bairro: fsVal('fs-bairro'),
+    cidade: fsVal('fs-cidade'), uf: fsVal('fs-uf').toUpperCase(), tel: fsVal('fs-tel'), rep: fsVal('fs-rep') };
+  c.endFull = solEnd(c.end, c.bairro, c.cidade, c.uf);
+  return c;
+}
+const fsRot = { 'fs-nome': 'o nome do cliente', 'fs-doc': 'o CPF ou CNPJ', 'fs-c-valor': 'o valor total do contrato', 'fs-p-uc': 'a unidade consumidora (UC)', 'fs-p-conc': 'a concessionária' };
+// prazos e garantias só em número inteiro: o papel nunca imprime "2,5 (dois)" nem "abc (abc)"
+const FS_INT = [['fs-c-nmod', 'o nº de módulos'], ['fs-c-ninv', 'o nº de inversores'], ['fs-c-bat-qtd', 'a quantidade de baterias'], ['fs-c-bat-gar', 'a garantia da bateria'],
+  ['fs-c-pproj', 'o prazo do projeto'], ['fs-c-paprov', 'o prazo de aprovação'], ['fs-c-pinst', 'o prazo de instalação'],
+  ['fs-c-gmod', 'a garantia dos módulos'], ['fs-c-ginv', 'a garantia do inversor'], ['fs-c-ginst', 'a garantia da instalação']];
+// itens: ids de campo ou { el, rot }
+function fsFaltas(aba) {
+  aba = aba || fsAbaAtual;
+  const faltam = [], invalidos = [];
+  const cli = fsCli();
+  if (!cli.nome) faltam.push('fs-nome');
+  if (!cli.doc) faltam.push('fs-doc');
+  if (aba === 'contrato') {
+    if (!(solParseBRL(fsVal('fs-c-valor')) > 0)) faltam.push('fs-c-valor');
+    FS_INT.forEach(p => { const v = fsVal(p[0]); if (v && !/^\d+$/.test(v)) invalidos.push({ el: fsEl(p[0]), rot: p[1] }); });
+  } else if (aba === 'procuracao') {
+    if (fsVal('fs-p-modelo') !== '3' && !fsVal('fs-p-uc')) faltam.push('fs-p-uc');
+    if (!fsVal('fs-p-conc')) faltam.push('fs-p-conc');
+  } else if (!(fsPags().reduce((t, p) => t + p.valor, 0) > 0)) {
+    faltam.push({ el: document.querySelector('#fs-r-pags .fs-pag-valor'), rot: 'ao menos um pagamento com valor' });
+  }
+  return { faltam, invalidos };
+}
+const fsJunta = l => l.join(', ').replace(/, ([^,]*)$/, ' e $1');
+// devolve true quando há pendência (e mostra o aviso); silencioso = só atualiza o texto, sem foco nem rolagem
+function fsMostraFaltas(f, silencioso) {
+  const rot = i => typeof i === 'string' ? (fsRot[i] || i) : i.rot;
+  const el = i => typeof i === 'string' ? fsEl(i) : i.el;
+  const partes = [];
+  if (f.faltam.length) partes.push('Falta preencher ' + fsJunta(f.faltam.map(rot)) + '.');
+  if (f.invalidos.length) partes.push('Use só números inteiros em ' + fsJunta(f.invalidos.map(rot)) + '.');
+  if (!partes.length) { fsMsg(''); return false; }
+  fsMsg(partes.join(' '), f.faltam.concat(f.invalidos).map(el), silencioso);
+  return true;
+}
+// o aviso aberto acompanha o que o consultor vai preenchendo
+function fsRevalida() {
+  const m = fsEl('fs-msg');
+  if (m && m.classList.contains('on')) fsMostraFaltas(fsFaltas(), true);
+}
+function fsAoMudar(ev) {
+  const el = ev.target;
+  if (el && /^fs-p-tec[23]-/.test(el.id)) {
+    const o = {};
+    document.querySelectorAll('#fechamentoSolarSection [id^="fs-p-tec2-"], #fechamentoSolarSection [id^="fs-p-tec3-"]').forEach(x => { o[x.id] = x.value; });
+    try { localStorage.setItem('sol_fech_tecs_v1', JSON.stringify(o)); } catch (e) {}
+  }
+  fsRevalida();
+}
+// qualificação do cliente nos três papéis
+function solQualifCli(c, estilo) {
+  const e = solEsc;
+  const doc = solV(c.doc);
+  const rep = c.pj && c.rep ? `, neste ato representada por ${e(c.rep)}` : '';
+  if (estilo === 'm1') return c.pj
+    ? `${solV(c.nome)}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${doc}, com sede em ${solV(c.endFull)}${rep}`
+    : `${solV(c.nome)}, pessoa física, inscrita no CPF sob o nº ${doc}, residente e domiciliada em ${solV(c.endFull)}`;
+  return c.pj
+    ? `${solV(c.nome)}, CNPJ nº ${doc}, sediada em ${solV(c.endFull)}${rep}`
+    : `${solV(c.nome)}, CPF nº ${doc}, residente na ${solV(c.endFull)}`;
+}
+
+// ═══ CONTRATO ═══
+function fsCtrDados() {
+  const cli = fsCli();
+  const qtdBat = fsVal('fs-c-bat-qtd');
+  const cap = parseFloat(fsVal('fs-c-bat-cap').replace(',', '.')) || 0;
+  const qn = parseInt(qtdBat, 10) || 0;
+  const bat = { tem: !!fsVal('fs-c-bat-marca'), marca: fsVal('fs-c-bat-marca'), qtd: qn, gar: parseInt(fsVal('fs-c-bat-gar'), 10) || 0 };
+  bat.titulo = qn > 1 ? qn + '× ' + bat.marca : bat.marca;
+  bat.spec = cap > 0 ? [cap.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh' + (qn > 1 ? ' cada' : '')] : [];
+  const valorN = solParseBRL(fsVal('fs-c-valor'));
+  const gerN = solParseBRL(fsVal('fs-c-geracao'));
+  const endInst = fsVal('fs-c-endinst');
+  return {
+    cli, emp: solEmp(), modelo: fsVal('fs-c-modelo') === '1' ? 1 : 2, num: fsVal('fs-c-num'), data: fsVal('fs-c-data') || solHoje(),
+    foro: fsVal('fs-c-foro'), kwp: fsVal('fs-c-kwp'), geracao: gerN, nmod: fsVal('fs-c-nmod'), mod: fsVal('fs-c-mod'), ninv: fsVal('fs-c-ninv'),
+    tinv: fsVal('fs-c-tinv'), minv: fsVal('fs-c-minv'), endInst: endInst || cli.endFull, bat,
+    valorN, pagto: fsVal('fs-c-pagto'), pproj: fsVal('fs-c-pproj'), paprov: fsVal('fs-c-paprov'), pinst: fsVal('fs-c-pinst'),
+    gmod: fsVal('fs-c-gmod'), ginv: fsVal('fs-c-ginv'), ginst: fsVal('fs-c-ginst'), ginstun: fsVal('fs-c-ginstun') === 'meses' ? 'meses' : 'anos',
+  };
+}
+function solGarInst(d) {
+  const n = parseInt(String(d.ginst).replace(/\D/g, ''), 10) || 0;
+  const un = d.ginstun === 'meses' ? (n === 1 ? 'mês' : 'meses') : (n === 1 ? 'ano' : 'anos');
+  return d.ginst ? `${solEsc(d.ginst)} (${solEsc(solNumExt(d.ginst))}) ${un}` : SOL_LACUNA;
+}
+function solBatGar(d) { return d.bat.tem && d.bat.gar > 0 ? `${d.bat.gar} (${solEsc(solNumExt(d.bat.gar))}) ${d.bat.gar === 1 ? 'ano' : 'anos'}` : ''; }
+const solTxt = s => solEsc(s).replace(/\n/g, '<br>');
+
+// Contrato Padrão: contratoSolarM2 do SolarDoc (14 cláusulas)
+function fsCtrBlocosM2(d) {
+  const e = solEsc, emp = d.emp, cli = d.cli;
+  const cl = (n, t, corpo) => [`<div class="ep-ctr-cl">${n}. ${e(t)}</div>${corpo[0]}`, ...corpo.slice(1)];
+  const P = h => `<p class="ep-ctr-p">${h}</p>`;
+  const NT = h => `<p class="ep-ctr-p sol-nt">${h}</p>`;
+  const UL = itens => `<ul class="sol-ul">${itens.map(i => `<li>${i}</li>`).join('')}</ul>`;
+  const geracaoTxt = d.geracao > 0 ? `${e(Math.round(d.geracao).toLocaleString('pt-BR'))} kWh/mês` : '';
+  const res = (k, v) => `<tr><td class="k">${e(k)}</td><td>${v}</td></tr>`;
+  const componentes = `Os componentes principais incluem ${solV(d.nmod)} módulos de ${solV(d.mod)}, ${solV(d.ninv)} inversor ${solV(d.tinv)} ${solV(d.minv)}` +
+    (d.bat.tem ? `, sistema de armazenamento com ${d.bat.qtd > 1 ? d.bat.qtd + ' baterias' : 'bateria'} ${e(d.bat.marca)}${d.bat.spec.length ? ' (' + e(d.bat.spec.join(' · ')) + ')' : ''}` : '') +
+    ', cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).';
+  const garEquip = `Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${solUn(d.gmod, 'ano', 'anos')} para módulos fotovoltaicos, ${solUn(d.ginv, 'ano', 'anos')} para o inversor, ` +
+    (solBatGar(d) ? `${solBatGar(d)} para a bateria, ` : '') + 'e prazos específicos para demais componentes conforme manual do fabricante.';
+  const dataTxt = solDataLonga(d.data);
+  const valorTxt = d.valorN > 0 ? `R$ ${solFmt(d.valorN)} (${e(solExtenso(d.valorN))})` : SOL_LACUNA;
+  const quem = cli.nome;
+  const foro = d.foro || '';
+
+  const blocos = [
+    solTopoCtr(`${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${foro ? ' · ' + e(foro) : ''}`) +
+      `<div class="ep-ctr-tit">Contrato de Serviços de Instalação de Usina Fotovoltaica</div><div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>`,
+    `<div class="sol-partes">
+      <div class="sol-parte"><div class="cap">Contratada</div><b>${e(emp.razao)} (Irmãos na Obra)</b><br>inscrita no CNPJ sob o nº ${e(emp.cnpj)}${emp.end ? ', com sede em ' + e(emp.end) : ''}</div>
+      <div class="sol-parte"><div class="cap">${cli.pj ? 'Cliente (PJ)' : 'Cliente'}</div><b>${solV(cli.nome)}</b><br>${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada em' : 'residente na'} ${solV(cli.endFull)}${cli.pj && cli.rep ? ', neste ato representada por ' + e(cli.rep) : ''}</div>
+    </div>`,
+    `<table class="sol-res"><tbody>
+      ${res('Potência instalada', `${solV(d.kwp)} kWp`)}
+      ${geracaoTxt ? res('Geração estimada', '~' + geracaoTxt + ' em média anual') : ''}
+      ${res('Local de instalação', solV(d.endInst))}
+      ${d.valorN > 0 ? res('Valor total', valorTxt) : ''}
+      ${res('Foro eleito', solV(foro))}
+    </tbody></table>`,
+    P(`Entre as partes: ${solQualifEmp(emp)}, doravante denominada CONTRATADA, e ${solQualifCli(cli, 'm2')}, doravante denominado CLIENTE, tem-se ajustado o presente CONTRATO, conforme os seguintes termos e condições:`),
+    ...cl(1, 'Objeto', [
+      P(`A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${solV(d.kwp)} kWp${geracaoTxt ? `, com geração estimada de ~${geracaoTxt} em média anual` : ''}, fornecendo materiais, equipamentos e executando o comissionamento.`),
+      d.geracao > 0 ? NT('A geração informada é uma ESTIMATIVA baseada na irradiação solar histórica da região e na potência instalada. A produção real varia conforme clima, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede, não constituindo garantia de geração mínima.') : '',
+      P(componentes),
+      P(`<span class="rot">Local de instalação:</span> ${solV(d.endInst)}`),
+      P('Fica no escopo do CLIENTE deixar a área em condições para implantação da usina, como por exemplo limpeza e terraplanagem quando se fizer necessário.'),
+    ].filter(Boolean)),
+    ...cl(2, 'Prazos e execução', [
+      P('A CONTRATADA deverá:') + UL([
+        `Submeter o projeto técnico em até ${solUn(d.pproj, 'dia', 'dias')} após o cumprimento das obrigações pelo CLIENTE.`,
+        `Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até ${solUn(d.paprov, 'dia', 'dias')}, salvo pendências atribuídas ao CLIENTE ou terceiros.`,
+        `Realizar a instalação completa em até ${solUn(d.pinst, 'dia', 'dias')} úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.`]),
+      NT('Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CLIENTE, dos fabricantes ou de órgãos reguladores. Em situações de força maior, os prazos serão reajustados de acordo com novo cronograma acordado entre as partes.'),
+    ]),
+    ...cl(3, 'Valor e condições de pagamento', [
+      P(`O valor total dos serviços é de ${valorTxt}, sendo o pagamento realizado da seguinte forma:`),
+      P(d.pagto ? solTxt(d.pagto) : SOL_LACUNA),
+    ]),
+    ...cl(4, 'Garantias e manutenção', [
+      P(garEquip),
+      P(`<span class="rot">Instalação:</span> A garantia de instalação é de ${solGarInst(d)}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.`),
+      P('<span class="rot">Exclusões de Garantia:</span> A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.'),
+      P('Fica acordado entre as partes que, caso ocorram quebras de telhas durante a execução do serviço, será realizada a reposição das mesmas. A responsabilidade pela substituição será definida de comum acordo entre as partes, considerando a fragilidade e as condições do material.'),
+    ]),
+    ...cl(5, 'Obrigações do cliente', [
+      P('O CLIENTE compromete-se a:') + UL([
+        'Disponibilizar toda a documentação necessária para a elaboração do projeto técnico e fornecer acesso adequado ao local de instalação, incluindo rede elétrica e pontos de aterramento conforme normas vigentes.',
+        'Monitorar a integridade do local de instalação e reportar eventuais falhas à CONTRATADA. Modificações no imóvel que prejudiquem a operação do sistema fotovoltaico são de responsabilidade do CLIENTE.']),
+    ]),
+    ...cl(6, 'Rescisão contratual', [
+      P('Este contrato poderá ser rescindido a qualquer momento, desde que uma das partes comunique a outra com antecedência mínima de 30 dias, assumindo a parte responsável os custos e penalidades decorrentes. Em caso de rescisão por descumprimento, será cobrada multa de 10% sobre o valor total do contrato.'),
+    ]),
+    ...cl(7, 'Disposições gerais', [
+      P('<span class="rot">Confidencialidade:</span> As partes concordam em manter a confidencialidade sobre as informações trocadas durante a execução do presente contrato.'),
+      P('<span class="rot">Cessão de Direitos:</span> Nenhuma das partes poderá transferir seus direitos e obrigações sob este contrato sem o consentimento por escrito da outra parte.'),
+      P('<span class="rot">Alterações:</span> Qualquer alteração neste contrato deverá ser formalizada por meio de termo aditivo assinado por ambas as partes.'),
+    ]),
+    ...cl(8, 'Desempenho e geração de energia', [
+      P('O desempenho estimado da usina é baseado em condições climáticas e operacionais normais.'),
+      P('A geração de energia pode variar até 10% devido a condições climáticas e características do local.'),
+      P('A CONTRATADA não se responsabiliza por perdas de geração de energia decorrentes de fatores externos ou mudanças estruturais no local de instalação, tais como sombras adicionais.'),
+    ]),
+    ...cl(9, 'Manutenção preventiva e corretiva', [
+      P('Após o período de garantia, a CONTRATADA poderá oferecer um serviço de manutenção preventiva e corretiva, mediante a contratação específica entre as partes. Esse serviço incluirá verificação de funcionamento, limpeza dos módulos e ajustes técnicos, caso necessários.'),
+    ]),
+    ...cl(10, 'Vistoria técnica e documentação de conformidade', [
+      P('Ao término da instalação, será realizada uma vistoria técnica para avaliar a conformidade do sistema com os padrões de segurança e regulamentações vigentes. A CONTRATADA emitirá um laudo técnico documentando as condições de instalação, que deverá ser assinado por ambas as partes.'),
+    ]),
+    ...cl(11, 'Transferência de contrato e usina', [
+      P('O CLIENTE poderá transferir este contrato para terceiros, mediante autorização expressa da CONTRATADA e desde que o novo titular cumpra com as obrigações contratuais aqui previstas.'),
+    ]),
+    ...cl(12, 'Responsabilidades ambientais e sustentabilidade', [
+      P('As partes reconhecem a natureza sustentável deste contrato e comprometem-se a atuar de forma a minimizar impactos ambientais durante e após a instalação. O CLIENTE concorda em manter a área de instalação livre de obstruções e a CONTRATADA assegura que todos os materiais e equipamentos usados estão de acordo com as normas ambientais.'),
+    ]),
+    ...cl(13, 'Multa por interrupção não autorizada', [
+      P('Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.'),
+    ]),
+    ...cl(14, 'Foro', [
+      P(`As partes elegem o Foro da Comarca de ${solV(foro)} para dirimir eventuais controvérsias decorrentes deste contrato, renunciando a qualquer outro foro.`),
+    ]),
+    solCtrFecho(d, { vias: false }),
+  ];
+  return { blocos, quem };
+}
+
+// fecho comum aos dois contratos: local e data, assinaturas e testemunhas
+function solCtrFecho(d, o) {
+  const e = solEsc, emp = d.emp, cli = d.cli;
+  const dataTxt = solDataLonga(d.data);
+  const intro = o.vias
+    ? '<div class="ep-ctr-cl">15. ASSINATURAS</div><p class="ep-ctr-p">E, por estarem de acordo com todos os termos e condições acima estabelecidos, as partes assinam o presente contrato em 2 (duas) vias de igual teor e forma.</p>'
+    : '<p class="ep-ctr-p" style="margin-top:14px">Por estarem de pleno acordo com os termos deste contrato, as partes assinam o presente documento.</p>';
+  return `<div class="ep-ctr-fim">
+      ${intro}
+      <p class="ep-ctr-p">${d.foro ? e(d.foro) + ', ' : ''}${e(dataTxt)}.</p>
+      <div class="ep-ctr-assin">
+        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>neste ato representada por ${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}${o.vias ? 'CONTRATADA' : 'Empresa contratada'}</div>
+        <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}${o.vias ? 'CONTRATANTE' : 'Cliente contratante'}</div>
+      </div>
+      ${o.vias ? '' : `<div class="ep-ctr-test">
+        <div class="a"><b>Testemunha 1</b><span>Nome e CPF:</span></div>
+        <div class="a"><b>Testemunha 2</b><span>Nome e CPF:</span></div>
+      </div>`}
+    </div>`;
+}
+
+// Contrato Completo: contratoSolarM1 do SolarDoc (15 cláusulas)
+function fsCtrBlocosM1(d) {
+  const e = solEsc, emp = d.emp, cli = d.cli;
+  const H = (n, t, primeiro) => `<div class="ep-ctr-cl">${n}. ${e(t)}</div>${primeiro || ''}`;
+  const P = h => `<p class="ep-ctr-p">${h}</p>`;
+  const L = (l, h) => `<p class="ep-ctr-li">${l}) ${h}</p>`;
+  const geracaoTxt = d.geracao > 0 ? `${e(Math.round(d.geracao).toLocaleString('pt-BR'))} kWh/mês` : '';
+  const dataTxt = solDataLonga(d.data);
+  const foro = d.foro || '';
+  const row = (k, v) => `<tr><td class="k">${e(k)}</td><td>${v}</td></tr>`;
+  const batG = solBatGar(d);
+  const blocos = [
+    solTopoCtr(`${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${foro ? ' · ' + e(foro) : ''}`) +
+      `<div class="ep-ctr-tit">Contrato de Fornecimento e Instalação de Sistema de Energia Solar Fotovoltaica</div><div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>`,
+    P('Este contrato é celebrado entre:'),
+    P(`<b>CONTRATADA:</b> ${solQualifEmp(emp).replace(', inscrita', ', pessoa jurídica de direito privado, inscrita')}, doravante denominada simplesmente CONTRATADA.`),
+    P(`<b>CONTRATANTE:</b> ${solQualifCli(cli, 'm1')}, doravante denominado(a) simplesmente CONTRATANTE.`),
+    P('As partes, de comum acordo, celebram o presente contrato com base na transparência, na boa-fé e no interesse mútuo, sob as condições a seguir estabelecidas:'),
+    H(1, 'OBJETO DO CONTRATO', P('A CONTRATADA compromete-se a fornecer os equipamentos especificados, elaborar o projeto técnico, realizar a instalação completa e providenciar a homologação junto à concessionária de energia elétrica local, entregando ao CONTRATANTE um sistema de geração de energia solar fotovoltaica em pleno funcionamento.')),
+    P('Especificações do sistema contratado:') +
+      `<table class="sol-res"><tbody>
+        ${row('Potência instalada', `${solV(d.kwp)} kWp`)}
+        ${row('Módulos', `${solV(d.nmod)} unidade(s) · ${solV(d.mod)}`)}
+        ${row('Inversores', `${solV(d.ninv)} unidade(s) · ${solV(d.tinv)} / ${solV(d.minv)}`)}
+        ${d.bat.tem ? row('Bateria', e(d.bat.titulo) + (d.bat.spec.length ? ' · ' + e(d.bat.spec.join(' · ')) : '')) : ''}
+        ${geracaoTxt ? row('Geração estimada', `~${geracaoTxt} (média anual)`) : ''}
+        ${row('Local de instalação', solV(d.endInst))}
+      </tbody></table>`,
+    P('O escopo completo da CONTRATADA inclui: levantamento técnico no local, elaboração do projeto elétrico, aquisição e transporte dos equipamentos, instalação dos módulos, inversores e demais componentes, realização dos testes de funcionamento (comissionamento) e encaminhamento do pedido de conexão à concessionária de energia.'),
+    P('Adequações estruturais no imóvel (como reforço de telhado, terraplanagem ou obras civis) não estão incluídas no escopo deste contrato e serão informadas ao CONTRATANTE previamente, caso necessário, para deliberação conjunta.'),
+    P('Todos os serviços serão executados em conformidade com as normas da ABNT NBR 16690, com as resoluções normativas da ANEEL e com os requisitos técnicos da concessionária local de energia elétrica.'),
+    d.geracao > 0 ? P('A geração informada é uma ESTIMATIVA calculada a partir da irradiação solar histórica da região e da potência instalada. A produção real varia conforme condições climáticas, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede da concessionária, não constituindo garantia de geração mínima.') : '',
+
+    H(2, 'IDENTIFICAÇÃO E QUALIFICAÇÃO DAS PARTES', P('2.1. A CONTRATADA é uma empresa especializada no fornecimento, instalação e manutenção de sistemas fotovoltaicos, com experiência comprovada no setor de energia solar.')),
+    P('2.2. O CONTRATANTE declara ter tomado conhecimento das características do sistema adquirido, das condições do local de instalação e das especificações técnicas descritas neste instrumento.'),
+    P('2.3. Ambas as partes são capazes civilmente e firmam este contrato de forma livre e voluntária, sem qualquer vício de consentimento.'),
+
+    H(3, 'OBJETO DETALHADO: ETAPAS DOS SERVIÇOS', P('A execução dos serviços pela CONTRATADA seguirá as seguintes etapas:')),
+    L('a', 'Visita técnica e levantamento: avaliação detalhada do local de instalação, verificação da estrutura de suporte, da rede elétrica existente e das condições de acesso;'),
+    L('b', 'Projeto técnico: elaboração do projeto elétrico fotovoltaico conforme normas da ABNT e exigências da concessionária, incluindo memorial descritivo, diagramas unifilares e documentação de ART (Anotação de Responsabilidade Técnica);'),
+    L('c', 'Aquisição de materiais: fornecimento de todos os equipamentos e materiais descritos neste contrato, incluindo módulos, inversores, cabos, conectores, estruturas de fixação e dispositivos de proteção elétrica;'),
+    L('d', 'Instalação: execução da montagem física do sistema, instalação elétrica, fixação dos módulos na estrutura do telhado ou solo, instalação do inversor e realização de todas as conexões necessárias;'),
+    L('e', 'Comissionamento: testes de funcionamento e verificação dos parâmetros de operação do sistema antes da entrega ao CONTRATANTE;'),
+    L('f', 'Homologação: encaminhamento e acompanhamento do processo de solicitação de conexão junto à concessionária de energia elétrica, incluindo envio da documentação técnica e interligação da instalação à rede.'),
+
+    H(4, 'PRAZOS', P('Os prazos abaixo são contados a partir da data em que o CONTRATANTE entregar toda a documentação solicitada e efetuar o pagamento inicial previsto neste contrato:')),
+    L('a', `Projeto técnico: até ${solUn(d.pproj, 'dia', 'dias')} úteis após o envio da documentação pelo CONTRATANTE;`),
+    L('b', `Aprovação da concessionária: prazo médio de até ${solUn(d.paprov, 'dia', 'dias')}, podendo variar conforme a análise e cronograma interno da distribuidora de energia;`),
+    L('c', `Instalação: até ${solUn(d.pinst, 'dia', 'dias')} úteis após a aprovação do projeto pela concessionária.`),
+    P('É importante destacar que o prazo de aprovação da concessionária está sujeito ao fluxo interno de cada distribuidora e pode sofrer variações por fatores alheios ao controle da CONTRATADA. Em todos os casos, a CONTRATADA manterá o CONTRATANTE informado sobre o andamento do processo e atuará de forma ativa para minimizar eventuais atrasos.'),
+    P('Os prazos ficam automaticamente suspensos em casos de: atraso na entrega de documentos pelo CONTRATANTE; necessidade de adequações no local de instalação; atrasos na distribuição de equipamentos pelos fabricantes; ou situações de força maior devidamente documentadas.'),
+
+    H(5, 'VALOR E CONDIÇÕES DE PAGAMENTO', P(`O valor total deste contrato é de ${d.valorN > 0 ? `R$ ${solFmt(d.valorN)} (${e(solExtenso(d.valorN))})` : SOL_LACUNA}, a ser pago conforme as condições abaixo acordadas:`)),
+    P(d.pagto ? solTxt(d.pagto) : SOL_LACUNA),
+    P('O início dos serviços fica condicionado à confirmação do pagamento da primeira parcela.'),
+
+    H(6, 'GARANTIAS', P('A CONTRATADA oferece as seguintes garantias sobre este contrato:')),
+    L('a', `Módulos fotovoltaicos: ${solUn(d.gmod, 'ano', 'anos')} de garantia, fornecida diretamente pelo fabricante, cobrindo defeitos de fabricação e degradação fora dos parâmetros técnicos informados em manual;`),
+    L('b', `Inversor: ${solUn(d.ginv, 'ano', 'anos')} de garantia do fabricante, incluindo cobertura contra defeitos de funcionamento e falhas de componentes eletrônicos;`),
+    L('c', `Serviços de instalação: ${solGarInst(d)} de garantia sobre a execução dos serviços realizados pela CONTRATADA, cobrindo exclusivamente defeitos provenientes da instalação, como infiltrações causadas pela fixação, falhas em conexões elétricas ou problemas estruturais gerados durante a obra.`),
+    batG ? L('d', `Bateria: ${batG} de garantia do fabricante, cobrindo defeitos de funcionamento e perda de capacidade fora dos parâmetros técnicos informados em manual.`) : '',
+    P('Vale destacar que as garantias dos equipamentos são administradas diretamente pelos respectivos fabricantes. Nos casos em que for necessário acionar a garantia de um equipamento, a CONTRATADA prestará suporte ao CONTRATANTE no processo de acionamento junto ao fabricante, facilitando os trâmites necessários.'),
+    P('A garantia perde a validade em situações de: uso inadequado do sistema; intervenções realizadas por terceiros não autorizados; danos causados por descargas elétricas, inundações, granizo ou outros eventos de força maior; ou modificações estruturais no imóvel que afetem o sistema após a instalação.'),
+    P('Em caso de quebra acidental de telhas durante a execução dos serviços, a CONTRATADA realizará a reposição das peças danificadas, sendo que a definição de responsabilidade levará em consideração as condições originais do material no momento da instalação.'),
+
+    H(7, 'OBRIGAÇÕES DO CONTRATANTE', P('Para que os serviços sejam executados dentro do prazo e com a qualidade esperada, o CONTRATANTE se compromete a:')),
+    L('a', 'Fornecer, no prazo de até 5 (cinco) dias úteis após a assinatura deste contrato, toda a documentação solicitada pela CONTRATADA, incluindo conta de energia elétrica, documentos do imóvel e documentos pessoais necessários para o projeto e homologação;'),
+    L('b', 'Garantir livre acesso ao imóvel nos dias e horários acordados para a realização da vistoria, da instalação e de eventuais visitas técnicas;'),
+    L('c', 'Certificar-se, antes da instalação, de que a estrutura do telhado está em condições adequadas para suportar o peso e as cargas do sistema fotovoltaico; caso haja dúvidas, a CONTRATADA poderá indicar um profissional para avaliação;'),
+    L('d', 'Verificar, com antecedência, se o padrão de entrada de energia elétrica está de acordo com as exigências da concessionária local; eventuais adequações no padrão são de responsabilidade do CONTRATANTE e poderão ser realizadas pela CONTRATADA mediante orçamento adicional;'),
+    L('e', 'Efetuar os pagamentos nas datas acordadas, conforme condições estabelecidas na cláusula 5;'),
+    L('f', 'Não realizar, por conta própria ou por meio de terceiros, qualquer modificação, intervenção ou manutenção no sistema instalado sem autorização prévia da CONTRATADA;'),
+    L('g', 'Comunicar à CONTRATADA, no menor prazo possível, qualquer anomalia, alarme ou irregularidade no funcionamento do sistema.'),
+
+    H(8, 'HOMOLOGAÇÃO JUNTO À CONCESSIONÁRIA', P('A homologação (etapa que permite a interligação do sistema fotovoltaico à rede elétrica e a geração de créditos de energia) depende da aprovação e do cronograma interno da concessionária de energia elétrica local.')),
+    P('A CONTRATADA é responsável por elaborar e enviar toda a documentação técnica exigida, além de acompanhar o processo junto à distribuidora. No entanto, os prazos de análise e aprovação são definidos exclusivamente pela concessionária, estando fora do controle direto da CONTRATADA.'),
+    P('Durante o período de análise, o sistema pode estar instalado, mas não conectado à rede. Após a aprovação, será realizada a interligação e o sistema passará a operar em sua capacidade total. A CONTRATADA informará o CONTRATANTE sobre cada etapa do processo de homologação.'),
+
+    H(9, 'DESEMPENHO DO SISTEMA', P('O sistema fornecido foi dimensionado com base no perfil de consumo informado pelo CONTRATANTE e nos dados históricos de irradiância solar da região de instalação. A estimativa de geração apresentada na proposta comercial constitui uma projeção técnica fundamentada, mas não representa uma garantia de produção exata.')),
+    P('A geração real de energia poderá apresentar variação de até 10% (dez por cento) em relação à estimativa, em razão de fatores naturais e externos, como: variações climáticas e de irradiância ao longo do ano; temperatura ambiente, que pode afetar o rendimento dos módulos; sombreamento por árvores, edificações ou estruturas próximas; qualidade e estabilidade da rede elétrica local.'),
+    P('A CONTRATADA não se responsabiliza por variações de geração decorrentes desses fatores externos. O monitoramento do sistema pode ser feito por meio de aplicativo disponibilizado pelo fabricante do inversor, permitindo ao CONTRATANTE acompanhar a produção em tempo real.'),
+
+    H(10, 'ENTREGA E VISTORIA TÉCNICA', P('Ao término da instalação, antes da entrega formal do sistema ao CONTRATANTE, será realizada uma vistoria técnica conjunta, na qual a CONTRATADA apresentará o sistema instalado, demonstrará seu funcionamento e esclarecerá eventuais dúvidas sobre a operação.')),
+    P('A CONTRATADA emitirá, após o comissionamento, um laudo técnico de conformidade atestando que o sistema foi instalado de acordo com as normas vigentes e com as especificações contratadas.'),
+    P('A entrega formal do sistema será documentada por Termo de Recebimento, a ser assinado pelo CONTRATANTE, declarando que recebeu o sistema em perfeitas condições de funcionamento e que foi devidamente orientado sobre sua operação.'),
+
+    H(11, 'MANUTENÇÃO', P('Durante o período de garantia da instalação, a CONTRATADA prestará assistência técnica sem custo adicional nos casos de defeitos cobertos pela garantia prevista na cláusula 6.')),
+    P('Após o encerramento do período de garantia, a CONTRATADA poderá oferecer serviço de manutenção preventiva e corretiva mediante proposta específica, que poderá incluir: inspeção visual e elétrica dos módulos e conexões; limpeza dos módulos fotovoltaicos; verificação e atualização de firmware do inversor; análise de desempenho do sistema; e relatório técnico de funcionamento.'),
+    P('Para preservar o desempenho do sistema ao longo do tempo, recomenda-se a realização de limpeza periódica dos módulos e a verificação das conexões ao menos uma vez por ano.'),
+
+    H(12, 'RESCISÃO', P('Este contrato poderá ser encerrado nas seguintes situações:')),
+    L('a', 'Por mútuo acordo entre as partes, a qualquer momento, mediante formalização por escrito;'),
+    L('b', 'Por iniciativa de qualquer das partes, mediante comunicação prévia de 30 (trinta) dias, sem necessidade de justificativa;'),
+    L('c', 'De imediato, pela parte prejudicada, em caso de descumprimento grave das obrigações previstas neste instrumento, desde que a parte infratora seja notificada previamente com prazo de 5 (cinco) dias úteis para sanar a irregularidade.'),
+    P('Na hipótese de rescisão antes do início da execução dos serviços, por iniciativa do CONTRATANTE sem justa causa, será retido um percentual de 10% (dez por cento) sobre o valor total do contrato, a título de cobertura dos custos administrativos e de projeto já incorridos pela CONTRATADA.'),
+    P('Se a rescisão ocorrer após o início dos serviços, os valores correspondentes ao trabalho já realizado e aos materiais já adquiridos ou instalados deverão ser apurados e compensados proporcionalmente entre as partes, de forma justa e documentada.'),
+    P('Em caso de rescisão por culpa exclusiva da CONTRATADA, os valores eventualmente pagos pelo CONTRATANTE que não correspondam a serviços ou materiais efetivamente entregues serão devolvidos integralmente no prazo de 15 (quinze) dias.'),
+
+    H(13, 'DISPOSIÇÕES GERAIS', L('a', 'Alterações: qualquer modificação nas condições deste contrato deverá ser formalizada por Termo Aditivo, assinado por ambas as partes;')),
+    L('b', 'Cessão: os direitos e obrigações deste contrato não poderão ser transferidos a terceiros sem o consentimento expresso e por escrito da outra parte;'),
+    L('c', 'Confidencialidade: as informações técnicas e comerciais trocadas em razão deste contrato são de caráter reservado e não deverão ser divulgadas a terceiros sem autorização;'),
+    L('d', 'Independência das cláusulas: a eventual nulidade ou ineficácia de qualquer disposição deste instrumento não afetará a validade das demais;'),
+    L('e', 'Integralidade: este documento representa a totalidade do acordado entre as partes, substituindo qualquer proposta, orçamento ou entendimento verbal anterior sobre o mesmo objeto.'),
+
+    H(14, 'FORO', P(`As partes elegem, de comum acordo, o Foro da Comarca de ${solV(foro)} para dirimir eventuais dúvidas, divergências ou litígios decorrentes deste contrato, renunciando a qualquer outro por mais privilegiado que seja.`)),
+    solCtrFecho(d, { vias: true }),
+  ].filter(Boolean);
+  return { blocos, quem: cli.nome };
+}
+
+function fsContrato() {
+  const d = fsCtrDados();
+  if (fsMostraFaltas(fsFaltas('contrato'))) return;
+  const { blocos, quem } = d.modelo === 1 ? fsCtrBlocosM1(d) : fsCtrBlocosM2(d);
+  const rot = 'Contrato de instalação de usina fotovoltaica';
+  const pageFoot = (n, tot) => solRodape(rot, quem, n, tot, tot > 1 ? 2 : 0);
+  const html = `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
+  const arquivo = ['Contrato_Solar', solLimpaArq(d.cli.nome) || 'Cliente', d.num ? 'N' + solLimpaArq(d.num.replace(/\//g, '-')) : ''].filter(Boolean).join('_');
+  fsPreview({ tipo: 'Contrato', cliente: d.cli.nome, valor: d.valorN, num: d.num, html, arquivo, titulo: 'Contrato solar · ' + d.cli.nome, opts: null });
+}
+
+// ═══ PROCURAÇÃO ═══
+function fsProcDados() {
+  const cli = fsCli();
+  const g = id => fsVal(id);
+  return {
+    cli, emp: solEmp(), modelo: +fsVal('fs-p-modelo') || 1, uc: g('fs-p-uc'), conc: g('fs-p-conc'), data: g('fs-p-data') || solHoje(), cidade: g('fs-p-cidade'), socio: g('fs-p-socio'),
+    eng: { nome: g('fs-p-eng-nome'), nac: g('fs-p-eng-nac'), ec: g('fs-p-eng-ec'), prof: g('fs-p-eng-prof'), crea: g('fs-p-eng-crea'), rg: g('fs-p-eng-rg'), cpf: g('fs-p-eng-cpf'), end: g('fs-p-eng-end') },
+    tec: { nome: g('fs-p-tec-nome'), nac: g('fs-p-tec-nac'), ec: g('fs-p-tec-ec'), crt: g('fs-p-tec-crt'), rg: g('fs-p-tec-rg'), cpf: g('fs-p-tec-cpf'), end: g('fs-p-tec-end') },
+    tec2: { nome: g('fs-p-tec2-nome'), nac: g('fs-p-tec2-nac'), ec: g('fs-p-tec2-ec'), crt: g('fs-p-tec2-crt'), rg: g('fs-p-tec2-rg'), cpf: g('fs-p-tec2-cpf'), end: g('fs-p-tec2-end') },
+    tec3: { nome: g('fs-p-tec3-nome'), nac: g('fs-p-tec3-nac'), ec: g('fs-p-tec3-ec'), crt: g('fs-p-tec3-crt'), rg: g('fs-p-tec3-rg'), cpf: g('fs-p-tec3-cpf'), end: g('fs-p-tec3-end') },
+  };
+}
+// engenheiro e técnico, na ordem do procQualifica (modelos 1 e 2) ou na da ANEEL (modelo 3)
+function solProcQualifica(d, aneel) {
+  const e = solEsc, lac = SOL_LACUNA;
+  const junta = ps => { const q = ps.filter(x => x && String(x).trim()).join(', '); return q ? q + '.' : ''; };
+  const E = d.eng, T = d.tec;
+  const eng = E.nome ? junta(aneel ? [
+    '<b>' + e(E.nome.toUpperCase()) + '</b>', e(E.nac), e(E.ec), e(E.prof),
+    E.rg ? 'portador(a) da carteira de identidade nº ' + e(E.rg) : '',
+    E.cpf ? 'CPF nº ' + e(E.cpf) : '',
+    E.crea ? 'inscrito(a) no ' + e(E.crea) : 'inscrito(a) no CREA sob o nº ' + lac,
+    E.end ? 'residente na ' + e(E.end) : '',
+  ] : [
+    '<b>' + e(E.nome.toUpperCase()) + '</b>', e(E.prof), e(E.nac), e(E.ec),
+    E.crea ? 'inscrito(a) no ' + e(E.crea) : 'inscrito(a) no CREA sob o nº ' + lac,
+    E.cpf ? 'CPF nº ' + e(E.cpf) : '',
+    E.rg ? 'RG nº ' + e(E.rg) : '',
+    E.end ? 'residente e domiciliado(a) na ' + e(E.end) : '',
+  ]) : '';
+  const qt = T => T.nome ? junta(aneel ? [
+    '<b>' + e(T.nome.toUpperCase()) + '</b>', e(T.nac), e(T.ec),
+    T.crt ? e(T.crt) : 'inscrito(a) no CRT/CFT sob o nº ' + lac,
+    T.rg ? 'portador(a) da carteira de identidade nº ' + e(T.rg) : '',
+    T.cpf ? 'CPF nº ' + e(T.cpf) : '',
+    T.end ? 'residente na ' + e(T.end) : '',
+  ] : [
+    '<b>' + e(T.nome.toUpperCase()) + '</b>', e(T.nac), e(T.ec),
+    T.crt ? e(T.crt) : 'inscrito(a) no CRT/CFT sob o nº ' + lac,
+    T.cpf ? 'CPF nº ' + e(T.cpf) : '',
+    T.rg ? 'RG nº ' + e(T.rg) : '',
+    T.end ? 'residente e domiciliado(a) na ' + e(T.end) : '',
+  ]) : '';
+  const tec = qt(T);
+  return { eng, tec, tec2: aneel ? qt(d.tec2) : '', tec3: aneel ? qt(d.tec3) : '' };
+}
+function solProcOutorgados(lista) {
+  if (!lista.length) return `<div class="sol-outs"><div class="sol-out"><div class="ot">Outorgado</div><div class="oq">${SOL_LACUNA}</div></div></div>`;
+  if (lista.length >= 3) return `<div class="sol-outs"><div class="sol-out"><div class="ot">Procuradores</div><ol class="lst">${lista.map(o => `<li>${o.texto}</li>`).join('')}</ol></div></div>`;
+  return `<div class="sol-outs">${lista.map(o => `<div class="sol-out"><div class="ot">${solEsc(o.rotulo)}</div><div class="oq">${o.texto}</div></div>`).join('')}</div>`;
+}
+function fsProcHTML(d) {
+  const e = solEsc, cli = d.cli, emp = d.emp;
+  const dataTxt = solDataLonga(d.data);
+  const concTxt = solV(d.conc), ucTxt = solV(d.uc);
+  const { eng, tec, tec2, tec3 } = solProcQualifica(d, d.modelo === 3);
+  const plural = !!eng && !!tec;
+  const lista = [];
+  if (d.modelo === 3) [eng, tec, tec2, tec3].filter(Boolean).forEach((t, i, a) => lista.push({ rotulo: a.length > 1 ? 'Procurador ' + (i + 1) : 'Procurador', texto: t }));
+  else if (plural) { lista.push({ rotulo: '1º Outorgado', texto: eng }); lista.push({ rotulo: '2º Outorgado', texto: tec }); }
+  else if (eng || tec) lista.push({ rotulo: 'Outorgado', texto: eng || tec });
+  const P = (h, st) => `<p class="ep-ctr-p"${st ? ` style="${st}"` : ''}>${h}</p>`;
+  const SEC = t => `<div class="sol-sec">${e(t)}</div>`;
+  const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
+  const rep = cli.pj && cli.rep ? `, neste ato representada por ${e(cli.rep)}` : '';
+  let titulo, sub, corpo, legenda;
+
+  if (d.modelo === 1) {
+    titulo = 'Procuração'; sub = 'Representação junto à concessionária de energia elétrica'; legenda = 'Outorgante';
+    corpo = P('Pelo presente instrumento particular de procuração,') +
+      `<div class="sol-card"><div class="cap">Outorgante</div><div class="kv">
+        ${kv('Nome', cli.nome + (cli.pj && cli.rep ? ' (representada por ' + cli.rep + ')' : ''), true)}${kv('CPF / CNPJ', cli.doc)}${kv('CEP', cli.cep)}
+        ${kv('Endereço', cli.endFull, true)}${kv('Unidade Consumidora (UC)', d.uc)}${kv('Concessionária', d.conc)}
+      </div></div>` +
+      P(`nomeia e constitui como ${plural ? 'seus bastantes procuradores' : 'seu(ua) bastante procurador(a)'}:`) +
+      solProcOutorgados(lista) +
+      SEC('Poderes conferidos') +
+      P(`conferindo-lhe(s) amplos poderes para que ${plural ? 'os outorgados representem' : 'o(a) outorgado(a) represente'} perante a concessionária ${concTxt}, em todos os assuntos relativos à UC nº ${ucTxt}, incluindo: apresentação e protocolo de projetos técnicos, análise de carga, troca de titularidade, atualização cadastral, assinatura de contratos de conexão e quaisquer outros atos necessários à homologação e operação do sistema fotovoltaico.`);
+  } else if (d.modelo === 2) {
+    titulo = 'Instrumento Particular de Procuração'; sub = 'Poderes especiais para representação junto à concessionária'; legenda = 'Outorgante';
+    corpo = P('SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,') +
+      `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${solV(cli.nome)}, inscrito(a) no CPF/CNPJ sob o nº ${solV(cli.doc)}, residente e domiciliado(a) à ${solV(cli.endFull)}${cli.cep ? `, CEP ${e(cli.cep)}` : ''}${rep}, doravante denominado(a) simplesmente OUTORGANTE,</p></div>` +
+      P(`pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${plural ? 'seus legítimos procuradores' : 'seu(ua) legítimo(a) procurador(a)'}:`) +
+      solProcOutorgados(lista) +
+      SEC('Poderes especiais conferidos') +
+      P(`conferindo-${plural ? 'lhes' : 'lhe'} os seguintes poderes especiais:`, 'margin-bottom:5px') +
+      [`Representar o(a) OUTORGANTE junto à concessionária de energia elétrica ${concTxt}, em todos os assuntos relacionados à Unidade Consumidora de nº ${ucTxt};`,
+        'Assinar e protocolar requerimentos, projetos técnicos, formulários, contratos de conexão e todos os documentos necessários ao processo de homologação e conexão do sistema fotovoltaico;',
+        `Solicitar análise de carga, troca de titularidade, atualização cadastral e quaisquer serviços técnicos junto à ${concTxt};`,
+        'Receber notificações, intimações e quaisquer comunicados em nome do(a) OUTORGANTE;',
+        `Substabelecer este mandato, no todo ou em parte, com ou sem reserva de iguais poderes, a critério ${plural ? 'dos procuradores' : 'do(a) procurador(a)'}.`]
+        .map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${t}</p>`).join('') +
+      P('Esta procuração terá validade de 1 (um) ano a contar da data de sua assinatura, salvo revogação expressa anterior.<br>O(A) OUTORGANTE declara que as informações constantes neste instrumento são verdadeiras e assume integral responsabilidade pelo seu conteúdo.', 'font-size:11px;font-style:italic;border-left:2px solid #F59E0B;padding-left:9px');
+  } else {
+    titulo = 'Procuração'; sub = 'Representação junto à concessionária e à ANEEL'; legenda = '(nome completo do cliente)';
+    const empEnd = emp.end;
+    const outorgada = `OUTORGADO(A): ${e(emp.razao.toUpperCase())} (Irmãos na Obra), inscrita no CNPJ nº ${e(emp.cnpj)}${empEnd ? `, sediada na ${e(empEnd)}` : ''}${d.socio ? `, neste ato devidamente representada por seu sócio proprietário ${e(d.socio.toUpperCase())}` : ''}, com poderes para assinar procuração em nome da empresa supracitada.`;
+    corpo = `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${cli.nome ? e(cli.nome.toUpperCase()) : SOL_LACUNA}, ${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada' : 'residente'} no ${solV(cli.endFull)} (endereço idêntico à conta de energia)${rep}.</p></div>` +
+      `<div class="sol-card"><div class="cap">Outorgada</div><p class="ep-ctr-p" style="margin:0">${outorgada}</p></div>` +
+      solProcOutorgados(lista) +
+      SEC('Finalidade e poderes') +
+      P(`Por intermédio do presente instrumento particular de procuração, o OUTORGANTE infra-assinado nomeia e constitui seu Procurador o OUTORGADO supramencionado conferindo-lhes poderes para representá-lo com a finalidade exclusiva de providenciar ou autorizar qualquer requerimento junto à prestadora de serviço de energia, ${d.conc ? e(d.conc) : '(NOME DA CONCESSIONÁRIA DE DISTRIBUIÇÃO LOCAL)'}, e a Agência Nacional de Energia Elétrica (ANEEL), com as devidas finalidades: Troca de titularidade, solicitação de conexão, formulário de solicitação de acesso, emissão de TRT, formulário de rateio, aumento de carga, nova ligação, troca de medidor, mudança de padrão, ou seja, homologação geral do sistema de geração de energia solar fotovoltaica.`) +
+      P('Insta esclarecer que o presente instrumento não permite o substabelecimento a terceiros.<br>Por oportuno, ressalta-se ainda que os efeitos deste, cessa a partir do término das atividades delimitadas neste documento.<br>Tudo isto, com fulcro nos artigos 653 e 654 do Código Civil de 2002.', 'font-size:11px;font-style:italic;border-left:2px solid #F59E0B;padding-left:9px');
+  }
+  return `<div class="ep-doc"><div class="ep-page ep-proc">
+      ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
+      <div class="ep-ctr-tit">${e(titulo)}</div>
+      <div class="ep-ctr-sub">${e(sub)}</div>
+      ${corpo}
+      <p class="ep-ctr-p" style="margin-top:14px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
+      <div class="ep-ctr-fim"><div class="ep-ctr-assin" style="justify-content:center">
+        <div class="a" style="flex:0 1 58%"><b>${cli.nome ? e(cli.nome) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? e(cli.rep) + '<br>' : ''}${e(legenda)}</div>
+      </div></div>
+      ${solRodape('Procuração · representação junto à concessionária', cli.nome)}
+    </div></div>`;
+}
+function fsProcuracao() {
+  const d = fsProcDados();
+  if (fsMostraFaltas(fsFaltas('procuracao'))) return;
+  const arquivo = ['Procuracao_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
+  fsPreview({ tipo: 'Procuração', cliente: d.cli.nome, valor: 0, num: '', html: fsProcHTML(d), arquivo, titulo: 'Procuração solar · ' + d.cli.nome, opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' } });
+}
+
+// ═══ RECIBO ═══
+function fsRecDados() {
+  const cli = fsCli();
+  const ctr = fsCtrDados();
+  const pags = fsPags();
+  const total = pags.reduce((s, p) => s + p.valor, 0);
+  const valctr = solParseBRL(fsVal('fs-r-valctr'));
+  return {
+    cli, emp: solEmp(), num: fsVal('fs-r-num'), data: fsVal('fs-r-data') || solHoje(), datactr: fsVal('fs-r-datactr'), valctr, desc: fsVal('fs-r-desc'),
+    endInst: fsVal('fs-r-endinst') || ctr.endInst, cidade: fsVal('fs-r-cidade'), pags, total,
+    saldo: Math.max(0, valctr - total), quitado: total > 0 && (valctr <= 0 || valctr - total <= 0.005),   // sem valor do contrato = quitação total (SolarDoc)
+    banco: fsVal('fs-r-banco'), ag: fsVal('fs-r-ag'), conta: fsVal('fs-r-conta'), pix: fsVal('fs-r-pix'),
+  };
+}
+function fsRecHTML(d) {
+  const e = solEsc, cli = d.cli, emp = d.emp;
+  const dataTxt = solDataLonga(d.data);
+  const dadosBanco = [d.banco ? 'Banco ' + d.banco : '', d.ag ? 'Ag. ' + d.ag : '', d.conta ? 'C/C ' + d.conta : '', d.pix ? 'Chave Pix: ' + d.pix : ''].filter(Boolean).join(' · ');
+  const linhas = d.pags.map(p => `<tr><td>${e(p.forma)}${p.data ? ' · ' + e(solDataCurta(p.data)) : ''}</td><td class="num">R$ ${solFmt(p.valor)}</td></tr>`).join('');
+  const quitacao = d.quitado
+    ? `Damos plena, geral e irrevogável quitação do valor total de R$ ${solFmt(d.total)} (${e(solExtenso(d.total))}), referente ao contrato acima, nada mais havendo a reclamar a esse título.`
+    : `Damos plena e geral quitação dos valores ora recebidos (R$ ${solFmt(d.total)}), permanecendo em aberto o saldo de R$ ${solFmt(d.saldo)} (${e(solExtenso(d.saldo))}), a ser pago conforme acordado entre as partes. Este recibo não representa quitação total do contrato.`;
+  const titulo = d.quitado ? 'Recibo de Quitação' : 'Recibo de Pagamento';
+  return `<div class="ep-doc"><div class="ep-page ep-rec">
+      ${solTopoHTML(titulo, e(solDataCurta(d.data)), [['Recibo nº', d.num ? e(d.num) : ''], ['Cliente', cli.nome ? e(cli.nome) : ''], ['Local', d.cidade ? e(d.cidade) : ''], ['Contrato firmado em', d.datactr ? e(solDataCurta(d.datactr)) : '']])}
+      <div class="ep-rec-hero">
+        <div><div class="k">Valor recebido</div><div class="v">R$ ${solFmt(d.total)}</div><div class="ext">(${e(solExtenso(d.total))})</div></div>
+        <div class="pct"><b>${d.quitado ? 'Quitação total' : 'Quitação parcial'}</b>${d.valctr > 0 ? 'valor do contrato<br>R$ ' + solFmt(d.valctr) : d.pags.length + (d.pags.length === 1 ? ' pagamento' : ' pagamentos')}</div>
+      </div>
+      <div class="ep-rec-corpo">Recebemos de <b>${solV(cli.nome ? cli.nome.toUpperCase() : '')}</b>, CPF/CNPJ nº ${solV(cli.doc)}${cli.endFull ? `, ${cli.pj ? 'com sede' : 'residente'} na ${e(cli.endFull)}` : ''}, a importância de <b>R$ ${solFmt(d.total)}</b> (${e(solExtenso(d.total))}), paga conforme discriminado abaixo${d.desc ? `, referente à ${e(d.desc)}` : ''}${d.endInst ? `, no local ${e(d.endInst)}` : ''}, nos termos do contrato de serviços firmado entre as partes.</div>
+      <div class="sol-sec">Demonstrativo de pagamento</div>
+      <table class="ep-kv">
+        ${d.valctr > 0 ? `<tr><td>Valor total do contrato</td><td class="num">R$ ${solFmt(d.valctr)}</td></tr>` : ''}
+        ${linhas}
+        <tr class="hl"><td>Total pago até esta data</td><td class="num">R$ ${solFmt(d.total)}</td></tr>
+        ${d.valctr > 0 ? `<tr class="hl"><td>Saldo restante em aberto</td><td class="num">R$ ${solFmt(d.saldo)}</td></tr>` : ''}
+      </table>
+      <div class="ep-rec-corpo" style="margin-top:12px">${quitacao}</div>
+      <div class="ep-rec-local">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</div>
+      <div class="ep-rec-assin uma"><div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Recebedor</div></div>
+      ${dadosBanco ? `<div class="sol-banco"><b>${e(emp.razao)}</b> · CNPJ ${e(emp.cnpj)}<br>${e(dadosBanco)}</div>` : ''}
+      ${solRodape(titulo, cli.nome)}
+    </div></div>`;
+}
+function fsRecibo() {
+  const d = fsRecDados();
+  if (fsMostraFaltas(fsFaltas('recibo'))) return;
+  const arquivo = ['Recibo_Solar', solLimpaArq(d.cli.nome) || 'Cliente', d.num ? 'N' + solLimpaArq(d.num.replace(/\//g, '-')) : ''].filter(Boolean).join('_');
+  fsPreview({ tipo: 'Recibo', cliente: d.cli.nome, valor: d.total, num: d.num, html: fsRecHTML(d), arquivo, titulo: (d.quitado ? 'Recibo de quitação' : 'Recibo de pagamento') + ' · ' + d.cli.nome, opts: { umaPagina: true, piso: 0.86, alvo: '.ep-rec' } });
+}
+
+// A prévia do eletroposto, com o histórico SOLAR pendurado no gancho aoSair
+// (epPrevSaida chama no clique de Imprimir/Baixar, e não ao abrir a prévia).
+function fsPreview(o) {
+  fsMsg('');
+  const id = epId();
+  const snap = fsSnap();
+  const hojeBR = new Date().toLocaleDateString('pt-BR');
+  epPreview({
+    html: o.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts, hist: null,
+    aoSair: r => {
+      fsHistAdd({ id, tipo: o.tipo, cliente: o.cliente, valor: o.valor, num: o.num, data: hojeBR, snap, editado: !!r.editado });
+      epPapelGrava({ id, html: r.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts || null, editado: !!r.editado, em: new Date().toISOString() });
+      if (o.tipo === 'Recibo') { const n = fsEl('fs-r-num'); if (n) { delete n.dataset.tocado; n.value = fsRecProx(); } }
+      fsHistRender();
+    },
+  });
+}
+function fsEmitir() {
+  if (fsAbaAtual === 'procuracao') return fsProcuracao();
+  if (fsAbaAtual === 'recibo') return fsRecibo();
+  return fsContrato();
+}
+
+// ═══ Navegação ═══
+function navFechamentoSolar() {
+  telasSolarLimpar();
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('fechamentoSolarSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('fechamento-solar-aberto');
+  marcarNavAtivo('nav-fechamento-solar');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (!fsMontado) { fsMontar(); fsMontado = true; }
+  fsPrefillEmpresa();
+  fsPrefillAtual();
+  fsRecSugerir();
+  fsHistRender();
+  fsAba(fsAbaAtual);
+  fsCarregarLista();
+}
+function voltarDoFechamento() {
+  document.getElementById('fechamentoSolarSection').style.display = 'none';
+  document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('fechamento-solar-aberto');
+  marcarNavAtivo('nav-gerador');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 // ============= TELA LEADS (Instagram/Meta) =============
 function navLeads() {
   telasSolarLimpar();
@@ -24943,12 +26150,13 @@ function etqDeLead(createdBy, src) {
 let crmFiltroIniciado = false;  // só aplica o default-do-logado na 1ª abertura
 
 function navCRM(opts) {
+  const fsec = document.getElementById('fechamentoSolarSection'); if (fsec) fsec.style.display = 'none';
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   const sec = document.getElementById('crmSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('crm-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto');
   marcarNavAtivo('nav-crm');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -28804,10 +30012,10 @@ if ('serviceWorker' in navigator) {
   function navAutomacao(){
     document.getElementById('formSection').style.display='none';
     document.getElementById('historicoSection').style.display='none';
-    ['tabelasSection','leadsSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    ['tabelasSection','leadsSection','fechamentoSolarSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const sec=document.getElementById('automacaoSection'); if(sec) sec.style.display='';
     document.documentElement.classList.add('automacao-aberto');
-    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
+    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
     marcarNavAtivo('nav-automacao');
     fecharSidebarMobile();
     window.scrollTo({top:0,behavior:'smooth'});
