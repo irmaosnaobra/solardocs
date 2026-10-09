@@ -10,7 +10,7 @@
 
 import { logger } from '../utils/logger';
 
-const PLANILHA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pub?output=csv';
+export const PLANILHA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pub?output=csv';
 // Exportado porque a aba Recibo/Contrato do /gerador procura o cartão do
 // cliente NESTE mesmo quadro — dois ids soltos viravam dois quadros diferentes
 // no dia em que um deles fosse trocado.
@@ -292,7 +292,7 @@ async function fetchTrello(): Promise<TrelloKpis> {
 }
 
 // ─── Helpers ────────────────────────────────────────────────
-function parseCSV(text: string): string[][] {
+export function parseCSV(text: string): string[][] {
   // Parser simples respeitando aspas duplas
   const rows: string[][] = [];
   let row: string[] = [];

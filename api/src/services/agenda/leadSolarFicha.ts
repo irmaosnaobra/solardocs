@@ -22,8 +22,10 @@ export interface FieldItem { name: string; values: string[] }
 // A ordem aqui é a ordem que sai na ficha. Regex ancorada onde o nome de um campo
 // contém a palavra de outro — ex.: "Você é quem decide ... neste imóvel?" tem
 // "imóvel" dentro, e não pode ser capturado pelo slot Imóvel.
+/** Nome do campo de consumo nos formulários do Meta (casa por regex porque o rótulo varia). */
+export const RE_CAMPO_CONSUMO = /^(consumo|consuma)|consumo_m[eé]dio|conta_de_luz/;
 const ORDEM: Array<{ rotulo: string; re: RegExp }> = [
-  { rotulo: 'Consumo',              re: /^(consumo|consuma)|consumo_m[eé]dio|conta_de_luz/ },
+  { rotulo: 'Consumo',              re: RE_CAMPO_CONSUMO },
   { rotulo: 'Vai aumentar consumo', re: /aumentar/ },
   { rotulo: 'Imóvel',               re: /^im[oó]vel|proprio ou alugado|pr[oó]prio ou alugado/ },
   { rotulo: 'Urgência',             re: /urg[eê]ncia|pretende_instalar|quando.*instalar/ },

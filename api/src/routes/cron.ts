@@ -63,6 +63,7 @@ import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
 import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoService';
+import { runClientesQuentes } from '../services/meta/clientesQuentes';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 import { supabaseGerador } from '../utils/supabaseGerador';
@@ -1395,6 +1396,21 @@ router.get('/capi-lead-qualificado', async (req: Request, res: Response) => {
   }
 });
 
+// Clientes quentes → Meta (público com valor + evento ao avançar card).
+// ?dry=1 monta tudo e não chama o Meta nem grava; ?publico=1 refaz o público hoje
+// mesmo se já rodou.
+router.get('/clientes-quentes', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const forcarPublico = req.query.publico === '1' || req.query.publico === 'true';
+    res.json({ ok: true, dry, ...(await runClientesQuentes({ dry, forcarPublico })) });
+  } catch (err: any) {
+    logger.error('cron', 'clientes-quentes falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 // Digest de estoque baixo do Inventário (aba grátis). GATED: rodar manual /
 // ?dry=1 primeiro pra conferir volume; só entra no master depois de adoção.
 // O badge in-app já é o alerta sempre-ligado — o email é reforço opcional.
@@ -1516,6 +1532,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
+    ['clientes-quentes',            () => runClientesQuentes()],     // Meta aprende os melhores clientes: público com valor (1x/dia) + evento ao avançar card (CLIENTE_QUENTE_OFF / PUBLICO_QUENTE_OFF desligam)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     ['sonda-documentos',            () => runSondaDocumentos()],   // monitor: assinante apanhando no documento (3× o mesmo doc em 30min, PDF que falhou, revisão barrada). Só avisa — não mexe em documento de ninguém.
     ['entrada-io-digest',           () => runEntradaIoDigest()],       // 12h e 18h: quem escreveu no 5040 hoje (ninguém responde por robô nessa linha)
