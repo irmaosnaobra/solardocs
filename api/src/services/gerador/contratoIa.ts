@@ -52,7 +52,7 @@ const ClausulaEntrada = z.object({
 });
 /** Os quatro contratos do /gerador (07/10/2026). Sem o campo, é o Completo,
  *  o de fornecimento e instalação, que é o que o /gerador mandava antes. */
-export const TIPOS_CONTRATO = ['completo', 'socio50', 'cotas', 'arrend', 'termo_arr', 'termo_inv'] as const;
+export const TIPOS_CONTRATO = ['completo', 'socio50', 'cotas', 'arrend', 'termo_arr', 'termo_inv', 'equip'] as const;
 export const PedidoContratoIa = z.object({
   pedido: z.string().trim().min(3).max(2000),
   clausulas: z.array(ClausulaEntrada).min(1).max(40),
@@ -248,6 +248,12 @@ const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objeto: stri
     objeto: 'Você edita o termo de compromisso do investidor da NEXUS Eletropostos, empresa brasileira: reserva de cota em sociedade em conta de participação para um eletroposto (estação de recarga de veículos elétricos), antes do contrato da sociedade, ou adesão a uma sociedade em cotas já assinada. Nunca escreva promessa de rentabilidade, de retorno ou de renda.',
     partes: 'As partes se chamam pelos nomes que já aparecem nas cláusulas (INVESTIDOR e NEXUS na reserva, ADERENTE e SÓCIA OSTENSIVA na adesão), em maiúsculas.',
     travados: '(objeto, quadro de cotas e aportes, depósito de reserva, tabela de pagamento)',
+  },
+  // Compra e venda de equipamento avulso (09/10/2026): só o carregador, sem obra.
+  equip: {
+    objeto: 'Você edita o contrato de compra e venda de equipamento da NEXUS Eletropostos, empresa brasileira: a venda só do carregador de veículos elétricos e dos itens do pedido, sem projeto, obra nem instalação, que ficam com o comprador.',
+    partes: 'As partes se chamam VENDEDORA (a NEXUS) e COMPRADOR (o cliente), em maiúsculas.',
+    travados: '(objeto com a tabela de itens, preço total, tabela de pagamento)',
   },
 };
 export function sistemaPara(tipo?: TipoContrato): string {

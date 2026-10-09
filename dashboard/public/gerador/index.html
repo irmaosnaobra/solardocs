@@ -4150,12 +4150,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="orc-valor-banner" id="orc-valor-banner"></div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor do projeto</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcValorEditado(this)"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcValorEditado(this)"></div></div>
 
         <div class="eletro-field" style="margin-top:16px"><label>Frete</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-frete" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-frete" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
         <div class="eletro-field"><label>Desconto</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-desc" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-desc" inputmode="decimal" value="0" step="0.01" oninput="orcCalc()"></div></div>
 
         <div class="orc-tot">
           <div class="orc-tot-row"><span>Valor do projeto</span><span class="v" id="orc-t-sub">R$ 0,00</span></div>
@@ -4178,7 +4178,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <!-- À vista: valor (editável) + data do vencimento -->
         <div class="orc-pg-cond" id="orc-pg-data">
           <div class="eletro-field" style="margin-top:14px"><label>Valor à vista</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-pg-vista-valor" inputmode="decimal" step="0.01" min="0" oninput="orcVistaEditado(this)"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-pg-vista-valor" inputmode="decimal" step="0.01" min="0" oninput="orcVistaEditado(this)"></div></div>
           <div class="eletro-field"><label>Data do vencimento (à vista)</label>
             <div class="eletro-inp eletro-inp-wide"><input type="date" id="orc-parc-data"></div></div>
           <div class="orc-note">Acompanha o total sozinho. Digite outro valor para dar desconto à vista — <button type="button" class="orc-link" onclick="orcVistaReset()">voltar ao total</button>.</div>
@@ -4188,7 +4188,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-pg-cond" id="orc-pg-entrada" style="display:none">
           <div class="orc-note" style="margin-top:14px;margin-bottom:10px"><b>Entrada + cartão.</b> O cliente paga a entrada e o que sobra vai no cartão. O juro é o acréscimo <b>total</b> embutido na parcela — <b>não aparece pro cliente</b>. Padrão: 18x com 22,5%.</div>
           <div class="eletro-field"><label>Entrada</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-ent-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-ent-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
           <div class="eletro-field"><label>Parcelas no cartão</label>
             <div class="eletro-inp has-suf"><input type="number" id="orc-ent-parc" inputmode="numeric" step="1" min="1" max="48" value="18" oninput="orcCalc()"><span class="suf">x</span></div></div>
           <div class="eletro-field"><label>Juros (acréscimo total)</label>
@@ -4204,11 +4204,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <p><b>Financiamento bancário em até 96x, com 120 dias de carência.</b> Financia <b>100% da compra</b> — o projeto inteiro, não só o equipamento. Sempre sujeito à análise de crédito.</p>
           </div>
           <div class="eletro-field"><label>Entrada</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-fin-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-fin-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
           <div class="eletro-field"><label>Parcelas do banco</label>
             <div class="eletro-inp has-suf"><input type="number" id="orc-fin-parc" inputmode="numeric" step="1" min="1" max="120" value="96" oninput="orcCalc()"><span class="suf">x</span></div></div>
           <div class="eletro-field"><label>Valor da parcela</label>
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-fin-parcela" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcCalc()"></div></div>
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-fin-parcela" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcCalc()"></div></div>
           <div class="orc-ent-prev" id="orc-fin-preview">—</div>
         </div>
       </div>
@@ -4297,12 +4297,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Fornecimento</div>
         <div class="eletro-field"><label>Condição de frete</label>
-          <div class="eletro-inp eletro-inp-wide"><select id="eq-frete-tipo" onchange="equipCalc()">
+          <div class="eletro-inp eletro-inp-wide"><select id="eq-frete-tipo" onchange="equipEntregaEspelho();equipCalc()">
             <option value="CIF">CIF — entrega no endereço do comprador</option>
             <option value="FOB">FOB — por conta do comprador</option>
           </select></div></div>
         <div class="eletro-field"><label>Frete cobrado à parte</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="eq-frete" inputmode="decimal" value="0" step="0.01" min="0" oninput="equipCalc()"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="eq-frete" inputmode="decimal" value="0" oninput="equipCalc()"></div></div>
         <div class="orc-note">Deixe <b>zero</b> quando o frete já está dentro do preço do item — é o caso mais comum, e aí o documento não imprime linha de frete.</div>
         <div class="eletro-field" style="margin-top:14px"><label>Local de entrega</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-entrega" placeholder="espelha a cidade do comprador" oninput="this.dataset.tocado='1'"></div></div>
@@ -4333,7 +4333,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Escreva a condição <b>como foi negociada</b>. Duas condições de prazo podem ter totais diferentes — aqui cada uma sai com o total dela, sem a casa recalcular juros por cima.</div>
         <div id="eq-cond"></div>
         <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipCondAdd()">+ Adicionar condição</button>
-        <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipCondSinalAdd()">+ Sinal em % e saldo na NF</button>
+        <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipCondSinalAdd()">+ Sinal em % e saldo antes da expedição</button>
       </div>
 
       <!-- OBSERVAÇÕES -->
@@ -4369,6 +4369,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-cli-banner" id="rec-cli-banner">—</div>
         <div class="eletro-field"><label>Nome do pagador</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-cli-nome" oninput="epTocar(this);recBanner()" placeholder="sugerido pelo Simulador"></div></div>
+        <div class="eletro-field" id="rec-f-cli-end" style="display:none"><label id="rec-cli-end-rot">Endereço</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-cli-end" oninput="epTocar(this)" placeholder="sugerido pelo documento de referência"></div></div>
         <div class="eletro-field"><label>CPF/CNPJ do pagador</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-cli-doc" oninput="epTocar(this);recBanner()" placeholder="sugerido pelo Orçamento"></div></div>
         <div class="orc-note">Cliente com CPF e mais de um CNPJ? O recibo pode sair no <b>CPF</b> e o contrato na <b>PJ</b> — cada documento tem o seu. Apagar deixa a linha em branco no papel, para preencher à mão.</div>
@@ -4376,22 +4378,33 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><select id="rec-tipo" onchange="recTipoMudou()">
             <option value="sinal">Sinal — abate no total do eletroposto</option>
             <option value="projeto">Projeto elétrico avulso — não cita o eletroposto</option>
+            <option value="equip">Sinal da compra de equipamento avulso</option>
+            <option value="deposito">Depósito de reserva do investidor (Termo do Investidor)</option>
+            <option value="aporte">Aporte do sócio ou cotista na sociedade</option>
+            <option value="premio">Reserva paga ao dono do local (quem assina é o dono)</option>
+            <option value="parcela">Pagamento de parcela do contrato (entrada, parcelas e quitação)</option>
           </select></div></div>
         <div class="orc-note" id="rec-tipo-note">—</div>
         <div class="eletro-field" style="margin-top:12px"><label>Nº do recibo</label>
           <div class="eletro-inp"><input type="text" id="rec-num" placeholder="001"></div></div>
+        <div class="eletro-field" id="rec-f-ref" style="display:none"><label id="rec-ref-rot">Documento de referência</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-ref" oninput="this.dataset.tocado='1'" placeholder="Ex.: Termo nº 012, de 08/10/2026"></div></div>
+        <div class="eletro-field" id="rec-f-parcela" style="display:none"><label>Qual parcela</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-parcela" placeholder="Ex.: entrada no Pix · 2ª de 18 no cartão · na entrega dos equipamentos"></div></div>
+        <div class="eletro-field" id="rec-f-antes" style="display:none"><label id="rec-antes-rot">Já pago do aporte antes deste recibo</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="rec-antes" inputmode="decimal" placeholder="0" oninput="recResumo()"></div></div>
         <div class="eletro-field"><label>Data do recebimento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="rec-data"></div></div>
         <div class="eletro-field" id="rec-f-pct"><label>Percentual do sinal</label>
-          <div class="eletro-inp has-suf"><input type="number" id="rec-pct" inputmode="decimal" step="0.5" min="0" max="100" value="5" oninput="recCalc()"><span class="suf">%</span></div></div>
+          <div class="eletro-inp has-suf"><input type="number" id="rec-pct" inputmode="decimal" step="0.5" min="0" max="100" value="5" oninput="this.dataset.tocado='1';recCalc()"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label>Valor recebido</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="rec-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="recValorEditado(this)"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="rec-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="recValorEditado(this)"></div></div>
         <div class="orc-note" id="rec-resumo">—</div>
         <div class="eletro-field" style="margin-top:12px"><label>Forma de pagamento</label>
           <div class="eletro-inp eletro-inp-wide"><select id="rec-forma">
             <option>Pix</option><option>Transferência bancária</option><option>Cartão</option><option>Dinheiro</option><option>Boleto</option>
           </select></div></div>
-        <div class="eletro-field"><label>Destinação do valor</label>
+        <div class="eletro-field" id="rec-f-fim"><label>Destinação do valor</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-fim" value="elaboração do projeto elétrico e sua homologação junto à concessionária de energia"></div></div>
         <div class="eletro-field" id="rec-f-gatilho"><label>Gatilho do abatimento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-gatilho" value="aprovado o projeto elétrico pela concessionária de energia"></div></div>
@@ -4429,6 +4442,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="socio50">Sociedade 50/50: cada um entra com metade do capital</option>
             <option value="arrend">Arrendamento: o cliente cede o espaço e a NEXUS investe</option>
             <option value="cotas">Cotas por %: o cliente compra cota da sociedade</option>
+            <option value="equip">Compra e venda: só o equipamento, sem obra</option>
             </optgroup>
             <optgroup label="Termos de compromisso (antes do contrato)">
             <option value="termo_arr">Termo do Arrendador: reserva do local e dossiê</option>
@@ -4495,14 +4509,27 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp"><input type="text" id="ctr-num" placeholder="001"></div></div>
         <div class="eletro-field"><label>Data de assinatura</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-data"></div></div>
-        <div class="eletro-field"><label>Local da instalação</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-local" placeholder="Endereço da obra"></div></div>
-        <div class="eletro-field"><label>Equipamento</label>
+        <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr"><label>Local da instalação</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-local" placeholder="Endereço do ponto (onde fica a estação)"></div></div>
+        <div class="eletro-field" data-ctr-tipos="arrend socio50 cotas termo_inv"><label>Termo de origem (nº e data)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-origem-ref" placeholder="Ex.: nº TA-003/2026, de 08/10/2026 · em branco não sai"></div></div>
+        <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Equipamento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-equip" placeholder="Ex.: NEXUS DC80 · 80 kW"></div></div>
-        <div class="eletro-field"><label>Carregadores</label>
+        <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Carregadores</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-qtd" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
-        <div class="eletro-field"><label>Pontos de recarga</label>
+        <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Pontos de recarga</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-plugs" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
+      </div>
+
+      <!-- COMPRA E VENDA DE EQUIPAMENTO (09/10/2026). O pedido mora na aba Venda de
+           equipamento (itens com NCM, frete, prazo, garantia): o contrato lê de
+           lá, para orçamento e contrato nunca dizerem números diferentes. -->
+      <div class="card" data-ctr-tipos="equip">
+        <div class="calc-card-title"><span class="dot"></span>Compra e venda: o pedido</div>
+        <div class="orc-note" id="ctr-eq-resumo" style="grid-column:1/-1">—</div>
+        <div class="eletro-field"><label>Atraso na entrega que deixa o comprador desistir</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-eq-atraso" inputmode="numeric" min="1" value="30"><span class="suf">dias</span></div></div>
+        <div class="orc-note" style="grid-column:1/-1">Itens, NCM, frete, local de entrega, prazo e garantia vêm da aba <b>Venda de equipamento</b>: mude lá e o contrato acompanha. <button type="button" class="orc-link" onclick="eletroSubaba('equipamento')">Abrir Venda de equipamento →</button></div>
       </div>
 
       <!-- SOCIEDADE (50/50 e cotas, 07/10/2026). Os números nascem do quadro da
@@ -4563,6 +4590,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>O piso vale a partir do mês de operação</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-carencia" inputmode="numeric" min="1" value="4" oninput="ctrResumo()"><span class="suf">º</span></div></div>
         <div class="orc-note" id="ctr-arr-nota" style="grid-column:1/-1">—</div>
+        <div class="eletro-field" id="ctr-ta-f-locacao"><label>A locação do cedente vai até</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-ta-locacao-fim" onchange="ctrResumo()"></div></div>
+        <div class="orc-note" id="ctr-ta-locacao-nota" style="grid-column:1/-1;display:none"></div>
+        <div class="eletro-field" data-ctr-tipos="arrend"><label>Valor já pago ao dono pela reserva</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-premio" inputmode="decimal" placeholder="sem reserva" oninput="ctrResumo()"></div></div>
         <div class="eletro-field"><label>Dia de pagar o cedente (mês seguinte)</label>
           <div class="eletro-inp"><input type="number" id="ctr-arr-dia" inputmode="numeric" min="1" max="28" value="10"></div></div>
         <div class="eletro-field" style="grid-column:span 2"><label>Conta do cedente para receber</label>
@@ -4656,9 +4688,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-distribuidora" placeholder="CEMIG, Neoenergia, Enel..."></div></div>
         <div class="eletro-field"><label>Padrão de entrada (ligação e disjuntor)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-padrao" placeholder="Ex.: trifásico, disjuntor de 100 A"></div></div>
-        <div class="eletro-field" id="ctr-ta-f-locacao"><label>A locação do cedente vai até</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-ta-locacao-fim" onchange="ctrResumo()"></div></div>
-        <div class="orc-note" id="ctr-ta-locacao-nota" style="grid-column:1/-1;display:none"></div>
+
         <div class="ctr-sec">Prazos</div>
         <div class="eletro-field"><label>Prazo para a NEXUS estudar o ponto</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-ta-prazo" inputmode="numeric" min="1" value="120" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
@@ -4740,7 +4770,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-desist" inputmode="numeric" min="7" value="7"><span class="suf">dias</span></div></div>
         <div class="eletro-field" data-ctr-ti="reserva adesao"><label>Devolução do valor pago em até</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-devolucao" inputmode="numeric" min="1" value="7"><span class="suf">dias</span></div></div>
-        <div class="eletro-field" data-ctr-ti="reserva"><label>Depósito de reserva (opcional)</label>
+        <div class="eletro-field" data-ctr-ti="reserva adesao"><label id="ctr-ti-deposito-rot">Depósito de reserva (opcional)</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ti-deposito" inputmode="decimal" placeholder="sem depósito" oninput="ctrResumo()"></div></div>
         <div class="eletro-field" data-ctr-ti="reserva"><label>Forma do depósito</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-ti-deposito-forma">
@@ -4779,7 +4809,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
         <div class="orc-note" style="margin-top:0"><button type="button" class="orc-link" onclick="ctrEscReset()">Refazer a partir do Orçamento</button> desfaz tudo o que foi mexido nesta lista.</div>
         <div class="eletro-field" data-ctr-tipos="completo"><label>Percentual da plataforma</label>
-          <div class="eletro-inp has-suf"><input type="text" id="ctr-pct" inputmode="decimal" placeholder="12" oninput="ctrPctNota()"><span class="suf">%</span></div></div>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-pct" inputmode="decimal" placeholder="10" oninput="ctrPctNota()"><span class="suf">%</span></div></div>
         <div class="eletro-field" data-ctr-tipos="completo"><label>Percentual da plataforma no contrato</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-mostra-pct" onchange="ctrPctNota()">
             <option value="1">Mostrar: a cláusula diz quanto é cobrado</option>
@@ -4824,7 +4854,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            uma lista de formas (Pix, boleto, cartao, financiamento, permuta... o
            campo aceita qualquer nome) que vira tabela na Clausula 3a. Corre
            sobre o SALDO: total menos o sinal ja' pago no recibo. -->
-      <div class="card" data-ctr-tipos="completo socio50 cotas termo_inv">
+      <div class="card" data-ctr-tipos="completo socio50 cotas termo_inv equip">
         <div class="calc-card-title"><span class="dot"></span><span id="ctr-pag-tit">Valor e formas de pagamento</span></div>
         <div class="orc-tot">
           <div class="orc-tot-row"><span id="ctr-t-total-rot">Valor total do projeto</span><span class="v" id="ctr-t-total">R$ 0,00</span></div>
@@ -4837,7 +4867,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              type=number (virgula zera, ponto de milhar corta tres zeros). -->
         <div class="eletro-field" data-ctr-tipos="completo"><label>Valor total do projeto</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-total" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field" data-ctr-tipos="completo socio50 cotas"><label>Sinal já pago</label>
+        <div class="eletro-field" data-ctr-tipos="completo socio50 cotas equip"><label>Sinal já pago</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-sinal" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
         <div class="eletro-field" style="grid-column:span 2" data-ctr-tipos="completo"><label>O sinal foi destinado a</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
@@ -4850,6 +4880,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('boleto')">Entrada + boletos</button>
           <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas termo_inv" onclick="ctrPagAplicar('cartao10')">10x no cartão</button>
           <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas termo_inv" onclick="ctrPagAplicar('cartao18')">18x no cartão</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="equip" onclick="ctrPagAplicar('sinal_saldo')">Sinal + saldo antes da expedição</button>
         </div>
         <div class="ctr-esp" id="ctr-pag-esp"></div>
         <div class="ctr-pag-lista" id="ctr-pag-lista"></div>
@@ -5099,12 +5130,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="calc-card-title"><span class="dot"></span>Como o banco parte o dinheiro</div>
         <div class="orc-note" style="margin-top:0">O Finame financia o <b>equipamento</b>, não a obra. Estas duas linhas são o que a instituição lê para decidir quanto libera — por isso <b>não têm valor sugerido</b>: um número que parece calculado é pior que um campo em branco.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor total da proposta</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-total" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkTotalEditado(this)"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-total" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkTotalEditado(this)"></div></div>
         <div class="orc-note" id="bnk-total-note">—</div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor do equipamento</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-eq" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-eq" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
         <div class="eletro-field"><label>Valor da mão de obra</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-mo" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-mo" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
         <div class="bnk-pct">
           <span>Dividir por percentual</span>
           <div class="bnk-pct-in"><input type="number" id="bnk-pct-eq" min="0" max="100" step="1" inputmode="numeric" value="85"><span>% equipamento</span></div>
@@ -5122,7 +5153,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>IPI</label>
           <div class="eletro-inp has-suf"><input type="number" id="bnk-ipi-pct" inputmode="decimal" step="0.5" min="0" placeholder="0" oninput="bnkCalc()"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label>Valor do IPI</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-ipi-val" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkIpiEditado(this)"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-ipi-val" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkIpiEditado(this)"></div></div>
         <div class="eletro-field"><label>Origem da mercadoria</label>
           <div class="eletro-inp eletro-inp-wide"><select id="bnk-origem">
             <option value="">Selecione…</option>
@@ -8451,6 +8482,8 @@ function orcCheckDeepLink() {
       el.value = v;
       el.dispatchEvent(new Event('input', { bubbles: true }));
     };
+    // TR-03: o cliente anterior sai de todas as abas antes de este entrar.
+    if (typeof epLimparCliente === 'function') epLimparCliente();
     set('el-cliente', nome);
     set('el-cidade', cidade);
     // Na mao, e obrigatorio: eletroSubaba('simulador') NAO dispara orcInit — a
@@ -10110,7 +10143,8 @@ function cadTermo(lado, ref) {
   const r = cadAcha((cadDados && cadDados[lado]) || [], ref);
   if (!r) return;
   const set = (id, v) => { const el = document.getElementById(id); if (!el) return; el.value = v || ''; el.dispatchEvent(new Event('input', { bubbles: true })); };
-  if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
+  // ARR-01: o cliente anterior sai de TODAS as abas, não só da aba Contratos.
+  if (typeof epLimparCliente === 'function') epLimparCliente(); else if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
   set('el-cliente', r.nome); set('el-cidade', r.cidade);
   if (typeof orcInit === 'function') orcInit();
   set('orc-cli-tel', r.telefone);
@@ -10118,7 +10152,7 @@ function cadTermo(lado, ref) {
   epFicha = { localRel: rel, invest: '', ponto: '' };
   ctrTermoOrigem = { lado, valor: r.valor_investir || r.capital_faixa || '' };
   const tp = document.getElementById('ctr-tipo');
-  if (tp) { tp.value = lado === 'ponto' ? 'termo_arr' : 'termo_inv'; tp.dataset.tocado = '1'; }
+  if (tp) { tp.value = lado === 'ponto' ? 'termo_arr' : 'termo_inv'; tp.dataset.tocado = '1'; tp.dataset.antes = tp.value; }
   // Quem está em Investidores chegou pelo formulário, pelo quiz ou pela agenda
   // do anúncio: o termo nasce dizendo isso, e só o consultor que conhece a
   // pessoa de fora troca (risco CVM de oferta pública).
@@ -10126,6 +10160,7 @@ function cadTermo(lado, ref) {
   if (lado === 'ponto' && r.ponto_endereco) {
     const loc = document.getElementById('ctr-local');
     if (loc) { loc.value = [r.ponto_endereco, r.cidade].filter(Boolean).join(', '); loc.dataset.tocado = '1'; }
+    const tl = document.getElementById('ctr-ta-tipo-local'); if (tl && r.ponto_tipo && !tl.value) tl.value = r.ponto_tipo;
   }
   eletroSubaba('contrato');
   if (typeof showToast === 'function') showToast('Termo aberto com os dados do cadastro de ' + (r.nome || 'cliente') + '. Tudo editável.');
@@ -14883,7 +14918,7 @@ const eletroGuarda = () => window.sessionStorage;
 // Fora ficam as abas de CONSULTA (historico, pesquisa, mercado, postos, mapa):
 // la' nao ha' nada do cliente pra guardar, e um filtro de busca voltando
 // preenchido dias depois so' confunde.
-const ELETRO_ULT_PANES = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao'];
+const ELETRO_ULT_PANES = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'finame', 'equipamento'];
 function eletroUltimoCampos() {
   const ids = [];
   ELETRO_ULT_PANES.forEach(pane => {
@@ -14971,18 +15006,36 @@ function eletroRetomarBanner(u) {
 // pra todo cliente, e apagar junto faria o consultor redigitar CNPJ e CREA.
 function eletroNovoProjeto() {
   if (!confirm('Limpar os campos e começar um projeto novo?\n\nOs dados da sua empresa e dos procuradores continuam salvos.')) return;
+  epLimparCliente();
+}
+// O cliente inteiro sai da tela: Simulador, Orçamento, Recibo, Contratos,
+// Procuração, Proposta de banco e Venda de equipamento. Cada campo volta ao
+// padrão do HTML (Software 10%, 2 pontos...), não a vazio, e perde a marca de
+// digitado. Fica só o cadastro da empresa e dos procuradores. Todo caminho que
+// troca de cliente (Começar novo, agenda, CRM, Cadastros, Histórico) passa
+// por aqui: antes só a aba Contratos era limpa, e o recibo, a procuração e a
+// proposta de banco do cliente seguinte saíam com os dados do anterior.
+function epLimparCliente() {
   eletroUltimoCampos().forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (el.type === 'checkbox') el.checked = false;
-    else if (el.tagName === 'SELECT') el.selectedIndex = 0;
-    else el.value = '';
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+    else if (el.tagName === 'SELECT') { const o = [...el.options].find(x => x.defaultSelected) || el.options[0]; if (o) el.value = o.value; }
+    else el.value = el.defaultValue;
+    delete el.dataset.tocado; delete el.dataset.manual;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+    delete el.dataset.tocado;
   });
   try { eletroGuarda().removeItem(ELETRO_ULT_KEY); } catch (e) {}
-  // Escopo e formas de pagamento do contrato são listas sem id: a varredura
-  // acima não as alcança, e o próximo cliente herdaria a tabela do anterior.
+  // O input disparado acima marca o investimento como digitado: sem isto, a
+  // ficha da agenda não preenche o investimento do cliente novo.
+  try { elInvestDirty = false; } catch (e) {}
+  // Listas sem id (escopo e formas do contrato, itens do banco, itens do
+  // carregador) não entram na varredura: cada uma volta ao começo aqui.
+  try { BNK_ITENS = null; BNK_ITENS_TOCADA = false; } catch (e) {}
+  const eqI = document.getElementById('eq-itens'), eqC = document.getElementById('eq-cond');
+  if (eqI && eqI.dataset.pronto) { eqI.innerHTML = ''; if (eqC) eqC.innerHTML = ''; delete eqI.dataset.pronto; }
   if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
   const bar = document.getElementById('eletro-retomar');
   if (bar) bar.classList.remove('on');
@@ -15801,7 +15854,7 @@ const EP_KIT = [
   // percentual é editável na própria linha: é ele que o contrato cobra.
   // 05/10/2026: o "App de clientes — Parceria Tupi" saiu da lista, a pedido do
   // dono. A operação vendida passa a ser só o Software de gestão.
-  { id: 'software', nome: 'Software de gestão', pct: 12 },
+  { id: 'software', nome: 'Software de gestão', pct: 10 },
 ];
 
 // ═══ PREÇO CHAVE NA MÃO DO DECK ═══
@@ -15989,7 +16042,7 @@ function orcValorSync() {
   if (!el) return;
   if (el.dataset.tocado !== '1') {
     const v = orcValorSimulador();
-    el.value = v > 0 ? v : '';
+    el.value = v > 0 ? epFmtBR(v) : '';
   }
   orcKitEquipSync();
   orcValorBanner();
@@ -16061,9 +16114,10 @@ function orcLerItens() {
       qtd: row.dataset.id === 'carreg' ? orcEpQtdCarregadores() : 1,
     });
   });
-  const subtotal = num(document.getElementById('orc-valor')?.value);
-  const frete = num(document.getElementById('orc-frete')?.value);
-  const desconto = num(document.getElementById('orc-desc')?.value);
+  // Dinheiro como se escreve no Brasil: "145.000" e "145.000,50" (CM-02).
+  const subtotal = ctrMoeda(document.getElementById('orc-valor')?.value);
+  const frete = ctrMoeda(document.getElementById('orc-frete')?.value);
+  const desconto = ctrMoeda(document.getElementById('orc-desc')?.value);
   const total = Math.max(0, subtotal + frete - desconto);
   return { itens, subtotal, frete, desconto, total };
 }
@@ -16088,6 +16142,9 @@ function orcCalc() {
 const ORC_ENTRADA_PARC = 18;      // parcelas padrão
 const ORC_ENTRADA_JUROS = 22.5;   // acréscimo total padrão, em %
 const orcNum = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; };
+// Dinheiro escrito como no Brasil, para os campos de texto (09/10/2026). Função
+// declarada, e não const, para existir desde o primeiro desenho da tela.
+function epFmtBR(v) { return (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 // Parcela vazia ou 0 dividiria por zero e imprimiria "Infinity" no documento.
 function orcEntradaParcela(restante, parcelas, juros) {
   const n = Math.max(1, Math.round(orcNum(parcelas) || ORC_ENTRADA_PARC));
@@ -16096,7 +16153,7 @@ function orcEntradaParcela(restante, parcelas, juros) {
 // Lê os três campos da tela e devolve a conta fechada.
 function orcEntradaCalc(total) {
   if (total == null) total = orcLerItens().total;
-  const entrada = Math.max(0, Math.min(orcNum(orcVal('orc-ent-valor')), total));
+  const entrada = Math.max(0, Math.min(ctrMoeda(orcVal('orc-ent-valor')), total));
   const parcelas = Math.max(1, Math.round(orcNum(orcVal('orc-ent-parc')) || ORC_ENTRADA_PARC));
   const juros = Math.max(0, orcNum(orcVal('orc-ent-juros')));
   const restante = Math.max(0, total - entrada);
@@ -16110,9 +16167,9 @@ function orcEntradaCalc(total) {
 const ORC_FIN_PARC = 96;   // parcelas padrão (é o "até 96x" que a casa anuncia desde 30/09/2026)
 function orcFinCalc(total) {
   if (total == null) total = orcLerItens().total;
-  const entrada = Math.max(0, Math.min(orcNum(orcVal('orc-fin-valor')), total));
+  const entrada = Math.max(0, Math.min(ctrMoeda(orcVal('orc-fin-valor')), total));
   const parcelas = Math.max(1, Math.round(orcNum(orcVal('orc-fin-parc')) || ORC_FIN_PARC));
-  const parcela = Math.max(0, orcNum(orcVal('orc-fin-parcela')));
+  const parcela = Math.max(0, ctrMoeda(orcVal('orc-fin-parcela')));
   return { entrada, parcelas, parcela, financiado: Math.max(0, total - entrada) };
 }
 
@@ -16131,7 +16188,7 @@ function orcVistaReset() {
 function orcPgSync(total) {
   if (total == null) total = orcLerItens().total;
   const vista = document.getElementById('orc-pg-vista-valor');
-  if (vista && vista.dataset.tocado !== '1') vista.value = total > 0 ? total.toFixed(2) : '';
+  if (vista && vista.dataset.tocado !== '1') vista.value = total > 0 ? epFmtBR(total) : '';
   const prev = document.getElementById('orc-ent-preview');
   const prevF = document.getElementById('orc-fin-preview');
   if (!(total > 0)) {
@@ -16166,7 +16223,7 @@ function orcPgLer(total) {
   const on = id => !!document.getElementById(id)?.checked;
   if (total == null) total = orcLerItens().total;
   const vistaEl = document.getElementById('orc-pg-vista-valor');
-  const vistaValor = vistaEl && vistaEl.dataset.tocado === '1' ? orcNum(vistaEl.value) : 0;
+  const vistaValor = vistaEl && vistaEl.dataset.tocado === '1' ? ctrMoeda(vistaEl.value) : 0;
   const e = orcEntradaCalc(total);
   const f = orcFinCalc(total);
   return {
@@ -16835,9 +16892,13 @@ const orcEpArquivo = d => {
 // que no chave-na-mão é proibido.
 // Sem Simulador e sem bloco de retorno: quem compra equipamento já tem o projeto.
 const ORC_EQ_OBS_PADRAO = 'Fornecimento de equipamento. Não inclui projeto elétrico, '
-  + 'obra civil, instalação, cabeamento, comissionamento nem homologação na concessionária — '
+  + 'obra civil, instalação, cabeamento, comissionamento nem homologação na concessionária: '
   + 'esses itens são orçados por endereço. Valores válidos durante o prazo deste orçamento. '
-  + 'Eventual DIFAL em operações interestaduais, quando aplicável, é de responsabilidade do comprador.';
+  + 'Garantia de fábrica contra defeito de fabricação, pelo prazo indicado, contada da emissão da nota fiscal, '
+  + 'somada à garantia legal. A instalação é do comprador e deve ser feita por profissional habilitado, com ART; '
+  + 'a garantia não cobre a instalação nem dano por sobretensão, descarga atmosférica, mau uso ou intervenção de terceiros. '
+  + 'Em venda para outro estado, o DIFAL do ICMS é recolhido pelo comprador quando ele for contribuinte do imposto; '
+  + 'quando não for, é recolhido pela vendedora.';
 
 // Tabela de itens. Dinheiro em centavos inteiros no payload: o comprador soma a
 // coluna e confere contra o total, e float não fecha a conta.
@@ -16927,10 +16988,11 @@ function orcEquipDocHTML(d) {
     // uma folha util de 1100px, e empurra o penhasco pra menos itens. Medido:
     // com a IE em linha separada, um orcamento de 5 itens virava 2 folhas.
     [emitF.ie ? 'CNPJ e Inscrição Estadual' : 'CNPJ do fornecedor', cnpjIe],
-    ['Condição de frete', d.freteTipo === 'FOB' ? 'FOB — por conta do comprador' : 'CIF — entrega no endereço do comprador'],
-    ['Local de entrega', d.entregaLocal],
+    ['Condição de frete', d.freteTipo === 'FOB' ? 'FOB, retirada por conta do comprador' : 'CIF, entrega no endereço do comprador'],
+    // EQ-07: no FOB o comprador RETIRA, e o risco passa na entrega ao transportador.
+    [d.freteTipo === 'FOB' ? 'Local de retirada' : 'Local de entrega', d.entregaLocal],
     ['Prazo de entrega', d.prazoEntrega],
-    ['Garantia', d.garantia],
+    ['Garantia de fábrica', d.garantia],
   ].filter(l => l[1]);
 
   return orc1HTML({
@@ -16950,7 +17012,7 @@ function orcEquipDocHTML(d) {
     detTitulo: 'Dados do Fornecimento',
     tiles: [
       { k: 'Equipamentos', v: String(qtdTotal), u: 'un' },
-      { k: 'Frete', v: d.freteTipo === 'FOB' ? 'FOB' : 'CIF', u: d.freteTipo === 'FOB' ? 'comprador' : 'incluso' },
+      { k: 'Frete', v: d.freteTipo === 'FOB' ? 'FOB' : 'CIF', u: d.freteTipo === 'FOB' ? 'comprador' : (orcEquipCent(d, 'frete') > 0 ? 'à parte' : 'incluso') },
       // O tile é número grande: prazo por extenso ("25 dias após a confirmação do
       // pedido") vira três linhas e estica a faixa inteira. Aqui entra a forma
       // curta; o texto como foi escrito continua na linha "Prazo de entrega".
@@ -16971,7 +17033,7 @@ function orcEquipDocHTML(d) {
     pagHTML: (d.condicoes && d.condicoes.length)
       ? `<div class="pags">${d.condicoes.map(cd =>
           `<div class="pag"><b>${o1Esc(cd.titulo)}</b><span>${o1Esc(cd.detalhe)}</span></div>`).join('')}</div>`
-      : orc1PagChips({ total: orcEquipCent(d, 'total') / 100, ...(d.pag || {}) }),
+      : `<div class="pags"><div class="pag"><b>À vista</b><span>${o1Esc(o1BRL(orcEquipCent(d, 'total') / 100))} no pedido</span></div></div>`,
     vendedor: d.vendedor,
     empresa,
   });
@@ -17028,6 +17090,8 @@ function equipValidadeUi() {
 function equipEntregaEspelho() {
   const alvo = document.getElementById('eq-entrega');
   if (!alvo || alvo.dataset.tocado) return;
+  // FOB: o comprador retira no estabelecimento da vendedora (EQ-07).
+  if ((eqVal('eq-frete-tipo') || 'CIF') === 'FOB') { const o = epEmitGet() || {}; alvo.value = [o.end, o.cidade].filter(Boolean).join(', '); return; }
   alvo.value = eqVal('eq-cli-cidade');
 }
 
@@ -17049,7 +17113,7 @@ function equipItemAdd() {
     '<div class="eletro-field"><label>Quantidade</label>' +
       '<div class="eletro-inp"><input type="number" class="eq-i-qtd" value="1" min="1" step="1" oninput="equipCalc()"></div></div>' +
     '<div class="eletro-field"><label>Valor unitário</label>' +
-      '<div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" class="eq-i-unit" step="0.01" min="0" placeholder="0" oninput="equipCalc()"></div></div>' +
+      '<div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" class="eq-i-unit" inputmode="decimal" placeholder="0,00" oninput="equipCalc()"></div></div>' +
     '<label class="orc-pg-forma" style="margin-top:10px"><input type="checkbox" class="eq-i-opc" onchange="equipCalc()"> Item opcional — aparece com preço, mas não soma no total</label>' +
     '<button type="button" class="eletro-btn" style="margin-top:10px" onclick="this.parentNode.remove();equipCalc()">Remover item</button>';
   host.appendChild(d);
@@ -17065,7 +17129,7 @@ function equipCondAdd() {
     '<div class="eletro-field"><label>Título</label>' +
       '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-tit" placeholder="10 parcelas"></div></div>' +
     '<div class="eletro-field"><label>Como sai no documento</label>' +
-      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-det" placeholder="10x de R$ 6.549,00 — total R$ 65.490,00"></div></div>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-det" placeholder="Ex.: 10x no boleto, total R$ ..."></div></div>' +
     '<button type="button" class="eletro-btn" style="margin-top:10px" onclick="this.parentNode.remove()">Remover condição</button>';
   host.appendChild(d);
 }
@@ -17088,9 +17152,9 @@ function equipCondSinalTexto(c) {
   const total = equipTotais().total;
   const sinal = Math.round(total * pct / 100), saldo = total - sinal;
   const brl = n => o1BRL(n / 100);
-  if (tit && !tit.dataset.manual) tit.value = pct ? `Sinal de ${pctTxt}% + saldo na nota fiscal` : 'Sinal + saldo na nota fiscal';
+  if (tit && !tit.dataset.manual) tit.value = pct ? `Sinal de ${pctTxt}% + saldo antes da expedição` : 'Sinal + saldo antes da expedição';
   if (det && !det.dataset.manual) det.value = !pct ? ''
-    : `Sinal de ${pctTxt}%${total ? ' (' + brl(sinal) + ')' : ''} no pedido. Saldo de ${String(100 - pct).replace('.', ',')}%${total ? ' (' + brl(saldo) + ')' : ''} na emissão da nota fiscal, após a chegada do equipamento.`;
+    : `Sinal de ${pctTxt}%${total ? ' (' + brl(sinal) + ')' : ''} no pedido. Saldo de ${String(100 - pct).replace('.', ',')}%${total ? ' (' + brl(saldo) + ')' : ''} quando o equipamento chegar ao estoque da vendedora, antes da expedição; a nota fiscal é emitida na expedição.`;
 }
 function equipCondSinalAdd() {
   const host = document.getElementById('eq-cond');
@@ -17115,7 +17179,8 @@ function equipCondSinalAdd() {
 function equipLerItens() {
   return [...document.querySelectorAll('#eq-itens > .card')].map(c => {
     const g = s => { const e = c.querySelector(s); return e ? String(e.value || '').trim() : ''; };
-    const unit = eqCent(c.querySelector('.eq-i-unit') ? c.querySelector('.eq-i-unit').value : 0);
+    // Texto lido como no Brasil: "89.900" é 89900, "89.900,50" é 89900,50.
+    const unit = eqCent(c.querySelector('.eq-i-unit') ? epNumBR(c.querySelector('.eq-i-unit').value) : 0);
     const opc = c.querySelector('.eq-i-opc');
     return {
       desc: g('.eq-i-desc'), detalhe: g('.eq-i-det'), ncm: g('.eq-i-ncm'),
@@ -17139,7 +17204,7 @@ function equipTotais() {
   const soma = f => itens.filter(f).reduce((a, i) => a + i.unit * i.qtd, 0);
   const subtotal = soma(i => !i.opcional);
   const opcionais = soma(i => i.opcional);
-  const frete = eqCent(eqNum('eq-frete'));
+  const frete = eqCent(epNumBR(eqVal('eq-frete')));
   return { itens, subtotal, opcionais, frete, total: subtotal + frete };
 }
 
@@ -17160,9 +17225,13 @@ function equipCalc() {
 function orcEquipPayload() {
   const t = equipTotais();
   if (!t.itens.length) return null;
-  const vendNome = (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '') || '';
-  const vendTel = (typeof whatsDoConsultor === 'function' ? whatsDoConsultor(vendNome) : '') || '';
+  // EQ-12: o vendedor digitado no Simulador vale primeiro, como no chave na mão.
+  const vendNome = orcVal('el-autor') || (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '') || '';
+  const vendTel = orcVal('el-contato') || (typeof whatsDoConsultor === 'function' ? whatsDoConsultor(vendNome) : '') || '';
   const emit = (typeof epEmitGet === 'function') ? (epEmitGet() || {}) : {};
+  const fob = (eqVal('eq-frete-tipo') || 'CIF') === 'FOB';
+  const entregaEl = document.getElementById('eq-entrega');
+  const entregaTocada = !!(entregaEl && entregaEl.dataset.tocado);
   const dEmisISO = eqVal('eq-data') || ((typeof orcHojeISO === 'function') ? orcHojeISO() : new Date().toISOString().slice(0, 10));
   const telCli = eqVal('eq-cli-tel');
 
@@ -17186,7 +17255,7 @@ function orcEquipPayload() {
     // o nome contra o número.
     emitente: { razao: emit.razao || '', cnpj: emit.cnpj || '', ie: emit.ie || '' },
     freteTipo: eqVal('eq-frete-tipo') || 'CIF',
-    entregaLocal: eqVal('eq-entrega') || eqVal('eq-cli-cidade'),
+    entregaLocal: (fob && !entregaTocada) ? [emit.end, emit.cidade].filter(Boolean).join(', ') : (eqVal('eq-entrega') || eqVal('eq-cli-cidade')),
     prazoEntrega: eqVal('eq-prazo'),
     garantia: eqVal('eq-garantia'),
     itens: t.itens,
@@ -17215,14 +17284,72 @@ const orcEquipArquivo = d => {
 function equipCritica(d) {
   if (!d) return 'Adicione ao menos um item com descrição ou valor.';
   if (!(d.total > 0)) return 'Sem valor. Preencha o valor unitário de ao menos um item que não seja opcional.';
+  if (!d.nome) return 'Informe o comprador.';
   return '';
+}
+// O que não trava mas não pode passar calado: dados do comprador e do pedido
+// em branco, valor unitário que parece faltar zeros e condição cujo total não
+// bate com a tabela.
+function equipConfirma(d) {
+  const faltam = [!d.doc && 'CNPJ/CPF do comprador', !d.prazoEntrega && 'prazo de entrega', !d.garantia && 'garantia',
+    !(d.condicoes && d.condicoes.length) && 'condição de pagamento (sai "à vista")'].filter(Boolean);
+  if (faltam.length && !confirm('Vai sem: ' + faltam.join(', ') + '.\n\nGerar assim mesmo?')) return false;
+  const baixo = (d.itens || []).find(i => !i.opcional && i.unit > 0 && i.unit < 100000);
+  if (baixo && !confirm(`Valor unitário de ${o1BRL(baixo.unit / 100)} para "${baixo.desc || 'item'}". Está certo?`)) return false;
+  for (const c of (d.condicoes || [])) {
+    const m = String(c.detalhe || '').match(/total\s*(?:de\s*)?R\$\s*([\d.]+(?:,\d{1,2})?)/i);
+    if (!m) continue;
+    const t = Number(epNumBR(m[1])) || 0;
+    if (t > 0 && Math.abs(t - d.total) > 0.5 && !confirm(`A condição "${c.titulo || c.detalhe}" fala em total de ${o1BRL(t)} e a tabela soma ${o1BRL(d.total)}.\n\nGerar assim mesmo?`)) return false;
+  }
+  return true;
 }
 
 function orcEquipImprimir() {
   const d = orcEquipPayload();
   const erro = equipCritica(d);
   if (erro) { alert(erro); return; }
-  orc1Imprimir(orcEquipDocHTML(d), orcEquipArquivo(d), { umaPagina: true, piso: 0.74 });
+  if (!equipConfirma(d)) return;
+  const htmlEq = orcEquipDocHTML(d);
+  orc1Imprimir(htmlEq, orcEquipArquivo(d), { umaPagina: true, piso: 0.74 });
+  // EQ-11: o PDF do carregador entra no Histórico, com a 2ª via.
+  try {
+    const idEq = epId();
+    epHistOrcSave({ id: idEq, tipo: 'Orçamento Carregador', num: d.num, cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
+    epPapelGrava({ id: idEq, html: htmlEq, arquivo: orcEquipArquivo(d), titulo: 'Orçamento de Venda' + (d.nome ? ' · ' + d.nome : ''), opts: { umaPagina: true, piso: 0.74 }, em: new Date().toISOString() });
+    epHistOrcRender();
+  } catch (e) {}
+}
+// Repõe a aba Venda de equipamento a partir do payload guardado (2ª via).
+function equipAplicar(p) {
+  if (!p || !p.itens) return;
+  if (typeof equipInit === 'function') equipInit();
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+  set('eq-num', p.num); set('eq-cli-nome', p.nome); set('eq-cli-doc', p.doc); set('eq-cli-ie', p.ie);
+  set('eq-cli-end', p.endereco); set('eq-cli-cidade', p.cidade); set('eq-cli-tel', p.telefone);
+  set('eq-frete-tipo', p.freteTipo || 'CIF'); set('eq-frete', p.cent ? String((p.cent.frete || 0) / 100).replace('.', ',') : p.frete);
+  set('eq-prazo', p.prazoEntrega); set('eq-garantia', p.garantia); set('eq-obs', p.obs);
+  if (p.dataEmissao) set('eq-data', String(p.dataEmissao).slice(0, 10));
+  const ent = document.getElementById('eq-entrega');
+  if (ent && p.entregaLocal != null) { ent.value = p.entregaLocal; ent.dataset.tocado = '1'; }
+  const hi = document.getElementById('eq-itens');
+  if (hi) { hi.innerHTML = ''; p.itens.forEach(() => equipItemAdd()); }
+  [...document.querySelectorAll('#eq-itens > .card')].forEach((c, n) => {
+    const i = p.itens[n]; if (!i) return;
+    const s = (sel, v) => { const el = c.querySelector(sel); if (el) el.value = v == null ? '' : v; };
+    s('.eq-i-desc', i.desc); s('.eq-i-det', i.detalhe); s('.eq-i-ncm', i.ncm); s('.eq-i-un', i.un || 'un'); s('.eq-i-qtd', i.qtd);
+    s('.eq-i-unit', String((Number(i.unit) || 0) / 100).replace('.', ','));
+    const o = c.querySelector('.eq-i-opc'); if (o) o.checked = !!i.opcional;
+  });
+  const hc = document.getElementById('eq-cond');
+  if (hc) { hc.innerHTML = ''; (p.condicoes || []).forEach(cd => {
+    equipCondAdd();
+    const c = hc.lastElementChild;
+    const t = c.querySelector('.eq-c-tit'), dt = c.querySelector('.eq-c-det');
+    if (t) { t.value = cd.titulo || ''; t.dataset.manual = '1'; }
+    if (dt) { dt.value = cd.detalhe || ''; dt.dataset.manual = '1'; }
+  }); }
+  equipCalc();
 }
 
 function _orcamentoEquipRowFromDados(d) {
@@ -17256,7 +17383,7 @@ async function orcEquipLink() {
   const d = orcEquipPayload();
   const erro = equipCritica(d);
   if (erro) { alert(erro); return; }
-  if (!d.nome) { alert('Informe o comprador antes de gerar o link.'); return; }
+  if (!equipConfirma(d)) return;
   showToast('⏳ Gerando link...');
   try {
     const codigo = await salvarOrcamentoEquipSupabase(d);
@@ -17960,18 +18087,71 @@ function recExtenso(v) {
 // Base do sinal = o Total do orçamento. Só cai no investimento do Simulador
 // quando o orçamento ainda está zerado — é a mesma fonte que preenche o "Valor
 // do projeto", então o recibo nunca sai com base diferente do que foi vendido.
+// A base do RECIBO, que muda com o tipo dele. O contrato chave na mão continua
+// lendo recBase(), o total do Orçamento, sem depender da aba Recibo.
+function recBaseRecibo() {
+  const tipo = recTipo();
+  // Equipamento avulso: o total do pedido da aba Venda de equipamento (centavos).
+  if (tipo === 'equip') { try { return equipTotais().total / 100; } catch (e) { return 0; } }
+  // Aporte: o aporte do sócio no cartão Sociedade. Depósito e reserva do local
+  // não têm base: o valor é o que entrou.
+  if (tipo === 'aporte') { try { return ctrSoc().aporteCli || 0; } catch (e) { return 0; } }
+  if (tipo === 'deposito' || tipo === 'premio') return 0;
+  // Parcela: o valor total do contrato que está na aba Contratos e termos.
+  if (tipo === 'parcela') {
+    const ct = ctrTipo();
+    if (ct === 'equip') { try { return ctrEqv().total; } catch (e) { return 0; } }
+    if (ctrSocModo(ct)) { try { return ctrSoc().aporteCli || 0; } catch (e) { return 0; } }
+    const el = document.getElementById('ctr-total');
+    if (el && !ctrEspLigado('ctr-total')) return ctrMoeda(el.value);
+  }
+  return recBase();
+}
 function recBase() {
   const t = orcLerItens().total;
   if (t > 0) return t;
   try { return computeEletro(eletroParams()).investTotal || 0; } catch (e) { return 0; }
+}
+// Os seis recibos da tela. sinal e projeto são os de sempre; os outros quatro
+// nasceram em 09/10/2026 para a venda de eletroposto ter papel para todo
+// dinheiro que entra ou sai antes e durante o contrato.
+const REC_NOVOS = ['equip', 'deposito', 'aporte', 'premio', 'parcela'];
+function recTipo() { const t = orcVal('rec-tipo'); return ['projeto'].concat(REC_NOVOS).includes(t) ? t : 'sinal'; }
+const REC_DESIST_EQUIP = 'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro (art. 418 do Código Civil).';
+// Quem paga (ou, na reserva do local, quem recebe) e de onde vem a sugestão.
+function recSugestaoParte(tipo) {
+  if (tipo === 'equip') return { nome: eqVal('eq-cli-nome'), doc: eqVal('eq-cli-doc'), end: [eqVal('eq-cli-end'), eqVal('eq-cli-cidade')].filter(Boolean).join(', '),
+    ref: eqVal('eq-num') ? 'Orçamento de Venda nº ' + eqVal('eq-num') : 'Orçamento de Venda' };
+  if (tipo === 'deposito' || tipo === 'aporte' || tipo === 'premio' || tipo === 'parcela') {
+    const cp = id => { try { return ctrCampo(id); } catch (e) { return ''; } };
+    const num = orcVal('ctr-num'), dt = orcVal('ctr-data');
+    const quando = (num ? ' nº ' + num : '') + (dt ? ', de ' + ctrDataBR(dt) : '');
+    const ref = (tipo === 'parcela' ? ({ completo: 'Contrato de Fornecimento e Instalação', socio50: 'Contrato de Sociedade em Conta de Participação', cotas: 'Contrato de Sociedade em Conta de Participação', arrend: 'Contrato de Cessão Onerosa de Área', equip: 'Contrato de Compra e Venda de Equipamento' }[ctrTipo()] || 'Contrato')
+      : { deposito: 'Termo de Compromisso e Reserva de Cota', aporte: 'Contrato de Sociedade em Conta de Participação', premio: 'Termo de Compromisso e Promessa de Cessão de Área' }[tipo]) + quando;
+    return { nome: cp('ctr-contratante') || eletroTextos().cliente, doc: cp('ctr-contratante-doc') || orcVal('orc-cli-doc'),
+      end: [cp('ctr-contratante-end'), cp('ctr-cidade')].filter(Boolean).join(', ') || orcVal('orc-cli-end'), ref };
+  }
+  return null;
+}
+// Valor sugerido nos recibos sem base: o que o termo diz que entrou.
+function recValorSugerido(tipo) {
+  if (tipo === 'deposito') return ctrMoeda(orcVal('ctr-ti-deposito'));
+  if (tipo === 'premio') return ctrMoeda(orcVal('ctr-ta-premio'));
+  return 0;
 }
 function recValorEditado(el) { el.dataset.tocado = '1'; recResumo(); }
 function recValorReset() { const el = document.getElementById('rec-valor'); if (!el) return; delete el.dataset.tocado; recCalc(); }
 function recCalc() {
   const el = document.getElementById('rec-valor'); if (!el) return;
   if (el.dataset.tocado !== '1') {
-    const base = recBase(), pct = orcNum(orcVal('rec-pct'));
-    el.value = base > 0 ? (base * pct / 100).toFixed(2) : '';
+    const tipo = recTipo();
+    if (tipo === 'deposito' || tipo === 'premio' || tipo === 'aporte' || tipo === 'parcela') {
+      const v = recValorSugerido(tipo);
+      el.value = v > 0 ? epFmtBR(v) : '';
+    } else {
+      const base = recBaseRecibo(), pct = orcNum(orcVal('rec-pct'));
+      el.value = base > 0 ? epFmtBR(base * pct / 100) : '';
+    }
   }
   recResumo();
 }
@@ -17980,9 +18160,70 @@ function recCalc() {
 // ESCONDIDO, e não apenas ignorado: consultor que preenche "gatilho do
 // abatimento" num recibo que não abate nada acha que combinou algo com o cliente.
 function recAvulso() { return orcVal('rec-tipo') === 'projeto'; }
+let recTipoUlt = 'sinal';
 function recTipoMudou() {
+  const tipo = recTipo();
+  const novo = REC_NOVOS.includes(tipo);
+  // De onde veio: só a volta do equipamento desfaz o percentual e a
+  // desistência que ele sugeriu. Reabrir um recibo de sinal de 10% não pode
+  // voltar para 5%.
+  const veio = recTipoUlt; recTipoUlt = tipo;
+  // Trocou de/para um recibo novo: o valor digitado no outro tipo não vale
+  // aqui e volta a ser sugestão. (Reabrir do histórico acerta o recTipoUlt
+  // antes, e o valor assinado fica.)
+  if (veio !== tipo && (novo || REC_NOVOS.includes(veio))) { const vEl = document.getElementById('rec-valor'); if (vEl) delete vEl.dataset.tocado; }
   const av = recAvulso();
   const most = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+  most('rec-f-cli-end', novo); most('rec-f-ref', novo); most('rec-f-antes', tipo === 'aporte' || tipo === 'parcela'); most('rec-f-fim', !novo);
+  most('rec-f-parcela', tipo === 'parcela');
+  const antesRot = document.getElementById('rec-antes-rot');
+  if (antesRot) antesRot.textContent = tipo === 'parcela' ? 'Já pago do contrato antes deste recibo (sinal e parcelas)' : 'Já pago do aporte antes deste recibo';
+  if (novo) {
+    most('rec-f-pct', tipo === 'equip'); most('rec-f-gatilho', false); most('rec-f-gatilho-note', false); most('rec-f-desist', tipo === 'equip');
+    const t = document.getElementById('rec-card-tit');
+    if (t) t.textContent = { equip: 'Recibo de sinal do equipamento', deposito: 'Recibo de depósito de reserva', aporte: 'Recibo de aporte', premio: 'Recibo da reserva do local', parcela: 'Recibo de pagamento' }[tipo];
+    const n = document.getElementById('rec-tipo-note');
+    if (n) n.innerHTML = {
+      equip: 'Sinal da compra de equipamento avulso: o total vem da aba <b>Venda de equipamento</b>, o papel mostra o saldo e as regras de desistência do art. 418, e o comprador assina junto.',
+      deposito: 'Depósito do <b>Termo do Investidor</b>: não é aporte e não faz do investidor sócio. Abate do aporte no contrato de sociedade ou volta na forma do termo. O investidor assina junto.',
+      aporte: 'Pagamento do <b>aporte</b> do sócio ou cotista, contra o aporte total do cartão Sociedade. O papel mostra quanto falta.',
+      premio: 'O dinheiro <b>sai</b> da NEXUS e vai para o dono do local, pelo <b>Termo do Arrendador</b>: quem assina este recibo é o <b>dono</b>, que é quem recebe.',
+      parcela: 'Pagamento da <b>entrada ou de uma parcela</b> do contrato que está na aba Contratos e termos. Não mexe no contrato (o sinal do contrato vem só do recibo de sinal). Na última, o papel dá quitação do preço.',
+    }[tipo];
+    const rot = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const nomeRot = document.querySelector('#rec-cli-nome') && document.querySelector('#rec-cli-nome').closest('.eletro-field').querySelector('label');
+    const docRot = document.querySelector('#rec-cli-doc') && document.querySelector('#rec-cli-doc').closest('.eletro-field').querySelector('label');
+    if (nomeRot) nomeRot.textContent = tipo === 'premio' ? 'Nome de quem recebe (dono do local)' : tipo === 'equip' ? 'Nome do comprador' : tipo === 'aporte' ? 'Nome do sócio' : tipo === 'parcela' ? 'Nome do pagador' : 'Nome do investidor';
+    if (docRot) docRot.textContent = tipo === 'premio' ? 'CPF/CNPJ do dono do local' : 'CPF/CNPJ do pagador';
+    rot('rec-cli-end-rot', tipo === 'premio' ? 'Endereço do dono do local' : 'Endereço do pagador');
+    rot('rec-ref-rot', tipo === 'equip' ? 'Orçamento de referência' : (tipo === 'aporte' || tipo === 'parcela') ? 'Contrato de referência' : 'Termo de referência');
+    // Sugestões do tipo: campo que o consultor não tocou acompanha a troca.
+    const s = recSugestaoParte(tipo) || {};
+    [['rec-cli-nome', s.nome], ['rec-cli-doc', s.doc], ['rec-cli-end', s.end], ['rec-ref', s.ref]].forEach(([id, v]) => {
+      const el = document.getElementById(id); if (el && el.dataset.tocado !== '1') el.value = v || '';
+    });
+    const pctEl = document.getElementById('rec-pct');
+    if (pctEl && tipo === 'equip' && pctEl.dataset.tocado !== '1') {
+      const c = document.querySelector('#eq-cond > .eq-c-sinal');
+      pctEl.value = String(c ? equipSinalPct(c) : 30);
+    }
+    const ds = document.getElementById('rec-desist');
+    if (ds && tipo === 'equip' && (!ds.value.trim() || ds.value === REC_DESIST_PADRAO)) ds.value = REC_DESIST_EQUIP;
+    const el = document.getElementById('rec-valor');
+    if (el && el.dataset.tocado !== '1') recCalc(); else recResumo();
+    return;
+  }
+  // Voltou para um dos recibos de sempre: o que o tipo novo sugeriu sai.
+  if (veio === 'equip') {
+    const pctEl = document.getElementById('rec-pct');
+    if (pctEl && pctEl.dataset.tocado !== '1') pctEl.value = '5';
+    const ds = document.getElementById('rec-desist');
+    if (ds && ds.value === REC_DESIST_EQUIP) ds.value = REC_DESIST_PADRAO;
+  }
+  const nomeRot = document.querySelector('#rec-cli-nome') && document.querySelector('#rec-cli-nome').closest('.eletro-field').querySelector('label');
+  const docRot = document.querySelector('#rec-cli-doc') && document.querySelector('#rec-cli-doc').closest('.eletro-field').querySelector('label');
+  if (nomeRot) nomeRot.textContent = 'Nome do pagador';
+  if (docRot) docRot.textContent = 'CPF/CNPJ do pagador';
   most('rec-f-pct', !av); most('rec-f-gatilho', !av); most('rec-f-gatilho-note', !av); most('rec-f-desist', !av);
   const t = document.getElementById('rec-card-tit');
   if (t) t.textContent = av ? 'Recibo do projeto elétrico' : 'Recibo de sinal';
@@ -17998,7 +18239,27 @@ function recTipoMudou() {
 }
 function recResumo() {
   const n = document.getElementById('rec-resumo'); if (!n) return;
-  const base = recBase(), sinal = orcNum(orcVal('rec-valor'));
+  const base = recBaseRecibo(), sinal = ctrMoeda(orcVal('rec-valor'));
+  const tipo = recTipo();
+  if (tipo === 'deposito' || tipo === 'premio') {
+    n.innerHTML = sinal > 0 ? `Recibo de <b>${ORC_MONEY(sinal)}</b>.` : `Digite o <b>valor ${tipo === 'premio' ? 'pago ao dono' : 'depositado'}</b>${tipo === 'premio' ? ' (o termo sugere o da reserva)' : ' (o termo sugere o do depósito)'}.`;
+    return;
+  }
+  if (tipo === 'parcela') {
+    const antes = ctrMoeda(orcVal('rec-antes'));
+    n.innerHTML = base > 0
+      ? `Contrato <b>${ORC_MONEY(base)}</b> · já pago <b>${ORC_MONEY(antes)}</b> · este recibo <b>${ORC_MONEY(sinal)}</b> · falta <b>${ORC_MONEY(Math.max(0, base - antes - sinal))}</b>${Math.abs(base - antes - sinal) < 0.005 ? ' · <b>quitação</b>' : ''}`
+      : 'Sem o valor total do contrato: o papel sai sem a conta do saldo.';
+    return;
+  }
+  if (tipo === 'aporte') {
+    const antes = ctrMoeda(orcVal('rec-antes'));
+    n.innerHTML = base > 0
+      ? `Aporte <b>${ORC_MONEY(base)}</b> · já pago <b>${ORC_MONEY(antes)}</b> · este recibo <b>${ORC_MONEY(sinal)}</b> · falta <b>${ORC_MONEY(Math.max(0, base - antes - sinal))}</b>`
+      : 'Sem aporte no cartão <b>Sociedade</b> da aba Contratos e termos: o papel sai sem o total do aporte.';
+    return;
+  }
+  if (tipo === 'equip' && !(base > 0)) { n.innerHTML = 'Monte o pedido na aba <b>Venda de equipamento</b>: é o total dele que dá a base do sinal.'; return; }
   if (recAvulso()) {
     n.innerHTML = sinal > 0
       ? `Recibo de <b>${ORC_MONEY(sinal)}</b> pelo projeto elétrico — sem vínculo com o valor do eletroposto.`
@@ -18030,6 +18291,17 @@ function recProxNum() {
 }
 
 function recBanner() {
+  const tipoN = recTipo();
+  if (REC_NOVOS.includes(tipoN)) {
+    const el = document.getElementById('rec-cli-banner');
+    if (el) {
+      const aba = tipoN === 'equip' ? ['equipamento', 'Venda de equipamento'] : ['contrato', 'Contratos e termos'];
+      const nome = orcVal('rec-cli-nome'), doc = orcVal('rec-cli-doc');
+      el.innerHTML = `${nome ? `<b>${orcEsc(nome)}</b>` : 'Sem nome'} · ${doc ? `CPF/CNPJ <b>${orcEsc(doc)}</b>` : '<b>sem CPF/CNPJ</b>, sai como linha em branco'} <button type="button" class="orc-link" onclick="eletroSubaba('${aba[0]}')">Abrir ${aba[1]} →</button>`;
+    }
+    epSugerir([['rec-num', recProxNum()]]);
+    return;
+  }
   // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
   // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
   epSugerir([['rec-cli-nome', eletroTextos().cliente],
@@ -18055,8 +18327,8 @@ function recInit() {
 // ── Documento ──
 function recDados() {
   const t = eletroTextos();
-  const base = recBase();
-  const sinal = orcNum(orcVal('rec-valor'));
+  const base = recBaseRecibo();
+  const sinal = ctrMoeda(orcVal('rec-valor'));
   const dISO = orcVal('rec-data') || orcHojeISO();
   return {
     num: orcVal('rec-num'),
@@ -18075,6 +18347,9 @@ function recDados() {
     obs: orcVal('rec-obs'),
     avulso: recAvulso(),
     vendedor: { nome: t.autor, contato: t.contato },
+    // Recibos novos (09/10/2026).
+    tipoRec: recTipo(), ref: orcVal('rec-ref'), antes: ctrMoeda(orcVal('rec-antes')), endRec: orcVal('rec-cli-end'), parcela: orcVal('rec-parcela'),
+    local: (() => { try { return ctrCampo('ctr-local'); } catch (e) { return ''; } })(),
   };
 }
 
@@ -18087,7 +18362,127 @@ function recPctTxt(d) {
   return p.toFixed(2).replace(/\.?0+$/, '').replace('.', ',') + '%';
 }
 
+// Os quatro recibos novos. Mesma folha, mesmas classes e o mesmo rodapé do
+// recibo de sinal; muda o que o dinheiro é, a conta e quem assina.
+function recHTMLNovo(d) {
+  const e = orcEsc, money = ORC_MONEY, tipo = d.tipoRec;
+  const ouVazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const emp = epEmitGet();
+  const localData = [d.cidade, d.data.toLocaleDateString('pt-BR')].filter(Boolean).join(', ');
+  const pct = recPctTxt(d);
+  const cartao = /cart/i.test(d.forma || '');
+  const ref = d.ref ? e(d.ref) : { equip: 'Orçamento de Venda', deposito: 'Termo de Compromisso e Reserva de Cota', aporte: 'contrato de sociedade', premio: 'Termo de Compromisso e Promessa de Cessão de Área', parcela: 'contrato' }[tipo];
+  const pagador = `<b>${ouVazio(d.cliente)}</b>, inscrito(a) no CPF/CNPJ sob o nº ${ouVazio(d.doc)}${d.endRec ? ', com endereço em ' + e(d.endRec) : ''}`;
+  const titulo = { equip: 'Recibo de Sinal', deposito: 'Recibo de Depósito de Reserva', aporte: 'Recibo de Aporte', premio: 'Recibo de Reserva do Local', parcela: 'Recibo de Pagamento' }[tipo];
+  const refRot = { equip: 'Compra de equipamento', deposito: 'Reserva de cota', aporte: 'Aporte em sociedade', premio: 'Reserva do local', parcela: 'Parcela do contrato' }[tipo];
+  const saldoAporte = Math.max(0, d.base - d.antes - d.sinal);
+  const saldo = (tipo === 'aporte' || tipo === 'parcela') ? saldoAporte : Math.max(0, d.base - d.sinal);
+  let corpo, tabela = '', clausulas = [];
+  if (tipo === 'premio') {
+    corpo = `Recebi da <b>${e(epParteMarca(emp))}</b>, ${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}, a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de <b>preço da reserva do local</b>${d.local ? ` situado em <b>${e(d.local)}</b>` : ''}, na forma do ${ref}.`;
+    clausulas = [
+      '<b>Natureza do valor.</b> A quantia acima é o preço da reserva do local e do prazo de estudo, na forma do termo, e não constitui arras nem sinal.',
+      '<b>Destino.</b> Assinado o contrato de cessão, este valor é abatido da primeira remuneração devida ao cedente e das seguintes, até se esgotar. Nas hipóteses de devolução previstas no termo, é devolvido na forma dele.',
+      '<b>Tributos.</b> Quem recebe responde pelos tributos incidentes sobre este valor.',
+    ];
+  } else if (tipo === 'deposito') {
+    corpo = `Recebemos de ${pagador}, a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de <b>depósito de reserva de participação</b> em sociedade em conta de participação para estação de recarga de veículos elétricos, na forma do ${ref}.`;
+    clausulas = [
+      '<b>Natureza do valor.</b> A quantia acima é depósito de reserva: não é aporte, não torna o pagador sócio participante e não dá direito a resultado.',
+      '<b>Destino.</b> Assinado o contrato de sociedade, este valor é abatido do aporte. Não cumprida a condição do termo, ou exercida a desistência nele prevista, é devolvido na forma e no prazo do termo.',
+      cartao ? '<b>Cartão.</b> Pago por cartão, a devolução é o estorno total da transação.' : '',
+    ];
+  } else if (tipo === 'parcela') {
+    corpo = `Recebemos de ${pagador}, a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), em pagamento ${d.parcela ? `da parcela <b>${e(d.parcela)}</b>` : 'de parcela'} do ${ref}${d.base > 0 ? `, de valor total de <b>${money(d.base)}</b>` : ''}.`;
+    if (d.base > 0) tabela = `<div class="ep-section">Como este valor entra na conta</div>
+      <table class="ep-kv">
+        <tr><td>Valor total do contrato</td><td class="num">${money(d.base)}</td></tr>
+        ${d.antes > 0 ? `<tr><td>Já pago antes deste recibo (sinal e parcelas)</td><td class="num">− ${money(d.antes)}</td></tr>` : ''}
+        <tr><td>Recebido nesta data</td><td class="num">− ${money(d.sinal)}</td></tr>
+        <tr class="hl"><td>Saldo do contrato</td><td class="num">${money(saldoAporte)}</td></tr>
+      </table>`;
+    clausulas = [
+      '<b>Natureza do valor.</b> A quantia acima paga a parcela indicada, na forma do contrato, e não altera as demais condições dele.',
+      d.base > 0 ? (saldoAporte > 0.005
+        ? `<b>Saldo.</b> Resta o saldo de <b>${money(saldoAporte)}</b>, pago na forma do contrato.`
+        : '<b>Quitação.</b> Com este pagamento, o preço do contrato está quitado. A quitação não alcança a garantia, a assistência e as demais obrigações que continuam previstas no contrato.') : '',
+      cartao ? '<b>Cartão.</b> Pago por cartão, o valor considera-se recebido na autorização da transação.' : '',
+    ];
+  } else if (tipo === 'aporte') {
+    corpo = `Recebemos de ${pagador}, a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de <b>integralização de aporte</b> do sócio participante na sociedade em conta de participação do ${ref}${d.base > 0 ? `, de aporte total de <b>${money(d.base)}</b>` : ''}.`;
+    if (d.base > 0) tabela = `<div class="ep-section">Como este valor entra na conta</div>
+      <table class="ep-kv">
+        <tr><td>Aporte total do sócio</td><td class="num">${money(d.base)}</td></tr>
+        ${d.antes > 0 ? `<tr><td>Já pago antes deste recibo</td><td class="num">− ${money(d.antes)}</td></tr>` : ''}
+        <tr><td>Recebido nesta data</td><td class="num">− ${money(d.sinal)}</td></tr>
+        <tr class="hl"><td>Saldo do aporte</td><td class="num">${money(saldoAporte)}</td></tr>
+      </table>`;
+    clausulas = [
+      '<b>Natureza do valor.</b> A quantia acima integra o aporte do sócio participante e o patrimônio especial da conta de participação (art. 994 do Código Civil), na forma do contrato.',
+      d.base > 0 ? (saldoAporte > 0 ? `<b>Saldo.</b> Resta o saldo de <b>${money(saldoAporte)}</b> do aporte, pago na forma do contrato.` : '<b>Integralização.</b> Com este pagamento, o aporte está integralizado.') : '',
+      cartao ? '<b>Cartão.</b> Pago por cartão, o valor considera-se recebido na autorização da transação.' : '',
+    ];
+  } else {
+    corpo = `Recebemos de ${pagador}, a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de <b>sinal e princípio de pagamento</b>, correspondente a ${pct} do valor total de <b>${money(d.base)}</b> do pedido de compra dos equipamentos do ${ref}.`;
+    tabela = `<div class="ep-section">Como este valor entra na conta</div>
+      <table class="ep-kv">
+        <tr><td>Valor total do pedido</td><td class="num">${money(d.base)}</td></tr>
+        <tr><td>Sinal recebido nesta data (${pct})</td><td class="num">− ${money(d.sinal)}</td></tr>
+        <tr class="hl"><td>Saldo a pagar na forma da condição contratada</td><td class="num">${money(saldo)}</td></tr>
+      </table>`;
+    clausulas = [
+      '<b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil), parte do preço do pedido.',
+      `<b>Abatimento.</b> Este valor é abatido do preço, restando o saldo de <b>${money(saldo)}</b>, pago na forma da condição contratada.`,
+      `<b>Desistência.</b> ${e(d.desist || REC_DESIST_EQUIP)}`,
+      '<b>Nota fiscal.</b> A nota fiscal dos equipamentos é emitida na forma da legislação, pelo valor total do pedido.',
+    ];
+  }
+  const pagaSaldo = (tipo === 'equip' || tipo === 'aporte' || tipo === 'parcela') && saldo > 0.005 && (d.pix || d.conta)
+    ? `<li><b>Para pagar o saldo.</b> ${d.pix ? `Pix: <b>${e(d.pix)}</b>` : ''}${d.pix && d.conta ? ' · ' : ''}${d.conta ? e(d.conta) : ''}${d.empresa && d.empresa.razao ? ` em nome de ${e(d.empresa.razao)}` : ''}.</li>` : '';
+  const fiscal = tipo === 'equip' ? '' : '<li><b>Documento fiscal.</b> Este recibo comprova o recebimento e não substitui documento fiscal, quando exigido.</li>';
+  const papel = { equip: 'Comprador', deposito: 'Investidor', aporte: 'Sócio participante' }[tipo];
+  // Recibo de parcela é declaração de quem recebe: só a NEXUS assina.
+  const assin = tipo === 'parcela'
+    ? `<div class="ep-rec-assin uma"><div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>Recebedor</div></div>`
+    : tipo === 'premio'
+    ? `<div class="ep-rec-assin uma"><div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Recebedor (dono do local)</div></div>`
+    : `<div class="ep-rec-assin">
+        <div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>Recebedor</div>
+        <div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}${papel}</div>
+      </div>`;
+  return `<div class="ep-doc">
+    <div class="ep-page ep-rec">
+      ${epTopoHTML(titulo, d.data.toLocaleDateString('pt-BR'),
+        [['Recibo nº', d.num ? e(d.num) : ''],
+         [tipo === 'premio' ? 'Recebedor' : 'Pagador', d.cliente ? e(d.cliente) : ''],
+         ['Local', d.cidade ? e(d.cidade) : ''],
+         ['Referente a', refRot]], '')}
+      <div class="ep-rec-hero">
+        <div>
+          <div class="k">Valor recebido</div>
+          <div class="v">${money(d.sinal)}</div>
+          <div class="ext">(${e(recExtenso(d.sinal))})</div>
+        </div>
+        ${tipo === 'equip' ? `<div class="pct"><b>${pct}</b>do valor total do pedido<br>recebido em ${e(d.forma)}</div>` : `<div class="pct"><b>${e(d.forma)}</b>forma de pagamento</div>`}
+      </div>
+      <div class="ep-rec-corpo">${corpo}</div>
+      ${tabela}
+      <div class="ep-section">Condições</div>
+      <ol class="ep-rec-clau">
+        ${clausulas.filter(Boolean).map(c => `<li>${c}</li>`).join('\n        ')}
+        ${pagaSaldo}
+        ${fiscal}
+        ${d.obs ? `<li><b>Observações.</b> ${e(d.obs)}</li>` : ''}
+      </ol>
+      <div class="ep-rec-local">${localData ? e(localData) + '.' : ''}</div>
+      ${assin}
+      ${epFooterBlockHTML(d.vendedor, 'juridico')}
+      ${epPageFootHTML(titulo, d.cliente)}
+    </div>
+  </div>`;
+}
 function recHTML(d) {
+  if (d && REC_NOVOS.includes(d.tipoRec)) return recHTMLNovo(d);
   const e = orcEsc;
   const money = ORC_MONEY;
   const pct = recPctTxt(d);
@@ -18178,6 +18573,25 @@ function recHTML(d) {
 }
 function recImprimir() {
   const d = recDados();
+  if (REC_NOVOS.includes(d.tipoRec)) {
+    if (d.tipoRec === 'equip' && !(d.base > 0)) { alert('Monte o pedido na aba "Venda de equipamento" antes de gerar o recibo do sinal: é o total dele que o recibo cita.'); return; }
+    if (!(d.sinal > 0)) { alert('Digite o "Valor recebido" antes de gerar o recibo.'); return; }
+    const faltam = [!d.cliente && (d.tipoRec === 'premio' ? 'nome do dono do local' : 'nome do pagador'), !d.doc && 'CPF/CNPJ', !d.ref && 'documento de referência'].filter(Boolean);
+    if (faltam.length && !confirm(`Sem ${faltam.join(', ')}: o recibo sai com a linha em branco no lugar.\n\nGerar assim mesmo?`)) return;
+    if ((d.tipoRec === 'aporte' || d.tipoRec === 'parcela') && d.base > 0 && d.antes + d.sinal > d.base + 0.005 &&
+        !confirm(`O já pago mais este recibo (${ORC_MONEY(d.antes + d.sinal)}) passa o aporte total (${ORC_MONEY(d.base)}).\n\nGerar assim mesmo?`)) return;
+    const limpaN = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+    const pref = { equip: 'Recibo_Sinal_Equipamento', deposito: 'Recibo_Deposito_Reserva', aporte: 'Recibo_Aporte', premio: 'Recibo_Reserva_Local', parcela: 'Recibo_Pagamento' }[d.tipoRec];
+    const tit = { equip: 'Recibo de sinal do equipamento', deposito: 'Recibo de depósito de reserva', aporte: 'Recibo de aporte', premio: 'Recibo da reserva do local', parcela: 'Recibo de pagamento' }[d.tipoRec];
+    epPreview({
+      html: recHTML(d),
+      arquivo: [pref, limpaN(d.cliente) || 'Cliente', d.num ? 'N' + limpaN(d.num) : ''].filter(Boolean).join('_'),
+      titulo: tit + (d.cliente ? ' — ' + d.cliente : ''),
+      opts: { umaPagina: true, piso: 0.86, alvo: '.ep-rec' },
+      hist: d.cliente ? { id: epId(), tipo: 'Recibo', num: d.num, cliente: d.cliente, valor: d.sinal, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+    });
+    return;
+  }
   // O avulso não depende do orçamento — ele não cita total nenhum. Exigir base
   // aqui travaria justamente o recibo que existe pra NÃO falar do eletroposto.
   if (!d.avulso && !(d.base > 0)) { alert('Defina o "Valor do projeto" no Orçamento (ou o investimento no Simulador) antes de gerar o recibo.'); return; }
@@ -18394,16 +18808,52 @@ function epPrevFechar() {
 function epPrevSaida() {
   const s = epPrevEstado;
   if (!s) return;
-  if (s.hist) { epHistOrcSave(s.hist); s.hist = null; }
-  if (s.opts) { orc1Imprimir(s.html, s.arquivo, s.opts); return; }
   // Texto mexido na folha: sai o que está NA TELA, sem o contenteditable.
   let html = s.html;
-  if (s.editado) {
+  if (!s.opts && s.editado) {
     const c = document.getElementById('ep-prev-doc').cloneNode(true);
     c.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
     html = c.innerHTML;
   }
+  if (s.hist) {
+    if (s.editado) s.hist.editado = true;
+    epHistOrcSave(s.hist);
+    // TR-01: o papel como saiu, para a 2ª via sair idêntica (inclusive o texto
+    // mexido à mão), mesmo que o Simulador e as abas tenham mudado.
+    epPapelGrava({ id: s.hist.id, html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, editado: !!s.editado, em: new Date().toISOString() });
+    s.hist = null;
+  }
+  if (s.opts) { orc1Imprimir(s.html, s.arquivo, s.opts); return; }
   const host = document.getElementById('eletro-print'); host.innerHTML = html; epPrint(host, s.arquivo);
+}
+// Papéis impressos, no IndexedDB do aparelho (o mesmo lugar do dossiê): sem o
+// teto de tamanho do localStorage, e nunca apagados sozinhos.
+function epPapelDb() {
+  return new Promise((ok, falha) => {
+    if (!window.indexedDB) { falha(new Error('sem IndexedDB')); return; }
+    const r = indexedDB.open('nexus-hist-papel', 1);
+    r.onupgradeneeded = () => { const db = r.result; if (!db.objectStoreNames.contains('papeis')) db.createObjectStore('papeis', { keyPath: 'id' }); };
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => falha(r.error);
+  });
+}
+function epPapelGrava(reg) {
+  if (!reg || !reg.id || !reg.html) return Promise.resolve();
+  return epPapelDb().then(db => new Promise(ok => {
+    const tx = db.transaction('papeis', 'readwrite'); tx.objectStore('papeis').put(reg);
+    tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = () => { db.close(); ok(); };
+  })).catch(() => {});
+}
+function epPapelLe(id) {
+  return epPapelDb().then(db => new Promise(ok => {
+    const r = db.transaction('papeis', 'readonly').objectStore('papeis').get(id);
+    r.onsuccess = () => { db.close(); ok(r.result || null); }; r.onerror = () => { db.close(); ok(null); };
+  })).catch(() => null);
+}
+async function epHistSegundaVia(id) {
+  const r = await epPapelLe(id);
+  if (!r) { alert('Este papel foi gerado antes da 2ª via exata (ou em outro aparelho). Use "Abrir" para refazer a partir dos campos.'); return; }
+  epPreview({ html: r.html, arquivo: r.arquivo + '_2a-via', titulo: (r.titulo || 'Documento') + ' · 2ª via', opts: r.opts, hist: null });
 }
 
 // EDITAR TEXTO (05/10/2026): qualquer frase do documento se reescreve direto na
@@ -18510,6 +18960,8 @@ const CTR_TIPOS = {
     nota: 'Cessão onerosa de área: o dono do local cede o espaço, a NEXUS investe 100%, instala e opera, e paga a ele todo mês um percentual do faturamento bruto.' },
   cotas: { nome: 'Cotas por %', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
     nota: 'Sociedade em conta de participação dividida em cotas: o cliente compra uma ou mais, a NEXUS administra e fica com a dela, e o local vem por arrendamento. Enquanto o capital não fecha, o dinheiro fica parado, e volta se não fechar no prazo.' },
+  equip: { nome: 'Compra e venda de equipamento', nossa: 'VENDEDORA', deles: 'COMPRADOR', Nossa: 'Vendedora', Parte: 'Comprador', parte: 'comprador',
+    nota: 'Venda só do equipamento, sem obra: o pedido (itens com NCM, frete, prazo e garantia) vem da aba Venda de equipamento. Instalação é do comprador, por profissional habilitado.' },
   // TERMOS DE COMPROMISSO (08/10/2026): o papel entre a reunião e o contrato.
   // Os nomes das partes mudam com a força do termo e com o uso (ver ctrNomes).
   termo_arr: { nome: 'Termo do Arrendador', termo: true, nossa: 'COMPROMISSÁRIA CESSIONÁRIA', deles: 'COMPROMITENTE CEDENTE', Nossa: 'Compromissária cessionária', Parte: 'Compromitente cedente', parte: 'compromitente cedente',
@@ -18662,21 +19114,39 @@ function ctrTipoUi() {
     nota.innerHTML = orcEsc(CTR_TIPOS[t].nota) + (daFicha ? ` No formulário, o cliente escolheu <b>${orcEsc(daFicha)}</b>.` : '');
   }
   ctrTermoUi();
+  ctrUsoUi();
 }
 function ctrTipoMudou(sel) {
-  if (sel) sel.dataset.tocado = '1';
+  const antes = (sel && sel.dataset.antes) || 'completo';
+  const para = ctrTipo();
+  if (sel) { sel.dataset.tocado = '1'; sel.dataset.antes = sel.value; }
+  // Do termo de reserva para o contrato da MESMA sociedade (C04, S50-04): o
+  // quadro, as cotas e a forma de pagamento que o investidor já assinou ficam.
+  const mesmaSoc = antes === 'termo_inv' && ctrEhSoc(para) && orcVal('ctr-ti-uso') !== 'adesao' && ctrSocModo('termo_inv') === para;
+  const pagGuardado = mesmaSoc && ctrPag.tocado ? JSON.parse(JSON.stringify(ctrPag)) : null;
+  // Do termo para o contrato (ou o contrário) o número não serve: o termo vira
+  // a referência do contrato, e o contrato ganha número próprio (C08, S50-16,
+  // ARR-05).
+  const ehTermo = t => !!(CTR_TIPOS[t] && CTR_TIPOS[t].termo);
+  if (ehTermo(antes) !== ehTermo(para)) {
+    const num = document.getElementById('ctr-num'), ref = document.getElementById('ctr-origem-ref');
+    if (ehTermo(antes) && ref && num && num.value) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
+    if (num) num.value = '';
+  }
   // A tabela de pagamento corre sobre outra base (preço da obra ou aporte do
   // sócio): o que estava montado para um modelo não serve para o outro.
-  ctrPag = { tocado: false, linhas: [] };
+  ctrPag = pagGuardado || { tocado: false, linhas: [] };
   // O mesmo vale para o que foi DIGITADO e muda de sentido com o modelo: o
   // sinal da obra não é parte paga do aporte, e o aporte do 50/50 (total) não é
   // o "aporte por cota". Voltam ao espelho; o resto do contrato fica.
-  CTR_ESPELHOS.forEach(m => {
-    if (m.id !== 'ctr-sinal' && !/^ctr-soc-/.test(m.id)) return;
-    const el = document.getElementById(m.id);
-    if (el) delete el.dataset.tocado;
-  });
-  const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
+  if (!mesmaSoc) {
+    CTR_ESPELHOS.forEach(m => {
+      if (m.id !== 'ctr-sinal' && !/^ctr-soc-/.test(m.id)) return;
+      const el = document.getElementById(m.id);
+      if (el) delete el.dataset.tocado;
+    });
+    const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
+  }
   ctrTipoUi();
   ctrEscRender(); ctrOpcRender(); ctrPctNota(); ctrDosRender();
   ctrResumo();
@@ -18796,13 +19266,15 @@ function ctrTALocacaoFimCessao(d) {
   const ta = d.ta, a = d.arr;
   const x = new Date(d.data.getTime());
   const prorroga = !!(d.opc && d.opc.ta_prorroga);
-  x.setDate(x.getDate() + ta.prazo * (prorroga ? 2 : 1) + (ta.nivel === 'promessa' ? ta.assinar : 0) + a.implant);
+  // No contrato final (sem termo) só contam implantação e vigência (ARR-04).
+  x.setDate(x.getDate() + (ta ? ta.prazo * (prorroga ? 2 : 1) + (ta.nivel === 'promessa' ? ta.assinar : 0) : 0) + a.implant);
   x.setMonth(x.getMonth() + a.vigencia);
   return x;
 }
 function ctrTALocacaoCabe(d) {
-  if (!d.ta || !d.arr || !d.ta.locacaoFim) return null;
-  const fim = new Date(d.ta.locacaoFim + 'T00:00:00');
+  const fimIso = d.ta ? d.ta.locacaoFim : orcVal('ctr-ta-locacao-fim');
+  if (!d.arr || !fimIso) return null;
+  const fim = new Date(fimIso + 'T00:00:00');
   if (isNaN(fim)) return null;
   return fim >= ctrTALocacaoFimCessao(d);
 }
@@ -18815,11 +19287,11 @@ let ctrTermoOrigem = null;
 function ctrTermoUi() {
   const t = ctrTipo();
   const fl = document.getElementById('ctr-ta-f-locacao');
-  if (fl) fl.classList.toggle('ctr-fora', !(t === 'termo_arr' && ctrCampo('ctr-arr-relacao') === 'locatario'));
+  if (fl) fl.classList.toggle('ctr-fora', !((t === 'termo_arr' || t === 'arrend') && ctrCampo('ctr-arr-relacao') === 'locatario'));
   const nl = document.getElementById('ctr-ta-locacao-nota');
   if (nl) {
     let txt = '';
-    if (t === 'termo_arr' && ctrCampo('ctr-arr-relacao') === 'locatario') {
+    if ((t === 'termo_arr' || t === 'arrend') && ctrCampo('ctr-arr-relacao') === 'locatario') {
       let d = null;
       try { d = ctrDados(); } catch (err) { d = null; }
       const cabe = d ? ctrTALocacaoCabe(d) : null;
@@ -18853,12 +19325,34 @@ function ctrTermoUi() {
   }
 }
 function ctrNivelMudou() { ctrOpcRender(); ctrResumo(); }
+// Campos que dependem do uso do Termo do Investidor (não dá para usar
+// data-ctr-ti fora do termo: o filtro vale para todos os tipos).
+function ctrUsoUi() {
+  const t = ctrTipo(), ades = orcVal('ctr-ti-uso') === 'adesao';
+  const rot = document.getElementById('ctr-ti-deposito-rot');
+  if (rot) rot.textContent = ades ? 'Depósito já pago na reserva (abate do aporte)' : 'Depósito de reserva (opcional)';
+  const ref = document.getElementById('ctr-origem-ref');
+  const f = ref && ref.closest('.eletro-field');
+  if (f && t === 'termo_inv') f.classList.toggle('ctr-fora', !ades);
+}
 function ctrUsoMudou() {
   // A base do pagamento muda (aporte da reserva x aporte da adesão, cotas x
   // 50/50): a tabela volta a acompanhar.
   ctrPag = { tocado: false, linhas: [] };
-  CTR_ESPELHOS.forEach(m => { if (/^ctr-soc-/.test(m.id)) { const el = document.getElementById(m.id); if (el) delete el.dataset.tocado; } });
-  const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
+  // Reserva de cotas para adesão é a MESMA sociedade (C04): quadro e cotas
+  // ficam. Só o 50/50 muda de forma ao virar adesão, que é sempre de cotas.
+  const virouAdesao = orcVal('ctr-ti-uso') === 'adesao';
+  const eraS50 = orcVal('ctr-ti-modelo') === 'socio50';
+  if (!(virouAdesao && !eraS50)) {
+    CTR_ESPELHOS.forEach(m => { if (/^ctr-soc-/.test(m.id)) { const el = document.getElementById(m.id); if (el) delete el.dataset.tocado; } });
+    const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
+  }
+  // A adesão é outro papel: o número da reserva vira a referência dela (C08).
+  if (virouAdesao) {
+    const num = document.getElementById('ctr-num'), ref = document.getElementById('ctr-origem-ref');
+    if (ref && num && num.value) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
+    if (num) num.value = '';
+  }
   ctrOpcRender(); ctrResumo();
 }
 
@@ -19179,20 +19673,34 @@ function ctrEstadoZerar() {
 const CTR_ESP_IC = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
 const ctrMoedaFmt = v => v > 0 ? ctrFmt(v) : '';
 const CTR_ESPELHOS = [
-  { id: 'ctr-contratante',       fonte: 'Simulador',   de: () => eletroTextos().cliente },
-  { id: 'ctr-contratante-doc',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-doc') },
-  { id: 'ctr-contratante-end',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-end') },
-  { id: 'ctr-contratante-cep',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-cep') },
-  { id: 'ctr-cidade',            fonte: 'Simulador',   de: () => eletroTextos().cidade },
-  { id: 'ctr-contratante-tel',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-tel') },
-  { id: 'ctr-contratante-email', fonte: 'Orçamento',   de: () => orcVal('orc-cli-email') },
+  // Na compra e venda de equipamento (09/10/2026) as partes vêm da aba Venda de
+  // equipamento; nos outros modelos, do Simulador e do Orçamento, como sempre.
+  { id: 'ctr-contratante',       fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Simulador',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-nome') : eletroTextos().cliente },
+  { id: 'ctr-contratante-doc',   fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-doc') : orcVal('orc-cli-doc') },
+  { id: 'ctr-contratante-end',   fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-end') : orcVal('orc-cli-end') },
+  { id: 'ctr-contratante-cep',   fonte: 'Orçamento',   de: () => ctrTipo() === 'equip' ? '' : orcVal('orc-cli-cep') },
+  { id: 'ctr-cidade',            fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Simulador',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-cidade') : eletroTextos().cidade },
+  { id: 'ctr-contratante-tel',   fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-tel') : orcVal('orc-cli-tel') },
+  { id: 'ctr-contratante-email', fonte: 'Orçamento',   de: () => ctrTipo() === 'equip' ? '' : orcVal('orc-cli-email') },
   // Nas cotas e no Termo do Investidor o cliente é investidor: o endereço dele
   // não é o do ponto. O local fica em branco até alguém escrever.
-  { id: 'ctr-local',             fonte: 'Orçamento',   de: () => (ctrTipo() === 'cotas' || ctrTipo() === 'termo_inv') ? '' : [orcVal('orc-cli-end'), eletroTextos().cidade].filter(Boolean).join(' — ') },
+  // O local do PONTO (09/10/2026). No chave na mão é o endereço do cliente. Na
+  // sociedade é o "Local do ponto" do Termo do Investidor (uma fonte só para o
+  // termo, a minuta e o contrato). No arrendamento é o endereço do ponto, que o
+  // Cadastro preenche: o do Orçamento é a casa do dono e quase nunca é o local
+  // cedido, então fica em branco até alguém escrever, e o Gerar avisa.
+  { id: 'ctr-local',             fonte: 'Orçamento',   de: () => {
+      const t = ctrTipo();
+      if (t === 'termo_inv' || t === 'arrend' || t === 'termo_arr') return '';
+      if (t === 'socio50' || t === 'cotas') return orcVal('ctr-ti-ponto');
+      return [orcVal('orc-cli-end'), eletroTextos().cidade].filter(Boolean).join(', ');
+    } },
   { id: 'ctr-equip',             fonte: 'Simulador',   de: () => { const eq = eletroTextos().equip; return eq ? epEquipRotulo(eq) : ''; } },
   { id: 'ctr-qtd',               fonte: 'Simulador',   de: () => String(orcEpQtdCarregadores()) },
   { id: 'ctr-plugs',             fonte: 'Simulador',   de: () => String(Math.max(1, Math.round(elNum('el-plugs') || 1))) },
-  { id: 'ctr-pct',               fonte: 'Orçamento',   de: () => String(orcPctKit('software')).replace('.', ',') },
+  // CM-01: o mesmo percentual que o Orçamento Completo mostra nos custos, o do
+  // Software no Simulador (10% desde 25/09/2026). O kit só vale sem ele.
+  { id: 'ctr-pct',               fonte: 'Simulador',   de: () => elNum('el-software') > 0 ? ctrPctTxt(elNum('el-software')) : String(orcPctKit('software')).replace('.', ',') },
   { id: 'ctr-total',             fonte: 'Orçamento',   de: () => ctrMoedaFmt(recBase()) },
   { id: 'ctr-sinal',             fonte: 'Recibo',      de: () => ctrMoedaFmt(ctrSinalOrigem()) },
   { id: 'ctr-pag-dados',         fonte: 'Sua empresa', de: () => { const emp = epEmitGet(); return [emp.pix ? 'Pix ' + emp.pix : '', emp.conta].filter(Boolean).join(' · '); } },
@@ -19217,6 +19725,8 @@ const CTR_ESPELHOS = [
   { id: 'ctr-arr-relacao',       fonte: 'Formulário',  de: () => ctrArrRelacaoFicha() },
   // Termos: dados do imóvel que a Procuração já tem, e a região do investidor.
   { id: 'ctr-ta-uc',             fonte: 'Procuração',  de: () => orcVal('proc-uc') },
+  // ARR-05: o prêmio pago no termo vai para o contrato final, que o abate.
+  { id: 'ctr-arr-premio',        fonte: 'Termo do Arrendador', de: () => orcVal('ctr-ta-premio') },
   { id: 'ctr-ta-distribuidora',  fonte: 'Procuração',  de: () => orcVal('proc-concessionaria') },
   { id: 'ctr-ti-regiao',         fonte: 'Simulador',   de: () => eletroTextos().cidade },
 ];
@@ -19238,7 +19748,7 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-ta-premio-quando', 'ctr-ta-multa',
   'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
   'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
-  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent',
+  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-eq-atraso', 'ctr-origem-ref',
   'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
@@ -19275,7 +19785,7 @@ function ctrEspUi(id) {
     const rot = campo.querySelector(':scope > label');
     if (rot) rot.after(slot); else campo.prepend(slot);
   }
-  slot.innerHTML = ctrEspChk(ctrEspLigado(id), m.fonte, `ctrEspAlternar('${id}')`);
+  slot.innerHTML = ctrEspChk(ctrEspLigado(id), typeof m.fonte === 'function' ? m.fonte() : m.fonte, `ctrEspAlternar('${id}')`);
 }
 function ctrEspAlternar(id) {
   const el = document.getElementById(id);
@@ -19316,17 +19826,44 @@ function ctrEspelho(id, ligado, fonte, desligar, religar) {
 // O que o contrato cobra do cliente: o preço da obra no Completo, o aporte dele
 // na sociedade (cota comprada x aporte por cota) e nada no arrendamento, em que
 // quem paga é a NEXUS.
+// O pedido da compra e venda: a aba Venda de equipamento, com ou sem os itens
+// opcionais (caixinha do contrato). Valores em reais; os itens em centavos.
+function ctrEqv() {
+  const vazio = { itens: [], fora: [], subtotal: 0, frete: 0, total: 0, num: '', freteTipo: 'CIF', entregaLocal: '', prazo: '', garantia: '', emit: {}, ie: '' };
+  let p = null;
+  try { p = (document.getElementById('eq-itens') && typeof orcEquipPayload === 'function') ? orcEquipPayload() : null; } catch (e) { p = null; }
+  if (!p) return vazio;
+  const comOpc = ctrOpcOn('eq_opcionais');
+  const itens = p.itens.filter(i => comOpc || !i.opcional);
+  const fora = comOpc ? [] : p.itens.filter(i => i.opcional);
+  const sub = itens.reduce((a, i) => a + i.unit * i.qtd, 0);
+  const frete = (p.cent && p.cent.frete) || 0;
+  return { itens, fora, subtotal: sub / 100, frete: frete / 100, total: (sub + frete) / 100, num: p.num, freteTipo: p.freteTipo,
+    entregaLocal: p.entregaLocal, prazo: p.prazoEntrega, garantia: p.garantia, emit: p.emitente || {}, ie: p.ie };
+}
 function ctrTotal() {
   const t = ctrTipo();
+  if (t === 'equip') return ctrEqv().total;
   if (ctrSocModo(t)) return ctrSoc().aporteCli;
   if (t === 'arrend' || t === 'termo_arr') return 0;
   return ctrEspLigado('ctr-total') ? recBase() : ctrMoeda(document.getElementById('ctr-total').value);
 }
-function ctrSinalRecibo() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
+// Só o recibo de SINAL abate da obra: os outros tipos (projeto avulso,
+// equipamento, depósito, aporte, reserva do local, parcela) não são sinal dela.
+function ctrSinalRecibo() { return recTipo() === 'sinal' ? ctrMoeda(orcVal('rec-valor')) : 0; }
 // O sinal do Recibo só abate no Completo. O recibo é sinal da OBRA (5% do preço):
 // abatê-lo do aporte de uma cota repetiria o erro de 19/08 com outro nome. Na
 // sociedade o sinal nasce zero; se o sócio já pagou parte do aporte, digita-se.
-function ctrSinalOrigem() { return ctrTipo() === 'completo' ? ctrSinalRecibo() : 0; }
+function ctrSinalOrigem() {
+  if (ctrTipo() === 'completo') return ctrSinalRecibo();
+  // Sociedade: o depósito do Termo do Investidor da mesma sociedade já foi pago
+  // e abate do aporte (C01, S50-02). A reserva prometeu isso por escrito.
+  if (ctrEhSoc(ctrTipo())) return ctrDepDoTermo(ctrTipo());
+  // Compra e venda: o sinal é o do Recibo de sinal do equipamento, quando é ele
+  // que está no Recibo.
+  if (ctrTipo() === 'equip') return orcVal('rec-tipo') === 'equip' ? ctrMoeda(orcVal('rec-valor')) : 0;
+  return 0;
+}
 // Vazio depois de desmarcado conta como zero: contrato sem sinal. Apagar é apagar.
 function ctrSinalPago() { return ctrEspLigado('ctr-sinal') ? ctrSinalOrigem() : ctrMoeda(document.getElementById('ctr-sinal').value); }
 // O sinal do papel é o do Recibo de sinal? Só aí o contrato pode citar "o recibo
@@ -19340,6 +19877,16 @@ function ctrSinalUi() {
   const nota = document.getElementById('ctr-sinal-nota');
   if (!nota) return;
   const rec = ctrSinalRecibo();
+  if (ctrTipo() === 'equip') {
+    nota.innerHTML = ctrEspLigado('ctr-sinal')
+      ? 'O sinal vem do <b>Recibo de sinal do equipamento</b> (aba Recibo). Sem recibo, digite o valor já pago, ou 0 para contrato sem sinal.'
+      : `Sinal escrito no contrato: ${ORC_MONEY(ctrSinalPago())}.`;
+    return;
+  }
+  if (ctrEhSoc(ctrTipo()) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0) {
+    nota.innerHTML = `O depósito de reserva do <b>Termo do Investidor</b> (${ORC_MONEY(ctrSinalOrigem())}) entra como já pago do aporte, e o contrato diz isso. Desmarque o espelho se ele não foi pago.`;
+    return;
+  }
   if (ctrTipo() !== 'completo') {
     nota.innerHTML = ctrEspLigado('ctr-sinal')
       ? 'Na sociedade, o sinal do Recibo (que é da obra) não abate o aporte. Se o sócio já pagou parte do aporte, digite o valor.'
@@ -19356,11 +19903,19 @@ function ctrSinalUi() {
       : 'Sem recibo de sinal emitido. Se o cliente já pagou uma entrada, digite o valor e ele é abatido do saldo.';
   }
 }
-// O depósito da reserva do Termo do Investidor já foi pago e abate do aporte.
-// Só ali: o Completo e os contratos não passam por esta conta.
+// O depósito da reserva do Termo do Investidor já foi pago e abate do aporte:
+// na reserva e na adesão de quem reservou antes (C02). No contrato de sociedade
+// ele entra pelo espelho do sinal (ctrSinalOrigem).
 function ctrDepReserva() {
-  if (ctrTipo() !== 'termo_inv' || orcVal('ctr-ti-uso') === 'adesao') return 0;
+  if (ctrTipo() !== 'termo_inv') return 0;
   return ctrMoeda(orcVal('ctr-ti-deposito'));
+}
+// Depósito do termo que vale para o contrato desta sociedade: a reserva foi do
+// mesmo modelo (50/50 ou cotas).
+function ctrDepDoTermo(t) {
+  const dep = ctrMoeda(orcVal('ctr-ti-deposito'));
+  if (!(dep > 0) || orcVal('ctr-ti-uso') === 'adesao') return 0;
+  return ctrSocModo('termo_inv') === t ? dep : 0;
 }
 function ctrSaldo() { return Math.max(0, ctrTotal() - ctrSinalPago() - ctrDepReserva()); }
 
@@ -19549,6 +20104,16 @@ function ctrPagModelo(tipo, saldo) {
   // R$ 3.662,00, o número que o anúncio promete. Acréscimo arredondado no
   // milionésimo: (1,31832 - 1) x 100 em ponto flutuante dá 31,832000000000004.
   const acrDe = f => Math.round((f - 1) * 1e8) / 1e6;
+  // Compra e venda de equipamento: sinal no pedido e saldo antes de o
+  // equipamento sair do estoque, com o percentual da condição da aba Venda de
+  // equipamento (30% se não houver).
+  if (tipo === 'sinal_saldo') {
+    const c = document.querySelector('#eq-cond > .eq-c-sinal');
+    const pct = (c && typeof equipSinalPct === 'function' && equipSinalPct(c)) || 30;
+    const a = ctrCent(saldo * pct / 100);
+    return [L('Pix', a, 1, 0, 'Na assinatura deste contrato'),
+            L('Pix ou transferência', ctrCent(saldo - a), 1, 0, 'Quando o equipamento chegar ao estoque da vendedora, antes da expedição')];
+  }
   if (tipo === 'cartao10') return [L('Cartão de crédito', saldo, 10, acrDe(SOC_FATOR_10X), 'Na assinatura do contrato')];
   if (tipo === 'cartao18') return [L('Cartão de crédito', saldo, 18, acrDe(SOC_FATOR_18X), 'Na assinatura do contrato')];
   return [];
@@ -19564,6 +20129,8 @@ function ctrPagSugerida(saldo) {
   if (tipo === 'arrend' || tipo === 'termo_arr') return [];
   // Sem aporte (investimento em branco) não há o que dividir: a lista fica
   // vazia e a cláusula sai com a lacuna, nunca "Pix R$ 0,00".
+  // Compra e venda: sinal + saldo antes da expedição, salvo se o sinal já foi pago.
+  if (tipo === 'equip') return saldo > 0 ? ctrPagModelo(ctrSinalPago() > 0 ? 'vista' : 'sinal_saldo', saldo) : [];
   if (tipo !== 'completo') return saldo > 0 ? ctrPagModelo('vista', saldo) : [];
   const on = id => !!document.getElementById(id)?.checked;
   const A = on('orc-pg-ck-avista'), E = on('orc-pg-ck-entrada'), F = on('orc-pg-ck-fin');
@@ -19679,8 +20246,20 @@ function ctrBanner() {
     : `<b>${orcEsc(ctrCampo('ctr-contratante'))}</b> e <b>${orcEsc(epParteMarca(emp))}</b> (${orcEsc(epParteRazaoCnpj(emp))}) — partes qualificadas.`;
 }
 
+// O cartão da compra e venda diz o que veio da aba Venda de equipamento.
+function ctrEqUi() {
+  const el = document.getElementById('ctr-eq-resumo');
+  if (!el || ctrTipo() !== 'equip') return;
+  const q = ctrEqv(), e = orcEsc;
+  if (!q.itens.length) { el.innerHTML = '<b style="color:#fca5a5">Sem pedido.</b> Monte os itens na aba Venda de equipamento.'; return; }
+  const falta = [!q.prazo && 'prazo de entrega', !q.garantia && 'garantia', q.itens.some(i => !i.ncm) && 'NCM'].filter(Boolean);
+  el.innerHTML = `Orçamento de Venda${q.num ? ' nº <b>' + e(q.num) + '</b>' : ''}: <b>${q.itens.length} item(ns)</b>, total <b>${ORC_MONEY(q.total)}</b>, frete ${q.freteTipo === 'FOB' ? 'FOB' : 'CIF'}${q.prazo ? ', entrega em ' + e(q.prazo) : ''}${q.garantia ? ', garantia de ' + e(q.garantia) : ''}.`
+    + (q.fora.length ? ` ${q.fora.length} opcional(is) fora da compra.` : '')
+    + (falta.length ? ` <b style="color:#fca5a5">Falta: ${falta.join(', ')}.</b>` : '');
+}
 function ctrResumo() {
   ctrTipoUi();
+  ctrEqUi();
   ctrEspSync();
   ctrSinalUi();
   ctrSocUi();
@@ -19690,7 +20269,7 @@ function ctrResumo() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('ctr-t-total', ORC_MONEY(total));
   set('ctr-t-sinal', (sinal > 0 ? '- ' : '') + ORC_MONEY(sinal));
-  set('ctr-t-sinal-rot', ctrDepReserva() > 0 ? 'Depósito da reserva, abatido' : 'Sinal já pago');
+  set('ctr-t-sinal-rot', (ctrDepReserva() > 0 || (ctrEhSoc(ctrTipo()) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0)) ? 'Depósito da reserva, abatido' : 'Sinal já pago');
   set('ctr-t-saldo', ORC_MONEY(saldo));
   // Ninguém mexeu na lista: ela acompanha o Orçamento e o saldo de agora.
   if (!ctrPag.tocado) { ctrPag.linhas = ctrPagSugerida(saldo); ctrPagRender(); }
@@ -19719,7 +20298,7 @@ function ctrPctNota() {
   const mostra = orcVal('ctr-mostra-pct') !== '';
   const pct = ctrCampo('ctr-pct') || '0';
   el.innerHTML = mostra
-    ? 'A cláusula da plataforma dirá <b>' + pct + '% do faturamento bruto</b>. O percentual sai <b>só aqui</b> — orçamento, proposta comercial e proposta de banco não o mencionam.'
+    ? 'A cláusula da plataforma dirá <b>' + pct + '% do faturamento bruto</b>. É o mesmo percentual do Software no Simulador, que o Orçamento Completo mostra nos custos.'
     : '<b style="color:#fca5a5">Atenção:</b> sem essa cláusula o contrato não estabelece a remuneração da plataforma. O que não está escrito não se cobra — se a intenção é cobrar os ' + pct + '%, isso precisa estar em algum instrumento assinado.';
 }
 
@@ -19760,6 +20339,7 @@ function ctrDados() {
     nomes: ctrNomes(tipo),
     ta: tipo === 'termo_arr' ? ctrTA() : null, ti: tipo === 'termo_inv' ? ctrTI() : null,
     interv: (tipo === 'arrend' || tipo === 'termo_arr') ? ctrInterv() : null,
+    eqv: tipo === 'equip' ? ctrEqv() : null, eqAtraso: ctrInt('ctr-eq-atraso', 30),
     qualif: orcVal('ctr-qualif'),
     // Numero do contrato. NAO herda mais do recibo: dois instrumentos diferentes
     // saindo com o mesmo numero torna impossivel citar "o documento nº 001".
@@ -19769,7 +20349,9 @@ function ctrDados() {
     // ASSINA (a qualificação da parte). Em branco, os dois são a mesma pessoa.
     // Cada campo da parte, do objeto e do local sai pelo espelho (ctrCampo):
     // marcado = a aba de origem agora; desmarcado = o que está escrito aqui.
-    cliente: t.cliente, cidade: ctrCampo('ctr-cidade'), equip: t.equip,
+    // Na compra e venda não há Simulador: quem negociou é o comprador da aba
+    // Venda de equipamento (cabeçalho, nome do arquivo e Histórico).
+    cliente: tipo === 'equip' ? (eqVal('eq-cli-nome') || ctrCampo('ctr-contratante') || t.cliente) : t.cliente, cidade: ctrCampo('ctr-cidade'), equip: t.equip,
     equipTxt: ctrCampo('ctr-equip'),
     contratante: ctrCampo('ctr-contratante'),
     contratanteDoc: ctrCampo('ctr-contratante-doc'),
@@ -19783,6 +20365,9 @@ function ctrDados() {
     empresa: emp,
     total, sinal, saldo: Math.max(0, total - sinal - ctrDepReserva()), depReserva: ctrDepReserva(),
     sinalDestino: orcVal('ctr-sinal-destino'),
+    // O sinal da sociedade é o depósito do termo de reserva (espelho ligado).
+    sinalDoTermo: ctrEhSoc(tipo) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0,
+    origemRef: orcVal('ctr-origem-ref'),
     sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
     pagObs: orcVal('ctr-pag-obs'), pagDados: ctrCampo('ctr-pag-dados'),
@@ -19857,6 +20442,15 @@ const CTR_OPC = [
     dica: 'O equipamento só passa a ser do cliente quando ele pagar tudo. Serve em venda parcelada direta; com financiamento, a garantia é do banco. Contra terceiros, só vale registrada em cartório.' },
   { id: 'limite', tipos: CTR_OB, rot: 'Limite de responsabilidade', padrao: false,
     dica: 'Responsabilidade limitada ao valor do contrato, sem lucro cessante. Só vale entre empresas: com pessoa física (consumidor) a cláusula é nula.' },
+  // Compra e venda de equipamento (09/10/2026).
+  { id: 'eq_opcionais', tipos: ['equip'], rot: 'Incluir os itens opcionais na compra', padrao: false,
+    dica: 'Os itens marcados como opcionais no orçamento entram no contrato e somam no preço. Desmarcado, o contrato diz que eles não fazem parte da compra.' },
+  { id: 'eq_reserva', tipos: ['equip'], rot: 'Reserva de domínio até quitar', padrao: true,
+    dica: 'O equipamento só passa a ser do comprador quando ele pagar tudo (Código Civil, arts. 521 a 528). Importa quando a entrega vem antes da quitação. Contra terceiros, só vale registrado em cartório.' },
+  { id: 'eq_limite', tipos: ['equip'], rot: 'Limite de responsabilidade (só entre empresas)', padrao: () => String(ctrCampo('ctr-contratante-doc') || '').replace(/\D/g, '').length === 14,
+    dica: 'Responsabilidade da vendedora limitada ao preço, sem lucro cessante. Com pessoa física a cláusula é nula (CDC), e por isso nasce marcada só quando o comprador tem CNPJ e só sai no papel nesse caso.' },
+  { id: 'eq_instalacao', tipos: ['equip'], rot: 'Oferecer a instalação à parte', padrao: true,
+    dica: 'Uma frase dizendo que a instalação pode ser contratada com a NEXUS por orçamento próprio.' },
   // Sociedade (50/50 e cotas).
   { id: 'soc_perda', tipos: CTR_SOC, rot: 'Perda do sócio limitada ao aporte', padrao: true,
     dica: 'O sócio participante nunca perde mais do que pôs, e aporte extra só com a concordância escrita dele. É a pergunta que todo investidor faz.' },
@@ -19952,7 +20546,9 @@ function epPaginar(blocos, pe) {
   const caixa = document.createElement('div');
   caixa.className = 'ep-doc';
   caixa.setAttribute('aria-hidden', 'true');
-  caixa.style.cssText = 'position:absolute;left:-10000px;top:0;width:210mm;visibility:hidden;pointer-events:none';
+  // max-width:none: o .ep-doc prende a caixa na largura da tela, e no celular a
+  // paginação era medida em 390px e saía com o dobro de folhas pela metade.
+  caixa.style.cssText = 'position:absolute;left:-10000px;top:0;width:210mm;max-width:none;visibility:hidden;pointer-events:none';
   document.body.appendChild(caixa);
   const folhas = [];
   let folha = null, itens = null;
@@ -20117,7 +20713,80 @@ function ctrModeloObra(d) {
 // O contrato de cada modelo. Mesma forma do ctrModeloObra: cláusulas com chave
 // estável, itens com chave, referência cruzada por marcador, travado = número de
 // campo que a IA não mexe. Cláusula que fica sem item nenhum não existe.
+// ─── COMPRA E VENDA DE EQUIPAMENTO (09/10/2026) ──────────────────────────────
+// Venda de coisa móvel (CC arts. 481 a 532), sem obra. Sinal como arras
+// confirmatórias (417 e 418), riscos até a entrega com a vendedora (492) e no
+// FOB com o comprador desde o transportador (494), reserva de domínio opcional
+// (521 a 528). Comprador com CPF é tratado como consumidor: garantia legal,
+// prazo de reclamação e arrependimento fora do estabelecimento (CDC 26, 49, 50).
+function ctrModeloEquip(d) {
+  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const q = d.eqv, N = d.nomes.nossa, D = d.nomes.deles;
+  const pf = String(d.contratanteDoc || '').replace(/\D/g, '').length === 11;
+  const fob = q.freteTipo === 'FOB';
+  const base = d.sinal > 0 ? 'saldo' : 'preço';
+  const temCartao = d.pagLinhas.some(l => /cart[ãa]o/i.test(l.forma));
+  return [
+    C('objeto', 'Do objeto', [
+      I('objeto.venda', `A ${N} vende ao ${D}, e este compra, os equipamentos descritos a seguir, novos e com as especificações do Orçamento de Venda${q.num ? ` nº <b>${e(q.num)}</b>` : ''}, que integra este contrato.`, { bloco: 'itens', travado: true }),
+      I('objeto.opcionais', q.fora.length ? `Os itens oferecidos como opcionais no orçamento (${q.fora.map(i => e(i.desc || 'item')).join(', ')}) não fazem parte desta compra.` : ''),
+      I('objeto.escopo', 'Esta compra não inclui projeto elétrico, obra civil, instalação, cabeamento, comissionamento nem homologação junto à distribuidora de energia.'),
+      I('opc.eq_instalacao', op('eq_instalacao') ? `A instalação pode ser contratada à parte com a ${N}, por orçamento próprio.` : ''),
+    ]),
+    C('preco', 'Do preço e do pagamento', [
+      I('preco.total', `O preço total é de <b>${d.total > 0 ? money(d.total) : lacuna}</b>${d.total > 0 ? ` (${e(recExtenso(d.total))})` : ''}${q.frete > 0 ? `, incluído o frete de ${money(q.frete)}` : ''}.`, { travado: true }),
+      I('preco.sinal', d.sinal > 0 ? `O ${D} já pagou, a título de <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil), <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), abatido do preço, restando o saldo de <b>${money(d.saldo)}</b>.` : ''),
+      d.pagLinhas.length
+        ? I('preco.forma', `O ${base} será pago da seguinte forma:`, { bloco: 'pagamento', travado: true })
+        : I('preco.forma', `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
+      I('preco.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
+      I('preco.acrescimo', d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui, e a coluna Valor indica a parte do preço quitada por aquela forma.' : ''),
+      I('preco.dados', d.pagDados ? `Os pagamentos serão feitos em favor da ${N} por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
+      I('preco.cartao', temCartao ? `Pago por cartão, o valor considera-se recebido na autorização da transação, e a contestação ou o estorno pedido pelo ${D} sem causa equivale à falta de pagamento.` : ''),
+      I('preco.mora', `O atraso no pagamento sujeita o ${D} a multa de ${pct(d.multa)}% sobre o valor em atraso, juros de ${pct(d.juros)}% ao mês e correção pelo IPCA.`),
+      I('opc.eq_reserva', op('eq_reserva') ? `<b>Até o pagamento integral do preço, a propriedade dos equipamentos fica reservada à ${N}</b> (arts. 521 a 528 do Código Civil). Atrasando o ${D} o pagamento por mais de 30 (trinta) dias, a ${N} pode, depois de notificá-lo, cobrar as parcelas vencidas e a vencer ou recuperar a posse dos equipamentos, retendo do que já foi pago a depreciação e as despesas (art. 527).` : ''),
+    ], true),
+    C('entrega', 'Da entrega', [
+      I('entrega.prazo', `A ${N} entrega os equipamentos no prazo de <b>${q.prazo ? e(q.prazo) : lacuna}</b>, contado da confirmação do primeiro pagamento previsto na {{i:preco.forma}}.`),
+      I('entrega.local', fob
+        ? `O ${D} retira os equipamentos, ou os faz retirar por transportador indicado por ele, no estabelecimento da ${N}${q.entregaLocal ? `, em <b>${e(q.entregaLocal)}</b>` : ''}, e o frete corre por conta dele (FOB). Os riscos passam ao ${D} na entrega ao transportador (art. 494 do Código Civil).`
+        : `A entrega é feita no endereço do ${D}${q.entregaLocal ? `, em <b>${e(q.entregaLocal)}</b>` : ''}, com frete por conta da ${N} (CIF), que responde pelos riscos até a entrega (art. 492 do Código Civil).`),
+      I('entrega.conferencia', `No recebimento, o ${D} confere a quantidade e o estado das embalagens e anota no comprovante de entrega qualquer avaria aparente. Vício aparente ou de fácil constatação deve ser comunicado por escrito em até ${pf ? '90 (noventa) dias do recebimento (art. 26, II, do Código de Defesa do Consumidor)' : '30 (trinta) dias do recebimento (art. 445 do Código Civil)'}.`),
+      I('entrega.atraso', `Atrasando a entrega por mais de <b>${d.eqAtraso} dias</b> por causa imputável à ${N}, o ${D} pode resolver este contrato e receber de volta o que tiver pago, corrigido pelo IPCA, em até 10 (dez) dias. Caso fortuito ou força maior suspende o prazo pelo tempo que durar, com aviso ao ${D} (art. 393 do Código Civil).`),
+    ]),
+    C('instalacao', 'Da instalação', [
+      I('instalacao.responsavel', `A instalação é do ${D} e deve ser feita por profissional habilitado, com Anotação de Responsabilidade Técnica, seguindo o manual do fabricante, as normas técnicas aplicáveis (inclusive a ABNT NBR 5410 e a ABNT NBR 17019) e as exigências da distribuidora de energia.`),
+      I('instalacao.terceiro', `A ${N} não responde por dano ou defeito causado por instalação, adaptação ou intervenção feita por terceiro.`),
+    ]),
+    C('garantia', 'Da garantia', [
+      I('garantia.fabrica', `Os equipamentos têm garantia de fábrica contra defeito de fabricação pelo prazo de <b>${q.garantia ? e(q.garantia) : lacuna}</b>, contado da emissão da nota fiscal${pf ? ', somado à garantia legal de 90 (noventa) dias (arts. 26, II, e 50 do Código de Defesa do Consumidor)' : ''}, na forma do certificado do fabricante.`),
+      I('garantia.exclusoes', 'A garantia não cobre: instalação inadequada ou feita sem profissional habilitado; sobretensão, descarga atmosférica ou falha da rede elétrica; mau uso, queda, umidade fora da especificação ou vandalismo; desgaste natural de cabos e conectores; e intervenção de pessoa não autorizada.'),
+      I('garantia.acionamento', `O ${D} aciona a garantia por escrito, com o número de série, a descrição do defeito e fotos, e a ${N} intermedeia o atendimento do fabricante, que pode reparar ou substituir a peça ou o equipamento.`),
+    ]),
+    C('fiscal', 'Da nota fiscal e dos tributos', [
+      I('fiscal.nf', `A ${N} emite a nota fiscal dos equipamentos na expedição, pelo preço deste contrato.`),
+      I('fiscal.difal', `Em venda para outro estado, o diferencial de alíquota do ICMS é recolhido pelo ${D} quando ele for contribuinte do imposto; quando não for, é recolhido pela ${N}.`),
+    ]),
+    C('desistencia', 'Da desistência e da rescisão', [
+      I('desistencia.cdc', pf ? `Sendo a compra feita fora do estabelecimento da ${N}, o ${D} pode desistir em até 7 (sete) dias da assinatura ou do recebimento, com a devolução imediata de tudo o que pagou (art. 49 do Código de Defesa do Consumidor).` : ''),
+      I('desistencia.sinal', d.sinal > 0 ? `${pf ? 'Fora desse prazo, desistindo' : 'Desistindo'} o ${D} antes da entrega, a ${N} retém o sinal da {{i:preco.sinal}}; desistindo a ${N}, devolve-o em dobro, corrigido pelo IPCA (art. 418 do Código Civil).` : ''),
+      I('desistencia.inadimplemento', 'O descumprimento deste contrato, não sanado em 10 (dez) dias da notificação, permite à parte prejudicada resolvê-lo, com perdas e danos.'),
+      I('opc.eq_limite', op('eq_limite') && !pf ? `Entre empresas, a responsabilidade da ${N} por este contrato fica limitada ao preço pago, e nenhuma das partes responde por lucro cessante, salvo dolo ou culpa grave.` : ''),
+    ]),
+    C('gerais', 'Das disposições gerais', [
+      I('opc.lgpd', op('lgpd') ? `Os dados pessoais do ${D} são tratados pela ${N} só para este contrato, a entrega, a garantia e as obrigações fiscais, na forma da Lei nº 13.709/2018 (LGPD).` : ''),
+      I('gerais.aditivo', 'Alterações deste contrato só valem por escrito assinado pelas partes.'),
+      I('gerais.tolerancia', tolerancia),
+      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+      ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
+    ]),
+    C('foro', 'Do foro', [
+      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato${pf ? ', ressalvado ao consumidor o foro do seu domicílio' : ', com renúncia a qualquer outro'}.`),
+    ]),
+  ].filter(Boolean);
+}
 function ctrModelo(d) {
+  if (d.tipo === 'equip') return ctrModeloEquip(d);
   if (d.tipo === 'termo_arr') return ctrModeloTermoArr(d);
   if (d.tipo === 'termo_inv') return ctrModeloTermoInv(d);
   if (d.tipo === 'arrend') return ctrModeloArrend(d);
@@ -20179,7 +20848,7 @@ function ctrModeloSociedade(d) {
       I('capital.patrimonio', 'As contribuições dos sócios constituem patrimônio especial, objeto da conta de participação. Os equipamentos adquiridos com ele são de titularidade da SÓCIA OSTENSIVA perante terceiros e, entre os sócios, integram esse patrimônio especial na proporção das cotas, produzindo essa especialização efeito somente entre eles (art. 994, § 1º, do Código Civil).'),
     ]),
     C('aporte', 'Da integralização do aporte', [
-      I('aporte.valor', `O SÓCIO PARTICIPANTE integraliza o seu aporte de <b>${d.total > 0 ? money(d.total) : lacuna}</b>${d.total > 0 ? ` (${e(recExtenso(d.total))})` : ''}${d.sinal > 0 ? `, do qual já pagou <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), remanescendo <b>${money(d.saldo)}</b>` : ''}.`, { travado: true }),
+      I('aporte.valor', `O SÓCIO PARTICIPANTE integraliza o seu aporte de <b>${d.total > 0 ? money(d.total) : lacuna}</b>${d.total > 0 ? ` (${e(recExtenso(d.total))})` : ''}${d.sinal > 0 ? `, do qual já pagou <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))})${d.sinalDoTermo ? `, como depósito de reserva do Termo de Compromisso e Reserva de Cota${d.origemRef ? ' ' + e(d.origemRef) : ' firmado entre as partes'}, que este contrato cumpre` : ''}, remanescendo <b>${money(d.saldo)}</b>` : ''}.`, { travado: true }),
       d.pagLinhas.length
         ? I('aporte.forma', `O ${base} será pago da seguinte forma:`, { bloco: 'pagamento', travado: true })
         : I('aporte.forma', `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
@@ -20263,7 +20932,7 @@ function ctrModeloSociedade(d) {
       I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza o sócio prejudicado a resolver este contrato, mediante notificação com prazo de ${P.corrigir} dias para correção, respondendo o culpado por perdas e danos. Sendo culpado o SÓCIO PARTICIPANTE, os haveres dele são apurados na forma da {{i:prazo.retirada}}; sendo culpada a SÓCIA OSTENSIVA, a SOCIEDADE se liquida na forma da {{i:dissolucao.liquidacao}} ou, à escolha do SÓCIO PARTICIPANTE, os haveres dele são apurados na forma da {{i:prazo.retirada}} e pagos em parcela única em até 30 (trinta) dias.`),
     ]),
     C('gerais', 'Das disposições gerais', [
-      I('gerais.aditivo', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelos sócios.'),
+      I('gerais.aditivo', `Este contrato substitui entendimentos anteriores sobre o objeto${d.sinalDoTermo ? ', ressalvado o depósito do termo de reserva, abatido na forma da {{i:aporte.valor}}' : ''}, e só pode ser alterado por aditivo escrito assinado pelos sócios.`),
       I('gerais.tolerancia', tolerancia),
       I('gerais.confidencialidade', 'Os sócios tratam como confidenciais as informações comerciais e financeiras do PONTO, salvo exigência legal.'),
       I('gerais.propriedade', 'A marca, o projeto de engenharia e o Software NEXUS são de propriedade da SÓCIA OSTENSIVA. O valor da {{i:capital.total}} remunera a elaboração do projeto e a implantação da plataforma no PONTO, sem transferência de titularidade.'),
@@ -20290,9 +20959,11 @@ function ctrModeloArrend(d) {
   const a = d.arr;
   const iv = d.interv && d.interv.nome ? d.interv : null;
   const ivDono = !!iv && iv.papel === 'proprietario';
+  const premioR = d.premioReserva || (d.tipo === 'arrend' ? ctrMoeda(ctrCampo('ctr-arr-premio')) : 0);
   // Anexada ao termo do arrendador, a minuta segue a conta da locação do termo:
   // os dois papéis não podem dizer coisas diferentes sobre ela.
-  const locacaoCurta = d.ta ? ctrTALocacaoCabe(d) !== true : false;
+  // ARR-04: o contrato final também faz a conta, com a data da locação da tela.
+  const locacaoCurta = ctrTALocacaoCabe(d) !== true;
   const objeto = loc => `O CEDENTE cede à CESSIONÁRIA, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), com destinação exclusiva à instalação, à operação, à manutenção e à exploração comercial de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
   const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de rescisão por culpa do CEDENTE.'
     + (iv ? ' A anuência do INTERVENIENTE ANUENTE, dada neste contrato, é irrevogável pelo prazo dele e das suas renovações.' : '');
@@ -20309,6 +20980,7 @@ function ctrModeloArrend(d) {
   return [
     C('objeto', 'Do objeto e da área cedida', [
       I('objeto.cessao', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
+      I('objeto.termo', d.tipo === 'arrend' && d.origemRef ? `Este contrato é celebrado em cumprimento ao Termo de Compromisso e Promessa de Cessão de Área ${e(d.origemRef)}, cujas cláusulas do valor da reserva e de sigilo sobrevivem a ele.` : ''),
       I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, a base e a proteção do equipamento, o trajeto do cabeamento até o ponto de entrega de energia, o espaço do quadro elétrico e do medidor, a área de manobra e a posição da sinalização, conforme croqui assinado pelas partes, que integra este contrato.`),
       I('objeto.finalidade', 'A ÁREA não pode ser usada para outra finalidade, nem sublocada ou cedida a terceiro, salvo na hipótese da {{i:sucessao.cessao}}.'),
       I('objeto.laudo', op('dossie_anexo')
@@ -20333,7 +21005,7 @@ function ctrModeloArrend(d) {
       I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de operação, a remuneração mensal não será inferior a <b>${money(a.piso)}</b> (${e(recExtenso(a.piso))}), valor reajustado a cada 12 (doze) meses da energização pela variação acumulada do IPCA/IBGE. O percentual não se reajusta, por já acompanhar o preço da recarga.` : '', { travado: true }),
       I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
       // Só na minuta anexada ao termo do arrendador (ctrAnexos põe o valor).
-      I('remuneracao.reserva', d.premioReserva > 0 ? `O valor de <b>${money(d.premioReserva)}</b> (${e(recExtenso(d.premioReserva))}) pago ao CEDENTE na reserva do local é abatido da primeira remuneração devida e das seguintes, até se esgotar.` : ''),
+      I('remuneracao.reserva', (d.premioReserva || (d.tipo === 'arrend' ? ctrMoeda(ctrCampo('ctr-arr-premio')) : 0)) > 0 ? `O valor de <b>${money(premioR)}</b> (${e(recExtenso(premioR))}) pago ao CEDENTE na reserva do local é abatido da primeira remuneração devida e das seguintes, até se esgotar.` : ''),
       I('remuneracao.mora', `O atraso sujeita a CESSIONÁRIA a multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
       I('remuneracao.tributos', 'Cada parte responde pelos tributos incidentes sobre o que recebe, e o CEDENTE emite o documento fiscal ou o recibo compatível com a sua natureza jurídica.'),
     ]),
@@ -20430,7 +21102,7 @@ function ctrModeloArrend(d) {
       I('devolucao.abandono', 'Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo às expensas dela, sem adquirir propriedade e sem direito de venda ou retenção.'),
     ]),
     C('gerais', 'Das disposições gerais', [
-      I('gerais.aditivo', 'Alterações de área, prazo ou remuneração só valem por aditivo escrito assinado pelas partes.'),
+      I('gerais.aditivo', `Alterações de área, prazo ou remuneração só valem por aditivo escrito assinado pelas partes${premioR > 0 && d.tipo === 'arrend' ? ', ressalvado o abatimento da {{i:remuneracao.reserva}}' : ''}.`),
       I('gerais.tolerancia', tolerancia),
       I('gerais.confidencialidade', 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou o exercício dos direitos da {{c:contas}}.'),
       I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
@@ -20638,9 +21310,10 @@ function ctrModeloTermoInv(d) {
   const foro = C('foro', 'Do foro', [
     I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste termo, com renúncia a qualquer outro.`),
   ]);
+  const depAdesP = ades && ti.deposito > 0;
   const pagamento = [
     d.pagLinhas.length
-      ? I(ades ? 'cotas.forma' : 'condicoes.pagamento', ades ? 'O aporte será pago da seguinte forma:'
+      ? I(ades ? 'cotas.forma' : 'condicoes.pagamento', ades ? (depAdesP ? `O saldo do aporte, de <b>${money(d.saldo)}</b>, já abatido o depósito de reserva de <b>${money(ti.deposito)}</b>, será pago da seguinte forma:` : 'O aporte será pago da seguinte forma:')
         : dep ? `O saldo do aporte, de <b>${money(d.saldo)}</b>, já abatido o depósito da {{i:deposito.valor}}, será pago a partir da assinatura do contrato de sociedade, na forma pretendida a seguir:`
         : 'O aporte será pago a partir da assinatura do contrato de sociedade, na forma pretendida a seguir:', { bloco: 'pagamento', travado: true })
       : I(ades ? 'cotas.forma' : 'condicoes.pagamento', `Forma ${ades ? '' : 'pretendida '}de pagamento do aporte: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
@@ -20649,12 +21322,14 @@ function ctrModeloTermoInv(d) {
     I(ades ? 'cotas.dados' : 'condicoes.dados', d.pagDados ? `Os pagamentos serão feitos em favor da ${N} por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
   ];
 
+  const depAdes = ades && ti.deposito > 0;
   if (ades) return [
     C('objeto', 'Do objeto da adesão', [
       I('objeto.adesao', `O ${D} adere ao Contrato de Sociedade em Conta de Participação nº <b>${vazio(ti.contratoNum)}</b>, firmado em <b>${ti.contratoData ? ctrDataBR(ti.contratoData) : lacuna}</b> (o "CONTRATO"), para a implantação e a exploração comercial de estação de recarga de veículos elétricos ${onde} (o "PONTO"), e ingressa na sociedade como sócio participante, nas condições deste termo.`, { travado: true }),
       I('objeto.copia', `O ${D} declara ter recebido cópia integral do CONTRATO, assinada pelas partes dele, que rubrica e que integra este termo como anexo, e cujas cláusulas passam a obrigá-lo como se o tivesse assinado.`),
       I('objeto.admissao', `A admissão do ${D} está consentida na Cláusula <b>${ti.consent ? e(ti.consent) : lacuna}</b> do CONTRATO, nos termos do art. 995 do Código Civil, e se faz nas mesmas condições nele previstas para as cotas.`),
       I('objeto.privado', declOrigem),
+      I('objeto.reserva', depAdes ? `Esta adesão cumpre o Termo de Compromisso e Reserva de Cota${d.origemRef ? ' ' + e(d.origemRef) : ' firmado entre as partes'}, que se extingue com a assinatura deste termo, e o depósito nele feito abate do aporte na forma da {{i:cotas.forma}}.` : ''),
     ]),
     C('cotas', 'Das cotas e do aporte', [
       I('cotas.subscricao', `O ${D} subscreve ${qtdTxt} e se obriga a integralizar aporte de ${aporteTxt}, na forma da {{i:cotas.forma}}, ficando o quadro de cotas, depois desta adesão, como a seguir.`, { bloco: 'cotas', travado: true }),
@@ -20671,7 +21346,7 @@ function ctrModeloTermoInv(d) {
   return [
     C('objeto', 'Do objeto e da natureza deste termo', [
       I('objeto.reserva', `O ${D} manifesta a intenção de participar, como sócio participante, de sociedade em conta de participação a ser constituída com a ${N} como sócia ostensiva, para a implantação e a exploração comercial de estação de recarga de veículos elétricos ${onde} (o "PONTO"), e reserva para isso ${qtdTxt}, correspondente a aporte de ${aporteTxt}, nas condições da {{c:condicoes}}.`, { travado: true }),
-      I('objeto.natureza', `Este termo registra intenção e reserva. Não constitui sociedade nem torna o ${D} sócio participante${dep ? ', e o depósito não é aporte nem dá direito a resultado' : ''}. O vínculo societário só nasce com a assinatura do contrato de sociedade, que as partes se obrigam a assinar depois de cumprida a condição da {{c:condicao}}, ressalvados a desistência e o cancelamento da {{c:desistencia}}.`),
+      I('objeto.natureza', `Este termo registra intenção e reserva. Não constitui sociedade nem torna o ${D} sócio participante${dep ? ', e o depósito não é aporte nem dá direito a resultado' : ''}. O vínculo societário só nasce com a assinatura do contrato de sociedade, ou, se ele já estiver assinado com outro sócio participante, do termo de adesão a ele, que as partes se obrigam a assinar depois de cumprida a condição da {{c:condicao}}, ressalvados a desistência e o cancelamento da {{c:desistencia}}.`),
       I('objeto.privado', ti.origem === 'anuncio'
         ? ''
         : `Este termo resulta de negociação individual entre as partes e não constitui oferta pública de valores mobiliários.${declOrigem ? ' ' + declOrigem : ''}`),
@@ -20694,7 +21369,7 @@ function ctrModeloTermoInv(d) {
     ]),
     dep ? C('deposito', 'Do depósito de reserva', [
       I('deposito.valor', `Para garantir a reserva, o ${D} deposita <b>${money(ti.deposito)}</b> (${e(recExtenso(ti.deposito))}), por ${e(ti.depositoForma)}, ${e(ti.depositoQuando)}, em favor da ${N}. Até o cumprimento da condição da {{c:condicao}}, o depósito só pode ser devolvido ou abatido do aporte, na forma desta cláusula.`, { travado: true }),
-      I('deposito.abate', 'Assinado o contrato de sociedade, o depósito é abatido do aporte, e a forma de pagamento da {{i:condicoes.pagamento}} já considera esse abatimento.'),
+      I('deposito.abate', 'Assinado o contrato de sociedade, ou o termo de adesão a ele, o depósito é abatido do aporte, e a forma de pagamento da {{i:condicoes.pagamento}} já considera esse abatimento.'),
       I('deposito.devolucao', `Não cumprida a condição, desistindo o ${D} no prazo da {{i:desistencia.livre}} ou cancelando a ${N} a reserva, a ${N} devolve todo o depósito em até <b>${ti.devolucao} dias</b>, contados do fim do prazo da {{i:condicao.eventos}}, do aviso de desistência ou do cancelamento. ${/cart/i.test(ti.depositoForma) ? 'A devolução é o estorno total da transação, que cancela as parcelas a vencer.' : `A devolução é feita por transferência para conta do ${D}, com correção pelo IPCA.`}`),
       I('opc.ti_arras', arrasOn ? (ti.arras >= ti.deposito
         ? `<b>Desistindo o ${D} sem motivo depois do prazo da {{i:desistencia.livre}} e antes da assinatura do contrato de sociedade, a ${N} retém todo o depósito a título de arras penitenciais, sem outra indenização (art. 420 do Código Civil).</b>`
@@ -20894,6 +21569,10 @@ function ctrCabecalho(d) {
       sub: rot + (ades ? ' · entrada de sócio participante' : ' · reserva de participação antes do contrato de sociedade'),
       rodape: (ades ? 'Termo de Adesão' : 'Termo do Investidor') + ' · Eletroposto', curto: ades ? 'Termo de adesão à sociedade em conta de participação' : 'Termo de compromisso e reserva de cota', numRot: 'Termo' };
   }
+  if (d.tipo === 'equip') return {
+    titulo: 'Contrato de Compra e Venda<br>de Equipamento para Recarga de Veículos Elétricos',
+    sub: 'Fornecimento de equipamento, sem instalação',
+    rodape: 'Compra e venda de equipamento · Eletroposto', curto: 'Contrato de compra e venda de equipamento' };
   if (d.tipo === 'arrend') return {
     titulo: 'Contrato de Cessão Onerosa de Área<br>para Estação de Recarga de Veículos Elétricos',
     sub: 'Remuneração sobre o faturamento do ponto',
@@ -20937,6 +21616,20 @@ function ctrQuadroCotas(d) {
     </table>`;
 }
 
+// Os itens da compra e venda, como no Orçamento de Venda: NCM, quantidade e
+// preço por item, e o frete em linha própria quando é cobrado.
+function ctrQuadroEquip(d) {
+  const q = d.eqv, e = orcEsc, money = ORC_MONEY;
+  const lac = '<span class="ep-rec-vazio"></span>';
+  const linhas = q.itens.map((i, n) => `<tr><td><b>${n + 1}. ${i.desc ? e(i.desc) : lac}</b>${i.detalhe ? `<span>${e(i.detalhe)}</span>` : ''}${i.opcional ? '<span>Opcional, incluído nesta compra</span>' : ''}</td><td>${i.ncm ? e(i.ncm) : lac}</td><td class="n">${i.qtd} ${e(i.un || 'un')}</td><td class="n">${money(i.unit / 100)}</td><td class="n">${money(i.unit * i.qtd / 100)}</td></tr>`);
+  if (q.frete > 0) linhas.push(`<tr><td><b>Frete</b><span>${q.freteTipo === 'FOB' ? 'FOB' : 'CIF, até o destino'}</span></td><td></td><td class="n"></td><td class="n"></td><td class="n">${money(q.frete)}</td></tr>`);
+  return `<table class="ep-ctr-pag">
+      <thead><tr><th>Item</th><th>NCM</th><th class="n">Qtd</th><th class="n">Unitário</th><th class="n">Total</th></tr></thead>
+      <tbody>${linhas.join('')}</tbody>
+      <tfoot><tr><td colspan="4">Preço total</td><td class="n">${money(q.total)}</td></tr></tfoot>
+    </table>`;
+}
+
 // Os blocos de um documento (cabeçalho, partes, cláusulas e, se pedido, o
 // fecho com as assinaturas). Separado do ctrHTML em 08/10/2026 para a minuta do
 // contrato entrar como ANEXO de um termo sem as assinaturas dela.
@@ -20965,6 +21658,7 @@ function ctrBlocosDoc(d, opts) {
       <tfoot><tr><td>Total</td><td class="n">${money(d.pagSoma)}</td><td colspan="2"></td></tr></tfoot>
     </table>`,
     cotas: d.soc ? ctrQuadroCotas(d) : '',
+    itens: d.eqv ? ctrQuadroEquip(d) : '',
   };
   const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
   const { resolver } = ctrNumerar(modelo);
@@ -21329,6 +22023,18 @@ async function ctrImprimir() {
       : 'O "Valor total do projeto" do contrato está vazio. Digite o valor ou marque "Espelho: Orçamento" ao lado dele.');
     return;
   }
+  // O local do PONTO em branco no arrendamento e na sociedade sai como lacuna,
+  // e endereço residencial no lugar dele é o erro que mais volta do balcão.
+  if (['arrend', 'termo_arr', 'socio50', 'cotas'].includes(d.tipo) && !d.local &&
+      !confirm('Sem o endereço do local do ponto (campo "Local da instalação"): o papel sai com a linha em branco. No arrendamento e na sociedade o local quase nunca é o endereço do cliente.\n\nGerar assim mesmo?')) return;
+  if (d.tipo === 'termo_inv' && d.ti.uso !== 'adesao' && d.ti.modelo === 'socio50' && !d.ti.ponto &&
+      !confirm('O termo 50/50 sai sem o endereço do local do investidor (campo "Local do ponto"). O PONTO fica em branco no termo e na minuta.\n\nGerar assim mesmo?')) return;
+  if (d.tipo === 'equip') {
+    if (!(d.total > 0)) { alert('Monte o pedido na aba "Venda de equipamento" antes de gerar o contrato: itens, frete, prazo e garantia vêm de lá.'); return; }
+    const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', !d.eqv.garantia && 'garantia',
+      d.eqv.itens.some(i => !i.ncm) && 'NCM de algum item'].filter(Boolean);
+    if (faltam.length && !confirm(`Sem ${faltam.join(', ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
+  }
   // Sociedade cujas cotas não somam 100% não existe: trava, como na Sociedade em PDF.
   if (d.soc && !d.soc.cotasFecham) {
     alert(`As cotas somam ${ctrPctTxt(d.soc.somaCotas)}%. Ajuste o cartão "Sociedade" até fechar 100% antes de gerar o contrato.`);
@@ -21374,10 +22080,10 @@ async function ctrImprimir() {
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   // Contrato PAGINA — sem opts, nada de encolher pra caber numa folha.
   // Arquivo e título dizem o modelo; o do Completo continua "Contrato_...".
-  const prefixo = { completo: 'Contrato', socio50: 'Contrato-Sociedade', cotas: 'Contrato-Cotas', arrend: 'Contrato-Arrendamento',
+  const prefixo = { completo: 'Contrato', socio50: 'Contrato-Sociedade', cotas: 'Contrato-Cotas', arrend: 'Contrato-Arrendamento', equip: 'Contrato-Compra-Venda',
     termo_arr: d.ta && d.ta.nivel === 'intencao' ? 'Carta-Intencao' : 'Termo-Arrendador',
     termo_inv: d.ti && d.ti.uso === 'adesao' ? 'Termo-Adesao' : 'Termo-Investidor' }[d.tipo] || 'Contrato';
-  const tituloPrev = { completo: 'Contrato', socio50: 'Contrato de sociedade', cotas: 'Contrato de cotas', arrend: 'Contrato de arrendamento',
+  const tituloPrev = { completo: 'Contrato', socio50: 'Contrato de sociedade', cotas: 'Contrato de cotas', arrend: 'Contrato de arrendamento', equip: 'Contrato de compra e venda',
     termo_arr: 'Termo do arrendador', termo_inv: 'Termo do investidor' }[d.tipo] || 'Contrato';
   const ehTermo = !!CTR_TIPOS[d.tipo].termo;
   const valorHist = d.tipo === 'termo_arr' ? d.ta.premio : d.tipo === 'termo_inv' ? (d.ti.uso === 'adesao' ? d.total : d.ti.deposito) : d.total;
@@ -21386,7 +22092,7 @@ async function ctrImprimir() {
     arquivo: [prefixo, limpa(d.contratante) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
     titulo: tituloPrev + (d.cliente ? ' — ' + d.cliente : ''),
     opts: null,
-    hist: d.cliente ? { id: epId(), tipo: ehTermo ? 'Termo' : 'Contrato', num: d.num, cliente: d.cliente, valor: valorHist, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+    hist: (d.contratante || d.cliente) ? { id: epId(), tipo: ehTermo ? 'Termo' : 'Contrato', rotulo: tituloPrev, modelo: d.tipo, num: d.num, cliente: d.contratante || d.cliente, valor: valorHist, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
@@ -21435,7 +22141,10 @@ function procInit() {
   epSugerir([['proc-outorgante', eletroTextos().cliente],
              ['proc-outorgante-doc', orcVal('orc-cli-doc')],
              ['proc-outorgante-end', orcVal('orc-cli-end')],
-             ['proc-cidade', eletroTextos().cidade]]);
+             ['proc-cidade', eletroTextos().cidade],
+             // ARR-07, CM-15 e ARR-17: o que o contrato e o termo já sabem.
+             ['proc-rep', orcVal('ctr-rep')], ['proc-rep-doc', orcVal('ctr-rep-doc')],
+             ['proc-uc', ctrCampo('ctr-ta-uc')], ['proc-concessionaria', ctrCampo('ctr-ta-distribuidora')]]);
   // Data e cidade nascem preenchidas; o resto herda do Orcamento na hora de
   // gerar, pra o consultor nao ter que redigitar o que ja' existe.
   const d = document.getElementById('proc-data');
@@ -21443,7 +22152,7 @@ function procInit() {
   const c = document.getElementById('proc-cidade');
   if (c && !c.value) c.value = eletroTextos().cidade || '';
   const l = document.getElementById('proc-local');
-  if (l && !l.value) l.value = orcVal('orc-cli-end') || '';
+  if (l && !l.value) l.value = procLocalPonto();
   // Os campos dos procuradores moram no armazenamento do emitente; pinta com o
   // que estiver salvo, ou com o default da empresa.
   const emp = epEmitGet();
@@ -21455,6 +22164,18 @@ function procInit() {
   procBanner();
 }
 
+// A unidade consumidora fica no PONTO. No chave na mão é o endereço do cliente;
+// no arrendamento e na sociedade é o local do ponto, que quase nunca é a casa
+// do dono (ARR-03, S50-03). Com a cidade, que o balcão confere.
+function procLocalPonto() {
+  const t = ctrTipo();
+  if (['arrend', 'termo_arr', 'socio50', 'cotas'].includes(t)) return ctrCampo('ctr-local') || orcVal('ctr-ti-ponto') || '';
+  return [orcVal('orc-cli-end'), eletroTextos().cidade].filter(Boolean).join(', ');
+}
+// Ponto de terceiro: a NEXUS opera a estação no imóvel do outorgante
+// (arrendamento e sociedade). A procuração aí não troca a titularidade da UC
+// dele nem o obriga em custo nenhum (ARR-06).
+function procPontoDeTerceiro() { return ['arrend', 'termo_arr', 'socio50', 'cotas'].includes(ctrTipo()); }
 function procDados() {
   const t = eletroTextos();
   const emp = epEmitGet();
@@ -21470,8 +22191,9 @@ function procDados() {
     rep: orcVal('proc-rep'), repDoc: orcVal('proc-rep-doc'),
     concessionaria: orcVal('proc-concessionaria'),
     uc: orcVal('proc-uc'),
-    local: orcVal('proc-local') || orcVal('orc-cli-end'),
+    local: orcVal('proc-local') || procLocalPonto(),
     solar: orcVal('proc-solar') === '1',
+    terceiro: procPontoDeTerceiro(), energia: orcVal('ctr-arr-energia') || 'uc',
     validade: orcVal('proc-validade') || 'atividades',
     empresa: emp,
   };
@@ -21522,6 +22244,30 @@ function procHTML(d) {
   ]) : '';
   const temProc = eng || tec;
 
+  // PJ é "inscrita no CNPJ, com sede em" (ARR-07, CM-15).
+  const pj = String(d.outorganteDoc || '').replace(/\D/g, '').length === 14;
+  // Os poderes. No ponto de terceiro (arrendamento e sociedade, ARR-06), sem a
+  // troca de titularidade e sem obrigar o outorgante: a NEXUS liga a estação.
+  const poderes = d.terceiro ? [
+    '<b>solicitação de conexão</b> e formulário de <b>solicitação de acesso</b> da estação de recarga de veículos elétricos no imóvel',
+    `emissão de <b>TRT</b>, <b>parecer de acesso</b> e vistoria${d.solar ? ', e formulário de <b>rateio</b>' : ''}`,
+    d.energia === 'uc'
+      ? 'autorizar, como titular da unidade consumidora e possuidor do imóvel, a <b>ligação nova</b> em nome da OUTORGADA para a estação de recarga no endereço acima'
+      : '<b>aumento de carga</b> na unidade consumidora do OUTORGANTE, para atender a demanda da estação de recarga',
+    '<b>troca de medidor</b>, instalação de medição e <b>mudança de padrão</b> de entrada, quando necessárias para a estação, sem custo para o OUTORGANTE',
+    `a <b>homologação</b> da estação de recarga de veículos elétricos${d.solar ? ' e do sistema de geração de energia solar fotovoltaica' : ''}`,
+    'protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação',
+    'assinar os documentos que dependam da titularidade da unidade consumidora para as finalidades acima',
+  ] : [
+    '<b>troca de titularidade</b> da unidade consumidora',
+    '<b>solicitação de conexão</b> e formulário de <b>solicitação de acesso</b>',
+    `emissão de <b>TRT</b>, <b>parecer de acesso</b> e vistoria da unidade consumidora${d.solar ? ', e formulário de <b>rateio</b>' : ''}`,
+    '<b>aumento de carga</b> e <b>nova ligação</b>, inclusive para atender a demanda da estação de recarga de veículos elétricos',
+    '<b>troca de medidor</b> e <b>mudança de padrão</b> de entrada, com a adequação da instalação às exigências da concessionária',
+    `ou seja, a <b>homologação geral</b> da estação de recarga de veículos elétricos${d.solar ? ' e do sistema de geração de energia solar fotovoltaica' : ''}`,
+    'protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação',
+    'assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para as finalidades acima',
+  ];
   const validadeTxt = d.validade === '1ano'
     ? 'A presente procuração tem validade de <b>1 (um) ano</b> a contar da data de sua assinatura, salvo revogação expressa anterior.'
     // A cessacao tem que cobrir TUDO que os poderes cobrem. Enquanto a lista
@@ -21529,7 +22275,9 @@ function procHTML(d) {
     // a homologacao da geracao solar junto, a clausula ficaria mais estreita
     // que os poderes — e clausula de fim mais estreita que o poder concedido e'
     // brecha, nao protecao.
-    : 'Os efeitos do presente instrumento cessam com o término das atividades nele delimitadas, isto é, com a conclusão da homologação e da ligação junto à concessionária.';
+    : d.terceiro
+      ? 'Os efeitos do presente instrumento cessam com a ligação da estação de recarga ou com a extinção do termo de compromisso ou do contrato firmado com a OUTORGADA, o que ocorrer primeiro.'
+      : 'Os efeitos do presente instrumento cessam com o término das atividades nele delimitadas, isto é, com a conclusão da homologação e da ligação junto à concessionária.';
 
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
@@ -21541,7 +22289,7 @@ function procHTML(d) {
       <div class="ep-ctr-tit">Procuração</div>
       <div class="ep-ctr-sub">Representação junto à concessionária de energia e à ANEEL</div>
 
-      <p class="ep-ctr-p"><b>OUTORGANTE:</b> ${vazio(d.outorgante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.outorganteDoc)}${endCli ? ', residente e domiciliado(a) em ' + e(endCli) : ''} <i>(endereço idêntico ao da conta de energia)</i>${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
+      <p class="ep-ctr-p"><b>OUTORGANTE:</b> ${vazio(d.outorgante)}, ${pj ? `inscrita no CNPJ sob o nº ${vazio(d.outorganteDoc)}${endCli ? ', com sede em ' + e(endCli) : ''}` : `inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.outorganteDoc)}${endCli ? ', residente e domiciliado(a) em ' + e(endCli) : ''}`}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
 
       <p class="ep-ctr-p"><b>OUTORGADA:</b> ${vazio(d.empresa.razao || d.empresa.nome)}${d.empresa.fantasia ? `, nome fantasia ${e(d.empresa.fantasia)}` : ''}, inscrita no CNPJ sob o nº ${vazio(d.empresa.cnpj)}${endEmp ? ', com sede em ' + e(endEmp) : ''}, com poderes para representar o OUTORGANTE nos termos deste instrumento.</p>
 
@@ -21549,19 +22297,12 @@ function procHTML(d) {
       ${eng ? `<p class="ep-ctr-li">${eng}</p>` : ''}
       ${tec ? `<p class="ep-ctr-li">${tec}</p>` : ''}` : ''}
 
-      <p class="ep-ctr-p">Pelo presente instrumento particular de procuração, o OUTORGANTE acima qualificado nomeia e constitui sua bastante procuradora a OUTORGADA${temProc ? ', por si e pelos procuradores acima qualificados,' : ''} conferindo-lhe poderes para representá-lo com a <b>finalidade exclusiva</b> de providenciar, requerer, autorizar e assinar qualquer requerimento junto à prestadora de serviço de distribuição de energia elétrica <b>${vazio(d.concessionaria)}</b> e à Agência Nacional de Energia Elétrica (ANEEL), referente à unidade consumidora nº <b>${vazio(d.uc)}</b>${d.local ? `, situada em ${e(d.local)}` : ''}.</p>
+      <p class="ep-ctr-p">Pelo presente instrumento particular de procuração, o OUTORGANTE acima qualificado nomeia e constitui sua bastante procuradora a OUTORGADA${temProc ? ', por si e pelos procuradores acima qualificados,' : ''} conferindo-lhe poderes para representá-lo com a <b>finalidade exclusiva</b> de providenciar, requerer, autorizar e assinar qualquer requerimento junto à prestadora de serviço de distribuição de energia elétrica <b>${vazio(d.concessionaria)}</b> e à Agência Nacional de Energia Elétrica (ANEEL), referente à unidade consumidora nº <b>${vazio(d.uc)}</b>${d.local ? `, situada em ${e(d.local)}, conforme a conta de energia` : ''}.</p>
 
       <p class="ep-ctr-p">Os poderes ora conferidos compreendem, especificamente:</p>
-      <p class="ep-ctr-li">a) <b>troca de titularidade</b> da unidade consumidora;</p>
-      <p class="ep-ctr-li">b) <b>solicitação de conexão</b> e formulário de <b>solicitação de acesso</b>;</p>
-      <p class="ep-ctr-li">c) emissão de <b>TRT</b>, <b>parecer de acesso</b> e vistoria da unidade consumidora${d.solar ? ', e formulário de <b>rateio</b>' : ''};</p>
-      <p class="ep-ctr-li">d) <b>aumento de carga</b> e <b>nova ligação</b>, inclusive para atender a demanda da estação de recarga de veículos elétricos;</p>
-      <p class="ep-ctr-li">e) <b>troca de medidor</b> e <b>mudança de padrão</b> de entrada, com a adequação da instalação às exigências da concessionária;</p>
-      <p class="ep-ctr-li">f) ou seja, a <b>homologação geral</b> da estação de recarga de veículos elétricos${d.solar ? ' e do sistema de geração de energia solar fotovoltaica' : ''};</p>
-      <p class="ep-ctr-li">g) protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação;</p>
-      <p class="ep-ctr-li">h) assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para as finalidades acima.</p>
+      ${poderes.map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${t}${i < poderes.length - 1 ? ';' : '.'}</p>`).join('\n      ')}
 
-      <p class="ep-ctr-p">Insta esclarecer que o presente instrumento <b>não permite o substabelecimento a terceiros</b> e não confere poderes para contrair obrigações financeiras em nome do OUTORGANTE além das tarifas e taxas próprias do processo de ligação.</p>
+      <p class="ep-ctr-p">Insta esclarecer que o presente instrumento <b>não permite o substabelecimento a terceiros</b> e ${d.terceiro ? 'não confere poderes para contrair obrigação nenhuma em nome do OUTORGANTE: todos os custos, tarifas e taxas do processo correm por conta da OUTORGADA, sem ônus para ele' : 'não confere poderes para contrair obrigações financeiras em nome do OUTORGANTE além das tarifas e taxas próprias do processo de ligação'}.</p>
 
       <p class="ep-ctr-p">${validadeTxt}</p>
 
@@ -21592,6 +22333,10 @@ function procImprimir() {
   // que ela acha o cadastro. Avisar aqui custa menos que a viagem ao balcao.
   if (!d.uc) { alert('Preencha a "Unidade consumidora / nº da instalação" — é o número que a concessionária usa pra achar o cadastro. Ele está na conta de energia do cliente.'); return; }
   if (!d.concessionaria) { alert('Preencha a "Concessionária" — a procuração precisa dizer a quem ela dá poderes.'); return; }
+  if (String(d.outorganteDoc || '').replace(/\D/g, '').length === 14 && !d.rep &&
+      !confirm('Empresa não assina sozinha: falta o representante legal do outorgante. A concessionária devolve procuração de PJ sem ele e sem o contrato social.\n\nGerar assim mesmo?')) return;
+  if (procPontoDeTerceiro() && !d.local &&
+      !confirm('Sem o endereço do ponto, onde fica a unidade consumidora. A distribuidora confere esse endereço.\n\nGerar assim mesmo?')) return;
   const limpa = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   // UMA folha, como o recibo — e por isso ENCOLHE pra caber em vez de vazar.
   // Eu tinha copiado `opts: null` do contrato, que e' multipagina de proposito.
@@ -21601,7 +22346,7 @@ function procImprimir() {
     arquivo: ['Procuracao', limpa(d.outorgante) || 'Cliente'].filter(Boolean).join('_'),
     titulo: 'Procuração' + (d.cliente ? ' — ' + d.cliente : ''),
     opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' },
-    hist: d.cliente ? { id: epId(), tipo: 'Procuração', cliente: d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+    hist: (d.outorgante || d.cliente) ? { id: epId(), tipo: 'Procuração', cliente: d.outorgante || d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
@@ -21933,7 +22678,7 @@ function bnkSplitPorPct() {
   if (!(d.total > 0)) { bnkCalc(); return; }
   const pct = Math.min(100, Math.max(0, parseFloat((document.getElementById('bnk-pct-eq') || {}).value) || 0));
   const eq = Math.round(d.total * pct) / 100;
-  const set = (id, v) => { const el = document.getElementById(id); if (el) { el.value = v.toFixed(2); el.dataset.tocado = '1'; } };
+  const set = (id, v) => { const el = document.getElementById(id); if (el) { el.value = epFmtBR(v); el.dataset.tocado = '1'; } };
   set('bnk-eq', eq);
   set('bnk-mo', Math.round((d.total - eq) * 100) / 100);
   bnkCalc();
@@ -21961,7 +22706,9 @@ function bnkVendTelSugerido() {
 
 function bnkDados() {
   const g = id => (document.getElementById(id) || {}).value || '';
-  const n = id => { const v = parseFloat(String(g(id)).replace(',', '.')); return isFinite(v) ? v : 0; };
+  // Dinheiro lido como no Brasil; percentual e prazo, como número comum (CM-02).
+  const BNK_MOEDA = ['bnk-total', 'bnk-eq', 'bnk-mo', 'bnk-ipi-val'];
+  const n = id => { if (BNK_MOEDA.includes(id)) return ctrMoeda(g(id)); const v = parseFloat(String(g(id)).replace(',', '.')); return isFinite(v) ? v : 0; };
   const t = eletroTextos();
   const emp = epEmitGet();
   const itens = orcLerItens();
@@ -22013,7 +22760,7 @@ function bnkCalc() {
   // IPI: o valor acompanha o % enquanto ninguem digitar o valor na mao.
   const vIpi = document.getElementById('bnk-ipi-val');
   if (vIpi && vIpi.dataset.tocado !== '1' && d.ipiPct > 0 && d.eq > 0) {
-    vIpi.value = (d.eq * d.ipiPct / 100).toFixed(2);
+    vIpi.value = epFmtBR(d.eq * d.ipiPct / 100);
   }
   const soma = d.eq + d.mo;
   const dif = d.total - soma;
@@ -22110,7 +22857,7 @@ function bnkInit() {
   const tot = document.getElementById('bnk-total');
   if (tot && tot.dataset.tocado !== '1') {
     const o = orcLerItens().total;
-    tot.value = o > 0 ? o.toFixed(2) : '';
+    tot.value = o > 0 ? epFmtBR(o) : '';
   }
   // Chegou por link? A folha inteira vem de la' e nasce TOCADA: veio pronta de
   // fora, entao nada nesta tela pode reescrever por cima do que o outro montou.
@@ -22310,8 +23057,19 @@ const ORC_HIST_KEY = 'orc_hist_v1';
 const epId = () => Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
 function epHistOrcList() { try { return JSON.parse(localStorage.getItem(ORC_HIST_KEY) || '[]') || []; } catch (e) { return []; } }
 function epHistOrcSave(entry) {
-  const l = epHistOrcList(); l.unshift(entry); if (l.length > 100) l.length = 100;
-  try { localStorage.setItem(ORC_HIST_KEY, JSON.stringify(l)); } catch (e) {}
+  const l = epHistOrcList(); l.unshift(entry);
+  // TR-07: 100 linhas eram umas 15 vendas. Agora 200, com aviso desde 180: o
+  // papel impresso continua no aparelho (2ª via), mas a linha some da lista.
+  if (l.length >= 180 && typeof showToast === 'function') showToast('Histórico com ' + l.length + ' de 200 linhas neste aparelho. Exporte o histórico antes de passar do limite.');
+  if (l.length > 200) l.length = 200;
+  try { localStorage.setItem(ORC_HIST_KEY, JSON.stringify(l)); }
+  catch (e) { if (typeof showToast === 'function') showToast('O aparelho recusou guardar o Histórico (espaço cheio). Exporte e limpe as linhas antigas.'); }
+}
+function epHistExportar() {
+  const blob = new Blob([JSON.stringify(epHistOrcList(), null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'historico-eletroposto-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 function epHistOrcDel(id) {
   try { localStorage.setItem(ORC_HIST_KEY, JSON.stringify(epHistOrcList().filter(x => x.id !== id))); } catch (e) {}
@@ -22321,18 +23079,29 @@ function epHistOrcRender() {
   const tb = document.getElementById('el-orc-hist'); if (!tb) return;
   const l = epHistOrcList();
   if (!l.length) { tb.innerHTML = '<tbody><tr><td style="color:#94A3B8;padding:14px">Nenhum orçamento gerado ainda.</td></tr></tbody>'; return; }
-  tb.innerHTML = '<thead><tr><th>Data</th><th>Tipo</th><th>Cliente</th><th class="num">Valor</th><th></th></tr></thead><tbody>' +
-    l.map(e => `<tr><td class="lbl">${orcEsc(e.data || '')}</td><td class="lbl">${orcEsc(e.tipo || '')}</td><td class="lbl">${orcEsc(e.cliente || '—')}</td><td class="num grn">${elMoney(e.valor || 0)}</td>` +
-      `<td style="text-align:right;white-space:nowrap">${e.snap ? `<button type="button" class="eletro-btn ehist-btn" onclick="epHistOrcAbrir('${e.id}')">Abrir</button>` : ''}<button type="button" class="eletro-btn ehist-btn ehist-x" onclick="epHistOrcDel('${e.id}')">✕</button></td></tr>`).join('') +
+  tb.innerHTML = '<thead><tr><th>Data</th><th>Papel</th><th>Nº</th><th>Cliente</th><th class="num">Valor</th><th><button type="button" class="eletro-btn ehist-btn" onclick="epHistExportar()" title="Baixar o histórico deste aparelho em JSON">Exportar</button></th></tr></thead><tbody>' +
+    l.map(e => `<tr><td class="lbl">${orcEsc(e.data || '')}</td><td class="lbl">${orcEsc(e.rotulo || e.tipo || '')}${e.editado ? ' <span style="color:#fbbf24">(texto editado)</span>' : ''}</td><td class="lbl">${orcEsc(e.num || '')}</td><td class="lbl">${orcEsc(e.cliente || '—')}</td><td class="num grn">${elMoney(e.valor || 0)}</td>` +
+      `<td style="text-align:right;white-space:nowrap"><button type="button" class="eletro-btn ehist-btn" onclick="epHistSegundaVia('${e.id}')" title="O papel exatamente como saiu">2ª via</button>${e.snap ? `<button type="button" class="eletro-btn ehist-btn" onclick="epHistOrcAbrir('${e.id}')" title="Reabre os campos para refazer ou corrigir">Abrir</button>` : ''}<button type="button" class="eletro-btn ehist-btn ehist-x" onclick="epHistOrcDel('${e.id}')">✕</button></td></tr>`).join('') +
     '</tbody>';
 }
 function epHistOrcAbrir(id) {
   const e = epHistOrcList().find(x => x.id === id);
   if (!e || !e.snap) return;
+  // TR-02: abrir o papel de outro cliente por cima do cliente aberto misturava
+  // os dois (CPF de um, nome e preço do outro).
+  const aberto = orcVal('el-cliente');
+  const doPapel = (e.snap.sim && e.snap.sim['el-cliente']) || e.cliente || '';
+  if (aberto && doPapel && aberto !== doPapel) {
+    if (!confirm(`Abrir o papel de ${doPapel} troca o cliente aberto (${aberto}). Os campos de ${aberto} saem da tela.\n\nContinuar?`)) return;
+    if (typeof epLimparCliente === 'function') epLimparCliente();
+  }
   eletroSubaba('orcamento');
   orcSnapApply(e.snap, e.tipo);
   // Termo (08/10/2026) reabre na aba dele, com o dossiê do aparelho de volta.
-  if (e.tipo === 'Termo') eletroSubaba('contrato');
+  // Contrato, recibo e orçamento do carregador também (09/10/2026).
+  // TR-09: a aba Orçamento saiu da barra; papel de orçamento abre no Simulador.
+  const aba = { Termo: 'contrato', Contrato: 'contrato', Recibo: 'recibo', 'Orçamento Carregador': 'equipamento', 'Procuração': 'procuracao', 'Proposta de banco': 'finame' }[e.tipo] || 'simulador';
+  eletroSubaba(aba);
 }
 // Snapshot do formulário do Orçamento completo (pra reabrir)
 function orcSnapTake() {
@@ -22365,6 +23134,19 @@ function orcSnapTake() {
     recTipo: v('rec-tipo'), recNum: v('rec-num'), recData: v('rec-data'), recPct: v('rec-pct'),
     recValor: v('rec-valor'), recValorTocado: document.getElementById('rec-valor')?.dataset.tocado === '1',
     recForma: v('rec-forma'), recFim: v('rec-fim'), recGatilho: v('rec-gatilho'), recDesist: v('rec-desist'), recObs: v('rec-obs'),
+    recRef: v('rec-ref'), recAntes: v('rec-antes'), recParcela: v('rec-parcela'), recCliNome: v('rec-cli-nome'), recCliDoc: v('rec-cli-doc'), recCliEnd: v('rec-cli-end'),
+    // TR-01 (09/10/2026): o Simulador, a Procuração e a Proposta de banco também,
+    // para o "Abrir" refazer o papel com os números que ele teve.
+    sim: Object.fromEntries(['el-cliente', 'el-cidade', 'el-equip', 'el-qtd', 'el-plugs', 'el-invest', 'el-arrend', 'el-software', 'el-autor', 'el-contato']
+      .filter(id => document.getElementById(id)).map(id => [id, v(id)])),
+    proc: Object.fromEntries([...document.querySelectorAll('#eletro-pane-procuracao input[id], #eletro-pane-procuracao select[id]')]
+      .filter(el => !/^orc-emit-/.test(el.id)).map(el => [el.id, el.value])),
+    bnk: Object.fromEntries([...document.querySelectorAll('#eletro-pane-finame input[id], #eletro-pane-finame select[id], #eletro-pane-finame textarea[id]')]
+      .filter(el => el.type !== 'file' && el.type !== 'checkbox').map(el => [el.id, el.value])),
+    bnkItens: (typeof BNK_ITENS !== 'undefined' && BNK_ITENS) ? JSON.parse(JSON.stringify(BNK_ITENS)) : null,
+    // Venda de equipamento (09/10/2026): o pedido inteiro, para a 2ª via do
+    // orçamento do carregador e do contrato de compra e venda.
+    eqPedido: (typeof orcEquipPayload === 'function' && document.getElementById('eq-itens') && document.getElementById('eq-itens').dataset.pronto) ? orcEquipPayload() : null,
     // Contrato. Mesma razão do recibo: reabrir pra tirar 2ª via tem que devolver
     // o texto assinado, não uma sugestão recalculada com os números de hoje.
     ctrNum: v('ctr-num'), ctrData: v('ctr-data'), ctrLocal: v('ctr-local'),
@@ -22468,13 +23250,34 @@ function orcSnapApply(s, tipo) {
   // ignora null e o recibo fica no padrão (5% do total), que é como ele nasceria.
   set('rec-tipo', s.recTipo); set('rec-num', s.recNum); set('rec-data', s.recData); set('rec-pct', s.recPct);
   set('rec-forma', s.recForma); set('rec-fim', s.recFim); set('rec-gatilho', s.recGatilho); set('rec-desist', s.recDesist); set('rec-obs', s.recObs);
+  // Recibos novos: referência, já pago e as partes voltam como foram assinados.
+  set('rec-antes', s.recAntes); set('rec-parcela', s.recParcela);
+  // TR-01: Simulador, Procuração e Proposta de banco como estavam no papel.
+  if (s.sim) {
+    Object.entries(s.sim).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dataset.tocado = '1'; } });
+    try { if (typeof eletroCalc === 'function') eletroCalc(); } catch (e) {}
+  }
+  if (s.proc) Object.entries(s.proc).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dataset.tocado = '1'; } });
+  if (s.bnk) Object.entries(s.bnk).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dataset.tocado = '1'; } });
+  if (s.bnkItens) { try { BNK_ITENS = JSON.parse(JSON.stringify(s.bnkItens)); BNK_ITENS_TOCADA = true; } catch (e) {} }
+  if (s.eqPedido && typeof equipAplicar === 'function') { try { equipAplicar(s.eqPedido); } catch (e) {} }
+  const recPctEl = document.getElementById('rec-pct');
+  if (recPctEl && s.recPct != null) recPctEl.dataset.tocado = '1';
+  [['rec-ref', s.recRef], ['rec-cli-nome', s.recCliNome], ['rec-cli-doc', s.recCliDoc], ['rec-cli-end', s.recCliEnd]].forEach(([id, v]) => {
+    const el = document.getElementById(id); if (el && v != null) { el.value = v; el.dataset.tocado = '1'; }
+  });
   const recEl = document.getElementById('rec-valor');
   if (recEl) {
-    if (s.recValorTocado) { recEl.dataset.tocado = '1'; if (s.recValor != null) recEl.value = s.recValor; }
-    else delete recEl.dataset.tocado;   // volta a acompanhar o percentual
+    // TR-01: o valor do recibo volta como estava, mesmo vazio, e fica travado.
+    // Recalcular o percentual aqui fazia o contrato reaberto abater um sinal
+    // que o papel original não tinha.
+    if (s.recValor != null) { recEl.value = s.recValor; recEl.dataset.tocado = '1'; }
+    else if (s.recValorTocado) recEl.dataset.tocado = '1';
+    else delete recEl.dataset.tocado;   // snapshot sem o campo: acompanha o percentual
   }
   // Depois do rec-valor de propósito: no avulso o recTipoMudou trava o valor no
   // que foi salvo. Rodar antes deixaria o delete acima soltar o número de novo.
+  if (typeof recTipo === 'function') recTipoUlt = recTipo();
   if (typeof recTipoMudou === 'function') recTipoMudou();
   // Contrato. Snapshot antigo não tem nada disso: o set() ignora null e os
   // campos ficam no padrão, que é como nasceriam.
@@ -24362,6 +25165,8 @@ async function crmGerarOrcamento(produto) {
       el.value = v;
       el.dispatchEvent(new Event('input', { bubbles: true }));
     };
+    // TR-03: o cliente anterior sai de todas as abas antes de este entrar.
+    if (typeof epLimparCliente === 'function') epLimparCliente();
     set('el-cliente', nome);
     set('el-cidade', cidade);
     if (typeof orcInit === 'function') orcInit();

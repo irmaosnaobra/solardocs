@@ -165,6 +165,13 @@ describe('termos de compromisso (08/10/2026)', () => {
     expect(inv).toMatch(/Nunca escreva promessa de rentabilidade/);
     for (const p of [arr, inv]) expect(p).not.toMatch(/CONTRATADA e CONTRATANTE/);
   });
+  it('a compra e venda de equipamento tem prompt próprio e o schema aceita o tipo', () => {
+    const eq = sistemaPara('equip');
+    expect(eq).toMatch(/compra e venda de equipamento/);
+    expect(eq).toMatch(/VENDEDORA \(a NEXUS\) e COMPRADOR/);
+    expect(eq).not.toMatch(/CONTRATADA e CONTRATANTE/);
+    expect(PedidoContratoIa.safeParse({ pedido: 'teste', clausulas: entrada.clausulas, contrato: { tipo: 'equip' } }).success).toBe(true);
+  });
   it('o schema aceita os dois termos', () => {
     for (const tipo of ['termo_arr', 'termo_inv']) {
       expect(PedidoContratoIa.safeParse({ pedido: 'teste', clausulas: entrada.clausulas, contrato: { tipo } }).success).toBe(true);
