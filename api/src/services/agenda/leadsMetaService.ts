@@ -8,7 +8,7 @@ import {
 } from './leadSolarFicha';
 import { proximoDaContaBaixa } from './filaContaBaixa';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
-import { ocupacaoDaFichaSolar, MARGEM_LEITURA_MS } from './solarRota';
+import { ocupacaoDaFichaSolar, MARGEM_LEITURA_MS, GRADE_NOVO_LIGACAO } from './solarRota';
 
 // Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -349,6 +349,7 @@ function slotDisponivel(
 // só pra card SOLAR — card de ELETROPOSTO pode cair em qualquer horário do
 // expediente, é o trabalho do turno deles.
 const GRADE_ENCAIXADA = new Set(['thiago', 'diego']);
+const MIN_NOVO_LIGACAO = GRADE_NOVO_LIGACAO.map(s => Number(s.slice(0, 2)) * 60 + Number(s.slice(3)));
 const SLOTS_SOCIOS_SOLAR = ['08:00', '08:30', '09:00', '09:30', '10:30', '11:30',
                             '13:30', '14:30', '15:30', '16:30', '17:30', '18:30']
   .map(s => Number(s.slice(0, 2)) * 60 + Number(s.slice(3)));
@@ -357,23 +358,26 @@ function usaGradeEncaixada(consultor: string, produto: 'solar' | 'eletroposto'):
   return produto === 'solar' && GRADE_ENCAIXADA.has(String(consultor || '').trim().toLowerCase());
 }
 
-// Fim da grade SOLAR de quem não está na encaixada (a Nilce): último começo às
-// 16:45. É o turno dela (17/08) — solar acaba mais cedo que o expediente porque
-// depois das 17h a ligação não é atendida. Card de ELETROPOSTO continua indo até
-// o fim do expediente: é o trabalho do turno deles, não a agenda dela.
-const FIM_SOLAR_MIN = 16 * 60 + 45;
+// Grade SOLAR de quem não está na encaixada (Nilce e Giovanna): desde 09/10/2026
+// é a GRADE_NOVO_LIGACAO do solarRota.ts, 08:00 a 16:30 em :00 e :30. Antes era
+// de 15 em 15 min até 16:45, e lead novo caía no :15/:45, que agora é do
+// follow-up. Card de ELETROPOSTO continua indo até o fim do expediente.
 
 // Minutos do dia que este consultor pode receber, na ordem em que são tentados.
 function slotsDoDia(encaixada: boolean, horaIni: number, produto: 'solar' | 'eletroposto'): number[] {
   if (encaixada) return SLOTS_SOCIOS_SOLAR;
-  const limite = produto === 'solar' ? FIM_SOLAR_MIN : HORA_FIM * 60 - 15;
+  // Cliente novo de solar da Nilce e da Giovanna (09/10/2026): só :00 e :30, das
+  // 08:00 às 16:30. O :15 e o :45 são do follow-up (solarRota.ts, as duas faixas).
+  if (produto === 'solar') return MIN_NOVO_LIGACAO.filter(t => t >= horaIni * 60);
+  // Eletroposto de quem não está na grade encaixada: 15 em 15 min no expediente.
+  const limite = HORA_FIM * 60 - 15;
   const out: number[] = [];
   for (let h = horaIni; h < HORA_FIM; h++)
     for (let min = 0; min < 60; min += 15) {
       const t = h * 60 + min;
       if (t <= limite) out.push(t);
     }
-  return out;                          // grade de 15 min: solar para em 16:45
+  return out;
 }
 
 // Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,

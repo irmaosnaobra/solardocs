@@ -32,7 +32,7 @@ describe('a vitrine', () => {
     const dias = montarVitrine(dec, [], AGORA);
     expect(dias.map(d => d.ymd)).toEqual(['2026-10-13', '2026-10-14']);
     expect(dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
-    expect(dias[0].horas).toHaveLength(14);
+    expect(dias[0].horas).toHaveLength(18);   // 08:00 a 16:30 em :00 e :30 (09/10)
   });
   it('visita em Catalão: uma chegada por manhã, com o Diego saindo de Uberlândia', () => {
     const dec = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE });

@@ -251,7 +251,7 @@ describe('mover o card', () => {
 describe('onde a ligação cai', () => {
   // A grade morava no nilceParaGiovanna.ts, apagado em 05/10/2026, e o teste dela
   // foi junto. Ela espelha a GRADE_NILCE da LP do solar: mexeu numa, mexe na outra.
-  it('a grade é 8–11 e 13–16 de 30 em 30, com almoço fechado', async () => {
+  it('a grade dos sócios é 8–11 e 13–16 de 30 em 30, com almoço fechado', async () => {
     const { GRADE_NILCE } = await import('../services/agenda/reagendaSolarNaoAtendido');
     expect(GRADE_NILCE).toEqual([
       '08:00','08:30','09:00','09:30','10:00','10:30','11:00',
@@ -488,7 +488,8 @@ describe('a rampa diária', () => {
   });
 
   it('mas horário cancelado não ocupa nada — é a outra ponta da mesma régua', async () => {
-    const primeiro = '2026-10-01T11:00:00.000Z';
+    // 08:15 BRT: o primeiro horário da faixa de follow-up da Giovanna (09/10).
+    const primeiro = '2026-10-01T11:15:00.000Z';
     futura = [{
       id: 900, quando: primeiro, vendedor_nome: 'Giovanna',
       cliente_telefone: '5534900000900', created_by: 'lead-meta', status: 'cancelado',
@@ -505,7 +506,7 @@ describe('a rampa diária', () => {
   // seguinte. Contar erro e desistir foi o que devolveu `erros: 8, remarcados: 0`
   // na primeira rodada da regra nova.
   it('horário recusado pelo índice único: tenta o seguinte e não conta erro', async () => {
-    const primeiro = '2026-10-01T11:00:00.000Z';
+    const primeiro = '2026-10-01T11:15:00.000Z';
     colidemEm = [primeiro];
     const r = await tick();
     expect(r.remarcados).toBe(1);
@@ -517,8 +518,8 @@ describe('a rampa diária', () => {
 
   it('mas não tenta pra sempre: horário sempre recusado para em 4 e não vira laço', async () => {
     // Todos os horários do dia e do dia seguinte recusados.
-    colidemEm = ['2026-10-01T11:00:00.000Z', '2026-10-01T11:30:00.000Z',
-      '2026-10-01T12:00:00.000Z', '2026-10-01T12:30:00.000Z', '2026-10-01T13:00:00.000Z'];
+    colidemEm = ['2026-10-01T11:15:00.000Z', '2026-10-01T11:45:00.000Z',
+      '2026-10-01T12:15:00.000Z', '2026-10-01T12:45:00.000Z', '2026-10-01T13:15:00.000Z'];
     const r = await tick();
     expect(r.remarcados).toBe(0);
     expect(r.erros).toBe(0);                 // recusa de horário não é erro
@@ -582,11 +583,12 @@ describe('a rampa diária', () => {
   // A NEGOCIAÇÃO CAI HOJE (07/10/2026). A busca começava sempre amanhã, e com a
   // escada em 24h isso virava 42h: elegível às 11h de quarta, ligação às 08h de
   // quinta. AGORA é quarta 11:00 BRT, então o primeiro horário livre de hoje é
-  // 13:00 (11:30 a 12:30 não existem na grade).
+  // 11:15: desde 09/10 o follow-up da Giovanna vai das 08:15 às 16:45 em :15 e
+  // :45, com o almoço aberto (antes era 13:00, depois do almoço fechado).
   it('a negociação cai no primeiro horário livre de HOJE, não de amanhã', async () => {
     vermelhos = [card({ id: 77, status: 'fez_orcamento', quando: hAtras(25) })];
     expect((await tick()).remarcados).toBe(1);
-    expect(updates[0].patch.quando).toBe('2026-09-30T16:00:00.000Z');
+    expect(updates[0].patch.quando).toBe('2026-09-30T14:15:00.000Z');
   });
 
   it('o vermelho e o esquecido continuam caindo no OUTRO dia', async () => {

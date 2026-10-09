@@ -140,7 +140,7 @@ describe('tempo de agenda', () => {
     expect(horariosDoCaminho('vistoria', '2026-10-13', 'Diego', udi)).toContain('08:00');
     expect(horariosDoCaminho('vistoria', '2026-10-13', 'Thiago', cat)).toEqual(['09:00']);   // terça
     expect(horariosDoCaminho('vistoria', '2026-10-12', 'Thiago', cat)).toEqual([]);          // segunda
-    expect(horariosDoCaminho('ligacao', '2026-10-12', 'Nilce', null)).toHaveLength(14);
+    expect(horariosDoCaminho('ligacao', '2026-10-12', 'Nilce', null)).toHaveLength(18);   // 08:00 a 16:30 (09/10)
     expect(horariosDoCaminho('vistoria', '2026-10-13', 'Nilce', udi)).toEqual([]);
   });
 });

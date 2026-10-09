@@ -125,18 +125,31 @@ describe('card de lead solar do Thiago e do Diego', () => {
     expect(emSP(slot)).toBe('2026-08-12 13:30');
   });
 
-  it('Nilce não tem eletroposto — a grade de 15 min dela continua de pé', async () => {
+  it('Nilce: cliente novo só em :00 e :30 (o :15 e o :45 são do follow-up desde 09/10)', async () => {
     const slot = await slotLivreConsultor('Nilce', TARDE_DE_TERCA);
     expect(emSP(slot)).toBe('2026-08-11 15:00');
   });
 
-  it('dois cards da Nilce cabem lado a lado, de 15 em 15', async () => {
+  it('dois cards novos da Nilce cabem lado a lado, de 30 em 30', async () => {
     expect(await marcar('Nilce', TERCA(15))).toBe('2026-08-11 15:00');
-    expect(await marcar('Nilce', TERCA(15))).toBe('2026-08-11 15:15');
+    expect(await marcar('Nilce', TERCA(15))).toBe('2026-08-11 15:30');
   });
 
   it('lead de ELETROPOSTO pode ser à tarde em hora cheia — é o turno deles', async () => {
     const slot = await slotLivreConsultor('Thiago', TARDE_DE_TERCA, 'eletroposto');
     expect(emSP(slot)).toBe('2026-08-11 15:00');
+  });
+});
+
+describe('as duas faixas no formulário do Meta (09/10/2026)', () => {
+  beforeEach(() => { agenda = []; vi.useFakeTimers(); vi.setSystemTime(AGORA); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('lead novo da Giovanna cai em :00 e :30, e o follow-up em :15/:45 não tira o lugar dele', async () => {
+    agenda.push({ consultor: 'Giovanna', quando: '2026-08-11T15:15:00-03:00' });
+    agenda.push({ consultor: 'Giovanna', quando: '2026-08-11T15:45:00-03:00' });
+    expect(await marcar('Giovanna', TERCA(15))).toBe('2026-08-11 15:00');
+    expect(await marcar('Giovanna', TERCA(15))).toBe('2026-08-11 15:30');
+    expect(await marcar('Giovanna', TERCA(15))).toBe('2026-08-11 16:00');
   });
 });

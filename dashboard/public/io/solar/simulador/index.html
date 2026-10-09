@@ -917,10 +917,12 @@ const GRADE_SOCIOS = ['08:00','08:30','09:00','09:30','10:30','11:30',
 //
 // NÃO confundir com a grade do CARD de ligação dela, que é outra coisa e vive no
 // backend (leadsMetaService.ts): 15 em 15 min, com teto no FIM_SOLAR_MIN.
+// 09/10/2026 (ordem do Thiago): Nilce e Giovanna das 08 às 17, cliente novo em
+// :00 e :30 (08:00 a 16:30, almoço aberto) e follow-up em :15 e :45. A mesma
+// GRADE_NOVO_LIGACAO do backend (solarRota.ts): mudou lá, muda aqui.
 const GRADE_NILCE = (() => {
   const out = [];
-  for (let t = 8 * 60; t <= 16 * 60; t += 30) {
-    if (t > 11 * 60 && t < 13 * 60) continue;    // 11:30 e 12:xx: almoço
+  for (let t = 8 * 60; t <= 16 * 60 + 30; t += 30) {
     out.push(String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
   }
   return out;
@@ -962,7 +964,9 @@ async function carregarOcupados(deYmd, ateYmd){
       // presencial que a grade encaixada reserva) e 15 min na Nilce (ligação). O
       // resto — apresentação de eletroposto, card de lead do Meta — ocupa meia
       // hora e devolve a agenda.
-      dur: a.solar ? durSolarDe(String(a.dono)) : DUR_PADRAO_MS,
+      // Card da Nilce e da Giovanna que não é desta página é ligação de 15 min
+      // (o follow-up mora no :15 e no :45 e não pode apagar o :00 nem o :30).
+      dur: a.solar ? durSolarDe(String(a.dono)) : (TIME_BAIXA.includes(String(a.dono)) ? DUR_LIGACAO_MS : DUR_PADRAO_MS),
     }));
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }

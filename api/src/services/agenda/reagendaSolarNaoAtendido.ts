@@ -66,7 +66,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
-import { caminhoDaFicha } from './solarRota';
+import { caminhoDaFicha, GRADE_FOLLOWUP_LIGACAO, temDuasFaixas } from './solarRota';
 
 const TZ = 'America/Sao_Paulo';
 
@@ -86,6 +86,14 @@ export const GRADE_NILCE: string[] = (() => {
   }
   return out;
 })();
+
+/** A faixa do follow-up por dono (09/10/2026): Nilce e Giovanna remarcam em
+ *  :15/:45, das 08:15 às 16:45, para não comer o horário redondo que o quiz e o
+ *  formulário vendem para cliente novo (solarRota.ts, GRADE_FOLLOWUP_LIGACAO).
+ *  Os sócios seguem na grade antiga: no eletroposto um card de solar deles vale
+ *  30 min, e um follow-up às 14:15 fecharia dois horários de venda. */
+export const gradeDoFollowup = (dono: unknown): readonly string[] =>
+  temDuasFaixas(dono) ? GRADE_FOLLOWUP_LIGACAO : GRADE_NILCE;
 
 /** Estado do ciclo: `solar_reagenda:<id>` → { n, ultimo, de }. */
 export const SOLAR_REAGENDA_PREFIX = 'solar_reagenda:';
@@ -465,9 +473,10 @@ export function primeiraVaga(
   ocupado: Array<{ ini: number; dur: number }>,
   agora: number,
   dias: string[],
+  grade: readonly string[] = GRADE_NILCE,
 ): string | null {
   for (const dia of dias) {
-    for (const hhmm of GRADE_NILCE) {
+    for (const hhmm of grade) {
       const iso = isoDe(dia, hhmm);
       const t = new Date(iso).getTime();
       if (t <= agora) continue;
@@ -773,7 +782,7 @@ export async function runReagendaSolarTick(
     let novo: string | null = null;
     let moveu = false;
     for (let tentativa = 1; tentativa <= HORARIOS_POR_CARD && !moveu; tentativa++) {
-      novo = primeiraVaga(ocupado, agora, dias);
+      novo = primeiraVaga(ocupado, agora, dias, gradeDoFollowup(dono));
       if (!novo) break;
 
       if (dry) {

@@ -99,10 +99,31 @@ export const GRADE_SOCIOS_SOLAR = ['08:00', '08:30', '09:00', '09:30', '10:30', 
   '13:30', '14:30', '15:30', '16:30', '17:30', '18:30'] as const;
 /** Videochamada: só as manhãs dos sócios, que o eletroposto não usa. */
 export const GRADE_VIDEO = ['08:00', '08:30', '09:00', '09:30', '10:30', '11:30'] as const;
-/** Ligação: a grade da Nilce desde 17/08, de 30 em 30. Com 15 min de ligação
- *  num passo de 30, um horário nunca come o seguinte. */
-export const GRADE_LIGACAO = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00',
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'] as const;
+// ── As duas faixas da Nilce e da Giovanna (09/10/2026) ──────────────────────
+// Ordem do Thiago: "agendados hora e hora e 30, followups hora e 15 e hora e 45;
+// Nilce e Giovanna das 08 às 17". A mesma regra do eletroposto (30/09), aqui sem
+// folga especial: ligação dura 15 min, então um follow-up às 14:15 ocupa
+// [14:15, 14:30) e não come nem a das 14:00 nem a das 14:30. Almoço aberto: ele
+// deu a janela inteira. Três pontas leem daqui e um teste compara as três: a
+// vitrine do quiz (GRADE_LIGACAO), o robô de follow-up
+// (reagendaSolarNaoAtendido) e o formulário do Meta e o ManyChat
+// (leadsMetaService.slotsDoDia). Os sócios ficam fora: o eletroposto conta card
+// de solar deles como 30 min, e um follow-up às 14:15 fecharia dois horários de
+// venda de eletroposto.
+const gradeDeTrintaEmTrinta = (iniMin: number, fimMin: number): string[] => {
+  const out: string[] = [];
+  for (let t = iniMin; t <= fimMin; t += 30) out.push(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`);
+  return out;
+};
+/** Cliente novo (quiz, formulário do Meta, ManyChat): 08:00 a 16:30, :00 e :30. */
+export const GRADE_NOVO_LIGACAO: readonly string[] = Object.freeze(gradeDeTrintaEmTrinta(8 * 60, 16 * 60 + 30));
+/** Follow-up e remarcação do robô: 08:15 a 16:45, :15 e :45. */
+export const GRADE_FOLLOWUP_LIGACAO: readonly string[] = Object.freeze(gradeDeTrintaEmTrinta(8 * 60 + 15, 16 * 60 + 45));
+/** Quem segue as duas faixas. */
+export const DONAS_DUAS_FAIXAS: readonly string[] = ['Nilce', 'Giovanna'];
+export const temDuasFaixas = (dono: unknown): boolean => DONAS_DUAS_FAIXAS.includes(String(dono ?? '').trim());
+/** Ligação marcada pelo cliente: a faixa de cliente novo. */
+export const GRADE_LIGACAO = GRADE_NOVO_LIGACAO;
 /** Manhã de rota: terça a sexta. A segunda tem eletroposto às 10:00. */
 export const DIAS_DE_ROTA = new Set([2, 3, 4, 5]);
 
