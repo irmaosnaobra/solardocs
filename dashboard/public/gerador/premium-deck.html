@@ -6,7 +6,7 @@
 <!-- Sem esta tag o celular desenha a página numa janela de 980 px e a escala
      abaixo calcula em cima de uma largura que não é a da tela. -->
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orçamento Premium — NEXUS Eletropostos</title>
+<title>Orçamento Premium · NEXUS Eletropostos</title>
 <script>
 /* O FORMATO E A ESCALA DA TELA.
    Janela com menos de 900 px é celular: a classe .movel no <html> troca a
@@ -232,7 +232,7 @@ function montar(D) {
   add(2, `<section class="slide">
   <div class="faixa"></div>${marca()}
   <div class="wrap topo" style="padding-top:104px">
-    <div class="titulo menor">De onde sai esse número<span class="g"> — e você muda qualquer um agora</span></div>
+    <div class="titulo menor">De onde sai esse número<span class="g">, e você muda qualquer um agora</span></div>
     <div class="partido">
       <div class="lado">
         <div class="sobre">O que você vende</div>
@@ -288,8 +288,8 @@ function montar(D) {
   // TIR e VPL sozinhos não vendem: o consultor precisa conseguir dizer em voz
   // alta o que eles querem dizer.
   const selosFin = [
-    tem(R.tir) ? `<div class="selo-fin"><div class="v">${pct(R.tir)} <small>ao ano</small></div><div class="d">TIR — é o juro que o projeto paga</div></div>` : '',
-    tem(R.vpl) ? `<div class="selo-fin"><div class="v">${brl(R.vpl)}</div><div class="d">VPL a ${pct(E.taxaDesc)} a.a. — é o que ele vale hoje, já descontado o dinheiro parado</div></div>` : '',
+    tem(R.tir) ? `<div class="selo-fin"><div class="v">${pct(R.tir)} <small>ao ano</small></div><div class="d">TIR: é o juro que o projeto paga</div></div>` : '',
+    tem(R.vpl) ? `<div class="selo-fin"><div class="v">${brl(R.vpl)}</div><div class="d">VPL a ${pct(E.taxaDesc)} a.a.: é o que ele vale hoje, já descontado o dinheiro parado</div></div>` : '',
   ].filter(Boolean).join('');
 
   const posPay = Math.min(100, Math.max(0, 100 * Number(R.payback) / 10));
@@ -350,7 +350,7 @@ function montar(D) {
   <div class="faixa"></div>${marca()}
   <div class="wrap" style="justify-content:flex-end;padding-bottom:150px">
     <div class="titulo">Assim fica<span class="g"> o seu ponto</span></div>
-    <div class="entrada" style="margin-top:20px">cobertura, sinalização e a máquina ligada — é este o resultado da obra</div>
+    <div class="entrada" style="margin-top:20px">cobertura, sinalização e a máquina ligada: é este o resultado da obra</div>
   </div>
   <div class="ilustrativa">imagem ilustrativa do projeto</div>
   ${rodape(D, 6, D.total)}
@@ -431,7 +431,7 @@ function montar(D) {
   <div class="tira-fabrica">
     <div class="bgf" style="background-image:url('${ART}fabrica-nexus-16x9.webp')"></div>
     <div class="cont">
-      <span class="leg">linha de produção NEXUS — equipamento de linha, não protótipo</span>
+      <span class="leg">linha de produção NEXUS, equipamento de linha, não protótipo</span>
       <span class="chips2"><b>entrega em 25 dias</b><b>garantia de 24 meses</b></span>
     </div>
   </div>
@@ -476,7 +476,7 @@ function montar(D) {
   add(11, `<section class="slide">
   <div class="faixa"></div>${marca()}
   <div class="wrap topo" style="padding-top:104px">
-    <div class="titulo menor">O que está dentro do valor<span class="g"> — e o que não está</span></div>
+    <div class="titulo menor">O que está dentro do valor<span class="g">, e o que não está</span></div>
     <div class="duas">
       <div>
         <div class="sobre">Dentro do valor</div>
