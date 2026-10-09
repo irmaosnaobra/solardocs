@@ -33,6 +33,8 @@ function aplicarUpdate(q: any) {
   if (!alvo) return { data: [], error: null };
   // O `.eq('status','nao_atendeu')` do módulo: corrida com gente.
   if (q._filtros.status && alvo.status !== q._filtros.status) return { data: [], error: null };
+  // E o `.eq('quando', …)` (09/10/2026): outro relógio já moveu a ficha.
+  if (q._filtros.quando && alvo.quando !== q._filtros.quando) return { data: [], error: null };
   if (q._update.quando && ocupados.has(`${alvo.vendedor_nome}|${q._update.quando}`)) {
     return { data: null, error: { code: '23505', message: 'duplicate key' } };
   }
@@ -1114,12 +1116,14 @@ describe('quando a leitura do estado do ciclo falha', () => {
     expect(enviadas).toHaveLength(0);
   });
 
-  it('com a leitura BOA o mesmo card descansa no degrau dele, e isso é o controle', async () => {
+  it('com a leitura BOA o mesmo card sobe pro degrau 6, e isso é o controle', async () => {
+    // Desde 09/10/2026 o degrau não segura a ficha (quem segura é a virada do
+    // dia), então o controle é o carimbo: com a leitura boa ele SOBE, com a
+    // leitura quebrada ele não é tocado.
     fichas = [ficha({ id: 93, status: 'arrendamento', quando: horasAtras(60) })];
-    noDegrauAlto(93, 'arrendamento', 5);          // degrau 6 pede 96h
-    const r = await tick();
-    expect(r.remarcados).toBe(0);
-    expect(r.motivo).toBe('todos_no_degrau');
+    noDegrauAlto(93, 'arrendamento', 5);
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:93')?.value?.degrau).toBe(6);
   });
 });
 
@@ -1241,10 +1245,28 @@ describe('a sala de espera por marca, não por status', () => {
 
 // ── A ESCADA DA NEGOCIAÇÃO, DENTRO DO TICK (01/10/2026) ───────────────────
 //
-// A aritmética da escada tem teste próprio e puro (`escadaNegociacao.test.ts`).
-// Este bloco prende a outra metade, que é a que pode quebrar em produção: que o
-// tick REALMENTE segura a ficha que ainda não descansou, que o carimbo guarda a
-// etiqueta, e que os outros dois relógios não foram contaminados.
+// A aritmética da escada tem teste próprio e puro (`escadaNegociacao.test.ts`),
+// e a virada também (`viradaDoDia.test.ts`). Este bloco prende a outra metade,
+// a que pode quebrar em produção: que o tick segura o card do dia que ainda não
+// fechou, que ele procura o lugar a partir do alvo do degrau certo, que o
+// carimbo guarda a etiqueta, e que os outros dois relógios não foram
+// contaminados.
+//
+// DESDE 09/10/2026 o degrau não segura mais a ficha: "ele tem que sair às 23:59
+// do mesmo dia e não esperar dar as 48h". O degrau diz ONDE ela cai.
+/** Um horário de Brasília em ISO. */
+const brt = (dia: string, hm: string) => new Date(`${dia}T${hm}:00-03:00`).toISOString();
+/** 00:00 de Brasília de um dia: é de onde a busca da negociação parte. */
+const comecoDoDia = (dia: string) => new Date(`${dia}T00:00:00-03:00`).getTime();
+/** A faixa dos quinze de um dia inteiro, como a grade devolveria livre. */
+const faixaDe = (dia: string) => {
+  const out: string[] = [];
+  for (let t = 8 * 60 + 15; t <= 17 * 60 + 45; t += 30) {
+    out.push(brt(dia, `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`));
+  }
+  return out;
+};
+
 describe('a escada da negociação no tick', () => {
   /** Carimbo com etiqueta e degrau: o estado que a escada lê. */
   const noDegrau = (id: number, status: string, degrau: number) =>
@@ -1254,16 +1276,50 @@ describe('a escada da negociação no tick', () => {
       updated_at: horasAtras(24),
     });
 
-  it('no degrau 1, 40h de parada NÃO bastam: o degrau 2 pede 48h', async () => {
-    fichas = [ficha({ id: 50, status: 'arrendamento', quando: horasAtras(40) })];
-    noDegrau(50, 'arrendamento', 1);
+  // O EXEMPLO DA ORDEM, com as datas do teste: "13:00, chave na mão: quando
+  // chegar às 23:59 ele já se posiciona às 13:15 do dia seguinte". AGORA é
+  // quinta 20/08, 15h; a sexta 21/08 é dia aberto.
+  it('o card das 13:00 de HOJE não anda às 15h, em degrau nenhum', async () => {
+    fichas = [ficha({ id: 50, status: 'chave_na_mao', quando: brt('2026-08-20', '13:00') })];
     const r = await tick();
     expect(r.remarcados).toBe(0);
-    expect(r.motivo).toBe('todos_no_degrau');
+    expect(r.motivo).toBe('esperando_a_virada');
     expect(updates).toHaveLength(0);
   });
 
-  it('e 49h bastam — o card volta e sobe pro degrau 2', async () => {
+  it('às 23:59 ele vira e já ocupa as 13:15 do dia seguinte', async () => {
+    fichas = [ficha({ id: 50, status: 'chave_na_mao', quando: brt('2026-08-20', '13:00') })];
+    vi.setSystemTime(new Date(brt('2026-08-20', '23:59')));
+    vagas = faixaDe('2026-08-21');
+    expect((await tick()).remarcados).toBe(1);
+    expect(fichas[0].quando).toBe(brt('2026-08-21', '13:15'));
+    // A busca parte do COMEÇO do dia do alvo, não do alvo: o `proximasVagas`
+    // soma 30 min ao `agora`, e partir das 13:00 pularia as 13:15.
+    expect(pedidos[0]!.agora).toBe(comecoDoDia('2026-08-21'));
+    expect(pedidos[0]!.faixa).toBe('remarcacao');
+    // O dia inteiro tem que vir: com 12 vagas, contadas das 08:15, a lista
+    // parava nas 13:45 e um card das 16:00 nunca via as 16:15.
+    expect(pedidos[0]!.quantas).toBeGreaterThanOrEqual(40);
+  });
+
+  it('às 23:58 ainda não', async () => {
+    fichas = [ficha({ id: 50, status: 'chave_na_mao', quando: brt('2026-08-20', '13:00') })];
+    vi.setSystemTime(new Date(brt('2026-08-20', '23:58')));
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('sexta 13:00 com 24h: o lugar é segunda às 13:15, não segunda às 08:15', async () => {
+    // O alvo cai no sábado; a grade pula o fim de semana e devolve segunda.
+    // "O seu lugar" é o horário dele, não a primeira vaga da semana.
+    fichas = [ficha({ id: 50, status: 'carregador', quando: brt('2026-08-21', '13:00') })];
+    vi.setSystemTime(new Date(brt('2026-08-21', '23:59')));
+    vagas = faixaDe('2026-08-24');
+    expect((await tick()).remarcados).toBe(1);
+    expect(fichas[0].quando).toBe(brt('2026-08-24', '13:15'));
+    expect(pedidos[0]!.agora).toBe(comecoDoDia('2026-08-22'));
+  });
+
+  it('e o card de ontem anda já, e sobe pro degrau 2', async () => {
     fichas = [ficha({ id: 50, status: 'arrendamento', quando: horasAtras(49) })];
     noDegrau(50, 'arrendamento', 1);
     expect((await tick()).remarcados).toBe(1);
@@ -1272,24 +1328,33 @@ describe('a escada da negociação no tick', () => {
     expect(v?.status).toBe('arrendamento');
   });
 
-  // A REPETIÇÃO, que é a forma nova (07/10/2026): "se mantém, 48hrs; se
-  // manteve, 48hrs". O degrau 3 pede o MESMO que o 2, e só o 4 sobe pra 72h.
-  it('no degrau 2 o próximo REPETE as 48h: 40h não bastam, 49h bastam', async () => {
-    fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: horasAtras(40) })];
-    noDegrau(51, 'chave_na_mao', 2);
-    expect((await tick()).motivo).toBe('todos_no_degrau');
-    fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: horasAtras(49) })];
-    expect((await tick()).remarcados).toBe(1);
-    expect(state.get('ep_reagenda_auto:51')?.value?.degrau).toBe(3);
+  // A REPETIÇÃO (07/10/2026): "se mantém, 48hrs; se manteve, 48hrs". O degrau 3
+  // pede o MESMO que o 2, e só o 4 sobe pra 72h. Desde 09/10 isso aparece no
+  // LUGAR: o card de ontem às 13:00 vai pra amanhã às 13:15 no degrau 2 e 3, e
+  // pra depois de amanhã no 4.
+  it('no degrau 2 e no 3 o lugar é 48h depois; no 4, 72h', async () => {
+    const ontem13h = brt('2026-08-19', '13:00');
+    for (const [guardado, alvoDia] of [[1, '2026-08-21'], [2, '2026-08-21'], [3, '2026-08-22']] as const) {
+      state.clear(); updates.length = 0; pedidos.length = 0;
+      fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: ontem13h })];
+      noDegrau(51, 'chave_na_mao', guardado);
+      expect((await tick()).remarcados, 'degrau ' + (guardado + 1)).toBe(1);
+      expect(pedidos[0]!.agora, 'degrau ' + (guardado + 1)).toBe(comecoDoDia(alvoDia));
+      expect(state.get('ep_reagenda_auto:51')?.value?.degrau).toBe(guardado + 1);
+    }
   });
 
-  it('no degrau 3 o próximo sobe pra 72h: 60h não bastam, 73h bastam', async () => {
-    fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: horasAtras(60) })];
-    noDegrau(51, 'chave_na_mao', 3);
-    expect((await tick()).motivo).toBe('todos_no_degrau');
-    fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: horasAtras(73) })];
-    expect((await tick()).remarcados).toBe(1);
-    expect(state.get('ep_reagenda_auto:51')?.value?.degrau).toBe(4);
+  // A CORRIDA DA MEIA-NOITE. Às 23:59 a fila inteira fica pronta no mesmo
+  // minuto, e os três relógios do tick pegam a mesma primeira ficha. O segundo
+  // leu a ficha ANTES de o primeiro gravar: sem a trava do horário, ele a
+  // empurrava mais um degrau.
+  it('outro relógio já moveu a ficha: este não move de novo', async () => {
+    fichas = [ficha({ id: 54, status: 'chave_na_mao', quando: horasAtras(26) })];
+    vagas = faixaDe('2026-08-21');
+    aplicarUpdateGancho = () => { fichas[0].quando = brt('2026-08-21', '11:15'); };
+    expect((await tick()).remarcados).toBe(0);
+    expect(fichas[0].quando).toBe(brt('2026-08-21', '11:15'));
+    expect(state.has('ep_reagenda_auto:54')).toBe(false);
   });
 
   // O CORAÇÃO DA REGRA. "Se manter uma dessas etiquetas" sobe; mudar de etiqueta
@@ -1357,26 +1422,30 @@ describe('a escada da negociação no tick', () => {
     expect((await tick()).remarcados).toBe(1);
   });
 
-  it('fila cheia de gente no prazo responde `todos_no_degrau`, não `ninguem_na_vez`', async () => {
+  it('fila cheia de negociação de hoje responde `esperando_a_virada`, não `ninguem_na_vez`', async () => {
     // Os dois se resolvem de formas diferentes: um é fila vazia, o outro é fila
-    // cheia descansando. Juntar num motivo só esconderia a escada de quem lê o
-    // tick e desligaria o módulo achando que ele parou.
+    // cheia esperando a meia-noite. Juntar num motivo só esconderia a regra de
+    // quem lê o tick e desligaria o módulo achando que ele parou.
     fichas = [
-      ficha({ id: 58, status: 'arrendamento', quando: horasAtras(40) }),
-      ficha({ id: 59, status: 'carregador', quando: horasAtras(45) }),
+      ficha({ id: 58, status: 'arrendamento', quando: horasAtras(2) }),
+      ficha({ id: 59, status: 'carregador', quando: horasAtras(5) }),
     ];
-    noDegrau(58, 'arrendamento', 2);          // o degrau 3 pede 48h
-    noDegrau(59, 'carregador', 2);            // o degrau 3 pede 48h
+    noDegrau(58, 'arrendamento', 2);
+    noDegrau(59, 'carregador', 2);
     const r = await tick();
     expect(r.remarcados).toBe(0);
-    expect(r.motivo).toBe('todos_no_degrau');
+    expect(r.motivo).toBe('esperando_a_virada');
   });
 
-  it('o passo muda sem deploy, e o corte do tick acompanha', async () => {
-    process.env.EP_NEGOCIACAO_PASSO_H = '0';   // escada plana: 24h pra sempre
-    fichas = [ficha({ id: 60, status: 'arrendamento', quando: horasAtras(25) })];
+  it('o passo muda sem deploy, e o lugar acompanha', async () => {
+    // Escada plana: 24h pra sempre. O card de ontem às 13:00 no degrau 6 cairia
+    // em 96h (domingo); com o passo zerado, o alvo é hoje às 13:00, que já
+    // passou, e a busca parte de agora.
+    process.env.EP_NEGOCIACAO_PASSO_H = '0';
+    fichas = [ficha({ id: 60, status: 'arrendamento', quando: brt('2026-08-19', '13:00') })];
     noDegrau(60, 'arrendamento', 5);
     expect((await tick()).remarcados).toBe(1);
+    expect(pedidos[0]!.agora).toBe(AGORA.getTime());
   });
 });
 
@@ -1506,7 +1575,7 @@ describe('o ciclo da negociação (a escada começa em 24h)', () => {
   const emNegociacao = (st: string, h = 25) =>
     ficha({ status: st, quando: horasAtras(h) });
 
-  it('os sete estágios do funil voltam depois de 24h', async () => {
+  it('os sete estágios do funil voltam depois que o dia deles vira', async () => {
     for (const st of MODELOS) {
       fichas = [emNegociacao(st)];
       state.clear(); updates.length = 0; vagas = [QUINZE];
@@ -1514,9 +1583,12 @@ describe('o ciclo da negociação (a escada começa em 24h)', () => {
     }
   });
 
-  it('antes de 24h não encosta', async () => {
-    fichas = [emNegociacao('chave_na_mao', 20)];
-    expect((await tick()).remarcados).toBe(0);
+  it('antes da virada não encosta, nem nos sete', async () => {
+    for (const st of MODELOS) {
+      fichas = [emNegociacao(st, 2)];             // hoje às 13h
+      state.clear(); updates.length = 0; vagas = [QUINZE];
+      expect((await tick()).remarcados, st).toBe(0);
+    }
   });
 
   // A REGRA MAIS IMPORTANTE DESTE BLOCO. Forçar `agendado` apagaria a
@@ -1583,13 +1655,13 @@ describe('o ciclo da negociação (a escada começa em 24h)', () => {
     expect(state.get('ep_reagenda_auto:3')?.value?.degrau).toBe(12);
   });
 
-  it('e no degrau 12 ele espera as 168h: 160h não bastam', async () => {
+  it('e no degrau 12 o lugar dele é 168h depois de onde estava', async () => {
     onzeVoltas('carregador');
-    fichas = [emNegociacao('carregador', 160)];
+    const ontem = brt('2026-08-19', '13:00');
+    fichas = [ficha({ status: 'carregador', quando: ontem })];
     vagas = [QUINZE];
-    const r = await tick();
-    expect(r.remarcados).toBe(0);
-    expect(r.motivo).toBe('todos_no_degrau');
+    expect((await tick()).remarcados).toBe(1);
+    expect(pedidos[0]!.agora).toBe(comecoDoDia('2026-08-26'));   // 19/08 + 7 dias
   });
 
   // IDA E VOLTA, sem helper no meio: o segundo tick lê o carimbo que o PRIMEIRO
@@ -1601,12 +1673,15 @@ describe('o ciclo da negociação (a escada começa em 24h)', () => {
     expect((await tick()).remarcados).toBe(1);
     expect(state.get('ep_reagenda_auto:3')?.value?.degrau).toBe(1);
     // A ficha foi pro futuro. Trago o horário pra trás na mão pra medir os
-    // PRÓXIMOS degraus: o 2 pede 48h, o 3 repete as 48h, e só o 4 sobe pra 72h.
-    for (const [degrau, cedo, tarde] of [[2, 40, 49], [3, 40, 49], [4, 60, 73]] as const) {
-      fichas[0].quando = horasAtras(cedo);
-      expect((await tick()).remarcados, 'degrau ' + degrau + ' cedo demais').toBe(0);
-      fichas[0].quando = horasAtras(tarde);
-      expect((await tick()).remarcados, 'degrau ' + degrau + ' no prazo').toBe(1);
+    // PRÓXIMOS degraus. Hoje às 13h ela espera a virada; ontem às 13h ela anda,
+    // e o lugar é o horário dela mais 48h no degrau 2 e no 3, e 72h no 4.
+    for (const [degrau, alvoDia] of [[2, '2026-08-21'], [3, '2026-08-21'], [4, '2026-08-22']] as const) {
+      fichas[0].quando = brt('2026-08-20', '13:00');
+      expect((await tick()).remarcados, 'degrau ' + degrau + ' antes da virada').toBe(0);
+      fichas[0].quando = brt('2026-08-19', '13:00');
+      pedidos.length = 0;
+      expect((await tick()).remarcados, 'degrau ' + degrau + ' depois da virada').toBe(1);
+      expect(pedidos[0]!.agora, 'degrau ' + degrau + ' no lugar errado').toBe(comecoDoDia(alvoDia));
       expect(state.get('ep_reagenda_auto:3')?.value?.degrau).toBe(degrau);
     }
   });

@@ -20,7 +20,7 @@ let agendaQuebrada = false;
 
 let vermelhos: any[] = [];
 let futura: any[] = [];
-const updates: Array<{ id: number; patch: any; exigiuStatus: string | null }> = [];
+const updates: Array<{ id: number; patch: any; exigiuStatus: string | null; exigiuQuando?: string | null }> = [];
 /** Simula alguém mexendo no card entre a leitura e a gravação. */
 let updateNaoPega = false;
 /** Horários que o índice único recusa (código 23505), como quando a outra
@@ -44,6 +44,7 @@ vi.mock('../utils/supabaseGerador', () => ({
         eq(col: string, v: any) {
           if (col === 'status') q._status = v;
           if (col === 'id') q._id = v;
+          if (col === 'quando') q._quando = v;
           if (q._patch) return q;
           return q;
         },
@@ -86,7 +87,7 @@ vi.mock('../utils/supabaseGerador', () => ({
         // é quem resolve: reproduz a cadeia real update().eq().eq().select().
         then(res: any) {
           const id = q._id as number;
-          updates.push({ id, patch: q._patch, exigiuStatus: q._status });
+          updates.push({ id, patch: q._patch, exigiuStatus: q._status, exigiuQuando: q._quando });
           if (updateNaoPega) return res({ data: [], error: null });
           if (colidemEm.includes(String(q._patch?.quando))) {
             return res({ data: null, error: { code: '23505', message: 'duplicate key' } });
@@ -549,12 +550,54 @@ describe('a rampa diária', () => {
   /** `quando` a N horas antes do AGORA do teste. */
   const hAtras = (h: number) => new Date(AGORA.getTime() - h * 3600_000).toISOString();
 
-  it('no degrau 1, 40h não bastam: o degrau 2 pede 48h', async () => {
-    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(40) })];
+  // ── DESDE 09/10/2026 O DEGRAU DIZ ONDE, E O DIA DIZ QUANDO ─────────────
+  //
+  // "Ele tem que sair às 23:59 do mesmo dia e não esperar dar as 48h", e "a
+  // lógica é virar no mesmo dia e ocupar seu lugar na próxima agenda". AGORA é
+  // quarta 30/09, 11h.
+  /** Um horário de Brasília em ISO. */
+  const brt = (dia: string, hm: string) => new Date(`${dia}T${hm}:00-03:00`).toISOString();
+
+  it('o card das 09:15 de HOJE não anda às 11h, em degrau nenhum', async () => {
+    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: brt('2026-09-30', '09:15') })];
     noDegrau(70, 'fez_orcamento', 1);
     const r = await tick();
     expect(r.remarcados).toBe(0);
-    expect(r.motivo).toBe('todos_no_degrau');
+    expect(r.motivo).toBe('esperando_a_virada');
+  });
+
+  it('O EXEMPLO DA ORDEM: às 23:59 o card das 10:00 vai pras 10:15 de amanhã', async () => {
+    vermelhos = [card({ id: 80, status: 'fez_orcamento', quando: brt('2026-09-30', '10:00') })];
+    vi.setSystemTime(new Date(brt('2026-09-30', '23:59')));
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.quando).toBe(brt('2026-10-01', '10:15'));
+  });
+
+  it('às 23:58 ainda não', async () => {
+    vermelhos = [card({ id: 80, status: 'fez_orcamento', quando: brt('2026-09-30', '10:00') })];
+    vi.setSystemTime(new Date(brt('2026-09-30', '23:58')));
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('sexta 13:15 com 24h: o lugar é segunda às 13:15, não às 08:15', async () => {
+    vermelhos = [card({ id: 81, status: 'fez_orcamento', quando: brt('2026-10-02', '13:15') })];
+    vi.setSystemTime(new Date(brt('2026-10-02', '23:59')));
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.quando).toBe(brt('2026-10-05', '13:15'));
+  });
+
+  it('o lugar ocupado: o seguinte do mesmo dia', async () => {
+    vermelhos = [card({ id: 82, status: 'fez_orcamento', quando: brt('2026-09-30', '10:00') })];
+    futura = [{ quando: brt('2026-10-01', '10:15'), vendedor_nome: 'Giovanna', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' }];
+    vi.setSystemTime(new Date(brt('2026-09-30', '23:59')));
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.quando).toBe(brt('2026-10-01', '10:45'));
+  });
+
+  it('o UPDATE exige o horário que foi lido: dois ticks não empurram o card dois degraus', async () => {
+    vermelhos = [card({ id: 83, status: 'fez_orcamento', quando: brt('2026-09-29', '09:15') })];
+    await tick();
+    expect(updates[0].exigiuQuando).toBe(brt('2026-09-29', '09:15'));
   });
 
   it('e 49h bastam — o card volta e sobe pro degrau 2', async () => {
@@ -568,23 +611,25 @@ describe('a rampa diária', () => {
 
   // A REPETIÇÃO (07/10/2026): o degrau 3 pede as mesmas 48h do 2, e só o 4
   // sobe pra 72h. É a forma nova da escada, então ela é provada no tick também.
-  it('no degrau 2 o próximo REPETE as 48h, e no 3 o próximo sobe pra 72h', async () => {
-    vermelhos = [card({ id: 75, status: 'fez_orcamento', quando: hAtras(49) })];
+  it('no degrau 3 o lugar REPETE as 48h, e no 4 sobe pra 72h', async () => {
+    // O card de ontem (terça) às 09:15: 48h depois é quinta às 09:15, 72h é
+    // sexta às 09:15.
+    vermelhos = [card({ id: 75, status: 'fez_orcamento', quando: brt('2026-09-29', '09:15') })];
     noDegrau(75, 'fez_orcamento', 2);
     expect((await tick()).remarcados).toBe(1);
     expect(state.get('solar_reagenda:75')?.value?.degrau).toBe(3);
+    expect(updates[0].patch.quando).toBe(brt('2026-10-01', '09:15'));
 
     state.clear(); updates.length = 0;
-    vermelhos = [card({ id: 76, status: 'fez_orcamento', quando: hAtras(60) })];
+    vermelhos = [card({ id: 76, status: 'fez_orcamento', quando: brt('2026-09-29', '09:15') })];
     noDegrau(76, 'fez_orcamento', 3);
-    expect((await tick()).motivo).toBe('todos_no_degrau');
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.quando).toBe(brt('2026-10-02', '09:15'));
   });
 
-  // A NEGOCIAÇÃO CAI HOJE (07/10/2026). A busca começava sempre amanhã, e com a
-  // escada em 24h isso virava 42h: elegível às 11h de quarta, ligação às 08h de
-  // quinta. AGORA é quarta 11:00 BRT, então o primeiro horário livre de hoje é
-  // 11:15: desde 09/10 o follow-up da Giovanna vai das 08:15 às 16:45 em :15 e
-  // :45, com o almoço aberto (antes era 13:00, depois do almoço fechado).
+  // O CARD QUE VIROU ATRASADO CAI HOJE. O de ontem às 10:00, no degrau 1, tem o
+  // lugar dele hoje às 10:00, que já passou (AGORA é 11:00): ele vai pro
+  // primeiro horário livre de hoje dali pra frente, 11:15, e não pra amanhã.
   it('a negociação cai no primeiro horário livre de HOJE, não de amanhã', async () => {
     vermelhos = [card({ id: 77, status: 'fez_orcamento', quando: hAtras(25) })];
     expect((await tick()).remarcados).toBe(1);

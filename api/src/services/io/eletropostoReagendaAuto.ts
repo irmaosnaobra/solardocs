@@ -125,6 +125,7 @@ import { EP_REMARCAR_PREFIX } from './eletropostoRemarcar';
 import { proximasVagas, diaBRT } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from '../agenda/salaDeEspera';
+import { jaVirou, alvoDoDegrau, inicioDoDia, ordenarPeloLugar } from '../agenda/viradaDoDia';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 
 const BRT_TZ = 'America/Sao_Paulo';
@@ -424,6 +425,18 @@ const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 24);
  * O resto não mudou: etiqueta diferente zera, o teto sai da janela, e
  * `EP_NEGOCIACAO_H` (a primeira volta) e `EP_NEGOCIACAO_PASSO_H` (quanto sobe)
  * mexem sem deploy.
+ *
+ * ── A ESCADA DEIXOU DE DIZER QUANDO E PASSOU A DIZER ONDE (09/10/2026) ─────
+ *
+ * Ordem do Thiago: "ele tem que sair às 23:59 do mesmo dia e não esperar dar as
+ * 48h", e "a lógica é virar no mesmo dia e ocupar seu lugar na próxima agenda".
+ *
+ * Até aqui as horas do degrau eram o tempo de ESPERA: o card ficava parado no
+ * passado até elas vencerem, invisível na agenda do dia seguinte. Agora o card
+ * sai às 23:59 do dia em que estava e as horas do degrau dizem o LUGAR dele:
+ * `quando + horas`, no primeiro horário dos quinze dali em diante (13:00 de
+ * sexta com 24h vira 13:15 do próximo dia aberto). A regra mora em
+ * `agenda/viradaDoDia.ts`, que o solar usa igual.
  */
 const passoNegociacaoH = (): number => num('EP_NEGOCIACAO_PASSO_H', 24);
 /** Quantas voltas cada intervalo dura antes de subir um passo. A primeira volta
@@ -643,6 +656,11 @@ const JANELA_FIM_H = 19;
 /** Quantas vagas pedir pra escolher: uma grade cheia de segunda tem 8 horários,
  *  então 12 garante o dia inteiro mais folga pra cair no dia seguinte. */
 const VAGAS_CONSULTADAS = 12;
+/** Quantas vagas pedir pra negociação (09/10/2026). Ela escolhe o lugar DENTRO
+ *  do dia, a partir da hora do alvo, então o dia inteiro tem que vir: com 12,
+ *  contadas das 08:15, a lista parava nas 13:45 e um card das 16:00 nunca via
+ *  as 16:15. A faixa dos quinze tem 20 por dia; 48 cobre dois dias e sobra. */
+const VAGAS_DA_VIRADA = 48;
 /** Tentativas de gravação por ficha: o índice único é igualdade exata e a régua
  *  de vaga é sobreposição de 30 min — as duas podem discordar numa corrida com a
  *  LP. Três candidatos cobrem isso sem virar laço. */
@@ -767,7 +785,7 @@ export function linhaDoHistorico(
     // alguém faz com o que parece defeito é desligar.
     const total = tentativa !== degrau ? ` (${tentativa}ª no total)` : '';
     return `[${carimbo} · Sistema] 🔁 Ciclo de ${horasDoDegrau(degrau)}h (${degrau}ª volta nesta etiqueta${total}): `
-      + `a negociação parou desde ${de} e o card voltou pra *${para}*, nos quinze, `
+      + `o dia de ${de} fechou com a negociação parada e o card já foi pro lugar dele na próxima agenda, *${para}*, nos quinze, `
       + 'com o mesmo consultor e o mesmo status. Nada foi enviado ao cliente. '
       + `Se a etiqueta não mudar, a próxima volta é em ${horasDoDegrau(degrau + 1)}h; `
       + `mudar de etiqueta recomeça em ${horasDoDegrau(1)}h. `
@@ -799,12 +817,27 @@ export function linhaDoHistorico(
  */
 export async function candidatosDoOutroDia(
   dono: string, quandoIso: string, agora = Date.now(), negociacao = false, antecedenciaMin = 0,
+  alvoMs?: number,
 ): Promise<string[] | null> {
   // Nunca no passado: reunião perdida ontem e detectada hoje de manhã tem que
   // cair de hoje pra frente, não "no dia seguinte ao de ontem".
   // `antecedenciaMin` é só do caminho que FALA (07/10/2026): ele avisa o
   // cliente do horário novo, e o aviso precisa chegar com tempo de ser lido.
   const inicio = Math.max(agora + antecedenciaMin * 60_000, inicioDoDiaSeguinte(quandoIso));
+  // ── NEGOCIAÇÃO: O LUGAR DELA NA PRÓXIMA AGENDA (09/10/2026) ──────────────
+  //
+  // A busca parte do COMEÇO do dia do alvo, não do alvo: o `proximasVagas`
+  // soma 30 min de antecedência ao `agora` que recebe, e partir das 13:00
+  // pularia justamente as 13:15. Do começo do dia vem o dia inteiro, e quem
+  // escolhe o horário é o `ordenarPeloLugar`. Nunca antes de agora: o card que
+  // virou atrasado cai de hoje pra frente.
+  if (negociacao && alvoMs !== undefined) {
+    const desde = Math.max(inicio, inicioDoDia(alvoMs));
+    const livres = await proximasVagas(dono, VAGAS_DA_VIRADA,
+      { agora: desde, ignorarIso: quandoIso, faixa: 'remarcacao' });
+    if (livres === null) return null;           // leitura falhou: não inventa horário
+    return ordenarPeloLugar(livres, alvoMs);
+  }
   // GRADE REDONDA (:00/:30), e não a faixa dos quinze.
   //
   // Ordem do Thiago (30/09/2026, depois de ver a primeira versão): "remarca para
@@ -914,6 +947,13 @@ async function gravarNovoHorario(
       // mexeu no status entre a leitura e agora, quem manda é a pessoa e o
       // update não pega linha nenhuma.
       .eq('status', String(f.status))
+      // E O HORÁRIO QUE FOI LIDO (09/10/2026). Com a virada às 23:59, a fila
+      // inteira da negociação fica pronta no mesmo minuto, e os três relógios
+      // deste tick pegam a MESMA primeira ficha. O segundo lia a ficha antes da
+      // gravação do primeiro e o carimbo depois dela: via o degrau já subido,
+      // e empurrava o card mais um degrau pra frente (48h no lugar de 24h).
+      // Card que já mudou de horário não é mais o card que foi lido.
+      .eq('quando', String(f.quando))
       .select('id');
     if (error) {
       if (String((error as { code?: string }).code) === '23505') {
@@ -926,7 +966,7 @@ async function gravarNovoHorario(
     // Zero linhas sem erro = alguém mexeu no status. Não insiste com outro slot:
     // a ficha deixou de ser vermelha e não é mais assunto deste módulo.
     if (!data?.length) {
-      logger.info('ep-reagenda', 'ficha saiu do vermelho entre a leitura e a gravação', { id: f.id });
+      logger.info('ep-reagenda', 'a ficha mudou de status ou de horário entre a leitura e a gravação', { id: f.id });
       return null;
     }
     return novo;
@@ -1042,7 +1082,6 @@ export async function runEletropostoReagendaAutoTick(
   //                   ainda sai pra quem já está vermelho).
   //   `agendado`    — NINGUÉM apertou nada. 6 horas, ordem do Thiago.
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
-  const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, temperatura, lead_resposta_at, historico')
@@ -1094,11 +1133,11 @@ export async function runEletropostoReagendaAutoTick(
     // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
     // certo é esta linha.
     && (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
-    // Negociação: este corte é o PISO da escada (o degrau 1, 24h). Quem sabe o
-    // degrau de cada ficha é o `estadoDe`, que só é lido depois daqui — então o
-    // corte exato é aplicado no `naVez`. Peneirar aqui pelo piso é de graça e
-    // não exclui ninguém que esteja no prazo: nenhum degrau pede MENOS que o 1.
-    && (!ehNegociacaoStatus(String(f.status)) || (!!f.quando && f.quando <= corteNegociacao))
+    // Negociação NÃO tem corte aqui desde 09/10/2026. Havia um piso de 24h, e
+    // ele seguraria o card de ontem às 13:00 até as 13:00 de hoje, que é
+    // justamente a espera que a virada das 23:59 acabou. Quem segura o card do
+    // dia que ainda não fechou é o `descansou`, logo abaixo, e deixá-lo passar
+    // por aqui é o que faz ele aparecer na conta de quem espera a virada.
     // Rede: status sem relógio nenhum não entra. A consulta já corta destino
     // final e apalavrado; isto segura se alguém mexer na consulta.
     && relogioDoCiclo(String(f.status)) !== null
@@ -1213,15 +1252,15 @@ export async function runEletropostoReagendaAutoTick(
   // dizer "você não apareceu" vinte vezes, não.
   const semTeto = (f: FichaVermelha) =>
     f.status === 'agendado' || ehNegociacaoStatus(String(f.status));
-  // ── O CORTE EXATO DA ESCADA, FICHA POR FICHA ─────────────────────────────
+  // ── A NEGOCIAÇÃO ANDA QUANDO O DIA DELA VIRA (09/10/2026) ────────────────
   //
-  // Só a negociação tem escada. O vermelho (45 min) e o esquecido (6h) já foram
+  // Até 09/10 aqui era o corte exato da escada: a ficha só andava vencidas as
+  // horas do degrau. Agora o degrau diz ONDE ela cai (o `alvo` no laço lá
+  // embaixo) e o dia diz QUANDO: às 23:59 do dia em que ela estava. Ver
+  // `agenda/viradaDoDia.ts`. O vermelho (45 min) e o esquecido (6h) já foram
   // cortados na peneira de cima, com relógio fixo, e aqui passam direto.
-  const descansou = (f: FichaVermelha): boolean => {
-    if (relogioDoCiclo(String(f.status)) !== 'negocia') return true;
-    const horas = horasDoDegrau(degrauDaProximaVolta(estadoDe.get(f.id), String(f.status)));
-    return !!f.quando && new Date(f.quando).getTime() <= agora - horas * 3600_000;
-  };
+  const descansou = (f: FichaVermelha): boolean =>
+    relogioDoCiclo(String(f.status)) !== 'negocia' || jaVirou(f.quando, agora);
   const noPrazo = candidatos.filter(f => !descansou(f)).length;
   // Quem a fila barrou pelo TETO DE VOLTAS (só o vermelho tem teto). Contado
   // separado porque "descansando no degrau" e "estourou as 3 voltas" se
@@ -1240,16 +1279,16 @@ export async function runEletropostoReagendaAutoTick(
     !comOferta.has(f.id) && !naEspera(f) && descansou(f)
     && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < maxVoltas()));
   if (!naVez.length) {
-    // Dois motivos diferentes, e confundi-los esconde a escada: "ninguém na vez"
-    // é fila vazia; "todos descansando" é fila cheia de gente dentro do prazo.
-    // O log diz SEMPRE os dois números. O motivo só vira `todos_no_degrau`
-    // quando a escada é a única coisa segurando a fila: se há vermelho
-    // estourado no teto, dizer "todos no degrau" mandaria a gente esperar o
-    // relógio por um card que só sai com decisão de gente.
-    logger.info('ep-reagenda', `fila parada: ${noPrazo} em negociação dentro do degrau, `
+    // Dois motivos diferentes, e confundi-los esconde a regra: "ninguém na vez"
+    // é fila vazia; "esperando a virada" é fila cheia de negociação cujo dia
+    // ainda não fechou. O log diz SEMPRE os dois números. O motivo só vira
+    // `esperando_a_virada` quando é a única coisa segurando a fila: se há
+    // vermelho estourado no teto, dizer isso mandaria a gente esperar a
+    // meia-noite por um card que só sai com decisão de gente.
+    logger.info('ep-reagenda', `fila parada: ${noPrazo} em negociação esperando o dia virar (23:59), `
       + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${esperando} na sala de espera, `
       + `${candidatos.length} candidato(s)`);
-    if (noPrazo && !noTeto) return zero('todos_no_degrau');
+    if (noPrazo && !noTeto) return zero('esperando_a_virada');
     return zero('ninguem_na_vez');
   }
 
@@ -1519,8 +1558,11 @@ export async function runEletropostoReagendaAutoTick(
       // UMA leitura do relógio, ANTES do update: o vermelho volta pra `agendado`
       // na mesma gravação, e reler depois o carimbaria como calado.
       const relogio = relogioDe(f);
+      // O LUGAR da negociação: o horário onde ela estava mais as horas do
+      // degrau. É a única coisa que o degrau decide desde 09/10/2026.
+      const alvo = ehNegociacao ? alvoDoDegrau(String(f.quando), horasDoDegrau(degrau)) : undefined;
       const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao,
-        relogio === 'fala' ? falaAntecedenciaMin() : 0);
+        relogio === 'fala' ? falaAntecedenciaMin() : 0, alvo);
       if (lista === null) continue;             // leitura da agenda falhou
       if (!lista.length) {
         logger.info('ep-reagenda', 'agenda do consultor sem vaga — tenta no próximo tick', { id: f.id, quem });

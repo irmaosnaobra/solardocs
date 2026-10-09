@@ -67,6 +67,7 @@ import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
 import { caminhoDaFicha, GRADE_FOLLOWUP_LIGACAO, temDuasFaixas } from './solarRota';
+import { jaVirou, alvoDoDegrau, ordenarPeloLugar } from './viradaDoDia';
 
 const TZ = 'America/Sao_Paulo';
 
@@ -211,6 +212,11 @@ const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 24);
  * negociação que não andou, e devolver de 48 em 48h pra sempre come a grade
  * sem mudar nada. Deixar o solar de fora faria dois cards idênticos no quadro
  * se comportarem diferente.
+ *
+ * DESDE 09/10/2026 AS HORAS DIZEM ONDE, NÃO QUANDO: o card sai às 23:59 do dia
+ * em que estava e cai em `quando + horas do degrau`, no primeiro horário da
+ * grade de follow-up dali em diante. A regra e a frase do Thiago estão em
+ * `viradaDoDia.ts`, que o eletroposto usa igual.
  */
 const passoNegociacaoH = (): number => num('SOLAR_NEGOCIACAO_PASSO_H', 24);
 /** Quantas voltas cada intervalo dura antes de subir um passo. */
@@ -443,7 +449,7 @@ export function linhaDoHistorico(
     // defeito é desligar.
     const total = volta !== degrau ? ` (${volta}ª no total)` : '';
     return `[${carimbo} · Sistema] 🔁 Ciclo de ${horasDoDegrau(degrau)}h (${degrau}ª volta nesta etiqueta${total}): `
-      + `a negociação parou desde ${horaBonita(deIso)} e o card voltou pra ${horaBonita(paraIso)}, `
+      + `o dia de ${horaBonita(deIso)} fechou com a negociação parada e o card já foi pro lugar dele na próxima agenda, ${horaBonita(paraIso)}, `
       + 'com o mesmo consultor e o mesmo status. Nada foi enviado ao cliente. '
       + `Se a etiqueta nao mudar, a proxima volta e em ${horasDoDegrau(degrau + 1)}h; `
       + `mudar de etiqueta recomeca em ${horasDoDegrau(1)}h. `
@@ -488,6 +494,33 @@ export function primeiraVaga(
 }
 
 /**
+ * O LUGAR DA NEGOCIAÇÃO NA PRÓXIMA AGENDA (09/10/2026). Mesma régua do
+ * eletroposto, pela mesma função (`ordenarPeloLugar`): no primeiro dia com vaga,
+ * o primeiro horário a partir da hora do alvo; dia cheio dali pra frente, o
+ * anterior mais perto. O `primeiraVaga` devolveria o primeiro horário do dia,
+ * e o card de 13:00 iria pras 08:15.
+ *
+ * Pura, como o `primeiraVaga`: recebe a ocupação em vez de ler o banco.
+ */
+export function vagaNoLugar(
+  ocupado: Array<{ ini: number; dur: number }>,
+  agora: number,
+  alvoMs: number,
+  dias: string[],
+  grade: readonly string[] = GRADE_NILCE,
+): string | null {
+  for (const dia of dias) {
+    const livres = grade.map(hhmm => isoDe(dia, hhmm)).filter(iso => {
+      const t = new Date(iso).getTime();
+      return t > agora && !ocupado.some(o => o.ini < t + DUR_LIGACAO_MS && t < o.ini + o.dur);
+    });
+    // Só o primeiro dia com vaga importa: é dentro dele que se escolhe.
+    if (livres.length) return ordenarPeloLugar(livres, alvoMs)[0] ?? null;
+  }
+  return null;
+}
+
+/**
  * Uma rodada. Chamada de ~2 em 2 minutos dentro do /cron/process-messages.
  * `dry` decide igual e não grava nada.
  */
@@ -527,13 +560,13 @@ export async function runReagendaSolarTick(
   await contarForaDaJanela(de);
 
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
-  const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();
   const bloqueado = await carregarBloqueados();
   const vermelhos = ((data ?? []) as CardSolar[]).filter(f =>
-    // Cada um com o seu relogio: vermelho 30 min, esquecido 6h, negociacao 24h no degrau 1.
+    // Cada um com o seu relogio: vermelho 30 min, esquecido 6h. A negociacao
+    // nao tem corte aqui desde 09/10/2026: quem a segura e a virada do dia, no
+    // `descansou` la embaixo. O piso de 24h que morava aqui seguraria o card de
+    // ontem as 13:00 ate as 13:00 de hoje, a espera que a virada acabou.
     (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
-    && (relogioDoCicloSolar(String(f.status)) !== 'negocia'
-      || (!!f.quando && f.quando <= corteNegociacao))
     && relogioDoCicloSolar(String(f.status)) !== null
     // Fora do horario comercial sobra so o card esquecido, que e silencioso.
     && (!foraDaJanela || f.status !== 'nao_atendeu')
@@ -601,16 +634,13 @@ export async function runReagendaSolarTick(
     });
   }
 
-  // ── O CORTE EXATO DA ESCADA, CARD POR CARD ───────────────────────────────
+  // ── A NEGOCIAÇÃO ANDA QUANDO O DIA DELA VIRA (09/10/2026) ────────────────
   //
-  // O corte de 24h lá em cima é o PISO (degrau 1): ele peneira de graça e não
-  // exclui ninguém no prazo, porque nenhum degrau pede MENOS que o 1. Quem sabe
-  // o degrau de cada card é o `estadoDe`, lido só agora.
-  const descansou = (f: CardSolar): boolean => {
-    if (relogioDoCicloSolar(String(f.status)) !== 'negocia') return true;
-    const horas = horasDoDegrau(degrauDaProximaVolta(estadoDe.get(f.id), String(f.status)));
-    return !!f.quando && new Date(f.quando).getTime() <= agora - horas * 3600_000;
-  };
+  // Até 09/10 aqui era o corte exato da escada. Agora o degrau diz ONDE o card
+  // cai (o alvo no laço lá embaixo) e o dia diz QUANDO: às 23:59 do dia em que
+  // ele estava. Ver `viradaDoDia.ts`.
+  const descansou = (f: CardSolar): boolean =>
+    relogioDoCicloSolar(String(f.status)) !== 'negocia' || jaVirou(f.quando, agora);
   const noPrazo = vermelhos.filter(f => !descansou(f)).length;
   // Quem o TETO DE VOLTAS barrou (so o vermelho tem teto): contado separado,
   // porque "descansando no degrau" e "estourou as voltas" se resolvem de
@@ -628,12 +658,12 @@ export async function runReagendaSolarTick(
     !naEspera(f) && descansou(f)
     && (f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas()));
   if (!naVez.length) {
-    // "Ninguem na vez" e "todos dentro do degrau" sao coisas diferentes, e
-    // juntar as duas num motivo so esconderia a escada de quem le o tick.
-    logger.info('solar-reagenda', `fila parada: ${noPrazo} em negociacao dentro do degrau, `
+    // "Ninguem na vez" e "esperando a virada" sao coisas diferentes, e juntar
+    // as duas num motivo so esconderia de quem le o tick por que a fila parou.
+    logger.info('solar-reagenda', `fila parada: ${noPrazo} em negociacao esperando o dia virar (23:59), `
       + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${esperando} na sala de espera, `
       + `${vermelhos.length} candidato(s)`);
-    if (noPrazo && !noTeto) return zero('todos_no_degrau');
+    if (noPrazo && !noTeto) return zero('esperando_a_virada');
     return zero('ninguem_na_vez');
   }
 
@@ -746,27 +776,25 @@ export async function runReagendaSolarTick(
     // mesma gravação, e aí ele se carimbaria como calado e deixaria de gastar o
     // teto que protege a linha.
     const relogio = relogioDoCicloSolar(String(f.status)) ?? 'fala';
-    // ── A NEGOCIAÇÃO PODE CAIR HOJE (07/10/2026) ────────────────────────────
-    //
-    // A busca de vaga começava sempre AMANHÃ. Pro vermelho e pro esquecido isso
-    // é a regra ("remarca para o outro dia"). Pra negociação não era regra
-    // nenhuma, e com a escada começando em 24h ela virava atraso: o card ficava
-    // elegível às 14h de quarta e caía às 08h de quinta, 42h depois da reunião
-    // em vez de 24h, e cada degrau seguinte herdava o mesmo meio dia a mais. O
-    // eletroposto já caía no mesmo dia (`candidatosDoOutroDia` parte de agora).
-    //
-    // Então a negociação procura a partir de HOJE, se hoje for dia útil, e o
-    // `primeiraVaga` já pula todo horário que passou. Os outros dois relógios
-    // continuam começando amanhã.
-    const hoje = ymdSP(new Date(agora));
-    const dias = [
-      ...(relogio === 'negocia' && ehDiaUtil(hoje) ? [hoje] : []),
-      ...proximosDiasUteis(hoje, HORIZONTE_DIAS_UTEIS),
-    ];
     const volta = (voltasDe.get(f.id) ?? 0) + 1;
-    // UMA conta de degrau, usada nos tres lugares: decidir se o card podia andar,
-    // escrever a linha e gravar o carimbo.
+    // UMA conta de degrau, usada nos tres lugares: o lugar onde o card cai, a
+    // linha do historico e o carimbo.
     const degrau = degrauDaProximaVolta(estadoDe.get(f.id), String(f.status));
+    // ── A NEGOCIAÇÃO CAI NO LUGAR DELA (09/10/2026) ─────────────────────────
+    //
+    // O alvo é o horário onde o card estava mais as horas do degrau, e a busca
+    // começa no dia do alvo (ou hoje, se o card virou atrasado). O horizonte
+    // conta dali, e não de hoje: o degrau mais alto pede 18 dias, mais que os
+    // 10 dias úteis contados de hoje.
+    //
+    // O vermelho e o esquecido seguem começando AMANHÃ, que é a regra deles
+    // ("remarca para o outro dia").
+    const hoje = ymdSP(new Date(agora));
+    const alvo = relogio === 'negocia' ? alvoDoDegrau(f.quando, horasDoDegrau(degrau)) : null;
+    const base = alvo === null ? hoje : [hoje, ymdSP(new Date(alvo))].sort()[1]!;
+    const dias = alvo === null
+      ? proximosDiasUteis(hoje, HORIZONTE_DIAS_UTEIS)
+      : [...(ehDiaUtil(base) ? [base] : []), ...proximosDiasUteis(base, HORIZONTE_DIAS_UTEIS)];
 
     // ── MAIS DE UM HORÁRIO POR CARD, QUANDO O PRIMEIRO É RECUSADO ──────────
     //
@@ -782,7 +810,9 @@ export async function runReagendaSolarTick(
     let novo: string | null = null;
     let moveu = false;
     for (let tentativa = 1; tentativa <= HORARIOS_POR_CARD && !moveu; tentativa++) {
-      novo = primeiraVaga(ocupado, agora, dias, gradeDoFollowup(dono));
+      novo = alvo === null
+        ? primeiraVaga(ocupado, agora, dias, gradeDoFollowup(dono))
+        : vagaNoLugar(ocupado, agora, alvo, dias, gradeDoFollowup(dono));
       if (!novo) break;
 
       if (dry) {
@@ -825,6 +855,10 @@ export async function runReagendaSolarTick(
       .eq('id', f.id)
       // O status que FOI LIDO: o modulo passou a pegar `agendado` tambem.
       .eq('status', String(f.status))
+      // E o horario que foi lido (09/10/2026): com a virada as 23:59 a fila
+      // inteira fica pronta no mesmo minuto, e dois ticks que pegam o mesmo
+      // card empurrariam ele dois degraus. Ver o gemeo do eletroposto.
+      .eq('quando', f.quando)
       .select('id');
       if (erroUpd) {
         // 23505 = índice único: o horário foi ocupado por fora. Marca ele como
@@ -842,7 +876,7 @@ export async function runReagendaSolarTick(
         break;
       }
       if (!atualizado?.length) {
-        logger.info('solar-reagenda', `card ${f.id} saiu do vermelho no meio do caminho — quem manda é a pessoa`);
+        logger.info('solar-reagenda', `card ${f.id} mudou de status ou de horário no meio do caminho — quem manda é quem mexeu`);
         break;
       }
 
