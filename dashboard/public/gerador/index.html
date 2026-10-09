@@ -353,6 +353,21 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   font-family:inherit;margin-bottom:-1px;white-space:nowrap;flex:0 0 auto}
 .eletro-subtab:hover{color:#E5E7EB}
 .eletro-subtab.ativa{color:#fff;border-bottom-color:#3B82F6}
+/* ===== A ABA SOLAR (09/10/2026) =====
+   As cinco telas do solar numa régua só, no alto do app, como a do Eletroposto.
+   Classe própria de propósito: o eletroSubaba usa querySelector('.eletro-subnav'),
+   que pega a PRIMEIRA régua da página, e esta fica antes da dele. Âmbar é a cor do
+   solar no CRM (.crm-subtab.ativo.solar). Só aparece no app e só nas telas do solar:
+   o link que o cliente abre (data-mode viewer) nunca vê. */
+.solar-subnav{display:none;gap:6px;margin:0 0 18px;border-bottom:1px solid rgba(255,255,255,.08);
+  overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.solar-subnav::-webkit-scrollbar{display:none}
+html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
+.solar-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;
+  padding:10px 16px;min-height:44px;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:inherit;margin-bottom:-1px;white-space:nowrap;flex:0 0 auto}
+.solar-subtab:hover{color:#E5E7EB}
+.solar-subtab.ativa{color:#fff;border-bottom-color:#F59E0B}
 /* Pílula no nível 2, sublinhado no nível 1 — é a mesma hierarquia que a casa já usa
    em Redes (subnav sublinhada -> redes-tabs em pílula). Mesmo nome de classe ativa
    ('ativa') nos dois níveis: a casa tem ativa/ativo/on em componentes diferentes, e
@@ -2952,17 +2967,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <span class="sb-name">Irmãos na Obra<small>Gerador solar</small></span>
   </button>
   <div class="sb-nav">
-    <button type="button" class="sb-item" id="nav-gerador" onclick="navGerador()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Gerar proposta</button>
+    <button type="button" class="sb-item" id="nav-solar" onclick="navGerador()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line></svg></span> Solar</button>
+    <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Agenda</button>
     <button type="button" class="sb-item" id="nav-crm" onclick="navCRM()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg></span> CRM</button>
     <button type="button" class="sb-item" id="nav-prospeccao" onclick="location.href='/gerador/prospeccao'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="23"></line><line x1="1" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="23" y2="12"></line></svg></span> Prospecção</button>
     <button type="button" class="sb-item" id="nav-cobrancas" onclick="location.href='/gerador/cobrancas'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><line x1="6" y1="15" x2="10" y2="15"></line></svg></span> Cobranças</button>
     <button type="button" class="sb-item" id="nav-agentes" onclick="location.href='/gerador/agentes'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"></rect><line x1="12" y1="4" x2="12" y2="8"></line><circle cx="12" cy="3" r="1"></circle><line x1="9" y1="13" x2="9" y2="14"></line><line x1="15" y1="13" x2="15" y2="14"></line></svg></span> Agentes</button>
-    <button type="button" class="sb-item" id="nav-historico" onclick="navHistorico()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg></span> Histórico</button>
-    <button type="button" class="sb-item" id="nav-leads" onclick="navLeads()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Leads</button>
-    <button type="button" class="sb-item" id="nav-tabelas" onclick="navTabelas()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span> Tabelas</button>
-    <button type="button" class="sb-item" id="nav-calc" onclick="navCalc()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg></span> Calculadora</button>
-    <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
     <button type="button" class="sb-item" id="nav-automacao" onclick="navAutomacao()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></span> Automação</button>
   </div>
   <div class="sb-spacer"></div>
@@ -2973,6 +2984,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 </nav>
 
 <div class="container">
+
+  <!-- A ABA SOLAR (09/10/2026): pedido do Thiago, "cria a aba solar e jogue os menus que
+       são deles dentro, igual o eletroposto". Cada aba chama a função de sempre da tela
+       (navGerador, navHistorico...); o marcarNavAtivo acende a aba e o item Solar. -->
+  <div class="solar-subnav" role="tablist" aria-label="Solar">
+    <button type="button" class="solar-subtab" data-aba="gerador" onclick="navGerador()">Gerar proposta</button>
+    <button type="button" class="solar-subtab" data-aba="historico" onclick="navHistorico()">Histórico</button>
+    <button type="button" class="solar-subtab" data-aba="leads" onclick="navLeads()">Leads</button>
+    <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
+    <button type="button" class="solar-subtab" data-aba="calc" onclick="navCalc()">Calculadora</button>
+  </div>
 
   <!-- ============= TELA 1: FORMULÁRIO ============= -->
   <div id="formSection">
@@ -9057,14 +9079,34 @@ function voltarDoHistorico() {
   document.getElementById('historicoSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
   document.documentElement.classList.remove('historico-aberto'); // volta a sidebar no gerador
+  marcarNavAtivo('nav-gerador');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ===== Navegação pela sidebar =====
+// ── A ABA SOLAR (09/10/2026) ────────────────────────────────────────────────
+// As cinco telas do solar (Gerar proposta, Histórico, Leads, Tabelas e
+// Calculadora) saíram da barra lateral e viraram abas da régua .solar-subnav.
+// Quem chama marcarNavAtivo com o id antigo de uma delas acende o item Solar e a
+// aba certa: nenhum chamador precisou mudar. O mapa mora DENTRO da função porque
+// ela roda no DOMContentLoaded e em deep link, e uma const no topo do script
+// estaria em zona morta se alguém a chamasse antes da linha dela.
 function marcarNavAtivo(id) {
+  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc' };
+  const aba = ABA_SOLAR[id] || null;
   document.querySelectorAll('#app-sidebar .sb-item').forEach(b => b.classList.remove('ativo'));
-  const el = document.getElementById(id);
+  document.documentElement.classList.toggle('solar-aberto', !!aba);
+  document.querySelectorAll('.solar-subtab').forEach(b => b.classList.toggle('ativa', b.dataset.aba === aba));
+  const el = document.getElementById(aba ? 'nav-solar' : id);
   if (el) el.classList.add('ativo');
+}
+// Esconde TODAS as telas do app antes de abrir uma. Cada nav escondia uma lista
+// diferente; com a régua dá para ir de Leads direto para Tabelas, e sem isto uma
+// tela ficaria empilhada sobre a outra.
+function telasSolarLimpar() {
+  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
+    .forEach(t => { const el = document.getElementById(t); if (el) el.style.display = 'none'; });
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
@@ -9074,11 +9116,15 @@ function navGerador() {
   });
   document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
   document.getElementById('formSection').style.display = '';
+  // Kit ligado ou desligado em Tabelas vale assim que a pessoa volta pela régua
+  // (antes só o "Voltar" de Tabelas reaplicava).
+  if (typeof aplicarEquipConfigNoSelect === 'function') aplicarEquipConfigNoSelect();
   marcarNavAtivo('nav-gerador');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function navHistorico() {
+  telasSolarLimpar();
   abrirHistorico();
   marcarNavAtivo('nav-historico');
   fecharSidebarMobile();
@@ -9121,6 +9167,7 @@ function aplicarEquipConfigNoSelect() {
 }
 
 async function navTabelas() {
+  telasSolarLimpar();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   const sec = document.getElementById('tabelasSection');
@@ -9141,6 +9188,7 @@ function voltarDoTabelas() {
   document.getElementById('formSection').style.display = '';
   document.documentElement.classList.remove('tabelas-aberta');
   aplicarEquipConfigNoSelect(); // reflete toggles ao voltar pro gerador
+  marcarNavAtivo('nav-gerador');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -23158,6 +23206,7 @@ async function varrerAdLibraryEstudio() {
 
 // ============= TELA LEADS (Instagram/Meta) =============
 function navLeads() {
+  telasSolarLimpar();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   const sec = document.getElementById('leadsSection');
@@ -23174,6 +23223,7 @@ function voltarDosLeads() {
   document.getElementById('leadsSection').style.display = 'none';
   document.getElementById('formSection').style.display = '';
   document.documentElement.classList.remove('leads-aberto');
+  marcarNavAtivo('nav-gerador');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
