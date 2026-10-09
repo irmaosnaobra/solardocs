@@ -4514,18 +4514,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Dados do contrato</div>
         <div class="eletro-field"><label>Nº do contrato</label>
-          <div class="eletro-inp"><input type="text" id="ctr-num" placeholder="001"></div></div>
+          <div class="eletro-inp"><input type="text" id="ctr-num" placeholder="CF-001/2026" oninput="epTocar(this);delete this.dataset.auto"></div></div>
         <div class="eletro-field"><label>Data de assinatura</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-data"></div></div>
         <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr"><label>Local da instalação</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-local" placeholder="Endereço do ponto (onde fica a estação)"></div></div>
         <div class="eletro-field" data-ctr-tipos="arrend socio50 cotas termo_inv"><label>Termo de origem (nº e data)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-origem-ref" placeholder="Ex.: nº TA-003/2026, de 08/10/2026 · em branco não sai"></div></div>
-        <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Equipamento</label>
+        <div class="eletro-field" data-ctr-ti="reserva" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Equipamento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-equip" placeholder="Ex.: NEXUS DC80 · 80 kW"></div></div>
         <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Carregadores</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-qtd" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
-        <div class="eletro-field" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Pontos de recarga</label>
+        <div class="eletro-field" data-ctr-ti="reserva" data-ctr-tipos="completo socio50 arrend cotas termo_arr termo_inv"><label>Pontos de recarga</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-plugs" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
       </div>
 
@@ -4565,24 +4565,24 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="ctr-pag-soma" id="ctr-soc-conta" style="grid-column:1/-1">—</div>
         <div class="eletro-field"><label>Software NEXUS, % do faturamento</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-software" inputmode="decimal" placeholder="10" oninput="ctrResumo()"><span class="suf">%</span></div></div>
-        <div class="eletro-field"><label id="ctr-soc-arrend-rot">Arrendamento do local</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label id="ctr-soc-arrend-rot">Arrendamento do local</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-arrend" inputmode="decimal" placeholder="0" oninput="ctrResumo()"><span class="suf">%</span></div></div>
         <div class="orc-note" id="ctr-soc-arrend-nota" style="grid-column:1/-1">—</div>
-        <div class="eletro-field"><label>Dia de pagar o resultado (mês seguinte)</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Dia de pagar o resultado (mês seguinte)</label>
           <div class="eletro-inp"><input type="number" id="ctr-soc-dia" inputmode="numeric" min="1" max="28" value="15"></div></div>
-        <div class="eletro-field" id="ctr-soc-f-captacao"><label>Prazo para fechar o capital</label>
+        <div class="eletro-field" data-ctr-ti="reserva" id="ctr-soc-f-captacao"><label>Prazo para fechar o capital</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-captacao" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
-        <div class="eletro-field"><label>Ponto em operação em até</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Ponto em operação em até</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-implant" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
-        <div class="eletro-field"><label>Prazo da sociedade</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Prazo da sociedade</label>
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-soc-prazo" inputmode="numeric" min="0" value="120"><span class="suf">meses</span></div></div>
-        <div class="eletro-field"><label>Ninguém sai antes de</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Ninguém sai antes de</label>
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-soc-permanencia" inputmode="numeric" min="0" value="36"><span class="suf">meses</span></div></div>
-        <div class="eletro-field"><label>Aviso prévio para sair</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Aviso prévio para sair</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-aviso" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
-        <div class="eletro-field"><label>Haveres de quem sai pagos em</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Haveres de quem sai pagos em</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-haveres" inputmode="numeric" min="1" value="12"><span class="suf">x</span></div></div>
-        <div class="eletro-field"><label>Prazo para corrigir antes de rescindir</label>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Prazo para corrigir antes de rescindir</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-corrigir" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
         <div class="orc-note" style="grid-column:1/-1">A NEXUS é a <b>sócia ostensiva</b>: opera em nome próprio, responde perante terceiros e presta contas. O cliente é <b>sócio participante</b>: integraliza o aporte, fiscaliza, acompanha o ponto na plataforma de gestão com login próprio depois que ele entra em operação e recebe a parte dele no resultado. Prazo da sociedade em <b>0</b> = prazo indeterminado.</div>
       </div>
@@ -4607,7 +4607,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-premio" inputmode="decimal" placeholder="sem reserva" oninput="ctrResumo()"></div></div>
         <div class="eletro-field"><label>Dia de pagar o cedente (mês seguinte)</label>
           <div class="eletro-inp"><input type="number" id="ctr-arr-dia" inputmode="numeric" min="1" max="28" value="10"></div></div>
-        <div class="eletro-field" style="grid-column:span 2"><label>Conta do cedente para receber</label>
+        <div class="eletro-field" data-ctr-ta="promessa" style="grid-column:span 2"><label>Conta do cedente para receber</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-dados" placeholder="Pix ou banco, agência e conta do dono do local"></div></div>
         <div class="eletro-field"><label>Vigência</label>
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-vigencia" inputmode="numeric" min="1" value="60" oninput="ctrTermoUi()"><span class="suf">meses</span></div></div>
@@ -4615,7 +4615,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-permanencia" inputmode="numeric" min="0" value="36"><span class="suf">meses</span></div></div>
         <div class="eletro-field"><label>Aviso para não renovar</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-aviso" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
-        <div class="eletro-field"><label>Prazo máximo para ligar o ponto</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Prazo máximo para ligar o ponto</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-implant" inputmode="numeric" min="1" value="180" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
         <div class="eletro-field"><label>Energia do ponto</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-energia">
@@ -4633,22 +4633,22 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="branco">A confirmar (sai para marcar à mão)</option>
           </select></div></div>
         <div class="orc-note" id="ctr-arr-relacao-nota" style="grid-column:1/-1">—</div>
-        <div class="eletro-field"><label>Multa por saída antecipada, em meses de remuneração</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Multa por saída antecipada, em meses de remuneração</label>
           <div class="eletro-inp"><input type="number" id="ctr-arr-multa-saida" inputmode="numeric" min="0" value="3"></div></div>
-        <div class="eletro-field"><label>Multa mínima (opcional)</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Multa mínima (opcional)</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-multa-min" inputmode="decimal" placeholder="sem mínimo"></div></div>
-        <div class="eletro-field"><label>Retirada do equipamento em</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Retirada do equipamento em</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-retirada" inputmode="numeric" min="1" value="30"><span class="suf">dias</span></div></div>
-        <div class="eletro-field"><label>Base de concreto no fim</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Base de concreto no fim</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-base">
             <option value="fica">Fica no imóvel, sem indenização</option>
             <option value="sai">A NEXUS remove e refaz o piso</option>
           </select></div></div>
-        <div class="eletro-field"><label>Multa por atraso</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Multa por atraso</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-mora-multa" inputmode="decimal" step="0.5" min="0" value="2"><span class="suf">%</span></div></div>
-        <div class="eletro-field"><label>Juros de mora</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Juros de mora</label>
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-mora-juros" inputmode="decimal" step="0.5" min="0" value="1"><span class="suf">% a.m.</span></div></div>
-        <div class="eletro-field"><label>Prazo para corrigir antes de rescindir</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Prazo para corrigir antes de rescindir</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-corrigir" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
         <div class="orc-note" style="grid-column:1/-1">O dono do local não põe dinheiro e não responde pelo negócio: recebe o percentual sobre o <b>faturamento bruto</b>, que ele acompanha na plataforma de gestão, com login próprio, a partir da energização. Vale o demonstrativo mensal. Recarga grátis ou com desconto entra na conta pelo preço de tabela.</div>
       </div>
@@ -4788,6 +4788,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-contrato-num" placeholder="O número do contrato já assinado"></div></div>
         <div class="eletro-field" data-ctr-ti="adesao"><label>Data do contrato da sociedade</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-ti-contrato-data"></div></div>
+        <div class="eletro-field" data-ctr-ti="adesao"><label>Cotas que já têm dono antes desta adesão</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-ti-ja" inputmode="numeric" placeholder="Ex.: 1" oninput="ctrResumo()"><span class="suf">cotas</span></div></div>
         <div class="eletro-field" data-ctr-ti="adesao"><label>Cláusula do contrato que consente novos sócios (confira no contrato assinado)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-consent" placeholder="Ex.: 4.1 (Da captação do capital)"></div></div>
         <div class="eletro-field" style="grid-column:1/-1"><label>Local do ponto (se já definido)</label>
@@ -5079,7 +5081,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card" data-loc-doc="vistoria">
         <div class="calc-card-title"><span class="dot"></span>Vistoria técnica</div>
         <div class="eletro-field"><label>Nº do relatório</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-num" placeholder="Ex.: V-001"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-num" placeholder="Ex.: VT-001/2026" oninput="epTocar(this)"></div></div>
         <div class="eletro-field"><label>Data da vistoria</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="vis-data"></div></div>
         <div class="eletro-field" style="grid-column:1/-1"><label>Quem fez a vistoria</label>
@@ -5328,7 +5330,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" style="margin-top:0">O Finame financia o <b>equipamento</b>, não a obra. Estas duas linhas são o que a instituição lê para decidir quanto libera — por isso <b>não têm valor sugerido</b>: um número que parece calculado é pior que um campo em branco.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor total da proposta</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-total" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkTotalEditado(this)"></div></div>
-        <div class="orc-note" id="bnk-total-note">—</div>
+        <div class="orc-note" id="bnk-total-note"></div>
+        <div class="eletro-field" style="margin-top:12px"><label>Já pago pelo comprador (sinal ou entrada)</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-pago" inputmode="decimal" placeholder="0" oninput="epTocar(this);bnkCalc()"></div></div>
+        <div class="eletro-field"><label>Referência do que já foi pago</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-pago-ref" placeholder="Ex.: sinal, recibo nº 001/2026" oninput="epTocar(this)"></div></div>
+        <div class="orc-note">Com valor aqui, a proposta mostra o que já foi pago e o <b>valor a financiar</b>, para o banco não liberar sobre o preço cheio. Vem do sinal do contrato.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor do equipamento</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="bnk-eq" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
         <div class="eletro-field"><label>Valor da mão de obra</label>
@@ -9622,7 +9629,7 @@ function eletroSubaba(qual) {
   // kit chave-na-mão. Tem cliente, itens e preço próprios.
   if (qual === 'equipamento') equipInit();
   if (qual === 'recibo') recBanner();
-  if (qual === 'contrato') ctrInit();
+  if (qual === 'contrato') { ctrInit(); ctrNumSugerir(); }
   if (qual === 'procuracao') procInit();
   if (qual === 'finame') bnkInit();
   abas.forEach(a => {
@@ -18550,11 +18557,53 @@ function recResumo() {
 // Antes era texto livre com placeholder "001": numero que se repete entre
 // clientes e entre anos nao identifica nada, e recibo e' papel de prova.
 // E' SUGESTAO — o consultor troca se a numeracao da casa for outra.
+// TR-06 (09/10/2026): cada papel nasce com número sugerido, com prefixo próprio,
+// as iniciais do consultor e a sequência deste aparelho, lida do Histórico.
+// Editável; digitado, fica. A sequência do servidor depende do dono decidir.
+const CTR_NUM_PREFIXO = { completo: 'CF', socio50: 'CS', cotas: 'CC', arrend: 'CA', equip: 'CV', termo_arr: 'TA', termo_inv: 'TI' };
+function ctrNumPrefixo(t) {
+  t = t || ctrTipo();
+  if (t === 'termo_inv' && orcVal('ctr-ti-uso') === 'adesao') return 'AD';
+  return CTR_NUM_PREFIXO[t] || 'CT';
+}
+function epIniciais(nome) {
+  const ps = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(w => w && !/^(da|de|do|das|dos|e)$/i.test(w));
+  if (!ps.length) return '';
+  return (ps[0][0] + (ps.length > 1 ? ps[ps.length - 1][0] : '')).toUpperCase().replace(/[^A-Z]/g, '');
+}
+function epProxNum(prefixo) {
+  const ano = new Date().getFullYear();
+  const ini = epIniciais(orcVal('el-autor'));
+  const base = prefixo + '-' + (ini ? ini + '-' : '');
+  let maior = 0;
+  try {
+    epHistOrcList().forEach(h => {
+      const s = String(h && h.num || '');
+      if (s.indexOf(base) !== 0) return;
+      const m = s.slice(base.length).match(/^(\d+)\/(\d{4})$/);
+      if (m && Number(m[2]) === ano) maior = Math.max(maior, Number(m[1]));
+    });
+  } catch (e) {}
+  return base + String(maior + 1).padStart(3, '0') + '/' + ano;
+}
+// Sugere só em campo vazio ou no que ele mesmo sugeriu antes (troca de modelo).
+function ctrNumSugerir() {
+  const el = document.getElementById('ctr-num');
+  if (!el || el.dataset.tocado === '1') return;
+  // Sugerido e já impresso: virou o número daquele papel e não muda mais sozinho.
+  if (el.value && el.dataset.auto === '1' && epHistOrcList().some(h => h.num === el.value)) { delete el.dataset.auto; return; }
+  if (el.value && el.dataset.auto !== '1') return;
+  el.value = epProxNum(ctrNumPrefixo()); el.dataset.auto = '1';
+}
+// Número sugerido que nunca saiu em papel não é referência de nada (C08).
+function ctrNumUsado(el) { return !!(el && el.value && (el.dataset.auto !== '1' || epHistOrcList().some(h => h.num === el.value))); }
+
 function recProxNum() {
   const ano = new Date().getFullYear();
   let maior = 0;
   try {
     epHistOrcList().forEach(h => {
+      if (h && h.tipo && h.tipo !== 'Recibo') return;
       const m = String(h && h.num || '').match(/^(\d+)\s*\/\s*(\d{4})$/);
       if (m && Number(m[2]) === ano) maior = Math.max(maior, Number(m[1]));
     });
@@ -19297,7 +19346,12 @@ function ctrSoc() {
   const cotas = t === 'cotas';
   const invest = ctrMoeda(ctrCampo('ctr-soc-invest'));
   const n = cotas ? Math.max(1, Math.round(orcNum(ctrCampo('ctr-soc-n')) || 1)) : 1;
-  const qtd = cotas ? Math.max(1, Math.min(n, Math.round(orcNum(orcVal('ctr-soc-qtd')) || 1))) : 1;
+  // C09: na adesão, as cotas que já têm dono saem da conta do que ainda dá para subscrever.
+  const ades = ctrTipo() === 'termo_inv' && orcVal('ctr-ti-uso') === 'adesao' && cotas;
+  const jaTxt = ades ? orcVal('ctr-ti-ja') : '';
+  const ja = jaTxt !== '' ? Math.max(0, Math.min(n, Math.round(orcNum(jaTxt) || 0))) : 0;
+  const qtdPedida = cotas ? Math.max(1, Math.round(orcNum(orcVal('ctr-soc-qtd')) || 1)) : 1;
+  const qtd = cotas ? Math.max(1, Math.min(Math.max(1, n - ja), qtdPedida)) : 1;
   const cota = ctrPctLe(ctrCampo('ctr-soc-cota')), aporte = ctrMoeda(ctrCampo('ctr-soc-aporte'));
   const cotaN = ctrPctLe(ctrCampo('ctr-soc-cota-nexus')), aporteN = ctrMoeda(ctrCampo('ctr-soc-aporte-nexus'));
   // Aporte da NEXUS escrito (inclusive "0"): sabido. Vazio: não se sabe, e o
@@ -19310,6 +19364,7 @@ function ctrSoc() {
   // Proporcional = cada um põe do dinheiro a mesma fração que leva do resultado.
   const prop = invest > 0 && Math.abs(aporte - cota / 100 * invest) < 1 && Math.abs(aporteN - cotaN / 100 * invest) < 1;
   return { t, invest, n, qtd, cota, aporte, cotaN, aporteN, aporteNDef, somaCotas, somaAportes, falta, prop,
+    jaInformado: jaTxt !== '', ja, livres: Math.max(0, n - ja - qtd), excede: ades && jaTxt !== '' && ja + qtdPedida > n, qtdPedida,
     cotaCli: qtd * cota, aporteCli: qtd * aporte,
     outros: n - qtd, cotaOutros: (n - qtd) * cota, aporteOutros: (n - qtd) * aporte,
     cotasFecham: Math.abs(somaCotas - 100) < 0.05,
@@ -19368,8 +19423,10 @@ function ctrTipoUi() {
     const ok = (!ds.ctrTipos || ds.ctrTipos.split(/\s+/).includes(t))
       // Lista de modos; "fora" é o tipo sem sociedade (arrendamento e termo do arrendador).
       && (!ds.ctrSocmodo || ds.ctrSocmodo.split(/\s+/).includes(modo || 'fora'))
-      && (!ds.ctrTa || ds.ctrTa === nivel)
-      && (!ds.ctrTi || ds.ctrTi.split(/\s+/).includes(uso));
+      // A força só existe no termo do arrendador e o uso só no do investidor:
+      // fora deles, o campo marcado aparece normalmente (TR-17).
+      && (!ds.ctrTa || t !== 'termo_arr' || ds.ctrTa.split(/\s+/).includes(nivel))
+      && (!ds.ctrTi || t !== 'termo_inv' || ds.ctrTi.split(/\s+/).includes(uso));
     el.classList.toggle('ctr-fora', !ok);
   });
   const txt = (sel, v) => pane.querySelectorAll(sel).forEach(el => { if (el.textContent !== v) el.textContent = v; });
@@ -19403,8 +19460,8 @@ function ctrTipoMudou(sel) {
   const ehTermo = t => !!(CTR_TIPOS[t] && CTR_TIPOS[t].termo);
   if (ehTermo(antes) !== ehTermo(para)) {
     const num = document.getElementById('ctr-num'), ref = document.getElementById('ctr-origem-ref');
-    if (ehTermo(antes) && ref && num && num.value) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
-    if (num) num.value = '';
+    if (ehTermo(antes) && ref && ctrNumUsado(num)) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
+    if (num) { num.value = ''; delete num.dataset.tocado; }
   }
   // A tabela de pagamento corre sobre outra base (preço da obra ou aporte do
   // sócio): o que estava montado para um modelo não serve para o outro.
@@ -19422,6 +19479,10 @@ function ctrTipoMudou(sel) {
   }
   ctrTipoUi();
   ctrEscRender(); ctrOpcRender(); ctrPctNota(); ctrDosRender();
+  // Número que já saiu em papel de outro modelo é daquele papel: este ganha o seu.
+  const nEl = document.getElementById('ctr-num');
+  if (nEl && nEl.value && nEl.dataset.tocado !== '1' && epHistOrcList().some(h => h.num === nEl.value && h.modelo && h.modelo !== para)) nEl.value = '';
+  ctrNumSugerir();
   ctrResumo();
 }
 // O cartão da sociedade: a conta das cotas e dos aportes, na hora.
@@ -19635,9 +19696,10 @@ function ctrUsoMudou() {
   // A adesão é outro papel: o número da reserva vira a referência dela (C08).
   if (virouAdesao) {
     const num = document.getElementById('ctr-num'), ref = document.getElementById('ctr-origem-ref');
-    if (ref && num && num.value) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
-    if (num) num.value = '';
+    if (ref && ctrNumUsado(num)) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
+    if (num) { num.value = ''; delete num.dataset.tocado; }
   }
+  ctrNumSugerir();
   ctrOpcRender(); ctrResumo();
 }
 
@@ -20037,7 +20099,7 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-ta-premio-quando', 'ctr-ta-multa',
   'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
   'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
-  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-eq-atraso', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc',
+  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-eq-atraso', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja',
   'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
@@ -21948,7 +22010,12 @@ function ctrQuadroCotas(d) {
   // estão a reservar) e a adesão entra numa que já tem sócios. Nos contratos, o
   // rótulo de sempre.
   const comoOutros = d.tipo !== 'termo_inv' ? 'por termo de adesão' : d.ti && d.ti.uso === 'adesao' ? 'do contrato e de outras adesões' : 'a reservar';
-  if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, ${comoOutros}</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
+  const adesQ = d.tipo === 'termo_inv' && d.ti && d.ti.uso === 'adesao';
+  if (adesQ && s.jaInformado) {
+    // C09: quem já é sócio e o que ainda está à venda, em linhas separadas.
+    if (s.ja > 0) linhas.push([`<b>Sócios participantes do contrato e de adesões anteriores</b><span>${s.ja} cota(s) de ${p(s.cota)}</span>`, p(s.ja * s.cota), s.aporte > 0 ? money(s.ja * s.aporte) : lac]);
+    if (s.livres > 0) linhas.push([`<b>Cotas ainda não subscritas</b><span>${s.livres} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.livres * s.cota), s.aporte > 0 ? money(s.livres * s.aporte) : lac]);
+  } else if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, ${comoOutros}</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
   linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
   if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, '—', money(s.falta)]);
   const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
@@ -22423,6 +22490,10 @@ async function ctrImprimir() {
       !confirm('"Como o investidor conheceu a NEXUS" está em branco: o papel não vai declarar negociação individual.\n\nGerar assim mesmo?')) return;
   if ((d.tipo === 'termo_inv' || ctrEhSoc(d.tipo)) && d.ti && d.ti.origem === 'anuncio' &&
       !confirm('Este investidor chegou por anúncio, formulário ou quiz.\n\nCom ele, o papel pode ser lido pela CVM como prova de oferta pública de valor mobiliário (Lei nº 6.385/1976, art. 19). O papel não vai declarar negociação individual.\n\nGere só com orientação do advogado. Gerar assim mesmo?')) return;
+  if (d.tipo === 'termo_inv' && d.ti.uso === 'adesao' && d.soc && !d.soc.jaInformado &&
+      !confirm('Quantas cotas do contrato já têm dono? Sem isso, o quadro da adesão junta cota vendida com cota livre.\n\nGerar assim mesmo?')) return;
+  if (d.tipo === 'termo_inv' && d.ti.uso === 'adesao' && d.soc && d.soc.excede &&
+      !confirm(`O contrato tem ${d.soc.n} cotas, ${d.soc.ja} já têm dono e esta adesão pede ${d.soc.qtdPedida}. Sobram só ${d.soc.n - d.soc.ja}, e o papel sai com ${d.soc.qtd}.\n\nGerar assim mesmo?`)) return;
   if (d.tipo === 'termo_inv' && d.ti.uso === 'adesao' && !d.ti.consent &&
       !confirm('Sem a cláusula do contrato que consente novos sócios (no contrato de cotas daqui é a da captação do capital): a adesão sai com a linha em branco.\n\nGerar assim mesmo?')) return;
   if (d.tipo === 'termo_inv' && d.ti.uso === 'adesao' && !d.ti.ponto &&
@@ -22444,6 +22515,10 @@ async function ctrImprimir() {
   if (d.pagLinhas.length && Math.abs(difPag) >= 0.01 &&
       !confirm(`As formas de pagamento somam ${ORC_MONEY(d.pagSoma)}, mas o saldo a pagar é ${ORC_MONEY(d.saldo)} (${difPag > 0 ? 'faltam' : 'passam'} ${ORC_MONEY(Math.abs(difPag))}).\n\nGerar o contrato assim mesmo?`)) return;
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  if (d.num) {
+    const outro = epHistOrcList().find(h => h.num === d.num && (h.modelo !== d.tipo || (h.cliente && h.cliente !== (d.contratante || d.cliente))));
+    if (outro && !confirm(`O nº ${d.num} já saiu em outro papel: ${outro.rotulo || outro.tipo} de ${outro.cliente || 'cliente sem nome'}, em ${outro.data}.\n\nGerar com o mesmo número?`)) return;
+  }
   // Contrato PAGINA — sem opts, nada de encolher pra caber numa folha.
   // Arquivo e título dizem o modelo; o do Completo continua "Contrato_...".
   const prefixo = { completo: 'Contrato', socio50: 'Contrato-Sociedade', cotas: 'Contrato-Cotas', arrend: 'Contrato-Arrendamento', equip: 'Contrato-Compra-Venda',
@@ -22932,6 +23007,8 @@ const VIS_SIT = { ok: 'Conforme', adequar: 'Precisa adequar', na: 'Não se aplic
 function visInit() {
   const dt = document.getElementById('vis-data');
   if (dt && !dt.value) dt.value = orcHojeISO();
+  const vn = document.getElementById('vis-num');
+  if (vn && !vn.value && vn.dataset.tocado !== '1') vn.value = epProxNum('VT');
   const r = document.getElementById('vis-resp');
   const emp = epEmitGet();
   if (r && r.dataset.tocado !== '1' && !emp.tecNome && emp.engNome) r.value = 'eng';
@@ -23416,6 +23493,7 @@ function bnkDados() {
     origem: g('bnk-origem'),
     prazo: g('bnk-prazo').trim(), validade: n('bnk-validade') || 30,
     eq: n('bnk-eq'), mo: n('bnk-mo'),
+    pago: ctrMoeda(g('bnk-pago')), pagoRef: g('bnk-pago-ref').trim(),
     // O total da PROPOSTA nao e' obrigatoriamente o total do Orcamento: pode haver
     // entrada ja' paga, escopo parcial ou valor renegociado com o banco. O campo
     // manda; o Orcamento fica como referencia, e a tela avisa quando os dois
@@ -23455,14 +23533,14 @@ function bnkCalc() {
   set('bnk-total-note', !(d.totalOrc > 0)
     ? 'Preencha o <b>Orçamento</b> ou digite o valor da proposta aqui.'
     : Math.abs(difOrc) < 0.01
-      ? 'Igual ao total do Orçamento. Pode mudar à vontade — o documento usa <b>este</b> valor.'
+      ? 'Igual ao total do Orçamento. Pode mudar à vontade: o documento usa <b>este</b> valor.'
       : 'Difere do Orçamento (' + ORC_MONEY(d.totalOrc) + ') em <b>' + ORC_MONEY(Math.abs(difOrc)) + '</b>' +
-        (difOrc > 0 ? ' a menos — é o caso de entrada já paga ou escopo parcial.' : ' a mais.'));
+        (difOrc > 0 ? ' a menos: é o caso de entrada já paga ou escopo parcial.' : ' a mais.'));
 
   if (!(d.total > 0)) {
     set('bnk-split', 'Defina o <b>valor total da proposta</b> acima — é sobre ele que o split é conferido.');
   } else if (soma === 0) {
-    set('bnk-split', 'Total da proposta: <b>' + ORC_MONEY(d.total) + '</b>. Divida esse valor entre equipamento e mão de obra — <b>é o equipamento que o banco financia</b>.');
+    set('bnk-split', 'Total da proposta: <b>' + ORC_MONEY(d.total) + '</b>. Divida esse valor entre equipamento e mão de obra: <b>é o equipamento que o banco financia</b>.');
   } else if (Math.abs(dif) >= 0.01) {
     set('bnk-split', '<b style="color:#fca5a5">Não fecha:</b> equipamento + mão de obra = ' + ORC_MONEY(soma) +
       ', e o total da proposta é ' + ORC_MONEY(d.total) + '. ' +
@@ -23539,6 +23617,12 @@ function bnkInit() {
   // O total nasce com o do Orcamento e SEGUE ele enquanto ninguem digitar. Depois
   // de editado, para de seguir: quem definiu o valor da proposta na mao nao quer
   // ver o numero mudar sozinho porque alguem mexeu num item do kit.
+  // CM-09: o sinal que o contrato já abate sai na proposta como já pago.
+  try {
+    const sp = ctrSinalPago();
+    epSugerir([['bnk-pago', sp > 0 ? epFmtBR(sp) : ''],
+               ['bnk-pago-ref', sp > 0 ? 'sinal' + (orcVal('rec-num') && recTipo() === 'sinal' ? ', recibo nº ' + orcVal('rec-num') : '') : '']]);
+  } catch (e) {}
   const tot = document.getElementById('bnk-total');
   if (tot && tot.dataset.tocado !== '1') {
     const o = orcLerItens().total;
@@ -23689,10 +23773,12 @@ function bnkHTML(d) {
 
     <div class="ep-bnk-vals">
       <div><b>VALOR TOTAL:</b> ${d.total > 0 ? money(d.total) : vazio('')}</div>
+      ${d.pago > 0 ? `<div><b>VALOR JÁ PAGO PELO COMPRADOR:</b> ${money(d.pago)}${d.pagoRef ? ' (' + e(d.pagoRef) + ')' : ''}</div>
+      <div><b>VALOR A FINANCIAR:</b> ${money(Math.max(0, d.total - d.pago))}</div>` : ''}
       <div><b>VALOR EQUIPAMENTO:</b> ${d.eq > 0 ? money(d.eq) : vazio('')}</div>
       <div><b>VALOR MÃO DE OBRA:</b> ${d.mo > 0 ? money(d.mo) : vazio('')}</div>
       ${d.ncm ? `<div><b>CLASSIFICAÇÃO FISCAL (NCM):</b> ${e(d.ncm)}</div>` : ''}
-      ${d.ipiPct > 0 || d.ipiVal > 0 ? `<div><b>IPI:</b> ${d.ipiPct > 0 ? String(d.ipiPct).replace('.', ',') + '% — ' : ''}${money(d.ipiVal)}</div>` : ''}
+      ${d.ipiPct > 0 || d.ipiVal > 0 ? `<div><b>IPI:</b> ${d.ipiPct > 0 ? String(d.ipiPct).replace('.', ',') + '%' : ''}${d.ipiPct > 0 && d.ipiVal > 0 ? ', ' : ''}${d.ipiVal > 0 ? money(d.ipiVal) : ''}</div>` : ''}
       ${d.prazo ? `<div><b>PRAZO DE ENTREGA:</b> ${e(d.prazo)}</div>` : ''}
       <div><b>DATA DE EMISSÃO:</b> ${e(dataTxt)}</div>
       <div><b>VALIDADE DA PROPOSTA:</b> ${d.validade} dias</div>
