@@ -126,7 +126,7 @@ export async function runCapiLeadQualificado(
   // "Sales Opportunity" chegou ao Meta desde que este loop nasceu (14/08).
   const { data: leads, error } = await supabaseGerador
     .from('leads_meta')
-    .select('lead_id, agendado_id')
+    .select('lead_id, agendado_id, nome, whatsapp')
     .not('agendado_id', 'is', null)
     .gte('created_time', DESDE)
     .limit(1000);
@@ -152,13 +152,16 @@ export async function runCapiLeadQualificado(
     for (const f of (lote ?? []) as Ficha[]) fichas.set(Number(f.id), f);
   }
 
-  type Linha = { lead_id: unknown; agendado_id: unknown; agendamentos: Ficha | undefined };
-  const data: Linha[] = ((leads ?? []) as Array<{ lead_id: unknown; agendado_id: unknown }>)
+  type Linha = { lead_id: unknown; agendado_id: unknown; nome?: unknown; whatsapp?: unknown; agendamentos: Ficha | undefined };
+  const data: Linha[] = ((leads ?? []) as Array<{ lead_id: unknown; agendado_id: unknown; nome?: unknown; whatsapp?: unknown }>)
     .map(l => ({ ...l, agendamentos: fichas.get(Number(l.agendado_id)) }))
     .filter(l => !!l.agendamentos);
   const candidatos = data
     .map(l => ({
       leadId: String(l.lead_id ?? ''),
+      nome: String(l.nome ?? '').trim() || null,
+      // Só os 8 últimos dígitos, como o resto da tabela de dedup guarda.
+      core8: String(l.whatsapp ?? '').replace(/[^0-9]/g, '').slice(-8),
       ficha: Number(l.agendamentos?.id ?? 0),
       status: String(l.agendamentos?.status ?? ''),
       observacao: (l.agendamentos?.observacao ?? null) as string | null,
@@ -195,14 +198,23 @@ export async function runCapiLeadQualificado(
     if (r.ok) res.enviados++; else res.falhas++;
     res.detalhes!.push({ lead_id: c.leadId, ficha: c.ficha, kwh: c.kwh, status: r.status, ok: r.ok, erro: r.error });
 
-    // Dedup gravado SÓ quando o Meta aceitou: falha volta na próxima rodada.
-    if (r.ok) {
+    // Dedup gravado quando o Meta aceitou, e também quando ele recusa PARA SEMPRE
+    // (lead apagado ou inválido do lado dele, subcódigo 2804036): esse nunca vai
+    // passar, e sem a marca voltava a ser tentado em toda rodada. Falha de rede ou
+    // outra recusa NÃO grava: volta na próxima.
+    // `telefone_core8` é NOT NULL no banco. Até 10/10/2026 ia null: o Meta aceitava
+    // o evento, a gravação falhava (23502) e os mesmos leads eram reenviados a cada
+    // ciclo do master. Sem telefone no lead, vai string vazia.
+    const recusaDefinitiva = !r.ok && r.status === 400 && /2804036/.test(String(r.error ?? ''));
+    if (r.ok || recusaDefinitiva) {
       await supabaseGerador.from('capi_conversoes_enviadas').insert({
-        lead_id: c.leadId, cliente_nome: null, telefone_core8: null,
+        lead_id: c.leadId, cliente_nome: c.nome, telefone_core8: c.core8,
         valor: null, origem: `solar>${KWH_LEAD_BOM}kWh`, event_name: EVENTO,
-        meta_status: r.status, meta_received: r.received ?? null,
+        meta_status: r.status, meta_received: r.ok ? (r.received ?? null) : 0,
+        ...(recusaDefinitiva ? { meta_error: 'lead inválido ou apagado no Meta (2804036)' } : {}),
       }).then(({ error: e }) => {
         if (e && !/duplicate|unique/i.test(e.message)) {
+          res.falhas++;
           logger.error('capi-qualificado', 'dedup insert falhou', e);
         }
       });

@@ -10,6 +10,7 @@ let jaEnviados: any[] = [];
 const inserts: any[] = [];
 const eventos: Array<{ leadId: string; evento: string; opts: any }> = [];
 let metaOk = true;
+let metaErro = 'recusado';
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
@@ -42,7 +43,7 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 vi.mock('../utils/metaPixel', () => ({
   sendCrmLeadEvent: vi.fn(async (leadId: string, evento: string, opts: any) => {
     eventos.push({ leadId, evento, opts });
-    return metaOk ? { ok: true, status: 200, received: 1 } : { ok: false, status: 400, error: 'recusado' };
+    return metaOk ? { ok: true, status: 200, received: 1 } : { ok: false, status: 400, error: metaErro };
   }),
 }));
 
@@ -61,7 +62,7 @@ const comObs = (consumo: string, over: Partial<any> = {}) =>
 
 const envOriginal = { ...process.env };
 beforeEach(() => {
-  linhas = [linha()]; jaEnviados = []; inserts.length = 0; eventos.length = 0; metaOk = true;
+  linhas = [linha()]; jaEnviados = []; inserts.length = 0; eventos.length = 0; metaOk = true; metaErro = 'recusado';
 });
 afterEach(() => { process.env = { ...envOriginal }; vi.resetModules(); });
 
@@ -152,6 +153,30 @@ describe('não repetir e não mentir', () => {
   it('envio aceito grava o dedup', async () => {
     await run();
     expect(inserts[0]).toMatchObject({ lead_id: '123456789012345', event_name: 'Sales Opportunity' });
+  });
+
+  // Produção, 10/10/2026: telefone_core8 é NOT NULL e ia null. O Meta aceitava, a
+  // gravação falhava (23502) e os mesmos leads eram reenviados a cada ciclo.
+  it('o dedup nunca leva telefone_core8 nulo: 8 últimos dígitos, ou vazio sem telefone', async () => {
+    linhas = [linha({ whatsapp: '+55 (34) 99816-5040', nome: 'Ana Souza' })];
+    await run();
+    expect(inserts[0]).toMatchObject({ telefone_core8: '98165040', cliente_nome: 'Ana Souza', meta_status: 200 });
+    inserts.length = 0; eventos.length = 0;
+    linhas = [linha()];
+    await run();
+    expect(inserts[0].telefone_core8).toBe('');
+  });
+
+  // Lead apagado ou inválido do lado do Meta nunca vai passar: sem a marca ele
+  // voltava em toda rodada, para sempre.
+  it('recusa definitiva do Meta (2804036) grava a marca e não tenta de novo', async () => {
+    metaOk = false;
+    metaErro = '{"error":{"message":"Invalid parameter","code":100,"error_subcode":2804036}}';
+    const r = await run();
+    expect(r.falhas).toBe(1);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toMatchObject({ lead_id: '123456789012345', meta_status: 400, meta_received: 0 });
+    expect(String(inserts[0].meta_error)).toContain('2804036');
   });
 
   it('dry lista quem seria reportado e não envia nada', async () => {
