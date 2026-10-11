@@ -19,6 +19,7 @@ import {
 import * as pc from '../services/io/pontoCertoFunil';
 import * as qf from '../services/io/quizFunil';
 import { buscarConjuntosMeta } from '../services/io/metaConjuntos';
+import { lerTudo, lerFunilQuizSolar } from '../services/io/painelQuizSolar';
 import { novoAnthropic } from "../utils/anthropicClient";
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, PLACEHOLDERS, numerosVivos, resolverPlaceholders,
@@ -867,18 +868,8 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
 // Em que pergunta a pessoa desiste. A página grava quiz_passo / quiz_erro /
 // quiz_fim em lp_events, na sessão da visita; a conta mora em
 // services/io/quizFunil.ts, com teste. Aqui só se lê banco e se devolve JSON.
-// Lê em páginas de 1000: o PostgREST corta ali sem avisar, e o funil de uma
-// semana passa disso.
-async function lerTudo<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const tudo: T[] = [];
-  for (let de = 0; de < 100_000; de += 1000) {
-    const { data, error } = await consulta(de, de + 999);
-    if (error) throw error;
-    tudo.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
-  }
-  return tudo;
-}
+// Lê em páginas de 1000 (lerTudo, em painelQuizSolar.ts): o PostgREST corta ali
+// sem avisar, e o funil de uma semana passa disso.
 router.get('/eletroposto/quiz-funil', async (req: Request, res: Response): Promise<void> => {
   try {
     const periodo = String(req.query.period || '7dias');
@@ -954,43 +945,9 @@ router.get('/solar/quiz-funil', async (req: Request, res: Response): Promise<voi
   try {
     const periodo = String(req.query.period || '7dias');
     const conjunto = String(req.query.conjunto || '').trim() || null;
-    const desde = qf.inicioDoPeriodo(periodo);
-    const ate = qf.fimDoPeriodo(periodo);
-    const [eventos, visitas, marcados] = await Promise.all([
-      lerTudo<qf.EventoQuiz>((de, fim) => {
-        let q = supabase.from('lp_events')
-          .select('session_id, event_type, event_data, created_at')
-          .in('event_type', ['quiz_passo', 'quiz_erro', 'quiz_fim'])
-          .gte('created_at', desde);
-        if (ate) q = q.lt('created_at', ate);
-        return q.order('created_at', { ascending: true }).range(de, fim);
-      }),
-      lerTudo<qf.VisitaQuiz>((de, fim) => {
-        let q = supabase.from('page_visits')
-          .select('session_id, landing_url, utm_campaign, utm_term')
-          .ilike('landing_url', '%/io/solar%')
-          .gte('created_at', desde);
-        if (ate) q = q.lt('created_at', ate);
-        return q.order('created_at', { ascending: true }).range(de, fim);
-      }),
-      lerTudo<{ utm_term: string | null; status: string | null }>((de, fim) => {
-        let q = supabaseGerador.from('agendamentos').select('utm_term, status')
-          .eq('created_by', 'lp_solar').like('observacao', 'LP SOLAR QUIZ%')
-          .gte('created_at', desde);
-        if (ate) q = q.lt('created_at', ate);
-        return q.order('created_at', { ascending: true }).range(de, fim);
-      }),
-    ]);
-    const funil = qf.montarFunil(eventos, visitas, { conjunto, config: qf.CONFIG_SOLAR });
-    const resultados: qf.ResultadoLead[] = marcados.map((r) => ({ conjunto: r.utm_term, tipo: 'reuniao' as const, status: r.status }));
-    const diaSP = (ms: number) => new Date(ms - 3 * 3600_000).toISOString().slice(0, 10);
-    const ids = [...new Set([...funil.conjuntos.map((c) => c.id), ...resultados.map((r) => String(r.conjunto || ''))])];
-    const meta = await buscarConjuntosMeta(ids, diaSP(Date.parse(desde)), diaSP(ate ? Date.parse(ate) - 1 : Date.now()));
-    res.json({
-      periodo, desde, ate, ...funil,
-      por_conjunto: qf.montarConjuntos(funil.conjuntos, resultados, meta.conjuntos),
-      meta_ok: meta.ok, meta_motivo: meta.motivo || null,
-    });
+    // A leitura mora em services/io/painelQuizSolar.ts (o painel do Gerador usa
+    // a mesma). O JSON daqui é fixado por adminSolarQuizFunil.test.ts.
+    res.json(await lerFunilQuizSolar(periodo, conjunto));
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }

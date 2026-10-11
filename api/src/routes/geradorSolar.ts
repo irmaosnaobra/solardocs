@@ -9,6 +9,8 @@ import {
   calcularPedir, marcasDe, ehSocio, podeVer, montarMapa, montarRanking, nomeNaOrigem, codigoCanonico,
   type ObraBruta, type ObraMontada, type Marcas,
 } from '../services/gerador/solarObras';
+import { lerPainelQuizSolar, PERIODOS_PAINEL } from '../services/io/painelQuizSolar';
+import { respostaDoPainel, type PainelQuizSolar } from '../services/io/painelQuizSolarPuro';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SOLAR: pós-venda dos consultores no /gerador. Montado dentro de /gerador.
@@ -129,9 +131,39 @@ async function quadro(fresco: boolean): Promise<Quadro | null> {
   }
 }
 
+// ── Painel do quiz (cache de 3 min por período) ──────────────────────────────
+// O cache guarda o DADO COMPLETO, com o gasto da Meta; o corte do dinheiro é
+// feito por requisição, depois dele (respostaDoPainel). Assim a resposta de um
+// sócio nunca é servida a um consultor, qualquer que seja a ordem dos pedidos.
+
+const TTL_PAINEL_MS = 3 * 60_000;
+const TTL_PAINEL_META_FORA_MS = 30_000;   // Meta fora do ar: tenta de novo logo, mas sem martelar o banco a cada abertura
+const cachePainel = new Map<string, { painel: PainelQuizSolar; ts: number }>();
+const painelVoando = new Map<string, Promise<PainelQuizSolar>>();
+
+async function painelDoPeriodo(periodo: string): Promise<PainelQuizSolar> {
+  const guardado = cachePainel.get(periodo);
+  if (guardado) {
+    const ttl = guardado.painel.meta_ok ? TTL_PAINEL_MS : TTL_PAINEL_META_FORA_MS;
+    if (Date.now() - guardado.ts < ttl) return guardado.painel;
+  }
+  // Uma só leitura por período de cada vez: três abas abrindo juntas viram uma.
+  let voando = painelVoando.get(periodo);
+  if (!voando) {
+    const v: Promise<PainelQuizSolar> = lerPainelQuizSolar(periodo).then((painel) => {
+      cachePainel.set(periodo, { painel, ts: Date.now() });   // falha de banco não entra no cache
+      return painel;
+    }).finally(() => { if (painelVoando.get(periodo) === v) painelVoando.delete(periodo); });
+    painelVoando.set(periodo, v);
+    voando = v;
+  }
+  return voando;
+}
+
 /** Para os testes: o cache em módulo faria a ordem dos testes importar. */
 export function limparCachesSolar(): void {
   cachePlanilha = null; planilhaVoando = null; cacheTrello = null;
+  cachePainel.clear(); painelVoando.clear();
 }
 
 /** O mesmo casador do `GET /gerador/trello` (casarCartao), aplicado ao quadro já carregado. */
@@ -181,6 +213,25 @@ function erroPlanilha(res: Response, err: any): void {
 // ── Rotas ────────────────────────────────────────────────────────────────────
 
 export function mountSolar(router: Router): void {
+  // ── Painel do quiz /io/solar: funil, qualidade dos leads, custo por anúncio ─
+  // Os mesmos números de GET /admin/solar/quiz-funil, que exige o login de
+  // administrador do SolarDoc (o Gerador não tem). Contagem e nota todo
+  // consultor vê; GASTO e custo só sócio: para consultor a chave nem existe.
+  router.get('/solar/painel', exigeConsultor, async (req: Request, res: Response) => {
+    const { socio } = quem(req);
+    const pedido = String(req.query.period || '');
+    const periodo = (PERIODOS_PAINEL as readonly string[]).includes(pedido) ? pedido : '7dias';
+    try {
+      const painel = await painelDoPeriodo(periodo);
+      // Resposta com dinheiro de sócio não pode ficar guardada em proxy nem no navegador.
+      res.set('Cache-Control', 'no-store');
+      res.json(respostaDoPainel(painel, socio));
+    } catch (err: any) {
+      logger.error('gerador-solar', 'painel do quiz falhou', String(err?.message || err));
+      res.status(502).json({ ok: false, error: 'não consegui ler o painel agora. Tente de novo em instantes.' });
+    }
+  });
+
   // ── Lista de obras ────────────────────────────────────────────────────────
   router.get('/solar/obras', exigeConsultor, async (req: Request, res: Response) => {
     const { nome, socio } = quem(req);
