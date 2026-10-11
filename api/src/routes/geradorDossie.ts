@@ -66,6 +66,10 @@ export async function exigeConsultor(req: Request, res: Response, next: () => vo
       res.status(403).json({ error: 'esta conta não é de consultor.', precisa: 'login' });
       return;
     }
+    // Quem é o consultor: as rotas do solar filtram por ele. O nome é a parte do
+    // e-mail antes do @ (nilce@irmaosnaobra.app vira "nilce"), a mesma regra com
+    // que as contas nascem.
+    (req as any).consultor = { email, nome: email.split('@')[0] };
   } catch {
     res.status(401).json({ error: 'não consegui conferir sua sessão.', precisa: 'login' });
     return;
