@@ -225,6 +225,33 @@ describe('grafico mensal: evolucaoDetalhada, fmtBrlCompacto e escalaEixo', () =>
     ]);
     expect(P.evolucaoDetalhada([], HOJE)).toEqual([]);
   });
+  it('minMeses: completa para tras com zero, termina no mes corrente, no maximo 12', () => {
+    const um = P.evolucaoMensal([V('2026-10', 5)], HOJE, 6);
+    expect(um.map((x: any) => x.mes)).toEqual(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+    expect(um.slice(0, 5).every((x: any) => x.qtd === 0 && x.valor === 0)).toBe(true);
+    expect(um[5]).toEqual({ mes: '2026-10', qtd: 1, valor: 5 });
+    // virada de ano para tras
+    expect(P.evolucaoMensal([V('2026-02', 1)], '2026-02-10', 6).map((x: any) => x.mes)).toEqual(['2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02']);
+    // 8 meses de venda ficam 8; 15 meses ficam 12
+    const oito = ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map((m) => V(m, 1));
+    expect(P.evolucaoMensal(oito, HOJE, 6).length).toBe(8);
+    expect(P.evolucaoDetalhada(oito, HOJE, 6).length).toBe(8);
+    const quinze = ['2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map((m) => V(m, 1));
+    expect(P.evolucaoMensal(quinze, HOJE, 6).length).toBe(12);
+    expect(P.evolucaoMensal(quinze, HOJE, 99).length).toBe(12);
+    // nenhuma venda: vazio, com ou sem minMeses
+    expect(P.evolucaoMensal([], HOJE, 6)).toEqual([]);
+    expect(P.evolucaoDetalhada([], HOJE, 6)).toEqual([]);
+    // sem o parametro (ou lixo), o comportamento antigo
+    expect(P.evolucaoMensal([V('2026-10', 5)], HOJE).length).toBe(1);
+    expect(P.evolucaoMensal([V('2026-10', 5)], HOJE, NaN).length).toBe(1);
+  });
+  it('evolucaoDetalhada com minMeses: mes completado vem zerado, com ticket nulo', () => {
+    const ev = P.evolucaoDetalhada([V('2026-10', null)], HOJE, 6);
+    expect(ev.length).toBe(6);
+    expect(ev[0]).toEqual({ mes: '2026-05', qtd: 0, valor: 0, comValor: 0, semValor: 0, ticket: null });
+    expect(ev[5]).toEqual({ mes: '2026-10', qtd: 1, valor: 0, comValor: 0, semValor: 1, ticket: null });
+  });
   it('evolucaoMensal segue com o mesmo formato (sem campos a mais)', () => {
     expect(P.evolucaoMensal([V('2026-10', 5)], HOJE)).toEqual([{ mes: '2026-10', qtd: 1, valor: 5 }]);
   });

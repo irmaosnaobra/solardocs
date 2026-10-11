@@ -492,8 +492,15 @@
     var a = +ym.slice(0, 4), m = +ym.slice(5, 7);
     return m === 12 ? (a + 1) + '-01' : a + '-' + p2(m + 1);
   }
+  function mesAnterior(ym) {
+    var a = +ym.slice(0, 4), m = +ym.slice(5, 7);
+    return m === 1 ? (a - 1) + '-12' : a + '-' + p2(m - 1);
+  }
   // Do primeiro mês com venda até o mês corrente, mês vazio com zero, até 12 meses.
-  PosVenda.evolucaoMensal = function (vendas, hoje) {
+  // `minMeses` (opcional, até 12) completa a janela PARA TRÁS com meses zerados até ter
+  // pelo menos essa quantidade de pontos, terminando onde ela já terminava. Sem ele, o
+  // comportamento é o de sempre. Sem nenhuma venda a lista continua vazia.
+  PosVenda.evolucaoMensal = function (vendas, hoje, minMeses) {
     var lista = vendas || [];
     if (!lista.length) return [];
     var atual = (diaDe(hoje) || hojeBr()).slice(0, 7);
@@ -505,20 +512,24 @@
       o.qtd++;
       if (v.valor != null) o.valor += v.valor;
     });
+    var min = Math.min(12, Math.max(0, Math.floor(Number(minMeses)) || 0));
     var out = [];
     for (var ym = ini, guarda = 0; ym <= fim && guarda < 1200; ym = proximoMes(ym), guarda++) {
       var o = porMes[ym];
       out.push({ mes: ym, qtd: o ? o.qtd : 0, valor: o ? cent(o.valor) : 0 });
+    }
+    for (var ant = mesAnterior(ini), g2 = 0; out.length < min && g2 < 24; ant = mesAnterior(ant), g2++) {
+      out.unshift({ mes: ant, qtd: 0, valor: 0 });
     }
     return out.slice(-12);
   };
 
   // A mesma lista da evolução, com o que o tooltip precisa por mês: quantas vendas têm
   // valor, quantas não, e o ticket (soma ÷ vendas COM valor, como no resumo).
-  PosVenda.evolucaoDetalhada = function (vendas, hoje) {
+  PosVenda.evolucaoDetalhada = function (vendas, hoje, minMeses) {
     var porMes = {};
     (vendas || []).forEach(function (v) { (porMes[v.mes] || (porMes[v.mes] = [])).push(v); });
-    return PosVenda.evolucaoMensal(vendas, hoje).map(function (m) {
+    return PosVenda.evolucaoMensal(vendas, hoje, minMeses).map(function (m) {
       var a = agrega(porMes[m.mes] || []);
       return { mes: m.mes, qtd: a.qtd, valor: a.valor, comValor: a.comValor, semValor: a.semValor, ticket: a.ticket };
     });

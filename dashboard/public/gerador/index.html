@@ -2339,7 +2339,54 @@ html.pv-aberto body{overflow:hidden}
 #pv-bg .pv-g-tip .l strong{color:#fff;font-weight:800;text-align:right}
 #pv-bg .pv-g-tip .n{margin-top:4px;font-size:11.5px;color:#94A3B8}
 #pv-bg .pv-g-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-#pv-bg .ranking-podio-grid{margin-top:24px}
+/* Acabamento da tela (11/10/2026): ritmo de 18 px entre as seções, o mesmo título de seção
+   nos blocos, no gráfico e no ranking, números dos blocos legíveis e o pódio com texto
+   de 11 px para cima. Tudo preso a #pv-bg: o pódio e os blocos do solar não mudam. */
+#pv-bg .historico-stats-wrap{margin-bottom:0}
+#pv-bg .historico-secao{margin-bottom:18px}
+#pv-bg .historico-secao h4{margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+#pv-bg .historico-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:719px){#pv-bg .historico-stats{grid-template-columns:repeat(2,minmax(0,1fr))}#pv-bg .historico-stat:nth-child(odd):last-child{grid-column:1/-1}}
+#pv-bg .historico-stat{padding:10px 12px}
+#pv-bg .historico-stat .lbl{font-size:11px}
+#pv-bg .historico-stat .val{font-size:17px}
+#pv-bg .grafico-mes,#pv-bg .ranking-mes{padding:16px 18px;margin-bottom:18px;border-radius:12px}
+#pv-bg .ranking-mes h3{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+#pv-bg .ranking-meses{margin-bottom:12px}
+#pv-bg .ranking-resto .nome{font-size:14px}
+#pv-bg .ranking-resto .stats{margin-top:2px;font-size:12px}
+#pv-bg .historico-filtros{margin:0 0 14px}
+#pv-bg .historico-filtros .lbl-filtro{font-size:13px}
+/* pódio: um, dois ou três lugares, sempre centrado e com cara de pódio */
+#pv-bg .ranking-podio-grid{max-width:640px;margin:36px auto 18px;gap:10px}
+#pv-bg .ranking-podio-grid.cols-1{max-width:260px}
+#pv-bg .ranking-podio-grid.cols-2{max-width:480px}
+@media (max-width:540px){#pv-bg .ranking-podio-grid{gap:6px}}
+#pv-bg .podio-card{min-width:0;padding:14px 8px 14px;border-radius:12px}
+#pv-bg .podio-card.p1{padding-top:28px;transform:translateY(-10px)}
+#pv-bg .podio-card .crown{top:-22px;font-size:30px}
+#pv-bg .podio-card .medalha{margin-bottom:6px;font-size:22px}
+#pv-bg .podio-card.p1 .medalha{font-size:28px}
+#pv-bg .podio-card .avatar{width:48px;height:48px;margin-bottom:6px;font-size:14px}
+#pv-bg .podio-card.p1 .avatar{width:56px;height:56px;font-size:16px}
+#pv-bg .podio-card img.avatar{width:48px!important;height:48px!important}
+#pv-bg .podio-card.p1 img.avatar{width:56px!important;height:56px!important}
+#pv-bg .podio-card .nome{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;margin:2px 0 10px;font-family:inherit;font-size:14px;font-weight:800;line-height:1.2}
+#pv-bg .podio-card.p1 .nome{font-size:15px}
+#pv-bg .pv-pd-trio{display:flex;flex-direction:column;gap:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.16)}
+#pv-bg .pv-pd-st{display:flex;flex-direction:column;align-items:center;min-width:0;line-height:1.15}
+#pv-bg .pv-pd-big{font-size:28px;font-weight:900;line-height:1}
+#pv-bg .podio-card.p1 .pv-pd-big{font-size:34px}
+#pv-bg .pv-pd-num{font-size:15px;font-weight:800;text-align:center;overflow-wrap:anywhere}
+#pv-bg .pv-pd-lbl{margin-top:2px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;text-align:center}
+@media (max-width:540px){#pv-bg .pv-pd-big{font-size:26px}#pv-bg .podio-card.p1 .pv-pd-big{font-size:32px}#pv-bg .pv-pd-num{font-size:14px}}
+/* contraste do texto de cada degrau contra o fundo mais escuro do degrau (>= 6,8:1) */
+#pv-bg .podio-card.p1 .nome,#pv-bg .podio-card.p1 .pv-pd-big,#pv-bg .podio-card.p1 .pv-pd-num,#pv-bg .podio-card.p1 .avatar{color:#3d2600}
+#pv-bg .podio-card.p1 .pv-pd-lbl{color:#553500}
+#pv-bg .podio-card.p2 .nome,#pv-bg .podio-card.p2 .pv-pd-big,#pv-bg .podio-card.p2 .pv-pd-num,#pv-bg .podio-card.p2 .avatar{color:#1E293B}
+#pv-bg .podio-card.p2 .pv-pd-lbl{color:#334155}
+#pv-bg .podio-card.p3 .nome,#pv-bg .podio-card.p3 .pv-pd-big,#pv-bg .podio-card.p3 .pv-pd-num,#pv-bg .podio-card.p3 .avatar{color:#2b1200}
+#pv-bg .podio-card.p3 .pv-pd-lbl{color:#3d1c00}
 .pv-nota{margin-top:6px;font-size:11.5px;color:#94A3B8}
 .pv-neg-in{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;padding:16px 14px 14px;box-sizing:border-box}
 .pv-neg-info{min-width:0;flex:1}
@@ -29411,20 +29458,22 @@ function pvRenderResumo() {
   const hoje = PosVenda.hojeBr();
   const r = PosVenda.resumoVendas(pvVendas(), hoje);
   const nd = E.falhouLeitura;
-  const brl = (v) => nd ? 'n/d' : PosVenda.fmtBrl(v);
-  const tk = (x) => (nd || x.ticket === null) ? 'n/d' : PosVenda.fmtBrl(x.ticket);
+  // Há venda mas nenhuma tem valor: "R$ 0,00" pareceria venda de graça. Diz o que falta.
+  const semNenhumValor = (x) => !nd && x.qtd > 0 && x.comValor === 0;
+  const brl = (x) => nd ? 'n/d' : (semNenhumValor(x) ? 'A informar' : PosVenda.fmtBrl(x.valor));
+  const tk = (x) => nd ? 'n/d' : (semNenhumValor(x) ? 'A informar' : (x.ticket === null ? 'n/d' : PosVenda.fmtBrl(x.ticket)));
   const nota = (x) => (!nd && x.semValor > 0)
     ? `<div class="pv-nota">Soma do valor informado. ${pvPlural(x.semValor, 'venda sem valor', 'vendas sem valor')}.</div>` : '';
   const neg = E.negFalhou ? 'n/d' : (E.negCarregando ? '…' : String(E.negociacao.length) + (E.negCheio ? '+' : ''));
   el.innerHTML = '<div class="historico-secao"><h4>Geral</h4><div class="historico-stats">'
     + pvStat('Vendas', r.geral.qtd, 'destaque-vendido')
-    + pvStat('R$ vendido', brl(r.geral.valor), 'destaque-vendido')
+    + pvStat('R$ vendido', brl(r.geral), 'destaque-vendido')
     + pvStat('Ticket médio', tk(r.geral), 'destaque-conv')
     + pvStat('Em negociação', neg)
     + `</div>${nota(r.geral)}</div>`
     + `<div class="historico-secao"><h4>Este mês · ${PosVenda.rotuloMes(hoje.slice(0, 7))}</h4><div class="historico-stats">`
     + pvStat('Vendas', r.mes.qtd, 'destaque-vendido')
-    + pvStat('R$ vendido', brl(r.mes.valor), 'destaque-vendido')
+    + pvStat('R$ vendido', brl(r.mes), 'destaque-vendido')
     + pvStat('Ticket médio', tk(r.mes), 'destaque-conv')
     + `</div>${nota(r.mes)}</div>`;
 }
@@ -29454,7 +29503,7 @@ function pvRenderGrafico() {
     return;
   }
   const nd = E.falhouLeitura;
-  const dados = PosVenda.evolucaoDetalhada(vendas, PosVenda.hojeBr());
+  const dados = PosVenda.evolucaoDetalhada(vendas, PosVenda.hojeBr(), 6);   // no mínimo os 6 últimos meses
   const semValor = dados.reduce((s, d) => s + d.semValor, 0);
   const subQtd = 'Quantidade de vendas marcadas.';
   const subVal = 'Soma do valor informado.'
@@ -29544,11 +29593,11 @@ function pvDesenharGrafico(corpo, tipo, dados, nd) {
   const max = Math.max(0, ...vals);
   const eixo = PosVenda.escalaEixo(max, ehQtd);
   const rotTick = (v) => (ehQtd ? String(v) : PosVenda.fmtBrlCompacto(v, true));
-  const larg = (s, px) => Math.ceil(String(s).length * px * 0.6);   // largura estimada do texto
-  const gL = eixo.ticks.length ? Math.max.apply(null, eixo.ticks.map((t) => larg(rotTick(t), 10))) + 12 : 10;
+  const larg = (s, px) => Math.ceil(String(s).length * px * 0.57);  // largura estimada do texto
+  const gL = eixo.ticks.length ? Math.max.apply(null, eixo.ticks.map((t) => larg(rotTick(t), 10))) + 10 : 10;
   const x0 = gL, x1 = W - 10, yT = 38, yB = H - 24;              // 38 px no topo: duas linhas de rótulo
   const plotW = x1 - x0, plotH = yB - yT;
-  const slot = Math.min(plotW / n, 56);                          // poucos meses não esticam
+  const slot = plotW / n;                                        // faixas iguais por toda a largura
   const bw = Math.max(4, Math.min(24, slot - 6));
   const f = (v) => Math.round(v * 100) / 100;
   const yDe = (v) => yB - (eixo.topo > 0 ? (v / eixo.topo) * plotH : 0);
@@ -29582,11 +29631,18 @@ function pvDesenharGrafico(corpo, tipo, dados, nd) {
       + '<rect class="pv-g-hit" x="' + f(sx) + '" y="0" width="' + f(slot) + '" height="' + H + '"/>' + marca + '</g>';
   });
 
-  // rótulos do eixo x: pula de trás para frente, o mês mais recente sempre aparece
+  // rótulos do eixo x: um por faixa quando cabe; senão pula de trás para frente, e o mês mais
+  // recente sempre aparece. Faixa estreita: só "out", com o ano no primeiro mês mostrado e em janeiro.
   const rotMes = dados.map((d) => PosVenda.rotuloMes(d.mes));
-  const k = Math.max(1, Math.ceil((larg(rotMes[0], 11) + 8) / slot));
-  rotMes.forEach((r, i) => {
-    if ((n - 1 - i) % k !== 0) return;
+  const txtX = (i, primeiro) => (slot >= 46 || primeiro || rotMes[i].slice(0, 3) === 'jan' ? rotMes[i] : rotMes[i].slice(0, 3));
+  const mostrados = (kk) => { const ls = []; for (let i = n - 1; i >= 0; i -= kk) ls.unshift(i); return ls; };
+  let k = 1;
+  for (; k < n; k++) {
+    const ls = mostrados(k);
+    if (ls.every((i, j) => j === 0 || (larg(txtX(i, false), 11) + larg(txtX(ls[j - 1], j === 1), 11)) / 2 + 4 <= k * slot)) break;
+  }
+  mostrados(k).forEach((i, j) => {
+    const r = txtX(i, j === 0);
     const w = larg(r, 11);
     const cx = Math.min(Math.max(x0 + (i + 0.5) * slot, w / 2 + 2), W - w / 2 - 2);
     s += '<text class="pv-g-xl" x="' + f(cx) + '" y="' + (H - 7) + '" text-anchor="middle">' + r + '</text>';
@@ -29721,48 +29777,54 @@ function pvRenderRanking() {
   const podioOrdem = top3.length >= 3
     ? [{ ...top3[1], pos: 2 }, { ...top3[0], pos: 1 }, { ...top3[2], pos: 3 }]
     : top3.map((c, i) => ({ ...c, pos: i + 1 }));
-  const trioStyle = 'display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.08);';
-  const statRowStyle = 'display:flex;flex-direction:column;align-items:center;line-height:1.05;';
+  // Só desenho: as cores e os tamanhos moram no CSS (`#pv-bg .pv-pd-*`), por degrau.
   const podioHtml = comVenda.length === 0
     ? '<div class="ranking-vazio">Nenhuma venda neste período.</div>'
     : `<div class="ranking-podio-grid cols-${podioOrdem.length}">
       ${podioOrdem.map(c => {
-        const isP1 = c.pos === 1;
-        const corNum = isP1 ? '#5a3800' : '#1E3A8A';
-        const corLbl = isP1 ? '#7a5800' : '#777';
-        const corBig = isP1 ? '#7a4d00' : '#1E3A8A';
-        const numStyle = `font-size:13px;font-weight:800;color:${corNum};`;
-        const lblStyle = `font-size:8px;color:${corLbl};text-transform:uppercase;letter-spacing:0.3px;font-weight:700;margin-top:1px;text-align:center;`;
-        const bigStyle = `font-size:${isP1 ? '26px' : '22px'};font-weight:900;color:${corBig};`;
-        const valTxt = nd ? 'n/d' : (c.valor > 0 ? 'R$ ' + fmtN(c.valor) : 'Sem valor');
+        // Nenhuma venda dele tem valor: uma linha só dizendo o que falta, sem repetir.
+        const tudoSemValor = !nd && !(c.valor > 0);
+        const valTxt = nd ? 'n/d' : (tudoSemValor ? 'A informar' : 'R$ ' + fmtN(c.valor));
         return `<div class="podio-card p${c.pos}">
           ${c.pos === 1 ? '<div class="crown">👑</div>' : ''}
           <div class="medalha">${medalhas[c.pos]}</div>
           ${avatarConsultorHtml(c.consultor)}
           <div class="nome" title="${escapeHtml(c.consultor)}">${escapeHtml(c.consultor)}</div>
-          <div style="${trioStyle}">
-            <div style="${statRowStyle}"><span style="${bigStyle}">${c.vendas}</span><span style="${lblStyle}">venda${c.vendas !== 1 ? 's' : ''}</span></div>
-            <div style="${statRowStyle}"><span style="${numStyle}">${valTxt}</span><span style="${lblStyle}">valor informado</span>${(!nd && c.semValor > 0) ? `<span style="${lblStyle}">${c.semValor} sem valor</span>` : ''}</div>
-            ${negOk ? `<div style="${statRowStyle}"><span style="${numStyle}">${c.negociando}</span><span style="${lblStyle}">em negociação</span></div>` : ''}
+          <div class="pv-pd-trio">
+            <div class="pv-pd-st"><span class="pv-pd-big">${c.vendas}</span><span class="pv-pd-lbl">venda${c.vendas !== 1 ? 's' : ''}</span></div>
+            <div class="pv-pd-st"><span class="pv-pd-num">${valTxt}</span><span class="pv-pd-lbl">${tudoSemValor ? 'valor das vendas' : 'valor informado'}</span>${(!nd && !tudoSemValor && c.semValor > 0) ? `<span class="pv-pd-lbl">${c.semValor} sem valor</span>` : ''}</div>
+            ${negOk ? `<div class="pv-pd-st"><span class="pv-pd-num">${c.negociando}</span><span class="pv-pd-lbl">em negociação</span></div>` : ''}
           </div>
         </div>`;
       }).join('')}
     </div>`;
-  const restoHtml = resto.length === 0 ? '' : `<div class="ranking-resto">
-      ${resto.map((c, i) => {
-        const partes = [pvPlural(c.vendas, 'venda', 'vendas')];
-        if (!nd && c.valor > 0) partes.push(PosVenda.fmtBrl(c.valor) + ' informado');
-        if (!nd && c.semValor > 0) partes.push(c.semValor + ' sem valor');
-        if (negOk) partes.push(c.negociando + ' em negociação');
-        return `<div class="ranking-row">
-          <div class="pos">${top3.length + i + 1}º</div>
+  // Posição é só de quem vendeu no período. Quem só negocia aparece embaixo, sem
+  // número: "2º lugar com 0 vendas" não é colocação.
+  const linhaResto = (c, pos) => {
+    const partes = [];
+    if (c.vendas > 0) {
+      partes.push(pvPlural(c.vendas, 'venda', 'vendas'));
+      if (!nd && c.valor > 0) partes.push(PosVenda.fmtBrl(c.valor) + ' informado');
+      if (!nd && c.semValor > 0) partes.push(c.semValor + ' sem valor');
+    }
+    if (negOk) partes.push(c.negociando + ' em negociação');
+    return `<div class="ranking-row">
+          <div class="pos">${pos}</div>
           <div>
             <div class="nome">${escapeHtml(c.consultor)}</div>
             <div class="stats">${partes.join(' · ')}</div>
           </div>
         </div>`;
-      }).join('')}
-    </div>`;
+  };
+  const restoComVenda = resto.filter(c => c.vendas > 0);
+  const restoSemVenda = resto.filter(c => !(c.vendas > 0));
+  const restoHtml = (restoComVenda.length === 0 ? '' : `<div class="ranking-resto">
+      ${restoComVenda.map((c, i) => linhaResto(c, (top3.length + i + 1) + 'º')).join('')}
+    </div>`)
+    + (restoSemVenda.length === 0 ? '' : `<div style="font-size:12px; color:#94A3B8; margin:14px 0 6px;">Ainda sem venda neste período</div>
+    <div class="ranking-resto">
+      ${restoSemVenda.map(c => linhaResto(c, '•')).join('')}
+    </div>`);
   const rotPeriodo = periodo === 'tudo' ? 'Acumulado' : PosVenda.rotuloMes(periodo);
   const botoes = meses.map(m => {
     const n = vendas.filter(v => v.mes === m).length;
