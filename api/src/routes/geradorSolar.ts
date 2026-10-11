@@ -6,7 +6,7 @@ import { exigeConsultor } from './geradorDossie';
 import { credenciaisTrello, casarCartao, type TrelloCard } from '../services/gerador/dossieVenda';
 import {
   lerPlanilha, montarObra, hojeBRT, ordenarObras, resumirObras,
-  calcularPedir, marcasDe, ehSocio, podeVer, montarMapa, montarRanking, nomeNaOrigem, codigoCanonico,
+  calcularPedir, marcasDe, ehSocio, podeVer, montarMapa, montarPerto, montarRanking, nomeNaOrigem, codigoCanonico,
   type ObraBruta, type ObraMontada, type Marcas,
 } from '../services/gerador/solarObras';
 import { lerPainelQuizSolar, PERIODOS_PAINEL } from '../services/io/painelQuizSolar';
@@ -354,7 +354,15 @@ export function mountSolar(router: Router): void {
     const { cidades, semCoordenada, semCoordenadaLista } = montarMapa(pl.dados.obras.map((b) => montarObra(b, hoje)));
     // Nenhum texto livre da planilha chega a consultor comum: para ele só a
     // contagem. O texto cru da coluna CIDADE vai só para sócio.
-    res.json({ ok: true, cidades, semCoordenada, ...(socio ? { semCoordenadaLista } : {}) });
+    // `?perto=<cidade>`: as cidades com obra mais perto dela (só nomes oficiais
+    // de município e contagem, como o resto do mapa). Sem o parâmetro a resposta
+    // é a de sempre.
+    const pedido = String(req.query.perto ?? '').trim();
+    const perto = pedido ? montarPerto(pedido, cidades) : undefined;
+    res.json({
+      ok: true, cidades, semCoordenada, ...(socio ? { semCoordenadaLista } : {}),
+      ...(pedido ? (perto ? { perto } : { perto: null, pertoNaoAchada: true }) : {}),
+    });
   });
 
   // ── Indicações: ranking da planilha + o que chegou pelo formulário ────────

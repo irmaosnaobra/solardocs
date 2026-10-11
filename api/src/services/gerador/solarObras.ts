@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { parseCSV } from '../insightsService';
 import { normFone } from '../../utils/metaCapi';
-import { resolverCidade } from '../io/geoCidade';
+import { resolverCidade, distanciaKm } from '../io/geoCidade';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -626,6 +626,35 @@ export function nomeNaOrigem(texto: string): string {
 
 export interface PontoMapa { cidade: string; uf: string; lat: number; lng: number; instaladas: number; emAndamento: number }
 
+// A base de municípios guarda o centro do TERRITÓRIO, não o da cidade. Num mapa
+// mostrado ao cliente isso aparece: o pino de Catalão caía uns 30 km fora da
+// cidade e o de Uberlândia, uns 12 km. Para as cidades onde a casa tem obra
+// (medido na planilha em 11/10/2026) vale a sede. Cidade fora da lista segue
+// com o centro do município, que no zoom do mapa regional passa.
+const SEDES: Record<string, [number, number]> = {
+  'uberlandia/MG': [-18.9186, -48.2772],
+  'catalao/GO': [-18.1659, -47.9463],
+  'araguari/MG': [-18.6472, -48.1872],
+  'uberaba/MG': [-19.7472, -47.9381],
+  'tupaciguara/MG': [-18.5922, -48.7053],
+  'itumbiara/GO': [-18.4192, -49.2153],
+  'sacramento/MG': [-19.8653, -47.44],
+  'patrocinio/MG': [-18.9439, -46.9925],
+  'ituiutaba/MG': [-18.9772, -49.4639],
+  'gurinhata/MG': [-19.2125, -49.7878],
+  'capinopolis/MG': [-18.6819, -49.5697],
+  'campo florido/MG': [-19.7631, -48.5722],
+  'coromandel/MG': [-18.4733, -47.2003],
+  'morada nova de minas/MG': [-18.6042, -45.3578],
+  'patos de minas/MG': [-18.5789, -46.5181],
+};
+
+/** Coordenada da sede quando a cidade está na lista; senão a que veio da base. */
+export function coordenadaDaSede(municipio: string, uf: string, lat: number, lng: number): { lat: number; lng: number } {
+  const s = SEDES[`${nomeSimples(municipio)}/${String(uf || '').toUpperCase()}`];
+  return s ? { lat: s[0], lng: s[1] } : { lat, lng };
+}
+
 /**
  * Uma linha por município, sem nenhum dado de cliente (isto pode ser mostrado
  * a um cliente em visita). Instalada = etapa instalação feita; "em andamento" é
@@ -649,7 +678,9 @@ export function montarMapa(obras: ObraMontada[]): {
       continue;
     }
     const p = pontos.get(r.ibge) || {
-      cidade: r.municipio as string, uf: r.uf as string, lat: r.lat, lng: r.lng, instaladas: 0, emAndamento: 0,
+      cidade: r.municipio as string, uf: r.uf as string,
+      ...coordenadaDaSede(r.municipio as string, r.uf as string, r.lat, r.lng),
+      instaladas: 0, emAndamento: 0,
     };
     if (o.instalada) p.instaladas++; else p.emAndamento++;
     pontos.set(r.ibge, p);
@@ -659,4 +690,61 @@ export function montarMapa(obras: ObraMontada[]): {
     semCoordenada: semQtd,
     semCoordenadaLista: [...sem].sort(),
   };
+}
+
+// ── Mapa: quem está perto de uma cidade ──────────────────────────────────────
+
+export interface CidadePerto { cidade: string; uf: string; km: number; instaladas: number; emAndamento: number }
+export interface Perto { cidade: string; uf: string; lat: number; lng: number; proximas: CidadePerto[] }
+
+const MAX_PERTO = 80;
+const MAX_PROXIMAS = 8;
+/** Sem UF no texto, a casa atende MG primeiro e GO depois. */
+const PRIORIDADE_UF: Record<string, number> = { MG: 0, GO: 1 };
+
+/**
+ * "Araguari", "Araguari/MG", "Araguari, MG", "Araguari - MG" → a cidade pela
+ * base do IBGE (a mesma do mapa). Nome que existe em vários estados e veio sem
+ * UF: MG antes de GO antes dos outros, e entre iguais a mais perto de
+ * Uberlândia (de onde a equipe sai). `null` se não achou ou se o texto traz
+ * duas cidades.
+ */
+export function acharCidadePerto(texto: string): { cidade: string; uf: string; lat: number; lng: number } | null {
+  const t = String(texto ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PERTO);
+  if (!t) return null;
+  const r = resolverCidade(t);
+  if (r.status === 'ok' && r.municipio && r.uf && r.lat != null && r.lng != null) {
+    return { cidade: r.municipio, uf: r.uf, ...coordenadaDaSede(r.municipio, r.uf, r.lat, r.lng) };
+  }
+  if (r.status !== 'ambigua') return null;
+  const udi = resolverCidade('Uberlândia-MG');
+  const base = { lat: udi.lat as number, lng: udi.lng as number };
+  const opcoes = (r.candidatos || [])
+    .map((c) => resolverCidade(c))
+    .filter((c) => c.status === 'ok' && c.lat != null && c.lng != null)
+    .map((c) => ({
+      cidade: c.municipio as string, uf: c.uf as string,
+      ...coordenadaDaSede(c.municipio as string, c.uf as string, c.lat as number, c.lng as number),
+    }));
+  opcoes.sort((a, b) =>
+    (PRIORIDADE_UF[a.uf] ?? 2) - (PRIORIDADE_UF[b.uf] ?? 2)
+    || distanciaKm(base, a) - distanciaKm(base, b)
+    || a.uf.localeCompare(b.uf));
+  return opcoes[0] ?? null;
+}
+
+/**
+ * As cidades com obra (instalada ou em andamento) mais perto de `texto`, em
+ * linha reta, no máximo 8. A própria cidade entra com km 0 se tiver obra. Só
+ * usa as linhas do mapa, que já não têm dado de cliente.
+ */
+export function montarPerto(texto: string, cidades: PontoMapa[]): Perto | null {
+  const alvo = acharCidadePerto(texto);
+  if (!alvo) return null;
+  const proximas = cidades
+    .filter((c) => c.instaladas + c.emAndamento > 0)
+    .map((c) => ({ cidade: c.cidade, uf: c.uf, km: distanciaKm(alvo, c), instaladas: c.instaladas, emAndamento: c.emAndamento }))
+    .sort((a, b) => a.km - b.km || b.instaladas - a.instaladas || a.cidade.localeCompare(b.cidade))
+    .slice(0, MAX_PROXIMAS);
+  return { cidade: alvo.cidade, uf: alvo.uf, lat: alvo.lat, lng: alvo.lng, proximas };
 }

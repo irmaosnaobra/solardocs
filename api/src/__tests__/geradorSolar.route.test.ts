@@ -508,3 +508,79 @@ describe('GET /solar/indicacoes', () => {
     expect(res.body.fonte.planilha).toBe(false);
   });
 });
+
+describe('GET /solar/mapa?perto=', () => {
+  const perto = (txt: string, auth = NILCE) => get(`mapa?perto=${encodeURIComponent(txt)}`, auth);
+
+  it('sem o parâmetro (ou vazio) a resposta é idêntica à de sempre', async () => {
+    const base = await get('mapa');
+    expect(Object.keys(base.body).sort()).toEqual(['cidades', 'ok', 'semCoordenada']);
+    for (const q of ['mapa?perto=', 'mapa?perto=%20%20']) {
+      const r = await get(q);
+      expect(r.status).toBe(200);
+      expect(r.body).toEqual(base.body);
+    }
+    const socio = await get('mapa', THIAGO);
+    expect(Object.keys(socio.body).sort()).toEqual(['cidades', 'ok', 'semCoordenada', 'semCoordenadaLista']);
+  });
+
+  it('os jeitos de escrever a cidade dão a mesma resposta', async () => {
+    const ref = (await perto('Araguari')).body.perto;
+    expect(ref).toMatchObject({ cidade: 'Araguari', uf: 'MG' });
+    for (const t of ['Araguari/MG', 'Araguari, MG', 'Araguari - MG', 'araguari']) {
+      const r = await perto(t);
+      expect(r.status).toBe(200);
+      expect(r.body.perto, t).toEqual(ref);
+      expect('pertoNaoAchada' in r.body).toBe(false);
+    }
+  });
+
+  it('cidade com obra: ela mesma primeiro, depois as vizinhas por distância, só contagem', async () => {
+    const r = await perto('Araguari');
+    const p = r.body.perto;
+    expect(p.proximas[0]).toEqual({ cidade: 'Araguari', uf: 'MG', km: 0, instaladas: 0, emAndamento: 1 });
+    expect(p.proximas[1]).toMatchObject({ cidade: 'Uberlândia', uf: 'MG', instaladas: 2, emAndamento: 1 });
+    expect(p.proximas[1].km).toBeGreaterThan(0);
+    // O mapa de sempre continua na resposta, ao lado.
+    expect(r.body.cidades.length).toBeGreaterThan(0);
+    expect(r.body.semCoordenada).toBe(1);
+    const texto = JSON.stringify(r.body);
+    for (const proibido of ['Ana', 'Bruno', 'Carla', 'Eva', 'Fabio', 'Souza', '5534', '99999', 'Rua X', 'telefone', 'endereco', 'Inventada']) {
+      expect(texto).not.toContain(proibido);
+    }
+    for (const c of p.proximas) expect(Object.keys(c).sort()).toEqual(['cidade', 'emAndamento', 'instaladas', 'km', 'uf']);
+  });
+
+  it('cidade sem obra: lista as vizinhas que têm', async () => {
+    const r = await perto('Tupaciguara');
+    expect(r.body.perto).toMatchObject({ cidade: 'Tupaciguara', uf: 'MG' });
+    const nomes = r.body.perto.proximas.map((c: any) => c.cidade);
+    expect(nomes).not.toContain('Tupaciguara');
+    expect(nomes).toEqual(expect.arrayContaining(['Uberlândia', 'Araguari']));
+    const kms = r.body.perto.proximas.map((c: any) => c.km);
+    expect(kms).toEqual([...kms].sort((a: number, b: number) => a - b));
+    expect(kms[0]).toBeGreaterThan(0);
+  });
+
+  it('cidade inexistente: perto null e pertoNaoAchada, sem ecoar o texto', async () => {
+    for (const t of ['Cidade Fantasma', 'Araguari/SP', "<b>x</b>'; --"]) {
+      const r = await perto(t, THIAGO);
+      expect(r.status).toBe(200);
+      expect(r.body.perto).toBeNull();
+      expect(r.body.pertoNaoAchada).toBe(true);
+      expect(JSON.stringify(r.body)).not.toContain('Fantasma');
+      expect(r.body.cidades.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('texto muito longo ou repetido não derruba', async () => {
+    expect((await perto('x'.repeat(5000))).body.pertoNaoAchada).toBe(true);
+    const r = await get('mapa?perto=Araguari&perto=Uberaba');
+    expect(r.status).toBe(200);
+    expect(r.body.pertoNaoAchada).toBe(true);
+  });
+
+  it('continua exigindo login', async () => {
+    expect((await request(app).get('/gerador/solar/mapa?perto=Araguari')).status).toBe(401);
+  });
+});
