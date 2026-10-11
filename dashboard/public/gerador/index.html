@@ -203,6 +203,123 @@ html[data-mode="app"].fechamento-solar-aberto .container{margin-left:0!important
   .fs-h .a .fs-btn-sec{flex:1}
   #fechamentoSolarSection .card{padding:16px 14px}
 }
+/* ===== Quem ligar e Obras (10/10/2026) =====
+   Duas telas soltas do solar, no molde do Fechamento: escondem a barra lateral e
+   usam o mesmo cartão. O cartão é um só para as três para ninguém ter de manter o
+   visual em três lugares. */
+html[data-mode="app"].quem-ligar-aberto #app-sidebar,
+html[data-mode="app"].quem-ligar-aberto .sb-mobile-toggle,
+html[data-mode="app"].obras-solar-aberto #app-sidebar,
+html[data-mode="app"].obras-solar-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].quem-ligar-aberto .container,
+html[data-mode="app"].obras-solar-aberto .container{margin-left:0!important}
+#quemLigarSection,#obrasSolarSection{max-width:860px;margin:0 auto}
+#quemLigarSection .btn-hist-voltar,#obrasSolarSection .btn-hist-voltar{min-height:44px}
+#quemLigarSection .card,#obrasSolarSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:16px 16px;margin-bottom:12px}
+/* Faixa de resumo: quatro números que também são filtros */
+.ql-resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.ql-num{min-height:64px;padding:10px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#1E293B;color:#94A3B8;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ql-num b{font-size:26px;line-height:1;font-weight:900;color:#fff}
+.ql-num span{font-size:11.5px;font-weight:700;line-height:1.2;text-align:center}
+.ql-num:hover{border-color:rgba(245,158,11,.5)}
+.ql-num.on{border-color:#F59E0B;background:rgba(245,158,11,.14)}
+.ql-num.q b{color:#FB923C}.ql-num.m b{color:#FBBF24}.ql-num.n b{color:#CBD5E1}.ql-num.v b{color:#F87171}
+.ql-ctrl{display:flex;flex-direction:column;gap:10px;margin:0 0 14px}
+.ql-chips{display:flex;gap:8px;flex-wrap:wrap}
+.ql-chip{min-height:44px;padding:8px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#94A3B8;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.ql-chip.on{color:#fff;background:rgba(245,158,11,.18);border-color:#F59E0B}
+.ql-linha2{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.ql-busca{flex:1 1 200px;min-width:0;box-sizing:border-box;min-height:46px;padding:10px 14px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;font-weight:600;outline:none}
+.ql-busca:focus{border-color:#F59E0B}
+.ql-busca::placeholder{color:#475569;font-weight:400}
+.ql-sel{flex:0 0 auto;min-height:46px;padding:10px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#fff;font-size:15px;font-family:inherit;font-weight:700}
+.ql-faixa{display:flex;align-items:baseline;gap:8px;margin:20px 0 10px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#94A3B8}
+.ql-faixa b{font-size:13px;color:#fff;background:rgba(255,255,255,.1);border-radius:999px;padding:1px 9px}
+.ql-faixa.f-quente{color:#FB923C}.ql-faixa.f-morno{color:#FBBF24}.ql-faixa.f-voltou{color:#C4B5FD}
+#quemLigarSection .ql-card{border-left:4px solid #475569;padding:14px 14px}
+#quemLigarSection .ql-card.f-quente{border-left-color:#FB923C}
+#quemLigarSection .ql-card.f-morno{border-left-color:#FBBF24}
+#quemLigarSection .ql-card.f-voltou{border-left-color:#C4B5FD}
+.ql-topo{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ql-nome{min-width:0}
+.ql-nome b{display:block;font-size:17px;color:#fff;line-height:1.25;overflow-wrap:anywhere}
+.ql-nome small{display:block;margin-top:2px;color:#94A3B8;font-size:13px}
+.ql-valor{flex:0 0 auto;text-align:right;font-size:17px;font-weight:900;color:#fff;white-space:nowrap}
+.ql-sinal{margin:10px 0 0;font-size:15px;font-weight:800;color:#E5E7EB;line-height:1.35}
+.f-quente .ql-sinal{color:#FDBA74}.f-morno .ql-sinal{color:#FDE68A}.f-voltou .ql-sinal{color:#DDD6FE}
+.ql-sinal.zero{color:#94A3B8;font-weight:700}
+.ql-meta{margin:6px 0 0;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:#94A3B8}
+.ql-selo{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid rgba(255,255,255,.16);color:#E5E7EB;background:rgba(255,255,255,.06)}
+.ql-selo.vence{color:#FCA5A5;border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.12)}
+.ql-selo.venceu{color:#94A3B8}
+.ql-selo.stcard{color:#BFDBFE;border-color:rgba(147,197,253,.4);background:rgba(59,130,246,.12)}
+.ql-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#quemLigarSection .ql-acoes .fs-btn-main{margin:0;flex:1 1 100%;min-height:48px;font-size:16px;border-radius:12px}
+#quemLigarSection .ql-acoes .fs-btn-sec{flex:1 1 calc(33% - 8px);min-height:44px;padding:8px 10px;font-size:13.5px}
+.fs-btn-main:disabled,.fs-btn-sec:disabled{opacity:.45;cursor:not-allowed}
+.ql-motivos{margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}
+.ql-mot-tit{font-size:13px;font-weight:800;color:#FCA5A5;margin:0 0 8px}
+.ql-armado{border-color:#F87171!important;color:#FCA5A5!important;background:rgba(248,113,113,.14)!important}
+.ql-vazio{text-align:center;padding:36px 18px;color:#94A3B8;font-size:15px;line-height:1.5}
+.ql-vazio b{display:block;color:#E5E7EB;font-size:17px;margin-bottom:6px}
+.ql-vazio .fs-btn-sec{margin-top:14px}
+/* Obras */
+.ob-resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 14px}
+#obrasSolarSection .fs-tab{flex:0 0 auto;min-height:44px;padding:8px 22px}
+.ob-resumo.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ob-num{padding:12px 8px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#1E293B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:68px}
+.ob-num b{font-size:24px;line-height:1;font-weight:900;color:#fff}
+.ob-num span{font-size:11.5px;font-weight:700;line-height:1.2;text-align:center;color:#94A3B8}
+.ob-num.din b{font-size:18px;color:#4ADE80;white-space:nowrap}
+.ob-grupo{display:flex;align-items:baseline;gap:8px;margin:20px 0 10px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#94A3B8}
+.ob-grupo b{color:#fff;background:rgba(255,255,255,.1);border-radius:999px;padding:1px 9px;font-size:13px}
+#obrasSolarSection .ob-card{padding:14px 14px}
+.ob-topo{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ob-nome{min-width:0}
+.ob-nome b{display:block;font-size:17px;color:#fff;line-height:1.25;overflow-wrap:anywhere}
+.ob-nome small{display:block;margin-top:2px;color:#94A3B8;font-size:13px}
+.ob-cod{flex:0 0 auto;font-size:13px;font-weight:800;color:#FBBF24}
+.ob-sis{margin:8px 0 0;font-size:13.5px;color:#CBD5E1;line-height:1.4}
+.ob-trilha{list-style:none;margin:14px 0 0;padding:0;display:flex}
+.ob-et{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center}
+.ob-et+.ob-et::before{content:'';position:absolute;top:8px;right:50%;width:100%;height:2px;background:rgba(255,255,255,.16)}
+.ob-et.feito+.ob-et::before,.ob-et.semreg+.ob-et::before{background:#4ADE80}
+/* Etapa sem data na planilha, antes da última feita: buraco de preenchimento, não trabalho pendente. */
+.ob-et.semreg .ob-pt{background:transparent;border:2px dashed #94A3B8}
+.ob-et.semreg .ob-rot{color:#94A3B8}
+.ob-et.semreg .ob-dt{color:#94A3B8;font-style:italic}
+.ob-pt{position:relative;z-index:1;width:18px;height:18px;border-radius:50%;box-sizing:border-box;border:2px solid rgba(255,255,255,.28);background:#1E293B}
+.ob-et.feito .ob-pt{background:#4ADE80;border-color:#4ADE80}
+.ob-et.atual .ob-pt{background:#F59E0B;border-color:#FDE68A;box-shadow:0 0 0 4px rgba(245,158,11,.25)}
+.ob-rot{margin-top:6px;font-size:10.5px;font-weight:700;color:#64748B;line-height:1.2;max-width:100%;overflow-wrap:anywhere}
+.ob-et.feito .ob-rot{color:#CBD5E1}
+.ob-et.atual .ob-rot{color:#FDE68A;font-weight:800}
+.ob-dt{margin-top:2px;font-size:11px;color:#94A3B8;min-height:13px}
+.ob-det{margin:8px 0 0;font-size:14px;font-weight:700;color:#FDE68A;line-height:1.35}
+.ob-meta{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.ob-parada{font-size:13px;font-weight:800;color:#94A3B8}
+.ob-parada.alerta{color:#F87171}
+.ob-selo{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid rgba(255,255,255,.16);color:#E5E7EB;background:rgba(255,255,255,.06)}
+.ob-selo.ok{color:#86EFAC;border-color:rgba(74,222,128,.45);background:rgba(74,222,128,.1)}
+.ob-selo.nao{color:#FCA5A5;border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.12)}
+.ob-selo.din{color:#FDE68A;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.12)}
+.ob-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#obrasSolarSection .ob-acoes .fs-btn-sec{flex:1 1 calc(50% - 8px);min-height:44px;padding:8px 10px;font-size:13.5px;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+.ob-conc>summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#94A3B8;margin-top:20px}
+.ob-conc>summary::-webkit-details-marker{display:none}
+.ob-conc>summary::before{content:'+';color:#F59E0B;font-size:18px;width:16px}
+.ob-conc[open]>summary::before{content:'\2212'}
+.ob-conc>summary b{color:#fff}
+.ob-tog{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;font-weight:700;color:#E5E7EB;cursor:pointer}
+.ob-tog input{width:22px;height:22px;accent-color:#F59E0B}
+.ob-rodape{margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:12.5px;color:#94A3B8}
+@media(max-width:620px){
+  #quemLigarSection .card,#obrasSolarSection .card{padding:14px 12px}
+  .ql-num b{font-size:24px}
+  .ob-num b{font-size:22px}
+  .ob-num.din b{font-size:14px}
+  #quemLigarSection .ql-acoes .fs-btn-sec{flex:1 1 calc(50% - 8px)}
+}
 /* O papel solar: marca Irmãos na Obra no lugar da NEXUS. Reaproveita .ep-doc/.ep-page/.ep-ctr-*. */
 .sol-brand{display:flex;align-items:center;gap:11px;margin-bottom:0}
 .sol-logo{height:17mm;width:17mm;object-fit:contain;flex:none;border-radius:50%}
@@ -2498,7 +2615,7 @@ html[data-mode="app"] .container > #historicoSection{
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.quem-ligar-aberto):not(.obras-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
     display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
@@ -3207,8 +3324,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
        (navGerador, navHistorico...); o marcarNavAtivo acende a aba e o item Solar. -->
   <div class="solar-subnav" role="tablist" aria-label="Solar">
     <button type="button" class="solar-subtab" data-aba="gerador" onclick="navGerador()">Gerar proposta</button>
+    <button type="button" class="solar-subtab" data-aba="quemligar" onclick="navQuemLigar()">Quem ligar</button>
     <button type="button" class="solar-subtab" data-aba="historico" onclick="navHistorico()">Histórico</button>
     <button type="button" class="solar-subtab" data-aba="fechamento" onclick="navFechamentoSolar()">Fechamento</button>
+    <button type="button" class="solar-subtab" data-aba="obras" onclick="navObrasSolar()">Obras</button>
     <button type="button" class="solar-subtab" data-aba="leads" onclick="navLeads()">Leads</button>
     <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
     <button type="button" class="solar-subtab" data-aba="calc" onclick="navCalc()">Calculadora</button>
@@ -6269,6 +6388,30 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
     <div class="fs-sub" style="margin:-6px 0 16px">Contrato, procuração e recibo de quem fechou, no modelo do SolarDoc, prontos para imprimir ou salvar em PDF.</div>
     <div id="fs-corpo"></div>
+  </div>
+
+  <!-- ============= TELA: QUEM LIGAR (orçamentos em aberto, por sinal real de interesse) ============= -->
+  <div id="quemLigarSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>Quem ligar</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="voltarDoQuemLigar()">← Voltar</button>
+    </div>
+    <div class="fs-sub" style="margin:-6px 0 16px">Orçamentos que ainda não viraram venda, do cliente mais interessado para o menos. O sinal vem de quem abriu o link da proposta.</div>
+    <div id="ql-corpo"></div>
+  </div>
+
+  <!-- ============= TELA: OBRAS (pós-venda: da venda à liberação da concessionária) ============= -->
+  <div id="obrasSolarSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>Obras</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="voltarDasObras()">← Voltar</button>
+    </div>
+    <div class="fs-sub" style="margin:-6px 0 16px">Cada obra vendida, em que etapa está e há quantos dias não anda.</div>
+    <div id="ob-corpo"></div>
   </div>
 
   <!-- ============= TELA 6: LEADS (Instagram/Meta) ============= -->
@@ -9482,6 +9625,7 @@ function historicoPagProxima() {
 async function abrirHistorico() {
   const fsecH = document.getElementById('fechamentoSolarSection'); if (fsecH) fsecH.style.display = 'none';
   document.documentElement.classList.remove('fechamento-solar-aberto');
+  solarExtrasFechar();   // Quem ligar e Obras: abrirHistorico também é chamado direto, sem passar pelo marcarNavAtivo
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('propostaSection').style.display = 'none';
   document.getElementById('expiradoSection').style.display = 'none';
@@ -9594,15 +9738,19 @@ function voltarDoHistorico() {
 // ela roda no DOMContentLoaded e em deep link, e uma const no topo do script
 // estaria em zona morta se alguém a chamasse antes da linha dela.
 function marcarNavAtivo(id) {
-  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento' };
+  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras' };
   const aba = ABA_SOLAR[id] || null;
-  // Rede de segurança: qualquer tela que se abra por aqui fecha o Fechamento solar,
-  // mesmo que a lista escondida à mão da função dela não o conheça.
-  if (id !== 'nav-fechamento-solar') {
-    const fsec = document.getElementById('fechamentoSolarSection');
-    if (fsec) fsec.style.display = 'none';
-    document.documentElement.classList.remove('fechamento-solar-aberto');
-  }
+  // Rede de segurança: qualquer tela que se abra por aqui fecha as três telas
+  // soltas do solar (Fechamento, Quem ligar e Obras), mesmo que a lista escondida
+  // à mão da função dela não as conheça. Cada uma só sobrevive à própria abertura.
+  [['nav-fechamento-solar', 'fechamentoSolarSection', 'fechamento-solar-aberto'],
+   ['nav-quem-ligar', 'quemLigarSection', 'quem-ligar-aberto'],
+   ['nav-obras-solar', 'obrasSolarSection', 'obras-solar-aberto']].forEach(([navId, secId, cls]) => {
+    if (id === navId) return;
+    const sec = document.getElementById(secId);
+    if (sec) sec.style.display = 'none';
+    document.documentElement.classList.remove(cls);
+  });
   document.querySelectorAll('#app-sidebar .sb-item').forEach(b => b.classList.remove('ativo'));
   document.documentElement.classList.toggle('solar-aberto', !!aba);
   document.querySelectorAll('.solar-subtab').forEach(b => b.classList.toggle('ativa', b.dataset.aba === aba));
@@ -9613,17 +9761,23 @@ function marcarNavAtivo(id) {
 // diferente; com a régua dá para ir de Leads direto para Tabelas, e sem isto uma
 // tela ficaria empilhada sobre a outra.
 function telasSolarLimpar() {
-  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
+  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
     .forEach(t => { const el = document.getElementById(t); if (el) el.style.display = 'none'; });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+}
+// Fecha só Quem ligar e Obras. Existe para as telas que escondem as outras à mão
+// (abrirHistorico, navRedes, navCRM) e para não repetir a lista em cada uma.
+function solarExtrasFechar() {
+  ['quemLigarSection', 'obrasSolarSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  document.documentElement.classList.remove('quem-ligar-aberto', 'obras-solar-aberto');
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
   document.getElementById('formSection').style.display = '';
   // Kit ligado ou desligado em Tabelas vale assim que a pessoa volta pela régua
   // (antes só o "Voltar" de Tabelas reaplicava).
@@ -9792,10 +9946,11 @@ function navRedes() {
   document.getElementById('historicoSection').style.display = 'none';
   document.getElementById('leadsSection').style.display = 'none';
   document.getElementById('fechamentoSolarSection').style.display = 'none';
+  solarExtrasFechar();
   const sec = document.getElementById('redesSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('redes-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto');
   marcarNavAtivo('nav-redes');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -9811,14 +9966,14 @@ let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 function navCalc() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('calcSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('calc-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-calc');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -9828,14 +9983,14 @@ function navCalc() {
 function navEletroposto() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('eletroSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('eletro-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-eletroposto');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -26164,6 +26319,850 @@ function voltarDoFechamento() {
   marcarNavAtivo('nav-gerador');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+// ═══ Navegação: Quem ligar e Obras (10/10/2026) ═══
+// Clones do navFechamentoSolar: telasSolarLimpar esconde tudo, a classe da tela
+// esconde a barra lateral, e o marcarNavAtivo acende a aba da régua.
+function navQuemLigar() {
+  telasSolarLimpar();
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('quemLigarSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('quem-ligar-aberto');
+  marcarNavAtivo('nav-quem-ligar');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  qlAbrir();
+}
+function voltarDoQuemLigar() {
+  document.getElementById('quemLigarSection').style.display = 'none';
+  document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('quem-ligar-aberto');
+  marcarNavAtivo('nav-gerador');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function navObrasSolar() {
+  telasSolarLimpar();
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('obrasSolarSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('obras-solar-aberto');
+  marcarNavAtivo('nav-obras-solar');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  obAbrir();
+}
+function voltarDasObras() {
+  document.getElementById('obrasSolarSection').style.display = 'none';
+  document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('obras-solar-aberto');
+  marcarNavAtivo('nav-gerador');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QUEM LIGAR (10/10/2026)
+//
+// Lista os orçamentos solares que ainda não viraram venda, do cliente mais
+// interessado para o menos. "Interesse" aqui é fato medido e não palpite: quem
+// abriu o link da proposta, em quantos dias diferentes e há quanto tempo.
+//
+// A regra mora numa função PURA (qlCalcular), sem tocar no DOM, para o teste
+// poder alimentá-la com dados inventados e conferir faixa por faixa.
+//
+// Não existe armazenamento novo: o destino do cliente é o status do card da
+// agenda e o `vendido` da proposta, que já existiam.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Textos de WhatsApp do solar. Copiados sem mexer do arquivo de textos aprovado.
+// {consultor} é o primeiro nome de quem manda, SEM artigo antes. {link} e
+// {linkIndicacao} saem sempre com https:// completo, e {kwp} com vírgula.
+// Os PEDIR_* ainda não têm botão: entram na próxima entrega das Obras.
+const SOL_TEXTOS = {
+  ORCAMENTO_QUENTE_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nPassando para saber se ficou alguma dúvida sobre o orçamento de energia solar.\nSe quiser, a gente conversa com calma e eu te explico qualquer ponto.",
+  ORCAMENTO_QUENTE_B: "Oi, {primeiroNome}, tudo bem?\nAqui é {consultor}, da Irmãos na Obra.\nFicou alguma dúvida sobre o orçamento que te mandei?\nPode me chamar aqui que eu te ajudo.",
+  ORCAMENTO_NAO_ABRIU_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nReenvio o seu orçamento de energia solar, caso ele tenha se perdido na conversa.\n{link}\nQualquer dúvida, é só me chamar.",
+  ORCAMENTO_NAO_ABRIU_B: "Oi, {primeiroNome}, tudo certo?\nAqui é {consultor}. Deixo de novo o link do seu orçamento por aqui.\n{link}\nSe precisar de ajuda para entender, estou à disposição.",
+  ORCAMENTO_VENCENDO_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nOs valores do seu orçamento valem até {venceEm}.\nQuer que eu segure como está ou prefere que eu atualize?\nMe diz aqui que eu vejo isso para você.",
+  ORCAMENTO_VENCENDO_B: "Oi, {primeiroNome}, tudo bem?\nPassando para avisar que o orçamento do sistema de {kwp} kWp vale até {venceEm}.\nPrefere que eu segure como está ou que eu atualize os valores?\nQualquer coisa, é só falar comigo.",
+  ORCAMENTO_VOLTOU_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nLembrei de você e quis saber como andam as coisas por aí.\nSe energia solar voltou a fazer sentido, é só me falar, sem compromisso.",
+  ORCAMENTO_VOLTOU_B: "Oi, {primeiroNome}, tudo bem?\nAqui é {consultor}. Estava pensando no seu caso e quis dar um oi.\nSe mudou alguma coisa e você quiser rever o orçamento, me chama aqui.\nFica à vontade, sem pressa.",
+  PEDIR_DEPOIMENTO_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nSeu sistema já está funcionando e liberado pela concessionária. Como está sendo a experiência?\nSe você se sentir à vontade, adoraria um depoimento curto, em texto, áudio ou vídeo, para publicar no Instagram da empresa.\nSe preferir não, tudo bem também.",
+  PEDIR_DEPOIMENTO_B: "Oi, {primeiroNome}, tudo bem?\nAqui é {consultor}. Queria saber como está sendo a experiência com o sistema funcionando.\nSe topar, me manda um depoimento curto, pode ser texto, áudio ou vídeo, para a gente publicar no Instagram.\nSó se você se sentir à vontade, combinado?",
+  PEDIR_INDICACAO_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nAgradeço por confiar na gente. Se você conhece alguém que também quer reduzir a conta de luz, pode indicar por este link:\n{linkIndicacao}\nA gente reconhece quem indica.",
+  PEDIR_INDICACAO_B: "Oi, {primeiroNome}! Aqui é {consultor}, queria agradecer de novo a confiança.\nSe você conhecer alguém que também queira baixar a conta de luz, pode indicar por este link:\n{linkIndicacao}\nA gente reconhece quem indica, viu?",
+};
+
+const QL_DIA = 86400000;
+// Status que tiram o cliente da lista: o card diz que a conversa acabou.
+const QL_STATUS_SAI = new Set(['sem_interesse', 'cancelado', 'perdido', 'fechou', 'fechou_concorrente']);
+// Destes três, o cliente que voltou a abrir o orçamento merece uma segunda
+// chance. Fechou (venda ou concorrente) não: já decidiu.
+const QL_STATUS_VOLTA = new Set(['sem_interesse', 'cancelado', 'perdido']);
+const QL_FAIXAS = ['quente', 'morno', 'naoabriu', 'voltou'];
+const QL_FAIXA_ROTULO = { quente: 'Quente', morno: 'Morno', naoabriu: 'Não abriu', voltou: 'Disse não e voltou a abrir' };
+// Dia no relógio de Brasília. O servidor guarda UTC e duas aberturas na mesma
+// noite caem em datas UTC diferentes: sem isto um cliente que abriu duas vezes
+// no mesmo jantar viraria "Quente por dois dias".
+const qlFmtDia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+function qlMs(iso) { const t = iso ? new Date(iso).getTime() : NaN; return isNaN(t) ? 0 : t; }
+function qlDiaBR(ms) { return qlFmtDia.format(new Date(ms)); }
+function qlDifDias(de, ate) { return Math.round((Date.parse(ate + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / QL_DIA); }
+// Telefone na forma nacional (DDD + número, 10 ou 11 dígitos), ou '' se não dá
+// para confiar. É a MESMA regra da função ep_tel_norm do banco (coluna
+// agendamentos.telefone_norm): 12 ou 13 dígitos começando com 55 perdem o 55, 10 ou
+// 11 ficam como estão, o resto é lixo. Não uso o crmTelKey porque ele tira o "55"
+// de qualquer número e engole o DDD 55 (Santa Maria, RS).
+function qlTelNacional(t) {
+  const d = String(t || '').replace(/\D/g, '');
+  if ((d.length === 12 || d.length === 13) && d.indexOf('55') === 0) return d.slice(2);
+  return (d.length === 10 || d.length === 11) ? d : '';
+}
+// A chave do cliente: DDD + 8 últimos dígitos. O 9 extra aparece e some entre as
+// fontes, mas o DDD não pode sumir: duas pessoas de DDDs diferentes com os mesmos
+// 8 dígitos não são o mesmo cliente.
+function qlTelKey(t) { const n = qlTelNacional(t); return n ? n.slice(0, 2) + n.slice(-8) : ''; }
+// Número para o wa.me: 55 + DDD + número, só se o telefone for válido.
+function qlWaNumero(t) { const n = qlTelNacional(t); return n ? '55' + n : ''; }
+
+// ── A DATA DO "NÃO" ──
+// O crmAtualizarStatus (e o gêmeo dele na agenda) escreve no TOPO do `historico`
+// do card uma linha "[dd/mm HHhMM · quem] ... Status: A → B". Essa linha é o único
+// registro de quando o cliente disse não. Sem ano: o ano é o mais recente que não
+// cai no futuro. O relógio é o do celular do consultor, em Brasília. Sem linha
+// legível, vale o `quando` do card.
+function qlDataDoNao(card, agora) {
+  const h = String((card && card.historico) || '');
+  const anoAgora = Number(qlDiaBR(agora).slice(0, 4));
+  let melhor = 0;
+  const re = /\[(\d{1,2})\/(\d{1,2}) (\d{1,2})h(\d{2})/g;
+  let m;
+  while ((m = re.exec(h))) {
+    const dd = Number(m[1]), mm = Number(m[2]);
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) continue;
+    const mont = ano => qlMs(ano + '-' + String(mm).padStart(2, '0') + '-' + String(dd).padStart(2, '0') + 'T' + String(m[3]).padStart(2, '0') + ':' + m[4] + ':00-03:00');
+    let t = mont(anoAgora);
+    if (t > agora + 36 * 3600000) t = mont(anoAgora - 1);
+    if (t > melhor) melhor = t;
+  }
+  return melhor || qlMs(card && card.quando);
+}
+
+/**
+ * A regra toda. Recebe os dados crus e devolve a lista pronta, já na ordem da tela.
+ * ent = { props, acessos, cards, dias, agora }
+ */
+function qlCalcular(ent) {
+  const agora = ent.agora || Date.now();
+  const corte = agora - (ent.dias || 45) * QL_DIA;
+  const acPor = {};
+  (ent.acessos || []).forEach(a => { if (a && a.codigo_proposta) (acPor[a.codigo_proposta] = acPor[a.codigo_proposta] || []).push(a); });
+  // Só cards da família solar: created_by que não cita eletroposto. Cliente com
+  // vários cards vale pelo mais recente (quando).
+  const cardPor = {};
+  (ent.cards || []).forEach(c => {
+    if (!c || String(c.created_by || '').toLowerCase().includes('eletroposto')) return;
+    const k = qlTelKey(c.cliente_telefone);
+    if (!k) return;
+    if (!cardPor[k] || qlMs(c.quando) > qlMs(cardPor[k].quando)) cardPor[k] = c;
+  });
+  const grupos = new Map();
+  (ent.props || []).forEach(p => {
+    if (!p || !p.codigo) return;
+    if (!fsEhSolar({ tipo: p.tipo, produto: p.produto })) return;   // o mesmo filtro do Fechamento solar
+    if (qlMs(p.created_at) < corte) return;
+    const k = qlTelKey(p.tel) || qlTelKey(p.tel2) || ('p:' + p.codigo);   // sem telefone válido, chave própria
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(p);
+  });
+  const lista = [];
+  grupos.forEach((ps, k) => {
+    ps.sort((a, b) => qlMs(b.created_at) - qlMs(a.created_at));
+    if (ps.some(p => p.vendido)) return;
+    const main = ps[0];
+    // Abertura real: depois dos 10 primeiros minutos. Antes disso é o próprio
+    // consultor conferindo o link que acabou de gerar.
+    const reais = [];
+    let clicou = false;
+    ps.forEach(p => {
+      const cria = qlMs(p.created_at);
+      (acPor[p.codigo] || []).forEach(a => {
+        const ev = String(a.evento || '');
+        if (ev.indexOf('click') === 0) clicou = true;
+        if (ev !== 'abertura' && ev !== 'abertura_expirada') return;
+        const t = qlMs(a.ts);
+        if (t && t - cria > 10 * 60000) reais.push(t);
+      });
+    });
+    const nDias = new Set(reais.map(qlDiaBR)).size;
+    let ultima = reais.length ? Math.max.apply(null, reais) : 0;
+    const card = cardPor[k] || null;
+    let faixa = '';
+    if (card && QL_STATUS_SAI.has(card.status)) {
+      // O "não" só tira o cliente se veio DEPOIS do orçamento mais novo. Orçamento
+      // criado depois do não é conversa nova: o cliente volta às faixas normais,
+      // com o selo do status do card.
+      const nao = qlDataDoNao(card, agora);
+      if (nao >= qlMs(main.created_at)) {
+        // "Voltou a abrir" é abertura DEPOIS do não, e só vale por 7 dias. Quem
+        // abriu ontem e hoje foi marcado sem interesse não voltou: já tinha aberto.
+        const depois = reais.filter(t => t > nao);
+        if (QL_STATUS_VOLTA.has(card.status) && depois.length && agora - Math.max.apply(null, depois) <= 7 * QL_DIA) {
+          faixa = 'voltou';
+          ultima = Math.max.apply(null, depois);
+        } else return;
+      }
+    }
+    if (!faixa) {
+      if (nDias >= 2 || (ultima && agora - ultima <= 48 * 3600000)) faixa = 'quente';
+      else if (reais.length) faixa = 'morno';
+      else faixa = 'naoabriu';
+    }
+    // Selo de validade do orçamento mais novo.
+    let selo = null;
+    const exp = qlMs(main.expira_em);
+    if (exp) {
+      if (exp < agora) selo = { tipo: 'venceu', texto: 'Venceu' };
+      else if (exp - agora <= 3 * QL_DIA) {
+        const n = Math.max(0, qlDifDias(qlDiaBR(agora), qlDiaBR(exp)));
+        selo = { tipo: 'vence', texto: n === 0 ? 'Vence hoje' : (n === 1 ? 'Vence em 1 dia' : 'Vence em ' + n + ' dias'), dias: n };
+      }
+    }
+    const preco = Number(main.pv) || Number(main.po) || 0;
+    lista.push({
+      key: k, faixa, codigo: main.codigo, nome: main.cliente_nome || '', cidade: main.cliente_cidade || '', uf: main.cliente_uf || '',
+      consultor: main.consultor_nome || '', kwp: Number(main.kwp) || 0, preco,
+      telefone: qlTelNacional(main.tel) || qlTelNacional(main.tel2),
+      criadoEm: qlMs(main.created_at), expiraEm: exp, enviadoWpp: Number(main.enviado_wpp) || 0,
+      nOrc: ps.length, nAberturas: reais.length, nDias, ultima, clicou, selo,
+      card: card ? { id: card.id, status: card.status, quando: card.quando } : null,
+    });
+  });
+  const rank = f => QL_FAIXAS.indexOf(f);
+  lista.sort((a, b) => rank(a.faixa) - rank(b.faixa)
+    || (a.faixa === 'naoabriu' ? b.criadoEm - a.criadoEm : b.ultima - a.ultima));
+  return { lista, agora };
+}
+
+// "há 5 horas", "há 3 dias". Sem segundos: o sinal é de horas para dias.
+function qlHa(ms, agora) {
+  const d = Math.max(0, agora - ms);
+  const min = Math.floor(d / 60000);
+  if (min < 1) return 'agora mesmo';
+  if (min < 60) return 'há ' + min + (min === 1 ? ' minuto' : ' minutos');
+  const h = Math.floor(min / 60);
+  if (h < 24) return 'há ' + h + (h === 1 ? ' hora' : ' horas');
+  const dd = Math.floor(h / 24);
+  return 'há ' + dd + (dd === 1 ? ' dia' : ' dias');
+}
+function qlReais(n) {
+  const v = Number(n) || 0;
+  return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 });
+}
+function qlPrimeiro(nome) {
+  const p = String(nome || '').trim().split(/\s+/)[0] || '';
+  return p ? p.charAt(0).toLocaleUpperCase('pt-BR') + p.slice(1).toLocaleLowerCase('pt-BR') : '';
+}
+function qlSemAcento(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+// Rótulo humano do status do card: o mesmo do CRM, sem o emoji dele.
+function qlRotuloStatus(s) {
+  const ponte = { falando_whatsapp: 'whatsapp', fechou: 'vendido' };
+  const e = (typeof CRM_ETAPAS !== 'undefined' && CRM_ETAPAS[ponte[s] || s]) || null;
+  if (e && e.lbl) return e.lbl;
+  const c = (typeof CAD_AG_STATUS !== 'undefined' && CAD_AG_STATUS[s]) || String(s || '');
+  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase();
+}
+// O link público: o MESMO que o copiarLinkCodigo copia.
+function linkPublicoProposta(codigo) { return `${window.location.origin}${window.location.pathname}?p=${codigo}`; }
+
+// Qual texto vale para este cliente. Voltou a abrir manda sobre tudo; depois o
+// prazo curto (a data é a razão do contato); depois o sinal de abertura.
+function qlChaveTexto(c) {
+  if (c.faixa === 'voltou') return 'ORCAMENTO_VOLTOU';
+  if (c.selo && c.selo.tipo === 'vence') return 'ORCAMENTO_VENCENDO';
+  if (c.faixa === 'naoabriu') return 'ORCAMENTO_NAO_ABRIU';
+  return 'ORCAMENTO_QUENTE';   // Quente e Morno
+}
+function qlMontarTexto(c, agora) {
+  const base = qlChaveTexto(c);
+  // O texto B do prazo cita os kWp: sem o dado, vai o A, que não precisa dele.
+  const ab = (base === 'ORCAMENTO_VENCENDO' && !c.kwp) ? 'A' : (Math.random() < 0.5 ? 'A' : 'B');
+  let venceEm = '';
+  if (c.expiraEm) {
+    venceEm = qlDifDias(qlDiaBR(agora), qlDiaBR(c.expiraEm)) <= 0
+      ? 'hoje'
+      : new Date(c.expiraEm).toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' });
+  }
+  // Quem manda é quem está logado, não o dono da proposta: o texto sai do celular dele.
+  let quem = '';
+  try { quem = (crmConsultorLogado() || getConsultorAtual() || '').trim(); } catch (e) { quem = ''; }
+  quem = qlPrimeiro(quem || c.consultor) || 'a equipe';
+  const vars = {
+    primeiroNome: qlPrimeiro(c.nome) || 'tudo bem', consultor: quem, link: linkPublicoProposta(c.codigo),
+    kwp: c.kwp ? String(+c.kwp.toFixed(2)).replace('.', ',') : '', venceEm,
+  };
+  return SOL_TEXTOS[base + '_' + ab].replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+}
+
+// ── Estado e leitura ──
+let qlDados = null;     // { props, acessos, cards, dias }
+let qlEstado = { dias: 45, consultor: null, busca: '', foco: '' };
+let qlCarregando = false, qlErro = '', qlSeq = 0, qlLigado = false;
+let qlMapa = {};        // key do cliente -> item da lista, para os botões acharem o cliente
+let qlOcultos = new Set();   // clientes que acabaram de sair da lista (sem interesse marcado)
+let qlArmado = null;    // { key, timer }: o "Sem interesse" de dois toques
+let qlCardMexido = null;     // id do card que o CRM pode ter alterado
+
+// PostgREST corta em 1000 linhas e ignora um limit maior: pagina com offset.
+async function qlLerTudo(consulta) {
+  const out = [];
+  for (let de = 0; de < 30000; de += 1000) {
+    const j = await supaGet(consulta + '&limit=1000&offset=' + de);
+    out.push.apply(out, j || []);
+    if (!j || j.length < 1000) break;
+  }
+  return out;
+}
+
+async function qlCarregar(silencioso) {
+  const seq = ++qlSeq;
+  if (!(silencioso && qlDados)) { qlErro = ''; qlCarregando = true; qlDesenhar(); }
+  try {
+    const desde = new Date(Date.now() - qlEstado.dias * QL_DIA).toISOString();
+    const props = await qlLerTudo('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,ultimo_acesso,enviado_wpp,vendido,expira_em,'
+      + 'produto:dados->>produto,tel:dados->>telefoneDigitos,tel2:dados->>telefone,pv:dados->>precoVista,po:dados->>precoOrcamento'
+      + '&created_at=gte.' + encodeURIComponent(desde) + '&order=created_at.desc,codigo.desc');
+    const solares = props.filter(p => p && p.codigo && fsEhSolar({ tipo: p.tipo, produto: p.produto }));
+    // Os acessos só dos orçamentos que ainda estão em jogo, e os cards só dos
+    // telefones que aparecem nas propostas: nada de ler a agenda inteira.
+    const cods = solares.filter(p => !p.vendido).map(p => p.codigo);
+    const chaves = [...new Set(solares.map(p => qlTelKey(p.tel) || qlTelKey(p.tel2)).filter(Boolean))];
+    const acessos = [], cards = [];
+    const tarefas = [];
+    for (let i = 0; i < cods.length; i += 80) {
+      const f = cods.slice(i, i + 80);
+      tarefas.push(async () => { acessos.push.apply(acessos, await qlLerTudo('proposta_acessos?select=codigo_proposta,ts,evento,dispositivo,cidade&codigo_proposta=in.('
+        + f.map(encodeURIComponent).join(',') + ')&order=ts.asc,codigo_proposta.asc')); });
+    }
+    // telefone_norm é DDD + 8 últimos dígitos, a mesma chave da tela.
+    for (let i = 0; i < chaves.length; i += 80) {
+      const f = chaves.slice(i, i + 80);
+      tarefas.push(async () => { cards.push.apply(cards, await qlLerTudo('agendamentos?select=id,status,cliente_nome,cliente_telefone,vendedor_nome,quando,created_by&telefone_norm=in.('
+        + f.map(encodeURIComponent).join(',') + ')&order=quando.desc,id.desc')); });
+    }
+    let prox = 0;
+    const trabalhador = async () => { while (prox < tarefas.length) await tarefas[prox++](); };
+    await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
+    // O histórico só interessa dos cards encerrados: é dele que sai a data do não.
+    const enc = cards.filter(c => QL_STATUS_SAI.has(c.status) && !String(c.created_by || '').toLowerCase().includes('eletroposto')).map(c => c.id);
+    const porId = {};
+    const tarefas2 = [];
+    for (let i = 0; i < enc.length; i += 80) {
+      const f = enc.slice(i, i + 80);
+      tarefas2.push(async () => { (await qlLerTudo('agendamentos?select=id,historico&id=in.(' + f.join(',') + ')&order=id.asc')).forEach(r => { porId[r.id] = r.historico; }); });
+    }
+    prox = 0;
+    const trab2 = async () => { while (prox < tarefas2.length) await tarefas2[prox++](); };
+    await Promise.all([trab2(), trab2(), trab2(), trab2()]);
+    cards.forEach(c => { if (porId[c.id] != null) c.historico = porId[c.id]; });
+    if (seq !== qlSeq) return;   // chegou outra leitura depois desta
+    qlDados = { props, acessos, cards, dias: qlEstado.dias };
+    qlErro = '';
+    qlCarregando = false;
+    if (qlEstado.consultor === null) {
+      // Abre já na carteira de quem está logado, se ele tem orçamento na lista.
+      let eu = '';
+      try { eu = (crmConsultorLogado() || getConsultorAtual() || '').trim().toLowerCase(); } catch (e) { eu = ''; }
+      const nomes = qlNomesConsultores();
+      qlEstado.consultor = nomes.find(n => n.toLowerCase() === eu) || '';
+    }
+  } catch (e) {
+    if (seq !== qlSeq) return;
+    console.error(e);
+    qlCarregando = false;
+    if (!qlDados) qlErro = 'Não consegui carregar os orçamentos agora. Confira a internet e tente de novo.';
+    else showToast('Não consegui atualizar a lista agora.');
+  }
+  qlDesenhar();
+}
+function qlNomesConsultores() {
+  const s = new Set();
+  ((qlDados && qlDados.props) || []).forEach(p => { if (p && p.consultor_nome && fsEhSolar({ tipo: p.tipo, produto: p.produto })) s.add(String(p.consultor_nome).trim()); });
+  return [...s].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+function qlAbrir() {
+  const corpo = document.getElementById('ql-corpo');
+  if (!corpo) return;
+  if (!qlLigado) {
+    qlLigado = true;
+    corpo.addEventListener('click', qlClique);
+    corpo.addEventListener('input', e => { if (e.target && e.target.id === 'ql-busca') { qlEstado.busca = e.target.value; qlDesenharLista(); } });
+    corpo.addEventListener('change', e => { if (e.target && e.target.id === 'ql-dias') { qlEstado.dias = Number(e.target.value) || 45; qlCarregar(); } });
+  }
+  qlCarregar(true);   // reabrir mostra o que já tinha e atualiza por baixo
+}
+
+// ── Desenho ──
+function qlDesenhar() {
+  const corpo = document.getElementById('ql-corpo');
+  if (!corpo) return;
+  if (qlCarregando && !qlDados) {
+    corpo.innerHTML = '<div class="card ql-vazio"><b>Carregando os orçamentos...</b>Lendo as propostas, os acessos e a agenda.</div>';
+    return;
+  }
+  if (qlErro && !qlDados) {
+    corpo.innerHTML = '<div class="card ql-vazio"><b>Não deu para carregar</b>' + escapeHtml(qlErro)
+      + '<br><button type="button" class="fs-btn-sec" data-qa="retry">Tentar de novo</button></div>';
+    return;
+  }
+  if (!document.getElementById('ql-lista')) corpo.innerHTML = '<div id="ql-resumo"></div><div id="ql-ctrl" class="ql-ctrl"></div><div id="ql-lista"></div>';
+  qlDesenharCtrl();
+  qlDesenharLista();
+}
+function qlDesenharCtrl() {
+  const nomes = qlNomesConsultores();
+  const chip = (v, rot) => '<button type="button" class="ql-chip' + (qlEstado.consultor === v ? ' on' : '') + '" data-qa="cons" data-v="' + escapeHtml(v) + '">' + escapeHtml(rot) + '</button>';
+  const opc = n => '<option value="' + n + '"' + (qlEstado.dias === n ? ' selected' : '') + '>Últimos ' + n + ' dias</option>';
+  document.getElementById('ql-ctrl').innerHTML =
+    '<div class="ql-chips">' + chip('', 'Todos') + nomes.map(n => chip(n, n)).join('') + '</div>'
+    + '<div class="ql-linha2"><input id="ql-busca" class="ql-busca" type="search" placeholder="Buscar cliente" autocomplete="off" value="' + escapeHtml(qlEstado.busca) + '" aria-label="Buscar cliente">'
+    + '<select id="ql-dias" class="ql-sel" aria-label="Período">' + opc(30) + opc(45) + opc(90) + '</select></div>';
+}
+function qlDesenharLista() {
+  const alvo = document.getElementById('ql-lista');
+  const resumoEl = document.getElementById('ql-resumo');
+  if (!alvo || !qlDados) return;
+  const agora = Date.now();
+  const calc = qlCalcular({ props: qlDados.props, acessos: qlDados.acessos, cards: qlDados.cards, dias: qlEstado.dias, agora });
+  const busca = qlSemAcento(qlEstado.busca.trim());
+  const base = calc.lista.filter(c => !qlOcultos.has(c.key)
+    && (!qlEstado.consultor || c.consultor.toLowerCase() === qlEstado.consultor.toLowerCase())
+    && (!busca || qlSemAcento(c.nome).includes(busca)));
+  const n = f => base.filter(c => c.faixa === f).length;
+  const vencendo = base.filter(c => c.selo && c.selo.tipo === 'vence').length;
+  const num = (foco, cls, valor, rot) => '<button type="button" class="ql-num ' + cls + (qlEstado.foco === foco ? ' on' : '') + '" data-qa="foco" data-v="' + foco + '"><b>' + valor + '</b><span>' + rot + '</span></button>';
+  resumoEl.innerHTML = '<div class="ql-resumo">' + num('quente', 'q', n('quente'), 'Quentes') + num('morno', 'm', n('morno'), 'Mornos')
+    + num('naoabriu', 'n', n('naoabriu'), 'Não abriram') + num('vencendo', 'v', vencendo, 'Vencendo') + '</div>';
+  const vis = base.filter(c => !qlEstado.foco || (qlEstado.foco === 'vencendo' ? (c.selo && c.selo.tipo === 'vence') : c.faixa === qlEstado.foco));
+  qlMapa = {};
+  vis.forEach(c => { qlMapa[c.key] = c; });
+  if (!vis.length) {
+    alvo.innerHTML = '<div class="card ql-vazio">' + (calc.lista.length && (qlEstado.consultor || busca || qlEstado.foco)
+      ? '<b>Nenhum cliente com esses filtros</b>Tire um filtro para ver mais.'
+      : '<b>Nenhum orçamento em aberto neste período</b>Quando alguém abrir uma proposta ou ela ficar parada, aparece aqui.') + '</div>';
+    return;
+  }
+  alvo.innerHTML = QL_FAIXAS.map(f => {
+    const doGrupo = vis.filter(c => c.faixa === f);
+    if (!doGrupo.length) return '';
+    return '<div class="ql-faixa f-' + f + '">' + QL_FAIXA_ROTULO[f] + ' <b>' + doGrupo.length + '</b></div>' + doGrupo.map(c => qlCartao(c, agora)).join('');
+  }).join('');
+}
+function qlSinal(c, agora) {
+  if (c.faixa === 'voltou') return 'Disse não e abriu o orçamento de novo · ' + qlHa(c.ultima, agora);
+  if (!c.nAberturas) return 'Ainda não abriu';
+  const dias = c.nDias >= 2 ? 'Abriu em ' + c.nDias + ' dias diferentes' : 'Abriu em 1 dia só';
+  return dias + ' · última vez ' + qlHa(c.ultima, agora);
+}
+function qlCartao(c, agora) {
+  const e = escapeHtml, k = e(c.key);
+  const local = [c.cidade, c.uf].filter(Boolean).join('/');
+  const sub = [local, c.kwp ? String(+c.kwp.toFixed(2)).replace('.', ',') + ' kWp' : ''].filter(Boolean).join(' · ');
+  const dias = Math.max(0, Math.floor((agora - c.criadoEm) / QL_DIA));
+  const meta = [];
+  if (c.consultor) meta.push(e(c.consultor));
+  meta.push((c.enviadoWpp > 0 ? 'Enviado ' : 'Criado ') + (dias === 0 ? 'hoje' : 'há ' + dias + (dias === 1 ? ' dia' : ' dias')));
+  if (c.nOrc > 1) meta.push(c.nOrc + ' orçamentos');
+  if (c.clicou) meta.push('Clicou na proposta');
+  const selos = (c.selo ? '<span class="ql-selo ' + c.selo.tipo + '">' + e(c.selo.texto) + '</span>' : '')
+    + (c.card ? '<span class="ql-selo stcard">Card: ' + e(qlRotuloStatus(c.card.status)) + '</span>' : '');
+  const encerrado = c.card && QL_STATUS_SAI.has(c.card.status);
+  return '<article class="card ql-card f-' + c.faixa + '">'
+    + '<div class="ql-topo"><div class="ql-nome"><b>' + e(c.nome || 'Sem nome') + '</b>' + (sub ? '<small>' + e(sub) + '</small>' : '') + '</div>'
+    + (c.preco ? '<div class="ql-valor">' + e(qlReais(c.preco)) + '</div>' : '') + '</div>'
+    + '<div class="ql-sinal' + (c.nAberturas ? '' : ' zero') + '">' + e(qlSinal(c, agora)) + '</div>'
+    + '<div class="ql-meta">' + meta.map((m, i) => (i ? '<span>·</span>' : '') + '<span>' + m + '</span>').join('') + selos + '</div>'
+    + '<div class="ql-acoes">'
+    + '<button type="button" class="fs-btn-main" data-qa="zap" data-k="' + k + '"' + (c.telefone ? '' : ' disabled') + '>' + (c.telefone ? 'WhatsApp' : 'Sem telefone válido') + '</button>'
+    + '<button type="button" class="fs-btn-sec" data-qa="ver" data-k="' + k + '">Ver orçamento</button>'
+    + '<button type="button" class="fs-btn-sec" data-qa="vend" data-k="' + k + '">Vendido</button>'
+    + (c.card && !encerrado ? '<button type="button" class="fs-btn-sec" data-qa="sem" data-k="' + k + '">Sem interesse</button>' : '')
+    + (c.card ? '<button type="button" class="fs-btn-sec" data-qa="card" data-k="' + k + '">Abrir card</button>' : '')
+    + '</div></article>';
+}
+
+// ── Ações ──
+function qlClique(ev) {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-qa]') : null;
+  if (!b) return;
+  const a = b.dataset.qa, k = b.dataset.k;
+  if (a === 'retry') return qlCarregar();
+  if (a === 'cons') { qlEstado.consultor = b.dataset.v; qlDesenharCtrl(); return qlDesenharLista(); }
+  if (a === 'foco') { qlEstado.foco = qlEstado.foco === b.dataset.v ? '' : b.dataset.v; return qlDesenharLista(); }
+  if (a === 'zap') return qlWhats(k);
+  if (a === 'ver') { const c = qlMapa[k]; if (c) abrirProposta(c.codigo); return; }
+  if (a === 'vend') return qlVender(k);
+  if (a === 'sem') return qlSemInteresseToque(b, k);
+  if (a === 'motivo') return qlSemInteresse(b, k, b.dataset.v);
+  if (a === 'motivo-x') { const cx = b.closest('.ql-motivos'); if (cx) cx.remove(); return; }
+  if (a === 'card') return qlAbrirCard(k);
+}
+function qlWhats(key) {
+  const c = qlMapa[key];
+  if (!c || !qlWaNumero(c.telefone)) return;
+  const url = 'https://wa.me/' + qlWaNumero(c.telefone) + '?text=' + encodeURIComponent(qlMontarTexto(c, Date.now()));
+  window.open(url, '_blank', 'noopener');
+  // Reenviar o link soma ao contador de envios, do mesmo jeito que o botão de
+  // copiar a proposta faz (a RPC marcar_enviado_wpp).
+  if (qlChaveTexto(c) === 'ORCAMENTO_NAO_ABRIU') {
+    supaRpc('marcar_enviado_wpp', { p_codigo: c.codigo }).catch(e => console.error(e));
+    const p = qlDados && qlDados.props.find(x => x.codigo === c.codigo);
+    if (p) p.enviado_wpp = (Number(p.enviado_wpp) || 0) + 1;
+  }
+}
+// O formulário de venda lê `historicoRows`. Quem chegou aqui sem passar pelo
+// Histórico não a tem, e carregar pelo abrirHistorico empilharia a tela do
+// Histórico por cima. Então a leitura é a mesma, sem desenhar nada.
+async function qlGarantirHistorico(codigo) {
+  if (!historicoRows || !historicoRows.length) historicoRows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
+  if (!historicoRows.some(r => r.codigo === codigo)) {
+    const um = await supaGet('propostas?codigo=eq.' + encodeURIComponent(codigo) + '&select=*&limit=1');
+    if (um && um[0]) historicoRows.unshift(um[0]);
+  }
+}
+async function qlVender(key) {
+  const c = qlMapa[key];
+  if (!c) return;
+  try { await qlGarantirHistorico(c.codigo); }
+  catch (e) { console.error(e); showToast('Não consegui abrir a venda agora. Tente de novo.'); return; }
+  if (!historicoRows.some(r => r.codigo === c.codigo)) { showToast('Não achei a proposta ' + c.codigo + '.'); return; }
+  abrirModalVenda(c.codigo);
+}
+// Chamado pelo salvarVenda e pelo desmarcarVenda: a lista acompanha o `vendido`.
+function qlAposVenda() {
+  if (!qlDados) return;
+  let desmarcou = false;
+  (historicoRows || []).forEach(r => {
+    const p = qlDados.props.find(x => x.codigo === r.codigo);
+    if (!p) return;
+    if (p.vendido && !r.vendido) desmarcou = true;
+    p.vendido = r.vendido;
+  });
+  const sec = document.getElementById('quemLigarSection');
+  const aberta = sec && sec.style.display !== 'none';
+  // Venda desmarcada: os acessos dessa proposta nunca foram lidos (proposta vendida
+  // não entra na leitura), então devolver a linha agora a mostraria como "Não
+  // abriu". Lê tudo de novo.
+  if (desmarcou) { if (aberta) qlCarregar(true); else qlDados = null; return; }
+  if (aberta) qlDesenharLista();
+}
+// Chamado pelo crmFecharDetalhe: o CRM pode ter mudado o status do card que abrimos.
+function qlAposCrm() {
+  if (!qlDados || qlCardMexido == null || typeof crmClientes === 'undefined') return;
+  const id = String(qlCardMexido);
+  qlCardMexido = null;
+  for (const c of crmClientes) {
+    const ag = (c.agends || []).find(a => String(a.id) === id);
+    if (!ag) continue;
+    const meu = qlDados.cards.find(x => String(x.id) === id);
+    if (meu) meu.status = ag.status;
+    break;
+  }
+  const sec = document.getElementById('quemLigarSection');
+  if (sec && sec.style.display !== 'none') qlDesenharLista();
+}
+// Acha o card no CRM pelo ID. O CRM só lê 1000 cards: um card fora dessa janela é
+// carregado do banco pelo id e entra no cliente certo (ou num cliente novo), com as
+// mesmas colunas que o CRM lê. Assim a tela nunca cai no "card mais recente".
+const QL_COLUNAS_CRM = 'id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em,presenca_confirmada_at,confirmacao_at,lead_resposta_at';
+async function qlCardNoCrm(cardId) {
+  if (!crmCarregado) await carregarCRM();
+  const acha = () => {
+    for (const c of crmClientes) {
+      const ag = (c.agends || []).find(a => String(a.id) === String(cardId));
+      if (ag) return { cli: c, ag };
+    }
+    return null;
+  };
+  const ja = acha();
+  if (ja) return ja;
+  const rows = await supaGet('agendamentos?id=eq.' + encodeURIComponent(cardId) + '&select=' + QL_COLUNAS_CRM + '&limit=1');
+  if (!rows || !rows[0]) return null;
+  const ag = rows[0];
+  const chave = crmTelKey(ag.cliente_telefone) || ('nm:' + (ag.cliente_nome || '').trim().toLowerCase());
+  let cli = crmClientes.find(x => x.key === chave);
+  if (cli) { cli.agends.push(ag); crmDerivar(cli); }
+  else {
+    cli = crmUnificar([], [ag], [])[0];
+    crmClientes.push(cli);
+  }
+  return { cli, ag };
+}
+async function qlAbrirCard(key) {
+  const c = qlMapa[key];
+  if (!c || !c.card) return;
+  try {
+    if (!crmCarregado) showToast('Abrindo o card...');
+    const r = await qlCardNoCrm(c.card.id);
+    if (!r) { showToast('Não achei esse card.'); return; }
+    qlCardMexido = c.card.id;
+    crmAbrirDetalhe(r.cli.key, r.ag.id);
+  } catch (e) { console.error(e); showToast('Não consegui abrir o card agora.'); }
+}
+// Os motivos do "sem interesse" do solar, os mesmos botões do CRM (crm-det-motivo).
+const QL_MOTIVOS = [['preco', 'Achou caro'], ['concorrente', 'Fechou com outro'], ['nao_decisor', 'Não é quem decide'], ['sem_perfil', 'Não tem perfil']];
+// Dois toques: o primeiro arma o botão, o segundo abre a pergunta do motivo, e um
+// toque num motivo grava. Sem isto um toque torto no celular manda o robô parar de
+// falar com um cliente que ainda quer.
+function qlSemInteresseToque(btn, key) {
+  if (qlArmado && qlArmado.key === key) {
+    clearTimeout(qlArmado.timer);
+    qlArmado = null;
+    return qlMotivosAbrir(btn, key);
+  }
+  if (qlArmado) clearTimeout(qlArmado.timer);
+  btn.textContent = 'Confirmar sem interesse';
+  btn.classList.add('ql-armado');
+  qlArmado = { key, timer: setTimeout(() => { qlArmado = null; btn.textContent = 'Sem interesse'; btn.classList.remove('ql-armado'); }, 5000) };
+}
+function qlMotivosAbrir(btn, key) {
+  const card = btn.closest('.ql-card');
+  if (!card || card.querySelector('.ql-motivos')) return;
+  const div = document.createElement('div');
+  div.className = 'ql-motivos';
+  div.innerHTML = '<div class="ql-mot-tit">Sem interesse: por quê?</div><div class="ql-chips">'
+    + QL_MOTIVOS.map(m => '<button type="button" class="ql-chip" data-qa="motivo" data-k="' + escapeHtml(key) + '" data-v="' + m[0] + '">' + m[1] + '</button>').join('')
+    + '<button type="button" class="ql-chip" data-qa="motivo" data-k="' + escapeHtml(key) + '" data-v="">Sem dizer o motivo</button>'
+    + '<button type="button" class="ql-chip" data-qa="motivo-x" data-k="' + escapeHtml(key) + '">Cancelar</button></div>';
+  card.appendChild(div);
+  btn.textContent = 'Sem interesse';
+  btn.classList.remove('ql-armado');
+}
+// A escrita é a do CRM (crmAtualizarStatus), com tudo o que ela faz: o PATCH do
+// status com a linha no histórico, a etiqueta guardada, o motivo e a espera solta.
+// Esta tela não tem PATCH próprio. Motivo escolhido vai como `__motivo`; "sem dizer"
+// vai como null, que NÃO manda nada a /gerador/motivo (um '' apagaria o motivo que
+// o card já tem).
+async function qlSemInteresse(btn, key, motivo) {
+  const c = qlMapa[key];
+  if (!c || !c.card) return;
+  const caixa = btn.closest('.ql-motivos');
+  const chips = caixa ? caixa.querySelectorAll('button') : [];
+  chips.forEach(b => { b.disabled = true; });
+  try {
+    const r = await qlCardNoCrm(c.card.id);
+    if (!r) throw new Error('card fora do CRM');
+    const { cli, ag } = r;
+    // O histórico do card é reescrito com a linha nova no topo: parte do que está
+    // no banco agora, não da cópia que a tela leu há horas.
+    const fresco = await supaGet('agendamentos?id=eq.' + encodeURIComponent(ag.id) + '&select=id,status,historico&limit=1');
+    if (fresco && fresco[0]) Object.assign(ag, fresco[0]);
+    // Outra pessoa pode ter vendido ou encerrado este card depois que a lista
+    // abriu. Gravar por cima desfaria a venda: então só avisa e recarrega.
+    if (QL_STATUS_SAI.has(ag.status)) {
+      showToast('Este card já está como ' + qlRotuloStatus(ag.status) + '.');
+      const meu = qlDados && qlDados.cards.find(x => String(x.id) === String(ag.id));
+      if (meu) meu.status = ag.status;
+      qlCarregar(true);
+      return;
+    }
+    qlCardMexido = ag.id;
+    crmDetAtual = { c: cli, agRec: ag };
+    await crmAtualizarStatus('sem_interesse', { __motivo: motivo ? motivo : null });
+    // A crmAtualizarStatus engole o erro e só avisa na tela do CRM: quem diz se
+    // gravou é o status que ficou no card.
+    if (ag.status !== 'sem_interesse') throw new Error('não gravou');
+    crmDetAtual = null;
+    qlOcultos.add(key);
+    const meu = qlDados && qlDados.cards.find(x => String(x.id) === String(ag.id));
+    if (meu) meu.status = 'sem_interesse';
+    qlDesenharLista();
+  } catch (e) {
+    console.error(e);
+    crmDetAtual = null;
+    chips.forEach(b => { b.disabled = false; });
+    showToast('Não consegui marcar sem interesse agora. Tente de novo.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OBRAS (10/10/2026): pós-venda. Lê a API com a sessão do consultor.
+// ═══════════════════════════════════════════════════════════════════════════
+const OB_ETAPAS = [['venda', 'Venda'], ['projeto', 'Projeto'], ['material', 'Material'], ['instalacao', 'Instalação'], ['vistoria', 'Vistoria'], ['liberado', 'Liberado']];
+// Os grupos da tela chamam a última etapa de Liberação.
+const OB_GRUPOS = [['venda', 'Venda'], ['projeto', 'Projeto'], ['material', 'Material'], ['instalacao', 'Instalação'], ['vistoria', 'Vistoria'], ['liberado', 'Liberação']];
+// As abas internas. Cada uma tem o seu contêiner. Só entra na barra a que já tem
+// conteúdo: "Indicações e depoimentos" e "Mapa" entram aqui na próxima entrega.
+const OB_ABAS = [{ id: 'andamento', rotulo: 'Andamento', render: () => obDesenharAndamento() }];
+let obDados = null, obErro = null, obCarregando = false, obSeq = 0, obLigado = false;
+let obEstado = { aba: 'andamento', busca: '', consultor: '', soAndamento: true };
+
+async function obCarregar() {
+  const seq = ++obSeq;
+  obErro = null;
+  obCarregando = true;
+  if (!obDados) obDesenhar();
+  try {
+    try { await authRenovarSePreciso(); } catch (e) { /* o 401 abaixo avisa */ }
+    const tok = sessaoAtual && sessaoAtual.access_token;
+    if (!tok) { obErro = { auth: true }; obCarregando = false; obDados = null; return obDesenhar(); }
+    const r = await fetch(CTR_IA_API + '/gerador/solar/obras', { headers: { 'Authorization': 'Bearer ' + tok } });
+    if (seq !== obSeq) return;
+    if (r.status === 401 || r.status === 403) { obErro = { auth: true }; obCarregando = false; obDados = null; return obDesenhar(); }
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || !j.ok) throw new Error('resposta ' + r.status);
+    obDados = j;
+  } catch (e) {
+    if (seq !== obSeq) return;
+    console.error(e);
+    if (!obDados) obErro = { auth: false };
+    else showToast('Não consegui atualizar as obras agora.');
+  }
+  obCarregando = false;
+  obDesenhar();
+}
+function obAbrir() {
+  const corpo = document.getElementById('ob-corpo');
+  if (!corpo) return;
+  if (!obLigado) {
+    obLigado = true;
+    corpo.addEventListener('click', obClique);
+    corpo.addEventListener('input', e => { if (e.target && e.target.id === 'ob-busca') { obEstado.busca = e.target.value; obDesenharLista(); } });
+    corpo.addEventListener('change', e => { if (e.target && e.target.id === 'ob-solo') { obEstado.soAndamento = !!e.target.checked; obDesenharLista(); } });
+  }
+  obCarregar();
+}
+function obDesenhar() {
+  const corpo = document.getElementById('ob-corpo');
+  if (!corpo) return;
+  if (obErro) {
+    corpo.innerHTML = '<div class="card ql-vazio"><b>' + (obErro.auth ? 'Entre para ver as obras' : 'Não deu para carregar')
+      + '</b>' + (obErro.auth ? 'Entre com a sua conta de consultor para ver as obras.' : 'Não consegui carregar as obras agora. Confira a internet e tente de novo.')
+      + (obErro.auth ? '' : '<br><button type="button" class="fs-btn-sec" data-qa="retry">Tentar de novo</button>') + '</div>';
+    return;
+  }
+  if (!obDados) {
+    corpo.innerHTML = '<div class="card ql-vazio"><b>Carregando as obras...</b>Lendo a planilha e o Trello.</div>';
+    return;
+  }
+  const abas = OB_ABAS.map(a => '<button type="button" class="fs-tab' + (obEstado.aba === a.id ? ' ativa' : '') + '" data-qa="aba" data-v="' + a.id + '">' + a.rotulo + '</button>').join('');
+  corpo.innerHTML = '<div class="fs-tabs" role="tablist">' + abas + '</div>'
+    + OB_ABAS.map(a => '<div id="ob-pane-' + a.id + '"' + (obEstado.aba === a.id ? '' : ' hidden') + '></div>').join('');
+  const ativa = OB_ABAS.find(a => a.id === obEstado.aba) || OB_ABAS[0];
+  ativa.render();
+}
+function obDesenharAndamento() {
+  const pane = document.getElementById('ob-pane-andamento');
+  if (!pane || !obDados) return;
+  const d = obDados, obras = d.obras || [];
+  const emAnd = obras.filter(o => o.etapaAtual !== 'concluida');
+  const res = d.resumo || {};
+  const pe = res.porEtapa || {};
+  const cont = ch => emAnd.filter(o => o.etapaAtual === ch).length;
+  const porEtapa = ch => (pe[ch] != null ? Number(pe[ch]) : cont(ch));
+  const andamento = res.emAndamento != null ? res.emAndamento : emAnd.length;
+  const num = (valor, rot, cls) => '<div class="ob-num ' + (cls || '') + '"><b>' + valor + '</b><span>' + rot + '</span></div>';
+  const temDinheiro = res.aReceber != null && isFinite(Number(res.aReceber));
+  const resumo = '<div class="ob-resumo' + (temDinheiro ? '' : ' n3') + '">'
+    + num(andamento, 'Em andamento') + num(porEtapa('vistoria') + porEtapa('liberado'), 'Aguardando concessionária')
+    + num(porEtapa('material'), 'Material a comprar') + (temDinheiro ? num(escapeHtml(qlReais(res.aReceber)), 'A receber', 'din') : '') + '</div>';
+  let consultores = '';
+  if (d.verTudo) {
+    const nomes = [...new Set(obras.map(o => o.consultor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const chip = (v, rot) => '<button type="button" class="ql-chip' + (obEstado.consultor === v ? ' on' : '') + '" data-qa="ocons" data-v="' + escapeHtml(v) + '">' + escapeHtml(rot) + '</button>';
+    consultores = '<div class="ql-chips">' + chip('', 'Todos') + nomes.map(n => chip(n, n)).join('') + '</div>';
+  }
+  const atualizado = d.atualizadoEm ? new Date(d.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : '';
+  const fontes = [d.fonte && d.fonte.planilha ? 'Planilha Mestre' : '', d.fonte && d.fonte.trello ? 'Trello' : ''].filter(Boolean).join(' e ');
+  pane.innerHTML = resumo
+    + '<div class="ql-ctrl">' + consultores
+    + '<div class="ql-linha2"><input id="ob-busca" class="ql-busca" type="search" placeholder="Buscar por nome ou código" autocomplete="off" value="' + escapeHtml(obEstado.busca) + '" aria-label="Buscar obra"></div>'
+    + '<label class="ob-tog"><input type="checkbox" id="ob-solo"' + (obEstado.soAndamento ? ' checked' : '') + '> Só em andamento</label></div>'
+    + '<div id="ob-lista"></div>'
+    + '<div class="ob-rodape"><span>' + (fontes ? 'Fonte: ' + escapeHtml(fontes) + '. ' : '') + (atualizado ? 'Atualizado às ' + escapeHtml(atualizado) + '.' : '')
+    + '</span><button type="button" class="fs-btn-sec" data-qa="atualizar">Atualizar</button></div>';
+  obDesenharLista();
+}
+function obClique(ev) {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-qa]') : null;
+  if (!b) return;
+  const a = b.dataset.qa;
+  if (a === 'retry' || a === 'atualizar') return obCarregar();
+  if (a === 'aba') { obEstado.aba = b.dataset.v; return obDesenhar(); }
+  if (a === 'ocons') { obEstado.consultor = b.dataset.v; return obDesenharAndamento(); }
+}
+function obDataCurta(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? m[3] + '/' + m[2] : '';
+}
+function obDesenharLista() {
+  const alvo = document.getElementById('ob-lista');
+  if (!alvo || !obDados) return;
+  const busca = qlSemAcento(obEstado.busca.trim());
+  const obras = (obDados.obras || []).filter(o => (!obEstado.consultor || o.consultor === obEstado.consultor)
+    && (!busca || qlSemAcento(o.cliente).includes(busca) || qlSemAcento(o.codigo).includes(busca)));
+  const andamento = obras.filter(o => o.etapaAtual !== 'concluida');
+  const concl = obras.filter(o => o.etapaAtual === 'concluida');
+  let html = OB_GRUPOS.map(([ch, rot]) => {
+    const doGrupo = andamento.filter(o => o.etapaAtual === ch).sort((a, b) => (Number(b.paradoHaDias) || 0) - (Number(a.paradoHaDias) || 0));
+    return doGrupo.length ? '<div class="ob-grupo">' + rot + ' <b>' + doGrupo.length + '</b></div>' + doGrupo.map(obCartao).join('') : '';
+  }).join('');
+  // Etapa que a API mandou e a tela não conhece: não some, vai para o fim.
+  const conhecidas = new Set(OB_GRUPOS.map(g => g[0]));
+  const outras = andamento.filter(o => !conhecidas.has(o.etapaAtual));
+  if (outras.length) html += '<div class="ob-grupo">Outras <b>' + outras.length + '</b></div>' + outras.map(obCartao).join('');
+  if (!obEstado.soAndamento && concl.length) {
+    html += '<details class="ob-conc"><summary>Concluídas (<b>' + concl.length + '</b>)</summary>' + concl.map(obCartao).join('') + '</details>';
+  }
+  if (!html) {
+    html = '<div class="card ql-vazio">' + ((obDados.obras || []).length && (busca || obEstado.consultor || obEstado.soAndamento)
+      ? '<b>Nenhuma obra com esses filtros</b>Tire um filtro para ver mais.'
+      : '<b>Nenhuma obra por aqui ainda</b>Quando uma venda entrar na planilha, ela aparece aqui.') + '</div>';
+  }
+  alvo.innerHTML = html;
+}
+function obCartao(o) {
+  const e = escapeHtml;
+  const sis = o.sistema || {};
+  const partes = [];
+  if (sis.placas) partes.push(sis.placas + ' placas' + (sis.modeloPlaca ? ' ' + e(sis.modeloPlaca) : ''));
+  if (sis.inversor) partes.push('inversor ' + e(sis.inversor));
+  const local = [o.cidade, o.uf].filter(Boolean).join('/');
+  const concluida = o.etapaAtual === 'concluida';
+  const etapas = (o.etapas && o.etapas.length ? o.etapas : OB_ETAPAS.map(([chave, rotulo]) => ({ chave, rotulo, feito: false })));
+  const trilha = '<ol class="ob-trilha">' + etapas.map(et => {
+    // semRegistro: a API marca a etapa sem data que fica ANTES da última feita.
+    // Desenha tracejada e com "sem data"; nunca como pendente nem como atual.
+    // A etapa atual vem calculada da API (etapaAtual): a tela não recalcula.
+    const semReg = !et.feito && et.semRegistro === true;
+    const atual = !concluida && !semReg && et.chave === o.etapaAtual && !et.feito;
+    return '<li class="ob-et ' + (et.feito ? 'feito' : (semReg ? 'semreg' : (atual ? 'atual' : 'futuro'))) + '"><span class="ob-pt"></span><span class="ob-rot">' + e(et.rotulo || et.chave) + '</span>'
+      + '<span class="ob-dt">' + (et.feito ? e(obDataCurta(et.em)) : (semReg ? 'sem data' : '')) + '</span></li>';
+  }).join('') + '</ol>';
+  const atualEt = etapas.find(et => et.chave === o.etapaAtual && !et.feito);
+  const det = !concluida && atualEt && atualEt.detalhe ? '<div class="ob-det">' + e(atualEt.detalhe) + '</div>' : '';
+  const dias = Number(o.paradoHaDias);
+  const parada = !concluida && o.paradoHaDias != null && isFinite(dias)
+    ? '<span class="ob-parada' + (dias >= 15 ? ' alerta' : '') + '">' + (dias > 0 ? 'Parada há ' + dias + (dias === 1 ? ' dia' : ' dias') : 'Andou hoje') + '</span>' : '';
+  const rec = { quitado: ['ok', 'Quitado'], nao_quitado: ['nao', 'Não quitado'], sem_registro: ['', 'Sem registro de pagamento'] }[o.recebimento];
+  const aReceber = o.valores && Number(o.valores.aReceber) > 0 ? '<span class="ob-selo din">A receber ' + e(qlReais(o.valores.aReceber)) + '</span>' : '';
+  const trello = o.trello && o.trello.lista ? '<span class="ob-selo">' + e(o.trello.lista) + '</span>' : '';
+  const tel = qlWaNumero(o.telefone);
+  const urlTrello = o.trello && /^https:\/\//i.test(String(o.trello.url || '')) ? o.trello.url : '';
+  return '<article class="card ob-card">'
+    + '<div class="ob-topo"><div class="ob-nome"><b>' + e(o.cliente || 'Sem nome') + '</b><small>' + e([local, obDados.verTudo ? o.consultor : ''].filter(Boolean).join(' · ')) + '</small></div>'
+    + '<div class="ob-cod">' + e(o.codigo || '') + '</div></div>'
+    + (partes.length ? '<div class="ob-sis">' + partes.join(' · ') + '</div>' : '')
+    + trilha + det
+    + '<div class="ob-meta">' + parada + trello + (rec ? '<span class="ob-selo ' + rec[0] + '">' + rec[1] + '</span>' : '') + aReceber + '</div>'
+    + ((tel || urlTrello) ? '<div class="ob-acoes">'
+      + (tel ? '<a class="fs-btn-sec" href="https://wa.me/' + e(tel) + '" target="_blank" rel="noopener">WhatsApp</a>' : '')
+      + (urlTrello ? '<a class="fs-btn-sec" href="' + e(urlTrello) + '" target="_blank" rel="noopener">Abrir no Trello</a>' : '') + '</div>' : '')
+    + '</article>';
+}
 
 // ============= TELA LEADS (Instagram/Meta) =============
 function navLeads() {
@@ -26292,12 +27291,13 @@ let crmFiltroIniciado = false;  // só aplica o default-do-logado na 1ª abertur
 
 function navCRM(opts) {
   const fsec = document.getElementById('fechamentoSolarSection'); if (fsec) fsec.style.display = 'none';
+  solarExtrasFechar();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
   const sec = document.getElementById('crmSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('crm-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'redes-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto');
   marcarNavAtivo('nav-crm');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -26374,10 +27374,12 @@ function crmEhEletroposto(ag) {
 // ter ficha de solar E de EP — a marcação de proposta tem que cair na linha do
 
 
-function crmAbrirDetalhe(key) {
+function crmAbrirDetalhe(key, agId) {
   const c = crmClientes.find(x => x.key === key);
   if (!c) return;
-  const agRec = crmAgRecente(c);
+  // `agId` (opcional): abre ESTE card, e não o mais recente do cliente. A aba Quem
+  // ligar mostra o card solar, e o mais recente pode ser o de eletroposto.
+  const agRec = (agId != null && (c.agends || []).find(a => String(a.id) === String(agId))) || crmAgRecente(c);
   crmDetAtual = { c, agRec };
   // O menu segue o produto da ficha. Vai aqui, e nao dentro do `if (temAg)`,
   // pra o cliente SEM ficha tambem nao ver os seis modelos: sem ficha o
@@ -26511,6 +27513,7 @@ function crmFecharDetalhe() {
   crmDetAtual = null;
   const bPv = document.getElementById('crm-det-posvenda');
   if (bPv) { bPv.hidden = true; bPv.innerHTML = ''; }
+  if (typeof qlAposCrm === 'function') qlAposCrm();   // a aba Quem ligar acompanha o status do card
 }
 
 // ============= CRM · EDITAR DADOS DO CLIENTE =============
@@ -27598,7 +28601,9 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // `__retomar`/`__oque` não chegam mais aqui: quem grava a espera é o
   // `crmApalavrar`, e ele não mexe no status. A limpeza fica por segurança.
   // `__motivo` e MARCA, nao coluna de `agendamentos`: no PATCH ele vira 400.
-  const motivoEscolhido = extra && extra.__motivo !== undefined ? String(extra.__motivo) : null;
+  // `__motivo: null` é "não mexa no motivo que já está guardado": nada é enviado a
+  // /gerador/motivo. '' é o atalho do FORA DO PADRÃO e apaga o motivo de propósito.
+  const motivoEscolhido = extra && extra.__motivo !== undefined && extra.__motivo !== null ? String(extra.__motivo) : null;
   // `__soStatus` entra na lista pelo mesmo motivo dos outros tres: nao e coluna
   // de `agendamentos`, e o PostgREST responde 400. O sintoma seria o botao VENDIDO
   // parar de funcionar inteiro — foi o que o teste no Chrome pegou.
@@ -29422,7 +30427,7 @@ function exportarHistoricoCSV() {
 }
 
 function copiarLinkCodigo(codigo) {
-  const link = `${window.location.origin}${window.location.pathname}?p=${codigo}`;
+  const link = linkPublicoProposta(codigo);   // o mesmo link que a aba Quem ligar manda no WhatsApp
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(link).then(
       () => showToast(`🔗 Link ${codigo} copiado!`),
@@ -29855,6 +30860,7 @@ async function confirmarVenda() {
     showToast((jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`) + avisoCard);
     // Re-render stats
     abrirHistoricoStats();
+    if (typeof qlAposVenda === 'function') qlAposVenda();   // o cliente sai da aba Quem ligar
   } catch (e) {
     console.error(e);
     showToast('❌ Erro: ' + e.message);
@@ -29907,6 +30913,7 @@ async function desmarcarVenda() {
     renderHistoricoTbody();
     renderRanking(historicoRows);
     abrirHistoricoStats();
+    if (typeof qlAposVenda === 'function') qlAposVenda();
     showToast('Venda desmarcada');
   } catch (e) {
     console.error(e);
@@ -30876,10 +31883,10 @@ if ('serviceWorker' in navigator) {
   function navAutomacao(){
     document.getElementById('formSection').style.display='none';
     document.getElementById('historicoSection').style.display='none';
-    ['tabelasSection','leadsSection','fechamentoSolarSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const sec=document.getElementById('automacaoSection'); if(sec) sec.style.display='';
     document.documentElement.classList.add('automacao-aberto');
-    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
+    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
     marcarNavAtivo('nav-automacao');
     fecharSidebarMobile();
     window.scrollTo({top:0,behavior:'smooth'});
