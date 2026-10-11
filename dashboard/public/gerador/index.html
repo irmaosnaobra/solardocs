@@ -182,6 +182,7 @@ html[data-mode="app"].fechamento-solar-aberto .container{margin-left:0!important
 .fs-resumo{margin-top:12px;font-size:13.5px;color:#94A3B8}
 .fs-resumo b{color:#fff}
 .fs-resumo b.ok{color:#4ADE80}
+.fs-resumo b.fs-vm{color:#FCA5A5}
 .fs-msg{display:none;margin:0 0 12px;padding:13px 15px;border-radius:12px;border:1px solid rgba(248,113,113,.5);background:rgba(248,113,113,.12);color:#fecaca;font-size:14px;font-weight:700;line-height:1.45}
 .fs-msg.on{display:block}
 .fs-btn-main{display:block;width:100%;min-height:54px;margin:0 0 18px;border-radius:14px;border:0;background:#F59E0B;color:#1a1204;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;letter-spacing:.2px}
@@ -355,6 +356,115 @@ html[data-mode="app"].obras-solar-aberto .container{margin-left:0!important}
 .sol-out .lst li{margin-bottom:4px}
 .sol-banco{margin-top:12px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:5px;background:#f9fafb;font-size:10.5px;line-height:1.5;color:#374151;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sol-banco b{color:#0B1A2B}
+/* ===== Fechamento solar, fase 2 (10/10/2026): proposta de banco, termo de entrega e vistoria =====
+   Seis abas na fila: a fila rola na horizontal dentro dela mesma, a página nunca rola. */
+.fs-tabs{position:relative}
+#fechamentoSolarSection .fs-tab{min-height:46px;padding:9px 14px;font-size:14px}
+.fs-bit{display:grid;grid-template-columns:64px minmax(0,1fr) 46px;gap:10px;margin-bottom:10px;align-items:center}
+.fs-bit input,.fs-foto input,.fs-foto select,.fs-chk select{width:100%;box-sizing:border-box;padding:12px 14px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;font-weight:600;outline:none;min-height:46px}
+.fs-bit input:focus,.fs-foto input:focus,.fs-foto select:focus,.fs-chk select:focus{border-color:#F59E0B}
+.fs-bit input.fs-erro{border-color:#F87171!important;box-shadow:0 0 0 3px rgba(248,113,113,.18)}
+.fs-bit .q{text-align:center;padding-left:6px;padding-right:6px}
+.fs-aviso{margin-top:10px;font-size:13.5px;color:#FCD34D;line-height:1.5;font-weight:600}
+.fs-aviso:empty{display:none}
+.fs-aviso.ruim{color:#FCA5A5}
+.fs-aviso b{color:#fff}
+.fs-chk{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:8px 14px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.fs-chk:last-child{border-bottom:0}
+.fs-chk .t{font-size:14px;color:#E5E7EB;line-height:1.45}
+.fs-chk.pend select{border-color:#F59E0B;color:#FDE68A}
+.fs-foto{display:grid;grid-template-columns:96px minmax(0,1fr) 46px;gap:10px;margin-bottom:12px;align-items:start}
+.fs-foto img{width:96px;height:72px;object-fit:cover;border-radius:8px;background:#0f1a2e;display:block}
+.fs-foto .c{display:flex;flex-direction:column;gap:8px;min-width:0}
+@media(max-width:620px){
+  #fechamentoSolarSection .fs-tab{padding:9px 13px;font-size:13.5px}
+  .fs-chk{grid-template-columns:1fr}
+  .fs-foto{grid-template-columns:84px minmax(0,1fr) 46px}
+  .fs-foto img{width:84px;height:64px}
+}
+/* O papel dos três documentos novos. Cada bloco leva a própria classe porque o epPaginar cria o
+   .ep-page sem classe nenhuma: CSS escopado no .ep-page não vale nem na medição nem no papel. */
+.sol-band{display:flex;justify-content:space-between;gap:16px;background:#0B1A2B;color:#fff;border-radius:4px;padding:7px 14px;margin:0 0 9px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-band span{display:block;font-size:8px;letter-spacing:.9px;text-transform:uppercase;color:#9FB6D4;font-weight:800}
+.sol-band b{display:block;font-size:14px;margin-top:1px}
+.sol-band .r{text-align:right}
+.sol-pb-tab{margin:0;break-inside:avoid;page-break-inside:avoid}
+.sol-pb-th{display:grid;grid-template-columns:16mm minmax(0,1fr);background:#12304F;color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-pb-th span{padding:6px 12px}
+.sol-pb-th span:first-child{text-align:center;padding-left:0;padding-right:0}
+.sol-pb-it{display:grid;grid-template-columns:16mm minmax(0,1fr);border:1px solid #e5e7eb;border-top:0;font-size:12px;color:#1B2B40;break-inside:avoid;page-break-inside:avoid}
+.sol-pb-it .q{text-align:center;font-weight:800;color:#0B1A2B;background:#FEF3C7;padding:5px 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-pb-it .d{padding:5px 12px;line-height:1.35;overflow-wrap:anywhere}
+.sol-pb-it.compacta{font-size:11px}
+.sol-pb-it.compacta .q,.sol-pb-it.compacta .d{padding-top:2.5px;padding-bottom:2.5px}
+.sol-pb-it.super{font-size:10px}
+.sol-pb-it.super .q,.sol-pb-it.super .d{padding-top:1px;padding-bottom:1px}
+.sol-pb2 .sol-card{padding:5px 10px;margin-bottom:5px}
+.sol-pb2 .sol-card .kv{gap:3px 14px}
+.sol-pb2 .ep-ctr-p{font-size:11px;line-height:1.45;margin-bottom:6px}
+.sol-pb-fis{font-size:9.5px;color:#6b7684;line-height:1.4;margin:8px 0 8px}
+.sol-pb-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 0;break-inside:avoid;page-break-inside:avoid}
+.sol-pb-cols.um{grid-template-columns:1fr}
+.sol-pb-box{border:1px solid #d6dbe2;border-radius:4px;overflow:hidden}
+.sol-pb-box .cap{background:#12304F;color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;padding:6px 12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-pb-box .rows{padding:3px 12px 5px}
+.sol-pb-box .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:4px 0;border-bottom:1px dotted #C9D2DD}
+.sol-pb-box .row:last-child{border-bottom:0}
+.sol-pb-box .l{font-size:11px;color:#4b5563}
+.sol-pb-box .r{font-size:12.5px;font-weight:700;color:#12253F;white-space:nowrap}
+.sol-pb-box .big .l{font-weight:800;color:#0B1A2B;text-transform:uppercase;letter-spacing:.4px;font-size:10.5px}
+.sol-pb-box .big .r{font-size:16px;color:#0B1A2B}
+.sol-pb-box .nota .l{font-size:10px;font-style:italic;color:#6b7684}
+.sol-te.ep-proc .ep-ctr-p{font-size:10.5px;line-height:1.4;margin-bottom:4px}
+.sol-te.ep-proc .ep-ctr-li{font-size:11px;line-height:1.4;margin:0 0 3px;padding-left:18px;text-indent:-18px}
+.sol-te.ep-proc .ep-ctr-tit{margin:9px 0 3px;font-size:13px}
+.sol-te.ep-proc .ep-ctr-sub{margin-bottom:7px}
+.sol-te .sol-sec{margin:7px 0 4px;padding:3px 12px;font-size:10.5px}
+.sol-te .sol-partes{margin-bottom:6px}
+.sol-te .sol-parte{font-size:10.5px;line-height:1.4;padding:6px 10px}
+.sol-te.ep-proc .ep-ctr-assin{margin-top:9mm}
+.ep-page.sol-te{padding:12mm 18mm}
+.sol-te-sis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px 14px;margin:0 0 4px;font-size:10.5px}
+.sol-te-sis>div{display:flex;flex-direction:column;gap:0;min-width:0;border-bottom:1px solid #e5e7eb;padding-bottom:2px}
+.sol-te-sis .s2{grid-column:span 2}
+.sol-te-sis .s3{grid-column:1/-1}
+.sol-te-sis .k{font-size:7.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#6b7684}
+.sol-te-sis .v{font-weight:700;color:#12253F;line-height:1.3;overflow-wrap:anywhere}
+.sol-te-chk{width:100%;border-collapse:collapse;margin:0 0 4px}
+.sol-te-chk td{padding:2px 8px;border-bottom:1px solid #e5e7eb;font-family:var(--serif);font-size:10.5px;line-height:1.35;color:#22303d;vertical-align:top}
+.sol-te-chk td.n{width:5mm;font-family:Arial,Helvetica,sans-serif;font-weight:800;color:#B45309;padding-left:2px;padding-right:0}
+.sol-te-chk td.s{width:27mm;text-align:right;font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:10px;color:#166534;white-space:nowrap}
+.sol-te-chk td.s.na{color:#6b7280}
+.sol-te-chk td.s.pend{color:#92400E}
+.sol-te-res{border:1px solid #F59E0B;background:#FFFBEB;border-radius:4px;padding:5px 10px;margin:0 0 5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-te-res .ep-ctr-p{margin-bottom:2px}
+.sol-te.ep-proc .ep-ctr-fim p{margin-bottom:2px}
+.sol-vi-sis{width:100%;border-collapse:collapse;margin:0 0 4px;break-inside:avoid;page-break-inside:avoid;table-layout:fixed}
+.sol-vi-sis td{padding:1.5px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-family:var(--serif);font-size:10.5px;line-height:1.3;color:#22303d;overflow-wrap:anywhere}
+.sol-vi-sis td.k{width:22%;font-family:Arial,Helvetica,sans-serif;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#0B1A2B}
+.sol-vi-sis td.v{width:29%}
+.sol-vi .sol-sec{margin:5px 0 3px;padding:3px 12px;font-size:10.5px}
+.sol-vi-card .kv{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sol-vi-card .kv .s2{grid-column:span 2}
+.sol-vi-card .kv .s3{grid-column:1/-1}
+.sol-vi-card{margin-bottom:3px;padding:6px 12px}
+.sol-vi-card .kv{gap:2px 14px}
+.sol-vi-concl{border-radius:5px;padding:5px 14px;margin:6px 0 5px;border:1.5px solid;break-inside:avoid;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-vi-concl .cap{font-size:8.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;opacity:.85}
+.sol-vi-concl b{display:block;font-size:14px;margin:0 0 1px}
+.sol-vi-concl .t{font-family:var(--serif);font-size:11px;line-height:1.4}
+.sol-vi-concl.ok{background:#DCFCE7;border-color:#16A34A;color:#14532D}
+.sol-vi-concl.adeq{background:#FEF3C7;border-color:#D97706;color:#78350F}
+.sol-vi-concl.nao{background:#FEE2E2;border-color:#DC2626;color:#7F1D1D}
+.sol-vi .ep-ctr-p{font-size:11.5px;line-height:1.5;margin-bottom:6px}
+.sol-vi .ep-ctr-li{font-size:11.5px;line-height:1.5;margin-bottom:3px}
+.sol-vi .ep-ctr-assin{margin-top:9mm}
+.sol-vi-fotos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 8px;break-inside:avoid;page-break-inside:avoid}
+.sol-vi-foto{min-width:0}
+.sol-vi-foto .m{height:42mm;border:1px solid #d6dbe2;border-radius:3px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sol-vi-foto .m img{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+.sol-vi-foto .l{font-size:9.5px;line-height:1.35;color:#374151;margin-top:3px;min-height:12px}
+.sol-vi-foto .l b{color:#0B1A2B}
 /* ===== Calculadora (fullscreen como CRM/Redes/Leads) ===== */
 html[data-mode="app"].calc-aberto #app-sidebar,
 html[data-mode="app"].calc-aberto .sb-mobile-toggle{display:none!important}
@@ -6386,7 +6496,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
       <button class="btn-hist-voltar" onclick="voltarDoFechamento()">← Voltar</button>
     </div>
-    <div class="fs-sub" style="margin:-6px 0 16px">Contrato, procuração e recibo de quem fechou, no modelo do SolarDoc, prontos para imprimir ou salvar em PDF.</div>
+    <div class="fs-sub" style="margin:-6px 0 16px">Contrato, procuração, recibo, proposta de banco, termo de entrega e vistoria de quem fechou, prontos para imprimir ou salvar em PDF.</div>
     <div id="fs-corpo"></div>
   </div>
 
@@ -19599,8 +19709,11 @@ function epPapelGrava(reg) {
   if (!reg || !reg.id || !reg.html) return Promise.resolve();
   return epPapelDb().then(db => new Promise(ok => {
     const tx = db.transaction('papeis', 'readwrite'); tx.objectStore('papeis').put(reg);
-    tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = () => { db.close(); ok(); };
-  })).catch(() => {});
+    tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = () => { db.close(); ok(false); };
+    // Cota estourada ABORTA a transação (não dispara onerror): sem isto a promessa nunca resolvia e a 2ª via sumia calada.
+    // Sucesso continua resolvendo sem valor, como antes; só a falha resolve com false para quem quiser avisar.
+    tx.onabort = () => { try { db.close(); } catch (e) {} ok(false); };
+  })).catch(() => false);
 }
 function epPapelLe(id) {
   return epPapelDb().then(db => new Promise(ok => {
@@ -25363,7 +25476,7 @@ function fsF(id, rot, o) {
   if (o.sel) {
     ctl = `<select id="${id}" onchange="fsTocar(this)${o.on ? ';' + o.on : ''}">${o.sel.map(x => { const p = Array.isArray(x) ? x : [x, x]; return `<option value="${solEsc(p[0])}">${solEsc(p[1])}</option>`; }).join('')}</select>`;
   } else if (o.area) {
-    ctl = `<textarea id="${id}" rows="${o.area}" oninput="fsTocar(this)" placeholder="${solEsc(o.ph || '')}"></textarea>`;
+    ctl = `<textarea id="${id}" rows="${o.area}"${o.max ? ` maxlength="${o.max}"` : ''} oninput="fsTocar(this)" placeholder="${solEsc(o.ph || '')}"></textarea>`;
   } else {
     ctl = `<input id="${id}" type="${o.type || 'text'}"${o.mode ? ` inputmode="${o.mode}"` : ''}${o.max ? ` maxlength="${o.max}"` : ''} autocomplete="off" oninput="fsTocar(this)${o.oninput ? ';' + o.oninput : ''}"${o.blur ? ` onblur="${o.blur}"` : ''} placeholder="${solEsc(o.ph || '')}">`;
     if (o.pre) ctl = `<div class="fs-inp has-pre"><span class="pre">${o.pre}</span>${ctl}</div>`;
@@ -25398,6 +25511,9 @@ function fsMontar() {
       <button type="button" class="fs-tab" role="tab" data-aba="contrato" onclick="fsAba('contrato')">Contrato</button>
       <button type="button" class="fs-tab" role="tab" data-aba="procuracao" onclick="fsAba('procuracao')">Procuração</button>
       <button type="button" class="fs-tab" role="tab" data-aba="recibo" onclick="fsAba('recibo')">Recibo</button>
+      <button type="button" class="fs-tab" role="tab" data-aba="banco" onclick="fsAba('banco')">Proposta de banco</button>
+      <button type="button" class="fs-tab" role="tab" data-aba="termo" onclick="fsAba('termo')">Termo de entrega</button>
+      <button type="button" class="fs-tab" role="tab" data-aba="vistoria" onclick="fsAba('vistoria')">Vistoria</button>
     </div>
     <div id="fs-pane-contrato">` +
       fsCard('Modelo do contrato', `<div class="fs-grid">
@@ -25495,8 +25611,8 @@ function fsMontar() {
         ${fsF('fs-r-banco', 'Banco')}${fsF('fs-r-ag', 'Agência', { mode: 'numeric' })}
         ${fsF('fs-r-conta', 'Conta')}${fsF('fs-r-pix', 'Chave Pix')}
       </div>`) +
-    `</div>
-    <div id="fs-msg" class="fs-msg" role="alert"></div>
+    `</div>` + fsPaneBanco() + fsPaneTermo() + fsPaneVistoria() +
+    `<div id="fs-msg" class="fs-msg" role="alert"></div>
     <button type="button" class="fs-btn-main" onclick="fsEmitir()">Ver e imprimir</button>` +
     fsCard('Papéis emitidos', `<div id="fs-hist"></div>`, ' id="fs-hist-card"');
 
@@ -25504,6 +25620,7 @@ function fsMontar() {
   const p = { 'fs-c-data': solHoje(), 'fs-p-data': solHoje(), 'fs-r-data': solHoje(),
     'fs-c-foro': 'Uberlândia', 'fs-p-cidade': 'Uberlândia', 'fs-r-cidade': 'Uberlândia', 'fs-p-conc': 'CEMIG',
     'fs-c-pproj': '5', 'fs-c-paprov': '40', 'fs-c-pinst': '10', 'fs-c-gmod': '25', 'fs-c-ginv': '10', 'fs-c-ginst': '1', 'fs-c-ginstun': 'anos' };
+  Object.assign(p, fsPadroesNovos());
   Object.keys(p).forEach(k => fsSet(k, p[k], true));
   fsPagAdd();
   try { const o = JSON.parse(localStorage.getItem('sol_fech_tecs_v1') || '{}'); Object.keys(o).forEach(k => { const x = fsEl(k); if (x) x.value = o[k]; }); } catch (e) {}
@@ -25522,15 +25639,19 @@ function fsPrefillEmpresa() {
 }
 
 function fsAba(qual) {
-  fsAbaAtual = ['contrato', 'procuracao', 'recibo'].includes(qual) ? qual : 'contrato';
-  ['contrato', 'procuracao', 'recibo'].forEach(a => {
+  fsAbaAtual = FS_ABAS.includes(qual) ? qual : 'contrato';
+  FS_ABAS.forEach(a => {
     const pane = fsEl('fs-pane-' + a); if (pane) pane.style.display = a === fsAbaAtual ? '' : 'none';
   });
+  const fila = document.querySelector('#fechamentoSolarSection .fs-tabs');
   document.querySelectorAll('#fechamentoSolarSection .fs-tab').forEach(b => {
     const on = b.dataset.aba === fsAbaAtual;
     b.classList.toggle('ativa', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    // Traz a aba ativa para a vista mexendo só no scrollLeft da fila: scrollIntoView rolaria a página inteira.
+    if (on && fila && fila.scrollWidth > fila.clientWidth) fila.scrollLeft = Math.max(0, b.offsetLeft - (fila.clientWidth - b.offsetWidth) / 2);
   });
   if (fsAbaAtual === 'recibo') fsRecSincroniza();
+  fsSincronizaNovos(fsAbaAtual);
   fsMsg('');
 }
 function fsTipoMudou() {
@@ -25615,6 +25736,7 @@ function fsLimparCliente() {
   ['fs-doc', 'fs-cep', 'fs-end', 'fs-bairro', 'fs-rep', 'fs-c-endinst', 'fs-r-endinst', 'fs-p-uc', 'fs-r-datactr', 'fs-c-num'].forEach(id => fsSet(id, '', true));
   fsSet('fs-tipo', 'PF', true);
   const host = fsEl('fs-r-pags'); if (host) { host.innerHTML = ''; fsPagAdd(); }
+  fsLimparNovos();
   fsTipoMudou();
 }
 function fsAplicarFonte(d, row) {
@@ -25622,6 +25744,7 @@ function fsAplicarFonte(d, row) {
   if (key !== fsOrigemKey) { fsLimparCliente(); fsAplicarDados(d, true, row); }
   else fsAplicarDados(d, false, row);   // o mesmo cliente de novo: o que foi digitado fica
   fsOrigemKey = key;
+  fsSincronizaNovos(fsAbaAtual);
   fsRevalida();
 }
 // A proposta aberta na sessão só entra quando é NOVA desde a última vez que a tela a viu.
@@ -25735,25 +25858,32 @@ function fsHistRender() {
   const host = fsEl('fs-hist'); if (!host) return;
   const l = fsHistList();
   if (!l.length) { host.innerHTML = '<div class="fs-sub">Nenhum papel emitido neste aparelho ainda. Os que você imprimir aparecem aqui.</div>'; return; }
-  host.innerHTML = l.slice(0, 40).map(h => `<div class="fs-h"><div class="i"><b>${solEsc(h.tipo)}</b> · ${solEsc(h.cliente || 'Sem nome')}${h.editado ? ' <span class="ed">texto editado</span>' : ''}<small>${solEsc(h.data || '')}${h.num ? ' · nº ' + solEsc(h.num) : ''}${h.valor > 0 ? ' · R$ ' + solFmt(h.valor) : ''}</small></div>` +
+  host.innerHTML = l.slice(0, 40).map(h => `<div class="fs-h"><div class="i"><b>${solEsc(h.tipo)}</b> · ${solEsc(h.cliente || 'Sem nome')}${h.editado ? ' <span class="ed">texto editado</span>' : ''}<small>${solEsc(h.data || '')}${h.num ? ' · nº ' + solEsc(h.num) : ''}${h.valor > 0 ? ' · R$ ' + solFmt(h.valor) : ''}${h.fotos > 0 ? ' · ' + h.fotos + (h.fotos === 1 ? ' foto' : ' fotos') : ''}</small></div>` +
     `<div class="a"><button type="button" class="fs-btn-sec" onclick="fsReabrir('${solEsc(h.id)}')">Reabrir</button><button type="button" class="fs-btn-sec" onclick="epHistSegundaVia('${solEsc(h.id)}')">2ª via</button></div></div>`).join('') +
     (l.length > 40 ? `<div class="fs-sub">Mostrando os 40 mais recentes de ${l.length}.</div>` : '');
 }
 function fsSnap() {
   const campos = {};
   document.querySelectorAll('#fechamentoSolarSection input[id^="fs-"], #fechamentoSolarSection select[id^="fs-"], #fechamentoSolarSection textarea[id^="fs-"]').forEach(el => { if (el.id !== 'fs-pux') campos[el.id] = el.value; });
-  return { aba: fsAbaAtual, campos, pags: fsPagsRaw() };
+  // As fotos da vistoria NÃO entram aqui (estourariam a cota do localStorage): ficam na memória da
+  // tela e na cópia do papel no IndexedDB. Os itens da proposta de banco são linhas, como os pagamentos.
+  return { aba: fsAbaAtual, campos, pags: fsPagsRaw(), itens: fsBItensRaw() };
 }
 function fsReabrir(id) {
   const h = fsHistList().find(x => x.id === id);
   if (!h || !h.snap) return;
+  // papel de ONTEM não traz os campos novos no snapshot: limpa antes, senão ficam os do cliente anterior
+  fsLimparNovos();
   Object.keys(h.snap.campos || {}).forEach(k => { const el = fsEl(k); if (el) { el.value = h.snap.campos[k]; el.dataset.tocado = '1'; } });
   const host = fsEl('fs-r-pags'); if (host) host.innerHTML = '';
   (h.snap.pags && h.snap.pags.length ? h.snap.pags : [{}]).forEach(p => fsPagAdd(p));
+  fsBItensRestaura(h.snap.itens);
+  fsFotosLimpa();
   fsOrigemKey = 'reaberto:' + id;
-  fsTipoMudou(); fsProcModelo(); fsRecResumo();
+  fsTipoMudou(); fsProcModelo(); fsRecResumo(); fsBancoResumo(); fsTermoChkVisual(); fsTermoContador();
   fsAba(h.snap.aba || 'contrato');
-  const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.';
+  const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.' + (h.fotos > 0 ? ' As fotos ficam só na 2ª via.' : '');
+  const av = fsEl('fs-v-fotos-aviso'); if (av) av.textContent = h.fotos > 0 ? 'As fotos ficam só na 2ª via. Este papel tinha ' + h.fotos + (h.fotos === 1 ? ' foto' : ' fotos') + ': adicione de novo se for imprimir outra vez.' : '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -25765,7 +25895,10 @@ function fsCli() {
   c.endFull = solEnd(c.end, c.bairro, c.cidade, c.uf);
   return c;
 }
-const fsRot = { 'fs-nome': 'o nome do cliente', 'fs-doc': 'o CPF ou CNPJ', 'fs-c-valor': 'o valor total do contrato', 'fs-p-uc': 'a unidade consumidora (UC)', 'fs-p-conc': 'a concessionária' };
+const fsRot = { 'fs-nome': 'o nome do cliente', 'fs-doc': 'o CPF ou CNPJ', 'fs-c-valor': 'o valor total do contrato', 'fs-p-uc': 'a unidade consumidora (UC)', 'fs-p-conc': 'a concessionária',
+  'fs-b-banco': 'o banco', 'fs-b-agencia': 'a agência', 'fs-b-conta': 'a conta corrente', 'fs-b-total': 'o valor total',
+  'fs-t-kwp': 'a potência instalada', 'fs-t-conclusao': 'a data de conclusão da instalação',
+  'fs-v-data': 'a data da vistoria', 'fs-v-concl': 'a conclusão da vistoria' };
 // prazos e garantias só em número inteiro: o papel nunca imprime "2,5 (dois)" nem "abc (abc)"
 const FS_INT = [['fs-c-nmod', 'o nº de módulos'], ['fs-c-ninv', 'o nº de inversores'], ['fs-c-bat-qtd', 'a quantidade de baterias'], ['fs-c-bat-gar', 'a garantia da bateria'],
   ['fs-c-pproj', 'o prazo do projeto'], ['fs-c-paprov', 'o prazo de aprovação'], ['fs-c-pinst', 'o prazo de instalação'],
@@ -25773,11 +25906,16 @@ const FS_INT = [['fs-c-nmod', 'o nº de módulos'], ['fs-c-ninv', 'o nº de inve
 // itens: ids de campo ou { el, rot }
 function fsFaltas(aba) {
   aba = aba || fsAbaAtual;
-  const faltam = [], invalidos = [];
+  const faltam = [], invalidos = [], outros = [];
   const cli = fsCli();
   if (!cli.nome) faltam.push('fs-nome');
-  if (!cli.doc) faltam.push('fs-doc');
-  if (aba === 'contrato') {
+  // A vistoria acontece antes de fechar: o CPF ainda pode não existir, só o nome é obrigatório.
+  if (!cli.doc && aba !== 'vistoria') faltam.push('fs-doc');
+  if (aba === 'banco' || aba === 'termo' || aba === 'vistoria') {
+    if (aba === 'banco') fsFaltasBanco(faltam, invalidos, outros);
+    else if (aba === 'termo') fsFaltasTermo(faltam, invalidos, outros);
+    else fsFaltasVistoria(faltam, invalidos, outros);
+  } else if (aba === 'contrato') {
     if (!(solParseBRL(fsVal('fs-c-valor')) > 0)) faltam.push('fs-c-valor');
     FS_INT.forEach(p => { const v = fsVal(p[0]); if (v && !/^\d+$/.test(v)) invalidos.push({ el: fsEl(p[0]), rot: p[1] }); });
   } else if (aba === 'procuracao') {
@@ -25786,7 +25924,7 @@ function fsFaltas(aba) {
   } else if (!(fsPags().reduce((t, p) => t + p.valor, 0) > 0)) {
     faltam.push({ el: document.querySelector('#fs-r-pags .fs-pag-valor'), rot: 'ao menos um pagamento com valor' });
   }
-  return { faltam, invalidos };
+  return { faltam, invalidos, outros };
 }
 const fsJunta = l => l.join(', ').replace(/, ([^,]*)$/, ' e $1');
 // devolve true quando há pendência (e mostra o aviso); silencioso = só atualiza o texto, sem foco nem rolagem
@@ -25796,8 +25934,10 @@ function fsMostraFaltas(f, silencioso) {
   const partes = [];
   if (f.faltam.length) partes.push('Falta preencher ' + fsJunta(f.faltam.map(rot)) + '.');
   if (f.invalidos.length) partes.push('Use só números inteiros em ' + fsJunta(f.invalidos.map(rot)) + '.');
+  // Avisos que não cabem no molde "falta preencher": cada um traz a frase pronta e o campo a marcar.
+  (f.outros || []).forEach(o => partes.push(o.msg));
   if (!partes.length) { fsMsg(''); return false; }
-  fsMsg(partes.join(' '), f.faltam.concat(f.invalidos).map(el), silencioso);
+  fsMsg(partes.join(' '), f.faltam.concat(f.invalidos).map(el).concat((f.outros || []).map(o => o.el)), silencioso);
   return true;
 }
 // o aviso aberto acompanha o que o consultor vai preenchendo
@@ -25811,6 +25951,12 @@ function fsAoMudar(ev) {
     const o = {};
     document.querySelectorAll('#fechamentoSolarSection [id^="fs-p-tec2-"], #fechamentoSolarSection [id^="fs-p-tec3-"]').forEach(x => { o[x.id] = x.value; });
     try { localStorage.setItem('sol_fech_tecs_v1', JSON.stringify(o)); } catch (e) {}
+  }
+  if (el && el.closest && el.closest('#fs-b-itens')) fsBancoResumo();
+  if (el && el.id) {
+    if (/^fs-b-/.test(el.id)) fsBancoResumo();
+    if (/^fs-t-chk/.test(el.id)) fsTermoChkVisual();
+    if (el.id === 'fs-t-ressalva') fsTermoContador();
   }
   fsRevalida();
 }
@@ -26270,6 +26416,636 @@ function fsRecibo() {
   fsPreview({ tipo: 'Recibo', cliente: d.cli.nome, valor: d.total, num: d.num, html: fsRecHTML(d), arquivo, titulo: (d.quitado ? 'Recibo de quitação' : 'Recibo de pagamento') + ' · ' + d.cli.nome, opts: { umaPagina: true, piso: 0.86, alvo: '.ep-rec' } });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// FECHAMENTO SOLAR, FASE 2 (10/10/2026): proposta de banco, termo de entrega e vistoria
+//
+// Três papéis a mais nas abas internas, no mesmo molde dos três de ontem: card Cliente
+// compartilhado, campos em cartões, "Ver e imprimir" que valida e lista o que falta,
+// timbre Irmãos na Obra com AIOROS GROUP LTDA + CNPJ colados (nunca NEXUS), histórico
+// próprio (sol_fech_hist_v1) com Reabrir e 2ª via.
+//
+// Campos que vêm do Contrato (sistema, valor, garantias, endereço) ou da Procuração (UC e
+// concessionária) são ESPELHADOS: entram com o valor de lá enquanto o consultor não mexeu no
+// campo da aba (mesmo dataset.tocado dos demais) e se refazem toda vez que a aba abre.
+// ═══════════════════════════════════════════════════════════════════════════
+const FS_ABAS = ['contrato', 'procuracao', 'recibo', 'banco', 'termo', 'vistoria'];
+// Teto de itens da proposta de banco em 2 folhas, MEDIDO em 10/10/2026 com page.pdf() (mídia print) e
+// descrições realistas de uma a duas linhas: ver teste_fechamento_solar_fase2.js. NÃO é o 8/11/13 do SolarDoc
+// (aquela folha é outra, de 180 x 258 mm). Acima disso a proposta sai com 3 folhas e a tela avisa.
+const FS_PB_ITENS_MAX = 13;
+const FS_FOTOS_MAX = 8;
+const FS_FOTO_LEGS = ['Telhado', 'Padrão de entrada', 'Quadro de distribuição', 'Local do inversor', 'Conta de luz', 'Sombreamento', 'Outro'];
+
+const fsBatTitulo = () => { const m = fsVal('fs-c-bat-marca'); if (!m) return ''; const q = parseInt(fsVal('fs-c-bat-qtd'), 10) || 0; return q > 1 ? q + '× ' + m : m; };
+const fsLocalContrato = () => fsVal('fs-c-endinst') || fsCli().endFull;
+const fsPrazoEntrega = () => { const n = fsVal('fs-c-pinst'); return n ? n + ' dias úteis' : ''; };
+const fsDoContrato = id => () => fsVal(id);
+// [campo da aba, de onde vem o valor]
+const FS_ESPELHOS = {
+  banco: [['fs-b-total', fsDoContrato('fs-c-valor')], ['fs-b-kwp', fsDoContrato('fs-c-kwp')], ['fs-b-ger', fsDoContrato('fs-c-geracao')], ['fs-b-prazo', fsPrazoEntrega]],
+  termo: [['fs-t-cnum', fsDoContrato('fs-c-num')], ['fs-t-cdata', fsDoContrato('fs-c-data')], ['fs-t-kwp', fsDoContrato('fs-c-kwp')], ['fs-t-nmod', fsDoContrato('fs-c-nmod')], ['fs-t-mod', fsDoContrato('fs-c-mod')],
+    ['fs-t-ninv', fsDoContrato('fs-c-ninv')], ['fs-t-tinv', fsDoContrato('fs-c-tinv')], ['fs-t-minv', fsDoContrato('fs-c-minv')], ['fs-t-bat', fsBatTitulo],
+    ['fs-t-local', fsLocalContrato], ['fs-t-uc', fsDoContrato('fs-p-uc')], ['fs-t-conc', fsDoContrato('fs-p-conc')],
+    ['fs-t-gmod', fsDoContrato('fs-c-gmod')], ['fs-t-ginv', fsDoContrato('fs-c-ginv')], ['fs-t-ginst', fsDoContrato('fs-c-ginst')], ['fs-t-ginstun', fsDoContrato('fs-c-ginstun')]],
+  vistoria: [['fs-v-local', fsLocalContrato], ['fs-v-kwp', fsDoContrato('fs-c-kwp')], ['fs-v-nmod', fsDoContrato('fs-c-nmod')], ['fs-v-uc', fsDoContrato('fs-p-uc')], ['fs-v-conc', fsDoContrato('fs-p-conc')]],
+};
+// campos próprios que são do CLIENTE e voltam ao vazio quando a proposta puxada é de outro
+const FS_NOVOS_DO_CLIENTE = ['fs-b-banco', 'fs-b-agencia', 'fs-b-conta', 'fs-b-entrada', 'fs-b-eq', 'fs-b-mo', 'fs-b-nota', 'fs-b-desc',
+  'fs-t-conclusao', 'fs-t-liberacao', 'fs-t-serie', 'fs-t-ressalva',
+  'fs-v-acomp', 'fs-v-t-tipo', 'fs-v-t-estado', 'fs-v-t-orient', 'fs-v-t-incl', 'fs-v-t-area', 'fs-v-t-sombra', 'fs-v-t-estr', 'fs-v-t-acesso',
+  'fs-v-e-padrao', 'fs-v-e-disj', 'fs-v-e-tensao', 'fs-v-e-apto', 'fs-v-e-aterr', 'fs-v-e-quadro',
+  'fs-v-i-local', 'fs-v-i-dist', 'fs-v-i-abrig', 'fs-v-i-wifi', 'fs-v-obs', 'fs-v-adeq', 'fs-v-concl'];
+function fsPadroesNovos() {
+  const p = { 'fs-b-data': solHoje(), 'fs-b-cidade': 'Uberlândia', 'fs-b-validade': '30',
+    'fs-b-origem': 'Origem da mercadoria: nacional, mercadoria ou bem com conteúdo de importação superior a 40% e inferior ou igual a 70%.',
+    'fs-t-data': solHoje(), 'fs-t-cidade': 'Uberlândia', 'fs-v-data': solHoje() };
+  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) p['fs-t-chk' + i] = 'sim';
+  return p;
+}
+// limpa um campo e devolve o "tocado": select volta à primeira opção, o resto vira vazio
+function fsLimpaCampo(id) {
+  const el = fsEl(id); if (!el) return;
+  if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+  el.classList.remove('fs-erro'); delete el.dataset.tocado;
+}
+function fsLimparNovos() {
+  Object.keys(FS_ESPELHOS).forEach(a => FS_ESPELHOS[a].forEach(p => fsLimpaCampo(p[0])));
+  FS_NOVOS_DO_CLIENTE.forEach(fsLimpaCampo);
+  const pad = fsPadroesNovos();
+  ['fs-v-data', 'fs-t-data', 'fs-b-data'].forEach(id => fsSet(id, pad[id], true));
+  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) fsSet('fs-t-chk' + i, 'sim', true);
+  // esvazia a lista (e não só a marca): senão o fsSnap de um papel de B gravaria os itens de A
+  // e o Reabrir daria a B o equipamento de A. A lista se refaz a partir do Contrato quando a aba abre.
+  const it = fsEl('fs-b-itens'); if (it) { it.innerHTML = ''; delete it.dataset.tocado; }
+  fsFotosLimpa();
+  const av = fsEl('fs-v-fotos-aviso'); if (av) av.textContent = '';
+  fsTermoChkVisual(); fsTermoContador();
+}
+// ao abrir a aba (e ao puxar uma proposta com ela aberta): campos espelhados e itens derivados do Contrato
+function fsSincronizaNovos(aba) {
+  (FS_ESPELHOS[aba] || []).forEach(p => fsSet(p[0], p[1](), false));
+  if (aba === 'banco') { fsBancoSincroniza(); fsBancoResumo(); }
+  if (aba === 'termo') { fsTermoChkVisual(); fsTermoContador(); }
+  if (aba === 'vistoria') fsVistoriaQuem();
+}
+
+// ═══ PROPOSTA DE BANCO ═══
+// Porte da propostaBancoM1 do SolarDoc (api/src/services/templateService.ts): folha 1 de formalização
+// (dados da operação, objeto, dados para aprovação, declarações) e folha 2 de características e preço
+// (comprador, faixa do sistema, tabela de itens, caixas de valor, assinaturas).
+// Regras que vêm de lá: dinheiro em CENTAVOS inteiros (0,82 + 0,18 em ponto flutuante não fecha, e o
+// gerente confere equipamento + mão de obra contra o total); sem divisão digitada vale 82% / 18%;
+// "Condição de pagamento" só existe com entrada; o saldo é sempre total menos entrada, nunca campo.
+// Diferença de propósito: se só a mão de obra for digitada, o equipamento é o que sobra (o SolarDoc
+// aplicava 82% e a soma não fechava).
+function fsPaneBanco() {
+  const din = { pre: 'R$', mode: 'decimal', blur: 'fsMoeda(this);fsBancoResumo()', ph: '0,00' };
+  return `<div id="fs-pane-banco" style="display:none">` +
+    fsCard('Dados bancários', `<div class="fs-grid g3">
+      ${fsF('fs-b-banco', 'Banco', { ph: 'Ex.: Sicoob' })}
+      ${fsF('fs-b-agencia', 'Agência', { mode: 'numeric', ph: 'Ex.: 4033' })}
+      ${fsF('fs-b-conta', 'Conta corrente', { ph: 'Ex.: 477729' })}
+    </div>`) +
+    fsCard('Sistema <span class="fs-opc">vem do Contrato</span>', `<div class="fs-grid">
+      ${fsF('fs-b-kwp', 'Potência', { suf: 'kWp', mode: 'decimal', ph: '5,40' })}
+      ${fsF('fs-b-ger', 'Geração estimada', { suf: 'kWh/mês', mode: 'decimal', ph: '700' })}
+      ${fsF('fs-b-desc', 'Descrição do sistema <span class="hint">(só aparece se potência e geração ficarem vazias)</span>', { cls: 's2', ph: 'Ex.: Usina fotovoltaica residencial' })}
+    </div>`) +
+    fsCard('Equipamentos e serviços', `<div id="fs-b-itens"></div>
+      <button type="button" class="fs-btn-sec" onclick="fsBItemAdd(null, true)">+ Adicionar item</button>
+      <div class="fs-sub">Saem do sistema do Contrato e ficam editáveis. Quando você mexe na lista, ela deixa de acompanhar o Contrato.</div>
+      <div class="fs-aviso ruim" id="fs-b-itens-msg" role="status"></div>`) +
+    fsCard('Valores', `<div class="fs-grid">
+      ${fsF('fs-b-total', 'Valor total', Object.assign({}, din, { ph: '27.400,00' }))}
+      ${fsF('fs-b-entrada', 'Entrada <span class="hint">(vazio = sem entrada)</span>', din)}
+      ${fsF('fs-b-eq', 'Valor dos equipamentos <span class="hint">(vazio = 82%)</span>', din)}
+      ${fsF('fs-b-mo', 'Valor da mão de obra <span class="hint">(vazio = o que sobra)</span>', din)}
+      ${fsF('fs-b-nota', 'Nota da entrada <span class="hint">(vazio = recursos próprios)</span>', { cls: 's2', ph: 'Entrada paga pelo comprador com recursos próprios' })}
+    </div>
+    <div class="fs-resumo" id="fs-b-resumo"></div>`) +
+    fsCard('Prazos e documento', `<div class="fs-grid">
+      ${fsF('fs-b-validade', 'Validade <span class="hint">(dias)</span>', { mode: 'numeric', ph: '30' })}
+      ${fsF('fs-b-prazo', 'Prazo de entrega', { ph: 'Ex.: 25 dias úteis' })}
+      ${fsF('fs-b-data', 'Data', { type: 'date' })}
+      ${fsF('fs-b-cidade', 'Cidade do documento', { ph: 'Uberlândia' })}
+      ${fsF('fs-b-origem', 'Origem da mercadoria <span class="hint">(vazio = a linha não aparece)</span>', { cls: 's2', area: 3 })}
+    </div>`) +
+  `</div>`;
+}
+
+// itens: linhas por classe (como os pagamentos do recibo), nunca por id
+function fsBItemAdd(p, tocou) {
+  const host = fsEl('fs-b-itens'); if (!host) return;
+  p = p || {};
+  const row = document.createElement('div'); row.className = 'fs-bit';
+  row.innerHTML = `<input class="fs-bit-qtd q" inputmode="numeric" maxlength="3" autocomplete="off" aria-label="Quantidade" value="${solEsc(p.qtd == null ? '1' : p.qtd)}" oninput="fsBItemTocou(this)">` +
+    `<input class="fs-bit-desc" maxlength="140" autocomplete="off" aria-label="Descrição do item ou serviço" placeholder="Descrição do item ou serviço" value="${solEsc(p.desc || '')}" oninput="fsBItemTocou(this)">` +
+    `<button type="button" class="fs-x" aria-label="Remover item" onclick="fsBItemDel(this)">&times;</button>`;
+  host.appendChild(row);
+  if (tocou) { host.dataset.tocado = '1'; const d = row.querySelector('.fs-bit-desc'); try { d.focus({ preventScroll: true }); } catch (e) {} }
+  fsBancoResumo();
+}
+function fsBItemTocou(el) { const host = fsEl('fs-b-itens'); if (host) host.dataset.tocado = '1'; if (el) el.classList.remove('fs-erro'); }
+function fsBItemDel(btn) {
+  const host = fsEl('fs-b-itens'); if (!host) return;
+  if (host.querySelectorAll('.fs-bit').length <= 1) { host.querySelectorAll('input').forEach(i => { i.value = i.classList.contains('fs-bit-qtd') ? '1' : ''; }); }
+  else btn.closest('.fs-bit').remove();
+  host.dataset.tocado = '1';
+  fsBancoResumo(); fsRevalida();
+}
+const fsBItensRaw = () => [...document.querySelectorAll('#fs-b-itens .fs-bit')].map(r => ({ qtd: r.querySelector('.fs-bit-qtd').value.trim(), desc: r.querySelector('.fs-bit-desc').value.trim() }));
+const fsBItens = () => fsBItensRaw().filter(i => i.desc);
+function fsBItensRestaura(arr) {
+  const host = fsEl('fs-b-itens'); if (!host) return;
+  host.innerHTML = '';
+  if (Array.isArray(arr) && arr.length) { arr.forEach(i => fsBItemAdd(i)); host.dataset.tocado = '1'; }
+  else delete host.dataset.tocado;
+}
+// os itens que o sistema do Contrato já diz (módulos, inversor, bateria) + o que toda instalação leva
+function fsBItensDerivados() {
+  const q = v => (/^\d+$/.test(String(v).trim()) && +v > 0) ? String(+v) : '1';
+  const mod = fsVal('fs-c-mod'), nmod = fsVal('fs-c-nmod'), minv = fsVal('fs-c-minv'), ninv = fsVal('fs-c-ninv'), tinv = fsVal('fs-c-tinv');
+  const out = [];
+  if (nmod || mod) out.push({ qtd: q(nmod), desc: 'Módulos fotovoltaicos' + (mod ? ' ' + mod : '') });
+  if (ninv || minv) out.push({ qtd: q(ninv), desc: ('Inversor ' + tinv + ' ' + minv).trim() });
+  const bm = fsVal('fs-c-bat-marca');
+  if (bm) {
+    const cap = fsVal('fs-c-bat-cap');
+    out.push({ qtd: q(fsVal('fs-c-bat-qtd')), desc: 'Bateria ' + bm + (cap ? ' de ' + cap + ' kWh' : '') });
+  }
+  out.push({ qtd: '1', desc: 'Kit estrutura para telhado' }, { qtd: '1', desc: 'Kit cabo fotovoltaico' }, { qtd: '1', desc: 'Kit material elétrico CA' },
+    { qtd: '1', desc: 'Homologação do projeto de engenharia' }, { qtd: '1', desc: 'Montagem especializada' });
+  return out;
+}
+function fsBancoSincroniza() {
+  const host = fsEl('fs-b-itens'); if (!host || host.dataset.tocado === '1') return;
+  host.innerHTML = '';
+  fsBItensDerivados().forEach(i => fsBItemAdd(i));
+}
+
+// Dinheiro em centavos inteiros. Devolve também por que a conta não pode ir para o papel.
+const fsCent = v => Math.round(solParseBRL(v) * 100);
+const fsCentTxt = c => 'R$ ' + solFmt(c / 100);
+function fsBancoContas() {
+  const tot = fsCent(fsVal('fs-b-total')), ent = fsCent(fsVal('fs-b-entrada'));
+  const eqD = fsCent(fsVal('fs-b-eq')), moD = fsCent(fsVal('fs-b-mo'));
+  let eq, mo;
+  if (eqD > 0 && moD > 0) { eq = eqD; mo = moD; }
+  else if (eqD > 0) { eq = eqD; mo = tot - eqD; }
+  else if (moD > 0) { mo = moD; eq = tot - moD; }
+  else { eq = Math.round(tot * 0.82); mo = tot - eq; }
+  const erros = [];
+  if (tot > 0) {
+    if (eq < 0 || mo < 0) erros.push({ id: 'fs-b-eq', msg: 'O valor dos equipamentos ou da mão de obra passa do valor total.' });
+    else if (eq + mo !== tot) erros.push({ id: 'fs-b-eq', msg: 'Equipamento mais mão de obra (' + fsCentTxt(eq + mo) + ') não fecha com o valor total (' + fsCentTxt(tot) + '). O gerente confere essa soma.' });
+    if (ent >= tot) erros.push({ id: 'fs-b-entrada', msg: 'A entrada é igual ou maior que o valor total: não sobra saldo a financiar.' });
+  }
+  return { tot, ent, eq, mo, saldo: tot - ent, padrao: !(eqD > 0 || moD > 0), erros };
+}
+function fsBancoResumo() {
+  const el = fsEl('fs-b-resumo'), av = fsEl('fs-b-itens-msg'); if (!el) return;
+  const c = fsBancoContas();
+  if (!(c.tot > 0)) el.innerHTML = 'Informe o valor total para ver a conta que vai para o papel.';
+  else el.innerHTML = `Vai sair no papel: total <b>${fsCentTxt(c.tot)}</b> = equipamento <b>${fsCentTxt(c.eq)}</b> + mão de obra <b>${fsCentTxt(c.mo)}</b>${c.padrao ? ' (divisão padrão de 82% e 18%)' : ''}` +
+    (c.ent > 0 && c.ent < c.tot ? `<br>Entrada <b>${fsCentTxt(c.ent)}</b> e saldo a financiar <b>${fsCentTxt(c.saldo)}</b>` : '') +
+    c.erros.map(x => `<br><b class="fs-vm">${solEsc(x.msg)}</b>`).join('');
+  if (av) {
+    const n = fsBItens().length;
+    av.textContent = n > FS_PB_ITENS_MAX ? n + ' itens. Em 2 folhas cabem até ' + FS_PB_ITENS_MAX + ': a proposta vai sair com 3 folhas. Junte itens ou encurte as descrições.' : '';
+  }
+}
+function fsFaltasBanco(faltam, invalidos, outros) {
+  ['fs-b-banco', 'fs-b-agencia', 'fs-b-conta'].forEach(id => { if (!fsVal(id)) faltam.push(id); });
+  const c = fsBancoContas();
+  if (!(c.tot > 0)) faltam.push('fs-b-total');
+  const linhas = [...document.querySelectorAll('#fs-b-itens .fs-bit')];
+  let algum = false, qtdRuim = null;
+  linhas.forEach(r => {
+    const d = r.querySelector('.fs-bit-desc').value.trim(), q = r.querySelector('.fs-bit-qtd');
+    if (!d) return;
+    algum = true;
+    if (!/^\d+$/.test(q.value.trim()) || +q.value.trim() < 1) qtdRuim = qtdRuim || q;
+  });
+  if (!algum) faltam.push({ el: linhas[0] ? linhas[0].querySelector('.fs-bit-desc') : null, rot: 'ao menos um item de equipamento ou serviço' });
+  if (qtdRuim) outros.push({ el: qtdRuim, msg: 'Use só números inteiros, a partir de 1, na quantidade dos itens.' });
+  const v = fsVal('fs-b-validade');
+  if (!v) faltam.push({ el: fsEl('fs-b-validade'), rot: 'a validade em dias' });
+  else if (!/^\d+$/.test(v) || +v < 1) outros.push({ el: fsEl('fs-b-validade'), msg: 'A validade deve ser um número inteiro de dias, a partir de 1.' });
+  c.erros.forEach(x => outros.push({ el: fsEl(x.id), msg: x.msg }));
+}
+function fsBancoDados() {
+  const sem = (id, un) => fsVal(id).replace(new RegExp('\\s*' + un + '\\s*$', 'i'), '');
+  return {
+    cli: fsCli(), emp: solEmp(), contas: fsBancoContas(), itens: fsBItens(),
+    banco: fsVal('fs-b-banco'), agencia: fsVal('fs-b-agencia'), conta: fsVal('fs-b-conta'),
+    kwp: sem('fs-b-kwp', 'kwp'), ger: sem('fs-b-ger', 'kwh/mês'), desc: fsVal('fs-b-desc'),
+    nota: fsVal('fs-b-nota') || 'Entrada paga pelo comprador com recursos próprios',
+    validade: fsVal('fs-b-validade'), prazo: fsVal('fs-b-prazo'), origem: fsVal('fs-b-origem'),
+    data: fsVal('fs-b-data') || solHoje(), cidade: fsVal('fs-b-cidade'),
+  };
+}
+// Os blocos do epPaginar. A linha de item é UM bloco (o cabeçalho viaja junto da primeira): linha de
+// equipamento nunca é cortada no meio nem fica órfã de cabeçalho. modo = '' | ' compacta' | ' super'.
+function fsBancoBlocos(d, modo) {
+  const e = solEsc, emp = d.emp, cli = d.cli, c = d.contas;
+  const dataTxt = solDataLonga(d.data);
+  const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
+  const P = h => `<p class="ep-ctr-p">${h}</p>`;
+  const CL = (n, t) => `<div class="ep-ctr-cl">${n}. ${e(t)}</div>`;
+  // empilhado: numa linha só, o timbre (razão social + CNPJ) e a identificação se encostavam
+  const ident = ['Emissão ' + e(solDataCurta(d.data)), 'Validade ' + solUn(d.validade, 'dia', 'dias'), d.prazo ? 'Entrega: ' + e(d.prazo) : ''].filter(Boolean).join('<br>');
+  const nomeUp = cli.nome ? cli.nome.toUpperCase() : '';
+  const assina = (folha2) => `<div class="ep-ctr-fim">
+      <p class="ep-ctr-p" style="margin-top:${folha2 ? 6 : 12}px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
+      <div class="ep-ctr-assin" style="margin-top:${folha2 ? 11 : 16}mm">
+        <div class="a"><b>${nomeUp ? e(nomeUp) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}Comprador(a)</div>
+        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Representante legal</div>
+      </div>
+    </div>`;
+  const band = (d.kwp || d.ger)
+    ? `<div class="sol-band">${d.kwp ? `<div><span>Potência do sistema</span><b>${e(d.kwp)} kWp</b></div>` : ''}${d.ger ? `<div class="r"><span>Geração estimada</span><b>${e(d.ger)} kWh/mês</b></div>` : ''}</div>`
+    : d.desc ? `<div class="sol-band"><div><span>Sistema</span><b>${e(d.desc)}</b></div></div>` : '';
+  const linha = it => `<div class="sol-pb-it${modo}"><div class="q">${e(/^\d+$/.test(it.qtd) && +it.qtd > 0 ? +it.qtd : 1)}</div><div class="d">${e(it.desc)}</div></div>`;
+  const cab = '<div class="sol-pb-th"><span>Qtd.</span><span>Equipamentos e serviços</span></div>';
+  const linhasBlocos = d.itens.map((it, i) => i === 0 ? `<div class="sol-pb-tab">${cab}${linha(it)}</div>` : linha(it));
+  const boxPreco = `<div class="sol-pb-box"><div class="cap">Composição do preço</div><div class="rows">
+      <div class="row big"><span class="l">Valor total</span><span class="r">${fsCentTxt(c.tot)}</span></div>
+      <div class="row"><span class="l">Valor equipamento</span><span class="r">${fsCentTxt(c.eq)}</span></div>
+      <div class="row"><span class="l">Valor mão de obra</span><span class="r">${fsCentTxt(c.mo)}</span></div></div></div>`;
+  // a caixa de pagamento só existe quando há entrada: sem isso toda proposta à vista imprimia uma "Condição de pagamento" vazia
+  const boxPgto = c.ent > 0
+    ? `<div class="sol-pb-box"><div class="cap">Condição de pagamento</div><div class="rows">
+      <div class="row big"><span class="l">Entrada</span><span class="r">${fsCentTxt(c.ent)}</span></div>
+      <div class="row"><span class="l">Saldo a financiar</span><span class="r">${fsCentTxt(c.saldo)}</span></div>
+      <div class="row nota"><span class="l">${e(d.nota)}</span></div></div></div>` : '';
+  return [
+    solTopoCtr(ident) + `<div class="ep-ctr-tit">Proposta de banco</div><div class="ep-ctr-sub">Formalização de operação de crédito para sistema fotovoltaico</div>`,
+    `<div class="sol-card"><div class="cap">Dados da operação</div><div class="kv">${kv('Cliente', nomeUp, true)}${kv('CPF / CNPJ', cli.doc)}${kv('Banco', d.banco)}${kv('Agência', d.agencia)}${kv('Conta corrente', d.conta)}</div></div>`,
+    CL(1, 'Objeto') + P('Encaminhamos a V.Sa. os documentos necessários para formalização da operação de crédito destinada à aquisição de sistema fotovoltaico, conforme características e preço público à vista discriminados na folha 2 desta proposta.'),
+    CL(2, 'Dados para aprovação do faturamento') + P('Para aprovação do faturamento, orçamento com os seguintes dados:') +
+      `<ul class="sol-ul"><li>Nome do comprador, CPF e endereço;</li><li>Descrição completa do equipamento (quantidade, marca, modelo, ano, etc.);</li><li>Prazo de entrega.</li></ul>`,
+    CL(3, 'Declarações') + P('Autorizamos o acesso aos registros contábeis da mesma, assinada abaixo pelo seu representante legal.') +
+      P('Declaramos, ainda, a esse Agente Financeiro, que temos plena ciência das regras emanadas pela Agência Especial de Financiamento Industrial, no tocante à formalização das vendas dos nossos produtos, através daquela modalidade, principalmente no que tange à elaboração e apresentação de orçamentos, notas fiscais, faturas, bem como aquelas relativas à efetiva entrega do(s) bem(ns).'),
+    assina(false),
+    EP_QUEBRA,
+    solTopoCtr(ident) + `<div class="ep-ctr-tit" style="margin:10px 0 3px">Características e preço</div><div class="ep-ctr-sub" style="margin-bottom:8px">Preço público à vista do produto</div>`,
+    `<div class="sol-pb2"><div class="sol-card"><div class="cap">Identificação do comprador</div><div class="kv">${kv('Nome', nomeUp, true)}${kv('CPF / CNPJ', cli.doc)}${kv('CEP', cli.cep)}${kv('Endereço de correspondência', cli.endFull, true)}</div></div></div>`,
+    `<div class="sol-pb2">${P('Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos as características e o preço público à vista do produto abaixo.')}</div>`,
+    band,
+    ...linhasBlocos,
+    d.origem ? `<p class="sol-pb-fis">${e(d.origem)}</p>` : '',
+    `<div class="sol-pb-cols${boxPgto ? '' : ' um'}">${boxPreco}${boxPgto}</div>`,
+    assina(true),
+  ].filter(Boolean);
+}
+// Tenta a tabela solta, depois a compacta e por fim a "super": a primeira que fecha em 2 folhas fica.
+// A medição é do próprio navegador (epPaginar), então não há limiar chutado aqui; o teto de itens
+// (FS_PB_ITENS_MAX) só serve ao aviso da tela e foi conferido contra o PDF.
+function fsBancoPaginado(d, pageFoot) {
+  let html = '';
+  for (const modo of ['', ' compacta', ' super']) {
+    html = epPaginar(fsBancoBlocos(d, modo), pageFoot);
+    if ((html.match(/class="ep-page"/g) || []).length <= 2) break;
+  }
+  return html;
+}
+function fsBanco() {
+  const d = fsBancoDados();
+  if (fsMostraFaltas(fsFaltas('banco'))) return;
+  const pageFoot = (n, tot) => solRodape('Proposta de banco', d.cli.nome, n, tot, 0);
+  const html = `<div class="ep-doc">${fsBancoPaginado(d, pageFoot)}</div>`;
+  const arquivo = ['Proposta_Banco_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
+  fsPreview({ tipo: 'Proposta de banco', cliente: d.cli.nome, valor: d.contas.tot / 100, num: '', html, arquivo, titulo: 'Proposta de banco · ' + d.cli.nome, opts: null });
+}
+
+// ═══ TERMO DE ENTREGA ═══
+// MINUTA de 10/10/2026, alinhada à cláusula 10 do contrato completo do SolarDoc ("Entrega e vistoria
+// técnica"). PENDENTE DE REVISÃO DE ADVOGADO, como as outras minutas deste bloco. Uma folha só: no pior
+// caso (todas as linhas da tabela cheias e ressalva de 400 caracteres) cabe reduzindo espaçamento, nunca
+// o texto das declarações, que sai exatamente como foi escrito.
+const FS_TERMO_ITENS = [
+  'Instalação concluída, com o local limpo e sem sobra de material.',
+  'Sistema ligado e gerando energia na presença do cliente.',
+  'Aplicativo de monitoramento instalado no celular do cliente, com o acesso entregue.',
+  'Cliente orientado sobre o funcionamento, o desligamento de emergência e os cuidados de uso.',
+  'Manuais e termos de garantia dos equipamentos entregues.',
+  'Telhado conferido depois da obra, com reposição das telhas danificadas quando houve.',
+];
+function fsPaneTermo() {
+  const tinv = [['on-grid', 'On-grid'], ['híbrido', 'Híbrido'], ['off-grid', 'Off-grid'], ['microinversor', 'Microinversor']];
+  return `<div id="fs-pane-termo" style="display:none">` +
+    fsCard('Entrega', `<div class="fs-grid">
+      ${fsF('fs-t-conclusao', 'Instalação concluída em', { type: 'date' })}
+      ${fsF('fs-t-liberacao', 'Sistema liberado pela concessionária em <span class="hint">(opcional)</span>', { type: 'date' })}
+      ${fsF('fs-t-serie', 'Número de série do inversor <span class="hint">(opcional)</span>', { cls: 's2' })}
+      ${fsF('fs-t-data', 'Data do termo', { type: 'date' })}
+      ${fsF('fs-t-cidade', 'Cidade do documento', { ph: 'Uberlândia' })}
+    </div>`) +
+    fsCard('Sistema entregue <span class="fs-opc">vem do Contrato e da Procuração</span>', `<div class="fs-grid">
+      ${fsF('fs-t-cnum', 'Nº do contrato <span class="hint">(opcional)</span>', { ph: '001/2026' })}
+      ${fsF('fs-t-cdata', 'Contrato firmado em', { type: 'date' })}
+      ${fsF('fs-t-kwp', 'Potência instalada', { suf: 'kWp', mode: 'decimal', ph: '5,40' })}
+      ${fsF('fs-t-nmod', 'Nº de módulos', { mode: 'numeric' })}
+      ${fsF('fs-t-mod', 'Marca e potência do módulo', { cls: 's2', ph: 'Ex.: TCL 600W' })}
+      ${fsF('fs-t-ninv', 'Nº de inversores', { mode: 'numeric' })}
+      ${fsF('fs-t-tinv', 'Tipo do inversor', { sel: tinv })}
+      ${fsF('fs-t-minv', 'Marca e modelo do inversor', { cls: 's2', ph: 'Ex.: SAJ 6K' })}
+      ${fsF('fs-t-bat', 'Bateria <span class="hint">(vazio = não há)</span>', { cls: 's2' })}
+      ${fsF('fs-t-local', 'Local de instalação', { cls: 's2' })}
+      ${fsF('fs-t-uc', 'Unidade consumidora', { mode: 'numeric' })}
+      ${fsF('fs-t-conc', 'Concessionária', { ph: 'CEMIG' })}
+    </div>`) +
+    fsCard('Garantias que contam desta data', `<div class="fs-grid g4">
+      ${fsF('fs-t-gmod', 'Módulos <span class="hint">(anos)</span>', { mode: 'numeric' })}
+      ${fsF('fs-t-ginv', 'Inversor <span class="hint">(anos)</span>', { mode: 'numeric' })}
+      ${fsF('fs-t-ginst', 'Instalação', { mode: 'numeric' })}
+      ${fsF('fs-t-ginstun', 'Unidade', { sel: [['anos', 'anos'], ['meses', 'meses']] })}
+    </div>`) +
+    fsCard('Conferência na entrega', FS_TERMO_ITENS.map((t, i) =>
+      `<div class="fs-chk"><div class="t">${solEsc(t)}</div><select id="fs-t-chk${i + 1}" aria-label="Situação do item ${i + 1}" onchange="fsTocar(this)"><option value="sim">Sim</option><option value="pend">Pendente</option><option value="na">Não se aplica</option></select></div>`).join('') +
+      `<div class="fs-sub">No papel sai "Sim" ou "Não se aplica". Item "Pendente" sai como pendente e exige descrever a ressalva.</div>`) +
+    fsCard('Ressalvas <span class="fs-opc">obrigatória se houver item pendente</span>', `
+      ${fsF('fs-t-ressalva', 'O que ficou pendente ou combinado', { area: 4, max: 500, ph: 'Ex.: Falta repor duas telhas na água norte; a equipe volta na quinta-feira.' })}
+      <div class="fs-sub" id="fs-t-ress-n"></div>
+      <div class="fs-aviso ruim" id="fs-t-ress-aviso" role="status"></div>`) +
+  `</div>`;
+}
+// item pendente pinta o seletor de âmbar e liga o aviso da ressalva
+function fsTermoChkVisual() {
+  let pend = false;
+  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) {
+    const s = fsEl('fs-t-chk' + i); if (!s) continue;
+    const p = s.value === 'pend'; pend = pend || p;
+    const linha = s.closest('.fs-chk'); if (linha) linha.classList.toggle('pend', p);
+  }
+  const av = fsEl('fs-t-ress-aviso');
+  if (av) av.textContent = pend && !fsVal('fs-t-ressalva') ? 'Há item pendente: descreva a ressalva antes de imprimir.' : '';
+}
+function fsTermoContador() {
+  const el = fsEl('fs-t-ress-n'); if (el) el.textContent = fsVal('fs-t-ressalva').length + ' de 500 caracteres';
+  fsTermoChkVisual();
+}
+function fsFaltasTermo(faltam, invalidos, outros) {
+  if (!fsVal('fs-t-kwp')) faltam.push('fs-t-kwp');
+  if (!fsVal('fs-t-conclusao')) faltam.push('fs-t-conclusao');
+  const ruim = [['fs-t-nmod'], ['fs-t-ninv'], ['fs-t-gmod'], ['fs-t-ginv'], ['fs-t-ginst']].map(p => fsEl(p[0])).filter(el => el && el.value.trim() && !/^\d+$/.test(el.value.trim()));
+  if (ruim.length) outros.push({ el: ruim[0], msg: 'Use só números inteiros no nº de módulos, no nº de inversores e nas garantias.' });
+  for (let i = 1; i <= FS_TERMO_ITENS.length; i++) {
+    if (fsVal('fs-t-chk' + i) === 'pend' && !fsVal('fs-t-ressalva')) { outros.push({ el: fsEl('fs-t-ressalva'), msg: 'Há item pendente na conferência: descreva a ressalva.' }); break; }
+  }
+}
+function fsTermoDados() {
+  const g = fsVal;
+  return {
+    cli: fsCli(), emp: solEmp(), data: g('fs-t-data') || solHoje(), cidade: g('fs-t-cidade'), conclusao: g('fs-t-conclusao'), liberacao: g('fs-t-liberacao'),
+    serie: g('fs-t-serie'), cnum: g('fs-t-cnum'), cdata: g('fs-t-cdata'), kwp: g('fs-t-kwp'), nmod: g('fs-t-nmod'), mod: g('fs-t-mod'),
+    ninv: g('fs-t-ninv'), tinv: g('fs-t-tinv'), minv: g('fs-t-minv'), bat: g('fs-t-bat'), local: g('fs-t-local'), uc: g('fs-t-uc'), conc: g('fs-t-conc'),
+    gmod: g('fs-t-gmod'), ginv: g('fs-t-ginv'), ginst: g('fs-t-ginst'), ginstun: g('fs-t-ginstun') === 'meses' ? 'meses' : 'anos',
+    chk: FS_TERMO_ITENS.map((_, i) => g('fs-t-chk' + (i + 1)) || 'sim'), ressalva: g('fs-t-ressalva'),
+  };
+}
+function fsTermoHTML(d) {
+  const e = solEsc, cli = d.cli, emp = d.emp;
+  const dataTxt = solDataLonga(d.data);
+  const un = n => (parseInt(n, 10) === 1 ? 'unidade' : 'unidades');
+  const cel = (k, v, cls) => v ? `<div${cls ? ` class="${cls}"` : ''}><span class="k">${e(k)}</span><span class="v">${v}</span></div>` : '';
+  // Sem número, a linha não sai: a data do contrato nasce preenchida com o dia de
+  // hoje, e um termo emitido semanas depois imprimiria "contrato de hoje".
+  const contrato = d.cnum ? 'nº ' + e(d.cnum) + (d.cdata ? ', de ' + e(solDataLonga(d.cdata)) : '') : '';
+  const modulos = (d.nmod || d.mod) ? [d.nmod ? e(d.nmod) + ' ' + un(d.nmod) : '', d.mod ? (d.nmod ? 'de ' : '') + e(d.mod) : ''].filter(Boolean).join(' ') : '';
+  const inversor = (d.ninv || d.minv) ? [d.ninv ? e(d.ninv) + ' ' + un(d.ninv) : '', [d.tinv, d.minv].filter(Boolean).map(e).join(' ')].filter(Boolean).join(' · ') : '';
+  const sistema = cel('Contrato de referência', contrato, 's2') + cel('Potência instalada', d.kwp ? e(d.kwp) + ' kWp' : '') +
+    cel('Módulos', modulos, 's2') + cel('Número de série do inversor', d.serie ? e(d.serie) : '') +
+    cel('Inversor(es)', inversor, 's2') + cel('Bateria', d.bat ? e(d.bat) : '') +
+    cel('Local de instalação', d.local ? e(d.local) : '', 's3') +
+    cel('Unidade consumidora', d.uc ? e(d.uc) + (d.conc ? ' · ' + e(d.conc) : '') : (d.conc ? e(d.conc) : ''), 's2') +
+    cel('Instalação concluída em', d.conclusao ? e(solDataCurta(d.conclusao)) : '') + cel('Sistema liberado em', d.liberacao ? e(solDataCurta(d.liberacao)) : '');
+  const estado = { sim: ['Sim', ''], na: ['Não se aplica', ' na'], pend: ['Pendente', ' pend'] };
+  const conferencia = FS_TERMO_ITENS.map((t, i) => { const s = estado[d.chk[i]] || estado.pend; return `<tr><td class="n">${i + 1}.</td><td>${e(t)}</td><td class="s${s[1]}">${s[0]}</td></tr>`; }).join('');
+  const gar = `As garantias previstas no contrato passam a contar desta data: ${solUn(d.gmod, 'ano', 'anos')} para os módulos e ${solUn(d.ginv, 'ano', 'anos')} para o inversor, prestadas pelo fabricante, e ${solGarInst(d)} para os serviços de instalação, prestada pela EMPRESA.`;
+  const decl = [
+    'O CLIENTE declara que recebeu, nesta data, o sistema de geração de energia solar fotovoltaica descrito acima, instalado e em funcionamento, conforme o contrato firmado entre as partes.',
+    'O CLIENTE declara que acompanhou a conferência descrita neste termo e que foi orientado sobre a operação do sistema e sobre o acompanhamento da geração pelo aplicativo do fabricante do inversor.',
+    gar,
+    'A geração de energia informada na proposta e no contrato é uma estimativa. A produção real varia conforme o clima, o sombreamento, a temperatura, a limpeza dos módulos e a disponibilidade da rede da concessionária.',
+    'O CLIENTE fica ciente de que intervenções no sistema feitas por terceiros sem autorização da EMPRESA podem levar à perda das garantias.',
+  ].map((t, i) => `<p class="ep-ctr-li">${i + 1}. ${i === 2 ? t : e(t)}</p>`).join('');
+  const ress = d.ressalva ? `<div class="sol-sec">Ressalvas</div><div class="sol-te-res"><p class="ep-ctr-p">${solTxt(d.ressalva)}</p><p class="ep-ctr-p">As pendências anotadas acima serão resolvidas pela EMPRESA e não impedem o uso do sistema.</p></div>` : '';
+  return `<div class="ep-doc"><div class="ep-page ep-proc sol-te">
+      ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
+      <div class="ep-ctr-tit">Termo de entrega e recebimento do sistema fotovoltaico</div>
+      <div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>
+      <div class="sol-partes">
+        <div class="sol-parte"><div class="cap">Empresa</div>${solQualifEmp(emp)}.</div>
+        <div class="sol-parte"><div class="cap">Cliente</div>${solQualifCli(cli, 'm2')}.</div>
+      </div>
+      <div class="sol-sec">Sistema entregue</div>
+      <div class="sol-te-sis">${sistema}</div>
+      <div class="sol-sec">Conferência na entrega</div>
+      <table class="sol-te-chk"><tbody>${conferencia}</tbody></table>
+      <div class="sol-sec">Declarações</div>
+      ${decl}
+      ${ress}
+      <div class="ep-ctr-fim">
+        <p class="ep-ctr-p" style="margin-top:8px">Por estarem de acordo, as partes assinam este termo em 2 (duas) vias de igual teor.</p>
+        <p class="ep-ctr-p">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
+        <div class="ep-ctr-assin">
+          <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Empresa</div>
+          <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}Cliente</div>
+        </div>
+      </div>
+      ${solRodape('Termo de entrega do sistema fotovoltaico', cli.nome)}
+    </div></div>`;
+}
+function fsTermo() {
+  const d = fsTermoDados();
+  if (fsMostraFaltas(fsFaltas('termo'))) return;
+  const arquivo = ['Termo_Entrega_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
+  fsPreview({ tipo: 'Termo de entrega', cliente: d.cli.nome, valor: 0, num: d.cnum, html: fsTermoHTML(d), arquivo, titulo: 'Termo de entrega solar · ' + d.cli.nome, opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' } });
+}
+
+// ═══ VISTORIA TÉCNICA DO SOLAR ═══
+// Visita do consultor ou do técnico ao imóvel, antes de fechar ou de instalar. Sai como relatório
+// paginado pelo mesmo epPaginar dos contratos. A estrutura e a impressão seguem o relatório de vistoria do
+// eletroposto (visHTML); os campos são do telhado, da entrada de energia e do inversor.
+//
+// FOTOS: ficam só na memória da tela (fsFotos) e na cópia do papel no IndexedDB (a 2ª via). NUNCA no
+// localStorage: 8 fotos de 200 KB estourariam a cota de 5 MB e o histórico inteiro pararia de gravar.
+// Por isso nenhum campo de foto tem id "fs-" (o fsSnap só lê esses) e o histórico guarda apenas a contagem.
+let fsFotos = [];
+const fsOpts = (lista, rot) => [['', rot || 'Não avaliado']].concat(lista.map(x => [x, x]));
+function fsPaneVistoria() {
+  return `<div id="fs-pane-vistoria" style="display:none">` +
+    fsCard('Vistoria', `<div class="fs-grid">
+      ${fsF('fs-v-data', 'Data da vistoria', { type: 'date' })}
+      ${fsF('fs-v-quem', 'Quem vistoriou', { ph: 'Nome de quem foi ao imóvel' })}
+      ${fsF('fs-v-acomp', 'Acompanhou no local <span class="hint">(opcional)</span>', { cls: 's2', ph: 'Nome de quem recebeu a visita' })}
+    </div>`) +
+    fsCard('Imóvel <span class="fs-opc">vem do Contrato e da Procuração</span>', `<div class="fs-grid">
+      ${fsF('fs-v-local', 'Local da vistoria', { cls: 's2' })}
+      ${fsF('fs-v-kwp', 'Potência prevista', { suf: 'kWp', mode: 'decimal' })}
+      ${fsF('fs-v-nmod', 'Nº de módulos', { mode: 'numeric' })}
+      ${fsF('fs-v-uc', 'Unidade consumidora', { mode: 'numeric' })}
+      ${fsF('fs-v-conc', 'Concessionária', { ph: 'CEMIG' })}
+    </div>`) +
+    fsCard('Telhado <span class="fs-opc">opcional</span>', `<div class="fs-grid">
+      ${fsF('fs-v-t-tipo', 'Tipo', { sel: fsOpts(['Cerâmica (colonial)', 'Fibrocimento', 'Metálica (trapezoidal ou zipada)', 'Laje', 'Solo', 'Outro']) })}
+      ${fsF('fs-v-t-estado', 'Estado', { sel: fsOpts(['Bom', 'Regular (pede reparo)', 'Ruim (pede reforma antes)']) })}
+      ${fsF('fs-v-t-orient', 'Orientação da água principal', { sel: fsOpts(['Norte', 'Nordeste', 'Noroeste', 'Leste', 'Oeste', 'Sul', 'Várias']) })}
+      ${fsF('fs-v-t-sombra', 'Sombreamento', { sel: fsOpts(['Sem sombra', 'Sombra parcial de manhã', 'Sombra parcial à tarde', 'Sombra forte']) })}
+      ${fsF('fs-v-t-incl', 'Inclinação aproximada', { suf: 'graus', mode: 'decimal' })}
+      ${fsF('fs-v-t-area', 'Área útil livre', { suf: 'm²', mode: 'decimal' })}
+      ${fsF('fs-v-t-estr', 'Estrutura de apoio <span class="hint">(madeiramento ou terças)</span>', { sel: fsOpts(['Boa', 'Precisa de reforço', 'Não foi possível avaliar']) })}
+      ${fsF('fs-v-t-acesso', 'Acesso ao telhado', { sel: fsOpts(['Fácil', 'Precisa de escada alta', 'Precisa de andaime ou plataforma']) })}
+    </div>`) +
+    fsCard('Entrada de energia <span class="fs-opc">opcional</span>', `<div class="fs-grid">
+      ${fsF('fs-v-e-padrao', 'Padrão', { sel: fsOpts(['Monofásico', 'Bifásico', 'Trifásico']) })}
+      ${fsF('fs-v-e-tensao', 'Tensão', { sel: fsOpts(['127/220 V', '220/380 V']) })}
+      ${fsF('fs-v-e-disj', 'Disjuntor geral', { suf: 'A', mode: 'decimal' })}
+      ${fsF('fs-v-e-apto', 'Padrão em condição de receber o sistema?', { sel: fsOpts(['Sim', 'Precisa de adequação', 'Não sei avaliar']) })}
+      ${fsF('fs-v-e-aterr', 'Aterramento existente', { sel: fsOpts(['Sim', 'Não', 'Não localizado']) })}
+      ${fsF('fs-v-e-quadro', 'Quadro com espaço para o disjuntor do sistema', { sel: fsOpts(['Sim', 'Não']) })}
+    </div>`) +
+    fsCard('Inversor e cabos <span class="fs-opc">opcional</span>', `<div class="fs-grid">
+      ${fsF('fs-v-i-local', 'Local previsto do inversor', { cls: 's2', ph: 'Ex.: parede da garagem, ao lado do quadro' })}
+      ${fsF('fs-v-i-dist', 'Distância do inversor ao quadro', { suf: 'm', mode: 'decimal' })}
+      ${fsF('fs-v-i-abrig', 'Local abrigado de sol e chuva', { sel: fsOpts(['Sim', 'Não']) })}
+      ${fsF('fs-v-i-wifi', 'Sinal de internet (Wi-Fi) no local do inversor', { cls: 's2', sel: fsOpts(['Bom', 'Fraco', 'Sem sinal']) })}
+    </div>`) +
+    fsCard('Conclusão', `<div class="fs-grid">
+      ${fsF('fs-v-concl', 'Conclusão da vistoria', { cls: 's2', sel: [['', 'Escolha a conclusão'], ['ok', 'Apto para instalação'], ['adeq', 'Apto com adequações'], ['nao', 'Não apto no momento']] })}
+      ${fsF('fs-v-adeq', 'Adequações necessárias <span class="hint">(obrigatório se a conclusão não for apto)</span>', { cls: 's2', area: 3, ph: 'Uma por linha. Ex.: Trocar o disjuntor geral por um de 63 A.' })}
+      ${fsF('fs-v-obs', 'Observações', { cls: 's2', area: 3 })}
+    </div>`) +
+    fsCard('Fotos <span class="fs-opc">até ' + FS_FOTOS_MAX + '</span>', `<div id="fs-v-fotos"></div>
+      <button type="button" class="fs-btn-sec" id="fv-add" onclick="document.getElementById('fv-arq').click()">+ Adicionar fotos</button>
+      <input type="file" id="fv-arq" accept="image/*" multiple style="display:none" onchange="fsFotoEscolhidas(this)">
+      <div class="fs-sub" id="fs-v-fotos-n"></div>
+      <div class="fs-sub">As fotos ficam só nesta tela e na 2ª via do histórico. Ao reabrir um papel pelo histórico, os campos voltam e as fotos não.</div>
+      <div class="fs-aviso" id="fs-v-fotos-aviso" role="status"></div>`) +
+  `</div>`;
+}
+function fsVistoriaQuem() {
+  let q = ''; try { q = crmConsultorLogado() || eletroConsultorLogado() || ''; } catch (e) {}
+  if (q) fsSet('fs-v-quem', q, false);
+}
+// ── fotos ──
+function fsFotosRender() {
+  const host = fsEl('fs-v-fotos'); if (!host) return;
+  host.innerHTML = fsFotos.map((f, i) =>
+    `<div class="fs-foto"><img src="${solEsc(f.src)}" alt="Foto ${i + 1}">` +
+    `<div class="c"><select aria-label="Legenda da foto ${i + 1}" onchange="fsFotoCampo(${i},'leg',this.value)">${FS_FOTO_LEGS.map(l => `<option${l === f.leg ? ' selected' : ''}>${solEsc(l)}</option>`).join('')}</select>` +
+    `<input aria-label="Texto da foto ${i + 1}" maxlength="90" autocomplete="off" placeholder="Texto opcional" value="${solEsc(f.txt)}" oninput="fsFotoCampo(${i},'txt',this.value)"></div>` +
+    `<button type="button" class="fs-x" aria-label="Remover foto ${i + 1}" onclick="fsFotoDel(${i})">&times;</button></div>`).join('');
+  const n = fsEl('fs-v-fotos-n'); if (n) n.textContent = fsFotos.length ? fsFotos.length + ' de ' + FS_FOTOS_MAX + ' fotos' : 'Nenhuma foto ainda.';
+  const b = fsEl('fv-add'); if (b) b.disabled = fsFotos.length >= FS_FOTOS_MAX;
+}
+function fsFotoCampo(i, k, v) { if (fsFotos[i]) fsFotos[i][k] = v; }
+function fsFotoDel(i) { fsFotos.splice(i, 1); fsFotosRender(); }
+// geração: trocar de cliente ou reabrir papel sobe o contador, e foto que terminou de comprimir depois disso é descartada
+let fsFotosGer = 0;
+function fsFotosLimpa() { fsFotosGer++; fsFotos = []; fsFotosRender(); }
+function fsFotoEscolhidas(input) { const arq = Array.from(input.files || []); input.value = ''; return fsFotoAddArquivos(arq); }
+// Recebe Files (o input e o teste usam o mesmo caminho): comprime com a compressImage do Gerador
+// (1200 px, JPEG 0,82), uma por vez para não pesar na memória do celular.
+async function fsFotoAddArquivos(arq) {
+  const n = fsEl('fs-v-fotos-n');
+  let recusadas = 0, falhas = 0;
+  const ger = fsFotosGer;
+  for (const f of Array.from(arq || [])) {
+    if (fsFotos.length >= FS_FOTOS_MAX) { recusadas++; continue; }
+    try {
+      const src = await compressImage(f);
+      if (ger !== fsFotosGer) return;                          // o cliente mudou durante a compressão: a foto era de outro
+      if (fsFotos.length >= FS_FOTOS_MAX) { recusadas++; continue; }   // outra chamada encheu a lista enquanto esta comprimia
+      fsFotos.push({ src, leg: FS_FOTO_LEGS[Math.min(fsFotos.length, FS_FOTO_LEGS.length - 1)], txt: '' });
+      fsFotosRender();
+    } catch (e) { falhas++; }
+  }
+  if (n && ger === fsFotosGer && (recusadas || falhas)) n.textContent = fsFotos.length + ' de ' + FS_FOTOS_MAX + ' fotos. ' +
+    (recusadas ? 'O limite é de ' + FS_FOTOS_MAX + ' fotos por relatório. ' : '') + (falhas ? 'Não consegui ler ' + (falhas === 1 ? 'uma foto' : falhas + ' fotos') + '. Tente de novo ou use outra imagem.' : '');
+}
+const FS_V_NUM = [['fs-v-t-incl', 'a inclinação'], ['fs-v-t-area', 'a área útil'], ['fs-v-e-disj', 'o disjuntor'], ['fs-v-i-dist', 'a distância']];
+const fsVNum = v => v.replace(/\./g, ',');
+function fsFaltasVistoria(faltam, invalidos, outros) {
+  if (!fsVal('fs-v-data')) faltam.push('fs-v-data');
+  const c = fsVal('fs-v-concl');
+  if (!c) faltam.push('fs-v-concl');
+  if ((c === 'adeq' || c === 'nao') && !fsVal('fs-v-adeq')) outros.push({ el: fsEl('fs-v-adeq'), msg: c === 'adeq' ? 'Com a conclusão "apto com adequações", descreva as adequações necessárias.' : 'Com a conclusão "não apto no momento", descreva as adequações necessárias.' });
+  const ruim = FS_V_NUM.filter(p => { const v = fsVal(p[0]); return v && !/^\d+([.,]\d+)?$/.test(v); });
+  if (ruim.length) outros.push({ el: fsEl(ruim[0][0]), msg: 'Use só números em ' + fsJunta(ruim.map(p => p[1])) + '.' });
+}
+function fsVistoriaDados() {
+  const g = fsVal;
+  return {
+    cli: fsCli(), emp: solEmp(), data: g('fs-v-data') || solHoje(), quem: g('fs-v-quem'), acomp: g('fs-v-acomp'),
+    local: g('fs-v-local'), kwp: g('fs-v-kwp'), nmod: g('fs-v-nmod'), uc: g('fs-v-uc'), conc: g('fs-v-conc'),
+    tel: g('fs-tel'), concl: g('fs-v-concl'), adeq: g('fs-v-adeq').split('\n').map(s => s.trim()).filter(Boolean), obs: g('fs-v-obs'),
+    telhado: [['Tipo', g('fs-v-t-tipo')], ['Estado', g('fs-v-t-estado')], ['Orientação da água', g('fs-v-t-orient')],
+      ['Inclinação', g('fs-v-t-incl') ? fsVNum(g('fs-v-t-incl')) + ' graus' : ''], ['Área útil livre', g('fs-v-t-area') ? fsVNum(g('fs-v-t-area')) + ' m²' : ''],
+      ['Sombreamento', g('fs-v-t-sombra')], ['Estrutura de apoio', g('fs-v-t-estr')], ['Acesso', g('fs-v-t-acesso')]],
+    entrada: [['Padrão', g('fs-v-e-padrao')], ['Tensão', g('fs-v-e-tensao')], ['Disjuntor geral', g('fs-v-e-disj') ? fsVNum(g('fs-v-e-disj')) + ' A' : ''],
+      ['Padrão apto a receber', g('fs-v-e-apto')], ['Aterramento', g('fs-v-e-aterr')], ['Espaço no quadro', g('fs-v-e-quadro')]],
+    inversor: [['Local do inversor', g('fs-v-i-local')], ['Distância ao quadro', g('fs-v-i-dist') ? fsVNum(g('fs-v-i-dist')) + ' m' : ''],
+      ['Abrigado de sol e chuva', g('fs-v-i-abrig')], ['Sinal de Wi-Fi', g('fs-v-i-wifi')]],
+    fotos: fsFotos.map(f => ({ src: f.src, leg: f.leg, txt: String(f.txt || '').trim() })),
+  };
+}
+// só as linhas preenchidas, duas por linha da tabela (rótulo, valor, rótulo, valor)
+function fsVistoriaTabela(titulo, linhas) {
+  const cheias = linhas.filter(l => l[1]);
+  if (!cheias.length) return '';
+  const par = l => `<td class="k">${solEsc(l[0])}</td><td class="v">${solEsc(l[1])}</td>`;
+  const trs = [];
+  for (let i = 0; i < cheias.length; i += 2) trs.push(`<tr>${par(cheias[i])}${cheias[i + 1] ? par(cheias[i + 1]) : '<td colspan="2"></td>'}</tr>`);
+  return `<div class="sol-vi"><div class="sol-sec">${solEsc(titulo)}</div><table class="sol-vi-sis"><tbody>${trs.join('')}</tbody></table></div>`;
+}
+function fsVistoriaBlocos(d) {
+  const e = solEsc, emp = d.emp, cli = d.cli;
+  const dataTxt = solDataLonga(d.data);
+  const cidade = solEnd('', '', cli.cidade, cli.uf);
+  const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
+  const concl = { ok: ['ok', 'Apto para instalação', 'O imóvel recebe o sistema nas condições em que está.'],
+    adeq: ['adeq', 'Apto com adequações', 'O imóvel recebe o sistema depois das adequações listadas neste relatório.'],
+    nao: ['nao', 'Não apto no momento', 'O imóvel não recebe o sistema agora. O que precisa mudar está nas adequações deste relatório.'] }[d.concl];
+  const ucConc = [d.uc ? 'UC ' + d.uc : '', d.conc].filter(Boolean).join(' · ');
+  const potMod = [d.kwp ? d.kwp + ' kWp' : '', d.nmod ? d.nmod + (parseInt(d.nmod, 10) === 1 ? ' módulo' : ' módulos') : ''].filter(Boolean).join(' · ');
+  const foto = f => `<div class="sol-vi-foto"><div class="m"><img src="${e(f.src)}" alt=""></div><div class="l"><b>${e(f.leg)}</b>${f.txt ? ' · ' + e(f.txt) : ''}</div></div>`;
+  const fotoLinhas = [];
+  for (let i = 0; i < d.fotos.length; i += 2) fotoLinhas.push(`<div class="sol-vi-fotos">${d.fotos.slice(i, i + 2).map(foto).join('')}</div>`);
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const mesmo = !!d.acomp && norm(d.acomp) === norm(cli.nome);
+  const assin = `<div class="sol-vi ep-ctr-fim">
+      <p class="ep-ctr-p" style="margin-top:6px">${cidade ? e(cidade) + ', ' : ''}${e(dataTxt)}. Este relatório registra as condições do imóvel vistas e medidas nesta data.</p>
+      <div class="ep-ctr-assin"${d.acomp ? '' : ' style="justify-content:center"'}>
+        <div class="a"${d.acomp ? '' : ' style="flex:0 1 52%"'}><b>${d.quem ? e(d.quem) : '&nbsp;'}</b><span>${e(emp.razao)} · CNPJ ${e(emp.cnpj)}</span>Quem vistoriou</div>
+        ${d.acomp ? (mesmo
+          // quem acompanhou é o próprio cliente: o nome sai uma vez só
+          ? `<div class="a"><b>${e(cli.nome)}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}Cliente, acompanhou no local</div>`
+          : `<div class="a"><b>${e(d.acomp)}</b>Acompanhou no local</div>`) : ''}
+      </div>
+    </div>`;
+  return [
+    solTopoCtr(`${e(solDataCurta(d.data))}${cidade ? ' · ' + e(cidade) : ''}`) + `<div class="ep-ctr-tit">Relatório de vistoria técnica</div><div class="ep-ctr-sub">${e(dataTxt)}${cidade ? ' · ' + e(cidade) : ''}</div>`,
+    `<div class="sol-card sol-vi-card"><div class="cap">Cliente e local</div><div class="kv">${kv('Cliente', cli.nome, true)}${kv('CPF / CNPJ', cli.doc)}${kv('Telefone', d.tel)}${kv('Unidade consumidora', ucConc, true)}${potMod ? kv('Sistema previsto', potMod) : ''}${kv('Local da vistoria', d.local, true)}</div></div>`,
+    fsVistoriaTabela('Telhado', d.telhado), fsVistoriaTabela('Entrada de energia', d.entrada), fsVistoriaTabela('Inversor e cabos', d.inversor),
+    `<div class="sol-vi"><div class="sol-vi-concl ${concl[0]}"><div class="cap">Conclusão da vistoria</div><b>${e(concl[1])}</b><div class="t">${e(concl[2])}</div></div></div>`,
+    d.adeq.length ? `<div class="sol-vi"><p class="ep-ctr-p"><b>Adequações necessárias</b></p>${d.adeq.map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${e(t)}${i < d.adeq.length - 1 ? ';' : '.'}</p>`).join('')}</div>` : '',
+    d.obs ? `<div class="sol-vi"><p class="ep-ctr-p"><b>Observações.</b> ${solTxt(d.obs)}</p></div>` : '',
+    assin,
+    // o registro fotográfico vai depois das assinaturas, como anexo: cada linha de duas fotos é um bloco inteiro
+    ...fotoLinhas.map((l, i) => i === 0 ? `<div class="sol-vi"><div class="sol-sec" style="margin-top:16px">Registro fotográfico</div>${l}</div>` : `<div class="sol-vi">${l}</div>`),
+  ].filter(Boolean);
+}
+function fsVistoria() {
+  const d = fsVistoriaDados();
+  if (fsMostraFaltas(fsFaltas('vistoria'))) return;
+  const pageFoot = (n, tot) => solRodape('Relatório de vistoria técnica', d.cli.nome, n, tot, 0);
+  const html = `<div class="ep-doc">${epPaginar(fsVistoriaBlocos(d), pageFoot)}</div>`;
+  const arquivo = ['Vistoria_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
+  fsPreview({ tipo: 'Vistoria', cliente: d.cli.nome, valor: 0, num: '', html, arquivo, titulo: 'Vistoria solar · ' + d.cli.nome, opts: null, fotos: d.fotos.length });
+}
+
 // A prévia do eletroposto, com o histórico SOLAR pendurado no gancho aoSair
 // (epPrevSaida chama no clique de Imprimir/Baixar, e não ao abrir a prévia).
 function fsPreview(o) {
@@ -26280,8 +27056,15 @@ function fsPreview(o) {
   epPreview({
     html: o.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts, hist: null,
     aoSair: r => {
-      fsHistAdd({ id, tipo: o.tipo, cliente: o.cliente, valor: o.valor, num: o.num, data: hojeBR, snap, editado: !!r.editado });
-      epPapelGrava({ id, html: r.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts || null, editado: !!r.editado, em: new Date().toISOString() });
+      // fotos: só a CONTAGEM vai para o histórico (o localStorage não aguenta imagem); as fotos vivem na 2ª via
+      fsHistAdd({ id, tipo: o.tipo, cliente: o.cliente, valor: o.valor, num: o.num, data: hojeBR, snap, editado: !!r.editado, fotos: o.fotos || 0 });
+      epPapelGrava({ id, html: r.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts || null, editado: !!r.editado, em: new Date().toISOString() }).then(res => {
+        if (res !== false) return;
+        const aviso = 'Não deu para guardar a 2ª via neste aparelho. Baixe o PDF agora.';
+        try { epPrevAviso(aviso); } catch (e) {}
+        const m = fsEl('fs-pux-msg'); if (m) m.textContent = aviso;
+        if (typeof showToast === 'function') showToast(aviso);
+      });
       if (o.tipo === 'Recibo') { const n = fsEl('fs-r-num'); if (n) { delete n.dataset.tocado; n.value = fsRecProx(); } }
       fsHistRender();
     },
@@ -26290,6 +27073,9 @@ function fsPreview(o) {
 function fsEmitir() {
   if (fsAbaAtual === 'procuracao') return fsProcuracao();
   if (fsAbaAtual === 'recibo') return fsRecibo();
+  if (fsAbaAtual === 'banco') return fsBanco();
+  if (fsAbaAtual === 'termo') return fsTermo();
+  if (fsAbaAtual === 'vistoria') return fsVistoria();
   return fsContrato();
 }
 
