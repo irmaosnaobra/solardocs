@@ -1946,6 +1946,117 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
 .motivo-pular{grid-column:span 2;padding:9px 8px;border-radius:8px;border:1px dashed rgba(148,163,184,.6);background:transparent;color:#94A3B8;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
 .motivo-pular:hover{background:rgba(148,163,184,.14)}
 .crm-status-selo.selo-motivo{background:rgba(71,85,105,.5);color:#CBD5E1}
+/* ===== PÓS-VENDA DO ELETROPOSTO (10/10/2026) =====
+   Tudo com prefixo pv-. O formulário de captura (pv-cap, pv-opt, pv-in, pv-eco)
+   é o mesmo das duas telas: cor herdada e bordas translúcidas para valer no
+   modal escuro daqui e no modal claro da agenda. */
+.pv-cap-tit{font-size:13px;font-weight:800;margin-bottom:8px;color:inherit}
+.pv-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.pv-opt{padding:10px 8px;border-radius:8px;border:1.5px solid rgba(148,163,184,.55);background:rgba(148,163,184,.12);color:inherit;font-family:inherit;font-weight:700;font-size:12.5px;line-height:1.15;text-align:left;cursor:pointer}
+.pv-opt:hover{background:rgba(148,163,184,.24)}
+.pv-opt.on{background:#2563EB;border-color:#93C5FD;color:#fff}
+.pv-lbl{display:block;margin:12px 0 4px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8}
+.pv-in{width:100%;box-sizing:border-box;padding:10px 11px;border-radius:8px;border:1px solid rgba(148,163,184,.7);background:rgba(15,23,42,.55);color:#E5E7EB;font-family:inherit;font-size:15px}
+.pv-in:focus{outline:none;border-color:#60A5FA;box-shadow:0 0 0 2px rgba(96,165,250,.25)}
+textarea.pv-in{resize:vertical;min-height:70px;line-height:1.4}
+.pv-eco{min-height:18px;margin-top:5px;font-size:12.5px;font-weight:600;color:#34D399}
+.pv-eco.erro{color:#F87171}
+.pv-ok{grid-column:span 2;padding:12px 8px;border-radius:8px;border:0;background:#059669;color:#fff;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.pv-ok:hover{background:#047857}
+.pv-ok:disabled{opacity:.45;cursor:not-allowed}
+#crm-det-venda-ep .motivo-grid{margin-top:12px}
+.pv-bloco{margin-top:12px;padding:12px;border-radius:10px;background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.35)}
+.pv-bloco[hidden]{display:none}
+.pv-bloco-tit{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#6EE7B7;margin-bottom:6px}
+.pv-carga{font-size:13px;color:#94A3B8}
+.pv-ed-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+.pv-ed-grid>*{min-width:0}
+.pv-ed-grid .pv-full{grid-column:1/-1}
+.pv-lin{display:flex;gap:8px;align-items:stretch}
+.pv-lin select{flex:1;min-width:0}
+.pv-conclui{flex:none;padding:0 14px;border-radius:8px;border:1.5px solid #34D399;background:rgba(52,211,153,.12);color:#6EE7B7;font-family:inherit;font-weight:800;font-size:12.5px;cursor:pointer}
+.pv-conclui:hover{background:rgba(52,211,153,.24)}
+.pv-conclui:disabled{opacity:.4;cursor:not-allowed}
+.pv-papeis{margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(96,165,250,.12);color:#BFDBFE;font-size:12.5px;line-height:1.4}
+.pv-papeis[hidden]{display:none}
+.pv-sit{margin-bottom:4px;font-size:13.5px;font-weight:700;color:#E5E7EB}
+.pv-sit .atraso{color:#F87171}
+.pv-salvar{width:100%;margin-top:14px;padding:12px;border:0;border-radius:9px;background:#2563EB;color:#fff;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer}
+.pv-salvar:hover{background:#1D4ED8}
+.pv-salvar:disabled{opacity:.5;cursor:wait}
+/* A tela cheia. Mesma paleta escura dos modais vizinhos (#1E293B, #0F172A). */
+html.pv-aberto{overflow:hidden}
+/* Com a tela aberta a pagina de tras nao pode alargar a janela: no celular o conteudo largo do formulario por baixo (medido: 431 px num aparelho de 390) fazia a viewport crescer e a tela cheia estourava. */
+html.pv-aberto body{overflow:hidden}
+.pv-bg{position:fixed;inset:0;z-index:960;background:#0B1220;color:#E5E7EB;display:none;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;box-sizing:border-box}
+.pv-bg.show{display:block}
+.pv-tela{box-sizing:border-box;width:100%;max-width:860px;margin:0 auto;padding:0 14px 80px}
+.pv-topo{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 0 10px;box-sizing:border-box;background:linear-gradient(#0B1220 85%,rgba(11,18,32,0))}
+.pv-topo>div{min-width:0}
+.pv-topo h2{margin:0;font-size:20px;font-weight:800;color:#fff;overflow-wrap:anywhere}
+.pv-topo small{display:block;margin-top:2px;font-size:12px;font-weight:600;color:#94A3B8}
+.pv-x{flex:none;padding:9px 16px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:#1c2c47;color:#E5E7EB;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.pv-x:hover{background:#243046}
+.pv-faixa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:6px 0 14px;box-sizing:border-box}
+.pv-num{min-width:0;box-sizing:border-box;background:#111C33;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 8px;text-align:center}
+.pv-num b{display:block;font-size:20px;font-weight:800;line-height:1.15;color:#fff;overflow-wrap:anywhere}
+.pv-num span{display:block;margin-top:4px;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8}
+.pv-num.alerta{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.6)}
+.pv-num.alerta b{color:#FCA5A5;font-size:26px}
+.pv-num.alerta span{color:#FCA5A5}
+.pv-filtros{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;box-sizing:border-box}
+.pv-chip{flex:none;padding:8px 13px;border-radius:999px;border:1px solid rgba(148,163,184,.4);background:transparent;color:#CBD5E1;font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.pv-chip:hover{background:rgba(148,163,184,.14)}
+.pv-chip.on{background:#2563EB;border-color:#93C5FD;color:#fff}
+.pv-chip i{font-style:normal;margin-left:6px;opacity:.75}
+.pv-aviso{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.45);color:#FCD34D;font-size:13px;line-height:1.4}
+.pv-card{min-width:0;box-sizing:border-box;margin-bottom:10px;border-radius:14px;background:#111C33;border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.pv-card.atrasada{border-color:rgba(248,113,113,.6);box-shadow:inset 4px 0 0 #F87171}
+.pv-card.falta{border-color:rgba(251,191,36,.5);box-shadow:inset 4px 0 0 #FBBF24}
+.pv-card.concluida{box-shadow:inset 4px 0 0 #34D399}
+.pv-card.foco{outline:2px solid #60A5FA;outline-offset:2px}
+.pv-top{min-width:0;box-sizing:border-box;padding:14px 14px 12px;cursor:pointer}
+.pv-top:focus-visible{outline:2px solid #60A5FA;outline-offset:-2px}
+.pv-l1{display:flex;align-items:baseline;justify-content:space-between;gap:4px 10px;flex-wrap:wrap}
+.pv-nome{min-width:0;font-size:16px;font-weight:800;color:#fff;overflow-wrap:anywhere}
+.pv-cid{min-width:0;font-size:12.5px;color:#94A3B8;overflow-wrap:anywhere}
+.pv-l2{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;margin-top:8px}
+.pv-modelo{padding:3px 10px;border-radius:999px;background:rgba(96,165,250,.16);color:#93C5FD;font-size:12px;font-weight:800}
+.pv-modelo.vazio{background:rgba(251,191,36,.14);color:#FCD34D}
+.pv-valor{font-size:14px;font-weight:800;color:#6EE7B7}
+.pv-valor.vazio{font-weight:600;color:#94A3B8}
+.pv-trilho{display:flex;align-items:center;list-style:none;margin:14px 0 0;padding:0}
+.pv-trilho li{flex:1 1 0;display:flex;align-items:center;min-width:0}
+.pv-trilho li::before{content:'';flex:1;height:2px;background:#334155}
+.pv-trilho li:first-child::before{display:none}
+.pv-trilho li:first-child{flex:0 0 auto}
+.pv-trilho li i{flex:none;width:12px;height:12px;border-radius:50%;background:#334155;border:2px solid #334155}
+.pv-trilho li.feito i{background:#34D399;border-color:#34D399}
+.pv-trilho li.feito::before,.pv-trilho li.atual::before{background:#34D399}
+.pv-trilho li.atual i{width:16px;height:16px;background:#0B1220;border-color:#60A5FA;box-shadow:0 0 0 3px rgba(96,165,250,.3)}
+.pv-etapa{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:10px}
+.pv-etapa b{min-width:0;font-size:14px;font-weight:800;color:#fff;overflow-wrap:anywhere}
+.pv-dono{padding:2px 9px;border-radius:999px;background:rgba(148,163,184,.18);color:#CBD5E1;font-size:11.5px;font-weight:700}
+.pv-meta{display:flex;flex-wrap:wrap;gap:3px 14px;margin-top:5px;font-size:12.5px;color:#94A3B8;min-width:0}
+.pv-meta .atraso{color:#F87171;font-weight:800}
+.pv-falta-txt{margin-top:10px;font-size:13.5px;font-weight:700;color:#FCD34D}
+.pv-ed-wrap{padding:2px 14px 16px;border-top:1px solid rgba(255,255,255,.08)}
+.pv-ed-wrap[hidden]{display:none}
+.pv-vazio{margin:30px 0;padding:44px 22px;text-align:center;border:1px dashed rgba(148,163,184,.4);border-radius:14px;color:#94A3B8;font-size:14px;line-height:1.5}
+.pv-vazio b{display:block;margin-bottom:6px;font-size:16px;color:#E5E7EB}
+.pv-vazio button{margin-top:14px;padding:10px 18px;border-radius:9px;border:1px solid #60A5FA;background:rgba(96,165,250,.14);color:#BFDBFE;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.pv-kpi-clk{cursor:pointer}
+.pv-kpi-clk:hover{border-color:#34D399}
+.pv-kpi-btn{display:flex;align-items:center;justify-content:center;padding:9px 10px;border-radius:12px;border:1px solid #34D399;background:rgba(52,211,153,.12);color:#6EE7B7;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.pv-kpi-btn:hover{background:rgba(52,211,153,.24)}
+.pv-selo{display:block;margin-top:2px;font-size:11px;font-weight:700;color:#CBD5E1}
+.pv-selo.atraso{color:#FCA5A5}
+.pv-selo.falta{color:#FCD34D}
+@media(max-width:520px){
+  .pv-faixa{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pv-ed-grid{grid-template-columns:minmax(0,1fr)}
+  .pv-topo h2{font-size:18px}
+}
 /* O aviso de venda em dobro. Vermelho porque é dinheiro contado duas vezes. */
 .venda-dobra{margin:8px 0 10px;padding:9px 11px;border-radius:9px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.5);font-size:12.5px;line-height:1.45;color:#B91C1C}
 .venda-dobra[hidden]{display:none}
@@ -6655,6 +6766,19 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
       </div>
 
+      <!-- VENDIDO no ELETROPOSTO (10/10/2026): pergunta o modelo e o valor antes de
+           gravar. O status continua `fechou`; o modelo e o valor vão para a rota
+           /gerador/pos-venda. Solar segue na caixa de cima, intocada. -->
+      <div id="crm-det-venda-ep" class="motivo-box" hidden>
+        <div id="crm-det-venda-ep-form"></div>
+        <div class="motivo-grid">
+          <button type="button" class="pv-ok" data-pv-confirma="pvc-g" onclick="pvConfirmarVendido()">Marcar como vendido</button>
+          <button type="button" class="motivo-pular" onclick="crmFecharCaixasDoCard()">Cancelar</button>
+        </div>
+      </div>
+      <!-- O pós-venda do card vendido. Só aparece com status `fechou` de eletroposto. -->
+      <div id="crm-det-posvenda" class="pv-bloco" hidden></div>
+
       <div id="crm-det-motivo" class="motivo-box" hidden>
         <div class="motivo-tit">Sem interesse: por quê?</div>
         <div class="motivo-grid">
@@ -6727,11 +6851,28 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   </div>
 </div>
 
+<!-- Vendidos do eletroposto (10/10/2026): tela cheia com a etapa de cada venda -->
+<div id="pv-bg" class="pv-bg" onclick="if(event.target===this)pvFechar()">
+  <div class="pv-tela" role="dialog" aria-modal="true" aria-labelledby="pv-tit">
+    <div class="pv-topo">
+      <div>
+        <h2 id="pv-tit">Vendidos do eletroposto</h2>
+        <small>Cada venda com a etapa em que está e de quem ela depende</small>
+      </div>
+      <button type="button" class="pv-x" onclick="pvFechar()">Fechar</button>
+    </div>
+    <div id="pv-faixa" class="pv-faixa"></div>
+    <div id="pv-filtros" class="pv-filtros" role="group" aria-label="Filtrar vendas"></div>
+    <div id="pv-lista"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="/gerador/solar-data.js"></script>
 <script src="/gerador/tabelas.js"></script>
 <script src="/gerador/etiqueta.js"></script>
+<script src="/gerador/pos-venda.js"></script>
 <!-- QR do WhatsApp no rodapé do orçamento de 1 página (qrcode-generator, MIT).
      Vendorizado porque o documento é impresso offline pelo PWA — CDN não serve. -->
 <script src="/gerador/qrcode.js"></script>
@@ -26351,6 +26492,9 @@ function crmAbrirDetalhe(key) {
   perdidoWrap.style.display = temAg ? 'none' : '';
   if (!temAg) crmMarcarBotaoPerdido(crmPerdidos.has(c.key));
 
+  // O bloco do pós-venda: some em qualquer outro caso (outro card, outro status).
+  pvPintarDetalhe(agRec);
+
   document.getElementById('crm-det-bg').classList.add('show');
 }
 
@@ -26365,6 +26509,8 @@ function crmMarcarBotaoPerdido(jaPerdido) {
 function crmFecharDetalhe() {
   document.getElementById('crm-det-bg').classList.remove('show');
   crmDetAtual = null;
+  const bPv = document.getElementById('crm-det-posvenda');
+  if (bPv) { bPv.hidden = true; bPv.innerHTML = ''; }
 }
 
 // ============= CRM · EDITAR DADOS DO CLIENTE =============
@@ -26674,7 +26820,7 @@ async function crmGravarTemperatura(valor) {
 
 /** As caixas que pedem um segundo toque antes de gravar. Espelha
  *  `CAIXAS_DO_CARD` da agenda; as duas telas tem o mesmo modal. */
-const CRM_CAIXAS_DO_CARD = ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo', 'crm-det-venda'];
+const CRM_CAIXAS_DO_CARD = ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo', 'crm-det-venda', 'crm-det-venda-ep'];
 
 /** Fecha TODAS as caixas e devolve qual estava aberta. Ver o comentario longo da
  *  `fecharCaixasDoCard` na agenda: cada guarda fechava um subconjunto diferente, e
@@ -26740,6 +26886,659 @@ async function crmMarcarForaDoPadrao() {
   showToast('🚫 FORA DO PADRÃO: bloqueado para sempre.');
 }
 
+// ============= PÓS-VENDA DO ELETROPOSTO (10/10/2026) =============
+//
+// O card VENDIDO do eletroposto era um limbo: nao perguntava o modelo nem o valor,
+// e depois nao existia etapa, dono nem lista. O status continua `fechou` (nenhum
+// status novo, nenhuma lista de status mexe); o modelo, o valor e a etapa moram na
+// rota /gerador/pos-venda. As funcoes puras e as chamadas de rede estao em
+// /gerador/pos-venda.js (window.PosVenda), compartilhado com a Agenda.
+//
+// TODA chamada aqui tem try/catch e a tela funciona com a rota respondendo 404:
+// o status do card nao pode deixar de ser gravado por causa disto.
+let crmPosVenda = {};            // { '<agId>': Registro }
+let crmPosVendaSug = {};         // { '<agId>': 'modelo' }: o que a etiqueta guardada dizia
+let crmPosVendaCat = null;       // catalogo (modelos, etapas, trilhos)
+let crmPosVendaPronto = false;   // a leitura do quadro terminou
+let pvCapPre = { id: '', tinhaValor: false };   // o que o formulario do VENDIDO tinha ao abrir
+const pvEdEstado = {};           // { '<prefixo>': { id, reg, sug, cat, ctx } }
+const pvEstado = {
+  cards: [], registros: {}, sugestoes: {}, cat: null, filtro: 'todas', aberto: null,
+  cheio: false, falhouCards: false, falhouLeitura: false, carregando: false, focarId: null,
+};
+const PV_MSG_VALOR = 'Não entendi esse valor. Escreva só o número, como 145.000,00.';
+
+function pvPor() { try { return crmConsultorLogado() || ''; } catch (e) { return ''; } }
+function pvDias(n) { return n + (n === 1 ? ' dia' : ' dias'); }
+function pvNumero(v) { return (v === null || v === undefined || v === '') ? null : Number(v); }
+
+/** Quem o formulario pre-seleciona: o registro que ja existe; depois a sugestao
+ *  da etiqueta guardada; depois o proprio status do card, se for um dos modelos. */
+function pvPreModelo(ag, reg, sug) {
+  const slugs = PosVenda.modelosDe(crmPosVendaCat).map(m => m.slug);
+  if (reg && reg.modelo) return reg.modelo;
+  const id = String(ag.id);
+  if (sug && slugs.includes(sug)) return sug;
+  if (crmPosVendaSug[id] && slugs.includes(crmPosVendaSug[id])) return crmPosVendaSug[id];
+  if (crmEtiquetas[id] && slugs.includes(crmEtiquetas[id])) return crmEtiquetas[id];
+  if (slugs.includes(String(ag.status || ''))) return String(ag.status);
+  return '';
+}
+
+/** Primeiro toque no VENDIDO de um card de eletroposto: abre a caixa na hora, com
+ *  o que ja se sabe sem rede, e afina com a API se ela responder a tempo. */
+function pvAbrirCaixaVenda(ag) {
+  if (!crmAbrirCaixaDoCard('crm-det-venda-ep')) return;
+  const id = String(ag.id);
+  const reg = crmPosVenda[id] || null;
+  const pre = {
+    modelo: pvPreModelo(ag, reg, null),
+    valor: reg && reg.valor != null ? Number(reg.valor) : null,
+  };
+  pvCapPre = { id, tinhaValor: pre.valor !== null };
+  const alvo = document.getElementById('crm-det-venda-ep-form');
+  if (!alvo) return;
+  alvo.innerHTML = PosVenda.capturaHtml('pvc-g', pre, crmPosVendaCat);
+  PosVenda.atualizar('pvc-g');
+  if (reg) return;
+  PosVenda.ler(APX_API, [ag.id]).then((r) => {
+    if (r.catalogo) crmPosVendaCat = r.catalogo;
+    const box = document.getElementById('crm-det-venda-ep');
+    if (!box || box.hidden || !crmDetAtual || !crmDetAtual.agRec || String(crmDetAtual.agRec.id) !== id) return;
+    const atual = PosVenda.lerCaptura('pvc-g');
+    const inp = document.getElementById('pvc-g-valor');
+    if (!inp || inp.value.trim() !== '' || atual.modelo !== pre.modelo) return;   // ele ja mexeu
+    const rg = (r.registros || {})[id] || null;
+    const sug = (r.sugestoes || {})[id] || '';
+    const modelo = pvPreModelo(ag, rg, sug);
+    if (rg) { crmPosVenda[id] = rg; pvCapPre.tinhaValor = rg.valor != null; }
+    if (rg && rg.valor != null) inp.value = PosVenda.numTxt(Number(rg.valor));
+    if (modelo && modelo !== atual.modelo) PosVenda.escolher('pvc-g', modelo);
+    PosVenda.atualizar('pvc-g');
+  }).catch(() => { /* a rota pode nem existir ainda: o formulario ja serve */ });
+}
+
+/** Segundo toque: grava o status e, depois dele, o modelo e o valor. */
+function pvConfirmarVendido() {
+  const cap = PosVenda.lerCaptura('pvc-g');
+  if (cap.erro === 'modelo') { showToast('Escolha o modelo que fechou.'); return; }
+  if (cap.erro === 'valor') { showToast(PV_MSG_VALOR); return; }
+  crmAtualizarStatus('fechou', {
+    __soStatus: 1,
+    __posVenda: { modelo: cap.modelo, valor: cap.valor, limpaValor: pvCapPre.tinhaValor },
+  });
+}
+
+// ── O historico do card ────────────────────────────────────────────────────
+function pvHistEmMemoria(agId, hist) {
+  const alvo = String(agId);
+  (crmClientes || []).forEach(c => (c.agends || []).forEach(a => { if (String(a.id) === alvo) a.historico = hist; }));
+  (pvEstado.cards || []).forEach(a => { if (String(a.id) === alvo) a.historico = hist; });
+  if (crmDetAtual && crmDetAtual.agRec && String(crmDetAtual.agRec.id) === alvo) {
+    crmDetAtual.agRec.historico = hist;
+    const h = document.getElementById('crm-det-hist');
+    if (h) h.textContent = hist;
+  }
+}
+
+/** Anexa UMA linha no topo do historico. LE o historico atual do banco antes:
+ *  o que esta em memoria pode estar velho, e gravar em cima apagaria a linha de
+ *  quem escreveu no meio tempo. */
+async function pvAnexarHistorico(agId, linha) {
+  const rows = await supaGet(`agendamentos?id=eq.${agId}&select=historico`);
+  const atual = (rows && rows[0] && rows[0].historico) || '';
+  const novo = atual ? `${linha}\n\n${atual}` : linha;
+  await supaPatch(`agendamentos?id=eq.${agId}`, { historico: novo });
+  pvHistEmMemoria(agId, novo);
+}
+
+/** A linha do que mudou, ou '' quando so data, responsavel ou observacao mudaram. */
+function pvLinhaMudanca(antes, novo, cat) {
+  const partes = [];
+  if (antes && antes.etapa && novo.etapa && antes.etapa !== novo.etapa) {
+    let t = `Pós-venda: ${PosVenda.rotuloEtapa(antes.etapa, cat)} → ${PosVenda.rotuloEtapa(novo.etapa, cat)}.`;
+    if (novo.previsto) t += ` Previsto ${PosVenda.dataBr(novo.previsto)}.`;
+    partes.push(t);
+  }
+  const modAntes = antes ? (antes.modelo || '') : '';
+  const valAntes = antes ? pvNumero(antes.valor) : null;
+  const modNovo = novo.modelo || '';
+  const valNovo = pvNumero(novo.valor);
+  if (modNovo !== modAntes || valNovo !== valAntes) {
+    partes.push(`Pós-venda: modelo ${modNovo ? PosVenda.rotuloModelo(modNovo, cat) : 'a confirmar'}`
+      + `${valNovo !== null ? ', valor ' + PosVenda.fmtBrl(valNovo) : ''}.`);
+  }
+  return partes.join(' ');
+}
+
+// ── O editor (o mesmo no detalhe do card e na lista) ───────────────────────
+function pvTrilhoHtml(r, modelo, cat) {
+  const t = PosVenda.trilho(modelo, cat);
+  if (!t.length) return '';
+  const idx = r.concluido ? t.length : (r.posicao ? r.posicao - 1 : -1);
+  return '<ol class="pv-trilho" aria-label="Etapas da venda">' + t.map((s, i) => {
+    const cls = i < idx ? 'feito' : (i === idx ? 'atual' : '');
+    return `<li class="${cls}" title="${escapeHtml(PosVenda.rotuloEtapa(s, cat))}"><i></i></li>`;
+  }).join('') + '</ol>';
+}
+
+function pvEdPrepara(pfx, id, reg, sug, ctx) {
+  pvEdEstado[pfx] = { id: String(id), reg: reg || null, sug: sug || '', cat: crmPosVendaCat, ctx };
+  PosVenda.ganchos[pfx + 'c'] = () => pvEdRefazEtapa(pfx);
+}
+
+function pvEdHtml(pfx) {
+  const E = pvEdEstado[pfx];
+  const reg = E.reg;
+  const modeloIni = (reg && reg.modelo) || E.sug || '';
+  const resp = reg && reg.responsavel ? String(reg.responsavel) : '';
+  const nomes = CRM_CONSULTORES_VALIDOS.slice();
+  if (resp && !nomes.includes(resp)) nomes.push(resp);
+  const optsResp = '<option value="">Sem responsável</option>'
+    + nomes.map(n => `<option value="${escapeHtml(n)}"${n === resp ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+  const prev = reg && reg.previsto ? PosVenda.diaDe(reg.previsto) : '';
+  return `<div class="pv-ed" id="${pfx}">`
+    + PosVenda.capturaHtml(pfx + 'c', { modelo: modeloIni, valor: reg ? pvNumero(reg.valor) : null, semTitulo: true }, E.cat)
+    + `<div class="pv-ed-grid">
+        <div class="pv-full">
+          <label class="pv-lbl" for="${pfx}-etapa">Etapa</label>
+          <div class="pv-lin">
+            <select id="${pfx}-etapa" class="pv-in" onchange="pvEdRefazEtapa('${pfx}')"></select>
+            <button type="button" class="pv-conclui" id="${pfx}-concluir" onclick="pvConcluirEtapa('${pfx}')">Concluir etapa</button>
+          </div>
+          <div class="pv-papeis" id="${pfx}-papeis" hidden></div>
+        </div>
+        <div>
+          <label class="pv-lbl" for="${pfx}-previsto">Previsto para</label>
+          <input id="${pfx}-previsto" class="pv-in" type="date" value="${escapeHtml(prev)}">
+        </div>
+        <div>
+          <label class="pv-lbl" for="${pfx}-resp">Responsável</label>
+          <select id="${pfx}-resp" class="pv-in">${optsResp}</select>
+        </div>
+        <div class="pv-full">
+          <label class="pv-lbl" for="${pfx}-obs">Observação</label>
+          <textarea id="${pfx}-obs" class="pv-in" rows="3" maxlength="500">${escapeHtml(reg && reg.obs ? reg.obs : '')}</textarea>
+        </div>
+      </div>
+      <button type="button" class="pv-salvar" id="${pfx}-salvar" onclick="pvSalvar('${pfx}')">Salvar</button>
+    </div>`;
+}
+
+/** Refaz o select de etapa com o trilho do modelo escolhido, o botao de concluir
+ *  e o texto dos papeis. Chamado ao montar e a cada troca de modelo ou de etapa. */
+function pvEdRefazEtapa(pfx) {
+  const E = pvEdEstado[pfx];
+  const sel = document.getElementById(pfx + '-etapa');
+  if (!E || !sel) return;
+  const modelo = PosVenda.lerCaptura(pfx + 'c').modelo || '';
+  const t = PosVenda.trilho(modelo, E.cat);
+  const atual = sel.value || (E.reg && E.reg.etapa) || '';
+  if (!t.length) {
+    sel.innerHTML = '<option value="">Etapas indisponíveis agora</option>';
+    sel.disabled = true;
+  } else {
+    const cur = t.includes(atual) ? atual : t[0];
+    sel.disabled = false;
+    sel.innerHTML = t.map(s => {
+      const dono = PosVenda.rotuloDono(s, E.cat);
+      return `<option value="${escapeHtml(s)}"${s === cur ? ' selected' : ''}>${escapeHtml(PosVenda.rotuloEtapa(s, E.cat))}${dono ? ' (' + escapeHtml(dono) + ')' : ''}</option>`;
+    }).join('');
+  }
+  const prox = sel.disabled ? null : PosVenda.seguinte(modelo, sel.value, E.cat);
+  const bt = document.getElementById(pfx + '-concluir');
+  if (bt) { bt.disabled = !prox; bt.title = prox ? '' : 'Esta já é a última etapa'; }
+  const pap = (sel.value === 'papeis') ? PosVenda.papeisDe(modelo, E.cat) : '';
+  const box = document.getElementById(pfx + '-papeis');
+  if (box) { box.hidden = !pap; box.textContent = pap ? 'Papéis desta venda: ' + pap : ''; }
+}
+
+function pvEdPos(pfx) {
+  pvEdRefazEtapa(pfx);
+  PosVenda.atualizar(pfx + 'c');
+}
+
+function pvConcluirEtapa(pfx) {
+  const E = pvEdEstado[pfx];
+  const sel = document.getElementById(pfx + '-etapa');
+  if (!E || !sel || sel.disabled) return;
+  const modelo = PosVenda.lerCaptura(pfx + 'c').modelo || '';
+  const prox = PosVenda.seguinte(modelo, sel.value, E.cat);
+  if (!prox) return;
+  if (pvSalvando.has(pfx)) return;      // toque duplo: o primeiro ainda esta gravando
+  const anterior = sel.value;
+  sel.value = prox;
+  pvEdRefazEtapa(pfx);
+  pvSalvar(pfx).then((ok) => {
+    // Falhou: volta a etapa de antes, senao o proximo "Concluir" pularia uma.
+    if (!ok && document.getElementById(pfx + '-etapa') === sel) { sel.value = anterior; pvEdRefazEtapa(pfx); }
+  });
+}
+
+/** Travas de "salvando", uma por editor: segunda chamada enquanto a primeira nao
+ *  terminou nao faz nada. Devolve true quando gravou. */
+const pvSalvando = new Set();
+async function pvSalvar(pfx) {
+  if (pvSalvando.has(pfx)) return false;
+  pvSalvando.add(pfx);
+  try { return await pvSalvarUma(pfx); }
+  finally { pvSalvando.delete(pfx); }
+}
+
+async function pvSalvarUma(pfx) {
+  const E = pvEdEstado[pfx];
+  if (!E) return false;
+  const cap = PosVenda.lerCaptura(pfx + 'c');
+  if (cap.erro === 'valor') { showToast(PV_MSG_VALOR); return false; }
+  const reg = E.reg;
+  const g = (s) => document.getElementById(pfx + '-' + s);
+  const campos = {};
+  if (cap.modelo !== (reg ? (reg.modelo || '') : '')) campos.modelo = cap.modelo;
+  const valAntes = reg ? pvNumero(reg.valor) : null;
+  if (cap.valor !== valAntes) campos.valor = cap.valor;          // null limpa de proposito
+  const sel = g('etapa');
+  if (sel && !sel.disabled && sel.value) {
+    const base = reg ? reg.etapa : (PosVenda.trilho(cap.modelo, E.cat)[0] || '');
+    if (sel.value !== base) campos.etapa = sel.value;
+  }
+  const prev = g('previsto').value;
+  if (prev !== (reg && reg.previsto ? PosVenda.diaDe(reg.previsto) : '')) campos.previsto = prev || null;
+  const resp = g('resp').value;
+  if (resp !== (reg && reg.responsavel ? String(reg.responsavel) : '')) campos.responsavel = resp;
+  const obs = g('obs').value.trim();
+  if (obs !== String(reg && reg.obs ? reg.obs : '').trim()) campos.obs = obs;
+  if (!Object.keys(campos).length) { showToast('Nada mudou para salvar.'); return false; }
+  campos.por = pvPor();
+  const btn = g('salvar');
+  const btnConcluir = g('concluir');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  if (btnConcluir) btnConcluir.disabled = true;
+  let novo;
+  try {
+    novo = await PosVenda.gravar(APX_API, Number(E.id), campos);
+  } catch (e) {
+    console.warn('pos-venda nao salvo', e);
+    showToast(PosVenda.mensagemErro(e));
+    // o editor fica como estava, com o que foi digitado
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+    if (btnConcluir) btnConcluir.disabled = false;
+    return false;
+  }
+  E.reg = novo;
+  crmPosVenda[E.id] = novo;
+  pvEstado.registros[E.id] = novo;
+  try {
+    const txt = pvLinhaMudanca(reg, novo, E.cat);
+    if (txt) await pvAnexarHistorico(E.id, PosVenda.linhaHistorico(pvPor(), txt));
+  } catch (e) { console.warn('linha do pos-venda nao entrou no historico', e); }
+  showToast('Pós-venda salvo.');
+  if (E.ctx === 'lista') { pvRepintarCard(E.id); pvRenderFaixa(); pvRenderFiltros(); }
+  else if (crmDetAtual && crmDetAtual.agRec && String(crmDetAtual.agRec.id) === String(E.id)) pvDetRender(E.id);
+  // So redesenha o quadro do ELETROPOSTO: renderCRM zera a rolagem das colunas.
+  if (crmCarregado && crmFiltroProduto === 'eletroposto') { try { renderCRM(); } catch (e) {} }
+  return true;
+}
+
+// ── O bloco no detalhe do card ─────────────────────────────────────────────
+function pvSituacaoTxt(r) {
+  if (r.faltaInformar) return 'Falta informar o modelo e o valor desta venda.';
+  let t = `${escapeHtml(r.etapaRot)}${r.donoRot ? ' · ' + escapeHtml(r.donoRot) : ''}`;
+  if (r.atrasoDias > 0) t += ` · <span class="atraso">Atrasada há ${pvDias(r.atrasoDias)}</span>`;
+  else if (r.previstoBr && !r.concluido) t += ` · Previsto ${r.previstoBr}`;
+  return t;
+}
+
+function pvDetRender(id) {
+  const bl = document.getElementById('crm-det-posvenda');
+  if (!bl) return;
+  const reg = crmPosVenda[String(id)] || null;
+  const r = PosVenda.resumo(reg, crmPosVendaCat, PosVenda.hojeBr());
+  bl.innerHTML = '<div class="pv-bloco-tit">Pós-venda</div>'
+    + `<div class="pv-sit">${pvSituacaoTxt(r)}</div><div id="pvd-corpo"></div>`;
+  pvEdPrepara('pvd', id, reg, crmPosVendaSug[String(id)] || '', 'det');
+  document.getElementById('pvd-corpo').innerHTML = pvEdHtml('pvd');
+  pvEdPos('pvd');
+}
+
+function pvPintarDetalhe(agRec) {
+  const bl = document.getElementById('crm-det-posvenda');
+  if (!bl) return;
+  bl.hidden = true;
+  bl.innerHTML = '';
+  if (typeof PosVenda === 'undefined' || !agRec || agRec.id == null) return;
+  if (String(agRec.status || '') !== 'fechou' || !crmEhEletroposto(agRec)) return;
+  const id = agRec.id;
+  const ainda = () => crmDetAtual && crmDetAtual.agRec && crmDetAtual.agRec.id === id;
+  bl.hidden = false;
+  bl.innerHTML = '<div class="pv-bloco-tit">Pós-venda</div><div class="pv-carga">Carregando…</div>';
+  PosVenda.ler(APX_API, [id]).then((r) => {
+    if (!ainda()) return;       // abriu outro card no meio: a resposta nao e dele
+    if (r.catalogo) crmPosVendaCat = r.catalogo;
+    if (r.registros[String(id)]) crmPosVenda[String(id)] = r.registros[String(id)];
+    Object.assign(crmPosVendaSug, r.sugestoes || {});
+    pvDetRender(id);
+  }).catch(() => {
+    if (!ainda()) return;
+    bl.innerHTML = '<div class="pv-bloco-tit">Pós-venda</div>'
+      + '<div class="pv-carga">Não deu para carregar o pós-venda agora.</div>'
+      + '<button type="button" class="pv-conclui" style="margin-top:8px;padding:8px 14px" onclick="pvPintarDetalhe(crmDetAtual && crmDetAtual.agRec)">Tentar de novo</button>';
+  });
+}
+
+// ── O selo no quadro do CRM (eletroposto) ──────────────────────────────────
+function pvCardVendidoEp(c) {
+  if (!c || String(c.statusAg || '') !== 'fechou' || !c.agId) return false;
+  const ag = (c.agends || []).find(a => a.id === c.agId);
+  return !!ag && crmEhEletroposto(ag);
+}
+
+/** Carrega os registros dos vendidos do quadro SEM bloquear o desenho do quadro:
+ *  se falhar, o card fica como era, sem erro na tela. */
+async function pvCarregarSelos() {
+  if (typeof PosVenda === 'undefined') return;
+  try {
+    const ids = (crmClientes || []).filter(pvCardVendidoEp).map(c => c.agId);
+    if (ids.length) {
+      const r = await PosVenda.ler(APX_API, ids);
+      Object.assign(crmPosVenda, r.registros || {});
+      Object.assign(crmPosVendaSug, r.sugestoes || {});
+      if (r.catalogo) crmPosVendaCat = r.catalogo;
+    }
+    crmPosVendaPronto = true;
+    // So redesenha o quadro do ELETROPOSTO (o selo so existe la): renderCRM zera a
+    // rolagem das colunas do solar.
+    if (crmFiltroProduto === 'eletroposto') renderCRM();
+  } catch (e) {
+    crmPosVendaPronto = false;
+    console.warn('selos do pos-venda nao carregaram', e);
+  }
+}
+
+function pvSeloCrm(c) {
+  if (typeof PosVenda === 'undefined' || crmFiltroProduto !== 'eletroposto'
+      || !crmPosVendaPronto || !pvCardVendidoEp(c)) return '';
+  const r = PosVenda.resumo(crmPosVenda[String(c.agId)] || null, crmPosVendaCat, PosVenda.hojeBr());
+  if (r.faltaInformar) return '<span class="pv-selo falta">Falta informar</span>';
+  if (r.atrasoDias > 0) return `<span class="pv-selo atraso">Atrasada há ${pvDias(r.atrasoDias)}</span>`;
+  return `<span class="pv-selo">${escapeHtml(r.etapaRot)}</span>`;
+}
+
+// ── A tela "Vendidos do eletroposto" ───────────────────────────────────────
+const PV_FILTROS = [
+  ['todas', 'Todas'], ['atrasadas', 'Atrasadas'], ['falta', 'Falta informar'],
+  ['andamento', 'Em andamento'], ['concluidas', 'Concluídas'],
+];
+
+function pvAbrir(foco) {
+  if (typeof PosVenda === 'undefined') { showToast('O pós-venda não carregou. Atualize a página.'); return; }
+  const bg = document.getElementById('pv-bg');
+  if (!bg) return;
+  const E = pvEstado;
+  E.focarId = (foco && /^\d+$/.test(String(foco))) ? String(foco) : null;
+  E.aberto = E.focarId;
+  E.filtro = 'todas';
+  bg.classList.add('show');
+  document.documentElement.classList.add('pv-aberto');
+  bg.scrollTop = 0;
+  pvCarregar();
+}
+
+function pvFechar() {
+  const bg = document.getElementById('pv-bg');
+  if (bg) bg.classList.remove('show');
+  document.documentElement.classList.remove('pv-aberto');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('pv-bg')?.classList.contains('show')) pvFechar();
+});
+
+let pvCargaSeq = 0;
+async function pvCarregar() {
+  const E = pvEstado;
+  // Duas cargas seguidas (abrir, fechar, abrir): so a ultima pinta. A resposta da
+  // primeira, atrasada, nao pode sobrescrever a da segunda.
+  const meu = ++pvCargaSeq;
+  E.carregando = true; E.falhouCards = false; E.falhouLeitura = false; E.cheio = false;
+  pvRender();
+  let rows = [];
+  try {
+    // Filtra NO SERVIDOR e pagina: o PostgREST corta em 1000 linhas calado.
+    for (let pg = 0; pg < 5; pg++) {
+      const page = await supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,cidade,quando,historico,created_by'
+        + `&status=eq.fechou&created_by=ilike.*eletroposto*&order=id.desc&limit=1000&offset=${pg * 1000}`);
+      rows = rows.concat(page || []);
+      if (!page || page.length < 1000) break;
+      if (pg === 4) E.cheio = true;
+    }
+  } catch (e) {
+    console.warn('vendidos do eletroposto nao carregaram', e);
+    if (meu !== pvCargaSeq) return;
+    E.falhouCards = true; E.carregando = false; pvRender();
+    return;
+  }
+  if (meu !== pvCargaSeq) return;
+  E.cards = rows;
+  try {
+    const r = await PosVenda.ler(APX_API, rows.map(a => a.id));
+    if (meu !== pvCargaSeq) return;
+    E.registros = r.registros || {}; E.sugestoes = r.sugestoes || {};
+    E.cat = r.catalogo || PosVenda.catalogoAtual;
+    if (E.cat) crmPosVendaCat = E.cat;
+    Object.assign(crmPosVenda, E.registros);
+    Object.assign(crmPosVendaSug, E.sugestoes);
+  } catch (e) {
+    console.warn('pos-venda nao carregou', e);
+    if (meu !== pvCargaSeq) return;
+    E.falhouLeitura = true; E.registros = {}; E.sugestoes = {};
+  }
+  E.carregando = false;
+  pvRender();
+  if (E.focarId) pvFocar(E.focarId);
+}
+
+function pvClassifica(a) {
+  const E = pvEstado;
+  const reg = E.falhouLeitura ? null : (E.registros[String(a.id)] || null);
+  const r = PosVenda.resumo(reg, E.cat, PosVenda.hojeBr());
+  let cls = 'andamento';
+  if (E.falhouLeitura) cls = 'sem';
+  else if (r.atrasoDias > 0) cls = 'atrasada';
+  else if (r.faltaInformar) cls = 'falta';
+  else if (r.concluido) cls = 'concluida';
+  return { reg, r, cls };
+}
+
+function pvPassaFiltro(k, filtro) {
+  if (filtro === 'atrasadas') return k.r.atrasoDias > 0;
+  if (filtro === 'falta') return k.r.faltaInformar;
+  if (filtro === 'andamento') return !k.r.faltaInformar && !k.r.concluido;
+  if (filtro === 'concluidas') return k.r.concluido;
+  return true;
+}
+
+/** Atrasadas primeiro (a mais atrasada no topo), depois falta informar, depois
+ *  em andamento por previsto crescente, concluidas por ultimo. */
+function pvOrdenados() {
+  const grupo = (k) => k.cls === 'atrasada' ? 0 : k.cls === 'falta' ? 1 : k.cls === 'concluida' ? 3 : 2;
+  const prev = (k) => (k.reg && k.reg.previsto) ? PosVenda.diaDe(k.reg.previsto) : '9999-99-99';
+  return pvEstado.cards.map(a => ({ a, k: pvClassifica(a) })).sort((x, y) => {
+    const gx = grupo(x.k), gy = grupo(y.k);
+    if (gx !== gy) return gx - gy;
+    if (gx === 0 && x.k.r.atrasoDias !== y.k.r.atrasoDias) return y.k.r.atrasoDias - x.k.r.atrasoDias;
+    if (gx === 2 && prev(x.k) !== prev(y.k)) return prev(x.k) < prev(y.k) ? -1 : 1;
+    return Number(y.a.id) - Number(x.a.id);
+  });
+}
+
+function pvRender() {
+  const E = pvEstado;
+  const faixa = document.getElementById('pv-faixa');
+  const fil = document.getElementById('pv-filtros');
+  const lista = document.getElementById('pv-lista');
+  if (!faixa || !fil || !lista) return;
+  if (E.carregando && !E.cards.length) {
+    faixa.innerHTML = ''; fil.innerHTML = '';
+    lista.innerHTML = '<div class="pv-vazio"><b>Carregando…</b>Buscando as vendas do eletroposto.</div>';
+    return;
+  }
+  if (E.falhouCards) {
+    faixa.innerHTML = ''; fil.innerHTML = '';
+    lista.innerHTML = '<div class="pv-vazio"><b>Não deu para carregar os vendidos agora.</b>Confira a conexão e tente de novo.'
+      + '<br><button type="button" onclick="pvCarregar()">Tentar de novo</button></div>';
+    return;
+  }
+  if (!E.cards.length) {
+    faixa.innerHTML = ''; fil.innerHTML = '';
+    lista.innerHTML = '<div class="pv-vazio"><b>Nenhuma venda de eletroposto marcada ainda.</b>'
+      + 'Quando um card virar VENDIDO, ele aparece aqui com a próxima etapa.</div>';
+    return;
+  }
+  pvRenderFaixa();
+  pvRenderFiltros();
+  pvRenderLista();
+}
+
+function pvRenderFaixa() {
+  const E = pvEstado;
+  const faixa = document.getElementById('pv-faixa');
+  if (!faixa || !E.cards.length) return;
+  const ks = E.cards.map(pvClassifica);
+  const soma = ks.reduce((s, k) => s + (k.reg && k.reg.valor != null ? Number(k.reg.valor) : 0), 0);
+  const atras = ks.filter(k => k.r.atrasoDias > 0).length;
+  const falta = ks.filter(k => k.r.faltaInformar).length;
+  const num = (v, l, cls) => `<div class="pv-num${cls ? ' ' + cls : ''}"><b>${v}</b><span>${l}</span></div>`;
+  faixa.innerHTML = E.falhouLeitura
+    ? num(E.cards.length, 'Vendas') + num('n/d', 'Soma informada') + num('n/d', 'Atrasadas') + num('n/d', 'Falta informar')
+    : num(E.cards.length, 'Vendas')
+      + num(PosVenda.fmtBrl(soma), 'Soma informada')
+      + num(atras, 'Atrasadas', atras > 0 ? 'alerta' : '')
+      + num(falta, 'Falta informar');
+}
+
+function pvRenderFiltros() {
+  const E = pvEstado;
+  const fil = document.getElementById('pv-filtros');
+  if (!fil) return;
+  if (E.falhouLeitura || !E.cards.length) { fil.innerHTML = ''; return; }
+  const ks = E.cards.map(pvClassifica);
+  fil.innerHTML = PV_FILTROS.map(([k, rot]) => {
+    const n = ks.filter(x => pvPassaFiltro(x, k)).length;
+    return `<button type="button" class="pv-chip${E.filtro === k ? ' on' : ''}" aria-pressed="${E.filtro === k}" onclick="pvFiltrar('${k}')">${rot}<i>${n}</i></button>`;
+  }).join('');
+}
+
+function pvFiltrar(k) {
+  pvEstado.filtro = k;
+  pvRenderFiltros();
+  pvRenderLista();
+}
+
+function pvRenderLista() {
+  const E = pvEstado;
+  const lista = document.getElementById('pv-lista');
+  if (!lista) return;
+  let aviso = '';
+  if (E.cheio) aviso += '<div class="pv-aviso">Há muitas vendas e a lista pode estar incompleta.</div>';
+  if (E.falhouLeitura) {
+    aviso += '<div class="pv-aviso">Não deu para carregar o pós-venda agora. Os cards aparecem sem os dados de etapa. '
+      + '<button type="button" class="pv-conclui" style="margin-left:6px;padding:6px 12px" onclick="pvCarregar()">Tentar de novo</button></div>';
+  }
+  const itens = pvOrdenados().filter(x => E.falhouLeitura || pvPassaFiltro(x.k, E.filtro));
+  lista.innerHTML = aviso + (itens.length
+    ? itens.map(x => pvCardHtml(x.a, x.k)).join('')
+    : '<div class="pv-vazio"><b>Nenhuma venda neste filtro.</b>Escolha outro filtro acima.</div>');
+  if (E.aberto) pvEdPos('pve-' + E.aberto);
+}
+
+function pvCardHtml(a, k) {
+  const E = pvEstado;
+  const id = String(a.id);
+  k = k || pvClassifica(a);
+  const { reg, r } = k;
+  const aberto = E.aberto === id;
+  const pfx = 'pve-' + id;
+  if (aberto) pvEdPrepara(pfx, id, reg, E.sugestoes[id] || '', 'lista');
+  let corpo;
+  if (E.falhouLeitura) {
+    corpo = '<div class="pv-meta"><span>Dados de etapa indisponíveis agora</span></div>';
+  } else {
+    const modelo = (reg && reg.modelo)
+      ? `<span class="pv-modelo">${escapeHtml(r.modeloRot)}</span>`
+      : '<span class="pv-modelo vazio">Modelo a confirmar</span>';
+    const valor = (reg && reg.valor != null)
+      ? `<span class="pv-valor">${PosVenda.fmtBrl(Number(reg.valor))}</span>`
+      : '<span class="pv-valor vazio">Valor não informado</span>';
+    let resto;
+    if (r.faltaInformar) {
+      resto = '<div class="pv-falta-txt">Falta informar o modelo e o valor</div>';
+    } else {
+      const dias = r.diasNaEtapa;
+      const naEtapa = dias === null ? '' : (dias === 0 ? 'Entrou hoje nesta etapa' : `Há ${pvDias(dias)} nesta etapa`);
+      const prazo = r.concluido ? ''
+        : (r.atrasoDias > 0 ? `<span class="atraso">Atrasada há ${pvDias(r.atrasoDias)}</span>`
+          : (r.previstoBr ? `<span>Previsto ${r.previstoBr}</span>` : '<span>Sem data prevista</span>'));
+      resto = pvTrilhoHtml(r, reg.modelo, E.cat)
+        + `<div class="pv-etapa"><b>${escapeHtml(r.etapaRot)}</b>${r.donoRot ? `<span class="pv-dono">${escapeHtml(r.donoRot)}</span>` : ''}</div>`
+        + `<div class="pv-meta">${naEtapa ? `<span>${naEtapa}</span>` : ''}${prazo}`
+        + `<span>${reg.responsavel ? escapeHtml(reg.responsavel) : 'Sem responsável'}</span></div>`;
+    }
+    corpo = `<div class="pv-l2">${modelo}${valor}</div>${resto}`;
+  }
+  return `<article class="pv-card ${k.cls}${E.focarId === id ? ' foco' : ''}" id="pv-card-${id}">
+    <div class="pv-top" role="button" tabindex="0" aria-expanded="${aberto}" onclick="pvAlternar('${id}')"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pvAlternar('${id}')}">
+      <div class="pv-l1"><span class="pv-nome">${escapeHtml(a.cliente_nome || 'Sem nome')}</span>${a.cidade ? `<span class="pv-cid">${escapeHtml(a.cidade)}</span>` : ''}</div>
+      ${corpo}
+    </div>
+    ${aberto && !E.falhouLeitura ? `<div class="pv-ed-wrap">${pvEdHtml(pfx)}</div>` : ''}
+  </article>`;
+}
+
+function pvRepintarCard(id) {
+  const E = pvEstado;
+  id = String(id);
+  const a = E.cards.find(x => String(x.id) === id);
+  const el = document.getElementById('pv-card-' + id);
+  if (!a || !el) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = pvCardHtml(a).trim();
+  el.replaceWith(tmp.firstElementChild);
+  if (E.aberto === id && !E.falhouLeitura) pvEdPos('pve-' + id);
+}
+
+function pvAlternar(id) {
+  const E = pvEstado;
+  id = String(id);
+  if (E.falhouLeitura) return;
+  const antes = E.aberto;
+  E.aberto = (antes === id) ? null : id;
+  if (antes && antes !== id) pvRepintarCard(antes);
+  pvRepintarCard(id);
+}
+
+function pvFocar(id) {
+  const el = document.getElementById('pv-card-' + id);
+  if (!el) { showToast('Esse card não está entre os vendidos do eletroposto.'); return; }
+  setTimeout(() => { try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {} }, 60);
+}
+
+/** `/gerador/?posvenda=<id>` (valor numerico) abre a tela com aquele card em foco;
+ *  qualquer valor nao numerico (o oficial e `lista`) so abre a tela. So roda autenticado e roda de novo depois do login: aberto sem
+ *  sessao, o link seria descartado calado (o mesmo defeito que o ?crm= ja teve). */
+function pvCheckDeepLink() {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  const q = new URLSearchParams(location.search);
+  const alvo = q.get('posvenda');
+  if (!alvo) return;
+  q.delete('posvenda');
+  const resto = q.toString();
+  history.replaceState(null, '', location.pathname + (resto ? '?' + resto : '') + location.hash);
+  pvAbrir(alvo);
+}
+window.pvCheckDeepLink = pvCheckDeepLink;
+window.addEventListener('DOMContentLoaded', pvCheckDeepLink);
+
 async function crmAtualizarStatus(novoStatus, extra) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const { c, agRec: ag } = crmDetAtual;
@@ -26751,6 +27550,14 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // Primeiro toque abre a escolha; o formulario e o MESMO do Historico, nao uma
   // copia. Copiar o formulario em duas telas e a divergencia que custou caro aqui.
   if (novoStatus === 'fechou' && !(extra && extra.__soStatus)) {
+    // ELETROPOSTO pergunta o modelo e o valor (10/10/2026): o botao "Com o valor"
+    // da caixa de baixo exige uma proposta, e o eletroposto nao tem. Sem o
+    // pos-venda.js (offline, cache torto) cai na caixa antiga: o VENDIDO nao pode
+    // deixar de funcionar por causa disso. Solar nao muda.
+    if (typeof PosVenda !== 'undefined' && crmEhEletroposto(ag)) {
+      pvAbrirCaixaVenda(ag);
+      return;
+    }
     if (!crmAbrirCaixaDoCard('crm-det-venda')) return;
     return;
   }
@@ -26795,7 +27602,11 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // `__soStatus` entra na lista pelo mesmo motivo dos outros tres: nao e coluna
   // de `agendamentos`, e o PostgREST responde 400. O sintoma seria o botao VENDIDO
   // parar de funcionar inteiro — foi o que o teste no Chrome pegou.
-  if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; delete extra.__soStatus; }
+  // `__posVenda` tambem e MARCA: modelo e valor vao pra rota /gerador/pos-venda,
+  // nao pra coluna. Guardado ANTES de apagar, porque a linha do historico logo
+  // abaixo usa o modelo e o valor.
+  const posVendaEscolhido = (extra && extra.__posVenda) || null;
+  if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; delete extra.__soStatus; delete extra.__posVenda; }
   // O CLIQUE DE STATUS DEIXA RASTRO (05/10/2026). Gêmeo do `atualizarStatus` da
   // agenda, e o motivo longo mora lá: sem esta linha "este card foi marcado sem
   // interesse" não existe escrito em lugar nenhum, e o `desmarcarVenda` logo
@@ -26819,9 +27630,28 @@ async function crmAtualizarStatus(novoStatus, extra) {
   })();
   const autorCrm = (typeof crmConsultorLogado === 'function' && crmConsultorLogado())
     || getConsultorAtual() || '—';
+  // Pos-venda: o modelo e o valor entram na MESMA linha do status.
+  let posVendaTxtCrm = '';
+  if (posVendaEscolhido && typeof PosVenda !== 'undefined') {
+    posVendaTxtCrm = ' Modelo: ' + PosVenda.rotuloModelo(posVendaEscolhido.modelo, crmPosVendaCat) + '.'
+      + (typeof posVendaEscolhido.valor === 'number' && isFinite(posVendaEscolhido.valor)
+        ? ' Valor: ' + PosVenda.fmtBrl(posVendaEscolhido.valor) + '.' : '');
+  }
   const linhaCrm = `[${tsCrm} · ${autorCrm}] 🏷️ Status: ${rotCrm(stDeCrm)} → `
-    + `${rotCrm(novoStatus)}${motivoTxtCrm}${posseTxtCrm}.`;
-  const histCrm = ag.historico ? `${linhaCrm}\n\n${ag.historico}` : linhaCrm;
+    + `${rotCrm(novoStatus)}${motivoTxtCrm}${posseTxtCrm}.${posVendaTxtCrm}`;
+  // Eletroposto: o historico base vem do BANCO, nao da memoria. Uma linha de
+  // pos-venda gravada por outra tela (a Agenda, outra aba) some se o PATCH abaixo
+  // montar em cima de um historico velho. Se a releitura falhar, segue com o da
+  // memoria. Solar nao muda (nenhuma requisicao a mais).
+  let baseHistCrm = ag.historico;
+  if (crmEhEletroposto(ag)) {
+    try {
+      const rowsH = await supaGet(`agendamentos?id=eq.${ag.id}&select=historico`);
+      if (rowsH && rowsH[0]) baseHistCrm = rowsH[0].historico || '';
+    } catch (e) { console.warn('historico nao relido, segue com o da memoria', e); }
+  }
+  const histCrm = baseHistCrm ? `${linhaCrm}\n\n${baseHistCrm}` : linhaCrm;
+  let posVendaFalhou = false;
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`,
       { status: novoStatus, historico: histCrm, ...(extra || {}) });
@@ -26897,8 +27727,31 @@ async function crmAtualizarStatus(novoStatus, extra) {
       // velho sobrando, e o selo do card mostra ele.
       console.warn('espera não foi solta', e);
     }
+    // ── O PÓS-VENDA (10/10/2026) ───────────────────────────────────────────
+    // Depois de tudo que ja existia. Se a rota nao responder (404 antes do
+    // deploy da api, rede), o status JA esta gravado: o desfecho do negocio e
+    // mais importante que o modelo, e o aviso diz como completar depois.
+    if (posVendaEscolhido) {
+      try {
+        if (typeof PosVenda === 'undefined') throw new Error('pos-venda.js nao carregou');
+        const campos = { modelo: posVendaEscolhido.modelo, por: pvPor() };
+        // valor vazio so vai como null quando o card JA tinha um valor (limpar de
+        // proposito); num registro novo, ausente e null dizem o mesmo.
+        if (posVendaEscolhido.valor !== null && posVendaEscolhido.valor !== undefined) campos.valor = posVendaEscolhido.valor;
+        else if (posVendaEscolhido.limpaValor) campos.valor = null;
+        const reg = await PosVenda.gravar(APX_API, ag.id, campos);
+        if (reg) crmPosVenda[String(ag.id)] = reg;
+      } catch (e) {
+        posVendaFalhou = true;
+        console.warn('pos-venda nao gravado', e);
+      }
+    }
     ag.status = novoStatus;            // atualiza a linha em memória
     if (extra) Object.assign(ag, extra);
+    // O historico em memoria acompanha o que foi gravado (so no eletroposto): sem
+    // isto o proximo clique de status montaria a linha em cima do historico velho
+    // e apagaria a deste.
+    if (crmEhEletroposto(ag)) ag.historico = histCrm;
     crmDerivar(c);                     // recalcula etapa/coluna + selo do card
     const labels = {
       agendado:         '📞 Marcado como Agendada',
@@ -26922,6 +27775,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
     };
     showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
+    if (posVendaFalhou) showToast('O card virou vendido, mas não deu para guardar o modelo e o valor. Abra o card e informe de novo.');
     crmFecharDetalhe();
     renderCRM();                       // re-render local: card migra/ganha selo, sem refetch
   } catch (e) {
@@ -27429,6 +28283,8 @@ async function carregarCRM(forcar) {
   crmClientes.forEach(crmDerivar);
   crmRenderFiltros();
   renderCRM();
+  // O selo de etapa dos vendidos do eletroposto: depois do quadro, sem bloquear.
+  pvCarregarSelos();
 }
 
 // ── A SALA DE ESPERA, DESENHADA NO QUADRO ──────────────────────────────────
@@ -28018,14 +28874,19 @@ function renderCRM() {
     const pipeline = baseKpi
       .filter(c => !semReceita.has(c.etapa))
       .reduce((s, c) => s + Number(c.valor || 0), 0);
-    const kpi = (lbl, val, cls) => `<div class="crm-kpi ${cls || ''}"><div class="crm-kpi-val">${val}</div><div class="crm-kpi-lbl">${lbl}</div></div>`;
+    // O 4º parametro (clique) so e usado no KPI "Vendidos" do quadro do eletroposto.
+    const kpi = (lbl, val, cls, clique) => clique
+      ? `<div class="crm-kpi pv-kpi-clk ${cls || ''}" role="button" tabindex="0" title="Abrir o pós-venda" onclick="${clique}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${clique}}"><div class="crm-kpi-val">${val}</div><div class="crm-kpi-lbl">${lbl}</div></div>`
+      : `<div class="crm-kpi ${cls || ''}"><div class="crm-kpi-val">${val}</div><div class="crm-kpi-lbl">${lbl}</div></div>`;
+    const ehEpQuadro = crmFiltroProduto === 'eletroposto' && typeof PosVenda !== 'undefined';
     kpiBox.innerHTML =
       kpi('Clientes', total) +
       kpi('Em aberto', ativos, 'azul') +
       kpi('Com orçamento', cont('fez_orcamento') + cont('proposta_apresentada'), 'laranja') +
       kpi('Reagendar', cont('reagendar'), 'vermelho') +
-      kpi('Vendidos', vendidos, 'verde') +
-      kpi('Pipeline', 'R$ ' + Math.round(pipeline).toLocaleString('pt-BR'), 'roxo');
+      kpi('Vendidos', vendidos, 'verde', ehEpQuadro ? 'pvAbrir()' : '') +
+      kpi('Pipeline', 'R$ ' + Math.round(pipeline).toLocaleString('pt-BR'), 'roxo') +
+      (ehEpQuadro ? '<button type="button" class="pv-kpi-btn" onclick="pvAbrir()">Pós-venda</button>' : '');
   }
 
   const p2 = n => String(n).padStart(2, '0');
@@ -28174,6 +29035,7 @@ function renderCRM() {
       ${foraDoPadrao(c)
         ? '<span class="crm-status-selo selo-fora">FORA DO PADRÃO</span>'
         : `${presencaBadge(c)}${etiquetaBadge(c)}${statusBadge(c.statusAg)}${motivoBadge(c)}${esperaBadge(c)}`}
+      ${pvSeloCrm(c)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>
@@ -29910,6 +30772,8 @@ async function fazerLogin(ev) {
   if (typeof carregarConsultoresFotos === 'function') carregarConsultoresFotos();
   // Se veio de um link do digest (?crm=reagendar...), abre direto a lista.
   if (typeof crmCheckDeepLink === 'function') crmCheckDeepLink();
+  // Se veio do pós-venda da Agenda (?posvenda=<id>), abre a tela dos vendidos.
+  if (typeof pvCheckDeepLink === 'function') pvCheckDeepLink();
   // Se veio do "Gerar orçamento" da Agenda (?orc=1...), pré-preenche o form.
   if (typeof orcCheckDeepLink === 'function') orcCheckDeepLink();
   // Se veio de um link de proposta de banco (?banco=1&d=...), abre a folha.

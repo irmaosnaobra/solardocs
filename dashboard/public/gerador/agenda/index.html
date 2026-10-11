@@ -924,6 +924,32 @@
   .tag-modelo.tag-fora{background:#1F2937;color:#9CA3AF;border:1px solid #4B5563}
   .motivo-pular{grid-column:span 2;padding:9px 8px;border-radius:8px;border:1px dashed rgba(148,163,184,.6);background:transparent;color:#64748B;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
   .motivo-pular:hover{background:rgba(148,163,184,.12)}
+  /* ===== PÓS-VENDA DO ELETROPOSTO (10/10/2026), tudo com prefixo pv- ===== */
+  .pv-cap-tit{font-size:13px;font-weight:800;margin-bottom:8px;color:inherit}
+  .pv-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .pv-opt{padding:10px 8px;border-radius:8px;border:1.5px solid rgba(148,163,184,.55);background:rgba(148,163,184,.12);color:inherit;font-family:inherit;font-weight:700;font-size:12.5px;line-height:1.15;text-align:left;cursor:pointer}
+  .pv-opt:hover{background:rgba(148,163,184,.24)}
+  .pv-opt.on{background:#2563EB;border-color:#93C5FD;color:#fff}
+  .pv-lbl{display:block;margin:12px 0 4px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8}
+  .pv-in{width:100%;box-sizing:border-box;padding:10px 11px;border-radius:8px;border:1px solid rgba(148,163,184,.7);background:rgba(15,23,42,.55);color:#E5E7EB;font-family:inherit;font-size:15px}
+  .pv-in::placeholder{color:#94A3B8}
+  .pv-in:focus{outline:none;border-color:#60A5FA;box-shadow:0 0 0 2px rgba(96,165,250,.25)}
+  .pv-eco{min-height:18px;margin-top:5px;font-size:12.5px;font-weight:600;color:#34D399}
+  .pv-eco.erro{color:#F87171}
+  .pv-ok{grid-column:span 2;padding:12px 8px;border-radius:8px;border:0;background:#059669;color:#fff;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  .pv-ok:hover{background:#047857}
+  .pv-ok:disabled{opacity:.45;cursor:not-allowed}
+  #d-venda-ep .motivo-grid{margin-top:12px}
+  #d-venda-ep .motivo-pular{color:#CBD5E1}
+  #d-venda-ep .motivo-tit{color:#E5E7EB}
+  .pv-bloco{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.35)}
+  .pv-bloco[hidden]{display:none}
+  .pv-bloco-tit{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#6EE7B7;margin-bottom:4px}
+  .pv-sit{font-size:13px;font-weight:700;line-height:1.4;color:#E5E7EB}
+  .pv-sit .atraso{color:#F87171}
+  .pv-carga{font-size:13px;color:#94A3B8}
+  .pv-abrir{margin-top:8px;width:100%;padding:10px;border-radius:8px;border:0;background:#059669;color:#fff;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  .pv-abrir:hover{background:#047857}
   .posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,255,0,.1);border:1px solid rgba(234,255,0,.45)}
   .posse-box[hidden]{display:none}
   .posse-tit{font-size:12px;font-weight:800;margin-bottom:8px}
@@ -1546,6 +1572,19 @@
       </div>
     </div>
 
+    <!-- VENDIDO no ELETROPOSTO (10/10/2026): no lugar da caixa de cima, que leva ao
+         formulario de venda do Historico e exige uma proposta que o eletroposto nao
+         tem. Pergunta o modelo e o valor aqui mesmo. O card JA foi marcado `fechou`. -->
+    <div id="d-venda-ep" class="motivo-box" hidden>
+      <div id="d-venda-ep-form"></div>
+      <div class="motivo-grid">
+        <button type="button" class="pv-ok" data-pv-confirma="pvc-a" onclick="pvGuardar()">Guardar</button>
+        <button type="button" class="motivo-pular" onclick="pvDepois()">Depois</button>
+      </div>
+    </div>
+    <!-- Pós-venda do card vendido (leitura): so com status `fechou` de eletroposto. -->
+    <div id="d-posvenda" class="pv-bloco" hidden></div>
+
     <!-- ESPERA: abre ao apertar APALAVRADO. Os dois campos sao obrigatorios e a
          mesma regra vale no servidor, porque validacao de tela cai com PWA em
          cache velho. Só o segundo toque grava, igual à posse do arrendamento. -->
@@ -1613,6 +1652,7 @@
 <div id="toast"></div>
 
 <script src="/gerador/etiqueta.js"></script>
+<script src="/gerador/pos-venda.js"></script>
 <script>
 // ============= CONFIG =============
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
@@ -2691,6 +2731,9 @@ function abrirDetalhes(id) {
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
   fecharReagendar();
+  // O pós-venda (leitura): some em qualquer outro caso, e a resposta atrasada de
+  // um card não pinta em cima de outro.
+  pvPintarDetalhe(ag);
   document.getElementById('modal-det').classList.add('show');
 }
 
@@ -2965,7 +3008,7 @@ async function apalavrar() {
 
 /** As caixas que pedem um segundo toque antes de gravar. A ORDEM nao importa; o
  *  que importa e a lista ser UMA. */
-const CAIXAS_DO_CARD = ['d-posse', 'd-espera', 'd-motivo', 'd-venda'];
+const CAIXAS_DO_CARD = ['d-posse', 'd-espera', 'd-motivo', 'd-venda', 'd-venda-ep'];
 
 /**
  * Fecha TODAS as caixas do card e devolve qual estava aberta.
@@ -3062,6 +3105,167 @@ async function marcarForaDoPadrao() {
   } catch (e) { console.warn('motivo nao foi limpo', e); }
   await atualizarStatus('sem_interesse', { __motivo: '' });
   showToast('🚫 FORA DO PADRÃO: bloqueado para sempre.');
+}
+
+// ============= PÓS-VENDA DO ELETROPOSTO (10/10/2026) =============
+//
+// Espelho da tela dos vendidos no /gerador. A agenda so CAPTURA o modelo e o valor
+// no clique de VENDIDO e MOSTRA a situacao; quem edita a etapa e o /gerador (o
+// botao "Abrir pós-venda" leva pra la). Funcoes puras e rede em
+// /gerador/pos-venda.js, compartilhado com o /gerador. Toda chamada tem try/catch:
+// com a rota respondendo 404 o status do card ja esta gravado e a tela funciona.
+let pvRegistros = {};            // { '<id>': Registro }
+let pvCat = null;                // catalogo
+let pvCap = { id: null, tinhaValor: false };
+const PV_MSG_VALOR = 'Não entendi esse valor. Escreva só o número, como 145.000,00.';
+
+function pvAutor() { try { return consultorLogado() || ''; } catch (e) { return ''; } }
+function pvDias(n) { return n + (n === 1 ? ' dia' : ' dias'); }
+
+/** Registro que ja existe; depois a sugestao da etiqueta guardada; depois o status
+ *  que o card tinha antes do VENDIDO, se for um dos modelos. */
+function pvPreModelo(ag, reg, sug, stAnterior) {
+  const slugs = PosVenda.modelosDe(pvCat).map(m => m.slug);
+  if (reg && reg.modelo) return reg.modelo;
+  const id = String(ag.id);
+  if (sug && slugs.includes(sug)) return sug;
+  if (etiquetasCache[id] && slugs.includes(etiquetasCache[id])) return etiquetasCache[id];
+  if (stAnterior && slugs.includes(stAnterior)) return stAnterior;
+  return '';
+}
+
+function pvAbrirCaixaVenda(ag, stAnterior) {
+  const box = document.getElementById('d-venda-ep');
+  const alvo = document.getElementById('d-venda-ep-form');
+  if (!box || !alvo) return;
+  const id = String(ag.id);
+  const reg = pvRegistros[id] || null;
+  const pre = {
+    modelo: pvPreModelo(ag, reg, '', stAnterior),
+    valor: reg && reg.valor != null ? Number(reg.valor) : null,
+  };
+  pvCap = { id: ag.id, tinhaValor: pre.valor !== null };
+  alvo.innerHTML = PosVenda.capturaHtml('pvc-a', pre, pvCat);
+  box.hidden = false;
+  PosVenda.atualizar('pvc-a');
+  try { box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  if (reg) return;
+  // Afina com a API se ela responder a tempo e a pessoa ainda nao tiver mexido.
+  PosVenda.ler(API_ESPERA, [ag.id]).then((r) => {
+    if (r.catalogo) pvCat = r.catalogo;
+    if (box.hidden || !detalheAtual || String(detalheAtual.id) !== id) return;
+    const inp = document.getElementById('pvc-a-valor');
+    const atual = PosVenda.lerCaptura('pvc-a');
+    if (!inp || inp.value.trim() !== '' || atual.modelo !== pre.modelo) return;
+    const rg = (r.registros || {})[id] || null;
+    const modelo = pvPreModelo(ag, rg, (r.sugestoes || {})[id] || '', stAnterior);
+    if (rg) { pvRegistros[id] = rg; pvCap.tinhaValor = rg.valor != null; }
+    if (rg && rg.valor != null) inp.value = PosVenda.numTxt(Number(rg.valor));
+    if (modelo && modelo !== atual.modelo) PosVenda.escolher('pvc-a', modelo);
+    PosVenda.atualizar('pvc-a');
+  }).catch(() => { /* a rota pode nem existir ainda: o formulario ja serve */ });
+}
+
+/** Anexa UMA linha no topo do historico, LENDO o historico atual do banco antes:
+ *  o que esta em memoria pode estar velho, e gravar em cima apagaria a linha de
+ *  quem escreveu no meio tempo. */
+async function pvAnexarHistorico(id, linha) {
+  const rows = await supaGet(`agendamentos?id=eq.${id}&select=historico`);
+  const atual = (rows && rows[0] && rows[0].historico) || '';
+  const novo = atual ? `${linha}\n\n${atual}` : linha;
+  await supaPatch(`agendamentos?id=eq.${id}`, { historico: novo });
+  const noCache = agendamentosCache.find(a => a.id === id);
+  if (noCache) noCache.historico = novo;
+  if (detalheAtual && detalheAtual.id === id) {
+    detalheAtual.historico = novo;
+    const h = document.getElementById('d-hist');
+    if (h) h.innerHTML = textoComLinks(novo);
+  }
+}
+
+async function pvGuardar() {
+  const cap = PosVenda.lerCaptura('pvc-a');
+  if (cap.erro === 'modelo') { showToast('Escolha o modelo que fechou.'); return; }
+  if (cap.erro === 'valor') { showToast(PV_MSG_VALOR); return; }
+  const id = pvCap.id;
+  if (id == null) return;
+  const btn = document.querySelector('[data-pv-confirma="pvc-a"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+  const religa = () => { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; PosVenda.atualizar('pvc-a'); } };
+  let reg;
+  try {
+    const campos = { modelo: cap.modelo, por: pvAutor() };
+    // valor vazio so vai como null quando o card JA tinha um valor (limpar de
+    // proposito); num registro novo, ausente e null dizem o mesmo.
+    if (cap.valor !== null) campos.valor = cap.valor;
+    else if (pvCap.tinhaValor) campos.valor = null;
+    reg = await PosVenda.gravar(API_ESPERA, id, campos);
+  } catch (e) {
+    console.warn('pos-venda nao gravado', e);
+    showToast(PosVenda.mensagemErro(e));
+    religa();
+    return;
+  }
+  pvRegistros[String(id)] = reg;
+  try {
+    const txt = `Pós-venda: modelo ${PosVenda.rotuloModelo(cap.modelo, pvCat)}`
+      + `${cap.valor !== null ? ', valor ' + PosVenda.fmtBrl(cap.valor) : ''}.`;
+    await pvAnexarHistorico(id, PosVenda.linhaHistorico(pvAutor(), txt));
+  } catch (e) { console.warn('linha do pos-venda nao entrou no historico', e); }
+  showToast('Pós-venda guardado.');
+  // So mexe na tela se o card aberto ainda e este: a caixa de outro card, aberta
+  // no meio tempo, nao pode ser fechada por esta resposta.
+  religa();
+  if (detalheAtual && detalheAtual.id === id) {
+    const box = document.getElementById('d-venda-ep');
+    if (box) box.hidden = true;
+    pvPintarDetalhe(detalheAtual);
+  }
+}
+
+/** "Depois": o card ja esta VENDIDO; o que falta fica sinalizado no proprio card. */
+function pvDepois() {
+  const box = document.getElementById('d-venda-ep');
+  if (box) box.hidden = true;
+  fecharModalDet();
+}
+
+/** O bloco de leitura no detalhe: situacao em uma linha e o caminho pra editar. */
+function pvPintarDetalhe(ag) {
+  const bl = document.getElementById('d-posvenda');
+  if (!bl) return;
+  bl.hidden = true;
+  bl.innerHTML = '';
+  if (typeof PosVenda === 'undefined' || !ag) return;
+  if (String(ag.status || '') !== 'fechou' || !cardEhEletroposto(ag)) return;
+  const id = ag.id;
+  const ainda = () => detalheAtual && detalheAtual.id === id;
+  const pinta = (reg) => {
+    const r = PosVenda.resumo(reg, pvCat, PosVenda.hojeBr());
+    let linha;
+    if (r.faltaInformar) {
+      linha = 'Falta informar o modelo e o valor desta venda.';
+    } else {
+      linha = `Pós-venda: ${escapeHtml(r.modeloRot)} · ${escapeHtml(r.etapaRot)}`;
+      if (!r.concluido && r.previstoBr) linha += ` · previsto ${r.previstoBr}`;
+      if (r.atrasoDias > 0) linha += ` · <span class="atraso">atrasada há ${pvDias(r.atrasoDias)}</span>`;
+    }
+    bl.innerHTML = `<div class="pv-bloco-tit">Pós-venda</div><div class="pv-sit">${linha}</div>`
+      + `<button type="button" class="pv-abrir" onclick="location.href='/gerador/?posvenda=${encodeURIComponent(id)}'">Abrir pós-venda</button>`;
+  };
+  bl.hidden = false;
+  bl.innerHTML = '<div class="pv-bloco-tit">Pós-venda</div><div class="pv-carga">Carregando…</div>';
+  PosVenda.ler(API_ESPERA, [id]).then((r) => {
+    if (!ainda()) return;       // abriu outro card no meio: a resposta nao e dele
+    if (r.catalogo) pvCat = r.catalogo;
+    if (r.registros[String(id)]) pvRegistros[String(id)] = r.registros[String(id)];
+    pinta(pvRegistros[String(id)] || null);
+  }).catch(() => {
+    if (!ainda()) return;
+    bl.innerHTML = '<div class="pv-bloco-tit">Pós-venda</div>'
+      + '<div class="pv-carga">Não deu para carregar o pós-venda agora.</div>'
+      + `<button type="button" class="pv-abrir" onclick="location.href='/gerador/?posvenda=${encodeURIComponent(id)}'">Abrir pós-venda</button>`;
+  });
 }
 
 async function atualizarStatus(novoStatus, extra) {
@@ -3245,7 +3449,22 @@ async function atualizarStatus(novoStatus, extra) {
     // VENDIDO: o card ja esta gravado, agora oferece o valor. Reabre o modal
     // porque o `fecharModalDet()` acima fecha tudo, e perguntar depois de fechar
     // nao e perguntar.
-    if (novoStatus === 'fechou') {
+    if (novoStatus === 'fechou' && typeof PosVenda !== 'undefined'
+        && detalheAtual && cardEhEletroposto(detalheAtual) && document.getElementById('d-venda-ep')) {
+      // ELETROPOSTO: em vez de mandar pro formulario de venda do Historico (que
+      // exige proposta), pergunta o modelo e o valor aqui. O `detalheAtual` e o
+      // objeto de ANTES do PATCH: troca pelo da semana recarregada, senao o
+      // proximo clique de status montaria o historico em cima do velho.
+      const novoAg = agendamentosCache.find(a => a.id === idAlvo);
+      if (novoAg) detalheAtual = novoAg;
+      document.getElementById('d-hist').innerHTML = textoComLinks(detalheAtual.historico || '');
+      marcarStatusAtualNosBotoes('fechou');
+      document.getElementById('modal-det').classList.add('show');
+      fecharCaixasDoCard();
+      const pvb = document.getElementById('d-posvenda');
+      if (pvb) { pvb.hidden = true; pvb.innerHTML = ''; }
+      pvAbrirCaixaVenda(detalheAtual, stDe);
+    } else if (novoStatus === 'fechou') {
       const bx = document.getElementById('d-venda');
       if (bx) {
         document.getElementById('modal-det').classList.add('show');
