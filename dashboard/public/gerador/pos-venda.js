@@ -278,7 +278,11 @@
   PosVenda.gravar = async function (base, id, campos, opcoes) {
     var corpo = { id: id };
     for (var k in (campos || {})) {
-      if (Object.prototype.hasOwnProperty.call(campos, k) && campos[k] !== undefined) corpo[k] = campos[k];
+      if (!Object.prototype.hasOwnProperty.call(campos, k) || campos[k] === undefined) continue;
+      // Em por, responsavel e obs o null nunca e intencao (o servidor recusa com
+      // texto_invalido). Em valor e previsto, null continua significando "limpar".
+      if (campos[k] === null && (k === 'por' || k === 'responsavel' || k === 'obs')) continue;
+      corpo[k] = campos[k];
     }
     var r = await fetch(base + '/gerador/pos-venda', {
       method: 'POST', headers: cabecalhos(opcoes, true), body: JSON.stringify(corpo)
@@ -372,6 +376,235 @@
     var bts = document.querySelectorAll('[data-pv-confirma="' + prefixo + '"]');
     for (var i = 0; i < bts.length; i++) bts[i].disabled = invalido || !temModelo;
     return !invalido;
+  };
+
+  // ── vendas, resumo, evolução e ranking ───────────────────────────────────
+  // A base são os CARDS que estão VENDIDO hoje, cruzados com os registros.
+  // O crédito é do `vendedor_nome` do card, nunca do `registro.por` (esse campo
+  // é sobrescrito a cada gravação por quem editou).
+  var SEM_CONSULTOR = 'Sem consultor';
+  PosVenda.SEM_CONSULTOR = SEM_CONSULTOR;
+  function nomeConsultor(x) {
+    var n = String(x == null ? '' : x).trim();
+    return n || SEM_CONSULTOR;
+  }
+  PosVenda.nomeConsultor = nomeConsultor;
+
+  function diaExiste(a, m, d) {
+    if (m < 1 || m > 12 || d < 1) return false;
+    var u = new Date(Date.UTC(a, m - 1, d));
+    return u.getUTCFullYear() === a && u.getUTCMonth() === m - 1 && u.getUTCDate() === d;
+  }
+
+  // O texto `historico` empilha as linhas, a mais nova em cima. A linha que
+  // registra a venda é "[dd/mm 14h05 · Autor] ... Status: X → VENDIDO..." (clique
+  // de status, em G e na Agenda) ou "[...] ... Venda registrada: R$ ..." (modal de
+  // venda do Histórico). O carimbo não tem ano: vale a data passada mais recente
+  // em relação a `hoje`. "VENDIDO → outra coisa" (venda desfeita) não conta.
+  // Entre várias marcações, vence a mais recente pela data e hora do carimbo.
+  PosVenda.dataDaVendaNoHistorico = function (historico, hoje) {
+    var texto = String(historico == null ? '' : historico);
+    if (!texto) return null;
+    var h = diaDe(hoje) || hojeBr();
+    var hA = +h.slice(0, 4), hM = +h.slice(5, 7), hD = +h.slice(8, 10);
+    var linhas = texto.split(/\r?\n/);
+    var melhorChave = '', melhorDia = null;
+    for (var i = 0; i < linhas.length; i++) {
+      var m = /^\s*\[(\d{2})\/(\d{2})\s+(\d{1,2})h(\d{2})[^\]]*\]\s*(.*)$/.exec(linhas[i]);
+      if (!m) continue;
+      var resto = m[5];
+      // "Status: X → VENDIDO" só vale com X diferente de VENDIDO: "VENDIDO → VENDIDO" é o
+      // clique repetido só para informar o modelo, não uma venda nova.
+      var st = /Status:\s*([^→\n]*?)\s*→\s*VENDIDO(?![A-Za-zÀ-ú])/i.exec(resto);
+      var ehVenda = (st && !/^VENDIDO$/i.test(st[1].trim())) || /Venda registrada:/i.test(resto);
+      if (!ehVenda) continue;
+      var dd = +m[1], mm = +m[2];
+      // O carimbo vem do relógio do aparelho e hoje é de Brasília: até 2 dias depois de
+      // hoje, neste ano, ainda é hoje (e não o ano passado).
+      var ano = hA, dia;
+      if (!diaExiste(ano, mm, dd)) {
+        // 29/02 em ano que não é bissexto: procura o ano bissexto anterior mais próximo
+        ano = hA - 1;
+        while (ano > hA - 8 && !diaExiste(ano, mm, dd)) ano--;
+        if (!diaExiste(ano, mm, dd)) continue;
+        dia = ano + '-' + p2(mm) + '-' + p2(dd);
+      } else {
+        dia = ano + '-' + p2(mm) + '-' + p2(dd);
+        if (dia > h) {
+          var depois = Math.round((Date.UTC(ano, mm - 1, dd) - Date.UTC(hA, hM - 1, hD)) / 86400000);
+          if (depois <= 2) dia = h;
+          else { ano = hA - 1; if (!diaExiste(ano, mm, dd)) continue; dia = ano + '-' + p2(mm) + '-' + p2(dd); }
+        }
+      }
+      var chave = dia + ' ' + p2(+m[3]) + ':' + m[4];
+      if (!melhorDia || chave > melhorChave) { melhorChave = chave; melhorDia = dia; }
+    }
+    return melhorDia;
+  };
+
+  // Uma linha por card VENDIDO.
+  PosVenda.vendas = function (cards, registros, hoje) {
+    var h = diaDe(hoje) || hojeBr();
+    var regs = registros || {};
+    return (cards || []).map(function (c) {
+      var id = String(c.id);
+      var reg = regs[id] || null;
+      var dia = reg && reg.vendido_em ? diaDe(reg.vendido_em) : '';
+      if (!dia) dia = PosVenda.dataDaVendaNoHistorico(c.historico, h) || '';
+      if (!dia) {
+        dia = diaDe(c.quando);
+        if (dia && dia > h) dia = h;   // reunião marcada para o futuro não é data de venda
+      }
+      if (!dia) dia = h;
+      var valor = (reg && reg.valor != null && isFinite(Number(reg.valor))) ? Number(reg.valor) : null;
+      return {
+        id: id,
+        cliente: c.cliente_nome || '',
+        cidade: c.cidade || '',
+        consultor: nomeConsultor(c.vendedor_nome),
+        valor: valor,
+        modelo: reg ? (reg.modelo || '') : '',
+        dia: dia,
+        mes: dia.slice(0, 7),
+        temRegistro: !!reg
+      };
+    });
+  };
+
+  function cent(n) { return Math.round(n * 100) / 100; }
+  function agrega(lista) {
+    var valor = 0, comValor = 0;
+    lista.forEach(function (v) { if (v.valor != null) { valor += v.valor; comValor++; } });
+    valor = cent(valor);
+    return {
+      qtd: lista.length, valor: valor, comValor: comValor, semValor: lista.length - comValor,
+      ticket: comValor > 0 ? cent(valor / comValor) : null
+    };
+  }
+  // `valor` é a soma do valor INFORMADO: venda sem valor conta na quantidade e em `semValor`.
+  PosVenda.resumoVendas = function (vendas, hoje) {
+    var mes = (diaDe(hoje) || hojeBr()).slice(0, 7);
+    var lista = vendas || [];
+    return { geral: agrega(lista), mes: agrega(lista.filter(function (v) { return v.mes === mes; })) };
+  };
+
+  function proximoMes(ym) {
+    var a = +ym.slice(0, 4), m = +ym.slice(5, 7);
+    return m === 12 ? (a + 1) + '-01' : a + '-' + p2(m + 1);
+  }
+  // Do primeiro mês com venda até o mês corrente, mês vazio com zero, até 12 meses.
+  PosVenda.evolucaoMensal = function (vendas, hoje) {
+    var lista = vendas || [];
+    if (!lista.length) return [];
+    var atual = (diaDe(hoje) || hojeBr()).slice(0, 7);
+    var ini = lista[0].mes, fim = atual;
+    lista.forEach(function (v) { if (v.mes < ini) ini = v.mes; if (v.mes > fim) fim = v.mes; });
+    var porMes = {};
+    lista.forEach(function (v) {
+      var o = porMes[v.mes] || (porMes[v.mes] = { mes: v.mes, qtd: 0, valor: 0 });
+      o.qtd++;
+      if (v.valor != null) o.valor += v.valor;
+    });
+    var out = [];
+    for (var ym = ini, guarda = 0; ym <= fim && guarda < 1200; ym = proximoMes(ym), guarda++) {
+      var o = porMes[ym];
+      out.push({ mes: ym, qtd: o ? o.qtd : 0, valor: o ? cent(o.valor) : 0 });
+    }
+    return out.slice(-12);
+  };
+
+  // A mesma lista da evolução, com o que o tooltip precisa por mês: quantas vendas têm
+  // valor, quantas não, e o ticket (soma ÷ vendas COM valor, como no resumo).
+  PosVenda.evolucaoDetalhada = function (vendas, hoje) {
+    var porMes = {};
+    (vendas || []).forEach(function (v) { (porMes[v.mes] || (porMes[v.mes] = [])).push(v); });
+    return PosVenda.evolucaoMensal(vendas, hoje).map(function (m) {
+      var a = agrega(porMes[m.mes] || []);
+      return { mes: m.mes, qtd: a.qtd, valor: a.valor, comValor: a.comValor, semValor: a.semValor, ticket: a.ticket };
+    });
+  };
+
+  // Valor compacto para rótulo de gráfico: "R$ 950", "R$ 1,5 mil", "R$ 145 mil",
+  // "R$ 1,2 mi". Feito à mão (sem Intl). Na virada, 999.500 vira "R$ 1 mi", nunca
+  // "1.000 mil". `semPrefixo` tira o "R$ " (rótulo de eixo).
+  function umaCasa(x) { return String(Math.round(x * 10) / 10).replace('.', ','); }
+  PosVenda.fmtBrlCompacto = function (n, semPrefixo) {
+    var v = Number(n);
+    if (!isFinite(v)) v = 0;
+    var neg = v < 0, a = Math.abs(v), t;
+    if (a < 999.5) {
+      t = String(Math.round(a));
+    } else if (a < 999500) {
+      var mil = a / 1000;
+      t = (mil < 9.95 ? umaCasa(mil) : String(Math.round(mil))) + ' mil';
+    } else {
+      var mi = a / 1000000;
+      t = (mi < 99.95 ? umaCasa(mi) : String(Math.round(mi)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')) + ' mi';
+    }
+    return (neg && t !== '0' ? '-' : '') + (semPrefixo ? '' : 'R$ ') + t;
+  };
+
+  // Eixo "bonito" para barras que nascem do zero: no máximo 3 linhas de grade, passo
+  // 1, 2, 2,5 ou 5 vezes uma potência de 10. `inteiro` (contagem) nunca usa passo
+  // fracionado. Máximo zero ou inválido: sem eixo.
+  PosVenda.escalaEixo = function (max, inteiro) {
+    var m = Number(max);
+    if (!isFinite(m) || m <= 0) return { topo: 0, passo: 0, ticks: [] };
+    var base = Math.floor(Math.log(m) / Math.LN10) - 1;
+    var mult = [1, 2, 2.5, 5];
+    for (var e = base; e <= base + 3; e++) {
+      for (var k = 0; k < mult.length; k++) {
+        var passo = mult[k] * Math.pow(10, e);
+        passo = Math.round(passo * 1000000) / 1000000;
+        if (inteiro && (passo < 1 || passo % 1 !== 0)) continue;
+        var n = Math.ceil(m / passo - 1e-9);
+        if (n <= 3) {
+          var ticks = [];
+          for (var i = 1; i <= n; i++) ticks.push(Math.round(passo * i * 1000000) / 1000000);
+          return { topo: ticks[n - 1], passo: passo, ticks: ticks };
+        }
+      }
+    }
+    return { topo: m, passo: m, ticks: [m] };
+  };
+
+  PosVenda.mesesComVenda = function (vendas) {
+    var vistos = {}, out = [];
+    (vendas || []).forEach(function (v) { if (!vistos[v.mes]) { vistos[v.mes] = 1; out.push(v.mes); } });
+    return out.sort().reverse();
+  };
+
+  // `negociacao`: os cards ainda em negociação (cada um com `vendedor_nome`). É o
+  // estado de agora, igual em qualquer período. `periodo`: 'YYYY-MM' ou 'tudo'.
+  PosVenda.rankingVendas = function (vendas, negociacao, periodo) {
+    var mapa = {}, ordem = [];
+    var pegar = function (nome) {
+      var k = 'k:' + nome;
+      if (!mapa[k]) { mapa[k] = { consultor: nome, vendas: 0, valor: 0, semValor: 0, negociando: 0 }; ordem.push(mapa[k]); }
+      return mapa[k];
+    };
+    (vendas || []).forEach(function (v) {
+      if (periodo !== 'tudo' && v.mes !== periodo) return;
+      var r = pegar(v.consultor);
+      r.vendas++;
+      if (v.valor != null) r.valor += v.valor; else r.semValor++;
+    });
+    (negociacao || []).forEach(function (c) { pegar(nomeConsultor(c && c.vendedor_nome)).negociando++; });
+    ordem.forEach(function (r) { r.valor = cent(r.valor); });
+    return ordem.sort(function (a, b) {
+      if (b.vendas !== a.vendas) return b.vendas - a.vendas;
+      if (b.valor !== a.valor) return b.valor - a.valor;
+      if (b.negociando !== a.negociando) return b.negociando - a.negociando;
+      return a.consultor < b.consultor ? -1 : (a.consultor > b.consultor ? 1 : 0);
+    });
+  };
+
+  // Mesmo rótulo que o ranking do solar mostra nos botões: "out/26".
+  var MESES_ROT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  PosVenda.rotuloMes = function (ym) {
+    var a = +String(ym).slice(0, 4), m = +String(ym).slice(5, 7);
+    if (!a || !m || m < 1 || m > 12) return String(ym || '');
+    return MESES_ROT[m - 1] + '/' + String(a).slice(-2);
   };
 
   w.PosVenda = PosVenda;

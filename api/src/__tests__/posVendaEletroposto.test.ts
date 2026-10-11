@@ -237,3 +237,15 @@ describe('as duas rotas em routes/gerador.ts', () => {
     expect(fonte).toMatch(/montarPosVenda\([^)]*diaDeBrasilia\(/);
   });
 });
+
+describe('GET /pos-venda: sugestões', () => {
+  const fonte = readFileSync(join(__dirname, '..', 'routes', 'gerador.ts'), 'utf8');
+  const get = fonte.slice(fonte.indexOf("router.get('/pos-venda'"), fonte.indexOf('// O PLACAR DO NÃO'));
+  it('a sugestão vale para card sem registro E para registro com modelo vazio', () => {
+    expect(get).toMatch(/\(!reg \|\| reg\.modelo === ''\)/);
+    expect(get).toMatch(/MODELOS_POS_VENDA as readonly string\[\]\)\.includes\(et\)\) sugestoes\[id\] = et/);
+  });
+  it('registro com modelo preenchido não recebe sugestão (a condição não é só "tem registro")', () => {
+    expect(get).not.toMatch(/!\(id in registros\) &&/);
+  });
+});

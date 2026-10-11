@@ -3116,7 +3116,7 @@ async function marcarForaDoPadrao() {
 // com a rota respondendo 404 o status do card ja esta gravado e a tela funciona.
 let pvRegistros = {};            // { '<id>': Registro }
 let pvCat = null;                // catalogo
-let pvCap = { id: null, tinhaValor: false };
+let pvCap = { id: null, tinhaValor: false, stAnterior: '', card: null };
 const PV_MSG_VALOR = 'Não entendi esse valor. Escreva só o número, como 145.000,00.';
 
 function pvAutor() { try { return consultorLogado() || ''; } catch (e) { return ''; } }
@@ -3144,7 +3144,9 @@ function pvAbrirCaixaVenda(ag, stAnterior) {
     modelo: pvPreModelo(ag, reg, '', stAnterior),
     valor: reg && reg.valor != null ? Number(reg.valor) : null,
   };
-  pvCap = { id: ag.id, tinhaValor: pre.valor !== null };
+  // stAnterior: o status que o card tinha ANTES do clique que abriu esta caixa. Decide a
+  // data da venda ao guardar (venda nova = hoje; reclique em card que ja era VENDIDO = nao mexe).
+  pvCap = { id: ag.id, tinhaValor: pre.valor !== null, stAnterior: String(stAnterior || ''), card: ag };
   alvo.innerHTML = PosVenda.capturaHtml('pvc-a', pre, pvCat);
   box.hidden = false;
   PosVenda.atualizar('pvc-a');
@@ -3199,6 +3201,12 @@ async function pvGuardar() {
     // proposito); num registro novo, ausente e null dizem o mesmo.
     if (cap.valor !== null) campos.valor = cap.valor;
     else if (pvCap.tinhaValor) campos.valor = null;
+    // Data da venda. Status de saida diferente de VENDIDO = venda nova ou refeita: hoje (isso
+    // tambem troca a data velha de uma venda desfeita). Ja era VENDIDO (so informando o
+    // modelo): com registro nao mexe na data; sem registro, a derivada (linha de venda do
+    // historico, depois a reuniao, depois hoje).
+    if (pvCap.stAnterior !== 'fechou') campos.vendido_em = PosVenda.hojeBr();
+    else if (!pvRegistros[String(id)] && pvCap.card) campos.vendido_em = PosVenda.vendas([pvCap.card], {}, PosVenda.hojeBr())[0].dia;
     reg = await PosVenda.gravar(API_ESPERA, id, campos);
   } catch (e) {
     console.warn('pos-venda nao gravado', e);

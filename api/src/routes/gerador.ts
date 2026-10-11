@@ -614,7 +614,7 @@ router.post('/pos-venda', async (req: Request, res: Response) => {
 
 // Leitura em lote, como o `/apalavrado`. A `sugestao` sai da etiqueta que o
 // status terminal guardou (`etiqueta_card:<id>`): só aparece quando o card ainda
-// não tem registro, para a tela pré-selecionar o modelo.
+// não tem registro, ou o registro ainda não tem modelo, para a tela pré-selecionar.
 router.get('/pos-venda', async (req: Request, res: Response) => {
   const vistos = new Set<number>();
   for (const parte of String(req.query.ids || '').split(',')) {
@@ -659,7 +659,10 @@ router.get('/pos-venda', async (req: Request, res: Response) => {
     }
     const sugestoes: Record<string, string> = {};
     for (const [id, et] of Object.entries(etiquetas)) {
-      if (!(id in registros) && (MODELOS_POS_VENDA as readonly string[]).includes(et)) sugestoes[id] = et;
+      // Sem registro, ou com registro ainda sem modelo (a venda entrou pela proposta
+      // e ninguem disse qual modelo): a etiqueta guardada segue valendo como sugestao.
+      const reg = registros[id] as { modelo?: string } | undefined;
+      if ((!reg || reg.modelo === '') && (MODELOS_POS_VENDA as readonly string[]).includes(et)) sugestoes[id] = et;
     }
     res.json({ ok: true, registros, sugestoes, catalogo, ...(cortou ? { cortou: true } : {}) });
   } catch (err: any) {

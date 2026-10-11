@@ -2218,13 +2218,13 @@ html.pv-aberto body{overflow:hidden}
 .pv-bg{position:fixed;inset:0;z-index:960;background:#0B1220;color:#E5E7EB;display:none;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;box-sizing:border-box}
 .pv-bg.show{display:block}
 .pv-tela{box-sizing:border-box;width:100%;max-width:860px;margin:0 auto;padding:0 14px 80px}
-.pv-topo{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 0 10px;box-sizing:border-box;background:linear-gradient(#0B1220 85%,rgba(11,18,32,0))}
+.pv-topo{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 0 16px;box-sizing:border-box;background:linear-gradient(#0B1220 85%,rgba(11,18,32,0))}
 .pv-topo>div{min-width:0}
 .pv-topo h2{margin:0;font-size:20px;font-weight:800;color:#fff;overflow-wrap:anywhere}
 .pv-topo small{display:block;margin-top:2px;font-size:12px;font-weight:600;color:#94A3B8}
 .pv-x{flex:none;padding:9px 16px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:#1c2c47;color:#E5E7EB;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
 .pv-x:hover{background:#243046}
-.pv-faixa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:6px 0 14px;box-sizing:border-box}
+.pv-faixa{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:6px 0 14px;box-sizing:border-box}
 .pv-num{min-width:0;box-sizing:border-box;background:#111C33;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 8px;text-align:center}
 .pv-num b{display:block;font-size:20px;font-weight:800;line-height:1.15;color:#fff;overflow-wrap:anywhere}
 .pv-num span{display:block;margin-top:4px;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8}
@@ -2237,12 +2237,12 @@ html.pv-aberto body{overflow:hidden}
 .pv-chip.on{background:#2563EB;border-color:#93C5FD;color:#fff}
 .pv-chip i{font-style:normal;margin-left:6px;opacity:.75}
 .pv-aviso{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.45);color:#FCD34D;font-size:13px;line-height:1.4}
-.pv-card{min-width:0;box-sizing:border-box;margin-bottom:10px;border-radius:14px;background:#111C33;border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.pv-card{scroll-margin-top:104px;min-width:0;box-sizing:border-box;margin-bottom:10px;border-radius:14px;background:#111C33;border:1px solid rgba(255,255,255,.1);overflow:hidden}
 .pv-card.atrasada{border-color:rgba(248,113,113,.6);box-shadow:inset 4px 0 0 #F87171}
 .pv-card.falta{border-color:rgba(251,191,36,.5);box-shadow:inset 4px 0 0 #FBBF24}
 .pv-card.concluida{box-shadow:inset 4px 0 0 #34D399}
 .pv-card.foco{outline:2px solid #60A5FA;outline-offset:2px}
-.pv-top{min-width:0;box-sizing:border-box;padding:14px 14px 12px;cursor:pointer}
+.pv-top{min-width:0;box-sizing:border-box;padding:16px 14px 12px;cursor:pointer}
 .pv-top:focus-visible{outline:2px solid #60A5FA;outline-offset:-2px}
 .pv-l1{display:flex;align-items:baseline;justify-content:space-between;gap:4px 10px;flex-wrap:wrap}
 .pv-nome{min-width:0;font-size:16px;font-weight:800;color:#fff;overflow-wrap:anywhere}
@@ -2279,10 +2279,81 @@ html.pv-aberto body{overflow:hidden}
 .pv-selo{display:block;margin-top:2px;font-size:11px;font-weight:700;color:#CBD5E1}
 .pv-selo.atraso{color:#FCA5A5}
 .pv-selo.falta{color:#FCD34D}
+/* Os blocos, o gráfico, o ranking e o seletor usam as classes do Histórico do solar
+   (historico-stat, grafico-mes, ranking-mes, podio-card, filtro-btn). Elas são claras
+   por padrão e o escuro delas está preso a #historicoSection no style.css; esta tela
+   cheia é sempre escura, então o mesmo escuro vale aqui, preso a #pv-bg. */
+#pv-bg .historico-secao h4{color:#93C5FD}
+#pv-bg .historico-stat{background:#0F172A}
+#pv-bg .historico-stat .lbl{color:#94A3B8}
+#pv-bg .historico-stat .val{color:#E5E7EB;white-space:nowrap}
+#pv-bg .historico-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+#pv-bg .historico-stat{min-width:0}
+#pv-bg .grafico-mes{background:#0F172A;border-color:#475569}
+#pv-bg .ranking-mes{background:#1E293B;border-color:#475569}
+#pv-bg .ranking-mes h3{color:#93C5FD}
+#pv-bg .ranking-meses{flex-wrap:wrap;overflow:visible}
+#pv-bg .ranking-mes-btn{background:#0F172A;border-color:#475569;color:#94A3B8}
+#pv-bg .ranking-mes-btn.ativo{background:#3B82F6;border-color:#3B82F6;color:#fff}
+#pv-bg .ranking-resto .ranking-row{background:#0F172A;border-color:#475569}
+#pv-bg .ranking-resto .pos,#pv-bg .ranking-resto .nome{color:#E5E7EB}
+#pv-bg .ranking-resto .stats{color:#94A3B8}
+#pv-bg .ranking-vazio{color:#94A3B8}
+#pv-bg .historico-filtros .lbl-filtro{color:#94A3B8}
+#pv-bg .filtro-btn{background:#0F172A;border-color:#475569;color:#CBD5E1}
+#pv-bg .filtro-btn.ativo{background:#3B82F6;border-color:#3B82F6;color:#fff}
+#pv-bg .filtro-btn.vend.ativo{background:#2ecc71;border-color:#2ecc71;color:#fff}
+#pv-bg .filtro-btn .pv-n{margin-left:4px;font-weight:400;opacity:.75}
+#pv-bg .historico-stats-wrap:empty,#pv-bg .grafico-mes:empty,#pv-bg .ranking-mes:empty,#pv-bg .historico-filtros:empty,#pv-bg .pv-faixa:empty{display:none}
+#pv-bg .historico-stats-wrap,#pv-bg .grafico-mes,#pv-bg .ranking-mes{min-width:0;box-sizing:border-box}
+/* Evolução mensal: dois gráficos de colunas em SVG (pvRenderGrafico). Fundo #0F172A,
+   o do .grafico-mes acima: as cores da série foram validadas contra ele. */
+#pv-bg .pv-g-h{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#93C5FD}
+#pv-bg .pv-g-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 24px}
+@media (max-width:719px){#pv-bg .pv-g-grade{grid-template-columns:minmax(0,1fr)}}
+#pv-bg .pv-g-card{display:flex;flex-direction:column;min-width:0}
+#pv-bg .pv-g-tit{font-size:13px;font-weight:800;color:#E5E7EB}
+#pv-bg .pv-g-sub{margin-top:2px;font-size:11.5px;line-height:1.35;color:#94A3B8}
+#pv-bg .pv-g-corpo{position:relative;min-width:0;margin-top:auto;padding-top:8px}
+#pv-bg .pv-g-corpo svg{display:block;width:100%;height:184px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#pv-bg .pv-g-gr{stroke:#263349;stroke-width:1}
+#pv-bg .pv-g-ax{stroke:#3B4A63;stroke-width:1}
+#pv-bg .pv-g-tk{font-size:10px;fill:#94A3B8;font-variant-numeric:tabular-nums}
+#pv-bg .pv-g-xl{font-size:11px;fill:#94A3B8}
+#pv-bg .pv-g-ld{stroke:#64748B;stroke-width:1;pointer-events:none}
+#pv-bg .pv-g-dl{font-size:11.5px;font-weight:700;fill:#E5E7EB;font-variant-numeric:tabular-nums;pointer-events:none;paint-order:stroke;stroke:#0F172A;stroke-width:3px;stroke-linejoin:round}
+#pv-bg .pv-g-col{outline:none}
+#pv-bg .pv-g-hit{fill:transparent;pointer-events:all}
+#pv-bg .pv-g-col.on .pv-g-hit{fill:rgba(148,163,184,.1)}
+#pv-bg .pv-g-col.on .pv-g-bar{filter:brightness(1.22)}
+#pv-bg .pv-g-col:focus-visible .pv-g-hit{stroke:#93C5FD;stroke-width:1.5}
+#pv-bg .pv-g-zero{fill:#64748B}
+#pv-bg .pv-g-aviso{position:absolute;left:0;right:0;top:calc(8px + 60px);padding:0 24px;text-align:center;font-size:12.5px;line-height:1.35;color:#94A3B8;pointer-events:none}
+#pv-bg .pv-g-nd{margin-top:8px;padding:34px 14px;text-align:center;font-size:12.5px;line-height:1.4;color:#94A3B8;border:1px dashed rgba(148,163,184,.4);border-radius:10px}
+#pv-bg .pv-g-tip{position:absolute;top:12px;left:0;z-index:3;display:none;box-sizing:border-box;min-width:150px;max-width:calc(100% - 8px);padding:9px 11px;border-radius:9px;background:#1E293B;border:1px solid rgba(255,255,255,.14);box-shadow:0 6px 18px rgba(0,0,0,.45);pointer-events:none;font-size:12px;line-height:1.4;color:#CBD5E1}
+#pv-bg .pv-g-tip.show{display:block}
+#pv-bg .pv-g-tip .m{display:block;margin-bottom:4px;font-size:12.5px;font-weight:800;color:#fff}
+#pv-bg .pv-g-tip .l{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+#pv-bg .pv-g-tip .l span{color:#94A3B8;white-space:nowrap}
+#pv-bg .pv-g-tip .l i{display:inline-block;width:10px;height:3px;margin-right:6px;border-radius:2px;vertical-align:middle}
+#pv-bg .pv-g-tip .l strong{color:#fff;font-weight:800;text-align:right}
+#pv-bg .pv-g-tip .n{margin-top:4px;font-size:11.5px;color:#94A3B8}
+#pv-bg .pv-g-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+#pv-bg .ranking-podio-grid{margin-top:24px}
+.pv-nota{margin-top:6px;font-size:11.5px;color:#94A3B8}
+.pv-neg-in{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;padding:16px 14px 14px;box-sizing:border-box}
+.pv-neg-info{min-width:0;flex:1}
+.pv-neg-meta{font-size:12.5px;color:#94A3B8}
+.pv-neg-btn{padding:10px 14px;white-space:nowrap}
+.pv-entrada{display:block;width:100%;box-sizing:border-box;margin:0 0 14px;padding:14px 16px;border-radius:12px;border:1px solid #34D399;background:rgba(52,211,153,.14);color:#6EE7B7;font-family:inherit;font-weight:800;font-size:15px;text-align:center;cursor:pointer}
+.pv-entrada:hover{background:rgba(52,211,153,.26)}
 @media(max-width:520px){
-  .pv-faixa{grid-template-columns:repeat(2,minmax(0,1fr))}
   .pv-ed-grid{grid-template-columns:minmax(0,1fr)}
   .pv-topo h2{font-size:18px}
+  /* O select de etapa truncava o texto por causa do botao ao lado: empilha os dois. */
+  .pv-lin{flex-direction:column}
+  .pv-conclui{padding:11px 14px}
+  .pv-neg-in{flex-direction:column;align-items:stretch}
 }
 /* O aviso de venda em dobro. Vermelho porque é dinheiro contado duas vezes. */
 .venda-dobra{margin:8px 0 10px;padding:9px 11px;border-radius:9px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.5);font-size:12.5px;line-height:1.45;color:#B91C1C}
@@ -6185,6 +6256,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
     <div id="eletro-pane-historico" style="display:none;">
+      <button type="button" class="pv-entrada" onclick="pvAbrir()">Vendas e ranking do eletroposto</button>
       <div class="pesquisa-info">Os <b>orçamentos</b> (Básico e Completo) que você gera ficam salvos aqui neste dispositivo. Os <b>estudos de viabilidade</b> com cliente preenchido são salvos na nuvem ao gerar a proposta PDF ou a apresentação.</div>
       <div class="card">
         <div class="eletro-sec-title">Orçamentos gerados <span style="font-weight:400;color:#64748B">(neste dispositivo)</span></div>
@@ -7109,11 +7181,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div class="pv-tela" role="dialog" aria-modal="true" aria-labelledby="pv-tit">
     <div class="pv-topo">
       <div>
-        <h2 id="pv-tit">Vendidos do eletroposto</h2>
-        <small>Cada venda com a etapa em que está e de quem ela depende</small>
+        <h2 id="pv-tit">Vendas do eletroposto</h2>
+        <small>Números, ranking e a etapa de cada venda</small>
       </div>
       <button type="button" class="pv-x" onclick="pvFechar()">Fechar</button>
     </div>
+    <div id="pv-resumo" class="historico-stats-wrap"></div>
+    <div id="pv-grafico" class="grafico-mes"></div>
+    <div id="pv-ranking" class="ranking-mes"></div>
+    <div id="pv-modo" class="historico-filtros" role="group" aria-label="Vendidos ou em negociação"></div>
     <div id="pv-faixa" class="pv-faixa"></div>
     <div id="pv-filtros" class="pv-filtros" role="group" aria-label="Filtrar vendas"></div>
     <div id="pv-lista"></div>
@@ -28297,6 +28373,7 @@ function crmMarcarBotaoPerdido(jaPerdido) {
 function crmFecharDetalhe() {
   document.getElementById('crm-det-bg').classList.remove('show');
   crmDetAtual = null;
+  pvVoltar = null;                 // fechou sem vender: nao reabre a tela de vendas depois
   const bPv = document.getElementById('crm-det-posvenda');
   if (bPv) { bPv.hidden = true; bPv.innerHTML = ''; }
   if (typeof qlAposCrm === 'function') qlAposCrm();   // a aba Quem ligar acompanha o status do card
@@ -28694,7 +28771,12 @@ const pvEdEstado = {};           // { '<prefixo>': { id, reg, sug, cat, ctx } }
 const pvEstado = {
   cards: [], registros: {}, sugestoes: {}, cat: null, filtro: 'todas', aberto: null,
   cheio: false, falhouCards: false, falhouLeitura: false, carregando: false, focarId: null,
+  registrosPronto: false,    // os registros DESTA carga chegaram
+  modo: 'vendidos',          // 'vendidos' | 'negociacao'
+  mesRanking: null,          // 'YYYY-MM' | 'tudo' | null (null = o padrao)
+  negociacao: [], negCarregando: false, negFalhou: false, negCheio: false,
 };
+let pvVoltar = null;         // id do card que a tela de vendas mandou marcar como vendido no CRM
 const PV_MSG_VALOR = 'Não entendi esse valor. Escreva só o número, como 145.000,00.';
 
 function pvPor() { try { return crmConsultorLogado() || ''; } catch (e) { return ''; } }
@@ -28816,6 +28898,17 @@ function pvEdPrepara(pfx, id, reg, sug, ctx) {
   PosVenda.ganchos[pfx + 'c'] = () => pvEdRefazEtapa(pfx);
 }
 
+/** A data que o campo "Data da venda" mostra: a do registro; sem registro, a mesma
+ *  que a tela usa para contar a venda (linha do historico, depois a reuniao, depois hoje). */
+function pvDataVendaInicial(id, reg) {
+  if (reg && reg.vendido_em) return PosVenda.diaDe(reg.vendido_em);
+  const alvo = String(id);
+  let card = (pvEstado.cards || []).find(a => String(a.id) === alvo);
+  if (!card && crmDetAtual && crmDetAtual.agRec && String(crmDetAtual.agRec.id) === alvo) card = crmDetAtual.agRec;
+  if (!card) return PosVenda.hojeBr();
+  return PosVenda.vendas([card], {}, PosVenda.hojeBr())[0].dia;
+}
+
 function pvEdHtml(pfx) {
   const E = pvEdEstado[pfx];
   const reg = E.reg;
@@ -28826,6 +28919,7 @@ function pvEdHtml(pfx) {
   const optsResp = '<option value="">Sem responsável</option>'
     + nomes.map(n => `<option value="${escapeHtml(n)}"${n === resp ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
   const prev = reg && reg.previsto ? PosVenda.diaDe(reg.previsto) : '';
+  const vendidoEm = pvDataVendaInicial(E.id, reg);
   return `<div class="pv-ed" id="${pfx}">`
     + PosVenda.capturaHtml(pfx + 'c', { modelo: modeloIni, valor: reg ? pvNumero(reg.valor) : null, semTitulo: true }, E.cat)
     + `<div class="pv-ed-grid">
@@ -28838,10 +28932,14 @@ function pvEdHtml(pfx) {
           <div class="pv-papeis" id="${pfx}-papeis" hidden></div>
         </div>
         <div>
+          <label class="pv-lbl" for="${pfx}-vendido">Data da venda</label>
+          <input id="${pfx}-vendido" class="pv-in" type="date" max="${escapeHtml(PosVenda.hojeBr())}" value="${escapeHtml(vendidoEm)}">
+        </div>
+        <div>
           <label class="pv-lbl" for="${pfx}-previsto">Previsto para</label>
           <input id="${pfx}-previsto" class="pv-in" type="date" value="${escapeHtml(prev)}">
         </div>
-        <div>
+        <div class="pv-full">
           <label class="pv-lbl" for="${pfx}-resp">Responsável</label>
           <select id="${pfx}-resp" class="pv-in">${optsResp}</select>
         </div>
@@ -28932,11 +29030,17 @@ async function pvSalvarUma(pfx) {
   }
   const prev = g('previsto').value;
   if (prev !== (reg && reg.previsto ? PosVenda.diaDe(reg.previsto) : '')) campos.previsto = prev || null;
+  // Data da venda: mudar so manda o campo; nao gera linha de historico. Em card SEM
+  // registro o campo ja vem preenchido e a data vai junto na criacao.
+  const vend = g('vendido') ? g('vendido').value : '';
+  const vendIni = pvDataVendaInicial(E.id, reg);
+  if (vend && vend !== vendIni) campos.vendido_em = vend;
   const resp = g('resp').value;
   if (resp !== (reg && reg.responsavel ? String(reg.responsavel) : '')) campos.responsavel = resp;
   const obs = g('obs').value.trim();
   if (obs !== String(reg && reg.obs ? reg.obs : '').trim()) campos.obs = obs;
   if (!Object.keys(campos).length) { showToast('Nada mudou para salvar.'); return false; }
+  if (!reg && vend && campos.vendido_em === undefined) campos.vendido_em = vend;
   campos.por = pvPor();
   const btn = g('salvar');
   const btnConcluir = g('concluir');
@@ -28961,7 +29065,7 @@ async function pvSalvarUma(pfx) {
     if (txt) await pvAnexarHistorico(E.id, PosVenda.linhaHistorico(pvPor(), txt));
   } catch (e) { console.warn('linha do pos-venda nao entrou no historico', e); }
   showToast('Pós-venda salvo.');
-  if (E.ctx === 'lista') { pvRepintarCard(E.id); pvRenderFaixa(); pvRenderFiltros(); }
+  if (E.ctx === 'lista') { pvRepintarCard(E.id); pvRenderFaixa(); pvRenderFiltros(); pvRenderPaineis(); pvRenderModo(); }
   else if (crmDetAtual && crmDetAtual.agRec && String(crmDetAtual.agRec.id) === String(E.id)) pvDetRender(E.id);
   // So redesenha o quadro do ELETROPOSTO: renderCRM zera a rolagem das colunas.
   if (crmCarregado && crmFiltroProduto === 'eletroposto') { try { renderCRM(); } catch (e) {} }
@@ -29058,7 +29162,7 @@ const PV_FILTROS = [
   ['andamento', 'Em andamento'], ['concluidas', 'Concluídas'],
 ];
 
-function pvAbrir(foco) {
+function pvAbrir(foco, modo) {
   if (typeof PosVenda === 'undefined') { showToast('O pós-venda não carregou. Atualize a página.'); return; }
   const bg = document.getElementById('pv-bg');
   if (!bg) return;
@@ -29066,6 +29170,8 @@ function pvAbrir(foco) {
   E.focarId = (foco && /^\d+$/.test(String(foco))) ? String(foco) : null;
   E.aberto = E.focarId;
   E.filtro = 'todas';
+  E.modo = modo === 'negociacao' ? 'negociacao' : 'vendidos';
+  E.mesRanking = null;
   bg.classList.add('show');
   document.documentElement.classList.add('pv-aberto');
   bg.scrollTop = 0;
@@ -29089,7 +29195,11 @@ async function pvCarregar() {
   // primeira, atrasada, nao pode sobrescrever a da segunda.
   const meu = ++pvCargaSeq;
   E.carregando = true; E.falhouCards = false; E.falhouLeitura = false; E.cheio = false;
+  E.registrosPronto = false;
+  E.negociacao = []; E.negCarregando = true; E.negFalhou = false; E.negCheio = false;
   pvRender();
+  const negP = pvCarregarNeg(meu);
+  pvCarregarFotos(meu);
   let rows = [];
   try {
     // Filtra NO SERVIDOR e pagina: o PostgREST corta em 1000 linhas calado.
@@ -29116,6 +29226,7 @@ async function pvCarregar() {
     if (E.cat) crmPosVendaCat = E.cat;
     Object.assign(crmPosVenda, E.registros);
     Object.assign(crmPosVendaSug, E.sugestoes);
+    E.registrosPronto = true;
   } catch (e) {
     console.warn('pos-venda nao carregou', e);
     if (meu !== pvCargaSeq) return;
@@ -29123,7 +29234,60 @@ async function pvCarregar() {
   }
   E.carregando = false;
   pvRender();
-  if (E.focarId) pvFocar(E.focarId);
+  if (E.focarId) {
+    // Espera a busca dos cards em negociacao: ela muda a altura do ranking, e rolar
+    // ate o card antes disso deixaria ele fora do lugar depois.
+    await negP;
+    if (meu !== pvCargaSeq) return;
+    pvFocar(E.focarId);
+  }
+}
+
+/** Os cards do eletroposto ainda em negociação: filtra NO SERVIDOR (o PostgREST corta
+ *  em 1000 linhas calado). Os status são as etiquetas de negócio do CRM mais o
+ *  APALAVRADO. Alimenta o "N em negociação" do ranking, o bloco Geral e a lista. */
+/** Os status que contam como "em negociação" no eletroposto: as etiquetas de negócio
+ *  do CRM SEM `falando_whatsapp` (é conversa antes da reunião) e SEM `fez_orcamento`
+ *  (não se usa no eletroposto), mais `apalavrado`. Ficam os 6 modelos, `em_atendimento`,
+ *  `proposta_apresentada` e `apalavrado`. Função, e não const, porque
+ *  CRM_ETIQUETAS_NEGOCIO é declarada mais abaixo no script. Usada só pela busca da
+ *  tela de vendas; a contagem do ranking sai dessa mesma busca. */
+function pvStatusNegociacao() {
+  const fora = new Set(['falando_whatsapp', 'fez_orcamento']);
+  return Array.from(new Set([...CRM_ETIQUETAS_NEGOCIO].filter(s => !fora.has(s)).concat('apalavrado')));
+}
+
+async function pvCarregarNeg(meu) {
+  const E = pvEstado;
+  try {
+    const st = pvStatusNegociacao().join(',');
+    const rows = await supaGet('agendamentos?select=id,cliente_nome,cidade,vendedor_nome,status,quando'
+      + `&created_by=ilike.*eletroposto*&status=in.(${st})&order=quando.desc&limit=1000`);
+    if (meu !== pvCargaSeq) return;
+    E.negociacao = rows || [];
+    E.negCheio = E.negociacao.length >= 1000;
+  } catch (e) {
+    console.warn('cards em negociacao do eletroposto nao carregaram', e);
+    if (meu !== pvCargaSeq) return;
+    E.negociacao = []; E.negFalhou = true;
+  }
+  E.negCarregando = false;
+  // Pinta so os paineis e o seletor (e a lista de negociacao, se for a aba aberta).
+  // Nunca a lista de vendidos: refazer ela jogaria fora o que o consultor ja digitou
+  // no editor aberto.
+  pvRenderPaineis();
+  pvRenderModo();
+  if (E.modo === 'negociacao') pvRenderNeg();
+}
+
+/** As fotos do pódio vêm da mesma carga que o Histórico do solar usa. Sem bloquear
+ *  a tela: se falhar, o avatar cai nas iniciais. */
+function pvCarregarFotos(meu) {
+  if (typeof carregarConsultoresFotos !== 'function') return;
+  if (Object.keys(consultoresFotos || {}).length) return;
+  carregarConsultoresFotos()
+    .then(() => { if (meu === pvCargaSeq) pvRenderRanking(); })
+    .catch(() => {});
 }
 
 function pvClassifica(a) {
@@ -29166,7 +29330,14 @@ function pvRender() {
   const fil = document.getElementById('pv-filtros');
   const lista = document.getElementById('pv-lista');
   if (!faixa || !fil || !lista) return;
-  if (E.carregando && !E.cards.length) {
+  pvRenderPaineis();
+  pvRenderModo();
+  if (E.modo === 'negociacao') {
+    faixa.innerHTML = ''; fil.innerHTML = '';
+    pvRenderNeg();
+    return;
+  }
+  if (E.carregando) {
     faixa.innerHTML = ''; fil.innerHTML = '';
     lista.innerHTML = '<div class="pv-vazio"><b>Carregando…</b>Buscando as vendas do eletroposto.</div>';
     return;
@@ -29188,21 +29359,545 @@ function pvRender() {
   pvRenderLista();
 }
 
+// ── Os blocos, o gráfico e o ranking (o mesmo desenho do Histórico do solar) ──
+// Tudo sai dos CARDS vendidos cruzados com os registros (PosVenda.vendas). O
+// crédito é do vendedor do card. Os painéis se redesenham sozinhos depois de
+// salvar, sem recarregar a lista.
+/** Cada painel desenha sozinho: se um deles quebrar, os outros e a lista de vendas
+ *  (que é a tela de trabalho) continuam de pé. */
+function pvRenderPaineis() {
+  [pvRenderResumo, pvRenderGrafico, pvRenderRanking].forEach((desenha) => {
+    try { desenha(); } catch (e) { console.error('pos-venda: painel não desenhou', e); }
+  });
+}
+
+/** Os painéis só mostram número com os registros DESTA carga em mãos. Antes disso (ou
+ *  se a carga ou a leitura falhou) não há número: sem registro toda venda pareceria
+ *  "sem valor" e o R$ pareceria zero. */
+function pvPaineisVazios() {
+  const E = pvEstado;
+  return !E.registrosPronto;
+}
+/** O que o bloco de números mostra no lugar deles. */
+function pvPaineisAviso() {
+  const E = pvEstado;
+  if (E.falhouLeitura) {
+    return '<div class="pv-aviso">Não deu para carregar o pós-venda agora, então os números não aparecem. '
+      + '<button type="button" class="pv-conclui" style="margin-left:6px;padding:6px 12px" onclick="pvCarregar()">Tentar de novo</button></div>';
+  }
+  if (E.carregando) return '<div class="pv-carga">Carregando os números…</div>';
+  return '';
+}
+function pvVendas() {
+  const E = pvEstado;
+  return PosVenda.vendas(E.cards, E.falhouLeitura ? {} : E.registros, PosVenda.hojeBr());
+}
+/** Os cards em negociação só valem depois que a busca terminou sem erro. */
+function pvNegOk() {
+  const E = pvEstado;
+  return !E.negCarregando && !E.negFalhou;
+}
+function pvPlural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+function pvStat(lbl, val, cls) {
+  return `<div class="historico-stat${cls ? ' ' + cls : ''}"><div class="lbl">${lbl}</div><div class="val">${val}</div></div>`;
+}
+
+function pvRenderResumo() {
+  const el = document.getElementById('pv-resumo');
+  if (!el) return;
+  const E = pvEstado;
+  if (pvPaineisVazios()) { el.innerHTML = pvPaineisAviso(); return; }
+  const hoje = PosVenda.hojeBr();
+  const r = PosVenda.resumoVendas(pvVendas(), hoje);
+  const nd = E.falhouLeitura;
+  const brl = (v) => nd ? 'n/d' : PosVenda.fmtBrl(v);
+  const tk = (x) => (nd || x.ticket === null) ? 'n/d' : PosVenda.fmtBrl(x.ticket);
+  const nota = (x) => (!nd && x.semValor > 0)
+    ? `<div class="pv-nota">Soma do valor informado. ${pvPlural(x.semValor, 'venda sem valor', 'vendas sem valor')}.</div>` : '';
+  const neg = E.negFalhou ? 'n/d' : (E.negCarregando ? '…' : String(E.negociacao.length) + (E.negCheio ? '+' : ''));
+  el.innerHTML = '<div class="historico-secao"><h4>Geral</h4><div class="historico-stats">'
+    + pvStat('Vendas', r.geral.qtd, 'destaque-vendido')
+    + pvStat('R$ vendido', brl(r.geral.valor), 'destaque-vendido')
+    + pvStat('Ticket médio', tk(r.geral), 'destaque-conv')
+    + pvStat('Em negociação', neg)
+    + `</div>${nota(r.geral)}</div>`
+    + `<div class="historico-secao"><h4>Este mês · ${PosVenda.rotuloMes(hoje.slice(0, 7))}</h4><div class="historico-stats">`
+    + pvStat('Vendas', r.mes.qtd, 'destaque-vendido')
+    + pvStat('R$ vendido', brl(r.mes.valor), 'destaque-vendido')
+    + pvStat('Ticket médio', tk(r.mes), 'destaque-conv')
+    + `</div>${nota(r.mes)}</div>`;
+}
+
+/** Evolução mensal: DOIS gráficos de colunas em SVG, de série única, com o mesmo eixo
+ *  de meses: "Vendas por mês" (quantidade) e "R$ vendido por mês" (soma do valor
+ *  informado). Duas unidades nunca dividem o mesmo desenho. O SVG é desenhado na
+ *  largura medida da célula (1 unidade = 1 px, o texto não encolhe no celular) e
+ *  refeito quando a largura muda. Cores validadas contra o fundo #0F172A (modo escuro,
+ *  `validate_palette.js --pairs all`): azul #3987e5 e laranja #d95926. Texto nunca usa a
+ *  cor da série. O gráfico do solar (`renderGraficoMes`) é outro e não muda. */
+const PV_G_COR = { qtd: '#3987e5', valor: '#d95926' };
+const PV_G_ALT = 184;
+let pvGrafObs = null;     // um ResizeObserver só, criado na primeira vez
+let pvGrafLarg = 0;       // largura do #pv-grafico no último desenho
+let pvGrafDoc = false;    // o "toque fora esconde" é registrado uma vez só
+
+function pvRenderGrafico() {
+  const el = document.getElementById('pv-grafico');
+  if (!el) return;
+  const E = pvEstado;
+  if (pvPaineisVazios()) { el.innerHTML = ''; return; }
+  const titulo = '<h4 class="pv-g-h">Evolução mensal</h4>';
+  const vendas = pvVendas();
+  if (!vendas.length) {
+    el.innerHTML = titulo + '<div class="ranking-vazio">Ainda não há venda de eletroposto para somar.</div>';
+    return;
+  }
+  const nd = E.falhouLeitura;
+  const dados = PosVenda.evolucaoDetalhada(vendas, PosVenda.hojeBr());
+  const semValor = dados.reduce((s, d) => s + d.semValor, 0);
+  const subQtd = 'Quantidade de vendas marcadas.';
+  const subVal = 'Soma do valor informado.'
+    + (!nd && semValor > 0 ? ' ' + pvPlural(semValor, 'venda sem valor', 'vendas sem valor') + '.' : '');
+  const card = (id, tit, sub) => '<div class="pv-g-card" data-pvg="' + id + '"><div class="pv-g-tit">' + tit + '</div>'
+    + '<div class="pv-g-sub">' + sub + '</div><div class="pv-g-corpo"></div></div>';
+  el.innerHTML = titulo + '<div class="pv-g-grade">' + card('qtd', 'Vendas por mês', subQtd)
+    + card('valor', 'R$ vendido por mês', subVal) + '</div>' + pvGrafTabela(dados, nd);
+  pvGrafLarg = el.clientWidth;
+  pvDesenharGrafico(el.querySelector('[data-pvg="qtd"] .pv-g-corpo'), 'qtd', dados, nd);
+  pvDesenharGrafico(el.querySelector('[data-pvg="valor"] .pv-g-corpo'), 'valor', dados, nd);
+  pvGrafLigar(el);
+}
+
+/** Uma vez só: refaz o desenho se a largura mudar (girar o celular, abrir a tela
+ *  que estava escondida) e esconde o tooltip quando o toque cai fora de uma coluna. */
+function pvGrafLigar(el) {
+  if (!pvGrafObs && typeof ResizeObserver !== 'undefined') {
+    pvGrafObs = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      if (w > 0 && Math.abs(w - pvGrafLarg) > 1) pvRenderGrafico();
+    });
+    pvGrafObs.observe(el);
+  }
+  if (!pvGrafDoc) {
+    pvGrafDoc = true;
+    document.addEventListener('pointerdown', (ev) => {
+      const corpo = ev.target && ev.target.closest ? ev.target.closest('.pv-g-corpo') : null;
+      document.querySelectorAll('#pv-grafico .pv-g-corpo').forEach((c) => { if (c !== corpo) pvGrafEsconder(c); });
+      if (corpo && !ev.target.closest('.pv-g-col')) pvGrafEsconder(corpo);
+    }, true);
+  }
+}
+
+/** Texto de um mês, o mesmo no tooltip e no aria-label. */
+function pvGrafMes(d, nd) {
+  const mes = PosVenda.rotuloMes(d.mes);
+  if (d.qtd === 0) return { mes, linhas: [['Vendas', '0']], nota: 'Nenhuma venda no mês.' };
+  const sem = (n) => pvPlural(n, 'venda sem valor informado', 'vendas sem valor informado') + '.';
+  if (nd) return { mes, linhas: [['Vendas', String(d.qtd)], ['R$ vendido', 'n/d'], ['Ticket médio', 'n/d']], nota: '' };
+  if (d.comValor === 0) {
+    return { mes, linhas: [['Vendas', String(d.qtd)], ['R$ vendido', 'Valor não informado'], ['Ticket médio', 'Valor não informado']], nota: sem(d.qtd) };
+  }
+  return {
+    mes, linhas: [['Vendas', String(d.qtd)], ['R$ vendido', PosVenda.fmtBrl(d.valor)], ['Ticket médio', PosVenda.fmtBrl(d.ticket)]],
+    nota: d.semValor > 0 ? sem(d.semValor) : ''
+  };
+}
+function pvGrafAria(d, nd) {
+  const t = pvGrafMes(d, nd);
+  return t.mes + ': ' + t.linhas.map((l) => l[0] + ' ' + l[1]).join(', ') + (t.nota ? '. ' + t.nota : '');
+}
+
+/** A mesma informação em tabela (só para leitor de tela): o SVG tem role="img". */
+function pvGrafTabela(dados, nd) {
+  const linhas = dados.map((d) => {
+    const t = pvGrafMes(d, nd);
+    const v = (i) => (t.linhas[i] ? t.linhas[i][1] : '');
+    return '<tr><th scope="row">' + t.mes + '</th><td>' + v(0) + '</td><td>' + v(1) + '</td><td>' + v(2) + '</td></tr>';
+  }).join('');
+  return '<div class="pv-g-sr"><table><caption>Vendas e R$ vendido por mês</caption><thead><tr><th>Mês</th><th>Vendas</th>'
+    + '<th>R$ vendido</th><th>Ticket médio</th></tr></thead><tbody>' + linhas + '</tbody></table></div>';
+}
+
+/** Barra com a ponta de dado arredondada (raio 4) e a base reta no zero. */
+function pvGrafBarra(x, w, yTopo, yBase) {
+  const h = yBase - yTopo;
+  const r = Math.max(0, Math.min(4, h, w / 2));
+  const f = (n) => Math.round(n * 100) / 100;
+  return 'M' + f(x) + ' ' + f(yBase) + 'V' + f(yTopo + r) + 'A' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(x + r) + ' ' + f(yTopo)
+    + 'H' + f(x + w - r) + 'A' + f(r) + ' ' + f(r) + ' 0 0 1 ' + f(x + w) + ' ' + f(yTopo + r) + 'V' + f(yBase) + 'Z';
+}
+
+function pvDesenharGrafico(corpo, tipo, dados, nd) {
+  if (!corpo) return;
+  const ehQtd = tipo === 'qtd';
+  const cor = PV_G_COR[tipo];
+  if (!ehQtd && nd) {
+    corpo.innerHTML = '<div class="pv-g-nd">Não deu para ler os valores agora. Abra a tela de novo para tentar outra vez.</div>';
+    return;
+  }
+  const W = Math.max(corpo.clientWidth || 0, 220);
+  const H = PV_G_ALT;
+  const n = dados.length;
+  const val = (d) => (ehQtd ? d.qtd : d.valor);
+  const vals = dados.map(val);
+  const max = Math.max(0, ...vals);
+  const eixo = PosVenda.escalaEixo(max, ehQtd);
+  const rotTick = (v) => (ehQtd ? String(v) : PosVenda.fmtBrlCompacto(v, true));
+  const larg = (s, px) => Math.ceil(String(s).length * px * 0.6);   // largura estimada do texto
+  const gL = eixo.ticks.length ? Math.max.apply(null, eixo.ticks.map((t) => larg(rotTick(t), 10))) + 12 : 10;
+  const x0 = gL, x1 = W - 10, yT = 38, yB = H - 24;              // 38 px no topo: duas linhas de rótulo
+  const plotW = x1 - x0, plotH = yB - yT;
+  const slot = Math.min(plotW / n, 56);                          // poucos meses não esticam
+  const bw = Math.max(4, Math.min(24, slot - 6));
+  const f = (v) => Math.round(v * 100) / 100;
+  const yDe = (v) => yB - (eixo.topo > 0 ? (v / eixo.topo) * plotH : 0);
+
+  let s = '';
+  // grade e eixo: hairlines sólidas, um passo acima do fundo
+  eixo.ticks.forEach((t) => {
+    const y = f(yDe(t));
+    s += '<line class="pv-g-gr" x1="' + x0 + '" x2="' + f(x1) + '" y1="' + y + '" y2="' + y + '"/>'
+      + '<text class="pv-g-tk" x="' + (x0 - 6) + '" y="' + f(y + 3.5) + '" text-anchor="end">' + rotTick(t) + '</text>';
+  });
+  s += '<line class="pv-g-ax" x1="' + x0 + '" x2="' + f(x1) + '" y1="' + yB + '" y2="' + yB + '"/>';
+
+  // geometria de cada mês: a coluna (área de toque), a barra e a altura do topo dela
+  const geo = dados.map((d, i) => {
+    const sx = x0 + i * slot, bx = sx + (slot - bw) / 2;
+    const h = val(d) > 0 ? Math.max(2, (val(d) / eixo.topo) * plotH) : (!ehQtd && d.qtd > 0 ? 4 : 0);
+    return { sx, bx, top: yB - h };
+  });
+  // colunas: a área de toque é o mês inteiro; o desenho da barra fica dentro dela
+  dados.forEach((d, i) => {
+    const sx = geo[i].sx, bx = geo[i].bx;
+    let marca = '';
+    if (val(d) > 0) {
+      marca = '<path class="pv-g-bar" fill="' + cor + '" d="' + pvGrafBarra(bx, bw, geo[i].top, yB) + '"/>';
+    } else if (!ehQtd && d.qtd > 0) {
+      // venda sem valor: marca neutra na linha de base, não uma barra de altura inventada
+      marca = '<rect class="pv-g-zero" x="' + f(bx) + '" y="' + (yB - 4) + '" width="' + f(bw) + '" height="2" rx="1"/>';
+    }
+    s += '<g class="pv-g-col" data-i="' + i + '" tabindex="0" aria-label="' + pvGrafAria(d, nd) + '">'
+      + '<rect class="pv-g-hit" x="' + f(sx) + '" y="0" width="' + f(slot) + '" height="' + H + '"/>' + marca + '</g>';
+  });
+
+  // rótulos do eixo x: pula de trás para frente, o mês mais recente sempre aparece
+  const rotMes = dados.map((d) => PosVenda.rotuloMes(d.mes));
+  const k = Math.max(1, Math.ceil((larg(rotMes[0], 11) + 8) / slot));
+  rotMes.forEach((r, i) => {
+    if ((n - 1 - i) % k !== 0) return;
+    const w = larg(r, 11);
+    const cx = Math.min(Math.max(x0 + (i + 0.5) * slot, w / 2 + 2), W - w / 2 - 2);
+    s += '<text class="pv-g-xl" x="' + f(cx) + '" y="' + (H - 7) + '" text-anchor="middle">' + r + '</text>';
+  });
+
+  // rótulo direto SELETIVO: o mês mais recente e o maior valor (um só se coincidem)
+  let iMax = -1;
+  vals.forEach((v, i) => { if (v > 0 && (iMax < 0 || v >= vals[iMax])) iMax = i; });
+  const alvos = [];
+  if (vals[n - 1] > 0 || ehQtd) alvos.push(n - 1);
+  if (iMax >= 0 && iMax !== n - 1) alvos.unshift(iMax);
+  let rots = alvos.map((i) => {
+    const txt = ehQtd ? String(vals[i]) : PosVenda.fmtBrlCompacto(vals[i]);
+    const w = larg(txt, 11.5);
+    const topo = geo[i].top;
+    const r = { i, txt, w, topo, y: Math.max(13, topo - 6), cx: Math.min(Math.max(x0 + (i + 0.5) * slot, x0 + w / 2), W - 2 - w / 2) };
+    // o rótulo é mais largo que o mês: se uma barra vizinha mais alta invade o texto, sobe para cima dela
+    let menor = topo;
+    geo.forEach((g, j) => { if (j !== i && g.top < r.y + 4 && g.bx < r.cx + w / 2 + 1 && g.bx + bw > r.cx - w / 2 - 1) menor = Math.min(menor, g.top); });
+    if (menor < topo) r.y = Math.max(13, menor - 6);
+    return r;
+  });
+  const caixa = (r) => ({ l: r.cx - r.w / 2, r: r.cx + r.w / 2, t: r.y - 11, b: r.y + 3 });
+  const cruza = (p, q) => { const a = caixa(p), c = caixa(q); return a.l < c.r + 3 && c.l < a.r + 3 && a.t < c.b + 1 && c.t < a.b + 1; };
+  if (rots.length === 2 && cruza(rots[0], rots[1])) {
+    const a = rots[0], b = rots[1];
+    const nova = Object.assign({}, a, { cx: b.cx - b.w / 2 - 4 - a.w / 2 });
+    if (nova.cx - a.w / 2 >= x0 && !cruza(nova, b)) a.cx = nova.cx;        // empurra o mais velho para a esquerda
+    else if (Math.min(b.y, a.y - 14) >= 13) b.y = Math.min(b.y, a.y - 14);  // ou escalona: o mais recente numa linha acima
+    else if (b.y - 14 >= 13) a.y = b.y - 14;
+    else rots = [b];                                                         // sem lugar: o valor fica no tooltip
+  }
+  rots.forEach((r) => {
+    // rótulo longe da própria barra ganha um fio fino até ela
+    if (r.topo - r.y > 10) {
+      const bx = geo[r.i].bx, lo = Math.max(bx, r.cx - r.w / 2), hi = Math.min(bx + bw, r.cx + r.w / 2);
+      if (lo <= hi) s += '<line class="pv-g-ld" x1="' + f((lo + hi) / 2) + '" x2="' + f((lo + hi) / 2) + '" y1="' + f(r.y + 4) + '" y2="' + f(r.topo - 2) + '"/>';
+    }
+  });
+  rots.forEach((r) => { s += '<text class="pv-g-dl" x="' + f(r.cx) + '" y="' + f(r.y) + '" text-anchor="middle">' + r.txt + '</text>'; });
+
+  const primeiro = PosVenda.rotuloMes(dados[0].mes), ultimo = PosVenda.rotuloMes(dados[n - 1].mes);
+  const pico = iMax >= 0 ? ' Maior: ' + rotMes[iMax] + ', ' + (ehQtd ? pvPlural(vals[iMax], 'venda', 'vendas') : PosVenda.fmtBrl(vals[iMax])) + '.' : '';
+  const nome = ehQtd ? 'Vendas por mês' : 'R$ vendido por mês';
+  const desc = nome + ', de ' + primeiro + ' a ' + ultimo + '.' + pico;
+  corpo.innerHTML = '<svg viewBox="0 0 ' + f(W) + ' ' + H + '" role="img" aria-label="' + desc + '" preserveAspectRatio="xMinYMin meet">'
+    + '<title>' + desc + '</title>' + s + '</svg>'
+    + (!ehQtd && max === 0 ? '<div class="pv-g-aviso">Nenhuma venda tem valor informado.</div>' : '')
+    + '<div class="pv-g-tip" aria-hidden="true"></div>';
+  corpo._pvg = { dados, nd, tipo, cor, slot, x0 };
+  pvGrafEventos(corpo);
+}
+
+function pvGrafEsconder(corpo) {
+  const tip = corpo.querySelector('.pv-g-tip');
+  if (tip) tip.classList.remove('show');
+  corpo.querySelectorAll('.pv-g-col.on').forEach((c) => c.classList.remove('on'));
+}
+
+function pvGrafMostrar(corpo, col) {
+  const g = corpo._pvg, tip = corpo.querySelector('.pv-g-tip');
+  if (!g || !tip || !col) return;
+  const d = g.dados[Number(col.getAttribute('data-i'))];
+  if (!d) return;
+  corpo.querySelectorAll('.pv-g-col.on').forEach((c) => { if (c !== col) c.classList.remove('on'); });
+  col.classList.add('on');
+  const t = pvGrafMes(d, g.nd);
+  tip.textContent = '';
+  const m = document.createElement('b'); m.className = 'm'; m.textContent = t.mes; tip.appendChild(m);
+  const destaque = g.tipo === 'qtd' ? 'Vendas' : 'R$ vendido';
+  t.linhas.forEach((l) => {
+    const li = document.createElement('div'); li.className = 'l';
+    const rot = document.createElement('span');
+    if (l[0] === destaque) { const ch = document.createElement('i'); ch.style.background = g.cor; rot.appendChild(ch); }
+    rot.appendChild(document.createTextNode(l[0]));
+    const v = document.createElement('strong'); v.textContent = l[1];
+    li.appendChild(rot); li.appendChild(v); tip.appendChild(li);
+  });
+  if (t.nota) { const nt = document.createElement('div'); nt.className = 'n'; nt.textContent = t.nota; tip.appendChild(nt); }
+  tip.classList.add('show');
+  // fica dentro da área do gráfico (e, por isso, dentro da tela): ao lado da coluna, no lado que couber
+  const cr = corpo.getBoundingClientRect(), kr = col.getBoundingClientRect();
+  const tw = tip.offsetWidth, cw = cr.width;
+  let left = (kr.right - cr.left) + 8;
+  if (left + tw > cw - 4) left = (kr.left - cr.left) - 8 - tw;
+  if (left < 4) left = Math.max(4, Math.min((cw - tw) / 2, cw - tw - 4));
+  tip.style.left = Math.round(left) + 'px';
+}
+
+function pvGrafEventos(corpo) {
+  const colDe = (ev) => (ev.target && ev.target.closest ? ev.target.closest('.pv-g-col') : null);
+  corpo.addEventListener('pointermove', (ev) => { if (ev.pointerType === 'mouse') { const c = colDe(ev); if (c) pvGrafMostrar(corpo, c); else pvGrafEsconder(corpo); } });
+  corpo.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') pvGrafEsconder(corpo); });
+  corpo.addEventListener('pointerdown', (ev) => { if (ev.pointerType !== 'mouse') { const c = colDe(ev); if (c) pvGrafMostrar(corpo, c); } });
+  corpo.addEventListener('focusin', (ev) => { const c = colDe(ev); if (c) pvGrafMostrar(corpo, c); });
+  corpo.addEventListener('focusout', () => pvGrafEsconder(corpo));
+  corpo.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') pvGrafEsconder(corpo); });
+}
+
+function pvRankingPeriodo(p) {
+  pvEstado.mesRanking = p;
+  pvRenderRanking();
+}
+
+/** Ranking do eletroposto: pódio 2º-1º-3º com as mesmas classes e o mesmo avatar
+ *  do solar (não chama o `renderRanking` dele, que lê propostas). Ordem: vendas,
+ *  valor, em negociação, nome. */
+function pvRenderRanking() {
+  const el = document.getElementById('pv-ranking');
+  if (!el) return;
+  const E = pvEstado;
+  if (pvPaineisVazios()) { el.innerHTML = ''; return; }
+  const vendas = pvVendas();
+  if (!vendas.length) {
+    el.innerHTML = '<h3>Ranking de vendas do eletroposto</h3><div class="ranking-vazio">Ainda não há venda de eletroposto para somar.</div>';
+    return;
+  }
+  const nd = E.falhouLeitura;
+  const meses = PosVenda.mesesComVenda(vendas);
+  let periodo = E.mesRanking;
+  if (periodo !== 'tudo' && !meses.includes(periodo)) periodo = meses[0] || 'tudo';
+  const negOk = pvNegOk();
+  const ranking = PosVenda.rankingVendas(vendas, negOk ? E.negociacao : [], periodo);
+  const comVenda = ranking.filter(c => c.vendas > 0);
+  const top3 = comVenda.slice(0, 3);
+  const resto = ranking.filter(c => !top3.includes(c));
+  const doPeriodo = vendas.filter(v => periodo === 'tudo' || v.mes === periodo);
+  const soma = doPeriodo.reduce((s, v) => s + (v.valor != null ? v.valor : 0), 0);
+  const semValor = doPeriodo.filter(v => v.valor == null).length;
+
+  const medalhas = { 1: '🥇', 2: '🥈', 3: '🥉' };
+  const podioOrdem = top3.length >= 3
+    ? [{ ...top3[1], pos: 2 }, { ...top3[0], pos: 1 }, { ...top3[2], pos: 3 }]
+    : top3.map((c, i) => ({ ...c, pos: i + 1 }));
+  const trioStyle = 'display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,0.08);';
+  const statRowStyle = 'display:flex;flex-direction:column;align-items:center;line-height:1.05;';
+  const podioHtml = comVenda.length === 0
+    ? '<div class="ranking-vazio">Nenhuma venda neste período.</div>'
+    : `<div class="ranking-podio-grid cols-${podioOrdem.length}">
+      ${podioOrdem.map(c => {
+        const isP1 = c.pos === 1;
+        const corNum = isP1 ? '#5a3800' : '#1E3A8A';
+        const corLbl = isP1 ? '#7a5800' : '#777';
+        const corBig = isP1 ? '#7a4d00' : '#1E3A8A';
+        const numStyle = `font-size:13px;font-weight:800;color:${corNum};`;
+        const lblStyle = `font-size:8px;color:${corLbl};text-transform:uppercase;letter-spacing:0.3px;font-weight:700;margin-top:1px;text-align:center;`;
+        const bigStyle = `font-size:${isP1 ? '26px' : '22px'};font-weight:900;color:${corBig};`;
+        const valTxt = nd ? 'n/d' : (c.valor > 0 ? 'R$ ' + fmtN(c.valor) : 'Sem valor');
+        return `<div class="podio-card p${c.pos}">
+          ${c.pos === 1 ? '<div class="crown">👑</div>' : ''}
+          <div class="medalha">${medalhas[c.pos]}</div>
+          ${avatarConsultorHtml(c.consultor)}
+          <div class="nome" title="${escapeHtml(c.consultor)}">${escapeHtml(c.consultor)}</div>
+          <div style="${trioStyle}">
+            <div style="${statRowStyle}"><span style="${bigStyle}">${c.vendas}</span><span style="${lblStyle}">venda${c.vendas !== 1 ? 's' : ''}</span></div>
+            <div style="${statRowStyle}"><span style="${numStyle}">${valTxt}</span><span style="${lblStyle}">valor informado</span>${(!nd && c.semValor > 0) ? `<span style="${lblStyle}">${c.semValor} sem valor</span>` : ''}</div>
+            ${negOk ? `<div style="${statRowStyle}"><span style="${numStyle}">${c.negociando}</span><span style="${lblStyle}">em negociação</span></div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  const restoHtml = resto.length === 0 ? '' : `<div class="ranking-resto">
+      ${resto.map((c, i) => {
+        const partes = [pvPlural(c.vendas, 'venda', 'vendas')];
+        if (!nd && c.valor > 0) partes.push(PosVenda.fmtBrl(c.valor) + ' informado');
+        if (!nd && c.semValor > 0) partes.push(c.semValor + ' sem valor');
+        if (negOk) partes.push(c.negociando + ' em negociação');
+        return `<div class="ranking-row">
+          <div class="pos">${top3.length + i + 1}º</div>
+          <div>
+            <div class="nome">${escapeHtml(c.consultor)}</div>
+            <div class="stats">${partes.join(' · ')}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  const rotPeriodo = periodo === 'tudo' ? 'Acumulado' : PosVenda.rotuloMes(periodo);
+  const botoes = meses.map(m => {
+    const n = vendas.filter(v => v.mes === m).length;
+    return `<button type="button" class="ranking-mes-btn ${m === periodo ? 'ativo' : ''}" aria-pressed="${m === periodo}" onclick="pvRankingPeriodo('${m}')">${PosVenda.rotuloMes(m)}<span class="qtd">${n}</span></button>`;
+  }).join('')
+    + `<button type="button" class="ranking-mes-btn ${periodo === 'tudo' ? 'ativo' : ''}" aria-pressed="${periodo === 'tudo'}" onclick="pvRankingPeriodo('tudo')">Acumulado<span class="qtd">${vendas.length}</span></button>`;
+  el.innerHTML = `
+    <h3>Ranking de vendas do eletroposto</h3>
+    <div class="ranking-meses">${botoes}</div>
+    <div style="font-size:13px; color:#94A3B8; margin-bottom:6px;">
+      <strong>${rotPeriodo}</strong> · ${pvPlural(doPeriodo.length, 'venda', 'vendas')}${nd ? '' : ' · ' + PosVenda.fmtBrl(soma) + ' de valor informado'}${(!nd && semValor > 0) ? ' · ' + semValor + ' sem valor' : ''}
+    </div>
+    ${podioHtml}
+    ${restoHtml}`;
+}
+
+// ── O seletor Vendidos / Em negociação e a lista de negociação ─────────────
+function pvRenderModo() {
+  const el = document.getElementById('pv-modo');
+  if (!el) return;
+  const E = pvEstado;
+  const nV = pvPaineisVazios() ? '' : ` <span class="pv-n">${E.cards.length}</span>`;
+  const nN = pvNegOk() ? ` <span class="pv-n">${E.negociacao.length}${E.negCheio ? '+' : ''}</span>` : '';
+  el.innerHTML = '<span class="lbl-filtro">Mostrar:</span>'
+    + `<button type="button" class="filtro-btn vend${E.modo === 'vendidos' ? ' ativo' : ''}" aria-pressed="${E.modo === 'vendidos'}" onclick="pvTrocarModo('vendidos')">Vendidos${nV}</button>`
+    + `<button type="button" class="filtro-btn${E.modo === 'negociacao' ? ' ativo' : ''}" aria-pressed="${E.modo === 'negociacao'}" onclick="pvTrocarModo('negociacao')">Em negociação${nN}</button>`;
+}
+
+function pvTrocarModo(m) {
+  pvEstado.modo = m === 'negociacao' ? 'negociacao' : 'vendidos';
+  pvRender();
+}
+
+function pvRenderNeg() {
+  const E = pvEstado;
+  const lista = document.getElementById('pv-lista');
+  if (!lista) return;
+  if (E.negCarregando) {
+    lista.innerHTML = '<div class="pv-vazio"><b>Carregando…</b>Buscando os cards em negociação.</div>';
+    return;
+  }
+  if (E.negFalhou) {
+    lista.innerHTML = '<div class="pv-vazio"><b>Não deu para carregar os cards em negociação agora.</b>Confira a conexão e tente de novo.'
+      + '<br><button type="button" onclick="pvCarregar()">Tentar de novo</button></div>';
+    return;
+  }
+  if (!E.negociacao.length) {
+    lista.innerHTML = '<div class="pv-vazio"><b>Nenhum card do eletroposto em negociação.</b>Quando houver um, ele aparece aqui com o botão para marcar como vendido.</div>';
+    return;
+  }
+  const aviso = E.negCheio ? '<div class="pv-aviso">A busca chegou a 1.000 cards e a lista pode estar incompleta.</div>' : '';
+  lista.innerHTML = aviso + E.negociacao.map(pvNegHtml).join('');
+}
+
+function pvNegHtml(a) {
+  const id = String(a.id);
+  const st = (typeof CAD_AG_STATUS !== 'undefined' && CAD_AG_STATUS[a.status]) || String(a.status || '').toUpperCase();
+  const dia = PosVenda.dataBr(a.quando);
+  return `<article class="pv-card pv-neg" id="pv-neg-${id}">
+    <div class="pv-neg-in">
+      <div class="pv-neg-info">
+        <div class="pv-l1"><span class="pv-nome">${escapeHtml(a.cliente_nome || 'Sem nome')}</span>${a.cidade ? `<span class="pv-cid">${escapeHtml(a.cidade)}</span>` : ''}</div>
+        <div class="pv-l2"><span class="pv-modelo">${escapeHtml(st)}</span>
+          <span class="pv-neg-meta">${escapeHtml(PosVenda.nomeConsultor(a.vendedor_nome))}</span>
+          ${dia ? `<span class="pv-neg-meta">Reunião ${dia}</span>` : ''}</div>
+      </div>
+      <button type="button" class="pv-conclui pv-neg-btn" onclick="pvMarcarVendido('${id}', this)">Marcar vendido</button>
+    </div>
+  </article>`;
+}
+
+/** "Marcar vendido" não grava nada por conta própria: fecha esta tela, abre o
+ *  detalhe do card no CRM e abre a caixa de captura do VENDIDO (o mesmo caminho
+ *  do botão do CRM). Quando o `crmAtualizarStatus` grava `fechou`, ele reabre esta
+ *  tela com o card em foco (`pvVoltar`).
+ *
+ *  O CRM abre o detalhe pelo cliente, e o card que ele grava é o de reunião mais
+ *  recente DESSE cliente. Se não for este id (ou se o CRM nem carregou este card),
+ *  não abre a caixa: gravar VENDIDO em outro card seria pior que não gravar. */
+let pvMarcando = false;
+async function pvMarcarVendido(id, btn) {
+  id = String(id);
+  if (pvMarcando) return;
+  pvMarcando = true;
+  // O botao avisa que esta trabalhando; a tela de vendas so fecha DEPOIS de achar o
+  // card, para o usuario nao ficar solto na tela de baixo enquanto o CRM carrega.
+  const txtBtn = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Abrindo o card'; }
+  const falha = (msg) => { pvVoltar = null; showToast(msg); };
+  try {
+    if (typeof navCRM !== 'function' || typeof crmAbrirDetalhe !== 'function') { falha('O CRM não carregou. Atualize a página.'); return; }
+    const acha = () => (crmClientes || []).find(c => (c.agends || []).some(a => String(a.id) === id));
+    if (!crmCarregado) await carregarCRM();
+    if (!crmCarregado) { falha('Não deu para abrir o CRM agora. Tente de novo.'); return; }
+    let c = acha();
+    if (!c) { await carregarCRM(true); c = acha(); }      // o CRM pode estar com a leitura velha
+    if (!c) { falha('Este card não está na lista do CRM. Abra pela agenda.'); return; }
+    const recente = crmAgRecente(c);
+    if (!recente || String(recente.id) !== id) { falha('O card mais recente deste cliente é outro. Marque este pela agenda.'); return; }
+    pvFechar();
+    navCRM({ produto: 'eletroposto' });
+    crmAbrirDetalhe(c.key);
+    const ag = crmDetAtual && crmDetAtual.agRec;
+    if (!ag || String(ag.id) !== id) {
+      crmFecharDetalhe();
+      pvAbrir(null, 'negociacao');
+      falha('O card mais recente deste cliente é outro. Marque este pela agenda.');
+      return;
+    }
+    // Cliente bloqueado: o CRM esconde a grade de status (crmAplicarCaraDeBloqueado).
+    // Nao abre a caixa de captura; deixa so o detalhe aberto.
+    const grade = document.getElementById('crm-det-status-wrap');
+    if (grade && grade.hidden) { falha('Este card não aceita troca de status por aqui.'); return; }
+    pvVoltar = id;
+    pvAbrirCaixaVenda(ag);
+  } catch (e) {
+    console.warn('marcar vendido pela tela de vendas falhou', e);
+    falha('Não deu para abrir o card. Tente de novo.');
+  } finally {
+    pvMarcando = false;
+    if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = txtBtn; }
+  }
+}
+
 function pvRenderFaixa() {
   const E = pvEstado;
   const faixa = document.getElementById('pv-faixa');
   if (!faixa || !E.cards.length) return;
   const ks = E.cards.map(pvClassifica);
-  const soma = ks.reduce((s, k) => s + (k.reg && k.reg.valor != null ? Number(k.reg.valor) : 0), 0);
   const atras = ks.filter(k => k.r.atrasoDias > 0).length;
   const falta = ks.filter(k => k.r.faltaInformar).length;
   const num = (v, l, cls) => `<div class="pv-num${cls ? ' ' + cls : ''}"><b>${v}</b><span>${l}</span></div>`;
   faixa.innerHTML = E.falhouLeitura
-    ? num(E.cards.length, 'Vendas') + num('n/d', 'Soma informada') + num('n/d', 'Atrasadas') + num('n/d', 'Falta informar')
-    : num(E.cards.length, 'Vendas')
-      + num(PosVenda.fmtBrl(soma), 'Soma informada')
-      + num(atras, 'Atrasadas', atras > 0 ? 'alerta' : '')
-      + num(falta, 'Falta informar');
+    ? num('n/d', 'Atrasadas') + num('n/d', 'Falta informar')
+    : num(atras, 'Atrasadas', atras > 0 ? 'alerta' : '') + num(falta, 'Falta informar');
 }
 
 function pvRenderFiltros() {
@@ -29331,6 +30026,11 @@ window.addEventListener('DOMContentLoaded', pvCheckDeepLink);
 async function crmAtualizarStatus(novoStatus, extra) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const { c, agRec: ag } = crmDetAtual;
+  // Veio da tela "Vendas do eletroposto" (botao Marcar vendido): depois de gravar,
+  // ela reabre com este card em foco. Lido AQUI, antes do crmFecharDetalhe, que
+  // zera a marca. So o segundo toque (o que grava) conta.
+  const voltaParaVendas = novoStatus === 'fechou' && pvVoltar !== null
+    && String(pvVoltar) === String(ag.id) && !!(extra && extra.__soStatus);
   // ── A PORTA DO CARD PRO FORMULARIO DE VENDA (02/10/2026) ───────────────
   //
   // Pedido do dono: "alem de posicionar na coluna ele marca a venda nos 2 lugares,
@@ -29526,6 +30226,12 @@ async function crmAtualizarStatus(novoStatus, extra) {
       try {
         if (typeof PosVenda === 'undefined') throw new Error('pos-venda.js nao carregou');
         const campos = { modelo: posVendaEscolhido.modelo, por: pvPor() };
+        // A data da venda. Status de saida diferente de VENDIDO = venda nova ou refeita:
+        // hoje (isso tambem troca a data velha de um registro de venda desfeita).
+        // JA era VENDIDO (so informando o modelo): nao mexe na data quando ha registro;
+        // sem registro, a derivada (linha de venda do historico, depois a reuniao, depois hoje).
+        if (stDeCrm !== 'fechou') campos.vendido_em = PosVenda.hojeBr();
+        else if (!crmPosVenda[String(ag.id)]) campos.vendido_em = PosVenda.vendas([ag], {}, PosVenda.hojeBr())[0].dia;
         // valor vazio so vai como null quando o card JA tinha um valor (limpar de
         // proposito); num registro novo, ausente e null dizem o mesmo.
         if (posVendaEscolhido.valor !== null && posVendaEscolhido.valor !== undefined) campos.valor = posVendaEscolhido.valor;
@@ -29569,6 +30275,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
     if (posVendaFalhou) showToast('O card virou vendido, mas não deu para guardar o modelo e o valor. Abra o card e informe de novo.');
     crmFecharDetalhe();
     renderCRM();                       // re-render local: card migra/ganha selo, sem refetch
+    if (voltaParaVendas) { pvVoltar = null; pvAbrir(ag.id); }
   } catch (e) {
     document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar status.';
     console.error(e);
@@ -31606,6 +32313,7 @@ async function confirmarVenda() {
     // Degrada, nao quebra: a venda JA esta gravada na proposta acima. Falhar aqui
     // deixa o card desatualizado, que e o que acontecia 100% das vezes antes.
     let avisoCard = '';
+    let cardEpVenda = null;   // o card que ficou VENDIDO nesta venda (para o pos-venda do eletroposto)
     try {
       const telProp = (r && r.dados && (r.dados.telefoneDigitos || r.dados.telefone)) || '';
       const fichas = await vendaFichasDoTelefone(telProp);
@@ -31616,6 +32324,7 @@ async function confirmarVenda() {
           : ' · sem card na agenda';
       } else if (alvo.status === 'fechou') {
         avisoCard = ' · o card ja estava como vendido';
+        cardEpVenda = alvo;
       } else {
         const antes = alvo.status;
         const ts = (() => { const d = new Date(); const p = n => String(n).padStart(2, '0');
@@ -31629,10 +32338,34 @@ async function confirmarVenda() {
           historico: alvo.historico ? `${linha}\n\n${alvo.historico}` : linha,
         });
         avisoCard = ` · card ${alvo.id} saiu de ${antes.toUpperCase()} pra VENDIDO`;
+        cardEpVenda = alvo;
       }
     } catch (e) {
       console.warn('o card nao foi marcado', e);
       avisoCard = ' · o card nao foi atualizado (veja o console)';
+    }
+
+    // ── UM CAMINHO SO PARA O VENDIDO DO ELETROPOSTO ────────────────────────
+    // Proposta de eletroposto vendida aqui tambem entra nas Vendas do eletroposto
+    // (valor e data da venda do modal), sem o consultor ter de informar de novo.
+    // Falha so vai pro console: nao muda toast nem fluxo. Proposta do solar nao
+    // passa por aqui (nenhuma requisicao a mais). O card alvo e conferido como de
+    // eletroposto pelo created_by: a busca por telefone nao traz esse campo e o
+    // card achado pode ser o de solar do mesmo cliente.
+    const ehEpVenda = !!r && (r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto'));
+    if (ehEpVenda && cardEpVenda && typeof PosVenda !== 'undefined') {
+      try {
+        const lin = await supaGet(`agendamentos?id=eq.${cardEpVenda.id}&select=created_by`);
+        if (lin && lin[0] && crmEhEletroposto(lin[0])) {
+          // `por` nunca vai null (a API recusa com texto_invalido) e data futura no
+          // modal e omitida (a API recusa com data_invalida): a venda entra com a data de hoje.
+          const camposEp = { valor, por: consultor || pvPor() || '' };
+          if (dataStr <= PosVenda.hojeBr()) camposEp.vendido_em = dataStr;
+          await PosVenda.gravar(APX_API, cardEpVenda.id, camposEp);
+        }
+      } catch (e) {
+        console.warn('o pos-venda do eletroposto nao recebeu a venda', e);
+      }
     }
 
     renderHistoricoTbody();
