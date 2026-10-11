@@ -31,6 +31,10 @@ import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
 import {
   ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO,
 } from '../services/agenda/salaDeEspera';
+import {
+  POS_VENDA_PREFIX, MODELOS_POS_VENDA, chavePosVenda, catalogoPosVenda, montarPosVenda, PosVenda,
+} from '../services/agenda/posVendaEletroposto';
+import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
 // O bloqueio mora no MESMO lugar do opt-out (`whatsapp_suppression`), e nao numa
 // lista nova: tres listas de 'nao fale com essa pessoa' foi exatamente o defeito
@@ -558,6 +562,108 @@ router.post('/motivo', async (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('gerador', 'motivo falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// ── PÓS-VENDA DO ELETROPOSTO ────────────────────────────────────────────────
+//
+// O card VENDIDO (`status='fechou'`) ganha um registro de pós-venda no
+// `system_state`, chave `pos_venda:<id>`. NÃO há status novo: `fechou` segue
+// sendo o status, e é ele que cala os robôs. As regras de validação moram no
+// módulo puro.
+//
+// Rotas PÚBLICAS, por paridade com `/etiqueta`, `/motivo` e `/apalavrado`. A tabela
+// `agendamentos` já é gravável pela chave pública do /gerador enquanto a RLS está
+// desligada, então fechar só estas rotas não protege nada e quebraria a agenda,
+// cujo token vence em 1 hora. Quando o /gerador fechar, passar as duas por
+// `exigeConsultor` (já importado de `./geradorDossie`).
+// O erro de banco responde só `{ error: 'falha' }`: a mensagem fica no log.
+router.post('/pos-venda', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const id = Number(b.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
+  try {
+    const chave = chavePosVenda(id);
+    if (b.apagar === true) {
+      const { error } = await supabase.from('system_state').delete().eq('key', chave);
+      if (error) throw error;
+      res.json({ ok: true, apagado: true });
+      return;
+    }
+    const { data: linha, error: errLeitura } = await supabase.from('system_state')
+      .select('value').eq('key', chave).maybeSingle();
+    if (errLeitura) throw errLeitura;
+    const atual = (linha?.value && typeof linha.value === 'object' ? linha.value : null) as PosVenda | null;
+    const agora = new Date().toISOString();
+    // A data de hoje é a de BRASÍLIA: o servidor roda em UTC e, depois das 21h,
+    // o relógio dele já está no dia seguinte.
+    const montado = montarPosVenda(b, atual, agora, diaDeBrasilia(agora));
+    if (!montado.ok) { res.status(400).json({ error: montado.erro }); return; }
+    const { error } = await supabase.from('system_state').upsert(
+      { key: chave, value: montado.registro, updated_at: agora },
+      { onConflict: 'key' },
+    );
+    if (error) throw error;
+    res.json({ ok: true, registro: montado.registro });
+  } catch (err: any) {
+    logger.error('gerador', 'pos-venda (gravação) falhou', err);
+    res.status(500).json({ error: 'falha' });
+  }
+});
+
+// Leitura em lote, como o `/apalavrado`. A `sugestao` sai da etiqueta que o
+// status terminal guardou (`etiqueta_card:<id>`): só aparece quando o card ainda
+// não tem registro, para a tela pré-selecionar o modelo.
+router.get('/pos-venda', async (req: Request, res: Response) => {
+  const vistos = new Set<number>();
+  for (const parte of String(req.query.ids || '').split(',')) {
+    const n = Number(parte.trim());
+    if (parte.trim() !== '' && Number.isInteger(n) && n > 0) vistos.add(n);
+  }
+  const pedidos = [...vistos];
+  const TETO_IDS = 600;
+  const ids = pedidos.slice(0, TETO_IDS);
+  const cortou = pedidos.length > ids.length;
+  if (cortou) {
+    logger.warn('gerador', `pos-venda: pediram ${pedidos.length} ids, o teto é ${TETO_IDS}`);
+  }
+  const catalogo = catalogoPosVenda();
+  if (!ids.length) { res.json({ ok: true, registros: {}, sugestoes: {}, catalogo }); return; }
+  try {
+    // 100 ids = 200 chaves: URL curta e bem abaixo do corte de 1000 linhas do
+    // PostgREST, que ignora `.limit()`.
+    const POR_CONSULTA = 100;
+    const linhas: Array<{ key: string; value: unknown }> = [];
+    for (let i = 0; i < ids.length; i += POR_CONSULTA) {
+      const lote = ids.slice(i, i + POR_CONSULTA);
+      const { data: parte, error } = await supabase.from('system_state')
+        .select('key, value')
+        .in('key', [
+          ...lote.map(x => chavePosVenda(x)),
+          ...lote.map(x => `${ETIQUETA_PREFIX}${x}`),
+        ]);
+      if (error) throw error;
+      linhas.push(...((parte ?? []) as Array<{ key: string; value: unknown }>));
+    }
+    const registros: Record<string, unknown> = {};
+    const etiquetas: Record<string, string> = {};
+    for (const l of linhas) {
+      const k = String(l.key);
+      if (k.startsWith(POS_VENDA_PREFIX)) {
+        registros[k.slice(POS_VENDA_PREFIX.length)] = l.value;
+      } else if (k.startsWith(ETIQUETA_PREFIX)) {
+        etiquetas[k.slice(ETIQUETA_PREFIX.length)] =
+          String((l.value as { etiqueta?: string } | null)?.etiqueta ?? '').trim();
+      }
+    }
+    const sugestoes: Record<string, string> = {};
+    for (const [id, et] of Object.entries(etiquetas)) {
+      if (!(id in registros) && (MODELOS_POS_VENDA as readonly string[]).includes(et)) sugestoes[id] = et;
+    }
+    res.json({ ok: true, registros, sugestoes, catalogo, ...(cortou ? { cortou: true } : {}) });
+  } catch (err: any) {
+    logger.error('gerador', 'pos-venda (leitura) falhou', err);
+    res.status(500).json({ error: 'falha' });
   }
 });
 
