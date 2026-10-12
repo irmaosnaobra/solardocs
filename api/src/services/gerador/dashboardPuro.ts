@@ -132,7 +132,8 @@ export function cortarCards(cards: CardBruto[], q: Quem): CardBruto[] {
 export function nomeAbreviado(nome: unknown): string {
   const bruto = String(nome ?? '').trim();
   if (bruto.replace(/\D/g, '').length >= 7) return 'Cliente';
-  const p = bruto.split(/\s+/).filter((x) => /^\p{L}/u.test(x));
+  // Só palavra feita de letra: pedaço com número ("Ana99812"), e-mail ou "Tel:" fica de fora.
+  const p = bruto.split(/\s+/).filter((x) => /^\p{L}[\p{L}'’.-]*$/u.test(x));
   if (!p.length) return 'Cliente';
   if (p.length === 1) return p[0];
   return `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`;
@@ -322,6 +323,12 @@ export function montarDashboard(bruto: DashboardBruto, q: Quem, chave: ChavePeri
 
 // ── Rota 2: negócio ──────────────────────────────────────────────────────────
 
+function dataReal(s: unknown): s is string {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(`${s}T00:00:00Z`);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+
 export interface VendaEletroposto { id: number; consultor: string; dia: string; valor: number | null; semRegistro: boolean }
 
 /** Venda de eletroposto = card `fechou` da família com o registro `pos_venda:<id>`
@@ -333,8 +340,9 @@ export function vendasEletroposto(cards: CardBruto[], registros: Map<number, unk
   for (const c of cards) {
     if (status(c.status) !== 'fechou' || familiaDe(c.created_by) !== 'eletroposto') continue;
     const reg = registros.get(c.id);
-    const r = (reg && typeof reg === 'object' ? reg : null) as { valor?: unknown; vendido_em?: unknown } | null;
-    const vendidoEm = typeof r?.vendido_em === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.vendido_em) ? r.vendido_em : '';
+    const r = (reg && typeof reg === 'object' && !Array.isArray(reg) ? reg : null) as { valor?: unknown; vendido_em?: unknown } | null;
+    // Data que não existe ("2026-13-45") cairia num mês que não existe e a venda sumiria da conta.
+    const vendidoEm = dataReal(r?.vendido_em) ? r.vendido_em : '';
     const valor = typeof r?.valor === 'number' && Number.isFinite(r.valor) && r.valor > 0 ? r.valor : null;
     out.push({
       id: c.id, consultor: String(c.vendedor_nome ?? ''), semRegistro: !r,
@@ -357,7 +365,8 @@ export function resumirTrafego(painel: PainelQuizSolar | null): TrafegoResumo {
   }
   const gasto = centavos(painel.porAnuncio.reduce((s, a) => s + (a.gasto || 0), 0));
   const agendados = painel.resultado.agendados;
-  return { rotulo, gasto, agendados, custoPorAgendado: agendados > 0 ? centavos(gasto / agendados) : null, meta_ok: true };
+  // Sem gasto não existe custo por agendamento: R$ 0,00 por horário seria mentira.
+  return { rotulo, gasto, agendados, custoPorAgendado: agendados > 0 && gasto > 0 ? centavos(gasto / agendados) : null, meta_ok: true };
 }
 
 export interface EntradaNegocio {
@@ -373,20 +382,20 @@ export interface EntradaNegocio {
   agora: Date;
 }
 
-interface Folha { qtd: number; valor?: number; semValor?: number; indisponivel?: true }
+interface Folha { qtd?: number; valor?: number; semValor?: number; indisponivel?: true }
 
 /** `valor` soma só as vendas que TÊM valor. Se nenhuma tem, a chave não sai: a
  *  tela escreve "sem valor registrado", nunca R$ 0,00. `semValor` diz quantas
  *  ficaram fora da soma. Sem venda nenhuma, zero é verdade e sai como zero.
- *  Fonte fora do ar não tem valor nenhum: só `indisponivel`. */
+ *  Fonte fora do ar não sabe nem a quantidade: sai SÓ `indisponivel`, sem zero nenhum. */
 function folha(itens: Array<{ valor: number | null }>, socio: boolean, indisponivel = false): Folha {
+  if (indisponivel) return { indisponivel: true };
   const f: Folha = { qtd: itens.length };
-  if (socio && !indisponivel) {
+  if (socio) {
     const comValor = itens.filter((i) => i.valor !== null);
     if (comValor.length || !itens.length) f.valor = centavos(comValor.reduce((s, i) => s + (i.valor as number), 0));
     if (comValor.length < itens.length) f.semValor = itens.length - comValor.length;
   }
-  if (indisponivel) f.indisponivel = true;
   return f;
 }
 
@@ -403,20 +412,22 @@ export function montarNegocio(e: EntradaNegocio) {
   const noPeriodo = <T extends { dia: string | null }>(xs: T[]) => xs.filter((x) => !!x.dia && x.dia >= periodo.de && x.dia <= periodo.ate);
   const doMes = <T extends { dia: string | null }>(xs: T[], m: string) => xs.filter((x) => !!x.dia && x.dia.slice(0, 7) === m);
   const semPlanilha = !obras;
+  // Sem o registro de pós-venda não se sabe o dia nem o valor da venda de eletroposto.
+  const semPosVenda = !e.posVendaOk;
 
   const vendas = {
     fonteSolar: 'Planilha Mestre',
     fonteEletroposto: 'Vendas marcadas no card',
     periodo: {
       solar: folha(noPeriodo(solar), q.socio, semPlanilha),
-      eletroposto: folha(noPeriodo(ep), q.socio),
+      eletroposto: folha(noPeriodo(ep), q.socio, semPosVenda),
     },
     porMes: meses.map((m) => ({
       mes: m,
       // A planilha recebe as vendas com atraso: o mês corrente nunca está fechado.
       parcial: m === hoje.slice(0, 7),
       solar: folha(doMes(solar, m), q.socio, semPlanilha),
-      eletroposto: folha(doMes(ep, m), q.socio),
+      eletroposto: folha(doMes(ep, m), q.socio, semPosVenda),
     })),
   };
 
@@ -428,24 +439,32 @@ export function montarNegocio(e: EntradaNegocio) {
       paradas15: andamento.filter((o) => (o.paradoHaDias ?? 0) >= 15).length,
       maiorParadaDias: andamento.reduce((m, o) => Math.max(m, o.paradoHaDias ?? 0), 0),
     }
-    : { emAndamento: 0, concluidas: 0, porEtapa: {}, paradas15: 0, maiorParadaDias: 0, indisponivel: true };
+    : { indisponivel: true };
 
   const corpo: Record<string, unknown> = {
     verTudo: q.socio, verDinheiro: q.socio, periodo, vendas,
   };
   if (q.socio) {
-    // O mesmo `resumirObras` da aba Obras: `vendas` = vendas não quitadas dela.
-    const comDinheiro = resumirObras(obras ?? [], true);
-    corpo.aReceber = obras
-      ? { valor: centavos(comDinheiro.aReceber ?? 0), vendas: comDinheiro.naoQuitadas }
-      : { indisponivel: true };
+    if (!obras) corpo.aReceber = { indisponivel: true };
+    else {
+      // O mesmo recorte e a mesma soma da aba Obras (`resumirObras`): só o "Não Quitado"
+      // tem saldo. Venda em aberto com o valor em branco na planilha não vira R$ 0:
+      // fica fora da soma e sai em `semValor`.
+      const abertas = obras.filter((o) => o.recebimento === 'nao_quitado');
+      const comValor = abertas.filter((o) => o.valores.venda > 0);
+      const r: { vendas: number; valor?: number; semValor?: number } = { vendas: abertas.length };
+      if (comValor.length || !abertas.length) r.valor = centavos(comValor.reduce((s, o) => s + o.valores.aReceber, 0));
+      if (comValor.length < abertas.length) r.semValor = abertas.length - comValor.length;
+      corpo.aReceber = r;
+    }
   }
   corpo.obras = blocoObras;
   if (q.socio) corpo.trafego = e.trafego ?? { rotulo: 'Últimos 30 dias', meta_ok: false };
   corpo.fontes = { planilha: !semPlanilha, posVenda: e.posVendaOk };
-  corpo.notas = {
-    vendasSemData: solar.filter((s) => !s.dia).length,
-    eletropostoSemRegistro: ep.filter((v) => v.semRegistro).length,
-  };
+  // Nota de fonte fora do ar não existe: zero ali diria "nenhuma", e a verdade é "não sei".
+  const notas: Record<string, number> = {};
+  if (!semPlanilha) notas.vendasSemData = solar.filter((s) => !s.dia).length;
+  if (!semPosVenda) notas.eletropostoSemRegistro = ep.filter((v) => v.semRegistro).length;
+  corpo.notas = notas;
   return corpo;
 }

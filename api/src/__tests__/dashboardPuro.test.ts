@@ -138,6 +138,12 @@ describe('agenda de hoje', () => {
     expect(nomeAbreviado('+55 (34) 99999-1234')).toBe('Cliente');
     expect(nomeAbreviado('Ana 34 99999-1234')).toBe('Cliente');
     expect(nomeAbreviado('Ana (mãe)')).toBe('Ana');
+    expect(nomeAbreviado('x123456')).toBe('Cliente');
+    expect(nomeAbreviado('Ana-12345')).toBe('Cliente');
+    expect(nomeAbreviado('Tel:99991 Maria')).toBe('Maria');
+    expect(nomeAbreviado('Ana99812 Souza')).toBe('Souza');
+    expect(nomeAbreviado('ana@x.com')).toBe('Cliente');
+    expect(nomeAbreviado("Maria D'Ávila Sá-Lima")).toBe('Maria S.');
     expect(nomeAbreviado('')).toBe('Cliente');
     expect(nomeAbreviado(null)).toBe('Cliente');
   });
@@ -328,9 +334,10 @@ describe('negócio', () => {
   it('planilha fora: solar e obras zerados e marcados', () => {
     const n = montarNegocio({ ...base, quem: Q_SOCIO, planilha: null }) as any;
     expect(n.fontes.planilha).toBe(false);
-    expect(n.obras).toMatchObject({ emAndamento: 0, indisponivel: true });
+    expect(n.obras).toEqual({ indisponivel: true });
     // Planilha fora não vira R$ 0: as chaves de valor nem saem.
-    expect(n.vendas.periodo.solar).toEqual({ qtd: 0, indisponivel: true });
+    expect(n.vendas.periodo.solar).toEqual({ indisponivel: true });
+    expect(n.notas.vendasSemData).toBeUndefined();
     expect(n.aReceber).toEqual({ indisponivel: true });
     expect(n.vendas.periodo.eletroposto.qtd).toBe(1);
   });

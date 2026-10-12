@@ -266,7 +266,7 @@ describe('GET /dashboard/negocio', () => {
     expect(res.body.fontes.planilha).toBe(false);
     expect(res.body.obras.indisponivel).toBe(true);
     expect(res.body.aReceber.indisponivel).toBe(true);
-    expect(res.body.vendas.periodo.solar).toMatchObject({ qtd: 0, indisponivel: true });
+    expect(res.body.vendas.periodo.solar).toEqual({ indisponivel: true });
     expect(res.body.vendas.periodo.eletroposto.qtd).toBe(2);
   });
 
@@ -296,7 +296,10 @@ describe('GET /dashboard/negocio', () => {
     const res = await neg('', THIAGO);
     expect(res.status).toBe(200);
     expect(res.body.fontes.posVenda).toBe(false);
-    expect(res.body.vendas.periodo.eletroposto).toEqual({ qtd: 2, semValor: 2 });
+    // Sem o registro não se sabe o dia nem o valor: nada de quantidade por mês, nada de R$ 0.
+    expect(res.body.vendas.periodo.eletroposto).toEqual({ indisponivel: true });
+    expect(res.body.vendas.porMes.every((m: any) => m.eletroposto.indisponivel === true && m.eletroposto.qtd === undefined)).toBe(true);
+    expect(res.body.notas.eletropostoSemRegistro).toBeUndefined();
   });
 
   it('banco fora: 502 curto', async () => {
