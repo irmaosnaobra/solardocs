@@ -28,7 +28,17 @@ const h = vi.hoisted(() => {
       estritas: [] as string[],
     },
     zap: { frio: [] as Array<{ tel: string; partes: string[] }>, humano: [] as Array<{ tel: string; partes: string[]; opts: any }>, equipe: [] as Array<{ tel: string; texto: string }>, erroNoFrio: false },
-    ia: { resposta: '', fila: [] as string[], chamadas: 0, sistema: '', pedido: '', pedidos: [] as string[], erro: false },
+    ia: {
+      resposta: '', fila: [] as string[], chamadas: 0, sistema: '', pedido: '', pedidos: [] as string[], erro: false,
+      /** stop_reason de cada chamada, em ordem; acabando a fila, vale 'end_turn'. */
+      paradas: [] as string[],
+      /** Os parâmetros de cada chamada ao modelo, como foram enviados. */
+      params: [] as Row[],
+      /** As opções de requisição de cada chamada (tempo limite, repetições). */
+      opcoes: [] as Row[],
+      /** Quantas das PRIMEIRAS chamadas estouram o tempo limite. */
+      estouros: 0,
+    },
     agenda: { livre: true, compromissos: [] as Row[] | null, fechados: new Set<string>() },
     card: { gravados: [] as Row[], erro: null as unknown, bloqueado: false, cardsDaLp: 0 },
     opt: [] as Array<{ tel: string; motivo: string; origem: string }>,
@@ -173,15 +183,18 @@ vi.mock('../services/agents/whatsapp/pausaHumana', () => ({
 vi.mock('../utils/anthropicClient', () => ({
   novoAnthropic: () => ({
     messages: {
-      create: vi.fn(async (p: any) => {
+      create: vi.fn(async (p: any, opcoes?: any) => {
         h.ia.chamadas++;
+        h.ia.opcoes.push(opcoes);
+        if (h.ia.estouros > 0) { h.ia.estouros--; h.ia.params.push(p); throw new Error('Request timed out.'); }
         h.ia.sistema = p.system;
         h.ia.pedido = p.messages[0].content;
         h.ia.pedidos.push(p.messages[0].content);
+        h.ia.params.push(p);
         if (h.ia.erro) throw new Error('IA fora do ar');
         // Com fila, cada chamada consome a próxima resposta; sem fila, a mesma sempre.
         const texto = h.ia.fila.length ? h.ia.fila.shift()! : h.ia.resposta;
-        return { stop_reason: 'end_turn', content: [{ type: 'text', text: texto }] };
+        return { stop_reason: h.ia.paradas.shift() ?? 'end_turn', content: [{ type: 'text', text: texto }] };
       }),
     },
   }),
@@ -212,7 +225,7 @@ vi.mock('../services/io/eletropostoCard', async (orig) => ({
 
 import {
   runInvestidorAberturaTick, runInvestidorRespostasTick, previaInvestidorAgente, definirChaveDesligar,
-  lerChaveDesligar, rodarInvestidorAgente, reivindicarRodada,
+  lerChaveDesligar, rodarInvestidorAgente, reivindicarRodada, sondarHelena,
   INV_SENT_PREFIX, INV_OFF_KEY, INV_DISJUNTOR_KEY, INV_LOCK_PREFIX, type SessaoInvestidor,
 } from '../services/io/investidorAgente';
 import * as T from '../services/io/investidorAgenteTextos';
@@ -250,6 +263,7 @@ beforeEach(() => {
   h.filtros.falha.clear(); h.filtros.estritas.length = 0;
   h.zap.frio.length = 0; h.zap.humano.length = 0; h.zap.equipe.length = 0; h.zap.erroNoFrio = false;
   Object.assign(h.ia, { resposta: '', chamadas: 0, sistema: '', pedido: '', erro: false }); h.ia.fila.length = 0; h.ia.pedidos.length = 0;
+  h.ia.paradas.length = 0; h.ia.params.length = 0; h.ia.opcoes.length = 0; h.ia.estouros = 0;
   Object.assign(h.agenda, { livre: true, compromissos: [] }); h.agenda.fechados.clear();
   Object.assign(h.card, { erro: null, bloqueado: false, cardsDaLp: 0 }); h.card.gravados.length = 0;
   h.opt.length = 0;
@@ -1260,6 +1274,349 @@ describe('nome que não é de pessoa, de ponta a ponta', () => {
     expect(h.ia.sistema).toContain('Primeiro nome: não informado');
     expect(h.ia.sistema).not.toContain('Eletro posto');
     expect(h.ia.pedido).not.toContain('Olá, Eletro');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RODADA DE 11/10/2026: cérebro, paradas do modelo, contexto e sonda
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('o cérebro: o que vai na chamada ao modelo', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+
+  it('principal: opus 5.5, esforço alto, 16000 tokens, formato JSON; sem thinking e sem tool_choice', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Certo.']);
+    await responder();
+    expect(h.ia.params).toHaveLength(1);
+    const p = h.ia.params[0]!;
+    expect(p.model).toBe('claude-opus-5-5');
+    expect(p.max_tokens).toBe(16000);
+    expect(p.output_config.effort).toBe('high');
+    expect(p.output_config.format.type).toBe('json_schema');
+    expect(p).not.toHaveProperty('thinking');
+    expect(p).not.toHaveProperty('tool_choice');
+    expect(p).not.toHaveProperty('tools');
+  });
+
+  it('a reserva continua sonnet 4.6, com 1500 tokens e sem formato forçado', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Certo.']);
+    h.ia.paradas.push('refusal');
+    await responder();
+    expect(h.ia.params.map(p => p.model)).toEqual(['claude-opus-5-5', 'claude-sonnet-4-6']);
+    expect(h.ia.params[1]!.max_tokens).toBe(1500);
+    expect(h.ia.params[1]).not.toHaveProperty('output_config');
+    expect(h.ia.params[1]).not.toHaveProperty('thinking');
+  });
+
+  it('a conversa aguenta 16 respostas antes de ir para gente', async () => {
+    sessao(ANA, { estagio: 'conversando', respostas: 15 });
+    chegou('5534999990001', 'E como funciona?');
+    ia('continuar', ['O Diego explica na reunião.']);
+    await responder();
+    expect(h.ia.chamadas).toBe(1);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'conversando', respostas: 16 });
+
+    chegou('5534999990001', 'Entendi', 1);
+    await responder();
+    expect(h.ia.chamadas).toBe(1);   // na 17ª não chama mais a IA
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'conversa_longa' });
+  });
+});
+
+describe('parada do modelo: refusal e max_tokens são falha do principal', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+
+  for (const parada of ['refusal', 'max_tokens']) {
+    it(`principal parou com ${parada}: a mesma pergunta vai para a reserva, e a resposta dela sai`, async () => {
+      sessao(ANA); chegou('5534999990001', 'Sim');
+      ia('continuar', ['Que bom, Ana.']);
+      h.ia.paradas.push(parada);
+      const r = await responder();
+      expect(h.ia.chamadas).toBe(2);
+      expect(h.ia.pedidos[1]).toBe(h.ia.pedidos[0]);
+      expect(r).toMatchObject({ respondidas: 1, erros: 0 });
+      expect(h.zap.humano.map(e => e.partes)).toEqual([['Que bom, Ana.']]);
+    });
+
+    it(`principal e reserva pararam com ${parada}: ninguém responde, vira humano`, async () => {
+      sessao(ANA); chegou('5534999990001', 'Sim');
+      ia('continuar', ['Que bom, Ana.']);
+      h.ia.paradas.push(parada, parada);
+      await responder();
+      expect(h.ia.chamadas).toBe(2);
+      expect(h.zap.humano).toHaveLength(0);
+      expect(h.zap.equipe).toHaveLength(2);
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'ia_falhou' });
+    });
+  }
+
+  it('JSON truncado do principal (formato inválido) também cai na reserva', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    h.ia.fila.push('{ "bolhas": ["Que bom', JSON.stringify({ bolhas: ['Que bom, Ana.'], acao: 'continuar', dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '' }, resumo: '' }));
+    await responder();
+    expect(h.ia.params.map(p => p.model)).toEqual(['claude-opus-5-5', 'claude-sonnet-4-6']);
+    expect(h.zap.humano.map(e => e.partes)).toEqual([['Que bom, Ana.']]);
+  });
+});
+
+describe('o contexto que a produção entrega à IA', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+
+  it('as respostas do formulário das DUAS tabelas, sem a nota, e a data de hoje', async () => {
+    h.banco.ger.eletroposto_parceria!.find(x => x.id === 1)!.prazo = 'Nos próximos 3 meses';
+    Object.assign(h.banco.ger.eletroposto_nota1!.find(x => x.id === 21)!, {
+      ficha: 'LP ELETROPOSTO · Investidor\nNOTA 1 · 5/11 pts (sem ponto próprio)\nPonto: Não tenho ideia de onde instalar\nComo pretende investir: Recurso próprio\nDecisor: Eu decido',
+    });
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Certo.']);
+    await responder();
+
+    const s = h.ia.sistema;
+    expect(s).toContain('O que ela JÁ RESPONDEU no formulário:');
+    expect(s).toContain('No cadastro de parceria (preencheu o formulário em 01/09/2026):');
+    expect(s).toContain('  Cidade: Uberlândia');
+    expect(s).toContain('  Quando pretende começar: Nos próximos 3 meses');
+    expect(s).toContain('Na página do eletroposto (preencheu o formulário em 20/09/2026):');
+    expect(s).toContain('  Ponto: Não tenho ideia de onde instalar');
+    expect(s).toContain('  Como pretende investir: Recurso próprio');
+    expect(s).toContain('  Decisor: Eu decido');
+    expect(s).toContain('você NÃO pergunta de novo');
+    expect(s).not.toMatch(/\bNOTA 1\b|5\/11 pts|LP ELETROPOSTO/);
+    // AGORA do teste: domingo 11/10/2026, 10:00 de Brasília.
+    expect(s).toContain('Agora são 10:00 de domingo, 11/10/2026, horário de Brasília.');
+    expect(s).toContain('Amanhã, segunda-feira, 12/10/2026, é feriado nacional: não tem atendimento.');
+    // E o histórico vai datado.
+    expect(h.ia.pedido).toMatch(/\[11\/10 09:00\] Nós: /);
+    expect(h.ia.pedido).toMatch(/\[11\/10 09:58\] Cliente: Sim/);
+  });
+
+  it('se a leitura do formulário falhar, ela responde assim mesmo, só sem esse bloco', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Certo.']);
+    h.falhaDeLeitura.add('eletroposto_parceria');
+    h.falhaDeLeitura.add('eletroposto_nota1');
+    expect(await responder()).toMatchObject({ respondidas: 1 });
+    expect(h.ia.sistema).not.toContain('JÁ RESPONDEU');
+  });
+});
+
+describe('sondarHelena: o mesmo miolo da produção, sem tocar em nada', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+  const ctx = {
+    nome: 'Carlos', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Thiago', oferta: [] as string[], dados: {},
+    formulario: [{ origem: 'nota1' as const, r: { ficha: 'LP ELETROPOSTO · Investidor\nNOTA 1 · 5/11 pts\nDecisor: Eu decido', created_at: '2026-09-18T15:00:00Z' } }],
+    agora: AGORA,
+  };
+  const hist = [{ from_me: true, texto: 'Oi, Carlos, tudo bem? Sou a Helena.', tipo: 'texto', momment: '2026-10-11T12:00:00.000Z' }];
+  const novas = [{ from_me: false, texto: 'Quanto rende isso por mês?', tipo: 'texto', momment: '2026-10-11T12:58:00.000Z' }];
+
+  it('devolve modelo, stop_reason, tempo, ação, bolhas, dados, resumo e violação', async () => {
+    ia('continuar', ['Os números quem mostra é o Thiago, na reunião.'], { valor_confirmado: 'Sim' }, 'Quer saber dos números.');
+    const r = await sondarHelena(ctx, hist, novas);
+    expect(r).toMatchObject({
+      modelo: 'claude-opus-5-5', stop_reason: 'end_turn', valido: true, acao: 'continuar',
+      bolhas: ['Os números quem mostra é o Thiago, na reunião.'], resumo: 'Quer saber dos números.', violacao: null, reescrita: null,
+    });
+    expect(r.dados.valor_confirmado).toBe('Sim');
+    expect(typeof r.ms).toBe('number');
+    // Montou o sistema e o pedido pelo caminho de produção.
+    expect(h.ia.sistema).toContain('  Decisor: Eu decido');
+    expect(h.ia.sistema).not.toMatch(/NOTA 1/);
+    expect(h.ia.pedido).toContain('[11/10 09:58] Cliente: Quanto rende isso por mês?');
+  });
+
+  it('passa pela trava de conteúdo com a reescrita, igual à produção', async () => {
+    const json = (bolhas: string[]) => JSON.stringify({ bolhas, acao: 'continuar', dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '' }, resumo: '' });
+    h.ia.fila.push(json(['Rende bem, você ganha uns 4 mil por mês.']), json(['Os números quem mostra é o Thiago, na reunião.']));
+    const r = await sondarHelena(ctx, hist, novas);
+    expect(h.ia.chamadas).toBe(2);
+    expect(r.bolhas).toEqual(['Os números quem mostra é o Thiago, na reunião.']);
+    expect(r.violacao).toBeNull();
+    expect(r.reescrita).toMatch(/rende/);
+  });
+
+  it('reescrita que insiste: devolve a violação (em produção nada sairia)', async () => {
+    ia('continuar', ['Se paga em 2 anos.']);
+    const r = await sondarHelena(ctx, hist, novas);
+    expect(r.violacao).toMatch(/se paga/);
+  });
+
+  it('reserva e parada aparecem no resultado', async () => {
+    ia('continuar', ['Certo.']);
+    h.ia.paradas.push('max_tokens');
+    const r = await sondarHelena(ctx, hist, novas);
+    expect(r).toMatchObject({ modelo: 'claude-sonnet-4-6', stop_reason: 'end_turn', valido: true });
+  });
+
+  it('não grava, não envia e não lê banco', async () => {
+    ia('continuar', ['Certo.']);
+    h.falhaDeLeitura.add('system_state'); h.falhaDeLeitura.add('wa_mensagens');
+    h.falhaDeLeitura.add('eletroposto_parceria'); h.falhaDeLeitura.add('eletroposto_nota1'); h.falhaDeLeitura.add('agendamentos');
+    const antes = JSON.stringify(h.banco);
+    const r = await sondarHelena(ctx, hist, novas);
+    expect(r.valido).toBe(true);
+    expect(JSON.stringify(h.banco)).toBe(antes);
+    expect(h.zap.frio).toHaveLength(0);
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.equipe).toHaveLength(0);
+    expect(h.atualizacoes).toHaveLength(0);
+  });
+});
+
+describe('ação adiar: "mais para frente eu vejo" não é desinteresse', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+
+  it('manda SÓ o texto fixo, guarda o resumo, vai para `adiado` e NÃO mexe no status do cadastro', async () => {
+    sessao(ANA, { estagio: 'conversando' });
+    chegou('5534999990001', 'Não, mês que vem eu te procuro');
+    ia('adiar', ['Tudo bem, até mês que vem!', 'Abraço.'], {}, 'Pediu para ser procurada mês que vem.');
+    const r = await responder();
+
+    // As bolhas do modelo são ignoradas: sai só o texto do redator.
+    expect(h.zap.humano.map(e => e.partes)).toEqual([[T.ADIADO[0]]]);
+    expect(JSON.stringify(h.zap.humano)).not.toContain('Abraço');
+    expect(r).toMatchObject({ respondidas: 1, passadas: 0 });
+
+    const s = sessaoDe(ANA);
+    expect(s).toMatchObject({ estagio: 'adiado', motivo: 'adiou', resumo: 'Pediu para ser procurada mês que vem.' });
+    expect(s.adiado_em).toBe(AGORA.toISOString());
+    // O cadastro fica como estava: nada de sem_interesse.
+    expect(h.atualizacoes.filter(a => a.patch.status === 'sem_interesse')).toHaveLength(0);
+    expect(h.banco.ger.eletroposto_parceria!.find(x => x.id === 1)!.status).toBe('novo');
+    // Não é opt-out.
+    expect(h.opt).toHaveLength(0);
+    // A equipe é avisada (ressalva da revisão): o Thiago e o Diego recebem o
+    // recado com o resumo, que traz a data nas palavras da pessoa.
+    expect(h.zap.equipe.map(e => e.tel)).toEqual(['34991360223', '34991360172']);
+    const recado = h.zap.equipe[0]!.texto;
+    expect(recado).toContain('PEDIU PARA SER PROCURADA DEPOIS');
+    expect(recado).toContain('*Resumo:* Pediu para ser procurada mês que vem.');
+    expect(recado).toContain('*Escreveu:* Não, mês que vem eu te procuro');
+    expect(recado).toContain('wa.me/5534999990001');
+    expect(recado).toContain('Se ela escrever de novo, a Helena responde.');
+    expect(recado).not.toContain('A partir daqui é com você');
+  });
+
+  it('a outra pessoa recebe a outra variação', async () => {
+    sessao(BRUNO, { estagio: 'conversando', telefone: '5534999990002', refs: [{ origem: 'parceria', id: 2 }] });
+    chegou('5534999990002', 'Agora não dá, depois eu vejo');
+    ia('adiar');
+    await responder();
+    expect(h.zap.humano[0]!.partes).toEqual([T.ADIADO[1]]);
+  });
+
+  it('adiado não recebe nada por conta própria: não volta para a fila da abertura', async () => {
+    sessao(ANA, { estagio: 'adiado', adiado_em: AGORA.toISOString() });
+    const p = await previaInvestidorAgente({ agora: LARGADA }) as Record<string, any>;
+    expect(p.primeiros.map((x: any) => x.nome)).not.toContain('Ana');
+    // E a prévia mostra o estágio.
+    expect(p.sessoes_por_estagio).toEqual({ adiado: 1 });
+  });
+
+  it('se a pessoa escrever de novo, a Helena responde normalmente e a sessão volta para `conversando`', async () => {
+    sessao(ANA, { estagio: 'adiado', adiado_em: new Date(AGORA.getTime() - 20 * 86_400_000).toISOString(), resumo: 'Pediu para ser procurada mês que vem.' });
+    chegou('5534999990001', 'Oi Helena, agora posso conversar');
+    ia('continuar', ['Que bom te ver de volta.', 'Posso te mandar os horários para conversar com o Diego?']);
+    const r = await responder();
+    expect(h.ia.chamadas).toBe(1);
+    expect(r).toMatchObject({ respondidas: 1 });
+    expect(sessaoDe(ANA).estagio).toBe('conversando');
+    // Voltar a conversar não marca o cadastro de novo.
+    expect(h.atualizacoes).toHaveLength(0);
+  });
+
+  it('passados 60 dias do adiamento a conversa não é mais dela', async () => {
+    sessao(ANA, { estagio: 'adiado', adiado_em: new Date(AGORA.getTime() - 61 * 86_400_000).toISOString() });
+    chegou('5534999990001', 'Oi');
+    ia('continuar', ['Certo.']);
+    expect(await responder()).toMatchObject({ motivo: 'sem_conversa_ativa' });
+    expect(h.ia.chamadas).toBe(0);
+  });
+});
+
+describe('nas ações finais sai SÓ o texto fixo, nunca a bolha do modelo', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+  const casos: Array<[string, readonly string[]]> = [
+    ['humano', T.PASSAGEM_PARA_O_CONSULTOR], ['adiar', T.ADIADO], ['sem_interesse', T.DESPEDIDA], ['parar', T.PAROU],
+  ];
+  for (const [acao, fixo] of casos) {
+    it(`${acao}: a bolha do modelo é ignorada`, async () => {
+      sessao(ANA, { estagio: 'conversando' });
+      chegou('5534999990001', 'mensagem qualquer do cliente');
+      ia(acao, ['BOLHA DO MODELO QUE NAO PODE SAIR', 'OUTRA BOLHA']);
+      await responder();
+      expect(h.zap.humano.map(e => e.partes)).toEqual([[fixo[0]]]);
+      expect(JSON.stringify(h.zap.humano)).not.toContain('BOLHA DO MODELO');
+    });
+  }
+
+  it('a trava de conteúdo não reescreve o que não vai sair: ação final com bolha proibida segue com o texto fixo', async () => {
+    sessao(ANA, { estagio: 'conversando' });
+    chegou('5534999990001', 'Não quero, obrigado');
+    ia('sem_interesse', ['Que pena, o retorno é ótimo.']);
+    await responder();
+    expect(h.ia.chamadas).toBe(1);
+    expect(h.zap.humano.map(e => e.partes)).toEqual([[T.DESPEDIDA[0]]]);
+  });
+});
+
+describe('tempo limite no modelo (ressalva da revisão)', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+
+  it('as duas chamadas, principal e reserva, vão com 45 s de limite e sem repetição automática', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Certo.']);
+    h.ia.paradas.push('refusal');   // força a reserva
+    await responder();
+    expect(h.ia.params.map(p => p.model)).toEqual(['claude-opus-5-5', 'claude-sonnet-4-6']);
+    expect(h.ia.opcoes).toEqual([{ timeout: 45_000, maxRetries: 0 }, { timeout: 45_000, maxRetries: 0 }]);
+  });
+
+  it('o principal estourou o tempo: é falha dele, a mesma pergunta vai para a reserva e a resposta sai', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Que bom, Ana.']);
+    h.ia.estouros = 1;
+    const r = await responder();
+    expect(h.ia.chamadas).toBe(2);
+    expect(h.ia.params.map(p => p.model)).toEqual(['claude-opus-5-5', 'claude-sonnet-4-6']);
+    expect(r).toMatchObject({ respondidas: 1, erros: 0 });
+    expect(h.zap.humano.map(e => e.partes)).toEqual([['Que bom, Ana.']]);
+  });
+
+  it('principal e reserva estouraram: ninguém responde, vira humano', async () => {
+    sessao(ANA); chegou('5534999990001', 'Sim');
+    ia('continuar', ['Que bom, Ana.']);
+    h.ia.estouros = 2;
+    await responder();
+    expect(h.ia.chamadas).toBe(2);   // sem repetição: uma tentativa em cada modelo
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.equipe).toHaveLength(2);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'ia_falhou' });
+  });
+});
+
+describe('a trava de formato de ponta a ponta', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+  const json = (bolhas: string[]) => JSON.stringify({ bolhas, acao: 'continuar', dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '' }, resumo: '' });
+
+  it('a IA disse "por vídeo": é barrada, reescreve, e sai só "reunião"', async () => {
+    sessao(ANA); chegou('5534999990001', 'Como vai ser essa reunião?');
+    h.ia.fila.push(json(['É por vídeo, o Diego manda o link.']), json(['É uma conversa com o Diego. Ele combina os detalhes com você pelo WhatsApp dele.']));
+    await responder();
+    expect(h.ia.chamadas).toBe(2);
+    expect(h.ia.pedidos[1]).toContain('falou do formato da reunião');
+    expect(h.zap.humano.map(e => e.partes)).toEqual([['É uma conversa com o Diego. Ele combina os detalhes com você pelo WhatsApp dele.']]);
+  });
+
+  it('insistiu no formato na reescrita: nada sai, vai para o consultor', async () => {
+    sessao(ANA); chegou('5534999990001', 'É presencial?');
+    ia('continuar', ['Não, é online.']);
+    await responder();
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.equipe).toHaveLength(2);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'resposta_barrada' });
   });
 });
 

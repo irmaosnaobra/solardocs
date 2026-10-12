@@ -29,7 +29,7 @@ import { chaveContato } from '../agents/whatsapp/silenciar';
 
 export const INV_SESSAO_PREFIX = 'inv_agente:';
 
-export type EstagioInvestidor = 'chamado' | 'conversando' | 'ofertou' | 'agendado' | 'sem_interesse' | 'humano';
+export type EstagioInvestidor = 'chamado' | 'conversando' | 'ofertou' | 'adiado' | 'agendado' | 'sem_interesse' | 'humano';
 
 /** Estágios em que a Helena ainda responde. */
 export const ESTAGIOS_ATIVOS: readonly EstagioInvestidor[] = ['chamado', 'conversando', 'ofertou'];
@@ -42,6 +42,14 @@ export const sessaoAtiva = (estagio: unknown): boolean =>
 
 /** Abertura sem resposta há mais que isto deixa de ser conversa da Helena. */
 export const CHAMADO_SEM_RESPOSTA_MS = 10 * 86_400_000;
+
+/**
+ * Quem ADIOU ("mês que vem eu te procuro") continua sendo conversa da Helena por
+ * este prazo, contado do adiamento: ela não manda mais nada por conta própria,
+ * mas se a pessoa escrever é ela quem responde, e não a recepção se
+ * apresentando do zero. Passado o prazo a posse acaba.
+ */
+export const ADIADO_VALE_MS = 60 * 86_400_000;
 
 /**
  * A conversa AINDA É DA HELENA? (puro: recebe o valor gravado e a hora)
@@ -57,9 +65,13 @@ export const CHAMADO_SEM_RESPOSTA_MS = 10 * 86_400_000;
  *     dias e escreve agora quase sempre fala de outra coisa.
  */
 export function sessaoEhDaHelena(valor: unknown, agora: number = Date.now()): boolean {
-  const v = (valor ?? {}) as { estagio?: unknown; aberto_em?: unknown; erro?: unknown };
-  if (!sessaoAtiva(v.estagio)) return false;
+  const v = (valor ?? {}) as { estagio?: unknown; aberto_em?: unknown; erro?: unknown; adiado_em?: unknown; atualizado_em?: unknown };
   if (v.erro) return false;
+  if (v.estagio === 'adiado') {
+    const adiou = Date.parse(String(v.adiado_em || v.atualizado_em || ''));
+    return Number.isFinite(adiou) && agora - adiou <= ADIADO_VALE_MS;
+  }
+  if (!sessaoAtiva(v.estagio)) return false;
   if (v.estagio === 'chamado') {
     const aberto = Date.parse(String(v.aberto_em || ''));
     if (Number.isFinite(aberto) && agora - aberto > CHAMADO_SEM_RESPOSTA_MS) return false;
@@ -70,7 +82,7 @@ export function sessaoEhDaHelena(valor: unknown, agora: number = Date.now()): bo
 /** A sessão segura os outros robôs? (puro: recebe o valor gravado e a hora) */
 export function sessaoSeguraOutrosRobos(valor: unknown, agora: number = Date.now()): boolean {
   const v = (valor ?? {}) as { estagio?: unknown; atualizado_em?: unknown; aberto_em?: unknown };
-  if (sessaoAtiva(v.estagio)) return sessaoEhDaHelena(valor, agora);
+  if (sessaoAtiva(v.estagio) || v.estagio === 'adiado') return sessaoEhDaHelena(valor, agora);
   if (v.estagio !== 'humano') return false;
   const quando = Date.parse(String(v.atualizado_em || v.aberto_em || ''));
   return Number.isFinite(quando) && agora - quando < POSSE_DEPOIS_DA_PASSAGEM_MS;

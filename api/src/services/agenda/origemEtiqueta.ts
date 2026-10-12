@@ -31,6 +31,18 @@ export function ehOrigemEletroposto(createdBy: unknown): boolean {
   return norm(createdBy).includes('eletroposto');
 }
 
+/**
+ * O card foi marcado pela Helena, a agente de investidores? (`agente_eletroposto`)
+ *
+ * Existe para as mensagens da agenda (confirmação, bom dia, 1h, 5 min, remarcado,
+ * reagendado): para este card elas dizem "reunião" sem dizer o formato, por ordem
+ * do dono em 11/10/2026 ("marca mas não mostre que é vídeo, tem gente que não
+ * gosta"). É igualdade exata, não família: só a origem dela muda de texto.
+ */
+export function ehCardDaHelena(createdBy: unknown): boolean {
+  return norm(createdBy) === 'agente_eletroposto';
+}
+
 // created_by que já sabemos mapear. Os dois intakes de solar pago (Meta Lead Ads
 // = `lead-meta`, e a LP com pixel = `lp_solar`) contam como Solar Tráfego.
 const MAPA: Record<string, string> = {

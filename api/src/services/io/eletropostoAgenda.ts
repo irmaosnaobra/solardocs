@@ -67,7 +67,7 @@ import { EQUIPE } from '../../routes/ioEletroposto';
  *  evita import cruzado entre dois modulos de agenda so por causa de uma const. */
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardDaHelena } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { EP_MUDO_PREFIX } from './eletropostoReagendaAuto';
 
@@ -390,6 +390,8 @@ const PODE_ATRASAR = 'a reunião de antes costuma esticar quando o cliente fecha
 export function bolhasConfirmacao(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
+  /** `created_by` do card. Só `agente_eletroposto` (Helena) muda o texto. */
+  origem?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
@@ -399,6 +401,18 @@ export function bolhasConfirmacao(
   // só o FORMATO: de 3 bolhas para UMA mensagem completa, por ordem dele, e
   // porque em 23/09 a linha bateu 82 mensagens em 2 horas contra as 37 numa hora
   // que a bloquearam em agosto.
+  // CARD DA HELENA (agente de investidores, 11/10/2026). Ordem do dono: "marca mas
+  // não mostre que é vídeo, tem gente que não gosta, cita que será uma reunião".
+  // Texto do redator, sem dizer o formato. Para qualquer outro card vale o texto
+  // de sempre, logo abaixo, sem mudar um caractere.
+  if (ehCardDaHelena(origem)) {
+    return [
+      `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos*. Sua reunião com o *${quem}* está confirmada: `
+      + `*${quandoPorExtenso(quandoIso)}* (Brasília). Na hora, ele te chama ${deOnde(quem, tel)}.\n\n`
+      + 'Responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco: '
+      + 'a procura está alta e o horário fica bloqueado.',
+    ];
+  }
   return [
     `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos*. Sua reunião com o *${quem}* está confirmada: `
     + `*${quandoPorExtenso(quandoIso)}* (Brasília). É por vídeo e o link chega ${deOnde(quem, tel)}.\n\n`
@@ -415,11 +429,24 @@ export function bolhasConfirmacao(
 export function bolhasManha(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
+  /** `created_by` do card. Só `agente_eletroposto` (Helena) muda o texto. */
+  origem?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
   // Mesmo conteúdo de 16/09 (sem o pedido de endereço), numa mensagem só.
+  // CARD DA HELENA (agente de investidores, 11/10/2026). Ordem do dono: "marca mas
+  // não mostre que é vídeo, tem gente que não gosta, cita que será uma reunião".
+  // Texto do redator, sem dizer o formato. Para qualquer outro card vale o texto
+  // de sempre, logo abaixo, sem mudar um caractere.
+  if (ehCardDaHelena(origem)) {
+    return [
+      `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, `
+      + `com o *${quem}*, e ele te chama no WhatsApp dele${tel ? `, *${tel}*` : ''}. `
+      + 'Se não der mais, me fala agora que eu remarco: a procura está alta e o horário fica bloqueado.',
+    ];
+  }
   return [
     `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, `
     + `com o *${quem}*, e o link chega no WhatsApp dele${tel ? `, *${tel}*` : ''}. `
@@ -455,10 +482,24 @@ export function bolhaDiario(
 export function bolhas1h(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
+  /** `created_by` do card. Só `agente_eletroposto` (Helena) muda o texto. */
+  origem?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
+  // CARD DA HELENA (agente de investidores, 11/10/2026). Ordem do dono: "marca mas
+  // não mostre que é vídeo, tem gente que não gosta, cita que será uma reunião".
+  // Texto do redator, sem dizer o formato. Para qualquer outro card vale o texto
+  // de sempre, logo abaixo, sem mudar um caractere.
+  if (ehCardDaHelena(origem)) {
+    return [
+      `Oi${comNome(n)}! Falta *1 hora*: sua reunião com o *${quem}* é às *${horaCurta(quandoIso)}*. `
+      + `Ele vai te chamar ${deOnde(quem, tel)}: salva o contato e fica de olho lá.\n\n`
+      + `Se ele atrasar uns minutos, segura aí: ${PODE_ATRASAR}. Se está de pé, responde *SIM*. `
+      + 'Se aconteceu um imprevisto, me avisa que eu remarco.',
+    ];
+  }
   return [
     `Oi${comNome(n)}! Falta *1 hora*: sua reunião com o *${quem}* é às *${horaCurta(quandoIso)}*, por vídeo. `
     + `O link cai ${deOnde(quem, tel)}, fica de olho lá e separa um canto com internet.\n\n`
@@ -471,10 +512,23 @@ export function bolhas1h(
 export function bolhas5min(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   telVendedor?: string | null,
+  /** `created_by` do card. Só `agente_eletroposto` (Helena) muda o texto. */
+  origem?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
+  // CARD DA HELENA (agente de investidores, 11/10/2026). Ordem do dono: "marca mas
+  // não mostre que é vídeo, tem gente que não gosta, cita que será uma reunião".
+  // Texto do redator, sem dizer o formato. Para qualquer outro card vale o texto
+  // de sempre, logo abaixo, sem mudar um caractere.
+  if (ehCardDaHelena(origem)) {
+    return [
+      `${n ? n + ', é' : 'É'} agora! Sua reunião começa às *${horaCurta(quandoIso)}* e o *${quem}* já está te esperando. `
+      + `Ele vai te chamar no WhatsApp dele${tel ? `, *${tel}*` : ''} a qualquer momento: salva o contato e fica de olho lá. `
+      + `Se demorar uns minutos, não desiste: ${PODE_ATRASAR}.`,
+    ];
+  }
   return [
     `${n ? n + ', é' : 'É'} agora! Sua reunião começa às *${horaCurta(quandoIso)}* e o *${quem}* já está te esperando. `
     + `O link cai no WhatsApp dele${tel ? `, *${tel}*` : ''} a qualquer momento: é só clicar e entrar. `
@@ -1352,7 +1406,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       // minutos. O de 5 min continua valendo: esse é o "entra agora".
       const campos = minutos <= MIN_1H.ate ? ['confirmacao_at', 'lembrete_1h_at'] : 'confirmacao_at';
       try {
-        await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), campos);
+        await entregar(ag, 'confirmacao', tel, bolhasConfirmacao(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor, ag.created_by), campos);
         confirmacoes++; toques++;
       } catch (e) {
         logger.error('ep-agenda', 'falha na confirmação', { id: ag.id, erro: String(e) });
@@ -1364,7 +1418,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // ── 5 minutos antes ──
     if (!ag.lembrete_5min_at && minutos <= MIN_5MIN.ate && minutos >= MIN_5MIN.de) {
       try {
-        await entregar(ag, '5min', tel, bolhas5min(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_5min_at');
+        await entregar(ag, '5min', tel, bolhas5min(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor, ag.created_by), 'lembrete_5min_at');
         l5min++; toques++;
       } catch (e) {
         logger.error('ep-agenda', 'falha no toque de 5min', { id: ag.id, erro: String(e) });
@@ -1376,7 +1430,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // ── 1 hora antes ──
     if (!ag.lembrete_1h_at && !ausente && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
       try {
-        await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_1h_at');
+        await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor, ag.created_by), 'lembrete_1h_at');
         l1h++; toques++;
       } catch (e) {
         logger.error('ep-agenda', 'falha no toque de 1h', { id: ag.id, erro: String(e) });
@@ -1405,7 +1459,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
         continue;
       }
       try {
-        await entregar(ag, 'manha', tel, bolhasManha(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), null);
+        await entregar(ag, 'manha', tel, bolhasManha(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor, ag.created_by), null);
         lManha++; toques++;
       } catch (e) {
         logger.error('ep-agenda', 'falha no bom dia', { id: ag.id, erro: String(e) });

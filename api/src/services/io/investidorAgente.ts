@@ -65,10 +65,10 @@ import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor } from './i
 import {
   antesDoInicio, janelaAberta, tetoDoDia, dataBrasilia, horaBrasiliaTexto, inicioDoDiaBrasiliaIso,
   montarFila, renderAbertura, textoDaAbertura, primeiroNome, horariosDaOferta, textoOferta, textoConfirmacao, horarioCurto,
-  textoPassagem, textoDespedida, textoParou, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
+  textoPassagem, textoDespedida, textoParou, textoAdiado, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
   montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila,
-  type SaidaHelena,
+  type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
 } from './investidorAgentePuro';
 
 const LOG = 'investidor-agente';
@@ -99,7 +99,7 @@ const RESPOSTA_VIVA_MS = 60 * 60_000;
 /** Conversas atendidas por chamada. */
 const POR_TICK = 3;
 /** Respostas da Helena por pessoa. Passou disso, é com gente. */
-const MAX_RESPOSTAS = 10;
+const MAX_RESPOSTAS = 16;
 /** Listas de horário por pessoa. Quem recusou três listas precisa de gente. */
 const MAX_OFERTAS = 3;
 /** Qualquer mensagem na linha nesta janela tira a pessoa da fila da abertura. */
@@ -108,8 +108,24 @@ const PAGINA = 1000;
 
 /** Modelo da conversa: as mesmas constantes da agente do quiz solar. O padrão é
  *  o Opus 5; se ele não responder, a mesma pergunta vai para o Sonnet 4.6. */
-const MODELO = (process.env.INVESTIDOR_AGENTE_MODELO || 'claude-opus-5').trim();
+const MODELO = (process.env.INVESTIDOR_AGENTE_MODELO || 'claude-opus-5-5').trim();
 const MODELO_RESERVA = 'claude-sonnet-4-6';
+
+/** Esforço de raciocínio do modelo principal (11/10/2026: o dono quer a Helena
+ *  entendendo contexto, então o padrão é alto). INVESTIDOR_AGENTE_ESFORCO aceita
+ *  só low, medium ou high; qualquer outra coisa cai no padrão. */
+type Esforco = 'low' | 'medium' | 'high';
+const ESFORCOS: readonly Esforco[] = ['low', 'medium', 'high'];
+const ESFORCO: Esforco = ESFORCOS.find(e => e === (process.env.INVESTIDOR_AGENTE_ESFORCO || '').trim().toLowerCase()) ?? 'high';
+/** O raciocínio conta neste limite: com pouco, a resposta trunca e o JSON sai inválido. */
+const MAX_TOKENS_PRINCIPAL = 16_000;
+/** Tempo limite de CADA chamada ao modelo, sem repetição automática do SDK
+ *  (ressalva da revisão de 11/10/2026). Sem isto uma chamada pendurada seguraria
+ *  a rodada inteira, e o SDK repetiria sozinho por baixo. Estourou no principal,
+ *  é falha dele e a pergunta vai para a reserva; estourou na reserva, `humano`. */
+const OPCOES_DA_CHAMADA = { timeout: 45_000, maxRetries: 0 } as const;
+/** Paradas do modelo que valem como falha: recusou, ou ficou sem espaço no meio. */
+const PARADAS_QUE_SAO_FALHA: ReadonlySet<string> = new Set(['refusal', 'max_tokens']);
 
 const desligadoPorEnv = (): boolean => (process.env.INVESTIDOR_AGENTE_OFF || '').trim() === '1';
 
@@ -142,6 +158,8 @@ export interface SessaoInvestidor {
   respostas: number;
   /** Leituras da conversa que falharam em seguida (a vez não é gasta nelas). */
   falhas_historico?: number;
+  /** Quando a pessoa pediu para ser procurada mais para frente (estágio `adiado`). */
+  adiado_em?: string | null;
   atualizado_em: string;
 }
 
@@ -574,22 +592,39 @@ function variantes(phone: string): string[] {
   return [...out];
 }
 
-/** Uma pergunta à IA. Recusa e qualquer falha viram saída inválida: na dúvida a
- *  agente cala e o consultor, que recebe o recado, assume. */
-async function perguntar(sistema: string, pedido: string): Promise<SaidaHelena> {
+interface RespostaDoModelo { saida: SaidaHelena; modelo: string; stop_reason: string | null }
+
+/**
+ * Uma pergunta à IA: o modelo principal e, se ele falhar, a reserva.
+ *
+ * Falha do principal é: erro na chamada, parada por recusa (`refusal`), parada
+ * por falta de espaço (`max_tokens`, que deixa o JSON pela metade) ou resposta
+ * que não é o JSON combinado. Nas quatro a mesma pergunta vai para a reserva. Se
+ * a reserva também falhar, a saída é inválida: a agente cala e o consultor, que
+ * recebe o recado, assume.
+ *
+ * O campo `thinking` NÃO é enviado (neste modelo ele é sempre ligado, e pedir
+ * para desligar devolve erro 400) e não há `tool_choice` forçado.
+ */
+async function perguntar(sistema: string, pedido: string): Promise<RespostaDoModelo> {
   const cliente = novoAnthropic();
   const textoDe = (r: Anthropic.Message) => r.content.map(b => (b.type === 'text' ? b.text : '')).join('');
   try {
     const r = await cliente.messages.create({
       model: MODELO,
-      max_tokens: 4000,
+      max_tokens: MAX_TOKENS_PRINCIPAL,
       system: sistema,
-      // Esforço baixo: é conversa de WhatsApp, a pessoa está esperando.
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA_SAIDA_HELENA } },
+      output_config: { effort: ESFORCO, format: { type: 'json_schema', schema: SCHEMA_SAIDA_HELENA } },
       messages: [{ role: 'user', content: pedido }],
-    });
-    if (r.stop_reason === 'refusal') return lerSaida('');
-    return lerSaida(textoDe(r));
+    }, OPCOES_DA_CHAMADA);
+    const parada = String(r.stop_reason ?? '');
+    if (PARADAS_QUE_SAO_FALHA.has(parada)) {
+      logger.warn(LOG, `${MODELO} parou com stop_reason=${parada}: tentando a reserva`);
+    } else {
+      const saida = lerSaida(textoDe(r));
+      if (saida.valido) return { saida, modelo: MODELO, stop_reason: r.stop_reason ?? null };
+      logger.warn(LOG, `${MODELO} devolveu algo fora do formato (stop_reason=${parada || 'vazio'}): tentando a reserva`);
+    }
   } catch (err) {
     logger.warn(LOG, `${MODELO} falhou, tentando a reserva`, { erro: String((err as Error)?.message || err).slice(0, 300) });
   }
@@ -599,18 +634,93 @@ async function perguntar(sistema: string, pedido: string): Promise<SaidaHelena> 
       max_tokens: 1500,
       system: sistema,
       messages: [{ role: 'user', content: pedido }],
-    });
-    if (r.stop_reason === 'refusal') return lerSaida('');
-    return lerSaida(textoDe(r));
+    }, OPCOES_DA_CHAMADA);
+    const parada = String(r.stop_reason ?? '');
+    if (PARADAS_QUE_SAO_FALHA.has(parada)) {
+      logger.error(LOG, `a reserva ${MODELO_RESERVA} parou com stop_reason=${parada}: a IA não respondeu`);
+      return { saida: lerSaida(''), modelo: MODELO_RESERVA, stop_reason: r.stop_reason ?? null };
+    }
+    return { saida: lerSaida(textoDe(r)), modelo: MODELO_RESERVA, stop_reason: r.stop_reason ?? null };
   } catch (err) {
     logger.error(LOG, 'a IA não respondeu', err);
-    return lerSaida('');
+    return { saida: lerSaida(''), modelo: MODELO_RESERVA, stop_reason: null };
   }
+}
+
+export interface Pensamento {
+  /** Quem deu a resposta que valeu: o principal ou a reserva. */
+  modelo: string;
+  stop_reason: string | null;
+  ms: number;
+  saida: SaidaHelena;
+  /** A resposta foi barrada pela trava de conteúdo, mesmo depois da reescrita. Com isto preenchido NADA sai para o cliente. */
+  violacao: string | null;
+  /** A primeira resposta foi barrada por isto, e a reescrita passou. */
+  reescrita: string | null;
+}
+
+/**
+ * O MIOLO DA CONVERSA, um só para a produção e para a sonda: pergunta ao modelo
+ * (principal, reserva), lê a saída e passa a trava de conteúdo. Resposta que
+ * promete rendimento, cita percentual, fala em cota ou põe site não sai: o
+ * modelo ganha UMA chance de reescrever sabendo qual regra quebrou.
+ *
+ * Não grava, não envia e não lê banco: só fala com a IA.
+ */
+async function pensar(sistema: string, pedido: string): Promise<Pensamento> {
+  const inicio = Date.now();
+  let r = await perguntar(sistema, pedido);
+  let violacao: string | null = null;
+  let reescrita: string | null = null;
+  if (r.saida.valido && r.saida.acao === 'continuar') {
+    const quebra = violaRegras(r.saida.bolhas);
+    if (quebra) {
+      logger.warn(LOG, `resposta da IA barrada (${quebra}): pedindo para reescrever`);
+      const segunda = await perguntar(sistema, pedidoDeReescrita(pedido, quebra, r.saida.bolhas));
+      const quebrouDeNovo = !segunda.saida.valido
+        ? 'a reescrita não veio no formato combinado'
+        : segunda.saida.acao === 'continuar' ? violaRegras(segunda.saida.bolhas) : null;
+      if (quebrouDeNovo) {
+        logger.warn(LOG, `a reescrita também foi barrada: ${quebrouDeNovo}`);
+        violacao = `${quebra}; na reescrita, ${quebrouDeNovo}`;
+      } else {
+        reescrita = quebra;
+        r = segunda;
+      }
+    }
+  }
+  return { modelo: r.modelo, stop_reason: r.stop_reason, ms: Date.now() - inicio, saida: r.saida, violacao, reescrita };
+}
+
+/**
+ * SONDA: o que a Helena responderia a esta conversa, pelo MESMO caminho da
+ * produção (montarSistema, montarPedido e o miolo `pensar`). Serve para provar o
+ * comportamento com o modelo de verdade sem tocar em cliente nenhum: não grava,
+ * não envia e não lê banco.
+ */
+export async function sondarHelena(
+  ctx: ContextoHelena, historico: readonly MsgDaConversa[], novas: readonly MsgDaConversa[],
+): Promise<{
+  modelo: string; stop_reason: string | null; ms: number; valido: boolean;
+  acao: SaidaHelena['acao']; bolhas: string[]; dados: DadosDaConversa; resumo: string;
+  violacao: string | null; reescrita: string | null;
+}> {
+  const p = await pensar(montarSistema(ctx), montarPedido(historico, novas));
+  return {
+    modelo: p.modelo, stop_reason: p.stop_reason, ms: p.ms, valido: p.saida.valido,
+    acao: p.saida.acao, bolhas: p.saida.bolhas, dados: p.saida.dados, resumo: p.saida.resumo,
+    violacao: p.violacao, reescrita: p.reescrita,
+  };
 }
 
 /** O recado no celular da equipe, do mesmo jeito que o eletropostoRespostas
  *  repassa: para o Thiago e para o Diego, com o nome de quem atende. */
-async function avisarEquipe(s: SessaoInvestidor, titulo: string, novas: readonly MsgDaConversa[], extra = ''): Promise<boolean> {
+const RODAPE_PASSOU = '_A Helena parou de responder nesta conversa. A partir daqui é com você._';
+const RODAPE_ADIOU = '_A Helena não vai mais chamar esta pessoa por conta própria. Se ela escrever de novo, a Helena responde. Se você for procurar, a data que ela pediu está no resumo._';
+
+async function avisarEquipe(
+  s: SessaoInvestidor, titulo: string, novas: readonly MsgDaConversa[], extra = '', rodape: string = RODAPE_PASSOU,
+): Promise<boolean> {
   const escreveu = novas.map(m => (m.texto || `[${m.tipo}]`)).join(' / ').slice(0, 600);
   const corpo = [
     `*HELENA (investidores) PASSOU PARA VOCÊ: ${titulo}*`,
@@ -622,7 +732,7 @@ async function avisarEquipe(s: SessaoInvestidor, titulo: string, novas: readonly
     escreveu ? `*Escreveu:* ${escreveu}` : '',
     extra,
   ].filter(Boolean);
-  const recado = [...corpo, '', '_A Helena parou de responder nesta conversa. A partir daqui é com você._'].join('\n');
+  const recado = [...corpo, '', rodape].join('\n');
   const envios = await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, recado, 'io')));
   const ok = envios.filter(e => e.status === 'fulfilled').length;
   if (!ok) logger.error(LOG, `recado à equipe não chegou em ninguém (final ${s.telefone.slice(-4)})`);
@@ -650,6 +760,30 @@ async function marcarCadastro(s: SessaoInvestidor, status: StatusCadastro): Prom
     const { error } = await q;
     if (error) logger.error(LOG, `marcar ${tabela} #${ref.id} como ${status} falhou`, error);
   }
+}
+
+/**
+ * As linhas de cadastro da pessoa, cruas, nas duas tabelas: é de onde a IA fica
+ * sabendo o que ela JÁ respondeu no formulário. Leitura por id, uma por linha.
+ * Se uma falhar, a conversa segue sem aquelas respostas (a IA pode acabar
+ * perguntando de novo, o que é pior, mas não é motivo para deixar a pessoa sem
+ * resposta).
+ */
+async function lerFormulario(s: SessaoInvestidor): Promise<FonteDoFormulario[]> {
+  const refs = s.refs?.length ? s.refs : [{ origem: s.origem, id: s.id }];
+  const fontes: FonteDoFormulario[] = [];
+  for (const ref of refs.slice(0, 4)) {
+    const tabela = TABELA_DO_CADASTRO[ref.origem];
+    if (!tabela) continue;
+    try {
+      const { data, error } = await supabaseGerador.from(tabela).select('*').eq('id', ref.id).maybeSingle();
+      if (error) throw error;
+      if (data) fontes.push({ origem: ref.origem, r: data as Record<string, unknown> });
+    } catch (err) {
+      logger.warn(LOG, `ler o formulário (${tabela} #${ref.id}) falhou: a IA segue sem essas respostas`, { erro: String((err as Error)?.message || err).slice(0, 200) });
+    }
+  }
+  return fontes;
 }
 
 /** Este telefone ganhou card na agenda por outra porta (LP, consultor)? */
@@ -843,6 +977,8 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
     await marcarCadastro(s, 'falando');
     s = { ...s, estagio: 'conversando' };
   }
+  // Quem tinha adiado e voltou a escrever: a conversa segue normalmente.
+  if (s.estagio === 'adiado') s = { ...s, estagio: 'conversando' };
 
   // Resposta velha demais (o relógio falhou por mais de uma hora), agente
   // desligada ou conversa longa demais: ninguém responde por robô, vai para gente.
@@ -908,9 +1044,18 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
     historico.sort((a, b) => (a.momment < b.momment ? -1 : a.momment > b.momment ? 1 : 0));
   }
 
-  const sistema = montarSistema({ nome: s.nome, valorTxt: s.valor_txt, cidade: s.cidade, consultor: s.consultor, oferta: s.estagio === 'ofertou' ? s.oferta : [], dados: s.dados ?? {} });
+  const sistema = montarSistema({
+    nome: s.nome, valorTxt: s.valor_txt, cidade: s.cidade, consultor: s.consultor,
+    oferta: s.estagio === 'ofertou' ? s.oferta : [], dados: s.dados ?? {},
+    // O que ela já respondeu no formulário e que dia é hoje: contexto que a IA
+    // precisa para não perguntar de novo e para entender "amanhã de manhã".
+    formulario: await lerFormulario(s), agora: new Date(),
+  });
   const pedido = montarPedido(historico, ctx.novas);
-  let saida = await perguntar(sistema, pedido);
+  // O mesmo miolo que a sonda usa (sondarHelena): principal, reserva, leitura da
+  // saída e trava de conteúdo com uma reescrita.
+  const pensamento = await pensar(sistema, pedido);
+  const saida = pensamento.saida;
 
   // IA falhou ou devolveu algo fora do combinado: não responde nada ao cliente,
   // avisa o consultor e a sessão vira `humano`.
@@ -920,26 +1065,13 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
     return;
   }
 
-  // TRAVA DE CONTEÚDO. Resposta que promete rendimento, cita percentual, fala em
-  // cota ou põe site não sai. O modelo ganha UMA chance de reescrever, sabendo
-  // qual regra quebrou; se quebrar de novo, a conversa vai para o consultor.
-  if (saida.acao === 'continuar') {
-    const quebra = violaRegras(saida.bolhas);
-    if (quebra) {
-      logger.warn(LOG, `resposta da IA barrada (${quebra}): pedindo para reescrever`);
-      const segunda = await perguntar(sistema, pedidoDeReescrita(pedido, quebra, saida.bolhas));
-      const quebrouDeNovo = !segunda.valido
-        ? 'a reescrita não veio no formato combinado'
-        : segunda.acao === 'continuar' ? violaRegras(segunda.bolhas) : null;
-      if (quebrouDeNovo) {
-        logger.warn(LOG, `a reescrita também foi barrada: ${quebrouDeNovo}`);
-        await passarParaHumano(s, ctx, 'resposta_barrada', 'RESPONDEU E A RESPOSTA DA IA FOI BARRADA', {
-          falarComOCliente: false, extra: `*Motivo:* ${quebra}; na reescrita, ${quebrouDeNovo}.`,
-        });
-        return;
-      }
-      saida = segunda;
-    }
+  // TRAVA DE CONTEÚDO (dentro do miolo): a resposta foi barrada e a reescrita
+  // também. Nada sai para o cliente; a conversa vai para o consultor.
+  if (pensamento.violacao) {
+    await passarParaHumano(s, ctx, 'resposta_barrada', 'RESPONDEU E A RESPOSTA DA IA FOI BARRADA', {
+      falarComOCliente: false, extra: `*Motivo:* ${pensamento.violacao}.`,
+    });
+    return;
   }
   s = { ...s, dados: juntarDados(s.dados, saida.dados), resumo: saida.resumo || s.resumo };
 
@@ -965,6 +1097,31 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
   }
   if (saida.acao === 'humano') {
     await passarParaHumano(s, ctx, 'pediu_humano', 'QUER FALAR COM VOCÊ', { falarComOCliente: true });
+    return;
+  }
+  if (saida.acao === 'adiar') {
+    // "Mais para frente eu vejo": NÃO é desinteresse. A sessão vai para `adiado`
+    // com o resumo guardado (é nele que a IA anotou quando a pessoa quer ser
+    // procurada) e o cadastro fica com o status que tinha.
+    // Daqui em diante a Helena não manda nada por conta própria; se a pessoa
+    // escrever de novo em até 60 dias, é ela quem responde.
+    const adiada: SessaoInvestidor = {
+      ...s, estagio: 'adiado', motivo: 'adiou', adiado_em: new Date().toISOString(), ate: ctx.ultima,
+      respostas: (s.respostas ?? 0) + 1,
+    };
+    await gravarSessao(ctx.chave, adiada);
+    // A equipe fica sabendo (ressalva da revisão de 11/10/2026): o mesmo recado
+    // do `humano`, com o resumo, que traz a data nas palavras da pessoa. Sem isso
+    // "mês que vem eu te procuro" ficava guardado onde ninguém olha.
+    await avisarEquipe(adiada, 'PEDIU PARA SER PROCURADA DEPOIS', ctx.novas, '', RODAPE_ADIOU)
+      .catch(e => logger.error(LOG, 'o recado do adiamento não saiu', e));
+    try {
+      await sendHuman(s.telefone, [textoAdiado(ctx.chave)], 'io', { maxBolhas: 2 });
+      ctx.res.respondidas++;
+    } catch (e) {
+      ctx.res.erros++;
+      logger.error(LOG, 'a confirmação do adiamento não saiu', { erro: String(e) });
+    }
     return;
   }
   if (saida.acao === 'sem_interesse') {

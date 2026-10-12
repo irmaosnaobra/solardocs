@@ -175,3 +175,34 @@ describe('chavesDaHelena (a pergunta de quem está num laço)', () => {
     expect(await chavesDaHelena()).toBeNull();
   });
 });
+
+describe('quem adiou continua sendo da Helena por 60 dias', () => {
+  const haDias = (d: number) => new Date(AGORA - d * 86_400_000).toISOString();
+
+  it('adiado há pouco: se a pessoa escrever, quem responde é a Helena, e a recepção cala', () => {
+    const v = { estagio: 'adiado', aberto_em: haDias(40), adiado_em: haDias(20) };
+    expect(sessaoEhDaHelena(v, AGORA)).toBe(true);
+    expect(sessaoSeguraOutrosRobos(v, AGORA)).toBe(true);
+  });
+
+  it('o prazo conta do ADIAMENTO, não da abertura, e acaba em 60 dias', () => {
+    expect(sessaoEhDaHelena({ estagio: 'adiado', aberto_em: haDias(100), adiado_em: haDias(59) }, AGORA)).toBe(true);
+    expect(sessaoEhDaHelena({ estagio: 'adiado', aberto_em: haDias(100), adiado_em: haDias(61) }, AGORA)).toBe(false);
+    expect(sessaoSeguraOutrosRobos({ estagio: 'adiado', adiado_em: haDias(61) }, AGORA)).toBe(false);
+  });
+
+  it('sem data nenhuma do adiamento a posse não vale', () => {
+    expect(sessaoEhDaHelena({ estagio: 'adiado' }, AGORA)).toBe(false);
+  });
+
+  it('as duas perguntas concordam', async () => {
+    banco.linhas = [
+      sessao('3499990001', { estagio: 'adiado', adiado_em: haDias(5) }),
+      sessao('3499990002', { estagio: 'adiado', adiado_em: haDias(70) }),
+    ];
+    expect(await investidorAtende('5534999990001')).toBe(true);
+    expect(await investidorAtende('5534999990002')).toBe(false);
+    expect([...(await chavesDaHelena())!]).toEqual(['3499990001']);
+  });
+});
+

@@ -20,9 +20,10 @@ import { chaveContato } from '../agents/whatsapp/silenciar';
 import { dentroDaJanelaDiurna } from '../agents/whatsapp/lineThrottle';
 import { agruparPorDestino, destinoDe, valorEmMil, type LinhaOrigem } from './eletropostoPares';
 import { agendaAbre, diaBRT, horasDoDia, livrePara, type Compromisso } from './eletropostoVagas';
+import { ehFeriadoBR } from '../../utils/feriadosBR';
 import {
   ABERTURAS, ABERTURA_SEM_NOME, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
-  NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, HORARIO_FOI_OCUPADO,
+  NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO,
 } from './investidorAgenteTextos';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -212,6 +213,7 @@ export function renderAbertura(chave: string, nome: unknown, valorTxt: unknown):
 export const textoPassagem = (chave: string): string => variacao(PASSAGEM_PARA_O_CONSULTOR, chave);
 export const textoDespedida = (chave: string): string => variacao(DESPEDIDA, chave);
 export const textoParou = (chave: string): string => variacao(PAROU, chave);
+export const textoAdiado = (chave: string): string => variacao(ADIADO, chave);
 export const textoNaoEntendi = (chave: string): string => variacao(NAO_ENTENDI_O_NUMERO, chave);
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -528,7 +530,7 @@ export interface DadosDaConversa {
 /** Texto livre numa linha só, sem os caracteres que o banco usa como marcador
  *  (o ponto médio e o travessão separam o perfil e a nota na leitura do trigger). */
 const umaLinha = (s: unknown, max = 200): string =>
-  String(s ?? '').replace(/[\r\n]+/g, ' ').replace(/[·—–]/g, ',').replace(/\s+/g, ' ').trim().slice(0, max);
+  String(s ?? '').replace(/[\r\n]+/g, ' ').replace(/\s*[·—–]\s*/g, ', ').replace(/\s+/g, ' ').trim().slice(0, max);
 
 /**
  * "Como pretende investir" só entra quando o que a pessoa disse cabe numa das
@@ -610,8 +612,8 @@ export function montarObservacao(c: DadosDoCard): string {
 // IA: o que vai e o que volta
 // ═════════════════════════════════════════════════════════════════════════════
 
-export type AcaoHelena = 'continuar' | 'oferecer_horarios' | 'humano' | 'sem_interesse' | 'parar';
-export const ACOES_HELENA: readonly AcaoHelena[] = ['continuar', 'oferecer_horarios', 'humano', 'sem_interesse', 'parar'];
+export type AcaoHelena = 'continuar' | 'oferecer_horarios' | 'adiar' | 'humano' | 'sem_interesse' | 'parar';
+export const ACOES_HELENA: readonly AcaoHelena[] = ['continuar', 'oferecer_horarios', 'adiar', 'humano', 'sem_interesse', 'parar'];
 
 export interface ContextoHelena {
   nome: string | null;
@@ -621,6 +623,160 @@ export interface ContextoHelena {
   /** Os horários já enviados, quando a pessoa está escolhendo. */
   oferta: readonly string[];
   dados: DadosDaConversa;
+  /** As linhas de cadastro da pessoa, cruas: o que ela JÁ respondeu no formulário. */
+  formulario?: readonly FonteDoFormulario[];
+  /** A hora de agora, para a IA saber que dia é hoje e amanhã. */
+  agora?: Date;
+}
+
+// ── O QUE A PESSOA JÁ RESPONDEU NO FORMULÁRIO (11/10/2026) ───────────────────
+// Ordem do dono: a Helena tem que entender contexto. Quem preencheu a página já
+// disse se tem local, como pretende pagar e quem decide; perguntar de novo é
+// dizer na cara que ninguém leu. Estas respostas entram nos fatos do sistema.
+//
+// O QUE NÃO ENTRA: o cabeçalho da ficha ("LP ELETROPOSTO ...") e qualquer linha
+// de NOTA ou pontuação. Nota é régua interna, e régua interna não pode chegar
+// perto de texto que vai para cliente. Também ficam de fora as contas do
+// simulador (investimento estimado, payback, lucro): a Helena não fala número.
+
+export interface FonteDoFormulario { origem: 'parceria' | 'nota1'; r: Record<string, unknown> }
+
+/** Teto do bloco inteiro nos fatos do sistema. */
+export const TETO_DO_FORMULARIO = 1500;
+
+const COLUNAS_DO_CADASTRO: ReadonlyArray<[string, string]> = [
+  ['cidade', 'Cidade'],
+  ['lado', 'Entrou pelo cadastro de'],
+  ['capital_faixa', 'Quanto pretende investir'],
+  ['prazo', 'Quando pretende começar'],
+  ['ponto_relacao', 'Local é seu'],
+  ['ponto_tipo', 'Tipo de local'],
+  ['ponto_endereco', 'Endereço do local'],
+  ['ponto_vagas', 'Vagas disponíveis'],
+  ['ponto_fluxo', 'Movimento do local'],
+  ['ponto_energia', 'Entrada de energia'],
+];
+const LADO_POR_EXTENSO: Record<string, string> = {
+  capital: 'investidor (quer investir)',
+  ponto: 'dono de local (tem um ponto)',
+};
+/** Linha da ficha que é nota interna, e por isso não entra. */
+const RE_LINHA_INTERNA = /\bnota\b|\bpts\b|\d\s*\/\s*11\b|pontua/i;
+/** Rótulo de conta do simulador (a resposta "Financiamento · empresa com CNPJ e
+ *  faturamento" é resposta da pessoa e fica: por isso o teste é só no RÓTULO). */
+const RE_ROTULO_DE_CONTA = /investimento estimado|payback|lucro|faturamento|simul/i;
+const RE_ROTULO_E_RESPOSTA = /^([^:]{2,45}):\s*(\S.*)$/;
+
+/**
+ * LISTA DE PERMISSÃO dos rótulos da ficha (ressalva da revisão de 11/10/2026).
+ * Só entra na conversa o que a página do eletroposto realmente pergunta à pessoa
+ * (dashboard/public/io/eletroposto/index.html). Rótulo que não está aqui fica de
+ * fora, mesmo que pareça inofensivo: a ficha é texto livre montado por código
+ * que muda, e o que é novo ali pode ser nota interna com cara de resposta.
+ * Comparação sem acento e em minúsculo.
+ *
+ * De fora de propósito, embora a página escreva: "Investimento estimado" (conta
+ * do simulador), "Instalação", "Potência", "Unidades", "Software e app", "Outro"
+ * e "Para onde vai" (são da porta de compra de carregador e de uso interno).
+ */
+const ROTULOS_DA_FICHA: ReadonlySet<string> = new Set([
+  'local e seu', 'ponto', 'como pretende investir', 'quanto pretende investir', 'decisor',
+  'entrada trifasica', 'cidade', 'modelo de interesse', 'vagas disponiveis',
+  'endereco', 'endereco em negociacao', 'rota de passagem', 'prazo',
+]);
+
+/** As linhas "Rótulo: resposta" de uma ficha da página: só os rótulos da lista de
+ *  permissão, sem cabeçalho e sem nota. */
+export function respostasDaFicha(ficha: unknown): string[] {
+  const out: string[] = [];
+  for (const bruta of String(ficha ?? '').split(/\r?\n/)) {
+    const linha = bruta.trim();
+    if (!linha || /^LP ELETROPOSTO/i.test(linha) || RE_LINHA_INTERNA.test(linha)) continue;
+    const m = RE_ROTULO_E_RESPOSTA.exec(linha);
+    if (!m) continue;   // marcador solto, sem "Rótulo: resposta"
+    if (RE_ROTULO_DE_CONTA.test(m[1]!)) continue;
+    if (!ROTULOS_DA_FICHA.has(semAcento(m[1]).replace(/\s+/g, ' ').trim())) continue;
+    out.push(`${m[1]!.trim()}: ${umaLinha(m[2], 160)}`);
+  }
+  return out;
+}
+
+/**
+ * O bloco "o que ela já respondeu", pronto para os fatos do sistema. Junta as
+ * duas fontes quando a pessoa está nas duas tabelas, sem repetir a mesma
+ * resposta, e para em 1.500 caracteres. Sem resposta nenhuma devolve lista vazia.
+ */
+export function fatosDoFormulario(fontes: readonly FonteDoFormulario[] | undefined): string[] {
+  const linhas: string[] = [];
+  const vistas = new Set<string>();
+  let tamanho = 0;
+  const cabe = (l: string): boolean => {
+    if (tamanho + l.length + 1 > TETO_DO_FORMULARIO) return false;
+    linhas.push(l); tamanho += l.length + 1;
+    return true;
+  };
+  for (const f of fontes ?? []) {
+    const respostas: string[] = [];
+    if (f.origem === 'nota1') {
+      respostas.push(...respostasDaFicha(f.r.ficha));
+      const cidade = umaLinha(f.r.cidade, 80);
+      if (cidade) respostas.push(`Cidade: ${cidade}`);
+      const valor = umaLinha(f.r.valor_investir, 80);
+      if (valor) respostas.push(`Quanto pretende investir: ${valor}`);
+    } else {
+      for (const [coluna, rotulo] of COLUNAS_DO_CADASTRO) {
+        const bruto = umaLinha(f.r[coluna], 160);
+        if (!bruto) continue;
+        respostas.push(`${rotulo}: ${coluna === 'lado' ? (LADO_POR_EXTENSO[bruto] ?? bruto) : bruto}`);
+      }
+    }
+    const novas = respostas.filter(r => {
+      const k = semAcento(r).replace(/\s+/g, ' ');
+      if (vistas.has(k)) return false;
+      vistas.add(k);
+      return true;
+    });
+    if (!novas.length) continue;
+    const data = dataCurtaBrasilia(f.r.created_at);
+    const quando = data === 'sem data' ? '' : ` (preencheu o formulário em ${data})`;
+    const titulo = f.origem === 'nota1' ? `Na página do eletroposto${quando}:` : `No cadastro de parceria${quando}:`;
+    if (!cabe(titulo)) break;
+    let estourou = false;
+    for (const r of novas) if (!cabe(`  ${r}`)) { estourou = true; break; }
+    if (estourou) break;
+  }
+  return linhas;
+}
+
+// ── QUE DIA É HOJE ───────────────────────────────────────────────────────────
+// Sem isto "amanhã de manhã" não quer dizer nada para o modelo, e ele não sabe
+// que amanhã é domingo ou feriado. A régua é a da casa: feriadosBR e agendaAbre.
+
+const SEMANA_POR_EXTENSO = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+
+/** Os fatos de calendário: hoje, amanhã, e quando o consultor atende. */
+export function fatosDeHoje(agora: Date): string[] {
+  const hoje = noFusoDeBrasilia(agora);
+  const maisDias = (n: number): Date => new Date(hoje.getTime() + n * 86_400_000);
+  const ymd = (d: Date): string => d.toISOString().slice(0, 10);
+  const dia = (d: Date): string => `${SEMANA_POR_EXTENSO[d.getUTCDay()]}, ${p2(d.getUTCDate())}/${p2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+  const situacao = (d: Date): string => {
+    if (ehFeriadoBR(ymd(d))) return 'é feriado nacional: não tem atendimento';
+    if (d.getUTCDay() === 0) return 'é domingo: não tem atendimento';
+    if (d.getUTCDay() === 6) return 'é sábado: não tem atendimento';
+    if (!agendaAbre(ymd(d))) return 'está com a agenda fechada: não tem atendimento';
+    return 'é dia útil: tem atendimento';
+  };
+  let proximo: Date | null = null;
+  for (let i = 1; i <= 14 && !proximo; i++) if (agendaAbre(ymd(maisDias(i)))) proximo = maisDias(i);
+  return [
+    `Agora são ${p2(hoje.getUTCHours())}:${p2(hoje.getUTCMinutes())} de ${dia(hoje)}, horário de Brasília.`,
+    `Hoje ${situacao(hoje)}.`,
+    `Amanhã, ${dia(maisDias(1))}, ${situacao(maisDias(1))}.`,
+    'O consultor atende de segunda a sexta-feira, menos em feriado. Sábado e domingo não tem reunião.',
+    ...(proximo ? [`O próximo dia com atendimento é ${dia(proximo)}.`] : []),
+    'O dia e a hora exatos saem na lista que o sistema envia: você não promete nem confirma horário por conta própria.',
+  ];
 }
 
 /** O "sistema" da conversa: as regras do redator, os fatos desta pessoa e o
@@ -633,11 +789,17 @@ export function montarSistema(ctx: ContextoHelena): string {
     ctx.dados.tem_ponto ? `Ponto: ${ctx.dados.tem_ponto}` : '',
     ctx.dados.cidade ? `Cidade: ${ctx.dados.cidade}` : '',
   ].filter(Boolean);
+  const doFormulario = fatosDoFormulario(ctx.formulario);
   const fatos = [
     `Primeiro nome: ${primeiroNome(ctx.nome) || 'não informado'}`,
     `Valor que ela marcou no formulário: ${ctx.valorTxt}`,
     `Cidade no cadastro: ${ctx.cidade || 'não informada'}`,
     `Consultor que vai atender: ${ctx.consultor}`,
+    ...(doFormulario.length ? [
+      'O que ela JÁ RESPONDEU no formulário:',
+      ...doFormulario,
+      'O que já está respondido aqui você NÃO pergunta de novo. Confirme em uma frase se for útil e siga para o que falta.',
+    ] : []),
     ...(sabido.length ? ['O que a conversa já descobriu:', ...sabido.map(s => `  ${s}`)] : []),
     ...(ctx.oferta.length ? [
       'Você já enviou esta lista de horários e a pessoa ainda não escolheu:',
@@ -652,16 +814,18 @@ export function montarSistema(ctx: ContextoHelena): string {
     'O QUE VOCÊ SABE DESTA PESSOA',
     fatos,
     '',
+    ...(ctx.agora ? ['QUE DIA É HOJE', ...fatosDeHoje(ctx.agora), 'Cada linha da conversa traz a data e a hora em que foi escrita. Mensagem de dias atrás é conversa antiga, não é o assunto de agora.', ''] : []),
     'COMO DEVOLVER A RESPOSTA',
     'Devolva só um JSON com os campos "bolhas", "acao", "dados" e "resumo".',
     '"bolhas": lista com 0, 1 ou 2 mensagens curtas, na ordem em que saem. Lista vazia quando não há o que responder.',
     '"acao", escolha uma:',
     '- "continuar": a conversa segue. O que estiver em "bolhas" é enviado.',
     '- "oferecer_horarios": a pessoa aceitou receber os horários, ou pediu outros. O sistema envia a lista.',
+    '- "adiar": ela quer ser procurada mais para frente ("mês que vem eu te procuro"). O sistema confirma que anotou e não cobra mais. Diga no resumo quando ela pediu para ser procurada.',
     '- "humano": pediu para falar com uma pessoa, reclamou, ou o assunto não é com você. O sistema envia a mensagem de passagem e avisa o consultor.',
     '- "sem_interesse": disse que não tem interesse ou que desistiu. O sistema envia a despedida.',
     '- "parar": pediu para não receber mais mensagem. O sistema confirma e não escreve mais.',
-    'Em "oferecer_horarios", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado.',
+    'Em "oferecer_horarios", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado.',
     '"dados": o que a pessoa já disse, em texto curto, com os campos "valor_confirmado", "pagamento", "tem_ponto" e "cidade". Campo que você não sabe fica vazio.',
     '"resumo": até 3 frases curtas para o consultor, dizendo o que a pessoa quer e o que já contou.',
     'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".',
@@ -672,10 +836,21 @@ export interface MsgDaConversa { from_me: boolean | null; texto: string | null; 
 
 /** A conversa no 5040, mais antiga primeiro, e as mensagens novas que pedem resposta. */
 export function montarPedido(historico: readonly MsgDaConversa[], novas: readonly MsgDaConversa[]): string {
+  // Cada linha leva a data e a hora de Brasília na frente: "[18/09 14:32] Nós: ...".
+  // Sem isso uma mensagem de outro robô, de três semanas atrás, parecia ter sido
+  // dita agora. Data que não dá para ler fica sem carimbo, em vez de inventada.
+  const carimbo = (iso: string): string => {
+    // Só carimbo de verdade (ISO): o Date.parse aceita "3" e devolve março de 2001.
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(String(iso ?? ''))) return '';
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return '';
+    const d = new Date(t - TRES_HORAS_MS);
+    return `[${p2(d.getUTCDate())}/${p2(d.getUTCMonth() + 1)} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}] `;
+  };
   const linha = (m: MsgDaConversa): string => {
     const quem = m.from_me ? 'Nós' : 'Cliente';
     const conteudo = (m.texto || '').trim() || (m.tipo && m.tipo !== 'texto' ? `[${m.tipo}]` : '');
-    return conteudo ? `${quem}: ${conteudo.slice(0, 1200)}` : '';
+    return conteudo ? `${carimbo(m.momment)}${quem}: ${conteudo.slice(0, 1200)}` : '';
   };
   const conversa = historico.map(linha).filter(Boolean).join('\n');
   const ultimas = novas.map(linha).filter(Boolean).join('\n');
@@ -781,9 +956,23 @@ export function violaRegras(bolhas: readonly string[]): string | null {
   // "cotacao", que não é "cota").
   const t = semAcento(bolhas.join(' '));
   if (/\bcot(?:a|ista)s?\b/.test(t)) return 'falou em cota';
-  const promessa = /\b(retornos?|rendimentos?|rentabilidade|rentav\w*|lucros?|lucrativ\w*|payback|garant\w*|juros?)\b|\bpor cento\b/.exec(t);
+  // "rend" pega rende, rendendo, rendimento e renda; "se paga" é prazo de retorno
+  // dito de outro jeito (ressalva da revisão de 11/10/2026).
+  const promessa = /\b(retornos?|rend\w*|rentabilidade|rentav\w*|lucros?|lucrativ\w*|payback|garant\w*|juros?)\b|\bpor cento\b|\bse pagam?\b/.exec(t);
   if (promessa) return `usou a palavra "${promessa[0]}"`;
+  // "ganhar" sozinho é conversa ("você ganha tempo"); com número ou "por mês" na
+  // mesma frase é promessa de ganho.
+  for (const frase of t.split(/[.!?]+/)) {
+    if (/\bganh\w*/.test(frase) && (/\d/.test(frase) || /\bpor mes\b/.test(frase))) return 'falou em ganho com número ou por mês';
+  }
   if (/\d\s*%/.test(t)) return 'citou percentual';
+  // O FORMATO da reunião (11/10/2026, ordem do dono: "não mostre que é vídeo, tem
+  // gente que não gosta, cita que será uma reunião"). Ela diz "reunião" ou
+  // "conversa com o consultor" e nada além. Celular, computador e telefone NÃO
+  // entram aqui de propósito: são palavras de conversa comum e dariam falso
+  // positivo; ficam só na instrução do prompt.
+  const formato = /\b(videos?|videochamadas?|chamadas? de video|links?|on-?line|meet|zoom|presencia\w*)\b|\bsem instalar\b/.exec(t);
+  if (formato) return `falou do formato da reunião ("${formato[0]}")`;
   if (/https?:\/\/|www\./.test(t)) return 'colocou link';
   // Domínio solto, sem http: "solardoc.app/x", "wa.me/55...", "site.com.br".
   const dominio = /\b[a-z0-9][a-z0-9-]*\.(?:com|app|br|net|me|io|org)\b/.exec(t);
@@ -799,6 +988,6 @@ export function pedidoDeReescrita(pedido: string, quebra: string, bolhas: readon
     '',
     'ATENÇÃO: a resposta que você escreveu foi barrada e NÃO foi enviada. Motivo: ' + quebra + '.',
     'O que você tinha escrito: ' + bolhas.join(' / '),
-    'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site: para esses assuntos diga "os números" e que o consultor mostra na reunião.',
+    'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site: para esses assuntos diga "os números" e que o consultor mostra na reunião. Não diga como a reunião acontece: diga só "reunião" ou "conversa com o consultor", e que ele combina os detalhes pelo WhatsApp dele.',
   ].join('\n');
 }

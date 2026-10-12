@@ -36,6 +36,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { ehCardDaHelena } from '../agenda/origemEtiqueta';
 import { sendHuman } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
@@ -200,8 +201,23 @@ export function bolhasAmbiguo(ofertas: string[]): string[] {
   ];
 }
 
-export function bolhasRemarcado(nome: string, novoIso: string, antigoIso: string, quem: string, tel: string): string[] {
+export function bolhasRemarcado(
+  nome: string, novoIso: string, antigoIso: string, quem: string, tel: string,
+  /** `created_by` do card. Só `agente_eletroposto` (Helena) muda o texto. */
+  origem?: string | null,
+): string[] {
   const t = telefoneBonito(tel);
+  // CARD DA HELENA (agente de investidores, 11/10/2026). Ordem do dono: "marca mas
+  // não mostre que é vídeo, tem gente que não gosta, cita que será uma reunião".
+  // Texto do redator, sem dizer o formato. Para qualquer outro card vale o texto
+  // de sempre, logo abaixo, sem mudar um caractere.
+  if (ehCardDaHelena(origem)) {
+    return [
+      `Pronto${comNome(nome)}! Sua reunião agora é *${quandoPorExtenso(novoIso)}*, com o *${quem}*. `
+      + `Já liberei o horário de ${quandoPorExtenso(antigoIso).replace('-feira', '')} pra outra pessoa. `
+      + `Ele te chama no WhatsApp dele${t ? `, o *${t}*` : ''} na hora, e eu te lembro no dia.`,
+    ];
+  }
   return [
     `Pronto${comNome(nome)}! Sua reunião agora é *${quandoPorExtenso(novoIso)}*, com o *${quem}*. `
     + `Já liberei o horário de ${quandoPorExtenso(antigoIso).replace('-feira', '')} pra outra pessoa. `
@@ -410,6 +426,8 @@ export type Ficha = {
   cliente_telefone: string | null;
   quando: string | null;
   vendedor_nome: string | null;
+  /** Origem do card, quando quem chama a tem: decide o texto do "remarcado". */
+  created_by?: string | null;
 };
 
 export type ResultadoRemarcar =
@@ -495,7 +513,7 @@ export async function passoDeRemarcacao(
         await supabase.from('system_state').delete().eq('key', `${EP_REMARCAR_PREFIX}${ficha.id}`)
           .then(undefined, () => { /* oferta órfã não faz mal: a próxima leitura sobrescreve */ });
       }
-      await falar(bolhasRemarcado(primeiro, novo, antigo, quem, telConsultor ?? ''), 'remarcado');
+      await falar(bolhasRemarcado(primeiro, novo, antigo, quem, telConsultor ?? '', ficha.created_by), 'remarcado');
       return { acao: 'remarcou', de: antigo, para: novo };
     }
   }

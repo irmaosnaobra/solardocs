@@ -12,7 +12,7 @@ import {
   telefoneZap, primeiroNome, valorNaFrase, valorLegivel, indicePorChave, renderAbertura,
   montarFila, vagasLivres, escolherQuatro, horariosDaOferta, horarioCurto, linhaDoHorario, horarioNaFrase,
   textoOferta, textoConfirmacao, numeroSolto, escolhaPorNumero, pediuParar, textoDaAbertura, montarObservacao, comoPretendeInvestir,
-  naoPareceNomeDePessoa, pedidoDeReescrita,
+  naoPareceNomeDePessoa, pedidoDeReescrita, respostasDaFicha, fatosDoFormulario, fatosDeHoje, TETO_DO_FORMULARIO,
   montarSistema, montarPedido, lerSaida, limparBolhas, juntarDados, violaRegras,
   type FiltrosDaFila,
 } from '../services/io/investidorAgentePuro';
@@ -588,6 +588,11 @@ describe('o que a IA recebe', () => {
     expect(s).toContain('Valor que ela marcou no formulário: R$ 140 mil');
     expect(s).toContain('Consultor que vai atender: Diego');
     expect(s).toContain('"oferecer_horarios"');
+    // A ação nova (11/10/2026) está na lista do código e no aviso de mensagem pronta.
+    expect(s).toContain('- "adiar": ela quer ser procurada mais para frente');
+    expect(s).toContain('Em "oferecer_horarios", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar');
+    // E o bloco de contorno do redator chega ao modelo com o nome do consultor.
+    expect(s).toContain('Sua meta em toda conversa é marcar a reunião com Diego.');
     // As regras de conteúdo que não podem faltar.
     expect(s).toContain('Nunca prometa nem sugira rendimento, retorno, lucro ou prazo de retorno');
     expect(s).toContain('Nunca use as palavras "cota" ou "cotista"');
@@ -644,7 +649,7 @@ describe('a leitura do que a IA devolve', () => {
   });
 
   it('cada ação do combinado é aceita', () => {
-    for (const acao of ['continuar', 'oferecer_horarios', 'humano', 'sem_interesse', 'parar']) {
+    for (const acao of ['continuar', 'oferecer_horarios', 'adiar', 'humano', 'sem_interesse', 'parar']) {
       expect(lerSaida(JSON.stringify({ ...ok, acao })).acao).toBe(acao);
     }
   });
@@ -681,6 +686,23 @@ describe('a leitura do que a IA devolve', () => {
     }
   });
 
+  it('ressalva da revisão: "rende", "ganha ... por mês" e "se paga" também são barrados', () => {
+    expect(violaRegras(['Rende bem, você ganha uns 4 mil por mês'])).not.toBeNull();
+    expect(violaRegras(['Se paga em 2 anos'])).not.toBeNull();
+    expect(violaRegras(['Não ter ponto não impede nada.'])).toBeNull();
+    for (const t of ['Isso rende', 'Está rendendo bem', 'Dá uma boa renda', 'O ponto se paga rápido', 'Eles se pagam sozinhos',
+      'Você ganha uns 4 mil', 'Dá para ganhar por mês', 'Ganhando 5 mil todo mês']) {
+      expect(violaRegras([t]), t).not.toBeNull();
+    }
+  });
+
+  it('"ganhar" sem número nem "por mês" é conversa, e o número de OUTRA frase não conta', () => {
+    expect(violaRegras(['Você ganha tempo falando direto com o consultor.'])).toBeNull();
+    expect(violaRegras(['Você ganha tempo com isso. Posso mandar os 4 horários?'])).toBeNull();
+    // Palavras que só parecem: atender, entender e aprender não são "rend".
+    expect(violaRegras(['O Diego vai te atender e você vai entender tudo.'])).toBeNull();
+  });
+
   it('conversa normal não é barrada', () => {
     for (const t of ['Temos opções de negócio para o seu perfil.', 'O consultor leva a cotação na reunião.', 'Esse valor é recurso próprio?',
       'Em que cidade você pensa em montar?', 'Posso te mandar os horários para conversar com o Diego?', 'R$ 140 mil, certo?',
@@ -697,3 +719,241 @@ describe('a leitura do que a IA devolve', () => {
     expect(p).toContain('NÃO foi enviada');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('o que a pessoa JÁ respondeu no formulário', () => {
+  const FICHA = [
+    'LP ELETROPOSTO · Investidor',
+    'Modelo de interesse: Modelo 02',
+    'NOTA 1 · 5/11 pts (sem ponto próprio)',
+    'Ponto: Não tenho ideia de onde instalar',
+    'Local é seu: Ainda não é meu',
+    'Como pretende investir: Financiamento · empresa com CNPJ e faturamento',
+    'Quanto pretende investir: R$ 140 mil',
+    'Decisor: Eu decido',
+    'Entrada trifásica: Sim',
+    'PONTO DISPONIVEL PARA INVESTIDOR',
+    'Simulou 80 kW com 30 carros/dia',
+    'Investimento estimado: R$ 350.000',
+    '→ payback 3,2 anos · lucro R$ 9.000/mês',
+  ].join('\n');
+
+  it('da ficha entram só as linhas "Rótulo: resposta"', () => {
+    expect(respostasDaFicha(FICHA)).toEqual([
+      'Modelo de interesse: Modelo 02',
+      'Ponto: Não tenho ideia de onde instalar',
+      'Local é seu: Ainda não é meu',
+      'Como pretende investir: Financiamento · empresa com CNPJ e faturamento',
+      'Quanto pretende investir: R$ 140 mil',
+      'Decisor: Eu decido',
+      'Entrada trifásica: Sim',
+    ].map(l => l.replace(' · ', ', ')));
+  });
+
+  it('o cabeçalho, a NOTA e as contas do simulador NUNCA entram', () => {
+    const bloco = fatosDoFormulario([{ origem: 'nota1', r: { ficha: FICHA, created_at: '2026-09-18T15:00:00Z' } }]).join('\n');
+    expect(bloco).not.toMatch(/LP ELETROPOSTO/i);
+    expect(bloco).not.toMatch(/\bnota\b/i);
+    expect(bloco).not.toMatch(/\bpts\b|\/11/i);
+    expect(bloco).not.toMatch(/payback|lucro|Investimento estimado|Simulou/i);
+    expect(bloco).not.toContain('PONTO DISPONIVEL');
+    // Variações de como a nota aparece.
+    for (const linha of ['NOTA 3 · 11/11 pts', 'Nota: 2', 'Pontuação: 7', 'nota 1 - 4/11 pts (sem ponto próprio)']) {
+      expect(respostasDaFicha(linha), linha).toEqual([]);
+    }
+  });
+
+  it('a data do cadastro vai por extenso, em Brasília', () => {
+    const bloco = fatosDoFormulario([{ origem: 'nota1', r: { ficha: FICHA, created_at: '2026-09-19T01:30:00Z' } }]);
+    expect(bloco[0]).toBe('Na página do eletroposto (preencheu o formulário em 18/09/2026):');
+    expect(bloco).toContain('  Decisor: Eu decido');
+  });
+
+  it('do cadastro de parceria entram as colunas de resposta, com o lado por extenso', () => {
+    const bloco = fatosDoFormulario([{ origem: 'parceria', r: {
+      id: 45, nome: 'Carlos', telefone: '5534999990001', status: 'falando', obs: 'ANOTAÇÃO INTERNA', utm_source: 'meta',
+      cidade: 'Uberaba', lado: 'capital', capital_faixa: 'R$ 100 mil a R$ 200 mil', prazo: 'Nos próximos 3 meses',
+      ponto_relacao: null, ponto_tipo: '', created_at: '2026-09-25T12:00:00Z',
+    } }]);
+    expect(bloco).toEqual([
+      'No cadastro de parceria (preencheu o formulário em 25/09/2026):',
+      '  Cidade: Uberaba',
+      '  Entrou pelo cadastro de: investidor (quer investir)',
+      '  Quanto pretende investir: R$ 100 mil a R$ 200 mil',
+      '  Quando pretende começar: Nos próximos 3 meses',
+    ]);
+    // Coluna que não é resposta da pessoa não entra.
+    expect(bloco.join('\n')).not.toMatch(/ANOTAÇÃO|utm|falando|5534999990001/);
+  });
+
+  it('pessoa nas duas tabelas: junta as duas fontes sem repetir a mesma resposta', () => {
+    const bloco = fatosDoFormulario([
+      { origem: 'parceria', r: { cidade: 'Uberaba', lado: 'capital', capital_faixa: 'R$ 140 mil', created_at: '2026-09-25T12:00:00Z' } },
+      { origem: 'nota1', r: { ficha: FICHA, cidade: 'Uberaba', created_at: '2026-09-18T15:00:00Z' } },
+    ]);
+    expect(bloco.filter(l => l.trim() === 'Quanto pretende investir: R$ 140 mil')).toHaveLength(1);
+    expect(bloco.filter(l => l.trim() === 'Cidade: Uberaba')).toHaveLength(1);
+    expect(bloco).toContain('No cadastro de parceria (preencheu o formulário em 25/09/2026):');
+    expect(bloco).toContain('Na página do eletroposto (preencheu o formulário em 18/09/2026):');
+    expect(bloco).toContain('  Decisor: Eu decido');
+  });
+
+  it('o bloco para em 1.500 caracteres', () => {
+    // Rótulo da lista de permissão, com respostas diferentes, para encher o bloco.
+    const gigante = Array.from({ length: 80 }, (_, i) => `Ponto: ${'resposta comprida '.repeat(6)}${i}`).join('\n');
+    const bloco = fatosDoFormulario([{ origem: 'nota1', r: { ficha: gigante, created_at: '2026-09-18T15:00:00Z' } }]);
+    expect(bloco.length).toBeGreaterThan(3);
+    expect(bloco.join('\n').length).toBeLessThanOrEqual(TETO_DO_FORMULARIO);
+  });
+
+  it('sem resposta nenhuma não há bloco', () => {
+    expect(fatosDoFormulario(undefined)).toEqual([]);
+    expect(fatosDoFormulario([{ origem: 'nota1', r: { ficha: 'LP ELETROPOSTO · Investidor\nNOTA 1 · 3/11 pts' } }])).toEqual([]);
+  });
+
+  it('entra nos fatos do sistema, fora do bloco do redator, com a instrução de não perguntar de novo', () => {
+    const s = montarSistema({
+      nome: 'Carlos', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Thiago', oferta: [], dados: {},
+      formulario: [{ origem: 'nota1', r: { ficha: FICHA, created_at: '2026-09-18T15:00:00Z' } }],
+    });
+    const fatos = s.slice(s.indexOf('O QUE VOCÊ SABE DESTA PESSOA'));
+    expect(fatos).toContain('O que ela JÁ RESPONDEU no formulário:');
+    expect(fatos).toContain('  Como pretende investir: Financiamento, empresa com CNPJ e faturamento');
+    expect(fatos).toContain('O que já está respondido aqui você NÃO pergunta de novo. Confirme em uma frase se for útil e siga para o que falta.');
+    expect(s).not.toMatch(/\bNOTA 1\b|\/11 pts/);
+    // Sem formulário, o bloco não aparece.
+    expect(montarSistema({ nome: 'Carlos', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Thiago', oferta: [], dados: {} }))
+      .not.toContain('JÁ RESPONDEU');
+  });
+});
+
+describe('que dia é hoje', () => {
+  it('domingo 11/10/2026: hoje não tem atendimento, amanhã é feriado, o próximo dia é terça 13/10', () => {
+    const f = fatosDeHoje(brt('2026-10-11T14:32'));
+    expect(f[0]).toBe('Agora são 14:32 de domingo, 11/10/2026, horário de Brasília.');
+    expect(f[1]).toBe('Hoje é domingo: não tem atendimento.');
+    expect(f[2]).toBe('Amanhã, segunda-feira, 12/10/2026, é feriado nacional: não tem atendimento.');
+    expect(f).toContain('O consultor atende de segunda a sexta-feira, menos em feriado. Sábado e domingo não tem reunião.');
+    expect(f).toContain('O próximo dia com atendimento é terça-feira, 13/10/2026.');
+  });
+
+  it('terça 13/10: hoje e amanhã têm atendimento', () => {
+    const f = fatosDeHoje(brt('2026-10-13T09:05'));
+    expect(f[0]).toBe('Agora são 09:05 de terça-feira, 13/10/2026, horário de Brasília.');
+    expect(f[1]).toBe('Hoje é dia útil: tem atendimento.');
+    expect(f[2]).toBe('Amanhã, quarta-feira, 14/10/2026, é dia útil: tem atendimento.');
+  });
+
+  it('sexta à noite: amanhã é sábado e o próximo dia é segunda', () => {
+    const f = fatosDeHoje(brt('2026-10-16T21:00'));
+    expect(f[2]).toBe('Amanhã, sábado, 17/10/2026, é sábado: não tem atendimento.');
+    expect(f).toContain('O próximo dia com atendimento é segunda-feira, 19/10/2026.');
+  });
+
+  it('a data é a de Brasília: 01:30 UTC de segunda ainda é domingo à noite', () => {
+    expect(fatosDeHoje(new Date('2026-10-12T01:30:00Z'))[0]).toBe('Agora são 22:30 de domingo, 11/10/2026, horário de Brasília.');
+  });
+
+  it('entra no sistema só quando a hora é informada', () => {
+    const base = { nome: 'Carlos', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Thiago', oferta: [], dados: {} };
+    const com = montarSistema({ ...base, agora: brt('2026-10-11T14:32') });
+    expect(com).toContain('QUE DIA É HOJE');
+    expect(com).toContain('Amanhã, segunda-feira, 12/10/2026, é feriado nacional: não tem atendimento.');
+    expect(com).toContain('Mensagem de dias atrás é conversa antiga');
+    expect(montarSistema(base)).not.toContain('QUE DIA É HOJE');
+  });
+});
+
+describe('histórico com data', () => {
+  it('cada linha leva a data e a hora de Brasília na frente', () => {
+    const p = montarPedido(
+      [
+        { from_me: true, texto: 'Promoção de solar, quer um orçamento?', tipo: 'texto', momment: '2026-09-18T17:32:00.000Z' },
+        { from_me: true, texto: 'Oi, Carlos, tudo bem? Sou a Helena.', tipo: 'texto', momment: '2026-10-12T11:00:00.000Z' },
+      ],
+      [{ from_me: false, texto: 'Sim', tipo: 'texto', momment: '2026-10-12T11:07:00.000Z' }, { from_me: false, texto: null, tipo: 'audio', momment: '2026-10-13T02:10:00.000Z' }],
+    );
+    expect(p).toContain('[18/09 14:32] Nós: Promoção de solar, quer um orçamento?');
+    expect(p).toContain('[12/10 08:00] Nós: Oi, Carlos, tudo bem? Sou a Helena.');
+    expect(p).toContain('[12/10 08:07] Cliente: Sim');
+    // 02:10 UTC de 13/10 ainda é 23:10 de 12/10 em Brasília.
+    expect(p).toContain('[12/10 23:10] Cliente: [audio]');
+  });
+
+  it('data que não dá para ler fica sem carimbo, em vez de inventada', () => {
+    const p = montarPedido([], [{ from_me: false, texto: 'Oi', tipo: 'texto', momment: '3' }, { from_me: false, texto: 'Tudo bem?', tipo: 'texto', momment: '' }]);
+    expect(p).toContain('\nCliente: Oi\nCliente: Tudo bem?');
+    expect(p).not.toContain('[');
+  });
+});
+
+describe('a ficha é lista de PERMISSÃO (ressalva da revisão)', () => {
+  it('só entram os rótulos que a página do eletroposto pergunta', () => {
+    const ficha = [
+      'LP ELETROPOSTO · Posto',
+      'Local é seu: Sou o proprietário',
+      'Ponto: Já tenho o ponto definido',
+      'Endereço: Av. Brasil, 100 · Centro · Uberlândia',
+      'Vagas disponíveis: 4 a 6',
+      'Modelo de interesse: 02 · Sociedade meio a meio',
+      'Rota de passagem: Rodovia',
+      'Como pretende investir: Recurso próprio',
+      'Quanto pretende investir: R$ 140 mil',
+      'Decisor: Eu decido',
+      'Entrada trifásica: Sim',
+      'Cidade: Uberlândia',
+      'Prazo: Nos próximos 3 meses',
+    ].join('\n');
+    expect(respostasDaFicha(ficha).map(l => l.split(':')[0])).toEqual([
+      'Local é seu', 'Ponto', 'Endereço', 'Vagas disponíveis', 'Modelo de interesse', 'Rota de passagem',
+      'Como pretende investir', 'Quanto pretende investir', 'Decisor', 'Entrada trifásica', 'Cidade', 'Prazo',
+    ]);
+  });
+
+  it('rótulo desconhecido fica de fora, mesmo com cara de resposta', () => {
+    for (const linha of [
+      'Observação do consultor: cliente difícil, não insistir',
+      'Classificação: frio',
+      'Para onde vai: Curioso',
+      'Você já tem reunião marcada: terça às 14h',
+      'Investimento estimado: R$ 350.000',
+      'Potência: 80 kW',
+      'Unidades: 2',
+      'Software e app: Sim',
+      'Instalação: Com obra',
+      'Outro: qualquer coisa',
+      'Score: 7',
+    ]) {
+      expect(respostasDaFicha(linha), linha).toEqual([]);
+    }
+  });
+
+  it('o rótulo casa sem depender de acento ou de maiúscula', () => {
+    expect(respostasDaFicha('LOCAL E SEU: Sou inquilino\nentrada trifasica: Não sei')).toEqual(['LOCAL E SEU: Sou inquilino', 'entrada trifasica: Não sei']);
+  });
+});
+
+describe('a trava de conteúdo barra o FORMATO da reunião (11/10/2026)', () => {
+  it('vídeo, videochamada, chamada de vídeo, link, online, meet, zoom, "sem instalar" e presencial', () => {
+    for (const t of ['A reunião é por vídeo.', 'É uma VIDEOCHAMADA rápida', 'Uma chamada de vídeo com o Thiago', 'Ele manda o link antes',
+      'É tudo online', 'É on-line', 'A gente faz pelo Meet', 'Pode ser por Zoom', 'Você entra sem instalar nada', 'Não é presencial', 'É presencialmente',
+      'Os vídeos explicam tudo', 'Te mando os links']) {
+      expect(violaRegras([t]), t).toMatch(/formato da reunião/);
+    }
+  });
+
+  it('celular, computador e telefone NÃO são barrados (ficam só na instrução, para não dar falso positivo)', () => {
+    for (const t of ['Esse é o seu celular mesmo?', 'Pode responder quando estiver no computador.', 'O Thiago fala com você pelo telefone dele.',
+      'O Thiago combina os detalhes com você pelo WhatsApp dele antes do horário.', 'É uma conversa com o Thiago, e ele combina os detalhes com você.',
+      'Você escolhe o horário que encaixar na sua agenda.']) {
+      expect(violaRegras([t]), t).toBeNull();
+    }
+  });
+
+  it('o pedido de reescrita lembra de dizer só "reunião"', () => {
+    const p = pedidoDeReescrita('PEDIDO', 'falou do formato da reunião ("video")', ['É por vídeo.']);
+    expect(p).toContain('falou do formato da reunião');
+    expect(p).toContain('diga só "reunião" ou "conversa com o consultor"');
+  });
+});
+

@@ -116,7 +116,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman, linhaEmCooldown } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha, rampaReconexaoVigente } from '../agents/whatsapp/lineThrottle';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardDaHelena } from '../agenda/origemEtiqueta';
 import {
   quandoPorExtenso, telefoneBonito, carregarConsultores,
   EP_AGENDA_PREFIX, EP_NAO_ATENDEU_PREFIX,
@@ -741,7 +741,12 @@ const comNome = (n: string) => (n ? `, ${n}` : '');
 export function bolhasReagendado(
   nome: string, deIso: string, paraIso: string, quem: string, telVendedor: string | null,
   tentativa: number,
+  /** `created_by` do card. Só `agente_eletroposto` (Helena) muda o texto. */
+  origem?: string | null,
 ): string[] {
+  // Card da Helena (agente de investidores, 11/10/2026): a mesma mensagem, sem
+  // dizer o formato da reunião. Para qualquer outro card o texto não muda.
+  const daHelena = ehCardDaHelena(origem);
   const tel = telefoneBonito(telVendedor);
   const perdida = quandoPorExtenso(deIso).replace('-feira', '');
   const nova = quandoPorExtenso(paraIso).replace('-feira', '');
@@ -749,10 +754,14 @@ export function bolhasReagendado(
   return [
     // A marca na primeira frase: pra quem sumiu, esta pode ser a primeira
     // mensagem que ele de fato lê, de um número que ele nunca respondeu.
-    `Oi${comNome(nome)}! Aqui é da *NEXUS Eletropostos*. Você não conseguiu entrar na apresentação do eletroposto de ${perdida} — sem problema, acontece.`,
+    daHelena
+      ? `Oi${comNome(nome)}! Aqui é da *NEXUS Eletropostos*. Você não conseguiu participar da reunião do eletroposto de ${perdida} — sem problema, acontece.`
+      : `Oi${comNome(nome)}! Aqui é da *NEXUS Eletropostos*. Você não conseguiu entrar na apresentação do eletroposto de ${perdida} — sem problema, acontece.`,
     // O horário novo é AFIRMAÇÃO, não pergunta. Quem está em silêncio não escolhe
     // de uma lista; ele confirma ou desmarca algo que já está de pé.
-    `Já separei outro pra você: *${nova}* (Brasília), com o *${quem}*. É por vídeo e o link chega no WhatsApp dele${tel ? `, o *${tel}*` : ''}.`,
+    daHelena
+      ? `Já separei outro pra você: *${nova}* (Brasília), com o *${quem}*. Ele te chama no WhatsApp dele${tel ? `, o *${tel}*` : ''} na hora.`
+      : `Já separei outro pra você: *${nova}* (Brasília), com o *${quem}*. É por vídeo e o link chega no WhatsApp dele${tel ? `, o *${tel}*` : ''}.`,
     ultima
       // A última diz que é a última. Quem não responde a um prazo responde ao
       // fim dele — e quem não responder nem a isto não queria mesmo.
@@ -1636,7 +1645,7 @@ export async function runEletropostoReagendaAutoTick(
         const tel = String(f.cliente_telefone).replace(/\D/g, '');
         await sendHuman(
           tel,
-          bolhasReagendado(primeiro, String(f.quando), novo, quem, telPorConsultor.get(quem) ?? null, tentativa),
+          bolhasReagendado(primeiro, String(f.quando), novo, quem, telPorConsultor.get(quem) ?? null, tentativa, f.created_by),
           'io',
           // Quem recebe isto sumiu de uma reunião: é toque frio, e toque frio é
           // UMA mensagem desde o bloqueio de agosto. Sem `maxBolhas` o fatiador
