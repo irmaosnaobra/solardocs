@@ -371,6 +371,147 @@ html[data-mode="app"].painel-solar-aberto .container{margin-left:0!important}
 .mp-cli{display:block;width:22px;height:22px;margin:2px;transform:rotate(45deg);background:#fff;border:5px solid #1D4ED8;border-radius:4px;box-sizing:border-box;box-shadow:0 0 0 2px #fff}
 .mp-pop{font-size:14px;font-weight:700;line-height:1.4;color:#0f172a}
 @media(max-width:700px){.mp-grid{grid-template-columns:minmax(0,1fr)}.mp-mapa{height:320px}}
+/* ═══ INÍCIO (12/10/2026): tela de operação. Cor de dado: solar #d2761c, eletroposto #3987e5. ═══ */
+html.in-boot #formSection{display:none}
+html[data-mode="viewer"] #inicioSection,html[data-mode="login"] #inicioSection,html[data-mode="loading"] #inicioSection{display:none!important}
+#inicioSection{max-width:1180px;margin:0 auto;padding:28px 0 56px;color:#E5E7EB;font-family:Inter,system-ui,-apple-system,sans-serif}
+#inicioSection h1,#inicioSection h2{font-family:Montserrat,Inter,system-ui,sans-serif;color:#fff;margin:0;text-wrap:balance}
+#inicioSection ::selection{background:rgba(245,158,11,.35);color:#fff}
+#inicioSection button{font-family:inherit}
+#inicioSection button:focus-visible{outline:2px solid #FBBF24;outline-offset:2px}
+#inicioSection .in-topo{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:14px 24px}
+#inicioSection .in-topo h1{font-size:28px;font-weight:800;line-height:1.15;letter-spacing:-.01em}
+#inicioSection .in-stamp{margin:6px 0 0;font-size:13px;line-height:1.4;color:#94A3B8;display:flex;flex-wrap:wrap;align-items:center;gap:0 4px;font-variant-numeric:tabular-nums}
+#inicioSection .in-link{min-height:44px;padding:0 10px;background:none;border:0;color:#CBD5E1;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:8px}
+#inicioSection .in-link:hover{color:#fff}
+#inicioSection .in-acoes{display:flex;flex-wrap:wrap;gap:10px}
+#inicioSection .in-btn{min-height:46px;padding:0 20px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#243349;color:#E5E7EB;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s}
+#inicioSection .in-btn:hover{background:#2c3f59;border-color:rgba(255,255,255,.3)}
+#inicioSection .in-btn.main{background:#F59E0B;border-color:#F59E0B;color:#1a1204;font-weight:800}
+#inicioSection .in-btn.main:hover{background:#FBBF24;border-color:#FBBF24}
+#inicioSection .in-filtro{display:inline-flex;gap:4px;padding:4px;margin-top:20px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04)}
+#inicioSection .in-filtro[hidden]{display:none}
+#inicioSection .in-opc{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid transparent;background:transparent;color:#CBD5E1;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+#inicioSection .in-opc:hover{background:rgba(255,255,255,.06);color:#fff}
+#inicioSection .in-opc[aria-pressed="true"]{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff}
+#inicioSection .in-pt{width:9px;height:9px;border-radius:50%;flex:0 0 auto;display:inline-block}
+#inicioSection .in-hoje{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:28px;margin-top:24px;align-items:start}
+#inicioSection .in-hoje[hidden]{display:none}
+#inicioSection .in-hoje h2{font-size:18px;font-weight:800;margin-bottom:12px}
+#inicioSection .in-lista{display:grid;grid-template-columns:auto minmax(0,1fr) 36px;column-gap:16px;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden}
+#inicioSection .in-linha{grid-column:1/-1;display:grid;grid-template-columns:subgrid;align-items:center;width:100%;min-height:72px;padding:14px 16px;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.08);color:inherit;text-align:left;cursor:pointer;box-sizing:border-box}
+#inicioSection .in-lista > :last-child{border-bottom:0}
+#inicioSection button.in-linha:hover{background:rgba(255,255,255,.05)}
+#inicioSection button.in-linha:focus-visible{outline-offset:-3px}
+#inicioSection .in-n{min-width:2.25rem;font-family:Montserrat,Inter,sans-serif;font-size:28px;font-weight:800;line-height:1;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap}
+#inicioSection .in-n.din{font-size:22px}
+#inicioSection .in-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+#inicioSection .in-f{text-wrap:pretty;font-size:15.5px;font-weight:600;line-height:1.35;color:#F1F5F9}
+#inicioSection .in-d{font-size:13.5px;line-height:1.4;color:#94A3B8}
+#inicioSection .in-seta{width:18px;height:18px;stroke:#94A3B8;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#inicioSection button.in-linha:hover .in-seta{stroke:#fff}
+#inicioSection .in-esq{cursor:default}
+#inicioSection .in-esq i{display:block;height:12px;border-radius:6px;background:rgba(255,255,255,.07)}
+#inicioSection .in-esq .a{height:26px;width:3.4rem;border-radius:8px;background:rgba(255,255,255,.07)}
+#inicioSection .in-esq .b{display:flex;flex-direction:column;gap:8px}
+#inicioSection .in-esq .b i:first-child{width:72%}
+#inicioSection .in-esq .b i:last-child{width:46%;height:10px}
+#inicioSection .in-erro,#inicioSection .in-aviso{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;padding:10px 16px;min-height:56px;font-size:14px;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,.08)}
+#inicioSection .in-erro span{color:#FCA5A5;font-weight:600}
+#inicioSection .in-aviso{color:#94A3B8}
+#inicioSection .in-erro,#inicioSection .in-aviso,#inicioSection .in-vazio,#inicioSection .in-esq{grid-column:1/-1}
+#inicioSection .in-vazio{padding:22px 18px}
+#inicioSection .in-vazio p{margin:0 0 14px;font-size:15.5px;line-height:1.5;max-width:60ch;color:#E5E7EB}
+#inicioSection .in-ag{background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px}
+#inicioSection .in-ag p{margin:0;font-size:14.5px;line-height:1.5;color:#E5E7EB}
+#inicioSection .in-prox{list-style:none;margin:14px 0 0;padding:0;border-top:1px solid rgba(255,255,255,.08)}
+#inicioSection .in-prox li{display:grid;grid-template-columns:3.4rem minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);align-items:baseline}
+#inicioSection .in-hora{font-family:Montserrat,Inter,sans-serif;font-size:17px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+#inicioSection .in-cli{font-size:15px;font-weight:600;color:#F1F5F9;overflow-wrap:anywhere}
+#inicioSection .in-meta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;margin-top:3px;font-size:13px;color:#CBD5E1}
+#inicioSection .in-selo{padding:1px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.25);font-size:12px;font-weight:700;color:#E5E7EB}
+#inicioSection .in-selo.novo{background:rgba(255,255,255,.12)}
+#inicioSection .in-prod{display:inline-flex;align-items:center;gap:6px}
+#inicioSection .in-tab{width:100%;margin-top:14px;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+#inicioSection .in-tab th{padding:6px 4px;text-align:right;font-size:12px;font-weight:600;color:#94A3B8;vertical-align:bottom}
+#inicioSection .in-tab td{padding:9px 4px;text-align:right;font-size:14px;color:#E5E7EB;border-top:1px solid rgba(255,255,255,.08)}
+#inicioSection .in-tab th:first-child,#inicioSection .in-tab td:first-child{text-align:left;width:28%}
+#inicioSection .in-tab td:first-child{font-weight:600;color:#F1F5F9}
+#inicioSection .in-ag{container-type:inline-size;container-name:inag}
+/* Coluna estreita (janela de 900 a 1100 px): a tabela de 5 colunas vira linhas empilhadas, como no celular. */
+@container inag (max-width:340px){
+  #inicioSection .in-tab thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  #inicioSection .in-tab,#inicioSection .in-tab tbody{display:block}
+  #inicioSection .in-tab tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+  #inicioSection .in-tab td{border:0;padding:2px 0;text-align:left}
+  #inicioSection .in-tab td:first-child{grid-column:1/-1;width:auto}
+  #inicioSection .in-tab td[data-r]::before{content:attr(data-r) ": ";color:#94A3B8;font-size:13px}
+}
+#inicioSection .in-ag p.in-amanha{margin-top:14px;color:#CBD5E1}
+#inicioSection .in-ag .in-link{margin:6px 0 -8px -10px}
+#inicioSection .in-auth{margin-top:24px;padding:22px 18px;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;font-size:15.5px}
+#inicioSection .in-auth[hidden]{display:none}
+#inicioSection .in-auth p{margin:0 0 14px}
+#inicioSection #in-periodo{margin-top:32px}
+#inicioSection .in-per-topo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px}
+#inicioSection .in-per-topo h2{font-size:18px;font-weight:800}
+#inicioSection .in-per-topo .in-filtro{margin-top:0}
+#inicioSection .in-per-de{flex:1 1 100%;margin:0;font-size:13.5px;line-height:1.4;color:#94A3B8;min-height:19px}
+#inicioSection .in-per-grade{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:14px;align-items:start}
+#inicioSection .in-card{min-width:0;box-sizing:border-box;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px}
+#inicioSection .in-card h3{margin:0 0 10px;padding:0;border:0;font-family:Montserrat,Inter,system-ui,sans-serif;font-size:16px;font-weight:800;line-height:1.3;color:#fff;text-transform:none;letter-spacing:0}
+#inicioSection .in-card h3::before,#inicioSection .in-card h3::after{display:none}
+#inicioSection .in-fr{margin:0 0 10px;font-size:14.5px;line-height:1.5;color:#E5E7EB}
+#inicioSection .in-fr.sec{color:#CBD5E1}
+#inicioSection .in-rod{margin:10px 0 0;font-size:12.5px;line-height:1.45;color:#94A3B8}
+#inicioSection .in-aviso-t{margin:0 0 10px;font-size:14px;line-height:1.45;color:#CBD5E1}
+#inicioSection .in-fns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px 28px}
+#inicioSection .in-fn{min-width:0}
+#inicioSection .in-fn-t{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:14px;font-weight:700;color:#F1F5F9}
+#inicioSection .in-etapas{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 10px;padding:0;list-style:none;font-size:14px;color:#CBD5E1}
+#inicioSection .in-etapas b{margin-left:4px;color:#fff;font-variant-numeric:tabular-nums}
+#inicioSection .in-card .in-erro{padding:8px 0;min-height:0;border-bottom:0}
+#inicioSection .in-card .in-link{margin-left:-10px}
+#inicioSection .in-card .in-tab{margin-top:6px}
+#inicioSection .in-card .pq-det{margin-top:4px}
+#inicioSection .in-rol{max-height:340px;overflow:auto}
+#inicioSection .in-tabv .n{white-space:normal}
+#inicioSection .in-time{table-layout:auto}
+#inicioSection .in-time th,#inicioSection .in-time td{padding-left:6px;padding-right:6px}
+#inicioSection .in-time th:first-child,#inicioSection .in-time td:first-child{width:auto;padding-left:0}
+#inicioSection .in-time th:last-child,#inicioSection .in-time td:last-child{padding-right:0}
+#inicioSection .in-sk .pq-sk{height:14px;border-radius:7px;margin:0 0 10px}
+#inicioSection .in-per-grade.duas{grid-template-columns:repeat(2,minmax(0,1fr))}
+#inicioSection .in-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+#inicioSection .in-tabv tbody th{white-space:nowrap}
+#inicioSection .in-tabv .pq-tab th,#inicioSection .in-tabv .pq-tab td{padding-top:6px;padding-bottom:6px}
+#inicioSection .pq-det summary{color:#CBD5E1;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:900px){
+  #inicioSection .in-hoje{grid-template-columns:minmax(0,1fr);gap:24px}
+}
+@media(max-width:860px){
+  #inicioSection{padding-top:64px}
+}
+@media(max-width:640px){
+  #inicioSection .in-topo h1{font-size:23px}
+  #inicioSection .in-acoes{width:100%}
+  #inicioSection .in-acoes .in-btn{flex:1 1 0}
+  #inicioSection .in-filtro{display:flex;width:100%;box-sizing:border-box}
+  #inicioSection .in-opc{flex:1 1 0;justify-content:center;padding:0 6px}
+  #inicioSection .in-lista{column-gap:10px;grid-template-columns:auto minmax(0,1fr) 30px}
+  #inicioSection .in-linha{padding:12px}
+  #inicioSection .in-n{font-size:24px}
+  #inicioSection .in-n.din{font-size:15px}
+  #inicioSection .in-ag{padding:14px}
+  #inicioSection .in-card{padding:14px}
+  #inicioSection .in-tab thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  #inicioSection .in-tab,#inicioSection .in-tab tbody{display:block}
+  #inicioSection .in-tab tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+  #inicioSection .in-tab td{border:0;padding:2px 0;text-align:left}
+  #inicioSection .in-tab td:first-child{grid-column:1/-1;width:auto}
+  #inicioSection .in-tab td[data-r]::before{content:attr(data-r) ": ";color:#94A3B8;font-size:13px}
+  #inicioSection .in-time td[data-r="Avanço sobre agendados"]{grid-column:1/-1}
+}
 /* Painel do quiz */
 #painelSolarSection .pq-chips{margin:0 0 14px}
 .pq-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px}
@@ -3786,6 +3927,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   var authed = false;
   try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e) {}
   document.documentElement.dataset.mode = authed ? 'app' : 'login';
+  // Início: só abre sozinho quando a URL não traz parâmetro nem #. Decidido aqui, antes dos deep links limparem a URL.
+  window.__inEntradaLimpa = !location.search && !location.hash;
+  if (authed && window.__inEntradaLimpa) {
+    document.documentElement.classList.add('in-boot');
+    // Trava: rede lenta segurando os scripts defer deixaria a área vazia (o formulário fica escondido).
+    setTimeout(function(){ document.documentElement.classList.remove('in-boot'); }, 3000);
+  }
 
   // Tema único: escuro (glassmorphism). Sem opção clara.
   document.documentElement.dataset.theme = 'dark';
@@ -3828,11 +3976,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <button type="button" class="sb-mobile-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
 <div id="sb-backdrop" onclick="toggleSidebar()"></div>
 <nav id="app-sidebar">
-  <button type="button" class="sb-brand" onclick="navGerador()" title="Início">
+  <button type="button" class="sb-brand" onclick="navInicio()" title="Início">
     <img class="sb-logo" src="/gerador/logo.png" alt="Irmãos na Obra">
     <span class="sb-name">Irmãos na Obra<small>Gerador solar</small></span>
   </button>
   <div class="sb-nav">
+    <button type="button" class="sb-item" id="nav-inicio" onclick="navInicio()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"></path><path d="M5 9.5V20h14V9.5"></path><path d="M10 20v-6h4v6"></path></svg></span> Início</button>
     <button type="button" class="sb-item" id="nav-solar" onclick="navGerador()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line></svg></span> Solar</button>
     <button type="button" class="sb-item" id="nav-eletroposto" onclick="navEletroposto()"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline></svg></span> Eletroposto</button>
     <button type="button" class="sb-item" id="nav-agenda" onclick="location.href='/gerador/agenda'"><span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span> Agenda</button>
@@ -3864,6 +4013,37 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="solar-subtab" data-aba="painel" onclick="navPainelSolar()">Painel</button>
     <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
     <button type="button" class="solar-subtab" data-aba="calc" onclick="navCalc()">Calculadora</button>
+  </div>
+
+  <!-- ============= TELA: INÍCIO (12/10/2026) ============= -->
+  <div id="inicioSection" style="display:none;">
+    <div class="in-topo">
+      <div>
+        <h1 id="in-h1">Início</h1>
+        <p class="in-stamp" id="in-stamp"></p>
+      </div>
+      <div class="in-acoes">
+        <button type="button" class="in-btn" data-in="agenda">Abrir agenda</button>
+        <button type="button" class="in-btn main" data-in="gerar">Gerar proposta</button>
+      </div>
+    </div>
+    <div class="in-filtro" id="in-filtro" role="group" aria-label="Produto">
+      <button type="button" class="in-opc" data-in="produto" data-v="tudo" aria-pressed="true">Tudo</button>
+      <button type="button" class="in-opc" data-in="produto" data-v="solar" aria-pressed="false"><span class="in-pt" style="background:#d2761c"></span>Solar</button>
+      <button type="button" class="in-opc" data-in="produto" data-v="eletroposto" aria-pressed="false"><span class="in-pt" style="background:#3987e5"></span>Eletroposto</button>
+    </div>
+    <div class="in-auth" id="in-auth" hidden><p>Entre com a sua conta de consultor para ver o Início.</p><button type="button" class="in-btn" data-in="sair">Entrar de novo</button></div>
+    <div class="in-hoje" id="in-hoje">
+      <section aria-labelledby="in-pede-t">
+        <h2 id="in-pede-t">Precisa de você hoje</h2>
+        <div id="in-pede"></div>
+      </section>
+      <section aria-labelledby="in-ag-t">
+        <h2 id="in-ag-t">Agenda de hoje</h2>
+        <div id="in-agenda"></div>
+      </section>
+    </div>
+    <div id="in-periodo"></div>
   </div>
 
   <!-- ============= TELA 1: FORMULÁRIO ============= -->
@@ -7621,6 +7801,7 @@ function authLimpar() {
   // conta (um sócio vê gasto e todas as vendas). Sem isto, quem entrasse depois na
   // mesma aba veria os números do anterior até a tela recarregar.
   try { if (typeof solLimparMemoria === 'function') solLimparMemoria(); } catch (e) {}
+  try { if (typeof inLimparMemoria === 'function') inLimparMemoria(); } catch (e) {}
   try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
 }
 async function authEntrar(email, senha) {
@@ -7635,23 +7816,38 @@ async function authEntrar(email, senha) {
 }
 /** Renova com o refresh_token. Falhou de verdade? volta pro login — token velho
  *  em requisição é 401 em silêncio, e o app pareceria vazio em vez de deslogado. */
-async function authRenovar() {
-  if (!sessaoAtual || !sessaoAtual.refresh_token) return false;
-  try {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: sessaoAtual.refresh_token }),
-    });
-    const j = await r.json().catch(() => null);
-    if (!r.ok || !j || !j.access_token) throw new Error('refresh falhou');
-    authGuardar(j);
-    return true;
-  } catch (e) {
-    authLimpar();
-    document.documentElement.dataset.mode = 'login';
-    return false;
-  }
+// Voo único: chamadas em paralelo (o boot e as duas rotas do Início) dividem a MESMA renovação.
+// Cada renovação extra gastaria o mesmo refresh_token, e a que falhasse deslogaria o consultor.
+let authRenovando = null;
+function authRenovar() {
+  if (authRenovando) return authRenovando;
+  authRenovando = (async () => {
+    if (!sessaoAtual || !sessaoAtual.refresh_token) return false;
+    // A resposta só vale para a sessão que a pediu: se ela saiu ou outra conta entrou no meio, não mexe em nada.
+    const meu = sessaoAtual.refresh_token;
+    const aindaMinha = () => !!sessaoAtual && sessaoAtual.refresh_token === meu;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: sessaoAtual.refresh_token }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.access_token) throw new Error('refresh falhou');
+      if (!aindaMinha()) return false;
+      authGuardar(j);
+      return true;
+    } catch (e) {
+      if (!aindaMinha()) return false;
+      // Caiu no meio do trabalho: ao entrar de novo a pessoa continua na tela em que estava
+      // (o Início só abre sozinho na entrada). Na abertura do app o modo ainda não é "app".
+      if (document.documentElement.dataset.mode === 'app') window.__inEntradaLimpa = false;
+      authLimpar();
+      document.documentElement.dataset.mode = 'login';
+      return false;
+    }
+  })().finally(() => { authRenovando = null; });
+  return authRenovando;
 }
 function authValida() { return !!(sessaoAtual && sessaoAtual.access_token); }
 
@@ -10304,6 +10500,12 @@ function voltarDoHistorico() {
 function marcarNavAtivo(id) {
   const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras', 'nav-painel-solar': 'painel' };
   const aba = ABA_SOLAR[id] || null;
+  // Início: qualquer outra tela que acenda a barra esconde o Início (e solta o pré-desenho do boot).
+  if (id !== 'nav-inicio') {
+    const secIn = document.getElementById('inicioSection');
+    if (secIn) secIn.style.display = 'none';
+    document.documentElement.classList.remove('in-boot');
+  }
   // Rede de segurança: qualquer tela que se abra por aqui fecha as três telas
   // soltas do solar (Fechamento, Quem ligar e Obras), mesmo que a lista escondida
   // à mão da função dela não as conheça. Cada uma só sobrevive à própria abertura.
@@ -10326,19 +10528,19 @@ function marcarNavAtivo(id) {
 // diferente; com a régua dá para ir de Leads direto para Tabelas, e sem isto uma
 // tela ficaria empilhada sobre a outra.
 function telasSolarLimpar() {
-  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
+  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection', 'inicioSection']
     .forEach(t => { const el = document.getElementById(t); if (el) el.style.display = 'none'; });
   document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
 }
 // Fecha só Quem ligar e Obras. Existe para as telas que escondem as outras à mão
 // (abrirHistorico, navRedes, navCRM) e para não repetir a lista em cada uma.
 function solarExtrasFechar() {
-  ['quemLigarSection', 'obrasSolarSection', 'painelSolarSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  ['quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'inicioSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   document.documentElement.classList.remove('quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto');
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -10531,7 +10733,7 @@ let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 function navCalc() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection', 'inicioSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -10548,7 +10750,7 @@ function navCalc() {
 function navEletroposto() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection', 'inicioSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -28082,49 +28284,55 @@ async function qlLerTudo(consulta) {
   return out;
 }
 
+// Só LÊ (sem tocar na tela nem no estado da aba): a aba Quem ligar e o Início usam esta mesma leitura.
+async function qlLerDados(dias) {
+  const desde = new Date(Date.now() - dias * QL_DIA).toISOString();
+  const props = await qlLerTudo('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,ultimo_acesso,enviado_wpp,vendido,expira_em,'
+    + 'produto:dados->>produto,tel:dados->>telefoneDigitos,tel2:dados->>telefone,pv:dados->>precoVista,po:dados->>precoOrcamento'
+    + '&created_at=gte.' + encodeURIComponent(desde) + '&order=created_at.desc,codigo.desc');
+  const solares = props.filter(p => p && p.codigo && fsEhSolar({ tipo: p.tipo, produto: p.produto }));
+  // Os acessos só dos orçamentos que ainda estão em jogo, e os cards só dos
+  // telefones que aparecem nas propostas: nada de ler a agenda inteira.
+  const cods = solares.filter(p => !p.vendido).map(p => p.codigo);
+  const chaves = [...new Set(solares.map(p => qlTelKey(p.tel) || qlTelKey(p.tel2)).filter(Boolean))];
+  const acessos = [], cards = [];
+  const tarefas = [];
+  for (let i = 0; i < cods.length; i += 80) {
+    const f = cods.slice(i, i + 80);
+    tarefas.push(async () => { acessos.push.apply(acessos, await qlLerTudo('proposta_acessos?select=codigo_proposta,ts,evento,dispositivo,cidade&codigo_proposta=in.('
+      + f.map(encodeURIComponent).join(',') + ')&order=ts.asc,codigo_proposta.asc')); });
+  }
+  // telefone_norm é DDD + 8 últimos dígitos, a mesma chave da tela.
+  for (let i = 0; i < chaves.length; i += 80) {
+    const f = chaves.slice(i, i + 80);
+    tarefas.push(async () => { cards.push.apply(cards, await qlLerTudo('agendamentos?select=id,status,cliente_nome,cliente_telefone,vendedor_nome,quando,created_by&telefone_norm=in.('
+      + f.map(encodeURIComponent).join(',') + ')&order=quando.desc,id.desc')); });
+  }
+  let prox = 0;
+  const trabalhador = async () => { while (prox < tarefas.length) await tarefas[prox++](); };
+  await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
+  // O histórico só interessa dos cards encerrados: é dele que sai a data do não.
+  const enc = cards.filter(c => QL_STATUS_SAI.has(c.status) && !String(c.created_by || '').toLowerCase().includes('eletroposto')).map(c => c.id);
+  const porId = {};
+  const tarefas2 = [];
+  for (let i = 0; i < enc.length; i += 80) {
+    const f = enc.slice(i, i + 80);
+    tarefas2.push(async () => { (await qlLerTudo('agendamentos?select=id,historico&id=in.(' + f.join(',') + ')&order=id.asc')).forEach(r => { porId[r.id] = r.historico; }); });
+  }
+  prox = 0;
+  const trab2 = async () => { while (prox < tarefas2.length) await tarefas2[prox++](); };
+  await Promise.all([trab2(), trab2(), trab2(), trab2()]);
+  cards.forEach(c => { if (porId[c.id] != null) c.historico = porId[c.id]; });
+  return { props, acessos, cards, dias };
+}
+
 async function qlCarregar(silencioso) {
   const seq = ++qlSeq;
   if (!(silencioso && qlDados)) { qlErro = ''; qlCarregando = true; qlDesenhar(); }
   try {
-    const desde = new Date(Date.now() - qlEstado.dias * QL_DIA).toISOString();
-    const props = await qlLerTudo('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,ultimo_acesso,enviado_wpp,vendido,expira_em,'
-      + 'produto:dados->>produto,tel:dados->>telefoneDigitos,tel2:dados->>telefone,pv:dados->>precoVista,po:dados->>precoOrcamento'
-      + '&created_at=gte.' + encodeURIComponent(desde) + '&order=created_at.desc,codigo.desc');
-    const solares = props.filter(p => p && p.codigo && fsEhSolar({ tipo: p.tipo, produto: p.produto }));
-    // Os acessos só dos orçamentos que ainda estão em jogo, e os cards só dos
-    // telefones que aparecem nas propostas: nada de ler a agenda inteira.
-    const cods = solares.filter(p => !p.vendido).map(p => p.codigo);
-    const chaves = [...new Set(solares.map(p => qlTelKey(p.tel) || qlTelKey(p.tel2)).filter(Boolean))];
-    const acessos = [], cards = [];
-    const tarefas = [];
-    for (let i = 0; i < cods.length; i += 80) {
-      const f = cods.slice(i, i + 80);
-      tarefas.push(async () => { acessos.push.apply(acessos, await qlLerTudo('proposta_acessos?select=codigo_proposta,ts,evento,dispositivo,cidade&codigo_proposta=in.('
-        + f.map(encodeURIComponent).join(',') + ')&order=ts.asc,codigo_proposta.asc')); });
-    }
-    // telefone_norm é DDD + 8 últimos dígitos, a mesma chave da tela.
-    for (let i = 0; i < chaves.length; i += 80) {
-      const f = chaves.slice(i, i + 80);
-      tarefas.push(async () => { cards.push.apply(cards, await qlLerTudo('agendamentos?select=id,status,cliente_nome,cliente_telefone,vendedor_nome,quando,created_by&telefone_norm=in.('
-        + f.map(encodeURIComponent).join(',') + ')&order=quando.desc,id.desc')); });
-    }
-    let prox = 0;
-    const trabalhador = async () => { while (prox < tarefas.length) await tarefas[prox++](); };
-    await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
-    // O histórico só interessa dos cards encerrados: é dele que sai a data do não.
-    const enc = cards.filter(c => QL_STATUS_SAI.has(c.status) && !String(c.created_by || '').toLowerCase().includes('eletroposto')).map(c => c.id);
-    const porId = {};
-    const tarefas2 = [];
-    for (let i = 0; i < enc.length; i += 80) {
-      const f = enc.slice(i, i + 80);
-      tarefas2.push(async () => { (await qlLerTudo('agendamentos?select=id,historico&id=in.(' + f.join(',') + ')&order=id.asc')).forEach(r => { porId[r.id] = r.historico; }); });
-    }
-    prox = 0;
-    const trab2 = async () => { while (prox < tarefas2.length) await tarefas2[prox++](); };
-    await Promise.all([trab2(), trab2(), trab2(), trab2()]);
-    cards.forEach(c => { if (porId[c.id] != null) c.historico = porId[c.id]; });
+    const dados = await qlLerDados(qlEstado.dias);
     if (seq !== qlSeq) return;   // chegou outra leitura depois desta
-    qlDados = { props, acessos, cards, dias: qlEstado.dias };
+    qlDados = dados;
     qlErro = '';
     qlCarregando = false;
     if (qlEstado.consultor === null) {
@@ -28677,6 +28885,811 @@ function obCapitalizar(s) {
   return t ? t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1) : '';
 }
 function obPlural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INÍCIO (12/10/2026): a primeira tela do app. A tese é "o que precisa de você hoje".
+//
+// Três fontes, cada uma desenha quando a sua chega:
+//   resumo  = GET /gerador/dashboard          (rápida, só banco)
+//   negocio = GET /gerador/dashboard/negocio  (lenta: planilha e Meta)
+//   quentes = leitura do próprio navegador, a MESMA regra da aba Quem ligar
+//             (qlLerDados + qlCalcular). Começa depois que uma das rotas responde.
+//
+// CONTRATO PARA A ETAPA 2 (gráficos do período, dentro de <div id="in-periodo">):
+//   inEstado   = { periodo: 'mes'|'30dias'|'90dias', produto: 'tudo'|'solar'|'eletroposto' }
+//   inDados    = { resumo, negocio, quentes }; cada um é
+//                { dados, carregando, erro, em, seq, periodo }
+//                  dados      : o JSON da rota (quentes: { lista } do qlCalcular) ou null
+//                  carregando : true enquanto há leitura em voo (pode ter dados velhos)
+//                  erro       : null ou { auth: bool }. Só vale como "bloco quebrado" quando !dados
+//   inDesenharPeriodo() : HOJE VAZIA. É chamada por inDesenhar() sempre que chega dado
+//                  de qualquer fonte ou muda o filtro de produto. Desenhe em #in-periodo.
+//   inTrocarPeriodo(chave) : troca o período e refaz as duas rotas (resumo e negocio).
+//   inProdutosPresentes() : { solar, eletroposto } (o que o usuário tem de dado).
+//   IN_PRODUTOS : nome e cor de cada produto (a cor é do ponto e da série, nunca do texto).
+// Memória só em variável (nada de localStorage). inLimparMemoria() zera na saída da conta.
+// ═══════════════════════════════════════════════════════════════════════════
+var IN_VALE_MS = 60000;
+var IN_PRODUTOS = { solar: { nome: 'Solar', cor: '#d2761c' }, eletroposto: { nome: 'Eletroposto', cor: '#3987e5' } };
+var inEstado = { periodo: 'mes', produto: 'tudo' };
+var inSeq = 0;           // sobe a cada logout: resposta de antes não repovoa a memória
+var inLigado = false;
+function inFonteVazia() { return { dados: null, carregando: false, erro: null, em: 0, seq: 0, periodo: null }; }
+var inDados = { resumo: inFonteVazia(), negocio: inFonteVazia(), quentes: inFonteVazia() };
+
+function inLimparMemoria() {
+  inSeq++;
+  inEstado.periodo = 'mes'; inEstado.produto = 'tudo';
+  inDados.resumo = inFonteVazia(); inDados.negocio = inFonteVazia(); inDados.quentes = inFonteVazia();
+  ['in-pede', 'in-agenda', 'in-periodo', 'in-stamp'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+  inPerGraf = []; inPerSig = '';
+}
+
+function inAbrirAgenda() { location.href = '/gerador/agenda'; }
+
+function inEntrada() {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  if (!window.__inEntradaLimpa) return;   // veio com parâmetro ou #: abre o que sempre abriu
+  navInicio();
+}
+
+function navInicio() {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  const sec = document.getElementById('inicioSection');
+  if (!sec) return;   // sem a seção não há o que abrir: nada é escondido
+  telasSolarLimpar();
+  ['formSection', 'propostaSection', 'expiradoSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  sec.style.display = '';
+  document.documentElement.classList.remove('in-boot');
+  marcarNavAtivo('nav-inicio');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Nunca deixar só a barra lateral e a área vazia: se o Início falhar, abre o formulário de sempre.
+  try { inAbrir(); } catch (e) {
+    console.error(e);
+    document.documentElement.classList.remove('in-boot');
+    navGerador();
+  }
+}
+
+function inAbrir() {
+  const sec = document.getElementById('inicioSection');
+  if (sec && !inLigado) { inLigado = true; sec.addEventListener('click', inClique); }
+  const agora = Date.now();
+  ['resumo', 'negocio'].forEach(k => {
+    const f = inDados[k];
+    if (f.carregando) return;
+    const velho = !f.dados || f.periodo !== inEstado.periodo || agora - f.em > IN_VALE_MS;
+    if (velho || f.erro) inBuscar(k);
+  });
+  if (!inDados.quentes.carregando && inDados.quentes.erro && !inDados.quentes.dados) inDados.quentes.erro = null;
+  inTalvezQuentes(true);
+  inDesenhar();
+}
+
+function inAtualizar() {
+  ['resumo', 'negocio'].forEach(k => { inDados[k].erro = null; inBuscar(k); });
+  inDados.quentes.erro = null; inBuscar('quentes');
+}
+function inTrocarPeriodo(chave) {
+  if (['mes', '30dias', '90dias'].indexOf(chave) < 0) return;
+  inEstado.periodo = chave;
+  ['resumo', 'negocio'].forEach(k => { inDados[k].erro = null; inBuscar(k); });
+  inDesenhar();
+}
+
+// Lê a fonte e guarda. Uma leitura mais nova (seq) ou um logout (inSeq) descarta a resposta velha.
+function inBuscar(fonte) {
+  const f = inDados[fonte], gen = inSeq, meu = ++f.seq, periodo = inEstado.periodo;
+  f.carregando = true; f.erro = null;
+  let p;
+  if (fonte === 'quentes') p = inLerQuentes();
+  else p = solApi('/gerador/dashboard' + (fonte === 'negocio' ? '/negocio' : '') + '?periodo=' + encodeURIComponent(periodo));
+  // Os handlers entram ANTES do primeiro desenho: se o desenho lançar, a fonte não fica
+  // com carregando = true para sempre.
+  p.then(d => {
+    if (gen !== inSeq || meu !== f.seq) return;
+    f.dados = d; f.periodo = periodo; f.em = Date.now(); f.carregando = false; f.erro = null;
+  }, e => {
+    if (gen !== inSeq || meu !== f.seq) return;
+    if (!(e && e.auth)) console.error(e);
+    f.carregando = false; f.erro = { auth: !!(e && e.auth) };
+  }).then(() => {
+    if (gen !== inSeq) return;
+    try {
+      if (fonte !== 'quentes') inTalvezQuentes(false);
+      inDesenhar();
+    } catch (er) { console.error(er); }
+  });
+  try { inDesenhar(); } catch (er) { console.error(er); }
+}
+// Negado = a sessão não vale: uma fonte com erro de acesso e sem dado, e nenhuma outra com dado.
+// Um 401 solto numa rota, com a outra carregada, só quebra o cartão dela.
+function inAuthNegada() {
+  const fs = ['resumo', 'negocio'].map(k => inDados[k]);
+  return fs.some(f => f.erro && f.erro.auth && !f.dados) && !fs.some(f => f.dados);
+}
+// Os clientes quentes só começam depois que o primeiro desenho tem o que mostrar.
+function inTalvezQuentes(abrindo) {
+  const q = inDados.quentes;
+  if (q.carregando || inAuthNegada()) return;
+  if (!['resumo', 'negocio'].some(k => inDados[k].dados || inDados[k].erro)) return;
+  if (!q.dados && !q.erro) inBuscar('quentes');
+  else if (abrindo && q.dados && Date.now() - q.em > IN_VALE_MS) inBuscar('quentes');
+}
+
+// A MESMA conta da aba Quem ligar: qlLerDados lê, qlCalcular decide a faixa. Aqui não há regra nova.
+async function inLerQuentes() {
+  const cru = await qlLerDados(45);
+  const res = qlCalcular({ props: cru.props, acessos: cru.acessos, cards: cru.cards, dias: 45, agora: Date.now() });
+  return { lista: res.lista };
+}
+function inQuentesContagem() {
+  const d = inDados.quentes.dados;
+  if (!d || !d.lista) return null;
+  const verTudo = [inDados.resumo.dados, inDados.negocio.dados].some(x => x && x.verTudo === true);
+  let eu = '';
+  try { eu = (crmConsultorLogado() || getConsultorAtual() || '').trim().toLowerCase(); } catch (e) { eu = ''; }
+  const base = d.lista.filter(c => !qlOcultos.has(c.key) && (verTudo || (eu && String(c.consultor || '').trim().toLowerCase() === eu)));
+  const n = f => base.filter(c => c.faixa === f).length;
+  return { quentes: n('quente'), mornos: n('morno'), naoAbriram: n('naoabriu'), vencendo: base.filter(c => c.faixa === 'quente' && c.selo && c.selo.tipo === 'vence').length };
+}
+
+// O que o usuário tem de dado em cada produto. Sem dado ainda: os dois (o filtro não pisca).
+function inProdutosPresentes() {
+  const r = inDados.resumo.dados, n = inDados.negocio.dados;
+  if (!r && !n) return { solar: true, eletroposto: true };
+  const out = { solar: false, eletroposto: false };
+  const soma = o => o && typeof o === 'object' ? Object.keys(o).reduce((s, k) => s + (Number(o[k]) || 0), 0) : 0;
+  if (r) {
+    ['solar', 'eletroposto'].forEach(p => {
+      if (soma((r.funil || {})[p]) > 0) out[p] = true;
+      if (Number(((r.pendencias || {}).agendadosVencidos || {})[p]) > 0) out[p] = true;
+      if ((((r.agendaHoje || {}).proximos) || []).some(x => x && x.produto === p)) out[p] = true;
+      if ((r.porDia || []).some(x => x && Number(x[p]) > 0)) out[p] = true;
+    });
+  }
+  if (n && n.vendas && n.vendas.periodo) {
+    ['solar', 'eletroposto'].forEach(p => { const v = n.vendas.periodo[p]; if (v && (Number(v.qtd) > 0 || Number(v.valor) > 0)) out[p] = true; });
+  }
+  if (!out.solar && !out.eletroposto) return { solar: true, eletroposto: true };
+  return out;
+}
+
+// ── Texto ──
+function inN(v) { const n = Number(v); return isFinite(n) ? n : 0; }
+function inQtd(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+function inLista(partes) {
+  if (partes.length <= 1) return partes.join('');
+  return partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1];
+}
+function inDiaExtenso() {
+  const fmt = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Sao_Paulo' });
+  const o = {};
+  fmt.formatToParts(new Date()).forEach(p => { o[p.type] = p.value; });
+  const sem = String(o.weekday || '').replace(/-feira$/, '');
+  return sem.charAt(0).toLocaleUpperCase('pt-BR') + sem.slice(1) + ', ' + o.day + ' de ' + o.month;
+}
+function inDiaBR(ms) { return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); }
+// "às 18:02" se a leitura é de hoje; "ontem às 18:02" ou "em 10/10 às 18:02" quando não é (dia de Brasília).
+function inQuando(ms) {
+  const dia = inDiaBR(ms), hoje = inDiaBR(Date.now());
+  if (dia === hoje) return 'às ' + inHoraBR(ms);
+  const [a, m, d] = hoje.split('-').map(Number);
+  const ontem = new Date(Date.UTC(a, m - 1, d - 1)).toISOString().slice(0, 10);
+  if (dia === ontem) return 'ontem às ' + inHoraBR(ms);
+  return 'em ' + dia.slice(8, 10) + '/' + dia.slice(5, 7) + ' às ' + inHoraBR(ms);
+}
+function inHoraBR(ms) { return new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }); }
+function inReais(v) { return 'R$ ' + Math.round(inN(v)).toLocaleString('pt-BR'); }
+
+// ── Linhas de "Precisa de você hoje" ──
+function inMontarLinhas() {
+  const L = [];
+  const R = inDados.resumo, N = inDados.negocio, Q = inDados.quentes;
+  const prod = inEstado.produto, solarOk = prod !== 'eletroposto';
+  const carr = f => !f.dados && !f.erro;
+  const quebrou = f => !f.dados && !!f.erro;
+  const esq = n => { for (let i = 0; i < n; i++) L.push({ t: 'esq' }); };
+  const d = R.dados || {}, ag = inAgendaDoFiltro(), pe = d.pendencias || {};
+
+  // 1. Atendimentos de hoje (resumo)
+  if (carr(R)) esq(2);
+  else if (quebrou(R)) L.push({ t: 'erro', fonte: 'resumo' });
+  else {
+    const a = inN(ag.aguardando), r = inN(ag.retornos), n = a + r;
+    if (n > 0) {
+      const partes = [];
+      if (a > 0) partes.push(inQtd(a, 'primeiro atendimento', 'primeiros atendimentos'));
+      if (r > 0) partes.push(inQtd(r, 'retorno', 'retornos'));
+      const prox = inProximos()[0];
+      L.push({ t: 'linha', d: 'agenda', n: String(n), frase: n === 1 ? 'Atendimento para fazer hoje' : 'Atendimentos para fazer hoje',
+        det: inLista(partes) + '.' + (prox && prox.hora ? ' Próximo às ' + prox.hora + '.' : '') });
+    }
+  }
+  // 2. Clientes quentes (leitura própria)
+  if (solarOk) {
+    if (carr(Q)) esq(1);
+    else if (quebrou(Q)) L.push({ t: 'erro', fonte: 'quentes' });
+    else {
+      const c = inQuentesContagem();
+      if (c && c.quentes > 0) {
+        L.push({ t: 'linha', d: 'quentes', n: String(c.quentes), frase: c.quentes === 1 ? 'Cliente quente para ligar' : 'Clientes quentes para ligar',
+          det: (c.quentes === 1 ? 'Abriu o orçamento em dias diferentes ou nas últimas 48 horas.' : 'Abriram o orçamento em dias diferentes ou nas últimas 48 horas.')
+            + (c.vencendo > 0 ? ' ' + c.vencendo + ' deles com o orçamento vencendo em até 3 dias.' : '') });
+      }
+    }
+  }
+  // 3. Agendados com a data vencida (resumo)
+  if (R.dados) {
+    const v = pe.agendadosVencidos;
+    if (v) {
+      const n = inN(prod === 'tudo' ? v.total : v[prod]);
+      if (n > 0) {
+        let det;
+        const dias = inN(v.maisAntigoDias);
+        if (prod === 'tudo' && dias > 0) det = n === 1 ? 'Está parado há ' + inQtd(dias, 'dia', 'dias') + '. Dê um destino a ele.' : 'O mais antigo está parado há ' + inQtd(dias, 'dia', 'dias') + '. Dê um destino a eles.';
+        else det = n === 1 ? 'Dê um destino a ele.' : 'Dê um destino a eles.';
+        L.push({ t: 'linha', d: 'vencidos', n: String(n), frase: n === 1 ? 'Card em agendado com a data vencida' : 'Cards em agendado com a data vencida', det });
+      }
+    }
+  }
+  // 4. Obras paradas (negócio)
+  let indisponivel = false;
+  if (solarOk) {
+    if (carr(N)) esq(1);
+    else if (quebrou(N)) L.push({ t: 'erro', fonte: 'negocio' });
+    else if (N.dados) {
+      const o = N.dados.obras;
+      if ((o && o.indisponivel) || (N.dados.aReceber && N.dados.aReceber.indisponivel)) indisponivel = true;
+      if (o && !o.indisponivel && inN(o.paradas15) > 0) {
+        const n = inN(o.paradas15), dias = inN(o.maiorParadaDias);
+        L.push({ t: 'linha', d: 'obras', n: String(n), frase: n === 1 ? 'Obra parada há 15 dias ou mais' : 'Obras paradas há 15 dias ou mais',
+          det: dias > 0 ? (n === 1 ? 'Está parada há ' + inQtd(dias, 'dia', 'dias') + '.' : 'A que mais espera está há ' + inQtd(dias, 'dia', 'dias') + '.') : '' });
+      }
+    }
+  }
+  if (indisponivel) L.push({ t: 'aviso', texto: 'Não consegui ler a planilha agora.' });
+  // 5. Leads do quiz sem horário (resumo)
+  if (R.dados && pe.quizSemHorario) {
+    const n = inN(pe.quizSemHorario.total);
+    if (n > 0) L.push({ t: 'linha', d: 'quiz', n: String(n), frase: n === 1 ? 'Pessoa que fez o quiz e não marcou horário' : 'Pessoas que fizeram o quiz e não marcaram horário', det: 'Nos últimos 7 dias.' });
+  }
+  // 6. A receber (só sócio: a chave só existe para ele)
+  if (solarOk && N.dados && N.dados.verDinheiro === true && N.dados.aReceber && !N.dados.aReceber.indisponivel && inN(N.dados.aReceber.valor) > 0) {
+    const a = N.dados.aReceber, vendas = inN(a.vendas);
+    L.push({ t: 'linha', d: 'areceber', n: inReais(a.valor), din: true, frase: 'A receber de obras vendidas',
+      det: [vendas > 0 ? 'Em ' + inQtd(vendas, 'venda', 'vendas') + '.' : '', inN(a.semValor) > 0 ? inN(a.semValor) + ' delas sem valor na planilha.' : ''].filter(Boolean).join(' ') });
+  }
+  return L;
+}
+// O erro diz o que faltou. Consultor comum não tem "valor a receber", então a frase dele não cita.
+function inErroTexto(fonte) {
+  if (fonte === 'resumo') return 'Não consegui carregar os atendimentos e as pendências.';
+  if (fonte === 'quentes') return 'Não consegui carregar os clientes quentes.';
+  const socio = [inDados.resumo, inDados.negocio].some(f => f.dados && f.dados.verTudo === true);
+  return socio ? 'Não consegui carregar as obras e o valor a receber.' : 'Não consegui carregar as obras.';
+}
+var IN_SETA = '<svg class="in-seta" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>';
+function inLinhaHtml(x) {
+  const e = escapeHtml;
+  if (x.t === 'esq') return '<div class="in-linha in-esq" aria-hidden="true"><span class="a"></span><span class="b"><i></i><i></i></span><span></span></div>';
+  if (x.t === 'erro') return '<div class="in-erro" role="alert"><span>' + e(inErroTexto(x.fonte)) + '</span><button type="button" class="in-link" data-in="tentar" data-v="' + x.fonte + '">Tentar de novo</button></div>';
+  if (x.t === 'aviso') return '<div class="in-aviso">' + e(x.texto) + '</div>';
+  return '<button type="button" class="in-linha" data-in="ir" data-d="' + x.d + '"><span class="in-n' + (x.din ? ' din' : '') + '">' + e(x.n) + '</span>'
+    + '<span class="in-t"><span class="in-f">' + e(x.frase) + '</span>' + (x.det ? '<span class="in-d">' + e(x.det) + '</span>' : '') + '</span>' + IN_SETA + '</button>';
+}
+
+// ── Agenda de hoje ──
+// Com filtro de produto, a agenda inteira vem do bloco porProduto (mesmo formato de agendaHoje).
+// Sem o bloco, vale agendaHoje inteiro.
+function inAgendaDoFiltro() {
+  const ag = (inDados.resumo.dados || {}).agendaHoje || {};
+  const p = inEstado.produto;
+  return (p !== 'tudo' && ag.porProduto && ag.porProduto[p]) ? ag.porProduto[p] : ag;
+}
+function inProximos() {
+  const ag = inAgendaDoFiltro();
+  const prod = inEstado.produto;
+  return (Array.isArray(ag.proximos) ? ag.proximos : []).filter(x => x && (prod === 'tudo' || x.produto === prod)).slice().sort((a, b) => String(a.hora || '').localeCompare(String(b.hora || '')));
+}
+function inAgendaHtml() {
+  const e = escapeHtml, R = inDados.resumo;
+  if (!R.dados && !R.erro) return '<div class="in-ag" aria-hidden="true"><div class="in-esq" style="display:block;min-height:0;padding:0"><span class="b"><i></i><i></i></span></div></div>';
+  if (!R.dados) return '<div class="in-lista"><div class="in-erro" role="alert"><span>' + e(inErroTexto('resumo')) + '</span><button type="button" class="in-link" data-in="tentar" data-v="resumo">Tentar de novo</button></div></div>';
+  const d = R.dados, ag = inAgendaDoFiltro(), verTudo = d.verTudo === true;
+  const total = inN(ag.total), a = inN(ag.aguardando), r = inN(ag.retornos), z = inN(ag.resolvidos);
+  const partes = [];
+  if (a > 0) partes.push(a + ' por atender');
+  if (r > 0) partes.push(inQtd(r, 'retorno', 'retornos'));
+  if (z > 0) partes.push(inQtd(z, 'já resolvido', 'já resolvidos'));
+  let h = '<div class="in-ag">';
+  h += total > 0 ? '<p>' + e(inQtd(total, 'card', 'cards') + ' hoje' + (partes.length ? ': ' + inLista(partes) : '') + '.') + '</p>' : '<p>Nenhum atendimento marcado para hoje.</p>';
+  const prox = inProximos();
+  if (prox.length) {
+    h += '<ul class="in-prox">' + prox.slice(0, 8).map(x => {
+      const pr = IN_PRODUTOS[x.produto];
+      return '<li><span class="in-hora">' + e(x.hora || '') + '</span><span><span class="in-cli">' + e(x.cliente || 'Sem nome') + '</span>'
+        + '<span class="in-meta"><span class="in-selo' + (x.grupo === 'aguardando' ? ' novo' : '') + '">' + (x.grupo === 'aguardando' ? 'Novo' : 'Retorno') + '</span>'
+        + (pr ? '<span class="in-prod"><span class="in-pt" style="background:' + pr.cor + '"></span>' + pr.nome + '</span>' : '')
+        + (verTudo && x.consultor ? '<span>' + e(x.consultor) + '</span>' : '') + '</span></span></li>';
+    }).join('') + '</ul>';
+  } else if (total > 0) h += '<p style="margin-top:12px;color:#94A3B8">Nenhum próximo atendimento' + (inEstado.produto === 'tudo' ? '' : ' deste produto') + ' na lista.</p>';
+  if (verTudo && (ag.porConsultor || []).length) {
+    h += '<table class="in-tab"><thead><tr><th>Consultor</th><th>Por atender</th><th>Retornos</th><th>Resolvidos</th><th>Próximo</th></tr></thead><tbody>'
+      + ag.porConsultor.map(c => '<tr><td>' + e(c.consultor || '') + '</td><td data-r="Por atender">' + inN(c.aguardando) + '</td><td data-r="Retornos">' + inN(c.retornos) + '</td><td data-r="Resolvidos">' + inN(c.resolvidos) + '</td><td data-r="Próximo">' + (c.proximo ? e(c.proximo) : 'Nenhum') + '</td></tr>').join('')
+      + '</tbody></table>';
+  }
+  const am = ag.amanha;
+  if (am) {
+    const aa = inN(am.aguardando), rr = inN(am.retornos), ps = [];
+    if (aa > 0) ps.push(inQtd(aa, 'primeiro atendimento', 'primeiros atendimentos'));
+    if (rr > 0) ps.push(inQtd(rr, 'retorno', 'retornos'));
+    h += '<p class="in-amanha">' + (ps.length ? 'Amanhã: ' + inLista(ps) + '.' : 'Nada marcado para amanhã.') + '</p>';
+  }
+  h += '<button type="button" class="in-link" data-in="agenda">Abrir agenda</button></div>';
+  return h;
+}
+
+// ── Desenho ──
+function inDesenhar() {
+  const sec = document.getElementById('inicioSection');
+  if (!sec) return;
+  inDesenharTopo();
+  inDesenharHoje();
+  inDesenharPeriodo();
+}
+function inDesenharTopo() {
+  const h1 = document.getElementById('in-h1');
+  if (h1) h1.textContent = inDiaExtenso();
+  const st = document.getElementById('in-stamp');
+  if (st) {
+    const em = Math.max(inDados.resumo.em, inDados.negocio.em, inDados.quentes.em);
+    const lendo = ['resumo', 'negocio', 'quentes'].some(k => inDados[k].carregando);
+    st.innerHTML = (lendo ? (em ? 'Atualizando… ' : 'Carregando… ') : (em ? 'Atualizado ' + inQuando(em) + '.' : ''))
+      + (lendo && !em ? '' : '<button type="button" class="in-link" data-in="atualizar"' + (lendo ? ' disabled' : '') + '>Atualizar</button>');
+  }
+  const pres = inProdutosPresentes();
+  const dois = pres.solar && pres.eletroposto;
+  if (!dois) inEstado.produto = 'tudo';
+  const fil = document.getElementById('in-filtro');
+  if (fil) {
+    fil.hidden = !dois;
+    fil.querySelectorAll('[data-in="produto"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === inEstado.produto ? 'true' : 'false'));
+  }
+}
+function inDesenharHoje() {
+  const negada = inAuthNegada();
+  const au = document.getElementById('in-auth'), hoje = document.getElementById('in-hoje'), fil = document.getElementById('in-filtro');
+  if (au) au.hidden = !negada;
+  if (hoje) hoje.hidden = negada;
+  if (negada) { if (fil) fil.hidden = true; return; }
+  const pede = document.getElementById('in-pede'), ag = document.getElementById('in-agenda');
+  if (pede) {
+    const L = inMontarLinhas();
+    const ocupado = ['resumo', 'negocio', 'quentes'].some(k => !inDados[k].dados && !inDados[k].erro);
+    if (!L.length && !ocupado) {
+      pede.innerHTML = '<div class="in-lista"><div class="in-vazio"><p>Nada pendente agora. Bom momento para ligar para quem recebeu orçamento.</p>'
+        + '<button type="button" class="in-btn" data-in="ir" data-d="quentes">Abrir Quem ligar</button></div></div>';
+    } else pede.innerHTML = '<div class="in-lista" aria-busy="' + (ocupado ? 'true' : 'false') + '">' + L.map(inLinhaHtml).join('') + '</div>';
+  }
+  if (ag) ag.innerHTML = inAgendaHtml();
+}
+// ═══ Etapa 2: o período (12/10/2026) ═══
+// Cabeçalho fixo (período e intervalo) + grade de cartões. A grade só é refeita quando algo
+// que ela mostra mudou (fonte, filtro, período, largura): refazer a cada chamada de
+// inDesenhar() fecharia "Ver os números" e a caixa de valores do gráfico.
+// Resumo alimenta funil, agendamentos por dia e time. Negócio alimenta vendas, obras e anúncios.
+const IN_MES_LONGO = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const IN_MES_CURTO = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const IN_PERIODOS = [['mes', 'Este mês'], ['30dias', '30 dias'], ['90dias', '90 dias']];
+var inPerSig = '';
+var inPerGraf = [];   // desenhos que precisam do cartão já no DOM (largura real)
+const inCap = s => String(s || '').charAt(0).toLocaleUpperCase('pt-BR') + String(s || '').slice(1);
+
+// Dia vem como AAAA-MM-DD: só fatia (new Date('2026-10-01') cairia no dia anterior em Brasília).
+function inIntervalo(de, ate) {
+  const a = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(de || '')), b = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ate || ''));
+  if (!a || !b) return '';
+  const mA = IN_MES_LONGO[+a[2] - 1], mB = IN_MES_LONGO[+b[2] - 1];
+  if (!mA || !mB) return '';
+  if (a[0] === b[0]) return 'Dia ' + (+a[3]) + ' de ' + mA;
+  if (a[1] !== b[1]) return 'De ' + (+a[3]) + ' de ' + mA + ' de ' + a[1] + ' a ' + (+b[3]) + ' de ' + mB + ' de ' + b[1];
+  if (a[2] !== b[2]) return 'De ' + (+a[3]) + ' de ' + mA + ' a ' + (+b[3]) + ' de ' + mB;
+  return 'De ' + (+a[3]) + ' a ' + (+b[3]) + ' de ' + mB;
+}
+
+// ok = dado do período escolhido. velho = dado de outro período e a leitura nova a caminho.
+// erro = a leitura falhou e não há dado do período (dado de outro período não vale como resposta).
+// carr = ainda sem nada.
+function inFonteEstado(f) {
+  if (f.dados && f.periodo === inEstado.periodo) return 'ok';
+  if (f.erro) return 'erro';
+  if (f.dados) return 'velho';
+  return 'carr';
+}
+function inProdsAtivos(extra) {
+  if (inEstado.produto === 'solar' || inEstado.produto === 'eletroposto') return [inEstado.produto];
+  const pres = inProdutosPresentes();
+  const out = ['solar', 'eletroposto'].filter(p => pres[p] || (extra && extra[p]));
+  return out.length ? out : ['solar', 'eletroposto'];
+}
+
+// ── Peças de cartão ──
+function inCartao(c, titulo, corpo, o) {
+  o = o || {};
+  return '<section class="in-card' + (o.larga ? ' larga' : '') + (o.dim ? ' pq-recarregando' : '') + '" data-c="' + c + '"' + (o.dim || o.esq ? ' aria-busy="true"' : '') + '><h3>' + escapeHtml(titulo) + '</h3>' + corpo + '</section>';
+}
+const inEsqHtml = () => '<div class="in-sk" aria-hidden="true"><div class="pq-sk" style="width:80%"></div><div class="pq-sk" style="width:55%"></div><div class="pq-sk" style="height:96px"></div></div>';
+const inErroHtml = fonte => '<div class="in-erro" role="alert"><span>Não consegui carregar agora.</span><button type="button" class="in-link" data-in="tentar" data-v="' + fonte + '">Tentar de novo</button></div>';
+const inPlanilhaHtml = () => '<p class="in-aviso-t">Não consegui ler a planilha agora.</p>';
+function inCartaoFonte(c, titulo, fonte, o, montar) {
+  o = o || {};
+  const f = inDados[fonte], est = inFonteEstado(f);
+  if (est === 'carr') return inCartao(c, titulo, inEsqHtml(), Object.assign({}, o, { esq: true }));
+  if (est === 'erro') return inCartao(c, titulo, inErroHtml(fonte), o);
+  return inCartao(c, titulo, montar(f.dados), Object.assign({}, o, { dim: est === 'velho' }));
+}
+
+// ── Funil ──
+function inCorpoFunil(d, prods) {
+  const funil = d.funil || {};
+  // Mesma escala nos dois funis: a barra do produto menor não pode parecer do tamanho da maior.
+  const maxAg = Math.max(0, ...prods.map(p => inN((funil[p] || {}).agendaram)));
+  let h = '<div class="in-fns">';
+  prods.forEach(p => {
+    const pr = IN_PRODUTOS[p], f = funil[p] || {};
+    const ag = inN(f.agendaram), co = inN(f.conversaram), av = inN(f.avancaram);
+    h += '<div class="in-fn"><div class="in-fn-t"><span class="in-pt" style="background:' + pr.cor + '"></span>' + pr.nome + '</div>';
+    if (ag <= 0) h += '<p class="in-fr sec">Nenhum agendamento no período.</p>';
+    else {
+      h += '<div class="pq-graf" data-g="fn-' + p + '"></div>';
+      const resto = [];
+      const sem = inN(f.semInteresse), nao = inN(f.naoAtendeu), can = inN(f.cancelados), aguard = inN(f.aguardando);
+      if (sem > 0) resto.push(pqN(sem) + ' sem interesse');
+      if (nao > 0) resto.push(nao === 1 ? '1 não atendeu' : pqN(nao) + ' não atenderam');
+      if (can > 0) resto.push(can === 1 ? '1 cancelado' : pqN(can) + ' cancelados');
+      if (aguard > 0) resto.push(pqN(aguard) + ' ainda aguardando');
+      if (resto.length) h += '<p class="in-fr sec">Dos ' + pqN(ag) + ': ' + inLista(resto) + '.</p>';
+      inPerGraf.push(raiz => {
+        const host = raiz.querySelector('[data-g="fn-' + p + '"]');
+        if (!host) return;
+        const passos = [['Agendaram', ag, 0, ''], ['Conversaram', co, ag, 'dos que agendaram'], ['Avançaram', av, co, 'dos que conversaram']];
+        pqBarras(host, passos.map(([rot, v, ant, de]) => {
+          const pc = ant > 0 ? Math.round(v / ant * 100) : null;
+          return { rotulo: rot, direita: pqN(v) + (pc !== null ? ' · ' + pc + '%' : ''), segs: [{ v, cor: pr.cor }],
+            tip: { titulo: pr.nome + ': ' + rot, linhas: [{ cor: pr.cor, valor: pqN(v), nome: pc !== null ? pc + '% ' + de : 'cards criados no período' }] } };
+        }), { titulo: 'Funil de ' + pr.nome.toLowerCase(), max: maxAg });
+      });
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+  const t = Array.isArray(d.time) ? d.time : [];
+  if (d.verTudo !== true && t[0] && isFinite(Number(t[0].propostas))) {
+    const n = inN(t[0].propostas);
+    h += '<p class="in-fr" style="margin-top:14px">' + (n === 0 ? 'Você não gerou propostas no período.' : 'Você gerou ' + inQtd(n, 'proposta', 'propostas') + ' no período.') + '</p>';
+  }
+  return h;
+}
+
+// ── Novos agendamentos por dia ──
+function inCorpoDia(d, prods) {
+  const dias = (Array.isArray(d.porDia) ? d.porDia : []).filter(x => x && x.dia);
+  const series = prods.map(p => ({ chave: p, nome: IN_PRODUTOS[p].nome, cor: IN_PRODUTOS[p].cor }));
+  const tot = {}; let geral = 0;
+  series.forEach(s => { tot[s.chave] = dias.reduce((a, x) => a + inN(x[s.chave]), 0); geral += tot[s.chave]; });
+  if (geral <= 0) return '<p class="in-fr">Nenhum novo agendamento no período.</p>';
+  const novos = geral === 1 ? '1 novo agendamento' : pqN(geral) + ' novos agendamentos';
+  let h = '<p class="in-fr">' + novos + (series.length === 1 ? ' de ' + series[0].nome.toLowerCase()
+    : ': ' + inLista(series.map(s => pqN(tot[s.chave]) + ' de ' + s.nome.toLowerCase()))) + '.</p>';
+  const tabela = pqTabela(['Dia'].concat(series.map(s => s.nome)), dias.map(x => [pqDiaMes(x.dia)].concat(series.map(s => pqN(x[s.chave])))));
+  if (dias.length < 3) return h + tabela;
+  if (series.length > 1) h += pqLeg(series.map(s => [s.cor, s.nome]));
+  h += '<div class="pq-graf" data-g="dia"></div>' + pqDetalhe('<div class="in-rol">' + tabela + '</div>');
+  inPerGraf.push(raiz => { const host = raiz.querySelector('[data-g="dia"]'); if (host) pqLinhas(host, dias, series, 'Novos agendamentos por dia'); });
+  return h;
+}
+
+// ── Vendas por mês ──
+// Texto do dinheiro de uma venda. Só existe para quem vê dinheiro: para consultor comum a chave
+// nem chega, e "sem valor registrado" seria mentira (o valor existe, ele só não vê).
+function inVendaValor(x, din, frase) {
+  if (!din || !x) return '';
+  const q = inN(x.qtd), val = inN(x.valor), sem = inN(x.semValor);
+  if (val > 0) return inReais(val) + (sem > 0 ? (frase ? ', ' : ' (') + sem + ' sem valor registrado' + (frase ? '' : ')') : '');
+  return q > 0 ? 'sem valor registrado' : '';
+}
+// Folha fora do ar: { indisponivel: true } e nada mais. Quantidade ausente NUNCA vale zero.
+function inVendaFora(x) { return !x || x.indisponivel === true || x.qtd == null || !isFinite(Number(x.qtd)); }
+function inVendaCelula(x, din) {
+  if (inVendaFora(x)) return 'Sem leitura';
+  const q = inN(x.qtd), val = inN(x.valor);
+  const extra = din ? (val > 0 ? inReais(val) : (q > 0 ? 'sem valor' : '')) : '';
+  return q + (extra ? ' · ' + extra : '');
+}
+function inCorpoVendas(d, prods) {
+  const v = d.vendas || {}, din = d.verDinheiro === true;
+  const per = v.periodo || {}, pm = Array.isArray(v.porMes) ? v.porMes : [];
+  if (!v.periodo && !pm.length) return '<p class="in-fr sec">Sem dados de vendas agora.</p>';
+  let h = '';
+  const pecas = []; let primeira = true;
+  prods.forEach(p => {
+    const x = per[p];
+    if (inVendaFora(x)) return;
+    const q = inN(x.qtd), din2 = inVendaValor(x, din, true), nome = IN_PRODUTOS[p].nome.toLowerCase();
+    pecas.push((primeira ? inQtd(q, 'venda', 'vendas') : String(q)) + ' de ' + nome + (din2 ? ' (' + din2 + ')' : ''));
+    primeira = false;
+  });
+  if (pecas.length) h += '<p class="in-fr">No período: ' + inLista(pecas) + '.</p>';
+  const foraDe = p => (per[p] && per[p].indisponivel === true) || pm.some(m => m && m[p] && m[p].indisponivel === true);
+  if (prods.includes('solar') && foraDe('solar')) h += inPlanilhaHtml();
+  if (prods.includes('eletroposto') && foraDe('eletroposto')) h += '<p class="in-aviso-t">Não consegui ler as vendas do eletroposto agora.</p>';
+  const series = prods.map(p => ({ chave: p, nome: IN_PRODUTOS[p].nome, cor: IN_PRODUTOS[p].cor }));
+  const meses = pm.map(m => {
+    const mm = /^(\d{4})-(\d{2})/.exec(String(m && m.mes || ''));
+    const i = mm ? +mm[2] - 1 : -1;
+    if (i < 0 || i > 11) return null;
+    const vals = {};
+    series.forEach(s => {
+      const x = m[s.chave];
+      vals[s.chave] = inVendaFora(x) ? { v: null, txt: '' } : { v: inN(x.qtd), txt: inVendaValor(x, din, false) };
+    });
+    return { rotulo: IN_MES_CURTO[i], titulo: IN_MES_LONGO[i] + ' de ' + mm[1] + (m.parcial ? ' (parcial)' : ''), parcial: !!m.parcial, vals, raw: m };
+  }).filter(Boolean);
+  if (meses.length) {
+    const temParcial = meses.some(m => m.parcial);
+    if (series.length > 1 || temParcial) {
+      let leg = pqLeg(series.map(s => [s.cor, s.nome]));
+      if (temParcial) leg = leg.replace(/<\/div>$/, '<span><i style="background:transparent;border:1px solid ' + PQ_TXT2 + ';box-shadow:inset 0 0 0 1px ' + PQ_TXT2 + ';box-sizing:border-box"></i>Mês parcial</span></div>');
+      h += leg;
+    }
+    h += '<div class="pq-graf" data-g="vendas"></div>';
+    const tabela = '<div class="pq-tabela-wrap in-tabv">' + pqTabela(['Mês'].concat(series.map(s => s.nome)),
+      meses.map(m => [inCap(m.rotulo) + (m.parcial ? ' (parcial)' : '')].concat(series.map(s => inVendaCelula(m.raw[s.chave], din))))) + '</div>';
+    h += din ? tabela : pqDetalhe(tabela);
+    inPerGraf.push(raiz => { const host = raiz.querySelector('[data-g="vendas"]'); if (host) inColunas(host, meses, series, 'Vendas por mês'); });
+  }
+  const notas = [];
+  // Venda com valor e venda sem valor na mesma célula: a tabela mostra só a soma; a ressalva
+  // vem aqui, dizendo o mês e o produto (sem isso ninguém sabe qual linha da planilha olhar).
+  if (din) meses.forEach(m => series.forEach(s => {
+    const x = m.raw[s.chave];
+    if (inVendaFora(x) || !(inN(x.valor) > 0)) return;
+    const n = inN(x.semValor), de = ' de ' + s.nome.toLowerCase();
+    if (n > 0) notas.push('Em ' + m.titulo.split(' de ')[0] + ', ' + (n === 1 ? '1 venda' + de + ' sem valor registrado ficou fora da soma.' : n + ' vendas' + de + ' sem valor registrado ficaram fora da soma.'));
+  }));
+  const so = prods.length === 1 ? prods[0] : '';
+  if (so !== 'eletroposto') notas.push('Solar vem da Planilha Mestre e chega com atraso: o mês corrente é parcial.');
+  if (so !== 'solar') notas.push('Eletroposto são as vendas marcadas no card.' + (so === 'eletroposto' ? ' O mês corrente é parcial.' : ''));
+  const nn = d.notas || {};
+  const sd = inN(nn.vendasSemData), er = inN(nn.eletropostoSemRegistro);
+  if (sd > 0 && so !== 'eletroposto') notas.push(sd === 1 ? '1 venda da planilha sem data ficou fora dos meses.' : sd + ' vendas da planilha sem data ficaram fora dos meses.');
+  if (er > 0 && so !== 'solar') notas.push(er === 1 ? '1 venda de eletroposto sem registro de pós-venda entra pelo dia de criação do card.' : er + ' vendas de eletroposto sem registro de pós-venda entram pelo dia de criação do card.');
+  return h + '<p class="in-rod">' + notas.map(escapeHtml).join(' ') + '</p>';
+}
+
+// Gráfico de colunas agrupadas, no molde de pqLinhas: mesma margem, mesma escala, mesma grade.
+// meses: [{ rotulo, titulo, parcial, vals: { chave: { v: número|null, txt } } }]
+function inColunas(host, meses, series, titulo) {
+  const n = meses.length, k = series.length;
+  if (!n || !k) { host.innerHTML = ''; return; }
+  const W = Math.max(260, Math.floor(host.clientWidth));
+  const m = { l: 36, r: 14, t: 18, b: 30 };
+  const iw = W - m.l - m.r, gw = iw / n;
+  const duas = gw < 92 && meses.some(x => x.parcial);
+  if (duas) m.b = 46;
+  const H = (W < 480 ? 220 : 236) + (duas ? 16 : 0), ih = H - m.t - m.b;
+  const valDe = (x, s) => { const c = x.vals[s.chave]; return c && c.v != null ? inN(c.v) : 0; };
+  const esc = pqEscala(Math.max(1, ...meses.map(x => Math.max(0, ...series.map(s => valDe(x, s))))));
+  const Y = v => m.t + ih * (1 - v / esc.topo);
+  const folga = 2, cw = Math.max(6, Math.min(26, (gw * 0.6 - folga * (k - 1)) / k)), span = k * cw + (k - 1) * folga;
+  const rotuloAria = x => x.rotulo + (x.parcial ? ' (parcial)' : '');
+  const aria = titulo + ': ' + meses.map(x => rotuloAria(x) + ' ' + series.map(s => s.nome + ' ' + (x.vals[s.chave] && x.vals[s.chave].v != null ? valDe(x, s) : 'sem leitura')).join(', ')).join('; ') + '. Os números por mês estão na tabela.';
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escapeHtml(aria) + '">';
+  esc.ticks.forEach(v => {
+    const y = pqR1(Y(v));
+    svg += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y + '" y2="' + y + '" stroke="' + (v === 0 ? PQ_EIXO : PQ_GRADE) + '" stroke-width="1"/>'
+      + '<text x="' + (m.l - 8) + '" y="' + y + '" dy=".35em" text-anchor="end" font-size="11" fill="' + PQ_TXT2 + '">' + pqN(v) + '</text>';
+  });
+  svg += '<rect class="pq-realce" x="0" y="' + m.t + '" width="' + pqR1(gw) + '" height="' + ih + '" rx="6" fill="rgba(255,255,255,.06)" visibility="hidden"/>';
+  meses.forEach((x, i) => {
+    const gx = m.l + gw * i, x0 = gx + (gw - span) / 2, cx = pqR1(gx + gw / 2), yb = m.t + ih + 16;
+    series.forEach((s, j) => {
+      const val = valDe(x, s);
+      if (val <= 0) return;
+      const xb = x0 + j * (cw + folga), hh = ih * val / esc.topo;
+      // Mês parcial: miolo apagado com contorno na cor da série, recuado meio traço para ficar dentro da área.
+      if (x.parcial) svg += '<path transform="translate(' + pqR1(xb + .75) + ' ' + pqR1(Y(0) - .75) + ') rotate(-90)" d="' + pqCaminhoBarra(0, 0, Math.max(1, hh - 1.5), Math.max(2, cw - 1.5), true) + '" fill="' + s.cor + '" fill-opacity=".3" stroke="' + s.cor + '" stroke-width="1.5"/>';
+      else svg += '<path transform="translate(' + pqR1(xb) + ' ' + pqR1(Y(0)) + ') rotate(-90)" d="' + pqCaminhoBarra(0, 0, hh, cw, true) + '" fill="' + s.cor + '"/>';
+    });
+    // Estreito: o rótulo "out (parcial)" quebra em duas linhas, mas continua sendo um texto só.
+    if (x.parcial && duas) svg += '<text x="' + cx + '" y="' + yb + '" text-anchor="middle" font-size="11" fill="' + PQ_TXT2 + '"><tspan x="' + cx + '">' + escapeHtml(x.rotulo) + ' </tspan><tspan x="' + cx + '" dy="14">(parcial)</tspan></text>';
+    else svg += '<text x="' + cx + '" y="' + yb + '" text-anchor="middle" font-size="11" fill="' + PQ_TXT2 + '">' + escapeHtml(x.rotulo + (x.parcial ? ' (parcial)' : '')) + '</text>';
+  });
+  meses.forEach((x, i) => {
+    svg += '<rect class="pq-alvo" data-i="' + i + '" x="' + pqR1(m.l + gw * i) + '" y="' + m.t + '" width="' + pqR1(gw) + '" height="' + ih + '" fill="transparent" tabindex="0" role="img" aria-label="' + escapeHtml(rotuloAria(x) + ': ' + series.map(s => s.nome + ' ' + (x.vals[s.chave] && x.vals[s.chave].v != null ? valDe(x, s) : 'sem leitura')).join(', ')) + '"/>';
+  });
+  svg += '</svg>';
+  host.innerHTML = svg;
+  const el = host.querySelector('svg'), realce = el.querySelector('.pq-realce'), tip = pqTip(host);
+  const mostrar = i => {
+    const x = meses[i]; if (!x) return;
+    const gx = m.l + gw * i;
+    realce.setAttribute('x', pqR1(gx)); realce.setAttribute('visibility', 'visible');
+    pqTipPreencher(tip, x.titulo, series.map(s => {
+      const c = x.vals[s.chave] || {};
+      return { cor: s.cor, valor: c.v != null ? pqN(c.v) : 'Sem leitura', nome: s.nome + (c.txt ? ' · ' + c.txt : '') };
+    }));
+    tip.hidden = false;
+    const w = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(W - w, gx + gw + 4 + w > W ? gx - w - 4 : gx + gw + 4)) + 'px';
+    tip.style.top = (m.t + 4) + 'px';
+  };
+  const sair = () => { realce.setAttribute('visibility', 'hidden'); tip.hidden = true; };
+  el.querySelectorAll('.pq-alvo').forEach(a => {
+    a.addEventListener('pointermove', () => mostrar(+a.dataset.i));
+    a.addEventListener('pointerdown', () => mostrar(+a.dataset.i));
+    a.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') sair(); });
+    a.addEventListener('focus', () => mostrar(+a.dataset.i));
+    a.addEventListener('blur', sair);
+  });
+}
+
+// ── Time (só sócio) ──
+function inCorpoTime(d) {
+  const e = escapeHtml;
+  const t = (Array.isArray(d.time) ? d.time : []).filter(x => x).slice()
+    .sort((a, b) => inN(b.agendaram) - inN(a.agendaram) || String(a.consultor || '').localeCompare(String(b.consultor || ''), 'pt-BR'));
+  const nota = '<p class="in-rod">Conta os cards criados no período, pelo consultor do card. Soma solar e eletroposto. Em ordem de quem mais agendou.</p>';
+  if (!t.length) return '<p class="in-fr sec">Nenhum agendamento do time no período.</p>' + nota;
+  return '<table class="in-tab in-time"><thead><tr><th>Consultor</th><th>Agendaram</th><th>Conversaram</th><th>Avançaram</th><th>Avanço sobre agendados</th><th>Propostas</th></tr></thead><tbody>'
+    + t.map(c => {
+      const ag = inN(c.agendaram), av = inN(c.avancaram);
+      return '<tr><td>' + e(c.consultor || 'Sem nome') + '</td><td data-r="Agendaram">' + pqN(ag) + '</td><td data-r="Conversaram">' + pqN(c.conversaram) + '</td><td data-r="Avançaram">' + pqN(av)
+        + '</td><td data-r="Avanço sobre agendados">' + (ag > 0 ? Math.round(av / ag * 100) + '%' : 'Sem dado') + '</td><td data-r="Propostas">' + pqN(c.propostas) + '</td></tr>';
+    }).join('') + '</tbody></table>' + nota;
+}
+
+// ── Obras do solar ──
+function inCorpoObras(d) {
+  const o = d.obras;
+  const abrir = '<button type="button" class="in-link" data-in="ir" data-d="obras">Abrir obras</button>';
+  if (!o) return '<p class="in-fr sec">Sem dado de obras agora.</p>';
+  if (o.indisponivel) return inPlanilhaHtml() + abrir;
+  if (o.emAndamento == null && o.concluidas == null) return '<p class="in-fr sec">Sem dado de obras agora.</p>' + abrir;
+  const em = inN(o.emAndamento), co = inN(o.concluidas);
+  let h = '<p class="in-fr">' + (em === 1 ? '1 obra em andamento' : em + ' obras em andamento') + ' e ' + (co === 1 ? '1 concluída' : co + ' concluídas') + '.</p>';
+  const pe = o.porEtapa || {};
+  h += '<ul class="in-etapas">' + [['projeto', 'Projeto'], ['material', 'Material'], ['instalacao', 'Instalação'], ['vistoria', 'Vistoria'], ['liberado', 'Liberação']]
+    .map(([k, r]) => '<li>' + r + ' <b>' + inN(pe[k]) + '</b></li>').join('') + '</ul>';
+  const par = inN(o.paradas15), dias = inN(o.maiorParadaDias);
+  if (par > 0) {
+    h += '<p class="in-fr">' + (par === 1 ? '1 parada há 15 dias ou mais.' + (dias > 0 ? ' Está parada há ' + inQtd(dias, 'dia', 'dias') + '.' : '')
+      : par + ' paradas há 15 dias ou mais.' + (dias > 0 ? ' A que mais espera está há ' + inQtd(dias, 'dia', 'dias') + '.' : '')) + '</p>';
+  }
+  return h + abrir;
+}
+
+// ── Anúncios do quiz solar (só sócio) ──
+function inCorpoAnuncios(d) {
+  const t = d.trafego || {};
+  const rot = String(t.rotulo || 'Últimos 30 dias');
+  let h = '<p class="in-fr sec">' + escapeHtml(rot) + ' (não muda com o período).</p>';
+  if (t.meta_ok === false) h += '<p class="in-fr">Sem dado da Meta agora.</p>';
+  else {
+    const gasto = inN(t.gasto), ag = inN(t.agendados), custo = t.custoPorAgendado == null ? 0 : Number(t.custoPorAgendado);
+    if (!(gasto > 0)) {
+      h += '<p class="in-fr">Nenhum gasto no quiz do solar nos ' + escapeHtml(rot.charAt(0).toLowerCase() + rot.slice(1)) + '.'
+        + (ag > 0 ? ' ' + inQtd(ag, 'agendamento', 'agendamentos') + ' no período.' : '') + '</p>';
+    } else if (ag <= 0) h += '<p class="in-fr">' + pqReais(gasto) + ' investidos e nenhum agendamento.</p>';
+    else {
+      const p = [pqReais(gasto) + ' investidos', inQtd(ag, 'agendamento', 'agendamentos')];
+      if (isFinite(custo) && custo > 0) p.push(pqReais(custo) + ' por agendamento');
+      h += '<p class="in-fr">' + p.join(', ') + '.</p>';
+    }
+  }
+  return h + '<button type="button" class="in-link" data-in="ir" data-d="painel">Abrir painel</button>';
+}
+
+// ── Desenho do período ──
+function inDesenharPeriodo() {
+  const host = document.getElementById('in-periodo');
+  if (!host) return;
+  if (inAuthNegada()) { host.hidden = true; if (host.innerHTML) host.innerHTML = ''; inPerSig = ''; return; }
+  host.hidden = false;
+  if (!(host.offsetWidth > 0)) return;   // Início escondido: sem largura não há como desenhar gráfico
+  if (!host.querySelector('.in-per-topo')) {
+    host.innerHTML = '<div class="in-per-topo"><h2>O período</h2><div class="in-filtro" role="group" aria-label="Período">'
+      + IN_PERIODOS.map(([v, r]) => '<button type="button" class="in-opc" data-in="periodo" data-v="' + v + '" aria-pressed="false">' + r + '</button>').join('')
+      + '</div><p class="in-per-de" id="in-per-de"></p></div><div class="in-per-grade"></div>';
+    inPerSig = '';
+  }
+  host.querySelectorAll('[data-in="periodo"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === inEstado.periodo ? 'true' : 'false'));
+  const R = inDados.resumo, N = inDados.negocio;
+  const de = document.getElementById('in-per-de');
+  if (de) {
+    const f = [R, N].find(x => x.dados && x.periodo === inEstado.periodo && x.dados.periodo && x.dados.periodo.de && x.dados.periodo.ate);
+    if (f) de.textContent = inIntervalo(f.dados.periodo.de, f.dados.periodo.ate);
+  }
+  const sig = [inEstado.periodo, inEstado.produto, host.clientWidth].concat(['resumo', 'negocio'].map(k => {
+    const f = inDados[k];
+    return [f.em, f.seq, f.periodo, f.carregando ? 1 : 0, f.dados ? 1 : 0, f.erro ? 1 : 0].join(':');
+  })).join('|');
+  const grade = host.querySelector('.in-per-grade');
+  if (!grade || sig === inPerSig) return;
+  inPerSig = sig;
+
+  inPerGraf = [];
+  const eletroOnly = inEstado.produto === 'eletroposto';
+  const prods = inProdsAtivos();
+  const extra = {};
+  if (N.dados && N.dados.vendas && Array.isArray(N.dados.vendas.porMes)) N.dados.vendas.porMes.forEach(m => ['solar', 'eletroposto'].forEach(p => { if (m && m[p] && inN(m[p].qtd) > 0) extra[p] = true; }));
+  const prodsV = inProdsAtivos(extra);
+  const estR = inFonteEstado(R), estN = inFonteEstado(N);
+  const socioConhecido = [R, N].some(f => f.dados && f.dados.verTudo === true);
+  const temTime = (estR === 'ok' || estR === 'velho') && R.dados.verTudo === true;
+  const temAnuncios = !eletroOnly && (((estN === 'ok' || estN === 'velho') && N.dados.verDinheiro === true && !!N.dados.trafego) || ((estN === 'carr' || estN === 'erro') && socioConhecido));
+
+  const C = {};
+  C.funil = inCartaoFonte('funil', 'Do agendamento ao avanço', 'resumo', {}, d => inCorpoFunil(d, prods));
+  C.dia = inCartaoFonte('dia', 'Novos agendamentos por dia', 'resumo', {}, d => inCorpoDia(d, prods));
+  C.vendas = inCartaoFonte('vendas', 'Vendas por mês', 'negocio', {}, d => inCorpoVendas(d, prodsV));
+  if (temTime) C.time = inCartaoFonte('time', 'Time', 'resumo', {}, inCorpoTime);
+  if (!eletroOnly) C.obras = inCartaoFonte('obras', 'Obras do solar', 'negocio', {}, inCorpoObras);
+  if (temAnuncios) C.anuncios = inCartaoFonte('anuncios', 'Anúncios do quiz solar', 'negocio', {}, inCorpoAnuncios);
+  const junta = ids => ids.filter(id => C[id]).map(id => C[id]).join('');
+  // Largo: duas pilhas independentes (sem buraco de grade). Estreito: uma coluna na ordem de leitura.
+  const largo = host.clientWidth >= 960;
+  grade.classList.toggle('duas', largo);
+  if (largo) {
+    const esq = temTime ? ['funil', 'vendas'] : (C.obras ? ['funil', 'obras'] : ['funil', 'vendas']);
+    const dir = temTime ? ['dia', 'time', 'obras', 'anuncios'] : (C.obras ? ['dia', 'vendas'] : ['dia']);
+    grade.innerHTML = '<div class="in-col">' + junta(esq) + '</div><div class="in-col">' + junta(dir) + '</div>';
+  } else grade.innerHTML = junta(['funil', 'dia', 'vendas', 'time', 'obras', 'anuncios']);
+  inPerGraf.forEach(fn => fn(grade));
+}
+// Girar o celular ou redimensionar a janela refaz os gráficos (a largura entra na assinatura).
+// Escondido não desenha: inDesenharPeriodo sai quando a seção não tem largura.
+window.addEventListener('resize', () => {
+  clearTimeout(window.__inPerResize);
+  window.__inPerResize = setTimeout(() => {
+    const sec = document.getElementById('inicioSection');
+    if (sec && sec.offsetWidth > 0) inDesenharPeriodo();
+  }, 150);
+});
+// Toque fora do gráfico fecha a caixa de valores.
+document.addEventListener('pointerdown', ev => {
+  document.querySelectorAll('#in-periodo .pq-tip').forEach(t => { if (!t.parentNode.contains(ev.target)) t.hidden = true; });
+});
+
+function inClique(ev) {
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-in]') : null;
+  if (!b || b.disabled) return;
+  const a = b.dataset.in, v = b.dataset.v, d = b.dataset.d;
+  if (a === 'produto') { inEstado.produto = v; inDesenhar(); }
+  else if (a === 'periodo') { if (v !== inEstado.periodo) inTrocarPeriodo(v); }
+  else if (a === 'atualizar') inAtualizar();
+  else if (a === 'tentar') { inDados[v].erro = null; inBuscar(v); }
+  else if (a === 'gerar') navGerador();
+  else if (a === 'sair') sairGeradorJa();
+  else if (a === 'agenda') inAbrirAgenda();
+  else if (a === 'ir') {
+    if (d === 'agenda' || d === 'vencidos') inAbrirAgenda();
+    else if (d === 'quentes') navQuemLigar();
+    else if (d === 'obras' || d === 'areceber') navObrasSolar();
+    else if (d === 'quiz') navLeads();
+    else if (d === 'painel') navPainelSolar();
+  }
+}
+
+// Voltar para a aba (celular que dorme e acorda): reavalia a validade dos dados (a regra de 60 s está em inAbrir).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const sec = document.getElementById('inicioSection');
+  if (!sec || document.documentElement.dataset.mode !== 'app' || sec.style.display === 'none' || !sec.offsetWidth) return;
+  try { inAbrir(); } catch (e) { console.error(e); }
+});
 
 // ── Indicações e depoimentos ──
 // A API decide quem pode receber o pedido (`pedir`): a tela só obedece.
@@ -29489,7 +30502,7 @@ function pqBarras(host, linhas, opcoes) {
   const W = Math.max(260, Math.floor(host.clientWidth));
   const pitch = 40, topo = 4, eixo = 24, iw = W - 10;
   const H = topo + linhas.length * pitch + eixo;
-  const max = Math.max(1, ...linhas.map(l => l.segs.reduce((a, s) => a + s.v, 0)));
+  const max = Math.max(1, o.max || 0, ...linhas.map(l => l.segs.reduce((a, s) => a + s.v, 0)));
   const esc = pqEscala(max);
   const aria = (o.titulo || 'Gráfico de barras') + ': ' + linhas.map(l => l.rotulo + ' ' + l.direita).join('; ') + '.';
   let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escapeHtml(aria) + '">';
@@ -35931,6 +36944,14 @@ async function fazerLogin(ev) {
 
   document.documentElement.dataset.mode = 'app';
   document.getElementById('login-senha').value = '';
+  // Início logo após o login, no mesmo critério da abertura (URL limpa no carregamento).
+  // Quem estava no Início quando a sessão caiu volta para ele (a URL já pode ter parâmetro, e aí
+  // inEntrada() sairia cedo e deixaria a tela vazia). Nos demais casos vale o critério da abertura.
+  try {
+    const secIn = document.getElementById('inicioSection');
+    if (secIn && secIn.style.display !== 'none' && typeof navInicio === 'function') navInicio();
+    else if (typeof inEntrada === 'function') inEntrada();
+  } catch (e) { console.error(e); }
   // Carrega o cadastro dos consultores já na entrada: o telefone de quem vende
   // vai pro rodapé do orçamento, e o documento pode ser gerado antes de alguém
   // abrir o Histórico (que era o único lugar que carregava isso).
@@ -35950,8 +36971,13 @@ async function fazerLogin(ev) {
 
 function sairGerador() {
   if (!confirm('Deseja sair do gerador?')) return;
+  sairGeradorJa();
+}
+// O mesmo "sair", sem a pergunta (o aviso de sessão caída do Início usa esta: cancelar o confirm o deixaria preso).
+function sairGeradorJa() {
   try { localStorage.removeItem(AUTH_KEY); authLimpar(); } catch (e) {}
   document.documentElement.dataset.mode = 'login';
+  window.__inEntradaLimpa = !location.search && !location.hash;
   const ls = document.getElementById('login-senha');
   if (ls) ls.value = '';
   window.scrollTo({ top: 0 });
@@ -36041,7 +37067,7 @@ if ('serviceWorker' in navigator) {
   function navAutomacao(){
     document.getElementById('formSection').style.display='none';
     document.getElementById('historicoSection').style.display='none';
-    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection','redesSection','crmSection','calcSection','eletroSection','inicioSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const sec=document.getElementById('automacaoSection'); if(sec) sec.style.display='';
     document.documentElement.classList.add('automacao-aberto');
     document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
@@ -36164,6 +37190,13 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+<script>
+// Início: por último, para vir depois de todo DOMContentLoaded que abre tela. Só abre quando a URL do carregamento era limpa.
+window.addEventListener('DOMContentLoaded', function () {
+  try { inEntrada(); } catch (e) { console.error(e); }
+  finally { document.documentElement.classList.remove('in-boot'); }
+});
+</script>
   <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>
