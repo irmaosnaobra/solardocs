@@ -24,6 +24,7 @@ import { ehFeriadoBR } from '../../utils/feriadosBR';
 import {
   ABERTURAS, ABERTURA_SEM_NOME, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
   NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO,
+  ABERTURAS_RESGATE, ABERTURA_RESGATE_SEM_NOME, CONVERSA_DE_RESGATE,
 } from './investidorAgenteTextos';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -354,6 +355,223 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// RESGATE DOS CANCELADOS (12/10/2026)
+//
+// Ordem do dono: "libera os cancelados para a Helena enviar msg e tentar resgatar
+// alguém". Cancelado aqui é quem marcou reunião pela página, não confirmou e teve o
+// horário liberado pela régua do SIM (eletropostoCobraSim.ts), que grava
+// `status = 'cancelado'` no card e o carimbo `ep_liberado_sim:<id>`. O parecer
+// anti-ban liberou com limites, e TODOS estão aqui ou no orquestrador:
+//   · 14 dias ou mais desde a liberação mais recente;
+//   · no máximo 5 aberturas de resgate por dia, DENTRO do teto do dia da Helena;
+//   · intercalado: a 3ª, 8ª, 13ª, 18ª e 23ª abertura do dia, nunca em bloco;
+//   · disjuntor próprio do grupo (2 pedidos de parada no dia).
+// A fila principal (montarFila) não foi tocada.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Aberturas de resgate por dia de Brasília. A env só APERTA. */
+export const RESGATE_POR_DIA = 5;
+/** A liberação mais recente tem que ter, no mínimo, esta idade. */
+export const RESGATE_DIAS_MINIMOS = 14;
+export const RESGATE_MS_MINIMO = RESGATE_DIAS_MINIMOS * 86_400_000;
+/** Pedidos de parada vindos de sessões de resgate, no mesmo dia, que desligam SÓ o resgate. */
+export const PARADAS_RESGATE_ATE_PARAR = 2;
+/** Sessão de resgate em `chamado` há tanto tempo sem resposta é encerrada. */
+export const RESGATE_SEM_RESPOSTA_MS = 7 * 86_400_000;
+
+/** O teto de resgate de hoje: 5, ou menos se INVESTIDOR_AGENTE_RESGATE_DIA apertar. */
+export function tetoResgateDoDia(env?: string | null): number {
+  let teto = RESGATE_POR_DIA;
+  const daEnv = String(env ?? '').trim();
+  if (/^\d+$/.test(daEnv)) teto = Math.min(teto, Number(daEnv));
+  return teto;
+}
+
+/** A abertura de número `n` do dia (1ª, 2ª...) é a vez do resgate? A 3ª, 8ª, 13ª, 18ª e 23ª. */
+export const ehVezDoResgate = (n: number): boolean => Number.isInteger(n) && n >= 3 && (n - 3) % 5 === 0;
+
+export type GrupoDaAbertura = 'principal' | 'resgate';
+
+/**
+ * Quem sai nesta abertura. `posicao` é a posição dela no dia (aberturas de hoje + 1).
+ *   · vez do resgate, com cota e elegível: resgate;
+ *   · senão, a fila principal, se tiver alguém;
+ *   · fila principal vazia: o resgate usa a vez mesmo fora da posição, ainda
+ *     limitado pela cota (sem isto, com a principal vazia o dia nunca andaria até
+ *     a próxima posição de resgate);
+ *   · nada: `null`.
+ */
+export function escolherGrupo(i: {
+  posicao: number; resgateLigado: boolean; cotaDeResgate: boolean; resgateElegivel: boolean; principalTem: boolean;
+}): GrupoDaAbertura | null {
+  const podeResgate = i.resgateLigado && i.cotaDeResgate && i.resgateElegivel;
+  if (podeResgate && ehVezDoResgate(i.posicao)) return 'resgate';
+  if (i.principalTem) return 'principal';
+  return podeResgate ? 'resgate' : null;
+}
+
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** O mês de um instante, em Brasília, por extenso e minúsculo. '' se a data não vale. */
+export function mesPorExtenso(iso: unknown): string {
+  const t = Date.parse(String(iso ?? ''));
+  if (!Number.isFinite(t)) return '';
+  return MESES[new Date(t - TRES_HORAS_MS).getUTCMonth()]!;
+}
+
+/** Um card da agenda, só o que o resgate precisa. */
+export interface CardDaAgenda { id: number; status: string; quando: string | null; escreveu: boolean }
+
+export interface CandidatoResgate extends CandidatoInvestidor {
+  /** Algum card dele tem `lead_resposta_at`: já escreveu para a gente alguma vez. */
+  escreveu: boolean;
+  /** O `quando` do card cancelado mais recente (ISO): a reunião que não aconteceu. */
+  reuniaoPerdidaEm: string;
+  /** `updated_at` do carimbo de liberação mais recente. */
+  liberadoEm: string;
+}
+
+export type MotivoForaDoResgate =
+  | Exclude<MotivoForaDaFila, 'tem_card' | 'mudo'>
+  | 'card_em_outro_status' | 'sem_carimbo_de_liberacao' | 'menos_de_14_dias' | 'sem_data_da_reuniao';
+
+export interface ResultadoFilaResgate {
+  fila: CandidatoResgate[];
+  excluidos: Partial<Record<MotivoForaDoResgate, number>>;
+}
+
+export interface DadosDoResgate {
+  /** Todos os cards de cada chave (DDD + 8), em qualquer status. */
+  cards: ReadonlyMap<string, readonly CardDaAgenda[]>;
+  /** `updated_at` do carimbo `ep_liberado_sim:<id>`, por id de card. */
+  liberados: ReadonlyMap<number, string>;
+  agora: number;
+}
+
+/**
+ * A fila do resgate. Mesma base e mesmos cortes da fila principal, na mesma
+ * ordem, com DUAS diferenças:
+ *   · o corte `tem_card` vira a regra do resgate: todos os cards da pessoa
+ *     cancelados, algum com carimbo de liberação, o mais recente com 14 dias ou
+ *     mais. Quem não tem card nenhum não é resgate (é da fila principal) e não
+ *     entra nem na contagem de excluídos.
+ *   · o corte de `mudo` NÃO se aplica. EXCEÇÃO com dono: ordem do Thiago,
+ *     12/10/2026 (esta gente levou toques da régua do SIM sem responder, e é por
+ *     isso mesmo que o resgate existe). `f.mudo` é ignorado de propósito; o
+ *     `f.comCard` também, porque os cards vêm em `r.cards`.
+ * Ordem: quem já escreveu alguma vez primeiro; dentro de cada parte, maior valor
+ * declarado e, no empate, cadastro mais novo.
+ */
+export function montarFilaResgate(linhas: LinhaOrigem[], f: FiltrosDaFila, r: DadosDoResgate): ResultadoFilaResgate {
+  const podeCeder = new Set<string>();
+  const disseNao = new Set<string>();
+  const refsDe = new Map<string, RefCadastro[]>();
+  for (const l of linhas) {
+    const tel = telefoneZap(telDaLinha(l));
+    const k = tel ? chaveContato(tel) : null;
+    if (!k) continue;
+    if (destinoDe(l.origem, l.r) === 'ponto') podeCeder.add(k);
+    if (l.origem === 'agenda') continue;
+    if (String(l.r.status ?? '') === 'sem_interesse') disseNao.add(k);
+    const id = Number(l.r.id);
+    if (!Number.isInteger(id)) continue;
+    if (!refsDe.has(k)) refsDe.set(k, []);
+    refsDe.get(k)!.push({ origem: l.origem, id });
+  }
+
+  const excluidos: ResultadoFilaResgate['excluidos'] = {};
+  const fora = (m: MotivoForaDoResgate) => { excluidos[m] = (excluidos[m] ?? 0) + 1; };
+  const passaram: CandidatoResgate[] = [];
+
+  for (const l of agruparPorDestino(linhas).capital) {
+    if (l.origem === 'agenda') continue;
+    const tel = telefoneZap(l.r.telefone);
+    const chave = tel ? chaveContato(tel) : null;
+    if (!tel || !chave) continue;                       // o motivo já é contado pela fila principal
+    const cards = r.cards.get(chave);
+    if (!cards || !cards.length) continue;              // sem card: é da fila principal
+    if (ehNomeDeTeste(l.r.nome)) { fora('nome_teste'); continue; }
+    const valorTxt = valorDeclarado(l.origem, l.r);
+    const valorMil = valorEmMil(valorTxt);
+    if (valorMil === null || !valorLegivel(valorTxt)) { fora('sem_valor_legivel'); continue; }
+    if (podeCeder.has(chave)) { fora('pode_ceder_local'); continue; }
+    if (disseNao.has(chave)) { fora('sem_interesse_no_cadastro'); continue; }
+
+    // A regra do resgate.
+    if (cards.some(c => String(c.status ?? '').trim().toLowerCase() !== 'cancelado')) { fora('card_em_outro_status'); continue; }
+    let liberadoEm = '';
+    for (const c of cards) {
+      const em = r.liberados.get(c.id);
+      if (em && Number.isFinite(Date.parse(em)) && em > liberadoEm) liberadoEm = em;
+    }
+    if (!liberadoEm) { fora('sem_carimbo_de_liberacao'); continue; }
+    if (r.agora - Date.parse(liberadoEm) < RESGATE_MS_MINIMO) { fora('menos_de_14_dias'); continue; }
+    let reuniaoPerdidaEm = '';
+    for (const c of cards) if (c.quando && Number.isFinite(Date.parse(c.quando)) && c.quando > reuniaoPerdidaEm) reuniaoPerdidaEm = c.quando;
+    if (!reuniaoPerdidaEm) { fora('sem_data_da_reuniao'); continue; }
+
+    if (f.comSessao.has(chave)) { fora('tem_sessao'); continue; }
+    if (f.silenciado(tel)) { fora('opt_out'); continue; }
+    if (f.bloqueado(tel)) { fora('bloqueado'); continue; }
+    // (mudo: não se aplica ao resgate, ver o cabeçalho.)
+    if (f.comHumano(tel)) { fora('humano_na_conversa'); continue; }
+    if (f.comConversa.has(chave)) { fora('conversa_7_dias'); continue; }
+    passaram.push({
+      chave, telefone: tel,
+      nome: String(l.r.nome ?? '').trim() || null,
+      valorTxt, valorMil,
+      origem: l.origem, id: Number(l.r.id),
+      criadoEm: String(l.r.created_at ?? ''),
+      cidade: String(l.r.cidade ?? '').trim() || null,
+      status: String(l.r.status ?? '').trim() || null,
+      refs: refsDe.get(chave) ?? [{ origem: l.origem, id: Number(l.r.id) }],
+      escreveu: cards.some(c => c.escreveu),
+      reuniaoPerdidaEm, liberadoEm,
+    });
+  }
+
+  passaram.sort((a, b) =>
+    (Number(b.escreveu) - Number(a.escreveu)) || (b.valorMil - a.valorMil)
+    || (a.criadoEm < b.criadoEm ? 1 : a.criadoEm > b.criadoEm ? -1 : 0));
+
+  const porChave = new Map<string, CandidatoResgate>();
+  const fila: CandidatoResgate[] = [];
+  for (const c of passaram) {
+    const ja = porChave.get(c.chave);
+    if (ja) {
+      if (c.telefone.length > ja.telefone.length) ja.telefone = c.telefone;
+      fora('duplicado');
+      continue;
+    }
+    porChave.set(c.chave, c);
+    fila.push(c);
+  }
+  return { fila, excluidos };
+}
+
+/** O texto de uma abertura de resgate pelo índice (-1, ou sem nome que dê para
+ *  usar, é a reserva). Serve para a escolha de agora e para reconstituir, na
+ *  conversa que a IA lê, a abertura que a sessão registrou ter enviado. */
+export function textoDaAberturaResgate(indice: number, nome: unknown, valorTxt: unknown, reuniaoPerdidaEm: unknown): string {
+  const valor = valorNaFrase(valorTxt);
+  const p = primeiroNome(nome);
+  const molde = indice >= 0 && indice < ABERTURAS_RESGATE.length && p ? ABERTURAS_RESGATE[indice]! : ABERTURA_RESGATE_SEM_NOME;
+  return molde.split('{nome}').join(p ?? '').split('{valor}').join(valor).split('{mes}').join(mesPorExtenso(reuniaoPerdidaEm));
+}
+
+/** A abertura de resgate desta pessoa, escolhida pela chave. */
+export function renderAberturaResgate(
+  chave: string, nome: unknown, valorTxt: unknown, reuniaoPerdidaEm: unknown,
+): { indice: number; texto: string } {
+  const indice = primeiroNome(nome) ? indicePorChave(chave, ABERTURAS_RESGATE.length) : -1;
+  return { indice, texto: textoDaAberturaResgate(indice, nome, valorTxt, reuniaoPerdidaEm) };
+}
+
+/** O parágrafo "CONVERSA DE RESGATE" dos fatos do sistema, com o mês preenchido. */
+export const paragrafoDeResgate = (reuniaoPerdidaEm: unknown): string =>
+  CONVERSA_DE_RESGATE.split('{mes}').join(mesPorExtenso(reuniaoPerdidaEm));
+
+// ═════════════════════════════════════════════════════════════════════════════
 // HORÁRIOS
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -627,6 +845,9 @@ export interface ContextoHelena {
   formulario?: readonly FonteDoFormulario[];
   /** A hora de agora, para a IA saber que dia é hoje e amanhã. */
   agora?: Date;
+  /** Conversa de RESGATE: o `quando` (ISO) da reunião que não aconteceu. Com isto
+   *  os fatos ganham o parágrafo "CONVERSA DE RESGATE". Fila principal: ausente. */
+  resgateEm?: string | null;
 }
 
 // ── O QUE A PESSOA JÁ RESPONDEU NO FORMULÁRIO (11/10/2026) ───────────────────
@@ -801,6 +1022,7 @@ export function montarSistema(ctx: ContextoHelena): string {
       'O que já está respondido aqui você NÃO pergunta de novo. Confirme em uma frase se for útil e siga para o que falta.',
     ] : []),
     ...(sabido.length ? ['O que a conversa já descobriu:', ...sabido.map(s => `  ${s}`)] : []),
+    ...(ctx.resgateEm ? ['', paragrafoDeResgate(ctx.resgateEm)] : []),
     ...(ctx.oferta.length ? [
       'Você já enviou esta lista de horários e a pessoa ainda não escolheu:',
       ...ctx.oferta.map((iso, i) => `  ${linhaDoHorario(iso, i)}`),

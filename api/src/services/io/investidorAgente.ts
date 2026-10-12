@@ -29,6 +29,8 @@
 //   inv_agente_sent:<chave>:t1    o carimbo do envio (conta no teto da linha)
 //   inv_agente_vez:<chave>:<ts>   a vez de responder uma leva de mensagens
 //   inv_agente_parar:<dia>:<chave> pedido de parada (alimenta o disjuntor)
+//   inv_agente_resgate:<chave>    abertura de RESGATE enviada (conta a cota do grupo)
+//   inv_agente_parar_resgate:<dia>:<chave> parada vinda de sessão de resgate
 //   inv_agente_off                chave de desligar
 //   inv_agente_disjuntor          erros de envio seguidos
 // A chave é DDD + 8 últimos dígitos (chaveContato), a mesma do resto da casa.
@@ -37,6 +39,13 @@
 // Sessão, opt-out, status do cadastro e card são gravados ANTES de a mensagem
 // correspondente sair. A exceção é o carimbo da abertura, que só existe com o
 // envio feito: ele é a conta do teto, e carimbo sem envio gastaria a linha.
+//
+// ── O RESGATE DOS CANCELADOS (12/10/2026, ordem do Thiago) ──
+// Um segundo grupo na fila: quem marcou reunião pela página e teve o horário
+// liberado pela régua do SIM, há 14 dias ou mais. Mesmos portões, com os limites
+// do parecer anti-ban: até 5 por dia DENTRO do teto, na 3ª, 8ª, 13ª, 18ª e 23ª
+// abertura do dia, disjuntor próprio (2 paradas) e fecho aos 7 dias sem resposta.
+// A regra de elegibilidade e a ordem moram em investidorAgentePuro.ts.
 //
 // Prévia sem enviar: GET /cron/investidor-agente?dry=1
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,11 +73,14 @@ import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCar
 import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor } from './investidorAgentePosse';
 import {
   antesDoInicio, janelaAberta, tetoDoDia, dataBrasilia, horaBrasiliaTexto, inicioDoDiaBrasiliaIso,
-  montarFila, renderAbertura, textoDaAbertura, primeiroNome, horariosDaOferta, textoOferta, textoConfirmacao, horarioCurto,
+  montarFila, montarFilaResgate, renderAbertura, textoDaAbertura, primeiroNome,
+  renderAberturaResgate, textoDaAberturaResgate, escolherGrupo, tetoResgateDoDia, mesPorExtenso,
+  PARADAS_RESGATE_ATE_PARAR, RESGATE_SEM_RESPOSTA_MS, horariosDaOferta, textoOferta, textoConfirmacao, horarioCurto,
   textoPassagem, textoDespedida, textoParou, textoAdiado, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
   montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila,
   type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
+  type CardDaAgenda, type ResultadoFilaResgate, type CandidatoResgate,
 } from './investidorAgentePuro';
 
 const LOG = 'investidor-agente';
@@ -79,6 +91,17 @@ const LOG = 'investidor-agente';
 export const INV_SENT_PREFIX = 'inv_agente_sent:';
 const INV_VEZ_PREFIX = 'inv_agente_vez:';
 const INV_PARAR_PREFIX = 'inv_agente_parar:';
+/** Carimbo da abertura de RESGATE: `inv_agente_resgate:<chave>`. Fica FORA de
+ *  BOT_SENT_PREFIXES (lineThrottle) de propósito: o `inv_agente_sent:` da mesma
+ *  abertura já conta no teto da linha, e contar de novo pesaria em dobro. Aqui ele
+ *  só serve para a cota diária do grupo. */
+export const INV_RESGATE_PREFIX = 'inv_agente_resgate:';
+/** Pedido de parada vindo de sessão de resgate. Alimenta SÓ o disjuntor do grupo. */
+const INV_PARAR_RESGATE_PREFIX = 'inv_agente_parar_resgate:';
+/** Carimbo da régua do SIM (eletropostoCobraSim.ts, EP_LIBERADO_PREFIX): o
+ *  `updated_at` dele é a hora em que o horário foi liberado. Copiado como texto
+ *  para não puxar o módulo da régua (e a cadeia de imports dele) para cá. */
+const EP_LIBERADO_PREFIX = 'ep_liberado_sim:';
 /** Trava de chamada sobreposta: uma rodada por balde de 5 minutos (UTC). */
 export const INV_LOCK_PREFIX = 'inv_agente_lock:';
 const BALDE_DO_LOCK_MS = 5 * 60_000;
@@ -160,6 +183,11 @@ export interface SessaoInvestidor {
   falhas_historico?: number;
   /** Quando a pessoa pediu para ser procurada mais para frente (estágio `adiado`). */
   adiado_em?: string | null;
+  /** Só nas sessões do RESGATE dos cancelados. A fila principal não ganha estes três. */
+  grupo?: 'resgate';
+  sem_retomada?: boolean;
+  /** O `quando` (ISO) da reunião que não aconteceu. */
+  reuniao_perdida_em?: string;
   atualizado_em: string;
 }
 
@@ -266,8 +294,42 @@ async function contarChaves(prefixo: string, desdeIso?: string): Promise<number>
 const contarEnviadosHoje = (agora: Date): Promise<number> => contarChaves(INV_SENT_PREFIX, inicioDoDiaBrasiliaIso(agora));
 const contarParadasHoje = (agora: Date): Promise<number> => contarChaves(`${INV_PARAR_PREFIX}${dataBrasilia(agora)}:`);
 
+interface SituacaoResgate {
+  teto: number;
+  enviadosHoje: number | null;
+  paradasHoje: number | null;
+  /** 2 paradas de sessões de resgate no dia: o grupo fecha até amanhã. */
+  disjuntorAberto: boolean;
+  /** Não deu para ler a cota ou as paradas: o resgate fica fechado nesta rodada. */
+  erro: string | null;
+}
+
+/** A cota e o disjuntor do resgate. Falha de leitura fecha SÓ o resgate (a fila
+ *  principal segue como está), porque sem saber quantos já saíram não sai nenhum. */
+async function lerSituacaoResgate(agora: Date): Promise<SituacaoResgate> {
+  const teto = tetoResgateDoDia(process.env.INVESTIDOR_AGENTE_RESGATE_DIA);
+  try {
+    const [enviadosHoje, paradasHoje] = await Promise.all([
+      contarChaves(INV_RESGATE_PREFIX, inicioDoDiaBrasiliaIso(agora)),
+      contarChaves(`${INV_PARAR_RESGATE_PREFIX}${dataBrasilia(agora)}:`),
+    ]);
+    return { teto, enviadosHoje, paradasHoje, disjuntorAberto: paradasHoje >= PARADAS_RESGATE_ATE_PARAR, erro: null };
+  } catch (err) {
+    logger.error(LOG, 'ler a cota do resgate falhou: resgate fechado nesta rodada', err);
+    return { teto, enviadosHoje: null, paradasHoje: null, disjuntorAberto: true, erro: String((err as Error)?.message || err).slice(0, 200) };
+  }
+}
+
+const cotaDoResgateLivre = (r: SituacaoResgate): boolean => !r.erro && !r.disjuntorAberto && (r.enviadosHoje ?? 0) < r.teto;
+
 // ── A fila ───────────────────────────────────────────────────────────────────
-interface LeituraDaFila { resultado: ResultadoFila; sessoes: Map<string, SessaoInvestidor>; lidsSemMapa: number }
+interface LeituraDaFila {
+  resultado: ResultadoFila;
+  sessoes: Map<string, SessaoInvestidor>;
+  lidsSemMapa: number;
+  /** A fila do resgate, ou o erro de leitura dela (aí o resgate não envia e a principal segue). */
+  resgate: { resultado: ResultadoFilaResgate } | { erro: string };
+}
 
 /** As três origens, com a mesma leitura da aba Investidores (ver `curiosos()` em
  *  eletropostoPares.ts), só que paginada. */
@@ -294,14 +356,37 @@ async function lerOrigens(): Promise<LinhaOrigem[]> {
   ];
 }
 
-/** Chaves com QUALQUER card na agenda, em qualquer status. */
-async function lerChavesComCard(): Promise<Set<string>> {
-  const linhas = await lerTudo<{ cliente_telefone: string | null }>('cards da agenda', (de, ate) =>
-    supabaseGerador.from('agendamentos').select('id, cliente_telefone')
+/** Todos os cards da agenda por chave de contato, em qualquer status. As chaves do
+ *  mapa são o conjunto "tem card" da fila principal (que não mudou); o resto
+ *  (status, quando, se a pessoa já escreveu) é do resgate. */
+async function lerCardsDaAgenda(): Promise<Map<string, CardDaAgenda[]>> {
+  const linhas = await lerTudo<{
+    id: number; cliente_telefone: string | null; status: string | null; quando: string | null; lead_resposta_at: string | null;
+  }>('cards da agenda', (de, ate) =>
+    supabaseGerador.from('agendamentos').select('id, cliente_telefone, status, quando, lead_resposta_at')
       .not('cliente_telefone', 'is', null).order('id', { ascending: true }).range(de, ate));
-  const chaves = new Set<string>();
-  for (const l of linhas) { const k = chaveContato(l.cliente_telefone); if (k) chaves.add(k); }
-  return chaves;
+  const porChave = new Map<string, CardDaAgenda[]>();
+  for (const l of linhas) {
+    const k = chaveContato(l.cliente_telefone);
+    if (!k) continue;
+    if (!porChave.has(k)) porChave.set(k, []);
+    porChave.get(k)!.push({ id: Number(l.id), status: String(l.status ?? ''), quando: l.quando ?? null, escreveu: !!l.lead_resposta_at });
+  }
+  return porChave;
+}
+
+/** Os carimbos de liberação da régua do SIM (`ep_liberado_sim:<id do card>`), por
+ *  prefixo e paginados: id do card -> `updated_at` do carimbo. Erro SOBE. */
+async function lerLiberacoes(): Promise<Map<number, string>> {
+  const linhas = await lerTudo<{ key: string; updated_at: string | null }>('carimbos de liberação do SIM', (de, ate) =>
+    supabase.from('system_state').select('key, updated_at')
+      .like('key', `${EP_LIBERADO_PREFIX}%`).order('key', { ascending: true }).range(de, ate));
+  const mapa = new Map<number, string>();
+  for (const l of linhas) {
+    const id = Number(String(l.key).slice(EP_LIBERADO_PREFIX.length));
+    if (Number.isInteger(id) && l.updated_at) mapa.set(id, String(l.updated_at));
+  }
+  return mapa;
 }
 
 /**
@@ -348,9 +433,9 @@ async function lerChavesComConversa(agora: number): Promise<{ chaves: Set<string
 /** Monta a fila inteira. Qualquer leitura que falhar derruba a rodada: sem
  *  saber quem tem card, quem conversou ou quem pediu para parar, ninguém recebe. */
 async function lerFila(agora: number): Promise<LeituraDaFila> {
-  const [linhas, comCard, conversa, sessoes, silenciado, mudo, bloqueado, pausa] = await Promise.all([
+  const [linhas, cards, conversa, sessoes, silenciado, mudo, bloqueado, pausa, liberacoes] = await Promise.all([
     lerOrigens(),
-    lerChavesComCard(),
+    lerCardsDaAgenda(),
     lerChavesComConversa(agora),
     lerSessoes(),
     // Os quatro filtros da casa, lidos UMA vez por tick (o modelo é o
@@ -366,15 +451,26 @@ async function lerFila(agora: number): Promise<LeituraDaFila> {
     carregarMudos(2, 60, { estrito: true }),
     carregarBloqueados({ estrito: true }),
     carregarPausas({ estrito: true }),
+    // O resgate lê os carimbos da régua do SIM. Se esta leitura falhar o resgate não
+    // envia (sem saber quem foi liberado e quando, ninguém é elegível), mas a fila
+    // principal segue: o erro vira dado, não derruba a rodada.
+    lerLiberacoes().then(
+      (mapa) => ({ mapa }),
+      (err: unknown) => ({ erro: String((err as Error)?.message || err).slice(0, 200) }),
+    ),
   ]);
-  const resultado = montarFila(linhas, {
-    comCard,
+  const filtros = {
+    comCard: new Set(cards.keys()),
     comSessao: new Set(sessoes.keys()),
     comConversa: conversa.chaves,
     silenciado, mudo, bloqueado,
     comHumano: (tel: string) => !pausa(tel).pode,
-  });
-  return { resultado, sessoes, lidsSemMapa: conversa.lidsSemMapa };
+  };
+  const resultado = montarFila(linhas, filtros);
+  const resgate = 'erro' in liberacoes
+    ? { erro: liberacoes.erro }
+    : { resultado: montarFilaResgate(linhas, filtros, { cards, liberados: liberacoes.mapa, agora }) };
+  return { resultado, sessoes, lidsSemMapa: conversa.lidsSemMapa, resgate };
 }
 
 /**
@@ -399,7 +495,7 @@ async function consultorDaVez(sessoesAbertas: number): Promise<string> {
 // ABERTURA
 // ═════════════════════════════════════════════════════════════════════════════
 
-export interface ResultadoAbertura { enviados: number; motivo?: string; fila?: number; para?: string; erro?: string }
+export interface ResultadoAbertura { enviados: number; motivo?: string; fila?: number; para?: string; erro?: string; grupo?: 'resgate' }
 
 const semEnvio = (motivo: string, extra: Partial<ResultadoAbertura> = {}): ResultadoAbertura => ({ enviados: 0, motivo, ...extra });
 
@@ -439,6 +535,8 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
     return semEnvio('erro_leitura_teto');
   }
   if (enviadosHoje >= teto) return semEnvio('teto_do_dia');
+  // A cota e o disjuntor do RESGATE (dentro do teto acima, não por cima dele).
+  const resgateHoje = await lerSituacaoResgate(agora);
 
   // 5) A linha. Ordem do dono (10/10/2026) com o parecer anti-ban: o limite
   //    diário desta agente é o teto próprio do item 4; aqui o `pisoDia` só leva a
@@ -459,17 +557,30 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
     logger.error(LOG, 'montar a fila falhou: ninguém recebe nesta rodada', err);
     return semEnvio('erro_leitura_fila');
   }
-  const alvo = leitura.resultado.fila[0];
-  if (!alvo) return semEnvio('fila_vazia', { fila: 0 });
+  // Quem sai: a fila principal ou o resgate (intercalado, ver escolherGrupo).
+  const elegiveisResgate = 'resultado' in leitura.resgate ? leitura.resgate.resultado.fila : [];
+  const grupo = escolherGrupo({
+    posicao: enviadosHoje + 1,
+    resgateLigado: !resgateHoje.erro && !resgateHoje.disjuntorAberto,
+    cotaDeResgate: (resgateHoje.enviadosHoje ?? 0) < resgateHoje.teto,
+    resgateElegivel: elegiveisResgate.length > 0,
+    principalTem: leitura.resultado.fila.length > 0,
+  });
+  if (!grupo) return semEnvio('fila_vazia', { fila: 0 });
+  const resgatado: CandidatoResgate | null = grupo === 'resgate' ? elegiveisResgate[0]! : null;
+  const alvo = resgatado ?? leitura.resultado.fila[0]!;
+  const tamanhoDaFila = resgatado ? elegiveisResgate.length : leitura.resultado.fila.length;
 
   // 7) Pausa humana daquele telefone, conferida de novo na hora de falar.
   if (!(await podeFalarComLead(alvo.telefone)).pode) {
     await registrarBloqueio(alvo.telefone, LOG);
-    return semEnvio('humano_na_conversa', { fila: leitura.resultado.fila.length });
+    return semEnvio('humano_na_conversa', { fila: tamanhoDaFila });
   }
 
   // CLAIM: o insert da sessão. 23505 = outra chamada já pegou esta pessoa.
-  const abertura = renderAbertura(alvo.chave, alvo.nome, alvo.valorTxt);
+  const abertura = resgatado
+    ? renderAberturaResgate(alvo.chave, alvo.nome, alvo.valorTxt, resgatado.reuniaoPerdidaEm)
+    : renderAbertura(alvo.chave, alvo.nome, alvo.valorTxt);
   const consultor = await consultorDaVez(leitura.sessoes.size);
   const nowIso = new Date().toISOString();
   const sessao: SessaoInvestidor = {
@@ -479,6 +590,7 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
     valor_txt: alvo.valorTxt, consultor,
     oferta: [], ofertas_feitas: 0, agendamento_id: null, motivo: null,
     dados: {}, resumo: '', erro: null, ate: null, respostas: 0, atualizado_em: nowIso,
+    ...(resgatado ? { grupo: 'resgate' as const, sem_retomada: true, reuniao_perdida_em: resgatado.reuniaoPerdidaEm } : {}),
   };
   const { error: eClaim } = await supabase.from('system_state')
     .insert({ key: chaveDaSessao(alvo.chave), value: sessao, updated_at: nowIso });
@@ -506,10 +618,18 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
   let { error: eCarimbo } = await supabase.from('system_state').upsert(carimbo, { onConflict: 'key' });
   if (eCarimbo) ({ error: eCarimbo } = await supabase.from('system_state').upsert(carimbo, { onConflict: 'key' }));
   if (eCarimbo) logger.error(LOG, `ENVIO FEITO SEM CARIMBO (final ${fim4}): o teto de hoje está contando um a menos`, eCarimbo);
+  // O carimbo do resgate, ao lado do `inv_agente_sent:` (que segue gravado como
+  // antes): é ele que conta a cota de 5 do grupo.
+  if (resgatado) {
+    const marca = { key: `${INV_RESGATE_PREFIX}${alvo.chave}`, value: { em: new Date().toISOString() }, updated_at: new Date().toISOString() };
+    let { error: eMarca } = await supabase.from('system_state').upsert(marca, { onConflict: 'key' });
+    if (eMarca) ({ error: eMarca } = await supabase.from('system_state').upsert(marca, { onConflict: 'key' }));
+    if (eMarca) logger.error(LOG, `RESGATE ENVIADO SEM CARIMBO (final ${fim4}): a cota do resgate está contando um a menos`, eMarca);
+  }
   if (disjuntor.erros_seguidos > 0) await gravarDisjuntor({ erros_seguidos: 0, aberto: false });
 
-  logger.info(LOG, `abertura enviada (final ${fim4}, ${alvo.origem} #${alvo.id}, consultor ${consultor})`);
-  return { enviados: 1, fila: leitura.resultado.fila.length - 1, para: `final ${fim4}` };
+  logger.info(LOG, `abertura${resgatado ? ' de RESGATE' : ''} enviada (final ${fim4}, ${alvo.origem} #${alvo.id}, consultor ${consultor})`);
+  return { enviados: 1, fila: tamanhoDaFila - 1, para: `final ${fim4}`, ...(resgatado ? { grupo: 'resgate' as const } : {}) };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -521,13 +641,14 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
   const tentar = async <T>(f: () => Promise<T>): Promise<T | { erro: string }> => {
     try { return await f(); } catch (e) { return { erro: String((e as Error)?.message || e) }; }
   };
-  const [chave, disjuntor, paradas, enviados, rampa, leitura] = await Promise.all([
+  const [chave, disjuntor, paradas, enviados, rampa, leitura, resgateHoje] = await Promise.all([
     lerChaveDesligar(),
     tentar(lerDisjuntor),
     tentar(() => contarParadasHoje(agora)),
     tentar(() => contarEnviadosHoje(agora)),
     rampaReconexaoVigente(agora),
     tentar(() => lerFila(agora.getTime())),
+    lerSituacaoResgate(agora),
   ]);
 
   const base = {
@@ -564,6 +685,37 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
       nome: primeiroNome(c.nome), telefone_final: c.telefone.slice(-2), valor: c.valorTxt, origem: `${c.origem}:${c.id}`,
     })),
     textos: fila.slice(0, 3).map(c => renderAbertura(c.chave, c.nome, c.valorTxt).texto),
+    resgate: previaDoResgate(leitura, resgateHoje, typeof enviados === 'number' ? enviados : null),
+  };
+}
+
+/** O bloco `resgate` da prévia: quem seria chamado, em que ordem, e por que os outros não. */
+function previaDoResgate(leitura: LeituraDaFila, sit: SituacaoResgate, enviadosNoDia: number | null): Record<string, unknown> {
+  const comum = {
+    enviados_hoje: sit.enviadosHoje,
+    teto_do_dia: sit.teto,
+    disjuntor_do_grupo: { pedidos_de_parada_hoje: sit.paradasHoje, limite: PARADAS_RESGATE_ATE_PARAR, aberto: sit.disjuntorAberto },
+    erro_da_cota: sit.erro,
+  };
+  if (!('resultado' in leitura.resgate)) return { ...comum, elegiveis: null, erro_da_fila: leitura.resgate.erro };
+  const { fila, excluidos } = leitura.resgate.resultado;
+  const proximo = enviadosNoDia === null ? null : escolherGrupo({
+    posicao: enviadosNoDia + 1,
+    resgateLigado: !sit.erro && !sit.disjuntorAberto,
+    cotaDeResgate: (sit.enviadosHoje ?? 0) < sit.teto,
+    resgateElegivel: fila.length > 0,
+    principalTem: leitura.resultado.fila.length > 0,
+  });
+  return {
+    ...comum,
+    elegiveis: fila.length,
+    excluidos,
+    primeiros: fila.slice(0, 10).map(c => ({
+      nome: primeiroNome(c.nome), telefone_final: c.telefone.slice(-2), valor: c.valorTxt,
+      mes_da_reuniao: mesPorExtenso(c.reuniaoPerdidaEm), ja_escreveu: c.escreveu,
+    })),
+    textos: fila.slice(0, 2).map(c => renderAberturaResgate(c.chave, c.nome, c.valorTxt, c.reuniaoPerdidaEm).texto),
+    proxima_abertura: enviadosNoDia === null ? null : { posicao: enviadosNoDia + 1, grupo: proximo ?? 'ninguem' },
   };
 }
 
@@ -786,15 +938,18 @@ async function lerFormulario(s: SessaoInvestidor): Promise<FonteDoFormulario[]> 
   return fontes;
 }
 
-/** Este telefone ganhou card na agenda por outra porta (LP, consultor)? */
-async function cardDoTelefone(tel: string): Promise<number | null> {
+/** Este telefone ganhou card na agenda por outra porta (LP, consultor)?
+ *  `ignorarCancelados` é do RESGATE: quem está nele JÁ tem card, e cancelado; só
+ *  um card novo (qualquer outro status) vale como "ganhou por outra porta". */
+async function cardDoTelefone(tel: string, ignorarCancelados = false): Promise<number | null> {
   const chave = chaveContato(tel);
   const { data, error } = await supabaseGerador.from('agendamentos')
-    .select('id, cliente_telefone').ilike('cliente_telefone', `%${tel.slice(-8)}`)
+    .select('id, cliente_telefone, status').ilike('cliente_telefone', `%${tel.slice(-8)}`)
     .order('id', { ascending: false }).limit(50);
   if (error) throw new Error(`conferir card do telefone: ${error.message}`);
-  const achado = ((data ?? []) as Array<{ id: number; cliente_telefone: string | null }>)
-    .find(a => chaveContato(a.cliente_telefone) === chave);
+  const achado = ((data ?? []) as Array<{ id: number; cliente_telefone: string | null; status?: string | null }>)
+    .find(a => chaveContato(a.cliente_telefone) === chave
+      && !(ignorarCancelados && String(a.status ?? '').trim().toLowerCase() === 'cancelado'));
   return achado ? achado.id : null;
 }
 
@@ -1039,7 +1194,9 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
   if (!s.erro && !historico.some(m => m.from_me && m.momment >= desdeAAbertura)) {
     historico.push({
       from_me: true, tipo: 'texto', momment: s.aberto_em,
-      texto: textoDaAbertura(s.abertura, s.nome, s.valor_txt),
+      texto: s.grupo === 'resgate'
+        ? textoDaAberturaResgate(s.abertura, s.nome, s.valor_txt, s.reuniao_perdida_em)
+        : textoDaAbertura(s.abertura, s.nome, s.valor_txt),
     });
     historico.sort((a, b) => (a.momment < b.momment ? -1 : a.momment > b.momment ? 1 : 0));
   }
@@ -1050,6 +1207,8 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
     // O que ela já respondeu no formulário e que dia é hoje: contexto que a IA
     // precisa para não perguntar de novo e para entender "amanhã de manhã".
     formulario: await lerFormulario(s), agora: new Date(),
+    // Conversa de resgate: os fatos ganham o parágrafo "CONVERSA DE RESGATE".
+    ...(s.grupo === 'resgate' ? { resgateEm: s.reuniao_perdida_em ?? null } : {}),
   });
   const pedido = montarPedido(historico, ctx.novas);
   // O mesmo miolo que a sonda usa (sondarHelena): principal, reserva, leitura da
@@ -1146,7 +1305,8 @@ async function parar(s: SessaoInvestidor, ctx: Contexto): Promise<void> {
   await gravarSessao(ctx.chave, { ...s, estagio: 'sem_interesse', motivo: 'pediu_parar', ate: ctx.ultima });
   const em = new Date().toISOString();
   await supabase.from('system_state')
-    .upsert({ key: `${INV_PARAR_PREFIX}${dataBrasilia(new Date())}:${ctx.chave}`, value: { em }, updated_at: em }, { onConflict: 'key' })
+    // Parada de sessão de resgate alimenta SÓ o disjuntor do grupo, nunca o geral.
+    .upsert({ key: `${s.grupo === 'resgate' ? INV_PARAR_RESGATE_PREFIX : INV_PARAR_PREFIX}${dataBrasilia(new Date())}:${ctx.chave}`, value: { em }, updated_at: em }, { onConflict: 'key' })
     .then(undefined, (e: unknown) => logger.error(LOG, 'carimbo de parada falhou', e));
   try {
     await sendHuman(s.telefone, [textoParou(ctx.chave)], 'io', { maxBolhas: 2 });
@@ -1225,7 +1385,7 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
     // próxima chamada em vez de se perder.
     let card: number | null;
     try {
-      card = await cardDoTelefone(s.telefone);
+      card = await cardDoTelefone(s.telefone, s.grupo === 'resgate');
     } catch (err) {
       res.erros++;
       logger.error(LOG, 'conferir card falhou: a leva fica para a próxima chamada', err);
@@ -1303,6 +1463,61 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// FECHO DO RESGATE: quem não respondeu em 7 dias
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Sessões de resgate encerradas por rodada. */
+const FECHOS_POR_RODADA = 5;
+
+/**
+ * Sessão de RESGATE em `chamado` há 7 dias ou mais: a pessoa vai para o silêncio
+ * da casa (`nunca_respondeu`) e a sessão para `sem_interesse` com motivo
+ * `sem_resposta`. Não envia mensagem nenhuma. Vale SÓ para o resgate: as sessões
+ * da fila principal seguem a regra de sempre (10 dias e a posse acaba).
+ *
+ * Antes de fechar, confere se chegou mensagem dela que a rodada de respostas
+ * ainda não leu: nesse caso deixa para lá, é conversa. Erro de leitura também não
+ * fecha. Sessão com `erro` (a abertura nem saiu) nunca é fechada aqui: silenciar
+ * quem nunca foi chamado seria inventar um fato.
+ */
+export async function fecharResgatesSemResposta(
+  agora: number = Date.now(),
+): Promise<{ fechadas: number; erros: number; motivo?: string }> {
+  let sessoes: Map<string, SessaoInvestidor>;
+  try {
+    sessoes = await lerSessoes();
+  } catch (err) {
+    logger.error(LOG, 'fecho do resgate: ler as sessões falhou', err);
+    return { fechadas: 0, erros: 1, motivo: 'erro_sessoes' };
+  }
+  const vencidas = [...sessoes.entries()]
+    .filter(([, s]) => s.grupo === 'resgate' && s.estagio === 'chamado' && !s.erro && !!s.telefone
+      && Number.isFinite(Date.parse(s.aberto_em)) && agora - Date.parse(s.aberto_em) >= RESGATE_SEM_RESPOSTA_MS)
+    .sort((a, b) => (a[1].aberto_em < b[1].aberto_em ? -1 : 1))
+    .slice(0, FECHOS_POR_RODADA);
+  let fechadas = 0;
+  let erros = 0;
+  for (const [chave, s] of vencidas) {
+    try {
+      const { data, error } = await supabase.from('wa_mensagens').select('momment')
+        .eq('from_me', false).eq('is_group', false).eq('instancia', INSTANCE_ID_IO)
+        .in('telefone', variantes(s.telefone)).order('momment', { ascending: false }).limit(1);
+      if (error) throw new Error(error.message);
+      const ultima = (data as Array<{ momment: string }> | null)?.[0]?.momment;
+      if (ultima && ultima > (s.ate || s.aberto_em)) continue;   // escreveu: a rodada de respostas cuida
+      await silenciarContato(s.telefone, 'nunca_respondeu', LOG);
+      await gravarSessao(chave, { ...s, estagio: 'sem_interesse', motivo: 'sem_resposta' });
+      fechadas++;
+    } catch (err) {
+      erros++;
+      logger.error(LOG, `fecho do resgate falhou (final ${s.telefone.slice(-2)})`, err);
+    }
+  }
+  if (fechadas) logger.info(LOG, `${fechadas} sessão(ões) de resgate encerradas por falta de resposta em 7 dias`);
+  return { fechadas, erros };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // A RODADA: o que a rota do cron chama.
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -1338,6 +1553,7 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
   const vez = await reivindicarRodada();
   if (!vez.ok) return { ok: true, pulou: vez.motivo };
   const respostas = await runInvestidorRespostasTick().catch((e) => ({ error: String(e) }));
+  const fecho = await fecharResgatesSemResposta().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
   const abertura = await runInvestidorAberturaTick().catch((e) => ({ error: String(e) }));
-  return { ok: true, respostas, abertura };
+  return { ok: true, respostas, abertura, ...(fecho.fechadas || fecho.erros ? { fecho } : {}) };
 }

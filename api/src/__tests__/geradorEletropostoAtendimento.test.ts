@@ -115,8 +115,9 @@ describe('lerAtendimentos', () => {
       movimento_em: '2026-10-12T11:15:00Z', agendamento_id: null, erro_envio: false,
     });
     expect(a.resumo).toHaveLength(300);
+    expect(a.grupo).toBeNull();
     expect(Object.keys(a).sort()).toEqual([
-      'aberto_em', 'agendamento_id', 'chave', 'consultor', 'erro_envio', 'estagio', 'motivo', 'movimento_em', 'resumo',
+      'aberto_em', 'agendamento_id', 'chave', 'consultor', 'erro_envio', 'estagio', 'grupo', 'motivo', 'movimento_em', 'resumo',
     ].sort());
   });
 

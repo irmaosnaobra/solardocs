@@ -212,3 +212,23 @@ export const SOU_ASSISTENTE_VIRTUAL: readonly string[] = [
  * Trocar quando ele mandar.
  */
 export const HORARIO_FOI_OCUPADO = 'Esse horário acabou de ser ocupado.';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESGATE DOS CANCELADOS (12/10/2026, ordem do Thiago). Textos do redator,
+// copiados sem reescrever de resgate-helena.md. Variáveis: {nome}, {valor} e
+// {mes} (o mês da reunião que não aconteceu, por extenso e minúsculo).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** As 4 aberturas de resgate. UMA bolha, enviada por sendFrio. */
+export const ABERTURAS_RESGATE: readonly string[] = [
+  "Oi, {nome}, tudo bem? Aqui é a Helena, da Irmãos na Obra. Você preencheu o nosso formulário de eletroposto com {valor} para investir e chegou a marcar uma reunião em {mes}, que acabou não acontecendo. Ainda faz sentido conversarmos sobre isso? Se não fizer mais, é só me avisar que eu não insisto.",
+  "{nome}, a Helena, da Irmãos na Obra, por aqui. Depois do seu formulário de eletroposto, em que você indicou {valor}, ficou uma reunião marcada para {mes}, e ela acabou não acontecendo. Queria saber se esse plano ainda está de pé e se vale a gente conversar. Se não estiver, me avisa que eu não insisto.",
+  "Olá, {nome}! Eu sou a Helena, da Irmãos na Obra. Estou te chamando porque, no formulário de eletroposto, você marcou {valor} e agendou uma reunião para {mes}, que não chegou a rolar. Esse interesse continua? Se o assunto já não faz mais sentido, pode me dizer sem cerimônia que eu não insisto.",
+  "Passando rapidinho, {nome}: sou a Helena, da Irmãos na Obra. Você preencheu o formulário de eletroposto, indicou {valor} de investimento e chegou a marcar reunião em {mes}, mas ela não aconteceu. Posso saber se ainda faz sentido conversar sobre isso? Se não fizer, é só me falar que eu não insisto.",
+];
+
+/** Abertura reserva de resgate: quando o cadastro não tem um primeiro nome que dê para usar. */
+export const ABERTURA_RESGATE_SEM_NOME = "Oi! Aqui é a Helena, da Irmãos na Obra. Você preencheu o nosso formulário de eletroposto, indicou {valor} e chegou a marcar uma reunião em {mes}, que acabou não acontecendo. Isso ainda faz sentido para você? Se não fizer mais, é só me avisar que eu não insisto.";
+
+/** Parágrafo que entra nos fatos do sistema, só nas conversas de resgate. */
+export const CONVERSA_DE_RESGATE = "Esta pessoa já teve uma reunião marcada em {mes}, que ela mesma escolheu pela página, e o horário foi liberado porque a presença não foi confirmada. Depois disso, ela recebeu ofertas de novo horário e não respondeu. Você está retomando o contato, então não cobre, não peça explicação e não faça a pessoa se sentir em falta. Se ela disser que não pôde, que esqueceu ou que achou que tinham cancelado, acolha em uma frase e siga para o convite. Se ela reclamar que o horário foi tirado, reconheça com simplicidade, sem discutir e sem se justificar, e ofereça novos horários. Todas as outras regras continuam iguais.";

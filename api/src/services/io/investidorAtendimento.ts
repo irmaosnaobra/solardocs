@@ -27,6 +27,8 @@ export interface AtendimentoInvestidor {
   resumo: string;
   /** A abertura não saiu (a pessoa nunca foi chamada). */
   erro_envio: boolean;
+  /** `resgate` para quem veio do grupo dos cancelados; `null` na fila principal. */
+  grupo: string | null;
 }
 
 interface LinhaSessao { key: string; value: unknown; updated_at?: string | null }
@@ -58,6 +60,7 @@ export function mapearSessao(l: LinhaSessao): AtendimentoInvestidor | null {
     agendamento_id: s.agendamento_id != null && Number.isFinite(ag) ? ag : null,
     resumo: typeof s.resumo === 'string' ? s.resumo.slice(0, RESUMO_MAX) : '',
     erro_envio: !!s.erro,
+    grupo: texto(s.grupo),
   };
 }
 
