@@ -1,0 +1,74 @@
+{
+  "_ajuda": "Excecoes decididas a mao (o gerador nunca edita este arquivo). pular: [{seletor, motivo}] nao gera regra para o item (seletor: trecho de texto ou /regex/). manter: [{seletor, props?}] emite o valor original. fundoForcado: [{seletor, tipo: 'sat'|'light'}] diz ao texto qual e o fundo da regra. cores: {'#hex': {valor, prop?}} troca global de uma cor. forcar: [{seletor, prop, valor, importante?}] declaracao extra no fim da folha. inlineExtra: ['color:#888'] pares de style=\"\" que a leitura estatica nao acha (cores que o JS monta no ramo claro, p.ex. isDark ? .. : '#888'). leakyDocumentos: [classes] que aparecem no markup dos documentos (proposta, expirado, previa, celebracao) e que o JS injeta, colhidas de um render real (?p=<codigo> com get_proposta_pub simulada, e dispararConfetes). O gerador junta estas ao que ele mesmo le do HTML estatico, e toda regra cujos compostos sejam so dessas classes ganha a guarda :not(:where(raizes de documento) *). Ao mudar o markup de um documento, recolha e atualize.",
+  "pular": [],
+  "manter": [],
+  "fundoForcado": [],
+  "cores": {},
+  "inlineExtra": [
+    "color:#888",
+    "color:#999",
+    "color:#aaa",
+    "color:#777",
+    "color:#bbb",
+    "color:#6b7280",
+    "color:#8a94a3",
+    "color:#9ca0a8"
+  ],
+  "leakyDocumentos": ["acoes","botoes-rodape","breakdown","breakdown-ano","breakdown-card","breakdown-nota","breakdown-val","btn-link","btn-nova","btn-novo-cli","btn-pdf","btn-wpp","card","celebra-confete","celebra-overlay","celebra-parabens","celebra-sub","chart-caption","chart-wrap","chart25-economia-card","chart25-economia-label","chart25-economia-val","chart25-leg-dot","chart25-leg-item","chart25-legend","check","compare","compare-antes","compare-arrow","compare-card","compare-depois","compare-label","compare-savings","compare-sub","compare-value","consultor-avatar","consultor-dados","consultor-info","consultor-nome","consultor-rodape","consultor-tel","cta-box","cta-phone","cta-pill","cta-section","cta-sub","cta-title","economia","economia-label","economia-period","economia-value","eletro-btn","eletro-btn-ic","ep-prev-acoes","ep-prev-bar","ep-prev-bg","ep-prev-folha","ep-prev-nota","ep-prev-palco","ep-prev-scroll","ep-prev-tit","exp-cta-wpp","footer","foto-caption","foto-wrap","garantia","garantia-label","garantia-num","garantias","gerado","h2-sub","hero","hero-subtitle","inc","inc-grid","invest-avista","invest-avista-label","invest-avista-sub","invest-avista-value","invest-box","invest-grid","invest-grid-2","invest-label","invest-value","lbl","logo-img","lp-logo","lp-msg","lp-spinner","obs","orcview-acoes","orcview-folha","orcview-palco","orcview-pdf","orcview-wpp","page","parc","parcelas","pb-bar","pb-fill","pb-legenda","prazo-box","prazo-desc","prazo-info","prazo-num","prazo-titulo","primary","prop-header","prop-header-titulo","qt","retorno-linha","section","spec","spec-label","spec-value","specs","stat","stat-label","stat-value","stats","sub","sun","topbar","topbar-meta","topbar-sub","topbar-titulo","val","vl"],
+  "forcar": [
+    {
+      "seletor": ".ranking-mes-btn:not(.ativo) .qtd",
+      "prop": "opacity",
+      "valor": "1",
+      "importante": false
+    },
+    {
+      "seletor": ".ranking-mes-btn:not(.ativo) .qtd",
+      "prop": "color",
+      "valor": "var(--n-tx3)",
+      "importante": false
+    },
+    {
+      "seletor": ".cad-par .cad-par-ver",
+      "prop": "opacity",
+      "valor": "1",
+      "importante": false
+    },
+    {
+      "seletor": ".ql-faixa.f-quente",
+      "prop": "color",
+      "valor": "#B93C0A",
+      "importante": false
+    },
+    {
+      "seletor": ".ql-faixa.f-morno",
+      "prop": "color",
+      "valor": "#854D0E",
+      "importante": false
+    },
+    {
+      "seletor": ".f-quente .ql-sinal",
+      "prop": "color",
+      "valor": "#B93C0A",
+      "importante": false
+    },
+    {
+      "seletor": ".f-morno .ql-sinal",
+      "prop": "color",
+      "valor": "#854D0E",
+      "importante": false
+    },
+    {
+      "seletor": ".ql-num.q b",
+      "prop": "color",
+      "valor": "#B93C0A",
+      "importante": false
+    },
+    {
+      "seletor": ".ql-num.m b",
+      "prop": "color",
+      "valor": "#854D0E",
+      "importante": false
+    }
+  ]
+}
