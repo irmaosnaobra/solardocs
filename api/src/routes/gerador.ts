@@ -20,6 +20,7 @@ import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { buscarCartao } from '../services/gerador/dossieVenda';
 import { mountDossie, exigeConsultor } from './geradorDossie';
 import { mountSolar } from './geradorSolar';
+import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1142,6 +1143,9 @@ mountDossie(router);
 // Pós-venda do solar (obras da Planilha Mestre, mapa, indicações). Todas as
 // rotas exigem consultor logado, e o que cada um vê é decidido no servidor.
 mountSolar(router);
+
+// Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
+mountEletropostoAtendimento(router);
 
 // Contrato do eletroposto: o consultor descreve uma mudança e a IA devolve as
 // OPERAÇÕES sobre as cláusulas (ver services/gerador/contratoIa.ts). Só consultor

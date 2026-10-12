@@ -179,7 +179,7 @@ async function gravarSessao(chave: string, s: SessaoInvestidor): Promise<void> {
 // lista incompleta aqui viraria mensagem para quem não devia receber.
 type Pagina = PromiseLike<{ data: unknown; error: { message?: string } | null }>;
 
-async function lerTudo<T>(rotulo: string, pagina: (de: number, ate: number) => Pagina, teto = 60_000): Promise<T[]> {
+export async function lerTudo<T>(rotulo: string, pagina: (de: number, ate: number) => Pagina, teto = 60_000): Promise<T[]> {
   const out: T[] = [];
   for (let de = 0; ; de += PAGINA) {
     const { data, error } = await pagina(de, de + PAGINA - 1);

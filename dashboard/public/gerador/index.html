@@ -920,6 +920,22 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
 .cad-ag-st{display:inline-block;background:#000;color:#fff;border-radius:999px;padding:1px 7px;
   font-size:10px;font-weight:800;letter-spacing:.2px;vertical-align:middle}
 .cad-ag-nao{color:#64748B}
+/* COLUNAS SITUAÇÃO E CONSULTOR (12/10/2026): preenchidas só pelo sistema. A pílula é
+   a do .cad-org, uma cor por situação, todas tiradas da paleta que a tela já usa. */
+.cad-sit{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+  border-radius:999px;padding:3px 8px;white-space:nowrap;background:rgba(148,163,184,.18);color:#94A3B8}
+.cad-sit.chamado{background:rgba(96,165,250,.16);color:#60A5FA}
+.cad-sit.conversando,.cad-sit.falando{background:rgba(250,204,21,.16);color:#FACC15}
+.cad-sit.ofertou{background:rgba(167,139,250,.18);color:#A78BFA}
+.cad-sit.adiado{background:rgba(251,191,36,.16);color:#FBBF24}
+.cad-sit.consultor{background:rgba(125,209,23,.16);color:#9BEE38}
+.cad-sit.agendado,.cad-sit.conectado{background:rgba(52,211,153,.16);color:#34D399}
+.cad-sit.card{background:rgba(234,219,192,.18);color:#EADBC0}
+.cad-sit.erro,.cad-sit.parou{background:rgba(255,49,49,.16);color:#FCA5A5}
+.cad-sit.sem_interesse{opacity:.6}
+.cadtab .cad-sit-cel{min-width:120px}
+.cad-sit-resumo{font-size:12.5px;font-weight:600;color:#94A3B8;line-height:1.5;margin:0 0 10px}
+.cad-sit-resumo[hidden]{display:none}
 /* padrão que não deve aguentar: é o aviso que evita marcar reunião pra um ponto
    que já nasce com obra de aumento de carga na concessionária */
 .cad-alerta{display:block;margin-top:4px;font-size:11px;font-weight:800;color:#FCA5A5;line-height:1.35}
@@ -6116,6 +6132,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="conectado">Conectado</option>
             <option value="sem_interesse">Sem interesse</option>
           </select>
+          <!-- Filtro de situação (só nas abas de CAD_ABAS_ATEND): a lista sai das
+               situações presentes, com a contagem de cada uma. -->
+          <select class="cad-filtro" id="cad-sit" onchange="cadRender()" style="display:none">
+            <option value="">Toda situação</option>
+          </select>
           <!-- Filtro de vendedor: quem tem reunião com aquele consultor. A lista de
                nomes sai dos próprios agendamentos lidos, sem nome fixo no código. -->
           <select class="cad-filtro" id="cad-vend" onchange="cadRender()">
@@ -6136,6 +6157,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
         <!-- So no Match: os chips sao montados por cadRenderMatch, com a contagem. -->
         <div class="cad-mf" id="cad-mf" hidden></div>
+        <!-- Resumo das situações (só nas abas de CAD_ABAS_ATEND), montado por cadRender. -->
+        <div class="cad-sit-resumo" id="cad-sit-resumo" hidden></div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
         </table></div>
@@ -10637,6 +10660,154 @@ function cadAgendaDe(r) {
   const k = cadTel8(r.telefone);
   return k ? (cadAgendas.get(k) || null) : null;
 }
+// ── COLUNAS SITUAÇÃO E CONSULTOR (12/10/2026) ────────────────────────────────
+// Preenchidas SÓ pelo sistema: a conversa da Helena (banco principal, lida pela
+// api em GET /gerador/eletroposto/atendimento) e o card da agenda. A aba de
+// Investidores é a primeira; as outras recebem as mesmas colunas quando o nome
+// delas entrar em CAD_ABAS_ATEND (o código abaixo já é genérico).
+const CAD_ABAS_ATEND = ['capital'];
+let cadAgendasChave = new Map(); // chave (DDD + 8 últimos) -> a reunião mais recente da pessoa
+let cadAtend = new Map();        // chave (DDD + 8 últimos) -> sessão da Helena
+let cadAtendFalhou = false;      // a leitura falhou ou não havia sessão de login
+let cadAtendPronto = false;      // a primeira leitura já terminou (bem ou mal)
+/** A mesma chave que a api usa nas sessões: DDD + 8 últimos dígitos, sem o 55. */
+function cadChave(tel) {
+  let d = String(tel == null ? '' : tel).replace(/\D/g, '');
+  if (d.length > 13) return '';
+  if (d.length >= 12 && d.slice(0, 2) === '55') d = d.slice(2);
+  return d.length >= 10 ? d.slice(0, 2) + d.slice(-8) : '';
+}
+/** 12/10 08:15, sempre em horário de Brasília (o aparelho pode estar em outro fuso). */
+function cadQuandoBRT(iso) {
+  const t = Date.parse(iso || '');
+  if (!isFinite(t)) return '';
+  const p = {};
+  new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(t)).forEach(x => { p[x.type] = x.value; });
+  return p.day + '/' + p.month + ' ' + p.hour + ':' + p.minute;
+}
+/** O rótulo do status do card, com a mesma grafia da agenda (CAD_AG_STATUS), só em minúscula. */
+function cadRotuloDoCard(st) {
+  const x = CAD_AG_STATUS[st] || String(st || '').toUpperCase();
+  return x.charAt(0) + x.slice(1).toLowerCase();
+}
+/**
+ * Em que pé está esta pessoa e quem cuida dela. Devolve { cod, rotulo, detalhe,
+ * consultor, quando }. A fonte mais NOVA ganha: a conversa da Helena (movimento_em)
+ * contra a reunião do card (quando). O parâmetro lado é a aba (padrão: a que está aberta).
+ */
+function cadSituacao(r, lado) {
+  r = r || {};
+  lado = lado || cadLado;
+  const chave = cadChave(r.telefone);
+  const s = chave ? (cadAtend.get(chave) || null) : null;   // sem telefone não casa com ninguém
+  const c = chave ? (cadAgendasChave.get(chave) || null) : null;   // nunca o mapa dos 8 últimos dígitos
+  const tS = s ? Date.parse(s.movimento_em || '') : NaN;
+  const tC = c ? Date.parse(c.quando || '') : NaN;
+  const sessaoManda = !!s && (!c || (isFinite(tS) && (!isFinite(tC) || tS > tC)));
+  if (sessaoManda) {
+    const ESTAGIOS_ATIVOS = ['chamado', 'conversando', 'ofertou'];
+    const base = { consultor: 'Helena', quando: s.movimento_em || '' };
+    // A abertura que não saiu: a pessoa nunca foi chamada, e a Helena não responde por ela.
+    if (s.erro_envio && ESTAGIOS_ATIVOS.indexOf(s.estagio) >= 0) {
+      return Object.assign({ cod: 'erro', rotulo: 'Envio falhou', detalhe: '' }, base);
+    }
+    if (s.estagio === 'chamado') return Object.assign({ cod: 'chamado', rotulo: 'Chamado', detalhe: 'Primeiro toque' }, base);
+    if (s.estagio === 'conversando') return Object.assign({ cod: 'conversando', rotulo: 'Conversando', detalhe: '' }, base);
+    if (s.estagio === 'ofertou') return Object.assign({ cod: 'ofertou', rotulo: 'Horários enviados', detalhe: '' }, base);
+    if (s.estagio === 'adiado') {
+      const rs = String(s.resumo || '');
+      return Object.assign({ cod: 'adiado', rotulo: 'Adiado', detalhe: rs.length > 80 ? rs.slice(0, 80) : rs }, base);
+    }
+    if (s.estagio === 'humano') return { cod: 'consultor', rotulo: 'Com consultor', detalhe: '', consultor: s.consultor || '', quando: base.quando };
+    if (s.estagio === 'sem_interesse') {
+      // Os motivos que a agente grava: disse_nao, pediu_parar, opt_out_por_outra_trilha
+      // e fora_do_padrao. Os três últimos são "não procure": ninguém liga para eles.
+      if (['pediu_parar', 'opt_out_por_outra_trilha', 'fora_do_padrao'].indexOf(s.motivo) >= 0) {
+        return Object.assign({ cod: 'parou', rotulo: 'Pediu para parar', detalhe: '' }, base);
+      }
+      return Object.assign({ cod: 'sem_interesse', rotulo: 'Sem interesse',
+        detalhe: s.motivo === 'disse_nao' ? 'Disse não' : 'Sem resposta' }, base);
+    }
+    if (s.estagio === 'agendado') return { cod: 'agendado', rotulo: 'Agendado', detalhe: '', consultor: s.consultor || '', quando: base.quando };
+    // Estágio que esta tela não conhece: cai nas regras do card e do cadastro.
+  }
+  if (c) {
+    const st = c.status || 'agendado';
+    if (st === 'agendado' && isFinite(tC) && tC > Date.now()) {
+      return { cod: 'agendado', rotulo: 'Agendado', detalhe: '', consultor: c.vendedor_nome || '', quando: c.quando };
+    }
+    return { cod: 'card', rotulo: cadRotuloDoCard(st), detalhe: '', consultor: c.vendedor_nome || '', quando: c.quando || '' };
+  }
+  const st = r.status || 'novo';
+  if (st === 'sem_interesse') return { cod: 'sem_interesse', rotulo: 'Sem interesse', detalhe: 'Marcado no cadastro', consultor: '', quando: '' };
+  if (st === 'falando') return { cod: 'falando', rotulo: 'Falando', detalhe: '', consultor: '', quando: '' };
+  if (st === 'conectado') return { cod: 'conectado', rotulo: 'Conectado', detalhe: '', consultor: '', quando: '' };
+  return lado === 'capital'
+    ? { cod: 'fila', rotulo: 'Na fila', detalhe: '', consultor: '', quando: '' }
+    : { cod: 'sem_atend', rotulo: 'Sem atendimento', detalhe: '', consultor: '', quando: '' };
+}
+/** A célula da coluna Situação: pílula e, embaixo, o detalhe e a data. */
+function cadSituacaoCel(r, lado) {
+  const x = cadSituacao(r, lado);
+  const sub = [x.detalhe, cadQuandoBRT(x.quando)].filter(Boolean).join(' · ');
+  return '<td class="cad-sit-cel"><span class="cad-sit ' + String(x.cod).replace(/[^a-z_]/g, '') + '">'
+    + escapeHtml(x.rotulo) + '</span>'
+    + (sub ? '<span class="cad-sub">' + escapeHtml(sub) + '</span>' : '') + '</td>';
+}
+/** A célula da coluna Consultor: o nome, ou um traço (vazio se lê como coluna quebrada). */
+function cadConsultorCel(r, lado) {
+  const nome = cadSituacao(r, lado).consultor;
+  return '<td class="cad-cons">' + (nome ? escapeHtml(nome) : '<span class="cad-ag-nao">—</span>') + '</td>';
+}
+/** Quantas pessoas há em cada situação: [{ rotulo, cod, n }], da maior para a menor. */
+function cadSituacaoContagem(linhas, lado) {
+  const m = new Map();
+  (linhas || []).forEach(r => {
+    const x = cadSituacao(r, lado);
+    const o = m.get(x.rotulo) || { rotulo: x.rotulo, cod: x.cod, n: 0 };
+    o.n++;
+    m.set(x.rotulo, o);
+  });
+  return Array.from(m.values()).sort((a, b) => b.n - a.n || a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+}
+/** Lê a situação da agente na api. Nunca lança: a lista desenha com ou sem ela. */
+async function cadAtendBuscar() {
+  const seq = ++cadAtendSeq;
+  let mapa = new Map();
+  let falhou = false;
+  const ctrl = new AbortController();
+  let t = null;
+  try {
+    // O limite de 12 s cobre a renovação do token E a chamada: renovar preso não
+    // pode deixar o resumo parado em "Carregando".
+    const prazo = new Promise((ok, no) => { t = setTimeout(() => { ctrl.abort(); no(new Error('tempo esgotado')); }, 12000); });
+    const trabalho = (async () => {
+      try { await authRenovarSePreciso(); } catch (e) { /* sem sessão, o teste abaixo avisa */ }
+      const tok = sessaoAtual && sessaoAtual.access_token;
+      if (!tok) throw new Error('sem sessão');
+      const r = await fetch(CTR_IA_API + '/gerador/eletroposto/atendimento',
+        { headers: { 'Authorization': 'Bearer ' + tok }, signal: ctrl.signal });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.ok || !Array.isArray(j.itens)) throw new Error('resposta ' + r.status);
+      return j.itens;
+    })();
+    trabalho.catch(() => {});   // se o prazo vencer primeiro, o erro tardio não vira alerta
+    const itens = await Promise.race([trabalho, prazo]);
+    itens.forEach(i => { if (i && i.chave) mapa.set(i.chave, i); });
+  } catch (e) {
+    mapa = new Map();
+    falhou = true;
+  }
+  if (t) clearTimeout(t);
+  if (seq !== cadAtendSeq) return;   // uma leitura mais nova já saiu
+  cadAtend = mapa;
+  cadAtendFalhou = falhou;
+  cadAtendPronto = true;
+  if (cadDados) cadRender();
+}
+let cadAtendSeq = 0;
 /** A célula da coluna Agenda. Sem reunião é travessão, não vazio: vazio se lê
  *  como "a coluna quebrou". O link abre o card na agenda, em modo de leitura. */
 function cadAgendaCel(r) {
@@ -10733,6 +10904,9 @@ async function cadCarregar(forcar) {
   if (forcar && pnDados) cadNotasGarantir(true);
   const tb = document.querySelector('#cad-tabela tbody');
   tb.innerHTML = '<tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr>';
+  // A situação da agente sai em paralelo com as leituras abaixo e nunca derruba a
+  // lista: se falhar, as colunas seguem só pelo card e pelo cadastro.
+  const lendoAtend = cadAtendBuscar();
   try {
     // A ficha vem INTEIRA (são poucas dezenas) e o lado é decidido aqui, não no
     // filtro do banco: a mesma leitura alimenta as duas abas, e a regra fica num
@@ -10802,9 +10976,14 @@ async function cadCarregar(forcar) {
     // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
     // em ordem decrescente, então a primeira de cada telefone é a que vale).
     cadAgendas = new Map();
+    // O mesmo laço alimenta o mapa das colunas Situação e Consultor, que casa pela
+    // chave inteira (DDD + 8 últimos): os 8 últimos sozinhos juntam DDDs diferentes.
+    cadAgendasChave = new Map();
     (agendaTodas || []).forEach(a => {
       const k = cadTel8(a.cliente_telefone);
       if (k && !cadAgendas.has(k)) cadAgendas.set(k, a);
+      const kc = cadChave(a.cliente_telefone);
+      if (kc && !cadAgendasChave.has(kc)) cadAgendasChave.set(kc, a);
     });
     // A observação de cada pessoa (a mais nova primeiro), pro mapa ler o endereço
     // e o que ela disse do local mesmo quando a linha da aba veio do cadastro.
@@ -10956,8 +11135,13 @@ async function cadCarregar(forcar) {
     ['ponto', 'capital', 'curioso', 'integrador'].forEach(l => cadDados[l].sort(porData));
   } catch (e) {
     tb.innerHTML = '<tr><td style="color:#fca5a5;padding:18px">Não consegui ler os cadastros: ' + escapeHtml(String(e.message || e)) + '</td></tr>';
+    cadAtendSeq++;   // a leitura da situação em voo não redesenha por cima do aviso
     return;
   }
+  // Espera a situação da agente só um pouco: ela costuma chegar antes do resto, e
+  // desenhar a lista duas vezes faria "Na fila" piscar para quem já está em conversa.
+  // Se demorar, a lista sai agora e cadAtendBuscar redesenha quando chegar.
+  await Promise.race([lendoAtend, new Promise(ok => setTimeout(ok, 2500))]);
   cadRender();
 }
 
@@ -10969,8 +11153,30 @@ function cadRender() {
   // dados), preservando o que estiver escolhido.
   const selVend = document.getElementById('cad-vend');
   const vend = selVend ? selVend.value : '';
+  // Colunas Situação e Consultor: só nas abas de CAD_ABAS_ATEND.
+  const comAtend = CAD_ABAS_ATEND.indexOf(cadLado) >= 0;
+  const selSit = document.getElementById('cad-sit');
+  const resumoSit = document.getElementById('cad-sit-resumo');
+  if (selSit) selSit.style.display = comAtend ? '' : 'none';
+  if (resumoSit) resumoSit.hidden = !comAtend;
+  const daAba = (cadDados[cadLado] || []);
+  const contagem = comAtend ? cadSituacaoContagem(daAba, cadLado) : [];
+  if (selSit && comAtend) {
+    const escolhida = selSit.value;
+    const html = '<option value="">Toda situação</option>'
+      + contagem.map(c => '<option value="' + escapeHtml(c.rotulo) + '">' + escapeHtml(c.rotulo) + ' (' + c.n + ')</option>').join('');
+    if (selSit.dataset.opcoes !== html) { selSit.innerHTML = html; selSit.dataset.opcoes = html; }
+    selSit.value = contagem.some(c => c.rotulo === escolhida) ? escolhida : '';
+  }
+  if (resumoSit && comAtend) {
+    resumoSit.textContent = (!cadAtendPronto ? 'Carregando a situação da agente… · '
+      : cadAtendFalhou ? 'Situação da agente indisponível agora · ' : '')
+      + contagem.map(c => c.rotulo + ' ' + c.n).join(' · ');
+  }
   if (selVend) {
-    const nomes = cadVendedores();
+    const nomes = comAtend
+      ? Array.from(new Set(daAba.map(r => cadSituacao(r, cadLado).consultor).filter(Boolean))).sort()
+      : cadVendedores();
     const html = '<option value="">Todos os vendedores</option>'
       + nomes.map(n => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('');
     if (selVend.dataset.nomes !== nomes.join('|')) {
@@ -10999,7 +11205,15 @@ function cadRender() {
   // Filtrar por vendedor deixa de fora quem não tem reunião nenhuma — é o que
   // "as pessoas do Diego" quer dizer.
   const vendEscolhido = selVend ? selVend.value : '';
-  if (vendEscolhido) linhas = linhas.filter(r => { const a = cadAgendaDe(r); return a && a.vendedor_nome === vendEscolhido; });
+  if (vendEscolhido) {
+    // Nas abas com a coluna Consultor o filtro segue o que a coluna mostra (inclui a
+    // Helena); nas outras segue o vendedor da reunião.
+    linhas = comAtend
+      ? linhas.filter(r => cadSituacao(r, cadLado).consultor === vendEscolhido)
+      : linhas.filter(r => { const a = cadAgendaDe(r); return a && a.vendedor_nome === vendEscolhido; });
+  }
+  const sitEscolhida = comAtend && selSit ? selSit.value : '';
+  if (sitEscolhida) linhas = linhas.filter(r => cadSituacao(r, cadLado).rotulo === sitEscolhida);
   if (busca) linhas = linhas.filter(r =>
     [r.nome, r.cidade, r.telefone, r.ponto_endereco].filter(Boolean).join(' ').toLowerCase().includes(busca));
 
@@ -11010,7 +11224,8 @@ function cadRender() {
     const semNinguem = !cadDados[cadLado].length;
     // O colspan acompanha o cabeçalho de cada lado — fixo, ele encolhe a
     // mensagem em silêncio quando uma coluna entra (não dá erro no console).
-    const nCols = (cadLado === 'ponto' || cadLado === 'curioso') ? 9 : 8;   // + a coluna Agenda
+    const nCols = ((cadLado === 'ponto' || cadLado === 'curioso') ? 9 : 8)   // + a coluna Agenda
+      + (comAtend ? 2 : 0);                                                  // + Situação e Consultor
     tb.innerHTML = '<tr><td colspan="' + nCols + '" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
       ? (cadLado === 'ponto'
         ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
@@ -11026,13 +11241,14 @@ function cadRender() {
   // A coluna "perto" não existe pro integrador: ele não tem contraparte, e uma
   // coluna que mostra sempre "—" convida a equipe a procurar defeito onde não há.
   const colPar = cadLado === 'ponto' ? '<th>Investidores perto</th>' : '<th>Pontos perto</th>';
+  const thAtend = comAtend ? '<th>Situação</th><th>Consultor</th>' : '';
   const cab = cadLado === 'ponto'
-    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>'
+    ? '<tr><th>Quem</th>' + thAtend + '<th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>'
     : cadLado === 'curioso'
-    ? '<tr><th>Quem</th><th>Cidade</th><th>O local</th><th>Quanto investe</th><th>Com quê</th><th>Origem</th><th>Registrar valor</th><th>Agenda</th><th>Status</th></tr>'
+    ? '<tr><th>Quem</th>' + thAtend + '<th>Cidade</th><th>O local</th><th>Quanto investe</th><th>Com quê</th><th>Origem</th><th>Registrar valor</th><th>Agenda</th><th>Status</th></tr>'
     : cadLado === 'integrador'
-    ? '<tr><th>Quem</th><th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Agenda</th><th>Status</th></tr>'
-    : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>';
+    ? '<tr><th>Quem</th>' + thAtend + '<th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Agenda</th><th>Status</th></tr>'
+    : '<tr><th>Quem</th>' + thAtend + '<th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>';
 
   tb.innerHTML = cab + linhas.map(r => {
     const tel = String(r.telefone || '').replace(/\D/g, '');
@@ -11050,6 +11266,8 @@ function cadRender() {
       + ((cadLado === 'ponto' || cadLado === 'capital')
         ? '<button type="button" class="cad-termo" onclick="cadTermo(\'' + cadLado + '\',\'' + cadRef(r) + '\')" title="Abrir o termo de compromisso com os dados desta pessoa">Termo</button>' : '')
       + '</div></td>';
+    // Situação e Consultor: preenchidas só pelo sistema, só nas abas de CAD_ABAS_ATEND.
+    const celAtend = comAtend ? cadSituacaoCel(r, cadLado) + cadConsultorCel(r, cadLado) : '';
     const st = r.deAgenda
       ? '<td><span class="cad-st-agenda" title="O status desta pessoa mora na agenda. Trocar aqui '
         + 'mudaria o agendamento e tiraria ela do Arrendamento.">na agenda</span></td>'
@@ -11068,14 +11286,14 @@ function cadRender() {
 
     if (cadLado === 'ponto') {
       const detalhe = (r.deFicha || r.deAgenda) ? org : escapeHtml(r.ponto_vagas || '—');
-      return '<tr>' + nome
+      return '<tr>' + nome + celAtend
         + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + detalhe + '</span></td>'
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + cadPadraoCel(r)
         + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + cadAgendaCel(r) + st + '</tr>'
-        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="9">' + cadParesHTML(r) + '</td></tr>' : '');
+        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="' + (comAtend ? 11 : 9) + '">' + cadParesHTML(r) + '</td></tr>' : '');
     }
     if (cadLado === 'curioso') {
       // Declarou abaixo do piso ou nao declarou: duas conversas diferentes, e a
@@ -11088,7 +11306,7 @@ function cadRender() {
         : '<span class="cad-motivo">não disse</span>'
           + (r.valor_investir ? '<span class="cad-sub">' + escapeHtml(r.valor_investir) + '</span>' : '');
       const local = r.ponto_relacao || cadRelacaoDaFicha(r) || r.ponto_fluxo || '—';
-      return '<tr>' + nome
+      return '<tr>' + nome + celAtend
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
         + '<td>' + escapeHtml(local) + '</td>'
         + '<td>' + motivo + '</td>'
@@ -11097,7 +11315,7 @@ function cadRender() {
         + '<td>' + cadValorSelect(r) + '</td>' + cadAgendaCel(r) + st + '</tr>';
     }
     if (cadLado === 'integrador') {
-      return '<tr>' + nome
+      return '<tr>' + nome + celAtend
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
         + '<td>' + escapeHtml(r.integrador_atuacao || '—') + '</td>'
         + '<td>' + escapeHtml(r.integrador_interesse || '—')
@@ -11105,14 +11323,14 @@ function cadRender() {
         + '<td>' + escapeHtml(r.integrador_experiencia || '—') + '</td>'
         + '<td>' + escapeHtml(r.integrador_equipe || '—') + '</td>' + cadAgendaCel(r) + st + '</tr>';
     }
-    return '<tr>' + nome
+    return '<tr>' + nome + celAtend
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
       + '<td>' + escapeHtml(r.valor_investir || '—') + '</td>'
       + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '')
         // o investidor do quiz (21/09) traz aqui o local que tinha em vista
         + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
       + '<td>' + org + '</td>' + cadParesCel(r) + cadAgendaCel(r) + st + '</tr>'
-      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="8">' + cadParesHTML(r) + '</td></tr>' : '');
+      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="' + (comAtend ? 10 : 8) + '">' + cadParesHTML(r) + '</td></tr>' : '');
   }).join('');
 
   cadPainelPares();
