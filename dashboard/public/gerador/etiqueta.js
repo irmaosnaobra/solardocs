@@ -28,6 +28,9 @@ const ETIQUETA_MAPA = {
   // "eletroposto" de propósito — crmEhEletroposto() casa por ela, então o card
   // ganha o fluxo de EP sem precisar de lista nova em lugar nenhum.
   'prosp_eletroposto': 'EP Prospec',
+  // Reunião marcada pela Helena, a agente de investidores (10/10/2026). Espelha
+  // o MAPA de api/src/services/agenda/origemEtiqueta.ts.
+  'agente_eletroposto': 'COTISTA',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

@@ -36,6 +36,9 @@ function consulta(db: Record<string, any[]>, tabela: string) {
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => consulta(ger, t) } }));
 vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => consulta(main, t) } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+// Quem está em conversa com a Helena (agente de investidores) fica fora desta leitura.
+const helena = vi.hoisted(() => ({ chaves: new Set<string>() as Set<string> | null }));
+vi.mock('../services/io/investidorAgentePosse', () => ({ chavesDaHelena: vi.fn(async () => helena.chaves) }));
 
 import { lerValorDaResposta, valorNormalizado, ehEcoDaPauta, lerRespostasCurioso, decidirPessoa, type Fala } from '../services/io/curiosoRespostas';
 import { valorEmMil } from '../services/io/eletropostoPares';
@@ -232,6 +235,7 @@ const naLinha = (m: any) => ({ instancia: INST, tipo: 'texto', ...m });
 const depois = (min: number) => new Date(Date.parse(ENVIO) + min * 60_000).toISOString();
 
 beforeEach(() => {
+  helena.chaves = new Set<string>();
   ger.avisos = [
     { id: 'p1', corpo: PERGUNTA, publicos: ['curioso'] },
     // pauta combinada: o curioso que tambem e cadastro sai carimbado 'capital'
@@ -422,5 +426,22 @@ describe('decidirPessoa: a conversa inteira, depois do silêncio', () => {
   });
   it('resposta 3 dias depois já é outra conversa', () => {
     expect(decide([dela(73 * 60, 'uns 80 mil')], 74 * 60)).toMatchObject({ decide: null, motivo: 'sem_resposta' });
+  });
+});
+
+describe('quem está em conversa com a Helena (agente de investidores)', () => {
+  it('a fala dela não é lida como resposta à pergunta do valor', async () => {
+    helena.chaves = new Set(['3499990007']);   // a ficha 7
+    const r = await lerRespostasCurioso();
+    expect(ger.eletroposto_nota1.find(x => x.id === 7).valor_investir).toBeNull();
+    expect(ger.aviso_envios.find(x => x.id === 1).resposta_valor).toBeNull();
+    // Os outros dois continuam subindo.
+    expect(r.subiram).toBe(2);
+  });
+
+  it('sem conseguir ler as sessões, a leitura inteira fica para a próxima passada', async () => {
+    helena.chaves = null;
+    await expect(lerRespostasCurioso()).rejects.toThrow(/agente de investidores/);
+    expect(ger.eletroposto_nota1.find(x => x.id === 7).valor_investir).toBeNull();
   });
 });

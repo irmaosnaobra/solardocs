@@ -55,6 +55,7 @@ import { pareceRoboDeles, temRoboAtendendo, marcarRoboDoOutroLado } from '../age
 import { carregarSilenciados } from '../agents/whatsapp/silenciar';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { quizSolarAtende } from './solarAgenteQuiz';
+import { investidorAtende } from './investidorAgentePosse';
 
 const anthropic = novoAnthropic();
 
@@ -560,6 +561,16 @@ export async function handleRecepcaoIo(
     // horário. A triagem aqui se apresentaria de novo por cima dela.
     if (await quizSolarAtende(phone)) {
       logger.info('recepcao-io', 'lead do quiz solar: a agente do quiz responde por ele', { phone });
+      return;
+    }
+
+    // Investidor que a Helena chamou (10/10/2026): a conversa é da agente de
+    // investidores (investidorAgente.ts), que sabe o valor que a pessoa marcou e
+    // em que ponto a conversa está. Vale também nas 48h depois de ela passar a
+    // conversa para o consultor: quem pediu gente não recebe apresentação de robô.
+    // Se a leitura falhar, a resposta é "é dela" e a recepção cala nesta mensagem.
+    if (await investidorAtende(phone)) {
+      logger.info('recepcao-io', 'investidor em conversa com a Helena: a agente de investidores responde por ele', { phone });
       return;
     }
 

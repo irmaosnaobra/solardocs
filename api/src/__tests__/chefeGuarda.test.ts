@@ -368,6 +368,8 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/eletropostoRetorno.ts': { robos: ['ep_oferta_fria'], classeMaxima: 'frio_p5' },
   'services/io/encaminharMidiaConsultor.ts': { robos: ['encaminha_midia'], classeMaxima: 'aviso_interno_p2' },
   'services/io/entradaIoDigest.ts': { robos: ['entrada_io_digest'], classeMaxima: 'aviso_interno_p2' },
+  // A Helena, agente de investidores (10/10/2026): abertura fria, resposta reativa e recado à equipe no mesmo arquivo.
+  'services/io/investidorAgente.ts': { robos: ['investidor_agente_abertura', 'investidor_agente_recado', 'investidor_agente_respostas'], classeMaxima: 'reativo_p1' },
   'services/io/ioSend.ts': { robos: ['avisos_pauta'], classeMaxima: 'frio_p5' },
   'services/io/lembreteFollowupService.ts': { robos: ['lembrete_followup'], classeMaxima: 'aviso_interno_p2' },
   'services/io/placarGiovanna.ts': { robos: ['placar_giovanna'], classeMaxima: 'aviso_interno_p2' },
@@ -397,6 +399,7 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
   'services/io/eletropostoAgenda.ts': ['aviso_interno_p2', 'transacional_agenda_p3'],
   'services/io/eletropostoRemarcar.ts': ['reativo_p1', 'frio_p5'],
   'services/io/eletropostoRespostas.ts': ['reativo_p1', 'aviso_interno_p2', 'frio_p5'],
+  'services/io/investidorAgente.ts': ['reativo_p1', 'aviso_interno_p2', 'frio_p5'],
   'services/io/recepcaoIo.ts': ['reativo_p1', 'aviso_interno_p2'],
   'services/io/solarAgenteQuiz.ts': ['reativo_p1', 'aviso_interno_p2'],
 });
@@ -1839,7 +1842,7 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     const { classes } = mapaDerivado();
     const mistos = Object.fromEntries(Object.entries(classes).filter(([, cs]) => cs.length > 1));
     expect(mistos).toEqual(ARQUIVOS_MISTOS);
-    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(10);
+    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(11);
     // O pior deles: evento ao lado de frio de receita.
     expect(ARQUIVOS_MISTOS['services/dunningService.ts']).toEqual(['evento_p0', 'frio_receita_p4']);
   });

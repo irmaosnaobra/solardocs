@@ -47,6 +47,8 @@ import {
 import { passoDeRemarcacao, linhaDoAviso, ofertarPorConta, bolhasSlotTomado } from './eletropostoRemarcar';
 import { EP_LIBERADO_PREFIX } from './eletropostoCobraSim';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { chavesDaHelena } from './investidorAgentePosse';
+import { chaveContato } from '../agents/whatsapp/silenciar';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 
@@ -274,6 +276,21 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     if (!f.confirmacao_at && !f.lembrete_1h_at && !f.lembrete_5min_at) continue;
     const k = telKey(f.cliente_telefone);
     if (k) porChave.set(k, f);
+  }
+  if (porChave.size === 0) return zero('ninguem_tocado');
+
+  // Quem está em conversa com a Helena (agente de investidores, 10/10/2026) é
+  // dela enquanto a sessão estiver ativa: dois robôs respondendo a mesma pessoa é
+  // o erro que esta linha já pagou. Acontece quando alguém que ela chamou marca
+  // reunião pela página no meio da conversa; a Helena fecha a sessão na chamada
+  // seguinte dela (até 5 min) e a ficha volta a ser atendida aqui, sem perder
+  // mensagem, porque a leitura daqui anda por marcador. Sem conseguir ler as
+  // sessões, a rodada inteira espera a próxima.
+  const daHelena = await chavesDaHelena();
+  if (!daHelena) return { ...zero('erro_posse_investidor'), erros: 1 };
+  for (const [k, f] of [...porChave]) {
+    const chave = chaveContato(f.cliente_telefone);
+    if (chave && daHelena.has(chave)) porChave.delete(k);
   }
   if (porChave.size === 0) return zero('ninguem_tocado');
 

@@ -179,6 +179,13 @@ const BOT_SENT_PREFIXES = [
   // 82 mensagens em 2 horas na manhã de 23/09 — perto das 37 numa hora que a
   // bloquearam em agosto.
   'ep_oferta_fria:',
+  // [10/10] Abertura da Helena, a agente de investidores do eletroposto
+  // (investidorAgente.ts): `inv_agente_sent:<chave>:t1`, um carimbo por toque e
+  // por telefone. É primeiro contato frio, então pesa no orçamento FRIO e no
+  // espaçamento desde o primeiro dia, e fica FORA de PREFIXOS_AGENDA de
+  // propósito. O teto do dia dela é próprio e mora no arquivo dela; aqui ela só
+  // é contada, para os outros robôs frios enxergarem a linha ocupada.
+  'inv_agente_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

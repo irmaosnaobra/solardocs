@@ -38,6 +38,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { chaveContato } from '../agents/whatsapp/silenciar';
 import { curiosos, PISO_INVESTIDOR_MIL } from './eletropostoPares';
+import { chavesDaHelena } from './investidorAgentePosse';
 
 export type LeituraResposta = { tipo: 'valor'; mil: number } | { tipo: 'sair' } | null;
 
@@ -308,9 +309,18 @@ export async function lerRespostasCurioso(): Promise<ResultadoLeitura> {
     falasDe.get(k)!.push(f);
   }
 
+  // Quem está em conversa com a Helena (agente de investidores, 10/10/2026) fica
+  // de fora: o que essa pessoa escrever agora é resposta a ELA, não à pergunta do
+  // valor, e dois leitores decidindo sobre a mesma fala gravariam status um por
+  // cima do outro. Sem conseguir ler as sessões, a leitura inteira fica para a
+  // próxima passada (erro de leitura SOBE, como nas outras consultas daqui).
+  const daHelena = await chavesDaHelena();
+  if (!daHelena) throw new Error('sessões da agente de investidores: leitura falhou');
+
   const agora = Date.now();
   let atuais: Map<string, string> | null = null;   // chave do telefone -> ref de quem AINDA é curioso
   for (const [k, dele] of porPessoa) {
+    if (daHelena.has(k)) continue;
     const ancora = dele[dele.length - 1];              // a pergunta mais recente
     const d = decidirPessoa(falasDe.get(k) || [], Date.parse(ancora.enviado_em), String(corpoDe.get(ancora.aviso_id) || ''), agora);
     if (!d.decide) continue;

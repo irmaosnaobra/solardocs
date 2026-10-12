@@ -48,6 +48,42 @@ export type MotivoSilencio = 'opt_out' | 'denuncia' | 'nunca_respondeu'
   | 'pediu_humano' | 'fora_do_padrao';
 
 /**
+ * MODO ESTRITO das leituras de bloqueio (11/10/2026).
+ *
+ * O padrão das funções de carregar daqui é falhar ABERTO: se o banco piscar,
+ * ninguém é barrado, porque a régua inteira parando custa mais que um toque a
+ * mais. Isso vale para quem drena fila de quem já é nosso. Não vale para
+ * ABERTURA FRIA: ali, sem saber quem pediu para parar, o certo é não mandar para
+ * ninguém.
+ *
+ * Com { estrito: true } o erro de leitura SOBE, e a leitura vem paginada (o
+ * PostgREST corta em 1000 linhas, e lista cortada também é "não saber"). Sem o
+ * parâmetro nada muda para os outros robôs.
+ */
+export interface LeituraEstrita { estrito?: boolean }
+
+const PAGINA_ESTRITA = 1000;
+const TETO_ESTRITO = 100_000;
+
+const mensagemDoErro = (err: unknown): string =>
+  String((err as { message?: string })?.message || err).slice(0, 200);
+
+/** Os telefones da supressão, inteiros (paginado). Motivo nulo = todos. Erro sobe. */
+async function lerSupressaoInteira(motivo: string | null): Promise<string[]> {
+  const out: string[] = [];
+  for (let de = 0; ; de += PAGINA_ESTRITA) {
+    let q = supabase.from('whatsapp_suppression').select('phone');
+    if (motivo) q = q.eq('motivo', motivo);
+    const { data, error } = await q.order('phone', { ascending: true }).range(de, de + PAGINA_ESTRITA - 1);
+    if (error) throw error;
+    const lote = (data ?? []) as { phone: string }[];
+    for (const r of lote) out.push(r.phone);
+    if (lote.length < PAGINA_ESTRITA) return out;
+    if (de >= TETO_ESTRITO) throw new Error('supressão grande demais para ler inteira');
+  }
+}
+
+/**
  * Grava o pedido de parada. Idempotente, e nunca derruba o atendimento: quem
  * chama está no meio de responder ao cliente, e falhar aqui não pode virar
  * silêncio pra quem acabou de escrever.
@@ -83,16 +119,21 @@ export async function silenciarContato(
  * é ruim; a régua inteira parando porque o banco piscou é pior, e sem o log
  * viraria mistério.
  */
-export async function carregarSilenciados(): Promise<(phone: string) => boolean> {
+export async function carregarSilenciados(opts: LeituraEstrita = {}): Promise<(phone: string) => boolean> {
   const chaves = new Set<string>();
   try {
-    const { data, error } = await supabase.from('whatsapp_suppression').select('phone');
-    if (error) throw error;
-    for (const r of data ?? []) {
-      const k = chaveContato((r as { phone: string }).phone);
-      if (k) chaves.add(k);
+    if (opts.estrito) {
+      for (const phone of await lerSupressaoInteira(null)) { const k = chaveContato(phone); if (k) chaves.add(k); }
+    } else {
+      const { data, error } = await supabase.from('whatsapp_suppression').select('phone');
+      if (error) throw error;
+      for (const r of data ?? []) {
+        const k = chaveContato((r as { phone: string }).phone);
+        if (k) chaves.add(k);
+      }
     }
   } catch (err) {
+    if (opts.estrito) throw new Error('leitura do opt-out falhou: ' + mensagemDoErro(err));
     logger.error('silenciar', 'leitura da supressão falhou: ninguém será bloqueado nesta rodada', err);
   }
   return (phone: string): boolean => {
@@ -127,16 +168,30 @@ export const TOQUES_ATE_DESISTIR = Number(process.env.ANTIBAN_TOQUES_MUDO || 3);
 export async function carregarMudos(
   minToques = TOQUES_ATE_DESISTIR,
   dias = 60,
+  opts: LeituraEstrita = {},
 ): Promise<(phone: string) => boolean> {
   const chaves = new Set<string>();
   try {
-    const { data, error } = await supabase.rpc('wa_mudos', { min_toques: minToques, dias });
-    if (error) throw error;
-    for (const r of (data ?? []) as { telefone: string }[]) {
-      if (r.telefone) chaves.add(r.telefone);
+    if (opts.estrito) {
+      // Paginado: com 2 toques a lista pode passar das 1000 linhas do PostgREST.
+      for (let de = 0; ; de += PAGINA_ESTRITA) {
+        const { data, error } = await supabase.rpc('wa_mudos', { min_toques: minToques, dias }).range(de, de + PAGINA_ESTRITA - 1);
+        if (error) throw error;
+        const lote = (data ?? []) as { telefone: string }[];
+        for (const r of lote) if (r.telefone) chaves.add(r.telefone);
+        if (lote.length < PAGINA_ESTRITA) break;
+        if (de >= TETO_ESTRITO) throw new Error('lista de mudos grande demais para ler inteira');
+      }
+    } else {
+      const { data, error } = await supabase.rpc('wa_mudos', { min_toques: minToques, dias });
+      if (error) throw error;
+      for (const r of (data ?? []) as { telefone: string }[]) {
+        if (r.telefone) chaves.add(r.telefone);
+      }
     }
     logger.info('antiban', `${chaves.size} contatos mudos com ${minToques}+ toques`);
   } catch (err) {
+    if (opts.estrito) throw new Error('leitura dos mudos falhou: ' + mensagemDoErro(err));
     logger.error('antiban', 'leitura de mudos falhou: ninguém será barrado nesta rodada', err);
   }
   return (phone: string): boolean => {
@@ -180,19 +235,24 @@ export const MOTIVO_FORA_DO_PADRAO = 'fora_do_padrao';
  * e um dia inteiro de agenda parada custa mais que um toque a mais em quem pediu
  * pra parar. O log é o que torna isso recuperável; sem ele seria mistério.
  */
-export async function carregarBloqueados(): Promise<(phone: string) => boolean> {
+export async function carregarBloqueados(opts: LeituraEstrita = {}): Promise<(phone: string) => boolean> {
   const chaves = new Set<string>();
   try {
-    const { data, error } = await supabase
-      .from('whatsapp_suppression')
-      .select('phone')
-      .eq('motivo', MOTIVO_FORA_DO_PADRAO);
-    if (error) throw error;
-    for (const r of data ?? []) {
-      const k = chaveContato((r as { phone: string }).phone);
-      if (k) chaves.add(k);
+    if (opts.estrito) {
+      for (const phone of await lerSupressaoInteira(MOTIVO_FORA_DO_PADRAO)) { const k = chaveContato(phone); if (k) chaves.add(k); }
+    } else {
+      const { data, error } = await supabase
+        .from('whatsapp_suppression')
+        .select('phone')
+        .eq('motivo', MOTIVO_FORA_DO_PADRAO);
+      if (error) throw error;
+      for (const r of data ?? []) {
+        const k = chaveContato((r as { phone: string }).phone);
+        if (k) chaves.add(k);
+      }
     }
   } catch (err) {
+    if (opts.estrito) throw new Error('leitura dos bloqueados falhou: ' + mensagemDoErro(err));
     logger.error('silenciar',
       'leitura dos bloqueados falhou: NINGUEM sera bloqueado nesta rodada', err);
   }

@@ -11,12 +11,14 @@ import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFec
 import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../services/io/eletropostoPares';
 // Estudo do local: o card já sai com a pré-nota e o link da página.
 import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
-import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { geocodificarLote, ItemGeo } from '../services/io/eletropostoGeo';
 import { geoLimiter } from '../middleware/rateLimiter';
 import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, idDoTelefone } from '../utils/capiQuiz';
+// O rodízio e o gravador do card saíram daqui para um serviço (10/10/2026): a
+// agente de investidores grava o mesmo card e não pode importar a rota.
+import { DONOS_EP, ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from '../services/io/eletropostoCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -419,9 +421,6 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
 // recebia a ficha de outra pessoa.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Só os donos que a LP do eletroposto distribui. */
-const DONOS_EP = ['Thiago', 'Diego'];
-
 /** Chave de telefone: DDD + 8 últimos. A MESMA do CRM (donoDoTelefone) — tolera
  *  o 9 e o 55, e o DDD junto impede dois estados virarem o mesmo cliente. */
 function telKey(raw: unknown): string | null {
@@ -444,9 +443,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         .limit(500),
       // O rodízio é pelo TOTAL já marcado pela LP — a página só precisa do
       // próximo nome, não da lista.
-      supabaseGerador.from('agendamentos')
-        .select('id', { count: 'exact', head: true })
-        .eq('created_by', 'lp_eletroposto'),
+      consultaDoRodizio([ORIGEM_LP_EP]),
       // A VISITA DO QUIZ SOLAR OCUPA DA SAÍDA À VOLTA (07/10/2026). Uma vistoria
       // em Catalão tira o Thiago da agenda das 08:02 às 10:58; com os 60 min fixos
       // de antes esta vitrine venderia uma apresentação com ele na estrada. A
@@ -497,7 +494,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
     for (const s of solar || []) ocupados.push({ ts: s.quando, dono: s.dono, solar: true, ep: false, ini: s.ini, fim: s.fim });
 
     res.set('Cache-Control', 'no-store');
-    res.json({ ocupados, proximoDono: DONOS_EP[(totalQ.count || 0) % DONOS_EP.length] });
+    res.json({ ocupados, proximoDono: donoDaVez(totalQ.count) });
   } catch (err) {
     logger.error('io-eletroposto-agenda', 'falha lendo a agenda', err);
     // Lista vazia trava a agenda inteira (tudo pareceria livre e a gravação
@@ -526,7 +523,9 @@ router.get('/cliente', async (req: Request, res: Response): Promise<void> => {
     // Só reunião de ELETROPOSTO no futuro trava. Solar não: é outro produto,
     // outra conversa, e o mesmo dono atende as duas. A lista de origens é a
     // mesma que a LP usava (EP_ORIGENS_LP) — inclui o ManyChat.
-    const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto'];
+    // `agente_eletroposto` (10/10/2026): reunião marcada pela Helena também trava,
+    // senão quem combinou horário com ela marcaria uma segunda pela página.
+    const EP_ORIGENS = [ORIGEM_LP_EP, 'manychat_eletroposto', ORIGEM_AGENTE_EP];
     const futura = fichas.find(f => EP_ORIGENS.includes(String(f.created_by || ''))
       && f.quando && new Date(String(f.quando)).getTime() > agora
       && String(f.status || '') === 'agendado');
@@ -585,15 +584,16 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   // Responde `ok` pra quem preencheu, de proposito. A pessoa do outro lado nao
   // precisa saber que foi bloqueada, e um erro na tela dela viraria ligacao pro
   // suporte. O rastro fica no log, que e onde quem bloqueou vai procurar.
-  if (await estaBloqueado(tel)) {
-    logger.info('io-eletroposto-agendar', `${tel} esta FORA DO PADRAO: ficha nao criada`);
-    res.json({ ok: true, id: null });
-    return;
-  }
+  // O teste de bloqueio e a gravação moram em gravarCardEletroposto (o mesmo
+  // gravador que a agente de investidores usa). A ordem é a de antes: primeiro o
+  // bloqueio, depois o insert.
   try {
-    const { data, error } = await supabaseGerador
-      .from('agendamentos').insert(ficha).select('id').single();
-    if (error) throw error;
+    const gravado = await gravarCardEletroposto(ficha);
+    if (gravado.bloqueado) {
+      logger.info('io-eletroposto-agendar', `${tel} esta FORA DO PADRAO: ficha nao criada`);
+      res.json({ ok: true, id: null });
+      return;
+    }
     // API de Conversões, só com o banco já gravado. Dois eventos, em paralelo, cada
     // um com o seu teto de ~1,5 s dentro de enviarQuizMeta:
     //  - Schedule, gêmeo do que a página dispara no navegador. SÓ com o event_id que
@@ -617,7 +617,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
         urlDaPagina: 'https://solardoc.app/io/eletroposto', dados: { nota: nota || undefined, capital_minimo: capital ?? undefined },
       }, 'io-eletroposto-agendar') : null,
     ]);
-    res.json({ ok: true, id: data?.id ?? null });
+    res.json({ ok: true, id: gravado.id });
   } catch (err) {
     logger.error('io-eletroposto-agendar', `falha gravando ${tel}`, err);
     res.status(500).json({ ok: false, error: 'nao consegui gravar' });

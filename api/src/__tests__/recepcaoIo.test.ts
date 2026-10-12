@@ -150,6 +150,9 @@ vi.mock('../services/agents/whatsapp/silenciar', () => ({
 vi.mock('../utils/logger', () => ({
   logger: { info: () => {}, error: () => {}, warn: () => {} },
 }));
+// A posse da Helena (agente de investidores): por padrão ninguém é dela.
+const helena = vi.hoisted(() => ({ atende: false }));
+vi.mock('../services/io/investidorAgentePosse', () => ({ investidorAtende: vi.fn(async () => helena.atende) }));
 
 const LEAD = '5534987654321';
 
@@ -175,6 +178,7 @@ beforeEach(() => {
   vereditoRobo = { nivel: 'nenhum' };
   temRobo = false;
   silenciados = [];
+  helena.atende = false;
 });
 
 describe('recepção da linha IO', () => {
@@ -445,5 +449,29 @@ describe('triagem abandonada', () => {
     const r = await entregarTriagensParadas();
     expect(r.entregues).toBe(0);
     expect(avisosInternos).toHaveLength(0);
+  });
+});
+
+describe('investidor em conversa com a Helena (agente de investidores)', () => {
+  it('a Duda não fala por cima: dois robôs na mesma conversa é a pior falha', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    helena.atende = true;
+    respostaIA = jsonIA('Oi! Sou a Duda. Como posso ajudar?');
+
+    await handleRecepcaoIo(LEAD, 'Sim, continuo com interesse');
+
+    expect(enviadasAoLead).toHaveLength(0);
+    expect(avisosInternos).toHaveLength(0);
+    expect(chamadasIA).toBe(0);
+  });
+
+  it('quem não é da Helena continua sendo atendido pela Duda', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    respostaIA = jsonIA('Oi! Me conta o que você precisa.');
+
+    await handleRecepcaoIo(LEAD, 'Bom dia');
+
+    expect(chamadasIA).toBe(1);
+    expect(enviadasAoLead.length).toBeGreaterThan(0);
   });
 });

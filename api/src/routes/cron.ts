@@ -51,6 +51,7 @@ import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/i
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/solarBoasVindas';
 import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
+import { rodarInvestidorAgente, previaInvestidorAgente, definirChaveDesligar } from '../services/io/investidorAgente';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
 import { runSolarAgendaGiovannaTick } from '../services/io/solarAgendaGiovanna';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
@@ -568,6 +569,39 @@ router.get('/solar-agente', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, leads, agente });
   } catch (err: any) {
     logger.error('cron', 'solar-agente falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── A Helena, agente de investidores do eletroposto (10/10/2026) ─────────────
+// Relógio PRÓPRIO: esta rota está no vercel.json (*/5) e não entra no
+// /process-messages nem no /master. O /process-messages é chamado por mais de um
+// pinger (o pg_cron de 2 em 2 min, entre outros), e abertura fria não pode ter
+// mais de um relógio.
+//
+// Uma chamada roda, nesta ordem: quem respondeu (até 3 conversas) e depois a
+// abertura (UMA pessoa). As duas metades reivindicam a vez por insert, então
+// chamada sobreposta não fala duas vezes.
+//
+//   ?dry=1       não envia, não grava, ignora janela e início. Devolve a hora de
+//                Brasília, os portões, o teto, os enviados de hoje, a fila, os
+//                excluídos por motivo, os 30 primeiros e o texto dos 3 primeiros.
+//   ?desligar=1  grava a chave `inv_agente_off` (para as aberturas e as respostas
+//                de robô; quem responder vira recado para o consultor).
+//   ?ligar=1     remove a chave e rearma o disjuntor de erros de envio.
+// Sem deploy também dá para desligar com INVESTIDOR_AGENTE_OFF=1.
+router.get('/investidor-agente', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const sim = (v: unknown) => v === '1' || v === 'true';
+    if (sim(req.query.desligar)) { res.json({ acao: 'desligar', ...(await definirChaveDesligar(true)) }); return; }
+    if (sim(req.query.ligar)) { res.json({ acao: 'ligar', ...(await definirChaveDesligar(false)) }); return; }
+    if (sim(req.query.dry)) { res.json({ ok: true, dry: true, ...(await previaInvestidorAgente()) }); return; }
+    // A rodada inteira mora no serviço: trava de chamada sobreposta (uma por
+    // balde de 5 min), depois as respostas e por último a abertura.
+    res.json(await rodarInvestidorAgente());
+  } catch (err: any) {
+    logger.error('cron', 'investidor-agente falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

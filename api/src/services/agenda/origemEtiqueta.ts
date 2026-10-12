@@ -49,6 +49,9 @@ const MAPA: Record<string, string> = {
   'prosp_eletroposto': 'EP Prospec',
   // Convite ao investidor da base: follow-up ativo, marca na faixa dos quinze.
   'convite_investidor_eletroposto': 'EP Convite',
+  // Reunião marcada pela Helena, a agente de investidores (10/10/2026). Guarda a
+  // palavra "eletroposto": é por ela que a régua da agenda reconhece o card.
+  'agente_eletroposto': 'COTISTA',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

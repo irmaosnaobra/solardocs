@@ -89,7 +89,7 @@ export const EP_NAO_ATENDEU_PREFIX = 'ep_nao_atendeu_auto:';
  *  se a ficha é de EP é `ehOrigemEletroposto()`, que casa pela palavra. Origem
  *  nova de EP entra sozinha lá; aqui alguém precisa lembrar — e por isso aqui
  *  não pode mandar mensagem nenhuma. */
-export const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto', 'prosp_eletroposto'];
+export const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto', 'prosp_eletroposto', 'agente_eletroposto'];
 
 /** Dia em que este agente entrou no ar. As MESMAS colunas de flag foram usadas
  *  pelo módulo solar até 28/07 — 16 fichas de eletroposto já têm lembrete_5min_at

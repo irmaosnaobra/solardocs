@@ -103,6 +103,9 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => true),
 }));
 vi.mock('../routes/ioEletroposto', () => ({ EQUIPE: { thiago: '34991360223', diego: '34991360172' } }));
+// Quem está em conversa com a Helena (agente de investidores) não é atendido aqui.
+const helena = vi.hoisted(() => ({ chaves: new Set<string>() as Set<string> | null }));
+vi.mock('../services/io/investidorAgentePosse', () => ({ chavesDaHelena: vi.fn(async () => helena.chaves) }));
 
 const AGORA = new Date('2026-08-04T16:00:00.000Z');
 const TOQUE = '2026-08-04T15:00:00.000Z';
@@ -126,6 +129,7 @@ beforeEach(() => {
   state.clear(); avisos.length = 0; presencas.length = 0; respostas.length = 0;
   aoLead.length = 0; remarcacoes.length = 0; compromissos = [];
   fichas = [ficha()]; inbound = [msg()];
+  helena.chaves = new Set<string>();
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -400,5 +404,34 @@ describe('querODeVolta', () => {
     const { querODeVolta } = await import('../services/io/eletropostoRespostas');
     expect(querODeVolta(['Boa tarde'])).toBe(false);
     expect(querODeVolta(['Pra mim fica muito difícil fazer reunião.'])).toBe(false);
+  });
+});
+
+describe('quem está em conversa com a Helena (agente de investidores)', () => {
+  it('não vira recado nem remarcação aqui: a conversa é dela', async () => {
+    helena.chaves = new Set(['6984488158']);   // DDD + 8 últimos da ficha
+    const r = await tick();
+    expect(r.avisados).toBe(0);
+    expect(r.motivo).toBe('ninguem_tocado');
+    expect(avisos).toHaveLength(0);
+    expect(aoLead).toHaveLength(0);
+  });
+
+  it('a chave casa com e sem o nono dígito', async () => {
+    fichas = [ficha({ cliente_telefone: '556984488158' })];
+    helena.chaves = new Set(['6984488158']);
+    expect((await tick()).avisados).toBe(0);
+  });
+
+  it('quem não é dela segue sendo avisado', async () => {
+    helena.chaves = new Set(['3499990000']);
+    expect((await tick()).avisados).toBe(1);
+  });
+
+  it('sem conseguir ler as sessões, a rodada espera a próxima em vez de arriscar dois robôs', async () => {
+    helena.chaves = null;
+    const r = await tick();
+    expect(r).toMatchObject({ avisados: 0, erros: 1, motivo: 'erro_posse_investidor' });
+    expect(avisos).toHaveLength(0);
   });
 });

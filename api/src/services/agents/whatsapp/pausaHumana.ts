@@ -118,19 +118,42 @@ function esfriou(p: Pausa, agora: number): boolean {
  * barrado. Um atropelo a mais é ruim; a linha inteira emudecer porque o Supabase
  * tossiu é pior, e sem o log viraria mistério.
  */
-export async function carregarPausas(): Promise<(phone: string, opts?: OpcoesGate) => Decisao> {
+export async function carregarPausas(
+  modo: { estrito?: boolean } = {},
+): Promise<(phone: string, opts?: OpcoesGate) => Decisao> {
   if (desligado()) {
     return () => ({ pode: true, motivo: 'desligado' });
   }
 
   const porChave = new Map<string, Pausa>();
   try {
-    const { data, error } = await supabase
-      .from('atendimento_pausa')
-      .select('chave, telefone, quem, ultima_fala_humano, ultima_fala_lead')
-      .is('liberado_em', null);
-    if (error) throw error;
-    for (const r of (data ?? []) as Array<Record<string, string | null>>) {
+    let linhas: Array<Record<string, string | null>> = [];
+    if (modo.estrito) {
+      // MODO ESTRITO (11/10/2026), para abertura fria: a leitura vem inteira
+      // (paginada) e o erro SOBE em vez de virar "ninguém pausado". O padrão,
+      // logo abaixo, não muda para os outros robôs.
+      for (let de = 0; ; de += 1000) {
+        const { data, error } = await supabase
+          .from('atendimento_pausa')
+          .select('chave, telefone, quem, ultima_fala_humano, ultima_fala_lead')
+          .is('liberado_em', null)
+          .order('chave', { ascending: true })
+          .range(de, de + 999);
+        if (error) throw error;
+        const lote = (data ?? []) as Array<Record<string, string | null>>;
+        linhas.push(...lote);
+        if (lote.length < 1000) break;
+        if (de >= 100_000) throw new Error('pausas demais para ler inteiras');
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('atendimento_pausa')
+        .select('chave, telefone, quem, ultima_fala_humano, ultima_fala_lead')
+        .is('liberado_em', null);
+      if (error) throw error;
+      linhas = (data ?? []) as Array<Record<string, string | null>>;
+    }
+    for (const r of linhas) {
       const chave = r.chave;
       if (!chave) continue;
       porChave.set(chave, {
@@ -143,6 +166,9 @@ export async function carregarPausas(): Promise<(phone: string, opts?: OpcoesGat
     }
     logger.info(LOG, `${porChave.size} conversas com humano dentro`);
   } catch (err) {
+    if (modo.estrito) {
+      throw new Error('leitura das pausas falhou: ' + String((err as { message?: string })?.message || err).slice(0, 200));
+    }
     logger.error(LOG, 'leitura das pausas falhou: ninguém será barrado nesta rodada', err);
   }
 

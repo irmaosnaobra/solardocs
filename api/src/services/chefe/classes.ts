@@ -229,6 +229,10 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // A agente do quiz solar (08/10/2026) responde quem escreveu de volta e cala
   // quando um humano entrou, como a Duda da recepção (solarAgenteQuiz.ts).
   solar_agente_quiz: robo('reativo_p1', ['services/io/solarAgenteQuiz.ts'], { respeitaPausa: true }),
+  // A Helena, agente de investidores do eletroposto (10/10/2026), na parte que
+  // RESPONDE: quem ela chamou escreveu de volta. Cala quando um humano entrou
+  // (podeFalarComLead em investidorAgente.ts), como a Duda e a agente do quiz.
+  investidor_agente_respostas: robo('reativo_p1', ['services/io/investidorAgente.ts'], { respeitaPausa: true }),
   bia_inbound: robo('reativo_p1', ['services/agents/whatsapp/biaInboundService.ts']),
   // Resposta a quem PEDIU para remarcar: agenda [regra do dono, 07/10]. O HEAD
   // conta o carimbo como agenda (lineThrottle.ts:208): divergência conhecida,
@@ -261,6 +265,8 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   duda_ficha_consultor: robo('aviso_interno_p2', ['services/io/recepcaoIo.ts'], { nasceDeEvento: true }),
   // O recado "a Duda passou para você" no celular de quem atende o lead do quiz.
   solar_agente_recado: robo('aviso_interno_p2', ['services/io/solarAgenteQuiz.ts'], { nasceDeEvento: true }),
+  // O recado "a Helena passou para você" no celular do Thiago e do Diego.
+  investidor_agente_recado: robo('aviso_interno_p2', ['services/io/investidorAgente.ts'], { nasceDeEvento: true }),
   pix_comprovante_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/pixComprovanteService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   giovanna_aviso_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/whatsappAgentService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   venda_aviso: robo('aviso_interno_p2', ['services/vendaAviso.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
@@ -331,6 +337,15 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
     'services/io/eletropostoRemarcar.ts', 'services/io/eletropostoRetorno.ts',
     'services/io/eletropostoNaoAtendidoFup.ts', 'services/io/eletropostoRespostas.ts',
   ], { carimbos: [frio('ep_oferta_fria:')], subprioridade: 2 }),
+  // A ABERTURA da Helena (10/10/2026): primeiro contato com quem declarou valor
+  // no formulário do eletroposto. Uma bolha por sendFrio, um envio por chamada,
+  // teto do dia próprio (investidorAgentePuro.ts). O carimbo conta no frio. A
+  // janela dela nas duas datas da largada (11 e 12/10/2026, das 08h às 19h59,
+  // domingo inclusive, por ordem do dono) é mais larga que a do frio daqui: fica
+  // registrado para quando o CHEFE for ligado.
+  investidor_agente_abertura: robo('frio_p5', ['services/io/investidorAgente.ts'], {
+    carimbos: [frio('inv_agente_sent:')], subprioridade: 2,
+  }),
   bia_recuperacao: robo('frio_p5', ['services/agents/whatsapp/limpaproRecoveryService.ts'], {
     carimbos: [frio('limpapro_recovery:'), frio('limpapro_cupom_sent:'), frio('limpapro_fechamento_sent:'), frio('limpapro_grupo_sent:')],
     subprioridade: 3,
