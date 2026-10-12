@@ -61,6 +61,15 @@ Cada um destes já custou caro pelo menos uma vez.
 - **O `/gerador` é PWA.** Mexeu em `dashboard/public/gerador/index.html`? Faça o
   bump do `vNN` em `dashboard/public/gerador/sw.js` no mesmo commit. Existe hook
   que avisa.
+- **O `/gerador` está em reforma visual atrás de uma chave** (12/10/2026). O
+  visual novo é claro e vive em `dashboard/public/gerador/ui/`, ligado pela
+  classe `html.io2` (chave `localStorage['gerador-visual']`). Tela nova ou
+  alterada tem que funcionar nos dois visuais: cor entra pelos tokens de
+  `ui/io2.css` (`--n-*`, `--io-*`), nunca escrita à mão para fundo escuro, senão
+  vira texto claro sobre branco sem erro nenhum. `ui/*` só muda seguindo o plano
+  da reforma, e o service worker entrega esses arquivos do cache primeiro: todo
+  commit que toca `ui/*` sobe o `vNN` do `sw.js`. Cor de cartão da Agenda e o
+  que vira PDF não entram na reforma.
 - **Asset de landing sempre com caminho absoluto.** O servidor tira a barra
   final e o `./asset.js` resolve um nível acima, deixando a página muda.
 - **Supabase é um projeto só, sem staging.** Toda migration e todo

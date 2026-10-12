@@ -1,6 +1,6 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
 // Scope limitado a /gerador/ pra não interferir no resto do app.
-const CACHE = 'gerador-propostas-v363';
+const CACHE = 'gerador-propostas-v364';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',
@@ -19,7 +19,11 @@ const PRECACHE = [
   '/gerador/equip-carregador.jpg',
   '/gerador/manifest.webmanifest',
   '/gerador/icon-192.png',
-  '/gerador/icon-512.png'
+  '/gerador/icon-512.png',
+  '/gerador/ui/chave.js',
+  '/gerador/ui/io2.css',
+  '/gerador/ui/casca.js',
+  '/gerador/ui/fontes/inter-variavel.woff2'
 ];
 
 self.addEventListener('install', (e) => {

@@ -1,0 +1,71 @@
+/* Visual novo do /gerador (reforma de 12/10/2026).
+   Tudo aqui vive sob html.io2 e dentro de @media screen. A classe e posta por chave.js
+   so quando localStorage['gerador-visual'] = 'novo'. Sem ela, nada deste arquivo vale. */
+
+@font-face {
+  /* Nome proprio: 'Inter' ja vem do Google Fonts no index, e redefini-la mudaria o visual antigo. */
+  font-family: 'Inter IO2';
+  src: url('/gerador/ui/fontes/inter-variavel.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@media screen {
+  html.io2 {
+    /* Marca */
+    --io-navy-950: #061A38;
+    --io-navy-900: #0A2450;
+    --io-navy-800: #123A72;
+    --io-tinta: #0B2447;
+    --io-azul: #1D4ED8;
+    --io-azul-sf: #E8EFFD;
+    --io-amarelo: #FFC220;
+    --io-amarelo-forte: #E5A900;
+    --io-amarelo-sf: #FFF3C7;
+
+    /* Neutros */
+    --n-bg: #F2F4F8;
+    --n-sf: #FFFFFF;
+    --n-sf2: #F7F9FC;
+    --n-sf3: #EEF2F7;
+    --n-bd: #DDE3EC;
+    --n-bd2: #B9C4D4;
+    --n-tx: #0F1B2D;
+    --n-tx2: #44546A;
+    --n-tx3: #5E6F87;
+    --n-inv: #FFFFFF;
+    --n-inv2: #B9C7DE;
+
+    /* Estado */
+    --ok: #15803D;
+    --ok-sf: #E7F6EC;
+    --er: #B91C1C;
+    --er-sf: #FDECEC;
+    --av: #B45309;
+    --av-sf: #FFF1DC;
+    --info: var(--io-azul);
+    --wa: #0B7A43;
+
+    /* Series */
+    --s-solar: #B4610F;
+    --s-eletro: #1D4ED8;
+
+    /* Forma */
+    --r-cartao: 12px;
+    --r-controle: 10px;
+    --r-pilula: 999px;
+    --sombra: 0 1px 2px rgba(10, 36, 80, .06), 0 4px 12px rgba(10, 36, 80, .05);
+
+    /* Tipo */
+    --io-fonte: 'Inter IO2', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+    /* Alturas */
+    --sb-w: 240px;
+    --top-h: 56px;
+    --top-h-m: 52px;
+    --bot-h: 64px;
+    --ctl-h: 40px;
+    --ctl-h-m: 44px;
+  }
+}

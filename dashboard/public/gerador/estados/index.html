@@ -6,6 +6,7 @@
 <title>Melhores lugares por estado — Irmãos na Obra</title>
 <meta name="theme-color" content="#07090F">
 <link rel="manifest" href="/gerador/manifest.webmanifest">
+<script src="/gerador/ui/chave.js"></script>
 <style>
 /* ─────────────────────────────────────────────────────────────────────────────
    MELHORES LUGARES — onde plantar eletroposto e pra onde mandar anúncio.
@@ -133,6 +134,7 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
 @media (max-width:900px){ .painel{grid-template-columns:1fr} .rolagem{max-height:none} }
 @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important} }
 </style>
+<link rel="stylesheet" href="/gerador/ui/io2.css">
 </head>
 <body>
 <div class="wrap">
@@ -473,5 +475,6 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/gerador/sw.js', {scope:'/gerador/'}).catch(function(){});
 })();
 </script>
+<script defer src="/gerador/ui/casca.js"></script>
 </body>
 </html>

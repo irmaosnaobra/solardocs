@@ -6,6 +6,7 @@
 <title>Radar da Prospecção — Irmãos na Obra</title>
 <meta name="theme-color" content="#07090F">
 <link rel="manifest" href="/gerador/manifest.webmanifest">
+<script src="/gerador/ui/chave.js"></script>
 <style>
 /* ─────────────────────────────────────────────────────────────────────────────
    RADAR — sala de controle da prospecção. SOMENTE LEITURA.
@@ -153,6 +154,7 @@ svg.g{width:100%;height:auto;display:block;overflow:visible}
   .fn-val{width:74px;font-size:16px}
 }
 </style>
+<link rel="stylesheet" href="/gerador/ui/io2.css">
 </head>
 <body>
 <div class="wrap">
@@ -733,5 +735,6 @@ async function ciclo(){
 }
 ciclo(); setInterval(ciclo, RECARGA);
 </script>
+<script defer src="/gerador/ui/casca.js"></script>
 </body>
 </html>
