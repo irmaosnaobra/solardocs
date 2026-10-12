@@ -21,6 +21,7 @@ import { buscarCartao } from '../services/gerador/dossieVenda';
 import { mountDossie, exigeConsultor } from './geradorDossie';
 import { mountSolar } from './geradorSolar';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
+import { mountDashboard } from './geradorDashboard';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1146,6 +1147,9 @@ mountSolar(router);
 
 // Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
 mountEletropostoAtendimento(router);
+// Dashboard (tela inicial): agenda de hoje, funil, time e o negócio. Mesmo login
+// do solar; o que cada um vê é decidido no servidor pelo token.
+mountDashboard(router);
 
 // Contrato do eletroposto: o consultor descreve uma mudança e a IA devolve as
 // OPERAÇÕES sobre as cláusulas (ver services/gerador/contratoIa.ts). Só consultor

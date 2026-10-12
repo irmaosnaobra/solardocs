@@ -44,7 +44,7 @@ let planilhaVoando: Promise<CachePlanilha> | null = null;
 
 /** Corta a espera no relógio, e não só pelo AbortController: um fetch que ignora
  *  o sinal (ou um corpo que não termina de chegar) deixaria a rota pendurada. */
-function comLimite<T>(trabalho: (sinal: AbortSignal) => Promise<T>, ms: number, rotulo: string): Promise<T> {
+export function comLimite<T>(trabalho: (sinal: AbortSignal) => Promise<T>, ms: number, rotulo: string): Promise<T> {
   const ctrl = new AbortController();
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => { ctrl.abort(); reject(new Error(`${rotulo}: tempo esgotado`)); }, ms);
@@ -72,7 +72,7 @@ function baixarPlanilha(): Promise<CachePlanilha> {
 /** `fresco` ignora o cache (só sócio passa true). Se a planilha cair e houver
  *  cópia de até 6 horas, devolve a cópia marcada como não-atualizada em vez de
  *  502; mais velha que isso, é 502. */
-async function planilha(fresco: boolean): Promise<{ dados: CachePlanilha; atual: boolean }> {
+export async function planilha(fresco: boolean): Promise<{ dados: CachePlanilha; atual: boolean }> {
   if (!fresco && cachePlanilha && Date.now() - cachePlanilha.ts < TTL_MS) return { dados: cachePlanilha, atual: true };
   try {
     // Uma só ida por vez: três telas abrindo juntas viram um download.
@@ -141,7 +141,7 @@ const TTL_PAINEL_META_FORA_MS = 30_000;   // Meta fora do ar: tenta de novo logo
 const cachePainel = new Map<string, { painel: PainelQuizSolar; ts: number }>();
 const painelVoando = new Map<string, Promise<PainelQuizSolar>>();
 
-async function painelDoPeriodo(periodo: string): Promise<PainelQuizSolar> {
+export async function painelDoPeriodo(periodo: string): Promise<PainelQuizSolar> {
   const guardado = cachePainel.get(periodo);
   if (guardado) {
     const ttl = guardado.painel.meta_ok ? TTL_PAINEL_MS : TTL_PAINEL_META_FORA_MS;
