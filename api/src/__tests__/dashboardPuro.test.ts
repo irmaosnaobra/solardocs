@@ -255,6 +255,16 @@ describe('corte do consultor comum', () => {
     const nilce = montarDashboard(bruto, Q_NILCE, 'mes', AGORA);
     expect(socio.agendaHoje.total).toBe(3);
     expect(nilce.agendaHoje.total).toBe(2);
+    // Por produto: as duas partes somam o todo, e o corte por consultor vale dentro delas.
+    for (const d of [socio, nilce]) {
+      const pp = d.agendaHoje.porProduto;
+      expect(pp.solar.total + pp.eletroposto.total).toBe(d.agendaHoje.total);
+      expect(pp.solar.aguardando + pp.eletroposto.aguardando).toBe(d.agendaHoje.aguardando);
+      expect(pp.solar.amanha.total + pp.eletroposto.amanha.total).toBe(d.agendaHoje.amanha.total);
+      expect(pp.solar.proximos.every((x) => x.produto === 'solar')).toBe(true);
+      expect(pp.eletroposto.proximos.every((x) => x.produto === 'eletroposto')).toBe(true);
+    }
+    expect(JSON.stringify(nilce.agendaHoje.porProduto)).not.toContain('Giovanna');
     expect(nilce.agendaHoje.porConsultor.map((l) => l.consultor)).toEqual(['Nilce']);
     expect(nilce.pendencias.agendadosVencidos.total).toBe(0);
     expect(socio.pendencias.agendadosVencidos.total).toBe(1);

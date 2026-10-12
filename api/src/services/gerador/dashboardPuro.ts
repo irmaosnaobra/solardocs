@@ -309,7 +309,15 @@ export function montarDashboard(bruto: DashboardBruto, q: Quem, chave: ChavePeri
     verTudo: q.socio,
     verDinheiro: q.socio,
     periodo,
-    agendaHoje: montarAgendaHoje(meus, hoje, agora),
+    // `porProduto` repete a agenda inteira só com os cards de cada produto: o filtro
+    // Solar/Eletroposto da tela troca o bloco todo, sem somar um produto no outro.
+    agendaHoje: {
+      ...montarAgendaHoje(meus, hoje, agora),
+      porProduto: {
+        solar: montarAgendaHoje(meus.filter((c) => familiaDe(c.created_by) === 'solar'), hoje, agora),
+        eletroposto: montarAgendaHoje(meus.filter((c) => familiaDe(c.created_by) === 'eletroposto'), hoje, agora),
+      },
+    },
     pendencias: {
       agendadosVencidos: montarVencidos(meus, hoje),
       quizSemHorario: montarQuizSemHorario(bruto.leads, q, agora),
