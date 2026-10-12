@@ -22,6 +22,7 @@ import { mountDossie, exigeConsultor } from './geradorDossie';
 import { mountSolar } from './geradorSolar';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
+import { mountFinanceiro } from './geradorFinanceiro';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1144,6 +1145,7 @@ mountDossie(router);
 // Pós-venda do solar (obras da Planilha Mestre, mapa, indicações). Todas as
 // rotas exigem consultor logado, e o que cada um vê é decidido no servidor.
 mountSolar(router);
+mountFinanceiro(router);
 
 // Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
 mountEletropostoAtendimento(router);
