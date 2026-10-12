@@ -2305,7 +2305,9 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
 .pv-in:focus{outline:none;border-color:#60A5FA;box-shadow:0 0 0 2px rgba(96,165,250,.25)}
 textarea.pv-in{resize:vertical;min-height:70px;line-height:1.4}
 .pv-eco{min-height:18px;margin-top:5px;font-size:12.5px;font-weight:600;color:#34D399}
-.pv-eco.erro{color:#F87171}
+/* O `.erro` global do style.css é uma caixa rosa com display:none (só aparece com
+   `.show`). Sem desfazer isso aqui, o "Não entendi esse valor" ficava invisível. */
+.pv-eco.erro{display:block;color:#F87171;background:none;border:0;padding:0;margin-bottom:0;border-radius:0;font-size:12.5px}
 .pv-ok{grid-column:span 2;padding:12px 8px;border-radius:8px;border:0;background:#059669;color:#fff;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
 .pv-ok:hover{background:#047857}
 .pv-ok:disabled{opacity:.45;cursor:not-allowed}
@@ -2520,6 +2522,190 @@ html.pv-aberto body{overflow:hidden}
   .pv-conclui{padding:11px 14px}
   .pv-neg-in{flex-direction:column;align-items:stretch}
 }
+/* ── Financeiro por cliente do eletroposto (11/10/2026) ──────────────────────
+   Bloco irmão do editor do pós-venda, na tela escura de vendas e no detalhe do
+   card. Verde só para entrada e para o eco "Entendi"; vermelho só para valor
+   negativo e para apagar. O bloco mede a PRÓPRIA largura (container query): no
+   detalhe do CRM ele tem 440px mesmo em tela grande. */
+.fin-l2{font-size:12.5px;font-weight:700;color:#CBD5E1}
+.fin-l2[hidden]{display:none}
+.fin-slot{padding:0 14px 16px}
+.fin-slot:empty{display:none}
+.fin-det{margin-top:12px}
+.fin-det[hidden]{display:none}
+.fin{container-type:inline-size;container-name:fin;min-width:0;box-sizing:border-box;border-radius:12px;background:#0F172A;border:1px solid rgba(148,163,184,.3);color:#E5E7EB;text-align:left}
+.fin *{box-sizing:border-box}
+.fin.fin-solta{outline:2px dashed #60A5FA;outline-offset:-2px;background:#14213B}
+.fin-file[hidden]{display:none}
+.fin-cab{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"tit seta" "res res";align-items:center;gap:2px 12px;width:100%;min-height:48px;padding:12px 14px;border:0;border-radius:12px;background:transparent;color:inherit;font-family:inherit;text-align:left;cursor:pointer}
+.fin-cab:hover{background:rgba(148,163,184,.08)}
+.fin-cab:focus-visible{outline:2px solid #60A5FA;outline-offset:-2px}
+.fin-cab-tit{grid-area:tit;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#93C5FD}
+.fin-cab-res{grid-area:res;min-width:0;font-size:13px;font-weight:700;color:#E5E7EB;text-align:left;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.fin-cab-res:empty{display:none}
+@container fin (min-width:520px){.fin-cab{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"tit res seta"}.fin-cab-res{text-align:right}}
+.fin-cab svg{grid-area:seta;width:16px;height:16px;color:#94A3B8;transition:transform .15s}
+.fin-cab[aria-expanded="true"] svg{transform:rotate(180deg)}
+.fin-corpo{padding:14px 14px 16px;border-top:1px solid rgba(148,163,184,.2)}
+.fin-corpo[hidden]{display:none}
+.fin-gira{flex:none;display:inline-block;width:15px;height:15px;margin-right:8px;border:2px solid rgba(148,163,184,.4);border-top-color:#93C5FD;border-radius:50%;vertical-align:-3px;animation:fin-gira .8s linear infinite}
+@keyframes fin-gira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.fin-gira{animation-duration:2.4s}.fin-cab svg{transition:none}}
+.fin-carga{padding:18px 2px;font-size:13.5px;color:#CBD5E1}
+.fin-erro{padding:14px;border-radius:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.45)}
+.fin-erro p{margin:0 0 12px;font-size:13.5px;line-height:1.45;color:#FCD34D}
+/* totais: no estreito, uma linha por número (rótulo à esquerda, valor à direita) */
+.fin-tot{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.fin-kpi{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;min-width:0;padding:10px 12px;border-radius:10px;background:rgba(148,163,184,.08);border:1px solid rgba(255,255,255,.08)}
+.fin-kpi-l{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8}
+.fin-kpi-v{margin-left:auto;font-size:16px;font-weight:800;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fin-kpi-v.neg{color:#FCA5A5}
+.fin-kpi-s{flex:1 1 100%;font-size:11.5px;line-height:1.4;color:#94A3B8}
+.fin-kpi.dest{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.7)}
+.fin-kpi.dest .fin-kpi-l{color:#BFDBFE}
+.fin-kpi.dest .fin-kpi-v{font-size:20px}
+.fin-kpi.dest .fin-kpi-s{color:#BFDBFE}
+.fin-kpi.vazio .fin-kpi-v{font-size:14px;color:#CBD5E1}
+@container fin (min-width:520px){
+  .fin-tot{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+  .fin-kpi{display:block;grid-column:span 3;padding:12px 14px}
+  .fin-kpi.s3{grid-column:span 2}
+  .fin-kpi-l,.fin-kpi-v,.fin-kpi-s{display:block}
+  .fin-kpi-v{margin-top:4px;font-size:18px}
+  .fin-kpi-s{margin-top:4px}
+  .fin-kpi.dest .fin-kpi-v{font-size:24px}
+  .fin-kpi:not(.dest):not(.s3) .fin-kpi-v{font-size:24px}
+}
+.fin-nota{margin-top:8px;padding:8px 12px;border-radius:9px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.4);font-size:12.5px;line-height:1.4;color:#FCD34D}
+.fin-link{padding:4px 2px;border:0;background:none;color:#93C5FD;font-family:inherit;font-size:12.5px;font-weight:700;text-decoration:underline;cursor:pointer}
+.fin-aviso{margin:12px 0 0}
+/* botões */
+.fin-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:9px;font-family:inherit;font-weight:800;font-size:14px;line-height:1.2;text-align:center;cursor:pointer}
+.fin-btn-pri{border:0;background:#2563EB;color:#fff}
+.fin-btn-pri:hover{background:#1D4ED8}
+.fin-btn-sec{border:1.5px solid rgba(148,163,184,.65);background:transparent;color:#E5E7EB}
+.fin-btn-sec:hover{background:rgba(148,163,184,.14)}
+.fin-btn-apagar{border:1.5px solid #F87171;background:rgba(248,113,113,.14);color:#FCA5A5}
+.fin-btn-apagar:hover{background:rgba(248,113,113,.26)}
+.fin-btn:disabled{opacity:.55;cursor:not-allowed}
+.fin-btn:focus-visible,.fin-mini:focus-visible,.fin-link:focus-visible,.fin-marca-btn:focus-visible{outline:2px solid #60A5FA;outline-offset:2px}
+.fin-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.fin-acoes .fin-btn{flex:1 1 200px}
+.fin-ajuda{margin:8px 0 0;font-size:12.5px;line-height:1.4;color:#94A3B8}
+.fin-mini{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:8px 12px;border-radius:8px;border:1px solid rgba(148,163,184,.5);background:transparent;color:#CBD5E1;font-family:inherit;font-size:12.5px;font-weight:700;line-height:1.2;text-decoration:none;cursor:pointer}
+.fin-mini:hover{background:rgba(148,163,184,.14)}
+.fin-mini svg{flex:none;width:15px;height:15px}
+.fin-mini-apagar{border-color:rgba(248,113,113,.6);color:#FCA5A5}
+.fin-mini-apagar:hover{background:rgba(248,113,113,.14)}
+.fin-mini:disabled{opacity:.55;cursor:not-allowed}
+/* formulário */
+.fin-form-slot:empty{display:none}
+.fin-form{margin-top:14px;padding:14px;border-radius:12px;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.35)}
+.fin-form-tit{font-size:15px;font-weight:800;color:#fff}
+.fin-form .pv-aviso{margin:10px 0 0}
+.fin-form-grade{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 16px;margin-top:10px}
+.fin-previa{flex:1 1 190px;min-width:0;max-width:100%}
+.fin-campos{flex:2.4 1 300px;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+.fin-campo{display:block;min-width:0}
+.fin-campo.full{grid-column:1/-1}
+.fin-campos>.fin-campo:first-child .pv-lbl{margin-top:0}
+@container fin (max-width:419px){.fin-campos{grid-template-columns:minmax(0,1fr)}}
+.fin-form textarea.pv-in{display:block;resize:vertical;min-height:64px;line-height:1.4}
+.fin-form select.pv-in,.fin-form input.pv-in{min-height:44px}
+.fin-form input[type="date"].pv-in{color-scheme:dark}
+.fin-opc{font-weight:600;letter-spacing:0;text-transform:none;color:#94A3B8}
+.fin-seg{display:flex;gap:6px}
+.fin-seg label{position:relative;flex:1 1 0;min-width:0}
+.fin-seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.fin-seg span{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px;border-radius:8px;border:1.5px solid rgba(148,163,184,.55);background:rgba(148,163,184,.12);color:#E5E7EB;font-size:13.5px;font-weight:700}
+.fin-seg input:checked+span{background:#2563EB;border-color:#93C5FD;color:#fff}
+.fin-seg input:focus-visible+span{outline:2px solid #60A5FA;outline-offset:2px}
+.fin-fixo{display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(52,211,153,.16);color:#6EE7B7;font-size:12.5px;font-weight:800}
+.fin-form .pv-eco{display:block}
+.fin-form .pv-eco.fin-nao{color:#FCA5A5}
+.fin .pv-in::placeholder{color:#94A3B8;opacity:1}
+.fin-ia{display:block;margin-top:5px;font-size:12px;font-weight:600;line-height:1.35;color:#FCD34D}
+.fin-thumb-a{display:block;border-radius:10px;overflow:hidden;background:#0B1220;border:1px solid rgba(148,163,184,.35)}
+.fin-thumb-a:focus-visible{outline:2px solid #60A5FA;outline-offset:2px}
+.fin-thumb{display:block;width:100%;max-width:100%;max-height:300px;object-fit:contain}
+.fin-doc{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px;border-radius:10px;background:#0B1220;border:1px solid rgba(148,163,184,.35)}
+.fin-doc svg{width:22px;height:22px;color:#93C5FD}
+.fin-doc a{color:#93C5FD;font-size:13.5px;font-weight:700}
+.fin-doc-nome{min-width:0;max-width:100%;font-size:12.5px;line-height:1.35;color:#CBD5E1;overflow-wrap:anywhere}
+.fin-doc-off{font-size:12.5px;color:#94A3B8}
+.fin-previa-pe{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px;margin-top:8px}
+.fin-previa-vazia{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px;border-radius:10px;border:1px dashed rgba(148,163,184,.5);font-size:13px;line-height:1.4;color:#94A3B8}
+.fin-form-erro{margin-top:12px;padding:10px 12px;border-radius:9px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.45);font-size:13px;line-height:1.4;color:#FCD34D}
+.fin-form-erro:empty{display:none}
+.fin-conflito{margin-top:12px;padding:12px;border-radius:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.5)}
+.fin-conflito p{margin:0;font-size:13.5px;line-height:1.45;color:#FDE68A}
+.fin-conflito ul{margin:6px 0;padding-left:18px;font-size:13.5px;line-height:1.45;color:#fff}
+.fin-form-botoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.fin-form-botoes .fin-btn{flex:1 1 150px}
+.fin-form-botoes .fin-btn-pri{flex-grow:2}
+/* lista */
+.fin-sec{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;min-height:36px;margin-top:20px}
+.fin-sec h5{margin:0;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#93C5FD}
+.fin-chave{display:inline-flex;align-items:center;gap:8px;min-height:36px;font-size:12.5px;font-weight:700;color:#CBD5E1;cursor:pointer}
+.fin-chave input{flex:none;appearance:none;-webkit-appearance:none;position:relative;width:36px;height:20px;margin:0;border-radius:999px;background:#475569;cursor:pointer;transition:background .15s}
+.fin-chave input::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.fin-chave input:checked{background:#2563EB}
+.fin-chave input:checked::after{transform:translateX(16px)}
+.fin-chave input:focus-visible{outline:2px solid #60A5FA;outline-offset:2px}
+.fin-vazio{margin-top:6px;padding:22px 14px;border:1px dashed rgba(148,163,184,.45);border-radius:10px;text-align:center;font-size:13.5px;line-height:1.5;color:#94A3B8}
+.fin-vazio b{display:block;margin-bottom:2px;font-size:14.5px;color:#E5E7EB}
+.fin-lista{list-style:none;margin:4px 0 0;padding:0}
+.fin-item{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"topo valor" "info info" "acoes acoes";gap:0 12px;padding:12px 0;border-top:1px solid rgba(148,163,184,.18)}
+.fin-item>.fin-hist,.fin-item>.fin-apaga{grid-column:1/-1}
+.fin-i-info{grid-area:info;min-width:0}
+@container fin (min-width:520px){
+  .fin-item{grid-template-areas:"topo valor" "info acoes"}
+  .fin-i-acoes{align-self:start;max-width:300px}
+}
+.fin-item:first-child{border-top:0}
+.fin-i-topo{grid-area:topo;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+.fin-i-data{font-size:12.5px;font-weight:600;color:#CBD5E1;font-variant-numeric:tabular-nums}
+.fin-selo{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.2px}
+.fin-selo.entrada{background:rgba(52,211,153,.16);color:#6EE7B7}
+.fin-selo.saida{background:rgba(148,163,184,.22);color:#E2E8F0}
+.fin-i-valor{grid-area:valor;align-self:center;text-align:right;font-size:15.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fin-i-valor.entrada{color:#6EE7B7}
+.fin-i-valor.saida{color:#E5E7EB}
+.fin-i-cat{margin-top:6px;font-size:14px;font-weight:700;color:#fff;overflow-wrap:anywhere}
+.fin-i-cat small{margin-left:6px;font-size:12.5px;font-weight:600;color:#94A3B8}
+.fin-i-desc{margin-top:3px;font-size:13px;line-height:1.45;color:#CBD5E1;overflow-wrap:anywhere}
+.fin-i-desc i{font-style:normal;color:#94A3B8}
+.fin-i-pe{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin-top:8px}
+.fin-marca{display:inline-flex;align-items:center;min-height:24px;padding:2px 9px;border-radius:999px;border:1px solid rgba(148,163,184,.45);background:transparent;color:#CBD5E1;font-family:inherit;font-size:11px;font-weight:700}
+.fin-marca-btn{position:relative;min-height:36px;padding:2px 12px;cursor:pointer;text-decoration:underline}
+.fin-marca-btn::after{content:'';position:absolute;inset:-4px}
+.fin-marca-btn:hover{background:rgba(148,163,184,.14)}
+.fin-i-acoes{grid-area:acoes;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;margin-top:8px}
+.fin-item.apagado .fin-i-data,.fin-item.apagado .fin-i-cat,.fin-item.apagado .fin-i-desc,.fin-item.apagado .fin-i-valor{color:#94A3B8;text-decoration:line-through}
+.fin-item.apagado .fin-selo{background:rgba(148,163,184,.14);color:#94A3B8}
+.fin-i-apagado{margin-top:6px;font-size:12.5px;line-height:1.45;color:#CBD5E1;overflow-wrap:anywhere}
+.fin-i-apagado b{color:#FCA5A5}
+.fin-apaga{margin-top:10px;padding:12px;border-radius:10px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.45)}
+.fin-apaga .pv-lbl{margin-top:0;color:#FECACA}
+.fin-apaga .pv-in{min-height:44px;margin-top:6px}
+.fin-apaga .fin-form-erro{margin-top:8px}
+.fin-hist{margin-top:8px;padding:10px 12px;border-radius:9px;background:rgba(148,163,184,.08);font-size:12.5px;line-height:1.45;color:#CBD5E1}
+.fin-hist-l+.fin-hist-l{margin-top:8px;padding-top:8px;border-top:1px solid rgba(148,163,184,.18)}
+.fin-hist-l b{display:block;color:#E5E7EB}
+.fin-hist-l span{overflow-wrap:anywhere}
+/* por categoria (só sócio) */
+.fin-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:4px}
+.fin-cat{display:flex;flex-direction:column;min-width:0;padding:10px 12px 6px;border-radius:10px;background:rgba(148,163,184,.08);border:1px solid rgba(255,255,255,.08)}
+.fin-cat h6{margin:0 0 6px;font-size:13px;font-weight:800;color:#fff}
+.fin-cat-l{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(148,163,184,.16);font-size:13px;color:#CBD5E1}
+.fin-cat-l span:first-child{min-width:0;overflow-wrap:anywhere}
+.fin-cat-l span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+.fin-cat-l.total{margin-top:auto;font-weight:800;color:#fff}
+.fin-cat-vazio{padding:6px 0 8px;border-top:1px solid rgba(148,163,184,.16);font-size:12.5px;color:#94A3B8}
+/* os números do financeiro no bloco Geral da tela de vendas */
+#pv-bg .historico-stats.fin-stats{margin-top:8px}
+#pv-bg .historico-stats.fin-stats.fin-n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+#pv-bg .historico-stat.fin-neg .val{color:#FCA5A5}
 /* O aviso de venda em dobro. Vermelho porque é dinheiro contado duas vezes. */
 .venda-dobra{margin:8px 0 10px;padding:9px 11px;border-radius:9px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.5);font-size:12.5px;line-height:1.45;color:#B91C1C}
 .venda-dobra[hidden]{display:none}
@@ -7288,6 +7474,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
       <!-- O pós-venda do card vendido. Só aparece com status `fechou` de eletroposto. -->
       <div id="crm-det-posvenda" class="pv-bloco" hidden></div>
+      <!-- O financeiro do mesmo card: bloco irmão, que o pós-venda não repinta. -->
+      <div id="crm-det-fin" class="fin-det" hidden></div>
 
       <div id="crm-det-motivo" class="motivo-box" hidden>
         <div class="motivo-tit">Sem interesse: por quê?</div>
@@ -7387,6 +7575,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <script src="/gerador/tabelas.js"></script>
 <script src="/gerador/etiqueta.js"></script>
 <script src="/gerador/pos-venda.js"></script>
+<script src="/gerador/financeiro.js"></script>
 <!-- QR do WhatsApp no rodapé do orçamento de 1 página (qrcode-generator, MIT).
      Vendorizado porque o documento é impresso offline pelo PWA — CDN não serve. -->
 <script src="/gerador/qrcode.js"></script>
@@ -30475,9 +30664,11 @@ function pvDetRender(id) {
   pvEdPrepara('pvd', id, reg, crmPosVendaSug[String(id)] || '', 'det');
   document.getElementById('pvd-corpo').innerHTML = pvEdHtml('pvd');
   pvEdPos('pvd');
+  finEncaixar();
 }
 
 function pvPintarDetalhe(agRec) {
+  finDetalhe(agRec);
   const bl = document.getElementById('crm-det-posvenda');
   if (!bl) return;
   bl.hidden = true;
@@ -30618,6 +30809,7 @@ async function pvCarregar() {
   }
   E.carregando = false;
   pvRender();
+  finCarregarResumo(meu);
   if (E.focarId) {
     // Espera a busca dos cards em negociacao: ela muda a altura do ranking, e rolar
     // ate o card antes disso deixaria ele fora do lugar depois.
@@ -30807,7 +30999,7 @@ function pvRenderResumo() {
     + pvStat('R$ vendido', brl(r.geral), 'destaque-vendido')
     + pvStat('Ticket médio', tk(r.geral), 'destaque-conv')
     + pvStat('Em negociação', neg)
-    + `</div>${nota(r.geral)}</div>`
+    + `</div>${finStatsGeral()}${nota(r.geral)}</div>`
     + `<div class="historico-secao"><h4>Este mês · ${PosVenda.rotuloMes(hoje.slice(0, 7))}</h4><div class="historico-stats">`
     + pvStat('Vendas', r.mes.qtd, 'destaque-vendido')
     + pvStat('R$ vendido', brl(r.mes), 'destaque-vendido')
@@ -31332,6 +31524,7 @@ function pvRenderLista() {
     ? itens.map(x => pvCardHtml(x.a, x.k)).join('')
     : '<div class="pv-vazio"><b>Nenhuma venda neste filtro.</b>Escolha outro filtro acima.</div>');
   if (E.aberto) pvEdPos('pve-' + E.aberto);
+  finEncaixar();
 }
 
 function pvCardHtml(a, k) {
@@ -31366,7 +31559,7 @@ function pvCardHtml(a, k) {
         + `<div class="pv-meta">${naEtapa ? `<span>${naEtapa}</span>` : ''}${prazo}`
         + `<span>${reg.responsavel ? escapeHtml(reg.responsavel) : 'Sem responsável'}</span></div>`;
     }
-    corpo = `<div class="pv-l2">${modelo}${valor}</div>${resto}`;
+    corpo = `<div class="pv-l2">${modelo}${valor}${finLinhaHtml(id)}</div>${resto}`;
   }
   return `<article class="pv-card ${k.cls}${E.focarId === id ? ' foco' : ''}" id="pv-card-${id}">
     <div class="pv-top" role="button" tabindex="0" aria-expanded="${aberto}" onclick="pvAlternar('${id}')"
@@ -31374,7 +31567,7 @@ function pvCardHtml(a, k) {
       <div class="pv-l1"><span class="pv-nome">${escapeHtml(a.cliente_nome || 'Sem nome')}</span>${a.cidade ? `<span class="pv-cid">${escapeHtml(a.cidade)}</span>` : ''}</div>
       ${corpo}
     </div>
-    ${aberto && !E.falhouLeitura ? `<div class="pv-ed-wrap">${pvEdHtml(pfx)}</div>` : ''}
+    ${aberto && !E.falhouLeitura ? `<div class="pv-ed-wrap">${pvEdHtml(pfx)}</div><div class="fin-slot" data-fin-slot="${id}"></div>` : ''}
   </article>`;
 }
 
@@ -31386,8 +31579,10 @@ function pvRepintarCard(id) {
   if (!a || !el) return;
   const tmp = document.createElement('div');
   tmp.innerHTML = pvCardHtml(a).trim();
+  const finFoco = document.activeElement;
   el.replaceWith(tmp.firstElementChild);
   if (E.aberto === id && !E.falhouLeitura) pvEdPos('pve-' + id);
+  finEncaixar(finFoco);
 }
 
 function pvAlternar(id) {
@@ -31421,6 +31616,1051 @@ function pvCheckDeepLink() {
 }
 window.pvCheckDeepLink = pvCheckDeepLink;
 window.addEventListener('DOMContentLoaded', pvCheckDeepLink);
+
+// ============= FINANCEIRO POR CLIENTE DO ELETROPOSTO (11/10/2026) =============
+//
+// Cada venda do eletroposto tem o seu bloco "Financeiro": cada entrada e cada
+// saída de dinheiro, com o comprovante. As contas (em centavos inteiros) e as
+// chamadas de rede moram em /gerador/financeiro.js (window.Financeiro). A IA lê
+// o comprovante e só SUGERE: quem grava é o clique em "Gravar lançamento".
+//
+// O bloco é IRMÃO do editor do pós-venda e o nó dele fica guardado aqui, um por
+// contexto e card. `pvRepintarCard` e `pvRenderLista` trocam o cartão inteiro: o
+// cartão novo traz só um encaixe vazio e `finEncaixar` devolve o MESMO nó para
+// lá, com o formulário, o arquivo e o envio em andamento intactos. Os números do
+// cartão e do topo são trocados no lugar: repintar o cartão apagaria o que a
+// pessoa está digitando no pós-venda.
+//
+// TODA entrada daqui tem try/catch: a lista de vendas, o editor do pós-venda e o
+// ranking não podem quebrar nem esperar por causa do financeiro.
+const finBlocos = {};            // { 'lista:301' | 'det:301': estado do bloco }
+const finVersoes = {};           // { '301': n }: sobe a cada gravação, e o outro contexto relê
+const finResumoTela = { pronto: false, socio: false, porCard: {} };
+const FIN_SVG_SETA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FIN_SVG_CLIPE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.2 7.3l-5.3 5.3a3.2 3.2 0 01-4.5-4.5l5.6-5.6a2.1 2.1 0 013 3L6.6 10.9a1.1 1.1 0 01-1.5-1.5l4.7-4.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FIN_MSG_VALOR = 'Não entendi esse valor. Escreva só o número, como 1.234,56.';
+const FIN_ROT_ANTES = {
+  tipo: 'Tipo', categoria: 'Categoria', valor_centavos: 'Valor', data: 'Data', forma: 'Forma',
+  descricao: 'Descrição', contraparte: 'Quem pagou ou recebeu', id_transacao: 'Código da transação', arquivo: 'Comprovante',
+};
+
+function finOk() { return typeof Financeiro !== 'undefined' && typeof PosVenda !== 'undefined'; }
+function finInt(x) { return (typeof x === 'number' && isFinite(x)) ? Math.round(x) : 0; }
+function finNulo(x) { return x === null || x === undefined; }
+/** A URL do comprovante só entra em href ou src se for https. */
+function finHttps(u) { return (typeof u === 'string' && /^https:\/\//i.test(u)) ? u : ''; }
+function finLista(x) { return Array.isArray(x) ? x.filter(i => i && typeof i.slug === 'string') : []; }
+
+/** O valor da venda em centavos, a partir do pós-venda (que guarda em reais). */
+function finVendaCentavos(id) {
+  id = String(id);
+  const reg = (pvEstado.registros && pvEstado.registros[id]) || crmPosVenda[id] || null;
+  if (!reg || reg.valor === null || reg.valor === undefined || reg.valor === '') return null;
+  const n = Number(reg.valor);
+  return (isFinite(n) && n >= 0) ? Math.round(n * 100) : null;
+}
+
+/** "10/10/2026 14h05" no horário de Brasília, a partir de um ISO. */
+function finQuando(iso) {
+  const d = new Date(String(iso || ''));
+  if (isNaN(d.getTime())) return '';
+  try {
+    const p = {};
+    new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+      .formatToParts(d).forEach((x) => { p[x.type] = x.value; });
+    return `${p.day}/${p.month}/${p.year} ${p.hour}h${p.minute}`;
+  } catch (e) { return Financeiro.dataBr(String(iso).slice(0, 10)); }
+}
+
+function finLinhaTxt(recebido, venda) {
+  return 'Recebido ' + Financeiro.fmtCentavos(recebido) + (finNulo(venda) ? '' : ' de ' + Financeiro.fmtCentavos(venda));
+}
+/** A linha "Recebido R$ X de R$ Y" do cartão: só quando a venda já tem lançamento. */
+function finLinhaCartaoTxt(id) {
+  const r = finResumoTela.porCard[String(id)];
+  if (!r || !(finInt(r.qtd) > 0)) return '';
+  return finLinhaTxt(finInt(r.recebido), finVendaCentavos(id));
+}
+function finLinhaHtml(id) {
+  try {
+    if (!finOk()) return '';
+    const t = finLinhaCartaoTxt(id);
+    return `<span class="fin-l2" data-fin-l2="${escapeHtml(String(id))}"${t ? '' : ' hidden'}>${escapeHtml(t)}</span>`;
+  } catch (e) { return ''; }
+}
+/** Troca a linha no lugar, sem repintar o cartão. */
+function finPintarLinhas(id) {
+  const t = finLinhaCartaoTxt(id);
+  document.querySelectorAll('[data-fin-l2="' + String(id).replace(/[^0-9A-Za-z_-]/g, '') + '"]').forEach((el) => {
+    el.textContent = t;
+    el.hidden = !t;
+  });
+}
+
+// ── Os números no topo da tela de vendas ───────────────────────────────────
+/** Uma vez por carga da lista. Se falhar, os números não aparecem e nada quebra. */
+async function finCarregarResumo(meu) {
+  const R = finResumoTela;
+  try {
+    R.pronto = false;
+    if (!finOk()) return;
+    // O número de uma carga anterior só fica se o bloco daquele card está carregado.
+    Object.keys(R.porCard).forEach((id) => {
+      if ((finBlocos['lista:' + id] && finBlocos['lista:' + id].dados) || (finBlocos['det:' + id] && finBlocos['det:' + id].dados)) return;
+      delete R.porCard[id];
+      finPintarLinhas(id);
+    });
+    // A lista acabou de ser desenhada com o resumo da carga anterior: tira do topo
+    // agora. Se o resumo novo falhar, o número velho não pode ficar na tela.
+    try { pvRenderResumo(); } catch (e) { console.error('financeiro: o topo não desenhou', e); }
+    const ids = pvEstado.cards.map(a => a.id);
+    if (!ids.length) return;
+    const versoes = {};
+    ids.forEach((i) => { versoes[String(i)] = finVersoes[String(i)] || 0; });
+    const tok = await finToken();
+    if (!tok || meu !== pvCargaSeq) return;
+    const j = await Financeiro.resumo(CTR_IA_API, tok, ids);
+    if (meu !== pvCargaSeq) return;
+    R.socio = j.socio === true;
+    ids.forEach((i) => {
+      const id = String(i);
+      // Gravou um lançamento enquanto o resumo viajava: o número do bloco é mais novo.
+      if ((finVersoes[id] || 0) !== versoes[id]) return;
+      const r = (j.resumo && j.resumo[id]) || {};
+      R.porCard[id] = { recebido: finInt(r.recebido), gasto: finNulo(r.gasto) ? null : finInt(r.gasto), qtd: finInt(r.qtd) };
+      finPintarLinhas(id);
+    });
+    R.pronto = true;
+    Object.keys(finBlocos).forEach((k) => finPintarCab(finBlocos[k]));
+    try { pvRenderResumo(); } catch (e) { console.error('financeiro: o topo não desenhou', e); }
+  } catch (e) {
+    console.warn('financeiro: o resumo das vendas não carregou', e);
+  }
+}
+
+/** Recebido e A receber de todas as vendas; para sócio, também Gasto e Resultado
+ *  de caixa. Sem o resumo desta carga, não devolve nada. */
+function finStatsGeral() {
+  try {
+    const R = finResumoTela;
+    if (!R.pronto || !finOk()) return '';
+    let recebido = 0, aReceber = 0, gasto = 0;
+    pvEstado.cards.forEach((a) => {
+      const id = String(a.id);
+      const r = R.porCard[id] || {};
+      const rec = finInt(r.recebido);
+      recebido += rec;
+      gasto += finInt(r.gasto);
+      const venda = finVendaCentavos(id);
+      if (venda !== null) aReceber += Math.max(0, venda - rec);
+    });
+    const F = Financeiro;
+    let h = pvStat('Recebido', F.fmtCentavos(recebido)) + pvStat('A receber', F.fmtCentavos(aReceber));
+    if (R.socio) {
+      const caixa = recebido - gasto;
+      h += pvStat('Gasto', F.fmtCentavos(gasto)) + pvStat('Resultado de caixa', F.fmtCentavos(caixa), caixa < 0 ? 'fin-neg' : '');
+    }
+    return `<div class="historico-stats fin-stats ${R.socio ? 'fin-n4' : 'fin-n2'}">${h}</div>`;
+  } catch (e) {
+    console.error('financeiro: os números do topo não saíram', e);
+    return '';
+  }
+}
+
+// ── O bloco ────────────────────────────────────────────────────────────────
+async function finToken() {
+  try { await authRenovarSePreciso(); } catch (e) { /* sem token, o aviso de sessão aparece */ }
+  return (sessaoAtual && sessaoAtual.access_token) || '';
+}
+
+function finBloco(ctx, id) {
+  id = String(id);
+  const chave = ctx + ':' + id;
+  if (finBlocos[chave]) return finBlocos[chave];
+  const st = {
+    chave, ctx, id, no: null, aberto: false, carregando: false, erro: null, dados: null, seq: 0,
+    form: null, formEl: null, subindo: false, aviso: '', mostrarApagados: false, apagando: null,
+    hist: {}, versao: 0, vendaVista: undefined,
+  };
+  const no = document.createElement('section');
+  no.className = 'fin';
+  no.setAttribute('data-fin', chave);
+  no.setAttribute('aria-label', 'Financeiro');
+  no.innerHTML = '<button type="button" class="fin-cab" aria-expanded="false" data-fin-acao="alternar">'
+    + '<span class="fin-cab-tit">Financeiro</span><span class="fin-cab-res"></span>' + FIN_SVG_SETA + '</button>'
+    + '<div class="fin-corpo" hidden></div>'
+    + '<input type="file" class="fin-file" accept="image/jpeg,image/png,image/webp,application/pdf" tabindex="-1" aria-hidden="true" hidden>';
+  st.no = no;
+  no.addEventListener('click', (e) => { try { finClique(st, e); } catch (x) { console.error('financeiro: o clique falhou', x); } });
+  no.addEventListener('input', (e) => { try { finDigitou(st, e); } catch (x) { console.error('financeiro: o campo falhou', x); } });
+  no.addEventListener('change', (e) => { try { finMudou(st, e); } catch (x) { console.error('financeiro: o campo falhou', x); } });
+  no.addEventListener('dragover', (e) => {
+    if (!finTemArquivo(e.dataTransfer) || !st.aberto || !st.dados) return;
+    e.preventDefault();
+    no.classList.add('fin-solta');
+  });
+  no.addEventListener('dragleave', (e) => { if (!no.contains(e.relatedTarget)) no.classList.remove('fin-solta'); });
+  no.addEventListener('drop', (e) => {
+    no.classList.remove('fin-solta');
+    if (!finTemArquivo(e.dataTransfer)) return;
+    e.preventDefault();
+    const arq = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (arq && st.aberto && st.dados) finReceberArquivo(st, arq);
+  });
+  finBlocos[chave] = st;
+  finPintarCab(st);
+  return st;
+}
+
+/** Devolve cada bloco ao encaixe do cartão recém-desenhado. Chamado depois de
+ *  toda repintura de cartão ou de lista; o nó é o mesmo, então nada se perde. */
+function finEncaixar(foco) {
+  try {
+    if (!finOk()) return;
+    document.querySelectorAll('#pv-lista [data-fin-slot]').forEach((slot) => {
+      const st = finBloco('lista', slot.getAttribute('data-fin-slot'));
+      if (st.no.parentNode !== slot) slot.appendChild(st.no);
+      finSincronizar(st);
+    });
+    const det = document.getElementById('crm-det-fin');
+    if (det && !det.hidden && det.firstElementChild) {
+      const st = finBlocos[det.firstElementChild.getAttribute('data-fin') || ''];
+      if (st) finSincronizar(st);
+    }
+    // O foco estava num campo do financeiro e o cartão foi trocado: devolve.
+    if (foco && foco !== document.activeElement && typeof foco.focus === 'function' && foco.isConnected
+        && foco.closest && foco.closest('.fin')) {
+      try { foco.focus({ preventScroll: true }); } catch (e) {}
+    }
+  } catch (e) { console.error('financeiro: o bloco não encaixou', e); }
+}
+
+/** O bloco no detalhe do card do CRM: mesma condição do pós-venda (vendido, eletroposto). */
+function finDetalhe(agRec) {
+  try {
+    const el = document.getElementById('crm-det-fin');
+    if (!el) return;
+    const vale = finOk() && agRec && agRec.id != null
+      && String(agRec.status || '') === 'fechou' && crmEhEletroposto(agRec);
+    if (!vale) { el.hidden = true; el.replaceChildren(); return; }
+    const st = finBloco('det', agRec.id);
+    if (st.no.parentNode !== el) el.replaceChildren(st.no);
+    el.hidden = false;
+    finSincronizar(st);
+  } catch (e) { console.error('financeiro: o bloco do detalhe não abriu', e); }
+}
+
+/** O valor da venda mudou no pós-venda, ou o outro contexto gravou: relê calado. */
+function finSincronizar(st) {
+  finPintarCab(st);
+  if (!st.aberto || !st.dados || st.carregando) return;
+  const v = finVendaCentavos(st.id);
+  const mudouVenda = v !== st.vendaVista;
+  const mudouLanc = (finVersoes[st.id] || 0) !== st.versao;
+  st.vendaVista = v;
+  if (mudouVenda || mudouLanc) finCarregar(st, true);
+}
+
+function finPintarCab(st) {
+  const el = st.no.querySelector('.fin-cab-res');
+  if (!el) return;
+  let txt = '';
+  if (st.dados) txt = finLinhaTxt(finInt(st.dados.totais.recebido), st.dados.venda);
+  else txt = finLinhaCartaoTxt(st.id);
+  el.textContent = txt;
+}
+
+function finAlternar(st) {
+  st.aberto = !st.aberto;
+  st.no.querySelector('.fin-cab').setAttribute('aria-expanded', st.aberto ? 'true' : 'false');
+  st.no.querySelector('.fin-corpo').hidden = !st.aberto;
+  if (!st.aberto) return;
+  if (!st.dados) { if (!st.carregando) finCarregar(st, false); else finPintar(st); return; }
+  finPintar(st);
+  finSincronizar(st);
+}
+
+/** Lê o financeiro do card. `quieto`: já há dados na tela e a leitura só atualiza;
+ *  se falhar, o que está na tela fica. A resposta atrasada de uma leitura antiga
+ *  não pinta (st.seq), e o estado é do card, não da tela: abrir outro card não a desvia. */
+async function finCarregar(st, quieto) {
+  const seq = ++st.seq;
+  if (!(quieto && st.dados)) { st.carregando = true; st.erro = null; finPintar(st); }
+  try {
+    const tok = await finToken();
+    if (!tok) throw Financeiro.erro(401, '');
+    const j = await Financeiro.ler(CTR_IA_API, tok, st.id);
+    if (seq !== st.seq) return;
+    finReceber(st, j);
+    st.erro = null;
+  } catch (e) {
+    if (seq !== st.seq) return;
+    console.warn('financeiro: o card ' + st.id + ' não carregou', e);
+    if (!st.dados) st.erro = e;
+    else if (!quieto) showToast(Financeiro.mensagemErro(e));
+  }
+  st.carregando = false;
+  finPintar(st);
+}
+
+function finReceber(st, j) {
+  const cat = (j && j.catalogo) || {};
+  const venda = j ? j.valor_venda_centavos : null;
+  st.dados = {
+    socio: !!j && j.socio === true,
+    autor: String((j && j.autor) || ''),
+    venda: (typeof venda === 'number' && isFinite(venda) && venda >= 0) ? Math.round(venda) : null,
+    lancamentos: (j && Array.isArray(j.lancamentos)) ? j.lancamentos.filter(l => l && l.id != null) : [],
+    totais: (j && j.totais) || {},
+    catalogo: { entrada: finLista(cat.entrada), saida: finLista(cat.saida), formas: finLista(cat.formas) },
+  };
+  st.versao = finVersoes[st.id] || 0;
+  st.vendaVista = finVendaCentavos(st.id);
+  finPublicar(st, false);
+}
+
+/** Leva o total do bloco para a linha do cartão e para o topo da tela, no lugar. */
+function finPublicar(st, gravou) {
+  const t = st.dados.totais || {};
+  finResumoTela.porCard[st.id] = {
+    recebido: finInt(t.recebido),
+    gasto: finNulo(t.gasto) ? null : finInt(t.gasto),
+    qtd: st.dados.lancamentos.filter(l => !l.apagado).length,
+  };
+  if (gravou) { finVersoes[st.id] = (finVersoes[st.id] || 0) + 1; st.versao = finVersoes[st.id]; }
+  finPintarLinhas(st.id);
+  Object.keys(finBlocos).forEach((k) => { if (finBlocos[k].id === st.id) finPintarCab(finBlocos[k]); });
+  try {
+    const bg = document.getElementById('pv-bg');
+    if (bg && bg.classList.contains('show')) pvRenderResumo();
+  } catch (e) { console.error('financeiro: o topo não desenhou', e); }
+}
+
+/** O que a rota devolveu depois de gravar ou apagar: o lançamento e os totais. */
+function finAplicar(st, j) {
+  const D = st.dados;
+  const l = j && j.lancamento;
+  if (l && l.id != null) {
+    const i = D.lancamentos.findIndex(x => String(x.id) === String(l.id));
+    if (i >= 0) D.lancamentos[i] = l; else D.lancamentos.push(l);
+    D.lancamentos = Financeiro.ordenar(D.lancamentos);
+  }
+  if (j && j.totais) D.totais = j.totais;
+  // A resposta traz o valor da venda de agora: se ele mudou em outra tela, a
+  // conferência dos totais usa o mesmo número que o servidor usou.
+  if (j && Object.prototype.hasOwnProperty.call(j, 'valor_venda_centavos')) {
+    const vv = j.valor_venda_centavos;
+    D.venda = (typeof vv === 'number' && isFinite(vv) && vv >= 0) ? Math.round(vv) : null;
+  }
+  finPublicar(st, true);
+}
+
+// ── Desenho ────────────────────────────────────────────────────────────────
+function finPintar(st) {
+  const corpo = st.no.querySelector('.fin-corpo');
+  if (!corpo) return;
+  finPintarCab(st);
+  if (!st.dados) {
+    if (st.carregando) corpo.innerHTML = '<div class="fin-carga" role="status"><i class="fin-gira"></i>Carregando o financeiro</div>';
+    else if (st.erro) {
+      corpo.innerHTML = `<div class="fin-erro" role="alert"><p>${escapeHtml(Financeiro.mensagemErro(st.erro))}</p>`
+        + '<button type="button" class="fin-btn fin-btn-sec" data-fin-acao="recarregar">Tentar de novo</button></div>';
+    } else corpo.innerHTML = '';
+    return;
+  }
+  // O formulário é um nó guardado: sai antes da repintura e volta depois, com o
+  // que a pessoa digitou. O campo do motivo de apagar volta com o texto e o foco.
+  const foco = document.activeElement;
+  const focoNoForm = !!(foco && st.formEl && st.formEl.contains(foco));
+  const focoNoMotivo = !!(foco && foco.matches && foco.matches('[data-fin-motivo]') && st.no.contains(foco));
+  if (st.formEl && st.formEl.parentNode) st.formEl.remove();
+  corpo.innerHTML = finTotaisHtml(st) + finAcoesHtml(st) + '<div class="fin-form-slot"></div>' + finListaHtml(st) + finCategoriasHtml(st);
+  if (st.form && st.formEl) corpo.querySelector('.fin-form-slot').appendChild(st.formEl);
+  try {
+    if (focoNoForm && foco.isConnected) foco.focus({ preventScroll: true });
+    else if (focoNoMotivo) {
+      const m = corpo.querySelector('[data-fin-motivo]');
+      if (m) { m.focus({ preventScroll: true }); m.setSelectionRange(m.value.length, m.value.length); }
+    }
+  } catch (e) {}
+}
+
+function finTotaisHtml(st) {
+  const D = st.dados, t = D.totais || {}, F = Financeiro;
+  const kpi = (cls, rot, val, sub, neg) => `<div class="fin-kpi${cls ? ' ' + cls : ''}"><span class="fin-kpi-l">${rot}</span>`
+    + `<b class="fin-kpi-v${neg ? ' neg' : ''}">${val}</b>${sub ? `<span class="fin-kpi-s">${sub}</span>` : ''}</div>`;
+  const qe = D.lancamentos.filter(l => !l.apagado && l.tipo === 'entrada').length;
+  let h = '<div class="fin-tot">';
+  h += kpi('', 'Recebido', F.fmtCentavos(finInt(t.recebido)), qe ? pvPlural(qe, 'entrada', 'entradas') : 'Nenhuma entrada ainda');
+  h += (D.venda !== null && !finNulo(t.a_receber))
+    ? kpi('dest', 'A receber', F.fmtCentavos(finInt(t.a_receber)), 'De ' + F.fmtCentavos(D.venda) + ' da venda')
+    : kpi('dest vazio', 'A receber', 'A informar', 'Informe o valor da venda no pós-venda para ver o que falta receber.');
+  if (D.socio) {
+    const qs = D.lancamentos.filter(l => !l.apagado && l.tipo === 'saida').length;
+    const caixa = finInt(t.resultado_caixa);
+    h += kpi('s3', 'Gasto', F.fmtCentavos(finInt(t.gasto)), qs ? pvPlural(qs, 'saída', 'saídas') : 'Nenhuma saída ainda');
+    h += kpi('s3', 'Resultado de caixa', F.fmtCentavos(caixa), 'O que entrou menos o que saiu até hoje.', caixa < 0);
+    const prev = t.resultado_previsto;
+    const mg = finNulo(t.margem_prevista) ? NaN : Number(t.margem_prevista);
+    const margem = isFinite(mg) ? ' Margem de ' + String(Math.round(mg * 10) / 10).replace('.', ',') + '%.' : '';
+    h += finNulo(prev)
+      ? kpi('s3 vazio', 'Resultado previsto', 'A informar', 'Valor da venda menos o que já foi gasto.')
+      : kpi('s3', 'Resultado previsto', F.fmtCentavos(finInt(prev)), 'Valor da venda menos o que já foi gasto.' + margem, finInt(prev) < 0);
+  }
+  h += '</div>';
+  if (finInt(t.recebido_a_mais) > 0) h += `<div class="fin-nota">Recebido a mais: ${F.fmtCentavos(finInt(t.recebido_a_mais))}</div>`;
+  // Tela que mostra as parcelas e o total tem de fechar a conta.
+  const fora = F.diferencas(t, D.lancamentos, D.venda);
+  if (fora.length) {
+    console.error('financeiro: os totais do card ' + st.id + ' não fecham com a lista: ' + fora.join(', '));
+    h += '<div class="fin-nota fin-nao-fecha" role="alert">Os totais não fecham com a lista. Recarregue. '
+      + '<button type="button" class="fin-link" data-fin-acao="recarregar">Recarregar</button></div>';
+  }
+  return h;
+}
+
+function finAcoesHtml(st) {
+  let h = st.aviso ? `<div class="pv-aviso fin-aviso" role="alert">${escapeHtml(st.aviso)}</div>` : '';
+  if (st.form) return h;      // com o formulário aberto, os botões são os dele
+  const sub = st.subindo;
+  h += '<div class="fin-acoes">'
+    + `<button type="button" class="fin-btn fin-btn-pri" data-fin-acao="arquivo"${sub ? ' disabled' : ''}>`
+    + (sub ? '<i class="fin-gira"></i>Enviando e lendo o comprovante' : 'Adicionar comprovante') + '</button>'
+    + `<button type="button" class="fin-btn fin-btn-sec" data-fin-acao="manual"${sub ? ' disabled' : ''}>Lançar sem comprovante</button>`
+    + '</div><p class="fin-ajuda">Escolha o arquivo, arraste para cá ou cole um print com Ctrl+V.</p>';
+  return h;
+}
+
+function finListaHtml(st) {
+  const D = st.dados;
+  const vivos = D.lancamentos.filter(l => !l.apagado);
+  const apagados = D.lancamentos.length - vivos.length;
+  let h = `<div class="fin-sec"><h5>Lançamentos${vivos.length ? ' (' + vivos.length + ')' : ''}</h5>`;
+  if (apagados) {
+    h += `<label class="fin-chave"><input type="checkbox" data-fin-chave="apagados"${st.mostrarApagados ? ' checked' : ''}>`
+      + `<span>Mostrar apagados (${apagados})</span></label>`;
+  }
+  h += '</div>';
+  if (!vivos.length) h += '<div class="fin-vazio"><b>Nenhum lançamento ainda.</b> Adicione o primeiro comprovante deste cliente.</div>';
+  const mostra = st.mostrarApagados ? D.lancamentos : vivos;
+  if (mostra.length) h += '<ul class="fin-lista">' + mostra.map(l => finItemHtml(st, l)).join('') + '</ul>';
+  return h;
+}
+
+function finItemHtml(st, l) {
+  const D = st.dados, F = Financeiro;
+  const id = escapeHtml(String(l.id));
+  const saida = l.tipo === 'saida';
+  const tipo = saida ? 'saida' : 'entrada';
+  const apagado = l.apagado === true;
+  const forma = l.forma ? F.rotuloForma(D.catalogo, l.forma) : '';
+  let h = `<li class="fin-item${apagado ? ' apagado' : ''}" data-fin-item="${id}">`
+    + '<div class="fin-i-topo">'
+    + `<span class="fin-i-data">${escapeHtml(F.dataBr(l.data))}</span>`
+    + `<span class="fin-selo ${tipo}">${saida ? 'Saída' : 'Entrada'}</span>`
+    + '</div>'
+    + `<span class="fin-i-valor ${tipo}">${saida ? '- ' : '+ '}${escapeHtml(F.fmtCentavos(finInt(l.valor_centavos)))}</span>`
+    + '<div class="fin-i-info">'
+    + `<div class="fin-i-cat">${escapeHtml(F.rotulo(D.catalogo, tipo, l.categoria))}${forma ? `<small>${escapeHtml(forma)}</small>` : ''}</div>`;
+  if (l.descricao) h += `<div class="fin-i-desc">${escapeHtml(l.descricao)}</div>`;
+  if (l.contraparte) h += `<div class="fin-i-desc"><i>${saida ? 'Para quem foi:' : 'Quem pagou:'}</i> ${escapeHtml(l.contraparte)}</div>`;
+  if (l.id_transacao) h += `<div class="fin-i-desc"><i>Código da transação:</i> ${escapeHtml(l.id_transacao)}</div>`;
+  if (apagado) {
+    const quando = finQuando(l.apagado_em);
+    h += `<div class="fin-i-apagado"><b>Apagado</b>${l.apagado_por ? ' por ' + escapeHtml(l.apagado_por) : ''}${quando ? ' em ' + escapeHtml(quando) : ''}.`
+      + `${l.motivo_apagado ? ' Motivo: ' + escapeHtml(l.motivo_apagado) : ''}</div>`;
+  }
+  const alteracoes = Array.isArray(l.alteracoes) ? l.alteracoes : [];
+  const histAberto = !!st.hist[String(l.id)];
+  let pe = '';
+  if (l.origem === 'ia') pe += '<span class="fin-marca">Lido por IA</span>';
+  if (alteracoes.length) pe += `<button type="button" class="fin-marca fin-marca-btn" data-fin-acao="hist" data-fin-id="${id}" aria-expanded="${histAberto}">Editado</button>`;
+  let acoes = '';
+  if (l.arquivo) {
+    const url = finHttps(l.arquivo.url);
+    acoes += url
+      ? `<a class="fin-mini" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir comprovante" title="${escapeHtml(l.arquivo.nome || 'Comprovante')}">${FIN_SVG_CLIPE}<span>Comprovante</span></a>`
+      : `<button type="button" class="fin-mini" data-fin-acao="recarregar">${FIN_SVG_CLIPE}<span>Recarregue para abrir</span></button>`;
+  }
+  // Quem não é sócio só mexe no que ele mesmo lançou (a API recusa o resto).
+  const podeMexer = !!(st.dados && (st.dados.socio || (l.criado_por && l.criado_por === st.dados.autor)));
+  if (!apagado && podeMexer) {
+    acoes += `<button type="button" class="fin-mini" data-fin-acao="editar" data-fin-id="${id}">Editar</button>`
+      + `<button type="button" class="fin-mini fin-mini-apagar" data-fin-acao="apagar" data-fin-id="${id}">Apagar</button>`;
+  }
+  if (pe) h += `<div class="fin-i-pe">${pe}</div>`;
+  h += '</div>';
+  if (acoes) h += `<div class="fin-i-acoes">${acoes}</div>`;
+  if (histAberto && alteracoes.length) {
+    h += '<div class="fin-hist">' + alteracoes.slice().reverse().map((a) => {
+      const quem = [finQuando(a && a.em), a && a.por ? 'por ' + a.por : ''].filter(Boolean).join(' ');
+      return `<div class="fin-hist-l"><b>${escapeHtml(quem || 'Alteração')}</b><span>${escapeHtml(finAntesTxt(st, l, a && a.antes))}</span></div>`;
+    }).join('') + '</div>';
+  }
+  const ap = st.apagando;
+  if (!apagado && ap && ap.id === String(l.id)) {
+    h += '<div class="fin-apaga"><label class="pv-lbl">Por que apagar este lançamento?'
+      + `<input class="pv-in" type="text" maxlength="200" autocomplete="off" data-fin-motivo value="${escapeHtml(ap.motivo)}" placeholder="Ex.: lançado em dobro"${ap.enviando ? ' disabled' : ''}></label>`
+      + `<div class="fin-form-erro" role="alert">${escapeHtml(ap.erro || '')}</div>`
+      + '<div class="fin-form-botoes">'
+      + `<button type="button" class="fin-btn fin-btn-apagar" data-fin-acao="apagar-ok"${ap.enviando ? ' disabled' : ''}>${ap.enviando ? 'Apagando' : 'Apagar lançamento'}</button>`
+      + `<button type="button" class="fin-btn fin-btn-sec" data-fin-acao="apagar-nao"${ap.enviando ? ' disabled' : ''}>Cancelar</button>`
+      + '</div></div>';
+  }
+  return h + '</li>';
+}
+
+/** "Valor: R$ 1.000,00; Data: 09/10/2026": o que o lançamento tinha antes da edição. */
+function finAntesTxt(st, l, antes) {
+  if (!antes || typeof antes !== 'object') return 'Sem detalhe do que mudou.';
+  const D = st.dados, F = Financeiro;
+  const tipoAntes = antes.tipo === 'saida' || antes.tipo === 'entrada' ? antes.tipo : l.tipo;
+  const partes = [];
+  Object.keys(FIN_ROT_ANTES).forEach((k) => {
+    if (!Object.prototype.hasOwnProperty.call(antes, k)) return;
+    const v = antes[k];
+    let txt;
+    if (k === 'valor_centavos') txt = F.fmtCentavos(finInt(v));
+    else if (k === 'data') txt = F.dataBr(v);
+    else if (k === 'tipo') txt = v === 'saida' ? 'Saída' : 'Entrada';
+    else if (k === 'categoria') txt = F.rotulo(D.catalogo, tipoAntes, v);
+    else if (k === 'forma') txt = v ? F.rotuloForma(D.catalogo, v) : '';
+    else if (k === 'arquivo') txt = v && typeof v === 'object' ? String(v.nome || 'outro arquivo') : '';
+    else txt = String(v == null ? '' : v);
+    partes.push(FIN_ROT_ANTES[k] + ': ' + (txt || 'vazio'));
+  });
+  return partes.length ? 'Antes era ' + partes.join('; ') + '.' : 'Sem detalhe do que mudou.';
+}
+
+/** Só sócio: duas colunas, e o total de cada uma é o Recebido e o Gasto. */
+function finCategoriasHtml(st) {
+  const D = st.dados, F = Financeiro;
+  if (!D.socio || !D.lancamentos.some(l => !l.apagado)) return '';     // sem lançamento, o quadro seria só zeros
+  const pc = (D.totais && D.totais.por_categoria) || {};
+  const coluna = (tipo, titulo) => {
+    const m = pc[tipo] || {};
+    const slugs = D.catalogo[tipo].map(c => c.slug).filter(s => finInt(m[s]) !== 0);
+    Object.keys(m).forEach((s) => { if (finInt(m[s]) !== 0 && !slugs.includes(s)) slugs.push(s); });
+    const linhas = slugs.map(s => `<div class="fin-cat-l"><span>${escapeHtml(F.rotulo(D.catalogo, tipo, s))}</span><span>${escapeHtml(F.fmtCentavos(finInt(m[s])))}</span></div>`).join('');
+    return `<div class="fin-cat"><h6>${titulo}</h6>`
+      + (linhas || '<div class="fin-cat-vazio">Nada lançado ainda.</div>')
+      + `<div class="fin-cat-l total"><span>Total</span><span>${escapeHtml(F.fmtCentavos(F.somaMapa(m)))}</span></div></div>`;
+  };
+  return '<div class="fin-sec"><h5>Por categoria</h5></div><div class="fin-cats">' + coluna('entrada', 'Entradas') + coluna('saida', 'Saídas') + '</div>';
+}
+
+// ── Formulário do lançamento ───────────────────────────────────────────────
+function finSoltarPrevia(f) {
+  if (f && f.previa && /^blob:/.test(f.previa)) { try { URL.revokeObjectURL(f.previa); } catch (e) {} }
+  if (f) f.previa = '';
+}
+
+/** Abre o formulário: `l` é o lançamento a editar (ou null); `pre` é o comprovante
+ *  recém-enviado, com a sugestão da IA. O `id` nasce aqui, UMA vez: é a chave de
+ *  idempotência, e toda nova tentativa de gravar reusa o mesmo. */
+function finFormAbrir(st, l, pre) {
+  if (st.form) finSoltarPrevia(st.form);
+  const f = {
+    id: l ? String(l.id) : Financeiro.uuid(),
+    editando: !!l,
+    tipo: l && l.tipo === 'saida' ? 'saida' : 'entrada',
+    categoria: l ? String(l.categoria || '') : '',
+    valor: l ? Financeiro.numCentavos(finInt(l.valor_centavos)) : '',
+    data: l ? String(l.data || '') : PosVenda.hojeBr(),
+    forma: l ? String(l.forma || '') : '',
+    contraparte: l ? String(l.contraparte || '') : '',
+    descricao: l ? String(l.descricao || '') : '',
+    id_transacao: l ? String(l.id_transacao || '') : '',
+    arquivo: l && l.arquivo ? Object.assign({}, l.arquivo) : null,
+    previa: '',
+    origem: l && l.origem === 'ia' ? 'ia' : 'manual',
+    lido: l && l.lido_pela_ia ? l.lido_pela_ia : null,
+    sugestao: null, ia: {}, avisos: [], duplicados: [],
+    tocado: false, enviando: false, subindo: false, conflito: null, erro: '',
+  };
+  if (!st.dados.socio) f.tipo = 'entrada';
+  if (pre) finFormSugestao(st, f, pre);
+  st.form = f;
+  st.formEl = document.createElement('div');
+  st.formEl.className = 'fin-form';
+  st.apagando = null;
+  finFormPintar(st);
+  finPintar(st);
+  try {
+    st.formEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (!pre && !l) { const v = st.formEl.querySelector('[data-fin-campo="valor"]'); if (v) v.focus({ preventScroll: true }); }
+  } catch (e) {}
+}
+
+/** Preenche o formulário com o que a IA leu. Cada campo preenchido ganha a marca
+ *  "Lido do comprovante. Confira." até a pessoa mexer nele. */
+function finFormSugestao(st, f, pre) {
+  finSoltarPrevia(f);
+  f.arquivo = pre.arquivo || null;
+  f.previa = pre.previa || '';
+  f.avisos = [];
+  f.ia = {};
+  f.sugestao = null;
+  f.duplicados = Array.isArray(pre.duplicados) ? pre.duplicados.filter(Boolean) : [];
+  if (pre.leitura === 'falhou') f.avisos.push('Não consegui ler esse comprovante. Preencha à mão.');
+  if (pre.leitura === 'nao_e_comprovante') f.avisos.push('Isso não parece um comprovante de pagamento. Confira antes de lançar.');
+  const s = pre.sugestao;
+  if (!s || typeof s !== 'object' || pre.leitura === 'falhou' || pre.leitura === 'pulada') {
+    if (!f.editando) { f.origem = 'manual'; f.lido = null; }
+    return;
+  }
+  if (s.confianca === 'baixa') f.avisos.push('Leitura com pouca certeza. Confira o valor e a data.');
+  const valor = (typeof s.valor_centavos === 'number' && Number.isInteger(s.valor_centavos) && s.valor_centavos > 0) ? s.valor_centavos : null;
+  const data = /^\d{4}-\d{2}-\d{2}$/.test(String(s.data || '')) ? String(s.data) : null;
+  const idt = (typeof s.id_transacao === 'string' && s.id_transacao.trim()) ? s.id_transacao.trim() : null;
+  f.sugestao = s;
+  f.origem = 'ia';
+  // O que a IA sugeriu fica registrado mesmo que a pessoa corrija o campo.
+  f.lido = { valor_centavos: valor, data, id_transacao: idt };
+  const poe = (campo, v) => { if (v) { f[campo] = v; f.ia[campo] = true; } };
+  poe('valor', valor === null ? '' : Financeiro.numCentavos(valor));
+  poe('data', data || '');
+  poe('id_transacao', idt ? idt.slice(0, 80) : '');
+  poe('descricao', typeof s.descricao === 'string' ? s.descricao.trim().slice(0, 200) : '');
+  poe('forma', st.dados.catalogo.formas.some(x => x.slug === s.forma) ? s.forma : '');
+  poe('contraparte', finContraparteDaIa(f));
+}
+function finContraparteDaIa(f) {
+  const s = f.sugestao || {};
+  const v = f.tipo === 'saida' ? s.recebedor : s.pagador;
+  return typeof v === 'string' ? v.trim().slice(0, 80) : '';
+}
+
+function finPreviaHtml(st) {
+  const f = st.form;
+  if (f.subindo) return '<div class="fin-previa-vazia" role="status"><span><i class="fin-gira"></i>Enviando o comprovante</span></div>';
+  const a = f.arquivo;
+  const trava = f.enviando ? ' disabled' : '';
+  if (!a) {
+    return '<div class="fin-previa-vazia"><span>Sem comprovante neste lançamento.</span>'
+      + `<button type="button" class="fin-mini" data-fin-acao="arquivo"${trava}>${FIN_SVG_CLIPE}<span>Anexar comprovante</span></button></div>`;
+  }
+  const remoto = finHttps(a.url);
+  const nome = escapeHtml(a.nome || 'Comprovante');
+  const ehImagem = /^image\//.test(String(a.tipo || ''));
+  const img = f.previa || remoto;
+  const link = remoto || f.previa;
+  let h;
+  if (ehImagem && img) {
+    h = `<a class="fin-thumb-a" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir comprovante">`
+      + `<img class="fin-thumb" src="${escapeHtml(img)}" alt="Comprovante enviado"></a>`;
+  } else {
+    h = `<div class="fin-doc">${FIN_SVG_CLIPE}<span class="fin-doc-nome">${nome}</span>`
+      + (link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">Abrir comprovante</a>` : '<span class="fin-doc-off">Recarregue para abrir</span>')
+      + '</div>';
+  }
+  return h + '<div class="fin-previa-pe">' + (ehImagem && img ? `<span class="fin-doc-nome">${nome}</span>` : '<span></span>')
+    + `<button type="button" class="fin-mini" data-fin-acao="arquivo"${trava}>Trocar arquivo</button></div>`;
+}
+
+function finFormPintar(st) {
+  const f = st.form, el = st.formEl;
+  if (!f || !el) return;
+  const D = st.dados, F = Financeiro;
+  const cats = D.catalogo[f.tipo].slice();
+  if (f.categoria && !cats.some(c => c.slug === f.categoria)) cats.push({ slug: f.categoria, rotulo: f.categoria });
+  const formas = D.catalogo.formas.slice();
+  if (f.forma && !formas.some(c => c.slug === f.forma)) formas.push({ slug: f.forma, rotulo: f.forma });
+  const opts = (lista, sel, vazio) => `<option value="">${vazio}</option>`
+    + lista.map(c => `<option value="${escapeHtml(c.slug)}"${c.slug === sel ? ' selected' : ''}>${escapeHtml(c.rotulo)}</option>`).join('');
+  const ia = (k) => f.ia[k] ? `<span class="fin-ia" data-fin-ia="${k}">Lido do comprovante. Confira.</span>` : '';
+  const nome = 'fin-tipo-' + st.chave.replace(/[^A-Za-z0-9]/g, '-');
+  const trava = (f.enviando || f.subindo) ? ' disabled' : '';
+  const saida = f.tipo === 'saida';
+  const radio = (v, rot) => `<label><input type="radio" name="${nome}" value="${v}" data-fin-campo="tipo"${f.tipo === v ? ' checked' : ''}${f.enviando ? ' disabled' : ''}><span>${rot}</span></label>`;
+  let h = `<div class="fin-form-tit">${f.editando ? 'Editar lançamento' : 'Novo lançamento'}</div>`;
+  f.avisos.forEach((a) => { h += `<div class="pv-aviso" role="alert">${escapeHtml(a)}</div>`; });
+  if (f.duplicados.length && !f.conflito) {
+    h += '<div class="pv-aviso fin-dup" role="alert">Já existe um lançamento parecido: '
+      + escapeHtml(f.duplicados.map(d => F.textoDuplicado(d)).join('; ')) + '. Confira antes de gravar.</div>';
+  }
+  h += '<div class="fin-form-grade">'
+    + `<div class="fin-previa">${finPreviaHtml(st)}</div>`
+    + '<div class="fin-campos">'
+    + '<div class="fin-campo full"><span class="pv-lbl">Tipo</span>'
+    + (D.socio
+      ? `<div class="fin-seg" role="radiogroup" aria-label="Tipo do lançamento">${radio('entrada', 'Entrada')}${radio('saida', 'Saída')}</div>`
+      : '<span class="fin-fixo">Entrada</span>')
+    + '</div>'
+    + `<label class="fin-campo"><span class="pv-lbl">Categoria</span><select class="pv-in" data-fin-campo="categoria">${opts(cats, f.categoria, 'Escolha')}</select></label>`
+    + '<label class="fin-campo"><span class="pv-lbl">Valor</span>'
+    + `<input class="pv-in" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 1.234,56" data-fin-campo="valor" value="${escapeHtml(f.valor)}">`
+    + `<span class="pv-eco" aria-live="polite"></span>${ia('valor')}</label>`
+    + `<label class="fin-campo"><span class="pv-lbl">Data</span><input class="pv-in" type="date" data-fin-campo="data" value="${escapeHtml(f.data)}">${ia('data')}</label>`
+    + `<label class="fin-campo"><span class="pv-lbl">Forma</span><select class="pv-in" data-fin-campo="forma">${opts(formas, f.forma, 'Não informada')}</select>${ia('forma')}</label>`
+    + `<label class="fin-campo full"><span class="pv-lbl" data-fin-rot="contraparte">${saida ? 'Para quem foi' : 'Quem pagou'}</span>`
+    + `<input class="pv-in" type="text" maxlength="80" autocomplete="off" data-fin-campo="contraparte" value="${escapeHtml(f.contraparte)}">${ia('contraparte')}</label>`
+    + `<label class="fin-campo full"><span class="pv-lbl">Descrição <span class="fin-opc" data-fin-rot="descricao">${f.categoria === 'outros' ? '(obrigatória em Outros)' : '(opcional)'}</span></span>`
+    + `<textarea class="pv-in" rows="2" maxlength="200" data-fin-campo="descricao">${escapeHtml(f.descricao)}</textarea>${ia('descricao')}</label>`
+    + '<label class="fin-campo full"><span class="pv-lbl">Código da transação <span class="fin-opc">(opcional)</span></span>'
+    + `<input class="pv-in" type="text" maxlength="80" autocomplete="off" data-fin-campo="id_transacao" value="${escapeHtml(f.id_transacao)}">${ia('id_transacao')}</label>`
+    + '</div></div>'
+    + `<div class="fin-form-erro" role="alert">${escapeHtml(f.erro || '')}</div>`;
+  if (f.conflito) {
+    h += '<div class="fin-conflito" role="alert"><p>Já existe um lançamento parecido:</p><ul>'
+      + f.conflito.map(d => `<li>${escapeHtml(F.textoDuplicado(d))}</li>`).join('')
+      + '</ul><p>É outro pagamento?</p><div class="fin-form-botoes">'
+      + `<button type="button" class="fin-btn fin-btn-pri" data-fin-acao="gravar-mesmo"${trava}>${f.enviando ? 'Gravando' : 'Gravar mesmo assim'}</button>`
+      + `<button type="button" class="fin-btn fin-btn-sec" data-fin-acao="nao-gravar"${trava}>Não gravar</button>`
+      + '</div></div>';
+  } else {
+    h += '<div class="fin-form-botoes">'
+      + `<button type="button" class="fin-btn fin-btn-pri" data-fin-acao="gravar"${trava}>${f.enviando ? 'Gravando' : 'Gravar lançamento'}</button>`
+      + `<button type="button" class="fin-btn fin-btn-sec" data-fin-acao="cancelar"${f.enviando ? ' disabled' : ''}>Cancelar</button>`
+      + '</div>';
+  }
+  el.innerHTML = h;
+  finEco(st);
+}
+
+/** Lê o que está nos campos para o estado. Sempre antes de repintar o formulário. */
+function finFormLer(st) {
+  const f = st.form, el = st.formEl;
+  if (!f || !el) return;
+  const q = (k) => el.querySelector('[data-fin-campo="' + k + '"]');
+  ['categoria', 'valor', 'data', 'forma', 'contraparte', 'descricao', 'id_transacao'].forEach((k) => {
+    const c = q(k);
+    if (c) f[k] = String(c.value || '');
+  });
+  const tipo = el.querySelector('[data-fin-campo="tipo"]:checked');
+  if (tipo && st.dados.socio) f.tipo = tipo.value === 'saida' ? 'saida' : 'entrada';
+}
+function finFormRepintar(st) { finFormLer(st); finFormPintar(st); }
+
+/** O eco "Entendi R$ 1.234,56" a cada tecla. Valor que não é número trava o gravar. */
+function finEco(st) {
+  const f = st.form, el = st.formEl;
+  if (!f || !el) return;
+  const inp = el.querySelector('[data-fin-campo="valor"]');
+  const eco = el.querySelector('.pv-eco');
+  const c = Financeiro.centavosDeTexto(inp ? inp.value : '');
+  const naoEntendi = typeof c === 'number' && isNaN(c);
+  const zero = c === 0;
+  if (eco) {
+    eco.classList.toggle('fin-nao', naoEntendi || zero);     // não usa `erro`: o style.css tem um .erro global, de caixa clara
+    eco.textContent = naoEntendi ? FIN_MSG_VALOR : (zero ? 'O valor precisa ser maior que zero.' : (c === null ? '' : 'Entendi ' + Financeiro.fmtCentavos(c)));
+  }
+  el.querySelectorAll('[data-fin-acao="gravar"],[data-fin-acao="gravar-mesmo"]').forEach((b) => {
+    b.disabled = naoEntendi || zero || f.enviando || f.subindo;
+  });
+}
+
+function finFormErro(st, msg, campo) {
+  const f = st.form, el = st.formEl;
+  if (!f || !el) return;
+  f.erro = msg || '';
+  const box = el.querySelector('.fin-form-erro');
+  if (box) box.textContent = f.erro;
+  if (campo) { const c = el.querySelector('[data-fin-campo="' + campo + '"]'); if (c) { try { c.focus(); } catch (e) {} } }
+}
+
+function finFormFechar(st) {
+  if (st.form) finSoltarPrevia(st.form);
+  st.form = null;
+  if (st.formEl && st.formEl.parentNode) st.formEl.remove();
+  st.formEl = null;
+  finPintar(st);
+}
+
+/** Uma gravação por vez por formulário. A trava é ligada antes de qualquer espera:
+ *  o segundo clique encontra `enviando` e não faz nada. */
+async function finGravar(st, confirmar) {
+  const f = st.form;
+  if (!f || f.enviando || f.subindo) return;
+  finFormLer(st);
+  const centavos = Financeiro.centavosDeTexto(f.valor);
+  if (centavos === null) return finFormErro(st, 'Escreva o valor.', 'valor');
+  if (typeof centavos !== 'number' || isNaN(centavos)) return finFormErro(st, FIN_MSG_VALOR, 'valor');
+  if (centavos <= 0) return finFormErro(st, 'O valor precisa ser maior que zero.', 'valor');
+  if (!f.categoria) return finFormErro(st, 'Escolha a categoria.', 'categoria');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.data)) return finFormErro(st, 'Escolha a data.', 'data');
+  if (f.categoria === 'outros' && !f.descricao.trim()) return finFormErro(st, 'Em Outros, escreva do que se trata.', 'descricao');
+  f.enviando = true;
+  f.erro = '';
+  st.aviso = '';
+  const a = f.arquivo;
+  const corpo = {
+    id: f.id, tipo: f.tipo, categoria: f.categoria, valor_centavos: centavos, data: f.data, forma: f.forma || '',
+    descricao: f.descricao.trim(), contraparte: f.contraparte.trim(), id_transacao: f.id_transacao.trim(),
+    arquivo: a ? { path: a.path, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho, sha256: a.sha256 } : null,
+    origem: f.origem === 'ia' ? 'ia' : 'manual',
+    lido_pela_ia: f.origem === 'ia' ? (f.lido || null) : null,
+  };
+  if (confirmar) corpo.confirmar_duplicado = true;
+  finFormPintar(st);
+  try {
+    const tok = await finToken();
+    if (!tok) throw Financeiro.erro(401, '');
+    const j = await Financeiro.gravar(CTR_IA_API, tok, st.id, corpo);
+    f.enviando = false;
+    finAplicar(st, j);
+    if (st.form === f) finFormFechar(st); else finPintar(st);
+    showToast(f.editando ? 'Lançamento atualizado.' : 'Lançamento gravado.');
+  } catch (e) {
+    f.enviando = false;
+    if (e && e.status === 409 && Array.isArray(e.duplicados) && e.duplicados.length) {
+      f.conflito = e.duplicados;      // nada foi gravado: a pessoa decide
+    } else {
+      console.warn('financeiro: o lançamento não foi gravado', e);
+      f.erro = Financeiro.mensagemErro(e);
+    }
+    if (st.form === f) finFormPintar(st);
+  }
+}
+
+// ── Comprovante: escolher, arrastar ou colar ───────────────────────────────
+function finTemArquivo(dt) {
+  try { return !!dt && !!dt.types && Array.prototype.indexOf.call(dt.types, 'Files') !== -1; } catch (e) { return false; }
+}
+/** A primeira IMAGEM da área de transferência (um print colado), ou null. */
+function finImagemColada(dt) {
+  if (!dt) return null;
+  const arqs = dt.files || [];
+  for (let i = 0; i < arqs.length; i++) if (/^image\//.test(arqs[i].type || '')) return arqs[i];
+  const its = dt.items || [];
+  for (let i = 0; i < its.length; i++) {
+    if (its[i].kind === 'file' && /^image\//.test(its[i].type || '')) { const a = its[i].getAsFile(); if (a) return a; }
+  }
+  return null;
+}
+/** O bloco aberto que está à vista: é para ele que vai o print colado. */
+function finBlocoVisivel() {
+  const abertos = Object.keys(finBlocos).map(k => finBlocos[k])
+    .filter(st => st.aberto && st.dados && st.no.isConnected && st.no.offsetParent !== null);
+  if (!abertos.length) return null;
+  const foco = document.activeElement;
+  const comFoco = abertos.find(st => foco && st.no.contains(foco));
+  if (comFoco) return comFoco;
+  const pvNaFrente = !!document.getElementById('pv-bg')?.classList.contains('show');
+  return abertos.find(st => (st.ctx === 'lista') === pvNaFrente) || abertos[0];
+}
+document.addEventListener('paste', (e) => {
+  try {
+    if (!finOk()) return;
+    const arq = finImagemColada(e.clipboardData);
+    if (!arq) return;                     // texto colado num campo segue o caminho normal
+    const st = finBlocoVisivel();
+    if (!st) return;
+    e.preventDefault();
+    finReceberArquivo(st, arq);
+  } catch (x) { console.error('financeiro: o colar falhou', x); }
+});
+// Arquivo solto fora do bloco, dentro das telas do financeiro, não pode fazer o
+// navegador abrir o arquivo e tirar a pessoa do app.
+['dragover', 'drop'].forEach((tipo) => document.addEventListener(tipo, (e) => {
+  try {
+    if (finTemArquivo(e.dataTransfer) && e.target && e.target.closest && e.target.closest('#pv-bg, #crm-det-fin')) e.preventDefault();
+  } catch (x) {}
+}));
+
+function finNomeArquivo(arq, tipo) {
+  const n = String((arq && arq.name) || '').trim();
+  if (n) return n.slice(0, 120);
+  return 'comprovante.' + (tipo === 'application/pdf' ? 'pdf' : (tipo === 'image/png' ? 'png' : (tipo === 'image/webp' ? 'webp' : 'jpg')));
+}
+
+/** Confere, reduz (foto), envia e pede a leitura. Sem formulário aberto, a IA lê e
+ *  o formulário abre preenchido. Com formulário aberto, o arquivo entra nele: a IA
+ *  só preenche se for lançamento novo em que a pessoa ainda não mexeu. */
+async function finReceberArquivo(st, bruto) {
+  if (!bruto || !st.aberto || !st.dados) return;
+  const f0 = st.form;
+  if (st.subindo || (f0 && (f0.enviando || f0.subindo))) { showToast('Espere o envio terminar.'); return; }
+  st.aviso = '';
+  const ehPdf = Financeiro.tipoDoArquivo(bruto) === 'application/pdf';
+  let cod = Financeiro.checarArquivo(bruto, !ehPdf);      // a foto é medida depois de reduzida
+  if (cod) { st.aviso = Financeiro.mensagemErro({ codigo: cod }); finPintar(st); return; }
+  if (f0) finFormLer(st);
+  const ler = !f0 || (!f0.editando && !f0.tocado);
+  st.subindo = true;
+  if (f0) { f0.subindo = true; f0.erro = ''; finFormPintar(st); }
+  finPintar(st);
+  let previa = '';
+  try {
+    const arq = ehPdf ? bruto : await dossieReduzirImagem(bruto);
+    cod = Financeiro.checarArquivo(arq);
+    if (cod) throw Financeiro.erro(400, cod);
+    const base64 = await dossieBase64(arq);
+    const tipo = Financeiro.tipoDoArquivo(arq);
+    const tok = await finToken();
+    if (!tok) throw Financeiro.erro(401, '');
+    const j = await Financeiro.subir(CTR_IA_API, tok, st.id, { base64, media_type: tipo, nome: finNomeArquivo(arq, tipo), ler });
+    if (!j.arquivo || !j.arquivo.path) throw Financeiro.erro(0, '');
+    try { previa = URL.createObjectURL(arq); } catch (e) { previa = ''; }
+    st.subindo = false;
+    const pre = { arquivo: j.arquivo, previa, sugestao: j.sugestao, leitura: j.leitura, duplicados: j.duplicados };
+    if (!f0 && !st.form) {
+      finFormAbrir(st, null, pre);
+    } else if (f0 && st.form === f0) {
+      finFormLer(st);
+      f0.subindo = false;
+      if (ler && !f0.tocado) finFormSugestao(st, f0, pre);
+      else {
+        finSoltarPrevia(f0);
+        f0.arquivo = j.arquivo;
+        f0.previa = previa;
+        f0.duplicados = Array.isArray(j.duplicados) ? j.duplicados.filter(Boolean) : [];
+      }
+      f0.conflito = null;
+      finFormPintar(st);
+      finPintar(st);
+    } else {
+      // o formulário foi fechado no meio do envio: o arquivo não tem para onde ir
+      if (previa) { try { URL.revokeObjectURL(previa); } catch (e) {} }
+      finPintar(st);
+    }
+  } catch (e) {
+    console.warn('financeiro: o comprovante não subiu', e);
+    st.subindo = false;
+    st.aviso = Financeiro.mensagemErro(e);
+    if (f0) { f0.subindo = false; if (st.form === f0) finFormPintar(st); }
+    finPintar(st);
+  }
+}
+
+// ── Apagar (só marca: o lançamento continua na lista dos apagados) ──────────
+async function finApagar(st) {
+  const a = st.apagando;
+  if (!a || a.enviando) return;
+  const motivo = String(a.motivo || '').trim();
+  if (motivo.length < 3) { a.erro = Financeiro.mensagemErro({ codigo: 'motivo_obrigatorio' }); finPintar(st); return; }
+  a.enviando = true;
+  a.erro = '';
+  finPintar(st);
+  try {
+    const tok = await finToken();
+    if (!tok) throw Financeiro.erro(401, '');
+    const j = await Financeiro.apagar(CTR_IA_API, tok, st.id, a.id, motivo);
+    if (st.apagando === a) st.apagando = null;
+    finAplicar(st, j);
+    if (st.form && st.form.editando && st.form.id === a.id) finFormFechar(st); else finPintar(st);
+    showToast('Lançamento apagado.');
+  } catch (e) {
+    console.warn('financeiro: o lançamento não foi apagado', e);
+    a.enviando = false;
+    a.erro = Financeiro.mensagemErro(e);
+    finPintar(st);
+  }
+}
+
+// ── Eventos do bloco ───────────────────────────────────────────────────────
+function finClique(st, e) {
+  const alvo = e.target && e.target.closest ? e.target.closest('[data-fin-acao]') : null;
+  if (!alvo || !st.no.contains(alvo) || alvo.disabled) return;
+  const acao = alvo.getAttribute('data-fin-acao');
+  const lid = alvo.getAttribute('data-fin-id') || '';
+  if (acao === 'alternar') return finAlternar(st);
+  if (acao === 'recarregar') return finCarregar(st, false);
+  if (!st.dados) return;
+  const acha = () => st.dados.lancamentos.find(l => String(l.id) === lid);
+  if (acao === 'arquivo') {
+    if (st.subindo) return;
+    const inp = st.no.querySelector('.fin-file');
+    inp.value = '';
+    inp.click();
+  } else if (acao === 'manual') {
+    if (st.subindo) return;
+    st.aviso = '';
+    finFormAbrir(st, null, null);
+  } else if (acao === 'gravar') finGravar(st, false);
+  else if (acao === 'gravar-mesmo') finGravar(st, true);
+  else if (acao === 'nao-gravar') {
+    if (st.form && !st.form.enviando) { finFormFechar(st); showToast('Lançamento não gravado.'); }
+  } else if (acao === 'cancelar') {
+    if (st.form && !st.form.enviando) finFormFechar(st);
+  } else if (acao === 'editar') {
+    const l = acha();
+    if (!l || l.apagado || st.subindo || (st.form && st.form.enviando)) return;
+    st.aviso = '';
+    finFormAbrir(st, l, null);
+  } else if (acao === 'apagar') {
+    const l = acha();
+    if (!l || l.apagado || (st.apagando && st.apagando.enviando)) return;
+    st.apagando = { id: String(l.id), motivo: '', erro: '', enviando: false };
+    finPintar(st);
+    const m = st.no.querySelector('[data-fin-motivo]');
+    if (m) { try { m.focus(); } catch (x) {} }
+  } else if (acao === 'apagar-nao') {
+    if (st.apagando && !st.apagando.enviando) { st.apagando = null; finPintar(st); }
+  } else if (acao === 'apagar-ok') finApagar(st);
+  else if (acao === 'hist') {
+    st.hist[lid] = !st.hist[lid];
+    finPintar(st);
+  }
+}
+
+function finDigitou(st, e) {
+  const t = e.target;
+  if (!t || !t.getAttribute) return;
+  if (t.hasAttribute('data-fin-motivo')) {
+    if (st.apagando) { st.apagando.motivo = t.value; }
+    return;
+  }
+  const campo = t.getAttribute('data-fin-campo');
+  const f = st.form;
+  if (!campo || !f || !st.formEl || !st.formEl.contains(t)) return;
+  if (campo === 'tipo') return;            // a troca de tipo é tratada no change
+  f.tocado = true;
+  if (f.ia[campo]) {                       // a pessoa mexeu: a marca da IA sai
+    f.ia[campo] = false;
+    const m = st.formEl.querySelector('[data-fin-ia="' + campo + '"]');
+    if (m) m.remove();
+  }
+  if (f.erro) finFormErro(st, '');
+  if (f.conflito) {                        // mexeu depois da pergunta de duplicado: volta ao gravar normal
+    f.conflito = null;
+    finFormRepintar(st);
+    const c = st.formEl.querySelector('[data-fin-campo="' + campo + '"]');
+    if (c) { try { c.focus({ preventScroll: true }); c.setSelectionRange(c.value.length, c.value.length); } catch (x) {} }
+    return;
+  }
+  if (campo === 'valor') finEco(st);
+  if (campo === 'categoria') {
+    const r = st.formEl.querySelector('[data-fin-rot="descricao"]');
+    if (r) r.textContent = t.value === 'outros' ? '(obrigatória em Outros)' : '(opcional)';
+  }
+}
+
+function finMudou(st, e) {
+  const t = e.target;
+  if (!t || !t.getAttribute) return;
+  if (t.classList && t.classList.contains('fin-file')) {
+    const arq = t.files && t.files[0];
+    t.value = '';
+    if (arq) finReceberArquivo(st, arq);
+    return;
+  }
+  if (t.getAttribute('data-fin-chave') === 'apagados') {
+    st.mostrarApagados = !!t.checked;
+    finPintar(st);
+    const c = st.no.querySelector('[data-fin-chave="apagados"]');
+    if (c) { try { c.focus({ preventScroll: true }); } catch (x) {} }
+    return;
+  }
+  const f = st.form;
+  if (t.getAttribute('data-fin-campo') === 'tipo' && f && st.formEl && st.formEl.contains(t)) {
+    const antes = f.tipo;
+    finFormLer(st);
+    if (f.tipo === antes) return;
+    // Trocar o tipo refaz a lista de categorias; a que estava só fica se existir no tipo novo.
+    if (!st.dados.catalogo[f.tipo].some(c => c.slug === f.categoria)) f.categoria = '';
+    // Quem pagou e para quem foi são pessoas diferentes no comprovante.
+    if (f.sugestao && f.ia.contraparte) { f.contraparte = finContraparteDaIa(f); f.ia.contraparte = !!f.contraparte; }
+    f.conflito = null;
+    f.erro = '';
+    finFormPintar(st);
+    const r = st.formEl.querySelector('[data-fin-campo="tipo"]:checked');
+    if (r) { try { r.focus({ preventScroll: true }); } catch (x) {} }
+    return;
+  }
+  // select e data: em navegador antigo o `input` não dispara, só o `change`
+  if (t.getAttribute('data-fin-campo')) finDigitou(st, e);
+}
 
 async function crmAtualizarStatus(novoStatus, extra) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;

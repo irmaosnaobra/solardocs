@@ -1,6 +1,6 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
 // Scope limitado a /gerador/ pra não interferir no resto do app.
-const CACHE = 'gerador-propostas-v360';
+const CACHE = 'gerador-propostas-v361';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',
@@ -9,6 +9,7 @@ const PRECACHE = [
   '/gerador/solar-data.js',
   '/gerador/etiqueta.js',
   '/gerador/pos-venda.js',
+  '/gerador/financeiro.js',
   '/gerador/qrcode.js',
   '/gerador/mapa-arrendamento.js',
   '/gerador/logo.png',
@@ -39,6 +40,10 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   // Só intercepta requests do /gerador/ (scope limitado)
   const url = new URL(req.url);
+  // Só o que é deste site. A API (api.solardoc.app) também tem caminho /gerador/...,
+  // e resposta de API com login nunca pode ir para o cache: ficaria velha e seria
+  // entregue ao próximo que entrasse no mesmo aparelho.
+  if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith('/gerador/')) return;
 
   // Não cacheia chamadas Supabase (sempre online)
