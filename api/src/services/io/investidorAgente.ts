@@ -337,7 +337,9 @@ async function lerOrigens(): Promise<LinhaOrigem[]> {
   const [cad, fic, ag] = await Promise.all([
     lerTudo<Record<string, unknown>>('cadastros de parceria', (de, ate) =>
       supabaseGerador.from('eletroposto_parceria')
-        .select('id, nome, telefone, cidade, lado, ponto_relacao, capital_faixa, status, created_at')
+        // `cadastrado_em` é a data da ÚLTIMA vez que a pessoa se cadastrou (o upsert
+        // mantém o `created_at` da primeira): é ela que o corte de 24h precisa ver.
+        .select('id, nome, telefone, cidade, lado, ponto_relacao, capital_faixa, status, created_at, cadastrado_em')
         .in('lado', ['ponto', 'capital'])
         .order('created_at', { ascending: false }).order('id', { ascending: false }).range(de, ate)),
     lerTudo<Record<string, unknown>>('fichas da LP', (de, ate) =>
@@ -466,7 +468,9 @@ async function lerFila(agora: number): Promise<LeituraDaFila> {
     silenciado, mudo, bloqueado,
     comHumano: (tel: string) => !pausa(tel).pode,
   };
-  const resultado = montarFila(linhas, filtros);
+  // Só a fila PRINCIPAL recebe o relógio: é ele que liga o corte de 24h do
+  // cadastro (`cadastro_recente`). O resgate segue com os filtros de antes.
+  const resultado = montarFila(linhas, { ...filtros, agora });
   const resgate = 'erro' in liberacoes
     ? { erro: liberacoes.erro }
     : { resultado: montarFilaResgate(linhas, filtros, { cards, liberados: liberacoes.mapa, agora }) };

@@ -251,12 +251,27 @@ export interface FiltrosDaFila {
   mudo: (tel: string) => boolean;
   /** Tem humano dentro da conversa agora (pausa humana). */
   comHumano: (tel: string) => boolean;
+  /**
+   * O relógio da rodada, em ms. Liga o corte `cadastro_recente` da fila principal.
+   * Sem ele (testes antigos, fila do resgate) o corte não roda.
+   */
+  agora?: number;
 }
+
+/**
+ * O CADASTRO PRECISA TER 24 HORAS (12/10/2026).
+ *
+ * Desde a regra da agenda de 13/10 a LP grava o cadastro do investidor ANTES de
+ * ele escolher o horário. Nesse intervalo ele já está na fila (tem valor, não tem
+ * card ainda) e a abertura da Helena chegaria com a pessoa na tela da agenda.
+ * Um dia de espera cobre quem marca na hora e quem volta mais tarde para marcar.
+ */
+export const CADASTRO_MINIMO_MS = 24 * 3600_000;
 
 export type MotivoForaDaFila =
   | 'telefone_invalido' | 'nome_teste' | 'sem_valor_legivel' | 'pode_ceder_local'
   | 'sem_interesse_no_cadastro' | 'tem_card' | 'tem_sessao' | 'opt_out' | 'bloqueado'
-  | 'mudo' | 'humano_na_conversa' | 'conversa_7_dias' | 'duplicado';
+  | 'mudo' | 'humano_na_conversa' | 'conversa_7_dias' | 'duplicado' | 'cadastro_recente';
 
 export interface ResultadoFila {
   fila: CandidatoInvestidor[];
@@ -286,12 +301,21 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
   const refsDe = new Map<string, RefCadastro[]>();
   const podeCeder = new Set<string>();
   const disseNao = new Set<string>();
+  // O cadastro MAIS NOVO de cada pessoa, nas duas tabelas. Vale a pessoa e não a
+  // linha: quem tem ficha antiga e acabou de se cadastrar de novo pela LP está
+  // escolhendo horário agora. `cadastrado_em` entra porque o cadastro de parceria
+  // é upsert por (lado, telefone): quem volta mantém o `created_at` antigo.
+  const cadastroMaisNovo = new Map<string, number>();
   for (const l of linhas) {
     const tel = telefoneZap(telDaLinha(l));
     const k = tel ? chaveContato(tel) : null;
     if (!k) continue;
     if (destinoDe(l.origem, l.r) === 'ponto') podeCeder.add(k);
     if (l.origem === 'agenda') continue;
+    for (const campo of [l.r.created_at, l.r.cadastrado_em]) {
+      const t = Date.parse(String(campo ?? ''));
+      if (Number.isFinite(t) && t > (cadastroMaisNovo.get(k) ?? 0)) cadastroMaisNovo.set(k, t);
+    }
     if (String(l.r.status ?? '') === 'sem_interesse') disseNao.add(k);
     const id = Number(l.r.id);
     if (!Number.isInteger(id)) continue;
@@ -303,6 +327,12 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
   const fora = (m: MotivoForaDaFila) => { excluidos[m] = (excluidos[m] ?? 0) + 1; };
   const capital = agruparPorDestino(linhas).capital;
   const passaram: CandidatoInvestidor[] = [];
+  // Data ilegível ou ausente NÃO tira ninguém: o corte só vale para o que se sabe.
+  const cadastroRecente = (chave: string): boolean => {
+    if (f.agora === undefined) return false;
+    const t = cadastroMaisNovo.get(chave);
+    return t !== undefined && f.agora - t < CADASTRO_MINIMO_MS;
+  };
 
   for (const l of capital) {
     if (l.origem === 'agenda') continue;   // o grupo capital não tem linha de agenda; é só trava de tipo
@@ -317,6 +347,9 @@ export function montarFila(linhas: LinhaOrigem[], f: FiltrosDaFila): ResultadoFi
     if (disseNao.has(chave)) { fora('sem_interesse_no_cadastro'); continue; }
     if (f.comCard.has(chave)) { fora('tem_card'); continue; }
     if (f.comSessao.has(chave)) { fora('tem_sessao'); continue; }
+    // Depois de `tem_card` e `tem_sessao` de propósito: o número deste motivo na
+    // prévia é quem se cadastrou há menos de um dia e AINDA não marcou.
+    if (cadastroRecente(chave)) { fora('cadastro_recente'); continue; }
     if (f.silenciado(tel)) { fora('opt_out'); continue; }
     if (f.bloqueado(tel)) { fora('bloqueado'); continue; }
     if (f.mudo(tel)) { fora('mudo'); continue; }

@@ -2004,10 +2004,16 @@ function pillCaminhoQuiz(ag, curto) {
   return `<span class="tag-modelo">${curto ? r[1] : r[0]}</span>`;
 }
 
+/** 13/10/2026: a etiqueta guardada aparece também no card VIVO. O card da LP do
+ *  eletroposto passou a nascer com ela (arrendamento, cotista ou integrador) em
+ *  status `agendado`, e a ordem do dono é a etiqueta "já colocada" na agenda. A
+ *  única trava que sobra é a das duas pílulas iguais: guardada igual ao status de
+ *  agora não se desenha. */
 function pillEtiquetaGuardada(ag) {
-  if (!ag || !STATUS_TERMINAIS.has(String(ag.status || ''))) return '';
+  if (!ag) return '';
   const et = etiquetasCache[String(ag.id)];
   if (!et) return '';
+  if (et === String(ag.status || '')) return '';
   const r = ETIQUETA_STATUS[et];
   return r ? `<span class="tag-modelo">${r[0]}</span>` : '';
 }

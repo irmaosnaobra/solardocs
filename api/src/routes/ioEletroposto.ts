@@ -19,6 +19,9 @@ import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, 
 // O rodízio e o gravador do card saíram daqui para um serviço (10/10/2026): a
 // agente de investidores grava o mesmo card e não pode importar a rota.
 import { DONOS_EP, ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from '../services/io/eletropostoCard';
+// A marca da etiqueta de negócio do card (`etiqueta_card:<id>`), a mesma que o
+// /gerador grava: desde 13/10/2026 o card da LP já nasce com ela.
+import { guardarEtiquetaDoCard } from '../services/agenda/etiquetaCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -541,6 +544,34 @@ router.get('/cliente', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ── O CARD NASCE COM A ETIQUETA DO TIPO (ordem do dono, 12/10/2026) ───────────
+// "Todos os ARRENDAMENTOS, INVESTIDORES e PARCEIROS cairão na agenda com suas
+// etiquetas já colocadas." A LP manda `tipo` junto do agendamento e a rota grava
+// a marca `etiqueta_card:<id>`, a mesma do /gerador, com `por: 'lp'`.
+//
+// O que NÃO muda: `status` segue 'agendado' e `created_by` segue 'lp_eletroposto'.
+// É por eles que a régua da agenda, o rodízio, a etiqueta de origem e o Meta
+// reconhecem o card. A etiqueta é marca de TELA, nenhum robô decide por ela.
+//
+// A lista é fechada (a rota é pública) e menor que a do /gerador: só os três
+// tipos que a LP sabe dizer. Valor fora dela é ignorado, não derruba a reunião.
+export const TIPOS_DO_CARD_LP = new Set<string>(['arrendamento', 'cotista', 'integrador']);
+
+/** Ficha de teste (nome começando com "teste"): grava normal e não ensina o pixel. */
+const ehNomeDeTeste = (nome: unknown): boolean => /^\s*teste/i.test(String(nome ?? ''));
+
+/** Grava a etiqueta do card e NUNCA sobe erro: a reunião já está gravada, e a
+ *  etiqueta é uma pílula a menos na tela, não motivo para responder 500. */
+async function etiquetarCardDaLp(id: number | null, tipoBruto: unknown): Promise<void> {
+  const tipo = String(tipoBruto ?? '').trim();
+  if (!id || !TIPOS_DO_CARD_LP.has(tipo)) return;
+  try {
+    await guardarEtiquetaDoCard(id, tipo, 'lp');
+  } catch (err) {
+    logger.error('io-eletroposto-agendar', `etiqueta ${tipo} do card #${id} nao gravada`, err);
+  }
+}
+
 router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   const b = req.body || {};
   const nome = String(b.cliente_nome || '').trim().slice(0, 120);
@@ -607,12 +638,19 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     const nota = Number(String(ficha.observacao).match(/^NOTA ([123])\s*·/m)?.[1] ?? 0);
     const capital = capitalMinimo(String(ficha.observacao).match(/^Quanto pretende investir:\s*(.+)$/m)?.[1]);
     const quente = nota === 3 || (capital !== null && capital >= CAPITAL_QUENTE);
+    // LEAD DE TESTE NÃO VAI AO META (12/10/2026). A conferência da LP cria uma
+    // ficha "Teste ..." em produção: ela é gravada como qualquer outra, mas não
+    // manda Schedule nem LeadQuente, senão o pixel aprende com a gente mesmo.
+    const teste = ehNomeDeTeste(nome);
     await Promise.all([
-      eventId ? enviarQuizMeta({
+      // A etiqueta do tipo, em paralelo e antes da resposta (a Vercel corta o que
+      // roda depois dela). Esta promessa nunca rejeita.
+      etiquetarCardDaLp(gravado.id, b.tipo),
+      teste ? null : eventId ? enviarQuizMeta({
         produto: 'eletroposto', nome: 'Schedule', origem: 'website', eventId, pessoa, navegador,
         urlDaPagina: 'https://solardoc.app/io/eletroposto',
       }, 'io-eletroposto-agendar') : null,
-      quente ? enviarQuizMeta({
+      teste ? null : quente ? enviarQuizMeta({
         produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_ep_${idDoTelefone(tel)}`, pessoa, navegador,
         urlDaPagina: 'https://solardoc.app/io/eletroposto', dados: { nota: nota || undefined, capital_minimo: capital ?? undefined },
       }, 'io-eletroposto-agendar') : null,
@@ -1095,7 +1133,10 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   // resposta: a Vercel corta o que roda depois dela. O teto de ~1,5 s mora em
   // enviarQuizMeta. `teste: true` grava sem tocar ninguém, Meta incluído.
   const capitalMin = capitalMinimo(reg.capital_faixa);
-  if (lado === 'capital' && b.teste !== true && capitalMin !== null && capitalMin >= CAPITAL_QUENTE) {
+  // Nome começando com "teste" também não vai (12/10/2026): desde a regra da
+  // agenda o cadastro da LP é o passo ANTES do horário, e a ficha de conferência
+  // passa por aqui sem a chave `teste`.
+  if (lado === 'capital' && b.teste !== true && !ehNomeDeTeste(nome) && capitalMin !== null && capitalMin >= CAPITAL_QUENTE) {
     await enviarQuizMeta({
       produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_ep_capital_${idDoTelefone(telefone)}`,
       pessoa: { telefone, nome, cidade: reg.cidade },

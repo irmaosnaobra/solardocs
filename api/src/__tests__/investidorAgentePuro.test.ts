@@ -10,7 +10,7 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 import {
   INICIO_ISO, antesDoInicio, janelaAberta, tetoDoDia, dataBrasilia, horaBrasiliaTexto, inicioDoDiaBrasiliaIso,
   telefoneZap, primeiroNome, valorNaFrase, valorLegivel, indicePorChave, renderAbertura,
-  montarFila, vagasLivres, escolherQuatro, horariosDaOferta, horarioCurto, linhaDoHorario, horarioNaFrase,
+  montarFila, CADASTRO_MINIMO_MS, vagasLivres, escolherQuatro, horariosDaOferta, horarioCurto, linhaDoHorario, horarioNaFrase,
   textoOferta, textoConfirmacao, numeroSolto, escolhaPorNumero, pediuParar, textoDaAbertura, montarObservacao, comoPretendeInvestir,
   naoPareceNomeDePessoa, pedidoDeReescrita, respostasDaFicha, fatosDoFormulario, fatosDeHoje, TETO_DO_FORMULARIO,
   montarSistema, montarPedido, lerSaida, limparBolhas, juntarDados, violaRegras,
@@ -332,6 +332,82 @@ describe('a fila', () => {
     const { fila, excluidos } = montarFila(linhas, tudoLivre);
     expect(fila).toHaveLength(11);
     expect(Object.keys(excluidos).sort()).toEqual(['duplicado', 'nome_teste', 'pode_ceder_local', 'sem_interesse_no_cadastro', 'sem_valor_legivel', 'telefone_invalido']);
+  });
+
+  // ── O CADASTRO PRECISA TER 24 HORAS (regra da agenda de 13/10/2026) ─────────
+  // A LP grava o cadastro do investidor ANTES de ele escolher o horário. Sem o
+  // corte, a abertura da Helena chegaria com a pessoa na tela da agenda.
+  describe('cadastro_recente: quem acabou de se cadastrar não entra', () => {
+    const AGORA = Date.parse('2026-10-13T15:00:00Z');
+    const haHoras = (h: number) => new Date(AGORA - h * 3600_000).toISOString();
+    const livre = (over: Partial<FiltrosDaFila> = {}) => filtros({
+      comCard: new Set(), comSessao: new Set(), comConversa: new Set(),
+      silenciado: () => false, mudo: () => false, bloqueado: () => false, comHumano: () => false, ...over,
+    });
+
+    it('a fila de hoje é toda de linhas antigas: com o relógio ligado nada muda', () => {
+      const sem = montarFila(linhas, filtros());
+      const com = montarFila(linhas, filtros({ agora: AGORA }));
+      expect(com.fila.map(c => c.chave)).toEqual(sem.fila.map(c => c.chave));
+      expect(com.excluidos).toEqual(sem.excluidos);
+      expect(com.excluidos.cadastro_recente).toBeUndefined();
+    });
+
+    it('23h59 de cadastro fica de fora; 24h em ponto entra', () => {
+      const novas = [
+        cad(101, 'Recente', '5534988880001', 'R$ 140 mil', { created_at: new Date(AGORA - CADASTRO_MINIMO_MS + 60_000).toISOString() }),
+        cad(102, 'No Limite', '5534988880002', 'R$ 140 mil', { created_at: new Date(AGORA - CADASTRO_MINIMO_MS).toISOString() }),
+        cad(103, 'Antigo', '5534988880003', 'R$ 140 mil', { created_at: haHoras(72) }),
+      ];
+      const { fila, excluidos } = montarFila(novas, livre({ agora: AGORA }));
+      expect(fila.map(c => c.nome).sort()).toEqual(['Antigo', 'No Limite']);
+      expect(excluidos).toEqual({ cadastro_recente: 1 });
+    });
+
+    it('sem o relógio o corte não roda (testes antigos e fila do resgate)', () => {
+      const novas = [cad(101, 'Recente', '5534988880001', 'R$ 140 mil', { created_at: haHoras(1) })];
+      const { fila, excluidos } = montarFila(novas, livre());
+      expect(fila).toHaveLength(1);
+      expect(excluidos).toEqual({});
+    });
+
+    it('vale a PESSOA: ficha antiga não libera quem acabou de se cadastrar de novo', () => {
+      const novas = [
+        // a ficha de setembro, sem o nono dígito...
+        fic(201, 'Vera', '553488880010', { valor_investir: 'R$ 140 mil', created_at: '2026-09-10T12:00:00Z' }),
+        // ...e o cadastro que ela fez agora pela LP, antes de escolher o horário.
+        cad(202, 'Vera', '5534988880010', 'R$ 140 mil', { created_at: haHoras(0.1) }),
+      ];
+      const { fila, excluidos } = montarFila(novas, livre({ agora: AGORA }));
+      expect(fila).toHaveLength(0);
+      expect(excluidos.cadastro_recente).toBe(2);   // as duas linhas dela
+    });
+
+    it('recadastro pela LP (upsert) mantém o created_at antigo: vale o cadastrado_em', () => {
+      const novas = [cad(301, 'Otto', '5534988880020', 'R$ 280 mil', { created_at: '2026-08-01T12:00:00Z', cadastrado_em: haHoras(2) })];
+      expect(montarFila(novas, livre({ agora: AGORA })).excluidos).toEqual({ cadastro_recente: 1 });
+      // um dia depois ele volta para a fila
+      expect(montarFila(novas, livre({ agora: AGORA + 23 * 3600_000 })).fila.map(c => c.nome)).toEqual(['Otto']);
+    });
+
+    it('data ausente ou ilegível NÃO tira ninguém', () => {
+      const novas = [
+        cad(401, 'Sem Data', '5534988880030', 'R$ 140 mil', { created_at: null }),
+        cad(402, 'Data Torta', '5534988880031', 'R$ 140 mil', { created_at: 'ontem' }),
+      ];
+      const { fila, excluidos } = montarFila(novas, livre({ agora: AGORA }));
+      expect(fila).toHaveLength(2);
+      expect(excluidos).toEqual({});
+    });
+
+    it('quem já tem card ou sessão sai pelo motivo de sempre, não por este', () => {
+      const novas = [
+        cad(501, 'Com Card', '5534988880040', 'R$ 140 mil', { created_at: haHoras(1) }),
+        cad(502, 'Com Sessão', '5534988880041', 'R$ 140 mil', { created_at: haHoras(1) }),
+      ];
+      const { excluidos } = montarFila(novas, livre({ agora: AGORA, comCard: new Set(['3488880040']), comSessao: new Set(['3488880041']) }));
+      expect(excluidos).toEqual({ tem_card: 1, tem_sessao: 1 });
+    });
   });
 });
 

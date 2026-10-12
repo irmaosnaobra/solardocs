@@ -35,6 +35,7 @@ import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
 import {
   ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO,
 } from '../services/agenda/salaDeEspera';
+import { guardarEtiquetaDoCard } from '../services/agenda/etiquetaCard';
 import {
   POS_VENDA_PREFIX, MODELOS_POS_VENDA, chavePosVenda, catalogoPosVenda, montarPosVenda, PosVenda,
 } from '../services/agenda/posVendaEletroposto';
@@ -509,16 +510,9 @@ router.post('/etiqueta', async (req: Request, res: Response) => {
       res.json({ ok: true, id, apagou: true });
       return;
     }
-    const agora = new Date().toISOString();
-    const { error } = await supabase.from('system_state').upsert(
-      {
-        key: chave,
-        value: { etiqueta, em: agora, por: String(b.por ?? '').slice(0, 60) },
-        updated_at: agora,
-      },
-      { onConflict: 'key' },
-    );
-    if (error) throw error;
+    // A gravação mora em `etiquetaCard.ts` desde 12/10/2026: a LP do eletroposto
+    // grava a mesma marca quando o card nasce. Mesma chave, mesmo valor de antes.
+    await guardarEtiquetaDoCard(id, etiqueta, b.por);
     res.json({ ok: true, id, etiqueta });
   } catch (err: any) {
     logger.error('gerador', 'etiqueta falhou', err);

@@ -10,6 +10,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 let fichas: any[] = [];
 let estado: Array<{ key: string; value?: any; updated_at?: string }> = [];
 let nota1: any[] = [];
+/** Os cadastros de `eletroposto_parceria` (regra da agenda de 13/10/2026). */
+let parceria: any[] = [];
+/** Liga a falha de leitura do cadastro: a liberação tem que seguir do jeito de antes. */
+let parceriaFora = false;
 const enviadas: Array<{ phone: string; bolhas: string[] }> = [];
 const updates: Array<{ id: number; patch: any }> = [];
 const inseridas: any[] = [];
@@ -51,6 +55,13 @@ vi.mock('../utils/supabaseGerador', () => ({
             const chave = String(q._like || '').replace(/%/g, '');
             return Promise.resolve({
               data: nota1.filter(n => String(n.telefone).endsWith(chave)), error: null,
+            });
+          }
+          if (tabela === 'eletroposto_parceria') {
+            if (parceriaFora) return Promise.resolve({ data: null, error: { message: 'banco fora' } });
+            const chave = String(q._like || '').replace(/%/g, '');
+            return Promise.resolve({
+              data: parceria.filter(n => String(n.telefone).endsWith(chave)), error: null,
             });
           }
           return Promise.resolve({ data: fichas, error: null });
@@ -108,7 +119,7 @@ vi.mock('../utils/logger', () => ({
 
 import {
   runEletropostoCobraSimTick, passoDevido, bolhaCobranca1, bolhaCobranca2, bolhaLiberou,
-  fichaDoCurioso, EP_COBRA_PREFIX, EP_LIBERADO_PREFIX,
+  fichaDoCurioso, EP_COBRA_PREFIX, EP_LIBERADO_PREFIX, jaTemCadastro,
 } from '../services/io/eletropostoCobraSim';
 
 /** 22/09/2026, 14h de Brasília: dentro da janela de envio e num dia útil. */
@@ -131,7 +142,7 @@ function ficha(over: Partial<Record<string, any>> = {}) {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(AGORA);
-  fichas = []; estado = []; nota1 = [];
+  fichas = []; estado = []; nota1 = []; parceria = []; parceriaFora = false;
   enviadas.length = 0; updates.length = 0; inseridas.length = 0; carimbos.length = 0;
   tetoLivre = true; falharEnvio = false;
   delete process.env.EP_COBRA_SIM_OFF;
@@ -279,6 +290,58 @@ describe('o tick', () => {
     await runEletropostoCobraSimTick();
     expect(inseridas).toHaveLength(0);
     expect(updates[0].patch.status).toBe('cancelado');
+  });
+
+  // ── SEM FICHA EM DOBRO (regra da agenda de 13/10/2026) ──────────────────────
+  // A LP grava o cadastro ANTES de a pessoa escolher o horário. Quem é liberado
+  // pela régua já tem linha (parceria ou ficha), e a `agenda_sem_resposta` seria
+  // a segunda linha da mesma pessoa. O resto da liberação não muda.
+  for (const [rotulo, tel] of [
+    ['mesmo número', '5534999887766'],
+    ['sem o 55', '34999887766'],
+    ['sem o nono dígito', '553499887766'],
+  ] as const) {
+    it(`quem já tem cadastro de parceria (${rotulo}) é liberado sem ganhar ficha`, async () => {
+      fichas = [ficha({ confirmacao_at: minAtras(400) })];
+      parceria = [{ id: 3, lado: 'capital', telefone: tel }];
+      const r = await runEletropostoCobraSimTick();
+      expect(inseridas).toHaveLength(0);
+      // A liberação em si é a de sempre: horário solto, carimbo e aviso.
+      expect(r.liberados).toBe(1);
+      expect(updates[0].patch.status).toBe('cancelado');
+      expect(carimbos).toContain(`${EP_LIBERADO_PREFIX}1`);
+      expect(enviadas).toHaveLength(1);
+    });
+  }
+
+  it('mesmo final de número em OUTRO DDD não é a mesma pessoa: a ficha nasce', async () => {
+    fichas = [ficha({ confirmacao_at: minAtras(400) })];
+    parceria = [{ id: 3, lado: 'ponto', telefone: '5511999887766' }];
+    await runEletropostoCobraSimTick();
+    expect(inseridas).toHaveLength(1);
+    expect(inseridas[0].origem).toBe('agenda_sem_resposta');
+  });
+
+  it('leitura do cadastro falhando não segura a liberação nem perde a ficha', async () => {
+    fichas = [ficha({ confirmacao_at: minAtras(400) })];
+    parceriaFora = true;
+    const r = await runEletropostoCobraSimTick();
+    expect(r.liberados).toBe(1);
+    expect(updates[0].patch.status).toBe('cancelado');
+    expect(inseridas).toHaveLength(1);
+  });
+
+  it('jaTemCadastro: compara por DDD + 8 últimos, nas duas tabelas', async () => {
+    expect(await jaTemCadastro('5534999887766')).toBe(false);
+    nota1 = [{ id: 7, telefone: '34999887766' }];
+    expect(await jaTemCadastro('5534999887766')).toBe(true);
+    nota1 = []; parceria = [{ id: 3, telefone: '553499887766' }];
+    expect(await jaTemCadastro('(34) 99988-7766')).toBe(true);
+    parceria = [{ id: 3, telefone: '5521999887766' }];
+    expect(await jaTemCadastro('5534999887766')).toBe(false);
+    // telefone ilegível não acusa cadastro: a ficha nasce, como sempre
+    expect(await jaTemCadastro('123')).toBe(false);
+    expect(await jaTemCadastro(null)).toBe(false);
   });
 
   it('não encosta em quem confirmou nem em quem escreveu', async () => {

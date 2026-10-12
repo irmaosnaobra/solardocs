@@ -387,6 +387,39 @@ export async function criarFichaCurioso(
   }
 }
 
+/** DDD + 8 últimos dígitos: a chave que tolera o 55 e o nono dígito, e que não
+ *  confunde dois estados com o mesmo final de número. */
+function dddMaisOito(raw: unknown): string | null {
+  const d = String(raw ?? '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  if (d.length < 10) return null;
+  return d.slice(0, 2) + d.slice(-8);
+}
+
+/**
+ * Essa pessoa JÁ tem linha de cadastro? (12/10/2026)
+ *
+ * Desde a regra da agenda de 13/10 a LP grava o cadastro ANTES de a pessoa
+ * escolher o horário: arrendamento e investidor em `eletroposto_parceria`,
+ * curioso em `eletroposto_nota1`. Quem é liberado pela régua do SIM já está numa
+ * lista, e a ficha `agenda_sem_resposta` seria a segunda linha da mesma pessoa.
+ *
+ * A busca no banco é pelos 8 últimos dígitos (é o que o `like` sabe fazer) e a
+ * conferência é pela chave DDD + 8, aqui. Erro de leitura SOBE: quem chama cai
+ * no comportamento de antes (tenta criar a ficha), porque ficha em dobro é ruído
+ * e ficha faltando é lead perdido.
+ */
+export async function jaTemCadastro(telefone: unknown): Promise<boolean> {
+  const chave = dddMaisOito(telefone);
+  if (!chave) return false;
+  for (const tabela of ['eletroposto_parceria', 'eletroposto_nota1']) {
+    const { data, error } = await supabaseGerador
+      .from(tabela).select('telefone').like('telefone', `%${chave.slice(-8)}`).limit(50);
+    if (error) throw error;
+    if (((data || []) as Array<{ telefone?: unknown }>).some(l => dddMaisOito(l.telefone) === chave)) return true;
+  }
+  return false;
+}
+
 // ── LIBERAR ──────────────────────────────────────────────────────────────────
 
 /**
@@ -423,7 +456,16 @@ async function liberar(f: FichaDaAgenda, dry: boolean): Promise<boolean> {
     updated_at: nowIso,
   }, { onConflict: 'key' }).then(undefined, (e: unknown) =>
     logger.error('ep-cobra-sim', 'carimbo da liberação falhou', { id: f.id, erro: String(e) }));
-  await criarFichaCurioso(f, false);
+  // SEM FICHA EM DOBRO (12/10/2026): quem já tem linha de cadastro, em qualquer
+  // das duas tabelas, não ganha a ficha `agenda_sem_resposta`. Se a leitura
+  // falhar, vale o de antes: tenta criar (o `criarFichaCurioso` tem a guarda dele).
+  let temCadastro = false;
+  try {
+    temCadastro = await jaTemCadastro(f.cliente_telefone);
+  } catch (err) {
+    logger.error('ep-cobra-sim', 'ler cadastro antes da ficha falhou', { id: f.id, erro: String(err) });
+  }
+  if (!temCadastro) await criarFichaCurioso(f, false);
   return true;
 }
 
