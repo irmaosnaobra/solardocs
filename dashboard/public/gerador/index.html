@@ -211,12 +211,15 @@ html[data-mode="app"].fechamento-solar-aberto .container{margin-left:0!important
 html[data-mode="app"].quem-ligar-aberto #app-sidebar,
 html[data-mode="app"].quem-ligar-aberto .sb-mobile-toggle,
 html[data-mode="app"].obras-solar-aberto #app-sidebar,
-html[data-mode="app"].obras-solar-aberto .sb-mobile-toggle{display:none!important}
+html[data-mode="app"].obras-solar-aberto .sb-mobile-toggle,
+html[data-mode="app"].painel-solar-aberto #app-sidebar,
+html[data-mode="app"].painel-solar-aberto .sb-mobile-toggle{display:none!important}
 html[data-mode="app"].quem-ligar-aberto .container,
-html[data-mode="app"].obras-solar-aberto .container{margin-left:0!important}
-#quemLigarSection,#obrasSolarSection{max-width:860px;margin:0 auto}
-#quemLigarSection .btn-hist-voltar,#obrasSolarSection .btn-hist-voltar{min-height:44px}
-#quemLigarSection .card,#obrasSolarSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:16px 16px;margin-bottom:12px}
+html[data-mode="app"].obras-solar-aberto .container,
+html[data-mode="app"].painel-solar-aberto .container{margin-left:0!important}
+#quemLigarSection,#obrasSolarSection,#painelSolarSection{max-width:860px;margin:0 auto}
+#quemLigarSection .btn-hist-voltar,#obrasSolarSection .btn-hist-voltar,#painelSolarSection .btn-hist-voltar{min-height:44px}
+#quemLigarSection .card,#obrasSolarSection .card,#painelSolarSection .card{background:#1E293B;color:#E5E7EB;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);padding:16px 16px;margin-bottom:12px}
 /* Faixa de resumo: quatro números que também são filtros */
 .ql-resumo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 14px}
 .ql-num{min-height:64px;padding:10px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#1E293B;color:#94A3B8;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
@@ -315,11 +318,110 @@ html[data-mode="app"].obras-solar-aberto .container{margin-left:0!important}
 .ob-tog input{width:22px;height:22px;accent-color:#F59E0B}
 .ob-rodape{margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:12.5px;color:#94A3B8}
 @media(max-width:620px){
-  #quemLigarSection .card,#obrasSolarSection .card{padding:14px 12px}
+  #quemLigarSection .card,#obrasSolarSection .card,#painelSolarSection .card{padding:14px 12px}
   .ql-num b{font-size:24px}
   .ob-num b{font-size:22px}
   .ob-num.din b{font-size:14px}
   #quemLigarSection .ql-acoes .fs-btn-sec{flex:1 1 calc(50% - 8px)}
+}
+/* ===== Obras: Indicações e depoimentos, Mapa; e o Painel (11/10/2026) ===== */
+.ob-num .ob-sub{font-size:11px;font-weight:600;color:#94A3B8;line-height:1.2}
+.ob-bloco-tit{display:flex;align-items:baseline;gap:8px;margin:24px 0 4px;font-size:16px;font-weight:900;color:#fff}
+.ob-bloco-tit b{color:#fff;background:rgba(255,255,255,.1);border-radius:999px;padding:1px 9px;font-size:13px}
+.ob-bloco-sub{margin:0 0 10px;font-size:13px;line-height:1.45;color:#94A3B8}
+.ob-vazio-curto{padding:20px 16px!important}
+.ob-ped-acoes{margin-top:12px}
+#obrasSolarSection .ob-ped-acoes .fs-btn-main{margin:0;min-height:48px;font-size:16px;border-radius:12px}
+.ob-ped-nota{margin-top:8px;font-size:13px;color:#94A3B8}
+.ob-ped-erro{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#FCA5A5;font-size:13.5px;font-weight:700;line-height:1.4}
+.ob-link{flex:0 0 auto;min-height:44px;padding:0 6px;background:none;border:0;color:#FBBF24;font-family:inherit;font-size:14px;font-weight:800;text-decoration:underline;cursor:pointer}
+.ob-link:disabled{opacity:.45;cursor:not-allowed}
+.ob-rank{list-style:none;margin:0;padding:0}
+.ob-rank li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+.ob-rank li:first-child{border-top:0}
+.ob-rank b{display:block;color:#fff;font-size:15px;overflow-wrap:anywhere}
+.ob-rank small{display:block;color:#94A3B8;font-size:12.5px;margin-top:2px}
+.ob-rank-n{flex:0 0 auto;font-size:14px;font-weight:800;color:#E5E7EB}
+.mp-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px;align-items:start}
+.mp-mapa{height:460px;border-radius:14px;overflow:hidden;background:#0f1a2e;border:1px solid rgba(255,255,255,.1)}
+.mp-mapa.sem{display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;color:#94A3B8;font-size:14px;line-height:1.5}
+.mp-mapa .leaflet-container{font-family:inherit}
+.mp-aviso{margin:0 0 8px;padding:9px 12px;border-radius:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#FDE68A;font-size:13px;line-height:1.4}
+.mp-aviso[hidden]{display:none}
+.mp-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 2px 0;font-size:12.5px;color:#94A3B8}
+.mp-bola{display:inline-block;width:12px;height:12px;border-radius:50%;background:#F59E0B;border:2px solid #78350F;box-sizing:border-box;vertical-align:-2px}
+.mp-bola.vazia{background:transparent}
+.mp-total{margin:0 0 6px;font-size:17px;font-weight:900;color:#fff;line-height:1.3}
+.mp-rotulo{display:block;margin:12px 0 6px;font-size:13px;font-weight:800;color:#CBD5E1}
+.mp-msg{margin:10px 0 0;font-size:14px;color:#E5E7EB;line-height:1.4}
+.mp-perto-tit{margin:14px 0 4px;font-size:14px;font-weight:800;color:#fff}
+.mp-listatit{margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8}
+.mp-lista{list-style:none;margin:0;padding:0;max-height:340px;overflow:auto}
+.mp-cid{width:100%;min-height:44px;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 8px;border:0;border-top:1px solid rgba(255,255,255,.08);background:none;color:#E5E7EB;font-family:inherit;font-size:14.5px;text-align:left;cursor:pointer}
+.mp-lista li:first-child .mp-cid{border-top:0}
+.mp-cid:hover{background:rgba(255,255,255,.05)}
+.mp-cid-n{min-width:0;font-weight:700;overflow-wrap:anywhere}
+.mp-cid-n small{display:block;font-weight:600;font-size:12px;color:#94A3B8}
+.mp-cid-q{flex:0 0 auto;text-align:right;font-weight:800;color:#fff;font-size:13.5px}
+.mp-cid-q small{display:block;font-weight:600;font-size:12px;color:#94A3B8}
+.mp-prox li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 4px;border-top:1px solid rgba(255,255,255,.08);color:#E5E7EB;font-size:14.5px}
+.mp-prox li:first-child{border-top:0}
+.mp-km{flex:0 0 auto;font-weight:900;color:#fff}
+.mp-cli-wrap{background:none;border:0}
+.mp-cli{display:block;width:22px;height:22px;margin:2px;transform:rotate(45deg);background:#fff;border:5px solid #1D4ED8;border-radius:4px;box-sizing:border-box;box-shadow:0 0 0 2px #fff}
+.mp-pop{font-size:14px;font-weight:700;line-height:1.4;color:#0f172a}
+@media(max-width:700px){.mp-grid{grid-template-columns:minmax(0,1fr)}.mp-mapa{height:320px}}
+/* Painel do quiz */
+#painelSolarSection .pq-chips{margin:0 0 14px}
+.pq-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.pq-stats.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pq-stat{padding:12px 8px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#1E293B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:84px;text-align:center}
+.pq-stat b{font-size:24px;line-height:1.1;font-weight:900;color:#fff;overflow-wrap:anywhere}
+.pq-stat span{font-size:12px;font-weight:700;line-height:1.2;color:#CBD5E1}
+.pq-stat small{font-size:11px;color:#94A3B8;line-height:1.2}
+.pq-sk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.pq-sk{border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.1),rgba(255,255,255,.04));background-size:200% 100%;animation:pq-brilho 1.3s linear infinite}
+@keyframes pq-brilho{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.pq-sk{animation:none}}
+.pq-recarregando{opacity:.55;transition:opacity .15s;pointer-events:none}
+.pq-card h2{margin:0 0 2px;padding:0;border:0;font-size:17px;font-weight:900;color:#fff;text-transform:none;letter-spacing:0}.pq-card h2::after,.pq-card h2::before{display:none!important}
+.pq-h3{margin:20px 0 6px;font-size:14px;font-weight:800;color:#CBD5E1}
+.pq-sub{margin:0 0 12px;font-size:13px;line-height:1.45;color:#94A3B8}
+.pq-nota{margin:8px 0 0;font-size:12.5px;line-height:1.45;color:#94A3B8}
+.pq-vazio{margin:10px 0 0;font-size:14px;color:#94A3B8}
+.pq-destaque{margin:0 0 10px;font-size:14px;line-height:1.45;color:#E5E7EB}
+.pq-destaque b{color:#fff}
+.pq-aviso{margin:0 0 10px;font-size:13px;color:#94A3B8}
+.pq-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 8px;font-size:13px;color:#CBD5E1}
+.pq-leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.pq-graf{position:relative;width:100%}
+.pq-graf svg{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y}
+.pq-graf svg:focus-visible,.pq-alvo:focus-visible{outline:2px solid #F59E0B;outline-offset:2px}
+.pq-alvo{cursor:pointer;outline:none}
+.pq-sobre{cursor:crosshair}
+.pq-tip{position:absolute;z-index:3;pointer-events:none;min-width:130px;max-width:calc(100% - 8px);padding:8px 10px;border-radius:10px;background:#0f1a2e;border:1px solid rgba(255,255,255,.18);box-shadow:0 6px 20px rgba(0,0,0,.45);color:#E5E7EB;font-size:12.5px}
+.pq-tip[hidden]{display:none}
+.pq-tip .t{margin-bottom:4px;font-weight:700;color:#94A3B8;line-height:1.3}
+.pq-tip .l{display:flex;align-items:center;gap:8px;line-height:1.5}
+.pq-tip .l i{flex:0 0 auto;display:inline-block;width:14px;height:0;border-top:3px solid;border-radius:2px}
+.pq-tip .l b{font-size:15px;color:#fff}
+.pq-tip .l span{color:#CBD5E1}
+.pq-det{margin-top:10px}
+.pq-det summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:13px;font-weight:800;color:#94A3B8}
+.pq-tab{width:100%;border-collapse:collapse;font-size:13px;color:#E5E7EB}
+.pq-tab th,.pq-tab td{padding:8px 8px;border-top:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top;font-weight:600}
+.pq-tab thead th{border-top:0;font-size:12px;color:#94A3B8;font-weight:800}
+.pq-tab .n{text-align:right;white-space:nowrap}
+.pq-tab tbody th{font-weight:700;color:#fff}
+.pq-tab small{display:block;margin-top:2px;font-size:11.5px;font-weight:700;color:#94A3B8}
+.pq-tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+.pq-anuncios{min-width:560px}
+.pq-an-nome{overflow-wrap:anywhere}
+.pq-anuncios tr.pq-melhor td,.pq-anuncios tr.pq-melhor th{background:rgba(25,158,112,.14)}
+.pq-anuncios tr.pq-melhor small{color:#86EFAC}
+@media(max-width:620px){
+  .pq-stats,.pq-stats.n4,.pq-sk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pq-stat b{font-size:22px}
 }
 /* O papel solar: marca Irmãos na Obra no lugar da NEXUS. Reaproveita .ep-doc/.ep-page/.ep-ctr-*. */
 .sol-brand{display:flex;align-items:center;gap:11px;margin-bottom:0}
@@ -2843,7 +2945,7 @@ html[data-mode="app"] .container > #historicoSection{
   html[data-mode="app"] .container{margin-left:0;padding:0 16px}
   #app-sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.5)}
   #app-sidebar.aberta{transform:translateX(0)}
-  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.quem-ligar-aberto):not(.obras-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
+  html[data-mode="app"]:not(.historico-aberto):not(.tabelas-aberta):not(.leads-aberto):not(.fechamento-solar-aberto):not(.quem-ligar-aberto):not(.obras-solar-aberto):not(.painel-solar-aberto):not(.redes-aberto):not(.crm-aberto) .sb-mobile-toggle{
     display:flex!important;align-items:center;justify-content:center;
     position:fixed;top:14px;left:14px;z-index:950;width:44px;height:44px;
     border-radius:12px;border:1px solid rgba(255,255,255,.12);
@@ -3557,6 +3659,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <button type="button" class="solar-subtab" data-aba="fechamento" onclick="navFechamentoSolar()">Fechamento</button>
     <button type="button" class="solar-subtab" data-aba="obras" onclick="navObrasSolar()">Obras</button>
     <button type="button" class="solar-subtab" data-aba="leads" onclick="navLeads()">Leads</button>
+    <button type="button" class="solar-subtab" data-aba="painel" onclick="navPainelSolar()">Painel</button>
     <button type="button" class="solar-subtab" data-aba="tabelas" onclick="navTabelas()">Tabelas</button>
     <button type="button" class="solar-subtab" data-aba="calc" onclick="navCalc()">Calculadora</button>
   </div>
@@ -6643,6 +6746,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="ob-corpo"></div>
   </div>
 
+  <!-- ============= TELA: PAINEL (funil do quiz, qualidade dos leads e resultado por anúncio) ============= -->
+  <div id="painelSolarSection" style="display:none;">
+    <div class="header">
+      <div class="header-titulo">
+        <h1>Painel</h1>
+      </div>
+      <button class="btn-hist-voltar" onclick="voltarDoPainel()">← Voltar</button>
+    </div>
+    <div class="fs-sub" style="margin:-6px 0 16px">O quiz da página de orçamento solar: quantos entram, onde desistem, que nota os leads têm e o que cada anúncio traz.</div>
+    <div id="pq-corpo"></div>
+  </div>
+
   <!-- ============= TELA 6: LEADS (Instagram/Meta) ============= -->
   <div id="leadsSection" style="display:none;">
     <div class="header">
@@ -7290,6 +7405,10 @@ function authGuardar(s) {
 }
 function authLimpar() {
   sessaoAtual = null;
+  // O Painel e as Obras do solar guardam em memória o que a API devolveu para ESTA
+  // conta (um sócio vê gasto e todas as vendas). Sem isto, quem entrasse depois na
+  // mesma aba veria os números do anterior até a tela recarregar.
+  try { if (typeof solLimparMemoria === 'function') solLimparMemoria(); } catch (e) {}
   try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
 }
 async function authEntrar(email, senha) {
@@ -9971,14 +10090,15 @@ function voltarDoHistorico() {
 // ela roda no DOMContentLoaded e em deep link, e uma const no topo do script
 // estaria em zona morta se alguém a chamasse antes da linha dela.
 function marcarNavAtivo(id) {
-  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras' };
+  const ABA_SOLAR = { 'nav-gerador': 'gerador', 'nav-historico': 'historico', 'nav-leads': 'leads', 'nav-tabelas': 'tabelas', 'nav-calc': 'calc', 'nav-fechamento-solar': 'fechamento', 'nav-quem-ligar': 'quemligar', 'nav-obras-solar': 'obras', 'nav-painel-solar': 'painel' };
   const aba = ABA_SOLAR[id] || null;
   // Rede de segurança: qualquer tela que se abra por aqui fecha as três telas
   // soltas do solar (Fechamento, Quem ligar e Obras), mesmo que a lista escondida
   // à mão da função dela não as conheça. Cada uma só sobrevive à própria abertura.
   [['nav-fechamento-solar', 'fechamentoSolarSection', 'fechamento-solar-aberto'],
    ['nav-quem-ligar', 'quemLigarSection', 'quem-ligar-aberto'],
-   ['nav-obras-solar', 'obrasSolarSection', 'obras-solar-aberto']].forEach(([navId, secId, cls]) => {
+   ['nav-obras-solar', 'obrasSolarSection', 'obras-solar-aberto'],
+   ['nav-painel-solar', 'painelSolarSection', 'painel-solar-aberto']].forEach(([navId, secId, cls]) => {
     if (id === navId) return;
     const sec = document.getElementById(secId);
     if (sec) sec.style.display = 'none';
@@ -9994,23 +10114,23 @@ function marcarNavAtivo(id) {
 // diferente; com a régua dá para ir de Leads direto para Tabelas, e sem isto uma
 // tela ficaria empilhada sobre a outra.
 function telasSolarLimpar() {
-  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
+  ['formSection', 'historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection']
     .forEach(t => { const el = document.getElementById(t); if (el) el.style.display = 'none'; });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
 }
 // Fecha só Quem ligar e Obras. Existe para as telas que escondem as outras à mão
 // (abrirHistorico, navRedes, navCRM) e para não repetir a lista em cada uma.
 function solarExtrasFechar() {
-  ['quemLigarSection', 'obrasSolarSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  document.documentElement.classList.remove('quem-ligar-aberto', 'obras-solar-aberto');
+  ['quemLigarSection', 'obrasSolarSection', 'painelSolarSection'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  document.documentElement.classList.remove('quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto');
 }
 function navGerador() {
   // volta pro form a partir de qualquer tela interna
-  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['historicoSection', 'tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'eletro-aberto', 'automacao-aberto');
   document.getElementById('formSection').style.display = '';
   // Kit ligado ou desligado em Tabelas vale assim que a pessoa volta pela régua
   // (antes só o "Voltar" de Tabelas reaplicava).
@@ -10183,7 +10303,7 @@ function navRedes() {
   const sec = document.getElementById('redesSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('redes-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto');
   marcarNavAtivo('nav-redes');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -10199,14 +10319,14 @@ let calcCaTocado = false;   // vira true quando o consultor edita o C.A na mão
 function navCalc() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'eletroSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('calcSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('calc-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'redes-aberto', 'crm-aberto', 'eletro-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-calc');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -10216,14 +10336,14 @@ function navCalc() {
 function navEletroposto() {
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('historicoSection').style.display = 'none';
-  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
+  ['tabelasSection', 'leadsSection', 'fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection', 'redesSection', 'crmSection', 'calcSection', 'automacaoSection'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const sec = document.getElementById('eletroSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('eletro-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'redes-aberto', 'crm-aberto', 'calc-aberto', 'automacao-aberto');
   marcarNavAtivo('nav-eletroposto');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -27269,6 +27389,26 @@ function voltarDasObras() {
   marcarNavAtivo('nav-gerador');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+// Painel do quiz: mais um clone do navObrasSolar.
+function navPainelSolar() {
+  telasSolarLimpar();
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  const sec = document.getElementById('painelSolarSection');
+  if (sec) sec.style.display = '';
+  document.documentElement.classList.add('painel-solar-aberto');
+  marcarNavAtivo('nav-painel-solar');
+  fecharSidebarMobile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  pqAbrir();
+}
+function voltarDoPainel() {
+  document.getElementById('painelSolarSection').style.display = 'none';
+  document.getElementById('formSection').style.display = '';
+  document.documentElement.classList.remove('painel-solar-aberto');
+  marcarNavAtivo('nav-gerador');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // QUEM LIGAR (10/10/2026)
@@ -27287,7 +27427,7 @@ function voltarDasObras() {
 // Textos de WhatsApp do solar. Copiados sem mexer do arquivo de textos aprovado.
 // {consultor} é o primeiro nome de quem manda, SEM artigo antes. {link} e
 // {linkIndicacao} saem sempre com https:// completo, e {kwp} com vírgula.
-// Os PEDIR_* ainda não têm botão: entram na próxima entrega das Obras.
+// Os PEDIR_* saem pelos botões da aba Obras, em Indicações e depoimentos.
 const SOL_TEXTOS = {
   ORCAMENTO_QUENTE_A: "Oi, {primeiroNome}! Aqui é {consultor}, da Irmãos na Obra.\nPassando para saber se ficou alguma dúvida sobre o orçamento de energia solar.\nSe quiser, a gente conversa com calma e eu te explico qualquer ponto.",
   ORCAMENTO_QUENTE_B: "Oi, {primeiroNome}, tudo bem?\nAqui é {consultor}, da Irmãos na Obra.\nFicou alguma dúvida sobre o orçamento que te mandei?\nPode me chamar aqui que eu te ajudo.",
@@ -27903,9 +28043,12 @@ async function qlSemInteresse(btn, key, motivo) {
 const OB_ETAPAS = [['venda', 'Venda'], ['projeto', 'Projeto'], ['material', 'Material'], ['instalacao', 'Instalação'], ['vistoria', 'Vistoria'], ['liberado', 'Liberado']];
 // Os grupos da tela chamam a última etapa de Liberação.
 const OB_GRUPOS = [['venda', 'Venda'], ['projeto', 'Projeto'], ['material', 'Material'], ['instalacao', 'Instalação'], ['vistoria', 'Vistoria'], ['liberado', 'Liberação']];
-// As abas internas. Cada uma tem o seu contêiner. Só entra na barra a que já tem
-// conteúdo: "Indicações e depoimentos" e "Mapa" entram aqui na próxima entrega.
-const OB_ABAS = [{ id: 'andamento', rotulo: 'Andamento', render: () => obDesenharAndamento() }];
+// As abas internas. Cada uma tem o seu contêiner e só a ativa é desenhada.
+const OB_ABAS = [
+  { id: 'andamento', rotulo: 'Andamento', render: () => obDesenharAndamento() },
+  { id: 'indicacoes', rotulo: 'Indicações e depoimentos', render: () => obDesenharIndicacoes() },
+  { id: 'mapa', rotulo: 'Mapa', render: () => obDesenharMapa() },
+];
 let obDados = null, obErro = null, obCarregando = false, obSeq = 0, obLigado = false;
 let obEstado = { aba: 'andamento', busca: '', consultor: '', soAndamento: true };
 
@@ -27939,6 +28082,7 @@ function obAbrir() {
   if (!obLigado) {
     obLigado = true;
     corpo.addEventListener('click', obClique);
+    obLigarExtras(corpo);
     corpo.addEventListener('input', e => { if (e.target && e.target.id === 'ob-busca') { obEstado.busca = e.target.value; obDesenharLista(); } });
     corpo.addEventListener('change', e => { if (e.target && e.target.id === 'ob-solo') { obEstado.soAndamento = !!e.target.checked; obDesenharLista(); } });
   }
@@ -27999,7 +28143,12 @@ function obClique(ev) {
   const b = ev.target && ev.target.closest ? ev.target.closest('[data-qa]') : null;
   if (!b) return;
   const a = b.dataset.qa;
-  if (a === 'retry' || a === 'atualizar') return obCarregar();
+  if (a === 'retry' || a === 'atualizar') {
+    // Indicações e Mapa são lidos uma vez e guardados: o Atualizar solta os dois,
+    // para a aba que estiver aberta (ou a próxima que abrir) buscar de novo.
+    if (typeof obSoltarExtras === 'function') obSoltarExtras();
+    return obCarregar();
+  }
   if (a === 'aba') { obEstado.aba = b.dataset.v; return obDesenhar(); }
   if (a === 'ocons') { obEstado.consultor = b.dataset.v; return obDesenharAndamento(); }
 }
@@ -28071,6 +28220,976 @@ function obCartao(o) {
       + (tel ? '<a class="fs-btn-sec" href="https://wa.me/' + e(tel) + '" target="_blank" rel="noopener">WhatsApp</a>' : '')
       + (urlTrello ? '<a class="fs-btn-sec" href="' + e(urlTrello) + '" target="_blank" rel="noopener">Abrir no Trello</a>' : '') + '</div>' : '')
     + '</article>';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OBRAS, abas "Indicações e depoimentos" e "Mapa" (11/10/2026)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Chamada à API do solar com a sessão do consultor, o mesmo caminho da lista de
+// obras. 401 e 403 viram um erro com `auth: true` para a tela pedir o login.
+// Solta o que as abas internas das Obras guardaram (Indicações e Mapa).
+function obSoltarExtras() {
+  obInd.seq++; obInd.dados = null; obInd.erro = null; obInd.carregando = false;
+  obMapa.seq++; obMapa.dados = null; obMapa.erro = null; obMapa.carregando = false;
+  obMapa.perto = null; obMapa.pertoMsg = ''; obMapa.cliente = null;
+}
+// Chamado na saída da conta (authLimpar): zera tudo que veio da API do solar.
+function solLimparMemoria() {
+  obSeq++; obDados = null; obErro = null; obCarregando = false;
+  obSoltarExtras();
+  obAbertos.clear(); Object.keys(obMsgs).forEach(k => delete obMsgs[k]);
+  pqSeq++; pqDados = null; pqErro = null; pqCarregando = false;
+}
+async function solApi(caminho, opcoes) {
+  const o = opcoes || {};
+  try { await authRenovarSePreciso(); } catch (e) { /* o 401 abaixo avisa */ }
+  const tok = sessaoAtual && sessaoAtual.access_token;
+  if (!tok) { const er = new Error('sem sessão'); er.auth = true; throw er; }
+  const cab = { 'Authorization': 'Bearer ' + tok };
+  if (o.body) cab['Content-Type'] = 'application/json';
+  const r = await fetch(CTR_IA_API + caminho, { method: o.method || 'GET', headers: cab, body: o.body ? JSON.stringify(o.body) : undefined });
+  if (r.status === 401 || r.status === 403) { const er = new Error('sem acesso ' + r.status); er.auth = true; throw er; }
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !j || j.ok === false) { const er = new Error('resposta ' + r.status); er.status = r.status; throw er; }
+  return j;
+}
+const SOL_MSG_AUTH = 'Entre com a sua conta de consultor.';
+
+// Dia e mês no relógio de Brasília. Data pura (AAAA-MM-DD) só fatia; instante
+// (ISO com hora) passa pelo fuso: uma marca feita às 22h em Brasília já é o dia
+// seguinte em UTC e não pode aparecer com a data trocada.
+function obDiaMes(iso) {
+  const s = String(iso == null ? '' : iso);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.slice(8, 10) + '/' + s.slice(5, 7);
+  const t = Date.parse(s);
+  return isNaN(t) ? '' : new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
+function obCapitalizar(s) {
+  const t = String(s == null ? '' : s).trim();
+  return t ? t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1) : '';
+}
+function obPlural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+// ── Indicações e depoimentos ──
+// A API decide quem pode receber o pedido (`pedir`): a tela só obedece.
+let obInd = { dados: null, erro: null, carregando: false, seq: 0 };
+const obMarcando = new Set();   // "codigo|tipo" com a gravação em andamento
+const obMsgs = {};              // "codigo|tipo" -> mensagem de falha da gravação
+// "codigo|tipo" em que o WhatsApp JÁ abriu e a gravação falhou. Nesses o botão vira
+// "Marcar como pedido" e só grava: o segundo toque abria outra conversa com o cliente.
+const obAbertos = new Set();
+const OB_TIPOS = {
+  depoimento: { campo: 'depoimentoPedidoEm', api: 'depoimento_pedido', texto: 'PEDIR_DEPOIMENTO', rotulo: 'Depoimento' },
+  indicacao: { campo: 'indicacaoPedidaEm', api: 'indicacao_pedida', texto: 'PEDIR_INDICACAO', rotulo: 'Indicação' },
+};
+
+async function obCarregarIndicacoes() {
+  const seq = ++obInd.seq;
+  obInd.carregando = true; obInd.erro = null;
+  try {
+    obInd.dados = await solApi('/gerador/solar/indicacoes');
+  } catch (e) {
+    if (seq !== obInd.seq) return;
+    obInd.erro = { auth: !!e.auth };
+  }
+  if (seq !== obInd.seq) return;
+  obInd.carregando = false;
+  if (obEstado.aba === 'indicacoes') obDesenharIndicacoes();
+}
+
+// Data da última etapa feita (a Liberação, quando existe).
+function obUltimaEtapaEm(o) {
+  const feitas = (o.etapas || []).filter(et => et && et.feito && et.em);
+  const lib = feitas.find(et => et.chave === 'liberado');
+  return obDiaMes((lib || feitas[feitas.length - 1] || {}).em);
+}
+
+function obMontarPedido(o, tipo) {
+  const link = /^https:\/\//i.test(String(o.linkIndicacao || '')) ? String(o.linkIndicacao) : '';
+  if (tipo === 'indicacao' && !link) return '';
+  const ab = Math.random() < 0.5 ? 'A' : 'B';
+  // Quem manda é quem está logado, o mesmo critério da aba Quem ligar.
+  let quem = '';
+  try { quem = (crmConsultorLogado() || getConsultorAtual() || '').trim(); } catch (e) { quem = ''; }
+  quem = qlPrimeiro(quem || o.consultor) || 'a equipe';
+  const vars = { primeiroNome: qlPrimeiro(o.cliente) || 'tudo bem', consultor: quem, linkIndicacao: link };
+  return SOL_TEXTOS[OB_TIPOS[tipo].texto + '_' + ab].replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+}
+
+function obCartaoPedido(o, tipo) {
+  const e = escapeHtml;
+  const chave = o.codigo + '|' + tipo;
+  const local = [o.cidade, o.uf].filter(Boolean).join('/');
+  const quando = obUltimaEtapaEm(o);
+  const tel = qlWaNumero(o.telefone);
+  const semLink = tipo === 'indicacao' && !/^https:\/\//i.test(String(o.linkIndicacao || ''));
+  const bloqueio = !tel ? 'Sem telefone válido na planilha para abrir o WhatsApp.' : (semLink ? 'Sem o link de indicação agora.' : '');
+  const gravando = obMarcando.has(chave);
+  return '<article class="card ob-card ob-ped" data-cod="' + e(o.codigo) + '" data-t="' + tipo + '">'
+    + '<div class="ob-topo"><div class="ob-nome"><b>' + e(o.cliente || 'Sem nome') + '</b><small>' + e(local) + '</small></div>'
+    + '<div class="ob-cod">' + e(o.codigo || '') + '</div></div>'
+    + '<div class="ob-meta"><span class="ob-selo ok">Liberado</span>' + (quando ? '<span class="ob-parada">Última etapa em ' + e(quando) + '</span>' : '') + '</div>'
+    + '<div class="ob-ped-acoes"><button type="button" class="fs-btn-main" data-qa="pedir" data-cod="' + e(o.codigo) + '" data-t="' + tipo + '"'
+    + (bloqueio || gravando ? ' disabled' : '') + '>' + (gravando ? 'Gravando...' : obAbertos.has(chave) ? 'Marcar como pedido' : 'Pedir no WhatsApp') + '</button>'
+    + (bloqueio ? '<div class="ob-ped-nota">' + e(bloqueio) + '</div>' : '')
+    + (obMsgs[chave] ? '<div class="ob-ped-erro" role="alert">' + e(obMsgs[chave]) + '</div>' : '')
+    + '</div></article>';
+}
+
+function obCartaoFeito(f) {
+  const e = escapeHtml;
+  const chave = f.o.codigo + '|' + f.tipo;
+  const marcas = f.o.marcas || {};
+  const quem = obCapitalizar(marcas.por);
+  const gravando = obMarcando.has(chave);
+  return '<article class="card ob-card ob-feito" data-cod="' + e(f.o.codigo) + '" data-t="' + f.tipo + '">'
+    + '<div class="ob-topo"><div class="ob-nome"><b>' + e(f.o.cliente || 'Sem nome') + '</b><small>' + e(OB_TIPOS[f.tipo].rotulo) + ' · ' + e(f.o.codigo || '') + '</small></div>'
+    + '<button type="button" class="ob-link" data-qa="desfazer" data-cod="' + e(f.o.codigo) + '" data-t="' + f.tipo + '"' + (gravando ? ' disabled' : '') + '>Desfazer</button></div>'
+    + '<div class="ob-meta"><span class="ob-parada">Pedido' + (quem ? ' por ' + e(quem) : '') + ' em ' + e(obDiaMes(f.em)) + '</span></div>'
+    + (obMsgs[chave] ? '<div class="ob-ped-erro" role="alert">' + e(obMsgs[chave]) + '</div>' : '')
+    + '</article>';
+}
+
+function obDesenharIndicacoes() {
+  const pane = document.getElementById('ob-pane-indicacoes');
+  if (!pane || !obDados) return;
+  if (!obInd.dados && !obInd.carregando && !obInd.erro) obCarregarIndicacoes();
+  const e = escapeHtml;
+  const obras = obDados.obras || [];
+  const pedirDep = obras.filter(o => o.pedir && o.pedir.depoimento === true);
+  const pedirInd = obras.filter(o => o.pedir && o.pedir.indicacao === true);
+  const recebidos = obras.filter(o => o.depoimento === 'sim').length;
+  const porInd = obras.filter(o => o.origem && o.origem.tipo === 'indicacao').length;
+  const pct = obras.length ? Math.round(porInd / obras.length * 100) : 0;
+  const num = (valor, rot, sub) => '<div class="ob-num"><b>' + valor + '</b><span>' + rot + '</span>' + (sub ? '<small class="ob-sub">' + sub + '</small>' : '') + '</div>';
+  let html = '<div class="ob-resumo">'
+    + num(recebidos, 'Depoimentos recebidos')
+    + num(pedirDep.length, 'Prontos para pedir depoimento')
+    + num(pedirInd.length, 'Prontos para pedir indicação')
+    + num(porInd, 'Vendas por indicação', obras.length ? pct + '% de ' + obras.length : '')
+    + '</div>';
+
+  const bloco = (titulo, n, sub) => '<div class="ob-bloco-tit">' + titulo + ' <b>' + n + '</b></div>' + (sub ? '<p class="ob-bloco-sub">' + sub + '</p>' : '');
+  html += bloco('Pedir depoimento', pedirDep.length, 'Clientes com o sistema no ar e sem depoimento. A mensagem abre no seu WhatsApp e o pedido fica marcado.');
+  html += pedirDep.length ? pedirDep.map(o => obCartaoPedido(o, 'depoimento')).join('')
+    : '<div class="card ql-vazio ob-vazio-curto">Ninguém para pedir depoimento agora.</div>';
+  html += bloco('Pedir indicação', pedirInd.length, 'Quem já está com a energia funcionando e pode indicar um conhecido.');
+  html += pedirInd.length ? pedirInd.map(o => obCartaoPedido(o, 'indicacao')).join('')
+    : '<div class="card ql-vazio ob-vazio-curto">Ninguém para pedir indicação agora.</div>';
+
+  // Pedidos já feitos: marca gravada e a API já não libera um novo pedido.
+  const feitos = [];
+  obras.forEach(o => Object.keys(OB_TIPOS).forEach(tipo => {
+    const em = o.marcas && o.marcas[OB_TIPOS[tipo].campo];
+    if (em && !(o.pedir && o.pedir[tipo] === true)) feitos.push({ o, tipo, em });
+  }));
+  feitos.sort((a, b) => (Date.parse(b.em) || 0) - (Date.parse(a.em) || 0));
+  if (feitos.length) html += bloco('Pedidos feitos', feitos.length, 'Se o pedido foi marcado sem querer, toque em Desfazer.') + feitos.map(obCartaoFeito).join('');
+
+  // Ranking e indicações recebidas vêm de outra rota: se ela falhar, o resto da tela segue.
+  html += '<div class="ob-bloco-tit">Quem mais indicou</div>';
+  if (obInd.erro) {
+    html += '<div class="card ql-vazio ob-vazio-curto">' + (obInd.erro.auth ? e(SOL_MSG_AUTH) : 'Não consegui carregar as indicações agora.')
+      + (obInd.erro.auth ? '' : '<br><button type="button" class="fs-btn-sec" data-qa="ind-retry">Tentar de novo</button>') + '</div>';
+  } else if (!obInd.dados) {
+    html += '<div class="card ql-vazio ob-vazio-curto">Carregando as indicações...</div>';
+  } else {
+    const rank = obInd.dados.ranking || [];
+    html += rank.length
+      ? '<div class="card"><ul class="ob-rank">' + rank.map(r => '<li><span><b>' + e(r.cliente || ('Cliente ' + (r.codigo || ''))) + '</b><small>' + e((r.vendas || []).join(', ')) + '</small></span>'
+        + '<span class="ob-rank-n">' + e(obPlural(Number(r.indicou) || 0, 'venda', 'vendas')) + '</span></li>').join('') + '</ul></div>'
+      : '<div class="card ql-vazio ob-vazio-curto">Ninguém indicou uma venda ainda.</div>';
+    const rec = obInd.dados.recebidas || [];
+    if (rec.length) {
+      const mostrar = rec.slice(0, 30);
+      html += bloco('Indicações recebidas pela página', rec.length, rec.length > mostrar.length ? 'Mostrando as ' + mostrar.length + ' mais recentes.' : '')
+        + mostrar.map(r => {
+          const tel = qlWaNumero(r.indicadoTelefone);
+          const st = obCapitalizar(String(r.status == null ? '' : r.status).replace(/_/g, ' '));
+          return '<article class="card ob-card"><div class="ob-topo"><div class="ob-nome"><b>' + e(r.indicadoNome || 'Sem nome') + '</b>'
+            + '<small>' + e([r.indicadorNome ? 'Indicado por ' + r.indicadorNome : '', obDiaMes(r.criadoEm)].filter(Boolean).join(' · ')) + '</small></div>'
+            + (st ? '<span class="ob-selo">' + e(st) + '</span>' : '') + '</div>'
+            + (tel ? '<div class="ob-acoes"><a class="fs-btn-sec" href="https://wa.me/' + e(tel) + '" target="_blank" rel="noopener">WhatsApp do indicado</a></div>' : '')
+            + '</article>';
+        }).join('');
+    }
+  }
+  pane.innerHTML = html;
+}
+
+function obPorCodigo(cod) { return ((obDados && obDados.obras) || []).find(o => o.codigo === cod) || null; }
+
+// Abre o WhatsApp no mesmo toque (antes de qualquer espera, senão o navegador
+// bloqueia a janela) e só então grava a marca.
+function obPedir(cod, tipo) {
+  const o = obPorCodigo(cod);
+  if (!o || !OB_TIPOS[tipo] || obMarcando.has(cod + '|' + tipo)) return;
+  // A mensagem já abriu e só a gravação falhou: este toque só grava.
+  if (obAbertos.has(cod + '|' + tipo)) { obMarcar(o, tipo, false); return; }
+  const tel = qlWaNumero(o.telefone);
+  const texto = obMontarPedido(o, tipo);
+  if (!tel || !texto) { showToast('Não dá para abrir o WhatsApp deste cliente.'); return; }
+  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank', 'noopener');
+  obMarcar(o, tipo, false);
+}
+
+async function obMarcar(o, tipo, desfazer) {
+  const chave = o.codigo + '|' + tipo;
+  obMarcando.add(chave); delete obMsgs[chave];
+  obDesenharIndicacoes();
+  try {
+    const corpo = { codigo: o.codigo, tipo: OB_TIPOS[tipo].api };
+    if (desfazer) corpo.desfazer = true;
+    const j = await solApi('/gerador/solar/obras/marcar', { method: 'POST', body: corpo });
+    o.marcas = Object.assign({ depoimentoPedidoEm: null, indicacaoPedidaEm: null, por: null }, j.marcas || {});
+    if (!o.pedir) o.pedir = { depoimento: false, indicacao: false };
+    // Marcar: o cartão sai de "Pedir" porque a API passaria a negar um novo pedido.
+    // Desfazer: volta provisoriamente para "Pedir" e a lista é relida para a API decidir.
+    o.pedir[tipo] = !!desfazer;
+    obAbertos.delete(chave);
+  } catch (er) {
+    if (!desfazer) obAbertos.add(chave);
+    obMsgs[chave] = er && er.auth ? SOL_MSG_AUTH
+      : (desfazer ? 'Não consegui desfazer o pedido. Tente de novo.' : 'Não consegui gravar o pedido. A mensagem abriu no WhatsApp, mas o pedido não ficou marcado. Toque em Marcar como pedido.');
+    showToast(desfazer ? 'Não consegui desfazer o pedido.' : 'Não consegui gravar o pedido.');
+  }
+  obMarcando.delete(chave);
+  if (obEstado.aba === 'indicacoes') obDesenharIndicacoes();
+  if (desfazer && !obMsgs[chave]) obCarregar(true);
+}
+
+// ── Mapa ──
+let obMapa = { dados: null, erro: null, carregando: false, seq: 0, mapaSeq: 0, map: null, circulos: [], cliente: null, perto: null, pertoMsg: '', buscando: false, cidadeTexto: '', avisoTiles: false, semLeaflet: false };
+const OB_AMBAR = '#F59E0B', OB_AMBAR_ESCURO = '#78350F';
+let obLeafletPronto = null;
+
+// Leaflet só quando alguém abre o Mapa, do mesmo endereço do mapa do Arrendamento.
+function obCarregarLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (obLeafletPronto) return obLeafletPronto;
+  const base = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
+  obLeafletPronto = new Promise(function (ok, falha) {
+    if (!document.getElementById('leaflet-css-solar')) {
+      const css = document.createElement('link');
+      css.id = 'leaflet-css-solar'; css.rel = 'stylesheet'; css.href = base + 'leaflet.min.css';
+      document.head.appendChild(css);
+    }
+    const js = document.createElement('script');
+    js.src = base + 'leaflet.min.js';
+    js.onload = function () { window.L ? ok() : (obLeafletPronto = null, falha(new Error('Leaflet vazio'))); };
+    js.onerror = function () { obLeafletPronto = null; falha(new Error('não consegui baixar o mapa (Leaflet)')); };
+    document.head.appendChild(js);
+  });
+  return obLeafletPronto;
+}
+
+async function obCarregarMapa() {
+  const seq = ++obMapa.seq;
+  obMapa.carregando = true; obMapa.erro = null;
+  try {
+    obMapa.dados = await solApi('/gerador/solar/mapa');
+  } catch (er) {
+    if (seq !== obMapa.seq) return;
+    obMapa.erro = { auth: !!er.auth };
+  }
+  if (seq !== obMapa.seq) return;
+  obMapa.carregando = false;
+  if (obEstado.aba === 'mapa') obDesenharMapa();
+}
+
+const obCidadesOrdenadas = () => ((obMapa.dados && obMapa.dados.cidades) || []).slice()
+  .sort((a, b) => (b.instaladas - a.instaladas) || (b.emAndamento - a.emAndamento) || String(a.cidade).localeCompare(String(b.cidade), 'pt-BR'));
+const obRotuloCidade = c => c.cidade + (c.uf ? '/' + c.uf : '');
+function obTextoCidade(c) {
+  const partes = [];
+  if (c.instaladas > 0) partes.push(obPlural(c.instaladas, 'sistema instalado', 'sistemas instalados'));
+  if (c.emAndamento > 0) partes.push(c.emAndamento + ' em andamento');
+  return obRotuloCidade(c) + (partes.length ? ' · ' + partes.join(' · ') : '');
+}
+
+function obDesenharMapa() {
+  const pane = document.getElementById('ob-pane-mapa');
+  if (!pane) return;
+  if (!obMapa.dados && !obMapa.carregando && !obMapa.erro) obCarregarMapa();
+  const e = escapeHtml;
+  const cidades = obCidadesOrdenadas();
+  const inst = cidades.reduce((s, c) => s + (Number(c.instaladas) || 0), 0);
+  const nCid = cidades.filter(c => c.instaladas > 0).length;
+  const sem = Number(obMapa.dados && obMapa.dados.semCoordenada) || 0;
+  let total, lista;
+  if (obMapa.erro) {
+    total = obMapa.erro.auth ? e(SOL_MSG_AUTH) : 'Não consegui carregar o mapa agora.';
+    lista = obMapa.erro.auth ? '' : '<button type="button" class="fs-btn-sec" data-qa="mp-retry">Tentar de novo</button>';
+  } else if (!obMapa.dados) {
+    total = 'Carregando o mapa...'; lista = '';
+  } else if (!cidades.length) {
+    total = 'Nenhuma cidade com sistema para mostrar ainda.'; lista = '';
+  } else {
+    total = obPlural(inst, 'sistema instalado', 'sistemas instalados') + ' em ' + obPlural(nCid, 'cidade', 'cidades');
+    lista = '<ul class="mp-lista">' + cidades.map((c, i) => '<li><button type="button" class="mp-cid" data-qa="mp-cid" data-i="' + i + '">'
+      + '<span class="mp-cid-n">' + e(obRotuloCidade(c)) + '</span>'
+      + '<span class="mp-cid-q">' + (c.instaladas > 0 ? e(String(c.instaladas)) + ' instalados' : 'Em andamento')
+      + (c.emAndamento > 0 && c.instaladas > 0 ? '<small>' + e(String(c.emAndamento)) + ' em andamento</small>' : '') + '</span></button></li>').join('') + '</ul>';
+  }
+  pane.innerHTML = '<div class="mp-grid">'
+    + '<div><div class="mp-aviso" id="mp-aviso" hidden></div><div id="mp-mapa" class="mp-mapa" aria-label="Mapa das cidades com sistemas instalados"></div>'
+    + '<div class="mp-leg"><span><i class="mp-bola"></i> Instalados (a área é proporcional à quantidade)</span><span><i class="mp-bola vazia"></i> Só em andamento</span></div></div>'
+    + '<div class="mp-lado">'
+    + '<div class="card"><p class="mp-total" id="mp-total">' + total + '</p>'
+    + (sem > 0 && obMapa.dados ? '<p class="ob-bloco-sub">' + e(obPlural(sem, 'obra', 'obras')) + ' ' + (sem === 1 ? 'não aparece' : 'não aparecem') + ' no mapa porque a cidade não foi reconhecida.</p>' : '')
+    + '<label class="mp-rotulo" for="mp-cidade">Cidade do cliente</label>'
+    + '<div class="ql-linha2"><input id="mp-cidade" class="ql-busca" type="search" placeholder="Ex.: Uberlândia" autocomplete="off" value="' + e(obMapa.cidadeTexto) + '">'
+    + '<button type="button" class="fs-btn-sec" data-qa="mp-perto"' + (obMapa.buscando ? ' disabled' : '') + '>' + (obMapa.buscando ? 'Buscando...' : 'Ver perto') + '</button></div>'
+    + '<div id="mp-perto" class="mp-perto" aria-live="polite"></div></div>'
+    + (lista ? '<div class="card"><div class="mp-listatit">Cidades, das que mais instalaram</div>' + lista + '</div>' : '')
+    + '</div></div>';
+  obDesenharPerto();
+  if (obMapa.dados && cidades.length) obIniciarMapa();
+  else obMapaAviso(obMapa.erro ? 'O mapa não está disponível agora.' : (obMapa.dados ? 'Sem cidades para marcar no mapa.' : 'Carregando o mapa...'), true);
+}
+
+function obMapaAviso(txt, vazioNoMapa) {
+  const av = document.getElementById('mp-aviso');
+  if (av) { av.textContent = txt || ''; av.hidden = !txt; }
+  if (vazioNoMapa) { const el = document.getElementById('mp-mapa'); if (el) { el.classList.add('sem'); el.textContent = txt; } }
+}
+
+async function obIniciarMapa() {
+  const meu = ++obMapa.mapaSeq;
+  // O innerHTML recriou o contêiner: o mapa antigo aponta para uma div solta.
+  if (obMapa.map) { try { obMapa.map.remove(); } catch (er) { /* já solto */ } obMapa.map = null; obMapa.circulos = []; obMapa.cliente = null; }
+  try { await obCarregarLeaflet(); } catch (er) {
+    if (meu !== obMapa.mapaSeq) return;
+    obMapa.semLeaflet = true;
+    obMapaAviso('Não consegui carregar o mapa. A lista de cidades e o Ver perto continuam funcionando.', true);
+    return;
+  }
+  const el = document.getElementById('mp-mapa');
+  if (meu !== obMapa.mapaSeq || !el || !el.isConnected || obEstado.aba !== 'mapa') return;
+  obMapa.semLeaflet = false;
+  const L = window.L;
+  const cidades = obCidadesOrdenadas();
+  const mapa = L.map(el, { zoomControl: true, scrollWheelZoom: false }).setView([-18.9, -48.3], 7);
+  obMapa.map = mapa;
+  let erros = 0;
+  const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' });
+  tiles.on('tileerror', function () {
+    // Poucas imagens falhando é rede lenta; várias é bloqueio.
+    if (++erros === 4) obMapaAviso('As imagens do mapa não carregaram. As cidades e a lista continuam funcionando.', false);
+  });
+  tiles.addTo(mapa);
+  // Área proporcional: raio = k * raiz(instaladas), com piso para o círculo ser tocável.
+  const raio = n => Math.max(8, Math.min(46, 4.6 * Math.sqrt(n)));
+  const pts = [];
+  cidades.forEach((c, i) => {
+    const lat = Number(c.lat), lng = Number(c.lng);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    const cheio = c.instaladas > 0;
+    const r = cheio ? raio(c.instaladas) : 9;
+    L.circleMarker([lat, lng], { radius: r, color: OB_AMBAR_ESCURO, weight: cheio ? 2 : 3, fill: cheio, fillColor: OB_AMBAR, fillOpacity: cheio ? 0.78 : 0, interactive: false }).addTo(mapa);
+    // Área de toque maior que o desenho: o círculo de 8 px é pequeno para o dedo.
+    const alvo = L.circleMarker([lat, lng], { radius: Math.max(r + 6, 22), stroke: false, fill: true, fillOpacity: 0, className: 'mp-alvo' }).addTo(mapa);
+    const conteudo = document.createElement('div');
+    conteudo.className = 'mp-pop';
+    conteudo.textContent = obTextoCidade(c);
+    alvo.bindPopup(conteudo, { maxWidth: 240, autoPanPadding: [24, 24] });
+    obMapa.circulos[i] = alvo;
+    pts.push([lat, lng]);
+  });
+  obMapaEnquadrar();
+  setTimeout(function () { if (obMapa.map === mapa) { mapa.invalidateSize(); if (!obMapa.perto) obMapaEnquadrar(); } }, 60);
+  obMapaMarcarCliente();
+}
+
+function obMapaEnquadrar() {
+  const m = obMapa.map;
+  if (!m) return;
+  const pts = obCidadesOrdenadas().filter(c => isFinite(Number(c.lat)) && isFinite(Number(c.lng))).map(c => [Number(c.lat), Number(c.lng)]);
+  if (pts.length) m.fitBounds(window.L.latLngBounds(pts), { padding: [40, 40], maxZoom: 9 });
+}
+
+// Marcador do cliente: um losango branco (divIcon), sem depender das imagens do Leaflet.
+function obMapaMarcarCliente() {
+  const m = obMapa.map, p = obMapa.perto;
+  if (obMapa.cliente) { try { obMapa.cliente.remove(); } catch (er) { /* já solto */ } obMapa.cliente = null; }
+  if (!m || !p || !isFinite(Number(p.lat)) || !isFinite(Number(p.lng))) return;
+  const L = window.L;
+  const icone = L.divIcon({ className: 'mp-cli-wrap', html: '<span class="mp-cli"></span>', iconSize: [26, 26], iconAnchor: [13, 13] });
+  const pop = document.createElement('div');
+  pop.className = 'mp-pop';
+  pop.textContent = 'Cidade do cliente: ' + obRotuloCidade(p);
+  obMapa.cliente = L.marker([Number(p.lat), Number(p.lng)], { icon: icone, keyboard: false, zIndexOffset: 1000 }).addTo(m).bindPopup(pop);
+  // Enquadra o cliente e as vizinhas que têm coordenada na lista do mapa.
+  const nomes = new Set((p.proximas || []).map(x => String(x.cidade) + '|' + String(x.uf)));
+  const vizinhas = obCidadesOrdenadas().filter(c => nomes.has(String(c.cidade) + '|' + String(c.uf)) && isFinite(Number(c.lat)) && isFinite(Number(c.lng))).map(c => [Number(c.lat), Number(c.lng)]);
+  const todos = [[Number(p.lat), Number(p.lng)]].concat(vizinhas);
+  if (todos.length > 1) m.fitBounds(L.latLngBounds(todos), { padding: [50, 50], maxZoom: 10 });
+  else m.setView([Number(p.lat), Number(p.lng)], 9);
+}
+
+function obDesenharPerto() {
+  const alvo = document.getElementById('mp-perto');
+  if (!alvo) return;
+  const e = escapeHtml;
+  if (obMapa.pertoMsg) { alvo.innerHTML = '<p class="mp-msg">' + e(obMapa.pertoMsg) + '</p>'; return; }
+  const p = obMapa.perto;
+  if (!p) { alvo.innerHTML = ''; return; }
+  const prox = (p.proximas || []).slice().sort((a, b) => (Number(a.km) || 0) - (Number(b.km) || 0));
+  alvo.innerHTML = '<div class="mp-perto-tit">Sistemas perto de ' + e(obRotuloCidade(p)) + '</div>'
+    + (prox.length ? '<ul class="mp-lista mp-prox">' + prox.map(c => '<li><span class="mp-cid-n">' + e(obRotuloCidade(c)) + '<small>'
+      + e([c.instaladas > 0 ? obPlural(Number(c.instaladas), 'instalado', 'instalados') : '', c.emAndamento > 0 ? c.emAndamento + ' em andamento' : ''].filter(Boolean).join(' · ')) + '</small></span>'
+      + '<span class="mp-km">' + e(String(Math.round(Number(c.km) || 0))) + ' km</span></li>').join('') + '</ul>'
+      : '<p class="mp-msg">Nenhum sistema por perto dessa cidade.</p>')
+    + '<button type="button" class="ob-link" data-qa="mp-limpar">Limpar busca</button>';
+}
+
+async function obVerPerto() {
+  const campo = document.getElementById('mp-cidade');
+  const texto = String((campo && campo.value) || '').trim();
+  obMapa.cidadeTexto = texto;
+  if (!texto) { obMapa.perto = null; obMapa.pertoMsg = 'Digite a cidade do cliente.'; obDesenharPerto(); return; }
+  if (obMapa.buscando) return;
+  obMapa.buscando = true; obMapa.pertoMsg = '';
+  const botao = document.querySelector('#ob-pane-mapa [data-qa="mp-perto"]');
+  if (botao) { botao.disabled = true; botao.textContent = 'Buscando...'; }
+  let j = null, falha = '';
+  try { j = await solApi('/gerador/solar/mapa?perto=' + encodeURIComponent(texto)); } catch (er) { falha = er && er.auth ? SOL_MSG_AUTH : 'Não consegui buscar agora. Tente de novo.'; }
+  obMapa.buscando = false;
+  if (obEstado.aba !== 'mapa') return;
+  if (falha) { obMapa.perto = null; obMapa.pertoMsg = falha; }
+  else if (j && j.perto && typeof j.perto === 'object') { obMapa.perto = j.perto; obMapa.pertoMsg = ''; }
+  else if (j && (j.pertoNaoAchada === true || 'perto' in j)) { obMapa.perto = null; obMapa.pertoMsg = 'Não encontrei essa cidade. Confira o nome.'; }
+  else { obMapa.perto = null; obMapa.pertoMsg = 'A busca por cidade ainda não está disponível.'; }
+  const b2 = document.querySelector('#ob-pane-mapa [data-qa="mp-perto"]');
+  if (b2) { b2.disabled = false; b2.textContent = 'Ver perto'; }
+  obDesenharPerto();
+  obMapaMarcarCliente();
+  if (!obMapa.perto) obMapaEnquadrar();
+}
+
+function obLigarExtras(corpo) {
+  corpo.addEventListener('click', ev => {
+    const b = ev.target && ev.target.closest ? ev.target.closest('[data-qa]') : null;
+    if (!b) return;
+    const a = b.dataset.qa;
+    if (a === 'pedir') return obPedir(b.dataset.cod, b.dataset.t);
+    if (a === 'desfazer') { const o = obPorCodigo(b.dataset.cod); if (o && OB_TIPOS[b.dataset.t]) obMarcar(o, b.dataset.t, true); return; }
+    if (a === 'ind-retry') { obInd.erro = null; obInd.dados = null; return obDesenharIndicacoes(); }
+    if (a === 'mp-retry') { obMapa.erro = null; return obDesenharMapa(); }
+    if (a === 'mp-perto') return obVerPerto();
+    if (a === 'mp-limpar') { obMapa.perto = null; obMapa.pertoMsg = ''; obMapa.cidadeTexto = ''; const c = document.getElementById('mp-cidade'); if (c) c.value = ''; obDesenharPerto(); obMapaMarcarCliente(); return obMapaEnquadrar(); }
+    if (a === 'mp-cid') {
+      const c = obCidadesOrdenadas()[Number(b.dataset.i)];
+      const alvo = obMapa.circulos[Number(b.dataset.i)];
+      if (!c || !obMapa.map || !alvo) return;
+      obMapa.map.setView([Number(c.lat), Number(c.lng)], Math.max(obMapa.map.getZoom(), 9));
+      alvo.openPopup();
+      const el = document.getElementById('mp-mapa');
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
+  corpo.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && ev.target && ev.target.id === 'mp-cidade') { ev.preventDefault(); obVerPerto(); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PAINEL DO QUIZ SOLAR (11/10/2026)
+//
+// O funil por pergunta, a qualidade dos leads e o resultado por anúncio, lidos
+// de GET /gerador/solar/painel. Gráficos em SVG escrito à mão (o Gerador não
+// tem biblioteca de gráfico), na largura real do cartão para o texto nunca
+// encolher no celular. Cores da paleta de dataviz validada contra o cartão
+// escuro #1E293B: série 1 azul, 2 laranja, 3 verde-água, rampa ordinal azul para
+// quente/morno/curioso, cinza para "pararam" e vermelho de status só na maior
+// perda. Texto sempre em cor de texto, nunca na cor da série.
+//
+// Dinheiro (gasto e custo por agendamento) só chega para sócio: sem a chave na
+// resposta, a tela não desenha coluna nem cartão, nem "R$ 0".
+// ═══════════════════════════════════════════════════════════════════════════
+const PQ_PERIODOS = [['hoje', 'Hoje'], ['ontem', 'Ontem'], ['7dias', '7 dias'], ['30dias', '30 dias']];
+const PQ_COR = {
+  visitas: '#3987e5', terminaram: '#d95926', agendaram: '#199e70',
+  seguiram: '#3987e5', parou: '#898781', maior: '#d03b3b', barra: '#3987e5', neutro: '#898781',
+  quente: '#86b6ef', morno: '#3987e5', curioso: '#1c5cab',
+};
+const PQ_TXT = '#CBD5E1', PQ_TXT2 = '#94A3B8', PQ_GRADE = 'rgba(255,255,255,.08)', PQ_EIXO = 'rgba(255,255,255,.22)', PQ_SUP = '#1E293B';
+// A ordem das perguntas da página do quiz. Pergunta que a API mandar e não estiver aqui entra no fim.
+const PQ_ORDEM = ['conta', 'tipo', 'cidade', 'imovel', 'urgencia', 'concorrente', 'pagamento', 'decisor', 'grupoa', 'nome', 'whatsapp', 'endereco', 'horario'];
+const PQ_SITUACAO = { ACTIVE: 'Ativo', PAUSED: 'Pausado', ARCHIVED: 'Arquivado', DELETED: 'Apagado' };
+const PQ_DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+let pqPeriodo = '7dias', pqDados = null, pqErro = null, pqCarregando = false, pqSeq = 0, pqLigado = false, pqLargura = 0;
+const pqNum = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const pqN = v => pqNum(v).toLocaleString('pt-BR');
+const pqPct = (a, b) => (pqNum(b) > 0 ? Math.max(0, Math.min(100, Math.round(pqNum(a) / pqNum(b) * 100))) : 0);
+const pqReais = v => 'R$ ' + pqNum(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pqR1 = x => Math.round(x * 10) / 10;
+// Dia vem como AAAA-MM-DD: só fatia (new Date('2026-10-10') cairia no dia 09 em Brasília).
+const pqDiaMes = dia => { const s = String(dia || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(8, 10) + '/' + s.slice(5, 7) : s; };
+const pqDiaSemana = dia => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dia || '')); return m ? PQ_DIAS_SEM[new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay()] : ''; };
+
+async function pqCarregar() {
+  const seq = ++pqSeq;
+  pqErro = null; pqCarregando = true;
+  pqDesenhar();
+  try {
+    const j = await solApi('/gerador/solar/painel?period=' + encodeURIComponent(pqPeriodo));
+    if (seq !== pqSeq) return;
+    pqDados = j;
+  } catch (er) {
+    if (seq !== pqSeq) return;
+    pqErro = { auth: !!er.auth };
+    pqDados = null;
+  }
+  pqCarregando = false;
+  pqDesenhar();
+}
+
+function pqAbrir() {
+  const corpo = document.getElementById('pq-corpo');
+  if (!corpo) return;
+  if (!pqLigado) {
+    pqLigado = true;
+    corpo.addEventListener('click', ev => {
+      const b = ev.target && ev.target.closest ? ev.target.closest('[data-qa]') : null;
+      if (!b) return;
+      if (b.dataset.qa === 'pq-per') { if (pqPeriodo !== b.dataset.v) { pqPeriodo = b.dataset.v; pqCarregar(); } return; }
+      if (b.dataset.qa === 'pq-retry') return pqCarregar();
+    });
+    // Gráfico em SVG tem a largura do cartão: refaz quando o cartão muda de tamanho
+    // (girar o celular, abrir a tela depois de escondida).
+    if (typeof ResizeObserver === 'function') {
+      let quadro = 0;
+      new ResizeObserver(() => {
+        if (quadro) return;
+        quadro = requestAnimationFrame(() => { quadro = 0; const w = corpo.clientWidth; if (w > 0 && Math.abs(w - pqLargura) > 6) pqGraficos(); });
+      }).observe(corpo);
+    }
+    // Toque fora do gráfico fecha a caixa de valores.
+    document.addEventListener('pointerdown', ev => {
+      document.querySelectorAll('#pq-corpo .pq-tip').forEach(t => { if (!t.parentNode.contains(ev.target)) t.hidden = true; });
+    });
+  }
+  pqCarregar();
+}
+
+function pqDesenhar() {
+  const corpo = document.getElementById('pq-corpo');
+  if (!corpo) return;
+  const tinhaFoco = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.qa === 'pq-per';
+  const chips = '<div class="ql-chips pq-chips" role="group" aria-label="Período">'
+    + PQ_PERIODOS.map(([v, r]) => '<button type="button" class="ql-chip' + (pqPeriodo === v ? ' on' : '') + '" data-qa="pq-per" data-v="' + v + '" aria-pressed="' + (pqPeriodo === v) + '">' + r + '</button>').join('') + '</div>';
+  if (pqErro) {
+    corpo.innerHTML = chips + '<div class="card ql-vazio"><b>' + (pqErro.auth ? 'Entre para ver o painel' : 'Não deu para carregar') + '</b>'
+      + (pqErro.auth ? escapeHtml(SOL_MSG_AUTH) : 'Não consegui carregar o painel agora. Confira a internet e tente de novo.')
+      + (pqErro.auth ? '' : '<br><button type="button" class="fs-btn-sec" data-qa="pq-retry">Tentar de novo</button>') + '</div>';
+  } else if (!pqDados) {
+    corpo.innerHTML = chips + '<div class="pq-sk-grid">' + '<div class="pq-sk" style="height:72px"></div>'.repeat(6) + '</div>'
+      + '<div class="pq-sk" style="height:260px;margin-bottom:12px"></div><div class="pq-sk" style="height:260px"></div>';
+  } else {
+    corpo.innerHTML = chips + '<div class="pq-conteudo' + (pqCarregando ? ' pq-recarregando' : '') + '" aria-busy="' + pqCarregando + '">' + pqConteudo(pqDados) + '</div>';
+    pqGraficos();
+  }
+  if (tinhaFoco) { const on = corpo.querySelector('.ql-chip.on'); if (on) on.focus(); }
+}
+
+// ── Os passos do funil, somados dos caminhos ──
+// A API conta por caminho (visita, vídeo, ligação...). Cada sessão está em um só
+// caminho, então a soma por pergunta é o total de quem chegou nela. Alta tensão,
+// endereço e horário só aparecem para parte dos clientes: por isso a perda é
+// "pararam aqui ÷ chegaram", nunca a diferença para a pergunta de cima (que daria
+// queda negativa e culparia a pergunta errada).
+function pqPassos(funil) {
+  const por = new Map();
+  ((funil && funil.caminhos) || []).forEach(c => (c.passos || []).forEach(p => {
+    const x = por.get(p.id) || { id: p.id, pergunta: p.pergunta || p.id, curta: p.curta || p.id, chegaram: 0, pararam: 0 };
+    x.chegaram += pqNum(p.chegaram); x.pararam += pqNum(p.pararam);
+    por.set(p.id, x);
+  }));
+  const ids = PQ_ORDEM.filter(id => por.has(id)).concat([...por.keys()].filter(id => !PQ_ORDEM.includes(id)));
+  return ids.map(id => por.get(id)).filter(p => p.chegaram > 0);
+}
+// A maior perda é a pergunta onde mais gente parou (número absoluto decide a ação).
+// Só vale com pelo menos PQ_MIN_PERDA pessoas no passo: em "hoje" ou "ontem", com
+// uma ou duas sessões, a tela apontava "100% (1 de 1)" e culpava uma pergunta à toa.
+const PQ_MIN_PERDA = 10;
+function pqMaiorPerda(passos) {
+  let pior = null;
+  passos.forEach(p => {
+    if (p.pararam <= 0 || p.chegaram < PQ_MIN_PERDA) return;
+    if (!pior || p.pararam > pior.pararam || (p.pararam === pior.pararam && p.pararam / p.chegaram > pior.pararam / pior.chegaram)) pior = p;
+  });
+  return pior;
+}
+
+// ── O conteúdo ──
+function pqStat(valor, rotulo, sub) {
+  return '<div class="pq-stat"><b>' + valor + '</b><span>' + rotulo + '</span>' + (sub ? '<small>' + sub + '</small>' : '') + '</div>';
+}
+function pqTabela(cab, linhas) {
+  const e = escapeHtml;
+  return '<table class="pq-tab"><thead><tr>' + cab.map((c, i) => '<th' + (i ? ' class="n"' : '') + '>' + e(c) + '</th>').join('') + '</tr></thead><tbody>'
+    + linhas.map(l => '<tr>' + l.map((c, i) => (i ? '<td class="n">' : '<th scope="row">') + e(c) + (i ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</tbody></table>';
+}
+const pqDetalhe = tabela => '<details class="pq-det"><summary>Ver os números</summary>' + tabela + '</details>';
+const pqLeg = itens => '<div class="pq-leg">' + itens.map(([cor, nome]) => '<span><i style="background:' + cor + '"></i>' + escapeHtml(nome) + '</span>').join('') + '</div>';
+
+function pqConteudo(d) {
+  const e = escapeHtml;
+  const f = d.funil || {}, l = d.leads || {}, r = d.resultado || {};
+  const visitas = pqNum(f.visitas), ag = pqNum(r.agendados);
+  if (!(visitas > 0 || pqNum(f.abriram) > 0 || pqNum(l.total) > 0 || ag > 0)) {
+    return '<div class="card ql-vazio"><b>O quiz ainda não teve visitas neste período.</b>Escolha um período maior para ver o movimento.</div>';
+  }
+  const socio = d.verGasto === true;
+  const taxa = visitas > 0 ? ag / visitas * 100 : null;
+  // Visita e agendamento vêm de contagens diferentes: em período curto a conta
+  // pode passar de 100% (quem visitou ontem e marcou hoje). Aí vale "100%+".
+  const taxaTxt = taxa === null ? 'Sem visitas' : taxa > 100 ? '100%+' : pqR1(taxa).toLocaleString('pt-BR') + '%';
+  let tiles = pqStat(pqN(visitas), 'Visitas ao quiz')
+    + pqStat(pqN(f.terminaram), 'Terminaram o quiz')
+    + pqStat(pqN(ag), 'Agendaram')
+    + pqStat(e(taxaTxt), 'Taxa de agendamento', taxa === null ? '' : 'agendaram ÷ visitas')
+    + pqStat(l.notaMedia == null ? 'Sem nota' : e(String(l.notaMedia)), 'Nota média dos leads', l.notaMedia == null ? '' : 'de 0 a 100')
+    + pqStat(pqN(l.quentes), 'Leads quentes', 'nota 80 ou mais');
+  if (socio) {
+    const anuncios = d.porAnuncio || [];
+    // Com a Meta fora do ar a API ainda manda `gasto: 0` na linha "(sem anúncio)":
+    // sem conferir o meta_ok, o sócio lia "R$ 0,00" onde o certo é "Sem dado".
+    const temGasto = d.meta_ok !== false && anuncios.some(a => typeof a.gasto === 'number');
+    const gasto = anuncios.reduce((s, a) => s + (typeof a.gasto === 'number' ? a.gasto : 0), 0);
+    tiles += pqStat(temGasto ? e(pqReais(gasto)) : 'Sem dado', 'Gasto no período', temGasto ? '' : 'a Meta não respondeu')
+      + pqStat(!temGasto ? 'Sem dado' : (ag > 0 ? e(pqReais(gasto / ag)) : 'Sem agendamento'), 'Custo por agendamento', temGasto && ag > 0 ? 'gasto ÷ agendaram' : '');
+  }
+  let html = '<div class="pq-stats' + (socio ? ' n4' : '') + '">' + tiles + '</div>';
+
+  const dias = d.porDia || [];
+  const tabDias = dias.length ? pqDetalhe(pqTabela(['Dia', 'Visitas', 'Terminaram', 'Agendaram'], dias.map(x => [pqDiaMes(x.dia), pqN(x.visitas), pqN(x.terminaram), pqN(x.agendados)]))) : '';
+  html += '<div class="card pq-card"><h2>Visitas por dia</h2><p class="pq-sub">Pessoas que abriram a página do quiz, em cada dia.</p>'
+    + (dias.length ? '<div class="pq-graf" data-g="visitas"></div>' + tabDias : '<p class="pq-vazio">Sem dados por dia neste período.</p>') + '</div>';
+  html += '<div class="card pq-card"><h2>Terminaram e agendaram por dia</h2><p class="pq-sub">Quem respondeu o quiz até o fim e quem marcou horário. Escala diferente da de visitas, por isso é outro gráfico.</p>'
+    + (dias.length ? pqLeg([[PQ_COR.terminaram, 'Terminaram o quiz'], [PQ_COR.agendaram, 'Agendaram']]) + '<div class="pq-graf" data-g="dias"></div>' + tabDias : '<p class="pq-vazio">Sem dados por dia neste período.</p>') + '</div>';
+
+  const passos = pqPassos(f);
+  const pior = pqMaiorPerda(passos);
+  html += '<div class="card pq-card"><h2>Funil por pergunta</h2><p class="pq-sub">Quantas pessoas chegaram em cada pergunta e quantas pararam ali.</p>';
+  if (!passos.length) html += '<p class="pq-vazio">Ninguém abriu o quiz neste período.</p>';
+  else {
+    html += (pior ? '<p class="pq-destaque"><b>Maior perda: ' + e(pior.curta) + ', ' + pqPct(pior.pararam, pior.chegaram) + '%</b> (' + e(pqN(pior.pararam)) + ' de ' + e(pqN(pior.chegaram)) + ' pararam nesta pergunta: ' + e(pior.pergunta) + ')</p>'
+      : passos.some(p => p.pararam > 0)
+        ? '<p class="pq-destaque"><b>Ainda há pouca gente neste período para apontar onde mais desistem.</b></p>'
+        : '<p class="pq-destaque"><b>Ninguém parou no meio do quiz neste período.</b></p>')
+      + pqLeg([[PQ_COR.seguiram, 'Seguiram'], [PQ_COR.parou, 'Pararam aqui']].concat(pior ? [[PQ_COR.maior, 'Maior perda']] : []))
+      + '<div class="pq-graf" data-g="funil"></div>'
+      + '<p class="pq-nota">Alta tensão, Endereço e Horário só aparecem para parte dos clientes: o número é de quem chegou até lá.</p>'
+      + pqDetalhe(pqTabela(['Pergunta', 'Chegaram', 'Pararam aqui', '% que parou'], passos.map(p => [p.pergunta, pqN(p.chegaram), pqN(p.pararam), pqPct(p.pararam, p.chegaram) + '%'])));
+  }
+  html += '</div>';
+
+  const faixas = pqNum(l.quentes) + pqNum(l.mornos) + pqNum(l.curiosos);
+  html += '<div class="card pq-card"><h2>Qualidade dos leads</h2><p class="pq-sub">Nota de 0 a 100 pelas respostas. Quente: 80 ou mais. Morno: de 40 a 79. Curioso: abaixo de 40, ou quem entrou só para conhecer.</p>';
+  if (!pqNum(l.total)) html += '<p class="pq-vazio">Nenhum lead neste período.</p>';
+  else {
+    html += (faixas > 0 ? pqLeg([[PQ_COR.quente, 'Quentes ' + pqN(l.quentes) + ' (' + pqPct(l.quentes, faixas) + '%)'], [PQ_COR.morno, 'Mornos ' + pqN(l.mornos) + ' (' + pqPct(l.mornos, faixas) + '%)'], [PQ_COR.curioso, 'Curiosos ' + pqN(l.curiosos) + ' (' + pqPct(l.curiosos, faixas) + '%)']])
+        + '<div class="pq-graf" data-g="qualidade"></div>' : '<p class="pq-vazio">Os leads deste período ainda não têm nota.</p>')
+      + (pqNum(l.total) > faixas ? '<p class="pq-nota">' + e(pqN(pqNum(l.total) - faixas)) + ' sem nota ficaram fora da barra.</p>' : '')
+      + '<h3 class="pq-h3">Por caminho</h3><div class="pq-graf" data-g="caminhos"></div>'
+      + pqDetalhe(pqTabela(['Grupo', 'Leads'], [['Quentes', pqN(l.quentes)], ['Mornos', pqN(l.mornos)], ['Curiosos', pqN(l.curiosos)]]
+        .concat(PQ_CAMINHOS.map(([k, rot]) => ['Caminho: ' + rot, pqN((l.porCaminho || {})[k])]))));
+  }
+  html += '</div>';
+
+  html += '<div class="card pq-card"><h2>O que virou</h2><p class="pq-sub">Dos horários que o quiz marcou, o que aconteceu depois.</p>';
+  if (!ag) html += '<p class="pq-vazio">Nenhum horário marcado pelo quiz neste período.</p>';
+  else html += '<div class="pq-graf" data-g="virou"></div>'
+    + pqDetalhe(pqTabela(['Situação', 'Quantidade', '% dos agendados'], PQ_VIROU.map(([k, rot]) => [rot, pqN(r[k]), pqPct(r[k], ag) + '%'])));
+  html += '</div>';
+
+  html += pqCartaoAnuncios(d, socio);
+  return html;
+}
+const PQ_CAMINHOS = [['vistoria', 'Vistoria'], ['video', 'Vídeo'], ['ligacao', 'Ligação'], ['curioso', 'Curioso']];
+const PQ_VIROU = [['agendados', 'Agendados'], ['orcamentos', 'Orçamentos'], ['vendidos', 'Vendidos'], ['semInteresse', 'Sem interesse'], ['naoAtendeu', 'Não atendeu'], ['emAberto', 'Em aberto']];
+
+function pqCartaoAnuncios(d, socioDaConta) {
+  const e = escapeHtml;
+  const linhas = d.porAnuncio || [];
+  // Com a Meta fora, nem sócio vê as colunas de dinheiro (sairiam "R$ 0,00" falsos).
+  const socio = socioDaConta && d.meta_ok !== false;
+  let html = '<div class="card pq-card"><h2>Por anúncio</h2><p class="pq-sub">Leads e horários marcados por anúncio' + (socio ? ', com o gasto e o custo de cada horário' : '') + '.</p>';
+  if (d.meta_ok === false) html += '<p class="pq-aviso">Sem os nomes e os valores dos anúncios agora.</p>';
+  if (!linhas.length) return html + '<p class="pq-vazio">Nenhum anúncio com lead ou horário neste período.</p></div>';
+  // O melhor custo por agendamento só existe para sócio.
+  let melhor = -1;
+  if (socio) linhas.forEach((a, i) => { if (typeof a.custoPorAgendado === 'number' && a.custoPorAgendado > 0 && (melhor < 0 || a.custoPorAgendado < linhas[melhor].custoPorAgendado)) melhor = i; });
+  const cab = '<th>Anúncio</th><th class="n">Leads</th><th class="n">Agendaram</th><th class="n">Nota média</th><th class="n">Quentes</th>' + (socio ? '<th class="n">Gasto</th><th class="n">Custo por agendamento</th>' : '');
+  const corpo = linhas.map((a, i) => {
+    const sit = a.situacao ? (PQ_SITUACAO[String(a.situacao).toUpperCase()] || a.situacao) : '';
+    let din = '';
+    if (socio) {
+      const gasto = typeof a.gasto === 'number' ? e(pqReais(a.gasto)) : 'Sem dado';
+      const custo = typeof a.custoPorAgendado === 'number' ? e(pqReais(a.custoPorAgendado)) : (typeof a.gasto === 'number' ? 'Sem agendamento' : 'Sem dado');
+      din = '<td class="n">' + gasto + '</td><td class="n">' + custo + '</td>';
+    }
+    return '<tr' + (i === melhor ? ' class="pq-melhor"' : '') + '><th scope="row"><span class="pq-an-nome">' + e(a.nome || a.id || '') + '</span>'
+      + (sit || i === melhor ? '<small>' + e(sit) + (i === melhor ? (sit ? ' · ' : '') + 'Menor custo por agendamento' : '') + '</small>' : '') + '</th>'
+      + '<td class="n">' + e(pqN(a.leads)) + '</td><td class="n">' + e(pqN(a.agendados)) + '</td><td class="n">' + (a.notaMedia == null ? 'Sem nota' : e(String(a.notaMedia))) + '</td><td class="n">' + e(pqN(a.quentes)) + '</td>' + din + '</tr>';
+  }).join('');
+  return html + '<div class="pq-tabela-wrap"><table class="pq-tab pq-anuncios"><thead><tr>' + cab + '</tr></thead><tbody>' + corpo + '</tbody></table></div></div>';
+}
+
+// ── Gráficos ──
+function pqGraficos() {
+  const corpo = document.getElementById('pq-corpo');
+  if (!corpo || !pqDados) return;
+  const larg = corpo.clientWidth;
+  if (!(larg > 0)) return;   // tela escondida: o ResizeObserver refaz quando abrir
+  pqLargura = larg;
+  const d = pqDados, f = d.funil || {}, l = d.leads || {}, r = d.resultado || {};
+  corpo.querySelectorAll('.pq-graf').forEach(host => {
+    const g = host.dataset.g;
+    if (g === 'visitas') pqLinhas(host, d.porDia || [], [{ chave: 'visitas', nome: 'Visitas', cor: PQ_COR.visitas }], 'Visitas por dia');
+    else if (g === 'dias') pqLinhas(host, d.porDia || [], [{ chave: 'terminaram', nome: 'Terminaram o quiz', cor: PQ_COR.terminaram }, { chave: 'agendados', nome: 'Agendaram', cor: PQ_COR.agendaram }], 'Terminaram e agendaram por dia');
+    else if (g === 'funil') pqFunil(host, pqPassos(f));
+    else if (g === 'qualidade') pqEmpilhada(host, [{ nome: 'Quentes', v: pqNum(l.quentes), cor: PQ_COR.quente }, { nome: 'Mornos', v: pqNum(l.mornos), cor: PQ_COR.morno }, { nome: 'Curiosos', v: pqNum(l.curiosos), cor: PQ_COR.curioso }]);
+    else if (g === 'caminhos') {
+      const tot = pqNum(l.total);
+      pqBarras(host, PQ_CAMINHOS.map(([k, rot]) => { const v = pqNum((l.porCaminho || {})[k]); return { rotulo: rot, direita: pqN(v) + (tot ? ' · ' + pqPct(v, tot) + '%' : ''), segs: [{ v, cor: PQ_COR.barra }], tip: { titulo: rot, linhas: [{ cor: PQ_COR.barra, valor: pqN(v), nome: 'leads' + (tot ? ' (' + pqPct(v, tot) + '% do total)' : '') }] } }; }));
+    } else if (g === 'virou') {
+      const ag = pqNum(r.agendados);
+      pqBarras(host, PQ_VIROU.map(([k, rot], i) => { const v = pqNum(r[k]); const cor = i < 3 ? PQ_COR.barra : PQ_COR.neutro; return { rotulo: rot, direita: pqN(v) + (k !== 'agendados' && ag ? ' · ' + pqPct(v, ag) + '%' : ''), segs: [{ v, cor }], tip: { titulo: rot, linhas: [{ cor, valor: pqN(v), nome: k === 'agendados' ? 'horários marcados' : 'dos agendados (' + pqPct(v, ag) + '%)' }] } }; }));
+    }
+  });
+}
+
+// Escala com números redondos e inteiros, começando em zero.
+function pqEscala(max) {
+  const m = Math.max(1, Math.ceil(max));
+  const base = Math.pow(10, Math.floor(Math.log10(m / 4)));
+  let passo = base;
+  for (const k of [1, 2, 5, 10]) { passo = k * base; if (m / passo <= 4) break; }
+  passo = Math.max(1, passo);
+  const topo = Math.ceil(m / passo) * passo;
+  const ticks = [];
+  for (let v = 0; v <= topo + 1e-9; v += passo) ticks.push(v);
+  return { topo, ticks };
+}
+function pqTip(host) {
+  let tip = host.querySelector('.pq-tip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'pq-tip'; tip.hidden = true; host.appendChild(tip); }
+  return tip;
+}
+// textContent em tudo: nome de anúncio e de pergunta vêm da API.
+function pqTipPreencher(tip, titulo, linhas) {
+  tip.textContent = '';
+  const t = document.createElement('div'); t.className = 't'; t.textContent = titulo; tip.appendChild(t);
+  linhas.forEach(x => {
+    const row = document.createElement('div'); row.className = 'l';
+    if (x.cor) { const i = document.createElement('i'); i.style.borderColor = x.cor; row.appendChild(i); }
+    const b = document.createElement('b'); b.textContent = x.valor; row.appendChild(b);
+    const s = document.createElement('span'); s.textContent = x.nome; row.appendChild(s);
+    tip.appendChild(row);
+  });
+}
+
+// Gráfico de linhas: mira vertical que gruda no dia mais próximo, caixa com todas as séries.
+function pqLinhas(host, dias, series, titulo) {
+  const W = Math.max(260, Math.floor(host.clientWidth));
+  const H = W < 480 ? 220 : 250;
+  const m = { l: 36, r: 14, t: 18, b: 30 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, n = dias.length;
+  const max = Math.max(1, ...series.map(s => Math.max(0, ...dias.map(x => pqNum(x[s.chave])))));
+  const esc = pqEscala(max);
+  const X = i => (n === 1 ? m.l + iw / 2 : m.l + iw * i / (n - 1));
+  const Y = v => m.t + ih * (1 - v / esc.topo);
+  const aria = titulo + ': ' + series.map(s => s.nome + ' ' + dias.reduce((a, x) => a + pqNum(x[s.chave]), 0) + ' no período').join(', ') + '. Os números por dia estão na tabela abaixo do gráfico.';
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" tabindex="0" aria-label="' + escapeHtml(aria) + '">';
+  esc.ticks.forEach(v => {
+    const y = pqR1(Y(v));
+    svg += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y + '" y2="' + y + '" stroke="' + (v === 0 ? PQ_EIXO : PQ_GRADE) + '" stroke-width="1"/>'
+      + '<text x="' + (m.l - 8) + '" y="' + y + '" dy=".35em" text-anchor="end" font-size="11" fill="' + PQ_TXT2 + '">' + pqN(v) + '</text>';
+  });
+  const nRot = Math.min(n, Math.max(2, Math.floor(iw / 58)));
+  // Rótulos de X em passo fixo (dia sim, dia não...), e o último só entra se couber sem encostar.
+  const passoX = Math.max(1, Math.ceil((n - 1) / Math.max(1, nRot - 1)));
+  const idx = [];
+  for (let i = 0; i <= n - 1; i += passoX) idx.push(i);
+  if (idx[idx.length - 1] !== n - 1) { if (n > 1 && X(n - 1) - X(idx[idx.length - 1]) >= 50) idx.push(n - 1); }
+  idx.forEach(i => { svg += '<text x="' + pqR1(i === n - 1 && n > 1 ? Math.min(X(i), W - 4) : X(i)) + '" y="' + (H - 9) + '" text-anchor="' + (i === n - 1 && n > 1 ? 'end' : 'middle') + '" font-size="11" fill="' + PQ_TXT2 + '">' + pqDiaMes(dias[i].dia) + '</text>'; });
+  series.forEach(s => {
+    const pts = dias.map((x, i) => pqR1(X(i)) + ',' + pqR1(Y(pqNum(x[s.chave]))));
+    if (n > 1) {
+      if (series.length === 1) svg += '<polygon points="' + pqR1(X(0)) + ',' + pqR1(Y(0)) + ' ' + pts.join(' ') + ' ' + pqR1(X(n - 1)) + ',' + pqR1(Y(0)) + '" fill="' + s.cor + '" fill-opacity=".1"/>';
+      svg += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + s.cor + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    }
+    dias.forEach((x, i) => { if (n <= 8 || i === n - 1) svg += '<circle cx="' + pqR1(X(i)) + '" cy="' + pqR1(Y(pqNum(x[s.chave]))) + '" r="4" fill="' + s.cor + '" stroke="' + PQ_SUP + '" stroke-width="2"/>'; });
+  });
+  // Rótulo direto só no ponto final de cada série; se dois colidirem, o de baixo fica para a caixa de valores.
+  let yAnt = -99;
+  series.map(s => ({ s, y: Y(pqNum(dias[n - 1][s.chave])), v: pqNum(dias[n - 1][s.chave]) })).sort((a, b) => a.y - b.y).forEach(o => {
+    if (Math.abs(o.y - yAnt) < 15) return;
+    yAnt = o.y;
+    svg += '<text x="' + pqR1(Math.min(X(n - 1) + 2, W - m.r)) + '" y="' + pqR1(Math.max(o.y - 11, 11)) + '" text-anchor="end" font-size="12" font-weight="700" fill="' + PQ_TXT + '">' + pqN(o.v) + '</text>';
+  });
+  svg += '<g class="pq-mira" visibility="hidden"><line y1="' + m.t + '" y2="' + (m.t + ih) + '" stroke="' + PQ_EIXO + '" stroke-width="1"/>'
+    + series.map(() => '<circle r="5" stroke="' + PQ_SUP + '" stroke-width="2"/>').join('') + '</g>'
+    + '<rect class="pq-sobre" x="' + (m.l - 12) + '" y="' + m.t + '" width="' + (iw + 24) + '" height="' + ih + '" fill="transparent"/></svg>';
+  host.innerHTML = svg;
+  const el = host.querySelector('svg'), mira = el.querySelector('.pq-mira'), tip = pqTip(host);
+  const linha = mira.querySelector('line'), bolas = mira.querySelectorAll('circle');
+  let atual = -1;
+  const ir = i => {
+    atual = Math.max(0, Math.min(n - 1, i));
+    const x = pqR1(X(atual)), dia = dias[atual];
+    mira.setAttribute('visibility', 'visible');
+    linha.setAttribute('x1', x); linha.setAttribute('x2', x);
+    series.forEach((s, k) => { bolas[k].setAttribute('cx', x); bolas[k].setAttribute('cy', pqR1(Y(pqNum(dia[s.chave])))); bolas[k].setAttribute('fill', s.cor); });
+    pqTipPreencher(tip, pqDiaSemana(dia.dia) + ', ' + pqDiaMes(dia.dia), series.map(s => ({ cor: s.cor, valor: pqN(dia[s.chave]), nome: s.nome })));
+    tip.hidden = false;
+    const w = tip.offsetWidth;
+    tip.style.left = Math.max(0, Math.min(W - w, x + w + 16 > W ? x - w - 12 : x + 12)) + 'px';
+    tip.style.top = (m.t + 4) + 'px';
+  };
+  const sair = () => { mira.setAttribute('visibility', 'hidden'); tip.hidden = true; atual = -1; };
+  const daTela = ev => { const rc = el.getBoundingClientRect(); const px = (ev.clientX - rc.left) * (W / rc.width); return n === 1 ? 0 : Math.round((px - m.l) / iw * (n - 1)); };
+  const sobre = el.querySelector('.pq-sobre');
+  sobre.addEventListener('pointermove', ev => ir(daTela(ev)));
+  sobre.addEventListener('pointerdown', ev => ir(daTela(ev)));
+  sobre.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') sair(); });
+  el.addEventListener('focus', () => ir(atual < 0 ? n - 1 : atual));
+  el.addEventListener('blur', sair);
+  el.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowLeft') { ev.preventDefault(); ir((atual < 0 ? n : atual) - 1); }
+    else if (ev.key === 'ArrowRight') { ev.preventDefault(); ir(atual + 1); }
+    else if (ev.key === 'Escape') sair();
+  });
+}
+
+// Barra horizontal ancorada no zero: ponta de dados arredondada em 4 px, lado da base reto,
+// 2 px de respiro entre trechos.
+function pqCaminhoBarra(x, y, w, h, redonda) {
+  if (w <= 0) return '';
+  const r = redonda ? Math.min(4, w / 2, h / 2) : 0;
+  x = pqR1(x); y = pqR1(y); w = pqR1(w);
+  if (!r) return 'M' + x + ' ' + y + 'H' + pqR1(x + w) + 'V' + pqR1(y + h) + 'H' + x + 'Z';
+  return 'M' + x + ' ' + y + 'H' + pqR1(x + w - r) + 'a' + r + ' ' + r + ' 0 0 1 ' + r + ' ' + r + 'V' + pqR1(y + h - r) + 'a' + r + ' ' + r + ' 0 0 1 -' + r + ' ' + r + 'H' + x + 'Z';
+}
+// linhas: [{ rotulo, direita, segs: [{ v, cor }], tip: { titulo, linhas: [{ cor, valor, nome }] } }]
+function pqBarras(host, linhas, opcoes) {
+  const o = opcoes || {};
+  const W = Math.max(260, Math.floor(host.clientWidth));
+  const pitch = 40, topo = 4, eixo = 24, iw = W - 10;
+  const H = topo + linhas.length * pitch + eixo;
+  const max = Math.max(1, ...linhas.map(l => l.segs.reduce((a, s) => a + s.v, 0)));
+  const esc = pqEscala(max);
+  const aria = (o.titulo || 'Gráfico de barras') + ': ' + linhas.map(l => l.rotulo + ' ' + l.direita).join('; ') + '.';
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escapeHtml(aria) + '">';
+  esc.ticks.forEach((v, i) => {
+    const x = pqR1(iw * v / esc.topo);
+    svg += '<line x1="' + x + '" x2="' + x + '" y1="' + topo + '" y2="' + (H - eixo) + '" stroke="' + (v === 0 ? PQ_EIXO : PQ_GRADE) + '" stroke-width="1"/>'
+      + '<text x="' + x + '" y="' + (H - 7) + '" text-anchor="' + (i === 0 ? 'start' : (i === esc.ticks.length - 1 ? 'end' : 'middle')) + '" font-size="11" fill="' + PQ_TXT2 + '">' + pqN(v) + '</text>';
+  });
+  svg += '<rect class="pq-realce" x="0" width="' + W + '" height="' + pitch + '" rx="6" fill="rgba(255,255,255,.06)" visibility="hidden"/>';
+  linhas.forEach((l, i) => {
+    const y0 = topo + i * pitch;
+    svg += '<text x="0" y="' + (y0 + 13) + '" font-size="12.5" font-weight="600" fill="' + PQ_TXT + '">' + escapeHtml(l.rotulo) + '</text>'
+      + '<text x="' + W + '" y="' + (y0 + 13) + '" text-anchor="end" font-size="12" fill="' + PQ_TXT2 + '">' + escapeHtml(l.direita) + '</text>';
+    const vivos = l.segs.map((s, k) => ({ s, k })).filter(z => z.s.v > 0);
+    let cx = 0;
+    l.segs.forEach((s, k) => {
+      const w = s.v > 0 ? Math.max(2, iw * s.v / esc.topo) : 0;
+      const ultimo = vivos.length && vivos[vivos.length - 1].k === k;
+      const gap = k > 0 && cx > 0 ? 2 : 0;
+      if (w > 0) svg += '<path d="' + pqCaminhoBarra(cx + gap, y0 + 19, w - gap, 14, ultimo) + '" fill="' + s.cor + '"/>';
+      cx += w;
+    });
+    svg += '<rect class="pq-alvo" data-i="' + i + '" x="0" y="' + y0 + '" width="' + W + '" height="' + pitch + '" fill="transparent" tabindex="0" role="img" aria-label="' + escapeHtml(l.rotulo + ': ' + l.direita) + '"/>';
+  });
+  svg += '</svg>';
+  host.innerHTML = svg;
+  const el = host.querySelector('svg'), realce = el.querySelector('.pq-realce'), tip = pqTip(host);
+  const mostrar = i => {
+    const l = linhas[i]; if (!l) return;
+    const y0 = topo + i * pitch;
+    realce.setAttribute('y', y0); realce.setAttribute('visibility', 'visible');
+    pqTipPreencher(tip, l.tip.titulo, l.tip.linhas);
+    tip.hidden = false;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(0, Math.min(W - w, 8)) + 'px';
+    tip.style.top = (y0 - h - 2 < 0 ? y0 + pitch - 4 : y0 - h - 2) + 'px';
+  };
+  const sair = () => { realce.setAttribute('visibility', 'hidden'); tip.hidden = true; };
+  el.querySelectorAll('.pq-alvo').forEach(a => {
+    a.addEventListener('pointermove', () => mostrar(+a.dataset.i));
+    a.addEventListener('pointerdown', () => mostrar(+a.dataset.i));
+    a.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') sair(); });
+    a.addEventListener('focus', () => mostrar(+a.dataset.i));
+    a.addEventListener('blur', sair);
+  });
+}
+
+function pqFunil(host, passos) {
+  const pior = pqMaiorPerda(passos);
+  pqBarras(host, passos.map(p => {
+    const seguiram = Math.max(0, p.chegaram - p.pararam);
+    const ehPior = pior && p.id === pior.id;
+    const corParou = ehPior ? PQ_COR.maior : PQ_COR.parou;
+    return {
+      rotulo: p.curta + (ehPior ? ' · maior perda' : ''),
+      direita: pqN(p.chegaram) + (p.pararam > 0 ? ' · ' + pqPct(p.pararam, p.chegaram) + '% pararam' : ''),
+      segs: [{ v: seguiram, cor: PQ_COR.seguiram }, { v: p.pararam, cor: corParou }],
+      tip: { titulo: p.pergunta, linhas: [
+        { valor: pqN(p.chegaram), nome: 'chegaram nesta pergunta' },
+        { cor: PQ_COR.seguiram, valor: pqN(seguiram), nome: 'seguiram' },
+        { cor: corParou, valor: pqN(p.pararam), nome: 'pararam aqui (' + pqPct(p.pararam, p.chegaram) + '%)' },
+      ] },
+    };
+  }), { titulo: 'Funil por pergunta' });
+}
+
+// Barra única dividida (parte do todo). Número dentro do trecho só quando cabe.
+function pqLuz(hex) {
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function pqEmpilhada(host, segs) {
+  const W = Math.max(260, Math.floor(host.clientWidth));
+  const H = 44, h = 30, y = 6, iw = W - 2;
+  const total = segs.reduce((a, s) => a + s.v, 0);
+  if (!(total > 0)) { host.innerHTML = ''; return; }
+  const vivos = segs.filter(s => s.v > 0);
+  const aria = 'Leads por nota: ' + segs.map(s => s.nome + ' ' + s.v + ' (' + pqPct(s.v, total) + '%)').join(', ') + '.';
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + escapeHtml(aria) + '">';
+  let cx = 0;
+  vivos.forEach((s, k) => {
+    const w = Math.max(2, iw * s.v / total);
+    const gap = k > 0 ? 2 : 0;
+    svg += '<path d="' + pqCaminhoBarra(cx + gap, y, w - gap, h, k === vivos.length - 1) + '" fill="' + s.cor + '"/>';
+    const rotulo = String(s.v);
+    if (w - gap >= 14 + rotulo.length * 8) svg += '<text x="' + pqR1(cx + gap + (w - gap) / 2) + '" y="' + (y + h / 2) + '" dy=".35em" text-anchor="middle" font-size="13" font-weight="700" fill="' + (pqLuz(s.cor) > 0.25 ? '#0b0b0b' : '#ffffff') + '">' + pqN(s.v) + '</text>';
+    svg += '<rect class="pq-alvo" data-i="' + k + '" x="' + pqR1(cx) + '" y="0" width="' + pqR1(w) + '" height="' + H + '" fill="transparent" tabindex="0" role="img" aria-label="' + escapeHtml(s.nome + ': ' + s.v) + '"/>';
+    cx += w;
+  });
+  svg += '</svg>';
+  host.innerHTML = svg;
+  const tip = pqTip(host);
+  host.querySelectorAll('.pq-alvo').forEach(a => {
+    const mostrar = () => {
+      const s = vivos[+a.dataset.i];
+      pqTipPreencher(tip, s.nome, [{ cor: s.cor, valor: pqN(s.v), nome: 'leads (' + pqPct(s.v, total) + '%)' }]);
+      tip.hidden = false;
+      const w = tip.offsetWidth, bx = +a.getAttribute('x') + +a.getAttribute('width') / 2;
+      tip.style.left = Math.max(0, Math.min(W - w, bx - w / 2)) + 'px';
+      tip.style.top = (H + 2) + 'px';
+    };
+    a.addEventListener('pointermove', mostrar);
+    a.addEventListener('pointerdown', mostrar);
+    a.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') tip.hidden = true; });
+    a.addEventListener('focus', mostrar);
+    a.addEventListener('blur', () => { tip.hidden = true; });
+  });
 }
 
 // ============= TELA LEADS (Instagram/Meta) =============
@@ -28206,7 +29325,7 @@ function navCRM(opts) {
   const sec = document.getElementById('crmSection');
   if (sec) sec.style.display = '';
   document.documentElement.classList.add('crm-aberto');
-  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'redes-aberto');
+  document.documentElement.classList.remove('historico-aberto', 'tabelas-aberta', 'leads-aberto', 'fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto', 'redes-aberto');
   marcarNavAtivo('nav-crm');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -33464,10 +34583,10 @@ if ('serviceWorker' in navigator) {
   function navAutomacao(){
     document.getElementById('formSection').style.display='none';
     document.getElementById('historicoSection').style.display='none';
-    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+    ['tabelasSection','leadsSection','fechamentoSolarSection', 'quemLigarSection', 'obrasSolarSection', 'painelSolarSection','redesSection','crmSection','calcSection','eletroSection'].forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
     const sec=document.getElementById('automacaoSection'); if(sec) sec.style.display='';
     document.documentElement.classList.add('automacao-aberto');
-    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
+    document.documentElement.classList.remove('historico-aberto','tabelas-aberta','leads-aberto','fechamento-solar-aberto', 'quem-ligar-aberto', 'obras-solar-aberto', 'painel-solar-aberto','redes-aberto','crm-aberto','calc-aberto','eletro-aberto');
     marcarNavAtivo('nav-automacao');
     fecharSidebarMobile();
     window.scrollTo({top:0,behavior:'smooth'});
