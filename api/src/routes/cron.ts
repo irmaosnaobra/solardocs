@@ -24,6 +24,7 @@ import { entregarTriagensParadas } from '../services/io/recepcaoIo';
 import { pollRecepcaoIo } from '../services/io/recepcaoIoPoll';
 import { pollZapiMessagesIO, cleanupPerdidosAntigos, cleanupMessageDedup } from '../services/agents/sdr/sdrIoPolling';
 import { runAvisosTick } from '../services/io/avisosTickService';
+import { agendarEmLote, conferirLote, loteEncerrado, TIPOS_DO_LOTE } from '../services/io/agendaEmLote';
 import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
 import { runPlacarGiovanna } from '../services/io/placarGiovanna';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
@@ -1623,5 +1624,56 @@ router.get('/pesquisa-satisfacao', async (req: Request, res: Response) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENDA EM LOTE DO ELETROPOSTO (13/10/2026). Cria cards de reunião para
+// investidores frios SEM nenhuma mensagem (ver services/io/agendaEmLote.ts).
+//
+//   POST /cron/agenda-em-lote  { dry, tipo, itens }   até 60 itens por chamada
+//   GET  /cron/agenda-em-lote/conferir                só leitura
+//
+// `dry` é OBRIGATÓRIO e precisa ser booleano: sem ele a chamada não é adivinhada
+// como "de verdade". Com `dry: true` valida, checa duplicado e devolve o que
+// gravaria, sem escrever nada.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/agenda-em-lote', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  // Fecha sozinha depois de 14/10/2026 em Brasília (LOTE_ABERTO_ATE, no serviço):
+  // o segredo de cron deste repo consta como exposto. Antes de qualquer leitura,
+  // inclusive no `dry`. O GET de conferência abaixo continua.
+  if (loteEncerrado()) {
+    res.status(410).json({ ok: false, error: 'rota_encerrada' });
+    return;
+  }
+  const b = (req.body || {}) as Record<string, unknown>;
+  if (typeof b.dry !== 'boolean') {
+    res.status(400).json({ ok: false, error: 'dry é obrigatório e precisa ser true ou false' });
+    return;
+  }
+  if (typeof b.tipo !== 'string' || !(TIPOS_DO_LOTE as readonly string[]).includes(b.tipo)) {
+    res.status(400).json({ ok: false, error: `tipo precisa ser um de: ${TIPOS_DO_LOTE.join(', ')}` });
+    return;
+  }
+  if (!Array.isArray(b.itens)) {
+    res.status(400).json({ ok: false, error: 'itens precisa ser uma lista' });
+    return;
+  }
+  try {
+    const r = await agendarEmLote(b.itens as any[], { dry: b.dry, tipo: b.tipo });
+    res.status(r.ok ? 200 : 400).json(r);
+  } catch (err) {
+    logger.error('cron', 'agenda-em-lote falhou', err);
+    res.status(500).json({ ok: false, error: 'falha', message: String((err as Error)?.message ?? err) });
+  }
+});
+
+router.get('/agenda-em-lote/conferir', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json(await conferirLote());
+  } catch (err) {
+    logger.error('cron', 'agenda-em-lote/conferir falhou', err);
+    res.status(500).json({ ok: false, error: 'falha', message: String((err as Error)?.message ?? err) });
+  }
+});
 
 export default router;

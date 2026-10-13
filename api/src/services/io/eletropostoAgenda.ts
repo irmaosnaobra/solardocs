@@ -67,7 +67,7 @@ import { EQUIPE } from '../../routes/ioEletroposto';
  *  evita import cruzado entre dois modulos de agenda so por causa de uma const. */
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardSemAvisoAutomatico, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { EP_MUDO_PREFIX } from './eletropostoReagendaAuto';
 
@@ -1051,6 +1051,11 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     .from('agendamentos')
     .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, created_by, status, confirmacao_at, lembrete_1h_at, lembrete_5min_at, presenca_confirmada_at, lead_resposta_at, historico')
     .in('status', ['agendado', 'nao_atendeu'])
+    // A origem da agenda em lote nem entra na consulta (13/10/2026): são centenas
+    // de cards numa semana, e numa consulta crescente com limite eles tomariam o
+    // lugar de gente que de fato recebe lembrete. `is.null` fica de propósito: o
+    // `.neq` sozinho descartaria o card sem `created_by`.
+    .or(`created_by.is.null,created_by.neq.${ORIGEM_CADASTRO_EP}`)
     .gte('quando', piso)
     .lte('quando', teto)
     .order('quando', { ascending: true })
@@ -1074,6 +1079,14 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // lead esperando por uma reunião que ninguém vai fazer.
   const fichas = ((data ?? []) as Ficha[])
     .filter(f => ehOrigemEletroposto(f.created_by))
+    // ── A AGENDA EM LOTE NÃO RECEBE NADA, EM STATUS NENHUM (13/10/2026) ─────
+    // Investidor frio que nunca marcou reunião: o consultor é quem chama. Este
+    // filtro vem ANTES das duas réguas de vermelho de propósito: elas trocam o
+    // status do card sozinhas (para `nao_atendeu`), e isso levaria o card para o
+    // caminho do "não atendeu" sem o consultor ter apertado nada. Vale também para
+    // `nao_atendeu` (o toque de 5 min). Independe da marca `ep_mudo`, que só vale
+    // para um horário.
+    .filter(f => !ehCardSemAvisoAutomatico(f.created_by))
     .filter(f => !agendaFechadaNoIso(f.quando));
   if (!fichas.length) return zero('nenhuma_reuniao');
 

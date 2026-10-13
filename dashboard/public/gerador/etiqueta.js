@@ -31,6 +31,9 @@ const ETIQUETA_MAPA = {
   // Reunião marcada pela Helena, a agente de investidores (10/10/2026). Espelha
   // o MAPA de api/src/services/agenda/origemEtiqueta.ts.
   'agente_eletroposto': 'EP Helena',
+  // Agenda em lote dos investidores frios (13/10/2026). Espelha o MAPA de
+  // api/src/services/agenda/origemEtiqueta.ts. Cor: tom BASE da família EP (verde).
+  'cadastro_eletroposto': 'EP Cadastro',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

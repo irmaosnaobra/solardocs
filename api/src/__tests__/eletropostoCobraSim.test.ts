@@ -45,6 +45,7 @@ vi.mock('../utils/supabaseGerador', () => ({
         },
         not() { return q; },
         is() { return q; },
+        or() { return q; },
         gte() { return q; },
         lte() { return q; },
         like(_col: string, v: string) { q._like = v; return q; },
@@ -533,5 +534,24 @@ describe('a ficha que o robô moveu sem avisar ninguém', () => {
       { key: `${EP_MUDO_PREFIX}1`, value: {} },
     ];
     expect((await runEletropostoCobraSimTick()).liberados).toBe(1);
+  });
+});
+
+
+// AGENDA EM LOTE (13/10/2026): os cards nascem com `confirmacao_at` preenchido e
+// ninguém foi avisado. A régua não pode cobrar, dar ultimato nem liberar o horário.
+describe('a origem da agenda em lote não é cobrada nem liberada', () => {
+  it('confirmado há muito tempo e sem resposta: nada é enviado e nada é liberado', async () => {
+    fichas = [ficha({ id: 55, created_by: 'cadastro_eletroposto', confirmacao_at: minAtras(2000), quando: horasAFrente(48) })];
+    const r = await runEletropostoCobraSimTick();
+    expect(enviadas).toHaveLength(0);
+    expect(updates).toHaveLength(0);
+    expect(r.cobranca1 + r.cobranca2 + r.liberados + r.avisos).toBe(0);
+  });
+
+  it('a mesma ficha de lp_eletroposto continua sendo liberada como hoje', async () => {
+    fichas = [ficha({ id: 56, created_by: 'lp_eletroposto', confirmacao_at: minAtras(2000), quando: horasAFrente(48) })];
+    const r = await runEletropostoCobraSimTick();
+    expect(r.liberados + r.cobranca1 + r.cobranca2).toBeGreaterThan(0);
   });
 });

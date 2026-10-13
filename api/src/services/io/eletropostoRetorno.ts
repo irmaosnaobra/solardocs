@@ -48,6 +48,7 @@ import { logger } from '../../utils/logger';
 import { ofertarPorConta, bolhasRetorno1, bolhasRetorno2 } from './eletropostoRemarcar';
 import { EP_LIBERADO_PREFIX } from './eletropostoCobraSim';
 import { EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
+import { ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 
 /** Carimbo de rodada ENVIADA: `ep_retorno:<id>:r1` / `:r2`. Reivindicado ANTES
  *  do envio (insert numa primary key), pelo mesmo motivo que a régua do SIM:
@@ -88,6 +89,7 @@ interface FichaCancelada {
   quando: string | null;
   status: string | null;
   lead_resposta_at: string | null;
+  created_by?: string | null;
 }
 
 export type RodadaRetorno = 'r1' | 'r2' | null;
@@ -174,7 +176,7 @@ export async function runEletropostoRetornoTick(opts: { dry?: boolean } = {}): P
   //    quem já voltou.
   const { data: fichasBrutas, error: eFichas } = await supabaseGerador
     .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, status, lead_resposta_at')
+    .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, status, lead_resposta_at, created_by')
     .in('id', candidatos.map(c => c.id));
   if (eFichas) {
     logger.error('ep-retorno', 'ler fichas falhou', eFichas);
@@ -191,6 +193,10 @@ export async function runEletropostoRetornoTick(opts: { dry?: boolean } = {}): P
     const f = porId.get(l.id);
     if (!f) continue;
     if (f.status !== 'cancelado') { voltaram++; continue; }
+    // Agenda em lote (13/10/2026): nunca foi liberada pela régua do SIM, mas se um
+    // carimbo de liberação sobrar por qualquer caminho, o robô não chama de volta
+    // quem nunca marcou reunião.
+    if (ehCardSemAvisoAutomatico(f.created_by)) continue;
     // Escreveu depois de perder o horário: tem conversa em pé, e quem responde é
     // gente (o eletropostoRespostas já levou o recado pro Thiago e pro Diego).
     const falouDepois = (f.lead_resposta_at && f.lead_resposta_at > l.em)

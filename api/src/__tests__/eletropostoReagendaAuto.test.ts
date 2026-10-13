@@ -2146,3 +2146,123 @@ describe('a vez com o banco instável', () => {
     expect(r.remarcados).toBe(0);
   });
 });
+
+
+// AGENDA EM LOTE (13/10/2026): a origem `cadastro_eletroposto`. O MOVIMENTO do
+// não atendido continua (o consultor liga de novo), a FALA não existe, e o card
+// ainda `agendado` não é "esquecido".
+describe('a origem da agenda em lote anda calada', () => {
+  const lote = (over: Partial<any> = {}) => ficha({ created_by: 'cadastro_eletroposto', ...over });
+
+  it('o NÃO ATENDEU dela volta pra agenda no dia seguinte, mesmo consultor', async () => {
+    fichas = [lote()];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(fichas[0].status).toBe('agendado');
+    expect(fichas[0].quando).toBe(SEXTA_13H);
+    expect(fichas[0].vendedor_nome).toBe('Diego');
+  });
+
+  it('e NENHUMA mensagem sai pro lead', async () => {
+    fichas = [lote()];
+    await tick();
+    expect(enviadas).toHaveLength(0);
+    // nem o carimbo do teto da linha, que só existe quando algo foi enviado
+    expect(state.has('ep_agenda_sent:3:reagendado')).toBe(false);
+  });
+
+  it('grava a marca ep_mudo com o horário NOVO e não carimba confirmacao_at', async () => {
+    fichas = [lote()];
+    await tick();
+    expect(state.get('ep_mudo:3')?.value.quando).toBe(SEXTA_13H);
+    // nenhum UPDATE leva a coluna, nem com valor, nem com null
+    expect(updates.some(u => 'confirmacao_at' in u.patch)).toBe(false);
+  });
+
+  it('o UPDATE que move NÃO leva as chaves de carimbo, e o card continua com os três preenchidos', async () => {
+    fichas = [lote()];
+    await tick();
+    const move = updates.find(u => 'quando' in u.patch)!.patch;
+    for (const c of ['confirmacao_at', 'lembrete_1h_at', 'lembrete_5min_at', 'presenca_confirmada_at', 'lead_resposta_at']) {
+      expect(move).not.toHaveProperty(c);
+    }
+    expect(fichas[0].status).toBe('agendado');
+    expect(fichas[0].confirmacao_at).toBe('2026-08-18T12:00:00.000Z');
+    expect(fichas[0].lembrete_1h_at).toBe('x');
+    expect(fichas[0].lembrete_5min_at).toBe('x');
+  });
+
+  it('controle: lp_eletroposto em nao_atendeu segue zerando os três como hoje', async () => {
+    fichas = [ficha()];
+    await tick();
+    const move = updates.find(u => 'quando' in u.patch)!.patch;
+    expect(move.confirmacao_at).toBeNull();
+    expect(move.lembrete_1h_at).toBeNull();
+    expect(move.lembrete_5min_at).toBeNull();
+  });
+
+  it('a origem nova volta na faixa dos quinze (remarcacao), não na vitrine do lead novo', async () => {
+    fichas = [lote()];
+    await tick();
+    expect(pedidos[0].faixa).toBe('remarcacao');
+  });
+
+  it('controle: lp_eletroposto em nao_atendeu continua pedindo a faixa "novo"', async () => {
+    fichas = [ficha()];
+    await tick();
+    expect(pedidos[0].faixa).toBe('novo');
+  });
+
+  it('o histórico não diz que "os avisos recomeçaram" nem que ele faltou', async () => {
+    fichas = [lote()];
+    await tick();
+    const linha = String(fichas[0].historico || '');
+    expect(linha).toContain('Nada foi enviado ao cliente');
+    expect(linha).toContain('agenda em lote');
+    expect(linha).not.toContain('Os avisos recomeçaram');
+  });
+
+  it('não gasta a rampa de fala nem a vez de falar: o teto da linha nem é consultado', async () => {
+    fichas = [lote()];
+    await tick();
+    expect(pedidosTeto).toHaveLength(0);
+  });
+
+  it('o card ainda AGENDADO, 7 horas depois, NÃO é movido (não é "esquecido")', async () => {
+    fichas = [lote({ status: 'agendado', quando: horasAtras(7) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(fichas[0].quando).toBe(horasAtras(7));
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('depois do move, um UPDATE SEPARADO só com repassar_em nulo (o banco rearmou o repasse de 12h)', async () => {
+    fichas = [lote()];
+    await tick();
+    const repasse = updates.filter(u => 'repassar_em' in u.patch);
+    expect(repasse).toHaveLength(1);
+    expect(repasse[0]!.patch).toEqual({ repassar_em: null });
+    // separado do UPDATE do horário, e depois dele
+    const move = updates.findIndex(u => 'quando' in u.patch);
+    expect(move).toBeGreaterThanOrEqual(0);
+    expect('repassar_em' in updates[move]!.patch).toBe(false);
+    expect(updates.findIndex(u => 'repassar_em' in u.patch)).toBeGreaterThan(move);
+  });
+
+  it('lp_eletroposto NÃO ganha esse segundo UPDATE', async () => {
+    fichas = [ficha()];
+    await tick();
+    expect(updates.filter(u => 'repassar_em' in u.patch)).toHaveLength(0);
+  });
+
+  it('o MESMO card de lp_eletroposto continua falando', async () => {
+    fichas = [ficha()];
+    await tick();
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('e o esquecido de lp_eletroposto continua sendo movido', async () => {
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(7) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+});

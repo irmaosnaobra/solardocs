@@ -40,7 +40,7 @@ import {
   POS_VENDA_PREFIX, MODELOS_POS_VENDA, chavePosVenda, catalogoPosVenda, montarPosVenda, PosVenda,
 } from '../services/agenda/posVendaEletroposto';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
-import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
+import { gravarMarcaMuda } from '../services/io/epMudo';
 // O bloqueio mora no MESMO lugar do opt-out (`whatsapp_suppression`), e nao numa
 // lista nova: tres listas de 'nao fale com essa pessoa' foi exatamente o defeito
 // que o silenciar.ts foi escrito pra acabar, em 31/08/2026.
@@ -224,17 +224,8 @@ router.post('/mudo', async (req: Request, res: Response) => {
     return;
   }
 
-  const agoraIso = new Date().toISOString();
   try {
-    const { error } = await supabase.from('system_state').upsert(
-      {
-        key: `${EP_MUDO_PREFIX}${id}`,
-        value: { quando: quando.toISOString(), em: agoraIso, por: String(b.por || '').trim().slice(0, 60) },
-        updated_at: agoraIso,
-      },
-      { onConflict: 'key' },
-    );
-    if (error) throw error;
+    await gravarMarcaMuda(id, quando.toISOString(), b.por);
     res.json({ ok: true, id, quando: quando.toISOString() });
   } catch (err: any) {
     logger.error('gerador', 'marcar ficha muda falhou', err);

@@ -152,6 +152,36 @@ describe('quando o dono muda', () => {
     expect(enviadas[0].texto).not.toContain('O LEAD AINDA NÃO SABE');
   });
 
+  // AGENDA EM LOTE (13/10/2026): a frase "a confirmação sai pela linha" seria falsa.
+  it('origem do lote: troca só a frase do lead, e o resto do aviso fica igual', async () => {
+    jaVisto('Thiago');
+    fichas = [ficha({ created_by: 'cadastro_eletroposto', confirmacao_at: '2026-08-20T12:00:00.000Z' })];
+    await tick();
+    const t = enviadas[0].texto;
+    expect(t).toContain('Sem mensagem automática ao lead: quem chama é você, no horário.');
+    expect(t).not.toContain('O LEAD AINDA NÃO SABE');
+    expect(t).not.toContain('a confirmação sai pela linha');
+    expect(t).toContain('SEM AÇÃO EM 12H');
+    expect(t).toContain('A reunião foi remarcada pra');
+    expect(t).toContain('NOVA REUNIÃO');
+  });
+
+  it('origem do lote sem confirmacao_at também NÃO promete confirmação pela linha', async () => {
+    jaVisto('Thiago');
+    fichas = [ficha({ created_by: 'cadastro_eletroposto', confirmacao_at: null })];
+    await tick();
+    expect(enviadas[0].texto).toContain('Sem mensagem automática ao lead');
+    expect(enviadas[0].texto).not.toContain('a confirmação sai pela linha');
+  });
+
+  it('lp_eletroposto continua com a frase de sempre', async () => {
+    jaVisto('Thiago');
+    fichas = [ficha({ created_by: 'lp_eletroposto', confirmacao_at: null })];
+    await tick();
+    expect(enviadas[0].texto).toContain('a confirmação sai pela linha nas próximas horas');
+    expect(enviadas[0].texto).not.toContain('Sem mensagem automática ao lead');
+  });
+
   it('cadastro do CRM manda no telefone; a lista fixa é só a rede', async () => {
     jaVisto('Thiago');
     consultores = [{ nome: 'Diego', whatsapp: '5534900000000' }];

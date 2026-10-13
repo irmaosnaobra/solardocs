@@ -65,7 +65,7 @@ import {
 import { EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
 import { criarFichaCurioso, type FichaDaAgenda } from './eletropostoCobraSim';
 import { ehQuente, maxVoltas } from './eletropostoReagendaAuto';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardSemAvisoAutomatico, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
 
 /** Carimbo de follow-up enviado: `ep_fup_naoatendido:<id>`. Um por ficha, pra
  *  sempre: quem não escolheu horário depois disso quer falar com gente. */
@@ -162,6 +162,10 @@ export async function runEletropostoNaoAtendidoFupTick(
       + 'historico, lembrete_1h_at, cidade, observacao, ponto_relacao, capital_faixa, tem_ponto, perfil_slug, '
       + 'decisor_tipo, rota_tipo, temperatura, utm_source, utm_medium, utm_campaign, utm_content, utm_term')
     .eq('status', 'nao_atendeu')
+    // A agenda em lote nem entra na consulta (13/10/2026): o filtro em código roda
+    // DEPOIS do `limit(200)`, e os cards do lote tomariam o lugar de gente que o
+    // robô precisa chamar. `is.null` fica: o `.neq` sozinho descartaria `created_by` nulo.
+    .or(`created_by.is.null,created_by.neq.${ORIGEM_CADASTRO_EP}`)
     .gte('quando', new Date(agora - JANELA_DIAS * 24 * 3600_000).toISOString())
     .lte('quando', new Date(agora).toISOString())
     .order('quando', { ascending: false })
@@ -173,6 +177,10 @@ export async function runEletropostoNaoAtendidoFupTick(
 
   const fichas = ((data ?? []) as unknown as Ficha[])
     .filter(f => ehOrigemEletroposto(f.created_by))
+    // Agenda em lote (13/10/2026): quem nunca marcou reunião não é "chamado de
+    // volta" por robô. O consultor liga; o horário novo vem do reagenda automático,
+    // que move calado.
+    .filter(f => !ehCardSemAvisoAutomatico(f.created_by))
     .filter(f => !!f.cliente_telefone && !!f.vendedor_nome && !!f.quando);
   if (!fichas.length) return zero('ninguem_nao_atendido');
 

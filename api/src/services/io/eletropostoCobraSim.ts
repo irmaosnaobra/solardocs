@@ -71,7 +71,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardSemAvisoAutomatico, ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { EP_RESPOSTA_PREFIX, quandoPorExtenso } from './eletropostoAgenda';
 import { EP_MUDO_PREFIX } from './eletropostoReagendaAuto';
@@ -510,6 +510,11 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     .not('confirmacao_at', 'is', null)
     .is('presenca_confirmada_at', null)
     .is('lead_resposta_at', null)
+    // A agenda em lote nem entra na consulta (13/10/2026): os cards dela nascem com
+    // `confirmacao_at` preenchido e encheriam o `limit(300)` na frente de gente que
+    // a régua precisa mesmo cobrar. `is.null` fica: o `.neq` sozinho descartaria o
+    // card sem `created_by`.
+    .or(`created_by.is.null,created_by.neq.${ORIGEM_CADASTRO_EP}`)
     .gte('quando', new Date(agora).toISOString())
     .lte('quando', new Date(agora + 30 * 24 * 3600_000).toISOString())
     .order('quando', { ascending: true })
@@ -521,6 +526,9 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
 
   const fichasBrutas = ((data ?? []) as unknown as FichaDaAgenda[])
     .filter(f => ehOrigemEletroposto(f.created_by))
+    // Agenda em lote: ninguém foi avisado, então ninguém é cobrado nem liberado
+    // (13/10/2026). Independe da marca `ep_mudo`, que só vale para um horário.
+    .filter(f => !ehCardSemAvisoAutomatico(f.created_by))
     // Dia em que a empresa não atende: ninguém é cobrado por não confirmar uma
     // reunião que nós é que não vamos fazer.
     .filter(f => !agendaFechadaNoIso(f.quando))

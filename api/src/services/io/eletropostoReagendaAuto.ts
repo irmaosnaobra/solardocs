@@ -116,7 +116,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman, linhaEmCooldown } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha, rampaReconexaoVigente } from '../agents/whatsapp/lineThrottle';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 import {
   quandoPorExtenso, telefoneBonito, carregarConsultores,
   EP_AGENDA_PREFIX, EP_NAO_ATENDEU_PREFIX,
@@ -767,7 +767,7 @@ export function bolhasReagendado(
  *  isso, "vermelho parado" e "vermelho sendo trabalhado" são a mesma tela. */
 export function linhaDoHistorico(
   deIso: string, paraIso: string, tentativa: number, esquecido = false, negociacao = false,
-  degrau = 1,
+  degrau = 1, semAviso = false,
 ): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -792,6 +792,13 @@ export function linhaDoHistorico(
       + `Se a etiqueta não mudar, a próxima volta é em ${horasDoDegrau(degrau + 1)}h; `
       + `mudar de etiqueta recomeça em ${horasDoDegrau(1)}h. `
       + 'Ele sai desta roda fechando, marcando Sem interesse ou pondo em Apalavrado.';
+  }
+  if (semAviso) {
+    // Agenda em lote (13/10/2026): o consultor apertou NÃO ATENDEU e o card voltou
+    // para a grade, calado. Nenhum aviso recomeça, porque nenhum aviso saiu.
+    return `[${carimbo} · Sistema] 🔁 Reagendamento automático (${tentativa}ª vez): `
+      + `marcado como não atendido em ${de} e voltou pra *${para}*, com o mesmo consultor. `
+      + 'Nada foi enviado ao cliente: este card é da agenda em lote, quem chama é o consultor.';
   }
   if (esquecido) {
     // Sem "x/2": este caminho não tem teto, e escrever um denominador que não
@@ -819,7 +826,7 @@ export function linhaDoHistorico(
  */
 export async function candidatosDoOutroDia(
   dono: string, quandoIso: string, agora = Date.now(), negociacao = false, antecedenciaMin = 0,
-  alvoMs?: number,
+  alvoMs?: number, semAviso = false,
 ): Promise<string[] | null> {
   // Nunca no passado: reunião perdida ontem e detectada hoje de manhã tem que
   // cair de hoje pra frente, não "no dia seguinte ao de ontem".
@@ -855,7 +862,10 @@ export async function candidatosDoOutroDia(
   // o horário redondo que a vitrine vende pra lead novo. São 60 cards — no
   // redondo, isso fecharia a agenda de venda em dois dias.
   const vagas = await proximasVagas(dono, VAGAS_CONSULTADAS,
-    { agora: inicio, ignorarIso: quandoIso, faixa: negociacao ? 'remarcacao' : 'novo' });
+    // Agenda em lote (13/10/2026): o não atendido dela volta nos quinze, como a
+    // negociação. Na faixa `novo` (:00/:30) 231 cards frios tomariam por dias a
+    // vitrine que a landing vende para lead novo.
+    { agora: inicio, ignorarIso: quandoIso, faixa: negociacao || semAviso ? 'remarcacao' : 'novo' });
   if (vagas === null) return null;              // leitura falhou: não inventa horário
   if (!vagas.length) return [];
 
@@ -907,10 +917,14 @@ async function gravarNovoHorario(
   //
   // Agora o card volta exatamente como estava: confirmado continua confirmado,
   // com a mesma cor. Muda só o horário e a linha do histórico.
-  const mudoAqui = negociacao || f.status === 'agendado';
+  // A agenda em lote (13/10/2026) também: o card dela volta calado, e zerar os
+  // carimbos o tiraria da consulta do `eletropostoRespostas`, que é por onde o
+  // consultor fica sabendo que o lead escreveu.
+  const mudoAqui = negociacao || f.status === 'agendado' || ehCardSemAvisoAutomatico(f.created_by);
   for (const novo of candidatos.slice(0, CANDIDATOS_MAX)) {
     const linha = linhaDoHistorico(
-      String(f.quando), novo, tentativa, f.status === 'agendado', negociacao, degrau);
+      String(f.quando), novo, tentativa, f.status === 'agendado', negociacao, degrau,
+      ehCardSemAvisoAutomatico(f.created_by));
     const { data, error } = await supabaseGerador.from('agendamentos')
       .update({
         quando: novo,
@@ -970,6 +984,19 @@ async function gravarNovoHorario(
     if (!data?.length) {
       logger.info('ep-reagenda', 'a ficha mudou de status ou de horário entre a leitura e a gravação', { id: f.id });
       return null;
+    }
+    // ── AGENDA EM LOTE: O MOVE NÃO PODE REARMAR O REPASSE DE 12H (13/10/2026) ──
+    // O `quando` novo faz o trigger do banco rearmar `repassar_em`, e dali a 12h o
+    // `processar_repasses` trocaria Thiago e Diego neste card, de novo e de novo.
+    // O card desta origem nasce com `repassar_em` nulo de propósito; aqui ele volta
+    // a ficar. UPDATE SEPARADO, só com essa coluna: no mesmo UPDATE do `quando` não
+    // gruda (medido). Falha loga e segue: o move já aconteceu e não se desfaz.
+    if (ehCardSemAvisoAutomatico(f.created_by)) {
+      const { error: eRep } = await supabaseGerador.from('agendamentos')
+        .update({ repassar_em: null }).eq('id', f.id);
+      if (eRep) {
+        logger.error('ep-reagenda', 'zerar repassar_em depois do move da agenda em lote falhou', { id: f.id, erro: String(eRep) });
+      }
     }
     return novo;
   }
@@ -1131,6 +1158,11 @@ export async function runEletropostoReagendaAutoTick(
   const bloqueado = await carregarBloqueados();
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
+    // AGENDA EM LOTE (13/10/2026): o card `agendado` desta origem NÃO é o
+    // "esquecido". Ninguém marcou reunião nenhuma: ele fica onde está até o
+    // consultor chamar e apertar um status. O `nao_atendeu` dela, esse sim, anda
+    // (para o consultor ligar de novo), só que calado (ver `relogioDe` e `mudo`).
+    && !(f.status === 'agendado' && ehCardSemAvisoAutomatico(f.created_by))
     // O `agendado` só entra depois das 6 horas. A consulta acima usa o corte
     // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
     // certo é esta linha.
@@ -1386,8 +1418,11 @@ export async function runEletropostoReagendaAutoTick(
   //
   // Agora quem não pode andar SAI DA FILA e quem pode anda. Seco atravessa as
   // duas travas, igual à janela de horário: conferir é pergunta, não envio.
+  // Agenda em lote (13/10/2026): o não atendido dela anda no relógio MUDO. Anda
+  // calado, e por isso não gasta a rampa de fala, a vez de falar, o espaçamento
+  // nem o teto da linha: nada vai sair para ninguém.
   const relogioDe = (f: FichaVermelha): 'fala' | 'mudo' =>
-    relogioDoCiclo(String(f.status)) === 'fala' ? 'fala' : 'mudo';
+    relogioDoCiclo(String(f.status)) === 'fala' && !ehCardSemAvisoAutomatico(f.created_by) ? 'fala' : 'mudo';
   let aptos = opts.dry ? naVez : naVez.filter(f => vagaDe[relogioDe(f)] > 0);
   let linhaEstourou = false;
 
@@ -1564,7 +1599,7 @@ export async function runEletropostoReagendaAutoTick(
       // degrau. É a única coisa que o degrau decide desde 09/10/2026.
       const alvo = ehNegociacao ? alvoDoDegrau(String(f.quando), horasDoDegrau(degrau)) : undefined;
       const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao,
-        relogio === 'fala' ? falaAntecedenciaMin() : 0, alvo);
+        relogio === 'fala' ? falaAntecedenciaMin() : 0, alvo, ehCardSemAvisoAutomatico(f.created_by));
       if (lista === null) continue;             // leitura da agenda falhou
       if (!lista.length) {
         logger.info('ep-reagenda', 'agenda do consultor sem vaga — tenta no próximo tick', { id: f.id, quem });
@@ -1631,7 +1666,10 @@ export async function runEletropostoReagendaAutoTick(
       // marca que impede a régua do SIM de liberar o horário. Negociação não
       // carimba nada, porque o status dela já a esconde de todo mundo.
       const esquecido = f.status === 'agendado';
-      const mudo = esquecido || ehNegociacaoStatus(String(f.status));
+      // O não atendido da agenda em lote também é mudo: move e grava `ep_mudo` com
+      // o horário novo, mas não manda `bolhasReagendado` (13/10/2026).
+      const semAviso = ehCardSemAvisoAutomatico(f.created_by);
+      const mudo = esquecido || ehNegociacaoStatus(String(f.status)) || semAviso;
       if (!mudo) {
         const bruto = String(f.cliente_nome || '').trim().split(/\s+/)[0] || '';
         const primeiro = bruto.length >= 2 && bruto.length <= 20 && bruto.toLowerCase() !== 'lead' ? bruto : '';

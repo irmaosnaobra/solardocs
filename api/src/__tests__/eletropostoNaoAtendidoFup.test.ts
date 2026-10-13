@@ -16,6 +16,7 @@ vi.mock('../utils/supabaseGerador', () => ({
       const q: any = {
         select() { return q; },
         eq() { return q; },
+        or() { return q; },
         gte() { return q; },
         lte() { return q; },
         order() { return q; },
@@ -250,5 +251,23 @@ describe('follow-up do não atendido', () => {
     estado = [{ key: 'ep_reagenda_auto:1', value: { n: 3 } }];
     const r = await runEletropostoNaoAtendidoFupTick();
     expect(r.ofertas).toBe(1);
+  });
+});
+
+
+// AGENDA EM LOTE (13/10/2026): quem nunca marcou reunião não é "chamado de volta".
+describe('a origem da agenda em lote não é chamada de volta', () => {
+  it('NÃO AGENDADO desta origem: nenhuma oferta, nenhuma queda na lista', async () => {
+    fichas = [ficha({ created_by: 'cadastro_eletroposto' })];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(r.viraram_lista).toBe(0);
+    expect(ofertados).toHaveLength(0);
+    expect(fichasCriadas).toHaveLength(0);
+  });
+
+  it('o mesmo card de lp_eletroposto continua sendo chamado', async () => {
+    fichas = [ficha({ created_by: 'lp_eletroposto' })];
+    expect((await runEletropostoNaoAtendidoFupTick()).ofertas).toBe(1);
   });
 });

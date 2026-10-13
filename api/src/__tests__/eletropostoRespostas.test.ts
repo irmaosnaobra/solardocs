@@ -53,7 +53,7 @@ vi.mock('../utils/supabaseGerador', () => ({
     from: (tabela: string) => {
       const q: any = {
         _update: null as any,
-        select() { return q; }, in() { return q; }, gte() { return q; }, or() { return q; },
+        select() { return q; }, in() { return q; }, gte() { return q; }, or() { return q; }, neq() { return q; },
         // `lte` e `not` são da consulta de vagas do robô de remarcação.
         lte() { return q; }, not() { return q; },
         update(patch: any) { q._update = patch; return q; },
@@ -433,5 +433,95 @@ describe('quem está em conversa com a Helena (agente de investidores)', () => {
     const r = await tick();
     expect(r).toMatchObject({ avisados: 0, erros: 1, motivo: 'erro_posse_investidor' });
     expect(avisos).toHaveLength(0);
+  });
+});
+
+// AGENDA EM LOTE (13/10/2026): criar o card não pode mudar o que os robôs fazem com
+// o lead. O robô não responde a ele e não mexe no card; só AVISA o consultor dono,
+// porque com o card na agenda a recepção se cala e a Helena fecha a sessão.
+describe('a origem da agenda em lote só avisa o consultor dono', () => {
+  const doLote = (over: Partial<any> = {}) => ficha({ created_by: 'cadastro_eletroposto', ...over });
+  const escreve = () => [msg({ texto: 'Sim', momment: antes(5) }), msg({ texto: 'Quero remarcar', momment: antes(4) })];
+
+  it('"sim" e "quero remarcar" na mesma leva: UM aviso ao dono, nada ao lead, nada gravado no card', async () => {
+    fichas = [doLote()]; inbound = escreve();
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0]!.phone).toBe('5534991360172');          // o celular do Diego, dono do card
+    expect(avisos[0]!.texto).toContain('Sim\nQuero remarcar'); // as duas juntas
+    expect(aoLead).toHaveLength(0);       // nem passoDeRemarcacao, nem mensagem ao lead
+    expect(respostas).toHaveLength(0);    // sem lead_resposta_at
+    expect(presencas).toHaveLength(0);    // sem presença
+    expect(remarcacoes).toHaveLength(0);  // sem mover card
+    expect(r.remarcadas).toBe(0);
+  });
+
+  it('o texto é o combinado: emoji só na 1ª linha, campos preenchidos, sem travessão', async () => {
+    fichas = [doLote({ cliente_nome: 'Marcos Silva' })]; inbound = escreve();
+    await tick();
+    const t = avisos[0]!.texto;
+    const linhas = t.split('\n');
+    expect(linhas[0]).toBe('💬 *LEAD DA SUA AGENDA ESCREVEU NA 5040*');
+    expect(linhas[1]).toBe('*Cliente:* Marcos Silva');
+    expect(linhas[2]).toBe('*WhatsApp:* wa.me/5569984488158');
+    expect(linhas[3]).toMatch(/^\*Reunião:\* .+, com Diego$/);
+    expect(t).toContain('\n\n*O que escreveu:* Sim\nQuero remarcar\n\n_Card do cadastro de investidores. O robô não respondeu a ele: quem responde é você._');
+    expect(t).not.toMatch(/[—–]/);
+    expect(linhas.slice(1).join('\n')).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+
+  it('campo vazio some com a linha dele, e o texto é cortado em 400 caracteres', async () => {
+    fichas = [doLote({ cliente_nome: '   ' })]; inbound = [msg({ texto: 'x'.repeat(900), momment: antes(5) })];
+    await tick();
+    const t = avisos[0]!.texto;
+    expect(t).not.toContain('*Cliente:*');
+    expect(t).toContain(`*O que escreveu:* ${'x'.repeat(400)}\n`);
+    expect(t).not.toContain('x'.repeat(401));
+  });
+
+  it('o mesmo controle de repetição: a mesma mensagem não avisa duas vezes', async () => {
+    fichas = [doLote()]; inbound = escreve();
+    await tick();
+    await tick();
+    expect(avisos).toHaveLength(1);
+  });
+
+  it('mensagem de ANTES do card não vira aviso (o corte é o carimbo da criação)', async () => {
+    fichas = [doLote()]; inbound = [msg({ texto: 'Sim', momment: '2026-08-04T14:00:00.000Z' })];
+    const r = await tick();
+    expect(r.avisados).toBe(0);
+    expect(avisos).toHaveLength(0);
+  });
+
+  it('dry mostra o aviso e não manda nem marca', async () => {
+    fichas = [doLote()]; inbound = escreve();
+    const r = await tick({ dry: true });
+    expect(r.previa?.[0]?.aviso).toContain('LEAD DA SUA AGENDA ESCREVEU NA 5040');
+    expect(avisos).toHaveLength(0);
+    expect(state.size).toBe(0);
+  });
+
+  it('o mesmo lead com card de lp_eletroposto se comporta como sempre', async () => {
+    fichas = [ficha()]; inbound = escreve();
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(avisos.length).toBeGreaterThan(0);
+    expect(respostas.map(x => x.id)).toEqual([1]);
+  });
+
+  it('com DOIS cards do mesmo telefone, só o da origem nova sai: o outro continua valendo', async () => {
+    fichas = [doLote({ id: 2 }), ficha({ id: 1 })]; inbound = escreve();
+    await tick();
+    expect(respostas.map(x => x.id)).toEqual([1]);
+    expect(avisos.length).toBeGreaterThan(0);
+    // o aviso novo NÃO sai em duplicidade: só o aviso normal do outro card
+    expect(avisos.some(a => a.texto.includes('LEAD DA SUA AGENDA ESCREVEU'))).toBe(false);
+    // e na ordem inversa também
+    respostas.length = 0; avisos.length = 0; state.clear();
+    fichas = [ficha({ id: 1 }), doLote({ id: 2 })];
+    await tick();
+    expect(respostas.map(x => x.id)).toEqual([1]);
+    expect(avisos.some(a => a.texto.includes('LEAD DA SUA AGENDA ESCREVEU'))).toBe(false);
   });
 });

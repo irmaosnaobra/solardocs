@@ -31,6 +31,32 @@ export function ehOrigemEletroposto(createdBy: unknown): boolean {
   return norm(createdBy).includes('eletroposto');
 }
 
+/**
+ * A origem dos cards criados EM LOTE pela rota `/cron/agenda-em-lote` (13/10/2026):
+ * investidores frios que nunca marcaram reunião, postos na agenda do Thiago e do
+ * Diego para eles chamarem um a um. Guarda a palavra "eletroposto" de propósito
+ * (o card entra no quadro, no CRM e no repasse como qualquer outro de EP).
+ */
+export const ORIGEM_CADASTRO_EP = 'cadastro_eletroposto';
+
+/**
+ * O card é desta origem MUDA POR CONSTRUÇÃO? Verdadeiro = NENHUM robô manda
+ * mensagem ao LEAD por causa dele, em NENHUM status: nem confirmação, lembrete,
+ * régua do SIM, remarcação de "não atendeu", retorno ou follow-up.
+ *
+ * Por que em código e não só pela marca `ep_mudo:<id>`: a marca vale para UM
+ * horário. Basta o consultor remarcar o card por outro caminho (ou o reagenda
+ * automático mover o não atendido) para a marca deixar de casar e a régua voltar a
+ * falar com gente que nunca marcou reunião nenhuma. Esta função não tem horário
+ * nem status: é a origem que cala.
+ *
+ * Mensagem para a EQUIPE (aviso ao consultor, ping de card, alerta de 10 minutos)
+ * NÃO passa por aqui e continua normal.
+ */
+export function ehCardSemAvisoAutomatico(createdBy: unknown): boolean {
+  return norm(createdBy) === ORIGEM_CADASTRO_EP;
+}
+
 // created_by que já sabemos mapear. Os dois intakes de solar pago (Meta Lead Ads
 // = `lead-meta`, e a LP com pixel = `lp_solar`) contam como Solar Tráfego.
 const MAPA: Record<string, string> = {
@@ -52,6 +78,9 @@ const MAPA: Record<string, string> = {
   // Reunião marcada pela Helena, a agente de investidores (10/10/2026). Guarda a
   // palavra "eletroposto": é por ela que a régua da agenda reconhece o card.
   'agente_eletroposto': 'EP Helena',
+  // Agenda em lote dos investidores frios (13/10/2026). Espelha o gêmeo
+  // dashboard/public/gerador/etiqueta.js.
+  [ORIGEM_CADASTRO_EP]: 'EP Cadastro',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

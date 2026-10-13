@@ -46,7 +46,7 @@ import {
 } from './eletropostoAgenda';
 import { passoDeRemarcacao, linhaDoAviso, ofertarPorConta, bolhasSlotTomado } from './eletropostoRemarcar';
 import { EP_LIBERADO_PREFIX } from './eletropostoCobraSim';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 import { chavesDaHelena } from './investidorAgentePosse';
 import { chaveContato } from '../agents/whatsapp/silenciar';
 
@@ -203,6 +203,39 @@ export function montarAviso(
   ].join('\n');
 }
 
+/**
+ * O aviso ao consultor dono quando o lead de um card da AGENDA EM LOTE escreve na
+ * 5040 (13/10/2026). Texto fixado pelo dono: campo vazio some com a linha dele,
+ * emoji só na primeira linha, sem travessão. Várias mensagens da mesma leva vêm
+ * juntas, uma por linha, e o conjunto é cortado em 400 caracteres.
+ */
+export function montarAvisoLote(
+  ficha: { cliente_nome: string | null; cliente_telefone: string | null; quando: string | null; vendedor_nome: string | null },
+  msgs: Msg[],
+): string {
+  const nome = String(ficha.cliente_nome || '').trim();
+  const tel = String(ficha.cliente_telefone || '').replace(/\D/g, '');
+  const consultor = String(ficha.vendedor_nome || '').trim();
+  const quando = ficha.quando ? quandoPorExtenso(ficha.quando) : '';
+  const reuniao = quando ? (consultor ? `${quando}, com ${consultor}` : quando) : '';
+  let escreveu = msgs.map(m => m.texto).filter(Boolean).join('\n').trim();
+  if (!escreveu) {
+    // Só mídia: o campo não está vazio, o lead mandou algo. Sem isto o consultor
+    // leria um aviso sem conteúdo.
+    const tipos = [...new Set(msgs.map(m => m.tipo).filter(t => t && t !== 'texto'))];
+    escreveu = tipos.length ? `(mensagem sem texto: ${tipos.join(', ')})` : '';
+  }
+  escreveu = escreveu.slice(0, 400);
+  return [
+    '💬 *LEAD DA SUA AGENDA ESCREVEU NA 5040*',
+    nome ? `*Cliente:* ${nome}` : '',
+    tel ? `*WhatsApp:* wa.me/${tel}` : '',
+    reuniao ? `*Reunião:* ${reuniao}` : '',
+    escreveu ? `\n*O que escreveu:* ${escreveu}` : '',
+    '\n_Card do cadastro de investidores. O robô não respondeu a ele: quem responde é você._',
+  ].filter(Boolean).join('\n');
+}
+
 interface Ficha {
   id: number;
   cliente_nome: string | null;
@@ -252,7 +285,11 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     .in('status', ['agendado', 'nao_atendeu', 'cancelado'])
     .gte('quando', new Date(agora - PASSADO_MAX_MS).toISOString())
     .or('confirmacao_at.not.is.null,lembrete_1h_at.not.is.null,lembrete_5min_at.not.is.null')
-    .limit(300);
+    // 300 -> 800 (13/10/2026): os cards da agenda em lote (centenas, todos com
+    // `confirmacao_at`) ENTRAM nesta consulta de propósito, porque quando o lead
+    // deles escreve a equipe precisa saber. A consulta não tem ordem, e 300 cortaria
+    // gente de verdade calado. O PostgREST corta em 1000 de qualquer jeito.
+    .limit(800);
   if (eFichas) { logger.error('ep-respostas', 'ler fichas falhou', eFichas); return { ...zero('erro_fichas'), erros: 1 }; }
   if (!fichas?.length) return zero('ninguem_tocado');
 
@@ -267,6 +304,12 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     (liberadas ?? []).map(m => Number(String(m.key).slice(EP_LIBERADO_PREFIX.length))).filter(Number.isInteger));
 
   const porChave = new Map<string, Ficha>();
+  // AGENDA EM LOTE (13/10/2026): o card da origem `cadastro_eletroposto` NUNCA entra
+  // em `porChave`, que é o caminho com efeitos (presença, `lead_resposta_at`,
+  // remarcação, mover card). Ele vai para esta lista à parte, que só AVISA o
+  // consultor dono quando o lead escreve: com o card na agenda a recepção se cala e
+  // a Helena fecha a sessão, e sem isto ninguém saberia que o lead escreveu.
+  const soAviso = new Map<string, Ficha>();
   for (const f of fichas as Ficha[]) {
     if (f.status === 'cancelado' && !liberadasPeloRobo.has(f.id)) continue;
     // Produto por FAMÍLIA, não por lista fixa — tem que cobrir exatamente quem o
@@ -275,9 +318,14 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     if (!ehOrigemEletroposto(f.created_by)) continue;
     if (!f.confirmacao_at && !f.lembrete_1h_at && !f.lembrete_5min_at) continue;
     const k = telKey(f.cliente_telefone);
-    if (k) porChave.set(k, f);
+    if (!k) continue;
+    if (ehCardSemAvisoAutomatico(f.created_by)) { soAviso.set(k, f); continue; }
+    porChave.set(k, f);
   }
-  if (porChave.size === 0) return zero('ninguem_tocado');
+  // Quem também tem um card normal segue o comportamento normal dele, sem o aviso
+  // novo em duplicidade: só fica no `soAviso` a pessoa cujo ÚNICO card é do lote.
+  for (const k of [...soAviso.keys()]) if (porChave.has(k)) soAviso.delete(k);
+  if (porChave.size === 0 && soAviso.size === 0) return zero('ninguem_tocado');
 
   // Quem está em conversa com a Helena (agente de investidores, 10/10/2026) é
   // dela enquanto a sessão estiver ativa: dois robôs respondendo a mesma pessoa é
@@ -292,7 +340,13 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     const chave = chaveContato(f.cliente_telefone);
     if (chave && daHelena.has(chave)) porChave.delete(k);
   }
-  if (porChave.size === 0) return zero('ninguem_tocado');
+  // Mesma regra para o lote: enquanto a Helena segura a sessão, é ela quem responde;
+  // fechada a sessão, o aviso sai na rodada seguinte, porque a leitura anda por marcador.
+  for (const [k, f] of [...soAviso]) {
+    const chave = chaveContato(f.cliente_telefone);
+    if (chave && daHelena.has(chave)) soAviso.delete(k);
+  }
+  if (porChave.size === 0 && soAviso.size === 0) return zero('ninguem_tocado');
 
   // 2) Marcadores: até onde cada ficha já foi avisada.
   const { data: marcadores } = await supabase
@@ -310,7 +364,7 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   // aviso já dado. Mensagem anterior a isso não é resposta à automação.
   const pisoGlobal = new Date(agora - LOOKBACK_MAX_MS).toISOString();
   const corteDaFicha = new Map<number, string>();
-  for (const f of porChave.values()) {
+  for (const f of [...porChave.values(), ...soAviso.values()]) {
     const toques = [f.confirmacao_at, f.lembrete_1h_at, f.lembrete_5min_at].filter(Boolean) as string[];
     const primeiroToque = toques.sort()[0];
     const corte = [primeiroToque, jaAvisadoAte.get(f.id) ?? '', pisoGlobal].filter(Boolean).sort().pop()!;
@@ -338,7 +392,7 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   for (const m of msgs) {
     const k = telKey(m.telefone);
     if (!k) continue;
-    const f = porChave.get(k);
+    const f = porChave.get(k) ?? soAviso.get(k);
     if (!f) continue;
     const momment = String(m.momment);
     if (momment <= (corteDaFicha.get(f.id) ?? pisoGlobal)) continue;
@@ -356,7 +410,42 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
 
   for (const [id, lista] of porFicha) {
     if (avisados >= MAX_AVISOS_POR_TICK) break;
-    const ficha = [...porChave.values()].find(f => f.id === id)!;
+    const ficha = [...porChave.values(), ...soAviso.values()].find(f => f.id === id)!;
+
+    // ── CARD DA AGENDA EM LOTE: SÓ AVISA O CONSULTOR DONO (13/10/2026) ───────
+    // Nada de `lead_resposta_at`, presença, `passoDeRemarcacao`, mover card ou
+    // mensagem ao lead. O mesmo marcador `ep_resposta:<id>` controla a repetição.
+    if (ehCardSemAvisoAutomatico(ficha.created_by)) {
+      const texto = montarAvisoLote(ficha, lista);
+      if (opts.dry) {
+        previa.push({ id, cliente: String(ficha.cliente_nome || '—'), mensagens: lista.length, aviso: texto });
+        avisados++;
+        continue;
+      }
+      const dono = String(ficha.vendedor_nome || '');
+      const destino = String(telPorConsultor.get(dono) || EQUIPE[dono.trim().toLowerCase()] || '').replace(/\D/g, '');
+      if (!destino) {
+        // Sem o marcador: o aviso tenta de novo quando o número for cadastrado.
+        logger.error('ep-respostas', 'lead da agenda em lote escreveu e o consultor não tem WhatsApp', { id, dono });
+        erros++;
+        continue;
+      }
+      const ateLote = lista.map(m => m.momment).sort().pop()!;
+      const agoraLote = new Date().toISOString();
+      await supabase.from('system_state').upsert(
+        { key: `${EP_RESPOSTA_PREFIX}${id}`, value: { ate: ateLote, avisado_em: agoraLote }, updated_at: agoraLote },
+        { onConflict: 'key' },
+      );
+      try {
+        await sendWhatsApp(destino, texto, 'io');
+        avisados++;
+        logger.info('ep-respostas', `lead da agenda em lote #${id} avisou ${dono}`);
+      } catch (e) {
+        logger.error('ep-respostas', 'falha ao avisar o consultor do lote', { id, erro: String(e) });
+        erros++;
+      }
+      continue;
+    }
 
     if (opts.dry) {
       // `dry` também simula a remarcação: ele decide igual e não envia nem grava,

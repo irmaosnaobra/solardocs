@@ -205,3 +205,22 @@ describe('o tick', () => {
     expect(estado.some(e => e.key.startsWith(EP_RETORNO_PREFIX))).toBe(false);
   });
 });
+
+
+// AGENDA EM LOTE (13/10/2026): mesmo que sobre um carimbo de liberação, o robô não
+// chama de volta quem nunca marcou reunião.
+describe('a origem da agenda em lote não é chamada de volta', () => {
+  it('cancelado desta origem com carimbo de liberação: nenhuma oferta', async () => {
+    estado = [liberado(1, 21)];
+    fichas = [ficha(1, { created_by: 'cadastro_eletroposto' })];
+    const r = await runEletropostoRetornoTick();
+    expect(r.ofertas).toBe(0);
+    expect(ofertados).toHaveLength(0);
+  });
+
+  it('o mesmo card de lp_eletroposto continua sendo chamado', async () => {
+    estado = [liberado(1, 21)];
+    fichas = [ficha(1, { created_by: 'lp_eletroposto' })];
+    expect((await runEletropostoRetornoTick()).ofertas).toBe(1);
+  });
+});

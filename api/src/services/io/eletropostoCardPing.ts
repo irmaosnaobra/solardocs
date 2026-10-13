@@ -44,7 +44,7 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE, montarMensagem } from '../../routes/ioEletroposto';
 import { extraDoCard, tokensDasReunioes } from './eletropostoEstudoGarantir';
 import { carregarConsultores, quandoPorExtenso } from './eletropostoAgenda';
-import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehOrigemEletroposto, ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 
 /** Último dono visto de cada card: `ep_card_dono:<id>` → { dono, em }. */
 export const EP_CARD_DONO_PREFIX = 'ep_card_dono:';
@@ -82,6 +82,7 @@ const zero = (motivo?: string): ResultadoCardPing =>
  */
 export function cabecalhoDoReenvio(
   deQuem: string, paraQuem: string, quandoIso: string | null, leadJaAvisado = true,
+  semAvisoAutomatico = false,
 ): string {
   return [
     `🔁 *CARD SEM AÇÃO EM 12H — AGORA É SEU*`,
@@ -89,7 +90,12 @@ export function cabecalhoDoReenvio(
       ? `Estava com o *${deQuem}* e ninguém mexeu nele em 12 horas. Passou pra você, ${paraQuem}.`
       : `Ninguém mexeu neste card em 12 horas, ${paraQuem}.`,
     quandoIso ? `A reunião foi remarcada pra *${quandoPorExtenso(quandoIso)}*.` : '',
-    leadJaAvisado ? '' : '⚠️ O LEAD AINDA NÃO SABE desse horário — a confirmação sai pela linha nas próximas horas.',
+    // Agenda em lote (13/10/2026): nenhuma confirmação sai pela linha, então a frase
+    // de sempre seria falsa. Esses cards nascem com `confirmacao_at` preenchido, e
+    // por isso a frase vale sempre para a origem, não só quando o carimbo falta.
+    semAvisoAutomatico
+      ? 'Sem mensagem automática ao lead: quem chama é você, no horário.'
+      : leadJaAvisado ? '' : '⚠️ O LEAD AINDA NÃO SABE desse horário — a confirmação sai pela linha nas próximas horas.',
     '',
   ].filter(Boolean).join('\n');
 }
@@ -185,7 +191,7 @@ export async function runEletropostoCardPingTick(opts: { dry?: boolean } = {}): 
     try {
       await sendWhatsApp(
         tel,
-        `${cabecalhoDoReenvio(de, para, f.quando ?? null, !!f.confirmacao_at)}${montarMensagem(f, extraDoCard(f.observacao, tokens.get(Number(f.id))))}`,
+        `${cabecalhoDoReenvio(de, para, f.quando ?? null, !!f.confirmacao_at, ehCardSemAvisoAutomatico(f.created_by))}${montarMensagem(f, extraDoCard(f.observacao, tokens.get(Number(f.id))))}`,
         'io');
       await carimbar(f.id, para);
       reenviados++;

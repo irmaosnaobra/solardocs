@@ -50,6 +50,9 @@ vi.mock('../utils/supabaseGerador', () => ({
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         lte(col: string, v: any) { q._filtros[`lte_${col}`] = v; return q; },
         order() { return q; },
+        // A consulta tira a origem da agenda em lote já no banco (`.or`); o mock devolve
+        // tudo e deixa o filtro em código provar sozinho.
+        or() { return q; },
         update(patch: any) { q._update = patch; return q; },
         limit() {
           if (tabela === 'consultores') return Promise.resolve({ data: consultores, error: null });
@@ -1184,6 +1187,66 @@ describe('a ficha marcada como muda', () => {
     // porque aí a ficha entrou na agenda por outra porta.
     fichas = [ficha({ id: 42, quando: emMinutos(90), confirmacao_at: null })];
     marcar(42, emMinutos(999));
+    await tick();
+    expect(enviadas.length).toBeGreaterThan(0);
+  });
+});
+
+
+// AGENDA EM LOTE (13/10/2026): investidor frio que nunca marcou reunião. A origem
+// `cadastro_eletroposto` não recebe NADA da agenda, em status nenhum, mesmo sem
+// carimbo e sem a marca `ep_mudo`.
+describe('a origem da agenda em lote não recebe toque nenhum', () => {
+  const lote = (over: Partial<any> = {}) => ficha({
+    id: 77, created_by: 'cadastro_eletroposto', cliente_telefone: '5534991110077', ...over,
+  });
+
+  it('card agendado, sem carimbo e sem marca: nenhuma confirmação', async () => {
+    fichas = [lote({ quando: emMinutos(90), confirmacao_at: null })];
+    const r = await tick();
+    expect(enviadas).toHaveLength(0);
+    expect(r.confirmacoes).toBe(0);
+  });
+
+  it('nem o toque de 1 hora, nem o de 5 minutos', async () => {
+    fichas = [
+      lote({ id: 78, cliente_telefone: '5534991110078', quando: emMinutos(55), confirmacao_at: '2026-08-01T12:00:00.000Z' }),
+      lote({ id: 79, cliente_telefone: '5534991110079', quando: emMinutos(4), confirmacao_at: '2026-08-01T12:00:00.000Z', lembrete_1h_at: '2026-08-04T15:00:00.000Z' }),
+    ];
+    await tick();
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('nem o bom dia de hoje nem o lembrete diário da véspera', async () => {
+    fichas = [
+      lote({ id: 80, cliente_telefone: '5534991110080', quando: emMinutos(300), confirmacao_at: '2026-08-01T12:00:00.000Z', lead_resposta_at: '2026-08-02T12:00:00.000Z' }),
+      lote({ id: 81, cliente_telefone: '5534991110081', quando: emMinutos(60 * 26), confirmacao_at: '2026-08-01T12:00:00.000Z', presenca_confirmada_at: '2026-08-02T12:00:00.000Z' }),
+    ];
+    await tick();
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('quando o consultor marca NÃO ATENDEU, o toque de 5 min também não sai', async () => {
+    fichas = [lote({
+      status: 'nao_atendeu', quando: emMinutos(4),
+      confirmacao_at: '2026-08-01T12:00:00.000Z', lembrete_1h_at: '2026-08-04T15:00:00.000Z',
+    })];
+    await tick();
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('o robô não troca o status do card sozinho (nem NÃO ATENDIDO automático, nem corte das 13h)', async () => {
+    fichas = [lote({
+      quando: emMinutos(45), confirmacao_at: '2026-08-01T12:00:00.000Z',
+      lembrete_1h_at: new Date(AGORA.getTime() - 60 * 60_000).toISOString(),
+    })];
+    const r = await tick();
+    expect(r.nao_atendeu).toBe(0);
+    expect(updates.filter(u => String(u.campo).includes('status'))).toHaveLength(0);
+  });
+
+  it('a mesma ficha de lp_eletroposto continua sendo confirmada como hoje', async () => {
+    fichas = [ficha({ id: 90, quando: emMinutos(90), confirmacao_at: null })];
     await tick();
     expect(enviadas.length).toBeGreaterThan(0);
   });
