@@ -2026,17 +2026,23 @@ function pillEtiquetaGuardada(ag) {
 }
 
 /** 13/10/2026: o TIPO com que o card nasceu (`tipo_card:<id>`, gravado pela LP e pela
- *  Helena, nunca apagado). A etiqueta guardada some quando o consultor move o card
- *  para um status de negócio, e o card deixava de dizer COTISTA ou INTEGRADOR. Mesmo
- *  rótulo e mesma classe da etiqueta guardada; some quando daria texto igual ao da
- *  etiqueta guardada que já está desenhada ou ao do status de agora. */
+ *  Helena, nunca apagado: guarda como o lead CHEGOU). É só uma PRÉ-SELEÇÃO: o card
+ *  chega agendado com a etiqueta já escolhida (cotista, arrendamento, integrador), e
+ *  quando o consultor escolhe outra (clica num status de negócio) o card passa a
+ *  mostrar só a nova. Por isso a pílula do tipo só aparece enquanto o card ainda não
+ *  recebeu etiqueta do consultor: status que não é de negócio nem terminal. Com
+ *  status de negócio, só o status aparece; com terminal vale a etiqueta guardada
+ *  (`pillEtiquetaGuardada`). Mesmo rótulo e mesma classe da guardada, e não repete o
+ *  texto da que já está desenhada. */
 function pillTipoDoCard(ag) {
   if (!ag) return '';
   const id = String(ag.id);
   const tipo = tiposCache[id];
   const r = tipo ? ETIQUETA_STATUS[tipo] : null;
   if (!r) return '';
-  const st = ETIQUETA_STATUS[ag.status || 'agendado'];
+  const stAtual = String(ag.status || 'agendado');
+  if (ETIQUETAS_NEGOCIO.has(stAtual) || STATUS_TERMINAIS.has(stAtual)) return '';
+  const st = ETIQUETA_STATUS[stAtual];
   if (st && st[0] === r[0]) return '';
   const et = etiquetasCache[id];
   if (et && et !== String(ag.status || '')) {

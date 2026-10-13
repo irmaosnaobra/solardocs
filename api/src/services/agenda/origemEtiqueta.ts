@@ -51,7 +51,7 @@ const MAPA: Record<string, string> = {
   'convite_investidor_eletroposto': 'EP Convite',
   // Reunião marcada pela Helena, a agente de investidores (10/10/2026). Guarda a
   // palavra "eletroposto": é por ela que a régua da agenda reconhece o card.
-  'agente_eletroposto': 'COTISTA',
+  'agente_eletroposto': 'EP Helena',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

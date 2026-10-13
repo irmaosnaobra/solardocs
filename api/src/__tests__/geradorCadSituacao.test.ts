@@ -32,7 +32,7 @@ type Tela = {
   cadPeriodoFiltra: (l: Record<string, unknown>[], p: string, agora?: number) => Record<string, unknown>[];
   cadListasPorChave: (d: Record<string, unknown[]>) => Map<string, string[]>;
   cadNorm: (t: unknown) => string;
-  __set: (atend: Map<string, unknown>, agendas: Map<string, unknown>, etiquetas?: Record<string, string>) => void;
+  __set: (atend: Map<string, unknown>, agendas: Map<string, unknown>, etiquetas?: Record<string, string>, tipos?: Record<string, string>) => void;
 };
 
 const lerHtml = () => readFileSync(GERADOR, 'utf8').split('\r\n').join('\n');
@@ -61,7 +61,7 @@ function telaReal(): Tela {
     + fatia(html, 'const CAD_AG_STATUS = {', '/** Lê a situação da agente')
     + '\nreturn { cadChave, cadQuandoBRT, cadSituacao, cadAtendimentoDe, cadAtendimentoCel, cadResumoDe,'
     + ' cadLinhasAgenda, cadPeriodoFiltra, cadListasPorChave, cadNorm,'
-    + ' __set: (a, g, e) => { cadAtend = a; cadAgendasChave = g; cadEtiquetas = e || {}; } };',
+    + ' __set: (a, g, e, t) => { cadAtend = a; cadAgendasChave = g; cadEtiquetas = e || {}; cadTipos = t || {}; } };',
   )() as Tela;
 }
 
@@ -72,8 +72,8 @@ const sessao = (estagio: string, extra: Record<string, unknown> = {}) => ({
   chave: '3499111222', estagio, consultor: 'Diego', motivo: null, aberto_em: '2026-10-12T10:00:00Z',
   movimento_em: '2026-10-12T11:15:00Z', agendamento_id: null, resumo: '', erro_envio: false, ...extra,
 });
-const poe = (s?: Record<string, unknown>, card?: Record<string, unknown>, etiquetas: Record<string, string> = {}) => {
-  T.__set(s ? new Map([[String(s.chave), s]]) : new Map(), card ? new Map([['3491112222', card]]) : new Map(), etiquetas);
+const poe = (s?: Record<string, unknown>, card?: Record<string, unknown>, etiquetas: Record<string, string> = {}, tipos: Record<string, string> = {}) => {
+  T.__set(s ? new Map([[String(s.chave), s]]) : new Map(), card ? new Map([['3491112222', card]]) : new Map(), etiquetas, tipos);
 };
 const pessoa = (extra: Record<string, unknown> = {}) => ({ telefone: '34991112222', status: 'novo', ...extra });
 const card = (extra: Record<string, unknown> = {}) => ({
@@ -232,12 +232,12 @@ describe('cadAtendimentoDe: situação, etiquetas sem repetir, quem atende e a d
     expect(a.chaves).toEqual(['FEZ ORÇAMENTO', 'EP Tráfego']);   // o filtro de etiqueta ainda acha a pessoa
   });
 
-  it('situação "Cotista", etiqueta COTISTA e origem COTISTA viram uma pílula só', () => {
+  it('situação "Cotista" e etiqueta COTISTA viram uma pílula só; a origem do card da Helena é EP Helena', () => {
     poe(undefined, card({ status: 'cotista', created_by: 'agente_eletroposto' }));
     const a = T.cadAtendimentoDe(pessoa(), 'capital');
     expect(a.rotulo).toBe('Cotista');
-    expect(a.etiquetas).toEqual([]);
-    expect(a.chaves).toEqual(['COTISTA']);
+    expect(a.etiquetas).toEqual([{ texto: 'EP Helena', tipo: 'origem', cor: 'ep' }]);
+    expect(a.chaves).toEqual(['COTISTA', 'EP Helena']);
     const cel = T.cadAtendimentoCel(a);
     expect((cel.match(/otista/gi) || []).length).toBe(1);
   });
@@ -249,10 +249,41 @@ describe('cadAtendimentoDe: situação, etiquetas sem repetir, quem atende e a d
     expect(a.etiquetas.map(e => e.texto)).toEqual(['EP Tráfego']);
   });
 
-  it('etiqueta de negócio e de origem com o mesmo texto: fica a de negócio', () => {
+  it('card da Helena com etiqueta guardada: a de negócio e a origem EP Helena, cada uma uma vez', () => {
     poe(undefined, card({ created_by: 'agente_eletroposto' }), { '501': 'cotista' });
     const a = T.cadAtendimentoDe(pessoa());
-    expect(a.etiquetas).toEqual([{ texto: 'COTISTA', tipo: 'negocio', cor: '' }]);
+    expect(a.etiquetas).toEqual([
+      { texto: 'COTISTA', tipo: 'negocio', cor: '' },
+      { texto: 'EP Helena', tipo: 'origem', cor: 'ep' },
+    ]);
+  });
+
+  // A etiqueta de chegada é só uma PRÉ-SELEÇÃO (13/10/2026): o status de negócio que o
+  // consultor escolhe manda; sem ele vale a guardada; sem ela, o tipo com que o card chegou.
+  describe('a etiqueta de negócio da pessoa: status do card, depois a guardada, depois o tipo', () => {
+    it('card da Helena que chegou COTISTA e virou CHAVE NA MÃO: só a nova, em pílula e em filtro', () => {
+      poe(undefined, card({ status: 'chave_na_mao', created_by: 'agente_eletroposto' }), { '501': 'cotista' }, { '501': 'cotista' });
+      const a = T.cadAtendimentoDe(pessoa(), 'capital');
+      expect(a.chaves).toEqual(['CHAVE NA MÃO', 'EP Helena']);
+      expect(JSON.stringify(a.etiquetas)).not.toContain('COTISTA');
+    });
+
+    it('sem status de negócio, a etiqueta guardada ganha do tipo', () => {
+      poe(undefined, card(), { '501': 'arrendamento' }, { '501': 'cotista' });
+      expect(T.cadAtendimentoDe(pessoa()).chaves).toEqual(['ARRENDAMENTO', 'EP Tráfego']);
+    });
+
+    it('sem status de negócio nem etiqueta guardada, vale o tipo (o filtro COTISTA acha a pessoa)', () => {
+      poe(undefined, card({ created_by: 'agente_eletroposto' }), {}, { '501': 'cotista' });
+      const a = T.cadAtendimentoDe(pessoa());
+      expect(a.chaves).toEqual(['COTISTA', 'EP Helena']);
+      expect(a.etiquetas.map(e => e.texto)).toEqual(['COTISTA', 'EP Helena']);
+    });
+
+    it('sem nada disso, sem etiqueta de negócio', () => {
+      poe(undefined, card());
+      expect(T.cadAtendimentoDe(pessoa()).chaves).toEqual(['EP Tráfego']);
+    });
   });
 
   it('sem card e com sessão da Helena: Conversando, Helena, sem etiqueta', () => {
@@ -316,7 +347,7 @@ describe('cadResumoDe: contagens dos filtros', () => {
     const lista = ['34991112222', '34933334444', '34999111222', '34988887777'].map(telefone => pessoa({ telefone }));
     const r = T.cadResumoDe(lista.map(p => T.cadAtendimentoDe(p, 'capital')));
     expect(r.situacoes.map(c => `${c.rotulo} ${c.n}`)).toEqual(['Agendado 1', 'Conversando 1', 'Cotista 1', 'Na fila 1']);
-    expect(r.etiquetas.map(e => `${e.texto} ${e.n}`)).toEqual(['ARRENDAMENTO 1', 'COTISTA 1', 'EP Tráfego 1']);
+    expect(r.etiquetas.map(e => `${e.texto} ${e.n}`)).toEqual(['ARRENDAMENTO 1', 'COTISTA 1', 'EP Helena 1', 'EP Tráfego 1']);
     expect(r.semEtiqueta).toBe(2);
     expect(r.consultores).toEqual(['Diego', 'Giovanna', 'Helena']);
   });
