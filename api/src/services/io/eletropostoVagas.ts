@@ -9,9 +9,9 @@
 //
 // É uma PORTA da régua da LP, não uma régua nova. Os números são os mesmos e
 // estão aqui pelos mesmos motivos (a LP tem o histórico completo de cada um):
-//   · 10:00, 11:00 e 13:00 às 18:00, de hora em hora — 8 horários por dia
-//     (14/08/2026: era 13:00–17:00. A manhã voltou e a tarde esticou; as 12:00
-//      ficam de fora porque é o almoço)
+//   · 08:00 às 17:30, de meia em meia hora, com o almoço travado das 12:00 às
+//     13:30 — 17 horários por dia, a MESMA grade de segunda a sexta (13/10/2026,
+//     ordem do dono; o histórico das viradas anteriores está no bloco da grade)
 //   · segunda a sexta; sábado, domingo e feriado fechados
 //   · 30 min de folga mínima: o consultor monta o estudo antes de entrar na call
 //   · reunião ocupa 30 min, então compromisso a menos de 30 min de distância
@@ -46,33 +46,58 @@ const BRT_TZ = 'America/Sao_Paulo';
 // cópia escrita à mão que acabava em 2027 — a agenda abriria no Natal de 2028
 // sem ninguém notar (03/09/2026).
 
-/** Horas de INÍCIO da grade, em ordem, POR DIA DA SEMANA (19/08/2026).
- *
- *  Segunda tem a grade cheia — 8 horários, com manhã — porque ela acumula o fim
- *  de semana: sábado e domingo a agenda não abre e o anúncio continua rodando.
- *  De terça a sexta é só a tarde, 13:00 às 17:00, que é a metade do dia que não
- *  disputa com a agenda de solar dos sócios.
- *
- *  Lista explícita e não um intervalo porque a grade da segunda tem BURACO no
- *  almoço: 12:00 não existe. Espelha o `FAIXAS_SEGUNDA`/`FAIXAS_PADRAO` da LP —
- *  mudou lá, muda aqui, senão o robô oferece no WhatsApp horário que a página
- *  não vende. */
-// 31/08/2026: de terça a sexta a tarde passou a ter as MEIAS-HORAS abertas
-// (13:30, 14:30, 15:30, 16:30, 17:30), dobrando a capacidade de 5 para 10 por
-// consultor. Ordem do Thiago, pra encaixar a semana que ficou represada quando a
-// linha caiu no domingo e as 35 reuniões de segunda tiveram que ser diluídas.
+// ── A GRADE DE LEAD NOVO (13/10/2026) ────────────────────────────────────────
 //
-// Passou a ser 'HH:MM' e não mais número de hora: a grade deixou de caber em hora
-// cheia. A sobreposição continua sendo de ±30 min e usa `<` — então 13:00 e 13:30
-// convivem (|30 min| não é MENOR que 30 min), que é exatamente o que faz a grade
-// de meia em meia hora funcionar sem bloquear a si mesma.
-const HORAS_SEGUNDA = ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-const HORAS_PADRAO = ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
-/** A manhã que a segunda tem e os outros dias não. De hora em hora de propósito:
- *  10:30 e 11:30 são da vistoria de solar dos sócios, e abrir meia-hora aqui
- *  comeria a manhã deles. */
-const HORAS_MANHA_ACUMULO = ['10:00', '11:00'];
+// Ordem do dono: "agora teremos vagas no quiz das 08 às 17:30" e "trava a agenda
+// para almoço das 12:00 às 13:30". Um horário só, igual de segunda a sexta:
+// 08:00 às 17:30 de 30 em 30 minutos, menos o que COMEÇA no almoço (12:00, 12:30
+// e 13:00). São 17 horários por consultor por dia.
+//
+// A exceção da segunda (hora em hora, até 18:00) e a manhã do "dia que absorve a
+// emenda" acabaram. Elas existiam porque a manhã era do solar dos sócios e o
+// acúmulo do fim de semana precisava de capacidade; a manhã voltou porque o solar
+// deles não toma mais a manhã inteira, e quem resolve o choque de horário é a
+// ocupação (`livrePara`, que lê a visita de solar com a duração real dela).
+//
+// Histórico das grades anteriores: 14/08 (10:00, 11:00 e 13:00–18:00 na segunda),
+// 19/08 (só a tarde de terça a sexta), 31/08 (meias-horas à tarde) e 03/09 (manhã
+// no dia que herda a emenda). O passo é 'HH:MM' e não número de hora porque a
+// sobreposição de ±30 min usa `<`: 13:30 e 14:00 convivem (|30 min| não é MENOR
+// que 30 min), que é o que faz a meia hora funcionar sem bloquear a si mesma.
+//
+// A LP (`/io/eletroposto`) tem o gêmeo disto (`GRADE_NOVO`). Mudou lá, muda aqui:
+// `eletropostoGradeEspelho.test.ts` roda os dois lado a lado.
+const GRADE_INICIO_MIN = 8 * 60;              // 08:00
+const GRADE_FIM_MIN = 17 * 60 + 30;           // 17:30, o último começo
+/** O almoço travado: horário que COMEÇA em [12:00, 13:30) não existe. */
+const ALMOCO_INICIO_MIN = 12 * 60;
+const ALMOCO_FIM_MIN = 13 * 60 + 30;
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
+
+const emMinutos = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const deMinutos = (m: number): string =>
+  `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+/** O horário de INÍCIO cai no almoço? `hhmm` é 'HH:MM' em Brasília. Vale para
+ *  as duas faixas: 12:00, 12:30 e 13:00 (novo) e 12:15, 12:45 e 13:15 (remarcação).
+ *  É também a validação da criação em lote. A LP tem a cópia (`ehHorarioDeAlmoco`). */
+export function ehHorarioDeAlmoco(hhmm: string): boolean {
+  const m = emMinutos(hhmm);
+  return m >= ALMOCO_INICIO_MIN && m < ALMOCO_FIM_MIN;
+}
+
+/** De `ini` a `fim` (minutos do dia) de 30 em 30, sem o que começa no almoço. */
+const gerarHoras = (ini: number, fim: number): readonly string[] => {
+  const out: string[] = [];
+  for (let m = ini; m <= fim; m += 30) {
+    const h = deMinutos(m);
+    if (!ehHorarioDeAlmoco(h)) out.push(h);
+  }
+  return out;
+};
+
+/** 08:00 09:00 … 11:30 e 13:30 … 17:30: 17 horários, todo dia útil. */
+const HORAS_NOVO: readonly string[] = gerarHoras(GRADE_INICIO_MIN, GRADE_FIM_MIN);
 
 // ── DUAS FAIXAS NA MESMA GRADE (30/09/2026) ────────────────────────────────
 //
@@ -104,20 +129,14 @@ const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 //
 // Então a faixa de follow-up passa a ser uma grade PRÓPRIA e fixa, e não um
 // espelho da de venda: 08:15 às 17:45, de 30 em 30 minutos, todo dia útil.
-// São 20 horários por consultor por dia, contra os 10 de antes na terça.
 //
-// O ALMOÇO ENTRA. A grade de venda pula as 12h de propósito, esta não pula:
-// ele disse "durante todo o dia", e follow-up é ligação de 15 minutos, não
-// apresentação. Tirar 12:15 e 12:45 é uma linha, se ele quiser.
+// O ALMOÇO SAIU EM 13/10/2026. Até então esta faixa pulava o almoço de propósito
+// ("durante todo o dia"); a ordem de travar a agenda das 12:00 às 13:30 vale para
+// ela também, então 12:15, 12:45 e 13:15 deixaram de existir. São 17 horários por
+// consultor por dia (8 de manhã, 9 à tarde), os mesmos 17 da faixa de lead novo.
 const FOLLOWUP_INICIO_MIN = 8 * 60 + 15;      // 08:15
 const FOLLOWUP_FIM_MIN = 17 * 60 + 45;        // 17:45, o último começo
-const HORAS_FOLLOWUP: readonly string[] = (() => {
-  const out: string[] = [];
-  for (let t = FOLLOWUP_INICIO_MIN; t <= FOLLOWUP_FIM_MIN; t += 30) {
-    out.push(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`);
-  }
-  return out;
-})();
+const HORAS_FOLLOWUP: readonly string[] = gerarHoras(FOLLOWUP_INICIO_MIN, FOLLOWUP_FIM_MIN);
 
 /** Qual faixa da grade este horário ocupa. `novo` é o padrão em todo lugar: quem
  *  é remarcação sabe que é, quem não sabe é lead novo. */
@@ -189,47 +208,13 @@ const isoDe = (ymd: string, hora: string): string =>
 const diaDaSemana = (ymd: string): number => new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
 
 /**
- * Quantos dias fechados vêm IMEDIATAMENTE antes deste. Dois ou mais e o dia
- * seguinte é o que recebe o acúmulo.
- *
- * Olha no máximo uma semana pra trás: emenda maior que isso não existe no
- * calendário nacional, e sem teto um bug em `agendaAbre` viraria laço infinito.
+ * A grade daquele dia (13/10/2026): a MESMA em todo dia útil, para as duas faixas.
+ * Lead novo: 17 horários de :00 e :30; remarcação: 17 horários de :15 e :45. Nenhum
+ * começa no almoço (12:00 às 13:30). O `ymd` ficou na assinatura porque quem chama
+ * já passa o dia, e porque a grade pode voltar a variar por dia; hoje ele não pesa.
  */
-function diasFechadosAntes(ymd: string): number {
-  let n = 0;
-  for (let i = 1; i <= 7; i++) {
-    const d = new Date(`${ymd}T12:00:00-03:00`);
-    d.setUTCDate(d.getUTCDate() - i);
-    if (agendaAbre(diaBRT(d))) break;
-    n++;
-  }
-  return n;
-}
-
-/**
- * A grade daquele dia.
- *
- * A regra NÃO é "segunda-feira": é O DIA QUE ABSORVE A EMENDA. A manhã existe
- * na segunda porque sábado e domingo a agenda não abre enquanto o anúncio roda,
- * e tudo isso desemboca no primeiro dia útil (19/08, ordem do Thiago). Num
- * feriado de segunda quem herda o acúmulo é a terça — e até 03/09/2026 ela
- * herdava o acúmulo SEM herdar a manhã, que é o pior dos dois mundos.
- *
- * Feriado de 07/09/2026 (Independência, uma segunda) é o primeiro caso: a terça
- * 08/09 abre 10:00 e 11:00 além da tarde dela.
- *
- * A segunda continua com a lista fechada do Thiago, intocada. Os outros dias
- * GANHAM a manhã e mantêm a tarde de meia em meia hora — 12 horários por
- * consultor contra os 8 da segunda, que é o certo para um dia que acumula três.
- */
-export const horasDoDia = (ymd: string, faixa: FaixaAgenda = 'novo'): readonly string[] => {
-  // Follow-up tem grade própria e igual em todo dia útil: ela não depende da
-  // grade de venda, que muda por dia da semana e por acúmulo de dia fechado.
-  if (faixa === 'remarcacao') return HORAS_FOLLOWUP;
-  return diaDaSemana(ymd) === 1
-    ? HORAS_SEGUNDA
-    : (diasFechadosAntes(ymd) >= 2 ? [...HORAS_MANHA_ACUMULO, ...HORAS_PADRAO] : HORAS_PADRAO);
-};
+export const horasDoDia = (_ymd: string, faixa: FaixaAgenda = 'novo'): readonly string[] =>
+  faixa === 'remarcacao' ? HORAS_FOLLOWUP : HORAS_NOVO;
 
 /** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)
  *

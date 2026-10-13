@@ -692,7 +692,7 @@ const ia = (acao: string, bolhas: string[] = [], dados: Record<string, string> =
   h.ia.resposta = JSON.stringify({ bolhas, acao, opcao, dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '', ...dados }, resumo });
 };
 const responder = () => { vi.setSystemTime(AGORA); return runInvestidorRespostasTick(); };
-const OFERTA = [brt('2026-10-13T10:00'), brt('2026-10-13T13:00'), brt('2026-10-14T13:00'), brt('2026-10-14T15:00')].map(d => d.toISOString());
+const OFERTA = [brt('2026-10-13T08:00'), brt('2026-10-13T13:30'), brt('2026-10-14T08:00'), brt('2026-10-14T13:30')].map(d => d.toISOString());
 
 describe('respostas: a conversa', () => {
   beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
@@ -917,10 +917,10 @@ describe('respostas: as ações com texto fixo', () => {
     expect(h.zap.humano[0]!.partes).toHaveLength(1);
     const texto = h.zap.humano[0]!.partes[0]!;
     // Domingo 11/10 às 10h: domingo e o feriado de 12/10 ficam de fora.
-    expect(texto).toContain('1. Terça 13/10 às 10:00');
-    expect(texto).toContain('2. Terça 13/10 às 13:00');
-    expect(texto).toContain('3. Quarta 14/10 às 13:00');
-    expect(texto).toContain('4. Quarta 14/10 às 15:00');
+    expect(texto).toContain('1. Terça 13/10 às 08:00');
+    expect(texto).toContain('2. Terça 13/10 às 13:30');
+    expect(texto).toContain('3. Quarta 14/10 às 08:00');
+    expect(texto).toContain('4. Quarta 14/10 às 13:30');
     expect(texto).not.toContain('Vou te mandar agora');
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1 });
   });
@@ -1030,7 +1030,7 @@ describe('respostas: a escolha do horário', () => {
     // Estado primeiro, mensagem depois.
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', agendamento_id: 901, oferta: [] });
     expect(h.zap.humano.map(e => e.partes[0])).toEqual([
-      T.CONFIRMACAO[0]!.replace('{consultor}', 'Diego').replace('{quando}', 'terça 13/10 às 13:00'),
+      T.CONFIRMACAO[0]!.replace('{consultor}', 'Diego').replace('{quando}', 'terça 13/10 às 13:30'),
     ]);
     // O cadastro vira "conectado", sem passar por cima de sem_interesse.
     const conectado = h.atualizacoes.filter(a => a.patch.status === 'conectado');
@@ -1068,7 +1068,7 @@ describe('respostas: a escolha do horário', () => {
 
   it('o dia do horário escolhido foi FECHADO depois da oferta: não grava, oferece outros', async () => {
     ofertou();
-    chegou('5534999990001', '1');           // terça 13/10 às 10:00
+    chegou('5534999990001', '1');           // terça 13/10 às 08:00
     h.agenda.fechados.add('2026-10-13');
     await responder();
     expect(h.card.gravados).toHaveLength(0);
@@ -1124,7 +1124,7 @@ describe('respostas: a escolha do horário', () => {
     h.card.erro = new Error('banco fora');
     await responder();
     expect(h.zap.humano[0]!.partes[0]).toBe(T.PASSAGEM_PARA_O_CONSULTOR[0]);
-    expect(h.zap.equipe[0]!.texto).toContain('Quarta 14/10 às 13:00');
+    expect(h.zap.equipe[0]!.texto).toContain('Quarta 14/10 às 08:00');
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'erro_gravar_card' });
   });
 
@@ -1144,7 +1144,7 @@ describe('respostas: a escolha do horário', () => {
     ia('continuar', ['O Diego combina isso com você na confirmação.']);
     await responder();
     expect(h.ia.chamadas).toBe(1);
-    expect(h.ia.sistema).toContain('1. Terça 13/10 às 10:00');
+    expect(h.ia.sistema).toContain('1. Terça 13/10 às 08:00');
     expect(h.card.gravados).toHaveLength(0);
     expect(sessaoDe(ANA).estagio).toBe('ofertou');
   });
@@ -2089,7 +2089,7 @@ describe('escolha do horário em palavras: a ação agendar', () => {
     expect(h.card.gravados[0]!.quando).toBe(OFERTA[0]);
     expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', agendamento_id: 901 });
     expect(h.zap.humano).toHaveLength(1);
-    expect(h.zap.humano[0]!.partes[0]).toMatch(/Terça 13\/10 às 10:00|terça 13\/10 às 10:00/);
+    expect(h.zap.humano[0]!.partes[0]).toMatch(/Terça 13\/10 às 08:00|terça 13\/10 às 08:00/);
   });
 
   it('só "Pode ser terça-feira, amanhã às 10h.": vai ao modelo, e o `agendar` com opcao 1 agenda pelo mesmo caminho', async () => {
@@ -2108,7 +2108,7 @@ describe('escolha do horário em palavras: a ação agendar', () => {
     expect(h.zap.humano[0]!.partes.join(' ')).not.toContain('Bolha do modelo');
     expect(h.zap.humano[0]!.partes.join(' ')).toContain('Diego');
     // O modelo viu a lista e a instrução da ação.
-    expect(h.ia.sistema).toContain('1. Terça 13/10 às 10:00');
+    expect(h.ia.sistema).toContain('1. Terça 13/10 às 08:00');
     expect(h.ia.sistema).toContain('"agendar"');
   });
 
@@ -2183,7 +2183,7 @@ describe('recuperação da escolha pendente', () => {
   /** A sessão que ficou no vácuo: ofertou, a leva dele foi lida (ate) e nada saiu. */
   const noVacuo = (chave = ANA, tel = TEL_ANA, over: Partial<SessaoInvestidor> = {}) => {
     sessao(chave, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, telefone: tel, ate: antes(29), ...over });
-    linha(tel, 'Tenho estes horários disponíveis para a reunião: 1. Terça 13/10 às 10:00', 60, true);
+    linha(tel, 'Tenho estes horários disponíveis para a reunião: 1. Terça 13/10 às 08:00', 60, true);
     linha(tel, 'Pode ser terça-feira, amanhã às 10h.', 30);
   };
   const recuperar = (agora: Date = AGORA) => { vi.setSystemTime(AGORA); return recuperarEscolhasPendentes({ agora }); };

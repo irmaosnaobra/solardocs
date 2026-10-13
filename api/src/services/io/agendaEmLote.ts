@@ -36,6 +36,7 @@ import { guardarEtiquetaDoCard, guardarTipoDoCard } from '../agenda/etiquetaCard
 import { ETIQUETA_PREFIX, TIPO_CARD_PREFIX } from '../agenda/salaDeEspera';
 import { ORIGEM_CADASTRO_EP } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
+import { ehHorarioDeAlmoco } from './eletropostoVagas';
 import { chaveContato, carregarBloqueados, carregarSilenciados } from '../agents/whatsapp/silenciar';
 
 export const MAX_ITENS_LOTE = 60;
@@ -121,6 +122,11 @@ export function validarQuando(quando: unknown, agora: number): { ok: true; iso: 
   if (minuto !== 0 && minuto !== 30) return { ok: false, motivo: 'minuto_fora_da_grade' };
   const m = hora * 60 + minuto;
   if (m < 8 * 60 || m > 19 * 60 + 30) return { ok: false, motivo: 'fora_das_8_as_19_30' };
+  // O almoço está travado (13/10/2026, 12:00 às 13:30): a mesma função que tira
+  // 12:00, 12:30 e 13:00 da grade de venda. A janela de 08:00 a 19:30 não muda.
+  if (ehHorarioDeAlmoco(`${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`)) {
+    return { ok: false, motivo: 'horario_de_almoco' };
+  }
   const iso = new Date(ms).toISOString();
   if (agendaFechadaNoIso(iso)) return { ok: false, motivo: 'agenda_fechada_neste_dia' };
   return { ok: true, iso };
@@ -503,6 +509,218 @@ export async function agendarEmLote(
   for (const s of saida) totais[s.resultado] = (totais[s.resultado] ?? 0) + 1;
   if (!dry) logger.info('agenda-lote', 'lote processado', { ...totais, parou, motivoDaParada });
   return { ok: true, dry, tipo, itens: saida, totais, parou, motivo_da_parada: motivoDaParada };
+}
+
+// ── Mover cards do lote (13/10/2026) ─────────────────────────────────────────
+//
+// Ordem do dono, no mesmo dia: o almoço (12:00 às 13:30) foi travado, e 35 dos 298
+// cards criados hoje pelo lote caíram em 12:00, 12:30 ou 13:00. Precisam andar para
+// outro horário, CALADOS: nenhuma mensagem, nenhum evento, nenhuma troca de
+// consultor, status, observação ou carimbo. Muda o `quando` e mais nada.
+//
+// O que o `quando` novo arrasta, e por quê cada passo existe:
+//   · a marca `ep_mudo:<id>` vale SÓ para o `quando` gravado nela. Mover o card
+//     sem regravá-la deixaria o tick livre para tratar o card como um horário sem
+//     silêncio: é a primeira coisa depois do UPDATE, com o `quando` lido de volta.
+//   · o trigger do banco REARMA `repassar_em` a partir do `quando` (medido em
+//     03/10/2026): no mesmo UPDATE do `quando`, o null não gruda. Por isso o UPDATE
+//     separado, só com `repassar_em: null`, e a leitura de volta que confere.
+//   · os carimbos do tick (`confirmacao_at` e os lembretes) não são tocados; a
+//     leitura de volta confere que continuam preenchidos.
+// Falha em qualquer um desses passos PARA o lote, como na criação.
+
+export interface ItemParaMover { id?: unknown; quando?: unknown }
+
+export type ResultadoDoMover =
+  | 'movido' | 'previa' | 'sem_mudanca' | 'fora_do_escopo' | 'invalido'
+  | 'horario_ocupado' | 'erro' | 'parou_o_lote' | 'nao_processado';
+
+export interface SaidaDoMover {
+  id: number | null;
+  resultado: ResultadoDoMover;
+  motivo?: string;
+  /** Só quando o card foi mexido e algo ficou torto. */
+  aviso?: string;
+  /** O `quando` que o card tinha (ISO UTC), ou null quando não deu para ler. */
+  de: string | null;
+  /** O `quando` pedido, já validado (ISO UTC), ou o texto recebido se era inválido. */
+  para: string | null;
+}
+
+export interface SaidaDoMoverLote {
+  ok: boolean;
+  dry: boolean;
+  itens: SaidaDoMover[];
+  totais: Record<string, number>;
+  parou: boolean;
+  motivo_da_parada: string | null;
+  erro?: string;
+}
+
+const isoOuNull = (v: unknown): string | null => {
+  if (typeof v !== 'string' && typeof v !== 'number') return null;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+};
+
+export async function moverEmLote(
+  itens: ItemParaMover[], opts: { dry?: boolean } = {},
+): Promise<SaidaDoMoverLote> {
+  const dry = opts.dry === true;
+  const base = (erro: string): SaidaDoMoverLote => ({
+    ok: false, dry, itens: [], totais: {}, parou: false, motivo_da_parada: null, erro,
+  });
+  if (!Array.isArray(itens) || itens.length === 0) return base('sem_itens');
+  if (itens.length > MAX_ITENS_LOTE) return base(`maximo_${MAX_ITENS_LOTE}_itens_por_chamada`);
+
+  const agora = Date.now();
+  const saida: SaidaDoMover[] = [];
+  let parou = false;
+  let motivoDaParada: string | null = null;
+  let errosSeguidos = 0;
+  const idsVistos = new Set<number>();
+
+  const empurrar = (
+    id: number | null, resultado: ResultadoDoMover, de: string | null, para: string | null,
+    motivo?: string, aviso?: string,
+  ) => {
+    saida.push({ id, resultado, ...(motivo ? { motivo } : {}), ...(aviso ? { aviso } : {}), de, para });
+  };
+  const parar = (porque: string) => {
+    parou = true; motivoDaParada = porque;
+  };
+
+  for (let i = 0; i < itens.length; i++) {
+    const it = (itens[i] ?? {}) as ItemParaMover;
+    const bruto = it.id;
+    const id = typeof bruto === 'number' ? bruto : (typeof bruto === 'string' && /^\d{1,12}$/.test(bruto.trim()) ? Number(bruto.trim()) : NaN);
+    const idOut = Number.isInteger(id) && id > 0 ? id : null;
+    const paraTexto = isoOuNull(it.quando) ?? (typeof it.quando === 'string' ? it.quando.slice(0, 40) : null);
+
+    if (parou) { empurrar(idOut, 'nao_processado', null, paraTexto, 'lote_parado'); continue; }
+    if (idOut === null) { empurrar(null, 'invalido', null, paraTexto, 'id_invalido'); continue; }
+    // O mesmo card duas vezes na mesma chamada seria o 2º item lendo o `quando`
+    // que o 1º acabou de mudar: recusa, sem tocar.
+    if (idsVistos.has(idOut)) { empurrar(idOut, 'invalido', null, paraTexto, 'id_repetido_no_lote'); continue; }
+    idsVistos.add(idOut);
+
+    // 1) Ler o card. Só o que o lote criou, ainda agendado, pode andar.
+    const { data: lido, error: eLeitura } = await supabaseGerador.from('agendamentos')
+      .select('id, quando, status, created_by, repassar_em, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
+      .eq('id', idOut).maybeSingle();
+    if (eLeitura) {
+      errosSeguidos++;
+      logger.error('agenda-lote', 'mover: ler o card falhou', { id: idOut, erro: String((eLeitura as { message?: string }).message ?? eLeitura) });
+      empurrar(idOut, 'erro', null, paraTexto, 'leitura_do_card_falhou');
+      if (errosSeguidos >= ERROS_SEGUIDOS_MAX) parar(`${ERROS_SEGUIDOS_MAX}_erros_seguidos`);
+      continue;
+    }
+    const card = (lido ?? null) as {
+      quando?: string | null; status?: string | null; created_by?: string | null;
+      confirmacao_at?: string | null; lembrete_1h_at?: string | null; lembrete_5min_at?: string | null;
+    } | null;
+    if (!card) { empurrar(idOut, 'fora_do_escopo', null, paraTexto, 'card_nao_encontrado'); continue; }
+    const de = isoOuNull(card.quando);
+    if (card.created_by !== ORIGEM_CADASTRO_EP) { empurrar(idOut, 'fora_do_escopo', de, paraTexto, 'origem_diferente_do_lote'); continue; }
+    if (card.status !== 'agendado') { empurrar(idOut, 'fora_do_escopo', de, paraTexto, 'status_diferente_de_agendado'); continue; }
+
+    // 2) O `quando` novo passa pelas MESMAS regras da criação.
+    const q = validarQuando(it.quando, agora);
+    if (!q.ok) { empurrar(idOut, 'invalido', de, paraTexto, q.motivo); continue; }
+    if (de !== null && new Date(de).getTime() === new Date(q.iso).getTime()) {
+      empurrar(idOut, 'sem_mudanca', de, q.iso); continue;
+    }
+    if (dry) { empurrar(idOut, 'previa', de, q.iso); continue; }
+
+    // 3) UPDATE só do `quando`, com a trava do escopo repetida no WHERE: se o card
+    // mudou de status ou de dono entre a leitura e a escrita, zero linhas voltam.
+    let gravado: { quando?: string | null } | null = null;
+    let eUpdate: { code?: string; message?: string } | null = null;
+    try {
+      const r = await supabaseGerador.from('agendamentos').update({ quando: q.iso })
+        .eq('id', idOut).eq('created_by', ORIGEM_CADASTRO_EP).eq('status', 'agendado')
+        .select('id, quando');
+      eUpdate = (r.error ?? null) as typeof eUpdate;
+      const linhas = (r.data ?? []) as Array<{ quando?: string | null }>;
+      gravado = linhas[0] ?? null;
+    } catch (e) {
+      eUpdate = { code: (e as { code?: string })?.code, message: String((e as Error)?.message ?? e) };
+    }
+    if (eUpdate) {
+      if (String(eUpdate.code) === '23505') {
+        errosSeguidos = 0;
+        empurrar(idOut, 'horario_ocupado', de, q.iso, 'consultor_ja_tem_card_neste_horario');
+        continue;
+      }
+      errosSeguidos++;
+      logger.error('agenda-lote', 'mover: atualizar o quando falhou', { id: idOut, erro: String(eUpdate.message ?? eUpdate).slice(0, 160) });
+      empurrar(idOut, 'erro', de, q.iso, `gravar_falhou: ${String(eUpdate.message ?? eUpdate).slice(0, 160)}`);
+      if (errosSeguidos >= ERROS_SEGUIDOS_MAX) parar(`${ERROS_SEGUIDOS_MAX}_erros_de_gravacao_seguidos`);
+      continue;
+    }
+    errosSeguidos = 0;
+    if (!gravado) { empurrar(idOut, 'fora_do_escopo', de, q.iso, 'card_mudou_antes_da_gravacao'); continue; }
+
+    // 4) A marca de silêncio, com o `quando` que o banco devolveu.
+    const quandoGravado = isoOuNull(gravado.quando) ?? q.iso;
+    let marcou = false;
+    for (let t = 1; t <= TENTATIVAS_DA_MARCA && !marcou; t++) {
+      try { await gravarMarcaMuda(idOut, quandoGravado, 'lote'); marcou = true; }
+      catch (e) { logger.error('agenda-lote', `mover: marca ep_mudo falhou (${t}/${TENTATIVAS_DA_MARCA})`, { id: idOut, erro: String((e as Error)?.message ?? e) }); }
+    }
+    if (!marcou) {
+      // O `quando` já mudou e o trigger REARMOU o `repassar_em`; o repasse de 12h é do
+      // banco e troca o consultor sozinho. Zera antes de parar o lote.
+      let zerou = false;
+      try {
+        const { error: eRepMarca } = await supabaseGerador.from('agendamentos').update({ repassar_em: null })
+          .eq('id', idOut).eq('created_by', ORIGEM_CADASTRO_EP);
+        zerou = !eRepMarca;
+      } catch (e) {
+        logger.error('agenda-lote', 'mover: zerar o repasse depois da marca falhou', { id: idOut, erro: String((e as Error)?.message ?? e) });
+      }
+      empurrar(idOut, 'parou_o_lote', de, q.iso, 'marca_ep_mudo_nao_gravou_em_3_tentativas',
+        `O card #${idOut} FOI movido para o horário novo e a marca ep_mudo NÃO gravou. ` +
+        (zerou
+          ? 'O repasse de 12h foi zerado.'
+          : 'O UPDATE que zera o repasse de 12h também FALHOU: o repasse pode trocar o consultor deste card.') +
+        ' Nenhum robô fala com o lead desta origem (a trava em código a protege). Confira antes de seguir.');
+      parar('marca_ep_mudo_nao_gravou');
+      continue;
+    }
+
+    // 5) O repasse de 12h: UPDATE separado, só com `repassar_em: null`.
+    const { error: eRep } = await supabaseGerador.from('agendamentos').update({ repassar_em: null })
+      .eq('id', idOut).eq('created_by', ORIGEM_CADASTRO_EP);
+
+    // 6) Ler de volta e CONFERIR.
+    const { data: volta, error: eVolta } = await supabaseGerador.from('agendamentos')
+      .select(`id, quando, repassar_em, ${CARIMBOS_DO_TICK.join(', ')}`).eq('id', idOut).maybeSingle();
+    const v = (volta ?? null) as Record<string, unknown> | null;
+    const quandoVolta = v ? isoOuNull(v.quando) : null;
+    const antes = card as Record<string, unknown>;
+    const perdeuCarimbo = !!v && CARIMBOS_DO_TICK.some(c => antes[c] != null && v[c] == null);
+    const porque = eRep ? 'update_do_repasse_falhou'
+      : (eVolta || !v) ? 'leitura_de_volta_falhou'
+        : quandoVolta === null || new Date(quandoVolta).getTime() !== new Date(q.iso).getTime() ? 'quando_nao_ficou_o_pedido'
+          : v.repassar_em != null ? 'repassar_em_ficou_preenchido'
+            : v.confirmacao_at == null ? 'confirmacao_at_vazio'
+              : perdeuCarimbo ? 'carimbo_do_tick_perdido'
+                : null;
+    if (porque) {
+      empurrar(idOut, 'parou_o_lote', de, q.iso, porque,
+        `O card #${idOut} FOI movido e a marca ep_mudo está gravada. ${porque}: o repasse de 12h pode mover este card. Confira antes de seguir.`);
+      parar(porque);
+      continue;
+    }
+
+    empurrar(idOut, 'movido', de, quandoVolta);
+  }
+
+  const totais: Record<string, number> = { itens: saida.length };
+  for (const s of saida) totais[s.resultado] = (totais[s.resultado] ?? 0) + 1;
+  if (!dry) logger.info('agenda-lote', 'mover processado', { ...totais, parou, motivoDaParada });
+  return { ok: true, dry, itens: saida, totais, parou, motivo_da_parada: motivoDaParada };
 }
 
 // ── A conferência (só leitura) ────────────────────────────────────────────────

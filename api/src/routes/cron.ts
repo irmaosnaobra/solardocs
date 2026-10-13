@@ -24,7 +24,7 @@ import { entregarTriagensParadas } from '../services/io/recepcaoIo';
 import { pollRecepcaoIo } from '../services/io/recepcaoIoPoll';
 import { pollZapiMessagesIO, cleanupPerdidosAntigos, cleanupMessageDedup } from '../services/agents/sdr/sdrIoPolling';
 import { runAvisosTick } from '../services/io/avisosTickService';
-import { agendarEmLote, conferirLote, loteEncerrado, TIPOS_DO_LOTE } from '../services/io/agendaEmLote';
+import { agendarEmLote, moverEmLote, conferirLote, loteEncerrado, TIPOS_DO_LOTE } from '../services/io/agendaEmLote';
 import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
 import { runPlacarGiovanna } from '../services/io/placarGiovanna';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
@@ -1629,6 +1629,7 @@ router.get('/pesquisa-satisfacao', async (req: Request, res: Response) => {
 // investidores frios SEM nenhuma mensagem (ver services/io/agendaEmLote.ts).
 //
 //   POST /cron/agenda-em-lote  { dry, tipo, itens }   até 60 itens por chamada
+//   POST /cron/agenda-em-lote/mover  { dry, itens: [{ id, quando }] }   muda só o quando
 //   GET  /cron/agenda-em-lote/conferir                só leitura
 //
 // `dry` é OBRIGATÓRIO e precisa ser booleano: sem ele a chamada não é adivinhada
@@ -1662,6 +1663,34 @@ router.post('/agenda-em-lote', async (req: Request, res: Response) => {
     res.status(r.ok ? 200 : 400).json(r);
   } catch (err) {
     logger.error('cron', 'agenda-em-lote falhou', err);
+    res.status(500).json({ ok: false, error: 'falha', message: String((err as Error)?.message ?? err) });
+  }
+});
+
+// MOVER cards do lote (13/10/2026). O almoço (12:00 às 13:30) foi travado e cards
+// criados pelo lote caíram nele: esta rota muda o `quando` e só ele, sem mensagem
+// e sem evento (ver `moverEmLote`). Corpo: { dry: boolean, itens: [{ id, quando }] }.
+// Mesmas travas da criação: segredo de cron, e a rota fecha junto com a outra.
+router.post('/agenda-em-lote/mover', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  if (loteEncerrado()) {
+    res.status(410).json({ ok: false, error: 'rota_encerrada' });
+    return;
+  }
+  const b = (req.body || {}) as Record<string, unknown>;
+  if (typeof b.dry !== 'boolean') {
+    res.status(400).json({ ok: false, error: 'dry é obrigatório e precisa ser true ou false' });
+    return;
+  }
+  if (!Array.isArray(b.itens)) {
+    res.status(400).json({ ok: false, error: 'itens precisa ser uma lista' });
+    return;
+  }
+  try {
+    const r = await moverEmLote(b.itens as any[], { dry: b.dry });
+    res.status(r.ok ? 200 : 400).json(r);
+  } catch (err) {
+    logger.error('cron', 'agenda-em-lote/mover falhou', err);
     res.status(500).json({ ok: false, error: 'falha', message: String((err as Error)?.message ?? err) });
   }
 });

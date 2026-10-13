@@ -31,7 +31,7 @@ const ocupa = (...hs: string[]): Compromisso[] => hs.map(h => ({ ts: t(h), dono:
 /** Reunião de SOLAR: outra origem, ocupa a meia hora inteira. */
 const ocupaSolar = (...hs: string[]): Compromisso[] => hs.map(h => ({ ts: t(h), dono: DONO, ep: false }));
 
-// 06/10/2026 é uma terça — a grade `HORAS_PADRAO`, de meia em meia hora.
+// 06/10/2026 é uma terça. A grade de lead novo é igual em todo dia útil (13/10/2026).
 describe('a grade de cada faixa', () => {
   it('lead novo continua caindo em hora cheia e meia hora', () => {
     const g = horasDoDia('2026-10-06');
@@ -55,18 +55,22 @@ describe('a grade de cada faixa', () => {
   // venda (+15 min). Derivando, a terça só teria follow-up das 13:15 às 17:45,
   // porque a venda da tarde começa às 13:00: a manhã inteira ficaria fechada
   // pra remarcar, sem motivo — remarcação não disputa horário de vitrine.
+  //
+  // 13/10/2026: o almoço (12:00 às 13:30) saiu da faixa também. Sobram 17.
   it('follow-up abre 08:15 e fecha 17:45', () => {
     const g = horasDoDia('2026-10-06', 'remarcacao');
     expect(g[0]).toBe('08:15');
     expect(g[g.length - 1]).toBe('17:45');
   });
 
-  it('são 20 horários de follow-up, de 30 em 30 minutos', () => {
+  it('são 17 horários de follow-up, de 30 em 30 minutos, com o buraco do almoço', () => {
     const g = horasDoDia('2026-10-06', 'remarcacao');
-    expect(g.length).toBe(20);
+    expect(g.length).toBe(17);
+    const min = (h: string) => Number(h.split(':')[0]) * 60 + Number(h.split(':')[1]);
     for (let i = 1; i < g.length; i++) {
-      const min = (h: string) => Number(h.split(':')[0]) * 60 + Number(h.split(':')[1]);
-      expect(min(g[i]) - min(g[i - 1])).toBe(30);
+      const passo = min(g[i]) - min(g[i - 1]);
+      // 30 min em todo lugar, menos de 11:45 para 13:45, onde cabe o almoço.
+      expect(passo).toBe(g[i - 1] === '11:45' ? 120 : 30);
     }
   });
 
@@ -80,20 +84,26 @@ describe('a grade de cada faixa', () => {
     }
   });
 
-  it('a manhã, que a venda não tem na terça, existe pro follow-up', () => {
+  it('a manhã existe nas duas faixas (desde 13/10 a venda também abre às 08:00)', () => {
     const g = horasDoDia('2026-10-06', 'remarcacao');
     expect(g).toContain('08:15');
     expect(g).toContain('11:45');
-    expect(horasDoDia('2026-10-06').some(h => h < '13:00')).toBe(false);   // venda não
+    expect(horasDoDia('2026-10-06')).toContain('08:00');
+    expect(horasDoDia('2026-10-06')).toContain('11:30');
   });
 
-  it('o almoço entra no follow-up de propósito', () => {
-    // "Pode ficar marcado durante todo o dia". A grade de venda pula as 12h;
-    // esta não pula, porque follow-up é ligação de 15 min, não apresentação.
-    // Tirar 12:15 e 12:45 é uma linha, se ele mudar de ideia.
+  it('o almoço está fechado nas duas faixas (12:00 às 13:30)', () => {
+    // 13/10/2026, ordem do dono: "trava a agenda para almoço das 12:00 às 13:30".
+    // Antes o follow-up entrava no almoço de propósito; agora não.
     const g = horasDoDia('2026-10-06', 'remarcacao');
-    expect(g).toContain('12:15');
-    expect(g).toContain('12:45');
+    for (const h of ['12:15', '12:45', '13:15']) expect(g).not.toContain(h);
+    const novo = horasDoDia('2026-10-06');
+    for (const h of ['12:00', '12:30', '13:00']) expect(novo).not.toContain(h);
+    // e as bordas continuam abertas
+    expect(g).toContain('11:45');
+    expect(g).toContain('13:45');
+    expect(novo).toContain('11:30');
+    expect(novo).toContain('13:30');
   });
 
   it('as duas faixas nunca coincidem', () => {

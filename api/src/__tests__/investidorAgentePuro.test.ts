@@ -429,13 +429,30 @@ describe('os 4 horários', () => {
   it('sábado à noite: pula o domingo e o feriado de 12/10 e cai na terça 13/10', () => {
     const agora = brt('2026-10-10T22:00').getTime();
     const oferta = horariosDaOferta(DONO, semNada, agora);
+    // Grade única desde 13/10/2026 (08:00 às 17:30, sem o almoço): a Helena oferece
+    // a 1ª vaga da manhã e a 1ª da tarde de cada um dos dois dias.
     expect(oferta.map(hhmm)).toEqual([
-      'Terça 13/10 às 10:00',    // a terça herda a manhã do feriado
-      'Terça 13/10 às 13:00',
-      'Quarta 14/10 às 13:00',
-      'Quarta 14/10 às 15:00',
+      'Terça 13/10 às 08:00',
+      'Terça 13/10 às 13:30',
+      'Quarta 14/10 às 08:00',
+      'Quarta 14/10 às 13:30',
     ]);
-    expect(oferta.map((iso, i) => linhaDoHorario(iso, i))[0]).toBe('1. Terça 13/10 às 10:00');
+    expect(oferta.map((iso, i) => linhaDoHorario(iso, i))[0]).toBe('1. Terça 13/10 às 08:00');
+  });
+
+  it('nenhuma vaga começa no almoço (12:00 às 13:30), nem na segunda nem na sexta', () => {
+    const agora = brt('2026-10-10T22:00').getTime();
+    const livres = vagasLivres(DONO, semNada, agora);
+    for (const iso of livres) {
+      const d = new Date(new Date(iso).getTime() - 3 * 3600_000);
+      const m = d.getUTCHours() * 60 + d.getUTCMinutes();
+      expect(m >= 12 * 60 && m < 13 * 60 + 30).toBe(false);
+    }
+    // Uma terça (13/10), uma sexta (16/10) e uma segunda (19/10) com 17 vagas cada.
+    for (const dia of ['2026-10-13', '2026-10-16', '2026-10-19']) {
+      const doDia = livres.filter(iso => new Date(new Date(iso).getTime() - 3 * 3600_000).toISOString().slice(0, 10) === dia);
+      expect(doDia).toHaveLength(17);
+    }
   });
 
   it('nenhum horário cai em domingo, sábado ou feriado, e todos são :00 ou :30', () => {
@@ -452,30 +469,30 @@ describe('os 4 horários', () => {
   });
 
   it('nada com menos de 3 horas de antecedência', () => {
-    // Terça 13/10 às 10:30: 13:00 está a 2h30 (fora) e 13:30 está a 3h (entra).
+    // Terça 13/10 às 10:30: 13:00 não existe mais (almoço) e 13:30 está a 3h (entra).
     const agora = brt('2026-10-13T10:30').getTime();
     const livres = vagasLivres(DONO, semNada, agora);
     expect(hhmm(livres[0]!)).toBe('Terça 13/10 às 13:30');
     for (const iso of livres) expect(new Date(iso).getTime() - agora).toBeGreaterThanOrEqual(3 * 3600_000);
-    // E a manhã da terça já não aparece.
+    // E às 08:30 da terça só sobra o fim da manhã (11:30, a 3h) e a tarde.
     expect(horariosDaOferta(DONO, semNada, brt('2026-10-13T08:30').getTime()).map(hhmm)).toEqual([
-      'Terça 13/10 às 13:00', 'Terça 13/10 às 15:00', 'Quarta 14/10 às 13:00', 'Quarta 14/10 às 15:00',
+      'Terça 13/10 às 11:30', 'Terça 13/10 às 13:30', 'Quarta 14/10 às 08:00', 'Quarta 14/10 às 13:30',
     ]);
   });
 
   it('horário ocupado do MESMO consultor sai; o do outro consultor não atrapalha', () => {
     const agora = brt('2026-10-10T22:00').getTime();
-    const dezDaTerca = brt('2026-10-13T10:00').getTime();
-    const doThiago: Compromisso[] = [{ ts: dezDaTerca, dono: 'Thiago', ep: true }];
-    expect(hhmm(horariosDaOferta('Thiago', doThiago, agora)[0]!)).toBe('Terça 13/10 às 11:00');
-    expect(hhmm(horariosDaOferta('Diego', doThiago, agora)[0]!)).toBe('Terça 13/10 às 10:00');
+    const oitoDaTerca = brt('2026-10-13T08:00').getTime();
+    const doThiago: Compromisso[] = [{ ts: oitoDaTerca, dono: 'Thiago', ep: true }];
+    expect(hhmm(horariosDaOferta('Thiago', doThiago, agora)[0]!)).toBe('Terça 13/10 às 08:30');
+    expect(hhmm(horariosDaOferta('Diego', doThiago, agora)[0]!)).toBe('Terça 13/10 às 08:00');
   });
 
   it('se o primeiro dia não fecha dois, vão os 4 próximos livres', () => {
     // Terça 13/10 às 14:20: só sobra 17:30 na terça.
     const oferta = horariosDaOferta(DONO, semNada, brt('2026-10-13T14:20').getTime());
     expect(oferta.map(hhmm)).toEqual([
-      'Terça 13/10 às 17:30', 'Quarta 14/10 às 13:00', 'Quarta 14/10 às 13:30', 'Quarta 14/10 às 14:00',
+      'Terça 13/10 às 17:30', 'Quarta 14/10 às 08:00', 'Quarta 14/10 às 08:30', 'Quarta 14/10 às 09:00',
     ]);
   });
 
@@ -496,10 +513,10 @@ describe('os 4 horários', () => {
     const oferta = horariosDaOferta(DONO, semNada, brt('2026-10-10T22:00').getTime());
     for (const chave of ['3400000000', '3400000001']) {   // as duas variações
       const texto = textoOferta(chave, oferta);
-      expect(texto).toContain('1. Terça 13/10 às 10:00');
-      expect(texto).toContain('2. Terça 13/10 às 13:00');
-      expect(texto).toContain('3. Quarta 14/10 às 13:00');
-      expect(texto).toContain('4. Quarta 14/10 às 15:00');
+      expect(texto).toContain('1. Terça 13/10 às 08:00');
+      expect(texto).toContain('2. Terça 13/10 às 13:30');
+      expect(texto).toContain('3. Quarta 14/10 às 08:00');
+      expect(texto).toContain('4. Quarta 14/10 às 13:30');
       expect(texto).not.toMatch(/[{}]/);
       expect(texto.length).toBeLessThan(900);
     }

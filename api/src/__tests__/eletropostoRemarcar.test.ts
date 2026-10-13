@@ -58,16 +58,19 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
 }));
 
-// Quinta, 13/08/2026, 10h BRT (13h UTC). A grade do dia (10h, 11h e 13h–18h) está
-// quase inteira pela frente — só as 10:00 já caíram na folga de 30 min —, então dá
-// pra testar oferta de HOJE e de outro dia.
+// Quinta, 13/08/2026, 10h BRT (13h UTC). A grade do dia (desde 13/10/2026: 08:00 às
+// 11:30 e 13:30 às 17:30) está quase inteira pela frente — só o que começa antes
+// das 10:30 já caiu na folga de 30 min —, então dá pra testar oferta de HOJE e de
+// outro dia.
 const AGORA = new Date('2026-08-13T13:00:00.000Z');
 /** Horário de Brasília → ISO. Deixa o teste legível: `brt('2026-08-13', 15)`. */
 const brt = (ymd: string, h: number, min = 0) =>
   new Date(`${ymd}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00-03:00`).toISOString();
-/** A tarde inteira de terça a sexta desde 31/08/2026: 13h às 17h30, de meia em meia. */
+/** O dia inteiro de lead novo desde 13/10/2026: 08:00 às 11:30 e 13:30 às 17:30, de
+ *  meia em meia (17 horários, o almoço fora). Lotar isto fecha o dia para a venda. */
 const TARDE: Array<[number, number]> = [
-  [13, 0], [13, 30], [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30],
+  [8, 0], [8, 30], [9, 0], [9, 30], [10, 0], [10, 30], [11, 0], [11, 30],
+  [13, 30], [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30],
 ];
 
 /**
@@ -103,60 +106,71 @@ async function mod() { return import('../services/io/eletropostoRemarcar'); }
 async function vagasMod() { return import('../services/io/eletropostoVagas'); }
 
 describe('a régua de horários livres', () => {
-  // 13/08/2026 é uma QUINTA, e desde 19/08 quinta é só a tarde: 13:00 às 17:00.
-  // O relógio dos testes é 10h BRT, então a primeira vaga do dia é a primeira da
-  // grade — a manhã deixou de existir fora da segunda.
-  // 31/08/2026: de terça a sexta a tarde passou a ser de MEIA em meia hora.
+  // 13/08/2026 é uma QUINTA. Desde 13/10/2026 todo dia útil tem a mesma grade, de
+  // 08:00 às 17:30 sem o almoço. O relógio dos testes é 10h BRT e a folga é de 30
+  // min, então a primeira vaga do dia é 10:30, e o almoço (12:00 às 13:30) é pulado.
   it('oferece a grade do dia, de meia em meia hora', async () => {
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 3))!;
-    expect(v).toEqual([brt('2026-08-13', 13), brt('2026-08-13', 13, 30), brt('2026-08-13', 14)]);
+    expect(v).toEqual([brt('2026-08-13', 10, 30), brt('2026-08-13', 11), brt('2026-08-13', 11, 30)]);
   });
 
-  // A grade da SEGUNDA não mudou: ela acumula o fim de semana e mantém a manhã.
-  // Lotando a quinta e a sexta inteiras, o que sobra é a segunda começando às 10h.
-  it('segunda continua com a manhã — é o dia que acumula o fim de semana', async () => {
+  it('o almoço é pulado: depois das 11:30 a próxima vaga é 13:30', async () => {
+    const { proximasVagas } = await vagasMod();
+    const v = (await proximasVagas('Diego', 4))!;
+    expect(v).toEqual([
+      brt('2026-08-13', 10, 30), brt('2026-08-13', 11), brt('2026-08-13', 11, 30), brt('2026-08-13', 13, 30),
+    ]);
+  });
+
+  // A segunda tem a mesma grade dos outros dias (13/10/2026): começa às 08:00.
+  // Lotando a quinta e a sexta inteiras, o que sobra é a segunda.
+  it('a segunda abre às 08:00, como qualquer dia', async () => {
     compromissos = TARDE.flatMap(([h, m]) => ([
       { quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' },
       { quando: brt('2026-08-14', h, m), vendedor_nome: 'Diego' },
     ]));
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 3))!;
-    expect(v).toEqual([brt('2026-08-17', 10), brt('2026-08-17', 11), brt('2026-08-17', 13)]);
+    expect(v).toEqual([brt('2026-08-17', 8), brt('2026-08-17', 8, 30), brt('2026-08-17', 9)]);
   });
 
   it('o horário da própria ficha nunca é oferecido de volta', async () => {
     const { proximasVagas } = await vagasMod();
-    const v = (await proximasVagas('Diego', 3, { ignorarIso: brt('2026-08-13', 14) }))!;
-    expect(v).not.toContain(brt('2026-08-13', 14));
-    expect(v[0]).toBe(brt('2026-08-13', 13));
+    // A ficha está às 11:00 (a grade de hoje tem 11:00): ela não volta, e as vizinhas sim.
+    const v = (await proximasVagas('Diego', 3, { ignorarIso: brt('2026-08-13', 11) }))!;
+    expect(v).not.toContain(brt('2026-08-13', 11));
+    expect(v[0]).toBe(brt('2026-08-13', 10, 30));
+    expect(v).toContain(brt('2026-08-13', 11, 30));
   });
 
-  // A agenda tem reunião de solar em horário quebrado (14:15, 16:15). Comparar
+  // A agenda tem reunião de solar em horário quebrado (10:45, 14:15). Comparar
   // timestamp exato vendia por cima do compromisso do consultor.
   it('compromisso quebrado fecha o horário por sobreposição, não por igualdade', async () => {
-    compromissos = [{ quando: brt('2026-08-13', 13).replace('T16:00', 'T16:15'), vendedor_nome: 'Diego' }];
+    compromissos = [{ quando: brt('2026-08-13', 10, 45), vendedor_nome: 'Diego' }];
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 2))!;
-    expect(v).not.toContain(brt('2026-08-13', 13));
+    expect(v).not.toContain(brt('2026-08-13', 10, 30));
+    expect(v).not.toContain(brt('2026-08-13', 11));
+    expect(v[0]).toBe(brt('2026-08-13', 11, 30));
   });
 
   it('o compromisso do OUTRO consultor não tira a vaga deste', async () => {
-    compromissos = [{ quando: brt('2026-08-13', 13), vendedor_nome: 'Thiago' }];
+    compromissos = [{ quando: brt('2026-08-13', 10, 30), vendedor_nome: 'Thiago' }];
     const { proximasVagas } = await vagasMod();
-    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-13', 13));
+    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-13', 10, 30));
   });
 
   // Sexta 14/08 é dia útil; sábado e domingo não abrem. Pulando a sexta inteira,
   // o próximo tem que ser segunda 17/08 — nunca sábado. Lotar quinta e sexta são
-  // as 5 horas da tarde (19/08: fora da segunda, a grade é 13 às 17).
+  // os 17 horários de cada dia (13/10/2026).
   it('sábado e domingo não entram', async () => {
     compromissos = TARDE.flatMap(([h, m]) => ([
       { quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' },
       { quando: brt('2026-08-14', h, m), vendedor_nome: 'Diego' },
     ]));
     const { proximasVagas } = await vagasMod();
-    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-17', 10));
+    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-17', 8));
   });
 
   it('feriado não entra', async () => {

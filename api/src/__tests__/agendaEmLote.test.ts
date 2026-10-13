@@ -361,6 +361,26 @@ describe('validações do item', () => {
     expect((await motivo('2026-10-14T10:30:00Z')).resultado).toBe('invalido');
   });
 
+  it('o almoço (12:00 às 13:30) é recusado na criação; 11:30, 13:30 e 19:30 entram', async () => {
+    for (const h of ['12:00', '12:30', '13:00']) {
+      expect(await motivo(`2026-10-14T${h}:00-03:00`)).toMatchObject({ resultado: 'invalido', motivo: 'horario_de_almoco' });
+    }
+    for (const h of ['11:30', '13:30', '19:30']) {
+      expect((await motivo(`2026-10-14T${h}:00-03:00`)).resultado).toBe('previa');
+    }
+  });
+
+  it('o almoço é o de Brasília: 15:30Z é 12:30 BRT (recusa), 12:30Z é 09:30 BRT (entra)', async () => {
+    expect((await motivo('2026-10-14T15:30:00Z')).motivo).toBe('horario_de_almoco');
+    expect((await motivo('2026-10-14T12:30:00Z')).resultado).toBe('previa');
+  });
+
+  it('o almoço recusado não grava nada, nem no lote de verdade', async () => {
+    const r = await lote([item({ quando: '2026-10-14T12:30:00-03:00' })]);
+    expect(r.itens[0]).toMatchObject({ resultado: 'invalido', motivo: 'horario_de_almoco' });
+    expect(ordem).toEqual([]);
+  });
+
   it('07:30 e 20:00 ficam fora', async () => {
     expect((await motivo('2026-10-14T07:30:00-03:00')).motivo).toBe('fora_das_8_as_19_30');
     expect((await motivo('2026-10-14T20:00:00-03:00')).motivo).toBe('fora_das_8_as_19_30');
