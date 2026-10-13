@@ -12,6 +12,8 @@ const state = new Map<string, { key: string; value: any; updated_at: string }>()
 const enviadas: Array<{ phone: string; texto: string }> = [];
 let consultores: any[] = [];
 let envioFalha = false;
+let ordens: Array<{ col: string; opts: any }> = [];
+let limites: number[] = [];
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
@@ -21,7 +23,9 @@ vi.mock('../utils/supabaseGerador', () => ({
         select() { return q; },
         eq(col: string, v: any) { q._filtros[col] = v; return q; },
         gte() { return q; }, lte() { return q; },
-        limit() {
+        order(col: string, opts: any) { ordens.push({ col, opts }); return q; },
+        limit(n: number) {
+          limites.push(n);
           if (q._filtros['status']) {
             return Promise.resolve({ data: fichas.filter(f => f.status === q._filtros['status']), error: null });
           }
@@ -73,7 +77,7 @@ const jaVisto = (dono: string) =>
 
 const envOriginal = { ...process.env };
 beforeEach(() => {
-  fichas = [ficha()]; state.clear(); enviadas.length = 0; envioFalha = false;
+  fichas = [ficha()]; state.clear(); enviadas.length = 0; envioFalha = false; ordens = []; limites = [];
   consultores = [{ nome: 'Diego', whatsapp: '5534991360172' }, { nome: 'Thiago', whatsapp: '5534991360223' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
@@ -82,6 +86,26 @@ afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.reset
 async function tick(opts: any = {}) {
   return (await import('../services/io/eletropostoCardPing')).runEletropostoCardPingTick(opts);
 }
+
+describe('a leitura das fichas', () => {
+  it('é ordenada por quando, com o teto de 1000 linhas do PostgREST', async () => {
+    await tick();
+    expect(ordens).toEqual([{ col: 'quando', opts: { ascending: true } }]);
+    expect(limites[0]).toBe(1000);
+  });
+
+  it('voltando com 1000 linhas, avisa no log que é preciso paginar; com menos, não avisa', async () => {
+    await tick();
+    const { logger } = await import('../utils/logger');
+    expect((logger.warn as any).mock.calls.filter((c: any[]) => c[0] === 'ep-card-ping')).toHaveLength(0);
+
+    fichas = Array.from({ length: 1000 }, (_, i) => ficha({ id: 1000 + i }));
+    await tick();
+    const avisos = (logger.warn as any).mock.calls.filter((c: any[]) => c[0] === 'ep-card-ping');
+    expect(avisos).toHaveLength(1);
+    expect(String(avisos[0][1])).toContain('paginar');
+  });
+});
 
 describe('a primeira vez não manda nada', () => {
   it('ficha nunca vista só é carimbada — ligar o módulo não vira enxurrada de card', async () => {

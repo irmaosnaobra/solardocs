@@ -110,6 +110,9 @@ function telDoConsultor(nome: string, cadastro: Map<string, string>): string | n
   return fixo ? String(fixo).replace(/\D/g, '') : null;
 }
 
+/** O teto de linhas do PostgREST por leitura. */
+const LIMITE_LEITURA = 1000;
+
 /**
  * Roda a cada ~5 min dentro do /cron/process-messages.
  * `dry` decide igual, sem enviar e sem carimbar.
@@ -124,10 +127,17 @@ export async function runEletropostoCardPingTick(opts: { dry?: boolean } = {}): 
     .eq('status', 'agendado')
     .gte('quando', new Date(agora - PASSADO_MAX_MS).toISOString())
     .lte('quando', new Date(agora + FUTURO_MAX_MS).toISOString())
-    .limit(400);
+    // Ordenada e com o teto do PostgREST (13/10/2026): a janela já tinha 391 linhas
+    // (298 do lote `cadastro_eletroposto`) e, sem ordem, o corte de 400 devolveria um
+    // recorte arbitrário e o aviso de troca de dono sumiria calado para parte da equipe.
+    .order('quando', { ascending: true })
+    .limit(LIMITE_LEITURA);
   if (error) {
     logger.error('ep-card-ping', 'ler agendamentos falhou', error);
     return { ...zero('erro_leitura'), erros: 1 };
+  }
+  if ((data ?? []).length >= LIMITE_LEITURA) {
+    logger.warn('ep-card-ping', `a leitura voltou com ${LIMITE_LEITURA} linhas (o teto): é preciso paginar, fichas podem ter ficado de fora`);
   }
 
   const fichas = ((data ?? []) as Array<Record<string, any>>)
