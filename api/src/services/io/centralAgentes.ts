@@ -431,7 +431,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       estado: linhaIoCaida ? 'caida' : (saude ? 'ok' : 'desconhecida'),
       detalhe: linhaIoCaida
         ? `Z-API reportou desconectada (${saude?.downStreak} checagens seguidas)`
-        : saude?.ultimaConexao ? `última conexão confirmada ${saude.ultimaConexao}` : 'sem leitura do monitor ainda',
+        : saude?.ultimaConexao ? `Última conexão confirmada ${saude.ultimaConexao}` : 'Sem leitura do monitor ainda',
       // tetosVigentes, nao a constante: durante as 72h de aquecimento o teto real
       // e menor que o base, e e justamente quando o painel e mais olhado.
       teto_hora: (await tetosVigentesLinha()).hora, usados_na_hora: usadosNaHora,
@@ -441,7 +441,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       estado: 'desconhecida',
       detalhe: solardocViaIo()
         ? 'DESVIADA: os envios dela estão saindo pela linha IO (ZAPI_SOLARDOC_VIA_IO=1)'
-        : 'monitor de queda só cobre a linha IO — aqui a prova é o envio passar',
+        : 'O monitor de queda só cobre a linha IO. Aqui a prova é o envio passar.',
       teto_hora: MAX_CARLA_POR_HORA, usados_na_hora: usadosCarla,
     },
   ];
@@ -467,12 +467,12 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       toques: [
         { titulo: '1º · abordagem', quando: '8 min depois de abandonar o checkout', copy: 'Escrita por IA na hora, com o nome, o produto e o estado do carrinho. Uma pergunta curta no fim.' },
-        { titulo: '2º · reforço de valor', quando: '2h depois do 1º, se não respondeu', copy: 'Sem desconto — decisão do dono. Reforça o que o produto entrega e devolve o link do checkout normal.' },
+        { titulo: '2º · reforço de valor', quando: '2h depois do 1º, se não respondeu', copy: 'Sem desconto, por decisão do dono. Reforça o que o produto entrega e devolve o link do checkout normal.' },
         { titulo: '3º · fechamento', quando: '20h depois do 2º', copy: 'Última mensagem fria da sequência. Termina avisando que não vai insistir mais.' },
-        { titulo: '4º · convite do grupo pago', quando: '2 dias depois do 3º', copy: 'Troca a oferta: convida pra Comunidade +Sol (R$57). DESLIGADO em 03/ago — foi o toque que bloqueou a linha.' },
+        { titulo: '4º · convite do grupo pago', quando: '2 dias depois do 3º', copy: 'Troca a oferta: convida pra Comunidade +Sol (R$57). DESLIGADO em 03/ago: foi o toque que bloqueou a linha.' },
       ],
       alerta: envLigado('RECUP_GRUPO_ENABLED') ? undefined
-        : 'O 4º toque está desligado desde 03/ago. Enquanto estiver assim, quem recebe o 3º toque NÃO entra na fila do grupo — é pulado, não adiado.',
+        : 'O 4º toque está desligado desde 03/ago. Enquanto estiver assim, quem recebe o 3º toque NÃO entra na fila do grupo. É pulado, não adiado.',
     },
     {
       id: 'cora',
@@ -486,7 +486,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Mensagens recebidas (24h)', valor: inbound24 },
         { label: 'Mensagens recebidas (7d)', valor: inbound7 },
       ],
-      toques: [{ titulo: 'nenhum envio automático', quando: '—', copy: 'A linha só recebe. Quem responde é gente.' }],
+      toques: [{ titulo: 'Nenhum envio automático', quando: '—', copy: 'A linha só recebe. Quem responde é gente.' }],
     },
     {
       id: 'giovanna',
@@ -519,7 +519,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Compras do kit (30d)', valor: vendasCurso, sub: 'kit_pedidos pagos de quem foi tocado' },
       ],
       toques: [
-        { titulo: '1º toque', quando: 'na entrada da campanha', copy: '"montei um curso de fechamento aqui e lembrei de você" — 32 objeções, R$19 uma vez, 30 dias de plataforma junto.' },
+        { titulo: '1º toque', quando: 'na entrada da campanha', copy: '"montei um curso de fechamento aqui e lembrei de você": 32 objeções, R$19 uma vez, 30 dias de plataforma junto.' },
         { titulo: '2º toque', quando: '3 dias depois', copy: 'Usa a aula "o cliente achou mais barato" como prova de valor.' },
         { titulo: '3º toque', quando: '4 dias depois do 2º', copy: 'Último toque da sequência.' },
       ],
@@ -539,9 +539,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Links liberados (30d)', valor: igLinks30, sub: 'passou pelo porteiro' },
       ],
       toques: [
-        { titulo: '1º toque — o link', quando: 'quando alguém comenta', copy: 'A copy da automação com o link vai de uma vez, limpo, sem pedir nada em troca; o "me segue" é cobrado no lembrete de 1h. O porteiro que segurava o link foi removido em 05/08: ele entregava pra 1 pessoa a cada 23 DMs, porque quem não responde nunca mais pode ser tocado.' },
+        { titulo: '1º toque: o link', quando: 'quando alguém comenta', copy: 'A copy da automação com o link vai de uma vez, limpo, sem pedir nada em troca; o "me segue" é cobrado no lembrete de 1h. O porteiro que segurava o link foi removido em 05/08: ele entregava pra 1 pessoa a cada 23 DMs, porque quem não responde nunca mais pode ser tocado.' },
         { titulo: 'bike', quando: 'no mesmo toque', copy: 'A bike entrega card com botão "Falar no WhatsApp" — negociação é na hora.' },
-        { titulo: 'lembrete', quando: '1h depois da 1ª DM sair', copy: 'Quem parou no "me segue" recebe o nudge; quem já pegou o link recebe "conseguiu abrir?". Quem NUNCA respondeu não recebe — DM exige janela de 24h aberta, e é a resposta que abre. Um por pessoa, mesmo que ela comente três vezes. IG_LEMBRETE_1H_OFF desliga.' },
+        { titulo: 'lembrete', quando: '1h depois da 1ª DM sair', copy: 'Quem parou no "me segue" recebe o nudge; quem já pegou o link recebe "conseguiu abrir?". Quem NUNCA respondeu não recebe: DM exige janela de 24h aberta, e é a resposta que abre. Um por pessoa, mesmo que ela comente três vezes. IG_LEMBRETE_1H_OFF desliga.' },
       ],
     },
     {
@@ -560,7 +560,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       toques: [
         { titulo: 'convite do grupo (nota 1)', quando: 'segundos depois da simulação', copy: '5 bolhas: explica que o passo é definir o local e entrega o link do grupo gratuito.' },
-        { titulo: 'convite da LP (Instagram)', quando: 'na vez dele na fila, 9h–19h', copy: 'Uma bolha: quem veio da DM não marca agenda direta — recebe o link da LP pra simular e escolher o horário lá.' },
+        { titulo: 'convite da LP (Instagram)', quando: 'na vez dele na fila, 9h–19h', copy: 'Uma bolha: quem veio da DM não marca agenda direta, recebe o link da LP pra simular e escolher o horário lá.' },
         { titulo: 'aviso da equipe', quando: 'assim que a ficha entra', copy: 'Card com selo da nota, pontuação e dados do ponto pro WhatsApp do Thiago e do Diego.' },
       ],
       // Fila de Instagram NÃO é alerta: ela é o estado normal de quem acabou de
@@ -605,26 +605,26 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
       ],
       toques: [
-        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome e o WhatsApp do consultor, explica que é por vídeo. Pede um "SIM", pede antecedência pra desmarcar e pede o material do ponto — foto, localização, conta de luz, o que já orçou.' },
+        { titulo: '1º · ao marcar', quando: 'segundos depois de escolher o horário na LP', copy: 'Confirma dia e hora com o nome e o WhatsApp do consultor, explica que é por vídeo. Pede um "SIM", pede antecedência pra desmarcar e pede o material do ponto: foto, localização, conta de luz, o que já orçou.' },
         { titulo: '2º · bom dia, hoje é o dia', quando: 'entre 8h e 11h, SÓ pra quem marcou num dia anterior', copy: 'Quem marcou dias antes viu a confirmação sumir da conversa. Relembra a hora e o consultor, lembra do material se ainda não veio, e abre a porta do remarcar enquanto ainda dá pra encaixar outra pessoa. Quem marcou hoje pra hoje não recebe.' },
         { titulo: '2.5º · lembrete diário da véspera', quando: 'das 9h às 14h, nos 3 dias antes da reunião', copy: 'Quem marca com dias de antecedência ficava sem nenhum toque até a manhã da reunião (a mediana é marcada com ~69h de antecedência). Agora recebe uma mensagem curta por dia, só nos três dias anteriores: hora, consultor e a porta do remarcar. Não recebe quem marcou hoje (acabou de ver a confirmação) nem quem nunca respondeu, que é assunto da régua do SIM. Kill-switch EP_DIARIO_OFF.' },
         { titulo: '3º · 1 hora antes', quando: '45 a 75 min antes da reunião', copy: 'Avisa que o link está vindo pelo WhatsApp do consultor, pede internet e sinal, e abre a porta do remarcar de novo.' },
-        { titulo: '4º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — o link cai no WhatsApp dele a qualquer momento.' },
-        { titulo: '🚨 10 min antes — PRO CONSULTOR', quando: 'entre 13 e 8 min antes, SÓ de reunião confirmada', copy: 'Único toque desta régua que NÃO vai pro lead: cai no WhatsApp do consultor dono da reunião (não nos dois). Só dispara pra quem confirmou presença de verdade — foi assim que ele nasceu, em 03/09, sem repetir o ping de 1 hora que o Thiago mandou desligar em 25/07 por barulho. Uma vez por reunião; remarcou, alerta de novo. Kill-switch EP_ALERTA_10MIN_OFF.' },
+        { titulo: '4º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando": o link cai no WhatsApp dele a qualquer momento.' },
+        { titulo: '🚨 10 min antes: PRO CONSULTOR', quando: 'entre 13 e 8 min antes, SÓ de reunião confirmada', copy: 'Único toque desta régua que NÃO vai pro lead: cai no WhatsApp do consultor dono da reunião (não nos dois). Só dispara pra quem confirmou presença de verdade. Foi assim que ele nasceu, em 03/09, sem repetir o ping de 1 hora que o Thiago mandou desligar em 25/07 por barulho. Uma vez por reunião; remarcou, alerta de novo. Kill-switch EP_ALERTA_10MIN_OFF.' },
         { titulo: '↩ resposta do lead', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro lead: é o recado que vai pro Thiago e pro Diego com o que a pessoa escreveu, a hora da reunião e de quem ela é. Kill-switch EP_RESPOSTAS_OFF.' },
-        { titulo: '🔄 remarca sozinho', quando: 'quando o lead diz que não vai dar', copy: 'Oferece os 3 próximos horários livres DO MESMO consultor, espera a pessoa escolher o número e troca na hora — liberando o horário antigo pra agenda. Nunca cancela, nunca muda de consultor e nunca move sem escolha explícita. Quem pede pra CANCELAR (e não remarcar) continua indo pro humano. Kill-switch EP_REMARCAR_OFF.' },
+        { titulo: '🔄 remarca sozinho', quando: 'quando o lead diz que não vai dar', copy: 'Oferece os 3 próximos horários livres DO MESMO consultor, espera a pessoa escolher o número e troca na hora, liberando o horário antigo pra agenda. Nunca cancela, nunca muda de consultor e nunca move sem escolha explícita. Quem pede pra CANCELAR (e não remarcar) continua indo pro humano. Kill-switch EP_REMARCAR_OFF.' },
         { titulo: '📵 não atendeu: três chamadas de volta e a lista', quando: '19h do dia, manhã seguinte, D+3 e a queda na lista em D+4', copy: 'Ele confirmou e, na hora da ligação, não atendeu: é o lead mais caro de perder, porque chegou na agenda por conta própria. Recebe três chamadas com horários na mesa (a terceira diz que é a última) e, se não reagendar nenhuma vez, cai na aba de Cadastros pro time trabalhar: Arrendamento se declarou local, Curioso se não. Responde o número e o robô remarca sozinho. Quem o ROBÔ marcou de ausente NÃO entra: ali ninguém chamou ninguém, e dizer que chamou seria mentira. Kill-switch EP_FUP_NAOATENDIDO_OFF.' },
         { titulo: '🔓 régua do SIM: cobra, e na terceira libera o horário', quando: '+1h, +2h e +3h depois da confirmação, das 8h às 20h', copy: 'Quem marcou e não respondeu nada leva duas cobranças (a segunda diz a hora exata em que o horário vai embora) e, na terceira, perde o horário: a ficha vira cancelado, o horário volta pra vitrine da LP na mesma hora e a pessoa entra no Curioso pra equipe trabalhar. A mensagem de liberação convida ela a voltar, e quem responde recupera o mesmo horário se ainda estiver livre. Quem escreve qualquer coisa sai da régua na hora. Kill-switch EP_COBRA_SIM_OFF.' },
-        { titulo: '♻️ card vermelho QUENTE volta pro dia seguinte', quando: '45 min depois do horário que ele perdeu', copy: 'Só lead QUENTE (nota 3: tem onde, tem com quê e decide sozinho) — morno e frio ficam vermelhos e viram trabalho de gente. Quem entra não recebe lista pra escolher: o robô MARCA. A ficha sai limpa, volta pro próximo dia útil no mesmo horário (ou no primeiro livre do dia) com o mesmo consultor, e a régua de avisos recomeça do zero — bom dia, 1 hora e 5 minutos. Duas vezes; na segunda a mensagem diz que é a última. Kill-switch EP_REAGENDA_AUTO_OFF.' },
+        { titulo: '♻️ card vermelho QUENTE volta pro dia seguinte', quando: '45 min depois do horário que ele perdeu', copy: 'Só lead QUENTE (nota 3: tem onde, tem com quê e decide sozinho): morno e frio ficam vermelhos e viram trabalho de gente. Quem entra não recebe lista pra escolher: o robô MARCA. A ficha sai limpa, volta pro próximo dia útil no mesmo horário (ou no primeiro livre do dia) com o mesmo consultor, e a régua de avisos recomeça do zero: bom dia, 1 hora e 5 minutos. Duas vezes; na segunda a mensagem diz que é a última. Kill-switch EP_REAGENDA_AUTO_OFF.' },
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
-        ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação — a fila de atraso sai 1 por rodada, das 08h às 20h.`
+        ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação. A fila de atraso sai 1 por rodada, das 08h às 20h.`
         : undefined,
     },
     {
       id: 'solar_boas_vindas',
       nome: 'Boas-vindas do solar — recibo do cadastro',
-      papel: 'Assim que alguém se cadastra em energia solar (LP, /simular ou Lead Ads), fala com o cliente: diz quem é o consultor dele, passa o WhatsApp desse consultor, avisa que NÓS entramos em contato e faz UMA pergunta — o consumo atual. Não fala de horário — de propósito.',
+      papel: 'Assim que alguém se cadastra em energia solar (LP, /simular ou Lead Ads), fala com o cliente: diz quem é o consultor dele, passa o WhatsApp desse consultor, avisa que NÓS entramos em contato e faz UMA pergunta: o consumo atual. Não fala de horário, de propósito.',
       canal: 'whatsapp', linha: 'io',
       estado: envLigado('SOLAR_BOASVINDAS_OFF') ? 'desligado' : 'ativo',
       chave: 'SOLAR_BOASVINDAS_OFF',
@@ -635,7 +635,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Responderam', valor: solarResp.total, sub: `${solarResp.h24} nas últimas 24h · recado vai pro consultor dono da ficha` },
       ],
       toques: [
-        { titulo: 'único · no cadastro', quando: 'até 24h depois de a ficha entrar', copy: 'Cinco bolhas: "este é o seu pré-atendimento", quem é o consultor (especialista) + o WhatsApp dele, "nós entramos em contato", o que o estudo entrega, e uma pergunta só — qual o consumo hoje (aceita foto da conta de luz). Não recebe quem cancelou, quem disse sem interesse e quem já viu proposta. Backlog anterior a 13/08 nunca é tocado.' },
+        { titulo: 'único · no cadastro', quando: 'até 24h depois de a ficha entrar', copy: 'Cinco bolhas: "este é o seu pré-atendimento", quem é o consultor (especialista) + o WhatsApp dele, "nós entramos em contato", o que o estudo entrega, e uma pergunta só: qual o consumo hoje (aceita foto da conta de luz). Não recebe quem cancelou, quem disse sem interesse e quem já viu proposta. Backlog anterior a 13/08 nunca é tocado.' },
         { titulo: '↩ resposta do cliente', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro cliente: é o recado com o que a pessoa escreveu, indo pro consultor DONO da ficha (e cópia pro Thiago). A foto da conta de luz, o áudio e o vídeo são ENCAMINHADOS pro WhatsApp dele, não só contados. Kill-switch SOLAR_RESPOSTAS_OFF.' },
       ],
       // O alerta disparava só com ZERO — e por 30 dias o número foi 12 de 99, que
@@ -646,7 +646,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         const total = solarCadastros30 ?? 0;
         const ok = solarBoasVindas30 ?? 0;
         if (total < 5 || ok / total >= 0.8) return undefined;
-        return `Só ${ok} de ${total} cadastros de solar receberam as boas-vindas em 30 dias — ${total - ok} pessoa(s) no escuro. Confira o cron, o teto da linha IO e o filtro de status.`;
+        return `Só ${ok} de ${total} cadastros de solar receberam as boas-vindas em 30 dias: ${total - ok} pessoa(s) no escuro. Confira o cron, o teto da linha IO e o filtro de status.`;
       })(),
     },
     {
@@ -684,7 +684,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         // A conversão só vira alerta com amostra que sustenta o número: 1 venda a
         // menos em 10 leads derruba 10 pontos, e alerta que oscila assim ninguém lê.
         if (roteamento.conversao !== null && roteamento.leads >= 30 && roteamento.conversao < META_CONVERSAO) {
-          partes.push(`Conversão em ${roteamento.conversao.toFixed(1)}%, abaixo da meta de ${META_CONVERSAO}% (${roteamento.vendas} venda(s) em ${roteamento.leads} leads). Confira também se o status "${STATUS_VENDA}" está sendo marcado no CRM — venda que ninguém marca some daqui.`);
+          partes.push(`Conversão em ${roteamento.conversao.toFixed(1)}%, abaixo da meta de ${META_CONVERSAO}% (${roteamento.vendas} venda(s) em ${roteamento.leads} leads). Confira também se o status "${STATUS_VENDA}" está sendo marcado no CRM: venda que ninguém marca some daqui.`);
         }
         return partes.length ? partes.join(' ') : undefined;
       })(),
@@ -702,7 +702,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     {
       id: 'prospeccao',
       nome: 'Prospecção fria (lista do Maps)',
-      papel: 'Monta lista fria por busca no Google Maps. O toque é MANUAL, um por vez — nada dispara sozinho.',
+      papel: 'Monta lista fria por busca no Google Maps. O toque é MANUAL, um por vez. Nada dispara sozinho.',
       canal: 'painel', linha: null,
       estado: envLigado('PROSPECCAO_APIFY_OFF') ? 'desligado' : 'ativo',
       chave: 'PROSPECCAO_APIFY_OFF',
@@ -713,7 +713,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Clientes fechados', valor: prospClientes },
         {
           label: 'Custo por lead', valor: cpl,
-          sub: cpl === null ? 'nenhuma lista tem custo lançado — sem isso não dá pra saber se dá lucro' : 'custo das listas ÷ contatos',
+          sub: cpl === null ? 'nenhuma lista tem custo lançado: sem isso não dá pra saber se dá lucro' : 'custo das listas ÷ contatos',
         },
         {
           label: 'Custo por cliente', valor: cpc,
@@ -731,11 +731,11 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       // porque quando ele arma, a prospecção PAROU — e isso o dono precisa saber
       // olhando a central, não descobrindo que ninguém tocou ninguém a semana toda.
       alerta: prospTravados.length
-        ? `Disjuntor armado: ${prospTravados.map(s => `${s.consultor} (${s.taxa_optout}%)`).join(', ')} — fila travada por opt-out alto.`
+        ? `Disjuntor armado: ${prospTravados.map(s => `${s.consultor} (${s.taxa_optout}%)`).join(', ')}. Fila travada por opt-out alto.`
         : prospAtencao.length
           ? `Opt-out subindo: ${prospAtencao.map(s => `${s.consultor} (${s.taxa_optout}%)`).join(', ')}. Trava em 8%.`
           : undefined,
-      toques: [{ titulo: 'nenhum envio automático', quando: '—', copy: 'A fila é 1 a 1 e quem fala é o consultor.' }],
+      toques: [{ titulo: 'Nenhum envio automático', quando: '—', copy: 'A fila é 1 a 1 e quem fala é o consultor.' }],
     },
     {
       id: 'email',
@@ -744,7 +744,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       canal: 'email', linha: null,
       estado: 'ativo',
       ultima_atividade: null,
-      metricas: [{ label: 'medido por e-mail', valor: null, sub: 'sem log agregado ainda — cada rotina loga o próprio envio' }],
+      metricas: [{ label: 'medido por e-mail', valor: null, sub: 'sem log agregado ainda: cada rotina loga o próprio envio' }],
       toques: [
         { titulo: 'checkout abandonado', quando: '4h a 72h depois', copy: 'Um e-mail com o link de volta.' },
         { titulo: 'follow-up CNPJ', quando: '5 e-mails em 30 dias', copy: 'Foco no gerador de proposta.' },
