@@ -258,7 +258,7 @@
     var lista = criar('div', null, 'io2-f-lista');
     MODELO.mais.forEach(function (it) {
       if (it.sep) { lista.appendChild(criar('div', null, 'io2-f-sep')); return; }
-      if (it.link) { lista.appendChild(criarLink(it, 'io2-f-item io2-f-link')); return; }
+      if (it.link) { lista.appendChild(botaoTema('io2-f-item io2-f-tema')); lista.appendChild(criarLink(it, 'io2-f-item io2-f-link')); return; }
       var b = criar('button', null, 'io2-f-item');
       b.type = 'button';
       b.setAttribute('data-io2', it.chave);
@@ -280,10 +280,36 @@
     if (!modoSub) {
       try {
         var peApp = document.querySelector('#app-sidebar .sb-foot');
-        if (peApp) { var lk = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'); peApp.appendChild(lk); criados.push(lk); }
+        if (peApp) {
+          var bt = botaoTema('io2-sb-tema'); peApp.appendChild(bt); criados.push(bt);
+          var lk = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'); peApp.appendChild(lk); criados.push(lk);
+        }
       } catch (eL) {}
     }
     montado = true;
+  }
+  /* Tema escuro / claro (escolha de cada aparelho, localStorage['gerador-tema']). Um <button> que grava a escolha e recarrega:
+     o app pinta algumas cores em JavaScript conforme o tema, entao a troca so vale na carga seguinte. Vive no pe do trilho
+     (antes do "Visual antigo") e na folha "Mais"; entra em `criados` e sai no desfazer(). Se o localStorage falhar, nao faz nada. */
+  var ICONE_LUA = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+  var ICONE_SOL = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>';
+  function temaEscuroAgora() { return h.getAttribute('data-io2-tema') === 'escuro'; }
+  function alternarTema() {
+    var novo = temaEscuroAgora() ? 'claro' : 'escuro';
+    try { localStorage.setItem('gerador-tema', novo); if (localStorage.getItem('gerador-tema') !== novo) return; } catch (e) { return; }
+    try { location.reload(); } catch (e2) {}
+  }
+  function botaoTema(cls) {
+    var esc = temaEscuroAgora();
+    var b = criar('button', null, cls);
+    b.type = 'button';
+    b.setAttribute('data-io2', 'tema');
+    b.appendChild(svg(esc ? ICONE_SOL : ICONE_LUA));
+    var r = criar('span');
+    r.textContent = esc ? 'Tema claro' : 'Tema escuro';
+    b.appendChild(r);
+    b.addEventListener('click', alternarTema);
+    return b;
   }
   /* Item de navegacao que e so um endereco: <a href> de verdade (sem classe sb-item, que o Sair e o Atualizar usam como chave). */
   function criarLink(it, cls) {
@@ -334,6 +360,7 @@
     var sa = itemBarra('', 'Sair');
     sa.addEventListener('click', function () { acionar('sair'); });
     pe.appendChild(at); pe.appendChild(sa);
+    pe.appendChild(botaoTema('io2-sb-tema'));
     pe.appendChild(criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'));
     nav.appendChild(marca); nav.appendChild(lista); nav.appendChild(criar('div', null, 'sb-spacer')); nav.appendChild(pe);
     return nav;
@@ -938,6 +965,7 @@
       h.classList.remove('io2-adotou');
       h.removeAttribute('data-io2-sub');
       h.classList.remove('io2');
+      h.removeAttribute('data-io2-tema');
       var tema = window.__io2TemaAntes;
       if (tema) h.setAttribute('data-theme', tema); else h.removeAttribute('data-theme');
       window.__io2 = false;

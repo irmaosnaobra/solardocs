@@ -83,7 +83,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa b {
-    display: block; color: var(--io-tinta); font-size: 18px; font-weight: 700; line-height: 24px;
+    display: block; color: var(--io-titulo); font-size: 18px; font-weight: 700; line-height: 24px;
     font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* Com a faixa na tela: o fim da pagina e o foco por teclado nao ficam por baixo dela. */
@@ -150,11 +150,11 @@
     display: inline-flex; align-items: center; gap: 8px; box-sizing: border-box;
     min-height: 44px; margin: 0 0 8px; padding: 8px 12px 8px 4px;
     border: 0; border-radius: var(--r-controle); background: transparent;
-    color: var(--io-azul); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.2;
+    color: var(--io-azul-tx); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.2;
     cursor: pointer; text-align: left;
   }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:hover { background: var(--io-azul-sf); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn::before {
     content: ""; width: 18px; height: 18px; flex: 0 0 18px; background: currentColor;
     -webkit-mask: var(--io-ic-info) center / 18px 18px no-repeat; mask: var(--io-ic-info) center / 18px 18px no-repeat;
@@ -190,7 +190,7 @@
     border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra);
   }
   html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-logo {
-    margin: 0 0 4px; color: var(--io-tinta); font-family: var(--io-fonte); font-size: 22px; font-weight: 700; line-height: 1.2; text-align: center;
+    margin: 0 0 4px; color: var(--io-titulo); font-family: var(--io-fonte); font-size: 22px; font-weight: 700; line-height: 1.2; text-align: center;
   }
   html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-logo::before {
     content: ""; display: block; width: 72px; height: 72px; margin: 0 auto 12px;
@@ -208,16 +208,16 @@
     border: 1px solid var(--n-bd2); border-radius: var(--r-controle);
     font-family: var(--io-fonte); font-size: 16px; line-height: 1.3;
   }
-  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card :is(select, input):focus { outline: 2px solid var(--io-azul); outline-offset: 2px; border-color: var(--io-azul); }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card :is(select, input):focus { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; border-color: var(--io-azul-tx); }
   html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login {
     min-height: 48px; margin-top: 24px; padding: 12px 16px; background: var(--io-amarelo); color: var(--io-tinta);
     border: 0; border-radius: var(--r-controle); font-family: var(--io-fonte); font-size: 16px; font-weight: 700; cursor: pointer;
   }
   html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login:hover { background: var(--io-amarelo-forte); }
-  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
   html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-erro {
     margin: 16px 0 0; min-height: 0; padding: 10px 12px; border-radius: var(--r-controle);
-    background: var(--io-er-sf); color: var(--io-er); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.35; text-align: left;
+    background: var(--io-er-sf); color: var(--io-er-tx); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.35; text-align: left;
   }
   html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-erro:empty { display: none; }
 }
@@ -253,18 +253,18 @@
   /* ---- Barra de tarefas do topo: carimbo e acoes ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px 16px; min-width: 0; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp { font-size: 13px; color: var(--n-tx2); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp .in-link { min-height: 36px; padding: 0 8px; margin-left: 4px; color: var(--io-azul); font-size: 13px; font-weight: 600; text-decoration: none; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp .in-link:hover { background: var(--io-azul-sf); color: var(--io-azul); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp .in-link { min-height: 36px; padding: 0 8px; margin-left: 4px; color: var(--io-azul-tx); font-size: 13px; font-weight: 600; text-decoration: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp .in-link:hover { background: var(--io-azul-sf); color: var(--io-azul-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-btn { min-height: 40px; padding: 0 16px; border-radius: var(--r-controle); font-size: 14px; font-weight: 600; box-shadow: none; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-btn.main { background: var(--io-amarelo); border-color: var(--io-amarelo); color: var(--io-tinta); font-weight: 700; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-btn.main:hover { background: var(--io-amarelo-forte); border-color: var(--io-amarelo-forte); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection button:focus-visible, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection summary:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection button:focus-visible, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection summary:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
 
   /* ---- Controles segmentados (produto e periodo) ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-filtro { display: inline-flex; gap: 2px; padding: 4px; margin: 0; border: 0; border-radius: var(--r-controle); background: var(--n-sf3); max-width: 100%; box-sizing: border-box; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--n-tx2); font-size: 13px; font-weight: 600; gap: 6px; white-space: nowrap; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc:hover { background: var(--n-sf); color: var(--n-tx); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc[aria-pressed="true"] { background: var(--io-tinta); color: #fff; box-shadow: 0 1px 2px rgba(10, 36, 80, .25); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc[aria-pressed="true"] { background: var(--io-marcado-t); color: #fff; box-shadow: 0 1px 2px rgba(10, 36, 80, .25); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc[aria-pressed="true"] .in-pt { box-shadow: 0 0 0 2px #fff; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-pt[style*="#d2761c" i] { background-color: var(--s-solar) !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-pt[style*="#3987e5" i] { background-color: var(--s-eletro) !important; }
@@ -287,14 +287,14 @@
   }
   /* O valor em dinheiro precisa de mais largura que uma contagem: a trilha dele e mais larga. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha[data-d="areceber"] { flex: 1.3 1 196px; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha:hover { background: var(--n-sf); border-color: var(--io-azul); box-shadow: 0 1px 2px rgba(10, 36, 80, .08), 0 6px 16px rgba(29, 78, 216, .10); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha:hover { background: var(--n-sf); border-color: var(--io-azul-tx); box-shadow: 0 1px 2px rgba(10, 36, 80, .08), 0 6px 16px rgba(29, 78, 216, .10); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t { display: contents; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-f {
     grid-area: rot; font-size: 12px; font-weight: 600; line-height: 15px; color: var(--n-tx2);
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
   }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-n { grid-area: n; min-width: 0; font-family: var(--io-fonte); font-size: 26px; font-weight: 700; line-height: 28px; letter-spacing: -.01em; color: var(--io-tinta); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-n { grid-area: n; min-width: 0; font-family: var(--io-fonte); font-size: 26px; font-weight: 700; line-height: 28px; letter-spacing: -.01em; color: var(--io-titulo); font-variant-numeric: tabular-nums; white-space: nowrap; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-n.din { font-size: 20px; white-space: nowrap; overflow-wrap: normal; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-d { grid-area: sub; display: block; min-width: 0; font-size: 12px; line-height: 16px; color: var(--n-tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Rotulo curto e linha de contexto curta (io2-telas.js poe os dois em data-io2-rot e data-io2-sub, lidos do que o app escreveu).
@@ -309,13 +309,13 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-sub]::after {
     content: attr(data-io2-sub); content: attr(data-io2-sub) / "";
     grid-area: sub; justify-self: start; box-sizing: border-box; min-width: 0; max-width: 100%; margin-top: 2px; padding: 1px 8px; border-radius: var(--r-pilula);
-    background: var(--io-azul-sf); color: var(--io-azul); font-size: 12px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: var(--io-azul-sf); color: var(--io-azul-tx); font-size: 12px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   /* Cor de estado so quando o fato e um estado: vencido em vermelho, parado ou vencendo em ambar. O resto fica em azul suave. */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="er"]::after { background: var(--io-er-sf); color: var(--io-er); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="av"]::after { background: var(--io-av-sf); color: var(--io-av); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="er"]::after { background: var(--io-er-sf); color: var(--io-er-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="av"]::after { background: var(--io-av-sf); color: var(--io-av-tx); }
   /* Aviso que nao pode ser encurtado (venda sem valor na planilha): o detalhe do app fica inteiro, em cor de aviso. */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="av"]:not([data-io2-sub]) .in-d { white-space: normal; overflow: visible; text-overflow: clip; color: var(--io-av); font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="av"]:not([data-io2-sub]) .in-d { white-space: normal; overflow: visible; text-overflow: clip; color: var(--io-av-tx); font-weight: 600; }
   /* A pilula do aviso de venda sem valor nunca corta com reticencias: quando falta largura, quebra em duas linhas. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha[data-d="areceber"] .in-t[data-io2-tom="av"][data-io2-sub]::after { white-space: normal; overflow: visible; text-overflow: clip; border-radius: 10px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-seta { display: none; }
@@ -350,10 +350,10 @@
     min-height: 0; padding: 12px 16px; border: 0; border-radius: var(--r-cartao); box-sizing: border-box; font-size: 14px; line-height: 1.4;
   }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-erro { background: var(--io-er-sf); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-erro span { color: var(--io-er); font-weight: 600; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-erro .in-link { min-height: 40px; padding: 0 14px; border: 1px solid var(--io-er); border-radius: var(--r-controle); background: var(--n-sf); color: var(--io-er); font-size: 14px; font-weight: 600; text-decoration: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-erro span { color: var(--io-er-tx); font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-erro .in-link { min-height: 40px; padding: 0 14px; border: 1px solid var(--io-er-tx); border-radius: var(--r-controle); background: var(--n-sf); color: var(--io-er-tx); font-size: 14px; font-weight: 600; text-decoration: none; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-erro .in-link:hover { background: var(--io-er); color: #fff; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-aviso { background: var(--io-av-sf); color: var(--io-av); font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-aviso { background: var(--io-av-sf); color: var(--io-av-tx); font-weight: 600; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-vazio {
     flex: 1 1 100%; box-sizing: border-box; min-height: 96px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px 16px;
     padding: 16px 20px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra);
@@ -373,17 +373,17 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-ag p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--n-tx2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-ag > .in-link[data-in="agenda"], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card > .in-link[data-in="ir"] {
     position: absolute; top: 6px; right: 8px; margin: 0; min-height: 44px; padding: 0 10px; border-radius: var(--r-controle);
-    color: var(--io-azul); font-size: 13px; font-weight: 600; text-decoration: none;
+    color: var(--io-azul-tx); font-size: 13px; font-weight: 600; text-decoration: none;
   }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-ag > .in-link[data-in="agenda"]:hover, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card > .in-link[data-in="ir"]:hover { background: var(--io-azul-sf); color: var(--io-azul); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-ag > .in-link[data-in="agenda"]:hover, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card > .in-link[data-in="ir"]:hover { background: var(--io-azul-sf); color: var(--io-azul-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox { margin: 8px 0 0; border-top: 0; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox li { grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--n-bd); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox li:last-child { border-bottom: 0; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-hora { display: block; padding: 9px 0; border-radius: 10px; background: var(--io-azul-sf); color: var(--io-tinta); font-family: var(--io-fonte); font-size: 13px; font-weight: 700; text-align: center; line-height: 1; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-hora { display: block; padding: 9px 0; border-radius: 10px; background: var(--io-azul-sf); color: var(--io-titulo); font-family: var(--io-fonte); font-size: 13px; font-weight: 700; text-align: center; line-height: 1; font-variant-numeric: tabular-nums; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-cli { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--n-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-meta { gap: 4px 8px; margin-top: 3px; font-size: 12px; color: var(--n-tx2); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-selo { padding: 2px 8px; border: 0; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--io-azul-sf); color: var(--io-azul); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-selo.novo { background: var(--io-ok-sf); color: var(--io-ok); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-selo { padding: 2px 8px; border: 0; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--io-azul-sf); color: var(--io-azul-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-selo.novo { background: var(--io-ok-sf); color: var(--io-ok-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox li > span:last-child { position: relative; min-width: 0; padding-right: 76px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox .in-selo { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-ag p.in-amanha { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--n-bd); color: var(--n-tx2); }
@@ -425,7 +425,7 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-fns { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px 32px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-fn-t { font-size: 14px; font-weight: 600; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-etapas b { color: var(--n-tx); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-det summary { font-size: 13px; font-weight: 600; color: var(--io-azul); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-det summary { font-size: 13px; font-weight: 600; color: var(--io-azul-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-leg { font-size: 13px; color: var(--n-tx2); }
   /* Cabecalho de coluna numerica alinhado com os numeros. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-tab th.n { text-align: right; }
@@ -469,12 +469,12 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle { fill: none; stroke-width: 11; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-rosca-trilho { stroke: var(--n-sf3); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-av { stroke: var(--io-amarelo); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-conv { stroke: var(--io-tinta); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-conv { stroke: var(--io-titulo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-sem { stroke: var(--n-tx2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-nao { stroke: var(--io-borda-campo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-can { stroke: var(--n-bd2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro { position: absolute; left: 0; top: 0; right: 0; bottom: 0; box-sizing: border-box; padding-bottom: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 20px; font-weight: 700; line-height: 1.05; letter-spacing: -.01em; color: var(--io-tinta); font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 20px; font-weight: 700; line-height: 1.05; letter-spacing: -.01em; color: var(--io-titulo); font-variant-numeric: tabular-nums; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro span { font-size: 12px; font-weight: 500; line-height: 14px; color: var(--n-tx2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b + span { margin-top: 2px; font-weight: 600; color: var(--n-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg { flex: 1 1 0; min-width: 0; margin: 0; padding: 0; list-style: none; }
@@ -482,7 +482,7 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg li::before { display: none; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt { width: 10px; height: 10px; border-radius: 3px; box-sizing: border-box; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt.io2-s-av { background: var(--io-amarelo); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt.io2-s-conv { background: var(--io-tinta); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt.io2-s-conv { background: var(--io-titulo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt.io2-s-sem { background: var(--n-tx2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt.io2-s-nao { background: var(--io-borda-campo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt.io2-s-can { background: var(--n-bd2); }
@@ -498,7 +498,7 @@
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg li { grid-template-columns: 10px auto minmax(0, 1fr); grid-template-areas: "pt nm nm" "qt qt pc"; align-items: baseline; column-gap: 6px; row-gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--n-sf2); line-height: 18px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt { grid-area: pt; align-self: center; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-nm { grid-area: nm; font-size: 12px; font-weight: 600; color: var(--n-tx2); }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-qt { grid-area: qt; font-size: 22px; line-height: 28px; text-align: left; color: var(--io-tinta); }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-qt { grid-area: qt; font-size: 22px; line-height: 28px; text-align: left; color: var(--io-titulo); }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pc { grid-area: pc; text-align: left; }
   }
   /* Sem obra nenhuma o cartao marinho diz uma frase so (io2-telas.js marca data-io2-vazio; a frase do app segue para leitor de tela). */
@@ -777,32 +777,32 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection table.tbl-precos { min-width: 0; width: 100%; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba:not(.__):not(.__) { box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 6px 4px 14px; background: var(--n-sf); color: var(--n-tx2); border: 1px solid var(--n-bd2); border-radius: 999px; box-shadow: none; font-family: var(--io-fonte); font-size: 13px; font-weight: 500; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba:not(.__):not(.__):hover { background: var(--n-sf3); color: var(--n-tx); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.ativo-aba:not(.__):not(.__) { background: var(--io-tinta); border-color: var(--io-tinta); color: #fff; font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.ativo-aba:not(.__):not(.__) { background: var(--io-marcado-t); border-color: var(--io-marcado-t); color: #fff; font-weight: 600; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.desativado:not(.__):not(.__) { opacity: 1; filter: none; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.desativado:not(.ativo-aba) > span:first-child { color: var(--n-tx3); text-decoration: line-through; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba .tbl-toggle { width: 22px; height: 22px; border-radius: 50%; font-size: 12px; line-height: 1; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.on .tbl-toggle { background: var(--io-ok); border-color: var(--io-ok); color: #fff; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.off .tbl-toggle { background: var(--n-sf3); border-color: var(--n-bd2); color: var(--n-tx2); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td.invest { color: var(--io-tinta); font-weight: 700; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td.invest { color: var(--io-titulo); font-weight: 700; font-variant-numeric: tabular-nums; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td { color: var(--n-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td:first-child { font-weight: 600; color: var(--n-tx); }
 
   /* ---- Indicador com um jeito so: numero em tinta, rotulo em caixa normal de 13 px ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi { box-sizing: border-box; min-width: 0; padding: 14px 12px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: none; text-align: center; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi .crm-kpi-val { color: var(--io-tinta); font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi .crm-kpi-val { color: var(--io-titulo); font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi .crm-kpi-lbl:not(#_) { margin-top: 4px; color: var(--n-tx2); font-size: 13px; font-weight: 500; line-height: 1.3; text-transform: none; letter-spacing: 0; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi.verde:not([data-io2-zero]) .crm-kpi-val { color: var(--io-ok); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi.vermelho:not([data-io2-zero]) .crm-kpi-val { color: var(--io-er); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi.verde:not([data-io2-zero]) .crm-kpi-val { color: var(--io-ok-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi.vermelho:not([data-io2-zero]) .crm-kpi-val { color: var(--io-er-tx); }
 
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num { background: var(--n-sf); border: 1px solid var(--n-bd); box-shadow: none; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num b { color: var(--io-tinta); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num b { color: var(--io-titulo); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num span:not(#_) { color: var(--n-tx2); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num.v:not([data-io2-zero]) b { color: var(--io-er); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num.v:not([data-io2-zero]) b { color: var(--io-er-tx); }
 
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat { box-sizing: border-box; min-width: 0; padding: 12px 14px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: none; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat .lbl:not(#_) { color: var(--n-tx2); font-size: 13px; font-weight: 500; line-height: 1.3; text-transform: none; letter-spacing: 0; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat .val { margin-top: 4px; color: var(--io-tinta); font-size: 20px; font-weight: 700; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat .val { margin-top: 4px; color: var(--io-titulo); font-size: 20px; font-weight: 700; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-kcard .kt:not(#_) { font-size: 13px; }
 
@@ -814,19 +814,19 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-pag { margin-top: 12px; }
 
   /* ---- Historico: grafico "Evolucao mensal" sem degrade, sem verde, numero fora da barra ---- */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"] { display: block !important; padding: 0 !important; overflow: visible !important; min-width: 14px !important; box-shadow: none !important; color: var(--io-tinta) !important; font-size: 12px !important; font-weight: 700 !important; line-height: 18px !important; text-indent: calc(100% + 6px); white-space: nowrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"] { display: block !important; padding: 0 !important; overflow: visible !important; min-width: 14px !important; box-shadow: none !important; color: var(--io-titulo) !important; font-size: 12px !important; font-weight: 700 !important; line-height: 18px !important; text-indent: calc(100% + 6px); white-space: nowrap; }
   /* O fundo da barra vai para um ::before: o numero, que fica fora dela, assenta no fundo do cartao (e nao no da barra). */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"] { position: relative; background: transparent !important; background-image: none !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"]::before { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: inherit; background: var(--n-sf3); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="4a90e2" i][style*="height:18px"]::before { background: var(--io-azul); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="2ecc71" i][style*="height:18px"]::before { background: var(--io-tinta); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="2ecc71" i][style*="height:18px"]::before { background: var(--io-titulo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes span[style*="background:#4a90e2" i] { background: var(--io-azul) !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes span[style*="background:#2ecc71" i] { background: var(--io-tinta) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes span[style*="background:#2ecc71" i] { background: var(--io-titulo) !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="flex-direction:column;gap:3px"] { padding-right: 36px; box-sizing: border-box; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="font-size:11px"], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="font-size:10px"] { font-size: 12px !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="font-size:10px"] { color: var(--n-tx3) !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#2ecc71" i] { color: var(--io-ok) !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#f5a623" i] { color: var(--io-av) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#2ecc71" i] { color: var(--io-ok-tx) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#f5a623" i] { color: var(--io-av-tx) !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#999" i] { color: var(--n-tx3) !important; }
   /* Podio do ranking: os tres rotulos de 8 px. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #ranking-mes span[style*="font-size:8px"] { font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important; }
@@ -840,13 +840,13 @@
   /* Avatar do Instagram sem imagem: circulo com a inicial (io2-telas.js marca o pai com data-io2-semfoto e data-io2-ini). */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto] { position: relative; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto] > img { visibility: hidden; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto]::before { content: attr(data-io2-ini); position: absolute; left: 0; top: 0; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: var(--io-azul-sf); color: var(--io-tinta); font-family: var(--io-fonte); font-size: 15px; font-weight: 700; line-height: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto]::before { content: attr(data-io2-ini); position: absolute; left: 0; top: 0; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: var(--io-azul-sf); color: var(--io-titulo); font-family: var(--io-fonte); font-size: 15px; font-weight: 700; line-height: 1; }
 
   /* ---- Inicio: o funil como trena (trilho, fita amarela, marcas de 10%) ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg path[fill] { fill: var(--io-amarelo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg rect.io2-trilho { fill: var(--n-sf3); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg rect.io2-marcas { pointer-events: none; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg line.io2-marca { stroke: var(--io-tinta); stroke-opacity: var(--io-trena-marca); stroke-width: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg line.io2-marca { stroke: var(--io-titulo); stroke-opacity: var(--io-trena-marca); stroke-width: 1; }
 }
 
 /* ---- Celular: Tabelas em duas linhas por equipamento, Historico em duas colunas, chips de Leads em fileira ---- */

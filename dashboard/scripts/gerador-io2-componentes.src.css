@@ -11,15 +11,15 @@ html.io2 {
 }
 
 /* ============ Superficies do navegador ============ */
-html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin; scrollbar-color: #A9B6C9 transparent; }
+html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin; scrollbar-color: var(--io-rolagem) transparent; }
 html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var(--io-tinta); }
 /* a selecao amarela vem por heranca de destaque a partir do <html>: so o #inicioSection tem regra propria (io2-cores-index) e os documentos voltam ao padrao do navegador */
 @P #inicioSection ::selection { background: var(--io-amarelo); color: var(--io-tinta); }
 @P :is(#eletro-print, #doc-print, #ep-preview, #orcViewSection, #propostaSection, #expiradoSection, #loadingProposta, #marr, .celebra-overlay)::selection { background: Highlight; color: HighlightText; }
-@S input, @S textarea { caret-color: var(--io-azul); }
-@S input[type="date"], @S input[type="time"], @S input[type="month"], @S input[type="datetime-local"], @S input[type="week"] { color-scheme: light; }
+@S input, @S textarea { caret-color: var(--io-azul-tx); }
+@S input[type="date"], @S input[type="time"], @S input[type="month"], @S input[type="datetime-local"], @S input[type="week"] { color-scheme: var(--io-cs); }
 @S :is(.kv, .kt, .num, .historico-stat, .crm-kpi-val, .fin-kpi-v, .ql-num b, .eletro-bar-val, .eletro-bar-lbl, .in-n), @S input[type="number"], @S input[type="tel"] { font-variant-numeric: tabular-nums; }
-@S :is(a, button, [role="button"], [role="tab"], [tabindex]:not([tabindex="-1"]), summary, label.btn, .leads-aba):not(.solar-subtab, .eletro-subtab, .eletro-subtab2, .cad-aba, .crm-subtab):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+@S :is(a, button, [role="button"], [role="tab"], [tabindex]:not([tabindex="-1"]), summary, label.btn, .leads-aba):not(.solar-subtab, .eletro-subtab, .eletro-subtab2, .cad-aba, .crm-subtab):focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
 
 /* ============ 1. Campo unico ============ */
 @S input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="submit"], [type="button"], [type="hidden"], [type="image"], [type="reset"]),
@@ -39,13 +39,13 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S textarea { min-height: 88px; padding-top: 10px; padding-bottom: 10px; line-height: 1.5; resize: vertical; }
 @S input:not([type="checkbox"]):not([type="radio"]):hover, @S select:hover, @S textarea:hover { border-color: var(--ioc-bd-h); }
 @S input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus, @S select:focus, @S textarea:focus {
-  border-color: var(--io-azul); outline: 2px solid var(--io-azul); outline-offset: 2px;
+  border-color: var(--io-azul-tx); outline: 2px solid var(--io-azul-tx); outline-offset: 2px;
 }
 @S input:not([type="checkbox"]):not([type="radio"])::placeholder, @S textarea::placeholder { color: var(--n-tx3); opacity: 1; font-weight: 400; }
-@S :is(input, select, textarea):user-invalid { border-color: var(--io-er); }
-@S :is(input, select, textarea)[aria-invalid="true"], @S input.fs-erro, @S .fs-bit input.fs-erro { border-color: var(--io-er); background-color: var(--n-sf); }
-@S :is(input, select, textarea):user-invalid:focus { outline-color: var(--io-er); }
-@S :is(input, select, textarea)[aria-invalid="true"]:focus { outline-color: var(--io-er); }
+@S :is(input, select, textarea):user-invalid { border-color: var(--io-er-tx); }
+@S :is(input, select, textarea)[aria-invalid="true"], @S input.fs-erro, @S .fs-bit input.fs-erro { border-color: var(--io-er-tx); background-color: var(--n-sf); }
+@S :is(input, select, textarea):user-invalid:focus { outline-color: var(--io-er-tx); }
+@S :is(input, select, textarea)[aria-invalid="true"]:focus { outline-color: var(--io-er-tx); }
 @S :is(input, select, textarea):disabled { background-color: var(--n-sf3); color: var(--n-tx3); border-color: var(--n-bd); cursor: not-allowed; opacity: 1; -webkit-text-fill-color: var(--n-tx3); }
 @S select:disabled { background-image: var(--ioc-sel); }
 @S .eletro-inp-lock input, @S input[readonly]:not([type="checkbox"]):not([type="radio"]) { background-color: var(--n-sf2); border-style: dashed; }
@@ -80,7 +80,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S .card > h2, @S .card h2, @S .eletro-sec-title, @S .calc-card-title, @S .pq-card h2, @S .card > h3, @S .card h4, @S .ranking-mes h3, @S #rec-card-tit, @S summary.eletro-sec-title,
 @S .in-card h3, @S .pag-head, @S .crm-det h2 {
   margin: 24px 0 16px; padding: 0; border: 0; border-bottom: 0; background: none;
-  font-size: 16px; font-weight: 600; line-height: 1.35; letter-spacing: 0; text-transform: none; color: var(--io-tinta);
+  font-size: 16px; font-weight: 600; line-height: 1.35; letter-spacing: 0; text-transform: none; color: var(--io-titulo);
 }
 @S :is(.card, .calc-card, .pq-card, .in-card) > :is(h2, h3, .eletro-sec-title, .calc-card-title):first-child,
 @S .eletro-sec-title:first-child, @S .calc-card-title:first-child, @S .card h2:first-child { margin-top: 0; }
@@ -89,7 +89,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S summary { font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--n-tx); cursor: pointer; }
 @S .eletro-sec-title .el-tip, @S .eletro-kcard .el-tip { text-transform: none; }
 
-@S .lead-wpp { color: var(--io-wa); font-weight: 600; text-decoration: none; }
+@S .lead-wpp { color: var(--io-wa-tx); font-weight: 600; text-decoration: none; }
 @S .lead-wpp:hover { text-decoration: underline; }
 @S .calc-card-title::before, @S .eletro-sec-title::before { display: none; }
 @S [style*="uppercase" i] { text-transform: none !important; letter-spacing: 0 !important; }
@@ -121,9 +121,9 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 /* perigo: vermelho */
 @S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo) { background: var(--io-er); color: #fff; border: 1px solid var(--io-er); box-shadow: none; }
 @S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo):hover:not(:disabled) { background: var(--io-er-h); border-color: var(--io-er-h); color: #fff; }
-@S :is(.fs-x, .ehist-x) { color: var(--io-er); }
+@S :is(.fs-x, .ehist-x) { color: var(--io-er-tx); }
 @S .fs-x { background: var(--n-sf); border: 1px solid var(--n-bd2); border-radius: var(--r-controle); }
-@S :is(.fs-x, .eletro-btn.ehist-x):hover:not(:disabled) { background: var(--io-er-sf); border-color: var(--io-er); }
+@S :is(.fs-x, .eletro-btn.ehist-x):hover:not(:disabled) { background: var(--io-er-sf); border-color: var(--io-er-tx); }
 /* WhatsApp: verde da marca com texto branco */
 @Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]) { background: var(--io-wa); color: #fff; border: 1px solid var(--io-wa); text-shadow: none; }
 @Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]):hover:not(:disabled) { background: var(--io-wa-h); border-color: var(--io-wa-h); color: #fff; }
@@ -134,7 +134,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 /* acoes miudas da tabela do historico */
 @S .acoes-mini button { min-height: 32px; min-width: 32px; padding: 4px 8px; border-radius: 8px; font-size: 13px; line-height: 1; }
 /* foco e desabilitado de todos os botoes */
-@S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .modal-acoes button, .acoes-mini button, .crm-act, .fs-x):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+@S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .modal-acoes button, .acoes-mini button, .crm-act, .fs-x):focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
 @Q :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .modal-acoes button, .historico-pag button):disabled,
 @Q :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .crm-novo-contato, .btn-wpp, .pn-bt)[aria-disabled="true"] {
   background: var(--n-sf3); color: var(--n-tx3); border-color: var(--n-bd); box-shadow: none; cursor: not-allowed; opacity: 1; transform: none;
@@ -143,7 +143,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S :is(button, .eletro-btn)[aria-busy="true"], @S button.carregando, @S button.is-loading { position: relative; pointer-events: none; cursor: progress; color: transparent !important; }
 @S :is(button, .eletro-btn)[aria-busy="true"]::after, @S button.carregando::after, @S button.is-loading::after {
   content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; box-sizing: border-box;
-  border: 2px solid var(--io-tinta); border-right-color: transparent; border-radius: 50%; animation: io2-gira .7s linear infinite;
+  border: 2px solid var(--io-titulo); border-right-color: transparent; border-radius: 50%; animation: io2-gira .7s linear infinite;
 }
 
 /* ============ 5. Cartao ============ */
@@ -176,9 +176,9 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S .historico-stat .num { font-size: 22px; }
 @S .ql-num b { font-size: 24px; }
 @S .ql-num { border-radius: var(--r-cartao); }
-@S .ql-num:hover { border-color: var(--io-azul); }
-@S .ql-num.on { border-color: var(--io-azul); background: var(--io-azul-sf); }
-@S .fin-kpi.dest { background: var(--io-azul-sf); border-color: var(--io-azul); }
+@S .ql-num:hover { border-color: var(--io-azul-tx); }
+@S .ql-num.on { border-color: var(--io-azul-tx); background: var(--io-azul-sf); }
+@S .fin-kpi.dest { background: var(--io-azul-sf); border-color: var(--io-azul-tx); }
 @S .fin-kpi.dest .fin-kpi-v { font-size: 20px; }
 /* o unico cartao marinho invertido: o resumo que ancora a tela */
 @S .eletro-kcard.hero { background: var(--io-navy-900); border-color: var(--io-navy-900); }
@@ -213,14 +213,14 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 }
 @S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub, .redes-tab, .toggle-group button):hover { background: var(--n-sf3); color: var(--n-tx); }
 @S :is(.leads-aba.on, .ranking-mes-btn.ativo, .filtro-btn.ativo, .ql-chip.on, .pn-aba.ativa, .pn-aba.on, .fs-tab.ativa, .tbl-aba.on, .tbl-aba.ativo-aba, .crm-chip.ativo, .auto-tab.ativa, .avi-pub.on, .redes-tab.ativa, .toggle-group button.ativo) {
-  background: var(--io-tinta); color: #fff; border-color: var(--io-tinta); font-weight: 600;
+  background: var(--io-marcado-t); color: #fff; border-color: var(--io-marcado-t); font-weight: 600;
 }
-@S :is(.leads-aba.on, .ranking-mes-btn.ativo, .filtro-btn.ativo, .ql-chip.on, .pn-aba.ativa, .fs-tab.ativa, .tbl-aba.on, .crm-chip.ativo, .auto-tab.ativa, .avi-pub.on, .toggle-group button.ativo):hover { background: var(--io-navy-800); color: #fff; }
-@S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+@S :is(.leads-aba.on, .ranking-mes-btn.ativo, .filtro-btn.ativo, .ql-chip.on, .pn-aba.ativa, .fs-tab.ativa, .tbl-aba.on, .crm-chip.ativo, .auto-tab.ativa, .avi-pub.on, .toggle-group button.ativo):hover { background: var(--io-marcado-h); color: #fff; }
+@S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub):focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
 @S .leads-aba .qt, @S .leads-aba b, @S .leads-aba span { font-variant-numeric: tabular-nums; }
 
 @S .toggle-group button { flex: 1; }
-@S .acoes-mini button.historico-link { background: var(--io-azul-sf); color: var(--io-azul); border: 1px solid var(--io-azul-sf); }
+@S .acoes-mini button.historico-link { background: var(--io-azul-sf); color: var(--io-azul-tx); border: 1px solid var(--io-azul-sf); }
 
 /* ============ 9. Etiqueta ============ */
 @S :is(.pn-tag, .badge-novo, .avi-badge, .cad-org, .cad-rel, .cad-ag-st, .ob-selo, .pv-selo, .fin-selo, .dossie-badge, .ctr-chip, .auto-badge, .crm-status-selo, .cad-par-ver, .rp-tag, .selo-ok, .selo-sr, .selo-fora, .selo-motivo) {
@@ -229,7 +229,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 }
 @S :is(.badge-novo, .auto-badge, .cad-par-ver) { background: var(--n-sf3); color: var(--n-tx2); }
 
-@S .auto-badge { color: var(--io-tinta); }
+@S .auto-badge { color: var(--io-titulo); }
 @S :is(.field, .fs-f, .calc-field, .eletro-field) label > span[style*="opacity"] { opacity: 1 !important; }
 
 /* ============ 10. Modal e toast ============ */
@@ -238,12 +238,12 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
   background: var(--n-sf); color: var(--n-tx); border: 0; border-radius: 16px; padding: 24px;
   box-shadow: 0 16px 48px rgba(10, 36, 80, .28);
 }
-@S .modal-box h3 { margin: 0 0 8px; color: var(--io-tinta); font-size: 18px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+@S .modal-box h3 { margin: 0 0 8px; color: var(--io-titulo); font-size: 18px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 @S .modal-box p { color: var(--n-tx2); font-size: 14px; line-height: 1.5; }
 @S .modal-acoes { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--n-bd); justify-content: flex-end; gap: 8px; }
 @S .crm-det { border-radius: 16px; box-shadow: 0 16px 48px rgba(10, 36, 80, .28); }
 @S #crm-det-bg { background: rgba(6, 26, 56, .55); }
-@S .crm-det h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: var(--io-tinta); }
+@S .crm-det h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: var(--io-titulo); }
 @S .cmp-box { border-radius: 16px; }
 @P #toast, @P .toast {
   background: var(--io-navy-900); color: var(--n-inv); border: 0; border-radius: 999px; padding: 12px 20px; width: max-content; max-width: min(92vw, 420px); box-sizing: border-box;
@@ -260,16 +260,16 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
   -webkit-mask: var(--ioc-ic-vazio) center / 40px 40px no-repeat; mask: var(--ioc-ic-vazio) center / 40px 40px no-repeat;
 }
 @S :is(.in-erro, .fin-erro, .login-erro, .erro) {
-  padding: 12px 14px; color: var(--io-er); background: var(--io-er-sf); border: 1px solid var(--io-er); border-radius: var(--r-controle); font-size: 14px; line-height: 1.45;
+  padding: 12px 14px; color: var(--io-er-tx); background: var(--io-er-sf); border: 1px solid var(--io-er-tx); border-radius: var(--r-controle); font-size: 14px; line-height: 1.45;
 }
 @S :is(.pv-aviso, .calc-warn, .auto-warn) {
-  padding: 12px 14px; color: #6F3306; background: var(--io-av-sf); border: 1px solid #E6B677; border-radius: var(--r-controle); font-size: 13px; line-height: 1.45;
+  padding: 12px 14px; color: var(--io-ambar-tx); background: var(--io-av-sf); border: 1px solid var(--io-ambar-bd); border-radius: var(--r-controle); font-size: 13px; line-height: 1.45;
 }
 @S :is(.pq-sk, .pq-skel, .skeleton) {
   background: linear-gradient(90deg, var(--n-sf3) 25%, var(--n-sf2) 50%, var(--n-sf3) 75%); background-size: 200% 100%;
   border-radius: 8px; border: 0; animation: io2-shimmer 1.4s ease-in-out infinite;
 }
-@S .lp-spinner, @S .fin-gira { border-color: var(--n-bd); border-top-color: var(--io-azul); }
+@S .lp-spinner, @S .fin-gira { border-color: var(--n-bd); border-top-color: var(--io-azul-tx); }
 
 /* ============ 12. A trena: barra vira fita de obra ============ */
 @S :is(.auto-prog, .avi-barra, .avi-prog, .redes-bar .rb-track) {

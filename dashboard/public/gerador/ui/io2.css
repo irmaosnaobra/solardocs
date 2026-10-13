@@ -47,11 +47,30 @@
     --io-er-h: #991B1B;       /* hover do botao de perigo */
     --io-av: #AD5009;
     --io-av-sf: #FFF1DC;
-    --io-info: var(--io-azul);
+    --io-info: var(--io-azul-tx);
     --io-wa: #0B7A43;
     --io-wa-h: #095F34;       /* hover do WhatsApp: um valor so */
     --io-ok-inv: #7BE0A0;     /* verde de estado sobre marinho */
     --io-trena-marca: .5;     /* opacidade das marcas de 10% da trena, em todo lugar */
+
+    /* Tema escuro: papeis separados (no claro, cada um vale exatamente o que valia antes) */
+    --io-cs: light;               /* color-scheme dos controles nativos (data, hora) */
+    --io-titulo: #0B2447;         /* cor de titulo e de numero (o --io-tinta fica so como texto sobre o amarelo) */
+    --io-azul-tx: #1D4ED8;        /* azul como texto, link, icone, traco e anel de foco (--io-azul fica so como preenchimento) */
+    --io-ok-tx: #147B3B;
+    --io-er-tx: #B91C1C;
+    --io-av-tx: #AD5009;
+    --io-wa-tx: #0B7A43;
+    --io-ok-fg: #0E5C2B;          /* texto forte sobre --io-ok-sf */
+    --io-ok-bd: #9BD3AE;
+    --io-er-fg: #8F1515;          /* texto forte sobre --io-er-sf */
+    --io-er-bd: #F0A5A5;
+    --io-ambar-tx: #6F3306;       /* aviso ambar: texto e contorno */
+    --io-ambar-bd: #E6B677;
+    --io-marcado: #0A2450;        /* preenchimento de aba, chip e botao marcado (texto branco por cima) */
+    --io-marcado-h: #123A72;
+    --io-marcado-t: #0B2447;
+    --io-rolagem: #A9B6C9;        /* barra de rolagem */
 
     /* Series */
     --s-solar: #B4610F;
@@ -73,6 +92,61 @@
     --bot-h: 64px;
     --ctl-h: 40px;
     --ctl-h-m: 44px;
+  }
+
+  /* ---- Tema escuro (escolha de cada aparelho: localStorage['gerador-tema'] = 'escuro') ----------------------
+     O chave.js poe data-io2-tema="escuro" no <html>, NAO liga as folhas io2-cores-* (elas so convertem o escuro
+     nativo em claro) e deixa o data-theme como o app o deixou (escuro nativo). Os valores seguem a paleta nativa
+     (fundo #0F172A, cartao #1E293B, texto #E5E7EB, secundario #94A3B8, borda #475569) e foram medidos:
+       --n-tx sobre --n-sf e --n-bg: 11,8 e 14,4 (meta 7); --n-tx2: 7,9 e 9,7; --n-tx3: 5,7 e 7,0 (meta 4,5);
+       --io-borda-campo: 3,9 sobre --n-sf e 4,7 sobre --n-bg (meta 3); texto de estado sobre o proprio fundo suave >= 6,1;
+       branco sobre preenchimento azul/verde/vermelho/ambar >= 4,7; azul de preenchimento 3,1 sobre --n-sf. O trilho, o cartao invertido e o toast continuam marinho. */
+  html.io2[data-io2-tema="escuro"] {
+    color-scheme: dark;
+    --io-cs: dark;
+    --io-titulo: #F1F5F9;
+    --io-azul: #2E6CEA;
+    --io-azul-h: #1D4ED8;
+    --io-azul-tx: #93C5FD;
+    --io-azul-sf: rgba(96, 165, 250, .16);
+    --io-amarelo-sf: rgba(255, 194, 32, .16);
+    --n-bg: #0F172A;
+    --n-sf: #1E293B;
+    --n-sf2: #182338;
+    --n-sf3: #2A384F;
+    --n-bd: #334155;
+    --n-bd2: #475569;
+    --io-borda-campo: #7384A0;
+    --n-tx: #E5E7EB;
+    --n-tx2: #B4C0D1;
+    --n-tx3: #94A3B8;
+    --io-ok: #15803D;
+    --io-ok-tx: #4ADE80;
+    --io-ok-sf: rgba(74, 222, 128, .14);
+    --io-ok-fg: #4ADE80;
+    --io-ok-bd: rgba(74, 222, 128, .4);
+    --io-er: #DC2626;
+    --io-er-h: #B91C1C;
+    --io-er-tx: #FCA5A5;
+    --io-er-sf: rgba(248, 113, 113, .14);
+    --io-er-fg: #FCA5A5;
+    --io-er-bd: rgba(248, 113, 113, .4);
+    --io-av: #B45309;
+    --io-av-tx: #FBBF24;
+    --io-av-sf: rgba(251, 191, 36, .14);
+    --io-wa-tx: #4ADE80;
+    --io-ambar-tx: #FBBF24;
+    --io-ambar-bd: rgba(251, 191, 36, .45);
+    --io-marcado: #2E6CEA;
+    --io-marcado-h: #1D4ED8;
+    --io-marcado-t: #2E6CEA;
+    --io-rolagem: #64748B;
+    --s-solar: #F59E0B;
+    --s-eletro: #60A5FA;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 12px rgba(0, 0, 0, .35);
+    --ioc-bd-h: #94A3B8;
+    --io-sel: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23B4C0D1' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M5 7.5l5 5 5-5'/></svg>");
+    --ioc-sel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23B4C0D1' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5l5 5 5-5'/%3E%3C/svg%3E");
   }
 }
 
@@ -217,7 +291,7 @@
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-tit {
-    margin: 0; color: var(--io-tinta); font-size: 18px; font-weight: 700; line-height: 22px;
+    margin: 0; color: var(--io-titulo); font-size: 18px; font-weight: 700; line-height: 22px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-ctx {
@@ -230,7 +304,7 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-av {
     display: inline-flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border-radius: 999px;
-    background: var(--io-azul-sf); color: var(--io-tinta); font-size: 14px; font-weight: 700;
+    background: var(--io-azul-sf); color: var(--io-titulo); font-size: 14px; font-weight: 700;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-nome { color: var(--n-tx); font-size: 14px; font-weight: 500; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user:empty { display: none; }
@@ -249,7 +323,7 @@
     color: var(--n-tx3);
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo:focus-within {
-    background: var(--n-sf); border-color: var(--io-azul); outline: 2px solid var(--io-azul); outline-offset: 1px;
+    background: var(--n-sf); border-color: var(--io-azul-tx); outline: 2px solid var(--io-azul-tx); outline-offset: 1px;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo > svg {
     width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round;
@@ -288,9 +362,9 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-pai { flex: 0 1 auto; min-width: 0; white-space: pre; overflow: hidden; text-overflow: ellipsis; color: var(--n-tx2); font-size: 12px; font-weight: 400; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-fim { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] {
-    background: var(--n-sf3); color: var(--io-tinta); font-weight: 600;
+    background: var(--n-sf3); color: var(--io-titulo); font-weight: 600;
   }
-  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] svg { color: var(--io-tinta); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] svg { color: var(--io-titulo); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-vazio { padding: 12px 10px; color: var(--n-tx2); font-size: 14px; line-height: 1.3; }
 }
 
@@ -345,10 +419,10 @@
   html.io2[data-mode="app"]:not(#_):not(#_) :is(.crm-subtab).ativo,
   html.io2[data-mode="app"]:not(#_):not(#_) .crm-subtab.ativo.solar,
   html.io2[data-mode="app"]:not(#_):not(#_) .crm-subtab.ativo.ep {
-    background: transparent; color: var(--io-tinta); font-weight: 700; box-shadow: inset 0 -3px 0 var(--io-amarelo);
+    background: transparent; color: var(--io-titulo); font-weight: 700; box-shadow: inset 0 -3px 0 var(--io-amarelo);
   }
   html.io2[data-mode="app"]:not(#_):not(#_) :is(.solar-subtab, .eletro-subtab, .eletro-subtab2, .cad-aba, .crm-subtab):focus-visible {
-    outline: 2px solid var(--io-azul); outline-offset: -2px;
+    outline: 2px solid var(--io-azul-tx); outline-offset: -2px;
   }
   /* Contadores dentro das abas: neutros; o da aba ativa ganha o amarelo da marca. */
   html.io2[data-mode="app"]:not(#_):not(#_) :is(.cad-cnt, .crm-subtab-qt),
@@ -534,7 +608,7 @@
   html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button {
     position: relative; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
     width: var(--ctl-h) !important; height: var(--ctl-h); min-width: var(--ctl-h); min-height: var(--ctl-h); margin: 0; padding: 0 !important;
-    border: 1px solid var(--n-bd2); border-radius: var(--r-controle); background: var(--n-sf); color: var(--io-tinta);
+    border: 1px solid var(--n-bd2); border-radius: var(--r-controle); background: var(--n-sf); color: var(--io-titulo);
     font-size: 0; line-height: 0; cursor: pointer;
   }
   html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button::before {
@@ -548,7 +622,7 @@
   @media (prefers-reduced-motion: reduce) {
     html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button[data-io2-carregando]::before { animation: none; opacity: .45; }
   }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
   /* Selo de ambiente das Cobrancas (so aparece com texto): legivel, na altura do botao. */
   html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra .amb { display: inline-flex; align-items: center; min-height: 28px; margin: 0; padding: 0 12px; box-sizing: border-box; white-space: nowrap; }
 
@@ -596,3 +670,46 @@
    escura. Hoje todo filho do deck define a propria cor e nenhum pixel muda (medido em 9 folhas), mas um elemento
    novo sem cor propria mudaria no papel. A raiz volta a carregar a cor de antes. */
 html.io2[data-theme="light"] :where(.nx-deck) { color: #E5E7EB; }
+
+/* =====================================================================================
+   TEMA ESCURO (opcao de cada aparelho). O botao de troca mora no pe do trilho e na folha "Mais" (casca.js).
+   Escolha: localStorage['gerador-tema'] = 'escuro' | 'claro' (sem nada gravado vale o claro). Os tokens escuros
+   estao no inicio deste arquivo (html.io2[data-io2-tema="escuro"]). Abaixo: o botao (vale nos dois temas) e as
+   poucas regras que SO existem no escuro.
+   ===================================================================================== */
+@media screen {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema {
+    display: flex; align-items: center; gap: 12px; box-sizing: border-box; width: 100%; min-height: 44px; margin: 0; padding: 8px 12px;
+    border: 1px solid transparent; border-radius: var(--r-controle); background: transparent; color: var(--n-inv2);
+    font-family: var(--io-fonte); font-size: 14px; font-weight: 500; line-height: 1.2; text-align: left; cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema svg { width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: 2px; }
+}
+
+/* ---- So no escuro: textos que o app pinta com cinza/azul escuro de tema claro ou de #64748B (3,1:1 sobre o cartao) ---- */
+@media screen {
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [style*="color:#64748b" i], html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [style*="color: #64748b" i], html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [style*="color:#666" i], html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [style*="color:#777" i], html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [style*="color:#999" i] { color: var(--n-tx3) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .podio-card :is([style*="color:#1E3A8A" i], [style*="color:#5a3800" i], [style*="color:#7a4d00" i]) { color: var(--io-titulo) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .podio-card.p1 :is([style*="color:#5a3800" i], [style*="color:#7a4d00" i], [style*="color:#7a5800" i]) { color: var(--io-av-tx) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .podio-card [style*="color:#7a5800" i] { color: var(--n-tx3) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .podio-card .nome { color: var(--io-titulo) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.pag-hint, .crm-col-vazia, .lbl-filtro, .eletro-sec-title span, .auto-lbl span, #avi-previa) { color: var(--n-tx3) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .cad-par .cad-sub { color: var(--n-tx2) !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.ranking-mes-btn, .leads-aba) :is(.qtd, .c) { color: inherit !important; opacity: 1 !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .auto-badge { color: var(--io-tinta); }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .auto-badge[style*="334155" i] { color: var(--n-tx); }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pill[style*="color:#94A3B8" i] { color: #CBD5E1 !important; }
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.cad-org.ficha, .cad-sit.sem_atend), html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [style*="rgba(148,163,184" i] { color: #CBD5E1; }
+}
+
+/* Variaveis proprias dos subapps (:root de cada pagina): o cinza de apoio sobe para o token de texto fraco. */
+@media screen { html.io2[data-io2-tema="escuro"] { --faint: var(--n-tx3); } }
+
+/* Inicio no escuro: o cartao marinho invertido ("Obras do solar") fica marinho e ganha contorno azul claro para se destacar do fundo
+   (contorno 3,6:1 sobre --n-bg; o preenchimento marinho sozinho dava 1,2:1). */
+@media screen {
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] { border-color: #4A70B5; }
+}

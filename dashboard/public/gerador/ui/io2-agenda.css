@@ -64,118 +64,123 @@
    Nenhuma regra desta secao escolhe .slot, .meia, .ocupado, .tag-*, .hora-exata, .ok-btn, .sw-* nem o
    background do .grid. So casca, controles, legenda (texto) e modais. */
 @media screen {
-  html.io2[data-theme="light"]:not(#_) body { background: var(--n-bg); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) body { background: var(--n-bg); }
 
   /* Controles da semana */
   /* Margem horizontal zero: o recuo (24 px da barra lateral e 24 de cada lado) vem do body (io2.css, casca de subapp). */
-  html.io2[data-theme="light"]:not(#_) .ctrl {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .ctrl {
     background: transparent; border-bottom: 0; padding: 12px 0 4px; gap: 12px;
   }
-  html.io2[data-theme="light"]:not(#_) .nav-semana { gap: 8px; }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana { gap: 8px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn {
     width: var(--ctl-h); height: var(--ctl-h); border-radius: var(--r-controle);
-    background: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--io-tinta);
+    background: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--io-titulo);
   }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn:hover { background: var(--n-sf3); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn:hover { background: var(--n-sf3); }
   /* Semana anterior e proxima: o glifo (‹ ›) some do desenho e entra o chevron de traco. O nome acessivel vem do
      title (casca.js poe o aria-label). Nada disto alcanca a grade. */
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn { position: relative; padding: 0; font-size: 0; line-height: 0; }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn::before {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn { position: relative; padding: 0; font-size: 0; line-height: 0; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn::before {
     content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
     background-color: currentColor; -webkit-mask: var(--io-gl) center / 20px 20px no-repeat; mask: var(--io-gl) center / 20px 20px no-repeat;
   }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn[onclick="navSemana(-1)"] { --io-gl: var(--io-gl-chev-e); }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn[onclick="navSemana(1)"] { --io-gl: var(--io-gl-chev-d); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn[onclick="navSemana(-1)"] { --io-gl: var(--io-gl-chev-e); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn[onclick="navSemana(1)"] { --io-gl: var(--io-gl-chev-d); }
   /* Foco de teclado dos controles da semana e das abas (a aba ativa e marinho: o contorno padrao sumia). So dentro de .ctrl. */
-  html.io2[data-theme="light"]:not(#_) .ctrl button:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .periodo { color: var(--io-tinta); min-width: 168px; }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .btn-hoje {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .ctrl button:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .periodo { color: var(--io-titulo); min-width: 168px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .btn-hoje {
     min-height: var(--ctl-h); padding: 0 16px; border-radius: var(--r-controle);
     background: var(--io-amarelo); color: var(--io-tinta);
   }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .btn-hoje:hover { background: var(--io-amarelo-forte); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .btn-hoje:hover { background: var(--io-amarelo-forte); }
 
   /* Abas por vendedor */
-  html.io2[data-theme="light"]:not(#_) .abas { gap: 8px; }
-  html.io2[data-theme="light"]:not(#_) .aba {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .abas { gap: 8px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba {
     min-height: var(--ctl-h); padding: 0 16px; border-radius: var(--r-pilula);
     background: var(--n-sf); border: 1px solid var(--n-bd); color: var(--n-tx2);
   }
-  html.io2[data-theme="light"]:not(#_) .aba:hover { background: var(--n-sf3); }
-  html.io2[data-theme="light"]:not(#_) .aba.ativa { background: var(--io-navy-900); border-color: var(--io-navy-900); color: var(--n-inv); }
-  html.io2[data-theme="light"]:not(#_) .aba:not(.ativa) .badge { background: var(--n-sf3); color: var(--n-tx2); }
-  html.io2[data-theme="light"]:not(#_) .aba .badge { font-size: 12px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba:hover { background: var(--n-sf3); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba.ativa { background: var(--io-marcado); border-color: var(--io-marcado); color: var(--n-inv); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba:not(.ativa) .badge { background: var(--n-sf3); color: var(--n-tx2); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba .badge { font-size: 12px; }
 
   /* Ilha: area da grade. O quadro marinho em volta e o #grid-container (nao o .grid, para o recorte
      dos cantos dos cartoes ficar igual). A legenda fica no tema claro. */
-  html.io2[data-theme="light"]:not(#_) .grid-wrap { padding: 8px 0 40px; }
-  html.io2[data-theme="light"]:not(#_) #grid-container:not(.loading) {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .grid-wrap { padding: 8px 0 40px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) #grid-container:not(.loading) {
     box-sizing: border-box; min-width: calc(950px + 16px); padding: 8px;
     background: var(--io-navy-950); border-radius: 12px; box-shadow: var(--sombra);
   }
-  html.io2[data-theme="light"]:not(#_) .loading { color: var(--n-tx2); }
-  html.io2[data-theme="light"]:not(#_) .legenda { color: var(--n-tx2); font-size: 12px; gap: 8px 16px; margin-top: 16px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .loading { color: var(--n-tx2); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .legenda { color: var(--n-tx2); font-size: 12px; gap: 8px 16px; margin-top: 16px; }
 
   /* Modais */
-  html.io2[data-theme="light"]:not(#_) .modal-bg { background: rgba(6, 26, 56, .55); }
-  html.io2[data-theme="light"]:not(#_) .modal { border-radius: var(--r-cartao); box-shadow: 0 20px 60px rgba(6, 26, 56, .28); }
-  html.io2[data-theme="light"]:not(#_) .modal h2 { color: var(--io-tinta); }
-  html.io2[data-theme="light"]:not(#_) .modal .sub,
-  html.io2[data-theme="light"]:not(#_) .modal label { color: var(--n-tx2); }
-  html.io2[data-theme="light"]:not(#_) .modal input,
-  html.io2[data-theme="light"]:not(#_) .modal textarea,
-  html.io2[data-theme="light"]:not(#_) .modal select {
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-bg { background: rgba(6, 26, 56, .55); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal { border-radius: var(--r-cartao); box-shadow: 0 20px 60px rgba(6, 26, 56, .28); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal h2 { color: var(--io-titulo); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal .sub,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal label { color: var(--n-tx2); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal input,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal textarea,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal select {
     border: 1px solid var(--n-bd2); border-radius: var(--r-controle); color: var(--n-tx);
   }
-  html.io2[data-theme="light"]:not(#_) .modal input:focus,
-  html.io2[data-theme="light"]:not(#_) .modal textarea:focus,
-  html.io2[data-theme="light"]:not(#_) .modal select:focus { outline: 2px solid var(--io-azul); outline-offset: 2px; border-color: var(--io-azul); box-shadow: none; }
-  html.io2[data-theme="light"]:not(#_) .modal-tabs { background: var(--n-sf3); }
-  html.io2[data-theme="light"]:not(#_) .modal-tabs button { color: var(--n-tx2); }
-  html.io2[data-theme="light"]:not(#_) .modal-tabs button.ativa { color: var(--io-tinta); }
-  html.io2[data-theme="light"]:not(#_) .chip { background: var(--n-sf3); color: var(--n-tx); }
-  html.io2[data-theme="light"]:not(#_) .chip.ativo { background: var(--io-navy-900); border-color: var(--io-navy-900); color: var(--n-inv); }
-  html.io2[data-theme="light"]:not(#_) .modal-acoes button { border-radius: var(--r-controle); min-height: var(--ctl-h); }
-  html.io2[data-theme="light"]:not(#_) .btn-salvar { background: var(--io-amarelo); color: var(--io-tinta); }
-  html.io2[data-theme="light"]:not(#_) .btn-salvar:hover { background: var(--io-amarelo-forte); }
-  html.io2[data-theme="light"]:not(#_) .btn-cancelar { background: var(--n-sf3); color: var(--n-tx); }
-  html.io2[data-theme="light"]:not(#_) .btn-cancelar:hover { background: var(--n-bd); }
-  html.io2[data-theme="light"]:not(#_) .btn-excluir { background: var(--io-er-sf); color: var(--io-er); }
-  html.io2[data-theme="light"]:not(#_) .modal-erro { color: var(--io-er); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal input:focus,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal textarea:focus,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal select:focus { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; border-color: var(--io-azul-tx); box-shadow: none; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-tabs { background: var(--n-sf3); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-tabs button { color: var(--n-tx2); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-tabs button.ativa { color: var(--io-titulo); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .chip { background: var(--n-sf3); color: var(--n-tx); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .chip.ativo { background: var(--io-marcado); border-color: var(--io-marcado); color: var(--n-inv); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-acoes button { border-radius: var(--r-controle); min-height: var(--ctl-h); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .btn-salvar { background: var(--io-amarelo); color: var(--io-tinta); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .btn-salvar:hover { background: var(--io-amarelo-forte); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .btn-cancelar { background: var(--n-sf3); color: var(--n-tx); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .btn-cancelar:hover { background: var(--n-bd); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .btn-excluir { background: var(--io-er-sf); color: var(--io-er-tx); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-erro { color: var(--io-er-tx); }
   /* Blocos do modal de detalhe escritos para fundo escuro e sem prefixo de tema na pagina (venda do eletroposto,
      pos-venda e apalavrado): com o modal claro, o texto claro deles sumia sobre o branco. */
-  html.io2[data-theme="light"]:not(#_) #d-venda-ep .motivo-tit,
-  html.io2[data-theme="light"]:not(#_) .pv-sit { color: var(--n-tx); }
-  html.io2[data-theme="light"]:not(#_) #d-venda-ep .motivo-pular,
-  html.io2[data-theme="light"]:not(#_) .pv-lbl,
-  html.io2[data-theme="light"]:not(#_) .pv-carga,
-  html.io2[data-theme="light"]:not(#_) .espera-conta { color: var(--n-tx2); }
-  html.io2[data-theme="light"]:not(#_) .pv-bloco-tit,
-  html.io2[data-theme="light"]:not(#_) .pv-eco,
-  html.io2[data-theme="light"]:not(#_) .espera-conta.ok { color: var(--io-ok); }
-  html.io2[data-theme="light"]:not(#_) .pv-eco.erro,
-  html.io2[data-theme="light"]:not(#_) .pv-sit .atraso { color: var(--io-er); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) #d-venda-ep .motivo-tit,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-sit { color: var(--n-tx); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) #d-venda-ep .motivo-pular,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-lbl,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-carga,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .espera-conta { color: var(--n-tx2); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-bloco-tit,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-eco,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .espera-conta.ok { color: var(--io-ok-tx); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-eco.erro,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-sit .atraso { color: var(--io-er-tx); }
   /* Fundo proprio: sobre o ambar translucido da pagina o texto ficava em 4,32. Com --io-av-sf da 4,6. */
-  html.io2[data-theme="light"]:not(#_) .espera-atalho { color: var(--io-av); background: var(--io-av-sf); border-color: var(--io-av); }
-  html.io2[data-theme="light"]:not(#_) .pv-in,
-  html.io2[data-theme="light"]:not(#_) .espera-in { background: var(--n-sf); color: var(--n-tx); border-color: var(--n-bd2); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .espera-atalho { color: var(--io-av-tx); background: var(--io-av-sf); border-color: var(--io-av-tx); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .pv-in,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .espera-in { background: var(--n-sf); color: var(--n-tx); border-color: var(--n-bd2); }
 }
 
 @media screen and (max-width: 860px) {
-  html.io2[data-theme="light"]:not(#_) .ctrl { padding: 10px 0 4px; }
-  html.io2[data-theme="light"]:not(#_) .grid-wrap { padding: 8px 0 24px; }
-  html.io2[data-theme="light"]:not(#_) .nav-semana { flex-wrap: wrap; }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn { width: var(--ctl-h-m); height: var(--ctl-h-m); }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .btn-hoje,
-  html.io2[data-theme="light"]:not(#_) .aba,
-  html.io2[data-theme="light"]:not(#_) .modal-acoes button { min-height: var(--ctl-h-m); }
-  html.io2[data-theme="light"]:not(#_) .nav-semana .periodo { min-width: 0; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .ctrl { padding: 10px 0 4px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .grid-wrap { padding: 8px 0 24px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana { flex-wrap: wrap; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .nav-btn { width: var(--ctl-h-m); height: var(--ctl-h-m); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .btn-hoje,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal-acoes button { min-height: var(--ctl-h-m); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .nav-semana .periodo { min-width: 0; }
   /* Abas por vendedor: uma fila so, rolando de lado quando nao cabem. */
-  html.io2[data-theme="light"]:not(#_) .abas { flex-wrap: nowrap; justify-content: flex-start; width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-  html.io2[data-theme="light"]:not(#_) .abas::-webkit-scrollbar { display: none; }
-  html.io2[data-theme="light"]:not(#_) .aba { flex: 0 0 auto; padding: 0 14px; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .abas { flex-wrap: nowrap; justify-content: flex-start; width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .abas::-webkit-scrollbar { display: none; }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .aba { flex: 0 0 auto; padding: 0 14px; }
   /* Campo com 16px no celular: o navegador nao da zoom ao focar. */
-  html.io2[data-theme="light"]:not(#_) .modal input,
-  html.io2[data-theme="light"]:not(#_) .modal textarea,
-  html.io2[data-theme="light"]:not(#_) .modal select { font-size: 16px; min-height: var(--ctl-h-m); }
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal input,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal textarea,
+  html.io2:is([data-theme="light"], [data-io2-tema="escuro"]):not(#_) .modal select { font-size: 16px; min-height: var(--ctl-h-m); }
+}
+
+/* ---- So no escuro: o selo de contagem da aba marcada ---- */
+@media screen {
+  html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .aba.ativa .badge { background: rgba(6, 26, 56, .4); color: #fff; }
 }

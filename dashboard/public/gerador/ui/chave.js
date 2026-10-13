@@ -2,9 +2,12 @@
    Sem a chave ligada (ou em qualquer erro) nao faz nada: o app fica como sempre foi. */
 (function () {
   var h = document.documentElement;
-  function ligarFolhas(media) {
+  function ligarFolhas(media, semCores) {
     var l = document.querySelectorAll('link[data-io2]');
-    for (var i = 0; i < l.length; i++) l[i].media = media;
+    for (var i = 0; i < l.length; i++) {
+      /* No tema escuro as folhas io2-cores-* ficam desligadas: elas so convertem o escuro nativo em claro. */
+      l[i].media = (semCores && /io2-cores-/.test(l[i].getAttribute('href') || '')) ? 'not all' : media;
+    }
   }
   var temaAntes = h.getAttribute('data-theme');
   try {
@@ -33,10 +36,14 @@
     var s = document.currentScript;
     /* casca.js usa isto para devolver o tema se precisar desligar o visual novo no meio do caminho. */
     window.__io2TemaAntes = temaAntes;
+    /* Tema: escolha de cada aparelho (localStorage['gerador-tema']). Sem nada gravado vale o claro. */
+    var escuro = false;
+    try { escuro = localStorage.getItem('gerador-tema') === 'escuro'; } catch (e) {}
     h.classList.add('io2');
+    if (escuro) h.setAttribute('data-io2-tema', 'escuro');
     /* As folhas do visual novo vem com media="not all" no index (nao bloqueiam a pintura de quem nao usa a chave,
        nem a do link do cliente). Ligada a chave, passam a valer agora, antes da primeira pintura. */
-    ligarFolhas('screen');
+    ligarFolhas('screen', escuro);
     /* Folha que ainda nao chegou: segura a pintura (como uma folha comum faria) ate ela carregar, no maximo
        2,5 s, para ninguem ver o visual antigo piscar em rede lenta. Com o cache do service worker isto nem roda. */
     (function () {
@@ -52,6 +59,7 @@
         chegou();
       }
       for (var i = 0; i < l.length; i++) {
+        if (escuro && /io2-cores-/.test(l[i].getAttribute('href') || '')) continue;
         if (l[i].sheet) continue;
         falta++;
         l[i].addEventListener('load', chegou);
@@ -60,7 +68,7 @@
       if (falta > 0 && document.head) {
         st = document.createElement('style');
         st.id = 'io2-espera';
-        st.textContent = 'html.io2{background:#F2F4F8}html.io2 body{visibility:hidden}';
+        st.textContent = (escuro ? 'html.io2{background:#0F172A}' : 'html.io2{background:#F2F4F8}') + 'html.io2 body{visibility:hidden}';
         document.head.appendChild(st);
         setTimeout(soltar, 2500);
       }
@@ -74,7 +82,7 @@
       document.head.appendChild(tc);
     }
     if (tc) tc.setAttribute('content', '#0A2450');
-    if (s && s.getAttribute('data-tema') === 'light') h.dataset.theme = 'light';
+    if (!escuro && s && s.getAttribute('data-tema') === 'light') h.dataset.theme = 'light';
     window.__io2 = true;
   } catch (e) {
     /* Qualquer erro devolve o visual antigo inteiro, nunca uma pagina pela metade. */
@@ -83,6 +91,7 @@
       var esp = document.getElementById('io2-espera');
       if (esp && esp.parentNode) esp.parentNode.removeChild(esp);
       h.classList.remove('io2');
+      h.removeAttribute('data-io2-tema');
       if (temaAntes) h.setAttribute('data-theme', temaAntes); else h.removeAttribute('data-theme');
       window.__io2 = false;
     } catch (e2) {}

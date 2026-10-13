@@ -123,12 +123,12 @@ html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection
   /* Investidores perto: uma linha, com "ver" como link ao lado. O botao inteiro segue clicavel. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par { display: inline-block; min-height: 0; height: auto; padding: 4px 8px; text-align: left; line-height: 1.3; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par > .cad-sub { display: inline; margin: 0 4px 0 5px !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par > .cad-par-ver { display: inline; margin: 0; background: none; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; color: var(--io-azul); text-decoration: underline; opacity: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par > .cad-par-ver { display: inline; margin: 0; background: none; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; color: var(--io-azul-tx); text-decoration: underline; opacity: 1; }
 }
 
 /* Etiqueta PRÓPRIO: o par de estado do sistema (certo sobre fundo suave), sem o verde fluorescente nem o brilho. O brilho some, a borda e
    interna (inset) para a etiqueta nao crescer e a tabela do computador nao mudar de largura. */
-html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .cad-rel.pro { background-color: var(--io-ok-sf); color: var(--io-ok); box-shadow: inset 0 0 0 1px var(--io-ok); }
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .cad-rel.pro { background-color: var(--io-ok-sf); color: var(--io-ok-tx); box-shadow: inset 0 0 0 1px var(--io-ok-tx); }
 
 /* ===== Cadastros do eletroposto, celular ============================================ */
 @media (max-width: 860px) {
