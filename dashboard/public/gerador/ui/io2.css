@@ -31,6 +31,7 @@
     --n-sf3: #EEF2F7;
     --n-bd: #DDE3EC;
     --n-bd2: #B9C4D4;
+    --io-borda-campo: #7F8FA6; /* contorno de campo e de lista: 3:1 sobre branco (a borda decorativa --n-bd2 nao chega) */
     --n-tx: #0F1B2D;
     --n-tx2: #44546A;
     --n-tx3: #5B6C83;
@@ -189,7 +190,7 @@
     background: var(--n-sf); border-bottom: 1px solid var(--n-bd);
     font-family: var(--io-fonte); z-index: 880;
   }
-  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-txt { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-tit {
     margin: 0; color: var(--io-tinta); font-size: 18px; font-weight: 700; line-height: 22px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -208,6 +209,71 @@
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-nome { color: var(--n-tx); font-size: 14px; font-weight: 500; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user:empty { display: none; }
+
+  /* ---- Busca de telas (casca.js): pilula na barra superior, lista logo abaixo ----------------------
+     A lista mora dentro do #io2-topo (z 880): acima do conteudo, abaixo da folha (950) e dos modais (1000).
+     Ate 860 px (celular) a pilula some e a busca vai para dentro da folha "Mais". De 861 px em diante ela encolhe
+     (minimo de 160 px) e, se o titulo nao couber inteiro, o casca.js a esconde por ultimo (io2-b-oculta). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca {
+    position: relative; flex: 0 100 300px; min-width: 160px; margin: 0; font-family: var(--io-fonte);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca.io2-b-oculta { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo {
+    display: flex; align-items: center; gap: 8px; box-sizing: border-box; height: var(--ctl-h); padding: 0 12px;
+    background: var(--n-sf2); border: 1px solid var(--io-borda-campo); border-radius: var(--r-pilula);
+    color: var(--n-tx3);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo:focus-within {
+    background: var(--n-sf); border-color: var(--io-azul); outline: 2px solid var(--io-azul); outline-offset: 1px;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo > svg {
+    width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-in {
+    flex: 1 1 auto; min-width: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none; outline: none; -webkit-appearance: none; appearance: none;
+    color: var(--n-tx); font-family: var(--io-fonte); font-size: 14px; font-weight: 400; line-height: 1.2;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-in::placeholder { color: var(--n-tx3); opacity: 1; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-dica {
+    flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; text-align: center;
+    border: 1px solid var(--n-bd2); border-radius: 6px; background: var(--n-sf);
+    color: var(--n-tx3); font-family: var(--io-fonte); font-size: 12px; font-weight: 600; line-height: 18px;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo:focus-within .io2-b-dica { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-vivo {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-lista {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 1; box-sizing: border-box;
+    width: 420px; min-width: 100%; max-width: calc(100vw - var(--sb-w) - 48px);
+    margin: 0; padding: 6px; list-style: none; max-height: min(60vh, 440px); overflow-y: auto; overscroll-behavior: contain;
+    background: var(--n-sf); border: 1px solid var(--io-borda-campo); border-radius: var(--r-cartao);
+    box-shadow: 0 8px 24px rgba(10, 36, 80, .14);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-lista[hidden] { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op {
+    display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 10px; box-sizing: border-box;
+    border-radius: 8px; color: var(--n-tx); font-size: 14px; line-height: 1.25; cursor: pointer;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op svg {
+    width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; color: var(--n-tx3);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op-txt { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; white-space: nowrap; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-pai { flex: 0 1 auto; min-width: 0; white-space: pre; overflow: hidden; text-overflow: ellipsis; color: var(--n-tx2); font-size: 12px; font-weight: 400; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-fim { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] {
+    background: var(--io-azul-sf); color: var(--io-tinta); box-shadow: inset 3px 0 0 var(--io-amarelo);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] svg { color: var(--io-tinta); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-vazio { padding: 12px 10px; color: var(--n-tx2); font-size: 14px; line-height: 1.3; }
+}
+
+@media screen and (max-width: 860px) {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca:not(.io2-busca-m) { display: none; }
+}
+
+@media screen {
 
   /* ---- Area de trabalho: o body recua (as telas sao filhas diretas dele) --------- */
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) body {
@@ -364,6 +430,29 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item.ativa { background: var(--io-amarelo); color: var(--io-tinta); font-weight: 600; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item svg { width: 22px; height: 22px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; }
+
+  /* Busca dentro da folha: campo de 16 px (sem zoom do iOS), alvos de 44 px ou mais; com consulta, os resultados
+     trocam a lista de itens no lugar (lista suspensa dentro de folha nao funciona). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m { flex: 0 0 auto; width: auto; min-width: 0; margin: 0 0 8px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-campo {
+    height: 48px; padding: 0 16px; background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .4); color: var(--n-inv2);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-campo:focus-within {
+    background: rgba(255, 255, 255, .12); border-color: var(--io-amarelo); outline-color: var(--io-amarelo);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-in { color: var(--n-inv); font-size: 16px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-in::placeholder { color: var(--n-inv2); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-lista {
+    position: static; width: auto; min-width: 0; max-width: none; max-height: none; margin: 4px 0 0; padding: 0;
+    background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-op { min-height: 52px; padding: 12px; color: var(--n-inv); font-size: 16px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-op svg { width: 22px; height: 22px; color: var(--n-inv2); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-pai { color: var(--n-inv2); font-size: 14px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-op[aria-selected="true"] { background: rgba(255, 255, 255, .12); color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-op[aria-selected="true"] svg { color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca-m .io2-b-vazio { padding: 14px 12px; color: var(--n-inv2); font-size: 16px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-folha.io2-f-buscando .io2-f-lista { display: none; }
 
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #toast { left: 50%; bottom: calc(var(--io-bot) + 12px); }
   /* A Inter e mais larga que a Arial e o select toma a largura do option mais longo: sem isto o

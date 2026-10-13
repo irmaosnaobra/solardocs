@@ -19,6 +19,8 @@
   var montado = false, desfeito = false, dclFeito = false, agendado = 0;
   var modoSub = false, sub = null; /* sub: { nome, titulo, area, ativo } da pagina atual */
   var el = {};           /* topo, titulo, aba, cons, avatar, nome, baixo, fundo, folha, mais */
+  var Bd = null, Bm = null; /* busca de telas: da barra superior (computador) e da folha "Mais" (celular) */
+  var buscas = [], indiceBusca = null, focoAntes = null, buscaId = 0, abasVistas = {};
 
   /* ---------------------------------------------------------------- modelo de navegacao */
   var ICONES = {
@@ -61,6 +63,14 @@
       { sec: 'crmSection', titulo: 'CRM', aba: '.crm-subtab.ativo' },
       { sec: 'automacaoSection', titulo: 'Central de Automação', aba: '.auto-tab.ativa, .auto-tab.ativo, .auto-tab.on' },
       { sec: 'redesSection', titulo: 'Redes sociais' }
+    ],
+    /* Abas de DENTRO de uma tela do Solar: a regua nasce quando a tela abre (render do app), nao existe no HTML.
+       Entram no indice quando a tela e vista (registrarAbas) e ficam guardadas so pelo texto, porque o app
+       redesenha a regua (leads) e o botao guardado morreria. aba = data-aba do botao da regua Solar que abre a tela. */
+    abasInternas: [
+      { sec: 'leadsSection', aba: 'leads', sel: '.leads-aba' },
+      { sec: 'fechamentoSolarSection', aba: 'fechamento', sel: '.fs-tab' },
+      { sec: 'obrasSolarSection', aba: 'obras', sel: '.fs-tab' }
     ],
     /* Reguas de aba: a ativa e trazida para a vista quando nao cabe. */
     reguas: '.solar-subnav, .eletro-subnav, .eletro-subnav2, .cad-abas, .crm-subnav',
@@ -191,7 +201,11 @@
     el.avatar.setAttribute('aria-hidden', 'true');
     el.nome = criar('span', null, 'io2-t-nome');
     user.appendChild(el.avatar); user.appendChild(el.nome);
-    el.topo.appendChild(txt); el.topo.appendChild(user);
+    el.topo.appendChild(txt);
+    /* Busca de telas: no computador mora na barra superior, no celular dentro da folha "Mais".
+       Erro aqui nunca derruba a casca: no pior caso o campo some. */
+    try { Bd = criarBusca(false); el.topo.appendChild(Bd.raiz); } catch (eb) { desligarBusca(); }
+    el.topo.appendChild(user);
 
     /* Navegacao inferior */
     el.baixo = criar('nav', 'io2-baixo');
@@ -230,7 +244,9 @@
       b.addEventListener('click', function () { fecharFolha(false); acionar(it.chave); });
       lista.appendChild(b);
     });
-    el.folha.appendChild(alca); el.folha.appendChild(lista);
+    el.folha.appendChild(alca);
+    try { Bm = criarBusca(true); el.folha.appendChild(Bm.raiz); } catch (em) { desligarBusca(); }
+    el.folha.appendChild(lista);
     el.folha.addEventListener('keydown', prenderFoco);
 
     var pecas = [el.topo, el.baixo, el.fundo, el.folha];
@@ -314,6 +330,377 @@
     return b;
   }
 
+  /* ---------------------------------------------------------------- busca de telas */
+  /* Os destinos saem do DOM e do MODELO, nunca de uma lista de textos copiada:
+     - primeiro nivel: os itens da barra lateral (MODELO.barra), com o rotulo lido do proprio item;
+     - abas (so no index): os botoes das reguas .solar-subtab, .eletro-subtab, .eletro-subtab2, .cad-aba e .crm-subtab,
+       com o texto visivel. So entra botao que o app NAO escondeu (hidden, display inline ou computado do proprio botao):
+       o pai fechado nao conta, porque Recibo, Frota e Investidores vivem em reguas fechadas ate alguem abrir o grupo.
+     O indice e refeito toda vez que o campo ganha o foco, entao nunca fica velho.
+     Ir ate la = clicar no item da barra lateral certo (acionar) e depois no botao de cada aba da cadeia. Nenhuma
+     funcao do app e chamada pelo nome, e location.search e location.hash nunca sao tocados. */
+  var LUPA = '<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>';
+  function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function botoes(sel, escopo) {
+    var o = [], ns = (escopo || document).querySelectorAll(sel);
+    for (var i = 0; i < ns.length; i++) {
+      var b = ns[i];
+      if (b.hidden || b.disabled || !visivel(b)) continue;
+      var t = textoDe(b);
+      if (t) o.push({ el: b, t: t });
+    }
+    return o;
+  }
+  function registrarAbas() {
+    if (modoSub) return;
+    MODELO.abasInternas.forEach(function (c) {
+      var s = document.getElementById(c.sec);
+      if (!s) return; /* sem exigir a tela visivel: o app pode desenhar a regua depois de a pessoa sair; vale o filtro do botao */
+      var l = botoes(c.sel, s).map(function (b) { return b.t; });
+      if (l.length) abasVistas[c.sec] = l;
+    });
+  }
+  function achar(p) {
+    var s = document.getElementById(p.sec), l = s ? botoes(p.sel, s) : [];
+    for (var i = 0; i < l.length; i++) if (l[i].t === p.texto) return l[i].el;
+    return null;
+  }
+  function montarIndice() {
+    try { registrarAbas(); } catch (e0) {}
+    var itens = [], raizes = {}, paisSolar = {};
+    function add(caminho, passos, raiz) {
+      itens.push({ caminho: caminho, rotulo: caminho[caminho.length - 1], rotuloN: norm(caminho[caminho.length - 1]), texto: norm(caminho.join(' ')), passos: passos, raiz: raiz, nivel: caminho.length, ordem: itens.length });
+    }
+    MODELO.barra.forEach(function (k) {
+      var f = modoSub ? null : fonteDe(k);
+      if (!modoSub && (!f || !visivel(f))) return;
+      var r = (f && textoDe(f)) || rotuloDe(k);
+      raizes[k] = r;
+      add([r], [{ chave: k }], k);
+    });
+    if (modoSub) return itens; /* nos subapps so o primeiro nivel */
+    var rs = raizes['nav-solar'], re = raizes['nav-eletroposto'], rc = raizes['nav-crm'];
+    if (rs) {
+      botoes('.solar-subtab').forEach(function (b) {
+        add([rs, b.t], [{ chave: 'nav-solar' }, { el: b.el }], 'nav-solar');
+        paisSolar[b.el.getAttribute('data-aba')] = b;
+      });
+      MODELO.abasInternas.forEach(function (c) {
+        var pai = paisSolar[c.aba], lista = abasVistas[c.sec];
+        if (!pai || !lista) return;
+        lista.forEach(function (t) {
+          add([rs, pai.t, t], [{ chave: 'nav-solar' }, { el: pai.el }, { sec: c.sec, sel: c.sel, texto: t }], 'nav-solar');
+        });
+      });
+    }
+    if (re) {
+      var sec = document.getElementById('eletroSection') || document;
+      var n1 = botoes('.eletro-subtab', sec), tabCad = null, tabCadTxt = '';
+      n1.forEach(function (a) {
+        add([re, a.t], [{ chave: 'nav-eletroposto' }, { el: a.el }], 'nav-eletroposto');
+        if (a.el.id === 'eletro-tab-cadastros') { tabCad = a.el; tabCadTxt = a.t; }
+        if (a.el.id.indexOf('eletro-grp-') === 0) {
+          var r2 = document.getElementById('eletro-subnav2-' + a.el.id.slice('eletro-grp-'.length));
+          if (r2) botoes('.eletro-subtab2', r2).forEach(function (c) {
+            add([re, a.t, c.t], [{ chave: 'nav-eletroposto' }, { el: a.el }, { el: c.el }], 'nav-eletroposto');
+          });
+        }
+      });
+      if (tabCad) botoes('.cad-aba', sec).forEach(function (c) {
+        add([re, tabCadTxt, c.t], [{ chave: 'nav-eletroposto' }, { el: tabCad }, { el: c.el }], 'nav-eletroposto');
+      });
+    }
+    if (rc) botoes('.crm-subtab', document.getElementById('crmSection') || document).forEach(function (b) { add([rc, b.t], [{ chave: 'nav-crm' }, { el: b.el }], 'nav-crm'); });
+    return itens;
+  }
+  function pesquisar(q, max) {
+    var termos = norm(q).split(/\s+/).filter(Boolean);
+    if (!termos.length || !indiceBusca) return [];
+    var junto = termos.join(' '), r = [];
+    indiceBusca.forEach(function (it) {
+      for (var i = 0; i < termos.length; i++) if (it.texto.indexOf(termos[i]) < 0) return;
+      var p;
+      if (it.rotuloN.indexOf(junto) === 0) p = 0;                       /* comeca o rotulo */
+      else if ((' ' + it.rotuloN).indexOf(' ' + junto) >= 0) p = 1;     /* comeca uma palavra do rotulo */
+      else if (it.rotuloN.indexOf(junto) >= 0) p = 2;                   /* no meio do rotulo */
+      else p = 3;                                                       /* so no caminho */
+      r.push({ it: it, p: p });
+    });
+    r.sort(function (a, b) { return (a.p - b.p) || (a.it.nivel - b.it.nivel) || (a.it.ordem - b.it.ordem); });
+    return r.slice(0, max).map(function (x) { return x.it; });
+  }
+  function seguro(fn) {
+    return function () {
+      try { return fn.apply(this, arguments); } catch (e) { desligarBusca(); }
+    };
+  }
+  /* Qualquer erro da busca: some so o campo (e a folha volta ao normal). A casca segue de pe. */
+  function desligarBusca() {
+    try {
+      buscas.forEach(function (B) { if (B.raiz.parentNode) B.raiz.parentNode.removeChild(B.raiz); });
+      buscas = []; Bd = null; Bm = null; indiceBusca = null;
+      if (el.folha) el.folha.classList.remove('io2-f-buscando');
+    } catch (e) {}
+  }
+  function criarBusca(movel) {
+    var B = { n: ++buscaId, movel: movel, itens: [], ativo: -1 };
+    B.raiz = criar('div', null, 'io2-busca' + (movel ? ' io2-busca-m' : ''));
+    B.raiz.setAttribute('role', 'search');
+    var campo = criar('div', null, 'io2-b-campo');
+    campo.appendChild(svg(LUPA));
+    var inp = criar('input', 'io2-busca-in' + B.n, 'io2-b-in');
+    inp.type = 'text';
+    inp.placeholder = 'Buscar tela';
+    inp.setAttribute('aria-label', 'Buscar tela');
+    inp.setAttribute('autocomplete', 'off');
+    inp.setAttribute('autocapitalize', 'off');
+    inp.setAttribute('autocorrect', 'off');
+    inp.setAttribute('spellcheck', 'false');
+    inp.setAttribute('enterkeyhint', 'go');
+    inp.setAttribute('role', 'combobox');
+    inp.setAttribute('aria-autocomplete', 'list');
+    inp.setAttribute('aria-haspopup', 'listbox');
+    inp.setAttribute('aria-expanded', 'false');
+    var ul = criar('ul', 'io2-busca-lista' + B.n, 'io2-b-lista');
+    ul.hidden = true;
+    ul.setAttribute('role', 'listbox');
+    ul.setAttribute('aria-label', 'Telas encontradas');
+    inp.setAttribute('aria-controls', ul.id);
+    campo.appendChild(inp);
+    if (!movel) {
+      var dica = criar('kbd', null, 'io2-b-dica');
+      dica.setAttribute('aria-hidden', 'true');
+      dica.textContent = '/';
+      campo.appendChild(dica);
+    }
+    var vivo = criar('span', null, 'io2-b-vivo');
+    vivo.setAttribute('role', 'status');
+    vivo.setAttribute('aria-live', 'polite');
+    B.inp = inp; B.ul = ul; B.vivo = vivo;
+    B.raiz.appendChild(campo); B.raiz.appendChild(ul); B.raiz.appendChild(vivo);
+
+    inp.addEventListener('focus', seguro(function () {
+      indiceBusca = montarIndice();
+      if (inp.value.trim()) renderizar(B);
+    }));
+    inp.addEventListener('input', seguro(function () { if (!indiceBusca) indiceBusca = montarIndice(); renderizar(B); }));
+    inp.addEventListener('blur', seguro(function () {
+      setTimeout(seguro(function () { if (document.activeElement !== inp) fecharLista(B); }), 0);
+    }));
+    inp.addEventListener('keydown', seguro(function (ev) {
+      var k = ev.key;
+      if (k === 'ArrowDown' || k === 'ArrowUp') {
+        ev.preventDefault();
+        if (ul.hidden) { if (inp.value.trim()) renderizar(B); return; }
+        if (!B.itens.length) return;
+        var d = k === 'ArrowDown' ? 1 : -1;
+        marcarOpcao(B, (B.ativo + d + B.itens.length) % B.itens.length);
+      } else if (k === 'Enter') {
+        if (!ul.hidden && B.ativo >= 0 && B.itens[B.ativo]) { ev.preventDefault(); irPara(B.itens[B.ativo]); }
+      } else if (k === 'Escape') {
+        /* No computador o Esc sempre devolve o foco; na folha, com o campo vazio, o Esc segue para fechar a folha. */
+        if (!ul.hidden || inp.value || !B.movel) {
+          ev.preventDefault(); ev.stopPropagation();
+          inp.value = ''; fecharLista(B);
+          devolverFoco(B);
+        }
+      } else if (k === 'Tab') {
+        fecharLista(B);
+      }
+    }));
+    buscas.push(B);
+    return B;
+  }
+  function devolverFoco(B) {
+    var a = focoAntes; focoAntes = null;
+    if (B.movel) { var p = el.folha.querySelector('.io2-f-item'); if (p) p.focus(); else B.inp.blur(); return; }
+    if (a && a !== document.body && a.isConnected && typeof a.focus === 'function') a.focus(); else B.inp.blur();
+  }
+  function renderizar(B) {
+    var q = B.inp.value;
+    if (!q.trim()) { fecharLista(B); return; }
+    var res = pesquisar(q, B.movel ? 6 : 8);
+    B.itens = res; B.ativo = res.length ? 0 : -1;
+    B.ul.innerHTML = '';
+    res.forEach(function (it, i) {
+      var li = criar('li', 'io2-bo-' + B.n + '-' + i, 'io2-b-op');
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', 'false');
+      li.setAttribute('data-caminho', it.caminho.join(' › '));
+      li.appendChild(iconeDe({ chave: it.raiz }));
+      var txt = criar('span', null, 'io2-b-op-txt');
+      if (it.caminho.length > 1) {
+        var pai = criar('span', null, 'io2-b-pai');
+        pai.textContent = it.caminho.slice(0, -1).join(' › ') + ' › ';
+        txt.appendChild(pai);
+      }
+      var fim = criar('span', null, 'io2-b-fim');
+      fim.textContent = it.rotulo;
+      txt.appendChild(fim);
+      li.appendChild(txt);
+      /* mousedown sem foco perdido: sem isto o blur do campo fecharia a lista antes do clique */
+      li.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+      li.addEventListener('click', seguro(function () { irPara(it); }));
+      li.addEventListener('mousemove', function () { if (B.ativo !== i) marcarOpcao(B, i); });
+      B.ul.appendChild(li);
+    });
+    if (!res.length) {
+      var v = criar('li', null, 'io2-b-vazio');
+      v.setAttribute('role', 'option');
+      v.setAttribute('aria-disabled', 'true');
+      v.setAttribute('aria-selected', 'false');
+      v.textContent = 'Nenhuma tela com esse nome.';
+      B.ul.appendChild(v);
+    }
+    B.vivo.textContent = res.length ? (res.length === 1 ? '1 tela encontrada.' : res.length + ' telas encontradas.') : 'Nenhuma tela com esse nome.';
+    B.ul.hidden = false;
+    B.inp.setAttribute('aria-expanded', 'true');
+    if (B.movel) el.folha.classList.add('io2-f-buscando');
+    marcarOpcao(B, B.ativo);
+  }
+  function marcarOpcao(B, i) {
+    B.ativo = i;
+    var ops = B.ul.querySelectorAll('.io2-b-op');
+    for (var j = 0; j < ops.length; j++) ops[j].setAttribute('aria-selected', j === i ? 'true' : 'false');
+    if (i >= 0 && ops[i]) {
+      B.inp.setAttribute('aria-activedescendant', ops[i].id);
+      if (ops[i].scrollIntoView) ops[i].scrollIntoView({ block: 'nearest' });
+    } else B.inp.removeAttribute('aria-activedescendant');
+  }
+  function fecharLista(B) {
+    if (!B || !B.ul) return;
+    B.ul.hidden = true; B.itens = []; B.ativo = -1;
+    B.inp.setAttribute('aria-expanded', 'false');
+    B.inp.removeAttribute('aria-activedescendant');
+    if (B.movel && el.folha) el.folha.classList.remove('io2-f-buscando');
+  }
+  function irPara(it) {
+    buscas.forEach(function (B) { B.inp.value = ''; fecharLista(B); });
+    try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e0) {}
+    focoAntes = null;
+    fecharFolha(false);
+    var p = it.passos;
+    try { acionar(p[0].chave); } catch (e1) {}
+    seguirPassos(p, 1, 0);
+  }
+  /* Aba de dentro de tela: a regua e desenhada pelo app depois do clique na tela (e as vezes depois de uma busca
+     de dados), entao o botao e procurado pelo texto e tentado por ate ~2 s. */
+  function seguirPassos(p, i0, tentativa) {
+    for (var i = i0; i < p.length; i++) {
+      try {
+        var b = p[i].el;
+        if (!b && p[i].sec) {
+          b = achar(p[i]);
+          if (!b) {
+            if (tentativa < 14) { var k = i; setTimeout(function () { try { seguirPassos(p, k, tentativa + 1); } catch (e3) {} }, 150); }
+            return;
+          }
+        }
+        if (b && b.isConnected) b.click();
+      } catch (e2) {}
+    }
+  }
+  function emCampo(t) {
+    if (!t || !t.tagName) return false;
+    var n = t.tagName;
+    return n === 'INPUT' || n === 'TEXTAREA' || n === 'SELECT' || !!t.isContentEditable;
+  }
+  /* Sobreposicao aberta, descoberta pelo que esta VISIVEL e nao so por nome:
+     1) os conhecidos do app (modais, detalhe do CRM, previa, ligar, mapa, modais dos subapps) que estejam na tela;
+     2) qualquer coisa fixa acima da casca (z-index maior que 955) por cima de pontos da janela, sem contar o toast. */
+  var SOBREPOSICOES = '.modal-overlay, #crm-det-bg, .pv-bg, .ep-prev-bg, .pn-liga, #marr, .modal-bg, .ov, dialog[open], [aria-modal="true"]:not(#io2-folha)';
+  function naTela(n) {
+    if (!n || !n.getClientRects().length) return false;
+    var cs = getComputedStyle(n);
+    return cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity) > 0 && cs.pointerEvents !== 'none';
+  }
+  function sobreposicaoAberta() {
+    var ns = document.querySelectorAll(SOBREPOSICOES);
+    for (var i = 0; i < ns.length; i++) if (naTela(ns[i])) return true;
+    var w = window.innerWidth, hh = window.innerHeight;
+    var pts = [[.5, .5], [.25, .5], [.75, .5], [.5, .3], [.5, .75]];
+    for (var p = 0; p < pts.length; p++) {
+      var pilha = document.elementsFromPoint(Math.round(w * pts[p][0]), Math.round(hh * pts[p][1]));
+      for (var j = 0; j < pilha.length; j++) {
+        for (var a = pilha[j]; a && a !== document.documentElement; a = a.parentElement) {
+          if (a.id === 'io2-topo' || a.id === 'io2-baixo' || a.id === 'io2-folha' || a.id === 'io2-fundo' || a.id === 'toast') break;
+          var cs = getComputedStyle(a);
+          if (cs.position === 'fixed' && parseInt(cs.zIndex, 10) > 955 && a.id !== 'toast') return true;
+        }
+      }
+    }
+    return false;
+  }
+  /* "/" e Ctrl+K levam o foco ao campo: no computador o da barra superior; no celular (teclado fisico) o da folha. */
+  function atalhoBusca(ev) {
+    var k = ev.key;
+    var ctrlK = (ev.ctrlKey || ev.metaKey) && !ev.altKey && !ev.shiftKey && (k === 'k' || k === 'K');
+    var barra = k === '/' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !emCampo(ev.target);
+    if (!ctrlK && !barra) return;
+    /* A busca nunca abre por baixo de modal, folha ou sobreposicao do app. */
+    if (el.folha && !el.folha.hidden) return;
+    if (sobreposicaoAberta()) return;
+    var B = null;
+    if (Bd && Bd.raiz.getClientRects().length) B = Bd;
+    else if (Bm && el.mais && el.mais.getClientRects().length) { abrirFolha(); B = Bm; }
+    if (!B) return;
+    ev.preventDefault();
+    var a = document.activeElement;
+    focoAntes = (a && a !== B.inp && a !== document.body) ? a : null;
+    B.inp.focus();
+    B.inp.select();
+  }
+  /* Nos subapps a .topbar antiga (recarregar, selo, relogio) fica fixa a esquerda do usuario, por cima da barra
+     superior. A busca reserva o lugar dela e, se nao sobrar espaco, some em vez de ficar por baixo. */
+  function medirBusca() {
+    if (!Bd || !el.topo || !Bd.raiz.parentNode) return;
+    var r = Bd.raiz;
+    r.style.marginRight = '0px'; r.classList.remove('io2-b-oculta');
+    if (!r.getClientRects().length) return; /* escondida por CSS (celular): nada a medir */
+    var tb = modoSub ? document.querySelector('.topbar') : null;
+    var user = el.topo.querySelector('.io2-t-user');
+    var txt = el.topo.querySelector('.io2-t-txt');
+    var topoR = el.topo.getBoundingClientRect();
+    var uEsq = user && user.getClientRects().length ? user.getBoundingClientRect().left : topoR.right - 24;
+    var reserva = 0;
+    if (tb && getComputedStyle(tb).display !== 'none') {
+      var tr = tb.getBoundingClientRect();
+      if (tr.width > 0) reserva = Math.max(0, uEsq - tr.left - 8);
+    }
+    r.style.marginRight = reserva + 'px';
+    /* Largura real do texto do titulo (nao a da caixa, que cresce para encher a barra). */
+    var natural = 0;
+    try { var rg = document.createRange(); rg.selectNodeContents(el.titulo); natural = Math.ceil(rg.getBoundingClientRect().width); } catch (e) {}
+    natural = Math.min(natural || 160, 300);
+    /* A busca encolhe ate 160 px; se com isso o titulo ainda nao couber inteiro, ela some (por ultimo). */
+    var livre = (uEsq - 16 - reserva) - (txt.getBoundingClientRect().left + natural + 16);
+    if (livre < 160) r.classList.add('io2-b-oculta');
+  }
+  function ligarBusca() {
+    try { ligarBuscaIn(); } catch (e) { desligarBusca(); }
+  }
+  function ligarBuscaIn() {
+    if (!Bd && !Bm) return;
+    ouvir(document, 'keydown', seguro(atalhoBusca));
+    ouvir(document, 'mousedown', seguro(function (ev) {
+      var t = ev.target;
+      if (t && t.closest && t.closest('.io2-busca')) return;
+      buscas.forEach(fecharLista);
+    }), true);
+    ouvir(window, 'resize', seguro(function () { buscas.forEach(fecharLista); medirBusca(); }));
+    if (typeof ResizeObserver === 'function') {
+      try {
+        var ro = new ResizeObserver(seguro(medirBusca));
+        var tb = modoSub ? document.querySelector('.topbar') : null;
+        if (tb) ro.observe(tb);
+        if (el.topo) ro.observe(el.topo);
+        observadores.push(ro);
+      } catch (e) {}
+    }
+    try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(seguro(medirBusca)); } catch (e2) {}
+    medirBusca();
+  }
+
   /* ---------------------------------------------------------------- folha "Mais" */
   function abrirFolha() {
     if (!montado) return;
@@ -326,11 +713,17 @@
     if (!montado || el.folha.hidden) return;
     el.fundo.hidden = true; el.folha.hidden = true;
     el.mais.setAttribute('aria-expanded', 'false');
+    try { if (Bm) { Bm.inp.value = ''; fecharLista(Bm); } } catch (e) {}
     if (devolverFoco) el.mais.focus();
   }
   function prenderFoco(ev) {
     if (ev.key !== 'Tab') return;
-    var itens = el.folha.querySelectorAll('.io2-f-item');
+    var itens = [];
+    if (Bm && Bm.raiz.parentNode) itens.push(Bm.inp);
+    if (!el.folha.classList.contains('io2-f-buscando')) {
+      var li = el.folha.querySelectorAll('.io2-f-item');
+      for (var q = 0; q < li.length; q++) itens.push(li[q]);
+    }
     if (!itens.length) return;
     var a = itens[0], z = itens[itens.length - 1];
     if (ev.shiftKey && document.activeElement === a) { ev.preventDefault(); z.focus(); }
@@ -408,9 +801,11 @@
           lat[m].classList.toggle('ativo', on);
           if (on) lat[m].setAttribute('aria-current', 'page'); else lat[m].removeAttribute('aria-current');
         }
+        try { medirBusca(); } catch (eM) {}
         return;
       }
       trazerAbas();
+      try { registrarAbas(); medirBusca(); } catch (eM2) {}
     } catch (e) { /* a sincronia nunca derruba o app */ }
   }
   /* Regua que o usuario rolou a mao nao e recentrada: so rola quando a aba ativa MUDOU desde a ultima
@@ -488,6 +883,7 @@
       var primeira = !montado;
       if (primeira) {
         montar();
+        ligarBusca();
         /* So agora o CSS da casca passa a valer: esconder o menu antigo antes disto deixaria o celular sem navegacao. */
         h.classList.add('io2-casca');
       }
@@ -515,7 +911,7 @@
     try { ouvintes.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); }); } catch (e2) {}
     try { envolvidas.forEach(function (w) { if (window[w[0]] === w[2]) window[w[0]] = w[1]; }); } catch (e3) {}
     try { criados.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); }); } catch (e4) {}
-    criados = []; montado = false;
+    criados = []; montado = false; buscas = []; Bd = null; Bm = null; indiceBusca = null; focoAntes = null;
     try { window.dispatchEvent(new Event('resize')); } catch (e5) {}
   }
 
@@ -541,6 +937,15 @@
     });
     var tab = document.querySelector('#tabelasSection .header-titulo');
     if (tab) observar(tab, { childList: true, characterData: true, subtree: true }, agendar);
+    /* A regua de dentro de Leads, Fechamento e Obras e redesenhada pelo app: guarda as abas quando aparecem. */
+    var agAbas = 0;
+    MODELO.abasInternas.forEach(function (c) {
+      var sc = document.getElementById(c.sec);
+      if (sc) observar(sc, { childList: true, subtree: true }, function () {
+        if (agAbas) return;
+        agAbas = setTimeout(function () { agAbas = 0; try { registrarAbas(); } catch (e) {} }, 150);
+      });
+    });
     /* Abas internas (Cadastros, CRM, fechamento, leads) nao passam por nenhuma das duas. */
     ouvir(document, 'click', function (ev) {
       var t = ev.target;
@@ -571,6 +976,7 @@
     if (sub.sessao && !temSessao()) return;
     modoSub = true;
     montar();
+    ligarBusca();
     /* So agora o CSS da casca passa a valer: o cabecalho antigo some junto com a montagem, nunca antes. */
     h.setAttribute('data-io2-sub', sub.nome);
     h.classList.add('io2-sub');

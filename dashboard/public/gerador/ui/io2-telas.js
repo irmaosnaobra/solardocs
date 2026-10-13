@@ -3,7 +3,7 @@
    ouvinte, temporizador) tambem, porque eles rodam depois que o try de montagem ja terminou.
    Nao envolve funcao do app, nao move no, nao escreve em location, nao renomeia id nem classe do app.
    Blocos: (A) texto longo recolhido, (B) faixa de resultado do Simulador no celular,
-   (C) remendos de acessibilidade em tempo de execucao.
+   (C) remendos de acessibilidade em tempo de execucao, (D) Inicio: marcas de proporcao para a trena e indicador zerado.
    Tudo o que este arquivo acrescenta fica marcado (data-io2, data-io2-*) para desfazer() devolver o app ao que era. */
 (function () {
   var h = document.documentElement;
@@ -271,6 +271,61 @@
     } catch (e) {}
   }
 
+
+  /* ------------------------------------------------------------------------------------------------
+     (D) Inicio: o app desenha os cartoes por innerHTML. Aqui so se LE o que ja esta na tela e se poe marca
+     (atributo data-io2-* e a variavel --io-p) para o CSS desenhar a trena e o indicador zerado.
+     Nao cria no, nao move no, nao toca no texto. Refaz a cada redesenho (observa so childList).
+     ------------------------------------------------------------------------------------------------ */
+  var inicioQuadro = 0;
+  function inicioMarcar(el, p, leg) {
+    if (p === null) {
+      if (el.hasAttribute('data-io2-p')) { el.removeAttribute('data-io2-p'); el.removeAttribute('data-io2-leg'); el.style.removeProperty('--io-p'); }
+      return;
+    }
+    var v = Math.max(0, Math.min(100, p)) + '%';
+    if (el.getAttribute('data-io2-p') !== v) { el.setAttribute('data-io2-p', v); el.style.setProperty('--io-p', v); }
+    if (leg !== undefined) { if (el.getAttribute('data-io2-leg') !== leg) el.setAttribute('data-io2-leg', leg); }
+  }
+  function decorarInicio() {
+    inicioQuadro = 0;
+    try {
+      if (!io2Ligado() || !modoApp()) return;
+      var sec = document.getElementById('inicioSection');
+      if (!sec) return;
+      /* Indicador zerado fica neutro. */
+      var ns = sec.querySelectorAll('#in-pede button.in-linha .in-n');
+      for (var i = 0; i < ns.length; i++) {
+        var b = ns[i].parentNode, zero = /^\s*0\s*$/.test(ns[i].textContent || '');
+        if (zero && !b.hasAttribute('data-io2-zero')) b.setAttribute('data-io2-zero', '1');
+        else if (!zero && b.hasAttribute('data-io2-zero')) b.removeAttribute('data-io2-zero');
+      }
+      /* Obras: concluidas sobre o total, lido da frase do proprio cartao ("14 obras em andamento e 30 concluidas"). */
+      var ob = sec.querySelector('.in-card[data-c="obras"]');
+      if (ob) {
+        var fr = ob.querySelector('.in-fr'), m = fr ? /(\d+)\s+obras?\s+em\s+andamento\s+e\s+(\d+)\s+conclu/i.exec(fr.textContent || '') : null;
+        var em = m ? +m[1] : 0, co = m ? +m[2] : 0, tot = em + co;
+        if (m && tot > 0) inicioMarcar(ob, Math.round(co / tot * 100), co + ' de ' + tot + ' obras concluídas');
+        else inicioMarcar(ob, null);
+      }
+      /* Time: avanco sobre agendados, lido da celula ("36%"). */
+      var cs = sec.querySelectorAll('.in-time td[data-r="Avanço sobre agendados"]');
+      for (var j = 0; j < cs.length; j++) {
+        var mm = /^\s*(\d{1,3})\s*%\s*$/.exec(cs[j].textContent || '');
+        inicioMarcar(cs[j], mm ? +mm[1] : null);
+      }
+    } catch (e) {}
+  }
+  function agendarInicio() { if (!inicioQuadro) inicioQuadro = (window.requestAnimationFrame || setTimeout)(decorarInicio, 16); }
+  function inicioLigar() {
+    var sec = document.getElementById('inicioSection');
+    if (!sec) return;
+    observar(sec, { childList: true, subtree: true }, agendarInicio);
+    decorarInicio();
+    /* A grade mudou de largura em relacao ao CSS antigo: o Inicio so redesenha grafico no resize, e a tela ja pode ter desenhado. */
+    try { setTimeout(function () { try { if (io2Ligado()) window.dispatchEvent(new Event('resize')); } catch (e) {} }, 80); } catch (e) {}
+  }
+
   /* ------------------------------------------------------------------------------------------------
      Motor: um observador de nos novos no body (so childList, nunca atributo), com debounce de 150 ms.
      Processa so as raizes adicionadas e so em modo app. Ignora o que este arquivo mesmo criou.
@@ -312,6 +367,10 @@
     try { classesPostas.forEach(function (c) { c[0].classList.remove(c[1]); }); } catch (e) {}
     try { document.body.classList.remove('io2-faixa-ativa'); } catch (e) {}
     try {
+      var z = document.querySelectorAll('#inicioSection [data-io2-p], #inicioSection [data-io2-zero]');
+      for (var y = 0; y < z.length; y++) { z[y].removeAttribute('data-io2-p'); z[y].removeAttribute('data-io2-leg'); z[y].removeAttribute('data-io2-zero'); z[y].style.removeProperty('--io-p'); }
+    } catch (e) {}
+    try {
       var q;
       q = document.querySelectorAll('[data-io2-btn]');
       for (var a = 0; a < q.length; a++) { q[a].removeAttribute('role'); q[a].removeAttribute('tabindex'); q[a].removeAttribute('data-io2-btn'); }
@@ -336,6 +395,7 @@
     try { comoFunciona(document); } catch (e) {}
     try { remendos(document); } catch (e) {}
     try { faixaSimulador(); } catch (e) {}
+    try { inicioLigar(); } catch (e) {}
     try { ouvir(document, 'click', cliqueComoFunciona, false); } catch (e) {}
     try { ouvir(document, 'keydown', tecla, false); } catch (e) {}
     try { observar(document.body, { childList: true, subtree: true }, aoMudarCorpo); } catch (e) {}

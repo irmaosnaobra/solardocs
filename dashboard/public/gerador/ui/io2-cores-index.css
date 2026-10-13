@@ -597,6 +597,7 @@ html.io2[data-mode="app"]:not(#_):not(#_) .cad-sit.conectado{background-color:va
 html.io2[data-mode="app"]:not(#_):not(#_) .cad-sit.card{background-color:var(--n-sf3);color:var(--n-tx2)}
 html.io2[data-mode="app"]:not(#_):not(#_) .cad-sit.erro,
 html.io2[data-mode="app"]:not(#_):not(#_) .cad-sit.parou{background-color:var(--io-er-sf);color:var(--io-er)}
+html.io2[data-mode="app"]:not(#_):not(#_) #cad-aba-agenda.ativa .cad-cnt{background-color:#34D399}
 html.io2[data-mode="app"]:not(#_):not(#_) .cad-sit-resumo{color:var(--n-tx3)}
 html.io2[data-mode="app"]:not(#_):not(#_) .cad-alerta{color:var(--io-er)}
 html.io2[data-mode="app"]:not(#_):not(#_) .cad-par{background-color:var(--io-azul-sf);border-color:rgba(96,165,250,.38);color:var(--io-info)}

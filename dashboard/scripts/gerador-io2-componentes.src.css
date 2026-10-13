@@ -12,10 +12,13 @@ html.io2 {
 
 /* ============ Superficies do navegador ============ */
 html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin; scrollbar-color: #A9B6C9 transparent; }
-@P *::selection { background: var(--io-amarelo); color: var(--io-tinta); }
+html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var(--io-tinta); }
+/* a selecao amarela vem por heranca de destaque a partir do <html>: so o #inicioSection tem regra propria (io2-cores-index) e os documentos voltam ao padrao do navegador */
+@P #inicioSection ::selection { background: var(--io-amarelo); color: var(--io-tinta); }
+@P :is(#eletro-print, #doc-print, #ep-preview, #orcViewSection, #propostaSection, #expiradoSection, #loadingProposta, #marr, .celebra-overlay)::selection { background: Highlight; color: HighlightText; }
 @S input, @S textarea { caret-color: var(--io-azul); }
 @S input[type="date"], @S input[type="time"], @S input[type="month"], @S input[type="datetime-local"], @S input[type="week"] { color-scheme: light; }
-@S :is(td, th, .kv, .kt, .num, .historico-stat, .crm-kpi-val, .fin-kpi-v, .ql-num b, .eletro-bar-val, .eletro-bar-lbl, .in-n), @S input[type="number"], @S input[type="tel"] { font-variant-numeric: tabular-nums; }
+@S :is(.kv, .kt, .num, .historico-stat, .crm-kpi-val, .fin-kpi-v, .ql-num b, .eletro-bar-val, .eletro-bar-lbl, .in-n), @S input[type="number"], @S input[type="tel"] { font-variant-numeric: tabular-nums; }
 @S :is(a, button, [role="button"], [role="tab"], [tabindex]:not([tabindex="-1"]), summary, label.btn, .leads-aba):not(.solar-subtab, .eletro-subtab, .eletro-subtab2, .cad-aba, .crm-subtab):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
 
 /* ============ 1. Campo unico ============ */
@@ -48,6 +51,9 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
 @S .eletro-inp-lock input, @S input[readonly]:not([type="checkbox"]):not([type="radio"]) { background-color: var(--n-sf2); border-style: dashed; }
 /* prefixo e sufixo dentro do campo (R$, kWh, %) */
 @S .eletro-inp select { padding-left: 10px; padding-right: 30px; background-position: right 8px center; }
+@media (min-width: 861px) {
+  @S #el-equip { font-size: 13px; padding-right: 30px; background-position: right 8px center; }
+}
 @S .eletro-inp.has-pre input { padding-left: 32px; }
 @S .eletro-inp.has-suf input { padding-right: 46px; }
 @S .eletro-inp.has-suf.suf-l input { padding-right: 62px; }
@@ -91,7 +97,7 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
 /* ============ 4. Botao ============ */
 @S button, @S .btn-principal, @S .eletro-btn { font-family: inherit; }
 /* base compartilhada pelos 4 papeis */
-@S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .apres-btn, .btn-redes-ia, .motivo-btn, .espera-btn, .modal-acoes button, .ranking-mes-btn, .filtro-btn):not(:where(.x)) {
+@S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .apres-btn, .btn-redes-ia, .motivo-btn, .espera-btn, .modal-acoes button, .ranking-mes-btn, .filtro-btn) {
   box-sizing: border-box; min-height: var(--ctl-h); padding: 8px 16px; border-radius: var(--r-controle);
   font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: 0; text-transform: none; text-decoration: none;
   cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .1s ease;
@@ -183,19 +189,19 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
 @S .eletro-conclusao, @S .eletro-impacto-card { background: var(--n-sf2) !important; background-image: none !important; border: 1px solid var(--n-bd) !important; box-shadow: none; }
 
 /* ============ 7. Tabela ============ */
-@S table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
-@S table th {
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) th {
   background: var(--n-sf2); color: var(--n-tx2); border-bottom: 1px solid var(--n-bd); border-top: 0;
   padding: 10px 12px; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; text-align: left; line-height: 1.3;
 }
-@S table td { border-bottom: 1px solid var(--n-bd); padding: 10px 12px; font-size: 14px; line-height: 1.4; color: var(--n-tx); vertical-align: middle; }
-@S table tr:last-child > td { border-bottom-color: transparent; }
-@S table tbody tr:hover > td { background-color: var(--n-sf3); }
-@S table :is(th, td):is(.num, .valor-cell, .r, .dir, .right, .num-cell) { text-align: right; font-variant-numeric: tabular-nums; }
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) td { border-bottom: 1px solid var(--n-bd); padding: 10px 12px; font-size: 14px; line-height: 1.4; color: var(--n-tx); vertical-align: middle; }
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) tr:last-child > td { border-bottom-color: transparent; }
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) tbody tr:hover > td { background-color: var(--n-sf3); }
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) :is(th, td):is(.num, .valor-cell, .r, .dir, .right, .num-cell) { text-align: right; font-variant-numeric: tabular-nums; }
 @S .historico-tabela th, @S .leads-tabela thead th, @S .tbl-precos th { background: var(--n-sf2); color: var(--n-tx2); }
-@S .leads-tabela tbody tr:hover > td.fixa, @S .leads-tabela td.fixa { background-color: var(--n-sf); }
+@S .leads-tabela td.fixa { background-color: var(--n-sf); }
 @S .leads-tabela tbody tr:hover > td.fixa { background-color: var(--n-sf3); }
-@S table tr > td:only-child { text-align: left; }
+@S table:where(.historico-tabela, .eletro-cmp, .in-tab, .pq-tab, .pv-g-sr > *) tr > td:only-child { text-align: left; }
 @S .historico-tabela .codigo { font-weight: 600; }
 
 /* ============ 8. Abas de filtro e chips em pilula ============ */
@@ -239,7 +245,6 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
 @S #crm-det-bg { background: rgba(6, 26, 56, .55); }
 @S .crm-det h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: var(--io-tinta); }
 @S .cmp-box { border-radius: 16px; }
-@P .ep-prev-bar { border-radius: 0; }
 @P #toast, @P .toast {
   background: var(--io-navy-900); color: var(--n-inv); border: 0; border-radius: 999px; padding: 12px 20px; width: max-content; max-width: min(92vw, 420px); box-sizing: border-box;
   font-family: var(--io-fonte); font-size: 14px; font-weight: 500; line-height: 20px; box-shadow: 0 8px 24px rgba(6, 26, 56, .35);
@@ -304,6 +309,10 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
   @S .card { padding: 16px; }
   @S .in-card { padding: 16px; }
   @S .eletro-field .eletro-inp.eletro-inp-wide { width: min(236px, 64%); }
+  /* o select de potencia leva o texto inteiro ("NEXUS DC80 · 80 kW") */
+  @S .eletro-field .eletro-inp.eletro-inp-wide:has(> #el-equip) { width: min(260px, 70%); }
+  /* os quatro campos de texto do cartao Projeto vao ate a borda interna do cartao */
+  @P #eletroSection .eletro-field:has(> .eletro-inp > :is(#el-cliente, #el-cidade, #el-autor, #el-contato)) > .eletro-inp.eletro-inp-wide { width: 100%; max-width: none; }
   @S :is(.acoes-mini button, .crm-act, .cad-wa, .cad-termo, .crm-card-tel) { min-height: 44px; min-width: 44px; }
   @S textarea[style*="font-size"] { font-size: 16px !important; }
   /* tabela: o conteiner rola de lado, a pagina nao */
@@ -319,7 +328,7 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
 @keyframes io2-gira { to { transform: rotate(360deg); } }
 @keyframes io2-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  @P *:not(.lp-spinner):not(.fin-gira):not([aria-busy="true"]), @P *:not(.lp-spinner):not(.fin-gira)::before, @P *:not(.lp-spinner):not(.fin-gira):not([aria-busy="true"])::after {
+  @P *:not(.lp-spinner):not(.fin-gira):not([aria-busy="true"]):not(:where(#eletro-print,#doc-print,#ep-preview,#orcViewSection,#propostaSection,#expiradoSection,#loadingProposta,#marr,.celebra-overlay,.simshot,.ep-doc,.orc1,.nx-deck) *), @P *:not(.lp-spinner):not(.fin-gira):not(:where(#eletro-print,#doc-print,#ep-preview,#orcViewSection,#propostaSection,#expiradoSection,#loadingProposta,#marr,.celebra-overlay,.simshot,.ep-doc,.orc1,.nx-deck) *)::before, @P *:not(.lp-spinner):not(.fin-gira):not([aria-busy="true"]):not(:where(#eletro-print,#doc-print,#ep-preview,#orcViewSection,#propostaSection,#expiradoSection,#loadingProposta,#marr,.celebra-overlay,.simshot,.ep-doc,.orc1,.nx-deck) *)::after {
     animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important;
   }
   @S :is(.pq-sk, .pq-skel, .skeleton) { animation: none; background: var(--n-sf3); }
@@ -327,3 +336,7 @@ html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin;
 
 /* rotulos dos 4 campos de texto largo do Simulador: a regra gerada deles carrega um #id dentro do :has() */
 @P #eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > :is(#el-cliente, #el-cidade, #el-autor, #el-contato)) > label { color: var(--n-tx2); }
+
+/* Cadastros: pilulas da coluna Atendimento e da lista "Na agenda" (entraram depois da folha).
+   Mesmo piso de 12 px das outras etiquetas; a cor de status vem do dado e nao muda. */
+@S .cad-at-pil > *, @S .cad-at :is(.cad-sit, .cad-ag-st, .crm-card-tag) { font-size: 12px; letter-spacing: 0; }
