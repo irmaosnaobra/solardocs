@@ -3032,7 +3032,7 @@ async function apalavrar() {
     if (box) box.hidden = true;
     esperasCache[String(detalheAtual.id)] = { retomar_em: data, aguardando: oque };
     const dia = data.split('-').reverse().slice(0, 2).join('/');
-    showToast('🤞 APALAVRADO — a etiqueta foi mantida, volta em ' + dia);
+    showToast('🤞 APALAVRADO: a etiqueta foi mantida, volta em ' + dia);
     await renderTudo();
   } catch (e) {
     if (erroEl) erroEl.textContent = 'Erro ao registrar a espera. Nada foi alterado.';
@@ -3468,21 +3468,21 @@ async function atualizarStatus(novoStatus, extra) {
     const labels = {
       agendado:          '📞 Marcado como Agendada',
       nao_atendeu:       '❌ Marcado como Não atendeu',
-      em_atendimento:    '🕐 NEGOCIANDO — lead segurado com você',
+      em_atendimento:    '🕐 NEGOCIANDO: lead segurado com você',
       falando_whatsapp:  '💬 Marcado como Falando no WhatsApp',
       sem_interesse:     '🙅 Marcado como Sem interesse',
       sem_orcamento:     '📋 Marcado como Sem orçamento',
       fez_orcamento:     '💰 Marcado como Fez orçamento',
       proposta_apresentada: '📑 Marcado como Proposta apresentada',
-      arrendamento:      '🤝 Marcado como ARRENDAMENTO — nós investimos 100%',
-      meio_a_meio:       '👥 Marcado como 50/50 — sociedade meio a meio',
-      carregador:        '🔌 Marcado como Carregador — leva só o equipamento',
-      chave_na_mao:      '🔑 Marcado como Chave na mão — o eletroposto é dele',
-      cotista:           '📊 Marcado como COTISTA — entra com dinheiro, não com ponto',
-      integrador:        '🛠️ Marcado como INTEGRADOR — revende/instala pra terceiro',
+      arrendamento:      '🤝 Marcado como ARRENDAMENTO: nós investimos 100%',
+      meio_a_meio:       '👥 Marcado como 50/50: sociedade meio a meio',
+      carregador:        '🔌 Marcado como Carregador: leva só o equipamento',
+      chave_na_mao:      '🔑 Marcado como Chave na mão: o eletroposto é dele',
+      cotista:           '📊 Marcado como COTISTA: entra com dinheiro, não com ponto',
+      integrador:        '🛠️ Marcado como INTEGRADOR: revende/instala pra terceiro',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:           '❌ Marcado como Perdido',
-      apalavrado:        '🤞 APALAVRADO — sai do ciclo e volta na data',
+      apalavrado:        '🤞 APALAVRADO: sai do ciclo e volta na data',
       fechou:            '🏆 Marcado como VENDIDO',
     };
     showToast((labels[novoStatus] || 'Status atualizado')
@@ -3578,7 +3578,7 @@ async function salvarReagendamento() {
   if (erroEl) erroEl.textContent = '';
   if (!detalheAtual) { if (erroEl) erroEl.textContent = 'Nenhum agendamento selecionado.'; return; }
   // Sem id real não dá pra atualizar a linha certa (PATCH viraria id=eq.undefined → 0 linhas).
-  if (detalheAtual.id == null) { if (erroEl) erroEl.textContent = 'Agendamento sem ID — recarregue a agenda e tente de novo.'; return; }
+  if (detalheAtual.id == null) { if (erroEl) erroEl.textContent = 'Agendamento sem ID. Recarregue a agenda e tente de novo.'; return; }
   const data = document.getElementById('d-re-data').value;
   const hora = document.getElementById('d-re-hora').value;
   const consultor = document.getElementById('d-re-consultor').value;

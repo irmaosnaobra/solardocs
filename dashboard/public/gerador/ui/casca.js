@@ -21,6 +21,12 @@
   var el = {};           /* topo, titulo, aba, cons, avatar, nome, baixo, fundo, folha, mais */
   var Bd = null, Bm = null; /* busca de telas: da barra superior (computador) e da folha "Mais" (celular) */
   var buscas = [], indiceBusca = null, focoAntes = null, buscaId = 0, abasVistas = {};
+  var adotados = [];     /* [no, pai, proximoIrmao]: o que sobrou do cabecalho antigo e foi para a barra superior */
+  var rotulados = [];    /* controles que ganharam aria-label da casca */
+  var chipVisto = '';    /* Agenda: nome do chip ativo ja trazido para a vista */
+  var vazios = [];       /* elementos marcados com data-io2-vazio */
+  var carregando = [];   /* botoes adotados que a casca vigia (data-io2-carregando enquanto o texto e a ampulheta) */
+  var obsGlifos = null, agChip = 0;
 
   /* ---------------------------------------------------------------- modelo de navegacao */
   var ICONES = {
@@ -44,7 +50,9 @@
       { chave: 'nav-automacao', rotulo: 'Automação' },
       { sep: true },
       { chave: 'sb-atualizar', rotulo: 'Atualizar' },
-      { chave: 'sair', rotulo: 'Sair', icone: 'sair' }
+      { chave: 'sair', rotulo: 'Sair', icone: 'sair' },
+      /* Link simples (um <a>), nao dispara nada do app: a pagina grava a chave e volta ao /gerador. Sempre o ultimo item. */
+      { chave: 'visual-antigo', rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html' }
     ],
     /* Telas, em ordem de prioridade: a primeira cuja secao esta visivel manda no titulo. */
     telas: [
@@ -53,7 +61,8 @@
       { sec: 'formSection', titulo: 'Gerar proposta', area: 'Solar' },
       { sec: 'historicoSection', titulo: 'Histórico de propostas', area: 'Solar' },
       { sec: 'calcSection', titulo: 'Calculadora de precificação', area: 'Solar' },
-      { sec: 'tabelasSection', titulo: 'Tabelas de equipamentos', area: 'Solar', h1: true },
+      /* Tabelas: o h1 da tela e o nome da linha de equipamento; ele vai para a linha de contexto, nao para o titulo. */
+      { sec: 'tabelasSection', titulo: 'Tabelas', area: 'Solar', h1: true },
       { sec: 'leadsSection', titulo: 'Leads', area: 'Solar', aba: '.leads-aba.on' },
       { sec: 'fechamentoSolarSection', titulo: 'Fechamento', area: 'Solar', aba: '.fs-tab.ativa' },
       { sec: 'quemLigarSection', titulo: 'Quem ligar', area: 'Solar' },
@@ -85,16 +94,27 @@
       'nav-agenda': { sub: 'agenda' }, 'nav-prospeccao': { sub: 'prospeccao' }, 'nav-cobrancas': { sub: 'cobrancas' }, 'nav-agentes': { sub: 'agentes' }
     },
     /* Subapps conhecidos. `ativo`: item aceso (estados, radar e metricas acendem Eletroposto: nao ha item proprio).
-       `sessao`: false = a pagina abre sem login (estados e radar). */
+       `sessao`: false = a pagina abre sem login (estados e radar).
+       `ctx`: linha de contexto sob o titulo quando o subapp nao tem `area` (todo titulo da casca tem a sua linha).
+       `adotar`: o que sobra do cabecalho antigo (recarregar, selo de ambiente) e vai para a barra superior, num
+       bloco fixo a esquerda da busca. `vazios`: elementos que somem enquanto o texto esta vazio ou so tem traco. */
     subs: [
-      { nome: 'agenda', caminho: '/gerador/agenda', titulo: 'Agenda', ativo: 'nav-agenda', sessao: true },
-      { nome: 'prospeccao', caminho: '/gerador/prospeccao', titulo: 'Prospecção', ativo: 'nav-prospeccao', sessao: true },
-      { nome: 'cobrancas', caminho: '/gerador/cobrancas', titulo: 'Cobranças', ativo: 'nav-cobrancas', sessao: true },
-      { nome: 'agentes', caminho: '/gerador/agentes', titulo: 'Agentes', ativo: 'nav-agentes', sessao: true },
+      { nome: 'agenda', caminho: '/gerador/agenda', titulo: 'Agenda', ctx: 'Agendamentos da semana', ativo: 'nav-agenda', sessao: true, adotar: ['#btn-refresh'] },
+      { nome: 'prospeccao', caminho: '/gerador/prospeccao', titulo: 'Prospecção', ctx: 'Fila de contatos', ativo: 'nav-prospeccao', sessao: true, adotar: ['#btn-refresh'] },
+      { nome: 'cobrancas', caminho: '/gerador/cobrancas', titulo: 'Cobranças', ctx: 'Cobranças dos clientes', ativo: 'nav-cobrancas', sessao: true, adotar: ['#amb'], vazios: ['#amb'] },
+      { nome: 'agentes', caminho: '/gerador/agentes', titulo: 'Agentes', ctx: 'Central das agentes', ativo: 'nav-agentes', sessao: true, adotar: ['#btn-refresh'] },
       { nome: 'estados', caminho: '/gerador/estados', titulo: 'Melhores lugares', area: 'Eletroposto', ativo: 'nav-eletroposto', sessao: false },
       { nome: 'radar', caminho: '/gerador/radar', titulo: 'Radar da prospecção', area: 'Eletroposto', ativo: 'nav-eletroposto', sessao: false },
       { nome: 'metricas', caminho: '/gerador/eletroposto/metricas', titulo: 'Métricas do eletroposto', area: 'Eletroposto', ativo: 'nav-eletroposto', sessao: true }
-    ]
+    ],
+    /* Glifos e emojis que fazem papel de icone nos subapps. LISTA FECHADA de elementos de tela (texto escrito no
+       codigo da pagina): so os nos de texto filhos diretos de cada elemento. Nunca cartao da Agenda, historico,
+       mensagem nem campo. `rot`: nome acessivel se o controle ficar sem texto (so quando nao tem title nem aria-label). */
+    rotularTitle: '.nav-semana .nav-btn, #btn-refresh', /* controle cujo glifo some do desenho: o title vira nome acessivel */
+    glifos: {
+      agentes: [['#tab-chat, #tab-cerebro, .acoes button', '']],
+      prospeccao: [['.ch button.btn.sm', 'Anterior'], ['.ch button.btn.sm .kbd', ''], ['.mbar .linha1 button', '']]
+    }
   };
   /* Icones da barra nos subapps (la nao existe #app-sidebar para clonar). Mesmos tracos do index. */
   var NAV_ICONES = {
@@ -140,7 +160,7 @@
     s.setAttribute('viewBox', '0 0 24 24');
     s.setAttribute('fill', 'none');
     s.setAttribute('stroke', 'currentColor');
-    s.setAttribute('stroke-width', '1.8');
+    s.setAttribute('stroke-width', '1.75');
     s.setAttribute('stroke-linecap', 'round');
     s.setAttribute('stroke-linejoin', 'round');
     s.setAttribute('aria-hidden', 'true');
@@ -202,6 +222,9 @@
     el.nome = criar('span', null, 'io2-t-nome');
     user.appendChild(el.avatar); user.appendChild(el.nome);
     el.topo.appendChild(txt);
+    /* Ferramentas do cabecalho antigo (recarregar, selo de ambiente): ficam entre o titulo e a busca, de modo que
+       a busca fica na mesma posicao em toda tela. Vazio nas telas que nao adotam nada. */
+    if (modoSub && sub && sub.adotar) { el.extra = criar('div', null, 'io2-t-extra'); el.topo.appendChild(el.extra); }
     /* Busca de telas: no computador mora na barra superior, no celular dentro da folha "Mais".
        Erro aqui nunca derruba a casca: no pior caso o campo some. */
     try { Bd = criarBusca(false); el.topo.appendChild(Bd.raiz); } catch (eb) { desligarBusca(); }
@@ -235,6 +258,7 @@
     var lista = criar('div', null, 'io2-f-lista');
     MODELO.mais.forEach(function (it) {
       if (it.sep) { lista.appendChild(criar('div', null, 'io2-f-sep')); return; }
+      if (it.link) { lista.appendChild(criarLink(it, 'io2-f-item io2-f-link')); return; }
       var b = criar('button', null, 'io2-f-item');
       b.type = 'button';
       b.setAttribute('data-io2', it.chave);
@@ -252,7 +276,22 @@
     var pecas = [el.topo, el.baixo, el.fundo, el.folha];
     if (modoSub) pecas.unshift(montarBarra());
     pecas.forEach(function (n) { body.appendChild(n); criados.push(n); });
+    /* Index: o trilho lateral e o #app-sidebar do proprio app; o link entra no pe dele, depois do Sair, e sai no desfazer(). */
+    if (!modoSub) {
+      try {
+        var peApp = document.querySelector('#app-sidebar .sb-foot');
+        if (peApp) { var lk = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'); peApp.appendChild(lk); criados.push(lk); }
+      } catch (eL) {}
+    }
     montado = true;
+  }
+  /* Item de navegacao que e so um endereco: <a href> de verdade (sem classe sb-item, que o Sair e o Atualizar usam como chave). */
+  function criarLink(it, cls) {
+    var a = criar('a', null, cls);
+    a.href = it.link;
+    a.setAttribute('data-io2', it.chave);
+    a.textContent = it.rotulo;
+    return a;
   }
   /* Subapp: a mesma barra lateral do index (mesmas classes sb-*, mesmo MODELO), construida aqui. */
   function rotuloDe(chave) {
@@ -295,6 +334,7 @@
     var sa = itemBarra('', 'Sair');
     sa.addEventListener('click', function () { acionar('sair'); });
     pe.appendChild(at); pe.appendChild(sa);
+    pe.appendChild(criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'));
     nav.appendChild(marca); nav.appendChild(lista); nav.appendChild(criar('div', null, 'sb-spacer')); nav.appendChild(pe);
     return nav;
   }
@@ -650,30 +690,26 @@
     B.inp.focus();
     B.inp.select();
   }
-  /* Nos subapps a .topbar antiga (recarregar, selo, relogio) fica fixa a esquerda do usuario, por cima da barra
-     superior. A busca reserva o lugar dela e, se nao sobrar espaco, some em vez de ficar por baixo. */
+  /* A busca fica ancorada na direita, a 16 px do usuario, com a mesma largura em toda tela (no app e nos subapps).
+     O que sobrou do cabecalho antigo (recarregar, selo de ambiente) mora no bloco .io2-t-extra, a ESQUERDA da busca:
+     nunca a empurra. Se a largura nao der para titulo + ferramentas + busca (minimo de 160 px), a busca some por ultimo. */
   function medirBusca() {
     if (!Bd || !el.topo || !Bd.raiz.parentNode) return;
     var r = Bd.raiz;
-    r.style.marginRight = '0px'; r.classList.remove('io2-b-oculta');
+    r.style.marginRight = ''; r.classList.remove('io2-b-oculta');
     if (!r.getClientRects().length) return; /* escondida por CSS (celular): nada a medir */
-    var tb = modoSub ? document.querySelector('.topbar') : null;
     var user = el.topo.querySelector('.io2-t-user');
     var txt = el.topo.querySelector('.io2-t-txt');
     var topoR = el.topo.getBoundingClientRect();
     var uEsq = user && user.getClientRects().length ? user.getBoundingClientRect().left : topoR.right - 24;
-    var reserva = 0;
-    if (tb && getComputedStyle(tb).display !== 'none') {
-      var tr = tb.getBoundingClientRect();
-      if (tr.width > 0) reserva = Math.max(0, uEsq - tr.left - 8);
-    }
-    r.style.marginRight = reserva + 'px';
+    var ex = 0;
+    if (el.extra && el.extra.getClientRects().length) { var ew = el.extra.getBoundingClientRect().width; if (ew > 0) ex = ew + 16; }
     /* Largura real do texto do titulo (nao a da caixa, que cresce para encher a barra). */
     var natural = 0;
     try { var rg = document.createRange(); rg.selectNodeContents(el.titulo); natural = Math.ceil(rg.getBoundingClientRect().width); } catch (e) {}
     natural = Math.min(natural || 160, 300);
     /* A busca encolhe ate 160 px; se com isso o titulo ainda nao couber inteiro, ela some (por ultimo). */
-    var livre = (uEsq - 16 - reserva) - (txt.getBoundingClientRect().left + natural + 16);
+    var livre = (uEsq - 16 - ex) - (txt.getBoundingClientRect().left + natural + 16);
     if (livre < 160) r.classList.add('io2-b-oculta');
   }
   function ligarBusca() {
@@ -691,8 +727,7 @@
     if (typeof ResizeObserver === 'function') {
       try {
         var ro = new ResizeObserver(seguro(medirBusca));
-        var tb = modoSub ? document.querySelector('.topbar') : null;
-        if (tb) ro.observe(tb);
+        if (el.extra) ro.observe(el.extra);
         if (el.topo) ro.observe(el.topo);
         observadores.push(ro);
       } catch (e) {}
@@ -741,12 +776,12 @@
       var sec = document.getElementById(t.sec);
       if (!visivel(sec)) continue;
       r.titulo = t.titulo;
+      if (t.area) partes.push(t.area);
       if (t.h1) {
         var h1 = sec.querySelector('.header-titulo h1');
         var th = h1 ? textoProprio(h1) : '';
-        if (th) r.titulo = th;
+        if (th && th !== t.titulo) partes.push(th);
       }
-      if (t.area) partes.push(t.area);
       if (t.data) {
         var d = document.querySelector(t.data);
         var td = d ? textoDe(d) : '';
@@ -774,7 +809,7 @@
   function io2Sync() {
     try {
       if (!montado || desfeito) return;
-      var r = modoSub ? { titulo: sub.titulo, aba: sub.area || '', ativo: sub.ativo } : descobrir();
+      var r = modoSub ? { titulo: sub.titulo, aba: sub.area || sub.ctx || '', ativo: sub.ativo } : descobrir();
       if (r.titulo) el.titulo.textContent = r.titulo;
       el.aba.textContent = r.aba;
       var c = consultor();
@@ -900,6 +935,7 @@
     try {
       h.classList.remove('io2-casca');
       h.classList.remove('io2-sub');
+      h.classList.remove('io2-adotou');
       h.removeAttribute('data-io2-sub');
       h.classList.remove('io2');
       var tema = window.__io2TemaAntes;
@@ -910,8 +946,23 @@
     try { observadores.forEach(function (o) { o.disconnect(); }); } catch (e1) {}
     try { ouvintes.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); }); } catch (e2) {}
     try { envolvidas.forEach(function (w) { if (window[w[0]] === w[2]) window[w[0]] = w[1]; }); } catch (e3) {}
+    /* Devolve ao lugar o que a casca adotou (antes de remover a barra superior, que o continha) e desfaz o que marcou. */
+    try {
+      adotados.forEach(function (x) {
+        var n = x[0], pai = x[1], prox = x[2];
+        if (!pai || !pai.isConnected) return;
+        if (prox && prox.parentNode === pai) pai.insertBefore(n, prox); else pai.appendChild(n);
+      });
+    } catch (e6) {}
+    try { vazios.forEach(function (n) { n.removeAttribute('data-io2-vazio'); }); } catch (e7) {}
+    try { carregando.forEach(function (n) { n.removeAttribute('data-io2-carregando'); }); } catch (e7b) {}
+    try { rotulados.forEach(function (b) { b.removeAttribute('aria-label'); b.removeAttribute('data-io2-rot'); }); } catch (e8) {}
+    try {
+      var gl = document.querySelectorAll('[data-io2-glifo]');
+      for (var gi = 0; gi < gl.length; gi++) if (gl[gi].parentNode) gl[gi].parentNode.replaceChild(document.createTextNode(gl[gi].getAttribute('data-io2-glifo') || ''), gl[gi]);
+    } catch (e9) {}
     try { criados.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); }); } catch (e4) {}
-    criados = []; montado = false; buscas = []; Bd = null; Bm = null; indiceBusca = null; focoAntes = null;
+    criados = []; adotados = []; vazios = []; carregando = []; rotulados = []; montado = false; buscas = []; Bd = null; Bm = null; indiceBusca = null; focoAntes = null;
     try { window.dispatchEvent(new Event('resize')); } catch (e5) {}
   }
 
@@ -969,6 +1020,176 @@
   function temSessao() {
     try { return !!localStorage.getItem('irmaos-na-obra-auth-v1'); } catch (e) { return false; }
   }
+  /* ---------------------------------------------------------------- subapps: cabecalho antigo, glifos, chip */
+  /* Move (nao copia) o recarregar e o selo de ambiente para a barra superior. id, onclick e classes ficam como
+     estao; desfazer() devolve cada no ao lugar de origem. Acontece ANTES de o CSS da casca esconder o .topbar. */
+  function adotar() {
+    /* Subapp que adota algo mas ficou sem o bloco na barra: o cabecalho antigo FICA (a classe nao entra). */
+    if (sub.adotar && !el.extra) return;
+    (sub.adotar || []).forEach(function (sel) {
+      var n = document.querySelector(sel);
+      if (!n || n.parentNode === el.extra) return;
+      adotados.push([n, n.parentNode, n.nextSibling]);
+      el.extra.appendChild(n);
+    });
+    /* Fim da adocao (inclusive sem nada a adotar ou com tudo ja adotado): so agora o CSS pode esconder o .topbar. */
+    h.classList.add('io2-adotou');
+  }
+  /* O recarregar adotado tem font-size:0 (so o icone aparece); a pagina troca o texto dele por uma ampulheta enquanto
+     carrega. A casca marca o botao por ATRIBUTO enquanto o texto for a ampulheta, e o CSS gira o icone. */
+  function vigiarCarregando() {
+    if (!el.extra) return;
+    var bs = el.extra.querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) (function (b) {
+      var marcar = function () {
+        try {
+          if (/[\u231B\u23F3]/.test(b.textContent || '')) b.setAttribute('data-io2-carregando', '1');
+          else b.removeAttribute('data-io2-carregando');
+        } catch (e) {}
+      };
+      carregando.push(b);
+      marcar();
+      observar(b, { childList: true, characterData: true, subtree: true }, marcar);
+    })(bs[i]);
+  }
+  function textoVazio(t) {
+    t = String(t || '').replace(/\s+/g, ' ').trim();
+    return t === '' || /^[-\u2010-\u2015\u2212]+$/.test(t);
+  }
+  /* Selo que a pagina pinta depois do login: enquanto esta vazio ou so com traco, a casca o esconde (atributo, nunca classe). */
+  function vigiarVazios() {
+    (sub.vazios || []).forEach(function (sel) {
+      var n = document.querySelector(sel);
+      if (!n) return;
+      var marcar = function () {
+        try {
+          if (textoVazio(n.textContent)) n.setAttribute('data-io2-vazio', '1'); else n.removeAttribute('data-io2-vazio');
+          medirBusca();
+        } catch (e) {}
+      };
+      vazios.push(n);
+      marcar();
+      observar(n, { childList: true, characterData: true, subtree: true }, marcar);
+    });
+  }
+  /* O glifo do botao some do desenho (CSS) e o nome acessivel passa a vir do title que o botao ja tem. */
+  function rotularPorTitle() {
+    var ns = document.querySelectorAll(MODELO.rotularTitle);
+    for (var i = 0; i < ns.length; i++) {
+      var b = ns[i], t = b.getAttribute('title');
+      if (!t || b.hasAttribute('aria-label') || b.hasAttribute('aria-labelledby')) continue;
+      b.setAttribute('aria-label', t);
+      b.setAttribute('data-io2-rot', '1');
+      rotulados.push(b);
+    }
+  }
+  /* Glifo ou emoji que faz papel de icone: o span entra no lugar do no de texto e guarda o caractere dentro
+     (textContent da pagina nao muda; o CSS desenha o icone e recorta o caractere). So nos de texto FILHOS DIRETOS
+     dos elementos da lista fechada MODELO.glifos[sub]. */
+  var GLIFO_NOME = { '2190': 'seta-e', '2192': 'seta-d', '2191': 'seta-c', '2193': 'seta-b', '1f4ac': 'conversa', '1f9e0': 'cerebro' };
+  var RE_GLIFO = /[\u2190-\u2193\u{1F4AC}\u{1F9E0}]\uFE0F?/gu;
+  var RE_TEM = /[\u2190-\u2193\u{1F4AC}\u{1F9E0}]/u;
+  function trocarGlifosEm(host) {
+    var nos = [];
+    for (var n = host.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && n.nodeValue && RE_TEM.test(n.nodeValue)) nos.push(n);
+    nos.forEach(function (tn) {
+      var s = tn.nodeValue, frag = document.createDocumentFragment(), ult = 0, m, achou = false;
+      RE_GLIFO.lastIndex = 0;
+      while ((m = RE_GLIFO.exec(s))) {
+        var nome = GLIFO_NOME[m[0].codePointAt(0).toString(16)];
+        if (!nome) continue;
+        if (m.index > ult) frag.appendChild(document.createTextNode(s.slice(ult, m.index)));
+        var sp = criar('span', null, 'io2-gl io2-gl-' + nome);
+        sp.setAttribute('aria-hidden', 'true');
+        sp.setAttribute('data-io2-glifo', m[0]);
+        sp.textContent = m[0];
+        frag.appendChild(sp);
+        ult = m.index + m[0].length;
+        achou = true;
+      }
+      if (!achou) return;
+      if (ult < s.length) frag.appendChild(document.createTextNode(s.slice(ult)));
+      if (tn.parentNode) tn.parentNode.replaceChild(frag, tn);
+    });
+  }
+  function semTexto(host) {
+    var c = host.cloneNode(true), g = c.querySelectorAll('[data-io2-glifo]');
+    for (var i = 0; i < g.length; i++) g[i].parentNode.removeChild(g[i]);
+    return !c.textContent.replace(/\s+/g, '');
+  }
+  function varrerGlifos(raiz) {
+    var regras = MODELO.glifos[sub.nome];
+    if (!regras || !raiz) return;
+    if (raiz.nodeType === 3) raiz = raiz.parentNode;
+    if (!raiz || raiz.nodeType !== 1) return;
+    var feitos = [];
+    regras.forEach(function (rg) {
+      var hs = [];
+      try { if (raiz.matches(rg[0])) hs.push(raiz); } catch (e0) {}
+      var q = raiz.querySelectorAll(rg[0]);
+      for (var i = 0; i < q.length; i++) hs.push(q[i]);
+      hs.forEach(function (h1) { trocarGlifosEm(h1); feitos.push([h1, rg[1]]); });
+    });
+    /* depois de todas as trocas (o .kbd de dentro do botao tambem): controle que ficou sem texto ganha nome acessivel */
+    feitos.forEach(function (x) {
+      var b = x[0];
+      if (!x[1] || b.tagName !== 'BUTTON' || b.hasAttribute('aria-label') || b.hasAttribute('title') || b.hasAttribute('aria-labelledby')) return;
+      if (b.querySelector('[data-io2-glifo]') && semTexto(b)) {
+        b.setAttribute('aria-label', x[1]); b.setAttribute('data-io2-rot', '1'); rotulados.push(b);
+      }
+    });
+  }
+  function ligarGlifos() {
+    if (!MODELO.glifos[sub.nome]) return;
+    varrerGlifos(document.body);
+    if (typeof MutationObserver !== 'function') return;
+    obsGlifos = observar(document.body, { childList: true, subtree: true }, function (muts) {
+      try {
+        for (var i = 0; i < muts.length; i++) {
+          var add = muts[i].addedNodes;
+          for (var j = 0; j < add.length; j++) {
+            var a = add[j];
+            if (a.nodeType === 1 && a.hasAttribute('data-io2-glifo')) continue;
+            varrerGlifos(a);
+          }
+        }
+        obsGlifos.takeRecords(); /* descarta o que as proprias trocas geraram */
+      } catch (e) {}
+    });
+  }
+  /* Agenda, celular: o chip do consultor ativo e trazido para a vista ao carregar e quando o ativo muda. So a rolagem
+     horizontal da faixa de chips (#abas), nunca a da pagina. O ativo e lembrado pelo NOME: a faixa e redesenhada a
+     cada carga e comparar o no traria a faixa de volta a cada atualizacao. */
+  function trazerChip() {
+    var s = document.getElementById('abas');
+    if (!s || !s.clientWidth || s.scrollWidth <= s.clientWidth + 1) return;
+    var a = s.querySelector('.aba.ativa');
+    if (!a) return;
+    var k = textoProprio(a);
+    if (k === chipVisto) return;
+    chipVisto = k;
+    var sr = s.getBoundingClientRect(), ar = a.getBoundingClientRect();
+    if (ar.left >= sr.left && ar.right <= sr.right) return;
+    if (ar.left < sr.left) s.scrollLeft -= (sr.left - ar.left) + 8;
+    else s.scrollLeft += (ar.right - sr.right) + 8;
+  }
+  function agendarChip() {
+    if (agChip) return;
+    agChip = setTimeout(function () { agChip = 0; try { trazerChip(); } catch (e) {} }, 60);
+  }
+  function ligarChip() {
+    var s = document.getElementById('abas');
+    if (!s) return;
+    observar(s, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }, agendarChip);
+    ouvir(window, 'resize', function () { chipVisto = ''; agendarChip(); });
+    agendarChip();
+  }
+  /* Cada passo e protegido: erro em um nunca derruba a casca (a pagina fica so sem aquele acabamento). */
+  function acabamentoSub() {
+    [adotar, vigiarVazios, vigiarCarregando, rotularPorTitle, ligarGlifos].forEach(function (fn) { try { fn(); } catch (e) {} });
+    if (sub.nome === 'agenda') { try { ligarChip(); } catch (e2) {} }
+  }
+
   function iniciarSub() {
     sub = subDaPagina();
     if (!sub) return;
@@ -976,6 +1197,7 @@
     if (sub.sessao && !temSessao()) return;
     modoSub = true;
     montar();
+    acabamentoSub();   /* antes das classes do html: o .topbar ainda esta a vista quando o que sobra dele e adotado */
     ligarBusca();
     /* So agora o CSS da casca passa a valer: o cabecalho antigo some junto com a montagem, nunca antes. */
     h.setAttribute('data-io2-sub', sub.nome);

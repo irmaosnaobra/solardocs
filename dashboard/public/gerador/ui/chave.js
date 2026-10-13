@@ -8,11 +8,26 @@
   }
   var temaAntes = h.getAttribute('data-theme');
   try {
+    /* Link do cliente (?p=): o zoom fica liberado, com ou sem a chave. A visão do cliente não tem campo de
+       formulário, então não há zoom automático do iPhone para evitar. Na geração de PDF nada muda. */
+    var q0 = location.search || '';
+    if (/[?&]p=/.test(q0) && !/[?&]pdf=1(&|$)/.test(q0)) {
+      var vp0 = document.querySelector('meta[name="viewport"]');
+      if (vp0) {
+        /* Tira só as duas travas de zoom e mantém o resto do que a página declarou. */
+        var c0 = (vp0.getAttribute('content') || '')
+          .replace(/\s*,?\s*(maximum-scale|user-scalable)\s*=\s*[^,]*/gi, '')
+          .replace(/^\s*,\s*/, '');
+        vp0.setAttribute('content', c0 || 'width=device-width, initial-scale=1');
+      }
+    }
     var PADRAO = 'antigo';
     var v = null;
     try { v = localStorage.getItem('gerador-visual'); } catch (e) {}
     if (!v) v = PADRAO;
     if (v !== 'novo') return;
+    /* Uma folha do visual novo falhou nesta aba (veja falha() abaixo): a aba fica no visual antigo ate fechar. */
+    try { if (sessionStorage.getItem('gerador-visual-falhou')) return; } catch (e) {}
     var q = location.search || '';
     if (/[?&]p=/.test(q) || /[?&]pdf=1(&|$)/.test(q)) return;
     var s = document.currentScript;
@@ -28,11 +43,19 @@
       var l = document.querySelectorAll('link[data-io2]'), falta = 0, st = null, solto = false;
       function soltar() { if (solto) return; solto = true; if (st && st.parentNode) st.parentNode.removeChild(st); }
       function chegou() { falta--; if (falta <= 0) soltar(); }
+      function falha() {
+        /* Uma folha do visual novo nao veio. Marca esta aba para o visual antigo. Se a pagina ainda esta
+           escondida (ninguem digitou nada), recarrega uma vez; se ja apareceu, nao recarrega para nao
+           apagar o que a pessoa digitou: a marca vale a partir da proxima carga. */
+        try { sessionStorage.setItem('gerador-visual-falhou', '1'); } catch (e) { chegou(); return; }
+        if (!solto) { try { location.reload(); return; } catch (e2) {} }
+        chegou();
+      }
       for (var i = 0; i < l.length; i++) {
         if (l[i].sheet) continue;
         falta++;
         l[i].addEventListener('load', chegou);
-        l[i].addEventListener('error', chegou);
+        l[i].addEventListener('error', falha);
       }
       if (falta > 0 && document.head) {
         st = document.createElement('style');

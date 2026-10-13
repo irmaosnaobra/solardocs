@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prospecção — Irmãos na Obra</title>
+<title>Prospecção | Irmãos na Obra</title>
 <meta name="theme-color" content="#0B1220">
 <link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
 <script>
@@ -416,11 +416,11 @@ tbody tr:hover{background:#233047}
     <h3>Lançar lista</h3>
     <p class="sub">CSV com cabeçalho. Colunas reconhecidas: <b>empresa</b> (ou nome/title),
       <b>telefone</b> (phone/whatsapp), cidade, uf, nota (rating), avaliacoes (reviews), site.
-      Telefone que já existe em qualquer outra lista é descartado na importação —
+      Telefone que já existe em qualquer outra lista é descartado na importação:
       ninguém aborda o mesmo integrador duas vezes.</p>
     <div class="fld"><label>Nome da lista</label><input type="text" id="imp-nome" placeholder="Solares BA — Google Maps"></div>
     <div class="fld"><label>Origem</label><input type="text" id="imp-origem" placeholder="Apify · Maps"></div>
-    <div class="fld"><label>Custo da lista (R$) — pro ROI</label><input type="number" id="imp-custo" step="0.01" min="0" value="0"></div>
+    <div class="fld"><label>Custo da lista (R$), para o ROI</label><input type="number" id="imp-custo" step="0.01" min="0" value="0"></div>
     <div class="fld"><label>Arquivo CSV</label><input type="file" id="imp-file" accept=".csv,text/csv,text/plain" onchange="lerArquivoCsv(this)"></div>
     <div class="fld"><label>…ou cole o CSV aqui</label><textarea id="imp-txt" placeholder="empresa,telefone,cidade,uf,nota,avaliacoes,site"></textarea></div>
     <div class="fld"><label>Distribuir entre</label><select class="sel" id="imp-dist" style="width:100%"></select></div>
@@ -437,7 +437,7 @@ tbody tr:hover{background:#233047}
     <h3>Buscar leads</h3>
     <p class="sub">A busca roda no servidor pela Apify e cai aqui como lista pronta.
       Telefone repetido de qualquer outra lista é descartado, e por padrão só entra
-      número de celular — fixo não recebe WhatsApp.</p>
+      número de celular. Fixo não recebe WhatsApp.</p>
 
     <div class="fld" style="background:rgba(30,58,138,.22);border:1px solid #2E4FA8;border-radius:10px;padding:11px 12px">
       <label style="color:#DBEAFE">Descreva a lista que você quer</label>
@@ -453,8 +453,8 @@ tbody tr:hover{background:#233047}
 
     <div class="fld"><label>De onde</label>
       <select id="bs-fonte" onchange="trocarFonteBusca()">
-        <option value="google_maps">Google Maps — telefone de WhatsApp, nota, endereço</option>
-        <option value="receita_cnpj">Receita Federal — CNPJ e o NOME DO DONO (sócios)</option>
+        <option value="google_maps">Google Maps: telefone de WhatsApp, nota, endereço</option>
+        <option value="receita_cnpj">Receita Federal: CNPJ e o NOME DO DONO (sócios)</option>
         <option value="actor">Outro robô da Apify (avançado)</option>
       </select></div>
 
@@ -475,7 +475,7 @@ tbody tr:hover{background:#233047}
           <input type="text" id="bs-uf" maxlength="2" placeholder="MG" style="text-transform:uppercase"></div>
       </div>
       <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:1"><label>Município (nome — vazio = estado inteiro)</label>
+        <div class="fld" style="flex:1"><label>Município (nome; vazio = estado inteiro)</label>
           <input type="text" id="bs-municipio" placeholder="Uberlândia"></div>
         <div class="fld" style="flex:1"><label>CPF do sócio (acha todas as empresas dele)</label>
           <input type="text" id="bs-cpfsocio" placeholder="***123456**"></div>
@@ -484,15 +484,15 @@ tbody tr:hover{background:#233047}
         <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
           text-transform:none;letter-spacing:0;font-weight:500">
           <input type="checkbox" id="bs-brasil" onchange="trocarBrasil()" style="width:15px;height:15px;accent-color:#1E3A8A">
-          <b>Brasil inteiro</b> — dispara uma busca por estado (27 no total)</label>
+          <b>Brasil inteiro</b>: dispara uma busca por estado (27 no total)</label>
       </div>
       <div class="fld" id="bs-status-wrap" style="display:none"><label>As listas nascem</label>
         <select id="bs-lista-status">
-          <option value="pausada" selected>Pausadas — guarda o dado, você ativa estado por estado</option>
-          <option value="ativa">Ativas — tudo cai na fila de uma vez</option>
+          <option value="pausada" selected>Pausadas: guarda o dado, você ativa estado por estado</option>
+          <option value="ativa">Ativas: tudo cai na fila de uma vez</option>
         </select></div>
       <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
-        Aqui vem o <b>nome do dono</b> — mas o telefone do cadastro costuma ser fixo (escritório
+        Aqui vem o <b>nome do dono</b>, mas o telefone do cadastro costuma ser fixo (escritório
         ou contador). Serve pra ligar sabendo o nome; o WhatsApp você pega no Maps.
       </div>
     </div>
@@ -503,14 +503,14 @@ tbody tr:hover{background:#233047}
       <div class="fld"><label>Onde (cidade, estado ou o estado inteiro)</label>
         <input type="text" id="bs-local" placeholder="Bahia, Brasil"></div>
       <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:.55"><label>Raio (km) — opcional</label>
+        <div class="fld" style="flex:.55"><label>Raio (km, opcional)</label>
           <input type="number" id="bs-raio" min="1" max="500" placeholder="300" oninput="trocarRaio()"></div>
         <div class="fld" style="flex:1.45"><label>A partir de (cidade ou endereço)</label>
           <input type="text" id="bs-centro" placeholder="Uberlândia, MG"></div>
       </div>
       <div id="bs-raio-nota" style="display:none;font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
         Com raio, o campo <b>Onde</b> é ignorado: a busca vira uma área circular em volta desse ponto
-        e cruza divisa de cidade e de estado — que é o que interessa pra quem vende na beira da estrada.
+        e cruza divisa de cidade e de estado, que é o que interessa pra quem vende na beira da estrada.
       </div>
       <div style="display:flex;gap:9px">
         <div class="fld" style="flex:1"><label>Categorias do Google (custa mais)</label>
@@ -556,14 +556,14 @@ tbody tr:hover{background:#233047}
         <textarea id="bs-input" placeholder='{"search": "..." }'></textarea></div>
       <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
         O que voltar é lido por apelido de campo (title/name, phone/whatsapp, city, state,
-        website, rating, reviews). Quem não tiver telefone é descartado — e o relatório diz quantos.
+        website, rating, reviews). Quem não tiver telefone é descartado, e o relatório diz quantos.
       </div>
     </div>
 
     <div style="display:flex;gap:9px">
       <div class="fld" style="flex:1"><label>Quantos leads</label>
         <select id="bs-limite" onchange="estimarBusca()">
-          <option value="25">25 — teste</option>
+          <option value="25">25 (teste)</option>
           <option value="50" selected>50</option>
           <option value="100">100</option>
           <option value="200">200</option>
@@ -795,7 +795,7 @@ let toastUndo = null;
 function showToast(msg, undo){
   const t = document.getElementById('toast');
   toastUndo = undo || null;
-  t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button class="undo" onclick="rodarUndo()">desfazer</button>` : '');
+  t.innerHTML = `<span>${esc(msg)}</span>` + (undo ? `<button class="undo" onclick="rodarUndo()">Desfazer</button>` : '');
   t.classList.add('show');
   clearTimeout(showToast._h);
   showToast._h = setTimeout(()=>t.classList.remove('show'), undo ? 6000 : 2800);
@@ -1160,7 +1160,7 @@ async function registrar(desf){
   // perder exatamente o dado que o disjuntor precisa pra funcionar.
   const encerramento = ['nao_perturbar','sem_interesse'].includes(desf.id);
   if (!encerramento && filaTravada()){
-    showToast('Disjuntor armado — a fila está travada. Veja em Resultados.');
+    showToast('Disjuntor armado: a fila está travada. Veja em Resultados.');
     return;
   }
   if (!encerramento && restamHoje(consultorAtivo) <= 0){
@@ -1303,7 +1303,7 @@ async function carregarSlots(consultor){
     // Falhou a leitura: não inventa "tudo livre" — manda usar o horário manual,
     // que confere o conflito no servidor antes de gravar.
     agSlots.ags = []; agSlots.bloqs = [];
-    agSlots.erro = 'Não deu pra ler a agenda agora. Use "Outro horário" — o conflito é conferido ao salvar.';
+    agSlots.erro = 'Não deu pra ler a agenda agora. Use "Outro horário". O conflito é conferido ao salvar.';
   } finally {
     if (meuReq === agSlots.req){ agSlots.carregando = false; renderSlots(); }
   }
@@ -1313,8 +1313,8 @@ function renderSlots(){
   const el = document.getElementById('ag-slots');
   if (!el) return;
   const quem = document.getElementById('ag-slots-quem');
-  if (quem) quem.textContent = agSlots.consultor ? `— agenda do ${agSlots.consultor}, 4 dias úteis` : '';
-  if (agManual){ el.innerHTML = '<div class="agd-vazio">Marcando por data digitada — confiro o conflito na hora de salvar.</div>'; return; }
+  if (quem) quem.textContent = agSlots.consultor ? `(agenda do ${agSlots.consultor}, 4 dias úteis)` : '';
+  if (agManual){ el.innerHTML = '<div class="agd-vazio">Marcando por data digitada: confiro o conflito na hora de salvar.</div>'; return; }
   if (agSlots.carregando){ el.innerHTML = '<div class="agd-vazio">Lendo a agenda…</div>'; return; }
   if (!agSlots.consultor){ el.innerHTML = '<div class="agd-vazio">Escolha o consultor.</div>'; return; }
   if (agSlots.erro){ el.innerHTML = `<div class="agd-vazio" style="color:var(--warn)">${esc(agSlots.erro)}</div>`; return; }
@@ -1363,7 +1363,7 @@ function renderSlots(){
         if (bq) {
           chips.push(`<span class="agc ocupado${tarde}" title="Bloqueado: ${esc(bq.motivo || '—')}">${rot}</span>`);
         } else if (meu) {
-          chips.push(`<span class="agc ocupado${tarde}" title="${esc(meu.cliente_nome || 'ocupado')} — mesma metade do quadro">${rot}</span>`);
+          chips.push(`<span class="agc ocupado${tarde}" title="${esc(meu.cliente_nome || 'ocupado')}: mesma metade do quadro">${rot}</span>`);
         } else if (dela) {
           // Metade livre: o consultor já tem uma reunião do OUTRO tipo nesta meia
           // hora, e esta entra ao lado. Amarelo pra ninguém marcar sem ver — e o
@@ -1374,7 +1374,7 @@ function renderSlots(){
           dividindo++; selValido = selValido || agSlots.sel === t;
           chips.push(`<button type="button" class="agc dividir${tarde}${sel}" onclick="escolherSlot(${t})"` +
             ` title="${esc(rotuloLado(outroLado))}: ${esc(dela.cliente_nome || '—')} às ${hOutra}` +
-            ` — ${hOutra === rot ? 'vocês dividem o horário' : 'cai na mesma meia hora'}">${rot}</button>`);
+            `, ${hOutra === rot ? 'vocês dividem o horário' : 'cai na mesma meia hora'}">${rot}</button>`);
         } else {
           livres++; selValido = selValido || agSlots.sel === t;
           chips.push(`<button type="button" class="agc${tarde}${sel}" onclick="escolherSlot(${t})">${rot}</button>`);
@@ -1393,7 +1393,7 @@ function renderSlots(){
 
   el.innerHTML = html + (
     `<div class="agd-vazio" style="margin-top:2px">Amarelo = dá pra marcar, mas tem uma reunião de ` +
-    `${esc(rotuloLado(outroLado).toLowerCase())} nessa meia hora — passa o mouse pra ver quem e que horas. ` +
+    `${esc(rotuloLado(outroLado).toLowerCase())} nessa meia hora. Passa o mouse pra ver quem e que horas. ` +
     `Riscado = a metade de ${esc(rotuloLado(meuLado).toLowerCase())} já está tomada.</div>`);
 }
 
@@ -1487,7 +1487,7 @@ function abrirAgenda(contatoId, produtoId, autoConversao){
   const jaMarcada = reuniaoDe(c);
   document.getElementById('ag-sub').textContent = jaMarcada
     ? `${c.empresa} já tem reunião com ${jaMarcada.vendedor_nome} em ${fmtQuando(jaMarcada.quando)}. Marcar de novo cria um segundo horário.`
-    : `${c.empresa}${c.cidade ? ' · ' + c.cidade : ''} — ele vira card no CRM do consultor na hora.`;
+    : `${c.empresa}${c.cidade ? ' · ' + c.cidade : ''}: ele vira card no CRM do consultor na hora.`;
 
   document.getElementById('ag-nome').value = nomeParaAgenda(c);
   document.getElementById('ag-tel').value  = formatTelBR(c.telefone);
@@ -1588,7 +1588,7 @@ async function confirmarAgenda(){
     if (donoCrm && donoCrm !== consultor){
       consultor = donoCrm;
       const aviso = document.getElementById('ag-aviso');
-      aviso.textContent = `Esse WhatsApp já é cliente do ${donoCrm} — a reunião foi pra agenda dele.`;
+      aviso.textContent = `Esse WhatsApp já é cliente do ${donoCrm}. A reunião foi pra agenda dele.`;
       aviso.style.display = '';
     }
 
@@ -1615,7 +1615,7 @@ async function confirmarAgenda(){
     });
     agendados.unshift(novo);
     indexarAgendados();
-    showToast(`${c.empresa} na agenda de ${consultor} — ${fmtQuando(novo.quando)}`);
+    showToast(`${c.empresa} na agenda de ${consultor}, ${fmtQuando(novo.quando)}`);
     fecharAgenda();      // fechou = fila anda (quando o modal abriu pela conversão)
   } catch(e){
     const msg = String((e && e.message) || e);
@@ -1701,7 +1701,7 @@ function htmlRespostas(){
     return true;
   };
   return `<div class="sect">
-    <div class="st">Respostas prontas<span class="hint">— pro meio da conversa</span></div>
+    <div class="st">Respostas prontas<span class="hint">(pro meio da conversa)</span></div>
     ${GRUPOS.map(g => {
       const itens = respostas.filter(s => s.tipo === g.tipo && doProduto(s))
         .sort((a,b)=>(a.ordem||0)-(b.ordem||0));
@@ -1735,7 +1735,7 @@ function trocarVariacao(){
   const vars = variacoesPara(focoAtual(), alvoAtual());
   if (vars.length < 2){ showToast('Só há 1 variação escrita pra esse perfil de empresa'); return; }
   variacao++; renderTudo();
-  showToast('Outra variação — evita texto repetido em massa');
+  showToast('Outra variação: evita texto repetido em massa');
 }
 /** Trava de alegação: a mensagem não sai enquanto o texto afirmar coisa que
  *  ninguém provou. Vale pros DOIS caminhos de saída (WhatsApp e copiar) — trava
@@ -1750,11 +1750,11 @@ function bloqueioDeAlegacao(){
 function abrirWhats(){
   const c = focoAtual(); if (!c) return;
   if (bloqueioDeAlegacao()) return;
-  if (filaTravada()){ showToast('Disjuntor armado — a fila está travada.'); return; }
+  if (filaTravada()){ showToast('Disjuntor armado: a fila está travada.'); return; }
   if (restamHoje(consultorAtivo) <= 0){ showToast(`Teto do dia atingido (${tetoDe(consultorAtivo)}).`); return; }
   const tel = formatTelDigits(c.telefone);
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensagemAtual())}`, '_blank');
-  showToast('WhatsApp aberto — registre o resultado com as teclas 1 a 6');
+  showToast('WhatsApp aberto. Registre o resultado com as teclas 1 a 6');
 }
 function copiarMsg(){
   if (bloqueioDeAlegacao()) return;
@@ -1814,7 +1814,7 @@ async function verificarAlegacao(id){
     });
     const a = alegacoes.find(x => x.id === id);
     if (a){ a.verificada = true; a.fonte = fonte.trim(); }
-    showToast('Alegação verificada — a mensagem já pode sair');
+    showToast('Alegação verificada: a mensagem já pode sair');
     if (!alegacoesBloqueadas(mensagemAtual(), alvoAtual()).length) fecharModal('ov-alegacoes');
     else abrirAlegacoes();
     renderTudo();
@@ -1884,7 +1884,7 @@ function bannerTruncado(){
   return `<div style="margin:12px 16px 0;padding:11px 14px;background:rgba(245,158,11,.14);
     border:1px solid #B45309;border-radius:10px;font-size:12.5px;line-height:1.6;color:#FDE68A">
     <b>Base maior do que esta tela carrega de uma vez.</b> Carregados os ${LIMITE_CARGA} mais recentes de
-    ${truncado.contatos} contatos e ${truncado.toques} toques — os totais de Listas, Carteira e
+    ${truncado.contatos} contatos e ${truncado.toques} toques. Os totais de Listas, Carteira e
     Resultados contam só o que foi carregado. Encerre listas velhas (elas somem da carga) pra voltar a ver o número cheio.</div>`;
 }
 // ── Avisos da v2: disjuntor, teto e alegação ────────────────────────────────
@@ -1896,7 +1896,7 @@ function bannerTravas(){
   if (s.estado === 'travado'){
     h += `<div style="margin:12px 16px 0;padding:12px 15px;background:rgba(248,113,113,.15);
       border:1px solid #B91C1C;border-radius:10px;font-size:12.5px;line-height:1.65;color:#FECACA">
-      <b>Disjuntor armado — fila travada.</b> ${s.optout_14d} de ${s.contatos_14d} contatos que
+      <b>Disjuntor armado: fila travada.</b> ${s.optout_14d} de ${s.contatos_14d} contatos que
       ${esc(consultorAtivo)} tocou nos últimos 14 dias pediram pra parar (${s.taxa_optout}%).
       Acima de 8% a linha entra em risco de bloqueio.<br>
       Antes de voltar: troque o script de abertura e recomece por uma lista nova.
@@ -1912,7 +1912,7 @@ function bannerTravas(){
     h += `<div style="margin:12px 16px 0;padding:11px 14px;background:rgba(96,165,250,.13);
       border:1px solid #1D4ED8;border-radius:10px;font-size:12.5px;line-height:1.6;color:#BFDBFE">
       <b>Teto do dia atingido: ${tetoDe(consultorAtivo)} toques.</b>
-      Não é a tela sendo chata — é a mesma régua que a linha IO passou a ter depois
+      Não é a tela sendo chata: é a mesma régua que a linha IO passou a ter depois
       do bloqueio de 30/08. Amanhã a rampa continua de onde parou.</div>`;
   }
   return h;
@@ -1993,7 +1993,7 @@ function htmlFila(){
     <div class="card">
       <div class="ch">Contato em foco<span class="spacer"></span>
         <button class="btn sm" onclick="irPara(${Math.max(0,idx-1)})">← <span class="kbd">↑</span></button>
-        <button class="btn sm" onclick="proximo()">pular <span class="kbd">↓</span></button>
+        <button class="btn sm" onclick="proximo()">Pular <span class="kbd">↓</span></button>
       </div>
       <div class="foco">
         <h2>${esc(c.empresa)}</h2>
@@ -2038,7 +2038,7 @@ function htmlFila(){
             const d = DESFECHOS.find(x=>x.id===t.resultado), p = prodById(t.produto_id);
             return `<div class="hl"><span class="d">${fmtDataHora(t.criado_em)}</span>
               <i class="b" style="background:${d?d.cor:'#94A3B8'}"></i>
-              <span>${esc(p?p.nome:'—')} — ${esc(d?d.label:t.resultado)}${t.consultor?' · '+esc(t.consultor):''}
+              <span>${esc(p?p.nome:'—')}: ${esc(d?d.label:t.resultado)}${t.consultor?' · '+esc(t.consultor):''}
               ${t.obs?`<span style="color:var(--faint)"> · ${esc(t.obs)}</span>`:''}</span>
               ${Number(t.valor)?`<span class="v">${brl(t.valor)}</span>`:''}</div>`;
           }).join('') : '<div class="virgin">Primeiro contato. Nunca foi abordado por ninguém da equipe.</div>'}
@@ -2047,7 +2047,7 @@ function htmlFila(){
         ${htmlAgendaDoContato(c)}
 
         <div class="sect sect-desf">
-          <div class="st">Resultado do contato<span class="hint">— tecla 1 a 6, avança sozinho</span></div>
+          <div class="st">Resultado do contato<span class="hint">(tecla 1 a 6, avança sozinho)</span></div>
           <div class="desf">
             ${DESFECHOS.map(d=>`<button class="dbtn" onclick="registrarPorId('${d.id}')"
               style="border-color:${d.cor}66;color:${d.cor}">${d.label}<span class="k">${d.k}</span></button>`).join('')}
@@ -2092,7 +2092,7 @@ function htmlFila(){
           return `<div onclick="abrirAlegacoes()" style="margin-top:9px;padding:10px 12px;cursor:pointer;
             background:rgba(248,113,113,.13);border:1px solid #B91C1C;border-radius:9px">
             <div style="font-size:12px;font-weight:700;color:#FCA5A5;margin-bottom:5px">
-              BLOQUEADA — ${bloq.length === 1 ? 'afirmação sem prova' : `${bloq.length} afirmações sem prova`}</div>
+              BLOQUEADA: ${bloq.length === 1 ? 'afirmação sem prova' : `${bloq.length} afirmações sem prova`}</div>
             ${bloq.map(a=>`<div style="font-size:12.5px;color:#FECACA;line-height:1.5">· ${esc(a.texto)}</div>`).join('')}
             <div style="font-size:11.5px;color:#F87171;margin-top:6px">Toque pra provar com a fonte ou reescrever o script.</div>
           </div>`;
@@ -2115,7 +2115,7 @@ function htmlFila(){
     <div class="quem">${esc(c.empresa)} · ${esc(prodById(alvo) ? prodById(alvo).nome : '')}</div>
     <div class="linha1">
       <button class="btn wa" onclick="abrirWhats()">Abrir no WhatsApp</button>
-      <button class="btn" style="flex:0 0 92px" onclick="proximo()">pular →</button>
+      <button class="btn" style="flex:0 0 92px" onclick="proximo()">Pular →</button>
     </div>
     <div class="grid">
       ${DESFECHOS.map(d=>`<button onclick="registrarPorId('${d.id}')"
@@ -2141,7 +2141,7 @@ function htmlAgendaDoContato(c){
            <span style="color:var(--faint)"> · ${esc(String(marcada.status||'').replace(/_/g,' '))}</span></span></div>`
       : `<button class="btn primary full" onclick="abrirAgenda('${c.id}')">Jogar na agenda do consultor</button>
          <div style="font-size:11.5px;color:var(--faint);margin-top:7px;line-height:1.55">
-           Vira card no CRM do gerador com a etiqueta ${esc(rotuloOrigem(origemDoProduto(alvoAtual())))} — daí em diante ele é lead, não mais lista fria.</div>`}
+           Vira card no CRM do gerador com a etiqueta ${esc(rotuloOrigem(origemDoProduto(alvoAtual())))}. Daí em diante ele é lead, não mais lista fria.</div>`}
     ${passadas.map(a => `<div class="hl"><span class="d">${esc(fmtQuando(a.quando))}</span>
       <i class="b" style="background:${AG_MORTO.has(a.status)?'#F87171':'#94A3B8'}"></i>
       <span style="color:var(--dim)">${esc(a.vendedor_nome||'—')} · ${esc(String(a.status||'').replace(/_/g,' '))}</span></div>`).join('')}
@@ -2211,7 +2211,7 @@ function porQue(c, pid){
   const jaOfertado = toquesDe(c.id).filter(t => t.produto_id === pid);
   if (jaOfertado.length && !comprados.some(x=>x.id===pid)){
     const ult = jaOfertado[jaOfertado.length-1];
-    return `já foi ofertado ${fmtDataHora(ult.criado_em)} e não fechou — ${jaOfertado.length} toque(s) ` +
+    return `já foi ofertado ${fmtDataHora(ult.criado_em)} e não fechou: ${jaOfertado.length} toque(s) ` +
       `neste produto. Insistir é normal: troque o ângulo em "Trocar variação" ou desça pro produto de entrada. ` +
       `A aba Resultados mostra quantos toques a SUA operação leva até a venda.`;
   }
@@ -2223,14 +2223,14 @@ function porQue(c, pid){
     const barato = ativos.slice().sort((a,b)=>a.preco-b.preco)[0];
     if (entrada && entrada.id === pid){
       return 'nunca comprou nada. É o primeiro degrau da escada' +
-        (barato.id === pid ? ' e o de menor preço — decide sozinho, fecha no mesmo dia.'
+        (barato.id === pid ? ' e o de menor preço: decide sozinho, fecha no mesmo dia.'
                            : `. Se travar no preço, o ${barato.nome} (${precoLabel(barato)}) é a barreira mais baixa.`);
     }
-    return `nunca comprou nada. Se travar no preço, ofereça o ${barato.nome} (${precoLabel(barato)}) — ` +
-      `é a menor barreira do catálogo — e volte neste depois.`;
+    return `nunca comprou nada. Se travar no preço, ofereça o ${barato.nome} (${precoLabel(barato)}), ` +
+      `que é a menor barreira do catálogo, e volte neste depois.`;
   }
   return `já comprou ${comprados.map(x=>x.nome).join(', ')} (LTV ${brl(ltvDe(c.id))}). ` +
-    `Quem já passou o cartão responde o WhatsApp e confia — é o dinheiro mais barato da operação.`;
+    `Quem já passou o cartão responde o WhatsApp e confia: é o dinheiro mais barato da operação.`;
 }
 
 // ---------- NA AGENDA ----------
@@ -2368,7 +2368,7 @@ async function mudarStatusLista(id, status){
 }
 function trabalharLista(id){
   const l = listaById(id);
-  if (l && l.status !== 'ativa'){ showToast('Lista não está ativa — retome primeiro'); return; }
+  if (l && l.status !== 'ativa'){ showToast('Lista não está ativa: retome primeiro'); return; }
   soMeus = false; filaIds = []; idx = 0;
   const eleg = contatos.filter(c => c.lista_id === id && elegivel(c))
     .sort((a,b)=>ultimoToqueEm(a.id)-ultimoToqueEm(b.id));
@@ -2512,7 +2512,7 @@ function abrirNaFila(contatoId, produtoId){
   variacao = 0; aba = 'fila';
   renderTudo();
   const p = prodById(produtoId), c = contatoById(contatoId);
-  showToast(jaComprou ? `${c?c.empresa:''} já tem ${p?p.nome:''} — abri no próximo produto`
+  showToast(jaComprou ? `${c?c.empresa:''} já tem ${p?p.nome:''}, abri no próximo produto`
                       : `${p?p.nome:''} para ${c?c.empresa:''}`);
 }
 
@@ -2547,14 +2547,14 @@ function htmlEtapaCanal(){
     <div class="ch">Etapa × canal<span class="spacer"></span>
       <span class="mono" style="color:var(--dim);font-size:12px">${total} contatos</span></div>
     <div style="padding:14px 16px">
-      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin-bottom:9px">ETAPA — ONDE ESTÁ NO FUNIL</div>
+      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin-bottom:9px">ETAPA: ONDE ESTÁ NO FUNIL</div>
       ${barra(ETAPAS,'etapa')}
-      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin:16px 0 9px">CANAL — ESTADO DA CONVERSA AGORA</div>
+      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin:16px 0 9px">CANAL: ESTADO DA CONVERSA AGORA</div>
       ${barra(CANAIS,'canal')}
       ${semRetorno ? `<div style="margin-top:14px;padding:11px 13px;background:rgba(245,158,11,.12);
         border-left:2px solid #B45309;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.6;color:#FDE68A">
         <b>${semRetorno} contatos abordados e em silêncio há mais de 7 dias.</b>
-        ${respRetorno ? `${respRetorno} deles chegaram a responder e a conversa morreu — esses são os mais caros de perder.` : ''}
+        ${respRetorno ? `${respRetorno} deles chegaram a responder e a conversa morreu: esses são os mais caros de perder.` : ''}
         Isso não é trabalho feito: é fila de follow-up que ninguém estava vendo, porque
         antes tudo isso contava como "enviei".</div>` : ''}
     </div>
@@ -2658,7 +2658,7 @@ function htmlResultados(){
              <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;font-weight:700">${l}</div></div>`).join('')}
         </div>
         <div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.6">
-          Tudo aqui sai do log de toques — nada é digitado à mão nem estimado.
+          Tudo aqui sai do log de toques. Nada é digitado à mão nem estimado.
         </div>
       </div>
 
@@ -2692,7 +2692,7 @@ function htmlResultados(){
           ${Math.round(100*(totalV-buckets[1])/totalV)}% das vendas vieram do 2º toque em diante
           (${totalV} venda${totalV>1?'s':''}). Quem desiste no primeiro silêncio joga fora esse pedaço.</div>`
         : `<div style="font-size:12.5px;color:var(--dim);line-height:1.6">
-            Sem venda registrada ainda — nada a contar aqui.</div>`}
+            Sem venda registrada ainda, nada a contar aqui.</div>`}
       </div>
 
       <div class="mini">
@@ -2754,7 +2754,7 @@ function opcoesDeLimite(){
   const atual = Number(sel.value || 0);
   const lista = LIMITES[fonteBusca()] || LIMITES.actor;
   sel.innerHTML = lista.map(n =>
-    `<option value="${n}">${n.toLocaleString('pt-BR')}${n===lista[0]?' — teste':''}${n===lista[lista.length-1]?' (teto)':''}</option>`).join('');
+    `<option value="${n}">${n.toLocaleString('pt-BR')}${n===lista[0]?' (teste)':''}${n===lista[lista.length-1]?' (teto)':''}</option>`).join('');
   sel.value = String(lista.reduce((a,b)=>Math.abs(b-atual)<Math.abs(a-atual)?b:a, lista[1]));
 }
 function trocarRaio(){
@@ -2967,8 +2967,8 @@ async function dispararBusca(){
     // decide se pode rodar — o kick não passa parâmetro nenhum.
     fetch('/_api/gerador/prospeccao/kick', { method:'POST' }).catch(()=>{});
     fecharModal('ov-busca');
-    showToast(brasil ? `${UFS.length} buscas na fila (uma por estado) — rodam uma de cada vez`
-                     : 'Busca na fila — o resultado cai aqui sozinho');
+    showToast(brasil ? `${UFS.length} buscas na fila (uma por estado): rodam uma de cada vez`
+                     : 'Busca na fila: o resultado cai aqui sozinho');
     setTimeout(recarregarBuscas, 2500);
   } catch(e){
     showToast('Não deu pra enfileirar: ' + e.message);
@@ -3000,7 +3000,7 @@ async function cancelarBusca(id){
     // cancelar no banco não para a Apify — quem aborta a run (e o gasto) é o motor.
     fetch('/_api/gerador/prospeccao/kick', { method:'POST' }).catch(()=>{});
     await recarregarBuscas();
-    showToast('Cancelada — abortando a run na Apify');
+    showToast('Cancelada: abortando a run na Apify');
   } catch(e){ showToast('Não deu pra cancelar: ' + e.message); }
 }
 function htmlBuscas(){

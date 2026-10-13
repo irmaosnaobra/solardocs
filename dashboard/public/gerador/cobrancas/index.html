@@ -148,7 +148,7 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 <div class="faixa-teste" id="faixa-teste">
-  AMBIENTE DE TESTE — nada aqui cobra ninguém de verdade. Para valer, a Vercel precisa de ASAAS_ENV=prod com a chave de produção.
+  AMBIENTE DE TESTE: nada aqui cobra ninguém de verdade. Para valer, a Vercel precisa de ASAAS_ENV=prod com a chave de produção.
 </div>
 
 <div class="wrap">
@@ -157,7 +157,7 @@ tr:last-child td{border-bottom:none}
   <div class="card" id="tela-senha">
     <h2>Senha do app de cobranças</h2>
     <p class="sub">Este app cria cobrança de verdade e mostra dado de cliente. A senha é o
-      <code>COBRANCA_TOKEN</code> configurado na Vercel — fica guardada só neste aparelho.</p>
+      <code>COBRANCA_TOKEN</code> configurado na Vercel. Fica guardada só neste aparelho.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <input type="password" id="in-token" placeholder="senha" style="flex:1;min-width:200px"
              onkeydown="if(event.key==='Enter')salvarToken()">
@@ -207,7 +207,7 @@ tr:last-child td{border-bottom:none}
             <button data-v="pix" onclick="setMeio('pix')">Pix</button>
             <button data-v="boleto" onclick="setMeio('boleto')">Boleto</button>
           </div>
-          <p class="sub" style="margin:7px 0 0;font-size:11.5px">Sem CPF só existe link aberto —
+          <p class="sub" style="margin:7px 0 0;font-size:11.5px">Sem CPF só existe link aberto:
             é o próprio cliente que preenche os dados dele na página do Asaas.</p>
         </div>
         <div>
@@ -278,7 +278,7 @@ tr:last-child td{border-bottom:none}
           <p class="sub" style="margin:2px 0 0">Status conferido no Asaas na hora de abrir.</p></div>
         <button class="btn sm ghost" onclick="carregarLista()">Atualizar</button>
       </div>
-      <div id="lista"><div class="vazio">carregando…</div></div>
+      <div id="lista"><div class="vazio">Carregando…</div></div>
     </div>
 
   </div>
@@ -545,7 +545,7 @@ async function carregarLista(){
   try {
     const j = await api('/lista');
     const c = j.cobrancas || [];
-    if (!c.length) { $('lista').innerHTML = '<div class="vazio">nenhuma cobrança criada ainda</div>'; return; }
+    if (!c.length) { $('lista').innerHTML = '<div class="vazio">Nenhuma cobrança criada ainda</div>'; return; }
     $('lista').innerHTML = `<table><thead><tr>
         <th>Quando</th><th>Cliente</th><th>Cobrado</th><th>Recebe</th><th>Status</th><th></th>
       </tr></thead><tbody>` + c.map(linha).join('') + '</tbody></table>';

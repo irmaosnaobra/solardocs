@@ -3,7 +3,9 @@
    ouvinte, temporizador) tambem, porque eles rodam depois que o try de montagem ja terminou.
    Nao envolve funcao do app, nao move no, nao escreve em location, nao renomeia id nem classe do app.
    Blocos: (A) texto longo recolhido, (B) faixa de resultado do Simulador no celular,
-   (C) remendos de acessibilidade em tempo de execucao, (D) Inicio: marcas de proporcao para a trena e indicador zerado.
+   (C) remendos de acessibilidade em tempo de execucao, (D) Inicio: marcas de proporcao para a trena e indicador zerado,
+   (E) acabamento: trena do funil (SVG), indicador zerado no CRM e em Quem ligar, chip ativo de Leads, avatar sem foto na Automacao,
+   filtros de Cadastros numa fileira so (os select de #cad-acoes sao movidos para div.io2-cad-filtros; desfazer() devolve).
    Tudo o que este arquivo acrescenta fica marcado (data-io2, data-io2-*) para desfazer() devolver o app ao que era. */
 (function () {
   var h = document.documentElement;
@@ -12,7 +14,8 @@
     if (window.self !== window.top) return;
   } catch (e) { return; }
 
-  var criados = [];       /* nos que este arquivo pos no DOM */
+  var criados = [];       /* nos que este arquivo pos no DOM (nunca podado: so desfazer() mexe) */
+  var trenas = [];        /* nos da trena do funil: o app descarta e refaz o svg, entao so esta lista e podada */
   var classesPostas = []; /* [no, classe] para desfazer */
   var observadores = [];
   var ouvintes = [];      /* [alvo, tipo, fn, opcoes] */
@@ -315,6 +318,7 @@
         inicioMarcar(cs[j], mm ? +mm[1] : null);
       }
     } catch (e) {}
+    try { trenaFunil(); } catch (e) {}
   }
   function agendarInicio() { if (!inicioQuadro) inicioQuadro = (window.requestAnimationFrame || setTimeout)(decorarInicio, 16); }
   function inicioLigar() {
@@ -324,6 +328,264 @@
     decorarInicio();
     /* A grade mudou de largura em relacao ao CSS antigo: o Inicio so redesenha grafico no resize, e a tela ja pode ter desenhado. */
     try { setTimeout(function () { try { if (io2Ligado()) window.dispatchEvent(new Event('resize')); } catch (e) {} }, 80); } catch (e) {}
+  }
+
+  /* ------------------------------------------------------------------------------------------------
+     (E) Acabamento. Nada aqui move no, cria id em campo ou toca no que vai ao servidor.
+     E1 trenaFunil: o funil do Inicio e SVG desenhado pelo app (path com fill). Aqui entram, por barra, um trilho
+        (rect antes) e uma camada de marcas de 10% (rect depois, com <pattern>). Os nos novos levam data-io2 e
+        saem no desfazer(); o svg ja tratado leva data-io2-trena e o redesenho do app (svg novo) e tratado de novo.
+     E2 zerar: marca data-io2-zero no indicador de valor zero (CRM e Quem ligar); o CSS tira a cor de estado.
+     E3 chipAtivo: Leads, ate 860 px, traz o chip ativo para a vista rolando SO o conteiner (scrollLeft).
+     E4 avatarSemFoto: imagem do Instagram que nao carrega (Automacao, bloco da conexao) vira circulo com a inicial.
+     ------------------------------------------------------------------------------------------------ */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function svgNo(tipo, attrs) {
+    var n = document.createElementNS(SVGNS, tipo);
+    for (var k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) n.setAttribute(k, attrs[k]);
+    n.setAttribute('data-io2', '1');
+    return n;
+  }
+  function trenaFunil() {
+    if (!io2Ligado() || !modoApp()) return;
+    var sec = document.getElementById('inicioSection');
+    if (!sec) return;
+    /* Tira de trenas os nos que o app ja descartou (redesenho do Inicio). criados nao e tocado. */
+    for (var k = trenas.length - 1; k >= 0; k--) { if (!trenas[k] || !trenas[k].isConnected) trenas.splice(k, 1); }
+    var svgs = sec.querySelectorAll('.in-card[data-c="funil"] .pq-graf svg');
+    for (var i = 0; i < svgs.length; i++) {
+      var svg = svgs[i];
+      try {
+        if (svg.hasAttribute('data-io2-trena')) continue;
+        var barras = svg.querySelectorAll(':scope > path[fill]');
+        if (!barras.length) continue;
+        /* Largura da trena: do primeiro ao ultimo traco vertical da grade (o 0 e o fim do eixo). */
+        var xs = [], ls = svg.querySelectorAll(':scope > line');
+        for (var a = 0; a < ls.length; a++) {
+          if (ls[a].getAttribute('x1') === ls[a].getAttribute('x2')) xs.push(parseFloat(ls[a].getAttribute('x1')));
+        }
+        var vb = svg.viewBox && svg.viewBox.baseVal;
+        var x0 = xs.length ? Math.min.apply(null, xs) : 0;
+        var x1 = xs.length ? Math.max.apply(null, xs) : (vb ? vb.width : 0);
+        var larg = x1 - x0;
+        if (!(larg > 20)) continue;
+        var itens = [];
+        for (var b = 0; b < barras.length; b++) {
+          var bx = barras[b].getBBox();
+          if (bx.height > 0) itens.push([barras[b], bx]);
+        }
+        if (!itens.length) continue;
+        /* Linha de valor zero: o app nao desenha barra (path), mas cada linha tem um rect.pq-alvo com a faixa dela (passo
+           de 40). A barra fica a uma distancia fixa do topo da faixa, medida nas linhas que tem barra: so desenha se essa
+           distancia e a altura saem iguais em todas as barras. Sem isso (ou sem faixa), a linha fica sem trilho. */
+        var vazias = [];
+        try {
+          var alvos = svg.querySelectorAll(':scope > rect.pq-alvo'), dev = null, alt = null, coerente = true;
+          var porLinha = [];
+          for (var q = 0; q < alvos.length; q++) {
+            var ay = parseFloat(alvos[q].getAttribute('y')), ah = parseFloat(alvos[q].getAttribute('height'));
+            var dono = null;
+            for (var r = 0; r < itens.length; r++) {
+              var by = itens[r][1].y;
+              if (by >= ay && by < ay + ah) { dono = itens[r]; break; }
+            }
+            if (dono) {
+              var d1 = Math.round((dono[1].y - ay) * 100) / 100, h1 = Math.round(dono[1].height * 100) / 100;
+              if (dev === null) { dev = d1; alt = h1; } else if (dev !== d1 || alt !== h1) coerente = false;
+            }
+            porLinha.push({ alvo: alvos[q], ay: ay, dono: dono });
+          }
+          if (coerente && dev !== null && dev > 0 && alt > 0) {
+            for (var w = 0; w < porLinha.length; w++) {
+              if (!porLinha[w].dono && isFinite(porLinha[w].ay)) vazias.push([porLinha[w].alvo, porLinha[w].ay + dev, alt]);
+            }
+          }
+        } catch (e) { vazias = []; }
+        var feitas = [];
+        var pid = 'io2-trena-' + (++contador);
+        var passo = larg / 10;
+        var defs = svgNo('defs', {});
+        var pat = svgNo('pattern', { id: pid, patternUnits: 'userSpaceOnUse', x: String(x0), y: '0', width: String(passo), height: '400' });
+        pat.appendChild(svgNo('line', { 'class': 'io2-marca', x1: String(passo - 0.5), x2: String(passo - 0.5), y1: '0', y2: '400' }));
+        defs.appendChild(pat);
+        svg.insertBefore(defs, svg.firstChild); feitas.push(defs);
+        for (var c = 0; c < itens.length; c++) {
+          var p = itens[c][0], g = itens[c][1];
+          var trilho = svgNo('rect', { 'class': 'io2-trilho', x: String(x0), y: String(g.y), width: String(larg), height: String(g.height), rx: '4' });
+          var marcas = svgNo('rect', { 'class': 'io2-marcas', x: String(x0), y: String(g.y), width: String(larg), height: String(g.height), rx: '4', fill: 'url(#' + pid + ')' });
+          svg.insertBefore(trilho, p); feitas.push(trilho);
+          svg.insertBefore(marcas, p.nextSibling); feitas.push(marcas);
+        }
+        for (var v = 0; v < vazias.length; v++) {
+          var trilhoV = svgNo('rect', { 'class': 'io2-trilho', x: String(x0), y: String(vazias[v][1]), width: String(larg), height: String(vazias[v][2]), rx: '4' });
+          var marcasV = svgNo('rect', { 'class': 'io2-marcas', x: String(x0), y: String(vazias[v][1]), width: String(larg), height: String(vazias[v][2]), rx: '4', fill: 'url(#' + pid + ')' });
+          svg.insertBefore(trilhoV, vazias[v][0]); feitas.push(trilhoV);
+          svg.insertBefore(marcasV, vazias[v][0]); feitas.push(marcasV);
+        }
+        for (var d = 0; d < feitas.length; d++) trenas.push(feitas[d]);
+        svg.setAttribute('data-io2-trena', '1');
+      } catch (e) {}
+    }
+  }
+
+  var ZEROS = [['#crmSection .crm-kpi', '.crm-kpi-val'], ['#quemLigarSection .ql-num', 'b']];
+  function zerar() {
+    if (!io2Ligado() || !modoApp()) return;
+    for (var z = 0; z < ZEROS.length; z++) {
+      var ks = document.querySelectorAll(ZEROS[z][0]);
+      for (var i = 0; i < ks.length; i++) {
+        try {
+          var v = ks[i].querySelector(ZEROS[z][1]);
+          var zero = !!v && /^\s*(R\$\s*)?0([.,]0+)?\s*$/.test(v.textContent || '');
+          if (zero && !ks[i].hasAttribute('data-io2-zero')) ks[i].setAttribute('data-io2-zero', '1');
+          else if (!zero && ks[i].hasAttribute('data-io2-zero')) ks[i].removeAttribute('data-io2-zero');
+        } catch (e) {}
+      }
+    }
+  }
+
+  var chipUlt = null; /* {box, idx, larg} do ultimo recentrar; so muda a rolagem quando essa chave muda */
+  function chipAtivo() {
+    if (!io2Ligado() || !modoApp()) return;
+    var box = document.getElementById('leads-abas');
+    if (!box || !box.clientWidth || box.scrollWidth <= box.clientWidth + 1) return;
+    var on = box.querySelector('[aria-selected="true"], .on');
+    if (!on) return;
+    /* Recentra SO quando o chip ativo (indice entre os irmaos), a faixa (elemento recriado) ou a largura da faixa mudou:
+       a rolagem manual no celular nao e desfeita a cada mutacao da lista. */
+    var idx = on.parentNode ? Array.prototype.indexOf.call(on.parentNode.children, on) : -1;
+    if (chipUlt && chipUlt.box === box && chipUlt.idx === idx && chipUlt.larg === box.clientWidth) return;
+    chipUlt = { box: box, idx: idx, larg: box.clientWidth };
+    var rb = box.getBoundingClientRect(), ro = on.getBoundingClientRect();
+    var esq = ro.left - rb.left + box.scrollLeft, alvo = esq - (box.clientWidth - ro.width) / 2;
+    var max = box.scrollWidth - box.clientWidth;
+    box.scrollLeft = Math.max(0, Math.min(max, alvo));
+  }
+
+  function avatarSemFoto(img) {
+    try {
+      if (!img || img.tagName !== 'IMG' || !img.parentElement) return;
+      var sec = document.getElementById('automacaoSection');
+      if (!sec || !sec.contains(img) || img.closest('#auto-ig-posts')) return;
+      if (!/cdninstagram|fbcdn/.test(img.getAttribute('src') || '')) return;
+      var pai = img.parentElement;
+      if (pai.hasAttribute('data-io2-semfoto')) return;
+      var cartao = img.closest('.card') || pai;
+      var m = /@([A-Za-z0-9_.]+)/.exec(cartao.textContent || '');
+      var nome = (m ? m[1] : (img.getAttribute('alt') || '')).replace(/^[^A-Za-z0-9]+/, '');
+      pai.setAttribute('data-io2-semfoto', '1');
+      pai.setAttribute('data-io2-ini', (nome.charAt(0) || '?').toUpperCase());
+    } catch (e) {}
+  }
+  function variarAvatares() {
+    if (!io2Ligado() || !modoApp()) return;
+    var sec = document.getElementById('automacaoSection');
+    if (!sec) return;
+    var imgs = sec.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) {
+      if (imgs[i].complete && !imgs[i].naturalWidth) avatarSemFoto(imgs[i]);
+    }
+  }
+  function erroImagem(ev) {
+    try { if (ev.target && ev.target.tagName === 'IMG') avatarSemFoto(ev.target); } catch (e) {}
+  }
+
+  /* Filtros de Cadastros: os select.cad-filtro que sao filhos diretos de #cad-acoes vao para um div proprio, logo depois da busca,
+     para o celular poder mostrar uma fileira que rola de lado (o CSS faz o desenho; no computador o div e display: contents).
+     Os selects sao MOVIDOS, nao copiados: id, onchange, classes e style inline seguem os mesmos (o app liga e desliga cada um
+     por style.display e le todos por getElementById). Guarda pai e proximo irmao de cada um para desfazer() devolver. */
+  var filtrosMovidos = []; /* [select, pai, proximo irmao], na ordem em que foram movidos */
+  function filtrosCadastros() {
+    if (!io2Ligado() || !modoApp()) return;
+    var acoes = document.getElementById('cad-acoes');
+    if (!acoes || acoes.querySelector(':scope > .io2-cad-filtros')) return;
+    var busca = null, sels = [], i, k;
+    for (i = 0; i < acoes.children.length; i++) {
+      k = acoes.children[i];
+      if (!busca && k.classList.contains('cad-busca')) busca = k;
+      else if (k.tagName === 'SELECT' && k.classList.contains('cad-filtro')) sels.push(k);
+    }
+    if (!busca || !sels.length) return;
+    var caixa = document.createElement('div');
+    caixa.className = 'io2-cad-filtros';
+    caixa.setAttribute('data-io2', '1');
+    acoes.insertBefore(caixa, busca.nextSibling);
+    for (i = 0; i < sels.length; i++) {
+      filtrosMovidos.push([sels[i], sels[i].parentNode, sels[i].nextSibling]);
+      caixa.appendChild(sels[i]);
+    }
+  }
+  function filtrosDevolver() {
+    for (var i = filtrosMovidos.length - 1; i >= 0; i--) {
+      var m = filtrosMovidos[i];
+      try {
+        var pai = m[1], prox = m[2];
+        if (prox && prox.parentNode !== pai) prox = null;
+        pai.insertBefore(m[0], prox);
+      } catch (e) {}
+    }
+    filtrosMovidos = [];
+    try {
+      var cx = document.querySelectorAll('.io2-cad-filtros[data-io2]');
+      for (var j = 0; j < cx.length; j++) if (cx[j].parentNode) cx[j].parentNode.removeChild(cx[j]);
+    } catch (e) {}
+  }
+
+  /* Selo "Investidores perto" (Cadastros, computador): o app escreve "85 km" com espaco comum e a coluna estreita quebrava o numero
+     de um lado e "km" do outro. Aqui o espaco entre o numero e "km" vira espaco sem quebra (so o primeiro texto do selo; "mesma
+     cidade" e o resto seguem quebrando entre palavras, para a tabela nao passar da largura). Marca o span (data-io2-nb);
+     desfazer() devolve o espaco comum. */
+  function seloPares(raiz) {
+    try {
+      if (!raiz || !raiz.querySelectorAll) return;
+      var lst = [];
+      if (raiz.matches && raiz.matches('button.cad-par > .cad-sub')) lst.push(raiz);
+      var f = raiz.querySelectorAll('button.cad-par > .cad-sub');
+      for (var i = 0; i < f.length; i++) lst.push(f[i]);
+      for (var j = 0; j < lst.length; j++) {
+        var sp = lst[j], tx = sp.firstChild;
+        if (sp.hasAttribute('data-io2-nb') || !tx || tx.nodeType !== 3) continue;
+        if (/^\d+ km/.test(tx.nodeValue)) { tx.nodeValue = tx.nodeValue.replace(/^(\d+) km/, '$1\u00a0km'); sp.setAttribute('data-io2-nb', '1'); }
+      }
+    } catch (e) {}
+  }
+  function seloDevolver() {
+    var q = document.querySelectorAll('[data-io2-nb]');
+    for (var i = 0; i < q.length; i++) {
+      var tx = q[i].firstChild;
+      if (tx && tx.nodeType === 3) tx.nodeValue = tx.nodeValue.replace(/^(\d+)\u00a0km/, '$1 km');
+      q[i].removeAttribute('data-io2-nb');
+    }
+  }
+
+  var acabQuadro = 0;
+  function acabamento() {
+    acabQuadro = 0;
+    try { zerar(); } catch (e) {}
+    try { chipAtivo(); } catch (e) {}
+    try { variarAvatares(); } catch (e) {}
+    try { trenaFunil(); } catch (e) {}
+  }
+  function agendarAcabamento() { if (!acabQuadro) acabQuadro = (window.requestAnimationFrame || setTimeout)(acabamento, 16); }
+  function acabamentoLigar() {
+    var alvos = [document.getElementById('crm-kpis'), document.getElementById('quemLigarSection'),
+      document.getElementById('leads-abas'), document.getElementById('automacaoSection')];
+    for (var i = 0; i < alvos.length; i++) {
+      if (!alvos[i]) continue;
+      try { observar(alvos[i], { childList: true, subtree: true }, agendarAcabamento); } catch (e) {}
+    }
+    /* Troca de tela (style/class da secao) tambem refaz: o chip ativo so tem largura com a tela aberta. */
+    var secoes = ['leadsSection', 'automacaoSection', 'crmSection', 'quemLigarSection', 'inicioSection'];
+    for (var j = 0; j < secoes.length; j++) {
+      var el = document.getElementById(secoes[j]);
+      if (el) { try { observar(el, { attributes: true, attributeFilter: ['style', 'class'] }, agendarAcabamento); } catch (e) {} }
+    }
+    try {
+      var sec = document.getElementById('automacaoSection');
+      if (sec) ouvir(sec, 'error', erroImagem, true);
+    } catch (e) {}
+    try { ouvir(window, 'resize', agendarAcabamento, false); } catch (e) {}
+    acabamento();
   }
 
   /* ------------------------------------------------------------------------------------------------
@@ -341,6 +603,7 @@
         if (!r || !r.isConnected) continue;
         comoFunciona(r);
         remendos(r);
+        seloPares(r);
       }
     } catch (e) {}
   }
@@ -360,15 +623,23 @@
   function desfazer() {
     if (desfeito) return;
     desfeito = true;
+    chipUlt = null;
     try { observadores.forEach(function (o) { try { o.disconnect(); } catch (e) {} }); } catch (e) {}
     try { ouvintes.forEach(function (o) { try { o[0].removeEventListener(o[1], o[2], o[3]); } catch (e) {} }); } catch (e) {}
     try { if (timer) clearTimeout(timer); timer = 0; fila = []; } catch (e) {}
+    try { filtrosDevolver(); } catch (e) {}
+    try { seloDevolver(); } catch (e) {}
     try { criados.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); } catch (e) {}
+    try { trenas.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); trenas = []; } catch (e) {}
     try { classesPostas.forEach(function (c) { c[0].classList.remove(c[1]); }); } catch (e) {}
     try { document.body.classList.remove('io2-faixa-ativa'); } catch (e) {}
     try {
       var z = document.querySelectorAll('#inicioSection [data-io2-p], #inicioSection [data-io2-zero]');
       for (var y = 0; y < z.length; y++) { z[y].removeAttribute('data-io2-p'); z[y].removeAttribute('data-io2-leg'); z[y].removeAttribute('data-io2-zero'); z[y].style.removeProperty('--io-p'); }
+    } catch (e) {}
+    try {
+      var zs = document.querySelectorAll('[data-io2-zero], [data-io2-trena], [data-io2-semfoto], [data-io2-ini]');
+      for (var y2 = 0; y2 < zs.length; y2++) { zs[y2].removeAttribute('data-io2-zero'); zs[y2].removeAttribute('data-io2-trena'); zs[y2].removeAttribute('data-io2-semfoto'); zs[y2].removeAttribute('data-io2-ini'); }
     } catch (e) {}
     try {
       var q;
@@ -396,6 +667,9 @@
     try { remendos(document); } catch (e) {}
     try { faixaSimulador(); } catch (e) {}
     try { inicioLigar(); } catch (e) {}
+    try { acabamentoLigar(); } catch (e) {}
+    try { filtrosCadastros(); } catch (e) {}
+    try { seloPares(document); } catch (e) {}
     try { ouvir(document, 'click', cliqueComoFunciona, false); } catch (e) {}
     try { ouvir(document, 'keydown', tecla, false); } catch (e) {}
     try { observar(document.body, { childList: true, subtree: true }, aoMudarCorpo); } catch (e) {}

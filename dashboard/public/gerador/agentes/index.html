@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Central das Agentes — Irmãos na Obra</title>
+<title>Central das Agentes | Irmãos na Obra</title>
 <meta name="theme-color" content="#0B1220">
 <link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
 <script>
@@ -188,7 +188,7 @@ a{color:var(--blue)}
   <div class="sv"><div class="n mono" id="m-off">–</div><div class="l">Desligadas</div></div>
   <div class="sv"><div class="n mono" id="m-24h">–</div><div class="l">Mensagens 24h</div></div>
   <div class="sv"><div class="n mono" id="m-7d">–</div><div class="l">Mensagens 7 dias</div></div>
-  <div class="atualizado" id="atualizado">carregando…</div>
+  <div class="atualizado" id="atualizado">Carregando…</div>
 </div>
 
 <div class="page">
@@ -224,8 +224,8 @@ a{color:var(--blue)}
     <div class="mbody" id="corpo-cerebro" style="display:none">
       <div class="aviso">
         Aqui você muda <b>quem ela é</b>: o jeito de falar, o que ela persegue, o que ela evita.
-        O resto do prompt — nome do cliente, valor, link, o que ela não pode inventar e o formato
-        das bolhas — continua no código, porque é o que impede a IA de prometer besteira.
+        O resto do prompt (nome do cliente, valor, link, o que ela não pode inventar e o formato
+        das bolhas) continua no código, porque é o que impede a IA de prometer besteira.
         <br>Salvou, vale no próximo envio (até 1 min de atraso). Teste na aba de conversa antes.
       </div>
       <textarea class="cerebro-txt" id="cerebro-txt"></textarea>
@@ -247,6 +247,8 @@ let atual = null;          // cérebro aberto no modal
 let conversa = [];         // [{role, content}]
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Nome de linha/agente impresso para LEITURA: o nome da API fica cru em ids, onclick e comparacoes.
+const nomeTela = s => String(s == null ? '' : s).replace(/\s+\u2014\s+/g, ': ');
 const num = v => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('pt-BR');
 
 const ROTULO_ESTADO = {
@@ -276,7 +278,7 @@ async function carregar(){
   } catch (e) {
     document.getElementById('conteudo').innerHTML =
       `<div class="erro"><strong>Não consegui ler o estado das agentes.</strong><br>${esc(e.message)}<br>
-       Isso é falha da API, não das agentes — elas seguem rodando pelo cron.</div>`;
+       Isso é falha da API, não das agentes. Elas seguem rodando pelo cron.</div>`;
   }
   if (btn) btn.textContent = '↻';
 }
@@ -287,14 +289,14 @@ function render(){
   document.getElementById('m-off').textContent = dados.resumo.desligados;
   document.getElementById('m-24h').textContent = num(dados.resumo.enviados_24h);
   document.getElementById('m-7d').textContent = num(dados.resumo.enviados_7d);
-  document.getElementById('atualizado').textContent = 'atualizado ' + quando(dados.gerado_em);
+  document.getElementById('atualizado').textContent = 'Atualizado ' + quando(dados.gerado_em);
 
   document.getElementById('linhas').innerHTML = (dados.linhas || []).map(l => {
     const pct = (l.usados_na_hora === null || !l.teto_hora) ? 0
       : Math.min(100, Math.round((l.usados_na_hora / l.teto_hora) * 100));
     return `<div class="linha ${esc(l.estado)}">
       <div class="top">
-        <div class="nome">${esc(l.nome)}</div>
+        <div class="nome">${esc(nomeTela(l.nome))}</div>
         <div class="num">${l.numero ? esc(l.numero) : ''}</div>
       </div>
       <div class="det">${esc(l.detalhe)}</div>
@@ -352,7 +354,7 @@ function cardAgente(a){
         <div class="ident">
           <img class="rosto" src="/gerador/agentes/rostos/${esc(a.id)}.jpg" alt="" loading="lazy"
                onerror="this.style.visibility='hidden'">
-          <div class="nome">${esc(a.nome)}</div>
+          <div class="nome">${esc(nomeTela(a.nome))}</div>
         </div>
         <div class="pill ${esc(a.estado)}">${ROTULO_ESTADO[a.estado] || a.estado}</div>
       </div>
@@ -411,7 +413,7 @@ function abrirModal(id, aba){
   atual = cerebros.find(c => c.id === id);
   if (!atual) return;
   conversa = [];
-  document.getElementById('m-tit').textContent = atual.nome;
+  document.getElementById('m-tit').textContent = nomeTela(atual.nome);
   document.getElementById('m-sub').textContent =
     (atual.editado ? 'cérebro editado' : 'cérebro original do código') + ' · ' + atual.onde;
   document.getElementById('m-rosto').src = `/gerador/agentes/rostos/${atual.agente_id}.jpg`;

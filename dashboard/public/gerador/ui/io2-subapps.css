@@ -19,8 +19,11 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-te
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :focus-visible{ outline: 2px solid var(--io-azul); outline-offset: 2px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) a{ color: var(--io-azul); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select){
-  background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); border-radius: 10px;
+  background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--io-borda-campo); border-radius: 10px;
   font-family: var(--io-fonte); font-size: 14px; min-height: 40px; padding-top: 0; padding-bottom: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) select:not([multiple]):not([size]){
+  -webkit-appearance: none; appearance: none; cursor: pointer; background-image: var(--io-sel); background-repeat: no-repeat;
+  background-position: right 12px center; background-size: 16px; padding-right: 36px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) textarea{ background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); border-radius: 10px;
   font-family: var(--io-fonte); font-size: 14px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select,textarea):focus{
@@ -42,7 +45,8 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-te
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar a{ color: var(--n-inv2); }
 
 /* ---------- Faixa de numeros (prospeccao e agentes) ---------- */
-html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .strip{ background-color: var(--n-sf); border-bottom: 1px solid var(--n-bd); padding: 12px 20px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .strip{ background-color: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 12px; box-shadow: var(--sombra); margin: 0 0 12px; padding: 12px 20px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv:not(:has(~ .sv)){ border-right: 0; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv{ border-right: 1px solid var(--n-bd); padding: 2px 20px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv:first-child{ padding-left: 0; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .n{ font-size: 20px; font-weight: 700; color: var(--n-tx); font-variant-numeric: tabular-nums; }
@@ -70,7 +74,7 @@ html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn:not(.ghost):not(.ok
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .btn.wa,
 html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn.ok{ background-color: var(--io-wa); border-color: var(--io-wa); color: #fff; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .btn.wa:hover,
-html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn.ok:hover{ background-color: #09663A; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn.ok:hover{ background-color: var(--io-wa-h); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn.sm{ min-height: 36px; font-size: 13px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn:disabled{ opacity: .5; }
 
@@ -80,7 +84,7 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter{ min-width: 220px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .t{ font-size: 12px; letter-spacing: .04em; font-weight: 600; color: var(--n-tx2); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b{ height: 10px; background-color: var(--n-sf3); border-radius: 5px; position: relative; margin-top: 6px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b::after{ content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(11,36,71,.45) calc(10% - 1px) 10%); }
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(11,36,71,var(--io-trena-marca)) calc(10% - 1px) 10%); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="#4ade80" i],
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="rgb(74, 222, 128)" i]{ background-color: var(--io-amarelo) !important; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="#fbbf24" i],
@@ -88,7 +92,7 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="rgb(251, 
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="#f87171" i],
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="rgb(248, 113, 113)" i]{ background-color: var(--io-er) !important; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .sub{ font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--n-tx3); }
-html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tabs{ background-color: var(--n-sf); border-bottom: 1px solid var(--n-bd); padding: 0 20px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tabs{ background-color: transparent; border-bottom: 1px solid var(--n-bd); padding: 0; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab{ font-size: 14px; font-weight: 600; color: var(--n-tx2); padding: 0 16px; min-height: 44px; border-bottom: 3px solid transparent; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab:hover{ color: var(--n-tx); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab.on{ color: var(--n-tx); border-bottom-color: var(--io-amarelo); }
@@ -107,12 +111,12 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .hl .d{ color: var(--n-tx2); 
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pt,
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pn{ color: var(--n-tx); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pt{ font-size: 12px; color: var(--n-tx2); }
-html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .sug{ font-size: 12px; color: var(--io-tinta); box-shadow: inset 0 0 0 99px rgba(255,255,255,.42); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .sug{ font-size: 12px; color: #061A35; box-shadow: inset 0 0 0 99px rgba(255,255,255,.42); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .kbd{ font-size: 12px; background-color: var(--n-sf3); border: 1px solid var(--n-bd2); color: var(--n-tx2); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meta{ color: var(--n-tx2); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meta .sep{ color: var(--n-tx3); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .sq{ color: var(--n-tx2); background-color: var(--n-sf2); font-size: 12px; min-height: 32px; }
-html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn{ background-color: var(--n-sf); border-width: 1px; color: var(--n-tx); min-height: 44px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn{ background-color: var(--n-sf); border-width: 1px; color: var(--n-tx); min-height: 44px; font-size: 12px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn .k{ font-size: 12px; color: var(--n-tx3); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn:hover{ filter: none; background-color: var(--n-sf3); }
 html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pchip{ background-color: var(--n-sf); border: 1px solid var(--n-bd); min-height: 44px; }
@@ -142,18 +146,19 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tag-ep-trafego{ color: #0621
 /* ================= AGENTES ================= */
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .filtros button{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); font-size: 13px; min-height: 36px; }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .filtros button.on{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
-html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha{ border-left-width: 1px; border-top: 3px solid var(--n-tx3); }
-html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha.ok{ border-left-color: var(--n-bd); border-top-color: var(--io-ok); }
-html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha.caida{ border-left-color: var(--n-bd); border-top-color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha{ border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha.ok{ border-color: var(--io-ok); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha.caida{ border-color: var(--io-er); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha .num,
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha .det{ font-size: 12px; color: var(--n-tx2); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .t{ font-size: 12px; color: var(--n-tx2); letter-spacing: .04em; }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b{ height: 10px; background-color: var(--n-sf3); border-radius: 5px; position: relative; }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b::after{ content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(11,36,71,.45) calc(10% - 1px) 10%); }
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(11,36,71,var(--io-trena-marca)) calc(10% - 1px) 10%); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b i{ background-color: var(--io-amarelo); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b i.cheio{ background-color: var(--io-av); }
-html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag{ border-top-width: 3px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag:is(.ativo, .desligado, .dark, .sem_agente){ border-top-width: 1px; border-top-color: var(--n-bd); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag .papel,
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag .hd .sub,
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tag,
@@ -162,7 +167,7 @@ html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tq .c{ color: var(--n-tx2)
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill{ font-size: 12px; letter-spacing: .04em; }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.ativo{ background-color: var(--io-ok-sf); color: var(--io-ok); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.desligado{ background-color: var(--io-er-sf); color: var(--io-er); }
-html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.sem_agente{ background-color: var(--io-azul-sf); color: #5B3FB0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.sem_agente{ background-color: var(--io-azul-sf); color: var(--io-info); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.dark{ background-color: var(--io-av-sf); color: var(--io-av); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tag{ font-size: 12px; background-color: var(--n-sf2); border: 1px solid var(--n-bd); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .alerta{ background-color: var(--io-av-sf); border: 1px solid var(--n-bd); color: var(--io-av); font-size: 12.5px; }
@@ -170,6 +175,8 @@ html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .erro{ background-color: va
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mets{ background-color: var(--n-sf3); border-top: 1px solid var(--n-bd); border-bottom: 1px solid var(--n-bd); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met{ background-color: var(--n-sf2); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .l{ font-size: 12px; letter-spacing: .03em; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met{ min-width: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .s{ overflow-wrap: anywhere; }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .s,
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .n.vazio{ font-size: 12px; color: var(--n-tx3); }
 html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .toques h4{ font-size: 12px; color: var(--n-tx2); letter-spacing: .04em; }
@@ -366,6 +373,7 @@ html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .barra > span{ font-siz
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .vazio{ background-color: var(--n-sf); border: 1px dashed var(--n-bd2); color: var(--n-tx2); }
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .aviso{ background-color: var(--io-av-sf); border: 1px solid var(--n-bd); color: var(--io-av); }
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .funil .etapa .nome{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .funil .etapa > span:not(.nome){ color: var(--n-tx3) !important; }
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) #por-dia,
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) #motivos,
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) #criativos{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -566,14 +574,56 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-te
 html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 11.5px" i]{ font-size: 12px !important; }
 
 
+
+/* ---------- Margem comum: o recuo (24 px depois da barra lateral, 24 de cada lado) mora no body (io2.css) ----------
+   Aqui os blocos de topo de cada pagina perdem o recuo horizontal proprio, para a primeira borda cair no mesmo x em todos. */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .bench,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .page,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .page{ padding-left: 0; padding-right: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) #conteudo > :not(.bench):not(.page):not(.mbar){ margin-left: 0 !important; margin-right: 0 !important; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .wrap{ margin-left: 0; margin-right: auto; padding-left: 0; padding-right: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .faixa-teste{ border-radius: 12px; margin-bottom: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .wrap{ margin-left: 0; margin-right: auto; padding-left: 0; padding-right: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .wrap{ margin-left: 0; margin-right: auto; padding-left: 0; padding-right: 0; }
+
+/* Prospeccao e Agentes, computador: rotulos das faixas de numeros em caixa normal, 13 px, sem espacamento (no celular ja era assim). */
+@media (min-width: 861px){
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .l{ text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; }
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .meter .t{ letter-spacing: 0; font-size: 13px; }
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .meter .t > span:first-child,
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .meter .sub{ display: inline-block; text-transform: lowercase; letter-spacing: 0; font-size: 13px; }
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .meter .t > span:first-child::first-letter,
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .meter .sub::first-letter{ text-transform: uppercase; }
+}
+
 /* ================= Celular ================= */
 @media (max-width: 860px){
   html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select,textarea){ font-size: 16px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select){ min-height: 44px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar button{ min-height: 44px; }
-  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .strip{ padding: 10px 14px; }
-  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv{ flex: 1 1 22%; padding: 2px 4px; min-width: 0; }
-  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .l{ letter-spacing: 0; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .strip{ padding: 12px; margin-top: 12px; }
+  /* Agentes: os quatro numeros em duas colunas (os rotulos longos nao cabem em quatro) e o "atualizado" na linha de baixo. */
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .strip{ display: grid; grid-template-columns: 1fr 1fr; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv:first-child{ padding-left: 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .sv:nth-child(2n){ border-right: 0; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .sv:nth-child(n+3){ margin-top: 8px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .atualizado{ grid-column: 1 / -1; margin-left: 0; text-align: right; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter{ flex: 1 1 100%; padding-left: 12px; padding-right: 12px; min-width: 0; }
+  /* Rotulos escritos em maiuscula no codigo da pagina: caixa normal (so a primeira letra maiuscula). */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .t > span:first-child,
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .sub{ display: inline-block; text-transform: lowercase; letter-spacing: 0; font-size: 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .t > span:first-child::first-letter,
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .sub::first-letter{ text-transform: uppercase; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv{ flex: 1 1 auto; padding: 2px 12px; min-width: 0; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .l{ letter-spacing: 0; text-transform: none; font-size: 12px; }
+  /* O que quebra para a linha de baixo (teto de toques, consultor, "atualizado") ganha 12 px de respiro em cima. */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter,
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .who,
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .atualizado{ margin-top: 12px; }
+  /* Alvos de toque de 44 px */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn.sm{ min-height: 44px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .sq{ min-height: 44px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .cell{ width: 44px; height: 44px; font-size: 14px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .n{ font-size: 18px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn{ min-height: 44px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .filtros button,
@@ -581,6 +631,11 @@ html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .segs button,
 html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros button,
 html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bt{ min-height: 44px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .acoes button{ min-height: 44px; }
+  /* Radar: abas de 40 para 44. */
+  html.io2:not(#_):not(#_) body:where(:has(#relogio)) .abas .aba{ min-height: 44px; }
+  /* Prospeccao: o aviso "So afirma o que esta provado" (div com onclick, 15 px) ganha area de toque de 44 px por padding;
+     a margem negativa devolve o espaco e o texto nao se mexe. O margin-top vence o style= inline (8 px). */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .ofr > div[onclick]:not([style*="padding"]){ padding-top: 15px; padding-bottom: 15px; margin-bottom: -15px; margin-top: -7px !important; }
 }
 @media (max-width: 760px){
   /* Prospeccao: a bancada vira coluna que ocupa a largura toda; antes o align-items:start deixava o cartao
@@ -589,6 +644,7 @@ html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bt{ min-height: 44px; }
   /* A barra de acao deixa de ser fixa: fica colada no rodape da tela (sticky) e, no fim da lista, assenta no fluxo.
      Fixa ela cobria o fim da pagina com qualquer altura de body; e com texto de 12 px os seis botoes nao cabem em uma linha. */
   html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar{ position: sticky; left: auto; right: auto; bottom: var(--io-bot, 0px); background-color: var(--n-sf); border-top: 1px solid var(--n-bd); box-shadow: 0 -4px 16px rgba(10,36,80,.10); }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar{ margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
   html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar .quem{ font-size: 12px; color: var(--n-tx2); }
   html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar .linha1 .btn{ min-height: 44px; font-size: 14px; }
   /* Os seis resultados numa fileira que rola dentro da propria barra: com texto de 12 px nao cabem seis colunas em 390 px,
@@ -610,11 +666,9 @@ html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .hl{ min-width: 0; overflow-w
 html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .det{ overflow-wrap: anywhere; white-space: normal; }
   html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .val,
 html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid .num{ min-width: 0; font-size: 13px; }
-  html.io2:not(#_):not(#_) body:where(:has(#voltar)) .wrap,
-html.io2:not(#_):not(#_) body:where(:has(#relogio)) .wrap{ padding-left: 12px; padding-right: 12px; }
   html.io2:not(#_):not(#_) body:where(:has(#relogio)) .card{ min-width: 0; }
   /* Metricas: a tabela rola dentro do proprio conteiner. */
-  html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .wrap{ padding: 16px 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .wrap{ padding: 16px 0; }
   html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros .dir{ margin-left: 0; }
 }
 

@@ -67,8 +67,9 @@
   html.io2[data-theme="light"]:not(#_) body { background: var(--n-bg); }
 
   /* Controles da semana */
+  /* Margem horizontal zero: o recuo (24 px da barra lateral e 24 de cada lado) vem do body (io2.css, casca de subapp). */
   html.io2[data-theme="light"]:not(#_) .ctrl {
-    background: transparent; border-bottom: 0; padding: 12px 16px 4px; gap: 12px;
+    background: transparent; border-bottom: 0; padding: 12px 0 4px; gap: 12px;
   }
   html.io2[data-theme="light"]:not(#_) .nav-semana { gap: 8px; }
   html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn {
@@ -76,6 +77,17 @@
     background: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--io-tinta);
   }
   html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn:hover { background: var(--n-sf3); }
+  /* Semana anterior e proxima: o glifo (‹ ›) some do desenho e entra o chevron de traco. O nome acessivel vem do
+     title (casca.js poe o aria-label). Nada disto alcanca a grade. */
+  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn { position: relative; padding: 0; font-size: 0; line-height: 0; }
+  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn::before {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+    background-color: currentColor; -webkit-mask: var(--io-gl) center / 20px 20px no-repeat; mask: var(--io-gl) center / 20px 20px no-repeat;
+  }
+  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn[onclick="navSemana(-1)"] { --io-gl: var(--io-gl-chev-e); }
+  html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn[onclick="navSemana(1)"] { --io-gl: var(--io-gl-chev-d); }
+  /* Foco de teclado dos controles da semana e das abas (a aba ativa e marinho: o contorno padrao sumia). So dentro de .ctrl. */
+  html.io2[data-theme="light"]:not(#_) .ctrl button:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
   html.io2[data-theme="light"]:not(#_) .nav-semana .periodo { color: var(--io-tinta); min-width: 168px; }
   html.io2[data-theme="light"]:not(#_) .nav-semana .btn-hoje {
     min-height: var(--ctl-h); padding: 0 16px; border-radius: var(--r-controle);
@@ -92,10 +104,11 @@
   html.io2[data-theme="light"]:not(#_) .aba:hover { background: var(--n-sf3); }
   html.io2[data-theme="light"]:not(#_) .aba.ativa { background: var(--io-navy-900); border-color: var(--io-navy-900); color: var(--n-inv); }
   html.io2[data-theme="light"]:not(#_) .aba:not(.ativa) .badge { background: var(--n-sf3); color: var(--n-tx2); }
+  html.io2[data-theme="light"]:not(#_) .aba .badge { font-size: 12px; }
 
   /* Ilha: area da grade. O quadro marinho em volta e o #grid-container (nao o .grid, para o recorte
      dos cantos dos cartoes ficar igual). A legenda fica no tema claro. */
-  html.io2[data-theme="light"]:not(#_) .grid-wrap { padding: 8px 16px 40px; }
+  html.io2[data-theme="light"]:not(#_) .grid-wrap { padding: 8px 0 40px; }
   html.io2[data-theme="light"]:not(#_) #grid-container:not(.loading) {
     box-sizing: border-box; min-width: calc(950px + 16px); padding: 8px;
     background: var(--io-navy-950); border-radius: 12px; box-shadow: var(--sombra);
@@ -116,7 +129,7 @@
   }
   html.io2[data-theme="light"]:not(#_) .modal input:focus,
   html.io2[data-theme="light"]:not(#_) .modal textarea:focus,
-  html.io2[data-theme="light"]:not(#_) .modal select:focus { border-color: var(--io-azul); box-shadow: 0 0 0 3px var(--io-azul-sf); }
+  html.io2[data-theme="light"]:not(#_) .modal select:focus { outline: 2px solid var(--io-azul); outline-offset: 2px; border-color: var(--io-azul); box-shadow: none; }
   html.io2[data-theme="light"]:not(#_) .modal-tabs { background: var(--n-sf3); }
   html.io2[data-theme="light"]:not(#_) .modal-tabs button { color: var(--n-tx2); }
   html.io2[data-theme="light"]:not(#_) .modal-tabs button.ativa { color: var(--io-tinta); }
@@ -149,8 +162,8 @@
 }
 
 @media screen and (max-width: 860px) {
-  html.io2[data-theme="light"]:not(#_) .ctrl { padding: 10px 12px 4px; }
-  html.io2[data-theme="light"]:not(#_) .grid-wrap { padding: 8px 8px 24px; }
+  html.io2[data-theme="light"]:not(#_) .ctrl { padding: 10px 0 4px; }
+  html.io2[data-theme="light"]:not(#_) .grid-wrap { padding: 8px 0 24px; }
   html.io2[data-theme="light"]:not(#_) .nav-semana { flex-wrap: wrap; }
   html.io2[data-theme="light"]:not(#_) .nav-semana .nav-btn { width: var(--ctl-h-m); height: var(--ctl-h-m); }
   html.io2[data-theme="light"]:not(#_) .nav-semana .btn-hoje,

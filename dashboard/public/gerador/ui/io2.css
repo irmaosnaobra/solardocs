@@ -20,6 +20,7 @@
     --io-tinta: #0B2447;
     --io-azul: #1D4ED8;
     --io-azul-sf: #E8EFFD;
+    --io-azul-h: #1740B5;     /* hover do botao azul */
     --io-amarelo: #FFC220;
     --io-amarelo-forte: #E5A900;
     --io-amarelo-sf: #FFF3C7;
@@ -31,7 +32,7 @@
     --n-sf3: #EEF2F7;
     --n-bd: #DDE3EC;
     --n-bd2: #B9C4D4;
-    --io-borda-campo: #7F8FA6; /* contorno de campo e de lista: 3:1 sobre branco (a borda decorativa --n-bd2 nao chega) */
+    --io-borda-campo: #7D8CA3; /* contorno de campo e de lista: 3,41:1 sobre branco e 3,10:1 sobre --n-bg (a borda decorativa --n-bd2 nao chega) */
     --n-tx: #0F1B2D;
     --n-tx2: #44546A;
     --n-tx3: #5B6C83;
@@ -43,10 +44,14 @@
     --io-ok-sf: #E7F6EC;
     --io-er: #B91C1C;
     --io-er-sf: #FDECEC;
+    --io-er-h: #991B1B;       /* hover do botao de perigo */
     --io-av: #AD5009;
     --io-av-sf: #FFF1DC;
     --io-info: var(--io-azul);
     --io-wa: #0B7A43;
+    --io-wa-h: #095F34;       /* hover do WhatsApp: um valor so */
+    --io-ok-inv: #7BE0A0;     /* verde de estado sobre marinho */
+    --io-trena-marca: .5;     /* opacidade das marcas de 10% da trena, em todo lugar */
 
     /* Series */
     --s-solar: #B4610F;
@@ -57,9 +62,6 @@
     --r-controle: 10px;
     --r-pilula: 999px;
     --sombra: 0 1px 2px rgba(10, 36, 80, .06), 0 4px 12px rgba(10, 36, 80, .05);
-
-    /* Tipo */
-    --io-fonte: 'Inter IO2', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
     /* Tipo */
     --io-fonte: 'Inter IO2', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -137,6 +139,9 @@
     font-family: var(--io-fonte); text-align: left;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand:hover { background: transparent; }
+  /* Primeira parada do Tab em toda tela: o contorno padrao (escuro) some sobre o marinho. Anel amarelo por dentro
+     do botao (a barra lateral corta o que passa da borda). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; border-radius: 10px; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand .sb-logo {
     width: 40px; height: 40px; padding: 3px; flex-shrink: 0;
     background: #fff; border-radius: 10px; object-fit: contain; filter: none;
@@ -158,7 +163,7 @@
     cursor: pointer; transition: background-color .15s ease, color .15s ease;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item .sb-ic { width: 20px; height: 20px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
-  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item .sb-ic svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.8; fill: none; opacity: 1; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item .sb-ic svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.75; fill: none; opacity: 1; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item.ativo,
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item.ativo:hover {
@@ -178,8 +183,28 @@
     -webkit-mask: var(--io-ic-sair) center / 20px 20px no-repeat;
     mask: var(--io-ic-sair) center / 20px 20px no-repeat;
   }
+  /* Saida para o visual antigo: link discreto no pe do trilho, depois do Sair. Mesmo recuo dos rotulos (12 + 20 do icone + 12). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-link {
+    display: flex; align-items: center; box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 12px 8px 44px;
+    border-radius: var(--r-controle); color: var(--n-inv2); font-family: var(--io-fonte); font-size: 13px; font-weight: 500; line-height: 1.2;
+    text-decoration: none; transition: background-color .15s ease, color .15s ease;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-link:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-link:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: 2px; }
+  /* Icones de traco (caixa 24x24, traco 1,8, pontas arredondadas) para os glifos dos subapps. Os subapps nao carregam
+     io2-icones.css, entao os desenhos moram aqui, que todos carregam. */
   html.io2 {
-    --io-ic-sair: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/><polyline points='16 17 21 12 16 7'/><line x1='21' y1='12' x2='9' y2='12'/></svg>");
+    --io-sel: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2344546A' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M5 7.5l5 5 5-5'/></svg>");
+    --io-gl-atualizar: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><polyline points='23 4 23 10 17 10'/><polyline points='1 20 1 14 7 14'/><path d='M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15'/></svg>");
+    --io-gl-seta-e: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M19 12H5M11 6l-6 6 6 6'/></svg>");
+    --io-gl-seta-d: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M13 6l6 6-6 6'/></svg>");
+    --io-gl-seta-c: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M12 19V5M6 11l6-6 6 6'/></svg>");
+    --io-gl-seta-b: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5v14M6 13l6 6 6-6'/></svg>");
+    --io-gl-chev-e: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M15 5l-7 7 7 7'/></svg>");
+    --io-gl-chev-d: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5l7 7-7 7'/></svg>");
+    --io-gl-conversa: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M21 11.5a8.5 8.5 0 0 1-12.4 7.55L3 20.8l1.75-5.1A8.5 8.5 0 1 1 21 11.5z'/></svg>");
+    --io-gl-cerebro: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><g><path d='M12 4.6A3 3 0 0 0 6.4 3.5 3.3 3.3 0 0 0 4 7.6a3.3 3.3 0 0 0-.5 4.7A3.4 3.4 0 0 0 5 17a3.1 3.1 0 0 0 4.2 2.7A3 3 0 0 0 12 19.4z'/><path d='M8.4 8.2c.2 1.3 1.1 2.1 2.4 2.3M7.2 15c1.1 0 2.1-.6 2.6-1.6'/></g><g transform='matrix(-1 0 0 1 24 0)'><path d='M12 4.6A3 3 0 0 0 6.4 3.5 3.3 3.3 0 0 0 4 7.6a3.3 3.3 0 0 0-.5 4.7A3.4 3.4 0 0 0 5 17a3.1 3.1 0 0 0 4.2 2.7A3 3 0 0 0 12 19.4z'/><path d='M8.4 8.2c.2 1.3 1.1 2.1 2.4 2.3M7.2 15c1.1 0 2.1-.6 2.6-1.6'/></g></svg>");
+    --io-ic-sair: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'><path d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/><polyline points='16 17 21 12 16 7'/><line x1='21' y1='12' x2='9' y2='12'/></svg>");
   }
 
   /* ---- Barra superior ----------------------------------------------------------- */
@@ -227,7 +252,7 @@
     background: var(--n-sf); border-color: var(--io-azul); outline: 2px solid var(--io-azul); outline-offset: 1px;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-campo > svg {
-    width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round;
+    width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-in {
     flex: 1 1 auto; min-width: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0;
@@ -257,13 +282,13 @@
     border-radius: 8px; color: var(--n-tx); font-size: 14px; line-height: 1.25; cursor: pointer;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op svg {
-    width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; color: var(--n-tx3);
+    width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; color: var(--n-tx3);
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op-txt { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; white-space: nowrap; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-pai { flex: 0 1 auto; min-width: 0; white-space: pre; overflow: hidden; text-overflow: ellipsis; color: var(--n-tx2); font-size: 12px; font-weight: 400; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-fim { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] {
-    background: var(--io-azul-sf); color: var(--io-tinta); box-shadow: inset 3px 0 0 var(--io-amarelo);
+    background: var(--n-sf3); color: var(--io-tinta); font-weight: 600;
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-op[aria-selected="true"] svg { color: var(--io-tinta); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-vazio { padding: 12px 10px; color: var(--n-tx2); font-size: 14px; line-height: 1.3; }
@@ -398,7 +423,7 @@
     display: inline-flex; align-items: center; justify-content: center;
     width: 56px; height: 28px; border-radius: 999px; transition: background-color .15s ease;
   }
-  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-ic svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-ic svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item.ativa { color: var(--n-inv); font-weight: 600; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item.ativa .io2-b-ic { background: var(--io-amarelo); color: var(--io-tinta); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; border-radius: 12px; }
@@ -412,7 +437,7 @@
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 950; box-sizing: border-box;
     max-height: calc(100vh - var(--io-top) - 16px); overflow-y: auto; overscroll-behavior: contain;
     padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-    background: var(--io-navy-950); color: var(--n-inv); border-radius: 20px 20px 0 0;
+    background: var(--io-navy-900); color: var(--n-inv); border-radius: 20px 20px 0 0;
     font-family: var(--io-fonte);
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-folha:not([hidden]) { display: block; animation: io2-sobe .2s cubic-bezier(.16, 1, .3, 1); }
@@ -428,8 +453,10 @@
   }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item:hover { background: rgba(255, 255, 255, .08); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item.ativa { background: var(--io-amarelo); color: var(--io-tinta); font-weight: 600; }
-  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item svg { width: 22px; height: 22px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item svg { width: 22px; height: 22px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; }
+  /* Ultimo item da folha: o link do visual antigo, menor e em tom secundario; o texto alinha com os rotulos acima (12 + 22 do icone + 14). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item.io2-f-link { min-height: 44px; padding-left: 48px; box-sizing: border-box; color: var(--n-inv2); font-size: 13px; text-decoration: none; }
 
   /* Busca dentro da folha: campo de 16 px (sem zoom do iOS), alvos de 44 px ou mais; com consulta, os resultados
      trocam a lista de itens no lugar (lista suspensa dentro de folha nao funciona). */
@@ -487,34 +514,62 @@
 @media screen {
   html.io2.io2-casca.io2-sub:not(#_):not(#_) #app-sidebar { position: fixed; top: 0; left: 0; bottom: 0; box-sizing: border-box; }
 
+  /* Mesma margem do app: 24 px depois da barra lateral e 24 px de cada lado. Quem recuava por conta propria (blocos
+     de topo de cada pagina) zera o recuo horizontal em io2-subapps.css e io2-agenda.css. */
   html.io2.io2-casca.io2-sub:not(#_):not(#_) body {
     margin: 0;
-    padding: calc(var(--top-h) + 12px) 0 16px var(--sb-w);
+    padding: calc(var(--top-h) + 12px) 24px 16px calc(var(--sb-w) + 24px);
   }
 
-  /* Cabecalho antigo: titulo, Voltar e Atualizar app saem; o que sobra vira uma linha de ferramentas. */
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar .brand,
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button[onclick="location.href='/gerador'"],
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button[onclick^="forcarAtualizarApp"],
+  /* Cabecalho antigo: sai inteiro. O recarregar e o selo de ambiente foram adotados pela barra superior (casca.js,
+     bloco .io2-t-extra, a esquerda da busca); titulo, Voltar e Atualizar app a casca ja oferece. */
+  html.io2.io2-casca.io2-sub.io2-adotou:not(#_):not(#_) .topbar,
   html.io2.io2-casca.io2-sub:not(#_):not(#_) .wrap > header h1,
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .wrap > header a.voltar { display: none; }
-  /* O que sobra da barra antiga (recarregar, selo de ambiente) sobe para dentro da barra superior da
-     casca, a esquerda do usuario: nenhuma faixa vazia a mais na tela. */
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar {
-    position: fixed; top: 8px; right: 200px; z-index: 890; width: auto; margin: 0; padding: 0;
-    background: transparent; border: 0; box-shadow: none; min-height: 0; gap: 8px;
-    display: flex; align-items: center; justify-content: flex-end; height: var(--ctl-h);
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .wrap > header a.voltar { display: none !important; }
+
+  /* Ferramentas na barra superior: entre o titulo e a busca. A busca nao se mexe. */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra:not(:has(> :not([data-io2-vazio]))) { display: none; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) [data-io2-vazio] { display: none !important; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button {
+    position: relative; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+    width: var(--ctl-h) !important; height: var(--ctl-h); min-width: var(--ctl-h); min-height: var(--ctl-h); margin: 0; padding: 0 !important;
+    border: 1px solid var(--n-bd2); border-radius: var(--r-controle); background: var(--n-sf); color: var(--io-tinta);
+    font-size: 0; line-height: 0; cursor: pointer;
   }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar .actions { display: flex; gap: 8px; align-items: center; }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button {
-    min-height: var(--ctl-h); min-width: var(--ctl-h); padding: 0 10px; border-radius: var(--r-controle);
-    background: var(--n-sf); color: var(--io-tinta); border: 1px solid var(--n-bd2);
-    font-size: 16px; font-weight: 600; line-height: 1; cursor: pointer;
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button::before {
+    content: ""; display: block; width: 20px; height: 20px; background: currentColor;
+    -webkit-mask: var(--io-gl-atualizar) center / 20px 20px no-repeat; mask: var(--io-gl-atualizar) center / 20px 20px no-repeat;
   }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button:hover { background: var(--n-sf3); }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
-  /* Metricas: o cabecalho so tem titulo e Voltar, nao sobra nada. */
-  html.io2.io2-casca.io2-sub[data-io2-sub="metricas"]:not(#_):not(#_) .topbar { display: none; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button:hover { background: var(--n-sf3); }
+  /* Recarregando: a pagina troca o texto do botao por uma ampulheta (invisivel, font-size 0); a casca marca o botao e o icone gira. */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button[data-io2-carregando]::before { animation: io2-t-gira .9s linear infinite; }
+  @keyframes io2-t-gira { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button[data-io2-carregando]::before { animation: none; opacity: .45; }
+  }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  /* Selo de ambiente das Cobrancas (so aparece com texto): legivel, na altura do botao. */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra .amb { display: inline-flex; align-items: center; min-height: 28px; margin: 0; padding: 0 12px; box-sizing: border-box; white-space: nowrap; }
+
+  /* Glifo ou emoji que a casca trocou por icone de traco (casca.js, MODELO.glifos): o caractere fica dentro do span,
+     recortado; o desenho vai no ::before. */
+  html.io2 .io2-gl {
+    position: relative; display: inline-block; flex: none; width: 16px; height: 16px; vertical-align: -3px;
+    overflow: hidden; font-size: 0; line-height: 0; color: inherit; user-select: none; -webkit-user-select: none;
+  }
+  html.io2 .io2-gl::before {
+    content: ""; position: absolute; inset: 0; background-color: currentColor;
+    -webkit-mask: var(--io-gl) center / contain no-repeat; mask: var(--io-gl) center / contain no-repeat;
+  }
+  html.io2 .kbd .io2-gl { width: 12px; height: 12px; vertical-align: -2px; }
+  html.io2 .io2-gl-seta-e { --io-gl: var(--io-gl-seta-e); }
+  html.io2 .io2-gl-seta-d { --io-gl: var(--io-gl-seta-d); }
+  html.io2 .io2-gl-seta-c { --io-gl: var(--io-gl-seta-c); }
+  html.io2 .io2-gl-seta-b { --io-gl: var(--io-gl-seta-b); }
+  html.io2 .io2-gl-conversa { --io-gl: var(--io-gl-conversa); }
+  html.io2 .io2-gl-cerebro { --io-gl: var(--io-gl-cerebro); }
+  html.io2 .io2-gl-conversa, html.io2 .io2-gl-cerebro { margin-right: 4px; }
 
   /* Sobreposicoes do subapp ficam ACIMA da casca (que vai ate 955). */
   html.io2.io2-casca.io2-sub:not(#_):not(#_) .modal-bg,
@@ -525,8 +580,19 @@
 
 @media screen and (max-width: 860px) {
   html.io2.io2-casca.io2-sub:not(#_):not(#_) body {
-    padding: var(--io-top) 0 calc(var(--io-bot) + 16px) 0;
+    padding: calc(var(--io-top) + 12px) 12px calc(var(--io-bot) + 16px) 12px;
   }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar { top: calc(env(safe-area-inset-top, 0px) + 4px); right: 12px; height: var(--ctl-h-m); }
-  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button { min-height: var(--ctl-h-m); min-width: var(--ctl-h-m); }
+  /* Barra superior marinho: o botao fica translucido e o foco e amarelo (o azul some no marinho). */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button {
+    width: var(--ctl-h-m) !important; height: var(--ctl-h-m); min-width: var(--ctl-h-m); min-height: var(--ctl-h-m);
+    background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .4); color: #fff;
+  }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button:hover { background: rgba(255, 255, 255, .2); }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .io2-t-extra button:focus-visible { outline-color: var(--io-amarelo); }
 }
+
+/* Guarda do papel (vale em tela e na impressao, por isso fica fora do @media screen): a raiz do deck do Completo
+   herdava a cor de texto clara do tema escuro. Com o tema claro ligado pela chave a cor herdada passa a ser
+   escura. Hoje todo filho do deck define a propria cor e nenhum pixel muda (medido em 9 folhas), mas um elemento
+   novo sem cor propria mudaria no papel. A raiz volta a carregar a cor de antes. */
+html.io2[data-theme="light"] :where(.nx-deck) { color: #E5E7EB; }

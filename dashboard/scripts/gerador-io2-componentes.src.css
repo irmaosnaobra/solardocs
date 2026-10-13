@@ -27,7 +27,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S textarea {
   box-sizing: border-box; min-height: var(--ctl-h); padding-top: 8px; padding-bottom: 8px; padding-left: 12px; padding-right: 12px;
   background-color: var(--n-sf); background-image: none; color: var(--n-tx);
-  border: 1px solid var(--n-bd2); border-radius: var(--r-controle); box-shadow: none; outline: 0;
+  border: 1px solid var(--io-borda-campo); border-radius: var(--r-controle); box-shadow: none; outline: 0;
   font-family: inherit; font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0; text-transform: none;
   transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
 }
@@ -117,16 +117,16 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S :is(.fs-btn-sec, .in-btn:not(.main), .auto-btn.ghost, .eletro-btn:not(.primary):not(.primario), .fin-btn-sec, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .dossie-btn, .ehist-btn, .modal-acoes .secondary):active:not(:disabled) { background: var(--n-bd); transform: translateY(1px); }
 /* forte: azul com texto branco */
 @S :is(.acoes-mini button.editar, .btn-forte, .pn-bt.ligar) { background: var(--io-azul); color: #fff; border: 1px solid var(--io-azul); }
-@S :is(.acoes-mini button.editar, .btn-forte, .pn-bt.ligar):hover:not(:disabled) { background: #1740B5; border-color: #1740B5; color: #fff; }
+@S :is(.acoes-mini button.editar, .btn-forte, .pn-bt.ligar):hover:not(:disabled) { background: var(--io-azul-h); border-color: var(--io-azul-h); color: #fff; }
 /* perigo: vermelho */
 @S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo) { background: var(--io-er); color: #fff; border: 1px solid var(--io-er); box-shadow: none; }
-@S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo):hover:not(:disabled) { background: #991B1B; border-color: #991B1B; color: #fff; }
+@S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo):hover:not(:disabled) { background: var(--io-er-h); border-color: var(--io-er-h); color: #fff; }
 @S :is(.fs-x, .ehist-x) { color: var(--io-er); }
 @S .fs-x { background: var(--n-sf); border: 1px solid var(--n-bd2); border-radius: var(--r-controle); }
 @S :is(.fs-x, .eletro-btn.ehist-x):hover:not(:disabled) { background: var(--io-er-sf); border-color: var(--io-er); }
 /* WhatsApp: verde da marca com texto branco */
 @Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]) { background: var(--io-wa); color: #fff; border: 1px solid var(--io-wa); text-shadow: none; }
-@Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]):hover:not(:disabled) { background: #095F34; border-color: #095F34; color: #fff; }
+@Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]):hover:not(:disabled) { background: var(--io-wa-h); border-color: var(--io-wa-h); color: #fff; }
 /* icone quadrado: botoes que trazem so um simbolo */
 @S :is(.crm-reload, .ehist-x, .fs-x, .crm-act) { min-width: var(--ctl-h); padding-left: 8px; padding-right: 8px; }
 @S .crm-act { min-height: 32px; min-width: 32px; border-radius: 8px; border: 1px solid var(--n-bd); background: var(--n-sf); }
@@ -184,7 +184,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S .eletro-kcard.hero { background: var(--io-navy-900); border-color: var(--io-navy-900); }
 @S .eletro-kcard.hero .kt { color: var(--n-inv2); font-size: 12px; }
 @S .eletro-kcard.hero .kv { color: var(--n-inv); font-size: 32px; }
-@S .eletro-kcard.hero .kv.grn { color: #7BE0A0; }
+@S .eletro-kcard.hero .kv.grn { color: var(--io-ok-inv); }
 /* a caixa de conclusao do Simulador deixa o degrade */
 @S .eletro-conclusao, @S .eletro-impacto-card { background: var(--n-sf2) !important; background-image: none !important; border: 1px solid var(--n-bd) !important; box-shadow: none; }
 
@@ -282,7 +282,7 @@ html.io2[data-mode="app"]::selection { background: var(--io-amarelo); color: var
 @S :is(.auto-prog > div, .avi-barra i, .avi-prog i, .redes-bar .rb-fill) { background: var(--io-amarelo); background-image: none; border-radius: 4px 0 0 4px; box-shadow: none; }
 @S :is(.auto-prog, .avi-barra, .avi-prog, .redes-bar .rb-track)::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
-  background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(11, 36, 71, .55) calc(10% - 1px), rgba(11, 36, 71, .55) 10%);
+  background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(11, 36, 71, var(--io-trena-marca)) calc(10% - 1px), rgba(11, 36, 71, var(--io-trena-marca)) 10%);
 }
 
 /* ============ 13. Piso de texto: nada abaixo de 12 px nas secoes do app ============ */

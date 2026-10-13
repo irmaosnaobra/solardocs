@@ -86,7 +86,6 @@
     display: block; color: var(--io-tinta); font-size: 18px; font-weight: 700; line-height: 24px;
     font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa > div:first-child b { color: var(--io-ok); }
   /* Com a faixa na tela: o fim da pagina e o foco por teclado nao ficam por baixo dela. */
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_):not(#_) body.io2-faixa-ativa { padding-bottom: calc(var(--io-bot) + 16px + 56px); scroll-padding-bottom: calc(var(--io-bot) + 64px); }
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_):not(#_) body.io2-faixa-ativa #toast { bottom: calc(var(--io-bot) + 68px); }
@@ -262,9 +261,9 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc[aria-pressed="true"] { background: var(--io-tinta); color: #fff; box-shadow: 0 1px 2px rgba(10, 36, 80, .25); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-opc[aria-pressed="true"] .in-pt { box-shadow: 0 0 0 2px #fff; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-pt[style*="#d2761c" i] { background-color: var(--s-solar) !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-pt[style*="#3987e5" i] { background-color: var(--io-azul) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-pt[style*="#3987e5" i] { background-color: var(--s-eletro) !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-leg i[style*="#d2761c" i] { background-color: var(--s-solar) !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-leg i[style*="#3987e5" i] { background-color: var(--io-azul) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-leg i[style*="#3987e5" i] { background-color: var(--s-eletro) !important; }
 
   /* ---- Corpo: "hoje" empilhado (estreito) ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-hoje { display: flex; flex-direction: column; align-items: stretch; gap: 16px; margin: 0; min-width: 0; }
@@ -373,7 +372,7 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-tab td { padding: 10px 6px; font-size: 14px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time td[data-io2-p]::after {
     content: ""; display: block; height: 8px; margin-top: 6px; border-radius: 4px; min-width: 56px;
-    background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(11, 36, 71, .5) calc(10% - 1px), rgba(11, 36, 71, .5) 10%),
+    background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(11, 36, 71, var(--io-trena-marca)) calc(10% - 1px), rgba(11, 36, 71, var(--io-trena-marca)) 10%),
                 linear-gradient(90deg, var(--io-amarelo) var(--io-p), var(--n-sf3) var(--io-p));
   }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time td[data-r="Avanço sobre agendados"] { font-weight: 600; }
@@ -411,11 +410,11 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [fill="rgba(255,255,255,.06)"] { fill: var(--io-azul-sf); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [fill="#d2761c"] { fill: var(--s-solar); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [stroke="#d2761c"] { stroke: var(--s-solar); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [fill="#3987e5"] { fill: var(--io-azul); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [stroke="#3987e5"] { stroke: var(--io-azul); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [fill="#3987e5"] { fill: var(--s-eletro); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg [stroke="#3987e5"] { stroke: var(--s-eletro); }
 
   /* ---- Cartao invertido (obras): o unico marinho da tela ---- */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] { display: flex; flex-direction: column; background: var(--io-navy-950); border-color: var(--io-navy-950); color: var(--n-inv); box-shadow: 0 6px 18px rgba(6, 26, 56, .28); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] { display: flex; flex-direction: column; background: var(--io-navy-900); border-color: var(--io-navy-900); color: var(--n-inv); box-shadow: 0 6px 18px rgba(6, 26, 56, .28); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] h3 { color: var(--n-inv); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] .in-fr { color: var(--n-inv2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] .in-etapas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; margin: 4px 0 16px; color: var(--n-inv2); }
@@ -429,7 +428,7 @@
   }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-p]::after {
     content: ""; display: block; order: 10; flex: 0 0 12px; height: 12px; border-radius: 6px;
-    background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(6, 26, 56, .55) calc(10% - 1px), rgba(6, 26, 56, .55) 10%),
+    background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(6, 26, 56, var(--io-trena-marca)) calc(10% - 1px), rgba(6, 26, 56, var(--io-trena-marca)) 10%),
                 linear-gradient(90deg, var(--io-amarelo) var(--io-p), rgba(255, 255, 255, .16) var(--io-p));
   }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card .in-erro { padding: 12px 14px; }
@@ -456,8 +455,10 @@
 @media screen and (min-width: 1280px) {
   @supports (grid-template-columns: subgrid) {
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto auto auto auto 1fr auto; column-gap: 16px; row-gap: 16px; align-items: start; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo { grid-column: 1 / 6; grid-row: 1; align-self: center; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-filtro { grid-column: 6 / 10; grid-row: 1; justify-self: end; align-self: start; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo { display: contents; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo > div:first-child { grid-column: 1 / 4; grid-row: 1; align-self: center; min-width: 0; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo > .in-acoes { grid-column: 11 / 13; grid-row: 1; justify-self: end; align-self: center; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-filtro { grid-column: 4 / 8; grid-row: 1; justify-self: end; align-self: start; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-hoje { display: contents; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-hoje > section:first-child { grid-column: 1 / -1; grid-row: 2; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-hoje > section:nth-child(2) { grid-column: 9 / -1; grid-row: 3 / span 2; align-self: stretch; }
@@ -469,7 +470,7 @@
     /* Todo filho direto volta a receber clique (nao so os dois que existem hoje): bloco novo nao nasce morto. */
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo > *, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo .in-card, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo .in-per-topo { pointer-events: auto; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-grade, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-grade.duas, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-col { display: contents; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-topo { grid-column: 10 / 13; grid-row: 1; align-self: start; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-topo { grid-column: 8 / 11; grid-row: 1; align-self: start; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-topo h2 { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-de { text-align: right; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] { grid-column: 1 / 9; grid-row: 3; }
@@ -516,3 +517,144 @@
 }
 
 /* INICIO-PAINEL-END */
+
+/* ACABAMENTO-A-BEGIN */
+/* =====================================================================
+   ACABAMENTO, parte A (13/10/2026): Tabelas, Historico, indicadores, CRM, Leads, Automacao, Inicio.
+   So visual e layout, tudo atras de html.io2 e dentro de @media screen. Nada de documento nem de papel.
+   Cor de status que vem de dado (selos e botoes de status do CRM, etiquetas de origem) nao e tocada.
+   ===================================================================== */
+@media screen {
+
+  /* ---- Tabelas de equipamentos: a tabela nao pode mais passar da tela; pilulas de filtro da casa ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection table.tbl-precos { min-width: 0; width: 100%; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba:not(.__):not(.__) { box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 6px 4px 14px; background: var(--n-sf); color: var(--n-tx2); border: 1px solid var(--n-bd2); border-radius: 999px; box-shadow: none; font-family: var(--io-fonte); font-size: 13px; font-weight: 500; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba:not(.__):not(.__):hover { background: var(--n-sf3); color: var(--n-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.ativo-aba:not(.__):not(.__) { background: var(--io-tinta); border-color: var(--io-tinta); color: #fff; font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.desativado:not(.__):not(.__) { opacity: 1; filter: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.desativado:not(.ativo-aba) > span:first-child { color: var(--n-tx3); text-decoration: line-through; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba .tbl-toggle { width: 22px; height: 22px; border-radius: 50%; font-size: 12px; line-height: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.on .tbl-toggle { background: var(--io-ok); border-color: var(--io-ok); color: #fff; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba.off .tbl-toggle { background: var(--n-sf3); border-color: var(--n-bd2); color: var(--n-tx2); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td.invest { color: var(--io-tinta); font-weight: 700; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td { color: var(--n-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos td:first-child { font-weight: 600; color: var(--n-tx); }
+
+  /* ---- Indicador com um jeito so: numero em tinta, rotulo em caixa normal de 13 px ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi { box-sizing: border-box; min-width: 0; padding: 14px 12px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: none; text-align: center; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi .crm-kpi-val { color: var(--io-tinta); font-size: 22px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi .crm-kpi-lbl:not(#_) { margin-top: 4px; color: var(--n-tx2); font-size: 13px; font-weight: 500; line-height: 1.3; text-transform: none; letter-spacing: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi.verde:not([data-io2-zero]) .crm-kpi-val { color: var(--io-ok); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi.vermelho:not([data-io2-zero]) .crm-kpi-val { color: var(--io-er); }
+
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num { background: var(--n-sf); border: 1px solid var(--n-bd); box-shadow: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num b { color: var(--io-tinta); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num span:not(#_) { color: var(--n-tx2); font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #quemLigarSection .ql-num.v:not([data-io2-zero]) b { color: var(--io-er); }
+
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat { box-sizing: border-box; min-width: 0; padding: 12px 14px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat .lbl:not(#_) { color: var(--n-tx2); font-size: 13px; font-weight: 500; line-height: 1.3; text-transform: none; letter-spacing: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat .val { margin-top: 4px; color: var(--io-tinta); font-size: 20px; font-weight: 700; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-kcard .kt:not(#_) { font-size: 13px; }
+
+  /* ---- Historico e CRM: o cartao branco que embrulhava fichas, filtros e colunas some ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection > .card, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection > .card { padding: 0 !important; background: transparent !important; background-color: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-tabela-wrap { background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-filtros { margin: 0 0 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-pag { margin-top: 12px; }
+
+  /* ---- Historico: grafico "Evolucao mensal" sem degrade, sem verde, numero fora da barra ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"] { display: block !important; padding: 0 !important; overflow: visible !important; min-width: 14px !important; box-shadow: none !important; color: var(--io-tinta) !important; font-size: 12px !important; font-weight: 700 !important; line-height: 18px !important; text-indent: calc(100% + 6px); white-space: nowrap; }
+  /* O fundo da barra vai para um ::before: o numero, que fica fora dela, assenta no fundo do cartao (e nao no da barra). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"] { position: relative; background: transparent !important; background-image: none !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="height:18px"]::before { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: inherit; background: var(--n-sf3); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="4a90e2" i][style*="height:18px"]::before { background: var(--io-azul); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="2ecc71" i][style*="height:18px"]::before { background: var(--io-tinta); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes span[style*="background:#4a90e2" i] { background: var(--io-azul) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes span[style*="background:#2ecc71" i] { background: var(--io-tinta) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="flex-direction:column;gap:3px"] { padding-right: 36px; box-sizing: border-box; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="font-size:11px"], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="font-size:10px"] { font-size: 12px !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="font-size:10px"] { color: var(--n-tx3) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#2ecc71" i] { color: var(--io-ok) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#f5a623" i] { color: var(--io-av) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #grafico-mes div[style*="color:#999" i] { color: var(--n-tx3) !important; }
+  /* Podio do ranking: os tres rotulos de 8 px. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #ranking-mes span[style*="font-size:8px"] { font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection #ranking-mes .podio-card:not(.p1) span[style*="font-size:8px"] { color: var(--n-tx2) !important; }
+
+  /* ---- Automacao: o conteudo comeca na mesma margem das outras telas; rotulo sobre o seu campo ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection { margin-left: 0; margin-right: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection .auto-row > div:has(> #auto-ig-prio, > #auto-ig-produto, > #auto-ig-match) > :is(input, select) { width: 100% !important; box-sizing: border-box; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection .auto-row:has(#auto-ig-fallback) { align-items: flex-end; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection .auto-row:has(#auto-ig-fallback) > label.auto-chip { box-sizing: border-box; min-height: var(--ctl-h, 40px); align-self: flex-end; margin: 0; }
+  /* Avatar do Instagram sem imagem: circulo com a inicial (io2-telas.js marca o pai com data-io2-semfoto e data-io2-ini). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto] { position: relative; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto] > img { visibility: hidden; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #automacaoSection [data-io2-semfoto]::before { content: attr(data-io2-ini); position: absolute; left: 0; top: 0; width: 32px; height: 32px; box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: var(--io-azul-sf); color: var(--io-tinta); font-family: var(--io-fonte); font-size: 15px; font-weight: 700; line-height: 1; }
+
+  /* ---- Inicio: o funil como trena (trilho, fita amarela, marcas de 10%) ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg path[fill] { fill: var(--io-amarelo); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg rect.io2-trilho { fill: var(--n-sf3); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg rect.io2-marcas { pointer-events: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .pq-graf svg line.io2-marca { stroke: var(--io-tinta); stroke-opacity: var(--io-trena-marca); stroke-width: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-d { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
+}
+
+/* ---- Celular: Tabelas em duas linhas por equipamento, Historico em duas colunas, chips de Leads em fileira ---- */
+@media screen and (max-width: 640px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection table.tbl-precos, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody { display: block; width: 100%; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody tr { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "eq eq eq inv" "kw ge . inv"; align-items: center; gap: 2px 0; padding: 12px 0; border-bottom: 1px solid var(--n-bd); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody tr:last-child { border-bottom: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(1) { grid-area: eq; padding-right: 12px; font-size: 14px; line-height: 1.35; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(2) { grid-area: kw; color: var(--n-tx2); font-size: 13px; font-weight: 500; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(2)::after { content: " kWp"; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(3) { grid-area: ge; color: var(--n-tx2); font-size: 13px; font-weight: 500; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(3)::before { content: "\00a0\00b7\00a0"; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(3)::after { content: " kWh/m\00ea s"; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td:nth-child(4) { grid-area: inv; justify-self: end; padding-left: 8px; font-size: 16px; white-space: nowrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-precos tbody td.historico-vazio { grid-area: auto; grid-column: 1 / -1; }
+
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stats > .historico-stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat { padding: 10px 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stat .val { font-size: 16px; }
+
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi .crm-kpi-val { font-size: 20px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpis > .crm-kpi:last-of-type:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+@media screen and (max-width: 860px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #leadsSection .leads-abas { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #leadsSection .leads-abas::-webkit-scrollbar { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #leadsSection .leads-abas > .leads-aba { flex: 0 0 auto; white-space: nowrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp { display: flex; align-items: center; flex-wrap: wrap; gap: 0 6px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp .in-link { margin-left: 0; padding-left: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #tabelasSection .tbl-aba:not(.__):not(.__) { min-height: 44px; }
+}
+
+@media screen and (min-width: 480px) and (max-width: 640px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #historicoSection .historico-stats > .historico-stat:last-child:nth-child(odd) { grid-column: auto; }
+}
+
+/* Inicio no computador: "Gerar proposta" na ponta direita da faixa de acoes (861 a 1279; de 1280 em diante o grid cuida). */
+@media screen and (min-width: 861px) and (max-width: 1279px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo > .in-acoes { margin-left: auto; }
+}
+
+/* Inicio a 1440 ou mais: com 5 ou 6 indicadores, todos numa fileira so. */
+@media screen and (min-width: 1440px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(5)):not(:has(> button.in-linha:nth-of-type(6))) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(6)):not(:has(> button.in-linha:nth-of-type(7))) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(5)):not(:has(> button.in-linha:nth-of-type(7))) > button.in-linha { grid-column: span 1 !important; grid-template-columns: 40px minmax(0, 1fr) 16px; grid-template-areas: "ic . seta" "n n n" "f f f" "d d d"; padding: 14px; row-gap: 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(5)):not(:has(> button.in-linha:nth-of-type(7))) > button.in-linha::before { width: 40px; height: 40px; border-radius: 10px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(5)):not(:has(> button.in-linha:nth-of-type(7))) > button.in-linha .in-n { font-size: 28px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(5)):not(:has(> button.in-linha:nth-of-type(7))) > button.in-linha .in-n.din { font-size: 22px; }
+}
+/* ACABAMENTO-A-END */

@@ -1,0 +1,160 @@
+/* io2-acabamento.css: ultima camada do visual novo do /gerador (html.io2). Acabamento do Eletroposto, alvos de toque e
+   ajustes finos que precisam vencer as folhas anteriores. Tudo sob html.io2 e dentro de @media screen.
+   Documentos e o que vira PDF ficam de fora. Prefixo com cinco :not(#_): vence as folhas anteriores (quatro). */
+@media screen {
+
+
+/* ===== Simulador: Potencia Carregador empilha como os outros campos do cartao Projeto ======
+   Sem declarar display no .eletro-field: ele segue flex, so que em linhas (rotulo em cima, campo embaixo). */
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-equip) { flex-wrap: wrap; align-items: stretch; row-gap: 0; }
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-equip) > label { flex: 0 0 100%; margin: 0 0 5px; }
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-equip) > .eletro-inp { flex: 0 0 100%; width: 100%; max-width: none; }
+
+
+/* ===== Alvos de toque no celular: 44 px, sem mudar o desenho ========================== */
+@media (max-width: 860px) {
+  /* Caixas de marcar: o rotulo inteiro e a area de toque (o input ja vive dentro do label). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .pag-sub-item, html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .pag-head { min-height: 44px; box-sizing: border-box; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #automacaoSection .auto-chip { min-height: 44px; box-sizing: border-box; }
+  /* Abas de segundo nivel e a faixa do eletroposto. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) :is(.eletro-subtab2, .cad-aba, #eletro-subnav button) { min-height: 44px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) :is(#hist-prev, #hist-next, .pv-kpi-btn) { min-height: 44px; }
+  /* Botao de ver mais: o display e do app (so aparece com o grupo aberto), aqui so a altura. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #pag-cartao-ver-mais { min-height: 44px; box-sizing: border-box; padding-top: 12px; padding-bottom: 12px; line-height: 20px; }
+  /* Link de texto: a area de toque cresce pelo padding e volta pela margem negativa, o texto nao se mexe. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .orc-link { padding: 15px 10px; margin: -15px -10px; position: relative; }
+}
+
+/* Computador: telefone do cartao do CRM com area de clique de 24 px, sem crescer o cartao. */
+@media (min-width: 861px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) a.crm-card-tel { display: inline-block; padding: 4px 6px; margin: -4px -6px; }
+}
+
+/* ===== Indicadores: um jeito so ==================================================== */
+/* Quem ligar: numero no topo e na mesma linha nos tres; o rotulo quebra para baixo sem subir o numero do vizinho. */
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #quemLigarSection .ql-num { justify-content: flex-start; }
+
+/* Simulador do eletroposto, faixa de resultados: custo e lucro em tinta (cor de enfeite). So o VPL mantem verde ou vermelho,
+   porque o app pinta pelo sinal do numero. Escopo: so a coluna de resultados do Simulador. */
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #eletro-pane-simulador .eletro-col-result .eletro-kcard .kv:is(.grn, .red):not(#el-vpl) { color: var(--n-tx); }
+
+/* Historico: ficha igual a do CRM (numero em cima, rotulo embaixo, centrado, mesmo peso). No celular o numero e um pouco
+   menor (18 px) para o valor em reais caber em uma linha nas 2 colunas. */
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #historicoSection .historico-stat { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 12px; }
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #historicoSection .historico-stat .val { order: -1; margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15; }
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #historicoSection .historico-stat .lbl { margin-top: 4px; }
+@media (max-width: 860px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #historicoSection .historico-stat { padding-left: 8px; padding-right: 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #historicoSection .historico-stat .val { font-size: 18px; }
+}
+
+
+/* ===== Login: a seta do select e a mesma dos outros campos ============================= */
+html.io2[data-mode="login"]:not(#_):not(#_):not(#_):not(#_):not(#_) #login-consultor {
+  -webkit-appearance: none; appearance: none; cursor: pointer; padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2344546A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+}
+
+/* Filtros dos cadastros: ate 1439 px a busca e cada select ocupam a linha toda (a maior opcao, ex. "Aguardando resposta (271)", nao cabe em meia
+   coluna do celular e o select nao pode cortar o texto escolhido); Ver no mapa e Atualizar ficam lado a lado na ultima linha.
+   De 1440 px em diante cabe tudo numa linha so, com cada select na largura do conteudo. */
+@media (max-width: 1439px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes .cad-busca { grid-column: 1 / -1; width: 100%; min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes .cad-filtro { grid-column: 1 / -1; width: 100%; min-width: 0; max-width: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes .ehist-btn { width: 100%; justify-content: center; margin: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes #cad-btn-mapa { grid-column: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes #cad-btn-mapa ~ .ehist-btn { grid-column: 2; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes #cad-btn-mapa[style*="display:none"] ~ .ehist-btn,
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes #cad-btn-mapa[style*="display: none"] ~ .ehist-btn { grid-column: 1 / -1; }
+}
+@media (min-width: 1440px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes { flex: 1 1 100%; min-width: 0; flex-wrap: nowrap; align-items: center; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes .cad-busca { flex: 1 1 180px; min-width: 160px; }
+  /* Largura pelo conteudo (a maior opcao inteira); a busca absorve a sobra. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes .cad-filtro { flex: 0 0 auto; width: auto; min-width: 0; font-size: 13px; padding-left: 10px; padding-right: 30px; background-position: right 8px center; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes .ehist-btn { flex: 0 0 auto; margin: 0; }
+}
+/* Os select entram num div (io2-telas.js move, nao copia). Computador: o div some do layout, os select seguem como filhos
+   diretos de #cad-acoes e nada muda. Celular: uma fileira que rola de lado, como os chips de Leads (barra escondida). */
+@media (min-width: 861px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes > .io2-cad-filtros { display: contents; }
+}
+@media (max-width: 860px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes > .io2-cad-filtros { grid-column: 1 / -1; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes > .io2-cad-filtros::-webkit-scrollbar { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-acoes > .io2-cad-filtros > .cad-filtro { flex: 0 0 auto; width: auto; min-width: 0; max-width: none; min-height: 44px; font-size: 16px; }
+}
+
+html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .eletro-grid .eletro-inp > select#el-equip { text-align: left; text-align-last: left; }
+
+/* ===== Cadastros do eletroposto, computador ======================================== */
+@media (min-width: 861px) {
+  /* A tabela vai ate a borda do cartao: sao 48 px a mais, e e o que deixa o endereco ter 260 px sem rolagem lateral. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-card .eletro-cmp-scroll { margin-left: -24px; margin-right: -24px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab th,
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td { padding: 8px 5px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab tr > :first-child { padding-left: 24px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab tr > :last-child { padding-right: 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.cad-at { min-width: 132px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome { font-size: 13px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td:not(.nome):not(.cad-end) { font-size: 13px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab select.cad-st { width: auto; min-width: 0; font-size: 13px; padding-left: 10px; padding-right: 30px; background-position: right 8px center; }
+  /* Linha da lista: o fio mora na linha (nao na celula), porque o endereco vira caixa propria. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab tr:not(:has(> th)) { border-bottom: 1px solid var(--n-bd); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab tr:not(:has(> th)) > td { border-bottom: 0; }
+  /* Endereco: coluna de 260 px no minimo, ate 3 linhas (o CEP e o fim do texto e fica visivel). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.cad-end {
+    min-width: 240px; max-width: none; margin: 8px 6px 0; padding: 0; box-sizing: border-box; font-size: 13px; line-height: 1.35;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  }
+  /* Quem: nome e data na primeira linha; tipo, WhatsApp e Termo juntos na segunda (a quebra vem de um A depois da data).
+     Se a coluna nao comportar, o conjunto de botoes desce inteiro, sem partir. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome .cad-sub { display: inline; margin: 0 0 0 6px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome > .cad-sub:first-of-type::after { content: "\A"; white-space: pre; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome > div[style]:not([style*="display:none"]):not([style*="display: none"]) { display: inline-flex !important; flex-wrap: nowrap !important; margin-top: 4px !important; vertical-align: middle; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome .cad-rel,
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome .cad-rel-nd { margin: 4px 6px 0 0; vertical-align: middle; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab td.nome :is(.cad-wa, .cad-termo) { min-height: 26px; min-width: 0; padding: 2px 8px; font-size: 12px; }
+  /* Investidores perto: uma linha, com "ver" como link ao lado. O botao inteiro segue clicavel. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par { display: inline-block; min-height: 0; height: auto; padding: 4px 8px; text-align: left; line-height: 1.3; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par > .cad-sub { display: inline; margin: 0 4px 0 5px !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab button.cad-par > .cad-par-ver { display: inline; margin: 0; background: none; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; color: var(--io-azul); text-decoration: underline; opacity: 1; }
+}
+
+/* ===== Cadastros do eletroposto, celular ============================================ */
+@media (max-width: 860px) {
+  /* Lista de cadastros vira pilha de cartoes (so quando a linha comeca por td.nome: o Match segue tabela).
+     O cartao externo some: o cartao e a linha. L = a tabela em modo lista. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection #cad-card:has(.cadtab td.nome:first-child) { background: transparent; border: 0; box-shadow: none; padding: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child),
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) > tbody { display: block; width: 100%; min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) tr:where(:not([hidden]):not([style*="display:none"]):not([style*="display: none"])) { display: block; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) tr:has(> th):where(:not([hidden])) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) tr:has(> td.nome:first-child):where(:not([hidden]):not([style*="display:none"]):not([style*="display: none"])) {
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 14px;
+    background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra);
+    padding: 14px; margin: 0 0 10px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td:where(:not([hidden]):not([style*="display:none"]):not([style*="display: none"])) {
+    display: block; padding: 0; border: 0; min-width: 0; max-width: 100%; width: auto; order: 1; flex: 1 1 calc(50% - 7px); font-size: 14px; line-height: 1.35; overflow-wrap: anywhere;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td[colspan] { padding: 12px 4px; }
+  /* Em cima: quem e a situacao da pessoa. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td.nome { order: 0; flex: 1 1 150px; font-size: 16px; line-height: 1.3; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td.nome .cad-sub { display: inline; margin: 0 0 0 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td.nome :is(.cad-rel, .cad-rel-nd) { display: flex; width: fit-content; margin: 6px 0 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td:has(> .cad-st, > .cad-st-agenda) { order: 0; flex: 0 0 164px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td:has(> .cad-st) select.cad-st { width: 100%; padding-left: 10px; padding-right: 32px; background-position: right 10px center; }
+  /* Meio: contato e endereco (ate 3 linhas: o CEP e o fim do texto e fica visivel). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td.cad-end {
+    flex: 1 1 100%; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; max-width: 100%;
+  }
+  /* Embaixo: as pilulas de atendimento. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab:has(td.nome:first-child) td.cad-at { order: 2; flex: 1 1 100%; min-width: 0; padding-top: 10px; border-top: 1px solid var(--n-bd); }
+  /* Linha aberta de investidores perto: cola no cartao de cima. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab tr.cad-par-tr { margin: -6px 0 10px; }
+}
+
+}

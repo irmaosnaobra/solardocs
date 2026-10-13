@@ -3925,6 +3925,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <link rel="stylesheet" href="/gerador/ui/io2-componentes.css" media="not all" data-io2>
 <link rel="stylesheet" href="/gerador/ui/io2-telas.css" media="not all" data-io2>
 <link rel="stylesheet" href="/gerador/ui/io2-icones.css" media="not all" data-io2>
+<link rel="stylesheet" href="/gerador/ui/io2-acabamento.css" media="not all" data-io2>
 <script>
 (function(){
   var hasP = new URLSearchParams(location.search).get('p');
@@ -4067,7 +4068,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <div id="edit-banner" class="edit-banner" style="display:none;">
-      ✏️ Editando proposta <strong id="edit-codigo"></strong> — o link continuará o mesmo após salvar.<a onclick="cancelarEdicao()">cancelar</a>
+      ✏️ Editando proposta <strong id="edit-codigo"></strong>. O link continuará o mesmo após salvar.<a onclick="cancelarEdicao()">Cancelar</a>
     </div>
 
     <div class="header">
@@ -4094,7 +4095,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select>
         </div>
       </div>
-      <div class="dica">💾 Sua escolha fica salva no navegador — você só seleciona uma vez</div>
+      <div class="dica">Sua escolha fica salva no navegador. Você só seleciona uma vez</div>
     </div>
 
     <div class="card">
@@ -4133,7 +4134,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select>
         </div>
         <div class="field">
-          <label>Distância de Uberlândia/MG (km) <span style="opacity:.6;font-weight:normal;">— preenche automático</span></label>
+          <label>Distância de Uberlândia/MG (km)<span style="opacity:.6;font-weight:normal;">, preenche automático</span></label>
           <input type="number" id="f-distancia" placeholder="Auto via cidade/UF" min="0" step="1">
           <small id="dist-status" style="display:block; margin-top:6px; font-size:13px; opacity:.8;"></small>
         </div>
@@ -4231,7 +4232,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </details>
 
         <div id="campo-manual" style="display:none;grid-column:1/-1;background:#EFF6FF;border:1px solid #1E3A8A;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
-          <div style="font-size:12px;color:#1E3A8A;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">⚙️ Equipamento manual — preencha tudo abaixo</div>
+          <div style="font-size:12px;color:#1E3A8A;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px;">⚙️ Equipamento manual: preencha tudo abaixo</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
             <div class="field"><label>Modelo do inversor *</label><input type="text" id="f-man-inv" placeholder="Ex: Growatt 5K"></div>
             <div class="field"><label>Qtd de inversores *</label><input type="number" id="f-man-qtdinv" min="1" value="1"></div>
@@ -4292,7 +4293,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="field full" id="campo-invest" style="display:none;">
           <label>Valor do investimento (R$)</label>
           <input type="number" id="f-invest" min="0" step="0.01" placeholder="auto pela tabela" oninput="onInvestEdit()">
-          <div style="font-size:11px;color:#64748b;margin-top:4px;">Vem pré-preenchido pela tabela do equipamento. Edite pra dar mais desconto — o sistema recalcula à vista, cartão e financiamento sobre o novo valor.</div>
+          <div style="font-size:11px;color:#64748b;margin-top:4px;">Vem pré-preenchido pela tabela do equipamento. Edite pra dar mais desconto. O sistema recalcula à vista, cartão e financiamento sobre o novo valor.</div>
         </div>
       </div>
     </div>
@@ -4789,7 +4790,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="calc-field">
-        <label>Material C.A <span class="hint">(padrão: 10% do kit — editável)</span></label>
+        <label>Material C.A <span class="hint">(padrão: 10% do kit, editável)</span></label>
         <div class="calc-inp"><span class="pre">R$</span><input type="number" id="calc-ca" inputmode="decimal" placeholder="0,00" oninput="calcCaEditado()"></div>
       </div>
 
@@ -4834,7 +4835,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="calc-field">
-        <label>Nota fiscal <span class="hint">(6% — uma ou outra)</span></label>
+        <label>Nota fiscal <span class="hint">(6%, uma ou outra)</span></label>
         <div class="calc-nf-opts">
           <label class="calc-nf-opt"><input type="radio" name="calc-nf" id="calc-nf-nenhuma" value="nenhuma" onchange="calcPreco()"> Sem NF</label>
           <label class="calc-nf-opt"><input type="radio" name="calc-nf" id="calc-nf-serv" value="serv" checked onchange="calcPreco()"> NF de serviço <span class="hint">(6% do total − kit)</span></label>
@@ -4970,14 +4971,14 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore oninput="eletroVendedorEditado(this)"></div></div>
           <div class="eletro-field"><label>Contato do vendedor</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-contato" placeholder="Ex: (34) 99999-0000" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore oninput="eletroVendedorEditado(this)"></div></div>
-          <div class="orc-note" id="el-vendedor-nota" style="margin-top:6px">Cliente vale para os <b>5 documentos</b> (Estudo, Orçamento Básico, Completo, Recibo e Contrato). No contrato, quem <b>assina</b> pode ser outro (a empresa do cliente) — isso se resolve lá. Vendedor e contato caem sozinhos de quem está logado.</div>
+          <div class="orc-note" id="el-vendedor-nota" style="margin-top:6px">Cliente vale para os <b>5 documentos</b> (Estudo, Orçamento Básico, Completo, Recibo e Contrato). No contrato, quem <b>assina</b> pode ser outro (a empresa do cliente). Isso se resolve lá. Vendedor e contato caem sozinhos de quem está logado.</div>
         </div>
 
         <div class="card">
           <div class="calc-card-title"><span class="dot"></span>Dados da operação</div>
           <div class="eletro-field"><label>Quantidade de carros por dia<span class="el-tip" tabindex="0" data-tip="Quantos carros abastecem no posto por dia, somando todos os carregadores. É o motor de toda a conta: mais carros, mais faturamento.">?</span></label>
             <div class="eletro-inp"><input type="number" id="el-carros" inputmode="decimal" value="10" oninput="eletroCalc()"></div></div>
-          <div class="eletro-field"><label>Média de carga por carro<span class="el-tip" tabindex="0" data-tip="Quanta energia cada carro leva por parada, em kWh. Referência: 20 kWh dão cerca de 100 a 140 km de autonomia — a recarga típica de rua, não o tanque cheio.">?</span></label>
+          <div class="eletro-field"><label>Média de carga por carro<span class="el-tip" tabindex="0" data-tip="Quanta energia cada carro leva por parada, em kWh. Referência: 20 kWh dão cerca de 100 a 140 km de autonomia. É a recarga típica de rua, não o tanque cheio.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-carga" inputmode="decimal" value="20" oninput="eletroCalc()"><span class="suf">kWh</span></div></div>
           <div class="eletro-field"><label>Custo do kWh<span class="el-tip" tabindex="0" data-tip="Quanto você paga por kWh na conta da concessionária. É o custo da mercadoria que o posto revende.">?</span></label>
             <!-- 0,70 é a tarifa de referência da casa e o mesmo default da LP /io/eletroposto.
@@ -5023,7 +5024,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
                  arrendamento de quem paga a si mesmo afunda margem e payback. Local de
                  terceiro? o consultor põe o % combinado aqui — o estudo recalcula. -->
             <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="0" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Valor fixo por mês para manter o equipamento funcionando: limpeza, reparos e assistência técnica. É custo fixo — o contrato de manutenção se paga com o posto parado.">?</span></label>
+          <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Valor fixo por mês para manter o equipamento funcionando: limpeza, reparos e assistência técnica. É custo fixo: o contrato de manutenção se paga com o posto parado.">?</span></label>
             <!-- 28/09/2026, ordem do dono: "manutenção = R$ 200,00 mês". Era 0,1% do
                  faturamento e escalava com a ocupação: posto vazio, manutenção quase
                  zero — o que não é como contrato de manutenção funciona. Saiu de
@@ -5038,7 +5039,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="200" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Seguro | Ano<span class="el-tip" tabindex="0" data-tip="Seguro do equipamento, calculado sozinho como 1% ao ano do investimento e diluído nos meses. Este campo é só demonstrativo: mexer no investimento já atualiza o valor.">?</span></label>
             <div class="eletro-inp has-pre eletro-inp-lock"><span class="pre">R$</span><input type="text" id="el-seguro" value="2.000" readonly tabindex="-1"></div></div>
-          <div class="eletro-field"><label>Imposto — Simples Nacional<span class="el-tip" tabindex="0" data-tip="Alíquota de imposto sobre o faturamento, no regime do Simples Nacional. Confirme a faixa com o contador do cliente, porque ela varia conforme o faturamento da empresa.">?</span></label>
+          <div class="eletro-field"><label>Imposto: Simples Nacional<span class="el-tip" tabindex="0" data-tip="Alíquota de imposto sobre o faturamento, no regime do Simples Nacional. Confirme a faixa com o contador do cliente, porque ela varia conforme o faturamento da empresa.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-imposto" inputmode="decimal" value="6" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Outros custos fixos/mês<span class="el-tip" tabindex="0" data-tip="Contas que chegam todo mês independentemente do movimento: software de gestão, internet 4G do carregador e demanda contratada de energia.">?</span></label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-fixos" inputmode="decimal" value="0" oninput="eletroCalc()"></div></div>
@@ -6544,7 +6545,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="cad-curioso-acao" id="cad-curioso-acao" hidden></div>
 
       <div class="card" id="cad-card">
-        <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
+        <div class="eletro-sec-title" id="cad-titulo">Arrendamento: quem tem o local</div>
         <!-- So no Match: os chips sao montados por cadRenderMatch, com a contagem. -->
         <div class="cad-mf" id="cad-mf" hidden></div>
         <!-- Resumo das situações (todas as listas, menos o Match), montado por cadRender. -->
@@ -6888,7 +6889,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
      Simulador, que continua sendo a fonte única. -->
 <div id="modal-completo" class="modal-overlay" onclick="if(event.target===this) epCompletoFechar()">
   <div class="modal-box cmp-box">
-    <h3>Orçamento Completo — revisar antes de emitir</h3>
+    <h3>Orçamento Completo: revisar antes de emitir</h3>
     <p class="cmp-sub">Tudo aqui já vem preenchido do Simulador. O que você mudar é gravado lá também, então os outros documentos saem com o mesmo número.</p>
 
     <div class="cmp-grade">
@@ -7015,7 +7016,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <div id="auto-pane-instagram" style="display:none">
-      <div class="auto-warn">📸 Automação nativa do Instagram: comentário com palavra-chave vira <b>DM automática</b> (substitui o ManyChat). O link não sai de graça — a DM <b>pede pra clicar, depois pra seguir, e só então manda o link</b> 🚪. Se a pessoa mandar o WhatsApp na DM, o lead cai direto no seu CRM/rodízio. Requer conectar a conta + app da Meta aprovado (App Review).</div>
+      <div class="auto-warn">📸 Automação nativa do Instagram: comentário com palavra-chave vira <b>DM automática</b> (substitui o ManyChat). O link não sai de graça: a DM <b>pede pra clicar, depois pra seguir, e só então manda o link</b> 🚪. Se a pessoa mandar o WhatsApp na DM, o lead cai direto no seu CRM/rodízio. Requer conectar a conta + app da Meta aprovado (App Review).</div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span> Conexão</div>
@@ -7037,19 +7038,19 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div><label class="auto-lbl">Match</label><select class="auto-sel" style="width:auto" id="auto-ig-match"><option value="contem">Contém</option><option value="exato">Exato</option><option value="qualquer">Qualquer</option></select></div>
         </div>
         <div class="auto-row" style="margin-top:12px">
-          <div><label class="auto-lbl">Prioridade <span style="color:#64748b">— menor ganha o empate</span></label><input class="auto-inp" type="number" id="auto-ig-prio" value="100" min="1" max="999" style="width:120px"></div>
-          <div><label class="auto-lbl">Produto (card no CRM)</label><select class="auto-sel" style="width:auto" id="auto-ig-produto"><option value="">— não vira card —</option><option value="solar">Solar</option><option value="eletroposto">Eletroposto</option></select></div>
+          <div><label class="auto-lbl">Prioridade <span style="color:#64748b">(menor ganha o empate)</span></label><input class="auto-inp" type="number" id="auto-ig-prio" value="100" min="1" max="999" style="width:120px"></div>
+          <div><label class="auto-lbl">Produto (card no CRM)</label><select class="auto-sel" style="width:auto" id="auto-ig-produto"><option value="">Não vira card</option><option value="solar">Solar</option><option value="eletroposto">Eletroposto</option></select></div>
           <label class="auto-chip" style="cursor:pointer;align-self:flex-end" title="Só entra quando NENHUMA outra automação casou, e só em comentário de anúncio com sinal de interesse"><input type="checkbox" id="auto-ig-fallback" style="margin-right:6px">Rede de segurança</label>
         </div>
-        <label class="auto-lbl" style="margin-top:12px">Posts/anúncios específicos (opcional) <span style="color:#64748b">— vazio = vale em todos · separe por vírgula · ganha de qualquer prioridade</span></label>
+        <label class="auto-lbl" style="margin-top:12px">Posts/anúncios específicos (opcional) <span style="color:#64748b">(vazio = vale em todos · separe por vírgula · ganha de qualquer prioridade)</span></label>
         <div class="auto-row">
           <input class="auto-inp" id="auto-ig-post" placeholder="ID do post/reels ou do anúncio" style="flex:1;min-width:180px">
           <button type="button" class="auto-btn ghost" onclick="autoIgCarregarPosts()">Ver meus posts</button>
         </div>
         <div id="auto-ig-posts" class="auto-chips"></div>
-        <label class="auto-lbl" style="margin-top:12px">Respostas públicas ao comentário (uma por linha — sorteia uma)</label>
+        <label class="auto-lbl" style="margin-top:12px">Respostas públicas ao comentário (uma por linha, sorteia uma)</label>
         <textarea class="auto-ta" id="auto-ig-pub" placeholder="Te chamei na DM!&#10;Prontinho, olha lá no direct 👀"></textarea>
-        <label class="auto-lbl" style="margin-top:12px">DM com o link <span style="color:#64748b">— vai no primeiro toque</span></label>
+        <label class="auto-lbl" style="margin-top:12px">DM com o link <span style="color:#64748b">(vai no primeiro toque)</span></label>
         <textarea class="auto-ta" id="auto-ig-dm" placeholder="Oi! Aqui está o link que você pediu 👇"></textarea>
         <div class="auto-row" style="margin-top:12px">
           <div><label class="auto-lbl">Rótulo do botão</label><input class="auto-inp" id="auto-ig-btn" placeholder="Quero saber mais" style="width:180px"></div>
@@ -7059,11 +7060,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <!-- Porteiro: 1 toque antes do link (encurtado em 05/08). Ligado sozinho
              em toda automação que tenha link — o campo é só override da copy. -->
         <div style="margin-top:16px;padding:12px;border:1px dashed #334155;border-radius:10px">
-          <label class="auto-lbl" style="margin:0">🚪 Porteiro do link <span style="color:#64748b">— DESLIGADO desde 05/08: o link vai no primeiro toque</span></label>
+          <label class="auto-lbl" style="margin:0">🚪 Porteiro do link <span style="color:#64748b">(DESLIGADO desde 05/08: o link vai no primeiro toque)</span></label>
           <p class="auto-mini" style="margin:6px 0 10px">O porteiro segurava o link até a pessoa responder pedindo pra seguir. Em 30 dias ele entregou o link pra <b>1 pessoa a cada 23 DMs</b>: quem não responde nunca mais pode ser tocado, porque a janela de 24h da Meta só abre com a resposta. Hoje o link vai de uma vez, limpo, e o "me segue" é cobrado no lembrete de 1h. Só religue se topar perder a maioria dos cliques.</p>
           <label class="auto-chip" style="cursor:pointer" title="Deixe marcado: o link vai no primeiro toque"><input type="checkbox" id="auto-ig-gate-off" style="margin-right:6px" checked>Pular o porteiro nesta automação</label>
           <div class="auto-row" style="margin-top:12px">
-            <div style="flex:1;min-width:220px"><label class="auto-lbl">1º toque — pede o seguir</label><input class="auto-inp" id="auto-ig-gate-seguir" placeholder="Opa, e aí, beleza? 👋 Esse link é especial pra quem me segue ✨…"></div>
+            <div style="flex:1;min-width:220px"><label class="auto-lbl">1º toque: pede o seguir</label><input class="auto-inp" id="auto-ig-gate-seguir" placeholder="Opa, e aí, beleza? 👋 Esse link é especial pra quem me segue ✨…"></div>
             <div><label class="auto-lbl">Botão (até 20)</label><input class="auto-inp" id="auto-ig-gate-seguir-btn" placeholder="Seguindo" maxlength="20" style="width:150px"></div>
           </div>
         </div>
@@ -7073,8 +7074,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div><label class="auto-lbl">Após (horas)</label><input class="auto-inp" type="number" id="auto-ig-lembrete-h" value="24" min="1" style="width:100px"></div>
         </div>
         <div class="auto-row" style="margin-top:12px">
-          <div style="flex:1;min-width:220px"><label class="auto-lbl">Lembrete de 1 hora <span style="color:#64748b">— sai 1h depois da 1ª DM; vazio = copy padrão</span></label><input class="auto-inp" id="auto-ig-l1h" placeholder="Conseguiu abrir o link? 👀"></div>
-          <label class="auto-chip" style="cursor:pointer;align-self:flex-end" title="Quem não passou pelo porteiro recebe o 'faltou me seguir' no lugar. Quem nunca respondeu não recebe nada — regra da Meta (janela de 24h)."><input type="checkbox" id="auto-ig-l1h-off" style="margin-right:6px">Sem lembrete de 1h</label>
+          <div style="flex:1;min-width:220px"><label class="auto-lbl">Lembrete de 1 hora <span style="color:#64748b">(sai 1h depois da 1ª DM; vazio = copy padrão)</span></label><input class="auto-inp" id="auto-ig-l1h" placeholder="Conseguiu abrir o link? 👀"></div>
+          <label class="auto-chip" style="cursor:pointer;align-self:flex-end" title="Quem não passou pelo porteiro recebe o 'faltou me seguir' no lugar. Quem nunca respondeu não recebe nada, por regra da Meta (janela de 24h)."><input type="checkbox" id="auto-ig-l1h-off" style="margin-right:6px">Sem lembrete de 1h</label>
         </div>
         <button type="button" class="auto-btn" style="margin-top:14px" onclick="autoIgSalvar()">Salvar automação</button>
         <span id="auto-ig-msg" class="auto-mini"></span>
@@ -7098,7 +7099,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="card">
       <div class="tbl-toolbar">
         <div class="tbl-km-field">
-          <label for="tbl-km">Distância (km) — recalcula o acréscimo</label>
+          <label for="tbl-km">Distância (km): recalcula o acréscimo</label>
           <input type="number" id="tbl-km" min="0" step="1" placeholder="0" oninput="renderTabelaAtiva()">
         </div>
         <div class="tbl-km-dica">≥ 250 km: +R$ 500 · ≥ 350 km: +R$ 1.000 (sobre o investimento)</div>
@@ -7218,7 +7219,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <div class="card">
       <div class="leads-info" id="crm-info">
-        Todo cliente que chega — de proposta, da agenda ou de anúncio — aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.
+        Todo cliente que chega (de proposta, da agenda ou de anúncio) aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.
       </div>
 
       <!-- KPIs -->
@@ -7231,7 +7232,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
       <!-- Busca -->
       <div class="crm-busca-wrap">
-        <input type="text" id="crm-busca" class="crm-busca" placeholder="🔎 Buscar por nome, telefone ou cidade…" oninput="renderCRM()">
+        <input type="text" id="crm-busca" class="crm-busca" placeholder="Buscar por nome, telefone ou cidade…" oninput="renderCRM()">
         <button class="crm-novo-contato" onclick="abrirNovoContato()" title="Criar contato manual (não veio por agendamento)">➕ Contato</button>
         <button class="crm-reload" onclick="carregarCRM(true)" title="Atualizar">↻</button>
       </div>
@@ -9896,14 +9897,14 @@ function orcCheckDeepLink() {
     if (typeof eletroCalc === 'function') eletroCalc();
     if (typeof showToast === 'function') showToast(usou.length
       ? '⚡ Ficha do formulário aplicada: ' + usou.join(', ') + '. Tudo editável.'
-      : '⚡ Cliente preenchido — complete o Simulador e emita o documento');
+      : '⚡ Cliente preenchido: complete o Simulador e emita o documento');
     return;
   }
 
   navGerador();          // garante o form visível (caso tenha aberto noutra tela)
   novoCliente();         // zera o form pra não herdar dados de outra proposta
   preencherClienteNoForm({ nome, tel, cidade });
-  if (typeof showToast === 'function') showToast('☀️ Dados do cliente preenchidos — complete o orçamento');
+  if (typeof showToast === 'function') showToast('☀️ Dados do cliente preenchidos: complete o orçamento');
 }
 window.orcCheckDeepLink = orcCheckDeepLink;
 window.addEventListener('DOMContentLoaded', orcCheckDeepLink);
@@ -9953,7 +9954,7 @@ async function bnkCopiarLink() {
   const url = bnkLinkDaFolha();
   try {
     await navigator.clipboard.writeText(url);
-    if (typeof showToast === 'function') showToast('Link copiado — quem abrir vê esta folha e pode editar');
+    if (typeof showToast === 'function') showToast('Link copiado: quem abrir vê esta folha e pode editar');
   } catch (e) {
     prompt('Copie o link da proposta:', url);
   }
@@ -10176,7 +10177,7 @@ function renderRanking(rows) {
             </div>
             <div style="${statRowStyle}">
               <span style="${!rankPorVendas ? bigStyle : numStyle}">${c.qtd}</span>
-              <span style="${lblStyle}" title="Clientes únicos — várias propostas pro mesmo WhatsApp contam como 1">cliente${c.qtd !== 1 ? 's' : ''}</span>
+              <span style="${lblStyle}" title="Clientes únicos: várias propostas pro mesmo WhatsApp contam como 1">cliente${c.qtd !== 1 ? 's' : ''}</span>
             </div>
             <div style="${statRowStyle}">
               <span style="${numStyle}">R$ ${fmtN(valorMostrar)}</span>
@@ -10221,7 +10222,7 @@ function renderRanking(rows) {
     </div>
     <div style="font-size:13px; color:${corSub}; margin-bottom:6px;">
       <strong>${nomeMes(mesAtual.ym)}</strong> · ${totalMes} cliente${totalMes !== 1 ? 's' : ''} único${totalMes !== 1 ? 's' : ''} · ${totalKwpMes.toFixed(1)} kWp totais
-      ${rankPorVendas ? '' : ` · <span style="color:${corSub2};font-style:italic;">sem vendas marcadas — ranqueando por clientes atendidos</span>`}
+      ${rankPorVendas ? '' : ` · <span style="color:${corSub2};font-style:italic;">sem vendas marcadas, ranqueando por clientes atendidos</span>`}
     </div>
     ${podioHtml}
     ${restoHtml}
@@ -10668,7 +10669,7 @@ function renderAbasTabelas() {
     const nome = NOME_ABA_TABELA[linha] || `${t.inv}${linha.endsWith('-PROMO') ? ' PROMO' : ''} + ${t.mod}`;
     return `<button type="button" class="tbl-aba${sel} ${onoff}" data-linha="${linha}">
       <span onclick="selecionarAba('${linha}')">${nome}</span>
-      <span class="tbl-toggle" title="${ativo ? 'Ativo no gerador — clique p/ desativar' : 'Desativado — clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
+      <span class="tbl-toggle" title="${ativo ? 'Ativo no gerador: clique p/ desativar' : 'Desativado: clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
     </button>`;
   }).join('');
 }
@@ -11410,15 +11411,15 @@ function cadAba(lado) {
     if (b) b.classList.toggle('ativa', l === lado);
   });
   const TITULO = {
-    ponto: 'Arrendamento — quem pode ceder um local, de qualquer porta e em qualquer '
+    ponto: 'Arrendamento: quem pode ceder um local, de qualquer porta e em qualquer '
          + 'desfecho de reunião. Cruza com Investidores: quem tem o local E o dinheiro está nas duas',
     capital: 'Investidores: R$ ' + CAD_PISO_MIL + ' mil ou mais. Quem também tem local próprio '
-           + 'aparece aqui E em Arrendamento — é venda direta',
+           + 'aparece aqui E em Arrendamento. É venda direta',
     curioso: 'Curioso: não disse quanto investe, ou disse menos de R$ ' + CAD_PISO_MIL + ' mil',
     integrador: 'Parceiros: integradores que instalam e querem vender eletroposto',
     agenda: 'Na agenda: quem marcou reunião de eletroposto, uma linha por pessoa. A coluna Também em '
           + 'mostra em quais listas de cadastro ela também está',
-    match: 'Match — os ' + CAD_MAX_POR_PONTO + ' investidores mais perto de cada ponto PRÓPRIO, até '
+    match: 'Match: os ' + CAD_MAX_POR_PONTO + ' investidores mais perto de cada ponto PRÓPRIO, até '
            + CAD_MATCH_KM + ' km',
   };
   document.getElementById('cad-titulo').textContent = TITULO[lado];
@@ -11850,7 +11851,7 @@ function cadRender() {
       + '</div></td>';
     const st = r.deAgenda
       ? '<td><span class="cad-st-agenda" title="O status desta pessoa mora na agenda. Trocar aqui '
-        + 'mudaria o agendamento e tiraria ela do Arrendamento.">na agenda</span></td>'
+        + 'mudaria o agendamento e tiraria ela do Arrendamento.">Na agenda</span></td>'
       : '<td><select class="cad-st" data-st="' + (r.status || 'novo') + '" '
       + 'onchange="cadStatus(\'' + r.tab + '\',' + r.id + ',this)">'
       + Object.keys(CAD_STATUS).map(k => '<option value="' + k + '"' + ((r.status || 'novo') === k ? ' selected' : '') + '>'
@@ -12130,7 +12131,7 @@ function cadRenderMatch(busca) {
     document.getElementById('cad-mf').hidden = true;
     tb.innerHTML = '<tr><td colspan="5" style="color:#94A3B8;padding:20px;line-height:1.6">'
       + '<b>Não consegui calcular as distâncias agora.</b><br>'
-      + 'A lista de duplas depende do serviço de proximidade — as abas Arrendamento e '
+      + 'A lista de duplas depende do serviço de proximidade. As abas Arrendamento e '
       + 'Investidores continuam funcionando. Tente ↻ Atualizar.</td></tr>';
     return;
   }
@@ -12267,7 +12268,7 @@ async function cadConectar(refP, refC, km, btn) {
  * apagar esse trabalho. Só volta o que o próprio Apresentar tinha escrito.
  */
 async function cadDesfazer(id, refP, refC, btn) {
-  btn.disabled = true; btn.textContent = 'desfazendo…';
+  btn.disabled = true; btn.textContent = 'Desfazendo…';
   try {
     // So vale o que o banco DEVOLVEU, a mesma licao do Apresentar: o fallback
     // otimista pintava a tela de um jeito e o banco ficava de outro.
@@ -14312,7 +14313,7 @@ function eletroCalc() {
       const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
       const tirTxt = r.tir != null
         ? (r.tir > r.taxaDesc
-            ? `TIR de <b>${elPct1(r.tir)} a.a.</b> — acima da taxa de referência (${txPct})`
+            ? `TIR de <b>${elPct1(r.tir)} a.a.</b>, acima da taxa de referência (${txPct})`
             : `TIR de <b>${elPct1(r.tir)} a.a.</b> frente à taxa de referência de ${txPct}`)
         : `retorno frente à taxa de referência de ${txPct}`;
       imp.innerHTML = `Mesmo no cenário com rampa de ocupação, o investimento se paga em <b>${pb}</b>, com ${tirTxt} e VPL de <b>${elMoney(r.vpl)}</b>. Em 10 anos: <b>${elMoney(r.acumulado10)}</b> de patrimônio líquido acumulado.`;
@@ -16215,7 +16216,7 @@ function epRevisar(qual) {
   try { if (typeof orcInit === 'function') orcInit(); } catch (e) {}
   if (revDocAtual === 'carregador') { try { equipInit(); } catch (e) {} }
   const h = document.querySelector('#modal-completo h3');
-  if (h) h.textContent = cfg.titulo + ' — revisar antes de emitir';
+  if (h) h.textContent = cfg.titulo + ': revisar antes de emitir';
   const nota = document.getElementById('cmp-nota');
   if (nota) nota.innerHTML = cfg.nota;
   const bLink = document.getElementById('cmp-btn-link');
@@ -16237,7 +16238,7 @@ function epRevisar(qual) {
     const m = document.getElementById('modal-completo');
     if (m) m.classList.add('show');
     const h2 = document.querySelector('#modal-completo h3');
-    if (h2) h2.textContent = cfg.titulo + ' — revisar antes de emitir';
+    if (h2) h2.textContent = cfg.titulo + ': revisar antes de emitir';
     const nt = document.getElementById('cmp-nota');
     if (nt) nt.innerHTML = cfg.nota;
     const bl = document.getElementById('cmp-btn-link');
@@ -16950,7 +16951,7 @@ async function eletroHistCarregar() {
   try {
     const rows = await supaGet('eletroposto_propostas?select=*&order=updated_at.desc&limit=200');
     if (!rows.length) {
-      tb.innerHTML = '<tbody><tr><td style="color:#94A3B8;padding:18px">Nenhum orçamento salvo ainda — preencha o cliente no simulador e gere uma proposta.</td></tr></tbody>';
+      tb.innerHTML = '<tbody><tr><td style="color:#94A3B8;padding:18px">Nenhum orçamento salvo ainda. Preencha o cliente no simulador e gere uma proposta.</td></tr></tbody>';
       return;
     }
     const th = '<thead><tr><th style="text-align:left">Cliente</th><th style="text-align:left">Cidade</th><th style="text-align:left">Consultor</th><th>Investimento</th><th>Lucro/ano</th><th>Payback</th><th>TIR</th><th>Gerações</th><th>Atualizado</th><th></th></tr></thead>';
@@ -25904,7 +25905,7 @@ async function carregarRedes() {
     const todos = (daily || []).map(d => d.atualizado_em).filter(Boolean).sort();
     const ult = todos[todos.length - 1];
     const at = document.getElementById('redes-atualizado');
-    if (at && ult) { const d = new Date(ult); at.textContent = 'atualizado ' + d.toLocaleDateString('pt-BR') + ' ' + String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+    if (at && ult) { const d = new Date(ult); at.textContent = 'Atualizado ' + d.toLocaleDateString('pt-BR') + ' ' + String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
     renderRede(redesRedeAtiva);
   } catch (e) {
     cont.innerHTML = '<div class="historico-vazio" style="padding:40px">Erro ao carregar dados das redes.</div>';
@@ -31196,7 +31197,7 @@ async function crmSalvarEdicao() {
   // Só valida/grava se o consultor digitou algo. crmTelBonito garante o 55.
   const telDigits = telRaw.replace(/\D/g, '');
   if (telRaw && crmTelKey(telDigits) == null) {
-    err.textContent = 'WhatsApp inválido — confira o DDD e os dígitos.';
+    err.textContent = 'WhatsApp inválido. Confira o DDD e os dígitos.';
     return;
   }
   const telNorm = telRaw ? crmTelBonito(telDigits) : '';
@@ -34101,21 +34102,21 @@ async function crmAtualizarStatus(novoStatus, extra) {
     const labels = {
       agendado:         '📞 Marcado como Agendada',
       nao_atendeu:      '❌ Marcado como Não atendeu',
-      em_atendimento:   '🕐 NEGOCIANDO — lead segurado com você',
+      em_atendimento:   '🕐 NEGOCIANDO: lead segurado com você',
       falando_whatsapp: '💬 Marcado como Falando no WhatsApp',
       sem_interesse:    '🙅 Marcado como Sem interesse',
       sem_orcamento:    '📋 Marcado como Sem orçamento',
       fez_orcamento:    '💰 Marcado como Fez orçamento',
       proposta_apresentada: '📑 Marcado como Proposta apresentada',
-      arrendamento:     '🤝 Marcado como ARRENDAMENTO — nós investimos 100%',
-      meio_a_meio:      '👥 Marcado como 50/50 — sociedade meio a meio',
-      carregador:       '🔌 Marcado como Carregador — leva só o equipamento',
-      chave_na_mao:     '🔑 Marcado como Chave na mão — o eletroposto é dele',
-      cotista:          '📊 Marcado como COTISTA — entra com dinheiro, não com ponto',
-      integrador:       '🛠️ Marcado como INTEGRADOR — revende/instala pra terceiro',
+      arrendamento:     '🤝 Marcado como ARRENDAMENTO: nós investimos 100%',
+      meio_a_meio:      '👥 Marcado como 50/50: sociedade meio a meio',
+      carregador:       '🔌 Marcado como Carregador: leva só o equipamento',
+      chave_na_mao:     '🔑 Marcado como Chave na mão: o eletroposto é dele',
+      cotista:          '📊 Marcado como COTISTA: entra com dinheiro, não com ponto',
+      integrador:       '🛠️ Marcado como INTEGRADOR: revende/instala pra terceiro',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
-      apalavrado:       '🤞 APALAVRADO — sai do ciclo e volta na data',
+      apalavrado:       '🤞 APALAVRADO: sai do ciclo e volta na data',
       fechou:           '🏆 Marcado como VENDIDO',
     };
     showToast((labels[novoStatus] || 'Status atualizado')
@@ -34211,7 +34212,7 @@ async function crmApalavrar() {
     // Entra no mapa local pro selo aparecer sem refetch, igual ao resto da tela.
     crmEsperas[String(ag.id)] = { retomar_em: data, aguardando: oque };
     const dia = data.split('-').reverse().slice(0, 2).join('/');
-    showToast('🤞 APALAVRADO — a etiqueta foi mantida, volta em ' + dia);
+    showToast('🤞 APALAVRADO: a etiqueta foi mantida, volta em ' + dia);
     crmDerivar(c);
     crmFecharDetalhe();
     renderCRM();
@@ -34398,7 +34399,7 @@ async function crmGerarOrcamento(produto) {
     if (typeof eletroCalc === 'function') eletroCalc();
     showToast(usou.length
       ? '⚡ Ficha do formulário aplicada: ' + usou.join(', ') + '. Tudo editável.'
-      : '⚡ Cliente preenchido — complete o Simulador e emita o documento');
+      : '⚡ Cliente preenchido: complete o Simulador e emita o documento');
     return;
   }
 
@@ -34409,8 +34410,8 @@ async function crmGerarOrcamento(produto) {
 
   const temInfo = descritores.telhado || descritores.fase || descritores.uf;
   showToast(temInfo
-    ? '☀️ Dados do cliente + local preenchidos — complete o orçamento'
-    : '☀️ Dados do cliente preenchidos — complete o orçamento');
+    ? '☀️ Dados do cliente + local preenchidos: complete o orçamento'
+    : '☀️ Dados do cliente preenchidos: complete o orçamento');
 }
 
 // ============= CRM · NOVO CONTATO MANUAL =============
@@ -35073,7 +35074,7 @@ function crmRenderFiltros() {
   if (info) {
     info.innerHTML = crmFiltroProduto === 'eletroposto'
       ? 'Quadro do <b>Eletroposto</b>: quem chegou pela LP, pela automação ou pela prospecção de EP, e quem já recebeu orçamento de eletroposto. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.'
-      : 'Quadro do <b>Solar</b>: todo cliente que chega — de proposta, da agenda ou de anúncio — aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.';
+      : 'Quadro do <b>Solar</b>: todo cliente que chega (de proposta, da agenda ou de anúncio) aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.';
   }
 }
 
@@ -35846,7 +35847,7 @@ async function abrirHistoricoLink(codigo) {
         <div style="padding:40px 20px;text-align:center;color:${corTextMut};">
           <div style="font-size:40px;margin-bottom:10px;">📭</div>
           <div style="font-weight:700;color:${corTextEm};margin-bottom:4px;">Ninguém abriu ainda</div>
-          <div style="font-size:13px;">Quando o cliente abrir o link, todos os acessos aparecem aqui — incluindo cidade, dispositivo e cliques nos botões.</div>
+          <div style="font-size:13px;">Quando o cliente abrir o link, todos os acessos aparecem aqui, incluindo cidade, dispositivo e cliques nos botões.</div>
         </div>`;
       return;
     }
@@ -35892,7 +35893,7 @@ async function abrirHistoricoLink(codigo) {
     `;
   } catch (e) {
     console.error('Erro ao carregar histórico do link:', e);
-    body.innerHTML = `<div style="padding:32px;text-align:center;color:#dc2626;">Erro ao carregar — tenta de novo</div>`;
+    body.innerHTML = `<div style="padding:32px;text-align:center;color:#dc2626;">Erro ao carregar. Tenta de novo</div>`;
   }
 }
 
@@ -37289,7 +37290,7 @@ if ('serviceWorker' in navigator) {
       if(s.conectado){
         const img=s.profile_picture_url?'<img src="'+s.profile_picture_url+'" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px">':'';
         const venc=s.token_expires_at?(' · token válido até '+new Date(s.token_expires_at).toLocaleDateString('pt-BR')):'';
-        c.innerHTML='<div>'+img+'<b>Conectado</b> como @'+autoEsc(s.username||'')+(s.ligado?'':' <span style="color:#fcd34d">(motor desligado — falta IG_AUTOMACAO_ENABLED)</span>')+'<span class="auto-mini">'+venc+'</span></div>';
+        c.innerHTML='<div>'+img+'<b>Conectado</b> como @'+autoEsc(s.username||'')+(s.ligado?'':' <span style="color:#fcd34d">(motor desligado: falta IG_AUTOMACAO_ENABLED)</span>')+'<span class="auto-mini">'+venc+'</span></div>';
       } else {
         c.innerHTML='<p class="auto-mini" style="margin-bottom:10px">Ainda não conectado.</p><a class="auto-btn" href="/_api/instagram/oauth/start">Conectar Instagram</a>';
       }
@@ -37325,7 +37326,7 @@ if ('serviceWorker' in navigator) {
     const fallback=document.getElementById('auto-ig-fallback').checked;
     // A rede de segurança não usa palavra-chave (ela é justamente o "não casou nada").
     if(!fallback && match!=='qualquer' && !palavras.length){ alert('Adicione ao menos uma palavra-chave (ou use match Qualquer).'); return; }
-    if(fallback && !gatilhos.comment){ alert('A rede de segurança só vale pra comentário — marque o gatilho Comentário.'); return; }
+    if(fallback && !gatilhos.comment){ alert('A rede de segurança só vale pra comentário. Marque o gatilho Comentário.'); return; }
     const pubs=val('auto-ig-pub').split('\n').map(s=>s.trim()).filter(Boolean);
     const midias=val('auto-ig-post').split(',').map(s=>s.trim()).filter(Boolean);
     const rec={
@@ -37373,7 +37374,7 @@ if ('serviceWorker' in navigator) {
         const prod=a.produto?' · '+autoEsc(a.produto):'';
         // Porteiro é automático: quem tem link e não pulou pede o seguir antes.
         const porteiro=(a.link_url&&!a.gate_off)?' · 🚪 porteiro':(a.link_url?' · link no 1º toque':'');
-        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><span class="auto-badge" style="background:#334155" title="prioridade — menor ganha o empate">#'+(a.prioridade==null?100:a.prioridade)+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+autoEsc(kw)+fixada+prod+porteiro+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
+        return '<div class="auto-item"><div class="top"><span class="auto-badge" style="background:'+cor+'">'+(a.ativo?'ativa':'pausada')+'</span><span class="auto-badge" style="background:#334155" title="Prioridade: menor ganha o empate">#'+(a.prioridade==null?100:a.prioridade)+'</span><b>'+autoEsc(a.nome)+'</b><span class="auto-mini">'+g.join(', ')+' · '+autoEsc(kw)+fixada+prod+porteiro+'</span><button type="button" class="auto-btn ghost" style="padding:4px 10px" onclick="autoIgToggle(\''+a.id+'\','+(!a.ativo)+')">'+(a.ativo?'pausar':'ativar')+'</button></div></div>';
       }).join('') : '<p class="auto-mini">Nenhuma automação ainda.</p>';
     }catch(e){ c.innerHTML='<p class="auto-mini">Erro: '+autoEsc(e.message)+'</p>'; }
   }
