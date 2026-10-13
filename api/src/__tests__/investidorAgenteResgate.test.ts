@@ -155,9 +155,9 @@ describe('resgate: a ordem dentro do grupo', () => {
 });
 
 describe('resgate: a vez, a cota e o teto', () => {
-  it('a 3ª, 8ª, 13ª, 18ª e 23ª abertura do dia são a vez do resgate', () => {
+  it('a 2ª, 4ª, 7ª, 10ª e 13ª abertura do dia (contadas só entre as aberturas) são a vez do resgate', () => {
     const vezes = Array.from({ length: 30 }, (_, i) => i + 1).filter(ehVezDoResgate);
-    expect(vezes).toEqual([3, 8, 13, 18, 23, 28]);
+    expect(vezes).toEqual([2, 4, 7, 10, 13]);
     expect(ehVezDoResgate(0)).toBe(false);
     expect(ehVezDoResgate(1.5)).toBe(false);
   });
@@ -171,16 +171,16 @@ describe('resgate: a vez, a cota e o teto', () => {
       if (g === 'resgate') resgates++;
     }
     const posicoes = grupos.map((g, i) => (g === 'resgate' ? i + 1 : 0)).filter(Boolean);
-    expect(posicoes).toEqual([3, 8, 13, 18, 23]);
+    expect(posicoes).toEqual([2, 4, 7, 10, 13]);
     expect(resgates).toBe(5);
   });
 
   it('na vez do resgate sem elegível sai a principal', () => {
-    expect(escolherGrupo({ posicao: 3, resgateLigado: true, cotaDeResgate: true, resgateElegivel: false, principalTem: true })).toBe('principal');
+    expect(escolherGrupo({ posicao: 2, resgateLigado: true, cotaDeResgate: true, resgateElegivel: false, principalTem: true })).toBe('principal');
   });
 
   it('fora da vez, mesmo com elegível, sai a principal', () => {
-    expect(escolherGrupo({ posicao: 4, resgateLigado: true, cotaDeResgate: true, resgateElegivel: true, principalTem: true })).toBe('principal');
+    expect(escolherGrupo({ posicao: 3, resgateLigado: true, cotaDeResgate: true, resgateElegivel: true, principalTem: true })).toBe('principal');
   });
 
   it('principal vazia: o resgate usa a vez, mas só enquanto houver cota', () => {
@@ -189,8 +189,8 @@ describe('resgate: a vez, a cota e o teto', () => {
   });
 
   it('disjuntor do grupo (ou erro de leitura) fecha o resgate, e a principal segue', () => {
-    expect(escolherGrupo({ posicao: 3, resgateLigado: false, cotaDeResgate: true, resgateElegivel: true, principalTem: true })).toBe('principal');
-    expect(escolherGrupo({ posicao: 3, resgateLigado: false, cotaDeResgate: true, resgateElegivel: true, principalTem: false })).toBeNull();
+    expect(escolherGrupo({ posicao: 2, resgateLigado: false, cotaDeResgate: true, resgateElegivel: true, principalTem: true })).toBe('principal');
+    expect(escolherGrupo({ posicao: 2, resgateLigado: false, cotaDeResgate: true, resgateElegivel: true, principalTem: false })).toBeNull();
   });
 
   it('o teto é 5 e a env só aperta', () => {

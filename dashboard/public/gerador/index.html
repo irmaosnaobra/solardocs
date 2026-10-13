@@ -11129,7 +11129,11 @@ function cadSituacao(r, lado) {
     if (s.erro_envio && ESTAGIOS_ATIVOS.indexOf(s.estagio) >= 0) {
       return Object.assign({ cod: 'erro', rotulo: 'Envio falhou', detalhe: '' }, base);
     }
-    if (s.estagio === 'chamado') return Object.assign({ cod: 'chamado', rotulo: 'Chamado', detalhe: 'Primeiro toque' }, base);
+    if (s.estagio === 'chamado') {
+      // `toques` é o número do último toque que a Helena mandou; ausente vale o primeiro.
+      const tq = Number(s.toques);
+      return Object.assign({ cod: 'chamado', rotulo: 'Chamado', detalhe: tq >= 2 ? 'Toque ' + Math.min(tq, 5) + ' de 5' : 'Primeiro toque' }, base);
+    }
     if (s.estagio === 'conversando') return Object.assign({ cod: 'conversando', rotulo: 'Conversando', detalhe: '' }, base);
     if (s.estagio === 'ofertou') return Object.assign({ cod: 'ofertou', rotulo: 'Horários enviados', detalhe: '' }, base);
     if (s.estagio === 'adiado') {

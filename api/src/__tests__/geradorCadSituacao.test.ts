@@ -106,6 +106,12 @@ describe('cadSituacao: a sessão da Helena é a mais nova', () => {
     poe(sessao('chamado', { chave: '3491112222' }));
     expect(T.cadSituacao(pessoa())).toMatchObject({ cod: 'chamado', rotulo: 'Chamado', detalhe: 'Primeiro toque', consultor: 'Helena' });
   });
+  it('chamado com retomadas: "Toque N de 5" a partir do 2; 1 ou ausente segue "Primeiro toque"', () => {
+    for (const [toques, detalhe] of [[2, 'Toque 2 de 5'], [3, 'Toque 3 de 5'], [5, 'Toque 5 de 5'], [1, 'Primeiro toque'], [null, 'Primeiro toque'], [undefined, 'Primeiro toque']] as const) {
+      poe(sessao('chamado', { chave: '3491112222', toques }));
+      expect(T.cadSituacao(pessoa()), String(toques)).toMatchObject({ cod: 'chamado', rotulo: 'Chamado', detalhe });
+    }
+  });
   it('conversando e horários enviados', () => {
     poe(sessao('conversando', { chave: '3491112222' }));
     expect(T.cadSituacao(pessoa())).toMatchObject({ cod: 'conversando', rotulo: 'Conversando', consultor: 'Helena' });

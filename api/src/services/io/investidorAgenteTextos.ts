@@ -257,3 +257,48 @@ export const ABERTURA_RESGATE_SEM_NOME = "Oi! Aqui é a Helena, da Irmãos na Ob
 
 /** Parágrafo que entra nos fatos do sistema, só nas conversas de resgate. */
 export const CONVERSA_DE_RESGATE = "Esta pessoa já teve uma reunião marcada em {mes}, que ela mesma escolheu pela página, e o horário foi liberado porque a presença não foi confirmada. Depois disso, ela recebeu ofertas de novo horário e não respondeu. Você está retomando o contato, então não cobre, não peça explicação e não faça a pessoa se sentir em falta. Se ela disser que não pôde, que esqueceu ou que achou que tinham cancelado, acolha em uma frase e siga para o convite. Se ela reclamar que o horário foi tirado, reconheça com simplicidade, sem discutir e sem se justificar, e ofereça novos horários. Todas as outras regras continuam iguais.";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RETOMADAS (13/10/2026): toques 2 a 5 para quem recebeu a abertura e não respondeu.
+// Textos do redator, copiados sem reescrever de retomadas-helena.md. Variáveis: {nome}
+// e {valor}. 3 variações por toque, escolhidas pela chave e pelo número do toque; a
+// reserva (sem nome) vale para o cadastro que não tem primeiro nome que dê para usar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TextosDoToque { readonly variacoes: readonly string[]; readonly reserva: string }
+
+/** Toque 2 (3 dias depois do toque 1), 3 (4 dias depois), 4 (60 dias depois do 1) e 5 (7 dias depois do 4). */
+export const RETOMADAS: Readonly<Record<2 | 3 | 4 | 5, TextosDoToque>> = {
+  2: {
+    variacoes: [
+      "Oi, {nome}, a Helena de novo, da Irmãos na Obra. Passando sobre o eletroposto: a empresa tem mais de uma opção de negócio, e nem todas exigem local próprio. Ainda faz sentido a gente conversar? Se não fizer, é só me avisar que eu não insisto.",
+      "Olá, {nome}! Helena aqui, da Irmãos na Obra, passando de novo por causa do seu formulário de eletroposto, em que você marcou {valor}. Não é franquia, não tem taxa de entrada nem royalties. Esse plano ainda faz sentido? Se não, é só me avisar que eu não insisto.",
+      "{nome}, é a Helena de novo, sem pressa. Só queria saber se o eletroposto ainda está nos seus planos. A obra e a homologação na concessionária ficam por conta da nossa equipe. Se não fizer mais sentido, me avisa que eu paro por aqui.",
+    ],
+    reserva: "Oi, aqui é a Helena de novo, da Irmãos na Obra. Estou passando mais uma vez sobre o eletroposto. A empresa tem mais de uma opção de negócio, e nem todas exigem local próprio. Ainda faz sentido conversar? Se não fizer, é só me avisar que eu não insisto.",
+  },
+  3: {
+    variacoes: [
+      "Oi, {nome}. Esta é a última vez que eu te chamo por agora sobre o eletroposto, para não ficar te incomodando. Se quiser conversar, é só responder aqui quando puder. Se o assunto não faz mais sentido, pode me avisar, que eu entendo.",
+      "{nome}, a Helena, da Irmãos na Obra, por aqui. Por agora, é a última vez que eu te chamo sobre o eletroposto que você pediu no formulário, com {valor} para investir. Quando fizer sentido, responde aqui e a gente conversa. Se não fizer, tudo bem também.",
+      "Olá, {nome}! Passo só para avisar que esta é a última vez que te chamo por agora sobre o eletroposto. Pode me responder aqui quando quiser, sem pressa. E se não for mais o momento, tudo bem, é só me dizer.",
+    ],
+    reserva: "Oi! Aqui é a Helena, da Irmãos na Obra. Esta é a última vez que eu chamo por agora sobre o eletroposto do seu formulário. Se quiser conversar, é só responder aqui quando puder. Se não for mais o momento, tudo bem.",
+  },
+  4: {
+    variacoes: [
+      "Oi, {nome}, tudo bem? Aqui é a Helena, da Irmãos na Obra. Passou um tempo desde a minha última mensagem, então queria perguntar: o seu plano de investir em eletroposto mudou ou continua? Se não faz mais sentido, pode falar sem cerimônia que eu não insisto.",
+      "{nome}, a Helena, da Irmãos na Obra, de novo por aqui. Faz um tempo desde a minha última mensagem. Você tinha marcado {valor} para investir em eletroposto: isso continua de pé ou mudou? Se mudou, é só me contar. E se não é mais o momento, eu entendo.",
+      "Olá, {nome}! Sou a Helena, da Irmãos na Obra, retomando depois de um tempo. O plano de investir em eletroposto continua ou mudou de lá para cá? Se não fizer mais sentido, é só avisar, que eu não insisto.",
+    ],
+    reserva: "Oi! Aqui é a Helena, da Irmãos na Obra. Já faz um tempo desde a minha última mensagem. O seu plano de investir em eletroposto mudou ou continua? Se não faz mais sentido, pode me dizer que eu não insisto.",
+  },
+  5: {
+    variacoes: [
+      "Oi, {nome}. Vou parar de te chamar sobre o eletroposto, para não incomodar. Se um dia fizer sentido, é só responder aqui que a gente conversa. Obrigada pela atenção.",
+      "{nome}, aqui é a Helena, da Irmãos na Obra. Não vou mais te chamar sobre esse assunto. Se o eletroposto voltar a fazer sentido, é só me responder aqui. Obrigada pelo seu tempo.",
+      "Olá, {nome}! Passo só para me despedir: não vou mais te chamar sobre o eletroposto. Se um dia o plano de {valor} voltar à pauta, é só responder aqui. Obrigada pela atenção.",
+    ],
+    reserva: "Oi! Aqui é a Helena, da Irmãos na Obra. Não vou mais te chamar sobre o eletroposto. Se um dia fizer sentido, é só responder aqui. Obrigada pela atenção.",
+  },
+};

@@ -145,7 +145,7 @@ describe('lerAtendimentos', () => {
     expect(a.resumo).toHaveLength(300);
     expect(a.grupo).toBeNull();
     expect(Object.keys(a).sort()).toEqual([
-      'aberto_em', 'agendamento_id', 'chave', 'consultor', 'erro_envio', 'estagio', 'grupo', 'motivo', 'movimento_em', 'resumo',
+      'aberto_em', 'agendamento_id', 'chave', 'consultor', 'erro_envio', 'estagio', 'grupo', 'motivo', 'movimento_em', 'resumo', 'toques',
     ].sort());
   });
 

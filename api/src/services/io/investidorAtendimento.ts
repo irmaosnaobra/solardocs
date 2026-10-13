@@ -31,6 +31,8 @@ export interface AtendimentoInvestidor {
   erro_envio: boolean;
   /** `resgate` para quem veio do grupo dos cancelados; `null` na fila principal. */
   grupo: string | null;
+  /** Número do último toque que a Helena mandou (retomadas); `null` na sessão que só teve o primeiro. */
+  toques: number | null;
 }
 
 interface LinhaSessao { key: string; value: unknown; updated_at?: string | null }
@@ -63,6 +65,7 @@ export function mapearSessao(l: LinhaSessao): AtendimentoInvestidor | null {
     resumo: typeof s.resumo === 'string' ? s.resumo.slice(0, RESUMO_MAX) : '',
     erro_envio: !!s.erro,
     grupo: texto(s.grupo),
+    toques: Number.isInteger(s.toques) && Number(s.toques) >= 1 ? Number(s.toques) : null,
   };
 }
 

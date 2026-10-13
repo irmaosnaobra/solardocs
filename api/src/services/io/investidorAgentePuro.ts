@@ -24,7 +24,7 @@ import { ehFeriadoBR } from '../../utils/feriadosBR';
 import {
   ABERTURAS, ABERTURA_SEM_NOME, REGRAS_DO_PROMPT, OFERTA_HORARIOS, CONFIRMACAO,
   NAO_ENTENDI_O_NUMERO, PASSAGEM_PARA_O_CONSULTOR, DESPEDIDA, PAROU, ADIADO, HORARIO_FOI_OCUPADO,
-  ABERTURAS_RESGATE, ABERTURA_RESGATE_SEM_NOME, CONVERSA_DE_RESGATE,
+  ABERTURAS_RESGATE, ABERTURA_RESGATE_SEM_NOME, CONVERSA_DE_RESGATE, RETOMADAS,
 } from './investidorAgenteTextos';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -420,13 +420,20 @@ export function tetoResgateDoDia(env?: string | null): number {
   return teto;
 }
 
-/** A abertura de número `n` do dia (1ª, 2ª...) é a vez do resgate? A 3ª, 8ª, 13ª, 18ª e 23ª. */
-export const ehVezDoResgate = (n: number): boolean => Number.isInteger(n) && n >= 3 && (n - 3) % 5 === 0;
+/** As posições do dia que são do resgate, contadas SÓ entre as aberturas (toque 1, fila
+ *  principal mais resgate): a 2ª, a 4ª, a 7ª, a 10ª e a 13ª. (13/10/2026: antes eram a 3ª,
+ *  8ª, 13ª, 18ª e 23ª de TODOS os envios, e com as retomadas saindo primeiro o resgate
+ *  encolhia para 1 por dia.) */
+export const POSICOES_DO_RESGATE: ReadonlySet<number> = new Set([2, 4, 7, 10, 13]);
+
+/** A abertura de número `n` do dia (1ª, 2ª...) é a vez do resgate? */
+export const ehVezDoResgate = (n: number): boolean => Number.isInteger(n) && POSICOES_DO_RESGATE.has(n);
 
 export type GrupoDaAbertura = 'principal' | 'resgate';
 
 /**
- * Quem sai nesta abertura. `posicao` é a posição dela no dia (aberturas de hoje + 1).
+ * Quem sai nesta abertura. `posicao` é a posição dela entre as ABERTURAS do dia (aberturas
+ * de hoje + 1; as retomadas não entram na conta).
  *   · vez do resgate, com cota e elegível: resgate;
  *   · senão, a fila principal, se tiver alguém;
  *   · fila principal vazia: o resgate usa a vez mesmo fora da posição, ainda
@@ -785,6 +792,209 @@ export function pediuParar(textos: readonly string[]): boolean {
     const s = String(t ?? '').trim();
     return RE_PARAR_SOZINHO.test(s) || RE_PARAR_NA_FRASE.test(s);
   });
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RETOMADAS (13/10/2026): toques 2 a 5 para quem recebeu a abertura e não respondeu
+//
+// Só a fila PRINCIPAL (sessão sem `grupo`; o resgate tem `sem_retomada` e nunca
+// recebe). Os limites são do parecer anti-ban e todos valem:
+//   · toque 2: 3 dias depois do toque 1;     toque 3: 4 dias depois do toque 2;
+//   · toque 4: 60 dias depois do toque 1;    toque 5: 7 dias depois do toque 4;
+//   · fecho: 7 dias depois do toque 5 sem resposta.
+// Cada prazo conta do carimbo do toque ANTERIOR que saiu (o `updated_at` dele),
+// nunca do dia 0. No máximo 15 retomadas por dia, dentro do teto do dia e sempre
+// sobrando 5 vagas dele para abertura.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Retomadas por dia de Brasília. A env INVESTIDOR_AGENTE_RETOMADAS_DIA só APERTA. */
+export const RETOMADAS_POR_DIA = 15;
+/** Vagas do teto do dia que a retomada nunca ocupa: ficam para abertura. */
+export const RETOMADAS_RESERVA_DE_ABERTURA = 5;
+const DIA_MS = 86_400_000;
+/** Dias de espera antes de cada passo, e de qual toque anterior se conta. O "6" é o
+ *  FECHO: nenhuma mensagem sai. */
+export const REGRA_DOS_TOQUES: Readonly<Record<2 | 3 | 4 | 5 | 6, { dias: number; aPartirDo: 1 | 2 | 3 | 4 | 5 }>> = {
+  2: { dias: 3, aPartirDo: 1 },
+  3: { dias: 4, aPartirDo: 2 },
+  4: { dias: 60, aPartirDo: 1 },
+  5: { dias: 7, aPartirDo: 4 },
+  6: { dias: 7, aPartirDo: 5 },
+};
+/** Nenhuma retomada sai com menos de 3 dias do toque anterior da Helena para a mesma
+ *  pessoa; o toque 4 espera 7 dias do toque 3 (se o 3 atrasou, o 4 não vence na hora). */
+export const INTERVALO_MINIMO_DOS_TOQUES_DIAS = 3;
+export const INTERVALO_MINIMO_DO_TOQUE_4_DIAS = 7;
+/** Mensagem a até esta distância do carimbo do toque é o próprio toque (o carimbo
+ *  dos toques 2 a 5 é gravado ANTES do envio), e não conversa nova. */
+export const MARGEM_DO_TOQUE_MS = 5 * 60_000;
+/** Com tantos carimbos nos últimos 60 dias a pessoa já levou toque demais. */
+export const TOQUES_EM_60_DIAS_ATE_PARAR = 3;
+export const JANELA_DOS_TOQUES_MS = 60 * DIA_MS;
+
+/** O teto de retomadas de hoje, antes da reserva: 15, ou menos se a env apertar. */
+export function tetoRetomadasDoDia(env?: string | null): number {
+  let teto = RETOMADAS_POR_DIA;
+  const daEnv = String(env ?? '').trim();
+  if (/^\d+$/.test(daEnv)) teto = Math.min(teto, Number(daEnv));
+  return teto;
+}
+
+/** Retomadas que cabem hoje: só enquanto `retomadas de hoje < min(15, teto do dia - 5)`. */
+export const limiteDeRetomadasHoje = (tetoDoDiaAtual: number, env?: string | null): number =>
+  Math.max(0, Math.min(tetoRetomadasDoDia(env), tetoDoDiaAtual - RETOMADAS_RESERVA_DE_ABERTURA));
+
+export type NumeroDoToque = 1 | 2 | 3 | 4 | 5;
+/** Quando cada toque saiu: o `updated_at` do carimbo `inv_agente_sent:<chave>:tN`. */
+export type CarimbosDosToques = Partial<Record<NumeroDoToque, string>>;
+
+/** "inv_agente_sent:3499990001:t2" -> { chave, n }. Qualquer outra chave -> null. */
+export function lerChaveDeToque(key: unknown): { chave: string; n: NumeroDoToque } | null {
+  const m = /^inv_agente_sent:(\d{10}):t([1-5])$/.exec(String(key ?? ''));
+  return m ? { chave: m[1]!, n: Number(m[2]) as NumeroDoToque } : null;
+}
+
+export interface PassoDaRetomada {
+  /** O próximo toque (2 a 5), ou `fecho` depois do toque 5. */
+  passo: 2 | 3 | 4 | 5 | 'fecho';
+  /** Quando ele vence (ms). */
+  venceEm: number;
+  /** O carimbo do toque mais recente (ISO). */
+  ultimoToqueEm: string;
+}
+
+/** O que vem depois do último toque que saiu, e quando vence. `null` sem carimbo do toque 1. */
+export function proximoPassoDaRetomada(c: CarimbosDosToques): PassoDaRetomada | null {
+  if (!c[1]) return null;
+  let n: NumeroDoToque = 1;
+  for (const k of [2, 3, 4, 5] as const) if (c[k]) n = k;
+  const regra = REGRA_DOS_TOQUES[(n + 1) as 2 | 3 | 4 | 5 | 6];
+  const base = Date.parse(String(c[regra.aPartirDo] ?? c[n]));
+  const ultimo = Date.parse(String(c[n]));
+  if (!Number.isFinite(base) || !Number.isFinite(ultimo)) return null;
+  // O MAIOR entre o prazo do toque e o intervalo mínimo desde o último que saiu.
+  const intervalo = (n === 3 ? INTERVALO_MINIMO_DO_TOQUE_4_DIAS : INTERVALO_MINIMO_DOS_TOQUES_DIAS) * DIA_MS;
+  return {
+    passo: n === 5 ? 'fecho' : ((n + 1) as 2 | 3 | 4 | 5),
+    venceEm: Math.max(base + regra.dias * DIA_MS, ultimo + intervalo),
+    ultimoToqueEm: String(c[n]),
+  };
+}
+
+/** Os campos da sessão que decidem se ela entra no ciclo. */
+export interface SessaoDeRetomada {
+  estagio: string;
+  telefone: string;
+  nome: string | null;
+  valor_txt: string;
+  respostas?: number;
+  grupo?: string;
+  sem_retomada?: boolean;
+  erro?: string | null;
+  /** `outra_conversa`: mensagem nossa (outro robô, um humano) depois do toque anterior
+   *  encerrou o ciclo de retomadas desta pessoa. */
+  ciclo_encerrado?: string;
+}
+
+/**
+ * A sessão entra no ciclo de retomadas? Só a fila principal (sem `grupo`, sem
+ * `sem_retomada`), sem erro de envio, em `chamado`; ou em `conversando` com ZERO
+ * respostas da Helena (a pessoa só mandou resposta automática do WhatsApp): para a
+ * retomada ela vale como `chamado`. `adiado`, `humano`, `ofertou`, `agendado` e
+ * `sem_interesse` não recebem.
+ */
+export function sessaoEntraNasRetomadas(s: SessaoDeRetomada): boolean {
+  if (s.grupo || s.sem_retomada || s.erro || s.ciclo_encerrado || !s.telefone) return false;
+  return s.estagio === 'chamado' || (s.estagio === 'conversando' && Number(s.respostas ?? 0) === 0);
+}
+
+export interface CandidatoRetomada {
+  chave: string;
+  telefone: string;
+  nome: string | null;
+  valorTxt: string;
+  toque: 2 | 3 | 4 | 5;
+  venceEm: number;
+  vencidaHaDias: number;
+  /** O carimbo do toque mais recente (ISO): daqui se conta a conversa nova. */
+  ultimoToqueEm: string;
+}
+
+export interface FiltrosDeRetomada {
+  silenciado: (tel: string) => boolean;
+  bloqueado: (tel: string) => boolean;
+  /** `carregarMudos(3, 60)`: quem já tem 3 toques sem resposta em 60 dias. */
+  mudo: (tel: string) => boolean;
+  /** Tem humano dentro da conversa agora (pausa humana). */
+  comHumano: (tel: string) => boolean;
+}
+
+export type MotivoForaDasRetomadas = 'opt_out' | 'bloqueado' | 'mudo' | 'toques_em_60_dias' | 'humano_na_conversa';
+
+export interface ResultadoRetomadas {
+  /** Quem pode receber agora (passou nos cortes), a mais antiga primeiro. */
+  fila: CandidatoRetomada[];
+  /** Quem chegou ao fecho (7 dias depois do toque 5 sem resposta), o mais antigo primeiro. */
+  fechos: Array<{ chave: string; venceEm: number }>;
+  /** Vencidas pelo calendário, antes dos cortes. */
+  vencidasPorToque: Record<2 | 3 | 4 | 5, number>;
+  excluidos: Partial<Record<MotivoForaDasRetomadas, number>>;
+}
+
+/**
+ * As retomadas e os fechos que vencem agora. Pura: recebe as sessões, os carimbos
+ * (de `lerChaveDeToque`) e os cortes já lidos. Entre as vencidas, a mais antiga
+ * primeiro (o que não coube hoje sai amanhã, na frente). `mudo` e `toques_em_60_dias`
+ * são os dois cortes de mudo: quem cai neles só fica vencida e é reavaliada depois.
+ */
+export function montarRetomadas(
+  sessoes: ReadonlyMap<string, SessaoDeRetomada>, carimbos: ReadonlyMap<string, CarimbosDosToques>,
+  f: FiltrosDeRetomada, agoraMs: number,
+): ResultadoRetomadas {
+  const vencidasPorToque: ResultadoRetomadas['vencidasPorToque'] = { 2: 0, 3: 0, 4: 0, 5: 0 };
+  const excluidos: ResultadoRetomadas['excluidos'] = {};
+  const fora = (m: MotivoForaDasRetomadas) => { excluidos[m] = (excluidos[m] ?? 0) + 1; };
+  const fila: CandidatoRetomada[] = [];
+  const fechos: ResultadoRetomadas['fechos'] = [];
+  for (const [chave, s] of sessoes) {
+    if (!sessaoEntraNasRetomadas(s)) continue;
+    const c = carimbos.get(chave);
+    const passo = c ? proximoPassoDaRetomada(c) : null;
+    if (!passo || passo.venceEm > agoraMs) continue;
+    if (passo.passo === 'fecho') { fechos.push({ chave, venceEm: passo.venceEm }); continue; }
+    vencidasPorToque[passo.passo]++;
+    const recentes = Object.values(c!).filter(iso => {
+      const t = Date.parse(String(iso));
+      return Number.isFinite(t) && agoraMs - t <= JANELA_DOS_TOQUES_MS;
+    }).length;
+    if (f.silenciado(s.telefone)) { fora('opt_out'); continue; }
+    if (f.bloqueado(s.telefone)) { fora('bloqueado'); continue; }
+    if (f.comHumano(s.telefone)) { fora('humano_na_conversa'); continue; }
+    if (f.mudo(s.telefone)) { fora('mudo'); continue; }
+    if (recentes >= TOQUES_EM_60_DIAS_ATE_PARAR) { fora('toques_em_60_dias'); continue; }
+    fila.push({
+      chave, telefone: s.telefone, nome: s.nome, valorTxt: s.valor_txt, toque: passo.passo, venceEm: passo.venceEm,
+      vencidaHaDias: Math.floor((agoraMs - passo.venceEm) / DIA_MS), ultimoToqueEm: passo.ultimoToqueEm,
+    });
+  }
+  fila.sort((a, b) => a.venceEm - b.venceEm);
+  fechos.sort((a, b) => a.venceEm - b.venceEm);
+  return { fila, fechos, vencidasPorToque, excluidos };
+}
+
+/**
+ * O texto da retomada: 3 variações por toque, escolhidas de forma fixa pela chave E
+ * pelo número do toque (a mesma pessoa não recebe a mesma redação em dois toques
+ * seguidos). `indice` -1 = a reserva, sem nome.
+ */
+export function renderRetomada(
+  toque: 2 | 3 | 4 | 5, chave: string, nome: unknown, valorTxt: unknown,
+): { indice: number; texto: string } {
+  const textos = RETOMADAS[toque];
+  const p = primeiroNome(nome);
+  const indice = p ? (indicePorChave(chave, textos.variacoes.length) + toque) % textos.variacoes.length : -1;
+  const molde = indice >= 0 ? textos.variacoes[indice]! : textos.reserva;
+  return { indice, texto: molde.split('{nome}').join(p ?? '').split('{valor}').join(valorNaFrase(valorTxt)) };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

@@ -82,6 +82,9 @@ import {
   type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
   type CardDaAgenda, type ResultadoFilaResgate, type CandidatoResgate,
   escolhaPendenteDe, dentroDaJanelaDeRecuperacao, RECUPERACOES_POR_RODADA, type EscolhaPendente,
+  montarRetomadas, renderRetomada, lerChaveDeToque, limiteDeRetomadasHoje, tetoRetomadasDoDia, MARGEM_DO_TOQUE_MS,
+  RETOMADAS_RESERVA_DE_ABERTURA,
+  type CarimbosDosToques, type CandidatoRetomada, type ResultadoRetomadas,
 } from './investidorAgentePuro';
 
 const LOG = 'investidor-agente';
@@ -191,6 +194,14 @@ export interface SessaoInvestidor {
   reuniao_perdida_em?: string;
   /** A última fala dela que a recuperação da escolha pendente já reprocessou (nunca repete). */
   recuperado_ate?: string;
+  /** Número do último toque que saiu (retomadas, 13/10/2026). Sessão antiga, sem o campo, vale 1. */
+  toques?: number;
+  /** Quando o último toque saiu. */
+  ultimo_toque_em?: string;
+  /** `outra_conversa`: mensagem nossa (outro robô, um humano) depois do toque anterior
+   *  encerrou o ciclo de retomadas desta pessoa. O estágio não muda e ninguém é silenciado. */
+  ciclo_encerrado?: 'outra_conversa';
+  ciclo_encerrado_em?: string;
   atualizado_em: string;
 }
 
@@ -296,6 +307,29 @@ async function contarChaves(prefixo: string, desdeIso?: string): Promise<number>
 /** Quantas aberturas saíram desde 00:00 de Brasília. Erro SOBE (falha fechada). */
 const contarEnviadosHoje = (agora: Date): Promise<number> => contarChaves(INV_SENT_PREFIX, inicioDoDiaBrasiliaIso(agora));
 const contarParadasHoje = (agora: Date): Promise<number> => contarChaves(`${INV_PARAR_PREFIX}${dataBrasilia(agora)}:`);
+
+/** Conta chaves por padrão LIKE completo (com `%` onde precisar), desde um instante. Erro SOBE. */
+async function contarLike(padrao: string, desdeIso?: string): Promise<number> {
+  let q = supabase.from('system_state').select('key', { count: 'exact', head: true }).like('key', padrao);
+  if (desdeIso) q = q.gte('updated_at', desdeIso);
+  const { count, error } = await q;
+  if (error) throw new Error(`contar ${padrao}: ${error.message}`);
+  if (typeof count !== 'number') throw new Error(`contar ${padrao}: resposta sem contagem`);
+  return count;
+}
+
+/** Retomadas (toques 2 a 5) que saíram desde 00:00 de Brasília: todos os envios do dia menos os toques 1. */
+async function contarRetomadasHoje(agora: Date): Promise<number> {
+  const desde = inicioDoDiaBrasiliaIso(agora);
+  const [todos, aberturas] = await Promise.all([contarChaves(INV_SENT_PREFIX, desde), contarLike(`${INV_SENT_PREFIX}%:t1`, desde)]);
+  return Math.max(0, todos - aberturas);
+}
+
+/** Aberturas (toque 1: fila principal mais resgate) que saíram desde 00:00 de Brasília. É a
+ *  posição do dia que decide quando é a vez do resgate; as retomadas não entram. */
+async function contarAberturasHoje(agora: Date): Promise<number> {
+  return contarLike(`${INV_SENT_PREFIX}%:t1`, inicioDoDiaBrasiliaIso(agora));
+}
 
 interface SituacaoResgate {
   teto: number;
@@ -535,8 +569,9 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
   const rampa = await rampaReconexaoVigente(agora);
   const teto = tetoDoDia(agora, process.env.INVESTIDOR_AGENTE_TETO, rampa?.dia ?? null);
   let enviadosHoje: number;
+  let aberturasHoje: number;
   try {
-    enviadosHoje = await contarEnviadosHoje(agora);
+    [enviadosHoje, aberturasHoje] = await Promise.all([contarEnviadosHoje(agora), contarAberturasHoje(agora)]);
   } catch (err) {
     logger.error(LOG, 'contar os envios de hoje falhou: abertura suspensa nesta rodada', err);
     return semEnvio('erro_leitura_teto');
@@ -567,7 +602,7 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
   // Quem sai: a fila principal ou o resgate (intercalado, ver escolherGrupo).
   const elegiveisResgate = 'resultado' in leitura.resgate ? leitura.resgate.resultado.fila : [];
   const grupo = escolherGrupo({
-    posicao: enviadosHoje + 1,
+    posicao: aberturasHoje + 1,
     resgateLigado: !resgateHoje.erro && !resgateHoje.disjuntorAberto,
     cotaDeResgate: (resgateHoje.enviadosHoje ?? 0) < resgateHoje.teto,
     resgateElegivel: elegiveisResgate.length > 0,
@@ -648,11 +683,12 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
   const tentar = async <T>(f: () => Promise<T>): Promise<T | { erro: string }> => {
     try { return await f(); } catch (e) { return { erro: String((e as Error)?.message || e) }; }
   };
-  const [chave, disjuntor, paradas, enviados, rampa, leitura, resgateHoje] = await Promise.all([
+  const [chave, disjuntor, paradas, enviados, aberturas, rampa, leitura, resgateHoje] = await Promise.all([
     lerChaveDesligar(),
     tentar(lerDisjuntor),
     tentar(() => contarParadasHoje(agora)),
     tentar(() => contarEnviadosHoje(agora)),
+    tentar(() => contarAberturasHoje(agora)),
     rampaReconexaoVigente(agora),
     tentar(() => lerFila(agora.getTime())),
     lerSituacaoResgate(agora),
@@ -692,7 +728,9 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
       nome: primeiroNome(c.nome), telefone_final: c.telefone.slice(-2), valor: c.valorTxt, origem: `${c.origem}:${c.id}`,
     })),
     textos: fila.slice(0, 3).map(c => renderAbertura(c.chave, c.nome, c.valorTxt).texto),
-    resgate: previaDoResgate(leitura, resgateHoje, typeof enviados === 'number' ? enviados : null),
+    resgate: previaDoResgate(leitura, resgateHoje, typeof aberturas === 'number' ? aberturas : null),
+    retomadas: await tentar(() => previaDasRetomadas(
+      leitura, agora, typeof enviados === 'number' ? enviados : null, typeof aberturas === 'number' ? aberturas : null, resgateHoje)),
     // Escolhas de horário que se perderam (a sessão está em `ofertou`, a última fala
     // é dela e ninguém respondeu): quantas a recuperação reprocessaria.
     recuperacao_de_escolha: await tentar(async () => ({
@@ -700,6 +738,54 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
       janela_aberta: dentroDaJanelaDeRecuperacao(agora),
       maximo_por_rodada: RECUPERACOES_POR_RODADA,
     })),
+  };
+}
+
+/** O bloco `retomadas` da prévia: o que venceu, o que cabe hoje e o que sairia na próxima rodada. */
+async function previaDasRetomadas(
+  leitura: LeituraDaFila, agora: Date, enviadosNoDia: number | null, aberturasNoDia: number | null, resgateHoje: SituacaoResgate,
+): Promise<Record<string, unknown>> {
+  const rampa = await rampaReconexaoVigente(agora);
+  const teto = tetoDoDia(agora, process.env.INVESTIDOR_AGENTE_TETO, rampa?.dia ?? null);
+  const [carimbos, retomadasHoje, silenciado, mudo, bloqueado, pausa] = await Promise.all([
+    lerCarimbosDeToque(),
+    contarRetomadasHoje(agora),
+    carregarSilenciados({ estrito: true }),
+    carregarMudos(3, 60, { estrito: true }),
+    carregarBloqueados({ estrito: true }),
+    carregarPausas({ estrito: true }),
+  ]);
+  const r = montarRetomadas(leitura.sessoes, carimbos, { silenciado, bloqueado, mudo, comHumano: (tel: string) => !pausa(tel).pode }, agora.getTime());
+  const limite = limiteDeRetomadasHoje(teto, process.env.INVESTIDOR_AGENTE_RETOMADAS_DIA);
+  const cabe = (enviadosNoDia ?? 0) < teto && retomadasHoje < limite;
+  const elegiveisResgate = 'resultado' in leitura.resgate ? leitura.resgate.resultado.fila.length : 0;
+  const proximo = (enviadosNoDia === null || aberturasNoDia === null) ? null : (r.fila.length && cabe)
+    ? 'retomada'
+    : (escolherGrupo({
+      posicao: aberturasNoDia + 1,
+      resgateLigado: !resgateHoje.erro && !resgateHoje.disjuntorAberto,
+      cotaDeResgate: (resgateHoje.enviadosHoje ?? 0) < resgateHoje.teto,
+      resgateElegivel: elegiveisResgate > 0,
+      principalTem: leitura.resultado.fila.length > 0,
+    }) ?? 'nada');
+  return {
+    vencidas_por_toque: r.vencidasPorToque,
+    fechos_pendentes: r.fechos.length,
+    passaram_nos_cortes: r.fila.length,
+    // Sessões que saíram do ciclo porque alguém da casa escreveu depois do toque.
+    ciclo_encerrado: [...leitura.sessoes.values()].filter(x => !!x.ciclo_encerrado).length,
+    excluidos: r.excluidos,
+    enviadas_hoje: retomadasHoje,
+    teto_por_dia: tetoRetomadasDoDia(process.env.INVESTIDOR_AGENTE_RETOMADAS_DIA),
+    reserva_de_abertura: RETOMADAS_RESERVA_DE_ABERTURA,
+    limite_hoje: limite,
+    primeiros: r.fila.slice(0, 10).map(c => ({
+      nome: primeiroNome(c.nome), telefone_final: c.telefone.slice(-2), toque: c.toque, vencida_ha_dias: c.vencidaHaDias,
+    })),
+    textos: r.fila.slice(0, 2).map(c => renderRetomada(c.toque, c.chave, c.nome, c.valorTxt).texto),
+    proxima_rodada: proximo,
+    // A conversa nova desde o toque anterior só é conferida na hora de enviar.
+    obs: 'a conversa nova desde o toque anterior é conferida no envio, não aqui',
   };
 }
 
@@ -1673,12 +1759,23 @@ export async function fecharResgatesSemResposta(
       && Number.isFinite(Date.parse(s.aberto_em)) && agora - Date.parse(s.aberto_em) >= RESGATE_SEM_RESPOSTA_MS)
     .sort((a, b) => (a[1].aberto_em < b[1].aberto_em ? -1 : 1))
     .slice(0, FECHOS_POR_RODADA);
+  return encerrarSemResposta(vencidas, 'resgate');
+}
+
+/**
+ * O miolo do fecho, igual para o resgate e para as retomadas: a pessoa vai para o
+ * silêncio da casa (sem regravar quem já está nele), a sessão vira `sem_interesse`
+ * com motivo `sem_resposta`, e nenhuma mensagem sai. O status do cadastro não muda.
+ */
+async function encerrarSemResposta(
+  vencidas: Array<[string, SessaoInvestidor]>, rotulo: 'resgate' | 'retomadas',
+): Promise<{ fechadas: number; erros: number; motivo?: string }> {
   if (!vencidas.length) return { fechadas: 0, erros: 0 };
   let jaSilenciado: (tel: string) => boolean;
   try {
     jaSilenciado = await carregarSilenciados({ estrito: true });
   } catch (err) {
-    logger.error(LOG, 'fecho do resgate: ler a supressão falhou, nada fecha nesta rodada', err);
+    logger.error(LOG, `fecho (${rotulo}): ler a supressão falhou, nada fecha nesta rodada`, err);
     return { fechadas: 0, erros: 1, motivo: 'erro_supressao' };
   }
   let fechadas = 0;
@@ -1696,11 +1793,316 @@ export async function fecharResgatesSemResposta(
       fechadas++;
     } catch (err) {
       erros++;
-      logger.error(LOG, `fecho do resgate falhou (final ${s.telefone.slice(-2)})`, err);
+      logger.error(LOG, `fecho (${rotulo}) falhou (final ${s.telefone.slice(-2)})`, err);
     }
   }
-  if (fechadas) logger.info(LOG, `${fechadas} sessão(ões) de resgate encerradas por falta de resposta em 7 dias`);
+  if (fechadas) logger.info(LOG, `${fechadas} sessão(ões) de ${rotulo} encerradas por falta de resposta`);
   return { fechadas, erros };
+}
+
+/**
+ * Fecho das RETOMADAS: 7 dias depois do toque 5 sem resposta, a sessão da fila
+ * principal vira `sem_interesse` (`sem_resposta`), a pessoa entra na supressão como
+ * `nunca_respondeu` (sem regravar quem já está nela) e nenhuma mensagem sai. No
+ * máximo 5 por rodada. O status do cadastro não muda.
+ */
+export async function fecharRetomadasEsgotadas(
+  agora: number = Date.now(),
+): Promise<{ fechadas: number; erros: number; motivo?: string }> {
+  let sessoes: Map<string, SessaoInvestidor>;
+  let carimbos: Map<string, CarimbosDosToques>;
+  try {
+    [sessoes, carimbos] = await Promise.all([lerSessoes(), lerCarimbosDeToque()]);
+  } catch (err) {
+    logger.error(LOG, 'fecho das retomadas: ler sessões e carimbos falhou', err);
+    return { fechadas: 0, erros: 1, motivo: 'erro_leitura' };
+  }
+  const nada = () => false;
+  const { fechos } = montarRetomadas(sessoes, carimbos, { silenciado: nada, bloqueado: nada, mudo: nada, comHumano: nada }, agora);
+  const candidatas = fechos.slice(0, FECHOS_POR_RODADA)
+    .map(f => [f.chave, sessoes.get(f.chave)!] as [string, SessaoInvestidor]);
+  // Quem tem card (que não seja cancelado) já tem reunião: a sessão fecha como
+  // `card_por_outra_porta` e a pessoa NÃO é silenciada. Erro na leitura pula a pessoa.
+  const vencidas: Array<[string, SessaoInvestidor]> = [];
+  let errosDeCard = 0;
+  for (const par of candidatas) {
+    try {
+      const card = await cardDoTelefone(par[1].telefone, true);
+      if (card === null) { vencidas.push(par); continue; }
+      await fecharPorCardDeOutraPorta(par[0], card);
+    } catch (err) {
+      errosDeCard++;
+      logger.error(LOG, 'fecho das retomadas: conferir o card falhou, a pessoa fica para a próxima rodada', err);
+    }
+  }
+  const r = await encerrarSemResposta(vencidas, 'retomadas');
+  return { ...r, erros: r.erros + errosDeCard };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RETOMADAS (13/10/2026): toques 2 a 5
+//
+// Quem recebeu a abertura e não respondeu volta a ser chamado, no máximo 15 por dia,
+// dentro do teto do dia da agente e sempre sobrando 5 vagas dele para abertura. A
+// regra de quem vence e quando mora no investidorAgentePuro.ts (`montarRetomadas`);
+// aqui estão as leituras, os portões e o envio. Saem ANTES das aberturas, um envio
+// por rodada, e a rodada segue para a abertura se nenhuma retomada passar.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Os carimbos dos toques de todo mundo: chave -> { 1: updated_at, 2: ... }. Erro SOBE. */
+async function lerCarimbosDeToque(): Promise<Map<string, CarimbosDosToques>> {
+  const linhas = await lerTudo<{ key: string; updated_at: string | null }>('carimbos dos toques', (de, ate) =>
+    supabase.from('system_state').select('key, updated_at')
+      .like('key', `${INV_SENT_PREFIX}%`).order('key', { ascending: true }).range(de, ate));
+  const mapa = new Map<string, CarimbosDosToques>();
+  for (const l of linhas) {
+    const t = lerChaveDeToque(l.key);
+    if (!t || !l.updated_at) continue;
+    if (!mapa.has(t.chave)) mapa.set(t.chave, {});
+    mapa.get(t.chave)![t.n] = String(l.updated_at);
+  }
+  return mapa;
+}
+
+/**
+ * Há mensagem nesta conversa DEPOIS do toque anterior, nossa ou dela? O telefone é
+ * comparado pela chave (DDD + 8 últimos), então a forma com e sem o nono dígito é
+ * a mesma pessoa (a Z-API alterna, e a falha aqui é silenciosa); o LID de quem
+ * digitou pelo celular é resolvido pelo mapa. A margem de 5 minutos deixa de fora o
+ * próprio toque, cujo carimbo é gravado antes do envio. Erro SOBE: não saber é não falar.
+ *
+ * Mensagem DELA com data até o cursor `ate` da sessão NÃO conta: o tratador de
+ * respostas já leu e decidiu não responder (a resposta automática do WhatsApp), e
+ * quem só mandou isso vale como quem não respondeu. Depois do `ate` conta, porque o
+ * tratador ainda vai ler. Mensagem NOSSA (outro robô, um humano) sempre conta, e ganha
+ * de qualquer outra: devolve `nossa` (encerra o ciclo da pessoa), `dela` (só adia) ou null.
+ */
+async function conversaDepoisDoToque(
+  chave: string, telefone: string, ultimoToqueIso: string, ate: string | null | undefined,
+): Promise<'nossa' | 'dela' | null> {
+  const corte = new Date(Date.parse(ultimoToqueIso) + MARGEM_DO_TOQUE_MS).toISOString();
+  const { data: mapa, error: eMapa } = await supabase.from('wa_lid_telefone').select('lid').eq('chave', chave).limit(50);
+  if (eMapa) throw new Error(`mapa de LID: ${eMapa.message}`);
+  const lids = new Set(((mapa ?? []) as Array<{ lid: string }>).map(m => String(m.lid).replace(/\D/g, '')).filter(Boolean));
+  const consultas = [
+    supabase.from('wa_mensagens').select('telefone, momment, from_me').eq('is_group', false)
+      .gte('momment', corte).like('telefone', `%${telefone.slice(-8)}%`).limit(100),
+  ];
+  if (lids.size) {
+    consultas.push(supabase.from('wa_mensagens').select('telefone, momment, from_me').eq('is_group', false)
+      .gte('momment', corte).in('telefone', [...lids]).limit(50));
+  }
+  let achou: 'nossa' | 'dela' | null = null;
+  for (const r of await Promise.all(consultas)) {
+    if (r.error) throw new Error(`conversa depois do toque: ${r.error.message}`);
+    for (const m of (r.data ?? []) as Array<{ telefone: string | null; momment: string; from_me: boolean | null }>) {
+      const d = String(m.telefone ?? '').replace(/\D/g, '');
+      if (!(d.length > 13 ? lids.has(d) : chaveContato(d) === chave)) continue;
+      if (!m.from_me && ate && m.momment <= ate) continue;   // dela, já lida pelo tratador
+      if (m.from_me) return 'nossa';
+      achou = 'dela';
+    }
+  }
+  return achou;
+}
+
+/** Fecha a sessão como o tratador de respostas fecha quem ganhou card por outra porta:
+ *  `agendado`, motivo `card_por_outra_porta`, sem mensagem. Relê a sessão antes de gravar. */
+async function fecharPorCardDeOutraPorta(chave: string, card: number): Promise<void> {
+  const { data, error } = await supabase.from('system_state').select('value').eq('key', chaveDaSessao(chave)).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.value) return;
+  await gravarSessao(chave, { ...(data.value as SessaoInvestidor), estagio: 'agendado', agendamento_id: card, motivo: 'card_por_outra_porta' });
+}
+
+/** Marca o fim do ciclo de retomadas desta pessoa (`outra_conversa`). Estágio intacto, sem mensagem, sem silêncio. */
+async function encerrarCicloDeRetomadas(chave: string): Promise<void> {
+  const { data, error } = await supabase.from('system_state').select('value').eq('key', chaveDaSessao(chave)).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.value) return;
+  await gravarSessao(chave, { ...(data.value as SessaoInvestidor), ciclo_encerrado: 'outra_conversa', ciclo_encerrado_em: new Date().toISOString() });
+}
+
+export interface ResultadoRetomada { enviados: number; motivo?: string; toque?: number; para?: string; erro?: string; vencidas?: number }
+
+/** Quantas vencidas olhamos a conversa por rodada (uma consulta cada, em paralelo). */
+const CONVERSAS_CONFERIDAS_POR_RODADA = 40;
+
+/** Um envio por chamada, sempre. */
+export async function runInvestidorRetomadaTick(opts: { agora?: Date } = {}): Promise<ResultadoRetomada> {
+  const agora = opts.agora ?? new Date();
+  const sem = (motivo: string, extra: Partial<ResultadoRetomada> = {}): ResultadoRetomada => ({ enviados: 0, motivo, ...extra });
+
+  // 1) Chave de desligar.
+  const chave = await lerChaveDesligar();
+  if (chave.off) return sem(`desligada_${chave.por}`);
+
+  // 2) Disjuntor geral (erros de envio e pedidos de parada). Sem conseguir ler, não envia.
+  let disjuntor: Disjuntor;
+  let paradas: number;
+  try {
+    [disjuntor, paradas] = await Promise.all([lerDisjuntor(), contarParadasHoje(agora)]);
+  } catch (err) {
+    logger.error(LOG, 'retomadas: ler o disjuntor falhou', err);
+    return sem('erro_leitura_disjuntor');
+  }
+  if (disjuntor.aberto) return sem('disjuntor_erros_de_envio');
+  if (paradas >= PARADAS_ATE_PARAR) return sem('disjuntor_pedidos_de_parada');
+
+  // 3) Início e janela própria.
+  if (antesDoInicio(agora)) return sem('antes_do_inicio');
+  if (!janelaAberta(agora)) return sem('fora_da_janela');
+
+  // 4) Teto do dia, que as retomadas dividem com as aberturas, e a cota delas: só
+  //    enquanto `retomadas de hoje < min(15, teto - 5)`.
+  const rampa = await rampaReconexaoVigente(agora);
+  const teto = tetoDoDia(agora, process.env.INVESTIDOR_AGENTE_TETO, rampa?.dia ?? null);
+  let enviadosHoje: number;
+  let retomadasHoje: number;
+  try {
+    [enviadosHoje, retomadasHoje] = await Promise.all([contarEnviadosHoje(agora), contarRetomadasHoje(agora)]);
+  } catch (err) {
+    logger.error(LOG, 'retomadas: contar os envios de hoje falhou', err);
+    return sem('erro_leitura_teto');
+  }
+  if (enviadosHoje >= teto) return sem('teto_do_dia');
+  const limite = limiteDeRetomadasHoje(teto, process.env.INVESTIDOR_AGENTE_RETOMADAS_DIA);
+  if (retomadasHoje >= limite) return sem('cota_de_retomadas', { vencidas: undefined });
+
+  // 5) Quem venceu pelo calendário (sessões e carimbos). Sem ninguém, nem lê o resto.
+  let sessoes: Map<string, SessaoInvestidor>;
+  let carimbos: Map<string, CarimbosDosToques>;
+  try {
+    [sessoes, carimbos] = await Promise.all([lerSessoes(), lerCarimbosDeToque()]);
+  } catch (err) {
+    logger.error(LOG, 'retomadas: ler sessões e carimbos falhou', err);
+    return sem('erro_leitura_retomadas');
+  }
+  const nada = () => false;
+  if (!montarRetomadas(sessoes, carimbos, { silenciado: nada, bloqueado: nada, mudo: nada, comHumano: nada }, agora.getTime()).fila.length) {
+    return sem('nenhuma_vencida');
+  }
+
+  // 6) A linha: os mesmos freios da abertura.
+  const linhaComFolga = rampa
+    ? await dentroDoTetoHorarioLinha()
+    : await dentroDoTetoHorarioLinha({ pisoDia: maxPorDia() });
+  if (!linhaComFolga) return sem('teto_da_linha');
+  if (!(await respeitaEspacamentoLinha())) return sem('espacamento_da_linha');
+
+  // 7) Os cortes, em modo estrito: erro de leitura derruba a rodada e ninguém recebe.
+  //    O mudo aqui é o de 3 toques em 60 dias (parecer anti-ban), não o de 2 da abertura.
+  let resultado: ResultadoRetomadas;
+  try {
+    const [silenciado, mudo, bloqueado, pausa] = await Promise.all([
+      carregarSilenciados({ estrito: true }),
+      carregarMudos(3, 60, { estrito: true }),
+      carregarBloqueados({ estrito: true }),
+      carregarPausas({ estrito: true }),
+    ]);
+    resultado = montarRetomadas(sessoes, carimbos, { silenciado, bloqueado, mudo, comHumano: (tel: string) => !pausa(tel).pode }, agora.getTime());
+  } catch (err) {
+    logger.error(LOG, 'retomadas: ler os cortes falhou, ninguém recebe nesta rodada', err);
+    return sem('erro_leitura_cortes');
+  }
+  const vencidas = resultado.fila.length;
+  if (!vencidas) return sem('nenhuma_passou_nos_cortes', { vencidas: 0 });
+
+  // 8) A conversa desde o toque anterior. Mensagem DELA depois do cursor só adia (o
+  //    tratador de respostas cuida). Mensagem NOSSA (pauta de outro robô, o consultor
+  //    escrevendo) ENCERRA o ciclo de retomadas daquela pessoa: nunca mais recebe, a
+  //    sessão não muda de estágio, nada é enviado e ninguém é silenciado. Conversa que
+  //    não deu para ler adia: não saber é não falar.
+  const olhadas = resultado.fila.slice(0, CONVERSAS_CONFERIDAS_POR_RODADA);
+  const conversas = await Promise.all(olhadas.map(c =>
+    conversaDepoisDoToque(c.chave, c.telefone, c.ultimoToqueEm, sessoes.get(c.chave)?.ate).then(
+      (quem) => ({ quem, erro: false }),
+      (err: unknown) => { logger.error(LOG, `retomadas: ler a conversa falhou (final ${c.telefone.slice(-2)})`, err); return { quem: 'dela' as const, erro: true }; },
+    )));
+  for (let i = 0; i < olhadas.length; i++) {
+    if (conversas[i]!.quem !== 'nossa') continue;
+    try {
+      await encerrarCicloDeRetomadas(olhadas[i]!.chave);
+      logger.info(LOG, `retomadas: ciclo encerrado, outra conversa (final ${olhadas[i]!.telefone.slice(-2)})`);
+    } catch (err) {
+      logger.error(LOG, 'retomadas: marcar o ciclo encerrado falhou', err);
+    }
+  }
+  const livres = olhadas.filter((_, i) => conversas[i]!.quem === null);
+  if (!livres.length) {
+    return sem(conversas.every(c => c.erro) ? 'erro_leitura_conversa' : 'conversa_nova_desde_o_toque', { vencidas });
+  }
+
+  // 9) Card na agenda. Quem ganhou card por outra porta (o consultor falou por telefone e
+  //    criou à mão) já tem reunião: não recebe, e a sessão fecha como o tratador fecha em
+  //    `card_por_outra_porta`, sem mensagem. Card `cancelado` não conta. Erro de leitura não envia.
+  let alvo: CandidatoRetomada | null = null;
+  for (const c of livres) {
+    let card: number | null;
+    try {
+      card = await cardDoTelefone(c.telefone, true);
+    } catch (err) {
+      logger.error(LOG, 'retomadas: conferir o card falhou, ninguém recebe nesta rodada', err);
+      return sem('erro_leitura_card', { vencidas });
+    }
+    if (card === null) { alvo = c; break; }
+    try {
+      await fecharPorCardDeOutraPorta(c.chave, card);
+      logger.info(LOG, `retomadas: card ${card} por outra porta, sessão fechada (final ${c.telefone.slice(-2)})`);
+    } catch (err) {
+      logger.error(LOG, 'retomadas: fechar a sessão por card falhou', err);
+      return sem('erro_fechar_por_card', { vencidas });
+    }
+  }
+  if (!alvo) return sem('card_por_outra_porta', { vencidas });
+
+  // 10) Pausa humana daquele telefone, conferida de novo na hora de falar.
+  if (!(await podeFalarComLead(alvo.telefone)).pode) {
+    await registrarBloqueio(alvo.telefone, LOG);
+    return sem('humano_na_conversa', { vencidas });
+  }
+
+  // CLAIM: o insert do carimbo do toque, ANTES do envio. 23505 = esse toque já saiu
+  // (ou outra chamada o pegou): ele não sai duas vezes.
+  const texto = renderRetomada(alvo.toque, alvo.chave, alvo.nome, alvo.valorTxt);
+  const nowIso = new Date().toISOString();
+  const keyDoToque = `${INV_SENT_PREFIX}${alvo.chave}:t${alvo.toque}`;
+  const { error: eClaim } = await supabase.from('system_state')
+    .insert({ key: keyDoToque, value: { em: nowIso, retomada: true }, updated_at: nowIso });
+  if (eClaim) {
+    if (String((eClaim as { code?: string }).code) === '23505') return sem('ja_reivindicado', { toque: alvo.toque });
+    logger.error(LOG, 'retomadas: claim do toque falhou', eClaim);
+    return sem('erro_claim', { toque: alvo.toque });
+  }
+
+  // UMA bolha. Erro de envio: o carimbo não pode ficar sem mensagem (ele conta no
+  // teto e marca o toque como dado), então sai, e o disjuntor de 2 erros seguidos conta.
+  const fim4 = alvo.telefone.slice(-4);
+  try {
+    await sendFrio(alvo.telefone, [texto.texto], 'io');
+  } catch (err) {
+    const erro = String((err as Error)?.message || err).slice(0, 300);
+    logger.error(LOG, `retomada ${alvo.toque} falhou para o final ${fim4}`, err);
+    await supabase.from('system_state').delete().eq('key', keyDoToque)
+      .then(undefined, (e: unknown) => logger.error(LOG, 'desfazer o carimbo do toque não funcionou', e));
+    const erros = disjuntor.erros_seguidos + 1;
+    await gravarDisjuntor({ erros_seguidos: erros, aberto: erros >= ERROS_ATE_ABRIR, ultimo_erro: erro });
+    return sem('erro_envio', { erro, toque: alvo.toque });
+  }
+
+  // Envio feito: a sessão anota o toque (releitura, para não passar por cima do que
+  // outra coisa tenha gravado nela desde a leitura de agora há pouco).
+  try {
+    const { data, error } = await supabase.from('system_state').select('value').eq('key', chaveDaSessao(alvo.chave)).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.value) await gravarSessao(alvo.chave, { ...(data.value as SessaoInvestidor), toques: alvo.toque, ultimo_toque_em: nowIso });
+  } catch (err) {
+    logger.error(LOG, `retomada enviada (final ${fim4}) mas a sessão não anotou o toque: o carimbo vale`, err);
+  }
+  if (disjuntor.erros_seguidos > 0) await gravarDisjuntor({ erros_seguidos: 0, aberto: false });
+
+  logger.info(LOG, `retomada ${alvo.toque} enviada (final ${fim4}, vencida há ${alvo.vencidaHaDias} dia(s))`);
+  return { enviados: 1, toque: alvo.toque, para: `final ${fim4}`, vencidas };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1741,10 +2143,19 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
   const respostas = await runInvestidorRespostasTick().catch((e) => ({ error: String(e) }));
   const recuperacao = await recuperarEscolhasPendentes().catch((e) => ({ reprocessadas: 0, erros: 1, error: String(e) }));
   const fecho = await fecharResgatesSemResposta().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
-  const abertura = await runInvestidorAberturaTick().catch((e) => ({ error: String(e) }));
+  const fechoRetomadas = await fecharRetomadasEsgotadas().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
+  // As retomadas saem ANTES das aberturas, e é um envio por rodada: se uma saiu, a
+  // abertura espera a próxima. Se nenhuma passou nos portões, a rodada segue para a
+  // abertura (principal ou resgate).
+  const retomada = await runInvestidorRetomadaTick().catch((e) => ({ enviados: 0, erro: String(e) } as ResultadoRetomada));
+  const abertura = retomada.enviados
+    ? { enviados: 0, motivo: 'retomada_enviada' }
+    : await runInvestidorAberturaTick().catch((e) => ({ error: String(e) }));
   return {
     ok: true, respostas, abertura,
+    ...(retomada.enviados || retomada.erro || retomada.motivo === 'erro_envio' ? { retomada } : {}),
     ...(recuperacao.reprocessadas || recuperacao.erros ? { recuperacao } : {}),
     ...(fecho.fechadas || fecho.erros ? { fecho } : {}),
+    ...(fechoRetomadas.fechadas || fechoRetomadas.erros ? { fecho_retomadas: fechoRetomadas } : {}),
   };
 }

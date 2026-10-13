@@ -44,6 +44,15 @@ export const sessaoAtiva = (estagio: unknown): boolean =>
 export const CHAMADO_SEM_RESPOSTA_MS = 10 * 86_400_000;
 
 /**
+ * Sessão que está no ciclo de RETOMADAS (`toques` de 2 em diante, 13/10/2026)
+ * continua sendo da Helena por este prazo, contado do último toque: o toque 3 diz
+ * "responde aqui quando puder" e o 4 só vem 53 dias depois, e quem responde nesse
+ * intervalo não pode cair na recepção se apresentando do zero. O fecho do ciclo
+ * (sem_interesse) encerra a posse antes disso.
+ */
+export const RETOMADA_VALE_MS = 70 * 86_400_000;
+
+/**
  * Quem ADIOU ("mês que vem eu te procuro") continua sendo conversa da Helena por
  * este prazo, contado do adiamento: ela não manda mais nada por conta própria,
  * mas se a pessoa escrever é ela quem responde, e não a recepção se
@@ -65,7 +74,10 @@ export const ADIADO_VALE_MS = 60 * 86_400_000;
  *     dias e escreve agora quase sempre fala de outra coisa.
  */
 export function sessaoEhDaHelena(valor: unknown, agora: number = Date.now()): boolean {
-  const v = (valor ?? {}) as { estagio?: unknown; aberto_em?: unknown; erro?: unknown; adiado_em?: unknown; atualizado_em?: unknown };
+  const v = (valor ?? {}) as {
+    estagio?: unknown; aberto_em?: unknown; erro?: unknown; adiado_em?: unknown; atualizado_em?: unknown;
+    toques?: unknown; ultimo_toque_em?: unknown;
+  };
   if (v.erro) return false;
   if (v.estagio === 'adiado') {
     const adiou = Date.parse(String(v.adiado_em || v.atualizado_em || ''));
@@ -73,8 +85,9 @@ export function sessaoEhDaHelena(valor: unknown, agora: number = Date.now()): bo
   }
   if (!sessaoAtiva(v.estagio)) return false;
   if (v.estagio === 'chamado') {
-    const aberto = Date.parse(String(v.aberto_em || ''));
-    if (Number.isFinite(aberto) && agora - aberto > CHAMADO_SEM_RESPOSTA_MS) return false;
+    const noCiclo = Number(v.toques) >= 2;
+    const desde = Date.parse(String(noCiclo ? (v.ultimo_toque_em || v.aberto_em || '') : (v.aberto_em || '')));
+    if (Number.isFinite(desde) && agora - desde > (noCiclo ? RETOMADA_VALE_MS : CHAMADO_SEM_RESPOSTA_MS)) return false;
   }
   return true;
 }

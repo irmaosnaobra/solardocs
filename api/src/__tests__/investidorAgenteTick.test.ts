@@ -233,9 +233,11 @@ vi.mock('../services/io/eletropostoCard', async (orig) => ({
 import {
   runInvestidorAberturaTick, runInvestidorRespostasTick, previaInvestidorAgente, definirChaveDesligar,
   lerChaveDesligar, rodarInvestidorAgente, reivindicarRodada, sondarHelena, fecharResgatesSemResposta, recuperarEscolhasPendentes,
+  runInvestidorRetomadaTick, fecharRetomadasEsgotadas,
   INV_RESGATE_PREFIX, INV_SENT_PREFIX, INV_OFF_KEY, INV_DISJUNTOR_KEY, INV_LOCK_PREFIX, type SessaoInvestidor,
 } from '../services/io/investidorAgente';
 import * as T from '../services/io/investidorAgenteTextos';
+import { renderRetomada } from '../services/io/investidorAgentePuro';
 
 const brt = (s: string): Date => new Date(`${s}:00-03:00`);
 const LARGADA = brt('2026-10-11T08:00');
@@ -1732,7 +1734,7 @@ describe('resgate dos cancelados', () => {
 
     it('leitura dos carimbos que falha: o resgate não envia, e a fila principal segue', async () => {
       card(TEL.ANA, { dias: 15 });
-      saiuHoje(2);                                         // a próxima seria a 3ª: vez do resgate
+      saiuHoje(1);                                         // a próxima seria a 2ª abertura: vez do resgate
       h.falhaDoLike = 'ep_liberado_sim:';
       const r = await abrir(HOJE);
       expect(r).toMatchObject({ enviados: 1, para: 'final 0002' });   // Bruno, da principal
@@ -1754,20 +1756,28 @@ describe('resgate dos cancelados', () => {
   });
 
   describe('dose e posição', () => {
-    it('a 1ª e a 2ª abertura do dia são da fila principal; a 3ª é do resgate', async () => {
+    it('a 1ª abertura do dia é da fila principal; a 2ª é do resgate; a 3ª volta à principal', async () => {
       card(TEL.ANA, { dias: 15 });
       const a = await abrir(HOJE);
       expect(a).toMatchObject({ enviados: 1, para: 'final 0002' });
       const b = await abrir(HOJE);
-      expect(b).toMatchObject({ enviados: 1, para: 'final 0003' });
+      expect(b).toMatchObject({ enviados: 1, para: 'final 0001', grupo: 'resgate' });
       const c = await abrir(HOJE);
-      expect(c).toMatchObject({ enviados: 1, para: 'final 0001', grupo: 'resgate' });
-      expect(h.zap.frio.map(f => f.tel)).toEqual([TEL.BRUNO, TEL.CARLA, TEL.ANA]);
+      expect(c).toMatchObject({ enviados: 1, para: 'final 0003' });
+      expect(h.zap.frio.map(f => f.tel)).toEqual([TEL.BRUNO, TEL.ANA, TEL.CARLA]);
+    });
+
+    it('as RETOMADAS do dia não deslocam a posição do resgate: só as aberturas contam', async () => {
+      card(TEL.ANA, { dias: 15 });
+      saiuHoje(1);                                         // 1 abertura
+      for (let i = 0; i < 6; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:3400${3000 + i}:t2`, value: {}, updated_at: new Date(HOJE.getTime() - 3600_000).toISOString() });
+      const r = await abrir(HOJE);                         // 7 envios no dia, mas é a 2ª ABERTURA
+      expect(r).toMatchObject({ enviados: 1, grupo: 'resgate', para: 'final 0001' });
     });
 
     it('a abertura de resgate: uma bolha com nome, valor e mês; sessão com os três campos; dois carimbos', async () => {
       card(TEL.ANA, { dias: 15, quando: '2026-09-24T17:00:00Z' });
-      saiuHoje(2);
+      saiuHoje(1);
       const r = await abrir(HOJE);
       expect(r).toMatchObject({ enviados: 1, grupo: 'resgate', para: 'final 0001' });
       expect(h.zap.frio).toHaveLength(1);
@@ -1792,7 +1802,7 @@ describe('resgate dos cancelados', () => {
     });
 
     it('sem elegível na vez do resgate, sai a fila principal', async () => {
-      saiuHoje(2);
+      saiuHoje(1);
       const r = await abrir(HOJE);
       expect(r).toMatchObject({ enviados: 1, para: 'final 0002' });
       expect(r.grupo).toBeUndefined();
@@ -1817,7 +1827,7 @@ describe('resgate dos cancelados', () => {
 
     it('a 6ª de resgate do dia não sai, mesmo na vez dela, e a principal ocupa o lugar', async () => {
       card(TEL.ANA, { dias: 15 });
-      saiuHoje(7);                                         // a próxima é a 8ª: vez do resgate
+      saiuHoje(6);                                         // a próxima é a 7ª abertura: vez do resgate
       resgatesHoje(5);                                     // mas a cota de 5 já foi
       const r = await abrir(HOJE);
       expect(r).toMatchObject({ enviados: 1, para: 'final 0002' });
@@ -1828,7 +1838,7 @@ describe('resgate dos cancelados', () => {
       process.env.INVESTIDOR_AGENTE_RESGATE_DIA = '1';
       card(TEL.ANA, { dias: 15 });
       resgatesHoje(1);
-      saiuHoje(2);
+      saiuHoje(1);
       const r = await abrir(HOJE);
       expect(r.grupo).toBeUndefined();
       const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
@@ -1841,10 +1851,10 @@ describe('resgate dos cancelados', () => {
       card(TEL.ANA, { dias: 15 });
       const um = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
       expect(um.resgate.proxima_abertura).toEqual({ posicao: 1, grupo: 'principal' });
-      saiuHoje(2);
-      const tres = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
-      expect(tres.resgate.proxima_abertura).toEqual({ posicao: 3, grupo: 'resgate' });
-      expect(tres.resgate.disjuntor_do_grupo).toEqual({ pedidos_de_parada_hoje: 0, limite: 2, aberto: false });
+      saiuHoje(1);
+      const dois = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
+      expect(dois.resgate.proxima_abertura).toEqual({ posicao: 2, grupo: 'resgate' });
+      expect(dois.resgate.disjuntor_do_grupo).toEqual({ pedidos_de_parada_hoje: 0, limite: 2, aberto: false });
     });
   });
 
@@ -1864,10 +1874,10 @@ describe('resgate dos cancelados', () => {
       expect(h.opt.map(o => o.motivo)).toEqual(['opt_out', 'opt_out']);
       expect(h.zap.humano).toHaveLength(2);
 
-      // Agora o resgate está desligado: na vez dele (3ª) sai a fila principal. A
+      // Agora o resgate está desligado: na vez dele (2ª) sai a fila principal. A
       // cobertura de elegível vem de um terceiro cancelado.
       card(TEL.BRUNO, { dias: 15 });
-      for (let i = 0; i < 2; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:34000${1000 + i}:t1`, value: {}, updated_at: new Date(AGORA_DIA.getTime() - 1800_000).toISOString() });
+      for (let i = 0; i < 1; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:34000${1000 + i}:t1`, value: {}, updated_at: new Date(AGORA_DIA.getTime() - 1800_000).toISOString() });
       const r = await abrir(new Date(AGORA_DIA.getTime() + 60_000));
       expect(r.motivo).not.toBe('disjuntor_pedidos_de_parada');
       expect(r.grupo).toBeUndefined();
@@ -2318,5 +2328,555 @@ describe('recuperação da escolha pendente', () => {
     const r = await rodarInvestidorAgente() as Record<string, any>;
     expect(r.recuperacao).toMatchObject({ reprocessadas: 1, agendadas: 1 });
     expect(sessaoDe(ANA).estagio).toBe('agendado');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RETOMADAS (13/10/2026): toques 2 a 5
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('retomadas dos toques 2 a 5', () => {
+  const HOJE = brt('2026-10-15T10:00');                 // quinta-feira: teto 20, janela da linha
+  const dAtras = (d: number): string => new Date(HOJE.getTime() - d * 86_400_000).toISOString();
+  const TEL = { ANA: '5534999990001', BRUNO: '5534999990002', CARLA: '5534999990003' };
+  const retomar = (agora: Date = HOJE) => { vi.setSystemTime(agora); return runInvestidorRetomadaTick({ agora }); };
+
+  /** A sessão chamada, com os carimbos dos toques `dias` atrás (1 por posição: t1, t2...). */
+  function pessoa(chave: string, tel: string, dias: number[], over: Partial<SessaoInvestidor> = {}, nome = 'Ana Lima') {
+    sessao(chave, { telefone: tel, nome, aberto_em: dAtras(dias[0]!), ...over });
+    dias.forEach((d, i) => h.banco.main.system_state!.push({ key: `inv_agente_sent:${chave}:t${i + 1}`, value: {}, updated_at: dAtras(d) }));
+  }
+  const retomadasDeHoje = (n: number) => {
+    for (let i = 0; i < n; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:3400${1000 + i}:t2`, value: {}, updated_at: dAtras(0.1) });
+  };
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(HOJE); });
+
+  describe('quando cada toque vence, contado do toque ANTERIOR', () => {
+    it('toque 2: 3 dias depois do toque 1', async () => {
+      pessoa(ANA, TEL.ANA, [2.9]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });
+      h.banco.main.system_state = h.banco.main.system_state!.filter(r => !String(r.key).startsWith('inv_agente'));
+      pessoa(ANA, TEL.ANA, [3.1]);
+      const r = await retomar();
+      expect(r).toMatchObject({ enviados: 1, toque: 2, para: 'final 0001' });
+      expect(h.zap.frio).toHaveLength(1);
+      expect(h.zap.frio[0]!.partes).toEqual([renderRetomada(2, ANA, 'Ana Lima', 'R$ 140 mil').texto]);
+      expect(chaves('inv_agente_sent:')).toContain(`inv_agente_sent:${ANA}:t2`);
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'chamado', toques: 2, ultimo_toque_em: HOJE.toISOString() });
+    });
+
+    it('toque 3: 4 dias depois do toque 2 (e não do dia 0)', async () => {
+      pessoa(ANA, TEL.ANA, [10, 3.9]);                  // o dia 0 foi há 10 dias, mas o toque 2 há 3,9
+      expect(await retomar()).toMatchObject({ motivo: 'nenhuma_vencida' });
+      h.banco.main.system_state = [];
+      pessoa(ANA, TEL.ANA, [10, 4.1]);
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 3 });
+    });
+
+    it('toque 4: 60 dias depois do toque 1, não do toque 3', async () => {
+      pessoa(ANA, TEL.ANA, [59, 56, 52]);
+      expect(await retomar()).toMatchObject({ motivo: 'nenhuma_vencida' });
+      h.banco.main.system_state = [];
+      pessoa(ANA, TEL.ANA, [61, 58, 54]);
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 4 });
+      expect(sessaoDe(ANA).toques).toBe(4);
+    });
+
+    it('toque 5: 7 dias depois do toque 4', async () => {
+      pessoa(ANA, TEL.ANA, [70, 67, 63, 6.5]);
+      expect(await retomar()).toMatchObject({ motivo: 'nenhuma_vencida' });
+      h.banco.main.system_state = [];
+      pessoa(ANA, TEL.ANA, [70, 67, 63, 7.1]);
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 5 });
+    });
+
+    it('o mesmo toque não sai duas vezes: a segunda chamada não manda nada', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      await retomar();
+      const segunda = await retomar();
+      expect(segunda.enviados).toBe(0);
+      expect(h.zap.frio).toHaveLength(1);
+      expect(chaves('inv_agente_sent:').filter(k => k.endsWith(':t2'))).toHaveLength(1);
+    });
+  });
+
+  describe('quem entra', () => {
+    it('`conversando` com zero respostas (só resposta automática) recebe; com resposta, não', async () => {
+      pessoa(ANA, TEL.ANA, [3.5], { estagio: 'conversando', respostas: 0 });
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 2 });
+      h.banco.main.system_state = []; h.zap.frio.length = 0;
+      pessoa(ANA, TEL.ANA, [3.5], { estagio: 'conversando', respostas: 1 });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });
+    });
+
+    for (const [rotulo, over] of [
+      ['o resgate (grupo)', { grupo: 'resgate', sem_retomada: true }],
+      ['adiado', { estagio: 'adiado' }], ['ofertou', { estagio: 'ofertou' }], ['humano', { estagio: 'humano' }],
+      ['agendado', { estagio: 'agendado' }], ['sem_interesse', { estagio: 'sem_interesse' }],
+      ['abertura com erro de envio', { erro: 'HTTP 500' }],
+    ] as Array<[string, Partial<SessaoInvestidor>]>) {
+      it(`${rotulo} não recebe`, async () => {
+        pessoa(ANA, TEL.ANA, [5], over);
+        expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });
+        expect(h.zap.frio).toHaveLength(0);
+      });
+    }
+  });
+
+  describe('dose, teto e ordem', () => {
+    it('15 por dia com teto 20: com 14 feitas a 15ª sai', async () => {
+      retomadasDeHoje(14);
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 1 });
+    });
+
+    it('15 por dia com teto 20: com 15 feitas a 16ª não sai', async () => {
+      retomadasDeHoje(15);
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'cota_de_retomadas' });
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('sempre sobram 5 vagas do teto para abertura: com teto 12 por env, a 7ª retomada ainda sai', async () => {
+      process.env.INVESTIDOR_AGENTE_TETO = '12';
+      retomadasDeHoje(6);
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 1 });
+    });
+
+    it('com teto 12, 7 retomadas feitas fecham a cota (12 - 5 = 7)', async () => {
+      process.env.INVESTIDOR_AGENTE_TETO = '12';
+      retomadasDeHoje(7);
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'cota_de_retomadas' });
+    });
+
+    it('a env só aperta: INVESTIDOR_AGENTE_RETOMADAS_DIA=2 para na terceira; 99 não passa de 15', async () => {
+      process.env.INVESTIDOR_AGENTE_RETOMADAS_DIA = '2';
+      retomadasDeHoje(2);
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'cota_de_retomadas' });
+      process.env.INVESTIDOR_AGENTE_RETOMADAS_DIA = '99';
+      h.banco.main.system_state = [];
+      retomadasDeHoje(15);
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'cota_de_retomadas' });
+    });
+
+    it('as retomadas contam no MESMO teto do dia da agente', async () => {
+      process.env.INVESTIDOR_AGENTE_TETO = '10';
+      for (let i = 0; i < 10; i++) h.banco.main.system_state!.push({ key: `inv_agente_sent:3400${2000 + i}:t1`, value: {}, updated_at: dAtras(0.1) });
+      pessoa(ANA, TEL.ANA, [3.5]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'teto_do_dia' });
+    });
+
+    it('entre as vencidas, a mais antiga primeiro', async () => {
+      pessoa(BRUNO, TEL.BRUNO, [4], {}, 'Bruno Reis');   // venceu há 1 dia
+      pessoa(ANA, TEL.ANA, [6]);                          // venceu há 3 dias
+      pessoa(CARLA, TEL.CARLA, [5], {}, 'Carla Dias');    // venceu há 2 dias
+      expect(await retomar()).toMatchObject({ enviados: 1, para: 'final 0001' });
+      expect(await retomar()).toMatchObject({ enviados: 1, para: 'final 0003' });
+      expect(await retomar()).toMatchObject({ enviados: 1, para: 'final 0002' });
+    });
+
+    it('retomada sai ANTES da abertura na rodada, e só uma coisa sai', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      const r = await rodarInvestidorAgente() as Record<string, any>;
+      expect(r.retomada).toMatchObject({ enviados: 1, toque: 2 });
+      expect(r.abertura).toMatchObject({ enviados: 0, motivo: 'retomada_enviada' });
+      expect(h.zap.frio.map(f => f.tel)).toEqual([TEL.ANA]);
+    });
+
+    it('se nenhuma retomada passa nos portões, a rodada segue para a abertura', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Mensagem da equipe', tipo: 'texto', from_me: true, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(1) });
+      const r = await rodarInvestidorAgente() as Record<string, any>;
+      expect(r.retomada).toBeUndefined();
+      expect(r.abertura).toMatchObject({ enviados: 1, para: 'final 0002' });     // o Bruno, da fila principal
+    });
+  });
+
+  describe('os portões', () => {
+    it('chave de desligar, fora da janela e disjuntor geral', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      process.env.INVESTIDOR_AGENTE_OFF = '1';
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'desligada_env' });
+      delete process.env.INVESTIDOR_AGENTE_OFF;
+      expect(await retomar(brt('2026-10-15T08:30'))).toMatchObject({ enviados: 0, motivo: 'fora_da_janela' });
+      for (const i of [1, 2, 3]) h.banco.main.system_state!.push({ key: `inv_agente_parar:2026-10-15:340000000${i}`, value: {}, updated_at: 'x' });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'disjuntor_pedidos_de_parada' });
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('teto e espaçamento da linha', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.linha.teto = false;
+      expect(await retomar()).toMatchObject({ motivo: 'teto_da_linha' });
+      h.linha.teto = true; h.linha.espaco = false;
+      expect(await retomar()).toMatchObject({ motivo: 'espacamento_da_linha' });
+      expect(h.zap.frio).toHaveLength(0);
+      // O mesmo piso da abertura (maxPorDia), e sem piso com a rampa armada.
+      h.linha.espaco = true;
+      await retomar();
+      expect(h.linha.pedidosDeTeto).toContainEqual({ pisoDia: 40 });
+    });
+
+    it('os dois cortes de mudo: o de 3 toques em 60 dias e o dos 3 carimbos próprios', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.filtros.mudos.add(TEL.ANA);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_passou_nos_cortes' });
+      expect(h.filtros.mudosCom).toBe(3);
+      expect(h.filtros.estritas).toContain('mudos');
+      h.filtros.mudos.clear(); h.banco.main.system_state = [];
+      // t2, t3 e t4 dentro de 60 dias: já são 3 carimbos, e o toque 5 espera.
+      pessoa(ANA, TEL.ANA, [90, 20, 15, 8]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });   // o corte vale já na conta das vencidas
+      expect(h.zap.frio).toHaveLength(0);
+      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
+      expect(p.retomadas).toMatchObject({ vencidas_por_toque: { 5: 1 }, passaram_nos_cortes: 0, excluidos: { toques_em_60_dias: 1 } });
+    });
+
+    it('opt-out, bloqueio, pausa humana: não recebe', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.filtros.silenciados.add(TEL.ANA);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_passou_nos_cortes' });
+      h.filtros.silenciados.clear(); h.filtros.pausados.add(TEL.ANA);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_passou_nos_cortes' });
+      h.filtros.pausados.clear();
+      h.filtros.antesDoClaim = () => h.filtros.pausados.add(TEL.ANA);   // entrou na hora de falar
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'humano_na_conversa' });
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('mensagem nova na conversa depois do toque anterior adia, nossa ou dela', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      h.banco.main.wa_mensagens = [{ id: 2, telefone: TEL.ANA, texto: 'Mensagem da equipe', tipo: 'texto', from_me: true, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) }];
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('o telefone vale pelas duas formas, com e sem o nono dígito', async () => {
+      pessoa(ANA, TEL.ANA, [4]);                                   // a sessão guarda COM o nono dígito
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: '553499990001', texto: 'Oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      h.banco.main.system_state = []; h.banco.main.wa_mensagens = [];
+      pessoa(ANA, '553499990001', [4]);                            // agora a sessão guarda SEM o nono dígito
+      h.banco.main.wa_mensagens!.push({ id: 2, telefone: TEL.ANA, texto: 'Oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+    });
+
+    it('quem digitou pelo celular da linha (LID) também adia', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      h.banco.main.wa_lid_telefone!.push({ lid: '123456789012345', chave: ANA, telefone: null });
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: '123456789012345', texto: 'Falei com ele', tipo: 'texto', from_me: true, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+    });
+
+    it('resposta automática do cliente já lida (até o `ate`) NÃO adia: o toque 2 sai em D+3', async () => {
+      // Abertura em D0, resposta automática 1 minuto depois, lida pelo tratador (`ate` em cima dela).
+      pessoa(ANA, TEL.ANA, [3.5], { estagio: 'conversando', respostas: 0, ate: new Date(HOJE.getTime() - 3.5 * 86_400_000 + 60_000).toISOString() });
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Obrigado pelo contato! Nosso horário é das 8 às 18h.', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: new Date(HOJE.getTime() - 3.5 * 86_400_000 + 60_000).toISOString() });
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 2 });
+    });
+
+    it('a mesma coisa, em `chamado` com o cursor em cima da mensagem: também sai', async () => {
+      const quando = new Date(HOJE.getTime() - 3.5 * 86_400_000 + 60_000).toISOString();
+      pessoa(ANA, TEL.ANA, [3.5], { estagio: 'chamado', ate: quando });
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Resposta automática', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: quando });
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 2 });
+    });
+
+    it('mensagem do cliente DEPOIS do `ate` adia: o tratador ainda vai ler', async () => {
+      const lida = new Date(HOJE.getTime() - 3.5 * 86_400_000 + 60_000).toISOString();
+      pessoa(ANA, TEL.ANA, [3.5], { estagio: 'conversando', respostas: 0, ate: lida });
+      h.banco.main.wa_mensagens!.push(
+        { id: 1, telefone: TEL.ANA, texto: 'Resposta automática', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: lida },
+        { id: 2, telefone: TEL.ANA, texto: 'Oi, vi agora', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(1) },
+      );
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('sem `ate` na sessão, a mensagem do cliente adia como antes', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+    });
+
+    it('mensagem NOSSA de outro robô em D+2 adia, mesmo com a resposta automática já lida', async () => {
+      const lida = new Date(HOJE.getTime() - 3.5 * 86_400_000 + 60_000).toISOString();
+      pessoa(ANA, TEL.ANA, [3.5], { estagio: 'conversando', respostas: 0, ate: lida });
+      h.banco.main.wa_mensagens!.push(
+        { id: 1, telefone: TEL.ANA, texto: 'Resposta automática', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: lida },
+        { id: 2, telefone: TEL.ANA, texto: 'Oi! Sou a Duda, como posso ajudar?', tipo: 'texto', from_me: true, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(1.5) },
+      );
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('o próprio toque anterior (a poucos minutos do carimbo) não conta como conversa nova', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Oi, Ana...', tipo: 'texto', from_me: true, is_group: false, instancia: 'LINHA_TESTE', momment: new Date(HOJE.getTime() - 4 * 86_400_000 + 60_000).toISOString() });
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 2 });
+    });
+
+    it('mensagem antiga, de antes do toque anterior, não adia', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(9) });
+      expect(await retomar()).toMatchObject({ enviados: 1 });
+    });
+
+    it('leitura que falha não envia: carimbos, conversa e cortes', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.falhaDoLike = 'inv_agente_sent:';
+      expect((await retomar()).enviados).toBe(0);
+      h.falhaDoLike = null;
+      h.falhaDeLeitura.add('wa_mensagens');
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'erro_leitura_conversa' });
+      h.falhaDeLeitura.clear();
+      h.filtros.falha.add('mudos');
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'erro_leitura_cortes' });
+      h.filtros.falha.clear();
+      h.filtros.falha.add('silenciados');
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'erro_leitura_cortes' });
+      expect(h.zap.frio).toHaveLength(0);
+      expect(chaves('inv_agente_sent:').filter(k => k.endsWith(':t2'))).toHaveLength(0);
+    });
+  });
+
+  describe('o envio e o erro', () => {
+    it('uma bolha, e a sessão ganha toques e ultimo_toque_em', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      await retomar();
+      expect(h.zap.frio[0]!.partes).toHaveLength(1);
+      expect(h.zap.frio[0]!.tel).toBe(TEL.ANA);
+      expect(sessaoDe(ANA)).toMatchObject({ toques: 2, ultimo_toque_em: HOJE.toISOString(), estagio: 'chamado' });
+    });
+
+    it('erro de envio: o carimbo não fica sem mensagem, o disjuntor de 2 erros seguidos conta', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      pessoa(BRUNO, TEL.BRUNO, [3.4], {}, 'Bruno Reis');
+      h.zap.erroNoFrio = true;
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'erro_envio', toque: 2 });
+      expect(chaves('inv_agente_sent:').filter(k => k.endsWith(':t2'))).toHaveLength(0);
+      expect(estado(INV_DISJUNTOR_KEY)!.value).toMatchObject({ erros_seguidos: 1 });
+      expect(await retomar()).toMatchObject({ motivo: 'erro_envio' });
+      expect(estado(INV_DISJUNTOR_KEY)!.value).toMatchObject({ erros_seguidos: 2, aberto: true });
+      h.zap.erroNoFrio = false;
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'disjuntor_erros_de_envio' });
+    });
+
+    it('pedido de parada em resposta a retomada conta no disjuntor GERAL', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      await retomar();
+      vi.setSystemTime(HOJE);
+      h.banco.main.wa_mensagens!.push({ id: 9, telefone: TEL.ANA, texto: 'pare', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: new Date(HOJE.getTime() + 60_000).toISOString() });
+      vi.setSystemTime(new Date(HOJE.getTime() + 5 * 60_000));
+      await runInvestidorRespostasTick();
+      expect(chaves('inv_agente_parar:')).toHaveLength(1);
+      expect(chaves('inv_agente_parar_resgate:')).toHaveLength(0);
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'pediu_parar' });
+    });
+
+    it('quem responde a uma retomada tardia ainda é atendido pela Helena (posse do ciclo)', async () => {
+      // Aberta há 30 dias, 3 toques, o último há 2 dias: a conversa é dela.
+      sessao(ANA, { aberto_em: dAtras(30), toques: 3, ultimo_toque_em: dAtras(2), telefone: TEL.ANA });
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Ainda tenho interesse', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(0.01) });
+      ia('continuar', ['Que bom, Ana.']);
+      vi.setSystemTime(HOJE);
+      const r = await runInvestidorRespostasTick();
+      expect(r).toMatchObject({ respondidas: 1 });
+      expect(sessaoDe(ANA).estagio).toBe('conversando');
+    });
+  });
+
+  describe('o fecho: 7 dias depois do toque 5 sem resposta', () => {
+    it('vira sem_interesse/sem_resposta, silencia como nunca_respondeu e não manda nada', async () => {
+      pessoa(ANA, TEL.ANA, [80, 77, 73, 20, 7.1]);
+      const r = await fecharRetomadasEsgotadas(HOJE.getTime());
+      expect(r).toMatchObject({ fechadas: 1, erros: 0 });
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
+      expect(h.opt).toEqual([{ tel: TEL.ANA, motivo: 'nunca_respondeu', origem: 'investidor-agente' }]);
+      expect(h.zap.frio).toHaveLength(0); expect(h.zap.humano).toHaveLength(0); expect(h.zap.equipe).toHaveLength(0);
+      // O status do cadastro NÃO muda.
+      expect(h.atualizacoes).toHaveLength(0);
+    });
+
+    it('6 dias depois do toque 5: ainda não', async () => {
+      pessoa(ANA, TEL.ANA, [80, 77, 73, 20, 6]);
+      expect(await fecharRetomadasEsgotadas(HOJE.getTime())).toMatchObject({ fechadas: 0 });
+      expect(sessaoDe(ANA).estagio).toBe('chamado');
+    });
+
+    it('quem já está na supressão não é regravado, e a sessão fecha do mesmo jeito', async () => {
+      pessoa(ANA, TEL.ANA, [80, 77, 73, 20, 8]);
+      h.filtros.silenciados.add(TEL.ANA);
+      expect(await fecharRetomadasEsgotadas(HOJE.getTime())).toMatchObject({ fechadas: 1 });
+      expect(h.opt).toHaveLength(0);
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
+    });
+
+    it('no máximo 5 por rodada; o resgate e quem respondeu ficam fora', async () => {
+      for (let i = 1; i <= 7; i++) pessoa(`349999200${i}`, `5534999992${String(i).padStart(3, '0')}`, [80, 77, 73, 20, 8 + i]);
+      pessoa('3499993001', '5534999993001', [80, 77, 73, 20, 30], { grupo: 'resgate', sem_retomada: true });
+      expect(await fecharRetomadasEsgotadas(HOJE.getTime())).toMatchObject({ fechadas: 5 });
+      expect(h.opt).toHaveLength(5);
+      expect(sessaoDe('3499993001').estagio).toBe('chamado');
+    });
+
+    it('a rodada completa fecha antes de retomar, sem mensagem por causa do fecho', async () => {
+      pessoa(ANA, TEL.ANA, [80, 77, 73, 20, 8]);
+      const r = await rodarInvestidorAgente() as Record<string, any>;
+      expect(r.fecho_retomadas).toMatchObject({ fechadas: 1 });
+      expect(sessaoDe(ANA).motivo).toBe('sem_resposta');
+    });
+  });
+
+  describe('quem já tem card na agenda não é retomado', () => {
+    const cardAgenda = (tel: string, status: string, id = 7) =>
+      h.banco.ger.agendamentos!.push({ id, cliente_telefone: tel, status, quando: '2026-10-20T17:00:00Z' });
+
+    it('card `agendado` criado por outra porta: nenhum envio, e a sessão fecha como card_por_outra_porta', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      cardAgenda(TEL.ANA, 'agendado');
+      const r = await retomar();
+      expect(r).toMatchObject({ enviados: 0, motivo: 'card_por_outra_porta' });
+      expect(h.zap.frio).toHaveLength(0);
+      expect(chaves('inv_agente_sent:').filter(k => k.endsWith(':t2'))).toHaveLength(0);
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta', agendamento_id: 7 });
+      expect(h.opt).toHaveLength(0);
+    });
+
+    it('a rodada segue para a próxima vencida depois de fechar a que tinha card', async () => {
+      pessoa(ANA, TEL.ANA, [6]);                         // a mais antiga, com card
+      pessoa(BRUNO, TEL.BRUNO, [4], {}, 'Bruno Reis');
+      cardAgenda(TEL.ANA, 'agendado');
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 2, para: 'final 0002' });
+      expect(sessaoDe(ANA).estagio).toBe('agendado');
+    });
+
+    it('card `cancelado` não conta: o toque sai normalmente', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      cardAgenda(TEL.ANA, 'cancelado');
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 2 });
+      expect(sessaoDe(ANA).estagio).toBe('chamado');
+    });
+
+    it('erro na leitura do card não envia', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      h.falhaDeLeitura.add('agendamentos');
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'erro_leitura_card' });
+      expect(h.zap.frio).toHaveLength(0);
+      expect(sessaoDe(ANA).estagio).toBe('chamado');
+    });
+
+    it('o fecho depois do toque 5 não silencia quem tem card: a sessão fecha por card_por_outra_porta', async () => {
+      pessoa(ANA, TEL.ANA, [80, 77, 73, 20, 8]);
+      pessoa(BRUNO, TEL.BRUNO, [80, 77, 73, 20, 9], {}, 'Bruno Reis');
+      cardAgenda(TEL.ANA, 'agendado');
+      cardAgenda(TEL.BRUNO, 'cancelado', 8);
+      const r = await fecharRetomadasEsgotadas(HOJE.getTime());
+      expect(r).toMatchObject({ fechadas: 1, erros: 0 });
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta' });
+      expect(sessaoDe(BRUNO)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
+      expect(h.opt.map(o => o.tel)).toEqual([TEL.BRUNO]);       // só quem não tem card é silenciado
+    });
+  });
+
+  describe('o toque 4 e o intervalo mínimo entre toques', () => {
+    it('toque 3 saindo no dia 59: o toque 4 NÃO vence no dia 61, espera 7 dias do toque 3', async () => {
+      // dia 0 = 61 dias atrás; toque 2 no dia 3; toque 3 no dia 59 (2 dias atrás).
+      pessoa(ANA, TEL.ANA, [61, 58, 2]);
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });
+      // Com o toque 3 há mais de 7 dias o 4 vence.
+      h.banco.main.system_state = [];
+      pessoa(ANA, TEL.ANA, [61, 58, 7.1]);
+      expect(await retomar()).toMatchObject({ enviados: 1, toque: 4 });
+    });
+  });
+
+  describe('mensagem NOSSA depois do toque encerra o ciclo de retomadas', () => {
+    const nossa = (tel: string, min: number) => h.banco.main.wa_mensagens!.push({
+      id: ++seqMsg, telefone: tel, texto: 'Oi, aqui é o consultor', tipo: 'texto', from_me: true, is_group: false,
+      instancia: 'LINHA_TESTE', momment: new Date(HOJE.getTime() - min * 60_000).toISOString(),
+    });
+
+    it('marca ciclo_encerrado, não muda o estágio, não envia e não silencia', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      nossa(TEL.ANA, 2 * 1440);
+      const r = await retomar();
+      expect(r).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'chamado', ciclo_encerrado: 'outra_conversa' });
+      expect(Date.parse(sessaoDe(ANA).ciclo_encerrado_em!)).toBe(HOJE.getTime());
+      expect(h.zap.frio).toHaveLength(0);
+      expect(h.opt).toHaveLength(0);
+    });
+
+    it('sai das vencidas para sempre, mesmo que a mensagem fique velha', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      nossa(TEL.ANA, 2 * 1440);
+      await retomar();
+      h.banco.main.wa_mensagens = [];
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });
+      expect(await retomar(new Date(HOJE.getTime() + 30 * 86_400_000))).toMatchObject({ enviados: 0, motivo: 'nenhuma_vencida' });
+    });
+
+    it('não trava a fila: quem vem atrás é retomada na mesma rodada', async () => {
+      pessoa(ANA, TEL.ANA, [8]);
+      pessoa(BRUNO, TEL.BRUNO, [4], {}, 'Bruno Reis');
+      nossa(TEL.ANA, 2 * 1440);
+      expect(await retomar()).toMatchObject({ enviados: 1, para: 'final 0002' });
+      expect(sessaoDe(ANA).ciclo_encerrado).toBe('outra_conversa');
+      expect(sessaoDe(BRUNO).ciclo_encerrado).toBeUndefined();
+    });
+
+    it('mensagem do CLIENTE depois do cursor só adia: não encerra o ciclo', async () => {
+      pessoa(ANA, TEL.ANA, [4]);
+      h.banco.main.wa_mensagens!.push({ id: 1, telefone: TEL.ANA, texto: 'Oi', tipo: 'texto', from_me: false, is_group: false, instancia: 'LINHA_TESTE', momment: dAtras(2) });
+      expect(await retomar()).toMatchObject({ enviados: 0, motivo: 'conversa_nova_desde_o_toque' });
+      expect(sessaoDe(ANA).ciclo_encerrado).toBeUndefined();
+    });
+
+    it('o ciclo encerrado também fica fora do fecho (ninguém é silenciado)', async () => {
+      pessoa(ANA, TEL.ANA, [80, 77, 73, 20, 8], { ciclo_encerrado: 'outra_conversa' });
+      expect(await fecharRetomadasEsgotadas(HOJE.getTime())).toMatchObject({ fechadas: 0 });
+      expect(h.opt).toHaveLength(0);
+      expect(sessaoDe(ANA).estagio).toBe('chamado');
+    });
+
+    it('a prévia conta quantas sessões estão com o ciclo encerrado', async () => {
+      pessoa(ANA, TEL.ANA, [4], { ciclo_encerrado: 'outra_conversa' });
+      pessoa(BRUNO, TEL.BRUNO, [4], { ciclo_encerrado: 'outra_conversa' }, 'Bruno Reis');
+      pessoa(CARLA, TEL.CARLA, [4], {}, 'Carla Dias');
+      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
+      expect(p.retomadas.ciclo_encerrado).toBe(2);
+      expect(p.retomadas.vencidas_por_toque[2]).toBe(1);
+    });
+  });
+
+  describe('a prévia (?dry=1)', () => {
+    it('mostra vencidas por toque, o teto, a reserva, os primeiros, os textos e a próxima rodada', async () => {
+      pessoa(ANA, TEL.ANA, [3.5]);
+      pessoa(BRUNO, TEL.BRUNO, [10, 5], {}, 'Bruno Reis');
+      pessoa(CARLA, TEL.CARLA, [90, 87, 83], {}, 'Carla Dias');
+      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
+      expect(p.retomadas).toMatchObject({
+        vencidas_por_toque: { 2: 1, 3: 1, 4: 1, 5: 0 }, fechos_pendentes: 0, enviadas_hoje: 0,
+        teto_por_dia: 15, reserva_de_abertura: 5, limite_hoje: 15, proxima_rodada: 'retomada',
+      });
+      expect(p.retomadas.primeiros[0]).toEqual({ nome: 'Carla', telefone_final: '03', toque: 4, vencida_ha_dias: 30 });
+      expect(p.retomadas.primeiros).toHaveLength(3);
+      expect(p.retomadas.textos).toHaveLength(2);
+      expect(p.retomadas.textos[0]).toBe(renderRetomada(4, CARLA, 'Carla Dias', 'R$ 140 mil').texto);
+      expect(h.zap.frio).toHaveLength(0);
+    });
+
+    it('sem retomada na vez, diz o que sairia no lugar', async () => {
+      const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
+      expect(p.retomadas.proxima_rodada).toBe('principal');
+      expect(p.retomadas.vencidas_por_toque).toEqual({ 2: 0, 3: 0, 4: 0, 5: 0 });
+    });
   });
 });
