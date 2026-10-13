@@ -1,0 +1,329 @@
+/* FONTE do io2-componentes.css. Atalhos: "@S x" = prefixo + secao de app + x + guarda de documento; "@P x" = prefixo + x + guarda.
+   Nomes com html.io2 no comeco passam sem expansao. */
+
+/* ============ Variaveis locais (prefixo --ioc-) ============ */
+html.io2 {
+  --ioc-bd-h: #8392A8;            /* borda de campo no hover */
+  --ioc-anel: 0 0 0 2px var(--n-sf), 0 0 0 4px var(--io-azul);
+  --ioc-sel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2344546A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5l5 5 5-5'/%3E%3C/svg%3E");
+  --ioc-ic-vazio: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 12h-6l-2 3h-4l-2-3H2'/%3E%3Cpath d='M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E");
+  --ioc-ic-erro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8v5M12 16.5v.01'/%3E%3C/svg%3E");
+}
+
+/* ============ Superficies do navegador ============ */
+html.io2[data-mode="app"] { accent-color: var(--io-azul); scrollbar-width: thin; scrollbar-color: #A9B6C9 transparent; }
+@P *::selection { background: var(--io-amarelo); color: var(--io-tinta); }
+@S input, @S textarea { caret-color: var(--io-azul); }
+@S input[type="date"], @S input[type="time"], @S input[type="month"], @S input[type="datetime-local"], @S input[type="week"] { color-scheme: light; }
+@S :is(td, th, .kv, .kt, .num, .historico-stat, .crm-kpi-val, .fin-kpi-v, .ql-num b, .eletro-bar-val, .eletro-bar-lbl, .in-n), @S input[type="number"], @S input[type="tel"] { font-variant-numeric: tabular-nums; }
+@S :is(a, button, [role="button"], [role="tab"], [tabindex]:not([tabindex="-1"]), summary, label.btn, .leads-aba):not(.solar-subtab, .eletro-subtab, .eletro-subtab2, .cad-aba, .crm-subtab):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+
+/* ============ 1. Campo unico ============ */
+@S input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="submit"], [type="button"], [type="hidden"], [type="image"], [type="reset"]),
+@S select,
+@S textarea {
+  box-sizing: border-box; min-height: var(--ctl-h); padding-top: 8px; padding-bottom: 8px; padding-left: 12px; padding-right: 12px;
+  background-color: var(--n-sf); background-image: none; color: var(--n-tx);
+  border: 1px solid var(--n-bd2); border-radius: var(--r-controle); box-shadow: none; outline: 0;
+  font-family: inherit; font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0; text-transform: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+@S select:not([multiple]):not([size]) {
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+  background-image: var(--ioc-sel); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+  padding-right: 36px;
+}
+@S textarea { min-height: 88px; padding-top: 10px; padding-bottom: 10px; line-height: 1.5; resize: vertical; }
+@S input:not([type="checkbox"]):not([type="radio"]):hover, @S select:hover, @S textarea:hover { border-color: var(--ioc-bd-h); }
+@S input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus, @S select:focus, @S textarea:focus {
+  border-color: var(--io-azul); outline: 2px solid var(--io-azul); outline-offset: 2px;
+}
+@S input:not([type="checkbox"]):not([type="radio"])::placeholder, @S textarea::placeholder { color: var(--n-tx3); opacity: 1; font-weight: 400; }
+@S :is(input, select, textarea):user-invalid { border-color: var(--io-er); }
+@S :is(input, select, textarea)[aria-invalid="true"], @S input.fs-erro, @S .fs-bit input.fs-erro { border-color: var(--io-er); background-color: var(--n-sf); }
+@S :is(input, select, textarea):user-invalid:focus { outline-color: var(--io-er); }
+@S :is(input, select, textarea)[aria-invalid="true"]:focus { outline-color: var(--io-er); }
+@S :is(input, select, textarea):disabled { background-color: var(--n-sf3); color: var(--n-tx3); border-color: var(--n-bd); cursor: not-allowed; opacity: 1; -webkit-text-fill-color: var(--n-tx3); }
+@S select:disabled { background-image: var(--ioc-sel); }
+@S .eletro-inp-lock input, @S input[readonly]:not([type="checkbox"]):not([type="radio"]) { background-color: var(--n-sf2); border-style: dashed; }
+/* prefixo e sufixo dentro do campo (R$, kWh, %) */
+@S .eletro-inp select { padding-left: 10px; padding-right: 30px; background-position: right 8px center; }
+@S .eletro-inp.has-pre input { padding-left: 32px; }
+@S .eletro-inp.has-suf input { padding-right: 46px; }
+@S .eletro-inp.has-suf.suf-l input { padding-right: 62px; }
+@S .eletro-inp .pre, @S .eletro-inp .suf { color: var(--n-tx2); font-size: 13px; font-weight: 500; }
+@S .calc-inp.has-pre input, @S .calc-inp .pre ~ input { padding-left: 32px; }
+@S .calc-inp .pre, @S .calc-inp .suf { color: var(--n-tx2); font-size: 13px; font-weight: 500; }
+/* checkbox e radio */
+@S input[type="checkbox"], @S input[type="radio"] { accent-color: var(--io-azul); width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; }
+@S input[type="range"] { accent-color: var(--io-azul); }
+/* busca com lupa nao quebra: so o fundo e a borda mudam */
+
+/* ============ 2. Rotulo de campo ============ */
+@S .field > label, @S .field label, @S .fs-f > label, @S .fs-f label, @S .calc-field label, @S .auto-lbl, @S .avi-lbl, @S .ctr-pf > span, @S .cmp-grade .field label, @S .eletro-field > label, @S .pn-lbl,
+@S .crm-filtro-lbl, @S .dossie-lbl, @S .pv-lbl, @S .cad-lbl, @S .bnk-cabec span {
+  font-size: 13px; font-weight: 500; line-height: 1.35; letter-spacing: 0; text-transform: none; color: var(--n-tx2);
+}
+@S .field > label, @S .field label, @S .fs-f > label, @S .calc-field label, @S .auto-lbl, @S .avi-lbl, @S .cmp-grade .field label { margin-bottom: 6px; }
+@S :is(.field, .fs-f, .calc-field, .eletro-field, .cmp-grade .field) label :is(span, small, em) { text-transform: none; letter-spacing: 0; }
+@S :is(.field, .fs-f) :is(.hint, .opt-tag) , @S label > span.hint, @S .hint { font-size: 12px; font-weight: 400; color: var(--n-tx3); letter-spacing: 0; text-transform: none; }
+@S .opt-tag { padding: 1px 8px; border-radius: 999px; background: var(--n-sf3); color: var(--n-tx2); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+@S .eletro-field > label { font-size: 13px; }
+
+/* ============ 3. Titulo de cartao e de secao ============ */
+@S .card > h2, @S .card h2, @S .eletro-sec-title, @S .calc-card-title, @S .pq-card h2, @S .card > h3, @S .card h4, @S .ranking-mes h3, @S #rec-card-tit, @S summary.eletro-sec-title,
+@S .in-card h3, @S .pag-head, @S .crm-det h2 {
+  margin: 24px 0 16px; padding: 0; border: 0; border-bottom: 0; background: none;
+  font-size: 16px; font-weight: 600; line-height: 1.35; letter-spacing: 0; text-transform: none; color: var(--io-tinta);
+}
+@S :is(.card, .calc-card, .pq-card, .in-card) > :is(h2, h3, .eletro-sec-title, .calc-card-title):first-child,
+@S .eletro-sec-title:first-child, @S .calc-card-title:first-child, @S .card h2:first-child { margin-top: 0; }
+@S .card h2::after, @S .card h2::before, @S .pq-card h2::after, @S .in-card h3::after, @S .in-card h3::before { display: none !important; }
+@S .calc-card-title > span.fs-opc, @S .fs-opc { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--n-tx3); }
+@S summary { font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--n-tx); cursor: pointer; }
+@S .eletro-sec-title .el-tip, @S .eletro-kcard .el-tip { text-transform: none; }
+
+@S .lead-wpp { color: var(--io-wa); font-weight: 600; text-decoration: none; }
+@S .lead-wpp:hover { text-decoration: underline; }
+@S .calc-card-title::before, @S .eletro-sec-title::before { display: none; }
+@S [style*="uppercase" i] { text-transform: none !important; letter-spacing: 0 !important; }
+
+/* ============ 4. Botao ============ */
+@S button, @S .btn-principal, @S .eletro-btn { font-family: inherit; }
+/* base compartilhada pelos 4 papeis */
+@S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .apres-btn, .btn-redes-ia, .motivo-btn, .espera-btn, .modal-acoes button, .ranking-mes-btn, .filtro-btn):not(:where(.x)) {
+  box-sizing: border-box; min-height: var(--ctl-h); padding: 8px 16px; border-radius: var(--r-controle);
+  font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: 0; text-transform: none; text-decoration: none;
+  cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .1s ease;
+}
+/* principal: amarelo, texto tinta (uma por bloco) */
+@S :is(.btn-principal, .fs-btn-main, .in-btn.main, .auto-btn:not(.ghost):not(.danger), .eletro-btn.primary, .eletro-btn.primario, .fin-btn-pri, .crm-novo-contato, .modal-acoes .primary, .modal-acoes .success, .apres-btn.main) {
+  background: var(--io-amarelo); color: var(--io-tinta); border: 1px solid var(--io-amarelo); box-shadow: none; text-shadow: none;
+}
+@S :is(.btn-principal, .fs-btn-main, .in-btn.main, .auto-btn:not(.ghost):not(.danger), .eletro-btn.primary, .eletro-btn.primario, .fin-btn-pri, .crm-novo-contato, .modal-acoes .primary, .modal-acoes .success):hover:not(:disabled) { background: var(--io-amarelo-forte); border-color: var(--io-amarelo-forte); color: var(--io-tinta); }
+@S :is(.btn-principal, .fs-btn-main, .in-btn.main, .auto-btn:not(.ghost):not(.danger), .eletro-btn.primary, .eletro-btn.primario, .fin-btn-pri, .crm-novo-contato, .modal-acoes .primary, .modal-acoes .success):active:not(:disabled) { background: var(--io-amarelo-forte); transform: translateY(1px); }
+@S .btn-principal, @S .fs-btn-main { min-height: 48px; font-size: 15px; border-radius: 12px; }
+/* secundario: branco com borda */
+@S :is(.fs-btn-sec, .in-btn:not(.main), .auto-btn.ghost, .eletro-btn:not(.primary):not(.primario), .fin-btn-sec, .fin-btn:not(.fin-btn-pri):not(.fin-btn-apagar), .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .dossie-btn, .ehist-btn, .btn-redes-ia, .modal-acoes .secondary, .pn-bt:not(.ligar), .apres-btn:not(.main), .pv-entrada, .historico-pag button) {
+  background: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); box-shadow: none;
+}
+@S :is(.fs-btn-sec, .in-btn:not(.main), .auto-btn.ghost, .eletro-btn:not(.primary):not(.primario), .fin-btn-sec, .fin-btn:not(.fin-btn-pri):not(.fin-btn-apagar), .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .dossie-btn, .ehist-btn, .btn-redes-ia, .modal-acoes .secondary, .pn-bt:not(.ligar), .pv-entrada):hover:not(:disabled) { background: var(--n-sf3); border-color: var(--ioc-bd-h); color: var(--n-tx); }
+@S :is(.fs-btn-sec, .in-btn:not(.main), .auto-btn.ghost, .eletro-btn:not(.primary):not(.primario), .fin-btn-sec, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .dossie-btn, .ehist-btn, .modal-acoes .secondary):active:not(:disabled) { background: var(--n-bd); transform: translateY(1px); }
+/* forte: azul com texto branco */
+@S :is(.acoes-mini button.editar, .btn-forte, .pn-bt.ligar) { background: var(--io-azul); color: #fff; border: 1px solid var(--io-azul); }
+@S :is(.acoes-mini button.editar, .btn-forte, .pn-bt.ligar):hover:not(:disabled) { background: #1740B5; border-color: #1740B5; color: #fff; }
+/* perigo: vermelho */
+@S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo) { background: var(--io-er); color: #fff; border: 1px solid var(--io-er); box-shadow: none; }
+@S :is(.auto-btn.danger, .fin-btn-apagar, .modal-acoes .danger, .st-descartar, .eletro-btn.perigo):hover:not(:disabled) { background: #991B1B; border-color: #991B1B; color: #fff; }
+@S :is(.fs-x, .ehist-x) { color: var(--io-er); }
+@S .fs-x { background: var(--n-sf); border: 1px solid var(--n-bd2); border-radius: var(--r-controle); }
+@S :is(.fs-x, .eletro-btn.ehist-x):hover:not(:disabled) { background: var(--io-er-sf); border-color: var(--io-er); }
+/* WhatsApp: verde da marca com texto branco */
+@Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]) { background: var(--io-wa); color: #fff; border: 1px solid var(--io-wa); text-shadow: none; }
+@Q :is(.btn-wpp, .fs-btn-main[data-qa="zap"]):hover:not(:disabled) { background: #095F34; border-color: #095F34; color: #fff; }
+/* icone quadrado: botoes que trazem so um simbolo */
+@S :is(.crm-reload, .ehist-x, .fs-x, .crm-act) { min-width: var(--ctl-h); padding-left: 8px; padding-right: 8px; }
+@S .crm-act { min-height: 32px; min-width: 32px; border-radius: 8px; border: 1px solid var(--n-bd); background: var(--n-sf); }
+@S .crm-act:not(.crm-act-reag):hover { background: var(--n-sf3); }
+/* acoes miudas da tabela do historico */
+@S .acoes-mini button { min-height: 32px; min-width: 32px; padding: 4px 8px; border-radius: 8px; font-size: 13px; line-height: 1; }
+/* foco e desabilitado de todos os botoes */
+@S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .modal-acoes button, .acoes-mini button, .crm-act, .fs-x):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+@Q :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .modal-acoes button, .historico-pag button):disabled,
+@Q :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .crm-novo-contato, .btn-wpp, .pn-bt)[aria-disabled="true"] {
+  background: var(--n-sf3); color: var(--n-tx3); border-color: var(--n-bd); box-shadow: none; cursor: not-allowed; opacity: 1; transform: none;
+}
+/* carregando: o JS poe aria-busy ou a classe carregando */
+@S :is(button, .eletro-btn)[aria-busy="true"], @S button.carregando, @S button.is-loading { position: relative; pointer-events: none; cursor: progress; color: transparent !important; }
+@S :is(button, .eletro-btn)[aria-busy="true"]::after, @S button.carregando::after, @S button.is-loading::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; box-sizing: border-box;
+  border: 2px solid var(--io-tinta); border-right-color: transparent; border-radius: 50%; animation: io2-gira .7s linear infinite;
+}
+
+/* ============ 5. Cartao ============ */
+@S .card, @S .pv-card, @S .pq-card, @S .in-card, @S .ob-card, @S .redes-bloco, @S .compare-card, @S .calc-card, @S .podio-card, @S .crm-det {
+  background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra);
+  -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--n-tx);
+}
+@S .card { padding: 24px; }
+@S #crmSection .card, @S #redesSection .card, @S #redesSection .card.lnr { background: var(--n-sf) !important; border: 1px solid var(--n-bd) !important; border-radius: var(--r-cartao) !important; box-shadow: var(--sombra) !important; }
+@S .in-card { padding: 20px; }
+/* cartao dentro de cartao: faixa neutra, sem borda nem sombra */
+@S .card .card, @S .card .pv-card, @S .card .in-card, @S .in-card .card, @S .pv-card .card { background: var(--n-sf2); border: 0; box-shadow: none; border-radius: 10px; padding: 16px; }
+@S #crmSection .card .card, @S #redesSection .card .card { background: var(--n-sf2) !important; border: 0 !important; box-shadow: none !important; }
+@S .card .card > :is(h2, h3, .eletro-sec-title):first-child { margin-top: 0; }
+
+/* ============ 6. Faixa de indicador ============ */
+@S .eletro-kcard, @S .crm-kpi, @S .fin-kpi, @S .historico-stat, @S .ql-num {
+  background: var(--n-sf2); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+@S .historico-stat { border-left: 1px solid var(--n-bd); padding: 12px 14px; }
+@S .eletro-kcard .kt, @S .crm-kpi-lbl, @S .fin-kpi-l, @S .historico-stat .lbl, @S .ql-num span, @S .fin-kpi-s {
+  font-size: 12px; font-weight: 500; line-height: 1.3; letter-spacing: 0; text-transform: none; color: var(--n-tx2);
+}
+@S .eletro-kcard .kv, @S .crm-kpi-val, @S .fin-kpi-v, @S .historico-stat .num, @S .ql-num b {
+  font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+@S .eletro-kcard .kv { font-size: 22px; }
+@S #calcSection .eletro-kcard .kv { font-size: 20px; }
+@S .crm-kpi-val { font-size: 24px; }
+@S .historico-stat .num { font-size: 22px; }
+@S .ql-num b { font-size: 24px; }
+@S .ql-num { border-radius: var(--r-cartao); }
+@S .ql-num:hover { border-color: var(--io-azul); }
+@S .ql-num.on { border-color: var(--io-azul); background: var(--io-azul-sf); }
+@S .fin-kpi.dest { background: var(--io-azul-sf); border-color: var(--io-azul); }
+@S .fin-kpi.dest .fin-kpi-v { font-size: 20px; }
+/* o unico cartao marinho invertido: o resumo que ancora a tela */
+@S .eletro-kcard.hero { background: var(--io-navy-900); border-color: var(--io-navy-900); }
+@S .eletro-kcard.hero .kt { color: var(--n-inv2); font-size: 12px; }
+@S .eletro-kcard.hero .kv { color: var(--n-inv); font-size: 32px; }
+@S .eletro-kcard.hero .kv.grn { color: #7BE0A0; }
+/* a caixa de conclusao do Simulador deixa o degrade */
+@S .eletro-conclusao, @S .eletro-impacto-card { background: var(--n-sf2) !important; background-image: none !important; border: 1px solid var(--n-bd) !important; box-shadow: none; }
+
+/* ============ 7. Tabela ============ */
+@S table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+@S table th {
+  background: var(--n-sf2); color: var(--n-tx2); border-bottom: 1px solid var(--n-bd); border-top: 0;
+  padding: 10px 12px; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; text-align: left; line-height: 1.3;
+}
+@S table td { border-bottom: 1px solid var(--n-bd); padding: 10px 12px; font-size: 14px; line-height: 1.4; color: var(--n-tx); vertical-align: middle; }
+@S table tr:last-child > td { border-bottom-color: transparent; }
+@S table tbody tr:hover > td { background-color: var(--n-sf3); }
+@S table :is(th, td):is(.num, .valor-cell, .r, .dir, .right, .num-cell) { text-align: right; font-variant-numeric: tabular-nums; }
+@S .historico-tabela th, @S .leads-tabela thead th, @S .tbl-precos th { background: var(--n-sf2); color: var(--n-tx2); }
+@S .leads-tabela tbody tr:hover > td.fixa, @S .leads-tabela td.fixa { background-color: var(--n-sf); }
+@S .leads-tabela tbody tr:hover > td.fixa { background-color: var(--n-sf3); }
+@S table tr > td:only-child { text-align: left; }
+@S .historico-tabela .codigo { font-weight: 600; }
+
+/* ============ 8. Abas de filtro e chips em pilula ============ */
+@S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub, .redes-tab, .toggle-group button) {
+  box-sizing: border-box; min-height: 36px; padding: 6px 14px; border-radius: 999px;
+  background: var(--n-sf); color: var(--n-tx2); border: 1px solid var(--n-bd2); box-shadow: none;
+  font-size: 13px; font-weight: 500; line-height: 20px; letter-spacing: 0; text-transform: none; cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+@S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub, .redes-tab, .toggle-group button):hover { background: var(--n-sf3); color: var(--n-tx); }
+@S :is(.leads-aba.on, .ranking-mes-btn.ativo, .filtro-btn.ativo, .ql-chip.on, .pn-aba.ativa, .pn-aba.on, .fs-tab.ativa, .tbl-aba.on, .tbl-aba.ativo-aba, .crm-chip.ativo, .auto-tab.ativa, .avi-pub.on, .redes-tab.ativa, .toggle-group button.ativo) {
+  background: var(--io-tinta); color: #fff; border-color: var(--io-tinta); font-weight: 600;
+}
+@S :is(.leads-aba.on, .ranking-mes-btn.ativo, .filtro-btn.ativo, .ql-chip.on, .pn-aba.ativa, .fs-tab.ativa, .tbl-aba.on, .crm-chip.ativo, .auto-tab.ativa, .avi-pub.on, .toggle-group button.ativo):hover { background: var(--io-navy-800); color: #fff; }
+@S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub):focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+@S .leads-aba .qt, @S .leads-aba b, @S .leads-aba span { font-variant-numeric: tabular-nums; }
+
+@S .toggle-group button { flex: 1; }
+@S .acoes-mini button.historico-link { background: var(--io-azul-sf); color: var(--io-azul); border: 1px solid var(--io-azul-sf); }
+
+/* ============ 9. Etiqueta ============ */
+@S :is(.pn-tag, .badge-novo, .avi-badge, .cad-org, .cad-rel, .cad-ag-st, .ob-selo, .pv-selo, .fin-selo, .dossie-badge, .ctr-chip, .auto-badge, .crm-status-selo, .cad-par-ver, .rp-tag, .selo-ok, .selo-sr, .selo-fora, .selo-motivo) {
+  box-sizing: border-box; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; line-height: 1.5; letter-spacing: 0; text-transform: none; white-space: nowrap;
+}
+@S :is(.badge-novo, .auto-badge, .cad-par-ver) { background: var(--n-sf3); color: var(--n-tx2); }
+
+@S .auto-badge { color: var(--io-tinta); }
+@S :is(.field, .fs-f, .calc-field, .eletro-field) label > span[style*="opacity"] { opacity: 1 !important; }
+
+/* ============ 10. Modal e toast ============ */
+@S .modal-overlay { background: rgba(6, 26, 56, .55); -webkit-backdrop-filter: none; backdrop-filter: none; }
+@S .modal-box {
+  background: var(--n-sf); color: var(--n-tx); border: 0; border-radius: 16px; padding: 24px;
+  box-shadow: 0 16px 48px rgba(10, 36, 80, .28);
+}
+@S .modal-box h3 { margin: 0 0 8px; color: var(--io-tinta); font-size: 18px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+@S .modal-box p { color: var(--n-tx2); font-size: 14px; line-height: 1.5; }
+@S .modal-acoes { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--n-bd); justify-content: flex-end; gap: 8px; }
+@S .crm-det { border-radius: 16px; box-shadow: 0 16px 48px rgba(10, 36, 80, .28); }
+@S #crm-det-bg { background: rgba(6, 26, 56, .55); }
+@S .crm-det h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; color: var(--io-tinta); }
+@S .cmp-box { border-radius: 16px; }
+@P .ep-prev-bar { border-radius: 0; }
+@P #toast, @P .toast {
+  background: var(--io-navy-900); color: var(--n-inv); border: 0; border-radius: 999px; padding: 12px 20px; width: max-content; max-width: min(92vw, 420px); box-sizing: border-box;
+  font-family: var(--io-fonte); font-size: 14px; font-weight: 500; line-height: 20px; box-shadow: 0 8px 24px rgba(6, 26, 56, .35);
+}
+
+/* ============ 11. Estados: vazio, carregando, erro ============ */
+@S :is(.historico-vazio, .pv-vazio, .in-vazio, .ql-vazio, .pn-vazio, .cad-vazio, .ob-vazio, .crm-vazio) {
+  padding: 32px 16px; text-align: center; color: var(--n-tx2); font-size: 14px; line-height: 1.5;
+  background: var(--n-sf2); border: 1px dashed var(--n-bd2); border-radius: var(--r-cartao);
+}
+@S :is(.historico-vazio, .pv-vazio, .in-vazio, .ql-vazio, .pn-vazio, .cad-vazio, .ob-vazio, .crm-vazio)::before {
+  content: ""; display: block; width: 40px; height: 40px; margin: 0 auto 12px; background: var(--n-tx3);
+  -webkit-mask: var(--ioc-ic-vazio) center / 40px 40px no-repeat; mask: var(--ioc-ic-vazio) center / 40px 40px no-repeat;
+}
+@S :is(.in-erro, .fin-erro, .login-erro, .erro) {
+  padding: 12px 14px; color: var(--io-er); background: var(--io-er-sf); border: 1px solid var(--io-er); border-radius: var(--r-controle); font-size: 14px; line-height: 1.45;
+}
+@S :is(.pv-aviso, .calc-warn, .auto-warn) {
+  padding: 12px 14px; color: #6F3306; background: var(--io-av-sf); border: 1px solid #E6B677; border-radius: var(--r-controle); font-size: 13px; line-height: 1.45;
+}
+@S :is(.pq-sk, .pq-skel, .skeleton) {
+  background: linear-gradient(90deg, var(--n-sf3) 25%, var(--n-sf2) 50%, var(--n-sf3) 75%); background-size: 200% 100%;
+  border-radius: 8px; border: 0; animation: io2-shimmer 1.4s ease-in-out infinite;
+}
+@S .lp-spinner, @S .fin-gira { border-color: var(--n-bd); border-top-color: var(--io-azul); }
+
+/* ============ 12. A trena: barra vira fita de obra ============ */
+@S :is(.auto-prog, .avi-barra, .avi-prog, .redes-bar .rb-track) {
+  position: relative; overflow: hidden; background: var(--n-sf3); border-radius: 4px; border: 0; box-shadow: inset 0 0 0 1px var(--n-bd);
+}
+@S .auto-prog { height: 10px; }
+@S .avi-barra { height: 10px; }
+@S .avi-prog { height: 12px; }
+@S .redes-bar .rb-track { height: 12px; }
+@S :is(.auto-prog > div, .avi-barra i, .avi-prog i, .redes-bar .rb-fill) { background: var(--io-amarelo); background-image: none; border-radius: 4px 0 0 4px; box-shadow: none; }
+@S :is(.auto-prog, .avi-barra, .avi-prog, .redes-bar .rb-track)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(11, 36, 71, .55) calc(10% - 1px), rgba(11, 36, 71, .55) 10%);
+}
+
+/* ============ 13. Piso de texto: nada abaixo de 12 px nas secoes do app ============ */
+@S :is(.cad-sub, .auto-mini, .auto-badge, .eletro-bar-lbl, .eletro-bar-val, .orc-note, #el-vendedor-nota, #rec-resumo, .calc-foot, .crm-kpi-lbl, .eletro-kcard .kt, .historico-stat .lbl, .fin-kpi-s, .opt-tag, .cad-org, .cad-par-ver, .cad-termo, .avi-badge, .crm-status-selo, .ql-num span, .pn-tag) { font-size: 12px; }
+@S :is(.opt-dica, .lead-caminho, .lead-fora-tag, .crm-espera) { font-size: 12px; }
+@S :is([style*="font-size:9px" i], [style*="font-size:9.5px" i], [style*="font-size:10px" i], [style*="font-size:10.5px" i], [style*="font-size:11px" i], [style*="font-size:11.5px" i]) { font-size: 12px !important; }
+@S .historico-stat .lbl + span, @S .historico-stat span { font-size: 12px; }
+
+@S .el-tip { width: 16px; height: 16px; font-size: 12px; color: var(--n-tx2); border-color: var(--n-tx3); }
+@S .avi-num span { font-size: 12px; font-weight: 500; color: var(--n-tx2); text-transform: none; letter-spacing: 0; }
+@S .crm-card-tag { font-size: 12px; font-weight: 600; }
+@S #f-validade-hint { font-size: 12px !important; color: var(--n-tx3) !important; }
+@S :is(.tbl-km-dica, .tbl-toggle, .podio-card .nome) { font-size: 12px; }
+@S :is(.field, .fs-f, .calc-field, .eletro-field, .cmp-grade .field) label > span:not(.el-tip) { color: var(--n-tx3); font-weight: 400; }
+
+/* ============ 14. Celular (860 px, o ponto de troca de sempre) ============ */
+@media (max-width: 860px) {
+  @S input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="submit"], [type="button"], [type="hidden"], [type="image"], [type="reset"]),
+  @S select, @S textarea { min-height: var(--ctl-h-m); font-size: 16px; }
+  @S textarea { min-height: 96px; }
+  @S input[type="checkbox"], @S input[type="radio"] { width: 24px; height: 24px; }
+  @S :is(.btn-principal, .fs-btn-main, .fs-btn-sec, .in-btn, .auto-btn, .eletro-btn, .fin-btn, .fin-btn-pri, .fin-btn-sec, .fin-btn-apagar, .crm-novo-contato, .crm-reload, .btn-hist, .btn-hist-voltar, .btn-hist-csv, .btn-wpp, .dossie-btn, .pn-bt, .ehist-btn, .modal-acoes button, .fs-x) { min-height: var(--ctl-h-m); }
+  @S :is(.leads-aba, .ranking-mes-btn, .filtro-btn, .ql-chip, .pn-aba, .fs-tab, .tbl-aba, .crm-chip, .auto-tab, .avi-pub, .redes-tab, .toggle-group button) { min-height: 44px; padding: 8px 16px; font-size: 14px; }
+  @S .card { padding: 16px; }
+  @S .in-card { padding: 16px; }
+  @S .eletro-field .eletro-inp.eletro-inp-wide { width: min(236px, 64%); }
+  @S :is(.acoes-mini button, .crm-act, .cad-wa, .cad-termo, .crm-card-tel) { min-height: 44px; min-width: 44px; }
+  @S textarea[style*="font-size"] { font-size: 16px !important; }
+  /* tabela: o conteiner rola de lado, a pagina nao */
+  @S div:has(> table):not(.leads-wrap) { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  /* modal vira folha inferior */
+  @S .modal-overlay { align-items: flex-end; padding: 0; }
+  @S .modal-box { width: 100%; max-width: none; max-height: 88vh; border-radius: 16px 16px 0 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  @S .modal-acoes { flex-direction: column-reverse; align-items: stretch; }
+  @S .modal-acoes button { width: 100%; }
+}
+
+/* ============ Movimento ============ */
+@keyframes io2-gira { to { transform: rotate(360deg); } }
+@keyframes io2-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  @P *:not(.lp-spinner):not(.fin-gira):not([aria-busy="true"]), @P *:not(.lp-spinner):not(.fin-gira)::before, @P *:not(.lp-spinner):not(.fin-gira):not([aria-busy="true"])::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
+  @S :is(.pq-sk, .pq-skel, .skeleton) { animation: none; background: var(--n-sf3); }
+}
+
+/* rotulos dos 4 campos de texto largo do Simulador: a regra gerada deles carrega um #id dentro do :has() */
+@P #eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > :is(#el-cliente, #el-cidade, #el-autor, #el-contato)) > label { color: var(--n-tx2); }

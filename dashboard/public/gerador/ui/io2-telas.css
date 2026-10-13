@@ -1,0 +1,234 @@
+/* io2-telas.css: visual novo do /gerador (html.io2). Ajustes por tela: celular, login, Inicio, Simulador, Leads, CRM.
+   Tudo aqui vive sob html.io2 e dentro de @media screen. Documentos e o que vira PDF ficam de fora.
+   So LAYOUT e COMPORTAMENTO por tela. Campo, botao, cartao e tabela (visual) sao do io2-componentes.css.
+   Prefixo do app:   html.io2[data-mode="app"]:not(#_):not(#_):not(#_)
+   Prefixo do login: html.io2[data-mode="login"]:not(#_):not(#_):not(#_)
+   Tres :not(#_) (o io2-componentes.css tambem usa tres e vem antes: aqui vale o empate) existem para vencer as regras antigas com id e !important. */
+@media screen {
+
+  /* Faixa do Simulador: fora do celular, fora do modo app e sem valor calculado ela nao existe (o JS poe hidden).
+     Regra de base, sem largura: nunca fica solta no fim do body. */
+  html.io2 #io2-faixa { display: none; }
+  html.io2 #io2-faixa[hidden] { display: none !important; }
+
+  /* =====================================================================
+     1. Zero rolagem lateral: grades que podem encolher e baloes ancorados no campo
+     ===================================================================== */
+
+  /* O balao de ajuda (.el-tip) fica invisivel mas continua ocupando largura fora da tela (visibility:hidden
+     nao tira do layout). Abaixo de 860 px ele deixa de nascer no "?" e passa a ser filho do campo, do indicador
+     ou do cartao: left/right 0, a largura e a da propria celula, entao nao tem como passar da tela. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.card, .eletro-field, .eletro-kcard) { position: relative; }
+
+  /* =====================================================================
+     2. Inicio: o titulo e a data moram na barra superior da casca. O #in-h1 fica no DOM (a casca le a data dele)
+     e sai da vista; a linha "Atualizado ha" e o Atualizar continuam visiveis.
+     ===================================================================== */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection { padding-top: 4px; padding-bottom: 24px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-h1 {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-stamp { margin: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-topo { align-items: center; gap: 8px 24px; }
+}
+
+/* =====================================================================
+   Celular e tablet estreito: ate 860 px (o ponto de troca da casca)
+   ===================================================================== */
+@media screen and (max-width: 860px) {
+
+  /* ---- 1. Baloes de ajuda dentro do cartao/campo, grades que encolhem ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.eletro-field, .eletro-kcard) .el-tip { position: static; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.eletro-field, .eletro-kcard) .el-tip::after {
+    left: 0; right: 0; width: auto; max-width: none; transform: none; bottom: calc(100% + 8px);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.eletro-field, .eletro-kcard) .el-tip::before { display: none; }
+  /* Titulo de secao com "?": ancora no cartao. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-sec-title .el-tip { position: static; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-sec-title .el-tip::after {
+    left: 0; right: 0; width: auto; max-width: none; transform: none; bottom: calc(100% + 8px);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-sec-title .el-tip::before { display: none; }
+
+  /* 1fr nao deixa a coluna ficar menor que o conteudo; minmax(0,1fr) deixa. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) :is(.eletro-grid, .calc-grid) { grid-template-columns: minmax(0, 1fr); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) :is(.eletro-col-inputs, .eletro-col-result, .calc-col-inputs, .calc-col-result) { min-width: 0; max-width: 100%; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) :is(#eletroSection, #calcSection, #automacaoSection, #leadsSection, #crmSection, #historicoSection,
+         #tabelasSection, #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection) .card { min-width: 0; max-width: 100%; }
+
+  /* ---- 2. Inicio: o vao de cima vinha de um padding de 64 px que abria espaco para o botao de menu antigo ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection { padding-top: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-acoes { width: 100%; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-filtro { margin-top: 16px; }
+  /* A coluna do numero era dimensionada pelo "R$ 340.000" da linha de dinheiro e comia um terco da tela. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-lista { grid-template-columns: minmax(2.25rem, 4.25rem) minmax(0, 1fr) 24px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-n.din { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
+
+  /* ---- 3. Simulador: faixa fixa com os tres numeros, acima da navegacao inferior (io2-telas.js) ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa {
+    display: none;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa.io2-faixa-on {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
+    position: fixed; left: 0; right: 0; bottom: var(--io-bot, 64px); z-index: 905; box-sizing: border-box;
+    padding: 8px calc(12px + env(safe-area-inset-right, 0px)) 8px calc(12px + env(safe-area-inset-left, 0px));
+    background: var(--n-sf); border-top: 1px solid var(--n-bd);
+    box-shadow: 0 -4px 12px rgba(10, 36, 80, .10);
+    font-family: var(--io-fonte);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa > div { min-width: 0; text-align: center; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa small {
+    display: block; color: var(--n-tx2); font-size: 12px; font-weight: 500; line-height: 16px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa b {
+    display: block; color: var(--io-tinta); font-size: 18px; font-weight: 700; line-height: 24px;
+    font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-faixa > div:first-child b { color: var(--io-ok); }
+  /* Com a faixa na tela: o fim da pagina e o foco por teclado nao ficam por baixo dela. */
+  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_):not(#_) body.io2-faixa-ativa { padding-bottom: calc(var(--io-bot) + 16px + 56px); scroll-padding-bottom: calc(var(--io-bot) + 64px); }
+  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_):not(#_) body.io2-faixa-ativa #toast { bottom: calc(var(--io-bot) + 68px); }
+
+  /* ---- 7. CRM: quadro rola DENTRO do quadro, colunas quase na largura da tela, com encaixe ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kanban {
+    max-width: 100%; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory; scroll-padding-left: 0;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-col {
+    flex: 0 0 88%; width: 88%; max-width: 360px; scroll-snap-align: start; max-height: 78dvh;
+  }
+  /* A linha de busca passava da largura do cartao e cortava o botao de atualizar. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-busca-wrap { flex-wrap: wrap; align-items: stretch; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-busca { flex: 1 1 100%; min-width: 0; max-width: 100%; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-novo-contato { flex: 1 1 auto; min-height: 44px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-reload { flex: 0 0 44px; min-height: 44px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-filtro-linha { min-width: 0; }
+
+  /* ---- 7. Leads: a tabela rola dentro do conteiner; a coluna do nome fica fixa e nao pode tomar a tela toda ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #leadsSection .leads-wrap {
+    max-width: 100%; max-height: calc(100dvh - var(--io-top, 52px) - var(--io-bot, 64px) - 120px); min-height: 280px;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #leadsSection .leads-tabela .fixa {
+    max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
+
+/* =====================================================================
+   Faixa de 861 a 1279 px: com a barra lateral de 240 px sobram 620 a 1000 px de area util, e os breakpoints do app
+   (900, 760) foram escritos sem barra lateral. Quatro indicadores lado a lado em cartao de 350 px estouravam 111 px.
+   ===================================================================== */
+@media screen and (min-width: 861px) and (max-width: 1279px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-kgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-kcard { min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-kcard .kv { overflow-wrap: anywhere; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection .eletro-field :is(input, select) { min-width: 0; max-width: 100%; }
+  /* O balao de ajuda invisivel tambem alargava a pagina aqui: mesma ancoragem no cartao/campo do celular. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.card, .eletro-field, .eletro-kcard) { position: relative; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.eletro-field, .eletro-kcard, .eletro-sec-title) .el-tip { position: static; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.eletro-field, .eletro-kcard, .eletro-sec-title) .el-tip::after {
+    left: 0; right: 0; width: auto; max-width: none; transform: none; bottom: calc(100% + 8px);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #eletroSection :is(.eletro-field, .eletro-kcard, .eletro-sec-title) .el-tip::before { display: none; }
+}
+@media screen and (min-width: 861px) and (max-width: 1023px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .eletro-grid { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .calc-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-hoje { grid-template-columns: minmax(0, 1fr); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-busca { min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #leadsSection .leads-wrap { max-width: 100%; }
+}
+
+/* =====================================================================
+   Parede de texto recolhida: "Como funciona" (io2-telas.js poe o botao e a classe .io2-cf)
+   Fechado: so a linha do botao. Aberto: o bloco de sempre. O bloco nunca sai do DOM.
+   ===================================================================== */
+@media screen {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf:not(.io2-cf-aberto) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn {
+    display: inline-flex; align-items: center; gap: 8px; box-sizing: border-box;
+    min-height: 44px; margin: 0 0 8px; padding: 8px 12px 8px 4px;
+    border: 0; border-radius: var(--r-controle); background: transparent;
+    color: var(--io-azul); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.2;
+    cursor: pointer; text-align: left;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:hover { background: var(--io-azul-sf); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn::before {
+    content: ""; width: 18px; height: 18px; flex: 0 0 18px; background: currentColor;
+    -webkit-mask: var(--io-ic-info) center / 18px 18px no-repeat; mask: var(--io-ic-info) center / 18px 18px no-repeat;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn::after {
+    content: ""; width: 16px; height: 16px; flex: 0 0 16px; background: currentColor; transition: transform .15s ease;
+    -webkit-mask: var(--io-ic-seta) center / 16px 16px no-repeat; mask: var(--io-ic-seta) center / 16px 16px no-repeat;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn[aria-expanded="true"]::after { transform: rotate(180deg); }
+  /* O app esconde o bloco por style (Cadastros, ao abrir a base inteira): o botao some junto. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:has(+ .io2-cf[style*="display: none"]),
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf-btn:has(+ .io2-cf[style*="display:none"]) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) .io2-cf.io2-cf-aberto { margin-top: 0; }
+  html.io2 {
+    --io-ic-info: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><line x1='12' y1='11' x2='12' y2='16'/><line x1='12' y1='8' x2='12.01' y2='8'/></svg>");
+    --io-ic-seta: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  }
+}
+
+/* =====================================================================
+   Login: tela clara com o logo, cartao centralizado, campos de 16 px, botao principal amarelo
+   ===================================================================== */
+@media screen {
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) body { background: var(--n-bg); min-height: 100dvh; margin: 0; padding: 0; }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) #loginSection {
+    min-height: 100dvh; box-sizing: border-box;
+    padding: max(24px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+             max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    font-family: var(--io-fonte);
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card {
+    max-width: 400px; padding: 32px 28px 28px; background: var(--n-sf);
+    border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra);
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-logo {
+    margin: 0 0 4px; color: var(--io-tinta); font-family: var(--io-fonte); font-size: 22px; font-weight: 700; line-height: 1.2; text-align: center;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-logo::before {
+    content: ""; display: block; width: 72px; height: 72px; margin: 0 auto 12px;
+    background: url("/gerador/logo.png") center / contain no-repeat;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-subtitle {
+    margin: 0 0 24px; color: var(--n-tx2); font-family: var(--io-fonte); font-size: 14px; text-align: center;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card label {
+    display: block; margin: 16px 0 6px; color: var(--n-tx2); font-family: var(--io-fonte);
+    font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card :is(select, input) {
+    min-height: 48px; padding: 10px 14px; background: var(--n-sf); color: var(--n-tx);
+    border: 1px solid var(--n-bd2); border-radius: var(--r-controle);
+    font-family: var(--io-fonte); font-size: 16px; line-height: 1.3;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card :is(select, input):focus { outline: 2px solid var(--io-azul); outline-offset: 2px; border-color: var(--io-azul); }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login {
+    min-height: 48px; margin-top: 24px; padding: 12px 16px; background: var(--io-amarelo); color: var(--io-tinta);
+    border: 0; border-radius: var(--r-controle); font-family: var(--io-fonte); font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login:hover { background: var(--io-amarelo-forte); }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-card .btn-login:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-erro {
+    margin: 16px 0 0; min-height: 0; padding: 10px 12px; border-radius: var(--r-controle);
+    background: var(--io-er-sf); color: var(--io-er); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.35; text-align: left;
+  }
+  html.io2[data-mode="login"]:not(#_):not(#_):not(#_) .login-erro:empty { display: none; }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  html.io2 .io2-cf-btn::after { transition: none !important; }
+}
+
+@media screen {
+  /* CRM: o valor do pipeline ("R$ 1.196.390") passava do cartao do indicador. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi { min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection .crm-kpi-val { overflow-wrap: anywhere; }
+}
