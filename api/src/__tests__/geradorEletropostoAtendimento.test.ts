@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   linhas: [] as unknown[],
   bancoFora: false,
   selecionado: '' as string,
+  selecionados: [] as string[],
 }));
 
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -17,12 +18,16 @@ vi.mock('../utils/supabase', () => ({
   supabase: {
     from: (t: string) => {
       if (t !== 'system_state') throw new Error(`tabela inesperada: ${t}`);
+      let prefixo = '';
       const q: any = {
-        select: (cols: string) => { h.selecionado = cols; return q; },
-        like: () => q, order: () => q,
+        select: (cols: string) => { h.selecionado = cols; h.selecionados.push(cols); return q; },
+        like: (_col: string, padrao: string) => { prefixo = padrao.replace(/%$/, ''); return q; },
+        order: () => q,
         range: (de: number, ate: number) => {
           if (h.bancoFora) return Promise.resolve({ data: null, error: { message: 'connection refused' } });
-          return Promise.resolve({ data: h.linhas.slice(de, ate + 1), error: null });
+          // O padrão do like vale: sessão da Helena e etiqueta de card são leituras diferentes.
+          const doPrefixo = (h.linhas as { key: string }[]).filter((l) => l.key.startsWith(prefixo));
+          return Promise.resolve({ data: doPrefixo.slice(de, ate + 1), error: null });
         },
       };
       return q;
@@ -44,7 +49,7 @@ vi.mock('../utils/supabaseGerador', () => ({
 }));
 
 import { mountEletropostoAtendimento } from '../routes/geradorEletropostoAtendimento';
-import { lerAtendimentos, mapearSessao } from '../services/io/investidorAtendimento';
+import { lerAtendimentos, lerEtiquetasDosCards, mapearEtiquetas, mapearSessao } from '../services/io/investidorAtendimento';
 
 const r = Router();
 mountEletropostoAtendimento(r);
@@ -55,6 +60,7 @@ beforeEach(() => {
   h.usuarios = { 'tk-nilce': 'nilce@irmaosnaobra.app', 'tk-estranho': 'alguem@gmail.com' };
   h.bancoFora = false;
   h.selecionado = '';
+  h.selecionados = [];
   h.linhas = [
     { key: 'inv_agente:3499111222', updated_at: '2026-10-12T11:15:00Z',
       value: { estagio: 'conversando', consultor: 'Diego', aberto_em: '2026-10-12T10:00:00Z', agendamento_id: null, motivo: null, resumo: 'x'.repeat(500), erro: null, telefone: '5534991112222' } },
@@ -63,6 +69,12 @@ beforeEach(() => {
     { key: 'inv_agente:3188887777', updated_at: '2026-10-11T09:00:00Z',
       value: { estagio: 'agendado', consultor: 'Diego', agendamento_id: 1234, resumo: 'ok' } },
     { key: 'inv_agente:0000000000', updated_at: '2026-10-11T09:00:00Z', value: 'isto não é json {' },
+    // Etiquetas de negócio dos cards: objeto, texto JSON, lixo e etiqueta vazia.
+    { key: 'etiqueta_card:101', value: { etiqueta: 'arrendamento', em: '2026-10-13T10:00:00Z', por: 'lp' } },
+    { key: 'etiqueta_card:102', value: '{"etiqueta":"cotista"}' },
+    { key: 'etiqueta_card:103', value: 'isto não é json {' },
+    { key: 'etiqueta_card:104', value: { etiqueta: '   ' } },
+    { key: 'etiqueta_card:105', value: ['integrador'] },
   ];
 });
 
@@ -94,7 +106,23 @@ describe('GET /gerador/eletroposto/atendimento', () => {
     expect(Number.isFinite(Date.parse(res.body.gerado_em))).toBe(true);
     expect(res.body.itens).toHaveLength(3);
     expect(JSON.stringify(res.body)).not.toContain('5534991112222');
-    expect(h.selecionado).toContain('updated_at');
+    expect(h.selecionados.some((c) => c.includes('updated_at'))).toBe(true);
+  });
+
+  it('devolve também as etiquetas de negócio dos cards, por id, e o resto da resposta não muda', async () => {
+    const res = await pedir('Bearer tk-nilce');
+    expect(res.status).toBe(200);
+    expect(res.body.etiquetas).toEqual({ '101': 'arrendamento', '102': 'cotista' });
+    expect(Object.keys(res.body).sort()).toEqual(['etiquetas', 'gerado_em', 'itens', 'ok']);
+    // as etiquetas não vazam para a lista de sessões, nem o contrário
+    expect(res.body.itens).toHaveLength(3);
+  });
+
+  it('sem nenhuma etiqueta guardada, etiquetas vem como objeto vazio', async () => {
+    h.linhas = h.linhas.filter((l) => !(l as { key: string }).key.startsWith('etiqueta_card:'));
+    const res = await pedir('Bearer tk-nilce');
+    expect(res.status).toBe(200);
+    expect(res.body.etiquetas).toEqual({});
   });
 
   it('erro de leitura vira 500 com ok:false, sem vazar o detalhe do banco', async () => {
@@ -152,5 +180,29 @@ describe('lerAtendimentos', () => {
   it('pagina: mais de 1000 linhas voltam inteiras', async () => {
     h.linhas = Array.from({ length: 2300 }, (_, i) => ({ key: `inv_agente:${String(i).padStart(10, '0')}`, updated_at: null, value: { estagio: 'chamado' } }));
     expect(await lerAtendimentos()).toHaveLength(2300);
+  });
+});
+
+describe('lerEtiquetasDosCards', () => {
+  it('lê só as chaves etiqueta_card: e mapeia id -> etiqueta (texto JSON vale; lixo, vazio e array não)', async () => {
+    expect(await lerEtiquetasDosCards()).toEqual({ '101': 'arrendamento', '102': 'cotista' });
+  });
+
+  it('pagina: mais de 1000 etiquetas voltam inteiras', async () => {
+    h.linhas = Array.from({ length: 2300 }, (_, i) => ({ key: `etiqueta_card:${i + 1}`, value: { etiqueta: 'cotista' } }));
+    expect(Object.keys(await lerEtiquetasDosCards())).toHaveLength(2300);
+  });
+
+  it('o erro de leitura SOBE', async () => {
+    h.bancoFora = true;
+    await expect(lerEtiquetasDosCards()).rejects.toThrow(/etiquetas dos cards/);
+  });
+
+  it('mapearEtiquetas ignora chave de outro prefixo e id vazio', () => {
+    expect(mapearEtiquetas([
+      { key: 'inv_agente:1', value: { etiqueta: 'x' } },
+      { key: 'etiqueta_card:', value: { etiqueta: 'x' } },
+      { key: 'etiqueta_card:7', value: { etiqueta: ' integrador ' } },
+    ])).toEqual({ '7': 'integrador' });
   });
 });

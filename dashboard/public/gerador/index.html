@@ -1075,6 +1075,11 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
 .cad-sit.erro,.cad-sit.parou{background:rgba(255,49,49,.16);color:#FCA5A5}
 .cad-sit.sem_interesse{opacity:.6}
 .cadtab .cad-sit-cel{min-width:120px}
+/* COLUNA ATENDIMENTO (13/10/2026): só layout; as cores vêm das classes que a tela já tem
+   (.cad-sit, .cad-ag-st, .crm-card-tag, .cad-sub), nos dois visuais. */
+.cadtab .cad-at{min-width:170px}
+.cad-at-pil{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+#cad-aba-agenda.ativa .cad-cnt{background:#34D399}
 .cad-sit-resumo{font-size:12.5px;font-weight:600;color:#94A3B8;line-height:1.5;margin:0 0 10px}
 .cad-sit-resumo[hidden]{display:none}
 /* padrão que não deve aguentar: é o aviso que evita marcar reunião pra um ponto
@@ -6480,7 +6485,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <b>Curioso</b>: quem ainda não disse quanto investe, ou disse menos de R$ 50 mil. Quando a
         pessoa responde um valor de R$ 50 mil ou mais, ela passa para Investidores sozinha.
         Entram os cadastros de <b>solardoc.app/io/eletroposto/parceria</b>, as fichas da LP e os
-        arrendamentos da agenda. O status é seu: marque conforme for falando.
+        arrendamentos da agenda. O status é seu: marque conforme for falando. A coluna
+        <b>Atendimento</b> é preenchida só pelo sistema. <b>Na agenda</b> lista quem marcou reunião.
       </div>
 
       <div class="cad-topo">
@@ -6489,6 +6495,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="cad-aba" id="cad-aba-capital" onclick="cadAba('capital')">Investidores <span class="cad-cnt" id="cad-cnt-capital">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-curioso" onclick="cadAba('curioso')">Curioso <span class="cad-cnt" id="cad-cnt-curioso">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-integrador" onclick="cadAba('integrador')">Parceiros <span class="cad-cnt" id="cad-cnt-integrador">—</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-agenda" onclick="cadAba('agenda')">Na agenda <span class="cad-cnt" id="cad-cnt-agenda">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
           <!-- PONTOS (26/09/2026): a mesma base pelo lado da conversa. Abre um pane
                proprio; cadAba() chama pontosFechar() pra voltar. -->
@@ -6503,15 +6510,26 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="conectado">Conectado</option>
             <option value="sem_interesse">Sem interesse</option>
           </select>
-          <!-- Filtro de situação (só nas abas de CAD_ABAS_ATEND): a lista sai das
-               situações presentes, com a contagem de cada uma. -->
+          <!-- Filtros da coluna Atendimento (todas as listas, menos o Match): situação,
+               etiqueta e consultor. As opções saem dos dados presentes, com a contagem de
+               cada uma, montadas por cadRender. -->
           <select class="cad-filtro" id="cad-sit" onchange="cadRender()" style="display:none">
             <option value="">Toda situação</option>
           </select>
-          <!-- Filtro de vendedor: quem tem reunião com aquele consultor. A lista de
-               nomes sai dos próprios agendamentos lidos, sem nome fixo no código. -->
+          <select class="cad-filtro" id="cad-etq" onchange="cadRender()" style="display:none">
+            <option value="">Toda etiqueta</option>
+          </select>
+          <!-- Período da reunião: só na lista Na agenda. -->
+          <select class="cad-filtro" id="cad-per" onchange="cadRender()" style="display:none">
+            <option value="hoje">Reuniões de hoje em diante</option>
+            <option value="7">Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="tudo">Tudo</option>
+          </select>
+          <!-- Consultor: quem a coluna Atendimento mostra (inclui a Helena). No Match as
+               opções são os vendedores das reuniões, sem nome fixo no código. -->
           <select class="cad-filtro" id="cad-vend" onchange="cadRender()">
-            <option value="">Todos os vendedores</option>
+            <option value="">Todos os consultores</option>
           </select>
           <!-- Mapa (08/10/2026): os pinos de quem pode ceder o local, com o mesmo
                balão da linha. Só na aba Arrendamento; o código mora em
@@ -6528,7 +6546,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
         <!-- So no Match: os chips sao montados por cadRenderMatch, com a contagem. -->
         <div class="cad-mf" id="cad-mf" hidden></div>
-        <!-- Resumo das situações (só nas abas de CAD_ABAS_ATEND), montado por cadRender. -->
+        <!-- Resumo das situações (todas as listas, menos o Match), montado por cadRender. -->
         <div class="cad-sit-resumo" id="cad-sit-resumo" hidden></div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
@@ -11056,15 +11074,17 @@ function cadAgendaDe(r) {
   const k = cadTel8(r.telefone);
   return k ? (cadAgendas.get(k) || null) : null;
 }
-// ── COLUNAS SITUAÇÃO E CONSULTOR (12/10/2026) ────────────────────────────────
-// Preenchidas SÓ pelo sistema: a conversa da Helena (banco principal, lida pela
-// api em GET /gerador/eletroposto/atendimento) e o card da agenda. A aba de
-// Investidores é a primeira; as outras recebem as mesmas colunas quando o nome
-// delas entrar em CAD_ABAS_ATEND (o código abaixo já é genérico).
-const CAD_ABAS_ATEND = ['capital'];
+// ── COLUNA ATENDIMENTO (12/10/2026; em todas as listas desde 13/10) ──────────
+// Preenchida SÓ pelo sistema: a conversa da Helena (banco principal, lida pela
+// api em GET /gerador/eletroposto/atendimento) e o card da agenda. Uma célula só
+// junta a situação, as etiquetas do card, quem atende e a data. O card vem SEMPRE
+// do mapa por chave inteira (DDD + 8 últimos). O mapa de 8 dígitos (cadAgendas)
+// continua vivo só para o Match e para o mapa do Arrendamento, que ainda o leem.
 let cadAgendasChave = new Map(); // chave (DDD + 8 últimos) -> a reunião mais recente da pessoa
 let cadAtend = new Map();        // chave (DDD + 8 últimos) -> sessão da Helena
+let cadEtiquetas = {};           // id do card -> etiqueta de negócio guardada (etiqueta_card:<id>)
 let cadAtendFalhou = false;      // a leitura falhou ou não havia sessão de login
+let cadAgendaCheia = false;      // a leitura de agendamentos chegou ao teto de 1.000 linhas (pode ter cortado reuniões antigas)
 let cadAtendPronto = false;      // a primeira leitura já terminou (bem ou mal)
 /** A mesma chave que a api usa nas sessões: DDD + 8 últimos dígitos, sem o 55. */
 function cadChave(tel) {
@@ -11144,34 +11164,159 @@ function cadSituacao(r, lado) {
     ? { cod: 'fila', rotulo: 'Na fila', detalhe: '', consultor: '', quando: '' }
     : { cod: 'sem_atend', rotulo: 'Sem atendimento', detalhe: '', consultor: '', quando: '' };
 }
-/** A célula da coluna Situação: pílula e, embaixo, o detalhe e a data. */
-function cadSituacaoCel(r, lado) {
+// ETIQUETAS DE NEGÓCIO DO CARD. Espelho exato de ETIQUETAS_DE_NEGOCIO em
+// api/src/services/agenda/salaDeEspera.ts: se um status destes é o do card, ele JÁ É a
+// etiqueta de negócio; nos outros (agendado, nao_atendeu…), vale a que a agenda guardou
+// em etiqueta_card:<id> (cadEtiquetas, vinda da api).
+const CAD_ETQ_NEGOCIO = ['arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'cotista', 'integrador',
+  'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp'];
+/** Comparar texto de pílula: sem acento, sem espaço, sem caixa ("Cotista" = "COTISTA"). */
+function cadNorm(t) {
+  return String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function cadEtqNegocio(card) {
+  if (!card) return '';
+  const st = String(card.status || '');
+  if (CAD_ETQ_NEGOCIO.indexOf(st) >= 0) return CAD_AG_STATUS[st] || st.toUpperCase();
+  const g = cadEtiquetas ? cadEtiquetas[card.id] : '';
+  return g ? (CAD_AG_STATUS[g] || String(g).toUpperCase()) : '';
+}
+/**
+ * A coluna Atendimento de UMA pessoa, em dados: a situação (cadSituacao), as etiquetas do
+ * card sem repetir texto, quem atende e a data. Devolve a situação mais:
+ *   etiquetas  as pílulas a desenhar [{ texto, tipo: 'negocio' | 'origem', cor }], sem
+ *              repetir o texto da situação nem uma da outra (normalizado);
+ *   chaves     os textos de etiqueta da pessoa, SEM tirar os que a situação já diz: é o
+ *              que o filtro de etiqueta usa (senão "Cotista" sumiria do filtro COTISTA);
+ *   origem     { texto, cor } da etiqueta de origem do card, ou null;
+ *   quandoBRT  a data da linha 2 ("13/10 10:00", Brasília);
+ *   card       a reunião mais recente da pessoa (chave DDD + 8), ou null.
+ * Opções: semOrigem tira a pílula de origem da célula (a lista Na agenda tem coluna
+ * própria) e semQuandoDoCard tira a data quando ela é a da reunião (também tem coluna).
+ */
+function cadAtendimentoDe(r, lado, op) {
+  r = r || {}; op = op || {};
   const x = cadSituacao(r, lado);
-  const sub = [x.detalhe, cadQuandoBRT(x.quando)].filter(Boolean).join(' · ');
-  return '<td class="cad-sit-cel"><span class="cad-sit ' + String(x.cod).replace(/[^a-z_]/g, '') + '">'
-    + escapeHtml(x.rotulo) + '</span>'
-    + (sub ? '<span class="cad-sub">' + escapeHtml(sub) + '</span>' : '') + '</td>';
-}
-/** A célula da coluna Consultor: o nome, ou um traço (vazio se lê como coluna quebrada). */
-function cadConsultorCel(r, lado) {
-  const nome = cadSituacao(r, lado).consultor;
-  return '<td class="cad-cons">' + (nome ? escapeHtml(nome) : '<span class="cad-ag-nao">—</span>') + '</td>';
-}
-/** Quantas pessoas há em cada situação: [{ rotulo, cod, n }], da maior para a menor. */
-function cadSituacaoContagem(linhas, lado) {
-  const m = new Map();
-  (linhas || []).forEach(r => {
-    const x = cadSituacao(r, lado);
-    const o = m.get(x.rotulo) || { rotulo: x.rotulo, cod: x.cod, n: 0 };
-    o.n++;
-    m.set(x.rotulo, o);
+  const chave = cadChave(r.telefone);
+  const card = chave ? (cadAgendasChave.get(chave) || null) : null;
+  const negocio = cadEtqNegocio(card);
+  let origemTxt = '';
+  if (card) { try { origemTxt = (typeof etqDeLead === 'function' ? etqDeLead(card.created_by, card.src) : null) || ''; } catch (e) { origemTxt = ''; } }
+  const origemCor = origemTxt && typeof etiquetaCor === 'function' ? etiquetaCor(origemTxt) : '';
+  const etiquetas = [], chaves = [];
+  const noFiltro = new Set(), naCelula = new Set([cadNorm(x.rotulo)]);
+  [{ texto: negocio, tipo: 'negocio', cor: '' }, { texto: origemTxt, tipo: 'origem', cor: origemCor }].forEach(c => {
+    if (!c.texto) return;
+    const k = cadNorm(c.texto);
+    if (!noFiltro.has(k)) { noFiltro.add(k); chaves.push(c.texto); }
+    if (naCelula.has(k)) return;
+    naCelula.add(k);
+    if (c.tipo === 'origem' && op.semOrigem) return;
+    etiquetas.push(c);
   });
-  return Array.from(m.values()).sort((a, b) => b.n - a.n || a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+  const doCard = !!(op.semQuandoDoCard && card && x.quando === card.quando);
+  return Object.assign({}, x, {
+    etiquetas, chaves, card,
+    origem: origemTxt ? { texto: origemTxt, cor: origemCor } : null,
+    quandoBRT: doCard ? '' : cadQuandoBRT(x.quando),
+  });
+}
+/** O endereço do card na agenda, em modo de leitura. */
+const cadLinkCard = card => '/gerador/agenda?ag=' + encodeURIComponent(card.id) + '&ver=1';
+/** A pílula de origem (a mesma do card da agenda). */
+function cadPilulaOrigem(texto, cor) {
+  return '<span class="crm-card-tag' + (cor ? ' tag-' + cor : '') + '">' + escapeHtml(texto) + '</span>';
+}
+/**
+ * A célula Atendimento, igual em todas as listas. Linha 1: a pílula da situação e as
+ * etiquetas. Linha 2, em letra pequena: quem atende, a data e o detalhe; é o link que
+ * abre a reunião na agenda quando a pessoa tem card. Sem nada a dizer, não há linha 2.
+ */
+function cadAtendimentoCel(a) {
+  const cod = String(a.cod).replace(/[^a-z_]/g, '');
+  const pil = '<span class="cad-sit ' + cod + '"' + (a.detalhe ? ' title="' + escapeHtml(a.detalhe) + '"' : '') + '>'
+    + escapeHtml(a.rotulo) + '</span>'
+    + a.etiquetas.map(e => e.tipo === 'negocio'
+      ? '<span class="cad-ag-st">' + escapeHtml(e.texto) + '</span>'
+      : cadPilulaOrigem(e.texto, e.cor)).join('');
+  const sub = [a.consultor, a.quandoBRT, a.detalhe].filter(Boolean).join(' · ');
+  const linha2 = !sub ? '' : '<span class="cad-sub">'
+    + (a.card ? '<a class="cad-ag-link" href="' + cadLinkCard(a.card) + '" target="_blank" rel="noopener"'
+      + ' title="Abrir esta reunião na agenda">' + escapeHtml(sub) + '</a>' : escapeHtml(sub)) + '</span>';
+  return '<td class="cad-sit-cel cad-at"><div class="cad-at-pil">' + pil + '</div>' + linha2 + '</td>';
+}
+/**
+ * O resumo de uma lista, a partir das células já calculadas: quantas pessoas em cada
+ * situação e em cada etiqueta (mais as sem etiqueta), e quem atende. Alimenta os três
+ * selects e a linha de resumo.
+ */
+function cadResumoDe(atendimentos) {
+  const sit = new Map(), etq = new Map(), cons = new Set();
+  let semEtiqueta = 0;
+  (atendimentos || []).forEach(a => {
+    const o = sit.get(a.rotulo) || { rotulo: a.rotulo, cod: a.cod, n: 0 };
+    o.n++; sit.set(a.rotulo, o);
+    if (!a.chaves.length) semEtiqueta++;
+    a.chaves.forEach(t => { const e = etq.get(t) || { texto: t, n: 0 }; e.n++; etq.set(t, e); });
+    if (a.consultor) cons.add(a.consultor);
+  });
+  const ordem = (a, b, ta, tb) => b.n - a.n || String(ta).localeCompare(String(tb), 'pt-BR');
+  return {
+    situacoes: Array.from(sit.values()).sort((a, b) => ordem(a, b, a.rotulo, b.rotulo)),
+    etiquetas: Array.from(etq.values()).sort((a, b) => ordem(a, b, a.texto, b.texto)),
+    semEtiqueta,
+    consultores: Array.from(cons).sort((a, b) => a.localeCompare(b, 'pt-BR')),
+  };
+}
+// ── LISTA "NA AGENDA" (13/10/2026) ───────────────────────────────────────────
+// Quem marcou reunião de eletroposto, uma linha por pessoa (chave DDD + 8). As linhas
+// saem do mapa cadAgendasChave, a mesma leitura de agendamentos que as outras listas usam.
+const CAD_LISTAS_NOME = { ponto: 'Arrendamento', capital: 'Investidores', curioso: 'Curioso', integrador: 'Parceiros' };
+function cadLinhasAgenda() {
+  return Array.from(cadAgendasChave.values()).map(a => ({
+    id: a.id, nome: a.cliente_nome, telefone: a.cliente_telefone, cidade: a.cidade,
+    tab: 'agendamentos', deAgenda: true, status: null, quando: a.quando, card: a,
+  }));
+}
+/** Meia-noite de Brasília do dia de `ms`. Brasília não tem horário de verão desde 2019. */
+function cadInicioDoDiaBRT(ms) {
+  const p = {};
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date(ms)).forEach(x => { p[x.type] = x.value; });
+  return Date.parse(p.year + '-' + p.month + '-' + p.day + 'T00:00:00-03:00');
+}
+/**
+ * Filtra pelo período da reunião e ordena: "hoje" (de hoje em diante) vai da mais próxima
+ * para a mais distante; os outros vão da mais recente para a mais antiga.
+ * "7" e "30" são os últimos N dias até o fim de hoje (reunião futura fica de fora).
+ */
+function cadPeriodoFiltra(linhas, periodo, agora) {
+  const ini = cadInicioDoDiaBRT(agora == null ? Date.now() : agora);
+  const DIA = 86400000;
+  const t = r => Date.parse(r.quando || '');
+  let out = linhas.filter(r => isFinite(t(r)));
+  if (periodo === 'hoje') out = out.filter(r => t(r) >= ini);
+  else if (periodo === '7' || periodo === '30') out = out.filter(r => t(r) >= ini - Number(periodo) * DIA && t(r) < ini + DIA);
+  return out.sort(periodo === 'hoje' ? (a, b) => t(a) - t(b) : (a, b) => t(b) - t(a));
+}
+/** Em quais listas de cadastro cada chave está: Map chave -> ['Arrendamento', 'Investidores'…]. */
+function cadListasPorChave(dados) {
+  const m = new Map();
+  Object.keys(CAD_LISTAS_NOME).forEach(l => {
+    ((dados && dados[l]) || []).forEach(r => {
+      const k = cadChave(r.telefone);
+      if (!k) return;
+      const arr = m.get(k) || m.set(k, []).get(k);
+      if (arr.indexOf(CAD_LISTAS_NOME[l]) < 0) arr.push(CAD_LISTAS_NOME[l]);
+    });
+  });
+  return m;
 }
 /** Lê a situação da agente na api. Nunca lança: a lista desenha com ou sem ela. */
 async function cadAtendBuscar() {
   const seq = ++cadAtendSeq;
   let mapa = new Map();
+  let etiquetas = {};
   let falhou = false;
   const ctrl = new AbortController();
   let t = null;
@@ -11187,43 +11332,27 @@ async function cadAtendBuscar() {
         { headers: { 'Authorization': 'Bearer ' + tok }, signal: ctrl.signal });
       const j = await r.json().catch(() => null);
       if (!r.ok || !j || !j.ok || !Array.isArray(j.itens)) throw new Error('resposta ' + r.status);
-      return j.itens;
+      // etiquetas: ausente se a tela subir antes da api; a coluna segue só com o card.
+      return { itens: j.itens, etiquetas: j.etiquetas && typeof j.etiquetas === 'object' && !Array.isArray(j.etiquetas) ? j.etiquetas : {} };
     })();
     trabalho.catch(() => {});   // se o prazo vencer primeiro, o erro tardio não vira alerta
-    const itens = await Promise.race([trabalho, prazo]);
-    itens.forEach(i => { if (i && i.chave) mapa.set(i.chave, i); });
+    const lido = await Promise.race([trabalho, prazo]);
+    lido.itens.forEach(i => { if (i && i.chave) mapa.set(i.chave, i); });
+    etiquetas = lido.etiquetas;
   } catch (e) {
     mapa = new Map();
+    etiquetas = {};
     falhou = true;
   }
   if (t) clearTimeout(t);
   if (seq !== cadAtendSeq) return;   // uma leitura mais nova já saiu
   cadAtend = mapa;
+  cadEtiquetas = etiquetas;
   cadAtendFalhou = falhou;
   cadAtendPronto = true;
   if (cadDados) cadRender();
 }
 let cadAtendSeq = 0;
-/** A célula da coluna Agenda. Sem reunião é travessão, não vazio: vazio se lê
- *  como "a coluna quebrou". O link abre o card na agenda, em modo de leitura. */
-function cadAgendaCel(r) {
-  const a = cadAgendaDe(r);
-  if (!a) return '<td class="cad-ag"><span class="cad-ag-nao">—</span></td>';
-  const etq = etqDeLead(a.created_by, a.src);
-  const cor = etq && typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '';
-  const st = CAD_AG_STATUS[a.status || 'agendado'] || String(a.status || '').toUpperCase();
-  const quando = a.quando
-    ? new Date(a.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : '';
-  return '<td class="cad-ag">'
-    + '<a class="cad-ag-link" href="/gerador/agenda?ag=' + a.id + '&ver=1" target="_blank" rel="noopener"'
-    + ' title="Abrir esta reunião na agenda">'
-    + '<span class="cad-ag-st">' + escapeHtml(st) + '</span>'
-    + (etq ? ' <span class="crm-card-tag' + (cor ? ' tag-' + cor : '') + '">' + escapeHtml(etq) + '</span>' : '')
-    + '<span class="cad-sub">' + escapeHtml(a.vendedor_nome || 'sem vendedor')
-    + (quando ? ' · ' + quando : '') + '</span>'
-    + '</a></td>';
-}
 /** Os vendedores que aparecem nas reuniões desta lista, para o filtro. */
 function cadVendedores() {
   const s = new Set();
@@ -11262,7 +11391,7 @@ function cadAba(lado) {
   pontosFechar();   // aba Pontos e um pane a parte; voltar pra lista o esconde
   cadLado = lado;
   if (cadPrecisaRecarregar && cadDados) { cadPrecisaRecarregar = false; cadCarregar(); }
-  ['ponto', 'capital', 'curioso', 'integrador', 'match'].forEach(l => {
+  ['ponto', 'capital', 'curioso', 'integrador', 'agenda', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
     if (b) b.classList.toggle('ativa', l === lado);
   });
@@ -11273,6 +11402,8 @@ function cadAba(lado) {
            + 'aparece aqui E em Arrendamento — é venda direta',
     curioso: 'Curioso: não disse quanto investe, ou disse menos de R$ ' + CAD_PISO_MIL + ' mil',
     integrador: 'Parceiros: integradores que instalam e querem vender eletroposto',
+    agenda: 'Na agenda: quem marcou reunião de eletroposto, uma linha por pessoa. A coluna Também em '
+          + 'mostra em quais listas de cadastro ela também está',
     match: 'Match — os ' + CAD_MAX_POR_PONTO + ' investidores mais perto de cada ponto PRÓPRIO, até '
            + CAD_MATCH_KM + ' km',
   };
@@ -11280,13 +11411,15 @@ function cadAba(lado) {
   // O painel de "quem está perto" é da tabela de lista; na aba Match o par já
   // está na própria linha, e deixá-lo aberto mostraria outra pessoa.
   cadParesAberto = null;
-  // O filtro de status some no Match: lá a linha é uma DUPLA, e cada metade tem
-  // o seu status. Um seletor que continua na tela sem fazer nada é pior que não
-  // existir — a pessoa filtra, não muda nada, e conclui que a tela travou.
+  // O filtro de status some no Match e na lista Na agenda. No Match a linha é uma
+  // DUPLA, e cada metade tem o seu status; na agenda o status é o do card, que mora
+  // na agenda. Um seletor que continua na tela sem fazer nada é pior que não existir
+  // — a pessoa filtra, não muda nada, e conclui que a tela travou.
   const filtro = document.getElementById('cad-filtro');
+  const semStatus = lado === 'match' || lado === 'agenda';
   if (filtro) {
-    if (lado === 'match') filtro.value = '';
-    filtro.style.display = lado === 'match' ? 'none' : '';
+    if (semStatus) filtro.value = '';
+    filtro.style.display = semStatus ? 'none' : '';
   }
   const btnMapa = document.getElementById('cad-btn-mapa');
   if (btnMapa) btnMapa.style.display = lado === 'ponto' ? '' : 'none';
@@ -11365,12 +11498,15 @@ async function cadCarregar(forcar) {
       // tem reunião". Filtrado por eletroposto a base inteira são ~470 linhas,
       // com folga de anos contra o teto de 1.000 da API; o corte que o comentário
       // antigo temia era o de TODOS os produtos (1.092 numa janela de 120 dias).
-      supaGet('agendamentos?select=id,quando,cliente_telefone,status,vendedor_nome,created_by,src'
+      // cliente_nome e cidade entraram em 13/10: a lista Na agenda nasce desta leitura.
+      // Segue em limit=1000, o teto da API: a tela avisa no resumo quando chega nele.
+      supaGet('agendamentos?select=id,quando,cliente_nome,cidade,cliente_telefone,status,vendedor_nome,created_by,src'
               + '&created_by=ilike.*eletroposto*'
               + '&order=quando.desc&limit=1000').catch(() => []),
     ]);
     // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
     // em ordem decrescente, então a primeira de cada telefone é a que vale).
+    cadAgendaCheia = (agendaTodas || []).length >= 1000;
     cadAgendas = new Map();
     // O mesmo laço alimenta o mapa das colunas Situação e Consultor, que casa pela
     // chave inteira (DDD + 8 últimos): os 8 últimos sozinhos juntam DDDs diferentes.
@@ -11541,46 +11677,67 @@ async function cadCarregar(forcar) {
   cadRender();
 }
 
+// Os cabeçalhos de cada lista, num lugar só: o colspan do "nada encontrado" e da linha
+// do painel "quem está perto" sai do tamanho daqui, e entrar uma coluna não os encolhe
+// em silêncio. A coluna "perto" não existe para o integrador: ele não tem contraparte, e
+// uma coluna que mostra sempre "—" convida a equipe a procurar defeito onde não há.
+// "Atendimento" fica logo depois de "Quem" em todas; "Status" (o único controle manual)
+// é sempre a última, menos na lista Na agenda, onde o status é o do card.
+const CAD_COLUNAS = {
+  ponto: ['Quem', 'Atendimento', 'Local', 'Cidade', 'Endereço', 'Padrão de entrada', 'Investidores perto', 'Status'],
+  capital: ['Quem', 'Atendimento', 'Cidade', 'Quanto', 'Com quê', 'Origem', 'Pontos perto', 'Status'],
+  curioso: ['Quem', 'Atendimento', 'Cidade', 'O local', 'Quanto investe', 'Com quê', 'Origem', 'Registrar valor', 'Status'],
+  integrador: ['Quem', 'Atendimento', 'Cidade', 'O que faz', 'Como quer trabalhar', 'Experiência', 'Equipe', 'Status'],
+  agenda: ['Quem', 'Atendimento', 'Reunião', 'Cidade', 'Origem', 'Também em'],
+};
+/** Remonta um select a partir das opções, preservando a escolha se ela ainda existe. */
+function cadMontaSelect(sel, vazio, opcoes) {
+  if (!sel) return '';
+  const escolhida = sel.value;
+  const html = '<option value="">' + escapeHtml(vazio) + '</option>'
+    + opcoes.map(o => '<option value="' + escapeHtml(o.v) + '">' + escapeHtml(o.t) + '</option>').join('');
+  if (sel.dataset.opcoes !== html) { sel.innerHTML = html; sel.dataset.opcoes = html; }
+  sel.value = opcoes.some(o => o.v === escolhida) ? escolhida : '';
+  return sel.value;
+}
 function cadRender() {
   if (!cadDados) return;
   const busca = (document.getElementById('cad-busca').value || '').trim().toLowerCase();
   const filtro = document.getElementById('cad-filtro').value;
-  // O seletor de vendedor é remontado a cada render (a lista de nomes vem dos
-  // dados), preservando o que estiver escolhido.
-  const selVend = document.getElementById('cad-vend');
-  const vend = selVend ? selVend.value : '';
-  // Colunas Situação e Consultor: só nas abas de CAD_ABAS_ATEND.
-  const comAtend = CAD_ABAS_ATEND.indexOf(cadLado) >= 0;
+  const ehLista = cadLado !== 'match';
   const selSit = document.getElementById('cad-sit');
+  const selEtq = document.getElementById('cad-etq');
+  const selPer = document.getElementById('cad-per');
+  const selVend = document.getElementById('cad-vend');
   const resumoSit = document.getElementById('cad-sit-resumo');
-  if (selSit) selSit.style.display = comAtend ? '' : 'none';
-  if (resumoSit) resumoSit.hidden = !comAtend;
-  const daAba = (cadDados[cadLado] || []);
-  const contagem = comAtend ? cadSituacaoContagem(daAba, cadLado) : [];
-  if (selSit && comAtend) {
-    const escolhida = selSit.value;
-    const html = '<option value="">Toda situação</option>'
-      + contagem.map(c => '<option value="' + escapeHtml(c.rotulo) + '">' + escapeHtml(c.rotulo) + ' (' + c.n + ')</option>').join('');
-    if (selSit.dataset.opcoes !== html) { selSit.innerHTML = html; selSit.dataset.opcoes = html; }
-    selSit.value = contagem.some(c => c.rotulo === escolhida) ? escolhida : '';
+  // Situação, etiqueta e resumo valem em todas as listas (não no Match); o período é só da Na agenda.
+  if (selSit) selSit.style.display = ehLista ? '' : 'none';
+  if (selEtq) selEtq.style.display = ehLista ? '' : 'none';
+  if (selPer) selPer.style.display = cadLado === 'agenda' ? '' : 'none';
+  if (resumoSit) resumoSit.hidden = !ehLista;
+  const linhasAgenda = cadLinhasAgenda();
+  // A lista da aba (na agenda: já no período), com a célula Atendimento de cada pessoa
+  // calculada UMA vez por desenho: o resumo, os filtros e a tabela leem a mesma conta.
+  let base = [];
+  if (ehLista) {
+    base = cadLado === 'agenda'
+      ? cadPeriodoFiltra(linhasAgenda, (selPer && selPer.value) || 'hoje')
+      : (cadDados[cadLado] || []);
   }
-  if (resumoSit && comAtend) {
-    resumoSit.textContent = (!cadAtendPronto ? 'Carregando a situação da agente… · '
-      : cadAtendFalhou ? 'Situação da agente indisponível agora · ' : '')
-      + contagem.map(c => c.rotulo + ' ' + c.n).join(' · ');
-  }
-  if (selVend) {
-    const nomes = comAtend
-      ? Array.from(new Set(daAba.map(r => cadSituacao(r, cadLado).consultor).filter(Boolean))).sort()
-      : cadVendedores();
-    const html = '<option value="">Todos os vendedores</option>'
-      + nomes.map(n => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('');
-    if (selVend.dataset.nomes !== nomes.join('|')) {
-      selVend.innerHTML = html;
-      selVend.dataset.nomes = nomes.join('|');
-    }
-    selVend.value = nomes.includes(vend) ? vend : '';
-  }
+  const opAt = cadLado === 'agenda' ? { semOrigem: true, semQuandoDoCard: true } : {};
+  const A = new Map();
+  base.forEach(r => A.set(r, cadAtendimentoDe(r, cadLado, opAt)));
+  const res = cadResumoDe(Array.from(A.values()));
+  const sitEsc = ehLista ? cadMontaSelect(selSit, 'Toda situação',
+    res.situacoes.map(c => ({ v: c.rotulo, t: c.rotulo + ' (' + c.n + ')' }))) : '';
+  const etqEsc = ehLista ? cadMontaSelect(selEtq, 'Toda etiqueta',
+    res.etiquetas.map(e => ({ v: e.texto, t: e.texto + ' (' + e.n + ')' }))
+      .concat(res.semEtiqueta ? [{ v: '__sem__', t: 'Sem etiqueta (' + res.semEtiqueta + ')' }] : [])) : '';
+  // Consultor: nas listas é quem a coluna Atendimento mostra (inclui a Helena); no Match
+  // segue o vendedor da reunião (cadVendedores), que é o que o filtro dele entende.
+  const nomes = ehLista ? res.consultores : cadVendedores();
+  const vendEsc = cadMontaSelect(selVend, ehLista ? 'Todos os consultores' : 'Todos os vendedores',
+    nomes.map(n => ({ v: n, t: n })));
   // A soma das abas é maior que o número de pessoas desde 28/09 (o mesmo humano
   // pode ser ponto e investidor). Sem esta linha, alguém soma 3 números e conclui
   // que a base tem mais gente do que tem.
@@ -11588,6 +11745,7 @@ function cadRender() {
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
   document.getElementById('cad-cnt-curioso').textContent = cadDados.curioso.length;
   document.getElementById('cad-cnt-integrador').textContent = cadDados.integrador.length;
+  document.getElementById('cad-cnt-agenda').textContent = linhasAgenda.length;
   // Contagem de match: "—" quando não deu pra calcular, nunca 0 — a mesma regra
   // da coluna. Zero é "medi e não achei"; travessão é "não sei medir".
   document.getElementById('cad-cnt-match').textContent = cadMatches ? cadMatches.length : '—';
@@ -11596,32 +11754,29 @@ function cadRender() {
   document.getElementById('cad-mf').hidden = cadLado !== 'match';
   if (cadLado === 'match') { cadRenderMatch(busca); return; }
 
-  let linhas = cadDados[cadLado];
-  if (filtro) linhas = linhas.filter(r => (r.status || 'novo') === filtro);
-  // Filtrar por vendedor deixa de fora quem não tem reunião nenhuma — é o que
-  // "as pessoas do Diego" quer dizer.
-  const vendEscolhido = selVend ? selVend.value : '';
-  if (vendEscolhido) {
-    // Nas abas com a coluna Consultor o filtro segue o que a coluna mostra (inclui a
-    // Helena); nas outras segue o vendedor da reunião.
-    linhas = comAtend
-      ? linhas.filter(r => cadSituacao(r, cadLado).consultor === vendEscolhido)
-      : linhas.filter(r => { const a = cadAgendaDe(r); return a && a.vendedor_nome === vendEscolhido; });
+  if (resumoSit) {
+    resumoSit.textContent = (!cadAtendPronto ? 'Carregando a situação da agente… · '
+      : cadAtendFalhou ? 'Situação da agente indisponível agora · ' : '')
+      + (cadLado === 'agenda' && cadAgendaCheia ? 'A leitura da agenda chegou ao teto de 1.000 reuniões: pode haver reuniões mais antigas fora desta lista · ' : '')
+      + (res.situacoes.map(c => c.rotulo + ' ' + c.n).join(' · ') || 'Ninguém neste período');
   }
-  const sitEscolhida = comAtend && selSit ? selSit.value : '';
-  if (sitEscolhida) linhas = linhas.filter(r => cadSituacao(r, cadLado).rotulo === sitEscolhida);
+
+  let linhas = base;
+  if (filtro && cadLado !== 'agenda') linhas = linhas.filter(r => (r.status || 'novo') === filtro);
+  // Filtrar por consultor deixa de fora quem ninguém atende — é o que "as pessoas do
+  // Diego" quer dizer. Segue o que a coluna Atendimento mostra.
+  if (vendEsc) linhas = linhas.filter(r => A.get(r).consultor === vendEsc);
+  if (sitEsc) linhas = linhas.filter(r => A.get(r).rotulo === sitEsc);
+  if (etqEsc) linhas = linhas.filter(r => etqEsc === '__sem__' ? !A.get(r).chaves.length : A.get(r).chaves.indexOf(etqEsc) >= 0);
   if (busca) linhas = linhas.filter(r =>
     [r.nome, r.cidade, r.telefone, r.ponto_endereco].filter(Boolean).join(' ').toLowerCase().includes(busca));
 
   const tb = document.querySelector('#cad-tabela tbody');
+  const nCols = CAD_COLUNAS[cadLado].length;
   if (!linhas.length) {
     // Vazio tem DOIS motivos e eles pedem reação diferente: filtro que não
     // achou nada é do usuário; lista sem ninguém é do negócio.
-    const semNinguem = !cadDados[cadLado].length;
-    // O colspan acompanha o cabeçalho de cada lado — fixo, ele encolhe a
-    // mensagem em silêncio quando uma coluna entra (não dá erro no console).
-    const nCols = ((cadLado === 'ponto' || cadLado === 'curioso') ? 9 : 8)   // + a coluna Agenda
-      + (comAtend ? 2 : 0);                                                  // + Situação e Consultor
+    const semNinguem = cadLado === 'agenda' ? !linhasAgenda.length : !cadDados[cadLado].length;
     tb.innerHTML = '<tr><td colspan="' + nCols + '" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
       ? (cadLado === 'ponto'
         ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
@@ -11629,41 +11784,50 @@ function cadRender() {
         ? '<b>Ninguém aqui.</b><br>Todo mundo que não pode ceder um local já disse quanto investe.'
         : cadLado === 'integrador'
         ? '<b>Nenhum parceiro cadastrado ainda.</b><br>O integrador se cadastra pelo quiz da LP (porta Integrador) ou pela página de parceria.'
+        : cadLado === 'agenda'
+        ? '<b>Nenhuma reunião de eletroposto na agenda ainda.</b>'
         : '<b>Ninguém com capital declarado ainda.</b>')
-      : 'Nada com esse filtro.') + '</td></tr>';
+      : (cadLado === 'agenda' && !base.length ? 'Nenhuma reunião neste período. Troque o período para ver as outras.' : 'Nada com esse filtro.'))
+      + '</td></tr>';
     return;
   }
 
-  // A coluna "perto" não existe pro integrador: ele não tem contraparte, e uma
-  // coluna que mostra sempre "—" convida a equipe a procurar defeito onde não há.
-  const colPar = cadLado === 'ponto' ? '<th>Investidores perto</th>' : '<th>Pontos perto</th>';
-  const thAtend = comAtend ? '<th>Situação</th><th>Consultor</th>' : '';
-  const cab = cadLado === 'ponto'
-    ? '<tr><th>Quem</th>' + thAtend + '<th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>'
-    : cadLado === 'curioso'
-    ? '<tr><th>Quem</th>' + thAtend + '<th>Cidade</th><th>O local</th><th>Quanto investe</th><th>Com quê</th><th>Origem</th><th>Registrar valor</th><th>Agenda</th><th>Status</th></tr>'
-    : cadLado === 'integrador'
-    ? '<tr><th>Quem</th>' + thAtend + '<th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Agenda</th><th>Status</th></tr>'
-    : '<tr><th>Quem</th>' + thAtend + '<th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>';
+  const cab = '<tr>' + CAD_COLUNAS[cadLado].map(h => '<th>' + h + '</th>').join('') + '</tr>';
+  const listasDe = cadLado === 'agenda' ? cadListasPorChave(cadDados) : null;
 
   tb.innerHTML = cab + linhas.map(r => {
     const tel = String(r.telefone || '').replace(/\D/g, '');
     const quando = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
     const wa = tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '';
+    const at = A.get(r);
+    const celAtend = cadAtendimentoCel(at);
+    if (cadLado === 'agenda') {
+      const nomeAg = '<td class="nome">'
+        + '<a class="cad-ag-link" href="' + cadLinkCard(r.card) + '" target="_blank" rel="noopener" title="Abrir esta reunião na agenda">'
+        + escapeHtml(r.nome || '—') + '</a>'
+        + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + wa + '</div></td>';
+      const tambem = (listasDe.get(cadChave(r.telefone)) || [])
+        .map(n => '<span class="cad-org cad">' + escapeHtml(n) + '</span>').join(' ');
+      return '<tr>' + nomeAg + celAtend
+        + '<td>' + escapeHtml(cadQuandoBRT(r.quando) || '—') + '</td>'
+        + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
+        + '<td>' + (at.origem ? cadPilulaOrigem(at.origem.texto, at.origem.cor) : '—') + '</td>'
+        + '<td>' + (tambem || '—') + '</td></tr>';
+    }
     // No Arrendamento a posse do local vira SELO (proprio / inquilino); nas outras
-    // abas continua o texto miudo de antes, onde ele raramente existe.
+    // abas continua o texto miudo de antes, onde ele raramente existe. A posse aparece
+    // UMA vez por linha: o selo quando a resposta é reconhecida, senão o texto.
     const ehPonto = cadLado === 'ponto';
+    const posseNoNome = !ehPonto && cadLado !== 'curioso' && r.ponto_relacao
+      ? (cadPosseDe(r) ? cadRelacaoBadge(r) : '<span class="cad-sub">' + escapeHtml(r.ponto_relacao) + '</span>') : '';
     const nome = '<td class="nome">' + escapeHtml(r.nome || '—')
-      + '<span class="cad-sub">' + quando
-        + (!ehPonto && cadLado !== 'curioso' && r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
-      + (ehPonto ? cadRelacaoBadge(r) : '')
+      + '<span class="cad-sub">' + quando + '</span>'
+      + (ehPonto ? cadRelacaoBadge(r) : posseNoNome)
       + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + wa
       // Termo de compromisso (08/10/2026): abre o termo já com os dados da pessoa.
       + ((cadLado === 'ponto' || cadLado === 'capital')
         ? '<button type="button" class="cad-termo" onclick="cadTermo(\'' + cadLado + '\',\'' + cadRef(r) + '\')" title="Abrir o termo de compromisso com os dados desta pessoa">Termo</button>' : '')
       + '</div></td>';
-    // Situação e Consultor: preenchidas só pelo sistema, só nas abas de CAD_ABAS_ATEND.
-    const celAtend = comAtend ? cadSituacaoCel(r, cadLado) + cadConsultorCel(r, cadLado) : '';
     const st = r.deAgenda
       ? '<td><span class="cad-st-agenda" title="O status desta pessoa mora na agenda. Trocar aqui '
         + 'mudaria o agendamento e tiraria ela do Arrendamento.">na agenda</span></td>'
@@ -11681,15 +11845,22 @@ function cadRender() {
       + (r.deFicha ? 'da ficha' : 'cadastro') + '</span>';
 
     if (cadLado === 'ponto') {
-      const detalhe = (r.deFicha || r.deAgenda) ? org : escapeHtml(r.ponto_vagas || '—');
+      // A coluna Local diz de onde a linha veio, UMA vez: a linha da agenda traz a origem
+      // no próprio texto de ponto_fluxo ("Marcado ARRENDAMENTO na agenda"); a da ficha
+      // ganha a etiqueta e, embaixo, o que a LP respondeu sobre o local.
+      const origemLocal = r.deAgenda ? ''
+        : r.deFicha ? org : escapeHtml(r.ponto_vagas || '');
+      const fluxo = r.ponto_fluxo ? escapeHtml(r.ponto_fluxo) : '';
       return '<tr>' + nome + celAtend
-        + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + detalhe + '</span></td>'
+        + '<td>' + escapeHtml(r.ponto_tipo || '—')
+          + (origemLocal ? '<span class="cad-sub">' + origemLocal + '</span>' : '')
+          + (fluxo ? '<span class="cad-sub">' + fluxo + '</span>' : '') + '</td>'
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + cadPadraoCel(r)
-        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + cadAgendaCel(r) + st + '</tr>'
-        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="' + (comAtend ? 11 : 9) + '">' + cadParesHTML(r) + '</td></tr>' : '');
+        + cadParesCel(r) + st + '</tr>'
+        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="' + nCols + '">' + cadParesHTML(r) + '</td></tr>' : '');
     }
     if (cadLado === 'curioso') {
       // Declarou abaixo do piso ou nao declarou: duas conversas diferentes, e a
@@ -11708,7 +11879,7 @@ function cadRender() {
         + '<td>' + motivo + '</td>'
         + '<td>' + escapeHtml(r.capital_origem || '—') + '</td>'
         + '<td>' + org + '</td>'
-        + '<td>' + cadValorSelect(r) + '</td>' + cadAgendaCel(r) + st + '</tr>';
+        + '<td>' + cadValorSelect(r) + '</td>' + st + '</tr>';
     }
     if (cadLado === 'integrador') {
       return '<tr>' + nome + celAtend
@@ -11717,7 +11888,7 @@ function cadRender() {
         + '<td>' + escapeHtml(r.integrador_interesse || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + '<td>' + escapeHtml(r.integrador_experiencia || '—') + '</td>'
-        + '<td>' + escapeHtml(r.integrador_equipe || '—') + '</td>' + cadAgendaCel(r) + st + '</tr>';
+        + '<td>' + escapeHtml(r.integrador_equipe || '—') + '</td>' + st + '</tr>';
     }
     return '<tr>' + nome + celAtend
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
@@ -11725,8 +11896,8 @@ function cadRender() {
       + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '')
         // o investidor do quiz (21/09) traz aqui o local que tinha em vista
         + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
-      + '<td>' + org + '</td>' + cadParesCel(r) + cadAgendaCel(r) + st + '</tr>'
-      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="' + (comAtend ? 10 : 8) + '">' + cadParesHTML(r) + '</td></tr>' : '');
+      + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>'
+      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="' + nCols + '">' + cadParesHTML(r) + '</td></tr>' : '');
   }).join('');
 
   cadPainelPares();
@@ -12507,7 +12678,7 @@ function pnPartes() {
                  document.getElementById('cad-curioso-acao'), document.getElementById('cad-card')] : [];
 }
 function pontosAbrir() {
-  ['ponto', 'capital', 'curioso', 'integrador', 'match'].forEach(l => {
+  ['ponto', 'capital', 'curioso', 'integrador', 'agenda', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
     if (b) b.classList.remove('ativa');
   });

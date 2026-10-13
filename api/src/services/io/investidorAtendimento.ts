@@ -14,6 +14,8 @@
 import { supabase } from '../../utils/supabase';
 import { INV_SESSAO_PREFIX } from './investidorAgentePosse';
 import { lerTudo } from './investidorAgente';
+// A marca da etiqueta de negócio do card (`etiqueta_card:<id>`): um nome só, o de salaDeEspera.
+import { ETIQUETA_PREFIX as ETIQUETA_CARD_PREFIX } from '../agenda/salaDeEspera';
 
 export interface AtendimentoInvestidor {
   chave: string;
@@ -62,6 +64,38 @@ export function mapearSessao(l: LinhaSessao): AtendimentoInvestidor | null {
     erro_envio: !!s.erro,
     grupo: texto(s.grupo),
   };
+}
+
+/**
+ * Puro: as linhas `etiqueta_card:<id>` de `system_state` viram `{ "<id>": "<etiqueta>" }`.
+ * Valor que chega como texto JSON vale (como em `mapearSessao`); sem etiqueta, não entra.
+ */
+export function mapearEtiquetas(linhas: LinhaSessao[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const l of linhas) {
+    const k = String(l.key ?? '');
+    if (!k.startsWith(ETIQUETA_CARD_PREFIX)) continue;
+    const id = k.slice(ETIQUETA_CARD_PREFIX.length);
+    if (!id) continue;
+    let v: unknown = l.value;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { continue; } }
+    if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+    const et = texto((v as Record<string, unknown>).etiqueta);
+    if (et) out[id] = et;
+  }
+  return out;
+}
+
+/**
+ * Todas as etiquetas de negócio guardadas nos cards: `{ "<id do card>": "<etiqueta>" }`.
+ * A coluna Atendimento do /gerador cruza isto com o card pelo id. Leitura paginada;
+ * erro de leitura SOBE, pelo mesmo motivo de `lerAtendimentos`.
+ */
+export async function lerEtiquetasDosCards(): Promise<Record<string, string>> {
+  const linhas = await lerTudo<LinhaSessao>('etiquetas dos cards', (de, ate) =>
+    supabase.from('system_state').select('key, value')
+      .like('key', `${ETIQUETA_CARD_PREFIX}%`).order('key', { ascending: true }).range(de, ate));
+  return mapearEtiquetas(linhas);
 }
 
 export async function lerAtendimentos(): Promise<AtendimentoInvestidor[]> {
