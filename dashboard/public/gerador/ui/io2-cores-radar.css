@@ -1,0 +1,36 @@
+/* ARQUIVO GERADO. NAO EDITE A MAO.
+   Gerado por dashboard/scripts/gerador-io2-cores.mjs a partir do CSS de /gerador/radar/index.html (e style.css).
+   Recolor do tema escuro para o claro novo: so cor de tela, sob html.io2, dentro de @media screen.
+   Excecoes decididas a mao: dashboard/scripts/gerador-io2-cores.regras.json. Para refazer: veja o cabecalho do script. */
+@media screen {
+html.io2:not(#_):not(#_){color-scheme:light;--sup:var(--n-sf2);--sup2:var(--n-sf2);--linha:rgba(140,170,225,.11);--txt:var(--n-tx);--dim:var(--io-info);--faint:#5A6982}
+html.io2:not(#_):not(#_) body{background-image:none;background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .pulso{box-shadow:rgba(57,135,229,.33) 0px 0px 0px 0px}
+html.io2:not(#_):not(#_) .aba{background-color:rgba(0,0,0,0)}
+html.io2:not(#_):not(#_) .aba:hover{border-color:rgba(140,170,225,.3)}
+html.io2:not(#_):not(#_) .aba.on{background-color:var(--io-azul-sf);color:var(--io-info)}
+html.io2:not(#_):not(#_) .card{background-image:linear-gradient(163deg,var(--sup2),var(--sup))}
+html.io2:not(#_):not(#_) .card::after{background-image:linear-gradient(90deg, rgba(0,0,0,0), var(--io-azul-sf), rgba(0,0,0,0))}
+html.io2:not(#_):not(#_) .grade{stroke:var(--n-tx3)}
+html.io2:not(#_):not(#_) .eixo{fill:#5A6982}
+html.io2:not(#_):not(#_) .fn:hover{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .fn + .fn{border-top-color:var(--n-bd)}
+html.io2:not(#_):not(#_) .fn-tr{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .emp{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .emp i{color:rgba(0,0,0,.62)}
+html.io2:not(#_):not(#_) .dica{background-color:var(--n-sf);border-color:rgba(140,170,225,.26);box-shadow:rgba(10,36,80,.2) 0px 10px 30px}
+html.io2:not(#_):not(#_) .cli:hover{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .cli + .cli{border-top-color:var(--n-bd)}
+html.io2:not(#_):not(#_) .abrir:hover{background-color:var(--io-azul-sf)}
+html.io2:not(#_):not(#_) .feed::-webkit-scrollbar-thumb{background-color:var(--io-azul-sf)}
+html.io2:not(#_):not(#_) .ev{border-bottom-color:var(--n-bd)}
+/* excecoes de regras.json (forcar) */
+html.io2:not(#_):not(#_){--bg:var(--n-bg);--sup:var(--n-sf);--sup2:var(--n-sf);--linha:var(--n-bd);--txt:var(--n-tx);--dim:var(--n-tx2);--faint:var(--n-tx3);--serio:var(--io-av)}
+/* atributos style="" com cor fixa */
+html.io2 [style*="color:#d03b3b" i]:not([style*="-color:#d03b3b" i]):not([style*="-color: #d03b3b" i]){color:var(--io-er)!important}
+html.io2 [style*="color: #d03b3b" i]:not([style*="-color:#d03b3b" i]):not([style*="-color: #d03b3b" i]){color:var(--io-er)!important}
+html.io2 [style*="color:#FECACA" i]:not([style*="-color:#FECACA" i]):not([style*="-color: #FECACA" i]){color:var(--io-er)!important}
+html.io2 [style*="color: #FECACA" i]:not([style*="-color:#FECACA" i]):not([style*="-color: #FECACA" i]){color:var(--io-er)!important}
+html.io2 [style*="color:#FDE68A" i]:not([style*="-color:#FDE68A" i]):not([style*="-color: #FDE68A" i]){color:var(--io-av)!important}
+html.io2 [style*="color: #FDE68A" i]:not([style*="-color:#FDE68A" i]):not([style*="-color: #FDE68A" i]){color:var(--io-av)!important}
+}

@@ -20,6 +20,12 @@
      node scripts/gerador-io2-cores.mjs --raiz <pasta que contem dashboard/public> \
           --puppeteer <pasta do pacote puppeteer-core> --navegador <msedge.exe ou chrome.exe> \
           [--pagina /gerador/index.html] [--saida <css>] [--regras <json>] [--relatorio <json>]
+   Subapp (fase 4b): --pagina /gerador/prospeccao/index.html (ou cobrancas, agentes, estados, radar,
+   eletroposto/metricas) gera io2-cores-<pagina>.css sob o prefixo  html.io2:not(#_):not(#_)  (subapp nao tem
+   data-mode) e le as excecoes de  regras.json > paginas["<caminho da pagina>"]  (pular, manter, fundoForcado,
+   cores, forcar [com decls:{prop:valor,...} para varias declaracoes], inlineExtra), que SUBSTITUEM as do topo do arquivo (essas sao do index). Subapp nao tem
+   documento de cliente, entao a guarda de documento nao e emitida. Sem --saida grava
+   em <raiz>/dashboard/public/gerador/ui/io2-cores-<pagina, com / virando ->.css.
    Exemplo (Windows, caminhos genericos):
      node scripts/gerador-io2-cores.mjs --raiz C:/caminho/do/repositorio \
           --puppeteer C:/caminho/node_modules/puppeteer-core \
@@ -40,12 +46,17 @@ for (const k of ['raiz', 'puppeteer', 'navegador']) if (!A[k]) { console.error('
 const RAIZ = path.resolve(A.raiz);
 const PUBLICO = path.join(RAIZ, 'dashboard', 'public');
 const PAGINA = A.pagina || '/gerador/index.html';
-const SAIDA = path.resolve(A.saida || path.join(PUBLICO, 'gerador', 'ui', 'io2-cores-index.css'));
+const SUBAPP = PAGINA !== '/gerador/index.html';
+const SLUG = PAGINA.replace(/^\/gerador\//, '').replace(/\/?index\.html$/, '').replace(/\//g, '-') || 'index';
+const SAIDA = path.resolve(A.saida || path.join(PUBLICO, 'gerador', 'ui', 'io2-cores-' + SLUG + '.css'));
 const REGRAS_ARQ = path.resolve(A.regras || path.join(AQUI, 'gerador-io2-cores.regras.json'));
 const RELATORIO_ARQ = A.relatorio ? path.resolve(A.relatorio) : null;
-const REGRAS = fs.existsSync(REGRAS_ARQ) ? JSON.parse(fs.readFileSync(REGRAS_ARQ, 'utf8')) : {};
+const REGRAS_TODAS = fs.existsSync(REGRAS_ARQ) ? JSON.parse(fs.readFileSync(REGRAS_ARQ, 'utf8')) : {};
+/* index: as chaves do topo do arquivo. Subapp: so o bloco da propria pagina (o topo e do index). */
+const REGRAS = SUBAPP ? ((REGRAS_TODAS.paginas || {})[PAGINA] || {}) : REGRAS_TODAS;
 
-const PREFIXO = 'html.io2[data-mode="app"]:not(#_):not(#_)';
+const PREFIXO = SUBAPP ? 'html.io2:not(#_):not(#_)' : 'html.io2[data-mode="app"]:not(#_):not(#_)';
+const PREFIXO_INLINE = SUBAPP ? 'html.io2' : 'html.io2[data-mode="app"]';
 
 /* ------------------------------------------------------------------ lista de exclusao (plano, secao 4) */
 const DOC_IDS = new Set(['eletro-print', 'doc-print', 'propostaSection', 'expiradoSection', 'orcViewSection', 'loadingProposta', 'ep-prev-doc', 'orcview-folha', 'exp-cta-card', 'exp-cta-fallback', 'marr']);
@@ -55,7 +66,7 @@ const DOC_PREFIXO_EXCECAO = new Set(['ep-prev-bar', 'ep-prev-nota', 'ep-prev-tit
 const DOC_ESTADOS = [/body\.print-doc/, /body\.print-proposta/];
 /* Guarda de zero especificidade para itens que nao comecam por id de secao de app. */
 const GUARDA_RAIZES = ['#eletro-print', '#doc-print', '#ep-preview', '#orcViewSection', '#propostaSection', '#expiradoSection', '#loadingProposta', '#marr', '.celebra-overlay', '.simshot', '.ep-doc', '.orc1', '.nx-deck'];
-const GUARDA = ':not(:where(' + GUARDA_RAIZES.join(',') + ') *)';
+const GUARDA = SUBAPP ? '' : ':not(:where(' + GUARDA_RAIZES.join(',') + ') *)';
 /* Onde procurar classes que tambem moram dentro de documento (viram LEAKY, ver abaixo). */
 const RAIZES_COLETA = [...GUARDA_RAIZES, '#ep-prev-doc', '#orcview-folha', '#orcViewSection'];
 
@@ -550,6 +561,7 @@ function precisaGuarda(item) {
   return comps.every(c => { const { ids, classes } = tokensSeletor(normComposto(c)); return ids.length === 0 && classes.every(k => LEAKY.has(k)); });
 }
 function comGuarda(css) {
+  if (!GUARDA) return css;
   // insere a guarda antes de pseudo-elemento do ultimo composto
   const comps = css; // procura o ultimo "::" ou ":before/:after" fora de parenteses/colchetes
   let d = 0, q = null, pos = -1;
@@ -854,7 +866,10 @@ function inlineRegras(achados) {
   const forcadas = [];
   for (const f of forcar) {
     const sel = f.seletor.split(',').map(s => { const p = prefixar(s); return p.css || null; }).filter(Boolean).join(',\n');
-    if (sel) forcadas.push(`${sel}{${f.prop}:${f.valor}${f.importante === false ? '' : '!important'}}`);
+    const imp = f.importante === false ? '' : '!important';
+  /* decls: {prop: valor, ...} escreve varias declaracoes numa regra so (usado pelas variaveis dos subapps). */
+  const corpo = f.decls ? Object.entries(f.decls).map(([k, v]) => `${k}:${v}${imp}`).join(';') : `${f.prop}:${f.valor}${imp}`;
+  if (sel) forcadas.push(`${sel}{${corpo}}`);
   }
 
   /* inline */
@@ -862,12 +877,12 @@ function inlineRegras(achados) {
   for (const x of (REGRAS.inlineExtra || [])) { const dd = declaracoes(x)[0]; if (dd && !achadosInline.some(e => e.prop === dd.prop && e.valor.toLowerCase() === dd.valor.toLowerCase())) achadosInline.push({ prop: dd.prop, valor: dd.valor, n: 0, comFundo: 0 }); }
   const inl = inlineRegras(achadosInline);
   const GUARDA_INLINE = GUARDA;
-  const linhasInline = inl.map(x => `html.io2[data-mode="app"] ${x.sel}${GUARDA_INLINE}{${x.decl}}`);
+  const linhasInline = inl.map(x => `${PREFIXO_INLINE} ${x.sel}${GUARDA_INLINE}{${x.decl}}`);
 
   /* escrita */
   const cab = `/* ARQUIVO GERADO. NAO EDITE A MAO.
    Gerado por dashboard/scripts/gerador-io2-cores.mjs a partir do CSS de ${PAGINA} (e style.css).
-   Recolor do tema escuro para o claro novo: so cor de tela, sob html.io2[data-mode="app"], dentro de @media screen.
+   Recolor do tema escuro para o claro novo: so cor de tela, sob ${SUBAPP ? 'html.io2' : 'html.io2[data-mode="app"]'}, dentro de @media screen.
    Excecoes decididas a mao: dashboard/scripts/gerador-io2-cores.regras.json. Para refazer: veja o cabecalho do script. */\n`;
   let css = cab + '@media screen {\n';
   for (const b of blocos) {

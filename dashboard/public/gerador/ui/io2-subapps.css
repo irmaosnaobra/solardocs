@@ -1,0 +1,621 @@
+/* Visual novo dos subapps do /gerador (reforma de 12/10/2026, fase 4b).
+   ESCRITO A MAO (as cores de cada pagina vem da folha gerada io2-cores-<pagina>.css; aqui ficam o que o
+   gerador nao decide: componentes, layout de celular e as cores montadas em JavaScript).
+   Tudo sob html.io2 e dentro de @media screen. Sem a chave (localStorage 'gerador-visual' = 'novo') nada aqui vale.
+
+   Escopo: cada bloco leva o prefixo da pagina, e a pagina e identificada por um id que so existe nela:
+     prospeccao #m-teto, agentes #m-ativos, cobrancas #faixa-teste, estados #voltar, radar #relogio,
+     metricas #aviso-legado.
+   O prefixo e  html.io2:not(#_):not(#_) body:where(:has(#id)) : o :where() zera o peso do escopo, entao estas
+   regras empatam com as da folha gerada (e vencem por virem depois) e PERDEM para a casca (io2.css), que
+   usa html.io2.io2-casca.io2-sub com mais classes. Nao mexer em z-index, padding do body nem em .mbar:
+   isso e da casca. */
+
+@media screen {
+
+/* ---------- Comum: fundo, tipo, foco, campo ---------- */
+html.io2:not(#_):not(#_):where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)){ color-scheme: light; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)){ background-color: var(--n-bg); background-image: none; color: var(--n-tx); font-family: var(--io-fonte); -webkit-font-smoothing: antialiased; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :focus-visible{ outline: 2px solid var(--io-azul); outline-offset: 2px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) a{ color: var(--io-azul); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select){
+  background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); border-radius: 10px;
+  font-family: var(--io-fonte); font-size: 14px; min-height: 40px; padding-top: 0; padding-bottom: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) textarea{ background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); border-radius: 10px;
+  font-family: var(--io-fonte); font-size: 14px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select,textarea):focus{
+  outline: 2px solid var(--io-azul); outline-offset: 2px; border-color: var(--io-azul); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input,textarea)::placeholder{ color: var(--n-tx3); opacity: 1; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input,select,textarea):disabled{ background-color: var(--n-sf3); color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) input[type=checkbox]{ accent-color: var(--io-navy-800); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) button,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) select{ font-family: var(--io-fonte); }
+
+/* ---------- Cabecalho antigo (a casca esconde o que sobra dele quando liga) ---------- */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar{ background-color: var(--io-navy-900); color: #fff; border-bottom: 0; min-height: 56px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar .brand,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar h1{ font-size: 18px; font-weight: 700; letter-spacing: 0; color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar .brand small{ font-weight: 500; opacity: 1; color: var(--n-inv2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar button{ background-color: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.28);
+  border-radius: 10px; min-height: 40px; font-weight: 600; font-size: 14px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar button:hover{ background-color: rgba(255,255,255,.22); opacity: 1; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar a{ color: var(--n-inv2); }
+
+/* ---------- Faixa de numeros (prospeccao e agentes) ---------- */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .strip{ background-color: var(--n-sf); border-bottom: 1px solid var(--n-bd); padding: 12px 20px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv{ border-right: 1px solid var(--n-bd); padding: 2px 20px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv:first-child{ padding-left: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .n{ font-size: 20px; font-weight: 700; color: var(--n-tx); font-variant-numeric: tabular-nums; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .l{ font-size: 12px; letter-spacing: .04em; font-weight: 600; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .atualizado{ font-size: 12px; color: var(--n-tx3); }
+
+/* ---------- Cartao, tabela, botao: o mesmo desenho do app principal ---------- */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) .card,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mini,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tw{ background-color: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 12px; box-shadow: var(--sombra); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) .ch{ background-color: var(--n-sf2); color: var(--n-tx2); font-size: 12px; letter-spacing: .04em; font-weight: 700; border-bottom: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) table{ font-variant-numeric: tabular-nums; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) th{ background-color: var(--n-sf2); color: var(--n-tx2); font-size: 12px; letter-spacing: .04em; font-weight: 700; border-bottom: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) td{ border-bottom: 1px solid var(--n-bd); color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) tbody tr:hover{ background-color: var(--n-sf2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste),:has(#m-ativos)) label{ color: var(--n-tx2); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn{ background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); border-radius: 10px; min-height: 40px; font-weight: 600; font-size: 14px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn:hover{ background-color: var(--n-sf3); filter: none; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn.primary,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn:not(.ghost):not(.ok){ background-color: var(--io-amarelo); color: var(--io-tinta); border-color: var(--io-amarelo); font-weight: 700; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn.primary:hover,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn:not(.ghost):not(.ok):hover{ background-color: var(--io-amarelo-forte); border-color: var(--io-amarelo-forte); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .btn.wa,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn.ok{ background-color: var(--io-wa); border-color: var(--io-wa); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .btn.wa:hover,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .btn.ok:hover{ background-color: #09663A; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn.sm{ min-height: 36px; font-size: 13px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn:disabled{ opacity: .5; }
+
+/* ================= PROSPECCAO ================= */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .who{ color: var(--n-tx2); font-size: 13px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter{ min-width: 220px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .t{ font-size: 12px; letter-spacing: .04em; font-weight: 600; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b{ height: 10px; background-color: var(--n-sf3); border-radius: 5px; position: relative; margin-top: 6px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b::after{ content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(11,36,71,.45) calc(10% - 1px) 10%); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="#4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="rgb(74, 222, 128)" i]{ background-color: var(--io-amarelo) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="#fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="rgb(251, 191, 36)" i]{ background-color: var(--io-av) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="#f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .b i[style*="rgb(248, 113, 113)" i]{ background-color: var(--io-er) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meter .sub{ font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tabs{ background-color: var(--n-sf); border-bottom: 1px solid var(--n-bd); padding: 0 20px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab{ font-size: 14px; font-weight: 600; color: var(--n-tx2); padding: 0 16px; min-height: 44px; border-bottom: 3px solid transparent; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab:hover{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab.on{ color: var(--n-tx); border-bottom-color: var(--io-amarelo); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab .cnt{ background-color: var(--n-sf3); color: var(--n-tx2); font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tab.on .cnt{ background-color: var(--io-amarelo-sf); color: var(--io-tinta); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq.on{ background-color: var(--io-azul-sf); box-shadow: none; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq.on .fq-n{ font-weight: 700; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq-i{ font-size: 12px; background-color: var(--n-sf3); color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq-c{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq.done{ opacity: .6; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .st,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agd-h{ font-size: 12px; letter-spacing: .04em; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .hl .d,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .hl .v{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .hl .d{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pt,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pn{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pt{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .sug{ font-size: 12px; color: var(--io-tinta); box-shadow: inset 0 0 0 99px rgba(255,255,255,.42); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .kbd{ font-size: 12px; background-color: var(--n-sf3); border: 1px solid var(--n-bd2); color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meta{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meta .sep{ color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .sq{ color: var(--n-tx2); background-color: var(--n-sf2); font-size: 12px; min-height: 32px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn{ background-color: var(--n-sf); border-width: 1px; color: var(--n-tx); min-height: 44px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn .k{ font-size: 12px; color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .dbtn:hover{ filter: none; background-color: var(--n-sf3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pchip{ background-color: var(--n-sf); border: 1px solid var(--n-bd); min-height: 44px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .script{ background-color: var(--n-sf2); color: var(--n-tx); border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .why{ background-color: var(--io-azul-sf); color: var(--n-tx); border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .note{ background-color: var(--io-azul-sf); color: var(--n-tx); border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .virgin{ background-color: var(--n-sf2); color: var(--n-tx2); border: 1px dashed var(--n-bd2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .pill{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .vazio,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .vazio *{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .ov{ background-color: rgba(6,26,56,.55); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mo{ background-color: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mo h3{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fld label{ font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agc{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx); min-height: 36px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agc:hover{ border-color: var(--io-azul); color: var(--io-azul); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agc.on{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agc.ocupado{ background-color: var(--n-sf3); border-color: var(--n-bd); color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agc.dividir{ border-color: var(--io-av); color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .agc.dividir.on{ background-color: var(--io-av); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) #toast{ background-color: var(--io-navy-900); color: #fff; border: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) #toast .undo{ color: var(--io-amarelo); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .prodrow.on{ background-color: var(--io-azul-sf); }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tag-ep,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .tag-ep-trafego{ color: #06210A; }
+
+/* ================= AGENTES ================= */
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .filtros button{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); font-size: 13px; min-height: 36px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .filtros button.on{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha{ border-left-width: 1px; border-top: 3px solid var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha.ok{ border-left-color: var(--n-bd); border-top-color: var(--io-ok); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha.caida{ border-left-color: var(--n-bd); border-top-color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha .num,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linha .det{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .t{ font-size: 12px; color: var(--n-tx2); letter-spacing: .04em; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b{ height: 10px; background-color: var(--n-sf3); border-radius: 5px; position: relative; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b::after{ content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(11,36,71,.45) calc(10% - 1px) 10%); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b i{ background-color: var(--io-amarelo); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .teto .b i.cheio{ background-color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag{ border-top-width: 3px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag .papel,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .ag .hd .sub,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tag,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .motivo,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tq .c{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill{ font-size: 12px; letter-spacing: .04em; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.ativo{ background-color: var(--io-ok-sf); color: var(--io-ok); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.desligado{ background-color: var(--io-er-sf); color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.sem_agente{ background-color: var(--io-azul-sf); color: #5B3FB0; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .pill.dark{ background-color: var(--io-av-sf); color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tag{ font-size: 12px; background-color: var(--n-sf2); border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .alerta{ background-color: var(--io-av-sf); border: 1px solid var(--n-bd); color: var(--io-av); font-size: 12.5px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .erro{ background-color: var(--io-er-sf); border: 1px solid var(--n-bd); color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mets{ background-color: var(--n-sf3); border-top: 1px solid var(--n-bd); border-bottom: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met{ background-color: var(--n-sf2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .l{ font-size: 12px; letter-spacing: .03em; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .s,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .met .n.vazio{ font-size: 12px; color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .toques h4{ font-size: 12px; color: var(--n-tx2); letter-spacing: .04em; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tq .t{ font-size: 13px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tq .c,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .motivo{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .tq .q{ font-size: 12px; color: var(--io-azul); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .rodape{ background-color: var(--n-sf2); border-top: 1px solid var(--n-bd); color: var(--n-tx2); font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .acoes button{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx); font-size: 13px; min-height: 40px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .acoes button:hover{ border-color: var(--io-azul); color: var(--io-azul); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .rosto{ border: 2px solid var(--n-bd); background-color: var(--n-sf3); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .modal{ background-color: rgba(6,26,56,.55); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mbox{ background-color: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mhd,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mtabs,
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mft{ border-color: var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mhd .sub{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mtabs button{ color: var(--n-tx2); font-size: 13px; min-height: 44px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mtabs button.on{ color: var(--n-tx); border-bottom: 3px solid var(--io-amarelo); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .bolha.eu{ background-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .bolha.ela{ background-color: var(--n-sf2); border: 1px solid var(--n-bd); color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .bolha.sys{ color: var(--n-tx3); font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mft button{ background-color: var(--io-amarelo); color: var(--io-tinta); font-weight: 700; min-height: 40px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mft button.sec{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); font-weight: 600; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .aviso{ color: var(--n-tx2); font-size: 12.5px; }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .vazio-tela{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .mhd .x{ color: var(--n-tx2); min-width: 44px; min-height: 44px; }
+
+/* ================= COBRANCAS ================= */
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .amb{ font-size: 12px; letter-spacing: .04em; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .amb.prod{ background-color: var(--io-ok-sf); color: #0E5C2B; border: 1px solid #9BD3AE; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .amb.sandbox{ background-color: var(--io-er-sf); color: #8F1515; border: 1px solid #F0A5A5; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .faixa-teste{ background-color: var(--io-er); color: #fff; font-size: 13px; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .card h2{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .card .sub{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .segs button{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); min-height: 40px; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .segs button[aria-pressed="true"]{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .exemplos button{ background-color: var(--n-sf); border: 1px dashed var(--n-bd2); color: var(--n-tx2); font-size: 13px; min-height: 36px; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .exemplos button:hover{ color: var(--n-tx); border-color: var(--io-azul); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .previa{ background-color: var(--n-sf); background-image: none; border: 1px solid var(--n-bd); box-shadow: var(--sombra); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .bloco .rot{ font-size: 12px; letter-spacing: .04em; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .bloco .det,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .linhas .v{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .bloco.recebe .num{ color: var(--io-ok); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .linhas,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .linhas div{ border-color: var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .linhas .neg .v{ color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .quando{ background-color: var(--n-sf2); color: var(--n-tx); border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .avisos li{ background-color: var(--io-av-sf); color: var(--io-av); border-left: 0; border: 1px solid var(--n-bd); border-radius: 8px; font-size: 13px; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .selo{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .selo.exata{ background-color: var(--io-ok-sf); color: #0E5C2B; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .selo.estimada{ background-color: var(--n-sf3); color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .pronto{ background-color: var(--io-ok-sf); border: 1px solid #9BD3AE; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .pill{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .pill.PENDING{ background-color: var(--n-sf3); color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .pill.PARCIAL{ background-color: var(--io-av-sf); color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .pill.RECEIVED,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .pill.CONFIRMED{ background-color: var(--io-ok-sf); color: #0E5C2B; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .alerta{ background-color: var(--io-er-sf); border: 1px solid #F0A5A5; color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .alerta b{ color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .vazio{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) #toast{ background-color: var(--io-navy-900); color: #fff; border: 0; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .spin{ border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .seta{ color: var(--n-tx3); }
+
+/* ================= ESTADOS e RADAR (cartao, grade e neutros; rampa e semaforo ficam) ================= */
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) :is(.card,.bloco){ background-color: var(--n-sf); background-image: none; border: 1px solid var(--n-bd); border-radius: 12px; box-shadow: var(--sombra); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .card::after{ display: none; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) h1{ font-size: 18px; font-weight: 700; letter-spacing: 0; color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .sub{ font-size: 12px; color: var(--n-tx2); letter-spacing: .04em; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .ct{ font-size: 12px; color: var(--n-tx2); letter-spacing: .04em; font-weight: 700; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .big{ font-weight: 700; color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .unid,
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .nota,
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) footer{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar),:has(#relogio)) .vida{ font-size: 14px; }
+
+/* ================= ESTADOS ================= */
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .voltar{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); border-radius: 10px; color: var(--n-tx); font-size: 14px; min-height: 40px; display: inline-flex; align-items: center; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .voltar[hidden]{ display: none; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .voltar:hover{ background-color: var(--n-sf3); color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .vida{ background-color: var(--io-amarelo-sf); border: 1px solid var(--n-bd); color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .vida b{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bloco-hd{ border-bottom: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bloco-hd .nota-hd{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bt{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); font-size: 13px; min-height: 36px; border-radius: 10px; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bt:hover{ background-color: var(--n-sf3); color: var(--n-tx); border-color: var(--n-bd2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bt.on{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .pos,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid .pos,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .det,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid .det{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .val,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid .num{ color: var(--n-tx) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf:hover{ background-color: var(--n-sf2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf[aria-current="true"]{ background-color: var(--io-azul-sf); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .barra{ background-color: var(--n-sf3); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .barra i{ box-shadow: inset 0 0 0 1px rgba(11,36,71,.22); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .mov{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .mov.sobe{ color: var(--io-ok); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .mov.desce{ color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .mov.igual{ color: var(--n-tx3); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .mov.novo{ color: var(--io-azul); font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .filtros{ border-bottom: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .copia,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .copia-hd,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) footer{ border-top: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .copia-como{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .copia-como b{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .copia pre{ background-color: var(--n-sf2); color: var(--n-tx); border: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .copia-hd h3,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bloco-hd h2{ color: var(--n-tx); }
+
+/* ================= RADAR ================= */
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .abas .aba{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); font-size: 14px; min-height: 40px; border-radius: 10px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .abas .aba:hover{ background-color: var(--n-sf3); color: var(--n-tx); border-color: var(--n-bd2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .abas .aba.on{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .aba .cnt{ font-size: 12px; opacity: 1; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .ct span{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i{ color: rgba(0,0,0,.82); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) #selo > span{ color: #0E5C2B !important; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(74, 87, 114)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(63, 74, 99)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(90, 105, 130)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(208, 59, 59)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(24, 79, 149)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(28, 92, 171)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(37, 106, 191)" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#4a5772" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#3f4a63" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#d03b3b" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#184f95" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#1c5cab" i],
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="#256abf" i]{ color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .relogio{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .grade{ stroke: var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .eixo{ fill: var(--n-tx3); font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .fn-rot small,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .fn-vazio,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .fn-val small{ font-size: 12px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .fn-tr,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .emp{ background-color: var(--n-sf3); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .fn:hover{ background-color: var(--n-sf2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .fn + .fn,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .cli + .cli,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .ev{ border-color: var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .leg span{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .leg b{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .dica{ background-color: var(--io-navy-900); border: 1px solid var(--io-navy-800); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .dica .dim{ color: var(--n-inv2); font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .busca{ background-color: var(--n-sf); color: var(--n-tx); border: 1px solid var(--n-bd2); border-radius: 10px; font-size: 16px; min-height: 44px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .busca:focus{ border-color: var(--io-azul); background-color: var(--n-sf); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .cli:hover{ background-color: var(--n-sf2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .cli .nm span,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .cli .qd,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .ev .t,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .chip{ font-size: 12px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .cli .nm span,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .ev .t,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .vazio{ color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .abrir{ border: 1px solid var(--n-bd2); color: var(--n-tx2); min-width: 44px; min-height: 44px; }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .abrir:hover{ color: var(--io-azul); border-color: var(--io-azul); background-color: var(--io-azul-sf); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .feed::-webkit-scrollbar-thumb{ background-color: var(--n-bd2); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .g2{ grid-template-columns: repeat(auto-fit, minmax(min(390px, 100%), 1fr)); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .g3{ grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr)); }
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .g4{ grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+
+/* ================= METRICAS DO ELETROPOSTO ================= */
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .wrap{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros button{ background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx2); border-radius: 10px; font-size: 14px; min-height: 40px; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros button:hover{ background-color: var(--n-sf3); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros button.on{ background-color: var(--io-navy-900); border-color: var(--io-navy-900); color: #fff; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card{ background-color: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 12px; box-shadow: var(--sombra); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card .rot{ font-size: 12px; letter-spacing: .04em; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card .num{ font-weight: 700; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card .pct{ font-size: 13px; color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card.n3,
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card.n2,
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card.n1{ border-left: 1px solid var(--n-bd); border-top: 3px solid var(--io-ok); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card.n2{ border-top-color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .card.n1{ border-top-color: var(--io-er); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) h2{ color: var(--n-tx); font-size: 18px; font-weight: 700; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .sub{ color: var(--n-tx2); font-size: 13px; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) table{ background-color: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 12px; font-variant-numeric: tabular-nums; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) th,
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) td{ border-bottom: 1px solid var(--n-bd); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) th{ background-color: var(--n-sf2); color: var(--n-tx2); font-size: 12px; letter-spacing: .04em; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) tbody tr:hover td{ background-color: var(--n-sf2); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .barra{ background-color: var(--n-sf3); height: 24px; border-radius: 6px; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .barra > i{ background-color: var(--io-navy-800); border-radius: 6px; }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .barra > span{ font-size: 12px; line-height: 18px; top: 3px; left: auto; right: 6px; padding: 0 6px; border-radius: 4px; background-color: rgba(255,255,255,.94); color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .vazio{ background-color: var(--n-sf); border: 1px dashed var(--n-bd2); color: var(--n-tx2); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .aviso{ background-color: var(--io-av-sf); border: 1px solid var(--n-bd); color: var(--io-av); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .funil .etapa .nome{ color: var(--n-tx); }
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) #por-dia,
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) #motivos,
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) #criativos{ overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---------- Cores de DADO usadas como texto, montadas em JavaScript (style="...;color:#...") ----------
+   O texto passa para a versao escura da mesma familia; o fundo, a borda e a barra continuam na cor do dado.
+   So casa a propriedade color (depois de ; ou no inicio do atributo), nunca border-color nem background-color. */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#60a5fa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#60a5fa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #60a5fa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #60a5fa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#60a5fa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #60a5fa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#3b82f6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#3b82f6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #3b82f6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #3b82f6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#3b82f6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #3b82f6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#3987e5" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#3987e5" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #3987e5" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #3987e5" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#3987e5" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #3987e5" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#86b6ef" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#86b6ef" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #86b6ef" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #86b6ef" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#86b6ef" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #86b6ef" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#6da7ec" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#6da7ec" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #6da7ec" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #6da7ec" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#6da7ec" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #6da7ec" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#5598e7" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#5598e7" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #5598e7" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #5598e7" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#5598e7" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #5598e7" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#2a78d6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#2a78d6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #2a78d6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #2a78d6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#2a78d6" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #2a78d6" i]{ color: var(--io-azul) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#38bdf8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#38bdf8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #38bdf8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #38bdf8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#38bdf8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #38bdf8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#0ea5e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#0ea5e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #0ea5e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #0ea5e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#0ea5e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #0ea5e9" i]{ color: #0369A1 !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#22c55e" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#22c55e" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #22c55e" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #22c55e" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#22c55e" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #22c55e" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #4ade80" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#16a34a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#16a34a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #16a34a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #16a34a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#16a34a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #16a34a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#0ca30c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#0ca30c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #0ca30c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #0ca30c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#0ca30c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #0ca30c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#3fb950" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#3fb950" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #3fb950" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #3fb950" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#3fb950" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #3fb950" i]{ color: #0E5C2B !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#f59e0b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#f59e0b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #f59e0b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #f59e0b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#f59e0b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #f59e0b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #fbbf24" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#fab219" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#fab219" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #fab219" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #fab219" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#fab219" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #fab219" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#ec835a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#ec835a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #ec835a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #ec835a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#ec835a" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #ec835a" i]{ color: #8F4207 !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #f87171" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#d03b3b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#d03b3b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #d03b3b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #d03b3b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#d03b3b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #d03b3b" i]{ color: var(--io-er) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#94a3b8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#94a3b8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #94a3b8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #94a3b8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#94a3b8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #94a3b8" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#64748b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#64748b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #64748b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #64748b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#64748b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #64748b" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #5a6982" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#8fa0bc" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#8fa0bc" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #8fa0bc" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #8fa0bc" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#8fa0bc" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #8fa0bc" i]{ color: var(--n-tx2) !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#c026d3" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#c026d3" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #c026d3" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #c026d3" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#c026d3" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #c026d3" i]{ color: #A21CAF !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#9085e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#9085e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #9085e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #9085e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#9085e9" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #9085e9" i]{ color: #5B4FC9 !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#a78bfa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#a78bfa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #a78bfa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #a78bfa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#a78bfa" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #a78bfa" i]{ color: #6D4FC2 !important; }
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#ea580c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#ea580c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #ea580c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #ea580c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#ea580c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #ea580c" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color:#f97316" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color:#f97316" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*=";color: #f97316" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="; color: #f97316" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color:#f97316" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style^="color: #f97316" i]{ color: #C2410C !important; }
+/* ---------- Texto de 12 px no minimo, tambem nos style="font-size:..." ---------- */
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:8px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 8px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:8.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 8.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:9px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 9px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:9.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 9.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:10px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 10px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:10.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 10.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:11px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 11px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size:11.5px" i],
+html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) [style*="font-size: 11.5px" i]{ font-size: 12px !important; }
+
+
+/* ================= Celular ================= */
+@media (max-width: 860px){
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select,textarea){ font-size: 16px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#voltar),:has(#relogio),:has(#aviso-legado)) :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],[type=hidden],[type=color]),select){ min-height: 44px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos),:has(#faixa-teste),:has(#aviso-legado)) .topbar button{ min-height: 44px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .strip{ padding: 10px 14px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv{ flex: 1 1 22%; padding: 2px 4px; min-width: 0; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .l{ letter-spacing: 0; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#m-ativos)) .sv .n{ font-size: 18px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto),:has(#faixa-teste)) .btn{ min-height: 44px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .filtros button,
+html.io2:not(#_):not(#_) body:where(:has(#faixa-teste)) .segs button,
+html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros button,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .bt{ min-height: 44px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .acoes button{ min-height: 44px; }
+}
+@media (max-width: 760px){
+  /* Prospeccao: a bancada vira coluna que ocupa a largura toda; antes o align-items:start deixava o cartao
+     do tamanho do conteudo e ele passava de 390 px. */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .bench{ align-items: stretch; }
+  /* A barra de acao deixa de ser fixa: fica colada no rodape da tela (sticky) e, no fim da lista, assenta no fluxo.
+     Fixa ela cobria o fim da pagina com qualquer altura de body; e com texto de 12 px os seis botoes nao cabem em uma linha. */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar{ position: sticky; left: auto; right: auto; bottom: var(--io-bot, 0px); background-color: var(--n-sf); border-top: 1px solid var(--n-bd); box-shadow: 0 -4px 16px rgba(10,36,80,.10); }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar .quem{ font-size: 12px; color: var(--n-tx2); }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar .linha1 .btn{ min-height: 44px; font-size: 14px; }
+  /* Os seis resultados numa fileira que rola dentro da propria barra: com texto de 12 px nao cabem seis colunas em 390 px,
+     e duas fileiras deixavam a barra com quase 180 px. */
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar .grid{ display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 2px; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .mbar .grid button{ flex: 0 0 auto; min-width: 92px; min-height: 44px; font-size: 12px; padding: 4px 8px; scroll-snap-align: start; background-color: var(--n-sf); border: 1px solid var(--n-bd2); color: var(--n-tx); }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .bench > .card{ min-width: 0; max-width: 100%; }
+  html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq-n,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .fq-c,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .meta,
+html.io2:not(#_):not(#_) body:where(:has(#m-teto)) .hl{ min-width: 0; overflow-wrap: anywhere; }
+  /* Agentes: a grade nunca passa da largura da tela. */
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .grid{ grid-template-columns: minmax(0, 1fr); }
+  html.io2:not(#_):not(#_) body:where(:has(#m-ativos)) .linhas{ grid-template-columns: minmax(0, 1fr); }
+  /* Estados: a coluna do valor cabe e o nome quebra. */
+  html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf{ grid-template-columns: 22px minmax(0, 1fr) 64px 34px 52px; gap: 8px; padding-left: 12px; padding-right: 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid{ grid-template-columns: 22px minmax(0, 1fr) 54px 40px; gap: 8px; padding-left: 12px; padding-right: 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .nm,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .det{ overflow-wrap: anywhere; white-space: normal; }
+  html.io2:not(#_):not(#_) body:where(:has(#voltar)) .uf .val,
+html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid .num{ min-width: 0; font-size: 13px; }
+  html.io2:not(#_):not(#_) body:where(:has(#voltar)) .wrap,
+html.io2:not(#_):not(#_) body:where(:has(#relogio)) .wrap{ padding-left: 12px; padding-right: 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#relogio)) .card{ min-width: 0; }
+  /* Metricas: a tabela rola dentro do proprio conteiner. */
+  html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .wrap{ padding: 16px 12px; }
+  html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros .dir{ margin-left: 0; }
+}
+
+}

@@ -1,0 +1,30 @@
+/* ARQUIVO GERADO. NAO EDITE A MAO.
+   Gerado por dashboard/scripts/gerador-io2-cores.mjs a partir do CSS de /gerador/agentes/index.html (e style.css).
+   Recolor do tema escuro para o claro novo: so cor de tela, sob html.io2, dentro de @media screen.
+   Excecoes decididas a mao: dashboard/scripts/gerador-io2-cores.regras.json. Para refazer: veja o cabecalho do script. */
+@media screen {
+html.io2:not(#_):not(#_){--navy:#1E3A8A;--bg:var(--n-sf2);--card:var(--n-sf);--card-2:var(--n-sf);--line:var(--n-sf3);--line-s:var(--n-bd2);--txt:var(--n-tx);--dim:var(--n-tx3);--faint:var(--n-tx3);--ok:var(--io-ok);--warn:var(--io-av);--bad:var(--io-er);--blue:var(--io-info);--roxo:#785AC4}
+html.io2:not(#_):not(#_) .topbar{background-color:var(--n-sf2);color:var(--n-tx);border-bottom-color:#F5C518}
+html.io2:not(#_):not(#_) .topbar button{background-color:var(--n-sf);color:var(--io-info)}
+html.io2:not(#_):not(#_) .strip{background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .teto .b{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .filtros button.on{color:var(--n-tx)}
+html.io2:not(#_):not(#_) .pill.ativo{background-color:var(--io-ok-sf)}
+html.io2:not(#_):not(#_) .pill.desligado{background-color:var(--io-er-sf)}
+html.io2:not(#_):not(#_) .pill.dark{background-color:var(--io-av-sf)}
+html.io2:not(#_):not(#_) .pill.sem_agente{background-color:var(--io-azul-sf)}
+html.io2:not(#_):not(#_) .alerta{background-color:var(--io-av-sf);border-color:rgba(245,158,11,.3);color:var(--io-av)}
+html.io2:not(#_):not(#_) .modal{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .mtabs button{border-color:currentcolor currentcolor rgba(0,0,0,0)}
+html.io2:not(#_):not(#_) .mtabs button.on{border-bottom-color:#F5C518}
+html.io2:not(#_):not(#_) .bolha.eu{color:var(--n-tx)}
+html.io2:not(#_):not(#_) .mft input,
+html.io2:not(#_):not(#_) .mft textarea{background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .mft button{color:var(--n-tx)}
+html.io2:not(#_):not(#_) .cerebro-txt{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .erro{background-color:var(--io-er-sf);border-color:rgba(248,113,113,.3);color:var(--io-er)}
+/* excecoes de regras.json (forcar) */
+html.io2:not(#_):not(#_){--navy:var(--io-navy-900);--navy-l:var(--io-navy-800);--bg:var(--n-bg);--card:var(--n-sf);--card-2:var(--n-sf2);--line:var(--n-bd);--line-s:var(--n-bd2);--txt:var(--n-tx);--dim:var(--n-tx2);--faint:var(--n-tx3);--ok:var(--io-ok);--warn:var(--io-av);--bad:var(--io-er);--blue:var(--io-azul)}
+/* atributos style="" com cor fixa */
+
+}

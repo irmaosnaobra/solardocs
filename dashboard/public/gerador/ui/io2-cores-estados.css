@@ -1,0 +1,30 @@
+/* ARQUIVO GERADO. NAO EDITE A MAO.
+   Gerado por dashboard/scripts/gerador-io2-cores.mjs a partir do CSS de /gerador/estados/index.html (e style.css).
+   Recolor do tema escuro para o claro novo: so cor de tela, sob html.io2, dentro de @media screen.
+   Excecoes decididas a mao: dashboard/scripts/gerador-io2-cores.regras.json. Para refazer: veja o cabecalho do script. */
+@media screen {
+html.io2:not(#_):not(#_){color-scheme:light;--sup:var(--n-sf2);--sup2:var(--n-sf2);--linha:rgba(140,170,225,.11);--txt:var(--n-tx);--dim:var(--io-info);--faint:#5A6982;--serio:var(--io-er)}
+html.io2:not(#_):not(#_) body{background-image:none;background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .pulso{box-shadow:rgba(240,180,73,.33) 0px 0px 0px 0px}
+html.io2:not(#_):not(#_) .voltar:hover{border-color:rgba(140,170,225,.3)}
+html.io2:not(#_):not(#_) .vida{background-color:var(--io-av-sf);border-color:rgba(240,180,73,.25)}
+html.io2:not(#_):not(#_) .card{background-image:linear-gradient(163deg,var(--sup2),var(--sup))}
+html.io2:not(#_):not(#_) .card::after{background-image:linear-gradient(90deg, rgba(0,0,0,0), var(--io-av-sf), rgba(0,0,0,0))}
+html.io2:not(#_):not(#_) .bloco{background-image:linear-gradient(163deg,var(--sup2),var(--sup))}
+html.io2:not(#_):not(#_) .bt{background-color:rgba(0,0,0,0)}
+html.io2:not(#_):not(#_) .bt:hover{border-color:rgba(240,180,73,.45)}
+html.io2:not(#_):not(#_) .bt.on{background-color:var(--io-av-sf)}
+html.io2:not(#_):not(#_) .uf{background-color:rgba(0,0,0,0)}
+html.io2:not(#_):not(#_) .uf + .uf{border-top-color:var(--n-bd)}
+html.io2:not(#_):not(#_) .uf:hover{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .uf[aria-current="true"]{background-color:var(--io-av-sf)}
+html.io2:not(#_):not(#_) .barra{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .cid + .cid{border-top-color:var(--n-bd)}
+html.io2:not(#_):not(#_) .filtros input,
+html.io2:not(#_):not(#_) .filtros select{background-color:var(--n-sf3)}
+html.io2:not(#_):not(#_) .copia pre{background-color:var(--n-sf3)}
+/* excecoes de regras.json (forcar) */
+html.io2:not(#_):not(#_){--bg:var(--n-bg);--sup:var(--n-sf);--sup2:var(--n-sf);--linha:var(--n-bd);--txt:var(--n-tx);--dim:var(--n-tx2);--faint:var(--n-tx3);--serio:var(--io-av)}
+/* atributos style="" com cor fixa */
+
+}

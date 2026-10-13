@@ -60,6 +60,9 @@
     /* Tipo */
     --io-fonte: 'Inter IO2', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
+    /* Tipo */
+    --io-fonte: 'Inter IO2', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
     /* Alturas */
     --sb-w: 240px;
     --top-h: 56px;
@@ -89,7 +92,7 @@
   html.io2 #io2-fundo,
   html.io2 #io2-folha { display: none; }
 
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) {
     --io-top: var(--top-h);
     --io-bot: 0px;
     scroll-padding-top: var(--io-top);
@@ -106,7 +109,7 @@
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .container { margin-left: 0 !important; margin-right: 0; padding: 0; max-width: none; transition: none; }
 
   /* ---- Barra lateral (computador) ---------------------------------------------- */
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #app-sidebar {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar {
     display: flex !important;
     flex-direction: column;
     width: var(--sb-w);
@@ -125,51 +128,51 @@
     font-family: var(--io-fonte);
     z-index: 900;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-brand {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand {
     display: flex; align-items: center; gap: 12px;
     padding: 4px 8px 16px; margin: 0 0 8px;
     border: 0; border-bottom: 1px solid rgba(255, 255, 255, .12);
     border-radius: 0; background: transparent; cursor: pointer; width: 100%;
     font-family: var(--io-fonte); text-align: left;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-brand:hover { background: transparent; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-brand .sb-logo {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand:hover { background: transparent; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand .sb-logo {
     width: 40px; height: 40px; padding: 3px; flex-shrink: 0;
     background: #fff; border-radius: 10px; object-fit: contain; filter: none;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-brand .sb-name {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand .sb-name {
     color: var(--n-inv); font-family: var(--io-fonte); font-size: 15px; font-weight: 700;
     line-height: 1.2; letter-spacing: 0; text-align: left;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-brand .sb-name small {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-brand .sb-name small {
     display: block; margin-top: 2px; color: var(--n-inv2);
     font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-nav { display: flex; flex-direction: column; gap: 2px; margin-top: 0; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-nav { display: flex; flex-direction: column; gap: 2px; margin-top: 0; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item {
     display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px;
     padding: 10px 12px; border: 1px solid transparent; border-radius: var(--r-controle);
     background: transparent; color: var(--n-inv2);
     font-family: var(--io-fonte); font-size: 14px; font-weight: 500; line-height: 1.2; text-align: left;
     cursor: pointer; transition: background-color .15s ease, color .15s ease;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item .sb-ic { width: 20px; height: 20px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item .sb-ic svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.8; fill: none; opacity: 1; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item.ativo,
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item.ativo:hover {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item .sb-ic { width: 20px; height: 20px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item .sb-ic svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.8; fill: none; opacity: 1; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item.ativo,
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item.ativo:hover {
     background: var(--io-amarelo); border-color: transparent; box-shadow: none;
     color: var(--io-tinta); font-weight: 600;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: 2px; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-item.ativo:focus-visible { outline-color: #fff; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-spacer { flex: 1; min-height: 8px; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-foot { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .12); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-foot .sb-item { font-size: 14px; font-weight: 500; color: var(--n-inv2); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-foot .sb-item:hover { color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: 2px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-item.ativo:focus-visible { outline-color: #fff; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-spacer { flex: 1; min-height: 8px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .12); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .sb-item { font-size: 14px; font-weight: 500; color: var(--n-inv2); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .sb-item:hover { color: var(--n-inv); }
   /* O Sair vinha com o glifo de texto; desenha-se no mesmo traco dos outros, sem tocar no HTML. */
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-foot .sb-item:not(#sb-atualizar) .sb-ic { font-size: 0; line-height: 0; color: inherit; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .sb-foot .sb-item:not(#sb-atualizar) .sb-ic::before {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .sb-item:not(#sb-atualizar) .sb-ic { font-size: 0; line-height: 0; color: inherit; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .sb-item:not(#sb-atualizar) .sb-ic::before {
     content: ""; display: block; width: 20px; height: 20px; background: currentColor;
     -webkit-mask: var(--io-ic-sair) center / 20px 20px no-repeat;
     mask: var(--io-ic-sair) center / 20px 20px no-repeat;
@@ -179,35 +182,35 @@
   }
 
   /* ---- Barra superior ----------------------------------------------------------- */
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-topo {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-topo {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     position: fixed; top: 0; right: 0; left: var(--sb-w); height: var(--top-h);
     padding: 0 24px; box-sizing: border-box;
     background: var(--n-sf); border-bottom: 1px solid var(--n-bd);
     font-family: var(--io-fonte); z-index: 880;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-txt { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-tit {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-txt { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-tit {
     margin: 0; color: var(--io-tinta); font-size: 18px; font-weight: 700; line-height: 22px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-ctx {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-ctx {
     margin: 0; color: var(--n-tx2); font-size: 12px; font-weight: 400; line-height: 16px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-ctx:empty { display: none; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-cons { display: none; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-user { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-av {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-ctx:empty { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-cons { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-av {
     display: inline-flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border-radius: 999px;
     background: var(--io-azul-sf); color: var(--io-tinta); font-size: 14px; font-weight: 700;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-nome { color: var(--n-tx); font-size: 14px; font-weight: 500; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-user:empty { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-nome { color: var(--n-tx); font-size: 14px; font-weight: 500; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user:empty { display: none; }
 
   /* ---- Area de trabalho: o body recua (as telas sao filhas diretas dele) --------- */
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) body {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) body {
     padding-top: calc(var(--top-h) + 24px);
     padding-right: 24px;
     padding-bottom: 32px;
@@ -282,7 +285,7 @@
   /* ---- Sobreposicoes e sticky -------------------------------------------------- */
   html.io2[data-mode="app"]:not(#_):not(#_) #crm-det-bg { z-index: 955; }
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .calc-col-result { top: calc(var(--io-top) + 16px); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #toast { left: calc(50% + var(--sb-w) / 2); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #toast { left: calc(50% + var(--sb-w) / 2); }
   /* O toast escondido fica so translado para baixo; ao subir acima da navegacao ele passaria a
      interceptar o toque. Sem ponteiro, nunca cobre nada. */
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #toast { pointer-events: none; }
@@ -290,22 +293,22 @@
 
 /* =========================  Celular: ate 860 px (o ponto de troca de sempre)  ========================= */
 @media screen and (max-width: 860px) {
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) {
     --io-top: calc(var(--top-h-m) + env(safe-area-inset-top, 0px));
     --io-bot: calc(var(--bot-h) + env(safe-area-inset-bottom, 0px));
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #app-sidebar { display: none !important; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar { display: none !important; }
 
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-topo {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-topo {
     left: 0; height: var(--io-top); padding: env(safe-area-inset-top, 0px) 16px 0;
     background: var(--io-navy-900); border-bottom: 0;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-tit { color: var(--n-inv); font-size: 16px; line-height: 20px; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-ctx { color: var(--n-inv2); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-cons { display: inline; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-t-user { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-tit { color: var(--n-inv); font-size: 16px; line-height: 20px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-ctx { color: var(--n-inv2); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-cons { display: inline; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user { display: none; }
 
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) body {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) body {
     padding-top: calc(var(--io-top) + 12px);
     padding-right: 12px;
     padding-left: 12px;
@@ -313,56 +316,56 @@
   }
 
   /* Navegacao inferior */
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-baixo {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-baixo {
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 910;
     height: var(--io-bot); padding: 0 4px env(safe-area-inset-bottom, 0px); box-sizing: border-box;
     background: var(--io-navy-900); border-top: 1px solid rgba(255, 255, 255, .12);
     font-family: var(--io-fonte);
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-b-item {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item {
     flex: 1 1 0; min-width: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
     padding: 6px 2px; margin: 0; border: 0; background: transparent; cursor: pointer;
     color: var(--n-inv2); font-family: var(--io-fonte); font-size: 12px; font-weight: 500; line-height: 1;
     -webkit-tap-highlight-color: transparent;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-b-ic {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-ic {
     display: inline-flex; align-items: center; justify-content: center;
     width: 56px; height: 28px; border-radius: 999px; transition: background-color .15s ease;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-b-ic svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-b-item.ativa { color: var(--n-inv); font-weight: 600; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-b-item.ativa .io2-b-ic { background: var(--io-amarelo); color: var(--io-tinta); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-b-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; border-radius: 12px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-ic svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item.ativa { color: var(--n-inv); font-weight: 600; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item.ativa .io2-b-ic { background: var(--io-amarelo); color: var(--io-tinta); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-b-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; border-radius: 12px; }
 
   /* Folha "Mais" */
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-fundo {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-fundo {
     position: fixed; inset: 0; z-index: 940; background: rgba(6, 26, 56, .55);
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-fundo:not([hidden]) { display: block; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-folha {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-fundo:not([hidden]) { display: block; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-folha {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 950; box-sizing: border-box;
     max-height: calc(100vh - var(--io-top) - 16px); overflow-y: auto; overscroll-behavior: contain;
     padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
     background: var(--io-navy-950); color: var(--n-inv); border-radius: 20px 20px 0 0;
     font-family: var(--io-fonte);
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-folha:not([hidden]) { display: block; animation: io2-sobe .2s cubic-bezier(.16, 1, .3, 1); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #io2-fundo:not([hidden]) { animation: io2-aparece .2s ease-out; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-alca { width: 40px; height: 4px; margin: 4px auto 12px; border-radius: 999px; background: rgba(255, 255, 255, .24); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-tit { margin: 0 8px 8px; color: var(--n-inv2); font-size: 12px; font-weight: 500; line-height: 16px; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-lista { display: flex; flex-direction: column; gap: 2px; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-sep { height: 1px; margin: 8px 8px; background: rgba(255, 255, 255, .12); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-item {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-folha:not([hidden]) { display: block; animation: io2-sobe .2s cubic-bezier(.16, 1, .3, 1); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-fundo:not([hidden]) { animation: io2-aparece .2s ease-out; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-alca { width: 40px; height: 4px; margin: 4px auto 12px; border-radius: 999px; background: rgba(255, 255, 255, .24); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-tit { margin: 0 8px 8px; color: var(--n-inv2); font-size: 12px; font-weight: 500; line-height: 16px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-lista { display: flex; flex-direction: column; gap: 2px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-sep { height: 1px; margin: 8px 8px; background: rgba(255, 255, 255, .12); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item {
     display: flex; align-items: center; gap: 14px; width: 100%; min-height: 52px;
     padding: 12px; border: 0; border-radius: var(--r-controle); background: transparent; cursor: pointer;
     color: var(--n-inv); font-family: var(--io-fonte); font-size: 16px; font-weight: 500; text-align: left;
   }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-item:hover { background: rgba(255, 255, 255, .08); }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-item.ativa { background: var(--io-amarelo); color: var(--io-tinta); font-weight: 600; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-item svg { width: 22px; height: 22px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) .io2-f-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item:hover { background: rgba(255, 255, 255, .08); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item.ativa { background: var(--io-amarelo); color: var(--io-tinta); font-weight: 600; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item svg { width: 22px; height: 22px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: -2px; }
 
-  html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #toast { left: 50%; bottom: calc(var(--io-bot) + 12px); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #toast { left: 50%; bottom: calc(var(--io-bot) + 12px); }
   /* A Inter e mais larga que a Arial e o select toma a largura do option mais longo: sem isto o
      formulario do Solar passava de 5 px a mais do que passava antes da troca de fonte. */
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #formSection .fields > *,
@@ -378,4 +381,63 @@
   html.io2 #io2-folha, html.io2 #io2-fundo { animation: none !important; }
   html.io2 .sb-item, html.io2 .io2-b-ic, html.io2 .solar-subtab, html.io2 .eletro-subtab,
   html.io2 .eletro-subtab2, html.io2 .cad-aba, html.io2 .crm-subtab { transition: none !important; }
+}
+
+
+/* =====================================================================================
+   CASCA DE SUBAPP (fase 4a): agenda, prospeccao, cobrancas, agentes, estados, radar e
+   eletroposto/metricas. O casca.js poe io2-casca, io2-sub e data-io2-sub="<nome>" no <html> SO DEPOIS
+   de montar a barra lateral, a barra superior e a navegacao inferior; sem isso o cabecalho antigo fica.
+   O subapp nao tem #app-sidebar nem data-mode: as regras da casca acima valem por :is(). Aqui ficam so
+   o posicionamento da barra construida, o recuo do body e o cabecalho antigo.
+   De cada cabecalho antigo some SO o titulo e o "Voltar" (e o "Atualizar app", que a casca ja oferece).
+   Controle sem equivalente na casca FICA: recarregar (agenda, prospeccao, agentes), selo de ambiente
+   (cobrancas), selo e relogio (radar), faixa de teste (cobrancas).
+   ===================================================================================== */
+
+@media screen {
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) #app-sidebar { position: fixed; top: 0; left: 0; bottom: 0; box-sizing: border-box; }
+
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) body {
+    margin: 0;
+    padding: calc(var(--top-h) + 12px) 0 16px var(--sb-w);
+  }
+
+  /* Cabecalho antigo: titulo, Voltar e Atualizar app saem; o que sobra vira uma linha de ferramentas. */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar .brand,
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button[onclick="location.href='/gerador'"],
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button[onclick^="forcarAtualizarApp"],
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .wrap > header h1,
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .wrap > header a.voltar { display: none; }
+  /* O que sobra da barra antiga (recarregar, selo de ambiente) sobe para dentro da barra superior da
+     casca, a esquerda do usuario: nenhuma faixa vazia a mais na tela. */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar {
+    position: fixed; top: 8px; right: 200px; z-index: 890; width: auto; margin: 0; padding: 0;
+    background: transparent; border: 0; box-shadow: none; min-height: 0; gap: 8px;
+    display: flex; align-items: center; justify-content: flex-end; height: var(--ctl-h);
+  }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar .actions { display: flex; gap: 8px; align-items: center; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button {
+    min-height: var(--ctl-h); min-width: var(--ctl-h); padding: 0 10px; border-radius: var(--r-controle);
+    background: var(--n-sf); color: var(--io-tinta); border: 1px solid var(--n-bd2);
+    font-size: 16px; font-weight: 600; line-height: 1; cursor: pointer;
+  }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button:hover { background: var(--n-sf3); }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button:focus-visible { outline: 2px solid var(--io-azul); outline-offset: 2px; }
+  /* Metricas: o cabecalho so tem titulo e Voltar, nao sobra nada. */
+  html.io2.io2-casca.io2-sub[data-io2-sub="metricas"]:not(#_):not(#_) .topbar { display: none; }
+
+  /* Sobreposicoes do subapp ficam ACIMA da casca (que vai ate 955). */
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .modal-bg,
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .ov,
+  html.io2.io2-casca.io2-sub[data-io2-sub="agentes"]:not(#_):not(#_) .modal { z-index: 1000; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) #toast { z-index: 9999; }
+}
+
+@media screen and (max-width: 860px) {
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) body {
+    padding: var(--io-top) 0 calc(var(--io-bot) + 16px) 0;
+  }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar { top: calc(env(safe-area-inset-top, 0px) + 4px); right: 12px; height: var(--ctl-h-m); }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_) .topbar button { min-height: var(--ctl-h-m); min-width: var(--ctl-h-m); }
 }

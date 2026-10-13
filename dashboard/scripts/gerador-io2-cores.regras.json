@@ -14,7 +14,136 @@
     "color:#8a94a3",
     "color:#9ca0a8"
   ],
-  "leakyDocumentos": ["acoes","botoes-rodape","breakdown","breakdown-ano","breakdown-card","breakdown-nota","breakdown-val","btn-link","btn-nova","btn-novo-cli","btn-pdf","btn-wpp","card","celebra-confete","celebra-overlay","celebra-parabens","celebra-sub","chart-caption","chart-wrap","chart25-economia-card","chart25-economia-label","chart25-economia-val","chart25-leg-dot","chart25-leg-item","chart25-legend","check","compare","compare-antes","compare-arrow","compare-card","compare-depois","compare-label","compare-savings","compare-sub","compare-value","consultor-avatar","consultor-dados","consultor-info","consultor-nome","consultor-rodape","consultor-tel","cta-box","cta-phone","cta-pill","cta-section","cta-sub","cta-title","economia","economia-label","economia-period","economia-value","eletro-btn","eletro-btn-ic","ep-prev-acoes","ep-prev-bar","ep-prev-bg","ep-prev-folha","ep-prev-nota","ep-prev-palco","ep-prev-scroll","ep-prev-tit","exp-cta-wpp","footer","foto-caption","foto-wrap","garantia","garantia-label","garantia-num","garantias","gerado","h2-sub","hero","hero-subtitle","inc","inc-grid","invest-avista","invest-avista-label","invest-avista-sub","invest-avista-value","invest-box","invest-grid","invest-grid-2","invest-label","invest-value","lbl","logo-img","lp-logo","lp-msg","lp-spinner","obs","orcview-acoes","orcview-folha","orcview-palco","orcview-pdf","orcview-wpp","page","parc","parcelas","pb-bar","pb-fill","pb-legenda","prazo-box","prazo-desc","prazo-info","prazo-num","prazo-titulo","primary","prop-header","prop-header-titulo","qt","retorno-linha","section","spec","spec-label","spec-value","specs","stat","stat-label","stat-value","stats","sub","sun","topbar","topbar-meta","topbar-sub","topbar-titulo","val","vl"],
+  "leakyDocumentos": [
+    "acoes",
+    "botoes-rodape",
+    "breakdown",
+    "breakdown-ano",
+    "breakdown-card",
+    "breakdown-nota",
+    "breakdown-val",
+    "btn-link",
+    "btn-nova",
+    "btn-novo-cli",
+    "btn-pdf",
+    "btn-wpp",
+    "card",
+    "celebra-confete",
+    "celebra-overlay",
+    "celebra-parabens",
+    "celebra-sub",
+    "chart-caption",
+    "chart-wrap",
+    "chart25-economia-card",
+    "chart25-economia-label",
+    "chart25-economia-val",
+    "chart25-leg-dot",
+    "chart25-leg-item",
+    "chart25-legend",
+    "check",
+    "compare",
+    "compare-antes",
+    "compare-arrow",
+    "compare-card",
+    "compare-depois",
+    "compare-label",
+    "compare-savings",
+    "compare-sub",
+    "compare-value",
+    "consultor-avatar",
+    "consultor-dados",
+    "consultor-info",
+    "consultor-nome",
+    "consultor-rodape",
+    "consultor-tel",
+    "cta-box",
+    "cta-phone",
+    "cta-pill",
+    "cta-section",
+    "cta-sub",
+    "cta-title",
+    "economia",
+    "economia-label",
+    "economia-period",
+    "economia-value",
+    "eletro-btn",
+    "eletro-btn-ic",
+    "ep-prev-acoes",
+    "ep-prev-bar",
+    "ep-prev-bg",
+    "ep-prev-folha",
+    "ep-prev-nota",
+    "ep-prev-palco",
+    "ep-prev-scroll",
+    "ep-prev-tit",
+    "exp-cta-wpp",
+    "footer",
+    "foto-caption",
+    "foto-wrap",
+    "garantia",
+    "garantia-label",
+    "garantia-num",
+    "garantias",
+    "gerado",
+    "h2-sub",
+    "hero",
+    "hero-subtitle",
+    "inc",
+    "inc-grid",
+    "invest-avista",
+    "invest-avista-label",
+    "invest-avista-sub",
+    "invest-avista-value",
+    "invest-box",
+    "invest-grid",
+    "invest-grid-2",
+    "invest-label",
+    "invest-value",
+    "lbl",
+    "logo-img",
+    "lp-logo",
+    "lp-msg",
+    "lp-spinner",
+    "obs",
+    "orcview-acoes",
+    "orcview-folha",
+    "orcview-palco",
+    "orcview-pdf",
+    "orcview-wpp",
+    "page",
+    "parc",
+    "parcelas",
+    "pb-bar",
+    "pb-fill",
+    "pb-legenda",
+    "prazo-box",
+    "prazo-desc",
+    "prazo-info",
+    "prazo-num",
+    "prazo-titulo",
+    "primary",
+    "prop-header",
+    "prop-header-titulo",
+    "qt",
+    "retorno-linha",
+    "section",
+    "spec",
+    "spec-label",
+    "spec-value",
+    "specs",
+    "stat",
+    "stat-label",
+    "stat-value",
+    "stats",
+    "sub",
+    "sun",
+    "topbar",
+    "topbar-meta",
+    "topbar-sub",
+    "topbar-titulo",
+    "val",
+    "vl"
+  ],
   "forcar": [
     {
       "seletor": ".ranking-mes-btn:not(.ativo) .qtd",
@@ -70,5 +199,149 @@
       "valor": "#854D0E",
       "importante": false
     }
-  ]
+  ],
+  "_paginas": "Bloco por subapp (--pagina /gerador/<x>/index.html). Para subapp, SO este bloco vale (as chaves do topo sao do index). Mesmas chaves do topo: pular, manter, fundoForcado, cores, forcar, inlineExtra.",
+  "paginas": {
+    "/gerador/prospeccao/index.html": {
+      "_motivo": "Variaveis do subapp apontam para os tokens do visual novo. O gerador decide o papel pelo uso e erra --bg, --card-2, --line-s e --dim; esta regra e a unica dona delas.",
+      "forcar": [
+        {
+          "seletor": ":root",
+          "decls": {
+            "--navy": "var(--io-navy-900)",
+            "--navy-l": "var(--io-navy-800)",
+            "--bg": "var(--n-bg)",
+            "--card": "var(--n-sf)",
+            "--card-2": "var(--n-sf2)",
+            "--line": "var(--n-bd)",
+            "--line-s": "var(--n-bd2)",
+            "--txt": "var(--n-tx)",
+            "--dim": "var(--n-tx2)",
+            "--faint": "var(--n-tx3)",
+            "--ok": "var(--io-ok)",
+            "--warn": "var(--io-av)",
+            "--bad": "var(--io-er)",
+            "--blue": "var(--io-azul)"
+          },
+          "importante": false
+        }
+      ]
+    },
+    "/gerador/cobrancas/index.html": {
+      "_motivo": "Idem prospeccao (mesmo conjunto de variaveis).",
+      "forcar": [
+        {
+          "seletor": ":root",
+          "decls": {
+            "--navy": "var(--io-navy-900)",
+            "--navy-l": "var(--io-navy-800)",
+            "--bg": "var(--n-bg)",
+            "--card": "var(--n-sf)",
+            "--card-2": "var(--n-sf2)",
+            "--line": "var(--n-bd)",
+            "--line-s": "var(--n-bd2)",
+            "--txt": "var(--n-tx)",
+            "--dim": "var(--n-tx2)",
+            "--faint": "var(--n-tx3)",
+            "--ok": "var(--io-ok)",
+            "--warn": "var(--io-av)",
+            "--bad": "var(--io-er)",
+            "--blue": "var(--io-azul)"
+          },
+          "importante": false
+        }
+      ]
+    },
+    "/gerador/agentes/index.html": {
+      "_motivo": "Idem prospeccao (mesmo conjunto de variaveis, mais --roxo, que o gerador ja escurece).",
+      "forcar": [
+        {
+          "seletor": ":root",
+          "decls": {
+            "--navy": "var(--io-navy-900)",
+            "--navy-l": "var(--io-navy-800)",
+            "--bg": "var(--n-bg)",
+            "--card": "var(--n-sf)",
+            "--card-2": "var(--n-sf2)",
+            "--line": "var(--n-bd)",
+            "--line-s": "var(--n-bd2)",
+            "--txt": "var(--n-tx)",
+            "--dim": "var(--n-tx2)",
+            "--faint": "var(--n-tx3)",
+            "--ok": "var(--io-ok)",
+            "--warn": "var(--io-av)",
+            "--bad": "var(--io-er)",
+            "--blue": "var(--io-azul)"
+          },
+          "importante": false
+        }
+      ]
+    },
+    "/gerador/estados/index.html": {
+      "_motivo": "Neutros e --serio nos tokens. A rampa --s1..--s5 e as cores de status (--bom, --atencao, --critico) sao paleta de dado e ficam como estao.",
+      "forcar": [
+        {
+          "seletor": ":root",
+          "decls": {
+            "--bg": "var(--n-bg)",
+            "--sup": "var(--n-sf)",
+            "--sup2": "var(--n-sf)",
+            "--linha": "var(--n-bd)",
+            "--txt": "var(--n-tx)",
+            "--dim": "var(--n-tx2)",
+            "--faint": "var(--n-tx3)",
+            "--serio": "var(--io-av)"
+          },
+          "importante": false
+        }
+      ],
+      "manter": [
+        {
+          "seletor": ":root",
+          "props": [
+            "--s1",
+            "--s2",
+            "--s3",
+            "--s4",
+            "--s5",
+            "--bom",
+            "--atencao",
+            "--critico"
+          ]
+        }
+      ]
+    },
+    "/gerador/radar/index.html": {
+      "_motivo": "Idem estados. A rampa --s1/--s4/--s8 e o semaforo ficam (paleta de dado).",
+      "forcar": [
+        {
+          "seletor": ":root",
+          "decls": {
+            "--bg": "var(--n-bg)",
+            "--sup": "var(--n-sf)",
+            "--sup2": "var(--n-sf)",
+            "--linha": "var(--n-bd)",
+            "--txt": "var(--n-tx)",
+            "--dim": "var(--n-tx2)",
+            "--faint": "var(--n-tx3)",
+            "--serio": "var(--io-av)"
+          },
+          "importante": false
+        }
+      ],
+      "manter": [
+        {
+          "seletor": ":root",
+          "props": [
+            "--s1",
+            "--s4",
+            "--s8",
+            "--bom",
+            "--atencao",
+            "--critico"
+          ]
+        }
+      ]
+    }
+  }
 }

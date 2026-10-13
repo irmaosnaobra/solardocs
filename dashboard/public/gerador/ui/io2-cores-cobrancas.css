@@ -1,0 +1,43 @@
+/* ARQUIVO GERADO. NAO EDITE A MAO.
+   Gerado por dashboard/scripts/gerador-io2-cores.mjs a partir do CSS de /gerador/cobrancas/index.html (e style.css).
+   Recolor do tema escuro para o claro novo: so cor de tela, sob html.io2, dentro de @media screen.
+   Excecoes decididas a mao: dashboard/scripts/gerador-io2-cores.regras.json. Para refazer: veja o cabecalho do script. */
+@media screen {
+html.io2:not(#_):not(#_){--navy:#1E3A8A;--bg:var(--n-sf2);--card:var(--n-sf);--line:var(--n-bd);--line-s:var(--n-bd2);--txt:var(--n-tx);--dim:var(--n-tx3);--faint:var(--n-tx3);--ok:var(--io-ok);--warn:#F59E0B;--bad:var(--io-er);--blue:var(--io-info)}
+html.io2:not(#_):not(#_) .topbar{background-color:var(--n-sf2);color:var(--n-tx);border-bottom-color:#F5C518}
+html.io2:not(#_):not(#_) .topbar button{background-color:var(--n-sf);color:var(--io-info)}
+html.io2:not(#_):not(#_) .amb.prod{background-color:var(--n-sf);color:var(--io-ok);border-color:#166534}
+html.io2:not(#_):not(#_) .amb.sandbox{background-color:#450A0A;color:#FCA5A5;border-color:#7F1D1D}
+html.io2:not(#_):not(#_) .faixa-teste{background-color:#7F1D1D;color:#FEE2E2}
+html.io2:not(#_):not(#_) textarea,
+html.io2:not(#_):not(#_) input,
+html.io2:not(#_):not(#_) select{background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .btn{color:var(--n-tx)}
+html.io2:not(#_):not(#_) .btn.ghost{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .btn.ok{background-color:#15803D}
+html.io2:not(#_):not(#_) .exemplos button{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .segs button{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .segs button[aria-pressed="true"]{color:var(--n-tx)}
+html.io2:not(#_):not(#_) .previa{background-image:linear-gradient(var(--n-sf), var(--n-sf))}
+html.io2:not(#_):not(#_) .quando{background-color:var(--n-sf2)}
+html.io2:not(#_):not(#_) .avisos li{background-color:var(--n-sf);color:var(--io-av)}
+html.io2:not(#_):not(#_) .selo.exata{background-color:var(--n-sf);color:var(--io-ok)}
+html.io2:not(#_):not(#_) .selo.estimada{background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .pronto{background-color:var(--n-sf2);border-color:#166534}
+html.io2:not(#_):not(#_) td{border-bottom-color:#22304A}
+html.io2:not(#_):not(#_) .pill.PENDING{background-color:var(--n-sf)}
+html.io2:not(#_):not(#_) .pill.PARCIAL{background-color:var(--n-sf);color:var(--io-av)}
+html.io2:not(#_):not(#_) .pill.RECEIVED,
+html.io2:not(#_):not(#_) .pill.CONFIRMED{background-color:var(--n-sf);color:var(--io-ok)}
+html.io2:not(#_):not(#_) .alerta{background-color:#450A0A;border-color:#7F1D1D;color:#FECACA}
+html.io2:not(#_):not(#_) .alerta b{color:#FCA5A5}
+html.io2:not(#_):not(#_) #toast{background-color:var(--n-sf2);color:var(--n-tx)}
+html.io2:not(#_):not(#_) .spin{border-color:#FFFFFF var(--n-bd2) var(--n-bd2)}
+/* excecoes de regras.json (forcar) */
+html.io2:not(#_):not(#_){--navy:var(--io-navy-900);--navy-l:var(--io-navy-800);--bg:var(--n-bg);--card:var(--n-sf);--card-2:var(--n-sf2);--line:var(--n-bd);--line-s:var(--n-bd2);--txt:var(--n-tx);--dim:var(--n-tx2);--faint:var(--n-tx3);--ok:var(--io-ok);--warn:var(--io-av);--bad:var(--io-er);--blue:var(--io-azul)}
+/* atributos style="" com cor fixa */
+html.io2 [style*="background:#0F172A" i]{background-color:var(--n-sf2)!important}
+html.io2 [style*="background: #0F172A" i]{background-color:var(--n-sf2)!important}
+html.io2 [style*="color:#FCA5A5" i]:not([style*="-color:#FCA5A5" i]):not([style*="-color: #FCA5A5" i]){color:var(--io-er)!important}
+html.io2 [style*="color: #FCA5A5" i]:not([style*="-color:#FCA5A5" i]):not([style*="-color: #FCA5A5" i]){color:var(--io-er)!important}
+}

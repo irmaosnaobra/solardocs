@@ -21,7 +21,6 @@
     window.toggleTheme = function(){}; // no-op p/ compat
   })();
 </script>
-<script src="/gerador/ui/chave.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -1272,7 +1271,10 @@
     caret-color: #E5E7EB;
   }
 </style>
-<link rel="stylesheet" href="/gerador/ui/io2.css">
+<!-- Visual novo (reforma do /gerador, atras da chave). Ordem importa: os links vem ANTES do chave.js, que troca o media deles quando a chave esta ligada. -->
+<link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
+<link rel="stylesheet" href="/gerador/ui/io2-agenda.css" media="not all" data-io2>
+<script src="/gerador/ui/chave.js" data-tema="light"></script>
 </head>
 <body>
 
