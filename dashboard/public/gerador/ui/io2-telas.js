@@ -4,6 +4,7 @@
    Nao envolve funcao do app, nao move no, nao escreve em location, nao renomeia id nem classe do app.
    Blocos: (A) texto longo recolhido, (B) faixa de resultado do Simulador no celular,
    (C) remendos de acessibilidade em tempo de execucao, (D) Inicio: marcas de proporcao para a trena e indicador zerado,
+   (D2) Inicio em painel: rotulo curto dos indicadores (atributo), funil em tabela com trena e rosca do desfecho (nos novos, com data-io2),
    (E) acabamento: trena do funil (SVG), indicador zerado no CRM e em Quem ligar, chip ativo de Leads, avatar sem foto na Automacao,
    filtros de Cadastros numa fileira so (os select de #cad-acoes sao movidos para div.io2-cad-filtros; desfazer() devolve),
    celulas de Cadastros que so tem o traco de vazio (data-io2-vazio; o CSS do celular esconde).
@@ -311,6 +312,9 @@
         var em = m ? +m[1] : 0, co = m ? +m[2] : 0, tot = em + co;
         if (m && tot > 0) inicioMarcar(ob, Math.round(co / tot * 100), co + ' de ' + tot + ' obras concluídas');
         else inicioMarcar(ob, null);
+        /* Nenhuma obra: o cartao marinho mostra uma frase so (CSS), em vez de cinco zeros. */
+        if (m && tot === 0) { if (!ob.hasAttribute('data-io2-vazio')) ob.setAttribute('data-io2-vazio', '1'); }
+        else if (ob.hasAttribute('data-io2-vazio')) ob.removeAttribute('data-io2-vazio');
       }
       /* Time: avanco sobre agendados, lido da celula ("36%"). */
       var cs = sec.querySelectorAll('.in-time td[data-r="Avanço sobre agendados"]');
@@ -320,12 +324,260 @@
       }
     } catch (e) {}
     try { trenaFunil(); } catch (e) {}
+    try { painelInicio(); } catch (e) {}
+  }
+
+  /* ------------------------------------------------------------------------------------------------
+     (D2) Inicio em painel. Tres pecas, todas feitas so com o que o app ja mostra:
+       indicadores: rotulo curto e pilula de contexto, postos como atributo em .in-t (data-io2-rot, data-io2-sub, data-io2-tom)
+                    e lidos do proprio botao (data-d, numero e detalhe). A frase inteira vira a dica (title, com a
+                    marca data-io2-tit). Nenhum no e criado nem movido; o clique segue o do app.
+       funil em tabela: para cada produto que o app desenhou (.pq-graf[data-g="fn-..."]), uma tabela de tres linhas
+                    com trena, lida dos aria-label das barras do SVG do app (rotulo e valor ja formatados por ele).
+       rosca do desfecho: um cartao novo ao lado, com a divisao dos agendamentos do periodo. Os numeros vem da mesma
+                    variavel que o app usa para o funil (inDados.resumo.dados.funil) e so dos produtos desenhados;
+                    se o total nao bater com o que esta na tela, a rosca nao e desenhada.
+     O app refaz a grade por innerHTML: os nos daqui somem junto e este bloco refaz. A marca data-io2-painel no
+     cartao do funil (no do app, que nasce sem ela) impede refazer duas vezes; nada aqui compara conteudo.
+     Os nos ficam na lista "painel", podada dos que o app ja descartou; desfazer() tira o resto.
+     ------------------------------------------------------------------------------------------------ */
+  var painel = [];
+  var ROTULOS = {
+    agenda: ['Atendimento hoje', 'Atendimentos hoje'], quentes: ['Cliente quente', 'Clientes quentes'],
+    vencidos: ['Agendado vencido', 'Agendados vencidos'], obras: ['Obra parada', 'Obras paradas'],
+    quiz: ['Quiz sem horário', 'Quiz sem horário'], areceber: ['A receber', 'A receber']
+  };
+  function txt(n) { return n ? (n.textContent || '').replace(/\s+/g, ' ').trim() : ''; }
+  function numBR(n) { try { return Number(n).toLocaleString('pt-BR'); } catch (e) { return String(n); } }
+  function novoNo(tag, classe, texto) {
+    var n = document.createElement(tag);
+    if (classe) n.className = classe;
+    if (texto !== undefined && texto !== null) n.textContent = texto;
+    return n;
+  }
+  /* Linha de contexto curta, tirada da frase de detalhe que o app escreveu. Sem casar, devolve vazio e o CSS mostra o detalhe. */
+  function contextoCurto(d, det, frase) {
+    var m, lim;
+    if (d === 'agenda') { m = /Próximo às (\d{1,2}:\d{2})/.exec(det); return m ? ['Próximo: ' + m[1], ''] : null; }
+    if (d === 'quentes') { m = /(\d+) deles? com o orçamento vencendo/.exec(det); return m ? [m[1] + ' vencendo', 'av'] : null; }
+    if (d === 'vencidos') {
+      m = /há (\d+ dias?)/.exec(det);
+      if (m) return [(/mais antigo/.test(det) ? 'Há até ' : 'Há ') + m[1], 'er'];
+      return /^Dê um destino/.test(det) ? ['Dê um destino', 'er'] : null;
+    }
+    if (d === 'obras') {
+      /* O corte ("15 dias ou mais") vem da frase do app e continua na tela junto com a maior espera. */
+      lim = /há (\d+) dias ou mais/.exec(frase); m = /há (\d+) dias?/.exec(det);
+      if (lim && m && +m[1] > +lim[1]) return [/mais espera/.test(det) ? 'Há ' + lim[1] + ' a ' + m[1] + ' dias' : m[1] + ' dias (' + lim[1] + ' ou mais)', 'av'];
+      if (lim) return ['Há ' + lim[1] + ' dias ou mais', 'av'];
+      return m ? ['Há ' + m[1] + (m[1] === '1' ? ' dia' : ' dias'), 'av'] : null;
+    }
+    if (d === 'quiz') { m = /últimos (\d+ dias?)/.exec(det); return m ? ['Últimos ' + m[1], ''] : null; }
+    if (d === 'areceber') {
+      /* Venda sem valor na planilha: o total e parcial. O aviso do app nao e encurtado (o CSS mostra o detalhe inteiro, em cor de aviso). */
+      if (/sem valor/.test(det)) return ['', 'av'];
+      m = /Em \d+ vendas?/.exec(det); return m ? [m[0], ''] : null;
+    }
+    return null;
+  }
+  function indicadoresInicio(sec) {
+    var bs = sec.querySelectorAll('#in-pede button.in-linha[data-d]');
+    for (var i = 0; i < bs.length; i++) {
+      try {
+        var b = bs[i], t = b.querySelector('.in-t');
+        if (!t || t.hasAttribute('data-io2-rot')) continue;
+        var par = ROTULOS[b.getAttribute('data-d')];
+        if (!par) continue;
+        var frase = txt(b.querySelector('.in-f')), det = txt(b.querySelector('.in-d'));
+        t.setAttribute('data-io2-rot', /^1$/.test(txt(b.querySelector('.in-n'))) ? par[0] : par[1]);
+        var curto = contextoCurto(b.getAttribute('data-d'), det, frase);
+        if (curto && curto[0]) t.setAttribute('data-io2-sub', curto[0]);
+        if (curto && curto[1]) t.setAttribute('data-io2-tom', curto[1]);
+        if (frase && !b.hasAttribute('title')) {
+          b.setAttribute('title', frase + (det ? '. ' + det : ''));
+          b.setAttribute('data-io2-tit', '1');
+        }
+      } catch (e) {}
+    }
+  }
+  /* Le as barras que o app desenhou num funil: [{ rotulo, valor (texto do app), n (numero) }]. */
+  function barrasDoFunil(graf) {
+    var out = [], alvos = graf.querySelectorAll('svg > rect.pq-alvo[aria-label]');
+    for (var i = 0; i < alvos.length; i++) {
+      var m = /^(.*?):\s*(.+)$/.exec(alvos[i].getAttribute('aria-label') || '');
+      if (!m) return [];
+      var d = /^[\d.]+/.exec(m[2]);
+      if (!d) return [];
+      out.push({ rotulo: m[1], valor: m[2], n: parseInt(d[0].replace(/\./g, ''), 10) || 0 });
+    }
+    return out;
+  }
+  function funilTabela(fn, graf, linhas, maximo, nome) {
+    var tab = novoNo('table', 'io2-fn-tab');
+    tab.setAttribute('data-io2', '1');
+    var cap = novoNo('caption', '', 'Funil de ' + nome.toLowerCase());
+    cap.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap';
+    tab.appendChild(cap);
+    var corpo = novoNo('tbody');
+    var de = ['', 'dos que agendaram', 'dos que conversaram'];
+    for (var i = 0; i < linhas.length; i++) {
+      var l = linhas[i], tr = novoNo('tr');
+      var th = novoNo('th', '', l.rotulo); th.setAttribute('scope', 'row');
+      var tdB = novoNo('td', 'io2-fn-b'), fita = novoNo('span', 'io2-trena');
+      fita.style.setProperty('--io-p', (maximo > 0 ? Math.max(0, Math.min(100, Math.round(l.n / maximo * 1000) / 10)) : 0) + '%');
+      fita.setAttribute('aria-hidden', 'true');
+      tdB.appendChild(fita);
+      var pc = /(\d+%)\s*$/.exec(l.valor);
+      if (pc && linhas.length === 3 && de[i]) tr.setAttribute('title', pc[1] + ' ' + de[i]);
+      tr.appendChild(th); tr.appendChild(tdB); tr.appendChild(novoNo('td', 'io2-fn-v', l.valor));
+      corpo.appendChild(tr);
+    }
+    tab.appendChild(corpo);
+    fn.insertBefore(tab, graf.nextSibling);
+    painel.push(tab);
+  }
+  var FATIAS = [['av', 'Avançaram'], ['conv', 'Demais conversas'], ['sem', 'Sem interesse'], ['nao', 'Não atenderam'], ['can', 'Cancelados'], ['agu', 'Aguardando']];
+  function roscaCartao(grade, estado, soma, velho) {
+    var card = novoNo('section', 'in-card io2-rosca');
+    card.setAttribute('data-io2', '1');
+    card.setAttribute('aria-label', 'Desfecho dos agendamentos');
+    card.appendChild(novoNo('h3', '', 'Desfecho dos agendamentos'));
+    /* Dado de outro periodo com a leitura nova a caminho: o mesmo esmaecido que o app poe no funil. */
+    if (velho) { card.classList.add('pq-recarregando'); card.setAttribute('aria-busy', 'true'); }
+    if (estado === 'esq') {
+      card.setAttribute('aria-busy', 'true');
+      var sk = novoNo('div', 'in-sk'); sk.setAttribute('aria-hidden', 'true');
+      var s1 = novoNo('div', 'pq-sk'), s2 = novoNo('div', 'pq-sk');
+      s1.style.width = '60%'; s2.style.height = '120px';
+      sk.appendChild(s1); sk.appendChild(s2); card.appendChild(sk);
+    } else if (estado === 'erro' || !soma) {
+      card.appendChild(novoNo('p', 'in-fr sec', 'Sem leitura dos agendamentos agora.'));
+    } else if (!(soma.total > 0)) {
+      card.appendChild(novoNo('p', 'in-fr sec', 'Nenhum agendamento no período.'));
+    } else {
+      var T = soma.total;
+      card.appendChild(novoNo('p', 'in-fr sec', numBR(T) + (T === 1 ? ' agendamento no período.' : ' agendamentos no período.')));
+      var corpo = novoNo('div', 'io2-rosca-corpo'), g = novoNo('div', 'io2-rosca-g');
+      var svg = document.createElementNS(SVGNS, 'svg');
+      svg.setAttribute('viewBox', '0 0 120 120'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+      var trilho = document.createElementNS(SVGNS, 'circle');
+      trilho.setAttribute('class', 'io2-rosca-trilho'); trilho.setAttribute('cx', '60'); trilho.setAttribute('cy', '60'); trilho.setAttribute('r', '50');
+      svg.appendChild(trilho);
+      var leg = novoNo('ul', 'io2-rosca-leg'), ini = 0, vivas = 0, k;
+      for (k = 0; k < FATIAS.length; k++) if (soma[FATIAS[k][0]] > 0) vivas++;
+      /* Percentual inteiro por fatia fechando em 100: parte inteira e o que falta vai para os maiores restos. */
+      var pct = {}, restos = [], falta = 100;
+      for (k = 0; k < FATIAS.length; k++) { var ch0 = FATIAS[k][0], ex = soma[ch0] / T * 100; pct[ch0] = Math.floor(ex); falta -= pct[ch0]; restos.push([ex - pct[ch0], ch0]); }
+      restos.sort(function (a, b) { return b[0] - a[0]; });
+      for (k = 0; k < restos.length && falta > 0; k++, falta--) pct[restos[k][1]]++;
+      for (k = 0; k < FATIAS.length; k++) {
+        var ch = FATIAS[k][0], v = soma[ch];
+        if (!(v > 0) && ch !== 'av') continue;
+        var p = v / T * 100;
+        /* O que ainda aguarda nao tem fatia: e o proprio trilho da rosca. */
+        if (v > 0 && ch !== 'agu') {
+          var c = document.createElementNS(SVGNS, 'circle');
+          c.setAttribute('class', 'io2-s-' + ch); c.setAttribute('cx', '60'); c.setAttribute('cy', '60'); c.setAttribute('r', '50');
+          c.setAttribute('pathLength', '100');
+          var arco = vivas > 1 ? Math.max(0.6, p - 0.8) : p;
+          c.setAttribute('stroke-dasharray', arco.toFixed(2) + ' ' + (100 - arco).toFixed(2));
+          c.setAttribute('stroke-dashoffset', (-ini).toFixed(2));
+          svg.appendChild(c);
+        }
+        ini += p;
+        var li = novoNo('li');
+        var pt = novoNo('span', 'io2-pt io2-s-' + ch); pt.setAttribute('aria-hidden', 'true');
+        li.appendChild(pt); li.appendChild(novoNo('span', 'io2-nm', FATIAS[k][1]));
+        li.appendChild(novoNo('span', 'io2-qt', numBR(v))); li.appendChild(novoNo('span', 'io2-pc', pct[ch] + '%'));
+        leg.appendChild(li);
+      }
+      g.appendChild(svg);
+      var centro = novoNo('div', 'io2-rosca-centro');
+      centro.appendChild(novoNo('b', '', pct.av + '%'));
+      centro.appendChild(novoNo('span', '', 'avançaram'));
+      centro.appendChild(novoNo('span', '', 'dos agendados'));
+      centro.setAttribute('title', numBR(soma.av) + ' de ' + numBR(T) + ' agendamentos avançaram');
+      g.appendChild(centro);
+      corpo.appendChild(g); corpo.appendChild(leg); card.appendChild(corpo);
+    }
+    grade.appendChild(card);
+    painel.push(card);
+  }
+  /* Agenda de hoje: no computador o nome fica numa linha so; o nome inteiro vira a dica. */
+  function agendaInicio(sec) {
+    var ns = sec.querySelectorAll('#in-agenda .in-prox .in-cli:not([title])');
+    for (var i = 0; i < ns.length; i++) { var t = txt(ns[i]); if (t) { ns[i].setAttribute('title', t); ns[i].setAttribute('data-io2-tit', '1'); } }
+  }
+  /* Os dois cartoes que rolam por dentro levam data-io2-mais enquanto ha conteudo abaixo: so entao o pe esmaece. */
+  var rolQuadro = 0;
+  function marcarRolagem() {
+    rolQuadro = 0;
+    if (!io2Ligado() || !modoApp()) return;
+    var sec = document.getElementById('inicioSection');
+    if (!sec) return;
+    var alvos = sec.querySelectorAll('#in-agenda > .in-ag, .in-card[data-c="time"]');
+    for (var i = 0; i < alvos.length; i++) {
+      var a = alvos[i], mais = a.scrollHeight - a.clientHeight - a.scrollTop > 2;
+      if (mais && !a.hasAttribute('data-io2-mais')) a.setAttribute('data-io2-mais', '1');
+      else if (!mais && a.hasAttribute('data-io2-mais')) a.removeAttribute('data-io2-mais');
+    }
+  }
+  function agendarRolagem() { if (!rolQuadro) rolQuadro = (window.requestAnimationFrame || setTimeout)(function () { try { marcarRolagem(); } catch (e) {} }, 16); }
+  function painelInicio() {
+    if (!io2Ligado() || !modoApp()) return;
+    var sec = document.getElementById('inicioSection');
+    if (!sec) return;
+    for (var z = painel.length - 1; z >= 0; z--) { if (!painel[z] || !painel[z].isConnected) painel.splice(z, 1); }
+    indicadoresInicio(sec);
+    try { agendaInicio(sec); } catch (e) {}
+    try { marcarRolagem(); } catch (e) {}
+    var card = sec.querySelector('.in-card[data-c="funil"]');
+    if (!card || card.hasAttribute('data-io2-painel')) return;
+    var grade = card.closest ? card.closest('.in-per-grade') : null;
+    if (!grade) return;
+    card.setAttribute('data-io2-painel', '1');
+    var estado = card.querySelector('.in-sk') ? 'esq' : (card.querySelector('.in-erro') ? 'erro' : 'ok');
+    var soma = null;
+    if (estado === 'ok') {
+      var fns = card.querySelectorAll('.in-fn'), lidos = [], maximo = 0, ilegivel = false, i;
+      for (i = 0; i < fns.length; i++) {
+        var graf = fns[i].querySelector('.pq-graf[data-g^="fn-"]');
+        if (!graf) continue;
+        var linhas = barrasDoFunil(graf);
+        /* Grafico desenhado mas barras que nao deu para ler: a rosca nao pode afirmar um total menor que o da tela. */
+        if (!linhas.length) { ilegivel = true; continue; }
+        lidos.push({ fn: fns[i], graf: graf, linhas: linhas, chave: graf.getAttribute('data-g').slice(3) });
+        if (linhas[0].n > maximo) maximo = linhas[0].n;
+      }
+      for (i = 0; i < lidos.length; i++) {
+        try { funilTabela(lidos[i].fn, lidos[i].graf, lidos[i].linhas, maximo, txt(lidos[i].fn.querySelector('.in-fn-t')) || lidos[i].chave); } catch (e) {}
+      }
+      /* Rosca: a mesma leitura do funil, so dos produtos que o app desenhou. O total tem que bater com a tela. */
+      try {
+        var d = window.inDados && window.inDados.resumo && window.inDados.resumo.dados;
+        var funil = d && d.funil;
+        if (funil && !ilegivel) {
+          soma = { total: 0, av: 0, conv: 0, sem: 0, nao: 0, can: 0, agu: 0 };
+          var num = function (v) { v = Number(v); return isFinite(v) && v > 0 ? Math.round(v) : 0; };
+          for (i = 0; i < lidos.length && soma; i++) {
+            var f = funil[lidos[i].chave];
+            if (!f || num(f.agendaram) !== lidos[i].linhas[0].n) { soma = null; break; }
+            var ag = num(f.agendaram), av = num(f.avancaram), sem = num(f.semInteresse), nao = num(f.naoAtendeu), can = num(f.cancelados), agu = num(f.aguardando);
+            var resto = ag - av - sem - nao - can - agu;
+            if (resto < 0) { soma = null; break; }
+            soma.total += ag; soma.av += av; soma.sem += sem; soma.nao += nao; soma.can += can; soma.agu += agu; soma.conv += resto;
+          }
+        }
+      } catch (e) { soma = null; }
+    }
+    try { roscaCartao(grade, estado, soma, card.classList.contains('pq-recarregando')); } catch (e) {}
   }
   function agendarInicio() { if (!inicioQuadro) inicioQuadro = (window.requestAnimationFrame || setTimeout)(decorarInicio, 16); }
   function inicioLigar() {
     var sec = document.getElementById('inicioSection');
     if (!sec) return;
     observar(sec, { childList: true, subtree: true }, agendarInicio);
+    try { ouvir(sec, 'scroll', agendarRolagem, true); ouvir(window, 'resize', agendarRolagem, false); } catch (e) {}
     decorarInicio();
     /* A grade mudou de largura em relacao ao CSS antigo: o Inicio so redesenha grafico no resize, e a tela ja pode ter desenhado. */
     try { setTimeout(function () { try { if (io2Ligado()) window.dispatchEvent(new Event('resize')); } catch (e) {} }, 80); } catch (e) {}
@@ -661,6 +913,15 @@
     try { cadVaziosDevolver(); } catch (e) {}
     try { criados.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); } catch (e) {}
     try { trenas.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); trenas = []; } catch (e) {}
+    try { painel.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); painel = []; } catch (e) {}
+    try {
+      var pi = document.querySelectorAll('#inicioSection [data-io2-rot], #inicioSection [data-io2-sub], #inicioSection [data-io2-tom], #inicioSection [data-io2-tit], #inicioSection [data-io2-painel], #inicioSection [data-io2-mais], #inicioSection [data-io2-vazio]');
+      for (var yp = 0; yp < pi.length; yp++) {
+        if (pi[yp].hasAttribute('data-io2-tit')) { pi[yp].removeAttribute('title'); pi[yp].removeAttribute('data-io2-tit'); }
+        pi[yp].removeAttribute('data-io2-rot'); pi[yp].removeAttribute('data-io2-sub'); pi[yp].removeAttribute('data-io2-tom'); pi[yp].removeAttribute('data-io2-painel');
+        pi[yp].removeAttribute('data-io2-mais'); pi[yp].removeAttribute('data-io2-vazio');
+      }
+    } catch (e) {}
     try { classesPostas.forEach(function (c) { c[0].classList.remove(c[1]); }); } catch (e) {}
     try { document.body.classList.remove('io2-faixa-ativa'); } catch (e) {}
     try {
