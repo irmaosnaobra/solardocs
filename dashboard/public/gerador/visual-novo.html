@@ -10,22 +10,44 @@ body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:c
 main{padding:24px;text-align:center}
 p{margin:0 0 12px;font-size:18px}
 a{color:#1D4ED8;font-weight:600}
+#estado{font-size:15px;color:#4B5B73}
 </style>
 </head>
 <body>
 <main>
 <p id="msg">Visual novo ligado neste aparelho.</p>
+<p id="estado"></p>
 <a href="/gerador">Abrir o Gerador</a>
 </main>
 <script>
 (function () {
+  /* Lê o que este aparelho tinha antes de mexer em qualquer coisa. */
+  var linha = 'Este aparelho já estava no visual novo. Se a tela não mudou, feche o gerador e abra de novo.';
+  try {
+    var era = localStorage.getItem('gerador-visual');
+    var falhou = null;
+    try { falhou = sessionStorage.getItem('gerador-visual-falhou'); } catch (e0) {}
+    if (era === 'antigo') linha = 'Este aparelho estava marcado para o visual antigo.';
+    else if (falhou) linha = 'Este aparelho tinha voltado ao visual antigo por uma falha de carregamento.';
+  } catch (e1) {}
+  /* A marca de falha sai primeiro: vale mesmo se a gravacao da escolha falhar. */
+  try { sessionStorage.removeItem('gerador-visual-falhou'); } catch (e2) {}
   try {
     localStorage.setItem('gerador-visual', 'novo');
   } catch (e) {
     document.getElementById('msg').textContent = 'Não consegui gravar neste navegador.';
     return;
   }
-  setTimeout(function () { location.replace('/gerador'); }, 1000);
+  /* Pede ao service worker que se atualize, sem esperar resposta. */
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        for (var i = 0; i < regs.length; i++) { try { regs[i].update(); } catch (e3) {} }
+      }).catch(function () {});
+    }
+  } catch (e4) {}
+  document.getElementById('estado').textContent = linha;
+  setTimeout(function () { location.replace('/gerador'); }, 2000);
 })();
 </script>
 </body>

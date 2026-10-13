@@ -543,8 +543,8 @@ Só de estado. Transição de 150 ms `ease` em cor, fundo e borda. Folha inferio
 ### Chave e proteção
 - **Visual.** O `ui/chave.js` roda no `<head>`, lê `localStorage['gerador-visual']` e liga o visual novo quando a chave vale `'novo'` ou está vazia (`PADRAO = 'novo'`). O link do cliente (`?p=`) e a geração de PDF (`pdf=1`) nunca ligam.
 - **Folhas.** As folhas do visual novo vêm com `media="not all"` e a chave as liga antes da primeira pintura. Enquanto alguma não chega, a página fica escondida por até 2,5 s, sobre o fundo do tema escolhido.
-- **Folha que falha.** Se uma folha não carrega, a chave grava `gerador-visual-falhou` no `sessionStorage` e a aba passa ao visual antigo até ser fechada. Se a página ainda está escondida, recarrega uma vez. Se já apareceu, não recarrega, para não apagar o que a pessoa digitou: a marca vale da próxima carga em diante. Qualquer erro na chave devolve o visual antigo inteiro.
-- **Volta manual.** O link "Visual antigo" do menu abre `/gerador/visual-antigo.html`.
+- **Folha que falha.** Se uma folha não carrega, a chave grava `gerador-visual-falhou` no `sessionStorage` com o horário da falha, e a aba passa ao visual antigo por 10 minutos; depois disso o visual novo é tentado de novo. Se a página ainda está escondida, recarrega uma vez. Se já apareceu, não recarrega, para não apagar o que a pessoa digitou: a marca vale da próxima carga em diante. Qualquer erro na chave devolve o visual antigo inteiro.
+- **Volta manual.** O link "Visual antigo" do menu abre `/gerador/visual-antigo.html`. No visual antigo, o menu lateral ganha o link "Visual novo" (`/gerador/visual-novo.html`), criado pelo próprio `ui/chave.js`, e passa a rolar quando o conteúdo não cabe na altura da tela.
 
 ### Acessibilidade
 - Foco visível por teclado em todo interativo: anel de 2 px `io-azul-tx` com 2 px de afastamento. Sobre marinho o anel é amarelo. Dentro da faixa de abas o anel é por dentro.

@@ -1,7 +1,58 @@
 /* Chave do visual novo do /gerador. Sincrono, sem dependencia, no <head>.
-   Sem a chave ligada (ou em qualquer erro) nao faz nada: o app fica como sempre foi. */
+   O visual novo e o padrao. Quem tem localStorage['gerador-visual'] = 'antigo' fica no antigo, e em qualquer erro
+   o app volta ao antigo inteiro. Quando uma folha do novo falha, a aba fica no antigo por 10 minutos
+   (sessionStorage['gerador-visual-falhou'] guarda o horario da falha); depois disso o novo e tentado de novo.
+   No visual antigo, fora do link do cliente (?p=) e do PDF (pdf=1), o menu lateral ganha o link "Visual novo"
+   (/gerador/visual-novo.html), o caminho de volta. */
 (function () {
   var h = document.documentElement;
+  var VOLTA_ID = 'io2-voltar-novo';
+  var PRAZO_FALHA = 10 * 60 * 1000;
+  /* A marca de falha vale se guarda um horario com menos de 10 minutos. Vencida, ou no formato antigo ('1'),
+     e apagada e o visual novo e tentado de novo. */
+  function marcaDeFalhaValida() {
+    try {
+      var m = sessionStorage.getItem('gerador-visual-falhou');
+      if (!m) return false;
+      var t = /^\d{10,}$/.test(m) ? Number(m) : NaN;
+      var idade = Date.now() - t;
+      if (isFinite(t) && idade >= 0 && idade < PRAZO_FALHA) return true;
+      sessionStorage.removeItem('gerador-visual-falhou');
+    } catch (e) {}
+    return false;
+  }
+  /* Link discreto no pe do menu lateral do app antigo. Sem menu (subapps, login, outras paginas) nao faz nada. */
+  function criarVoltar() {
+    try {
+      var foot = document.querySelector('#app-sidebar .sb-foot');
+      if (!foot || document.getElementById(VOLTA_ID)) return;
+      var a = document.createElement('a');
+      a.id = VOLTA_ID;
+      a.className = 'sb-item';
+      a.setAttribute('href', '/gerador/visual-novo.html');
+      a.style.textDecoration = 'none';
+      a.style.boxSizing = 'border-box';
+      a.innerHTML = '<span class="sb-ic"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path></svg></span> Visual novo';
+      foot.appendChild(a);
+      /* Em tela baixa (notebook de 768 px, celular) o menu antigo nao tem rolagem e o ultimo item ficaria
+         cortado: quando o conteudo nao cabe, o menu passa a rolar. Quando cabe, nada muda. */
+      var sb = document.getElementById('app-sidebar');
+      var caber = function () {
+        try { if (sb) sb.style.overflowY = (sb.scrollHeight > sb.clientHeight + 1) ? 'auto' : ''; } catch (e2) {}
+      };
+      caber();
+      window.addEventListener('resize', caber);
+      /* O menu so aparece depois do login (data-mode passa de login para app): mede de novo nessa hora. */
+      try { new MutationObserver(caber).observe(h, { attributes: true, attributeFilter: ['data-mode'] }); } catch (e3) {}
+    } catch (e) {}
+  }
+  function agendarVoltar() {
+    try {
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', criarVoltar);
+      else criarVoltar();
+    } catch (e) {}
+  }
   function ligarFolhas(media, semCores) {
     var l = document.querySelectorAll('link[data-io2]');
     for (var i = 0; i < l.length; i++) {
@@ -28,11 +79,15 @@
     var v = null;
     try { v = localStorage.getItem('gerador-visual'); } catch (e) {}
     if (!v) v = PADRAO;
-    if (v !== 'novo') return;
-    /* Uma folha do visual novo falhou nesta aba (veja falha() abaixo): a aba fica no visual antigo ate fechar. */
-    try { if (sessionStorage.getItem('gerador-visual-falhou')) return; } catch (e) {}
     var q = location.search || '';
-    if (/[?&]p=/.test(q) || /[?&]pdf=1(&|$)/.test(q)) return;
+    var doCliente = /[?&]p=/.test(q) || /[?&]pdf=1(&|$)/.test(q);
+    /* Escolha gravada pelo antigo, ou uma folha do novo falhou ha menos de 10 minutos (veja falha() abaixo):
+       fica no visual antigo, com o link de volta no menu (nunca no link do cliente nem no PDF). */
+    if (v !== 'novo' || marcaDeFalhaValida()) {
+      if (!doCliente) agendarVoltar();
+      return;
+    }
+    if (doCliente) return;
     var s = document.currentScript;
     /* casca.js usa isto para devolver o tema se precisar desligar o visual novo no meio do caminho. */
     window.__io2TemaAntes = temaAntes;
@@ -53,8 +108,8 @@
       function falha() {
         /* Uma folha do visual novo nao veio. Marca esta aba para o visual antigo. Se a pagina ainda esta
            escondida (ninguem digitou nada), recarrega uma vez; se ja apareceu, nao recarrega para nao
-           apagar o que a pessoa digitou: a marca vale a partir da proxima carga. */
-        try { sessionStorage.setItem('gerador-visual-falhou', '1'); } catch (e) { chegou(); return; }
+           apagar o que a pessoa digitou: a marca vale a partir da proxima carga, por 10 minutos. */
+        try { sessionStorage.setItem('gerador-visual-falhou', String(Date.now())); } catch (e) { chegou(); return; }
         if (!solto) { try { location.reload(); return; } catch (e2) {} }
         chegou();
       }
