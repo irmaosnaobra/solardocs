@@ -1366,11 +1366,39 @@ export function montarSistema(ctx: ContextoHelena): string {
     '"opcao": número inteiro. Em "agendar", a posição do horário escolhido na lista (1 a 4). Em todas as outras ações, 0.',
     '"dados": o que a pessoa já disse, em texto curto, com os campos "valor_confirmado", "pagamento", "tem_ponto" e "cidade". Campo que você não sabe fica vazio.',
     '"resumo": até 3 frases curtas para o consultor, dizendo o que a pessoa quer e o que já contou.',
+    'Na conversa, a linha marcada como "(áudio transcrito)" é a fala da pessoa em áudio, já passada para texto: trate como se ela tivesse escrito. A transcrição pode ter erro: se algo essencial ficar ambíguo (valor, cidade, horário escolhido), confirme em uma frase antes de seguir. Não comente que a mensagem era um áudio. Isso vale só para áudio transcrito: quando a mensagem aparece como [audio] (sem transcrição), ou como imagem ou arquivo, você não adivinha o conteúdo e pede, em uma frase, para a pessoa escrever.',
     'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".',
   ].join('\n');
 }
 
-export interface MsgDaConversa { from_me: boolean | null; texto: string | null; tipo: string | null; momment: string }
+/** Teto da transcrição no pedido: áudio longo fecha com o pedido no fim, então o fim não pode cair. */
+export const TETO_TRANSCRICAO = 4000;
+const INICIO_TRANSCRICAO = 2500;
+const FIM_TRANSCRICAO = 1500;
+/** Passou do teto: fica o COMEÇO e o FIM, com [...] no meio. */
+export function cortarTranscricao(t: string): string {
+  if (t.length <= TETO_TRANSCRICAO) return t;
+  return `${t.slice(0, INICIO_TRANSCRICAO).trimEnd()} [...] ${t.slice(-FIM_TRANSCRICAO).trimStart()}`;
+}
+
+export interface MsgDaConversa {
+  from_me: boolean | null; texto: string | null; tipo: string | null; momment: string;
+  /** Id da linha em `wa_mensagens` (chave do cache da transcrição). Só áudio carrega. */
+  id?: number | string | null;
+  /** Endereço do arquivo (Z-API), lido só nas mensagens novas de áudio. */
+  media_url?: string | null;
+  /**
+   * Transcrição do áudio (13/10/2026). Campo À PARTE de `texto` de propósito: `texto`
+   * alimenta o pedido de parada, o número solto de horário, a recuperação de escolha
+   * pendente e o recado à equipe, e nada disso muda por causa de um áudio. Só o
+   * pedido ao modelo (`montarPedido`) e os valores liberados leem este campo.
+   */
+  transcricao?: string | null;
+}
+
+/** Mensagem de áudio que ainda precisa de transcrição para o modelo entender. */
+export const ehAudioSemTexto = (m: Pick<MsgDaConversa, 'tipo' | 'texto'>): boolean =>
+  m.tipo === 'audio' && !String(m.texto ?? '').trim();
 
 /** A conversa no 5040, mais antiga primeiro, e as mensagens novas que pedem resposta. */
 export function montarPedido(historico: readonly MsgDaConversa[], novas: readonly MsgDaConversa[]): string {
@@ -1387,7 +1415,11 @@ export function montarPedido(historico: readonly MsgDaConversa[], novas: readonl
   };
   const linha = (m: MsgDaConversa): string => {
     const quem = m.from_me ? 'Nós' : 'Cliente';
-    const conteudo = (m.texto || '').trim() || (m.tipo && m.tipo !== 'texto' ? `[${m.tipo}]` : '');
+    const digitado = (m.texto || '').trim();
+    // Áudio com transcrição: a fala da pessoa, marcada. Sem transcrição segue "[audio]".
+    const falado = !digitado && m.tipo === 'audio' ? String(m.transcricao ?? '').trim() : '';
+    if (falado) return `${carimbo(m.momment)}${quem} (áudio transcrito): ${cortarTranscricao(falado)}`;
+    const conteudo = digitado || (m.tipo && m.tipo !== 'texto' ? `[${m.tipo}]` : '');
     return conteudo ? `${carimbo(m.momment)}${quem}: ${conteudo.slice(0, 1200)}` : '';
   };
   const conversa = historico.map(linha).filter(Boolean).join('\n');
@@ -1558,6 +1590,8 @@ export function valoresLiberados(
     ctx.valorTxt, ctx.dados?.valor_confirmado ?? '',
     ...fatosDoFormulario(ctx.formulario),
     ...[...historico, ...novas].filter(m => m.from_me === false).map(m => m.texto ?? ''),
+    // O que a pessoa FALOU em áudio também é dela: a Helena pode repetir o valor.
+    ...[...historico, ...novas].filter(m => m.from_me === false && m.tipo === 'audio').map(m => m.transcricao ?? ''),
   ];
   return textos.flatMap(x => valoresEmReais(semAcento(x), false));
 }

@@ -46,6 +46,10 @@ const h = vi.hoisted(() => {
     agenda: { livre: true, compromissos: [] as Row[] | null, fechados: new Set<string>() },
     card: { gravados: [] as Row[], erro: null as unknown, bloqueado: false, cardsDaLp: 0 },
     opt: [] as Array<{ tel: string; motivo: string; origem: string }>,
+    /** As colunas pedidas a `wa_mensagens` em cada leitura (o dublê ignora a lista, então o teste confere aqui). */
+    colunasWa: [] as string[],
+    /** O transcritor de áudio simulado: o que foi pedido e o que ele devolve. */
+    audio: { chamadas: [] as Array<{ url: string; mime: string }>, fn: (async (_url: string) => 'texto do áudio') as (url: string) => Promise<string | null> },
   };
 });
 
@@ -107,13 +111,13 @@ function fabrica(base: Record<string, Row[]>) {
       return { data: null, error: null };
     };
     const q: any = {
-      select: (_c?: string, o?: { head?: boolean }) => { if (o?.head) st.head = true; return q; },
+      select: (_c?: string, o?: { head?: boolean }) => { if (o?.head) st.head = true; if (tabela === 'wa_mensagens') h.colunasWa.push(String(_c)); return q; },
       insert: (corpo: any) => { st.op = 'insert'; st.corpo = corpo; return q; },
       upsert: (corpo: any) => { st.op = 'upsert'; st.corpo = corpo; return q; },
       update: (corpo: any) => { st.op = 'update'; st.corpo = corpo; return q; },
       delete: () => { st.op = 'delete'; return q; },
       eq: (c: string, v: unknown) => { if (c === 'id') st.id = v; st.filtros.push(r => r[c] === v); return q; },
-      in: (c: string, vs: unknown[]) => { st.filtros.push(r => vs.includes(r[c])); return q; },
+      in: (c: string, vs: unknown[]) => { if (c === 'key') st.likes.push(String(vs[0])); st.filtros.push(r => vs.includes(r[c])); return q; },
       like: (c: string, p: string) => { st.likes.push(p); st.filtros.push(r => casa(p, r[c])); return q; },
       ilike: (c: string, p: string) => { st.filtros.push(r => casa(p, r[c], true)); return q; },
       gte: (c: string, v: any) => { st.filtros.push(r => r[c] >= v); return q; },
@@ -134,6 +138,9 @@ function fabrica(base: Record<string, Row[]>) {
 vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => fabrica(h.banco.main)(t) } }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => fabrica(h.banco.ger)(t) } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+vi.mock('../utils/mediaProcessor', () => ({
+  transcribeAudio: vi.fn(async (url: string, mime: string) => { h.audio.chamadas.push({ url, mime }); return h.audio.fn(url); }),
+}));
 vi.mock('../routes/ioEletroposto', () => ({ EQUIPE: { thiago: '34991360223', diego: '34991360172' } }));
 vi.mock('../services/io/solarRespostas', () => ({ INSTANCE_ID_IO: 'LINHA_TESTE' }));
 vi.mock('../services/agents/zapiClient', () => ({
@@ -237,7 +244,8 @@ import {
   INV_RESGATE_PREFIX, INV_SENT_PREFIX, INV_OFF_KEY, INV_DISJUNTOR_KEY, INV_LOCK_PREFIX, type SessaoInvestidor,
 } from '../services/io/investidorAgente';
 import * as T from '../services/io/investidorAgenteTextos';
-import { renderRetomada } from '../services/io/investidorAgentePuro';
+import { cortarTranscricao, renderRetomada, montarPedido, montarSistema, valoresLiberados, escolhaPendenteDe } from '../services/io/investidorAgentePuro';
+import { logger } from '../utils/logger';
 
 const brt = (s: string): Date => new Date(`${s}:00-03:00`);
 const LARGADA = brt('2026-10-11T08:00');
@@ -276,6 +284,8 @@ beforeEach(() => {
   Object.assign(h.agenda, { livre: true, compromissos: [] }); h.agenda.fechados.clear();
   Object.assign(h.card, { erro: null, bloqueado: false, cardsDaLp: 0 }); h.card.gravados.length = 0;
   h.opt.length = 0;
+  h.colunasWa.length = 0;
+  h.audio.chamadas.length = 0; h.audio.fn = async () => 'texto do áudio';
   delete process.env.INVESTIDOR_AGENTE_OFF;
   delete process.env.INVESTIDOR_AGENTE_TETO;
   vi.useFakeTimers();
@@ -661,10 +671,10 @@ describe('prévia (?dry=1)', () => {
 const AGORA = brt('2026-10-11T10:00');
 let seqMsg = 0;
 /** Mensagem do lead na linha, `minAtras` minutos antes de agora. */
-function chegou(tel: string, texto: string | null, minAtras = 2, tipo = 'texto') {
+function chegou(tel: string, texto: string | null, minAtras = 2, tipo = 'texto', extra: Row = {}) {
   h.banco.main.wa_mensagens!.push({
     id: ++seqMsg, telefone: tel, texto, tipo, from_me: false, is_group: false, instancia: 'LINHA_TESTE',
-    momment: new Date(AGORA.getTime() - minAtras * 60_000).toISOString(),
+    momment: new Date(AGORA.getTime() - minAtras * 60_000).toISOString(), ...extra,
   });
 }
 function sessao(chave: string, over: Partial<SessaoInvestidor> = {}) {
@@ -2877,6 +2887,316 @@ describe('retomadas dos toques 2 a 5', () => {
       const p = await previaInvestidorAgente({ agora: HOJE }) as Record<string, any>;
       expect(p.retomadas.proxima_rodada).toBe('principal');
       expect(p.retomadas.vencidas_por_toque).toEqual({ 2: 0, 3: 0, 4: 0, 5: 0 });
+    });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ÁUDIO (13/10/2026): "quando responderem com áudio tem que ser transcrito e entendido".
+// O transcritor é um dublê (`h.audio`): nenhum destes testes toca rede ou serviço pago.
+// ═════════════════════════════════════════════════════════════════════════════
+describe('áudio: a Helena entende o que a pessoa falou', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); vi.mocked(logger.info).mockClear(); vi.mocked(logger.warn).mockClear(); });
+  const URL1 = 'https://f004.exemplo.test/audio1.ogg';
+  const audio = (n: number, url: string | null = `https://f004.exemplo.test/audio${n}.ogg`, minAtras = 2) =>
+    chegou('5534999990001', null, minAtras, 'audio', { media_url: url });
+  const emCache = (id: number) => estado(`inv_agente_audio:${id}`);
+  const ofertou = () => sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, dados: { valor_confirmado: 'Sim' } });
+
+  it('leva com 1 áudio: vai ao modelo como "Cliente (áudio transcrito): ..." e a transcrição fica em cache', async () => {
+    sessao(ANA);
+    audio(1, URL1);
+    h.audio.fn = async () => '  Oi, tenho interesse sim, pode me mandar os horários  ';
+    ia('continuar', ['Certo, Ana.']);
+
+    const r = await responder();
+
+    expect(r).toMatchObject({ respondidas: 1, erros: 0 });
+    expect(h.audio.chamadas).toEqual([{ url: URL1, mime: 'audio/ogg' }]);
+    expect(h.ia.pedido).toContain('Cliente (áudio transcrito): Oi, tenho interesse sim, pode me mandar os horários');
+    expect(h.ia.pedido).not.toContain('[audio]');
+    expect(emCache(1)!.value).toMatchObject({ texto: 'Oi, tenho interesse sim, pode me mandar os horários' });
+    expect(typeof emCache(1)!.value.em).toBe('string');
+    expect(h.zap.humano).toHaveLength(1);
+  });
+
+  it('as leituras de wa_mensagens pedem id e media_url (o dublê ignora a lista de colunas)', async () => {
+    sessao(ANA);
+    audio(1, URL1);
+    ia('continuar', ['Certo.']);
+    await responder();
+    const leituraDaLeva = h.colunasWa.find(c => c.includes('media_url'));
+    expect(leituraDaLeva).toBeTruthy();
+    expect(leituraDaLeva).toMatch(/^id, /);
+    // E o histórico lê o id, que é a chave do cache.
+    expect(h.colunasWa.some(c => /^id, telefone, from_me, texto, tipo, momment$/.test(c))).toBe(true);
+  });
+
+  it('o log guarda só o id, o tamanho e o tempo: nunca o texto da pessoa', async () => {
+    sessao(ANA);
+    audio(1, URL1);
+    h.audio.fn = async () => 'segredo falado pelo cliente';
+    ia('continuar', ['Certo.']);
+    await responder();
+    const logado = JSON.stringify([...vi.mocked(logger.info).mock.calls, ...vi.mocked(logger.warn).mock.calls]);
+    expect(logado).toContain('áudio 1');
+    expect(logado).toContain('27 caracteres');
+    expect(logado).not.toContain('segredo falado');
+  });
+
+  it('o cache evita a segunda transcrição (leitura antes, insert depois)', async () => {
+    sessao(ANA);
+    audio(1, URL1);
+    h.banco.main.system_state!.push({ key: 'inv_agente_audio:1', value: { texto: 'já estava guardado', em: '2026-10-11T12:00:00Z' }, updated_at: '2026-10-11T12:00:00Z' });
+    ia('continuar', ['Certo.']);
+    await responder();
+    expect(h.audio.chamadas).toHaveLength(0);
+    expect(h.ia.pedido).toContain('Cliente (áudio transcrito): já estava guardado');
+    expect(h.banco.main.system_state!.filter(r => r.key === 'inv_agente_audio:1')).toHaveLength(1);
+  });
+
+  it('mais de 3 áudios na leva: transcreve só 3, os outros ficam [audio]', async () => {
+    sessao(ANA);
+    for (let i = 1; i <= 5; i++) audio(i, undefined, 6 - i);
+    h.audio.fn = async (url) => `fala ${url.match(/audio(\d)/)![1]}`;
+    ia('continuar', ['Certo.']);
+    await responder();
+    expect(h.audio.chamadas).toHaveLength(3);
+    const linhas = h.ia.pedido.split('\n').filter(l => l.includes('Cliente'));
+    expect(linhas.filter(l => l.includes('(áudio transcrito)'))).toHaveLength(3);
+    expect(linhas.filter(l => l.endsWith('Cliente: [audio]'))).toHaveLength(2);
+    expect(chaves('inv_agente_audio:')).toHaveLength(3);
+  });
+
+  for (const [nome, fn] of [
+    ['a transcrição falha (null)', async () => null],
+    ['a transcrição vem vazia', async () => '   '],
+    ['o transcritor lança', async () => { throw new Error('Whisper fora do ar'); }],
+  ] as Array<[string, () => Promise<string | null>]>) {
+    it(`${nome}: segue [audio], não derruba a rodada e não manda a conversa para o consultor`, async () => {
+      sessao(ANA);
+      audio(1, URL1);
+      h.audio.fn = fn;
+      ia('continuar', ['Pode me mandar por escrito?']);
+      const r = await responder();
+      expect(r).toMatchObject({ respondidas: 1, erros: 0, passadas: 0 });
+      expect(h.ia.pedido).toContain('Cliente: [audio]');
+      expect(h.ia.pedido).not.toContain('áudio transcrito');
+      expect(sessaoDe(ANA).estagio).toBe('conversando');
+      expect(chaves('inv_agente_audio:')).toHaveLength(0);
+      expect(h.zap.humano).toHaveLength(1);
+    });
+  }
+
+  it('o transcritor que nunca responde estoura em 15 s e a mensagem segue [audio]', async () => {
+    sessao(ANA);
+    audio(1, URL1);
+    h.audio.fn = () => new Promise(() => {});
+    ia('continuar', ['Pode escrever?']);
+    const p = responder();
+    for (let i = 0; i < 20; i++) await vi.advanceTimersByTimeAsync(1_000);
+    const r = await p;
+    expect(r).toMatchObject({ respondidas: 1, erros: 0 });
+    expect(h.audio.chamadas).toHaveLength(1);
+    expect(h.ia.pedido).toContain('Cliente: [audio]');
+  });
+
+  it('áudio sem endereço: o transcritor nem é chamado e fica [audio]', async () => {
+    sessao(ANA);
+    audio(1, null);
+    ia('continuar', ['Pode escrever?']);
+    expect(await responder()).toMatchObject({ respondidas: 1, erros: 0 });
+    expect(h.audio.chamadas).toHaveLength(0);
+    expect(h.ia.pedido).toContain('Cliente: [audio]');
+  });
+
+  it('pedido de parada FALADO: vai ao modelo, que tem a ação parar', async () => {
+    sessao(ANA);
+    audio(1, URL1);
+    h.audio.fn = async () => 'por favor pare de me mandar mensagem';
+    ia('parar');
+    await responder();
+    expect(h.ia.chamadas).toBe(1);
+    expect(h.ia.pedido).toContain('Cliente (áudio transcrito): por favor pare de me mandar mensagem');
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'pediu_parar' });
+  });
+
+  describe('a escolha do horário', () => {
+    it('só áudio ("pode ser o segundo"): vai ao modelo, que agenda pela ação com opcao', async () => {
+      ofertou();
+      audio(1, URL1);
+      h.audio.fn = async () => 'pode ser o segundo horário';
+      ia('agendar', [], {}, 'Escolheu o segundo.', 2);
+      const r = await responder();
+      expect(h.ia.chamadas).toBe(1);
+      expect(r).toMatchObject({ agendadas: 1 });
+      expect(h.card.gravados[0]).toMatchObject({ quando: OFERTA[1] });
+    });
+
+    it('número digitado + áudio transcrito na mesma leva: não usa o número solto, vai ao modelo', async () => {
+      ofertou();
+      chegou('5534999990001', '2', 3);
+      audio(1, URL1);
+      h.audio.fn = async () => 'na verdade quero o primeiro';
+      ia('agendar', [], {}, 'Mudou de ideia: primeiro.', 1);
+      const r = await responder();
+      expect(h.ia.chamadas).toBe(1);
+      expect(r).toMatchObject({ agendadas: 1 });
+      expect(h.card.gravados[0]).toMatchObject({ quando: OFERTA[0] });
+    });
+
+    it('número digitado + áudio que NÃO foi transcrito: segue como hoje, o "2" agenda direto', async () => {
+      ofertou();
+      chegou('5534999990001', '2', 3);
+      audio(1, URL1);
+      h.audio.fn = async () => null;
+      const r = await responder();
+      expect(h.ia.chamadas).toBe(0);
+      expect(r).toMatchObject({ agendadas: 1 });
+      expect(h.card.gravados[0]).toMatchObject({ quando: OFERTA[1] });
+    });
+
+    it('"2" digitado, sem áudio: continua agendando direto, sem tocar no transcritor', async () => {
+      ofertou();
+      chegou('5534999990001', '2');
+      await responder();
+      expect(h.ia.chamadas).toBe(0);
+      expect(h.audio.chamadas).toHaveLength(0);
+      expect(h.card.gravados).toHaveLength(1);
+    });
+  });
+
+  describe('o histórico', () => {
+    it('mostra a transcrição dos áudios em cache, do cliente e os nossos; sem cache continua [audio]', async () => {
+      sessao(ANA, { estagio: 'conversando', ate: new Date(AGORA.getTime() - 30 * 60_000).toISOString() });
+      const antes = (min: number) => new Date(AGORA.getTime() - min * 60_000).toISOString();
+      const base = { telefone: '5534999990001', is_group: false, instancia: 'LINHA_TESTE', tipo: 'audio', texto: null };
+      h.banco.main.wa_mensagens!.push(
+        { ...base, id: 801, from_me: false, momment: antes(40) },
+        { ...base, id: 802, from_me: true, momment: antes(38) },
+        { ...base, id: 803, from_me: false, momment: antes(36) },
+      );
+      h.banco.main.system_state!.push(
+        { key: 'inv_agente_audio:801', value: { texto: 'tenho cento e quarenta mil', em: antes(39) }, updated_at: antes(39) },
+        { key: 'inv_agente_audio:802', value: { texto: 'claro, Ana, posso explicar', em: antes(37) }, updated_at: antes(37) },
+      );
+      chegou('5534999990001', 'Sim', 2);
+      ia('continuar', ['Certo.']);
+      await responder();
+      expect(h.ia.pedido).toMatch(/Cliente \(áudio transcrito\): tenho cento e quarenta mil/);
+      expect(h.ia.pedido).toMatch(/Nós \(áudio transcrito\): claro, Ana, posso explicar/);
+      expect(h.ia.pedido).toMatch(/Cliente: \[audio\]/);
+      expect(h.audio.chamadas).toHaveLength(0);   // histórico só lê cache, nunca transcreve
+    });
+
+    it('erro ao ler o cache NÃO derruba a leitura da conversa: os áudios ficam [audio]', async () => {
+      sessao(ANA, { estagio: 'conversando' });
+      h.banco.main.wa_mensagens!.push({
+        id: 801, telefone: '5534999990001', is_group: false, instancia: 'LINHA_TESTE', tipo: 'audio', texto: null, from_me: false,
+        momment: new Date(AGORA.getTime() - 30 * 60_000).toISOString(),
+      });
+      h.falhaDoLike = 'inv_agente_audio:';
+      chegou('5534999990001', 'Sim', 2);
+      ia('continuar', ['Certo.']);
+      const r = await responder();
+      expect(r).toMatchObject({ respondidas: 1, erros: 0, passadas: 0 });
+      expect(h.ia.pedido).toContain('Cliente: [audio]');
+    });
+  });
+
+  it('a recuperação de escolha pendente continua olhando só o texto: áudio como última fala não é reprocessado', () => {
+    const conversa = [
+      { from_me: true, texto: 'Qual horário?', tipo: 'texto', momment: '2026-10-11T12:00:00.000Z' },
+      { from_me: false, texto: null, tipo: 'audio', momment: '2026-10-11T12:05:00.000Z', id: 9, transcricao: 'o segundo' },
+    ];
+    expect(escolhaPendenteDe(conversa, '2026-10-11T12:06:00.000Z', null, Date.parse('2026-10-11T13:00:00.000Z'))).toBeNull();
+  });
+
+  it('a prévia (?dry=1) conta as transcrições em cache', async () => {
+    h.banco.main.system_state!.push(
+      { key: 'inv_agente_audio:11', value: { texto: 'a', em: 'x' }, updated_at: 'x' },
+      { key: 'inv_agente_audio:12', value: { texto: 'b', em: 'x' }, updated_at: 'x' },
+    );
+    const p = await previaInvestidorAgente({ agora: LARGADA }) as Record<string, any>;
+    expect(p.transcricoes_em_cache).toBe(2);
+  });
+
+  it('o prompt avisa que "áudio transcrito" é a fala da pessoa, que pode ter erro, e que não se comenta o áudio', () => {
+    const sistema = montarSistema({
+      nome: 'Ana Lima', valorTxt: 'R$ 140 mil', cidade: 'Uberlândia', consultor: 'Diego', oferta: [], dados: {}, formulario: null, agora: new Date(),
+    } as any);
+    expect(sistema).toContain('(áudio transcrito)');
+    expect(sistema).toMatch(/fala da pessoa em áudio/);
+    expect(sistema).toMatch(/pode ter erro/);
+    expect(sistema).toMatch(/confirme em uma frase/);
+    expect(sistema).toMatch(/Não comente que a mensagem era um áudio/);
+    expect(sistema).toMatch(/só para áudio transcrito.*[audio].*imagem ou arquivo.*pede, em uma frase, para a pessoa escrever/);
+  });
+
+  describe('os valores que a pessoa FALOU', () => {
+    it('valoresLiberados lê a transcrição do cliente com a mesma régua do texto digitado', () => {
+      const ctx = { valorTxt: 'R$ 140 mil', dados: {}, formulario: null } as any;
+      const fala = { from_me: false, texto: null, tipo: 'audio', momment: '2026-10-11T12:05:00.000Z', transcricao: 'tenho uns 180 mil e mais 90 mil' };
+      const v = valoresLiberados(ctx, [], [fala]);
+      expect(v).toContain(180000);
+      expect(v).toContain(90000);
+      // Áudio NOSSO transcrito não libera valor: a fala da Helena nunca conta.
+      expect(valoresLiberados(ctx, [{ ...fala, from_me: true, transcricao: 'sai por 500 mil' }], [])).not.toContain(500000);
+      // Sem transcrição, nada muda.
+      expect(valoresLiberados(ctx, [], [{ ...fala, transcricao: null }])).toEqual(valoresLiberados(ctx, [], []));
+    });
+
+    it('de ponta a ponta: a Helena repete o valor falado, e o mesmo valor sem áudio seria barrado', async () => {
+      sessao(ANA, { valor_txt: 'Até R$ 50 mil' });
+      audio(1, URL1);
+      h.audio.fn = async () => 'tenho cento e oitenta mil... quer dizer, 180 mil para investir';
+      ia('continuar', ['Com os seus R$ 180 mil dá para conversar sobre as opções.']);
+      const r = await responder();
+      expect(r).toMatchObject({ respondidas: 1, passadas: 0 });
+      expect(h.zap.humano[0]!.partes[0]).toContain('R$ 180 mil');
+    });
+
+    it('contraste: sem a fala da pessoa, o mesmo valor na boca da Helena é barrado', async () => {
+      sessao(ANA, { valor_txt: 'Até R$ 50 mil' });
+      audio(1, URL1);
+      h.audio.fn = async () => null;
+      ia('continuar', ['Com os seus R$ 180 mil dá para conversar sobre as opções.']);
+      const r = await responder();
+      expect(r).toMatchObject({ respondidas: 0, passadas: 1 });
+      expect(sessaoDe(ANA).motivo).toBe('resposta_barrada');
+    });
+  });
+
+  describe('montarPedido', () => {
+    it('transcrição longa: até 4.000 caracteres inteira; acima, começo e fim com [...]; digitado segue em 1.200', () => {
+      const m = (o: Record<string, unknown>) => ({ from_me: false, texto: null, tipo: 'audio', momment: '2026-10-11T13:00:00.000Z', ...o }) as any;
+      const meio = 'a'.repeat(3900);
+      expect(montarPedido([], [m({ transcricao: meio })])).toContain(meio);
+      const longa = 'INICIO ' + 'b'.repeat(6000) + ' pode marcar quinta às 10h';
+      const p = montarPedido([], [m({ transcricao: longa })]);
+      expect(p).toContain('INICIO');
+      expect(p).toContain(' [...] ');
+      expect(p).toContain('pode marcar quinta às 10h');
+      const cortada = cortarTranscricao(longa);
+      expect(cortada.length).toBeLessThanOrEqual(2500 + 1500 + 9);
+      expect(cortada.startsWith(longa.slice(0, 2500))).toBe(true);
+      expect(cortada.endsWith(longa.slice(-1500).trimStart())).toBe(true);
+      const digitado = montarPedido([], [m({ tipo: 'texto', texto: 'x'.repeat(3000) })]);
+      expect(digitado).toContain('x'.repeat(1200));
+      expect(digitado).not.toContain('x'.repeat(1201));
+    });
+
+    const msg = (o: Record<string, unknown>) => ({ from_me: false, texto: null, tipo: 'audio', momment: '2026-10-11T13:00:00.000Z', ...o }) as any;
+    it('marca o áudio transcrito do cliente e o nosso; sem transcrição é [audio]; texto digitado vence', () => {
+      const p = montarPedido(
+        [msg({ transcricao: 'fala do cliente' }), msg({ from_me: true, transcricao: 'fala nossa' }), msg({})],
+        [msg({ texto: 'digitado', transcricao: 'ignorada' })],
+      );
+      expect(p).toContain('Cliente (áudio transcrito): fala do cliente');
+      expect(p).toContain('Nós (áudio transcrito): fala nossa');
+      expect(p).toContain('Cliente: [audio]');
+      expect(p).toContain('Cliente: digitado');
+      expect(p).not.toContain('ignorada');
     });
   });
 });

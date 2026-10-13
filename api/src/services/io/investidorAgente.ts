@@ -31,6 +31,7 @@
 //   inv_agente_parar:<dia>:<chave> pedido de parada (alimenta o disjuntor)
 //   inv_agente_resgate:<chave>    abertura de RESGATE enviada (conta a cota do grupo)
 //   inv_agente_parar_resgate:<dia>:<chave> parada vinda de sessão de resgate
+//   inv_agente_audio:<id>         transcrição de um áudio (id = wa_mensagens.id): { texto, em }
 //   inv_agente_off                chave de desligar
 //   inv_agente_disjuntor          erros de envio seguidos
 // A chave é DDD + 8 últimos dígitos (chaveContato), a mesma do resto da casa.
@@ -55,6 +56,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { novoAnthropic } from '../../utils/anthropicClient';
+import { transcribeAudio } from '../../utils/mediaProcessor';
 import { sendFrio, sendHuman, sendWhatsApp } from '../agents/zapiClient';
 import {
   dentroDoTetoHorarioLinha, respeitaEspacamentoLinha, rampaReconexaoVigente, maxPorDia,
@@ -80,7 +82,7 @@ import {
   textoPassagem, textoDespedida, textoParou, textoAdiado, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
   montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, valoresLiberados, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila,
-  type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
+  ehAudioSemTexto, type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
   type CardDaAgenda, type ResultadoFilaResgate, type CandidatoResgate,
   escolhaPendenteDe, dentroDaJanelaDeRecuperacao, RECUPERACOES_POR_RODADA, type EscolhaPendente,
   montarRetomadas, renderRetomada, lerChaveDeToque, limiteDeRetomadasHoje, tetoRetomadasDoDia, MARGEM_DO_TOQUE_MS,
@@ -96,6 +98,8 @@ const LOG = 'investidor-agente';
 export const INV_SENT_PREFIX = 'inv_agente_sent:';
 const INV_VEZ_PREFIX = 'inv_agente_vez:';
 const INV_PARAR_PREFIX = 'inv_agente_parar:';
+/** Cache da transcrição de áudio: `inv_agente_audio:<id da wa_mensagens>` = { texto, em }. */
+export const INV_AUDIO_PREFIX = 'inv_agente_audio:';
 /** Carimbo da abertura de RESGATE: `inv_agente_resgate:<chave>`. Fica FORA de
  *  BOT_SENT_PREFIXES (lineThrottle) de propósito: o `inv_agente_sent:` da mesma
  *  abertura já conta no teto da linha, e contar de novo pesaria em dobro. Aqui ele
@@ -124,6 +128,11 @@ const PARADAS_ATE_PARAR = 3;
 const ESPERA_MS = 30_000;
 /** Resposta mais velha que isto não é mais conversa viva: vai para o consultor. */
 const RESPOSTA_VIVA_MS = 60 * 60_000;
+/** Áudios transcritos por leva de uma pessoa. O resto fica como "[audio]". */
+const AUDIOS_POR_LEVA = 3;
+/** Tempo por áudio (a transcrição não tem tempo limite próprio). Passou, vale "[audio]".
+ *  15 s: a rodada tem 300 s e a transcrição roda depois da vez gasta. */
+const TEMPO_DO_AUDIO_MS = 15_000;
 /** Conversas atendidas por chamada. */
 const POR_TICK = 3;
 /** Respostas da Helena por pessoa. Passou disso, é com gente. */
@@ -696,6 +705,8 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
   ]);
 
   const base = {
+    // Transcrições de áudio guardadas (chaves inv_agente_audio:*).
+    transcricoes_em_cache: await tentar(() => contarChaves(INV_AUDIO_PREFIX)),
     hora_brasilia: horaBrasiliaTexto(agora),
     antes_do_inicio: antesDoInicio(agora),
     janela_aberta: janelaAberta(agora),
@@ -1054,6 +1065,102 @@ async function cardDoTelefone(tel: string, ignorarCancelados = false): Promise<n
   return achado ? achado.id : null;
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// ÁUDIO (13/10/2026, ordem do dono: "quando responderem com áudio tem que ser
+// transcrito e entendido"). Antes a Helena via "[audio]" e pedia para escrever.
+//
+// O endereço do arquivo é `wa_mensagens.media_url` (cópia do `audio.audioUrl` da
+// Z-API, feita pelo trigger do webhook). A transcrição é `transcribeAudio` (Whisper,
+// OPENAI_API_KEY) e fica em `system_state` (`inv_agente_audio:<id>`), para a mesma
+// mensagem nunca ser paga duas vezes. NADA aqui lança: falhou, a mensagem segue
+// "[audio]" e a regra de pedir para a pessoa escrever vale como antes (ela mora no bloco
+// do redator, `REGRAS_DO_PROMPT`, e na frase técnica de `montarSistema`).
+// A transcrição vai no campo `transcricao`, NUNCA em `texto`: `texto` decide o pedido
+// de parada, o número solto de horário e a recuperação de escolha pendente.
+// ═════════════════════════════════════════════════════════════════════════════
+
+const chaveDoAudio = (id: unknown): string => `${INV_AUDIO_PREFIX}${id}`;
+const temId = (m: MsgDaConversa): boolean => m.id !== null && m.id !== undefined && String(m.id) !== '';
+
+/** As transcrições que já estão em cache, por id da mensagem. Erro de leitura NÃO sobe:
+ *  sem cache a mensagem segue "[audio]". */
+async function lerTranscricoes(ids: ReadonlyArray<string | number>): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!ids.length) return out;
+  try {
+    const { data, error } = await supabase.from('system_state').select('key, value').in('key', ids.map(chaveDoAudio));
+    if (error) throw new Error(error.message);
+    for (const r of (data ?? []) as Array<{ key: string; value: { texto?: unknown } | null }>) {
+      const texto = String(r.value?.texto ?? '').trim();
+      if (texto) out.set(r.key.slice(INV_AUDIO_PREFIX.length), texto);
+    }
+  } catch (err) {
+    logger.warn(LOG, 'ler o cache de transcrições falhou: os áudios seguem como [audio]', { erro: String((err as Error)?.message || err).slice(0, 200) });
+  }
+  return out;
+}
+
+/** O formato pelo endereço: a tabela não guarda o mimetype. Sem pista, é o ogg do WhatsApp. */
+function mimeDoAudio(url: string): string {
+  const ext = /\.([a-z0-9]{2,4})$/i.exec(url.split(/[?#]/)[0]!)?.[1]?.toLowerCase();
+  if (ext === 'mp3' || ext === 'mpeg') return 'audio/mpeg';
+  if (ext === 'mp4' || ext === 'm4a') return 'audio/mp4';
+  if (ext === 'wav') return 'audio/wav';
+  if (ext === 'webm') return 'audio/webm';
+  return 'audio/ogg';
+}
+
+/** Uma transcrição, com tempo limite próprio. Nunca lança: qualquer falha vira null. */
+async function transcreverUm(url: string): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const limite = new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), TEMPO_DO_AUDIO_MS); });
+    const texto = await Promise.race([transcribeAudio(url, mimeDoAudio(url)), limite]);
+    return String(texto ?? '').trim() || null;
+  } catch {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Põe a transcrição nos áudios novos da leva: cache primeiro; o que falta é
+ * transcrito (no máximo AUDIOS_POR_LEVA por leva, em paralelo) e guardado. Mensagem sem
+ * id, sem endereço, acima do teto, ou cuja transcrição falhou, veio vazia ou estourou o
+ * tempo fica como veio (sem `transcricao`). Nunca lança.
+ */
+async function comTranscricoes(novas: readonly MsgDaConversa[]): Promise<MsgDaConversa[]> {
+  try {
+    const audios = novas.filter(m => ehAudioSemTexto(m) && temId(m));
+    if (!audios.length) return [...novas];
+    const emCache = await lerTranscricoes(audios.map(m => m.id as string | number));
+    const faltam = audios
+      .filter(m => !emCache.has(String(m.id)) && /^https?:\/\//i.test(String(m.media_url ?? '')))
+      .slice(0, AUDIOS_POR_LEVA);
+    await Promise.all(faltam.map(async m => {
+      const t0 = Date.now();
+      const texto = await transcreverUm(String(m.media_url));
+      // Só o id, o tamanho e o tempo: a transcrição é fala de cliente e não vai para o log.
+      logger.info(LOG, `áudio ${m.id}: ${texto ? `transcrito (${texto.length} caracteres)` : 'sem transcrição'} em ${Date.now() - t0} ms`);
+      if (!texto) return;
+      emCache.set(String(m.id), texto);
+      const em = new Date().toISOString();
+      const { error } = await supabase.from('system_state')
+        .insert({ key: chaveDoAudio(m.id), value: { texto, em }, updated_at: em });
+      // 23505: outra chamada gravou primeiro. Qualquer outro erro: a transcrição vale nesta
+      // rodada, só não fica guardada.
+      if (error && String((error as { code?: string }).code) !== '23505') {
+        logger.warn(LOG, `áudio ${m.id}: guardar a transcrição falhou`, { erro: String(error.message).slice(0, 200) });
+      }
+    }));
+    return novas.map(m => (ehAudioSemTexto(m) && temId(m) && emCache.has(String(m.id)) ? { ...m, transcricao: emCache.get(String(m.id))! } : m));
+  } catch (err) {
+    logger.warn(LOG, 'transcrever os áudios falhou: a leva segue como [audio]', { erro: String((err as Error)?.message || err).slice(0, 200) });
+    return [...novas];
+  }
+}
+
 /**
  * A conversa da linha com ESTA pessoa, mais antiga primeiro, até 20 mensagens.
  *
@@ -1074,7 +1181,7 @@ async function lerHistorico(chave: string, telefone: string, antesDe: string): P
   const lids = new Set(((mapa ?? []) as Array<{ lid: string }>).map(m => String(m.lid).replace(/\D/g, '')).filter(Boolean));
 
   const base = () => supabase.from('wa_mensagens')
-    .select('telefone, from_me, texto, tipo, momment')
+    .select('id, telefone, from_me, texto, tipo, momment')
     .eq('instancia', INSTANCE_ID_IO).eq('is_group', false)
     .lt('momment', antesDe)
     .order('momment', { ascending: false });
@@ -1091,11 +1198,18 @@ async function lerHistorico(chave: string, telefone: string, antesDe: string): P
     return d.length > 13 ? lids.has(d) : chaveContato(d) === chave;
   });
   const vistos = new Set<string>();
-  return daPessoa
+  const conversa = daPessoa
     .filter(m => { const k = `${m.momment}|${m.from_me}|${m.texto}`; if (vistos.has(k)) return false; vistos.add(k); return true; })
     .sort((a, b) => (a.momment < b.momment ? -1 : a.momment > b.momment ? 1 : 0))
-    .slice(-20)
-    .map(({ from_me, texto, tipo, momment }) => ({ from_me, texto, tipo, momment }));
+    .slice(-20);
+  // Áudio que já tem transcrição em cache aparece com ela (do cliente e nosso). Áudio sem
+  // cache segue "[audio]". Só o áudio carrega `id` e `transcricao`; as outras linhas não mudam.
+  const cache = await lerTranscricoes(conversa.filter(m => ehAudioSemTexto(m) && temId(m)).map(m => m.id as string | number));
+  return conversa.map(({ id, from_me, texto, tipo, momment }) => {
+    if (!(ehAudioSemTexto({ tipo, texto }) && id !== null && id !== undefined)) return { from_me, texto, tipo, momment };
+    const transcricao = cache.get(String(id));
+    return transcricao ? { id, from_me, texto, tipo, momment, transcricao } : { id, from_me, texto, tipo, momment };
+  });
 }
 
 interface Contexto {
@@ -1273,11 +1387,17 @@ async function atender(
     return;
   }
 
+  // Áudio (13/10/2026): transcrito AGORA, depois dos portões que não usam o modelo e antes
+  // do número solto. Leva com áudio transcrito sempre vai ao modelo, que tem a ação
+  // `agendar` com `opcao`: o número solto vale só para mensagem DIGITADA.
+  if (ctx.novas.some(m => ehAudioSemTexto(m))) ctx.novas = await comTranscricoes(ctx.novas);
+  const comAudioTranscrito = ctx.novas.some(m => !!m.transcricao);
+
   // Escolheu um dos 4 horários: agenda direto, sem IA. SÓ o número solto vale
   // ("2", " 2 ", "2.", "opção 2"). Quem CITA o horário pode estar recusando
   // ("10h não consigo, tem outro?"), e isso é conversa para a IA, que pode pedir
   // outra lista. Bloqueante da revisão de 11/10/2026: recusa virava reunião.
-  if (s.estagio === 'ofertou' && s.oferta?.length) {
+  if (s.estagio === 'ofertou' && s.oferta?.length && !comAudioTranscrito) {
     const idx = escolhaPorNumero(textos, s.oferta.length);
     if (idx !== null && idx >= 0) {
       await agendar(s, ctx, s.oferta[idx]!);
@@ -1502,7 +1622,7 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
     for (let i = 0; i < fones.length; i += 120) {
       const lote = fones.slice(i, i + 120);
       entrada.push(...await lerTudo<MsgDaConversa & { telefone: string }>('respostas na linha', (de, ate) =>
-        supabase.from('wa_mensagens').select('telefone, texto, tipo, momment, from_me')
+        supabase.from('wa_mensagens').select('id, telefone, texto, tipo, momment, from_me, media_url')
           .eq('from_me', false).eq('is_group', false).eq('instancia', INSTANCE_ID_IO)
           .in('telefone', lote).gte('momment', piso).lte('momment', teto)
           .order('momment', { ascending: true }).range(de, ate)));
