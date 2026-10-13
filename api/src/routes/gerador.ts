@@ -356,11 +356,13 @@ router.post('/apalavrado/soltar', async (req: Request, res: Response) => {
     // pra zerar a escada. Só que o mesmo valor guarda:
     //   `degrau`  a escada (é o que a gente quer zerar)
     //   `status`  a etiqueta da última volta (idem)
-    //   `n`       quantas voltas o VERMELHO já deu  <-- NÃO
+    //   `n`       total de voltas (no eletroposto é o teto)  <-- NÃO
+    //   `nFala`   voltas do VERMELHO no solar (o teto do solar)  <-- NÃO
     //   `relogio` qual das duas rampas ele gastou   <-- NÃO
     //
-    // `n` é o ÚNICO teto do caminho que manda mensagem (3 voltas). Apagar o
-    // carimbo zerava esse teto, e as duas telas chamam esta rota em TODA troca
+    // `nFala` (solar) e `n` (eletroposto) são o ÚNICO teto do caminho que manda
+    // mensagem (3 voltas). Apagar o carimbo zerava esse teto, e as duas telas
+    // chamam esta rota em TODA troca
     // de status — inclusive apertar NÃO ATENDEU de novo, que é o movimento
     // normal de quem acabou de ligar e não foi atendido. Resultado: um card que
     // já tomou as três mensagens "você não conseguiu entrar na apresentação"

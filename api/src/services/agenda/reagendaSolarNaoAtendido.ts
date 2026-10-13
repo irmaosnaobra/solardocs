@@ -43,6 +43,26 @@
 //   • Dia de AGENDA FECHADA não conta como falta do cliente. Era a gente que não
 //     estava lá.
 //
+// ── O NÃO ATENDEU DA GIOVANNA E DA NILCE PASSA PARA A OUTRA (13/10/2026) ────
+//
+// Ordem do dono: "Faz uma regra para o atendimento solar da Giovanna e Nilce,
+// quando eles colocarem não atendeu, vai para a outra agendado no outro dia."
+//
+// Até aqui o card voltava "com o mesmo consultor". Agora, quando o status LIDO é
+// `nao_atendeu` e o dono é uma das duas, o card passa para a OUTRA (Giovanna →
+// Nilce, Nilce → Giovanna), no primeiro horário livre da agenda DE QUEM RECEBE a
+// partir de amanhã, na faixa de follow-up (:15/:45). Ver `donoDaVolta`.
+//
+// O que NÃO troca de mão: o card esquecido (`agendado` vencido) e o card em
+// negociação. No esquecido ninguém marcou nada e a ligação pode ter acontecido,
+// então tirar o card de quem estava com ele seria inventar um fato. Sócio
+// (Thiago, Diego) e qualquer outro nome também mantêm o dono.
+// Desliga sem deploy: SOLAR_NAO_ATENDEU_TROCA_OFF=1 (volta ao mesmo consultor).
+//
+// O `nilceParaGiovanna.ts` (robô morto em 05/10/2026) não tem relação nenhuma com
+// esta troca: aquele movia lead de uma para a outra por conta própria, este só
+// obedece ao botão NÃO ATENDEU.
+//
 // ── PISO ────────────────────────────────────────────────────────────────────
 //
 // O piso é anterior ao primeiro card da base (09/05/2026) de propósito: a ordem
@@ -66,7 +86,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
-import { caminhoDaFicha, GRADE_FOLLOWUP_LIGACAO, temDuasFaixas } from './solarRota';
+import { caminhoDaFicha, GRADE_FOLLOWUP_LIGACAO, parceiraDaLigacao, temDuasFaixas } from './solarRota';
 import { jaVirou, alvoDoDegrau, ordenarPeloLugar } from './viradaDoDia';
 
 const TZ = 'America/Sao_Paulo';
@@ -96,7 +116,7 @@ export const GRADE_NILCE: string[] = (() => {
 export const gradeDoFollowup = (dono: unknown): readonly string[] =>
   temDuasFaixas(dono) ? GRADE_FOLLOWUP_LIGACAO : GRADE_NILCE;
 
-/** Estado do ciclo: `solar_reagenda:<id>` → { n, ultimo, de }. */
+/** Estado do ciclo: `solar_reagenda:<id>` → { n (total de voltas), nFala (voltas do vermelho, o que o teto conta), ultimo, de, ... }. */
 export const SOLAR_REAGENDA_PREFIX = 'solar_reagenda:';
 /** A sala de espera do card, igual ao eletroposto: desde 01/10/2026 ela e MARCA
  *  e nao status, pra nao apagar a etiqueta de negociacao do cliente. */
@@ -110,6 +130,23 @@ const num = (nome: string, padrao: number): number => {
 };
 
 const desligado = (): boolean => (process.env.SOLAR_REAGENDA_OFF || '').trim() === '1';
+/** Desliga só a troca de consultora (13/10/2026); a remarcação segue. */
+const trocaDesligada = (): boolean => (process.env.SOLAR_NAO_ATENDEU_TROCA_OFF || '').trim() === '1';
+
+/**
+ * Quem fica com o card nesta volta (13/10/2026). Devolve a parceira SÓ quando as
+ * três valem juntas: o status LIDO é `nao_atendeu` (alguém apertou o botão), o
+ * dono é Giovanna ou Nilce, e a troca não foi desligada. Em qualquer outro caso
+ * o dono é mantido. O esquecido e a negociação mantêm porque neles ninguém
+ * registrou falta: a ligação pode ter acontecido.
+ *
+ * Pura e lê o env na hora da chamada, como `desligado`.
+ */
+export function donoDaVolta(dono: string, status: string): string {
+  if (trocaDesligada()) return dono;
+  if (status !== 'nao_atendeu') return dono;
+  return parceiraDaLigacao(dono) ?? dono;
+}
 
 /** A rampa. Ver o comentário do cabeçalho: é o único freio de volume que existe
  *  aqui, então ela é load-bearing. */
@@ -163,11 +200,19 @@ const fimH = (): number => num('SOLAR_REAGENDA_FIM_H', 19);
 const horaBrasilia = (base: Date = new Date()): number =>
   Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: TZ }).format(base)) % 24;
 
-/** Duas voltas e o card fica pra gente. Mesma conta do eletroposto. */
 /**
  * Quantas vezes o NÃO ATENDEU do solar pode ser remarcado. Três desde
  * 01/10/2026, pela mesma ordem e pelo mesmo motivo do eletroposto: o teto existe
  * só no caminho que fala com o cliente. Os calados rodam sem teto.
+ *
+ * O TETO CONTA SÓ AS VOLTAS DO VERMELHO (13/10/2026). Ele lia o `n` do carimbo,
+ * que soma todas as voltas, inclusive as silenciosas (card esquecido e
+ * negociação, que não mandam nada). Medido em 13/10: 33 dos 116 cards vivos de
+ * solar da Giovanna e da Nilce tinham `n >= 3`, e 30 deles só por volta
+ * silenciosa. Quando a consultora apertava NÃO ATENDEU num deles, o card não
+ * remarcava nem trocava de mão: ficava vermelho parado, sem erro. Agora o
+ * carimbo guarda `nFala` (voltas do vermelho) e é ele que bate aqui; `n`
+ * continua sendo o total.
  */
 export const maxVoltas = (): number => num('SOLAR_REAGENDA_MAX_VOLTAS', 3);
 
@@ -412,7 +457,8 @@ export type ResultadoReagendaSolar = {
   remarcados: number;
   erros: number;
   motivo?: string;
-  previa?: Array<{ id: number; cliente: string; dono: string; de: string; para: string; volta: number }>;
+  /** `dono` é quem fica com o card; `veioDe` só aparece quando houve troca (13/10/2026). */
+  previa?: Array<{ id: number; cliente: string; dono: string; veioDe?: string; de: string; para: string; volta: number }>;
 };
 
 const zero = (motivo?: string): ResultadoReagendaSolar =>
@@ -439,6 +485,7 @@ const zero = (motivo?: string): ResultadoReagendaSolar =>
 export function linhaDoHistorico(
   deIso: string, paraIso: string, volta: number, relogio: 'fala' | 'esquecido' | 'negocia' = 'fala',
   degrau = 1,
+  troca?: { de: string; para: string },
 ): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -463,17 +510,46 @@ export function linhaDoHistorico(
       + `então ele voltou pra ${horaBonita(paraIso)}, com o mesmo consultor. `
       + 'Nada foi enviado ao cliente. Se a ligação aconteceu, é só marcar o status certo.';
   }
+  if (troca) {
+    return `[${carimbo} · Sistema] 🔁 Remarcação automática ${volta}/${maxVoltas()}: `
+      + `não atendeu em ${horaBonita(deIso)} com ${troca.de} e passou para ${troca.para}, que liga em ${horaBonita(paraIso)}.`;
+  }
   return `[${carimbo} · Sistema] 🔁 Remarcação automática ${volta}/${maxVoltas()}: `
     + `não atendeu em ${horaBonita(deIso)} e voltou pra ${horaBonita(paraIso)}, com o mesmo consultor.`;
 }
 
 /**
- * Acha o primeiro horário livre na agenda de QUEM JÁ ESTAVA com o card.
+ * Quantas voltas do VERMELHO o histórico do card já registra (13/10/2026). É de
+ * onde sai o `nFala` do card cujo carimbo é anterior ao campo.
+ *
+ * Casa só `🔁 Remarcação automática N/M: não atendeu em`, que é a linha do
+ * vermelho desde a primeira versão (29/09/2026, `69ee0909`), com ou sem troca de
+ * consultora (o ramo com troca tem o mesmo prefixo). NÃO casa a do esquecido
+ * (`Remarcação automática (Nª vez): a ligação de ...`, sem barra) nem a da
+ * negociação (`🔁 Ciclo de ...`).
+ *
+ * Entre 30/09 e 01/10/2026 o card esquecido ainda escrevia a frase do vermelho
+ * (`N/M: não atendeu em`), e essas linhas também contam aqui. Errar para MAIS é o
+ * lado seguro: o card para antes do teto, e quem protege é a linha de WhatsApp.
+ * Pura: não lê banco nem relógio.
+ */
+export function vermelhasNoHistorico(historico: string | null | undefined): number {
+  if (!historico) return 0;
+  return (String(historico).match(/Remarcação automática \d+\/\d+: não atendeu em /g) ?? []).length;
+}
+
+/**
+ * Acha o primeiro horário livre na agenda de QUEM RECEBE o card.
  *
  * Pura de propósito (recebe a ocupação em vez de ler o banco): é a regra que
- * decide onde a ligação cai, e é ela que o teste prende. Trocar de consultor
- * aqui mexeria na divisão que o repasse faz entre as duas, e isso é decisão de
- * gente.
+ * decide onde a ligação cai, e é ela que o teste prende.
+ *
+ * Quem recebe é quem o `donoDaVolta` diz. Até 13/10/2026 era sempre quem já
+ * estava com o card; desde a ordem do dono ("quando eles colocarem não atendeu,
+ * vai para a outra agendado no outro dia"), no NÃO ATENDEU da Giovanna ou da
+ * Nilce é a outra. A ocupação que chega aqui já é a da agenda de quem recebe:
+ * olhar a de quem entrega marcaria em cima de uma ligação que a parceira já tem.
+ * Sócio e card esquecido ou em negociação seguem com o dono de antes.
  */
 export function primeiraVaga(
   ocupado: Array<{ ini: number; dur: number }>,
@@ -621,13 +697,17 @@ export async function runReagendaSolarTick(
   }
 
   const voltasDe = new Map<number, number>();
+  // As voltas do VERMELHO, que é o que o teto conta (13/10/2026). Só entra o
+  // inteiro válido: carimbo sem o campo cai no histórico do card, em `falasDe`.
+  const falasDoCarimbo = new Map<number, number>();
   const estadoDe = new Map<number, { status?: string; degrau?: number }>();
   for (const r of estadosQ.data ?? []) {
     const id = Number(String(r.key).slice(SOLAR_REAGENDA_PREFIX.length));
-    const v = (r.value ?? {}) as { n?: number; status?: string; degrau?: number };
+    const v = (r.value ?? {}) as { n?: number; nFala?: number; status?: string; degrau?: number };
     const n = Number(v.n);
     if (!Number.isInteger(id)) continue;
     if (Number.isFinite(n)) voltasDe.set(id, n);
+    if (typeof v.nFala === 'number' && Number.isInteger(v.nFala) && v.nFala >= 0) falasDoCarimbo.set(id, v.nFala);
     estadoDe.set(id, {
       ...(typeof v.status === 'string' ? { status: v.status } : {}),
       ...(typeof v.degrau === 'number' ? { degrau: v.degrau } : {}),
@@ -642,11 +722,19 @@ export async function runReagendaSolarTick(
   const descansou = (f: CardSolar): boolean =>
     relogioDoCicloSolar(String(f.status)) !== 'negocia' || jaVirou(f.quando, agora);
   const noPrazo = vermelhos.filter(f => !descansou(f)).length;
+  // As voltas do VERMELHO deste card (13/10/2026): o MAIOR entre o `nFala` do
+  // carimbo e as linhas do vermelho no historico. O upsert do carimbo pode falhar
+  // calado; errar pra mais e o lado seguro, porque o card para antes do teto.
+  // `voltasDe` (o `n`) segue sendo o total e nao entra no teto: somava tambem as
+  // voltas silenciosas e barrava o NAO ATENDEU de 33 dos 116 cards vivos de solar
+  // da Giovanna e da Nilce (30 por volta silenciosa), sem erro nenhum.
+  const falasDe = (f: CardSolar): number =>
+    Math.max(falasDoCarimbo.get(f.id) ?? 0, vermelhasNoHistorico(f.historico));
   // Quem o TETO DE VOLTAS barrou (so o vermelho tem teto): contado separado,
   // porque "descansando no degrau" e "estourou as voltas" se resolvem de
   // formas diferentes.
   const noTeto = vermelhos.filter(f =>
-    f.status === 'nao_atendeu' && (voltasDe.get(f.id) ?? 0) >= maxVoltas()).length;
+    f.status === 'nao_atendeu' && falasDe(f) >= maxVoltas()).length;
   // Sem teto pro esquecido: "sempre tera os clientes retornando". O teto segue
   // valendo pro vermelho, cujo ciclo destrava as mensagens da regua da agenda.
   const naEspera = (f: CardSolar): boolean => {
@@ -656,7 +744,7 @@ export async function runReagendaSolarTick(
   const esperando = vermelhos.filter(naEspera).length;
   const naVez = vermelhos.filter(f =>
     !naEspera(f) && descansou(f)
-    && (f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas()));
+    && (f.status !== 'nao_atendeu' || falasDe(f) < maxVoltas()));
   if (!naVez.length) {
     // "Ninguem na vez" e "esperando a virada" sao coisas diferentes, e juntar
     // as duas num motivo so esconderia de quem le o tick por que a fila parou.
@@ -764,12 +852,17 @@ export async function runReagendaSolarTick(
     // primeiro card não tem vaga na agenda do dono.
     if ((dry ? previa.length : remarcados) >= POR_TICK) break;
     const dono = String(f.vendedor_nome);
+    // Quem FICA com o card nesta volta (13/10/2026): a parceira no NÃO ATENDEU da
+    // Giovanna e da Nilce, o próprio dono em qualquer outro caso.
+    const donoNovo = donoDaVolta(dono, String(f.status));
+    const troca = donoNovo !== dono ? { de: dono, para: donoNovo } : undefined;
     const chave = telKey(f.cliente_telefone);
     // Já tem ligação marcada? Mover criaria a mesma pessoa em dois lugares.
     if (chave && comHorarioFuturo.has(chave)) continue;
 
+    // A agenda de QUEM RECEBE decide a vaga, não a de quem entrega.
     const ocupado = futura
-      .filter(o => o.vendedor_nome === dono)
+      .filter(o => o.vendedor_nome === donoNovo)
       .map(o => ({ ini: new Date(o.quando).getTime(), dur: duracaoDe(o.created_by) }));
     // UMA leitura do relógio, ANTES do update. Ler de novo depois é pedir pra
     // classificar a ficha pelo status NOVO: o vermelho volta pra `agendado` na
@@ -777,6 +870,13 @@ export async function runReagendaSolarTick(
     // teto que protege a linha.
     const relogio = relogioDoCicloSolar(String(f.status)) ?? 'fala';
     const volta = (voltasDe.get(f.id) ?? 0) + 1;
+    // A volta do VERMELHO depois desta (13/10/2026), lida ANTES do update: o
+    // histórico muda na gravação, e recontar depois contaria a linha nova. Só o
+    // vermelho gasta o teto; a volta silenciosa deixa a conta como está.
+    const voltaFala = relogio === 'fala' ? falasDe(f) + 1 : falasDe(f);
+    // O que a linha, o log e a prévia mostram: no vermelho, a volta do vermelho
+    // (o `N/M` do teto); nos outros dois, o total, como sempre.
+    const voltaMostrada = relogio === 'fala' ? voltaFala : volta;
     // UMA conta de degrau, usada nos tres lugares: o lugar onde o card cai, a
     // linha do historico e o carimbo.
     const degrau = degrauDaProximaVolta(estadoDe.get(f.id), String(f.status));
@@ -811,24 +911,28 @@ export async function runReagendaSolarTick(
     let moveu = false;
     for (let tentativa = 1; tentativa <= HORARIOS_POR_CARD && !moveu; tentativa++) {
       novo = alvo === null
-        ? primeiraVaga(ocupado, agora, dias, gradeDoFollowup(dono))
-        : vagaNoLugar(ocupado, agora, alvo, dias, gradeDoFollowup(dono));
+        ? primeiraVaga(ocupado, agora, dias, gradeDoFollowup(donoNovo))
+        : vagaNoLugar(ocupado, agora, alvo, dias, gradeDoFollowup(donoNovo));
       if (!novo) break;
 
       if (dry) {
         previa.push({
-          id: f.id, cliente: f.cliente_nome || '(sem nome)', dono,
-          de: horaBonita(f.quando), para: horaBonita(novo), volta,
+          id: f.id, cliente: f.cliente_nome || '(sem nome)', dono: donoNovo,
+          ...(troca ? { veioDe: dono } : {}),
+          de: horaBonita(f.quando), para: horaBonita(novo), volta: voltaMostrada,
         });
         moveu = true;
         break;
       }
 
-      const linha = linhaDoHistorico(f.quando, novo, volta, relogio, degrau);
+      const linha = linhaDoHistorico(f.quando, novo, voltaMostrada, relogio, degrau, troca);
     const { data: atualizado, error: erroUpd } = await supabaseGerador
       .from('agendamentos')
       .update({
         quando: novo,
+        // A troca de consultora (13/10/2026). Só entra quando houve troca: sem
+        // ela o update não mexe em `vendedor_nome`, como sempre foi.
+        ...(troca ? { vendedor_nome: donoNovo } : {}),
         // So o VERMELHO volta pra `agendado`. O esquecido ja e, e o card em
         // negociacao mantem o status dele: e ele que diz onde o cliente esta
         // no funil, e e ele que esconde a ficha dos robos que falam.
@@ -859,12 +963,15 @@ export async function runReagendaSolarTick(
       // inteira fica pronta no mesmo minuto, e dois ticks que pegam o mesmo
       // card empurrariam ele dois degraus. Ver o gemeo do eletroposto.
       .eq('quando', f.quando)
+      // E o dono que foi lido (13/10/2026): se alguém passou o card na mão entre a
+      // leitura e a gravação, quem manda é a pessoa, e a troca não o desfaz.
+      .eq('vendedor_nome', dono)
       .select('id');
       if (erroUpd) {
         // 23505 = índice único: o horário foi ocupado por fora. Marca ele como
         // ocupado na agenda em memória e tenta o seguinte.
         if (String((erroUpd as { code?: string }).code) === '23505') {
-          logger.info('solar-reagenda', `horário ${novo} já ocupado — tenta o seguinte`, { id: f.id, dono });
+          logger.info('solar-reagenda', `horário ${novo} já ocupado — tenta o seguinte`, { id: f.id, dono: donoNovo });
           ocupado.push({ ini: new Date(novo).getTime(), dur: DUR_LIGACAO_MS });
           continue;
         }
@@ -876,7 +983,7 @@ export async function runReagendaSolarTick(
         break;
       }
       if (!atualizado?.length) {
-        logger.info('solar-reagenda', `card ${f.id} mudou de status ou de horário no meio do caminho — quem manda é quem mexeu`);
+        logger.info('solar-reagenda', `card ${f.id} mudou de status, de horário ou de dono no meio do caminho — quem manda é quem mexeu`);
         break;
       }
 
@@ -889,8 +996,16 @@ export async function runReagendaSolarTick(
           // que ela caiu. A proxima rodada compara a etiqueta de entao com esta.
           value: {
             n: volta, ultimo: nowIso, de: f.quando,
+            // As voltas do VERMELHO depois desta (13/10/2026): é o que o teto
+            // lê. Gravado sempre, também na volta silenciosa, pra o card não
+            // depender do histórico na próxima rodada.
+            nFala: voltaFala,
             relogio: relogio === 'fala' ? 'fala' : 'mudo',
             status: String(f.status), degrau,
+            // De quem pra quem, quando o card trocou de consultora (13/10/2026).
+            // Campo a mais: o leitor (`estadoDe`/`voltasDe`/`falasDoCarimbo`) só pega
+            // n, nFala, status e degrau.
+            ...(troca ? { troca } : {}),
           },
           updated_at: nowIso,
         },
@@ -905,17 +1020,17 @@ export async function runReagendaSolarTick(
       // colisões de 01/10 foi a denylist lá em cima, que fez a varredura ver o
       // horário ocupado, mais o laço de horários aqui.
       futura.push({
-        quando: novo, vendedor_nome: dono,
+        quando: novo, vendedor_nome: donoNovo,
         cliente_telefone: f.cliente_telefone, created_by: f.created_by,
       });
       if (chave) comHorarioFuturo.add(chave);
 
       remarcados++;
       moveu = true;
-      logger.info('solar-reagenda', `card ${f.id} (${dono}) voltou pra ${novo}, volta ${volta}/${maxVoltas()}`);
+      logger.info('solar-reagenda', `card ${f.id} (${troca ? `${dono} → ${donoNovo}` : dono}) voltou pra ${novo}, volta ${voltaMostrada}/${maxVoltas()}`);
     }
     if (!novo) {
-      logger.info('solar-reagenda', `sem vaga na agenda do ${dono} em ${HORIZONTE_DIAS_UTEIS} dias úteis`);
+      logger.info('solar-reagenda', `sem vaga na agenda do ${donoNovo} em ${HORIZONTE_DIAS_UTEIS} dias úteis`);
     }
   }
 

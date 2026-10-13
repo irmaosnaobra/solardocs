@@ -20,7 +20,7 @@ let agendaQuebrada = false;
 
 let vermelhos: any[] = [];
 let futura: any[] = [];
-const updates: Array<{ id: number; patch: any; exigiuStatus: string | null; exigiuQuando?: string | null }> = [];
+const updates: Array<{ id: number; patch: any; exigiuStatus: string | null; exigiuQuando?: string | null; exigiuDono?: string | null }> = [];
 /** Simula alguém mexendo no card entre a leitura e a gravação. */
 let updateNaoPega = false;
 /** Horários que o índice único recusa (código 23505), como quando a outra
@@ -45,6 +45,8 @@ vi.mock('../utils/supabaseGerador', () => ({
           if (col === 'status') q._status = v;
           if (col === 'id') q._id = v;
           if (col === 'quando') q._quando = v;
+          // A trava do dono LIDO (13/10/2026) na gravação.
+          if (col === 'vendedor_nome') q._dono = v;
           if (q._patch) return q;
           return q;
         },
@@ -87,7 +89,7 @@ vi.mock('../utils/supabaseGerador', () => ({
         // é quem resolve: reproduz a cadeia real update().eq().eq().select().
         then(res: any) {
           const id = q._id as number;
-          updates.push({ id, patch: q._patch, exigiuStatus: q._status, exigiuQuando: q._quando });
+          updates.push({ id, patch: q._patch, exigiuStatus: q._status, exigiuQuando: q._quando, exigiuDono: q._dono });
           if (updateNaoPega) return res({ data: [], error: null });
           if (colidemEm.includes(String(q._patch?.quando))) {
             return res({ data: null, error: { code: '23505', message: 'duplicate key' } });
@@ -172,13 +174,18 @@ async function tick(opts: any = {}) {
 }
 
 describe('mover o card', () => {
+  // ALTERADO em 13/10/2026: o card era da Giovanna e este teste afirmava que o
+  // dono não mudava. Essa é justamente a regra que mudou (a Giovanna e a Nilce
+  // passam o NÃO ATENDEU uma pra outra), então a fixture virou sócio, que segue
+  // mantendo o dono. O caso da Giovanna e da Nilce tem teste próprio mais abaixo.
   it('não atendeu volta pra agendado, num horário futuro do mesmo consultor', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego' })];
     const r = await tick();
     expect(r.remarcados).toBe(1);
     expect(updates).toHaveLength(1);
     expect(updates[0].patch.status).toBe('agendado');
     expect(new Date(updates[0].patch.quando).getTime()).toBeGreaterThan(AGORA.getTime());
-    // Não troca de dono: mexer nisso mexeria na divisão que o repasse faz.
+    // Sócio não troca de dono.
     expect(updates[0].patch.vendedor_nome).toBeUndefined();
   });
 
@@ -272,11 +279,14 @@ describe('onde a ligação cai', () => {
   });
 
   it('pula o horário que o consultor já tem ocupado', async () => {
-    // Enche o dia 01/10 inteiro na agenda da Giovanna.
+    // Enche o dia 01/10 inteiro na agenda do Diego (13/10/2026: a fixture era a
+    // Giovanna, que agora entrega o NÃO ATENDEU pra Nilce; o dono que fica com o
+    // card é o sócio, e é a agenda dele que decide).
+    vermelhos = [card({ vendedor_nome: 'Diego' })];
     futura = [];
     for (let h = 8; h <= 17; h++) {
       for (const m of ['00', '15', '30', '45']) {
-        futura.push({ quando: `2026-10-01T${String(h + 3).padStart(2, '0')}:${m}:00.000Z`, vendedor_nome: 'Giovanna', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' });
+        futura.push({ quando: `2026-10-01T${String(h + 3).padStart(2, '0')}:${m}:00.000Z`, vendedor_nome: 'Diego', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' });
       }
     }
     await tick();
@@ -284,7 +294,8 @@ describe('onde a ligação cai', () => {
   });
 
   it('agenda de OUTRO consultor não bloqueia a vaga', async () => {
-    futura = [{ quando: '2026-10-01T11:15:00.000Z', vendedor_nome: 'Nilce', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' }];
+    // 13/10/2026: era 'Nilce', mas a Nilce agora é quem RECEBE o card da Giovanna.
+    futura = [{ quando: '2026-10-01T11:15:00.000Z', vendedor_nome: 'Thiago', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' }];
     const r = await tick();
     expect(r.remarcados).toBe(1);
   });
@@ -330,8 +341,11 @@ describe('quem não entra', () => {
     expect((await tick()).remarcados).toBe(0);
   });
 
+  // ALTERADO em 13/10/2026: o teto passou a contar só as voltas do VERMELHO
+  // (`nFala`), e não o `n` total. A fixture virou `nFala: 3`; com `n: 3` puro o
+  // card agora anda (ver o describe do teto, no fim do arquivo).
   it('três voltas e para: o card fica pra gente', async () => {
-    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 3 }, updated_at: '2026-09-01T00:00:00.000Z' });
+    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 3, nFala: 3 }, updated_at: '2026-09-01T00:00:00.000Z' });
     expect((await tick()).motivo).toBe('ninguem_na_vez');
   });
 
@@ -480,8 +494,9 @@ describe('a rampa diária', () => {
     // 08:00 BRT de quinta 01/10: a varredura comeca no PROXIMO dia util, nao no
     // resto de hoje.
     const primeiro = '2026-10-01T11:00:00.000Z';
+    // 13/10/2026: 'Nilce', a agenda de quem RECEBE o card da Giovanna.
     futura = [{
-      id: 900, quando: primeiro, vendedor_nome: 'Giovanna',
+      id: 900, quando: primeiro, vendedor_nome: 'Nilce',
       cliente_telefone: '5534900000900', created_by: 'lead-meta', status: 'chave_na_mao',
     }];
     await tick();
@@ -491,8 +506,9 @@ describe('a rampa diária', () => {
   it('mas horário cancelado não ocupa nada — é a outra ponta da mesma régua', async () => {
     // 08:15 BRT: o primeiro horário da faixa de follow-up da Giovanna (09/10).
     const primeiro = '2026-10-01T11:15:00.000Z';
+    // 13/10/2026: 'Nilce', a agenda de quem RECEBE o card da Giovanna.
     futura = [{
-      id: 900, quando: primeiro, vendedor_nome: 'Giovanna',
+      id: 900, quando: primeiro, vendedor_nome: 'Nilce',
       cliente_telefone: '5534900000900', created_by: 'lead-meta', status: 'cancelado',
     }];
     await tick();
@@ -746,14 +762,15 @@ describe('kill-switch e dry', () => {
     process.env.SOLAR_REAGENDA_POR_DIA = '0';
     const r = await tick({ dry: true });
     expect(r.motivo).toBe('remarcaria_agora');
-    expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Giovanna' });
+    // 13/10/2026: a Giovanna entrega o NÃO ATENDEU, então o dono da prévia é a Nilce.
+    expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Nilce', veioDe: 'Giovanna' });
     expect(updates).toHaveLength(0);
   });
 
   it('dry mostra de quando pra quando, sem tocar em nada', async () => {
     const r = await tick({ dry: true });
     expect(r.motivo).toBe('remarcaria_agora');
-    expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Giovanna', volta: 1 });
+    expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Nilce', veioDe: 'Giovanna', volta: 1 });
     expect(updates).toHaveLength(0);
     expect(state.size).toBe(0);
   });
@@ -811,8 +828,10 @@ describe('o card esquecido do solar', () => {
     expect((await tick()).remarcados).toBe(1);
   });
 
+  // ALTERADO em 13/10/2026: mesma razão do teste das três voltas, a fixture ganhou
+  // `nFala: 3` porque o teto não lê mais o `n` total.
   it('o vermelho continua parando no teto de 2 voltas', async () => {
-    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 3, ultimo: '2026-09-01T00:00:00.000Z' }, updated_at: '2026-09-01T00:00:00.000Z' });
+    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 3, nFala: 3, ultimo: '2026-09-01T00:00:00.000Z' }, updated_at: '2026-09-01T00:00:00.000Z' });
     vermelhos = [card({ status: 'nao_atendeu' })];
     const r = await tick();
     expect(r.remarcados).toBe(0);
@@ -822,5 +841,364 @@ describe('o card esquecido do solar', () => {
   it('card de eletroposto nunca entra aqui: ele tem régua própria', async () => {
     vermelhos = [esquecido(7, { created_by: 'lp_eletroposto' })];
     expect((await tick()).remarcados).toBe(0);
+  });
+});
+
+// ── O NÃO ATENDEU DA GIOVANNA E DA NILCE PASSA PARA A OUTRA (13/10/2026) ────
+//
+// Ordem do dono: "Faz uma regra para o atendimento solar da Giovanna e Nilce,
+// quando eles colocarem não atendeu, vai para a outra agendado no outro dia."
+//
+// O risco é trocar de mão o que NÃO foi marcado como falta: o card esquecido e o
+// card em negociação mantêm o dono, e o sócio também. E o outro lado: marcar a
+// ligação na agenda de quem ENTREGA, em cima de um horário que a parceira já tem.
+describe('o não atendeu passa pra outra (13/10/2026)', () => {
+  /** Minuto do horário em Brasília (o fuso é fixo, então bate com o UTC). */
+  const minuto = (iso: string) => new Date(iso).getUTCMinutes();
+  const diaUtil = (iso: string) => {
+    const dow = new Date(`${iso.slice(0, 10)}T12:00:00-03:00`).getUTCDay();
+    return dow !== 0 && dow !== 6;
+  };
+  const seguintes = (iso: string) => new Date(iso).getTime() > AGORA.getTime()
+    && iso.slice(0, 10) > '2026-09-30';
+
+  it('Giovanna marca NÃO ATENDEU: o card vai pra Nilce, agendado, outro dia, em :15 ou :45', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    const p = updates[0].patch;
+    expect(p.vendedor_nome).toBe('Nilce');
+    expect(p.status).toBe('agendado');
+    expect(seguintes(p.quando)).toBe(true);
+    expect(diaUtil(p.quando)).toBe(true);
+    expect([15, 45]).toContain(minuto(p.quando));
+  });
+
+  it('Nilce marca NÃO ATENDEU: o card vai pra Giovanna, agendado, outro dia, em :15 ou :45', async () => {
+    vermelhos = [card({ vendedor_nome: 'Nilce' })];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    const p = updates[0].patch;
+    expect(p.vendedor_nome).toBe('Giovanna');
+    expect(p.status).toBe('agendado');
+    expect(seguintes(p.quando)).toBe(true);
+    expect(diaUtil(p.quando)).toBe(true);
+    expect([15, 45]).toContain(minuto(p.quando));
+  });
+
+  it('horário livre na agenda de quem entrega mas OCUPADO na de quem recebe: cai no próximo livre de quem recebe', async () => {
+    // 08:15 de quinta 01/10 ocupado na Nilce (quem recebe) e LIVRE na Giovanna.
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    futura = [{ quando: '2026-10-01T11:15:00.000Z', vendedor_nome: 'Nilce', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' }];
+    await tick();
+    expect(updates[0].patch.vendedor_nome).toBe('Nilce');
+    expect(updates[0].patch.quando).toBe('2026-10-01T11:45:00.000Z');
+  });
+
+  it('e o horário ocupado na agenda de quem ENTREGA não segura a vaga de quem recebe', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    futura = [{ quando: '2026-10-01T11:15:00.000Z', vendedor_nome: 'Giovanna', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' }];
+    await tick();
+    expect(updates[0].patch.quando).toBe('2026-10-01T11:15:00.000Z');
+  });
+
+  it('23505 na primeira tentativa: tenta o seguinte, ainda na agenda de quem recebe, e grava o dono novo', async () => {
+    // Nilce entrega, Giovanna recebe. 08:15 ocupado SÓ na Nilce e 08:45 ocupado SÓ
+    // na Giovanna: lendo a agenda de quem recebe, a 1ª tentativa é 08:15 (recusada
+    // pelo índice) e a 2ª pula 08:45 e cai em 09:15. Lendo a de quem entrega, a 1ª
+    // já seria 08:45 e o teste falha logo no primeiro update.
+    vermelhos = [card({ vendedor_nome: 'Nilce' })];
+    futura = [
+      { quando: '2026-10-01T11:15:00.000Z', vendedor_nome: 'Nilce', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' },
+      { quando: '2026-10-01T11:45:00.000Z', vendedor_nome: 'Giovanna', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' },
+    ];
+    colidemEm = ['2026-10-01T11:15:00.000Z'];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(r.erros).toBe(0);
+    expect(updates).toHaveLength(2);
+    expect(updates[0].patch.quando).toBe('2026-10-01T11:15:00.000Z');
+    expect(updates[0].patch.vendedor_nome).toBe('Giovanna');
+    expect(updates[1].patch.quando).toBe('2026-10-01T12:15:00.000Z');
+    expect(updates[1].patch.vendedor_nome).toBe('Giovanna');
+    // A trava de corrida usa o dono LIDO (quem entrega), nas duas tentativas.
+    expect(updates[1].exigiuDono).toBe('Nilce');
+  });
+
+  it('sócio com NÃO ATENDEU: o update NÃO traz vendedor_nome', async () => {
+    for (const socio of ['Thiago', 'Diego']) {
+      state.clear(); updates.length = 0;
+      vermelhos = [card({ vendedor_nome: socio })];
+      expect((await tick()).remarcados, socio).toBe(1);
+      expect(updates[0].patch, socio).not.toHaveProperty('vendedor_nome');
+      expect(updates[0].exigiuDono, socio).toBe(socio);
+    }
+  });
+
+  it('card esquecido (agendado vencido) da Giovanna: continua com a Giovanna', async () => {
+    vermelhos = [card({ status: 'agendado', vendedor_nome: 'Giovanna', quando: new Date(AGORA.getTime() - 7 * 3600_000).toISOString() })];
+    // 08:15 ocupado na Giovanna: a vaga tem que sair da agenda DELA (o dono fica),
+    // então o card cai em 08:45. Na agenda da Nilce o 08:15 estaria livre.
+    futura = [{ quando: '2026-10-01T11:15:00.000Z', vendedor_nome: 'Giovanna', cliente_telefone: null, created_by: 'lead-meta', status: 'agendado' }];
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.quando).toBe('2026-10-01T11:45:00.000Z');
+    expect(updates[0].patch).not.toHaveProperty('vendedor_nome');
+    expect(updates[0].patch.historico).toContain('com o mesmo consultor');
+  });
+
+  it('card em negociação da Giovanna: continua com a Giovanna', async () => {
+    vermelhos = [card({ status: 'fez_orcamento', vendedor_nome: 'Giovanna', quando: new Date(AGORA.getTime() - 25 * 3600_000).toISOString() })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch).not.toHaveProperty('vendedor_nome');
+    expect(updates[0].patch.historico).toContain('com o mesmo consultor');
+  });
+
+  it('SOLAR_NAO_ATENDEU_TROCA_OFF=1: a Giovanna continua com o card', async () => {
+    process.env.SOLAR_NAO_ATENDEU_TROCA_OFF = '1';
+    try {
+      vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+      expect((await tick()).remarcados).toBe(1);
+      expect(updates[0].patch).not.toHaveProperty('vendedor_nome');
+      expect(updates[0].patch.historico).toContain('com o mesmo consultor');
+    } finally {
+      delete process.env.SOLAR_NAO_ATENDEU_TROCA_OFF;
+    }
+  });
+
+  it('a gravação exige o dono que foi LIDO: se alguém passou o card na mão, quem manda é a pessoa', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    await tick();
+    expect(updates[0].patch.vendedor_nome).toBe('Nilce');
+    expect(updates[0].exigiuDono).toBe('Giovanna');
+  });
+
+  it('o carimbo do ciclo guarda de quem pra quem, sem mexer nos campos de sempre', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    await tick();
+    const v = state.get('solar_reagenda:1')?.value;
+    expect(v?.troca).toEqual({ de: 'Giovanna', para: 'Nilce' });
+    // Sem `status` aqui: o mock aplica o patch no mesmo objeto que o módulo leu,
+    // então o `String(f.status)` do carimbo já vê `agendado`. Em produção a
+    // linha lida e a gravada são objetos diferentes.
+    expect(v).toMatchObject({ n: 1, relogio: 'fala', degrau: 1 });
+    expect(v).toHaveProperty('ultimo');
+    expect(v).toHaveProperty('de');
+    // E o leitor do carimbo não quebra com o campo a mais: a volta 2 é contada.
+    updates.length = 0;
+    vermelhos = [card({ vendedor_nome: 'Nilce', quando: '2026-09-25T11:15:00.000Z' })];
+    state.get('solar_reagenda:1')!.value.ultimo = '2026-09-01T00:00:00.000Z';
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:1')?.value?.n).toBe(2);
+  });
+
+  it('o histórico com troca escreve os dois nomes, e não diz "mesmo consultor"', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    await tick();
+    const linha = String(updates[0].patch.historico);
+    expect(linha).toContain('Remarcação automática 1/3');
+    expect(linha).toContain('com Giovanna e passou para Nilce, que liga em');
+    expect(linha).not.toContain('mesmo consultor');
+    expect(linha).not.toContain('—');
+  });
+
+  it('linhaDoHistorico: com troca nomeia os dois; sem troca o texto é o de antes', async () => {
+    const { linhaDoHistorico } = await import('../services/agenda/reagendaSolarNaoAtendido');
+    const de = '2026-09-25T11:15:00.000Z', para = '2026-10-01T11:15:00.000Z';
+    const com = linhaDoHistorico(de, para, 1, 'fala', 1, { de: 'Nilce', para: 'Giovanna' });
+    expect(com).toMatch(/Sistema\] 🔁 Remarcação automática 1\/3: não atendeu em .* com Nilce e passou para Giovanna, que liga em /);
+    expect(com).not.toContain('mesmo consultor');
+    const sem = linhaDoHistorico(de, para, 1, 'fala', 1);
+    expect(sem).toMatch(/Remarcação automática 1\/3: não atendeu em .* e voltou pra .*, com o mesmo consultor\.$/);
+    expect(sem).not.toContain('passou para');
+  });
+
+  it('dry=1 mostra a parceira como dono e de quem veio; sócio não ganha veioDe', async () => {
+    vermelhos = [card({ vendedor_nome: 'Nilce' })];
+    const r = await tick({ dry: true });
+    expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Giovanna', veioDe: 'Nilce' });
+    expect(updates).toHaveLength(0);
+    vermelhos = [card({ vendedor_nome: 'Thiago' })];
+    const s = await tick({ dry: true });
+    expect(s.previa?.[0]).toMatchObject({ dono: 'Thiago' });
+    expect(s.previa?.[0]).not.toHaveProperty('veioDe');
+  });
+
+  it('donoDaVolta e parceiraDaLigacao: puras', async () => {
+    const { donoDaVolta } = await import('../services/agenda/reagendaSolarNaoAtendido');
+    const { parceiraDaLigacao } = await import('../services/agenda/solarRota');
+    expect(donoDaVolta('Giovanna', 'nao_atendeu')).toBe('Nilce');
+    expect(donoDaVolta('Nilce', 'nao_atendeu')).toBe('Giovanna');
+    expect(donoDaVolta(' Nilce ', 'nao_atendeu')).toBe('Giovanna');
+    expect(donoDaVolta('Giovanna', 'agendado')).toBe('Giovanna');
+    expect(donoDaVolta('Giovanna', 'fez_orcamento')).toBe('Giovanna');
+    expect(donoDaVolta('Thiago', 'nao_atendeu')).toBe('Thiago');
+    expect(donoDaVolta('', 'nao_atendeu')).toBe('');
+    expect(parceiraDaLigacao('Diego')).toBeNull();
+    expect(parceiraDaLigacao(null)).toBeNull();
+  });
+
+  // A lista que escolhe quem recebe o card (DONAS_DUAS_FAIXAS) e a lista de quem o
+  // bom dia das 7h enxerga (DONAS) são duas. Se divergirem, o cliente fica sem aviso.
+  it('toda parceira da ligação está entre as donas que o bom dia enxerga', async () => {
+    const { DONAS_DUAS_FAIXAS, parceiraDaLigacao } = await import('../services/agenda/solarRota');
+    const { DONAS } = await import('../services/io/solarAgendaGiovanna');
+    expect(DONAS_DUAS_FAIXAS.length).toBeGreaterThan(0);
+    for (const d of DONAS_DUAS_FAIXAS) {
+      const p = parceiraDaLigacao(d);
+      expect(p).not.toBeNull();
+      expect(p).not.toBe(d);
+      expect(DONAS).toContain(p);
+    }
+  });
+});
+
+// ── O TETO CONTA SÓ AS VOLTAS DO VERMELHO (13/10/2026) ──────────────────────
+//
+// O teto de 3 voltas protege a linha de WhatsApp: cada volta do vermelho destrava
+// um bom dia e um "oi". Ele lia o `n` do carimbo, que soma TAMBÉM as voltas
+// silenciosas. Medido em 13/10: 33 dos 116 cards vivos de solar da Giovanna e da
+// Nilce tinham `n >= 3`, 30 só por volta silenciosa, e o NÃO ATENDEU deles ficava
+// parado sem erro. Agora o carimbo grava `nFala`, e o carimbo antigo (sem o campo)
+// é contado pelo histórico do card.
+describe('o teto conta só as voltas do vermelho (13/10/2026)', () => {
+  const VELHO = '2026-09-01T00:00:00.000Z';
+  const carimbo = (id: number, value: any) =>
+    state.set(`solar_reagenda:${id}`, { key: `solar_reagenda:${id}`, value: { ultimo: VELHO, ...value }, updated_at: VELHO });
+  const silenciosas =
+    '[02/10 · 00:01 · Sistema] 🔁 Ciclo de 24h (1ª volta nesta etiqueta): o dia de qui 01/10 · 10:15 fechou com a negociação parada.\n\n'
+    + '[03/10 · 09:30 · Sistema] 🔁 Remarcação automática (2ª vez): a ligação de sex 02/10 · 10:15 passou e o card ficou sem desfecho por mais de 6h.';
+  const doVermelho = (n: number, m = 3) =>
+    `[0${n}/10 · 09:30 · Sistema] 🔁 Remarcação automática ${n}/${m}: não atendeu em qua 30/09 · 10:15 e voltou pra qui 01/10 · 10:15, com o mesmo consultor.`;
+
+  it('n >= 3 só de volta silenciosa e sem nFala: o NÃO ATENDEU MOVE, e a linha diz 1/3', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: silenciosas })];
+    carimbo(1, { n: 3 });
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(updates[0].patch.status).toBe('agendado');
+    expect(updates[0].patch.historico).toContain('Remarcação automática 1/3');
+    expect(updates[0].patch.historico).not.toContain('4/3');
+    expect(state.get('solar_reagenda:1')?.value).toMatchObject({ n: 4, nFala: 1 });
+  });
+
+  it('nFala: 3 no carimbo: NÃO move, mesmo com histórico limpo', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: silenciosas })];
+    carimbo(1, { n: 5, nFala: 3 });
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('ninguem_na_vez');
+    expect(updates).toHaveLength(0);
+  });
+
+  it('nFala: 2 move, e o carimbo sobe pra nFala: 3 (a próxima já bate no teto)', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego' })];
+    carimbo(1, { n: 4, nFala: 2 });
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:1')?.value).toMatchObject({ n: 5, nFala: 3 });
+    expect(updates[0].patch.historico).toContain('Remarcação automática 3/3');
+  });
+
+  it('sem nFala e com 3 linhas do vermelho no histórico: NÃO move', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: [doVermelho(3), silenciosas, doVermelho(2), doVermelho(1)].join('\n\n') })];
+    carimbo(1, { n: 1 });
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('ninguem_na_vez');
+  });
+
+  it('vale o maior dos dois: carimbo nFala: 1 com 3 linhas no histórico NÃO move, e nFala: 3 com histórico vazio NÃO move', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: [doVermelho(3), doVermelho(2), doVermelho(1)].join('\n\n') })];
+    carimbo(1, { n: 3, nFala: 1 });
+    const a = await tick();
+    expect(a.remarcados).toBe(0);
+    expect(a.motivo).toBe('ninguem_na_vez');
+    expect(updates).toHaveLength(0);
+
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: '' })];
+    carimbo(1, { n: 3, nFala: 3 });
+    const b = await tick();
+    expect(b.remarcados).toBe(0);
+    expect(b.motivo).toBe('ninguem_na_vez');
+    expect(updates).toHaveLength(0);
+  });
+
+  it('carimbo antigo (n: 5, sem nFala) com 2 linhas do vermelho e silenciosas: MOVE, a linha diz 3/3 e o carimbo sai n: 6, nFala: 3', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: [doVermelho(2), silenciosas, doVermelho(1)].join('\n\n') })];
+    carimbo(1, { n: 5 });
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.historico).toContain('Remarcação automática 3/3');
+    expect(state.get('solar_reagenda:1')?.value).toMatchObject({ n: 6, nFala: 3 });
+  });
+
+  it('volta silenciosa (negociação) em card com nFala: 2 mantém nFala: 2', async () => {
+    vermelhos = [card({ id: 80, status: 'fez_orcamento', quando: new Date(AGORA.getTime() - 25 * 3600_000).toISOString() })];
+    carimbo(80, { n: 5, nFala: 2, relogio: 'mudo', status: 'fez_orcamento', degrau: 1 });
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:80')?.value).toMatchObject({ n: 6, nFala: 2, relogio: 'mudo' });
+    expect(updates[0].patch.historico).toContain('Ciclo de');
+  });
+
+  it('volta silenciosa (esquecido) em card com nFala: 2 mantém nFala: 2, e a linha segue com "Nª vez"', async () => {
+    vermelhos = [card({ id: 81, status: 'agendado', quando: new Date(AGORA.getTime() - 7 * 3600_000).toISOString() })];
+    carimbo(81, { n: 4, nFala: 2 });
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:81')?.value).toMatchObject({ n: 5, nFala: 2 });
+    expect(updates[0].patch.historico).toContain('Remarcação automática (5ª vez)');
+  });
+
+  it('volta silenciosa em card sem nFala grava o que o histórico já contava', async () => {
+    vermelhos = [card({ id: 82, status: 'agendado', quando: new Date(AGORA.getTime() - 7 * 3600_000).toISOString(),
+      historico: [doVermelho(2), doVermelho(1)].join('\n\n') })];
+    carimbo(82, { n: 2 });
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:82')?.value).toMatchObject({ n: 3, nFala: 2 });
+  });
+
+  it('Giovanna no mesmo caso: além de mover, passa pra Nilce (as duas regras juntas)', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna', historico: silenciosas })];
+    carimbo(1, { n: 3 });
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(updates[0].patch.vendedor_nome).toBe('Nilce');
+    expect(updates[0].patch.status).toBe('agendado');
+    expect(updates[0].patch.historico).toContain('Remarcação automática 1/3: não atendeu em');
+    expect(updates[0].patch.historico).toContain('com Giovanna e passou para Nilce');
+    expect(state.get('solar_reagenda:1')?.value).toMatchObject({ n: 4, nFala: 1, troca: { de: 'Giovanna', para: 'Nilce' } });
+  });
+
+  it('dry=1 mostra a volta do vermelho, não o total', async () => {
+    vermelhos = [card({ vendedor_nome: 'Diego', historico: silenciosas })];
+    carimbo(1, { n: 3 });
+    const r = await tick({ dry: true });
+    expect(r.previa?.[0]).toMatchObject({ id: 1, volta: 1 });
+    expect(updates).toHaveLength(0);
+  });
+
+  it('vermelhasNoHistorico: conta o vermelho em todos os formatos, não o esquecido nem a negociação', async () => {
+    const { vermelhasNoHistorico, linhaDoHistorico } = await import('../services/agenda/reagendaSolarNaoAtendido');
+    const de = '2026-09-25T11:15:00.000Z', para = '2026-10-01T11:15:00.000Z';
+    // Formato atual, sem e com troca de consultora (gerados pela função de verdade).
+    expect(vermelhasNoHistorico(linhaDoHistorico(de, para, 1, 'fala', 1))).toBe(1);
+    expect(vermelhasNoHistorico(linhaDoHistorico(de, para, 2, 'fala', 1, { de: 'Giovanna', para: 'Nilce' }))).toBe(1);
+    // Formato de 29/09 e 01/10 (69ee0909, 8b8e28b9) com o teto antigo no denominador.
+    expect(vermelhasNoHistorico('[30/09 · 10:00 · Sistema] 🔁 Remarcação automática 1/2: não atendeu em qua 30/09 · 10:15 e voltou pra qui 01/10 · 10:15, com o mesmo consultor.')).toBe(1);
+    // Esquecido e negociação não contam.
+    expect(vermelhasNoHistorico(linhaDoHistorico(de, para, 2, 'esquecido', 1))).toBe(0);
+    expect(vermelhasNoHistorico(linhaDoHistorico(de, para, 3, 'negocia', 2))).toBe(0);
+    expect(vermelhasNoHistorico(silenciosas)).toBe(0);
+    // Misturado: três do vermelho no meio de silenciosas e de texto livre.
+    const misto = [
+      linhaDoHistorico(de, para, 1, 'fala', 1),
+      linhaDoHistorico(de, para, 2, 'esquecido', 1),
+      'Cliente pediu pra ligar de tarde. Remarcação automática foi boa.',
+      linhaDoHistorico(de, para, 2, 'fala', 1, { de: 'Nilce', para: 'Giovanna' }),
+      linhaDoHistorico(de, para, 4, 'negocia', 3),
+      linhaDoHistorico(de, para, 3, 'fala', 1),
+    ].join('\n\n');
+    expect(vermelhasNoHistorico(misto)).toBe(3);
+    // Entradas vazias.
+    expect(vermelhasNoHistorico(null)).toBe(0);
+    expect(vermelhasNoHistorico(undefined)).toBe(0);
+    expect(vermelhasNoHistorico('')).toBe(0);
   });
 });

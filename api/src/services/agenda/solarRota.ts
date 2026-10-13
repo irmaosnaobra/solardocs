@@ -74,7 +74,9 @@ export const MARCA_QUIZ = 'LP SOLAR QUIZ';
 
 export const SOCIOS_VISITA = ['Thiago', 'Diego'] as const;
 export type Socio = typeof SOCIOS_VISITA[number];
-/** Carteira que não circula (dono_fixo). Cliente delas fica com elas. */
+/** Carteira que não circula pelo repasse de 12h do banco (dono_fixo): cliente
+ *  delas nunca vai pra sócio. Entre as DUAS ele circula desde 13/10/2026: quem
+ *  marca NÃO ATENDEU entrega o card pra outra (`parceiraDaLigacao`). */
 export const DONAS_LIGACAO = ['Nilce', 'Giovanna'] as const;
 
 /** De onde cada sócio sai para a visita. */
@@ -122,6 +124,15 @@ export const GRADE_FOLLOWUP_LIGACAO: readonly string[] = Object.freeze(gradeDeTr
 /** Quem segue as duas faixas. */
 export const DONAS_DUAS_FAIXAS: readonly string[] = ['Nilce', 'Giovanna'];
 export const temDuasFaixas = (dono: unknown): boolean => DONAS_DUAS_FAIXAS.includes(String(dono ?? '').trim());
+/** A outra das duas (13/10/2026): Giovanna devolve Nilce e Nilce devolve Giovanna.
+ *  Quem não é uma das duas (sócio, nome solto, vazio) não tem parceira: `null`.
+ *  Lê da MESMA lista e com a MESMA normalização de `temDuasFaixas`, pra uma
+ *  terceira consultora entrar num lugar só. */
+export const parceiraDaLigacao = (dono: unknown): string | null => {
+  const nome = String(dono ?? '').trim();
+  if (DONAS_DUAS_FAIXAS.length !== 2 || !DONAS_DUAS_FAIXAS.includes(nome)) return null;
+  return DONAS_DUAS_FAIXAS.find(d => d !== nome) ?? null;
+};
 /** Ligação marcada pelo cliente: a faixa de cliente novo. */
 export const GRADE_LIGACAO = GRADE_NOVO_LIGACAO;
 /** Manhã de rota: terça a sexta. A segunda tem eletroposto às 10:00. */

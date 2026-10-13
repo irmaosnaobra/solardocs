@@ -419,7 +419,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['avisos', () => runAvisosTick()],                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
       ['vacuo', () => runSentinelaVacuo()],             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
       ['lembrete_followup', () => runLembreteFollowupTick()],       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
-      ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda do mesmo consultor, 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
+      ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda no outro dia; card da Giovanna ou da Nilce vai pra OUTRA (SOLAR_NAO_ATENDEU_TROCA_OFF desfaz), o resto fica com o mesmo consultor. 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
     ];
     const assentados = await Promise.allSettled(TAREFAS.map(([, roda]) => roda()));
     // A resposta é montada PELO NOME que está ao lado da chamada, não pela
@@ -1257,11 +1257,13 @@ router.get('/lembrete-followup', async (req: Request, res: Response) => {
   }
 });
 
-// Solar: quem NÃO ATENDEU volta pra agenda do mesmo consultor, sozinho. Não
-// escreve pro cliente — quem avisa é a régua das 7h do solarAgendaGiovanna, e
-// este módulo só limpa os carimbos que a calariam. 1 card por tick, rampa de 10
-// por dia, 2 voltas por card. ?dry=1 mostra de quando pra quando, sem gravar.
-// Kill-switch: SOLAR_REAGENDA_OFF=1.
+// Solar: quem NÃO ATENDEU volta pra agenda no outro dia, sozinho; card da
+// Giovanna ou da Nilce vai pra OUTRA (SOLAR_NAO_ATENDEU_TROCA_OFF=1 desfaz), o
+// resto fica com o mesmo consultor. Não escreve pro cliente — quem avisa é a
+// régua das 7h do solarAgendaGiovanna, e este módulo só limpa os carimbos que a
+// calariam. 1 card por tick, rampa de 10 por dia, teto de 3 voltas do VERMELHO
+// por card (as voltas silenciosas do esquecido e da negociação não contam).
+// ?dry=1 mostra de quando pra quando, sem gravar. Kill-switch: SOLAR_REAGENDA_OFF=1.
 router.get('/reagenda-solar', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
