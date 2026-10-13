@@ -21,7 +21,7 @@
         vp0.setAttribute('content', c0 || 'width=device-width, initial-scale=1');
       }
     }
-    var PADRAO = 'antigo';
+    var PADRAO = 'novo';
     var v = null;
     try { v = localStorage.getItem('gerador-visual'); } catch (e) {}
     if (!v) v = PADRAO;
