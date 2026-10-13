@@ -13,7 +13,23 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Propostas">
 <meta name="mobile-web-app-capable" content="yes">
+<script>
+/* Cliente com link (?p= e sem consultor gravado no aparelho): marca o <html> antes da primeira
+   pintura, para o formulário do vendedor nunca aparecer, nem por um quadro. Mesma regra do
+   ehVendedor() mais abaixo. */
+try {
+  var _p = new URLSearchParams(location.search).get('p'), _vend = false;
+  /* Armazenamento bloqueado ou corrompido (navegador dentro do WhatsApp e do Instagram) conta como
+     cliente, igual ao ehVendedor(): os dois têm que cair sempre do mesmo lado. */
+  try {
+    var _pf = localStorage.getItem('irmaos-na-obra-prefs-v1');
+    if (_pf) { var _o = JSON.parse(_pf); _vend = !!(_o.consultor && _o.consultor.trim().length > 0); }
+  } catch (e) { _vend = false; }
+  if (_p && !_vend) document.documentElement.classList.add('link-cliente');
+} catch (e) {}
+</script>
 <style>
+html.link-cliente #formSection { display: none; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: Arial, sans-serif;
@@ -699,6 +715,21 @@
     font-family: inherit;
   }
   .btn-pdf:hover { opacity: .92; }
+  /* Tela de erro do link do cliente (#erroSection). Só aparece quando a busca falha. */
+  .btn-tentar {
+    width: 100%;
+    margin-top: 18px;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #0d2d5e;
+    background: #f5c518;
+    font-family: inherit;
+  }
+  .btn-tentar:disabled { opacity: .6; cursor: default; }
   .exp-btn-wpp {
     display: inline-block;
     margin-top: 8px;
@@ -1189,6 +1220,29 @@
     </div>
   </div>
 
+  <!-- ============= TELA 3B: NÃO FOI POSSÍVEL ABRIR (link do cliente com falha) ============= -->
+  <div id="erroSection" style="display:none;">
+    <div class="prop-header">
+      <div class="prop-header-titulo">
+        <img class="logo-img" id="erro-logo" alt="">
+        <div>
+          <h1 id="erro-h1">Não foi possível abrir</h1>
+          <div class="sub" id="erro-sub">A proposta não carregou agora</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p id="erro-p1" style="margin: 10px 0; color: #555; font-size: 15px; line-height: 1.5;">
+        Não foi possível abrir a proposta agora. Confira a sua internet e tente de novo.
+      </p>
+      <p id="erro-p2" style="margin: 10px 0; color: #555; font-size: 15px; line-height: 1.5;">
+        Se continuar assim, fale com o consultor que enviou este link.
+      </p>
+      <button type="button" class="btn-tentar" id="btn-tentar" onclick="tentarDeNovo()">Tentar de novo</button>
+    </div>
+  </div>
+
   <!-- ============= TELA 4: HISTÓRICO ============= -->
   <div id="historicoSection" style="display:none;">
     <div class="header">
@@ -1419,10 +1473,16 @@ async function supaInsert(table, body) {
   return r.json();
 }
 
-async function supaGet(query) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, { headers: supaHeaders() });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
+async function supaGet(query, limiteMs) {
+  // limiteMs (opcional): sem resposta nesse tempo, a busca falha em vez de ficar pendurada para sempre.
+  const ctl = limiteMs ? new AbortController() : null;
+  const t = ctl ? setTimeout(() => ctl.abort(), limiteMs) : null;
+  // O limite cobre também a leitura do corpo: resposta que começa e trava não pode deixar a tela pendurada.
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, { headers: supaHeaders(), signal: ctl ? ctl.signal : undefined });
+    if (!r.ok) throw new Error(await r.text());
+    return await r.json();
+  } finally { if (t) clearTimeout(t); }
 }
 
 async function supaRpc(fn, args) {
@@ -1822,6 +1882,7 @@ function renderProposta(d, viaLink) {
   document.getElementById('btn-nova').style.display = viaLink ? 'none' : '';
 
   // Trocar telas
+  esconderErroDeLink();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('propostaSection').style.display = '';
 }
@@ -1922,7 +1983,70 @@ function ehVendedor() {
   } catch { return false; }
 }
 
-async function carregarDeURL() {
+// O cliente pode dar zoom. A trava (maximum-scale=1) fica só na visão do vendedor,
+// onde os campos do formulário têm menos de 16 px e o iPhone daria zoom a cada toque.
+function liberarZoomDoCliente() {
+  const m = document.querySelector('meta[name="viewport"]');
+  if (m) m.setAttribute('content', 'width=device-width, initial-scale=1');
+}
+
+function esconderErroDeLink() {
+  const e = document.getElementById('erroSection');
+  if (e) e.style.display = 'none';
+}
+
+// Um só quadro para três avisos do link do cliente, no molde da tela de expirada:
+//   'carregando'  enquanto a proposta é buscada (o formulário do vendedor nunca aparece)
+//   'rede'        a busca falhou (internet ou servidor): tem "Tentar de novo"
+//   'link'        o problema é o link (inválido, não encontrado, dado que não abre): sem botão,
+//                 porque tentar de novo não resolve
+const AVISOS_DE_LINK = {
+  carregando: ['Abrindo a sua proposta', 'Um instante', 'Estamos carregando a sua proposta.', '', false],
+  rede: ['Não foi possível abrir', 'A proposta não carregou agora',
+    'Não foi possível abrir a proposta agora. Confira a sua internet e tente de novo.',
+    'Se continuar assim, fale com o consultor que enviou este link.', true],
+  link: ['Este link não abriu', 'Não foi possível abrir esta proposta',
+    'Não foi possível abrir esta proposta por este link. Confira se o link está completo.',
+    'Se continuar assim, fale com o consultor que enviou este link.', false],
+};
+
+function mostrarAvisoDeLink(modo) {
+  const [h1, sub, p1, p2, comBotao] = AVISOS_DE_LINK[modo];
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('propostaSection').style.display = 'none';
+  document.getElementById('expiradoSection').style.display = 'none';
+  document.getElementById('historicoSection').style.display = 'none';
+  // A logo já está na tela de expirada: copia dali para não duplicar o base64.
+  const logo = document.getElementById('erro-logo');
+  const orig = document.querySelector('#expiradoSection .logo-img');
+  if (logo && orig && !logo.getAttribute('src')) logo.setAttribute('src', orig.getAttribute('src'));
+  document.getElementById('erro-h1').textContent = h1;
+  document.getElementById('erro-sub').textContent = sub;
+  document.getElementById('erro-p1').textContent = p1;
+  const e2 = document.getElementById('erro-p2');
+  e2.textContent = p2; e2.style.display = p2 ? '' : 'none';
+  document.getElementById('erroSection').style.display = '';
+  const b = document.getElementById('btn-tentar');
+  if (b) { b.style.display = comBotao ? '' : 'none'; b.disabled = false; b.textContent = 'Tentar de novo'; }
+}
+
+// A abertura do cliente é contada UMA vez por carregamento da página, e só depois que a
+// proposta abriu (ou foi mostrada como vencida). "Tentar de novo" não conta de novo.
+let acessoRegistrado = false;
+function registrarAcessoUmaVez(codigo) {
+  if (acessoRegistrado) return;
+  acessoRegistrado = true;
+  supaRpc('registrar_acesso', { p_codigo: codigo }).catch(e => console.error(e));
+}
+
+async function tentarDeNovo() {
+  const b = document.getElementById('btn-tentar');
+  if (b) { b.disabled = true; b.textContent = 'Tentando...'; }
+  await carregarDeURL(true);
+}
+
+async function carregarDeURL(retentativa) {
+  let cliente = false;
   try {
     const url = new URL(window.location.href);
     const p = url.searchParams.get('p');
@@ -1930,12 +2054,23 @@ async function carregarDeURL() {
 
     let d, dataEmissao, codigoSupabase = null;
     const vendedor = ehVendedor();
+    cliente = !vendedor;
+    if (cliente) {
+      liberarZoomDoCliente();
+      // O formulário do vendedor nunca aparece para o cliente, nem enquanto a proposta carrega.
+      // Na nova tentativa a tela de erro segue de pé até a resposta chegar.
+      if (!retentativa) mostrarAvisoDeLink('carregando');
+    }
 
     if (/^\d{6,12}$/.test(p)) {
       // Código curto — busca no Supabase
-      const arr = await supaGet(`propostas?codigo=eq.${encodeURIComponent(p)}&select=*&limit=1`);
+      // Limite só para o cliente (que ganha a tela de erro com "Tentar de novo"). O vendedor em rede lenta
+      // continua esperando a proposta abrir, como sempre foi.
+      const arr = await supaGet(`propostas?codigo=eq.${encodeURIComponent(p)}&select=*&limit=1`, cliente ? 15000 : 0);
       if (!arr || arr.length === 0) {
+        if (cliente) { mostrarAvisoDeLink('link'); return; }
         document.getElementById('formSection').style.display = 'none';
+        esconderErroDeLink();
         const exp = document.getElementById('expiradoSection');
         exp.style.display = '';
         document.getElementById('exp-nome').textContent = 'cliente';
@@ -1951,15 +2086,17 @@ async function carregarDeURL() {
       codigoSupabase = row.codigo;
       dataEmissao = new Date(row.created_at);
 
-      // Registrar acesso APENAS se for cliente (não inflar contador com vendedor revisitando)
-      if (!vendedor) {
-        supaRpc('registrar_acesso', { p_codigo: p }).catch(e => console.error(e));
-      }
+      // O acesso do cliente é registrado mais abaixo, uma vez só (registrarAcessoUmaVez).
     } else {
       // Legado: base64 (links antigos sem banco)
-      const json = decodeURIComponent(escape(atob(decodeURIComponent(p))));
-      d = JSON.parse(json);
-      if (!d.nome || !d.item || !d.tab) return;
+      try {
+        const json = decodeURIComponent(escape(atob(decodeURIComponent(p))));
+        d = JSON.parse(json);
+      } catch (e) {
+        if (cliente) { console.error('Link com parâmetro inválido:', e); mostrarAvisoDeLink('link'); return; }
+        throw e;
+      }
+      if (!d.nome || !d.item || !d.tab) { if (cliente) mostrarAvisoDeLink('link'); return; }
       dataEmissao = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
     }
 
@@ -1967,18 +2104,30 @@ async function carregarDeURL() {
     const diasPassados = (new Date() - dataEmissao) / (1000 * 60 * 60 * 24);
     if (diasPassados > 7 && !vendedor) {
       mostrarExpirado(d);
+      if (cliente && codigoSupabase) registrarAcessoUmaVez(p);
       return;
     }
 
     dadosAtual = d;
     // viaLink = true (esconde botões) só pro cliente. Vendedor vê tudo.
-    renderProposta(d, !vendedor);
+    try {
+      renderProposta(d, !vendedor);
+    } catch (e) {
+      // Dado que não monta: tentar de novo não resolve, e a abertura não conta.
+      if (cliente) { console.error('Erro ao montar a proposta:', e); mostrarAvisoDeLink('link'); return; }
+      throw e;
+    }
+    // Registrar acesso APENAS se for cliente (não inflar contador com vendedor revisitando)
+    if (cliente && codigoSupabase) registrarAcessoUmaVez(p);
   } catch (e) {
     console.error('Erro ao carregar proposta da URL:', e);
+    // Cliente com link que falhou (internet ou servidor) não pode ficar olhando o formulário do vendedor.
+    if (cliente) mostrarAvisoDeLink('rede');
   }
 }
 
 function mostrarExpirado(d) {
+  esconderErroDeLink();
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('propostaSection').style.display = 'none';
   const exp = document.getElementById('expiradoSection');
@@ -1996,7 +2145,7 @@ function mostrarExpirado(d) {
   }
 }
 
-window.addEventListener('DOMContentLoaded', carregarDeURL);
+window.addEventListener('DOMContentLoaded', () => carregarDeURL());
 
 // ============= HISTÓRICO =============
 function formatDataBR(iso) {

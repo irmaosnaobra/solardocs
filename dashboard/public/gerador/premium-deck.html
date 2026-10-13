@@ -604,10 +604,28 @@ function barra(D) {
   }
 }
 
-const aviso = (cor, titulo, texto) =>
-  '<div style="color:' + cor + ';font-family:Montserrat,sans-serif;padding:60px;max-width:760px">'
-  + '<div style="font-size:30px;font-weight:800;margin-bottom:14px">' + esc(titulo) + '</div>'
-  + '<div style="font-size:19px;line-height:1.5;color:#8CA0B8">' + esc(texto) + '</div></div>';
+/** No celular o preço grande de 6 ou 7 dígitos é mais largo que a folha de 1080.
+ *  Mede o número e grava em --fit (0 a 1) o quanto ele precisa encolher para caber
+ *  numa linha só. Quando cabe, não grava nada e o tamanho é o de sempre. O CSS que
+ *  usa --fit mora em @media screen (modo celular): o papel nunca lê isto. */
+function ajustaPrecos() {
+  document.querySelectorAll('.capa-num, .num-grande').forEach(el => {
+    el.style.removeProperty('--fit');
+    const no = Array.prototype.find.call(el.childNodes, n => n.nodeType === 3 && n.nodeValue.trim());
+    if (!no) return;
+    const r = document.createRange();
+    r.selectNodeContents(no);
+    const texto = r.getBoundingClientRect().width, caixa = el.getBoundingClientRect().width;
+    if (texto > 0 && caixa > 0 && texto > caixa) el.style.setProperty('--fit', String(Math.floor(caixa / texto * 1000) / 1000));
+  });
+}
+
+const aviso = (cor, titulo, texto, comBotao) =>
+  '<div class="aviso-box" style="color:' + cor + ';font-family:Montserrat,sans-serif;padding:60px;max-width:760px">'
+  + '<div class="aviso-t" style="font-size:30px;font-weight:800;margin-bottom:14px">' + esc(titulo) + '</div>'
+  + '<div class="aviso-p" style="font-size:19px;line-height:1.5;color:#8CA0B8">' + esc(texto) + '</div>'
+  + (comBotao ? '<button type="button" class="aviso-tenta" onclick="location.reload()">Tentar de novo</button>' : '')
+  + '</div>';
 
 // ── render ─────────────────────────────────────────────────────────────────
 (async function () {
@@ -624,7 +642,7 @@ const aviso = (cor, titulo, texto) =>
   }
   if (estado === 'erro') {
     alvo.innerHTML = aviso('#F05252', 'Não consegui abrir agora',
-      'Tente de novo em instantes. Se continuar, chame o seu consultor.'); return;
+      'Tente de novo em instantes. Se continuar, chame o seu consultor.', true); return;
   }
   if (estado !== 'ok' || !dados) {
     alvo.innerHTML = aviso('#E5E7EB', 'Sem dados', 'Abra pelo Gerador.'); return;
@@ -638,6 +656,11 @@ const aviso = (cor, titulo, texto) =>
   try {
     alvo.innerHTML = montar(D);
     barra(D);
+    try { ajustaPrecos(); } catch (e) {} /* acabamento: erro aqui nunca derruba o deck */
+    // A fonte do Google chega depois: a medida só vale com ela carregada. Redimensionar
+    // pode ligar ou desligar o modo celular, que muda o tamanho do número.
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustaPrecos);
+    window.addEventListener('resize', ajustaPrecos);
   } catch (e) {
     alvo.innerHTML = aviso('#F05252', 'Não dá para emitir este orçamento', e.message);
     window.__PREMIUM_ERRO = e.message;

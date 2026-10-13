@@ -563,7 +563,10 @@ ul.lista.azul li::before{background:var(--azul)}
     margin:64px 64px 0 78px;border-radius:40px;padding:48px}
   .movel .vitrine img{max-height:100%}
   .movel .capa .wrap{padding:72px 64px 64px !important}
-  .movel .capa-num{font-size:196px;white-space:normal}
+  /* O preço não quebra em "R$" e número em duas linhas. --fit (0 a 1) vem do script
+     do HTML (ajustaPrecos) e só existe quando o número não cabe na folha de 1080:
+     sem ele o tamanho é o de sempre. */
+  .movel .capa-num{font-size:calc(196px * var(--fit,1));white-space:nowrap}
   .movel .capa-un{display:block;font-size:64px;margin:18px 0 0}
   .movel .selos{gap:20px;margin-top:52px;max-width:none}
   .movel .selos span{font-size:40px;padding:18px 32px}
@@ -608,8 +611,7 @@ ul.lista.azul li::before{background:var(--azul)}
   /* 05 · a rampa · 08 · o patrimônio */
   .movel .meio{grid-template-columns:1fr;gap:80px;margin-top:56px;flex:0 0 auto}
   .movel .meio > *{min-width:0}
-  .movel .num-grande{font-size:150px;margin-top:56px}
-  .movel .num-medio{font-size:84px;margin-top:44px}
+  .movel .num-grande{font-size:calc(150px * var(--fit,1));margin-top:56px;white-space:nowrap}  .movel .num-medio{font-size:84px;margin-top:44px}
   .movel .num-rot{font-size:40px;max-width:none;margin-top:14px}
   .movel .rampa{height:560px;gap:10px;margin-top:48px}
   .movel .rampa .patamar span{font-size:38px;top:-54px}
@@ -722,6 +724,22 @@ ul.lista.azul li::before{background:var(--azul)}
    verde, tira da fábrica) continua embaixo, porque é ancorado na folha.
    ══════════════════════════════════════════════════════════════════════════ */
 @page{size:A4 landscape;margin:0}
+
+/* Botão "Tentar de novo" da tela de erro (só na tela; no papel essa tela não existe). */
+@media screen{
+  .aviso-tenta{display:inline-block;margin-top:30px;font-family:inherit;font-size:17px;
+    font-weight:800;color:#0B1A2B;background:var(--verde);border:0;border-radius:999px;
+    padding:15px 30px;cursor:pointer}
+  .aviso-tenta:hover{filter:brightness(1.08)}
+  /* No celular o #deck encolhe pelo zoom (~0,33): o botão cresce na mesma medida. */
+  /* O texto da tela de erro vem com tamanho inline (30 e 19 px) e o #deck encolhe pelo zoom
+     --esc: no celular ficava com 10 e 6 px. Aqui o tamanho é pedido em px DE TELA (título 18,
+     frase 15) e dividido pelo zoom. !important porque o inline vence qualquer regra. */
+  .movel .aviso-box{max-width:none !important;width:100%;box-sizing:border-box;padding:calc(24px / var(--esc,.35)) !important}
+  .movel .aviso-t{font-size:calc(18px / var(--esc,.35)) !important;margin-bottom:calc(8px / var(--esc,.35)) !important}
+  .movel .aviso-p{font-size:calc(15px / var(--esc,.35)) !important}
+  .movel .aviso-tenta{font-size:calc(16px / var(--esc,.35));padding:calc(12px / var(--esc,.35)) calc(26px / var(--esc,.35));margin-top:calc(22px / var(--esc,.35))}
+}
 
 @media print{
   html,body{background:#0B1A2B;padding:0;margin:0;width:auto}
