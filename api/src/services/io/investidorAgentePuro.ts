@@ -1487,12 +1487,122 @@ export function juntarDados(antes: DadosDaConversa | undefined, agora: DadosDaCo
   return out;
 }
 
+// ── NÚMERO NA FALA DA HELENA (13/10/2026) ───────────────────────────────────
+// Até aqui só a instrução do modelo dizia "não fale número", e frase como "sai por
+// R$ 180 mil", "80 kW e 45 dias" ou "15 recargas por dia" passava pela trava. Agora
+// é código: valor em reais, potência, prazo e volume de recarga barram, com o mesmo
+// tratamento das outras regras (uma reescrita, depois `humano`).
+//
+// A única exceção de valor é o que a PRÓPRIA PESSOA disse: o que ela declarou no
+// formulário e o que escreveu na conversa. Ecoar o valor dela ("nos seus R$ 140 mil")
+// é ler o contexto; inventar outro é a Helena prometendo número.
+
+/** Um número como a pessoa escreve: 140, 1,5, 140.000, 1.500,50. */
+const NUM = String.raw`\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?`;
+
+/** "140.000" e "1.500,50" são milhar com ponto; "1,5" e "1.5" são decimal. */
+function lerNumero(txt: string): number {
+  const milhar = /^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(txt);
+  const limpo = milhar ? txt.replace(/\./g, '').replace(',', '.') : txt.replace(',', '.');
+  return Number(limpo);
+}
+
+function multiplicador(sufixo: string | undefined): number {
+  if (!sufixo) return 1;
+  if (sufixo === 'mil' || sufixo === 'k') return 1_000;
+  if (/^milh/.test(sufixo)) return 1_000_000;
+  return 1;   // "reais"
+}
+
+/**
+ * Os valores em reais citados num texto, já em reais (140 mil = R$ 140 mil = 140000).
+ * `soComMoeda: true` é a leitura ESTREITA da fala da Helena: só `R$ n` ou `n` seguido de
+ * "mil reais", "reais", "milhão" ou "milhões". Sem ela (leitura LARGA, do que a pessoa
+ * escreveu) "140 mil", "140k" e "300000" também contam, porque quem escreve não usa
+ * sempre a moeda. Texto sem acento e em minúsculo, como o resto da trava.
+ */
+export function valoresEmReais(textoSemAcento: string, soComMoeda: boolean): number[] {
+  const t = textoSemAcento;
+  const achados: number[] = [];
+  // R$ 140 mil, R$ 1,5 milhao, R$ 140.000,00, R$140
+  const comCifrao = new RegExp(String.raw`r\$\s*(` + NUM + String.raw`)(?:\s*(mil|k|milhoes|milhao)\b)?`, 'g');
+  for (const m of t.matchAll(comCifrao)) achados.push(lerNumero(m[1]!) * multiplicador(m[2]));
+  // 140 mil reais, 80 reais, 1,5 milhao, 2 milhoes
+  const comPalavra = new RegExp(String.raw`(?<![\d.,])(` + NUM + String.raw`)\s*(mil\s+reais|reais|milhoes|milhao)\b`, 'g');
+  for (const m of t.matchAll(comPalavra)) {
+    const suf = m[2]!.startsWith('mil ') ? 'mil' : m[2];
+    achados.push(lerNumero(m[1]!) * multiplicador(suf));
+  }
+  // "180 mil" sem o R$: na fala da Helena (estreita) também é valor; "140k" e o número
+  // cru de seis algarismos (300000) só contam na leitura larga, do que a pessoa escreve.
+  const sufixoMil = soComMoeda ? 'mil' : 'mil|k';
+  const mil = new RegExp(String.raw`(?<![\d.,])(` + NUM + String.raw`)\s*(` + sufixoMil + String.raw`)\b`, 'g');
+  for (const m of t.matchAll(mil)) achados.push(lerNumero(m[1]!) * 1_000);
+  if (!soComMoeda) {
+    for (const m of t.matchAll(/(?<![\d.,])(\d{6,})(?![\d.,])/g)) achados.push(Number(m[1]));
+  }
+  // Sem repetição: "R$ 140 mil" é pego pelo cifrão e pelo "mil", e é um valor só.
+  return [...new Set(achados.filter(n => Number.isFinite(n) && n > 0))];
+}
+
+/**
+ * Os valores em reais que a Helena PODE repetir: o que a pessoa declarou no cadastro
+ * (o valor da sessão, o confirmado na conversa, as linhas do formulário) e tudo que
+ * ela mesma escreveu. A fala da própria Helena e as contas do simulador NÃO entram.
+ */
+export function valoresLiberados(
+  ctx: Pick<ContextoHelena, 'valorTxt' | 'dados' | 'formulario'>,
+  historico: readonly MsgDaConversa[], novas: readonly MsgDaConversa[],
+): number[] {
+  const textos: string[] = [
+    ctx.valorTxt, ctx.dados?.valor_confirmado ?? '',
+    ...fatosDoFormulario(ctx.formulario),
+    ...[...historico, ...novas].filter(m => m.from_me === false).map(m => m.texto ?? ''),
+  ];
+  return textos.flatMap(x => valoresEmReais(semAcento(x), false));
+}
+
+/** Achou número com unidade de potência, prazo ou volume de recarga na fala? Devolve o motivo. */
+function numeroProibido(t: string): string | null {
+  // Potência: "80 kW", "7,4 kWh". A palavra "kWh" sem número segue liberada.
+  const potencia = /\d\s*kwh?\b/.exec(t);
+  if (potencia) return `citou potência ("${potencia[0].trim()}")`;
+  // Prazo: só dia, semana, mês e ano contam, e só quando é promessa de prazo.
+  //  · "em <n> dias/semanas/meses/anos" sempre barra ("fica pronto em 45 dias");
+  //  · "<n> dias..." solto barra se, a até 40 caracteres, há palavra de prazo, obra,
+  //    instalação, entrega, homologação, "pronto", "paga" ou "retorno" ("a obra leva uns 2 meses");
+  //  · tempo que já passou ou conversa não barra: "faz 2 semanas", "há 1 mês", "nos
+  //    últimos/próximos 2 dias", "daqui a 3 dias". Data ("13/10"), hora ("10:00", "24h")
+  //    e "30 minutos" não têm essa unidade e seguem livres.
+  const emPrazo = /\bem\s+\d+\s+(?:dias?|semanas?|mes|meses|anos?)\b/.exec(t);
+  if (emPrazo) return `citou prazo ("${emPrazo[0]}")`;
+  for (const m of t.matchAll(/(?<![\d/:.,])\d+\s+(?:dias?|semanas?|mes|meses|anos?)\b/g)) {
+    const i = m.index ?? 0;
+    const antes = t.slice(Math.max(0, i - 20), i);
+    if (/(?:\bfaz|\bha|nos ultimos|nos proximos|daqui a)\s*$/.test(antes)) continue;
+    const janela = t.slice(Math.max(0, i - 40), i + m[0].length + 40);
+    if (/\b(?:prazo|obras?|instala\w*|entrega\w*|homologa\w*|pront[oa]s?|paga|retorno)\b/.test(janela)) {
+      return `citou prazo ("${m[0]}")`;
+    }
+  }
+  // Volume de recarga: "<n> recarga(s)" (número colado, com até um adjetivo no meio) e
+  // "recarga(s) por dia/mês/semana/hora". Dígito solto perto da palavra NÃO barra:
+  // "24h ... mapas de recarga" e "terça 13/10 às 10:00 ... a recarga" são conversa.
+  const volume = /(?<![\d/:.,])\d+(?:\s+[a-z]{4,})?\s+recargas?\b/.exec(t)
+    ?? /\brecargas?\s+por\s+(?:dia|mes|semana|hora)\b/.exec(t);
+  if (volume) return `citou volume de recargas ("${volume[0]}")`;
+  return null;
+}
+
 /**
  * A resposta quebra uma regra que não pode quebrar nunca? Regra que precisa
  * valer 100% das vezes é código, não pedido: se o modelo escrever "cota", link
  * ou percentual, a mensagem não sai e a conversa vai para o consultor.
+ *
+ * @param valoresDaPessoa os valores em reais (já em reais) que a PRÓPRIA pessoa disse;
+ *   só eles podem aparecer na fala. Sem a lista, nenhum valor em reais passa.
  */
-export function violaRegras(bolhas: readonly string[]): string | null {
+export function violaRegras(bolhas: readonly string[], valoresDaPessoa: readonly number[] = []): string | null {
   // Sem acento e em minúsculo: "Rentável", "RENTAVEL" e "rentável" são a mesma
   // palavra, e depois disso o \b do JavaScript volta a funcionar ("cotação" vira
   // "cotacao", que não é "cota").
@@ -1519,7 +1629,11 @@ export function violaRegras(bolhas: readonly string[]): string | null {
   // Domínio solto, sem http: "solardoc.app/x", "wa.me/55...", "site.com.br".
   const dominio = /\b[a-z0-9][a-z0-9-]*\.(?:com|app|br|net|me|io|org)\b/.exec(t);
   if (dominio) return `colocou endereço de site (${dominio[0]})`;
-  return null;
+  // Valor em reais que a pessoa não disse. Compara pelo número: 140 mil = 140.000.
+  const liberados = new Set(valoresDaPessoa.map(v => Math.round(v)));
+  const inventado = valoresEmReais(t, true).find(v => !liberados.has(Math.round(v)));
+  if (inventado !== undefined) return `citou valor em reais que a pessoa não disse (R$ ${inventado.toLocaleString('pt-BR')})`;
+  return numeroProibido(t);
 }
 
 /** O recado que volta para o modelo quando a resposta dele foi barrada: UMA
@@ -1530,6 +1644,6 @@ export function pedidoDeReescrita(pedido: string, quebra: string, bolhas: readon
     '',
     'ATENÇÃO: a resposta que você escreveu foi barrada e NÃO foi enviada. Motivo: ' + quebra + '.',
     'O que você tinha escrito: ' + bolhas.join(' / '),
-    'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site: para esses assuntos diga "os números" e que o consultor mostra na reunião. Não diga como a reunião acontece: diga só "reunião" ou "conversa com o consultor", e que ele combina os detalhes pelo WhatsApp dele.',
+    'Reescreva a resposta sem isso. Não fale de rendimento, prazo, percentual nem site, e não escreva número que a pessoa não disse (valor em reais, potência em kW, prazo em dias ou meses, quantidade de recargas): para esses assuntos diga "os números" e que o consultor mostra na reunião. Não diga como a reunião acontece: diga só "reunião" ou "conversa com o consultor", e que ele combina os detalhes pelo WhatsApp dele.',
   ].join('\n');
 }

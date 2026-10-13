@@ -1705,6 +1705,7 @@ let esperasCache = {};                       // { '<id>': { retomar_em, aguardan
 // TELA lê. O card passa a mostrar as duas: "ARRENDAMENTO · SEM INTERESSE".
 let etiquetasCache = {};                     // { '<id>': 'arrendamento' }
 let motivosCache = {};                       // { '<id>': 'preco' } — o motivo do não
+let tiposCache = {};                         // { '<id>': 'cotista' } — o tipo com que o card nasceu; nunca apagado
 // As CHAVES bloqueadas (DDD + 8 ultimos), nao os ids: o bloqueio e por TELEFONE,
 // entao uma ficha NOVA do mesmo numero tambem nasce marcada aqui.
 let bloqueadosCache = new Set();
@@ -1961,6 +1962,7 @@ async function carregarEsperas() {
     esperasCache = (j && j.esperas) || {};
     etiquetasCache = (j && j.etiquetas) || {};
     motivosCache = (j && j.motivos) || {};
+    tiposCache = (j && j.tipos) || {};
     // A lista dos bloqueados vem em separado: ela e por telefone e nao depende
     // dos ids desta semana.
     try {
@@ -1973,6 +1975,7 @@ async function carregarEsperas() {
     esperasCache = {};
     etiquetasCache = {};
     motivosCache = {};
+    tiposCache = {};
   }
 }
 
@@ -2020,6 +2023,27 @@ function pillEtiquetaGuardada(ag) {
   if (et === String(ag.status || '')) return '';
   const r = ETIQUETA_STATUS[et];
   return r ? `<span class="tag-modelo">${r[0]}</span>` : '';
+}
+
+/** 13/10/2026: o TIPO com que o card nasceu (`tipo_card:<id>`, gravado pela LP e pela
+ *  Helena, nunca apagado). A etiqueta guardada some quando o consultor move o card
+ *  para um status de negócio, e o card deixava de dizer COTISTA ou INTEGRADOR. Mesmo
+ *  rótulo e mesma classe da etiqueta guardada; some quando daria texto igual ao da
+ *  etiqueta guardada que já está desenhada ou ao do status de agora. */
+function pillTipoDoCard(ag) {
+  if (!ag) return '';
+  const id = String(ag.id);
+  const tipo = tiposCache[id];
+  const r = tipo ? ETIQUETA_STATUS[tipo] : null;
+  if (!r) return '';
+  const st = ETIQUETA_STATUS[ag.status || 'agendado'];
+  if (st && st[0] === r[0]) return '';
+  const et = etiquetasCache[id];
+  if (et && et !== String(ag.status || '')) {
+    const g = ETIQUETA_STATUS[et];
+    if (g && g[0] === r[0]) return '';
+  }
+  return `<span class="tag-modelo">${r[0]}</span>`;
 }
 
 /**
@@ -2230,7 +2254,7 @@ function pillStatus(ag, curto) {
   // nem nada: ele saiu. Mostrar "ARRENDAMENTO · SEM INTERESSE · ACHOU CARO · FORA
   // DO PADRÃO" seria contar uma historia de um cliente que nao existe mais.
   if (foraDoPadrao(ag)) return '<span class="tag-modelo tag-fora">FORA DO PADRÃO</span>';
-  return guardada + modelo + espera + pillMotivo(ag) + pillCaminhoQuiz(ag, curto);
+  return pillTipoDoCard(ag) + guardada + modelo + espera + pillMotivo(ag) + pillCaminhoQuiz(ag, curto);
 }
 
 function semRespostaDoLead(ag) {

@@ -75,6 +75,13 @@ beforeEach(() => {
     { key: 'etiqueta_card:103', value: 'isto não é json {' },
     { key: 'etiqueta_card:104', value: { etiqueta: '   ' } },
     { key: 'etiqueta_card:105', value: ['integrador'] },
+    // Tipo com que o card nasceu: sobrevive à etiqueta (a agenda apaga a etiqueta, o tipo fica).
+    { key: 'tipo_card:101', value: { tipo: 'arrendamento', em: '2026-10-13T10:00:00Z', por: 'lp' } },
+    { key: 'tipo_card:201', value: { tipo: 'cotista', em: '2026-10-13T10:00:00Z', por: 'helena' } },
+    { key: 'tipo_card:202', value: '{"tipo":"integrador"}' },
+    { key: 'tipo_card:203', value: 'isto não é json {' },
+    { key: 'tipo_card:204', value: { tipo: '  ' } },
+    { key: 'tipo_card:205', value: ['cotista'] },
   ];
 });
 
@@ -113,9 +120,29 @@ describe('GET /gerador/eletroposto/atendimento', () => {
     const res = await pedir('Bearer tk-nilce');
     expect(res.status).toBe(200);
     expect(res.body.etiquetas).toEqual({ '101': 'arrendamento', '102': 'cotista' });
-    expect(Object.keys(res.body).sort()).toEqual(['etiquetas', 'gerado_em', 'itens', 'ok']);
+    expect(Object.keys(res.body).sort()).toEqual(['etiquetas', 'gerado_em', 'itens', 'ok', 'tipos']);
     // as etiquetas não vazam para a lista de sessões, nem o contrário
     expect(res.body.itens).toHaveLength(3);
+  });
+
+  it('devolve os tipos dos cards por id (texto JSON vale; lixo, vazio e array não), separados das etiquetas', async () => {
+    const res = await pedir('Bearer tk-nilce');
+    expect(res.body.tipos).toEqual({ '101': 'arrendamento', '201': 'cotista', '202': 'integrador' });
+    // card 201 só tem tipo: a etiqueta guardada some sem levar o tipo junto
+    expect(res.body.etiquetas['201']).toBeUndefined();
+  });
+
+  it('sem nenhum tipo guardado, tipos vem como objeto vazio', async () => {
+    h.linhas = h.linhas.filter((l) => !(l as { key: string }).key.startsWith('tipo_card:'));
+    const res = await pedir('Bearer tk-nilce');
+    expect(res.status).toBe(200);
+    expect(res.body.tipos).toEqual({});
+  });
+
+  it('erro de leitura dos tipos SOBE como 500 (nunca lista vazia no lugar do erro)', async () => {
+    const { lerTiposDosCards } = await import('../services/io/investidorAtendimento');
+    h.bancoFora = true;
+    await expect(lerTiposDosCards()).rejects.toThrow(/tipos dos cards/);
   });
 
   it('sem nenhuma etiqueta guardada, etiquetas vem como objeto vazio', async () => {

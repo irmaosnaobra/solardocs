@@ -167,7 +167,7 @@ describe('POST /parceria: LeadQuente de capital', () => {
   it('manda com fbc, fbp, dados do lado e faixa, e id fixo', async () => {
     await request(app).post('/io/eletroposto/parceria').send(corpo());
     expect(doTipo('LeadQuente')[0]).toMatchObject({
-      produto: 'eletroposto', origem: 'website', eventId: `leadquente_ep_capital_${idDoTelefone('5534991114444')}`,
+      produto: 'eletroposto', origem: 'website', eventId: `leadquente_ep_${idDoTelefone('5534991114444')}`,
       pessoa: { telefone: '5534991114444', nome: 'Marta Reis' },
       navegador: { fbc: FBC, fbp: FBP },
       dados: { lado: 'capital', capital_faixa: 'R$ 140 mil' },

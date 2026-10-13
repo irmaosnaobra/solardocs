@@ -77,6 +77,12 @@ export function esperaAte(valor: unknown): number | null {
 /** A marca da etiqueta preservada: `etiqueta_card:<id>` → { etiqueta, em, por }. */
 export const ETIQUETA_PREFIX = 'etiqueta_card:';
 
+/** O TIPO com que o card nasceu: `tipo_card:<id>` → { tipo, em, por }. Diferente da
+ *  etiqueta, ninguém apaga nem regrava: a agenda limpa a etiqueta quando o consultor
+ *  move o card para um status de negócio, e o tipo (COTISTA, INTEGRADOR...) tem que
+ *  sobreviver a isso. */
+export const TIPO_CARD_PREFIX = 'tipo_card:';
+
 /** As etiquetas que vale guardar. É allowlist de propósito: a marca é escrita por
  *  uma rota pública do dashboard, e sem a lista ela viraria um campo de texto
  *  livre dentro do `system_state`. */

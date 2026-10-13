@@ -11084,7 +11084,9 @@ function cadAgendaDe(r) {
 let cadAgendasChave = new Map(); // chave (DDD + 8 últimos) -> a reunião mais recente da pessoa
 let cadAtend = new Map();        // chave (DDD + 8 últimos) -> sessão da Helena
 let cadEtiquetas = {};           // id do card -> etiqueta de negócio guardada (etiqueta_card:<id>)
+let cadTipos = {};               // id do card -> tipo com que o card nasceu (tipo_card:<id>), nunca apagado
 let cadAtendFalhou = false;      // a leitura falhou ou não havia sessão de login
+let cadAgendaFalhou = false;     // a leitura de agendamentos FALHOU (a lista Na agenda e os cards das outras ficariam vazios sem aviso)
 let cadAgendaCheia = false;      // a leitura de agendamentos chegou ao teto de 1.000 linhas (pode ter cortado reuniões antigas)
 let cadAtendPronto = false;      // a primeira leitura já terminou (bem ou mal)
 /** A mesma chave que a api usa nas sessões: DDD + 8 últimos dígitos, sem o 55. */
@@ -11172,7 +11174,9 @@ function cadSituacao(r, lado) {
 // ETIQUETAS DE NEGÓCIO DO CARD. Espelho exato de ETIQUETAS_DE_NEGOCIO em
 // api/src/services/agenda/salaDeEspera.ts: se um status destes é o do card, ele JÁ É a
 // etiqueta de negócio; nos outros (agendado, nao_atendeu…), vale a que a agenda guardou
-// em etiqueta_card:<id> (cadEtiquetas, vinda da api).
+// em etiqueta_card:<id> (cadEtiquetas, vinda da api). E por último o TIPO com que o card
+// nasceu (tipo_card:<id>, cadTipos): a agenda apaga a etiqueta guardada quando o consultor
+// move o card para um status de negócio, o tipo fica.
 const CAD_ETQ_NEGOCIO = ['arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'cotista', 'integrador',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp'];
 /** Comparar texto de pílula: sem acento, sem espaço, sem caixa ("Cotista" = "COTISTA"). */
@@ -11183,7 +11187,7 @@ function cadEtqNegocio(card) {
   if (!card) return '';
   const st = String(card.status || '');
   if (CAD_ETQ_NEGOCIO.indexOf(st) >= 0) return CAD_AG_STATUS[st] || st.toUpperCase();
-  const g = cadEtiquetas ? cadEtiquetas[card.id] : '';
+  const g = (cadEtiquetas ? cadEtiquetas[card.id] : '') || (cadTipos ? cadTipos[card.id] : '');
   return g ? (CAD_AG_STATUS[g] || String(g).toUpperCase()) : '';
 }
 /**
@@ -11322,6 +11326,7 @@ async function cadAtendBuscar() {
   const seq = ++cadAtendSeq;
   let mapa = new Map();
   let etiquetas = {};
+  let tipos = {};
   let falhou = false;
   const ctrl = new AbortController();
   let t = null;
@@ -11337,22 +11342,26 @@ async function cadAtendBuscar() {
         { headers: { 'Authorization': 'Bearer ' + tok }, signal: ctrl.signal });
       const j = await r.json().catch(() => null);
       if (!r.ok || !j || !j.ok || !Array.isArray(j.itens)) throw new Error('resposta ' + r.status);
-      // etiquetas: ausente se a tela subir antes da api; a coluna segue só com o card.
-      return { itens: j.itens, etiquetas: j.etiquetas && typeof j.etiquetas === 'object' && !Array.isArray(j.etiquetas) ? j.etiquetas : {} };
+      // etiquetas e tipos: ausentes se a tela subir antes da api; a coluna segue só com o card.
+      const obj = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+      return { itens: j.itens, etiquetas: obj(j.etiquetas), tipos: obj(j.tipos) };
     })();
     trabalho.catch(() => {});   // se o prazo vencer primeiro, o erro tardio não vira alerta
     const lido = await Promise.race([trabalho, prazo]);
     lido.itens.forEach(i => { if (i && i.chave) mapa.set(i.chave, i); });
     etiquetas = lido.etiquetas;
+    tipos = lido.tipos;
   } catch (e) {
     mapa = new Map();
     etiquetas = {};
+    tipos = {};
     falhou = true;
   }
   if (t) clearTimeout(t);
   if (seq !== cadAtendSeq) return;   // uma leitura mais nova já saiu
   cadAtend = mapa;
   cadEtiquetas = etiquetas;
+  cadTipos = tipos;
   cadAtendFalhou = falhou;
   cadAtendPronto = true;
   if (cadDados) cadRender();
@@ -11447,6 +11456,10 @@ async function cadCarregar(forcar) {
     // lugar só em vez de espalhada em dois querystrings.
     const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
       + '/io/eletroposto/parceria/pares';
+    // A leitura das reuniões que falha NÃO pode virar "não há reunião": a lista Na
+    // agenda sairia vazia e as outras listas sem card, sem aviso nenhum. Guarda a
+    // falha e o resumo das listas avisa.
+    let agendaFalhou = false;
     const [pontos, capital, integradores, fichas, pares, conexoes, agendaArr, agendaTodas] = await Promise.all([
       // 1000 e o teto de linhas da API, e o mesmo numero que o servidor usa nos
       // pares e na lista do Curioso: com tetos diferentes, as duas contas divergem
@@ -11507,10 +11520,11 @@ async function cadCarregar(forcar) {
       // Segue em limit=1000, o teto da API: a tela avisa no resumo quando chega nele.
       supaGet('agendamentos?select=id,quando,cliente_nome,cidade,cliente_telefone,status,vendedor_nome,created_by,src'
               + '&created_by=ilike.*eletroposto*'
-              + '&order=quando.desc&limit=1000').catch(() => []),
+              + '&order=quando.desc&limit=1000').catch(() => { agendaFalhou = true; return []; }),
     ]);
     // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
     // em ordem decrescente, então a primeira de cada telefone é a que vale).
+    cadAgendaFalhou = agendaFalhou;
     cadAgendaCheia = (agendaTodas || []).length >= 1000;
     cadAgendas = new Map();
     // O mesmo laço alimenta o mapa das colunas Situação e Consultor, que casa pela
@@ -11762,6 +11776,7 @@ function cadRender() {
   if (resumoSit) {
     resumoSit.textContent = (!cadAtendPronto ? 'Carregando a situação da agente… · '
       : cadAtendFalhou ? 'Situação da agente indisponível agora · ' : '')
+      + (cadAgendaFalhou ? 'Não foi possível ler a agenda agora · ' : '')
       + (cadLado === 'agenda' && cadAgendaCheia ? 'A leitura da agenda chegou ao teto de 1.000 reuniões: pode haver reuniões mais antigas fora desta lista · ' : '')
       + (res.situacoes.map(c => c.rotulo + ' ' + c.n).join(' · ') || 'Ninguém neste período');
   }

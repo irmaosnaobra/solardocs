@@ -69,6 +69,7 @@ import { INSTANCE_ID_IO } from './solarRespostas';
 import { type LinhaOrigem } from './eletropostoPares';
 import { carregarCompromissos, aindaLivre } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
+import { guardarTipoDoCard } from '../agenda/etiquetaCard';
 import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from './eletropostoCard';
 import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor } from './investidorAgentePosse';
 import {
@@ -77,7 +78,7 @@ import {
   renderAberturaResgate, textoDaAberturaResgate, escolherGrupo, tetoResgateDoDia, mesPorExtenso,
   PARADAS_RESGATE_ATE_PARAR, RESGATE_SEM_RESPOSTA_MS, horariosDaOferta, textoOferta, textoConfirmacao, horarioCurto,
   textoPassagem, textoDespedida, textoParou, textoAdiado, textoNaoEntendi, escolhaPorNumero, pediuParar, montarObservacao,
-  montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
+  montarSistema, montarPedido, lerSaida, juntarDados, violaRegras, valoresLiberados, pedidoDeReescrita, SCHEMA_SAIDA_HELENA,
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila,
   type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
   type CardDaAgenda, type ResultadoFilaResgate, type CandidatoResgate,
@@ -919,19 +920,19 @@ export interface Pensamento {
  *
  * Não grava, não envia e não lê banco: só fala com a IA.
  */
-async function pensar(sistema: string, pedido: string): Promise<Pensamento> {
+async function pensar(sistema: string, pedido: string, valoresDaPessoa: readonly number[]): Promise<Pensamento> {
   const inicio = Date.now();
   let r = await perguntar(sistema, pedido);
   let violacao: string | null = null;
   let reescrita: string | null = null;
   if (r.saida.valido && r.saida.acao === 'continuar') {
-    const quebra = violaRegras(r.saida.bolhas);
+    const quebra = violaRegras(r.saida.bolhas, valoresDaPessoa);
     if (quebra) {
       logger.warn(LOG, `resposta da IA barrada (${quebra}): pedindo para reescrever`);
       const segunda = await perguntar(sistema, pedidoDeReescrita(pedido, quebra, r.saida.bolhas));
       const quebrouDeNovo = !segunda.saida.valido
         ? 'a reescrita não veio no formato combinado'
-        : segunda.saida.acao === 'continuar' ? violaRegras(segunda.saida.bolhas) : null;
+        : segunda.saida.acao === 'continuar' ? violaRegras(segunda.saida.bolhas, valoresDaPessoa) : null;
       if (quebrouDeNovo) {
         logger.warn(LOG, `a reescrita também foi barrada: ${quebrouDeNovo}`);
         violacao = `${quebra}; na reescrita, ${quebrouDeNovo}`;
@@ -957,7 +958,7 @@ export async function sondarHelena(
   acao: SaidaHelena['acao']; bolhas: string[]; dados: DadosDaConversa; resumo: string; opcao: number;
   violacao: string | null; reescrita: string | null;
 }> {
-  const p = await pensar(montarSistema(ctx), montarPedido(historico, novas));
+  const p = await pensar(montarSistema(ctx), montarPedido(historico, novas), valoresLiberados(ctx, historico, novas));
   return {
     modelo: p.modelo, stop_reason: p.stop_reason, ms: p.ms, valido: p.saida.valido,
     acao: p.saida.acao, bolhas: p.saida.bolhas, dados: p.saida.dados, resumo: p.saida.resumo, opcao: p.saida.opcao ?? 0,
@@ -1206,6 +1207,10 @@ async function agendar(s: SessaoInvestidor, ctx: Contexto, iso: string): Promise
     await gravarSessao(ctx.chave, { ...s, estagio: 'sem_interesse', motivo: 'fora_do_padrao', ate: ctx.ultima });
     return;
   }
+  // O card da Helena é de cotista, e o tipo fica guardado (`tipo_card:<id>`) para a
+  // agenda continuar dizendo COTISTA depois que o consultor mover o card de status.
+  // Nunca lança: o card já está gravado.
+  await guardarTipoDoCard(gravado.id, 'cotista', 'helena');
   await gravarSessao(ctx.chave, {
     ...s, estagio: 'agendado', agendamento_id: gravado.id, motivo: null, oferta: [], ate: ctx.ultima,
     respostas: (s.respostas ?? 0) + 1,
@@ -1312,19 +1317,24 @@ async function atender(
     historico.sort((a, b) => (a.momment < b.momment ? -1 : a.momment > b.momment ? 1 : 0));
   }
 
-  const sistema = montarSistema({
+  const formulario = await lerFormulario(s);
+  const ctxHelena: ContextoHelena = {
     nome: s.nome, valorTxt: s.valor_txt, cidade: s.cidade, consultor: s.consultor,
     oferta: s.estagio === 'ofertou' ? s.oferta : [], dados: s.dados ?? {},
     // O que ela já respondeu no formulário e que dia é hoje: contexto que a IA
     // precisa para não perguntar de novo e para entender "amanhã de manhã".
-    formulario: await lerFormulario(s), agora: new Date(),
+    formulario, agora: new Date(),
     // Conversa de resgate: os fatos ganham o parágrafo "CONVERSA DE RESGATE".
     ...(s.grupo === 'resgate' ? { resgateEm: s.reuniao_perdida_em ?? null } : {}),
-  });
+  };
+  const sistema = montarSistema(ctxHelena);
   const pedido = montarPedido(historico, ctx.novas);
+  // Os valores em reais que a PESSOA disse (formulário e conversa): são os únicos que a
+  // trava deixa a Helena repetir. A fala dela mesma não conta.
+  const valoresDaPessoa = valoresLiberados(ctxHelena, historico, ctx.novas);
   // O mesmo miolo que a sonda usa (sondarHelena): principal, reserva, leitura da
   // saída e trava de conteúdo com uma reescrita.
-  const pensamento = await pensar(sistema, pedido);
+  const pensamento = await pensar(sistema, pedido, valoresDaPessoa);
   let saida = pensamento.saida;
 
   // IA falhou ou devolveu algo fora do combinado: não responde nada ao cliente,
@@ -1361,7 +1371,7 @@ async function atender(
     }
     // Sem lista em aberto não há o que agendar: vale como `continuar`. As bolhas
     // não passaram pela trava de conteúdo (ela só olha `continuar`), então passam aqui.
-    saida = { ...saida, acao: 'continuar', bolhas: violaRegras(saida.bolhas) ? [] : saida.bolhas };
+    saida = { ...saida, acao: 'continuar', bolhas: violaRegras(saida.bolhas, valoresDaPessoa) ? [] : saida.bolhas };
   }
 
   // Recuperação de mensagem antiga: só o `agendar` válido (acima) vira reunião.

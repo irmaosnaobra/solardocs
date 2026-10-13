@@ -31,10 +31,12 @@ type Respostas = Partial<Record<'porta' | 'capLocal' | 'invValor' | 'ponto' | 'r
 const quiz = new Function(
   fatia('const MODELO_DINHEIRO_NOSSO', 'function onModelo(')
   + fatia('// ══ OS QUATRO CAMINHOS DO QUIZ', '// ══ FIM DOS QUATRO CAMINHOS')
-  + '\nreturn { regraDaAgenda, fichaDaAgendaNova, REGRA_AGENDA_DESDE, VALOR_CURIOSO };',
+  + '\nreturn { regraDaAgenda, fichaDaAgendaNova, cartoesDaConfirmacao, textoSemHorario, REGRA_AGENDA_DESDE, VALOR_CURIOSO };',
 )() as {
   regraDaAgenda: (r: Respostas, agoraMs: number) => Decisao;
   fichaDaAgendaNova: (caminho: string, r: Record<string, string>) => string;
+  cartoesDaConfirmacao: (caminho?: string) => { c2: [string, string]; c3: [string, string] } | null;
+  textoSemHorario: (cadastrado: boolean) => string;
   REGRA_AGENDA_DESDE: string;
   VALOR_CURIOSO: Set<string>;
 };
@@ -314,13 +316,13 @@ describe('a ordem na página: grava o cadastro, confere o ok e só então abre a
   it('os dois caminhos novos montam a ficha e passam pelo MESMO portão de presença', () => {
     const ag = corpoDe('async function agendar(){');
     ordem(ag, 'if(soCarregador()){', 'const caminhoNovo = agendaDoCadastro();', 'if(caminhoNovo){',
-      "if(!slotSel) return erro(", 'fichaDaAgendaNova(caminhoNovo,', "origem: 'lp_eletroposto', tipo: caminhoNovo };",
+      "if(!slotSel) return erro(", 'fichaDaAgendaNova(caminhoNovo,', "origem: 'lp_eletroposto', tipo: caminhoNovo,",
       'abrirConfirma();', "if(!perfil.value)       return erro('Selecione seu perfil.');");
   });
 
   it('o POST do agendamento leva `tipo` só quando existe, e o card segue `agendado` e `lp_eletroposto`', () => {
     const g = corpoDe('async function gravarAgendamento(){');
-    expect(g).toContain('const { nome, tel, cidade, perfil, obs, temperatura, origem, tipo } = pendente;');
+    expect(g).toContain('const { nome, tel, cidade, perfil, obs, temperatura, origem, tipo, cartoes } = pendente;');
     expect(g).toContain('...(tipo ? { tipo } : {}),');
     expect(g).toContain("status:           'agendado',");
     expect(g).toContain("created_by:       origem || 'lp_eletroposto',");
@@ -336,5 +338,84 @@ describe('a ordem na página: grava o cadastro, confere o ok e só então abre a
   it('ficha de teste não dispara o Schedule do navegador', () => {
     const g = corpoDe('async function gravarAgendamento(){');
     ordem(g, 'if(!/^\\s*teste/i.test(nome)){', "fbq('track','Schedule'");
+  });
+});
+
+// ACABAMENTO DA LANDING (13/10/2026): a reunião não é "por vídeo" na tela, o
+// investidor sem local e o parceiro não ouvem falar de "estudo do seu ponto", e o
+// dia sem horário muda de texto para quem já está cadastrado.
+describe('os cartões da confirmação de quem marcou sem ter ponto', () => {
+  it('investidor sem local e parceiro recebem a variação do redator, palavra por palavra', () => {
+    expect(quiz.cartoesDaConfirmacao('cotista')).toEqual({
+      c2: ['Vamos preparar a conversa.', 'Na reunião, o consultor mostra as opções de negócio que encaixam no valor que você indicou aqui.'],
+      c3: ['Traga suas dúvidas.', 'Energia, obra, prazo, formas de pagamento: é a hora de perguntar tudo.'],
+    });
+    expect(quiz.cartoesDaConfirmacao('integrador')).toEqual({
+      c2: ['Vamos conversar sobre a parceria.', 'Na reunião, o consultor conversa com você sobre como trabalhar junto.'],
+      c3: ['Traga suas dúvidas.', 'Como a parceria funciona, a sua região, o que você instala hoje: é a hora de perguntar tudo.'],
+    });
+  });
+
+  it('comércio, arrendamento, carregador e quem não tem caminho ficam com os cartões de hoje', () => {
+    for (const c of ['arrendamento', '', undefined, 'carregador', 'comercio', 'toString', '__proto__']) {
+      expect(quiz.cartoesDaConfirmacao(c), String(c)).toBeNull();
+    }
+  });
+
+  it('a escolha parte do caminho do cadastro, não do tipo: investidor COM local tem tipo cotista e fica com os de hoje', () => {
+    const comLocal = quiz.regraDaAgenda({ porta: 'investidor', capLocal: 'meu', ponto: 'definido', relacao: 'proprietario', modelo: 'chave_na_mao', valor: '280', invest: 'proprio' }, DEPOIS);
+    expect(comLocal).toEqual({ caminho: '', tipo: 'cotista' });
+    expect(quiz.cartoesDaConfirmacao(comLocal.caminho)).toBeNull();
+    const semLocal = quiz.regraDaAgenda({ porta: 'investidor', capLocal: 'nao', invValor: '140' }, DEPOIS);
+    expect(quiz.cartoesDaConfirmacao(semLocal.caminho)).not.toBeNull();
+    const parceiro = quiz.regraDaAgenda({ porta: 'integrador' }, DEPOIS);
+    expect(quiz.cartoesDaConfirmacao(parceiro.caminho)).not.toBeNull();
+    const arrend = quiz.regraDaAgenda({ porta: 'comercio', ponto: 'definido', relacao: 'inquilino', modelo: 'cedo_espaco' }, DEPOIS);
+    expect(arrend.caminho).toBe('arrendamento');
+    expect(quiz.cartoesDaConfirmacao(arrend.caminho)).toBeNull();
+    expect(quiz.cartoesDaConfirmacao(quiz.regraDaAgenda({ porta: 'carregador' }, DEPOIS).caminho)).toBeNull();
+  });
+
+  it('só o ramo novo guarda o caminho no pendente, e a troca roda antes de mostrar a tela', () => {
+    expect((html.match(/cartoes: caminhoNovo/g) || []).length).toBe(1);
+    const i = html.indexOf('async function gravarAgendamento(){');
+    const g = html.slice(i, html.indexOf('\nmontarSlots();', i));
+    const a = g.indexOf('aplicarCartoesDoOk(cartoes);');
+    expect(a).toBeGreaterThan(0);
+    expect(a).toBeLessThan(g.indexOf("document.getElementById('ag-ok').style.display = 'block';"));
+    // os dois cartões têm onde receber o texto
+    expect(html).toContain('<div class="okTx" id="ok-c2">');
+    expect(html).toContain('<div class="okTx" id="ok-c3">');
+  });
+});
+
+describe('a tela de dia sem horário', () => {
+  it('quem já tem o cadastro gravado vê o texto novo', () => {
+    expect(quiz.textoSemHorario(true)).toBe('Seu cadastro ficou registrado. A agenda dos próximos dias está cheia, e a equipe chama você pelo WhatsApp para marcar a reunião.');
+  });
+
+  it('quem não tem cadastro gravado segue com o texto de hoje', () => {
+    expect(quiz.textoSemHorario(false)).toBe('Sem horários nos próximos dias. Fale com a gente no WhatsApp que a gente encaixa.');
+  });
+
+  it('o cadastro "gravado" é o do caminho que a regra manda: arrendamento antes da data não conta', () => {
+    const i = html.indexOf('async function montarSlots(){');
+    const m = html.slice(i, html.indexOf('\n}\n', i));
+    expect(m).toContain('const cadCaminho = regraAgora().caminho;');
+    expect(m).toContain('textoSemHorario(!!cadCaminho && cadastroVale(cadCaminho))');
+    // antes da data a regra não devolve caminho: nenhum cadastro conta
+    expect(quiz.regraDaAgenda({ porta: 'comercio', ponto: 'definido', relacao: 'inquilino', modelo: 'cedo_espaco' }, ANTES).caminho).toBe('');
+  });
+});
+
+describe('a reunião não aparece como vídeo na tela', () => {
+  it('nenhum texto da página fala em vídeo, chamada, link da reunião ou online', () => {
+    const semComentario = html
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
+      .replace(/<link [^>]*>/g, '');
+    expect(semComentario).not.toMatch(/v[ií]deo|chamada|online|sem instalar/i);
+    expect(semComentario).not.toMatch(/link d[ao]s? reuni/i);
   });
 });

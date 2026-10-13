@@ -15,7 +15,7 @@ import { supabase } from '../../utils/supabase';
 import { INV_SESSAO_PREFIX } from './investidorAgentePosse';
 import { lerTudo } from './investidorAgente';
 // A marca da etiqueta de negócio do card (`etiqueta_card:<id>`): um nome só, o de salaDeEspera.
-import { ETIQUETA_PREFIX as ETIQUETA_CARD_PREFIX } from '../agenda/salaDeEspera';
+import { ETIQUETA_PREFIX as ETIQUETA_CARD_PREFIX, TIPO_CARD_PREFIX } from '../agenda/salaDeEspera';
 
 export interface AtendimentoInvestidor {
   chave: string;
@@ -99,6 +99,37 @@ export async function lerEtiquetasDosCards(): Promise<Record<string, string>> {
     supabase.from('system_state').select('key, value')
       .like('key', `${ETIQUETA_CARD_PREFIX}%`).order('key', { ascending: true }).range(de, ate));
   return mapearEtiquetas(linhas);
+}
+
+/**
+ * Puro: as linhas `tipo_card:<id>` de `system_state` viram `{ "<id>": "<tipo>" }`.
+ * O tipo é a memória do que o card é (cotista, arrendamento, integrador): a etiqueta
+ * guardada some quando o consultor move o card, o tipo não. Mesmo tratamento de
+ * `mapearEtiquetas` para texto JSON, lixo e valor vazio.
+ */
+export function mapearTipos(linhas: LinhaSessao[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const l of linhas) {
+    const k = String(l.key ?? '');
+    if (!k.startsWith(TIPO_CARD_PREFIX)) continue;
+    const id = k.slice(TIPO_CARD_PREFIX.length);
+    if (!id) continue;
+    let v: unknown = l.value;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch { continue; } }
+    if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+    const t = texto((v as Record<string, unknown>).tipo);
+    if (t) out[id] = t;
+  }
+  return out;
+}
+
+/** Todos os tipos guardados nos cards: `{ "<id do card>": "<tipo>" }`. Leitura
+ *  paginada; erro de leitura SOBE, como nas outras duas. */
+export async function lerTiposDosCards(): Promise<Record<string, string>> {
+  const linhas = await lerTudo<LinhaSessao>('tipos dos cards', (de, ate) =>
+    supabase.from('system_state').select('key, value')
+      .like('key', `${TIPO_CARD_PREFIX}%`).order('key', { ascending: true }).range(de, ate));
+  return mapearTipos(linhas);
 }
 
 export async function lerAtendimentos(): Promise<AtendimentoInvestidor[]> {

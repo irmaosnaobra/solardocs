@@ -33,7 +33,7 @@ import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
 // A etiqueta preservada e a lista do que vale guardar moram no modulo NEUTRO da
 // sala de espera, junto da leitura do prazo: e tudo marca do mesmo card.
 import {
-  ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO,
+  ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO, TIPO_CARD_PREFIX,
 } from '../services/agenda/salaDeEspera';
 import { guardarEtiquetaDoCard } from '../services/agenda/etiquetaCard';
 import {
@@ -419,7 +419,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
   if (cortou) {
     logger.warn('gerador', `leitura de marcas cortada: pediram ${pedidos.length} ids, o teto é ${TETO_IDS}`);
   }
-  if (!ids.length) { res.json({ ok: true, esperas: {}, etiquetas: {}, motivos: {} }); return; }
+  if (!ids.length) { res.json({ ok: true, esperas: {}, etiquetas: {}, motivos: {}, tipos: {} }); return; }
   try {
     // AS DUAS MARCAS NA MESMA CHAMADA. Separar em duas rotas dobraria a ida e
     // volta num quadro que desenha 300 cards, e as duas são lidas sempre juntas:
@@ -439,7 +439,9 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
     // chaves) foi o que devolveu Bad Request na medicao; 450 segue com folga, e
     // mais uma ida e volta num quadro de 300 cards custa menos que o quadro
     // inteiro ficar sem marca.
-    const POR_CONSULTA = 150;   // 450 chaves
+    // 110 desde 13/10/2026: o tipo do card virou a QUARTA chave de cada id, e 150
+    // ids passariam a ser 600 chaves. 110 x 4 = 440, a mesma folga de antes.
+    const POR_CONSULTA = 110;   // 440 chaves
     const linhas: Array<{ key: string; value: unknown }> = [];
     for (let i = 0; i < ids.length; i += POR_CONSULTA) {
       const lote = ids.slice(i, i + POR_CONSULTA);
@@ -449,6 +451,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
           ...lote.map(x => `${APALAVRADO_PREFIX}${x}`),
           ...lote.map(x => `${ETIQUETA_PREFIX}${x}`),
           ...lote.map(x => `${MOTIVO_PREFIX}${x}`),
+          ...lote.map(x => `${TIPO_CARD_PREFIX}${x}`),
         ]);
       if (error) throw error;
       linhas.push(...((parte ?? []) as Array<{ key: string; value: unknown }>));
@@ -457,6 +460,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
     const esperas: Record<string, unknown> = {};
     const etiquetas: Record<string, string> = {};
     const motivos: Record<string, string> = {};
+    const tipos: Record<string, string> = {};
     // A ORDEM AQUI É O QUE IMPEDE A MARCA ERRADA. O ramo da espera era um `else`
     // pega-tudo, e com uma terceira chave ele passaria a engolir o motivo: o card
     // apareceria em sala de espera por ter dito não. Então cada prefixo é testado
@@ -466,6 +470,9 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
       if (k.startsWith(ETIQUETA_PREFIX)) {
         const et = String((l.value as { etiqueta?: string } | null)?.etiqueta ?? '').trim();
         if (et) etiquetas[k.slice(ETIQUETA_PREFIX.length)] = et;
+      } else if (k.startsWith(TIPO_CARD_PREFIX)) {
+        const ti = String((l.value as { tipo?: string } | null)?.tipo ?? '').trim();
+        if (ti) tipos[k.slice(TIPO_CARD_PREFIX.length)] = ti;
       } else if (k.startsWith(MOTIVO_PREFIX)) {
         const mo = String((l.value as { motivo?: string } | null)?.motivo ?? '').trim();
         if (mo) motivos[k.slice(MOTIVO_PREFIX.length)] = mo;
@@ -473,7 +480,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
         esperas[k.slice(APALAVRADO_PREFIX.length)] = l.value;
       }
     }
-    res.json({ ok: true, esperas, etiquetas, motivos, ...(cortou ? { cortou } : {}) });
+    res.json({ ok: true, esperas, etiquetas, motivos, tipos, ...(cortou ? { cortou } : {}) });
   } catch (err: any) {
     logger.error('gerador', 'apalavrado (leitura) falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });

@@ -67,8 +67,8 @@ vi.mock('../utils/supabaseGerador', () => {
   return { supabaseGerador: { from: (t: string) => cadeia(t) } };
 });
 
-import router, { TIPOS_DO_CARD_LP } from '../routes/ioEletroposto';
-import { ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO } from '../services/agenda/salaDeEspera';
+import router, { TIPOS_DO_CARD_LP, eventIdLeadQuente } from '../routes/ioEletroposto';
+import { ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, TIPO_CARD_PREFIX } from '../services/agenda/salaDeEspera';
 import { logger } from '../utils/logger';
 
 const app = express();
@@ -103,8 +103,9 @@ describe('POST /agendar com `tipo`: o card nasce com a etiqueta', () => {
       const r = await post({ tipo });
       expect(r.status).toBe(200);
       expect(r.body).toEqual({ ok: true, id: 77 });
-      expect(h.upserts).toHaveLength(1);
-      const [u] = h.upserts;
+      // Duas marcas: a etiqueta (que a agenda pode apagar) e o tipo (que nunca some).
+      expect(h.upserts).toHaveLength(2);
+      const u = h.upserts.find(x => x.linha.key === `${ETIQUETA_PREFIX}77`)!;
       expect(u.tabela).toBe('system_state');
       expect(u.opts).toEqual({ onConflict: 'key' });
       expect(u.linha.key).toBe(`${ETIQUETA_PREFIX}77`);
@@ -114,6 +115,27 @@ describe('POST /agendar com `tipo`: o card nasce com a etiqueta', () => {
       expect(u.linha.updated_at).toBe(u.linha.value.em);
     });
   }
+
+  for (const tipo of ['arrendamento', 'cotista', 'integrador']) {
+    it(`tipo "${tipo}" grava também tipo_card:<id>, sem sobrescrever o que já existe`, async () => {
+      await post({ tipo });
+      const t = h.upserts.find(x => x.linha.key === `${TIPO_CARD_PREFIX}77`)!;
+      expect(t.tabela).toBe('system_state');
+      // ignoreDuplicates: a segunda gravação não regrava a marca do primeiro gravador.
+      expect(t.opts).toEqual({ onConflict: 'key', ignoreDuplicates: true });
+      expect(Object.keys(t.linha.value).sort()).toEqual(['em', 'por', 'tipo']);
+      expect(t.linha.value).toMatchObject({ tipo, por: 'lp' });
+      expect(Number.isFinite(Date.parse(t.linha.value.em))).toBe(true);
+    });
+  }
+
+  it('erro do banco no tipo_card NÃO derruba o agendamento, e fica no log', async () => {
+    h.etiquetaErro = { message: 'system_state fora' };
+    const r = await post({ tipo: 'cotista' });
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ ok: true, id: 77 });
+    expect(vi.mocked(logger.error).mock.calls.some(c => String(c[1]).includes('tipo cotista do card #77'))).toBe(true);
+  });
 
   it('o card continua `agendado` e `lp_eletroposto`, e `tipo` não vira coluna', async () => {
     await post({ tipo: 'cotista', status: 'cotista', created_by: 'qualquer_coisa' });
@@ -174,7 +196,7 @@ describe('POST /agendar: ficha de teste não ensina o pixel', () => {
       expect(r.status).toBe(200);
       expect(r.body).toEqual({ ok: true, id: 77 });
       expect(h.inseridas).toHaveLength(1);
-      expect(h.upserts).toHaveLength(1);
+      expect(h.upserts).toHaveLength(2);
       expect(h.enviar).not.toHaveBeenCalled();
     });
   }
@@ -182,6 +204,24 @@ describe('POST /agendar: ficha de teste não ensina o pixel', () => {
   it('"teste" no meio do nome não é ficha de teste', async () => {
     await post({ cliente_nome: 'Maria Teste' });
     expect(h.enviar.mock.calls.map(c => c[0].nome)).toContain('Schedule');
+  });
+});
+
+describe('LeadQuente: o MESMO event_id no cadastro e no agendamento (o Meta deduplica)', () => {
+  it('o /parceria e o /agendar do mesmo telefone mandam o mesmo id', async () => {
+    await request(app).post('/io/eletroposto/parceria').send({
+      lado: 'capital', nome: 'Carlos Lima', telefone: '5534991113333', cidade: 'Uberlândia', capital_faixa: 'R$ 140 mil',
+    });
+    await post({ tipo: 'cotista' });
+    const ids = h.enviar.mock.calls.filter(c => c[0].nome === 'LeadQuente').map(c => c[0].eventId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe(ids[1]);
+    expect(ids[0]).toBe(eventIdLeadQuente('5534991113333'));
+    expect(ids[0]).toMatch(/^leadquente_ep_[0-9a-f]{24}$/);
+  });
+
+  it('o telefone com ou sem o 55 e o 9 dá o mesmo id', () => {
+    expect(eventIdLeadQuente('5534991113333')).toBe(eventIdLeadQuente('34991113333'));
   });
 });
 

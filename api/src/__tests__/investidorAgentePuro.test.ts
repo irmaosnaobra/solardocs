@@ -785,10 +785,15 @@ describe('a leitura do que a IA devolve', () => {
 
   it('conversa normal não é barrada', () => {
     for (const t of ['Temos opções de negócio para o seu perfil.', 'O consultor leva a cotação na reunião.', 'Esse valor é recurso próprio?',
-      'Em que cidade você pensa em montar?', 'Posso te mandar os horários para conversar com o Diego?', 'R$ 140 mil, certo?',
+      'Em que cidade você pensa em montar?', 'Posso te mandar os horários para conversar com o Diego?',
       'Que bom. Você já tem um local em mente?', 'Combinado, Ana.']) {
       expect(violaRegras([t]), t).toBeNull();
     }
+  });
+
+  it('valor em reais só passa se a pessoa o disse (a lista vem de quem chama; sem lista, nenhum passa)', () => {
+    expect(violaRegras(['R$ 140 mil, certo?'], [140000])).toBeNull();
+    expect(violaRegras(['R$ 140 mil, certo?'])).toMatch(/valor em reais/);
   });
 
   it('o pedido de reescrita diz qual regra quebrou e o que tinha sido escrito', () => {

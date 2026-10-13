@@ -21,7 +21,9 @@ import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, 
 import { DONOS_EP, ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from '../services/io/eletropostoCard';
 // A marca da etiqueta de negócio do card (`etiqueta_card:<id>`), a mesma que o
 // /gerador grava: desde 13/10/2026 o card da LP já nasce com ela.
-import { guardarEtiquetaDoCard } from '../services/agenda/etiquetaCard';
+import { guardarEtiquetaDoCard, guardarTipoDoCard, lerTipoDoCard } from '../services/agenda/etiquetaCard';
+// O aviso próprio dos três tipos do card (cotista, arrendamento, integrador).
+import { ehTipoDoAviso, montarAvisoDoTipo, ROTULO_DO_TIPO } from '../services/io/eletropostoAvisoTipo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -53,13 +55,29 @@ const jaAvisado = new Set<number>();
 
 const soDigitos = (s: string) => (s || '').replace(/\D/g, '');
 
-export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: number } = {}): string {
+export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: number; tipo?: string | null } = {}): string {
   const quando = a.quando
     ? new Date(a.quando).toLocaleString('pt-BR', {
         timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit',
         month: '2-digit', hour: '2-digit', minute: '2-digit',
       })
     : 'sem horário';
+
+  // ── O CARD ENXUTO DO TIPO SÓ SERVE A FICHA SEM NOTA (13/10/2026) ───────────
+  // Integrador e investidor sem local não respondem as perguntas do ponto, e o aviso
+  // de baixo saía "SEM NOTA, ficha antiga", todo de traços: eles ganham o card do
+  // tipo. Mas a landing grava `cotista` também no investidor COM local e
+  // `arrendamento` na trilha do ponto, e essas fichas TÊM a linha `NOTA n`: o card
+  // enxuto perderia nota, endereço, pré-nota, estudo, vagas, modelo e simulação.
+  // Elas seguem com o aviso completo de sempre, só ganhando no topo a linha do tipo.
+  // Sem `tipo` (ficha antiga, página em cache, leitura que falhou) nada muda.
+  const temLinhaDeNota = /^NOTA [123]\b/m.test(String(a.observacao || ''));
+  if (ehTipoDoAviso(extra.tipo) && !temLinhaDeNota) {
+    return montarAvisoDoTipo(extra.tipo, {
+      nome: a.cliente_nome, telefone: a.cliente_telefone, cidade: a.cidade,
+      quando, consultor: a.vendedor_nome, observacao: a.observacao,
+    });
+  }
 
   // A observação já vem estruturada da LP: perfil, nota, ponto, forma de investir,
   // decisor, entrada trifásica e a simulação. Cada rótulo aqui é o mesmo string que a
@@ -167,6 +185,7 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
 
   return [
     `*NOVA REUNIÃO — ELETROPOSTO*`,
+    ...(ehTipoDoAviso(extra.tipo) ? [`*Tipo:* ${ROTULO_DO_TIPO[extra.tipo]}`] : []),
     `${selo}`,
     ...(paraInvestidor ? [`📍 *PONTO DISPONÍVEL PARA INVESTIDOR*`] : []),
     ``,
@@ -243,7 +262,10 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
       garantirEstudo(data),
       new Promise<null>(resolve => setTimeout(() => resolve(null), 2000)),
     ]).catch(() => null);
-    const msg = montarMensagem(data, extraDoCard(data.observacao, estudo?.token));
+    // O tipo do card (`tipo_card:<id>`, gravado pelo /agendar antes de responder à LP)
+    // escolhe o aviso. Leitura que falha devolve null e o aviso sai como sempre.
+    const tipo = await lerTipoDoCard(id);
+    const msg = montarMensagem(data, { ...extraDoCard(data.observacao, estudo?.token), tipo });
 
     // Manda pra equipe toda. Um envio que falha não pode impedir o outro.
     const envios = await Promise.allSettled(
@@ -557,19 +579,32 @@ router.get('/cliente', async (req: Request, res: Response): Promise<void> => {
 // tipos que a LP sabe dizer. Valor fora dela é ignorado, não derruba a reunião.
 export const TIPOS_DO_CARD_LP = new Set<string>(['arrendamento', 'cotista', 'integrador']);
 
+/** O event_id do LeadQuente do eletroposto, UM SÓ por telefone (13/10/2026). O
+ *  investidor sem local com R$ 100 mil ou mais dispara o evento no cadastro
+ *  (POST /parceria) e de novo ao agendar (POST /agendar). Com ids diferentes o Meta
+ *  contava duas vezes; com o mesmo, ele descarta o segundo. Não mexe em QUANDO cada
+ *  um dispara. */
+export const eventIdLeadQuente = (telefone: unknown): string => `leadquente_ep_${idDoTelefone(telefone)}`;
+
 /** Ficha de teste (nome começando com "teste"): grava normal e não ensina o pixel. */
 const ehNomeDeTeste = (nome: unknown): boolean => /^\s*teste/i.test(String(nome ?? ''));
 
-/** Grava a etiqueta do card e NUNCA sobe erro: a reunião já está gravada, e a
- *  etiqueta é uma pílula a menos na tela, não motivo para responder 500. */
+/** Grava a etiqueta do card e o TIPO dele, e NUNCA sobe erro: a reunião já está
+ *  gravada, e as duas marcas são pílula a menos na tela, não motivo para 500.
+ *
+ *  O TIPO (`tipo_card:<id>`, 13/10/2026) é a memória do que o card é. A etiqueta
+ *  guardada some quando o consultor move o card para um status de negócio, e o card
+ *  deixava de dizer COTISTA ou INTEGRADOR. O tipo nasce aqui e nenhuma tela o apaga.
+ *  As duas gravações andam juntas e antes da resposta: o /alerta lê o tipo logo depois. */
 async function etiquetarCardDaLp(id: number | null, tipoBruto: unknown): Promise<void> {
   const tipo = String(tipoBruto ?? '').trim();
   if (!id || !TIPOS_DO_CARD_LP.has(tipo)) return;
-  try {
-    await guardarEtiquetaDoCard(id, tipo, 'lp');
-  } catch (err) {
-    logger.error('io-eletroposto-agendar', `etiqueta ${tipo} do card #${id} nao gravada`, err);
-  }
+  await Promise.all([
+    guardarEtiquetaDoCard(id, tipo, 'lp').catch(err => {
+      logger.error('io-eletroposto-agendar', `etiqueta ${tipo} do card #${id} nao gravada`, err);
+    }),
+    guardarTipoDoCard(id, tipo, 'lp'),
+  ]);
 }
 
 router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
@@ -651,7 +686,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
         urlDaPagina: 'https://solardoc.app/io/eletroposto',
       }, 'io-eletroposto-agendar') : null,
       teste ? null : quente ? enviarQuizMeta({
-        produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_ep_${idDoTelefone(tel)}`, pessoa, navegador,
+        produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: eventIdLeadQuente(tel), pessoa, navegador,
         urlDaPagina: 'https://solardoc.app/io/eletroposto', dados: { nota: nota || undefined, capital_minimo: capital ?? undefined },
       }, 'io-eletroposto-agendar') : null,
     ]);
@@ -1138,7 +1173,7 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   // passa por aqui sem a chave `teste`.
   if (lado === 'capital' && b.teste !== true && !ehNomeDeTeste(nome) && capitalMin !== null && capitalMin >= CAPITAL_QUENTE) {
     await enviarQuizMeta({
-      produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_ep_capital_${idDoTelefone(telefone)}`,
+      produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: eventIdLeadQuente(telefone),
       pessoa: { telefone, nome, cidade: reg.cidade },
       navegador: navegadorDe(req, b), urlDaPagina: 'https://solardoc.app/io/eletroposto/parceria',
       dados: { lado, capital_faixa: String(reg.capital_faixa) },

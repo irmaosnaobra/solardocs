@@ -410,7 +410,7 @@ describe('o que ele fala', () => {
     expect(txt).toContain('procura está alta');
   });
 
-  it('nenhum toque afirma que o link JÁ foi enviado — quem manda é gente', async () => {
+  it('nenhum toque fala de link nem de vídeo (13/10/2026): o texto diz só "reunião", e quem chama é gente', async () => {
     const { bolhasConfirmacao, bolhas1h, bolhas5min } = await mod();
     for (const bolhas of [
       bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego'),
@@ -418,8 +418,8 @@ describe('o que ele fala', () => {
       bolhas5min('Irineu', '2026-08-05T18:30:00.000Z', 'Diego'),
     ]) {
       const txt = bolhas.join(' ');
-      expect(txt).toContain('link');
-      expect(txt).not.toMatch(/link já (está|foi)|te mandei o link|link enviado/i);
+      expect(txt).not.toMatch(/link|v[ií]deo|clicar|internet/i);
+      expect(txt).toContain('reunião');
     }
   });
 
@@ -486,7 +486,7 @@ describe('o que ele fala', () => {
   it('sem WhatsApp do consultor, a confirmação não manda salvar contato', async () => {
     const { bolhasConfirmacao } = await mod();
     const txt = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join(' ');
-    expect(txt).toContain('link');
+    expect(txt).toContain('ele te chama');
     expect(txt).not.toContain('salva o contato');
   });
 
@@ -536,7 +536,8 @@ describe('o que ele fala', () => {
     expect(b).toHaveLength(1);
     const txt = b.join(' ');
     expect(txt).toContain('NEXUS Eletropostos');
-    expect(txt).toContain('É por vídeo');
+    expect(txt).toContain('Na hora, ele te chama');
+    expect(txt).not.toMatch(/v[ií]deo|link/i);
     expect(txt).toContain('*SIM*');
     for (const cortado of ['conta de luz', 'pesquisou', 'áudio', 'Não precisa instalar']) {
       expect(txt).not.toContain(cortado);
