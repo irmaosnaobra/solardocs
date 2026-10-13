@@ -738,14 +738,28 @@ export function escolhaPorNumero(textos: readonly string[], n: number): number |
   const limpos = textos.map(t => String(t ?? '').trim()).filter(Boolean);
   if (!limpos.length) return null;
   const numeros: number[] = [];
+  let achouFrase = false;
   for (const t of limpos) {
     const num = numeroSolto(t);
     if (num !== null) { numeros.push(num); continue; }
-    if (!RE_SO_CORTESIA.test(t)) return null;   // tem frase de verdade na leva: é da IA
+    if (!RE_SO_CORTESIA.test(t)) achouFrase = true;   // tem frase de verdade na leva
   }
-  if (numeros.length !== 1) return null;        // nenhum número, ou dois números diferentes
-  const escolhido = numeros[0]!;
-  return escolhido >= 1 && escolhido <= n ? escolhido - 1 : -1;
+  const foraDaLista = (k: number): number => (k >= 1 && k <= n ? k - 1 : -1);
+  if (!achouFrase) {
+    if (numeros.length !== 1) return null;      // nenhum número, ou dois números diferentes
+    return foraDaLista(numeros[0]!);
+  }
+  // A ÚLTIMA MENSAGEM MANDA (12/10/2026). A pessoa escreveu "Pode ser terça-feira,
+  // amanhã às 10h." e logo depois "1": a leva tinha uma frase e um número, a regra
+  // antiga devolvia `null` e a escolha se perdeu. Agora, se a última mensagem não
+  // vazia é um número solto, é a escolha, mesmo com texto antes. Frase com número
+  // no meio ("10h não consigo, tem outro?") continua não sendo escolha, porque aí a
+  // última mensagem é a frase. Dois números soltos DIFERENTES na leva seguem
+  // ambíguos (vai para a IA), porque a pessoa pode estar se corrigindo ou comparando.
+  const ultimoNumero = numeroSolto(limpos[limpos.length - 1]!);
+  if (ultimoNumero === null) return null;
+  if (numeros.some(x => x !== ultimoNumero)) return null;
+  return foraDaLista(ultimoNumero);
 }
 
 const RE_PARAR_SOZINHO =/^(?:parar|pare|para|p[áa]ra|stop|sair|remover|descadastrar)[\s.!]*$/i;
@@ -765,6 +779,57 @@ export function pediuParar(textos: readonly string[]): boolean {
     const s = String(t ?? '').trim();
     return RE_PARAR_SOZINHO.test(s) || RE_PARAR_NA_FRASE.test(s);
   });
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RECUPERAÇÃO DA ESCOLHA PENDENTE (12/10/2026)
+//
+// Quando uma leva de mensagens foi lida e não virou reunião nem resposta (a
+// pessoa escolheu o horário e a escolha se perdeu), a sessão fica em `ofertou` e a
+// pessoa fica no vácuo. Esta é a regra pura de quem está nessa condição.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** A última fala dela precisa ter esta idade para ser reprocessada. */
+export const RECUPERACAO_IDADE_MIN_MS = 10 * 60_000;
+/** Reprocessamentos por rodada. */
+export const RECUPERACOES_POR_RODADA = 2;
+
+/** A recuperação só roda entre 08:00 e 20:00 de Brasília. */
+export function dentroDaJanelaDeRecuperacao(agora: Date): boolean {
+  const h = noFusoDeBrasilia(agora).getUTCHours();
+  return h >= 8 && h < 20;
+}
+
+export interface EscolhaPendente {
+  /** O `momment` da última fala dela: vira o carimbo `recuperado_ate`. */
+  ultima: string;
+  /** As falas dela depois da nossa última mensagem. */
+  novas: MsgDaConversa[];
+  /** A conversa até a primeira dessas falas. */
+  historico: MsgDaConversa[];
+}
+
+/**
+ * A sessão em `ofertou` tem uma escolha esperando? Sim quando, na conversa (mais
+ * antiga primeiro): a última mensagem é DELA, mais nova que a nossa última, com
+ * mais de 10 minutos; o cursor da sessão (`ate`) já passou dela (foi lida e não
+ * deu em nada); e ela ainda não foi reprocessada (`recuperadoAte`).
+ */
+export function escolhaPendenteDe(
+  conversa: readonly MsgDaConversa[], ate: string | null | undefined, recuperadoAte: string | null | undefined, agoraMs: number,
+): EscolhaPendente | null {
+  const falas = [...conversa].filter(m => String(m.texto || '').trim() || (m.tipo && m.tipo !== 'texto'))
+    .sort((a, b) => (a.momment < b.momment ? -1 : a.momment > b.momment ? 1 : 0));
+  const ultima = falas[falas.length - 1];
+  if (!ultima || ultima.from_me) return null;
+  if (!String(ultima.texto || '').trim()) return null;               // áudio, figurinha: nada a reprocessar
+  const t = Date.parse(ultima.momment);
+  if (!Number.isFinite(t) || agoraMs - t <= RECUPERACAO_IDADE_MIN_MS) return null;
+  if (!ate || ultima.momment > ate) return null;                    // ainda não foi lida: é da rodada normal
+  if (recuperadoAte && ultima.momment <= recuperadoAte) return null;   // já reprocessada, nunca repete
+  let i = falas.length - 1;
+  while (i > 0 && !falas[i - 1]!.from_me) i--;
+  return { ultima: ultima.momment, novas: falas.slice(i), historico: falas.slice(0, i) };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -863,8 +928,8 @@ export function montarObservacao(c: DadosDoCard): string {
 // IA: o que vai e o que volta
 // ═════════════════════════════════════════════════════════════════════════════
 
-export type AcaoHelena = 'continuar' | 'oferecer_horarios' | 'adiar' | 'humano' | 'sem_interesse' | 'parar';
-export const ACOES_HELENA: readonly AcaoHelena[] = ['continuar', 'oferecer_horarios', 'adiar', 'humano', 'sem_interesse', 'parar'];
+export type AcaoHelena = 'continuar' | 'oferecer_horarios' | 'agendar' | 'adiar' | 'humano' | 'sem_interesse' | 'parar';
+export const ACOES_HELENA: readonly AcaoHelena[] = ['continuar', 'oferecer_horarios', 'agendar', 'adiar', 'humano', 'sem_interesse', 'parar'];
 
 export interface ContextoHelena {
   nome: string | null;
@@ -1059,7 +1124,7 @@ export function montarSistema(ctx: ContextoHelena): string {
     ...(ctx.oferta.length ? [
       'Você já enviou esta lista de horários e a pessoa ainda não escolheu:',
       ...ctx.oferta.map((iso, i) => `  ${linhaDoHorario(iso, i)}`),
-      'Se ela escolher um deles sem dizer o número, peça só o número. Se nenhum servir, use a ação "oferecer_horarios" para o sistema mandar outros.',
+      'Se ela escolher um deles sem dizer o número, e a escolha for clara, use a ação "agendar" com a posição dele em "opcao". Se não ficar claro qual, pergunte qual. Se nenhum servir, use a ação "oferecer_horarios" para o sistema mandar outros.',
     ] : []),
   ].join('\n');
 
@@ -1071,16 +1136,18 @@ export function montarSistema(ctx: ContextoHelena): string {
     '',
     ...(ctx.agora ? ['QUE DIA É HOJE', ...fatosDeHoje(ctx.agora), 'Cada linha da conversa traz a data e a hora em que foi escrita. Mensagem de dias atrás é conversa antiga, não é o assunto de agora.', ''] : []),
     'COMO DEVOLVER A RESPOSTA',
-    'Devolva só um JSON com os campos "bolhas", "acao", "dados" e "resumo".',
+    'Devolva só um JSON com os campos "bolhas", "acao", "opcao", "dados" e "resumo".',
     '"bolhas": lista com 0, 1 ou 2 mensagens curtas, na ordem em que saem. Lista vazia quando não há o que responder.',
     '"acao", escolha uma:',
     '- "continuar": a conversa segue. O que estiver em "bolhas" é enviado.',
     '- "oferecer_horarios": a pessoa aceitou receber os horários, ou pediu outros. O sistema envia a lista.',
+    '- "agendar": use SÓ quando a lista de horários já foi enviada e a pessoa escolheu, sem ambiguidade, um dos horários da lista, em número ou em palavras ("pode ser terça às 10h", "o primeiro", "quarta à tarde" quando só existe um horário de quarta à tarde). Informe em "opcao" a posição dele na lista. Se a escolha não bate com a lista, é ambígua, ou a pessoa recusou os horários, NÃO use "agendar": use "oferecer_horarios" para o sistema mandar outra lista, ou "continuar" para perguntar qual. O sistema grava a reunião e envia a confirmação pronta.',
     '- "adiar": ela quer ser procurada mais para frente ("mês que vem eu te procuro"). O sistema confirma que anotou e não cobra mais. Diga no resumo quando ela pediu para ser procurada.',
     '- "humano": pediu para falar com uma pessoa, reclamou, ou o assunto não é com você. O sistema envia a mensagem de passagem e avisa o consultor.',
     '- "sem_interesse": disse que não tem interesse ou que desistiu. O sistema envia a despedida.',
     '- "parar": pediu para não receber mais mensagem. O sistema confirma e não escreve mais.',
-    'Em "oferecer_horarios", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado.',
+    'Em "oferecer_horarios", "agendar", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar: deixe "bolhas" vazia, porque o que estiver nela não é enviado.',
+    '"opcao": número inteiro. Em "agendar", a posição do horário escolhido na lista (1 a 4). Em todas as outras ações, 0.',
     '"dados": o que a pessoa já disse, em texto curto, com os campos "valor_confirmado", "pagamento", "tem_ponto" e "cidade". Campo que você não sabe fica vazio.',
     '"resumo": até 3 frases curtas para o consultor, dizendo o que a pessoa quer e o que já contou.',
     'Palavras proibidas na resposta: retorno, rendimento, rentabilidade, lucro, payback, garantia, juros, por cento, cota. Para falar disso, diga "os números".',
@@ -1128,9 +1195,10 @@ export const SCHEMA_SAIDA_HELENA = {
       required: ['valor_confirmado', 'pagamento', 'tem_ponto', 'cidade'],
       additionalProperties: false,
     },
+    opcao: { type: 'integer' },
     resumo: { type: 'string' },
   },
-  required: ['bolhas', 'acao', 'dados', 'resumo'],
+  required: ['bolhas', 'acao', 'opcao', 'dados', 'resumo'],
   additionalProperties: false,
 } as const;
 
@@ -1142,6 +1210,8 @@ export interface SaidaHelena {
   bolhas: string[];
   dados: DadosDaConversa;
   resumo: string;
+  /** Só na ação `agendar`: a posição (1 a N) do horário escolhido na lista. 0 nas outras. */
+  opcao?: number;
 }
 
 const SAIDA_INVALIDA: SaidaHelena = { valido: false, acao: 'humano', bolhas: [], dados: {}, resumo: '' };
@@ -1187,6 +1257,7 @@ export function lerSaida(texto: unknown): SaidaHelena {
       tem_ponto: campo('tem_ponto'), cidade: campo('cidade'),
     },
     resumo: String(j.resumo ?? '').trim().slice(0, 600),
+    opcao: Number.isInteger(j.opcao) ? Number(j.opcao) : 0,
   };
 }
 

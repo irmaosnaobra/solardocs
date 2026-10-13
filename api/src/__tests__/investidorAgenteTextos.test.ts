@@ -186,3 +186,45 @@ describe('a Helena marca "reunião" sem dizer o formato (11/10/2026)', () => {
   });
 });
 
+describe('o bloco de conhecimento (12/10/2026)', () => {
+  const r = T.REGRAS_DO_PROMPT;
+  const pos = (t: string): number => { const i = r.indexOf(`
+${t}
+`); expect(i, t).toBeGreaterThan(-1); return i; };
+
+  it('as três seções estão no prompt, na ordem: reunião e empresa, o que explicar, preço, informação antes de aceitar', () => {
+    const ordem = [
+      'COMO É A REUNIÃO E QUEM É A EMPRESA',
+      'O QUE VOCÊ PODE EXPLICAR',
+      'SE DISSER "ME MANDA POR AQUI MESMO" OU "ME PASSA AS INFORMAÇÕES"',
+      'SE PERGUNTAR QUANTO CUSTA, QUANTO DÁ DE RESULTADO OU QUAL O MÍNIMO',
+      'SE A PESSOA QUISER INFORMAÇÃO ANTES DE ACEITAR A REUNIÃO',
+      'SE DISSER QUE NÃO LEMBRA DO FORMULÁRIO OU PERGUNTAR QUEM É VOCÊ',
+    ].map(pos);
+    expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+  });
+
+  it('a seção de preço foi SUBSTITUÍDA: existe uma só, e a redação antiga saiu', () => {
+    expect(r.split('SE PERGUNTAR QUANTO CUSTA, QUANTO DÁ DE RESULTADO OU QUAL O MÍNIMO').length - 1).toBe(1);
+    expect(r).not.toContain('Continua valendo: nenhum número, nem para confirmar nem para negar.');
+    expect(r).toContain('Preço, mínimo e resultado continuam com {consultor}.');
+    expect(r).toContain('Não diga se o valor dela cobre cada item');
+  });
+
+  it('o que entra, o que não entra, e o que continua fora', () => {
+    expect(r).toContain('projeto elétrico, parecer de acesso na concessionária, obra civil, cabeamento, proteção e comissionamento');
+    expect(r).toContain('O que não entra: aluguel do terreno, impostos da operação da própria pessoa e eventual reforço de entrada que a concessionária peça.');
+    expect(r).toContain('não é franquia, então não tem taxa de entrada, royalties nem exclusividade de território');
+    expect(r).toContain('Nunca diga que o valor da pessoa cobre ou não cobre um item.');
+    expect(r).toContain('passe para {consultor} com `humano`');
+  });
+
+  it('a seção nova diz para não repetir a mesma recusa', () => {
+    expect(r).toContain('Não repita "isso é com {consultor}" em duas respostas seguidas.');
+  });
+
+  it('só variáveis conhecidas e nenhum travessão no bloco (já cobertos pelos testes gerais)', () => {
+    for (const v of r.match(/\{[^}]*\}/g) ?? []) expect(['{consultor}']).toContain(v);
+    expect(r).not.toMatch(/[—–]/);
+  });
+});

@@ -81,6 +81,7 @@ import {
   type CandidatoInvestidor, type DadosDaConversa, type MsgDaConversa, type RefCadastro, type ResultadoFila,
   type SaidaHelena, type ContextoHelena, type FonteDoFormulario,
   type CardDaAgenda, type ResultadoFilaResgate, type CandidatoResgate,
+  escolhaPendenteDe, dentroDaJanelaDeRecuperacao, RECUPERACOES_POR_RODADA, type EscolhaPendente,
 } from './investidorAgentePuro';
 
 const LOG = 'investidor-agente';
@@ -188,6 +189,8 @@ export interface SessaoInvestidor {
   sem_retomada?: boolean;
   /** O `quando` (ISO) da reunião que não aconteceu. */
   reuniao_perdida_em?: string;
+  /** A última fala dela que a recuperação da escolha pendente já reprocessou (nunca repete). */
+  recuperado_ate?: string;
   atualizado_em: string;
 }
 
@@ -690,6 +693,13 @@ export async function previaInvestidorAgente(opts: { agora?: Date } = {}): Promi
     })),
     textos: fila.slice(0, 3).map(c => renderAbertura(c.chave, c.nome, c.valorTxt).texto),
     resgate: previaDoResgate(leitura, resgateHoje, typeof enviados === 'number' ? enviados : null),
+    // Escolhas de horário que se perderam (a sessão está em `ofertou`, a última fala
+    // é dela e ninguém respondeu): quantas a recuperação reprocessaria.
+    recuperacao_de_escolha: await tentar(async () => ({
+      pendentes: (await acharEscolhasPendentes(leitura.sessoes, agora.getTime())).length,
+      janela_aberta: dentroDaJanelaDeRecuperacao(agora),
+      maximo_por_rodada: RECUPERACOES_POR_RODADA,
+    })),
   };
 }
 
@@ -858,13 +868,13 @@ export async function sondarHelena(
   ctx: ContextoHelena, historico: readonly MsgDaConversa[], novas: readonly MsgDaConversa[],
 ): Promise<{
   modelo: string; stop_reason: string | null; ms: number; valido: boolean;
-  acao: SaidaHelena['acao']; bolhas: string[]; dados: DadosDaConversa; resumo: string;
+  acao: SaidaHelena['acao']; bolhas: string[]; dados: DadosDaConversa; resumo: string; opcao: number;
   violacao: string | null; reescrita: string | null;
 }> {
   const p = await pensar(montarSistema(ctx), montarPedido(historico, novas));
   return {
     modelo: p.modelo, stop_reason: p.stop_reason, ms: p.ms, valido: p.saida.valido,
-    acao: p.saida.acao, bolhas: p.saida.bolhas, dados: p.saida.dados, resumo: p.saida.resumo,
+    acao: p.saida.acao, bolhas: p.saida.bolhas, dados: p.saida.dados, resumo: p.saida.resumo, opcao: p.saida.opcao ?? 0,
     violacao: p.violacao, reescrita: p.reescrita,
   };
 }
@@ -1127,7 +1137,11 @@ async function agendar(s: SessaoInvestidor, ctx: Contexto, iso: string): Promise
 }
 
 /** Uma conversa, com a vez já reivindicada. */
-async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean): Promise<void> {
+async function atender(
+  s0: SessaoInvestidor, ctx: Contexto, desligada: boolean,
+  /** `recuperacao`: reprocessamento de uma escolha pendente (ver recuperarEscolhasPendentes). */
+  opts: { recuperacao?: boolean } = {},
+): Promise<void> {
   let s = s0;
   const textos = ctx.novas.map(m => String(m.texto || '').trim()).filter(Boolean);
 
@@ -1141,7 +1155,13 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
 
   // Resposta velha demais (o relógio falhou por mais de uma hora), agente
   // desligada ou conversa longa demais: ninguém responde por robô, vai para gente.
-  if (Date.now() - Date.parse(ctx.ultima) > RESPOSTA_VIVA_MS) {
+  //
+  // EXCEÇÃO da recuperação (12/10/2026): a mensagem antiga de quem escolheu um
+  // horário ainda pode virar reunião. Ela passa por aqui, e só o resultado
+  // `agendar` válido escapa do recado; todo o resto cai no mesmo tratamento de
+  // mensagem antiga, mais abaixo.
+  const velha = Date.now() - Date.parse(ctx.ultima) > RESPOSTA_VIVA_MS;
+  if (velha && !opts.recuperacao) {
     await passarParaHumano(s, ctx, 'resposta_atrasada', 'RESPONDEU E FICOU SEM RESPOSTA', { falarComOCliente: false });
     return;
   }
@@ -1157,7 +1177,8 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
   // Pedido de parada escrito com todas as letras ("pare", "me tira da lista") não
   // depende da IA: se ela estiver fora do ar, o opt-out sai do mesmo jeito.
   if (pediuParar(textos)) {
-    await parar(s, ctx);
+    if (velha) await passarParaHumano(s, ctx, 'resposta_atrasada', 'RESPONDEU E FICOU SEM RESPOSTA', { falarComOCliente: false });
+    else await parar(s, ctx);
     return;
   }
 
@@ -1218,7 +1239,7 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
   // O mesmo miolo que a sonda usa (sondarHelena): principal, reserva, leitura da
   // saída e trava de conteúdo com uma reescrita.
   const pensamento = await pensar(sistema, pedido);
-  const saida = pensamento.saida;
+  let saida = pensamento.saida;
 
   // IA falhou ou devolveu algo fora do combinado: não responde nada ao cliente,
   // avisa o consultor e a sessão vira `humano`.
@@ -1237,6 +1258,32 @@ async function atender(s0: SessaoInvestidor, ctx: Contexto, desligada: boolean):
     return;
   }
   s = { ...s, dados: juntarDados(s.dados, saida.dados), resumo: saida.resumo || s.resumo };
+
+  // `agendar` (12/10/2026): a pessoa escolheu um horário da lista em palavras. O
+  // código valida e grava pelo MESMO caminho do número solto: card, sessão
+  // `agendado` e o texto fixo de confirmação, sem as bolhas do modelo.
+  if (saida.acao === 'agendar') {
+    if (s.estagio === 'ofertou' && s.oferta?.length) {
+      const opcao = saida.opcao ?? 0;
+      if (Number.isInteger(opcao) && opcao >= 1 && opcao <= s.oferta.length) {
+        await agendar(s, ctx, s.oferta[opcao - 1]!);   // horário tomado ou dia fechado: ele mesmo oferece lista nova
+      } else {
+        logger.warn(LOG, `agendar com opcao ${opcao} fora da lista de ${s.oferta.length}: oferecendo lista nova`);
+        await oferecerHorarios(s, ctx);
+      }
+      return;
+    }
+    // Sem lista em aberto não há o que agendar: vale como `continuar`. As bolhas
+    // não passaram pela trava de conteúdo (ela só olha `continuar`), então passam aqui.
+    saida = { ...saida, acao: 'continuar', bolhas: violaRegras(saida.bolhas) ? [] : saida.bolhas };
+  }
+
+  // Recuperação de mensagem antiga: só o `agendar` válido (acima) vira reunião.
+  // Qualquer outro resultado é o tratamento que a mensagem antiga já tinha.
+  if (opts.recuperacao) {
+    await passarParaHumano(s, ctx, 'resposta_atrasada', 'RESPONDEU E FICOU SEM RESPOSTA', { falarComOCliente: false });
+    return;
+  }
 
   if (saida.acao === 'continuar') {
     // Estado primeiro. Sem bolha (só "ok", "obrigado") ela não responde.
@@ -1467,6 +1514,119 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// RECUPERAÇÃO DA ESCOLHA PENDENTE (12/10/2026)
+//
+// Bug em produção: a pessoa escolheu o horário em DUAS mensagens ("Pode ser
+// terça-feira, amanhã às 10h." e logo "1"), a leva foi lida e não virou reunião,
+// e ela ficou no vácuo com a sessão em `ofertou`. O conserto de fundo está em
+// `escolhaPorNumero` (a última mensagem manda) e na ação `agendar`. Isto aqui
+// recupera quem JÁ caiu no buraco e qualquer leva perdida no futuro.
+//
+// Sessão em `ofertou` cuja última fala é DELA, mais nova que a nossa, com mais de
+// 10 minutos, já lida pelo cursor (`ate`) e ainda não reprocessada, é passada UMA
+// vez pelo modelo, só entre 08h e 20h de Brasília, no máximo 2 por rodada. O
+// carimbo `recuperado_ate` vai para a sessão ANTES da chamada, para nunca repetir.
+// ═════════════════════════════════════════════════════════════════════════════
+
+interface PendenteRecuperavel { chave: string; s: SessaoInvestidor; p: EscolhaPendente }
+
+/** Quem está nessa condição agora (sem janela e sem limite por rodada). Leitura
+ *  que falha numa sessão pula a sessão. */
+async function acharEscolhasPendentes(sessoes: Map<string, SessaoInvestidor>, agoraMs: number): Promise<PendenteRecuperavel[]> {
+  const candidatas = [...sessoes.entries()]
+    .filter(([, s]) => s.estagio === 'ofertou' && !s.erro && !!s.telefone && !!s.oferta?.length && !!s.ate && sessaoEhDaHelena(s, agoraMs))
+    .sort((a, b) => (String(a[1].ate) < String(b[1].ate) ? -1 : 1));
+  const out: PendenteRecuperavel[] = [];
+  for (const [chave, s] of candidatas) {
+    try {
+      const conversa = await lerHistorico(chave, s.telefone, new Date(agoraMs + 60_000).toISOString());
+      const p = escolhaPendenteDe(conversa, s.ate, s.recuperado_ate, agoraMs);
+      if (p) out.push({ chave, s, p });
+    } catch (err) {
+      logger.warn(LOG, `recuperação: ler a conversa falhou (final ${s.telefone.slice(-2)})`, { erro: String((err as Error)?.message || err).slice(0, 200) });
+    }
+  }
+  return out;
+}
+
+export interface ResultadoRecuperacao extends ResultadoRespostas { pendentes: number; reprocessadas: number }
+
+export async function recuperarEscolhasPendentes(opts: { agora?: Date } = {}): Promise<ResultadoRecuperacao> {
+  const agora = opts.agora ?? new Date();
+  const res: ResultadoRecuperacao = { ...semResposta(), pendentes: 0, reprocessadas: 0 };
+  if (!dentroDaJanelaDeRecuperacao(agora)) return { ...res, motivo: 'fora_da_janela' };
+  let sessoes: Map<string, SessaoInvestidor>;
+  try {
+    sessoes = await lerSessoes();
+  } catch (err) {
+    logger.error(LOG, 'recuperação: ler as sessões falhou', err);
+    return { ...res, erros: 1, motivo: 'erro_sessoes' };
+  }
+  const pendentes = await acharEscolhasPendentes(sessoes, agora.getTime());
+  res.pendentes = pendentes.length;
+  if (!pendentes.length) return { ...res, motivo: 'nenhuma_pendente' };
+
+  let silenciado: (tel: string) => boolean;
+  let chaveOff: EstadoDesligar;
+  try {
+    [silenciado, chaveOff] = await Promise.all([carregarSilenciados({ estrito: true }), lerChaveDesligar()]);
+  } catch (err) {
+    logger.error(LOG, 'recuperação: ler o opt-out falhou, nada é reprocessado', err);
+    return { ...res, erros: 1, motivo: 'erro_leitura' };
+  }
+
+  for (const { chave, s, p } of pendentes) {
+    if (res.reprocessadas >= RECUPERACOES_POR_RODADA) break;
+    try {
+      // Ganhou card por outra porta (marcou pela página, o consultor cadastrou):
+      // a sessão fecha em vez de agendar em dobro.
+      const card = await cardDoTelefone(s.telefone, s.grupo === 'resgate');
+      if (card !== null) {
+        await gravarSessao(chave, { ...s, estagio: 'agendado', agendamento_id: card, motivo: 'card_por_outra_porta', ate: p.ultima });
+        continue;
+      }
+      if (silenciado(s.telefone)) {
+        await gravarSessao(chave, { ...s, estagio: 'sem_interesse', motivo: 'opt_out_por_outra_trilha', ate: p.ultima });
+        continue;
+      }
+      if (!(await podeFalarComLead(s.telefone)).pode) {
+        await registrarBloqueio(s.telefone, LOG);
+        await gravarSessao(chave, { ...s, estagio: 'humano', motivo: 'humano_entrou', ate: p.ultima });
+        continue;
+      }
+    } catch (err) {
+      res.erros++;
+      logger.error(LOG, `recuperação: conferir a sessão falhou (final ${s.telefone.slice(-2)})`, err);
+      continue;
+    }
+
+    // O carimbo ANTES de chamar o modelo: se algo cair no meio, não repete.
+    const marcada: SessaoInvestidor = { ...s, recuperado_ate: p.ultima };
+    try {
+      await gravarSessao(chave, marcada);
+    } catch (err) {
+      res.erros++;
+      logger.error(LOG, 'recuperação: gravar o carimbo falhou, não reprocessa', err);
+      continue;
+    }
+    res.reprocessadas++;
+    const ctx: Contexto = { chave, novas: p.novas, ultima: p.ultima, res, historico: p.historico };
+    try {
+      await atender({ ...marcada, falhas_historico: 0 }, ctx, chaveOff.off, { recuperacao: true });
+    } catch (err) {
+      res.erros++;
+      logger.error(LOG, `recuperação: atender falhou (final ${s.telefone.slice(-4)})`, err);
+      await passarParaHumano(marcada, ctx, 'erro_interno', 'RESPONDEU E DEU ERRO NA AGENTE', { falarComOCliente: false })
+        .catch(e => logger.error(LOG, 'nem o recado de erro saiu', e));
+    }
+  }
+  if (res.reprocessadas) {
+    logger.info(LOG, `recuperação: ${res.reprocessadas} escolha(s) reprocessada(s), ${res.agendadas} reunião(ões), ${res.passadas} passada(s) para o consultor`);
+  }
+  return res;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // FECHO DO RESGATE: quem não respondeu em 7 dias
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -1483,6 +1643,11 @@ const FECHOS_POR_RODADA = 5;
  * ainda não leu: nesse caso deixa para lá, é conversa. Erro de leitura também não
  * fecha. Sessão com `erro` (a abertura nem saiu) nunca é fechada aqui: silenciar
  * quem nunca foi chamado seria inventar um fato.
+ *
+ * Quem JÁ está na supressão não é regravado (12/10/2026, revisão): o upsert do
+ * `silenciarContato` sobrescreve o motivo, e `nunca_respondeu` é o mais fraco, então
+ * apagaria um `opt_out`, uma `denuncia` ou um `fora_do_padrao`. A sessão fecha do
+ * mesmo jeito. Sem conseguir ler a supressão, nada fecha nesta rodada.
  */
 export async function fecharResgatesSemResposta(
   agora: number = Date.now(),
@@ -1499,6 +1664,14 @@ export async function fecharResgatesSemResposta(
       && Number.isFinite(Date.parse(s.aberto_em)) && agora - Date.parse(s.aberto_em) >= RESGATE_SEM_RESPOSTA_MS)
     .sort((a, b) => (a[1].aberto_em < b[1].aberto_em ? -1 : 1))
     .slice(0, FECHOS_POR_RODADA);
+  if (!vencidas.length) return { fechadas: 0, erros: 0 };
+  let jaSilenciado: (tel: string) => boolean;
+  try {
+    jaSilenciado = await carregarSilenciados({ estrito: true });
+  } catch (err) {
+    logger.error(LOG, 'fecho do resgate: ler a supressão falhou, nada fecha nesta rodada', err);
+    return { fechadas: 0, erros: 1, motivo: 'erro_supressao' };
+  }
   let fechadas = 0;
   let erros = 0;
   for (const [chave, s] of vencidas) {
@@ -1509,7 +1682,7 @@ export async function fecharResgatesSemResposta(
       if (error) throw new Error(error.message);
       const ultima = (data as Array<{ momment: string }> | null)?.[0]?.momment;
       if (ultima && ultima > (s.ate || s.aberto_em)) continue;   // escreveu: a rodada de respostas cuida
-      await silenciarContato(s.telefone, 'nunca_respondeu', LOG);
+      if (!jaSilenciado(s.telefone)) await silenciarContato(s.telefone, 'nunca_respondeu', LOG);
       await gravarSessao(chave, { ...s, estagio: 'sem_interesse', motivo: 'sem_resposta' });
       fechadas++;
     } catch (err) {
@@ -1557,7 +1730,12 @@ export async function rodarInvestidorAgente(): Promise<Record<string, unknown>> 
   const vez = await reivindicarRodada();
   if (!vez.ok) return { ok: true, pulou: vez.motivo };
   const respostas = await runInvestidorRespostasTick().catch((e) => ({ error: String(e) }));
+  const recuperacao = await recuperarEscolhasPendentes().catch((e) => ({ reprocessadas: 0, erros: 1, error: String(e) }));
   const fecho = await fecharResgatesSemResposta().catch((e) => ({ fechadas: 0, erros: 1, error: String(e) }));
   const abertura = await runInvestidorAberturaTick().catch((e) => ({ error: String(e) }));
-  return { ok: true, respostas, abertura, ...(fecho.fechadas || fecho.erros ? { fecho } : {}) };
+  return {
+    ok: true, respostas, abertura,
+    ...(recuperacao.reprocessadas || recuperacao.erros ? { recuperacao } : {}),
+    ...(fecho.fechadas || fecho.erros ? { fecho } : {}),
+  };
 }

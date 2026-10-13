@@ -40,6 +40,8 @@ const h = vi.hoisted(() => {
       opcoes: [] as Row[],
       /** Quantas das PRIMEIRAS chamadas estouram o tempo limite. */
       estouros: 0,
+      /** Espião: roda no instante em que o modelo é chamado. */
+      aoChamar: null as null | (() => void),
     },
     agenda: { livre: true, compromissos: [] as Row[] | null, fechados: new Set<string>() },
     card: { gravados: [] as Row[], erro: null as unknown, bloqueado: false, cardsDaLp: 0 },
@@ -189,6 +191,7 @@ vi.mock('../utils/anthropicClient', () => ({
     messages: {
       create: vi.fn(async (p: any, opcoes?: any) => {
         h.ia.chamadas++;
+        h.ia.aoChamar?.();
         h.ia.opcoes.push(opcoes);
         if (h.ia.estouros > 0) { h.ia.estouros--; h.ia.params.push(p); throw new Error('Request timed out.'); }
         h.ia.sistema = p.system;
@@ -229,7 +232,7 @@ vi.mock('../services/io/eletropostoCard', async (orig) => ({
 
 import {
   runInvestidorAberturaTick, runInvestidorRespostasTick, previaInvestidorAgente, definirChaveDesligar,
-  lerChaveDesligar, rodarInvestidorAgente, reivindicarRodada, sondarHelena, fecharResgatesSemResposta,
+  lerChaveDesligar, rodarInvestidorAgente, reivindicarRodada, sondarHelena, fecharResgatesSemResposta, recuperarEscolhasPendentes,
   INV_RESGATE_PREFIX, INV_SENT_PREFIX, INV_OFF_KEY, INV_DISJUNTOR_KEY, INV_LOCK_PREFIX, type SessaoInvestidor,
 } from '../services/io/investidorAgente';
 import * as T from '../services/io/investidorAgenteTextos';
@@ -673,8 +676,8 @@ function sessao(chave: string, over: Partial<SessaoInvestidor> = {}) {
   };
   h.banco.main.system_state!.push({ key: `inv_agente:${chave}`, value: s, updated_at: abertoEm });
 }
-const ia = (acao: string, bolhas: string[] = [], dados: Record<string, string> = {}, resumo = 'Confirmou o interesse.') => {
-  h.ia.resposta = JSON.stringify({ bolhas, acao, dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '', ...dados }, resumo });
+const ia = (acao: string, bolhas: string[] = [], dados: Record<string, string> = {}, resumo = 'Confirmou o interesse.', opcao = 0) => {
+  h.ia.resposta = JSON.stringify({ bolhas, acao, opcao, dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '', ...dados }, resumo });
 };
 const responder = () => { vi.setSystemTime(AGORA); return runInvestidorRespostasTick(); };
 const OFERTA = [brt('2026-10-13T10:00'), brt('2026-10-13T13:00'), brt('2026-10-14T13:00'), brt('2026-10-14T15:00')].map(d => d.toISOString());
@@ -2014,6 +2017,28 @@ describe('resgate dos cancelados', () => {
       expect(sessaoDe(ANA).estagio).toBe('chamado');
     });
 
+    it('quem JÁ está na supressão não é regravado (não rebaixa opt-out), e a sessão fecha do mesmo jeito', async () => {
+      resgate(ANA, { aberto_em: diasAtras(8) });
+      resgate(BRUNO, { aberto_em: diasAtras(8), telefone: TEL.BRUNO, nome: 'Bruno' });
+      h.filtros.silenciados.add(TEL.ANA);                    // já pediu para parar
+      const r = await fecharResgatesSemResposta(AGORA.getTime());
+      expect(r).toMatchObject({ fechadas: 2, erros: 0 });
+      expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
+      expect(sessaoDe(BRUNO)).toMatchObject({ estagio: 'sem_interesse', motivo: 'sem_resposta' });
+      // Só o Bruno foi gravado como nunca_respondeu; a Ana ficou com o motivo que já tinha.
+      expect(h.opt).toEqual([{ tel: TEL.BRUNO, motivo: 'nunca_respondeu', origem: 'investidor-agente' }]);
+    });
+
+    it('sem conseguir ler a supressão (leitura estrita) nada fecha e nada é gravado', async () => {
+      resgate(ANA, { aberto_em: diasAtras(8) });
+      h.filtros.falha.add('silenciados');
+      const r = await fecharResgatesSemResposta(AGORA.getTime());
+      expect(r).toMatchObject({ fechadas: 0, erros: 1, motivo: 'erro_supressao' });
+      expect(h.opt).toHaveLength(0);
+      expect(sessaoDe(ANA).estagio).toBe('chamado');
+      expect(h.filtros.estritas).toContain('silenciados');
+    });
+
     it('a rodada completa fecha antes de abrir, e sem mandar mensagem por causa do fecho', async () => {
       resgate(ANA, { aberto_em: diasAtras(8) });
       vi.setSystemTime(AGORA);
@@ -2021,5 +2046,248 @@ describe('resgate dos cancelados', () => {
       expect(r.fecho).toMatchObject({ fechadas: 1 });
       expect(sessaoDe(ANA).motivo).toBe('sem_resposta');
     });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 12/10/2026: a escolha do horário que se perdeu
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('escolha do horário em palavras: a ação agendar', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+  const TEL_ANA = '5534999990001';
+  const ofertou = () => sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, dados: { cidade: 'Uberaba' } });
+
+  it('"Pode ser terça-feira, amanhã às 10h." e logo "1": agenda a 1 pela regra da última mensagem, sem IA', async () => {
+    ofertou();
+    chegou(TEL_ANA, 'Pode ser terça-feira, amanhã às 10h.', 3);
+    chegou(TEL_ANA, '1', 2);
+    const r = await responder();
+    expect(h.ia.chamadas).toBe(0);
+    expect(r).toMatchObject({ agendadas: 1, respondidas: 1 });
+    expect(h.card.gravados).toHaveLength(1);
+    expect(h.card.gravados[0]!.quando).toBe(OFERTA[0]);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', agendamento_id: 901 });
+    expect(h.zap.humano).toHaveLength(1);
+    expect(h.zap.humano[0]!.partes[0]).toMatch(/Terça 13\/10 às 10:00|terça 13\/10 às 10:00/);
+  });
+
+  it('só "Pode ser terça-feira, amanhã às 10h.": vai ao modelo, e o `agendar` com opcao 1 agenda pelo mesmo caminho', async () => {
+    ofertou();
+    chegou(TEL_ANA, 'Pode ser terça-feira, amanhã às 10h.');
+    ia('agendar', ['Bolha do modelo que não pode sair.'], {}, 'Escolheu o horário 1.', 1);
+    const r = await responder();
+    expect(h.ia.chamadas).toBe(1);
+    expect(r).toMatchObject({ agendadas: 1 });
+    expect(h.card.gravados).toHaveLength(1);
+    expect(h.card.gravados[0]!.quando).toBe(OFERTA[0]);
+    expect(h.card.gravados[0]).toMatchObject({ vendedor_nome: 'Diego', status: 'agendado', created_by: 'agente_eletroposto' });
+    expect(sessaoDe(ANA).estagio).toBe('agendado');
+    // Sai SÓ o texto fixo de confirmação, nunca a bolha do modelo.
+    expect(h.zap.humano).toHaveLength(1);
+    expect(h.zap.humano[0]!.partes.join(' ')).not.toContain('Bolha do modelo');
+    expect(h.zap.humano[0]!.partes.join(' ')).toContain('Diego');
+    // O modelo viu a lista e a instrução da ação.
+    expect(h.ia.sistema).toContain('1. Terça 13/10 às 10:00');
+    expect(h.ia.sistema).toContain('"agendar"');
+  });
+
+  it('`agendar` com opcao 7 (fora da lista): não agenda, oferece uma lista nova', async () => {
+    ofertou();
+    chegou(TEL_ANA, 'Pode ser o último');
+    ia('agendar', [], {}, 'Escolheu o 7.', 7);
+    await responder();
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'ofertou', ofertas_feitas: 2 });
+    expect(h.zap.humano).toHaveLength(1);
+    expect(h.zap.humano[0]!.partes[0]).toMatch(/1\. /);
+  });
+
+  it('`agendar` com opcao 0 ou ausente também é inválido: lista nova, nada gravado', async () => {
+    ofertou();
+    chegou(TEL_ANA, 'Pode ser');
+    ia('agendar', [], {}, 'Sem opção.', 0);
+    await responder();
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA).ofertas_feitas).toBe(2);
+  });
+
+  it('`agendar` fora de `ofertou` não agenda: vale como `continuar`, e as bolhas passam pela trava', async () => {
+    sessao(ANA);                                       // chamado: nenhuma lista foi enviada
+    chegou(TEL_ANA, 'Pode ser terça às 10h');
+    ia('agendar', ['Combinado, Ana. Qual horário fica melhor para você?'], {}, 'Quer marcar.', 1);
+    await responder();
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA).estagio).toBe('conversando');
+    expect(h.zap.humano).toHaveLength(1);
+    expect(h.zap.humano[0]!.partes).toEqual(['Combinado, Ana. Qual horário fica melhor para você?']);
+  });
+
+  it('`agendar` fora de `ofertou` com bolha que a trava barraria: nada sai', async () => {
+    sessao(ANA);
+    chegou(TEL_ANA, 'Pode ser terça às 10h');
+    ia('agendar', ['O rendimento é ótimo.'], {}, 'Quer marcar.', 1);
+    await responder();
+    expect(h.card.gravados).toHaveLength(0);
+    expect(h.zap.humano).toHaveLength(0);
+  });
+
+  it('o horário escolhido foi ocupado: lista nova, como no caminho do número', async () => {
+    ofertou();
+    h.agenda.livre = false;
+    chegou(TEL_ANA, 'Pode ser terça às 10h');
+    ia('agendar', [], {}, 'Escolheu o 1.', 1);
+    await responder();
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'ofertou', ofertas_feitas: 2 });
+    expect(h.zap.humano[0]!.partes[0]).toContain('Esse horário acabou de ser ocupado.');
+  });
+
+  it('o dia escolhido foi fechado: lista nova', async () => {
+    ofertou();
+    h.agenda.fechados.add('2026-10-13');
+    chegou(TEL_ANA, 'Pode ser terça às 10h');
+    ia('agendar', [], {}, 'Escolheu o 1.', 1);
+    await responder();
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA).ofertas_feitas).toBe(2);
+  });
+});
+
+describe('recuperação da escolha pendente', () => {
+  beforeEach(() => { seqMsg = 0; vi.setSystemTime(AGORA); });
+  const antes = (min: number) => new Date(AGORA.getTime() - min * 60_000).toISOString();
+  const linha = (telefone: string, texto: string, min: number, from_me = false) =>
+    h.banco.main.wa_mensagens!.push({ id: ++seqMsg, telefone, texto, tipo: 'texto', from_me, is_group: false, instancia: 'LINHA_TESTE', momment: antes(min) });
+  const TEL_ANA = '5534999990001';
+  /** A sessão que ficou no vácuo: ofertou, a leva dele foi lida (ate) e nada saiu. */
+  const noVacuo = (chave = ANA, tel = TEL_ANA, over: Partial<SessaoInvestidor> = {}) => {
+    sessao(chave, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, telefone: tel, ate: antes(29), ...over });
+    linha(tel, 'Tenho estes horários disponíveis para a reunião: 1. Terça 13/10 às 10:00', 60, true);
+    linha(tel, 'Pode ser terça-feira, amanhã às 10h.', 30);
+  };
+  const recuperar = (agora: Date = AGORA) => { vi.setSystemTime(AGORA); return recuperarEscolhasPendentes({ agora }); };
+
+  it('`agendar` válido agenda, confirma e marca a sessão, mesmo com a mensagem de 3 horas atrás', async () => {
+    sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, ate: antes(179) });
+    linha(TEL_ANA, 'Tenho estes horários disponíveis', 240, true);
+    linha(TEL_ANA, 'Pode ser terça-feira, amanhã às 10h.', 180);
+    ia('agendar', [], {}, 'Escolheu o 1.', 1);
+    const r = await recuperar();
+    expect(r).toMatchObject({ pendentes: 1, reprocessadas: 1, agendadas: 1 });
+    expect(h.card.gravados).toHaveLength(1);
+    expect(h.card.gravados[0]!.quando).toBe(OFERTA[0]);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', recuperado_ate: antes(180) });
+    expect(h.zap.humano).toHaveLength(1);
+    expect(h.zap.equipe).toHaveLength(0);          // nenhum recado de "mensagem atrasada"
+  });
+
+  it('o carimbo vai para a sessão ANTES da chamada ao modelo', async () => {
+    noVacuo();
+    let visto: string | undefined = 'nunca chamou';
+    h.ia.aoChamar = () => { visto = sessaoDe(ANA).recuperado_ate; };
+    ia('agendar', [], {}, '', 1);
+    await recuperar();
+    h.ia.aoChamar = null;
+    expect(visto).toBe(antes(30));
+  });
+
+  it('qualquer outro resultado cai no tratamento de mensagem antiga (recado, sem falar com a pessoa)', async () => {
+    noVacuo();
+    ia('continuar', ['Claro, Ana. Qual horário?'], {}, 'Quer horário.');
+    const r = await recuperar();
+    expect(r).toMatchObject({ reprocessadas: 1, agendadas: 0 });
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'humano', motivo: 'resposta_atrasada' });
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.equipe.length).toBeGreaterThan(0);
+  });
+
+  it('NUNCA reprocessa a mesma mensagem duas vezes', async () => {
+    noVacuo();
+    ia('agendar', [], {}, 'Escolheu o 7.', 7);       // lista nova: a sessão continua em `ofertou`
+    await recuperar();
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'ofertou', recuperado_ate: antes(30) });
+    expect(h.ia.chamadas).toBe(1);
+    const segunda = await recuperar();
+    const terceira = await recuperar();
+    expect(segunda.reprocessadas).toBe(0);
+    expect(terceira.reprocessadas).toBe(0);
+    expect(h.ia.chamadas).toBe(1);
+  });
+
+  it('fora da janela de 08h às 20h não reprocessa', async () => {
+    noVacuo();
+    ia('agendar', [], {}, '', 1);
+    const cedo = await recuperar(brt('2026-10-11T07:59'));
+    const tarde = await recuperar(brt('2026-10-11T20:00'));
+    expect(cedo).toMatchObject({ reprocessadas: 0, motivo: 'fora_da_janela' });
+    expect(tarde).toMatchObject({ reprocessadas: 0, motivo: 'fora_da_janela' });
+    expect(h.ia.chamadas).toBe(0);
+    expect(sessaoDe(ANA).recuperado_ate).toBeUndefined();
+  });
+
+  it('card criado por outra porta fecha a sessão em vez de agendar em dobro', async () => {
+    noVacuo();
+    h.banco.ger.agendamentos!.push({ id: 77, cliente_telefone: TEL_ANA, status: 'agendado', quando: '2026-10-14T17:00:00Z' });
+    ia('agendar', [], {}, '', 1);
+    const r = await recuperar();
+    expect(r.reprocessadas).toBe(0);
+    expect(h.ia.chamadas).toBe(0);
+    expect(h.card.gravados).toHaveLength(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'agendado', motivo: 'card_por_outra_porta', agendamento_id: 77 });
+  });
+
+  it('não pega: a fala tem 10 minutos ou menos, ainda não foi lida, ou a última mensagem é nossa', async () => {
+    sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ate: antes(4) });
+    linha(TEL_ANA, 'Tenho estes horários', 60, true); linha(TEL_ANA, '1', 5);
+    sessao(BRUNO, { estagio: 'ofertou', oferta: OFERTA, telefone: '5534999990002', ate: antes(60) });
+    linha('5534999990002', 'Tenho estes horários', 90, true); linha('5534999990002', '1', 30);
+    sessao(CARLA, { estagio: 'ofertou', oferta: OFERTA, telefone: '5534999990003', ate: antes(29) });
+    linha('5534999990003', '1', 30); linha('5534999990003', 'Combinado, vou registrar.', 20, true);
+    ia('agendar', [], {}, '', 1);
+    const r = await recuperar();
+    expect(r).toMatchObject({ pendentes: 0, reprocessadas: 0 });
+    expect(h.ia.chamadas).toBe(0);
+  });
+
+  it('no máximo 2 por rodada', async () => {
+    noVacuo(ANA, TEL_ANA);
+    noVacuo(BRUNO, '5534999990002');
+    noVacuo(CARLA, '5534999990003');
+    ia('agendar', [], {}, '', 7);
+    const r = await recuperar();
+    expect(r).toMatchObject({ pendentes: 3, reprocessadas: 2 });
+    expect(h.ia.chamadas).toBe(2);
+    // A terceira fica para a próxima rodada.
+    const seguinte = await recuperar();
+    expect(seguinte).toMatchObject({ pendentes: 1, reprocessadas: 1 });
+  });
+
+  it('quem pediu para parar por outra trilha fecha sem IA; humano na conversa também', async () => {
+    noVacuo();
+    h.filtros.silenciados.add(TEL_ANA);
+    ia('agendar', [], {}, '', 1);
+    await recuperar();
+    expect(h.ia.chamadas).toBe(0);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'sem_interesse', motivo: 'opt_out_por_outra_trilha' });
+  });
+
+  it('a prévia conta quantas sessões estão nessa condição e não grava nada', async () => {
+    noVacuo();
+    const antesDeTudo = JSON.stringify(h.banco.main.system_state);
+    const p = await previaInvestidorAgente({ agora: AGORA }) as Record<string, any>;
+    expect(p.recuperacao_de_escolha).toEqual({ pendentes: 1, janela_aberta: true, maximo_por_rodada: 2 });
+    expect(JSON.stringify(h.banco.main.system_state)).toBe(antesDeTudo);
+    expect(sessaoDe(ANA).recuperado_ate).toBeUndefined();
+  });
+
+  it('a rodada completa chama a recuperação e devolve o resultado', async () => {
+    noVacuo();
+    ia('agendar', [], {}, '', 1);
+    vi.setSystemTime(AGORA);
+    const r = await rodarInvestidorAgente() as Record<string, any>;
+    expect(r.recuperacao).toMatchObject({ reprocessadas: 1, agendadas: 1 });
+    expect(sessaoDe(ANA).estagio).toBe('agendado');
   });
 });

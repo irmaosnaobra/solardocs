@@ -17,6 +17,10 @@ import {
   type FiltrosDaFila,
 } from '../services/io/investidorAgentePuro';
 import { ABERTURAS, ABERTURA_SEM_NOME } from '../services/io/investidorAgenteTextos';
+import {
+  escolhaPendenteDe, dentroDaJanelaDeRecuperacao, SCHEMA_SAIDA_HELENA, ACOES_HELENA,
+  escolhaPorNumero as escolha, lerSaida as ler, montarSistema as sistema, type MsgDaConversa,
+} from '../services/io/investidorAgentePuro';
 import { ehFeriadoBR } from '../utils/feriadosBR';
 import type { LinhaOrigem } from '../services/io/eletropostoPares';
 import type { Compromisso } from '../services/io/eletropostoVagas';
@@ -666,7 +670,7 @@ describe('o que a IA recebe', () => {
     expect(s).toContain('"oferecer_horarios"');
     // A ação nova (11/10/2026) está na lista do código e no aviso de mensagem pronta.
     expect(s).toContain('- "adiar": ela quer ser procurada mais para frente');
-    expect(s).toContain('Em "oferecer_horarios", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar');
+    expect(s).toContain('Em "oferecer_horarios", "agendar", "adiar", "humano", "sem_interesse" e "parar" o sistema manda a mensagem pronta no seu lugar');
     // E o bloco de contorno do redator chega ao modelo com o nome do consultor.
     expect(s).toContain('Sua meta em toda conversa é marcar a reunião com Diego.');
     // As regras de conteúdo que não podem faltar.
@@ -1033,3 +1037,105 @@ describe('a trava de conteúdo barra o FORMATO da reunião (11/10/2026)', () => 
   });
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+// 12/10/2026: a escolha do horário que se perdeu
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('escolhaPorNumero: a ÚLTIMA mensagem da leva manda', () => {
+  it('frase e depois o número solto: é a escolha (o caso real de 12/10)', () => {
+    expect(escolha(['Pode ser terça-feira, amanhã às 10h.', '1'], 4)).toBe(0);
+    expect(escolha(['Pode ser terça', 'opção 3'], 4)).toBe(2);
+    expect(escolha(['Pode ser terça', 'a 2.'], 4)).toBe(1);
+    expect(escolha(['Pode ser terça', ' 4 '], 4)).toBe(3);
+  });
+
+  it('o número solto fora da lista ainda é -1', () => {
+    expect(escolha(['Pode ser', '7'], 4)).toBe(-1);
+  });
+
+  it('frase com número no meio, SEM número solto no fim, continua não sendo escolha', () => {
+    expect(escolha(['10h não consigo, tem outro?'], 4)).toBeNull();
+    expect(escolha(['Nenhum serve, trabalho até as 15'], 4)).toBeNull();
+    expect(escolha(['2', 'Pode ser terça'], 4)).toBeNull();           // a última é frase
+    expect(escolha(['Quero o 2', 'obrigado'], 4)).toBeNull();
+  });
+
+  it('dois números soltos diferentes seguem ambíguos, com ou sem frase', () => {
+    expect(escolha(['1', '2'], 4)).toBeNull();
+    expect(escolha(['Pode ser', '1', '2'], 4)).toBeNull();
+    expect(escolha(['Pode ser terça', '2', '2'], 4)).toBe(1);
+  });
+
+  it('as regras antigas seguem: número solto, com cortesia, sozinho', () => {
+    expect(escolha(['2'], 4)).toBe(1);
+    expect(escolha(['2', 'obrigado'], 4)).toBe(1);
+    expect(escolha(['obrigado'], 4)).toBeNull();
+    expect(escolha([], 4)).toBeNull();
+  });
+});
+
+describe('a ação agendar na saída do modelo', () => {
+  const base = { bolhas: [], acao: 'agendar', opcao: 1, dados: { valor_confirmado: '', pagamento: '', tem_ponto: '', cidade: '' }, resumo: 'Escolheu o 1.' };
+
+  it('é uma ação válida, e o schema pede o campo opcao', () => {
+    expect(ACOES_HELENA).toContain('agendar');
+    expect(SCHEMA_SAIDA_HELENA.properties.acao.enum).toContain('agendar');
+    expect(SCHEMA_SAIDA_HELENA.properties.opcao).toEqual({ type: 'integer' });
+    expect(SCHEMA_SAIDA_HELENA.required).toContain('opcao');
+  });
+
+  it('o leitor devolve a ação e a opção; opção que não é inteiro vira 0', () => {
+    expect(ler(JSON.stringify(base))).toMatchObject({ valido: true, acao: 'agendar', opcao: 1 });
+    expect(ler(JSON.stringify({ ...base, opcao: 3 })).opcao).toBe(3);
+    expect(ler(JSON.stringify({ ...base, opcao: '2' })).opcao).toBe(0);
+    expect(ler(JSON.stringify({ ...base, opcao: 1.5 })).opcao).toBe(0);
+    const { opcao: _fora, ...semOpcao } = base;
+    expect(ler(JSON.stringify(semOpcao)).opcao).toBe(0);
+  });
+
+  it('as instruções técnicas ensinam quando usar e quando NÃO usar', () => {
+    const t = sistema({ nome: 'Carlos', valorTxt: 'R$ 140 mil', cidade: null, consultor: 'Diego', oferta: ['2026-10-13T13:00:00Z'], dados: {} });
+    expect(t).toContain('- "agendar": use SÓ quando a lista de horários já foi enviada');
+    expect(t).toContain('Informe em "opcao" a posição dele na lista.');
+    expect(t).toContain('NÃO use "agendar": use "oferecer_horarios"');
+    expect(t).toContain('"opcao": número inteiro.');
+    expect(t).toContain('os campos "bolhas", "acao", "opcao", "dados" e "resumo"');
+  });
+});
+
+describe('escolhaPendenteDe: quem ficou no vácuo depois de escolher', () => {
+  const AGORA_MS = Date.parse('2026-10-11T13:00:00Z');
+  const em = (min: number): string => new Date(AGORA_MS - min * 60_000).toISOString();
+  const nos = (min: number, texto = 'Tenho estes horários'): MsgDaConversa => ({ from_me: true, texto, tipo: 'texto', momment: em(min) });
+  const ele = (min: number, texto: string): MsgDaConversa => ({ from_me: false, texto, tipo: 'texto', momment: em(min) });
+
+  it('a última fala é dele, com mais de 10 minutos e já lida: está pendente, e as falas vêm separadas da conversa', () => {
+    const p = escolhaPendenteDe([nos(60), ele(30, 'Pode ser terça às 10h'), ele(29, '1')], em(28), null, AGORA_MS);
+    expect(p?.ultima).toBe(em(29));
+    expect(p?.novas.map(m => m.texto)).toEqual(['Pode ser terça às 10h', '1']);
+    expect(p?.historico.map(m => m.texto)).toEqual(['Tenho estes horários']);
+  });
+
+  it('mensagem de horas atrás também vale (a regra da hora não se aplica)', () => {
+    expect(escolhaPendenteDe([nos(300), ele(200, '1')], em(199), null, AGORA_MS)).not.toBeNull();
+  });
+
+  it('nega: a última é nossa, tem 10 minutos ou menos, ainda não foi lida, ou já foi reprocessada', () => {
+    expect(escolhaPendenteDe([ele(30, '1'), nos(20)], em(15), null, AGORA_MS)).toBeNull();
+    expect(escolhaPendenteDe([nos(60), ele(10, '1')], em(5), null, AGORA_MS)).toBeNull();
+    expect(escolhaPendenteDe([nos(60), ele(9, '1')], em(5), null, AGORA_MS)).toBeNull();
+    expect(escolhaPendenteDe([nos(60), ele(30, '1')], em(40), null, AGORA_MS)).toBeNull();       // cursor antes da fala
+    expect(escolhaPendenteDe([nos(60), ele(30, '1')], null, null, AGORA_MS)).toBeNull();
+    expect(escolhaPendenteDe([nos(60), ele(30, '1')], em(29), em(30), AGORA_MS)).toBeNull();     // já reprocessada
+    expect(escolhaPendenteDe([nos(60), { from_me: false, texto: null, tipo: 'audio', momment: em(30) }], em(29), null, AGORA_MS)).toBeNull();
+    expect(escolhaPendenteDe([], em(29), null, AGORA_MS)).toBeNull();
+  });
+
+  it('a janela da recuperação é de 08:00 às 20:00 de Brasília', () => {
+    const brt = (hhmm: string) => new Date(`2026-10-12T${hhmm}:00-03:00`);
+    expect(dentroDaJanelaDeRecuperacao(brt('07:59'))).toBe(false);
+    expect(dentroDaJanelaDeRecuperacao(brt('08:00'))).toBe(true);
+    expect(dentroDaJanelaDeRecuperacao(brt('19:59'))).toBe(true);
+    expect(dentroDaJanelaDeRecuperacao(brt('20:00'))).toBe(false);
+  });
+});
