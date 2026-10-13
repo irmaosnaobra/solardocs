@@ -2203,6 +2203,35 @@ describe('recuperação da escolha pendente', () => {
     expect(h.zap.equipe.length).toBeGreaterThan(0);
   });
 
+  it('`continuar` SEM bolha (um "Ok, obrigado"): a sessão segue em ofertou, sem recado nem mensagem, e não reprocessa de novo', async () => {
+    sessao(ANA, { estagio: 'ofertou', oferta: OFERTA, ofertas_feitas: 1, ate: antes(29) });
+    linha(TEL_ANA, 'Tenho estes horários disponíveis', 60, true);
+    linha(TEL_ANA, 'Ok, obrigado', 30);
+    ia('continuar', [], {}, 'Só agradeceu.');
+    const r = await recuperar();
+    expect(r).toMatchObject({ reprocessadas: 1, agendadas: 0, passadas: 0 });
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'ofertou', recuperado_ate: antes(30) });
+    expect(h.zap.humano).toHaveLength(0);
+    expect(h.zap.equipe).toHaveLength(0);
+    expect((await recuperar()).reprocessadas).toBe(0);
+    expect(h.ia.chamadas).toBe(1);
+    // E o "2" que vier depois ainda agenda.
+    chegou(TEL_ANA, '2', 1);
+    const depois = await responder();
+    expect(depois).toMatchObject({ agendadas: 1 });
+    expect(h.card.gravados[0]!.quando).toBe(OFERTA[1]);
+  });
+
+  it('só olha sessão em ofertou mexida nos últimos 7 dias', async () => {
+    noVacuo(ANA, TEL_ANA, { atualizado_em: antes(8 * 24 * 60) });
+    noVacuo(BRUNO, '5534999990002', { atualizado_em: antes(6 * 24 * 60) });
+    ia('agendar', [], {}, '', 7);
+    const r = await recuperar();
+    expect(r).toMatchObject({ pendentes: 1, reprocessadas: 1 });
+    expect(sessaoDe(ANA).recuperado_ate).toBeUndefined();
+    expect(sessaoDe(BRUNO).recuperado_ate).toBeDefined();
+  });
+
   it('NUNCA reprocessa a mesma mensagem duas vezes', async () => {
     noVacuo();
     ia('agendar', [], {}, 'Escolheu o 7.', 7);       // lista nova: a sessão continua em `ofertou`

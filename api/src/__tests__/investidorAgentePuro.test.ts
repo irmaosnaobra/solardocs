@@ -1066,6 +1066,24 @@ describe('escolhaPorNumero: a ÚLTIMA mensagem da leva manda', () => {
     expect(escolha(['Pode ser terça', '2', '2'], 4)).toBe(1);
   });
 
+  it('negação ou dúvida numa mensagem anterior da leva: o número não agenda sozinho, vai para a IA', () => {
+    expect(escolha(['10h não dá', '1'], 4)).toBeNull();
+    expect(escolha(['Vou com meu sócio', '2'], 4)).toBe(1);               // sem negação nem dúvida: segue valendo
+    expect(escolha(['Nao posso terça', '2'], 4)).toBeNull();
+    expect(escolha(['Nenhum serve', '2'], 4)).toBeNull();
+    expect(escolha(['Nenhuma dessas', '2'], 4)).toBeNull();
+    expect(escolha(['Nem pensar na terça', '3'], 4)).toBeNull();
+    expect(escolha(['Talvez terça', '1'], 4)).toBeNull();
+    expect(escolha(['Depende do meu sócio', '1'], 4)).toBeNull();
+    expect(escolha(['Pode ser terça?', '1'], 4)).toBeNull();
+    expect(escolha(['Pode ser terça-feira, amanhã às 10h.', '1'], 4)).toBe(0);   // continua direto
+    expect(escolha(['Quero terça', 'Pode ser às 10h', '1'], 4)).toBe(0);
+    expect(escolha(['Não dá', 'Pode ser terça às 10h', '1'], 4)).toBeNull();     // a negação está em qualquer anterior
+    expect(escolha(['Cenário nada a ver', '1'], 4)).toBe(0);                      // "nada" não é uma das palavras
+    expect(escolha(['1'], 4)).toBe(0);                                            // uma mensagem só não muda
+    expect(escolha(['Não'], 4)).toBeNull();
+  });
+
   it('as regras antigas seguem: número solto, com cortesia, sozinho', () => {
     expect(escolha(['2'], 4)).toBe(1);
     expect(escolha(['2', 'obrigado'], 4)).toBe(1);
@@ -1087,7 +1105,11 @@ describe('a ação agendar na saída do modelo', () => {
   it('o leitor devolve a ação e a opção; opção que não é inteiro vira 0', () => {
     expect(ler(JSON.stringify(base))).toMatchObject({ valido: true, acao: 'agendar', opcao: 1 });
     expect(ler(JSON.stringify({ ...base, opcao: 3 })).opcao).toBe(3);
-    expect(ler(JSON.stringify({ ...base, opcao: '2' })).opcao).toBe(0);
+    expect(ler(JSON.stringify({ ...base, opcao: '2' })).opcao).toBe(2);       // texto numérico vale
+    expect(ler(JSON.stringify({ ...base, opcao: ' 3 ' })).opcao).toBe(3);
+    expect(ler(JSON.stringify({ ...base, opcao: 'dois' })).opcao).toBe(0);
+    expect(ler(JSON.stringify({ ...base, opcao: '2x' })).opcao).toBe(0);
+    expect(ler(JSON.stringify({ ...base, opcao: '-1' })).opcao).toBe(0);
     expect(ler(JSON.stringify({ ...base, opcao: 1.5 })).opcao).toBe(0);
     const { opcao: _fora, ...semOpcao } = base;
     expect(ler(JSON.stringify(semOpcao)).opcao).toBe(0);

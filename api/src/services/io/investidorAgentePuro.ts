@@ -734,6 +734,9 @@ const RE_SO_CORTESIA = /^(?:ok|okay|obrigad[oa]|obg|valeu|vlw|por favor|pfv|blz|
  * agendava a das 15h. Quem cita o horário pode estar recusando; quem manda só o
  * número está escolhendo.
  */
+/** Negação ou dúvida (texto já sem acento e em minúsculo). */
+const RE_NEGACAO_OU_DUVIDA = /(?<![a-z])(?:nao|nenhum|nenhuma|nem|talvez|depende)(?![a-z])|\?/;
+
 export function escolhaPorNumero(textos: readonly string[], n: number): number | null {
   const limpos = textos.map(t => String(t ?? '').trim()).filter(Boolean);
   if (!limpos.length) return null;
@@ -759,6 +762,9 @@ export function escolhaPorNumero(textos: readonly string[], n: number): number |
   const ultimoNumero = numeroSolto(limpos[limpos.length - 1]!);
   if (ultimoNumero === null) return null;
   if (numeros.some(x => x !== ultimoNumero)) return null;
+  // Negação ou dúvida antes do número ("10h não dá" e depois "1"; "vou com meu sócio?"
+  // e depois "2"): o número pode ser outra coisa que não a escolha. Vai para a IA.
+  if (limpos.slice(0, -1).some(t => RE_NEGACAO_OU_DUVIDA.test(semAcento(t)))) return null;
   return foraDaLista(ultimoNumero);
 }
 
@@ -1257,7 +1263,7 @@ export function lerSaida(texto: unknown): SaidaHelena {
       tem_ponto: campo('tem_ponto'), cidade: campo('cidade'),
     },
     resumo: String(j.resumo ?? '').trim().slice(0, 600),
-    opcao: Number.isInteger(j.opcao) ? Number(j.opcao) : 0,
+    opcao: Number.isInteger(j.opcao) ? Number(j.opcao) : (typeof j.opcao === 'string' && /^\s*\d+\s*$/.test(j.opcao) ? Number(j.opcao) : 0),
   };
 }
 

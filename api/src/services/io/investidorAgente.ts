@@ -1281,6 +1281,14 @@ async function atender(
   // Recuperação de mensagem antiga: só o `agendar` válido (acima) vira reunião.
   // Qualquer outro resultado é o tratamento que a mensagem antiga já tinha.
   if (opts.recuperacao) {
+    // `continuar` SEM bolha: o modelo entendeu que não havia o que responder ("Ok,
+    // obrigado", uma resposta automática depois da lista). A sessão segue em
+    // `ofertou`, sem recado e sem mensagem; o `recuperado_ate` já está gravado, então
+    // esta fala não volta a ser reprocessada, e o "2" que vier depois ainda agenda.
+    if (saida.acao === 'continuar' && !saida.bolhas.length) {
+      await gravarSessao(ctx.chave, { ...s, ate: ctx.ultima });
+      return;
+    }
     await passarParaHumano(s, ctx, 'resposta_atrasada', 'RESPONDEU E FICOU SEM RESPOSTA', { falarComOCliente: false });
     return;
   }
@@ -1534,7 +1542,8 @@ interface PendenteRecuperavel { chave: string; s: SessaoInvestidor; p: EscolhaPe
  *  que falha numa sessão pula a sessão. */
 async function acharEscolhasPendentes(sessoes: Map<string, SessaoInvestidor>, agoraMs: number): Promise<PendenteRecuperavel[]> {
   const candidatas = [...sessoes.entries()]
-    .filter(([, s]) => s.estagio === 'ofertou' && !s.erro && !!s.telefone && !!s.oferta?.length && !!s.ate && sessaoEhDaHelena(s, agoraMs))
+    .filter(([, s]) => s.estagio === 'ofertou' && !s.erro && !!s.telefone && !!s.oferta?.length && !!s.ate && sessaoEhDaHelena(s, agoraMs)
+      && Date.parse(s.atualizado_em) >= agoraMs - 7 * 86_400_000)
     .sort((a, b) => (String(a[1].ate) < String(b[1].ate) ? -1 : 1));
   const out: PendenteRecuperavel[] = [];
   for (const [chave, s] of candidatas) {
