@@ -313,8 +313,8 @@
         if (m && tot > 0) inicioMarcar(ob, Math.round(co / tot * 100), co + ' de ' + tot + ' obras concluídas');
         else inicioMarcar(ob, null);
         /* Nenhuma obra: o cartao marinho mostra uma frase so (CSS), em vez de cinco zeros. */
-        if (m && tot === 0) { if (!ob.hasAttribute('data-io2-vazio')) ob.setAttribute('data-io2-vazio', '1'); }
-        else if (ob.hasAttribute('data-io2-vazio')) ob.removeAttribute('data-io2-vazio');
+        if (m && tot === 0) { if (!ob.hasAttribute('data-io2-obras-vazio')) ob.setAttribute('data-io2-obras-vazio', '1'); }
+        else if (ob.hasAttribute('data-io2-obras-vazio')) ob.removeAttribute('data-io2-obras-vazio');
       }
       /* Time: avanco sobre agendados, lido da celula ("36%"). */
       var cs = sec.querySelectorAll('.in-time td[data-r="Avanço sobre agendados"]');
@@ -368,15 +368,21 @@
     if (d === 'obras') {
       /* O corte ("15 dias ou mais") vem da frase do app e continua na tela junto com a maior espera. */
       lim = /há (\d+) dias ou mais/.exec(frase); m = /há (\d+) dias?/.exec(det);
-      if (lim && m && +m[1] > +lim[1]) return [/mais espera/.test(det) ? 'Há ' + lim[1] + ' a ' + m[1] + ' dias' : m[1] + ' dias (' + lim[1] + ' ou mais)', 'av'];
-      if (lim) return ['Há ' + lim[1] + ' dias ou mais', 'av'];
-      return m ? ['Há ' + m[1] + (m[1] === '1' ? ' dia' : ' dias'), 'av'] : null;
+      if (lim && m && +m[1] > +lim[1] && /mais espera/.test(det)) return ['Há ' + lim[1] + ' a ' + m[1] + ' dias', 'av'];
+      if (m) return ['Há ' + m[1] + (m[1] === '1' ? ' dia' : ' dias'), 'av'];
+      return lim ? ['Há ' + lim[1] + ' dias ou mais', 'av'] : null;
     }
     if (d === 'quiz') { m = /últimos (\d+ dias?)/.exec(det); return m ? ['Últimos ' + m[1], ''] : null; }
     if (d === 'areceber') {
-      /* Venda sem valor na planilha: o total e parcial. O aviso do app nao e encurtado (o CSS mostra o detalhe inteiro, em cor de aviso). */
-      if (/sem valor/.test(det)) return ['', 'av'];
-      m = /Em \d+ vendas?/.exec(det); return m ? [m[0], ''] : null;
+      /* Venda sem valor na planilha: o total e parcial e o aviso nao pode sair da tela. A pilula leva os dois fatos da frase do app
+         ("6 vendas, 1 sem valor"), em cor de aviso. Se a frase nao casar, o CSS mostra o detalhe inteiro do app, tambem em aviso. */
+      m = /Em (\d+) (vendas?)/.exec(det);
+      if (/sem valor/.test(det)) {
+        var sv = /(\d+) delas? sem valor/.exec(det);
+        if (!sv) return ['', 'av'];
+        return [(m ? m[1] + ' ' + m[2] + ', ' : '') + sv[1] + ' sem valor', 'av'];
+      }
+      return m ? [m[0], ''] : null;
     }
     return null;
   }
@@ -505,8 +511,49 @@
   }
   /* Agenda de hoje: no computador o nome fica numa linha so; o nome inteiro vira a dica. */
   function agendaInicio(sec) {
-    var ns = sec.querySelectorAll('#in-agenda .in-prox .in-cli:not([title])');
+    var ns = sec.querySelectorAll('#in-agenda .in-prox .in-cli:not([title]), #in-agenda .in-prox .in-meta > span:not([class]):not([title]), .in-card[data-c="funil"] .in-fn > .in-fr:not([title])');
     for (var i = 0; i < ns.length; i++) { var t = txt(ns[i]); if (t) { ns[i].setAttribute('title', t); ns[i].setAttribute('data-io2-tit', '1'); } }
+  }
+  /* Valor em reais nunca quebra entre "R$" e o numero: o espaco comum que o app escreve vira espaco sem quebra, so no texto
+     (frases de vendas e de anuncios e o numero do indicador). O app refaz esses nos a cada desenho; desfazer() devolve o espaco. */
+  function reaisSemQuebra(sec) {
+    var alvos = sec.querySelectorAll('.in-card[data-c="vendas"] .in-fr, .in-card[data-c="anuncios"] .in-fr, #in-pede .in-n.din');
+    for (var i = 0; i < alvos.length; i++) {
+      var n = alvos[i].firstChild;
+      for (; n; n = n.nextSibling) {
+        if (n.nodeType === 3 && n.nodeValue.indexOf('R$ ') >= 0) { n.nodeValue = n.nodeValue.replace(/R\$ /g, 'R$\u00a0'); alvos[i].setAttribute('data-io2-rs', '1'); }
+      }
+    }
+  }
+  function reaisDevolver() {
+    var q = document.querySelectorAll('[data-io2-rs]');
+    for (var i = 0; i < q.length; i++) {
+      for (var n = q[i].firstChild; n; n = n.nextSibling) { if (n.nodeType === 3) n.nodeValue = n.nodeValue.replace(/R\$\u00a0/g, 'R$ '); }
+      q[i].removeAttribute('data-io2-rs');
+    }
+  }
+  /* Grafico de linha: um ponto em cada valor (cor da serie, miolo branco), lido dos pontos da linha que o app desenhou.
+     So entra quando ha pelo menos 12 px entre um valor e o seguinte; em periodo longo fica o ponto final do app. */
+  function pontosDaLinha(sec) {
+    var svg = sec.querySelector('.in-card[data-c="dia"] .pq-graf[data-g="dia"] > svg');
+    if (!svg || svg.hasAttribute('data-io2-pontos')) return;
+    svg.setAttribute('data-io2-pontos', '0');
+    var linhas = svg.querySelectorAll(':scope > polyline[points]'), feitos = 0, todas = linhas.length > 0;
+    for (var i = 0; i < linhas.length; i++) {
+      var pts = (linhas[i].getAttribute('points') || '').trim().split(/\s+/);
+      if (pts.length < 2 || !(Math.abs(parseFloat(pts[1]) - parseFloat(pts[0])) >= 12)) { todas = false; continue; }
+    }
+    if (!todas) return;
+    for (i = 0; i < linhas.length; i++) {
+      var ps = linhas[i].getAttribute('points').trim().split(/\s+/), ref = linhas[i].nextSibling;
+      for (var k = 0; k < ps.length; k++) {
+        var xy = ps[k].split(',');
+        if (xy.length !== 2 || !isFinite(parseFloat(xy[0])) || !isFinite(parseFloat(xy[1]))) continue;
+        var c = svgNo('circle', { 'class': 'io2-pt-linha', cx: xy[0], cy: xy[1], r: '3.5', stroke: linhas[i].getAttribute('stroke') || '' });
+        svg.insertBefore(c, ref); painel.push(c); feitos++;
+      }
+    }
+    if (feitos) svg.setAttribute('data-io2-pontos', '1');
   }
   /* Os dois cartoes que rolam por dentro levam data-io2-mais enquanto ha conteudo abaixo: so entao o pe esmaece. */
   var rolQuadro = 0;
@@ -530,6 +577,8 @@
     for (var z = painel.length - 1; z >= 0; z--) { if (!painel[z] || !painel[z].isConnected) painel.splice(z, 1); }
     indicadoresInicio(sec);
     try { agendaInicio(sec); } catch (e) {}
+    try { reaisSemQuebra(sec); } catch (e) {}
+    try { pontosDaLinha(sec); } catch (e) {}
     try { marcarRolagem(); } catch (e) {}
     var card = sec.querySelector('.in-card[data-c="funil"]');
     if (!card || card.hasAttribute('data-io2-painel')) return;
@@ -914,12 +963,13 @@
     try { criados.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); } catch (e) {}
     try { trenas.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); trenas = []; } catch (e) {}
     try { painel.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); painel = []; } catch (e) {}
+    try { reaisDevolver(); } catch (e) {}
     try {
-      var pi = document.querySelectorAll('#inicioSection [data-io2-rot], #inicioSection [data-io2-sub], #inicioSection [data-io2-tom], #inicioSection [data-io2-tit], #inicioSection [data-io2-painel], #inicioSection [data-io2-mais], #inicioSection [data-io2-vazio]');
+      var pi = document.querySelectorAll('#inicioSection [data-io2-rot], #inicioSection [data-io2-sub], #inicioSection [data-io2-tom], #inicioSection [data-io2-tit], #inicioSection [data-io2-painel], #inicioSection [data-io2-mais], #inicioSection [data-io2-obras-vazio], #inicioSection [data-io2-pontos]');
       for (var yp = 0; yp < pi.length; yp++) {
         if (pi[yp].hasAttribute('data-io2-tit')) { pi[yp].removeAttribute('title'); pi[yp].removeAttribute('data-io2-tit'); }
         pi[yp].removeAttribute('data-io2-rot'); pi[yp].removeAttribute('data-io2-sub'); pi[yp].removeAttribute('data-io2-tom'); pi[yp].removeAttribute('data-io2-painel');
-        pi[yp].removeAttribute('data-io2-mais'); pi[yp].removeAttribute('data-io2-vazio');
+        pi[yp].removeAttribute('data-io2-mais'); pi[yp].removeAttribute('data-io2-obras-vazio'); pi[yp].removeAttribute('data-io2-pontos');
       }
     } catch (e) {}
     try { classesPostas.forEach(function (c) { c[0].classList.remove(c[1]); }); } catch (e) {}

@@ -246,7 +246,7 @@
    Nada some do DOM e nenhum data-in muda. Base = estreito (1 coluna). 861 a 1279: cartoes em 2 colunas.
    ===================================================================== */
 @media screen {
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection { display: flex; flex-direction: column; gap: 16px; max-width: 1320px; padding: 0 0 24px; font-family: var(--io-fonte); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection { display: flex; flex-direction: column; gap: 16px; max-width: 1320px; padding: 0 0 24px; font-family: var(--io-fonte); --s-solar-linha: #D2761C; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection :is(#in-hoje, #in-periodo, #in-auth, #in-filtro)[hidden] { display: none !important; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede-t { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 
@@ -279,7 +279,7 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista { display: flex; flex-wrap: wrap; gap: 16px; background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha {
     flex: 1 1 150px; grid-column: auto; position: relative; box-sizing: border-box; min-width: 0; width: auto; min-height: 96px;
-    display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-areas: "ic rot" "ic n" "ic sub";
+    display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-areas: "ic rot" "ic n" "ic sub"; grid-template-rows: minmax(15px, auto) 28px auto;
     column-gap: 12px; row-gap: 1px; align-items: start; align-content: center;
     padding: 10px 14px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: var(--sombra);
     font-family: var(--io-fonte); text-align: left; color: var(--n-tx);
@@ -316,6 +316,8 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="av"]::after { background: var(--io-av-sf); color: var(--io-av); }
   /* Aviso que nao pode ser encurtado (venda sem valor na planilha): o detalhe do app fica inteiro, em cor de aviso. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-t[data-io2-tom="av"]:not([data-io2-sub]) .in-d { white-space: normal; overflow: visible; text-overflow: clip; color: var(--io-av); font-weight: 600; }
+  /* A pilula do aviso de venda sem valor nunca corta com reticencias: quando falta largura, quebra em duas linhas. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha[data-d="areceber"] .in-t[data-io2-tom="av"][data-io2-sub]::after { white-space: normal; overflow: visible; text-overflow: clip; border-radius: 10px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha .in-seta { display: none; }
   /* Icone: quadrado amarelo cheio (::before) e tracado em tinta por mascara (::after), os dois na mesma celula. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha::before { content: ""; grid-area: ic; align-self: center; width: 40px; height: 40px; border-radius: 10px; background: var(--io-amarelo); }
@@ -427,8 +429,16 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-leg { font-size: 13px; color: var(--n-tx2); }
   /* Cabecalho de coluna numerica alinhado com os numeros. */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-tab th.n { text-align: right; }
-  /* O numero no fim de cada linha do grafico sobe para nao encostar no ponto. */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg text[font-weight="700"] { transform: translateY(-6px); }
+  /* Grafico de linha: traco de 2,5 px, ponto em cada valor (io2-telas.js acrescenta os circulos quando ha espaco) e o numero
+     do fim a direita do ultimo ponto, numa faixa reservada (o grafico e desenhado 16 px mais estreito). Solar em laranja de traco. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf[data-g="dia"] { width: auto; margin-right: 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg polyline { stroke-width: 2.5px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg [stroke="#d2761c"] { stroke: var(--s-solar-linha); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg [fill="#d2761c"] { fill: var(--s-solar-linha); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-leg i[style*="#d2761c" i] { background-color: var(--s-solar-linha) !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg circle.io2-pt-linha { fill: var(--n-sf); stroke-width: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg[data-io2-pontos="1"] > circle:not([data-io2]) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="dia"] .pq-graf svg > text[font-weight="700"] { text-anchor: start; transform: translate(8px, 15px); fill: var(--n-tx); }
 
   /* ---- Graficos (SVG desenhado pelo app, cor em atributo): recolor por CSS, sem tocar nas funcoes ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .pq-graf svg text { fill: var(--n-tx3); font-size: 12px; font-family: var(--io-fonte); }
@@ -456,16 +466,16 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-corpo { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g { position: relative; flex: 0 0 148px; width: 148px; height: 148px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle { fill: none; stroke-width: 14; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle { fill: none; stroke-width: 11; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-rosca-trilho { stroke: var(--n-sf3); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-av { stroke: var(--io-amarelo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-conv { stroke: var(--io-tinta); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-sem { stroke: var(--n-tx2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-nao { stroke: var(--io-borda-campo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g circle.io2-s-can { stroke: var(--n-bd2); }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 24px; font-weight: 700; line-height: 1.05; letter-spacing: -.01em; color: var(--io-tinta); font-variant-numeric: tabular-nums; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro span { font-size: 12px; font-weight: 500; line-height: 15px; color: var(--n-tx2); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro { position: absolute; left: 0; top: 0; right: 0; bottom: 0; box-sizing: border-box; padding-bottom: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 20px; font-weight: 700; line-height: 1.05; letter-spacing: -.01em; color: var(--io-tinta); font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro span { font-size: 12px; font-weight: 500; line-height: 14px; color: var(--n-tx2); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b + span { margin-top: 2px; font-weight: 600; color: var(--n-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg { flex: 1 1 0; min-width: 0; margin: 0; padding: 0; list-style: none; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 28px; align-items: center; column-gap: 4px; margin: 0; padding: 0; font-size: 13px; line-height: 26px; color: var(--n-tx); font-variant-numeric: tabular-nums; }
@@ -483,7 +493,7 @@
   @container io2rosca (min-width: 600px) {
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-corpo { gap: 24px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g { flex-basis: 176px; width: 176px; height: 176px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 30px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 26px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg li { grid-template-columns: 10px auto minmax(0, 1fr); grid-template-areas: "pt nm nm" "qt qt pc"; align-items: baseline; column-gap: 6px; row-gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--n-sf2); line-height: 18px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pt { grid-area: pt; align-self: center; }
@@ -492,8 +502,8 @@
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg .io2-pc { grid-area: pc; text-align: left; }
   }
   /* Sem obra nenhuma o cartao marinho diz uma frase so (io2-telas.js marca data-io2-vazio; a frase do app segue para leitor de tela). */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-vazio] :is(.in-fr, .in-etapas) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-vazio]::before { content: "Nenhuma obra em andamento."; content: "Nenhuma obra em andamento." / ""; display: block; order: 2; font-size: 13px; line-height: 1.45; color: var(--n-inv2); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-obras-vazio] :is(.in-fr, .in-etapas) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-obras-vazio]::before { content: "Nenhuma obra em andamento."; content: "Nenhuma obra em andamento." / ""; display: block; order: 2; font-size: 13px; line-height: 1.45; color: var(--n-inv2); }
 
   /* ---- Cartao invertido (obras): o unico marinho da tela ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"] { display: flex; flex-direction: column; background: var(--io-navy-900); border-color: var(--io-navy-900); color: var(--n-inv); box-shadow: 0 6px 18px rgba(6, 26, 56, .28); }
@@ -534,7 +544,10 @@
 /* Computador (861 ou mais): "Abrir agenda" mora no cartao da agenda. Em tela estreita o botao do topo fica. */
 @media screen and (min-width: 861px) {
   /* Com 6 indicadores o cartao e estreito: a linha de contexto passa a correr na largura toda, sob o icone. */
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(6)) > button.in-linha { grid-template-areas: "ic rot" "ic n" "sub sub"; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(6)) > button.in-linha { grid-template-areas: "ic rot" "ic n" "sub sub"; grid-template-rows: 30px 28px auto; }
+  /* O rotulo tem area fixa de duas linhas e assenta no pe dela: o numero cai na mesma altura em todos os cartoes. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(6)) > button.in-linha .in-f { align-self: end; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(6)) > button.in-linha .in-t[data-io2-rot]::before { align-self: end; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede > .in-lista:has(> button.in-linha:nth-of-type(6)) > button.in-linha .in-t[data-io2-sub]::after { margin-top: 4px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection:has(#in-hoje:not([hidden]) #in-agenda .in-link[data-in="agenda"]) .in-acoes .in-btn[data-in="agenda"] { display: none; }
 }
@@ -591,15 +604,18 @@
     /* Agenda de hoje: so a lista rola; titulo e "Abrir agenda" ficam parados. */
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-agenda { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
     /* A lista mostra so linhas inteiras: cada linha tem 52 px e a altura da area que rola e o resumo (42 px) mais um multiplo de 52. */
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-agenda > .in-ag { flex: 0 0 auto; height: 100%; height: calc(42px + round(down, 100% - 42px, 52px)); min-height: 0; overflow-x: hidden; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--n-bd2) transparent; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-agenda > .in-ag { flex: 0 0 auto; height: 250px; height: calc(42px + round(down, 100% - 42px, 52px)); min-height: 0; overflow-x: hidden; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--n-bd2) transparent; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-agenda .in-ag > p:first-child { box-sizing: border-box; min-height: 34px; font-size: 12px; line-height: 17px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox { margin: 8px 0 0; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox li { box-sizing: border-box; height: 52px; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; padding: 0; align-items: center; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox li { box-sizing: border-box; height: 52px; grid-template-columns: 42px minmax(0, 1fr); gap: 6px; padding: 0; align-items: center; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox .in-selo { padding: 2px 6px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox li > span:last-child { padding-right: 0; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-hora { padding: 8px 0; font-size: 12px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-cli { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-meta { display: flex; flex-wrap: nowrap; align-items: center; gap: 0 6px; margin-top: 2px; min-height: 20px; white-space: nowrap; overflow: hidden; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-meta > :not(.in-selo) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* O produto nunca e cortado (e curto); o consultor encolhe e ganha reticencias proprias. */
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-meta > .in-prod { flex: 0 0 auto; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-meta > :not(.in-selo):not(.in-prod) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox .in-selo { position: static; transform: none; order: 9; flex: 0 0 auto; margin-left: auto; }
     /* Pe que esmaece: so aparece quando ha mais para rolar (io2-telas.js marca data-io2-mais) e nao ocupa lugar. */
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-agenda > .in-ag::after, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"]::after { content: ""; display: block; position: sticky; bottom: 0; height: 12px; margin-top: -12px; background: linear-gradient(to bottom, transparent, var(--n-sf)); pointer-events: none; opacity: 0; }
@@ -618,16 +634,17 @@
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"]:not(:has(.pq-graf, .in-sk, .in-erro)),
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"]:not(:has(table, .in-sk, .in-erro)),
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card.io2-rosca:not(:has(.io2-rosca-corpo, .in-sk)),
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-vazio],
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="obras"][data-io2-obras-vazio],
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-hoje > section:nth-child(2):not(:has(.in-prox, .in-tab, .in-esq, .in-erro)) { height: auto; align-self: stretch; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-hoje > section:nth-child(2):not(:has(.in-prox, .in-tab, .in-esq, .in-erro)) #in-agenda > .in-ag { height: auto; }
 
     /* Funil em tabela com trena, um bloco por produto. */
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] h3 { margin-bottom: 6px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .in-fns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] h3 { margin-bottom: 4px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .in-fns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .io2-trena { height: 10px; border-radius: 5px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .in-fn:has(> .io2-fn-tab) > .pq-graf { display: none; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .in-fn-t { margin: 0 0 2px; font-size: 13px; line-height: 16px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .in-fn .in-fr { margin: 2px 0 0; font-size: 12px; line-height: 16px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] .in-fn .in-fr { margin: 2px 0 0; font-size: 12px; line-height: 16px; color: var(--n-tx3); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="funil"] > .in-fr { margin: 6px 0 0 !important; font-size: 13px; line-height: 18px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-fn-tab { display: table; width: 100%; margin: 0; border-collapse: collapse; table-layout: auto; font-size: 12px; line-height: 19px; font-variant-numeric: tabular-nums; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-fn-tab :is(th, td) { height: 19px; padding: 0; border: 0; background: none; vertical-align: middle; }
@@ -635,16 +652,21 @@
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-fn-tab td.io2-fn-b { width: 98%; padding: 0; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-fn-tab td.io2-fn-v { width: 1%; min-width: 62px; padding-left: 10px; text-align: right; font-size: 12px; color: var(--n-tx2); white-space: nowrap; }
 
-    /* Time: a tabela ocupa o cartao (as linhas dividem a altura que sobra) e a trena do avanco corre na largura da linha inteira. */
+    /* Time: a tabela ocupa o cartao e cada linha e uma grade com as mesmas 6 colunas (cabecalho e numeros alinhados pela direita).
+       A trena do avanco corre na largura da linha: fica presa a propria linha, que aqui e uma caixa de grade comum e nao uma
+       linha de tabela (navegador antigo nao ancora posicao absoluta em linha de tabela). */
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] { display: flex; flex-direction: column; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] h3 { flex: none; margin-bottom: 6px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-tab { flex: 1 1 auto; margin-top: 0; width: 100%; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-tab th { padding: 5px 2px; vertical-align: bottom; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-tab th:nth-child(5) { width: 84px; min-width: 82px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-tab td { padding: 5px 2px 15px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-tab :is(th, td):first-child { padding-left: 4px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-tab :is(th, td):last-child { padding-right: 4px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time tbody tr { position: relative; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time { flex: 1 1 auto; display: flex; flex-direction: column; margin: 0 -6px; width: calc(100% + 12px); }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time thead { display: block; flex: none; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time tbody { flex: 1 1 auto; display: grid; grid-auto-rows: auto; align-content: stretch; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time tr { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 67px 78px 66px 80px 59px; column-gap: 5px; align-items: center; padding: 0 4px; border-bottom: 1px solid var(--n-bd); }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time thead tr { align-items: end; background: var(--n-sf2); }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time tbody tr:last-child { border-bottom-color: transparent; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time :is(th, td) { display: block; box-sizing: border-box; width: auto; min-width: 0; padding: 5px 0; border: 0; background: none; text-align: right; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time td { padding: 5px 0 15px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time :is(th, td):first-child { text-align: left; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time td[data-io2-p] { white-space: nowrap; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-time td[data-io2-p]::after { position: absolute; left: 4px; right: 4px; bottom: 5px; width: auto; min-width: 0; height: 8px; margin: 0; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="time"] .in-rod { flex: none; margin: 6px 0 0; }
 
@@ -659,6 +681,8 @@
   @supports (grid-template-columns: subgrid) {
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-ag-t { padding-right: 96px; font-size: 15px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-ag > .in-link[data-in="agenda"] { right: 4px; padding: 0 8px; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox .in-selo { position: absolute; right: 0; top: 0; transform: none; margin: 0; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-prox .in-cli { padding-right: 64px; }
     /* Sem obras a agenda nao desce: a linha 2 inteira e do time e da rosca. */
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection:not(:has(.in-card[data-c="obras"])) #in-hoje > section:nth-child(2) { grid-row: 3; height: var(--io2-l1); }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo:has(.in-card[data-c="time"]) .in-card[data-c="time"] { grid-column: 1 / 8; }
@@ -667,8 +691,6 @@
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo:has(.in-card[data-c="time"]) .in-card[data-c="vendas"] { grid-column: 1 / 9; grid-row: 5 / span 2; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo:has(.in-card[data-c="time"]) .in-card[data-c="anuncios"] { grid-column: 9 / -1; grid-row: 6; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-periodo:has(.in-card[data-c="time"]):not(:has(.in-card[data-c="obras"])) .in-card[data-c="anuncios"] { grid-row: 5; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g { flex-basis: 136px; width: 136px; height: 136px; }
-    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 22px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede button.in-linha::before { width: 36px; height: 36px; }
     html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection #in-pede .in-linha { grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; }
   }
@@ -716,9 +738,24 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-de { grid-row: 3; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-grade, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-per-grade.duas { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card.io2-rosca { grid-column: 1 / -1 !important; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-corpo { gap: 12px; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g { flex-basis: 136px; width: 136px; height: 136px; }
-  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-centro b { font-size: 22px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-corpo { flex-direction: column; align-items: stretch; gap: 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-g { align-self: center; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .io2-rosca-leg { flex: none; }
+  /* Vendas: uma linha por mes, valores a direita sem quebrar entre "R$" e o numero. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="vendas"] .in-tabv .pq-tab .n { white-space: nowrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="vendas"] .in-tabv .pq-tab :is(th, td) { padding: 8px 4px; font-size: 13px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="vendas"] .in-tabv .pq-tab :is(th, td):first-child { padding-left: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-card[data-c="vendas"] .in-tabv .pq-tab :is(th, td):last-child { padding-right: 0; }
+  /* Time: por consultor, o nome, uma fileira regular de 4 numeros e o avanco com a trena na largura toda. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody { display: block; width: 100%; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 0; border-top: 1px solid var(--n-bd); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody tr:first-child { border-top: 0; padding-top: 4px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody td { display: block; grid-column: auto; width: auto; min-width: 0; padding: 0; border: 0; text-align: left; font-size: 15px; font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody td:first-child { grid-column: 1 / -1; grid-row: 1; font-size: 15px; font-weight: 700; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody td[data-r]::before { content: attr(data-r); display: block; margin: 0 0 2px; font-size: 12px; font-weight: 500; line-height: 1.3; color: var(--n-tx3); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody td[data-r="Avanço sobre agendados"] { grid-column: 1 / -1; grid-row: 3; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection .in-time tbody td[data-r="Avanço sobre agendados"]::before { content: attr(data-r) ": "; display: inline; margin: 0; }
 }
 
 @media screen and (prefers-reduced-motion: reduce) {
