@@ -63,6 +63,10 @@ export interface ItemDoLote {
   origem?: unknown;
   id_cadastro?: unknown;
   helena?: unknown;
+  /** Opcional. Texto de uma linha (até 60) da 1ª linha da observação; sem ele, "Investidor". */
+  perfil?: unknown;
+  /** Opcional. Até 14 linhas (200 caracteres cada) logo depois da 1ª linha da observação. */
+  linhas?: unknown;
 }
 
 export type ResultadoDoItem =
@@ -142,26 +146,78 @@ export function nomeDoCard(v: unknown): string {
 
 const umaLinha = (v: unknown, max = 120): string => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
+/** O trigger do banco acha `NOTA <1|2|3> ·` em QUALQUER ponto da observação, sem
+ *  âncora (`MIGRATION_ep_perfil_ponto_medio.sql`), e copia para colunas que alimentam
+ *  o público do Meta. Texto que casa isto não entra no card do lote. */
+export function temNotaDoTrigger(texto: string): boolean {
+  return /NOTA\s*[123]\s*[·—-]/i.test(texto);
+}
+
+/** `umaLinha`, mas texto com a marca de NOTA do trigger vira vazio. */
+const linhaSemNota = (v: unknown, max = 120): string => {
+  const l = umaLinha(v, max);
+  return temNotaDoTrigger(l) ? '' : l;
+};
+
 function valorLegivel(v: unknown): string {
   if (typeof v === 'number' && Number.isFinite(v)) return `R$ ${v.toLocaleString('pt-BR')}`;
-  return umaLinha(v) || 'não informado';
+  return linhaSemNota(v) || 'não informado';
+}
+
+export const MAX_LINHAS_EXTRAS = 14;
+export const MAX_CHARS_LINHA_EXTRA = 200;
+
+/** `valor` veio? Número finito ou texto não vazio. */
+function temValor(v: unknown): boolean {
+  if (typeof v === 'number') return Number.isFinite(v);
+  return linhaSemNota(v) !== '';
+}
+
+/** As `linhas` do item: só texto ou número, uma linha cada (sem quebra nem espaço
+ *  duplo), até 200 caracteres. Vazia sai. Linha com a marca de NOTA do trigger
+ *  (`temNotaDoTrigger`, em qualquer ponto da linha) também sai: o card do lote não
+ *  pode levar nota. No máximo 14, na ordem. */
+export function linhasExtras(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const saida: string[] = [];
+  for (const x of v) {
+    if (typeof x !== 'string' && !(typeof x === 'number' && Number.isFinite(x))) continue;
+    const l = umaLinha(x, MAX_CHARS_LINHA_EXTRA);
+    if (!l || temNotaDoTrigger(l)) continue;
+    saida.push(l);
+    if (saida.length >= MAX_LINHAS_EXTRAS) break;
+  }
+  return saida;
+}
+
+/** dd/mm/aaaa em Brasília (o relógio do servidor é UTC). */
+function dataDeBrasilia(ms: number): string {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
+  }).formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  return `${p.day}/${p.month}/${p.year}`;
 }
 
 /** A observação do card. A 1ª linha é o CONTRATO do trigger `eletroposto_estruturar`
  *  (`LP ELETROPOSTO · <perfil>`; o separador é o ponto médio). Sem linha de NOTA,
  *  de Ponto ou de "Como pretende investir": rótulos que o trigger lê não entram
  *  aqui, para o card não ganhar nota, ponto nem faixa de capital inventados. */
-export function observacaoDoCard(it: { valor?: unknown; cidade?: unknown; origem?: unknown; id_cadastro?: unknown; helena?: unknown }): string {
-  const linhas = [
-    'LP ELETROPOSTO · Investidor',
-    `Quanto pretende investir: ${valorLegivel(it.valor)}`,
-  ];
-  const cidade = umaLinha(it.cidade, 80);
+export function observacaoDoCard(
+  it: { valor?: unknown; cidade?: unknown; origem?: unknown; id_cadastro?: unknown; helena?: unknown; perfil?: unknown; linhas?: unknown },
+  agora: number = Date.now(),
+): string {
+  // Perfil que não é texto (objeto, lista, número) ou que carrega NOTA cai no padrão.
+  const perfil = (typeof it.perfil === 'string' ? linhaSemNota(it.perfil, 60) : '') || 'Investidor';
+  const extras = linhasExtras(it.linhas);
+  const linhas = [`LP ELETROPOSTO · ${perfil}`, ...extras];
+  // Sem `valor` e com `linhas` válidas, as linhas ocupam o lugar da pergunta do valor.
+  if (!(extras.length > 0 && !temValor(it.valor))) linhas.push(`Quanto pretende investir: ${valorLegivel(it.valor)}`);
+  const cidade = linhaSemNota(it.cidade, 80);
   if (cidade) linhas.push(`Cidade: ${cidade}`);
-  linhas.push(`Origem: cadastro ${umaLinha(it.origem, 40) || 'lote'}:${umaLinha(it.id_cadastro, 40) || 's/n'}`);
-  const helena = umaLinha(it.helena, 300);
+  linhas.push(`Origem: cadastro ${linhaSemNota(it.origem, 40) || 'lote'}:${linhaSemNota(it.id_cadastro, 40) || 's/n'}`);
+  const helena = linhaSemNota(it.helena, 300);
   if (helena) linhas.push(`Situação com a agente: ${helena}`);
-  linhas.push('Agenda em lote de 13/10/2026: sem mensagem automática, o consultor chama no horário.');
+  linhas.push(`Agenda em lote de ${dataDeBrasilia(agora)}: sem mensagem automática, o consultor chama no horário.`);
   return linhas.join('\n');
 }
 
@@ -354,12 +410,12 @@ export async function agendarEmLote(
       quando: q.iso,
       cliente_nome: nomeDoCard(it.nome),
       cliente_telefone: tel,
-      cidade: umaLinha(it.cidade, 80) || null,
+      cidade: linhaSemNota(it.cidade, 80) || null,
       status: 'agendado',
       temperatura: 'morno',
       created_by: ORIGEM_CADASTRO_EP,
       ...Object.fromEntries(CARIMBOS_DO_TICK.map(c => [c, agoraIso])),
-      observacao: observacaoDoCard(it),
+      observacao: observacaoDoCard(it, agora),
     };
 
     if (dry) {

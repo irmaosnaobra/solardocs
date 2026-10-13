@@ -436,6 +436,18 @@ describe('semDonoDeclarado', () => {
     expect(lista.map(c => c.ref)).toContain('agenda:800');
   });
 
+  it('card do lote em silêncio (cadastro_eletroposto) não entra: esta lista manda mensagem ao lead', async () => {
+    const card = (id: number, created_by: string, tel: string) => ({
+      id, created_by, status: 'agendado', cliente_nome: 'Investidor do lote', cliente_telefone: tel,
+      cidade: 'Patos de Minas-MG', observacao: 'LP ELETROPOSTO · Investidor\nEndereço: Av. Q, 90',
+    });
+    tabelas.agendamentos = [...tabelas.agendamentos, card(810, 'cadastro_eletroposto', '5534999992010'), card(811, 'lp_eletroposto', '5534999992011')];
+    const refs = (await semDonoDeclarado()).map(c => c.ref);
+    expect(refs).not.toContain('agenda:810');
+    // O CONTROLE: o mesmo card de outra origem entra como sempre.
+    expect(refs).toContain('agenda:811');
+  });
+
   it('erro de leitura SOBE: lista vazia faria a pauta concluir sem mandar nada', async () => {
     const original = tabelas.eletroposto_nota1;
     tabelas = { ...tabelas, eletroposto_nota1: original };

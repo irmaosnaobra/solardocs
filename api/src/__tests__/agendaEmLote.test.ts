@@ -186,6 +186,122 @@ describe('a sequência de escritas', () => {
   });
 });
 
+describe('observação com perfil e linhas (opcionais)', () => {
+  const obs = async (over: Record<string, any>) => {
+    await lote([item(over)]);
+    return String(fichasGravadas[0]!.observacao).split('\n');
+  };
+
+  it('sem os campos novos a observação é a de sempre', async () => {
+    const { observacaoDoCard } = await import('../services/io/agendaEmLote');
+    expect(observacaoDoCard({ valor: 'R$ 200 mil', cidade: 'Uberlândia', origem: 'parceria', id_cadastro: 12 }, AGORA.getTime())).toBe([
+      'LP ELETROPOSTO · Investidor',
+      'Quanto pretende investir: R$ 200 mil',
+      'Cidade: Uberlândia',
+      'Origem: cadastro parceria:12',
+      'Agenda em lote de 13/10/2026: sem mensagem automática, o consultor chama no horário.',
+    ].join('\n'));
+  });
+
+  it('a data da última linha é a do dia em Brasília, não a fixa', async () => {
+    vi.setSystemTime(new Date('2026-10-14T02:30:00Z'));       // ainda 13/10 em Brasília
+    const ultima = (l: string[]) => l[l.length - 1];
+    expect(ultima(await obs({}))).toContain('Agenda em lote de 13/10/2026:');
+    vi.setSystemTime(new Date('2026-10-14T03:00:00Z'));       // 14/10 em Brasília
+    fichasGravadas.length = 0;
+    const l = await obs({ chave: 'b', telefone: '5534991110055', quando: '2026-10-16T08:00:00-03:00' });
+    expect(ultima(l)).toBe('Agenda em lote de 14/10/2026: sem mensagem automática, o consultor chama no horário.');
+  });
+
+  it('perfil vira a 1ª linha (uma linha só, até 60); vazio volta a Investidor', async () => {
+    expect((await obs({ perfil: 'Arrendamento' }))[0]).toBe('LP ELETROPOSTO · Arrendamento');
+    fichasGravadas.length = 0;
+    expect((await obs({ chave: 'b', telefone: '5534991110002', perfil: '  Dono \n do   ponto ' }))[0]).toBe('LP ELETROPOSTO · Dono do ponto');
+    fichasGravadas.length = 0;
+    expect((await obs({ chave: 'c', telefone: '5534991110003', perfil: 'x'.repeat(100) }))[0]).toBe(`LP ELETROPOSTO · ${'x'.repeat(60)}`);
+    fichasGravadas.length = 0;
+    expect((await obs({ chave: 'd', telefone: '5534991110004', perfil: '   ' }))[0]).toBe('LP ELETROPOSTO · Investidor');
+  });
+
+  it('item sem valor e com linhas: as linhas entram na ordem recebida e não imprime "Quanto pretende investir"', async () => {
+    const l = await obs({ valor: undefined, perfil: 'Arrendamento', cidade: 'Uberaba', linhas: ['Terreno: 300 m²', 'Fluxo: alto', 'Dono: Sr. João'] });
+    expect(l).toEqual([
+      'LP ELETROPOSTO · Arrendamento',
+      'Terreno: 300 m²', 'Fluxo: alto', 'Dono: Sr. João',
+      'Cidade: Uberaba',
+      'Origem: cadastro parceria:12',
+      'Agenda em lote de 13/10/2026: sem mensagem automática, o consultor chama no horário.',
+    ]);
+    expect(l.some(x => x.startsWith('Quanto pretende investir'))).toBe(false);
+  });
+
+  it('com valor e linhas: as linhas vêm antes e a linha do valor continua', async () => {
+    const l = await obs({ linhas: ['A: 1', 'B: 2'] });
+    expect(l.slice(0, 4)).toEqual(['LP ELETROPOSTO · Investidor', 'A: 1', 'B: 2', 'Quanto pretende investir: R$ 200 mil']);
+  });
+
+  it('limpa quebra de linha e espaço duplo, descarta vazia e corta em 200 caracteres', async () => {
+    const l = await obs({ valor: null, linhas: ['  a\n\n b   c ', '', '   ', 42, null, { x: 1 }, 'y'.repeat(300)] });
+    expect(l.slice(1, 4)).toEqual(['a b c', '42', 'y'.repeat(200)]);
+    expect(l[4]).toBe('Cidade: Uberlândia');
+  });
+
+  it('descarta linha com a marca de NOTA do trigger em QUALQUER ponto, em qualquer caixa, mesmo vindo com quebra de linha', async () => {
+    const l = await obs({ valor: undefined, linhas: ['NOTA 3 · 11/11 pts', 'nota 2 · x', 'x\nNOTA 3 · 11/11 pts', 'Fez NOTA 1 - boa', 'NOTA fiscal emitida', 'Anotação 5', 'NOTA 4 · y'] });
+    expect(l.slice(1, 5)).toEqual(['NOTA fiscal emitida', 'Anotação 5', 'NOTA 4 · y', 'Cidade: Uberlândia']);
+    expect(l.join('\n')).not.toMatch(/NOTA\s*[123]\s*[·—-]/i);
+  });
+
+  it('perfil com NOTA, ou que não é texto, cai em Investidor', async () => {
+    expect((await obs({ perfil: 'Outro NOTA 2 · 7/11' }))[0]).toBe('LP ELETROPOSTO · Investidor');
+    for (const [i, perfil] of [{}, 7, ['Arrendamento'], null].entries()) {
+      fichasGravadas.length = 0;
+      expect((await obs({ chave: `p${i}`, telefone: `553499111010${i}`, perfil }))[0]).toBe('LP ELETROPOSTO · Investidor');
+    }
+  });
+
+  it('cidade, valor, origem e helena com NOTA são tratados como vazios', async () => {
+    const l = await obs({ cidade: 'Uberaba NOTA 3 · 9/11 pts', valor: 'NOTA 2 · 5/11', origem: 'x NOTA 1 — y', helena: 'disse NOTA 3 · 9/11' });
+    expect(l).toEqual([
+      'LP ELETROPOSTO · Investidor',
+      'Quanto pretende investir: não informado',
+      'Origem: cadastro lote:12',
+      'Agenda em lote de 13/10/2026: sem mensagem automática, o consultor chama no horário.',
+    ]);
+    expect(fichasGravadas[0]!.cidade).toBeNull();
+  });
+
+  it('valor com NOTA conta como ausente: com linhas, a pergunta do valor não sai', async () => {
+    const l = await obs({ valor: 'NOTA 3 · 9/11', linhas: ['a'] });
+    expect(l.slice(0, 2)).toEqual(['LP ELETROPOSTO · Investidor', 'a']);
+    expect(l.some(x => x.startsWith('Quanto pretende'))).toBe(false);
+  });
+
+  it('no máximo 14 linhas', async () => {
+    const l = await obs({ valor: undefined, linhas: Array.from({ length: 20 }, (_, i) => `L${i + 1}`) });
+    expect(l.filter(x => /^L\d+$/.test(x))).toEqual(Array.from({ length: 14 }, (_, i) => `L${i + 1}`));
+  });
+
+  it('linhas que não é lista, ou sem nenhuma linha válida, não muda nada', async () => {
+    expect((await obs({ linhas: 'solta' }))[1]).toBe('Quanto pretende investir: R$ 200 mil');
+    fichasGravadas.length = 0;
+    expect((await obs({ chave: 'b', telefone: '5534991110002', valor: undefined, linhas: ['NOTA 1 · x', ''] }))[1]).toBe('Quanto pretende investir: não informado');
+  });
+
+  it('o card criado pela rota leva perfil e linhas na observação gravada', async () => {
+    const r = await lote([item({ valor: undefined, perfil: 'Arrendamento', linhas: ['Terreno: 300 m²'] })]);
+    expect(r.itens[0]!.resultado).toBe('criado');
+    expect(String(fichasGravadas[0]!.observacao).split('\n').slice(0, 2)).toEqual(['LP ELETROPOSTO · Arrendamento', 'Terreno: 300 m²']);
+  });
+
+  it('dry com perfil e linhas devolve previa e não escreve', async () => {
+    const r = await lote([item({ perfil: 'Arrendamento', linhas: ['a'] })], { dry: true, tipo: 'arrendamento' });
+    expect(r.itens[0]!.resultado).toBe('previa');
+    expect(ordem).toEqual([]);
+    expect(fichasGravadas).toHaveLength(0);
+  });
+});
+
 describe('dry', () => {
   it('valida e checa duplicado, mas não escreve nada', async () => {
     const r = await lote([item(), item({ chave: 'a2', telefone: '5534991110002', quando: '2026-10-14T08:30:00-03:00' })],

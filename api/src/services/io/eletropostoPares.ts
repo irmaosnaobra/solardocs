@@ -19,6 +19,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { resolverCidade, distanciaKm } from './geoCidade';
+import { ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 
 /**
  * Acima disso não é par, é outro mercado.
@@ -466,7 +467,7 @@ export async function semDonoDeclarado(): Promise<ContatoSemDono[]> {
       .select('id, nome, telefone, cidade, endereco, ficha, valor_investir, status, created_at')
       .order('created_at', { ascending: false }).limit(1000),
     supabaseGerador.from('agendamentos')
-      .select('id, cliente_nome, cliente_telefone, cidade, status, ponto_relacao, observacao, created_at')
+      .select('id, cliente_nome, cliente_telefone, cidade, status, ponto_relacao, observacao, created_by, created_at')
       .ilike('created_by', '%eletroposto%')
       .order('created_at', { ascending: false }).limit(1000),
   ]);
@@ -495,6 +496,10 @@ export async function semDonoDeclarado(): Promise<ContatoSemDono[]> {
                status: (r.status as string) || null, ref: `nota1:${r.id}` });
   }
   for (const r of (ag.data || []) as Record<string, unknown>[]) {
+    // Card do lote em silêncio (`cadastro_eletroposto`) nunca recebe mensagem: esta
+    // lista vira a pauta `sem_dono`, que escreve ao LEAD. (A lista de pontos da
+    // equipe, mais abaixo, lê a agenda sem este corte de propósito.)
+    if (ehCardSemAvisoAutomatico(r.created_by)) continue;
     if (!precisaPerguntarDoDono('agenda', r)) continue;
     const tel = soDigitos(r.cliente_telefone);
     poe(tel, { telefone: tel, nome: (r.cliente_nome as string) || null, cidade: (r.cidade as string) || null,
