@@ -84,6 +84,9 @@
 @media (max-width: 860px) {
   § #eletroSection #cad-acoes > .io2-cad-filtros { grid-column: 1 / -1; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
   § #eletroSection #cad-acoes > .io2-cad-filtros::-webkit-scrollbar { display: none; }
+  /* Pista de que ha mais filtros: esmaecido de 24 px na borda direita (so pintura: nao cobre nem impede o toque). O recheio direito de 24 px
+     deixa o ultimo filtro rolar para fora do esmaecido. */
+  § #eletroSection #cad-acoes > .io2-cad-filtros { padding-right: 24px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
   § #eletroSection #cad-acoes > .io2-cad-filtros > .cad-filtro { flex: 0 0 auto; width: auto; min-width: 0; max-width: none; min-height: 44px; font-size: 16px; }
 }
 
@@ -123,6 +126,10 @@
   § #eletroSection .cadtab button.cad-par > .cad-par-ver { display: inline; margin: 0; background: none; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; color: var(--io-azul); text-decoration: underline; opacity: 1; }
 }
 
+/* Etiqueta PRÓPRIO: o par de estado do sistema (certo sobre fundo suave), sem o verde fluorescente nem o brilho. O brilho some, a borda e
+   interna (inset) para a etiqueta nao crescer e a tabela do computador nao mudar de largura. */
+§ .cad-rel.pro { background-color: var(--io-ok-sf); color: var(--io-ok); box-shadow: inset 0 0 0 1px var(--io-ok); }
+
 /* ===== Cadastros do eletroposto, celular ============================================ */
 @media (max-width: 860px) {
   /* Lista de cadastros vira pilha de cartoes (so quando a linha comeca por td.nome: o Match segue tabela).
@@ -153,6 +160,16 @@
   }
   /* Embaixo: as pilulas de atendimento. */
   § #eletroSection .cadtab:has(td.nome:first-child) td.cad-at { order: 2; flex: 1 1 100%; min-width: 0; padding-top: 10px; border-top: 1px solid var(--n-bd); }
+  /* Celula so com o traco de vazio some (marca data-io2-vazio, posta por io2-telas.js). Quando o traco vem antes de uma legenda
+     (.cad-sub), some so o traco: o texto fica, o corpo da celula sem tamanho de letra e a legenda com o dela. */
+  § #eletroSection .cadtab:has(td.nome:first-child) td[data-io2-vazio="so"] { display: none; }
+  § #eletroSection .cadtab:has(td.nome:first-child) td[data-io2-vazio="traco"] { font-size: 0; line-height: 0; }
+  § #eletroSection .cadtab:has(td.nome:first-child) td[data-io2-vazio="traco"] > .cad-sub { font-size: 12px; line-height: 1.35; margin: 0; }
+  /* As celulas soltas (tipo do local, cidade, investidores perto) correm lado a lado pelo conteudo e quebram de linha sozinhas,
+     em vez de duas metades iguais; cidade e endereco ficam juntos (cidade em peso 600, endereco logo abaixo). */
+  § #eletroSection .cadtab:has(td.nome:first-child) td:where(:not(.nome):not(.cad-end):not(.cad-at):not(:has(> .cad-st, > .cad-st-agenda))) { flex: 0 1 auto; }
+  § #eletroSection .cadtab:has(td.nome:first-child) td:has(+ td.cad-end) { flex: 1 1 100%; font-weight: 600; color: var(--n-tx); order: 1; }
+  § #eletroSection .cadtab:has(td.nome:first-child) td.cad-end { color: var(--n-tx2); font-size: 13px; margin-top: -4px; }
   /* Linha aberta de investidores perto: cola no cartao de cima. */
   § #eletroSection .cadtab tr.cad-par-tr { margin: -6px 0 10px; }
 }

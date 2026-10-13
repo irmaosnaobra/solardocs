@@ -672,4 +672,45 @@ html.io2:not(#_):not(#_) body:where(:has(#voltar)) .cid .num{ min-width: 0; font
   html.io2:not(#_):not(#_) body:where(:has(#aviso-legado)) .filtros .dir{ margin-left: 0; }
 }
 
+/* ===== Acabamento de 13/10: Prospeccao e Agentes, rotulos em caixa normal (Regra da Caixa Normal) =====
+   Prefixo com tres :not(#_): vence as regras acima (dois) e as de style= que forcam 12 px com !important. */
+
+/* Prospeccao: titulos de painel e de secao em caixa normal (a fonte ja vem em caixa mista; era so o CSS antigo que erguia). */
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .ch{ text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; color: var(--n-tx); }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .st{ text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; color: var(--n-tx); }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .agd-h{ text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--n-tx2); }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) th{ text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; }
+/* Rotulos escritos em maiuscula dentro do JavaScript da pagina (style= no proprio no): caixa normal, so a 1a letra em maiuscula.
+   A fonte mista (ROI, nomes proprios) so perde a caixa alta; a fonte toda em maiuscula e rebaixada e a 1a letra sobe. */
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) :is([style*="letter-spacing:.5px"][style*="font-weight:800"], [style*="letter-spacing:.08em"], [style*="letter-spacing:.06em"][style*="text-transform:uppercase"]){
+  display: block; text-transform: lowercase !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 600 !important; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) :is([style*="letter-spacing:.5px"][style*="font-weight:800"], [style*="letter-spacing:.08em"], [style*="letter-spacing:.06em"][style*="text-transform:uppercase"])::first-letter{ text-transform: uppercase; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) [style*="letter-spacing:.6px"][style*="text-transform:uppercase"]{ text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 600 !important; }
+/* Etiqueta SUGERIDO (a fonte vem em maiuscula): pilula de 12 px, peso 600, so a 1a letra em maiuscula. */
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .sug{ display: inline-block; text-transform: lowercase; letter-spacing: 0; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .sug::first-letter{ text-transform: uppercase; }
+/* Aviso ambar "Base maior do que esta tela carrega": compacto (13 px, recheio de 8 por 12). O texto inteiro segue la. */
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) div[style*="rgba(245,158,11,.14)"]{ font-size: 13px !important; line-height: 1.4 !important; padding: 8px 12px !important; }
+
+/* Agentes: titulo da estatistica do cartao em caixa normal (a fonte vem em minuscula: a 1a letra sobe), 13 px, ate duas linhas.
+   A grade ganha largura (160 px por numero) para "Compras de quem ela tocou (30d)" caber em duas linhas. */
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .mets{ grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .met .l{ display: block; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; line-height: 1.3; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .met .l::first-letter{ text-transform: uppercase; }
+/* Etiqueta de estado do cartao (a fonte vem em minuscula): caixa normal com a 1a letra em maiuscula. */
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .pill{ text-transform: none; letter-spacing: 0; font-weight: 600; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .pill::first-letter{ text-transform: uppercase; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .toques h4{ text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 600; color: var(--n-tx); }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .teto .t{ letter-spacing: 0; font-size: 13px; font-weight: 600; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .teto .t > span:first-child{ display: inline-block; text-transform: lowercase; }
+html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-ativos)) .teto .t > span:first-child::first-letter{ text-transform: uppercase; }
+
+/* Prospeccao no celular: a barra de acoes (.mbar) e sticky acima da navegacao inferior. Foco por teclado e rolagem "para ver"
+   deixam o controle acima dela: a folga de baixo da rolagem soma a navegacao (--io-bot, ja com a zona segura), a altura da
+   barra (~135 px) e 16 px de ar. No fim da pagina a barra assenta encostada na navegacao (sem os 16 px de recheio do body). */
+@media (max-width: 760px){
+  html.io2:not(#_):not(#_):not(#_):where(:has(#m-teto)){ scroll-padding-bottom: calc(var(--io-bot, 0px) + 168px); }
+  html.io2:not(#_):not(#_):not(#_) body:where(:has(#m-teto)) .mbar{ margin-bottom: -16px; }
+}
+
 }

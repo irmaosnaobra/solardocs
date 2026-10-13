@@ -5,7 +5,8 @@
    Blocos: (A) texto longo recolhido, (B) faixa de resultado do Simulador no celular,
    (C) remendos de acessibilidade em tempo de execucao, (D) Inicio: marcas de proporcao para a trena e indicador zerado,
    (E) acabamento: trena do funil (SVG), indicador zerado no CRM e em Quem ligar, chip ativo de Leads, avatar sem foto na Automacao,
-   filtros de Cadastros numa fileira so (os select de #cad-acoes sao movidos para div.io2-cad-filtros; desfazer() devolve).
+   filtros de Cadastros numa fileira so (os select de #cad-acoes sao movidos para div.io2-cad-filtros; desfazer() devolve),
+   celulas de Cadastros que so tem o traco de vazio (data-io2-vazio; o CSS do celular esconde).
    Tudo o que este arquivo acrescenta fica marcado (data-io2, data-io2-*) para desfazer() devolver o app ao que era. */
 (function () {
   var h = document.documentElement;
@@ -558,6 +559,33 @@
     }
   }
 
+  /* Cadastros (cartao do celular): marca a celula cujo valor e so o traco de "vazio" (o app escreve um travessao quando falta o dado).
+     data-io2-vazio="so"    = a celula inteira e o traco (o CSS do celular esconde a celula);
+     data-io2-vazio="traco" = o traco vem antes de legendas .cad-sub (o CSS do celular esconde so o traco e deixa a legenda).
+     Nao troca texto nem move no. No computador a marca nao tem regra nenhuma. O app refaz o corpo da tabela inteiro a cada
+     filtro ou status: o motor chama de novo com os nos novos. desfazer() tira as marcas. */
+  function cadVazios(raiz) {
+    try {
+      if (!raiz || !raiz.querySelectorAll) return;
+      var lst = [];
+      if (raiz.matches && raiz.matches('.cadtab td')) lst.push(raiz);
+      var f = raiz.querySelectorAll('.cadtab td');
+      for (var i = 0; i < f.length; i++) lst.push(f[i]);
+      for (var j = 0; j < lst.length; j++) {
+        var td = lst[j];
+        if (td.hasAttribute('data-io2-vazio') || td.classList.contains('nome')) continue;
+        if (td.textContent.replace(/\s+/g, '') === '\u2014') { td.setAttribute('data-io2-vazio', 'so'); continue; }
+        var n = td.firstChild, so = !!(n && n.nodeType === 3 && n.nodeValue.replace(/\s+/g, '') === '\u2014' && td.children.length);
+        for (var k = 0; so && k < td.children.length; k++) if (!td.children[k].classList.contains('cad-sub')) so = false;
+        if (so) td.setAttribute('data-io2-vazio', 'traco');
+      }
+    } catch (e) {}
+  }
+  function cadVaziosDevolver() {
+    var q = document.querySelectorAll('[data-io2-vazio]');
+    for (var i = 0; i < q.length; i++) q[i].removeAttribute('data-io2-vazio');
+  }
+
   var acabQuadro = 0;
   function acabamento() {
     acabQuadro = 0;
@@ -604,6 +632,7 @@
         comoFunciona(r);
         remendos(r);
         seloPares(r);
+        cadVazios(r);
       }
     } catch (e) {}
   }
@@ -629,6 +658,7 @@
     try { if (timer) clearTimeout(timer); timer = 0; fila = []; } catch (e) {}
     try { filtrosDevolver(); } catch (e) {}
     try { seloDevolver(); } catch (e) {}
+    try { cadVaziosDevolver(); } catch (e) {}
     try { criados.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); } catch (e) {}
     try { trenas.forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); }); trenas = []; } catch (e) {}
     try { classesPostas.forEach(function (c) { c[0].classList.remove(c[1]); }); } catch (e) {}
@@ -670,6 +700,7 @@
     try { acabamentoLigar(); } catch (e) {}
     try { filtrosCadastros(); } catch (e) {}
     try { seloPares(document); } catch (e) {}
+    try { cadVazios(document); } catch (e) {}
     try { ouvir(document, 'click', cliqueComoFunciona, false); } catch (e) {}
     try { ouvir(document, 'keydown', tecla, false); } catch (e) {}
     try { observar(document.body, { childList: true, subtree: true }, aoMudarCorpo); } catch (e) {}
