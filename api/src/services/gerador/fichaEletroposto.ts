@@ -20,9 +20,9 @@
 // papel pode ver.
 // ─────────────────────────────────────────────────────────────────────────────
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
-import { ETAPAS_POS_VENDA, ROTULO_MODELO, trilhoDoModelo, type PosVenda } from '../agenda/posVendaEletroposto';
+import { ETAPAS_POS_VENDA, MODELOS_POS_VENDA, ROTULO_MODELO, trilhoDoModelo, type PosVenda } from '../agenda/posVendaEletroposto';
 import {
-  normalizarDaPlanilha, validarValor, preenchida,
+  normalizarDaPlanilha, validarValor, preenchida, numeroBR,
   type Coluna, type Valor, type Validado, type Progresso, type RegistroGestao, type LinhaGestao,
 } from './gestaoClientes';
 import { podeVer } from './solarObras';
@@ -304,6 +304,8 @@ export interface ObraEp {
   responsavel: string;
   obs: string;
   vendido_em: string | null;
+  /** Em reais. SÓ na resposta do sócio: a chave nem existe para o consultor. */
+  valor?: number | null;
   em: string | null;
   falta_informar: boolean;
   concluido: boolean;
@@ -323,13 +325,13 @@ export function progressoObra(p: PosVenda | null): { feitas: number; total: numb
   return { feitas: concluido ? total : Math.max(0, idx), total, falta_informar: !p || !modelo, concluido };
 }
 
-export function montarObra(card: CardVendido, pvBruto: unknown, hoje: string): ObraEp {
+export function montarObra(card: CardVendido, pvBruto: unknown, hoje: string, socio = false): ObraEp {
   const p = lerPosVenda(pvBruto);
   const modelo = p ? p.modelo : '';
   const pr = progressoObra(p);
   const previsto = p && p.previsto ? p.previsto : null;
   const etapa = p ? p.etapa : '';
-  return {
+  const obra: ObraEp = {
     id: card.id,
     cliente: String(card.cliente_nome ?? ''),
     cidade: String(card.cidade ?? ''),
@@ -357,6 +359,8 @@ export function montarObra(card: CardVendido, pvBruto: unknown, hoje: string): O
     falta_informar: pr.falta_informar,
     concluido: pr.concluido,
   };
+  if (socio) obra.valor = p && typeof p.valor === 'number' ? p.valor : null;
+  return obra;
 }
 
 /** Obras que o papel vê: atrasadas primeiro, depois em andamento pela data prevista, concluídas por último. */
@@ -367,7 +371,7 @@ export function montarObras(
   for (const card of cards) {
     if (!ehCardVendidoEp(card)) continue;
     if (!(socio || podeVer(nome, String(card.vendedor_nome ?? '')))) continue;
-    obras.push(montarObra(card, posVendas.get(card.id), hoje));
+    obras.push(montarObra(card, posVendas.get(card.id), hoje, socio));
   }
   const grupo = (o: ObraEp): number => (o.concluido ? 2 : o.atrasado ? 0 : 1);
   return obras.sort((a, b) =>
@@ -376,12 +380,28 @@ export function montarObras(
     || b.id - a.id);
 }
 
-/** Campos que a rota de Obras aceita. `modelo`, `valor`, `vendido_em` e `por` NUNCA entram: o `por` vem do token. */
-const CAMPOS_OBRA = ['etapa', 'previsto', 'responsavel', 'obs'] as const;
+/** Os 6 modelos de venda, para a tela de Obras escolher. */
+export const MODELOS_OBRA: Array<{ chave: string; rotulo: string }> =
+  MODELOS_POS_VENDA.map((chave) => ({ chave, rotulo: ROTULO_MODELO[chave] }));
+
+/**
+ * Campos que a rota de Obras aceita. `por` NUNCA entra: vem do token. `modelo` é de toda a equipe (só os 6 modelos);
+ * `valor` e `vendido_em` são só de sócio (a rota responde 403 ao consultor que os mandar).
+ */
+const CAMPOS_OBRA = ['etapa', 'previsto', 'responsavel', 'obs', 'modelo'] as const;
+const CAMPOS_SO_SOCIO = ['valor', 'vendido_em'] as const;
 
 export type EntradaObra =
-  | { ok: true; id: number; baseEm: string; entrada: Record<string, unknown> }
+  | { ok: true; id: number; baseEm: string; entrada: Record<string, unknown>; soSocio: boolean }
   | { ok: false; erro: string };
+
+/** Valor em reais: número ou texto brasileiro ("1.234,56"), a mesma régua da Gestão. Vazio ou null limpa. */
+export function lerValorObra(bruto: unknown): { ok: true; valor: number | null } | { ok: false } {
+  if (bruto === null || (typeof bruto === 'string' && bruto.trim() === '')) return { ok: true, valor: null };
+  if (typeof bruto !== 'number' && typeof bruto !== 'string') return { ok: false };
+  const n = numeroBR(bruto);
+  return n === null ? { ok: false } : { ok: true, valor: n };
+}
 
 export function lerEntradaObra(corpo: unknown): EntradaObra {
   if (!corpo || typeof corpo !== 'object' || Array.isArray(corpo)) return { ok: false, erro: 'corpo_invalido' };
@@ -392,10 +412,15 @@ export function lerEntradaObra(corpo: unknown): EntradaObra {
   if (!baseEm || !Number.isFinite(Date.parse(baseEm)) || new Date(baseEm).toISOString() !== baseEm) {
     return { ok: false, erro: 'base_em_invalido' };
   }
+  if (b.modelo !== undefined && !(typeof b.modelo === 'string' && (MODELOS_POS_VENDA as readonly string[]).includes(b.modelo))) {
+    return { ok: false, erro: 'modelo_invalido' };
+  }
   const entrada: Record<string, unknown> = {};
   for (const k of CAMPOS_OBRA) if (b[k] !== undefined) entrada[k] = b[k];
+  let soSocio = false;
+  for (const k of CAMPOS_SO_SOCIO) if (b[k] !== undefined) { entrada[k] = b[k]; soSocio = true; }
   if (!Object.keys(entrada).length) return { ok: false, erro: 'nada_a_gravar' };
-  return { ok: true, id: Number(idTxt), baseEm, entrada };
+  return { ok: true, id: Number(idTxt), baseEm, entrada, soSocio };
 }
 
 /**

@@ -395,6 +395,25 @@ describe('GET /obras/eletroposto', () => {
     expect(o105).toMatchObject({ id: 105, modelo: '', modelo_rotulo: 'Modelo a confirmar', etapa: '', feitas: 0, total: 1, falta_informar: true, previsto: null, atrasado: false, em: null });
     expect(o105.etapas.map((e: { chave: string }) => e.chave)).toEqual(['papeis']);
   });
+  it('modelos: os 6 chegam para a tela escolher; valor e vendido_em só na resposta do sócio, e nunca o valor para o consultor', async () => {
+    const socioRes = await obras(THIAGO);
+    expect(socioRes.body.modelos).toEqual([
+      { chave: 'chave_na_mao', rotulo: 'Chave na mão' }, { chave: 'meio_a_meio', rotulo: '50/50' }, { chave: 'arrendamento', rotulo: 'Arrendamento' },
+      { chave: 'cotista', rotulo: 'Cotas' }, { chave: 'integrador', rotulo: 'Integrador' }, { chave: 'carregador', rotulo: 'Carregador avulso' },
+    ]);
+    const s101 = socioRes.body.obras.find((o: { id: number }) => o.id === 101);
+    expect(s101).toMatchObject({ valor: 250000.55, vendido_em: '2026-09-20' });
+    expect(socioRes.body.obras.find((o: { id: number }) => o.id === 105)).toMatchObject({ valor: null, vendido_em: null });
+    const c = await obras(NILCE);
+    expect(c.body.modelos).toHaveLength(6);
+    expect(c.body.obras[0]).toMatchObject({ id: 101, vendido_em: '2026-09-20' });
+    expect('valor' in c.body.obras[0]).toBe(false);
+    expect(JSON.stringify(c.body)).not.toContain('250000');
+    // a resposta do POST também respeita o papel
+    const p = await postObra({ id: 101, responsavel: 'Lu', base_em: PV_101.em }, NILCE);
+    expect('valor' in p.body.obra).toBe(false);
+    expect(JSON.stringify(p.body)).not.toContain('250000');
+  });
   it('atrasado olha o dia de Brasília: previsto hoje não está atrasado; ontem está', async () => {
     h.linhas.set('pos_venda:101', { value: { ...PV_101, previsto: '2026-10-14' }, updated_at: 'v' });
     expect((await obras(THIAGO)).body.obras.find((o: { id: number }) => o.id === 101).atrasado).toBe(false);
@@ -442,10 +461,10 @@ describe('progressoObra (o mesmo cálculo do PosVenda.resumo)', () => {
 describe('POST /obras/eletroposto', () => {
   const registro = (id: number) => h.linhas.get(`pos_venda:${id}`)!.value as Record<string, unknown>;
 
-  it('sócio muda a etapa: grava o mesmo pos_venda:<id>, `por` vem do TOKEN, e modelo/valor/vendido_em do corpo são ignorados', async () => {
+  it('sócio muda a etapa: grava o mesmo pos_venda:<id>, `por`, `etapa_desde` e `em` do corpo são ignorados (o `por` vem do TOKEN)', async () => {
     const res = await postObra({
       id: 101, etapa: 'protocolo', base_em: PV_101.em,
-      por: 'impostor', modelo: 'carregador', valor: 1, vendido_em: '2026-10-01', etapa_desde: '2000-01-01T00:00:00.000Z',
+      por: 'impostor', em: '2000-01-01T00:00:00.000Z', etapa_desde: '2000-01-01T00:00:00.000Z',
     });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -457,6 +476,90 @@ describe('POST /obras/eletroposto', () => {
     expect(Object.keys(reg).sort()).toEqual(['em', 'etapa', 'etapa_desde', 'modelo', 'obs', 'por', 'previsto', 'responsavel', 'valor', 'vendido_em']);
     expect(res.body.obra).toMatchObject({ id: 101, etapa: 'protocolo', feitas: 2, total: 9, atrasado: false, em: AGORA });
     expect(res.body.em).toBe(AGORA);
+  });
+  it('trocar o modelo refaz o trilho: etapa que continua no trilho novo fica (relógio intacto); a que sai vai para a primeira etapa dele', async () => {
+    // meio a meio -> chave na mão: "projeto" existe nos dois
+    const a = await postObra({ id: 101, modelo: 'chave_na_mao', base_em: PV_101.em });
+    expect(a.status).toBe(200);
+    expect(registro(101)).toMatchObject({ modelo: 'chave_na_mao', etapa: 'projeto', etapa_desde: PV_101.etapa_desde, previsto: '2026-10-05', valor: 250000.55 });
+    expect(a.body.obra).toMatchObject({ modelo: 'chave_na_mao', modelo_rotulo: 'Chave na mão', total: 10, feitas: 2 });
+    // chave na mão -> carregador: "projeto" não existe; vai para "papeis", com relógio e prazo novos
+    const b = await postObra({ id: 101, modelo: 'carregador', base_em: AGORA });
+    expect(b.status).toBe(200);
+    expect(registro(101)).toMatchObject({ modelo: 'carregador', etapa: 'papeis', etapa_desde: AGORA, previsto: '2026-10-21' });
+    expect(b.body.obra).toMatchObject({ modelo: 'carregador', etapa: 'papeis', feitas: 0, total: 5, falta_informar: false });
+    expect(b.body.obra.etapas.map((e: { chave: string }) => e.chave)).toEqual(['papeis', 'credito', 'pedido', 'entrega', 'concluido']);
+    // modelo e etapa juntos: a etapa vale contra o trilho NOVO
+    const c = await postObra({ id: 101, modelo: 'meio_a_meio', etapa: 'protocolo', base_em: AGORA });
+    expect(c.status).toBe(200);
+    expect(registro(101)).toMatchObject({ modelo: 'meio_a_meio', etapa: 'protocolo' });
+    expect((await postObra({ id: 101, modelo: 'carregador', etapa: 'protocolo', base_em: AGORA })).body.error).toBe('etapa_fora_do_trilho');
+  });
+  it('venda sem modelo (as de hoje): escolher o modelo abre o trilho completo; consultor também pode', async () => {
+    const res = await postObra({ id: 105, modelo: 'arrendamento', base_em: AGORA }, DIEGO);
+    expect(res.status).toBe(200);
+    expect(registro(105)).toMatchObject({ modelo: 'arrendamento', etapa: 'papeis', valor: null, vendido_em: '2026-08-02' });
+    expect(res.body.obra).toMatchObject({ modelo: 'arrendamento', falta_informar: false, total: 10, feitas: 0 });
+    const n = await postObra({ id: 101, modelo: 'cotista', base_em: PV_101.em }, NILCE);
+    expect(n.status).toBe(200);
+    expect(registro(101)).toMatchObject({ modelo: 'cotista', por: 'nilce' });
+  });
+  it('modelo inválido: 400 modelo_invalido (fora dos 6, vazio, número, lista); nada é gravado', async () => {
+    for (const modelo of ['xyz', '', 7, ['carregador'], null, 'CARREGADOR']) {
+      const r2 = await postObra({ id: 101, modelo, base_em: PV_101.em });
+      expect(r2.status, String(modelo)).toBe(400);
+      expect(r2.body, String(modelo)).toEqual({ ok: false, error: 'modelo_invalido' });
+    }
+    expect(registro(101)).toBe(PV_101);
+  });
+  it('consultor com `valor` ou `vendido_em`: 403 com a frase fixa, mesmo com outros campos válidos juntos; nada é gravado', async () => {
+    for (const extra of [{ valor: 1000 }, { vendido_em: '2026-09-15' }, { valor: 'abc' }, { valor: null }]) {
+      const r2 = await postObra({ id: 101, etapa: 'protocolo', ...extra, base_em: PV_101.em }, NILCE);
+      expect(r2.status, JSON.stringify(extra)).toBe(403);
+      expect(r2.body.error).toBe('Só sócio altera valor e data da venda.');
+    }
+    expect(registro(101)).toBe(PV_101);
+    // a posse vem antes: card alheio com valor continua 404, igual a inexistente
+    expect((await postObra({ id: 102, valor: 1, base_em: AGORA }, NILCE)).status).toBe(404);
+    expect((await postObra({ id: 999, valor: 1, base_em: AGORA }, NILCE)).status).toBe(404);
+  });
+  it('sócio grava valor (número ou formato brasileiro) e data da venda; vazio limpa o valor', async () => {
+    const a = await postObra({ id: 101, valor: '1.234,56', vendido_em: '2026-09-15', base_em: PV_101.em });
+    expect(a.status).toBe(200);
+    expect(registro(101)).toMatchObject({ valor: 1234.56, vendido_em: '2026-09-15', por: 'thiago', modelo: 'meio_a_meio', etapa: 'projeto' });
+    expect(a.body.obra).toMatchObject({ valor: 1234.56, vendido_em: '2026-09-15' });
+    expect((await postObra({ id: 101, valor: 250000, base_em: AGORA })).status).toBe(200);
+    expect(registro(101).valor).toBe(250000);
+    expect((await postObra({ id: 101, valor: 'R$ 8.887,77', base_em: AGORA })).status).toBe(200);
+    expect(registro(101).valor).toBe(8887.77);
+    expect((await postObra({ id: 101, valor: '145.000', base_em: AGORA })).status).toBe(200);
+    expect(registro(101).valor).toBe(145000);   // ponto de milhar: nunca 145
+    expect((await postObra({ id: 101, valor: '', base_em: AGORA })).status).toBe(200);
+    expect(registro(101).valor).toBeNull();
+    // inválidos
+    expect((await postObra({ id: 101, valor: 'abc', base_em: AGORA })).body.error).toBe('valor_invalido');
+    expect((await postObra({ id: 101, valor: -5, base_em: AGORA })).body.error).toBe('valor_invalido');
+    expect((await postObra({ id: 101, valor: { a: 1 }, base_em: AGORA })).body.error).toBe('valor_invalido');
+    expect((await postObra({ id: 101, vendido_em: '2026-02-30', base_em: AGORA })).body.error).toBe('data_invalida');
+    expect((await postObra({ id: 101, vendido_em: '2030-01-01', base_em: AGORA })).body.error).toBe('data_invalida');
+  });
+  it('venda sem registro: o vendido_em que o sócio mandou vale mais que o dia do card', async () => {
+    const res = await postObra({ id: 105, vendido_em: '2026-09-30', valor: 99000, base_em: AGORA }, THIAGO);
+    expect(res.status).toBe(200);
+    expect(registro(105)).toMatchObject({ vendido_em: '2026-09-30', valor: 99000, modelo: '' });
+  });
+  it('o pos_venda:<id> segue no formato que a Agenda lê: as mesmas 10 chaves, tipos certos, relido pelo módulo puro', async () => {
+    const campos = { id: 101, modelo: 'carregador', valor: 5000, vendido_em: '2026-09-18', responsavel: 'Ze', obs: 'ok', previsto: '2026-11-01', base_em: PV_101.em };
+    expect((await postObra(campos)).status).toBe(200);
+    const reg = registro(101);
+    expect(Object.keys(reg).sort()).toEqual(['em', 'etapa', 'etapa_desde', 'modelo', 'obs', 'por', 'previsto', 'responsavel', 'valor', 'vendido_em']);
+    expect(reg).toMatchObject({ modelo: 'carregador', valor: 5000, vendido_em: '2026-09-18', etapa: 'papeis', previsto: '2026-11-01', responsavel: 'Ze', obs: 'ok', por: 'thiago' });
+    expect(typeof reg.etapa_desde).toBe('string');
+    expect(typeof reg.em).toBe('string');
+    // a mesma regra pura que a rota pública da Agenda usa aceita o registro como "atual" e não o altera
+    const { montarPosVenda } = await import('../services/agenda/posVendaEletroposto');
+    const reler = montarPosVenda({ obs: 'ok' }, reg as never, AGORA, '2026-10-14');
+    expect(reler.ok && reler.registro).toMatchObject({ modelo: 'carregador', valor: 5000, vendido_em: '2026-09-18', etapa: 'papeis' });
   });
   it('consultor mexe no card dele; `por` é o nome do token', async () => {
     const res = await postObra({ id: 101, responsavel: 'Lucas', obs: 'Ligar na sexta', base_em: PV_101.em }, NILCE);

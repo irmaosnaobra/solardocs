@@ -6,7 +6,7 @@ import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { montarPosVenda } from '../services/agenda/posVendaEletroposto';
 import {
   colunasFichaPara, gruposFichaPara, definicaoFicha, montarFicha, montarObras, montarObra, celulaFicha,
-  progressoFicha, validarCampoFicha, lerEntradaObra, houveConflitoObra, lerPosVenda,
+  progressoFicha, validarCampoFicha, lerEntradaObra, lerValorObra, houveConflitoObra, lerPosVenda, MODELOS_OBRA,
   type CelulaFicha, type CardVendido, type LinhaFicha,
 } from '../services/gerador/fichaEletroposto';
 import { totais, houveConflito, aplicarGravacao, type LinhaGestao } from '../services/gerador/gestaoClientes';
@@ -32,7 +32,8 @@ import {
 //
 // As Obras gravam o MESMO `pos_venda:<id>` da Agenda, no mesmo formato. O corpo NUNCA
 // vai inteiro para o `montarPosVenda`: só etapa, previsto, responsavel e obs; o `por`
-// vem do token; modelo, valor e vendido_em ficam na caixa da Agenda.
+// vem do token. `modelo` é de toda a equipe (só os 6, e a etapa que não existir no trilho novo vai para a primeira dele, a
+// mesma regra do `montarPosVenda` que a Agenda usa); `valor` e `vendido_em` são só de sócio (403 para consultor).
 //
 // Nenhum valor de campo vai para log: só o código do erro do banco. Nenhuma rota
 // pública (`/pos-venda`, `/agentes`) devolve campo da ficha: `cliente_ep:` só é lido aqui.
@@ -205,6 +206,7 @@ export function mountClientesEletroposto(router: Router): void {
         socio,
         consultor: nome,
         em: agora,
+        modelos: MODELOS_OBRA,
         obras: montarObras(cards, posVendas, nome, socio, diaDeBrasilia(agora)),
       });
     } catch (err) {
@@ -228,6 +230,18 @@ export function mountClientesEletroposto(router: Router): void {
     }
     if (!card || !dono(nome, socio, card)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
 
+    // Valor e data da venda são dinheiro e contabilidade: só sócio. Depois da posse, para o 404 não variar com o papel.
+    if (!socio && e.soSocio) {
+      res.status(403).json({ ok: false, error: 'Só sócio altera valor e data da venda.', precisa: 'socio' });
+      return;
+    }
+    const base: Record<string, unknown> = { ...e.entrada };
+    if (base.valor !== undefined) {
+      const v = lerValorObra(base.valor);
+      if (!v.ok) { res.status(400).json({ ok: false, error: 'valor_invalido' }); return; }
+      base.valor = v.valor;
+    }
+
     try {
       for (let tentativa = 0; tentativa < TENTATIVAS_GRAVAR; tentativa++) {
         const { valor: bruto, versao } = await lerPosVendaComVersao(e.id);
@@ -237,7 +251,7 @@ export function mountClientesEletroposto(router: Router): void {
             ok: false, conflito: true,
             error: 'Outra pessoa alterou esta obra agora. Confira e tente de novo.',
             por: atual!.por, em: atual!.em,
-            obra: montarObra(card, bruto, diaDeBrasilia(new Date())),
+            obra: montarObra(card, bruto, diaDeBrasilia(new Date()), socio),
           });
           return;
         }
@@ -245,15 +259,15 @@ export function mountClientesEletroposto(router: Router): void {
         const hoje = diaDeBrasilia(agora);
         // Venda ainda sem registro: o "vendido em" nasce do card (o mesmo dia que o dashboard usa), nunca de "hoje",
         // senão registrar uma venda antiga a empurraria para o mês corrente.
-        const entrada: Record<string, unknown> = { ...e.entrada, por: nome };
-        if (!atual) {
+        const entrada: Record<string, unknown> = { ...base, por: nome };
+        if (!atual && entrada.vendido_em === undefined) {
           const dia = card.created_at ? diaDeBrasilia(card.created_at) : '';
           if (/^\d{4}-\d{2}-\d{2}$/.test(dia) && dia >= '2024-01-01' && dia <= hoje) entrada.vendido_em = dia;
         }
         const montado = montarPosVenda(entrada, atual, agora, hoje);
         if (!montado.ok) { res.status(400).json({ ok: false, error: montado.erro }); return; }
         if (!(await gravarPosVenda(e.id, montado.registro, versao, agora))) continue;   // perdeu a corrida: lê de novo
-        res.json({ ok: true, em: agora, obra: montarObra(card, montado.registro, hoje) });
+        res.json({ ok: true, em: agora, obra: montarObra(card, montado.registro, hoje, socio) });
         return;
       }
       res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta obra agora. Tente de novo.' });
