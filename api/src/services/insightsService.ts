@@ -10,7 +10,11 @@
 
 import { logger } from '../utils/logger';
 
-export const PLANILHA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pub?output=csv';
+// O endereco publicado da Planilha Mestre vem do ambiente (PLANILHA_MESTRE_CSV). O valor escrito abaixo e so
+// reserva enquanto a variavel nao existe na Vercel: este repositorio e publico, entao o endereco de reserva
+// tem que ser despublicado no Google depois que a variavel estiver no ar com um endereco novo.
+export const PLANILHA_CSV_URL = process.env.PLANILHA_MESTRE_CSV
+  || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pub?output=csv';
 // Exportado porque a aba Recibo/Contrato do /gerador procura o cartão do
 // cliente NESTE mesmo quadro — dois ids soltos viravam dois quadros diferentes
 // no dia em que um deles fosse trocado.
