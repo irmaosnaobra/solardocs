@@ -36,6 +36,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaEm } from '../agenda/agendaFechada';
+import { ehHorarioDeAlmoco } from '../agenda/almoco';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { FILTRO_NAO_OCUPA } from '../agenda/salaDeEspera';
 import { ocupacoesSolar } from '../agenda/solarOcupacao';
@@ -69,22 +70,16 @@ const BRT_TZ = 'America/Sao_Paulo';
 // `eletropostoGradeEspelho.test.ts` roda os dois lado a lado.
 const GRADE_INICIO_MIN = 8 * 60;              // 08:00
 const GRADE_FIM_MIN = 17 * 60 + 30;           // 17:30, o último começo
-/** O almoço travado: horário que COMEÇA em [12:00, 13:30) não existe. */
-const ALMOCO_INICIO_MIN = 12 * 60;
-const ALMOCO_FIM_MIN = 13 * 60 + 30;
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 
 const emMinutos = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const deMinutos = (m: number): string =>
   `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-/** O horário de INÍCIO cai no almoço? `hhmm` é 'HH:MM' em Brasília. Vale para
- *  as duas faixas: 12:00, 12:30 e 13:00 (novo) e 12:15, 12:45 e 13:15 (remarcação).
- *  É também a validação da criação em lote. A LP tem a cópia (`ehHorarioDeAlmoco`). */
-export function ehHorarioDeAlmoco(hhmm: string): boolean {
-  const m = emMinutos(hhmm);
-  return m >= ALMOCO_INICIO_MIN && m < ALMOCO_FIM_MIN;
-}
+/** O almoço travado (12:00 às 13:30) mora em `agenda/almoco.ts`, módulo folha que a
+ *  rota da LP também usa. Reexportado aqui com o mesmo nome: é também a validação da
+ *  criação em lote. A LP tem a cópia (`ehHorarioDeAlmoco`). */
+export { ehHorarioDeAlmoco };
 
 /** De `ini` a `fim` (minutos do dia) de 30 em 30, sem o que começa no almoço. */
 const gerarHoras = (ini: number, fim: number): readonly string[] => {

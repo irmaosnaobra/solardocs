@@ -240,3 +240,40 @@ describe('POST /parceria: o cadastro que vem antes da agenda também não ensina
     expect(h.enviar).not.toHaveBeenCalled();
   });
 });
+
+// ALMOÇO TRAVADO (13/10/2026, 12:00 às 13:30): a última porta para aba velha da LP.
+// 14/10/2026 é quarta-feira; o servidor roda em UTC, então 12:00 de Brasília é 15:00Z.
+describe('POST /agendar: o almoço (12:00 às 13:30 de Brasília) responde 409 e não grava', () => {
+  for (const [rotulo, quando] of [
+    ['12:00', '2026-10-14T15:00:00.000Z'],
+    ['12:30', '2026-10-14T15:30:00.000Z'],
+    ['13:00', '2026-10-14T16:00:00.000Z'],
+    ['12:00 escrito com o fuso -03:00', '2026-10-14T12:00:00-03:00'],
+    ['12:15 (minuto fora da grade, mas dentro do almoço)', '2026-10-14T15:15:00.000Z'],
+  ] as const) {
+    it(`${rotulo} → 409 horario indisponivel, motivo almoco, nada gravado`, async () => {
+      const r = await post({ quando, tipo: 'cotista' });
+      expect(r.status).toBe(409);
+      expect(r.body).toEqual({ error: 'horario indisponivel', motivo: 'almoco' });
+      expect(h.inseridas).toHaveLength(0);
+      expect(h.upserts).toHaveLength(0);
+      expect(h.enviar).not.toHaveBeenCalled();
+    });
+  }
+
+  for (const [rotulo, quando] of [
+    ['11:30', '2026-10-14T14:30:00.000Z'],
+    ['13:30', '2026-10-14T16:30:00.000Z'],
+    ['18:00', '2026-10-14T21:00:00.000Z'],
+    ['10:15 (minuto 15)', '2026-10-14T13:15:00.000Z'],
+    ['10:45 (minuto 45)', '2026-10-14T13:45:00.000Z'],
+  ] as const) {
+    it(`${rotulo} passa como antes: 200 e a ficha é gravada`, async () => {
+      const r = await post({ quando });
+      expect(r.status).toBe(200);
+      expect(r.body).toEqual({ ok: true, id: 77 });
+      expect(h.inseridas).toHaveLength(1);
+      expect(h.inseridas[0]!.quando).toBe(quando);
+    });
+  }
+});

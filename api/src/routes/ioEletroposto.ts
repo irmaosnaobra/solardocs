@@ -6,6 +6,7 @@ import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
+import { ehAlmocoNoIso } from '../services/agenda/almoco';
 // A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
 // vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
 import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../services/io/eletropostoPares';
@@ -627,6 +628,12 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   // o POST assim mesmo. Aqui é a última porta — a página avisa e recarrega.
   if (agendaFechadaNoIso(quando)) {
     res.status(409).json({ error: 'dia fechado', motivo: MOTIVO_FECHADA }); return;
+  }
+  // ALMOÇO TRAVADO (13/10/2026, 12:00 às 13:30): a grade da LP já não oferece esses
+  // horários, mas aba aberta antes da mudança ainda os mostra. Só o INÍCIO conta, em
+  // Brasília (o servidor roda em UTC), e nenhuma outra validação de grade entra aqui.
+  if (ehAlmocoNoIso(quando)) {
+    res.status(409).json({ error: 'horario indisponivel', motivo: 'almoco' }); return;
   }
 
   // A LP monta a observação — é dela que o trigger do banco deriva a nota e as
