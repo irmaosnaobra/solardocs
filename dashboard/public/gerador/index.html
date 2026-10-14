@@ -7952,6 +7952,11 @@ function authLimpar() {
   try { if (typeof inLimparMemoria === 'function') inLimparMemoria(); } catch (e) {}
   // A planilha (iframe vivo com a grade na memória) e a lista da aba Documentos também são desta conta.
   try { if (typeof solarSessaoLimpar === 'function') solarSessaoLimpar(); } catch (e) {}
+  // O perfil (foto, e-mail, papel) e o menu do usuario tambem sao desta conta: o cache sai, a janela "Meu perfil" fecha
+  // (nao pode ficar por cima do login) e a casca esquece o perfil em memoria.
+  try { localStorage.removeItem('gerador-perfil-v1'); } catch (e) {}
+  try { if (typeof fecharMeuPerfil === 'function') fecharMeuPerfil(); } catch (e) {}
+  try { window.dispatchEvent(new Event('io2-sessao-limpa')); } catch (e) {}
   try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
 }
 async function authEntrar(email, senha) {
@@ -37799,6 +37804,7 @@ window.addEventListener('DOMContentLoaded', function () {
 </script>
   <script src="/lib/telemetria.js" defer></script>
 <script defer src="/gerador/ui/casca.js"></script>
+<script defer src="/gerador/ui/perfil.js"></script>
 <script defer src="/gerador/ui/io2-telas.js"></script>
 <script defer src="/gerador/ui/io2-icones.js"></script>
 </body>

@@ -35,7 +35,11 @@
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
     /* Trilho recolhivel: setas duplas (recolher; recolhido o CSS espelha) e o relogio que volta, do "Visual antigo". */
     recolher: '<polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>',
-    antigo: '<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 7v5l3 2"></path>'
+    antigo: '<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 7v5l3 2"></path>',
+    /* Menu do usuario: perfil, equipe (so socio) e a seta do botao. */
+    perfil: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+    equipe: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+    seta: '<polyline points="6 9 12 15 18 9"></polyline>'
   };
   var MODELO = {
     /* Barra inferior: o item chama o clique do item da barra lateral com este id. */
@@ -53,6 +57,9 @@
       { chave: 'nav-agentes', rotulo: 'Agentes' },
       { chave: 'nav-automacao', rotulo: 'Automação' },
       { sep: true },
+      /* Perfil: `acionar` trata os dois (abrem a janela do perfil.js). `soSocio`: escondido ate o perfil dizer que a pessoa e socio. */
+      { chave: 'perfil', rotulo: 'Meu perfil', icone: 'perfil' },
+      { chave: 'perfil-equipe', rotulo: 'Perfis da equipe', icone: 'equipe', soSocio: true },
       { chave: 'sb-atualizar', rotulo: 'Atualizar' },
       { chave: 'sair', rotulo: 'Sair', icone: 'sair' },
       /* Link simples (um <a>), nao dispara nada do app: a pagina grava a chave e volta ao /gerador. Sempre o ultimo item. */
@@ -90,13 +97,14 @@
     /* Reguas de aba: a ativa e trazida para a vista quando nao cabe. */
     reguas: '.solar-subnav, .eletro-subnav, .eletro-subnav2, .cad-abas, .crm-subnav',
     /* gerador-ir: destino pedido por outra pagina (subapps) -> funcao de navegacao existente. */
-    ir: { inicio: 'navInicio', solar: 'navGerador', eletroposto: 'navEletroposto', crm: 'navCRM', automacao: 'navAutomacao', sair: 'sairGerador' },
+    ir: { inicio: 'navInicio', solar: 'navGerador', eletroposto: 'navEletroposto', crm: 'navCRM', automacao: 'navAutomacao', sair: 'sairGerador', perfil: 'abrirMeuPerfil', 'perfil-equipe': 'abrirPerfisEquipe' },
     /* Ordem da barra lateral do index (a dos subapps repete esta). */
     barra: ['nav-inicio', 'nav-solar', 'nav-eletroposto', 'nav-agenda', 'nav-crm', 'nav-prospeccao', 'nav-cobrancas', 'nav-agentes', 'nav-automacao'],
     /* Onde cada item mora. `index`: grava gerador-ir e abre /gerador limpo. `sub`: abre /gerador/<nome>. */
     destinos: {
       'nav-inicio': { index: 'inicio' }, 'nav-solar': { index: 'solar' }, 'nav-eletroposto': { index: 'eletroposto' },
       'nav-crm': { index: 'crm' }, 'nav-automacao': { index: 'automacao' }, 'sair': { index: 'sair' },
+      'perfil': { index: 'perfil' }, 'perfil-equipe': { index: 'perfil-equipe' },
       'nav-agenda': { sub: 'agenda' }, 'nav-prospeccao': { sub: 'prospeccao' }, 'nav-cobrancas': { sub: 'cobrancas' }, 'nav-agentes': { sub: 'agentes' }
     },
     /* Subapps conhecidos. `ativo`: item aceso (estados, radar e metricas acendem Eletroposto: nao ha item proprio).
@@ -175,7 +183,7 @@
     return s;
   }
   function fonteDe(chave) {
-    if (chave === 'sair') return document.querySelector('#app-sidebar .sb-foot .sb-item:not(#sb-atualizar)');
+    if (chave === 'sair') return document.querySelector('#app-sidebar .sb-foot .sb-item:not(#sb-atualizar):not(#sb-perfil)');
     return document.getElementById(chave);
   }
   function iconeDe(item) {
@@ -222,11 +230,22 @@
     el.cons = criar('span', null, 'io2-t-cons');
     ctx.appendChild(el.aba); ctx.appendChild(el.cons);
     txt.appendChild(el.titulo); txt.appendChild(ctx);
-    var user = criar('div', null, 'io2-t-user');
+    /* O bloco do usuario e um botao: abre o menu do usuario (so de 861 px para cima; no celular o CSS esconde os dois). */
+    var user = criar('button', null, 'io2-t-user');
+    user.type = 'button';
+    user.setAttribute('aria-haspopup', 'menu');
+    user.setAttribute('aria-expanded', 'false');
+    user.setAttribute('aria-controls', 'io2-menu-user');
+    el.user = user;
     el.avatar = criar('span', null, 'io2-t-av');
     el.avatar.setAttribute('aria-hidden', 'true');
     el.nome = criar('span', null, 'io2-t-nome');
-    user.appendChild(el.avatar); user.appendChild(el.nome);
+    var seta = svg(ICONES.seta); seta.setAttribute('class', 'io2-t-seta');
+    user.appendChild(el.avatar); user.appendChild(el.nome); user.appendChild(seta);
+    user.addEventListener('click', function () { if (el.menu.hidden) abrirMenuUsuario(true); else fecharMenuUsuario(true); });
+    user.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); if (el.menu.hidden) abrirMenuUsuario(true); }
+    });
     el.topo.appendChild(txt);
     /* Ferramentas do cabecalho antigo (recarregar, selo de ambiente): ficam entre o titulo e a busca, de modo que
        a busca fica na mesma posicao em toda tela. Vazio nas telas que nao adotam nada. */
@@ -235,6 +254,7 @@
        Erro aqui nunca derruba a casca: no pior caso o campo some. */
     try { Bd = criarBusca(false); el.topo.appendChild(Bd.raiz); } catch (eb) { desligarBusca(); }
     el.topo.appendChild(user);
+    el.topo.appendChild(montarMenuUsuario());
 
     /* Navegacao inferior */
     el.baixo = criar('nav', 'io2-baixo');
@@ -271,6 +291,7 @@
       b.appendChild(iconeDe(it));
       var r = criar('span'); r.textContent = it.rotulo;
       b.appendChild(r);
+      if (it.soSocio) { b.hidden = true; b.setAttribute('data-io2-socio', '1'); }
       b.addEventListener('click', function () { fecharFolha(false); acionar(it.chave); });
       lista.appendChild(b);
     });
@@ -298,6 +319,229 @@
       } catch (eL) {}
     }
     montado = true;
+    ligarMenuUsuario();
+  }
+  /* ---------------------------------------------------------------- menu do usuario */
+  /* O nome na barra superior abre um menu: cabecalho (foto, nome, e-mail, papel) e Meu perfil, Perfis da equipe (so
+     socio), Tema, Visual antigo e Sair. Os dados do cabecalho (e-mail, papel, foto) vem do GET /gerador/perfil, que a
+     propria casca chama (nos subapps tambem, onde nao ha perfil.js); a resposta fica em localStorage['gerador-perfil-v1']
+     (so nome, e-mail, papel, WhatsApp e foto, e so vale para o mesmo consultor). Sem resposta, o menu mostra so o nome.
+     A janela "Meu perfil" e do perfil.js: aqui so se pede para ela abrir (acionar). */
+  var PERFIL_CHAVE = 'gerador-perfil-v1';
+  var PERFIL_TTL = 10 * 60 * 1000;
+  /* perfilQuem: o consultor() de quem e dono de perfilEu (e da busca em voo). Se a pessoa da aba muda sem recarregar
+     (sair e outra entrar), tudo isso e descartado e o perfil novo e buscado: nunca se mostra o da pessoa anterior. */
+  var perfilEu = null, perfilEm = 0, perfilVoo = null, perfilQuem = '', fotosRuins = {}, itensMenu = [];
+  function mesmaPessoa(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
+  function urlPerfil() { return (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/gerador/perfil'; }
+  function tokenAtual() {
+    try { if (typeof sessaoAtual !== 'undefined' && sessaoAtual && sessaoAtual.access_token) return String(sessaoAtual.access_token); } catch (e) {}
+    try { var s = JSON.parse(localStorage.getItem('irmaos-na-obra-sessao-v1') || 'null'); return (s && s.access_token) ? String(s.access_token) : ''; } catch (e2) {}
+    return '';
+  }
+  function lerCachePerfil() {
+    try {
+      var o = JSON.parse(localStorage.getItem(PERFIL_CHAVE) || 'null');
+      if (o && o.eu && o.eu.nome && mesmaPessoa(o.consultor, consultor())) return { eu: o.eu, em: Number(o.em) || 0 };
+    } catch (e) {}
+    return null;
+  }
+  function gravarCachePerfil(eu) {
+    try { localStorage.setItem(PERFIL_CHAVE, JSON.stringify({ consultor: consultor(), em: Date.now(), eu: { nome: eu.nome, email: eu.email || '', socio: eu.socio === true, whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null } })); } catch (e) {}
+  }
+  /* Foto de quem esta logado: a que veio do perfil, senao a do mapa que o app carrega dos consultores (se ja chegou). */
+  function fotoDoUsuario() {
+    var f = '';
+    if (perfilEu && perfilEu.foto_url) f = String(perfilEu.foto_url);
+    if (!f) {
+      try {
+        if (typeof consultoresFotos === 'object' && consultoresFotos) {
+          var c = consultor();
+          for (var k in consultoresFotos) if (Object.prototype.hasOwnProperty.call(consultoresFotos, k) && mesmaPessoa(k, c)) { f = String(consultoresFotos[k] || ''); break; }
+        }
+      } catch (e) {}
+    }
+    /* So endereco https de verdade vira imagem; qualquer outro (http:, data:, javascript:) vira a inicial. */
+    return f && /^https:\/\//.test(f) && !fotosRuins[f] ? f : '';
+  }
+  /* Quem esta na aba mudou (ou saiu): esquece o perfil, o cache e a busca em voo da pessoa anterior. */
+  function esquecerPerfil() {
+    perfilEu = null; perfilEm = 0; perfilQuem = ''; perfilVoo = null; fotosRuins = {};
+    try { localStorage.removeItem(PERFIL_CHAVE); } catch (e) {}
+  }
+  /* Foto ou inicial dentro de um no. So mexe no DOM quando muda (o io2Sync roda o tempo todo). */
+  function pintarFoto(no, foto, inicial) {
+    if (!no) return;
+    var chave = foto ? 'f:' + foto : 'i:' + inicial;
+    if (no.getAttribute('data-io2-av') === chave) return;
+    no.setAttribute('data-io2-av', chave);
+    no.textContent = '';
+    if (foto) {
+      var im = document.createElement('img');
+      im.alt = ''; im.decoding = 'async';
+      im.addEventListener('error', function () { fotosRuins[foto] = true; no.removeAttribute('data-io2-av'); pintarUsuario(); });
+      im.src = foto;
+      no.appendChild(im);
+    } else {
+      no.textContent = inicial;
+    }
+  }
+  function papelDoPerfil() { return perfilEu ? (perfilEu.socio ? 'Sócio' : 'Consultor') : ''; }
+  function pintarUsuario() {
+    if (!montado || !el.avatar) return;
+    var c = consultor();
+    /* Outra pessoa na mesma aba: zera o perfil da anterior e busca o desta (so com sessao: sem token nao ha o que buscar). */
+    if (c && perfilQuem && !mesmaPessoa(perfilQuem, c)) { esquecerPerfil(); }
+    if (c && !perfilQuem && tokenAtual()) { perfilQuem = c; carregarPerfil(true); }
+    var foto = fotoDoUsuario();
+    var ini = c ? c.charAt(0).toUpperCase() : '';
+    pintarFoto(el.avatar, foto, ini);
+    pintarFoto(el.umFoto, foto, ini);
+    if (el.user) el.user.setAttribute('aria-label', c ? 'Menu do usuário: ' + c : 'Menu do usuário');
+    if (el.umNome) el.umNome.textContent = c;
+    if (el.umMail) el.umMail.textContent = (perfilEu && perfilEu.email) || '';
+    if (el.umPapel) { var p = papelDoPerfil(); el.umPapel.textContent = p; el.umPapel.hidden = !p; }
+    var socio = !!(perfilEu && perfilEu.socio);
+    itensMenu.forEach(function (b) { if (b.getAttribute('data-io2-socio')) b.hidden = !socio; });
+    var fs = el.folha ? el.folha.querySelectorAll('[data-io2-socio]') : [];
+    for (var i = 0; i < fs.length; i++) fs[i].hidden = !socio;
+  }
+  function aplicarPerfil(eu, gravar) {
+    if (!eu || !eu.nome) return;
+    perfilEu = { nome: eu.nome, email: eu.email || (perfilEu && perfilEu.email) || '', socio: eu.socio === true || (eu.socio === undefined && !!(perfilEu && perfilEu.socio)), whatsapp: eu.whatsapp || null, foto_url: eu.foto_url || null };
+    perfilEm = Date.now();
+    if (gravar) gravarCachePerfil(perfilEu);
+    pintarUsuario();
+  }
+  function carregarPerfil(forcar) {
+    var quem = consultor();
+    if (perfilQuem && !mesmaPessoa(perfilQuem, quem)) esquecerPerfil();
+    if (perfilVoo) return perfilVoo;
+    if (!forcar && perfilEu && (Date.now() - perfilEm) < PERFIL_TTL) return Promise.resolve(perfilEu);
+    perfilQuem = quem;
+    var pre = Promise.resolve();
+    try { if (typeof authRenovarSePreciso === 'function') pre = Promise.resolve(authRenovarSePreciso()).catch(function () {}); } catch (e) {}
+    var voo = perfilVoo = pre.then(function () {
+      var tok = tokenAtual();
+      if (!tok) throw new Error('sem sessao');
+      return fetch(urlPerfil(), { headers: { Authorization: 'Bearer ' + tok } });
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) {
+        if (!r.ok || !j || !j.eu) throw new Error('perfil');
+        return j;
+      });
+    }).then(function (j) {
+      if (desfeito || !mesmaPessoa(quem, consultor())) return null; /* a sessao mudou no meio do caminho */
+      aplicarPerfil(j.eu, true);
+      return perfilEu;
+    }).catch(function () { return null; }).then(function (v) { if (perfilVoo === voo) perfilVoo = null; return v; });
+    return voo;
+  }
+  function itemMenu(rotulo, icone, chave, tag) {
+    var b = criar(tag || 'button', null, 'io2-um-item');
+    if (!tag) b.type = 'button';
+    b.setAttribute('role', 'menuitem');
+    b.setAttribute('data-io2', chave);
+    b.tabIndex = -1;
+    b.appendChild(svg(icone));
+    var r = criar('span'); r.textContent = rotulo;
+    b.appendChild(r);
+    return b;
+  }
+  function montarMenuUsuario() {
+    itensMenu = [];
+    var m = criar('div', 'io2-menu-user', 'io2-um');
+    m.hidden = true;
+    m.setAttribute('role', 'menu');
+    m.setAttribute('aria-label', 'Menu do usuário');
+    el.menu = m;
+    var cab = criar('div', null, 'io2-um-cab');
+    el.umFoto = criar('span', null, 'io2-um-foto');
+    el.umFoto.setAttribute('aria-hidden', 'true');
+    var id = criar('div', null, 'io2-um-id');
+    el.umNome = criar('span', null, 'io2-um-nome');
+    el.umMail = criar('span', null, 'io2-um-mail');
+    el.umPapel = criar('span', null, 'io2-um-papel');
+    el.umPapel.hidden = true;
+    id.appendChild(el.umNome); id.appendChild(el.umMail); id.appendChild(el.umPapel);
+    cab.appendChild(el.umFoto); cab.appendChild(id);
+    m.appendChild(cab);
+    var sep1 = criar('div', null, 'io2-um-sep'); sep1.setAttribute('role', 'separator'); m.appendChild(sep1);
+    var perf = itemMenu('Meu perfil', ICONES.perfil, 'perfil');
+    var eqp = itemMenu('Perfis da equipe', ICONES.equipe, 'perfil-equipe');
+    eqp.hidden = true; eqp.setAttribute('data-io2-socio', '1');
+    var tema = botaoTema('io2-um-item');
+    tema.setAttribute('role', 'menuitem'); tema.tabIndex = -1;
+    var antigo = itemMenu('Visual antigo', ICONES.antigo, 'visual-antigo', 'a');
+    antigo.href = '/gerador/visual-antigo.html';
+    var sair = itemMenu('Sair', ICONES.sair, 'sair');
+    [perf, eqp].forEach(function (b) { m.appendChild(b); });
+    var sep2 = criar('div', null, 'io2-um-sep'); sep2.setAttribute('role', 'separator'); m.appendChild(sep2);
+    m.appendChild(tema); m.appendChild(antigo);
+    var sep3 = criar('div', null, 'io2-um-sep'); sep3.setAttribute('role', 'separator'); m.appendChild(sep3);
+    m.appendChild(sair);
+    itensMenu = [perf, eqp, tema, antigo, sair];
+    /* Escolher um item fecha o menu devolvendo o foco ao botao (a janela do perfil guarda o foco de quem a abriu). */
+    [perf, eqp, sair].forEach(function (b) {
+      b.addEventListener('click', function () { var k = b.getAttribute('data-io2'); fecharMenuUsuario(true); acionar(k); });
+    });
+    tema.addEventListener('click', function () { fecharMenuUsuario(false); });
+    m.addEventListener('keydown', function (ev) {
+      var vis = itensMenu.filter(function (b) { return !b.hidden; });
+      var i = vis.indexOf(document.activeElement);
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); vis[(i + 1) % vis.length].focus(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); vis[(i - 1 + vis.length) % vis.length].focus(); }
+      else if (ev.key === 'Home') { ev.preventDefault(); vis[0].focus(); }
+      else if (ev.key === 'End') { ev.preventDefault(); vis[vis.length - 1].focus(); }
+      else if (ev.key === 'Tab') { fecharMenuUsuario(false); }
+    });
+    return m;
+  }
+  function abrirMenuUsuario(focar) {
+    if (!montado || !el.menu || !el.menu.hidden) return;
+    fecharFolha(false);
+    el.menu.hidden = false;
+    el.user.setAttribute('aria-expanded', 'true');
+    pintarUsuario();
+    carregarPerfil(false);
+    if (focar) {
+      var vis = itensMenu.filter(function (b) { return !b.hidden; });
+      if (vis[0]) vis[0].focus();
+    }
+  }
+  function fecharMenuUsuario(devolverFoco) {
+    if (!el.menu || el.menu.hidden) return;
+    el.menu.hidden = true;
+    if (el.user) el.user.setAttribute('aria-expanded', 'false');
+    if (devolverFoco && el.user) el.user.focus();
+  }
+  function ligarMenuUsuario() {
+    var c0 = lerCachePerfil();
+    if (c0) { perfilEu = c0.eu; perfilEm = c0.em; perfilQuem = consultor(); }
+    ouvir(document, 'mousedown', function (ev) {
+      var t = ev.target;
+      if (!el.menu || el.menu.hidden) return;
+      if (t && t.closest && (t.closest('#io2-menu-user') || t.closest('.io2-t-user'))) return;
+      fecharMenuUsuario(false);
+    }, true);
+    ouvir(document, 'focusin', function (ev) {
+      var t = ev.target;
+      if (!el.menu || el.menu.hidden) return;
+      if (t && t.closest && (t.closest('#io2-menu-user') || t.closest('.io2-t-user'))) return;
+      fecharMenuUsuario(false);
+    });
+    ouvir(document, 'keydown', function (ev) { if (ev.key === 'Escape' && el.menu && !el.menu.hidden) { ev.stopPropagation(); fecharMenuUsuario(true); } }, true);
+    ouvir(window, 'resize', function () { if (window.innerWidth <= 860) fecharMenuUsuario(false); });
+    /* A janela do perfil avisa quando muda o perfil de quem esta logado (foto, WhatsApp) e quando le o perfil. */
+    ouvir(window, 'io2-perfil', function (ev) {
+      var d = ev && ev.detail;
+      if (d && d.eu && d.proprio === true) aplicarPerfil(d.eu, true);
+    });
+    /* A conta saiu (authLimpar avisa): sem perfil, sem menu aberto. A proxima pessoa busca o dela (pintarUsuario). */
+    ouvir(window, 'io2-sessao-limpa', function () { esquecerPerfil(); fecharMenuUsuario(false); pintarUsuario(); });
+    pintarUsuario();
+    /* Sem perfil guardado (ou velho), busca em segundo plano: o avatar ganha a foto e o menu o e-mail e o papel. */
+    if (!perfilEu || (Date.now() - perfilEm) > PERFIL_TTL) carregarPerfil(false);
   }
   /* Tema escuro / claro (escolha de cada aparelho, localStorage['gerador-tema']). Um <button> que grava a escolha e recarrega:
      o app pinta algumas cores em JavaScript conforme o tema, entao a troca so vale na carga seguinte. Vive no pe do trilho
@@ -360,7 +604,7 @@
     if (aguardaIr === null) {
       var pedido = '';
       try { pedido = sessionStorage.getItem('gerador-ir') || ''; } catch (e) {}
-      aguardaIr = !!pedido && pedido !== 'inicio' && pedido !== 'sair';
+      aguardaIr = !!pedido && pedido !== 'inicio' && pedido !== 'sair' && pedido !== 'perfil' && pedido !== 'perfil-equipe';
       if (aguardaIr) { bootAte = 0; setTimeout(liberarIr, 6000); }
     }
     if (aguardaIr) return 'interno';
@@ -543,6 +787,14 @@
   }
   /* Um clique da casca. No index chama o clique do item da barra lateral (lido do DOM). No subapp navega. */
   function acionar(chave) {
+    /* Perfil nao tem item na barra lateral: no index chama a janela do perfil.js; no subapp pede ao index (gerador-ir). */
+    if (chave === 'perfil' || chave === 'perfil-equipe') {
+      var fnPerfil = MODELO.ir[chave];
+      if (!modoSub) { try { if (typeof window[fnPerfil] === 'function') window[fnPerfil](); } catch (eP) {} return; }
+      if (temSessao()) { try { sessionStorage.setItem('gerador-ir', chave); } catch (eS) {} }
+      location.href = '/gerador';
+      return;
+    }
     if (!modoSub) { var f = fonteDe(chave); if (f) f.click(); return; }
     if (chave === 'sb-atualizar') { atualizarSub(); return; }
     var d = MODELO.destinos[chave];
@@ -960,7 +1212,7 @@
     if (Bm && Bm.raiz.parentNode) itens.push(Bm.inp);
     if (!el.folha.classList.contains('io2-f-buscando')) {
       var li = el.folha.querySelectorAll('.io2-f-item');
-      for (var q = 0; q < li.length; q++) itens.push(li[q]);
+      for (var q = 0; q < li.length; q++) if (!li[q].hidden) itens.push(li[q]);
     }
     if (!itens.length) return;
     var a = itens[0], z = itens[itens.length - 1];
@@ -1019,7 +1271,7 @@
       var c = consultor();
       el.cons.textContent = c ? (r.aba ? ' · ' : '') + c : '';
       el.nome.textContent = c;
-      el.avatar.textContent = c ? c.charAt(0).toUpperCase() : '';
+      pintarUsuario();   /* foto (ou inicial) do avatar e do menu; so mexe no DOM quando muda */
       /* Item ativo nas duas navegacoes: quem manda e o item ativo da barra lateral. */
       var principal = false;
       var botoes = el.baixo.querySelectorAll('.io2-b-item');
@@ -1178,6 +1430,7 @@
     } catch (e9) {}
     try { criados.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); }); } catch (e4) {}
     trilhados = []; el.toggle = null; el.dica = null; animaTimer = 0; larguraAg = 0;
+    el.user = null; el.menu = null; el.umFoto = null; el.umNome = null; el.umMail = null; el.umPapel = null; itensMenu = [];
     criados = []; adotados = []; vazios = []; carregando = []; rotulados = []; montado = false; buscas = []; Bd = null; Bm = null; indiceBusca = null; focoAntes = null;
     try { window.dispatchEvent(new Event('resize')); } catch (e5) {}
   }

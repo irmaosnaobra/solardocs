@@ -310,6 +310,58 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-nome { color: var(--n-tx); font-size: 14px; font-weight: 500; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user:empty { display: none; }
 
+  /* ---- Menu do usuario (casca.js): o bloco do usuario e um botao e o menu abre preso a ele --------------
+     So de 861 px para cima; no celular os dois somem e "Meu perfil" mora na folha "Mais". O menu mora dentro
+     do #io2-topo, logo abaixo do botao, alinhado a direita (o mesmo respiro da busca). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) button.io2-t-user {
+    appearance: none; -webkit-appearance: none; margin: 0; min-height: 0; width: auto; box-sizing: border-box;
+    padding: 4px 10px 4px 4px; gap: 10px; border: 1px solid transparent; border-radius: 999px; background: transparent;
+    color: var(--n-tx); font-family: var(--io-fonte); text-align: left; cursor: pointer; transition: background-color .15s ease;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) button.io2-t-user:hover,
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) button.io2-t-user[aria-expanded="true"] { background: var(--n-sf3); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) button.io2-t-user:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-av { overflow: hidden; flex-shrink: 0; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-av img,
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-foto img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-seta {
+    width: 16px; height: 16px; flex-shrink: 0; stroke: var(--n-tx2); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s ease;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) button.io2-t-user[aria-expanded="true"] .io2-t-seta { transform: rotate(180deg); }
+
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um:not([hidden]) {
+    display: block; position: absolute; top: calc(100% + 6px); right: var(--io-resp); z-index: 2; box-sizing: border-box;
+    width: 288px; max-width: calc(100vw - var(--sb-w) - 2 * var(--io-resp)); margin: 0; padding: 6px;
+    background: var(--n-sf); color: var(--n-tx); border: 1px solid var(--io-borda-campo); border-radius: var(--r-cartao);
+    box-shadow: 0 8px 24px rgba(10, 36, 80, .14); font-family: var(--io-fonte);
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-cab { display: flex; align-items: center; gap: 12px; padding: 8px 8px 10px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-foto {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
+    width: 44px; height: 44px; border-radius: 999px; background: var(--io-azul-sf); color: var(--io-titulo); font-size: 18px; font-weight: 700;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-id { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-nome { color: var(--io-titulo); font-size: 15px; font-weight: 700; line-height: 20px; overflow-wrap: anywhere; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-mail { color: var(--n-tx2); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-mail:empty { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-papel {
+    display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; background: var(--io-azul-sf); color: var(--io-azul-tx); font-size: 12px; font-weight: 600; line-height: 16px;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-papel[hidden] { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-sep { height: 1px; margin: 4px 2px; background: var(--n-bd); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; box-sizing: border-box; margin: 0;
+    padding: 8px 10px; border: 0; border-radius: var(--r-controle); background: transparent; cursor: pointer;
+    color: var(--n-tx); font-family: var(--io-fonte); font-size: 14px; font-weight: 500; line-height: 20px; text-align: left; text-decoration: none;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-item[hidden] { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-item:hover { background: var(--n-sf3); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-item:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: -2px; background: var(--n-sf3); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um-item svg { width: 18px; height: 18px; flex-shrink: 0; stroke: var(--n-tx2); stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  /* Meu perfil na barra lateral do visual antigo (perfil.js): no visual novo ele mora no menu do usuario. */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar #sb-perfil, html.io2 #sb-perfil { display: none !important; }
+
   /* ---- Busca de telas (casca.js): pilula na barra superior, lista logo abaixo ----------------------
      A lista mora dentro do #io2-topo (z 880): acima do conteudo, abaixo da folha (950) e dos modais (1000).
      Ate 860 px (celular) a pilula some e a busca vai para dentro da folha "Mais". De 861 px em diante ela encolhe
@@ -475,7 +527,10 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-tit { color: var(--n-inv); font-size: 16px; line-height: 20px; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-ctx { color: var(--n-inv2); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-cons { display: inline; }
-  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-t-user,
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-um:not([hidden]) { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) button.io2-t-user { display: none; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-f-item[hidden] { display: none; }
 
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) body {
     padding-top: calc(var(--io-top) + 12px);
