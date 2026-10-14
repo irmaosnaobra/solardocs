@@ -70,6 +70,41 @@ function semCache(_req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
+/** Falha de leitura (planilha ou banco) ao conferir a posse de uma venda do Solar, para as rotas de documentos. */
+export class ErroVendaSolar extends Error {
+  constructor(public http: 502 | 500) { super('venda-solar'); }
+}
+export interface VendaSolarDoDono {
+  venda: Grade['vendas'][number];
+  cols: ColunaInterna[];
+  reg: RegistroGestao;
+}
+
+/**
+ * A venda `#NNNN` do Solar SE quem pede é o dono (ou sócio); null quando não existe OU é de outra pessoa (as duas
+ * coisas são iguais para quem pede). Usa o MESMO cache da planilha da Gestão e o consultor EFETIVO (um sócio pode
+ * ter trocado o consultor no `gestao_cliente`), então não há segundo download da planilha nem segunda regra de posse.
+ */
+export async function vendaSolarDoDono(nome: string, socio: boolean, codigo: string): Promise<VendaSolarDoDono | null> {
+  let pl: { dados: CacheGrade; atual: boolean };
+  try { pl = await grade(false); } catch { throw new ErroVendaSolar(502); }
+  const venda = pl.dados.grade.vendas.find((v) => v.codigo === codigo);
+  if (!venda) return null;
+  try {
+    const { reg } = await lerRegistroComVersao(codigo);
+    return socio || podeVer(nome, consultorEfetivo(pl.dados.cols, venda.celulas, reg)) ? { venda, cols: pl.dados.cols, reg } : null;
+  } catch {
+    throw new ErroVendaSolar(500);
+  }
+}
+
+/** Todos os códigos canônicos (`#NNNN`) da planilha, para varrer os vínculos. */
+export async function codigosSolar(): Promise<string[]> {
+  let pl: { dados: CacheGrade; atual: boolean };
+  try { pl = await grade(false); } catch { throw new ErroVendaSolar(502); }
+  return pl.dados.grade.vendas.map((v) => v.codigo);
+}
+
 function quem(req: Request): { nome: string; socio: boolean } {
   const nome = String((req as any).consultor?.nome || '');
   return { nome, socio: ehSocio(nome) };
