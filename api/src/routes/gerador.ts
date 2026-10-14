@@ -22,6 +22,7 @@ import { mountDossie, exigeConsultor } from './geradorDossie';
 import { mountSolar } from './geradorSolar';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
+import { mountCaixa } from './geradorCaixa';
 import { mountFinanceiro } from './geradorFinanceiro';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
@@ -1146,6 +1147,8 @@ mountEletropostoAtendimento(router);
 // Dashboard (tela inicial): agenda de hoje, funil, time e o negócio. Mesmo login
 // do solar; o que cada um vê é decidido no servidor pelo token.
 mountDashboard(router);
+// Caixa de entrada da linha 5040 (fase 1, só leitura). Consultor logado E da lista da equipe.
+mountCaixa(router);
 
 // Contrato do eletroposto: o consultor descreve uma mudança e a IA devolve as
 // OPERAÇÕES sobre as cláusulas (ver services/gerador/contratoIa.ts). Só consultor

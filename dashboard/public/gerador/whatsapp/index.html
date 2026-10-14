@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp 5040 | Irmãos na Obra</title>
+<meta name="theme-color" content="#0B1220">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
+<script>
+  // Mesma auth do /gerador. Sem sessão, volta para a tela de login.
+  (function(){
+    var AUTH_KEY = 'irmaos-na-obra-auth-v1';
+    var authed = false;
+    try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e){}
+    if (!authed) location.replace('/gerador');
+  })();
+</script>
+<style>
+/* ── Papéis de cor da página ─────────────────────────────────────────────────
+   Visual antigo (sem io2): escuro nativo, como os outros subapps.
+   Visual novo (html.io2): cada papel aponta para o token do papel, no claro e no
+   escuro. Nenhuma cor escrita à mão fora deste bloco. */
+:root{
+  --cx-bg:#0F172A; --cx-sf:#1E293B; --cx-sf2:#172033; --cx-sf3:#2A3A52; --cx-bd:#334155; --cx-campo:#7C8DA5;
+  --cx-tx:#E5E7EB; --cx-tx2:#B4C0D2; --cx-tx3:#98A8BF; --cx-tit:#F8FAFC;
+  --cx-link:#7DB4FF; --cx-fill:#1D4ED8; --cx-marcado:#1D4ED8; --cx-mine:#1E3A8A;
+  --cx-ok:#4ADE80; --cx-er:#F87171; --cx-av:#FBBF24; --cx-av-sf:#3A2A0C;
+  --cx-top:0px; --cx-left:0px; --cx-bottom:0px;
+}
+html.io2{
+  --cx-bg:var(--n-bg); --cx-sf:var(--n-sf); --cx-sf2:var(--n-sf2); --cx-sf3:var(--n-sf3); --cx-bd:var(--n-bd); --cx-campo:var(--io-borda-campo);
+  --cx-tx:var(--n-tx); --cx-tx2:var(--n-tx2); --cx-tx3:var(--n-tx3); --cx-tit:var(--io-titulo);
+  --cx-link:var(--io-azul-tx); --cx-fill:var(--io-azul); --cx-marcado:var(--io-marcado); --cx-mine:var(--io-azul-sf);
+  --cx-ok:var(--io-ok-tx); --cx-er:var(--io-er-tx); --cx-av:var(--io-av-tx); --cx-av-sf:var(--io-av-sf);
+  font-family:var(--io-fonte);
+}
+/* Dentro da casca (menu lateral, barra superior): a página ocupa a área de trabalho inteira, da borda do trilho
+   (240 ou 64 px, vem de --sb-w) até a direita. */
+html.io2-casca{ --cx-top:var(--top-h); --cx-left:var(--sb-w); }
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;padding:0;overflow:hidden;background:var(--cx-bg);color:var(--cx-tx);
+  font-family:var(--io-fonte,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif);font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased}
+button,input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--cx-link);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ── Estrutura ── */
+.cx{position:fixed;top:var(--cx-top);left:var(--cx-left);right:0;bottom:var(--cx-bottom);display:flex;flex-direction:column;background:var(--cx-bg);min-width:0}
+.cx-faixa{flex:none;padding:8px 16px;background:var(--cx-av-sf);color:var(--cx-av);border-bottom:1px solid var(--cx-av);font-weight:600;font-size:13px}
+.cx-corpo{flex:1;min-height:0;display:flex}
+
+/* ── Coluna da lista ── */
+.cx-lista{flex:none;width:clamp(320px,28vw,400px);display:flex;flex-direction:column;min-height:0;background:var(--cx-sf);border-right:1px solid var(--cx-bd)}
+.cx-lh{flex:none;padding:12px 14px 10px;border-bottom:1px solid var(--cx-bd)}
+.cx-lh1{display:flex;align-items:center;gap:10px;min-width:0}
+.cx-lh1 h1{margin:0;font-size:16px;font-weight:700;color:var(--cx-tit);white-space:nowrap}
+html.io2-casca .cx-lh1 h1{font-size:15px}
+.cx-sair{color:var(--cx-link);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;min-height:32px}
+html.io2-casca .cx-sair{display:none}
+.cx-estado{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--cx-tx2);white-space:nowrap}
+.cx-dot{width:9px;height:9px;border-radius:50%;background:var(--cx-tx3);flex:none}
+.cx-estado[data-e="conectada"] .cx-dot{background:var(--cx-ok)}
+.cx-estado[data-e="caida"] .cx-dot{background:var(--cx-er)}
+.cx-busca{position:relative;margin-top:10px}
+.cx-busca svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--cx-tx3);pointer-events:none}
+.cx-busca input{width:100%;height:40px;padding:0 12px 0 34px;border:1px solid var(--cx-campo);border-radius:10px;background:var(--cx-bg);color:var(--cx-tx);font-size:16px}
+.cx-busca input::placeholder{color:var(--cx-tx3);opacity:1}
+.cx-chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.cx-chip{height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--cx-campo);background:transparent;color:var(--cx-tx);font-size:13px;font-weight:600}
+.cx-chip[aria-pressed="true"]{background:var(--cx-marcado);border-color:var(--cx-marcado);color:#fff}
+.cx-itens{list-style:none;margin:0;padding:0;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.cx-item{display:flex;gap:12px;align-items:flex-start;width:100%;min-height:68px;padding:11px 14px;border:0;border-bottom:1px solid var(--cx-bd);background:transparent;text-align:left}
+.cx-item:hover{background:var(--cx-sf3)}
+.cx-item[aria-current="true"]{background:var(--cx-mine)}
+.cx-avatar{flex:none;width:42px;height:42px;border-radius:50%;background:var(--cx-sf3);color:var(--cx-tit);display:grid;place-items:center;font-weight:700;font-size:15px}
+.cx-im{flex:1;min-width:0}
+.cx-l1{display:flex;align-items:baseline;gap:8px}
+.cx-nome{flex:1;min-width:0;font-weight:600;color:var(--cx-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-hora{flex:none;font-size:12px;color:var(--cx-tx2);font-variant-numeric:tabular-nums}
+.cx-hora.nova{color:var(--cx-link);font-weight:700}
+.cx-l2{display:flex;align-items:center;gap:8px;margin-top:2px}
+.cx-trecho{flex:1;min-width:0;display:flex;align-items:center;gap:4px;color:var(--cx-tx2);font-size:13px;overflow:hidden;white-space:nowrap}
+.cx-trecho span{overflow:hidden;text-overflow:ellipsis}
+.cx-trecho svg{flex:none;width:14px;height:14px}
+.cx-quem{flex:none;color:var(--cx-tx3)}
+.cx-cont{flex:none;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--cx-fill);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.cx-atend{display:inline-block;margin-top:4px;font-size:12px;font-weight:600;color:var(--cx-av)}
+.cx-vazio-lista{padding:28px 18px;text-align:center;color:var(--cx-tx2)}
+.cx-vazio-lista p{margin:0 0 14px}
+.cx-nota{padding:10px 14px;font-size:12px;color:var(--cx-tx2)}
+.cx-btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--cx-campo);background:transparent;color:var(--cx-tx);font-weight:600;font-size:14px}
+.cx-btn:hover{background:var(--cx-sf3)}
+.cx-esq{display:flex;gap:12px;padding:12px 14px;border-bottom:1px solid var(--cx-bd)}
+.cx-esq i{display:block;background:var(--cx-sf3);border-radius:8px}
+.cx-esq i:first-child{width:42px;height:42px;border-radius:50%;flex:none}
+.cx-esq div{flex:1}
+.cx-esq div i{height:11px;margin-bottom:9px}
+.cx-esq div i:first-child{width:46%;height:13px;border-radius:8px}
+.cx-esq div i:last-child{width:80%;margin-bottom:0}
+
+/* ── Coluna da conversa ── */
+.cx-conv{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--cx-bg);position:relative}
+.cx-semconv{flex:1;display:grid;place-items:center;text-align:center;padding:24px;color:var(--cx-tx2)}
+.cx-semconv svg{width:44px;height:44px;color:var(--cx-tx3);margin-bottom:10px}
+.cx-semconv p{margin:0;font-size:15px}
+.cx-ch{flex:none;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--cx-sf);border-bottom:1px solid var(--cx-bd);min-height:60px}
+.cx-voltar{display:none;flex:none;width:44px;height:44px;margin-left:-8px;border:0;background:transparent;color:var(--cx-link);place-items:center;border-radius:10px}
+.cx-voltar svg{width:22px;height:22px}
+.cx-cn{flex:1;min-width:0}
+.cx-cn b{display:block;font-size:16px;font-weight:700;color:var(--cx-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-cn span{display:block;font-size:12.5px;color:var(--cx-tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-cn .atend{color:var(--cx-av);font-weight:600}
+.cx-wa{flex:none;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--cx-campo);color:var(--cx-link);text-decoration:none;font-weight:600;font-size:13.5px;white-space:nowrap}
+.cx-wa:hover{background:var(--cx-sf3)}
+.cx-wa svg{width:16px;height:16px}
+.cx-msgs{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 10px;display:flex;flex-direction:column;gap:3px;overscroll-behavior:contain}
+.cx-dia{align-self:center;margin:12px 0 8px;padding:3px 12px;border-radius:999px;background:var(--cx-sf3);color:var(--cx-tx2);font-size:12px;font-weight:600}
+.cx-mais{align-self:center;margin:2px 0 10px;height:34px;font-size:13px}
+.cx-b{max-width:min(720px,78%);padding:7px 11px 6px;border-radius:12px;background:var(--cx-sf);border:1px solid var(--cx-bd);align-self:flex-start;overflow-wrap:anywhere;min-width:0}
+.cx-b.nos{align-self:flex-end;background:var(--cx-mine);border-color:var(--cx-mine)}
+.cx-b .rot{display:block;font-size:12px;font-weight:600;color:var(--cx-link);margin-bottom:2px}
+.cx-b .tx{white-space:pre-wrap;color:var(--cx-tx);font-size:14.5px}
+.cx-b .hr{display:block;text-align:right;font-size:11.5px;color:var(--cx-tx2);margin-top:2px;font-variant-numeric:tabular-nums}
+.cx-b img.m{display:block;max-width:100%;max-height:340px;border-radius:8px;margin-bottom:4px;background:var(--cx-sf3)}
+.cx-b audio{display:block;width:min(300px,100%);margin-bottom:2px}
+.cx-b a.doc{display:inline-flex;align-items:center;gap:8px;color:var(--cx-link);font-weight:600;text-decoration:underline;word-break:break-word}
+.cx-b a.doc svg{flex:none;width:18px;height:18px}
+.cx-cartao{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;background:var(--cx-sf3);color:var(--cx-tx2);font-size:13px;margin-bottom:4px}
+.cx-cartao svg{flex:none;width:18px;height:18px}
+.cx-sis{align-self:center;max-width:80%;margin:6px 0;padding:4px 12px;border-radius:999px;background:var(--cx-sf3);color:var(--cx-tx2);font-size:12.5px;text-align:center}
+.cx-novas{position:absolute;left:50%;bottom:112px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border:0;border-radius:999px;background:var(--cx-fill);color:#fff;font-weight:700;font-size:13.5px;box-shadow:0 4px 14px rgba(0,0,0,.28)}
+.cx-novas svg{width:16px;height:16px}
+.cx-resp{flex:none;padding:10px 16px 12px;background:var(--cx-sf);border-top:1px solid var(--cx-bd)}
+.cx-resp .linha{display:flex;gap:10px;align-items:flex-end}
+.cx-resp textarea{flex:1;min-width:0;height:44px;resize:none;padding:10px 12px;border:1px solid var(--cx-bd);border-radius:10px;background:var(--cx-sf3);color:var(--cx-tx3);font-size:16px}
+.cx-resp button{flex:none;height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--cx-bd);background:var(--cx-sf3);color:var(--cx-tx3);font-weight:600}
+.cx-resp p{margin:6px 0 0;font-size:12.5px;color:var(--cx-tx2)}
+.cx-resp textarea:disabled,.cx-resp button:disabled{cursor:not-allowed}
+
+/* ── Sem permissão ── */
+.cx-negado{position:fixed;top:var(--cx-top);left:var(--cx-left);right:0;bottom:var(--cx-bottom);display:grid;place-items:center;text-align:center;padding:24px;background:var(--cx-bg);color:var(--cx-tx);z-index:5}
+.cx-negado h1{margin:0 0 8px;font-size:18px;color:var(--cx-tit)}
+.cx-negado p{margin:0 0 16px;color:var(--cx-tx2)}
+.cx-negado a{color:var(--cx-link);font-weight:600}
+
+/* ── Celular ── */
+@media (max-width:860px){
+  html.io2-casca{ --cx-top:calc(var(--top-h-m) + env(safe-area-inset-top,0px)); --cx-left:0px; --cx-bottom:calc(var(--bot-h) + env(safe-area-inset-bottom,0px)); }
+  .cx-lista{width:100%;border-right:0}
+  .cx-conv{display:none}
+  .cx.aberta .cx-lista{display:none}
+  .cx.aberta .cx-conv{display:flex}
+  .cx-voltar{display:grid}
+  .cx-chip{height:44px}
+  .cx-busca input{height:44px}
+  .cx-sair{min-height:44px}
+  .cx-item{min-height:72px}
+  .cx-wa{height:44px;padding:0 12px}
+  .cx-wa span{display:none}
+  .cx-wa{width:44px;justify-content:center;padding:0}
+  .cx-ch{padding:8px 12px}
+  .cx-msgs{padding:12px 10px 8px}
+  .cx-b{max-width:88%}
+  .cx-resp{padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  html.io2-casca .cx-resp{padding-bottom:10px}
+  .cx-novas{bottom:104px}
+}
+</style>
+<link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
+<script src="/gerador/ui/chave.js"></script>
+</head>
+<body>
+
+<div class="cx" id="cx">
+  <div class="cx-faixa" id="faixa" role="status" hidden>Sem conexão, tentando de novo</div>
+  <div class="cx-corpo">
+    <aside class="cx-lista" aria-label="Conversas">
+      <header class="cx-lh">
+        <div class="cx-lh1">
+          <a class="cx-sair" href="/gerador">Voltar ao Gerador</a>
+          <h1>WhatsApp 5040</h1>
+          <span class="cx-estado" id="estado" data-e="desconhecida" title=""><i class="cx-dot"></i><span id="estadoTx">Sem leitura</span></span>
+        </div>
+        <div class="cx-busca">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <label class="sr" for="busca">Buscar por nome ou telefone</label>
+          <input id="busca" type="search" placeholder="Buscar por nome ou telefone" autocomplete="off" inputmode="search">
+        </div>
+        <div class="cx-chips" role="group" aria-label="Filtros">
+          <button type="button" class="cx-chip" data-f="todas" aria-pressed="true">Todas</button>
+          <button type="button" class="cx-chip" data-f="nao" aria-pressed="false">Não respondidas</button>
+          <button type="button" class="cx-chip" data-f="atend" aria-pressed="false">Em atendimento</button>
+        </div>
+      </header>
+      <ul class="cx-itens" id="itens" aria-live="off"></ul>
+    </aside>
+
+    <section class="cx-conv" id="conv" aria-label="Conversa">
+      <div class="cx-semconv" id="semconv">
+        <div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.7-5.1A8.5 8.5 0 1 1 21 12z"/></svg>
+          <p>Escolha uma conversa para ver as mensagens.</p>
+        </div>
+      </div>
+      <div id="painel" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <header class="cx-ch">
+          <button type="button" class="cx-voltar" id="voltar" aria-label="Voltar para a lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <div class="cx-cn"><b id="cNome"></b><span id="cSub"></span></div>
+          <a class="cx-wa" id="cWa" href="#" target="_blank" rel="noopener noreferrer" hidden aria-label="Abrir no WhatsApp do aparelho">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Abrir no WhatsApp</span>
+          </a>
+        </header>
+        <div class="cx-msgs" id="msgs" tabindex="0" aria-label="Mensagens"></div>
+        <button type="button" class="cx-novas" id="novas" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>Novas mensagens</button>
+        <footer class="cx-resp">
+          <div class="linha">
+            <label class="sr" for="resp">Resposta</label>
+            <textarea id="resp" rows="1" disabled aria-disabled="true" placeholder="Escreva uma mensagem"></textarea>
+            <button type="button" disabled aria-disabled="true">Enviar</button>
+          </div>
+          <p>Resposta pela plataforma chega em breve.</p>
+        </footer>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="cx-negado" id="negado" hidden>
+  <div>
+    <h1>Esta tela é só para a equipe.</h1>
+    <p>Sua conta não tem acesso às conversas da linha.</p>
+    <a href="/gerador">Voltar ao Gerador</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Constantes ──
+  var SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+  var API = '/_api/gerador/caixa/';
+  var TZ = 'America/Sao_Paulo';
+  var INTERVALO_MS = 4000;          // conversa aberta e aba visível
+  var INTERVALO_LISTA_MS = 10000;   // só a lista na tela
+  var INTERVALO_OCIOSO_MS = 30000;  // sem nenhuma interação há 5 minutos
+  var OCIOSO_APOS_MS = 5 * 60 * 1000;
+  var ESPERA_MAX_MS = 30000;
+  var ESTADO_A_CADA = 15;           // a cada 15 consultas (uns 60 s) relê o estado da linha
+  var LIMITE_CONVERSA = 50;
+  var MAX_MENSAGENS_NA_TELA = 1500; // teto de memória de uma conversa aberta
+
+  // ── Estado (só em memória: nenhuma mensagem vai para localStorage) ──
+  var conversas = new Map();        // chave -> item da lista
+  var dias = 3;
+  var truncado = false;
+  var cursor = null;
+  var filtro = 'todas';
+  var termo = '';
+  var abertaChave = null;
+  var msgs = [];                    // mensagens da conversa aberta, em ordem
+  var msgsIds = new Set();
+  var desenhadas = 0;               // quantas de `msgs` já estão no DOM (para anexar sem redesenhar)
+  var temMaisAntigas = false;
+  var carregandoConversa = 0;       // contador de pedidos: resposta velha é descartada
+  var parado = false;               // 403: nada mais é pedido
+  var timer = null;
+  var falhas = 0;
+  var tiques = 0;
+  var emVoo = false;
+  var listaPronta = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var elCx = $('cx'), elItens = $('itens'), elFaixa = $('faixa');
+
+  // ── Utilidades ──
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+  var ICONES = {
+    audio: '<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/>',
+    imagem: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-9 9"/>',
+    video: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
+    documento: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    figurinha: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+    chamada: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+    aviso: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>'
+  };
+  function icone(nome) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24');
+    s.setAttribute('fill', 'none');
+    s.setAttribute('stroke', 'currentColor');
+    s.setAttribute('stroke-width', '1.8');
+    s.setAttribute('stroke-linecap', 'round');
+    s.setAttribute('stroke-linejoin', 'round');
+    s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = ICONES[nome] || ICONES.aviso;   // constante nossa, nunca dado de mensagem
+    return s;
+  }
+  var ROTULO_TIPO = { texto: '', audio: 'Áudio', imagem: 'Imagem', video: 'Vídeo', documento: 'Documento', figurinha: 'Figurinha', reacao: 'Reação', notificacao: 'Aviso', chamada: 'Chamada', outro: 'Mensagem' };
+  var ICONE_TIPO = { audio: 'audio', imagem: 'imagem', video: 'video', documento: 'documento', figurinha: 'figurinha', chamada: 'chamada' };
+  var fHora = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+  var fDiaMes = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' });
+  var fDiaCompleto = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' });
+  var fSemana = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'long' });
+  var fISO = new Intl.DateTimeFormat('en-CA', { timeZone: TZ });
+  function diaChave(iso) { return fISO.format(new Date(iso)); }
+  function diasEntre(iso) {
+    var a = Date.parse(diaChave(iso) + 'T00:00:00Z'), b = Date.parse(diaChave(new Date().toISOString()) + 'T00:00:00Z');
+    return Math.round((b - a) / 86400000);
+  }
+  function horaCurta(iso) { return fHora.format(new Date(iso)); }
+  function horaLista(iso) {
+    var d = diasEntre(iso);
+    if (d <= 0) return horaCurta(iso);
+    if (d === 1) return 'Ontem';
+    return fDiaMes.format(new Date(iso));
+  }
+  function rotuloDia(iso) {
+    var d = diasEntre(iso);
+    if (d <= 0) return 'Hoje';
+    if (d === 1) return 'Ontem';
+    if (d < 7) { var s = fSemana.format(new Date(iso)); return s.charAt(0).toUpperCase() + s.slice(1); }
+    return fDiaCompleto.format(new Date(iso));
+  }
+  function semAcento(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function soDigitos(s) { return String(s || '').replace(/\D/g, ''); }
+  function urlOk(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : null; }
+  function contaComoConversa(t) { return t !== 'reacao' && t !== 'notificacao'; }
+  function nomeExibido(c) { return c.nome || c.telefone || 'Contato sem telefone'; }
+
+  // ── Sessão e API ──
+  function irParaLogin() { parado = true; location.replace('/gerador'); }
+  function erro(tipo, extra) { var e = new Error(tipo); e.tipo = tipo; if (extra) for (var k in extra) e[k] = extra[k]; return e; }
+
+  // ── Sessão: lida e renovada do MESMO jeito que o app principal, no mesmo lugar do localStorage ──
+  // (index.html do /gerador: authGuardar / authRenovar). O token do Supabase dura 1 h e esta tela fica aberta o dia
+  // inteiro; `expira_em` já traz 5 minutos de margem de quem grava. A chave abaixo é a publishable do Supabase do
+  // Gerador, a mesma que já está escrita no index.html e na Agenda.
+  var SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6'; // gitleaks:allow (chave publica de navegador, a mesma do index.html; o .gitleaks.toml libera em dashboard/public)
+  function lerSessao() { try { return JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) { return null; } }
+  function sessaoViva(s) { return !!(s && s.access_token && Number(s.expira_em || 0) > Date.now()); }
+  var renovando = null;
+  // Voo único na aba, e trava entre abas quando o navegador tem: cada renovação extra gastaria o mesmo refresh_token.
+  function renovar(tokenUsado) {
+    if (renovando) return renovando;
+    var rodar = function () { return renovarAgora(tokenUsado); };
+    var p = (navigator.locks && navigator.locks.request) ? navigator.locks.request('gerador-sessao-renovar', rodar) : rodar();
+    renovando = Promise.resolve(p).then(function (v) { renovando = null; return v; }, function (e) { renovando = null; throw e; });
+    return renovando;
+  }
+  function renovarAgora(tokenUsado) {
+    var s = lerSessao();   // relida dentro da trava: outra aba pode ter renovado enquanto esperávamos
+    if (!s || !s.refresh_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    if (sessaoViva(s) && s.access_token !== tokenUsado) return Promise.resolve(s.access_token);
+    var meu = s.refresh_token;
+    return fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: meu })
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) { return { r: r, j: j }; });
+    }, function () { throw erro('rede'); }).then(function (x) {
+      if (x.r.ok && x.j && x.j.access_token) {
+        try {
+          localStorage.setItem(SESSAO_KEY, JSON.stringify({
+            access_token: x.j.access_token,
+            refresh_token: x.j.refresh_token || meu,
+            expira_em: Date.now() + (Number(x.j.expires_in || 3600) - 300) * 1000
+          }));
+        } catch (e) {}
+        return x.j.access_token;
+      }
+      if (x.r.status >= 500 || x.r.status === 429) throw erro('rede');   // Supabase fora do ar não é sessão perdida
+      // Recusada de verdade. Antes de desistir: outra aba pode ter girado o refresh_token na nossa frente.
+      var atual = lerSessao();
+      if (atual && atual.refresh_token !== meu && sessaoViva(atual)) return atual.access_token;
+      try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
+      irParaLogin();
+      throw erro('login');
+    });
+  }
+  function obterToken() {
+    var s = lerSessao();   // relida a cada pedido: outra aba pode ter renovado
+    if (!s || !s.access_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    return sessaoViva(s) ? Promise.resolve(s.access_token) : renovar(null);
+  }
+
+  function pedir(caminho, tk) {
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var tt = ctrl ? setTimeout(function () { ctrl.abort(); }, 15000) : null;
+    return fetch(API + caminho, { headers: { 'Authorization': 'Bearer ' + tk }, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) {
+        if (tt) clearTimeout(tt);
+        if (r.status === 401) throw erro('nao-autorizado');
+        if (r.status === 403) {
+          return r.json().catch(function () { return null; }).then(function (j) {
+            if (j && j.precisa === 'equipe') { semPermissao(); throw erro('equipe'); }
+            irParaLogin(); throw erro('login');
+          });
+        }
+        if (r.status === 429) {
+          var ra = Number(r.headers.get('Retry-After'));
+          throw erro('rede', { espera: isFinite(ra) && ra > 0 ? ra * 1000 : 0 });
+        }
+        if (!r.ok) throw erro('rede');
+        return r.json().catch(function () { throw erro('rede'); });
+      }, function () { if (tt) clearTimeout(tt); throw erro('rede'); })
+      .then(function (j) { if (!j || j.ok === false) throw erro('rede'); return j; });
+  }
+  function api(caminho) {
+    return obterToken().then(function (tk) {
+      return pedir(caminho, tk).catch(function (e) {
+        if (e.tipo !== 'nao-autorizado') throw e;
+        // 401 com o relógio dizendo que o token vale: o servidor discorda. Renova uma vez e tenta de novo; se falhar, login.
+        return renovar(tk).then(function (tk2) {
+          return pedir(caminho, tk2).catch(function (e2) { if (e2.tipo === 'nao-autorizado') { irParaLogin(); throw erro('login'); } throw e2; });
+        });
+      });
+    });
+  }
+
+  function semPermissao() {
+    parado = true;
+    clearTimeout(timer);
+    conversas.clear(); msgs = []; msgsIds.clear(); abertaChave = null;
+    elItens.textContent = '';
+    $('msgs').textContent = '';
+    elCx.hidden = true;
+    $('negado').hidden = false;
+  }
+
+  function mostrarFaixa(on) { elFaixa.hidden = !on; }
+
+  // ── Lista ──
+  function ordenadas() {
+    var arr = Array.from(conversas.values());
+    arr.sort(function (a, b) {
+      return Date.parse(b.ultima.momento) - Date.parse(a.ultima.momento) || (a.chave < b.chave ? -1 : 1);
+    });
+    return arr;
+  }
+  function passaFiltro(c) {
+    if (filtro === 'nao' && !(c.nao_respondidas > 0)) return false;
+    if (filtro === 'atend' && !c.atendimento) return false;
+    if (termo) {
+      var t = semAcento(termo), d = soDigitos(termo);
+      var nome = semAcento(c.nome);
+      var tel = soDigitos(c.telefone);
+      if (!(nome.indexOf(t) >= 0 || (d.length >= 3 && tel.indexOf(d) >= 0) || semAcento(c.telefone).indexOf(t) >= 0)) return false;
+    }
+    return true;
+  }
+  function iniciais(c) {
+    var n = (c.nome || '').trim();
+    if (!n) return '#';
+    var p = n.split(/\s+/);
+    return (p[0].charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : '')).toUpperCase();
+  }
+  function linhaTrecho(c) {
+    var u = c.ultima, box = el('div', 'cx-trecho');
+    if (u.autor === 'robo') box.appendChild(el('span', 'cx-quem', 'Robô:'));
+    else if (u.autor === 'equipe') box.appendChild(el('span', 'cx-quem', 'Equipe:'));
+    if (ICONE_TIPO[u.tipo]) box.appendChild(icone(ICONE_TIPO[u.tipo]));
+    var txt = u.trecho || ROTULO_TIPO[u.tipo] || '';
+    box.appendChild(el('span', '', txt));
+    return box;
+  }
+  function itemLista(c) {
+    var li = el('li');
+    var b = el('button', 'cx-item');
+    b.type = 'button';
+    b.setAttribute('data-chave', c.chave);
+    if (c.chave === abertaChave) b.setAttribute('aria-current', 'true');
+    b.appendChild(el('span', 'cx-avatar', iniciais(c)));
+    var im = el('div', 'cx-im');
+    var l1 = el('div', 'cx-l1');
+    l1.appendChild(el('span', 'cx-nome', nomeExibido(c)));
+    l1.appendChild(el('span', 'cx-hora' + (c.nao_respondidas > 0 ? ' nova' : ''), horaLista(c.ultima.momento)));
+    im.appendChild(l1);
+    var l2 = el('div', 'cx-l2');
+    l2.appendChild(linhaTrecho(c));
+    if (c.nao_respondidas > 0) {
+      var ct = el('span', 'cx-cont', c.nao_respondidas > 99 ? '99+' : String(c.nao_respondidas));
+      ct.setAttribute('aria-label', c.nao_respondidas + ' não respondidas');
+      l2.appendChild(ct);
+    }
+    im.appendChild(l2);
+    if (c.atendimento) im.appendChild(el('span', 'cx-atend', 'Atendendo: equipe'));
+    b.appendChild(im);
+    li.appendChild(b);
+    return li;
+  }
+  function desenharLista() {
+    var topo = elItens.scrollTop;
+    elItens.textContent = '';
+    if (!listaPronta) { return; }
+    var todas = ordenadas();
+    var vis = todas.filter(passaFiltro);
+    if (!vis.length) {
+      var li = el('li', 'cx-vazio-lista');
+      if (!todas.length) {
+        li.appendChild(el('p', '', 'Nenhuma conversa nos últimos ' + dias + ' dias.'));
+        if (dias < 30) {
+          var mais = dias < 7 ? 7 : 30;
+          var bt = el('button', 'cx-btn', 'Ver ' + mais + ' dias');
+          bt.type = 'button';
+          bt.addEventListener('click', function () { dias = mais; carregarLista(true); });
+          li.appendChild(bt);
+        }
+      } else {
+        li.appendChild(el('p', '', 'Nenhuma conversa com esse filtro.'));
+      }
+      elItens.appendChild(li);
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    vis.forEach(function (c) { frag.appendChild(itemLista(c)); });
+    elItens.appendChild(frag);
+    if (truncado) elItens.appendChild(el('li', 'cx-nota', 'Mostrando só as conversas mais recentes.'));
+    elItens.scrollTop = topo;
+  }
+  function esqueletoLista() {
+    elItens.textContent = '';
+    for (var i = 0; i < 7; i++) {
+      var d = el('li', 'cx-esq');
+      d.appendChild(el('i'));
+      var col = el('div');
+      col.appendChild(el('i')); col.appendChild(el('i'));
+      d.appendChild(col);
+      elItens.appendChild(d);
+    }
+  }
+
+  function carregarLista(mostrarEsqueleto) {
+    if (parado) return Promise.resolve();
+    if (mostrarEsqueleto) { listaPronta = false; esqueletoLista(); }
+    return api('conversas?dias=' + dias).then(function (j) {
+      conversas = new Map();
+      (j.conversas || []).forEach(function (c) { c.maxId = c.ultima.id; conversas.set(c.chave, c); });
+      truncado = !!j.truncado;
+      cursor = j.cursor;
+      listaPronta = true;
+      desenharLista();
+      mostrarFaixa(false);
+      falhas = 0;
+    });
+  }
+
+  // ── Conversa aberta ──
+  function ordenarMsgs() {
+    msgs.sort(function (a, b) { return Date.parse(a.momento) - Date.parse(b.momento) || a.id - b.id; });
+  }
+  function bolha(m) {
+    var nos = m.autor !== 'lead';
+    var b = el('div', 'cx-b' + (nos ? ' nos' : ''));
+    b.setAttribute('data-id', String(m.id));
+    if (m.autor === 'robo') b.appendChild(el('span', 'rot', 'Robô'));
+    else if (m.autor === 'equipe') b.appendChild(el('span', 'rot', 'Equipe no celular'));
+    var url = urlOk(m.media_url);
+    var t = m.tipo;
+    if (t === 'imagem' || t === 'figurinha') {
+      if (url) {
+        var img = el('img', 'm');
+        img.alt = t === 'figurinha' ? 'Figurinha' : 'Imagem';
+        img.loading = 'lazy';
+        img.referrerPolicy = 'no-referrer';
+        img.addEventListener('error', function () {
+          var c = el('div', 'cx-cartao'); c.appendChild(icone('imagem'));
+          c.appendChild(el('span', '', (t === 'figurinha' ? 'Figurinha' : 'Imagem') + ' (não disponível mais)'));
+          if (img.parentNode) img.parentNode.replaceChild(c, img);
+        });
+        img.src = url;
+        b.appendChild(img);
+      } else {
+        var c0 = el('div', 'cx-cartao'); c0.appendChild(icone('imagem'));
+        c0.appendChild(el('span', '', (t === 'figurinha' ? 'Figurinha' : 'Imagem') + ' (não disponível mais)'));
+        b.appendChild(c0);
+      }
+    } else if (t === 'audio') {
+      if (url) {
+        var au = el('audio'); au.controls = true; au.preload = 'none'; au.src = url;
+        au.addEventListener('error', function () {
+          var c = el('div', 'cx-cartao'); c.appendChild(icone('audio'));
+          c.appendChild(el('span', '', 'Áudio (não disponível mais)'));
+          if (au.parentNode) au.parentNode.replaceChild(c, au);
+        });
+        b.appendChild(au);
+      } else {
+        var c1 = el('div', 'cx-cartao'); c1.appendChild(icone('audio'));
+        c1.appendChild(el('span', '', 'Áudio (não disponível mais)'));
+        b.appendChild(c1);
+      }
+    } else if (t === 'video' || t === 'documento') {
+      if (url) {
+        var a = el('a', 'doc');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.referrerPolicy = 'no-referrer';
+        a.appendChild(icone(t));
+        a.appendChild(el('span', '', m.texto || (t === 'video' ? 'Vídeo' : 'Documento')));
+        b.appendChild(a);
+      } else {
+        var c2 = el('div', 'cx-cartao'); c2.appendChild(icone(t));
+        c2.appendChild(el('span', '', (t === 'video' ? 'Vídeo' : 'Documento') + ' (não disponível mais)'));
+        b.appendChild(c2);
+      }
+    } else if (t === 'chamada') {
+      var c3 = el('div', 'cx-cartao'); c3.appendChild(icone('chamada'));
+      c3.appendChild(el('span', '', 'Chamada'));
+      b.appendChild(c3);
+    }
+    if (m.texto && t !== 'video' && t !== 'documento') {
+      b.appendChild(el('div', 'tx', t === 'reacao' ? 'Reagiu com ' + m.texto : m.texto));
+    }
+    b.appendChild(el('span', 'hr', horaCurta(m.momento)));
+    return b;
+  }
+  function nodoMensagem(m) {
+    if (m.tipo === 'notificacao') return el('div', 'cx-sis', m.texto || 'Aviso do sistema');
+    return bolha(m);
+  }
+  function pertoDoFim() {
+    var s = $('msgs');
+    return s.scrollHeight - s.scrollTop - s.clientHeight < 80;
+  }
+  function rolarAoFim() { var s = $('msgs'); s.scrollTop = s.scrollHeight; $('novas').hidden = true; }
+  function desenharTudo() {
+    var s = $('msgs');
+    s.textContent = '';
+    var frag = document.createDocumentFragment();
+    if (temMaisAntigas) {
+      var bt = el('button', 'cx-btn cx-mais', 'Carregar mensagens anteriores');
+      bt.type = 'button'; bt.id = 'maisAntigas';
+      frag.appendChild(bt);
+    }
+    var diaAnt = null;
+    msgs.forEach(function (m) {
+      var d = diaChave(m.momento);
+      if (d !== diaAnt) { frag.appendChild(el('div', 'cx-dia', rotuloDia(m.momento))); diaAnt = d; }
+      frag.appendChild(nodoMensagem(m));
+    });
+    s.appendChild(frag);
+    desenhadas = msgs.length;
+  }
+  function anexarNovas() {
+    var s = $('msgs');
+    var anterior = desenhadas > 0 ? msgs[desenhadas - 1] : null;
+    var diaAnt = anterior ? diaChave(anterior.momento) : null;
+    for (var i = desenhadas; i < msgs.length; i++) {
+      var m = msgs[i];
+      var d = diaChave(m.momento);
+      if (d !== diaAnt) { s.appendChild(el('div', 'cx-dia', rotuloDia(m.momento))); diaAnt = d; }
+      s.appendChild(nodoMensagem(m));
+    }
+    desenhadas = msgs.length;
+  }
+  function cabecalho(c) {
+    $('cNome').textContent = nomeExibido(c);
+    var partes = [];
+    if (c.telefone && c.nome) partes.push(c.telefone);
+    if (c.sem_telefone) partes.push('Sem telefone identificado');
+    var sub = $('cSub');
+    sub.textContent = partes.join(' · ');
+    sub.className = '';
+    if (c.atendimento) {
+      var at = el('span', 'atend', (partes.length ? ' · ' : '') + 'Equipe atendendo desde ' + horaCurta(c.atendimento.desde));
+      at.style.display = 'inline';
+      sub.appendChild(at);
+    }
+    var wa = $('cWa');
+    if (c.wa && /^\d{10,15}$/.test(c.wa)) { wa.href = 'https://wa.me/' + c.wa; wa.hidden = false; }
+    else { wa.hidden = true; wa.removeAttribute('href'); }
+  }
+
+  function abrir(chave) {
+    var c = conversas.get(chave);
+    if (!c) return;
+    abertaChave = chave;
+    msgs = []; msgsIds = new Set(); desenhadas = 0; temMaisAntigas = false;
+    $('semconv').hidden = true;
+    $('painel').hidden = false;
+    cabecalho(c);
+    var s = $('msgs'); s.textContent = '';
+    s.appendChild(el('div', 'cx-sis', 'Carregando a conversa'));
+    $('novas').hidden = true;
+    elCx.classList.add('aberta');
+    agendar(ritmo());   // conversa aberta: passa para o ritmo de 4 s já, sem esperar o ciclo de 10 s que estava marcado
+    try { history.pushState({ cx: 1 }, ''); } catch (e) {}
+    desenharLista();
+    var meu = ++carregandoConversa;
+    api('conversa?chave=' + encodeURIComponent(chave) + '&limite=' + LIMITE_CONVERSA).then(function (j) {
+      if (meu !== carregandoConversa || abertaChave !== chave) return;
+      (j.mensagens || []).forEach(function (m) { if (!msgsIds.has(m.id)) { msgsIds.add(m.id); msgs.push(m); } });
+      ordenarMsgs();
+      temMaisAntigas = !!j.tem_mais;
+      if (j.contato) { var cc = conversas.get(chave); if (cc && !cc.nome && j.contato.nome) { cc.nome = j.contato.nome; cabecalho(cc); desenharLista(); } }
+      desenharTudo();
+      rolarAoFim();
+      mostrarFaixa(false);
+    }).catch(function (e) {
+      if (meu !== carregandoConversa || abertaChave !== chave) return;
+      if (e.tipo !== 'rede') return;
+      var s2 = $('msgs'); s2.textContent = '';
+      var box = el('div', 'cx-sis', 'Não consegui abrir esta conversa. ');
+      var rt = el('button', 'cx-btn', 'Tentar de novo'); rt.type = 'button';
+      rt.addEventListener('click', function () { abrir(chave); });
+      s2.appendChild(box); s2.appendChild(rt);
+      s2.style.alignItems = 'center';
+    });
+  }
+  function fechar() {
+    abertaChave = null; msgs = []; msgsIds = new Set(); desenhadas = 0; carregandoConversa++;
+    elCx.classList.remove('aberta');
+    agendar(ritmo());
+    $('painel').hidden = true;
+    $('semconv').hidden = false;
+    desenharLista();
+  }
+
+  function carregarAnteriores() {
+    if (!msgs.length || !abertaChave) return;
+    var chave = abertaChave, primeira = msgs[0];
+    var s = $('msgs'), altAntes = s.scrollHeight, topoAntes = s.scrollTop;
+    var bt = $('maisAntigas'); if (bt) { bt.disabled = true; bt.textContent = 'Carregando'; }
+    api('conversa?chave=' + encodeURIComponent(chave) + '&limite=' + LIMITE_CONVERSA + '&antes=' + encodeURIComponent(primeira.momento) + '&antes_id=' + primeira.id).then(function (j) {
+      if (abertaChave !== chave) return;
+      (j.mensagens || []).forEach(function (m) { if (!msgsIds.has(m.id)) { msgsIds.add(m.id); msgs.push(m); } });
+      ordenarMsgs();
+      if (msgs.length > MAX_MENSAGENS_NA_TELA) { temMaisAntigas = false; } else { temMaisAntigas = !!j.tem_mais; }
+      desenharTudo();
+      s.scrollTop = topoAntes + (s.scrollHeight - altAntes);
+    }).catch(function (e) {
+      if (e.tipo === 'rede') { var b2 = $('maisAntigas'); if (b2) { b2.disabled = false; b2.textContent = 'Carregar mensagens anteriores'; } }
+    });
+  }
+
+  // ── Atualização contínua ──
+  function aplicarNovas(j) {
+    var mudouLista = false, mudouConversa = false, fimAntes = abertaChave ? pertoDoFim() : false, chegouNaAberta = false;
+    (j.mensagens || []).forEach(function (m) {
+      var chave = m.chave;
+      var c = conversas.get(chave);
+      var jaNaConversa = chave === abertaChave && msgsIds.has(m.id);
+      // Lista: repetida (sobreposição do cursor) ou já refletida no carregamento não conta de novo.
+      if (!c || m.id > c.maxId) {
+        if (!c) {
+          var info = (j.contatos && j.contatos[chave]) || {};
+          c = { chave: chave, nome: info.nome || '', telefone: info.telefone || null, wa: info.wa || null, sem_telefone: !!info.sem_telefone,
+            ultima: { id: m.id, momento: m.momento, autor: m.autor, tipo: m.tipo, trecho: '' }, ultimo_lead: null, nao_respondidas: 0, atendimento: null, maxId: 0 };
+          conversas.set(chave, c);
+        } else if (!c.nome && j.contatos && j.contatos[chave] && j.contatos[chave].nome) {
+          c.nome = j.contatos[chave].nome;
+        }
+        c.maxId = m.id;
+        if (contaComoConversa(m.tipo)) c.nao_respondidas = m.autor === 'lead' ? c.nao_respondidas + 1 : 0;
+        if (m.autor === 'lead') c.ultimo_lead = m.momento;
+        if (Date.parse(m.momento) >= Date.parse(c.ultima.momento) || c.ultima.id < m.id && !c.ultima.trecho) {
+          var tr = String(m.texto || '').replace(/\s+/g, ' ').trim();
+          if (tr.length > 80) tr = tr.slice(0, 79).trim() + '…';
+          c.ultima = { id: m.id, momento: m.momento, autor: m.autor, tipo: m.tipo, trecho: tr };
+        }
+        mudouLista = true;
+      }
+      if (chave === abertaChave && !jaNaConversa) {
+        msgsIds.add(m.id); msgs.push(m);
+        mudouConversa = true; chegouNaAberta = true;
+      }
+    });
+    if (j.atendimento) {
+      conversas.forEach(function (c, k) {
+        var novo = j.atendimento[k] || null;
+        var velho = c.atendimento;
+        if ((novo && novo.desde) !== (velho && velho.desde)) { c.atendimento = novo; mudouLista = true; if (k === abertaChave) mudouConversa = true; }
+      });
+    }
+    if (mudouLista) desenharLista();
+    if (mudouConversa && abertaChave) {
+      var c2 = conversas.get(abertaChave);
+      if (c2) cabecalho(c2);
+      if (chegouNaAberta) {
+        var ultimaAnterior = desenhadas > 0 ? msgs[desenhadas - 1] : null;
+        ordenarMsgs();
+        // Chegada fora de ordem (mensagem atrasada): redesenha. O normal é só anexar no fim.
+        var foraDeOrdem = desenhadas > 0 && msgs[desenhadas - 1] !== ultimaAnterior;
+        if (foraDeOrdem) desenharTudo(); else anexarNovas();
+        if (fimAntes) rolarAoFim(); else $('novas').hidden = false;
+      }
+    }
+  }
+
+  function atualizarEstado() {
+    api('estado').then(function (j) {
+      var l = j.linha || {};
+      var e = l.estado === 'conectada' || l.estado === 'caida' ? l.estado : 'desconhecida';
+      var tx = e === 'conectada' ? 'Linha conectada' : e === 'caida' ? 'Linha caída' : 'Sem leitura';
+      $('estado').setAttribute('data-e', e);
+      $('estadoTx').textContent = tx;
+      $('estado').title = l.leitura_em ? 'Última leitura às ' + horaCurta(l.leitura_em) : 'Sem leitura recente do estado da linha';
+    }).catch(function () {
+      $('estado').setAttribute('data-e', 'desconhecida');
+      $('estadoTx').textContent = 'Sem leitura';
+    });
+  }
+
+  // Ritmo da consulta: 4 s com conversa aberta, 10 s só com a lista, 30 s sem interação há 5 minutos. Aba escondida para.
+  var ultimaInteracao = Date.now();
+  function ocioso() { return Date.now() - ultimaInteracao >= OCIOSO_APOS_MS; }
+  function ritmo() { return ocioso() ? INTERVALO_OCIOSO_MS : (abertaChave ? INTERVALO_MS : INTERVALO_LISTA_MS); }
+  function interagiu() {
+    var estavaOcioso = ocioso();
+    ultimaInteracao = Date.now();
+    // Primeira interação depois do descanso: volta ao ritmo normal na hora, sem esperar o próximo ciclo de 30 s.
+    if (estavaOcioso && !parado && !document.hidden) { clearTimeout(timer); tique(); }
+  }
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'pointerdown'].forEach(function (n) {
+    document.addEventListener(n, interagiu, { passive: true, capture: true });
+  });
+
+  function agendar(ms) {
+    clearTimeout(timer);
+    if (parado || document.hidden) return;
+    timer = setTimeout(tique, ms);
+  }
+  function tique() {
+    if (parado || document.hidden || emVoo) return;
+    if (!listaPronta || cursor == null) {
+      emVoo = true;
+      carregarLista(!listaPronta).then(function () { atualizarEstado(); }).catch(function (e) { if (e.tipo === 'rede') { falhas++; mostrarFaixa(true); } })
+        .then(function () { emVoo = false; if (listaPronta) { falhas = 0; agendar(ritmo()); } else agendar(espera(falhas, 0)); });
+      return;
+    }
+    emVoo = true;
+    api('novas?desde=' + encodeURIComponent(cursor)).then(function (j) {
+      aplicarNovas(j);
+      if (typeof j.cursor === 'number') cursor = Math.max(cursor, j.cursor);
+      falhas = 0; mostrarFaixa(false);
+      tiques++;
+      if (tiques % ESTADO_A_CADA === 0) atualizarEstado();
+      emVoo = false;
+      agendar(j.mais ? 200 : ritmo());
+    }).catch(function (e) {
+      emVoo = false;
+      if (e.tipo !== 'rede') return;
+      falhas++; mostrarFaixa(true);
+      agendar(espera(falhas, e.espera || 0));
+    });
+  }
+  function espera(n, retryAfter) {
+    var base = ritmo();
+    var ms = Math.max(base, Math.min(ESPERA_MAX_MS, base * Math.pow(2, Math.max(0, n))));
+    return Math.max(ms, retryAfter || 0);
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearTimeout(timer); timer = null; }
+    else if (!parado) { clearTimeout(timer); tique(); }
+  });
+  window.addEventListener('online', function () { if (!parado && !document.hidden) { clearTimeout(timer); tique(); } });
+
+  // ── Eventos da tela ──
+  elItens.addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('.cx-item') : null;
+    if (b) abrir(b.getAttribute('data-chave'));
+  });
+  document.querySelector('.cx-chips').addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('.cx-chip') : null;
+    if (!b) return;
+    filtro = b.getAttribute('data-f');
+    document.querySelectorAll('.cx-chip').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    desenharLista();
+  });
+  $('busca').addEventListener('input', function () { termo = this.value.trim(); desenharLista(); });
+  $('voltar').addEventListener('click', function () { if (history.state && history.state.cx) history.back(); else fechar(); });
+  window.addEventListener('popstate', function () { if (abertaChave) fechar(); });
+  $('msgs').addEventListener('click', function (ev) {
+    if (ev.target && ev.target.id === 'maisAntigas') carregarAnteriores();
+  });
+  $('msgs').addEventListener('scroll', function () { if (pertoDoFim()) $('novas').hidden = true; });
+  $('novas').addEventListener('click', rolarAoFim);
+
+  // ── Partida ──
+  esqueletoLista();
+  tique();
+})();
+</script>
+</body>
+</html>
