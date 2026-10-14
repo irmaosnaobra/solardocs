@@ -16,6 +16,8 @@
   /* Caixas de marcar: o rotulo inteiro e a area de toque (o input ja vive dentro do label). */
   § .pag-sub-item, § .pag-head { min-height: 44px; box-sizing: border-box; }
   § #automacaoSection .auto-chip { min-height: 44px; box-sizing: border-box; }
+  /* Solar > Leads: o link "WhatsApp" da tabela e inline e media 17 px de altura. Vira caixa flex de 44 px (a cor segue o token do io2-cores-index). */
+  § #leadsSection .leads-tabela td a.lead-wpp { display: inline-flex; align-items: center; min-height: 44px; box-sizing: border-box; }
   /* Abas de segundo nivel e a faixa do eletroposto. */
   § :is(.eletro-subtab2, .cad-aba, #eletro-subnav button) { min-height: 44px; }
   § :is(#hist-prev, #hist-next, .pv-kpi-btn) { min-height: 44px; }

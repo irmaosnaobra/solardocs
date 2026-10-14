@@ -7091,10 +7091,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
-    <p class="auto-sub">Automação do Instagram: comentário com palavra-chave vira DM.</p>
+    <p class="auto-sub">Publique o vídeo em todas as redes, responda comentários e configure o Instagram.</p>
     <div class="auto-tabs">
+      <button type="button" class="auto-tab" id="auto-tab-publicar" onclick="automacaoSubaba('publicar')">Publicar</button>
+      <button type="button" class="auto-tab" id="auto-tab-comentarios" onclick="automacaoSubaba('comentarios')">Comentários</button>
       <button type="button" class="auto-tab" id="auto-tab-instagram" onclick="automacaoSubaba('instagram')">Instagram</button>
     </div>
+
+    <div id="auto-pane-publicar" style="display:none"></div>
+    <div id="auto-pane-comentarios" style="display:none"></div>
 
     <div id="auto-pane-instagram" style="display:none">
       <div class="auto-warn">📸 Automação nativa do Instagram: comentário com palavra-chave vira <b>DM automática</b> (substitui o ManyChat). O link não sai de graça: a DM <b>pede pra clicar, depois pra seguir, e só então manda o link</b> 🚪. Se a pessoa mandar o WhatsApp na DM, o lead cai direto no seu CRM/rodízio. Requer conectar a conta + app da Meta aprovado (App Review).</div>
@@ -37679,13 +37684,16 @@ if ('serviceWorker' in navigator) {
     marcarNavAtivo('nav-automacao');
     fecharSidebarMobile();
     window.scrollTo({top:0,behavior:'smooth'});
-    automacaoSubaba('instagram');
+    /* Quem o servidor já disse que não é da equipe abre direto na aba Instagram (a de hoje). */
+    automacaoSubaba(window.autoRedes && window.autoRedes.semEquipe && window.autoRedes.semEquipe() ? 'instagram' : 'publicar');
   }
   function automacaoSubaba(qual){
-    ['instagram'].forEach(function(a){
+    ['publicar','comentarios','instagram'].forEach(function(a){
       const pane=document.getElementById('auto-pane-'+a); if(pane) pane.style.display=(a===qual)?'':'none';
       const tab=document.getElementById('auto-tab-'+a); if(tab) tab.classList.toggle('ativa', a===qual);
     });
+    const secAuto=document.getElementById('automacaoSection'); if(secAuto) secAuto.classList.toggle('ar-larga', qual!=='instagram');
+    if(window.autoRedes && qual!=='instagram'){ window.autoRedes.mostrar(qual); }
     if(qual==='instagram'){ autoIgStatus(); autoIgCarregarAutomacoes(); }
   }
 
@@ -37805,6 +37813,7 @@ window.addEventListener('DOMContentLoaded', function () {
   <script src="/lib/telemetria.js" defer></script>
 <script defer src="/gerador/ui/casca.js"></script>
 <script defer src="/gerador/ui/perfil.js"></script>
+<script defer src="/gerador/ui/redes.js"></script>
 <script defer src="/gerador/ui/io2-telas.js"></script>
 <script defer src="/gerador/ui/io2-icones.js"></script>
 </body>

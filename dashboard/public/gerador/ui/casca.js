@@ -332,6 +332,9 @@
   /* perfilQuem: o consultor() de quem e dono de perfilEu (e da busca em voo). Se a pessoa da aba muda sem recarregar
      (sair e outra entrar), tudo isso e descartado e o perfil novo e buscado: nunca se mostra o da pessoa anterior. */
   var perfilEu = null, perfilEm = 0, perfilVoo = null, perfilQuem = '', fotosRuins = {}, itensMenu = [];
+  /* perfilGer: numero da "geracao" do perfil. esquecerPerfil() sobe o numero; a busca que sai antes e volta depois confere o
+     numero em que nasceu e, se mudou (a pessoa saiu no meio do caminho), descarta a resposta sem gravar nada. */
+  var perfilGer = 0;
   function mesmaPessoa(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
   function urlPerfil() { return (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/gerador/perfil'; }
   function tokenAtual() {
@@ -366,7 +369,7 @@
   }
   /* Quem esta na aba mudou (ou saiu): esquece o perfil, o cache e a busca em voo da pessoa anterior. */
   function esquecerPerfil() {
-    perfilEu = null; perfilEm = 0; perfilQuem = ''; perfilVoo = null; fotosRuins = {};
+    perfilEu = null; perfilEm = 0; perfilQuem = ''; perfilVoo = null; fotosRuins = {}; perfilGer++;
     try { localStorage.removeItem(PERFIL_CHAVE); } catch (e) {}
   }
   /* Foto ou inicial dentro de um no. So mexe no DOM quando muda (o io2Sync roda o tempo todo). */
@@ -387,12 +390,12 @@
     }
   }
   function papelDoPerfil() { return perfilEu ? (perfilEu.socio ? 'Sócio' : 'Consultor') : ''; }
-  function pintarUsuario() {
+  function pintarUsuario(semBusca) {
     if (!montado || !el.avatar) return;
     var c = consultor();
     /* Outra pessoa na mesma aba: zera o perfil da anterior e busca o desta (so com sessao: sem token nao ha o que buscar). */
     if (c && perfilQuem && !mesmaPessoa(perfilQuem, c)) { esquecerPerfil(); }
-    if (c && !perfilQuem && tokenAtual()) { perfilQuem = c; carregarPerfil(true); }
+    if (c && !perfilQuem && !semBusca && tokenAtual()) { perfilQuem = c; carregarPerfil(true); }
     var foto = fotoDoUsuario();
     var ini = c ? c.charAt(0).toUpperCase() : '';
     pintarFoto(el.avatar, foto, ini);
@@ -419,6 +422,7 @@
     if (perfilVoo) return perfilVoo;
     if (!forcar && perfilEu && (Date.now() - perfilEm) < PERFIL_TTL) return Promise.resolve(perfilEu);
     perfilQuem = quem;
+    var ger = perfilGer;
     var pre = Promise.resolve();
     try { if (typeof authRenovarSePreciso === 'function') pre = Promise.resolve(authRenovarSePreciso()).catch(function () {}); } catch (e) {}
     var voo = perfilVoo = pre.then(function () {
@@ -431,7 +435,7 @@
         return j;
       });
     }).then(function (j) {
-      if (desfeito || !mesmaPessoa(quem, consultor())) return null; /* a sessao mudou no meio do caminho */
+      if (desfeito || ger !== perfilGer || !tokenAtual() || !mesmaPessoa(quem, consultor())) return null; /* a sessao mudou (ou acabou) no meio do caminho */
       aplicarPerfil(j.eu, true);
       return perfilEu;
     }).catch(function () { return null; }).then(function (v) { if (perfilVoo === voo) perfilVoo = null; return v; });
@@ -538,7 +542,9 @@
       if (d && d.eu && d.proprio === true) aplicarPerfil(d.eu, true);
     });
     /* A conta saiu (authLimpar avisa): sem perfil, sem menu aberto. A proxima pessoa busca o dela (pintarUsuario). */
-    ouvir(window, 'io2-sessao-limpa', function () { esquecerPerfil(); fecharMenuUsuario(false); pintarUsuario(); });
+    /* semBusca: o authLimpar avisa ANTES de apagar o token da memoria do navegador; sem isso o pintarUsuario buscaria o perfil de
+       quem esta saindo e deixaria perfilQuem com o nome dela, e o proximo login da mesma pessoa nao buscaria (so a inicial no avatar). */
+    ouvir(window, 'io2-sessao-limpa', function () { esquecerPerfil(); fecharMenuUsuario(false); pintarUsuario(true); });
     pintarUsuario();
     /* Sem perfil guardado (ou velho), busca em segundo plano: o avatar ganha a foto e o menu o e-mail e o papel. */
     if (!perfilEu || (Date.now() - perfilEm) > PERFIL_TTL) carregarPerfil(false);
