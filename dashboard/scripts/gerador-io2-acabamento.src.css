@@ -174,4 +174,32 @@
   § #eletroSection .cadtab tr.cad-par-tr { margin: -6px 0 10px; }
 }
 
+/* CRM-PADRAO: inicio
+   Telefone do cartao do CRM no quadro padrao (classe io2-crmp, posta pelo io2-telas.js). O numero sai do cartao e continua no
+   detalhe do cliente; o link de ligar vira botao de icone na linha do nome. Fica nesta folha porque a regra de cima
+   (a.crm-card-tel no computador) so perde para o mesmo prefixo. Com mouse ele aparece ao passar o mouse e no foco;
+   sem mouse ele mora no menu de tres pontos do cartao. */
+§ #crmSection.io2-crmp a.crm-card-tel {
+  order: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  width: 28px; min-width: 28px; height: 28px; min-height: 28px; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--n-bd); border-radius: 8px; background: var(--n-sf); color: var(--io-azul-tx); font-size: 0; text-decoration: none;
+  transition: background-color .15s ease, opacity .15s ease;
+}
+§ #crmSection.io2-crmp a.crm-card-tel::before {
+  content: ""; flex: none; width: 14px; height: 14px; background: currentColor;
+  -webkit-mask: var(--crmp-ic-fone) center / contain no-repeat; mask: var(--crmp-ic-fone) center / contain no-repeat;
+}
+§ #crmSection.io2-crmp a.crm-card-tel > .io2-ic { display: none; }
+§ #crmSection.io2-crmp a.crm-card-tel:hover { background: var(--n-sf3); }
+@media (min-width: 861px) and (hover: hover) and (pointer: fine) {
+  § #crmSection.io2-crmp .crm-card:not(:hover):not(:focus-within) a.crm-card-tel { width: 0; min-width: 0; margin-right: -6px; border-width: 0; opacity: 0; pointer-events: none; }
+}
+@media (max-width: 860px), (hover: none), (pointer: coarse) {
+  § #crmSection.io2-crmp a.crm-card-tel { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  § #crmSection.io2-crmp a.crm-card-tel { transition: none !important; }
+}
+/* CRM-PADRAO: fim */
+
 }

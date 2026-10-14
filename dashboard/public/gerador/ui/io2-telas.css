@@ -890,3 +890,449 @@
 }
 
 /* ACABAMENTO-A-END */
+
+/* CRM-PADRAO: inicio
+   Quadro do CRM no padrao dos CRMs de mercado (13/10/2026). Pedido do dono: topo limpo e cartao compacto.
+   Tudo aqui so vale com a classe io2-crmp em #crmSection, posta pelo io2-telas.js quando ele monta os controles
+   (Filtros, Resumo, etapas do celular, menu do cartao). Sem a classe, o CRM segue com o desenho anterior, inteiro.
+   Nenhum no do app muda de lugar: o cartao transparente e a linha da busca viram display: contents e a secao vira grade.
+   Topo: uma linha (familia em segmento, busca, Filtros, Resumo, Atualizar, Contato, ajuda). Indicadores viram faixa fina
+   recolhida. Quadro: colunas de largura fixa que rolam de lado, cabecalho fixo, coluna rola por dentro, cartao em tres linhas.
+   Celular (ate 860 px): uma coluna por vez com encaixe, etapas em chips, filtros e resumo numa folha de tela cheia.
+   Cor de dado do dono (selos de status, etiqueta de origem, temperatura) nao e remapeada. Camadas: folha 952, menu 953. */
+@media screen {
+  html.io2 {
+    --crmp-ic-mais: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000'%3E%3Ccircle cx='5' cy='12' r='1.9'/%3E%3Ccircle cx='12' cy='12' r='1.9'/%3E%3Ccircle cx='19' cy='12' r='1.9'/%3E%3C/svg%3E");
+    --crmp-ic-fone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.2 3.5h3.3l1.7 4.4-2.2 1.5a12 12 0 0 0 6.6 6.6l1.5-2.2 4.4 1.7v3.3a1.7 1.7 0 0 1-1.8 1.7A16.5 16.5 0 0 1 3.5 5.3a1.7 1.7 0 0 1 1.7-1.8z'/%3E%3C/svg%3E");
+    --crmp-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6C83' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M20 20l-4.3-4.3'/%3E%3C/svg%3E");
+  }
+  html.io2[data-io2-tema="escuro"] {
+    --crmp-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M20 20l-4.3-4.3'/%3E%3C/svg%3E");
+  }
+
+  /* ---- 1. A secao vira a grade: linha de controle, faixas recolhidas e o quadro com a altura que sobra ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp {
+    display: grid; box-sizing: border-box;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    grid-template-areas: "seg ctl ajuda" "info info info" "filtro filtro filtro" "resumo resumo resumo" "etapas etapas etapas" "quadro quadro quadro";
+    column-gap: 8px; row-gap: 0;
+    width: auto; max-width: none; min-width: 0;
+    height: calc(100vh - var(--top-h) - 40px); height: calc(100dvh - var(--top-h) - 40px);
+    min-height: 420px; margin-bottom: -16px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp > .card { display: contents; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.io2-crm-etapas, .io2-crm-folha-topo, .io2-crm-folha-pe) { display: none; }
+
+  /* ---- 2. Familia (Solar e Eletroposto) em controle segmentado ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp > .crm-subnav {
+    grid-area: seg; align-self: center; display: inline-flex; gap: 0; box-sizing: border-box;
+    height: 40px; margin: 0; padding: 4px; min-width: 0; max-width: 100%;
+    background: var(--n-sf3); border: 0; border-radius: var(--r-controle);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab {
+    min-height: 32px; height: 32px; margin: 0; padding: 0 12px; gap: 6px;
+    border-radius: 8px; box-shadow: none; background: transparent;
+    color: var(--n-tx2); font-size: 13px; font-weight: 600;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab:hover { background: var(--n-sf); color: var(--n-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab.ativo, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab.ativo.solar, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab.ativo.ep {
+    background: var(--io-marcado-t); color: var(--n-inv); font-weight: 600; box-shadow: none;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab .crm-subtab-qt { padding: 1px 6px; min-width: 16px; background: var(--n-sf); color: var(--n-tx2); font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab.ativo .crm-subtab-qt { background: var(--n-sf); color: var(--io-titulo); }
+
+  /* ---- 3. Linha de controle: busca, Filtros, Pos-venda, Resumo, Atualizar e a acao principal ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-busca-wrap {
+    grid-area: ctl; display: flex; flex-wrap: nowrap; align-items: center; gap: 8px;
+    margin: 0; min-width: 0; min-height: 40px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca {
+    order: 1; flex: 1 1 160px; box-sizing: border-box; min-width: 140px; max-width: 420px; height: 40px; min-height: 40px;
+    margin: 0; padding: 0 12px 0 36px;
+    background-image: var(--crmp-lupa); background-repeat: no-repeat; background-position: 10px center; background-size: 18px 18px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
+    min-height: var(--ctl-h); height: var(--ctl-h); min-width: var(--ctl-h); margin: 0; padding: 0 12px;
+    border: 1px solid var(--n-bd2); border-radius: var(--r-controle); background: var(--n-sf);
+    color: var(--n-tx); font-family: var(--io-fonte); font-size: 14px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+    cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt:hover { background: var(--n-sf3); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt:focus-visible, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo:focus-visible, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-limpar:focus-visible, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-etapa:focus-visible, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-folha-fechar:focus-visible {
+    outline: 2px solid var(--io-azul-tx); outline-offset: 2px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt[aria-expanded="true"] { background: var(--io-azul-sf); border-color: var(--io-azul-tx); color: var(--io-azul-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt[hidden], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo[hidden], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-limpar[hidden], html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-cont[hidden] { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt > .io2-ic { font-size: 18px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-filtros { order: 2; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-cont {
+    display: inline-block; min-width: 20px; box-sizing: border-box; padding: 1px 6px; border-radius: var(--r-pilula);
+    background: var(--io-azul-sf); color: var(--io-azul-tx); font-size: 12px; font-weight: 600; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo {
+    order: 3; flex: none; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; min-width: 0; max-width: 200px;
+    height: 32px; margin: 0; padding: 0 6px 0 12px; border: 0; border-radius: var(--r-pilula);
+    background: var(--n-sf3); color: var(--n-tx); font-family: var(--io-fonte); font-size: 13px; font-weight: 600; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo > .io2-crm-tx { overflow: hidden; text-overflow: ellipsis; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo > .io2-ic { font-size: 16px; color: var(--n-tx2); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo:hover { background: var(--n-bd); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-pv { order: 5; margin-left: auto; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-resumo { order: 6; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-pv[hidden] + .io2-crm-bt-resumo { margin-left: auto; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-reload { order: 7; flex: 0 0 var(--ctl-h); width: var(--ctl-h); height: var(--ctl-h); min-height: var(--ctl-h); margin: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-novo-contato { order: 8; flex: none; height: var(--ctl-h); min-height: var(--ctl-h); margin: 0; }
+
+  /* Ajuda: o botao "Como funciona" que o io2-telas.js ja punha vira o "?" da ponta da linha; o texto segue sendo o nome dele. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-cf-btn {
+    grid-area: ajuda; align-self: center; justify-content: center; gap: 0;
+    width: var(--ctl-h); min-width: var(--ctl-h); height: var(--ctl-h); min-height: var(--ctl-h); margin: 0; padding: 0;
+    border: 1px solid var(--n-bd2); background: var(--n-sf); color: var(--n-tx); font-size: 0;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-cf-btn:hover { background: var(--n-sf3); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-cf-btn::before {
+    content: "?"; width: auto; height: auto; flex: none; background: none; -webkit-mask: none; mask: none;
+    font-size: 16px; font-weight: 700; line-height: 1;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-cf-btn::after { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-cf-btn[aria-expanded="true"] { background: var(--io-azul-sf); border-color: var(--io-azul-tx); color: var(--io-azul-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-info { grid-area: info; margin: 8px 0 0; padding: 8px 12px; border-radius: var(--r-controle); font-size: 13px; line-height: 1.45; }
+
+  /* ---- 4. Filtros: faixa logo abaixo da linha de controle (fechada por padrao) ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-filtro-linha { grid-area: filtro; display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-filtro-linha {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; box-sizing: border-box; min-width: 0;
+    margin: 8px 0 0; padding: 6px 12px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-controle);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-filtro-linha .crm-filtro-lbl { flex: none; width: auto; min-width: 0; margin: 0; color: var(--n-tx2); font-size: 13px; font-weight: 500; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-filtro-linha .crm-chips { flex: 1 1 auto; min-width: 0; gap: 6px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-filtro-linha .crm-chip { min-height: 32px; padding: 4px 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-limpar {
+    flex: none; box-sizing: border-box; min-height: 32px; margin: 0; padding: 4px 8px; border: 0; border-radius: 8px; background: transparent;
+    color: var(--io-azul-tx); font-family: var(--io-fonte); font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-limpar:hover { background: var(--io-azul-sf); }
+
+  /* ---- 5. Resumo: os indicadores viram uma faixa fina de uma linha (fechada por padrao, estado lembrado) ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis { grid-area: resumo; display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-rs-on #crm-kpis {
+    display: flex; flex-wrap: nowrap; align-items: center; gap: 0; box-sizing: border-box; min-width: 0; min-height: 36px;
+    margin: 8px 0 0; padding: 0 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+    background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-controle);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi {
+    flex: none; display: inline-flex; flex-direction: row-reverse; align-items: baseline; gap: 6px; box-sizing: border-box; min-width: 0;
+    margin: 0 12px 0 0; padding: 0 12px 0 0; background: transparent; border: 0; border-right: 1px solid var(--n-bd); border-radius: 0; box-shadow: none; text-align: left;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi:last-of-type { margin-right: 0; padding-right: 0; border-right: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi .crm-kpi-val { color: var(--io-titulo); font-size: 14px; font-weight: 700; line-height: 20px; white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi .crm-kpi-lbl { margin: 0; color: var(--n-tx2); font-size: 13px; font-weight: 500; line-height: 20px; white-space: nowrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi.verde:not([data-io2-zero]) .crm-kpi-val { color: var(--io-ok-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi.vermelho:not([data-io2-zero]) .crm-kpi-val { color: var(--io-er-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi.pv-kpi-clk { cursor: pointer; border-radius: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi.pv-kpi-clk:hover .crm-kpi-lbl { color: var(--io-azul-tx); text-decoration: underline; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .crm-kpi.pv-kpi-clk:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
+  /* O botao Pos-venda do app mora dentro dos indicadores: na faixa ele some e a linha de controle ganha um botao que o aciona. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kpis .pv-kpi-btn { display: none; }
+
+  /* ---- 6. Quadro: colunas de largura fixa, rolagem de lado, cabecalho fixo e coluna que rola por dentro ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kanban {
+    grid-area: quadro; display: flex; align-items: stretch; gap: 12px; box-sizing: border-box; min-width: 0; min-height: 0; max-width: none;
+    margin: 12px 0 0; padding: 0 0 8px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+    scroll-snap-type: none; scrollbar-width: thin; scrollbar-color: var(--io-rolagem) transparent;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kanban > .historico-vazio {
+    flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 8px; align-self: flex-start;
+    margin: 0; padding: 24px 12px !important; border: 0; background: transparent; color: var(--n-tx2); font-size: 14px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kanban.io2-crm-carregando > .historico-vazio::before {
+    content: ""; flex: none; width: 16px; height: 16px; box-sizing: border-box; margin: 0; background: none; -webkit-mask: none; mask: none;
+    border: 2px solid var(--n-bd2); border-top-color: var(--io-titulo); border-radius: 50%; animation: io2-crmp-gira .8s linear infinite;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col {
+    --crmp-ponto: var(--n-bd2);
+    flex: 0 0 272px; width: 272px; max-width: none; height: auto; max-height: none; min-height: 0; box-sizing: border-box;
+    display: flex; flex-direction: column; overflow: hidden; scroll-snap-align: none;
+    background: var(--n-sf2); border: 1px solid var(--n-bd); border-radius: var(--r-cartao); box-shadow: none;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-agendado { --crmp-ponto: var(--io-azul-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.crm-col-reagendar, .crm-col-nao_atendeu) { --crmp-ponto: var(--io-av-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-whatsapp { --crmp-ponto: var(--io-wa-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.crm-col-fez_orcamento, .crm-col-proposta_apresentada, .crm-col-em_atendimento) { --crmp-ponto: var(--io-titulo); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-apalavrado { --crmp-ponto: var(--io-amarelo); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-vendido { --crmp-ponto: var(--io-ok-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.crm-col-perdido, .crm-col-sem_interesse) { --crmp-ponto: var(--io-er-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col .crm-col-head {
+    flex: none; position: static; display: flex; align-items: center; justify-content: flex-start; gap: 8px; box-sizing: border-box;
+    min-height: 40px; padding: 0 12px; background: transparent; border-bottom: 1px solid var(--n-bd); box-shadow: none;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-head::before { content: ""; order: 0; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--crmp-ponto); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-head .crm-col-tit {
+    order: 1; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--io-titulo); font-size: 13px; font-weight: 600; line-height: 20px; letter-spacing: 0;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-head .crm-col-tit > .io2-ic { display: none; }
+  /* Total da coluna: soma dos valores que os cartoes da coluna ja mostram (atributo posto pelo io2-telas.js). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-head[data-io2-total]::after {
+    content: attr(data-io2-total); order: 2; flex: none; color: var(--n-tx2); font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-head .crm-col-qt {
+    order: 3; flex: none; min-width: 24px; box-sizing: border-box; padding: 1px 8px; border-radius: var(--r-pilula);
+    background: var(--n-sf3); color: var(--n-tx2); font-size: 12px; font-weight: 600; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col .crm-col-body {
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px;
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-color: var(--io-rolagem) transparent;
+  }
+  /* Coluna vazia: uma linha discreta (o app escreve so um traco). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-vazia { padding: 8px 4px; font-size: 0; line-height: 0; text-align: left; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-vazia::after { content: "Nenhum cliente nesta etapa"; font-size: 12px; font-weight: 500; line-height: 16px; }
+
+  /* ---- 7. Cartao compacto: nome; valor, data e cidade; sinais em pilula. Texto longo fica no detalhe. ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card {
+    flex: none; position: relative; display: flex; flex-flow: row wrap; align-items: center; column-gap: 6px; row-gap: 0; box-sizing: border-box; min-width: 0;
+    padding: 8px 12px; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: 10px; box-shadow: none;
+    transition: border-color .15s ease;
+    /* Coluna com centenas de cartoes: o navegador so desenha os que estao na tela (a altura dos outros e estimada e depois lembrada). */
+    content-visibility: auto; contain-intrinsic-height: auto 88px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card:hover { border-color: var(--io-azul-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card:active { transform: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card.em-espera { background: var(--io-av-sf); border-color: var(--io-ambar-bd); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card.em-espera:hover { border-color: var(--io-av-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card::before { content: ""; order: 2; flex: 0 0 100%; height: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card::after { content: ""; order: 6; flex: 0 0 100%; height: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card :is(.crm-card-meta, .crm-card-foot) { display: contents; }
+  /* linha 1: nome e temperatura; as acoes ficam na ponta */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-top { order: 1; flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-height: 28px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-nome {
+    flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; word-break: normal;
+    color: var(--n-tx); font-size: 14px; font-weight: 600; line-height: 20px; border-radius: 4px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-nome:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 1px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-temp { flex: none; font-size: 14px; line-height: 1; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-acoes { order: 1; flex: none; display: flex; align-items: center; gap: 4px; margin: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act {
+    flex: none; box-sizing: border-box; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; overflow: hidden;
+    border: 1px solid var(--n-bd); border-radius: 8px; background: var(--n-sf); color: var(--n-tx2); font-size: 14px;
+    transition: background-color .15s ease, border-color .15s ease, opacity .15s ease;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act:hover { background: var(--n-sf3); color: var(--n-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act.crm-act-wpp { color: var(--io-wa-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act.crm-act-wpp:hover { background: var(--io-ok-sf); border-color: var(--io-ok-bd); color: var(--io-wa-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act.crm-act-reag { background: var(--io-er-sf); border-color: var(--io-er-bd); color: var(--io-er-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act.crm-act-reag:hover { background: var(--io-er-sf); border-color: var(--io-er-tx); color: var(--io-er-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .io2-crm-mais { display: none; }
+  /* linha 2: valor, proxima reuniao e cidade */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-val { order: 3; flex: none; color: var(--io-titulo); font-size: 13px; font-weight: 700; line-height: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-ag { order: 4; flex: none; color: var(--n-tx2); font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-cid { order: 5; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--n-tx2); font-size: 12px; font-weight: 500; line-height: 18px; }
+  /* linha 3: consultor em inicial, etiqueta de origem e selos de estado */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-cons {
+    order: 7; flex: none; box-sizing: border-box; width: 20px; height: 20px; margin: 4px 0 0; overflow: hidden; border-radius: 50%;
+    background: var(--n-sf3); color: var(--n-tx2); font-size: 12px; font-weight: 600; line-height: 20px;
+    white-space: nowrap; text-transform: uppercase; letter-spacing: 20px; text-indent: 6px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-tag {
+    order: 8; flex: 0 1 auto; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 4px 0 0; padding: 1px 6px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; line-height: 18px; box-shadow: none;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card > :is(.crm-status-selo, .pv-selo) {
+    order: 8; flex: 0 1 auto; display: inline-block; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 4px 0 0; padding: 1px 6px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; line-height: 18px; letter-spacing: 0;
+  }
+  /* O desenho do selo e enfeite (o texto diz o estado): sai para o selo caber na linha do consultor. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card > .crm-status-selo > .io2-ic { display: none; }
+  /* O que o card aguarda e ate quando: so existe no cartao, entao fica inteiro em ate duas linhas (o resto esta na dica do app). */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card > .crm-espera {
+    order: 9; flex: 1 1 100%; min-width: 0; margin: 4px 0 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+    color: var(--io-av-tx); font-size: 12px; font-weight: 500; line-height: 16px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card > .crm-espera.venceu { color: var(--io-er-tx); }
+
+  /* ---- 8. Menu do cartao (so existe onde nao ha mouse): folha de baixo com as acoes do proprio cartao ---- */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu[hidden] { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu {
+    position: fixed; inset: 0; z-index: 953; display: flex; align-items: flex-end; justify-content: center;
+    background: rgba(6, 26, 56, .55); font-family: var(--io-fonte); animation: io2-crmp-veu .2s ease;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu .io2-crm-menu-cx {
+    box-sizing: border-box; width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto; overscroll-behavior: contain;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--n-sf); border-radius: 16px 16px 0 0;
+    box-shadow: 0 16px 48px rgba(10, 36, 80, .28); animation: io2-crmp-sobe .2s cubic-bezier(.16, 1, .3, 1);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu .io2-crm-menu-tit { margin: 0 0 12px; color: var(--io-titulo); font-size: 16px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu .io2-crm-menu-itens { display: flex; flex-direction: column; gap: 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu button {
+    display: flex; align-items: center; justify-content: flex-start; box-sizing: border-box; width: 100%; min-height: 48px; margin: 0; padding: 8px 16px;
+    border: 1px solid var(--n-bd2); border-radius: var(--r-controle); background: var(--n-sf);
+    color: var(--n-tx); font-family: var(--io-fonte); font-size: 16px; font-weight: 600; line-height: 1.2; text-align: left; cursor: pointer;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu button:hover { background: var(--n-sf3); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu button:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu .io2-crm-menu-fechar { justify-content: center; margin-top: 12px; border-color: transparent; background: var(--n-sf3); color: var(--n-tx2); }
+
+  @keyframes io2-crmp-gira { to { transform: rotate(360deg); } }
+  @keyframes io2-crmp-veu { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes io2-crmp-sobe { from { transform: translateY(24px); } to { transform: none; } }
+}
+
+/* Computador de 861 a 1279 px: Filtros e Resumo so com o icone (o nome segue no aria-label e na dica), sem a pilula do filtro ativo. */
+@media screen and (min-width: 861px) and (max-width: 1279px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-filtros > .io2-crm-tx, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-resumo > .io2-crm-tx { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-fl-ativo { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca { min-width: 120px; }
+}
+/* De 861 a 1099 px o Contato tambem fica so com o icone (o nome segue na dica do app); se ainda faltar largura, a linha quebra. */
+@media screen and (min-width: 861px) and (max-width: 1099px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-busca-wrap { flex-wrap: wrap; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-novo-contato { width: var(--ctl-h); min-width: var(--ctl-h); padding: 0; font-size: 0; gap: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-novo-contato > .io2-ic { font-size: 18px; margin: 0; }
+}
+
+/* Com mouse: as acoes secundarias do cartao aparecem ao passar o mouse e no foco (Tab continua chegando nelas). WhatsApp fica sempre. */
+@media screen and (min-width: 861px) and (hover: hover) and (pointer: fine) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card:not(:hover):not(:focus-within) .crm-act:not(.crm-act-wpp) {
+    width: 0; min-width: 0; margin-left: -4px; border-width: 0; opacity: 0; pointer-events: none;
+  }
+}
+
+/* Sem mouse (celular e tablet): WhatsApp e o menu de tres pontos, com 44 px, na ponta do cartao. As demais acoes moram no menu. */
+@media screen and (max-width: 860px), screen and (hover: none), screen and (pointer: coarse) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card { padding-right: 108px; min-height: 60px; contain-intrinsic-height: auto 80px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-top { min-height: 20px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-nome { min-width: 44px; padding: 12px 0; margin: -12px 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-card-acoes { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act:not(.crm-act-wpp) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act.crm-act-wpp { width: 44px; min-width: 44px; height: 44px; min-height: 44px; font-size: 18px; border-radius: var(--r-controle); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .io2-crm-mais {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 44px; height: 44px; margin: 0; padding: 0;
+    border: 1px solid var(--n-bd); border-radius: var(--r-controle); background: var(--n-sf); color: var(--n-tx2); cursor: pointer;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .io2-crm-mais::before { content: ""; width: 20px; height: 20px; background: currentColor; -webkit-mask: var(--crmp-ic-mais) center / contain no-repeat; mask: var(--crmp-ic-mais) center / contain no-repeat; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .io2-crm-mais:focus-visible { outline: 2px solid var(--io-azul-tx); outline-offset: 2px; }
+}
+
+/* ---- Celular (ate 860 px): topo em duas linhas, uma coluna por vez, folha de filtros de tela cheia ---- */
+@media screen and (max-width: 860px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: "seg busca filtros contato" "etapas etapas etapas etapas" "quadro quadro quadro quadro";
+    height: calc(100vh - var(--io-top) - var(--io-bot) - 20px); height: calc(100dvh - var(--io-top) - var(--io-bot) - 20px);
+    min-height: 360px; margin-bottom: -8px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp > .crm-subnav { height: 44px; padding: 0; justify-self: start; overflow-x: auto; overflow-y: hidden; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab { height: 44px; min-height: 44px; padding: 0 12px; border-radius: var(--r-controle); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-busca-wrap { display: contents; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca { grid-area: busca; align-self: center; width: auto; min-width: 0; max-width: none; height: 44px; min-height: 44px; padding: 0 12px 0 40px; background-position: 12px center; font-size: 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt { height: var(--ctl-h-m); min-height: var(--ctl-h-m); min-width: var(--ctl-h-m); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-filtros > .io2-crm-tx { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-filtros { grid-area: filtros; align-self: center; position: relative; padding: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-filtros > .io2-crm-cont { position: absolute; top: -6px; right: -6px; background: var(--io-marcado-t); color: var(--n-inv); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.io2-crm-fl-ativo, .io2-crm-bt-pv, .io2-crm-bt-resumo, .crm-reload, .io2-cf-btn, .io2-crm-limpar) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-info { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-novo-contato { grid-area: contato; align-self: center; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 0; gap: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-novo-contato > .io2-ic { font-size: 20px; margin: 0; }
+
+  /* etapas em chips que rolam de lado (o mesmo desenho dos chips de Leads) */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-etapas {
+    grid-area: etapas; display: flex; align-items: center; gap: 8px; min-width: 0; margin: 8px -12px 0; padding: 0 12px;
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-etapas::-webkit-scrollbar { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-etapa {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; min-height: 44px; margin: 0; padding: 8px 14px;
+    border: 1px solid var(--n-bd2); border-radius: var(--r-pilula); background: var(--n-sf);
+    color: var(--n-tx2); font-family: var(--io-fonte); font-size: 14px; font-weight: 500; line-height: 1.2; white-space: nowrap; cursor: pointer;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-etapa > b { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-etapa[aria-pressed="true"] { background: var(--io-marcado-t); border-color: var(--io-marcado-t); color: var(--n-inv); font-weight: 600; }
+
+  /* uma coluna por vez, na largura toda, com encaixe; as outras continuam no quadro (rolagem de lado) */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kanban { margin-top: 8px; padding-bottom: 0; gap: 12px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-kanban::-webkit-scrollbar { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col { flex: 0 0 100%; width: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+
+  /* folha de filtros e resumo: a propria secao ocupa a tela; o quadro espera atras */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on {
+    position: fixed; inset: 0; z-index: 952; display: flex; flex-direction: column; align-items: stretch;
+    height: auto; min-height: 0; margin: 0; padding: 0 12px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; background: var(--n-bg);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on > .crm-subnav, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on :is(.io2-crm-etapas, #crm-kanban, #crm-busca, .io2-crm-bt-filtros, .crm-novo-contato) { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-crm-folha-topo {
+    order: 0; flex: none; position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; box-sizing: border-box;
+    min-height: calc(52px + env(safe-area-inset-top, 0px)); margin: 0 -12px; padding: env(safe-area-inset-top, 0px) 4px 0 12px;
+    background: var(--n-bg); border-bottom: 1px solid var(--n-bd);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-folha-tit { color: var(--io-titulo); font-size: 16px; font-weight: 700; line-height: 1.2; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-folha-fechar {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 0; padding: 0;
+    border: 0; border-radius: var(--r-controle); background: transparent; color: var(--n-tx); cursor: pointer;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-folha-fechar > .io2-ic { font-size: 22px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-filtro-linha { order: 1; flex: none; display: block; margin: 12px 0 0; padding: 12px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-filtro-linha .crm-filtro-lbl { display: block; margin: 0 0 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-filtro-linha .crm-chips { flex-wrap: wrap; gap: 8px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-filtro-linha .crm-chip { min-height: 44px; padding: 8px 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on #crm-kpis {
+    order: 2; flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; box-sizing: border-box; min-height: 0;
+    margin: 12px 0 0; padding: 12px; overflow: visible; background: var(--n-sf); border: 1px solid var(--n-bd); border-radius: var(--r-controle);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on #crm-kpis::before { content: "Resumo"; grid-column: 1 / -1; margin: 0 0 4px; color: var(--n-tx2); font-size: 13px; font-weight: 500; line-height: 1.35; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on #crm-kpis .crm-kpi { display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: baseline; min-height: 28px; margin: 0; padding: 0; border-right: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on #crm-kpis .crm-kpi.pv-kpi-clk { min-height: 44px; align-items: center; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-cf-btn {
+    order: 3; flex: none; display: inline-flex; align-self: flex-start; justify-content: flex-start; gap: 8px; width: auto; height: auto; min-height: 44px;
+    margin: 8px 0 0; padding: 8px 12px 8px 4px; border: 0; background: transparent; color: var(--io-azul-tx); font-size: 14px;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-cf-btn::before {
+    content: ""; width: 18px; height: 18px; flex: 0 0 18px; background: currentColor;
+    -webkit-mask: var(--io-ic-info) center / 18px 18px no-repeat; mask: var(--io-ic-info) center / 18px 18px no-repeat;
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-cf-btn::after { display: block; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on #crm-info.io2-cf-aberto { order: 4; flex: none; display: block; margin: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-crm-bt-pv:not([hidden]) { order: 5; flex: none; display: flex; margin: 12px 0 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-reload { order: 6; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; width: auto; height: 44px; min-height: 44px; margin: 8px 0 12px; padding: 0 12px; font-size: 16px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .crm-reload::after { content: "Atualizar"; font-size: 14px; font-weight: 600; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-crm-folha-pe {
+    order: 9; flex: none; position: sticky; bottom: 0; display: flex; gap: 8px; box-sizing: border-box;
+    margin: auto -12px 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--n-bg); border-top: 1px solid var(--n-bd);
+  }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-crm-folha-pe > .io2-crm-bt { flex: 1 1 0; min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-crm-folha-pe > .io2-crm-limpar { display: inline-flex; align-items: center; justify-content: center; flex: 1 1 0; min-height: 44px; border: 1px solid var(--n-bd2); border-radius: var(--r-controle); background: var(--n-sf); color: var(--n-tx); font-size: 14px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp.io2-crm-fl-on .io2-crm-folha-pe > .io2-crm-limpar[hidden] { display: none; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-folha-ver { background: var(--io-amarelo); border-color: var(--io-amarelo); color: var(--io-tinta); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-folha-ver:hover { background: var(--io-amarelo-forte); border-color: var(--io-amarelo-forte); }
+}
+
+/* Celular estreito (ate 560 px): familia, lupa, Filtros e Contato na MESMA linha. A busca fica recolhida na lupa, abre ao tocar
+   (familia e Contato cedem o lugar enquanto se digita) e, com texto, a lupa fica marcada. A contagem da familia ABERTA sai
+   (e a soma das etapas logo abaixo); a da outra familia fica. Precisa de :has(); sem ele a familia ocupa uma linha e a busca outra. */
+@media screen and (max-width: 560px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab { padding: 0 10px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab > .io2-ic { width: 0; margin: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-subtab.ativo .crm-subtab-qt { width: 0; min-width: 0; padding: 0; margin-left: -6px; font-size: 0; overflow: hidden; }
+  @supports not selector(:has(*)) {
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto auto minmax(0, 1fr); grid-template-areas: "seg seg seg" "busca filtros contato" "etapas etapas etapas" "quadro quadro quadro"; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt-filtros, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-novo-contato { margin-top: 8px; }
+  }
+  @supports selector(:has(*)) {
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca { width: 44px; padding: 0; background-position: center; color: transparent; cursor: pointer; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca::placeholder { opacity: 0; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca:not(:placeholder-shown) { background-color: var(--io-azul-sf); border-color: var(--io-azul-tx); }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca:focus { width: auto; padding: 0 8px 0 36px; background-color: var(--n-sf); background-position: 10px center; color: var(--n-tx); cursor: text; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp #crm-busca:focus::placeholder { opacity: 1; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp:not(.io2-crm-fl-on):has(#crm-busca:focus) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "busca filtros" "etapas etapas" "quadro quadro"; }
+    html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp:not(.io2-crm-fl-on):has(#crm-busca:focus) > .crm-subnav, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp:not(.io2-crm-fl-on):has(#crm-busca:focus) .crm-novo-contato { display: none; }
+  }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .io2-crm-bt, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-card .crm-act { transition: none !important; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu, html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #io2-crm-menu .io2-crm-menu-cx { animation: none !important; }
+}
+/* CRM-PADRAO: fim */

@@ -1024,4 +1024,378 @@
     });
   } catch (e) {}
   try { iniciarApp(); } catch (e) {}
+
+  /* CRM-PADRAO: inicio ------------------------------------------------------------------------------
+     Quadro do CRM no padrao de mercado (13/10/2026). Aqui so se monta o que o CSS sozinho nao faz; o desenho esta no
+     bloco CRM-PADRAO de io2-telas.css e so vale com a classe io2-crmp em #crmSection, posta por crmpIniciar().
+     Nenhuma funcao do app e envolvida e nenhum no do app muda de lugar. Todo clique novo termina num .click() de um
+     controle que o app ja tinha (chip "Geral", botao Pos-venda, acoes do cartao): o que vai ao servidor nao muda.
+       - linha de controle: botoes Filtros (com contador e pilula do filtro ativo), Resumo e Pos-venda, acrescentados
+         DENTRO de .crm-busca-wrap; Limpar filtros dentro de .crm-filtro-linha;
+       - celular: fileira de etapas (chips que rolam o quadro ate a coluna), topo e pe da folha de filtros;
+       - sem mouse: um botao de tres pontos por cartao e UM menu compartilhado, que aciona as acoes do proprio cartao;
+       - por desenho do quadro (o app troca o innerHTML de #crm-kanban a cada busca, filtro e troca de familia):
+         total da coluna em atributo (soma dos valores que os cartoes ja mostram), nome do cartao focavel (Tab, Enter
+         e Espaco abrem o detalhe pelo ouvinte tecla, que ja existe) e o estado de carregando.
+     Observadores: so childList em #crm-kanban, #crm-chips-consultor e #crm-kpis, mais o data-mode do <html>.
+     Nos que nascem a cada desenho levam data-io2 e nao entram em `criados` (ele nunca e podado). crmpDesfazer() entra na
+     lista de observadores como objeto com disconnect(), entao desfazer() devolve tudo. */
+  var crmp = null;
+  var CRMP_RESUMO = 'io2-crm-resumo';
+
+  function crmpNo(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt) n.textContent = txt;
+    n.setAttribute('data-io2', '1');
+    return n;
+  }
+  function crmpBotao(cls, rotulo, icone, nome) {
+    var b = crmpNo('button', cls);
+    b.type = 'button';
+    if (icone) { var i = crmpNo('span', 'io2-ic io2-ic-' + icone); i.setAttribute('aria-hidden', 'true'); b.appendChild(i); }
+    if (rotulo) b.appendChild(crmpNo('span', 'io2-crm-tx', rotulo));
+    if (nome) { b.setAttribute('aria-label', nome); b.title = nome; }
+    return b;
+  }
+  function crmpColunas() {
+    var out = [], k = crmp.board.children;
+    for (var i = 0; i < k.length; i++) if (k[i].classList && k[i].classList.contains('crm-col')) out.push(k[i]);
+    return out;
+  }
+  function crmpChave(col) {
+    for (var i = 0; i < col.classList.length; i++) {
+      var c = col.classList[i];
+      if (c.indexOf('crm-col-') === 0 && c !== 'crm-col-destaque') return c.slice(8);
+    }
+    return '';
+  }
+  function crmpTexto(n) { return n ? (n.textContent || '').replace(/\s+/g, ' ').replace(/^[^0-9A-Za-z\u00C0-\u024F]+/, '').trim() : ''; }
+  function crmpCelular() { return !!(crmp && crmp.mqCel.matches); }
+  function crmpFolhaAberta() { return !!(crmp && crmp.sec.classList.contains('io2-crm-fl-on')); }
+
+  /* Filtros: contador, pilula do filtro ativo, Limpar e o botao Pos-venda (so existe quando o app desenhou o dele). */
+  function crmpFiltros() {
+    if (!crmp || !io2Ligado()) return;
+    var lst = crmp.chips.getElementsByClassName('crm-chip');
+    var ativo = null;
+    for (var i = 0; i < lst.length; i++) if (lst[i].classList.contains('ativo')) { ativo = lst[i]; break; }
+    var n = ativo && ativo !== lst[0] ? 1 : 0;
+    var nome = n ? (ativo.textContent || '').trim() : '';
+    crmp.cont.textContent = String(n);
+    crmp.cont.hidden = !n;
+    crmp.btFiltros.setAttribute('aria-label', n ? 'Filtros, ' + n + ' ativo' : 'Filtros');
+    crmp.btFiltros.title = n ? 'Filtros: consultor ' + nome : 'Filtros';
+    crmp.btAtivo.hidden = !n;
+    crmp.ativoTx.textContent = nome;
+    crmp.btAtivo.setAttribute('aria-label', 'Tirar o filtro de consultor ' + nome);
+    crmp.btAtivo.title = 'Tirar o filtro de consultor';
+    crmp.limpar.hidden = !n;
+    crmp.limpar2.hidden = !n;
+    crmp.btPv.hidden = !crmp.kpis.querySelector('.pv-kpi-btn');
+  }
+  function crmpLimpar() {
+    var primeiro = crmp.chips.querySelector('.crm-chip');
+    if (primeiro && !primeiro.classList.contains('ativo')) primeiro.click();
+  }
+
+  /* Etapas (celular): um chip por coluna. So refaz quando nome, ordem ou contagem mudou. */
+  function crmpEtapas(cols) {
+    var partes = [], i;
+    for (i = 0; i < cols.length; i++) {
+      var h1 = cols[i].firstElementChild;
+      partes.push([crmpChave(cols[i]), crmpTexto(h1 && h1.querySelector('.crm-col-tit')), crmpTexto(h1 && h1.querySelector('.crm-col-qt'))]);
+    }
+    var assinatura = JSON.stringify(partes);
+    if (assinatura === crmp.assinatura) return;
+    crmp.assinatura = assinatura;
+    var box = crmp.etapas;
+    while (box.firstChild) box.removeChild(box.firstChild);
+    for (i = 0; i < partes.length; i++) {
+      var b = crmpNo('button', 'io2-crm-etapa');
+      b.type = 'button';
+      b.setAttribute('data-io2-i', String(i));
+      b.setAttribute('aria-pressed', 'false');
+      b.appendChild(crmpNo('span', '', partes[i][1] || partes[i][0]));
+      b.appendChild(crmpNo('b', '', partes[i][2] || '0'));
+      box.appendChild(b);
+    }
+    crmp.ativa = -1;
+  }
+  /* Marca o chip da coluna que esta na tela (pela rolagem de lado do quadro) e o traz para a vista. */
+  function crmpSincronizar() {
+    if (!crmp) return;
+    crmp.rafRolar = 0;
+    if (!io2Ligado() || !crmpCelular() || crmpFolhaAberta()) return;
+    var cols = crmpColunas();
+    if (!cols.length) return;
+    var melhor = 0, dist = Infinity;
+    var alvo = crmp.board.getBoundingClientRect().left;
+    for (var i = 0; i < cols.length; i++) {
+      var d = Math.abs(cols[i].getBoundingClientRect().left - alvo);
+      if (d < dist) { dist = d; melhor = i; }
+    }
+    if (melhor === crmp.ativa) return;
+    crmp.ativa = melhor;
+    var bs = crmp.etapas.children;
+    for (var j = 0; j < bs.length; j++) bs[j].setAttribute('aria-pressed', j === melhor ? 'true' : 'false');
+    var on = bs[melhor], box = crmp.etapas;
+    if (on && box.clientWidth) {
+      var rb = box.getBoundingClientRect(), ro = on.getBoundingClientRect();
+      var esq = ro.left - rb.left + box.scrollLeft, max = box.scrollWidth - box.clientWidth;
+      box.scrollLeft = Math.max(0, Math.min(max, esq - (box.clientWidth - ro.width) / 2));
+    }
+  }
+  function crmpAoRolar() { if (crmp && !crmp.rafRolar) crmp.rafRolar = (window.requestAnimationFrame || setTimeout)(crmpSincronizar, 16); }
+  function crmpIrPara(i, suave) {
+    var cols = crmpColunas(), col = cols[i];
+    if (!col) return;
+    var b = crmp.board, esq = col.getBoundingClientRect().left - b.getBoundingClientRect().left + b.scrollLeft;
+    var reduz = false;
+    try { reduz = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    try { b.scrollTo({ left: esq, behavior: suave && !reduz ? 'smooth' : 'auto' }); } catch (e) { b.scrollLeft = esq; }
+  }
+
+  /* A cada desenho do quadro: carregando, total por coluna, nome focavel, tres pontos (sem mouse) e etapas. */
+  function crmpQuadro() {
+    if (!crmp) return;
+    crmp.raf = 0;
+    if (!io2Ligado() || !modoApp()) return;
+    var board = crmp.board, um = board.firstElementChild;
+    var carregando = !!um && board.children.length === 1 && um.classList.contains('historico-vazio') && /^Carregando/.test((um.textContent || '').trim());
+    board.classList.toggle('io2-crm-carregando', carregando);
+    var cols = crmpColunas(), i;
+    for (i = 0; i < cols.length; i++) {
+      var head = cols[i].firstElementChild;
+      if (!head) continue;
+      var soma = 0;
+      if (crmpChave(cols[i]) !== 'arrendamento') {  /* no arrendamento quem investe e a casa: o app tambem deixa fora do Pipeline */
+        var vs = cols[i].getElementsByClassName('crm-card-val');
+        for (var v = 0; v < vs.length; v++) soma += Number((vs[v].textContent || '').replace(/\D/g, '')) || 0;
+      }
+      if (soma > 0) head.setAttribute('data-io2-total', 'R$ ' + soma.toLocaleString('pt-BR'));
+      else if (head.hasAttribute('data-io2-total')) head.removeAttribute('data-io2-total');
+    }
+    var nomes = board.getElementsByClassName('crm-card-nome');
+    for (i = 0; i < nomes.length; i++) {
+      if (nomes[i].hasAttribute('data-io2-btn')) continue;
+      nomes[i].setAttribute('role', 'button');
+      nomes[i].setAttribute('tabindex', '0');
+      nomes[i].setAttribute('data-io2-btn', '1');
+    }
+    if (crmp.mqMenu.matches) {
+      var acs = board.getElementsByClassName('crm-card-acoes');
+      for (i = 0; i < acs.length; i++) {
+        var ult = acs[i].lastElementChild;
+        if (ult && ult.classList.contains('io2-crm-mais')) continue;
+        acs[i].appendChild(crmp.mais.cloneNode(true));
+      }
+    }
+    var total = board.getElementsByClassName('crm-card').length;
+    crmp.verTx.textContent = total > 1 ? 'Ver ' + total + ' clientes' : total === 1 ? 'Ver 1 cliente' : 'Ver quadro';
+    crmpEtapas(cols);
+    crmp.ativa = -1;
+    crmpSincronizar();
+  }
+  function crmpAgendar() { if (crmp && !crmp.raf) crmp.raf = (window.requestAnimationFrame || setTimeout)(crmpQuadro, 16); }
+
+  /* Faixa (computador) ou folha de tela cheia (celular) dos filtros. No celular o quadro fica escondido atras da folha:
+     a coluna aberta e a rolagem dela sao guardadas e devolvidas ao fechar. */
+  function crmpFiltrosAbrir(abrir) {
+    var sec = crmp.sec, cel = crmpCelular();
+    if (abrir === crmpFolhaAberta()) return;
+    if (abrir && cel) {
+      var cols = crmpColunas(), col = cols[crmp.ativa] || cols[0];
+      var corpo = col ? col.querySelector('.crm-col-body') : null;
+      crmp.volta = { chave: col ? crmpChave(col) : '', corpo: corpo, topo: corpo ? corpo.scrollTop : 0 };
+    }
+    sec.classList.toggle('io2-crm-fl-on', abrir);
+    crmp.btFiltros.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    if (!cel) return;
+    if (abrir) { try { crmp.fechar.focus(); } catch (e) {} return; }
+    var g = crmp.volta; crmp.volta = null;
+    if (g) {
+      var cs = crmpColunas();
+      for (var i = 0; i < cs.length; i++) if (crmpChave(cs[i]) === g.chave) { crmpIrPara(i, false); break; }
+      if (g.corpo && g.corpo.isConnected) g.corpo.scrollTop = g.topo;
+    }
+    crmp.ativa = -1;
+    crmpSincronizar();
+    try { crmp.btFiltros.focus(); } catch (e) {}
+  }
+  function crmpResumo(abrir) {
+    crmp.sec.classList.toggle('io2-crm-rs-on', abrir);
+    crmp.btResumo.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  }
+
+  /* Menu do cartao: os itens sao montados na hora, a partir das acoes que o cartao tem, e cada um aciona a acao original. */
+  function crmpMenuFechar(focar) {
+    if (!crmp || crmp.menu.hidden) return;
+    crmp.menu.hidden = true;
+    crmp.alvos = [];
+    var g = crmp.gatilho; crmp.gatilho = null;
+    if (focar && g && g.isConnected) { try { g.focus(); } catch (e) {} }
+  }
+  function crmpMenuAbrir(gatilho) {
+    var card = gatilho.closest('.crm-card');
+    if (!card) return;
+    var itens = crmp.menuItens;
+    while (itens.firstChild) itens.removeChild(itens.firstChild);
+    crmp.alvos = [];
+    function item(rotulo, alvo) {
+      var b = crmpNo('button', 'io2-crm-menu-item', rotulo);
+      b.type = 'button';
+      b.setAttribute('data-io2-i', String(crmp.alvos.length));
+      crmp.alvos.push(alvo);
+      itens.appendChild(b);
+    }
+    crmp.menuTit.textContent = crmpTexto(card.querySelector('.crm-card-nome')) || 'Cliente';
+    item('Ver detalhes', card);
+    var w = card.querySelector('.crm-card-acoes .crm-act-wpp');
+    if (w) item('WhatsApp', w);
+    var tel = card.querySelector('a.crm-card-tel');
+    if (tel) item('Ligar para ' + (tel.textContent || '').replace(/^[^0-9(+]+/, '').trim(), tel);
+    var acts = card.querySelectorAll('.crm-card-acoes .crm-act:not(.crm-act-wpp)');
+    for (var i = 0; i < acts.length; i++) item(acts[i].getAttribute('title') || 'Abrir', acts[i]);
+    crmp.gatilho = gatilho;
+    crmp.menu.hidden = false;
+    try { itens.firstChild.focus(); } catch (e) {}
+  }
+  function crmpCliqueMenu(ev) {
+    try {
+      var t = ev.target;
+      if (t === crmp.menu || (t.closest && t.closest('.io2-crm-menu-fechar'))) { crmpMenuFechar(true); return; }
+      var b = t.closest ? t.closest('.io2-crm-menu-item') : null;
+      if (!b) return;
+      var alvo = crmp.alvos[Number(b.getAttribute('data-io2-i'))];
+      crmpMenuFechar(false);
+      if (alvo && alvo.isConnected) alvo.click();
+    } catch (e) {}
+  }
+  /* Captura no quadro: o toque nos tres pontos nao chega ao onclick do cartao (que abriria o detalhe). */
+  function crmpCliqueQuadro(ev) {
+    try {
+      var m = ev.target && ev.target.closest ? ev.target.closest('.io2-crm-mais') : null;
+      if (!m) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      crmpMenuAbrir(m);
+    } catch (e) {}
+  }
+  function crmpClique(ev) {
+    try {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      var e;
+      if (t.closest('.io2-crm-bt-filtros')) { crmpFiltrosAbrir(!crmpFolhaAberta()); return; }
+      if (t.closest('.io2-crm-folha-fechar') || t.closest('.io2-crm-folha-ver')) { crmpFiltrosAbrir(false); return; }
+      if (t.closest('.io2-crm-fl-ativo') || t.closest('.io2-crm-limpar')) { crmpLimpar(); return; }
+      if (t.closest('.io2-crm-bt-resumo')) {
+        var abrir = !crmp.sec.classList.contains('io2-crm-rs-on');
+        crmpResumo(abrir);
+        gravarEstado(CRMP_RESUMO, abrir);
+        return;
+      }
+      if (t.closest('.io2-crm-bt-pv')) { e = crmp.kpis.querySelector('.pv-kpi-btn'); if (e) e.click(); return; }
+      e = t.closest('.io2-crm-etapa');
+      if (e) crmpIrPara(Number(e.getAttribute('data-io2-i')), true);
+    } catch (e2) {}
+  }
+  function crmpTecla(ev) {
+    try {
+      if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
+      if (crmp && !crmp.menu.hidden) { ev.stopPropagation(); crmpMenuFechar(true); return; }
+      if (crmpFolhaAberta() && crmpCelular()) { ev.stopPropagation(); crmpFiltrosAbrir(false); }
+    } catch (e) {}
+  }
+
+  function crmpDesfazer() {
+    var c = crmp; crmp = null;
+    if (!c) return;
+    try { if (c.raf) (window.cancelAnimationFrame || clearTimeout)(c.raf); if (c.rafRolar) (window.cancelAnimationFrame || clearTimeout)(c.rafRolar); } catch (e) {}
+    try { c.sec.classList.remove('io2-crm-fl-on', 'io2-crm-rs-on'); c.board.classList.remove('io2-crm-carregando'); } catch (e) {}
+    try {
+      var q = c.board.querySelectorAll('[data-io2-total]'), i;
+      for (i = 0; i < q.length; i++) q[i].removeAttribute('data-io2-total');
+      q = c.board.querySelectorAll('.io2-crm-mais');
+      for (i = 0; i < q.length; i++) if (q[i].parentNode) q[i].parentNode.removeChild(q[i]);
+    } catch (e) {}
+  }
+
+  function crmpIniciar() {
+    if (crmp || desfeito || !io2Ligado() || !modoApp()) return;
+    var sec = document.getElementById('crmSection'), board = document.getElementById('crm-kanban');
+    var kpis = document.getElementById('crm-kpis'), chips = document.getElementById('crm-chips-consultor');
+    var wrap = sec ? sec.querySelector('.crm-busca-wrap') : null, linha = sec ? sec.querySelector('.crm-filtro-linha') : null;
+    if (!sec || !board || !kpis || !chips || !wrap || !linha || !window.matchMedia) return;
+    var c = { sec: sec, board: board, kpis: kpis, chips: chips, raf: 0, rafRolar: 0, ativa: -1, assinatura: '', alvos: [], gatilho: null, volta: null };
+    c.mqCel = window.matchMedia('(max-width: 860px)');
+    c.mqMenu = window.matchMedia('(max-width: 860px), (hover: none), (pointer: coarse)');
+
+    c.btFiltros = crmpBotao('io2-crm-bt io2-crm-bt-filtros', 'Filtros', 'ajustes', 'Filtros');
+    c.btFiltros.setAttribute('aria-expanded', 'false');
+    c.cont = crmpNo('span', 'io2-crm-cont'); c.cont.hidden = true; c.btFiltros.appendChild(c.cont);
+    c.btAtivo = crmpNo('button', 'io2-crm-fl-ativo'); c.btAtivo.type = 'button'; c.btAtivo.hidden = true;
+    c.ativoTx = crmpNo('span', 'io2-crm-tx'); c.btAtivo.appendChild(c.ativoTx);
+    var ix = crmpNo('span', 'io2-ic io2-ic-x'); ix.setAttribute('aria-hidden', 'true'); c.btAtivo.appendChild(ix);
+    c.btPv = crmpBotao('io2-crm-bt io2-crm-bt-pv', 'Pós-venda'); c.btPv.hidden = true;
+    c.btResumo = crmpBotao('io2-crm-bt io2-crm-bt-resumo', 'Resumo', 'grafico', 'Resumo do quadro');
+    c.btResumo.setAttribute('aria-expanded', 'false');
+    if (kpis.id) c.btResumo.setAttribute('aria-controls', kpis.id);
+    c.limpar = crmpNo('button', 'io2-crm-limpar', 'Limpar filtros'); c.limpar.type = 'button'; c.limpar.hidden = true;
+
+    c.etapas = crmpNo('div', 'io2-crm-etapas'); c.etapas.setAttribute('role', 'group'); c.etapas.setAttribute('aria-label', 'Etapas do quadro');
+    c.topo = crmpNo('div', 'io2-crm-folha-topo');
+    c.topo.appendChild(crmpNo('span', 'io2-crm-folha-tit', 'Filtros e resumo'));
+    c.fechar = crmpBotao('io2-crm-folha-fechar', '', 'x', 'Fechar');
+    c.topo.appendChild(c.fechar);
+    c.pe = crmpNo('div', 'io2-crm-folha-pe');
+    c.limpar2 = crmpNo('button', 'io2-crm-limpar', 'Limpar filtros'); c.limpar2.type = 'button'; c.limpar2.hidden = true;
+    c.btVer = crmpBotao('io2-crm-bt io2-crm-folha-ver', 'Ver quadro');
+    c.verTx = c.btVer.querySelector('.io2-crm-tx');
+    c.pe.appendChild(c.limpar2); c.pe.appendChild(c.btVer);
+
+    c.mais = crmpNo('button', 'io2-crm-mais'); c.mais.type = 'button'; c.mais.setAttribute('aria-label', 'Mais ações'); c.mais.title = 'Mais ações';
+    c.menu = crmpNo('div', ''); c.menu.id = 'io2-crm-menu'; c.menu.hidden = true;
+    c.menu.setAttribute('role', 'dialog'); c.menu.setAttribute('aria-modal', 'true'); c.menu.setAttribute('aria-label', 'Ações do cliente');
+    var cx = crmpNo('div', 'io2-crm-menu-cx');
+    c.menuTit = crmpNo('div', 'io2-crm-menu-tit');
+    c.menuItens = crmpNo('div', 'io2-crm-menu-itens');
+    var fm = crmpNo('button', 'io2-crm-menu-fechar', 'Fechar'); fm.type = 'button';
+    cx.appendChild(c.menuTit); cx.appendChild(c.menuItens); cx.appendChild(fm); c.menu.appendChild(cx);
+
+    wrap.appendChild(c.btFiltros); wrap.appendChild(c.btAtivo); wrap.appendChild(c.btPv); wrap.appendChild(c.btResumo);
+    linha.appendChild(c.limpar);
+    var card = board.parentNode;
+    sec.insertBefore(c.etapas, card && card.parentNode === sec ? card : null);
+    sec.insertBefore(c.topo, c.etapas);
+    sec.appendChild(c.pe);
+    document.body.appendChild(c.menu);
+    criados.push(c.btFiltros, c.btAtivo, c.btPv, c.btResumo, c.limpar, c.etapas, c.topo, c.pe, c.menu);
+
+    crmp = c;
+    sec.classList.add('io2-crmp');
+    classesPostas.push([sec, 'io2-crmp']);
+    if (lerEstado(CRMP_RESUMO)) crmpResumo(true);
+    observadores.push({ disconnect: crmpDesfazer });
+    observar(board, { childList: true }, crmpAgendar);
+    observar(chips, { childList: true }, crmpFiltros);
+    observar(kpis, { childList: true }, crmpFiltros);
+    ouvir(sec, 'click', crmpClique, false);
+    ouvir(sec, 'keydown', crmpTecla, false);
+    ouvir(board, 'click', crmpCliqueQuadro, true);
+    ouvir(board, 'scroll', crmpAoRolar, { passive: true });
+    ouvir(c.menu, 'click', crmpCliqueMenu, false);
+    ouvir(c.menu, 'keydown', crmpTecla, false);
+    ouvir(window, 'resize', crmpAoRolar, false);
+    try {
+      if (c.mqMenu.addEventListener) { ouvir(c.mqMenu, 'change', crmpAgendar, false); ouvir(c.mqCel, 'change', crmpAgendar, false); }
+    } catch (e) {}
+    crmpFiltros();
+    crmpQuadro();
+  }
+
+  try { observar(h, { attributes: true, attributeFilter: ['data-mode'] }, function () { crmpIniciar(); }); } catch (e) {}
+  try { crmpIniciar(); } catch (e) {}
+  /* CRM-PADRAO: fim */
 })();
