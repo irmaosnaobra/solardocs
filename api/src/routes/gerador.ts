@@ -8,6 +8,7 @@ import { runAvisosTick, respostasDaPauta, audienciaDoAviso, LADOS_AVISO } from '
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
+import { criarCacheDeMontagem } from '../services/io/centralAgentesCache';
 import { decidirResposta, bolhasParaEnvio } from '../services/io/prospeccaoResposta';
 import { montarFunil } from '../services/io/prospeccaoFunil';
 import { listarCerebros, salvarCerebro, restaurarCerebro, conversarComAgente, ehCerebroValido } from '../services/io/cerebroAgentes';
@@ -916,9 +917,19 @@ router.post('/prospeccao/kick', async (_req: Request, res: Response) => {
 // Central das Agentes: estado, volume e conversão de cada robô da casa, numa
 // resposta só. Público como o resto do /gerador — por isso o serviço devolve
 // AGREGADO, nunca telefone, nome de cliente ou texto de conversa.
+// A montagem leva 2 s ou mais (várias leituras no banco) e a rota é pública:
+// cache de 60 s, uma montagem por vez e, se ela falhar, o último resultado bom
+// por até 5 min. O erro nunca fica guardado.
+const centralAgentesEmCache = criarCacheDeMontagem(montarCentralAgentes, {
+  aoServirAntigo: (err, idadeMs) =>
+    logger.warn('gerador', `central de agentes falhou, entregando cópia de ${Math.round(idadeMs / 1000)} s`, err),
+});
+
 router.get('/agentes', async (_req: Request, res: Response) => {
   try {
-    res.json(await montarCentralAgentes());
+    const payload = await centralAgentesEmCache();
+    res.set('Cache-Control', 'public, max-age=30');
+    res.json(payload);
   } catch (err: any) {
     logger.error('gerador', 'central de agentes falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
