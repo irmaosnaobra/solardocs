@@ -158,6 +158,44 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .gd-dica.ok{color:var(--gc-ok);font-weight:600}
 .gd-dica.err{color:var(--gc-er);font-weight:600}
 
+/* ── Documentos da ficha e botão do relatório ── */
+.gd-rel{flex:none;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--gc-campo);background:transparent;color:var(--gc-tx);font-weight:600;font-size:13.5px;white-space:nowrap}
+.gd-rel:hover{background:var(--gc-sf3)}
+.gd-rel svg{width:16px;height:16px;flex:none}
+.gd-rel[aria-busy="true"]{opacity:.7;cursor:progress}
+.dc-vz{margin:0;padding:16px;color:var(--gc-tx2)}
+.dc-vz .dc-bt{margin-top:10px}
+.dc-it{min-width:0;display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--gc-bd);border-radius:10px}
+.dc-cab{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.dc-cab b{min-width:0;color:var(--gc-tit);font-size:14px;overflow-wrap:anywhere}
+.dc-op{flex:none;font-size:12px;font-weight:600;color:var(--gc-tx2)}
+.dc-arq{display:grid;grid-template-columns:56px minmax(0,1fr);gap:8px 10px;align-items:center}
+.dc-mini{width:56px;height:56px;border-radius:8px;border:1px solid var(--gc-bd);background:var(--gc-sf3);overflow:hidden;display:grid;place-items:center;color:var(--gc-tx2)}
+.dc-mini img{display:block;width:100%;height:100%;object-fit:cover}
+.dc-mini svg{width:26px;height:26px}
+.dc-info{min-width:0;font-size:12.5px;color:var(--gc-tx2);overflow-wrap:anywhere}
+.dc-info b{display:block;font-size:13px;color:var(--gc-tx)}
+.dc-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;border:1px solid var(--gc-campo);background:var(--gc-sf3);color:var(--gc-tit);font-size:11.5px;font-weight:700;vertical-align:1px}
+.dc-ac{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.dc-arq .dc-ac{grid-column:1 / -1}
+.dc-bt{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--gc-campo);background:transparent;color:var(--gc-tx);font-weight:600;font-size:13px}
+.dc-bt:hover{background:var(--gc-sf3)}
+.dc-bt:disabled{opacity:.55;cursor:default}
+.dc-bt.pri{color:var(--gc-link);border-color:var(--gc-link)}
+.dc-bt.er{color:var(--gc-er);border-color:var(--gc-falta-bd)}
+.dc-prog{display:grid;gap:4px}
+.dc-prog span{font-size:12.5px;font-weight:600;color:var(--gc-tx2);font-variant-numeric:tabular-nums}
+.dc-bar{height:6px;border-radius:999px;background:var(--gc-sf3);overflow:hidden}
+.dc-bar i{display:block;height:100%;width:0;background:var(--gc-link);border-radius:999px}
+.dc-dica{display:block;font-size:12.5px;color:var(--gc-tx2)}
+.dc-msg{display:block;font-size:12.5px;font-weight:600;color:var(--gc-er)}
+.dc-nota{margin:0;padding:12px 16px 0;font-size:12.5px;color:var(--gc-tx2)}
+.dc-venda{display:grid;gap:12px;padding:16px}
+.dc-sugs{display:grid;gap:8px}
+.dc-sug{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gc-bd);border-radius:10px}
+.dc-sug .dc-info{flex:1 1 180px}
+.dc-conf{flex:1 1 100%;font-size:13px;font-weight:600;color:var(--gc-tit)}
+
 /* Estados */
 .gc-estado{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;background:var(--gc-bg);z-index:30}
 .gc-estado h2{margin:0 0 6px;font-size:17px;color:var(--gc-tit)}
@@ -168,7 +206,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .gc-esq i:nth-child(odd){background:var(--gc-sf2)}
 
 /* Aviso rápido */
-.gc-aviso{position:fixed;left:50%;bottom:calc(20px + var(--gc-bottom));transform:translateX(-50%);z-index:60;max-width:min(560px,92vw);padding:10px 16px;border-radius:10px;background:var(--gc-sf3);color:var(--gc-tit);border:1px solid var(--gc-campo);font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+.gc-aviso{pointer-events:none;position:fixed;left:50%;bottom:calc(20px + var(--gc-bottom));transform:translateX(-50%);z-index:60;max-width:min(560px,92vw);padding:10px 16px;border-radius:10px;background:var(--gc-sf3);color:var(--gc-tit);border:1px solid var(--gc-campo);font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.28)}
 
 /* ── Celular: a lista, e a ficha abre por cima com "Voltar" ── */
 @media (max-width:860px){
@@ -191,6 +229,74 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   .gd-v input,.gd-v select{height:44px;font-size:16px}
   .gd-v textarea{font-size:16px;min-height:96px}
   .gd-ro{padding:11px 12px;font-size:16px}
+  .gd-rel{width:44px;height:44px;padding:0;justify-content:center;border-radius:10px}
+  .gd-rel span{display:none}
+  .gd-rel svg{width:20px;height:20px}
+  .dc-bt{min-height:44px;padding:0 16px;font-size:15px}
+  .dc-it{padding:12px}
+  .dc-venda{padding:12px}
+}
+/* Janela estreita (ficha ao lado da lista): o botão do relatório vira só o ícone. */
+@media (min-width:861px) and (max-width:1100px){
+  .gd-rel{width:38px;padding:0;justify-content:center}
+  .gd-rel span{display:none}
+}
+
+/* ── Relatório de engenharia: só existe na impressão e sai sempre em claro ──
+   A folha é papel branco, no tema claro ou no escuro. Por isso as cores dela ficam neste bloco, escritas uma vez
+   (--rl-*), e não seguem os tokens da tela. */
+#rel{display:none}
+.rel{--rl-tx:#111827;--rl-tx2:#4B5563;--rl-bd:#9CA3AF;--rl-fraco:#E5E7EB;--rl-av:#92400E;--rl-av-sf:#FEF3C7;
+  background:#FFFFFF;color:var(--rl-tx);font:12px/1.4 "Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rel h1,.rel h2,.rel h3,.rel p,.rel ul,.rel dl,.rel dd,.rel figure{margin:0;padding:0}
+.rel ul{list-style:none}
+.rl-topo{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:8px;border-bottom:2px solid var(--rl-tx)}
+.rl-marca{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--rl-tx2)}
+.rl-topo h1{font-size:20px;line-height:1.2}
+.rl-cli{margin-top:2px;font-size:14px;font-weight:700}
+.rl-meta{display:grid;grid-template-columns:auto auto;gap:1px 10px;font-size:11px}
+.rl-meta dt{color:var(--rl-tx2)}
+.rl-meta dd{font-weight:700}
+.rl-prelim{margin-top:10px;padding:8px 10px;border:1.5px solid var(--rl-av);background:var(--rl-av-sf);color:var(--rl-av);break-inside:avoid}
+.rl-prelim h2{font-size:13px;text-transform:uppercase;letter-spacing:.03em}
+.rl-prelim p{margin-top:2px}
+.rl-pend{margin-top:6px}
+.rl-pend h3{font-size:12px}
+.rl-pend li{margin:1px 0 0 14px;list-style:disc;color:var(--rl-tx)}
+.rl-sec{margin-top:14px}
+.rl-sec h2{margin-bottom:6px;padding:3px 0;border-bottom:1px solid var(--rl-bd);font-size:13px;break-after:avoid}
+.rl-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+.rl-c{display:grid;grid-template-columns:40% minmax(0,1fr);gap:6px;padding:3px 0;border-bottom:1px solid var(--rl-fraco);break-inside:avoid}
+.rl-c dt{color:var(--rl-tx2)}
+.rl-c dd{font-weight:600;overflow-wrap:anywhere}
+.rl-c dd.sem{font-weight:400;color:var(--rl-tx2)}
+.rl-obra-top{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px}
+.rl-bar{height:9px;border:1px solid var(--rl-tx);border-radius:5px;overflow:hidden;margin:4px 0 8px}
+.rl-bar i{display:block;height:100%;background:var(--rl-tx)}
+.rl-etapas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 18px}
+.rl-et{display:flex;align-items:center;gap:7px;break-inside:avoid}
+.rl-et i{flex:none;display:grid;place-items:center;width:13px;height:13px;border:1.5px solid var(--rl-tx);border-radius:3px;font-style:normal;font-size:10px;line-height:1;font-weight:700}
+.rl-et.feita i{background:var(--rl-tx);color:#FFFFFF}
+.rl-et.atual{font-weight:700}
+.rl-et.atual i{border-width:3px}
+.rl-fotos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rel .rl-foto{break-inside:avoid;border:1px solid var(--rl-bd);padding:4px}
+.rl-foto img{display:block;width:100%;max-height:85mm;object-fit:contain;background:var(--rl-fraco)}
+.rl-foto figcaption{margin-top:3px;font-size:11px;font-weight:600}
+.rl-falha{display:grid;place-items:center;min-height:30mm;background:var(--rl-fraco);color:var(--rl-tx2);font-size:11px}
+.rl-pdfs{margin-top:8px}
+.rl-pdfs h3{font-size:12px;margin-bottom:2px}
+.rl-pdfs li{margin-left:14px;list-style:disc}
+.rl-vazio{color:var(--rl-tx2)}
+.rl-ass{width:62%;margin-top:40px;break-inside:avoid}
+.rl-ass div{padding-top:4px;border-top:1px solid var(--rl-tx);font-size:11px}
+.rl-ass small{display:block;color:var(--rl-tx2);font-size:10.5px}
+@page{size:A4 portrait;margin:14mm}
+@media print{
+  html.gc-imprimindo{color-scheme:light!important;background:#FFFFFF!important}
+  html.gc-imprimindo body{height:auto!important;overflow:visible!important;background:#FFFFFF!important}
+  html.gc-imprimindo .gc,html.gc-imprimindo .gc-aviso{display:none!important}
+  html.gc-imprimindo #rel{display:block}
 }
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
@@ -230,6 +336,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       <header class="gd-top">
         <button type="button" class="gd-volta" id="gdVolta" aria-label="Voltar para a lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
         <div class="gd-id"><b id="gdNome"></b><span id="gdSub"></span></div>
+        <button type="button" class="gd-rel" id="gdRel" aria-label="Relatório de engenharia" title="Relatório de engenharia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg><span>Relatório de engenharia</span></button>
         <div class="gd-prog"><span class="gd-salvo" id="gdSalvo" role="status"></span><span class="txt" id="gdProgTx"></span><div class="gc-barra" id="gdBarra"><i></i></div></div>
       </header>
       <div class="gd-corpo" id="gdCorpo"></div>
@@ -239,6 +346,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   </div>
 </div>
 <div class="gc-aviso" id="aviso" role="status" hidden></div>
+<div class="rel" id="rel" aria-hidden="true"></div>
 
 <script>
 (function () {
@@ -272,6 +380,10 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   var secoes = [];                  // seções da ficha aberta: { cnt, cols }
   var parado = false;
   var carregando = false;
+  var DOCS = {};                    // documentos por cliente: { estado, slots, arquivos, vinculo, pode, t }
+  var VINC = {};                    // vínculo com proposta (só Solar), por cliente
+  var RM = {};                      // remoção em dois passos, por id de arquivo
+  var MSGS = {};                    // último erro de envio, por cliente e item
 
   var $ = function (id) { return document.getElementById(id); };
   var TX = EP ? {
@@ -475,7 +587,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, json: j }; });
       }, function () { if (tt) clearTimeout(tt); throw erro('rede'); });
   }
-  function api(metodo, caminho, corpo) {
+  // `suave`: uma chamada de apoio (documentos, relatório) que não derruba a tela inteira se vier 403.
+  function api(metodo, caminho, corpo, suave) {
     return obterToken().then(function (tk) {
       return pedir(metodo, caminho, corpo, tk).then(function (x) {
         if (x.status !== 401) return x;
@@ -487,7 +600,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       });
     }).then(function (x) {
       // Só o 403 da CARGA vira a tela de sem permissão; numa gravação o 403 é recusa da célula (volta o valor e mostra o motivo).
-      if (x.status === 403 && metodo === 'GET') { semPermissao(); throw erro('negado'); }
+      if (x.status === 403 && metodo === 'GET' && !suave) { semPermissao(); throw erro('negado'); }
       return x;
     });
   }
@@ -580,6 +693,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     if (EP) linhas.forEach(function (l) { recalcular(l); });   // já com o mapa de colunas de Obras completo
     linhaPor = {};
     baseEm = {}; confirmado = {}; pend = {};
+    DOCS = {}; VINC = {}; RM = {}; MSGS = {};   // Atualizar lê os documentos de novo (as URLs assinadas também vencem)
     linhas.forEach(function (l) { linhaPor[l.codigo] = l; });
     $('fCons').hidden = j.papel !== 'socio';
     var c = $('fCons'), cv = c.value, vistos = {};
@@ -748,6 +862,9 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       secoes.push({ cnt: cnt, cols: lista });
     });
     atualizarSecoes();
+    var raiz = el('div'); raiz.id = 'dcRaiz'; raiz.dataset.c = l.codigo; corpo.appendChild(raiz);
+    pintarDocs(l.codigo);
+    carregarDocs(l.codigo, false);
   }
 
   // Um campo da ficha: rótulo, controle do tipo certo e a linha de aviso. O código da venda e a coluna ficam PRESOS aqui:
@@ -1055,6 +1172,599 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     });
   }
 
+  // ── Documentos da ficha ──
+  // Cada cliente tem itens (slots) que o servidor define. Aqui só se desenha, anexa, abre e remove; quem decide o que vale é o servidor.
+  var SUBIR = {};                   // envio em andamento, por cliente e item: { n, i, fase, pct }
+  var DOCS_VALE = 180000;           // as URLs assinadas duram 5 min: depois de 3 min a lista é lida de novo
+  var ABRIR_VALE = 240000;
+  var MAX_ARQ = 10 * 1024 * 1024;
+  var LADO_MAX = 2000;
+  var tmpInput = null;
+  var ICO = {
+    pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
+    imagem: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>'
+  };
+  function icone(nome) { var s = document.createElement('span'); s.innerHTML = ICO[nome]; return s.firstChild; }
+  function agoraMs() { return (window.performance && performance.now) ? performance.now() : 0; }
+  function toque() { try { return MOVEL.matches || window.matchMedia('(pointer:coarse)').matches; } catch (e) { return MOVEL.matches; } }
+  // URL que veio da API: só https.
+  function urlHttps(u) { try { var x = new URL(String(u)); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } }
+  // URL de envio: https; a única exceção é a bancada de prova (mesma origem desta página, em localhost).
+  function urlEnvio(u) {
+    try {
+      var x = new URL(String(u));
+      if (x.protocol === 'https:') return x.href;
+      if (x.protocol === 'http:' && x.origin === location.origin && /^(localhost|127\.0\.0\.1)$/.test(x.hostname)) return x.href;
+    } catch (e) {}
+    return '';
+  }
+  function fmtBytes(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return Math.round(n / 1024) + ' KB';
+    return (n / 1048576).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' MB';
+  }
+  function caminhoDoc(l, resto) { return '/' + encodeURIComponent(String((EP && l.codigoApi != null) ? l.codigoApi : l.codigo)) + resto; }
+  function ehLogin(e) { return !!(e && (e.tipo === 'login' || e.tipo === 'negado')); }
+  function msgServidor(x, padrao) { return (x && x.json && typeof x.json.error === 'string' && x.json.error) || padrao; }
+  function arquivosDe(d, chave) { return d.arquivos.filter(function (a) { return a.slot === chave; }); }
+  function rotuloSlot(d, chave) {
+    var s = d.slots.filter(function (x) { return x.chave === chave; })[0];
+    if (s && s.rotulo) return s.rotulo;
+    var t = String(chave || '').replace(/[_-]+/g, ' ').trim();
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Documento';
+  }
+
+  function aplicarDocs(d, j) {
+    d.slots = (Array.isArray(j.slots) ? j.slots : []).filter(function (s) { return s && typeof s.chave === 'string'; });
+    d.arquivos = (Array.isArray(j.arquivos) ? j.arquivos : []).filter(function (a) { return a && a.id != null && typeof a.slot === 'string'; });
+    d.vinculo = (!EP && j.vinculo && typeof j.vinculo === 'object') ? j.vinculo : null;
+    d.pode = j.pode_remover === true;
+  }
+  function carregarDocs(codigo, forcar) {
+    var l = linhaPor[codigo]; if (!l) return Promise.resolve();
+    var d = DOCS[codigo];
+    if (d && d.carregando) return d.p;
+    if (!forcar && d && d.estado === 'ok' && agoraMs() - d.t < DOCS_VALE) return Promise.resolve();
+    if (!d) d = DOCS[codigo] = { estado: 'carregando', slots: [], arquivos: [], vinculo: null, pode: false, t: 0, msg: '' };
+    d.carregando = true;
+    d.p = api('GET', caminhoDoc(l, '/docs'), null, true).then(function (x) {
+      var j = x.json;
+      if (x.status === 200 && j && j.ok !== false) { aplicarDocs(d, j); d.estado = 'ok'; d.msg = ''; d.t = agoraMs(); return; }
+      var m = x.status === 403 ? 'Você não tem acesso aos documentos deste cliente.' : msgServidor(x, 'Não consegui ler os documentos agora.');
+      if (d.estado === 'ok') aviso('Não consegui atualizar os documentos agora.'); else { d.estado = 'erro'; d.msg = m; }
+    }, function (e) {
+      if (ehLogin(e)) return;
+      if (d.estado === 'ok') aviso('Não consegui atualizar os documentos agora.'); else { d.estado = 'erro'; d.msg = 'Não consegui ler os documentos agora.'; }
+    }).then(function () { d.carregando = false; pintarDocs(codigo); });
+    return d.p;
+  }
+
+  function pintarDocs(codigo) {
+    if (detalhe !== codigo) return;
+    var raiz = document.getElementById('dcRaiz');
+    if (!raiz || raiz.dataset.c !== codigo) return;
+    var d = DOCS[codigo] || { estado: 'carregando', slots: [], arquivos: [], vinculo: null, pode: false, msg: '' };
+    var a = document.activeElement, foco = a && raiz.contains(a) && a.dataset ? a.dataset.foco : '';
+    raiz.textContent = '';
+    raiz.appendChild(secaoDocs(codigo, d));
+    if (!EP) raiz.appendChild(secaoVenda(codigo, d));
+    if (foco) {
+      var bs = raiz.querySelectorAll('[data-foco]');
+      for (var i = 0; i < bs.length; i++) if (bs[i].dataset.foco === foco && !bs[i].disabled) { bs[i].focus({ preventScroll: true }); break; }
+    }
+  }
+  function botao(txt, cls, foco, fn, rotuloA11y) {
+    var b = el('button', 'dc-bt' + (cls ? ' ' + cls : ''), txt); b.type = 'button';
+    if (foco) b.dataset.foco = foco;
+    if (rotuloA11y) b.setAttribute('aria-label', rotuloA11y);
+    b.addEventListener('click', fn);
+    return b;
+  }
+  function secaoDocs(codigo, d) {
+    var sec = el('section', 'gd-g'), gh = el('div', 'gd-gh'), cnt = el('span', 'cnt');
+    gh.appendChild(el('h2', null, 'Documentos')); gh.appendChild(cnt); sec.appendChild(gh);
+    sec.id = 'dcDocs';
+    if (d.estado !== 'ok') {
+      var v = el('div', 'dc-vz');
+      v.appendChild(el('p', null, d.estado === 'erro' ? d.msg : 'Carregando documentos...'));
+      if (d.estado === 'erro') v.appendChild(botao('Tentar de novo', '', 'docs:tentar', function () { d.estado = 'carregando'; pintarDocs(codigo); carregarDocs(codigo, true); }));
+      sec.appendChild(v);
+      return sec;
+    }
+    var obrig = 0, ok = 0;
+    d.slots.forEach(function (s) { if (s.obrigatorio) { obrig++; if (arquivosDe(d, s.chave).length) ok++; } });
+    cnt.textContent = obrig ? ok + ' de ' + obrig + ' obrigatórios' : '';
+    cnt.className = 'cnt' + (obrig && ok === obrig ? ' ok' : '');
+    var gb = el('div', 'gd-gb');
+    d.slots.forEach(function (s) { gb.appendChild(cartaoSlot(codigo, d, s)); });
+    if (!d.slots.length) gb.appendChild(el('p', 'dc-vz', 'Nenhum item de documento para este cliente.'));
+    sec.appendChild(gb);
+    return sec;
+  }
+  function linhaArquivo(codigo, d, a, opc) {
+    var r = el('div', 'dc-arq');
+    var ehImg = /^image\//i.test(String(a.mime || ''));
+    var mini = el('div', 'dc-mini'), u = urlHttps(a.url);
+    if (ehImg && u) {
+      var im = el('img'); im.alt = ''; im.decoding = 'async'; im.referrerPolicy = 'no-referrer';
+      im.addEventListener('error', function () { mini.textContent = ''; mini.appendChild(icone('imagem')); });
+      im.src = u; mini.appendChild(im);
+    } else mini.appendChild(icone(ehImg ? 'imagem' : 'pdf'));
+    var info = el('div', 'dc-info'), t = el('b', null, ehImg ? 'Imagem' : 'PDF');
+    if (opc.venda) t.appendChild(el('span', 'dc-tag', 'Da venda'));
+    info.appendChild(t);
+    var meta = a.bytes ? fmtBytes(a.bytes) : '';
+    if (a.em) { var dm = ''; try { dm = fDM.format(new Date(a.em)); } catch (e) {} if (dm) meta += (meta ? ' · ' : '') + (a.por ? a.por + ', ' : '') + dm; }
+    if (meta) info.appendChild(el('span', null, meta));
+    r.appendChild(mini); r.appendChild(info);
+    var ac = el('div', 'dc-ac'), nome = opc.rotulo || '';
+    ac.appendChild(botao('Abrir', '', 'abrir:' + opc.id, function () { abrirArquivo(codigo, opc.pegar); }, 'Abrir ' + nome));
+    if (!opc.venda && d.pode) {
+      var armado = RM[a.id];
+      if (armado === 'enviando') { var bz = botao('Removendo...', 'er', 'rm:' + a.id, function () {}); bz.disabled = true; ac.appendChild(bz); }
+      else if (armado === 'confirmar') {
+        ac.appendChild(botao('Confirmar remoção', 'er', 'rm:' + a.id, function () { removerArquivo(codigo, a); }, 'Confirmar remoção de ' + nome));
+        ac.appendChild(botao('Cancelar', '', 'rmc:' + a.id, function () { delete RM[a.id]; pintarDocs(codigo); }));
+      } else ac.appendChild(botao('Remover', 'er', 'rm:' + a.id, function () {
+        RM[a.id] = 'confirmar'; pintarDocs(codigo);
+        setTimeout(function () { if (RM[a.id] === 'confirmar') { delete RM[a.id]; pintarDocs(codigo); } }, 6000);
+      }, 'Remover ' + nome));
+    }
+    r.appendChild(ac);
+    return r;
+  }
+  function cartaoSlot(codigo, d, s) {
+    var chave = codigo + '|' + s.chave, st = SUBIR[chave], arqs = arquivosDe(d, s.chave), nome = s.rotulo || s.chave;
+    var card = el('div', 'dc-it'); card.dataset.slot = s.chave;
+    var cab = el('div', 'dc-cab'); cab.appendChild(el('b', null, nome));
+    if (arqs.length) cab.appendChild(el('span', 'gl-selo ok', 'Anexado'));
+    else if (s.obrigatorio) cab.appendChild(el('span', 'gl-selo', 'Falta'));
+    else cab.appendChild(el('span', 'dc-op', 'Opcional'));
+    card.appendChild(cab);
+    arqs.forEach(function (a) {
+      card.appendChild(linhaArquivo(codigo, d, a, { id: 'a' + a.id, rotulo: nome, venda: false, pegar: function (dd) { return dd.arquivos.filter(function (y) { return y.id === a.id; })[0]; } }));
+    });
+    if (st) {
+      var pr = el('div', 'dc-prog'), tx = el('span'), bar = el('div', 'dc-bar'), fill = el('i');
+      bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100'); bar.setAttribute('aria-label', 'Envio de ' + nome);
+      bar.appendChild(fill); pr.appendChild(tx); pr.appendChild(bar); card.appendChild(pr);
+      st.tx = tx; st.fill = fill; st.bar = bar; pintarProgresso(st);
+    }
+    if (MSGS[chave] && !st) { var m = el('span', 'dc-msg', MSGS[chave]); m.setAttribute('role', 'status'); card.appendChild(m); }
+    var ac = el('div', 'dc-ac');
+    var ocupado = arqs.length > 0 && !s.varios;   // item de arquivo único já preenchido: o servidor recusa outro (409); para trocar, remove antes
+    if (ocupado) {
+      if (!st) card.appendChild(el('span', 'dc-dica', d.pode ? 'Para trocar, remova o arquivo antes.' : 'Este item já tem arquivo.'));
+      return card;
+    }
+    var anexar = botao('Anexar', 'pri', 'anexar:' + s.chave, function () { escolher(codigo, s, false); }, 'Anexar: ' + nome);
+    anexar.disabled = !!st; ac.appendChild(anexar);
+    if (s.aceita !== 'pdf' && toque()) {
+      var cam = botao('Tirar foto', 'pri', 'foto:' + s.chave, function () { escolher(codigo, s, true); }, 'Tirar foto: ' + nome);
+      cam.disabled = !!st; ac.appendChild(cam);
+    }
+    card.appendChild(ac);
+    return card;
+  }
+  function pintarProgresso(st) {
+    if (!st.tx) return;
+    var t = st.fase === 'preparando' ? 'Preparando...' : st.fase === 'registrando' ? 'Registrando...' : st.fase === 'url' ? 'Iniciando o envio...' : 'Enviando ' + st.pct + '%';
+    if (st.n > 1) t += ' (' + Math.min(st.i + 1, st.n) + ' de ' + st.n + ')';
+    st.tx.textContent = t;
+    var pct = st.fase === 'enviando' ? st.pct : st.fase === 'registrando' ? 100 : 0;
+    st.fill.style.width = pct + '%';
+    st.bar.setAttribute('aria-valuenow', String(pct));
+  }
+
+  // Abrir: a aba nasce na hora do clique (senão o navegador bloqueia) e vai para a URL assinada; se a lista já passou de 4 min, lê de novo antes.
+  function abrirArquivo(codigo, pegar) {
+    var d = DOCS[codigo]; if (!d) return;
+    var w = null;
+    try { w = window.open('about:blank', '_blank'); } catch (e) {}
+    if (!w) { aviso('O navegador bloqueou a nova aba. Libere os pop-ups e tente de novo.'); return; }
+    try { w.opener = null; } catch (e) {}
+    var falhou = function () { try { w.close(); } catch (e) {} aviso('Não consegui abrir este arquivo agora.'); };
+    var ir = function (dd) {
+      var a = pegar(dd), u = a ? urlHttps(a.url) : '';
+      if (!u) return falhou();
+      try { w.location.replace(u); } catch (e) { try { w.location.href = u; } catch (x) { falhou(); } }
+    };
+    if (agoraMs() - d.t < ABRIR_VALE) { ir(d); return; }
+    carregarDocs(codigo, true).then(function () { var d2 = DOCS[codigo]; if (d2 && d2.estado === 'ok') ir(d2); else falhou(); });
+  }
+
+  // ── Anexar ──
+  function escolher(codigo, s, camera) {
+    if (tmpInput && tmpInput.parentNode) tmpInput.parentNode.removeChild(tmpInput);
+    // O campo de arquivo mora fora da ficha: redesenhar a ficha com o seletor aberto não perde a escolha.
+    var inp = document.createElement('input'); inp.type = 'file';
+    inp.accept = camera || s.aceita === 'imagem' ? 'image/*' : s.aceita === 'pdf' ? 'application/pdf' : 'image/*,application/pdf';
+    if (camera) inp.setAttribute('capture', 'environment'); else if (s.varios) inp.multiple = true;
+    inp.className = 'sr'; inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true');
+    inp.addEventListener('change', function () {
+      var fs = Array.prototype.slice.call(inp.files || []);
+      if (inp.parentNode) inp.parentNode.removeChild(inp);
+      if (tmpInput === inp) tmpInput = null;
+      if (fs.length) anexar(codigo, s, fs);
+    });
+    document.body.appendChild(inp); tmpInput = inp;
+    inp.click();
+  }
+  function invalido(msg) { return erro('validacao', { msg: msg }); }
+  function carregarBitmap(f) {
+    var viaImg = function () {
+      return new Promise(function (ok, no) {
+        var u = URL.createObjectURL(f), im = new Image();
+        im.onload = function () { URL.revokeObjectURL(u); ok(im); };
+        im.onerror = function () { URL.revokeObjectURL(u); no(erro('imagem')); };
+        im.src = u;
+      });
+    };
+    if (!window.createImageBitmap) return viaImg();
+    return createImageBitmap(f, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(f); }).catch(viaImg);
+  }
+  // Imagem: no máximo 2000 px no lado maior, JPEG 0,8 (legível e leve; também tira o GPS da foto).
+  function reduzirImagem(f) {
+    return carregarBitmap(f).then(function (bm) {
+      var w = bm.width || bm.naturalWidth, h = bm.height || bm.naturalHeight;
+      if (!w || !h) throw erro('imagem');
+      var k = Math.min(1, LADO_MAX / Math.max(w, h)), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+      var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      var cx = cv.getContext('2d');
+      cx.fillStyle = '#fff'; cx.fillRect(0, 0, cw, ch);   // PNG com fundo transparente não pode virar preto no JPEG
+      cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+      cx.drawImage(bm, 0, 0, cw, ch);
+      if (bm.close) bm.close();
+      return new Promise(function (ok, no) {
+        cv.toBlob(function (b) { b ? ok({ blob: b, mime: 'image/jpeg' }) : no(erro('imagem')); }, 'image/jpeg', 0.8);
+      });
+    }).then(function (p) {
+      if (p.blob.size > MAX_ARQ) throw invalido('A imagem passa de 10 MB. Tire a foto de novo.');
+      return p;
+    }, function (e) { throw (e && e.tipo === 'validacao') ? e : invalido('Não consegui ler esta imagem. Tente outra foto.'); });
+  }
+  function prepararArquivo(f, s) {
+    var tipo = String(f.type || '').toLowerCase(), nome = String(f.name || '').toLowerCase();
+    var pdf = tipo === 'application/pdf' || (!tipo && /\.pdf$/.test(nome));
+    var img = /^image\//.test(tipo) || (!tipo && /\.(jpe?g|png|webp|gif|heic|heif)$/.test(nome));
+    if (pdf) {
+      if (s.aceita === 'imagem') return Promise.reject(invalido('Este item aceita só imagem.'));
+      if (f.size > MAX_ARQ) return Promise.reject(invalido('O PDF passa de 10 MB.'));
+      if (!f.size) return Promise.reject(invalido('O arquivo está vazio.'));
+      return Promise.resolve({ blob: f, mime: 'application/pdf' });
+    }
+    if (img) {
+      if (s.aceita === 'pdf') return Promise.reject(invalido('Este item aceita só PDF.'));
+      return reduzirImagem(f);
+    }
+    return Promise.reject(invalido('Use uma imagem ou um PDF.'));
+  }
+  // Envio direto para o armazenamento, com progresso. A pessoa não manda o token dela para lá: a URL já vem autorizada.
+  function subirPara(u, blob, st) {
+    return new Promise(function (ok, no) {
+      var alvo = urlEnvio(u.upload_url);
+      if (!alvo) return no(erro('envio_url'));
+      var x = new XMLHttpRequest(), met = String(u.metodo || 'PUT').toUpperCase() === 'POST' ? 'POST' : 'PUT';
+      x.open(met, alvo);
+      var h = u.cabecalhos && typeof u.cabecalhos === 'object' ? u.cabecalhos : {}, temTipo = false;
+      Object.keys(h).forEach(function (k) {
+        if (/^(content-length|host|authorization|cookie)$/i.test(k)) return;
+        if (/^content-type$/i.test(k)) temTipo = true;
+        try { x.setRequestHeader(k, String(h[k])); } catch (e) {}
+      });
+      if (!temTipo && blob.type) { try { x.setRequestHeader('Content-Type', blob.type); } catch (e) {} }
+      x.timeout = 180000;
+      x.upload.onprogress = function (e) {
+        if (!e.lengthComputable) return;
+        st.pct = Math.min(100, Math.round(100 * e.loaded / e.total));
+        pintarProgresso(st);
+      };
+      x.onload = function () { if (x.status >= 200 && x.status < 300) ok(); else no(erro('envio', { status: x.status })); };
+      x.onerror = function () { no(erro('rede')); };
+      x.ontimeout = function () { no(erro('rede')); };
+      x.send(blob);
+    });
+  }
+  function enviarUm(codigo, s, p, st) {
+    var l = linhaPor[codigo]; if (!l) return Promise.reject(erro('cancelado'));
+    st.fase = 'url'; st.pct = 0; pintarDocs(codigo);
+    return api('POST', caminhoDoc(l, '/docs/upload-url'), { slot: s.chave, mime: p.mime, bytes: p.blob.size }, true).then(function (x) {
+      var j = x.json || {};
+      if (x.status !== 200 || j.ok === false || typeof j.upload_url !== 'string' || typeof j.caminho !== 'string') throw erro('servidor', { msg: msgServidor(x, 'Não consegui iniciar o envio agora.') });
+      st.fase = 'enviando'; st.pct = 0; pintarDocs(codigo);
+      return subirPara(j, p.blob, st).then(function () {
+        st.fase = 'registrando'; pintarDocs(codigo);
+        return api('POST', caminhoDoc(l, '/docs'), { slot: s.chave, caminho: j.caminho }, true);
+      });
+    }).then(function (x) {
+      var j = x.json || {};
+      if (x.status < 200 || x.status >= 300 || j.ok === false) throw erro('servidor', { msg: msgServidor(x, 'O arquivo subiu, mas não consegui registrar. Tente de novo.') });
+      var d = DOCS[codigo];
+      if (d && j.arquivo && j.arquivo.id != null && !d.arquivos.some(function (y) { return y.id === j.arquivo.id; })) d.arquivos.push(j.arquivo);
+    });
+  }
+  function textoErroDoc(e) {
+    if (e && e.msg) return e.msg;
+    if (e && e.tipo === 'rede') return 'Sem conexão. Tente de novo.';
+    if (e && e.tipo === 'envio') return 'O envio não terminou (erro ' + e.status + '). Tente de novo.';
+    if (e && e.tipo === 'envio_url') return 'O endereço de envio veio inválido. Tente de novo.';
+    return 'Não consegui anexar agora. Tente de novo.';
+  }
+  function anexar(codigo, s, arquivos) {
+    var chave = codigo + '|' + s.chave;
+    if (SUBIR[chave]) return;
+    var fila = arquivos.slice(0, s.varios ? 20 : 1);
+    var st = SUBIR[chave] = { n: fila.length, i: 0, fase: 'preparando', pct: 0 };
+    var erros = [], enviados = 0;
+    delete MSGS[chave];
+    pintarDocs(codigo);
+    var proximo = function () {
+      if (st.i >= fila.length) return Promise.resolve();
+      st.fase = 'preparando'; st.pct = 0; pintarDocs(codigo);
+      return prepararArquivo(fila[st.i], s).then(function (p) { return enviarUm(codigo, s, p, st); })
+        .then(function () { enviados++; }, function (e) { if (!ehLogin(e) && !(e && e.tipo === 'cancelado')) erros.push(textoErroDoc(e)); })
+        .then(function () { st.i++; return proximo(); });
+    };
+    proximo().then(function () {
+      delete SUBIR[chave];
+      if (erros.length) MSGS[chave] = erros[0] + (erros.length > 1 ? ' (' + erros.length + ' arquivos com erro)' : '');
+      pintarDocs(codigo);
+      if (enviados) { aviso(enviados === 1 ? 'Documento anexado.' : enviados + ' documentos anexados.'); carregarDocs(codigo, true); }
+    });
+  }
+
+  function removerArquivo(codigo, a) {
+    var l = linhaPor[codigo], d = DOCS[codigo]; if (!l || !d) return;
+    RM[a.id] = 'enviando'; pintarDocs(codigo);
+    api('DELETE', caminhoDoc(l, '/docs/' + encodeURIComponent(String(a.id))), null, true).then(function (x) {
+      delete RM[a.id];
+      if (x.status >= 200 && x.status < 300 && !(x.json && x.json.ok === false)) { d.arquivos = d.arquivos.filter(function (y) { return y.id !== a.id; }); aviso('Arquivo removido.'); }
+      else aviso(msgServidor(x, 'Não consegui remover agora.'));
+      pintarDocs(codigo);
+    }, function (e) {
+      delete RM[a.id];
+      if (!ehLogin(e)) aviso('Não consegui remover agora. Confira a conexão.');
+      pintarDocs(codigo);
+    });
+  }
+
+  // ── Documentos da venda (só Solar): o dossiê da proposta vinculada ──
+  function secaoVenda(codigo, d) {
+    var sec = el('section', 'gd-g'), gh = el('div', 'gd-gh'), cnt = el('span', 'cnt');
+    gh.appendChild(el('h2', null, 'Documentos da venda')); gh.appendChild(cnt); sec.appendChild(gh);
+    sec.id = 'dcVenda';
+    sec.appendChild(el('p', 'dc-nota', 'Só algumas vendas da planilha têm proposta marcada como vendida no sistema; anexe direto aqui o que faltar.'));
+    var box = el('div', 'dc-venda');
+    if (d.estado !== 'ok') { box.appendChild(el('p', 'dc-vz', d.estado === 'erro' ? 'Sem leitura dos documentos agora.' : 'Carregando...')); sec.appendChild(box); return sec; }
+    var vi = d.vinculo;
+    if (vi) {
+      var arqs = Array.isArray(vi.arquivos) ? vi.arquivos : [];
+      cnt.textContent = 'Proposta ' + String(vi.proposta == null ? '' : vi.proposta); cnt.className = 'cnt ok';
+      if (!arqs.length) box.appendChild(el('p', 'dc-vz', 'A proposta vinculada não tem arquivos no dossiê.'));
+      var gr = el('div', 'gd-gb'); gr.style.padding = '0';
+      arqs.forEach(function (a, i) {
+        var c = el('div', 'dc-it'), nome = rotuloSlot(d, a.slot);
+        c.appendChild(el('b', null, nome));
+        c.appendChild(linhaArquivo(codigo, d, a, { id: 'v' + i, rotulo: nome, venda: true, pegar: function (dd) { return dd.vinculo && Array.isArray(dd.vinculo.arquivos) ? dd.vinculo.arquivos[i] : null; } }));
+        gr.appendChild(c);
+      });
+      if (arqs.length) box.appendChild(gr);
+    } else {
+      var v = VINC[codigo] || (VINC[codigo] = {});
+      if (!v.aberto) {
+        var ac = el('div', 'dc-ac'); ac.appendChild(botao('Vincular a proposta', 'pri', 'vincular', function () { abrirVinculo(codigo); })); box.appendChild(ac);
+      } else if (v.carregando) box.appendChild(el('p', 'dc-vz', 'Procurando propostas...'));
+      else if (v.erro) {
+        var e2 = el('div'); e2.appendChild(el('p', 'dc-msg', v.erro)); var a2 = el('div', 'dc-ac'); a2.style.marginTop = '8px';
+        a2.appendChild(botao('Tentar de novo', '', 'vincular', function () { abrirVinculo(codigo); })); a2.appendChild(botao('Fechar', '', 'vfechar', function () { VINC[codigo] = {}; pintarDocs(codigo); }));
+        e2.appendChild(a2); box.appendChild(e2);
+      } else {
+        var lista = v.lista || [];
+        if (!lista.length) box.appendChild(el('p', 'dc-vz', 'Nenhuma proposta parecida encontrada.'));
+        var sg = el('div', 'dc-sugs');
+        lista.forEach(function (s) {
+          var it = el('div', 'dc-sug'), info = el('div', 'dc-info');
+          var nomeSug = String(s.cliente || s.nome || 'Sem nome');
+          info.appendChild(el('b', null, nomeSug));
+          var dt = typeof s.data === 'string' ? s.data.slice(0, 10) : '';
+          info.appendChild(el('span', null, [s.cidade ? String(s.cidade) : '', dt ? fmtData(dt) : '', 'Proposta ' + String(s.codigo)].filter(Boolean).join(' · ')));
+          it.appendChild(info);
+          if (v.escolha === String(s.codigo)) {
+            it.appendChild(el('p', 'dc-conf', 'Vincular a proposta ' + String(s.codigo) + ' a este cliente?'));
+            var b1 = botao(v.salvando ? 'Vinculando...' : 'Confirmar', 'pri', 'vc:' + s.codigo, function () { vincular(codigo, String(s.codigo)); }, 'Confirmar vínculo com a proposta ' + String(s.codigo));
+            b1.disabled = !!v.salvando; it.appendChild(b1);
+            var b2 = botao('Cancelar', '', 'vx:' + s.codigo, function () { v.escolha = null; pintarDocs(codigo); }); b2.disabled = !!v.salvando; it.appendChild(b2);
+          } else it.appendChild(botao('Vincular', 'pri', 'vs:' + s.codigo, function () { v.escolha = String(s.codigo); pintarDocs(codigo); }, 'Vincular a proposta ' + String(s.codigo) + ' de ' + nomeSug));
+          sg.appendChild(it);
+        });
+        box.appendChild(sg);
+        var fc = el('div', 'dc-ac'); fc.appendChild(botao('Fechar', '', 'vfechar', function () { VINC[codigo] = {}; pintarDocs(codigo); })); box.appendChild(fc);
+      }
+    }
+    sec.appendChild(box);
+    return sec;
+  }
+  function abrirVinculo(codigo) {
+    var l = linhaPor[codigo]; if (!l) return;
+    var v = VINC[codigo] = { aberto: true, carregando: true, lista: [], erro: '', escolha: null, salvando: false };
+    pintarDocs(codigo);
+    api('GET', caminhoDoc(l, '/sugestoes-proposta'), null, true).then(function (x) {
+      var j = x.json, arr = Array.isArray(j) ? j : (j && (Array.isArray(j.sugestoes) ? j.sugestoes : Array.isArray(j.propostas) ? j.propostas : null));
+      if (x.status === 200 && arr) v.lista = arr.filter(function (s) { return s && s.codigo != null; });
+      else v.erro = x.status === 403 ? 'Você não pode vincular propostas.' : msgServidor(x, 'Não consegui buscar as propostas agora.');
+    }, function (e) { if (!ehLogin(e)) v.erro = 'Não consegui buscar as propostas agora.'; }).then(function () { v.carregando = false; pintarDocs(codigo); });
+  }
+  function vincular(codigo, proposta) {
+    var l = linhaPor[codigo], v = VINC[codigo]; if (!l || !v || v.salvando) return;
+    v.salvando = true; pintarDocs(codigo);
+    api('POST', caminhoDoc(l, '/vincular-proposta'), { proposta: proposta }, true).then(function (x) {
+      v.salvando = false;
+      if (x.status >= 200 && x.status < 300 && !(x.json && x.json.ok === false)) {
+        delete VINC[codigo]; aviso('Proposta vinculada.');
+        carregarDocs(codigo, true); pintarDocs(codigo);
+      } else { aviso(msgServidor(x, 'Não consegui vincular agora.')); v.escolha = null; pintarDocs(codigo); }
+    }, function (e) { v.salvando = false; if (!ehLogin(e)) aviso('Não consegui vincular agora. Confira a conexão.'); pintarDocs(codigo); });
+  }
+
+  // ── Relatório de engenharia ──
+  // A vista de impressão vive neste mesmo documento (uma aba nova teria sessão própria). Só aparece no papel.
+  var relOcupado = false, tituloAntes = null;
+  var DINHEIRO = /R\$\s*\d/;
+  function dataHora(iso) {
+    try { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso)); } catch (e) { return String(iso || ''); }
+  }
+  function valorRel(v) {
+    if (v == null || v === '') return '';
+    if (typeof v === 'boolean') return v ? 'Sim' : 'Não';
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return fmtData(v);
+    return String(v);
+  }
+  function nomesPend(v) {
+    if (!Array.isArray(v)) return [];
+    return v.map(function (x) { return typeof x === 'string' ? x : (x && (x.rotulo || x.chave || x.slot)) ? String(x.rotulo || x.chave || x.slot) : ''; }).filter(Boolean);
+  }
+  function blocoPend(pai, titulo, v) {
+    var nomes = nomesPend(v);
+    if (nomes.length) {
+      var b = el('div', 'rl-pend'); b.appendChild(el('h3', null, titulo + ' (' + nomes.length + ')'));
+      var ul = el('ul'); nomes.forEach(function (n) { ul.appendChild(el('li', null, n)); }); b.appendChild(ul); pai.appendChild(b);
+    } else if (typeof v === 'number' && v > 0) { var b2 = el('div', 'rl-pend'); b2.appendChild(el('h3', null, titulo + ': ' + v)); pai.appendChild(b2); }
+  }
+  function montarRelatorio(R) {
+    var raiz = $('rel'), cab = R.cabecalho || {};
+    raiz.textContent = '';
+    var linhaNome = String(cab.linha || (EP ? 'eletroposto' : 'solar')).toLowerCase();
+    linhaNome = linhaNome === 'solar' ? 'Solar' : linhaNome === 'eletroposto' ? 'Eletroposto' : linhaNome.charAt(0).toUpperCase() + linhaNome.slice(1);
+    var topo = el('header', 'rl-topo'), esq = el('div');
+    esq.appendChild(el('div', 'rl-marca', 'Irmãos na Obra'));
+    esq.appendChild(el('h1', null, 'Relatório de engenharia'));
+    esq.appendChild(el('div', 'rl-cli', String(cab.cliente || 'Cliente sem nome')));
+    var meta = el('dl', 'rl-meta');
+    [['Linha', linhaNome], ['Código', String(cab.codigo == null ? '' : cab.codigo)], ['Emitido em', cab.emitido_em ? dataHora(cab.emitido_em) : ''], ['Emitido por', String(cab.emitido_por || '')]].forEach(function (p) {
+      if (!p[1]) return; meta.appendChild(el('dt', null, p[0])); meta.appendChild(el('dd', null, p[1]));
+    });
+    topo.appendChild(esq); topo.appendChild(meta); raiz.appendChild(topo);
+
+    var pd = R.pendencias || {};
+    if (R.preliminar) {
+      var pr = el('section', 'rl-prelim');
+      pr.appendChild(el('h2', null, 'Versão preliminar'));
+      pr.appendChild(el('p', null, 'Este relatório tem pendências e ainda não é a versão final.'));
+      blocoPend(pr, 'Campos sem preenchimento', pd.campos);
+      blocoPend(pr, 'Documentos que faltam', pd.documentos);
+      if (pd.obra_concluida === false) {   // no Solar o marco é "sistema liberado"; no Eletroposto, a última etapa da obra
+        var bo = el('div', 'rl-pend'); bo.appendChild(el('h3', null, 'Obra não concluída')); pr.appendChild(bo); }
+      raiz.appendChild(pr);
+    }
+
+    (Array.isArray(R.secoes) ? R.secoes : []).forEach(function (s) {
+      // O servidor não manda dinheiro; esta é a segunda trava.
+      var campos = (Array.isArray(s.campos) ? s.campos : []).filter(function (c) { return c && !DINHEIRO.test(valorRel(c.valor)); });
+      if (!campos.length) return;
+      var sec = el('section', 'rl-sec'); sec.appendChild(el('h2', null, String(s.titulo || '')));
+      var dl = el('dl', 'rl-campos');
+      campos.forEach(function (c) {
+        var it = el('div', 'rl-c'), v = valorRel(c.valor);
+        it.appendChild(el('dt', null, String(c.rotulo || '')));
+        it.appendChild(el('dd', v ? null : 'sem', v || 'Não informado'));
+        dl.appendChild(it);
+      });
+      sec.appendChild(dl); raiz.appendChild(sec);
+    });
+
+    var ob = R.obra;
+    if (ob && typeof ob === 'object') {
+      var so = el('section', 'rl-sec'); so.appendChild(el('h2', null, 'Obra'));
+      var top = el('div', 'rl-obra-top');
+      if (ob.modelo_rotulo) top.appendChild(el('span', null, 'Trilho: ' + String(ob.modelo_rotulo)));
+      var total = Number(ob.total) || 0, feitas = Number(ob.feitas) || 0;
+      top.appendChild(el('span', null, 'Etapas feitas: ' + feitas + ' de ' + total));
+      if (ob.previsto) top.appendChild(el('span', null, 'Previsto: ' + valorRel(ob.previsto)));
+      so.appendChild(top);
+      var bar = el('div', 'rl-bar'), fi = el('i'); fi.style.width = (total ? Math.min(100, Math.round(100 * feitas / total)) : 0) + '%'; bar.appendChild(fi); so.appendChild(bar);
+      var et = el('div', 'rl-etapas');
+      (Array.isArray(ob.etapas) ? ob.etapas : []).forEach(function (e) {
+        var x = el('div', 'rl-et' + (e.feita ? ' feita' : '') + (e.atual ? ' atual' : '')), cx = el('i', null, e.feita ? '✓' : '');
+        x.appendChild(cx); x.appendChild(el('span', null, String(e.rotulo || '') + (e.atual ? ' (em andamento)' : ''))); et.appendChild(x);
+      });
+      so.appendChild(et); raiz.appendChild(so);
+    }
+
+    var docs = Array.isArray(R.documentos) ? R.documentos : [];
+    var sd = el('section', 'rl-sec'); sd.appendChild(el('h2', null, 'Documentos'));
+    var fotos = docs.filter(function (x) { return x && /^image\//i.test(String(x.mime || '')); }), pdfs = docs.filter(function (x) { return x && !/^image\//i.test(String(x.mime || '')); });
+    if (!docs.length) sd.appendChild(el('p', 'rl-vazio', 'Nenhum documento anexado.'));
+    if (fotos.length) {
+      var gf = el('div', 'rl-fotos');
+      fotos.forEach(function (x) {
+        var fg = el('figure', 'rl-foto'), u = urlHttps(x.url);
+        if (u) { var im = el('img'); im.alt = String(x.rotulo || 'Documento'); im.referrerPolicy = 'no-referrer'; im.src = u; fg.appendChild(im); }
+        else fg.appendChild(el('div', 'rl-falha', 'Imagem indisponível'));
+        fg.appendChild(el('figcaption', null, String(x.rotulo || 'Documento'))); gf.appendChild(fg);
+      });
+      sd.appendChild(gf);
+    }
+    if (pdfs.length) {
+      var lp = el('div', 'rl-pdfs'); lp.appendChild(el('h3', null, 'Arquivos em PDF anexados'));
+      var ul = el('ul'); pdfs.forEach(function (x) { ul.appendChild(el('li', null, String(x.rotulo || 'Documento'))); }); lp.appendChild(ul); sd.appendChild(lp);
+    }
+    raiz.appendChild(sd);
+
+    var as = el('div', 'rl-ass'), ad = el('div', null, 'Responsável técnico'); ad.appendChild(el('small', null, 'Nome, registro profissional e data')); as.appendChild(ad); raiz.appendChild(as);
+  }
+  // Espera todas as fotos; a que não chegou vira um aviso no papel (nunca um quadro em branco calado).
+  function esperarImagens(raiz) {
+    var imgs = Array.prototype.slice.call(raiz.querySelectorAll('img'));
+    var uma = function (im) {
+      return new Promise(function (ok) {
+        if (im.complete) return ok();
+        im.addEventListener('load', function () { ok(); }); im.addEventListener('error', function () { ok(); });
+      }).then(function () { return (im.decode && im.naturalWidth) ? im.decode().catch(function () {}) : null; });
+    };
+    var limite = new Promise(function (ok) { setTimeout(ok, 25000); });
+    return Promise.race([Promise.all(imgs.map(uma)), limite]).then(function () {
+      var falhas = 0;
+      imgs.forEach(function (im) {
+        if (im.complete && im.naturalWidth > 0) return;
+        falhas++;
+        var ph = el('div', 'rl-falha', 'Imagem indisponível');
+        if (im.parentNode) im.parentNode.replaceChild(ph, im);
+      });
+      return falhas;
+    });
+  }
+  function fimImpressao() {
+    document.documentElement.classList.remove('gc-imprimindo');
+    if (tituloAntes != null) { document.title = tituloAntes; tituloAntes = null; }
+    $('rel').textContent = '';
+  }
+  function gerarRelatorio() {
+    var codigo = detalhe, l = codigo && linhaPor[codigo];
+    if (!l || relOcupado) return;
+    relOcupado = true;
+    var btn = $('gdRel'); btn.setAttribute('aria-busy', 'true'); btn.disabled = true;
+    api('GET', caminhoDoc(l, '/relatorio'), null, true).then(function (x) {
+      var j = x.json;
+      if (x.status !== 200 || !j || j.ok === false) throw erro('servidor', { msg: x.status === 403 ? 'Você não tem permissão para emitir este relatório.' : msgServidor(x, 'Não consegui gerar o relatório agora. Tente de novo.') });
+      montarRelatorio(j);
+      return esperarImagens($('rel'));
+    }).then(function (falhas) {
+      if (falhas) aviso(falhas === 1 ? 'Uma imagem não carregou e saiu como aviso no papel.' : falhas + ' imagens não carregaram e saíram como aviso no papel.');
+      if (tituloAntes == null) tituloAntes = document.title;   // duas emissões seguidas sem afterprint no meio não podem guardar o título já trocado
+      document.title = 'Relatório de engenharia ' + l.codigo + (l.cliente ? ' ' + l.cliente : '');
+      document.documentElement.classList.add('gc-imprimindo');
+      window.print();
+      /* Reserva para navegador que não dispara afterprint (Safari antigo no iPhone): a vista some sozinha em 2 min,
+         para um Ctrl+P depois não imprimir o relatório anterior. No computador o print() segura até fechar o diálogo. */
+      setTimeout(function () { if (document.documentElement.classList.contains('gc-imprimindo')) fimImpressao(); }, 120000);
+    }).catch(function (e) {
+      if (ehLogin(e)) return;
+      fimImpressao();
+      aviso((e && e.msg) || 'Não consegui gerar o relatório agora. Confira a conexão e tente de novo.');
+    }).then(function () { relOcupado = false; btn.removeAttribute('aria-busy'); btn.disabled = false; });
+  }
+
   // ── Controles ──
   var tb = null;
   $('busca').addEventListener('input', function () { clearTimeout(tb); tb = setTimeout(desenharLista, 120); });
@@ -1070,6 +1780,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     Promise.all(Object.keys(filas).map(function (k) { return filas[k]; })).then(function () { return carregar(); });
   });
   $('faixaBtn').addEventListener('click', function () { carregar(); });
+  $('gdRel').addEventListener('click', gerarRelatorio);
+  window.addEventListener('afterprint', fimImpressao);
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || !MOVEL.matches || $('gd').hidden) return;
     var a = document.activeElement, tag = a && a.tagName;
