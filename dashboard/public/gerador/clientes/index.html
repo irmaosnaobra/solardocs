@@ -18,6 +18,11 @@
     try { emb = window.self !== window.top; } catch (e) { emb = true; }
     window.__embutida = emb;
     if (emb) document.documentElement.classList.add('gc-embutida');
+    // Linha Eletroposto: ?linha=eletroposto. Sem o parâmetro, ou com linha=solar, a tela é a do Solar.
+    var ep = false;
+    try { ep = /^eletroposto$/i.test(String(new URLSearchParams(location.search).get('linha') || '').trim()); } catch (e) {}
+    window.__linhaEP = ep;
+    if (ep) { document.documentElement.classList.add('gc-ep'); document.title = 'Planilha do cliente | Eletroposto | Irmãos na Obra'; }
     if (!authed) {
       // Navegar aqui carregaria o app inteiro dentro do iframe: no modo embutido só avisa (veja semSessaoEmbutida).
       if (emb) window.__semSessao = true; else location.replace('/gerador');
@@ -67,6 +72,7 @@ button{cursor:pointer}
 .gc-bar{flex:none;display:flex;align-items:center;padding:10px 16px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd)}
 .gc-cab{display:flex;align-items:center;gap:12px}
 .gc-cab h1{margin:0;font-size:16px;font-weight:700;color:var(--gc-tit);white-space:nowrap}
+.gc-linha{flex:none;padding:2px 10px;border-radius:999px;border:1px solid var(--gc-campo);background:var(--gc-sf3);color:var(--gc-tit);font-size:12px;font-weight:700;white-space:nowrap}
 .gc-sair{color:var(--gc-link);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap}
 html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
 .gc-corpo{flex:1;min-height:0;position:relative;display:flex}
@@ -98,6 +104,8 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 .gl-it .nm{flex:1;min-width:0;font-weight:600;color:var(--gc-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gl-selo{flex:none;padding:2px 9px;border-radius:999px;border:1px solid var(--gc-falta-bd);background-color:var(--gc-sf);background-image:linear-gradient(var(--gc-falta),var(--gc-falta));color:var(--gc-er);font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .gl-selo.ok{border-color:transparent;background-image:none;background-color:transparent;color:var(--gc-ok)}
+/* Eletroposto: o código é o id do card da agenda e pode ser comprido. */
+html.gc-ep .gl-it .cod{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gl-vazio{margin:0;padding:24px 16px;color:var(--gc-tx2);text-align:center}
 
 /* ── Ficha do cliente (direita) ── */
@@ -115,6 +123,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 .gc-barra{flex:none;width:96px;height:6px;border-radius:999px;background:var(--gc-sf3);overflow:hidden}
 .gc-barra i{display:block;height:100%;background:var(--gc-link);border-radius:999px}
 .gc-barra.cheio i{background:var(--gc-ok)}
+html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .gd-corpo{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px 32px}
 .gd-vazio{margin:0;padding:48px 16px;color:var(--gc-tx2);text-align:center}
 .gd-g{margin:0 0 16px;border:1px solid var(--gc-bd);border-radius:12px;background:var(--gc-sf)}
@@ -195,7 +204,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
     <button type="button" id="faixaBtn">Tentar de novo</button>
   </div>
   <header class="gc-bar" id="bar">
-    <div class="gc-cab"><a class="gc-sair" href="/gerador" target="_top">Voltar ao Gerador</a><h1>Planilha de clientes</h1></div>
+    <div class="gc-cab"><a class="gc-sair" href="/gerador" target="_top">Voltar ao Gerador</a><h1 id="gcTitulo">Planilha de clientes</h1><span class="gc-linha" id="gcLinha" hidden>Eletroposto</span></div>
   </header>
   <div class="gc-corpo" id="corpo">
     <aside class="gl" id="gl" aria-label="Clientes">
@@ -237,7 +246,8 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 
   // ── Constantes ──
   var SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
-  var API = '/_api/gerador/clientes/solar';
+  var EP = !!window.__linhaEP;     // linha Eletroposto (?linha=eletroposto); tudo o que muda por causa dela fica atrás deste sinal
+  var API = '/_api/gerador/clientes/' + (EP ? 'eletroposto' : 'solar');
   var SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
   // Chave publishable do Supabase do Gerador: a mesma que já está escrita no index.html do /gerador e na tela do WhatsApp.
   var SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6'; // gitleaks:allow (chave publica de navegador, a mesma do index.html; o .gitleaks.toml libera em dashboard/public)
@@ -247,6 +257,8 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
   // ── Estado (só em memória: nenhum valor de campo vai para localStorage) ──
   var D = null;                     // última resposta
   var cols = [];                    // catálogo do papel (já cortado pelo servidor)
+  var grupos = [];                  // seções da ficha, na ordem
+  var pvCol = {};                   // Eletroposto: colunas que vêm de Obras (alguma venda trouxe origem pos_venda nelas)
   var colPor = {};
   var linhas = [];
   var linhaPor = {};
@@ -262,6 +274,16 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
   var carregando = false;
 
   var $ = function (id) { return document.getElementById(id); };
+  var TX = EP ? {
+    planilha: 'a planilha do cliente',
+    vazio: 'Nenhuma venda de eletroposto marcada como VENDIDO na agenda.',
+    vazioConsultor: 'Nenhuma venda de eletroposto marcada como VENDIDO na agenda.'
+  } : {
+    planilha: 'a planilha de clientes',
+    vazio: 'Nenhuma venda na planilha.',
+    vazioConsultor: 'Você ainda não tem venda cadastrada.'
+  };
+  if (EP) { $('gcTitulo').textContent = 'Planilha do cliente'; $('gcLinha').hidden = false; }
 
   // ── Utilidades ──
   function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
@@ -489,11 +511,11 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
   }
   function semPermissao() {
     limparTela();
-    mostrarEstado({ t: 'Você não tem permissão para esta tela.', p: 'Sua conta não pode ver a planilha de clientes.', link: 'Voltar ao Gerador' });
+    mostrarEstado({ t: 'Você não tem permissão para esta tela.', p: 'Sua conta não pode ver ' + TX.planilha + '.', link: 'Voltar ao Gerador' });
   }
   function semSessaoEmbutida() {
     limparTela();
-    mostrarEstado({ t: 'Sua sessão terminou.', p: 'Entre de novo no Gerador para ver a planilha de clientes.', link: 'Abrir o Gerador' });
+    mostrarEstado({ t: 'Sua sessão terminou.', p: 'Entre de novo no Gerador para ver ' + TX.planilha + '.', link: 'Abrir o Gerador' });
   }
   function esqueleto(on) {
     var e = $('esq');
@@ -528,10 +550,34 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 
   function aplicarDados(j) {
     D = j;
-    cols = j.catalogo.colunas;
+    if (EP) {
+      // Eletroposto: o código é o id do card da agenda (pode ser número). Dentro da tela ele é sempre texto; o original vai no POST.
+      var cat = j.catalogo || j;
+      var todas = cat.colunas || [];
+      cols = j.papel === 'socio' ? todas : todas.filter(function (c) { return c.quem_ve !== 'socio'; });   // consultor nunca vê coluna de sócio
+      grupos = (cat.grupos && cat.grupos.length) ? cat.grupos : cols.map(function (c) { return c.grupo; }).filter(function (g, i, a) { return g && a.indexOf(g) === i; });
+    } else {
+      cols = j.catalogo.colunas;
+      grupos = j.catalogo.grupos;
+    }
+    pvCol = {};
     colPor = {};
     cols.forEach(function (c) { colPor[c.chave] = c; });
     linhas = j.linhas;
+    if (EP) {
+      linhas = (j.linhas || []).map(function (l) {
+        l.codigoApi = l.codigo; l.codigo = String(l.codigo);
+        var ce = l.celulas = l.celulas || {};
+        cols.forEach(function (c) { if (ce[c.chave] && ce[c.chave].origem === 'pos_venda') pvCol[c.chave] = 1; });
+        cols.forEach(function (c) { if (!ce[c.chave]) ce[c.chave] = { valor: null, origem: 'vazio' }; });
+        var v = function (k) { return ce[k] && !vazioV(ce[k].valor) ? String(ce[k].valor) : ''; };
+        if (l.cliente == null) l.cliente = v('cliente') || v('nome');
+        if (l.consultor == null) l.consultor = v('consultor');
+        recalcular(l);   // as contas são locais: campo de Obras (pos_venda) não conta como falta, venha o que vier no progresso do servidor
+        return l;
+      });
+    }
+    if (EP) linhas.forEach(function (l) { recalcular(l); });   // já com o mapa de colunas de Obras completo
     linhaPor = {};
     baseEm = {}; confirmado = {}; pend = {};
     linhas.forEach(function (l) { linhaPor[l.codigo] = l; });
@@ -554,9 +600,13 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
       return true;
     });
   }
+  // Conta como campo a preencher? Campo de Obras (pos_venda) é só leitura aqui: não entra na conta.
+  // A célula vazia de Obras também vale: basta qualquer venda da mesma coluna ter trazido origem pos_venda.
+  function ehPv(c, cel) { return EP && ((cel && cel.origem === 'pos_venda') || !!pvCol[c.chave] || c.origem === 'pos_venda'); }
+  function conta(c, cel) { return c.obrigatoria && !ehPv(c, cel); }
   function recalcular(l) {
     var tot = 0, ok = 0;
-    cols.forEach(function (c) { if (c.obrigatoria) { tot++; if (!vazioV(l.celulas[c.chave].valor)) ok++; } });
+    cols.forEach(function (c) { if (conta(c, l.celulas[c.chave])) { tot++; if (!vazioV(l.celulas[c.chave].valor)) ok++; } });
     l.progresso = { preenchidas: ok, total: tot, faltando: tot - ok };
   }
   function atualizarContador() {
@@ -593,7 +643,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
       if (l.codigo === detalhe) b.setAttribute('aria-current', 'true');
       box.appendChild(b);
     });
-    if (!linhas.length) box.appendChild(el('p', 'gl-vazio', D && D.papel === 'socio' ? 'Nenhuma venda na planilha.' : 'Você ainda não tem venda cadastrada.'));
+    if (!linhas.length) box.appendChild(el('p', 'gl-vazio', D && D.papel === 'socio' ? TX.vazio : TX.vazioConsultor));
     else if (!visiveis.length) box.appendChild(el('p', 'gl-vazio', 'Nenhum cliente com esse filtro. Mude a busca ou desligue "Com campo vazio".'));
     box.scrollTop = topo;
     atualizarContador();
@@ -668,7 +718,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
     var l = linhaPor[detalhe]; if (!l) return;
     secoes.forEach(function (s) {
       var y = 0, x = 0;
-      s.cols.forEach(function (c) { if (c.obrigatoria) { y++; if (!vazioV(l.celulas[c.chave].valor)) x++; } });
+      s.cols.forEach(function (c) { if (conta(c, l.celulas[c.chave])) { y++; if (!vazioV(l.celulas[c.chave].valor)) x++; } });
       s.cnt.textContent = y ? x + ' de ' + y + ' preenchidos' : '';
       s.cnt.className = 'cnt' + (y && x === y ? ' ok' : '');
     });
@@ -676,6 +726,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 
   function desenharFicha() {
     var corpo = $('gdCorpo');
+    $('gd').classList.toggle('sem-linhas', EP && !linhas.length);
     corpo.textContent = '';
     campos = {}; secoes = [];
     var l = linhaPor[detalhe];
@@ -685,7 +736,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
       return;
     }
     repintarCabecalho();
-    D.catalogo.grupos.forEach(function (g) {
+    grupos.forEach(function (g) {
       var lista = cols.filter(function (c) { return c.grupo === g && c.chave !== 'codigo'; });
       if (!lista.length) return;
       var sec = el('section', 'gd-g');
@@ -712,14 +763,18 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
     var dica = el('span', 'gd-dica');
     f.appendChild(topo); f.appendChild(v); f.appendChild(dica);
     var h = { f: f, c: c, v: v, ctl: null, dica: dica, timer: null, outro: null, msgTipo: '' };
-    var obrig = c.obrigatoria && c.editavel;
     var cel0 = l.celulas[chave];
+    // Eletroposto: campo que vem de Obras (pos_venda) é só leitura, mesmo que a coluna diga que é editável.
+    var pv = ehPv(c, cel0);
+    var obrig = c.obrigatoria && c.editavel && !pv;
     var atual = function () { var x = linhaPor[codigo]; return x ? x.celulas[chave] : cel0; };
 
     // Linha de aviso: mensagem de gravação (Salvando, Salvo, erro) e, no resto do tempo, quem preencheu.
     h.dicaBase = function () {
       var cel = atual();
+      if (pv) return vazioV(cel.valor) ? 'Falta, edita em Obras' : 'Edita em Obras';
       if (!c.editavel) return c.calculada ? 'Calculado na planilha' : '';
+      if (EP && cel.origem === 'card') return 'Veio da agenda';
       return dicaSistema(cel);
     };
     h.msg = function (txt, tipo) {
@@ -742,10 +797,12 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
       tag.hidden = !(obrig && vazio);
       v.classList.toggle('sis', cel.origem === 'sistema' && c.editavel);
       if (!h.msgTipo) dica.textContent = h.dicaBase();
+      if (pv && !h.msgTipo) dica.className = 'gd-dica' + (vazio ? ' err' : '');
     };
 
-    if (!c.editavel) {
+    if (!c.editavel || pv) {
       v.classList.add('calc');
+      if (pv) f.classList.add('pv');
       var ro = el('div', 'gd-ro'); ro.id = id; v.appendChild(ro);
       lb.removeAttribute('for');
       h.set = function (cel) {
@@ -765,7 +822,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
           if (at && chaveOpcao(o) === chaveOpcao(at)) achada = o;
         });
         // Valor que já estava na planilha e não está nas opções: aparece marcado, para não sumir da tela.
-        if (at && !achada) s.appendChild(new Option(at + (cel.origem === 'sistema' ? '' : ' (da planilha)'), at));
+        if (at && !achada) s.appendChild(new Option(at + (cel.origem === 'sistema' ? '' : (EP && cel.origem === 'card' ? ' (da agenda)' : ' (da planilha)')), at));
         if (c.livre) s.appendChild(new Option('Outro...', OUTRO));
         s.value = at ? (achada || at) : '';
       };
@@ -890,13 +947,18 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
   function gravar(codigo, c, texto, h) {
     var l = linhaPor[codigo]; if (!l) return;
     var antes = l.celulas[c.chave];
+    if (ehPv(c, antes)) {   // nunca grava campo de Obras daqui
+      aviso('Este campo é editado em Obras.');
+      if (h && detalhe === codigo) h.set(antes, true);
+      return;
+    }
     var r = lerCampo(c, texto);
     if (!r.ok) { if (h) h.erro(r.msg); return; }
     var novoV = r.v;
     if ((vazioV(novoV) && vazioV(antes.valor)) || novoV === antes.valor) { if (h && detalhe === codigo) h.set(antes, true); return; }
     // Apagar um valor que vem da planilha não faz nada no servidor (só se apaga o que foi preenchido aqui).
     if (vazioV(novoV) && antes.origem !== 'sistema') {
-      aviso('Este valor vem da planilha. Para trocá-lo, escolha ou digite outro.');
+      aviso(EP && antes.origem === 'card' ? 'Este valor vem da agenda. Para trocá-lo, escolha ou digite outro.' : 'Este valor vem da planilha. Para trocá-lo, escolha ou digite outro.');
       if (h && detalhe === codigo) h.set(antes, true);
       return;
     }
@@ -918,11 +980,11 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
   // quem saltou com Tab para o próximo campo não pode perder o foco.
   function depoisDeMudar(codigo, chave, msg, tipo, forcar) {
     var l = linhaPor[codigo]; if (!l) return;
-    if (chave === 'cliente' && typeof l.celulas.cliente.valor === 'string') {
+    if (chave === 'cliente' && l.celulas.cliente && typeof l.celulas.cliente.valor === 'string') {
       l.cliente = l.celulas.cliente.valor;
       var it = itemDe(codigo); if (it) it.querySelector('.nm').textContent = l.cliente || 'Sem nome';
     }
-    if (chave === 'consultor' && typeof l.celulas.consultor.valor === 'string') l.consultor = l.celulas.consultor.valor;
+    if (chave === 'consultor' && l.celulas.consultor && typeof l.celulas.consultor.valor === 'string') l.consultor = l.celulas.consultor.valor;
     repintarItem(codigo);
     if (detalhe !== codigo) return;
     var h = campos[chave];
@@ -942,7 +1004,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 
   function enviar(l, c, texto, antes) {
     var chaveBase = l.codigo + '|' + c.chave;
-    var corpo = { codigo: l.codigo, coluna: c.chave, valor: texto, base_em: baseEm[chaveBase] || (D && D.em) };
+    var corpo = { codigo: (EP && l.codigoApi != null) ? l.codigoApi : l.codigo, coluna: c.chave, valor: texto, base_em: baseEm[chaveBase] || (D && D.em) };
     // Fim desta gravação: devolve quantas ainda estão na fila para o mesmo campo. Com outra na fila, a tela não é tocada:
     // ela mostra a edição mais nova, que a próxima resposta confirma ou recusa.
     var terminou = function () { pend[chaveBase] = Math.max(0, (pend[chaveBase] || 1) - 1); return pend[chaveBase]; };
@@ -962,7 +1024,7 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
         baseEm[chaveBase] = j.em;
         if (resto > 0) return;
         l.celulas[c.chave] = j.celula;
-        if (j.progresso) l.progresso = j.progresso; else recalcular(l);
+        if (j.progresso && !EP) l.progresso = j.progresso; else recalcular(l);
         depoisDeMudar(l.codigo, c.chave, 'Salvo', 'ok', false);
         return;
       }
