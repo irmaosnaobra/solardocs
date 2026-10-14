@@ -24,6 +24,7 @@ import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
 import { mountFinanceiro } from './geradorFinanceiro';
+import { mountClientes } from './geradorClientes';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1141,6 +1142,8 @@ mountDossie(router);
 // rotas exigem consultor logado, e o que cada um vê é decidido no servidor.
 mountSolar(router);
 mountFinanceiro(router);
+// Gestão de clientes do solar: a Planilha Mestre como grade editável.
+mountClientes(router);
 
 // Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
 mountEletropostoAtendimento(router);

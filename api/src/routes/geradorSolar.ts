@@ -11,6 +11,8 @@ import {
 } from '../services/gerador/solarObras';
 import { lerPainelQuizSolar, PERIODOS_PAINEL } from '../services/io/painelQuizSolar';
 import { respostaDoPainel, type PainelQuizSolar } from '../services/io/painelQuizSolarPuro';
+import { aplicarSobrescritasTodas } from '../services/gerador/gestaoClientes';
+import { lerRegistros } from '../services/gerador/gestaoClientesBanco';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SOLAR: pós-venda dos consultores no /gerador. Montado dentro de /gerador.
@@ -196,6 +198,19 @@ async function lerMarcas(codigos: string[]): Promise<Map<string, Marcas>> {
   return mapa;
 }
 
+/** O que a Gestão de clientes preencheu no sistema vale por cima da planilha ANTES de `montarObra`,
+ *  para mover a etapa. Uma leitura só (em lotes). Se falhar, Obras segue só com a planilha. */
+async function comSobrescritas(obras: ObraBruta[]): Promise<ObraBruta[]> {
+  // Comportamento ACEITO nesta fase: com o banco fora, Obras volta ao consultor da planilha, e o consultor
+  // antigo de uma venda trocada por sócio na Planilha de clientes volta a enxergá-la até o banco voltar.
+  try {
+    return aplicarSobrescritasTodas(obras, await lerRegistros(obras.map((o) => o.codigo)));
+  } catch (err: any) {
+    logger.warn('gerador-solar', 'sobrescritas da gestão falharam', String(err?.codigo || 'interno'));
+    return obras;
+  }
+}
+
 // ── Quem está chamando ───────────────────────────────────────────────────────
 
 function quem(req: Request): { nome: string; socio: boolean } {
@@ -241,7 +256,7 @@ export function mountSolar(router: Router): void {
 
     const agora = new Date();
     const hoje = hojeBRT(agora);
-    const visiveis = pl.dados.obras.filter((o) => podeVer(nome, o.consultor));
+    const visiveis = (await comSobrescritas(pl.dados.obras)).filter((o) => podeVer(nome, o.consultor));
     const [q, marcasPorChave] = await Promise.all([
       quadro(fresco),
       lerMarcas(visiveis.map((o) => o.codigo)).then((m) => ({ m, ok: true }), (e: any) => {
@@ -310,7 +325,9 @@ export function mountSolar(router: Router): void {
     try { pl = await planilha(false); } catch (err) { erroPlanilha(res, err); return; }
     // Venda inexistente e venda de outro consultor dão a MESMA resposta: quem
     // não pode ver não descobre que o código existe.
-    const venda = pl.dados.obras.find((o) => codigoCanonico(o.codigo) === codigo);
+    const venda0 = pl.dados.obras.find((o) => codigoCanonico(o.codigo) === codigo);
+    // O consultor pode ter sido trocado na Gestão de clientes: vale o do sistema, como nas outras rotas.
+    const venda = venda0 ? (await comSobrescritas([venda0]))[0] : undefined;
     if (!venda || !(socio || podeVer(nome, venda.consultor))) {
       res.status(404).json({ ok: false, error: 'venda não encontrada' });
       return;
@@ -351,7 +368,7 @@ export function mountSolar(router: Router): void {
     let pl: { dados: CachePlanilha; atual: boolean };
     try { pl = await planilha(querFresco(req, socio)); } catch (err) { erroPlanilha(res, err); return; }
     const hoje = hojeBRT(new Date());
-    const { cidades, semCoordenada, semCoordenadaLista } = montarMapa(pl.dados.obras.map((b) => montarObra(b, hoje)));
+    const { cidades, semCoordenada, semCoordenadaLista } = montarMapa((await comSobrescritas(pl.dados.obras)).map((b) => montarObra(b, hoje)));
     // Nenhum texto livre da planilha chega a consultor comum: para ele só a
     // contagem. O texto cru da coluna CIDADE vai só para sócio.
     // `?perto=<cidade>`: as cidades com obra mais perto dela (só nomes oficiais
@@ -374,7 +391,7 @@ export function mountSolar(router: Router): void {
       const pl = await planilha(querFresco(req, socio));
       planilhaOk = pl.atual;
       const hoje = hojeBRT(new Date());
-      obras = pl.dados.obras.filter((o) => podeVer(nome, o.consultor)).map((b) => montarObra(b, hoje));
+      obras = (await comSobrescritas(pl.dados.obras)).filter((o) => podeVer(nome, o.consultor)).map((b) => montarObra(b, hoje));
     } catch (err: any) {
       planilhaOk = false;
       logger.warn('gerador-solar', 'indicacoes sem planilha', String(err?.message || err));
