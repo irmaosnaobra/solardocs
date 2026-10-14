@@ -255,7 +255,7 @@ html[data-mode="app"].documentos-solar-aberto .container{max-width:none!importan
 .solar-subsep{flex:0 0 auto;align-self:center;width:1px;height:22px;margin:0 10px;background:var(--n-bd2,rgba(255,255,255,.22))}
 /* A altura é a janela menos o topo do iframe e menos o que sobra embaixo (planilhaAjustar soma o preenchimento dos pais,
    que no celular já reserva a barra de baixo da casca). */
-#planilha-frame{display:block;width:100%;border:0;border-radius:12px;background:var(--n-bg,#0F172A);
+#planilha-frame,#planilha-eletro-frame{display:block;width:100%;border:0;border-radius:12px;background:var(--n-bg,#0F172A);
   height:calc(100vh - var(--plan-topo,140px));
   height:calc(100dvh - var(--plan-topo,140px))}
 .dc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -1027,6 +1027,71 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
   font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex:0 0 auto}
 .eletro-subtab2:hover{color:#E5E7EB;background:rgba(255,255,255,.08)}
 .eletro-subtab2.ativa{color:#fff;background:rgba(59,130,246,.18);border-color:#3B82F6}
+/* ===== Eletroposto: régua nova e telas novas (14/10/2026) =====
+   Cor só por var(--n-*) e var(--io-*), com a paleta escura do index como reserva: no visual antigo os
+   tokens não existem e vale a reserva; no novo (claro ou escuro) valem os tokens. */
+.eletro-subsep{flex:0 0 auto;align-self:center;width:1px;height:22px;margin:0 10px;background:var(--n-bd2,rgba(255,255,255,.22))}
+/* Planilha do Cliente: largura total, também no visual antigo (a classe só vale com o Eletroposto aberto). */
+html[data-mode="app"].eletro-aberto.planilha-eletro-aberto .container{max-width:none!important}
+html[data-mode="app"].eletro-aberto.planilha-eletro-aberto #eletroSection{max-width:none;margin:0}
+/* Indicadores */
+.epi-barra{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:0 0 14px}
+.epi-funil{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:760px}
+.epi-etapa{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr) 112px;align-items:center;gap:6px 14px;padding:12px 14px;border:1px solid var(--n-bd,#334155);border-radius:12px;background:var(--n-sf,#1E293B);color:var(--n-tx,#E5E7EB)}
+.epi-nome{font-size:15px;font-weight:800}
+.epi-trilho{height:14px;border-radius:999px;background:var(--n-sf3,#2A3A52);overflow:hidden}
+.epi-trilho > i{display:block;height:100%;min-width:4px;border-radius:999px;background:var(--io-azul,#3B82F6)}
+.epi-num{text-align:right;font-variant-numeric:tabular-nums}
+.epi-num b{display:block;font-size:20px;font-weight:900;color:var(--n-tx,#E5E7EB)}
+.epi-num span{font-size:12.5px;font-weight:700;color:var(--n-tx2,#B4C0D2)}
+.epi-passo{grid-column:1/-1;font-size:12.5px;font-weight:600;color:var(--n-tx2,#B4C0D2)}
+@media(max-width:620px){.epi-etapa{grid-template-columns:minmax(0,1fr) auto}.epi-trilho{grid-column:1/-1;grid-row:2}}
+/* Leads */
+.epl-barra{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:0 0 14px}
+.epl-chip-n{margin-left:6px;font-weight:700;font-variant-numeric:tabular-nums}
+.epl-aviso{margin:0 0 12px;padding:10px 14px;border-radius:10px;border:1px solid var(--io-ambar-bd,rgba(247,164,28,.4));background:var(--io-av-sf,rgba(247,164,28,.1));color:var(--io-ambar-tx,#FDE68A);font-size:14px;font-weight:600;line-height:1.4}
+.epl-lista{list-style:none;margin:0;padding:0;border:1px solid var(--n-bd,#334155);border-radius:12px;background:var(--n-sf,#1E293B);overflow:hidden}
+.epl-item{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1.6fr);gap:4px 16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--n-bd,#334155);color:var(--n-tx,#E5E7EB);font-size:14px;font-weight:600}
+.epl-item:last-child{border-bottom:0}
+.epl-nome{font-weight:800;font-size:15px;overflow-wrap:anywhere}
+.epl-tipo{display:inline-block;margin-left:8px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid var(--n-bd2,rgba(255,255,255,.22));color:var(--n-tx,#E5E7EB);background:var(--n-sf2,#172033);vertical-align:1px}
+.epl-quando,.epl-cidade{color:var(--n-tx2,#B4C0D2);overflow-wrap:anywhere}
+.epl-sem{color:var(--io-av-tx,#FBBF24);font-weight:800}
+.epl-ag{overflow-wrap:anywhere}
+.epl-pag{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 0}
+.epl-pag-txt{font-size:14px;font-weight:700;color:var(--n-tx2,#B4C0D2)}
+.epl-pag-bt{display:flex;gap:8px}
+.epl-pag .fs-btn-sec{min-height:44px}
+.epl-pag .fs-btn-sec:disabled{opacity:1;color:var(--n-tx2,#B4C0D2);border-style:dashed;cursor:not-allowed}
+@media(max-width:760px){.epl-item{grid-template-columns:minmax(0,1fr);padding:12px 14px}}
+/* Obras */
+.epo-aviso{margin:0 0 12px;padding:10px 14px;border-radius:10px;border:1px solid var(--io-er-bd,rgba(248,113,113,.4));background:var(--io-er-sf,rgba(248,113,113,.14));color:var(--io-er-fg,#FCA5A5);font-size:14px;font-weight:700;line-height:1.4}
+.epo-aviso.ok{border-color:var(--io-ok-bd,rgba(74,222,128,.4));background:var(--io-ok-sf,rgba(74,222,128,.14));color:var(--io-ok-fg,#4ADE80)}
+.epo-lista{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr))}
+.epo-card{display:grid;gap:10px;min-width:0;padding:14px;border:1px solid var(--n-bd,#334155);border-radius:14px;background:var(--n-sf,#1E293B);color:var(--n-tx,#E5E7EB)}
+.epo-card.atrasada{border-color:var(--io-er-bd,rgba(248,113,113,.5))}
+.epo-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.epo-topo h3{margin:0;font-size:16px;font-weight:800;color:var(--n-tx,#E5E7EB);overflow-wrap:anywhere}
+.epo-sub{margin-top:2px;font-size:13px;font-weight:600;color:var(--n-tx2,#B4C0D2);overflow-wrap:anywhere}
+.epo-selo{flex:0 0 auto;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid var(--n-bd2,rgba(255,255,255,.22));color:var(--n-tx,#E5E7EB);background:var(--n-sf2,#172033);white-space:nowrap}
+.epo-selo.atraso{color:var(--io-er-fg,#FCA5A5);background:var(--io-er-sf,rgba(248,113,113,.18));border-color:var(--io-er-bd,rgba(248,113,113,.4))}
+.epo-selo.ok{color:var(--io-ok-fg,#4ADE80);background:var(--io-ok-sf,rgba(74,222,128,.14));border-color:var(--io-ok-bd,rgba(74,222,128,.4))}
+.epo-prog{height:12px;border-radius:999px;background:var(--n-sf3,#2A3A52);overflow:hidden}
+.epo-prog > i{display:block;height:100%;border-radius:999px;background:var(--io-azul,#3B82F6)}
+.epo-card.atrasada .epo-prog > i{background:var(--io-er-tx,#F87171)}
+.epo-card.concluida .epo-prog > i{background:var(--io-ok-tx,#4ADE80)}
+.epo-linha{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:13px;font-weight:700;color:var(--n-tx2,#B4C0D2)}
+.epo-prev.atraso{color:var(--io-er-tx,#FCA5A5);font-weight:800}
+.epo-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.epo-campo{display:grid;gap:4px;min-width:0;font-size:12px;font-weight:800;color:var(--n-tx2,#B4C0D2)}
+.epo-campo.largo{grid-column:1/-1}
+.epo-campo select,.epo-campo input,.epo-campo textarea{width:100%;box-sizing:border-box;min-height:44px;padding:8px 10px;border:1px solid var(--io-borda-campo,rgba(255,255,255,.22));border-radius:10px;background:var(--n-sf2,#0f1a2e);color:var(--n-tx,#fff);font-family:inherit;font-size:16px;font-weight:600}
+.epo-campo textarea{min-height:64px;resize:vertical}
+.epo-dica{font-size:12.5px;font-weight:600;color:var(--n-tx2,#B4C0D2)}
+.epo-st{min-height:16px;font-size:12.5px;font-weight:700;color:var(--n-tx2,#B4C0D2)}
+.epo-st.erro{color:var(--io-er-tx,#FCA5A5)}
+@media(max-width:520px){.epo-campos{grid-template-columns:minmax(0,1fr)}}
+.epi-funil[hidden],.epl-pag[hidden],.epo-lista[hidden]{display:none}
 /* painéis Power BI embutidos (Pesquisa / Mercado) */
 .pesquisa-frame-wrap{position:relative;width:100%;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);overflow:hidden}
 .pesquisa-frame-wrap iframe{display:block;width:100%;height:min(82vh,880px);border:0}
@@ -4994,37 +5059,45 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          atrás de "Mercado" e só aí a régua 2 aparece.
          "Mercado" é o nome do GRUPO, então a aba de dentro virou "Frota" — é literalmente
          o relatório BI_Frota da ABVE, e pai com o mesmo nome do filho parece menu quebrado. -->
+    <!-- ═══ RÉGUA REORGANIZADA (14/10/2026), pedido do Thiago ═══
+         Simulador · Planilha do Cliente · Painel · Cadastros · Leads · Histórico, um traço, e
+         Documento · Fechamento · Obras. Painel, Cadastros e Fechamento são grupos (régua 2).
+         Os slugs das abas não mudaram: só ganharam um grupo novo em EP_GRUPOS. Documento é a aba
+         "procuracao" (Documentos do local) promovida a régua 1. Avisos e as cinco telas de Mercado
+         continuam alcançáveis: Avisos em Cadastros, Mercado dentro de Painel (a Frota é a primeira). -->
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
-      <!-- Os quatro papéis do pós-venda. Viraram grupo quando o dossiê de crédito
-           entrou: cinco documentos em fila na régua 1 empurrava Cadastros e
-           Histórico pra fora da tela de novo. Abre no Recibo. -->
-      <button type="button" id="eletro-grp-fechamento" class="eletro-subtab" onclick="eletroGrupo('fechamento')">Fechamento</button>
-      <button type="button" id="eletro-tab-cadastros" class="eletro-subtab" onclick="eletroSubaba('cadastros')">Cadastros</button>
-      <!-- AVISOS (17/09/2026): mora colado em Cadastros porque fala com exatamente
-           a mesma base (eletroposto_parceria) e é o que se faz DEPOIS de olhar a
-           lista: escrever a pauta da semana e mandar pros três grupos. -->
-      <button type="button" id="eletro-tab-avisos" class="eletro-subtab" onclick="eletroSubaba('avisos')">Avisos</button>
+      <button type="button" id="eletro-tab-planilha" class="eletro-subtab" onclick="eletroSubaba('planilha')">Planilha do Cliente</button>
+      <button type="button" id="eletro-grp-painel" class="eletro-subtab" onclick="eletroGrupo('painel')">Painel</button>
+      <button type="button" id="eletro-grp-cadastros" class="eletro-subtab" onclick="eletroGrupo('cadastros')">Cadastros</button>
+      <button type="button" id="eletro-tab-leads" class="eletro-subtab" onclick="eletroSubaba('leads')">Leads</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
-      <button type="button" id="eletro-grp-mercado" class="eletro-subtab" onclick="eletroGrupo('mercado')">Mercado</button>
+      <span class="eletro-subsep" aria-hidden="true"></span>
+      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab" onclick="eletroSubaba('procuracao')">Documento</button>
+      <button type="button" id="eletro-grp-fechamento" class="eletro-subtab" onclick="eletroGrupo('fechamento')">Fechamento</button>
+      <button type="button" id="eletro-tab-obras" class="eletro-subtab" onclick="eletroSubaba('obras')">Obras</button>
     </div>
 
     <!-- Réguas 2: cada uma só acende dentro do seu grupo. Os ids eletro-tab-* seguem os
          mesmos (o eletroSubaba acha por getElementById e não liga para a profundidade),
-         e os slugs também — mexer neles quebraria o deep-link ?orc=1 da Agenda e o
+         e os slugs também: mexer neles quebraria o deep-link ?orc=1 da Agenda e o
          lazy-load dos iframes eletro-frame-<slug>. -->
     <div class="eletro-subnav2" id="eletro-subnav2-fechamento">
       <button type="button" id="eletro-tab-recibo" class="eletro-subtab2" onclick="eletroSubaba('recibo')">Recibo</button>
       <button type="button" id="eletro-tab-contrato" class="eletro-subtab2" onclick="eletroSubaba('contrato')">Contratos e termos</button>
-      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab2" onclick="eletroSubaba('procuracao')">Documentos do local</button>
       <button type="button" id="eletro-tab-finame" class="eletro-subtab2" onclick="eletroSubaba('finame')">Proposta de banco</button>
     </div>
-    <div class="eletro-subnav2" id="eletro-subnav2-mercado">
+    <div class="eletro-subnav2" id="eletro-subnav2-painel">
+      <button type="button" id="eletro-tab-indicadores" class="eletro-subtab2" onclick="eletroSubaba('indicadores')">Indicadores</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab2" onclick="eletroSubaba('mercado')">Frota</button>
       <button type="button" id="eletro-tab-estados" class="eletro-subtab2" onclick="eletroSubaba('estados')">Estados</button>
       <button type="button" id="eletro-tab-postos" class="eletro-subtab2" onclick="eletroSubaba('postos')">Postos</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab2" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mapa" class="eletro-subtab2" onclick="eletroSubaba('mapa')">Mapa</button>
+    </div>
+    <div class="eletro-subnav2" id="eletro-subnav2-cadastros">
+      <button type="button" id="eletro-tab-cadastros" class="eletro-subtab2" onclick="eletroSubaba('cadastros')">Base</button>
+      <button type="button" id="eletro-tab-avisos" class="eletro-subtab2" onclick="eletroSubaba('avisos')">Avisos</button>
     </div>
 
     <!-- Aparece só quando os campos vieram de um projeto anterior. -->
@@ -6913,6 +6986,84 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
 
+    <!-- ===== PANE: PLANILHA DO CLIENTE (14/10/2026) =====
+         A página /gerador/clientes/ no modo eletroposto, dentro de um iframe da mesma origem. O src só entra
+         na primeira abertura (epPlanilhaAbrir) e o authLimpar derruba o iframe. Sem cabeçalho: a régua é a saída. -->
+    <div id="eletro-pane-planilha" style="display:none;">
+      <iframe id="planilha-eletro-frame" title="Planilha do Cliente"></iframe>
+    </div>
+
+    <!-- ===== PANE: INDICADORES (Painel, 14/10/2026) =====
+         O funil da página de venda do eletroposto, pela mesma rota da tela eletroposto/metricas. -->
+    <div id="eletro-pane-indicadores" style="display:none;">
+      <div class="fs-sub" id="epi-sub" style="margin:0 0 14px">Funil da página de venda do eletroposto: quem viu, quem foi ao checkout e quem comprou.</div>
+      <div class="epi-barra">
+        <div class="ql-chips" role="group" aria-label="Período do funil">
+          <button type="button" class="ql-chip epi-chip" data-d="1" aria-pressed="false" onclick="epiPeriodo(1)">24 horas</button>
+          <button type="button" class="ql-chip epi-chip on" data-d="7" aria-pressed="true" onclick="epiPeriodo(7)">7 dias</button>
+          <button type="button" class="ql-chip epi-chip" data-d="30" aria-pressed="false" onclick="epiPeriodo(30)">30 dias</button>
+          <button type="button" class="ql-chip epi-chip" data-d="365" aria-pressed="false" onclick="epiPeriodo(365)">1 ano</button>
+        </div>
+        <button type="button" class="fs-btn-sec" onclick="epiCarregar()">Atualizar</button>
+      </div>
+      <div id="epi-parcial" class="epl-aviso" role="status" hidden></div>
+      <div id="epi-estado" class="dc-estado" role="status" hidden></div>
+      <ol id="epi-funil" class="epi-funil" hidden></ol>
+    </div>
+
+    <!-- ===== PANE: LEADS (14/10/2026) =====
+         Os mesmos cadastros da aba Cadastros (cadDados), do mais novo para o mais antigo. Nenhuma leitura própria. -->
+    <div id="eletro-pane-leads" style="display:none;">
+      <div class="fs-sub" style="margin:0 0 14px">Quem entrou no eletroposto, do mais novo para o mais antigo. São os mesmos cadastros da aba Cadastros.</div>
+      <div id="epl-aviso" class="epl-aviso" role="status" hidden></div>
+      <div class="epl-barra">
+        <div class="ql-chips" role="group" aria-label="Tipo de lead">
+          <button type="button" class="ql-chip epl-chip on" data-t="todos" aria-pressed="true" onclick="eplTipo('todos')">Todos<span class="epl-chip-n" id="epl-n-todos"></span></button>
+          <button type="button" class="ql-chip epl-chip" data-t="ponto" aria-pressed="false" onclick="eplTipo('ponto')">Arrendamento<span class="epl-chip-n" id="epl-n-ponto"></span></button>
+          <button type="button" class="ql-chip epl-chip" data-t="capital" aria-pressed="false" onclick="eplTipo('capital')">Investidor<span class="epl-chip-n" id="epl-n-capital"></span></button>
+          <button type="button" class="ql-chip epl-chip" data-t="integrador" aria-pressed="false" onclick="eplTipo('integrador')">Parceiro<span class="epl-chip-n" id="epl-n-integrador"></span></button>
+          <button type="button" class="ql-chip epl-chip" data-t="curioso" aria-pressed="false" onclick="eplTipo('curioso')">Curioso<span class="epl-chip-n" id="epl-n-curioso"></span></button>
+        </div>
+        <div class="ql-chips" role="group" aria-label="Horário na agenda">
+          <button type="button" class="ql-chip" id="epl-sem" aria-pressed="false" onclick="eplSemHorario()">Sem horário<span class="epl-chip-n" id="epl-n-sem"></span></button>
+        </div>
+        <button type="button" class="fs-btn-sec" onclick="eplAtualizar()">Atualizar</button>
+      </div>
+      <div id="epl-estado" class="dc-estado" role="status" hidden></div>
+      <ul id="epl-lista" class="epl-lista" hidden></ul>
+      <div id="epl-pag" class="epl-pag" hidden>
+        <span class="epl-pag-txt" id="epl-pag-txt"></span>
+        <span class="epl-pag-bt">
+          <button type="button" class="fs-btn-sec" id="epl-ant" onclick="eplPagina(-1)">Anterior</button>
+          <button type="button" class="fs-btn-sec" id="epl-prox" onclick="eplPagina(1)">Próxima</button>
+        </span>
+      </div>
+    </div>
+
+    <!-- ===== PANE: OBRAS (14/10/2026) =====
+         Uma obra por venda de eletroposto. Etapa, previsto, responsável e observação se editam aqui e gravam
+         a cada mudança (POST /gerador/obras/eletroposto, com o token da pessoa e base_em contra conflito). -->
+    <div id="eletro-pane-obras" style="display:none;">
+      <div class="fs-sub" id="epo-sub" style="margin:0 0 14px">Cada venda de eletroposto vira uma obra. Mude a etapa, o previsto, o responsável e a observação aqui: cada mudança é gravada na hora.</div>
+      <div class="dc-resumo" aria-live="polite">
+        <div class="ql-num dc-num"><b id="epo-n-and">0</b><span>Em andamento</span></div>
+        <div class="ql-num dc-num dc-num-falta"><b id="epo-n-atr">0</b><span>Atrasadas</span></div>
+        <div class="ql-num dc-num dc-num-ok"><b id="epo-n-ok">0</b><span>Concluídas</span></div>
+      </div>
+      <div class="epl-barra">
+        <div class="ql-chips" role="group" aria-label="Filtro das obras">
+          <button type="button" class="ql-chip epo-chip on" data-f="todas" aria-pressed="true" onclick="epoFiltro('todas')">Todas</button>
+          <button type="button" class="ql-chip epo-chip" data-f="andamento" aria-pressed="false" onclick="epoFiltro('andamento')">Em andamento</button>
+          <button type="button" class="ql-chip epo-chip" data-f="atrasadas" aria-pressed="false" onclick="epoFiltro('atrasadas')">Atrasadas</button>
+          <button type="button" class="ql-chip epo-chip" data-f="concluidas" aria-pressed="false" onclick="epoFiltro('concluidas')">Concluídas</button>
+        </div>
+        <button type="button" class="fs-btn-sec" onclick="epoAbrir()">Atualizar</button>
+      </div>
+      <div id="epo-aviso" class="epo-aviso" role="status" hidden></div>
+      <div id="epo-estado" class="dc-estado" role="status" hidden></div>
+      <div id="epo-lista" class="epo-lista" hidden></div>
+    </div>
+
     <!-- ===== PANE: PESQUISA (Power BI) ===== -->
     <div id="eletro-pane-pesquisa" style="display:none;">
       <div class="pesquisa-info">Painel de dados para consulta. Use os filtros dentro do próprio relatório para pesquisar — role e clique nos visuais normalmente.</div>
@@ -7957,6 +8108,8 @@ function authLimpar() {
   try { if (typeof inLimparMemoria === 'function') inLimparMemoria(); } catch (e) {}
   // A planilha (iframe vivo com a grade na memória) e a lista da aba Documentos também são desta conta.
   try { if (typeof solarSessaoLimpar === 'function') solarSessaoLimpar(); } catch (e) {}
+  // Obras, Leads e Indicadores do Eletroposto (e a leitura dos cadastros de onde o Leads desenha) também são desta conta.
+  try { if (typeof eletroSessaoLimpar === 'function') eletroSessaoLimpar(); } catch (e) {}
   // O perfil (foto, e-mail, papel) e o menu do usuario tambem sao desta conta: o cache sai, a janela "Meu perfil" fecha
   // (nao pode ficar por cima do login) e a casca esquece o perfil em memoria.
   try { localStorage.removeItem('gerador-perfil-v1'); } catch (e) {}
@@ -10930,6 +11083,514 @@ function navEletroposto() {
   new Image().src = '/gerador/nexus-x.png';                     // e a marca do rodapé de cada folha
 }
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// ELETROPOSTO: PLANILHA DO CLIENTE, INDICADORES, LEADS E OBRAS (14/10/2026)
+//
+// Quatro panes novos da régua do Eletroposto. A planilha reaproveita o iframe do Solar
+// (planilhaAjustar e o derrube em solarSessaoLimpar valem para os dois). Indicadores lê o
+// funil público. Leads só desenha o que a aba Cadastros já leu (cadDados). Obras fala com
+// a API autenticada, com o token da pessoa.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Sobe quando a conta sai: resposta que voltar depois disso é descartada.
+var _epGer = 0;
+
+/** Chamado pelo authLimpar: nada da pessoa anterior fica na tela, nem em memória. */
+function eletroSessaoLimpar() {
+  _epGer++;
+  epoLimpar(); eplLimpar(); epiLimpar();
+  // Leads desenha de cadDados: a leitura da conta anterior sai também (a aba Cadastros relê na próxima abertura).
+  try { cadDados = null; } catch (e) {}
+  // ...e tudo que a leitura da conta anterior deixou em memória e na tela da aba Cadastros.
+  try { cadAgendasChave = new Map(); cadAgendas = new Map(); cadObsPorTel = new Map(); cadAtend = new Map(); } catch (e) {}
+  try { cadPares = null; cadMatches = null; cadConexoes = []; cadSemDono = []; cadSemMapa = []; } catch (e) {}
+  try {
+    const tb = document.querySelector('#cad-tabela tbody'); if (tb) tb.innerHTML = '';
+    ['cad-mf', 'cad-sit-resumo', 'cad-curioso-acao', 'cad-painel-pares'].forEach(id => { const x = document.getElementById(id); if (x) { x.innerHTML = ''; x.hidden = true; } });
+    document.querySelectorAll('.cad-cnt').forEach(n => { if (n.id !== 'cad-cnt-pontos') n.textContent = '—'; });
+  } catch (e) {}
+}
+
+/** "2026-10-20" -> "20/10/2026". Corta a string em vez de usar Date: new Date('AAAA-MM-DD') vale meia-noite UTC e mostraria o dia anterior em Brasília. */
+function epDataBR(s) {
+  const m = String(s == null ? '' : s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : '';
+}
+function epEstado(id, texto, erro) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = texto || '';
+  el.hidden = !texto;
+  el.style.color = erro ? 'var(--io-er-tx,#FCA5A5)' : '';
+}
+function epChips(seletor, atributo, valor) {
+  document.querySelectorAll(seletor).forEach(b => {
+    const on = b.getAttribute(atributo) === String(valor);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+// ── Planilha do Cliente ─────────────────────────────────────────────────────
+function epPlanilhaAbrir() {
+  const f = document.getElementById('planilha-eletro-frame');
+  // O iframe só carrega na primeira abertura; depois a página fica viva e guarda a rolagem e o filtro.
+  if (f && !f.getAttribute('src')) f.setAttribute('src', '/gerador/clientes/?linha=eletroposto&embutida=1');
+  planilhaAjustarLogo();
+}
+
+// ── Indicadores (Painel) ────────────────────────────────────────────────────
+// A rota é pública e devolve só contagem: { dias, total: { material_view, checkout_start, purchase } | null }.
+// total null quer dizer "não consegui contar", e isso nunca vira zero na tela.
+const EPI_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/io/eletroposto/funil';
+var _epi = { dias: 7, seq: 0, aberto: false };
+function epiLimpar() {
+  _epi.seq++; _epi.aberto = false;
+  const l = document.getElementById('epi-funil'); if (l) { l.innerHTML = ''; l.hidden = true; }
+  const pa = document.getElementById('epi-parcial'); if (pa) { pa.textContent = ''; pa.hidden = true; }
+  epEstado('epi-estado', '');
+}
+function epiPeriodo(d) {
+  _epi.dias = d;
+  epChips('.epi-chip', 'data-d', d);
+  epiCarregar();
+}
+function epiAbrir() {
+  if (_epi.aberto) return;      // reabrir não relê sozinho: o Atualizar faz isso
+  epiCarregar();
+}
+async function epiCarregar() {
+  const ger = _epGer, seq = ++_epi.seq, dias = _epi.dias;
+  _epi.aberto = true;
+  epEstado('epi-estado', 'Carregando…');
+  const l = document.getElementById('epi-funil'); if (l) l.hidden = true;
+  const pa = document.getElementById('epi-parcial'); if (pa) { pa.textContent = ''; pa.hidden = true; }
+  let d = null;
+  try {
+    const r = await fetch(EPI_API + '?dias=' + encodeURIComponent(dias));
+    d = r.ok ? await r.json() : null;
+  } catch (e) { d = null; }
+  if (ger !== _epGer || seq !== _epi.seq) return;
+  epiDesenhar(d);
+}
+function epiDesenhar(d) {
+  const lista = document.getElementById('epi-funil');
+  if (!lista) return;
+  if (!d || d.total == null || typeof d.total !== 'object') {
+    lista.hidden = true; lista.innerHTML = '';
+    const pe = document.getElementById('epi-parcial'); if (pe) { pe.textContent = ''; pe.hidden = true; }
+    epEstado('epi-estado', 'Não consegui ler os eventos do funil agora. Tente atualizar.', true);
+    return;
+  }
+  // A rota corta em 20.000 eventos e avisa com truncado: true. Contagem cortada não pode passar por completa.
+  const parcial = document.getElementById('epi-parcial');
+  if (parcial) { parcial.textContent = d.truncado === true ? 'Contagem parcial: o período tem mais eventos do que a rota conta de uma vez, então os números estão abaixo do real.' : ''; parcial.hidden = d.truncado !== true; }
+  const t = d.total;
+  const etapas = [
+    ['Viu a página de venda', Number(t.material_view) || 0],
+    ['Clicou no checkout', Number(t.checkout_start) || 0],
+    ['Comprou', Number(t.purchase) || 0],
+  ];
+  const topo = etapas[0][1];
+  if (!topo) {
+    lista.hidden = true; lista.innerHTML = '';
+    epEstado('epi-estado', 'Ninguém chegou à página de venda neste período ainda.');
+    return;
+  }
+  epEstado('epi-estado', '');
+  const nf = new Intl.NumberFormat('pt-BR');
+  lista.innerHTML = etapas.map((e, i) => {
+    const pctTopo = Math.round(e[1] / topo * 100);
+    const ant = i ? etapas[i - 1][1] : 0;
+    const passo = i ? (ant ? Math.round(e[1] / ant * 100) + '% da etapa anterior' : 'Sem base na etapa anterior') : '';
+    return '<li class="epi-etapa"><span class="epi-nome">' + escapeHtml(e[0]) + '</span>'
+      + '<span class="epi-trilho" aria-hidden="true"><i style="width:' + Math.max(1, pctTopo) + '%"></i></span>'
+      + '<span class="epi-num"><b>' + escapeHtml(nf.format(e[1])) + '</b><span>' + pctTopo + '% do total</span></span>'
+      + (passo ? '<span class="epi-passo">' + escapeHtml(passo) + '</span>' : '') + '</li>';
+  }).join('');
+  lista.hidden = false;
+}
+
+// ── Leads ───────────────────────────────────────────────────────────────────
+// Sem leitura própria: usa cadDados, que o cadCarregar monta (teto de 1.000 linhas por leitura, o da API) e que a aba
+// Cadastros já mostra. Cada pessoa aparece uma vez no melhor tipo (Arrendamento, depois Investidor, depois Curioso), a
+// mesma regra da aba; Parceiro fica fora dessa conta, como lá. O horário vem do card mais novo da agenda, pela chave
+// inteira do telefone (cadAgendasChave).
+const EPL_TIPOS = { ponto: 'Arrendamento', capital: 'Investidor', integrador: 'Parceiro', curioso: 'Curioso' };
+const EPL_TAM = 30;
+var _epl = { tipo: 'todos', sem: false, pag: 0, carregando: false };
+function eplLimpar() {
+  _epl = { tipo: 'todos', sem: false, pag: 0, carregando: false };
+  const l = document.getElementById('epl-lista'); if (l) { l.innerHTML = ''; l.hidden = true; }
+  const p = document.getElementById('epl-pag'); if (p) p.hidden = true;
+  const a = document.getElementById('epl-aviso'); if (a) { a.textContent = ''; a.hidden = true; }
+  epEstado('epl-estado', '');
+  epChips('.epl-chip', 'data-t', 'todos');
+  const s = document.getElementById('epl-sem'); if (s) { s.classList.remove('on'); s.setAttribute('aria-pressed', 'false'); }
+  document.querySelectorAll('.epl-chip-n').forEach(n => { n.textContent = ''; });
+}
+/** "14/10/2026 08:15", sempre em Brasília (o aparelho pode estar em outro fuso). */
+function eplQuando(iso) {
+  const t = Date.parse(iso || '');
+  if (!isFinite(t)) return '';
+  const p = {};
+  new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(t)).forEach(x => { p[x.type] = x.value; });
+  return p.day + '/' + p.month + '/' + p.year + ' ' + p.hour + ':' + p.minute;
+}
+function eplItens() {
+  if (!cadDados) return [];
+  const vistos = new Set(), itens = [];
+  const poe = (tipo, r, dedupe) => {
+    const chave = cadChave(r.telefone);
+    if (dedupe && chave) { if (vistos.has(chave)) return; vistos.add(chave); }
+    const card = chave ? (cadAgendasChave.get(chave) || null) : null;
+    const tem = !!(card && card.quando && card.status !== 'cancelado');
+    itens.push({ tipo, nome: r.nome || '', cidade: r.cidade || '', entrou: r.created_at, ts: Date.parse(r.created_at || ''),
+      tem, quando: tem ? card.quando : '', st: tem ? card.status : '' });
+  };
+  (cadDados.ponto || []).forEach(r => poe('ponto', r, true));
+  (cadDados.capital || []).forEach(r => poe('capital', r, true));
+  (cadDados.curioso || []).forEach(r => poe('curioso', r, true));
+  (cadDados.integrador || []).forEach(r => poe('integrador', r, false));
+  itens.sort((a, b) => (isFinite(b.ts) ? b.ts : -Infinity) - (isFinite(a.ts) ? a.ts : -Infinity));
+  return itens;
+}
+async function eplAbrir(forcar) {
+  const ger = _epGer;
+  if (_epl.carregando) return;
+  if (cadDados && !forcar) { eplRender(); return; }
+  _epl.carregando = true;
+  const l = document.getElementById('epl-lista'); if (l) l.hidden = true;
+  const p = document.getElementById('epl-pag'); if (p) p.hidden = true;
+  epEstado('epl-estado', 'Carregando…');
+  try { await cadCarregar(!!forcar); } catch (e) {}
+  if (ger !== _epGer) return;
+  _epl.carregando = false;
+  if (!cadDados) { epEstado('epl-estado', 'Não consegui ler os cadastros agora. Toque em Atualizar para tentar de novo.', true); return; }
+  eplRender();
+}
+function eplAtualizar() { _epl.pag = 0; eplAbrir(true); }
+function eplTipo(t) { _epl.tipo = t; _epl.pag = 0; eplRender(); }
+function eplSemHorario() { _epl.sem = !_epl.sem; _epl.pag = 0; eplRender(); }
+function eplPagina(d) { _epl.pag += d; eplRender(); }
+function eplRender() {
+  if (!cadDados) return;
+  const todos = eplItens();
+  const porTipo = todos.filter(i => _epl.tipo === 'todos' || i.tipo === _epl.tipo);
+  // Se a leitura da agenda falhou, não dá para dizer quem está sem horário: nada de afirmar "Sem horário".
+  const agFalhou = !!cadAgendaFalhou;
+  const lista = (_epl.sem && !agFalhou) ? porTipo.filter(i => !i.tem) : porTipo;
+  // Contagens dos chips
+  const cont = { todos: todos.length, ponto: 0, capital: 0, integrador: 0, curioso: 0 };
+  todos.forEach(i => { cont[i.tipo]++; });
+  Object.keys(cont).forEach(k => { const n = document.getElementById('epl-n-' + k); if (n) n.textContent = cont[k]; });
+  const nSem = document.getElementById('epl-n-sem');
+  if (nSem) nSem.textContent = agFalhou ? '' : porTipo.filter(i => !i.tem).length;
+  epChips('.epl-chip', 'data-t', _epl.tipo);
+  const bs = document.getElementById('epl-sem');
+  if (bs) { const on = _epl.sem && !agFalhou; bs.classList.toggle('on', on); bs.setAttribute('aria-pressed', on ? 'true' : 'false'); bs.disabled = agFalhou; }
+  // Avisos honestos sobre a leitura da agenda
+  const av = document.getElementById('epl-aviso');
+  if (av) {
+    const msg = agFalhou ? 'Não consegui ler a agenda agora, então não dá para dizer quem está sem horário.'
+      : (cadAgendaCheia ? 'A leitura da agenda chegou a 1.000 reuniões: reuniões antigas podem faltar, e alguém pode aparecer sem horário por isso.' : '');
+    av.textContent = msg; av.hidden = !msg;
+  }
+  const ul = document.getElementById('epl-lista'), pag = document.getElementById('epl-pag');
+  if (!lista.length) {
+    ul.hidden = true; ul.innerHTML = ''; pag.hidden = true;
+    epEstado('epl-estado', todos.length ? 'Nenhum lead neste filtro.' : 'Nenhum lead do eletroposto ainda.');
+    return;
+  }
+  epEstado('epl-estado', '');
+  const paginas = Math.max(1, Math.ceil(lista.length / EPL_TAM));
+  _epl.pag = Math.max(0, Math.min(paginas - 1, _epl.pag));
+  const de = _epl.pag * EPL_TAM, ate = Math.min(lista.length, de + EPL_TAM);
+  ul.innerHTML = lista.slice(de, ate).map(i => {
+    const ag = agFalhou ? '<span class="epl-quando">Agenda indisponível</span>'
+      : (i.tem ? '<span class="epl-ag">Na agenda: ' + escapeHtml(cadQuandoBRT(i.quando)) + (i.st ? ' · ' + escapeHtml(cadRotuloDoCard(i.st)) : '') + '</span>'
+        : '<span class="epl-sem">Sem horário</span>');
+    return '<li class="epl-item"><span><b class="epl-nome">' + escapeHtml(i.nome || 'Sem nome') + '</b><span class="epl-tipo">' + escapeHtml(EPL_TIPOS[i.tipo]) + '</span></span>'
+      + '<span class="epl-quando">Entrou ' + escapeHtml(eplQuando(i.entrou) || 'sem data') + '</span>'
+      + '<span class="epl-cidade">' + escapeHtml(i.cidade || 'Sem cidade') + '</span>' + ag + '</li>';
+  }).join('');
+  ul.hidden = false;
+  document.getElementById('epl-pag-txt').textContent = (de + 1) + ' a ' + ate + ' de ' + lista.length;
+  document.getElementById('epl-ant').disabled = _epl.pag <= 0;
+  document.getElementById('epl-prox').disabled = _epl.pag >= paginas - 1;
+  pag.hidden = paginas <= 1 && lista.length <= EPL_TAM;
+}
+
+// ── Obras ───────────────────────────────────────────────────────────────────
+// API autenticada (outra tarefa a constrói): GET lista as obras que a pessoa pode ver; POST grava UM campo por vez
+// ({ id, etapa | previsto | responsavel | obs, base_em }). base_em é o `em` da obra que a tela tem: se mudou no servidor, 409.
+// feitas, total e atrasado vêm sempre da API; a tela não refaz essa conta.
+const EPO_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/gerador/obras/eletroposto';
+var _epo = { lista: null, socio: false, em: null, filtro: 'todas', carregando: false };   // em: o `em` do TOPO do GET, base de quem ainda não tem pós-venda gravado
+var _epoFila = {};   // id -> escrita em voo: uma por obra, na ordem, cada uma com o `em` da anterior
+function epoLimpar() {
+  _epo = { lista: null, socio: false, em: null, filtro: 'todas', carregando: false };
+  _epoFila = {};
+  const l = document.getElementById('epo-lista'); if (l) { l.innerHTML = ''; l.hidden = true; }
+  epEstado('epo-estado', ''); epoAviso('');
+  ['epo-n-and', 'epo-n-atr', 'epo-n-ok'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '0'; });
+  epChips('.epo-chip', 'data-f', 'todas');
+}
+var _epoAvSeq = 0;   // sobe a cada aviso de erro: uma leitura que já estava em voo não apaga um erro que veio depois dela
+function epoAviso(texto, ok) {
+  const el = document.getElementById('epo-aviso');
+  if (!el) return;
+  if (texto && !ok) _epoAvSeq++;
+  el.textContent = texto || ''; el.hidden = !texto; el.classList.toggle('ok', !!ok);
+}
+/** Manda o token DA PESSOA (nunca a chave pública). 401: renova uma vez e repete (401 quer dizer que nada foi gravado). */
+async function epoFetch(opcoes) {
+  await authRenovarSePreciso();
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const tok = sessaoAtual && sessaoAtual.access_token;
+    if (!tok) throw new Error('Entre com sua conta para ver as obras.');
+    const o = Object.assign({}, opcoes || {});
+    o.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, o.headers || {});
+    const r = await fetch(EPO_API, o);
+    if (r.status === 401 && tentativa === 0 && await authRenovar()) continue;
+    const j = await r.json().catch(() => null);
+    return { status: r.status, ok: r.ok, j };
+  }
+  throw new Error('Sessão vencida. Entre de novo.');
+}
+function epoSituacao(o) {
+  if (o.concluido === true || (o.total > 0 && o.feitas >= o.total)) return 'concluida';
+  return o.atrasado ? 'atrasada' : 'andamento';
+}
+function epoAcha(id) { return (_epo.lista || []).find(o => String(o.id) === String(id)) || null; }
+function epoResumo() {
+  const c = { andamento: 0, atrasada: 0, concluida: 0 };
+  (_epo.lista || []).forEach(o => { c[epoSituacao(o)]++; });
+  document.getElementById('epo-n-and').textContent = c.andamento;
+  document.getElementById('epo-n-atr').textContent = c.atrasada;
+  document.getElementById('epo-n-ok').textContent = c.concluida;
+}
+function epoFiltro(f) { _epo.filtro = f; epChips('.epo-chip', 'data-f', f); epoRender(); }
+async function epoAbrir(manterAviso) {
+  const ger = _epGer, av0 = _epoAvSeq;
+  if (_epo.carregando) return;
+  _epo.carregando = true;
+  if (!_epo.lista) epEstado('epo-estado', 'Carregando…');
+  try {
+    const R = await epoFetch({ method: 'GET' });
+    if (ger !== _epGer) return;
+    if (!R.ok || !R.j || R.j.ok === false || !Array.isArray(R.j.obras)) {
+      const motivo = R.status === 403 ? 'Você não tem acesso às obras.' : (R.status === 401 ? 'Entre de novo com sua conta.' : 'Tente de novo em instantes.');
+      throw new Error(motivo);
+    }
+    _epo.lista = R.j.obras; _epo.socio = !!R.j.socio;
+    _epo.em = (typeof R.j.em === 'string' && R.j.em) ? R.j.em : null;
+    if (manterAviso !== true && av0 === _epoAvSeq) epoAviso('');   // recarregar depois de um erro não pode apagar a explicação do erro
+    epoRender();
+  } catch (e) {
+    if (ger !== _epGer) return;
+    if (_epo.lista) epoAviso('Não consegui atualizar as obras: ' + (e.message || e), false);
+    else epEstado('epo-estado', 'Não consegui carregar as obras. ' + (e.message || '') + ' Toque em Atualizar.', true);
+  } finally {
+    if (ger === _epGer) _epo.carregando = false;
+  }
+}
+function epoRender() {
+  const lista = document.getElementById('epo-lista');
+  if (!lista || !_epo.lista) return;
+  epoResumo();
+  const sub = document.getElementById('epo-sub');
+  if (sub) sub.textContent = (_epo.socio ? 'Todas as vendas de eletroposto. ' : 'As suas vendas de eletroposto. ')
+    + 'Mude a etapa, o previsto, o responsável e a observação aqui: cada mudança é gravada na hora.';
+  if (!_epo.lista.length) {
+    lista.hidden = true; lista.innerHTML = '';
+    epEstado('epo-estado', 'Nenhuma venda de eletroposto marcada como VENDIDO na agenda.');
+    return;
+  }
+  const alvo = { todas: null, andamento: 'andamento', atrasadas: 'atrasada', concluidas: 'concluida' }[_epo.filtro];
+  // A ordem vem da API (atrasadas, depois previsto, depois concluídas): a tela não reordena.
+  const vis = _epo.lista.filter(o => !alvo || epoSituacao(o) === alvo);
+  if (!vis.length) {
+    lista.hidden = true; lista.innerHTML = '';
+    epEstado('epo-estado', 'Nenhuma obra neste filtro.');
+    return;
+  }
+  epEstado('epo-estado', '');
+  lista.innerHTML = vis.map(epoCartao).join('');
+  lista.hidden = false;
+}
+function epoCartao(o) {
+  const sit = epoSituacao(o);
+  const pct = o.total > 0 ? Math.max(0, Math.min(100, Math.round(o.feitas / o.total * 100))) : 0;
+  const etapas = Array.isArray(o.etapas) ? o.etapas : [];
+  const achada = etapas.some(e => e.chave === o.etapa);
+  const opcoes = (achada ? '' : '<option value="' + escapeHtml(o.etapa) + '" selected>' + escapeHtml(o.etapa_rotulo || o.etapa || '') + '</option>')
+    + etapas.map(e => '<option value="' + escapeHtml(e.chave) + '"' + (e.chave === o.etapa ? ' selected' : '') + '>' + escapeHtml(e.rotulo) + '</option>').join('');
+  return '<article class="epo-card ' + sit + '" data-id="' + escapeHtml(o.id) + '">'
+    + '<div class="epo-topo"><div><h3>' + escapeHtml(o.cliente || 'Sem nome') + '</h3>'
+    + '<div class="epo-sub">' + escapeHtml([o.cidade, o.consultor, o.modelo_rotulo].filter(Boolean).join(' · ')) + '</div></div>'
+    + '<span class="epo-selo ' + (sit === 'atrasada' ? 'atraso' : sit === 'concluida' ? 'ok' : '') + '" data-p="selo">' + epoSeloTexto(sit) + '</span></div>'
+    + '<div class="epo-prog" role="progressbar" aria-label="Etapas feitas" aria-valuemin="0" aria-valuemax="' + (Number(o.total) || 0) + '" aria-valuenow="' + (Number(o.feitas) || 0) + '"><i style="width:' + pct + '%"></i></div>'
+    + '<div class="epo-linha"><span data-p="feitas">' + (Number(o.feitas) || 0) + ' de ' + (Number(o.total) || 0) + ' etapas feitas</span>'
+    + '<span class="epo-prev' + (o.atrasado && sit !== 'concluida' ? ' atraso' : '') + '" data-p="prev">' + epoPrevTexto(o, sit) + '</span></div>'
+    + '<div class="epo-dica" data-p="info">' + epoInfo(o) + '</div>'
+    + '<div class="epo-campos">'
+    + '<label class="epo-campo largo"><span>Etapa atual</span><select data-campo="etapa" onchange="epoMudou(this)">' + opcoes + '</select>'
+    + '<span class="epo-dica" data-p="dica">' + epoDica(o) + '</span></label>'
+    + '<label class="epo-campo"><span>Previsto</span><input type="date" data-campo="previsto" value="' + escapeHtml(String(o.previsto || '').slice(0, 10)) + '" onchange="epoMudou(this)"></label>'
+    + '<label class="epo-campo"><span>Responsável</span><input type="text" data-campo="responsavel" maxlength="120" autocomplete="off" value="' + escapeHtml(o.responsavel || '') + '" onchange="epoMudou(this)"></label>'
+    + '<label class="epo-campo largo"><span>Observação</span><textarea data-campo="obs" maxlength="1000" rows="2" onchange="epoMudou(this)">' + escapeHtml(o.obs || '') + '</textarea></label>'
+    + '</div><div class="epo-st" role="status" data-p="st"></div></article>';
+}
+/** Desde quando está na etapa e o que falta informar (a API devolve etapa_desde e falta_informar). Só texto, escapado. */
+function epoInfo(o) {
+  const partes = [];
+  const d = epDataBR(o.etapa_desde);
+  if (d) partes.push('Nesta etapa desde ' + d);
+  const f = o.falta_informar;
+  if (f === true) partes.push('Falta informar o modelo');
+  else if (Array.isArray(f) && f.length) partes.push('Falta informar: ' + f.map(x => (x && typeof x === 'object') ? (x.rotulo || x.chave || '') : String(x)).filter(Boolean).join(', '));
+  else if (typeof f === 'string' && f.trim()) partes.push('Falta informar: ' + f.trim());
+  else if (typeof f === 'number' && f > 0) partes.push(f === 1 ? 'Falta informar 1 item' : 'Faltam ' + f + ' itens para informar');
+  return escapeHtml(partes.join(' · '));
+}
+/** Código cru do servidor vira frase curta. Texto livre do servidor só passa se parecer frase. */
+const EPO_CODIGOS = {
+  etapa_fora_do_trilho: 'Essa etapa não existe no trilho desta obra.',
+  previsto_invalido: 'A data prevista não é válida.',
+  texto_invalido: 'O texto não é válido. Revise e tente de novo.',
+  nada_a_gravar: 'Não havia nada novo para gravar.',
+  id_invalido: 'Obra não reconhecida. Atualize a lista.',
+  base_em_invalido: 'A tela está desatualizada. Atualize a lista.',
+};
+function epoFrase(j) {
+  const e = j && typeof j.error === 'string' ? j.error.trim() : '';
+  if (EPO_CODIGOS[e]) return EPO_CODIGOS[e];
+  return (/\s/.test(e) && e.length <= 120) ? e : '';
+}
+function epoSeloTexto(sit) { return sit === 'atrasada' ? 'Atrasada' : sit === 'concluida' ? 'Concluída' : 'Em andamento'; }
+function epoPrevTexto(o, sit) {
+  const d = epDataBR(o.previsto);
+  if (!d) return 'Sem previsto';
+  return 'Previsto ' + escapeHtml(d) + (o.atrasado && sit !== 'concluida' ? ' · atrasada' : '');
+}
+function epoDica(o) {
+  const e = (Array.isArray(o.etapas) ? o.etapas : []).find(x => x.chave === o.etapa);
+  if (!e) return '';
+  const partes = [];
+  if (e.dono) partes.push('Dono da etapa: ' + e.dono);
+  if (Number(e.prazo_dias) > 0) partes.push('prazo de ' + Number(e.prazo_dias) + (Number(e.prazo_dias) === 1 ? ' dia' : ' dias'));
+  return escapeHtml(partes.join(' · '));
+}
+/** Atualiza o cartão no lugar (sem recriar os campos: quem está digitando em outro campo do mesmo cartão não perde o foco). */
+function epoPintar(card, o) {
+  if (!card) { epoResumo(); return; }
+  const sit = epoSituacao(o);
+  const pct = o.total > 0 ? Math.max(0, Math.min(100, Math.round(o.feitas / o.total * 100))) : 0;
+  card.className = 'epo-card ' + sit;
+  const prog = card.querySelector('.epo-prog');
+  if (prog) { prog.setAttribute('aria-valuemax', Number(o.total) || 0); prog.setAttribute('aria-valuenow', Number(o.feitas) || 0); prog.firstElementChild.style.width = pct + '%'; }
+  const q = p => card.querySelector('[data-p="' + p + '"]');
+  q('selo').className = 'epo-selo ' + (sit === 'atrasada' ? 'atraso' : sit === 'concluida' ? 'ok' : '');
+  q('selo').textContent = epoSeloTexto(sit);
+  q('feitas').textContent = (Number(o.feitas) || 0) + ' de ' + (Number(o.total) || 0) + ' etapas feitas';
+  q('prev').className = 'epo-prev' + (o.atrasado && sit !== 'concluida' ? ' atraso' : '');
+  q('prev').innerHTML = epoPrevTexto(o, sit);
+  q('dica').innerHTML = epoDica(o);
+  q('info').innerHTML = epoInfo(o);
+  const poe = (campo, valor) => { const c = card.querySelector('[data-campo="' + campo + '"]'); if (c && c !== document.activeElement) c.value = valor; };
+  poe('etapa', o.etapa || ''); poe('previsto', String(o.previsto || '').slice(0, 10)); poe('responsavel', o.responsavel || ''); poe('obs', o.obs || '');
+  epoResumo();
+}
+function epoValorDe(o, campo) {
+  if (campo === 'previsto') return String(o.previsto || '').slice(0, 10);
+  return String(o[campo] == null ? '' : o[campo]);
+}
+function epoMudou(el) {
+  const card = el.closest('.epo-card');
+  const o = card && epoAcha(card.getAttribute('data-id'));
+  if (!o) return;
+  const campo = el.getAttribute('data-campo');
+  let valor = String(el.value || '');
+  if (campo === 'responsavel' || campo === 'obs') valor = valor.trim();
+  if (valor === epoValorDe(o, campo)) return;     // nada mudou de verdade
+  const ger = _epGer, id = o.id;
+  const antes = _epoFila[id] || Promise.resolve();
+  const p = antes.catch(() => {}).then(() => epoEnviar(o, card, campo, campo === 'previsto' ? (valor || null) : valor, ger));
+  _epoFila[id] = p;
+  p.finally(() => { if (_epoFila[id] === p) delete _epoFila[id]; });
+}
+function epoSt(card, texto, erro) {
+  const st = card && card.querySelector('[data-p="st"]');
+  if (st) { st.textContent = texto || ''; st.classList.toggle('erro', !!erro); }
+}
+function epoReverter(card, o, campo) {
+  const c = card && card.querySelector('[data-campo="' + campo + '"]');
+  if (c) c.value = epoValorDe(o, campo);
+}
+async function epoEnviar(o, card, campo, valor, ger) {
+  if (ger !== _epGer) return;
+  epoSt(card, 'Salvando…');
+  // Obra sem pós-venda gravado vem com em nulo: a base é o `em` do topo do GET. Depois da 1ª gravação o `em` é o que o POST devolveu.
+  const corpo = { id: o.id, base_em: o.em || _epo.em || null };
+  corpo[campo] = valor;
+  let R;
+  try { R = await epoFetch({ method: 'POST', body: JSON.stringify(corpo) }); }
+  catch (e) {
+    if (ger !== _epGer) return;
+    epoReverter(card, o, campo); epoSt(card, 'Não salvou.', true);
+    epoAviso('Não consegui salvar: ' + (e.message || e), false);
+    return;
+  }
+  if (ger !== _epGer) return;
+  const j = R.j || {};
+  if (R.status === 409 || j.conflito === true) {
+    // 409 devolve { conflito, por, em, obra }: a obra como está no servidor entra no lugar da que a tela tinha.
+    epoSt(card, 'Não salvou.', true);
+    const por = (typeof j.por === 'string' && j.por.trim()) ? j.por.trim() : 'Outra pessoa';
+    epoAviso(por + ' mexeu nesta obra antes de você. Atualizei a lista com o que está valendo.', false);
+    const atual = (j.obra && typeof j.obra === 'object' && String(j.obra.id) === String(o.id)) ? j.obra : null;
+    if (atual && !atual.em && typeof j.em === 'string' && j.em) atual.em = j.em;
+    if (!atual) epoReverter(card, o, campo);   // a releitura pode já estar em voo (e não recomeça): o digitado não pode ficar ao lado de "Não salvou"
+    if (atual && _epo.lista) { const i = _epo.lista.findIndex(x => String(x.id) === String(o.id)); if (i >= 0) { _epo.lista[i] = atual; epoRender(); } else epoAbrir(true); }
+    else epoAbrir(true);
+    return;
+  }
+  if (!R.ok || j.ok === false) {
+    epoReverter(card, o, campo);
+    epoSt(card, 'Não salvou.', true);
+    const frase = epoFrase(j);
+    if (R.status === 403) epoAviso('Você não pode alterar esta obra.' + (frase ? ' ' + frase : ''), false);
+    else if (R.status === 404) { epoAviso('Esta obra não existe mais. A venda não foi encontrada.', false); epoAbrir(true); }
+    else if (R.status === 400) {
+      epoAviso(frase || 'Não consegui salvar.', false);
+      if (j.error === 'id_invalido' || j.error === 'base_em_invalido') epoAbrir(true);
+    } else epoAviso('Não consegui salvar.' + (frase ? ' ' + frase : ''), false);
+    return;
+  }
+  // Deu certo. Pega o `em` novo (sem ele a próxima edição da mesma obra daria 409): da resposta, ou relendo a obra.
+  const novo = (j.obra && typeof j.obra === 'object') ? j.obra : (j.id != null && j.etapa !== undefined ? j : null);
+  if (novo && String(novo.id) === String(o.id)) { Object.assign(o, novo); if (typeof j.em === 'string' && j.em) o.em = j.em; }
+  else if (typeof j.em === 'string' && j.em && (campo === 'responsavel' || campo === 'obs')) { o[campo] = valor; o.em = j.em; }   // etapa e previsto mexem em feitas e atrasado: esses a API é que diz, então relê
+  else {
+    let achou = null;
+    try {
+      const G = await epoFetch({ method: 'GET' });
+      if (ger !== _epGer) return;
+      if (G.ok && G.j && Array.isArray(G.j.obras)) {
+        achou = G.j.obras.find(x => String(x.id) === String(o.id)) || null;
+        if (typeof G.j.em === 'string' && G.j.em) _epo.em = G.j.em;
+      }
+    } catch (e) {}
+    if (achou) Object.assign(o, achou); else o[campo] = valor;
+  }
+  epoAviso('');
+  epoPintar(card, o);
+  epoSt(card, 'Salvo');
+}
+
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 // ── Os grupos da barra: rótulo do nível 1 → abas do nível 2 ──────────────────
 // A PRIMEIRA aba de cada lista é a que abre ao clicar no grupo. Em Fechamento é o
@@ -10938,8 +11599,11 @@ function navEletroposto() {
 // pior porta possível.
 const EP_GRUPOS = {
   // 07/10/2026: Análise de crédito e Apresentação saíram, a pedido do dono.
-  fechamento: ['recibo', 'contrato', 'procuracao', 'finame'],
-  mercado:    ['mercado', 'estados', 'postos', 'pesquisa', 'mapa'],
+  // 14/10/2026: Documentos do local (procuracao) virou aba da régua 1 ("Documento"); o grupo Mercado virou Painel
+  // (Indicadores primeiro, depois as cinco telas de leitura externa); Cadastros virou grupo (Base e Avisos).
+  fechamento: ['recibo', 'contrato', 'finame'],
+  painel:     ['indicadores', 'mercado', 'estados', 'postos', 'pesquisa', 'mapa'],
+  cadastros:  ['cadastros', 'avisos'],
 };
 
 // Clicar num grupo JÁ aberto não faz nada: as pílulas já estão à vista, e toque
@@ -10961,7 +11625,7 @@ function eletroSubaba(qual) {
   // documentos imprimem se edita na revisao do Simulador. Os PAINEIS continuam
   // aqui, e continuam sendo abertos por dentro — Recibo, Contrato, Procuracao e
   // Proposta de banco dependem do orcInit, que roda por este caminho.
-  const abas = ['simulador', 'orcamento', 'equipamento', 'recibo', 'contrato', 'procuracao', 'finame', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'estados', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'equipamento', 'recibo', 'contrato', 'procuracao', 'finame', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'estados', 'postos', 'mapa', 'planilha', 'indicadores', 'leads', 'obras'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
@@ -11033,6 +11697,13 @@ function eletroSubaba(qual) {
     const frame = document.getElementById('eletro-frame-' + qual);
     if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
   }
+
+  // Telas novas (14/10/2026). A classe do <html> só existe com a Planilha aberta: ela levanta o limite de largura no visual antigo.
+  document.documentElement.classList.toggle('planilha-eletro-aberto', qual === 'planilha');
+  if (qual === 'planilha') epPlanilhaAbrir();      // depois de os panes trocarem: a altura do iframe depende de o pane já estar à vista
+  if (qual === 'indicadores') epiAbrir();
+  if (qual === 'leads') eplAbrir();
+  if (qual === 'obras') epoAbrir();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -11580,6 +12251,7 @@ function cadAba(lado) {
 
 async function cadCarregar(forcar) {
   if (cadDados && !forcar) { cadRender(); return; }
+  const gerCad = _epGer;   // sobe no authLimpar: a leitura que nasceu antes de a conta sair é descartada
   // ↻ Atualizar refaz a nota do Match junto: sem isto a faixa ficava presa na
   // leitura da primeira abertura.
   if (forcar && pnDados) cadNotasGarantir(true);
@@ -11660,6 +12332,7 @@ async function cadCarregar(forcar) {
               + '&created_by=ilike.*eletroposto*'
               + '&order=quando.desc&limit=1000').catch(() => { agendaFalhou = true; return []; }),
     ]);
+    if (gerCad !== _epGer) return;
     // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
     // em ordem decrescente, então a primeira de cada telefone é a que vale).
     cadAgendaFalhou = agendaFalhou;
@@ -28364,18 +29037,22 @@ function voltarDoPainel() {
 
 // A altura do iframe é a janela menos o topo dele e menos o que sobra embaixo. No celular, a barra de baixo
 // da casca já está no preenchimento do container, então a soma dos preenchimentos a cobre.
+// Há dois iframes (Solar e Eletroposto) e só um está à vista de cada vez; o que não está à vista não tem caixa (getClientRects vazio).
+const PLANILHA_FRAMES = [['planilha-frame', 'planilhaSolarSection'], ['planilha-eletro-frame', 'eletro-pane-planilha']];
 function planilhaAjustar() {
-  const f = document.getElementById('planilha-frame');
-  const sec = document.getElementById('planilhaSolarSection');
-  if (!f || !sec || sec.style.display === 'none') return;
-  const topo = f.getBoundingClientRect().top + window.scrollY;
-  // O que sobra embaixo (preenchimento do container e do body) também entra na conta, senão a página rola.
-  let sob = 0;
-  for (let e = sec; e && e !== document.documentElement; e = e.parentElement) {
-    const cs = getComputedStyle(e);
-    sob += (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.marginBottom) || 0);
-  }
-  document.documentElement.style.setProperty('--plan-topo', Math.max(0, Math.round(topo + sob)) + 'px');
+  PLANILHA_FRAMES.forEach(par => {
+    const f = document.getElementById(par[0]);
+    const sec = document.getElementById(par[1]);
+    if (!f || !sec || !f.getClientRects().length) return;
+    const topo = f.getBoundingClientRect().top + window.scrollY;
+    // O que sobra embaixo (preenchimento do container e do body) também entra na conta, senão a página rola.
+    let sob = 0;
+    for (let e = sec; e && e !== document.documentElement; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      sob += (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.marginBottom) || 0);
+    }
+    document.documentElement.style.setProperty('--plan-topo', Math.max(0, Math.round(topo + sob)) + 'px');
+  });
 }
 function planilhaAjustarLogo() {
   planilhaAjustar();
@@ -28425,13 +29102,14 @@ let _dcGeracao = 0;         // sobe quando a conta sai: leitura que voltar depoi
 function solarSessaoLimpar() {
   _dcGeracao++;
   _dcLinhas = null; _dcFiltro = 'todas'; _dcBusca = ''; _dcCarregando = false; _dcAbrindo = false;
-  const f = document.getElementById('planilha-frame');
-  if (f) {
+  PLANILHA_FRAMES.forEach(par => {
+    const f = document.getElementById(par[0]);
+    if (!f) return;
     // Trocar o elemento derruba o documento do iframe (e a grade dele); só tirar o src não derrubaria.
     const novo = f.cloneNode(false);
     novo.removeAttribute('src');
     f.replaceWith(novo);
-  }
+  });
   const busca = document.getElementById('dc-busca'); if (busca) busca.value = '';
   ['dc-tbody', 'dc-cartoes'].forEach(id => { const e = document.getElementById(id); if (e) e.innerHTML = ''; });
   ['dc-n-vendas', 'dc-n-comp', 'dc-n-falta'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '0'; });

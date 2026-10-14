@@ -896,19 +896,20 @@
     }
     if (re) {
       var sec = document.getElementById('eletroSection') || document;
-      var n1 = botoes('.eletro-subtab', sec), tabCad = null, tabCadTxt = '';
+      var n1 = botoes('.eletro-subtab', sec), tabCad = null, tabCadTxt = '', grpCad = null;
       n1.forEach(function (a) {
         add([re, a.t], [{ chave: 'nav-eletroposto' }, { el: a.el }], 'nav-eletroposto');
-        if (a.el.id === 'eletro-tab-cadastros') { tabCad = a.el; tabCadTxt = a.t; }
         if (a.el.id.indexOf('eletro-grp-') === 0) {
           var r2 = document.getElementById('eletro-subnav2-' + a.el.id.slice('eletro-grp-'.length));
           if (r2) botoes('.eletro-subtab2', r2).forEach(function (c) {
             add([re, a.t, c.t], [{ chave: 'nav-eletroposto' }, { el: a.el }, { el: c.el }], 'nav-eletroposto');
+            /* Cadastros e um grupo (14/10/2026): a base, com as abas internas, mora na sub-aba Base. */
+            if (c.el.id === 'eletro-tab-cadastros') { grpCad = a; tabCad = c.el; tabCadTxt = c.t; }
           });
         }
       });
       if (tabCad) botoes('.cad-aba', sec).forEach(function (c) {
-        add([re, tabCadTxt, c.t], [{ chave: 'nav-eletroposto' }, { el: tabCad }, { el: c.el }], 'nav-eletroposto');
+        add([re, grpCad.t, tabCadTxt, c.t], [{ chave: 'nav-eletroposto' }, { el: grpCad.el }, { el: tabCad }, { el: c.el }], 'nav-eletroposto');
       });
     }
     if (rc) botoes('.crm-subtab', document.getElementById('crmSection') || document).forEach(function (b) { add([rc, b.t], [{ chave: 'nav-crm' }, { el: b.el }], 'nav-crm'); });
