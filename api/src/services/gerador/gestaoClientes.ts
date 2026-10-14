@@ -90,6 +90,25 @@ export function nomeComparavel(s: unknown): string {
 const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 const OPC_STATUS = ['Instalado', 'No cliente', 'Estoque', 'Comprar'];
 
+/**
+ * Listas com NOME DE GENTE. O consultor só recebe os valores das vendas dele (equipe e engenheiro de obra alheia
+ * são dado de outra pessoa). As outras listas abertas (concessionária, tipo de estrutura, modelo...) são
+ * genéricas: as opções escritas aqui valem para todos.
+ */
+export const LISTAS_DE_GENTE: ReadonlySet<string> = new Set(['consultor', 'engenheiro', 'equipe']);
+
+// Opções escritas das listas abertas, na grafia que domina na Planilha Mestre (63 vendas, conferido em 14/10/2026):
+// se a opção não casar com a célula antiga, toda célula antiga apareceria como quase duplicata no fim da lista.
+// O que a planilha trouxer e não casar entra DEPOIS destas, sem duplicar (veja `mesclarOpcoes`).
+const OPC_CONCESSIONARIA = ['Cemig', 'Equatorial'];
+const OPC_EXCEDENTES = ['Liberado Normal', 'Tem Excedente', 'Fastrack', 'Excedente Cadastrado'];
+const OPC_ESTRUTURA = ['Fibromadeira', 'Fibrometal', 'Solo', 'Mini Trilo'];
+const OPC_MODELO_PLACA = ['Tsun 600W', 'Jetion 700W', 'Tsun 585W', 'Era 620W', 'Leapton 620W', 'Helius 610W', 'Gokin 610W', 'TCL 615W', 'Dmegc 625W'];
+const OPC_MODELO_INVERSOR = ['Saj 3K', 'Saj 6K', 'MI - Saj 2,25K', 'MI - Solax 2000', 'MI - Deye 2,25K', 'MI - Solax 1,875K'];
+const OPC_VOLTAGEM = ['Mono - 220', 'Bi - 220', 'Tri - 220'];
+const OPC_FORMA_PAGTO = ['Pix', 'Cartão', 'Pix + Cartão', 'Finan 77SOL', 'Vista', 'Na montagem', 'Na entrega'];
+const OPC_FORNECEDOR = ['Soollar', 'Shakitsun', '77Sol', 'Edeltec'];
+
 interface Def {
   busca: string;
   chave: string;
@@ -100,12 +119,12 @@ interface Def {
   calc: boolean;
   /** Fora da lista de obrigatórias (nem toda venda tem). */
   opcional: boolean;
-  /** Lista cujas opções saem dos valores que já aparecem nas linhas. */
+  /** Lista aberta: as opções escritas vêm primeiro; os valores das linhas que não casam entram depois. */
   dinamica: boolean;
   opcoes?: string[];
 }
 
-/** flags: s = só sócio, c = calculada, n = não obrigatória, d = lista dinâmica. */
+/** flags: s = só sócio, c = calculada, n = não obrigatória, d = lista ABERTA (opções escritas, o que a planilha trouxer e "Outro"). */
 function def(busca: string, chave: string, rotulo: string, tipo: TipoColuna, grupo: string, flags = '', opcoes?: string[]): Def {
   return {
     busca, chave, rotulo, tipo, grupo, opcoes,
@@ -130,31 +149,31 @@ const DEFS: Def[] = [
   def(na('OBS:'), 'obs', 'Observações', 'texto', 'Venda', 'n'),
   // Projeto
   def(na('ENGENHEIRO'), 'engenheiro', 'Engenheiro', 'lista', 'Projeto', 'd'),
-  def(na('CONCESSIONARIA'), 'concessionaria', 'Concessionária', 'lista', 'Projeto', 'd'),
+  def(na('CONCESSIONARIA'), 'concessionaria', 'Concessionária', 'lista', 'Projeto', 'd', OPC_CONCESSIONARIA),
   def(na('DATA EMISSÃO ULTIMO PARECER DE ACESSO'), 'parecer_acesso', 'Parecer de acesso', 'data', 'Projeto'),
   def(na('PAGTO ART'), 'pagto_art', 'Pagamento da ART', 'texto', 'Projeto', 's'),
   def(na('VALOR ART'), 'valor_art', 'Valor da ART', 'dinheiro', 'Projeto', 's'),
   def(na('VALOR PAGO DO PROJETO'), 'valor_projeto', 'Valor pago do projeto', 'dinheiro', 'Projeto', 's'),
-  def(na('EXCEDENTES'), 'excedentes', 'Excedentes', 'texto', 'Projeto', 'n'),
+  def(na('EXCEDENTES'), 'excedentes', 'Excedentes', 'lista', 'Projeto', 'nd', OPC_EXCEDENTES),
   def(na('CONTRATO COOPERATIVA'), 'contrato_coop', 'Contrato de cooperativa', 'texto', 'Projeto', 'n'),
   def(na('TEMPO DE CONTRATO COOP'), 'tempo_contrato_coop', 'Tempo do contrato', 'texto', 'Projeto', 'n'),
   // Equipamento
   def(na('QTD PLACA'), 'qtd_placa', 'Qtd. de placas', 'inteiro', 'Equipamento'),
-  def(na('MODELO PLACA'), 'modelo_placa', 'Modelo da placa', 'texto', 'Equipamento'),
+  def(na('MODELO PLACA'), 'modelo_placa', 'Modelo da placa', 'lista', 'Equipamento', 'd', OPC_MODELO_PLACA),
   def(na('POT PLACA'), 'pot_placa', 'Potência da placa (W)', 'numero', 'Equipamento'),
   def('STATUS@placa', 'status_placa', 'Status das placas', 'lista', 'Equipamento', '', OPC_STATUS),
   def(na('QTD INV'), 'qtd_inversor', 'Qtd. de inversores', 'inteiro', 'Equipamento'),
-  def(na('MODELO E VOLTAGEM DO INVERSOR'), 'modelo_voltagem_inversor', 'Modelo e voltagem do inversor', 'texto', 'Equipamento', 'n'),
-  def(na('MODELO INVERSOR'), 'modelo_inversor', 'Modelo do inversor', 'texto', 'Equipamento'),
+  def(na('MODELO E VOLTAGEM DO INVERSOR'), 'modelo_voltagem_inversor', 'Modelo e voltagem do inversor', 'lista', 'Equipamento', 'nd', OPC_VOLTAGEM),
+  def(na('MODELO INVERSOR'), 'modelo_inversor', 'Modelo do inversor', 'lista', 'Equipamento', 'd', OPC_MODELO_INVERSOR),
   def('STATUS@inversor', 'status_inversor', 'Status do inversor', 'lista', 'Equipamento', '', OPC_STATUS),
-  def(na('TIPO ESTRUTURA'), 'tipo_estrutura', 'Tipo de estrutura', 'texto', 'Equipamento'),
+  def(na('TIPO ESTRUTURA'), 'tipo_estrutura', 'Tipo de estrutura', 'lista', 'Equipamento', 'd', OPC_ESTRUTURA),
   def('STATUS@estrutura', 'status_estrutura', 'Status da estrutura', 'lista', 'Equipamento', '', OPC_STATUS),
   def(na('OUTRO EQUIP'), 'outro_equip', 'Outro equipamento', 'texto', 'Equipamento', 'n'),
   // Material
   def(na('ENTREGA DO MATERIAL'), 'entrega_material', 'Entrega do material', 'data', 'Material'),
-  def(na('FORNECEDOR'), 'fornecedor', 'Fornecedor', 'texto', 'Material', 's'),
+  def(na('FORNECEDOR'), 'fornecedor', 'Fornecedor', 'lista', 'Material', 'sd', OPC_FORNECEDOR),
   def(na('VALOR KIT'), 'valor_kit', 'Valor do kit', 'dinheiro', 'Material', 's'),
-  def(na('AC - CC'), 'ac_cc', 'AC - CC', 'texto', 'Material', 's'),
+  def(na('AC - CC'), 'ac_cc', 'AC - CC', 'dinheiro', 'Material', 's'),   // 39 de 39 células da planilha são "R$ 1.234,56" (conferido em 14/10/2026)
   // Instalação
   def(na('PREVISÃO DE MONTAGEM'), 'previsao_montagem', 'Previsão de montagem', 'data', 'Instalação'),
   def(na('DATA INICIO INSTALAÇÃO'), 'inicio_instalacao', 'Início da instalação', 'data', 'Instalação'),
@@ -169,7 +188,7 @@ const DEFS: Def[] = [
   def(na('SISTEMA LIBERADO PELA CONCESSIONARIA'), 'sistema_liberado', 'Sistema liberado', 'lista', 'Vistoria e liberação', '', ['Liberado', 'Não liberado']),
   // Financeiro
   def(na('VALOR DA VENDA'), 'valor_venda', 'Valor da venda', 'dinheiro', 'Financeiro', 's'),
-  def(na('FORMA DE PAGTO'), 'forma_pagto', 'Forma de pagamento', 'texto', 'Financeiro', 's'),
+  def(na('FORMA DE PAGTO'), 'forma_pagto', 'Forma de pagamento', 'lista', 'Financeiro', 'sd', OPC_FORMA_PAGTO),
   def(na('RECEBIDO REAL'), 'recebido_real', 'Recebido real', 'dinheiro', 'Financeiro', 's'),
   def(na('RECEBIMENTO'), 'recebimento', 'Recebimento', 'lista', 'Financeiro', '', ['Quitado', 'Não Quitado']),
   def(na('NF'), 'nf', 'Nota fiscal', 'texto', 'Financeiro', 's'),
@@ -187,6 +206,8 @@ const DEFS: Def[] = [
   def(na('% DE LUCRO'), 'pct_lucro', '% de lucro', 'numero', 'Custos da obra', 'sc'),
 ];
 const POR_BUSCA = new Map(DEFS.map((d) => [d.busca, d]));
+/** Opções ESCRITAS no catálogo, por coluna (as que valem para todo mundo). */
+const OPCOES_ESCRITAS = new Map(DEFS.filter((d) => d.opcoes?.length).map((d) => [d.chave, d.opcoes as string[]]));
 
 /** O STATUS de equipamento é o que vem logo DEPOIS da âncora (mesma regra do solarObras). */
 const ANCORAS_STATUS: Array<[string, string]> = [['POT PLACA', 'placa'], ['MODELO INVERSOR', 'inversor'], ['TIPO ESTRUTURA', 'estrutura']];
@@ -219,6 +240,27 @@ function distintos(vendas: Grade['vendas'], indice: number): string[] {
     vistos.set(k, t);
   }
   return [...vistos.values()].sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 200);
+}
+
+/**
+ * Chave de comparação de opção: sem acento, sem caixa, só letras e dígitos ("Bi-220" casa com "Bi - 220").
+ * A vírgula ou o ponto ENTRE DÍGITOS é decimal e fica ("2,25k" e "22,5k" são modelos diferentes; "1.875K" casa com "1,875K").
+ */
+export function chaveOpcao(s: unknown): string {
+  return chaveTexto(s).replace(/(\d)\s*[.,]\s*(?=\d)/g, '$1~').replace(/[^A-Z0-9~]+/g, '');
+}
+
+/** Opções escritas primeiro, na ordem do catálogo; depois os valores da planilha que não casam, sem duplicar. */
+export function mesclarOpcoes(escritas: string[], daPlanilha: string[]): string[] {
+  const vistos = new Set<string>();
+  const saida: string[] = [];
+  for (const o of [...escritas, ...daPlanilha]) {
+    const k = chaveOpcao(o);
+    if (!k || vistos.has(k)) continue;
+    vistos.add(k);
+    saida.push(o);
+  }
+  return saida;
 }
 
 /**
@@ -262,7 +304,7 @@ export function montarCatalogo(cabecalho: string[], vendas: Grade['vendas'] = []
         obrigatoria: !d.calc && !d.opcional, editavel: !d.calc, indice: i,
       };
       if (d.tipo === 'lista') {
-        col.opcoes = d.dinamica ? distintos(vendas, i) : [...(d.opcoes ?? [])];
+        col.opcoes = d.dinamica ? mesclarOpcoes(d.opcoes ?? [], distintos(vendas, i)) : [...(d.opcoes ?? [])];
         col.livre = d.dinamica;
       }
       cols.push(col);
@@ -291,6 +333,8 @@ export function colunasPara(cols: ColunaInterna[], socio: boolean): ColunaIntern
       const copia: ColunaInterna = { ...c, editavel };
       // A lista de consultores é dado de sócio: quem não troca o consultor não precisa dela.
       if (c.chave === 'consultor' && !socio) { copia.opcoes = []; copia.livre = false; }
+      // A seção Financeiro é só de sócio: o que sobra dela para o consultor (Recebimento) vai para a Venda.
+      if (!socio && c.grupo === 'Financeiro') copia.grupo = 'Venda';
       return copia;
     });
 }
@@ -367,10 +411,14 @@ export function isoParaBR(iso: string): string {
 }
 
 const sujeira = /[\u0000-\u001F\u007F]/g;
+/** A observação é o único texto com várias linhas: guarda a quebra de linha e tira o resto. */
+const sujeiraSemQuebra = /[\u0000-\u0009\u000B-\u001F\u007F]/g;
+const textoLimpo = (c: Coluna, t: string): string =>
+  c.chave === 'obs' ? t.replace(/\r\n?/g, '\n').replace(sujeiraSemQuebra, ' ') : t.replace(sujeira, ' ');
 
 function canonicoDaLista(c: Coluna, t: string): string | null {
-  const k = chaveTexto(t);
-  return (c.opcoes ?? []).find((o) => chaveTexto(o) === k) ?? null;
+  const k = chaveOpcao(t);
+  return k ? ((c.opcoes ?? []).find((o) => chaveOpcao(o) === k) ?? null) : null;
 }
 
 /** Valor que veio da PLANILHA: indulgente (o que não dá para ler vira vazio ou fica como texto). */
@@ -384,7 +432,7 @@ export function normalizarDaPlanilha(c: Coluna, bruto: string): Valor {
     case 'inteiro': { const m = t.match(/\d+/); return m ? Number(m[0]) : null; }
     case 'telefone': { const d = t.replace(/\D/g, ''); return d.length >= 10 && d.length <= 13 ? d : t; }
     case 'lista': return canonicoDaLista(c, t) ?? t;
-    default: return t.replace(sujeira, ' ');
+    default: return textoLimpo(c, t);
   }
 }
 
@@ -429,7 +477,7 @@ export function validarValor(c: Coluna, bruto: unknown): Validado {
       return livre.length <= MAX_TEXTO ? { ok: true, valor: livre } : { ok: false, erro: `Texto longo demais (máximo ${MAX_TEXTO} caracteres).` };
     }
     default: {
-      const texto = t.replace(sujeira, ' ');
+      const texto = textoLimpo(c, t);
       return texto.length <= MAX_TEXTO ? { ok: true, valor: texto } : { ok: false, erro: `Texto longo demais (máximo ${MAX_TEXTO} caracteres).` };
     }
   }
@@ -537,8 +585,9 @@ export function montarLinhas(
       progresso: progressoDe(colunas, celulas),
     });
   }
-  // Listas abertas (engenheiro, equipe, concessionária): o consultor só recebe os valores das vendas DELE.
-  // O catálogo em cache tem os valores de todas as vendas; entregá-los vazaria equipe e engenheiro de obra alheia.
+  // Lista aberta (engenheiro, equipe, concessionária, estrutura, modelo...): o consultor recebe as opções ESCRITAS no
+  // catálogo e os valores das vendas DELE. O catálogo em cache tem os valores de todas as vendas; entregá-los vazaria
+  // equipe, engenheiro e o que mais alguém digitou em obra alheia.
   const visiveisDele = socio ? colunas : colunas.map((c) => {
     if (c.tipo !== 'lista' || !c.livre || c.chave === 'consultor') return c;
     const vistos = new Map<string, string>();
@@ -548,7 +597,8 @@ export function montarLinhas(
       const k = chaveTexto(v);
       if (!vistos.has(k)) vistos.set(k, v.trim());
     }
-    return { ...c, opcoes: [...vistos.values()].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+    const dele = [...vistos.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return { ...c, opcoes: mesclarOpcoes(LISTAS_DE_GENTE.has(c.chave) ? [] : (OPCOES_ESCRITAS.get(c.chave) ?? []), dele) };
   });
   return { colunas: visiveisDele, linhas };
 }
@@ -614,7 +664,7 @@ const MAPA_OBRA: Record<string, [keyof ObraBruta, FormatoObra]> = {
 /** Colunas "reserva" do cabeçalho: valem para o mesmo campo da obra, só se a principal não tem sobrescrita. */
 const RESERVA_OBRA: Record<string, string> = {
   previsao_montagem_2: 'previsao_montagem', inicio_instalacao_2: 'inicio_instalacao',
-  fim_instalacao_2: 'fim_instalacao', modelo_voltagem_inversor: 'modelo_inversor',
+  fim_instalacao_2: 'fim_instalacao',
 };
 
 /**

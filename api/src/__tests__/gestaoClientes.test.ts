@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   montarCatalogo, colunasPara, colunaPublica, lerGrade, montarLinhas, validarValor, normalizarDaPlanilha, celulaDe,
   progressoDe, totais, houveConflito, aplicarGravacao, lerRegistro, aplicarSobrescritas, chaveGestao, codigoDaChave,
-  numeroBR, type ColunaInterna, type RegistroGestao, type Coluna,
+  numeroBR, mesclarOpcoes, LISTAS_DE_GENTE, type ColunaInterna, type RegistroGestao, type Coluna,
 } from '../services/gerador/gestaoClientes';
 import { lerPlanilha, montarObra, type ObraBruta } from '../services/gerador/solarObras';
 import { CABECALHO as CABECALHO_FIXTURE, planilhaPadrao } from './solarPlanilhaFixture';
@@ -33,7 +33,7 @@ const CALCULADAS = ['km_total', 'total_custo', 'total_lucro', 'pct_lucro'];
 const SENTINELA: Record<string, string> = {
   origem: '#0013 ZZCleberAlheio',  valor_venda: 'R$ 8.887,77', forma_pagto: 'ZZFORMA11', recebido_real: 'R$ 7.776,66', pagto_art: 'ZZART22', valor_art: 'R$ 654,32',
   valor_projeto: 'R$ 987,65', valor_kit: 'R$ 4.321,09', taxas_descontos: 'R$ 111,22', fator_x: 'ZZFATOR12', fornecedor: 'ZZFORN33',
-  ac_cc: 'ZZACCC44', km_inicial: 'ZZKMI101', km_final: 'ZZKMF202', km_total: 'ZZKMT303', mao_de_obra: 'R$ 555,44', nf: 'ZZNF55',
+  ac_cc: 'R$ 4.444,44', km_inicial: 'ZZKMI101', km_final: 'ZZKMF202', km_total: 'ZZKMT303', mao_de_obra: 'R$ 555,44', nf: 'ZZNF55',
   comissao_venda: 'R$ 333,21', pre_venda: 'R$ 222,10', total_custo: 'R$ 6.543,21', total_lucro: 'R$ 2.345,67', pct_lucro: 'ZZPCT265',
 };
 
@@ -158,6 +158,8 @@ describe('corte por papel', () => {
       expect(colunas.some((c) => c.rotulo === COLS.find((x) => x.chave === k)!.rotulo), `rótulo ${k}`).toBe(false);
     }
     for (const s of Object.values(SENTINELA)) expect(publico.includes(s), s).toBe(false);
+    // ac_cc virou dinheiro: o valor sai lido como número, então a sentinela também é conferida na forma lida.
+    for (const s of ['4444.44', '4.444,44']) expect(publico.includes(s), s).toBe(false);
     expect(publico).not.toContain('7777');
     expect(publico).not.toContain('1234567');                     // nem o valor antigo da auditoria
     expect(colunas.some((c) => c.grupo === 'Custos da obra')).toBe(false);
@@ -387,7 +389,121 @@ describe('a sobrescrita move a etapa em Obras', () => {
     expect(catalogo.length).toBeGreaterThan(0);
     void colFim;
   });
+  it('a voltagem do inversor NÃO é reserva do modelo: escolher "Bi - 220" não muda o inversor da Obra', () => {
+    const grava = (reg: RegistroGestao, k: string, valor: string) => aplicarGravacao(reg, porChave(COLS, k), valor, null, 'x', '2026-10-06T10:00:00.000Z');
+    const reg = grava(lerRegistro(null), 'modelo_voltagem_inversor', 'Bi - 220');
+    for (const modelo of ['', 'Saj 3K']) {
+      const base = { ...carla, modeloInversor: modelo } as ObraBruta;
+      const o = aplicarSobrescritas(base, reg);
+      expect(o.modeloInversor).toBe(modelo);
+      expect(montarObra(o, '2026-10-10').sistema.inversor).toBe(montarObra(base, '2026-10-10').sistema.inversor);
+    }
+    // o campo de verdade do modelo segue valendo
+    const m = aplicarSobrescritas(carla, grava(lerRegistro(null), 'modelo_inversor', 'Saj 6K'));
+    expect(montarObra(m, '2026-10-10').sistema.inversor).toBe('Saj 6K');
+  });
   it('sem registro devolve a mesma linha', () => {
     expect(aplicarSobrescritas(carla, undefined)).toBe(carla);
+  });
+});
+
+describe('listas pré-definidas da ficha (14/10)', () => {
+  const iCab = (nome: string, n = 0) => CABECALHO_REAL.map((c, i) => [c, i] as const).filter(([c]) => c === nome)[n][1];
+  /** Venda inventada com colunas escolhidas pelo NOME do cabeçalho. */
+  function venda(codigo: string, consultor: string, extra: Record<string, string>): string[] {
+    const l = linhaReal({ codigo, cliente: `Cliente ${codigo}`, consultor });
+    for (const [nome, v] of Object.entries(extra)) l[iCab(nome)] = v;
+    return l;
+  }
+  const G = lerGrade(csv([
+    venda('#0101', 'Nilce', { CONCESSIONARIA: 'cemig', 'MODELO E VOLTAGEM DO INVERSOR': 'Bi-220', 'TIPO ESTRUTURA': 'Fibromadeira', 'FORMA DE PAGTO': 'Cartão 3x', EXCEDENTES: 'Tem excedente' }),
+    venda('#0102', 'Diego', { CONCESSIONARIA: 'Energisa', 'MODELO E VOLTAGEM DO INVERSOR': 'Bi - 221', 'TIPO ESTRUTURA': 'Cerâmico', EXCEDENTES: 'nc', ENGENHEIRO: 'Marcos', EQUIPE: 'Terceira', FORNECEDOR: 'ShaktiSun' }),
+    venda('#0103', 'Nilce', { 'STATUS': 'Reservado', ENGENHEIRO: 'Guilherme', EQUIPE: 'Propria' }),
+  ]));
+  const C = montarCatalogo(G.cabecalho, G.vendas);
+  const op = (cols: Coluna[], k: string) => porChave(cols, k).opcoes;
+
+  it('as colunas categóricas viraram lista (e as outras seguem como estavam)', () => {
+    const listas = C.filter((c) => c.tipo === 'lista').map((c) => c.chave).sort();
+    expect(listas).toEqual([
+      'concessionaria', 'consultor', 'depoimento', 'engenheiro', 'equipe', 'excedentes', 'forma_pagto', 'fornecedor',
+      'modelo_inversor', 'modelo_placa', 'modelo_voltagem_inversor', 'recebimento', 'sistema_liberado',
+      'status_estrutura', 'status_inversor', 'status_placa', 'tipo_estrutura', 'uf',
+    ]);
+    for (const k of ['cliente', 'homologacao', 'contato', 'endereco', 'cidade', 'origem', 'obs', 'valor_venda', 'qtd_placa', 'cadastro_trello']) {
+      expect(porChave(C, k).tipo, k).not.toBe('lista');
+    }
+  });
+  it('lista aberta: opções escritas primeiro, depois o que a planilha trouxe, sem duplicar nem caixa nem acento', () => {
+    expect(op(C, 'concessionaria')).toEqual(['Cemig', 'Equatorial', 'Energisa']);            // "cemig" da planilha casa com "Cemig"
+    expect(op(C, 'tipo_estrutura')).toEqual(['Fibromadeira', 'Fibrometal', 'Solo', 'Mini Trilo', 'Cerâmico']);
+    expect(op(C, 'modelo_voltagem_inversor')).toEqual(['Mono - 220', 'Bi - 220', 'Tri - 220', 'Bi - 221']);   // "Bi-220" casa com "Bi - 220"
+    expect(op(C, 'excedentes')).toEqual(['Liberado Normal', 'Tem Excedente', 'Fastrack', 'Excedente Cadastrado']);   // "nc" não é opção
+    expect(op(C, 'forma_pagto')).toContain('Cartão 3x');
+    expect(op(C, 'fornecedor')!.slice(0, 4)).toEqual(['Soollar', 'Shakitsun', '77Sol', 'Edeltec']);
+    for (const k of ['concessionaria', 'tipo_estrutura', 'excedentes', 'modelo_placa', 'modelo_inversor', 'forma_pagto', 'fornecedor']) {
+      expect(porChave(C, k).livre, k).toBe(true);
+    }
+    expect(mesclarOpcoes(['A b', 'C'], ['a B', 'D', '', 'd'])).toEqual(['A b', 'C', 'D']);
+  });
+  it('lista fechada não ganha valor da planilha e recusa o que não é opção', () => {
+    expect(op(C, 'status_placa')).toEqual(['Instalado', 'No cliente', 'Estoque', 'Comprar']);   // "Reservado" fica de fora
+    expect(porChave(C, 'status_placa').livre).toBe(false);
+    expect(validarValor(porChave(C, 'status_placa'), 'Reservado')).toMatchObject({ ok: false });
+    expect(validarValor(porChave(C, 'status_placa'), 'NO CLIENTE')).toEqual({ ok: true, valor: 'No cliente' });
+    expect(normalizarDaPlanilha(porChave(C, 'status_placa'), 'Reservado')).toBe('Reservado');   // a célula antiga continua legível
+  });
+  it('POST: lista aberta aceita outro valor e canoniza o que casa; limite de texto vale', () => {
+    expect(validarValor(porChave(C, 'concessionaria'), 'CEMIG')).toEqual({ ok: true, valor: 'Cemig' });
+    expect(validarValor(porChave(C, 'concessionaria'), 'Enel Goiás')).toEqual({ ok: true, valor: 'Enel Goiás' });
+    expect(validarValor(porChave(C, 'concessionaria'), 'x'.repeat(301))).toMatchObject({ ok: false });
+    expect(validarValor(porChave(C, 'tipo_estrutura'), '')).toEqual({ ok: true, valor: null });
+  });
+  it('o decimal faz parte da opção: 22,5k não vira 2,25k, e 1.875K casa com 1,875K', () => {
+    const mi = porChave(C, 'modelo_inversor');
+    expect(validarValor(mi, 'MI - Saj 2,25k')).toEqual({ ok: true, valor: 'MI - Saj 2,25K' });
+    expect(validarValor(mi, 'Mi - Saj 22,5k')).toEqual({ ok: true, valor: 'Mi - Saj 22,5k' });      // outro modelo: grava como digitou
+    expect(validarValor(mi, 'mi saj 2.25K')).toEqual({ ok: true, valor: 'MI - Saj 2,25K' });
+    expect(validarValor(mi, 'MI - Solax 1.875K')).toEqual({ ok: true, valor: 'MI - Solax 1,875K' });
+    expect(mesclarOpcoes(['Solis 75k'], ['Solis 7,5k', 'solis 75K'])).toEqual(['Solis 75k', 'Solis 7,5k']);
+    expect(mesclarOpcoes(['Bi - 220'], ['Bi-220', 'Bi - 221'])).toEqual(['Bi - 220', 'Bi - 221']);
+  });
+  it('observação guarda a quebra de linha; os outros textos não', () => {
+    expect(validarValor(porChave(C, 'obs'), 'Linha um\r\nLinha dois\u0000')).toEqual({ ok: true, valor: 'Linha um\nLinha dois ' });
+    expect(validarValor(porChave(C, 'cidade'), 'Uber\nlândia')).toEqual({ ok: true, valor: 'Uber lândia' });
+    expect(validarValor(porChave(C, 'obs'), 'x'.repeat(301))).toMatchObject({ ok: false });
+  });
+  it('consultor: lista aberta = escritas + valores só das vendas dele; sócio vê tudo', () => {
+    expect(LISTAS_DE_GENTE.has('engenheiro') && LISTAS_DE_GENTE.has('equipe') && LISTAS_DE_GENTE.has('consultor')).toBe(true);
+    const cons = montarLinhas(G, C, new Map(), 'nilce', false).colunas;
+    expect(op(cons, 'concessionaria')).toEqual(['Cemig', 'Equatorial']);                      // as escritas; "Energisa" é só da venda do Diego
+    expect(op(cons, 'tipo_estrutura')).toEqual(['Fibromadeira', 'Fibrometal', 'Solo', 'Mini Trilo']);   // "Cerâmico" é só da venda do Diego
+    expect(op(cons, 'engenheiro')).toEqual(['Guilherme']);                                     // Marcos é da venda do Diego
+    expect(op(cons, 'equipe')).toEqual(['Propria']);
+    expect(cons.some((c) => c.chave === 'forma_pagto' || c.chave === 'fornecedor')).toBe(false);   // de sócio, nem chega
+    const soc = montarLinhas(G, C, new Map(), 'thiago', true).colunas;
+    expect(op(soc, 'engenheiro')).toEqual(['Guilherme', 'Marcos']);
+    expect(op(soc, 'concessionaria')).toEqual(['Cemig', 'Equatorial', 'Energisa']);
+    expect(op(soc, 'tipo_estrutura')).toContain('Cerâmico');
+    expect(JSON.stringify(cons.map(colunaPublica))).not.toMatch(/Marcos|Terceira|ShaktiSun|Energisa|Cerâmico|Bi - 221/);
+    // valor que só existe em venda ALHEIA não aparece; o dele entra depois das escritas
+    const diego = montarLinhas(G, C, new Map(), 'diego', false).colunas;
+    expect(op(diego, 'concessionaria')).toEqual(['Cemig', 'Equatorial', 'Energisa']);
+    expect(op(diego, 'modelo_voltagem_inversor')).toEqual(['Mono - 220', 'Bi - 220', 'Tri - 220', 'Bi - 221']);
+    expect(op(cons, 'modelo_voltagem_inversor')).toEqual(['Mono - 220', 'Bi - 220', 'Tri - 220']);
+  });
+  it('a seção Financeiro é só de sócio: o consultor vê o Recebimento na Venda; o sócio segue na Financeiro', () => {
+    const cons = montarLinhas(G, C, new Map(), 'nilce', false).colunas;
+    expect(cons.some((c) => c.grupo === 'Financeiro')).toBe(false);
+    expect(cons.find((c) => c.chave === 'recebimento')!.grupo).toBe('Venda');
+    expect(montarLinhas(G, C, new Map(), 'thiago', true).colunas.find((c) => c.chave === 'recebimento')!.grupo).toBe('Financeiro');
+    expect(porChave(C, 'recebimento').grupo).toBe('Financeiro');      // o catálogo cru não muda
+  });
+  it('AC - CC é dinheiro (só sócio): lê "R$ 1.234,56" e recusa texto', () => {
+    const ac = porChave(C, 'ac_cc');
+    expect(ac).toMatchObject({ tipo: 'dinheiro', quem_ve: 'socio' });
+    expect(normalizarDaPlanilha(ac, 'R$ 1.156,22')).toBe(1156.22);
+    expect(validarValor(ac, '330,00')).toEqual({ ok: true, valor: 330 });
+    expect(validarValor(ac, 'abc')).toMatchObject({ ok: false });
   });
 });

@@ -175,7 +175,21 @@ export function mountClientes(router: Router): void {
       res.status(400).json({ ok: false, error: 'Esta coluna não pode ser editada.' });
       return;
     }
-    const v = validarValor(col, b.valor);
+    // O consultor confere contra as opções que ELE recebe (escritas + as das vendas dele), nunca contra o catálogo inteiro:
+    // senão "Marcos" digitado viraria a grafia de um engenheiro de venda alheia.
+    let colValida: ColunaInterna = col;
+    if (!socio && col.tipo === 'lista' && col.livre && col.chave !== 'consultor') {
+      try {
+        const regs = await lerRegistros(pl.dados.grade.vendas.map((x) => x.codigo));
+        const dele = montarLinhas(pl.dados.grade, pl.dados.cols, regs, nome, false).colunas.find((c) => c.chave === col.chave);
+        if (dele) colValida = dele;
+      } catch (err) {
+        console.error('[clientes] leitura falhou', err instanceof ErroGestao ? err.codigo : 'interno');
+        res.status(500).json({ ok: false, error: 'Não consegui gravar agora. Tente de novo.' });
+        return;
+      }
+    }
+    const v = validarValor(colValida, b.valor);
     if (!v.ok) { res.status(400).json({ ok: false, error: v.erro }); return; }
 
     try {

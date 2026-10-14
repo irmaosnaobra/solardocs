@@ -97,7 +97,7 @@ const SENT: Record<string, string> = {
   'ORIGEM DO LEAD': '#0013 ZZClienteAlheio',
   'VALOR DA VENDA': 'R$ 8.887,77', 'FORMA DE PAGTO': 'ZZFORMA11', 'RECEBIDO REAL': 'R$ 7.776,66', 'PAGTO ART': 'ZZART22',
   'VALOR ART': 'R$ 654,32', 'VALOR PAGO DO PROJETO': 'R$ 987,65', 'VALOR KIT': 'R$ 4.321,09', 'TAXAS/DESCONTOS': 'R$ 111,22',
-  'FATOR X': 'ZZFATOR12', FORNECEDOR: 'ZZFORN33', 'AC - CC': 'ZZACCC44', 'KM INICIAL': 'ZZKMI101', 'KM FINAL': 'ZZKMF202', 'KM TOTAL': 'ZZKMT303',
+  'FATOR X': 'ZZFATOR12', FORNECEDOR: 'ZZFORN33', 'AC - CC': 'R$ 4.444,44', 'KM INICIAL': 'ZZKMI101', 'KM FINAL': 'ZZKMF202', 'KM TOTAL': 'ZZKMT303',
   'M.O / PEÇAS/ ALIM / HOSP/PED': 'R$ 555,44', NF: 'ZZNF55', 'COMISSÃO VENDA': 'R$ 333,21', 'PRÉ VENDA': 'R$ 222,10',
   'TOTAL CUSTO': 'R$ 6.543,21', 'TOTAL LUCRO': 'R$ 2.345,67', '% DE LUCRO': 'ZZPCT265',
 };
@@ -111,7 +111,7 @@ const paraCsv = (linhas: string[][]) => [CABECALHO, ...linhas]
   .map((l) => l.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n') + '\n';
 const planilha = () => paraCsv([
   venda('#0057', { 'NOME CLIENTE': 'Ana Souza', CONSULTOR: 'Nilce', CIDADE: 'Uberlandia', UF: 'MG', 'DATA INICIO INSTALAÇÃO': '02/10/2026', 'CADASTRO TRELLO': '03/08/2026', 'QTD PLACA': '10', 'DATA EMISSÃO ULTIMO PARECER DE ACESSO': '05/08/2026', 'ENTREGA DO MATERIAL': '10/08/2026' }),
-  venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Giovanna', 'CADASTRO TRELLO': '01/09/2026', ENGENHEIRO: 'Marcos' }),
+  venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Giovanna', 'CADASTRO TRELLO': '01/09/2026', ENGENHEIRO: 'Marcos', CONCESSIONARIA: 'Energisa', 'TIPO ESTRUTURA': 'Cerâmico' }),
   venda('#0059', { 'NOME CLIENTE': '<script>alert(1)</script>', CONSULTOR: 'Nilce', 'CADASTRO TRELLO': '20/08/2026' }),
 ]);
 
@@ -193,7 +193,7 @@ describe('GET /clientes/solar', () => {
     const rotulos = res.body.catalogo.colunas.map((c: { rotulo: string }) => c.rotulo);
     for (const rot of ['Origem do lead', 'Valor da venda', 'Valor do kit', 'Total de lucro', 'Comissão da venda', 'Fornecedor', 'Nota fiscal', 'KM inicial']) expect(rotulos).not.toContain(rot);
     const texto = JSON.stringify(res.body).replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, 'DATA');
-    for (const s of [...Object.values(SENT), '8887', '7777.01', '1234567']) expect(texto.includes(s), s).toBe(false);
+    for (const s of [...Object.values(SENT), '8887', '7777.01', '1234567', '4444']) expect(texto.includes(s), s).toBe(false);
     expect(texto).not.toContain('alteracoes');
     expect(res.body.catalogo.grupos).not.toContain('Custos da obra');
     // a sobrescrita de OUTRA coluna continua aparecendo, com quem preencheu
@@ -212,6 +212,27 @@ describe('GET /clientes/solar', () => {
     const eng = res.body.catalogo.colunas.find((c: { chave: string }) => c.chave === 'engenheiro');
     expect(eng.opcoes).toEqual([]);                    // Marcos é da venda da Giovanna
     expect(JSON.stringify(res.body)).not.toContain('Marcos');
+  });
+  it('consultor: lista aberta traz as opções escritas e os valores só das vendas dele; o sócio vê todos', async () => {
+    const res = await get(NILCE);
+    const col = (k: string) => res.body.catalogo.colunas.find((c: { chave: string }) => c.chave === k);
+    expect(col('concessionaria')).toMatchObject({ opcoes: ['Cemig', 'Equatorial'], livre: true });   // "Energisa" é só da venda da Giovanna
+    expect(col('tipo_estrutura').opcoes).toEqual(['Fibromadeira', 'Fibrometal', 'Solo', 'Mini Trilo']);   // "Cerâmico" também
+    expect(JSON.stringify(res.body)).not.toMatch(/Energisa|Cerâmico/);
+    expect(col('status_placa')).toMatchObject({ opcoes: ['Instalado', 'No cliente', 'Estoque', 'Comprar'], livre: false });
+    expect(col('engenheiro').opcoes).toEqual([]);
+    expect(col('forma_pagto')).toBeUndefined();        // lista de sócio nem chega
+    const socio = await get(THIAGO);
+    expect(socio.body.catalogo.colunas.find((c: { chave: string }) => c.chave === 'forma_pagto').opcoes).toContain('Pix');
+    expect(socio.body.catalogo.colunas.find((c: { chave: string }) => c.chave === 'concessionaria').opcoes).toEqual(['Cemig', 'Equatorial', 'Energisa']);
+  });
+  it('consultor não tem a seção Financeiro: o Recebimento vai para a Venda; o sócio vê a Financeira', async () => {
+    const cons = await get(NILCE);
+    expect(cons.body.catalogo.grupos).not.toContain('Financeiro');
+    expect(cons.body.catalogo.colunas.find((c: { chave: string }) => c.chave === 'recebimento').grupo).toBe('Venda');
+    const socio = await get(THIAGO);
+    expect(socio.body.catalogo.grupos).toContain('Financeiro');
+    expect(socio.body.catalogo.colunas.find((c: { chave: string }) => c.chave === 'recebimento').grupo).toBe('Financeiro');
   });
   it('consultor sem venda: lista vazia (a tela mostra "Você ainda não tem venda cadastrada.")', async () => {
     h.usuarios['tk-sem'] = 'zeca@irmaosnaobra.app';
@@ -254,6 +275,42 @@ describe('POST /clientes/solar/campo', () => {
     expect(salvo.alteracoes).toEqual([{ em: res.body.em, por: 'nilce', coluna: 'engenheiro', antes: null }]);
     expect(salvo.em).toBe(res.body.em);
     expect((await get(NILCE)).body.linhas[0].celulas.engenheiro).toMatchObject({ valor: 'guilherme', origem: 'sistema' });
+  });
+  it('lista fechada recusa o que não é opção; lista aberta aceita outro e grava a grafia da opção', async () => {
+    const ruim = await post({ codigo: '#0057', coluna: 'status_placa', valor: 'Reservado' });
+    expect(ruim.status).toBe(400);
+    expect(ruim.body.error).toBe('Escolha uma das opções da lista.');
+    expect(h.linhas.size).toBe(0);
+    const ok1 = await post({ codigo: '#0057', coluna: 'status_placa', valor: 'no CLIENTE' });
+    expect(ok1.body.celula).toMatchObject({ valor: 'No cliente', origem: 'sistema' });
+    const ok2 = await post({ codigo: '#0057', coluna: 'concessionaria', valor: 'cemig' });
+    expect(ok2.body.celula.valor).toBe('Cemig');
+    const ok3 = await post({ codigo: '#0057', coluna: 'concessionaria', valor: 'Enel Goiás' }, NILCE);
+    expect(ok3.body.celula.valor).toBe('Enel Goiás');
+    const longo = await post({ codigo: '#0057', coluna: 'tipo_estrutura', valor: 'x'.repeat(301) });
+    expect(longo.status).toBe(400);
+    const apaga = await post({ codigo: '#0057', coluna: 'concessionaria', valor: '' });
+    expect(apaga.body.celula.origem).toBe('planilha');
+  });
+  it('consultor: a gravação confere contra as opções que ELE recebe (não vira a grafia de venda alheia); o sócio canoniza pelo catálogo inteiro', async () => {
+    const a = await post({ codigo: '#0057', coluna: 'engenheiro', valor: 'marcos' });          // Marcos é engenheiro da venda da Giovanna
+    expect(a.status).toBe(200);
+    expect(a.body.celula.valor).toBe('marcos');                                                 // gravou como digitou, sem revelar a grafia alheia
+    const b = await post({ codigo: '#0057', coluna: 'concessionaria', valor: 'energisa' });    // "Energisa" só existe na venda da Giovanna
+    expect(b.body.celula.valor).toBe('energisa');
+    const c = await post({ codigo: '#0057', coluna: 'concessionaria', valor: 'CEMIG' });       // escrita no catálogo: canoniza
+    expect(c.body.celula.valor).toBe('Cemig');
+    const d = await post({ codigo: '#0058', coluna: 'engenheiro', valor: 'marcos' }, THIAGO);
+    expect(d.body.celula.valor).toBe('Marcos');
+    const e = await post({ codigo: '#0058', coluna: 'concessionaria', valor: 'energisa' }, THIAGO);
+    expect(e.body.celula.valor).toBe('Energisa');
+  });
+  it('consultor não grava lista de sócio (forma de pagamento): mesma resposta de coluna que não existe', async () => {
+    const a = await post({ codigo: '#0057', coluna: 'forma_pagto', valor: 'Pix' });
+    const b = await post({ codigo: '#0057', coluna: 'coluna_nada', valor: 'Pix' });
+    expect(a.status).toBe(400);
+    expect(a.body).toEqual(b.body);
+    expect((await post({ codigo: '#0057', coluna: 'forma_pagto', valor: 'pix' }, THIAGO)).body.celula.valor).toBe('Pix');
   });
   it('#57 e #0057 gravam no mesmo registro', async () => {
     expect((await post({ codigo: '#57', coluna: 'cidade', valor: 'Catalão' })).status).toBe(200);

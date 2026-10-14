@@ -34,8 +34,8 @@
   --gc-tx:#E5E7EB; --gc-tx2:#B4C0D2; --gc-tx3:#98A8BF; --gc-tit:#F8FAFC;
   --gc-link:#7DB4FF; --gc-fill:#1D4ED8; --gc-marcado:#1D4ED8; --gc-sel:#7DB4FF;
   --gc-ok:#4ADE80; --gc-er:#F87171; --gc-av:#FBBF24; --gc-av-sf:#3A2A0C;
-  /* Célula obrigatória em branco: vermelho bem claro, sem texto de aviso. No visual antigo é o vermelho translúcido equivalente ao token. */
-  --gc-falta:rgba(248,113,113,.16);
+  /* Campo em branco: vermelho bem claro no fundo e na borda, mais a palavra "Falta". No visual antigo é o vermelho translúcido equivalente ao token. */
+  --gc-falta:rgba(248,113,113,.16); --gc-falta-bd:rgba(248,113,113,.55);
   --gc-top:0px; --gc-left:0px; --gc-bottom:0px;
 }
 html.io2{
@@ -43,7 +43,7 @@ html.io2{
   --gc-tx:var(--n-tx); --gc-tx2:var(--n-tx2); --gc-tx3:var(--n-tx3); --gc-tit:var(--io-titulo);
   --gc-link:var(--io-azul-tx); --gc-fill:var(--io-azul); --gc-marcado:var(--io-marcado); --gc-sel:var(--io-azul-tx);
   --gc-ok:var(--io-ok-tx); --gc-er:var(--io-er-tx); --gc-av:var(--io-av-tx); --gc-av-sf:var(--io-av-sf);
-  --gc-falta:var(--io-er-sf);
+  --gc-falta:var(--io-er-sf); --gc-falta-bd:var(--io-er-bd);
   font-family:var(--io-fonte);
 }
 /* Dentro da casca: a página ocupa a área de trabalho inteira, da borda do trilho (240 ou 64 px, vem de --sb-w) até a direita. */
@@ -54,7 +54,7 @@ html,body{height:100%}
 body{margin:0;padding:0;overflow:hidden;background:var(--gc-bg);color:var(--gc-tx);
   font-family:var(--io-fonte,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif);font-size:14px;line-height:1.45;
   -webkit-font-smoothing:antialiased}
-button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 button{cursor:pointer}
 [hidden]{display:none!important}
 :focus-visible{outline:2px solid var(--gc-link);outline-offset:2px}
@@ -64,130 +64,124 @@ button{cursor:pointer}
 .gc{position:fixed;top:var(--gc-top);left:var(--gc-left);right:0;bottom:var(--gc-bottom);display:flex;flex-direction:column;background:var(--gc-bg);min-width:0}
 .gc-faixa{flex:none;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--gc-av-sf);color:var(--gc-av);border-bottom:1px solid var(--gc-av);font-weight:600;font-size:13px}
 .gc-faixa button{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--gc-av);background:transparent;color:var(--gc-av);font-weight:700;font-size:13px}
-
-/* ── Linha de controle ── */
-.gc-bar{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 16px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd)}
+.gc-bar{flex:none;display:flex;align-items:center;padding:10px 16px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd)}
 .gc-cab{display:flex;align-items:center;gap:12px}
 .gc-cab h1{margin:0;font-size:16px;font-weight:700;color:var(--gc-tit);white-space:nowrap}
 .gc-sair{color:var(--gc-link);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap}
-html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
-.gc-busca{position:relative;flex:0 1 260px;min-width:180px}
+html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
+.gc-corpo{flex:1;min-height:0;position:relative;display:flex}
+
+/* ── Lista de clientes (esquerda) ── */
+.gl{flex:none;width:340px;min-height:0;display:flex;flex-direction:column;background:var(--gc-sf);border-right:1px solid var(--gc-bd)}
+.gl-top{flex:none;display:grid;gap:8px;padding:12px;border-bottom:1px solid var(--gc-bd)}
+.gl-linha{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.gc-busca{position:relative;min-width:0}
 .gc-busca svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--gc-tx3);pointer-events:none}
 .gc-busca input{width:100%;height:38px;padding:0 12px 0 34px;border:1px solid var(--gc-campo);border-radius:10px;background:var(--gc-bg);color:var(--gc-tx)}
 .gc-busca input::placeholder{color:var(--gc-tx3);opacity:1}
-.gc-sel{height:38px;padding:0 10px;border:1px solid var(--gc-campo);border-radius:10px;background:var(--gc-bg);color:var(--gc-tx);max-width:190px}
+.gc-sel{width:100%;height:38px;padding:0 10px;border:1px solid var(--gc-campo);border-radius:10px;background:var(--gc-bg);color:var(--gc-tx)}
 .gc-chave{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 4px;border:0;background:transparent;color:var(--gc-tx);font-weight:600;font-size:13.5px}
 .gc-chave i{position:relative;flex:none;width:36px;height:20px;border-radius:999px;background:var(--gc-sf3);border:1px solid var(--gc-campo);transition:background .12s}
 .gc-chave i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--gc-tx2);transition:transform .12s}
 .gc-chave[aria-checked="true"] i{background:var(--gc-marcado);border-color:var(--gc-marcado)}
 .gc-chave[aria-checked="true"] i::after{transform:translateX(16px);background:#fff}
-.gc-cont{margin-left:auto;font-size:13.5px;font-weight:600;color:var(--gc-tx);white-space:nowrap;font-variant-numeric:tabular-nums}
+.gc-cont{font-size:13px;font-weight:600;color:var(--gc-tx);font-variant-numeric:tabular-nums}
 .gc-cont b{color:var(--gc-er)}
 .gc-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--gc-campo);background:transparent;color:var(--gc-tx);font-weight:600;font-size:13.5px}
 .gc-btn:hover{background:var(--gc-sf3)}
 .gc-btn svg{width:16px;height:16px}
+.gl-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.gl-it{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:8px 12px;border:0;border-bottom:1px solid var(--gc-bd);border-left:3px solid transparent;background:transparent;text-align:left;color:var(--gc-tx)}
+.gl-it:hover{background:var(--gc-sf3)}
+.gl-it[aria-current="true"]{background:var(--gc-sf3);border-left-color:var(--gc-sel)}
+.gl-it .cod{flex:none;min-width:46px;font-size:12.5px;color:var(--gc-tx2);font-variant-numeric:tabular-nums}
+.gl-it .nm{flex:1;min-width:0;font-weight:600;color:var(--gc-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gl-selo{flex:none;padding:2px 9px;border-radius:999px;border:1px solid var(--gc-falta-bd);background-color:var(--gc-sf);background-image:linear-gradient(var(--gc-falta),var(--gc-falta));color:var(--gc-er);font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.gl-selo.ok{border-color:transparent;background-image:none;background-color:transparent;color:var(--gc-ok)}
+.gl-vazio{margin:0;padding:24px 16px;color:var(--gc-tx2);text-align:center}
 
-/* ── Grade ── */
-.gc-corpo{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
-.gc-rol{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;background:var(--gc-bg)}
-.gc-rol:focus-visible{outline-offset:-2px}
-.gc-t{border-collapse:separate;border-spacing:0;table-layout:fixed}
-.gc-t th,.gc-t td{padding:0 10px;border-right:1px solid var(--gc-bd);border-bottom:1px solid var(--gc-bd);background:var(--gc-sf);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;text-align:left}
-.gc-t td{height:38px;position:relative;color:var(--gc-tx);cursor:cell}
-.gc-t thead th{position:sticky;z-index:4;background:var(--gc-sf2);color:var(--gc-tit);font-weight:700}
-.gc-t tr.g1 th{top:0;height:30px;font-size:12px;letter-spacing:.02em;border-bottom-color:var(--gc-campo)}
-.gc-t tr.g2 th{top:30px;height:44px;white-space:normal;line-height:1.2;font-size:12.5px;vertical-align:middle}
-.gc-t tr.g2 th span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.gc-t th.gi{border-left:2px solid var(--gc-campo)}
-.gc-t th.num,.gc-t td.num{text-align:right;font-variant-numeric:tabular-nums}
-.gc-t td.fx,.gc-t th.fx{position:sticky;z-index:2}
-.gc-t thead th.fx{z-index:6}
-.fx0{left:0}.fx1{left:78px}.fx2{left:288px}
-.gc-t .fx2{border-right:2px solid var(--gc-campo)}
-.gc-t td.fx0{color:var(--gc-tx2);font-variant-numeric:tabular-nums;cursor:default}
-.gc-t td.fx1{font-weight:600;color:var(--gc-tit)}
-.gc-t tbody tr:hover td.fx0,.gc-t tbody tr:hover td.fx2{background:var(--gc-sf3)}
-/* Obrigatória em branco: o fundo vermelho claro vai POR CIMA do fundo sólido (as colunas fixas não podem ser translúcidas). */
-.gc-t td.falta,.gd-v.falta{background-image:linear-gradient(var(--gc-falta),var(--gc-falta))}
-.gc-t td.calc,.gd-v.calc{color:var(--gc-tx2);background-color:var(--gc-sf2);cursor:default}
-.gc-t td.sis::after{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--gc-link)}
-.gc-t td.salvando::after{background:var(--gc-av);animation:gcpisca .8s ease-in-out infinite}
-@keyframes gcpisca{50%{opacity:.25}}
-.gc-t td.sel{box-shadow:inset 0 0 0 2px var(--gc-sel)}
-.gc-t td.edit{padding:0;overflow:visible;box-shadow:inset 0 0 0 2px var(--gc-sel);background:var(--gc-bg)}
-.gc-t td.edit input{width:100%;height:100%;border:0;outline:0;padding:0 10px;background:var(--gc-bg);color:var(--gc-tx);font-size:13px}
-.gc-t td.edit input.num{text-align:right;font-variant-numeric:tabular-nums}
-.gc-prog{display:flex;align-items:center;gap:8px}
-.gc-barra{flex:none;width:44px;height:6px;border-radius:999px;background:var(--gc-sf3);overflow:hidden}
+/* ── Ficha do cliente (direita) ── */
+.gd{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--gc-bg)}
+.gd-top{flex:none;display:flex;align-items:center;gap:12px;padding:10px 20px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd);min-height:64px}
+.gd-volta{display:none;flex:none;width:44px;height:44px;border:0;background:transparent;color:var(--gc-link);place-items:center;border-radius:10px}
+.gd-volta svg{width:22px;height:22px}
+.gd-id{flex:1;min-width:0}
+.gd-id b{display:block;font-size:17px;color:var(--gc-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gd-id span{display:block;font-size:12.5px;color:var(--gc-tx2)}
+.gd-prog{flex:none;display:flex;align-items:center;gap:12px}
+.gd-salvo{min-width:56px;text-align:right;font-size:12.5px;font-weight:600;color:var(--gc-ok)}
+.gd-salvo.err{color:var(--gc-er)}
+.gd-prog .txt{font-size:12.5px;color:var(--gc-tx2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.gc-barra{flex:none;width:96px;height:6px;border-radius:999px;background:var(--gc-sf3);overflow:hidden}
 .gc-barra i{display:block;height:100%;background:var(--gc-link);border-radius:999px}
 .gc-barra.cheio i{background:var(--gc-ok)}
-.gc-prog span{font-size:12px;color:var(--gc-tx2);font-variant-numeric:tabular-nums;white-space:nowrap}
-
-/* Menu de lista (computador) */
-.gc-menu{position:fixed;z-index:50;min-width:160px;max-height:280px;overflow:auto;padding:4px;border:1px solid var(--gc-campo);border-radius:10px;background:var(--gc-sf);box-shadow:0 8px 24px rgba(0,0,0,.28);outline:0}
-.gc-menu div{padding:8px 10px;border-radius:6px;font-size:13.5px;color:var(--gc-tx);cursor:pointer;white-space:nowrap}
-.gc-menu div[aria-selected="true"]{background:var(--gc-marcado);color:#fff}
-.gc-menu div.sutil{color:var(--gc-tx2);font-style:normal}
+.gd-corpo{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px 32px}
+.gd-vazio{margin:0;padding:48px 16px;color:var(--gc-tx2);text-align:center}
+.gd-g{margin:0 0 16px;border:1px solid var(--gc-bd);border-radius:12px;background:var(--gc-sf)}
+.gd-gh{display:flex;align-items:baseline;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gc-bd)}
+.gd-gh h2{margin:0;font-size:15px;font-weight:700;color:var(--gc-tit)}
+.gd-gh .cnt{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--gc-er);font-variant-numeric:tabular-nums;white-space:nowrap}
+.gd-gh .cnt.ok{color:var(--gc-ok)}
+/* De 2 a 3 colunas: a coluna nunca é menor que 240 px nem menor que um terço da seção. */
+.gd-gb{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(240px,calc((100% - 32px) / 3)),1fr));gap:14px 16px;padding:16px}
+.gd-f{min-width:0}
+.gd-f.larga{grid-column:1 / -1}
+.gd-lb{display:flex;align-items:baseline;gap:8px;margin:0 0 4px}
+.gd-lb label{font-size:12.5px;color:var(--gc-tx2);font-weight:600;min-width:0}
+.gd-falta{margin-left:auto;font-size:12px;font-weight:700;color:var(--gc-er)}
+.gd-v{display:flex;align-items:center;min-width:0;min-height:38px;border:1px solid var(--gc-campo);border-radius:10px;background-color:var(--gc-bg);color:var(--gc-tx)}
+.gd-v:focus-within{border-color:var(--gc-sel);box-shadow:0 0 0 1px var(--gc-sel)}
+.gd-v.sis{border-color:var(--gc-link)}
+.gd-v.calc{background-color:var(--gc-sf2);border-color:var(--gc-bd)}
+.gd-f.falta .gd-v{background-image:linear-gradient(var(--gc-falta),var(--gc-falta));border-color:var(--gc-falta-bd)}
+.gd-f.erro .gd-v{border-color:var(--gc-er)}
+.gd-v input,.gd-v select,.gd-v textarea{flex:1;min-width:0;width:100%;height:36px;border:0;outline:0;padding:0 12px;background:transparent;color:var(--gc-tx);border-radius:10px}
+.gd-v select option{background:var(--gc-sf);color:var(--gc-tx)}
+.gd-v textarea{height:auto;min-height:84px;padding:8px 12px;resize:vertical;line-height:1.4}
+.gd-v input[type="date"]{color-scheme:var(--io-cs,dark)}
+.gd-pre{flex:none;padding-left:12px;color:var(--gc-tx2);font-size:13px;font-weight:600}
+.gd-pre + input{padding-left:6px}
+.gd-v input.num{text-align:right;font-variant-numeric:tabular-nums}
+.gd-ro{flex:1;min-width:0;padding:8px 12px;overflow-wrap:anywhere;color:var(--gc-tx2)}
+.gd-ro.sem{font-style:normal;color:var(--gc-tx3)}
+.gd-v2{margin-top:6px}
+.gd-dica{display:block;min-height:16px;margin-top:3px;font-size:12px;color:var(--gc-tx2)}
+.gd-dica.ok{color:var(--gc-ok);font-weight:600}
+.gd-dica.err{color:var(--gc-er);font-weight:600}
 
 /* Estados */
-.gc-estado{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;background:var(--gc-bg);z-index:8}
+.gc-estado{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;background:var(--gc-bg);z-index:30}
 .gc-estado h2{margin:0 0 6px;font-size:17px;color:var(--gc-tit)}
 .gc-estado p{margin:0 0 14px;color:var(--gc-tx2);max-width:420px}
 .gc-estado a{color:var(--gc-link);font-weight:600}
-.gc-esq{display:flex;flex-direction:column;gap:1px;width:100%;position:absolute;inset:0;background:var(--gc-bg);z-index:7}
-.gc-esq i{display:block;height:38px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd)}
+.gc-esq{display:flex;flex-direction:column;gap:1px;width:100%;position:absolute;inset:0;background:var(--gc-bg);z-index:29}
+.gc-esq i{display:block;height:52px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd)}
 .gc-esq i:nth-child(odd){background:var(--gc-sf2)}
 
 /* Aviso rápido */
 .gc-aviso{position:fixed;left:50%;bottom:calc(20px + var(--gc-bottom));transform:translateX(-50%);z-index:60;max-width:min(560px,92vw);padding:10px 16px;border-radius:10px;background:var(--gc-sf3);color:var(--gc-tit);border:1px solid var(--gc-campo);font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.28)}
 
-/* ── Celular: lista e cliente ── */
-.gc-cartoes{display:none}
-.gd{display:none}
+/* ── Celular: a lista, e a ficha abre por cima com "Voltar" ── */
 @media (max-width:860px){
   html.io2-casca{ --gc-top:calc(var(--top-h-m) + env(safe-area-inset-top,0px)); --gc-left:0px; --gc-bottom:calc(var(--bot-h) + env(safe-area-inset-bottom,0px)); }
-  .gc-bar{padding:10px 12px}
-  .gc-busca{flex:1 1 100%}
+  .gl{width:100%;border-right:0}
+  .gl-top{padding:10px 12px}
   .gc-busca input,.gc-sel{height:44px;font-size:16px}
-  .gc-sel{flex:1 1 auto;max-width:none}
-  .gc-chave{height:44px}
-  .gc-btn{height:44px}
-  .gc-cont{margin-left:0;flex:1 1 100%}
-  .gc-grupo-sel{display:none}
-  .gc-rol{display:none}
-  .gc-cartoes{display:block;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px 12px 16px}
-  .gc-cartao{display:block;width:100%;margin:0 0 10px;padding:12px 14px;min-height:72px;text-align:left;border:1px solid var(--gc-bd);border-radius:12px;background:var(--gc-sf)}
-  .gc-cartao .l1{display:flex;align-items:baseline;gap:10px}
-  .gc-cartao .cod{flex:none;font-size:12.5px;color:var(--gc-tx2);font-variant-numeric:tabular-nums}
-  .gc-cartao .nm{flex:1;min-width:0;font-weight:700;color:var(--gc-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .gc-cartao .l2{display:flex;align-items:center;gap:10px;margin-top:8px}
-  .gc-cartao .l2 .gc-barra{flex:1;width:auto}
-  .gc-cartao .fal{flex:none;font-size:12.5px;font-weight:700;color:var(--gc-er);white-space:nowrap}
-  .gc-cartao .fal.ok{color:var(--gc-ok)}
-  .gd{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--gc-bg)}
-  .gd[hidden]{display:none!important}
-  .gd-top{flex:none;display:flex;align-items:center;gap:8px;padding:6px 12px 6px 4px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd);min-height:60px}
-  .gd-volta{flex:none;width:44px;height:44px;border:0;background:transparent;color:var(--gc-link);display:grid;place-items:center;border-radius:10px}
-  .gd-volta svg{width:22px;height:22px}
-  .gd-id{flex:1;min-width:0}
-  .gd-id b{display:block;font-size:16px;color:var(--gc-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .gd-id span{display:block;font-size:12.5px;color:var(--gc-tx2)}
-  .gd-corpo{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px 12px 24px}
-  .gd-g{margin:0 0 10px;border:1px solid var(--gc-bd);border-radius:12px;background:var(--gc-sf);overflow:hidden}
-  .gd-gh{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 14px;border:0;background:transparent;color:var(--gc-tit);font-weight:700;font-size:15px;text-align:left}
-  .gd-gh .fal{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--gc-er)}
-  .gd-gh svg{flex:none;width:18px;height:18px;transition:transform .12s;color:var(--gc-tx2)}
-  .gd-gh[aria-expanded="true"] svg{transform:rotate(90deg)}
-  .gd-gb{padding:0 12px 12px;display:grid;gap:10px}
-  .gd-f{display:block}
-  .gd-f label{display:block;font-size:12.5px;color:var(--gc-tx2);margin:0 0 4px;font-weight:600}
-  .gd-v{display:flex;align-items:center;width:100%;min-height:44px;padding:0 12px;border:1px solid var(--gc-bd);border-radius:10px;background-color:var(--gc-bg);color:var(--gc-tx);font-size:16px;text-align:left;overflow-wrap:anywhere}
-  .gd-v.num{justify-content:flex-end;font-variant-numeric:tabular-nums}
-  .gd-v.sis{border-color:var(--gc-link)}
-  .gd-v.edit{padding:0;border-color:var(--gc-sel)}
-  .gd-v input,.gd-v select{width:100%;height:44px;border:0;outline:0;padding:0 12px;background:var(--gc-bg);color:var(--gc-tx);font-size:16px;border-radius:10px}
-  .gd-v input.num{text-align:right}
-  .gd-dica{display:block;margin-top:3px;font-size:12px;color:var(--gc-tx2)}
+  .gc-chave,.gc-btn{height:44px}
+  .gl-it{min-height:64px;padding:10px 14px}
+  .gd{position:absolute;inset:0;z-index:20}
+  .gd-top{gap:8px;padding:6px 12px 6px 4px;min-height:60px}
+  .gd-volta{display:grid}
+  .gd-id b{font-size:16px}
+  .gd-prog{flex-direction:column;align-items:flex-end;gap:4px}
+  .gd-prog .gc-barra{width:72px}
+  .gd-corpo{padding:10px 12px 24px}
+  .gd-g{margin:0 0 10px}
+  .gd-gb{grid-template-columns:1fr;padding:12px;gap:12px}
+  .gd-v{min-height:46px}
+  .gd-v input,.gd-v select{height:44px;font-size:16px}
+  .gd-v textarea{font-size:16px;min-height:96px}
+  .gd-ro{padding:11px 12px;font-size:16px}
 }
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
@@ -202,36 +196,38 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
   </div>
   <header class="gc-bar" id="bar">
     <div class="gc-cab"><a class="gc-sair" href="/gerador" target="_top">Voltar ao Gerador</a><h1>Planilha de clientes</h1></div>
-    <div class="gc-busca">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      <label class="sr" for="busca">Buscar por nome ou código</label>
-      <input id="busca" type="search" placeholder="Buscar por nome ou código" autocomplete="off" inputmode="search">
-    </div>
-    <label class="sr" for="fCons">Consultor</label>
-    <select class="gc-sel" id="fCons" hidden><option value="">Todos os consultores</option></select>
-    <label class="sr" for="fGrupo">Grupo de colunas</label>
-    <select class="gc-sel gc-grupo-sel" id="fGrupo"><option value="">Todos os grupos</option></select>
-    <button type="button" class="gc-chave" id="fPend" role="switch" aria-checked="false"><i aria-hidden="true"></i>Só com pendência</button>
-    <button type="button" class="gc-btn" id="atualizar" title="Ler a planilha e os dados de novo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4M4 4v4h4M4 13a8 8 0 0 0 14.5 4M20 20v-4h-4"/></svg>Atualizar
-    </button>
-    <div class="gc-cont" id="cont" aria-live="polite"></div>
   </header>
   <div class="gc-corpo" id="corpo">
-    <div class="gc-rol" id="rol" tabindex="0" role="grid" aria-label="Grade de clientes">
-      <table class="gc-t" id="tab"></table>
-    </div>
-    <div class="gc-cartoes" id="cartoes"></div>
+    <aside class="gl" id="gl" aria-label="Clientes">
+      <div class="gl-top">
+        <div class="gc-busca">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <label class="sr" for="busca">Buscar por nome ou código</label>
+          <input id="busca" type="search" placeholder="Buscar por nome ou código" autocomplete="off" inputmode="search">
+        </div>
+        <label class="sr" for="fCons">Consultor</label>
+        <select class="gc-sel" id="fCons" hidden><option value="">Todos os consultores</option></select>
+        <div class="gl-linha">
+          <button type="button" class="gc-chave" id="fPend" role="switch" aria-checked="false"><i aria-hidden="true"></i>Com campo vazio</button>
+          <button type="button" class="gc-btn" id="atualizar" title="Ler a planilha e os dados de novo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4M4 4v4h4M4 13a8 8 0 0 0 14.5 4M20 20v-4h-4"/></svg>Atualizar
+          </button>
+        </div>
+        <div class="gc-cont" id="cont" aria-live="polite"></div>
+      </div>
+      <div class="gl-lista" id="lista"></div>
+    </aside>
+    <section class="gd" id="gd" hidden aria-label="Ficha do cliente">
+      <header class="gd-top">
+        <button type="button" class="gd-volta" id="gdVolta" aria-label="Voltar para a lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div class="gd-id"><b id="gdNome"></b><span id="gdSub"></span></div>
+        <div class="gd-prog"><span class="gd-salvo" id="gdSalvo" role="status"></span><span class="txt" id="gdProgTx"></span><div class="gc-barra" id="gdBarra"><i></i></div></div>
+      </header>
+      <div class="gd-corpo" id="gdCorpo"></div>
+    </section>
     <div class="gc-esq" id="esq" hidden></div>
     <div class="gc-estado" id="estado" hidden></div>
   </div>
-  <section class="gd" id="gd" hidden aria-label="Cliente">
-    <header class="gd-top">
-      <button type="button" class="gd-volta" id="gdVolta" aria-label="Voltar para a lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <div class="gd-id"><b id="gdNome"></b><span id="gdSub"></span></div>
-    </header>
-    <div class="gd-corpo" id="gdCorpo"></div>
-  </section>
 </div>
 <div class="gc-aviso" id="aviso" role="status" hidden></div>
 
@@ -245,61 +241,52 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
   var SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
   // Chave publishable do Supabase do Gerador: a mesma que já está escrita no index.html do /gerador e na tela do WhatsApp.
   var SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6'; // gitleaks:allow (chave publica de navegador, a mesma do index.html; o .gitleaks.toml libera em dashboard/public)
-  var FIX_W = 78 + 210 + 120;       // colunas fixas à esquerda: código, cliente, progresso
-  var HEAD_H = 30 + 44;             // cabeçalho em duas linhas
-  var LARGURA = { data: 120, dinheiro: 130, inteiro: 96, numero: 110, telefone: 150, lista: 160, texto: 190 };
-  var LARGURA_CHAVE = { endereco: 260, obs: 240, homologacao: 210, origem: 200, mao_de_obra: 170, parecer_acesso: 130, sistema_liberado: 150, depoimento: 170, cidade: 170 };
   var MOVEL = window.matchMedia('(max-width:860px)');
+  var OUTRO = '\u0001outro';
 
-  // ── Estado (só em memória: nenhum valor de célula vai para localStorage) ──
+  // ── Estado (só em memória: nenhum valor de campo vai para localStorage) ──
   var D = null;                     // última resposta
   var cols = [];                    // catálogo do papel (já cortado pelo servidor)
   var colPor = {};
   var linhas = [];
   var linhaPor = {};
-  var baseEm = {};                  // instante do servidor em que cada célula foi lida (para o 409)
+  var baseEm = {};                  // instante do servidor em que cada campo foi lido (para o 409)
+  var confirmado = {};              // último valor CONFIRMADO pelo servidor de cada campo (a recusa volta para ele, nunca para uma edição ainda não confirmada)
+  var pend = {};                    // quantas gravações de cada campo estão na fila
   var filas = {};                   // um POST por vez por venda: ler, mesclar e gravar no servidor não é atômico
-  var visiveis = [];                // linhas na tela
-  var colsGrade = [];               // colunas da rolagem (sem código, cliente e progresso)
-  var sel = null;                   // { r, c }: índices em visiveis e em ['cliente'].concat(colsGrade)
-  var editor = null;
-  var menu = null;
-  var detalhe = null;               // código aberto no celular
+  var visiveis = [];                // clientes na lista
+  var detalhe = null;               // código do cliente na ficha
+  var campos = {};                  // controles da ficha aberta, por chave
+  var secoes = [];                  // seções da ficha aberta: { cnt, cols }
   var parado = false;
   var carregando = false;
 
   var $ = function (id) { return document.getElementById(id); };
-  var elRol = $('rol'), elTab = $('tab');
 
   // ── Utilidades ──
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
   function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
   function semAcento(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  // Mesma régua do servidor: a vírgula ou o ponto entre dígitos é decimal e fica ("2,25k" não casa com "22,5k").
+  function chaveOpcao(s) { return semAcento(s).replace(/(\d)\s*[.,]\s*(?=\d)/g, '$1~').replace(/[^a-z0-9~]+/g, ''); }
   function erro(tipo, extra) { var e = new Error(tipo); e.tipo = tipo; if (extra) for (var k in extra) e[k] = extra[k]; return e; }
-  var fMoeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  var fDin = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var fNum = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 });
   var fDM = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
   function fmtData(iso) { return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : String(iso); }
+  function maskTel(s) {
+    var d = String(s).replace(/\D/g, '');
+    if (d.length > 11) return d;
+    if (d.length <= 2) return d ? '(' + d : '';
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+  }
   function fmtTel(d) {
     d = String(d);
-    if (/^\d{11}$/.test(d)) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
-    if (/^\d{10}$/.test(d)) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
-    if (/^55\d{10,11}$/.test(d)) return '+55 ' + fmtTel(d.slice(2));
-    return d;
+    if (/^55\d{10,11}$/.test(d)) return '+55 ' + maskTel(d.slice(2));
+    return maskTel(d);
   }
   function vazioV(v) { return v === null || v === undefined || v === ''; }
-  function fmtValor(c, v) {
-    if (vazioV(v)) return '';
-    switch (c.tipo) {
-      case 'data': return fmtData(v);
-      case 'dinheiro': return typeof v === 'number' ? fMoeda.format(v) : String(v);
-      case 'numero': return typeof v === 'number' ? fNum.format(v) : String(v);
-      case 'telefone': return fmtTel(v);
-      default: return String(v);
-    }
-  }
   function ehNum(c) { return c.tipo === 'dinheiro' || c.tipo === 'inteiro' || c.tipo === 'numero'; }
   function dicaSistema(cel) {
     if (!cel || cel.origem !== 'sistema') return '';
@@ -315,6 +302,51 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
     avisoTimer = setTimeout(function () { a.hidden = true; }, 6000);
   }
   function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+
+  // Número no formato brasileiro, com a MESMA régua do servidor (numeroBR):
+  // "145.000" é cento e quarenta e cinco mil, "1.234,56" vale 1234,56, "1234.56" vale 1234,56. null = não é número.
+  function lerNumeroBR(v) {
+    var t = String(v == null ? '' : v).replace(/R\$/gi, '').replace(/\s/g, '');
+    if (!/^-?[\d.,]+$/.test(t)) return null;
+    var neg = t.charAt(0) === '-';
+    if (neg) t = t.slice(1);
+    if (!t) return null;
+    if (t.indexOf(',') >= 0) {
+      var p = t.split(',');
+      if (p.length !== 2 || !/^\d+$/.test(p[1])) return null;
+      if (!/^(\d{1,3}(\.\d{3})+|\d+)$/.test(p[0])) return null;
+      t = p[0].replace(/\./g, '') + '.' + p[1];
+    } else if (t.indexOf('.') >= 0) {
+      if (/^0\.\d+$/.test(t)) { /* decimal com zero na frente */ }
+      else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');   // ponto de milhar
+      else if (!/^\d+\.\d{1,2}$/.test(t)) return null;
+    } else if (!/^\d+$/.test(t)) return null;
+    var n = Number(t);
+    return isFinite(n) ? (neg ? -n : n) : null;
+  }
+
+  // Texto que aparece DENTRO do controle.
+  function textoControle(c, v) {
+    if (vazioV(v)) return '';
+    switch (c.tipo) {
+      case 'data': return /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? String(v) : '';
+      case 'dinheiro': return typeof v === 'number' ? fDin.format(v) : String(v);
+      case 'numero': return typeof v === 'number' ? fNum.format(v) : String(v);
+      case 'telefone': return fmtTel(v);
+      default: return String(v);
+    }
+  }
+  // Texto do campo só de leitura.
+  function textoLeitura(c, v) {
+    if (vazioV(v)) return '';
+    switch (c.tipo) {
+      case 'data': return fmtData(v);
+      case 'dinheiro': return typeof v === 'number' ? 'R$ ' + fDin.format(v) : String(v);
+      case 'numero': return typeof v === 'number' ? fNum.format(v) : String(v);
+      case 'telefone': return fmtTel(v);
+      default: return String(v);
+    }
+  }
 
   // ── Sessão: lida e renovada do MESMO jeito que o app principal e a tela do WhatsApp ──
   // Embutida: quem renova a sessão é o app pai. O pai guarda o refresh token em memória e só lê o storage na carga;
@@ -449,18 +481,18 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
     if (html.link) { var a = el('a', null, html.link); a.href = '/gerador'; a.target = '_top'; c.appendChild(a); }
     e.appendChild(c); e.hidden = false;
   }
-  function semPermissao() {
-    parado = true; linhas = []; visiveis = []; D = null;
-    elTab.textContent = ''; $('cartoes').textContent = '';
+  function limparTela() {
+    parado = true; linhas = []; visiveis = []; D = null; detalhe = null; campos = {}; secoes = [];
+    $('lista').textContent = ''; $('gdCorpo').textContent = ''; $('gd').hidden = true;
     $('esq').hidden = true; $('faixa').hidden = true;
     $('cont').textContent = '';
+  }
+  function semPermissao() {
+    limparTela();
     mostrarEstado({ t: 'Você não tem permissão para esta tela.', p: 'Sua conta não pode ver a planilha de clientes.', link: 'Voltar ao Gerador' });
   }
   function semSessaoEmbutida() {
-    parado = true; linhas = []; visiveis = []; D = null;
-    elTab.textContent = ''; $('cartoes').textContent = '';
-    $('esq').hidden = true; $('faixa').hidden = true;
-    $('cont').textContent = '';
+    limparTela();
     mostrarEstado({ t: 'Sua sessão terminou.', p: 'Entre de novo no Gerador para ver a planilha de clientes.', link: 'Abrir o Gerador' });
   }
   function esqueleto(on) {
@@ -484,7 +516,7 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
       $('faixa').hidden = true;
       esqueleto(false);
       mostrarEstado(null);
-      desenhar();
+      desenharTudo();
     }).catch(function (e) {
       esqueleto(false);
       if (e.tipo === 'negado' || e.tipo === 'login') return;
@@ -501,40 +533,26 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
     cols.forEach(function (c) { colPor[c.chave] = c; });
     linhas = j.linhas;
     linhaPor = {};
-    baseEm = {};
+    baseEm = {}; confirmado = {}; pend = {};
     linhas.forEach(function (l) { linhaPor[l.codigo] = l; });
     $('fCons').hidden = j.papel !== 'socio';
-    // Filtros: opções vindas dos dados
-    var g = $('fGrupo'), gv = g.value;
-    g.textContent = ''; g.appendChild(new Option('Todos os grupos', ''));
-    j.catalogo.grupos.forEach(function (n) { g.appendChild(new Option(n, n)); });
-    g.value = j.catalogo.grupos.indexOf(gv) >= 0 ? gv : '';
     var c = $('fCons'), cv = c.value, vistos = {};
     c.textContent = ''; c.appendChild(new Option('Todos os consultores', ''));
     linhas.forEach(function (l) { if (l.consultor && !vistos[l.consultor]) vistos[l.consultor] = 1; });
     Object.keys(vistos).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).forEach(function (n) { c.appendChild(new Option(n, n)); });
     c.value = vistos[cv] ? cv : '';
+    if (detalhe && !linhaPor[detalhe]) detalhe = null;
   }
 
-  // ── Filtros e contagem ──
-  function colunasDoFiltro() {
-    var g = $('fGrupo').value;
-    return cols.filter(function (c) { return c.chave !== 'codigo' && (!g || c.grupo === g); });
-  }
+  // ── Filtro e lista ──
   function filtrar() {
     var q = semAcento($('busca').value).trim(), cons = $('fCons').value, pend = $('fPend').getAttribute('aria-checked') === 'true';
-    var obr = colunasDoFiltro().filter(function (c) { return c.obrigatoria; });
     return linhas.filter(function (l) {
       if (cons && l.consultor !== cons) return false;
       if (q && semAcento(l.cliente).indexOf(q) < 0 && semAcento(l.codigo).indexOf(q) < 0 && semAcento(l.codigo.replace(/\D/g, '')).indexOf(q.replace(/\D/g, '') || '\u0000') < 0) return false;
-      if (pend && !obr.some(function (c) { return vazioV(l.celulas[c.chave].valor); })) return false;
+      if (pend && !(l.progresso.faltando > 0)) return false;
       return true;
     });
-  }
-  function faltandoDe(l, lista) {
-    var n = 0;
-    for (var i = 0; i < lista.length; i++) if (lista[i].obrigatoria && vazioV(l.celulas[lista[i].chave].valor)) n++;
-    return n;
   }
   function recalcular(l) {
     var tot = 0, ok = 0;
@@ -542,565 +560,469 @@ html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
     l.progresso = { preenchidas: ok, total: tot, faltando: tot - ok };
   }
   function atualizarContador() {
-    var lista = colunasDoFiltro(), cel = 0, cli = 0;
-    visiveis.forEach(function (l) { var f = faltandoDe(l, lista); if (f) { cel += f; cli++; } });
+    var cel = 0, cli = 0;
+    visiveis.forEach(function (l) { if (l.progresso.faltando > 0) { cel += l.progresso.faltando; cli++; } });
     var c = $('cont');
     c.textContent = '';
-    var b = el('b', null, String(cel));
-    c.appendChild(b);
-    c.appendChild(document.createTextNode((cel === 1 ? ' célula faltando em ' : ' células faltando em ') + plural(cli, 'cliente', 'clientes')));
+    c.appendChild(el('b', null, String(cel)));
+    c.appendChild(document.createTextNode((cel === 1 ? ' campo faltando em ' : ' campos faltando em ') + plural(cli, 'cliente', 'clientes')));
   }
-
-  // ── Desenho ──
-  function larguraDe(c) { return LARGURA_CHAVE[c.chave] || LARGURA[c.tipo] || 160; }
-  function classeCel(c, cel) {
-    var k = 'c';
-    if (ehNum(c)) k += ' num';
-    if (c.calculada || !c.editavel) k += ' calc';
-    else if (c.obrigatoria && vazioV(cel.valor)) k += ' falta';
-    if (cel.origem === 'sistema') k += ' sis';
-    return k;
+  function textoSelo(p) { return p.faltando ? (p.faltando === 1 ? '1 falta' : p.faltando + ' faltam') : 'Completo'; }
+  function itemDe(codigo) {
+    var its = $('lista').querySelectorAll('.gl-it');
+    for (var i = 0; i < its.length; i++) if (its[i].dataset.c === codigo) return its[i];
+    return null;
   }
-  function tituloCel(c, cel) {
-    var d = dicaSistema(cel);
-    if (d) return d;
-    var t = fmtValor(c, cel.valor);
-    return t.length > 24 ? t : '';
+  function pintarSelo(btn, l) {
+    var s = btn.querySelector('.gl-selo');
+    s.className = 'gl-selo' + (l.progresso.faltando ? '' : ' ok');
+    s.textContent = textoSelo(l.progresso);
+    s.setAttribute('aria-label', l.progresso.faltando ? plural(l.progresso.faltando, 'campo faltando', 'campos faltando') : 'Ficha completa');
   }
-  function tdHtml(l, c) {
-    var cel = l.celulas[c.chave];
-    var cls = classeCel(c, cel), t = tituloCel(c, cel);
-    return '<td class="' + cls + '" data-k="' + esc(c.chave) + '"' + (t ? ' title="' + esc(t) + '"' : '') + '>' + esc(fmtValor(c, cel.valor)) + '</td>';
-  }
-  function progHtml(l) {
-    var p = l.progresso, pct = p.total ? Math.round(100 * p.preenchidas / p.total) : 100;
-    return '<div class="gc-prog"><div class="gc-barra' + (p.faltando ? '' : ' cheio') + '"><i style="width:' + pct + '%"></i></div><span>' + p.preenchidas + ' de ' + p.total + '</span></div>';
-  }
-
-  function desenhar() {
-    if (!D) return;
+  function desenharLista() {
     visiveis = filtrar();
-    var lista = colunasDoFiltro();
-    colsGrade = lista.filter(function (c) { return c.chave !== 'cliente'; });
-    var cli = colPor.cliente;
-    var largTotal = 78 + 210 + 120;
-    var t0 = performance.now();
-    var h = ['<colgroup><col style="width:78px"><col style="width:210px"><col style="width:120px">'];
-    colsGrade.forEach(function (c) { var w = larguraDe(c); largTotal += w; h.push('<col style="width:' + w + 'px">'); });
-    h.push('</colgroup><thead><tr class="g1"><th class="fx fx0" colspan="3" style="left:0"></th>');
-    var i = 0;
-    while (i < colsGrade.length) {
-      var j = i; while (j < colsGrade.length && colsGrade[j].grupo === colsGrade[i].grupo) j++;
-      h.push('<th class="gi" colspan="' + (j - i) + '">' + esc(colsGrade[i].grupo) + '</th>');
-      i = j;
-    }
-    h.push('</tr><tr class="g2"><th class="fx fx0">Código</th><th class="fx fx1">' + esc(cli ? cli.rotulo : 'Cliente') + '</th><th class="fx fx2">Progresso</th>');
-    colsGrade.forEach(function (c) { h.push('<th class="' + (ehNum(c) ? 'num' : '') + '" title="' + esc(c.rotulo) + '"><span>' + esc(c.rotulo) + '</span></th>'); });
-    h.push('</tr></thead><tbody>');
-    visiveis.forEach(function (l, r) {
-      h.push('<tr data-c="' + esc(l.codigo) + '" data-r="' + r + '"><td class="fx fx0">' + esc(l.codigo) + '</td>');
-      var cc = cli ? l.celulas.cliente : { valor: l.cliente, origem: 'planilha' };
-      var cls = cli ? classeCel(cli, cc) : 'c';
-      var tt = cli ? tituloCel(cli, cc) : '';
-      h.push('<td class="fx fx1 ' + cls + '" data-k="cliente"' + (tt ? ' title="' + esc(tt) + '"' : '') + '>' + esc(cc.valor) + '</td>');
-      h.push('<td class="fx fx2" data-prog="1">' + progHtml(l) + '</td>');
-      for (var k = 0; k < colsGrade.length; k++) h.push(tdHtml(l, colsGrade[k]));
-      h.push('</tr>');
-    });
-    h.push('</tbody>');
-    elTab.style.width = largTotal + 'px';
-    elTab.innerHTML = h.join('');
-    window.__tempoDesenho = Math.round(performance.now() - t0);
-    atualizarContador();
-    desenharCartoes();
-    // Estados vazios
-    if (!linhas.length) {
-      mostrarEstado({ t: D.papel === 'socio' ? 'Nenhuma venda na planilha.' : 'Você ainda não tem venda cadastrada.' });
-    } else if (!visiveis.length) {
-      mostrarEstado({ t: 'Nenhum cliente com esse filtro.', p: 'Mude a busca ou desligue o filtro de pendência.' });
-    } else mostrarEstado(null);
-    if (sel) { sel = { r: Math.min(sel.r, visiveis.length - 1), c: Math.min(sel.c, colsGrade.length) }; if (sel.r >= 0) marcarSel(false); }
-  }
-
-  function desenharCartoes() {
-    var box = $('cartoes');
-    var lista = colunasDoFiltro();
-    var h = [];
+    var box = $('lista');
+    var topo = box.scrollTop;
+    box.textContent = '';
     visiveis.forEach(function (l) {
-      var p = l.progresso, pct = p.total ? Math.round(100 * p.preenchidas / p.total) : 100, f = faltandoDe(l, lista);
-      h.push('<button type="button" class="gc-cartao" data-c="' + esc(l.codigo) + '"><div class="l1"><span class="cod">' + esc(l.codigo) + '</span><span class="nm">' + esc(l.cliente || 'Sem nome') + '</span></div>' +
-        '<div class="l2"><div class="gc-barra' + (p.faltando ? '' : ' cheio') + '"><i style="width:' + pct + '%"></i></div><span class="fal' + (p.faltando ? '' : ' ok') + '">' +
-        (p.faltando ? (p.faltando === 1 ? 'Falta 1' : 'Faltam ' + p.faltando) : 'Completo') + '</span></div></button>');
+      var b = el('button', 'gl-it'); b.type = 'button'; b.dataset.c = l.codigo;
+      b.appendChild(el('span', 'cod', l.codigo));
+      b.appendChild(el('span', 'nm', l.cliente || 'Sem nome'));
+      b.appendChild(el('span', 'gl-selo'));
+      pintarSelo(b, l);
+      if (l.codigo === detalhe) b.setAttribute('aria-current', 'true');
+      box.appendChild(b);
     });
-    box.innerHTML = h.join('');
-  }
-
-  // ── Repintar uma célula (grade e, se aberto, o cartão do celular) ──
-  function tdDe(codigo, chave) {
-    var tr = elTab.querySelector('tr[data-c="' + (window.CSS && CSS.escape ? CSS.escape(codigo) : codigo) + '"]');
-    return tr ? tr.querySelector('td[data-k="' + chave + '"]') : null;
-  }
-  function repintar(codigo, chave) {
-    var l = linhaPor[codigo], c = colPor[chave];
-    if (!l || !c) return;
-    var td = tdDe(codigo, chave);
-    if (td && !(editor && editor.td === td)) {
-      var cel = l.celulas[chave];
-      var keep = td.classList.contains('sel'), salv = td.classList.contains('salvando');
-      td.className = (td.className.indexOf('fx') >= 0 ? td.className.split(' ').filter(function (x) { return x.indexOf('fx') === 0; }).join(' ') + ' ' : '') + classeCel(c, cel) + (keep ? ' sel' : '') + (salv ? ' salvando' : '');
-      td.textContent = fmtValor(c, cel.valor);
-      var t = tituloCel(c, cel);
-      if (t) td.title = t; else td.removeAttribute('title');
-    }
-    repintarProgresso(codigo);
-    if (detalhe === codigo) repintarCampo(chave);
-  }
-  function repintarProgresso(codigo) {
-    var l = linhaPor[codigo];
-    var tr = elTab.querySelector('tr[data-c="' + (window.CSS && CSS.escape ? CSS.escape(codigo) : codigo) + '"]');
-    if (tr) { var p = tr.querySelector('td[data-prog]'); if (p) p.innerHTML = progHtml(l); }
+    if (!linhas.length) box.appendChild(el('p', 'gl-vazio', D && D.papel === 'socio' ? 'Nenhuma venda na planilha.' : 'Você ainda não tem venda cadastrada.'));
+    else if (!visiveis.length) box.appendChild(el('p', 'gl-vazio', 'Nenhum cliente com esse filtro. Mude a busca ou desligue "Com campo vazio".'));
+    box.scrollTop = topo;
     atualizarContador();
-    var card = $('cartoes').querySelector('[data-c="' + codigo + '"]');
-    if (card) {
-      var pr = l.progresso, pct = pr.total ? Math.round(100 * pr.preenchidas / pr.total) : 100;
-      card.querySelector('.gc-barra').className = 'gc-barra' + (pr.faltando ? '' : ' cheio');
-      card.querySelector('.gc-barra i').style.width = pct + '%';
-      var f = card.querySelector('.fal'); f.className = 'fal' + (pr.faltando ? '' : ' ok');
-      f.textContent = pr.faltando ? (pr.faltando === 1 ? 'Falta 1' : 'Faltam ' + pr.faltando) : 'Completo';
+  }
+  function repintarItem(codigo) {
+    var l = linhaPor[codigo], b = itemDe(codigo);
+    if (l && b) pintarSelo(b, l);
+    atualizarContador();
+  }
+  function marcarAtivo() {
+    var its = $('lista').querySelectorAll('.gl-it');
+    for (var i = 0; i < its.length; i++) {
+      if (its[i].dataset.c === detalhe) its[i].setAttribute('aria-current', 'true'); else its[i].removeAttribute('aria-current');
     }
-    if (detalhe === codigo) repintarCabecalhoDetalhe();
   }
 
-  // ── Seleção e teclado na grade ──
-  function colDe(ci) { return ci === 0 ? colPor.cliente : colsGrade[ci - 1]; }
-  function marcarSel(rolar) {
-    var antigo = elTab.querySelector('td.sel');
-    if (antigo) antigo.classList.remove('sel');
-    if (!sel || !visiveis[sel.r]) return;
-    var c = colDe(sel.c);
-    var td = c && tdDe(visiveis[sel.r].codigo, c.chave);
-    if (!td) return;
-    td.classList.add('sel');
-    if (rolar !== false) garantirVisivel(td, sel.c === 0);
+  function desenharTudo() {
+    desenharLista();
+    if (!MOVEL.matches) {
+      if (!detalhe && visiveis.length) detalhe = visiveis[0].codigo;
+      marcarAtivo();
+      desenharFicha();
+      $('gd').hidden = false;
+    } else if (detalhe && !$('gd').hidden) desenharFicha();
+    else { $('gd').hidden = true; }
   }
-  function garantirVisivel(td, fixa) {
-    var R = elRol.getBoundingClientRect(), t = td.getBoundingClientRect();
-    var barra = elRol.offsetWidth - elRol.clientWidth;      // barra de rolagem vertical
-    var esq = R.left + FIX_W, topo = R.top + HEAD_H;
-    if (!fixa) {
-      if (t.left < esq) elRol.scrollLeft -= (esq - t.left);
-      else if (t.right > R.right - barra) elRol.scrollLeft += t.right - (R.right - barra);
-    }
-    if (t.top < topo) elRol.scrollTop -= (topo - t.top);
-    else if (t.bottom > R.bottom - (elRol.offsetHeight - elRol.clientHeight)) elRol.scrollTop += t.bottom - (R.bottom - (elRol.offsetHeight - elRol.clientHeight));
+
+  // ── Escolher cliente ──
+  function selecionar(codigo) {
+    if (!linhaPor[codigo]) return;
+    // Tira o foco antes: o campo que está sendo editado grava no cliente dele (código preso no controle), nunca no novo.
+    var a = document.activeElement;
+    if (a && a !== document.body && $('gdCorpo').contains(a) && a.blur) a.blur();
+    detalhe = codigo;
+    marcarAtivo();
+    desenharFicha();
+    $('gd').hidden = false;
+    $('gdCorpo').scrollTop = 0;
   }
-  function mover(dr, dc) {
-    if (!visiveis.length) return;
-    if (!sel) sel = { r: 0, c: 0 };
-    else sel = { r: Math.max(0, Math.min(visiveis.length - 1, sel.r + dr)), c: Math.max(0, Math.min(colsGrade.length, sel.c + dc)) };
-    marcarSel(true);
+  function fecharFicha() {
+    var a = document.activeElement;
+    if (a && $('gdCorpo').contains(a) && a.blur) a.blur();
+    if (MOVEL.matches) $('gd').hidden = true;
+    var b = detalhe && itemDe(detalhe);
+    if (b && b.focus) b.focus({ preventScroll: true });
   }
-  elTab.addEventListener('mousedown', function (e) {
-    var td = e.target.closest ? e.target.closest('td') : null;
-    if (!td || !td.dataset.k) return;
-    var tr = td.parentNode, r = Number(tr.dataset.r);
-    var ci = td.dataset.k === 'cliente' ? 0 : colsGrade.map(function (c) { return c.chave; }).indexOf(td.dataset.k) + 1;
-    if (editor && editor.td === td) return;
-    sel = { r: r, c: ci }; marcarSel(false);
+  $('lista').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.gl-it') : null;
+    if (b) selecionar(b.dataset.c);
   });
-  elTab.addEventListener('click', function (e) {
-    var td = e.target.closest ? e.target.closest('td') : null;
-    if (!td || !td.dataset.k || (editor && editor.td === td)) return;
-    abrirNaSelecao(true);
+  $('lista').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    var b = e.target.closest ? e.target.closest('.gl-it') : null;
+    if (!b) return;
+    var o = e.key === 'ArrowDown' ? b.nextElementSibling : b.previousElementSibling;
+    if (o && o.classList.contains('gl-it')) { e.preventDefault(); o.focus(); if (!MOVEL.matches) selecionar(o.dataset.c); }
   });
-  elTab.addEventListener('dblclick', function () { /* o clique simples já abre o editor */ });
-  elRol.addEventListener('keydown', function (e) {
-    if (editor || menu || e.target !== elRol) return;
-    var k = e.key;
-    if (k === 'ArrowDown') mover(1, 0);
-    else if (k === 'ArrowUp') mover(-1, 0);
-    else if (k === 'ArrowRight') mover(0, 1);
-    else if (k === 'ArrowLeft') mover(0, -1);
-    else if (k === 'Tab') { if (!sel) return; mover(0, e.shiftKey ? -1 : 1); }
-    else if (k === 'Home') { if (!sel) sel = { r: 0, c: 0 }; sel.c = 0; marcarSel(true); }
-    else if (k === 'End') { if (!sel) sel = { r: 0, c: 0 }; sel.c = colsGrade.length; marcarSel(true); }
-    else if (k === 'PageDown') mover(10, 0);
-    else if (k === 'PageUp') mover(-10, 0);
-    else if (k === 'Enter' || k === 'F2') { if (!sel) return; abrirNaSelecao(); }
-    else return;
-    e.preventDefault();
-  });
+  $('gdVolta').addEventListener('click', fecharFicha);
 
-  // ── Editor da célula ──
-  function abrirNaSelecao(silencioso) {
-    if (!sel || !visiveis[sel.r]) return;
-    var l = visiveis[sel.r], c = colDe(sel.c), td = c && tdDe(l.codigo, c.chave);
-    if (!td) return;
-    if (!c.editavel) { if (!silencioso) aviso(c.calculada ? 'Esta coluna é calculada na planilha e só pode ser lida.' : 'Esta coluna não pode ser editada por você.'); return; }
-    abrirEditor(td, l, c, false);
+  // ── Ficha ──
+  function textoProgresso(p) { return p.total ? p.preenchidas + ' de ' + p.total + ' preenchidos' : ''; }
+  function repintarCabecalho() {
+    var l = linhaPor[detalhe]; if (!l) return;
+    var p = l.progresso, pct = p.total ? Math.round(100 * p.preenchidas / p.total) : 100;
+    $('gdNome').textContent = l.cliente || 'Sem nome';
+    $('gdSub').textContent = l.codigo + (l.consultor && D.papel === 'socio' ? ' · ' + l.consultor : '') + (p.faltando ? ' · faltam ' + p.faltando : ' · completo');
+    $('gdProgTx').textContent = textoProgresso(p);
+    $('gdBarra').className = 'gc-barra' + (p.faltando ? '' : ' cheio');
+    $('gdBarra').firstChild.style.width = pct + '%';
   }
-
-  function maskDin(s) {
-    var neg = /^\s*-/.test(s), d = String(s).replace(/\D/g, '');
-    if (!d) return neg ? '-' : '';
-    d = d.replace(/^0+(?=\d)/, '');
-    while (d.length < 3) d = '0' + d;
-    return (neg ? '-' : '') + d.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d.slice(-2);
-  }
-  function maskTel(s) {
-    var d = String(s).replace(/\D/g, '');
-    if (d.length > 11) return d;
-    if (d.length <= 2) return d ? '(' + d : '';
-    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
-    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
-    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
-  }
-  function textoInicial(c, cel) {
-    var v = cel.valor;
-    if (vazioV(v)) return '';
-    switch (c.tipo) {
-      case 'dinheiro': return typeof v === 'number' ? maskDin(v.toFixed(2)) : String(v);
-      case 'numero': return String(v).replace('.', ',');
-      case 'telefone': return maskTel(v);
-      default: return String(v);
-    }
-  }
-  function localValor(c, s) {
-    s = String(s).trim();
-    if (!s) return null;
-    if (c.tipo === 'dinheiro' || c.tipo === 'numero') {
-      var t = s.replace(/[R$\s]/g, '');
-      if (t.indexOf(',') >= 0) t = t.replace(/\./g, '').replace(',', '.');
-      else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
-      var n = Number(t); return isFinite(n) ? n : s;
-    }
-    if (c.tipo === 'inteiro') { var i = Number(s); return isFinite(i) ? i : s; }
-    if (c.tipo === 'telefone') return s.replace(/\D/g, '');
-    if (c.tipo === 'lista') {
-      var k = semAcento(s), o = (c.opcoes || []).filter(function (x) { return semAcento(x) === k; })[0];
-      return o || s;
-    }
-    return s;
-  }
-
-  function criarCampo(c, cel, movel) {
-    var inp = document.createElement('input');
-    inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
-    inp.setAttribute('aria-label', c.rotulo);
-    var ini = textoInicial(c, cel);
-    if (c.tipo === 'data') { inp.type = 'date'; inp.value = /^\d{4}-\d{2}-\d{2}$/.test(String(cel.valor)) ? cel.valor : ''; }
-    else if (c.tipo === 'dinheiro') { inp.inputMode = 'decimal'; inp.value = ini; inp.className = 'num'; inp.addEventListener('input', function () { inp.value = maskDin(inp.value); }); }
-    else if (c.tipo === 'inteiro') { inp.inputMode = 'numeric'; inp.value = ini; inp.className = 'num'; inp.addEventListener('input', function () { inp.value = inp.value.replace(/\D/g, ''); }); }
-    else if (c.tipo === 'numero') { inp.inputMode = 'decimal'; inp.value = ini; inp.className = 'num'; inp.addEventListener('input', function () { inp.value = inp.value.replace(/[^\d.,-]/g, ''); }); }
-    else if (c.tipo === 'telefone') { inp.inputMode = 'tel'; inp.value = ini; inp.addEventListener('input', function () { inp.value = maskTel(inp.value); }); }
-    else { inp.value = ini; inp.maxLength = 300; }
-    return inp;
-  }
-
-  // host: a célula da grade (td) ou o campo do cartão no celular. Os dois usam o mesmo editor.
-  function abrirEditor(host, l, c, movel) {
-    if (editor) fecharEditor(true);
-    fecharMenu();
-    var cel = l.celulas[c.chave];
-    editor = { host: host, td: movel ? null : host, codigo: l.codigo, col: c, movel: movel, feito: false, original: cel };
-    if (c.tipo === 'lista') {
-      if (movel) return editorListaMovel(host, l, c, cel);
-      return abrirMenuLista(host, l, c, cel);
-    }
-    host.classList.add('edit');
-    host.textContent = '';
-    var inp = criarCampo(c, cel, movel);
-    host.appendChild(inp);
-    editor.input = inp;
-    inp.focus();
-    try { if (inp.select && c.tipo !== 'data') inp.select(); } catch (e) {}
-    inp.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); fecharEditor(true, movel ? null : 'baixo'); }
-      else if (e.key === 'Tab' && !movel) { e.preventDefault(); fecharEditor(true, e.shiftKey ? 'esquerda' : 'direita'); }
-      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fecharEditor(false); }
-    });
-    inp.addEventListener('blur', function () {
-      setTimeout(function () { if (editor && editor.input === inp && !editor.feito) fecharEditor(true); }, 0);
+  function atualizarSecoes() {
+    var l = linhaPor[detalhe]; if (!l) return;
+    secoes.forEach(function (s) {
+      var y = 0, x = 0;
+      s.cols.forEach(function (c) { if (c.obrigatoria) { y++; if (!vazioV(l.celulas[c.chave].valor)) x++; } });
+      s.cnt.textContent = y ? x + ' de ' + y + ' preenchidos' : '';
+      s.cnt.className = 'cnt' + (y && x === y ? ' ok' : '');
     });
   }
 
-  function editorListaMovel(host, l, c, cel) {
-    host.classList.add('edit'); host.textContent = '';
-    var s = document.createElement('select');
-    s.setAttribute('aria-label', c.rotulo);
-    var atual = vazioV(cel.valor) ? '' : String(cel.valor);
-    s.appendChild(new Option('Vazio', ''));
-    var tem = false;
-    (c.opcoes || []).forEach(function (o) { s.appendChild(new Option(o, o)); if (o === atual) tem = true; });
-    if (atual && !tem) s.appendChild(new Option(atual, atual));
-    if (c.livre) s.appendChild(new Option('Outro…', '\u0001outro'));
-    s.value = atual;
-    host.appendChild(s);
-    editor.input = s;
-    s.focus();
-    s.addEventListener('change', function () {
-      if (s.value === '\u0001outro') { var t = document.createElement('input'); t.type = 'text'; t.maxLength = 300; t.setAttribute('aria-label', c.rotulo); host.textContent = ''; host.appendChild(t); editor.input = t; ligarTexto(t, true); t.focus(); return; }
-      fecharEditor(true);
-    });
-    s.addEventListener('blur', function () { setTimeout(function () { if (editor && editor.input === s && !editor.feito) fecharEditor(false); }, 200); });
-  }
-  function ligarTexto(inp, movel) {
-    inp.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); fecharEditor(true, movel ? null : 'baixo'); }
-      else if (e.key === 'Tab' && !movel) { e.preventDefault(); fecharEditor(true, e.shiftKey ? 'esquerda' : 'direita'); }
-      else if (e.key === 'Escape') { e.preventDefault(); fecharEditor(false); }
-    });
-    inp.addEventListener('blur', function () { setTimeout(function () { if (editor && editor.input === inp && !editor.feito) fecharEditor(true); }, 0); });
-  }
-
-  // Menu de lista no computador: setas, Enter, Esc, digitar a inicial. O foco fica no menu.
-  function abrirMenuLista(td, l, c, cel) {
-    var atual = vazioV(cel.valor) ? '' : String(cel.valor);
-    var itens = [];
-    if (atual) itens.push({ t: 'Limpar', v: '', sutil: true });
-    (c.opcoes || []).forEach(function (o) { itens.push({ t: o, v: o }); });
-    if (atual && (c.opcoes || []).indexOf(atual) < 0) itens.unshift({ t: atual, v: atual });
-    if (c.livre) itens.push({ t: 'Outro…', v: '\u0001outro', sutil: true });
-    var m = el('div', 'gc-menu'); m.tabIndex = -1; m.setAttribute('role', 'listbox'); m.setAttribute('aria-label', c.rotulo);
-    var ativo = Math.max(0, itens.findIndex(function (x) { return x.v === atual && atual !== ''; }));
-    var nos = itens.map(function (it, i) {
-      var d = el('div', it.sutil ? 'sutil' : '', it.t); d.setAttribute('role', 'option');
-      d.addEventListener('mousedown', function (e) { e.preventDefault(); escolher(i); });
-      m.appendChild(d); return d;
-    });
-    function pinta() { nos.forEach(function (n, i) { n.setAttribute('aria-selected', i === ativo ? 'true' : 'false'); }); if (nos[ativo]) nos[ativo].scrollIntoView({ block: 'nearest' }); }
-    function escolher(i, mov) {
-      var it = itens[i];
-      if (it.v === '\u0001outro') {
-        fecharMenu(); td.classList.add('edit'); td.textContent = '';
-        var t = document.createElement('input'); t.type = 'text'; t.maxLength = 300; t.setAttribute('aria-label', c.rotulo);
-        td.appendChild(t); editor.input = t; ligarTexto(t, false); t.focus();
-        return;
-      }
-      fecharMenu();
-      editor.feito = true;
-      var e = editor; editor = null;
-      finalizar(e, it.v, mov || null);
-    }
-    var buf = '', bt = null;
-    m.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowDown') { ativo = Math.min(itens.length - 1, ativo + 1); pinta(); }
-      else if (e.key === 'ArrowUp') { ativo = Math.max(0, ativo - 1); pinta(); }
-      else if (e.key === 'Enter') escolher(ativo, 'baixo');
-      else if (e.key === 'Tab') escolher(ativo, e.shiftKey ? 'esquerda' : 'direita');
-      else if (e.key === 'Escape') { fecharEditor(false); }
-      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        buf += semAcento(e.key); clearTimeout(bt); bt = setTimeout(function () { buf = ''; }, 700);
-        var i = itens.findIndex(function (x) { return semAcento(x.t).indexOf(buf) === 0; });
-        if (i >= 0) { ativo = i; pinta(); }
-        else return;
-      } else return;
-      e.preventDefault();
-    });
-    m.addEventListener('blur', function () { setTimeout(function () { if (menu === m && editor && !editor.feito && document.activeElement !== m) fecharEditor(false); }, 0); });
-    document.body.appendChild(m);
-    var r = td.getBoundingClientRect(), mh = Math.min(280, itens.length * 34 + 10);
-    m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 200)) + 'px';
-    m.style.top = (r.bottom + mh > window.innerHeight ? Math.max(8, r.top - mh) : r.bottom) + 'px';
-    m.style.minWidth = Math.max(160, r.width) + 'px';
-    menu = m; editor.menu = m;
-    pinta(); m.focus();
-  }
-  function fecharMenu() { if (menu) { var m = menu; menu = null; if (m.parentNode) m.parentNode.removeChild(m); } }
-
-  // Fecha o editor atual; `grava` decide se o texto vira gravação. `mov` move a seleção depois.
-  function fecharEditor(grava, mov) {
-    var e = editor;
-    if (!e || e.feito) return;
-    if (e.input && e.input.type === 'date' && grava && e.input.validity && e.input.validity.badInput) {
-      aviso('Data incompleta. Preencha dia, mês e ano, ou aperte Esc para cancelar.');
-      e.input.focus();
+  function desenharFicha() {
+    var corpo = $('gdCorpo');
+    corpo.textContent = '';
+    campos = {}; secoes = [];
+    var l = linhaPor[detalhe];
+    if (!l) {
+      $('gdNome').textContent = ''; $('gdSub').textContent = ''; $('gdProgTx').textContent = ''; $('gdBarra').className = 'gc-barra'; $('gdBarra').firstChild.style.width = '0';
+      corpo.appendChild(el('p', 'gd-vazio', linhas.length ? 'Escolha um cliente na lista.' : ''));
       return;
     }
-    e.feito = true;
-    var texto = e.input ? e.input.value : null;
-    editor = null;
-    fecharMenu();
-    if (e.host) { e.host.classList.remove('edit'); }
-    if (grava && texto !== null) finalizar(e, texto, mov);
-    else { restaurar(e); foco(); }
+    repintarCabecalho();
+    D.catalogo.grupos.forEach(function (g) {
+      var lista = cols.filter(function (c) { return c.grupo === g && c.chave !== 'codigo'; });
+      if (!lista.length) return;
+      var sec = el('section', 'gd-g');
+      var gh = el('div', 'gd-gh'); gh.appendChild(el('h2', null, g));
+      var cnt = el('span', 'cnt'); gh.appendChild(cnt);
+      var gb = el('div', 'gd-gb');
+      lista.forEach(function (c) { gb.appendChild(criarCampo(l, c)); });
+      sec.appendChild(gh); sec.appendChild(gb); corpo.appendChild(sec);
+      secoes.push({ cnt: cnt, cols: lista });
+    });
+    atualizarSecoes();
   }
-  function restaurar(e) {
-    if (e.movel) repintarCampo(e.col.chave);
-    else { var td = tdDe(e.codigo, e.col.chave); if (td) { td.classList.remove('edit'); } repintarForce(e.codigo, e.col.chave); }
-  }
-  function repintarForce(codigo, chave) { repintar(codigo, chave); }
-  function foco() { if (!MOVEL.matches) elRol.focus({ preventScroll: true }); }
 
-  function finalizar(e, texto, mov) {
-    var l = linhaPor[e.codigo], c = e.col;
+  // Um campo da ficha: rótulo, controle do tipo certo e a linha de aviso. O código da venda e a coluna ficam PRESOS aqui:
+  // trocar de cliente com o campo em edição grava no cliente de antes.
+  function criarCampo(l, c) {
+    var codigo = l.codigo, chave = c.chave, id = 'cp-' + chave;
+    var f = el('div', 'gd-f'); f.dataset.k = chave;
+    if (chave === 'obs') f.classList.add('larga');
+    var topo = el('div', 'gd-lb');
+    var lb = el('label', null, c.rotulo); lb.htmlFor = id; topo.appendChild(lb);
+    var tag = el('span', 'gd-falta', 'Falta'); tag.hidden = true; topo.appendChild(tag);
+    var v = el('div', 'gd-v');
+    var dica = el('span', 'gd-dica');
+    f.appendChild(topo); f.appendChild(v); f.appendChild(dica);
+    var h = { f: f, c: c, v: v, ctl: null, dica: dica, timer: null, outro: null, msgTipo: '' };
+    var obrig = c.obrigatoria && c.editavel;
+    var cel0 = l.celulas[chave];
+    var atual = function () { var x = linhaPor[codigo]; return x ? x.celulas[chave] : cel0; };
+
+    // Linha de aviso: mensagem de gravação (Salvando, Salvo, erro) e, no resto do tempo, quem preencheu.
+    h.dicaBase = function () {
+      var cel = atual();
+      if (!c.editavel) return c.calculada ? 'Calculado na planilha' : '';
+      return dicaSistema(cel);
+    };
+    h.msg = function (txt, tipo) {
+      clearTimeout(h.timer);
+      h.msgTipo = tipo || '';
+      dica.textContent = txt || h.dicaBase();
+      dica.className = 'gd-dica' + (tipo ? ' ' + tipo : '');
+      if (tipo === 'ok') h.timer = setTimeout(function () { h.msgTipo = ''; dica.className = 'gd-dica'; dica.textContent = h.dicaBase(); }, 2500);
+    };
+    h.erro = function (txt) { f.classList.add('erro'); h.msg(txt, 'err'); if (h.ctl) h.ctl.dataset.inv = '1'; };
+    h.limparErro = function () {
+      if (!f.classList.contains('erro')) return;
+      f.classList.remove('erro'); if (h.ctl) delete h.ctl.dataset.inv;
+      h.msg('', '');
+    };
+    // Repinta o estado do campo (vazio, de quem é). `forcar` troca o texto mesmo com o foco dentro (409, recusa).
+    h.estado = function (cel) {
+      var vazio = vazioV(cel.valor);
+      f.classList.toggle('falta', obrig && vazio);
+      tag.hidden = !(obrig && vazio);
+      v.classList.toggle('sis', cel.origem === 'sistema' && c.editavel);
+      if (!h.msgTipo) dica.textContent = h.dicaBase();
+    };
+
+    if (!c.editavel) {
+      v.classList.add('calc');
+      var ro = el('div', 'gd-ro'); ro.id = id; v.appendChild(ro);
+      lb.removeAttribute('for');
+      h.set = function (cel) {
+        var t = textoLeitura(c, cel.valor);
+        ro.textContent = t || 'Sem valor'; ro.className = 'gd-ro' + (t ? '' : ' sem');
+        h.estado(cel);
+      };
+    } else if (c.tipo === 'lista') {
+      var s = document.createElement('select'); s.id = id; v.appendChild(s); h.ctl = s;
+      var montar = function (cel) {
+        s.textContent = '';
+        var at = vazioV(cel.valor) ? '' : String(cel.valor);
+        s.appendChild(new Option('Escolha...', ''));
+        var achada = null;
+        (c.opcoes || []).forEach(function (o) {
+          s.appendChild(new Option(o, o));
+          if (at && chaveOpcao(o) === chaveOpcao(at)) achada = o;
+        });
+        // Valor que já estava na planilha e não está nas opções: aparece marcado, para não sumir da tela.
+        if (at && !achada) s.appendChild(new Option(at + (cel.origem === 'sistema' ? '' : ' (da planilha)'), at));
+        if (c.livre) s.appendChild(new Option('Outro...', OUTRO));
+        s.value = at ? (achada || at) : '';
+      };
+      var fecharOutro = function () {
+        var o = h.outro; if (!o) return;
+        h.outro = null;
+        if (o.v2.parentNode) o.v2.parentNode.removeChild(o.v2);
+      };
+      var abrirOutro = function () {
+        if (h.outro) return;
+        var v2 = el('div', 'gd-v gd-v2');
+        var t = document.createElement('input'); t.type = 'text'; t.maxLength = 300; t.autocomplete = 'off'; t.placeholder = 'Digite o valor';
+        t.setAttribute('aria-label', c.rotulo + ': outro valor');
+        v2.appendChild(t); f.insertBefore(v2, dica);
+        var o = { v2: v2, t: t, cancelar: false };
+        h.outro = o;
+        t.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); t.blur(); }
+          else if (e.key === 'Escape') { e.preventDefault(); o.cancelar = true; t.blur(); }
+        });
+        t.addEventListener('blur', function () {
+          if (h.outro !== o) return;
+          var txt = t.value.trim();
+          fecharOutro();
+          if (txt && !o.cancelar) gravar(codigo, c, txt, h);
+          else montar(atual());
+        });
+        t.focus();
+      };
+      h.set = function (cel) { if (h.outro && document.activeElement === h.outro.t) { h.estado(cel); return; } fecharOutro(); montar(cel); h.estado(cel); };
+      s.addEventListener('change', function () {
+        if (s.value === OUTRO) { abrirOutro(); return; }
+        gravar(codigo, c, s.value, h);
+      });
+    } else if (c.tipo === 'data') {
+      var d = document.createElement('input'); d.type = 'date'; d.id = id; d.min = '2000-01-01'; d.max = '2100-12-31'; v.appendChild(d); h.ctl = d;
+      var dataOk = function (x) { return /^\d{4}-\d{2}-\d{2}$/.test(x) && x >= '2000-01-01' && x <= '2100-12-31'; };
+      h.set = function (cel, forcar) {
+        if (forcar || document.activeElement !== d) d.value = textoControle(c, cel.valor);
+        h.estado(cel);
+      };
+      // O Chromium dispara "change" a cada dígito do ano (0002, 0020, 0202...): só grava data completa e dentro do intervalo; apagar tudo grava ao sair.
+      d.addEventListener('change', function () { if (dataOk(d.value)) gravar(codigo, c, d.value, h); });
+      d.addEventListener('blur', function () {
+        if (d.validity && d.validity.badInput) { aviso('Data incompleta. Preencha dia, mês e ano.'); h.set(atual(), true); return; }
+        if (d.value === '') { gravar(codigo, c, '', h); h.set(atual(), true); return; }
+        if (!dataOk(d.value)) { aviso('Use um ano entre 2000 e 2100.'); h.set(atual(), true); return; }
+        gravar(codigo, c, d.value, h);
+      });
+    } else {
+      var area = chave === 'obs';
+      var inp = document.createElement(area ? 'textarea' : 'input');
+      inp.id = id; h.ctl = inp;
+      if (!area) { inp.type = 'text'; }
+      inp.autocomplete = 'off'; inp.spellcheck = false;
+      if (c.tipo === 'dinheiro') {
+        // NUNCA type=number: ele corta três zeros no ponto de milhar e zera com a vírgula do teclado.
+        inp.inputMode = 'decimal'; inp.className = 'num';
+        v.appendChild(el('span', 'gd-pre', 'R$'));
+      } else if (c.tipo === 'numero') { inp.inputMode = 'decimal'; inp.className = 'num'; }
+      else if (c.tipo === 'inteiro') { inp.inputMode = 'numeric'; inp.className = 'num'; }
+      else if (c.tipo === 'telefone') { inp.inputMode = 'tel'; }
+      else { inp.maxLength = 300; }
+      v.appendChild(inp);
+      h.set = function (cel, forcar) {
+        if (forcar || document.activeElement !== inp) inp.value = textoControle(c, cel.valor);
+        h.estado(cel);
+      };
+      inp.addEventListener('input', function () {
+        h.limparErro();
+        if (c.tipo === 'inteiro') { var so = inp.value.replace(/\D/g, ''); if (so !== inp.value) inp.value = so; }
+        else if (c.tipo === 'telefone') inp.value = maskTel(inp.value);
+      });
+      inp.addEventListener('change', function () { gravar(codigo, c, inp.value, h); });
+      inp.addEventListener('blur', function () { if (!inp.dataset.inv) h.set(atual(), true); });
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !area) { e.preventDefault(); inp.blur(); }
+        else if (e.key === 'Escape') { e.preventDefault(); h.limparErro(); h.set(atual(), true); inp.blur(); }
+      });
+    }
+    campos[chave] = h;
+    h.set(cel0, true);
+    return f;
+  }
+
+  // ── Ler o que a pessoa digitou ──
+  // Devolve { ok, v (valor do modelo), envio (o que vai no POST) } ou { ok:false, msg }.
+  function lerCampo(c, texto) {
+    var t = String(texto == null ? '' : texto).trim();
+    if (!t) return { ok: true, v: null, envio: '' };
+    switch (c.tipo) {
+      case 'dinheiro': {
+        var n = lerNumeroBR(t);
+        if (n == null || Math.abs(n) > 1e9) return { ok: false, msg: 'Valor em reais inválido. Exemplo: 1.234,56.' };
+        n = Math.round(n * 100) / 100;
+        return { ok: true, v: n, envio: String(n).replace('.', ',') };
+      }
+      case 'numero': {
+        var m = lerNumeroBR(t);
+        if (m == null || Math.abs(m) > 1e9) return { ok: false, msg: 'Número inválido. Exemplo: 1.234,56.' };
+        m = Math.round(m * 10000) / 10000;
+        return { ok: true, v: m, envio: String(m).replace('.', ',') };
+      }
+      case 'inteiro':
+        if (!/^\d{1,9}$/.test(t)) return { ok: false, msg: 'Use um número inteiro.' };
+        return { ok: true, v: Number(t), envio: t };
+      case 'telefone': {
+        var d = t.replace(/\D/g, '');
+        if (!((d.length === 10 || d.length === 11) || ((d.length === 12 || d.length === 13) && d.indexOf('55') === 0))) return { ok: false, msg: 'Telefone com DDD, de 10 ou 11 dígitos.' };
+        return { ok: true, v: d, envio: d };
+      }
+      case 'data': return { ok: true, v: t, envio: t };
+      case 'lista': {
+        var k = chaveOpcao(t), o = (c.opcoes || []).filter(function (x) { return chaveOpcao(x) === k; })[0];
+        return { ok: true, v: o || t, envio: t };
+      }
+      default: return { ok: true, v: t, envio: t };
+    }
+  }
+
+  // ── Gravar um campo ──
+  function gravar(codigo, c, texto, h) {
+    var l = linhaPor[codigo]; if (!l) return;
     var antes = l.celulas[c.chave];
-    var novoV = localValor(c, texto);
-    var igual = (vazioV(novoV) && vazioV(antes.valor)) || (novoV === antes.valor);
-    // Vazio sobre célula que não tem sobrescrita é só "continua vazio ou na planilha": nada a gravar.
-    if (igual || (vazioV(novoV) && antes.origem !== 'sistema' && vazioV(antes.valor))) { restaurar(e); moverDepois(mov); return; }
-    var textoEnvio = c.tipo === 'lista' || c.tipo === 'texto' ? String(texto).trim() : String(texto);
+    var r = lerCampo(c, texto);
+    if (!r.ok) { if (h) h.erro(r.msg); return; }
+    var novoV = r.v;
+    if ((vazioV(novoV) && vazioV(antes.valor)) || novoV === antes.valor) { if (h && detalhe === codigo) h.set(antes, true); return; }
+    // Apagar um valor que vem da planilha não faz nada no servidor (só se apaga o que foi preenchido aqui).
+    if (vazioV(novoV) && antes.origem !== 'sistema') {
+      aviso('Este valor vem da planilha. Para trocá-lo, escolha ou digite outro.');
+      if (h && detalhe === codigo) h.set(antes, true);
+      return;
+    }
     // Otimista: mostra já. O servidor devolve a célula final (normalizada) ou o motivo da recusa.
+    var kk = codigo + '|' + c.chave;
+    if (!(kk in confirmado)) confirmado[kk] = antes;      // sem gravação na fila, o que está na tela é o que o servidor confirmou
+    pend[kk] = (pend[kk] || 0) + 1;
     l.celulas[c.chave] = { valor: novoV, origem: 'sistema', por: (D && D.consultor) || '', em: new Date().toISOString() };
     recalcular(l);
-    var td = tdDe(e.codigo, c.chave);
-    repintar(e.codigo, c.chave);
-    if (td) td.classList.add('salvando');
-    moverDepois(mov);
-    enfileirar(e.codigo, function () { return enviar(l, c, textoEnvio, antes); });
+    depoisDeMudar(codigo, c.chave, 'Salvando...', 'busy', false);
+    enfileirar(codigo, function () { return enviar(l, c, r.envio, antes); });
   }
-  function moverDepois(mov) {
-    if (e_movel()) return;
-    if (mov === 'baixo') mover(1, 0); else if (mov === 'direita') mover(0, 1); else if (mov === 'esquerda') mover(0, -1);
-    foco();
-  }
-  function e_movel() { return MOVEL.matches; }
-
   function enfileirar(codigo, fn) {
     var p = (filas[codigo] || Promise.resolve()).then(fn, fn);
     filas[codigo] = p.catch(function () {});
     return p;
   }
-  function limparSalvando(codigo, chave) { var td = tdDe(codigo, chave); if (td) td.classList.remove('salvando'); }
+  // Repinta SÓ o que mudou (o campo, o "x de y" das seções, o cabeçalho e o selo da lista). A ficha não é redesenhada:
+  // quem saltou com Tab para o próximo campo não pode perder o foco.
+  function depoisDeMudar(codigo, chave, msg, tipo, forcar) {
+    var l = linhaPor[codigo]; if (!l) return;
+    if (chave === 'cliente' && typeof l.celulas.cliente.valor === 'string') {
+      l.cliente = l.celulas.cliente.valor;
+      var it = itemDe(codigo); if (it) it.querySelector('.nm').textContent = l.cliente || 'Sem nome';
+    }
+    if (chave === 'consultor' && typeof l.celulas.consultor.valor === 'string') l.consultor = l.celulas.consultor.valor;
+    repintarItem(codigo);
+    if (detalhe !== codigo) return;
+    var h = campos[chave];
+    if (h) { h.limparErro(); h.set(l.celulas[chave], forcar); h.msg(msg, tipo); }
+    atualizarSecoes();
+    repintarCabecalho();
+    if (msg) salvoGeral(msg, tipo);
+  }
+  var salvoTimer = null;
+  function salvoGeral(txt, tipo) {
+    var s = $('gdSalvo');
+    s.textContent = txt === 'Salvando...' ? '' : txt;
+    s.className = 'gd-salvo' + (tipo === 'err' ? ' err' : '');
+    clearTimeout(salvoTimer);
+    if (txt === 'Salvo') salvoTimer = setTimeout(function () { s.textContent = ''; }, 2500);
+  }
 
   function enviar(l, c, texto, antes) {
     var chaveBase = l.codigo + '|' + c.chave;
     var corpo = { codigo: l.codigo, coluna: c.chave, valor: texto, base_em: baseEm[chaveBase] || (D && D.em) };
+    // Fim desta gravação: devolve quantas ainda estão na fila para o mesmo campo. Com outra na fila, a tela não é tocada:
+    // ela mostra a edição mais nova, que a próxima resposta confirma ou recusa.
+    var terminou = function () { pend[chaveBase] = Math.max(0, (pend[chaveBase] || 1) - 1); return pend[chaveBase]; };
+    // Recusa: volta ao último valor CONFIRMADO (não à edição anterior que ainda não foi confirmada).
+    var voltar = function () {
+      l.celulas[c.chave] = (chaveBase in confirmado) ? confirmado[chaveBase] : antes;
+      recalcular(l);
+      depoisDeMudar(l.codigo, c.chave, '', '', true);
+      salvoGeral('Não salvou', 'err');
+    };
     return api('POST', '/campo', corpo).then(function (x) {
       var j = x.json || {};
+      var resto;
       if (x.status === 200 && j.ok) {
-        l.celulas[c.chave] = j.celula;
+        resto = terminou();
+        confirmado[chaveBase] = j.celula;
         baseEm[chaveBase] = j.em;
+        if (resto > 0) return;
+        l.celulas[c.chave] = j.celula;
         if (j.progresso) l.progresso = j.progresso; else recalcular(l);
-        limparSalvando(l.codigo, c.chave);
-        repintar(l.codigo, c.chave);
+        depoisDeMudar(l.codigo, c.chave, 'Salvo', 'ok', false);
         return;
       }
       if (x.status === 409 && j.celula) {
-        l.celulas[c.chave] = j.celula;
+        // Outra pessoa mexeu: recarrega o valor dela no campo.
+        resto = terminou();
+        confirmado[chaveBase] = j.celula;
         baseEm[chaveBase] = j.em || baseEm[chaveBase];
+        if (j.conflito && j.por) aviso(j.por + ' alterou este campo agora. Valor atual: ' + (textoLeitura(c, j.celula.valor) || 'vazio'));
+        else aviso(j.error || 'Outra pessoa alterou este campo agora.');
+        if (resto > 0) return;
+        l.celulas[c.chave] = j.celula;
         recalcular(l);
-        limparSalvando(l.codigo, c.chave);
-        repintar(l.codigo, c.chave);
-        if (j.conflito && j.por) aviso(j.por + ' alterou esta célula agora. Valor atual: ' + (fmtValor(c, j.celula.valor) || 'vazio'));
-        else aviso(j.error || 'Outra pessoa alterou esta célula agora.');
+        depoisDeMudar(l.codigo, c.chave, '', '', true);
         return;
       }
-      // Recusa (400, 404, 403, 5xx): devolve o valor anterior e mostra o motivo.
-      l.celulas[c.chave] = antes; recalcular(l);
-      limparSalvando(l.codigo, c.chave);
-      repintar(l.codigo, c.chave);
+      // Recusa (400, 404, 403, 5xx): mostra o motivo e devolve o último valor confirmado.
+      resto = terminou();
       aviso(j.error || 'Não consegui gravar agora. Tente de novo.');
+      if (resto > 0) return;
+      voltar();
     }, function (e) {
+      var resto = terminou();
       if (e && (e.tipo === 'negado' || e.tipo === 'login')) return;
-      l.celulas[c.chave] = antes; recalcular(l);
-      limparSalvando(l.codigo, c.chave);
-      repintar(l.codigo, c.chave);
       aviso('Não consegui gravar agora. Confira a conexão e tente de novo.');
+      if (resto > 0) return;
+      voltar();
     });
-  }
-
-  // ── Celular: cliente em tela cheia ──
-  $('cartoes').addEventListener('click', function (e) {
-    var b = e.target.closest ? e.target.closest('.gc-cartao') : null;
-    if (b) abrirCliente(b.dataset.c);
-  });
-  function abrirCliente(codigo) {
-    var l = linhaPor[codigo]; if (!l) return;
-    detalhe = codigo;
-    $('gd').hidden = false;
-    desenharDetalhe();
-    $('gdCorpo').scrollTop = 0;
-  }
-  function fecharCliente() {
-    if (editor) fecharEditor(true);
-    detalhe = null; $('gd').hidden = true;
-    var b = $('cartoes').querySelector('[data-c]'); void b;
-  }
-  $('gdVolta').addEventListener('click', fecharCliente);
-  var SETA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
-  var abertos = {};
-  function repintarCabecalhoDetalhe() {
-    var l = linhaPor[detalhe]; if (!l) return;
-    $('gdNome').textContent = l.cliente || 'Sem nome';
-    $('gdSub').textContent = l.codigo + ' · ' + l.progresso.preenchidas + ' de ' + l.progresso.total + (l.progresso.faltando ? ' · faltam ' + l.progresso.faltando : ' · completo');
-  }
-  function desenharDetalhe() {
-    var l = linhaPor[detalhe]; if (!l) return;
-    repintarCabecalhoDetalhe();
-    var corpo = $('gdCorpo'); corpo.textContent = '';
-    D.catalogo.grupos.forEach(function (g) {
-      var lista = cols.filter(function (c) { return c.grupo === g && c.chave !== 'codigo'; });
-      if (!lista.length) return;
-      var falt = faltandoDe(l, lista);
-      var chave = detalhe + '|' + g;
-      if (!(chave in abertos)) abertos[chave] = falt > 0;
-      var sec = el('section', 'gd-g');
-      var bt = el('button', 'gd-gh'); bt.type = 'button'; bt.setAttribute('aria-expanded', abertos[chave] ? 'true' : 'false');
-      bt.insertAdjacentHTML('beforeend', SETA);
-      bt.appendChild(el('span', null, g));
-      var fs = el('span', 'fal', falt ? 'Faltam ' + falt : ''); fs.dataset.g = g; bt.appendChild(fs);
-      var gb = el('div', 'gd-gb'); gb.hidden = !abertos[chave];
-      bt.addEventListener('click', function () { var o = bt.getAttribute('aria-expanded') !== 'true'; abertos[chave] = o; bt.setAttribute('aria-expanded', o ? 'true' : 'false'); gb.hidden = !o; });
-      lista.forEach(function (c) {
-        var f = el('div', 'gd-f'); f.dataset.k = c.chave;
-        var lb = el('label', null, c.rotulo); f.appendChild(lb);
-        var v = el('div', 'gd-v'); v.tabIndex = 0; v.setAttribute('role', 'button'); v.dataset.k = c.chave;
-        v.addEventListener('keydown', function (e) { if (e.target === v && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); v.click(); } });
-        v.addEventListener('click', function () {
-          var ln = linhaPor[detalhe];
-          if (!c.editavel) { aviso(c.calculada ? 'Esta coluna é calculada na planilha e só pode ser lida.' : 'Esta coluna não pode ser editada por você.'); return; }
-          if (v.classList.contains('edit')) return;
-          abrirEditor(v, ln, c, true);
-        });
-        f.appendChild(v);
-        f.appendChild(el('span', 'gd-dica'));
-        gb.appendChild(f);
-        pintarCampo(f, c, l.celulas[c.chave]);
-      });
-      sec.appendChild(bt); sec.appendChild(gb); corpo.appendChild(sec);
-    });
-  }
-  function pintarCampo(f, c, cel) {
-    var v = f.querySelector('.gd-v');
-    var cls = 'gd-v' + (ehNum(c) ? ' num' : '');
-    if (c.calculada || !c.editavel) cls += ' calc'; else if (c.obrigatoria && vazioV(cel.valor)) cls += ' falta';
-    if (cel.origem === 'sistema') cls += ' sis';
-    v.className = cls;
-    v.textContent = fmtValor(c, cel.valor);
-    v.setAttribute('aria-label', c.rotulo + ': ' + (fmtValor(c, cel.valor) || 'em branco'));
-    f.querySelector('.gd-dica').textContent = dicaSistema(cel);
-  }
-  function repintarCampo(chave) {
-    if (!detalhe) return;
-    var l = linhaPor[detalhe], c = colPor[chave];
-    var f = $('gdCorpo').querySelector('.gd-f[data-k="' + chave + '"]');
-    if (!f || !l || !c) return;
-    pintarCampo(f, c, l.celulas[chave]);
-    var lista = cols.filter(function (x) { return x.grupo === c.grupo && x.chave !== 'codigo'; });
-    var fal = faltandoDe(l, lista);
-    var s = $('gdCorpo').querySelector('.fal[data-g="' + c.grupo.replace(/"/g, '') + '"]');
-    if (s) s.textContent = fal ? 'Faltam ' + fal : '';
   }
 
   // ── Controles ──
   var tb = null;
-  $('busca').addEventListener('input', function () { clearTimeout(tb); tb = setTimeout(function () { if (editor) fecharEditor(true); desenhar(); }, 120); });
-  $('fCons').addEventListener('change', function () { if (editor) fecharEditor(true); desenhar(); });
-  $('fGrupo').addEventListener('change', function () { if (editor) fecharEditor(true); sel = null; desenhar(); });
+  $('busca').addEventListener('input', function () { clearTimeout(tb); tb = setTimeout(desenharLista, 120); });
+  $('fCons').addEventListener('change', desenharLista);
   $('fPend').addEventListener('click', function () {
     var b = $('fPend'); b.setAttribute('aria-checked', b.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
-    if (editor) fecharEditor(true);
-    desenhar();
+    desenharLista();
   });
-  $('atualizar').addEventListener('click', function () { if (editor) fecharEditor(true); carregar(); });
+  // Atualizar espera as gravações em andamento: ler antes delas terminarem traria o valor velho de volta.
+  $('atualizar').addEventListener('click', function () {
+    var a = document.activeElement;
+    if (a && $('gdCorpo').contains(a) && a.blur) a.blur();
+    Promise.all(Object.keys(filas).map(function (k) { return filas[k]; })).then(function () { return carregar(); });
+  });
   $('faixaBtn').addEventListener('click', function () { carregar(); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && detalhe && !editor) fecharCliente();
+    if (e.key !== 'Escape' || !MOVEL.matches || $('gd').hidden) return;
+    var a = document.activeElement, tag = a && a.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    fecharFicha();
   });
-  // Mudou entre computador e celular com um editor aberto: fecha sem gravar surpresa.
-  MOVEL.addEventListener && MOVEL.addEventListener('change', function () { if (editor) fecharEditor(true); if (!MOVEL.matches) { detalhe = null; $('gd').hidden = true; } });
-  window.addEventListener('pagehide', function () { if (editor) fecharEditor(true); });
+  // Mudou entre celular e computador: no computador a ficha fica sempre ao lado; no celular volta para a lista.
+  function aoMudarLargura() {
+    if (!D) return;
+    if (MOVEL.matches) { $('gd').hidden = true; return; }
+    if (!detalhe && visiveis.length) detalhe = visiveis[0].codigo;
+    marcarAtivo(); desenharFicha(); $('gd').hidden = false;
+  }
+  if (MOVEL.addEventListener) MOVEL.addEventListener('change', aoMudarLargura);
+  window.addEventListener('pagehide', function () { var a = document.activeElement; if (a && a.blur && $('gdCorpo').contains(a)) a.blur(); });
 
   if (EMB) {
     window.addEventListener('storage', function (e) {
