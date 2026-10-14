@@ -1088,6 +1088,13 @@ html[data-mode="app"].eletro-aberto.planilha-eletro-aberto #eletroSection{max-wi
 .epo-campo select,.epo-campo input,.epo-campo textarea{width:100%;box-sizing:border-box;min-height:44px;padding:8px 10px;border:1px solid var(--io-borda-campo,rgba(255,255,255,.22));border-radius:10px;background:var(--n-sf2,#0f1a2e);color:var(--n-tx,#fff);font-family:inherit;font-size:16px;font-weight:600}
 .epo-campo textarea{min-height:64px;resize:vertical}
 .epo-dica{font-size:12.5px;font-weight:600;color:var(--n-tx2,#B4C0D2)}
+/* Modelo do negócio: em vermelho enquanto está vazio; a confirmação de troca mora no próprio cartão. */
+.epo-campo.falta{color:var(--io-er-tx,#FCA5A5)}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{border:2px solid var(--io-er-tx,#F87171);background-color:var(--io-er-sf,rgba(248,113,113,.14))}
+.epo-conf{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding:10px 12px;border:1px solid var(--io-ambar-bd,rgba(247,164,28,.4));border-radius:10px;background:var(--io-av-sf,rgba(247,164,28,.1));color:var(--io-ambar-tx,#FDE68A);font-size:14px;font-weight:700;line-height:1.35}
+.epo-conf[hidden]{display:none}
+.epo-conf-bt{display:flex;flex-wrap:wrap;gap:8px}
+.epo-conf .fs-btn-sec{min-height:44px}
 .epo-st{min-height:16px;font-size:12.5px;font-weight:700;color:var(--n-tx2,#B4C0D2)}
 .epo-st.erro{color:var(--io-er-tx,#FCA5A5)}
 @media(max-width:520px){.epo-campos{grid-template-columns:minmax(0,1fr)}}
@@ -7000,8 +7007,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="epi-barra">
         <div class="ql-chips" role="group" aria-label="Período do funil">
           <button type="button" class="ql-chip epi-chip" data-d="1" aria-pressed="false" onclick="epiPeriodo(1)">24 horas</button>
-          <button type="button" class="ql-chip epi-chip on" data-d="7" aria-pressed="true" onclick="epiPeriodo(7)">7 dias</button>
-          <button type="button" class="ql-chip epi-chip" data-d="30" aria-pressed="false" onclick="epiPeriodo(30)">30 dias</button>
+          <button type="button" class="ql-chip epi-chip" data-d="7" aria-pressed="false" onclick="epiPeriodo(7)">7 dias</button>
+          <button type="button" class="ql-chip epi-chip on" data-d="30" aria-pressed="true" onclick="epiPeriodo(30)">30 dias</button>
           <button type="button" class="ql-chip epi-chip" data-d="365" aria-pressed="false" onclick="epiPeriodo(365)">1 ano</button>
         </div>
         <button type="button" class="fs-btn-sec" onclick="epiCarregar()">Atualizar</button>
@@ -11144,7 +11151,7 @@ function epPlanilhaAbrir() {
 // A rota é pública e devolve só contagem: { dias, total: { material_view, checkout_start, purchase } | null }.
 // total null quer dizer "não consegui contar", e isso nunca vira zero na tela.
 const EPI_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/io/eletroposto/funil';
-var _epi = { dias: 7, seq: 0, aberto: false };
+var _epi = { dias: 30, seq: 0, aberto: false };
 function epiLimpar() {
   _epi.seq++; _epi.aberto = false;
   const l = document.getElementById('epi-funil'); if (l) { l.innerHTML = ''; l.hidden = true; }
@@ -11328,10 +11335,10 @@ function eplRender() {
 // ({ id, etapa | previsto | responsavel | obs, base_em }). base_em é o `em` da obra que a tela tem: se mudou no servidor, 409.
 // feitas, total e atrasado vêm sempre da API; a tela não refaz essa conta.
 const EPO_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/gerador/obras/eletroposto';
-var _epo = { lista: null, socio: false, em: null, filtro: 'todas', carregando: false };   // em: o `em` do TOPO do GET, base de quem ainda não tem pós-venda gravado
+var _epo = { lista: null, socio: false, modelos: [], em: null, filtro: 'todas', carregando: false };   // em: o `em` do TOPO do GET, base de quem ainda não tem pós-venda gravado
 var _epoFila = {};   // id -> escrita em voo: uma por obra, na ordem, cada uma com o `em` da anterior
 function epoLimpar() {
-  _epo = { lista: null, socio: false, em: null, filtro: 'todas', carregando: false };
+  _epo = { lista: null, socio: false, modelos: [], em: null, filtro: 'todas', carregando: false };
   _epoFila = {};
   const l = document.getElementById('epo-lista'); if (l) { l.innerHTML = ''; l.hidden = true; }
   epEstado('epo-estado', ''); epoAviso('');
@@ -11386,6 +11393,7 @@ async function epoAbrir(manterAviso) {
       throw new Error(motivo);
     }
     _epo.lista = R.j.obras; _epo.socio = !!R.j.socio;
+    _epo.modelos = Array.isArray(R.j.modelos) ? R.j.modelos.filter(m => m && m.chave) : [];   // [{ chave, rotulo }]
     _epo.em = (typeof R.j.em === 'string' && R.j.em) ? R.j.em : null;
     if (manterAviso !== true && av0 === _epoAvSeq) epoAviso('');   // recarregar depois de um erro não pode apagar a explicação do erro
     epoRender();
@@ -11424,25 +11432,72 @@ function epoRender() {
 function epoCartao(o) {
   const sit = epoSituacao(o);
   const pct = o.total > 0 ? Math.max(0, Math.min(100, Math.round(o.feitas / o.total * 100))) : 0;
-  const etapas = Array.isArray(o.etapas) ? o.etapas : [];
-  const achada = etapas.some(e => e.chave === o.etapa);
-  const opcoes = (achada ? '' : '<option value="' + escapeHtml(o.etapa) + '" selected>' + escapeHtml(o.etapa_rotulo || o.etapa || '') + '</option>')
-    + etapas.map(e => '<option value="' + escapeHtml(e.chave) + '"' + (e.chave === o.etapa ? ' selected' : '') + '>' + escapeHtml(e.rotulo) + '</option>').join('');
+  const opcoes = epoEtapaOpcoes(o);
   return '<article class="epo-card ' + sit + '" data-id="' + escapeHtml(o.id) + '">'
     + '<div class="epo-topo"><div><h3>' + escapeHtml(o.cliente || 'Sem nome') + '</h3>'
-    + '<div class="epo-sub">' + escapeHtml([o.cidade, o.consultor, o.modelo_rotulo].filter(Boolean).join(' · ')) + '</div></div>'
+    + '<div class="epo-sub" data-p="sub">' + escapeHtml(epoSubTexto(o)) + '</div></div>'
     + '<span class="epo-selo ' + (sit === 'atrasada' ? 'atraso' : sit === 'concluida' ? 'ok' : '') + '" data-p="selo">' + epoSeloTexto(sit) + '</span></div>'
     + '<div class="epo-prog" role="progressbar" aria-label="Etapas feitas" aria-valuemin="0" aria-valuemax="' + (Number(o.total) || 0) + '" aria-valuenow="' + (Number(o.feitas) || 0) + '"><i style="width:' + pct + '%"></i></div>'
     + '<div class="epo-linha"><span data-p="feitas">' + (Number(o.feitas) || 0) + ' de ' + (Number(o.total) || 0) + ' etapas feitas</span>'
     + '<span class="epo-prev' + (o.atrasado && sit !== 'concluida' ? ' atraso' : '') + '" data-p="prev">' + epoPrevTexto(o, sit) + '</span></div>'
     + '<div class="epo-dica" data-p="info">' + epoInfo(o) + '</div>'
     + '<div class="epo-campos">'
-    + '<label class="epo-campo largo"><span>Etapa atual</span><select data-campo="etapa" onchange="epoMudou(this)">' + opcoes + '</select>'
+    + '<label class="epo-campo largo' + (epoSemModelo(o) ? ' falta' : '') + '" data-p="modelo-wrap"><span>Modelo do negócio</span><select data-campo="modelo" onchange="epoMudou(this)"' + (epoSemModelo(o) ? ' aria-invalid="true"' : '') + (epoModeloDesligado(o) ? ' disabled' : '') + '>' + epoModeloOpcoes(o) + '</select>'
+    + '<span class="epo-dica" data-p="modelo-dica">' + epoModeloDica(o) + '</span></label>'
+    + '<div class="epo-conf" data-p="conf" role="alert" hidden></div>'
+    + '<label class="epo-campo largo"><span>Etapa atual</span><select data-campo="etapa" data-k="' + escapeHtml(epoEtapaChave(o)) + '" onchange="epoMudou(this)">' + opcoes + '</select>'
     + '<span class="epo-dica" data-p="dica">' + epoDica(o) + '</span></label>'
     + '<label class="epo-campo"><span>Previsto</span><input type="date" data-campo="previsto" value="' + escapeHtml(String(o.previsto || '').slice(0, 10)) + '" onchange="epoMudou(this)"></label>'
     + '<label class="epo-campo"><span>Responsável</span><input type="text" data-campo="responsavel" maxlength="120" autocomplete="off" value="' + escapeHtml(o.responsavel || '') + '" onchange="epoMudou(this)"></label>'
+    + (_epo.socio ? '<label class="epo-campo"><span>Valor da venda (R$)</span><input type="text" inputmode="decimal" data-campo="valor" autocomplete="off" placeholder="0,00" value="' + escapeHtml(epoMoeda(o.valor)) + '" onchange="epoMudou(this)"></label>'
+      + '<label class="epo-campo"><span>Data da venda</span><input type="date" data-campo="vendido_em" value="' + escapeHtml(String(o.vendido_em || '').slice(0, 10)) + '" onchange="epoMudou(this)"></label>' : '')
     + '<label class="epo-campo largo"><span>Observação</span><textarea data-campo="obs" maxlength="1000" rows="2" onchange="epoMudou(this)">' + escapeHtml(o.obs || '') + '</textarea></label>'
     + '</div><div class="epo-st" role="status" data-p="st"></div></article>';
+}
+// ── Modelo do negócio, valor e data da venda (14/10/2026) ───────────────────
+const epoSemModelo = o => !String(o.modelo == null ? '' : o.modelo).trim();
+const epoModeloDesligado = o => !(_epo.modelos || []).length && epoSemModelo(o);
+function epoSubTexto(o) { return [o.cidade, o.consultor, o.modelo_rotulo].filter(Boolean).join(' · '); }
+function epoModeloOpcoes(o) {
+  const lista = _epo.modelos || [], atual = epoSemModelo(o) ? '' : String(o.modelo);
+  let h = atual ? '' : '<option value="" selected>Escolha o modelo</option>';
+  if (atual && !lista.some(m => String(m.chave) === atual)) h += '<option value="' + escapeHtml(atual) + '" selected>' + escapeHtml(o.modelo_rotulo || atual) + '</option>';
+  return h + lista.map(m => '<option value="' + escapeHtml(m.chave) + '"' + (String(m.chave) === atual ? ' selected' : '') + '>' + escapeHtml(m.rotulo || m.chave) + '</option>').join('');
+}
+function epoModeloDica(o) {
+  if (!epoSemModelo(o)) return '';
+  return escapeHtml(epoModeloDesligado(o) ? 'Sem modelos para escolher agora. Atualize a lista.' : 'Escolha o modelo para liberar as etapas desta obra.');
+}
+function epoEtapaChave(o) { return (Array.isArray(o.etapas) ? o.etapas : []).map(e => e.chave + '|' + e.rotulo).join(';') + '#' + o.etapa; }
+function epoEtapaOpcoes(o) {
+  const etapas = Array.isArray(o.etapas) ? o.etapas : [];
+  const achada = etapas.some(e => e.chave === o.etapa);
+  return (achada ? '' : '<option value="' + escapeHtml(o.etapa) + '" selected>' + escapeHtml(o.etapa_rotulo || o.etapa || '') + '</option>')
+    + etapas.map(e => '<option value="' + escapeHtml(e.chave) + '"' + (e.chave === o.etapa ? ' selected' : '') + '>' + escapeHtml(e.rotulo) + '</option>').join('');
+}
+/** Há etapa além da primeira? Então trocar o modelo muda o que já foi andado e pede confirmação. */
+function epoEtapaAvancada(o) { return (Array.isArray(o.etapas) ? o.etapas : []).findIndex(e => e.chave === o.etapa) > 0; }
+/** R$ no formato brasileiro, sem o símbolo: 145000 -> "145.000,00". */
+function epoMoeda(n) { return (n == null || n === '' || !isFinite(Number(n))) ? '' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+/** "145.000" -> 145000; "145.000,50" -> 145000.5; "145000,5" -> 145000.5. O ponto só vale como milhar (grupos de 3). Vazio -> null; inválido -> NaN. */
+function epoLerValor(txt) {
+  const t = String(txt == null ? '' : txt).replace(/R\$/gi, '').replace(/\s+/g, '');
+  if (!t) return null;
+  if (!/^(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/.test(t)) return NaN;
+  const n = Number(t.replace(/\./g, '').replace(',', '.'));
+  return (isFinite(n) && n > 0) ? n : NaN;
+}
+function epoFecharConf(card) { const b = card && card.querySelector('[data-p="conf"]'); if (b) { b.hidden = true; b.innerHTML = ''; } }
+/** Confirmação na própria tela (sem confirm() do navegador). O select já mostra o modelo novo; "Manter o atual" devolve o antigo. */
+function epoConfirmarModelo(card, o, novoModelo) {
+  const b = card.querySelector('[data-p="conf"]');
+  if (!b) return;
+  b.innerHTML = '<span>Esta obra já passou da primeira etapa. Trocar o modelo muda o trilho e a etapa atual. Confirmar a troca?</span>'
+    + '<span class="epo-conf-bt"><button type="button" class="fs-btn-sec" data-a="sim">Trocar o modelo</button><button type="button" class="fs-btn-sec" data-a="nao">Manter o atual</button></span>';
+  b.hidden = false;
+  b.querySelector('[data-a="sim"]').onclick = () => { epoFecharConf(card); epoEnfileirar(o, card, 'modelo', novoModelo); };
+  b.querySelector('[data-a="nao"]').onclick = () => { epoFecharConf(card); epoReverter(card, o, 'modelo'); };
+  b.querySelector('[data-a="nao"]').focus();
 }
 /** Desde quando está na etapa e o que falta informar (a API devolve etapa_desde e falta_informar). Só texto, escapado. */
 function epoInfo(o) {
@@ -11464,6 +11519,8 @@ const EPO_CODIGOS = {
   nada_a_gravar: 'Não havia nada novo para gravar.',
   id_invalido: 'Obra não reconhecida. Atualize a lista.',
   base_em_invalido: 'A tela está desatualizada. Atualize a lista.',
+  modelo_invalido: 'Esse modelo não é válido. Atualize a lista.',
+  valor_invalido: 'O valor não é válido. Use números, como 145.000 ou 1.234,56.',
 };
 function epoFrase(j) {
   const e = j && typeof j.error === 'string' ? j.error.trim() : '';
@@ -11500,13 +11557,31 @@ function epoPintar(card, o) {
   q('prev').innerHTML = epoPrevTexto(o, sit);
   q('dica').innerHTML = epoDica(o);
   q('info').innerHTML = epoInfo(o);
+  // O modelo novo traz outro trilho: o select de etapa é refeito (só quando a lista mudou) e a linha do cliente também.
+  q('sub').textContent = epoSubTexto(o);
+  const selE = card.querySelector('[data-campo="etapa"]');
+  if (selE && selE.dataset.k !== epoEtapaChave(o)) { selE.innerHTML = epoEtapaOpcoes(o); selE.dataset.k = epoEtapaChave(o); }
+  const selM = card.querySelector('[data-campo="modelo"]');
+  if (selM) { selM.innerHTML = epoModeloOpcoes(o); selM.disabled = epoModeloDesligado(o); selM.toggleAttribute('aria-invalid', epoSemModelo(o)); if (epoSemModelo(o)) selM.setAttribute('aria-invalid', 'true'); }
+  const wrap = q('modelo-wrap'); if (wrap) wrap.classList.toggle('falta', epoSemModelo(o));
+  q('modelo-dica').innerHTML = epoModeloDica(o);
+  epoFecharConf(card);
   const poe = (campo, valor) => { const c = card.querySelector('[data-campo="' + campo + '"]'); if (c && c !== document.activeElement) c.value = valor; };
   poe('etapa', o.etapa || ''); poe('previsto', String(o.previsto || '').slice(0, 10)); poe('responsavel', o.responsavel || ''); poe('obs', o.obs || '');
+  poe('valor', epoMoeda(o.valor)); poe('vendido_em', String(o.vendido_em || '').slice(0, 10));
   epoResumo();
 }
 function epoValorDe(o, campo) {
-  if (campo === 'previsto') return String(o.previsto || '').slice(0, 10);
+  if (campo === 'previsto' || campo === 'vendido_em') return String(o[campo] || '').slice(0, 10);
+  if (campo === 'valor') return epoMoeda(o.valor);
   return String(o[campo] == null ? '' : o[campo]);
+}
+function epoEnfileirar(o, card, campo, valor) {
+  const ger = _epGer, id = o.id;
+  const antes = _epoFila[id] || Promise.resolve();
+  const p = antes.catch(() => {}).then(() => epoEnviar(o, card, campo, valor, ger));
+  _epoFila[id] = p;
+  p.finally(() => { if (_epoFila[id] === p) delete _epoFila[id]; });
 }
 function epoMudou(el) {
   const card = el.closest('.epo-card');
@@ -11515,12 +11590,29 @@ function epoMudou(el) {
   const campo = el.getAttribute('data-campo');
   let valor = String(el.value || '');
   if (campo === 'responsavel' || campo === 'obs') valor = valor.trim();
+  if (campo === 'valor') {
+    // O servidor lê o TEXTO pelo numeroBR: "145.000" é cento e quarenta e cinco mil. Número JSON 145.000 viraria 145. Vazio ("") limpa o valor.
+    const n = epoLerValor(valor);
+    if (Number.isNaN(n)) {
+      epoAviso('Valor inválido. Use números, como 145.000 ou 1.234,56.', false);
+      epoReverter(card, o, 'valor');
+      return;
+    }
+    if (n === null) { if (o.valor == null) { el.value = ''; return; } epoEnfileirar(o, card, 'valor', ''); return; }
+    el.value = epoMoeda(n);
+    if (o.valor != null && Number(o.valor) === n) return;
+    epoEnfileirar(o, card, 'valor', valor.replace(/R\$/gi, '').replace(/\s+/g, ''));
+    return;
+  }
+  if (campo === 'vendido_em' && !valor) { epoAviso('A data da venda não pode ficar vazia.', false); epoReverter(card, o, 'vendido_em'); return; }
+  if (campo === 'modelo') {
+    if (!valor || valor === String(o.modelo == null ? '' : o.modelo)) { epoReverter(card, o, 'modelo'); return; }
+    if (epoEtapaAvancada(o)) { epoConfirmarModelo(card, o, valor); return; }
+    epoEnfileirar(o, card, 'modelo', valor);
+    return;
+  }
   if (valor === epoValorDe(o, campo)) return;     // nada mudou de verdade
-  const ger = _epGer, id = o.id;
-  const antes = _epoFila[id] || Promise.resolve();
-  const p = antes.catch(() => {}).then(() => epoEnviar(o, card, campo, campo === 'previsto' ? (valor || null) : valor, ger));
-  _epoFila[id] = p;
-  p.finally(() => { if (_epoFila[id] === p) delete _epoFila[id]; });
+  epoEnfileirar(o, card, campo, campo === 'previsto' ? (valor || null) : valor);
 }
 function epoSt(card, texto, erro) {
   const st = card && card.querySelector('[data-p="st"]');
@@ -11562,7 +11654,7 @@ async function epoEnviar(o, card, campo, valor, ger) {
     epoReverter(card, o, campo);
     epoSt(card, 'Não salvou.', true);
     const frase = epoFrase(j);
-    if (R.status === 403) epoAviso('Você não pode alterar esta obra.' + (frase ? ' ' + frase : ''), false);
+    if (R.status === 403) epoAviso('Você não pode alterar esta obra.' + (j.precisa === 'socio' ? ' Só sócio altera o valor e a data da venda.' : (frase ? ' ' + frase : '')), false);
     else if (R.status === 404) { epoAviso('Esta obra não existe mais. A venda não foi encontrada.', false); epoAbrir(true); }
     else if (R.status === 400) {
       epoAviso(frase || 'Não consegui salvar.', false);
@@ -11573,7 +11665,7 @@ async function epoEnviar(o, card, campo, valor, ger) {
   // Deu certo. Pega o `em` novo (sem ele a próxima edição da mesma obra daria 409): da resposta, ou relendo a obra.
   const novo = (j.obra && typeof j.obra === 'object') ? j.obra : (j.id != null && j.etapa !== undefined ? j : null);
   if (novo && String(novo.id) === String(o.id)) { Object.assign(o, novo); if (typeof j.em === 'string' && j.em) o.em = j.em; }
-  else if (typeof j.em === 'string' && j.em && (campo === 'responsavel' || campo === 'obs')) { o[campo] = valor; o.em = j.em; }   // etapa e previsto mexem em feitas e atrasado: esses a API é que diz, então relê
+  else if (typeof j.em === 'string' && j.em && (campo === 'responsavel' || campo === 'obs' || campo === 'vendido_em')) { o[campo] = valor; o.em = j.em; }   // etapa e previsto mexem em feitas e atrasado: esses a API é que diz, então relê
   else {
     let achou = null;
     try {
