@@ -245,7 +245,9 @@ export function mountClientesDocs(router: Router): void {
       if (motivo) { res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo) }); return; }
       const caminho = novoCaminho(ctx.linha, ctx.codigo, mime);
       const env = await assinarEnvio(caminho);
-      res.json({ ok: true, upload_url: env.upload_url, metodo: 'PUT', cabecalhos: { 'content-type': mime }, token: env.token, caminho });
+      // cache-control curto: depois de um DELETE, a cópia em cache do Storage some em 1 min (o padrão é 1 hora),
+      // então a URL assinada que alguém já tinha deixa de abrir o documento removido quase na hora.
+      res.json({ ok: true, upload_url: env.upload_url, metodo: 'PUT', cabecalhos: { 'content-type': mime, 'cache-control': 'max-age=60' }, token: env.token, caminho });
     } catch (err) {
       falhou(res, 'url de envio falhou', err);
     }

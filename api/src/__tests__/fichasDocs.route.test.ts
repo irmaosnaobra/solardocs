@@ -424,7 +424,7 @@ describe('upload-url', () => {
   it('ok: caminho do servidor, PUT e content-type; o nome do arquivo no corpo é ignorado', async () => {
     const x = await post(url, { slot: 'documento', mime: 'application/pdf', bytes: 5000, nome: 'CNH-Ana-Souza.pdf' });
     expect(x.status).toBe(200);
-    expect(x.body).toMatchObject({ ok: true, metodo: 'PUT', cabecalhos: { 'content-type': 'application/pdf' }, token: 'tok-1' });
+    expect(x.body).toMatchObject({ ok: true, metodo: 'PUT', cabecalhos: { 'content-type': 'application/pdf', 'cache-control': 'max-age=60' }, token: 'tok-1' });
     expect(x.body.caminho).toMatch(/^solar\/0057\/[0-9a-f-]{36}\.pdf$/);
     expect(JSON.stringify(x.body)).not.toContain('Ana-Souza');
     const e = await post('/clientes/eletroposto/101/docs/upload-url', { slot: 'foto_local', mime: 'image/webp', bytes: 100 });
