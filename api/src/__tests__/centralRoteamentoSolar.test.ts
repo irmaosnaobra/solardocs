@@ -78,7 +78,10 @@ describe('quem está com o consultor errado', () => {
     fichas = [ficha({ id: 774, cliente_nome: 'Gerson', vendedor_nome: 'Thiago', observacao: obs('- 500') })];
     const c = await card();
     expect(metrica(c, 'Fora da regra').valor).toBe(1);
-    expect(c.alerta).toContain('#774 Gerson → Thiago');
+    expect(c.alerta).toContain('#774 → Thiago');
+    // A resposta da Central é pública e AGREGADA: o card aponta a ficha pelo número
+    // e nunca devolve o nome do cliente.
+    expect(JSON.stringify(c)).not.toContain('Gerson');
   });
 
   // A Nilce NÃO serve mais de exemplo aqui: desde 10/09 ela está no time da conta
@@ -104,7 +107,8 @@ describe('quem está com o consultor errado', () => {
     fichas = [ficha({ id: 776, cliente_nome: 'Moacir', vendedor_nome: 'Diego', observacao: obs('700 a 900') })];
     const c = await card();
     expect(metrica(c, 'Fora da regra').valor).toBe(1);
-    expect(c.alerta).toContain('#776 Moacir → Diego');
+    expect(c.alerta).toContain('#776 → Diego');
+    expect(JSON.stringify(c)).not.toContain('Moacir');
   });
 
   it('ficha certa não acusa ninguém', async () => {

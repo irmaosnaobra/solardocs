@@ -73,32 +73,45 @@ a{color:var(--blue)}
 .filtros{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
 .filtros button{background:var(--card-2);border:1px solid var(--line);color:var(--dim);
   padding:6px 13px;border-radius:99px;font-size:12px;font-weight:700;cursor:pointer}
+.filtros-sep{width:1px;background:var(--line);margin:2px 5px;align-self:stretch}
 .filtros button.on{background:var(--navy);border-color:var(--navy);color:#fff}
 
-/* ===== CARDS DAS AGENTES ===== */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(390px,1fr));gap:14px;align-items:start}
-.ag{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
-  border-top:3px solid var(--faint)}
+/* ===== ÁREAS E CARTÕES ===== */
+.area{margin-bottom:22px}
+.area h2{margin:0 0 10px;font-size:14px;font-weight:800;letter-spacing:.2px;display:flex;align-items:center;gap:9px}
+.area h2 .n{font-size:11px;font-weight:800;color:var(--dim);background:var(--card-2);border:1px solid var(--line);
+  padding:1px 9px;border-radius:99px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}
+.ag{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  border-top:3px solid var(--faint);display:flex;flex-direction:column;min-width:0}
 .ag.ativo{border-top-color:var(--ok)}
 .ag.desligado{border-top-color:var(--bad)}
 .ag.dark{border-top-color:var(--warn)}
-.ag.sem_agente{border-top-color:var(--roxo)}
-.ag .hd{padding:14px 16px 12px}
-.ag .l1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.ag .nome{font-size:14.5px;font-weight:800;line-height:1.3}
-.ag .papel{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5}
-.pill{font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;
-  border-radius:99px;white-space:nowrap}
+.ag .hd{padding:12px 14px 6px}
+.ag .l1{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ag .nome{font-size:14px;font-weight:800;line-height:1.3;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag .resumo{font-size:12.5px;color:var(--dim);margin-top:5px;line-height:1.45;min-height:2.9em}
+.pill{font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;flex:0 0 auto}
 .pill.ativo{background:rgba(34,197,94,.14);color:var(--ok)}
 .pill.desligado{background:rgba(248,113,113,.14);color:var(--bad)}
 .pill.dark{background:rgba(245,158,11,.14);color:var(--warn)}
-.pill.sem_agente{background:rgba(167,139,250,.14);color:var(--roxo)}
-.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.tag{font-size:10px;font-weight:700;color:var(--dim);background:var(--card-2);border:1px solid var(--line);
-  padding:3px 8px;border-radius:6px}
-.alerta{margin:0 16px 12px;padding:9px 11px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
-  border-radius:8px;font-size:11.5px;color:#FCD34D;line-height:1.5}
-.motivo{margin:0 16px 12px;font-size:11.5px;color:var(--faint);line-height:1.5}
+.nums{display:flex;gap:18px;padding:2px 14px 12px;min-height:50px;align-items:flex-end;flex:1}
+.nm{min-width:0}
+.nm .n{font-size:19px;font-weight:800;line-height:1.1}
+.nm .n.vazio{color:var(--faint);font-weight:600}
+.nm .n.txt{font-size:14px;line-height:1.35}
+.nm .l{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);font-weight:700;margin-top:3px}
+.semnum{font-size:11.5px;color:var(--faint);line-height:1.4}
+.pe{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;
+  border-top:1px solid var(--line);background:var(--card-2);font-size:11.5px;color:var(--faint)}
+.pe .chv{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pe .sinal{color:var(--warn);font-weight:800;margin-right:8px}
+.bt-det{background:var(--card);border:1px solid var(--line-s);color:var(--txt);padding:5px 13px;
+  border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto}
+.bt-det:hover{border-color:var(--blue);color:var(--blue)}
+.alerta{margin:0 0 12px;padding:9px 11px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+  border-radius:8px;font-size:12px;color:#FCD34D;line-height:1.5}
+.motivo{margin:0 0 12px;font-size:12px;color:var(--dim);line-height:1.5}
 
 .mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--line);
   border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -158,6 +171,7 @@ a{color:var(--blue)}
 .cerebro-txt{width:100%;min-height:300px;background:#0F172A;border:1px solid var(--line-s);color:var(--txt);
   padding:12px;border-radius:10px;font-size:12.5px;line-height:1.6;font-family:inherit;resize:vertical}
 .aviso{font-size:11.5px;color:var(--dim);line-height:1.55;margin-bottom:10px}
+.papel-det{font-size:13px;color:var(--txt);line-height:1.6;margin-bottom:14px}
 .aviso b{color:var(--txt)}
 .vazio-tela{padding:60px 20px;text-align:center;color:var(--faint)}
 .erro{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#FCA5A5;
@@ -184,8 +198,9 @@ a{color:var(--blue)}
 </div>
 
 <div class="strip">
-  <div class="sv"><div class="n mono" id="m-ativos">–</div><div class="l">Ligadas</div></div>
-  <div class="sv"><div class="n mono" id="m-off">–</div><div class="l">Desligadas</div></div>
+  <div class="sv"><div class="n mono" id="m-ativos">–</div><div class="l">Ligados</div></div>
+  <div class="sv"><div class="n mono" id="m-pausa">–</div><div class="l">Pausados</div></div>
+  <div class="sv"><div class="n mono" id="m-off">–</div><div class="l">Desligados</div></div>
   <div class="sv"><div class="n mono" id="m-24h">–</div><div class="l">Mensagens 24h</div></div>
   <div class="sv"><div class="n mono" id="m-7d">–</div><div class="l">Mensagens 7 dias</div></div>
   <div class="atualizado" id="atualizado">Carregando…</div>
@@ -195,6 +210,19 @@ a{color:var(--blue)}
   <div class="linhas" id="linhas"></div>
   <div class="filtros" id="filtros"></div>
   <div id="conteudo"><div class="vazio-tela">Carregando as agentes…</div></div>
+</div>
+
+<div class="modal" id="modal-det" onclick="if(event.target===this) fecharDetalhes()">
+  <div class="mbox">
+    <div class="mhd">
+      <div>
+        <div class="tit" id="d-tit">—</div>
+        <div class="sub" id="d-sub"></div>
+      </div>
+      <button class="x" onclick="fecharDetalhes()" title="Fechar">×</button>
+    </div>
+    <div class="mbody" id="d-corpo"></div>
+  </div>
 </div>
 
 <div class="modal" id="modal" onclick="if(event.target===this) fecharModal()">
@@ -242,6 +270,7 @@ a{color:var(--blue)}
 const API = '/_api/gerador/agentes';
 let dados = null;
 let filtro = 'todas';
+let filtroCanal = 'todos';
 let cerebros = [];
 let atual = null;          // cérebro aberto no modal
 let conversa = [];         // [{role, content}]
@@ -251,9 +280,6 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const nomeTela = s => String(s == null ? '' : s).replace(/\s+\u2014\s+/g, ': ');
 const num = v => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('pt-BR');
 
-const ROTULO_ESTADO = {
-  ativo: 'ligada', desligado: 'desligada', dark: 'sem fila', sem_agente: 'só escuta',
-};
 const ROTULO_CANAL = { whatsapp: 'WhatsApp', instagram: 'Instagram', email: 'E-mail', painel: 'Painel' };
 
 function quando(iso){
@@ -285,8 +311,11 @@ async function carregar(){
 
 function render(){
   if (!dados) return;
-  document.getElementById('m-ativos').textContent = dados.resumo.ativos;
-  document.getElementById('m-off').textContent = dados.resumo.desligados;
+  const todos = dados.agentes || [];
+  const conta = s => todos.filter(a => seloDe(a) === s).length;
+  document.getElementById('m-ativos').textContent = conta('ligado');
+  document.getElementById('m-pausa').textContent = conta('pausado');
+  document.getElementById('m-off').textContent = conta('desligado');
   document.getElementById('m-24h').textContent = num(dados.resumo.enviados_24h);
   document.getElementById('m-7d').textContent = num(dados.resumo.enviados_7d);
   document.getElementById('atualizado').textContent = 'Atualizado ' + quando(dados.gerado_em);
@@ -308,37 +337,107 @@ function render(){
   }).join('');
 
   const grupos = [
-    ['todas', 'Todas'],
-    ['ativo', 'Ligadas'],
-    ['desligado', 'Desligadas'],
-    ['whatsapp', 'WhatsApp'],
-    ['instagram', 'Instagram'],
-    ['email', 'E-mail'],
+    ['todas', 'Todas', todos.length],
+    ['ligado', 'Ligadas', conta('ligado')],
+    ['pausado', 'Pausadas', conta('pausado')],
+    ['desligado', 'Desligadas', conta('desligado')],
   ];
-  document.getElementById('filtros').innerHTML = grupos.map(([k, r]) =>
-    `<button class="${filtro === k ? 'on' : ''}" onclick="setFiltro('${k}')">${r}</button>`).join('');
+  // Canal: chips à parte, combinam com o estado. Só mostra o canal que existe na resposta.
+  const canais = [['todos', 'Todos os canais'], ['whatsapp', 'WhatsApp'], ['instagram', 'Instagram'], ['email', 'E-mail'], ['painel', 'Painel']]
+    .filter(([k]) => k === 'todos' || todos.some(a => a.canal === k));
+  const doCanal = a => filtroCanal === 'todos' || a.canal === filtroCanal;
+  document.getElementById('filtros').innerHTML =
+    grupos.map(([k, r, n]) =>
+      `<button class="${filtro === k ? 'on' : ''}" onclick="setFiltro('${k}')">${r} · ${n}</button>`).join('') +
+    '<span class="filtros-sep"></span>' +
+    canais.map(([k, r]) =>
+      `<button class="${filtroCanal === k ? 'on' : ''}" onclick="setCanal('${k}')">${r}${k === 'todos' ? '' : ' · ' + todos.filter(a => a.canal === k).length}</button>`).join('');
 
-  const lista = (dados.agentes || []).filter(a => {
-    if (filtro === 'todas') return true;
-    if (filtro === 'ativo' || filtro === 'desligado') return a.estado === filtro;
-    return a.canal === filtro;
-  });
+  const lista = todos.filter(a => (filtro === 'todas' || seloDe(a) === filtro) && doCanal(a));
+  if (!lista.length){
+    document.getElementById('conteudo').innerHTML = '<div class="vazio-tela">Nenhum robô nesse filtro.</div>';
+    return;
+  }
 
-  document.getElementById('conteudo').innerHTML = lista.length
-    ? `<div class="grid">${lista.map(cardAgente).join('')}</div>`
-    : '<div class="vazio-tela">Nenhuma agente nesse filtro.</div>';
+  // Áreas na ordem que a API manda. Resposta antiga (sem `areas`) cai num grupo só.
+  const ordem = (dados.areas && dados.areas.length) ? dados.areas : [{ id: 'outros', nome: 'Robôs' }];
+  const conhecidas = new Set(ordem.map(a => a.id));
+  const blocos = ordem.map(ar => ({ ar, itens: lista.filter(a => (conhecidas.has(a.area) ? a.area : ordem[0].id) === ar.id) }))
+    .filter(b => b.itens.length);
+  document.getElementById('conteudo').innerHTML = blocos.map(b => `
+    <section class="area">
+      <h2>${esc(b.ar.nome)} <span class="n mono">${b.itens.length}</span></h2>
+      <div class="grid">${b.itens.map(cardAgente).join('')}</div>
+    </section>`).join('');
 }
 
 function setFiltro(f){ filtro = f; render(); }
+function setCanal(c){ filtroCanal = c; render(); }
+
+// A API nova manda `selo`. Uma resposta antiga só tem `estado`: traduz.
+const SELO = {
+  ligado:    { c: 'ativo',     t: 'Ligado' },
+  pausado:   { c: 'dark',      t: 'Pausado' },
+  desligado: { c: 'desligado', t: 'Desligado' },
+};
+const ESTADO_PARA_SELO = { ativo: 'ligado', dark: 'pausado', desligado: 'desligado', sem_agente: 'ligado' };
+const seloDe = a => (a.selo && SELO[a.selo]) ? a.selo : (ESTADO_PARA_SELO[a.estado] || 'ligado');
+
+// O resumo de uma linha. Resposta antiga não tem: usa o começo do texto longo.
+function resumoDe(a){
+  if (a.resumo) return a.resumo;
+  const t = String(a.papel || '');
+  return t.length > 60 ? t.slice(0, 57).trim() + '...' : t;
+}
+// Até dois números do cartão. Resposta antiga não tem `destaque`: pega as duas primeiras medidas.
+function destaqueDe(a){
+  const mets = a.metricas || [];
+  const idx = Array.isArray(a.destaque) ? a.destaque : [0, 1].filter(i => i < mets.length);
+  return idx.map(i => mets[i]).filter(Boolean).slice(0, 2);
+}
+function chaveTexto(a){ return a.chave ? 'Chave: ' + a.chave : 'Sempre ligado'; }
 
 function cardAgente(a){
+  const s = SELO[seloDe(a)];
+  const nums = destaqueDe(a).map(m => `
+    <div class="nm">
+      <div class="n mono ${m.valor === null || m.valor === undefined ? 'vazio' : ''}">${num(m.valor)}</div>
+      <div class="l">${esc(m.label)}</div>
+    </div>`).join('');
+  const ult = a.ultima_atividade
+    ? `<div class="nm"><div class="n txt">${esc(quando(a.ultima_atividade))}</div><div class="l">Última atividade</div></div>` : '';
+  const miolo = (nums || ult) ? nums + ult : '<div class="semnum">Sem número medido neste robô</div>';
+
+  return `<div class="ag cartao ${s.c}">
+    <div class="hd">
+      <div class="l1">
+        <div class="nome" title="${esc(nomeTela(a.nome))}">${esc(nomeTela(a.nome))}</div>
+        <div class="pill ${s.c}">${s.t}</div>
+      </div>
+      <div class="resumo">${esc(resumoDe(a))}</div>
+    </div>
+    <div class="nums">${miolo}</div>
+    <div class="pe">
+      <span class="chv" title="${esc(chaveTexto(a))}">${a.alerta ? '<span class="sinal">Alerta</span>' : ''}${esc(chaveTexto(a))}</span>
+      <button class="bt-det" onclick="abrirDetalhes('${esc(a.id)}')">Detalhes</button>
+    </div>
+  </div>`;
+}
+
+// ============= DETALHES: o conteúdo longo que antes ficava no cartão =============
+function abrirDetalhes(id){
+  const a = (dados && dados.agentes || []).find(x => x.id === id);
+  if (!a) return;
+  const sk = seloDe(a), s = SELO[sk];
+  const ar = ((dados.areas || []).find(x => x.id === a.area) || {}).nome || '';
+  const cb = cerebroDoAgente(a.id);
+
   const mets = (a.metricas || []).map(m => `
     <div class="met">
-      <div class="n mono ${m.valor === null ? 'vazio' : ''}">${num(m.valor)}</div>
+      <div class="n mono ${m.valor === null || m.valor === undefined ? 'vazio' : ''}">${num(m.valor)}</div>
       <div class="l">${esc(m.label)}</div>
       ${m.sub ? `<div class="s">${esc(m.sub)}</div>` : ''}
     </div>`).join('');
-
   const toques = (a.toques || []).map(t => `
     <div class="tq">
       <div class="t">${esc(t.titulo)}</div>
@@ -346,43 +445,27 @@ function cardAgente(a){
       <div class="c">${esc(t.copy)}</div>
     </div>`).join('');
 
-  const cerebro = cerebroDoAgente(a.id);
-
-  return `<div class="ag ${esc(a.estado)}">
-    <div class="hd">
-      <div class="l1">
-        <div class="ident">
-          <img class="rosto" src="/gerador/agentes/rostos/${esc(a.id)}.jpg" alt="" loading="lazy"
-               onerror="this.style.visibility='hidden'">
-          <div class="nome">${esc(nomeTela(a.nome))}</div>
-        </div>
-        <div class="pill ${esc(a.estado)}">${ROTULO_ESTADO[a.estado] || a.estado}</div>
-      </div>
-      <div class="papel">${esc(a.papel)}</div>
-      <div class="tags">
-        <span class="tag">${ROTULO_CANAL[a.canal] || a.canal}</span>
-        ${a.linha ? `<span class="tag">linha ${esc(a.linha)}</span>` : ''}
-        ${a.chave ? `<span class="tag">${esc(a.chave)}</span>` : ''}
-        ${(a.fila !== null && a.fila !== undefined) ? `<span class="tag">${num(a.fila)} na fila</span>` : ''}
-      </div>
-    </div>
-    ${cerebro ? `<div class="acoes">
-      <button onclick="abrirModal('${esc(cerebro.id)}','chat')">💬 Conversar</button>
-      <button onclick="abrirModal('${esc(cerebro.id)}','cerebro')">🧠 Cérebro${cerebro.editado ? ' ✎' : ''}</button>
-    </div>` : ''}
-    ${a.alerta ? `<div class="alerta">⚠ ${esc(a.alerta)}</div>` : ''}
+  document.getElementById('d-tit').textContent = nomeTela(a.nome);
+  document.getElementById('d-sub').textContent =
+    [ar, ROTULO_CANAL[a.canal] || a.canal, a.linha ? 'linha ' + a.linha : '', chaveTexto(a)].filter(Boolean).join(' · ');
+  document.getElementById('d-corpo').innerHTML = `
+    <div style="margin-bottom:12px"><span class="pill ${s.c}">${s.t}</span></div>
     ${a.motivo ? `<div class="motivo">${esc(a.motivo)}</div>` : ''}
-    <div class="mets">${mets}</div>
-    <div class="toques">
-      <h4>Mensagens que ela manda</h4>
-      ${toques}
-    </div>
-    <div class="rodape">
-      <span>Último envio: ${quando(a.ultima_atividade)}</span>
-      <span>${esc(a.id)}</span>
-    </div>
-  </div>`;
+    ${a.alerta ? `<div class="alerta">Alerta: ${esc(a.alerta)}</div>` : ''}
+    <div class="papel-det">${esc(a.papel)}</div>
+    ${cb ? `<div class="acoes" style="padding:0 0 12px">
+      <button onclick="fecharDetalhes();abrirModal('${esc(cb.id)}','chat')">Conversar</button>
+      <button onclick="fecharDetalhes();abrirModal('${esc(cb.id)}','cerebro')">Cérebro${cb.editado ? ' (editado)' : ''}</button>
+    </div>` : ''}
+    ${mets ? `<div class="mets" style="margin-bottom:14px">${mets}</div>` : ''}
+    ${toques ? `<div class="toques" style="padding:0"><h4>Mensagens que ele manda</h4>${toques}</div>` : ''}
+    <div class="rodape" style="margin:14px -16px -14px">
+      <span>Último envio: ${quando(a.ultima_atividade)}${(a.fila !== null && a.fila !== undefined) ? ' · ' + num(a.fila) + ' na fila' : ''}</span>
+      <span>${esc(a.id)}${a.fonte ? ' · ' + esc(a.fonte) : ''}</span>
+    </div>`;
+  document.getElementById('modal-det').classList.add('on');
 }
+function fecharDetalhes(){ document.getElementById('modal-det').classList.remove('on'); }
 
 // ============= CÉREBRO + CONVERSA =============
 // O token fica no navegador: ler a central é aberto, mas mudar o que a agente
@@ -534,6 +617,8 @@ async function forcarAtualizarApp(btn){
   } catch(e){}
   window.location.reload(true);
 }
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ fecharDetalhes(); fecharModal(); } });
 
 carregar();
 // A tela é de vigilância: sozinha ela se atualiza de 2 em 2 minutos.

@@ -290,6 +290,42 @@ tbody tr:hover{background:#233047}
   .fq-n{font-size:14.5px} .fq-c{font-size:12px}
   .meta{font-size:14px} .hl{font-size:14px} .foco h2{font-size:23px}
 }
+/* ===== BUSCAR EMPRESAS: painel fixo no topo, largura total ===== */
+.busca-topo{margin:14px 16px 0;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px 16px}
+.busca-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.busca-hd h2{margin:0;font-size:17px;font-weight:800}
+.busca-hd p{margin:4px 0 0;color:var(--dim);font-size:12.5px;line-height:1.55;max-width:900px}
+.busca-ia{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:12px}
+.busca-ia .fld{margin-bottom:8px}
+.busca-ia textarea{min-height:56px}
+.busca-ia-acao{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--dim);line-height:1.5}
+.busca-iaout{margin-top:10px;font-size:12.5px;line-height:1.6;color:var(--txt)}
+.busca-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:10px}
+.busca-g .fld{margin-bottom:0}
+.busca-fonte{margin-top:2px}
+.busca-nota{font-size:12px;color:var(--faint);line-height:1.55;margin:0 0 10px}
+.busca-mais{margin:2px 0 10px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card-2)}
+.busca-mais summary{cursor:pointer;padding:9px 0;font-size:12.5px;font-weight:700;color:var(--txt)}
+.busca-mais[open] summary{border-bottom:1px solid var(--line);margin-bottom:10px}
+.busca-checks label,.busca-check{text-transform:none;letter-spacing:0}
+.busca-check{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--txt);margin-bottom:5px}
+.busca-check input{width:15px;height:15px;flex:0 0 auto;accent-color:var(--navy)}
+.busca-rod{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap}
+.busca-custo{flex:1 1 360px;min-width:0;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--warn);
+  border-radius:9px;background:var(--card-2);color:var(--dim);font-size:12px;line-height:1.6}
+.busca-custo b{color:var(--txt)}
+.busca-rod .btn{flex:0 0 auto;align-self:center;padding:11px 24px;font-size:14px}
+#busca-status{margin-top:12px}
+#busca-status:empty{margin:0}
+#busca-status details{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card-2)}
+#busca-status summary{cursor:pointer;padding:9px 12px;font-size:12.5px;font-weight:700}
+#busca-status .tw{border:none;border-radius:0;margin:0!important}
+@media(max-width:640px){
+  .busca-topo{margin:12px 10px 0;padding:12px}
+  .busca-g{grid-template-columns:1fr}
+  .busca-rod .btn{width:100%}
+}
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
 <link rel="stylesheet" href="/gerador/ui/io2-cores-prospeccao.css" media="not all" data-io2>
@@ -322,6 +358,160 @@ tbody tr:hover{background:#233047}
     <select id="sel-consultor" onchange="trocarConsultor(this.value)"></select>
   </div>
 </div>
+
+<!-- ===== BUSCAR EMPRESAS (sempre à vista, sem clique para abrir) ===== -->
+<section class="busca-topo" id="busca-topo" aria-labelledby="busca-tit">
+  <div class="busca-hd">
+    <div>
+      <h2 id="busca-tit">Buscar empresas</h2>
+      <p>A busca roda no servidor pela Apify e vira uma lista pronta na área Listas. Telefone repetido de
+        qualquer outra lista é descartado, e por padrão só entra celular. Fixo não recebe WhatsApp.</p>
+    </div>
+    <button class="btn" onclick="verListas()">Ver as listas</button>
+  </div>
+
+  <div class="busca-ia">
+    <div class="fld"><label for="bs-brief">Descreva a lista que você quer</label>
+      <textarea id="bs-brief"
+        placeholder="Ex: postos de combustível em Uberlândia e região, quero falar com o dono. Ou: integradores solares na Bahia com nota 4+ e sem site."></textarea></div>
+    <div class="busca-ia-acao">
+      <button class="btn primary" id="bs-ia" onclick="montarComIA()">Montar busca com IA</button>
+      <span>A IA escolhe a fonte e preenche os campos abaixo. Você confere antes de buscar.</span>
+    </div>
+    <div id="bs-ia-out" class="busca-iaout" style="display:none"></div>
+  </div>
+
+  <div class="busca-g">
+    <div class="fld"><label for="bs-fonte">De onde</label>
+      <select id="bs-fonte" onchange="trocarFonteBusca()">
+        <option value="google_maps">Google Maps: telefone de WhatsApp, nota, endereço</option>
+        <option value="receita_cnpj">Receita Federal: CNPJ e o NOME DO DONO (sócios)</option>
+        <option value="actor">Outro robô da Apify (avançado)</option>
+      </select></div>
+    <div class="fld"><label for="bs-limite">Quantas empresas</label>
+      <select id="bs-limite" onchange="estimarBusca()">
+        <option value="25">25 (teste)</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="300">300 (teto)</option>
+      </select></div>
+    <div class="fld"><label for="bs-celular">Telefone</label>
+      <select id="bs-celular">
+        <option value="1" selected>Só celular</option>
+        <option value="0">Aceitar fixo também</option>
+      </select></div>
+    <div class="fld"><label for="bs-lista">Nome da lista que vai nascer</label>
+      <input type="text" id="bs-lista" placeholder="Solares BA, Google Maps"></div>
+  </div>
+
+  <div id="bs-maps" class="busca-fonte">
+    <div class="busca-g">
+      <div class="fld"><label for="bs-termo">O que procurar (vírgula separa mais de um termo)</label>
+        <input type="text" id="bs-termo" placeholder="energia solar, integrador fotovoltaico" oninput="estimarBusca()"></div>
+      <div class="fld"><label for="bs-local">Onde (cidade, estado ou o estado inteiro)</label>
+        <input type="text" id="bs-local" placeholder="Bahia, Brasil"></div>
+      <div class="fld"><label for="bs-raio">Raio em km (opcional)</label>
+        <input type="number" id="bs-raio" min="1" max="500" placeholder="300" oninput="trocarRaio()"></div>
+      <div class="fld"><label for="bs-centro">A partir de (cidade ou endereço)</label>
+        <input type="text" id="bs-centro" placeholder="Uberlândia, MG"></div>
+    </div>
+    <div id="bs-raio-nota" class="busca-nota" style="display:none">
+      Com raio, o campo <b>Onde</b> é ignorado: a busca vira uma área circular em volta desse ponto
+      e cruza divisa de cidade e de estado, que é o que interessa pra quem vende na beira da estrada.
+    </div>
+    <details class="busca-mais">
+      <summary>Mais filtros do Google Maps</summary>
+      <div class="busca-g">
+        <div class="fld"><label for="bs-categorias">Categorias do Google (custa mais)</label>
+          <input type="text" id="bs-categorias" placeholder="deixe vazio pra não filtrar" oninput="estimarBusca()"></div>
+        <div class="fld"><label for="bs-match">Nome tem que bater (custa mais)</label>
+          <select id="bs-match" onchange="estimarBusca()">
+            <option value="all">Qualquer resultado parecido</option>
+            <option value="only_includes">Nome contém o termo</option>
+            <option value="only_exact">Nome exato</option>
+          </select></div>
+        <div class="fld"><label for="bs-nota">Nota mínima (custa mais)</label>
+          <select id="bs-nota" onchange="estimarBusca()">
+            <option value="">Qualquer nota</option>
+            <option value="three">3★ ou mais</option>
+            <option value="four">4★ ou mais</option>
+            <option value="fourAndHalf">4,5★ ou mais</option>
+          </select></div>
+        <div class="fld"><label for="bs-site">Site (custa mais)</label>
+          <select id="bs-site" onchange="estimarBusca()">
+            <option value="allPlaces">Tanto faz</option>
+            <option value="withoutWebsite">Só quem NÃO tem site</option>
+            <option value="withWebsite">Só quem tem site</option>
+          </select></div>
+      </div>
+      <div class="fld busca-checks"><label>Ficha completa (cada item custa +US$ 0,002 por lugar)</label>
+        <label class="busca-check">
+          <input type="checkbox" id="bs-detalhe" onchange="estimarBusca()">
+          Horário de funcionamento, horários de pico e distribuição das notas</label>
+        <label class="busca-check">
+          <input type="checkbox" id="bs-contatos" onchange="estimarBusca()">
+          E-mail e redes sociais (ele entra no site da empresa e extrai)</label>
+      </div>
+    </details>
+  </div>
+
+  <div id="bs-receita" class="busca-fonte" style="display:none">
+    <div class="busca-g">
+      <div class="fld"><label for="bs-cnae">Ramo (CNAE)</label>
+        <input type="text" id="bs-cnae" list="cnaes" placeholder="4731800" oninput="estimarBusca()">
+        <datalist id="cnaes">
+          <option value="4731800">4731800: Postos de combustível</option>
+          <option value="4520001">4520001: Oficina mecânica</option>
+          <option value="4711302">4711302: Supermercado</option>
+          <option value="5611201">5611201: Restaurante</option>
+          <option value="4741500">4741500: Material de construção</option>
+          <option value="4321500">4321500: Instalação elétrica</option>
+          <option value="4322301">4322301: Instalação hidráulica</option>
+        </datalist></div>
+      <div class="fld"><label for="bs-uf">UF</label>
+        <input type="text" id="bs-uf" maxlength="2" placeholder="MG" style="text-transform:uppercase"></div>
+      <div class="fld"><label for="bs-municipio">Município (nome; vazio = estado inteiro)</label>
+        <input type="text" id="bs-municipio" placeholder="Uberlândia"></div>
+      <div class="fld"><label for="bs-cpfsocio">CPF do sócio (acha todas as empresas dele)</label>
+        <input type="text" id="bs-cpfsocio" placeholder="***123456**"></div>
+    </div>
+    <div class="fld busca-checks">
+      <label class="busca-check">
+        <input type="checkbox" id="bs-brasil" onchange="trocarBrasil()">
+        <b>Brasil inteiro</b>: dispara uma busca por estado (27 no total)</label>
+    </div>
+    <div class="fld" id="bs-status-wrap" style="display:none"><label for="bs-lista-status">As listas nascem</label>
+      <select id="bs-lista-status">
+        <option value="pausada" selected>Pausadas: guarda o dado, você ativa estado por estado</option>
+        <option value="ativa">Ativas: tudo cai na fila de uma vez</option>
+      </select></div>
+    <div class="busca-nota">
+      Aqui vem o <b>nome do dono</b>, mas o telefone do cadastro costuma ser fixo (escritório
+      ou contador). Serve pra ligar sabendo o nome; o WhatsApp você pega no Maps.
+    </div>
+  </div>
+
+  <div id="bs-actor" class="busca-fonte" style="display:none">
+    <div class="busca-g">
+      <div class="fld"><label for="bs-actorid">Actor da Apify</label>
+        <input type="text" id="bs-actorid" placeholder="usuario/nome-do-actor"></div>
+    </div>
+    <div class="fld"><label for="bs-input">Input do actor (JSON)</label>
+      <textarea id="bs-input" placeholder='{"search": "..." }'></textarea></div>
+    <div class="busca-nota">
+      O que voltar é lido por apelido de campo (title/name, phone/whatsapp, city, state,
+      website, rating, reviews). Quem não tiver telefone é descartado, e o relatório diz quantos.
+    </div>
+  </div>
+
+  <div class="busca-rod">
+    <div class="busca-custo" id="bs-custo">Escolha o que procurar para ver a estimativa de custo.</div>
+    <button class="btn primary" id="bs-btn" onclick="dispararBusca()" disabled>Carregando…</button>
+  </div>
+
+  <div id="busca-status"></div>
+</section>
 
 <div class="tabs" id="tabs"></div>
 <div id="conteudo"><div class="vazio">Carregando…</div></div>
@@ -427,163 +617,6 @@ tbody tr:hover{background:#233047}
     <div class="mo-acts">
       <button class="btn" onclick="fecharModal('ov-import')">Cancelar</button>
       <button class="btn primary" id="imp-btn" onclick="importarLista()">Importar</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODAL BUSCAR LEADS (APIFY) ===== -->
-<div class="ov" id="ov-busca">
-  <div class="mo">
-    <h3>Buscar leads</h3>
-    <p class="sub">A busca roda no servidor pela Apify e cai aqui como lista pronta.
-      Telefone repetido de qualquer outra lista é descartado, e por padrão só entra
-      número de celular. Fixo não recebe WhatsApp.</p>
-
-    <div class="fld" style="background:rgba(30,58,138,.22);border:1px solid #2E4FA8;border-radius:10px;padding:11px 12px">
-      <label style="color:#DBEAFE">Descreva a lista que você quer</label>
-      <textarea id="bs-brief" style="min-height:64px"
-        placeholder="Ex: postos de combustível em Uberlândia e região, quero falar com o dono. Ou: integradores solares na Bahia com nota 4+ e sem site."></textarea>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-        <button class="btn primary" id="bs-ia" onclick="montarComIA()">✨ Montar busca</button>
-        <span style="font-size:11.5px;color:var(--dim);line-height:1.5">
-          A IA escolhe a fonte e preenche os filtros abaixo. Você confere antes de disparar.</span>
-      </div>
-      <div id="bs-ia-out" style="display:none;margin-top:10px;font-size:12px;line-height:1.6;color:#DBEAFE"></div>
-    </div>
-
-    <div class="fld"><label>De onde</label>
-      <select id="bs-fonte" onchange="trocarFonteBusca()">
-        <option value="google_maps">Google Maps: telefone de WhatsApp, nota, endereço</option>
-        <option value="receita_cnpj">Receita Federal: CNPJ e o NOME DO DONO (sócios)</option>
-        <option value="actor">Outro robô da Apify (avançado)</option>
-      </select></div>
-
-    <div id="bs-receita" style="display:none">
-      <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:1.4"><label>Ramo (CNAE)</label>
-          <input type="text" id="bs-cnae" list="cnaes" placeholder="4731800" oninput="estimarBusca()">
-          <datalist id="cnaes">
-            <option value="4731800">4731800 — Postos de combustível</option>
-            <option value="4520001">4520001 — Oficina mecânica</option>
-            <option value="4711302">4711302 — Supermercado</option>
-            <option value="5611201">5611201 — Restaurante</option>
-            <option value="4741500">4741500 — Material de construção</option>
-            <option value="4321500">4321500 — Instalação elétrica</option>
-            <option value="4322301">4322301 — Instalação hidráulica</option>
-          </datalist></div>
-        <div class="fld" style="flex:.6"><label>UF</label>
-          <input type="text" id="bs-uf" maxlength="2" placeholder="MG" style="text-transform:uppercase"></div>
-      </div>
-      <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:1"><label>Município (nome; vazio = estado inteiro)</label>
-          <input type="text" id="bs-municipio" placeholder="Uberlândia"></div>
-        <div class="fld" style="flex:1"><label>CPF do sócio (acha todas as empresas dele)</label>
-          <input type="text" id="bs-cpfsocio" placeholder="***123456**"></div>
-      </div>
-      <div class="fld" style="margin-bottom:7px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
-          text-transform:none;letter-spacing:0;font-weight:500">
-          <input type="checkbox" id="bs-brasil" onchange="trocarBrasil()" style="width:15px;height:15px;accent-color:#1E3A8A">
-          <b>Brasil inteiro</b>: dispara uma busca por estado (27 no total)</label>
-      </div>
-      <div class="fld" id="bs-status-wrap" style="display:none"><label>As listas nascem</label>
-        <select id="bs-lista-status">
-          <option value="pausada" selected>Pausadas: guarda o dado, você ativa estado por estado</option>
-          <option value="ativa">Ativas: tudo cai na fila de uma vez</option>
-        </select></div>
-      <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
-        Aqui vem o <b>nome do dono</b>, mas o telefone do cadastro costuma ser fixo (escritório
-        ou contador). Serve pra ligar sabendo o nome; o WhatsApp você pega no Maps.
-      </div>
-    </div>
-
-    <div id="bs-maps">
-      <div class="fld"><label>O que procurar (vírgula separa mais de um termo)</label>
-        <input type="text" id="bs-termo" placeholder="energia solar, integrador fotovoltaico" oninput="estimarBusca()"></div>
-      <div class="fld"><label>Onde (cidade, estado ou o estado inteiro)</label>
-        <input type="text" id="bs-local" placeholder="Bahia, Brasil"></div>
-      <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:.55"><label>Raio (km, opcional)</label>
-          <input type="number" id="bs-raio" min="1" max="500" placeholder="300" oninput="trocarRaio()"></div>
-        <div class="fld" style="flex:1.45"><label>A partir de (cidade ou endereço)</label>
-          <input type="text" id="bs-centro" placeholder="Uberlândia, MG"></div>
-      </div>
-      <div id="bs-raio-nota" style="display:none;font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
-        Com raio, o campo <b>Onde</b> é ignorado: a busca vira uma área circular em volta desse ponto
-        e cruza divisa de cidade e de estado, que é o que interessa pra quem vende na beira da estrada.
-      </div>
-      <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:1"><label>Categorias do Google (custa mais)</label>
-          <input type="text" id="bs-categorias" placeholder="deixe vazio pra não filtrar" oninput="estimarBusca()"></div>
-        <div class="fld" style="flex:1"><label>Nome tem que bater (custa mais)</label>
-          <select id="bs-match" onchange="estimarBusca()">
-            <option value="all">Qualquer resultado parecido</option>
-            <option value="only_includes">Nome contém o termo</option>
-            <option value="only_exact">Nome exato</option>
-          </select></div>
-      </div>
-      <div class="fld"><label>Ficha completa (cada um custa +US$ 0,002 por lugar)</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
-          text-transform:none;letter-spacing:0;font-weight:500;margin-bottom:5px">
-          <input type="checkbox" id="bs-detalhe" onchange="estimarBusca()" style="width:15px;height:15px;accent-color:#1E3A8A">
-          Horário de funcionamento, horários de pico e distribuição das notas</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt);
-          text-transform:none;letter-spacing:0;font-weight:500">
-          <input type="checkbox" id="bs-contatos" onchange="estimarBusca()" style="width:15px;height:15px;accent-color:#1E3A8A">
-          E-mail e redes sociais (ele entra no site da empresa e extrai)</label>
-      </div>
-      <div style="display:flex;gap:9px">
-        <div class="fld" style="flex:1"><label>Nota mínima (custa mais)</label>
-          <select id="bs-nota" onchange="estimarBusca()">
-            <option value="">Qualquer nota</option>
-            <option value="three">3★ ou mais</option>
-            <option value="four">4★ ou mais</option>
-            <option value="fourAndHalf">4,5★ ou mais</option>
-          </select></div>
-        <div class="fld" style="flex:1"><label>Site (custa mais)</label>
-          <select id="bs-site" onchange="estimarBusca()">
-            <option value="allPlaces">Tanto faz</option>
-            <option value="withoutWebsite">Só quem NÃO tem site</option>
-            <option value="withWebsite">Só quem tem site</option>
-          </select></div>
-      </div>
-    </div>
-
-    <div id="bs-actor" style="display:none">
-      <div class="fld"><label>Actor da Apify</label>
-        <input type="text" id="bs-actorid" placeholder="usuario/nome-do-actor"></div>
-      <div class="fld"><label>Input do actor (JSON)</label>
-        <textarea id="bs-input" placeholder='{"search": "..." }'></textarea></div>
-      <div style="font-size:11.5px;color:var(--faint);line-height:1.55;margin:-4px 0 11px">
-        O que voltar é lido por apelido de campo (title/name, phone/whatsapp, city, state,
-        website, rating, reviews). Quem não tiver telefone é descartado, e o relatório diz quantos.
-      </div>
-    </div>
-
-    <div style="display:flex;gap:9px">
-      <div class="fld" style="flex:1"><label>Quantos leads</label>
-        <select id="bs-limite" onchange="estimarBusca()">
-          <option value="25">25 (teste)</option>
-          <option value="50" selected>50</option>
-          <option value="100">100</option>
-          <option value="200">200</option>
-          <option value="300">300 (teto)</option>
-        </select></div>
-      <div class="fld" style="flex:1"><label>Telefone</label>
-        <select id="bs-celular">
-          <option value="1" selected>Só celular</option>
-          <option value="0">Aceitar fixo também</option>
-        </select></div>
-    </div>
-    <div class="fld"><label>Nome da lista que vai nascer</label>
-      <input type="text" id="bs-lista" placeholder="Solares BA — Google Maps"></div>
-
-    <div style="padding:10px 12px;background:rgba(245,158,11,.12);border:1px solid #B45309;
-      border-radius:9px;font-size:12px;line-height:1.6;color:#FDE68A" id="bs-custo">—</div>
-
-    <div class="mo-acts">
-      <button class="btn" onclick="fecharModal('ov-busca')">Cancelar</button>
-      <button class="btn primary" id="bs-btn" onclick="dispararBusca()">Buscar leads</button>
     </div>
   </div>
 </div>
@@ -1826,7 +1859,7 @@ function setBusca(v){ busca = v; renderFila(); }
 
 // ============= RENDER =============
 function renderTudo(){
-  renderStrip(); renderTabs(); renderConteudo();
+  renderStrip(); renderTabs(); renderConteudo(); renderBuscaStatus();
 }
 function renderStrip(){
   const meus = toques.filter(t => ehHoje(t.criado_em) && t.consultor === consultorAtivo);
@@ -2310,9 +2343,8 @@ function htmlListas(){
       <div class="spacer"></div>
       <button class="btn" onclick="abrirProdutos()">Produtos e scripts</button>
       <button class="btn" onclick="abrirImport()">📥 Lançar lista (CSV)</button>
-      <button class="btn primary" onclick="abrirBusca()">🔎 Buscar leads</button>
+      <button class="btn primary" onclick="abrirBusca()">Buscar empresas</button>
     </div>
-    ${htmlBuscas()}
     ${listas.length ? `<div class="tw"><table>
       <thead><tr><th>Lista</th><th>Origem</th><th>Progresso</th><th>Resp.</th><th>Vendas</th>
         <th>Receita</th><th>ROI</th><th>Status</th><th></th></tr></thead>
@@ -2736,10 +2768,29 @@ const ST_BUSCA = {
 };
 const buscaAtiva = b => ['pedida','rodando','importando'].includes(b.status);
 
+// A busca mora no topo da página (era um modal): este atalho só leva até ela.
 function abrirBusca(){
-  document.getElementById('bs-lista').value = '';
-  trocarFonteBusca();          // normaliza opções, teto e visibilidade de cada fonte
-  abrirModal('ov-busca');
+  const painel = document.getElementById('busca-topo');
+  if (painel) painel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const campo = document.getElementById(fonteBusca() === 'google_maps' ? 'bs-termo' : 'bs-brief');
+  if (campo) setTimeout(() => campo.focus({ preventScroll: true }), 300);
+}
+// "Ver as listas": abre a área Listas e desce até ela.
+function verListas(){
+  irAba('listas');
+  const t = document.getElementById('tabs');
+  if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Status das buscas ao lado do painel, em qualquer aba: uma busca pedida na Fila
+// não pode ficar invisível até alguém abrir Listas.
+function renderBuscaStatus(){
+  const el = document.getElementById('busca-status');
+  if (!el) return;
+  if (!buscas.length){ el.innerHTML = ''; return; }
+  const ativas = buscas.filter(buscaAtiva).length;
+  const aberto = ativas > 0 || !!(el.querySelector('details') || {}).open;
+  el.innerHTML = `<details${aberto ? ' open' : ''}><summary>Buscas recentes (${buscas.length})` +
+    `${ativas ? ` · ${ativas} rodando` : ''}</summary>${htmlBuscas()}</details>`;
 }
 const ACTOR_CNPJ = 'epicscrapers/brazil-cnpj-scraper';
 const CUSTO_REGISTRO_CNPJ = 0.0009;   // US$ por empresa na Receita
@@ -2800,7 +2851,7 @@ async function montarComIA(){
   const out = document.getElementById('bs-ia-out');
   const brief = document.getElementById('bs-brief').value.trim();
   if (brief.length < 8){ showToast('Escreve com um pouco mais de detalhe o que você quer'); return; }
-  btn.disabled = true; btn.textContent = '✨ Montando…';
+  btn.disabled = true; btn.textContent = 'Montando…';
   out.style.display = 'block';
   out.innerHTML = '<span style="color:var(--dim)">Pensando na melhor fonte pra esse pedido…</span>';
   try {
@@ -2820,7 +2871,7 @@ async function montarComIA(){
     out.innerHTML = `<span style="color:var(--bad)">Não deu: ${esc(e.message)}</span>` +
       `<div style="color:var(--dim);margin-top:5px">Dá pra montar na mão nos filtros abaixo.</div>`;
   } finally {
-    btn.disabled = false; btn.textContent = '✨ Montar busca';
+    btn.disabled = false; btn.textContent = 'Montar busca com IA';
   }
 }
 function aplicarPlano(p){
@@ -2885,8 +2936,29 @@ function estimarBusca(){
     (f || addons ? ' por lugar' : '') +
     `. Cobra por lugar entregue; se vier menos, custa menos. O valor REAL da run aparece aqui embaixo no fim.`;
 }
+// ── Trava da busca (cada clique GASTA dinheiro na Apify) ─────────────────────
+// O botão só destrava quando (1) a identidade de quem busca carregou, (2) o envio
+// terminou e (3) a lista de buscas voltou do servidor. A mesma busca (mesma fonte,
+// termo, local e quantidade) repetida em menos de 1 minuto é recusada: o segundo
+// clique depois do envio não pode enfileirar de novo, e no Brasil inteiro seriam
+// mais 27 buscas pagas.
+let buscaIdentidadeOk = false;     // vira true quando carregar() termina (consultorAtivo é o do banco)
+let buscaTravada = false;          // um envio em andamento ou aguardando a lista voltar
+let ultimaBusca = { chave: '', em: 0 };
+const JANELA_MESMA_BUSCA_MS = 60_000;
+function botaoBusca(){ return document.getElementById('bs-btn'); }
+function travarBusca(texto){ buscaTravada = true; const b = botaoBusca(); if (b){ b.disabled = true; b.textContent = texto; } }
+function liberarBusca(){
+  buscaTravada = false;
+  const b = botaoBusca();
+  if (!b) return;
+  b.disabled = !buscaIdentidadeOk;
+  b.textContent = buscaIdentidadeOk ? 'Buscar empresas' : 'Carregando…';
+}
+function identidadeCarregada(){ buscaIdentidadeOk = true; if (!buscaTravada) liberarBusca(); }
 async function dispararBusca(){
-  const btn = document.getElementById('bs-btn');
+  if (buscaTravada || !buscaIdentidadeOk || !consultorAtivo) return;
+  const btn = botaoBusca();
   const fonte = document.getElementById('bs-fonte').value;
   const limite = Number(document.getElementById('bs-limite').value || 50);
   const soCelular = document.getElementById('bs-celular').value === '1';
@@ -2944,9 +3016,15 @@ async function dispararBusca(){
     if (!nomeLista) nomeLista = actorId;
   }
 
-  btn.disabled = true; btn.textContent = 'Enfileirando…';
+  const brasil = fonte === 'receita_cnpj' && document.getElementById('bs-brasil').checked;
+  const chave = JSON.stringify([fonte, actorId, input, limite, soCelular, brasil, nomeLista.toLowerCase()]);
+  if (ultimaBusca.chave === chave && Date.now() - ultimaBusca.em < JANELA_MESMA_BUSCA_MS){
+    showToast('Essa busca já foi pedida há menos de 1 minuto. Mude o termo ou o local, ou espere.');
+    return;
+  }
+  travarBusca('Enfileirando…');
+  let enviou = false;
   try {
-    const brasil = fonte === 'receita_cnpj' && document.getElementById('bs-brasil').checked;
     if (brasil){
       // Uma busca por estado: o motor roda uma de cada vez, então a fila não vira
       // 40 mil contatos de uma vez nem estoura o tempo de um tick só.
@@ -2966,14 +3044,23 @@ async function dispararBusca(){
     // kick: o cron pegaria em até 5 min; isto começa agora. O servidor é quem
     // decide se pode rodar — o kick não passa parâmetro nenhum.
     fetch('/_api/gerador/prospeccao/kick', { method:'POST' }).catch(()=>{});
-    fecharModal('ov-busca');
+    enviou = true;
+    ultimaBusca = { chave, em: Date.now() };
+    // Deu certo: limpa o que identifica a busca, para um clique perdido não repetir.
+    for (const id of ['bs-lista', 'bs-termo', 'bs-brief', 'bs-cnae', 'bs-cpfsocio', 'bs-municipio']){
+      const el = document.getElementById(id); if (el) el.value = '';
+    }
+    estimarBusca();
     showToast(brasil ? `${UFS.length} buscas na fila (uma por estado): rodam uma de cada vez`
                      : 'Busca na fila: o resultado cai aqui sozinho');
-    setTimeout(recarregarBuscas, 2500);
+    renderBuscaStatus();
+    // Segue travado até a lista de buscas voltar (recarregarBuscas nunca lança).
+    btn.textContent = 'Busca enviada…';
+    setTimeout(async () => { await recarregarBuscas(); liberarBusca(); }, 2500);
   } catch(e){
     showToast('Não deu pra enfileirar: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Buscar leads';
+    if (!enviou) liberarBusca();
   }
 }
 let pollBuscasTimer = null;
@@ -2985,6 +3072,7 @@ async function recarregarBuscas(){
       return velha && velha.status !== n.status && n.status === 'concluida';
     });
     buscas = novas;
+    renderBuscaStatus();
     if (virou){ await carregar(); renderTudo(); showToast('Lista nova importada da busca'); }
     else if (aba === 'listas') renderConteudo();
     agendarPollBuscas();
@@ -3275,9 +3363,13 @@ document.querySelectorAll('.ov').forEach(ov => {
 });
 
 // ============= BOOT =============
+// O formulário de busca é estático e já está na tela: normaliza opções, teto e
+// visibilidade de cada fonte antes de a carga dos dados terminar.
+trocarFonteBusca();
 carregar()
-  .then(() => { renderTudo(); agendarPollBuscas(); })
+  .then(() => { renderTudo(); agendarPollBuscas(); identidadeCarregada(); })
   .catch(e => {
+    const bb = document.getElementById('bs-btn'); if (bb) bb.textContent = 'Recarregue a página';
     document.getElementById('conteudo').innerHTML =
       `<div class="vazio"><div class="big">⚠️</div>Não deu pra carregar: ${esc(e.message)}<br>
        <button class="btn" style="margin-top:12px" onclick="location.reload()">Tentar de novo</button></div>`;
