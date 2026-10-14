@@ -26,6 +26,7 @@ import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
 import { mountFinanceiro } from './geradorFinanceiro';
 import { mountClientes } from './geradorClientes';
+import { mountClientesEletroposto } from './geradorEletropostoClientes';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { aiLimiter } from '../middleware/rateLimiter';
@@ -1157,6 +1158,8 @@ mountSolar(router);
 mountFinanceiro(router);
 // Gestão de clientes do solar: a Planilha Mestre como grade editável.
 mountClientes(router);
+// Ficha do cliente e Obras do eletroposto (card vendido + pos_venda). Mesmo login; o recorte por papel é no servidor.
+mountClientesEletroposto(router);
 // Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
 mountPerfil(router);
 // Automação como centro das redes, fase 1 (servidor): Reels, status da 5040 e caixa de comentários. Cada item nasce desligado.

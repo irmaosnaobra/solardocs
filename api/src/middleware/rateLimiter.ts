@@ -116,3 +116,14 @@ export const perfilGravarLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Funil público do NOTA 1 (GET /io/eletroposto/funil): sem login, lê até 500 páginas do banco da página de venda.
+// Por IP, com folga para a tela de métricas e o painel (o escritório divide o IP); o cache de 60 s da rota já
+// absorve a repetição, então este teto só pega quem martela.
+export const funilEletropostoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Muitas consultas ao funil em pouco tempo. Tente de novo em alguns minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

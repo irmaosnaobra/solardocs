@@ -45,7 +45,7 @@ vi.mock('../services/io/eletropostoPares', () => ({
   blocoParesSeguro: vi.fn().mockResolvedValue([]), pool: vi.fn(), montarPares: vi.fn(), MAX_PARES: 3, TETO_KM: 100,
 }));
 vi.mock('../services/io/eletropostoGeo', () => ({ geocodificarLote: vi.fn() }));
-vi.mock('../middleware/rateLimiter', () => ({ geoLimiter: (_q: unknown, _r: unknown, n: () => void) => n() }));
+vi.mock('../middleware/rateLimiter', () => ({ geoLimiter: (_q: unknown, _r: unknown, n: () => void) => n(), funilEletropostoLimiter: (_q: unknown, _r: unknown, n: () => void) => n() }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../utils/supabaseGerador', () => {
   let ultima: Record<string, unknown> = {};

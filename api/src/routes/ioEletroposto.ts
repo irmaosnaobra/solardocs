@@ -5,6 +5,8 @@ import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
+import { montarFunil, FUNIL_COLUNAS, type EventoFunil, type ResultadoFunil } from '../services/io/funilEletroposto';
+import { criarCacheDeMontagem } from '../services/io/centralAgentesCache';
 import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 import { ehAlmocoNoIso } from '../services/agenda/almoco';
 // A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
@@ -15,7 +17,7 @@ import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGar
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { geocodificarLote, ItemGeo } from '../services/io/eletropostoGeo';
-import { geoLimiter } from '../middleware/rateLimiter';
+import { geoLimiter, funilEletropostoLimiter } from '../middleware/rateLimiter';
 import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, idDoTelefone } from '../utils/capiQuiz';
 // O rodízio e o gravador do card saíram daqui para um serviço (10/10/2026): a
 // agente de investidores grava o mesmo card e não pode importar a rota.
@@ -329,29 +331,44 @@ function utm(b: Record<string, unknown>): Record<string, string | null> {
 // ─────────────────────────────────────────────────────────────────────────────
 const FUNIL_TIPOS = ['material_view', 'checkout_start', 'purchase'] as const;
 
-router.get('/funil', async (req: Request, res: Response): Promise<void> => {
-  const dias = Math.min(365, Math.max(1, Number(req.query.dias) || 30));
-  const desde = new Date(Date.now() - dias * 86400_000).toISOString();
-  try {
-    const { data, error } = await supabasePc
-      .from('pc_eventos')
-      .select('tipo,payload,created_at')
-      .in('tipo', FUNIL_TIPOS as unknown as string[])
-      .gte('created_at', desde)
-      .limit(20000);
-    if (error) throw error;
+// Cache de 60 s por janela (`dias`), montado uma vez por vez: a rota é pública e cada montagem pode ler até 500
+// páginas. Montagem que falha não é guardada; havendo uma boa de até 5 min, ela é entregue no lugar.
+const cachesDoFunil = new Map<number, () => Promise<ResultadoFunil>>();
+function funilDaJanela(dias: number): Promise<ResultadoFunil> {
+  let obter = cachesDoFunil.get(dias);
+  if (!obter) {
+    obter = criarCacheDeMontagem(() => {
+      const desde = new Date(Date.now() - dias * 86400_000).toISOString();
+      // Lê TODAS as páginas (o PostgREST corta em 1000 linhas e ignora `.limit()`): contagem truncada calada é pior
+      // que erro. Só as colunas necessárias, em ordem por `id` (chave única, a paginação não pula nem repete).
+      return montarFunil(
+        (de, ate) => supabasePc
+          .from('pc_eventos')
+          .select(FUNIL_COLUNAS)
+          .in('tipo', FUNIL_TIPOS as unknown as string[])
+          .gte('created_at', desde)
+          .order('id', { ascending: true })
+          .range(de, ate) as unknown as PromiseLike<{ data: EventoFunil[] | null; error: unknown }>,
+        (lidas) => logger.warn('io-eletroposto-funil', `bateu o teto de leitura (${lidas} eventos): contagens truncadas`),
+      );
+    }, {
+      agora: () => Date.now(),
+      aoServirAntigo: (err) => logger.error('io-eletroposto-funil', 'falha lendo pc_eventos; entregando a contagem anterior', err),
+    });
+    cachesDoFunil.set(dias, obter);
+  }
+  return obter();
+}
+/** Para os testes: o cache em módulo faria a ordem dos testes importar. */
+export function limparCacheFunil(): void { cachesDoFunil.clear(); }
 
-    const total: Record<string, number> = {};
-    const porMotivo: Record<string, Record<string, number>> = {};
-    for (const e of (data || []) as any[]) {
-      total[e.tipo] = (total[e.tipo] || 0) + 1;
-      const motivo = e.payload?.motivo;
-      if (motivo) {
-        porMotivo[motivo] = porMotivo[motivo] || {};
-        porMotivo[motivo][e.tipo] = (porMotivo[motivo][e.tipo] || 0) + 1;
-      }
-    }
-    res.json({ dias, total, por_motivo: porMotivo });
+router.get('/funil', funilEletropostoLimiter, async (req: Request, res: Response): Promise<void> => {
+  // Inteiro: cada valor de `dias` abre uma entrada de cache, e fração (1.0001, 1.0002...) faria o cache crescer sem fim.
+  const dias = Math.min(365, Math.max(1, Math.floor(Number(req.query.dias) || 30)));
+  try {
+    // As chaves de `por_motivo` vêm de payload livre de um POST público: saem limpas (60 caracteres, sem controle).
+    // `truncado: true` aparece só quando a leitura bateu o teto.
+    res.json({ dias, ...(await funilDaJanela(dias)) });
   } catch (err) {
     logger.error('io-eletroposto-funil', 'falha lendo pc_eventos', err);
     // Contagem indisponível vira null, nunca zero: zero é uma afirmação ("nada
