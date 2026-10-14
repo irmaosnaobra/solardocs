@@ -448,3 +448,96 @@ describe('Reels: desligar a env para o avanço, prazos e a versão que o banco g
     expect(await trocarSe('redes_pub:' + id, linha.value, '1999-01-01T00:00:00.000Z')).toBeNull();   // versão velha perde
   });
 });
+
+describe('Reels no Instagram: link da publicação (permalink)', () => {
+  const LINK = 'https://www.instagram.com/reel/ABC123/';
+  const lePermalink = (): Chamada[] => chamadas.filter(c => c.url.includes('/MEDIA1?fields=permalink'));
+  async function publicar(): Promise<{ id: string; r: Awaited<ReturnType<typeof avancarPublicacao>> }> {
+    const id = (await pub('instagram', 'a')).publicacao!.id;
+    chamadas = [];
+    const r = await avancarPublicacao(id, mais(T0, 2).getTime());
+    return { id, r };
+  }
+
+  it('publicado com permalink válido grava o link; a leitura é um GET com o token de sistema e aparece na lista', async () => {
+    regras.unshift(c => (c.url.includes('/MEDIA1?fields=permalink') ? ok({ permalink: LINK, id: 'MEDIA1' }) : null));
+    const { id, r } = await publicar();
+    expect(r).toMatchObject({ motivo: 'publicado', publicacao: { estado: 'publicado', media_id: 'MEDIA1', permalink: LINK } });
+    expect(valorDe(banco, `redes_pub:${id}`)).toMatchObject({ estado: 'publicado', permalink: LINK });
+    const leituras = lePermalink();
+    expect(leituras).toHaveLength(1);
+    expect(leituras[0]).toMatchObject({ metodo: 'GET' });
+    expect(leituras[0]!.url).toContain('access_token=tk');
+    expect(escritas().filter(u => u.endsWith('/media_publish'))).toHaveLength(1);
+    expect((await listarPublicacoes(30, mais(T0, 3).getTime()))[0]).toMatchObject({ id, estado: 'publicado', permalink: LINK });
+    chamadas = [];
+    expect((await avancarPublicacao(id, mais(T0, 4).getTime())).motivo).toBe('publicado');
+    expect(chamadas).toEqual([]);
+  });
+
+  it('instagram.com sem www também vale', async () => {
+    regras.unshift(c => (c.url.includes('/MEDIA1?fields=permalink') ? ok({ permalink: 'https://instagram.com/reel/XYZ/' }) : null));
+    const { r } = await publicar();
+    expect(r.publicacao).toMatchObject({ estado: 'publicado', permalink: 'https://instagram.com/reel/XYZ/' });
+  });
+
+  it('permalink que falha (4xx ou 5xx) deixa a publicação publicada, sem link, sem parada e sem repetir', async () => {
+    for (const status of [400, 500]) {
+      banco.reiniciar(); limparCachePublicador(); chamadas = [];
+      regras = [c => (c.url.includes('/MEDIA1?fields=permalink') ? erro(status, status === 400 ? 613 : 1) : null), ...rotasPadrao()];
+      const { id, r } = await publicar();
+      expect(r).toMatchObject({ ok: true, motivo: 'publicado', publicacao: { estado: 'publicado', media_id: 'MEDIA1', permalink: null } });
+      expect(valorDe(banco, `redes_pub:${id}`).estado).toBe('publicado');
+      expect(valorDe(banco, 'redes_parada:instagram')).toBeFalsy();
+      expect(lePermalink()).toHaveLength(1);
+      chamadas = [];
+      await avancarPublicacao(id, mais(T0, 5).getTime());
+      expect(chamadas).toEqual([]);
+    }
+  });
+
+  it('permalink que demora além do prazo deixa a publicação publicada, sem link', async () => {
+    limitesPublicador.tokenMs = 40;
+    regras.unshift(c => (c.url.includes('/MEDIA1?fields=permalink') ? { status: -1, json: null } : null));
+    const { id, r } = await publicar();
+    expect(r).toMatchObject({ motivo: 'publicado', publicacao: { estado: 'publicado', permalink: null } });
+    expect(valorDe(banco, `redes_pub:${id}`)).toMatchObject({ estado: 'publicado' });
+    expect(valorDe(banco, `redes_pub:${id}`).permalink ?? null).toBeNull();
+  });
+
+  it('permalink fora do instagram.com, sem https, vazio ou com usuário na frente não é gravado', async () => {
+    const ruins = [
+      'https://evil.com/reel/ABC/', 'http://www.instagram.com/reel/ABC/', 'https://instagram.com.evil.com/reel/ABC/',
+      'https://notinstagram.com/p/1/', 'https://user:senha@instagram.com/p/1/', 'javascript:alert(1)', '', null, 42,
+    ];
+    for (const ruim of ruins) {
+      banco.reiniciar(); limparCachePublicador(); chamadas = [];
+      regras = [c => (c.url.includes('/MEDIA1?fields=permalink') ? ok({ permalink: ruim }) : null), ...rotasPadrao()];
+      const { id, r } = await publicar();
+      expect(r.publicacao, String(ruim)).toMatchObject({ estado: 'publicado', permalink: null });
+      expect(valorDe(banco, `redes_pub:${id}`).permalink ?? null, String(ruim)).toBeNull();
+    }
+  });
+
+  it('media_publish que falha (recusa ou 5xx) não faz chamada extra à Meta: nada de leitura de permalink', async () => {
+    for (const resposta of [erro(400, 100), { status: 500, json: {} }]) {
+      banco.reiniciar(); limparCachePublicador(); chamadas = [];
+      regras = [c => (c.metodo === 'POST' && c.url.endsWith('/media_publish') ? resposta : null), ...rotasPadrao()];
+      const { r } = await publicar();
+      expect(r.publicacao!.estado).not.toBe('publicado');
+      expect(r.publicacao!.permalink).toBeNull();
+      expect(chamadas.map(c => c.url).filter(u => u.includes('permalink'))).toEqual([]);
+      expect(chamadas.map(c => c.metodo + ' ' + c.url.replace('https://graph.facebook.com/v21.0', '').split('?')[0])).toEqual([
+        'GET /CONT1', 'POST /' + IG + '/media_publish',
+      ]);
+    }
+  });
+
+  it('a Página do Facebook não lê permalink', async () => {
+    const id = (await pub('facebook', 'a')).publicacao!.id;
+    chamadas = [];
+    const r = await avancarPublicacao(id, mais(T0, 2).getTime());
+    expect(r).toMatchObject({ motivo: 'publicado', publicacao: { permalink: null } });
+    expect(chamadas.map(c => c.url).filter(u => u.includes('permalink'))).toEqual([]);
+  });
+});

@@ -67,6 +67,8 @@ export interface Publicacao {
   container_id: string | null;
   video_id: string | null;
   media_id: string | null;
+  /** Link da publicação no Instagram, lido depois do media_publish. Opcional: pode faltar sem mudar o estado. */
+  permalink?: string | null;
   ultima_leitura_em: string | null;
   vence_em: string | null;
   motivo: string | null;
@@ -154,6 +156,44 @@ async function lerCotaInstagram(conta: string): Promise<{ usado: number; total: 
   return Number.isFinite(usado) && Number.isFinite(total) && total > 0 ? { usado, total } : null;
 }
 
+/** Só aceita link `https://` de instagram.com (ou www.instagram.com), sem usuário nem senha. Qualquer outra coisa: null. */
+export function linkDoInstagram(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  if (!t || t.length > 300) return null;
+  try {
+    const u = new URL(t);
+    const host = u.hostname.toLowerCase();
+    if (u.protocol !== 'https:' || u.username || u.password) return null;
+    return host === 'instagram.com' || host === 'www.instagram.com' ? t : null;
+  } catch { return null; }
+}
+
+/**
+ * Lê o link da publicação (GET, só leitura) com o token de sistema e o mesmo prazo do token da Página.
+ * Nunca muda estado nem registra parada: falha, prazo estourado ou link estranho viram null, e a publicação
+ * segue "publicada" sem link. Não se refaz sozinho: é uma tentativa só. O log leva só o código, nunca o token.
+ */
+async function lerPermalink(mediaId: string, tk: string): Promise<string | null> {
+  try {
+    const ms = limitesPublicador.tokenMs;
+    const r = await comPrazo(
+      meta(() => fetch(`${GRAPH}/${encodeURIComponent(mediaId)}?fields=permalink&access_token=${tk}`, { signal: AbortSignal.timeout(ms) })),
+      ms, 'permalink',
+    );
+    if (!r.ok) {
+      logger.error(LOG, `leitura do permalink de ${mediaId} falhou: http ${r.erro.http}, código ${r.erro.codigo ?? '-'}`);
+      return null;
+    }
+    const link = linkDoInstagram(r.json?.permalink);
+    if (!link) logger.error(LOG, `permalink de ${mediaId} veio vazio ou fora do instagram.com`);
+    return link;
+  } catch {
+    logger.error(LOG, `leitura do permalink de ${mediaId} passou do prazo ou caiu`);
+    return null;
+  }
+}
+
 // ── registro ─────────────────────────────────────────────────────────────────
 
 export const chaveDe = (id: string): string => `${PREFIXO}${id}`;
@@ -170,7 +210,7 @@ async function grava(rec: Publicacao, mudanca: Partial<Publicacao>): Promise<Pub
 
 export interface PublicacaoTela {
   id: string; rede: RedeMeta; estado: EstadoPub; por: string; criado_em: string;
-  media_id: string | null; motivo: string | null; mensagem: string | null;
+  media_id: string | null; permalink: string | null; motivo: string | null; mensagem: string | null;
   vence_em: string | null; proxima_leitura_em: string | null; video_url: string; legenda: string;
 }
 
@@ -185,6 +225,7 @@ export function paraTela(rec: Publicacao, agora = Date.now()): PublicacaoTela {
   }
   return {
     id: rec.id, rede: rec.rede, estado, por: rec.por, criado_em: rec.criado_em, media_id: rec.media_id,
+    permalink: linkDoInstagram(rec.permalink),
     motivo: rec.motivo, mensagem, vence_em: rec.vence_em,
     proxima_leitura_em: estado === 'aguardando' && Number.isFinite(lido) ? new Date(lido + REGRAS_REDES.reels.leituraConteinerMs).toISOString() : null,
     video_url: rec.video_url, legenda: rec.legenda.slice(0, 120),
@@ -414,7 +455,11 @@ async function avancarInstagram(rec: Publicacao, versao: string, agoraMs: number
     const novo = await grava(emPublicacao, { estado: incerto ? 'incerto' : 'falhou', motivo, mensagem: MENSAGENS[motivo]! });
     return { ok: true, http: 200, motivo, lido: true, mensagem: novo.mensagem!, publicacao: paraTela(novo, agoraMs) };
   }
-  const novo = await grava(emPublicacao, { estado: 'publicado', media_id: String(pub.json?.id ?? '') || null, motivo: null, mensagem: 'Publicado no Instagram.' });
+  const mediaId = String(pub.json?.id ?? '') || null;
+  // "Publicado" primeiro e firme: a leitura do link vem depois e nunca muda o estado.
+  let novo = await grava(emPublicacao, { estado: 'publicado', media_id: mediaId, motivo: null, mensagem: 'Publicado no Instagram.' });
+  const permalink = mediaId ? await lerPermalink(mediaId, tk) : null;
+  if (permalink) novo = await grava(novo, { permalink });
   return { ok: true, http: 200, motivo: 'publicado', lido: true, mensagem: novo.mensagem!, publicacao: paraTela(novo, agoraMs) };
 }
 
