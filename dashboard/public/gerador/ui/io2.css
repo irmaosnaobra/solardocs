@@ -389,7 +389,7 @@
   /* Cabecalho de tela antigo e o "Voltar": o titulo agora mora na barra superior e a barra
      lateral e a saida. Escondidos por CSS, nunca removidos do DOM. */
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) :is(#formSection, #calcSection, #eletroSection, #automacaoSection, #tabelasSection,
-         #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection,
+         #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection, #planilhaSolarSection, #documentosSolarSection,
          #leadsSection, #crmSection, #redesSection) > .header { display: none; }
   /* Historico: o cabecalho tambem leva o Exportar CSV, que fica. */
   html.io2.io2-casca[data-mode="app"]:not(#_):not(#_) #historicoSection > .header {
@@ -443,7 +443,7 @@
   /* ---- Fonte: so nas secoes de app, nunca no body (os documentos herdam do body) ---- */
   html.io2[data-mode="app"]:not(#_):not(#_) :is(#inicioSection, #formSection, #historicoSection, #calcSection, #eletroSection,
          #automacaoSection, #tabelasSection, #fechamentoSolarSection, #quemLigarSection,
-         #obrasSolarSection, #painelSolarSection, #leadsSection, #crmSection, #redesSection,
+         #obrasSolarSection, #painelSolarSection, #planilhaSolarSection, #documentosSolarSection, #leadsSection, #crmSection, #redesSection,
          #crm-det-bg, #pv-bg, #modal-completo, #modal-venda, #modal-socio, #modal-duplicado,
          #modal-novo-contato, #histLinkModal, #toast, .solar-subnav) { font-family: var(--io-fonte); }
   /* Papel e documento: so o conteiner de documento MAIS EXTERNO (sem outro conteiner de documento

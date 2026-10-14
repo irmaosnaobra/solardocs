@@ -55,7 +55,7 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) :is(.eletro-grid, .calc-grid) { grid-template-columns: minmax(0, 1fr); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) :is(.eletro-col-inputs, .eletro-col-result, .calc-col-inputs, .calc-col-result) { min-width: 0; max-width: 100%; }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) :is(#eletroSection, #calcSection, #automacaoSection, #leadsSection, #crmSection, #historicoSection,
-         #tabelasSection, #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection) .card { min-width: 0; max-width: 100%; }
+         #tabelasSection, #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection, #planilhaSolarSection, #documentosSolarSection) .card { min-width: 0; max-width: 100%; }
 
   /* ---- 2. Inicio: o vao de cima vinha de um padding de 64 px que abria espaco para o botao de menu antigo ---- */
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #inicioSection { padding-top: 0; }

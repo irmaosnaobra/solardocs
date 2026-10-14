@@ -180,7 +180,7 @@
    de proposta, orcamento e documento), as janelas e a ilha da Agenda. Lista de cartoes independentes vira grade; formulario
    distribui os campos em mais colunas; paragrafo de explicacao limita a linha de texto, sem estreitar o bloco em volta. */
 @media (min-width: 861px) {
-  § :is(#inicioSection, #formSection, #historicoSection, #calcSection, #eletroSection, #automacaoSection, #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection) { max-width: none; margin-left: 0; margin-right: 0; }
+  § :is(#inicioSection, #formSection, #historicoSection, #calcSection, #eletroSection, #automacaoSection, #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection, #planilhaSolarSection, #documentosSolarSection) { max-width: none; margin-left: 0; margin-right: 0; }
   § .container > :is(#formSection, #historicoSection) { max-width: none; margin-left: 0; margin-right: 0; }
   § #eletroSection .orc-wrap { max-width: none; }
   /* Gerar proposta: os campos se distribuem em colunas de 240 px no minimo; campo largo ocupa duas e nunca passa de uns 720 px. */

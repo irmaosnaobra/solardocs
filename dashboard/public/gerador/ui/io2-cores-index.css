@@ -217,6 +217,26 @@ html.io2[data-mode="app"]:not(#_):not(#_) .fs-h .ed{color:var(--io-av)}
 html.io2[data-mode="app"]:not(#_):not(#_) #quemLigarSection .card,
 html.io2[data-mode="app"]:not(#_):not(#_) #obrasSolarSection .card,
 html.io2[data-mode="app"]:not(#_):not(#_) #painelSolarSection .card{background-color:var(--n-sf);color:var(--n-tx);border-color:var(--n-bd);box-shadow:rgba(10,36,80,.1) 0px 4px 16px}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-num.dc-num-ok b{color:var(--io-ok-tx,var(--io-ok))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-num.dc-num-falta b{color:var(--io-er-tx,var(--io-er))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-estado{color:var(--n-tx2,var(--n-tx2))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab{color:var(--n-tx,var(--n-tx))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab th{color:var(--n-tx2,var(--n-tx2))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td,
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab tbody th{color:var(--n-tx,var(--n-tx))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td.dc-ok,
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-item.dc-ok{color:var(--io-ok-fg,var(--io-ok))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td.dc-falta,
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-item.dc-falta{color:var(--io-er-fg,var(--io-er))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td.dc-tre-enviado{color:var(--io-ok-fg,var(--io-ok))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td.dc-tre-falhou{color:var(--io-er-fg,var(--io-er))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td.dc-tre-nenhum,
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-tab td.dc-tre-pendente{color:var(--n-tx2,var(--n-tx2))}
+@media (max-width: 860px) {
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-cartao{color:var(--n-tx,var(--n-tx))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-cartao h3{color:var(--n-tx,var(--n-tx))}
+html.io2[data-mode="app"]:not(#_):not(#_) .dc-sub{color:var(--n-tx2,var(--n-tx2))}
+}
 html.io2[data-mode="app"]:not(#_):not(#_) .ql-num{background-color:var(--n-sf);border-color:var(--n-bd);color:var(--n-tx3)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ql-num b{color:var(--n-tx)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ql-num:hover{border-color:rgba(245,158,11,.5)}

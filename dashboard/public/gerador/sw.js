@@ -1,6 +1,6 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
 // Scope limitado a /gerador/ pra não interferir no resto do app.
-const CACHE = 'gerador-propostas-v383';
+const CACHE = 'gerador-propostas-v384';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',
@@ -77,7 +77,11 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE).then(c => c.put(req, copy));
           return res;
         })
-        .catch(() => caches.match(req).then(r => r || caches.match('/gerador/index.html')))
+        .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (
+          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lá dentro.
+          url.pathname.startsWith('/gerador/clientes/')
+            ? new Response('Sem conexão.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+            : caches.match('/gerador/index.html'))))
     );
     return;
   }

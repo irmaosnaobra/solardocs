@@ -13,7 +13,7 @@ const OUT = require('path').join(__dirname, '..', 'public', 'gerador', 'ui', 'io
 const MODO = process.env.IO2_MODO || 'plano';
 const P = 'html.io2[data-mode="app"]:not(#_):not(#_):not(#_)';
 const SECS = ['#inicioSection', '#formSection', '#historicoSection', '#calcSection', '#eletroSection', '#automacaoSection', '#tabelasSection',
-  '#fechamentoSolarSection', '#quemLigarSection', '#obrasSolarSection', '#painelSolarSection', '#leadsSection', '#crmSection', '#redesSection',
+  '#fechamentoSolarSection', '#quemLigarSection', '#obrasSolarSection', '#painelSolarSection', '#planilhaSolarSection', '#documentosSolarSection', '#leadsSection', '#crmSection', '#redesSection',
   '#crm-det-bg', '#pv-bg', '#modal-completo', '#modal-venda', '#modal-socio', '#modal-duplicado', '#modal-novo-contato', '#histLinkModal', '.modal-overlay'];
 const S = ':is(' + SECS.join(',') + ')';
 const PREF = { P: P, S: P + ' ' + S, Q: P + ':not(#_) ' + S, Q0: P + ':not(#_)' };

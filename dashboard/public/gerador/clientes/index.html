@@ -13,7 +13,15 @@
     var AUTH_KEY = 'irmaos-na-obra-auth-v1';
     var authed = false;
     try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e){}
-    if (!authed) location.replace('/gerador');
+    // Modo embutido (aba Planilha de clientes do Solar): a página roda dentro de um iframe do /gerador.
+    var emb = false;
+    try { emb = window.self !== window.top; } catch (e) { emb = true; }
+    window.__embutida = emb;
+    if (emb) document.documentElement.classList.add('gc-embutida');
+    if (!authed) {
+      // Navegar aqui carregaria o app inteiro dentro do iframe: no modo embutido só avisa (veja semSessaoEmbutida).
+      if (emb) window.__semSessao = true; else location.replace('/gerador');
+    }
   })();
 </script>
 <style>
@@ -62,7 +70,7 @@ button{cursor:pointer}
 .gc-cab{display:flex;align-items:center;gap:12px}
 .gc-cab h1{margin:0;font-size:16px;font-weight:700;color:var(--gc-tit);white-space:nowrap}
 .gc-sair{color:var(--gc-link);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap}
-html.io2-casca .gc-cab{display:none}
+html.io2-casca .gc-cab,html.gc-embutida .gc-cab{display:none}
 .gc-busca{position:relative;flex:0 1 260px;min-width:180px}
 .gc-busca svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--gc-tx3);pointer-events:none}
 .gc-busca input{width:100%;height:38px;padding:0 12px 0 34px;border:1px solid var(--gc-campo);border-radius:10px;background:var(--gc-bg);color:var(--gc-tx)}
@@ -193,7 +201,7 @@ html.io2-casca .gc-cab{display:none}
     <button type="button" id="faixaBtn">Tentar de novo</button>
   </div>
   <header class="gc-bar" id="bar">
-    <div class="gc-cab"><a class="gc-sair" href="/gerador">Voltar ao Gerador</a><h1>Planilha de clientes</h1></div>
+    <div class="gc-cab"><a class="gc-sair" href="/gerador" target="_top">Voltar ao Gerador</a><h1>Planilha de clientes</h1></div>
     <div class="gc-busca">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <label class="sr" for="busca">Buscar por nome ou código</label>
@@ -309,11 +317,55 @@ html.io2-casca .gc-cab{display:none}
   function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
 
   // ── Sessão: lida e renovada do MESMO jeito que o app principal e a tela do WhatsApp ──
-  function irParaLogin() { parado = true; location.replace('/gerador'); }
+  // Embutida: quem renova a sessão é o app pai. O pai guarda o refresh token em memória e só lê o storage na carga;
+  // se esta página girasse o token, a próxima renovação do pai usaria um token gasto e derrubaria a sessão toda.
+  var EMB = !!window.__embutida;
+  function irParaLogin() {
+    parado = true;
+    if (EMB) { semSessaoEmbutida(); return; }   // nunca navega nem apaga a sessão aqui dentro
+    location.replace('/gerador');
+  }
   function lerSessao() { try { return JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) { return null; } }
   function sessaoViva(s) { return !!(s && s.access_token && Number(s.expira_em || 0) > Date.now()); }
   var renovando = null;
+  // Embutida: pede ao pai uma renovação (voo único dele) e lê o token novo do storage, sem renovar por conta própria.
+  function embPai() { try { return window.parent; } catch (e) { return null; } }
+  function embObterToken() {
+    var p = embPai();
+    var antes = (p && typeof p.authRenovarSePreciso === 'function') ? Promise.resolve().then(function () { return p.authRenovarSePreciso(); }).catch(function () {}) : Promise.resolve();
+    return antes.then(function () {
+      var s = lerSessao();
+      if (!s || !s.access_token) { irParaLogin(); throw erro('login'); }
+      return s.access_token;
+    });
+  }
+  function embRenovar(tokenUsado) {
+    if (renovando) return renovando;
+    var p = embPai();
+    var pedido = (p && typeof p.authRenovar === 'function') ? Promise.resolve().then(function () { return p.authRenovar(); }).catch(function () { return false; }) : Promise.resolve(false);
+    renovando = pedido.then(function () {
+      renovando = null;
+      var s = lerSessao();
+      // Sem sessão, ou o mesmo token que acabou de dar 401: o pai não conseguiu renovar.
+      if (!s || !s.access_token || s.access_token === tokenUsado) { irParaLogin(); throw erro('login'); }
+      return s.access_token;
+    }, function (e) { renovando = null; throw e; });
+    return renovando;
+  }
+  // Embutida, depois de um 401: se o pai já gravou outro token no storage, tenta com ele primeiro; só então pede renovação ao pai.
+  function embRetentar(metodo, caminho, corpo, tk) {
+    var s = lerSessao();
+    var outro = s && s.access_token && s.access_token !== tk ? s.access_token : null;
+    var antes = outro ? pedir(metodo, caminho, corpo, outro).then(function (y) { return y.status === 401 ? null : y; }) : Promise.resolve(null);
+    return antes.then(function (y) {
+      if (y) return y;
+      return embRenovar(outro || tk).then(function (tk3) {
+        return pedir(metodo, caminho, corpo, tk3).then(function (z) { if (z.status === 401) { irParaLogin(); throw erro('login'); } return z; });
+      });
+    });
+  }
   function renovar(tokenUsado) {
+    if (EMB) return embRenovar(tokenUsado);
     if (renovando) return renovando;
     var rodar = function () { return renovarAgora(tokenUsado); };
     var p = (navigator.locks && navigator.locks.request) ? navigator.locks.request('gerador-sessao-renovar', rodar) : rodar();
@@ -351,6 +403,7 @@ html.io2-casca .gc-cab{display:none}
     });
   }
   function obterToken() {
+    if (EMB) return embObterToken();
     var s = lerSessao();
     if (!s || !s.access_token) { irParaLogin(); return Promise.reject(erro('login')); }
     return sessaoViva(s) ? Promise.resolve(s.access_token) : renovar(null);
@@ -372,6 +425,7 @@ html.io2-casca .gc-cab{display:none}
     return obterToken().then(function (tk) {
       return pedir(metodo, caminho, corpo, tk).then(function (x) {
         if (x.status !== 401) return x;
+        if (EMB) return embRetentar(metodo, caminho, corpo, tk);
         // 401 com o relógio dizendo que o token vale: o servidor discorda. Renova uma vez e tenta de novo; se falhar, login.
         return renovar(tk).then(function (tk2) {
           return pedir(metodo, caminho, corpo, tk2).then(function (y) { if (y.status === 401) { irParaLogin(); throw erro('login'); } return y; });
@@ -392,7 +446,7 @@ html.io2-casca .gc-cab{display:none}
     var c = el('div'); var h = el('h2', null, html.t); c.appendChild(h);
     if (html.p) c.appendChild(el('p', null, html.p));
     if (html.btn) { var b = el('button', 'gc-btn', html.btn); b.type = 'button'; b.addEventListener('click', html.fn); b.style.margin = '0 auto'; c.appendChild(b); }
-    if (html.link) { var a = el('a', null, html.link); a.href = '/gerador'; c.appendChild(a); }
+    if (html.link) { var a = el('a', null, html.link); a.href = '/gerador'; a.target = '_top'; c.appendChild(a); }
     e.appendChild(c); e.hidden = false;
   }
   function semPermissao() {
@@ -401,6 +455,13 @@ html.io2-casca .gc-cab{display:none}
     $('esq').hidden = true; $('faixa').hidden = true;
     $('cont').textContent = '';
     mostrarEstado({ t: 'Você não tem permissão para esta tela.', p: 'Sua conta não pode ver a planilha de clientes.', link: 'Voltar ao Gerador' });
+  }
+  function semSessaoEmbutida() {
+    parado = true; linhas = []; visiveis = []; D = null;
+    elTab.textContent = ''; $('cartoes').textContent = '';
+    $('esq').hidden = true; $('faixa').hidden = true;
+    $('cont').textContent = '';
+    mostrarEstado({ t: 'Sua sessão terminou.', p: 'Entre de novo no Gerador para ver a planilha de clientes.', link: 'Abrir o Gerador' });
   }
   function esqueleto(on) {
     var e = $('esq');
@@ -1041,7 +1102,18 @@ html.io2-casca .gc-cab{display:none}
   MOVEL.addEventListener && MOVEL.addEventListener('change', function () { if (editor) fecharEditor(true); if (!MOVEL.matches) { detalhe = null; $('gd').hidden = true; } });
   window.addEventListener('pagehide', function () { if (editor) fecharEditor(true); });
 
-  carregar();
+  if (EMB) {
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'gerador-tema') {
+        if (e.newValue === 'escuro') document.documentElement.setAttribute('data-io2-tema', 'escuro');
+        else document.documentElement.removeAttribute('data-io2-tema');
+      } else if (e.key === 'gerador-visual') {
+        try { location.reload(); } catch (x) {}
+      }
+    });
+  }
+
+  if (window.__semSessao) semSessaoEmbutida(); else carregar();
 })();
 </script>
 </body>
