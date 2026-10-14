@@ -83,3 +83,36 @@ export const caixaPessoaLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// ── Meu perfil (/gerador/perfil) ─────────────────────────────────────────────
+// Mesma ideia da caixa: IP antes do login (teto largo, o escritório divide o IP) e PESSOA depois dele, com o
+// e-mail já validado como chave. Gravar (WhatsApp e foto) tem teto próprio e bem menor: ninguém troca o perfil
+// 20 vezes em 15 minutos de boa-fé, e cada foto é um upload no Storage.
+const chavePerfil = (prefixo: string) => (req: unknown): string =>
+  prefixo + String((req as { consultor?: { email?: string } }).consultor?.email || 'sem-consultor');
+
+export const perfilIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  message: { ok: false, error: 'Muitas consultas em pouco tempo. Aguarde um pouco.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const perfilPessoaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  keyGenerator: chavePerfil('perfil:'),
+  message: { ok: false, error: 'Muitas consultas em pouco tempo. Aguarde um pouco.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const perfilGravarLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyGenerator: chavePerfil('perfil-gravar:'),
+  message: { ok: false, error: 'Muitas alterações de perfil em pouco tempo. Aguarde alguns minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

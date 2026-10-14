@@ -25,6 +25,7 @@ import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
 import { mountFinanceiro } from './geradorFinanceiro';
 import { mountClientes } from './geradorClientes';
+import { mountPerfil } from './geradorPerfil';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1144,6 +1145,8 @@ mountSolar(router);
 mountFinanceiro(router);
 // Gestão de clientes do solar: a Planilha Mestre como grade editável.
 mountClientes(router);
+// Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
+mountPerfil(router);
 
 // Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
 mountEletropostoAtendimento(router);
