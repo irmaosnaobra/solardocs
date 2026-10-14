@@ -370,6 +370,14 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // admin.ts saíram na limpeza (bd7be8da), e o manual_lote_admin foi junto. É
   // também o robô de lote do manual_crm.
   zapi_admin_lote: robo('frio_p5', ['routes/zapiAdmin.ts'], { subprioridade: 6 }),
+  // Status em vídeo da 5040 (14/10/2026, Automação como centro das redes, fase 1):
+  // 1 vídeo por clique de gente da equipe, pelo zapiClient na instância 'io', sem
+  // retry. Conta como 1 frio da linha (carimbo status_io_sent:), com teto próprio
+  // de 3 por dia (1 na primeira semana e na rampa), 2 h entre status e a janela
+  // do frio. Fica depois do lote manual: é o que menos urge no frio.
+  status_5040: robo('frio_p5', ['services/gerador/redes/statusIo.ts'], {
+    carimbos: [frio('status_io_sent:')], subprioridade: 7,
+  }),
 });
 
 /**
@@ -411,6 +419,12 @@ export const ROBOS_META: Readonly<Record<string, { canal: 'instagram' | 'faceboo
   ig_prospeccao: { canal: 'instagram', arquivos: ['services/instagram/igEngine.ts', 'services/io/prospeccaoConversaIg.ts'] },
   fb_comentarios: { canal: 'facebook', arquivos: ['services/instagram/fbComentarios.ts'] },
   fb_inbox: { canal: 'facebook', arquivos: ['services/instagram/fbMensagens.ts'] },
+  // Fase 1 das redes (14/10/2026): Reels publicados e respostas de gente a comentário,
+  // um clique por item. Os números estão em REGRAS_REDES, no regulamento.
+  ig_publicar: { canal: 'instagram', arquivos: ['services/gerador/redes/publicador.ts'] },
+  fb_publicar: { canal: 'facebook', arquivos: ['services/gerador/redes/publicador.ts'] },
+  ig_resposta_manual: { canal: 'instagram', arquivos: ['services/gerador/redes/respostas.ts'] },
+  fb_resposta_manual: { canal: 'facebook', arquivos: ['services/gerador/redes/respostas.ts', 'services/instagram/fbComentarios.ts'] },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -221,6 +221,16 @@ export async function sendVideo(
   await zapiPost('send-video', { phone: fmtPhone(phone), video, caption }, 2, instance);
 }
 
+/**
+ * Status (story) do WhatsApp da linha IO, em vídeo. `video` é link público (até 10 MB, some em 24 h).
+ * A resposta é assíncrona: o `zaapId` e o `messageId` voltam, mas o 200 não prova que saiu.
+ * ZERO retry e instância 'io' explícita, de propósito: o status é um frio da 5040 e quem decide se
+ * ele pode sair é o statusIo.ts. Reenviar um status sozinho vira duas publicações na linha.
+ */
+export async function sendVideoStatus(video: string, legenda = ''): Promise<{ zaapId?: string; messageId?: string; id?: string } | null> {
+  return zapiPost('send-video-status', { video, caption: legenda }, 0, 'io');
+}
+
 export async function sendHuman(
   phone: string,
   parts: string[],

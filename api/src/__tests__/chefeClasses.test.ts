@@ -223,3 +223,45 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     expect(prioridadeFina('frio_p5', 2)).toBeLessThan(prioridadeFina('frio_p5', 6));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REDES, FASE 1 (14/10/2026): o status da 5040 e o inventário do canal Meta.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('redes, fase 1: status da 5040 e robôs do canal Meta', () => {
+  it('status_5040 é frio da linha: carimbo status_io_sent: no balde frio, subprioridade 7, fora da agenda e da pausa de gente', () => {
+    const r = CLASSE_POR_ROBO.status_5040!;
+    expect({ classe: r.classe, sub: r.subprioridade, linha: r.linha, agenda: r.agenda, prazo: r.podeTerPrazo, bolhas: r.maxBolhas, chars: r.maxCaracteres, janela: r.janela })
+      .toEqual({ classe: 'frio_p5', sub: 7, linha: 'io', agenda: false, prazo: false, bolhas: 1, chars: 900, janela: 'frio' });
+    expect(r.carimbos.map(c => `${c.prefixo}:${c.contaHoje}`)).toEqual(['status_io_sent::frio']);
+    expect(r.arquivos).toEqual(['services/gerador/redes/statusIo.ts']);
+    expect(prefixosFriosDerivados({ solardocViaIo: false })).toContain('status_io_sent:');
+    expect(prefixosAgendaDerivados()).not.toContain('status_io_sent:');
+    // Vem depois de todo o frio que já existia: é o que menos urge.
+    for (const [nome, x] of Object.entries(CLASSE_POR_ROBO)) {
+      if (nome !== 'status_5040' && x.classe === 'frio_p5') expect(x.subprioridade, nome).toBeLessThan(r.subprioridade);
+    }
+  });
+
+  it('ROBOS_META ganha os 4 das redes, todos com arquivo que existe, e o publicador serve aos dois canais', () => {
+    expect(ROBOS_META.ig_publicar).toEqual({ canal: 'instagram', arquivos: ['services/gerador/redes/publicador.ts'] });
+    expect(ROBOS_META.fb_publicar).toEqual({ canal: 'facebook', arquivos: ['services/gerador/redes/publicador.ts'] });
+    expect(ROBOS_META.ig_resposta_manual!.canal).toBe('instagram');
+    expect(ROBOS_META.fb_resposta_manual!.canal).toBe('facebook');
+    expect(ROBOS_META.fb_resposta_manual!.arquivos).toContain('services/instagram/fbComentarios.ts');
+    const raiz = join(__dirname, '..');
+    for (const n of ['ig_publicar', 'fb_publicar', 'ig_resposta_manual', 'fb_resposta_manual']) {
+      for (const a of ROBOS_META[n]!.arquivos) expect(existsSync(join(raiz, a)), `${n} → ${a}`).toBe(true);
+    }
+  });
+
+  it('os números novos moram no regulamento como uma lista só, congelada', async () => {
+    const { REGRAS_REDES } = await import('../services/chefe/regulamento');
+    expect(Object.isFrozen(REGRAS_REDES)).toBe(true);
+    expect(REGRAS_REDES.status).toMatchObject({ porDia: 3, porDiaPrimeiraSemana: 1, porDiaRampa: 1, primeiraSemanaHoras: 168, entreMs: 7_200_000, videoMaxBytes: 10 * 1024 * 1024, legendaMax: 900 });
+    expect(REGRAS_REDES.status.janela).toEqual({ inicioH: 9, fimH: 20, domingo: false });
+    expect(REGRAS_REDES.reels).toMatchObject({ entrePublicacoesMs: 1_800_000, leituraConteinerMs: 60_000, leituraConteinerMaxMs: 300_000 });
+    expect(REGRAS_REDES.paradaMeta.codigos).toEqual([4, 17, 32, 368, 613]);
+    expect(REGRAS_REDES.resposta).toMatchObject({ entreMs: 20_000, mesmoAutorPorHora: 3, mesmoTextoPorHora: 3, porDia: 300, igPorHora: 180, fbPorHora: 60 });
+  });
+});

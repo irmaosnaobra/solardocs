@@ -46,6 +46,13 @@ import { classificarHostil } from './igHostil';
 import { responderComIa, conversaAtiva } from './igIa';
 
 const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
+
+/**
+ * Carimbo de que GENTE respondeu este comentário (caixa do /gerador, 14/10/2026): `ig_sent:gente:<id do comentário>`.
+ * Mora no livro `ig_sent:` de propósito, para a resposta de gente entrar na conta dos 180/h junto com a do motor,
+ * e é um insert por comentário. NUNCA vira `ig_events.ref`: isso calaria a DM do motor, que não muda.
+ */
+export const chaveRespostaGenteIg = (commentId: string): string => `ig_sent:gente:${commentId}`;
 const MAX_POR_TICK = 15;
 const SPACING_MS = 500;                 // ~2/s
 
@@ -657,6 +664,14 @@ async function agendarLembrete1h(
 }
 
 // ── DRENAGEM DA FILA ────────────────────────────────────────────────────────────
+async function comRespostaDeGente(commentId: unknown): Promise<boolean> {
+  if (!commentId) return false;
+  try {
+    const { data, error } = await supabase.from('system_state').select('key').eq('key', chaveRespostaGenteIg(String(commentId))).limit(1);
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch { return false; }
+}
+
 export async function drainIgQueue(): Promise<{ enviados: number; pulados: number; incertos?: number; reason?: string }> {
   if (!ligado()) return { enviados: 0, pulados: 0, reason: 'desligado' };
   const cfg = await getIgConfig();
@@ -681,6 +696,14 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
       .update({ status: 'sending', claimed_at: new Date().toISOString(), tentativas: (item.tentativas || 0) + 1 })
       .eq('id', item.id).eq('status', 'pending').select('id');
     if (!claimed || !claimed.length) continue;
+
+    // A resposta PÚBLICA do motor pula o comentário que GENTE já respondeu (caixa do /gerador). Só pula com o
+    // carimbo achado; erro de leitura ou resposta vazia segue como antes. A DM do motor não passa por aqui.
+    if (item.tipo === 'public_reply' && await comRespostaDeGente(item.recipient)) {
+      await supabase.from('ig_queue').update({ status: 'skipped', erro: 'resposta_de_gente' }).eq('id', item.id);
+      pulados++;
+      continue;
+    }
 
     // Janela de 24h + estado do porteiro (a mesma linha serve pras duas coisas).
     let contato: any = null;

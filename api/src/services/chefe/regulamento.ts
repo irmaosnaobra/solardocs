@@ -450,6 +450,70 @@ export const REGRAS_META = Object.freeze({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AUTOMAÇÃO COMO CENTRO DAS REDES, FASE 1 (14/10/2026): Reels no Instagram e na
+// Página, status da 5040 e resposta de gente a comentário. Parecer do chefe
+// anti-ban do mesmo dia. TODO número desta lista é [proposta]: nasce aqui, a
+// calibrar com a operação. O número mora no código e a env só baixa.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const REGRAS_REDES = Object.freeze({
+  reels: Object.freeze({
+    // [proposta] 30 min entre publicações da mesma conta; o mesmo vídeo só 1 vez
+    // por conta; contêiner lido no máximo 1 vez por minuto, por até 5 min (depois,
+    // falha honesta). A cota do Instagram é a da Meta (content_publishing_limit).
+    entrePublicacoesMs: 30 * MIN,
+    leituraConteinerMs: 1 * MIN,
+    leituraConteinerMaxMs: 5 * MIN,
+    mesmoVideoPorConta: 1,
+    // [proposta] vídeo de até 50 MB, mp4 ou mov.
+    videoMaxBytes: 50 * 1024 * 1024,
+  }),
+  // [proposta] códigos da Meta que param publicação E resposta daquela conta por
+  // 15 min (limite de chamadas, spam, bloqueio de ação). Erro de cota de
+  // publicação para até o dia seguinte. Nada se refaz sozinho: timeout e 5xx
+  // contam como feito.
+  paradaMeta: Object.freeze({
+    codigos: Object.freeze([4, 17, 32, 368, 613]) as readonly number[],
+    paradaMs: 15 * MIN,
+  }),
+  status: Object.freeze({
+    // [proposta] status da 5040 conta como 1 frio (6/h, 30 em 24h, rampa do
+    // frio); teto próprio de 3 por dia. Nos primeiros 7 dias (168 h) de USO do
+    // recurso e nos dias 2 e 3 da rampa de reconexão, 1 por dia. Nunca no 1º dia
+    // depois de reconectar. As 168 h contam do carimbo `status_io_sent:` mais
+    // antigo que de fato saiu (`enviado` ou `incerto`); sem nenhum, ou sem
+    // conseguir ler, vale 1 por dia.
+    porDia: 3,
+    porDiaPrimeiraSemana: 1,
+    porDiaRampa: 1,
+    primeiraSemanaHoras: 168,
+    // 2 h entre status; das 9h às 20h, de segunda a sábado (a janela do frio).
+    entreMs: 2 * HORA,
+    janela: Object.freeze({ inicioH: 9, fimH: 20, domingo: false }) as JanelaHorario,
+    // Z-API: vídeo de até 10 MB; 1 vídeo por vez; legenda até 900 caracteres.
+    videoMaxBytes: 10 * 1024 * 1024,
+    legendaMax: 900,
+  }),
+  resposta: Object.freeze({
+    // [proposta] resposta de gente: 20 s entre respostas; 1 por comentário;
+    // mesmo autor e texto igual até 3 por hora; no máximo 300 em 24 h.
+    entreMs: 20 * 1000,
+    porComentario: 1,
+    mesmoAutorPorHora: 3,
+    mesmoTextoPorHora: 3,
+    porDia: 300,
+    // Instagram: dentro do teto de 180/h do livro `ig_sent:` (soma o motor); usa
+    // o menor entre a env IG_MAX_POR_HORA e este número.
+    igPorHora: REGRAS_META.instagramReativo.porHora,
+    // Facebook: 60/h por página somando o motor (cada resposta privada do motor
+    // vale 2: a DM e o aviso público).
+    fbPorHora: REGRAS_META.facebook.porHoraPorPagina,
+    fbPesoDoMotor: 2,
+    textoMax: 1000,
+  }),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ENV — só aperta
 // ─────────────────────────────────────────────────────────────────────────────
 

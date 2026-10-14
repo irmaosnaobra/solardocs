@@ -353,6 +353,8 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/confiancaWhatsAppService.ts': { robos: ['confianca_whatsapp'], classeMaxima: 'frio_p5' },
   'services/dunningService.ts': { robos: ['dunning_d0', 'dunning_d5', 'dunning_lembrete', 'dunning_recuperado'], classeMaxima: 'evento_p0' },
   'services/followupService.ts': { robos: ['recuperacao_checkout'], classeMaxima: 'frio_receita_p4' },
+  // Status em vídeo da 5040 (14/10/2026): frio da linha, 1 por clique da equipe.
+  'services/gerador/redes/statusIo.ts': { robos: ['status_5040'], classeMaxima: 'frio_p5' },
   'services/instagram/fbMensagens.ts': { robos: ['fb_aviso_equipe'], classeMaxima: 'aviso_interno_p2' },
   'services/instagram/igEngine.ts': { robos: ['ig_aviso_equipe'], classeMaxima: 'aviso_interno_p2' },
   'services/io/avisosTickService.ts': { robos: ['avisos_pauta'], classeMaxima: 'frio_p5' },
@@ -477,9 +479,13 @@ const CONSULTAS_ZAPI_PERMITIDAS: ReadonlySet<string> = new Set([
  *  - events: API de Conversões (metaPixel.ts, pixelController.ts, metaCapi.ts),
  *    evento de anúncio à Meta;
  *  - customaudiences e usersreplace: público de anúncio da conta (criar o público
- *    e trocar a lista com hash), em services/meta/clientesQuentes.ts (09/10/2026).
+ *    e trocar a lista com hash), em services/meta/clientesQuentes.ts (09/10/2026);
+ *  - media, media_publish e video_reels: publicação de Reels (contêiner, publicar e
+ *    Reels da Página) em services/gerador/redes/publicador.ts (14/10/2026). Nenhum
+ *    é mensagem; o publicador NÃO entra em CLIENTES_GRAPH, para a regra de
+ *    mensagem continuar valendo dentro do arquivo dele.
  */
-const GRAPH_ESCRITA_PERMITIDA: ReadonlySet<string> = new Set(['events', 'customaudiences', 'usersreplace']);
+const GRAPH_ESCRITA_PERMITIDA: ReadonlySet<string> = new Set(['events', 'customaudiences', 'usersreplace', 'media', 'media_publish', 'video_reels']);
 /** Os edges de mensagem do Graph (DM, resposta, comentário, resposta privada). */
 const EDGES_MENSAGEM_GRAPH: ReadonlySet<string> = new Set(['messages', 'private_replies', 'replies', 'comments']);
 
@@ -2255,5 +2261,45 @@ describe('chefeGuarda: rodada 4, os formatos do verificador da rodada 3 e os lim
     limite('robo com variável', 'export const pedir = (decidir: any, estado: any, p: string, t: string, agora: number) => decidir(estado, { robo: `ep_${t}`, destino: p }, agora);', NOVO, 'robo');
     // envio cru: membro calculado (io["enviar" + "ZapiIO"]) e o barrel que re-exporta.
     limite('membro calculado', 'import * as io from "./ioSend";\nconst k = "enviar" + "ZapiIO";\nexport async function lote(lista: string[]) { for (const p of lista) await (io as any)[k](p, "oi"); }', NOVO, 'envio_cru');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REDES, FASE 1 (14/10/2026): o publicador de Reels escreve no Graph (media,
+// media_publish, video_reels) FORA da lista dos clientes oficiais. A guarda tem de
+// continuar enxergando mensagem dentro do arquivo dele.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('chefeGuarda: redes, o publicador de Reels fica na guarda', () => {
+  const PUBLICADOR = 'api/src/services/gerador/redes/publicador.ts';
+  const real = (arq: string): string => readFileSync(join(RAIZ, ...arq.split('/')), 'utf8');
+
+  it('o publicador real tem as escritas permitidas e zero achado; ele NÃO está na lista dos clientes do Graph', () => {
+    expect(CLIENTES_GRAPH).not.toContain(PUBLICADOR);
+    const texto = real(PUBLICADOR);
+    // Controle positivo: o arquivo tem mesmo as três escritas e o host do Graph (senão "zero achado" não prova nada).
+    for (const edge of ['/media`', '/media_publish`', '/video_reels`']) expect(texto.includes(edge), edge).toBe(true);
+    expect(texto.includes('graph.facebook.com')).toBe(true);
+    expect(resumo(varrerFonte(texto, PUBLICADOR))).toEqual([]);
+  });
+
+  it('o mesmo arquivo com UM POST em /{id}/messages dá exatamente 1 achado (mensagem não passa por aqui)', () => {
+    const texto = real(PUBLICADOR) + '\n' + src(
+      'export async function mandarDm(pagina: string, para: string, token: string) {',
+      '  await fetch(`${GRAPH}/${pagina}/messages?access_token=${token}`, { method: "POST", body: JSON.stringify({ recipient: { id: para } }) });',
+      '}',
+    );
+    const achados = varrerFonte(texto, PUBLICADOR);
+    expect(resumo(achados)).toEqual(['graph:envio']);
+    expect(avaliar(achados, {}, {}).length).toBeGreaterThan(0);
+  });
+
+  it('os outros arquivos novos das redes (status, respostas, caixa, comum, vídeo, rotas) não escrevem na Z-API nem no Graph por fora', () => {
+    for (const arq of [
+      'api/src/services/gerador/redes/statusIo.ts', 'api/src/services/gerador/redes/respostas.ts', 'api/src/services/gerador/redes/caixa.ts',
+      'api/src/services/gerador/redes/comum.ts', 'api/src/services/gerador/redes/video.ts', 'api/src/routes/geradorRedes.ts',
+    ]) {
+      expect({ arq, achados: resumo(varrerFonte(real(arq), arq)) }).toEqual({ arq, achados: [] });
+    }
   });
 });

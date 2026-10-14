@@ -47,14 +47,21 @@ export const MAX_POR_HORA = maxPorHora();
 // Defina LINHA_RECONECTADA_EM=YYYY-MM-DD no dia em que reconectar; por 72h os tetos
 // sobem em rampa em vez de já valerem cheios. Passados 3 dias a rampa some sozinha
 // (não precisa lembrar de tirar a env).
-function rampaDesde(t0: number | null, now: Date): { hora: number; dia: number } | null {
+/** Dia da rampa de reconexão (1, 2 ou 3), ou null com a linha aquecida. A tabela dos tetos mora logo abaixo. */
+function diaDaRampa(t0: number | null, now: Date): 1 | 2 | 3 | null {
   if (t0 === null || !Number.isFinite(t0)) return null;
   const dias = (now.getTime() - t0) / (24 * 60 * 60 * 1000);
-  if (dias < 0) return { hora: 2, dia: 10 };   // env no futuro → trata como dia 0
-  if (dias < 1) return { hora: 2, dia: 10 };
-  if (dias < 2) return { hora: 3, dia: 20 };
-  if (dias < 3) return { hora: 4, dia: 30 };
+  if (dias < 1) return 1;                       // inclui env no futuro: trata como dia 0
+  if (dias < 2) return 2;
+  if (dias < 3) return 3;
   return null;                                  // aquecida: tetos cheios
+}
+
+const DEGRAUS_DA_RAMPA = { 1: { hora: 2, dia: 10 }, 2: { hora: 3, dia: 20 }, 3: { hora: 4, dia: 30 } } as const;
+
+function rampaDesde(t0: number | null, now: Date): { hora: number; dia: number } | null {
+  const d = diaDaRampa(t0, now);
+  return d === null ? null : { ...DEGRAUS_DA_RAMPA[d] };
 }
 
 function envReconexao(): number | null {
@@ -106,6 +113,14 @@ export async function tetosVigentesLinha(now: Date = new Date()): Promise<{ hora
  */
 export async function rampaReconexaoVigente(now: Date = new Date()): Promise<{ hora: number; dia: number } | null> {
   return rampaDesde(await inicioDoAquecimento(), now);
+}
+
+/**
+ * Em que dia da rampa de reconexão a linha está AGORA (1, 2 ou 3), ou `null` com a linha aquecida. Quem só quer
+ * saber "é o 1º dia?" compara com 1, sem depender da tabela de tetos acima (o status em vídeo faz assim).
+ */
+export async function diaDaRampaReconexao(now: Date = new Date()): Promise<1 | 2 | 3 | null> {
+  return diaDaRampa(await inicioDoAquecimento(), now);
 }
 
 /** Versão só-env (sem I/O). Usada onde não dá pra esperar leitura de banco. */
@@ -186,6 +201,10 @@ const BOT_SENT_PREFIXES = [
   // propósito. O teto do dia dela é próprio e mora no arquivo dela; aqui ela só
   // é contada, para os outros robôs frios enxergarem a linha ocupada.
   'inv_agente_sent:',
+  // [14/10] Status em vídeo da 5040 (Automação como centro das redes, statusIo.ts):
+  // `status_io_sent:<dia>:<n>`. Conta como 1 frio da linha e fica FORA de PREFIXOS_AGENDA.
+  // O teto próprio (3 por dia) e as 2 h entre status moram no arquivo dele.
+  'status_io_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

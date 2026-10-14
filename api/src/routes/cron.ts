@@ -72,6 +72,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { supabase } from '../utils/supabase';
 import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
+import { avancarPendentes } from '../services/gerador/redes/publicador';
 
 const router = Router();
 
@@ -1220,7 +1221,13 @@ router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
     // min da sentinela). Cada um tem lock próprio, então não atropelam o outro.
     const avisos = await runAvisosTick();
     const vacuo = await runSentinelaVacuo();
-    res.json({ ok: true, avisos, vacuo });
+    // Reels que a tela deixou aguardando o contêiner da Meta (redes, fase 1, 14/10/2026). Fica DEPOIS dos dois
+    // acima e no próprio try: um erro aqui não derruba os avisos. Sem a env de Reels ligada, sai na hora.
+    const redes = await avancarPendentes().catch((err) => {
+      logger.error('cron', 'avançar Reels pendentes falhou', err);
+      return { vistas: 0, avancadas: 0, reason: 'erro' };
+    });
+    res.json({ ok: true, avisos, vacuo, redes });
   } catch (err) {
     logger.error('cron', 'io-broadcast-tick falhou', err);
     res.status(500).json({ error: 'Cron failed' });

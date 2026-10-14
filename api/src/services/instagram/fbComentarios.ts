@@ -42,7 +42,7 @@ const CHAVE_ESTADO = 'fb_coment_varredura';
 
 const desligado = (): boolean => (process.env.FB_COMENTARIOS_OFF || '').trim() === 'true';
 
-interface Comentario {
+export interface Comentario {
   id: string; message: string; created_time: string;
   fromId: string | null; fromName: string | null;
   postId: string; ehAnuncio: boolean;
@@ -62,6 +62,13 @@ async function pageToken(): Promise<string | null> {
   const pg = (j.data || []).find((p: any) => String(p.id) === String(PAGE_ID));
   return pg?.access_token || null;
 }
+
+/** A Página e o token dela, para o publicador de Reels e a caixa de comentários (14/10/2026). Mesma fonte do motor. */
+export const PAGINA_FB = PAGE_ID;
+export const tokenDaPaginaFb = pageToken;
+
+/** Carimbo de que GENTE respondeu este comentário (1 por comentário, por insert). Mora no livro da conta. */
+export const chaveRespostaGenteFb = (commentId: string): string => `fb_gente:${commentId}`;
 
 /**
  * Posts que valem varredura: os publicados na Página + os posts dos anúncios
@@ -248,6 +255,63 @@ async function responderPublico(commentId: string, texto: string, token: string)
   } catch (err) { logger.error('fb', 'resposta pública falhou', err); }
 }
 
+/**
+ * Resposta PÚBLICA de gente a um comentário do Facebook (caixa de comentários do /gerador, 14/10/2026).
+ * Diferente do `responderPublico` do motor, aqui a resposta HTTP é conferida: quem chama precisa saber se
+ * saiu. Devolve `ok: true` com o id da resposta, ou `ok: false` com o status e o corpo cru (a tela decide:
+ * 4xx é "não saiu", queda de rede e 5xx são "incerto"). Usa o mesmo token de Página do motor.
+ */
+export type RespostaFb =
+  | { ok: true; id: string | null }
+  | { ok: false; http: number; corpo: string; rede: boolean };
+
+export async function responderComentarioFb(commentId: string, texto: string): Promise<RespostaFb> {
+  let token: string | null = null;
+  try { token = await pageToken(); } catch { token = null; }
+  if (!token) return { ok: false, http: 0, corpo: 'sem_token_de_pagina', rede: false };
+  let r: Response;
+  try {
+    r = await fetch(`${GRAPH}/${commentId}/comments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: texto, access_token: token }),
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch (err) {
+    return { ok: false, http: 0, corpo: String((err as Error)?.message || err).slice(0, 200), rede: true };
+  }
+  const t = await r.text().catch(() => '');
+  if (!r.ok) return { ok: false, http: r.status, corpo: t.slice(0, 300), rede: false };
+  let id: string | null = null;
+  try { id = String(JSON.parse(t)?.id ?? '') || null; } catch { id = null; }
+  return { ok: true, id };
+}
+
+/**
+ * Comentários recentes dos posts da PÁGINA (sem os anúncios), para a caixa do /gerador. Poucas chamadas de
+ * propósito (a leitura gasta a cota da mesma Página que o motor usa): os `maxPosts` últimos posts, e quem
+ * chama guarda o resultado por 1 minuto. Lança o erro cru do Graph; quem chama decide o que fazer com ele.
+ */
+export async function lerComentariosRecentesFb(maxPosts = 8): Promise<Comentario[]> {
+  const token = await pageToken();
+  if (!token) throw new Error('sem_token_de_pagina');
+  const feed = await graph(`${PAGE_ID}/published_posts?fields=id&limit=${Math.max(1, Math.min(15, maxPosts))}`, token);
+  const out: Comentario[] = [];
+  let ultimoErro: unknown = null;
+  for (const p of feed.data || []) {
+    try { out.push(...(await comentariosDoPost(String(p.id), false, token))); } catch (err) { ultimoErro = err; }
+  }
+  if (!out.length && ultimoErro) throw ultimoErro;   // um post falhar não esconde os outros; todos falharem, sim
+  return out;
+}
+
+/** Já existe resposta de GENTE neste comentário? Erro de leitura conta como "não": o motor segue como antes. */
+async function temRespostaDeGente(commentId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key').eq('key', chaveRespostaGenteFb(commentId)).limit(1);
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch { return false; }
+}
+
 const pick = <T,>(arr: T[]): T | null => (arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
 /** Aviso público de que a mensagem saiu. No Facebook a DM cai em Solicitações. */
@@ -328,7 +392,10 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
         //
         // Texto próprio do Facebook: as respostas cadastradas na automação
         // falam "direct", que é palavra do Instagram.
-        await responderPublico(c.id, pick<string>(PUBLICAS_FB)!, token);
+        //
+        // Se GENTE já respondeu este comentário (caixa do /gerador), o motor não
+        // responde em cima: o aviso público é só dele. A DM acima segue igual.
+        if (!(await temRespostaDeGente(c.id))) await responderPublico(c.id, pick<string>(PUBLICAS_FB)!, token);
       } catch (err: any) {
         // Erro passageiro (janela vencida, pessoa sem Messenger, 5xx) NÃO marca
         // como respondido: na próxima varredura a gente tenta de novo.
