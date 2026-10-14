@@ -174,6 +174,47 @@ html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .cad-rel.pro {
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .cadtab tr.cad-par-tr { margin: -6px 0 10px; }
 }
 
+
+/* ===== Largura total (861 px ou mais): o conteudo ocupa da borda do trilho ate a borda direita ======================
+   Sai toda coluna centralizada com max-width que estreitava a tela. Ficam com tamanho proprio so o login, o papel (previa
+   de proposta, orcamento e documento), as janelas e a ilha da Agenda. Lista de cartoes independentes vira grade; formulario
+   distribui os campos em mais colunas; paragrafo de explicacao limita a linha de texto, sem estreitar o bloco em volta. */
+@media (min-width: 861px) {
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) :is(#inicioSection, #formSection, #historicoSection, #calcSection, #eletroSection, #automacaoSection, #fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection) { max-width: none; margin-left: 0; margin-right: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .container > :is(#formSection, #historicoSection) { max-width: none; margin-left: 0; margin-right: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .orc-wrap { max-width: none; }
+  /* Gerar proposta: os campos se distribuem em colunas de 240 px no minimo; campo largo ocupa duas e nunca passa de uns 720 px. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #formSection .fields { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #formSection .fields > .field.full { grid-column: span 2; }
+}
+/* Calculadora: so de 1101 px para cima. Abaixo disso as regras da propria tela (io2-telas.css, 861 a 1023 px, e o index.html, ate 900 px) valem:
+   com o menu aberto (240) a coluna de 360 mais a de entradas de 260 passa da janela e os campos cobrem o resultado. */
+@media (min-width: 1101px) {
+  /* Calculadora: as entradas tomam a folga e o resultado fica numa coluna lateral de 440 px. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #calcSection .calc-grid { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); justify-content: stretch; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #calcSection .calc-col-inputs > .card { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 16px; align-content: start; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #calcSection .calc-col-inputs > .card > :not(.calc-field) { grid-column: 1 / -1; }
+}
+@media (min-width: 861px) {
+  /* Automacao: o formulario fica numa coluna de leitura de 720 px dentro do cartao de largura total; a lista vira grade de cartoes. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #automacaoSection .card > :not(.calc-card-title):not(.auto-list):not(#auto-ig-status) { max-width: 720px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #automacaoSection .auto-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px 16px; }
+
+  /* Quem ligar: grade de cartoes (minimo de 420 px), mesma altura por linha, botoes no pe; o titulo do grupo ocupa a linha. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #quemLigarSection #ql-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; align-items: stretch; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #quemLigarSection #ql-lista > .ql-faixa { grid-column: 1 / -1; margin: 8px 0 -4px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #quemLigarSection #ql-lista > .ql-faixa:first-child { margin-top: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #quemLigarSection .ql-card { display: flex; flex-direction: column; margin: 0; min-width: 0; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #quemLigarSection .ql-card .ql-acoes { margin-top: auto; padding-top: 12px; }
+
+  /* Fechamento: campos em mais colunas dentro do cartao de largura total; campo largo ocupa duas, campo sozinho nao passa de 720 px. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #fechamentoSolarSection .fs-grid, html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #fechamentoSolarSection .fs-grid.g3, html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #fechamentoSolarSection .fs-grid.g4 { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #fechamentoSolarSection .fs-grid .s2 { grid-column: span 2; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #fechamentoSolarSection .fs-puxar { max-width: 720px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) :is(#fechamentoSolarSection, #quemLigarSection, #obrasSolarSection, #painelSolarSection) .fs-sub { max-width: 90ch; }
+}
+
+
 /* CRM-PADRAO: inicio
    Telefone do cartao do CRM no quadro padrao (classe io2-crmp, posta pelo io2-telas.js). O numero sai do cartao e continua no
    detalhe do cliente; o link de ligar vira botao de icone na linha do nome. Fica nesta folha porque a regra de cima

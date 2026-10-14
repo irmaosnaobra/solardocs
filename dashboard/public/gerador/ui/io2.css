@@ -172,6 +172,7 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) {
     --io-top: var(--top-h);
     --io-bot: 0px;
+    --io-resp: 24px;   /* respiro lateral da area de trabalho: 24 px, 16 px de 861 a 1100 px */
     scroll-padding-top: var(--io-top);
     scroll-padding-bottom: var(--io-bot);
   }
@@ -285,7 +286,7 @@
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #io2-topo {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     position: fixed; top: 0; right: 0; left: var(--sb-w); height: var(--top-h);
-    padding: 0 24px; box-sizing: border-box;
+    padding: 0 var(--io-resp); box-sizing: border-box;
     background: var(--n-sf); border-bottom: 1px solid var(--n-bd);
     font-family: var(--io-fonte); z-index: 880;
   }
@@ -371,15 +372,18 @@
 @media screen and (max-width: 860px) {
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .io2-busca:not(.io2-busca-m) { display: none; }
 }
+@media screen and (min-width: 861px) and (max-width: 1100px) {
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) { --io-resp: 16px; }
+}
 
 @media screen {
 
   /* ---- Area de trabalho: o body recua (as telas sao filhas diretas dele) --------- */
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) body {
     padding-top: calc(var(--top-h) + 24px);
-    padding-right: 24px;
+    padding-right: var(--io-resp);
     padding-bottom: 32px;
-    padding-left: calc(var(--sb-w) + 24px);
+    padding-left: calc(var(--sb-w) + var(--io-resp));
   }
 
   /* Cabecalho de tela antigo e o "Voltar": o titulo agora mora na barra superior e a barra
@@ -592,7 +596,7 @@
      de topo de cada pagina) zera o recuo horizontal em io2-subapps.css e io2-agenda.css. */
   html.io2.io2-casca.io2-sub:not(#_):not(#_) body {
     margin: 0;
-    padding: calc(var(--top-h) + 12px) 24px 16px calc(var(--sb-w) + 24px);
+    padding: calc(var(--top-h) + 12px) var(--io-resp) 16px calc(var(--sb-w) + var(--io-resp));
   }
 
   /* Cabecalho antigo: sai inteiro. O recarregar e o selo de ambiente foram adotados pela barra superior (casca.js,
@@ -687,6 +691,76 @@ html.io2[data-theme="light"] :where(.nx-deck) { color: #E5E7EB; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema svg { width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
   html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) .sb-foot .io2-sb-tema:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: 2px; }
+}
+
+/* =====================================================================================
+   TRILHO RECOLHIVEL (so de 861 px para cima; o celular nao tem trilho e nada muda ali).
+   O casca.js poe io2-trilha no <html> (recolhido) e so troca --sb-w: a barra superior, o recuo do body, o toast
+   e a medida da busca derivam dele. Sem a classe o trilho e o de sempre (240 px, icone e nome).
+   Recolhido: 64 px, so o icone (44 x 44), o nome fica no aria-label e na dica #io2-dica (um elemento fixo no body:
+   o trilho corta o que passa da borda, entao a dica nao pode morar dentro dele). Anima so a largura do trilho (150 ms);
+   o conteudo troca de largura de uma vez, para o app nao redesenhar a cada quadro.
+   ===================================================================================== */
+@media screen and (min-width: 861px) {
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) { --sb-w: 64px; }
+
+  /* Botao de recolher e abrir: irmao do logo (o logo ja e um <button>), absoluto no canto do trilho aberto. */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-toggle {
+    position: absolute; top: 18px; right: 8px; z-index: 1;
+    display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+    width: 44px; height: 44px; margin: 0; padding: 0; border: 1px solid transparent; border-radius: var(--r-controle);
+    background: transparent; color: var(--n-inv2); cursor: pointer; transition: background-color .15s ease, color .15s ease;
+  }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-toggle svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-toggle:hover { background: rgba(255, 255, 255, .08); color: var(--n-inv); }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-toggle:focus-visible { outline: 2px solid var(--io-amarelo); outline-offset: 2px; }
+  /* Aberto: o nome nunca quebra de linha (na animacao o trilho passa por larguras menores) e nao entra por baixo do botao. */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .sb-brand { box-sizing: border-box; padding-right: 56px; }
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar :is(.sb-item, .sb-brand .sb-name, .io2-sb-link, .io2-sb-tema) { white-space: nowrap; }
+  /* O icone do "Visual antigo" so aparece recolhido; aberto o link e so texto, como sempre foi. */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-link .io2-sb-link-ic { display: none; }
+
+  /* Recolhido */
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar {
+    padding: 8px 0 6px 10px;
+    /* Barra de rolagem fina so quando o trilho nao cabe na altura da janela (notebook de 768 de altura); cabendo, nao aparece.
+       O respiro da direita fica por conta da barra (10 px): sem ela o trilho e igual ao de antes, com ela os itens seguem com 44 px. */
+    scrollbar-width: thin; scrollbar-color: var(--io-rolagem) transparent;
+  }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar > :not(.io2-sb-toggle) { box-sizing: border-box; width: 44px; }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-toggle { top: 8px; right: auto; left: 10px; }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-toggle svg { transform: scaleX(-1); }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .sb-brand {
+    justify-content: center; gap: 0; padding: 6px 0 5px; margin: 48px 0 4px;
+  }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .sb-brand .sb-name { display: none; }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .sb-brand .sb-logo { width: 32px; height: 32px; }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar :is(.sb-item, .sb-foot .sb-item, .sb-foot .io2-sb-tema, .sb-foot .io2-sb-link) {
+    justify-content: center; gap: 0; padding: 0; font-size: 0; line-height: 0;
+  }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-tema > span { display: none; }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .io2-sb-link .io2-sb-link-ic {
+    display: block; width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round;
+  }
+  html.io2.io2-casca.io2-trilha:is([data-mode="app"], .io2-sub):not(#_):not(#_) #app-sidebar .sb-foot { padding-top: 4px; }
+
+  /* Movimento: so a largura do trilho, e so depois da primeira montagem (a carga nunca anima). */
+  html.io2.io2-casca:is([data-mode="app"], .io2-sub)[data-io2-anima]:not(#_):not(#_) #app-sidebar { transition: width .15s ease; }
+
+  /* Dica com o nome do item (so recolhido): elemento fixo, ao lado do trilho, acima do conteudo e abaixo dos modais. */
+  html.io2 #io2-dica { display: none; }
+  html.io2.io2-casca.io2-trilha:not(#_):not(#_) #io2-dica[data-aberta] {
+    display: block; position: fixed; left: 0; top: 0; z-index: 954; transform: translateY(-50%); pointer-events: none;
+    box-sizing: border-box; padding: 6px 10px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 8px;
+    background: var(--io-navy-900); color: var(--n-inv); box-shadow: 0 4px 12px rgba(10, 36, 80, .25);
+    font-family: var(--io-fonte); font-size: 13px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+  }
+}
+@media screen and (max-width: 860px) {
+  html.io2 #io2-dica { display: none !important; }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+  html.io2 #app-sidebar, html.io2 .io2-sb-toggle { transition: none !important; }
 }
 
 /* ---- So no escuro: textos que o app pinta com cinza/azul escuro de tema claro ou de #64748B (3,1:1 sobre o cartao) ---- */

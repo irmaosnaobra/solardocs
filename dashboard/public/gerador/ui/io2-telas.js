@@ -1090,11 +1090,16 @@
     crmp.ativoTx.textContent = nome;
     crmp.btAtivo.setAttribute('aria-label', 'Tirar o filtro de consultor ' + nome);
     crmp.btAtivo.title = 'Tirar o filtro de consultor';
-    crmp.limpar.hidden = !n;
-    crmp.limpar2.hidden = !n;
+    var campoBusca = document.getElementById('crm-busca');
+    var temBusca = !!(campoBusca && String(campoBusca.value || '').trim());
+    crmp.limpar.hidden = !(n || temBusca);
+    crmp.limpar2.hidden = !(n || temBusca);
     crmp.btPv.hidden = !crmp.kpis.querySelector('.pv-kpi-btn');
   }
   function crmpLimpar() {
+    /* Limpar filtros limpa tambem a busca por texto (o app redesenha o quadro com o campo vazio). */
+    var campoBusca = document.getElementById('crm-busca');
+    if (campoBusca && campoBusca.value) { campoBusca.value = ''; try { window.renderCRM(); } catch (e) {} }
     var primeiro = crmp.chips.querySelector('.crm-chip');
     if (primeiro && !primeiro.classList.contains('ativo')) primeiro.click();
   }
@@ -1176,6 +1181,18 @@
       if (soma > 0) head.setAttribute('data-io2-total', 'R$ ' + soma.toLocaleString('pt-BR'));
       else if (head.hasAttribute('data-io2-total')) head.removeAttribute('data-io2-total');
     }
+    /* Menu de tres pontos aberto e o quadro redesenhado: o cartao do gatilho saiu do DOM, o menu fecha (nao fica item morto). */
+    if (!crmp.menu.hidden && !(crmp.gatilho && crmp.gatilho.isConnected)) crmpMenuFechar(false);
+    /* A inicial do consultor no cartao e so a primeira letra na tela: o nome inteiro vai no title e no aria-label. */
+    var cons = board.getElementsByClassName('crm-card-cons');
+    for (i = 0; i < cons.length; i++) {
+      if (cons[i].hasAttribute('data-io2-cons')) continue;
+      var nomeCons = (cons[i].textContent || '').replace(/\s+/g, ' ').trim();
+      if (!nomeCons) continue;
+      cons[i].setAttribute('title', nomeCons);
+      cons[i].setAttribute('aria-label', 'Consultor: ' + nomeCons);
+      cons[i].setAttribute('data-io2-cons', '1');
+    }
     var nomes = board.getElementsByClassName('crm-card-nome');
     for (i = 0; i < nomes.length; i++) {
       if (nomes[i].hasAttribute('data-io2-btn')) continue;
@@ -1196,6 +1213,7 @@
     crmpEtapas(cols);
     crmp.ativa = -1;
     crmpSincronizar();
+    crmpFiltros();
   }
   function crmpAgendar() { if (crmp && !crmp.raf) crmp.raf = (window.requestAnimationFrame || setTimeout)(crmpQuadro, 16); }
 
@@ -1319,6 +1337,8 @@
       for (i = 0; i < q.length; i++) q[i].removeAttribute('data-io2-total');
       q = c.board.querySelectorAll('.io2-crm-mais');
       for (i = 0; i < q.length; i++) if (q[i].parentNode) q[i].parentNode.removeChild(q[i]);
+      q = c.board.querySelectorAll('[data-io2-cons]');
+      for (i = 0; i < q.length; i++) { q[i].removeAttribute('title'); q[i].removeAttribute('aria-label'); q[i].removeAttribute('data-io2-cons'); }
     } catch (e) {}
   }
 

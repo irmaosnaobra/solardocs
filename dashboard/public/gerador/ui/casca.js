@@ -27,11 +27,15 @@
   var vazios = [];       /* elementos marcados com data-io2-vazio */
   var carregando = [];   /* botoes adotados que a casca vigia (data-io2-carregando enquanto o texto e a ampulheta) */
   var obsGlifos = null, agChip = 0;
+  /* el.toggle: botao de recolher o trilho; el.dica: dica com o nome do item (trilho recolhido) */
 
   /* ---------------------------------------------------------------- modelo de navegacao */
   var ICONES = {
     mais: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"></path>',
-    sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>'
+    sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
+    /* Trilho recolhivel: setas duplas (recolher; recolhido o CSS espelha) e o relogio que volta, do "Visual antigo". */
+    recolher: '<polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>',
+    antigo: '<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 7v5l3 2"></path>'
   };
   var MODELO = {
     /* Barra inferior: o item chama o clique do item da barra lateral com este id. */
@@ -273,7 +277,9 @@
     el.folha.appendChild(lista);
     el.folha.addEventListener('keydown', prenderFoco);
 
-    var pecas = [el.topo, el.baixo, el.fundo, el.folha];
+    el.dica = criar('div', 'io2-dica');
+    el.dica.setAttribute('aria-hidden', 'true');
+    var pecas = [el.topo, el.baixo, el.fundo, el.folha, el.dica];
     if (modoSub) pecas.unshift(montarBarra());
     pecas.forEach(function (n) { body.appendChild(n); criados.push(n); });
     /* Index: o trilho lateral e o #app-sidebar do proprio app; o link entra no pe dele, depois do Sair, e sai no desfazer(). */
@@ -282,8 +288,11 @@
         var peApp = document.querySelector('#app-sidebar .sb-foot');
         if (peApp) {
           var bt = botaoTema('io2-sb-tema'); peApp.appendChild(bt); criados.push(bt);
-          var lk = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'); peApp.appendChild(lk); criados.push(lk);
+          var lk = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'); iconeLinkAntigo(lk); peApp.appendChild(lk); criados.push(lk);
         }
+        /* Botao de recolher o trilho: primeiro filho do #app-sidebar (irmao do logo, que ja e um <button>). */
+        var barraApp = document.getElementById('app-sidebar');
+        if (barraApp) { var tg = botaoTrilha(); barraApp.insertBefore(tg, barraApp.firstChild); criados.push(tg); }
       } catch (eL) {}
     }
     montado = true;
@@ -319,6 +328,168 @@
     a.textContent = it.rotulo;
     return a;
   }
+  /* ---------------------------------------------------------------- trilho recolhivel */
+  /* Dois estados do trilho (so de 861 px para cima): aberto (240 px) e recolhido (64 px, so icones). A classe io2-trilha no
+     <html> e o estado recolhido; o CSS troca --sb-w e o resto deriva dele. A preferencia e POR CONTEXTO: o Inicio e todo o resto
+     (telas internas do app e subapps). Sem nada gravado: Inicio aberto, interno recolhido. A memoria da pagina manda; o
+     localStorage so guarda (se falhar, vale o padrao e o botao continua funcionando). */
+  var MENU_CHAVE = { inicio: 'gerador-menu-inicio', interno: 'gerador-menu-interno' };
+  var MENU_PADRAO = { inicio: 'aberto', interno: 'recolhido' };
+  var ALVOS_TRILHA = '#app-sidebar .sb-brand, #app-sidebar .sb-item, #app-sidebar .io2-sb-tema, #app-sidebar .io2-sb-link, #app-sidebar .io2-sb-toggle';
+  var prefMenu = {}, ctxMenu = '', larguraAg = 0, animaTimer = 0, trilhados = [], aguardaIr = null, irEmCurso = false, bootAte = -1;
+  function menuPref(c) {
+    if (prefMenu[c]) return prefMenu[c];
+    var v = '';
+    try { v = localStorage.getItem(MENU_CHAVE[c]) || ''; } catch (e) {}
+    prefMenu[c] = (v === 'aberto' || v === 'recolhido') ? v : MENU_PADRAO[c];
+    return prefMenu[c];
+  }
+  function menuGravar(c, v) {
+    prefMenu[c] = v;
+    try { localStorage.setItem(MENU_CHAVE[c], v); } catch (e) {}
+  }
+  /* Em que contexto esta: subapp e interno; no app, o Inicio e o Inicio e o resto e interno. Quem manda e o item aceso do
+     trilho (o app o acende em toda troca de tela). Sem item aceso (o app ainda esta subindo, ou a proposta gerada) so o titulo
+     do Inicio vale; do contrario fica o contexto de antes, e na primeira montagem vale o Inicio. Quando um subapp pediu outra
+     tela (gerador-ir, lido sem apagar), o contexto e interno ate o pedido ser atendido: o app passa pelo Inicio no caminho e
+     o trilho nao pode abrir e fechar por causa disso. */
+  function menuContexto(r) {
+    if (modoSub) return 'interno';
+    if (aguardaIr === null) {
+      var pedido = '';
+      try { pedido = sessionStorage.getItem('gerador-ir') || ''; } catch (e) {}
+      aguardaIr = !!pedido && pedido !== 'inicio' && pedido !== 'sair';
+      if (aguardaIr) { bootAte = 0; setTimeout(liberarIr, 6000); }
+    }
+    if (aguardaIr) return 'interno';
+    var c = ctxMenu || 'inicio';
+    if (r && r.ativo) c = r.ativo === 'nav-inicio' ? 'inicio' : 'interno';
+    else if (r && r.titulo === 'Início') c = 'inicio';
+    /* O app sobe passando pelo formulario do Solar por uns 100 ms antes de acender o Inicio. Nessa subida (ate o Inicio
+       aparecer, no maximo 2,5 s, ou ate a primeira acao da pessoa) o contexto fica no Inicio. */
+    if (bootAte < 0) bootAte = performance.now() + 2500;
+    if (bootAte > 0) {
+      if (c === 'inicio' && r && (r.ativo === 'nav-inicio' || r.titulo === 'Início')) bootAte = 0;
+      else if (performance.now() >= bootAte) bootAte = 0;
+      else if (c === 'interno') return 'inicio';
+    }
+    return c;
+  }
+  function liberarIr() {
+    if (aguardaIr !== true) return;
+    aguardaIr = false;
+    try { io2Sync(); } catch (e) {}
+  }
+  function botaoTrilha() {
+    var b = criar('button', null, 'io2-sb-toggle');
+    b.type = 'button';
+    b.setAttribute('aria-controls', 'app-sidebar');
+    b.setAttribute('data-io2', 'trilha');
+    b.appendChild(svg(ICONES.recolher));
+    b.addEventListener('click', alternarTrilha);
+    el.toggle = b;
+    return b;
+  }
+  function iconeLinkAntigo(a) {
+    var s = svg(ICONES.antigo);
+    s.setAttribute('class', 'io2-sb-link-ic');
+    a.insertBefore(s, a.firstChild);
+  }
+  function trilhaBotao() {
+    if (!el.toggle) return;
+    var rec = h.classList.contains('io2-trilha');
+    var nome = rec ? 'Abrir menu' : 'Recolher menu';
+    if (el.toggle.getAttribute('aria-label') !== nome) { el.toggle.setAttribute('aria-label', nome); el.toggle.setAttribute('title', nome); }
+    var ex = rec ? 'false' : 'true';
+    if (el.toggle.getAttribute('aria-expanded') !== ex) el.toggle.setAttribute('aria-expanded', ex);
+  }
+  /* Recolhido, o texto some da tela: o nome passa para o aria-label (e para o title, que e o aviso do navegador).
+     So o que a casca pos e marcado em data-io2-trl ("a" aria-label, "t" title) e sai no desligar e no desfazer(). */
+  function trilhaRotulos(ligar) {
+    var ns = document.querySelectorAll(ALVOS_TRILHA);
+    for (var i = 0; i < ns.length; i++) {
+      var n = ns[i];
+      if (n === el.toggle) continue;
+      if (ligar) {
+        var nome = n.classList.contains('sb-brand') ? (n.getAttribute('title') || 'Início') : textoDe(n);
+        if (!nome) continue;
+        var marca = '';
+        if (!n.hasAttribute('aria-label')) { n.setAttribute('aria-label', nome); marca += 'a'; }
+        if (!n.hasAttribute('title')) { n.setAttribute('title', nome); marca += 't'; }
+        if (marca) { n.setAttribute('data-io2-trl', marca); trilhados.push(n); }
+      } else {
+        trilhaLimpar(n);
+      }
+    }
+  }
+  function trilhaLimpar(n) {
+    var m = n.getAttribute('data-io2-trl');
+    if (!m) return;
+    if (m.indexOf('a') >= 0) n.removeAttribute('aria-label');
+    if (m.indexOf('t') >= 0) n.removeAttribute('title');
+    n.removeAttribute('data-io2-trl');
+  }
+  function mostrarDica(n) {
+    if (!el.dica || !h.classList.contains('io2-trilha') || window.innerWidth <= 860) return;
+    var nome = n.getAttribute('aria-label');
+    if (!nome) return;
+    var sb = document.getElementById('app-sidebar');
+    var r = n.getBoundingClientRect(), rs = sb ? sb.getBoundingClientRect() : r;
+    if (el.dica.textContent !== nome) el.dica.textContent = nome;
+    el.dica.style.left = Math.round(rs.right + 8) + 'px';
+    el.dica.style.top = Math.round(r.top + r.height / 2) + 'px';
+    el.dica.setAttribute('data-aberta', '1');
+  }
+  function esconderDica() {
+    if (el.dica && el.dica.hasAttribute('data-aberta')) el.dica.removeAttribute('data-aberta');
+  }
+  function alvoDaDica(n) { return (n && n.closest) ? n.closest(ALVOS_TRILHA) : null; }
+  function ligarTrilha() {
+    ouvir(document, 'mouseover', function (ev) { var a = alvoDaDica(ev.target); if (a) mostrarDica(a); else esconderDica(); });
+    ouvir(document.documentElement, 'mouseleave', esconderDica);
+    ouvir(document, 'focusin', function (ev) {
+      var a = alvoDaDica(ev.target), vis = false;
+      if (a) { try { vis = a.matches(':focus-visible'); } catch (e) { vis = true; } }
+      if (a && vis) mostrarDica(a); else esconderDica();
+    });
+    ouvir(document, 'focusout', esconderDica);
+    ouvir(document, 'keydown', function (ev) { if (ev.key === 'Escape') esconderDica(); });
+    ouvir(document, 'click', function (ev) { if (ev.detail > 0 && alvoDaDica(ev.target)) esconderDica(); }, true);
+    var sb = document.getElementById('app-sidebar');
+    if (sb) ouvir(sb, 'scroll', esconderDica);
+  }
+  /* A largura do conteudo muda de uma vez; o app e a casca medem por resize. Um unico aviso por troca, no quadro seguinte. */
+  function avisarLargura() {
+    if (larguraAg) return;
+    larguraAg = requestAnimationFrame(function () {
+      larguraAg = 0;
+      try { if (!montado || desfeito || window.innerWidth <= 860) return; window.dispatchEvent(new Event('resize')); medirBusca(); } catch (e) {}
+    });
+  }
+  function trilhaAplicar(primeira) {
+    var quer = menuPref(ctxMenu || 'interno') === 'recolhido';
+    var tem = h.classList.contains('io2-trilha');
+    if (quer !== tem) {
+      h.classList.toggle('io2-trilha', quer);
+      trilhaRotulos(quer);
+      esconderDica();
+      if (!primeira) avisarLargura();
+    }
+    trilhaBotao();
+    /* A animacao de largura so liga depois da primeira montagem: a carga nunca anima. Atributo (nao classe): a casca
+       observa as classes do <html>. */
+    if (!animaTimer) animaTimer = setTimeout(function () { try { if (!desfeito) h.setAttribute('data-io2-anima', '1'); } catch (e) {} }, 250);
+  }
+  function trilhaSync(r, primeira) {
+    ctxMenu = menuContexto(r);
+    trilhaAplicar(primeira);
+  }
+  function alternarTrilha() {
+    var c = ctxMenu || 'interno';
+    menuGravar(c, menuPref(c) === 'recolhido' ? 'aberto' : 'recolhido');
+    trilhaAplicar(false);
+  }
+
   /* Subapp: a mesma barra lateral do index (mesmas classes sb-*, mesmo MODELO), construida aqui. */
   function rotuloDe(chave) {
     var l = MODELO.principais.concat(MODELO.mais);
@@ -361,7 +532,10 @@
     sa.addEventListener('click', function () { acionar('sair'); });
     pe.appendChild(at); pe.appendChild(sa);
     pe.appendChild(botaoTema('io2-sb-tema'));
-    pe.appendChild(criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'));
+    var lkSub = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link');
+    iconeLinkAntigo(lkSub);
+    pe.appendChild(lkSub);
+    nav.appendChild(botaoTrilha());
     nav.appendChild(marca); nav.appendChild(lista); nav.appendChild(criar('div', null, 'sb-spacer')); nav.appendChild(pe);
     return nav;
   }
@@ -837,6 +1011,7 @@
     try {
       if (!montado || desfeito) return;
       var r = modoSub ? { titulo: sub.titulo, aba: sub.area || sub.ctx || '', ativo: sub.ativo } : descobrir();
+      trilhaSync(r, false);
       if (r.titulo) el.titulo.textContent = r.titulo;
       el.aba.textContent = r.aba;
       var c = consultor();
@@ -900,12 +1075,15 @@
     if (h.getAttribute('data-mode') !== 'app') return;
     var v = null;
     try { v = sessionStorage.getItem('gerador-ir'); } catch (e) {}
-    if (!v) return;
+    if (!v) { if (!irEmCurso) liberarIr(); return; }
     try { sessionStorage.removeItem('gerador-ir'); } catch (e2) {}
-    if (!Object.prototype.hasOwnProperty.call(MODELO.ir, v)) return;
+    if (!Object.prototype.hasOwnProperty.call(MODELO.ir, v)) { liberarIr(); return; }
     var nome = MODELO.ir[v];
+    irEmCurso = true;
     setTimeout(function () {
       try { if (typeof window[nome] === 'function') window[nome](); } catch (e3) {}
+      irEmCurso = false;
+      liberarIr();
     }, 0);
   }
   function aposBoot() {
@@ -946,6 +1124,9 @@
       if (primeira) {
         montar();
         ligarBusca();
+        ligarTrilha();
+        /* O estado do trilho vale antes do CSS da casca: a carga nasce no estado certo, sem abrir e fechar. */
+        trilhaSync(descobrir(), true);
         /* So agora o CSS da casca passa a valer: esconder o menu antigo antes disto deixaria o celular sem navegacao. */
         h.classList.add('io2-casca');
       }
@@ -963,6 +1144,8 @@
       h.classList.remove('io2-casca');
       h.classList.remove('io2-sub');
       h.classList.remove('io2-adotou');
+      h.classList.remove('io2-trilha');
+      h.removeAttribute('data-io2-anima');
       h.removeAttribute('data-io2-sub');
       h.classList.remove('io2');
       h.removeAttribute('data-io2-tema');
@@ -985,11 +1168,14 @@
     try { vazios.forEach(function (n) { n.removeAttribute('data-io2-vazio'); }); } catch (e7) {}
     try { carregando.forEach(function (n) { n.removeAttribute('data-io2-carregando'); }); } catch (e7b) {}
     try { rotulados.forEach(function (b) { b.removeAttribute('aria-label'); b.removeAttribute('data-io2-rot'); }); } catch (e8) {}
+    try { trilhados.forEach(trilhaLimpar); } catch (e8b) {}
+    try { if (animaTimer) clearTimeout(animaTimer); if (larguraAg) cancelAnimationFrame(larguraAg); } catch (e8c) {}
     try {
       var gl = document.querySelectorAll('[data-io2-glifo]');
       for (var gi = 0; gi < gl.length; gi++) if (gl[gi].parentNode) gl[gi].parentNode.replaceChild(document.createTextNode(gl[gi].getAttribute('data-io2-glifo') || ''), gl[gi]);
     } catch (e9) {}
     try { criados.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); }); } catch (e4) {}
+    trilhados = []; el.toggle = null; el.dica = null; animaTimer = 0; larguraAg = 0;
     criados = []; adotados = []; vazios = []; carregando = []; rotulados = []; montado = false; buscas = []; Bd = null; Bm = null; indiceBusca = null; focoAntes = null;
     try { window.dispatchEvent(new Event('resize')); } catch (e5) {}
   }
@@ -1029,6 +1215,7 @@
     ouvir(document, 'click', function (ev) {
       var t = ev.target;
       if (t && t.closest && t.closest('#io2-topo, #io2-baixo, #io2-folha')) return;
+      if (ev.isTrusted) bootAte = 0;   /* a pessoa agiu: nao e mais a subida do app */
       agendar();
     }, true);
     ouvir(document, 'keydown', function (ev) { if (ev.key === 'Escape') fecharFolha(true); });
@@ -1227,6 +1414,8 @@
     montar();
     acabamentoSub();   /* antes das classes do html: o .topbar ainda esta a vista quando o que sobra dele e adotado */
     ligarBusca();
+    ligarTrilha();
+    trilhaSync(null, true);   /* subapp: nasce no estado certo, antes do CSS da casca valer */
     /* So agora o CSS da casca passa a valer: o cabecalho antigo some junto com a montagem, nunca antes. */
     h.setAttribute('data-io2-sub', sub.nome);
     h.classList.add('io2-sub');

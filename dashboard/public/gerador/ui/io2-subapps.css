@@ -912,3 +912,12 @@ html.io2[data-io2-tema="escuro"]:not(#_):not(#_) body:where(:has(#m-teto),:has(#
   html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body:where(:has(#relogio)) .emp i[style*="rgb(74, 87, 114)" i] { color: #fff; }
   html.io2[data-io2-tema="escuro"]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body:where(:has(#aviso-legado)) .barra > span { color: #0F1B2D; }
 }
+
+/* ===== Largura total (861 px ou mais): o conteudo da pagina vai da borda do trilho ate a borda direita =============
+   O .wrap de cada subapp tinha max-width e margin auto (1120 a 1360 px) e ficava como coluna no meio. O recuo da area de
+   trabalho ja vem do body (24 px; 16 px ate 1100 px). */
+@media screen and (min-width: 861px) {
+  html.io2.io2-casca.io2-sub:not(#_):not(#_):not(#_) .wrap { max-width: none; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+  html.io2.io2-casca.io2-sub:not(#_):not(#_):not(#_) .wrap .funil { max-width: none; }
+}
+
