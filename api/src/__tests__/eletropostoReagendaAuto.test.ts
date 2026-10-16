@@ -2149,8 +2149,9 @@ describe('a vez com o banco instável', () => {
 
 
 // AGENDA EM LOTE (13/10/2026): a origem `cadastro_eletroposto`. O MOVIMENTO do
-// não atendido continua (o consultor liga de novo), a FALA não existe, e o card
-// ainda `agendado` não é "esquecido".
+// não atendido continua (o consultor liga de novo), a FALA não existe, e desde
+// 16/10/2026 o card ainda `agendado` anda como o "esquecido": passadas as 6h sem
+// status ele vai calado para a próxima vaga livre (faixa dos quinze).
 describe('a origem da agenda em lote anda calada', () => {
   const lote = (over: Partial<any> = {}) => ficha({ created_by: 'cadastro_eletroposto', ...over });
 
@@ -2228,12 +2229,44 @@ describe('a origem da agenda em lote anda calada', () => {
     expect(pedidosTeto).toHaveLength(0);
   });
 
-  it('o card ainda AGENDADO, 7 horas depois, NÃO é movido (não é "esquecido")', async () => {
+  it('o card ainda AGENDADO, 7 horas depois, ANDA calado, na faixa dos quinze (16/10/2026)', async () => {
     fichas = [lote({ status: 'agendado', quando: horasAtras(7) })];
     const r = await tick();
-    expect(r.remarcados).toBe(0);
-    expect(fichas[0].quando).toBe(horasAtras(7));
+    expect(r.remarcados).toBe(1);
+    expect(fichas[0].quando).toBe(SEXTA_13H);
+    expect(fichas[0].status).toBe('agendado');
+    // Faixa dos quinze (:15/:45): o mock devolve vagas fixas, então o que se prova é o pedido
+    expect(pedidos[0].faixa).toBe('remarcacao');
+    // Calado: nada enviado, nem carimbo do teto da linha, e a vez de falar nem é pedida
     expect(enviadas).toHaveLength(0);
+    expect(state.has('ep_agenda_sent:3:reagendado')).toBe(false);
+    expect(pedidosTeto).toHaveLength(0);
+    // A marca do silêncio com o horário novo, e nenhum UPDATE leva confirmacao_at
+    expect(state.get('ep_mudo:3')?.value.quando).toBe(SEXTA_13H);
+    expect(updates.some(u => 'confirmacao_at' in u.patch)).toBe(false);
+    // O repasse de 12h não é rearmado: UPDATE separado, só com repassar_em nulo
+    const repasse = updates.filter(u => 'repassar_em' in u.patch);
+    expect(repasse).toHaveLength(1);
+    expect(repasse[0]!.patch).toEqual({ repassar_em: null });
+  });
+
+  it('o card AGENDADO do lote, com menos de 6 horas, NÃO anda: o consultor ainda pode fechar', async () => {
+    fichas = [lote({ status: 'agendado', quando: horasAtras(5) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(fichas[0].quando).toBe(horasAtras(5));
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('o histórico do AGENDADO do lote diz "passou sem status", não "não atendido"', async () => {
+    fichas = [lote({ status: 'agendado', quando: horasAtras(7) })];
+    await tick();
+    const linha = String(fichas[0].historico || '');
+    expect(linha).toContain('passou sem status');
+    expect(linha).toContain('Nada foi enviado ao cliente');
+    expect(linha).toContain('agenda em lote');
+    expect(linha).not.toContain('não atendido');
+    expect(linha).not.toContain('não apareceu');
   });
 
   it('depois do move, um UPDATE SEPARADO só com repassar_em nulo (o banco rearmou o repasse de 12h)', async () => {

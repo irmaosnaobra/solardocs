@@ -793,6 +793,13 @@ export function linhaDoHistorico(
       + `mudar de etiqueta recomeça em ${horasDoDegrau(1)}h. `
       + 'Ele sai desta roda fechando, marcando Sem interesse ou pondo em Apalavrado.';
   }
+  if (semAviso && esquecido) {
+    // Agenda em lote (16/10/2026): o card `agendado` andou sozinho depois das 6h,
+    // sem ninguém apertar status. "Não atendido" seria falso aqui.
+    return `[${carimbo} · Sistema] 🔁 Reagendamento automático (${tentativa}ª vez): `
+      + `a vaga de ${de} passou sem status por mais de ${esquecidoH()}h e o card foi pra *${para}*, com o mesmo consultor. `
+      + 'Nada foi enviado ao cliente: este card é da agenda em lote, quem chama é o consultor. Se já falou com ele, é só marcar o status certo.';
+  }
   if (semAviso) {
     // Agenda em lote (13/10/2026): o consultor apertou NÃO ATENDEU e o card voltou
     // para a grade, calado. Nenhum aviso recomeça, porque nenhum aviso saiu.
@@ -1158,11 +1165,14 @@ export async function runEletropostoReagendaAutoTick(
   const bloqueado = await carregarBloqueados();
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
-    // AGENDA EM LOTE (13/10/2026): o card `agendado` desta origem NÃO é o
-    // "esquecido". Ninguém marcou reunião nenhuma: ele fica onde está até o
-    // consultor chamar e apertar um status. O `nao_atendeu` dela, esse sim, anda
-    // (para o consultor ligar de novo), só que calado (ver `relogioDe` e `mudo`).
-    && !(f.status === 'agendado' && ehCardSemAvisoAutomatico(f.created_by))
+    // AGENDA EM LOTE: desde 16/10/2026, por ordem do Thiago, o card `agendado`
+    // desta origem também anda quando passa das 6h sem status, para não ficar
+    // para trás. Anda como o esquecido, calado (relógio `mudo`, rampa dos
+    // calados), na faixa dos quinze (`semAviso` em `candidatosDoOutroDia`), sem
+    // rearmar o repasse de 12h (o update separado de `repassar_em` em
+    // `gravarNovoHorario`) e sem carimbar `confirmacao_at`. Antes (13/10) ele
+    // ficava parado até o consultor apertar um status, e 57 cards ficaram em
+    // dias que já passaram.
     // O `agendado` só entra depois das 6 horas. A consulta acima usa o corte
     // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
     // certo é esta linha.
