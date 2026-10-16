@@ -55,7 +55,8 @@ import { MediaType, enviarZapiIO, adquirirLockBlast, liberarLockBlast } from './
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
 import { carregarPausas } from '../agents/whatsapp/pausaHumana';
 import { dentroDaJanelaDiurna, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
-import { curiosos, semDonoDeclarado } from './eletropostoPares';
+import { curiosos, semDonoDeclarado, telefonesSemInteresse } from './eletropostoPares';
+import { lerPaginado, LINHAS_POR_PAGINA } from '../../utils/lerPaginado';
 import { lerRespostasCuriosoSeguro } from './curiosoRespostas';
 
 /** Os grupos que a tela chama de Arrendamento, Investidores, Parceiros e Curioso. */
@@ -195,6 +196,12 @@ export async function audienciaDoAviso(publicos: string[]): Promise<ContatoParce
       .order('created_at', { ascending: false })
       .limit(2000);
     if (error) throw new Error(`base de parceria: ${error.message}`);
+    // TETO CONHECIDO, NAO CORRIGIDO DE PROPOSITO: o PostgREST corta em 1000 linhas e o
+    // `.limit(2000)` acima vale 1000. Paginar aqui faria o robô falar com MAIS gente, e
+    // volume de envio é decisão do chefe anti-ban e do dono. Só deixa rastro quando bate.
+    if ((data || []).length >= LINHAS_POR_PAGINA) {
+      logger.warn('avisos', `audiência da base de parceria bateu ${LINHAS_POR_PAGINA} linhas: o corte do PostgREST pode estar escondendo contatos (volume, decisão do chefe)`);
+    }
     for (const r of (data || []) as Array<ContatoParceria & { id: number }>) brutos.push({ ...r, ref: `parceria:${r.id}` });
   }
   if (publicos.includes('curioso')) {
@@ -210,13 +217,18 @@ export async function audienciaDoAviso(publicos: string[]): Promise<ContatoParce
       brutos.push({ telefone: c.telefone, nome: c.nome, cidade: c.cidade, lado: 'sem_dono', status: c.status, ref: c.ref });
     }
   }
+  // Quem a equipe marcou sem_interesse em QUALQUER cadastro ou ficha sai, lido por
+  // inteiro e a parte: cada fonte acima é cortada em 1000 linhas, e a linha do "não"
+  // fora das mais novas deixaria o MESMO telefone entrar por outra fonte. Erro sobe.
+  const semInteresse = new Set<string>();
+  for (const t of await telefonesSemInteresse()) { const k = chaveContato(t); if (k) semInteresse.add(k); }
   const porChave = new Map<string, ContatoParceria>();
   for (const r of brutos) {
     if (String(r.status || '') === 'sem_interesse') continue;   // a equipe já marcou que não quer
     const tel = telefoneValido(r.telefone);
     if (!tel) continue;
     const k = chaveContato(tel);
-    if (!k || porChave.has(k)) continue;
+    if (!k || porChave.has(k) || semInteresse.has(k)) continue;
     porChave.set(k, { ...r, telefone: tel });
   }
   return [...porChave.values()];
@@ -390,41 +402,62 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
     }
 
     // ── Quem já foi, quem pediu pra parar, quem levou aviso faz pouco tempo ──
-    const { data: jaRows, error: errJa } = await supabaseGerador
-      .from('aviso_envios').select('phone, status').eq('aviso_id', aviso.id);
-    if (errJa) {
-      // Sem essa leitura, todo mundo parece novo e o aviso inteiro sai de novo.
+    let jaRows: Array<{ phone: string; status: string }>;
+    try {
+      jaRows = await lerPaginado<{ phone: string; status: string }>('envios do aviso', (de, ate) =>
+        supabaseGerador.from('aviso_envios').select('phone, status')
+          .eq('aviso_id', aviso.id).order('id', { ascending: true }).range(de, ate));
+    } catch (errJa) {
+      // Falha fechada: sem a lista inteira, todo mundo parece novo e o aviso sai de novo.
       logger.error('avisos', 'erro lendo envios do aviso — pulando o tick', errJa);
       return { enviados: 0, aviso_id: aviso.id, motivo: 'erro_envios' };
     }
     const tentativas = new Map<string, number>();
     const entregues = new Set<string>();
-    for (const r of (jaRows || []) as Array<{ phone: string; status: string }>) {
+    for (const r of jaRows) {
       const k = chaveContato(r.phone) || r.phone;
       tentativas.set(k, (tentativas.get(k) || 0) + 1);
       if (r.status === 'ok') entregues.add(k);
     }
 
-    const silenciado = await carregarSilenciados();
+    // MODO ESTRITO: lista inteira (paginada) e erro de leitura SOBE. O modo normal para
+    // em 1000 linhas e, no erro, libera todo mundo; numa linha que já levou ban, quem
+    // pediu pra parar ou está falando com a Giovanna não pode voltar por falha de leitura.
+    let silenciado: (phone: string) => boolean;
+    try {
+      silenciado = await carregarSilenciados({ estrito: true });
+    } catch (errOptout) {
+      logger.error('avisos', 'opt-out indisponível — pulando o tick', errOptout);
+      return { enviados: 0, aviso_id: aviso.id, motivo: 'erro_optout' };
+    }
 
     // Conversa com humano dentro NÃO recebe aviso: o cliente está falando com a
     // Giovanna e o robô entraria por cima. Trata como "esperando a vez", igual ao
     // piso de dias — não sai do `alvo` e não conclui a pauta, porque a pausa
     // acaba (24h de silêncio, ou o humano libera) e a pessoa volta pra fila.
-    const pausa = await carregarPausas();
+    let pausa: Awaited<ReturnType<typeof carregarPausas>>;
+    try {
+      pausa = await carregarPausas({ estrito: true });
+    } catch (errPausas) {
+      logger.error('avisos', 'pausas indisponíveis — pulando o tick', errPausas);
+      return { enviados: 0, aviso_id: aviso.id, motivo: 'erro_pausas' };
+    }
     const emPausa = (tel: string): boolean => !pausa(tel).pode;
 
     const corteIso = new Date(Date.now() - diasEntreAvisos() * 86400_000).toISOString();
     const recentes = new Set<string>();
     if (diasEntreAvisos() > 0) {
-      const { data: outros, error: errOutros } = await supabaseGerador
-        .from('aviso_envios').select('phone, aviso_id, status')
-        .gte('enviado_em', corteIso).eq('status', 'ok').limit(5000);
-      if (errOutros) {
+      let outros: Array<{ phone: string; aviso_id: string }>;
+      try {
+        outros = await lerPaginado<{ phone: string; aviso_id: string }>('piso entre avisos', (de, ate) =>
+          supabaseGerador.from('aviso_envios').select('phone, aviso_id, status')
+            .gte('enviado_em', corteIso).eq('status', 'ok')
+            .order('id', { ascending: true }).range(de, ate));
+      } catch (errOutros) {
         logger.error('avisos', 'piso entre avisos indisponível — pulando o tick', errOutros);
         return { enviados: 0, aviso_id: aviso.id, motivo: 'piso_indisponivel' };
       }
-      for (const r of (outros || []) as Array<{ phone: string; aviso_id: string }>) {
+      for (const r of outros) {
         if (r.aviso_id !== aviso.id) recentes.add(chaveContato(r.phone) || r.phone);
       }
     }

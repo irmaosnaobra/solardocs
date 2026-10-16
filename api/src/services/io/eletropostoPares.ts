@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { lerPaginado } from '../../utils/lerPaginado';
 import { resolverCidade, distanciaKm } from './geoCidade';
 import { ehCardSemAvisoAutomatico } from '../agenda/origemEtiqueta';
 
@@ -436,6 +437,33 @@ export async function curiosos(): Promise<ContatoCurioso[]> {
     status: (r.status as string) || null,
     ref: `${origem}:${r.id}`,
   }));
+}
+
+/**
+ * Os telefones que disseram não (`sem_interesse` no cadastro ou na ficha; card da
+ * agenda em `sem_interesse` ou `perdido`), LIDOS
+ * POR INTEIRO (paginado, ordenado por id). É uma lista de EXCLUSÃO: as leituras de
+ * quem entra (curiosos, semDonoDeclarado) cortam em 1000 linhas, e a linha do "não"
+ * fora das mais novas deixaria o mesmo telefone entrar por outra fonte. Não mexe no
+ * volume de quem entra. Erro de leitura, ou resposta que não é lista, SOBE.
+ */
+export async function telefonesSemInteresse(): Promise<string[]> {
+  const fontes = ['eletroposto_parceria', 'eletroposto_nota1'] as const;
+  const out: string[] = [];
+  for (const tabela of fontes) {
+    const linhas = await lerPaginado<{ telefone: string | null }>(`sem_interesse de ${tabela}`, (de, ate) =>
+      supabaseGerador.from(tabela).select('telefone').eq('status', 'sem_interesse')
+        .order('id', { ascending: true }).range(de, ate));
+    for (const l of linhas) { const t = soDigitos(l.telefone); if (t) out.push(t); }
+  }
+  // Card da AGENDA que disse não (sem_interesse ou perdido: STATUS_DISSE_NAO, ordem do
+  // dono de 05/10). Sem isto a marca só cortava a linha da agenda dentro do
+  // semDonoDeclarado, e o mesmo telefone voltava pela base de parceria ou pela ficha.
+  const cards = await lerPaginado<{ cliente_telefone: string | null }>('cards da agenda que disseram não', (de, ate) =>
+    supabaseGerador.from('agendamentos').select('cliente_telefone').in('status', [...STATUS_DISSE_NAO])
+      .order('id', { ascending: true }).range(de, ate));
+  for (const l of cards) { const t = soDigitos(l.cliente_telefone); if (t) out.push(t); }
+  return out;
 }
 
 export interface ContatoSemDono {

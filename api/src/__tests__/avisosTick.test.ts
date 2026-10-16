@@ -27,12 +27,17 @@ const db: { avisos: LinhaAviso[]; aviso_envios: LinhaEnvio[]; eletroposto_parcer
 };
 /** Tabelas que respondem com ERRO nesta rodada: é como se prova o fail-closed. */
 const falhar = new Set<string>();
+/** Tabela -> começo do `range` que responde com ERRO (prova que erro na página 2 não envia). */
+const falharNaPaginaDe = new Map<string, number>();
+/** O PostgREST real devolve no máximo 1000 linhas por resposta, em silêncio. */
+const MAX_LINHAS_RESPOSTA = 1000;
 
 /** Builder mínimo do PostgREST: só o que o serviço realmente encadeia. */
 function fakeFrom(tabela: string) {
   const q: any = {
     _filtros: [] as Array<(r: any) => boolean>,
     _contando: false,
+    _faixa: null as [number, number] | null,
     select(_c?: string, opts?: { count?: string; head?: boolean }) {
       q._contando = opts?.count === 'exact';
       return q;
@@ -49,6 +54,7 @@ function fakeFrom(tabela: string) {
     or() { return q; },
     order() { return q; },
     limit() { return q; },
+    range(de: number, ate: number) { q._faixa = [de, ate]; return q; },
     insert(linha: any) {
       (db as any)[tabela].push({ enviado_em: new Date().toISOString(), ...linha });
       return Promise.resolve({ data: null, error: null });
@@ -63,8 +69,13 @@ function fakeFrom(tabela: string) {
     },
     _resolver() {
       if (falhar.has(tabela)) return Promise.resolve({ data: null, error: { message: 'caiu' }, count: null });
-      const linhas = ((db as any)[tabela] || []).filter((r: any) => q._filtros.every((f: any) => f(r)));
-      return Promise.resolve({ data: q._contando ? null : linhas, error: null, count: linhas.length });
+      if (q._faixa && falharNaPaginaDe.get(tabela) === q._faixa[0]) {
+        return Promise.resolve({ data: null, error: { message: 'caiu na pagina' }, count: null });
+      }
+      const todas = ((db as any)[tabela] || []).filter((r: any) => q._filtros.every((f: any) => f(r)));
+      const faixa = q._faixa ? todas.slice(q._faixa[0], q._faixa[1] + 1) : todas;
+      const linhas = faixa.slice(0, MAX_LINHAS_RESPOSTA);
+      return Promise.resolve({ data: q._contando ? null : linhas, error: null, count: todas.length });
     },
     then(res: any, rej: any) { return q._resolver().then(res, rej); },
   };
@@ -111,13 +122,31 @@ vi.mock('../services/io/ioSend', () => ({
 // Silêncio é mockado; chaveContato NÃO — ela é a régua de identidade de telefone
 // que o dedupe deste serviço usa, e testar contra uma cópia não provaria nada.
 const silenciados = new Set<string>();
+// O serviço lê em modo ESTRITO (11/10): o mock registra o argumento pra provar isso.
+const leituraFalha = { optout: false, pausas: false };
+const carregarSilenciadosMock = vi.fn(async (_o?: { estrito?: boolean }) => {
+  if (leituraFalha.optout) throw new Error('leitura do opt-out falhou: caiu');
+  return null as unknown;
+});
 vi.mock('../services/agents/whatsapp/silenciar', async (importOriginal) => {
   const real = await importOriginal<typeof import('../services/agents/whatsapp/silenciar')>();
   return {
     ...real,
-    carregarSilenciados: vi.fn(async () => (phone: string) => silenciados.has(real.chaveContato(phone) || '')),
+    carregarSilenciados: async (o?: { estrito?: boolean }) => {
+      await carregarSilenciadosMock(o);
+      return (phone: string) => silenciados.has(real.chaveContato(phone) || '');
+    },
   };
 });
+const carregarPausasMock = vi.fn(async (_o?: { estrito?: boolean }) => {
+  if (leituraFalha.pausas) throw new Error('leitura das pausas falhou: caiu');
+});
+vi.mock('../services/agents/whatsapp/pausaHumana', () => ({
+  carregarPausas: async (o?: { estrito?: boolean }) => {
+    await carregarPausasMock(o);
+    return () => ({ pode: true, motivo: 'sem-pausa' });
+  },
+}));
 
 // O teto COMPARTILHADO da linha não entra aqui de propósito (vive estourado
 // pelos agentes com piso próprio; a medição está no serviço). O que vale pro
@@ -143,7 +172,9 @@ const contato = (tel: string, over: Partial<LinhaParceria> = {}): LinhaParceria 
 
 beforeEach(() => {
   db.avisos = []; db.aviso_envios = []; db.eletroposto_parceria = []; db.eletroposto_nota1 = []; db.agendamentos = [];
-  falhar.clear();
+  falhar.clear(); falharNaPaginaDe.clear();
+  leituraFalha.optout = false; leituraFalha.pausas = false;
+  carregarSilenciadosMock.mockClear(); carregarPausasMock.mockClear();
   dbMain.io_broadcast_envios = [];
   silenciados.clear();
   gates.janela = true; gates.espaco = true;
@@ -531,5 +562,200 @@ describe('o grupo DONO NAO PERGUNTADO (29/09/2026)', () => {
     expect(r.motivo).toBe('erro_lista');
     expect(enviarZapiIO).not.toHaveBeenCalled();
     expect(db.avisos[0].status).toBe('rodando');
+  });
+});
+
+// -----------------------------------------------------------------------------
+// A LISTA DE QUEM JA RECEBEU E LIDA POR PAGINA (15/10/2026)
+//
+// O PostgREST corta em 1000 linhas sem erro. Lida sem paginar, uma pauta com mais
+// de 1000 envios fazia quem ja recebeu parecer novo, e a mensagem saia de novo.
+// O fake acima corta em 1000 como o real, entao estes testes falham no codigo antigo.
+// -----------------------------------------------------------------------------
+describe('aviso_envios paginado: a pauta grande nao reenvia', () => {
+  const fone = (i: number) => `55119${String(i).padStart(8, '0')}`;
+  const envioOk = (i: number): LinhaEnvio => ({
+    aviso_id: 'a1', phone: fone(i), status: 'ok', enviado_em: '2026-09-18T12:00:00Z',
+  });
+
+  it('2500 envios ja feitos: ninguem deles recebe de novo, mesmo os que ficam alem da linha 1000', async () => {
+    db.avisos = [avisoBase()];
+    // A audiencia sao os 3 ULTIMOS da lista de envios: o corte de 1000 os esconderia.
+    db.aviso_envios = Array.from({ length: 2500 }, (_, i) => envioOk(i));
+    db.eletroposto_parceria = [2497, 2498, 2499].map(i => contato(fone(i)));
+
+    const r = await runAvisosTick();
+
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.enviados).toBe(0);
+    expect(r.motivo).toBe('todos_receberam');
+    expect(db.aviso_envios).toHaveLength(2500);
+  });
+
+  it('com 2500 envios feitos, quem ainda nao recebeu e o unico que sai', async () => {
+    db.avisos = [avisoBase()];
+    db.aviso_envios = Array.from({ length: 2500 }, (_, i) => envioOk(i));
+    db.eletroposto_parceria = [contato(fone(2499)), contato(fone(9000000))];
+
+    await runAvisosTick();
+
+    expect(enviarZapiIO).toHaveBeenCalledTimes(1);
+    expect((enviarZapiIO.mock.calls[0] as any[])[0]).toBe(fone(9000000));
+  });
+
+  it('ERRO na pagina 2 nao envia nada: sem a lista inteira todo mundo pareceria novo', async () => {
+    db.avisos = [avisoBase()];
+    db.aviso_envios = Array.from({ length: 2500 }, (_, i) => envioOk(i));
+    db.eletroposto_parceria = [contato(fone(2499)), contato(fone(9000000))];
+    falharNaPaginaDe.set('aviso_envios', 1000);
+
+    const r = await runAvisosTick();
+
+    expect(r.motivo).toBe('erro_envios');
+    expect(r.enviados).toBe(0);
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(db.avisos[0].status).toBe('rodando');
+  });
+
+  it('o piso entre avisos tambem e lido inteiro: erro na pagina 2 nao envia nada', async () => {
+    process.env.AVISOS_DIAS_ENTRE = '7';
+    db.avisos = [avisoBase()];
+    const recente = new Date(Date.now() - 86400_000).toISOString();
+    db.aviso_envios = Array.from({ length: 2500 }, (_, i) => ({
+      aviso_id: 'outra', phone: fone(i), status: 'ok', enviado_em: recente,
+    }));
+    db.eletroposto_parceria = [contato(fone(9000000))];
+    falharNaPaginaDe.set('aviso_envios', 1000);
+
+    const r = await runAvisosTick();
+
+    expect(r.motivo).toBe('piso_indisponivel');
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+  });
+
+  it('o piso entre avisos enxerga quem recebeu de OUTRA pauta alem da linha 1000', async () => {
+    process.env.AVISOS_DIAS_ENTRE = '7';
+    db.avisos = [avisoBase()];
+    const recente = new Date(Date.now() - 86400_000).toISOString();
+    db.aviso_envios = Array.from({ length: 2500 }, (_, i) => ({
+      aviso_id: 'outra', phone: fone(i), status: 'ok', enviado_em: recente,
+    }));
+    db.eletroposto_parceria = [contato(fone(2499))];
+
+    const r = await runAvisosTick();
+
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.motivo).toBe('aguardando_piso_de_dias');
+  });
+});
+
+// -----------------------------------------------------------------------------
+// OPT-OUT, PAUSA HUMANA E SEM_INTERESSE LIDOS INTEIROS (15/10/2026)
+// Os tres so REDUZEM envio. O modo normal das leituras de bloqueio para em 1000
+// linhas e, no erro, libera todo mundo.
+// -----------------------------------------------------------------------------
+describe('lista de exclusao: estrita, inteira e fechada', () => {
+  it('le o opt-out e as pausas em modo estrito', async () => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato('5511960284351')];
+    await runAvisosTick();
+    expect(carregarSilenciadosMock).toHaveBeenCalledWith({ estrito: true });
+    expect(carregarPausasMock).toHaveBeenCalledWith({ estrito: true });
+    expect(enviarZapiIO).toHaveBeenCalledTimes(1);
+  });
+
+  it('ERRO lendo o opt-out nao envia nada (erro_optout)', async () => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato('5511960284351')];
+    leituraFalha.optout = true;
+    const r = await runAvisosTick();
+    expect(r.motivo).toBe('erro_optout');
+    expect(r.enviados).toBe(0);
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(db.avisos[0].status).toBe('rodando');
+  });
+
+  it('ERRO lendo as pausas nao envia nada (erro_pausas)', async () => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato('5511960284351')];
+    leituraFalha.pausas = true;
+    const r = await runAvisosTick();
+    expect(r.motivo).toBe('erro_pausas');
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+  });
+
+  it('quem esta no opt-out nao recebe, e a pauta conclui sem enviar', async () => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato('5511960284351')];
+    silenciados.add('11' + '60284351');
+    const r = await runAvisosTick();
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.motivo).toBe('todos_receberam');
+  });
+
+  it('sem_interesse alem da linha 1000 de uma fonte NAO entra pela outra', async () => {
+    db.avisos = [avisoBase({ publicos: ['capital', 'curioso'] })];
+    const fone = (i: number) => `55119${String(i).padStart(8, '0')}`;
+    // 1500 linhas de ruido do mesmo lado; a pessoa que disse NAO e a ULTIMA da lista
+    // (fora das 1000 que a leitura de entrada enxerga) e tambem consta numa ficha.
+    const ruido = Array.from({ length: 1500 }, (_, i) =>
+      contato(fone(i), { lado: 'capital', status: 'sem_interesse' }));
+    const quemDisseNao = contato(fone(5000000), { lado: 'ponto', status: 'sem_interesse' });
+    db.eletroposto_parceria = [...ruido, quemDisseNao];
+    db.eletroposto_nota1 = [{
+      id: 7, nome: 'Joao', telefone: fone(5000000), cidade: 'Uberlandia',
+      ficha: 'Quanto pretende investir: 10 mil', valor_investir: null, status: 'novo', created_at: '2026-09-10T12:00:00Z',
+    }];
+    const r = await runAvisosTick();
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.enviados).toBe(0);
+  });
+
+  const fone2 = (i: number) => `55119${String(i).padStart(8, '0')}`;
+  const cardAgenda = (i: number, tel: string, status: string) => ({
+    id: i, cliente_nome: 'Ana', cliente_telefone: tel, cidade: 'Uberlandia', status,
+    created_by: 'eletroposto', created_at: '2026-09-10T12:00:00Z',
+  });
+
+  it.each(['perdido', 'sem_interesse'])('card da AGENDA em %s: o telefone nao entra pela base de parceria', async (status) => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato(fone2(1))];
+    db.agendamentos = [cardAgenda(1, fone2(1), status)];
+    const r = await runAvisosTick();
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.enviados).toBe(0);
+  });
+
+  it('card da agenda que disse nao ALEM DA LINHA 1000 tambem barra, inclusive pela ficha', async () => {
+    db.avisos = [avisoBase({ publicos: ['capital', 'curioso'] })];
+    db.agendamentos = [
+      ...Array.from({ length: 1500 }, (_, i) => cardAgenda(i + 1, fone2(100 + i), 'perdido')),
+      cardAgenda(9999, fone2(5000000), 'sem_interesse'),
+    ];
+    db.eletroposto_parceria = [contato(fone2(5000000), { lado: 'capital' })];
+    db.eletroposto_nota1 = [{
+      id: 7, nome: 'Joao', telefone: fone2(5000000), cidade: 'Uberlandia',
+      ficha: 'Quanto pretende investir: 10 mil', valor_investir: null, status: 'novo', created_at: '2026-09-10T12:00:00Z',
+    }];
+    const r = await runAvisosTick();
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.enviados).toBe(0);
+  });
+
+  it('card da agenda em outro status (ex.: agendado) NAO barra', async () => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato(fone2(1))];
+    db.agendamentos = [cardAgenda(1, fone2(1), 'agendado')];
+    await runAvisosTick();
+    expect(enviarZapiIO).toHaveBeenCalledTimes(1);
+  });
+
+  it('ERRO lendo os cards da agenda nao envia nada (erro_lista)', async () => {
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato(fone2(1))];
+    falhar.add('agendamentos');
+    const r = await runAvisosTick();
+    expect(r.motivo).toBe('erro_lista');
+    expect(enviarZapiIO).not.toHaveBeenCalled();
   });
 });
