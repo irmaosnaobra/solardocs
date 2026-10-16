@@ -7484,6 +7484,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </tbody>
         </table>
       </div>
+      <div style="text-align:center;margin:14px 0 4px">
+        <button class="btn-hist-csv" id="leads-mais" type="button" style="display:none" onclick="leadsMostrarMais()"></button>
+      </div>
     </div>
   </div>
 
@@ -8212,6 +8215,78 @@ async function supaGet(query) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, { headers: supaHeaders() });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
+}
+
+// LEITURA QUE NAO PARA NO TETO DE 1000 LINHAS (15/10/2026).
+// O PostgREST responde no maximo 1000 linhas por requisicao e ignora um limit
+// maior, sem erro nenhum. O CRM lia a agenda assim: com 1.586 cards, os 586 de
+// reuniao mais antiga (Bruno Lages, Edeilson) nao apareciam em quadro nenhum.
+// Esta funcao le em paginas de 1000 ate vir uma menor. Como:
+//   - A PAGINA e lida por CHAVE UNICA que nao muda (id, codigo, lead_id, tel8),
+//     do maior para o menor, e a proxima pagina pede so o que vem DEPOIS da
+//     ultima chave lida (chave=lt.N). Nao usa offset: com offset, um robo que
+//     muda o 'quando' de um card para o topo, ou um card apagado no meio, empurra
+//     as linhas e a leitura pula um card por um carregamento inteiro.
+//   - A ORDEM DA TELA e outra coisa: se o caminho trouxer order=..., a lista e
+//     reordenada no navegador por ele (nulo primeiro no DESC, como o Postgres),
+//     entao quem chama continua recebendo a ordem de antes.
+//   - limit e offset do caminho sao ignorados. A chave (opcoes.chave, padrao 'id')
+//     tem de estar no select: sem ela a leitura lanca erro.
+//   - O erro de qualquer pagina e o erro da leitura inteira (mesmo supaGet, mesma
+//     sessao). NUNCA devolve lista parcial: o corte calado era o bug.
+//   - Teto de 50 paginas (50 mil linhas). Se bater, avisa no console e marca a
+//     lista com .cortou = true para a tela dizer que pode faltar linha.
+function supaOrdenarLinhas(linhas, ordem) {
+  const cols = String(ordem || '').split(',').filter(Boolean).map(x => {
+    const t = x.split('.');
+    return { col: t[0], desc: t[1] === 'desc', nulosPrimeiro: t.indexOf('nullsfirst') >= 0 ? true : t.indexOf('nullslast') >= 0 ? false : t[1] === 'desc' };
+  });
+  if (!cols.length) return linhas;
+  const ehData = v => typeof v === 'string' && /^\d{4}-\d\d-\d\d[T ]/.test(v);
+  const cmp = (a, b) => {
+    for (const c of cols) {
+      const va = a[c.col], vb = b[c.col];
+      const na = va == null, nb = vb == null;
+      let r = 0;
+      if (na || nb) { if (na && nb) continue; r = na ? -1 : 1; if (!c.nulosPrimeiro) r = -r; return r; }
+      r = ehData(va) && ehData(vb) ? Date.parse(va) - Date.parse(vb) : (va < vb ? -1 : va > vb ? 1 : 0);
+      if (r) return c.desc ? -r : r;
+    }
+    return 0;
+  };
+  return linhas.sort(cmp);
+}
+async function supaGetTudo(caminho, opcoes) {
+  const o = opcoes || {};
+  const porPagina = o.porPagina || 1000;
+  const maxPaginas = o.maxPaginas || 50;
+  const chave = o.chave || 'id';
+  const i = caminho.indexOf('?');
+  const rota = i < 0 ? caminho : caminho.slice(0, i);
+  const todos = (i < 0 ? [] : caminho.slice(i + 1).split('&')).filter(p => p && !/^(limit|offset)=/.test(p));
+  const ordemTela = o.ordem || ((todos.find(p => /^order=/.test(p)) || '').slice(6));
+  const base = todos.filter(p => !/^order=/.test(p));
+  const vistos = new Set();
+  const out = [];
+  let ultimo = null;
+  for (let pg = 0; pg < maxPaginas; pg++) {
+    const ps = base.concat('order=' + chave + '.desc', 'limit=' + porPagina);
+    if (ultimo !== null) ps.push(chave + '=lt.' + encodeURIComponent(ultimo));
+    const lote = await supaGet(rota + '?' + ps.join('&'));
+    if (!Array.isArray(lote)) throw new Error('A leitura de ' + rota + ' voltou sem lista.');
+    for (const r of lote) {
+      const k = r && r[chave];
+      if (k == null) throw new Error('A leitura de ' + rota + ' voltou sem a coluna ' + chave + ': ponha a chave no select.');
+      if (vistos.has(k)) continue;
+      vistos.add(k); out.push(r);
+    }
+    if (lote.length < porPagina) return supaOrdenarLinhas(out, ordemTela);
+    ultimo = lote[lote.length - 1][chave];
+  }
+  console.warn('supaGetTudo: ' + rota + ' bateu o teto de ' + maxPaginas + ' paginas (' + (maxPaginas * porPagina) + ' linhas); pode faltar linha.');
+  supaOrdenarLinhas(out, ordemTela);
+  out.cortou = true;
+  return out;
 }
 
 async function supaRpc(fn, args) {
@@ -10729,7 +10804,7 @@ async function abrirHistorico() {
   try {
     await purgarPropostasExpiradas();
     await carregarConsultoresFotos();
-    const rows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
+    const rows = await supaGetTudo('propostas?select=*&order=created_at.desc,codigo.desc', { chave: 'codigo' });
     if (!rows || rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="21" class="historico-vazio">Nenhuma proposta gerada ainda. Volte e gere a primeira!</td></tr>';
       return;
@@ -11220,7 +11295,7 @@ function epiDesenhar(d) {
 }
 
 // ── Leads ───────────────────────────────────────────────────────────────────
-// Sem leitura própria: usa cadDados, que o cadCarregar monta (teto de 1.000 linhas por leitura, o da API) e que a aba
+// Sem leitura própria: usa cadDados, que o cadCarregar monta (parceria e ficha em 1.000 linhas, o teto da API; a agenda é paginada) e que a aba
 // Cadastros já mostra. Cada pessoa aparece uma vez no melhor tipo (Arrendamento, depois Investidor, depois Curioso), a
 // mesma regra da aba; Parceiro fica fora dessa conta, como lá. O horário vem do card mais novo da agenda, pela chave
 // inteira do telefone (cadAgendasChave).
@@ -11302,7 +11377,7 @@ function eplRender() {
   const av = document.getElementById('epl-aviso');
   if (av) {
     const msg = agFalhou ? 'Não consegui ler a agenda agora, então não dá para dizer quem está sem horário.'
-      : (cadAgendaCheia ? 'A leitura da agenda chegou a 1.000 reuniões: reuniões antigas podem faltar, e alguém pode aparecer sem horário por isso.' : '');
+      : (cadAgendaCheia ? 'A leitura da agenda chegou ao limite de 50.000 reuniões: reuniões antigas podem faltar, e alguém pode aparecer sem horário por isso.' : '');
     av.textContent = msg; av.hidden = !msg;
   }
   const ul = document.getElementById('epl-lista'), pag = document.getElementById('epl-pag');
@@ -11988,7 +12063,7 @@ let cadEtiquetas = {};           // id do card -> etiqueta de negócio guardada 
 let cadTipos = {};               // id do card -> tipo com que o card nasceu (tipo_card:<id>), nunca apagado
 let cadAtendFalhou = false;      // a leitura falhou ou não havia sessão de login
 let cadAgendaFalhou = false;     // a leitura de agendamentos FALHOU (a lista Na agenda e os cards das outras ficariam vazios sem aviso)
-let cadAgendaCheia = false;      // a leitura de agendamentos chegou ao teto de 1.000 linhas (pode ter cortado reuniões antigas)
+let cadAgendaCheia = false;      // a leitura de agendamentos bateu o teto de segurança da paginação, 50 mil linhas (pode ter cortado reuniões antigas)
 let cadAtendPronto = false;      // a primeira leitura já terminou (bem ou mal)
 /** A mesma chave que a api usa nas sessões: DDD + 8 últimos dígitos, sem o 55. */
 function cadChave(tel) {
@@ -12376,7 +12451,7 @@ async function cadCarregar(forcar) {
       // passou a perguntar o valor em 15/09 e ele nao tem coluna propria. Sao ~60 KB.
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
               + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna,ficha,valor_investir'
-              + '&order=created_at.desc&limit=1000'),
+              + '&order=created_at.desc&limit=1000'),   // fica em 1000, igual ao servidor (ver acima)
       // A distância é calculada no servidor (a tabela dos 5.570 municípios são
       // 408 KB e a régua tem que ser a MESMA do aviso no WhatsApp). Se falhar, a
       // lista carrega do mesmo jeito — perder a coluna de par é chato, perder a
@@ -12394,17 +12469,18 @@ async function cadCarregar(forcar) {
       // `*Endere*` entrou em 29/09: sem ele a tela não vê as 117 pessoas que têm
       // endereço e nunca foram perguntadas, e o grupo "Dono não perguntado" do
       // Menu de Avisos contaria zero.
-      supaGet('agendamentos?created_by=ilike.*eletroposto*'
+      supaGetTudo('agendamentos?created_by=ilike.*eletroposto*'
               + '&or=(status.eq.arrendamento,observacao.ilike.*Local*seu*,observacao.ilike.*Endere*)'
               + '&select=id,created_at,cliente_nome,cliente_telefone,cidade,status,'
-              + 'ponto_relacao,observacao&order=created_at.desc&limit=1000').catch(() => []),
+              + 'ponto_relacao,observacao&order=created_at.desc,id.desc', { chave: 'id' }).catch(() => []),
       // TODA reunião recente, pra coluna Agenda: a pessoa da lista pode ter
-      // reunião de qualquer status, não só arrendamento. Janela de 120 dias e
-      // teto de 1000 (o da API) — as mais NOVAS primeiro, que são as que a
-      // coluna mostra. Se falhar, a lista carrega sem a coluna.
-      // O FILTRO POR ELETROPOSTO NAO E ENFEITE (22/09/2026): sao 1.092 reunioes
-      // de todos os produtos nesta janela de 120 dias contra um teto de 1.000 na
-      // API. Ou seja, o corte JA ESTA ACONTECENDO, e ele cai nas mais antigas.
+      // reunião de qualquer status, não só arrendamento. Lida INTEIRA, paginada por
+      // id (supaGetTudo) e reordenada aqui, as mais NOVAS primeiro, que são as que
+      // a coluna mostra. Se falhar, a lista carrega sem a coluna.
+      // O FILTRO POR ELETROPOSTO NAO E ENFEITE (22/09/2026): eram 1.092 reunioes
+      // de todos os produtos nesta janela de 120 dias contra o teto de 1.000 da
+      // API (hoje a leitura pagina e nao ha mais esse teto, mas o filtro segue
+      // valendo: esta aba e a base do eletroposto).
       // Como a leitura vem em ordem decrescente, o efeito hoje e' pequeno, mas
       // cresce sozinho: daqui a um mes seriam ~500 reunioes fora do mapa, e a
       // coluna mostraria travessao pra gente que TEM reuniao. Travessao quer
@@ -12416,19 +12492,20 @@ async function cadCarregar(forcar) {
       // vêm da agenda e parte deles é de agosto — dentro da janela antiga eles
       // apareciam na lista com travessão na coluna Agenda, que quer dizer "não
       // tem reunião". Filtrado por eletroposto a base inteira são ~470 linhas,
-      // com folga de anos contra o teto de 1.000 da API; o corte que o comentário
-      // antigo temia era o de TODOS os produtos (1.092 numa janela de 120 dias).
+      // com folga de anos; o corte que o comentário antigo temia era o de TODOS
+      // os produtos (1.092 numa janela de 120 dias).
       // cliente_nome e cidade entraram em 13/10: a lista Na agenda nasce desta leitura.
-      // Segue em limit=1000, o teto da API: a tela avisa no resumo quando chega nele.
-      supaGet('agendamentos?select=id,quando,cliente_nome,cidade,cliente_telefone,status,vendedor_nome,created_by,src'
+      // Paginado por id desde 15/10 (supaGetTudo): nao ha mais teto de 1000. A tela so
+      // avisa se a leitura bater o teto de seguranca (50 paginas).
+      supaGetTudo('agendamentos?select=id,quando,cliente_nome,cidade,cliente_telefone,status,vendedor_nome,created_by,src'
               + '&created_by=ilike.*eletroposto*'
-              + '&order=quando.desc&limit=1000').catch(() => { agendaFalhou = true; return []; }),
+              + '&order=quando.desc,id.desc', { chave: 'id' }).catch(() => { agendaFalhou = true; return []; }),
     ]);
     if (gerCad !== _epGer) return;
     // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
     // em ordem decrescente, então a primeira de cada telefone é a que vale).
     cadAgendaFalhou = agendaFalhou;
-    cadAgendaCheia = (agendaTodas || []).length >= 1000;
+    cadAgendaCheia = !!(agendaTodas && agendaTodas.cortou);
     cadAgendas = new Map();
     // O mesmo laço alimenta o mapa das colunas Situação e Consultor, que casa pela
     // chave inteira (DDD + 8 últimos): os 8 últimos sozinhos juntam DDDs diferentes.
@@ -12680,7 +12757,7 @@ function cadRender() {
     resumoSit.textContent = (!cadAtendPronto ? 'Carregando a situação da agente… · '
       : cadAtendFalhou ? 'Situação da agente indisponível agora · ' : '')
       + (cadAgendaFalhou ? 'Não foi possível ler a agenda agora · ' : '')
-      + (cadLado === 'agenda' && cadAgendaCheia ? 'A leitura da agenda chegou ao teto de 1.000 reuniões: pode haver reuniões mais antigas fora desta lista · ' : '')
+      + (cadLado === 'agenda' && cadAgendaCheia ? 'A leitura da agenda chegou ao limite de 50.000 reuniões: pode haver reuniões mais antigas fora desta lista · ' : '')
       + (res.situacoes.map(c => c.rotulo + ' ' + c.n).join(' · ') || 'Ninguém neste período');
   }
 
@@ -13676,20 +13753,21 @@ async function pontosCarregar(forcar) {
     const [reunioes, estudos, negoc, cadastros, fichas] = await Promise.all([
       // TODA reunião do eletroposto, com endereço ou sem: quem não deu endereço
       // continua sendo gente pra ligar, só não tem ponto pra estudar.
-      supaGet('agendamentos?select=id,created_at,quando,cliente_nome,cliente_telefone,cidade,'
+      supaGetTudo('agendamentos?select=id,created_at,quando,cliente_nome,cliente_telefone,cidade,'
         + 'observacao,status,vendedor_nome,ponto_relacao'
-        + '&created_by=eq.lp_eletroposto&order=created_at.desc&limit=1000'),
+        + '&created_by=eq.lp_eletroposto&order=created_at.desc,id.desc', { chave: 'id' }),
       // A TABELA DO ESTUDO NAO ABRE PRA ESTA CHAVE: eletroposto_estudos tem RLS com
       // zero policy (guarda endereco, coordenada e o token da pagina publica), e a
       // leitura direta volta 401. A funcao devolve so id da reuniao + as notas.
       supaRpc('ep_estudo_notas', {}).catch(() => []),
-      supaGet('eletroposto_negociacao?select=*&limit=2000').catch(() => []),
+      // tel8 e CHAVE UNICA (a escrita usa on_conflict=tel8): pagina por ele. O limit=2000 de antes valia 1000.
+      supaGetTudo('eletroposto_negociacao?select=*', { chave: 'tel8' }).catch(() => []),
       // As QUATRO portas, não só a do ponto: arrendamento, investidor e parceiro
       // saem daqui pela mesma regra da aba Cadastros (cadDestino).
-      supaGet('eletroposto_parceria?select=*&order=created_at.desc&limit=1000').catch(() => []),
+      supaGetTudo('eletroposto_parceria?select=*&order=created_at.desc,id.desc', { chave: 'id' }).catch(() => []),
       // As fichas da LP: é de onde sai o Curioso, que não tem cadastro nenhum.
-      supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
-        + 'endereco,capital_faixa,status,ficha,valor_investir&order=created_at.desc&limit=1000').catch(() => []),
+      supaGetTudo('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
+        + 'endereco,capital_faixa,status,ficha,valor_investir&order=created_at.desc,id.desc', { chave: 'id' }).catch(() => []),
     ]);
     pnNeg = new Map((negoc || []).map(n => [String(n.tel8), n]));
     const idx = new Map();
@@ -14488,11 +14566,14 @@ async function aviCarregar(forcar) {
   if (!cadDados) await cadCarregar();
   try {
     const [contatos, avisos, envios] = await Promise.all([
+      // FICA EM 1000 DE PROPOSITO (15/10/2026): o servidor monta os destinatarios com o mesmo corte
+      // (avisosTickService.ts, limit(2000) que o PostgREST reduz a 1000). Ler tudo aqui contaria mais
+      // gente do que o disparo manda, e a conta do grupo e da lista Na agenda divergiria em silencio.
       supaGet('eletroposto_parceria?select=id,nome,telefone,cidade,lado,status,created_at&order=created_at.desc&limit=2000'),
       supaGet('avisos?select=*&order=criado_em.desc&limit=30'),
       // Só os que chegaram: erro de Z-API não vira "já recebeu" na tela, pelo
       // mesmo motivo que não vira no servidor.
-      supaGet('aviso_envios?select=phone,enviado_em,aviso_id&status=eq.ok&order=enviado_em.desc&limit=3000'),
+      supaGetTudo('aviso_envios?select=id,phone,enviado_em,aviso_id&status=eq.ok&order=enviado_em.desc,id.desc', { chave: 'id' }),
     ]);
     const ultimoPorFone = {};
     (envios || []).forEach(e => {
@@ -29301,7 +29382,7 @@ function dcDesenhar() {
   }).join('');
 }
 
-/** Consulta própria, com o token da pessoa: o Histórico para em 500 propostas e pode nem estar carregado. */
+/** Consulta própria, com o token da pessoa: o Histórico pode nem estar carregado (e só traz tudo depois de paginar). */
 async function docsCarregar() {
   if (_dcCarregando) return;
   _dcCarregando = true;
@@ -29867,7 +29948,7 @@ function qlWhats(key) {
 // Histórico não a tem, e carregar pelo abrirHistorico empilharia a tela do
 // Histórico por cima. Então a leitura é a mesma, sem desenhar nada.
 async function qlGarantirHistorico(codigo) {
-  if (!historicoRows || !historicoRows.length) historicoRows = await supaGet('propostas?select=*&order=created_at.desc&limit=500');
+  if (!historicoRows || !historicoRows.length) historicoRows = await supaGetTudo('propostas?select=*&order=created_at.desc,codigo.desc', { chave: 'codigo' });
   if (!historicoRows.some(r => r.codigo === codigo)) {
     const um = await supaGet('propostas?codigo=eq.' + encodeURIComponent(codigo) + '&select=*&limit=1');
     if (um && um[0]) historicoRows.unshift(um[0]);
@@ -33226,11 +33307,11 @@ async function pvCarregarNeg(meu) {
   const E = pvEstado;
   try {
     const st = pvStatusNegociacao().join(',');
-    const rows = await supaGet('agendamentos?select=id,cliente_nome,cidade,vendedor_nome,status,quando'
-      + `&created_by=ilike.*eletroposto*&status=in.(${st})&order=quando.desc&limit=1000`);
+    const rows = await supaGetTudo('agendamentos?select=id,cliente_nome,cidade,vendedor_nome,status,quando'
+      + `&created_by=ilike.*eletroposto*&status=in.(${st})&order=quando.desc,id.desc`, { chave: 'id' });
     if (meu !== pvCargaSeq) return;
     E.negociacao = rows || [];
-    E.negCheio = E.negociacao.length >= 1000;
+    E.negCheio = !!(rows && rows.cortou);
   } catch (e) {
     console.warn('cards em negociacao do eletroposto nao carregaram', e);
     if (meu !== pvCargaSeq) return;
@@ -33793,7 +33874,7 @@ function pvRenderNeg() {
     lista.innerHTML = '<div class="pv-vazio"><b>Nenhum card do eletroposto em negociação.</b>Quando houver um, ele aparece aqui com o botão para marcar como vendido.</div>';
     return;
   }
-  const aviso = E.negCheio ? '<div class="pv-aviso">A busca chegou a 1.000 cards e a lista pode estar incompleta.</div>' : '';
+  const aviso = E.negCheio ? '<div class="pv-aviso">A busca chegou ao limite de 50.000 cards e a lista pode estar incompleta.</div>' : '';
   lista.innerHTML = aviso + E.negociacao.map(pvNegHtml).join('');
 }
 
@@ -35786,9 +35867,13 @@ async function carregarCRM(forcar) {
       // um por CLIENTE e mostra os dois orçamentos — dividir por produto criaria
       // um card de eletroposto órfão, porque coluna do kanban, temperatura e
       // follow-up saem todos do agendamento, e agendamento não tem produto.
-      supaGet('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
-      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em,presenca_confirmada_at,confirmacao_at,lead_resposta_at&order=quando.desc&limit=1000'),
-      supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
+      // PAGINADO (15/10/2026): o PostgREST corta em 1000 linhas e a agenda tem
+      // mais que isso (1.586 em 15/10). Com o corte, o CRM so via os 1000 cards
+      // de reuniao mais recente e o cliente antigo (Bruno Lages, Edeilson)
+      // sumia do quadro. A ordem e a mesma de antes, com o id so para desempatar.
+      supaGetTudo('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc,codigo.desc', { chave: 'codigo' }),
+      supaGetTudo('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em,presenca_confirmada_at,confirmacao_at,lead_resposta_at&order=quando.desc,id.desc', { chave: 'id' }),
+      supaGetTudo('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc,lead_id.desc', { chave: 'lead_id' })
     ]);
   } catch (e) {
     board.innerHTML = `<div class="historico-vazio" style="padding:40px">Erro ao carregar: ${escapeHtml(e.message || '')}</div>`;
@@ -36609,6 +36694,11 @@ function leadCampo(fd, ...termos) {
 // do tamanho (acima de 1.000 kWh, de qualquer porta), então uma pessoa pode estar
 // nela e em "Vistorias" ao mesmo tempo, como no Arrendamento.
 let leadsRowsCache = [], leadsAgMap = {}, leadsAba = 'todos';
+// Desenha so os primeiros 50 da aba e libera de 50 em 50 ("Mostrar mais"). Com a leitura completa (1.300
+// leads em 15/10) a tabela inteira eram ~52 mil nos no DOM e 1.300 links de WhatsApp de uma vez no celular.
+// So o DESENHO e paginado: os chips contam a lista inteira, a planilha (CSV) leva todos, e a leitura e a mesma.
+const LEADS_PASSO = 50;
+let leadsMostrar = LEADS_PASSO;
 const LEADS_ABAS = [
   ['todos', 'Todos'], ['vistoria', 'Vistorias'], ['grandes', 'Projetos grandes'],
   ['ligacao', 'Ligações'], ['curioso', 'Curiosos'], ['nao_marcou', 'Não marcaram'], ['formulario', 'Formulário e DM'],
@@ -36647,7 +36737,8 @@ function renderLeadsAbas() {
     return `<button class="leads-aba${leadsAba === k ? ' on' : ''}" role="tab" aria-selected="${leadsAba === k}" onclick="leadsTrocarAba('${k}')">${rot}<span class="c">${n}</span></button>`;
   }).join('');
 }
-function leadsTrocarAba(k) { leadsAba = k; renderLeadsAbas(); renderLeadsTabela(); }
+function leadsTrocarAba(k) { leadsAba = k; leadsMostrar = LEADS_PASSO; renderLeadsAbas(); renderLeadsTabela(); }
+function leadsMostrarMais() { leadsMostrar += LEADS_PASSO; renderLeadsTabela(); }
 
 async function carregarLeads() {
   const tbody = document.getElementById('leads-tbody');
@@ -36655,7 +36746,7 @@ async function carregarLeads() {
   leadsMensagem('Carregando...');
   let rows = [];
   try {
-    rows = await supaGet('leads_meta?select=*&order=created_time.desc&limit=1000');
+    rows = await supaGetTudo('leads_meta?select=*&order=created_time.desc,lead_id.desc', { chave: 'lead_id' });
   } catch (e) {
     leadsMensagem('Erro ao carregar leads.');
     return;
@@ -36677,6 +36768,7 @@ async function carregarLeads() {
   }
   leadsRowsCache = rows;
   leadsAgMap = agMap;
+  leadsMostrar = LEADS_PASSO;
   renderLeadsAbas();
   renderLeadsTabela();
 }
@@ -36838,12 +36930,19 @@ function renderLeadsTabela() {
   const clsTh = c => [c.fixa ? 'fixa' : '', c.nota ? 'nota-bloco' : '', c.inicio ? 'nota-inicio' : '', c.final ? 'nota-final' : ''].filter(Boolean).join(' ');
   thead.innerHTML = '<tr>' + cols.map(c => `<th${clsTh(c) ? ` class="${clsTh(c)}"` : ''}>${escapeHtml(c.rot)}</th>`).join('') + '</tr>';
   const conta = document.getElementById('leads-conta');
-  if (conta) conta.textContent = `${linhas.length} lead${linhas.length === 1 ? '' : 's'} nesta aba, ${cols.length} colunas. Role para o lado: as últimas mostram de onde veio a nota.`;
+  const visiveis = linhas.slice(0, leadsMostrar);
+  const resto = linhas.length - visiveis.length;
+  if (conta) conta.textContent = `${linhas.length} lead${linhas.length === 1 ? '' : 's'} nesta aba${resto > 0 ? ', mostrando ' + visiveis.length + ' de ' + linhas.length : ''}, ${cols.length} colunas. Role para o lado: as últimas mostram de onde veio a nota.`;
+  const mais = document.getElementById('leads-mais');
+  if (mais) {
+    mais.style.display = resto > 0 ? '' : 'none';
+    mais.textContent = resto > 0 ? `Mostrar mais ${Math.min(LEADS_PASSO, resto)} (restam ${resto})` : '';
+  }
   if (!linhas.length) {
     tbody.innerHTML = `<tr><td colspan="${cols.length}" class="historico-vazio">Ninguém nesta aba.</td></tr>`;
     return;
   }
-  tbody.innerHTML = linhas.map(({ r, L, cam, quiz }) => {
+  tbody.innerHTML = visiveis.map(({ r, L, cam, quiz }) => {
     const tds = cols.map(c => {
       const cls = [c.fixa ? 'fixa' : '', c.num ? 'num' : '', c.nota ? 'nota-bloco' : '', c.inicio ? 'nota-inicio' : '', c.final ? 'nota-final' : ''].filter(Boolean).join(' ');
       const td = inner => `<td${cls ? ` class="${cls}"` : ''}>${inner}</td>`;
