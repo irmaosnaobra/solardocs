@@ -9,7 +9,12 @@ import {
   progressoFicha, validarCampoFicha, lerEntradaObra, lerValorObra, houveConflitoObra, lerPosVenda, MODELOS_OBRA,
   type CelulaFicha, type CardVendido, type LinhaFicha,
 } from '../services/gerador/fichaEletroposto';
-import { totais, houveConflito, aplicarGravacao, type LinhaGestao } from '../services/gerador/gestaoClientes';
+import { totais, houveConflito, aplicarGravacao, lerRegistro, type LinhaGestao, type RegistroGestao } from '../services/gerador/gestaoClientes';
+import {
+  FICHA_PARA_CADASTRO, ehColunaDoCadastro, sobreporCadastro, limparAntes, lerCadastro, lerCadastros, escreverCadastro, validarCampo,
+  type Cadastro,
+} from '../services/gerador/cadastroVenda';
+import { ErroCadastro } from '../services/gerador/cadastroVendaBanco';
 import {
   lerCardsVendidos, lerCardVendido, lerFichas, lerPosVendas, lerFichaComVersao, gravarFicha,
   lerPosVendaComVersao, gravarPosVenda, ErroFicha,
@@ -37,6 +42,16 @@ import {
 //
 // Nenhum valor de campo vai para log: só o código do erro do banco. Nenhuma rota
 // pública (`/pos-venda`, `/agentes`) devolve campo da ficha: `cliente_ep:` só é lido aqui.
+//
+// CADASTRO = FONTE ÚNICA (cadastroVenda.ts): 13 colunas (cliente, cpf_cnpj, rg_ie, contato, email, endereco, cep, cidade,
+// uf, endereco_ponto, unidade_consumidora, concessionaria, titular_conta) moram no cadastro do bucket privado
+// `cadastros-venda`, não no `system_state` (a chave pública do banco principal o lê). Na LEITURA o cadastro vai por
+// cima do `system_state` (enquanto não migrou, o que só existe lá continua aparecendo). Na ESCRITA dessas colunas vale o
+// MESMO validador do cadastro (`validarCampo`: dígito do CPF, UF, CEP) e a gravação passa por `escreverCadastro`: sob a
+// trava da venda, migra TODO o legado para o cadastro, grava a edição e só então apaga do `system_state` as 13 colunas
+// (valor e `antes`). Bucket do cadastro fora do ar na leitura: a ficha sai com o que há no `system_state` e
+// `cadastro_indisponivel: true` (na grade, venda por venda: um JSON torto isola só a linha dele). O formato da resposta
+// não muda.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TENTATIVAS_GRAVAR = 4;
@@ -65,7 +80,7 @@ function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
 }
 
 const logErro = (que: string, err: unknown): void =>
-  console.error(`[ficha-ep] ${que}`, err instanceof ErroFicha ? err.codigo : 'interno');
+  console.error(`[ficha-ep] ${que}`, err instanceof ErroFicha || err instanceof ErroCadastro ? err.codigo : 'interno');
 
 const textoValor = (v: unknown): string => (v === null || v === undefined ? 'vazio' : String(v));
 
@@ -81,12 +96,19 @@ export function mountClientesEletroposto(router: Router): void {
     let cards: CardVendido[];
     let linhas: LinhaFicha[];
     let colunas;
+    let cadastroIndisponivel = false;
+    let falhasDoCadastro = new Set<number>();
     try {
       // Só os cards do papel: o registro de uma venda alheia nem é lido para o consultor.
       cards = (await lerCardsVendidos()).filter((c) => dono(nome, socio, c));
       const ids = cards.map((c) => c.id);
-      const [fichas, posVendas] = await Promise.all([lerFichas(ids), lerPosVendas(ids)]);
-      ({ colunas, linhas } = montarFicha(cards, fichas, posVendas, nome, socio));
+      const [fichas, posVendas, cads] = await Promise.all([lerFichas(ids), lerPosVendas(ids), lerCadastros(ids)]);
+      cadastroIndisponivel = cads.indisponivel;
+      falhasDoCadastro = cads.falhas;
+      // O cadastro vai por cima do `system_state`, só para montar a resposta (nunca é gravado de volta).
+      const vistas = new Map<number, RegistroGestao>(fichas);
+      for (const [id, cad] of cads.mapa) vistas.set(id, sobreporCadastro(fichas.get(id) ?? lerRegistro(null), cad));
+      ({ colunas, linhas } = montarFicha(cards, vistas, posVendas, nome, socio));
     } catch (err) {
       logErro('leitura falhou', err);
       res.status(502).json({ ok: false, error: MSG_BANCO });
@@ -100,9 +122,11 @@ export function mountClientesEletroposto(router: Router): void {
       em: agora,
       atualizadoEm: agora,
       fonte: { cards: true },
+      ...(cadastroIndisponivel ? { cadastro_indisponivel: true } : {}),
       catalogo: { grupos: gruposFichaPara(colunas), colunas },
       linhas: linhas.map((l) => ({
         codigo: l.codigo, cliente: l.cliente, consultor: l.consultor, progresso: l.progresso, celulas: l.celulas,
+        ...(falhasDoCadastro.has(Number(l.codigo)) ? { cadastro_indisponivel: true } : {}),
       })),
       totais: totais(linhas as unknown as LinhaGestao[]),
     });
@@ -155,13 +179,25 @@ export function mountClientesEletroposto(router: Router): void {
     const col = def.col;
     const v = validarCampoFicha(col, b.valor);
     if (!v.ok) { res.status(400).json({ ok: false, error: v.erro }); return; }
+    // Coluna do cadastro: o MESMO validador do cadastro (dígito do CPF, UF, CEP...), e vai o valor normalizado.
+    const mapeada = ehColunaDoCadastro(col.chave);
+    let valorCad: string | null = null;   // null = limpar o campo
+    if (mapeada && v.valor !== null) {
+      const vc = validarCampo(FICHA_PARA_CADASTRO[col.chave], String(v.valor));
+      if (!vc.ok) { res.status(400).json({ ok: false, error: vc.erro }); return; }
+      valorCad = vc.valor || null;
+    }
 
     try {
       const colunas = colunasFichaPara(socio);
       for (let tentativa = 0; tentativa < TENTATIVAS_GRAVAR; tentativa++) {
         const { reg, versao } = await lerFichaComVersao(id);
-        const antesCel = celulaFicha(col.chave, card, reg, null) as CelulaFicha;
-        const outro = houveConflito(reg, col.chave, baseEm, nome);
+        // Coluna do cadastro não grava às cegas (erro se o bucket falhar); as outras seguem com o que há no `system_state`.
+        let cad: Cadastro | null = null;
+        try { cad = await lerCadastro(id); } catch (e) { if (mapeada) throw e; logErro('cadastro indisponível', e); }
+        const visto = sobreporCadastro(reg, cad);
+        const antesCel = celulaFicha(col.chave, card, visto, null) as CelulaFicha;
+        const outro = houveConflito(visto, col.chave, baseEm, nome);
         if (outro) {
           res.status(409).json({
             ok: false, conflito: true,
@@ -170,26 +206,43 @@ export function mountClientesEletroposto(router: Router): void {
           });
           return;
         }
-        const mesmo = v.valor === null ? !reg.campos[col.chave] : (antesCel.origem === 'sistema' && antesCel.valor === v.valor);
+        const novoValor = mapeada ? valorCad : v.valor;
+        const mesmo = novoValor === null ? !visto.campos[col.chave] : (antesCel.origem === 'sistema' && antesCel.valor === novoValor);
         const agora = new Date().toISOString();
-        let novo = reg;
+        let novo = reg;      // o registro CRU: é o único que vai para o `system_state`
+        let cadFinal = cad;
+        let avisar = false;
         if (!mesmo) {
-          novo = aplicarGravacao(reg, col, v.valor, antesCel.valor, nome, agora);
-          if (!(await gravarFicha(id, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
+          if (mapeada) {
+            // Uma passada só, sob a trava: o cadastro é gravado e o legado limpo. Sem 409 de "tente de novo" quando o
+            // cadastro já foi salvo: se só a limpeza do `system_state` falhou, a resposta é sucesso com aviso.
+            const r = await escreverCadastro(id, { [FICHA_PARA_CADASTRO[col.chave]]: valorCad ?? '' }, nome, 'manual', agora);
+            novo = r.reg; cadFinal = r.cad; avisar = !r.limpou;
+          } else {
+            novo = aplicarGravacao(reg, col, v.valor, antesCel.valor, nome, agora);
+            novo = limparAntes(novo) ?? novo;
+            if (!(await gravarFicha(id, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
+          }
         }
+        const resposta = sobreporCadastro(novo, cadFinal);
         const celulas: Record<string, CelulaFicha> = {};
-        for (const c of colunas) celulas[c.chave] = celulaFicha(c.chave, card, novo, null) as CelulaFicha;
+        for (const c of colunas) celulas[c.chave] = celulaFicha(c.chave, card, resposta, null) as CelulaFicha;
         res.json({
           ok: true,
           celula: celulas[col.chave],
           em: agora,
           progresso: progressoFicha(colunas, celulas),
+          ...(avisar ? { aviso: 'Salvo. A limpeza do registro antigo fica para a próxima gravação.' } : {}),
         });
         return;
       }
       res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta venda agora. Tente de novo.' });
     } catch (err) {
       logErro('gravar falhou', err);
+      if (err instanceof ErroCadastro && err.codigo === 'ocupado') {
+        res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta venda agora. Tente de novo.' });
+        return;
+      }
       res.status(500).json({ ok: false, error: MSG_GRAVAR });
     }
   });

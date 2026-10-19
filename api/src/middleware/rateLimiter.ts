@@ -127,3 +127,15 @@ export const funilEletropostoLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Leitura dos documentos da venda por IA (POST /gerador/clientes/eletroposto/:codigo/cadastro/ler): cada chamada paga
+// a API da Anthropic. 20 por hora por PESSOA (o e-mail do consultor já validado, depois do `exigeConsultor`); o
+// escritório divide o IP, então a chave nunca é o IP.
+export const cadastroLeituraLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => 'cadastro-ler:' + String((req as unknown as { consultor?: { email?: string } }).consultor?.email || 'sem-consultor'),
+  message: { ok: false, motivo: 'limite', error: 'Muitas leituras por IA em pouco tempo. Tente de novo mais tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

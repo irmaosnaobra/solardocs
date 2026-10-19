@@ -28,6 +28,7 @@ import { mountFinanceiro } from './geradorFinanceiro';
 import { mountClientes } from './geradorClientes';
 import { mountClientesEletroposto } from './geradorEletropostoClientes';
 import { mountClientesDocs } from './geradorClientesDocs';
+import { mountCadastroVenda } from './geradorCadastroVenda';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { aiLimiter } from '../middleware/rateLimiter';
@@ -1163,6 +1164,8 @@ mountClientes(router);
 mountClientesEletroposto(router);
 // Documentos e relatório de engenharia da ficha de clientes (Solar e Eletroposto): anexos no bucket privado `fichas-docs`.
 mountClientesDocs(router);
+// Cadastro da venda do eletroposto (bucket privado) e leitura dos documentos por IA: a ficha e os contratos leem daqui.
+mountCadastroVenda(router);
 // Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
 mountPerfil(router);
 // Automação como centro das redes, fase 1 (servidor): Reels, status da 5040 e caixa de comentários. Cada item nasce desligado.

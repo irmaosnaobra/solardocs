@@ -18,6 +18,9 @@ const h = vi.hoisted(() => ({
   linhas: new Map<string, { value: unknown; updated_at: string }>(),
   erroLeitura: false,
   erroCards: false,
+  /** Bucket `cadastros-venda` simulado: caminho -> texto. O cadastro da venda é `eletroposto/<id>.json`. */
+  objetos: new Map<string, string>(),
+  bucketFora: false,
   /** Roda uma vez entre a leitura e a gravação: simula outra pessoa gravando no meio. */
   noMeio: null as null | (() => void),
   tique: 0,
@@ -61,6 +64,28 @@ vi.mock('../utils/supabaseGerador', () => ({
 }));
 vi.mock('../utils/supabase', () => ({
   supabase: {
+    storage: {
+      // O cadastro mora no bucket `cadastros-venda` (`eletroposto/<id>.json`); o `fichas-docs` não é tocado aqui.
+      getBucket: async () => h.bucketFora
+        ? { data: null, error: { message: 'fora do ar', statusCode: '500' } }
+        : { data: { public: false, file_size_limit: 262144, allowed_mime_types: ['application/json'] }, error: null },
+      from: () => ({
+        // download de objeto ausente: o storage-js real devolve mensagem vazia e status 400; quem confirma é o `info`
+        info: async (p: string) => (h.objetos.has(p)
+          ? { data: { name: p, size: 1, contentType: 'application/json' }, error: null }
+          : { data: null, error: { message: 'Object not found', statusCode: '404' } }),
+        download: async (p: string) => {
+          const t = h.objetos.get(p);
+          return t === undefined ? { data: null, error: { message: '{}', status: 400 } } : { data: { text: async () => t }, error: null };
+        },
+        upload: async (p: string, corpo: Buffer) => { h.objetos.set(p, corpo.toString('utf8')); return { data: { path: p }, error: null }; },
+        list: async (pasta: string) => {
+          const nomes = new Set<string>();
+          for (const k of h.objetos.keys()) if (k.startsWith(pasta + '/')) nomes.add(k.slice(pasta.length + 1).split('/')[0]);
+          return { data: [...nomes].map((name) => ({ name })), error: null };
+        },
+      }),
+    },
     from: (tabela: string) => {
       if (tabela !== 'system_state') throw new Error(`tabela inesperada: ${tabela}`);
       const stamp = () => `2026-10-13T12:00:00.${String(++h.tique).padStart(6, '0')}+00:00`;
@@ -80,11 +105,23 @@ vi.mock('../utils/supabase', () => ({
             },
           }),
         }),
-        insert: async (l: { key: string; value: unknown }) => {
+        insert: async (l: { key: string; value: unknown; updated_at?: string }) => {
           if (h.linhas.has(l.key)) return { error: { code: '23505', message: 'dup' } };
-          h.linhas.set(l.key, { value: l.value, updated_at: stamp() });
+          h.linhas.set(l.key, { value: l.value, updated_at: l.key.startsWith('cadastro_trava:') ? String(l.updated_at) : stamp() });
           return { error: null };
         },
+        delete: () => ({
+          eq: (_c: string, k: string) => ({
+            eq: (_c2: string, v: string) => ({
+              select: async () => {
+                const l = h.linhas.get(k);
+                if (!l || l.updated_at !== v) return { data: [], error: null };
+                h.linhas.delete(k);
+                return { data: [{ key: k }], error: null };
+              },
+            }),
+          }),
+        }),
         update: (novo: { value: unknown; updated_at: string }) => ({
           eq: (_c: string, k: string) => {
             const faz = (ok: (l: { updated_at: string }) => boolean) => ({
@@ -149,7 +186,7 @@ beforeEach(() => {
     ['pos_venda:101', { value: PV_101, updated_at: 'v101' }],
     ['pos_venda:102', { value: PV_102, updated_at: 'v102' }],
   ]);
-  h.erroLeitura = false; h.erroCards = false; h.noMeio = null; h.tique = 0;
+  h.erroLeitura = false; h.erroCards = false; h.noMeio = null; h.tique = 0; h.objetos = new Map(); h.bucketFora = false;
   delete process.env.SOLAR_SOCIOS; delete process.env.OBRAS_EQUIPE;
   vi.useFakeTimers({ toFake: ['Date'] });   // só o relógio: o timer falso trava o supertest
   vi.setSystemTime(new Date(AGORA));
@@ -167,6 +204,7 @@ const chavesDe = (o: unknown, acc = new Set<string>()): Set<string> => {
   else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) { acc.add(k); chavesDe(v, acc); }
   return acc;
 };
+const cadastroDe = (id: number) => JSON.parse(h.objetos.get(`eletroposto/${id}.json`) ?? '{"campos":{}}') as { campos: Record<string, { valor: string; por: string; fonte: string }> };
 const SOCIO = ['valor', 'forma_pagto', 'entrada', 'financiamento', 'banco'];
 
 describe('login', () => {
@@ -307,8 +345,9 @@ describe('POST /clientes/eletroposto/campo', () => {
     expect(res.status).toBe(200);
     expect(res.body.celula).toMatchObject({ valor: 'Araguari', origem: 'sistema', por: 'nilce' });
     expect(res.body.progresso).toMatchObject({ total: expect.any(Number) });
-    const reg = h.linhas.get('cliente_ep:101')!.value as { campos: Record<string, { valor: unknown; por: string }> };
-    expect(reg.campos.cidade).toMatchObject({ valor: 'Araguari', por: 'nilce' });
+    // cidade é coluna do cadastro: mora no bucket e NÃO no system_state
+    expect(cadastroDe(101).campos.cidade).toMatchObject({ valor: 'Araguari', por: 'nilce', fonte: 'manual' });
+    expect((h.linhas.get('cliente_ep:101')?.value as { campos?: Record<string, unknown> } | undefined)?.campos?.cidade).toBeUndefined();
     // apagar devolve o que o card trouxe
     const apaga = await post({ codigo: '101', coluna: 'cidade', valor: '', base_em: res.body.em });
     expect(apaga.status).toBe(200);
@@ -316,7 +355,10 @@ describe('POST /clientes/eletroposto/campo', () => {
   });
   it('validação por campo: CPF/CNPJ e CEP formatados, e-mail, data, lista, inteiro', async () => {
     const ok = async (coluna: string, valor: unknown) => post({ codigo: '101', coluna, valor });
-    expect((await ok('cpf_cnpj', '12345678901')).body.celula.valor).toBe('123.456.789-01');
+    expect((await ok('cpf_cnpj', '52998224725')).body.celula.valor).toBe('529.982.247-25');
+    const ruim = await ok('cpf_cnpj', '12345678901');   // dígito verificador errado
+    expect(ruim.status).toBe(400);
+    expect(ruim.body).toEqual({ ok: false, error: 'Dígito do CPF não confere.' });
     expect((await ok('cpf_cnpj', '12345678000195')).body.celula.valor).toBe('12.345.678/0001-95');
     expect((await ok('cpf_cnpj', '123')).status).toBe(400);
     expect((await ok('cep', '38400100')).body.celula.valor).toBe('38400-100');
@@ -345,14 +387,14 @@ describe('POST /clientes/eletroposto/campo', () => {
     expect((await post({ codigo: '105', coluna: 'cidade', valor: 'Patos' }, DIEGO)).status).toBe(200);
   });
   it('409: outra pessoa gravou depois da leitura; a mesma pessoa em duas abas não conflita', async () => {
-    const t = await post({ codigo: '101', coluna: 'cpf_cnpj', valor: '12345678901' }, THIAGO);
+    const t = await post({ codigo: '101', coluna: 'cpf_cnpj', valor: '52998224725' }, THIAGO);
     expect(t.status).toBe(200);
-    const n = await post({ codigo: '101', coluna: 'cpf_cnpj', valor: '10987654321', base_em: VELHO });
+    const n = await post({ codigo: '101', coluna: 'cpf_cnpj', valor: '39053344705', base_em: VELHO });
     expect(n.status).toBe(409);
     expect(n.body).toMatchObject({ ok: false, conflito: true, por: 'thiago' });
-    expect(n.body.celula).toMatchObject({ valor: '123.456.789-01', origem: 'sistema' });
-    expect(((h.linhas.get('cliente_ep:101')!.value) as { campos: Record<string, { valor: unknown }> }).campos.cpf_cnpj.valor).toBe('123.456.789-01');
-    const proprio = await post({ codigo: '101', coluna: 'cpf_cnpj', valor: '10987654321', base_em: VELHO }, THIAGO);
+    expect(n.body.celula).toMatchObject({ valor: '529.982.247-25', origem: 'sistema' });
+    expect(cadastroDe(101).campos.cpf_cnpj.valor).toBe('529.982.247-25');
+    const proprio = await post({ codigo: '101', coluna: 'cpf_cnpj', valor: '39053344705', base_em: VELHO }, THIAGO);
     expect(proprio.status).toBe(200);
   });
   it('corrida: outra gravação entre a leitura e a escrita não é perdida (lê de novo e grava as duas)', async () => {
@@ -360,11 +402,11 @@ describe('POST /clientes/eletroposto/campo', () => {
     h.noMeio = () => {
       h.linhas.set('cliente_ep:101', { updated_at: 'v1', value: { campos: { banco: { valor: 'Banco Z', por: 'thiago', em: '2026-10-14T14:59:00.000Z' } }, alteracoes: [], em: '2026-10-14T14:59:00.000Z' } });
     };
-    const res = await post({ codigo: '101', coluna: 'cidade', valor: 'Araguari' });
+    const res = await post({ codigo: '101', coluna: 'trifasico', valor: 'sim' });
     expect(res.status).toBe(200);
     const campos = ((h.linhas.get('cliente_ep:101')!.value) as { campos: Record<string, { valor: unknown }> }).campos;
     expect(campos.banco.valor).toBe('Banco Z');
-    expect(campos.cidade.valor).toBe('Araguari');
+    expect(campos.trifasico.valor).toBe('Sim');
   });
   it('banco fora ao gravar: 500 genérico, sem texto do driver', async () => {
     h.erroCards = true;

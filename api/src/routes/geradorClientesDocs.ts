@@ -6,6 +6,7 @@ import { vendaSolarDoDono, codigosSolar, ErroVendaSolar, type VendaSolarDoDono }
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
 import { celulaDe } from '../services/gerador/gestaoClientes';
+import { lerCadastro, sobreporCadastro } from '../services/gerador/cadastroVenda';
 import { lerPosVenda, montarObra, celulaFicha, type CardVendido } from '../services/gerador/fichaEletroposto';
 import {
   lerCardVendido, lerFichaComVersao, lerPosVendaComVersao, ErroFicha,
@@ -56,7 +57,7 @@ const TENTATIVAS = 4;
 const SEG_URL_DOCS = 300;        // 5 min
 const SEG_URL_RELATORIO = 900;   // 15 min
 
-function semCache(_req: Request, res: Response, next: NextFunction): void {
+export function semCache(_req: Request, res: Response, next: NextFunction): void {
   res.set('Cache-Control', 'no-store');
   next();
 }
@@ -67,9 +68,9 @@ const quem = (req: Request): { nome: string; socio: boolean } => {
 };
 
 const logErro = (que: string, err: unknown): void =>
-  console.error(`[ficha-docs] ${que}`, err instanceof ErroDocs ? err.codigo : err instanceof ErroFicha ? err.codigo : 'interno');
+  console.error(`[ficha-docs] ${que}`, err instanceof ErroDocs ? err.codigo : err instanceof ErroFicha ? err.codigo : (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
 
-interface Ctx {
+export interface Ctx {
   linha: Linha;
   /** Só dígitos: o que vai na chave e no caminho. */
   codigo: string;
@@ -92,7 +93,7 @@ function falhou(res: Response, que: string, err: unknown): void {
  * Formato da linha e do código (400), depois a POSSE (404 igual para inexistente e alheia). Devolve null depois de
  * responder. Nada além disto é conferido antes da posse.
  */
-async function contexto(req: Request, res: Response, linhaFixa?: Linha): Promise<Ctx | null> {
+export async function contexto(req: Request, res: Response, linhaFixa?: Linha): Promise<Ctx | null> {
   const { nome, socio } = quem(req);
   const linha = linhaFixa ?? req.params.linha;
   if (!ehLinha(linha)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return null; }
@@ -188,7 +189,7 @@ async function blocoVinculo(ctx: Ctx, reg: RegistroDocs, segundos: number) {
  * `system_state` é acessível pela chave do banco principal: sem isto, um caminho injetado numa venda faria a API assinar
  * (ou apagar) o objeto de outra. O descarte vale para a resposta e para a próxima gravação, que o limpa do registro.
  */
-async function lerDocs(ctx: Ctx): Promise<{ reg: RegistroDocs; versao: string | null }> {
+export async function lerDocs(ctx: Ctx): Promise<{ reg: RegistroDocs; versao: string | null }> {
   const l = await lerDocsComVersao(ctx.linha, ctx.codigo);
   const validos = l.reg.arquivos.filter((a) => {
     const c = lerCaminho(a.caminho);
@@ -431,7 +432,9 @@ export function mountClientesDocs(router: Router): void {
       } else {
         const card = ctx.card as CardVendido;
         const id = card.id;
-        const [{ reg: ficha }, { valor: pvBruto }] = await Promise.all([lerFichaComVersao(id), lerPosVendaComVersao(id)]);
+        const [{ reg: fichaCrua }, { valor: pvBruto }] = await Promise.all([lerFichaComVersao(id), lerPosVendaComVersao(id)]);
+        // CPF, endereço e afins moram no cadastro (bucket privado): por cima da ficha. Bucket fora do ar: a ficha como está.
+        const ficha = sobreporCadastro(fichaCrua, await lerCadastro(id).catch((e) => { logErro('cadastro indisponível no relatório', e); return null; }));
         corpo = corpoRelatorioEletroposto(card, ficha, lerPosVenda(pvBruto));
         const o = montarObra(card, pvBruto, diaDeBrasilia(agora), false);
         obra = obraParaRelatorio(o);

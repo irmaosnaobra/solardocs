@@ -111,6 +111,18 @@ export async function lerPrimeirosBytes(caminho: string): Promise<Uint8Array> {
   return new Uint8Array(await r.arrayBuffer()).subarray(0, 16);
 }
 
+/** Baixa o objeto inteiro (leitura por IA, feita no servidor). Só o código do erro sobe; o caminho nunca. */
+export async function baixarObjeto(caminho: string): Promise<Buffer> {
+  const { data, error } = await supabase.storage.from(BUCKET_DOCS).download(caminho);
+  if (error || !data) {
+    // O erro do download não diz com segurança "não existe" (veja cadastroVendaBanco): quem decide é a sonda (`info`).
+    let ausente = false;
+    try { ausente = !(await sondarObjeto(caminho)).existe; } catch { /* sonda falhou: erro de armazenamento */ }
+    throw new ErroDocs(ausente ? 'objeto_ausente' : 'baixar_objeto');
+  }
+  return Buffer.from(await data.arrayBuffer());
+}
+
 /** Remove o objeto. Caminho que já não existe não é erro (o Storage devolve lista vazia). */
 export async function removerObjeto(caminho: string): Promise<void> {
   const { error } = await supabase.storage.from(BUCKET_DOCS).remove([caminho]);
