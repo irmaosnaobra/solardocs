@@ -1031,6 +1031,12 @@ html[data-mode="app"].solar-aberto .solar-subnav{display:flex}
    Cor só por var(--n-*) e var(--io-*), com a paleta escura do index como reserva: no visual antigo os
    tokens não existem e vale a reserva; no novo (claro ou escuro) valem os tokens. */
 .eletro-subsep{flex:0 0 auto;align-self:center;width:1px;height:22px;margin:0 10px;background:var(--n-bd2,rgba(255,255,255,.22))}
+/* Emitente do documento (19/10/2026): controle AIOROS | NEXUS e abas de edicao dos cartoes. Botoes
+   .eletro-subtab2 (mesmo desenho nos dois visuais); cor so por tokens, com a reserva escura. */
+.ep-emit-bar,.ep-emit-abas{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.ep-emit-bar{margin-top:-6px}
+.ep-emit-rot{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--n-tx3,#94A3B8);margin-right:2px}
+.ep-emit-aviso{flex:1 1 100%;padding:8px 12px;border-radius:10px;border:1px solid var(--io-ambar-bd,rgba(247,164,28,.4));background:var(--io-av-sf,rgba(247,164,28,.1));color:var(--io-ambar-tx,#FDE68A);font-size:13px;font-weight:600;line-height:1.4}
 /* Planilha do Cliente: largura total, também no visual antigo (a classe só vale com o Eletroposto aberto). */
 html[data-mode="app"].eletro-aberto.planilha-eletro-aberto .container{max-width:none!important}
 html[data-mode="app"].eletro-aberto.planilha-eletro-aberto #eletroSection{max-width:none;margin:0}
@@ -1943,6 +1949,9 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 .ep-prev-acoes{display:flex;gap:8px;flex-wrap:wrap}
 .ep-prev-nota{padding:8px 16px;background:#0B1628;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;color:#94A3B8;line-height:1.5}
 .ep-prev-nota b{color:#CBD5E1}
+/* Selo do emitente: fora da folha (#ep-prev-doc), nunca vai ao papel. Cor por tokens, com a reserva escura do visual antigo. */
+.ep-prev-emit{padding:7px 16px;background:var(--n-sf2,#0B1628);border-bottom:1px solid var(--n-bd,rgba(255,255,255,.08));font-size:12.5px;font-weight:800;color:var(--n-tx,#CBD5E1);letter-spacing:.01em}
+.ep-prev-emit:empty{display:none}
 .ep-prev-nota.destaque{background:#14300c;color:#DCFCE7;border-bottom-color:#7DD117}
 .ep-prev-nota.destaque b{color:#9BEE38}
 .ep-prev-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:18px 0 40px;display:flex;justify-content:center}
@@ -2028,6 +2037,8 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 /* Prévia em modo "Editar texto": a folha avisa que está aberta pra escrever. */
 .ep-prev-folha.editando .ep-page{outline:2px dashed rgba(59,130,246,.55);outline-offset:-7px;cursor:text}
 .ep-prev-folha.editando .ep-page:focus{outline:2px solid #3B82F6}
+.ep-prev-folha.editando [contenteditable="true"]:not(.ep-page){outline:2px dashed rgba(59,130,246,.55);outline-offset:-7px;cursor:text}
+.ep-prev-folha.editando [contenteditable="true"]:not(.ep-page):focus{outline:2px solid #3B82F6}
 /* ===== ABA CONTRATO: escopo editável e formas de pagamento (05/10/2026) ===== */
 .ctr-fora{display:none!important}
 .cad-termo{padding:3px 10px;border-radius:999px;border:1px solid rgba(96,165,250,.45);background:rgba(59,130,246,.12);color:#BFDBFE;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
@@ -5199,6 +5210,16 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-avisos" class="eletro-subtab2" onclick="eletroSubaba('avisos')">Avisos</button>
     </div>
 
+    <!-- Emitente do documento (19/10/2026): um clique, POR DOCUMENTO. Nasce em AIOROS e volta
+         a AIOROS quando outro cliente e' carregado. So' aparece nas telas que emitem papel.
+         Botoes .eletro-subtab2: o mesmo desenho das reguas, nos dois visuais. -->
+    <div class="ep-emit-bar" id="ep-emit-bar" style="display:none" role="group" aria-label="Emitente do documento">
+      <span class="ep-emit-rot">Emitente</span>
+      <button type="button" class="eletro-subtab2 ativa" data-emit-sel="aioros" aria-pressed="true" onclick="epEmitEscolher('aioros')">AIOROS</button>
+      <button type="button" class="eletro-subtab2" data-emit-sel="nexus" aria-pressed="false" onclick="epEmitEscolher('nexus')">NEXUS</button>
+      <span class="ep-emit-aviso" id="ep-emit-aviso" role="status" style="display:none"></span>
+    </div>
+
     <!-- Aparece só quando os campos vieram de um projeto anterior. -->
 
     <div id="vdc-aviso" class="vdc-aviso" role="status" hidden><span class="vdc-aviso-tx"></span><button type="button" class="vdc-aviso-x" onclick="vdcAvisoFechar()">Fechar</button></div>
@@ -5391,7 +5412,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- SUA EMPRESA (emitente) — cartão de ids. As outras cinco abas pintam o
            mesmo registro pelo .ep-vend-host, com data-emit no lugar do id. -->
       <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Sua empresa (emitente)</div>
+        <div class="calc-card-title"><span class="dot"></span>Dados da empresa (emitente)</div>
+        <div class="ep-emit-abas"></div>
         <div class="eletro-field"><label>Nome / marca</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-nome" placeholder="NEXUS Eletropostos" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Endereço</label>
@@ -5420,7 +5442,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Ex: Sicoob 756 · ag 4264 · cc 168882" oninput="orcEmitSalvar()"></div></div>
         <div class="orc-note">Aparecem <b>só no recibo</b>, e só se preenchidos. Hoje o recibo anuncia o saldo a pagar e não diz para onde mandar — o cliente termina de ler pronto para pagar e precisa procurar o consultor.</div>
         <div class="orc-note">Empresa não assina sozinha. O contrato já <b>exige</b> o representante legal do cliente — a exigência vale para os dois lados, e a proposta de banco diz "assinada pelo seu representante legal" sobre uma linha que hoje não nomeia ninguém.</div>
-        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletropostos</b>, com a razão social e o CNPJ da <b>AIOROS GROUP LTDA</b> ao lado. A NEXUS ainda não tem CNPJ próprio, e banco, Pix e Receita conferem o nome contra o número. Preencha uma vez: fica salvo.</div>
+        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletropostos</b>, com a razão social e o CNPJ da <b>AIOROS GROUP LTDA</b> ao lado. Enquanto a aba <b>NEXUS</b> estiver sem razão social e CNPJ, ela assina pela AIOROS, porque banco, Pix e Receita conferem o nome contra o número. Com os dois preenchidos, a NEXUS assina com os dados dela quando escolhida no controle <b>Emitente</b> do topo. A equipe técnica (engenheiro e técnico) é a mesma nos dois perfis. Preencha uma vez: fica salvo.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -5556,7 +5578,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            pegaria o primeiro do DOM, que poderia ser o desta aba. O que os dois
            compartilham e' o ARMAZENAMENTO (orc_emit_v1), nao os campos. -->
       <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Fornecedor (sua empresa)</div>
+        <div class="calc-card-title"><span class="dot"></span>Fornecedor (dados da empresa)</div>
+        <div class="ep-emit-abas"></div>
         <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">É o <b>mesmo cadastro</b> da aba Orçamento — editar aqui muda lá, e o contrário também. Fica salvo no navegador. A razão social e o CNPJ saem impressos no orçamento porque é este documento que fala em nota fiscal: quem emite precisa estar escrito.</div>
         <div class="eletro-field"><label>Nome / marca <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('nome')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-nome" placeholder="NEXUS Eletropostos" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
@@ -7342,6 +7365,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="eletro-btn primary" onclick="epPrevBaixar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>
       </div>
     </div>
+    <div class="ep-prev-emit" id="ep-prev-emit"></div>
     <div class="ep-prev-nota" id="ep-prev-nota"></div>
     <div class="ep-prev-scroll"><div class="ep-prev-palco" id="ep-prev-palco"><div class="ep-prev-folha" id="ep-prev-doc"></div></div></div>
   </div>
@@ -11944,6 +11968,8 @@ function eletroSubaba(qual) {
     const tab = document.getElementById('eletro-tab-' + a);
     if (tab) tab.classList.toggle('ativa', a === qual);
   });
+  // Controle de emitente (AIOROS | NEXUS): so' nas telas que emitem papel do eletroposto.
+  try { epEmitBarMostrar(qual); } catch (e) {}
   // ── Nível 2: o grupo é DERIVADO da aba, nunca o contrário ──────────────────
   // Isso tem que morar aqui dentro e em lugar nenhum mais. eletroSubaba é chamada
   // de 9 lugares além dos botões — deep-link ?orc=1 da Agenda, CRM, os dois botões
@@ -16966,6 +16992,9 @@ function epCompletoA4(d) {
 }
 
 function epCompletoPayload(versao, comSociedade, invPapel) {
+  // Link do cliente e PDF do Completo nao passam pela previa (onde ha selo): se o emitente
+  // escolhido nao e' o padrao, o aviso aparece aqui para a escolha nao ficar escondida.
+  epEmitAvisoAcao();
   const p = eletroParams();
   if (invPapel > 0 && !comSociedade) p.invest = invPapel;
   const r = computeEletro(p);
@@ -17968,6 +17997,9 @@ function eletroNovoProjeto() {
 // por aqui: antes só a aba Contratos era limpa, e o recibo, a procuração e a
 // proposta de banco do cliente seguinte saíam com os dados do anterior.
 function epLimparCliente() {
+  // O emitente e' escolha POR DOCUMENTO: outro cliente comeca no padrao (AIOROS).
+  // O perfil que os cartoes de cadastro editam nao e' do cliente e fica como esta.
+  try { EP_EMIT_SEL = 'aioros'; epEmitBarAtualizar(); } catch (e) {}
   eletroUltimoCampos().forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -18760,11 +18792,16 @@ function eletroImprimir() {
   </div>
 </div>`;
 
-  host.innerHTML = html;
-  if (t.cliente) epHistOrcSave({ id: epId(), tipo: 'Sociedade', cliente: t.cliente, valor: d.aporte, data: new Date().toLocaleDateString('pt-BR') });
-  eletroSalvarHistorico();
-  eletroUltimoSalvar();
-  epPrint(host, epNomeArq(d.arquivo, t.cliente));
+  // 19/10/2026: o Estudo passa pela previa (Editar texto) antes de ir ao papel. O
+  // historico e os salvamentos rodam na saida (Imprimir/Baixar), nao ao abrir a previa.
+  epPreview({
+    html,
+    arquivo: epNomeArq(d.arquivo, t.cliente),
+    titulo: 'Estudo de viabilidade' + (t.cliente ? ' · ' + t.cliente : ''),
+    opts: null,
+    hist: t.cliente ? { id: epId(), tipo: 'Sociedade', cliente: t.cliente, valor: d.aporte, data: new Date().toLocaleDateString('pt-BR') } : null,
+    aoSair: () => { eletroSalvarHistorico(); eletroUltimoSalvar(); },
+  });
 }
 
 // ===================================================================
@@ -18773,7 +18810,11 @@ function eletroImprimir() {
 const ORC_MONEY = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const orcEsc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const orcVal = id => (document.getElementById(id)?.value || '').trim();
+// Emitente do eletroposto: dois perfis (AIOROS e NEXUS) em `orc_emit_perfis_v1`.
+// `orc_emit_v1` continua existindo como ESPELHO do perfil aioros (mais a equipe
+// tecnica), para quem ainda le a chave antiga. So o index.html le essa chave.
 const ORC_EMIT_KEY = 'orc_emit_v1';
+const ORC_EMIT_PERFIS_KEY = 'orc_emit_perfis_v1';
 const ORC_OBS_PADRAO =
   'Garantia de 24 meses da instalação, contada do comissionamento; equipamentos com a garantia do fabricante, conforme o certificado entregue no recebimento. ' +
   'Escopo chave na mão: equipamento, projeto, instalação, homologação e suporte conforme acordado. ' +
@@ -19255,27 +19296,30 @@ function epEmitValor(o, k, def) {
   return (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
 }
 function orcEmitSalvar() {
-  const o = {};
-  orcEmitCampos().forEach(k => { o[k] = orcVal('orc-emit-' + k); });
-  try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  // Grava SO o que tem campo na tela, campo a campo, no perfil que esta sendo editado
+  // (a equipe tecnica vai sempre para o aioros). Reconstruir o objeto inteiro copiaria
+  // para o perfil aberto os campos vazios de um cartao que ainda nao carregou.
+  const campos = {};
+  orcEmitCampos().forEach(k => { if (document.getElementById('orc-emit-' + k)) campos[k] = orcVal('orc-emit-' + k); });
+  epPerfilGrava(EP_EMIT_EDIT, campos);
   // O cartão de ids desta aba e os .ep-vend-host das outras cinco são o MESMO
   // registro: editar aqui tem que aparecer lá sem recarregar a página.
   try { if (typeof epVendRender === 'function') epVendRender(); } catch (e) {}
+  try { epEmitBarAtualizar(); } catch (e) {}
 }
 function orcEmitCarregar() {
-  let o = {};
-  try { o = epEmitCorrigir(JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}); } catch (e) {}
-  // defaults da marca (só quando ainda não há nada salvo)
-  // Razão social e CNPJ saem do Cartão CNPJ da empresa (dado público, o mesmo que
-  // vai em toda nota fiscal). Ficam de default pra nenhum contrato sair sem a
-  // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
+  // O perfil aberto para edicao (AIOROS ou NEXUS), com o padrao dele so' onde nunca
+  // foi salvo. Razão social e CNPJ da AIOROS saem do Cartão CNPJ da empresa (dado
+  // público, o mesmo que vai em toda nota fiscal): ficam de default pra nenhum
+  // contrato sair sem a qualificação da parte só porque ninguém preencheu o
+  // cadastro neste aparelho. O perfil NEXUS nasce sem razao nem CNPJ de proposito.
   // Marca do eletroposto é NEXUS (09/2026) e o e-mail de contato saiu dos documentos.
-  const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '', socio: '', socioCpf: '', pix: '', conta: '' };
+  const o = epPerfilVisto(EP_EMIT_EDIT);
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
-    if (el) el.value = epEmitValor(o, k, def);
+    if (el) el.value = o[k] != null ? o[k] : '';
   });
+  try { epEmitAbasRender(); } catch (e) {}
 }
 
 // Primeira abertura do pane: prepara datas, item padrão, emitente e observações
@@ -19549,29 +19593,51 @@ function orc1HTML(d) {
 // zoom (e não transform:scale) porque só o zoom muda o layout que a paginação lê.
 function orc1Imprimir(html, nomeArq, opts) {
   const host = document.getElementById('doc-print');
-  if (!host) return;
+  if (!host) return null;
   host.innerHTML = html;
-
-  // opts.alvo: quem é medido pra caber na folha. O padrão é o orçamento de 1
-  // página (.orc1); o recibo passa o dele porque tem outro esqueleto.
-  const el = host.querySelector((opts && opts.alvo) || '.orc1');
-  if (el && opts && opts.umaPagina) {
-    const estiloAntes = host.getAttribute('style');
-    // mede fora da tela na largura real do papel (a tela esconde o host)
-    host.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;width:210mm';
-    const regua = document.createElement('div');
-    regua.style.cssText = 'position:absolute;visibility:hidden;height:291mm';  // 297 − 6 de folga
-    document.body.appendChild(regua);
-    const limite = regua.offsetHeight;
-    regua.remove();
-    const alt = el.scrollHeight;
-    const piso = opts.piso || 0.82;
-    const fator = limite > 0 && alt > 0 ? limite / alt : 1;
-    if (fator < 1 && fator >= piso) el.style.zoom = String(fator.toFixed(4));
-    if (estiloAntes == null) host.removeAttribute('style'); else host.setAttribute('style', estiloAntes);
+  const m = orc1Encaixa(host, opts);
+  // Texto editado a mao que nao cabe mais numa folha (nem no piso do zoom): o papel
+  // sairia em duas paginas sem aviso. Pergunta antes, em vez de calar.
+  if (m && m.estoura && opts && opts.editado &&
+      !confirm('O texto editado passou de uma folha e o papel vai sair em duas páginas.\n\nImprimir assim mesmo? (Cancelar volta para cortar algumas linhas.)')) {
+    host.innerHTML = '';
+    return m;
   }
-
   epPrint(host, nomeArq);
+  return m;
+}
+// Mede o corpo do documento (opts.alvo, ou .orc1) no host e, se passa de A4, aplica o
+// zoom que o encaixa em UMA folha. opts.alvo: quem é medido pra caber na folha. O padrão
+// é o orçamento de 1 página (.orc1); o recibo passa o dele porque tem outro esqueleto.
+// opts.soMedir: so devolve a medida, sem aplicar zoom. Devolve null quando nao e' de uma
+// folha; senao { fator, piso, estoura (abaixo do piso: nao encolhe e pagina), encolhe }.
+function orc1Encaixa(host, opts) {
+  const el = host.querySelector((opts && opts.alvo) || '.orc1');
+  if (!el || !opts || !opts.umaPagina) return null;
+  const estiloAntes = host.getAttribute('style');
+  // mede fora da tela na largura real do papel (a tela esconde o host)
+  host.style.cssText = 'display:block;position:absolute;left:-10000px;top:0;width:210mm';
+  const regua = document.createElement('div');
+  regua.style.cssText = 'position:absolute;visibility:hidden;height:291mm';  // 297 − 6 de folga
+  document.body.appendChild(regua);
+  const limite = regua.offsetHeight;
+  regua.remove();
+  const alt = el.scrollHeight;
+  const piso = opts.piso || 0.82;
+  const fator = limite > 0 && alt > 0 ? limite / alt : 1;
+  const r = { fator, piso, estoura: fator < piso, encolhe: fator < 1 && fator >= piso };
+  if (r.encolhe && !opts.soMedir) el.style.zoom = String(fator.toFixed(4));
+  if (estiloAntes == null) host.removeAttribute('style'); else host.setAttribute('style', estiloAntes);
+  return r;
+}
+// Mede um HTML de uma folha sem imprimir (o host de impressao volta vazio).
+function orc1Medir(html, opts) {
+  const host = document.getElementById('doc-print');
+  if (!host) return null;
+  host.innerHTML = html;
+  const r = orc1Encaixa(host, Object.assign({}, opts, { soMedir: true }));
+  host.innerHTML = '';
+  return r;
 }
 
 // ===== Componentes compartilhados dos PDFs do eletroposto (padrão único) =====
@@ -19628,6 +19694,13 @@ function epParteFantasia(emp) {
  *  vira a lacuna dele, e nunca cai na marca. A fantasia vem depois do CNPJ para a
  *  razão social não se separar do número. */
 function epParteQualif(emp, vazio) {
+  // NEXUS com razao e CNPJ proprios (emp.emitente === 'nexus'): ela e' a parte, nao "marca de"
+  // outra empresa. A razao vem em destaque colada ao CNPJ; a marca entra como nome fantasia.
+  if (emp && emp.emitente === 'nexus') {
+    const marca = epParteMarca(emp);
+    const fn = epParteFantasia(emp) || (epNomeNorm(marca) !== epNomeNorm(emp.razao) ? marca : '');
+    return `<b>${orcEsc(String(emp.razao || '').trim())}</b>, inscrita no CNPJ sob o nº ${vazio(String(emp.cnpj || '').trim())}${fn ? ', nome fantasia ' + orcEsc(fn) : ''}`;
+  }
   const fant = epParteFantasia(emp);
   return `<b>${orcEsc(epParteMarca(emp))}</b>, marca de ${vazio(String(emp.razao || '').trim())}` +
     `, inscrita no CNPJ sob o nº ${vazio(String(emp.cnpj || '').trim())}${fant ? ', nome fantasia ' + orcEsc(fant) : ''}`;
@@ -19645,6 +19718,11 @@ function epParteRazaoCnpj(emp) {
  *  09/2026: a marca virou NEXUS e o e-mail antigo saiu dos documentos — aparelho
  *  que ja' tinha salvo o nome velho ou o e-mail velho e' migrado aqui, e so'
  *  grava de volta se algo mudou. */
+// 19/10/2026: SO roda sobre o perfil AIOROS (quem chama e' o epPerfilLido, e so'
+// com id 'aioros'). Um CNPJ que nao seja o CNPJ_ANTIGO nunca e' reescrito, e o
+// perfil NEXUS nao passa por aqui: um CNPJ real da NEXUS nao vira o da AIOROS.
+// Nao grava mais: devolve o objeto corrigido e quem le decide gravar (epPerfisGrava),
+// para as duas chaves (perfis e espelho orc_emit_v1) sairem sempre juntas.
 function epEmitCorrigir(o) {
   if (!o || typeof o !== 'object') return o;
   let mudou = false;
@@ -19670,30 +19748,196 @@ function epEmitCorrigir(o) {
   if (typeof o.email === 'string' && o.email.replace(/\s+/g, '').toLowerCase() === 'contato@irmaosnaobra.com.br') {
     o.email = ''; mudou = true;
   }
-  if (mudou) { try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {} }
   return o;
 }
-function epEmitGet() {
-  let o = {};
-  try { o = epEmitCorrigir(JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}); } catch (e) {}
-  // Engenheiro e tecnico sao os MESMOS da procuracao solar da plataforma
-  // (tabela `company`, empresa Aioros Group). RG do engenheiro e CRT do tecnico
-  // estao vazios no cadastro: ficam vazios aqui tambem e viram lacuna no papel
-  // — registro profissional inventado num documento que vai ao balcao da
-  // concessionaria e' problema de outra ordem.
-  const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '',
-                ie: '',
-                socio: '', socioCpf: '', pix: '', conta: '',
-                engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
-                engProf: 'Engenheiro Eletricista', engRg: '', engCpf: '048.959.171-00',
-                engCrea: 'CREA-DF 27202', engEnd: 'Rua 19 Norte, lote 02, Águas Claras, Brasília/DF',
-                tecNome: 'Diego Silva Machado', tecNac: 'brasileiro', tecEc: 'casado',
-                tecCrt: '', tecRg: '', tecCpf: '093.912.396-76',
-                tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
-  const out = {};
+
+// ═══ EMITENTE COM DOIS PERFIS (AIOROS | NEXUS), 19/10/2026 ═══
+// A NEXUS e' hoje so' marca: quem assina e' a AIOROS GROUP LTDA. O perfil NEXUS
+// nasce SEM razao social e SEM CNPJ (nao se inventa); enquanto um dos dois faltar,
+// escolher NEXUS imprime o que sempre imprimiu (marca NEXUS, assina AIOROS). Com os
+// dois preenchidos, a NEXUS assina com os dados dela.
+// A equipe tecnica (eng* e tec*, procuradores) e' UMA so' para os dois perfis e mora
+// no perfil aioros, que e' o que o espelho orc_emit_v1 copia.
+// A escolha do emitente e' POR DOCUMENTO (EP_EMIT_SEL, em memoria, nunca grava): nasce
+// em AIOROS e volta a AIOROS em epLimparCliente. O que os cartoes de cadastro editam
+// e' outra coisa (EP_EMIT_EDIT) e nao muda o que sai no papel.
+const EP_EMIT_EQUIPE = ['engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
+                        'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
+const epEmitEhEquipe = k => EP_EMIT_EQUIPE.indexOf(k) >= 0;
+const EP_EMIT_ROTULO = { aioros: 'AIOROS', nexus: 'NEXUS' };
+let EP_EMIT_SEL = 'aioros';
+let EP_EMIT_EDIT = 'aioros';
+const epEmitIdOk = id => (id === 'aioros' || id === 'nexus') ? id : '';
+// Engenheiro e tecnico sao os MESMOS da procuracao solar da plataforma
+// (tabela `company`, empresa Aioros Group). RG do engenheiro e CRT do tecnico
+// estao vazios no cadastro: ficam vazios aqui tambem e viram lacuna no papel
+// — registro profissional inventado num documento que vai ao balcao da
+// concessionaria e' problema de outra ordem.
+const EP_EMIT_DEF_EQUIPE = {
+  engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
+  engProf: 'Engenheiro Eletricista', engRg: '', engCpf: '048.959.171-00',
+  engCrea: 'CREA-DF 27202', engEnd: 'Rua 19 Norte, lote 02, Águas Claras, Brasília/DF',
+  tecNome: 'Diego Silva Machado', tecNac: 'brasileiro', tecEc: 'casado',
+  tecCrt: '', tecRg: '', tecCpf: '093.912.396-76',
+  tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
+function epEmitDef(id) {
+  const base = id === 'nexus'
+    // NEXUS: so' a marca e o contato publico. Razao, CNPJ, IE, endereco, cidade, socio,
+    // CPF do socio, Pix e conta vazios ate alguem cadastrar.
+    ? { nome: 'NEXUS Eletropostos', end: '', cidade: '', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
+        cnpj: '', razao: '', fantasia: 'NEXUS Eletropostos', ie: '', socio: '', socioCpf: '', pix: '', conta: '' }
+    : { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
+        cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '', ie: '', socio: '', socioCpf: '', pix: '', conta: '' };
+  return Object.assign(base, EP_EMIT_DEF_EQUIPE);
+}
+function epLsLe(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function epObjOu(s) {
+  let o = null;
+  try { o = JSON.parse(s || 'null'); } catch (e) { o = null; }
+  return (o && typeof o === 'object' && !Array.isArray(o)) ? o : null;
+}
+/** Le `orc_emit_perfis_v1`. Sem ela, migra o `orc_emit_v1` de hoje INTEIRO para
+ *  perfis.aioros (nao perde campo) e grava. Se alguem escreveu o `orc_emit_v1` por
+ *  fora (aba aberta numa versao antiga), o espelho diverge do que gravamos e a leitura
+ *  volta a adotar o valor dele como aioros. */
+function epPerfisLer() {
+  let p = epObjOu(epLsLe(ORC_EMIT_PERFIS_KEY));
+  const v1 = epLsLe(ORC_EMIT_KEY);
+  if (!p || p.v !== 1 || !p.perfis || typeof p.perfis !== 'object') {
+    p = { v: 1, perfis: { aioros: epObjOu(v1) || {}, nexus: {} } };
+    ['aioros', 'nexus'].forEach(id => { if (!p.perfis[id] || typeof p.perfis[id] !== 'object') p.perfis[id] = {}; });
+    epPerfisGrava(p);
+    return p;
+  }
+  ['aioros', 'nexus'].forEach(id => { if (!p.perfis[id] || typeof p.perfis[id] !== 'object' || Array.isArray(p.perfis[id])) p.perfis[id] = {}; });
+  if (v1 != null && typeof p.espelho === 'string' && v1 !== p.espelho) {
+    const velho = epObjOu(v1);
+    if (velho) { p.perfis.aioros = velho; epPerfisGrava(p); }
+  }
+  return p;
+}
+/** Grava as duas chaves juntas: perfis e o espelho do aioros em `orc_emit_v1`. */
+function epPerfisGrava(p) {
+  // A equipe tecnica nunca fica no perfil nexus (e' uma so', no aioros).
+  EP_EMIT_EQUIPE.forEach(k => { if (p.perfis.nexus) delete p.perfis.nexus[k]; });
+  let esp = null;
+  try { esp = JSON.stringify(p.perfis.aioros); localStorage.setItem(ORC_EMIT_KEY, esp); } catch (e) { esp = null; }
+  p.espelho = esp;
+  try { localStorage.setItem(ORC_EMIT_PERFIS_KEY, JSON.stringify(p)); } catch (e) {}
+}
+/** O perfil como esta SALVO (sem padrao por cima), com a equipe vinda do aioros. O aioros
+ *  passa pela migracao do epEmitCorrigir e, se algo mudou, regrava. */
+function epPerfilLido(id) {
+  id = epEmitIdOk(id) || 'aioros';
+  const p = epPerfisLer();
+  if (id === 'aioros') {
+    const antes = JSON.stringify(p.perfis.aioros);
+    epEmitCorrigir(p.perfis.aioros);
+    if (JSON.stringify(p.perfis.aioros) !== antes) epPerfisGrava(p);
+    return Object.assign({}, p.perfis.aioros);
+  }
+  const o = Object.assign({}, p.perfis[id]);
+  EP_EMIT_EQUIPE.forEach(k => { if (p.perfis.aioros[k] != null) o[k] = p.perfis.aioros[k]; else delete o[k]; });
+  return o;
+}
+/** O perfil completo, com o padrao dele onde nunca foi salvo. */
+function epPerfilVisto(id) {
+  id = epEmitIdOk(id) || 'aioros';
+  const o = epPerfilLido(id), def = epEmitDef(id), out = {};
   Object.keys(def).forEach(k => out[k] = epEmitValor(o, k, def));
   return out;
+}
+/** Grava campos de um perfil. A equipe tecnica sempre vai para o aioros. */
+function epPerfilGrava(id, campos) {
+  id = epEmitIdOk(id) || 'aioros';
+  const p = epPerfisLer();
+  Object.keys(campos).forEach(k => { (epEmitEhEquipe(k) ? p.perfis.aioros : p.perfis[id])[k] = campos[k]; });
+  epPerfisGrava(p);
+}
+/** A NEXUS assina por conta propria so' com razao social E CNPJ cadastrados. */
+function epNexusProprio() {
+  const n = epPerfilLido('nexus');
+  return !!(String(n.razao || '').trim() && String(n.cnpj || '').trim());
+}
+/** Quem assina de fato dado o que foi escolhido. */
+function epEmitEfetivo(sel) {
+  sel = epEmitIdOk(sel) || EP_EMIT_SEL;
+  return (sel === 'nexus' && epNexusProprio()) ? 'nexus' : 'aioros';
+}
+/** O emitente do documento. Sem argumento, o escolhido no controle (com a regra da
+ *  NEXUS sem cadastro). Com 'aioros', sempre o aioros: e' o que o solar usa. */
+function epEmitGet(id) {
+  const ef = epEmitEfetivo(id);
+  const out = epPerfilVisto(ef);
+  out.emitente = ef;
+  return out;
+}
+/** Texto do selo da pre-visualizacao: a razao que vai assinar. */
+function epEmitSeloTexto(id) {
+  const sel = epEmitIdOk(id) || EP_EMIT_SEL;
+  const ef = epEmitEfetivo(sel);
+  const e = epPerfilVisto(ef);
+  const razao = String(e.razao || '').trim() || RAZAO_CERTA;
+  return 'Emitente: ' + razao + ((sel === 'nexus' && ef === 'aioros') ? ' (marca NEXUS)' : '');
+}
+/** " · Emitente: <razao>" quando o emitente escolhido nao e' o padrao; vazio no padrao. */
+function epEmitSufixo() { return EP_EMIT_SEL !== 'aioros' ? ' · ' + epEmitSeloTexto() : ''; }
+/** Aviso curto para acoes que nao passam pela previa (link do cliente, WhatsApp). */
+function epEmitAvisoAcao() {
+  if (EP_EMIT_SEL === 'aioros') return;
+  try { showToast(epEmitSeloTexto()); } catch (e) {}
+}
+const EP_EMIT_AVISO_NEXUS ='A NEXUS ainda assina pela AIOROS. Cadastre a razão social e o CNPJ da NEXUS em Dados da empresa.';
+/** Controle "Emitente: AIOROS | NEXUS" e o aviso. */
+function epEmitBarAtualizar() {
+  const bar = document.getElementById('ep-emit-bar');
+  if (!bar) return;
+  bar.querySelectorAll('[data-emit-sel]').forEach(b => {
+    const on = b.dataset.emitSel === EP_EMIT_SEL;
+    b.classList.toggle('ativa', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const av = document.getElementById('ep-emit-aviso');
+  if (av) {
+    const falta = EP_EMIT_SEL === 'nexus' && !epNexusProprio();
+    av.textContent = falta ? EP_EMIT_AVISO_NEXUS : '';
+    av.style.display = falta ? '' : 'none';
+  }
+}
+/** O controle so' aparece nas telas que emitem papel do eletroposto. */
+const EP_EMIT_PANES = ['simulador', 'orcamento', 'equipamento', 'recibo', 'contrato', 'procuracao', 'finame'];
+function epEmitBarMostrar(qual) {
+  const bar = document.getElementById('ep-emit-bar');
+  if (!bar) return;
+  bar.style.display = EP_EMIT_PANES.indexOf(qual) >= 0 ? '' : 'none';
+  epEmitBarAtualizar();
+}
+/** Um clique: escolhe o emitente DESTE documento. Nao grava nada. */
+function epEmitEscolher(id) {
+  id = epEmitIdOk(id) || 'aioros';
+  EP_EMIT_SEL = id;
+  epEmitBarAtualizar();
+  // O que ja foi copiado do cadastro para a tela (Pix e foro do contrato, endereco
+  // do frete FOB, bloco do banco) acompanha, respeitando o que foi digitado a mao.
+  try { if (typeof ctrResumo === 'function' && document.getElementById('ctr-pag-dados')) ctrResumo(); } catch (e) {}
+  try { if (typeof equipEntregaEspelho === 'function' && document.getElementById('eq-entrega')) equipEntregaEspelho(); } catch (e) {}
+  try { if (typeof bnkCalc === 'function' && document.getElementById('bnk-total')) bnkCalc(); } catch (e) {}
+  try { if (typeof epVendAviso === 'function') epVendAviso(epPerfilVisto(EP_EMIT_EDIT)); } catch (e) {}
+}
+/** Qual perfil os cartoes "Dados da empresa" estao editando. */
+function epEmitEditar(id) {
+  EP_EMIT_EDIT = epEmitIdOk(id) || 'aioros';
+  try { orcEmitCarregar(); } catch (e) {}
+  try { equipEmitCarregar(); } catch (e) {}
+  try { epVendRender(); } catch (e) {}
+  epEmitAbasRender();
+}
+/** Abas AIOROS | NEXUS no topo de cada cartao de cadastro. */
+function epEmitAbasRender() {
+  document.querySelectorAll('.ep-emit-abas').forEach(h => {
+    h.innerHTML = `<span class="ep-emit-rot">Editando</span>` + ['aioros', 'nexus'].map(id =>
+      `<button type="button" class="eletro-subtab2${id === EP_EMIT_EDIT ? ' ativa' : ''}" data-emit-edit="${id}" aria-pressed="${id === EP_EMIT_EDIT}" onclick="epEmitEditar('${id}')">${EP_EMIT_ROTULO[id]}</button>`).join('');
+  });
 }
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
 // A logo em toda folha de todo documento — pedido do Thiago (19/08). Discreta:
@@ -20273,14 +20517,15 @@ function orcEquipImprimir() {
   if (erro) { alert(erro); return; }
   if (!equipConfirma(d)) return;
   const htmlEq = orcEquipDocHTML(d);
-  orc1Imprimir(htmlEq, orcEquipArquivo(d), { umaPagina: true, piso: 0.74 });
-  // EQ-11: o PDF do carregador entra no Histórico, com a 2ª via.
-  try {
-    const idEq = epId();
-    epHistOrcSave({ id: idEq, tipo: 'Orçamento Carregador', num: d.num, cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
-    epPapelGrava({ id: idEq, html: htmlEq, arquivo: orcEquipArquivo(d), titulo: 'Orçamento de Venda' + (d.nome ? ' · ' + d.nome : ''), opts: { umaPagina: true, piso: 0.74 }, em: new Date().toISOString() });
-    epHistOrcRender();
-  } catch (e) {}
+  // EQ-11: o PDF do carregador entra no Histórico, com a 2ª via. 19/10/2026: passa pela
+  // previa (Editar texto) e o historico e o papel gravam na saida, pelo `hist`.
+  epPreview({
+    html: htmlEq,
+    arquivo: orcEquipArquivo(d),
+    titulo: 'Orçamento de Venda' + (d.nome ? ' · ' + d.nome : ''),
+    opts: { umaPagina: true, piso: 0.74 },
+    hist: { id: epId(), tipo: 'Orçamento Carregador', num: d.num, cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() },
+  });
 }
 // Repõe a aba Venda de equipamento a partir do payload guardado (2ª via).
 function equipAplicar(p) {
@@ -20372,19 +20617,18 @@ const EQ_EMIT_CAMPOS = ['nome', 'razao', 'cnpj', 'ie', 'end', 'cidade', 'tel'];
 // (nao so' na primeira): quem editou a empresa na aba Orcamento tem que ver o
 // valor novo aqui, e vice-versa.
 function equipEmitCarregar() {
-  const o = (typeof epEmitGet === 'function') ? (epEmitGet() || {}) : {};
-  // Mesmos defaults da aba Orcamento, pra nenhum documento sair sem a
-  // qualificacao de quem emite so' porque ninguem preencheu o cadastro neste
-  // aparelho. `ie` NAO tem default: inventar inscricao estadual em papel que
-  // fala de ICMS e' problema de outra ordem.
-  const def = { nome: 'NEXUS Eletropostos', razao: 'AIOROS GROUP LTDA', cnpj: '63.636.043/0001-88',
-                ie: '', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica',
-                cidade: 'Uberlândia/MG', tel: '(34) 99816-5040' };
+  // O perfil aberto para edicao (nunca o "efetivo": NEXUS sem cadastro mostraria o
+  // CNPJ da AIOROS e o primeiro toque o gravaria dentro da NEXUS). Mesmos defaults
+  // da aba Orcamento, pra nenhum documento sair sem a qualificacao de quem emite so'
+  // porque ninguem preencheu o cadastro neste aparelho. `ie` NAO tem default:
+  // inventar inscricao estadual em papel que fala de ICMS e' problema de outra ordem.
+  const o = epPerfilVisto(EP_EMIT_EDIT);
   EQ_EMIT_CAMPOS.forEach(k => {
     const el = document.getElementById('eq-emit-' + k);
     if (!el) return;
-    el.value = epEmitValor(o, k, def);
+    el.value = o[k] != null ? o[k] : '';
   });
+  try { epEmitAbasRender(); } catch (e) {}
 }
 
 // Botao "apagar" ao lado de cada campo do fornecedor: limpa e grava na hora.
@@ -20401,13 +20645,13 @@ function equipEmitApagar(k) {
 // aba mostra 7 dos 28 campos, e um `{}` novo apagaria socio, Pix, conta,
 // engenheiro e tecnico — que so' existem na aba Orcamento.
 function equipEmitSalvar() {
-  let o = {};
-  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) { o = {}; }
+  const campos = {};
   EQ_EMIT_CAMPOS.forEach(k => {
     const el = document.getElementById('eq-emit-' + k);
-    if (el) o[k] = String(el.value || '').trim();
+    if (el) campos[k] = String(el.value || '').trim();
   });
-  try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  epPerfilGrava(EP_EMIT_EDIT, campos);
+  try { epEmitBarAtualizar(); } catch (e) {}
   // Espelha nos campos da aba Orcamento QUANDO ELES EXISTEM no DOM. Sem isto a
   // outra aba continuaria mostrando o valor velho (o orcEmitCarregar dela roda
   // uma vez so', preso no `orcIniciado`) e o proximo salvamento de la' gravaria
@@ -20423,8 +20667,15 @@ function orcImprimir() {
   const d = orcEpPayload();
   if (!d) { alert('Marque ao menos um item do kit para gerar o orçamento.'); return; }
   if (!(d.total > 0)) { alert('Sem valor. Defina o "Valor do investimento" no Simulador — é ele que fecha o orçamento.'); return; }
-  if (d.nome) epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
-  orc1Imprimir(orcEpDocHTML(d), orcEpArquivo(d), { umaPagina: true, piso: 0.74 });
+  // 19/10/2026: passa pela previa, para o texto poder ser editado antes do papel. O
+  // historico e a 2ª via gravam na saida (Imprimir/Baixar), como no recibo.
+  epPreview({
+    html: orcEpDocHTML(d),
+    arquivo: orcEpArquivo(d),
+    titulo: 'Orçamento' + (d.nome ? ' · ' + d.nome : ''),
+    opts: { umaPagina: true, piso: 0.74 },
+    hist: d.nome ? { id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+  });
 }
 
 // Link do orçamento de eletroposto. Aqui SIM grava linha nova em `propostas`
@@ -20435,14 +20686,14 @@ async function orcEpLink() {
   if (!d) { alert('Marque ao menos um item do kit para gerar o orçamento.'); return; }
   if (!(d.total > 0)) { alert('Sem valor. Defina o "Valor do investimento" no Simulador — é ele que fecha o orçamento.'); return; }
   if (!d.nome) { alert('Informe o cliente no Simulador antes de gerar o link.'); return; }
-  showToast('⏳ Gerando link...');
+  showToast('⏳ Gerando link...' + epEmitSufixo());
   try {
     const codigo = await salvarOrcamentoEpSupabase(d);
     epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.nome, valor: d.total, codigo,
                     data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() });
     const link = orcLinkPublico(codigo);
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      try { await navigator.clipboard.writeText(link); showToast(`🔗 Link ${codigo} copiado!`); return; } catch (e) {}
+      try { await navigator.clipboard.writeText(link); showToast(`🔗 Link ${codigo} copiado!` + epEmitSufixo()); return; } catch (e) {}
     }
     fallbackCopy(link);
   } catch (e) {
@@ -20632,6 +20883,7 @@ function epWhatsTextoOrcamento(total) {
 }
 function epWhatsOrcamento(total) {
   if (!(total > 0)) { alert('Sem valor para enviar. Defina o "Valor do investimento" no Simulador.'); return; }
+  epEmitAvisoAcao();   // o texto do WhatsApp nao passa pela previa: o aviso do emitente vem junto
   window.open('https://wa.me/?text=' + encodeURIComponent(epWhatsTextoOrcamento(total)), '_blank', 'noopener');
 }
 
@@ -20978,10 +21230,14 @@ function epBasicoImprimir() {
     empresa: orc1EpEmpresa(),
   });
 
-  if (t.cliente) epHistOrcSave({ id: epId(), tipo: 'Básico', cliente: t.cliente, valor: total, data: new Date().toLocaleDateString('pt-BR') });
-
-  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  orc1Imprimir(html, epNomeArq('OrcamentoBasico', t.cliente), { umaPagina: true, piso: 0.74 });
+  // 19/10/2026: passa pela previa (Editar texto); o historico grava na saida.
+  epPreview({
+    html,
+    arquivo: epNomeArq('OrcamentoBasico', t.cliente),
+    titulo: 'Orçamento básico' + (t.cliente ? ' · ' + t.cliente : ''),
+    opts: { umaPagina: true, piso: 0.74 },
+    hist: t.cliente ? { id: epId(), tipo: 'Básico', cliente: t.cliente, valor: total, data: new Date().toLocaleDateString('pt-BR') } : null,
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -21674,8 +21930,9 @@ const EP_VEND_CAMPOS = [
 
 const EP_VEND_HTML = `
   <div class="card">
-    <div class="calc-card-title"><span class="dot"></span>Dados do vendedor</div>
-    <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">\u00c9 o que sai no papel como <b>emitente</b>. Nasce preenchido e vale para <b>todos</b> os documentos: mexeu aqui, mudou em todas as abas. Campo apagado sai como lacuna, de prop\u00f3sito \u2014 e s\u00f3 volta pelo bot\u00e3o do fim.</div>
+    <div class="calc-card-title"><span class="dot"></span>Dados da empresa</div>
+    <div class="ep-emit-abas"></div>
+    <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">\u00c9 o que sai no papel como <b>emitente</b>. Nasce preenchido e vale para <b>todos</b> os documentos: mexeu aqui, mudou em todas as abas. Cada documento escolhe o emitente (AIOROS ou NEXUS) no controle do topo. Campo apagado sai como lacuna, de prop\u00f3sito. E s\u00f3 volta pelo bot\u00e3o do fim.</div>
     ${EP_VEND_CAMPOS.map(c => `<div class="eletro-field"><label>${c[1]}</label>
       <div class="eletro-inp eletro-inp-wide"><input type="text" data-emit="${c[0]}" placeholder="${c[2]}" oninput="epVendEditado(this)"></div></div>`).join('')}
     <div class="orc-note ep-vend-aviso" style="margin-top:10px;display:none"></div>
@@ -21691,12 +21948,15 @@ function epVendRender() {
   document.querySelectorAll('.ep-vend-host').forEach(h => {
     if (!h.children.length) h.innerHTML = EP_VEND_HTML;
   });
-  const o = epEmitGet();
+  // Mostra o perfil que esta SENDO EDITADO (AIOROS ou NEXUS), nunca o efetivo do papel:
+  // NEXUS sem cadastro mostraria o CNPJ da AIOROS e o primeiro toque o gravaria na NEXUS.
+  const o = epPerfilVisto(EP_EMIT_EDIT);
   document.querySelectorAll('.ep-vend-host [data-emit]').forEach(el => {
     // Quem está digitando neste instante não tem o tapete puxado.
     if (el === document.activeElement) return;
     el.value = o[el.dataset.emit] || '';
   });
+  epEmitAbasRender();
   epVendAviso(o);
 }
 
@@ -21707,7 +21967,11 @@ function epVendAviso(o) {
   const falta = [];
   if (!String((o && (o.razao || o.fantasia)) || '').trim()) falta.push('raz\u00e3o social');
   if (!String((o && o.cnpj) || '').trim()) falta.push('CNPJ');
-  const txt = falta.length
+  // Perfil NEXUS sem razao e CNPJ nao deixa linha em branco: ele assina pela AIOROS.
+  const txt = (EP_EMIT_EDIT === 'nexus')
+    ? ((String((o && o.razao) || '').trim() && String((o && o.cnpj) || '').trim())
+        ? '' : 'A NEXUS ainda assina pela AIOROS. Preencha a raz\u00e3o social e o CNPJ da NEXUS aqui para ela assinar por conta pr\u00f3pria.')
+    : falta.length
     ? `\u26a0\ufe0f Falta <b>${falta.join('</b> e <b>')}</b>. Contrato, Procura\u00e7\u00e3o e Proposta de banco saem com essa linha em branco.`
     : '';
   document.querySelectorAll('.ep-vend-aviso').forEach(a => {
@@ -21721,17 +21985,15 @@ function epVendAviso(o) {
 function epVendEditado(el) {
   if (!el || !el.dataset.emit) return;
   const k = el.dataset.emit;
-  let o = {};
-  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
-  o[k] = el.value;
-  try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  epPerfilGrava(EP_EMIT_EDIT, { [k]: el.value });
   // As outras cópias e o cartão de ids da aba Orçamento acompanham na hora.
   document.querySelectorAll('.ep-vend-host [data-emit="' + k + '"]').forEach(x => {
     if (x !== el) x.value = el.value;
   });
   const idEl = document.getElementById('orc-emit-' + k);
   if (idEl) idEl.value = el.value;
-  epVendAviso(epEmitGet());
+  epVendAviso(epPerfilVisto(EP_EMIT_EDIT));
+  try { epEmitBarAtualizar(); } catch (e) {}
   // A prévia da Proposta de banco mostra o bloco da emitente: reflete na hora.
   try { if (typeof bnkCalc === 'function' && document.getElementById('bnk-total')) bnkCalc(); } catch (e) {}
 }
@@ -21740,10 +22002,15 @@ function epVendEditado(el) {
 // entra quando a chave nunca foi salva neste aparelho. Sem este botão, quem
 // apagou a razão social não tem como trazê-la de volta a não ser digitando.
 function epVendRestaurar() {
-  if (!confirm('Voltar os dados do vendedor ao padr\u00e3o da marca?\n\nO que foi digitado neste aparelho ser\u00e1 apagado.')) return;
-  try { localStorage.removeItem(ORC_EMIT_KEY); } catch (e) {}
+  if (!confirm('Voltar os dados da empresa ' + EP_EMIT_ROTULO[EP_EMIT_EDIT] + ' ao padr\u00e3o da marca?\n\nO que foi digitado neste aparelho nesses campos ser\u00e1 apagado. O outro perfil e a equipe t\u00e9cnica ficam como est\u00e3o.')) return;
+  // So' o perfil aberto e so' os campos deste cartao: a equipe tecnica (procuradores) e'
+  // dos dois perfis e nao faz parte do que este botao promete restaurar.
+  const p = epPerfisLer();
+  EP_VEND_CAMPOS.forEach(c => { delete p.perfis[EP_EMIT_EDIT][c[0]]; });
+  epPerfisGrava(p);
   if (typeof orcEmitCarregar === 'function' && document.getElementById('orc-emit-nome')) orcEmitCarregar();
   epVendRender();
+  try { epEmitBarAtualizar(); } catch (e) {}
   try { if (typeof bnkCalc === 'function' && document.getElementById('bnk-total')) bnkCalc(); } catch (e) {}
 }
 
@@ -21767,16 +22034,22 @@ function epPreview(o) {
   const doc = document.getElementById('ep-prev-doc');
   if (!bg || !doc) return;
   document.getElementById('ep-prev-tit').textContent = o.titulo || 'Prévia';
+  // Selo do emitente (19/10/2026): FORA da folha (#ep-prev-emit), entao nao entra no
+  // texto editado nem no papel. `o.emit` vem do chamador (o solar passa 'aioros'); sem
+  // ele vale o controle do eletroposto. A 2ª via traz o texto que saiu no papel.
+  o.emit = epEmitIdOk(o.emit) || EP_EMIT_SEL;
+  if (!o.emitSelo) o.emitSelo = epEmitSeloTexto(o.emit);
+  const selo = document.getElementById('ep-prev-emit');
+  if (selo) selo.textContent = o.emitSelo;
   doc.innerHTML = o.html;
   // Zoom é coisa do papel: se um veio grudado no HTML, a prévia mostraria a
   // folha encolhida e o consultor leria uma letra que não é a que sai.
   doc.querySelectorAll('[style*="zoom"]').forEach(el => { el.style.zoom = ''; });
   if (epPrevAvisoT) { clearTimeout(epPrevAvisoT); epPrevAvisoT = null; }
-  // Edição livre só em documento que PAGINA (opts null: contrato, recibo,
-  // procuração...). Os de uma folha só passam pelo orc1Imprimir, que mede e
-  // aplica zoom no HTML dele; entregar a ele o DOM da prévia (sem zoom) quebraria
-  // o "caber em 1 folha".
-  const podeEditar = !o.opts;
+  // Edição livre em TODO documento (19/10/2026), inclusive os de uma folha (opts):
+  // na saida o HTML editado volta ao orc1Imprimir, que mede de novo e reaplica o
+  // zoom de "caber em 1 folha" (ou avisa quando o texto passa da folha).
+  const podeEditar = true;
   o.editado = false;
   doc.classList.remove('editando');
   const edt = document.getElementById('ep-prev-edt');
@@ -21828,23 +22101,38 @@ function epPrevSaida() {
   if (!s) return;
   // Texto mexido na folha: sai o que está NA TELA, sem o contenteditable.
   let html = s.html;
-  if (!s.opts && s.editado) {
-    const c = document.getElementById('ep-prev-doc').cloneNode(true);
-    c.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-    html = c.innerHTML;
+  if (s.editado) html = epPrevHtmlEditado();
+  // Papel de UMA folha com texto mexido (agora, ou numa 2ª via de papel ja editado):
+  // mede e pergunta ANTES de gravar qualquer coisa. Cancelar nao grava historico, 2ª via
+  // nem gancho (aoSair), e `s.hist` segue valendo para a proxima tentativa.
+  if (s.opts && s.opts.umaPagina && (s.editado || s.jaEditado)) {
+    const m = orc1Medir(html, s.opts);
+    if (m && m.estoura && !confirm('O texto editado passou de uma folha e o papel vai sair em duas páginas.\n\nImprimir assim mesmo? (Cancelar volta para cortar algumas linhas.)')) return;
   }
   if (s.hist) {
     if (s.editado) s.hist.editado = true;
     epHistOrcSave(s.hist);
     // TR-01: o papel como saiu, para a 2ª via sair idêntica (inclusive o texto
-    // mexido à mão), mesmo que o Simulador e as abas tenham mudado.
-    epPapelGrava({ id: s.hist.id, html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, editado: !!s.editado, em: new Date().toISOString() });
+    // mexido à mão), mesmo que o Simulador e as abas tenham mudado. `emit` e
+    // `emitSelo`: quem assinou aquele papel (a 2ª via mostra o mesmo selo).
+    epPapelGrava({ id: s.hist.id, html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, editado: !!s.editado, emit: s.emit, emitSelo: s.emitSelo, em: new Date().toISOString() });
     s.hist = null;
+    try { if (typeof epHistOrcRender === 'function') epHistOrcRender(); } catch (e) {}
   }
   // Gancho de quem tem histórico próprio (Fechamento solar): roda uma vez, na saída.
   if (s.aoSair) { const f = s.aoSair; s.aoSair = null; try { f({ html, editado: !!s.editado }); } catch (e) {} }
-  if (s.opts) { orc1Imprimir(s.html, s.arquivo, s.opts); return; }
+  // Uma folha: o HTML (editado ou nao) volta ao orc1Imprimir, que mede e aplica o zoom.
+  // A pergunta de "passou da folha" ja foi feita acima, antes de gravar.
+  if (s.opts) { orc1Imprimir(html, s.arquivo, s.opts); return; }
   const host = document.getElementById('eletro-print'); host.innerHTML = html; epPrint(host, s.arquivo);
+}
+// O que esta NA TELA da folha, sem o contenteditable (e sem zoom: o zoom e' do papel).
+function epPrevHtmlEditado() {
+  const c = document.getElementById('ep-prev-doc').cloneNode(true);
+  c.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+  c.querySelectorAll('[spellcheck]').forEach(el => el.removeAttribute('spellcheck'));
+  c.querySelectorAll('[style*="zoom"]').forEach(el => { el.style.zoom = ''; });
+  return c.innerHTML;
 }
 // Papéis impressos, no IndexedDB do aparelho (o mesmo lugar do dossiê): sem o
 // teto de tamanho do localStorage, e nunca apagados sozinhos.
@@ -21876,7 +22164,9 @@ function epPapelLe(id) {
 async function epHistSegundaVia(id) {
   const r = await epPapelLe(id);
   if (!r) { alert('Este papel foi gerado antes da 2ª via exata (ou em outro aparelho). Use "Abrir" para refazer a partir dos campos.'); return; }
-  epPreview({ html: r.html, arquivo: r.arquivo + '_2a-via', titulo: (r.titulo || 'Documento') + ' · 2ª via', opts: r.opts, hist: null });
+  epPreview({ html: r.html, arquivo: r.arquivo + '_2a-via', titulo: (r.titulo || 'Documento') + ' · 2ª via', opts: r.opts, hist: null,
+    emit: r.emit, emitSelo: r.emitSelo || 'Emitente: como saiu no papel',
+    jaEditado: !!r.editado });   // papel ja editado: ao imprimir, pergunta de novo se passar da folha
 }
 
 // EDITAR TEXTO (05/10/2026): qualquer frase do documento se reescreve direto na
@@ -21885,10 +22175,15 @@ async function epHistSegundaVia(id) {
 // campos" + gerar de novo refaz a folha a partir do formulário — o aviso diz isso.
 function epPrevEditar() {
   const s = epPrevEstado, doc = document.getElementById('ep-prev-doc'), btn = document.getElementById('ep-prev-edt');
-  if (!s || s.opts || !doc) return;
+  if (!s || !doc) return;
   const liga = !doc.classList.contains('editando');
   doc.classList.toggle('editando', liga);
-  doc.querySelectorAll('.ep-page').forEach(p => {
+  // O que se edita: as folhas (.ep-page). Documento de uma folha (orcamento, equipamento,
+  // basico, solar, recibo) nao tem .ep-page: edita-se o corpo medido (opts.alvo, ou .orc1).
+  let alvos = [...doc.querySelectorAll('.ep-page')];
+  if (!alvos.length) alvos = [...doc.querySelectorAll((s.opts && s.opts.alvo) || '.orc1')];
+  if (!alvos.length && doc.firstElementChild) alvos = [doc.firstElementChild];
+  alvos.forEach(p => {
     if (liga) { p.setAttribute('contenteditable', 'true'); p.setAttribute('spellcheck', 'true'); }
     else { p.removeAttribute('contenteditable'); p.removeAttribute('spellcheck'); }
   });
@@ -21899,8 +22194,13 @@ function epPrevEditar() {
   }
   if (liga) {
     epPrevAviso('Clique em qualquer frase da folha e escreva. A mudança vale <b>só para este PDF</b>: voltar aos campos e gerar de novo refaz o texto a partir do formulário.');
-    const p = doc.querySelector('.ep-page');
+    const p = alvos[0];
     if (p) p.focus({ preventScroll: true });
+  } else if (s.editado && s.opts && s.opts.umaPagina) {
+    // Concluiu a edicao de um papel de UMA folha: mede de novo e avisa se o texto
+    // passou da folha (abaixo do piso nao encolhe e sairia em duas paginas).
+    const m = orc1Medir(epPrevHtmlEditado(), s.opts);
+    if (m && m.estoura) epPrevAviso('O texto passou de <b>uma folha</b>: ' + Math.round((1 / m.fator - 1) * 100) + '% a mais do que cabe. Corte algumas linhas, senão o papel sai em duas páginas.');
   }
 }
 function epPrevImprimir() { epPrevSaida(); }
@@ -26710,6 +27010,8 @@ function orcSnapTake() {
     kit.push({ id: row.dataset.id, on: row.querySelector('input[type="checkbox"]').checked });
   });
   return {
+    // Id do emitente escolhido para este papel ('aioros' | 'nexus'); orcSnapApply o restaura.
+    emitente: EP_EMIT_SEL,
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'), validadeModo: v('orc-validade-modo'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
     // Valor do projeto: guarda sempre o número que saiu no documento. `valorTocado`
@@ -26783,6 +27085,11 @@ function orcSnapTake() {
 function orcSnapApply(s, tipo) {
   if (!s) return;
   orcInit();   // garante o pane montado (grid do cartão etc.)
+  // Emitente do papel (AIOROS ou NEXUS): reabrir do historico devolve a escolha. Papel
+  // salvo antes do controle nao tem a chave e abre no padrao. Os campos espelhados do
+  // contrato (Pix, foro) voltam do proprio snapshot, entao nao se refaz o espelho aqui.
+  EP_EMIT_SEL = epEmitIdOk(s.emitente) || 'aioros';
+  try { epEmitBarAtualizar(); } catch (e) {}
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
   const setck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
   set('orc-num', s.num); set('orc-data', s.data); set('orc-validade', s.validade);
@@ -27679,7 +27986,7 @@ const solLimpaArq = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''
 
 // ── A emitente (AIOROS GROUP LTDA, marca Irmãos na Obra) ──
 function solEmp() {
-  const e = epEmitGet();
+  const e = epEmitGet('aioros');   // solar le SEMPRE o perfil aioros, qualquer que seja o controle de emitente do eletroposto
   const cnpj = String(e.cnpj || '').trim() || CNPJ_CERTO;
   const razao = String(e.razao || '').trim() || RAZAO_CERTA;
   return {
@@ -27890,7 +28197,7 @@ function fsMontar() {
 
 // do cadastro da empresa (editável): só entra onde o consultor ainda não mexeu
 function fsPrefillEmpresa() {
-  const e = epEmitGet();
+  const e = epEmitGet('aioros');   // Fechamento solar: sempre o perfil aioros
   const m = { 'fs-p-eng-nome': e.engNome, 'fs-p-eng-nac': e.engNac, 'fs-p-eng-ec': e.engEc, 'fs-p-eng-prof': e.engProf, 'fs-p-eng-crea': e.engCrea,
     'fs-p-eng-rg': e.engRg, 'fs-p-eng-cpf': e.engCpf, 'fs-p-eng-end': e.engEnd,
     'fs-p-tec-nome': e.tecNome, 'fs-p-tec-nac': e.tecNac, 'fs-p-tec-ec': e.tecEc, 'fs-p-tec-crt': e.tecCrt, 'fs-p-tec-rg': e.tecRg,
@@ -29315,6 +29622,7 @@ function fsPreview(o) {
   const hojeBR = new Date().toLocaleDateString('pt-BR');
   epPreview({
     html: o.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts, hist: null,
+    emit: 'aioros',   // Fechamento solar: o selo e' sempre da AIOROS, qualquer que seja o controle do eletroposto
     aoSair: r => {
       // fotos: só a CONTAGEM vai para o histórico (o localStorage não aguenta imagem); as fotos vivem na 2ª via
       fsHistAdd({ id, tipo: o.tipo, cliente: o.cliente, valor: o.valor, num: o.num, data: hojeBR, snap, editado: !!r.editado, fotos: o.fotos || 0 });
@@ -39428,7 +39736,16 @@ function orcSolarImprimir() {
   if (!dadosAtual) { showToast('Gere a proposta primeiro'); return; }
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  orc1Imprimir(orcSolarDocHTML(dadosAtual), ['Orcamento', 'Solar', limpa(dadosAtual.nome) || 'Cliente'].filter(Boolean).join('_'), { umaPagina: true });
+  // 19/10/2026: passa pela previa (Editar texto). Solar: selo sempre AIOROS, e sem
+  // historico (o do solar nunca vai para o orc_hist_v1 do eletroposto).
+  epPreview({
+    html: orcSolarDocHTML(dadosAtual),
+    arquivo: ['Orcamento', 'Solar', limpa(dadosAtual.nome) || 'Cliente'].filter(Boolean).join('_'),
+    titulo: 'Orçamento solar' + (dadosAtual.nome ? ' · ' + dadosAtual.nome : ''),
+    opts: { umaPagina: true },
+    hist: null,
+    emit: 'aioros',
+  });
 }
 
 // Link do orçamento solar. NÃO cria registro novo: é a mesma proposta no banco,
