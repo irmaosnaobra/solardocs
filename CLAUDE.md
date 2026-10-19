@@ -61,7 +61,10 @@ Cada um destes já custou caro pelo menos uma vez.
   o último deploy). O projeto que não mudou aparece como "Canceled (Ignored
   Build Step)", e isso é o esperado: confira o READY no projeto cuja pasta
   mudou. Env nova na Vercel só vale com commit dentro da pasta do projeto ou
-  com redeploy manual. A loja de bike (`ebike-ecommerce/`) não monta nunca.
+  com redeploy manual. O projeto da loja de bike (`bikes-irmaos-na-obra`) dá
+  ERROR em todo push desde 03/09, em ~5 s, porque monta da raiz do repo e não
+  de `ebike-ecommerce/`. É esperado e quase não custa; para parar, desligar o
+  Git dele no painel da Vercel.
 - **A `api/` é CommonJS.** Importar pacote ESM no caminho de boot põe toda rota
   em 500 com o `tsc` VERDE. Teste com `require` no `dist/`, não no fonte.
 - **O `/gerador` é PWA.** Mexeu em `dashboard/public/gerador/index.html`? Faça o
