@@ -2257,8 +2257,9 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 .orc1 .itens tr.somas td{font-weight:700;color:var(--c1);background:var(--c3)}
 .orc1 .itens tr.opc td{opacity:.82}
 .orc1 .itens tr.tot i{font-style:normal;font-weight:600;opacity:.75;font-size:10.5px}
-/* Financeiro */
-.orc1 .fin{padding:13px 26px 6px}
+/* Financeiro. A classe .fin também é o painel Financeiro do card, que tem fundo
+   escuro global (desde 12/10): sem zerar aqui, o orçamento sai com faixa preta. */
+.orc1 .fin{padding:13px 26px 6px;background:none;border:0;border-radius:0;color:inherit;container-type:normal}
 .orc1 .hero{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-bottom:11px}
 .orc1 .heroL{background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;border-radius:14px;padding:16px 18px}
 .orc1 .heroL .k{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;opacity:.85}
