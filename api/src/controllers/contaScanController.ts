@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
 import { novoAnthropic } from "../utils/anthropicClient";
+import { logger } from '../utils/logger';
+import { classificarFalha } from '../services/agents/whatsapp/filaAlerta';
 
 // ── Escanear Conta ─────────────────────────────────────────────────
 // Recebe uma foto/PDF da conta de luz, extrai os dados via Claude vision
@@ -12,6 +14,20 @@ import { novoAnthropic } from "../utils/anthropicClient";
 // imagem) já usado em produção no agente de WhatsApp (whatsappAgentService),
 // então a plumbing de visão é comprovada. Extração via tool-use forçado,
 // garantindo saída estruturada sem parse frágil de JSON.
+
+// Erro do scan COM o usuário. O console.error sozinho some no log da Vercel; no
+// error_logs o suporte (e a Giovanna, por ver_erros_recentes) acha pelo user_id.
+// `detail` é objeto simples de propósito: um Error serializa como {}.
+// `causa` (ia_sem_credito, ia_chave, ia_limite, zapi, outro) é o que a Giovanna
+// usa para saber que a leitura automática está fora.
+function registrarFalhaScan(req: Request, qual: string, err: unknown): void {
+  const erro = err instanceof Error ? err.message : String(err);
+  logger.error('conta-scan', `${qual}: falha da IA ao ler o arquivo`, {
+    user_id: (req as Request & { userId?: string }).userId ?? null,
+    causa: classificarFalha(erro),
+    erro: erro.slice(0, 300),
+  });
+}
 
 export const VISION_MODEL = 'claude-sonnet-4-6';
 
@@ -242,7 +258,7 @@ export async function scanConta(req: Request, res: Response): Promise<void> {
     }
     raw = toolBlock.input as RawExtraction;
   } catch (err) {
-    console.error('[scanConta] Anthropic error:', err);
+    registrarFalhaScan(req, 'scanConta', err);
     res.status(502).json({ error: 'Falha ao ler a conta. Tente novamente em instantes.' });
     return;
   }
@@ -394,7 +410,7 @@ export async function scanDocumento(req: Request, res: Response): Promise<void> 
     }
     raw = toolBlock.input as RawDoc;
   } catch (err) {
-    console.error('[scanDocumento] Anthropic error:', err);
+    registrarFalhaScan(req, 'scanDocumento', err);
     res.status(502).json({ error: 'Falha ao ler o documento. Tente novamente em instantes.' });
     return;
   }

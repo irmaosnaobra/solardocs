@@ -221,8 +221,9 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   indicacao_confirmacao: robo('evento_p0', ['routes/ioIndicacoes.ts']),
 
   // ── P1 · reativo (vira frio sozinho se o destino não escreveu em 15 min) ───
-  // A vendedora é ela: não respeita a pausa (whatsappAgentService.ts).
-  giovanna_reativa: robo('reativo_p1', ['services/agents/whatsapp/whatsappAgentService.ts'], { linha: 'solardoc' }),
+  // A Giovanna cala quando um humano entrou na conversa (podeFalarComLead em
+  // whatsappAgentService.ts, depois do opt-out e do comprovante e antes do modelo).
+  giovanna_reativa: robo('reativo_p1', ['services/agents/whatsapp/whatsappAgentService.ts'], { linha: 'solardoc', respeitaPausa: true }),
   carla_b2b_reativa: robo('reativo_p1', ['services/agents/sdr/sdrB2bAgentService.ts'], { linha: 'solardoc' }),
   // A Duda cala quando um humano entrou (recepcaoIo.ts).
   duda_recepcao: robo('reativo_p1', ['services/io/recepcaoIo.ts'], { respeitaPausa: true }),

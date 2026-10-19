@@ -3,21 +3,12 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { BancoIndisponivel, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { sendMetaEvent } from '../utils/metaPixel';
+import { cnpjValido } from '../utils/cnpj';
 
 const companySchema = z.object({
   nome: z.string().min(1, 'Razão Social obrigatória'),
   nome_fantasia: z.string().optional(), // nome de marca — usado na exibição/documentos
-  cnpj: z.string().refine((v) => {
-    const c = v.replace(/\D/g, '');
-    if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false;
-    const calc = (base: string, w: number[]) => {
-      const s = w.reduce((a, x, i) => a + parseInt(base[i]) * x, 0);
-      const r = s % 11;
-      return r < 2 ? 0 : 11 - r;
-    };
-    return calc(c, [5,4,3,2,9,8,7,6,5,4,3,2]) === parseInt(c[12]) &&
-           calc(c, [6,5,4,3,2,9,8,7,6,5,4,3,2]) === parseInt(c[13]);
-  }, 'CNPJ inválido'),
+  cnpj: z.string().refine((v) => cnpjValido(v), 'CNPJ inválido'),
   endereco: z.string().optional(),
   cidade: z.string().optional(),
   logo_base64: z.string().optional(),

@@ -30,7 +30,8 @@
 //   freio, a resposta e o lembrete viram a sonda da linha (1 tentativa a cada
 //   5 min); a proativa espera 15 min; o evento vai para a caixa.
 // - A pausa humana segue o HEAD robô a robô (respeitaPausa em CLASSE_POR_ROBO):
-//   a agenda do eletroposto e a vendedora reativa passam; a Duda, a Giovanna, as
+//   a agenda do eletroposto passa; a Duda, a Giovanna (a da agenda e a reativa, que
+//   confere podeFalarComLead antes do modelo desde a versão com ferramentas), as
 //   boas-vindas e a cobrança do SIM esperam. Todo frio espera a conversa esfriar
 //   (aperto novo para o frio da linha solardoc, que hoje não confere).
 // - Reativo atrasado vira frio, com ou sem conversa nas últimas 24h [crítica],

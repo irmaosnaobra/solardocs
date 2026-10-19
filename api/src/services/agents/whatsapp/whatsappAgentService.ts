@@ -1,15 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { fmtPhone, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
+import { fmtPhone, linhaEmCooldown, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { pixBlocoWhatsApp } from '../../../utils/pixInfo';
 import { ofertaCupomAtiva, bolhasOferta, OfertaCupom } from '../../../utils/ofertaCupom';
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
-import { flushAvisoFila, registrarAbandono } from './filaAlerta';
+import { classificarFalha, flushAvisoFila, registrarAbandono } from './filaAlerta';
 import { encaminharMidiaAoConsultor, TipoMidia } from '../../io/encaminharMidiaConsultor';
 import { pareceRoboDeles, nossaRespostaJaDesconfiou, marcarRoboDoOutroLado, temRoboAtendendo } from './roboDoOutroLado';
 import { novoAnthropic } from "../../../utils/anthropicClient";
+import { GIOVANNA_TOOLS, GiovannaCtx, executarFerramentaGiovanna, montarAvisoDono } from './giovannaFerramentas';
+import { podeFalarComLead, registrarBloqueio } from './pausaHumana';
+import { chaveContato } from './silenciar';
+import { lerRegulamento } from '../../chefe/regulamento';
 
 const anthropic = novoAnthropic();
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -23,6 +27,41 @@ const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
 // processMessageQueue). Curto de propósito: dentro disso a resposta ainda chega
 // como conversa; depois disso ela chega como fantasma e o certo é o humano assumir.
 const JANELA_RETRY_FILA_MIN = 45;
+
+// Telefone do Thiago (dono) para o aviso de suporte e para o aviso de cadastro
+// alterado. Estava escrito no meio do bloco do [HUMANO]; agora é um ponto só.
+const NUMERO_DONO_SUPORTE = '34991360223';
+
+// ─── Giovanna com ferramentas ────────────────────────────────────
+const MODELO_GIOVANNA = 'claude-sonnet-4-6';
+const MAX_TOKENS_GIOVANNA = 1024;
+// Voltas de ferramenta por mensagem. A volta seguinte à última responde sem ferramentas.
+const MAX_VOLTAS_FERRAMENTA = 4;
+const AVISO_DONO_MAX_POR_HORA = 12;
+// Quando as 4 voltas passam sem texto final: responde curto e chama o time.
+const TEXTO_SEM_RESPOSTA = 'Recebi a sua mensagem, mas não consegui concluir isso agora.||Vou chamar o time para te ajudar por aqui. [HUMANO]';
+
+// ─── Resposta fixa quando a IA cai (sem crédito ou chave recusada) ──
+// Regras do anti-ban, todas obrigatórias: só para a causa certa, só para mensagem
+// recente, só com a linha de pé e sem humano na conversa; no máximo 3 por tick,
+// 10 a 20 s entre destinos, 6 em 10 min e dentro do teto da emergência; e UMA vez
+// por contato a cada 12 h, reservada de forma atômica.
+const FALLBACK_MAX_POR_TICK = 3;
+const FALLBACK_TETO_10MIN = 6;
+const FALLBACK_IDADE_MAX_MIN = 15;
+const FALLBACK_REPETE_APOS_MS = 12 * 3_600_000;
+const FALLBACK_ESPACO_MIN_MS = 10_000;
+const FALLBACK_ESPACO_MAX_MS = 20_000;
+const TEXTO_FALLBACK = [
+  'Recebemos a sua mensagem.',
+  'O atendimento automático está fora do ar neste momento.',
+  'Vou avisar o Thiago, e ele responde por aqui assim que puder.',
+].join('\n');
+// Contadores do tick (memória do processo, zerados no começo de processMessageQueue).
+let fallbackNoTick = 0;
+let fallbackUltimoEm = 0;
+
+const esperar = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 // ─── gatilho do anúncio (ÚNICO) e posse da conversa ──────────────
 // Ordem do Thiago (25/08): UM gatilho, não uma lista. O anúncio manda sempre a
@@ -336,6 +375,36 @@ não tem cartão, você manda — sem enrolar e sem tentar convencer do contrár
 - Esta tag é a da ASSINATURA. Não confunda com a oferta de entrada do curso, que é outro
   produto, outro valor e outra tag — e que só existe pra quem não assina.
 
+━━ FERRAMENTAS (você resolve na hora e não promete o que não fez) ━━
+Você tem 4 ferramentas. Use quando o assunto pedir. Em conversa de venda ou dúvida simples, não use.
+- ver_minha_conta: consulta o cadastro, o plano, os dados da empresa e os documentos recentes dele. Use antes de afirmar qualquer coisa sobre a conta.
+- ver_erros_recentes: traz os erros das últimas 48 horas, os chamados abertos e se a leitura automática por IA está fora do ar (ia_fora). Use quando ele disser que algo travou, deu erro ou não funciona.
+- alterar_dados_empresa: muda razão social, nome fantasia, endereço, cidade ou CNPJ da empresa dele. Só esses cinco campos.
+- abrir_chamado: passa o caso para o time com o diagnóstico do que você viu.
+
+PARA ALTERAR DADOS DA EMPRESA, sempre nesta ordem:
+1. Chame alterar_dados_empresa com confirmado=false. Nada é gravado, e volta a prévia com o antes e o depois.
+2. Mostre a prévia a ele neste modelo, sem mudar as palavras, com um || entre "Vai ficar" e "Só os documentos":
+Vou mudar isto no seu cadastro:
+Campo: (o campo)
+Hoje está: (o valor de hoje)
+Vai ficar: (o valor novo)
+||Só os documentos novos ou reeditados saem com os dados novos.
+Os que você já gerou ficam como estão.
+Posso fazer a alteração?
+Se mudar mais de um campo, repita as três linhas Campo, Hoje está e Vai ficar para cada um.
+3. Só depois de um sim claro dele ("sim", "pode fazer", "pode"), chame de novo com confirmado=true. Dúvida, silêncio ou outro assunto não é sim.
+4. Depois de gravar, diga em uma frase o que mudou. Se a ferramenta recusar, explique o motivo em palavras simples. Se ela mandar abrir chamado, abra.
+
+REGRAS DAS FERRAMENTAS:
+- E-mail, WhatsApp e plano não se alteram pela conversa: abra um chamado.
+- Na troca de CNPJ, a razão social e o nome fantasia passam a ser os da Receita, só vale CNPJ ativo e cada conta troca uma vez a cada 90 dias. Diga isso antes de pedir o sim.
+- Nunca diga que alterou antes de a ferramenta confirmar. Nunca invente o resultado.
+- Se uma ferramenta devolver falha_ao_ler, ou ia_fora vier sem valor (ia_fora_desconhecido), você não conseguiu consultar: diga isso com simplicidade, não afirme que está tudo certo e abra um chamado.
+- Se ia_fora vier true, ou ele falar de "Falha ao ler a conta", abra um chamado com esse diagnóstico e diga que a leitura automática está fora do ar agora, que dá para cadastrar o cliente à mão e que o Thiago foi avisado.
+- Se não conseguir resolver, use abrir_chamado com o diagnóstico do que viu nos erros. Nunca prometa correção de código nem prazo.
+- Escreva frase por frase, cada mensagem começando com letra maiúscula, sem travessão e sem emoji colorido.
+
 ━━ FORMATO ━━
 Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}`;
 }
@@ -444,9 +513,165 @@ export async function registrarMsgProativa(args: {
   await supabase.from('whatsapp_sessions').upsert(payload, { onConflict: 'phone,tipo' });
 }
 
+// ─── escalada para o time (um caminho só) ────────────────────────
+// Chamado + aviso "Suporte SolarDoc" ao Thiago. Serve ao [HUMANO] do texto e à
+// ferramenta abrir_chamado. Guarda de repetição: 1 chamado ABERTO por telefone,
+// senão um modelo tagarela abre vários e spamma o dono.
+async function escalarParaSuporte(a: {
+  cleanPhone: string;
+  nome: string | null;
+  user: { email: string; plano: string };
+  texto: string;
+  area: string;
+  descricao: string;
+  diagnostico: string;
+  /** Linha extra no aviso ao dono (só a ferramenta usa; o [HUMANO] sai como sempre saiu). */
+  diagnosticoNoAviso?: string;
+}): Promise<{ aberto: boolean; jaTinha: boolean }> {
+  const { data: aberto } = await supabase
+    .from('tech_issues').select('id').eq('phone', a.cleanPhone).eq('status', 'aberto').limit(1).maybeSingle();
+  if (aberto) return { aberto: false, jaTinha: true };
+  try {
+    const { error } = await supabase.from('tech_issues').insert({
+      phone: a.cleanPhone, nome: a.nome || null, area: a.area,
+      descricao: a.descricao.slice(0, 500),
+      diagnostico_automatico: a.diagnostico.slice(0, 500),
+      status: 'aberto',
+    });
+    if (error) logger.error('giovanna-escalar', `registrar chamado falhou ${a.cleanPhone}`, { erro: error.message });
+    else logger.info('giovanna-escalar', `chamado aberto ${a.cleanPhone} (${a.user.email})`);
+    // Avisa o Thiago NA HORA — senão o chamado fica numa tabela que ninguém olha e o
+    // cliente PAGANTE fica no vácuo. Best-effort (não trava o atendimento se falhar).
+    const diag = a.diagnosticoNoAviso ? `\nDiagnóstico: ${a.diagnosticoNoAviso.slice(0, 300)}` : '';
+    await sendWhatsApp(NUMERO_DONO_SUPORTE,
+      `🆘 *Suporte SolarDoc — cliente precisa de você*\n\nCliente: ${a.user.email} (${a.user.plano})\nWhatsApp: ${a.cleanPhone}\nDisse: "${(a.texto || '').slice(0, 200)}"${diag}\n\nA Giovanna acionou você. Fala com ele: wa.me/55${a.cleanPhone.replace(/^55/, '')}`,
+      'solardoc').catch(() => {});
+    return { aberto: !error, jaTinha: false };
+  } catch (e) {
+    logger.error('giovanna-escalar', `registrar chamado falhou ${a.cleanPhone}`, e);
+    return { aberto: false, jaTinha: false };
+  }
+}
+
+// ─── aviso ao dono: cadastro alterado pelo agente ────────────────
+// UM aviso por turno, com os campos juntos. Até 12 por hora; acima disso fica só o
+// registro (tech_issues). A chave por fila garante que o retry da fila não avise
+// duas vezes.
+async function avisarDonoCadastroAlterado(ctx: GiovannaCtx, email: string): Promise<void> {
+  if (ctx.avisosPendentes.length === 0 || !ctx.filaId) return;
+  try {
+    const desde = new Date(Date.now() - 3_600_000).toISOString();
+    const { count, error: eConta } = await supabase
+      .from('system_state').select('key', { count: 'exact', head: true })
+      .like('key', 'giovanna_aviso_dono:%').gte('updated_at', desde);
+    if (eConta || (count ?? 0) >= AVISO_DONO_MAX_POR_HORA) {
+      logger.warn('giovanna-aviso-dono', `teto de ${AVISO_DONO_MAX_POR_HORA} avisos por hora: cadastro alterado fica só no registro (${ctx.phone})`);
+      return;
+    }
+    const agora = new Date().toISOString();
+    const { error: eChave } = await supabase.from('system_state')
+      .insert({ key: `giovanna_aviso_dono:${ctx.filaId}`, value: { em: agora, campos: ctx.avisosPendentes.length }, updated_at: agora });
+    if (eChave) return; // 23505 = esta mensagem já avisou; outro erro = melhor calar do que repetir
+    await sendWhatsApp(NUMERO_DONO_SUPORTE, montarAvisoDono({ email, telefone: ctx.phone, mudancas: ctx.avisosPendentes }), 'solardoc');
+  } catch (err) {
+    logger.error('giovanna-aviso-dono', 'aviso de cadastro alterado não saiu', err);
+  }
+}
+
+// ─── resposta fixa quando a IA cai ───────────────────────────────
+async function reservarFallback(chave: string, filaId: string | null): Promise<boolean> {
+  const agora = new Date().toISOString();
+  const valor = { em: agora, fila_id: filaId };
+  const { error } = await supabase.from('system_state').insert({ key: chave, value: valor, updated_at: agora });
+  if (!error) return true;
+  if ((error as { code?: string }).code !== '23505') return false; // erro desconhecido: não envia
+  // Já existe: só reabre se a reserva tem mais de 12 h. Zero linhas = já saiu.
+  const limite = new Date(Date.now() - FALLBACK_REPETE_APOS_MS).toISOString();
+  const { data } = await supabase.from('system_state')
+    .update({ value: valor, updated_at: agora }).eq('key', chave).lt('updated_at', limite).select('key');
+  return (data ?? []).length > 0;
+}
+
+/** NUNCA lança. Chamada só quando o `anthropic.messages.create` falhou. */
+async function respostaFixaSeIaCaiu(a: {
+  err: unknown;
+  cleanPhone: string;
+  originInstance: ZapiInstance;
+  recebidaEm: string | null | undefined;
+  filaId: string | null;
+}): Promise<void> {
+  try {
+    const msg = a.err instanceof Error ? a.err.message : String(a.err);
+    // A causa vem SÓ do erro da IA (nunca de erro de envio: um 401 da linha cairia em ia_chave).
+    const causa = classificarFalha(msg);
+    if (causa !== 'ia_sem_credito' && causa !== 'ia_chave') return;
+
+    // Marca em error_logs, em texto simples, para ver_erros_recentes saber que a IA está fora.
+    logger.error('giovanna-ia-fora', `IA sem resposta para a Giovanna (${causa})`, { causa, erro: msg.slice(0, 200) });
+
+    // Mensagem com mais de 15 min não recebe resposta fixa (sem data = acabou de chegar).
+    const idadeMin = a.recebidaEm ? (Date.now() - Date.parse(a.recebidaEm)) / 60_000 : 0;
+    if (!(idadeMin <= FALLBACK_IDADE_MAX_MIN)) return;
+    // A pausa humana já foi conferida (e liberou) antes de chegar ao modelo.
+    if (linhaEmCooldown(a.originInstance)) return;
+    if (fallbackNoTick >= FALLBACK_MAX_POR_TICK) return;
+    const chave = chaveContato(a.cleanPhone);
+    if (!chave) return;
+
+    // Teto de 6 em 10 min (as reservas deste próprio recurso).
+    const desde10 = new Date(Date.now() - 10 * 60_000).toISOString();
+    const dez = await supabase.from('system_state').select('key', { count: 'exact', head: true })
+      .like('key', 'giovanna_fallback:%').gte('updated_at', desde10);
+    if (dez.error || (dez.count ?? 0) >= FALLBACK_TETO_10MIN) return;
+
+    // Teto da emergência da linha (60/h e 450/24h): conta as saídas reais em wa_mensagens.
+    const reg = lerRegulamento(process.env).reg;
+    const saidas = async (ms: number) => supabase.from('wa_mensagens').select('telefone', { count: 'exact', head: true })
+      .eq('from_me', true).gte('momment', new Date(Date.now() - ms).toISOString());
+    const [h1, h24] = await Promise.all([saidas(3_600_000), saidas(24 * 3_600_000)]);
+    // Sem conseguir ler o contador, não envia: a resposta fixa é cortesia, não obrigação.
+    if (h1.error || h24.error) return;
+    if ((h1.count ?? 0) + 1 > reg.emergenciaHora || (h24.count ?? 0) + 1 > reg.emergenciaDia) return;
+
+    // 10 a 20 s entre destinos dentro do mesmo tick.
+    if (fallbackUltimoEm > 0) {
+      const alvo = FALLBACK_ESPACO_MIN_MS + Math.floor(Math.random() * (FALLBACK_ESPACO_MAX_MS - FALLBACK_ESPACO_MIN_MS));
+      const falta = alvo - (Date.now() - fallbackUltimoEm);
+      if (falta > 0) await esperar(falta);
+    }
+
+    // Reserva por último, logo antes de enviar: quem foi pulado acima não fica 12 h travado.
+    if (!(await reservarFallback(`giovanna_fallback:${chave}`, a.filaId))) return;
+    fallbackNoTick++;
+    fallbackUltimoEm = Date.now();
+
+    try {
+      await sendHuman(a.cleanPhone, [TEXTO_FALLBACK], a.originInstance, { maxBolhas: 1 });
+    } catch (err) {
+      logger.error('giovanna-fallback', `resposta fixa não saiu para ${a.cleanPhone}`, err);
+    }
+  } catch (err) {
+    logger.error('giovanna-fallback', 'resposta fixa falhou (segue o fluxo normal da fila)', err);
+  }
+}
+
+/** Todas as contas cujo WhatsApp casa com o telefone. Em dúvida, lista vazia (a escrita recusa). */
+async function contasDoTelefone(variantes: string[]): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.from('users').select('id').in('whatsapp', variantes);
+    if (error) return [];
+    return [...new Set(((data ?? []) as Array<{ id: string }>).map(r => r.id))];
+  } catch {
+    return [];
+  }
+}
+
 // ─── boas-vindas ─────────────────────────────────────────────────
 
 export async function processMessageQueue(): Promise<{ processed: number; debug?: any }> {
+  // Contadores da resposta fixa são POR TICK.
+  fallbackNoTick = 0;
+  fallbackUltimoEm = 0;
   // Aviso de quem ficou sem resposta vem PRIMEIRO, antes de qualquer saída
   // antecipada: se a fila esvaziar (ou o apagão parar de gerar falha nova), a
   // última leva ainda precisa ser avisada. Roda a cada tick e é uma leitura só.
@@ -508,7 +733,8 @@ export async function processMessageQueue(): Promise<{ processed: number; debug?
         }).catch(err => logger.error('whatsapp-fila', 'encaminhar mídia falhou', err));
       }
 
-      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name, undefined, media, originInstance);
+      await handleIncomingWhatsApp(msg.phone, msg.text, msg.sender_name, undefined, media, originInstance,
+        { id: String(msg.id), criadaEm: msg.created_at ?? null });
       processed++;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -712,6 +938,9 @@ export async function handleIncomingWhatsApp(
   // retrocompat; 'io' quando a mensagem veio da linha IO. Todas as RESPOSTAS de inbound
   // saem por ela → cliente é respondido pelo MESMO número que contatou.
   originInstance: ZapiInstance = 'solardoc',
+  // Linha da message_queue que originou a mensagem (só a fila preenche). Sem `id` a
+  // Giovanna não grava nada pelas ferramentas; sem `criadaEm` a mensagem conta como recém-chegada.
+  fila?: { id?: string | null; criadaEm?: string | null },
 ): Promise<void> {
   const cleanPhone = phone.replace('@c.us', '').replace(/\D/g, '');
 
@@ -883,6 +1112,19 @@ export async function handleIncomingWhatsApp(
     }
   }
 
+  // PAUSA HUMANA: se uma pessoa entrou na conversa, a Giovanna cala. Vem depois do
+  // opt-out e do comprovante (que sempre valem) e antes de qualquer coisa que gaste
+  // o modelo. Barrado = return limpo: lançar deixaria a mensagem rodando na fila.
+  try {
+    const pausa = await podeFalarComLead(cleanPhone);
+    if (!pausa.pode) {
+      await registrarBloqueio(cleanPhone, 'giovanna_reativa');
+      return;
+    }
+  } catch (err) {
+    logger.error('giovanna-pausa', 'checagem da pausa humana falhou (segue)', err);
+  }
+
   const { data: company } = await supabase
     .from('company')
     .select('nome')
@@ -968,16 +1210,77 @@ export async function handleIncomingWhatsApp(
   // raciocínio de venda, naturalidade e nuance que o Haiku não entrega (ele ignora o
   // anti-loop soft e soa robótico). Volume de inbound é baixo (dezenas/mês), então o
   // custo extra por msg é irrelevante frente ao ganho de conversão. Decisão do Thiago (jul/2026).
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 400,
-    // A oferta é lida do banco a cada resposta: desligar o cupom lá tira ele da
-    // boca da Giovanna no mesmo instante, sem deploy.
-    system: buildSystemPrompt(userCtx, promoCtx, await ofertaCupomAtiva()),
-    messages,
-  });
+  //
+  // Com ferramentas (ver GIOVANNA_TOOLS): até MAX_VOLTAS_FERRAMENTA voltas de tool_use. SÓ o
+  // texto final vai para `parts`, para a sessão e para o histórico: bloco de ferramenta não é
+  // salvo como mensagem da Giovanna, porque entraria na conta do MAX_TURNOS_AUTO.
+  const nomeEscalada = nome || null;
+  const ferramentasCtx: GiovannaCtx = {
+    // variantesBR monta as duas formas do número (com e sem o 9º dígito), então a guarda de
+    // "mais de uma conta" enxerga a conta cadastrada de qualquer um dos dois jeitos.
+    userIds: await contasDoTelefone(variantesBR(cleanPhone)),
+    userId: user.id,
+    phone: cleanPhone,
+    chaveContato: chaveContato(cleanPhone),
+    filaId: fila?.id ? String(fila.id) : null,
+    nome: nomeEscalada,
+    email: user.email,
+    avisosPendentes: [],
+    escalar: ({ area, descricao, diagnostico }) => escalarParaSuporte({
+      cleanPhone, nome: nomeEscalada, user, texto: text, area, descricao, diagnostico, diagnosticoNoAviso: diagnostico,
+    }),
+  };
+  // A oferta é lida do banco a cada resposta: desligar o cupom lá tira ele da
+  // boca da Giovanna no mesmo instante, sem deploy.
+  const system = buildSystemPrompt(userCtx, promoCtx, await ofertaCupomAtiva());
+  const trabalho: any[] = [...messages];
 
-  const raw = (response.content[0] as { text: string }).text;
+  // Só o `create` entra no try: se a IA caiu por crédito/chave, tenta a resposta fixa e RELANÇA o
+  // erro original, para a fila seguir com o retry e o aviso agregado como sempre.
+  const chamarModelo = async (semFerramentas: boolean) => {
+    try {
+      return await anthropic.messages.create({
+        model: MODELO_GIOVANNA,
+        max_tokens: MAX_TOKENS_GIOVANNA,
+        system,
+        messages: trabalho,
+        tools: GIOVANNA_TOOLS,
+        ...(semFerramentas ? { tool_choice: { type: 'none' as const } } : {}),
+      });
+    } catch (err) {
+      await respostaFixaSeIaCaiu({ err, cleanPhone, originInstance, recebidaEm: fila?.criadaEm, filaId: ferramentasCtx.filaId });
+      throw err;
+    }
+  };
+
+  let raw = '';
+  try {
+    for (let volta = 0; volta <= MAX_VOLTAS_FERRAMENTA; volta++) {
+      const ultima = volta === MAX_VOLTAS_FERRAMENTA;
+      const response = await chamarModelo(ultima);
+      const blocos = (response.content || []) as any[];
+      if (response.stop_reason === 'tool_use' && !ultima) {
+        trabalho.push({ role: 'assistant', content: blocos });
+        const resultados: any[] = [];
+        for (const b of blocos) {
+          if (b.type !== 'tool_use') continue;
+          resultados.push({
+            type: 'tool_result',
+            tool_use_id: b.id,
+            content: await executarFerramentaGiovanna(b.name, b.input, ferramentasCtx),
+          });
+        }
+        trabalho.push({ role: 'user', content: resultados });
+        continue;
+      }
+      if (response.stop_reason !== 'tool_use' /* esgotou as voltas ainda pedindo ferramenta: o texto junto é "vou conferir", não resposta */) raw = blocos.filter(b => b.type === 'text').map(b => String(b.text ?? '')).join('\n').trim();
+      break;
+    }
+  } finally {
+    // Mesmo se o modelo cair no meio: o que já foi gravado no cadastro precisa chegar ao dono.
+    await avisarDonoCadastroAlterado(ferramentasCtx, user.email);
+  }
+  if (!raw) raw = TEXTO_SEM_RESPOSTA;
 
   const { pedeHumano, pedePix, pedePixCurso, pedeLinkCupom, pedeImagemKit, parts } = parseTagsResposta(raw);
 
@@ -1058,29 +1361,12 @@ export async function handleIncomingWhatsApp(
   }
 
   if (pedeHumano) {
-    // Guard: 1 chamado por sessão (senão um modelo tagarela re-emite [HUMANO] e spamma
-    // chamado pro pagante). Só abre se não houver chamado 'aberto' pra este telefone.
-    const { data: aberto } = await supabase
-      .from('tech_issues').select('id').eq('phone', cleanPhone).eq('status', 'aberto').limit(1).maybeSingle();
-    if (!aberto) {
-      try {
-        await supabase.from('tech_issues').insert({
-          phone: cleanPhone, nome: nome || null, area: 'atendimento_giovanna',
-          descricao: (text || '').slice(0, 500),
-          diagnostico_automatico: `escalado pela Giovanna (plano ${user.plano}, ${user.email})`.slice(0, 500),
-          status: 'aberto',
-        });
-        logger.info('giovanna-escalar', `chamado aberto ${cleanPhone} (${user.email})`);
-        // Avisa o Thiago NA HORA (34991360223) — senão o chamado fica numa tabela
-        // que ninguém olha e o cliente PAGANTE fica no vácuo. Suporte 100% = alguém
-        // sabe na hora e responde. Best-effort (não trava o atendimento se falhar).
-        await sendWhatsApp('34991360223',
-          `🆘 *Suporte SolarDoc — cliente precisa de você*\n\nCliente: ${user.email} (${user.plano})\nWhatsApp: ${cleanPhone}\nDisse: "${(text || '').slice(0, 200)}"\n\nA Giovanna acionou você. Fala com ele: wa.me/55${cleanPhone.replace(/^55/, '')}`,
-          'solardoc').catch(() => {});
-      } catch (e) {
-        logger.error('giovanna-escalar', `registrar chamado falhou ${cleanPhone}`, e);
-      }
-    }
+    await escalarParaSuporte({
+      cleanPhone, nome: nomeEscalada, user, texto: text,
+      area: 'atendimento_giovanna',
+      descricao: (text || '').slice(0, 500),
+      diagnostico: `escalado pela Giovanna (plano ${user.plano}, ${user.email})`,
+    });
   }
 
   await saveSession(cleanPhone, user.id, [

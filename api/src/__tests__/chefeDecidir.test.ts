@@ -129,9 +129,9 @@ describe('decidir: uma regra por caso', () => {
     const d = adiar(decidir(est(pausa), ped('giovanna_agenda'), T));
     expect(d).toMatchObject({ motivo: 'pausa_humana', escopo: 'destino' });
     expect(d.ate).toBeGreaterThanOrEqual(T + 23 * HORA);
-    // A agenda do eletroposto não checa pausa hoje; a vendedora reativa também não.
+    // A agenda do eletroposto não checa pausa hoje; a Giovanna reativa checa (desde a versão com ferramentas).
     expect(decidir(est(pausa), ped('ep_agenda'), T).acao).toBe('enviar_agora');
-    expect(decidir(est({ destino: { pausa: { ultimaFalaEm: T - HORA }, ultimaEntradaEm: T - MIN } }), ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
+    expect(adiar(decidir(est({ destino: { pausa: { ultimaFalaEm: T - HORA }, ultimaEntradaEm: T - MIN } }), ped('giovanna_reativa'), T)).motivo).toBe('pausa_humana');
     // A Duda cala.
     expect(adiar(decidir(est({ destino: { pausa: { ultimaFalaEm: T - HORA }, ultimaEntradaEm: T - MIN } }), ped('duda_recepcao'), T)).motivo).toBe('pausa_humana');
     // Esfriou (25h): volta.
@@ -150,8 +150,8 @@ describe('decidir: uma regra por caso', () => {
       // Pausa esfriada (25h): sai.
       expect(decidir(est({ destino: { pausa: { ultimaFalaEm: T - 25 * HORA } } }), ped(robo, { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
     }
-    // A vendedora reativa passa com o lead que escreveu agora; atrasada, vira frio, e frio espera a pausa.
-    expect(decidir(comPausa({ ultimaEntradaEm: T - MIN }), ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
+    // A Giovanna reativa cala com humano dentro, mesmo com o lead que escreveu agora; atrasada, vira frio, e frio espera a pausa.
+    expect(adiar(decidir(comPausa({ ultimaEntradaEm: T - MIN }), ped('giovanna_reativa'), T))).toMatchObject({ classe: 'reativo_p1', motivo: 'pausa_humana' });
     expect(adiar(decidir(comPausa({ ultimaEntradaEm: T - 3 * HORA }), ped('giovanna_reativa'), T))).toMatchObject({ classe: 'frio_p5', motivo: 'pausa_humana' });
     expect(adiar(decidir(comPausa({ ultimaEntradaEm: T - 3 * HORA }), ped('manual_crm'), T))).toMatchObject({ classe: 'frio_p5', motivo: 'pausa_humana' });
     // O aviso rebaixado a frio (destino de fora) também espera.
