@@ -137,7 +137,7 @@ export function lerCaminho(caminho: unknown): { linha: Linha; codigo: string; uu
 
 export interface ArquivoDoc { id: string; slot: string; caminho: string; mime: string; bytes: number; em: string; por: string }
 export interface VinculoDoc { proposta: string; por: string; em: string }
-export interface TrilhaDoc { em: string; por: string; acao: 'anexou' | 'removeu' | 'vinculou'; slot?: string; proposta?: string }
+export interface TrilhaDoc { em: string; por: string; acao: 'anexou' | 'removeu' | 'vinculou' | 'moveu'; slot?: string; proposta?: string }
 /** `apagados`: caminhos já removidos. O token de envio vale 2 h, então o mesmo caminho poderia ser reenviado e registrado depois do DELETE. */
 export interface RegistroDocs { arquivos: ArquivoDoc[]; vinculo?: VinculoDoc; alteracoes: TrilhaDoc[]; apagados: string[] }
 
@@ -171,7 +171,7 @@ export function lerRegistroDocs(value: unknown): RegistroDocs {
     for (const a of v.alteracoes) {
       if (!a || typeof a !== 'object') continue;
       const x = a as Record<string, unknown>;
-      if (x.acao !== 'anexou' && x.acao !== 'removeu' && x.acao !== 'vinculou') continue;
+      if (x.acao !== 'anexou' && x.acao !== 'removeu' && x.acao !== 'vinculou' && x.acao !== 'moveu') continue;
       const t: TrilhaDoc = { em: txt(x.em), por: txt(x.por), acao: x.acao };
       if (typeof x.slot === 'string') t.slot = x.slot;
       if (typeof x.proposta === 'string') t.proposta = x.proposta;
@@ -198,6 +198,18 @@ export function semArquivo(reg: RegistroDocs, id: string, por: string, em: strin
     apagados: a ? [...reg.apagados.filter((c) => c !== a.caminho), a.caminho].slice(-MAX_APAGADOS) : reg.apagados,
     alteracoes: cortaTrilha([...reg.alteracoes, { em, por, acao: 'removeu', ...(a ? { slot: a.slot } : {}) }]),
   };
+}
+/** Muda o arquivo de item. Só metadado: o caminho no bucket não tem o item. A trilha guarda o item NOVO, nunca rótulo nem nome. */
+export function comArquivoMovido(reg: RegistroDocs, id: string, slot: string, por: string, em: string): RegistroDocs {
+  return {
+    ...reg,
+    arquivos: reg.arquivos.map((x) => (x.id === id ? { ...x, slot } : x)),
+    alteracoes: cortaTrilha([...reg.alteracoes, { em, por, acao: 'moveu', slot }]),
+  };
+}
+/** Por que `a` NÃO cabe no item `item` (null = cabe). O próprio arquivo não conta nos tetos: mover não aumenta o total. */
+export function motivoSemEspacoParaMover(reg: RegistroDocs, id: string, item: ItemDoc): ReturnType<typeof motivoSemEspaco> {
+  return motivoSemEspaco({ ...reg, arquivos: reg.arquivos.filter((x) => x.id !== id) }, item);
 }
 export function comVinculo(reg: RegistroDocs, proposta: string, por: string, em: string): RegistroDocs {
   return {

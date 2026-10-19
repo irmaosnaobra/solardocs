@@ -76,10 +76,17 @@ async function objetoAusente(caminho: string): Promise<boolean> {
   return !data;
 }
 
+/** Rótulos dos documentos de uma venda (texto livre, pode ter nome de pessoa): `<linha>/<codigo>.docs.json`, só dígitos no código. */
+export const caminhoRotulos = (linha: string, codigo: string): string => `${linha}/${codigo}.docs.json`;
+
 /** O JSON do cadastro, ou null se o objeto não existe. Qualquer outra falha (rede, bucket, JSON torto) lança. */
 export async function lerCadastroBruto(id: number): Promise<unknown | null> {
+  return lerJsonBruto(caminhoCadastro(id));
+}
+
+/** O JSON de um caminho do bucket, ou null se o objeto não existe. Qualquer outra falha (rede, bucket, JSON torto) lança. */
+export async function lerJsonBruto(caminho: string): Promise<unknown | null> {
   await garantirBucketCadastros();
-  const caminho = caminhoCadastro(id);
   const { data, error } = await supabase.storage.from(BUCKET_CADASTROS).download(caminho);
   if (error) {
     let ausente = false;
@@ -93,10 +100,15 @@ export async function lerCadastroBruto(id: number): Promise<unknown | null> {
 
 /** Grava (sobrescreve) o JSON do cadastro. `cacheControl` zero: a leitura seguinte não pode ver a versão velha. */
 export async function gravarCadastroBruto(id: number, valor: unknown): Promise<void> {
+  return gravarJsonBruto(caminhoCadastro(id), valor);
+}
+
+/** Grava (sobrescreve) o JSON de um caminho do bucket. */
+export async function gravarJsonBruto(caminho: string, valor: unknown): Promise<void> {
   await garantirBucketCadastros();
   const corpo = Buffer.from(JSON.stringify(valor), 'utf8');
   if (corpo.length > LIMITE_CADASTRO_BYTES) throw new ErroCadastro('grande');
-  const { error } = await supabase.storage.from(BUCKET_CADASTROS).upload(caminhoCadastro(id), corpo, {
+  const { error } = await supabase.storage.from(BUCKET_CADASTROS).upload(caminho, corpo, {
     contentType: 'application/json', upsert: true, cacheControl: '0',
   });
   if (error) throw new ErroCadastro('gravar');
@@ -168,8 +180,9 @@ async function soltarTrava(chave: string, meuStamp: string): Promise<void> {
 /**
  * Roda `fn` com a trava da venda. Escritas da mesma venda esperam (até ~5 tentativas curtas); sem conseguir, lança
  * `ErroCadastro('ocupado')`. A trava SEMPRE é solta no `finally`, e só se ainda for a dele.
+ * `id` é o id do card (eletroposto) ou, para outra linha, `<linha>:<código>` (o código do Solar não colide com um id de card).
  */
-export async function comTrava<T>(id: number, por: string, fn: () => Promise<T>): Promise<T> {
+export async function comTrava<T>(id: number | string, por: string, fn: () => Promise<T>): Promise<T> {
   const chave = `${TRAVA_PREFIXO}${id}`;
   const meuStamp = new Date().toISOString();
   let pegou = false;

@@ -14,13 +14,15 @@ import {
 import {
   CATALOGO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, corpoRelatorioSolar,
-  corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate,
+  corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover,
   type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
   lerVinculos, lerPropostaResumo, listarPropostasVendidas,
 } from '../services/gerador/docsClienteBanco';
+import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
+import { lerRotulos, gravarRotulos, rotuloManual, travaDaVenda, type Rotulos } from '../services/gerador/docsRotulos';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOCUMENTOS e RELATÓRIO DE ENGENHARIA da ficha de clientes do /gerador (14/10/2026).
@@ -30,6 +32,8 @@ import {
 //   POST   /clientes/:linha/:codigo/docs/upload-url         { slot, mime, bytes } -> URL assinada de envio e caminho
 //   POST   /clientes/:linha/:codigo/docs                    { slot, caminho } registra o que foi enviado
 //   DELETE /clientes/:linha/:codigo/docs/:id                remove o arquivo e o metadado
+//   PATCH  /clientes/:linha/:codigo/docs/:id                { rotulo?: string, slot?: string } renomeia e/ou move de item
+//          (o rótulo mora no bucket privado `cadastros-venda`, nunca no `system_state`; veja services/gerador/docsRotulos.ts)
 //   GET    /clientes/solar/:codigo/sugestoes-proposta       propostas vendidas de nome parecido
 //   POST   /clientes/solar/:codigo/vincular-proposta        { proposta }
 //   GET    /clientes/:linha/:codigo/relatorio               relatório de engenharia (sem dinheiro, URL de 15 min)
@@ -125,8 +129,22 @@ const corpoDe = (req: Request): Record<string, unknown> | null => {
   return b && typeof b === 'object' && !Array.isArray(b) ? (b as Record<string, unknown>) : null;
 };
 
-const lerNaTela = (a: { id: string; slot: string; mime: string; bytes: number; em: string; por: string; caminho: string }, urls: Map<string, string>) =>
-  ({ id: a.id, slot: a.slot, mime: a.mime, bytes: a.bytes, em: a.em, por: a.por, url: urls.get(a.caminho) ?? null });
+/** `rot`: os rótulos da venda (null = não há ou não foram lidos). `rotulo` e `rotulo_fonte` só saem quando há rótulo. */
+const lerNaTela = (a: { id: string; slot: string; mime: string; bytes: number; em: string; por: string; caminho: string }, urls: Map<string, string>, rot?: Rotulos | null) => {
+  const r = rot?.rotulos[a.id];
+  return {
+    id: a.id, slot: a.slot, mime: a.mime, bytes: a.bytes, em: a.em, por: a.por, url: urls.get(a.caminho) ?? null,
+    ...(r ? { rotulo: r.rotulo, rotulo_fonte: r.fonte } : {}),
+  };
+};
+
+/** Lê os rótulos sem nunca derrubar quem chama: falha vira null (e só o código do erro vai para o log). */
+async function rotulosOuNulo(ctx: Ctx): Promise<{ rot: Rotulos | null; indisponivel: boolean }> {
+  try { return { rot: await lerRotulos(ctx.linha, ctx.codigo), indisponivel: false }; } catch (err) {
+    logErro('rótulos indisponíveis', err);
+    return { rot: null, indisponivel: true };
+  }
+}
 
 const mimeDoDossie = (tipo: unknown, path: string): string => {
   const t = normalizarMime(tipo);
@@ -208,13 +226,14 @@ export function mountClientesDocs(router: Router): void {
     if (!ctx) return;
     try {
       await garantirBucketDocs();
-      const { reg } = await lerDocs(ctx);
+      const [{ reg }, { rot, indisponivel }] = await Promise.all([lerDocs(ctx), rotulosOuNulo(ctx)]);
       const urls = await assinarVarios(reg.arquivos.map((a) => a.caminho), SEG_URL_DOCS);
       res.json({
         ok: true,
         slots: CATALOGO[ctx.linha],
         limite_bytes: LIMITE_BYTES,
-        arquivos: reg.arquivos.map((a) => lerNaTela(a, urls)),
+        arquivos: reg.arquivos.map((a) => lerNaTela(a, urls, rot)),
+        ...(indisponivel ? { rotulos_indisponivel: true } : {}),
         vinculo: ctx.linha === 'solar' ? await blocoVinculo(ctx, reg, SEG_URL_DOCS) : null,
         // A posse já limitou a dono ou sócio: quem chegou aqui pode remover.
         pode_remover: true,
@@ -352,6 +371,83 @@ export function mountClientesDocs(router: Router): void {
     }
   });
 
+  // ── Renomear e/ou mover ────────────────────────────────────────────────────
+  // Ordem das recusas: formato da linha/código, posse (404 igual), id, `podeRemover`, corpo, item, formato, espaço.
+  router.patch('/clientes/:linha/:codigo/docs/:id', ...base, async (req: Request, res: Response) => {
+    const ctx = await contexto(req, res);
+    if (!ctx) return;
+    const id = String(req.params.id || '');
+    if (!/^[0-9a-f-]{36}$/.test(id)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    if (!podeRemover(ctx)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
+    const b = corpoDe(req);
+    const querRotulo = !!b && b.rotulo !== undefined;
+    const querSlot = !!b && b.slot !== undefined;
+    if (!b || (!querRotulo && !querSlot)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    let rotuloNovo = '';
+    if (querRotulo) {
+      const r = rotuloManual(b.rotulo);
+      if (!r.ok) { res.status(400).json({ ok: false, error: r.erro }); return; }
+      rotuloNovo = r.valor;
+    }
+    const itemNovo = querSlot ? itemDoCatalogo(ctx.linha, b.slot) : null;
+    if (querSlot && !itemNovo) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
+    try {
+      await garantirBucketDocs();
+      const feito = await comTrava(travaDaVenda(ctx.linha, ctx.codigo), ctx.nome, async () => {
+        // Rótulos lidos ANTES de mexer no item: se o bucket deles estiver fora do ar, nada muda pela metade.
+        const rot: Rotulos | null = querRotulo ? await lerRotulos(ctx.linha, ctx.codigo) : null;
+        for (let t = 0; t < TENTATIVAS; t++) {
+          const { reg, versao } = await lerDocs(ctx);
+          const a = reg.arquivos.find((x) => x.id === id);
+          if (!a) return { status: 404 as const, corpo: { ok: false, error: 'Arquivo não encontrado.' } };
+          let atual = a;
+          if (itemNovo && itemNovo.chave !== a.slot) {
+            if (!mimeServeAoItem(itemNovo, a.mime)) {
+              return { status: 400 as const, corpo: { ok: false, motivo: 'formato_nao_aceito', error: itemNovo.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Este item aceita só pdf.' } };
+            }
+            const motivo = motivoSemEspacoParaMover(reg, id, itemNovo);
+            if (motivo) return { status: 409 as const, corpo: { ok: false, motivo, error: mensagemSemEspaco(motivo) } };
+            const agora = new Date().toISOString();
+            const novo = comArquivoMovido(reg, id, itemNovo.chave, ctx.nome, agora);
+            if (!(await gravarDocs(ctx.linha, ctx.codigo, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
+            atual = { ...a, slot: itemNovo.chave };
+          }
+          if (rot) {
+            const agora = new Date().toISOString();
+            if (rotuloNovo) rot.rotulos[id] = { rotulo: rotuloNovo, fonte: 'manual', por: ctx.nome, em: agora };
+            else delete rot.rotulos[id];
+            try { await gravarRotulos(ctx.linha, ctx.codigo, rot, agora); } catch (e) {
+              logErro('gravar rótulo falhou', e);
+              return {
+                status: 503 as const,
+                corpo: { ok: false, motivo: 'rotulos_indisponivel', movido: atual.slot !== a.slot, error: atual.slot !== a.slot ? 'O arquivo foi movido, mas não consegui salvar o nome. Tente renomear de novo.' : MSG_GRAVAR },
+              };
+            }
+          }
+          return { status: 200 as const, arquivo: atual, rot };
+        }
+        return { status: 409 as const, corpo: { ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta ficha agora. Tente de novo.' } };
+      });
+      if (feito.status !== 200) { res.status(feito.status).json(feito.corpo); return; }
+      let urls = new Map<string, string>();
+      try { urls = await assinarVarios([feito.arquivo.caminho], SEG_URL_DOCS); } catch (e) { logErro('assinar falhou', e); }
+      // Só mover: o rótulo que o arquivo já tinha acompanha (leitura que falha não derruba a resposta).
+      const rotulos = feito.rot ?? (await rotulosOuNulo(ctx)).rot;
+      res.json({ ok: true, arquivo: lerNaTela(feito.arquivo, urls, rotulos) });
+    } catch (err) {
+      if (err instanceof ErroCadastro) {
+        logErro('renomear falhou', err);
+        if (err.codigo === 'ocupado') {
+          res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta ficha agora. Tente de novo.' });
+        } else {
+          res.status(503).json({ ok: false, motivo: 'rotulos_indisponivel', error: MSG_GRAVAR });
+        }
+        return;
+      }
+      falhou(res, 'renomear falhou', err);
+    }
+  });
+
   // ── Solar: sugestões de proposta ───────────────────────────────────────────
   router.get('/clientes/solar/:codigo/sugestoes-proposta', ...base, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res, 'solar');
@@ -419,7 +515,7 @@ export function mountClientesDocs(router: Router): void {
     try {
       const agora = new Date().toISOString();
       await garantirBucketDocs();
-      const { reg } = await lerDocs(ctx);
+      const [{ reg }, { rot }] = await Promise.all([lerDocs(ctx), rotulosOuNulo(ctx)]);
       const urls = await assinarVarios(reg.arquivos.map((a) => a.caminho), SEG_URL_RELATORIO);
       const rotulo = (slot: string): string => CATALOGO[ctx.linha].find((x) => x.chave === slot)?.rotulo ?? slot;
 
@@ -449,7 +545,10 @@ export function mountClientesDocs(router: Router): void {
         for (const a of reg.arquivos.filter((x) => x.slot === item.chave)) {
           presentes.add(item.chave);
           const url = urls.get(a.caminho);
-          if (url) documentos.push({ slot: item.chave, rotulo: item.rotulo, mime: a.mime, url });
+          // Só o nome dado pela IA entra (sem nome de pessoa nem número, por regra). O nome manual é texto livre e pode ter
+          // nome de pessoa: no relatório, que sai para terceiros, vale o nome do item do catálogo.
+          const r = rot?.rotulos[a.id];
+          if (url) documentos.push({ slot: item.chave, rotulo: r && r.fonte === 'ia' ? r.rotulo : item.rotulo, mime: a.mime, url });
         }
       }
       // O que foi anexado no após-vender (dossiê da proposta vinculada) entra no lugar do item que está vazio aqui.

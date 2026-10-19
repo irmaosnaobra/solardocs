@@ -8,6 +8,8 @@ import {
   ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, type Fonte,
 } from '../services/gerador/cadastroVenda';
 import { lerDocumentosDaVenda } from '../services/gerador/cadastroVendaLeitura';
+import { lerRotulos } from '../services/gerador/docsRotulos';
+import { organizarDocs } from '../services/gerador/docsOrganizar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CADASTRO DA VENDA do eletroposto (um por card vendido) e leitura dos documentos por IA. Montadas dentro de /gerador.
@@ -15,7 +17,9 @@ import { lerDocumentosDaVenda } from '../services/gerador/cadastroVendaLeitura';
 //   GET  /gerador/clientes/eletroposto/:codigo/cadastro        campos, o que falta e o tipo (PF ou PJ)
 //   PUT  /gerador/clientes/eletroposto/:codigo/cadastro        { campos: { campo: texto }, fonte?: 'ia'|'manual' }
 //        (a primeira escrita migra o legado da ficha para o cadastro; veja `escreverCadastro`)
-//   POST /gerador/clientes/eletroposto/:codigo/cadastro/ler    a IA lê os documentos já anexados e SUGERE (não grava)
+//   POST /gerador/clientes/eletroposto/:codigo/cadastro/ler    a IA lê os documentos já anexados e SUGERE os campos (não
+//        grava o cadastro). Também ORGANIZA os anexos: tira de "outros" o que tem item próprio e dá nome a cada documento
+//        (resposta: `organizados`, e `aviso` se isso falhar; as sugestões vêm de qualquer jeito)
 //
 // A guarda é a MESMA dos documentos (`contexto`): consultor só vê venda dele, sócio vê todas, só card vendido; venda
 // inexistente e alheia respondem IGUAL (404). O cadastro mora só no bucket privado `cadastros-venda` (nunca em
@@ -96,9 +100,17 @@ export function mountCadastroVenda(router: Router): void {
     try {
       await garantirBucketDocs();
       const { reg } = await lerDocs(ctx);
-      const r = await lerDocumentosDaVenda(reg.arquivos);
+      // Quem já tem rótulo lê depois dos que ainda não têm. Bucket dos rótulos fora do ar: lê sem essa prioridade.
+      const rotulados = new Set<string>();
+      try { for (const id of Object.keys((await lerRotulos('eletroposto', ctx.codigo)).rotulos)) rotulados.add(id); } catch (e) { logErro('rótulos indisponíveis', e); }
+      const r = await lerDocumentosDaVenda(reg.arquivos, { rotulados });
       if (r.ok) {
-        res.json({ ok: true, sugestoes: r.sugestoes, lidos: r.lidos, ignorados: r.ignorados });
+        // A leitura também organiza: mover de "outros" para o item certo e gravar o nome. Falha NÃO derruba as sugestões.
+        const org = await organizarDocs({ linha: 'eletroposto', codigo: ctx.codigo, nome: ctx.nome }, r.documentos, () => lerDocs(ctx));
+        res.json({
+          ok: true, sugestoes: r.sugestoes, lidos: r.lidos, ignorados: r.ignorados,
+          organizados: org.organizados, ...(org.aviso ? { aviso: org.aviso } : {}),
+        });
       } else if (r.motivo === 'sem_documentos') {
         res.status(409).json({ ok: false, motivo: 'sem_documentos', ignorados: r.ignorados });
       } else if (r.motivo === 'armazenamento') {

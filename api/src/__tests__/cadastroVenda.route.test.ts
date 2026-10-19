@@ -468,8 +468,8 @@ describe('POST cadastro/ler (IA lê os documentos já anexados)', () => {
     const bloco = corpo.messages[0].content.find((b: any) => b.type === 'document');
     expect(bloco.source).toEqual({ type: 'base64', media_type: 'application/pdf', data: PDF.toString('base64') });
   });
-  it('os mais recentes primeiro, no máximo 8 arquivos', async () => {
-    const fs = Array.from({ length: 10 }, (_, i) => {
+  it('os mais recentes primeiro, no máximo 12 arquivos', async () => {
+    const fs = Array.from({ length: 14 }, (_, i) => {
       const uuid = `aaaaaaaa-aaaa-4aaa-8aaa-${String(i).padStart(12, '0')}`;
       h.objetos.set(`eletroposto/101/${uuid}.jpg`, JPG);
       return doc('outros', uuid, 'jpg', 'image/jpeg', JPG.length, `2026-10-19T10:${String(i).padStart(2, '0')}:00.000Z`);
@@ -478,8 +478,11 @@ describe('POST cadastro/ler (IA lê os documentos já anexados)', () => {
     h.ia.fila.push(sugestaoIA());
     const res = await ler(101);
     expect(res.status).toBe(200);
-    expect(res.body.lidos).toEqual([{ slot: 'outros', n: 8 }]);
-    expect(res.body.ignorados).toHaveLength(2);
+    expect(res.body.lidos).toEqual([{ slot: 'outros', n: 12 }]);
+    expect(res.body.ignorados).toEqual([
+      { slot: 'outros', motivo: 'Não coube nesta leitura: aperte Ler de novo para os próximos.' },
+      { slot: 'outros', motivo: 'Não coube nesta leitura: aperte Ler de novo para os próximos.' },
+    ]);
   });
   it('imagem acima de 3,75 MB (pelo metadado ou pelos bytes) e PDF sem %PDF- vão para ignorados; sem sobrar nada, 409', async () => {
     anexa(101, [
