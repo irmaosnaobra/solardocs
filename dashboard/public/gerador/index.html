@@ -2886,6 +2886,39 @@ html.pv-aberto body{overflow:hidden}
 .vdc-aviso-tx{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
 .vdc-aviso-x{flex:none;min-height:36px;padding:4px 10px;border-radius:8px;border:1px solid var(--io-borda-campo,#7384A0);background:transparent;color:var(--n-tx,#E5E7EB);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .vdc-file{display:none}
+.vdc-lst{margin-top:10px;min-width:0}
+.vdc-lst[hidden]{display:none}
+.vdc-lst-bt{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:8px 12px;border-radius:9px;border:1px solid var(--n-bd,#334155);background:var(--n-sf,#1E293B);color:var(--n-tx,#E5E7EB);font-family:inherit;font-size:13.5px;font-weight:800;text-align:left;cursor:pointer}
+.vdc-lst-bt:hover{background:var(--n-sf3,#2A384F)}
+.vdc-lst-bt:focus-visible{outline:2px solid var(--io-azul-tx,#60A5FA);outline-offset:2px}
+.vdc-lst-bt::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-top:-3px}
+.vdc-lst-bt[aria-expanded="true"]::after{transform:rotate(-135deg);margin-top:3px}
+.vdc-lst-in{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:8px}
+.vdc-lst-vz{margin:0;padding:6px 2px;font-size:12.5px;color:var(--n-tx3,#94A3B8)}
+.vdc-lst-av{margin:0;padding:6px 10px;border-radius:9px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);font-size:12.5px;line-height:1.4}
+.vdc-arq{display:grid;grid-template-columns:32px minmax(0,1fr);gap:6px 10px;align-items:start;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf,#1E293B);border:1px solid var(--n-bd,#334155)}
+.vdc-arq-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--n-bd,#334155);background:var(--n-sf2,#182338);color:var(--n-tx3,#94A3B8)}
+.vdc-arq-ic svg{width:18px;height:18px}
+.vdc-arq-c{min-width:0}
+.vdc-arq-n{display:block;font-size:13.5px;font-weight:700;overflow-wrap:anywhere}
+.vdc-arq-m{display:block;font-size:12px;color:var(--n-tx3,#94A3B8)}
+.vdc-arq-ac{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-width:0}
+.vdc-arq-ac .vdc-btn{min-height:40px;padding:6px 12px;font-size:13px}
+.vdc-arq-ab{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:6px 12px;border-radius:9px;border:1.5px solid var(--io-borda-campo,#7384A0);background:transparent;color:var(--io-azul-tx,#93C5FD);font-family:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}
+.vdc-arq-ab:hover{background:var(--n-sf3,#2A384F)}
+.vdc-arq-ab:focus-visible{outline:2px solid var(--io-azul-tx,#60A5FA);outline-offset:2px}
+.vdc-arq-sel{min-width:0;max-width:100%;min-height:40px;padding:6px 8px;border-radius:9px;border:1.5px solid var(--io-borda-campo,#7384A0);background:var(--n-sf2,#182338);color:var(--n-tx,#E5E7EB);font-family:inherit;font-size:13px}
+.vdc-arq-sel:focus-visible{outline:2px solid var(--io-azul-tx,#60A5FA);outline-offset:1px}
+.vdc-arq-sel:disabled{opacity:.55}
+.vdc-arq-ed{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-width:0}
+.vdc-arq-ed .vdc-in{flex:1 1 160px}
+.vdc-arq-ed .vdc-btn{min-height:40px;padding:6px 12px;font-size:13px}
+.vdc-arq-er{grid-column:1 / -1;margin:0;font-size:12.5px;font-weight:700;line-height:1.4;color:var(--io-er-tx,#FCA5A5);overflow-wrap:anywhere}
+.vdc-org{margin-top:10px;padding:8px 10px;border-radius:9px;background:var(--io-ok-sf,rgba(74,222,128,.12));border:1px solid var(--io-ok-bd,rgba(74,222,128,.4));color:var(--n-tx,#E5E7EB);font-size:13px;line-height:1.4}
+.vdc-org-t{margin:0;font-weight:800}
+.vdc-org ul{margin:4px 0 0;padding-left:18px}
+.vdc-org li{overflow-wrap:anywhere}
+.vdc-org-av{margin:6px 0 0;padding:6px 8px;border-radius:8px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);overflow-wrap:anywhere}
 .fin{container-type:inline-size;container-name:fin;min-width:0;box-sizing:border-box;border-radius:12px;background:#0F172A;border:1px solid rgba(148,163,184,.3);color:#E5E7EB;text-align:left}
 .fin *{box-sizing:border-box}
 .fin.fin-solta{outline:2px dashed #60A5FA;outline-offset:-2px;background:#14213B}
@@ -33391,7 +33424,7 @@ const VDC_SLOTS = [
   { chave: 'outros', rot: 'Outros', dica: 'contrato social etc.', aceita: 'ambos', varios: true },
 ];
 const VDC_MAX_ARQ = 10 * 1024 * 1024;
-const VDC_LADO_MAX = 2000;
+const VDC_LADO_MAX = 2560;
 let vdcEst = null;     // o card aberto agora: { id, no, cad, docs, ... }. Nulo = nada aberto.
 
 const vdcV = (cad, k) => {
@@ -33459,11 +33492,11 @@ function vdcDetalhe(rec) {
   // O "Tentar de novo" do Pós-venda repinta o detalhe do MESMO card: com painel de conferência aberto, leitura ou anexo em andamento,
   // o bloco não é remontado (o que a pessoa conferiu e o envio em curso ficam).
   const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.no && vdcEst.no.sec.isConnected
-    && (!vdcEst.no.pn.hidden || vdcEst.lendo || vdcEst.gravando || Object.keys(vdcEst.sub).length > 0);
+    && (!vdcEst.no.pn.hidden || vdcEst.lendo || vdcEst.gravando || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
   if (ativo) return;
   vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
   if (!vale) { el.hidden = true; el.replaceChildren(); return; }
-  const st = { id: rec.id, cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null };
+  const st = { id: rec.id, cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '' };
   vdcEst = st;
   const sec = document.createElement('section');
   sec.className = 'vdc';
@@ -33475,8 +33508,14 @@ function vdcDetalhe(rec) {
   const msg = document.createElement('p'); msg.className = 'vdc-msg'; msg.hidden = true; msg.setAttribute('role', 'status');
   const pn = document.createElement('div'); pn.className = 'vdc-pn'; pn.hidden = true;
   const arqs = document.createElement('div'); arqs.className = 'vdc-file';
-  sec.append(h, topo, docs, acoes, msg, pn, arqs);
-  st.no = { sec, topo, docs, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
+  const lista = document.createElement('div'); lista.className = 'vdc-lst'; lista.hidden = true;
+  lista.addEventListener('focusout', () => {
+    // O foco saiu da lista: se um redesenho ficou adiado, faz agora (depois do clique que moveu o foco, para não engolir o clique).
+    setTimeout(() => { if (vdcEst === st && st.listaPendente && !lista.contains(document.activeElement)) vdcPintar(st); }, 0);
+  });
+  const org = document.createElement('div'); org.setAttribute('role', 'status');
+  sec.append(h, topo, docs, lista, org, acoes, msg, pn, arqs);
+  st.no = { sec, topo, docs, lista, org, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
   VDC_SLOTS.forEach((s) => {
     const inp = document.createElement('input');
     inp.type = 'file'; inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true'); inp.setAttribute('data-vdc-slot', s.chave);
@@ -33503,9 +33542,17 @@ function vdcCarregar(st) {
     st.carregando = false;
     if (c.status === 200 && c.json && c.json.ok !== false && c.json.cadastro) st.cad = c.json.cadastro;
     else st.erroCarga = vdcMsgErro(c, 'Não consegui ler o cadastro agora.');
-    if (d.status === 200 && d.json && d.json.ok !== false) st.docs = { slots: Array.isArray(d.json.slots) ? d.json.slots : [], arquivos: Array.isArray(d.json.arquivos) ? d.json.arquivos : [] };
+    if (d.status === 200 && d.json && d.json.ok !== false) st.docs = vdcDocsDe(d.json);
     vdcPintar(st);
   });
+}
+/** A lista de documentos como o servidor devolveu. `pode`: quem renomeia e move (o servidor recusa o resto). `rotulosFora`: os nomes não carregaram. */
+function vdcDocsDe(j) {
+  return {
+    slots: Array.isArray(j.slots) ? j.slots : [],
+    arquivos: Array.isArray(j.arquivos) ? j.arquivos.filter(a => a && typeof a === 'object' && a.id != null && typeof a.slot === 'string') : [],
+    pode: j.pode_remover === true, rotulosFora: j.rotulos_indisponivel === true, t: Date.now(),
+  };
 }
 
 function vdcSlotInfo(st, s) {
@@ -33568,6 +33615,8 @@ function vdcPintar(st) {
     if (st.msgDoc[s.chave]) { const m = document.createElement('p'); m.className = 'vdc-doc-m'; m.textContent = st.msgDoc[s.chave]; row.appendChild(m); }
     N.docs.appendChild(row);
   });
+  vdcPintarLista(st);
+  vdcPintarOrg(st);
   // botões
   N.acoes.replaceChildren();
   const ler = document.createElement('button'); ler.type = 'button'; ler.className = 'vdc-btn vdc-btn-pri'; ler.setAttribute('data-vdc-acao', 'ler');
@@ -33592,6 +33641,253 @@ function vdcPintar(st) {
   }
 }
 
+// ── Documentos anexados: nome, abrir, renomear e mover ─────────────────────
+// O rótulo (nome) vem do servidor e pode ter nome de pessoa: só entra na tela por textContent, nunca em HTML, URL, localStorage ou console.
+const VDC_ICO = {
+  pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
+  imagem: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>',
+};
+const VDC_ROTULO_MAX = 60;
+const VDC_URL_VALE = 240000;   // as URLs da lista duram 5 min: depois de 4 a lista é lida de novo antes de abrir
+const vdcEhImg = (a) => /^image\//i.test(String((a && a.mime) || ''));
+function vdcUrlHttps(u) { try { const x = new URL(String(u)); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } }
+/** Nome do item: primeiro o do catálogo do servidor ("Outros documentos"), depois o da tela, por fim a chave em palavras. */
+function vdcRotuloSlot(st, chave) {
+  const srv = st && st.docs && st.docs.slots.find(x => x && x.chave === chave);
+  if (srv && typeof srv.rotulo === 'string' && srv.rotulo) return srv.rotulo;
+  const s = VDC_SLOTS.find(x => x.chave === chave);
+  if (s) return s.rot;
+  const t = String(chave || '').replace(/[_-]+/g, ' ').trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Documento';
+}
+const vdcNomeArq = (st, a) => (typeof a.rotulo === 'string' && a.rotulo.trim()) ? a.rotulo.trim() : vdcRotuloSlot(st, a.slot);
+/** Itens do catálogo que aceitam o formato do arquivo (mesma regra do servidor). Os já ocupados ficam: o servidor responde 409 com a frase. */
+function vdcDestinos(st, a) {
+  const pdf = String(a.mime || '').toLowerCase() === 'application/pdf';
+  return ((st.docs && st.docs.slots) || []).filter(s => s && typeof s.chave === 'string' && s.chave !== a.slot && s.chave !== 'outros'
+    && (s.aceita === 'ambos' || (s.aceita === 'pdf' ? pdf : (s.aceita === 'imagem' && !pdf))));
+}
+function vdcMsgPatch(r, padrao) {
+  const j = (r && r.json) || {};
+  if (r && (r.status === 401 || r.status === 403 || r.status === 0)) return vdcMsgErro(r);
+  if (typeof j.error === 'string' && j.error) return j.error;
+  if (r && r.status === 404) return 'Não achei este arquivo. Atualize a lista.';
+  if (r && r.status === 429) return 'Muitos pedidos seguidos. Espere um pouco e tente de novo.';
+  return padrao || 'Não consegui agora. Tente de novo.';
+}
+function vdcTrocarArq(st, novo) {
+  if (!st.docs || !novo || novo.id == null) return;
+  const i = st.docs.arquivos.findIndex(x => x.id === novo.id);
+  // Troca o objeto inteiro: sem `rotulo` na resposta é nome limpo, e mesclar deixaria o antigo.
+  if (i >= 0) st.docs.arquivos[i] = novo;
+}
+function vdcIcone(nome) { const s = document.createElement('span'); s.innerHTML = VDC_ICO[nome]; return s.firstChild; }
+
+/** Redesenho pedido por uma ação da própria lista (abrir, renomear, mover): sempre desenha. */
+function vdcRedesenhar(st) { st.listaForcar = true; vdcPintar(st); }
+function vdcPintarLista(st) {
+  const L = st.no.lista;
+  if (!st.docs) { L.hidden = true; L.replaceChildren(); return; }
+  // Repintar não pode tirar o foco de quem está digitando ou navegando por teclado.
+  const ativo = document.activeElement && L.contains(document.activeElement) ? document.activeElement : null;
+  // Progresso de outro envio chega aqui sem ser pedido pela lista: com o foco na lista (seletor aberto, campo de nome, botão), adia o redesenho
+  // até o foco sair (`focusout`), senão o seletor aberto fecharia no meio da escolha.
+  if (ativo && !st.listaForcar) { st.listaPendente = true; return; }
+  st.listaForcar = false; st.listaPendente = false;
+  const focoKey = st.focoApos || (ativo && ativo.dataset ? ativo.dataset.vdcFoco || '' : '');
+  st.focoApos = '';
+  const selIni = focoKey === 'ren' && typeof ativo.selectionStart === 'number' ? ativo.selectionStart : null;
+  const selFim = focoKey === 'ren' && typeof ativo.selectionEnd === 'number' ? ativo.selectionEnd : null;
+  L.replaceChildren(); L.hidden = false;
+  const arqs = st.docs.arquivos;
+  const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'vdc-lst-bt'; bt.setAttribute('data-vdc-acao', 'lista'); bt.dataset.vdcFoco = 'lista';
+  bt.setAttribute('aria-expanded', st.listaAberta ? 'true' : 'false');
+  bt.textContent = 'Documentos anexados (' + arqs.length + ')';
+  bt.addEventListener('click', () => { st.listaAberta = !st.listaAberta; vdcRedesenhar(st); });
+  L.appendChild(bt);
+  let alvo = null;
+  if (st.listaAberta) {
+    const box = document.createElement('div'); box.className = 'vdc-lst-in'; box.setAttribute('data-vdc-lista', '1');
+    if (st.docs.rotulosFora) { const av = document.createElement('p'); av.className = 'vdc-lst-av'; av.setAttribute('data-vdc-aviso-nomes', '1'); av.textContent = 'Nomes dos documentos fora do ar agora.'; box.appendChild(av); }
+    if (!arqs.length) { const vz = document.createElement('p'); vz.className = 'vdc-lst-vz'; vz.textContent = 'Nenhum documento anexado.'; box.appendChild(vz); }
+    arqs.forEach((a) => {
+      const row = document.createElement('div'); row.className = 'vdc-arq'; row.setAttribute('data-vdc-arq', String(a.id));
+      const ic = document.createElement('span'); ic.className = 'vdc-arq-ic'; ic.appendChild(vdcIcone(vdcEhImg(a) ? 'imagem' : 'pdf'));
+      const c = document.createElement('div'); c.className = 'vdc-arq-c';
+      const nome = vdcNomeArq(st, a);
+      const n = document.createElement('span'); n.className = 'vdc-arq-n'; n.textContent = nome;
+      const m = document.createElement('span'); m.className = 'vdc-arq-m';
+      let meta = vdcEhImg(a) ? 'Imagem' : 'PDF';
+      if (a.rotulo) meta += ' · ' + vdcRotuloSlot(st, a.slot);
+      m.textContent = meta;
+      c.append(n, m);
+      row.append(ic, c);
+      const lin = st.lin[a.id] || {};
+      const edit = st.edit && st.edit.id === a.id ? st.edit : null;
+      if (edit) {
+        const ed = document.createElement('div'); ed.className = 'vdc-arq-ed';
+        const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'vdc-in'; inp.maxLength = VDC_ROTULO_MAX; inp.autocomplete = 'off';
+        inp.setAttribute('aria-label', 'Novo nome do documento'); inp.setAttribute('data-vdc-ren', String(a.id)); inp.dataset.vdcFoco = 'ren';
+        inp.value = edit.texto; inp.disabled = !!edit.gravando;
+        inp.addEventListener('input', () => { edit.texto = inp.value; });
+        inp.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); vdcRenomear(st, a); }
+          else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); st.edit = null; st.focoApos = 'rn:' + a.id; vdcRedesenhar(st); }   // só cancela o nome: o card não fecha
+        });
+        const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'vdc-btn vdc-btn-pri'; ok.textContent = edit.gravando ? 'Salvando…' : 'Salvar'; ok.disabled = !!edit.gravando;
+        ok.setAttribute('data-vdc-acao', 'ren-salvar'); ok.addEventListener('click', () => vdcRenomear(st, a));
+        const no = document.createElement('button'); no.type = 'button'; no.className = 'vdc-btn'; no.textContent = 'Cancelar'; no.disabled = !!edit.gravando;
+        no.setAttribute('data-vdc-acao', 'ren-cancelar'); no.addEventListener('click', () => { st.edit = null; st.focoApos = 'rn:' + a.id; vdcRedesenhar(st); });
+        ed.append(inp, ok, no); row.appendChild(ed);
+        if (edit.foco) alvo = inp;
+        else if (focoKey === 'ren') alvo = inp;
+      } else {
+        const ac = document.createElement('div'); ac.className = 'vdc-arq-ac';
+        const u = vdcUrlHttps(a.url);
+        if (u) {
+          const ab = document.createElement('a'); ab.className = 'vdc-arq-ab'; ab.textContent = 'Abrir'; ab.href = u; ab.target = '_blank'; ab.rel = 'noopener noreferrer';
+          ab.setAttribute('aria-label', 'Abrir ' + nome); ab.setAttribute('data-vdc-abrir', String(a.id)); ab.dataset.vdcFoco = 'ab:' + a.id;
+          ab.addEventListener('click', (ev) => { if (st.docs && Date.now() - st.docs.t > VDC_URL_VALE) { ev.preventDefault(); vdcAbrirVelho(st, a.id); } });
+          ac.appendChild(ab);
+        } else {
+          const sem = document.createElement('span'); sem.className = 'vdc-arq-m'; sem.textContent = 'Sem link agora.'; ac.appendChild(sem);
+        }
+        if (st.docs.pode && !st.docs.rotulosFora) {
+          const rn = document.createElement('button'); rn.type = 'button'; rn.className = 'vdc-btn'; rn.textContent = 'Renomear'; rn.dataset.vdcFoco = 'rn:' + a.id;
+          rn.setAttribute('data-vdc-acao', 'renomear'); rn.setAttribute('aria-label', 'Renomear ' + nome); rn.disabled = !!lin.ocupado;
+          rn.addEventListener('click', () => { st.edit = { id: a.id, texto: typeof a.rotulo === 'string' ? a.rotulo : '', gravando: false, foco: true }; delete st.lin[a.id]; vdcRedesenhar(st); });
+          ac.appendChild(rn);
+        }
+        if (st.docs.pode && a.slot === 'outros') {
+          const dest = vdcDestinos(st, a);
+          if (dest.length) {
+            const sel = document.createElement('select'); sel.className = 'vdc-arq-sel'; sel.setAttribute('data-vdc-mover', String(a.id)); sel.dataset.vdcFoco = 'mv:' + a.id; sel.setAttribute('aria-label', 'Mover para'); sel.disabled = !!lin.ocupado;
+            const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Mover para…'; sel.appendChild(o0);
+            dest.forEach((s) => { const o = document.createElement('option'); o.value = s.chave; o.textContent = vdcRotuloSlot(st, s.chave); sel.appendChild(o); });
+            sel.addEventListener('change', () => { if (sel.value) vdcMover(st, a, sel.value); });
+            ac.appendChild(sel);
+          }
+        }
+        row.appendChild(ac);
+      }
+      const erro = edit && edit.erro ? edit.erro : (!edit && lin.erro ? lin.erro : '');
+      if (erro) { const er = document.createElement('p'); er.className = 'vdc-arq-er'; er.setAttribute('role', 'alert'); er.textContent = erro; row.appendChild(er); }
+      box.appendChild(row);
+    });
+    L.appendChild(box);
+  }
+  // Devolve o foco ao que tinha: o campo de nome (no mesmo ponto do texto) ou o botão que o dono acabou de apertar.
+  if (alvo) {
+    try { alvo.focus({ preventScroll: true }); if (st.edit && st.edit.foco) { st.edit.foco = false; alvo.select(); } else if (selIni != null) alvo.setSelectionRange(selIni, selFim); } catch (e) {}
+  } else if (focoKey) {
+    const f = Array.from(L.querySelectorAll('[data-vdc-foco]')).find(x => x.dataset.vdcFoco === focoKey);
+    if (f && !f.disabled) { try { f.focus({ preventScroll: true }); } catch (e) {} }
+  }
+}
+
+/** A URL assinada passou de 4 min: lê a lista de novo e abre a nova (a aba nasce no clique, senão o navegador bloqueia). */
+async function vdcAbrirVelho(st, id) {
+  let w = null;
+  try { w = window.open('about:blank', '_blank'); } catch (e) {}
+  if (w) { try { w.opener = null; } catch (e) {} }
+  await vdcRecarregarDocs(st);
+  if (vdcEst !== st) { try { if (w) w.close(); } catch (e) {} return; }
+  const a = st.docs && st.docs.arquivos.find(x => x.id === id);
+  const u = a ? vdcUrlHttps(a.url) : '';
+  vdcRedesenhar(st);
+  if (!w || !u) { try { if (w) w.close(); } catch (e) {} showToast(w ? 'Não consegui abrir este arquivo agora.' : 'O navegador bloqueou a nova aba. Libere os pop-ups e tente de novo.'); return; }
+  try { w.location.replace(u); } catch (e) { try { w.close(); } catch (x) {} showToast('Não consegui abrir este arquivo agora.'); }
+}
+
+async function vdcRenomear(st, a) {
+  const ed = st.edit;
+  if (vdcEst !== st || !ed || ed.id !== a.id || ed.gravando) return;
+  const texto = String(ed.texto || '').trim();
+  if (texto === (typeof a.rotulo === 'string' ? a.rotulo.trim() : '')) { st.edit = null; st.focoApos = 'rn:' + a.id; vdcRedesenhar(st); return; }   // nada mudou: não chama
+  if (texto.length > VDC_ROTULO_MAX) { ed.erro = 'O nome passa de ' + VDC_ROTULO_MAX + ' caracteres.'; vdcRedesenhar(st); return; }
+  ed.gravando = true; ed.erro = ''; vdcRedesenhar(st);
+  const r = await vdcChamar(st, 'PATCH', '/docs/' + encodeURIComponent(String(a.id)), { rotulo: texto });
+  if (vdcEst !== st) return;
+  const j = r.json || {};
+  if (r.status === 200 && j.ok !== false && j.arquivo && typeof j.arquivo === 'object') {
+    vdcTrocarArq(st, j.arquivo);
+    st.edit = null; delete st.lin[a.id]; st.focoApos = 'rn:' + a.id;
+    vdcRedesenhar(st);
+    showToast(texto ? 'Nome salvo.' : 'Nome removido.');
+    return;
+  }
+  const fora = r.status === 503 && String(j.motivo || '') === 'rotulos_indisponivel';
+  const msg = vdcMsgPatch(r, 'Não consegui salvar o nome agora.');
+  if (fora) {
+    // Os nomes estão fora do ar: sai do campo, esconde o Renomear até recarregar. Se o arquivo chegou a mudar de item, lê a lista de novo.
+    st.edit = null; st.lin[a.id] = { erro: msg };
+    if (st.docs) st.docs.rotulosFora = true;
+    if (j.movido === true) await vdcRecarregarDocs(st);
+    if (vdcEst !== st) return;
+    if (st.docs) st.docs.rotulosFora = true;
+    vdcRedesenhar(st);
+    return;
+  }
+  ed.gravando = false; ed.erro = msg; ed.foco = true;
+  vdcRedesenhar(st);
+}
+
+async function vdcMover(st, a, slot) {
+  const lin = st.lin[a.id] = { ocupado: true, erro: '' };
+  vdcRedesenhar(st);
+  const r = await vdcChamar(st, 'PATCH', '/docs/' + encodeURIComponent(String(a.id)), { slot });
+  if (vdcEst !== st) return;
+  const j = r.json || {};
+  if (r.status === 200 && j.ok !== false && j.arquivo && typeof j.arquivo === 'object') {
+    vdcTrocarArq(st, j.arquivo);
+    delete st.lin[a.id];
+    vdcRedesenhar(st);
+    showToast('Documento movido para ' + vdcRotuloSlot(st, slot) + '.');
+    return;
+  }
+  lin.ocupado = false;
+  lin.erro = vdcMsgPatch(r, 'Não consegui mover agora.');
+  // Conflito de gravação ou item cheio: a lista pode ter mudado por outra pessoa. Lê de novo para o seletor não mentir.
+  if (r.status === 409 || r.status === 404) await vdcRecarregarDocs(st);
+  if (vdcEst !== st) return;
+  vdcRedesenhar(st);
+}
+
+/** O que a leitura arrumou: "Organizei N documentos." e até 5 linhas. */
+function vdcPintarOrg(st) {
+  const box = st.no.org; box.replaceChildren(); box.className = '';
+  const o = st.org;
+  if (!o) return;
+  if (o.linhas.length || o.n) {
+    box.className = 'vdc-org';
+    const t = document.createElement('p'); t.className = 'vdc-org-t'; t.textContent = o.n === 1 ? 'Organizei 1 documento.' : 'Organizei ' + o.n + ' documentos.';
+    box.appendChild(t);
+    if (o.linhas.length) {
+      const ul = document.createElement('ul');
+      o.linhas.slice(0, 5).forEach((x) => { const li = document.createElement('li'); li.textContent = x; ul.appendChild(li); });
+      box.appendChild(ul);
+    }
+    if (o.n > 5) { const mais = document.createElement('p'); mais.className = 'vdc-nota'; mais.textContent = 'E mais ' + (o.n - 5) + '. Veja na lista de documentos anexados.'; box.appendChild(mais); }
+  }
+  if (o.aviso) {
+    const av = document.createElement('p'); av.className = o.n ? 'vdc-org-av' : 'vdc-msg'; av.textContent = o.aviso;
+    box.appendChild(av);
+  }
+}
+function vdcOrganizados(st, j) {
+  const lista = Array.isArray(j.organizados) ? j.organizados.filter(x => x && typeof x === 'object') : [];
+  const aviso = typeof j.aviso === 'string' ? j.aviso.trim() : '';
+  if (!lista.length && !aviso) return null;
+  const linhas = [];
+  lista.forEach((x) => {
+    const rot = typeof x.rotulo === 'string' ? x.rotulo.trim() : '';
+    const moveu = typeof x.para === 'string' && x.para && typeof x.de === 'string' && x.de !== x.para;
+    if (moveu) linhas.push((rot || vdcRotuloSlot(st, x.de)) + ': foi para ' + vdcRotuloSlot(st, x.para));
+    else if (rot) linhas.push('Ganhou o nome ' + rot);
+  });
+  return { n: lista.length, linhas, aviso };
+}
+
 // ── Anexar (o mesmo envio em dois passos da ficha) ─────────────────────────
 function vdcUrlEnvio(u) {
   try {
@@ -33603,7 +33899,7 @@ function vdcUrlEnvio(u) {
 }
 const vdcInvalido = (msg, curto) => ({ msg, curto: curto || msg });
 // Mais de um arquivo por vez só no item que aceita vários ("Outros"). O catálogo da API limita o item e a venda; o servidor diz quando não cabe.
-const VDC_LOTE_MAX = 60;
+const VDC_LOTE_MAX = 100;   // quantos arquivos a tela aceita por vez; o limite de verdade (por item e por venda) é do servidor e chega como 409
 async function vdcBitmap(f) {
   const viaImg = () => new Promise((ok, no) => {
     const u = URL.createObjectURL(f), im = new Image();
@@ -33615,21 +33911,67 @@ async function vdcBitmap(f) {
   try { return await createImageBitmap(f, { imageOrientation: 'from-image' }); }
   catch (e) { try { return await createImageBitmap(f); } catch (e2) { return viaImg(); } }
 }
+const VDC_MSG_HEIC = 'Foto HEIC: envie como JPG (no iPhone, Ajustes > Câmera > Formatos > Mais compatível).';
+const VDC_COMPRIMIR_ACIMA = 1.5 * 1024 * 1024;   // foto maior que isto, ou com o lado maior acima de VDC_LADO_MAX, é reduzida antes de subir
+const VDC_QUALIDADE = 0.85;
+const vdcEhHeic = (f) => /^image\/hei[cf]/i.test(String(f.type || '')) || /\.hei[cf]$/i.test(String(f.name || ''));
+/** O tipo que o servidor aceita como está (jpeg, png, webp), ou '' para o que precisa virar JPEG (gif, heic...). */
+function vdcMimeDireto(f) {
+  const t = String(f.type || '').toLowerCase(), n = String(f.name || '').toLowerCase();
+  if (/^image\/(jpeg|png|webp)$/.test(t)) return t;
+  if (t) return '';
+  return /\.jpe?g$/.test(n) ? 'image/jpeg' : /\.png$/.test(n) ? 'image/png' : /\.webp$/.test(n) ? 'image/webp' : '';
+}
+/**
+ * Uma foto por vez (o chamador é sequencial). Decodifica respeitando a orientação EXIF e:
+ *  - JPEG e WebP são SEMPRE recodificados para JPEG 0,85 (lado maior até 2560 px), mesmo pequenos e mesmo se ficarem maiores: isso tira o EXIF
+ *    (a localização da casa do cliente). Se passar de 10 MB, tenta 0,7; se ainda passar, vai o original.
+ *  - PNG até 1,5 MB e 2560 px vai como está; PNG maior é reduzido e, se ficar maior que o original, vai o original.
+ *  - Se a decodificação falhar (bitmap, canvas ou toBlob), jpeg/png/webp de até 10 MB sobem como estão. Só o HEIC que o navegador não lê é recusado.
+ * O bitmap e o canvas são soltos no fim, mesmo em erro.
+ */
 async function vdcReduzir(f) {
-  let bm;
-  try { bm = await vdcBitmap(f); } catch (e) { throw vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível'); }
-  const w = bm.width || bm.naturalWidth, h = bm.height || bm.naturalHeight;
-  if (!w || !h) throw vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível');
-  const k = Math.min(1, VDC_LADO_MAX / Math.max(w, h));
+  const heic = vdcEhHeic(f);
+  const direto = vdcMimeDireto(f);
+  const ilegivel = () => heic ? vdcInvalido(VDC_MSG_HEIC) : vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível');
+  const grande = () => vdcInvalido('A imagem passa de 10 MB. Tire a foto de novo.', 'acima de 10 MB');
+  const original = () => {
+    if (!f.size) throw vdcInvalido('O arquivo está vazio.', 'arquivo vazio');
+    if (f.size > VDC_MAX_ARQ) throw grande();
+    return { blob: f, mime: direto };
+  };
+  let bm = null;
+  try { bm = await vdcBitmap(f); } catch (e) { bm = null; }
+  const w = bm ? (bm.width || bm.naturalWidth) : 0, h = bm ? (bm.height || bm.naturalHeight) : 0;
+  if (!bm || !w || !h) {
+    try { if (bm && bm.close) bm.close(); } catch (e) {}
+    if (direto) return original();      // não decodificou, mas é jpeg/png/webp: sobe o que a pessoa mandou
+    throw ilegivel();                   // HEIC que o navegador não lê (e o que não é imagem que o servidor aceite)
+  }
+  const lado = Math.max(w, h);
+  if (direto === 'image/png' && f.size <= VDC_COMPRIMIR_ACIMA && lado <= VDC_LADO_MAX) {
+    try { if (bm.close) bm.close(); } catch (e) {}
+    return original();                  // PNG leve: vai sem mexer
+  }
+  const k = Math.min(1, VDC_LADO_MAX / lado);
   const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
-  const cx = cv.getContext('2d');
-  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);   // PNG transparente não vira preto no JPEG
-  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
-  cx.drawImage(bm, 0, 0, cv.width, cv.height);
-  if (bm.close) bm.close();
-  const blob = await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.8));
-  if (!blob) throw vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível');
-  if (blob.size > VDC_MAX_ARQ) throw vdcInvalido('A imagem passa de 10 MB. Tire a foto de novo.', 'acima de 10 MB');
+  const codificar = (q) => new Promise((ok) => cv.toBlob(ok, 'image/jpeg', q));
+  let blob = null, falhou = false;
+  try {
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);   // PNG transparente não vira preto no JPEG
+    cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+    cx.drawImage(bm, 0, 0, cv.width, cv.height);
+    blob = await codificar(VDC_QUALIDADE);
+    if (blob && blob.size > VDC_MAX_ARQ) blob = await codificar(0.7);
+  } catch (e) { falhou = true; }
+  finally {
+    try { if (bm.close) bm.close(); } catch (e) {}
+    cv.width = 0; cv.height = 0;       // solta a memória do canvas antes da próxima foto
+  }
+  if (falhou || !blob) { if (direto) return original(); throw ilegivel(); }
+  if (blob.size > VDC_MAX_ARQ) { if (direto) return original(); throw grande(); }
+  if (direto === 'image/png' && blob.size >= f.size) return original();   // PNG: a reduzida ficou maior, vai o original
   return { blob, mime: 'image/jpeg' };
 }
 async function vdcPreparar(f, slot) {
@@ -33648,13 +33990,18 @@ async function vdcPreparar(f, slot) {
   }
   throw vdcInvalido('Use uma imagem ou um PDF.', 'tipo não aceito');
 }
+/** "Sem espaço" (para o resto do lote) é decidido SÓ pelo status: 413, ou 409 com um dos motivos de espaço do servidor. Nunca pelo texto da frase. */
+const VDC_MOTIVOS_ESPACO = ['slot_ocupado', 'muitos_no_item', 'muitos_na_venda'];
+const vdcSemEspaco = (r) => !!r && (r.status === 413 || (r.status === 409 && VDC_MOTIVOS_ESPACO.indexOf(String((r.json && r.json.motivo) || '')) >= 0));
 async function vdcEnviar(st, slot, p) {
   const a = await vdcChamar(st, 'POST', '/docs/upload-url', { slot: slot.chave, mime: p.mime, bytes: p.blob.size });
   const j = a.json || {};
   if (a.status !== 200 || j.ok === false || typeof j.upload_url !== 'string' || typeof j.caminho !== 'string') {
     const srv = typeof j.error === 'string' ? j.error : '';
-    const semEsp = a.status === 409 || a.status === 413 || /limite|espaço|máximo|cheio/i.test(srv);
-    const er = vdcInvalido(a.status === 401 || a.status === 0 ? vdcMsgErro(a) : srv || 'Não consegui iniciar o envio agora.', semEsp ? 'sem espaço' : (a.status === 401 || a.status === 0 ? vdcMsgErro(a) : srv || 'não consegui iniciar o envio'));
+    const semEsp = vdcSemEspaco(a);   // só o status decide: um 429 de frequência é falha DESTE arquivo, o resto do lote segue
+    const sessao = a.status === 401 || a.status === 0;
+    const msg429 = 'Muitos envios seguidos. Espere um pouco e tente de novo.';
+    const er = vdcInvalido(sessao ? vdcMsgErro(a) : srv || (a.status === 429 ? msg429 : 'Não consegui iniciar o envio agora.'), semEsp ? 'sem espaço' : (sessao ? vdcMsgErro(a) : srv || (a.status === 429 ? msg429 : 'não consegui iniciar o envio')));
     er.semEspaco = semEsp;
     throw er;
   }
@@ -33675,13 +34022,15 @@ async function vdcEnviar(st, slot, p) {
   if (!r.ok) throw vdcInvalido('O envio não terminou (erro ' + r.status + '). Tente de novo.');
   const b = await vdcChamar(st, 'POST', '/docs', { slot: slot.chave, caminho: j.caminho });
   if (b.status < 200 || b.status >= 300 || (b.json && b.json.ok === false)) {
-    throw vdcInvalido((b.json && typeof b.json.error === 'string' && b.json.error) || 'O arquivo subiu, mas não consegui registrar. Tente de novo.');
+    const er2 = vdcInvalido((b.json && typeof b.json.error === 'string' && b.json.error) || 'O arquivo subiu, mas não consegui registrar. Tente de novo.');
+    if (vdcSemEspaco(b)) { er2.semEspaco = true; er2.curto = 'sem espaço'; }
+    throw er2;
   }
 }
 async function vdcRecarregarDocs(st) {
   const d = await vdcChamar(st, 'GET', '/docs');
   if (vdcEst !== st) return;
-  if (d.status === 200 && d.json && d.json.ok !== false) st.docs = { slots: Array.isArray(d.json.slots) ? d.json.slots : [], arquivos: Array.isArray(d.json.arquivos) ? d.json.arquivos : [] };
+  if (d.status === 200 && d.json && d.json.ok !== false) st.docs = vdcDocsDe(d.json);
 }
 async function vdcAnexar(st, slot0, arquivos) {
   const slot = vdcSlotInfo(st, slot0);
@@ -33723,7 +34072,7 @@ async function vdcAnexar(st, slot0, arquivos) {
 // ── Ler com a IA e conferir ────────────────────────────────────────────────
 async function vdcLer(st) {
   if (vdcEst !== st || st.lendo || st.gravando) return;
-  st.lendo = true; st.msg = '';
+  st.lendo = true; st.msg = ''; st.org = null;
   st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
   vdcPintar(st);
   const r = await vdcChamar(st, 'POST', '/cadastro/ler', {}, 120000);
@@ -33734,6 +34083,13 @@ async function vdcLer(st) {
     st.msg = vdcMsgErro(r, 'Não consegui ler os documentos agora.');
     vdcPintar(st);
     return;
+  }
+  // A leitura também arruma os arquivos (muda de item, dá nome): a lista lê de novo e o que foi feito aparece no bloco.
+  st.org = vdcOrganizados(st, j);
+  if (st.org) {
+    await vdcRecarregarDocs(st);
+    if (vdcEst !== st) return;
+    st.org = vdcOrganizados(st, j);   // refeito com os itens do catálogo já carregados
   }
   vdcPintar(st);
   vdcPainel(st, j);

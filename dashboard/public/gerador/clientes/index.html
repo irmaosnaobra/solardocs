@@ -196,6 +196,10 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .dc-sug{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--gc-bd);border-radius:10px}
 .dc-sug .dc-info{flex:1 1 180px}
 .dc-conf{flex:1 1 100%;font-size:13px;font-weight:600;color:var(--gc-tit)}
+.dc-ren{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.dc-ren input{flex:1 1 160px;min-width:0;min-height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--gc-campo);background:var(--gc-sf);color:var(--gc-tx);font:inherit;font-size:14px}
+.dc-ren input:focus-visible{outline:2px solid var(--gc-link);outline-offset:1px}
+.dc-arq .dc-msg{grid-column:1 / -1}
 
 /* Estados */
 .gc-estado{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;background:var(--gc-bg);z-index:30}
@@ -390,6 +394,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   var DOCS = {};                    // documentos por cliente: { estado, slots, arquivos, vinculo, pode, t }
   var VINC = {};                    // vínculo com proposta (só Solar), por cliente
   var RM = {};                      // remoção em dois passos, por id de arquivo
+  var REN = {};                     // renomear, por id de arquivo: { editando, texto, erro, gravando, foco }
   var MSGS = {};                    // último erro de envio, por cliente e item
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1214,7 +1219,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   var DOCS_VALE = 180000;           // as URLs assinadas duram 5 min: depois de 3 min a lista é lida de novo
   var ABRIR_VALE = 240000;
   var MAX_ARQ = 10 * 1024 * 1024;
-  var LADO_MAX = 2000;
+  var LADO_MAX = 2560;
+  var COMPRIMIR_ACIMA = 1.5 * 1024 * 1024;
   var tmpInput = null;
   var ICO = {
     pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
@@ -1256,6 +1262,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     d.arquivos = (Array.isArray(j.arquivos) ? j.arquivos : []).filter(function (a) { return a && a.id != null && typeof a.slot === 'string'; });
     d.vinculo = (!EP && j.vinculo && typeof j.vinculo === 'object') ? j.vinculo : null;
     d.pode = j.pode_remover === true;
+    d.rotulosFora = j.rotulos_indisponivel === true;   // os nomes dos arquivos não carregaram: sem Renomear até a próxima leitura
   }
   function carregarDocs(codigo, forcar) {
     var l = linhaPor[codigo]; if (!l) return Promise.resolve();
@@ -1308,6 +1315,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       sec.appendChild(v);
       return sec;
     }
+    if (d.rotulosFora) { var avn = el('p', 'dc-nota', 'Nomes dos documentos fora do ar agora.'); avn.dataset.nomesFora = '1'; sec.appendChild(avn); }
     var obrig = 0, ok = 0;
     d.slots.forEach(function (s) { if (s.obrigatorio) { obrig++; if (arquivosDe(d, s.chave).length) ok++; } });
     cnt.textContent = obrig ? ok + ' de ' + obrig + ' obrigatórios' : '';
@@ -1327,15 +1335,45 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       im.addEventListener('error', function () { mini.textContent = ''; mini.appendChild(icone('imagem')); });
       im.src = u; mini.appendChild(im);
     } else mini.appendChild(icone(ehImg ? 'imagem' : 'pdf'));
-    var info = el('div', 'dc-info'), t = el('b', null, ehImg ? 'Imagem' : 'PDF');
+    // O nome (rótulo) vem do servidor e pode ter nome de pessoa: só por textContent (o `el` faz isso), nunca em HTML, URL ou console.
+    var temRot = !opc.venda && typeof a.rotulo === 'string' && a.rotulo.trim() !== '';
+    var tipoTxt = ehImg ? 'Imagem' : 'PDF';
+    var info = el('div', 'dc-info'), t = el('b', null, temRot ? a.rotulo.trim() : tipoTxt);
     if (opc.venda) t.appendChild(el('span', 'dc-tag', 'Da venda'));
     info.appendChild(t);
-    var meta = a.bytes ? fmtBytes(a.bytes) : '';
+    var meta = temRot ? tipoTxt : '';
+    if (a.bytes) meta += (meta ? ' · ' : '') + fmtBytes(a.bytes);
     if (a.em) { var dm = ''; try { dm = fDM.format(new Date(a.em)); } catch (e) {} if (dm) meta += (meta ? ' · ' : '') + (a.por ? a.por + ', ' : '') + dm; }
     if (meta) info.appendChild(el('span', null, meta));
     r.appendChild(mini); r.appendChild(info);
-    var ac = el('div', 'dc-ac'), nome = opc.rotulo || '';
+    var ac = el('div', 'dc-ac'), nome = temRot ? a.rotulo.trim() : (opc.rotulo || '');
+    var ren = !opc.venda ? REN[a.id] : null;
+    if (ren && ren.editando) {
+      var ed = el('div', 'dc-ren'), inp = el('input'); inp.type = 'text'; inp.maxLength = 60; inp.autocomplete = 'off';
+      inp.setAttribute('aria-label', 'Novo nome do documento'); inp.dataset.foco = 'ren:' + a.id; inp.value = ren.texto; inp.disabled = !!ren.gravando;
+      var guardaSel = function () { ren.texto = inp.value; ren.sel = [inp.selectionStart, inp.selectionEnd]; };
+      inp.addEventListener('input', guardaSel); inp.addEventListener('keyup', guardaSel); inp.addEventListener('click', guardaSel);
+      if (ren.sel && !ren.foco) { try { inp.setSelectionRange(ren.sel[0], ren.sel[1]); } catch (e) {} }
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); renomearArquivo(codigo, a); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); delete REN[a.id]; pintarDocs(codigo); }
+      });
+      ed.appendChild(inp);
+      ed.appendChild(botao(ren.gravando ? 'Salvando...' : 'Salvar', 'pri', 'rens:' + a.id, function () { renomearArquivo(codigo, a); }, 'Salvar o nome de ' + nome));
+      ed.appendChild(botao('Cancelar', '', 'renc:' + a.id, function () { delete REN[a.id]; pintarDocs(codigo); }));
+      if (ren.gravando) { ed.children[1].disabled = true; ed.children[2].disabled = true; }
+      r.appendChild(ed);
+      if (ren.foco) { ren.foco = false; setTimeout(function () { try { inp.focus(); inp.select(); } catch (e) {} }, 0); }
+      if (ren.erro) { var em = el('span', 'dc-msg', ren.erro); em.setAttribute('role', 'alert'); r.appendChild(em); }
+      return r;
+    }
     ac.appendChild(botao('Abrir', '', 'abrir:' + opc.id, function () { abrirArquivo(codigo, opc.pegar); }, 'Abrir ' + nome));
+    if (!opc.venda && d.pode && !d.rotulosFora) {
+      ac.appendChild(botao('Renomear', '', 'ren:' + a.id, function () {
+        REN[a.id] = { editando: true, texto: typeof a.rotulo === 'string' ? a.rotulo : '', erro: '', gravando: false, foco: true };
+        pintarDocs(codigo);
+      }, 'Renomear ' + nome));
+    }
     if (!opc.venda && d.pode) {
       var armado = RM[a.id];
       if (armado === 'enviando') { var bz = botao('Removendo...', 'er', 'rm:' + a.id, function () {}); bz.disabled = true; ac.appendChild(bz); }
@@ -1348,7 +1386,36 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       }, 'Remover ' + nome));
     }
     r.appendChild(ac);
+    if (ren && !ren.editando && ren.erro) { var em2 = el('span', 'dc-msg', ren.erro); em2.setAttribute('role', 'alert'); r.appendChild(em2); }
     return r;
+  }
+  // Renomear: PATCH { rotulo }. Vazio limpa o nome. O servidor devolve o arquivo inteiro (sem `rotulo` quando limpou), então troca o objeto, não mescla.
+  function renomearArquivo(codigo, a) {
+    var l = linhaPor[codigo], d = DOCS[codigo], ren = REN[a.id]; if (!l || !d || !ren || ren.gravando) return;
+    var texto = String(ren.texto || '').trim();
+    if (texto === (typeof a.rotulo === 'string' ? a.rotulo.trim() : '')) { delete REN[a.id]; pintarDocs(codigo); return; }
+    if (texto.length > 60) { ren.erro = 'O nome passa de 60 caracteres.'; pintarDocs(codigo); return; }
+    ren.gravando = true; ren.erro = ''; pintarDocs(codigo);
+    api('PATCH', caminhoDoc(l, '/docs/' + encodeURIComponent(String(a.id))), { rotulo: texto }, true).then(function (x) {
+      var j = x.json || {};
+      if (x.status === 200 && j.ok !== false && j.arquivo && typeof j.arquivo === 'object') {
+        for (var i = 0; i < d.arquivos.length; i++) if (d.arquivos[i].id === a.id) { d.arquivos[i] = j.arquivo; break; }
+        delete REN[a.id]; pintarDocs(codigo); aviso(texto ? 'Nome salvo.' : 'Nome removido.');
+        return;
+      }
+      var msg = x.status === 404 ? 'Não achei este arquivo. Atualize a lista.' : msgServidor(x, 'Não consegui salvar o nome agora.');
+      if (x.status === 503 && j.motivo === 'rotulos_indisponivel') {
+        // Os nomes estão fora do ar: fecha o campo, mostra o aviso e esconde o Renomear até a lista ser lida de novo.
+        d.rotulosFora = true; REN[a.id] = { editando: false, erro: msg };
+        pintarDocs(codigo);
+        if (j.movido === true) carregarDocs(codigo, true).then(function () { d.rotulosFora = true; pintarDocs(codigo); });
+        return;
+      }
+      ren.gravando = false; ren.erro = msg; ren.foco = true; pintarDocs(codigo);
+    }, function (e) {
+      if (ehLogin(e)) return;
+      ren.gravando = false; ren.erro = 'Não consegui salvar o nome agora. Confira a conexão.'; ren.foco = true; pintarDocs(codigo);
+    });
   }
   function cartaoSlot(codigo, d, s) {
     var chave = codigo + '|' + s.chave, st = SUBIR[chave], arqs = arquivosDe(d, s.chave), nome = s.rotulo || s.chave;
@@ -1440,25 +1507,55 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     if (!window.createImageBitmap) return viaImg();
     return createImageBitmap(f, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(f); }).catch(viaImg);
   }
-  // Imagem: no máximo 2000 px no lado maior, JPEG 0,8 (legível e leve; também tira o GPS da foto).
+  var MSG_HEIC = 'Foto HEIC: envie como JPG (no iPhone, Ajustes > Câmera > Formatos > Mais compatível).';
+  function mimeDireto(f) {
+    var t = String(f.type || '').toLowerCase(), n = String(f.name || '').toLowerCase();
+    if (/^image\/(jpeg|png|webp)$/.test(t)) return t;
+    if (t) return '';
+    return /\.jpe?g$/.test(n) ? 'image/jpeg' : /\.png$/.test(n) ? 'image/png' : /\.webp$/.test(n) ? 'image/webp' : '';
+  }
+  // Imagem (uma por vez; a orientação EXIF é respeitada na decodificação):
+  //  - JPEG e WebP são SEMPRE recodificados para JPEG 0,85, lado maior até 2560 px, mesmo pequenos e mesmo se ficarem maiores. Isso tira o EXIF
+  //    (a localização da casa do cliente). Se passar de 10 MB, tenta 0,7; se ainda passar, vai o original.
+  //  - PNG até 1,5 MB e 2560 px vai como está. PNG maior é reduzido e, se ficar maior que o original, vai o original.
+  //  - Falha ao decodificar (bitmap, canvas, toBlob) em jpeg/png/webp de até 10 MB: sobe o original. Só o HEIC que o navegador não lê é recusado.
+  // Bitmap e canvas são soltos no fim, também quando dá erro.
   function reduzirImagem(f) {
+    var heic = /^image\/hei[cf]/i.test(String(f.type || '')) || /\.hei[cf]$/i.test(String(f.name || ''));
+    var direto = mimeDireto(f);
+    var ilegivel = function () { return invalido(heic ? MSG_HEIC : 'Não consegui ler esta imagem. Tente outra foto.'); };
+    var grande = function () { return invalido('A imagem passa de 10 MB. Tire a foto de novo.'); };
+    var original = function () {
+      if (!f.size) throw invalido('O arquivo está vazio.');
+      if (f.size > MAX_ARQ) throw grande();
+      return { blob: f, mime: direto };
+    };
+    var semBitmap = function () { if (direto) return original(); throw ilegivel(); };
     return carregarBitmap(f).then(function (bm) {
       var w = bm.width || bm.naturalWidth, h = bm.height || bm.naturalHeight;
-      if (!w || !h) throw erro('imagem');
-      var k = Math.min(1, LADO_MAX / Math.max(w, h)), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+      var fechar = function () { try { if (bm.close) bm.close(); } catch (e) {} };
+      if (!w || !h) { fechar(); return semBitmap(); }
+      var lado = Math.max(w, h);
+      if (direto === 'image/png' && f.size <= COMPRIMIR_ACIMA && lado <= LADO_MAX) { fechar(); return original(); }   // PNG leve: vai sem mexer
+      var k = Math.min(1, LADO_MAX / lado), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
       var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
-      var cx = cv.getContext('2d');
-      cx.fillStyle = '#fff'; cx.fillRect(0, 0, cw, ch);   // PNG com fundo transparente não pode virar preto no JPEG
-      cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
-      cx.drawImage(bm, 0, 0, cw, ch);
-      if (bm.close) bm.close();
-      return new Promise(function (ok, no) {
-        cv.toBlob(function (b) { b ? ok({ blob: b, mime: 'image/jpeg' }) : no(erro('imagem')); }, 'image/jpeg', 0.8);
+      var codificar = function (q) { return new Promise(function (ok) { cv.toBlob(ok, 'image/jpeg', q); }); };
+      var solta = function () { fechar(); cv.width = 0; cv.height = 0; };
+      var pronto;
+      try {
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, cw, ch);   // PNG com fundo transparente não pode virar preto no JPEG
+        cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+        cx.drawImage(bm, 0, 0, cw, ch);
+        pronto = codificar(0.85).then(function (b) { return (b && b.size > MAX_ARQ) ? codificar(0.7) : b; });
+      } catch (e) { pronto = Promise.reject(e); }
+      return pronto.then(function (b) { solta(); return b; }, function () { solta(); return null; }).then(function (b) {
+        if (!b) { if (direto) return original(); throw ilegivel(); }
+        if (b.size > MAX_ARQ) { if (direto) return original(); throw grande(); }
+        if (direto === 'image/png' && b.size >= f.size) return original();   // PNG: a reduzida ficou maior, vai o original
+        return { blob: b, mime: 'image/jpeg' };
       });
-    }).then(function (p) {
-      if (p.blob.size > MAX_ARQ) throw invalido('A imagem passa de 10 MB. Tire a foto de novo.');
-      return p;
-    }, function (e) { throw (e && e.tipo === 'validacao') ? e : invalido('Não consegui ler esta imagem. Tente outra foto.'); });
+    }, function () { return semBitmap(); }).then(null, function (e) { throw (e && e.tipo === 'validacao') ? e : ilegivel(); });
   }
   function prepararArquivo(f, s) {
     var tipo = String(f.type || '').toLowerCase(), nome = String(f.name || '').toLowerCase();
@@ -1530,7 +1627,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   function anexar(codigo, s, arquivos) {
     var chave = codigo + '|' + s.chave;
     if (SUBIR[chave]) return;
-    var fila = arquivos.slice(0, s.varios ? 20 : 1);
+    var fila = arquivos.slice(0, s.varios ? 100 : 1);
     var st = SUBIR[chave] = { n: fila.length, i: 0, fase: 'preparando', pct: 0 };
     var erros = [], enviados = 0;
     delete MSGS[chave];
