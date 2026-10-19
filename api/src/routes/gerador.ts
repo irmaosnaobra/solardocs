@@ -24,6 +24,7 @@ import { mountSolar } from './geradorSolar';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
+import { mountContratoHibrido } from './geradorContratoHibrido';
 import { mountFinanceiro } from './geradorFinanceiro';
 import { mountClientes } from './geradorClientes';
 import { mountClientesEletroposto } from './geradorEletropostoClientes';
@@ -1198,5 +1199,7 @@ router.post('/contrato/redesenhar', aiLimiter, exigeConsultor, async (req: Reque
   if (!r.ok) { res.status(r.status).json({ error: r.erro }); return; }
   res.json(r);
 });
+// Contrato híbrido (dois modelos num papel, em duas Partes): POST /contrato/hibrido, mesmos middlewares do redesenhar.
+mountContratoHibrido(router);
 
 export default router;

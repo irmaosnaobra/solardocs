@@ -30,9 +30,48 @@ import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { novoAnthropic } from '../../utils/anthropicClient';
 import { logger } from '../../utils/logger';
+import { modeloInexistente } from './financeiroLeitura';
 
 const LOG = 'contratoIa';
-export const MODELO_CONTRATO_IA = 'claude-opus-5';
+/** Modelo padrão (19/10/2026: subiu do `claude-opus-5`). Troca por env `CONTRATO_IA_MODELO`, lida a cada chamada. */
+export const MODELO_CONTRATO_IA = 'claude-opus-5-5';
+/** Plano B quando a API responde "modelo inexistente" para o primeiro. */
+export const MODELO_PLANO_B_CONTRATO = 'claude-opus-5';
+export const modelosContratoIa = (): string[] =>
+  [process.env.CONTRATO_IA_MODELO?.trim() || MODELO_CONTRATO_IA, MODELO_PLANO_B_CONTRATO].filter((m, i, a) => m && a.indexOf(m) === i);
+
+/**
+ * Chama a IA do contrato em streaming, com a troca de modelo: se a API disser que o modelo não existe, tenta o próximo
+ * da lista (mesmo padrão de `cadastroVendaLeitura.ts`). O erro da API só aparece no `finalMessage()`, então a criação
+ * do stream e a espera ficam no mesmo try. Qualquer outro erro sobe para quem chamou. Usado pelo `redesenhar` e pelo híbrido.
+ */
+export async function chamarIaContrato(
+  cliente: ReturnType<typeof novoAnthropic>,
+  corpo: { system: string; user: string; format: unknown; log: string },
+): Promise<{ msg: any; modelo: string }> {
+  const modelos = modelosContratoIa();
+  for (let i = 0; i < modelos.length; i++) {
+    try {
+      const stream = (cliente as any).messages.stream({
+        model: modelos[i],
+        max_tokens: 32000,
+        // Texto jurídico que vai para o cliente assinar: profundidade importa mais
+        // que velocidade. `high` é o padrão do modelo e fica explícito aqui.
+        output_config: { effort: 'high', format: corpo.format },
+        system: corpo.system,
+        messages: [{ role: 'user', content: corpo.user }],
+      });
+      return { msg: await stream.finalMessage(), modelo: modelos[i] };
+    } catch (err) {
+      if (i < modelos.length - 1 && modeloInexistente(err)) {
+        logger.warn(corpo.log, 'modelo do contrato não existe, tentando o próximo', { modelo: modelos[i] });
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('nenhum modelo de contrato disponível');
+}
 
 // ── Entrada (o que o /gerador manda) ─────────────────────────────────────────
 const ItemEntrada = z.object({
@@ -67,7 +106,7 @@ export const MAX_BYTES_PEDIDO = 200_000;
 
 // ── Saída (o formato que a IA é obrigada a devolver) ─────────────────────────
 export const TIPOS_OP = ['substituir_item', 'inserir_item', 'remover_item', 'inserir_clausula', 'remover_clausula', 'renomear_clausula'] as const;
-const Operacao = z.object({
+export const Operacao = z.object({
   tipo: z.enum(TIPOS_OP),
   /** chave do item ou da cláusula afetada (substituir/remover/renomear) */
   alvo: z.string().nullable(),
@@ -277,16 +316,9 @@ export async function pedirMudancaContrato(p: PedidoContratoIa): Promise<Resulta
   try {
     // Streaming: o contrato inteiro entra no pedido e a IA raciocina antes de
     // responder; sem stream, uma resposta longa bate no timeout do HTTP.
-    const stream = cliente.messages.stream({
-      model: MODELO_CONTRATO_IA,
-      max_tokens: 32000,
-      // Texto jurídico que vai para o cliente assinar: profundidade importa mais
-      // que velocidade. `high` é o padrão do modelo e fica explícito aqui.
-      output_config: { effort: 'high', format: zodOutputFormat(SaidaIa) },
-      system: sistemaPara(p.contrato?.tipo),
-      messages: [{ role: 'user', content: montarMensagem(p) }],
+    const { msg } = await chamarIaContrato(cliente, {
+      system: sistemaPara(p.contrato?.tipo), user: montarMensagem(p), format: zodOutputFormat(SaidaIa), log: LOG,
     });
-    const msg = await stream.finalMessage();
     const ms = Date.now() - t0;
     // O texto do pedido NÃO vai para o log: o consultor costuma escrever nele o
     // nome do cliente. Basta o tamanho para diagnóstico.
