@@ -22959,7 +22959,9 @@ async function ctrDosCarregar() {
 function ctrDosCtx() {
   const doc = String(ctrCampo('ctr-contratante-doc') || '').replace(/\D/g, '');
   return { rel: ctrCampo('ctr-arr-relacao') || 'proprietario', pj: doc.length === 14,
-    prom: ctrTipo() === 'termo_arr' && orcVal('ctr-ta-nivel') !== 'intencao', arr: ctrTipo() === 'arrend', iv: !!orcVal('ctr-int-nome'),
+    // Híbrido: com o arrendamento em QUALQUER Parte a procuração à NEXUS é obrigatória, como no simples
+    // (ctrTipo() aí devolve o modelo que cobra, não o arrendamento).
+    prom: ctrTipo() === 'termo_arr' && orcVal('ctr-ta-nivel') !== 'intencao', arr: ctrEhHibrido() ? ctrTiposAtivos().includes('arrend') : ctrTipo() === 'arrend', iv: !!orcVal('ctr-int-nome'),
     ivAnui: !!orcVal('ctr-int-nome') && ctrIntervAnui(ctrCampo('ctr-arr-relacao') || 'proprietario', ctrInterv().papel) };
 }
 function ctrDosItensTodos() {
@@ -23189,18 +23191,22 @@ function ctrEstadoZerar() {
 // não há o que espelhar. O nº do contrato NÃO herda o do recibo de propósito.
 const CTR_ESP_IC = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
 const ctrMoedaFmt = v => v > 0 ? ctrFmt(v) : '';
+// Os dados do cliente vêm da aba Venda de equipamento só na compra e venda SIMPLES. No híbrido
+// (ctrTipo() devolve o modelo que cobra, e dentro do ctrComTipo o que está sendo montado) vêm
+// sempre do Simulador e do Orçamento, o do modelo que não é a compra e venda (ctrHibBase).
+const ctrClienteDoEquip = () => !ctrEhHibrido() && ctrTipo() === 'equip';
 const CTR_ESPELHOS = [
   // Na compra e venda de equipamento (09/10/2026) as partes vêm da aba Venda de
   // equipamento; nos outros modelos, do Simulador e do Orçamento, como sempre.
-  { id: 'ctr-contratante',       fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Simulador',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-nome') : eletroTextos().cliente },
-  { id: 'ctr-contratante-doc',   fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-doc') : orcVal('orc-cli-doc') },
-  { id: 'ctr-contratante-end',   fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-end') : orcVal('orc-cli-end') },
-  { id: 'ctr-contratante-cep',   fonte: 'Orçamento',   de: () => ctrTipo() === 'equip' ? '' : orcVal('orc-cli-cep') },
+  { id: 'ctr-contratante',       fonte: () => ctrClienteDoEquip() ? 'Venda de equipamento' : 'Simulador',   de: () => ctrClienteDoEquip() ? eqVal('eq-cli-nome') : eletroTextos().cliente },
+  { id: 'ctr-contratante-doc',   fonte: () => ctrClienteDoEquip() ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrClienteDoEquip() ? eqVal('eq-cli-doc') : orcVal('orc-cli-doc') },
+  { id: 'ctr-contratante-end',   fonte: () => ctrClienteDoEquip() ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrClienteDoEquip() ? eqVal('eq-cli-end') : orcVal('orc-cli-end') },
+  { id: 'ctr-contratante-cep',   fonte: 'Orçamento',   de: () => ctrClienteDoEquip() ? '' : orcVal('orc-cli-cep') },
   // TR-15 e CM-14: a IE do cliente PJ, que a nota fiscal pede.
-  { id: 'ctr-contratante-ie',    fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento', de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-ie') : orcVal('orc-cli-ie') },
-  { id: 'ctr-cidade',            fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Simulador',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-cidade') : eletroTextos().cidade },
-  { id: 'ctr-contratante-tel',   fonte: () => ctrTipo() === 'equip' ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrTipo() === 'equip' ? eqVal('eq-cli-tel') : orcVal('orc-cli-tel') },
-  { id: 'ctr-contratante-email', fonte: 'Orçamento',   de: () => ctrTipo() === 'equip' ? '' : orcVal('orc-cli-email') },
+  { id: 'ctr-contratante-ie',    fonte: () => ctrClienteDoEquip() ? 'Venda de equipamento' : 'Orçamento', de: () => ctrClienteDoEquip() ? eqVal('eq-cli-ie') : orcVal('orc-cli-ie') },
+  { id: 'ctr-cidade',            fonte: () => ctrClienteDoEquip() ? 'Venda de equipamento' : 'Simulador',   de: () => ctrClienteDoEquip() ? eqVal('eq-cli-cidade') : eletroTextos().cidade },
+  { id: 'ctr-contratante-tel',   fonte: () => ctrClienteDoEquip() ? 'Venda de equipamento' : 'Orçamento',   de: () => ctrClienteDoEquip() ? eqVal('eq-cli-tel') : orcVal('orc-cli-tel') },
+  { id: 'ctr-contratante-email', fonte: 'Orçamento',   de: () => ctrClienteDoEquip() ? '' : orcVal('orc-cli-email') },
   // Nas cotas e no Termo do Investidor o cliente é investidor: o endereço dele
   // não é o do ponto. O local fica em branco até alguém escrever.
   // O local do PONTO (09/10/2026). No chave na mão é o endereço do cliente. Na
@@ -26347,7 +26353,11 @@ function procLocalPonto() {
 // Ponto de terceiro: a NEXUS opera a estação no imóvel do outorgante
 // (arrendamento e sociedade). A procuração aí não troca a titularidade da UC
 // dele nem o obriga em custo nenhum (ARR-06).
-function procPontoDeTerceiro() { return ['arrend', 'termo_arr', 'socio50', 'cotas'].includes(ctrTipo()); }
+function procPontoDeTerceiro() {
+  // Híbrido: vale se QUALQUER dos dois modelos é de ponto de terceiro (ctrTipo() devolve o que cobra).
+  if (ctrEhHibrido()) return ctrTiposAtivos().some(x => ['arrend', 'socio50', 'cotas'].includes(x));
+  return ['arrend', 'termo_arr', 'socio50', 'cotas'].includes(ctrTipo());
+}
 function procDados() {
   const t = eletroTextos();
   const emp = epEmitGet();
@@ -26584,7 +26594,9 @@ const ANU_CASOS = {
 };
 function anuCaso() { const v = orcVal('anu-caso'); return ANU_CASOS[v] ? v : 'dono_cessao'; }
 function anuCasoSugerido() {
-  const t = ctrTipo();
+  // Híbrido: com o arrendamento marcado a sugestão é a da cessão, como no simples; sociedade também é cessão.
+  const hibAt = ctrEhHibrido() ? ctrTiposAtivos() : null;
+  const t = hibAt ? (hibAt.includes('arrend') ? 'arrend' : (hibAt.find(ctrEhSoc) || ctrTipo())) : ctrTipo();
   if (t === 'arrend' || t === 'termo_arr') return (ctrCampo('ctr-arr-relacao') || 'proprietario') === 'locado' ? 'inquilino_cessao' : 'dono_cessao';
   if (ctrEhSoc(t) || t === 'termo_inv') return 'dono_cessao';
   return 'dono_obra';
