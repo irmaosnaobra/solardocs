@@ -2828,6 +2828,64 @@ html.pv-aberto body{overflow:hidden}
 .fin-slot:empty{display:none}
 .fin-det{margin-top:12px}
 .fin-det[hidden]{display:none}
+/* ── Documentos e cadastro do cliente vendido (eletroposto). Cor só por token, com o escuro nativo como reserva. ── */
+.vdc-det{margin-top:12px}
+.vdc-det[hidden]{display:none}
+.vdc{box-sizing:border-box;min-width:0;max-width:100%;padding:12px;border-radius:12px;background:var(--n-sf2,#182338);border:1px solid var(--n-bd,#334155);color:var(--n-tx,#E5E7EB);text-align:left}
+.vdc *{box-sizing:border-box}
+.vdc-tit{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--io-azul-tx,#93C5FD)}
+.vdc-carga{font-size:13px;color:var(--n-tx3,#94A3B8)}
+.vdc-sit{margin:0 0 6px;font-size:13.5px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.vdc-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.vdc-chip{max-width:100%;padding:3px 9px;border-radius:999px;border:1px solid var(--io-ambar-bd,rgba(251,191,36,.5));background:var(--io-av-sf,rgba(251,191,36,.12));color:var(--io-av-tx,#FCD34D);font-size:12px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.vdc-docs{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.vdc-doc{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf,#1E293B);border:1px solid var(--n-bd,#334155)}
+.vdc-doc-t{flex:1 1 150px;min-width:0}
+.vdc-doc-n{display:block;font-size:13.5px;font-weight:700;overflow-wrap:anywhere}
+.vdc-doc-q{display:block;font-size:12px;color:var(--n-tx3,#94A3B8)}
+.vdc-doc-m{flex:1 1 100%;margin:0;font-size:12.5px;line-height:1.4;color:var(--io-er-tx,#FCA5A5)}
+.vdc-doc-res{flex:1 1 100%;min-width:0;font-size:12.5px;line-height:1.4;color:var(--n-tx2,#B4C0D1)}
+.vdc-doc-resl{margin:0;font-weight:700}
+.vdc-doc-res ul{margin:4px 0 0;padding-left:18px;color:var(--io-er-tx,#FCA5A5)}
+.vdc-doc-res li{overflow-wrap:anywhere}
+.vdc-acoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.vdc-acoes .vdc-btn{flex:1 1 180px}
+.vdc-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border-radius:9px;border:1.5px solid var(--io-borda-campo,#7384A0);background:transparent;color:var(--n-tx,#E5E7EB);font-family:inherit;font-size:14px;font-weight:800;line-height:1.2;text-align:center;cursor:pointer}
+.vdc-btn:hover:not(:disabled){background:var(--n-sf3,#2A384F)}
+.vdc-btn:focus-visible{outline:2px solid var(--io-azul-tx,#60A5FA);outline-offset:2px}
+.vdc-btn:disabled{opacity:.55;cursor:not-allowed}
+.vdc-btn-pri{border-color:transparent;background:var(--io-azul,#2563EB);color:#fff}
+.vdc-btn-pri:hover:not(:disabled){background:var(--io-azul-h,#1D4ED8)}
+.vdc-btn-mini{min-height:40px;padding:8px 12px;font-size:13px}
+.vdc-link{display:inline-block;margin-top:10px;padding:6px 2px;border:0;background:none;color:var(--io-azul-tx,#93C5FD);font-family:inherit;font-size:13px;font-weight:700;text-decoration:underline;cursor:pointer}
+.vdc-link:focus-visible{outline:2px solid var(--io-azul-tx,#60A5FA);outline-offset:2px}
+.vdc-msg{margin:10px 0 0;padding:8px 10px;border-radius:9px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.vdc-msg[hidden]{display:none}
+.vdc-pn{margin-top:12px;padding:10px;border-radius:10px;border:1px solid var(--n-bd2,#475569);background:var(--n-sf,#1E293B)}
+.vdc-pn[hidden]{display:none}
+.vdc-pn-tit{margin:0 0 4px;font-size:14px;font-weight:800}
+.vdc-pn-aj{margin:0 0 8px;font-size:12.5px;line-height:1.4;color:var(--n-tx3,#94A3B8)}
+.vdc-lin{display:grid;grid-template-columns:28px minmax(0,1fr);gap:2px 8px;padding:10px 0 10px 0;border-top:1px solid var(--n-bd,#334155)}
+.vdc-lin.dif{padding-left:8px;border-left:3px solid var(--io-av-tx,#FBBF24);background:var(--io-av-sf,rgba(251,191,36,.1))}
+.vdc-ck{width:22px;height:22px;margin:2px 0 0;accent-color:var(--io-azul,#2563EB)}
+.vdc-lin-c{min-width:0}
+.vdc-lin-r{display:block;font-size:13px;font-weight:800;overflow-wrap:anywhere}
+.vdc-lin-a{display:block;margin:2px 0 4px;font-size:12.5px;color:var(--n-tx3,#94A3B8);overflow-wrap:anywhere}
+.vdc-in{display:block;width:100%;min-width:0;min-height:40px;padding:8px 10px;border-radius:8px;border:1px solid var(--io-borda-campo,#7384A0);background:var(--n-sf2,#182338);color:var(--n-tx,#E5E7EB);font-family:inherit;font-size:14px}
+.vdc-in:focus-visible{outline:2px solid var(--io-azul-tx,#60A5FA);outline-offset:1px}
+.vdc-tag{display:inline-block;margin:4px 6px 0 0;padding:2px 8px;border-radius:999px;border:1px solid var(--io-ambar-bd,rgba(251,191,36,.5));background:var(--io-av-sf,rgba(251,191,36,.12));color:var(--io-av-tx,#FCD34D);font-size:11.5px;font-weight:800}
+.vdc-nota{display:block;margin-top:4px;font-size:12px;line-height:1.35;color:var(--n-tx3,#94A3B8);overflow-wrap:anywhere}
+.vdc-erro{display:block;margin-top:4px;font-size:12.5px;font-weight:700;color:var(--io-er-tx,#FCA5A5);overflow-wrap:anywhere}
+.vdc-ign{margin:10px 0 0;padding:8px 10px;border-radius:9px;background:var(--n-sf2,#182338);border:1px solid var(--n-bd,#334155);font-size:12.5px;line-height:1.4;color:var(--n-tx3,#94A3B8)}
+.vdc-ign b{color:var(--n-tx,#E5E7EB)}
+.vdc-ign ul{margin:4px 0 0;padding-left:18px}
+.vdc-ign li{overflow-wrap:anywhere}
+.vdc-pn .vdc-acoes{margin-top:12px}
+.vdc-aviso{display:flex;align-items:flex-start;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:10px;background:var(--io-ok-sf,rgba(74,222,128,.12));border:1px solid var(--io-ok-bd,rgba(74,222,128,.4));color:var(--n-tx,#E5E7EB);font-size:13.5px;line-height:1.45}
+.vdc-aviso[hidden]{display:none}
+.vdc-aviso-tx{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.vdc-aviso-x{flex:none;min-height:36px;padding:4px 10px;border-radius:8px;border:1px solid var(--io-borda-campo,#7384A0);background:transparent;color:var(--n-tx,#E5E7EB);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.vdc-file{display:none}
 .fin{container-type:inline-size;container-name:fin;min-width:0;box-sizing:border-box;border-radius:12px;background:#0F172A;border:1px solid rgba(148,163,184,.3);color:#E5E7EB;text-align:left}
 .fin *{box-sizing:border-box}
 .fin.fin-solta{outline:2px dashed #60A5FA;outline-offset:-2px;background:#14213B}
@@ -5109,6 +5167,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <!-- Aparece só quando os campos vieram de um projeto anterior. -->
+
+    <div id="vdc-aviso" class="vdc-aviso" role="status" hidden><span class="vdc-aviso-tx"></span><button type="button" class="vdc-aviso-x" onclick="vdcAvisoFechar()">Fechar</button></div>
 
     <!-- ===== PANE: SIMULADOR ===== -->
     <div id="eletro-pane-simulador">
@@ -7991,6 +8051,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div id="crm-det-posvenda" class="pv-bloco" hidden></div>
       <!-- O financeiro do mesmo card: bloco irmão, que o pós-venda não repinta. -->
       <div id="crm-det-fin" class="fin-det" hidden></div>
+      <!-- Documentos e cadastro do cliente vendido (eletroposto): anexa, lê com a IA e preenche os contratos. -->
+      <div id="crm-det-cadastro" class="vdc-det" hidden></div>
 
       <div id="crm-det-motivo" class="motivo-box" hidden>
         <div class="motivo-tit">Sem interesse: por quê?</div>
@@ -8141,6 +8203,8 @@ function authLimpar() {
   try { if (typeof solarSessaoLimpar === 'function') solarSessaoLimpar(); } catch (e) {}
   // Obras, Leads e Indicadores do Eletroposto (e a leitura dos cadastros de onde o Leads desenha) também são desta conta.
   try { if (typeof eletroSessaoLimpar === 'function') eletroSessaoLimpar(); } catch (e) {}
+  // O bloco de documentos e cadastro do card, e a faixa do preenchimento dos contratos, também são desta conta.
+  try { if (typeof vdcSessaoLimpar === 'function') vdcSessaoLimpar(); } catch (e) {}
   // O perfil (foto, e-mail, papel) e o menu do usuario tambem sao desta conta: o cache sai, a janela "Meu perfil" fecha
   // (nao pode ficar por cima do login) e a casca esquece o perfil em memoria.
   try { localStorage.removeItem('gerador-perfil-v1'); } catch (e) {}
@@ -17891,6 +17955,7 @@ function epLimparCliente() {
   try { BNK_ITENS = null; BNK_ITENS_TOCADA = false; } catch (e) {}
   const eqI = document.getElementById('eq-itens'), eqC = document.getElementById('eq-cond');
   if (eqI && eqI.dataset.pronto) { eqI.innerHTML = ''; if (eqC) eqC.innerHTML = ''; delete eqI.dataset.pronto; }
+  try { if (typeof vdcAvisoFechar === 'function') vdcAvisoFechar(); } catch (e) {}
   if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
   const bar = document.getElementById('eletro-retomar');
   if (bar) bar.classList.remove('on');
@@ -17992,6 +18057,7 @@ function eletroHistRow(id) {
 function eletroHistAbrir(id) {
   const row = eletroHistRow(id);
   if (!row) return;
+  try { vdcAvisoFechar(); } catch (e) {}   // outro cliente entra no Simulador: a faixa com o nome do anterior sai
   Object.entries(row.inputs || {}).forEach(([k, v]) => {
     const el = document.getElementById('el-' + k);
     if (el) el.value = v;
@@ -32415,6 +32481,7 @@ function crmAbrirDetalhe(key, agId) {
   // ligar mostra o card solar, e o mais recente pode ser o de eletroposto.
   const agRec = (agId != null && (c.agends || []).find(a => String(a.id) === String(agId))) || crmAgRecente(c);
   crmDetAtual = { c, agRec };
+  try { vdcAvisoFechar(); } catch (e) {}   // a faixa do preenchimento dos contratos é do cliente de antes
   // O menu segue o produto da ficha. Vai aqui, e nao dentro do `if (temAg)`,
   // pra o cliente SEM ficha tambem nao ver os seis modelos: sem ficha o
   // `crmAtualizarStatus` nem grava, e botao que nao faz nada e pior que botao
@@ -32546,6 +32613,7 @@ function crmFecharDetalhe() {
   document.getElementById('crm-det-bg').classList.remove('show');
   crmDetAtual = null;
   pvVoltar = null;                 // fechou sem vender: nao reabre a tela de vendas depois
+  try { vdcFechar(); } catch (e) {}
   const bPv = document.getElementById('crm-det-posvenda');
   if (bPv) { bPv.hidden = true; bPv.innerHTML = ''; }
   if (typeof qlAposCrm === 'function') qlAposCrm();   // a aba Quem ligar acompanha o status do card
@@ -33268,6 +33336,7 @@ function pvDetRender(id) {
 
 function pvPintarDetalhe(agRec) {
   finDetalhe(agRec);
+  try { vdcDetalhe(agRec); } catch (e) { console.error('cadastro: o bloco do detalhe não abriu', e); }
   const bl = document.getElementById('crm-det-posvenda');
   if (!bl) return;
   bl.hidden = true;
@@ -33291,6 +33360,679 @@ function pvPintarDetalhe(agRec) {
       + '<button type="button" class="pv-conclui" style="margin-top:8px;padding:8px 14px" onclick="pvPintarDetalhe(crmDetAtual && crmDetAtual.agRec)">Tentar de novo</button>';
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOCUMENTOS E CADASTRO DO CLIENTE VENDIDO (ELETROPOSTO)
+//
+// No card VENDIDO (status `fechou`) de eletroposto: anexar os documentos do
+// cliente, mandar a IA ler, conferir o que ela leu e gravar o cadastro. Com o
+// cadastro gravado, `aplicarCadastroEletroposto` preenche os formulários de
+// contrato e documento. O solar não tem este bloco.
+//
+// Rotas (as mesmas da ficha do cliente, código = id do card):
+//   GET/PUT  /gerador/clientes/eletroposto/:id/cadastro
+//   POST     /gerador/clientes/eletroposto/:id/cadastro/ler
+//   GET/POST /gerador/clientes/eletroposto/:id/docs  (+ /docs/upload-url)
+// Dado pessoal nunca vai para URL, localStorage ou console.
+// ═══════════════════════════════════════════════════════════════════════════
+const VDC_CAMPOS = [
+  ['tipo', 'Tipo de cliente'], ['nome', 'Nome ou razão social'], ['cpf_cnpj', 'CPF ou CNPJ'], ['rg_ie', 'RG ou inscrição estadual'],
+  ['orgao_emissor', 'Órgão emissor'], ['nascimento', 'Nascimento'], ['nacionalidade', 'Nacionalidade'], ['estado_civil', 'Estado civil'],
+  ['profissao', 'Profissão'], ['email', 'E-mail'], ['telefone', 'Telefone'], ['endereco', 'Endereço'], ['bairro', 'Bairro'],
+  ['cidade', 'Cidade'], ['uf', 'UF'], ['cep', 'CEP'], ['rep_nome', 'Representante legal'], ['rep_cpf', 'CPF do representante'],
+  ['rep_rg', 'RG do representante'], ['rep_estado_civil', 'Estado civil do representante'], ['rep_profissao', 'Profissão do representante'],
+  ['endereco_ponto', 'Endereço do ponto de recarga'], ['unidade_consumidora', 'Unidade consumidora'], ['concessionaria', 'Concessionária'],
+  ['titular_conta', 'Titular da conta de luz'],
+];
+const VDC_ROT = Object.fromEntries(VDC_CAMPOS);
+const VDC_SLOTS = [
+  { chave: 'documento_titular', rot: 'Documento do titular', dica: 'RG, CNH ou cartão CNPJ', aceita: 'ambos', varios: false },
+  { chave: 'conta_luz', rot: 'Conta de luz', dica: '', aceita: 'ambos', varios: false },
+  { chave: 'outros', rot: 'Outros', dica: 'contrato social etc.', aceita: 'ambos', varios: true },
+];
+const VDC_MAX_ARQ = 10 * 1024 * 1024;
+const VDC_LADO_MAX = 2000;
+let vdcEst = null;     // o card aberto agora: { id, no, cad, docs, ... }. Nulo = nada aberto.
+
+const vdcV = (cad, k) => {
+  const c = cad && cad.campos && cad.campos[k];
+  return String((c && c.valor) == null ? '' : c.valor).trim();
+};
+const vdcTipo = (cad) => {
+  const t = String((cad && cad.tipo) || vdcV(cad, 'tipo') || '').toUpperCase();
+  if (t === 'PJ' || t === 'PF') return t;
+  return vdcV(cad, 'cpf_cnpj').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF';
+};
+function vdcNumeros(cad) {
+  const falta = Array.isArray(cad && cad.faltando) ? cad.faltando.filter(k => VDC_ROT[k]) : [];
+  const feitos = VDC_CAMPOS.filter(c => c[0] !== 'tipo' && vdcV(cad, c[0]) !== '' && falta.indexOf(c[0]) < 0).length;
+  return { feitos, total: feitos + falta.length, falta };
+}
+function vdcMsgErro(r, padrao) {
+  const j = (r && r.json) || {};
+  const m = String(j.motivo || '');
+  if (r && r.status === 401) return 'Sua sessão terminou. Entre de novo no Gerador.';
+  if (r && r.status === 403) return 'Você não tem acesso a este cadastro.';
+  if (m === 'cadastro_indisponivel' || (r && r.status === 503)) return 'O cadastro está indisponível agora. Tente de novo em instantes.';
+  if (m === 'sem_documentos' || (r && r.status === 409 && !j.error)) return 'Anexe pelo menos um documento antes de ler.';
+  if (r && r.status === 429) return 'Muitas leituras seguidas. Espere um pouco e tente de novo.';
+  if (m === 'ia_indisponivel' || (r && r.status === 502)) return 'A leitura pelos documentos está fora do ar agora. Tente de novo mais tarde.';
+  if (r && r.status === 0) return 'Sem conexão. Tente de novo.';
+  if (typeof j.error === 'string' && j.error) return j.error;
+  return padrao || 'Não deu certo agora. Tente de novo.';
+}
+
+async function vdcChamar(st, metodo, caminho, corpo, ms) {
+  let tok = '';
+  try { tok = await finToken(); } catch (e) { tok = ''; }
+  if (!tok) return { status: 401, json: null };
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  const t = ctrl ? setTimeout(() => ctrl.abort(), ms || 20000) : null;
+  try {
+    const h = { 'Authorization': 'Bearer ' + tok };
+    if (corpo !== undefined) h['Content-Type'] = 'application/json';
+    const r = await fetch(APX_API + '/gerador/clientes/eletroposto/' + encodeURIComponent(String(st.id)) + caminho, {
+      method: metodo, headers: h, body: corpo !== undefined ? JSON.stringify(corpo) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
+    });
+    let j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    return { status: r.status, json: j };
+  } catch (e) {
+    return { status: 0, json: null };
+  } finally {
+    if (t) clearTimeout(t);
+  }
+}
+
+// ── O bloco no detalhe do card ─────────────────────────────────────────────
+function vdcFechar() {
+  vdcEst = null;
+  const el = document.getElementById('crm-det-cadastro');
+  if (el) { el.hidden = true; el.replaceChildren(); }
+}
+
+/** Mesma condição do pós-venda e do financeiro: vendido, eletroposto. Qualquer outro card esconde o bloco e esquece o anterior. */
+function vdcDetalhe(rec) {
+  const el = document.getElementById('crm-det-cadastro');
+  if (!el) return;
+  const vale = !!rec && rec.id != null && String(rec.status || '') === 'fechou' && crmEhEletroposto(rec);
+  // O "Tentar de novo" do Pós-venda repinta o detalhe do MESMO card: com painel de conferência aberto, leitura ou anexo em andamento,
+  // o bloco não é remontado (o que a pessoa conferiu e o envio em curso ficam).
+  const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.no && vdcEst.no.sec.isConnected
+    && (!vdcEst.no.pn.hidden || vdcEst.lendo || vdcEst.gravando || Object.keys(vdcEst.sub).length > 0);
+  if (ativo) return;
+  vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
+  if (!vale) { el.hidden = true; el.replaceChildren(); return; }
+  const st = { id: rec.id, cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null };
+  vdcEst = st;
+  const sec = document.createElement('section');
+  sec.className = 'vdc';
+  sec.setAttribute('aria-label', 'Documentos e cadastro do cliente');
+  const h = document.createElement('h3'); h.className = 'vdc-tit'; h.textContent = 'Documentos e cadastro do cliente';
+  const topo = document.createElement('div');
+  const docs = document.createElement('div'); docs.className = 'vdc-docs';
+  const acoes = document.createElement('div'); acoes.className = 'vdc-acoes';
+  const msg = document.createElement('p'); msg.className = 'vdc-msg'; msg.hidden = true; msg.setAttribute('role', 'status');
+  const pn = document.createElement('div'); pn.className = 'vdc-pn'; pn.hidden = true;
+  const arqs = document.createElement('div'); arqs.className = 'vdc-file';
+  sec.append(h, topo, docs, acoes, msg, pn, arqs);
+  st.no = { sec, topo, docs, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
+  VDC_SLOTS.forEach((s) => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true'); inp.setAttribute('data-vdc-slot', s.chave);
+    inp.accept = 'image/*,application/pdf';
+    if (s.varios) inp.multiple = true;
+    inp.addEventListener('change', () => {
+      const lista = Array.from(inp.files || []);
+      inp.value = '';
+      if (lista.length) vdcAnexar(st, s, lista);
+    });
+    arqs.appendChild(inp);
+  });
+  el.replaceChildren(sec);
+  el.hidden = false;
+  vdcPintar(st);
+  vdcCarregar(st);
+}
+
+function vdcCarregar(st) {
+  st.carregando = true; st.erroCarga = '';
+  vdcPintar(st);
+  Promise.all([vdcChamar(st, 'GET', '/cadastro'), vdcChamar(st, 'GET', '/docs')]).then(([c, d]) => {
+    if (vdcEst !== st) return;      // abriu outro card no meio: a resposta não é dele
+    st.carregando = false;
+    if (c.status === 200 && c.json && c.json.ok !== false && c.json.cadastro) st.cad = c.json.cadastro;
+    else st.erroCarga = vdcMsgErro(c, 'Não consegui ler o cadastro agora.');
+    if (d.status === 200 && d.json && d.json.ok !== false) st.docs = { slots: Array.isArray(d.json.slots) ? d.json.slots : [], arquivos: Array.isArray(d.json.arquivos) ? d.json.arquivos : [] };
+    vdcPintar(st);
+  });
+}
+
+function vdcSlotInfo(st, s) {
+  const srv = ((st.docs && st.docs.slots) || []).find(x => x && x.chave === s.chave);
+  return { chave: s.chave, rot: s.rot, dica: s.dica, aceita: (srv && srv.aceita) || s.aceita, varios: srv ? srv.varios === true : s.varios };
+}
+const vdcAccept = (aceita) => aceita === 'imagem' ? 'image/*' : aceita === 'pdf' ? 'application/pdf' : 'image/*,application/pdf';
+
+function vdcPintar(st) {
+  if (vdcEst !== st || !st.no) return;
+  const N = st.no;
+  // situação e o que falta
+  N.topo.replaceChildren();
+  if (st.carregando) {
+    const p = document.createElement('p'); p.className = 'vdc-carga'; p.textContent = 'Carregando…'; N.topo.appendChild(p);
+  } else if (st.cad) {
+    const n = vdcNumeros(st.cad);
+    const p = document.createElement('p'); p.className = 'vdc-sit'; p.textContent = 'Cadastro: ' + n.feitos + ' de ' + n.total + ' campos';
+    N.topo.appendChild(p);
+    if (n.falta.length) {
+      const box = document.createElement('div'); box.className = 'vdc-chips';
+      n.falta.slice(0, 6).forEach((k) => { const c = document.createElement('span'); c.className = 'vdc-chip'; c.textContent = VDC_ROT[k]; box.appendChild(c); });
+      if (n.falta.length > 6) { const c = document.createElement('span'); c.className = 'vdc-chip'; c.textContent = '+' + (n.falta.length - 6); box.appendChild(c); }
+      N.topo.appendChild(box);
+    }
+  } else {
+    const p = document.createElement('p'); p.className = 'vdc-sit'; p.textContent = st.erroCarga || 'Cadastro indisponível agora.'; N.topo.appendChild(p);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = 'Tentar de novo';
+    b.addEventListener('click', () => vdcCarregar(st)); N.topo.appendChild(b);
+  }
+  // anexos
+  N.docs.replaceChildren();
+  VDC_SLOTS.forEach((s0) => {
+    const s = vdcSlotInfo(st, s0);
+    const qtd = st.docs ? st.docs.arquivos.filter(a => a && a.slot === s.chave).length : null;
+    const sub = st.sub[s.chave];
+    const row = document.createElement('div'); row.className = 'vdc-doc'; row.setAttribute('data-vdc-doc', s.chave);
+    const t = document.createElement('div'); t.className = 'vdc-doc-t';
+    const nm = document.createElement('span'); nm.className = 'vdc-doc-n'; nm.textContent = s.rot + (s.dica ? ' (' + s.dica + ')' : '');
+    const q = document.createElement('span'); q.className = 'vdc-doc-q';
+    q.textContent = sub ? ((sub.fase === 'enviando' ? 'Enviando' : 'Preparando') + (sub.n > 1 ? ' ' + (sub.i + 1) + ' de ' + sub.n : '') + '…')
+      : (qtd == null ? '' : qtd === 0 ? 'Nenhum arquivo' : qtd === 1 ? '1 arquivo' : qtd + ' arquivos');
+    t.append(nm, q);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = s.varios ? 'Adicionar vários documentos' : 'Anexar';
+    b.disabled = !!sub; b.setAttribute('aria-label', (s.varios ? 'Adicionar vários documentos em ' : 'Anexar ') + s.rot.toLowerCase());
+    b.addEventListener('click', () => {
+      const inp = N.arqs.querySelector('input[data-vdc-slot="' + s.chave + '"]');
+      if (inp) { inp.accept = vdcAccept(s.aceita); inp.multiple = !!s.varios; inp.click(); }
+    });
+    row.append(t, b);
+    const rd = st.resDoc[s.chave];
+    if (rd) {
+      const box = document.createElement('div'); box.className = 'vdc-doc-res'; box.setAttribute('role', 'status');
+      const l1 = document.createElement('p'); l1.className = 'vdc-doc-resl';
+      l1.textContent = (rd.total === 1 ? '1 arquivo' : rd.total + ' arquivos') + ': ' + (rd.ok === 1 ? '1 enviado' : rd.ok + ' enviados') + (rd.falhas.length ? ', ' + (rd.falhas.length === 1 ? '1 não enviado' : rd.falhas.length + ' não enviados') + '.' : '.');
+      box.appendChild(l1);
+      if (rd.falhas.length) { const ul = document.createElement('ul'); rd.falhas.forEach((f) => { const li = document.createElement('li'); li.textContent = f.nome + ': ' + f.motivo; ul.appendChild(li); }); box.appendChild(ul); }
+      row.appendChild(box);
+    }
+    if (st.msgDoc[s.chave]) { const m = document.createElement('p'); m.className = 'vdc-doc-m'; m.textContent = st.msgDoc[s.chave]; row.appendChild(m); }
+    N.docs.appendChild(row);
+  });
+  // botões
+  N.acoes.replaceChildren();
+  const ler = document.createElement('button'); ler.type = 'button'; ler.className = 'vdc-btn vdc-btn-pri'; ler.setAttribute('data-vdc-acao', 'ler');
+  ler.textContent = st.lendo ? 'Lendo os documentos…' : 'Ler documentos e preencher';
+  ler.disabled = st.lendo || st.gravando || st.carregando || !st.cad;
+  ler.addEventListener('click', () => vdcLer(st));
+  const pre = document.createElement('button'); pre.type = 'button'; pre.className = 'vdc-btn'; pre.setAttribute('data-vdc-acao', 'preencher');
+  pre.textContent = 'Preencher contratos';
+  pre.disabled = st.lendo || st.gravando || !st.cad || !vdcV(st.cad, 'nome');
+  pre.addEventListener('click', () => vdcPreencher(st));
+  N.acoes.append(ler, pre);
+  // aviso
+  N.msg.hidden = !st.msg; N.msg.textContent = st.msg || '';
+  // atalho para a lista completa
+  let lk = N.sec.querySelector(':scope > .vdc-link');
+  if (!lk) {
+    lk = document.createElement('button'); lk.type = 'button'; lk.className = 'vdc-link'; lk.textContent = 'Ver todos os documentos';
+    lk.addEventListener('click', () => {
+      try { crmFecharDetalhe(); navEletroposto(); eletroSubaba('planilha'); } catch (e) { console.error('cadastro: a planilha não abriu', e); }
+    });
+    N.sec.appendChild(lk);
+  }
+}
+
+// ── Anexar (o mesmo envio em dois passos da ficha) ─────────────────────────
+function vdcUrlEnvio(u) {
+  try {
+    const x = new URL(String(u));
+    if (x.protocol === 'https:') return x.href;
+    if (x.protocol === 'http:' && x.origin === location.origin && /^(localhost|127\.0\.0\.1)$/.test(x.hostname)) return x.href;
+  } catch (e) {}
+  return '';
+}
+const vdcInvalido = (msg, curto) => ({ msg, curto: curto || msg });
+// Mais de um arquivo por vez só no item que aceita vários ("Outros"). O catálogo da API limita o item e a venda; o servidor diz quando não cabe.
+const VDC_LOTE_MAX = 60;
+async function vdcBitmap(f) {
+  const viaImg = () => new Promise((ok, no) => {
+    const u = URL.createObjectURL(f), im = new Image();
+    im.onload = () => { URL.revokeObjectURL(u); ok(im); };
+    im.onerror = () => { URL.revokeObjectURL(u); no(new Error('imagem')); };
+    im.src = u;
+  });
+  if (!window.createImageBitmap) return viaImg();
+  try { return await createImageBitmap(f, { imageOrientation: 'from-image' }); }
+  catch (e) { try { return await createImageBitmap(f); } catch (e2) { return viaImg(); } }
+}
+async function vdcReduzir(f) {
+  let bm;
+  try { bm = await vdcBitmap(f); } catch (e) { throw vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível'); }
+  const w = bm.width || bm.naturalWidth, h = bm.height || bm.naturalHeight;
+  if (!w || !h) throw vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível');
+  const k = Math.min(1, VDC_LADO_MAX / Math.max(w, h));
+  const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);   // PNG transparente não vira preto no JPEG
+  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+  cx.drawImage(bm, 0, 0, cv.width, cv.height);
+  if (bm.close) bm.close();
+  const blob = await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', 0.8));
+  if (!blob) throw vdcInvalido('Não consegui ler esta imagem. Tente outra foto.', 'imagem ilegível');
+  if (blob.size > VDC_MAX_ARQ) throw vdcInvalido('A imagem passa de 10 MB. Tire a foto de novo.', 'acima de 10 MB');
+  return { blob, mime: 'image/jpeg' };
+}
+async function vdcPreparar(f, slot) {
+  const tipo = String(f.type || '').toLowerCase(), nome = String(f.name || '').toLowerCase();
+  const pdf = tipo === 'application/pdf' || (!tipo && /\.pdf$/.test(nome));
+  const img = /^image\//.test(tipo) || (!tipo && /\.(jpe?g|png|webp|gif|heic|heif)$/.test(nome));
+  if (pdf) {
+    if (slot.aceita === 'imagem') throw vdcInvalido('Este item aceita só imagem.', 'tipo não aceito');
+    if (f.size > VDC_MAX_ARQ) throw vdcInvalido('O PDF passa de 10 MB.', 'acima de 10 MB');
+    if (!f.size) throw vdcInvalido('O arquivo está vazio.', 'arquivo vazio');
+    return { blob: f, mime: 'application/pdf' };
+  }
+  if (img) {
+    if (slot.aceita === 'pdf') throw vdcInvalido('Este item aceita só PDF.', 'tipo não aceito');
+    return vdcReduzir(f);
+  }
+  throw vdcInvalido('Use uma imagem ou um PDF.', 'tipo não aceito');
+}
+async function vdcEnviar(st, slot, p) {
+  const a = await vdcChamar(st, 'POST', '/docs/upload-url', { slot: slot.chave, mime: p.mime, bytes: p.blob.size });
+  const j = a.json || {};
+  if (a.status !== 200 || j.ok === false || typeof j.upload_url !== 'string' || typeof j.caminho !== 'string') {
+    const srv = typeof j.error === 'string' ? j.error : '';
+    const semEsp = a.status === 409 || a.status === 413 || /limite|espaço|máximo|cheio/i.test(srv);
+    const er = vdcInvalido(a.status === 401 || a.status === 0 ? vdcMsgErro(a) : srv || 'Não consegui iniciar o envio agora.', semEsp ? 'sem espaço' : (a.status === 401 || a.status === 0 ? vdcMsgErro(a) : srv || 'não consegui iniciar o envio'));
+    er.semEspaco = semEsp;
+    throw er;
+  }
+  const alvo = vdcUrlEnvio(j.upload_url);
+  if (!alvo) throw vdcInvalido('O endereço de envio veio inválido. Tente de novo.');
+  const h = {};
+  const cab = j.cabecalhos && typeof j.cabecalhos === 'object' ? j.cabecalhos : {};
+  let temTipo = false;
+  Object.keys(cab).forEach((k) => {
+    if (/^(content-length|host|authorization|cookie)$/i.test(k)) return;
+    if (/^content-type$/i.test(k)) temTipo = true;
+    h[k] = String(cab[k]);
+  });
+  if (!temTipo && p.blob.type) h['Content-Type'] = p.blob.type;
+  let r;
+  try { r = await fetch(alvo, { method: String(j.metodo || 'PUT').toUpperCase() === 'POST' ? 'POST' : 'PUT', headers: h, body: p.blob }); }
+  catch (e) { throw vdcInvalido('Sem conexão. Tente de novo.'); }
+  if (!r.ok) throw vdcInvalido('O envio não terminou (erro ' + r.status + '). Tente de novo.');
+  const b = await vdcChamar(st, 'POST', '/docs', { slot: slot.chave, caminho: j.caminho });
+  if (b.status < 200 || b.status >= 300 || (b.json && b.json.ok === false)) {
+    throw vdcInvalido((b.json && typeof b.json.error === 'string' && b.json.error) || 'O arquivo subiu, mas não consegui registrar. Tente de novo.');
+  }
+}
+async function vdcRecarregarDocs(st) {
+  const d = await vdcChamar(st, 'GET', '/docs');
+  if (vdcEst !== st) return;
+  if (d.status === 200 && d.json && d.json.ok !== false) st.docs = { slots: Array.isArray(d.json.slots) ? d.json.slots : [], arquivos: Array.isArray(d.json.arquivos) ? d.json.arquivos : [] };
+}
+async function vdcAnexar(st, slot0, arquivos) {
+  const slot = vdcSlotInfo(st, slot0);
+  if (st.sub[slot.chave]) return;
+  const limite = slot.varios ? VDC_LOTE_MAX : 1;
+  const fila = arquivos.slice(0, limite);
+  st.sub[slot.chave] = { fase: 'preparando', i: 0, n: fila.length };
+  delete st.msgDoc[slot.chave]; delete st.resDoc[slot.chave];
+  vdcPintar(st);
+  // Os nomes ficam só aqui, na memória da tela, para dizer QUAIS falharam. Não vão para a API, para a URL nem para o armazenamento do navegador.
+  const falhas = []; let ok = 0, semEspaco = false;
+  arquivos.slice(limite).forEach((f) => falhas.push({ nome: String(f.name || 'arquivo'), motivo: 'acima do limite de ' + limite + ' por vez', msg: 'Passa do limite de ' + limite + ' por vez.' }));
+  for (let i = 0; i < fila.length; i++) {
+    if (vdcEst !== st) return;
+    const nome = String(fila[i].name || 'arquivo');
+    if (semEspaco) { falhas.push({ nome, motivo: 'sem espaço', msg: 'Sem espaço neste item.' }); continue; }   // o servidor já disse que não cabe: não insiste
+    st.sub[slot.chave] = { fase: 'preparando', i, n: fila.length }; vdcPintar(st);
+    try {
+      const p = await vdcPreparar(fila[i], slot);       // tipo não aceito e arquivo grande demais param aqui, sem chamar a API
+      if (vdcEst !== st) return;
+      st.sub[slot.chave] = { fase: 'enviando', i, n: fila.length }; vdcPintar(st);
+      await vdcEnviar(st, slot, p);
+      ok++;
+    } catch (e) {
+      if (e && e.semEspaco) semEspaco = true;
+      falhas.push({ nome, motivo: (e && e.curto) || 'não consegui anexar', msg: (e && e.msg) || 'Não consegui anexar agora. Tente de novo.' });
+    }
+  }
+  if (vdcEst !== st) return;
+  delete st.sub[slot.chave];
+  if (slot.varios) st.resDoc[slot.chave] = { total: arquivos.length, ok, falhas };
+  else if (falhas.length) st.msgDoc[slot.chave] = falhas[0].msg;
+  if (ok) await vdcRecarregarDocs(st);
+  if (vdcEst !== st) return;
+  if (ok) showToast(ok === 1 ? 'Documento anexado.' : ok + ' documentos anexados.');
+  vdcPintar(st);
+}
+
+// ── Ler com a IA e conferir ────────────────────────────────────────────────
+async function vdcLer(st) {
+  if (vdcEst !== st || st.lendo || st.gravando) return;
+  st.lendo = true; st.msg = '';
+  st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
+  vdcPintar(st);
+  const r = await vdcChamar(st, 'POST', '/cadastro/ler', {}, 120000);
+  if (vdcEst !== st) return;
+  st.lendo = false;
+  const j = r.json || {};
+  if (r.status !== 200 || j.ok === false || !j.sugestoes || typeof j.sugestoes !== 'object') {
+    st.msg = vdcMsgErro(r, 'Não consegui ler os documentos agora.');
+    vdcPintar(st);
+    return;
+  }
+  vdcPintar(st);
+  vdcPainel(st, j);
+}
+
+const VDC_MOTIVOS = {
+  ilegivel: 'não deu para ler', arquivo_ilegivel: 'não deu para ler', tipo_nao_suportado: 'tipo de arquivo que a leitura não aceita',
+  muito_grande: 'arquivo grande demais', sem_texto: 'sem texto legível', nao_e_documento: 'não parece um documento do cliente',
+};
+const vdcMotivoTxt = (m) => VDC_MOTIVOS[String(m || '')] || String(m || 'não foi lido').replace(/_/g, ' ');
+const vdcSlotRot = (chave) => { const s = VDC_SLOTS.find(x => x.chave === chave); return s ? s.rot : String(chave || 'Documento').replace(/_/g, ' '); };
+
+function vdcPainel(st, leitura) {
+  const pn = st.no.pn;
+  pn.replaceChildren(); st.linhas = [];
+  const t = document.createElement('p'); t.className = 'vdc-pn-tit'; t.textContent = 'Conferir o que foi lido';
+  const aj = document.createElement('p'); aj.className = 'vdc-pn-aj';
+  aj.textContent = 'Marque o que vale. O que você digitou antes fica desmarcado quando o valor lido é diferente.';
+  pn.append(t, aj);
+  const sug = leitura.sugestoes || {};
+  let n = 0;
+  VDC_CAMPOS.forEach(([k, rot]) => {
+    const s = sug[k];
+    if (!s || typeof s !== 'object') return;
+    const lido = String(s.valor == null ? '' : s.valor).trim();
+    if (lido === '') return;
+    n++;
+    const atualRec = st.cad && st.cad.campos && st.cad.campos[k];
+    const atual = String((atualRec && atualRec.valor) == null ? '' : atualRec.valor).trim();
+    const fonte = atualRec && atualRec.fonte;
+    const igual = atual !== '' && atual === lido;
+    const difManual = atual !== '' && !igual && fonte !== 'ia';
+    const marcada = !igual && (atual === '' || fonte === 'ia');
+    const lin = document.createElement('div'); lin.className = 'vdc-lin' + (difManual ? ' dif' : ''); lin.setAttribute('data-vdc-campo', k);
+    const ck = document.createElement('input'); ck.type = 'checkbox'; ck.className = 'vdc-ck'; ck.checked = marcada; ck.disabled = igual;
+    ck.setAttribute('aria-label', 'Usar o valor lido em ' + rot);
+    const c = document.createElement('div'); c.className = 'vdc-lin-c';
+    const r = document.createElement('span'); r.className = 'vdc-lin-r'; r.textContent = rot;
+    const a = document.createElement('span'); a.className = 'vdc-lin-a';
+    a.textContent = atual === '' ? 'Hoje: vazio' : 'Hoje: ' + atual + (fonte === 'manual' ? ' (digitado)' : fonte === 'ficha' ? ' (da ficha)' : fonte === 'ia' ? ' (lido antes)' : '');
+    const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'vdc-in'; inp.value = lido; inp.disabled = igual;
+    inp.setAttribute('aria-label', 'Valor lido para ' + rot); inp.autocomplete = 'off';
+    c.append(r, a, inp);
+    if (igual) { const tg = document.createElement('span'); tg.className = 'vdc-nota'; tg.textContent = 'Igual ao cadastro.'; c.appendChild(tg); }
+    if (difManual) { const tg = document.createElement('span'); tg.className = 'vdc-tag'; tg.textContent = 'Diferente do que foi digitado'; c.appendChild(tg); }
+    if (s.confianca === 'baixa') { const tg = document.createElement('span'); tg.className = 'vdc-tag'; tg.textContent = 'Conferir'; c.appendChild(tg); }
+    if (s.nota) { const nt = document.createElement('span'); nt.className = 'vdc-nota'; nt.textContent = String(s.nota); c.appendChild(nt); }
+    const er = document.createElement('span'); er.className = 'vdc-erro'; er.hidden = true; c.appendChild(er);
+    lin.append(ck, c);
+    pn.appendChild(lin);
+    st.linhas.push({ k, ck, inp, er, lin });
+  });
+  if (!n) {
+    const vz = document.createElement('p'); vz.className = 'vdc-pn-aj';
+    vz.textContent = 'A leitura não achou dados novos nos documentos.';
+    pn.appendChild(vz);
+  }
+  const ign = Array.isArray(leitura.ignorados) ? leitura.ignorados.filter(x => x && typeof x === 'object') : [];
+  if (ign.length) {
+    const box = document.createElement('div'); box.className = 'vdc-ign';
+    const b = document.createElement('b'); b.textContent = 'Não foram lidos:'; box.appendChild(b);
+    const ul = document.createElement('ul');
+    ign.forEach((x) => { const li = document.createElement('li'); li.textContent = vdcSlotRot(x.slot) + ': ' + vdcMotivoTxt(x.motivo); ul.appendChild(li); });
+    box.appendChild(ul); pn.appendChild(box);
+  }
+  const ac = document.createElement('div'); ac.className = 'vdc-acoes';
+  const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'vdc-btn vdc-btn-pri'; ok.textContent = 'Confirmar e preencher tudo';
+  ok.setAttribute('data-vdc-acao', 'confirmar');
+  ok.addEventListener('click', () => vdcConfirmar(st));
+  const no = document.createElement('button'); no.type = 'button'; no.className = 'vdc-btn'; no.textContent = 'Cancelar'; no.setAttribute('data-vdc-acao', 'cancelar');
+  no.addEventListener('click', () => { st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = []; });
+  ac.append(ok, no); pn.appendChild(ac);
+  const er = document.createElement('p'); er.className = 'vdc-msg'; er.hidden = true; er.setAttribute('role', 'alert'); pn.appendChild(er);
+  st.no.pnMsg = er; st.no.pnOk = ok;
+  pn.hidden = false;
+  try { pn.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+}
+
+async function vdcConfirmar(st) {
+  if (vdcEst !== st || st.gravando) return;
+  const campos = {};
+  st.linhas.forEach((l) => {
+    l.er.hidden = true; l.er.textContent = '';
+    if (!l.ck.checked || l.ck.disabled) return;
+    const v = l.inp.value.trim();
+    if (v) campos[l.k] = v;
+  });
+  st.no.pnMsg.hidden = true;
+  if (!Object.keys(campos).length) {
+    if (!vdcV(st.cad, 'nome')) { st.no.pnMsg.textContent = 'Marque pelo menos o nome do cliente para preencher os contratos.'; st.no.pnMsg.hidden = false; return; }
+    st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
+    vdcPreencher(st);
+    return;
+  }
+  st.gravando = true; st.no.pnOk.disabled = true; st.no.pnOk.textContent = 'Gravando…';
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos, fonte: 'ia' });
+  if (vdcEst !== st) return;
+  st.gravando = false; st.no.pnOk.disabled = false; st.no.pnOk.textContent = 'Confirmar e preencher tudo';
+  const j = r.json || {};
+  if (r.status === 400 && j.erros && typeof j.erros === 'object') {
+    let n = 0;
+    st.linhas.forEach((l) => { const m = j.erros[l.k]; if (m) { n++; l.er.textContent = vdcMotivoTxt(m); l.er.hidden = false; } });
+    st.no.pnMsg.textContent = n ? 'Corrija os campos destacados e confirme de novo.' : 'Algum valor não foi aceito. Confira e tente de novo.';
+    st.no.pnMsg.hidden = false;
+    return;
+  }
+  if (r.status !== 200 || j.ok === false || !j.cadastro) {
+    st.no.pnMsg.textContent = vdcMsgErro(r, 'Não consegui gravar o cadastro agora.'); st.no.pnMsg.hidden = false;
+    return;
+  }
+  st.cad = j.cadastro;
+  st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
+  vdcPintar(st);
+  vdcPreencher(st);
+}
+
+function vdcPreencher(st) {
+  if (vdcEst !== st || !st.cad) return;
+  try { aplicarCadastroEletroposto(st.cad); }
+  catch (e) { console.error('cadastro: os formulários não foram preenchidos', e); st.msg = 'Não consegui preencher os formulários agora.'; vdcPintar(st); }
+}
+
+// ── Preencher os formulários do eletroposto ────────────────────────────────
+// Só os campos de IDENTIDADE do cliente. Simulação, valores e escolhas do
+// contrato não entram: a ideia é completar o que o consultor já montou.
+const VDC_IDS_IDENTIDADE = [
+  'el-cliente', 'el-cidade',
+  'orc-cli-doc', 'orc-cli-ie', 'orc-cli-end', 'orc-cli-cep', 'orc-cli-tel', 'orc-cli-email',
+  'eq-cli-nome', 'eq-cli-doc', 'eq-cli-ie', 'eq-cli-end', 'eq-cli-cidade', 'eq-cli-tel',
+  'rec-cli-nome', 'rec-cli-doc', 'rec-cli-end',
+  'ctr-rep', 'ctr-rep-doc',
+  'proc-outorgante', 'proc-outorgante-doc', 'proc-outorgante-end', 'proc-rep', 'proc-rep-doc', 'proc-cidade',
+  'proc-uc', 'proc-concessionaria', 'proc-local',
+  'anu-cedente', 'anu-cedente-doc',
+  'bnk-nome', 'bnk-doc', 'bnk-end', 'bnk-cep', 'bnk-bairro', 'bnk-cidade', 'bnk-uf',
+];
+// Terceiros ligados ao cliente anterior (dono do imóvel, inquilino, interveniente). Nunca são preenchidos; só saem quando o cliente muda.
+const VDC_IDS_TERCEIROS = ['ctr-int-nome', 'ctr-int-doc', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-int-end', 'ctr-int-qualidade',
+  'anu-nome', 'anu-doc', 'anu-end', 'anu-rep', 'anu-rep-doc'];
+const vdcDigitos = (v) => String(v == null ? '' : v).replace(/\D/g, '');
+const vdcNorm = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const vdcCampoTela = (id) => { const e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; };
+/** O formulário está com OUTRO cliente? Compara o documento (só dígitos) e, sem documento dos dois lados, o nome. */
+function vdcClienteMudou(C) {
+  const formDoc = vdcDigitos(vdcCampoTela('orc-cli-doc')) || vdcDigitos(vdcCampoTela('ctr-contratante-doc'));
+  const formNome = vdcNorm(vdcCampoTela('el-cliente'));
+  if (!formDoc && !formNome) return false;           // formulário sem cliente: não há de quem se livrar
+  const cadDoc = vdcDigitos(C.cpf_cnpj), cadNome = vdcNorm(C.nome);
+  if (formDoc && cadDoc) return formDoc !== cadDoc;
+  if (formNome && cadNome) return formNome !== cadNome;
+  return true;                                       // há identidade no formulário e nada comparável no cadastro
+}
+/** Esvazia os terceiros do cliente anterior. Devolve se havia algo escrito neles. */
+function vdcLimparTerceiros() {
+  let tinha = false;
+  VDC_IDS_TERCEIROS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') {
+      const o = [...el.options].find(x => x.defaultSelected) || el.options[0];
+      if (o && el.value !== o.value) { el.value = o.value; vdcDispara(el); }
+    } else {
+      if (el.value.trim() !== '') tinha = true;
+      el.value = el.defaultValue || '';
+      vdcDispara(el);
+    }
+    delete el.dataset.tocado; delete el.dataset.manual; delete el.dataset.auto;
+  });
+  return tinha;
+}
+// Espelhos do contrato que mostram a identidade do cliente (ou o que sai dela). Eles NÃO são escritos: só voltam a seguir a fonte.
+const VDC_ESPELHOS_IDENTIDADE = [
+  'ctr-contratante', 'ctr-contratante-doc', 'ctr-contratante-end', 'ctr-contratante-cep', 'ctr-contratante-ie', 'ctr-cidade',
+  'ctr-contratante-tel', 'ctr-contratante-email', 'ctr-ta-uc', 'ctr-ta-distribuidora',
+];
+// Fora desta lista de propósito: `ctr-foro` é escolha digitada à mão e nunca é tocado; `ctr-local` a agenda e a ficha já escrevem
+// e marcam como digitado, então ele recebe o `endereco_ponto` do cadastro (ver aplicarCadastroEletroposto).
+// Estes campos seguem a fonte enquanto ninguém digitar neles; o `input` que o preenchimento dispara os marcaria como digitados.
+const VDC_SEGUEM_A_FONTE = ['rec-cli-nome', 'rec-cli-doc', 'rec-cli-end', 'proc-outorgante', 'proc-outorgante-doc', 'proc-outorgante-end',
+  'bnk-nome', 'bnk-doc', 'bnk-end', 'bnk-cep', 'bnk-bairro', 'bnk-cidade', 'bnk-uf'];
+document.addEventListener('input', (ev) => {
+  const t = ev.target;
+  if (t && t.id === 'ctr-qualif' && t.dataset) delete t.dataset.vdcAuto;   // digitou: o texto passa a ser dele
+}, true);
+
+function vdcDispara(el) {
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+/** Esvazia a identidade do cliente anterior. Mesma ordem do epLimparCliente: valor, eventos, e só então a marca de digitado. */
+function epLimparIdentidade() {
+  VDC_IDS_IDENTIDADE.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = el.defaultValue || '';
+    vdcDispara(el);
+    delete el.dataset.tocado; delete el.dataset.manual; delete el.dataset.auto;
+  });
+  // A qualificação é texto livre: só sai o que esta função escreveu (ou o vazio). O que o consultor digitou fica, e o aviso diz.
+  const q = document.getElementById('ctr-qualif');
+  let manteve = false;
+  if (q) {
+    if (q.dataset.vdcAuto === '1' || q.value.trim() === '') { q.value = ''; vdcDispara(q); delete q.dataset.vdcAuto; }
+    else manteve = true;
+  }
+  VDC_ESPELHOS_IDENTIDADE.forEach((id) => { const el = document.getElementById(id); if (el) delete el.dataset.tocado; });
+  return { manteveQualif: manteve };
+}
+
+function aplicarCadastroEletroposto(cad) {
+  const C = {};
+  VDC_CAMPOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+  const tipo = vdcTipo(cad);
+  const nome = C.nome;
+  const ausentes = [];
+  // 1) sai do card, entra no eletroposto (o Simulador abre primeiro; a aba final vem no fim)
+  try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
+  navEletroposto();
+  // 2) limpa o cliente anterior (e os terceiros dele, se o cliente é outro)
+  // Mesmo cliente (reaplicar): nada é limpo, só se escreve o que o cadastro tem; o que alguém digitou e o cadastro não tem fica.
+  const mudou = vdcClienteMudou(C);
+  let lim = { manteveQualif: false }, terceirosApagados = false;
+  if (mudou) { lim = epLimparIdentidade(); terceirosApagados = vdcLimparTerceiros(); }
+  // 3) escreve
+  const por = (ids, valor) => {
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) { ausentes.push(id); return; }
+      if (!valor) return;       // vazio fica vazio: nada de texto de exemplo no lugar
+      el.value = valor;
+      vdcDispara(el);
+      if (VDC_SEGUEM_A_FONTE.indexOf(id) >= 0) delete el.dataset.tocado;
+    });
+  };
+  const endCompleto = [C.endereco, C.bairro && C.endereco.toLowerCase().indexOf(C.bairro.toLowerCase()) < 0 ? C.bairro : ''].filter(Boolean).join(', ');
+  const cidadeUF = (sep) => C.cidade ? C.cidade + (C.uf ? sep + C.uf : '') : '';
+  por(['el-cliente', 'eq-cli-nome', 'rec-cli-nome', 'proc-outorgante', 'bnk-nome'], nome);
+  por(['orc-cli-doc', 'eq-cli-doc', 'rec-cli-doc', 'proc-outorgante-doc', 'bnk-doc'], C.cpf_cnpj);
+  if (tipo === 'PJ') por(['orc-cli-ie', 'eq-cli-ie'], C.rg_ie);
+  por(['orc-cli-end', 'eq-cli-end', 'rec-cli-end', 'proc-outorgante-end'], endCompleto);
+  por(['bnk-end'], C.endereco);
+  por(['orc-cli-cep', 'bnk-cep'], C.cep);
+  por(['bnk-bairro'], C.bairro);
+  por(['el-cidade'], cidadeUF('-'));
+  por(['eq-cli-cidade'], cidadeUF('/'));
+  por(['bnk-cidade'], C.cidade);
+  por(['bnk-uf'], C.uf);
+  por(['orc-cli-tel', 'eq-cli-tel'], C.telefone);
+  por(['orc-cli-email'], C.email);
+  if (tipo === 'PJ') {
+    por(['ctr-rep', 'proc-rep'], C.rep_nome);
+    por(['ctr-rep-doc', 'proc-rep-doc'], C.rep_cpf);
+  }
+  por(['proc-uc'], C.unidade_consumidora);
+  por(['proc-concessionaria'], C.concessionaria);
+  por(['proc-local'], C.endereco_ponto);
+  // O local do ponto no contrato (a agenda e a ficha escrevem aqui e marcam como digitado). Entra o do cadastro quando o campo está
+  // vazio, ainda segue o espelho, ou o cliente mudou. Sem endereço do ponto e cliente novo, solta o do cliente anterior.
+  const loc = document.getElementById('ctr-local');
+  if (!loc) ausentes.push('ctr-local');
+  else if (C.endereco_ponto) {
+    if (mudou || loc.dataset.tocado !== '1' || loc.value.trim() === '') { loc.value = C.endereco_ponto; vdcDispara(loc); }
+  } else if (mudou) { loc.value = ''; delete loc.dataset.tocado; }
+  // qualificação civil (pessoa física): sai na frase do contratante, antes do CPF
+  const q = document.getElementById('ctr-qualif');
+  if (!q) ausentes.push('ctr-qualif');
+  else if (tipo === 'PF' && (q.value.trim() === '' || q.dataset.vdcAuto === '1')) {
+    const partes = [C.nacionalidade, C.estado_civil, C.profissao].filter(Boolean);
+    if (C.rg_ie) partes.push('portador(a) do RG nº ' + C.rg_ie + (C.orgao_emissor ? ' ' + C.orgao_emissor : ''));
+    if (partes.length) { q.value = partes.join(', '); vdcDispara(q); q.dataset.vdcAuto = '1'; }
+  }
+  // 4) os espelhos do contrato voltam a seguir a fonte (sem eventos: o ouvinte deles os marcaria como digitados)
+  if (mudou) VDC_ESPELHOS_IDENTIDADE.forEach((id) => { const el = document.getElementById(id); if (el) delete el.dataset.tocado; });
+  // 5) leva para os Contratos e avisa
+  eletroSubaba('contrato');
+  try { if (typeof ctrEspSync === 'function') ctrEspSync(); if (typeof ctrResumo === 'function') ctrResumo(); } catch (e) {}
+  const faltando = (Array.isArray(cad && cad.faltando) ? cad.faltando : []).filter(k => VDC_ROT[k] && (tipo === 'PJ' || k.indexOf('rep_') !== 0)).map(k => VDC_ROT[k]);
+  let msg = 'Contratos preenchidos com o cadastro de ' + (nome || 'cliente sem nome') + '. '
+    + (faltando.length ? 'Faltando: ' + faltando.join(', ') + '.' : 'Tudo preenchido.');
+  if (mudou) msg += ' Confira modelo e valores no Simulador: eles não vêm do cadastro.';
+  if (terceirosApagados) msg += ' O dono do imóvel do cliente anterior foi apagado.';
+  if (lim.manteveQualif) msg += ' A qualificação do contratante já tinha texto digitado e foi mantida: confira.';
+  vdcAvisar(msg);
+  showToast('Contratos preenchidos com o cadastro de ' + (nome || 'cliente'));
+  if (ausentes.length) console.warn('cadastro: campos que não existem na tela: ' + Array.from(new Set(ausentes)).join(', '));
+  return { faltando, ausentes: Array.from(new Set(ausentes)) };
+}
+
+// A faixa fica até alguém fechar (o toast some em 2 segundos, curto para uma lista do que falta).
+function vdcAvisar(txt) {
+  const box = document.getElementById('vdc-aviso');
+  if (!box) return;
+  const tx = box.querySelector('.vdc-aviso-tx');
+  if (tx) tx.textContent = txt;
+  box.hidden = !txt;
+}
+function vdcAvisoFechar() { vdcAvisar(''); }
+/** Saiu da conta: o bloco, a faixa e qualquer leitura em voo são desta conta. */
+function vdcSessaoLimpar() { vdcFechar(); vdcAvisoFechar(); }
 
 // ── O selo no quadro do CRM (eletroposto) ──────────────────────────────────
 function pvCardVendidoEp(c) {

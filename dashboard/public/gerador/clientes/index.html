@@ -157,6 +157,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .gd-dica{display:block;min-height:16px;margin-top:3px;font-size:12px;color:var(--gc-tx2)}
 .gd-dica.ok{color:var(--gc-ok);font-weight:600}
 .gd-dica.err{color:var(--gc-er);font-weight:600}
+.gd-aviso-cad{margin:0 0 14px;padding:10px 12px;border-radius:10px;border:1px solid var(--gc-av);background:var(--gc-av-sf);color:var(--gc-av);font-size:13.5px;line-height:1.45;font-weight:600;overflow-wrap:anywhere}
 
 /* ── Documentos da ficha e botão do relatório ── */
 .gd-rel{flex:none;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--gc-campo);background:transparent;color:var(--gc-tx);font-weight:600;font-size:13.5px;white-space:nowrap}
@@ -377,6 +378,12 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   var visiveis = [];                // clientes na lista
   var detalhe = null;               // código do cliente na ficha
   var campos = {};                  // controles da ficha aberta, por chave
+  // Colunas que o servidor guarda no cadastro da venda (eletroposto). Com o armazenamento do cadastro fora do ar a venda vem
+  // com `cadastro_indisponivel`: elas chegam do legado ou vazias, e gravar nelas não é confiável. As outras colunas seguem como são.
+  var COLS_CADASTRO = { cliente: 1, cpf_cnpj: 1, rg_ie: 1, contato: 1, email: 1, endereco: 1, cep: 1, cidade: 1, uf: 1, endereco_ponto: 1, unidade_consumidora: 1, concessionaria: 1, titular_conta: 1 };
+  var AVISO_CADASTRO = 'Cadastro do cliente fora do ar agora. Os dados pessoais estão só para leitura; tente de novo em alguns minutos.';
+  function cadastroFora(l) { return !!EP && !!l && l.cadastro_indisponivel === true; }
+  function colBloqueada(l, c) { return cadastroFora(l) && !!COLS_CADASTRO[c.chave]; }
   var secoes = [];                  // seções da ficha aberta: { cnt, cols }
   var parado = false;
   var carregando = false;
@@ -850,6 +857,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       return;
     }
     repintarCabecalho();
+    if (cadastroFora(l)) { var avc = el('p', 'gd-aviso-cad', AVISO_CADASTRO); avc.setAttribute('role', 'status'); corpo.appendChild(avc); }
     grupos.forEach(function (g) {
       var lista = cols.filter(function (c) { return c.grupo === g && c.chave !== 'codigo'; });
       if (!lista.length) return;
@@ -883,12 +891,14 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     var cel0 = l.celulas[chave];
     // Eletroposto: campo que vem de Obras (pos_venda) é só leitura, mesmo que a coluna diga que é editável.
     var pv = ehPv(c, cel0);
-    var obrig = c.obrigatoria && c.editavel && !pv;
+    var bloq = colBloqueada(l, c);   // cadastro do cliente fora do ar: só leitura nesta venda
+    var obrig = c.obrigatoria && c.editavel && !pv && !bloq;
     var atual = function () { var x = linhaPor[codigo]; return x ? x.celulas[chave] : cel0; };
 
     // Linha de aviso: mensagem de gravação (Salvando, Salvo, erro) e, no resto do tempo, quem preencheu.
     h.dicaBase = function () {
       var cel = atual();
+      if (bloq) return 'Só leitura: o cadastro está fora do ar';
       if (pv) return vazioV(cel.valor) ? 'Falta, edita em Obras' : 'Edita em Obras';
       if (!c.editavel) return c.calculada ? 'Calculado na planilha' : '';
       if (EP && cel.origem === 'card') return 'Veio da agenda';
@@ -917,7 +927,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       if (pv && !h.msgTipo) dica.className = 'gd-dica' + (vazio ? ' err' : '');
     };
 
-    if (!c.editavel || pv) {
+    if (!c.editavel || pv || bloq) {
       v.classList.add('calc');
       if (pv) f.classList.add('pv');
       var ro = el('div', 'gd-ro'); ro.id = id; v.appendChild(ro);
@@ -1069,6 +1079,11 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       if (h && detalhe === codigo) h.set(antes, true);
       return;
     }
+    if (colBloqueada(l, c)) {   // a tela já não deixa editar; isto segura o que chegar por outro caminho
+      aviso(AVISO_CADASTRO);
+      if (h && detalhe === codigo) h.set(antes, true);
+      return;
+    }
     var r = lerCampo(c, texto);
     if (!r.ok) { if (h) h.erro(r.msg); return; }
     var novoV = r.v;
@@ -1142,7 +1157,11 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         if (resto > 0) return;
         l.celulas[c.chave] = j.celula;
         if (j.progresso && !EP) l.progresso = j.progresso; else recalcular(l);
-        depoisDeMudar(l.codigo, c.chave, 'Salvo', 'ok', false);
+        // O servidor devolve o valor normalizado (CPF formatado, UF maiúscula, CEP com hífen). Com o foco ainda no campo e o texto
+        // igual ao que foi enviado, a pessoa não digitou de novo: o normalizado entra no lugar.
+        var hn = campos[c.chave], forcarNorm = false;
+        if (hn && hn.ctl && detalhe === l.codigo && document.activeElement === hn.ctl && hn.ctl.tagName !== 'SELECT') forcarNorm = String(hn.ctl.value).trim() === String(texto == null ? '' : texto).trim();
+        depoisDeMudar(l.codigo, c.chave, 'Salvo', 'ok', forcarNorm);
         return;
       }
       if (x.status === 409 && j.celula) {
@@ -1156,6 +1175,23 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         l.celulas[c.chave] = j.celula;
         recalcular(l);
         depoisDeMudar(l.codigo, c.chave, '', '', true);
+        return;
+      }
+      // Recusa de validação (400) numa coluna do cadastro (CPF com dígito errado, UF, CEP...): o motivo do servidor aparece junto do
+      // campo e o texto digitado fica, para a pessoa corrigir. O que a ficha guarda volta ao último valor confirmado.
+      if (x.status === 400 && COLS_CADASTRO[c.chave] && EP) {
+        resto = terminou();
+        if (resto > 0) return;
+        l.celulas[c.chave] = (chaveBase in confirmado) ? confirmado[chaveBase] : antes;
+        recalcular(l);
+        if (c.chave === 'cliente' && l.celulas.cliente && typeof l.celulas.cliente.valor === 'string') { l.cliente = l.celulas.cliente.valor; var itn = itemDe(l.codigo); if (itn) itn.querySelector('.nm').textContent = l.cliente || 'Sem nome'; }
+        repintarItem(l.codigo);
+        if (detalhe === l.codigo) {
+          var hv = campos[c.chave];
+          if (hv) { hv.estado(l.celulas[c.chave]); hv.erro(j.error || j.motivo || 'O servidor não aceitou este valor.'); }
+          atualizarSecoes(); repintarCabecalho();
+          salvoGeral('Não salvou', 'err');
+        }
         return;
       }
       // Recusa (400, 404, 403, 5xx): mostra o motivo e devolve o último valor confirmado.
