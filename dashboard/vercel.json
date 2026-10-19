@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "ignoreCommand": "P=$VERCEL_GIT_PREVIOUS_SHA; if [ -n \"$P\" ] && { git cat-file -e \"$P^{commit}\" 2>/dev/null || git fetch -q --deepen=300 origin; } && git diff --quiet \"$P\" HEAD -- .; then exit 0; else exit 1; fi",
   "env": {
     "NODE_ENV": "production"
   },

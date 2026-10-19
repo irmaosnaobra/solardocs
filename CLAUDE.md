@@ -56,6 +56,12 @@ Cada um destes já custou caro pelo menos uma vez.
   hook que bloqueia o `--prod` sem `--cwd` ou `VERCEL_PROJECT_ID`.
 - **Deploy só conta quando chega em READY.** Push que não vira build acontece
   aqui e passa despercebido.
+- **Cada projeto só monta quando a própria pasta muda** (desde 19/10/2026,
+  `ignoreCommand` em `api/vercel.json` e `dashboard/vercel.json`, comparando com
+  o último deploy). O projeto que não mudou aparece como "Canceled (Ignored
+  Build Step)", e isso é o esperado: confira o READY no projeto cuja pasta
+  mudou. Env nova na Vercel só vale com commit dentro da pasta do projeto ou
+  com redeploy manual. A loja de bike (`ebike-ecommerce/`) não monta nunca.
 - **A `api/` é CommonJS.** Importar pacote ESM no caminho de boot põe toda rota
   em 500 com o `tsc` VERDE. Teste com `require` no `dist/`, não no fonte.
 - **O `/gerador` é PWA.** Mexeu em `dashboard/public/gerador/index.html`? Faça o
