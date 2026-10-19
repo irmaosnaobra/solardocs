@@ -37,10 +37,10 @@ export const MIMES_ACEITOS: readonly string[] = ['image/jpeg', 'image/png', 'ima
 export const EXT_POR_MIME: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf',
 };
-const MAX_ARQUIVOS = 60;          // por venda
-const MAX_POR_ITEM_VARIOS = 20;   // fotos de um item que aceita vários
+const MAX_ARQUIVOS = 100;         // por venda
+const MAX_POR_ITEM_VARIOS = 40;   // fotos de um item que aceita vários (o `outros` vai até o teto da venda)
 const MAX_TRILHA = 50;
-export const LIMITES = { total: MAX_ARQUIVOS, porItem: MAX_POR_ITEM_VARIOS, trilha: MAX_TRILHA } as const;
+export const LIMITES = { total: MAX_ARQUIVOS, porItem: MAX_POR_ITEM_VARIOS, outros: MAX_ARQUIVOS, trilha: MAX_TRILHA } as const;
 
 // ── Catálogo ─────────────────────────────────────────────────────────────────
 
@@ -219,11 +219,18 @@ export function comVinculo(reg: RegistroDocs, proposta: string, por: string, em:
   };
 }
 
+/** Quantos arquivos o item comporta: 1 nos de um arquivo só, 40 nos que aceitam vários, e o `outros` até o teto da venda. */
+export function limiteDoItem(item: ItemDoc): number {
+  if (!item.varios) return 1;
+  return item.chave === 'outros' ? LIMITES.outros : LIMITES.porItem;
+}
+
 /** Por que um arquivo novo NÃO cabe (null = cabe). Item de um só arquivo ocupado, teto por item e teto por venda. */
 export function motivoSemEspaco(reg: RegistroDocs, item: ItemDoc): 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda' | null {
   const doItem = reg.arquivos.filter((a) => a.slot === item.chave).length;
   if (!item.varios && doItem >= 1) return 'slot_ocupado';
-  if (item.varios && doItem >= MAX_POR_ITEM_VARIOS) return 'muitos_no_item';
+  // O `outros` tem o mesmo teto da venda: quando enche, o motivo que vale é o da venda.
+  if (item.varios && limiteDoItem(item) < MAX_ARQUIVOS && doItem >= limiteDoItem(item)) return 'muitos_no_item';
   if (reg.arquivos.length >= MAX_ARQUIVOS) return 'muitos_na_venda';
   return null;
 }

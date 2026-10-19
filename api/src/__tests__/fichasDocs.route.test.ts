@@ -158,8 +158,9 @@ import { mountClientesEletroposto } from '../routes/geradorEletropostoClientes';
 import { mountClientesDocs } from '../routes/geradorClientesDocs';
 import { limparCacheBucketDocs } from '../services/gerador/docsClienteBanco';
 import { mountSolar, limparCachesSolar } from '../routes/geradorSolar';
-import { lerCaminho, nomesParecidos, lerRegistroDocs, CATALOGO, codigoDeRota } from '../services/gerador/docsCliente';
+import { lerCaminho, nomesParecidos, lerRegistroDocs, CATALOGO, codigoDeRota, LIMITES, limiteDoItem } from '../services/gerador/docsCliente';
 import { logger } from '../utils/logger';
+import { supabaseGerador } from '../utils/supabaseGerador';
 
 const CABECALHO: string[] = [
   'J49', 'NOME CLIENTE', 'NOME HOMOLOGAÇÃO', 'CONSULTOR', 'ORIGEM DO LEAD', 'VALOR DA VENDA', 'FORMA DE PAGTO', 'RECEBIDO REAL',
@@ -201,6 +202,7 @@ mountClientes(r);
 mountClientesEletroposto(r);
 mountClientesDocs(r);
 const app = express();
+app.set('trust proxy', 1);   // como no app.ts: o IP do limitador por IP vem do X-Forwarded-For
 app.use(express.json());
 app.use('/gerador', r);
 
@@ -444,6 +446,106 @@ describe('upload-url', () => {
     expect(o.body.motivo).toBe('slot_ocupado');
     expect((await post(url, { slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 })).status).toBe(200);
   });
+
+  // Limites de 19/10/2026: 100 arquivos por venda, 100 em "outros" (o teto da venda) e 40 nos demais itens "vários".
+  const semear = (partes: Array<[string, number]>) => {
+    const arquivos: any[] = [];
+    for (const [slot, n] of partes) {
+      for (let k = 0; k < n; k++) {
+        const uuid = `${(arquivos.length + 1).toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`;
+        arquivos.push({ id: `id${arquivos.length}`, slot, caminho: caminhoDe('solar', '0057', uuid), mime: 'image/jpeg', bytes: 1, em: 'e', por: 'nilce' });
+      }
+    }
+    h.linhas.set('docs_cliente:solar:0057', { value: { arquivos, alteracoes: [], apagados: [] }, updated_at: 'v0' });
+  };
+  it('os limites estão em 100 por venda, 100 em "outros" e 40 nos itens "vários"', () => {
+    expect(LIMITES).toMatchObject({ total: 100, outros: 100, porItem: 40 });
+    const item = (linha: 'solar' | 'eletroposto', chave: string) => CATALOGO[linha].find((x) => x.chave === chave)!;
+    expect(limiteDoItem(item('solar', 'outros'))).toBe(100);
+    expect(limiteDoItem(item('solar', 'obra_pronta'))).toBe(40);
+    expect(limiteDoItem(item('eletroposto', 'instalacao'))).toBe(40);
+    expect(limiteDoItem(item('eletroposto', 'foto_local'))).toBe(1);
+  });
+  it('item "vários" (40): o 40º entra e o 41º é recusado com o número certo', async () => {
+    semear([['obra_pronta', 39]]);
+    expect((await post(url, { slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 })).status).toBe(200);
+    semear([['obra_pronta', 40]]);
+    const x = await post(url, { slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 });
+    expect(x.status).toBe(409);
+    expect(x.body).toMatchObject({ ok: false, motivo: 'muitos_no_item', error: 'Este item já tem 40 arquivos.' });
+  });
+  it('"outros" vai até 100: o 100º entra e o 101º é recusado como teto da venda', async () => {
+    semear([['outros', 99]]);
+    expect((await post(url, { slot: 'outros', mime: 'application/pdf', bytes: 5 })).status).toBe(200);
+    semear([['outros', 100]]);
+    const x = await post(url, { slot: 'outros', mime: 'application/pdf', bytes: 5 });
+    expect(x.status).toBe(409);
+    expect(x.body).toMatchObject({ ok: false, motivo: 'muitos_na_venda', error: 'Esta venda já tem 100 arquivos.' });
+  });
+  it('venda com 100 arquivos misturados: qualquer item "vários" é recusado, mesmo com espaço no item', async () => {
+    semear([['outros', 70], ['obra_pronta', 30]]);
+    const x = await post(url, { slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 });
+    expect(x.status).toBe(409);
+    expect(x.body.motivo).toBe('muitos_na_venda');
+    semear([['outros', 70], ['obra_pronta', 29]]);
+    expect((await post(url, { slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 })).status).toBe(200);
+  });
+});
+
+// Teto por IP ANTES do login nos dois POSTs de anexo (as rotas são as de verdade; cada teste usa um IP próprio, via X-Forwarded-For).
+describe('envio de anexos: teto por IP antes do login', () => {
+  const UP = '/gerador/clientes/solar/57/docs/upload-url';
+  const REG = '/gerador/clientes/solar/57/docs';
+  const MSG = 'Muitos envios seguidos. Espere alguns minutos e continue.';
+  const semToken = (rota: string, ip: string) => request(app).post(rota).set('X-Forwarded-For', ip).send({ slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 });
+  const comToken = (rota: string, ip: string, auth: string) => request(app).post(rota).set('X-Forwarded-For', ip).set('Authorization', auth).send({ slot: 'obra_pronta', mime: 'image/jpeg', bytes: 5 });
+
+  it('rajada SEM token: 150 respostas 401 e o 151º já leva 429 no formato das rotas de docs, sem tocar o login', async () => {
+    const antes = vi.mocked(supabaseGerador.auth.getUser).mock.calls.length;
+    const s: number[] = [];
+    for (let i = 0; i < 151; i++) s.push((await semToken(UP, '192.0.2.50')).status);
+    expect(s.slice(0, 150).every((x) => x === 401)).toBe(true);
+    expect(s[150]).toBe(429);
+    const x = await semToken(UP, '192.0.2.50');
+    expect(x.status).toBe(429);
+    expect(x.body).toEqual({ ok: false, error: MSG });
+    // as duas rotas dividem a conta do IP
+    expect((await semToken(REG, '192.0.2.50')).status).toBe(429);
+    // outro IP não é afetado
+    expect((await semToken(UP, '192.0.2.51')).status).toBe(401);
+    // sem token nada chama o Supabase
+    expect(vi.mocked(supabaseGerador.auth.getUser).mock.calls.length - antes).toBe(0);
+  }, 120_000);
+
+  it('rajada com `Bearer lixo`: o login (Supabase) é chamado só até o teto, depois o 429 barra antes dele', async () => {
+    const antes = vi.mocked(supabaseGerador.auth.getUser).mock.calls.length;
+    const s: number[] = [];
+    for (let i = 0; i < 160; i++) s.push((await comToken(UP, '192.0.2.52', 'Bearer lixo')).status);
+    expect(s.slice(0, 150).every((x) => x === 401)).toBe(true);
+    expect(s.slice(150).every((x) => x === 429)).toBe(true);
+    expect(vi.mocked(supabaseGerador.auth.getUser).mock.calls.length - antes).toBe(150);
+  }, 120_000);
+
+  it('envio legítimo não gasta o teto: 160 pedidos com token válido dão 200 seguidos, e depois ainda dá para errar o login', async () => {
+    const s: number[] = [];
+    for (let i = 0; i < 160; i++) s.push((await comToken(UP, '192.0.2.53', THIAGO)).status);
+    expect(s.every((x) => x === 200)).toBe(true);
+    expect((await semToken(UP, '192.0.2.53')).status).toBe(401);
+  }, 120_000);
+
+  it('só as respostas de falha de login gastam a conta: 409 e 400 de quem está logado não contam', async () => {
+    for (let i = 0; i < 160; i++) {
+      const r = await request(app).post(UP).set('X-Forwarded-For', '192.0.2.54').set('Authorization', THIAGO).send({ slot: 'inexistente', mime: 'image/jpeg', bytes: 5 });
+      expect(r.status).toBe(400);
+    }
+    expect((await semToken(UP, '192.0.2.54')).status).toBe(401);
+  }, 120_000);
+
+  it('GET, DELETE e PATCH das mesmas rotas não usam esse teto (sem token seguem dando 401)', async () => {
+    for (let i = 0; i < 155; i++) expect((await request(app).get(REG).set('X-Forwarded-For', '192.0.2.55')).status).toBe(401);
+    expect((await request(app).delete(`${REG}/${UUID}`).set('X-Forwarded-For', '192.0.2.55')).status).toBe(401);
+    expect((await semToken(UP, '192.0.2.55')).status).toBe(401);
+  }, 120_000);
 });
 
 describe('bucket', () => {

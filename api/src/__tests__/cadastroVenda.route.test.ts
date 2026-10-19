@@ -468,8 +468,8 @@ describe('POST cadastro/ler (IA lê os documentos já anexados)', () => {
     const bloco = corpo.messages[0].content.find((b: any) => b.type === 'document');
     expect(bloco.source).toEqual({ type: 'base64', media_type: 'application/pdf', data: PDF.toString('base64') });
   });
-  it('os mais recentes primeiro, no máximo 12 arquivos', async () => {
-    const fs = Array.from({ length: 14 }, (_, i) => {
+  it('os mais recentes primeiro, no máximo 20 arquivos', async () => {
+    const fs = Array.from({ length: 22 }, (_, i) => {
       const uuid = `aaaaaaaa-aaaa-4aaa-8aaa-${String(i).padStart(12, '0')}`;
       h.objetos.set(`eletroposto/101/${uuid}.jpg`, JPG);
       return doc('outros', uuid, 'jpg', 'image/jpeg', JPG.length, `2026-10-19T10:${String(i).padStart(2, '0')}:00.000Z`);
@@ -478,11 +478,92 @@ describe('POST cadastro/ler (IA lê os documentos já anexados)', () => {
     h.ia.fila.push(sugestaoIA());
     const res = await ler(101);
     expect(res.status).toBe(200);
-    expect(res.body.lidos).toEqual([{ slot: 'outros', n: 12 }]);
+    expect(res.body.lidos).toEqual([{ slot: 'outros', n: 20 }]);
     expect(res.body.ignorados).toEqual([
       { slot: 'outros', motivo: 'Não coube nesta leitura: aperte Ler de novo para os próximos.' },
       { slot: 'outros', motivo: 'Não coube nesta leitura: aperte Ler de novo para os próximos.' },
     ]);
+  });
+  describe('orçamento de 22 MB: titular e conta de luz são reservados antes do bloco de outros', () => {
+    const MB = 1024 * 1024;
+    const corpoDe = (n: number) => Buffer.concat([JPG, Buffer.alloc(n - JPG.length, 7)]);   // JPEG de verdade na assinatura, com o tamanho exato
+    const uuidDe = (i: number) => `aaaaaaaa-aaaa-4aaa-8aaa-${String(i).padStart(12, '0')}`;
+    const soma = (corpo: any): number => corpo.messages[0].content
+      .filter((b: any) => b.type === 'image' || b.type === 'document')
+      .reduce((s: number, b: any) => s + Buffer.from(b.source.data, 'base64').length, 0);
+
+    it('12 fotos de 3 MB em outros + CNH de 2,5 MB: a CNH é lida, entram 6 fotos e o total não passa de 22 MB', async () => {
+      const foto = corpoDe(3 * MB);
+      const cnh = corpoDe(2.5 * MB);
+      const fs = Array.from({ length: 12 }, (_, i) => {
+        h.objetos.set(`eletroposto/101/${uuidDe(i + 1)}.jpg`, foto);
+        return doc('outros', uuidDe(i + 1), 'jpg', 'image/jpeg', foto.length, `2026-10-19T10:${String(i).padStart(2, '0')}:00.000Z`);
+      });
+      h.objetos.set(`eletroposto/101/${U1}.jpg`, cnh);
+      anexa(101, [...fs, doc('documento_titular', U1, 'jpg', 'image/jpeg', cnh.length, '2026-10-19T09:00:00.000Z')]);
+      h.ia.fila.push(sugestaoIA());
+      const res = await ler(101);
+      expect(res.status).toBe(200);
+      expect(res.body.lidos).toEqual(expect.arrayContaining([{ slot: 'documento_titular', n: 1 }, { slot: 'outros', n: 6 }]));
+      expect(res.body.ignorados).toHaveLength(6);
+      expect(res.body.ignorados.every((i: any) => i.slot === 'outros' && i.motivo === 'Não coube nesta leitura: aperte Ler de novo para os próximos.')).toBe(true);
+      const total = soma(h.ia.chamadas[0].corpo);
+      expect(total).toBe(6 * 3 * MB + 2.5 * MB);
+      expect(total).toBeLessThanOrEqual(22 * MB);
+      // a ordem no pedido é a de antes: o bloco de outros vem na frente, o titular depois
+      const slots = h.ia.chamadas[0].corpo.messages[0].content
+        .filter((b: any) => b.type === 'text' && /^Arquivo \d+/.test(b.text)).map((b: any) => /slot "(\w+)"/.exec(b.text)![1]);
+      expect(slots).toEqual([...Array(6).fill('outros'), 'documento_titular']);
+    });
+
+    it('com CNH de 2,5 MB e conta de luz em PDF de 1 MB: os dois entram e sobram 6 fotos de 3 MB', async () => {
+      const foto = corpoDe(3 * MB);
+      const cnh = corpoDe(2.5 * MB);
+      const conta = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(1 * MB - 9, 7)]);
+      const fs = Array.from({ length: 12 }, (_, i) => {
+        h.objetos.set(`eletroposto/101/${uuidDe(i + 1)}.jpg`, foto);
+        return doc('outros', uuidDe(i + 1), 'jpg', 'image/jpeg', foto.length, `2026-10-19T10:${String(i).padStart(2, '0')}:00.000Z`);
+      });
+      h.objetos.set(`eletroposto/101/${U1}.jpg`, cnh);
+      h.objetos.set(`eletroposto/101/${U2}.pdf`, conta);
+      anexa(101, [...fs,
+        doc('documento_titular', U1, 'jpg', 'image/jpeg', cnh.length, '2026-10-19T09:00:00.000Z'),
+        doc('conta_luz', U2, 'pdf', 'application/pdf', conta.length, '2026-10-19T09:01:00.000Z')]);
+      h.ia.fila.push(sugestaoIA());
+      const res = await ler(101);
+      expect(res.status).toBe(200);
+      expect(res.body.lidos).toEqual(expect.arrayContaining([{ slot: 'documento_titular', n: 1 }, { slot: 'conta_luz', n: 1 }, { slot: 'outros', n: 6 }]));
+      expect(soma(h.ia.chamadas[0].corpo)).toBe(6 * 3 * MB + 2.5 * MB + 1 * MB);
+      expect(soma(h.ia.chamadas[0].corpo)).toBeLessThanOrEqual(22 * MB);
+    });
+
+    it('titular grande demais sozinho (imagem de 4 MB) não segura reserva: as fotos usam o orçamento todo', async () => {
+      const foto = corpoDe(3 * MB);
+      const fs = Array.from({ length: 12 }, (_, i) => {
+        h.objetos.set(`eletroposto/101/${uuidDe(i + 1)}.jpg`, foto);
+        return doc('outros', uuidDe(i + 1), 'jpg', 'image/jpeg', foto.length, `2026-10-19T10:${String(i).padStart(2, '0')}:00.000Z`);
+      });
+      anexa(101, [...fs, doc('documento_titular', U1, 'jpg', 'image/jpeg', 4 * MB, '2026-10-19T09:00:00.000Z')]);
+      h.ia.fila.push(sugestaoIA());
+      const res = await ler(101);
+      expect(res.body.lidos).toEqual([{ slot: 'outros', n: 7 }]);   // 7 x 3 MB = 21 MB
+      expect(res.body.ignorados.find((i: any) => i.slot === 'documento_titular').motivo).toBe('Foto acima de 3,7 MB: mande uma menor.');
+    });
+
+    it('a reserva também vale para a vaga: com 25 arquivos de outros, titular e conta entram dentro do teto de 20', async () => {
+      const fs = Array.from({ length: 25 }, (_, i) => {
+        h.objetos.set(`eletroposto/101/${uuidDe(i + 1)}.jpg`, JPG);
+        return doc('outros', uuidDe(i + 1), 'jpg', 'image/jpeg', JPG.length, `2026-10-19T10:${String(i).padStart(2, '0')}:00.000Z`);
+      });
+      h.objetos.set(`eletroposto/101/${U1}.jpg`, JPG);
+      h.objetos.set(`eletroposto/101/${U2}.pdf`, PDF);
+      anexa(101, [...fs, doc('documento_titular', U1, 'jpg', 'image/jpeg', JPG.length, '2026-10-19T09:00:00.000Z'),
+        doc('conta_luz', U2, 'pdf', 'application/pdf', PDF.length, '2026-10-19T09:01:00.000Z')]);
+      h.ia.fila.push(sugestaoIA());
+      const res = await ler(101);
+      expect(res.body.lidos).toEqual(expect.arrayContaining([{ slot: 'documento_titular', n: 1 }, { slot: 'conta_luz', n: 1 }, { slot: 'outros', n: 18 }]));
+      expect(res.body.ignorados).toHaveLength(7);
+    });
   });
   it('imagem acima de 3,75 MB (pelo metadado ou pelos bytes) e PDF sem %PDF- vão para ignorados; sem sobrar nada, 409', async () => {
     anexa(101, [

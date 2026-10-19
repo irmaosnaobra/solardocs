@@ -28,7 +28,11 @@ const LOG = 'cadastro-venda';
  * só foto (`aceita: 'imagem'`): foto do local, do padrão de entrada, do quadro elétrico e fotos da instalação.
  */
 export const SLOTS_LIDOS: readonly string[] = CATALOGO.eletroposto.filter((i) => i.aceita !== 'imagem').map((i) => i.chave);
-export const MAX_ARQUIVOS_LIDOS = 12;
+export const MAX_ARQUIVOS_LIDOS = 20;
+/** Quantos arquivos de `outros` sem rótulo (PDFs primeiro, depois fotos) passam à frente do documento do titular e da conta de luz. O resto espera o fim da fila. */
+export const MAX_OUTROS_NA_FRENTE = 12;
+/** Os itens cujo lugar no orçamento de bytes e de arquivos é guardado antes de qualquer outro (veja `prepararArquivos`). */
+const SLOTS_RESERVADOS: readonly string[] = ['documento_titular', 'conta_luz'];
 export const MOTIVO_NAO_COUBE = 'Não coube nesta leitura: aperte Ler de novo para os próximos.';
 /**
  * Teto de bytes BRUTOS lidos de uma vez. O pedido leva o base64 (4/3 do tamanho) e a API aceita 32 MB por requisição:
@@ -39,7 +43,7 @@ export const MAX_BYTES_LIDOS = 22 * 1024 * 1024;
 export const MAX_IMAGEM_BYTES = Math.floor(3.75 * 1024 * 1024);
 export const MOTIVO_IMAGEM_GRANDE = 'Foto acima de 3,7 MB: mande uma menor.';
 export const IA_TEMPO_MS = 90_000;
-// Teto de saída: 24 campos e a lista de documentos, com até 12 arquivos, e o raciocínio desta família de modelos conta no teto (a 2000 a leitura
+// Teto de saída: 24 campos e a lista de documentos, com até 20 arquivos, e o raciocínio desta família de modelos conta no teto (a 2000 a leitura
 // parava em `max_tokens` e virava 502). Só se paga o que for usado.
 export const IA_MAX_TOKENS = 8000;
 export const MODELO_PLANO_B = 'claude-sonnet-4-6';
@@ -71,7 +75,33 @@ export const FORMATO_CADASTRO = { type: formatoZod.type, schema: formatoZod.sche
 const TIPOS_DO_CATALOGO = CATALOGO.eletroposto.filter((i) => i.chave !== 'outros');
 const TIPOS_PARA_O_PROMPT = TIPOS_DO_CATALOGO.map((i) => `"${i.chave}" (${i.rotulo})`).join(', ');
 
-export const SISTEMA_CADASTRO = `Você lê documentos de um cliente brasileiro (identidade, conta de luz, contrato, procuração) e extrai dados de cadastro para um contrato.
+/**
+ * O que cada item do catálogo do eletroposto É, para o modelo separar FOTO DO LOCAL de FOTO DE DOCUMENTO. Os itens que só
+ * aceitam imagem (`aceita: 'imagem'`) são as fotos do local; o resto é documento. Um item novo no catálogo sem descrição aqui
+ * entra no prompt só com o nome (o teste de cobertura avisa).
+ */
+export const DESCRICAO_DOS_ITENS: Record<string, string> = {
+  foto_local: 'foto do lugar onde o carregador vai ficar: garagem, estacionamento, fachada, parede, muro',
+  padrao: 'foto do padrão de entrada de energia: poste, caixa do medidor, caixa de entrada',
+  quadro_eletrico: 'foto do quadro de disjuntores (quadro de distribuição) aberto ou fechado',
+  instalacao: 'foto do carregador já instalado, com a obra feita ou em andamento',
+  documento_titular: 'RG, CNH ou outro documento de identificação do titular (frente ou verso), fotografado ou digitalizado',
+  conta_luz: 'fatura de energia elétrica da unidade consumidora',
+  contrato_assinado: 'contrato de arrendamento ou de venda, assinado, mesmo que fotografado',
+  procuracao: 'procuração em que o titular autoriza outra pessoa a agir por ele',
+  anuencia: 'anuência: autorização do dono ou do condomínio para a instalação',
+  vistoria: 'laudo ou termo de vistoria da instalação',
+  art: 'ART, Anotação de Responsabilidade Técnica do engenheiro',
+  projeto: 'projeto elétrico da instalação (diagramas, pranchas, memorial)',
+  parecer_acesso: 'parecer de acesso emitido pela distribuidora de energia',
+};
+const ehFotoDoLocal = (chave: string): boolean => CATALOGO.eletroposto.some((i) => i.chave === chave && i.aceita === 'imagem');
+const LISTA_FOTOS_DO_LOCAL = TIPOS_DO_CATALOGO.filter((i) => ehFotoDoLocal(i.chave))
+  .map((i) => `   - "${i.chave}": ${DESCRICAO_DOS_ITENS[i.chave] ?? i.rotulo}`).join('\n');
+const LISTA_DOCUMENTOS = TIPOS_DO_CATALOGO.filter((i) => !ehFotoDoLocal(i.chave))
+  .map((i) => `   - "${i.chave}": ${DESCRICAO_DOS_ITENS[i.chave] ?? i.rotulo}`).join('\n');
+
+export const SISTEMA_CADASTRO = `Você lê documentos e fotos de um cliente brasileiro (identidade, conta de luz, contrato, procuração, fotos do local da instalação) e extrai dados de cadastro para um contrato.
 
 Regras:
 1. Extraia SÓ o que está legível nos documentos. Nunca invente, nunca complete e nunca deduza. Campo que você não encontrou vai com "valor" vazio ("") e "slot" vazio.
@@ -87,7 +117,16 @@ Regras:
 7. Além dos campos, devolva em "documentos" uma entrada para CADA arquivo, com:
    - "indice": o número do arquivo ("Arquivo 3" tem indice 3);
    - "tipo": a chave do tipo do documento pelo CONTEÚDO, nunca pelo slot em que o arquivo foi anexado. As chaves possíveis são ${TIPOS_PARA_O_PROMPT}, ou "outro" quando o documento não é nenhum deles (matrícula do imóvel, cartão CNPJ, contrato social, comprovante de endereço, certidão, qualquer outro) ou quando você não tem certeza;
-   - "rotulo": um nome curto em português do que o documento É, até 60 caracteres, com a primeira letra maiúscula. Exemplos: "Matrícula do imóvel", "Cartão CNPJ", "Comprovante de endereço", "CNH", "Conta de luz da CEMIG". NUNCA ponha nome de pessoa, número de documento (CPF, CNPJ, RG, matrícula, unidade consumidora), endereço nem travessão no rótulo.`;
+   - "rotulo": um nome curto em português do que o documento É, até 60 caracteres, com a primeira letra maiúscula. Exemplos: "Matrícula do imóvel", "Cartão CNPJ", "Comprovante de endereço", "CNH", "Conta de luz da CEMIG". NUNCA ponha nome de pessoa, número de documento (CPF, CNPJ, RG, matrícula, unidade consumidora), endereço nem travessão no rótulo.
+8. Os arquivos são de dois tipos, e você tem que separar um do outro pelo que a imagem mostra:
+   FOTO DO LOCAL é a fotografia de um lugar ou de um equipamento (não há texto para ler). Os tipos de foto do local são:
+${LISTA_FOTOS_DO_LOCAL}
+   FOTO DE DOCUMENTO é a fotografia ou o digital de um papel com texto (identidade, conta, contrato, laudo). Os tipos de documento são:
+${LISTA_DOCUMENTOS}
+   - Foto de documento entra na extração dos campos (regra 3), como qualquer documento.
+   - Foto do local NÃO gera campo nenhum: não leia placa, número de casa nem etiqueta da foto para preencher campo. Devolva só "tipo" e "rotulo" dela.
+   - Rótulo de foto do local descreve o que se vê, em poucas palavras. Exemplos: "Foto do local: garagem", "Padrão de entrada", "Quadro elétrico", "Carregador instalado". Sem nome de pessoa, número ou endereço.
+   - Se não der para saber se a foto é do local ou de documento, ou de qual tipo, use o tipo "outro".`;
 
 const PEDIDO = 'Extraia os dados de cadastro destes documentos seguindo as regras e classifique cada arquivo.';
 
@@ -96,25 +135,40 @@ const PEDIDO = 'Extraia os dados de cadastro destes documentos seguindo as regra
 type TipoImagem = 'image/jpeg' | 'image/png' | 'image/webp';
 const rotuloDe = (slot: string): string => itemDoCatalogo('eletroposto', slot)?.rotulo ?? slot;
 
-/**
- * Grupo de prioridade de um arquivo (menor lê primeiro): 0 = "outros" SEM rótulo (o que a pessoa acabou de despejar e
- * ainda ninguém nomeou), 1 = documento do titular, 2 = conta de luz, 3 = os demais.
- */
-const grupoDe = (a: ArquivoDoc, rotulados: ReadonlySet<string>): number =>
-  a.slot === 'outros' && !rotulados.has(a.id) ? 0 : a.slot === 'documento_titular' ? 1 : a.slot === 'conta_luz' ? 2 : 3;
+const maisRecente = (a: ArquivoDoc, b: ArquivoDoc): number => (a.em < b.em ? 1 : a.em > b.em ? -1 : 0);
 
-/** Os candidatos na ordem de leitura: grupo, depois os sem rótulo, depois os mais recentes. */
+/**
+ * Os candidatos na ordem de leitura:
+ *  1. `outros` SEM rótulo (o que a pessoa acabou de despejar e ninguém nomeou): primeiro os PDFs, depois as fotos, cada
+ *     grupo do mais recente para o mais antigo, mas só os primeiros `MAX_OUTROS_NA_FRENTE` ficam aqui;
+ *  2. documento do titular;  3. conta de luz;
+ *  4. os demais (contrato, procuração, etc., e `outros` que já têm rótulo): sem rótulo antes dos com rótulo, depois os mais recentes;
+ *  5. o excedente de `outros` sem rótulo do passo 1.
+ * Sem o teto do passo 1, uma pilha de 40 fotos gastaria a leitura toda e o documento do titular nunca seria lido.
+ */
 export function ordemDeLeitura(arquivos: ArquivoDoc[], rotulados: ReadonlySet<string> = new Set()): ArquivoDoc[] {
-  return arquivos
-    .filter((a) => SLOTS_LIDOS.includes(a.slot))
-    .sort((a, b) =>
-      grupoDe(a, rotulados) - grupoDe(b, rotulados)
-      || Number(rotulados.has(a.id)) - Number(rotulados.has(b.id))
-      || (a.em < b.em ? 1 : a.em > b.em ? -1 : 0));
+  const lidos = arquivos.filter((a) => SLOTS_LIDOS.includes(a.slot));
+  const semRotulo = lidos.filter((a) => a.slot === 'outros' && !rotulados.has(a.id)).sort(maisRecente);
+  const filaOutros = [
+    ...semRotulo.filter((a) => a.mime === 'application/pdf'),
+    ...semRotulo.filter((a) => a.mime !== 'application/pdf'),
+  ];
+  const resto = lidos.filter((a) => !(a.slot === 'outros' && !rotulados.has(a.id)));
+  const doSlot = (slot: string): ArquivoDoc[] => resto.filter((a) => a.slot === slot).sort(maisRecente);
+  const demais = resto
+    .filter((a) => a.slot !== 'documento_titular' && a.slot !== 'conta_luz')
+    .sort((a, b) => Number(rotulados.has(a.id)) - Number(rotulados.has(b.id)) || maisRecente(a, b));
+  return [
+    ...filaOutros.slice(0, MAX_OUTROS_NA_FRENTE),
+    ...doSlot('documento_titular'),
+    ...doSlot('conta_luz'),
+    ...demais,
+    ...filaOutros.slice(MAX_OUTROS_NA_FRENTE),
+  ];
 }
 
 /**
- * Baixa e monta os blocos que a IA lê, na `ordemDeLeitura`, até 12 arquivos e `MAX_BYTES_LIDOS`. O que não couber vai
+ * Baixa e monta os blocos que a IA lê, na `ordemDeLeitura`, até 20 arquivos e `MAX_BYTES_LIDOS`. O que não couber vai
  * para `ignorados` com `MOTIVO_NAO_COUBE`. Imagem acima de 3,75 MB, PDF sem `%PDF-` e arquivo que não bate com o tipo
  * também vão para `ignorados`, com o motivo. `aceitosDocs` são os arquivos ACEITOS, na ordem do "Arquivo N" do pedido
  * (aceitosDocs[N-1]). Não usa `sharp`.
@@ -132,11 +186,25 @@ export async function prepararArquivos(
   let total = 0;
   let aceitos = 0;
   let falhasDoArmazenamento = 0;   // download que falhou por problema do bucket (objeto que sumiu não conta)
+  // RESERVA: o documento do titular e a conta de luz entram sempre que couberem sozinhos no orçamento. Enquanto não chega a
+  // vez deles na fila (vêm depois do bloco de `outros`), os bytes e a vaga de cada um ficam guardados, e os outros arquivos
+  // só usam o que sobra. Sem isto, 12 fotos de 3 MB à frente deixavam a CNH de fora por "não coube" (22 MB).
+  const reservados = new Map<string, number>();
   for (const a of candidatos) {
-    if (aceitos >= MAX_ARQUIVOS_LIDOS) { ignorados.push({ slot: a.slot, motivo: MOTIVO_NAO_COUBE }); continue; }
+    if (!SLOTS_RESERVADOS.includes(a.slot)) continue;
+    if (a.mime !== 'application/pdf' && a.bytes > MAX_IMAGEM_BYTES) continue;   // esse nem entra: não reserva
+    if (a.bytes > MAX_BYTES_LIDOS) continue;
+    if ([...reservados.values()].reduce((s, b) => s + b, 0) + a.bytes > MAX_BYTES_LIDOS || reservados.size >= MAX_ARQUIVOS_LIDOS) continue;
+    reservados.set(a.id, a.bytes);
+  }
+  let bytesReservados = [...reservados.values()].reduce((s, b) => s + b, 0);
+  for (const a of candidatos) {
+    // A vez do reservado chegou: a reserva sai e ele passa pelas mesmas conferências, agora com o orçamento todo à frente.
+    if (reservados.has(a.id)) { bytesReservados -= reservados.get(a.id)!; reservados.delete(a.id); }
+    if (aceitos + reservados.size >= MAX_ARQUIVOS_LIDOS) { ignorados.push({ slot: a.slot, motivo: MOTIVO_NAO_COUBE }); continue; }
     const ehPdf = a.mime === 'application/pdf';
     if (!ehPdf && a.bytes > MAX_IMAGEM_BYTES) { ignorados.push({ slot: a.slot, motivo: MOTIVO_IMAGEM_GRANDE }); continue; }
-    if (total + a.bytes > MAX_BYTES_LIDOS) { ignorados.push({ slot: a.slot, motivo: MOTIVO_NAO_COUBE }); continue; }
+    if (total + a.bytes + bytesReservados > MAX_BYTES_LIDOS) { ignorados.push({ slot: a.slot, motivo: MOTIVO_NAO_COUBE }); continue; }
     let bytes: Buffer;
     try { bytes = await baixar(a.caminho); } catch (e) {
       if ((e as { codigo?: unknown } | null)?.codigo !== 'objeto_ausente') falhasDoArmazenamento++;
@@ -145,7 +213,7 @@ export async function prepararArquivos(
     }
     // O tamanho que vale é o dos bytes baixados, não o do metadado.
     if (!ehPdf && bytes.length > MAX_IMAGEM_BYTES) { ignorados.push({ slot: a.slot, motivo: MOTIVO_IMAGEM_GRANDE }); continue; }
-    if (total + bytes.length > MAX_BYTES_LIDOS) { ignorados.push({ slot: a.slot, motivo: MOTIVO_NAO_COUBE }); continue; }
+    if (total + bytes.length + bytesReservados > MAX_BYTES_LIDOS) { ignorados.push({ slot: a.slot, motivo: MOTIVO_NAO_COUBE }); continue; }
     if (ehPdf ? bytes.subarray(0, 5).toString('latin1') !== '%PDF-' : !assinaturaBate(a.mime, bytes.subarray(0, 16))) {
       ignorados.push({ slot: a.slot, motivo: 'O arquivo não é do tipo informado.' });
       continue;

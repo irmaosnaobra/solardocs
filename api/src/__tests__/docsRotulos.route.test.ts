@@ -189,7 +189,8 @@ import { limparCacheClientes } from '../routes/geradorClientes';
 import { limparCachesSolar } from '../routes/geradorSolar';
 import { limparCacheBucketDocs } from '../services/gerador/docsClienteBanco';
 import { limparCacheBucketCadastros } from '../services/gerador/cadastroVendaBanco';
-import { ordemDeLeitura, SLOTS_LIDOS, MOTIVO_NAO_COUBE } from '../services/gerador/cadastroVendaLeitura';
+import { ordemDeLeitura, SLOTS_LIDOS, MOTIVO_NAO_COUBE, DESCRICAO_DOS_ITENS } from '../services/gerador/cadastroVendaLeitura';
+import { CATALOGO } from '../services/gerador/docsCliente';
 import { rotuloDaIa, rotuloManual } from '../services/gerador/docsRotulos';
 
 // Planilha do Solar (só para a posse das vendas #0057 da Nilce e #0058 da Giovanna). Cabeçalho igual ao da planilha real.
@@ -397,16 +398,28 @@ describe('PATCH renomeia e move', () => {
     anexa(101, [{ slot: 'outros', i: 2 }]);
     expect((await patch(101, 2, { slot: 'foto_local' })).status).toBe(200);
   });
-  it('item que aceita vários: cabe até o limite de 20 (21º dá 409 muitos_no_item)', async () => {
-    anexa(101, [...Array.from({ length: 20 }, (_, k) => ({ slot: 'instalacao', i: k + 1 })), { slot: 'outros', i: 30 }]);
-    const res = await patch(101, 30, { slot: 'instalacao' });
+  it('item que aceita vários: cabe até o limite de 40 (41º dá 409 muitos_no_item)', async () => {
+    anexa(101, [...Array.from({ length: 40 }, (_, k) => ({ slot: 'instalacao', i: k + 1 })), { slot: 'outros', i: 130 }]);
+    const res = await patch(101, 130, { slot: 'instalacao' });
     expect(res.status).toBe(409);
     expect(res.body.motivo).toBe('muitos_no_item');
+    expect(res.body.error).toBe('Este item já tem 40 arquivos.');
+    expect(slotDe(101, 130)).toBe('outros');
   });
-  it('com 60 arquivos na venda, mover um não esbarra no teto da venda', async () => {
-    anexa(101, Array.from({ length: 60 }, (_, k) => ({ slot: 'outros', i: k + 1 })));
+  it('item que aceita vários com 39: o 40º entra por PATCH', async () => {
+    anexa(101, [...Array.from({ length: 39 }, (_, k) => ({ slot: 'instalacao', i: k + 1 })), { slot: 'outros', i: 130 }]);
+    expect((await patch(101, 130, { slot: 'instalacao' })).status).toBe(200);
+    expect(slotDe(101, 130)).toBe('instalacao');
+  });
+  it('com 100 arquivos na venda, mover um não esbarra no teto da venda', async () => {
+    anexa(101, Array.from({ length: 100 }, (_, k) => ({ slot: 'outros', i: k + 1 })));
     expect((await patch(101, 7, { slot: 'conta_luz' })).status).toBe(200);
     expect(slotDe(101, 7)).toBe('conta_luz');
+  });
+  it('com 100 arquivos na venda: item "vários" cheio (40) recusa o movimento e item de um arquivo livre aceita', async () => {
+    anexa(101, [...Array.from({ length: 60 }, (_, k) => ({ slot: 'outros', i: k + 1 })), ...Array.from({ length: 40 }, (_, k) => ({ slot: 'instalacao', i: k + 200 }))]);
+    expect((await patch(101, 7, { slot: 'instalacao' })).status).toBe(409);   // instalacao já tem 40
+    expect((await patch(101, 7, { slot: 'conta_luz' })).status).toBe(200);
   });
   it('arquivo que não existe: 404', async () => {
     anexa(101, [{ slot: 'outros', i: 1 }]);
@@ -583,17 +596,117 @@ describe('POST cadastro/ler também organiza', () => {
     const res = await ler(101);
     expect(res.body.organizados).toEqual([{ id: idDe(1), de: 'outros', para: 'foto_local', rotulo: 'Foto do local' }]);
   });
-  it('lê até 12 arquivos; o resto vai para ignorados com a mensagem de ler de novo', async () => {
-    anexa(101, Array.from({ length: 14 }, (_, k) => ({ slot: 'outros', i: k + 1 })));
+  it('lê até 20 arquivos; o resto vai para ignorados com a mensagem de ler de novo', async () => {
+    anexa(101, Array.from({ length: 22 }, (_, k) => ({ slot: 'outros', i: k + 1 })));
     h.ia.fila.push({ saida: {} });
     const res = await ler(101);
     expect(res.status).toBe(200);
-    expect(res.body.lidos).toEqual([{ slot: 'outros', n: 12 }]);
+    expect(res.body.lidos).toEqual([{ slot: 'outros', n: 20 }]);
     expect(res.body.ignorados).toHaveLength(2);
     expect(res.body.ignorados.every((i: any) => i.motivo === 'Não coube nesta leitura: aperte Ler de novo para os próximos.')).toBe(true);
     expect(res.body.ignorados[0].motivo).toBe(MOTIVO_NAO_COUBE);
     const textos = h.ia.chamadas[0].corpo.messages[0].content.filter((b: any) => b.type === 'text' && /^Arquivo \d+/.test(b.text));
-    expect(textos).toHaveLength(12);
+    expect(textos).toHaveLength(20);
+  });
+  it('leitura de 20 com 30 anexos: PDFs e fotos de outros (até 12) vêm antes do titular e da conta, e o resto de outros fecha a fila', async () => {
+    anexa(101, [
+      { slot: 'outros', i: 1, mime: 'application/pdf' }, { slot: 'outros', i: 2, mime: 'application/pdf' },
+      ...Array.from({ length: 25 }, (_, k) => ({ slot: 'outros', i: k + 10 })),
+      { slot: 'documento_titular', i: 100 }, { slot: 'conta_luz', i: 101, mime: 'application/pdf' }, { slot: 'contrato_assinado', i: 102 },
+    ]);
+    h.ia.fila.push({ saida: {} });
+    const res = await ler(101, THIAGO);
+    expect(res.status).toBe(200);
+    expect(res.body.lidos).toEqual(expect.arrayContaining([
+      { slot: 'documento_titular', n: 1 }, { slot: 'conta_luz', n: 1 }, { slot: 'contrato_assinado', n: 1 }, { slot: 'outros', n: 17 },
+    ]));
+    expect(res.body.ignorados).toHaveLength(10);
+    const rotulos = h.ia.chamadas[0].corpo.messages[0].content
+      .filter((b: any) => b.type === 'text' && /^Arquivo \d+/.test(b.text))
+      .map((b: any) => /slot "(\w+)"/.exec(b.text)![1]);
+    // 2 PDFs + 10 fotos de outros, titular, conta, contrato, e as 5 últimas vagas voltam para outros
+    expect(rotulos).toEqual([...Array(12).fill('outros'), 'documento_titular', 'conta_luz', 'contrato_assinado', ...Array(5).fill('outros')]);
+  });
+  it('ordem de leitura: PDFs de outros, fotos de outros (no máximo 12 na frente), titular, conta, demais, e o resto das fotos', () => {
+    const f = (i: number, slot: string, mime = 'image/jpeg') => ({ id: idDe(i), slot, caminho: `eletroposto/101/${uuid(i)}.jpg`, mime, bytes: 10, em: hora(i), por: 'x' });
+    const arquivos = [
+      ...Array.from({ length: 14 }, (_, k) => f(k + 1, 'outros')),                   // fotos 1..14
+      f(20, 'outros', 'application/pdf'), f(21, 'outros', 'application/pdf'),         // PDFs 20, 21
+      f(30, 'documento_titular'), f(31, 'conta_luz'), f(32, 'contrato_assinado'),
+    ];
+    const ids = ordemDeLeitura(arquivos).map((a) => a.id);
+    expect(ids).toEqual([
+      idDe(21), idDe(20),                                              // PDFs, mais recente primeiro
+      ...[14, 13, 12, 11, 10, 9, 8, 7, 6, 5].map(idDe),               // fotos até fechar 12 na frente
+      idDe(30), idDe(31), idDe(32),
+      idDe(4), idDe(3), idDe(2), idDe(1),                              // o excedente de fotos fecha a fila
+    ]);
+  });
+  it('foto do local classificada vai para foto_local e NÃO aparece na leitura seguinte', async () => {
+    anexa(101, [{ slot: 'outros', i: 1 }]);
+    h.ia.fila.push(iaDocs([{ indice: 1, tipo: 'foto_local', rotulo: 'Foto do local: garagem' }]));
+    const a = await ler(101, THIAGO);
+    expect(a.status).toBe(200);
+    expect(a.body.organizados).toEqual([{ id: idDe(1), de: 'outros', para: 'foto_local', rotulo: 'Foto do local: garagem' }]);
+    expect(slotDe(101, 1)).toBe('foto_local');
+    expect(a.body.sugestoes).toEqual({});   // foto do local não gera campo
+    const b = await ler(101, THIAGO);
+    expect(b.status).toBe(409);
+    expect(b.body.motivo).toBe('sem_documentos');
+    expect(h.ia.chamadas).toHaveLength(1);   // a IA nem foi chamada de novo
+  });
+  it('foto de documento classificada vai para documento_titular, alimenta os campos e segue sendo lida', async () => {
+    anexa(101, [{ slot: 'outros', i: 1 }]);
+    h.ia.fila.push({ saida: { nome: { valor: 'Carlos Alves', slot: 'outros', confianca: 'alta' }, documentos: [{ indice: 1, tipo: 'documento_titular', rotulo: 'CNH' }] } });
+    const a = await ler(101, THIAGO);
+    expect(a.status).toBe(200);
+    expect(a.body.sugestoes.nome).toMatchObject({ valor: 'Carlos Alves', confianca: 'alta' });
+    expect(a.body.organizados).toEqual([{ id: idDe(1), de: 'outros', para: 'documento_titular', rotulo: 'CNH' }]);
+    expect(slotDe(101, 1)).toBe('documento_titular');
+    h.ia.fila.push({ saida: { nome: { valor: 'Carlos Alves', slot: 'documento_titular', confianca: 'alta' }, documentos: [] } });
+    const b = await ler(101, THIAGO);
+    expect(b.status).toBe(200);
+    expect(b.body.lidos).toEqual([{ slot: 'documento_titular', n: 1 }]);
+    expect(b.body.sugestoes.nome.slot).toBe('documento_titular');
+  });
+  it('foto classificada sem espaço no item (foto_local ocupado, instalacao com 40) fica em outros, com o rótulo', async () => {
+    anexa(101, [
+      { slot: 'foto_local', i: 1 },
+      ...Array.from({ length: 40 }, (_, k) => ({ slot: 'instalacao', i: k + 10 })),
+      { slot: 'outros', i: 200 }, { slot: 'outros', i: 201 },
+    ]);
+    // leitura: 201 é o Arquivo 1, 200 o Arquivo 2 (mais recente primeiro)
+    h.ia.fila.push(iaDocs([
+      { indice: 1, tipo: 'foto_local', rotulo: 'Foto do local: parede' },
+      { indice: 2, tipo: 'instalacao', rotulo: 'Carregador instalado' },
+    ]));
+    const res = await ler(101, THIAGO);
+    expect(res.status).toBe(200);
+    expect(slotDe(101, 201)).toBe('outros');
+    expect(slotDe(101, 200)).toBe('outros');
+    expect(res.body.organizados).toEqual(expect.arrayContaining([
+      { id: idDe(201), de: 'outros', para: 'outros', rotulo: 'Foto do local: parede' },
+      { id: idDe(200), de: 'outros', para: 'outros', rotulo: 'Carregador instalado' },
+    ]));
+    expect(registro(101).alteracoes.some((a) => a.acao === 'moveu')).toBe(false);
+  });
+  it('o pedido separa FOTO DO LOCAL de FOTO DE DOCUMENTO e descreve cada item de foto', async () => {
+    anexa(101, [{ slot: 'outros', i: 1 }]);
+    h.ia.fila.push({ saida: {} });
+    await ler(101, THIAGO);
+    const sistema: string = h.ia.chamadas[0].corpo.system;
+    expect(sistema).toContain('FOTO DO LOCAL');
+    expect(sistema).toContain('FOTO DE DOCUMENTO');
+    expect(sistema).toContain('NÃO gera campo nenhum');
+    for (const chave of ['foto_local', 'padrao', 'quadro_eletrico', 'instalacao']) expect(sistema).toContain(`"${chave}":`);
+    expect(sistema).toMatch(/"foto_local": foto do lugar onde o carregador vai ficar: garagem, estacionamento, fachada, parede/);
+    expect(sistema).toMatch(/"padrao": foto do padrão de entrada/);
+    expect(sistema).toMatch(/"quadro_eletrico": foto do quadro de disjuntores/);
+    expect(sistema).toMatch(/"instalacao": foto do carregador já instalado/);
+    expect(sistema).toContain('Foto do local: garagem');
+    expect(sistema).not.toMatch(/[—–]/);
+    // todo item do catálogo do eletroposto (menos "outros") tem descrição própria
+    for (const i of CATALOGO.eletroposto.filter((x) => x.chave !== 'outros')) expect(DESCRICAO_DOS_ITENS[i.chave], i.chave).toBeTruthy();
   });
   it('prioridade: outros sem rótulo, depois titular, conta de luz e os demais; os sem nome entram antes dos com nome', () => {
     const f = (i: number, slot: string) => ({ id: idDe(i), slot, caminho: `eletroposto/101/${uuid(i)}.jpg`, mime: 'image/jpeg', bytes: 10, em: hora(i), por: 'x' });

@@ -1,7 +1,17 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 /** A caixa de entrada da linha 5040 (/gerador/caixa/*) consulta a cada poucos segundos e tem limite próprio (abaixo). */
 export const ehRotaDaCaixa = (url: string | undefined): boolean => String(url ?? '').startsWith('/gerador/caixa/');
+
+/**
+ * Os dois pedidos de ANEXO de venda: POST `/gerador/clientes/:linha/:codigo/docs/upload-url` e POST
+ * `/gerador/clientes/:linha/:codigo/docs`. O limiter global roda no `app.ts` sem prefixo de montagem, então o caminho
+ * inteiro está em `originalUrl` (com a query, que é cortada aqui). Regex ancorada nos dois lados: linha só solar ou
+ * eletroposto, código só dígitos. `/docs/x/upload-url`, `..`, barra no fim e qualquer outro método NÃO casam.
+ */
+const RE_ENVIO_DOCS = /^\/gerador\/clientes\/(?:solar|eletroposto)\/\d{1,12}\/docs(?:\/upload-url)?$/;
+export const ehEnvioDeDocs = (metodo: string | undefined, url: string | undefined): boolean =>
+  metodo === 'POST' && RE_ENVIO_DOCS.test(String(url ?? '').split('?')[0]);
 
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -11,7 +21,9 @@ export const globalLimiter = rateLimit({
   legacyHeaders: false,
   // Fora da conta global: o escritório inteiro sai por um IP só, e a caixa aberta o dia todo gastaria os 500 de todo
   // mundo e derrubaria o resto do /gerador. Quem protege a caixa são os dois limitadores abaixo.
-  skip: (req) => ehRotaDaCaixa(req.originalUrl),
+  // O envio de anexos da venda também sai: 100 fotos são 200+ pedidos e gastariam a conta do escritório inteiro.
+  // Quem o protege é o `docsEnvioLimiter` (por pessoa).
+  skip: (req) => ehRotaDaCaixa(req.originalUrl) || ehEnvioDeDocs(req.method, req.originalUrl),
 });
 
 export const aiLimiter = rateLimit({
@@ -124,6 +136,33 @@ export const funilEletropostoLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   message: { error: 'Muitas consultas ao funil em pouco tempo. Tente de novo em alguns minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Envio de anexos da venda (upload-url e registro): 400 a cada 15 min por PESSOA, depois do `exigeConsultor` (chave = e-mail
+// do consultor já validado; quem não tem login é barrado antes, pelo docsEnvioIpLimiter). Um lote de 100 fotos são ~200 pedidos, e o global não conta estes.
+// Roda DEPOIS do `exigeConsultor`, então o consultor sempre existe; quem não tem login nunca chega aqui (é o `docsEnvioIpLimiter`).
+export const docsEnvioLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 400,
+  keyGenerator: (req) => 'docs-envio:' + String((req as unknown as { consultor?: { email?: string } }).consultor?.email || 'sem-consultor'),
+  message: { ok: false, error: 'Muitos envios seguidos. Espere alguns minutos e continue.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Mesmas rotas, ANTES do `exigeConsultor`, por IP: o global não conta estes pedidos e o limite por pessoa só existe depois
+// do login, então sem isto um POST sem token (ou com `Bearer lixo`, que chama o Supabase a cada pedido) não teria teto
+// nenhum. `skipSuccessfulRequests`: só gasta a conta a resposta de quem falhou no LOGIN (401 e 403); o envio legítimo
+// não gasta, nem o 409 de "sem espaço" ou o 400 de formato de quem está logado (o escritório divide o IP).
+export const docsEnvioIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  keyGenerator: (req) => 'docs-envio-ip:' + ipKeyGenerator(req.ip ?? ''),
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (_req, res) => res.statusCode !== 401 && res.statusCode !== 403,
+  message: { ok: false, error: 'Muitos envios seguidos. Espere alguns minutos e continue.' },
   standardHeaders: true,
   legacyHeaders: false,
 });

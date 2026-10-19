@@ -11,11 +11,12 @@ import { lerPosVenda, montarObra, celulaFicha, type CardVendido } from '../servi
 import {
   lerCardVendido, lerFichaComVersao, lerPosVendaComVersao, ErroFicha,
 } from '../services/gerador/fichaEletropostoBanco';
+import { docsEnvioLimiter, docsEnvioIpLimiter } from '../middleware/rateLimiter';
 import {
   CATALOGO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, corpoRelatorioSolar,
   corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover,
-  type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio,
+  limiteDoItem, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
@@ -219,6 +220,8 @@ export async function lerDocs(ctx: Ctx): Promise<{ reg: RegistroDocs; versao: st
 
 export function mountClientesDocs(router: Router): void {
   const base = [exigeConsultor, semCache];
+  // Só os dois POSTs de anexo (o global não os conta): teto por IP ANTES do login, depois o login, depois o teto por pessoa.
+  const envio = [docsEnvioIpLimiter, exigeConsultor, semCache, docsEnvioLimiter];
 
   // ── Lista ──────────────────────────────────────────────────────────────────
   router.get('/clientes/:linha/:codigo/docs', ...base, async (req: Request, res: Response) => {
@@ -244,7 +247,7 @@ export function mountClientesDocs(router: Router): void {
   });
 
   // ── URL de envio ───────────────────────────────────────────────────────────
-  router.post('/clientes/:linha/:codigo/docs/upload-url', ...base, async (req: Request, res: Response) => {
+  router.post('/clientes/:linha/:codigo/docs/upload-url', ...envio, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res);
     if (!ctx) return;
     const b = corpoDe(req);
@@ -262,7 +265,7 @@ export function mountClientesDocs(router: Router): void {
       await garantirBucketDocs();
       const { reg } = await lerDocs(ctx);
       const motivo = motivoSemEspaco(reg, item);
-      if (motivo) { res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo) }); return; }
+      if (motivo) { res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item) }); return; }
       const caminho = novoCaminho(ctx.linha, ctx.codigo, mime);
       const env = await assinarEnvio(caminho);
       // cache-control curto: depois de um DELETE, a cópia em cache do Storage some em 1 min (o padrão é 1 hora),
@@ -274,7 +277,7 @@ export function mountClientesDocs(router: Router): void {
   });
 
   // ── Registrar o que foi enviado ────────────────────────────────────────────
-  router.post('/clientes/:linha/:codigo/docs', ...base, async (req: Request, res: Response) => {
+  router.post('/clientes/:linha/:codigo/docs', ...envio, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res);
     if (!ctx) return;
     const b = corpoDe(req);
@@ -326,7 +329,7 @@ export function mountClientesDocs(router: Router): void {
         const motivo = motivoSemEspaco(reg, item);
         if (motivo) {
           await removerObjeto(caminho).catch((e) => logErro('limpeza falhou', e));
-          res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo) });
+          res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item) });
           return;
         }
         const agora = new Date().toISOString();
@@ -406,7 +409,7 @@ export function mountClientesDocs(router: Router): void {
               return { status: 400 as const, corpo: { ok: false, motivo: 'formato_nao_aceito', error: itemNovo.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Este item aceita só pdf.' } };
             }
             const motivo = motivoSemEspacoParaMover(reg, id, itemNovo);
-            if (motivo) return { status: 409 as const, corpo: { ok: false, motivo, error: mensagemSemEspaco(motivo) } };
+            if (motivo) return { status: 409 as const, corpo: { ok: false, motivo, error: mensagemSemEspaco(motivo, itemNovo) } };
             const agora = new Date().toISOString();
             const novo = comArquivoMovido(reg, id, itemNovo.chave, ctx.nome, agora);
             if (!(await gravarDocs(ctx.linha, ctx.codigo, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
@@ -584,9 +587,9 @@ function podeRemover(ctx: Ctx): boolean {
   return ctx.linha === 'solar' ? !!ctx.solar : podeVer(ctx.nome, String(ctx.card?.vendedor_nome ?? ''));
 }
 
-function mensagemSemEspaco(motivo: 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda'): string {
+function mensagemSemEspaco(motivo: 'slot_ocupado' | 'muitos_no_item' | 'muitos_na_venda', item: ItemDoc): string {
   if (motivo === 'slot_ocupado') return 'Este item já tem um arquivo. Remova o atual antes de enviar outro.';
-  if (motivo === 'muitos_no_item') return `Este item já tem ${LIMITES.porItem} arquivos.`;
+  if (motivo === 'muitos_no_item') return `Este item já tem ${limiteDoItem(item)} arquivos.`;
   return `Esta venda já tem ${LIMITES.total} arquivos.`;
 }
 
