@@ -98,8 +98,12 @@ vi.mock('../utils/supabase', () => ({
         h.bucket = { public: !!o.public, file_size_limit: o.fileSizeLimit, allowed_mime_types: o.allowedMimeTypes };
         return { data: {}, error: null };
       },
-      from: () => ({
-        createSignedUrl: async (p: string) => ({ data: { signedUrl: `https://bytes.test/${encodeURIComponent(p)}` }, error: null }),
+      from: (bucket?: string) => ({
+        // O dossiê da venda (bucket `dossie-vendas`) também mora neste banco: a URL dele é opaca, sem o caminho.
+        createSignedUrl: async (p: string, seg?: number) => {
+          if (bucket === 'dossie-vendas') { h.validades.push(Number(seg)); return { data: { signedUrl: `https://dossie.test/s${++h.sig}` }, error: null }; }
+          return { data: { signedUrl: `https://bytes.test/${encodeURIComponent(p)}` }, error: null };
+        },
         createSignedUploadUrl: async (p: string) => ({ data: { signedUrl: `https://up.test/u?x=1`, token: 'tok-1', path: p }, error: null }),
         // Exatamente o que o storage-js devolve: `info` passa por recursiveToCamel (size, contentType).
         info: async (p: string) => {

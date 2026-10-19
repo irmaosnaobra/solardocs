@@ -245,14 +245,33 @@ describe('saudeDossie — a tela de saúde não pode mentir verde', () => {
     // existe, e a saúde ficava verde num sistema que não subia nada.
     const s = saudeDossie('indeterminado');
     expect(s.pronto).toBe(false);
-    expect(s.falta.some((f) => /conferir à mão/.test(f))).toBe(true);
+    expect(s.falta.some((f) => /conferir se o bucket/.test(f))).toBe(true);
   });
 
   it('cada peça que falta vira uma linha com o nome da variável', () => {
     const s = saudeDossie('nao_existe');
-    expect(s.falta.some((f) => f.includes('SUPABASE_GERADOR_SERVICE_KEY'))).toBe(true);
     expect(s.falta.some((f) => f.includes('dossie-vendas'))).toBe(true);
     expect(s.falta.some((f) => f.includes('TRELLO_KEY'))).toBe(true);
+  });
+
+  it('nunca manda configurar a service key do Gerador (os arquivos moram no banco principal)', () => {
+    for (const b of ['existe', 'nao_existe', 'indeterminado'] as const) {
+      expect(saudeDossie(b).falta.join(' ')).not.toContain('SUPABASE_GERADOR_SERVICE_KEY');
+    }
+  });
+
+  it('com a chave do banco principal e o Trello, bucket existente vira pronto', () => {
+    const antes = { k: process.env.TRELLO_KEY, t: process.env.TRELLO_TOKEN };
+    process.env.TRELLO_KEY = 'k'; process.env.TRELLO_TOKEN = 't';
+    try {
+      const s = saudeDossie('existe');
+      expect(s.service_key).toBe(true);
+      expect(s.pronto).toBe(true);
+      expect(s.falta).toEqual([]);
+    } finally {
+      if (antes.k === undefined) delete process.env.TRELLO_KEY; else process.env.TRELLO_KEY = antes.k;
+      if (antes.t === undefined) delete process.env.TRELLO_TOKEN; else process.env.TRELLO_TOKEN = antes.t;
+    }
   });
 
   it('o estado do bucket sai como veio, sem virar booleano', () => {

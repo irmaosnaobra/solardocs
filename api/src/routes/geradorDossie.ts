@@ -6,7 +6,8 @@ import { TRELLO_BOARD_ID } from '../services/insightsService';
 import {
   ARQUIVOS_SOLAR, CAMPOS_SOLAR, BUCKET_DOSSIE,
   lerProposta, gravarDossie, resumoDossie,
-  garantirBucket, sondarBucket, saudeDossie,
+  garantirBucket, sondarBucket, saudeDossie, TIPOS_IMAGEM_DOSSIE,
+  subirArquivo, baixarArquivo, removerArquivo,
   caminhoArquivo, extensaoDe, assinar,
   credenciaisTrello, anexarNoTrello, comentarNoTrello, textoFichaTecnica,
   buscarCartao, listarCartoes, criarCartao, acharLista, nomeCartaoNovo, LISTA_CARTAO_NOVO,
@@ -77,7 +78,7 @@ export async function exigeConsultor(req: Request, res: Response, next: () => vo
   next();
 }
 
-const TIPOS_IMAGEM = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
+const TIPOS_IMAGEM = TIPOS_IMAGEM_DOSSIE;
 
 /** Devolve o dossiê pronto pra tela: signed url fresca de cada arquivo e o
  *  pré-preenchimento dos 4 campos técnicos que já vieram do orçamento.
@@ -122,16 +123,16 @@ export function mountDossie(router: Router): void {
   // ── Saúde: os três preparos de uma vez ────────────────────────────────────
   // Três booleanos, não um "falhou". São três configurações independentes e
   // cada uma quebra o fluxo num ponto diferente: sem bucket não sobe arquivo,
-  // sem service key não dá pra criar o bucket nem apagar arquivo, sem
-  // key/token do Trello sobe mas não anexa. Um erro genérico esconde qual das
-  // três está faltando, e a pessoa mexe na errada.
+  // sem a chave do banco principal não dá pra criar o bucket nem gravar arquivo,
+  // sem key/token do Trello sobe mas não anexa. Um erro genérico esconde qual
+  // das três está faltando, e a pessoa mexe na errada.
   router.get('/dossie/saude', async (_req: Request, res: Response) => {
     try {
       let sonda = await sondarBucket();
       let motivo: string | undefined;
       // Só tenta criar quando SABE que não existe. Chamar createBucket no
-      // indeterminado devolveria 403 e viraria um "motivo" que não é o
-      // problema real — o problema real é não ter a service key.
+      // indeterminado viraria um "motivo" que não é o problema real — o
+      // indeterminado é chave do banco principal inválida ou Storage fora do ar.
       if (sonda === 'nao_existe') {
         const r = await garantirBucket();
         sonda = r.ok ? 'existe' : 'nao_existe';
@@ -201,26 +202,10 @@ export function mountDossie(router: Router): void {
       if (!p) { res.status(404).json({ error: 'proposta não encontrada' }); return; }
 
       const path = caminhoArquivo(p.codigo, slot, extensaoDe(tipo, nome || ''));
-      const subir = () => supabaseGerador.storage
-        .from(BUCKET_DOSSIE)
-        .upload(path, buffer, { contentType: tipo, upsert: false });
-
-      // TENTA PRIMEIRO, cria depois. A ordem inversa (garantirBucket antes de
-      // toda subida) recusava o upload com 503 quando o bucket JÁ EXISTIA mas a
-      // service key não estava configurada — criar bucket é uma permissão, e
-      // gravar nele é outra. Exigir a primeira pra exercer a segunda travaria
-      // um bucket criado à mão no painel, que é justamente a saída documentada.
-      let { error: upErr } = await subir();
-      if (upErr && /not found|NoSuchBucket/i.test(String(upErr.message || upErr))) {
-        const b = await garantirBucket();
-        if (!b.ok) { res.status(503).json({ error: b.motivo }); return; }
-        ({ error: upErr } = await subir());
-      }
-      if (upErr) {
-        logger.error('dossie', 'upload falhou', upErr);
-        res.status(502).json({ error: 'não consegui salvar o arquivo: ' + String(upErr.message || upErr) });
-        return;
-      }
+      // O arquivo vai pro Storage do banco PRINCIPAL (service key que existe na
+      // Vercel). `subirArquivo` cria o bucket privado no primeiro uso.
+      const up = await subirArquivo(path, buffer, tipo);
+      if (!up.ok) { res.status(up.http).json({ error: up.erro }); return; }
 
       const arq: ArquivoDossie = {
         path,
@@ -261,12 +246,9 @@ export function mountDossie(router: Router): void {
       const d = await gravarDossie(codigo, (dos) => {
         dos.arquivos[slot] = (dos.arquivos[slot] || []).filter((a) => a.path !== path);
       });
-      // Best-effort: sem service key o Storage recusa o DELETE (medido: 403).
-      // O registro já saiu do dossiê, que é o que a tela mostra — deixar o byte
-      // órfão é bem melhor do que travar a remoção.
-      supabaseGerador.storage.from(BUCKET_DOSSIE).remove([path])
-        .then(({ error }) => { if (error) logger.warn('dossie', 'arquivo órfão no storage', { path, error }); })
-        .catch(() => {});
+      // Best-effort: o registro já saiu do dossiê, que é o que a tela mostra —
+      // deixar o byte órfão é bem melhor do que travar a remoção. Falha só avisa.
+      await removerArquivo(path);
       res.json({ ok: true, resumo: resumoDossie(d) });
     } catch (err: any) {
       logger.error('dossie', 'remoção falhou', err);
@@ -400,14 +382,13 @@ export function mountDossie(router: Router): void {
       for (const slot of ARQUIVOS_SOLAR) {
         for (const arq of d.arquivos[slot.key] || []) {
           if (arq.trello_status === 'enviado' && arq.trello_anexo_id) continue;
-          const { data: blob, error } = await supabaseGerador.storage.from(BUCKET_DOSSIE).download(arq.path);
-          if (error || !blob) {
+          const bytes = await baixarArquivo(arq.path);
+          if (!bytes) {
             arq.trello_status = 'falhou';
             arq.trello_motivo = 'não consegui ler o arquivo no storage';
             falhas++; erros.push(`${slot.label}: arquivo ilegível`);
             continue;
           }
-          const bytes = Buffer.from(await blob.arrayBuffer());
           // Nome do anexo = o slot, não o nome do celular. "IMG_4821.jpg" no
           // cartão não diz se é o padrão ou o medidor; quem homologa precisa
           // saber olhando a lista.

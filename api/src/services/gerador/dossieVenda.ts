@@ -1,4 +1,5 @@
-import { supabaseGerador, geradorComServiceKey } from '../../utils/supabaseGerador';
+import { supabaseGerador } from '../../utils/supabaseGerador';
+import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +20,14 @@ import { logger } from '../../utils/logger';
 //    marketing) mas NÃO dá pra criar bucket nem listar. Então o navegador não
 //    tem como falar com um bucket privado — o caminho é browser → API →
 //    service key.
+//
+//    OS ARQUIVOS MORAM NO STORAGE DO BANCO PRINCIPAL (19/10/2026). A primeira
+//    versão gravava no Storage do banco do Gerador, mas a service key daquele
+//    banco não existe na Vercel: o bucket nunca foi criado e o primeiro anexo do
+//    dono voltou "sem permissão pra criar bucket". A service key do banco
+//    principal existe, e é por ela que os anexos do eletroposto e o comprovante
+//    do financeiro já funcionam. Só o Storage mudou de casa: os METADADOS
+//    continuam em `propostas.dados.dossie`, no banco do Gerador.
 //
 // 2. Trello recebe os BYTES, não a URL. `POST /cards/{id}/attachments` aceita
 //    `url=`, e seria mais barato, mas anexo por URL é um LINK: a signed url de
@@ -226,54 +235,116 @@ export async function gravarDossie(codigo: string, mutar: (d: Dossie) => void): 
   return dossie;
 }
 
-// ── Storage ──────────────────────────────────────────────────────────────────
+// ── Storage (banco PRINCIPAL, service key) ───────────────────────────────────
+// TODO acesso ao bucket `dossie-vendas` passa por `supabase` (banco principal).
+// Nada aqui usa `supabaseGerador.storage`.
+
+/** Tipos que o dossiê aceita: o bucket nasce só com eles. */
+export const TIPOS_IMAGEM_DOSSIE = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
+export const MIMES_DOSSIE = [...TIPOS_IMAGEM_DOSSIE, 'application/pdf'];
+export const LIMITE_BUCKET_DOSSIE = 20 * 1024 * 1024;
+
+const OPCOES_DO_BUCKET = { public: false, fileSizeLimit: LIMITE_BUCKET_DOSSIE, allowedMimeTypes: MIMES_DOSSIE };
+
+const naoAchouBucket = (err: unknown): boolean => {
+  const e = err as { message?: unknown; statusCode?: unknown; status?: unknown } | null;
+  return /not.?found|NoSuchBucket/i.test(String(e?.message ?? '')) || String(e?.statusCode ?? e?.status ?? '') === '404';
+};
+const msgDe = (err: unknown): string => String((err as { message?: string } | null)?.message || err);
+
+let bucketOk = false;
+/** Para os testes. */
+export function limparCacheBucketDossie(): void { bucketOk = false; }
 
 /**
- * Garante o bucket privado. Idempotente: "já existe" é sucesso.
+ * Garante o bucket privado. Idempotente e uma vez por instância: confere por `getBucket` (o `list()` mente sobre bucket
+ * que não existe) e só cria quando o erro é claro de "não existe". Nunca atualiza bucket que já existe. Bucket PÚBLICO é
+ * recusado: CNH e conta de luz ficariam abertas a quem soubesse o caminho.
  *
- * Só funciona com a service key. Com a chave publishable o Supabase responde
- * 403 (medido), e aí o bucket precisa ser criado uma vez no painel — a mensagem
- * devolvida diz exatamente isso, em vez de "falhou".
+ * Falha de permissão aqui é problema da chave do banco PRINCIPAL (SUPABASE_SERVICE_KEY): é ela que cria o bucket.
  */
 export async function garantirBucket(): Promise<{ ok: boolean; motivo?: string }> {
-  const { error } = await supabaseGerador.storage.createBucket(BUCKET_DOSSIE, {
-    public: false,
-    fileSizeLimit: 20 * 1024 * 1024,
-  });
-  if (!error) return { ok: true };
-  const msg = String((error as { message?: string }).message || error);
-  if (/already exists|duplicate/i.test(msg)) return { ok: true };
-  if (/row-level security|Unauthorized|Access denied|403/i.test(msg)) {
-    return {
-      ok: false,
-      motivo: `sem permissão pra criar bucket. Crie "${BUCKET_DOSSIE}" (privado) no painel do Supabase, ou configure SUPABASE_GERADOR_SERVICE_KEY na Vercel.`,
-    };
+  if (bucketOk) return { ok: true };
+  const { data, error } = await supabase.storage.getBucket(BUCKET_DOSSIE);
+  if (!error && data) {
+    if (data.public) return { ok: false, motivo: `o bucket "${BUCKET_DOSSIE}" está público. Torne-o privado no painel do Supabase do banco principal.` };
+    bucketOk = true;
+    return { ok: true };
   }
-  return { ok: false, motivo: msg };
+  if (!error || !naoAchouBucket(error)) {
+    return { ok: false, motivo: `não consegui conferir o bucket "${BUCKET_DOSSIE}": ${msgDe(error)}` };
+  }
+  const { error: eCria } = await supabase.storage.createBucket(BUCKET_DOSSIE, OPCOES_DO_BUCKET);
+  if (eCria) {
+    // Outra instância pode ter criado no mesmo instante: confere de novo antes de desistir.
+    const { data: d2, error: e2 } = await supabase.storage.getBucket(BUCKET_DOSSIE);
+    if (e2 || !d2) {
+      const msg = msgDe(eCria);
+      if (/row-level security|Unauthorized|Access denied|403/i.test(msg)) {
+        return { ok: false, motivo: `a chave do banco principal (SUPABASE_SERVICE_KEY) não tem permissão pra criar o bucket "${BUCKET_DOSSIE}". Confira a variável na Vercel.` };
+      }
+      return { ok: false, motivo: `não consegui criar o bucket "${BUCKET_DOSSIE}": ${msg}` };
+    }
+    if (d2.public) return { ok: false, motivo: `o bucket "${BUCKET_DOSSIE}" está público. Torne-o privado no painel do Supabase do banco principal.` };
+  }
+  bucketOk = true;
+  return { ok: true };
 }
 
 export type SondaBucket = 'existe' | 'nao_existe' | 'indeterminado';
 
 /**
- * O bucket existe?
- *
- * A PRIMEIRA VERSÃO DISTO MENTIA. Usava `list('')` e dizia "existe" quando o
- * erro era nulo — só que, medido em 30/09/2026, `list` devolve
- * `{error:null,data:[]}` tanto pro bucket vazio quanto pro bucket que NÃO
- * EXISTE. A tela de saúde mostrava verde num sistema que não subia arquivo
- * nenhum, que é pior do que não ter tela de saúde.
- *
- * `getBucket` responde certo — mas só com a service key. Com a chave
- * publishable ele responde "Bucket not found" até pro `automacao-media`, que
- * comprovadamente existe (dá pra gravar nele). Ou seja: sem service key não há
- * como saber, e o honesto é dizer que não se sabe.
+ * O bucket existe? `getBucket` com a service key do banco principal responde certo (o `list('')` mentia: devolvia
+ * `{error:null,data:[]}` tanto pro bucket vazio quanto pro que NÃO EXISTE, e a saúde mostrava verde num sistema que não
+ * subia nada). Erro que não é "não existe" fica `indeterminado`: "não sei" é resposta honesta.
  */
 export async function sondarBucket(): Promise<SondaBucket> {
-  if (!geradorComServiceKey) return 'indeterminado';
-  const { error } = await supabaseGerador.storage.getBucket(BUCKET_DOSSIE);
-  if (!error) return 'existe';
-  const msg = String((error as { message?: string }).message || error);
-  return /not found|NoSuchBucket/i.test(msg) ? 'nao_existe' : 'indeterminado';
+  const { data, error } = await supabase.storage.getBucket(BUCKET_DOSSIE);
+  if (!error && data) return 'existe';
+  return error && naoAchouBucket(error) ? 'nao_existe' : 'indeterminado';
+}
+
+/**
+ * Sobe UM arquivo. Garante o bucket antes (barato: memorizado depois do primeiro sucesso). Se o bucket sumir com a
+ * instância já aquecida ("not found" no upload), esquece o cache, recria e tenta de novo uma vez.
+ */
+export async function subirArquivo(
+  path: string, buffer: Buffer, tipo: string,
+): Promise<{ ok: true } | { ok: false; http: number; erro: string }> {
+  const b = await garantirBucket();
+  if (!b.ok) return { ok: false, http: 503, erro: b.motivo || 'bucket indisponível' };
+  const subir = () => supabase.storage.from(BUCKET_DOSSIE).upload(path, buffer, { contentType: tipo, upsert: false });
+  let { error } = await subir();
+  if (error && naoAchouBucket(error)) {
+    bucketOk = false;
+    const b2 = await garantirBucket();
+    if (!b2.ok) return { ok: false, http: 503, erro: b2.motivo || 'bucket indisponível' };
+    ({ error } = await subir());
+  }
+  if (error) {
+    logger.error('dossie', 'upload falhou', error);
+    return { ok: false, http: 502, erro: 'não consegui salvar o arquivo: ' + msgDe(error) };
+  }
+  return { ok: true };
+}
+
+/** Baixa o arquivo inteiro (envio pro Trello). null = não consegui ler. */
+export async function baixarArquivo(path: string): Promise<Buffer | null> {
+  const { data, error } = await supabase.storage.from(BUCKET_DOSSIE).download(path);
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
+}
+
+/** Remove o arquivo. Best-effort: o registro já saiu do dossiê, que é o que a tela mostra; byte órfão só gera aviso. */
+export async function removerArquivo(path: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.storage.from(BUCKET_DOSSIE).remove([path]);
+    if (error) { logger.warn('dossie', 'arquivo órfão no storage', { path, error }); return false; }
+    return true;
+  } catch (err) {
+    logger.warn('dossie', 'arquivo órfão no storage', { path, error: msgDe(err) });
+    return false;
+  }
 }
 
 const EXT_POR_TIPO: Record<string, string> = {
@@ -300,7 +371,7 @@ export function caminhoArquivo(codigo: string, slot: string, ext: string): strin
 }
 
 export async function assinar(path: string, segundos = 3600): Promise<string | null> {
-  const { data } = await supabaseGerador.storage.from(BUCKET_DOSSIE).createSignedUrl(path, segundos);
+  const { data } = await supabase.storage.from(BUCKET_DOSSIE).createSignedUrl(path, segundos);
   return data?.signedUrl ?? null;
 }
 
@@ -411,12 +482,14 @@ export function saudeDossie(bucket: SondaBucket): {
   bucket: SondaBucket; service_key: boolean; trello: boolean; pronto: boolean; falta: string[];
 } {
   const trello = !!credenciaisTrello();
+  // Os arquivos moram no Storage do banco PRINCIPAL: a chave que importa é SUPABASE_SERVICE_KEY (a do Gerador não entra).
+  const chavePrincipal = !!String(process.env.SUPABASE_SERVICE_KEY || '').trim();
   const falta: string[] = [];
-  if (!geradorComServiceKey) falta.push('SUPABASE_GERADOR_SERVICE_KEY na Vercel — SEM ELA NÃO SOBE ARQUIVO NENHUM. Bucket privado novo não tem policy de escrita pra chave publishable, então o upload dá 403 mesmo com o bucket criado à mão.');
-  if (bucket === 'nao_existe') falta.push(`o bucket privado "${BUCKET_DOSSIE}" no Supabase do Gerador`);
-  if (bucket === 'indeterminado') falta.push(`conferir à mão se o bucket privado "${BUCKET_DOSSIE}" existe`);
+  if (!chavePrincipal) falta.push('SUPABASE_SERVICE_KEY na Vercel (chave do banco principal: sem ela não sobe arquivo nenhum)');
+  if (bucket === 'nao_existe') falta.push(`o bucket privado "${BUCKET_DOSSIE}" no Supabase do banco principal (nasce sozinho no primeiro anexo, se a chave do banco principal tiver permissão)`);
+  if (bucket === 'indeterminado') falta.push(`conferir se o bucket privado "${BUCKET_DOSSIE}" existe no Supabase do banco principal e se a chave do banco principal está válida`);
   if (!trello) falta.push('TRELLO_KEY e TRELLO_TOKEN na Vercel (sem elas o arquivo sobe mas não vira anexo)');
-  return { bucket, service_key: geradorComServiceKey, trello, pronto: bucket === 'existe' && trello, falta };
+  return { bucket, service_key: chavePrincipal, trello, pronto: bucket === 'existe' && chavePrincipal && trello, falta };
 }
 
 // ── Achar o cartão do cliente no quadro ──────────────────────────────────────
