@@ -5812,15 +5812,32 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- ARRENDAMENTO DO PONTO (modelo 01, 07/10/2026). O cliente é o CEDENTE e
            a NEXUS a CESSIONÁRIA que investe 100%. Texto a partir do
            CONTRATO-ARRENDAMENTO-PONTO.md, sem a corretagem e a preferência: lá a
-           IO era interveniente entre dono e investidor, aqui ela é a parte. -->
+           IO era interveniente entre dono e investidor, aqui ela é a parte.
+           Desde 16/10/2026 a remuneração tem dois modos (data-ctr-arrmodo diz
+           qual campo aparece em qual): percentual do faturamento, o de sempre, e
+           valor mensal fixo, com a tabela de faixas reajustadas. Proposta antiga
+           sem o campo abre como percentual. -->
       <div class="card" data-ctr-tipos="arrend termo_arr">
         <div class="calc-card-title"><span class="dot"></span>Arrendamento: remuneração, prazos e local</div>
-        <div class="eletro-field"><label>Percentual do faturamento bruto</label>
+        <div class="eletro-field"><label>Remuneração</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-modo" onchange="ctrResumo()">
+            <option value="pct">% do faturamento</option>
+            <option value="fixo">Valor fixo mensal</option>
+          </select></div></div>
+        <div class="eletro-field" data-ctr-arrmodo="pct"><label>Percentual do faturamento bruto</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-pct" inputmode="decimal" placeholder="10" oninput="ctrResumo()"><span class="suf">%</span></div></div>
-        <div class="eletro-field"><label>Piso mensal (opcional)</label>
+        <div class="eletro-field" data-ctr-arrmodo="pct"><label>Piso mensal (opcional)</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-piso" inputmode="decimal" placeholder="sem piso" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field"><label>O piso vale a partir do mês de operação</label>
+        <div class="eletro-field" data-ctr-arrmodo="pct"><label>O piso vale a partir do mês de operação</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-carencia" inputmode="numeric" min="1" value="4" oninput="ctrResumo()"><span class="suf">º</span></div></div>
+        <!-- Dinheiro em type=text, como o piso: "145.000" em type=number vale 145 e vírgula zera o campo. -->
+        <!-- Sem placeholder que pareça número: campo vazio parecendo preenchido já mandou proposta sem dado. Vazio = lacuna no papel e aviso ao gerar. -->
+        <div class="eletro-field" data-ctr-arrmodo="fixo"><label>Valor mensal fixo</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-fixo" inputmode="decimal" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-arrmodo="fixo"><label>Valor fixo nos primeiros</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-fixo-meses" inputmode="numeric" min="1" value="24" oninput="ctrResumo()"><span class="suf">meses</span></div></div>
+        <div class="eletro-field" data-ctr-arrmodo="fixo"><label>Reajuste depois, a cada 12 meses</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-reajuste" inputmode="decimal" step="0.5" min="0" value="10" oninput="ctrResumo()"><span class="suf">%</span></div></div>
         <div class="orc-note" id="ctr-arr-nota" style="grid-column:1/-1">—</div>
         <div class="eletro-field" id="ctr-ta-f-locacao"><label>A locação do cedente vai até</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-ta-locacao-fim" onchange="ctrResumo()"></div></div>
@@ -5829,17 +5846,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-premio" inputmode="decimal" placeholder="sem reserva" oninput="ctrResumo()"></div></div>
         <div class="eletro-field"><label>Dia de pagar o cedente (mês seguinte)</label>
           <div class="eletro-inp"><input type="number" id="ctr-arr-dia" inputmode="numeric" min="1" max="28" value="10"></div></div>
-        <div class="eletro-field" data-ctr-tipos="arrend" style="grid-column:1/-1"><label>Contrato de sociedade deste local, se for 50/50 (nº e data)</label>
+        <!-- Só no percentual: no 50/50 a remuneração do local é o % do contrato de sociedade, e valor fixo diria outra coisa. -->
+        <div class="eletro-field" data-ctr-tipos="arrend" data-ctr-arrmodo="pct" style="grid-column:1/-1"><label>Contrato de sociedade deste local, se for 50/50 (nº e data)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-soc-ref" placeholder="Ex.: nº CS-TM-001/2026, de 09/10/2026 · em branco não sai" oninput="ctrResumo()"></div></div>
         <div class="eletro-field" data-ctr-ta="promessa" style="grid-column:span 2"><label>Conta do cedente para receber</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-dados" placeholder="Pix ou banco, agência e conta do dono do local"></div></div>
-        <div class="eletro-field"><label>Vigência</label>
-          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-vigencia" inputmode="numeric" min="1" value="60" oninput="ctrTermoUi()"><span class="suf">meses</span></div></div>
-        <div class="eletro-field"><label>Ninguém sai antes de</label>
-          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-permanencia" inputmode="numeric" min="0" value="36"><span class="suf">meses</span></div></div>
-        <div class="eletro-field"><label>Aviso para não renovar</label>
+        <!-- Prazo mínimo em que ninguém sai sem motivo; a "permanência mínima" à
+             parte saiu em 16/10/2026 (snapshot antigo que ainda a traga é ignorado). -->
+        <div class="eletro-field"><label>Prazo mínimo (ninguém sai sem motivo)</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-vigencia" inputmode="numeric" min="1" value="60" oninput="ctrResumo()"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Renova sozinho por mais</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-renovacao" inputmode="numeric" min="1" placeholder="igual ao prazo" oninput="ctrResumo()"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Aviso da NEXUS para não renovar</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-aviso" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
-        <div class="eletro-field" data-ctr-ta="promessa"><label>Prazo máximo para ligar o ponto</label>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Fase de obra: ligar o ponto em até</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-implant" inputmode="numeric" min="1" value="180" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
         <div class="eletro-field"><label>Energia do ponto</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-energia">
@@ -5874,7 +5894,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-mora-juros" inputmode="decimal" step="0.5" min="0" value="1"><span class="suf">% a.m.</span></div></div>
         <div class="eletro-field" data-ctr-ta="promessa"><label>Prazo para corrigir antes de rescindir</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-corrigir" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
-        <div class="orc-note" style="grid-column:1/-1">O dono do local não põe dinheiro e não responde pelo negócio: recebe o percentual sobre o <b>faturamento bruto</b>, que ele acompanha na plataforma de gestão, com login próprio, a partir da energização. Vale o demonstrativo mensal. Recarga grátis ou com desconto entra na conta pelo preço de tabela.</div>
+        <div class="orc-note" style="grid-column:1/-1">O dono do local não põe dinheiro e não responde pelo negócio. <span data-ctr-arrmodo="pct">Recebe o percentual sobre o <b>faturamento bruto</b>, que acompanha na plataforma de gestão com login próprio a partir da energização; vale o demonstrativo mensal, e recarga grátis ou com desconto entra na conta pelo preço de tabela.</span><span data-ctr-arrmodo="fixo">Recebe o <b>valor fixo</b> todo mês, com ou sem movimento, e o contrato sai sem medição, plataforma, auditoria e sigilo de faturamento, que só existem por causa do percentual.</span> Durante o prazo mínimo ninguém sai sem motivo; no fim ele renova sozinho uma vez, salvo aviso da NEXUS.</div>
       </div>
 
       <!-- TERMO DO ARRENDADOR (08/10/2026). O papel entre a reunião e o contrato
@@ -5951,7 +5971,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-premio-quando" value="na assinatura deste termo"></div></div>
         <div class="eletro-field" data-ctr-ta="promessa"><label>Multa se o dono recusar assinar (opcional)</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ta-multa" inputmode="decimal" placeholder="sem multa"></div></div>
-        <div class="orc-note" style="grid-column:1/-1">As condições da cessão (percentual, piso, vigência, vagas, energia) vêm do cartão <b>Arrendamento</b> abaixo e são as mesmas da minuta anexada. A NEXUS paga todo o estudo e pode não confirmar o ponto sem multa. Se ela não pedir o acesso à distribuidora no prazo, o dono fica livre.</div>
+        <div class="orc-note" style="grid-column:1/-1">As condições da cessão (remuneração, prazo, vagas, energia) vêm do cartão <b>Arrendamento</b> abaixo e são as mesmas da minuta anexada. A NEXUS paga todo o estudo e pode não confirmar o ponto sem multa. Se ela não pedir o acesso à distribuidora no prazo, o dono fica livre.</div>
       </div>
 
       <!-- DOSSIÊ DO LOCAL (08/10/2026). Checklist de documentos e fotos do local,
@@ -20983,7 +21003,7 @@ function recSugestaoParte(tipo) {
     const cp = id => { try { return ctrCampo(id); } catch (e) { return ''; } };
     const num = orcVal('ctr-num'), dt = orcVal('ctr-data');
     const quando = (num ? ' nº ' + num : '') + (dt ? ', de ' + ctrDataBR(dt) : '');
-    const ref = (tipo === 'parcela' ? ({ completo: 'Contrato de Fornecimento e Instalação', socio50: 'Contrato de Sociedade em Conta de Participação', cotas: 'Contrato de Sociedade em Conta de Participação', arrend: 'Contrato de Cessão Onerosa de Área', equip: 'Contrato de Compra e Venda de Equipamento' }[ctrTipo()] || 'Contrato')
+    const ref = (tipo === 'parcela' ? ({ completo: 'Contrato de Fornecimento e Instalação', socio50: 'Contrato de Sociedade em Conta de Participação', cotas: 'Contrato de Sociedade em Conta de Participação', arrend: 'Contrato de Cessão de Área', equip: 'Contrato de Compra e Venda de Equipamento' }[ctrTipo()] || 'Contrato')
       : { deposito: 'Termo de Compromisso e Reserva de Cota', aporte: 'Contrato de Sociedade em Conta de Participação', premio: 'Termo de Compromisso e Promessa de Cessão de Área' }[tipo]) + quando;
     return { nome: cp('ctr-contratante') || eletroTextos().cliente, doc: cp('ctr-contratante-doc') || orcVal('orc-cli-doc'),
       end: [cp('ctr-contratante-end'), cp('ctr-cidade')].filter(Boolean).join(', ') || orcVal('orc-cli-end'), ref };
@@ -21861,7 +21881,7 @@ const CTR_TIPOS = {
   socio50: { nome: 'Sociedade 50/50', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
     nota: 'Sociedade em conta de participação: cada um entra com a sua parte do capital, a NEXUS implanta, opera e presta contas, os custos saem do faturamento e o lucro se divide pela cota. O local é do sócio.' },
   arrend: { nome: 'Arrendamento', nossa: 'CESSIONÁRIA', deles: 'CEDENTE', Nossa: 'Cessionária', Parte: 'Cedente', parte: 'cedente',
-    nota: 'Cessão onerosa de área: o dono do local cede o espaço, a NEXUS investe 100%, instala e opera, e paga a ele todo mês um percentual do faturamento bruto.' },
+    nota: 'Cessão de área: o dono do local cede o espaço, a NEXUS investe 100%, instala e opera, e paga a ele todo mês um percentual do faturamento bruto ou um valor fixo, à escolha no cartão Arrendamento.' },
   cotas: { nome: 'Cotas por %', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
     nota: 'Sociedade em conta de participação dividida em cotas: o cliente compra uma ou mais, a NEXUS administra e fica com a dela, e o local vem por arrendamento. Enquanto o capital não fecha, o dinheiro fica parado, e volta se não fechar no prazo.' },
   equip: { nome: 'Compra e venda de equipamento', nossa: 'VENDEDORA', deles: 'COMPRADOR', Nossa: 'Vendedora', Parte: 'Comprador', parte: 'comprador',
@@ -21973,12 +21993,26 @@ function ctrArrRelacaoFicha() {
   if (/ainda não é meu|negociando/i.test(r)) return 'branco';
   return 'proprietario';
 }
+// O modo da remuneração do arrendamento. Select ausente ou valor desconhecido
+// (snapshot de antes de 16/10/2026) é percentual, o comportamento de sempre.
+const ctrArrModo = () => orcVal('ctr-arr-modo') === 'fixo' ? 'fixo' : 'pct';
 function ctrArr() {
+  const vigencia = ctrInt('ctr-arr-vigencia', 60);
   return {
+    modo: ctrArrModo(),
     pct: ctrPctLe(ctrCampo('ctr-arr-pct')), piso: ctrMoeda(orcVal('ctr-arr-piso')),
     carencia: ctrInt('ctr-arr-carencia', 4), dia: Math.min(28, ctrInt('ctr-arr-dia', 10)),
+    // Valor fixo: tanto por mês nos primeiros `fixoMeses`, depois reajuste de
+    // `reajuste`% a cada 12 meses sobre o valor em vigor (ctrArrFaixas faz a conta).
+    // Meses e reajuste vazios são null (lacuna no papel), nunca 24 ou 10 calados.
+    // Meses em 0 também é lacuna ("nos primeiros 0 meses" e tabela do 1º ao 1º
+    // se contradiziam); reajuste 0 é 0 (sem reajuste).
+    fixo: ctrMoeda(orcVal('ctr-arr-fixo')),
+    fixoMeses: (() => { const n = Math.round(orcNum(orcVal('ctr-arr-fixo-meses'))); return n >= 1 ? n : null; })(),
+    reajuste: orcVal('ctr-arr-reajuste') === '' ? null : Math.max(0, orcNum(orcVal('ctr-arr-reajuste'))),
     dados: orcVal('ctr-arr-dados'),
-    vigencia: ctrInt('ctr-arr-vigencia', 60), permanencia: ctrInt0('ctr-arr-permanencia', 36),
+    // Prazo mínimo, renovação automática (vazia = igual ao prazo) e aviso para não renovar.
+    vigencia, renovacao: orcVal('ctr-arr-renovacao') === '' ? vigencia : ctrInt('ctr-arr-renovacao', vigencia),
     aviso: ctrInt('ctr-arr-aviso', 180), implant: ctrInt('ctr-arr-implant', 180),
     vagas: Math.max(1, Math.round(orcNum(ctrCampo('ctr-arr-vagas')) || 1)), area: orcVal('ctr-arr-area'),
     horario: orcVal('ctr-arr-horario') || '24h', horarioTxt: orcVal('ctr-arr-horario-txt'),
@@ -21989,19 +22023,45 @@ function ctrArr() {
     corrigir: ctrInt('ctr-arr-corrigir', 15),
   };
 }
+// As faixas do valor fixo ao longo do prazo mínimo: o valor cheio nos primeiros
+// `fixoMeses`, depois uma faixa a cada 12 meses, cada uma reajustada sobre a
+// anterior (1.000 por 24 meses a 10% em 60: 1.000, 1.100, 1.210 e 1.331).
+// Centavos arredondados a cada degrau, que é como o valor em vigor se escreve.
+// A tabela só existe quando há degrau dentro do prazo: valor, meses e reajuste
+// preenchidos, reajuste maior que zero e meses fixos menores que o prazo. Fora
+// disso o texto da cláusula diz o que vale (sem reajuste, fixo o prazo todo ou
+// lacuna) e não cita tabela nenhuma.
+function ctrArrTemTabela(a) {
+  return a.fixo > 0 && a.vigencia > 0 && a.fixoMeses != null && a.reajuste != null && a.reajuste > 0 && a.fixoMeses < a.vigencia;
+}
+function ctrArrFaixas(a) {
+  const out = [];
+  if (!ctrArrTemTabela(a)) return out;
+  let valor = ctrCent(a.fixo), de = 1;
+  let ate = Math.max(1, a.fixoMeses);
+  out.push({ de, ate, valor });
+  while (ate < a.vigencia) {
+    de = ate + 1; ate = Math.min(a.vigencia, ate + 12);
+    valor = ctrCent(valor * (1 + a.reajuste / 100));
+    out.push({ de, ate, valor });
+  }
+  return out;
+}
 
 // Mostra o cartão de cada modelo e troca os nomes das partes na tela. Um passe
 // só decide o que aparece: tipo do documento (data-ctr-tipos), forma da
-// sociedade (data-ctr-socmodo), força do termo do arrendador (data-ctr-ta) e uso
-// do termo do investidor (data-ctr-ti). Elemento com dois atributos precisa
-// passar nos dois, senão um toggle desfazia o outro.
+// sociedade (data-ctr-socmodo), força do termo do arrendador (data-ctr-ta), uso
+// do termo do investidor (data-ctr-ti) e modo da remuneração do arrendamento
+// (data-ctr-arrmodo). Elemento com dois atributos precisa passar nos dois,
+// senão um toggle desfazia o outro.
 function ctrTipoUi() {
   const t = ctrTipo(), N = ctrNomes(t), modo = ctrSocModo(t), soc = !!modo;
   const pane = document.getElementById('eletro-pane-contrato');
   if (!pane) return;
   const nivel = orcVal('ctr-ta-nivel') === 'intencao' ? 'intencao' : 'promessa';
   const uso = orcVal('ctr-ti-uso') === 'adesao' ? 'adesao' : 'reserva';
-  pane.querySelectorAll('[data-ctr-tipos],[data-ctr-socmodo],[data-ctr-ta],[data-ctr-ti]').forEach(el => {
+  const arrModo = ctrArrModo();
+  pane.querySelectorAll('[data-ctr-tipos],[data-ctr-socmodo],[data-ctr-ta],[data-ctr-ti],[data-ctr-arrmodo]').forEach(el => {
     const ds = el.dataset;
     const ok = (!ds.ctrTipos || ds.ctrTipos.split(/\s+/).includes(t))
       // Lista de modos; "fora" é o tipo sem sociedade (arrendamento e termo do arrendador).
@@ -22009,7 +22069,8 @@ function ctrTipoUi() {
       // A força só existe no termo do arrendador e o uso só no do investidor:
       // fora deles, o campo marcado aparece normalmente (TR-17).
       && (!ds.ctrTa || t !== 'termo_arr' || ds.ctrTa.split(/\s+/).includes(nivel))
-      && (!ds.ctrTi || t !== 'termo_inv' || ds.ctrTi.split(/\s+/).includes(uso));
+      && (!ds.ctrTi || t !== 'termo_inv' || ds.ctrTi.split(/\s+/).includes(uso))
+      && (!ds.ctrArrmodo || ds.ctrArrmodo.split(/\s+/).includes(arrModo));
     el.classList.toggle('ctr-fora', !ok);
   });
   const txt = (sel, v) => pane.querySelectorAll(sel).forEach(el => { if (el.textContent !== v) el.textContent = v; });
@@ -22115,7 +22176,21 @@ function ctrArrUi() {
   const fh = document.getElementById('ctr-arr-f-horario');
   if (fh) fh.classList.toggle('ctr-fora', a.horario !== 'outro');
   const nota = document.getElementById('ctr-arr-nota');
-  if (nota) {
+  // As caixinhas de auditoria e LGPD não existem no valor fixo: a lista
+  // acompanha o modo (ctrOpcDoTipo filtra por `so`).
+  if (ctrArrUi.modo !== a.modo) { ctrArrUi.modo = a.modo; ctrOpcRender(); }
+  if (nota && a.modo === 'fixo') {
+    // Valor fixo: o que vai sair no papel, para conferir antes.
+    const fx = ctrArrFaixas(a);
+    const faltam = [!(a.fixo > 0) && 'o valor', a.fixoMeses == null && 'os meses fixos', a.reajuste == null && 'o reajuste'].filter(Boolean);
+    nota.innerHTML = faltam.length
+      ? `<b>Sem ${faltam.join(', ')}</b>, a cláusula sai com lacuna no papel, para preencher à mão. O dono do local recebe o valor todo mês, com ou sem movimento.`
+      : fx.length
+        ? `O papel sai com a tabela: ${fx.map(f => `${f.de}º a ${f.ate}º mês <b>${money(f.valor)}</b>`).join('; ')}. Reajuste de ${ctrPctTxt(a.reajuste)}% a cada 12 meses sobre o valor em vigor, e a renovação segue reajustando.`
+        : a.reajuste === 0
+          ? `<b>${money(a.fixo)}</b> por mês, sem reajuste, no prazo mínimo e na renovação.`
+          : `<b>${money(a.fixo)}</b> por mês durante todo o prazo mínimo de ${a.vigencia} meses; na renovação, reajuste de ${ctrPctTxt(a.reajuste)}% a cada 12 meses.`;
+  } else if (nota) {
     let fat = 0;
     try { fat = computeEletro(eletroParams()).fatMes || 0; } catch (e) {}
     const piso = a.piso > 0 ? ` O piso de <b>${money(a.piso)}</b> vale a partir do ${a.carencia}º mês de operação, quando o ponto já saiu da rampa.` : ' Sem piso, o dono do local recebe só o percentual, e a rampa dos primeiros meses fica com ele.';
@@ -22127,7 +22202,13 @@ function ctrArrUi() {
   if (rn) rn.innerHTML = ({
     proprietario: 'O cedente declara ser o dono e ter a posse do imóvel.',
     locado: 'Com o imóvel alugado, quem tem a posse é o inquilino: o contrato exige a <b>anuência escrita dele</b>.',
-    locatario: '<b>Inquilino não assina sozinho</b>: o contrato exige a anuência escrita do proprietário e não passa do prazo da locação.',
+    // A frase segue a conta da locação (ctrTALocacaoCabe), a mesma do papel.
+    locatario: '<b>Inquilino não assina sozinho</b>: o contrato exige a anuência escrita do proprietário' + (() => {
+      let cabe = null; try { cabe = ctrTALocacaoCabe(ctrDados()); } catch (e) {}
+      return cabe === true ? ', e a locação cobre o prazo mínimo e a renovação.'
+        : cabe === 'vigencia' ? ', e a locação cobre só o prazo mínimo: a renovação depende da prorrogação dela ou da autorização do proprietário.'
+        : ', e como a locação não cobre o prazo (ou não tem data), o proprietário assume a cessão quando ela acabar.';
+    })(),
     representante: 'Quem representa o dono assina com procuração ou contrato de administração que dê poder para ceder a área.',
     condominio: 'Condomínio assina com a ata da assembleia que autorizou a cessão.',
     branco: 'O contrato sai com as cinco condições para marcar à mão. Quem ainda negocia o local não pode ceder: confirme antes de assinar.',
@@ -22183,23 +22264,28 @@ function ctrIntervAnui(rel, papel) {
   return (rel === 'locatario' && papel === 'proprietario') || (rel === 'locado' && papel === 'locatario');
 }
 // A locação do cedente inquilino cobre a cessão inteira? Conta o pior caso do
-// papel: estudo (dobrado se pode prorrogar), assinatura, implantação e a
-// vigência do cartão Arrendamento. true cabe, false não cabe, null sem data.
-function ctrTALocacaoFimCessao(d) {
+// papel: estudo (dobrado se pode prorrogar), assinatura, implantação e o prazo
+// mínimo do cartão Arrendamento; com `comRenovacao`, mais a renovação
+// automática, que só a cessionária recusa (16/10/2026).
+function ctrTALocacaoFimCessao(d, comRenovacao) {
   const ta = d.ta, a = d.arr;
   const x = new Date(d.data.getTime());
   const prorroga = !!(d.opc && d.opc.ta_prorroga);
-  // No contrato final (sem termo) só contam implantação e vigência (ARR-04).
+  // No contrato final (sem termo) só contam implantação e prazos (ARR-04).
   x.setDate(x.getDate() + (ta ? ta.prazo * (prorroga ? 2 : 1) + (ta.nivel === 'promessa' ? ta.assinar : 0) : 0) + a.implant);
-  x.setMonth(x.getMonth() + a.vigencia);
+  x.setMonth(x.getMonth() + a.vigencia + (comRenovacao ? a.renovacao : 0));
   return x;
 }
+// true: a locação cobre prazo mínimo E renovação. 'vigencia': cobre só o prazo
+// mínimo (o papel condiciona a renovação à prorrogação da locação ou à
+// autorização do proprietário). false: não cobre nem o prazo mínimo. null: sem data.
 function ctrTALocacaoCabe(d) {
   const fimIso = d.ta ? d.ta.locacaoFim : orcVal('ctr-ta-locacao-fim');
   if (!d.arr || !fimIso) return null;
   const fim = new Date(fimIso + 'T00:00:00');
   if (isNaN(fim)) return null;
-  return fim >= ctrTALocacaoFimCessao(d);
+  if (fim >= ctrTALocacaoFimCessao(d, true)) return true;
+  return fim >= ctrTALocacaoFimCessao(d) ? 'vigencia' : false;
 }
 // Data ISO (aaaa-mm-dd) como o papel escreve.
 const ctrDataBR = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
@@ -22219,10 +22305,11 @@ function ctrTermoUi() {
       try { d = ctrDados(); } catch (err) { d = null; }
       const cabe = d ? ctrTALocacaoCabe(d) : null;
       const iv = d && d.interv && d.interv.nome && d.interv.papel === 'proprietario';
-      if (cabe === false) txt = `<b style="color:#fca5a5">A locação acaba antes da cessão.</b> No pior caso a cessão vai até ${ctrTALocacaoFimCessao(d).toLocaleDateString('pt-BR')}. ${iv ? 'O termo põe o proprietário (interveniente) como cedente quando a locação acabar.' : 'Sem o proprietário como interveniente, o termo pede que a anuência dele preveja assumir a cessão. Melhor: ponha o proprietário como interveniente anuente.'}`;
+      if (cabe === false) txt = `<b style="color:#fca5a5">A locação acaba antes do prazo mínimo da cessão.</b> No pior caso o prazo mínimo vai até ${ctrTALocacaoFimCessao(d).toLocaleDateString('pt-BR')}. ${iv ? 'O papel põe o proprietário (interveniente) como cedente quando a locação acabar.' : 'Sem o proprietário como interveniente, o papel pede que a anuência dele preveja assumir a cessão. Melhor: ponha o proprietário como interveniente anuente.'}`;
       else if (!d) txt = '';
-      else if (cabe === null) txt = 'Sem a data do fim da locação, o termo não afirma que a cessão cabe nela e pede que o proprietário assuma a cessão se a locação acabar antes.';
-      else txt = `A locação cobre a cessão inteira (pior caso até ${ctrTALocacaoFimCessao(d).toLocaleDateString('pt-BR')}).`;
+      else if (cabe === null) txt = 'Sem a data do fim da locação, o papel não afirma que a cessão cabe nela e pede que o proprietário assuma a cessão se a locação acabar antes.';
+      else if (cabe === 'vigencia') txt = `A locação cobre o prazo mínimo (pior caso até ${ctrTALocacaoFimCessao(d).toLocaleDateString('pt-BR')}), mas não a renovação (até ${ctrTALocacaoFimCessao(d, true).toLocaleDateString('pt-BR')}): o papel condiciona a renovação à prorrogação da locação ou à autorização do proprietário.`;
+      else txt = `A locação cobre o prazo mínimo e a renovação (pior caso até ${ctrTALocacaoFimCessao(d, true).toLocaleDateString('pt-BR')}).`;
     }
     nl.style.display = txt ? '' : 'none';
     nl.innerHTML = txt;
@@ -22680,7 +22767,8 @@ const CTR_ESP_CONGELA = ['ctr-soc-invest', 'ctr-soc-n', 'ctr-soc-cota', 'ctr-soc
 // snapshot levar e trazer: campo esquecido aqui é a 2ª via que sai diferente.
 const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'ctr-soc-implant', 'ctr-soc-prazo',
   'ctr-soc-permanencia', 'ctr-soc-aviso', 'ctr-soc-haveres', 'ctr-soc-corrigir',
-  'ctr-arr-piso', 'ctr-arr-carencia', 'ctr-arr-dia', 'ctr-arr-dados', 'ctr-arr-vigencia', 'ctr-arr-permanencia',
+  'ctr-arr-piso', 'ctr-arr-carencia', 'ctr-arr-dia', 'ctr-arr-dados', 'ctr-arr-vigencia', 'ctr-arr-renovacao',
+  'ctr-arr-modo', 'ctr-arr-fixo', 'ctr-arr-fixo-meses', 'ctr-arr-reajuste',
   'ctr-arr-aviso', 'ctr-arr-implant', 'ctr-arr-area', 'ctr-arr-horario', 'ctr-arr-horario-txt', 'ctr-arr-energia',
   'ctr-qualif', 'ctr-int-nome', 'ctr-int-doc', 'ctr-int-end', 'ctr-int-qualidade',
   'ctr-ta-nivel', 'ctr-ta-modelo', 'ctr-ta-tipo-local', 'ctr-ta-matricula', 'ctr-ta-cartorio', 'ctr-ta-iptu', 'ctr-ta-padrao',
@@ -23314,7 +23402,9 @@ function ctrDados() {
     sinalDestino: orcVal('ctr-sinal-destino'),
     // O sinal da sociedade é o depósito do termo de reserva (espelho ligado).
     sinalDoTermo: ctrEhSoc(tipo) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0,
-    origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'), socRef: tipo === 'arrend' ? orcVal('ctr-arr-soc-ref') : '',
+    // A referência ao contrato de sociedade só vale no percentual: lá a
+    // remuneração do local é o % do faturamento daquele contrato.
+    origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'), socRef: tipo === 'arrend' && ctrArrModo() !== 'fixo' ? orcVal('ctr-arr-soc-ref') : '',
     vistoria: tipo === 'completo' && typeof visRefContrato === 'function' ? visRefContrato() : null,
     sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
@@ -23378,7 +23468,8 @@ const CTR_OPC = [
     dica: 'Entregue no local, furto, vandalismo e batida passam a ser risco do cliente, que contrata o seguro.' },
   { id: 'eletronica', rot: 'Assinatura eletrônica', padrao: true,
     dica: 'Reconhece a assinatura digital (Lei 14.063/2020). Assinado em plataforma que atesta a integridade, dispensa as testemunhas (CPC 784, §4º).' },
-  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrTipo() !== 'completo' || ctrSoftware(),
+  // No arrendamento a valor fixo não há demonstrativo nem dado de usuário: a caixinha some (volta no percentual).
+  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrTipo() !== 'completo' || ctrSoftware(), so: t => t !== 'arrend' || ctrArrModo() !== 'fixo',
     dica: 'Dados de recarga tratados só para operar a plataforma. Projeto, software e marca continuam da NEXUS. Nasce marcada quando o Software está no escopo.',
     dicas: { socio50: 'Dados dos usuários tratados só pela NEXUS para operar o ponto; o sócio recebe números agregados. Marca e software continuam da NEXUS.',
              cotas: 'Dados dos usuários tratados só pela NEXUS para operar o ponto; o sócio recebe números agregados. Marca e software continuam da NEXUS.',
@@ -23413,7 +23504,7 @@ const CTR_OPC = [
     dica: 'O dono não instala nem autoriza outro carregador aberto ao público no mesmo imóvel. Só vale dentro do imóvel: raio em volta precisa de advogado.' },
   { id: 'arr_privativo', tipos: ['arrend'], rot: 'Carregador privativo do dono permitido', padrao: true,
     dica: 'A exclusividade não impede tomada ou carregador de uso próprio, sem cobrança e fechado ao público. Desmarcada, até a van do mercado tem que carregar no ponto.' },
-  { id: 'arr_auditoria', tipos: ['arrend'], rot: 'Auditoria anual do faturamento', padrao: true,
+  { id: 'arr_auditoria', tipos: ['arrend'], rot: 'Auditoria anual do faturamento', padrao: true, so: () => ctrArrModo() !== 'fixo',
     dica: 'Uma vez por ano o dono do local pode auditar a apuração. Diferença acima de 5% contra ele passa o custo para a NEXUS, que é quem mede a base do percentual.' },
   { id: 'arr_registro', tipos: ['arrend'], rot: 'Registro em cartório e na matrícula', padrao: false,
     dica: 'Registrado, o contrato vale contra quem comprar o imóvel ou o credor do dono. Sem registro, vale só entre as partes. Custa cartório, pago pela NEXUS.' },
@@ -23939,39 +24030,55 @@ function ctrModeloSociedade(d) {
   ].filter(Boolean);
 }
 
-// ─── ARRENDAMENTO DO PONTO: cessão onerosa de área (modelo 01) ───────────────
+// ─── ARRENDAMENTO DO PONTO: cessão de área (modelo 01) ───────────────────────
 // O cliente cede o espaço (CEDENTE) e a NEXUS investe 100% (CESSIONÁRIA). Texto
-// a partir do CONTRATO-ARRENDAMENTO-PONTO.md, sem a corretagem e a preferência
-// (lá a IO era interveniente entre dono e investidor) e sem a fornecedora
-// separada (aqui o equipamento é da própria NEXUS). Ficaram, e de propósito:
-// a medição com painel, auditoria e média dos meses quando a telemetria cai, e
-// a recarga grátis contando pelo preço de tabela. Quem mede a base do
-// percentual é a mesma NEXUS que paga sobre ela.
+// reescrito em 16/10/2026 a partir do Modelo_Contrato_Cessao_de_Area_Valor_Fixo
+// aprovado pelo dono: 13 cláusulas, sem repetição e sem o que só existia por
+// causa do percentual. Dois modos, pela chave a.modo:
+//   pct   percentual do faturamento bruto (o de sempre), com piso opcional e
+//         UMA cláusula de medição e prestação de contas que guarda as proteções
+//         de antes: registro OCPP, demonstrativo, login de leitura, contestação,
+//         auditoria, média quando a telemetria cai, e nada disso se afasta por
+//         acordo verbal. Quem mede a base é a mesma NEXUS que paga sobre ela.
+//   fixo  valor mensal fixo com a tabela de faixas reajustadas (ctrArrFaixas),
+//         devido com ou sem movimento. Sem medição, plataforma, auditoria,
+//         sigilo de faturamento e LGPD, que não se aplicam.
+// Nos dois: prazo mínimo em que ninguém sai sem motivo, renovação automática
+// uma vez salvo aviso da CESSIONÁRIA, e fase de obra sem pagamento.
 function ctrModeloArrend(d) {
-  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const { e, money, vazio, lacuna, pct, op, C, I } = ctrModeloPecas(d);
   const a = d.arr;
+  const fixo = a.modo === 'fixo';
+  // Meses fixos iguais ou maiores que o prazo mínimo: fixo o prazo todo, sem degrau.
+  const fixoTodo = fixo && a.fixoMeses != null && a.fixoMeses >= a.vigencia;
   const iv = d.interv && d.interv.nome ? d.interv : null;
   const ivDono = !!iv && iv.papel === 'proprietario';
   const premioR = d.premioReserva || (d.tipo === 'arrend' ? ctrMoeda(ctrCampo('ctr-arr-premio')) : 0);
   // Anexada ao termo do arrendador, a minuta segue a conta da locação do termo:
   // os dois papéis não podem dizer coisas diferentes sobre ela.
   // ARR-04: o contrato final também faz a conta, com a data da locação da tela.
-  const locacaoCurta = ctrTALocacaoCabe(d) !== true;
-  const objeto = loc => `O CEDENTE cede à CESSIONÁRIA, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), com destinação exclusiva à instalação, à operação, à manutenção e à exploração comercial de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
-  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de rescisão por culpa do CEDENTE.'
+  // true: locação cobre prazo mínimo e renovação; 'vigencia': só o prazo
+  // mínimo (a renovação fica condicionada); false ou null: o proprietário assume.
+  const locacaoCabe = ctrTALocacaoCabe(d);
+  const locacaoTxt = locacaoCabe === true ? 'Este contrato e a sua renovação não ultrapassam o prazo da locação.'
+    : locacaoCabe === 'vigencia' ? 'A locação cobre o prazo mínimo deste contrato, e a renovação da {{i:prazo.renovacao}} depende da prorrogação da locação ou da autorização escrita do proprietário para esse período.'
+    : 'A autorização do proprietário prevê que, terminada a locação antes do fim deste contrato ou das suas renovações, ele assume a posição de CEDENTE nas mesmas condições.';
+  const extenso = v => `${money(v)} (${e(recExtenso(v))})`;
+  const objeto = loc => `O CEDENTE cede à CESSIONÁRIA o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), exclusivamente para instalar e explorar estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
+  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de encerramento por culpa do CEDENTE.'
     + (iv ? ' A anuência do INTERVENIENTE ANUENTE, dada neste contrato, é irrevogável pelo prazo dele e das suas renovações.' : '');
   // A conta do cedente (Pix, muitas vezes o CPF) sai no papel e NÃO vai à IA.
-  const venc = conta => `O pagamento vence até o dia <b>${a.dia}</b> do mês seguinte ao da apuração, acompanhado do demonstrativo da {{i:contas.demonstrativo}}${conta ? `, e é feito diretamente ao CEDENTE por meio de: ${conta}` : ''}.`;
+  const venc = conta => `O valor de cada mês vence no dia <b>${a.dia}</b> do mês seguinte${fixo ? '' : ', junto com o demonstrativo da {{i:contas.demonstrativo}}'}, e é pago por Pix ou transferência ${conta ? `para: ${conta}` : 'à conta que o CEDENTE indicar por escrito'}. O CEDENTE emite o recibo ou o documento fiscal correspondente, e cada parte responde pelos tributos sobre o que recebe.`;
   const legitimidade = {
-    proprietario: 'Declarar e garantir que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante toda a vigência.',
-    locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e apresentar na assinatura a anuência escrita do locatário a esta cessão. ${anuenciaFalta}`,
-    locatario: `Declarar que é locatário do IMÓVEL e apresentar na assinatura cópia do contrato de locação${ivDono ? '; a anuência do proprietário é a assinatura dele neste contrato como INTERVENIENTE ANUENTE' : ' e a anuência escrita e específica do proprietário'}. ${ivDono ? 'Terminada a locação antes do fim deste contrato ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de CEDENTE, nas mesmas condições, desde o dia seguinte ao fim da locação.' : locacaoCurta ? 'A anuência do proprietário prevê que, terminada a locação antes do fim deste contrato ou das suas renovações, ele assume a posição de CEDENTE nas mesmas condições.' : 'Este contrato não ultrapassa o prazo da locação.'} ${anuenciaFalta}`,
+    proprietario: 'Declarar que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante todo o contrato.',
+    locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e entregar na assinatura a anuência escrita do inquilino a esta cessão. ${anuenciaFalta}`,
+    locatario: `Declarar que é inquilino do IMÓVEL e entregar na assinatura cópia do contrato de locação${ivDono ? '; a anuência do proprietário é a assinatura dele neste contrato como INTERVENIENTE ANUENTE' : ' e a autorização escrita e específica do proprietário'}. ${ivDono ? 'Terminada a locação antes do fim deste contrato ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de CEDENTE, nas mesmas condições, desde o dia seguinte ao fim da locação.' : locacaoTxt} ${anuenciaFalta}`,
     representante: 'Declarar que administra ou representa o proprietário do IMÓVEL, com poderes documentados para esta cessão, cuja cópia integra este contrato.',
-    condominio: `Apresentar na assinatura a ata da assembleia que autorizou esta cessão, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
-    branco: 'Declarar a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, mediante anuência escrita do locatário; ( ) locatário, mediante anuência escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, mediante ata de assembleia.',
+    condominio: `Entregar na assinatura a ata da assembleia que autorizou esta cessão, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
+    branco: 'Declarar a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, com anuência escrita do inquilino; ( ) inquilino, com autorização escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia.',
   }[a.relacao] || '';
   return [
-    C('objeto', 'Do objeto e da área cedida', [
+    C('objeto', 'Do objeto', [
       I('objeto.cessao', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
       I('objeto.imovel', (() => { const di = [
           orcVal('ctr-ta-matricula') && `matrícula nº ${e(orcVal('ctr-ta-matricula'))}${orcVal('ctr-ta-cartorio') ? ` do ${e(orcVal('ctr-ta-cartorio'))}` : ''}`,
@@ -23980,137 +24087,123 @@ function ctrModeloArrend(d) {
         ].filter(Boolean); return di.length ? `Dados do IMÓVEL: ${di.join('; ')}.` : ''; })()),
       I('objeto.sociedade', d.socRef ? `Este contrato formaliza, para o pedido de ligação nova junto à distribuidora, a cessão da área prevista no Contrato de Sociedade em Conta de Participação ${e(d.socRef)}, firmado entre as partes. A remuneração do CEDENTE é a prevista naquele contrato, paga como custo da operação da sociedade, e não se soma a ela; havendo divergência entre os dois, prevalece o contrato de sociedade, e este contrato vigora enquanto ela durar.` : ''),
       I('objeto.termo', d.tipo === 'arrend' && d.origemRef ? `Este contrato é celebrado em cumprimento ao Termo de Compromisso e Promessa de Cessão de Área ${e(d.origemRef)}, cujas cláusulas do valor da reserva e de sigilo sobrevivem a ele.` : ''),
-      I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, a base e a proteção do equipamento, o trajeto do cabeamento até o ponto de entrega de energia, o espaço do quadro elétrico e do medidor, a área de manobra e a posição da sinalização, conforme croqui assinado pelas partes, que integra este contrato.`),
-      I('objeto.finalidade', 'A ÁREA não pode ser usada para outra finalidade, nem sublocada ou cedida a terceiro, salvo na hipótese da {{i:sucessao.cessao}}.'),
-      I('objeto.laudo', op('dossie_anexo')
-        ? 'O estado da ÁREA na data da assinatura está registrado no relatório fotográfico do dossiê do local, anexo a este contrato, que é a referência para a devolução da {{c:devolucao}}.'
-        : 'O estado da ÁREA na data da assinatura é registrado em laudo fotográfico assinado pelas partes, que é a referência para a devolução da {{c:devolucao}}.'),
-    ]),
-    C('natureza', 'Da natureza da cessão', [
-      I('natureza.atipica', 'Este contrato é cessão onerosa de uso de área com destinação específica. Não configura sociedade, parceria, consórcio ou qualquer participação do CEDENTE no negócio da CESSIONÁRIA.'),
-      I('natureza.gestao', 'O CEDENTE não administra o PONTO, não define a tarifa, não opera o equipamento e não responde pelo resultado econômico. A CESSIONÁRIA não adquire sobre o IMÓVEL direito algum além do uso da ÁREA, nos limites deste contrato.'),
-      I('natureza.preco', 'O percentual da {{i:remuneracao.pct}} é o preço da cessão, medido por um índice objetivo: o CEDENTE não participa de lucro, não suporta prejuízo e não assume o risco do negócio.'),
+      I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, mais o espaço da base do carregador, do quadro elétrico, do medidor e do trajeto dos cabos, conforme croqui rubricado pelas partes. O estado da ÁREA na assinatura fica registrado ${op('dossie_anexo') ? 'no relatório fotográfico do dossiê do local, anexo a este contrato' : 'em fotos rubricadas pelas partes'}, que são a referência para a devolução da {{c:devolucao}}.`),
+      I('objeto.natureza', `Este contrato não cria sociedade nem parceria. O CEDENTE não participa do negócio, não opera o PONTO, não define o preço da recarga e não responde pelo seu resultado${fixo ? '' : '. O percentual da {{i:remuneracao.pct}} é só o preço da cessão, medido por um índice objetivo: o CEDENTE não participa de lucro nem suporta prejuízo'}.`),
     ]),
     C('prazo', 'Do prazo', [
-      I('prazo.vigencia', `O prazo de vigência é de <b>${a.vigencia} meses</b>, contados da energização do PONTO, assim entendida a data da primeira recarga comercial, renovando-se automaticamente por períodos iguais, salvo aviso escrito de qualquer das partes com <b>${a.aviso} dias</b> de antecedência do término.`),
-      I('prazo.permanencia', `${a.permanencia > 0 ? `Nenhuma das partes pode denunciar este contrato sem motivo antes de <b>${a.permanencia} meses</b> da energização. Depois disso, a` : 'A'} denúncia sem motivo depende de aviso escrito com <b>${a.aviso} dias</b> de antecedência e, sendo do CEDENTE, obriga-o ao ressarcimento da {{i:rescisao.cedente}}.`),
-      I('prazo.implantacao', `Da assinatura à energização corre a fase de implantação, de até <b>${a.implant} dias</b>, em que não é devida remuneração. Vencido esse prazo sem energização, por causa não imputável ao CEDENTE, qualquer das partes pode resolver o contrato sem ônus, retirando a CESSIONÁRIA o que houver instalado e recompondo a ÁREA.`),
-      I('prazo.negativa', 'Negado o acesso pela concessionária, ou recusado por escrito pela CESSIONÁRIA o custo de reforço de rede, o contrato se resolve sem multa de parte a parte.'),
+      I('prazo.vigencia', `O contrato vale pelo prazo mínimo de <b>${a.vigencia} meses</b> de funcionamento do PONTO. O início do funcionamento é a data da primeira recarga cobrada, e o 1º mês é o primeiro mês inteiro do calendário em funcionamento.`),
+      I('prazo.firme', 'Durante esse prazo, nenhuma das partes pode encerrar o contrato sem motivo. Ele só termina antes nos casos da {{c:rescisao}}.'),
+      I('prazo.renovacao', `Ao fim do prazo mínimo, o contrato se renova automaticamente por <b>${a.renovacao} meses</b>, nas mesmas condições, salvo se a CESSIONÁRIA avisar por escrito, com <b>${a.aviso} dias</b> de antecedência, que não quer renovar. Depois dessa renovação, nova prorrogação depende de acordo escrito entre as partes.`),
+      I('prazo.implantacao', `Da assinatura ao início do funcionamento corre a fase de obra, de até <b>${a.implant} dias</b>, sem pagamento ao CEDENTE. Qualquer das partes pode encerrar o contrato sem multa se esse prazo passar sem funcionamento por causa que não seja do CEDENTE, se a concessionária negar a ligação ou se a CESSIONÁRIA recusar por escrito o custo de reforço de rede. Nesses casos, a CESSIONÁRIA retira o que tiver instalado e recompõe a ÁREA.`),
     ]),
-    C('remuneracao', 'Da remuneração do CEDENTE', [
-      I('remuneracao.pct', `Pela cessão, a CESSIONÁRIA pagará ao CEDENTE <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>, apurado mensalmente.`, { travado: true }),
-      I('remuneracao.base', 'Faturamento bruto é a soma de tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia entregue, taxa de ativação por sessão, tempo de permanência e qualquer outra receita do PONTO. Recargas gratuitas, com desconto, de cortesia ou de campanha entram na base pelo preço de tabela vigente na data da sessão.'),
-      I('remuneracao.deducoes', 'Do faturamento bruto não se deduzem, para este fim, energia, meio de pagamento, plataforma, conectividade, tributos, manutenção, seguro ou depreciação.'),
-      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de operação, a remuneração mensal não será inferior a <b>${money(a.piso)}</b> (${e(recExtenso(a.piso))}), valor reajustado a cada 12 (doze) meses da energização pela variação acumulada do IPCA/IBGE. O percentual não se reajusta, por já acompanhar o preço da recarga.` : '', { travado: true }),
+    fixo ? C('remuneracao', 'Do valor mensal', [
+      I('remuneracao.fixo', `Pela cessão, a CESSIONÁRIA paga ao CEDENTE o valor mensal fixo de <b>${a.fixo > 0 ? extenso(a.fixo) : lacuna}</b> ${fixoTodo ? 'durante todo o prazo mínimo' : `nos primeiros <b>${a.fixoMeses == null ? lacuna : a.fixoMeses + ' meses'}</b> de funcionamento`}.`, { travado: true }),
+      // Vazio é lacuna; 0 é "sem reajuste"; meses fixos no prazo todo não têm
+      // degrau antes da renovação. A tabela só sai quando tem degrau (ctrArrTemTabela).
+      I('remuneracao.reajuste', a.reajuste === 0
+        ? 'O valor não tem reajuste, nem no prazo mínimo nem na renovação, salvo aditivo escrito.'
+        : `${fixoTodo ? 'Havendo renovação, o valor' : 'Depois desse período, o valor'} é reajustado em <b>${a.reajuste == null ? lacuna : pct(a.reajuste) + '%'}</b> a cada 12 (doze) meses, sempre sobre o valor em vigor${ctrArrTemTabela(a) ? ', conforme a tabela a seguir. Havendo renovação, o reajuste continua a cada 12 (doze) meses' : fixoTodo ? '' : '. Havendo renovação, o reajuste continua a cada 12 (doze) meses'}.`, { travado: true, bloco: 'faixas' }),
+      I('remuneracao.devido', 'O valor é devido com ou sem movimento no PONTO, ressalvada a {{i:operacao.fechamento}}. Os dias de funcionamento do mês de início, antes do 1º mês, são pagos em proporção ao valor mensal.'),
       I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
-      // Só na minuta anexada ao termo do arrendador (ctrAnexos põe o valor).
-      I('remuneracao.reserva', (d.premioReserva || (d.tipo === 'arrend' ? ctrMoeda(ctrCampo('ctr-arr-premio')) : 0)) > 0 ? `O valor de <b>${money(premioR)}</b> (${e(recExtenso(premioR))}) pago ao CEDENTE na reserva do local é abatido da primeira remuneração devida e das seguintes, até se esgotar.` : ''),
-      I('remuneracao.mora', `O atraso sujeita a CESSIONÁRIA a multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
-      I('remuneracao.tributos', 'Cada parte responde pelos tributos incidentes sobre o que recebe, e o CEDENTE emite o documento fiscal ou o recibo compatível com a sua natureza jurídica.'),
+      // Só na minuta anexada ao termo do arrendador (ctrAnexos põe o valor) e no contrato que veio dele.
+      I('remuneracao.reserva', premioR > 0 ? `O valor de <b>${extenso(premioR)}</b> pago ao CEDENTE na reserva do local é abatido do primeiro valor mensal devido e dos seguintes, até se esgotar.` : ''),
+      I('remuneracao.mora', `O atraso gera multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
+    ]) : C('remuneracao', 'Da remuneração do CEDENTE', [
+      I('remuneracao.pct', `Pela cessão, a CESSIONÁRIA paga ao CEDENTE <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>, apurado a cada mês.`, { travado: true }),
+      I('remuneracao.base', 'Faturamento bruto é tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia entregue, taxa de ativação, tempo de permanência e qualquer outra receita do PONTO. Recarga gratuita, com desconto, de cortesia ou de campanha entra na base pelo preço de tabela do dia. Dele não se deduz energia, meio de pagamento, plataforma, internet, tributo, manutenção, seguro nem depreciação.'),
+      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de funcionamento, a remuneração do mês não é inferior a <b>${extenso(a.piso)}</b>, valor reajustado a cada 12 (doze) meses pelo IPCA. O percentual não se reajusta, porque já acompanha o preço da recarga.` : '', { travado: true }),
+      I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
+      I('remuneracao.reserva', premioR > 0 ? `O valor de <b>${extenso(premioR)}</b> pago ao CEDENTE na reserva do local é abatido da primeira remuneração devida e das seguintes, até se esgotar.` : ''),
+      I('remuneracao.mora', `O atraso gera multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
     ]),
-    C('contas', 'Da medição e da prestação de contas', [
-      I('contas.fonte', 'A base de apuração é o registro da plataforma de gestão e cobrança do PONTO (protocolo OCPP): sessões, energia entregue e valores cobrados.'),
-      I('contas.demonstrativo', 'Até o vencimento, a CESSIONÁRIA entrega ao CEDENTE demonstrativo mensal com o número de sessões, a energia entregue, o faturamento bruto discriminado, as recargas gratuitas ou promocionais, o percentual aplicado e o valor devido, acompanhado do extrato da plataforma.'),
-      I('contas.painel', 'O CEDENTE tem acesso de leitura à plataforma de gestão do PONTO, por login próprio, durante toda a vigência e até o demonstrativo do último mês apurado, onde acompanha as sessões, a energia entregue, o faturamento e a remuneração de cada mês, restrito a esses dados, sem dados pessoais de usuários nem de sócios ou investidores do PONTO.'),
-      I('contas.painelValor', 'A remuneração mostrada na plataforma é estimativa: o valor devido é o do demonstrativo da {{i:contas.demonstrativo}}, contestável na forma da {{i:contas.contestacao}}, mantida a base de apuração da {{i:contas.fonte}}. A falta do acesso por falha técnica, manutenção ou troca de plataforma não suspende esse demonstrativo e, enquanto ele for entregue, não é descumprimento deste contrato, aplicando-se à falta de registro a {{i:contas.falha}}.'),
+    // Só no percentual: quem mede a base é quem paga, e estas são as garantias do cedente.
+    fixo ? null : C('contas', 'Da medição e da prestação de contas', [
+      I('contas.demonstrativo', 'A base de apuração é o registro da plataforma de gestão e cobrança do PONTO (protocolo OCPP). Até o vencimento, a CESSIONÁRIA entrega ao CEDENTE o demonstrativo do mês, com o número de sessões, a energia entregue, o faturamento bruto discriminado, as recargas gratuitas ou promocionais, o percentual e o valor devido, acompanhado do extrato da plataforma.'),
+      I('contas.painel', 'O CEDENTE tem acesso de leitura à plataforma, por login próprio, durante todo o contrato e até o demonstrativo do último mês, restrito aos dados do PONTO e sem dado pessoal de usuário, sócio ou investidor. O que a plataforma mostra é estimativa: o valor devido é o do demonstrativo. Falha técnica, manutenção ou troca de plataforma não suspende o demonstrativo e, enquanto ele for entregue, não é descumprimento.'),
       I('contas.contestacao', 'O CEDENTE pode contestar o demonstrativo por escrito em 30 (trinta) dias do recebimento, e a CESSIONÁRIA responde em 10 (dez) dias úteis com o extrato bruto da plataforma.'),
-      I('opc.arr_auditoria', op('arr_auditoria') ? 'O CEDENTE pode, uma vez por ano, auditar a apuração por profissional habilitado que assine termo de confidencialidade, às suas expensas. Apurada diferença superior a 5% (cinco por cento) do valor devido a ele no período auditado, em seu desfavor, o custo da auditoria passa à CESSIONÁRIA, que paga a diferença com os acréscimos da {{i:remuneracao.mora}}.' : ''),
-      I('contas.falha', `Faltando registro auditável por troca de plataforma ou por falha de telemetria superior a 15 (quinze) dias, a CESSIONÁRIA paga, pelos dias sem registro, a média diária dos meses apurados, até os três últimos${a.piso > 0 ? ', ou o piso proporcional, se maior' : ''}, acertando-se a diferença quando o registro voltar.`),
-      I('contas.conflito', 'As partes reconhecem que a CESSIONÁRIA opera a plataforma que mede a base da remuneração, razão pela qual os direitos desta cláusula não podem ser afastados por acordo verbal.'),
+      I('opc.arr_auditoria', op('arr_auditoria') ? 'Uma vez por ano, o CEDENTE pode auditar a apuração por profissional habilitado que assine termo de confidencialidade, por sua conta. Apurada diferença maior que 5% (cinco por cento) do que lhe era devido no período, contra ele, o custo da auditoria passa à CESSIONÁRIA, que paga a diferença com os acréscimos da {{i:remuneracao.mora}}.' : ''),
+      I('contas.falha', `Faltando registro por troca de plataforma ou por falha de telemetria por mais de 15 (quinze) dias, a CESSIONÁRIA paga, pelos dias sem registro, a média diária dos meses apurados, até os três últimos${a.piso > 0 ? ', ou o piso proporcional, se maior' : ''}, e acerta a diferença quando o registro voltar.`),
+      I('contas.conflito', 'Como a CESSIONÁRIA opera a plataforma que mede a base da remuneração, os direitos desta cláusula não se afastam por acordo verbal.'),
     ]),
-    op('arr_exclusiv') ? C('exclusividade', 'Da exclusividade', [
-      I('opc.arr_exclusiv', 'Durante a vigência, o CEDENTE não instala, não autoriza e não cede área a terceiro, no IMÓVEL, para estação de recarga de veículos elétricos aberta ao público.'),
-      I('opc.arr_privativo', op('arr_privativo') ? 'A exclusividade não impede o CEDENTE de manter tomada ou carregador de uso privativo, sem cobrança e sem abertura ao público, para veículos próprios ou da sua frota.' : ''),
-      I('exclusividade.cessionaria', 'A exclusividade não é recíproca: a CESSIONÁRIA pode implantar e operar outros pontos, inclusive próximos.'),
-    ]) : null,
-    C('energia', 'Da energia elétrica', [
+    C('energia', 'Da energia e das despesas', [
       I('energia.config', {
-        uc: 'O PONTO é atendido por unidade consumidora própria, em nome da CESSIONÁRIA, com ramal, padrão de entrada e medição separados, sendo dela a titularidade e o pagamento integral da conta.',
-        sub: 'O PONTO é atendido pela unidade consumidora do CEDENTE, com medidor aferido instalado e mantido pela CESSIONÁRIA, que reembolsa mensalmente o consumo medido pela tarifa efetiva da fatura do período, incluídos bandeira, tributos e encargos, mediante cópia da fatura.',
-        refatura: 'O CEDENTE paga a fatura da unidade consumidora e refatura à CESSIONÁRIA o consumo do PONTO, apurado por medidor próprio, pela tarifa efetiva do período, mediante cópia da fatura.',
+        uc: 'O PONTO tem ligação de energia própria, com padrão de entrada e medidor separados, em nome da CESSIONÁRIA, que paga integralmente a conta.',
+        sub: 'O PONTO é atendido pela unidade consumidora do CEDENTE, com medidor aferido instalado e mantido pela CESSIONÁRIA, que reembolsa a cada mês o consumo medido pela tarifa efetiva da fatura do período, incluídos bandeira, tributos e encargos, mediante cópia da fatura.',
+        refatura: 'O CEDENTE paga a fatura da unidade consumidora e cobra da CESSIONÁRIA o consumo do PONTO, apurado por medidor próprio, pela tarifa efetiva do período, mediante cópia da fatura.',
       }[a.energia] || ''),
-      I('energia.custo', 'A energia consumida nas recargas é integralmente da CESSIONÁRIA.'),
-      I('energia.rede', 'Reforço de rede, extensão, transformador, aumento de carga e participação financeira exigidos pela concessionária correm por conta exclusiva da CESSIONÁRIA. O CEDENTE assina os documentos que dependam da titularidade da unidade consumidora e outorga procuração específica para o trâmite, sem que isso lhe transfira custo.'),
-      I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza o acréscimo comprovado da fatura que decorra exclusivamente dessa mudança, sem o consumo já reembolsado na {{i:energia.config}}.' : ''),
+      I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza o acréscimo comprovado da fatura que decorra só dessa mudança, sem o consumo já reembolsado na {{i:energia.config}}.' : ''),
+      I('energia.despesas', 'Correm por conta da CESSIONÁRIA a obra, os equipamentos, o reforço de rede ou o transformador exigido pela concessionária, a internet, a plataforma, o meio de pagamento, a manutenção, o seguro e os tributos da operação. O CEDENTE não paga nenhuma despesa do PONTO.'),
+      I('energia.rede', 'O CEDENTE assina os documentos que a concessionária exigir do responsável pelo local e dá procuração específica para esse trâmite, sem que isso lhe gere custo.'),
     ]),
-    C('obras', 'Das obras e dos equipamentos', [
-      I('obras.execucao', 'As obras de implantação são executadas por conta e risco da CESSIONÁRIA, por empresa habilitada, com ART de engenheiro responsável e observadas a ABNT NBR 17019, a NR-10 e as normas da concessionária. O projeto e o cronograma são apresentados previamente ao CEDENTE, que só pode recusá-los por motivo técnico ou de segurança justificado.'),
-      I('obras.danos', 'Danos causados ao IMÓVEL pela obra ou pela operação são reparados pela CESSIONÁRIA, às suas expensas.'),
-      I('obras.benfeitorias', 'As obras são feitas no interesse da CESSIONÁRIA e não geram, durante a vigência, direito de indenização nem de retenção a nenhuma das partes.'),
-      I('obras.propriedade', 'O carregador, os cabos, o medidor, o quadro, as proteções, o totem e os demais equipamentos são bens móveis de propriedade da CESSIONÁRIA, instalados por destinação temporária e removíveis, e em nenhuma hipótese aderem ao IMÓVEL ou passam ao patrimônio do CEDENTE.'),
-      I('obras.retencao', 'O CEDENTE não adquire posse, retenção ou garantia sobre os equipamentos, nem por inadimplemento da remuneração, cujo remédio é a cobrança e a rescisão, nunca a retenção ou o desligamento do PONTO.'),
-      I('obras.constricao', 'Havendo penhora, hipoteca, execução ou desapropriação que alcance o IMÓVEL, o CEDENTE comunica o fato à CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para demonstrar que os equipamentos são de terceiro.'),
-      I('opc.arr_registro', op('arr_registro') ? 'As partes registrarão este contrato no Cartório de Registro de Títulos e Documentos e o averbarão na matrícula do IMÓVEL, às expensas da CESSIONÁRIA, para que produza efeito perante terceiros.' : ''),
-      I('obras.ampliacao', 'Ampliação do PONTO, com novo carregador, novo ponto de carregamento ou aumento de potência, depende de aditivo escrito.'),
+    C('obras', 'Da obra e dos equipamentos', [
+      I('obras.execucao', 'A obra é feita pela CESSIONÁRIA, por empresa habilitada, com ART de engenheiro responsável e conforme a ABNT NBR 17019, a NR-10 e as normas da concessionária. O projeto e o cronograma são apresentados antes ao CEDENTE, que só pode recusá-los por motivo técnico ou de segurança justificado.'),
+      I('obras.danos', 'Dano causado ao IMÓVEL pela obra ou pela operação é reparado pela CESSIONÁRIA, por sua conta.'),
+      I('obras.propriedade', 'O carregador, os cabos, o quadro, o medidor, as proteções, o totem e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL. As obras não dão a nenhuma das partes direito de indenização nem de retenção durante o contrato. O CEDENTE não pode reter os equipamentos nem desligar ou bloquear o PONTO, nem mesmo por atraso no pagamento, que se resolve por cobrança ou encerramento.'),
+      I('obras.constricao', 'Se o IMÓVEL sofrer penhora, execução ou desapropriação, o CEDENTE avisa a CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para provar que os equipamentos são de terceiro.'),
+      I('opc.arr_registro', op('arr_registro') ? 'As partes registram este contrato no Cartório de Registro de Títulos e Documentos e o averbam na matrícula do IMÓVEL, por conta da CESSIONÁRIA, para que valha perante terceiros.' : ''),
     ]),
-    C('operacao', 'Do acesso e da operação', [
+    C('operacao', 'Do funcionamento', [
       I('operacao.horario', {
         '24h': 'O PONTO funciona 24 (vinte e quatro) horas, todos os dias.',
-        estab: 'O PONTO funciona no horário de funcionamento do estabelecimento do CEDENTE, que comunicará por escrito qualquer mudança.',
+        estab: 'O PONTO funciona no horário do estabelecimento do CEDENTE, que avisa por escrito qualquer mudança.',
         outro: `O PONTO funciona ${a.horarioTxt ? e(a.horarioTxt) : lacuna}.`,
       }[a.horario] || ''),
-      I('operacao.acesso', 'O CEDENTE assegura o acesso livre dos usuários à ÁREA no horário de funcionamento, sem cobrança de entrada, sem exigência de consumo e sem obstrução, e o acesso da CESSIONÁRIA para manutenção em horário combinado e, em emergência, a qualquer hora.'),
-      I('operacao.tarifa', 'O preço da recarga ao usuário é definido livre e exclusivamente pela CESSIONÁRIA, como admite a regulação da ANEEL para a atividade de recarga. O CEDENTE não fixa, não veta e não sugere tarifa.'),
-      I('operacao.cedente', 'O CEDENTE não opera o PONTO e não intervém no equipamento, na plataforma ou na configuração, salvo o acionamento do botão de emergência em situação de risco.'),
-      I('operacao.fechamento', `Fechado o estabelecimento de modo a impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${a.piso > 0 ? 'suspende-se o piso da {{i:remuneracao.piso}} e ' : ''}prorrogam-se os prazos da {{i:prazo.vigencia}} e da {{i:prazo.permanencia}} pelo mesmo período; passados 60 (sessenta) dias do fechamento, a CESSIONÁRIA pode resolver o contrato sem multa, correndo por conta do CEDENTE a retirada e a recomposição da {{c:devolucao}}, salvo caso fortuito ou força maior.`),
+      I('operacao.acesso', 'O CEDENTE garante aos usuários acesso livre às vagas nesse horário, sem cobrança de entrada, sem exigência de consumo e sem obstrução, e garante à CESSIONÁRIA acesso para manutenção em horário combinado e, em emergência, a qualquer hora.'),
+      I('operacao.tarifa', 'O preço da recarga é definido só pela CESSIONÁRIA. O CEDENTE não mexe no equipamento, na plataforma nem na configuração, salvo para acionar o botão de emergência em situação de risco, e a CESSIONÁRIA orienta a equipe dele sobre esse desligamento.'),
+      I('opc.arr_exclusiv', op('arr_exclusiv') ? `Durante o contrato, o CEDENTE não instala nem autoriza outra estação de recarga aberta ao público no IMÓVEL.${op('arr_privativo') ? ' Pode manter carregador de uso privado, sem cobrança, para veículos próprios ou da sua frota.' : ''} A CESSIONÁRIA pode abrir outros pontos onde quiser.` : ''),
+      I('operacao.fechamento', `Se o estabelecimento fechar e impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${fixo ? 'o valor mensal fica suspenso e ' : a.piso > 0 ? 'o piso da {{i:remuneracao.piso}} fica suspenso e ' : ''}os prazos da {{c:prazo}} se prorrogam pelo mesmo período. Passados 60 (sessenta) dias de fechamento, a CESSIONÁRIA pode encerrar o contrato sem multa, e a retirada e a recomposição da ÁREA correm por conta do CEDENTE, salvo caso fortuito ou força maior.`),
     ]),
     C('cedente', 'Das obrigações do CEDENTE', [
       I('cedente.legitimidade', legitimidade),
-      I('cedente.manter', 'Manter a ÁREA livre, desembaraçada e utilizável, e o IMÓVEL em condições regulares de estrutura, pavimento, drenagem e iluminação, comunicando antes obra ou reforma que afete a ÁREA.'),
-      I('cedente.aviso', 'Comunicar por escrito, com 30 (trinta) dias de antecedência, a intenção de vender, dar em garantia, alugar ou desocupar o IMÓVEL.'),
-      I('cedente.ocorrencia', 'Comunicar de imediato avaria, vandalismo, furto ou acidente de que souber, sem que isso lhe atribua dever de vigilância.'),
-      I('cedente.naobloquear', 'Não obstruir, não desligar e não bloquear o PONTO, ainda que haja valor em aberto.'),
+      I('cedente.manter', 'Manter a ÁREA livre e utilizável, e o IMÓVEL em condições regulares de pavimento, drenagem e iluminação, avisando antes qualquer obra que afete a ÁREA.'),
+      I('cedente.aviso', 'Avisar por escrito, com 30 (trinta) dias de antecedência, a intenção de vender, alugar, dar em garantia ou desocupar o IMÓVEL.'),
+      I('cedente.ocorrencia', 'Avisar logo de avaria, vandalismo, furto ou acidente de que souber, sem que isso o torne responsável pela vigilância.'),
     ]),
     C('cessionaria', 'Das obrigações da CESSIONÁRIA', [
-      I('cessionaria.operar', 'Implantar e operar o PONTO na forma da lei, das normas técnicas e das exigências da concessionária, com responsabilidade técnica.'),
-      I('cessionaria.custos', 'Arcar com energia, conectividade, plataforma, meio de pagamento, manutenção, seguro e tributos da exploração.'),
-      I('cessionaria.conservar', 'Manter o equipamento em bom estado, limpo, sinalizado e seguro, retirando de operação o que oferecer risco.'),
-      I('cessionaria.usuario', 'Responder perante o usuário como fornecedora do serviço de recarga e manter o CEDENTE indene de reclamação de usuário, de órgão de defesa do consumidor, do fisco ou de terceiro relacionada ao PONTO.'),
-      I('cessionaria.seguro', 'Manter seguro do equipamento contra incêndio, dano elétrico, vandalismo e furto, e seguro de responsabilidade civil por danos a terceiros e ao IMÓVEL, apresentando as apólices ao CEDENTE quando pedidas.'),
-      I('cessionaria.emergencia', 'Orientar a equipe do CEDENTE sobre o desligamento de emergência do PONTO.'),
+      I('cessionaria.operar', 'Implantar e operar o PONTO conforme a lei, as normas técnicas e as exigências da concessionária, com responsável técnico.'),
+      I('cessionaria.conservar', 'Manter o equipamento em bom estado, limpo, sinalizado e seguro, desligando o que oferecer risco.'),
+      I('cessionaria.seguro', 'Manter seguro do equipamento contra incêndio, dano elétrico, vandalismo e furto, e seguro de responsabilidade civil por danos a terceiros e ao IMÓVEL, mostrando as apólices quando o CEDENTE pedir.'),
+      I('cessionaria.usuario', 'Responder perante os usuários como fornecedora do serviço de recarga e manter o CEDENTE livre de reclamação de usuário, de órgão de defesa do consumidor, do fisco ou de terceiro ligada ao PONTO.'),
+      I('cessionaria.marca', 'Instalar sinalização e totem com tamanho e posição aprovados pelo CEDENTE, obtendo a licença municipal quando exigida. O CEDENTE autoriza a divulgação do nome, do endereço, do horário e de fotos do local nos aplicativos e mapas de recarga.'),
+      I('opc.arr_publicidade', op('arr_publicidade') ? 'O CEDENTE autoriza também o uso do nome, da imagem e do endereço do estabelecimento pela CESSIONÁRIA em material institucional e publicitário.' : ''),
     ]),
     C('responsabilidade', 'Da responsabilidade', [
-      I('resp.divisao', 'A CESSIONÁRIA responde pelos danos da instalação e da operação do PONTO; o CEDENTE, pelos danos decorrentes do estado e da conservação do IMÓVEL.'),
-      I('resp.guarda', 'O CEDENTE não é depositário do equipamento e não responde por furto, vandalismo ou dano causado por terceiro, salvo culpa comprovada.'),
-      I('resp.indiretos', 'Nenhuma das partes responde por lucros cessantes ou danos indiretos da outra, e a interrupção do fornecimento de energia pela concessionária não gera responsabilidade a nenhuma delas.'),
-      I('resp.projecoes', 'Estudos, simulações e projeções apresentados na negociação não constituem garantia de faturamento, de ocupação ou de remuneração ao CEDENTE.'),
+      I('resp.divisao', 'A CESSIONÁRIA responde pelos danos da instalação e da operação do PONTO, e o CEDENTE, pelos danos do estado e da conservação do IMÓVEL.'),
+      I('resp.guarda', 'O CEDENTE não é depositário dos equipamentos e não responde por furto, vandalismo ou dano causado por terceiro, salvo culpa comprovada.'),
+      I('resp.indiretos', 'Nenhuma das partes responde por lucro cessante da outra, e a falta de energia da concessionária não gera responsabilidade a nenhuma delas.'),
+      I('resp.projecoes', fixo ? '' : 'Estudos, simulações e projeções apresentados na negociação não são garantia de faturamento, de movimento ou de remuneração ao CEDENTE.'),
     ]),
-    C('marca', 'Da sinalização e da divulgação', [
-      I('marca.sinalizacao', 'A CESSIONÁRIA pode instalar, às suas expensas, sinalização, totem e comunicação visual do PONTO, aprovados pelo CEDENTE quanto à dimensão e à posição, cabendo a ela a licença municipal, quando exigida.'),
-      I('marca.mapas', 'O CEDENTE autoriza a publicação do nome, do endereço, do horário e de fotos do local nos aplicativos e mapas de recarga, condição para o PONTO ser encontrado.'),
-      I('opc.arr_publicidade', op('arr_publicidade') ? 'O CEDENTE autoriza o uso do nome, da imagem e do endereço do estabelecimento pela CESSIONÁRIA em material institucional e publicitário.' : ''),
-    ]),
-    C('sucessao', 'Da venda do imóvel e da cessão do contrato', [
-      I('sucessao.vendaIv', ivDono ? 'Vendendo o IMÓVEL, o INTERVENIENTE ANUENTE faz constar a existência deste contrato no instrumento de venda e faz o adquirente assumir, no mesmo instrumento, o dever de respeitá-lo até o fim da vigência e das suas renovações. Não o fazendo, responde perante a CESSIONÁRIA pelas perdas e danos.' : ''),
-      I('sucessao.venda', (ivDono ? 'Vendendo ou trespassando o estabelecimento' : 'Vendendo o IMÓVEL ou o estabelecimento') + ', o CEDENTE dá ciência prévia e escrita deste contrato ao adquirente, oferece-lhe a sub-rogação nas mesmas condições e faz constar do instrumento de venda a existência deste contrato. Recusada a sub-rogação, o contrato se resolve por culpa do CEDENTE.'),
-      I('sucessao.cessao', 'A CESSIONÁRIA pode ceder este contrato, mediante comunicação ao CEDENTE, a empresa do seu grupo ou a quem adquirir o PONTO, permanecendo solidária pelas obrigações anteriores à cessão. A exploração do PONTO em sociedade em conta de participação de que a CESSIONÁRIA seja sócia ostensiva não constitui cessão, e ela permanece a única parte perante o CEDENTE.'),
+    C('sucessao', 'Da venda do imóvel e da transferência do contrato', [
+      I('sucessao.vendaIv', ivDono ? 'Se vender o IMÓVEL, o INTERVENIENTE ANUENTE faz constar este contrato no documento de venda e faz o comprador assumir, no mesmo documento, o dever de respeitá-lo até o fim do prazo e das renovações. Não o fazendo, responde perante a CESSIONÁRIA pelas perdas e danos.' : ''),
+      I('sucessao.venda', `Se vender ${ivDono ? 'o estabelecimento' : 'o IMÓVEL ou o estabelecimento'}, o CEDENTE informa este contrato ao comprador por escrito, faz constar dele no documento de venda e oferece ao comprador assumi-lo nas mesmas condições. Se o comprador não assumir, o contrato se encerra por culpa do CEDENTE.`),
+      I('sucessao.cessao', 'A CESSIONÁRIA pode transferir este contrato, avisando o CEDENTE, a empresa do seu grupo ou a quem comprar o PONTO, e continua solidária pelas obrigações anteriores à transferência. Explorar o PONTO em sociedade em conta de participação em que seja sócia ostensiva não é transferência, e ela continua a única parte perante o CEDENTE.'),
+      I('sucessao.finalidade', 'Fora da {{i:sucessao.cessao}}, a ÁREA não pode ser usada para outro fim nem cedida a terceiro.'),
       I('sucessao.herdeiros', 'Este contrato obriga herdeiros e sucessores das partes.'),
     ]),
-    C('rescisao', 'Da rescisão', [
-      I('rescisao.hipoteses', `O contrato extingue-se pelo fim do prazo sem renovação, por distrato, por desapropriação, sinistro ou interdição do IMÓVEL e nas hipóteses da {{i:prazo.implantacao}}, da {{i:prazo.negativa}} e da {{i:operacao.fechamento}}, e pode ser resolvido pela parte prejudicada por descumprimento não sanado em ${a.corrigir} dias da notificação ou, pelo CEDENTE, por atraso da remuneração superior a 60 (sessenta) dias.`),
-      I('rescisao.multa', a.multaSaida > 0 ? `A parte que der causa à rescisão${a.permanencia > 0 ? ', ou denunciar o contrato antes do prazo da {{i:prazo.permanencia}},' : ''} paga à outra multa equivalente a <b>${a.multaSaida} meses</b> da remuneração média dos meses apurados, até os 12 (doze) últimos${a.piso > 0 ? ', ou do piso da {{i:remuneracao.piso}}, se maior' : ''}${a.multaMin > 0 ? `, e nunca inferior a <b>${money(a.multaMin)}</b>` : ''}, reduzida proporcionalmente aos meses já cumpridos do período de vigência em curso.` : ''),
-      I('rescisao.cedente', 'Rescindido o contrato por culpa do CEDENTE, ou denunciado por ele sem motivo, ele ressarce o custo comprovado e não amortizado das obras, apurado linearmente pelo prazo de vigência, e o custo de retirada do equipamento.'),
-      I('rescisao.semculpa', 'Na rescisão sem culpa, faz-se o acerto pelo período decorrido, sem multa e sem indenização de parte a parte.'),
-      I('rescisao.retencao', 'Em nenhuma hipótese a rescisão autoriza a retenção, a apreensão ou o desligamento do equipamento.'),
+    C('rescisao', 'Do encerramento', [
+      I('rescisao.hipoteses', 'O contrato termina no fim do prazo sem renovação, por acordo entre as partes, por desapropriação, sinistro ou interdição do IMÓVEL e nos casos da {{i:prazo.implantacao}} e da {{i:operacao.fechamento}}.'),
+      I('rescisao.descumprimento', `A parte prejudicada pode encerrar o contrato se a outra descumprir uma cláusula e não corrigir em <b>${a.corrigir} dias</b> da notificação. O CEDENTE pode encerrá-lo também por atraso do pagamento superior a 60 (sessenta) dias.`),
+      I('rescisao.multa', a.multaSaida > 0 ? `Quem der causa ao encerramento, inclusive encerrando o contrato sem motivo durante o prazo, paga à outra parte multa de <b>${a.multaSaida} ${fixo ? 'valores mensais em vigor' : 'meses da remuneração média dos meses apurados, até os 12 (doze) últimos'}</b>${!fixo && a.piso > 0 ? ', ou do piso da {{i:remuneracao.piso}}, se maior' : ''}${a.multaMin > 0 ? `, e nunca inferior a <b>${money(a.multaMin)}</b>` : ''}, reduzida na proporção dos meses já cumpridos do prazo em curso.` : ''),
+      I('rescisao.cedente', 'Se o contrato terminar por culpa do CEDENTE, ou se ele o encerrar sem motivo, ele ressarce também o custo comprovado da obra ainda não amortizado, calculado de forma linear pelo prazo mínimo da {{i:prazo.vigencia}}, e o custo de retirada do equipamento.'),
+      I('rescisao.semculpa', 'Nos encerramentos sem culpa, acerta-se o valor do período decorrido, sem multa nem indenização. Em nenhum caso o encerramento autoriza reter, apreender ou desligar o equipamento.'),
     ]),
     C('devolucao', 'Da devolução da área', [
-      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira, em até <b>${a.retirada} dias</b> e às suas expensas, o carregador, os cabos, o medidor, o quadro, as proteções, o totem, a sinalização e os demais componentes removíveis.`),
+      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira em até <b>${a.retirada} dias</b>, por sua conta, o carregador, os cabos, o quadro, o medidor, o totem, a sinalização e os demais componentes removíveis, e recompõe o pavimento, a pintura e a sinalização das vagas, devolvendo a ÁREA no estado das fotos da {{i:objeto.area}}, ressalvado o desgaste natural.`),
       I('devolucao.base', a.base === 'sai'
-        ? 'A base de concreto e a ancoragem também são removidas pela CESSIONÁRIA, com recomposição do piso; eletrodutos enterrados, caixas de passagem e aterramento permanecem no IMÓVEL, sem indenização.'
-        : 'Permanecem no IMÓVEL, sem indenização, a base de concreto, a ancoragem, os eletrodutos enterrados, as caixas de passagem e o aterramento.'),
-      I('devolucao.estado', 'A CESSIONÁRIA recompõe o pavimento, a pintura e a sinalização da vaga, entregando a ÁREA no estado do laudo da {{i:objeto.laudo}}, ressalvados o desgaste natural e o que permanece no IMÓVEL na forma da {{i:devolucao.base}}, em termo de devolução assinado pelas partes. Não havendo termo nem apontamento escrito do CEDENTE em 10 (dez) dias da retirada, presume-se a ÁREA recebida em ordem.'),
-      I('devolucao.abandono', 'Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo às expensas dela, sem adquirir propriedade e sem direito de venda ou retenção.'),
+        ? 'A base de concreto e a ancoragem também são removidas pela CESSIONÁRIA, com recomposição do piso. Ficam no IMÓVEL, sem indenização, os eletrodutos enterrados, as caixas de passagem e o aterramento.'
+        : 'Ficam no IMÓVEL, sem indenização, a base de concreto, a ancoragem, os eletrodutos enterrados, as caixas de passagem e o aterramento.'),
+      I('devolucao.estado', 'Sem apontamento escrito do CEDENTE em 10 (dez) dias da retirada, a ÁREA se considera recebida em ordem.'),
+      I('devolucao.abandono', 'Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo por conta dela, sem adquirir a propriedade nem o direito de vendê-lo.'),
     ]),
-    C('gerais', 'Das disposições gerais', [
-      I('gerais.aditivo', `Alterações de área, prazo ou remuneração só valem por aditivo escrito assinado pelas partes${premioR > 0 && d.tipo === 'arrend' ? ', ressalvado o abatimento da {{i:remuneracao.reserva}}' : ''}.`),
-      I('gerais.tolerancia', tolerancia),
-      I('gerais.confidencialidade', 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou o exercício dos direitos da {{c:contas}}.'),
-      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
-      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+    C('gerais', 'Disposições gerais e foro', [
+      I('gerais.aditivo', `Mudança de área, de equipamento, de prazo ou de valor só vale por aditivo escrito assinado pelas partes${premioR > 0 && d.tipo === 'arrend' ? ', ressalvado o abatimento da {{i:remuneracao.reserva}}' : ''}.`),
+      I('gerais.avisos', 'Os avisos deste contrato valem quando enviados por escrito, inclusive por e-mail ou WhatsApp, aos contatos indicados no preâmbulo.'),
+      I('gerais.tolerancia', 'Tolerar um descumprimento não significa renunciar ao direito.'),
+      I('gerais.confidencialidade', fixo ? '' : 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou o exercício dos direitos da {{c:contas}}.'),
+      I('opc.lgpd', !fixo && op('lgpd') ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
+      I('opc.eletronica', op('eletronica') ? 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, nos termos do art. 10, § 2º, da Medida Provisória nº 2.200-2/2001.' : ''),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
-    ]),
-    C('foro', 'Do foro', [
-      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`),
+      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para resolver as questões deste contrato, com renúncia a qualquer outro.`),
     ]),
   ].filter(Boolean);
 }
@@ -24129,6 +24222,7 @@ function ctrModeloTermoArr(d) {
   const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
   const a = d.arr, ta = d.ta, N = d.nomes.nossa, D = d.nomes.deles;
   const prom = ta.nivel === 'promessa';
+  const fixo = a.modo === 'fixo';
   const anexoMinuta = prom && op('ta_minuta');
   const anexoDos = op('dossie_anexo');
   const nDos = anexoMinuta ? 'II' : 'I';
@@ -24149,16 +24243,20 @@ function ctrModeloTermoArr(d) {
   const energia = { uc: `ligação própria em nome da ${N}`, sub: `medidor da ${N} na unidade consumidora do ${D}, com reembolso do consumo`, refatura: `conta paga pelo ${D} e reembolsada pela ${N}` }[a.energia] || lacuna;
   const verbo = prom ? 'esta promessa' : 'este termo';
   const leiInq = '(arts. 13 e 23, VI, da Lei nº 8.245/1991)';
-  // A locação cobre a cessão inteira? Só aí o papel pode dizer que não passa
-  // dela. Sem a data, ou com a conta não fechando, o texto pede a assunção.
-  const cabeLocacao = ctrTALocacaoCabe(d) === true;
+  // A locação cobre a cessão inteira (prazo mínimo e renovação)? Só aí o papel
+  // diz que não passa dela. Cobrindo só o prazo mínimo, a renovação fica
+  // condicionada. Sem a data, ou sem cobrir, o texto pede a assunção.
+  const cabeLocacao = ctrTALocacaoCabe(d);
+  const locacaoTxt = cabeLocacao === true ? ', e a cessão e a sua renovação não ultrapassam o prazo da locação'
+    : cabeLocacao === 'vigencia' ? ', e a locação cobre o prazo mínimo da cessão: a renovação automática dela depende da prorrogação da locação ou da autorização escrita do proprietário para esse período'
+    : '. A anuência deve prever que, terminada a locação antes do fim da cessão ou das suas renovações, o proprietário assume a posição de cedente nas mesmas condições';
   const ivAnui = !!iv && ctrIntervAnui(a.relacao, iv.papel);
   const legitimidade = {
     proprietario: `O ${D} declara ser proprietário do IMÓVEL, com a sua posse direta, sem ônus ou restrição que impeça a cessão.`,
     locado: `O ${D} declara ser proprietário do IMÓVEL, alugado a terceiro, que ${ivAnui ? 'assina este termo como INTERVENIENTE ANUENTE e anui à cessão e às obras' : 'dará a sua anuência escrita à cessão e às obras até a assinatura do contrato de cessão, sem a qual ele não será assinado'}.`,
     locatario: `O ${D} declara ser locatário do IMÓVEL${ta.locacaoFim ? `, com locação vigente até ${ctrDataBR(ta.locacaoFim)}` : ''}. ${ivAnui
       ? `O proprietário assina este termo como INTERVENIENTE ANUENTE e autoriza a cessão e as obras ${leiInq}. Terminada a locação antes do fim da cessão ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de cedente no contrato de cessão, nas mesmas condições, desde o dia seguinte ao fim da locação, para que a cessão não se extinga com ela.`
-      : `A cessão e as obras dependem da anuência escrita do proprietário ${leiInq}, sem a qual o contrato de cessão não será assinado${cabeLocacao ? ', e a cessão não ultrapassa o prazo da locação' : '. A anuência deve prever que, terminada a locação antes do fim da cessão ou das suas renovações, o proprietário assume a posição de cedente nas mesmas condições'}.`}`,
+      : `A cessão e as obras dependem da anuência escrita do proprietário ${leiInq}, sem a qual o contrato de cessão não será assinado${locacaoTxt}.`}`,
     representante: `O ${D} declara administrar ou representar o proprietário do IMÓVEL, com poderes para ${verbo}, cuja prova integra o dossiê do local.`,
     condominio: `O ${D} declara que ${prom ? 'esta promessa foi autorizada' : 'este termo foi autorizado'} na forma da convenção do condomínio, cuja ata integra o dossiê do local.`,
     branco: `O ${D} declara a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, com anuência escrita do locatário; ( ) locatário, com anuência escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia.`,
@@ -24174,11 +24272,15 @@ function ctrModeloTermoArr(d) {
         : `A ${N} explorará o PONTO por conta e risco próprios, diretamente ou por sociedade em conta de participação de que seja sócia ostensiva, e arcará com todo o investimento.`),
     ]),
     C('condicoes', prom ? 'Das condições da cessão' : 'Das condições pretendidas', [
-      I('condicoes.remuneracao', `${prom ? 'A cessão será remunerada com' : 'As partes pretendem negociar a cessão nas condições a seguir. Remuneração pretendida:'} <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>${a.piso > 0 ? `, com piso mensal de <b>${money(a.piso)}</b> a partir do ${a.carencia}º mês de operação` : ''}, pago até o dia ${a.dia} do mês seguinte ao da apuração.`, { travado: true }),
-      I('condicoes.prazo', `${prom ? 'O contrato de cessão terá vigência de' : 'Vigência pretendida do contrato de cessão:'} <b>${a.vigencia} meses</b> contados da primeira recarga comercial, renovável por períodos iguais${a.permanencia > 0 ? `, com permanência mínima de ${a.permanencia} meses` : ''} e aviso de ${a.aviso} dias para não renovar.`),
+      // A remuneração e o prazo seguem o modo do cartão Arrendamento, como a minuta anexa.
+      I('condicoes.remuneracao', `${prom ? 'A cessão será remunerada com' : 'As partes pretendem negociar a cessão nas condições a seguir. Remuneração pretendida:'} ${fixo
+        ? `<b>valor mensal fixo de ${a.fixo > 0 ? money(a.fixo) : lacuna}</b>${a.fixoMeses != null && a.fixoMeses >= a.vigencia ? ' durante todo o prazo mínimo' : ` nos primeiros ${a.fixoMeses == null ? lacuna : a.fixoMeses} meses de funcionamento`}, devido com ou sem movimento${a.reajuste === 0 ? ' e sem reajuste' : ` e reajustado em ${a.reajuste == null ? lacuna : pct(a.reajuste) + '%'} a cada 12 (doze) meses seguintes, sobre o valor em vigor`}`
+        : `<b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>${a.piso > 0 ? `, com piso mensal de <b>${money(a.piso)}</b> a partir do ${a.carencia}º mês de operação` : ''}`}, pago até o dia ${a.dia} do mês seguinte.`, { travado: true }),
+      I('condicoes.prazo', `${prom ? 'O contrato de cessão terá prazo mínimo de' : 'Prazo mínimo pretendido do contrato de cessão:'} <b>${a.vigencia} meses</b> de funcionamento do PONTO, contados da primeira recarga cobrada, em que nenhuma das partes o encerra sem motivo, com renovação automática por ${a.renovacao} meses salvo aviso da ${N} com ${a.aviso} dias de antecedência, e fase de obra de até ${a.implant} dias sem pagamento.`),
       I('condicoes.area', `A área compreende <b>${a.vagas} vaga(s)</b> de estacionamento${a.area ? `, num total de ${e(a.area)} m²` : ''}, com o PONTO funcionando ${horario} e atendido por ${energia}.`),
       I('condicoes.vagas', prom ? `A localização das vagas é a do croqui do dossiê do local${anexoDos ? `, no Anexo ${nDos}` : ''}. Faltando o croqui, a ${N} indica as vagas no aviso da {{i:exercicio.aviso}}, e o ${D} só pode recusá-las por motivo técnico ou de segurança justificado.` : ''),
-      I('condicoes.painel', `${prom ? `No contrato de cessão, o ${D} terá` : `Pretende-se que, no contrato de cessão, o ${D} tenha`} acesso de leitura à plataforma de gestão do PONTO, por login próprio, a partir da energização, restrito aos dados do PONTO e sem dados pessoais de usuários, para acompanhar o faturamento e a remuneração de cada mês, além do demonstrativo mensal, que é o que vale para o pagamento.`),
+      // O acesso à plataforma só existe no modo percentual: no valor fixo a minuta não o dá.
+      I('condicoes.painel', fixo ? '' : `${prom ? `No contrato de cessão, o ${D} terá` : `Pretende-se que, no contrato de cessão, o ${D} tenha`} acesso de leitura à plataforma de gestão do PONTO, por login próprio, a partir da energização, restrito aos dados do PONTO e sem dados pessoais de usuários, para acompanhar o faturamento e a remuneração de cada mês, além do demonstrativo mensal, que é o que vale para o pagamento.`),
       I('condicoes.custos', `Estudo, projeto, obra, equipamentos, ligação à rede e operação correm por conta da ${N}. O ${D} não paga por eles e não responde pelo resultado do PONTO, ressalvadas as obrigações e as penalidades deste termo e do contrato de cessão.`),
       I('condicoes.minuta', prom
         ? (anexoMinuta
@@ -24575,8 +24677,8 @@ function ctrCabecalho(d) {
     sub: 'Fornecimento de equipamento, sem instalação',
     rodape: 'Compra e venda de equipamento · Eletroposto', curto: 'Contrato de compra e venda de equipamento' };
   if (d.tipo === 'arrend') return {
-    titulo: 'Contrato de Cessão Onerosa de Área<br>para Estação de Recarga de Veículos Elétricos',
-    sub: 'Remuneração sobre o faturamento do ponto',
+    titulo: 'Contrato de Cessão de Área<br>para Estação de Recarga de Veículos Elétricos',
+    sub: d.arr && d.arr.modo === 'fixo' ? 'Valor mensal fixo' : 'Remuneração sobre o faturamento do ponto',
     rodape: 'Cessão de Área · Eletroposto', curto: 'Contrato de cessão de área' };
   if (ctrEhSoc(d.tipo)) {
     const rot = d.tipo === 'cotas' ? 'Cotas de ' + ctrPctTxt(d.soc.cota) + '%' : 'Sociedade ' + socRotulo(d.soc.cota);
@@ -24636,6 +24738,17 @@ function ctrQuadroEquip(d) {
     </table>`;
 }
 
+// A tabela do valor fixo da cessão de área: uma linha por faixa de meses, com o
+// valor já reajustado. Sem valor, a tabela não sai (a cláusula fica em branco).
+function ctrQuadroFaixas(a) {
+  const fx = ctrArrFaixas(a), money = ORC_MONEY;
+  if (!fx.length) return '';
+  return `<table class="ep-ctr-pag">
+      <thead><tr><th>Período</th><th class="n">Valor mensal</th></tr></thead>
+      <tbody>${fx.map(f => `<tr><td>Do ${f.de}º ao ${f.ate}º mês de funcionamento</td><td class="n">${money(f.valor)}</td></tr>`).join('')}</tbody>
+    </table>`;
+}
+
 // Os blocos de um documento (cabeçalho, partes, cláusulas e, se pedido, o
 // fecho com as assinaturas). Separado do ctrHTML em 08/10/2026 para a minuta do
 // contrato entrar como ANEXO de um termo sem as assinaturas dela.
@@ -24665,6 +24778,7 @@ function ctrBlocosDoc(d, opts) {
     </table>`,
     cotas: d.soc ? ctrQuadroCotas(d) : '',
     itens: d.eqv ? ctrQuadroEquip(d) : '',
+    faixas: d.arr && d.arr.modo === 'fixo' ? ctrQuadroFaixas(d.arr) : '',
   };
   const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
   const { resolver } = ctrNumerar(modelo);
@@ -24720,7 +24834,7 @@ function ctrAnexos(d) {
     // A minuta é o contrato de arrendamento com os MESMOS campos, sem número e
     // sem assinatura. O dossiê aqui é anexo do termo, não da minuta.
     const dm = Object.assign({}, d, { tipo: 'arrend', nomes: ctrNomes('arrend'), num: '', opc: Object.assign({}, d.opc, { dossie_anexo: false }), premioReserva: d.ta.premio });
-    out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de cessão onerosa de área, rubricada pelas partes</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
+    out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de cessão de área, rubricada pelas partes</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
   }
   if (d.tipo === 'termo_inv' && d.soc && d.ti.uso !== 'adesao' && op('ti_minuta')) {
     const dm = Object.assign({}, d, { tipo: d.soc.t, nomes: ctrNomes(d.soc.t), local: d.ti.ponto, num: '', sinal: d.sinal + (d.depReserva || 0) });
@@ -24801,18 +24915,19 @@ const CTR_IA_CAMPOS_TIPO = {
     'objeto.cessao': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
     'objeto.area': 'Arrendamento > Vagas cedidas e Área cedida', 'remuneracao.pct': 'Arrendamento > Percentual do faturamento bruto',
     'remuneracao.piso': 'Arrendamento > Piso mensal e O piso vale a partir do mês de operação', 'remuneracao.vencimento': 'Arrendamento > Dia de pagar o cedente (mês seguinte) e Conta do cedente para receber',
-    'remuneracao.mora': 'Arrendamento > Multa por atraso e Juros de mora', 'prazo.vigencia': 'Arrendamento > Vigência e Aviso para não renovar',
-    'prazo.permanencia': 'Arrendamento > Ninguém sai antes de e Aviso para não renovar', 'prazo.implantacao': 'Arrendamento > Prazo máximo para ligar o ponto',
+    'remuneracao.fixo': 'Arrendamento > Valor mensal fixo e Valor fixo nos primeiros', 'remuneracao.reajuste': 'Arrendamento > Reajuste depois, a cada 12 meses',
+    'remuneracao.mora': 'Arrendamento > Multa por atraso e Juros de mora', 'prazo.vigencia': 'Arrendamento > Prazo mínimo',
+    'prazo.renovacao': 'Arrendamento > Renova sozinho por mais e Aviso da NEXUS para não renovar', 'prazo.implantacao': 'Arrendamento > Fase de obra: ligar o ponto em até',
     'energia.config': 'Arrendamento > Energia do ponto', 'operacao.horario': 'Arrendamento > Horário do ponto',
-    'cedente.legitimidade': 'Arrendamento > O cedente é', 'rescisao.hipoteses': 'Arrendamento > Prazo para corrigir antes de rescindir',
+    'cedente.legitimidade': 'Arrendamento > O cedente é', 'rescisao.descumprimento': 'Arrendamento > Prazo para corrigir antes de rescindir',
     'rescisao.multa': 'Arrendamento > Multa por saída antecipada, em meses de remuneração, e Multa mínima', 'devolucao.retirada': 'Arrendamento > Retirada do equipamento em',
     'devolucao.base': 'Arrendamento > Base de concreto no fim', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
   },
 };
 CTR_IA_CAMPOS_TIPO.termo_arr = {
   'objeto.promessa': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
-  'condicoes.remuneracao': 'Arrendamento > Percentual do faturamento bruto, Piso mensal e Dia de pagar o cedente',
-  'condicoes.prazo': 'Arrendamento > Vigência, Ninguém sai antes de e Aviso para não renovar',
+  'condicoes.remuneracao': 'Arrendamento > Remuneração (percentual e piso, ou valor fixo e reajuste) e Dia de pagar o cedente',
+  'condicoes.prazo': 'Arrendamento > Prazo mínimo, Renova sozinho por mais, Aviso da NEXUS para não renovar e Fase de obra',
   'condicoes.area': 'Arrendamento > Vagas cedidas, Área cedida, Horário do ponto e Energia do ponto',
   'estudo.prazo': 'Termo do Arrendador > Prazo para a NEXUS estudar o ponto',
   'estudo.protocolo': 'Termo do Arrendador > NEXUS pede o acesso à distribuidora em até',
@@ -25070,7 +25185,11 @@ async function ctrImprimir() {
       !confirm(`O percentual deste arrendamento (${ctrPctTxt(ctrPctLe(ctrCampo('ctr-arr-pct')))}%) é diferente do contrato de sociedade (${ctrPctTxt(ctrPctLe(ctrCampo('ctr-soc-arrend')))}%). Os dois contratos dizem que a remuneração é uma só.\n\nGerar assim mesmo?`)) return;
   if (d.tipo === 'arrend' && d.opc && d.opc.arr_registro && !orcVal('ctr-ta-matricula') &&
       !confirm('O registro na matrícula está marcado, mas o contrato não cita a matrícula do imóvel (cartão "O imóvel e a energia").\n\nGerar assim mesmo?')) return;
-  if (d.arr && !(d.arr.pct > 0) && !confirm('Sem o percentual do faturamento: a remuneração do cedente sai em branco, para preencher à mão.\n\nGerar assim mesmo?')) return;
+  // O aviso de campo vazio segue o modo da remuneração do arrendamento.
+  if (d.arr && d.arr.modo === 'fixo') {
+    const faltam = [!(d.arr.fixo > 0) && 'o valor mensal fixo', d.arr.fixoMeses == null && 'os meses de valor fixo', d.arr.reajuste == null && 'o reajuste'].filter(Boolean);
+    if (faltam.length && !confirm(`Sem ${faltam.join(', ')}: a cláusula do valor sai com a lacuna em branco, para preencher à mão.\n\nGerar assim mesmo?`)) return;
+  } else if (d.arr && !(d.arr.pct > 0) && !confirm('Sem o percentual do faturamento: a remuneração do cedente sai em branco, para preencher à mão.\n\nGerar assim mesmo?')) return;
   // Termo do arrendador: o pedido do dono é "dossiê completo e aí sim assinar".
   // Não trava (o termo pode sair antes, para o dono ler), mas diz o que falta.
   if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa' && !(d.opc && d.opc.ta_minuta) &&
@@ -26734,6 +26853,15 @@ function orcSnapApply(s, tipo) {
   { const tp = document.getElementById('ctr-tipo');
     if (tp) { tp.value = CTR_TIPOS[s.ctrTipo] ? s.ctrTipo : 'completo'; if (s.ctrTipo) tp.dataset.tocado = '1'; else delete tp.dataset.tocado; } }
   if (s.ctrModelos) Object.entries(s.ctrModelos).forEach(([id, val]) => { if (CTR_CAMPOS_MODELOS.includes(id)) set(id, val); });
+  // Arrendamento salvo antes de 16/10/2026 não tem o modo da remuneração: é
+  // percentual, e não pode herdar o "fixo" do contrato aberto antes dele.
+  // A renovação sem a chave fica VAZIA (igual ao prazo daquela proposta): o
+  // set() pula nulo e herdaria o número da proposta aberta antes.
+  if (s.ctrTipo === 'arrend' || s.ctrTipo === 'termo_arr') {
+    const m = s.ctrModelos || {};
+    set('ctr-arr-modo', m['ctr-arr-modo'] || 'pct');
+    set('ctr-arr-renovacao', m['ctr-arr-renovacao'] == null ? '' : m['ctr-arr-renovacao']);
+  }
   // Os números de sociedade e arrendamento espelham o quadro da janela "Editar
   // cota" (que é do aparelho) e o Simulador, e nenhum dos dois volta com o
   // snapshot. Contrato desses modelos reaberto traz esses números DESMARCADOS,
