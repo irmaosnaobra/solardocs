@@ -2989,6 +2989,31 @@ html.pv-aberto body{overflow:hidden}
 .vdc-org-t{margin:0;font-weight:800}
 .vdc-org ul{margin:4px 0 0;padding-left:18px}
 .vdc-org li{overflow-wrap:anywhere}
+.vdc-vinc{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:0 0 10px;min-width:0}
+.vdc-vinc .vdc-sec-t{margin-top:0}
+.vdc-vinc-bl{display:grid;gap:6px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf,#1E293B);border:1px solid var(--n-bd,#334155)}
+.vdc-vinc-lin{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;min-width:0}
+.vdc-vinc-tx{flex:1 1 150px;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.vdc-vinc-sug{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;min-width:0;padding-top:6px;border-top:1px solid var(--n-bd,#334155)}
+.vdc-vinc-c{flex:1 1 150px;min-width:0}
+.vdc-vinc-n{display:block;font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.vdc-rat{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:10px 0 0;min-width:0}
+.vdc-rat[hidden]{display:none}
+.vdc-rat .vdc-sec-t{margin-top:0}
+.vdc-rat-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px;min-width:0}
+.vdc-rat-f{display:block;min-width:0}
+.vdc-rat-r{display:block;margin:0 0 3px;font-size:12.5px;font-weight:700;color:var(--n-tx2,#B4C0D1);overflow-wrap:anywhere}
+.vdc-rat-ben{display:grid;gap:6px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf,#1E293B);border:1px solid var(--n-bd,#334155)}
+.vdc-rat-ben[hidden]{display:none}
+.vdc-rat-bt{margin:0;font-size:13px;font-weight:800}
+.vdc-rat-bloq{padding:8px 10px;border-radius:9px;background:var(--io-er-sf,rgba(248,113,113,.14));border:1px solid var(--io-er-bd,rgba(248,113,113,.4));color:var(--io-er-tx,#FCA5A5);font-size:13px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.vdc-rat-bloq ul,.vdc-rat-av ul{margin:0;padding-left:18px}
+.vdc-rat-bloq p{margin:4px 0 0;font-weight:600}
+.vdc-rat-av{padding:8px 10px;border-radius:9px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.vdc-rat-an{display:grid;gap:6px;min-width:0}
+.vdc-rat-an:empty{display:none}
+.vdc-dos{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;margin:0 0 2px}
+.vdc-dos-t{margin:0;font-size:12.5px;font-weight:800;color:var(--io-azul-tx,#93C5FD);overflow-wrap:anywhere}
 .vdc-org-av{margin:6px 0 0;padding:6px 8px;border-radius:8px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);overflow-wrap:anywhere}
 .fin{container-type:inline-size;container-name:fin;min-width:0;box-sizing:border-box;border-radius:12px;background:#0F172A;border:1px solid rgba(148,163,184,.3);color:#E5E7EB;text-align:left}
 .fin *{box-sizing:border-box}
@@ -7685,6 +7710,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button class="btn-hist-voltar" onclick="voltarDoFechamento()">← Voltar</button>
     </div>
     <div class="fs-sub" style="margin:-6px 0 16px">Contrato, procuração, recibo, proposta de banco, termo de entrega e vistoria de quem fechou, prontos para imprimir ou salvar em PDF.</div>
+    <div id="vdc-aviso-sol" class="vdc-aviso" role="status" hidden><span class="vdc-aviso-tx"></span><button type="button" class="vdc-aviso-x" onclick="vdcAvisoFechar()">Fechar</button></div>
     <div id="fs-corpo"></div>
   </div>
 
@@ -29811,7 +29837,13 @@ function fsMontar() {
       ${fsF('fs-bairro', 'Bairro')}
       ${fsF('fs-cidade', 'Cidade')}
       ${fsF('fs-uf', 'UF', { max: 2, ph: 'MG' })}
-    </div>`) +
+      ${fsF('fs-rg', 'RG <span class="hint">(opcional)</span>', { cls: 'fs-pf-only' })}
+      ${fsF('fs-orgao', 'Órgão emissor <span class="hint">(opcional)</span>', { cls: 'fs-pf-only', ph: 'SSP/MG' })}
+      ${fsF('fs-nacionalidade', 'Nacionalidade <span class="hint">(opcional)</span>', { cls: 'fs-pf-only', ph: 'Brasileiro(a)' })}
+      ${fsF('fs-estado-civil', 'Estado civil <span class="hint">(opcional)</span>', { cls: 'fs-pf-only' })}
+      ${fsF('fs-profissao', 'Profissão <span class="hint">(opcional)</span>', { cls: 'fs-pf-only s2' })}
+    </div>
+    <div class="fs-sub fs-pf-only" style="margin-top:10px">RG, órgão emissor, nacionalidade, estado civil e profissão entram na qualificação do contrato e da procuração só quando preenchidos.</div>`) +
     `<div class="fs-tabs" role="tablist" aria-label="Documento">
       <button type="button" class="fs-tab" role="tab" data-aba="contrato" onclick="fsAba('contrato')">Contrato</button>
       <button type="button" class="fs-tab" role="tab" data-aba="procuracao" onclick="fsAba('procuracao')">Procuração</button>
@@ -29868,6 +29900,25 @@ function fsMontar() {
         ${fsF('fs-p-cidade', 'Cidade do documento', { cls: 's2', ph: 'Uberlândia' })}
         ${fsF('fs-p-socio', 'Sócio administrador da AIOROS <span class="hint">(nome)</span>', { cls: 's2', fid: 'fs-f-socio', ph: 'Quem assina pela empresa no modelo ANEEL' })}
       </div>`) +
+      `<details class="card fs-det" id="fs-det-tuc"><summary>Titular da conta de luz <span class="fs-opc">só se não for o comprador</span></summary>
+        <div class="fs-sub" style="margin:10px 0 12px">Preenchido, o titular da unidade consumidora passa a ser o outorgante da procuração para a distribuidora. O comprador segue como contratante no contrato. Vazio, a procuração sai com o cliente.</div>
+        <div class="fs-grid">
+          ${fsF('fs-p-tuc-nome', 'Nome do titular', { cls: 's2' })}
+          ${fsF('fs-p-tuc-doc', 'CPF ou CNPJ', { mode: 'numeric' })}
+          ${fsF('fs-p-tuc-rg', 'RG e órgão emissor')}
+          ${fsF('fs-p-tuc-qualif', 'Qualificação <span class="hint">(nacionalidade, estado civil, profissão)</span>', { cls: 's2' })}
+          ${fsF('fs-p-tuc-end', 'Endereço da unidade consumidora', { cls: 's2' })}
+        </div>
+        <div class="fs-aviso ruim" id="fs-p-tuc-alerta" role="status"></div>
+      </details>` +
+      `<details class="card fs-det" id="fs-det-rateio"><summary>Lista de rateio <span class="fs-opc">anexo, só com beneficiárias</span></summary>
+        <div class="fs-sub" style="margin:10px 0 12px">O formulário de rateio da distribuidora. Vem do cadastro do cliente: uma linha por unidade, no formato Papel | Unidade | Titular | Documento | Percentual. Fora do ar, a procuração sai sem anexo.</div>
+        <div class="fs-grid">
+          ${fsF('fs-p-rateio-uso', 'Anexar à procuração', { sel: [['nao', 'Não'], ['sim', 'Sim']] })}
+          ${fsF('fs-p-rateio-lista', 'Linhas do rateio', { cls: 's2', area: 6, ph: 'Geradora | 0012345678 | Nome do titular | 000.000.000-00 | 40%' })}
+        </div>
+        <div class="fs-aviso ruim" id="fs-p-rateio-aviso" role="status"></div>
+      </details>` +
       `<details class="card fs-det"><summary>Outorgados: engenheiro e técnico <span class="fs-opc">editável</span></summary>
         <div class="fs-sub" style="margin:10px 0 12px">Vêm do cadastro da empresa. Campo vazio vira linha em branco no papel: nenhum número de registro é inventado.</div>
         <div class="fs-grid">
@@ -29964,6 +30015,8 @@ function fsTipoMudou() {
   const rep = fsEl('fs-f-rep'); if (rep) rep.style.display = pj ? '' : 'none';
   const rot = fsEl('fs-doc-rot'); if (rot) rot.textContent = pj ? 'CNPJ' : 'CPF';
   const doc = fsEl('fs-doc'); if (doc) doc.placeholder = pj ? '00.000.000/0000-00' : '000.000.000-00';
+  // RG, nacionalidade, estado civil e profissão são de pessoa física
+  document.querySelectorAll('#fechamentoSolarSection .fs-pf-only').forEach(x => { x.style.display = pj ? 'none' : ''; });
 }
 function fsProcModelo() {
   const m3 = fsVal('fs-p-modelo') === '3';
@@ -30042,7 +30095,30 @@ function fsLimparCliente() {
   fsSet('fs-tipo', 'PF', true);
   const host = fsEl('fs-r-pags'); if (host) { host.innerHTML = ''; fsPagAdd(); }
   fsLimparNovos();
+  // a trava do rateio e o alerta do titular da conta eram do cliente anterior
+  const usoL = fsEl('fs-p-rateio-uso'); if (usoL) usoL.disabled = false;
+  const avL = fsEl('fs-p-rateio-aviso'); if (avL) avL.textContent = '';
+  fsTitularAlerta('');
   fsTipoMudou();
+}
+// Conta de luz em nome de outra pessoa e sem o titular preenchido: a procuração não sai com o comprador como outorgante sem um clique de confirmação.
+let fsTitularPend = '', fsTitularOk = false;
+const fsTitularMsg = () => 'A conta de luz está em nome de ' + fsTitularPend + '. Anexe o documento do titular da conta: ele é quem assina a procuração.';
+function fsTitularAlerta(nome) {
+  fsTitularPend = String(nome || ''); fsTitularOk = false;
+  fsTitularAlertaPinta();
+}
+function fsTitularAlertaPinta() {
+  const box = fsEl('fs-p-tuc-alerta'); if (!box) return;
+  box.replaceChildren();
+  if (!fsTitularPend) return;
+  const t = document.createElement('span'); t.textContent = fsTitularMsg() + (fsTitularOk ? ' Confirmado: a procuração sai com o comprador.' : ' ');
+  box.appendChild(t);
+  if (!fsTitularOk) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fs-btn-sec'; b.id = 'fs-p-tuc-assim'; b.textContent = 'Gerar assim mesmo';
+    b.addEventListener('click', () => { fsTitularOk = true; fsTitularAlertaPinta(); fsProcuracao(); });
+    box.appendChild(b);
+  }
 }
 function fsAplicarFonte(d, row) {
   const key = fsChave(d, row);
@@ -30183,6 +30259,10 @@ function fsReabrir(id) {
   const host = fsEl('fs-r-pags'); if (host) host.innerHTML = '';
   (h.snap.pags && h.snap.pags.length ? h.snap.pags : [{}]).forEach(p => fsPagAdd(p));
   fsBItensRestaura(h.snap.itens);
+  // o papel guardado já saiu; a trava do rateio é do cadastro de agora, não dele
+  const usoRe = fsEl('fs-p-rateio-uso'); if (usoRe) usoRe.disabled = false;
+  const avRe = fsEl('fs-p-rateio-aviso'); if (avRe) avRe.textContent = '';
+  fsTitularAlerta('');
   fsFotosLimpa();
   fsOrigemKey = 'reaberto:' + id;
   fsTipoMudou(); fsProcModelo(); fsRecResumo(); fsBancoResumo(); fsTermoChkVisual(); fsTermoContador();
@@ -30198,7 +30278,15 @@ function fsCli() {
   const c = { nome: fsVal('fs-nome'), tipo, pj: tipo === 'PJ', doc: fsVal('fs-doc'), cep: fsVal('fs-cep'), end: fsVal('fs-end'), bairro: fsVal('fs-bairro'),
     cidade: fsVal('fs-cidade'), uf: fsVal('fs-uf').toUpperCase(), tel: fsVal('fs-tel'), rep: fsVal('fs-rep') };
   c.endFull = solEnd(c.end, c.bairro, c.cidade, c.uf);
+  // Qualificação da pessoa física (20/10/2026): só existe quando algum dos cinco campos foi preenchido. Vazia, os papéis saem como sempre.
+  c.qualif = tipo === 'PJ' ? '' : solQualifPf({ nac: fsVal('fs-nacionalidade'), ec: fsVal('fs-estado-civil'), prof: fsVal('fs-profissao'), rg: fsVal('fs-rg'), orgao: fsVal('fs-orgao') });
   return c;
+}
+/** "brasileiro, casado, engenheiro, portador(a) do RG nº 12.345 SSP/MG". Texto cru: quem imprime escapa. Órgão sem RG não entra. */
+function solQualifPf(q) {
+  const partes = [q.nac, q.ec, q.prof].filter(Boolean);
+  if (q.rg) partes.push('portador(a) do RG nº ' + q.rg + (q.orgao ? ' ' + q.orgao : ''));
+  return partes.join(', ');
 }
 const fsRot = { 'fs-nome': 'o nome do cliente', 'fs-doc': 'o CPF ou CNPJ', 'fs-c-valor': 'o valor total do contrato', 'fs-p-uc': 'a unidade consumidora (UC)', 'fs-p-conc': 'a concessionária',
   'fs-b-banco': 'o banco', 'fs-b-agencia': 'a agência', 'fs-b-conta': 'a conta corrente', 'fs-b-total': 'o valor total',
@@ -30266,16 +30354,18 @@ function fsAoMudar(ev) {
   fsRevalida();
 }
 // qualificação do cliente nos três papéis
-function solQualifCli(c, estilo) {
+// semQualif: o termo de entrega não leva a qualificação (só o contrato e a procuração)
+function solQualifCli(c, estilo, semQualif) {
   const e = solEsc;
   const doc = solV(c.doc);
   const rep = c.pj && c.rep ? `, neste ato representada por ${e(c.rep)}` : '';
+  const q = !semQualif && !c.pj && c.qualif ? ', ' + e(c.qualif) : '';
   if (estilo === 'm1') return c.pj
     ? `${solV(c.nome)}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${doc}, com sede em ${solV(c.endFull)}${rep}`
-    : `${solV(c.nome)}, pessoa física, inscrita no CPF sob o nº ${doc}, residente e domiciliada em ${solV(c.endFull)}`;
+    : `${solV(c.nome)}${q}, pessoa física, inscrita no CPF sob o nº ${doc}, residente e domiciliada em ${solV(c.endFull)}`;
   return c.pj
     ? `${solV(c.nome)}, CNPJ nº ${doc}, sediada em ${solV(c.endFull)}${rep}`
-    : `${solV(c.nome)}, CPF nº ${doc}, residente na ${solV(c.endFull)}`;
+    : `${solV(c.nome)}${q}, CPF nº ${doc}, residente na ${solV(c.endFull)}`;
 }
 
 // ═══ CONTRATO ═══
@@ -30330,7 +30420,7 @@ function fsCtrBlocosM2(d) {
       `<div class="ep-ctr-tit">Contrato de Serviços de Instalação de Usina Fotovoltaica</div><div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>`,
     `<div class="sol-partes">
       <div class="sol-parte"><div class="cap">Contratada</div><b>${e(emp.razao)} (Irmãos na Obra)</b><br>inscrita no CNPJ sob o nº ${e(emp.cnpj)}${emp.end ? ', com sede em ' + e(emp.end) : ''}</div>
-      <div class="sol-parte"><div class="cap">${cli.pj ? 'Cliente (PJ)' : 'Cliente'}</div><b>${solV(cli.nome)}</b><br>${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada em' : 'residente na'} ${solV(cli.endFull)}${cli.pj && cli.rep ? ', neste ato representada por ' + e(cli.rep) : ''}</div>
+      <div class="sol-parte"><div class="cap">${cli.pj ? 'Cliente (PJ)' : 'Cliente'}</div><b>${solV(cli.nome)}</b>${cli.qualif ? ', ' + e(cli.qualif) : ''}<br>${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada em' : 'residente na'} ${solV(cli.endFull)}${cli.pj && cli.rep ? ', neste ato representada por ' + e(cli.rep) : ''}</div>
     </div>`,
     `<table class="sol-res"><tbody>
       ${res('Potência instalada', `${solV(d.kwp)} kWp`)}
@@ -30548,10 +30638,21 @@ function fsContrato() {
 }
 
 // ═══ PROCURAÇÃO ═══
+/** "Papel | Unidade | Titular | Documento | Percentual", uma por linha. Linha sem nenhum conteúdo some. */
+function solRateioLinhas(txt) {
+  return String(txt == null ? '' : txt).split('\n').map(l => l.split('|').map(c => c.trim())).filter(c => c.some(Boolean))
+    .map(c => ({ papel: c[0] || '', uc: c[1] || '', titular: c[2] || '', doc: c[3] || '', pct: c[4] || '' }));
+}
 function fsProcDados() {
   const cli = fsCli();
   const g = id => fsVal(id);
+  // Titular da conta de luz (20/10/2026): preenchido o nome, ele é o outorgante da procuração. Vazio, nada muda.
+  const tuc = g('fs-p-tuc-nome') ? { nome: g('fs-p-tuc-nome'), doc: g('fs-p-tuc-doc'), rg: g('fs-p-tuc-rg'), qualif: g('fs-p-tuc-qualif'), end: g('fs-p-tuc-end') } : null;
+  // Lista de rateio (anexo): só com "Sim", linhas preenchidas e o campo não desligado por bloqueio do cadastro. Vazio, a procuração é a de sempre.
+  const uso = fsEl('fs-p-rateio-uso');
+  const rateio = uso && uso.value === 'sim' && !uso.disabled ? solRateioLinhas(g('fs-p-rateio-lista')) : [];
   return {
+    tuc, rateio: rateio.length ? rateio : null,
     cli, emp: solEmp(), modelo: +fsVal('fs-p-modelo') || 1, uc: g('fs-p-uc'), conc: g('fs-p-conc'), data: g('fs-p-data') || solHoje(), cidade: g('fs-p-cidade'), socio: g('fs-p-socio'),
     eng: { nome: g('fs-p-eng-nome'), nac: g('fs-p-eng-nac'), ec: g('fs-p-eng-ec'), prof: g('fs-p-eng-prof'), crea: g('fs-p-eng-crea'), rg: g('fs-p-eng-rg'), cpf: g('fs-p-eng-cpf'), end: g('fs-p-eng-end') },
     tec: { nome: g('fs-p-tec-nome'), nac: g('fs-p-tec-nac'), ec: g('fs-p-tec-ec'), crt: g('fs-p-tec-crt'), rg: g('fs-p-tec-rg'), cpf: g('fs-p-tec-cpf'), end: g('fs-p-tec-end') },
@@ -30612,15 +30713,22 @@ function fsProcHTML(d) {
   const SEC = t => `<div class="sol-sec">${e(t)}</div>`;
   const kv = (k, v, s2) => `<div${s2 ? ' class="s2"' : ''}><span class="k">${e(k)}</span><span class="v${v ? '' : ' bl'}">${v ? e(v) : ''}</span></div>`;
   const rep = cli.pj && cli.rep ? `, neste ato representada por ${e(cli.rep)}` : '';
+  const tuc = d.tuc;   // titular da conta de luz: quando existe, é ele quem outorga (o comprador segue só no contrato)
+  const tucQ = tuc && tuc.qualif ? ', ' + e(tuc.qualif) : '';
+  const tucRg = tuc && tuc.rg ? ', portador(a) do RG nº ' + e(tuc.rg) : '';
+  const tucPj = !!tuc && vdcDigitos(tuc.doc).length === 14;   // titular empresa: "com sede em", não "residente"
   let titulo, sub, corpo, legenda;
 
   if (d.modelo === 1) {
     titulo = 'Procuração'; sub = 'Representação junto à concessionária de energia elétrica'; legenda = 'Outorgante';
     corpo = P('Pelo presente instrumento particular de procuração,') +
-      `<div class="sol-card"><div class="cap">Outorgante</div><div class="kv">
-        ${kv('Nome', cli.nome + (cli.pj && cli.rep ? ' (representada por ' + cli.rep + ')' : ''), true)}${kv('CPF / CNPJ', cli.doc)}${kv('CEP', cli.cep)}
+      (tuc ? `<div class="sol-card"><div class="cap">Outorgante</div><div class="kv">
+        ${kv('Nome', tuc.nome, true)}${tuc.qualif ? kv('Qualificação', tuc.qualif, true) : ''}${kv('CPF / CNPJ', tuc.doc)}${tuc.rg ? kv('RG', tuc.rg) : ''}
+        ${kv('Endereço', tuc.end, true)}${kv('Unidade Consumidora (UC)', d.uc)}${kv('Concessionária', d.conc)}
+      </div></div>` : `<div class="sol-card"><div class="cap">Outorgante</div><div class="kv">
+        ${kv('Nome', cli.nome + (cli.pj && cli.rep ? ' (representada por ' + cli.rep + ')' : ''), true)}${cli.qualif ? kv('Qualificação', cli.qualif, true) : ''}${kv('CPF / CNPJ', cli.doc)}${kv('CEP', cli.cep)}
         ${kv('Endereço', cli.endFull, true)}${kv('Unidade Consumidora (UC)', d.uc)}${kv('Concessionária', d.conc)}
-      </div></div>` +
+      </div></div>`) +
       P(`nomeia e constitui como ${plural ? 'seus bastantes procuradores' : 'seu(ua) bastante procurador(a)'}:`) +
       solProcOutorgados(lista) +
       SEC('Poderes conferidos') +
@@ -30628,7 +30736,8 @@ function fsProcHTML(d) {
   } else if (d.modelo === 2) {
     titulo = 'Instrumento Particular de Procuração'; sub = 'Poderes especiais para representação junto à concessionária'; legenda = 'Outorgante';
     corpo = P('SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,') +
-      `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${solV(cli.nome)}, inscrito(a) no CPF/CNPJ sob o nº ${solV(cli.doc)}, residente e domiciliado(a) à ${solV(cli.endFull)}${cli.cep ? `, CEP ${e(cli.cep)}` : ''}${rep}, doravante denominado(a) simplesmente OUTORGANTE,</p></div>` +
+      (tuc ? `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${solV(tuc.nome)}${tucQ}${tucRg}, inscrito(a) no CPF/CNPJ sob o nº ${solV(tuc.doc)}, ${tucPj ? 'com sede em' : 'residente e domiciliado(a) à'} ${solV(tuc.end)}, titular da Unidade Consumidora nº ${ucTxt}, doravante denominado(a) simplesmente OUTORGANTE,</p></div>`
+        : `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${solV(cli.nome)}${cli.qualif ? ', ' + e(cli.qualif) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${solV(cli.doc)}, residente e domiciliado(a) à ${solV(cli.endFull)}${cli.cep ? `, CEP ${e(cli.cep)}` : ''}${rep}, doravante denominado(a) simplesmente OUTORGANTE,</p></div>`) +
       P(`pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${plural ? 'seus legítimos procuradores' : 'seu(ua) legítimo(a) procurador(a)'}:`) +
       solProcOutorgados(lista) +
       SEC('Poderes especiais conferidos') +
@@ -30644,13 +30753,17 @@ function fsProcHTML(d) {
     titulo = 'Procuração'; sub = 'Representação junto à concessionária e à ANEEL'; legenda = '(nome completo do cliente)';
     const empEnd = emp.end;
     const outorgada = `OUTORGADO(A): ${e(emp.razao.toUpperCase())} (Irmãos na Obra), inscrita no CNPJ nº ${e(emp.cnpj)}${empEnd ? `, sediada na ${e(empEnd)}` : ''}${d.socio ? `, neste ato devidamente representada por seu sócio proprietário ${e(d.socio.toUpperCase())}` : ''}, com poderes para assinar procuração em nome da empresa supracitada.`;
-    corpo = `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${cli.nome ? e(cli.nome.toUpperCase()) : SOL_LACUNA}, ${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada' : 'residente'} no ${solV(cli.endFull)} (endereço idêntico à conta de energia)${rep}.</p></div>` +
+    if (tuc) legenda = '(nome completo do titular da conta de luz)';
+    corpo = (tuc ? `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${e(tuc.nome.toUpperCase())}${tucQ}${tucRg}, CPF/CNPJ nº ${solV(tuc.doc)}, ${tucPj ? 'com sede no' : 'residente no'} ${solV(tuc.end)} (endereço idêntico à conta de energia).</p></div>`
+      : `<div class="sol-card"><div class="cap">Outorgante</div><p class="ep-ctr-p" style="margin:0">${cli.nome ? e(cli.nome.toUpperCase()) : SOL_LACUNA}${cli.qualif ? ', ' + e(cli.qualif) : ''}, ${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada' : 'residente'} no ${solV(cli.endFull)} (endereço idêntico à conta de energia)${rep}.</p></div>`) +
       `<div class="sol-card"><div class="cap">Outorgada</div><p class="ep-ctr-p" style="margin:0">${outorgada}</p></div>` +
       solProcOutorgados(lista) +
       SEC('Finalidade e poderes') +
       P(`Por intermédio do presente instrumento particular de procuração, o OUTORGANTE infra-assinado nomeia e constitui seu Procurador o OUTORGADO supramencionado conferindo-lhes poderes para representá-lo com a finalidade exclusiva de providenciar ou autorizar qualquer requerimento junto à prestadora de serviço de energia, ${d.conc ? e(d.conc) : '(NOME DA CONCESSIONÁRIA DE DISTRIBUIÇÃO LOCAL)'}, e a Agência Nacional de Energia Elétrica (ANEEL), com as devidas finalidades: Troca de titularidade, solicitação de conexão, formulário de solicitação de acesso, emissão de TRT, formulário de rateio, aumento de carga, nova ligação, troca de medidor, mudança de padrão, ou seja, homologação geral do sistema de geração de energia solar fotovoltaica.`) +
       P('Insta esclarecer que o presente instrumento não permite o substabelecimento a terceiros.<br>Por oportuno, ressalta-se ainda que os efeitos deste, cessa a partir do término das atividades delimitadas neste documento.<br>Tudo isto, com fulcro nos artigos 653 e 654 do Código Civil de 2002.', 'font-size:11px;font-style:italic;border-left:2px solid #F59E0B;padding-left:9px');
   }
+  // Anexo "Lista de rateio": uma segunda folha, só quando há linhas. Sem ele a procuração é byte a byte a de sempre.
+  const anexo = d.rateio ? solRateioAnexo(d, tuc ? { nome: tuc.nome, doc: tuc.doc } : { nome: cli.nome, doc: cli.doc }) : '';
   return `<div class="ep-doc"><div class="ep-page ep-proc">
       ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
       <div class="ep-ctr-tit">${e(titulo)}</div>
@@ -30658,14 +30771,38 @@ function fsProcHTML(d) {
       ${corpo}
       <p class="ep-ctr-p" style="margin-top:14px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
       <div class="ep-ctr-fim"><div class="ep-ctr-assin" style="justify-content:center">
-        <div class="a" style="flex:0 1 58%"><b>${cli.nome ? e(cli.nome) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? e(cli.rep) + '<br>' : ''}${e(legenda)}</div>
+        <div class="a" style="flex:0 1 58%">${tuc ? `<b>${e(tuc.nome)}</b>${tuc.doc ? `<span>CPF/CNPJ ${e(tuc.doc)}</span>` : ''}` : `<b>${cli.nome ? e(cli.nome) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? e(cli.rep) + '<br>' : ''}`}${e(legenda)}</div>
       </div></div>
-      ${solRodape('Procuração · representação junto à concessionária', cli.nome)}
-    </div></div>`;
+      ${solRodape('Procuração · representação junto à concessionária', tuc ? tuc.nome : cli.nome)}
+    </div>${anexo}</div>`;
+}
+function solRateioAnexo(d, out) {
+  const e = solEsc;
+  const dataTxt = solDataLonga(d.data);
+  const num = (s) => { const n = parseFloat(String(s).replace('%', '').replace(',', '.')); return isFinite(n) ? n : null; };
+  let soma = 0, tudo = true;
+  const linhas = d.rateio.map(r => { const n = num(r.pct); if (n == null) tudo = false; else soma += n; return `<tr><td>${solV(r.papel)}</td><td>${solV(r.uc)}</td><td>${solV(r.titular)}</td><td>${solV(r.doc)}</td><td class="num">${solV(r.pct)}</td></tr>`; }).join('');
+  const total = tudo ? `<tr class="hl"><td colspan="4">Total</td><td class="num">${e(soma.toLocaleString('pt-BR', { maximumFractionDigits: 2 }))}%</td></tr>` : '';
+  return `<div class="ep-page ep-proc">
+      ${solTopoCtr(`${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}`)}
+      <div class="ep-ctr-tit">Lista de rateio</div>
+      <div class="ep-ctr-sub">Anexo da procuração · rateio dos créditos de energia</div>
+      <table class="ep-kv"><tbody><tr class="hl"><td>Papel</td><td>Unidade consumidora</td><td>Titular</td><td>Documento</td><td class="num">Percentual</td></tr>${linhas}${total}</tbody></table>
+      <div class="ep-ctr-fim"><div class="ep-ctr-assin" style="justify-content:center">
+        <div class="a" style="flex:0 1 58%"><b>${out.nome ? e(out.nome) : '&nbsp;'}</b>${out.doc ? `<span>CPF/CNPJ ${e(out.doc)}</span>` : ''}Outorgante</div>
+      </div></div>
+      ${solRodape('Lista de rateio · anexo da procuração', out.nome)}
+    </div>`;
 }
 function fsProcuracao() {
   const d = fsProcDados();
   if (fsMostraFaltas(fsFaltas('procuracao'))) return;
+  // conta de luz em nome de outra pessoa, titular sem preencher: pede o clique "Gerar assim mesmo" antes de sair com o comprador
+  if (fsTitularPend && !d.tuc && !fsTitularOk) {
+    const det = fsEl('fs-det-tuc'); if (det) det.open = true;
+    fsMsg(fsTitularMsg() + ' Preencha o titular ou use "Gerar assim mesmo".', [fsEl('fs-p-tuc-nome')]);
+    return;
+  }
   const arquivo = ['Procuracao_Solar', solLimpaArq(d.cli.nome) || 'Cliente'].join('_');
   fsPreview({ tipo: 'Procuração', cliente: d.cli.nome, valor: 0, num: '', html: fsProcHTML(d), arquivo, titulo: 'Procuração solar · ' + d.cli.nome, opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' } });
 }
@@ -30755,7 +30892,8 @@ const FS_ESPELHOS = {
   vistoria: [['fs-v-local', fsLocalContrato], ['fs-v-kwp', fsDoContrato('fs-c-kwp')], ['fs-v-nmod', fsDoContrato('fs-c-nmod')], ['fs-v-uc', fsDoContrato('fs-p-uc')], ['fs-v-conc', fsDoContrato('fs-p-conc')]],
 };
 // campos próprios que são do CLIENTE e voltam ao vazio quando a proposta puxada é de outro
-const FS_NOVOS_DO_CLIENTE = ['fs-b-banco', 'fs-b-agencia', 'fs-b-conta', 'fs-b-entrada', 'fs-b-eq', 'fs-b-mo', 'fs-b-nota', 'fs-b-desc',
+const FS_NOVOS_DO_CLIENTE = ['fs-rg', 'fs-orgao', 'fs-nacionalidade', 'fs-estado-civil', 'fs-profissao',
+  'fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end', 'fs-p-rateio-uso', 'fs-p-rateio-lista', 'fs-b-banco', 'fs-b-agencia', 'fs-b-conta', 'fs-b-entrada', 'fs-b-eq', 'fs-b-mo', 'fs-b-nota', 'fs-b-desc',
   'fs-t-conclusao', 'fs-t-liberacao', 'fs-t-serie', 'fs-t-ressalva',
   'fs-v-acomp', 'fs-v-t-tipo', 'fs-v-t-estado', 'fs-v-t-orient', 'fs-v-t-incl', 'fs-v-t-area', 'fs-v-t-sombra', 'fs-v-t-estr', 'fs-v-t-acesso',
   'fs-v-e-padrao', 'fs-v-e-disj', 'fs-v-e-tensao', 'fs-v-e-apto', 'fs-v-e-aterr', 'fs-v-e-quadro',
@@ -31142,7 +31280,7 @@ function fsTermoHTML(d) {
       <div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>
       <div class="sol-partes">
         <div class="sol-parte"><div class="cap">Empresa</div>${solQualifEmp(emp)}.</div>
-        <div class="sol-parte"><div class="cap">Cliente</div>${solQualifCli(cli, 'm2')}.</div>
+        <div class="sol-parte"><div class="cap">Cliente</div>${solQualifCli(cli, 'm2', true)}.</div>
       </div>
       <div class="sol-sec">Sistema entregue</div>
       <div class="sol-te-sis">${sistema}</div>
@@ -35446,7 +35584,7 @@ function pvPintarDetalhe(agRec) {
 // No card VENDIDO (status `fechou`) de eletroposto: anexar os documentos do
 // cliente, mandar a IA ler, conferir o que ela leu e gravar o cadastro. Com o
 // cadastro gravado, `aplicarCadastroEletroposto` preenche os formulários de
-// contrato e documento. O solar não tem este bloco.
+// contrato e documento. O solar tem o mesmo bloco, na linha `vendasolar` (VDC_CFG): ver `aplicarCadastroSolar` e as Ligações.
 //
 // Rotas (as mesmas da ficha do cliente, código = id do card):
 //   GET/PUT  /gerador/clientes/eletroposto/:id/cadastro
@@ -35503,6 +35641,72 @@ const VDC_SLOTS = [
   { chave: 'conta_luz', rot: 'Conta de luz' },
   { chave: 'outros', rot: 'Outros' },
 ];
+// ── Solar (20/10/2026): a mesma tela, na linha `vendasolar` ────────────────
+// O que muda de uma linha para a outra mora aqui (rotas, campos, seções, grupos da conferência, textos). A conferência do solar
+// agrupa pelo prefixo do nome do campo, para uma sugestão que o servidor mande com nome que a tela não conhece não sumir.
+const VDC_SOL_TUC = [...VDC_PESSOA_CAMPOS.filter(c => c[0] !== 'nascimento').map(([k, r]) => ['tuc_' + k, r + ' do titular da conta']),
+  ['tuc_relacao', 'Relação do titular com o comprador']];
+const VDC_SOL_UG = [['unidade_consumidora', 'Unidade consumidora geradora'], ['concessionaria', 'Concessionária'], ['titular_conta', 'Titular da conta de luz'],
+  ['endereco_ponto', 'Endereço da instalação'], ['uc_classe', 'Classe da unidade'], ['consumo_medio_kwh', 'Consumo médio (kWh)']];
+const VDC_SOL_UG_CHAVES = VDC_SOL_UG.map(c => c[0]);
+// Rateio do excedente (20/10/2026): modalidade, percentual da geradora e, por beneficiária, UC, titular, documento, endereço e percentual.
+// A IA não preenche modalidade, percentuais nem tipo: eles são digitados na seção "Rateio do excedente" do bloco.
+const VDC_SOL_RATEIO_MODALIDADES = [['', 'Não definida'], ['autoconsumo_local', 'Autoconsumo local'], ['autoconsumo_remoto', 'Autoconsumo remoto'],
+  ['geracao_compartilhada', 'Geração compartilhada'], ['multiplas_ucs', 'Várias unidades do mesmo titular']];
+const VDC_SOL_BENEF = [['rateio_modalidade', 'Modalidade do rateio'], ['geradora_pct', 'Percentual da geradora']];
+for (let n = 1; n <= 5; n++) {
+  VDC_SOL_BENEF.push(['benef_' + n + '_uc', 'Unidade beneficiária ' + n], ['benef_' + n + '_titular', 'Titular da beneficiária ' + n],
+    ['benef_' + n + '_doc', 'Documento da beneficiária ' + n],
+    ['benef_' + n + '_endereco', 'Endereço da beneficiária ' + n], ['benef_' + n + '_pct', 'Percentual da beneficiária ' + n]);
+}
+const VDC_SOL_COMPRADOR = VDC_CAMPOS.filter(c => VDC_PONTO_CHAVES.indexOf(c[0]) < 0);
+const VDC_SOL_TODOS = [...VDC_SOL_COMPRADOR, ...VDC_SOL_TUC, ...VDC_AVAL_CAMPOS, ...VDC_IMOVEL_CAMPOS, ...VDC_SOL_UG, ...VDC_SOL_BENEF];
+const VDC_SOL_ROT = Object.fromEntries(VDC_SOL_TODOS);
+const VDC_SOL_GRUPOS = [
+  { id: 'comprador', t: 'Comprador', campos: VDC_SOL_COMPRADOR },
+  { id: 'tuc', t: 'Titular da conta de luz', campos: VDC_SOL_TUC },
+  { id: 'avalista', t: 'Avalista', campos: VDC_AVAL_CAMPOS },
+  { id: 'imovel', t: 'Imóvel', campos: VDC_IMOVEL_CAMPOS },
+  { id: 'ug', t: 'Unidade geradora', campos: VDC_SOL_UG },
+  { id: 'benef', t: 'Beneficiárias', campos: VDC_SOL_BENEF },
+];
+const VDC_SOL_SECOES = [
+  { t: 'Comprador', chaves: ['documento_titular', 'comprovante_endereco_comprador'] },
+  { t: 'Titular da conta de luz', chaves: ['documento_titular_uc'] },
+  { t: 'Avalista', chaves: ['documento_avalista', 'comprovante_endereco_avalista'] },
+  { t: 'Contas de luz', chaves: ['conta_luz', 'conta_luz_beneficiaria'] },
+  { t: 'Fotos de homologação', chaves: ['fachada', 'padrao', 'disjuntor', 'medidor'] },
+  { t: 'Imóvel e outras pessoas', chaves: ['documento_imovel', 'documento_outra_pessoa'] },
+  { t: 'Outros', chaves: ['contrato_assinado', 'procuracao', 'outros'] },
+];
+/** Nome de um campo que a tela não lista (o servidor pode mandar um novo): o próprio nome em palavras. */
+const vdcRotuloLivre = (k) => { const t = String(k || '').replace(/_/g, ' ').trim(); return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''; };
+function vdcGrupoSolar(k) {
+  k = String(k || '');
+  if (k.indexOf('tuc_') === 0) return 'tuc';
+  if (k.indexOf('aval_') === 0) return 'avalista';
+  if (k.indexOf('imovel_') === 0) return 'imovel';
+  if (k.indexOf('benef_') === 0 || k === 'rateio_modalidade' || k === 'geradora_pct') return 'benef';
+  if (VDC_SOL_UG_CHAVES.indexOf(k) >= 0) return 'ug';
+  return 'comprador';
+}
+const VDC_CFG = {
+  eletroposto: {
+    linha: 'eletroposto', campos: [...VDC_CAMPOS, ...VDC_EXTRAS], rot: (k) => VDC_ROT[k] || '', grupos: VDC_GRUPOS, grupoDe: null,
+    secoes: VDC_SECOES, outrosPorPadrao: false, textoPreencher: 'Preencher contratos', msgSemNome: 'Marque pelo menos o nome do cliente para preencher os contratos.',
+    msgNaoPreencheu: 'Não consegui preencher os formulários agora.', ligacoes: false, rateio: false, linkTodos: true,
+    aplicar: (cad) => aplicarCadastroEletroposto(cad),
+  },
+  vendasolar: {
+    linha: 'vendasolar', campos: VDC_SOL_TODOS, rot: (k) => VDC_SOL_ROT[k] || '', grupos: VDC_SOL_GRUPOS, grupoDe: vdcGrupoSolar,
+    secoes: VDC_SOL_SECOES, outrosPorPadrao: true, textoPreencher: 'Preencher Fechamento', msgSemNome: 'Marque pelo menos o nome do cliente para preencher o Fechamento.',
+    msgNaoPreencheu: 'Não consegui preencher o Fechamento agora.', ligacoes: true, rateio: true, linkTodos: false,
+    aplicar: (cad, st) => aplicarCadastroSolar(cad, st),
+  },
+};
+/** O nome do campo para a tela: o da lista, ou (solar) o próprio nome em palavras. */
+const vdcRotDe = (st, k) => { const c = st.cfg.rot(k); return c || (st.cfg.linha === 'vendasolar' ? vdcRotuloLivre(k) : ''); };
+
 const VDC_MAX_ARQ = 10 * 1024 * 1024;
 const VDC_LADO_MAX = 2560;
 let vdcEst = null;     // o card aberto agora: { id, no, cad, docs, ... }. Nulo = nada aberto.
@@ -35516,9 +35720,10 @@ const vdcTipo = (cad) => {
   if (t === 'PJ' || t === 'PF') return t;
   return vdcV(cad, 'cpf_cnpj').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF';
 };
-function vdcNumeros(cad) {
-  const falta = Array.isArray(cad && cad.faltando) ? cad.faltando.filter(k => VDC_ROT[k]) : [];
-  const feitos = [...VDC_CAMPOS, ...VDC_EXTRAS].filter(c => c[0] !== 'tipo' && vdcV(cad, c[0]) !== '' && falta.indexOf(c[0]) < 0).length;
+function vdcNumeros(cad, st) {
+  const cfg = (st && st.cfg) || VDC_CFG.eletroposto;
+  const falta = Array.isArray(cad && cad.faltando) ? cad.faltando.filter(k => cfg.rot(k) || (cfg.grupoDe && typeof k === 'string' && k)) : [];
+  const feitos = cfg.campos.filter(c => c[0] !== 'tipo' && vdcV(cad, c[0]) !== '' && falta.indexOf(c[0]) < 0).length;
   return { feitos, total: feitos + falta.length, falta };
 }
 function vdcMsgErro(r, padrao) {
@@ -35535,7 +35740,15 @@ function vdcMsgErro(r, padrao) {
   return padrao || 'Não deu certo agora. Tente de novo.';
 }
 
-async function vdcChamar(st, metodo, caminho, corpo, ms) {
+/** Cadastro e documentos do card: a linha (eletroposto ou vendasolar) escolhe a rota; o código é o id do card. */
+function vdcChamar(st, metodo, caminho, corpo, ms) {
+  return vdcFetch('/gerador/clientes/' + ((st.cfg && st.cfg.linha) || 'eletroposto') + '/' + encodeURIComponent(String(st.id)) + caminho, metodo, corpo, ms);
+}
+/** Ligações do card solar com a proposta e a venda da planilha (rota fora de /clientes). */
+function vdcChamarVinc(st, metodo, corpo) {
+  return vdcFetch('/gerador/vendas-solares/' + encodeURIComponent(String(st.id)) + '/vinculos', metodo, corpo, 20000);
+}
+async function vdcFetch(rota, metodo, corpo, ms) {
   let tok = '';
   try { tok = await finToken(); } catch (e) { tok = ''; }
   if (!tok) return { status: 401, json: null };
@@ -35544,7 +35757,7 @@ async function vdcChamar(st, metodo, caminho, corpo, ms) {
   try {
     const h = { 'Authorization': 'Bearer ' + tok };
     if (corpo !== undefined) h['Content-Type'] = 'application/json';
-    const r = await fetch(APX_API + '/gerador/clientes/eletroposto/' + encodeURIComponent(String(st.id)) + caminho, {
+    const r = await fetch(APX_API + rota, {
       method: metodo, headers: h, body: corpo !== undefined ? JSON.stringify(corpo) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
     });
     let j = null;
@@ -35564,19 +35777,23 @@ function vdcFechar() {
   if (el) { el.hidden = true; el.replaceChildren(); }
 }
 
-/** Mesma condição do pós-venda e do financeiro: vendido, eletroposto. Qualquer outro card esconde o bloco e esquece o anterior. */
+/** Mesma condição do pós-venda e do financeiro: vendido. Eletroposto usa a linha do eletroposto; o resto (solar) usa `vendasolar`.
+ *  Qualquer outro card esconde o bloco e esquece o anterior. */
 function vdcDetalhe(rec) {
   const el = document.getElementById('crm-det-cadastro');
   if (!el) return;
-  const vale = !!rec && rec.id != null && String(rec.status || '') === 'fechou' && crmEhEletroposto(rec);
+  const vendido = !!rec && rec.id != null && String(rec.status || '') === 'fechou';
+  const linha = vendido ? (crmEhEletroposto(rec) ? 'eletroposto' : 'vendasolar') : '';
+  const vale = !!linha;
   // O "Tentar de novo" do Pós-venda repinta o detalhe do MESMO card: com painel de conferência aberto, leitura ou anexo em andamento,
   // o bloco não é remontado (o que a pessoa conferiu e o envio em curso ficam).
-  const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.no && vdcEst.no.sec.isConnected
-    && (!vdcEst.no.pn.hidden || vdcEst.lendo || vdcEst.gravando || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
+  const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.cfg.linha === linha && vdcEst.no && vdcEst.no.sec.isConnected
+    && (!vdcEst.no.pn.hidden || vdcEst.lendo || vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
   if (ativo) return;
   vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
   if (!vale) { el.hidden = true; el.replaceChildren(); return; }
-  const st = { id: rec.id, cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '' };
+  const st = { id: rec.id, cfg: VDC_CFG[linha], cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '',
+    vinc: null, vincErroCarga: '', vincOcupado: '', vincMsg: '', analise: null, rat: null, ratMsg: '', ratGravando: false };
   vdcEst = st;
   const sec = document.createElement('section');
   sec.className = 'vdc';
@@ -35594,8 +35811,13 @@ function vdcDetalhe(rec) {
     setTimeout(() => { if (vdcEst === st && st.listaPendente && !lista.contains(document.activeElement)) vdcPintar(st); }, 0);
   });
   const org = document.createElement('div'); org.setAttribute('role', 'status');
-  sec.append(h, topo, docs, lista, org, acoes, msg, pn, arqs);
-  st.no = { sec, topo, docs, lista, org, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
+  // Solar: as ligações com a proposta e a venda da planilha ficam entre a situação e os documentos.
+  const vinc = st.cfg.ligacoes ? document.createElement('div') : null;
+  const rat = st.cfg.rateio ? document.createElement('div') : null;
+  if (rat) { rat.className = 'vdc-rat'; rat.setAttribute('data-vdc-rateio', '1'); }
+  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, vinc, docs, lista, org, rat, acoes, msg, pn, arqs); }
+  else sec.append(h, topo, docs, lista, org, acoes, msg, pn, arqs);
+  st.no = { sec, topo, vinc, rat, docs, lista, org, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
   // Os seletores de arquivo nascem no clique de Anexar (vdcInputDe): os itens vêm do catálogo do servidor, que chega depois.
   el.replaceChildren(sec);
   el.hidden = false;
@@ -35606,22 +35828,33 @@ function vdcDetalhe(rec) {
 function vdcCarregar(st) {
   st.carregando = true; st.erroCarga = '';
   vdcPintar(st);
+  // As ligações do solar chegam por conta própria: o cadastro e os documentos não esperam por elas.
+  if (st.cfg.ligacoes) vdcCarregarVinc(st);
   Promise.all([vdcChamar(st, 'GET', '/cadastro'), vdcChamar(st, 'GET', '/docs')]).then(([c, d]) => {
     if (vdcEst !== st) return;      // abriu outro card no meio: a resposta não é dele
     st.carregando = false;
-    if (c.status === 200 && c.json && c.json.ok !== false && c.json.cadastro) st.cad = c.json.cadastro;
+    if (c.status === 200 && c.json && c.json.ok !== false && c.json.cadastro) { st.cad = c.json.cadastro; if (st.cfg.rateio) st.analise = vdcAnaliseDe(c.json); }
     else st.erroCarga = vdcMsgErro(c, 'Não consegui ler o cadastro agora.');
     if (d.status === 200 && d.json && d.json.ok !== false) st.docs = vdcDocsDe(d.json);
     vdcPintar(st);
   });
 }
-/** A lista de documentos como o servidor devolveu. `pode`: quem renomeia e move (o servidor recusa o resto). `rotulosFora`: os nomes não carregaram. */
+/** A lista de documentos como o servidor devolveu. `pode`: quem renomeia e move (o servidor recusa o resto). `rotulosFora`: os nomes não carregaram.
+ *  `dossie` (solar): os arquivos da proposta ligada, só para ler. Não têm id, não entram na lista de anexados nem em renomear e mover. */
 function vdcDocsDe(j) {
-  return {
+  const d = {
     slots: Array.isArray(j.slots) ? j.slots : [],
     arquivos: Array.isArray(j.arquivos) ? j.arquivos.filter(a => a && typeof a === 'object' && a.id != null && typeof a.slot === 'string') : [],
     pode: j.pode_remover === true, rotulosFora: j.rotulos_indisponivel === true, t: Date.now(),
   };
+  if (j.dossie && typeof j.dossie === 'object') {
+    d.dossie = {
+      proposta: j.dossie.proposta == null ? '' : String(j.dossie.proposta),
+      arquivos: Array.isArray(j.dossie.arquivos) ? j.dossie.arquivos.filter(a => a && typeof a === 'object' && typeof a.slot === 'string') : [],
+    };
+  }
+  if (j.dossie_indisponivel === true) d.dossieFora = true;
+  return d;
 }
 
 /** O item como o servidor o descreve: rótulo, formato aceito e se aceita vários. `s` é um item do catálogo (ou só { chave }). */
@@ -35657,12 +35890,12 @@ function vdcPintar(st) {
   if (st.carregando) {
     const p = document.createElement('p'); p.className = 'vdc-carga'; p.textContent = 'Carregando…'; N.topo.appendChild(p);
   } else if (st.cad) {
-    const n = vdcNumeros(st.cad);
+    const n = vdcNumeros(st.cad, st);
     const p = document.createElement('p'); p.className = 'vdc-sit'; p.textContent = 'Cadastro: ' + n.feitos + ' de ' + n.total + ' campos';
     N.topo.appendChild(p);
     if (n.falta.length) {
       const box = document.createElement('div'); box.className = 'vdc-chips';
-      n.falta.slice(0, 6).forEach((k) => { const c = document.createElement('span'); c.className = 'vdc-chip'; c.textContent = VDC_ROT[k]; box.appendChild(c); });
+      n.falta.slice(0, 6).forEach((k) => { const c = document.createElement('span'); c.className = 'vdc-chip'; c.textContent = vdcRotDe(st, k); box.appendChild(c); });
       if (n.falta.length > 6) { const c = document.createElement('span'); c.className = 'vdc-chip'; c.textContent = '+' + (n.falta.length - 6); box.appendChild(c); }
       N.topo.appendChild(box);
     }
@@ -35671,6 +35904,8 @@ function vdcPintar(st) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = 'Tentar de novo';
     b.addEventListener('click', () => vdcCarregar(st)); N.topo.appendChild(b);
   }
+  if (N.vinc) vdcPintarVinc(st);
+  if (N.rat) vdcPintarRat(st);
   // anexos
   N.docs.replaceChildren();
   if (!st.docs && !st.carregando) {
@@ -35680,9 +35915,11 @@ function vdcPintar(st) {
     b.addEventListener('click', () => vdcCarregar(st));
     N.docs.append(p, b);
   }
-  VDC_SECOES.forEach((sc) => {
+  const secoes = vdcSecoesDe(st);
+  secoes.forEach((sc) => {
     const itens = st.docs ? sc.chaves.map(ch => st.docs.slots.find(x => x && x.chave === ch)).filter(Boolean) : [];
-    if (!itens.length) return;
+    const doDossie = vdcDossieDaSecao(st, sc, secoes);
+    if (!itens.length && !doDossie.length) return;
     const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = sc.t; tit.setAttribute('data-vdc-secao', sc.t);
     N.docs.appendChild(tit);
     itens.forEach((s0) => {
@@ -35714,7 +35951,13 @@ function vdcPintar(st) {
     if (st.msgDoc[s.chave]) { const m = document.createElement('p'); m.className = 'vdc-doc-m'; m.textContent = st.msgDoc[s.chave]; row.appendChild(m); }
     N.docs.appendChild(row);
     });
+    if (doDossie.length) N.docs.appendChild(vdcPintarDossie(st, doDossie));
   });
+  if (st.docs && st.docs.dossieFora) {
+    const av = document.createElement('p'); av.className = 'vdc-lst-av'; av.setAttribute('data-vdc-dossie-fora', '1');
+    av.textContent = 'Os arquivos do dossiê da proposta estão fora do ar agora.';
+    N.docs.appendChild(av);
+  }
   vdcPintarLista(st);
   vdcPintarOrg(st);
   // botões
@@ -35724,7 +35967,7 @@ function vdcPintar(st) {
   ler.disabled = st.lendo || st.gravando || st.carregando || !st.cad;
   ler.addEventListener('click', () => vdcLer(st));
   const pre = document.createElement('button'); pre.type = 'button'; pre.className = 'vdc-btn'; pre.setAttribute('data-vdc-acao', 'preencher');
-  pre.textContent = 'Preencher contratos';
+  pre.textContent = st.cfg.textoPreencher;
   pre.disabled = st.lendo || st.gravando || !st.cad || !vdcV(st.cad, 'nome');
   pre.addEventListener('click', () => vdcPreencher(st));
   N.acoes.append(ler, pre);
@@ -35732,13 +35975,367 @@ function vdcPintar(st) {
   N.msg.hidden = !st.msg; N.msg.textContent = st.msg || '';
   // atalho para a lista completa
   let lk = N.sec.querySelector(':scope > .vdc-link');
-  if (!lk) {
+  if (!lk && st.cfg.linkTodos) {
     lk = document.createElement('button'); lk.type = 'button'; lk.className = 'vdc-link'; lk.textContent = 'Ver todos os documentos';
     lk.addEventListener('click', () => {
       try { crmFecharDetalhe(); navEletroposto(); eletroSubaba('planilha'); } catch (e) { console.error('cadastro: a planilha não abriu', e); }
     });
     N.sec.appendChild(lk);
   }
+}
+
+// ── Solar: seções com o que o servidor não mapeou, dossiê da proposta e ligações ──
+/** As seções da linha. No solar, item do catálogo que a tela não conhece cai em "Outros" (o servidor pode ganhar item sem a tela saber). */
+function vdcSecoesDe(st) {
+  const cfg = st.cfg;
+  if (!cfg.outrosPorPadrao || !st.docs) return cfg.secoes;
+  const usadas = new Set();
+  cfg.secoes.forEach(s => s.chaves.forEach(c => usadas.add(c)));
+  const extra = st.docs.slots.filter(s => s && typeof s.chave === 'string' && !usadas.has(s.chave)).map(s => s.chave);
+  if (!extra.length) return cfg.secoes;
+  return cfg.secoes.map(s => s.t === 'Outros' ? { t: s.t, chaves: s.chaves.concat(extra) } : s);
+}
+/** Arquivos do dossiê da proposta que pertencem a esta seção (slot igual). O que não casa com nenhuma seção vai para "Outros". */
+function vdcDossieDaSecao(st, sc, secoes) {
+  const d = st.docs && st.docs.dossie;
+  if (!d || !d.arquivos.length) return [];
+  const todas = new Set();
+  secoes.forEach(s => s.chaves.forEach(c => todas.add(c)));
+  const minhas = new Set(sc.chaves);
+  return d.arquivos.filter(a => minhas.has(a.slot) || (sc.t === 'Outros' && !todas.has(a.slot)));
+}
+function vdcPintarDossie(st, arqs) {
+  const d = st.docs.dossie;
+  const box = document.createElement('div'); box.className = 'vdc-dos'; box.setAttribute('data-vdc-dossie', '1');
+  const t = document.createElement('p'); t.className = 'vdc-dos-t';
+  t.textContent = 'Do dossiê da proposta #' + String(d.proposta || '').replace(/^#/, '');
+  box.appendChild(t);
+  arqs.forEach((a) => {
+    const row = document.createElement('div'); row.className = 'vdc-arq'; row.setAttribute('data-vdc-arq-dossie', a.slot);
+    const ic = document.createElement('span'); ic.className = 'vdc-arq-ic'; ic.appendChild(vdcIcone(vdcEhImg(a) ? 'imagem' : 'pdf'));
+    const c = document.createElement('div'); c.className = 'vdc-arq-c';
+    const nome = vdcRotuloSlot(st, a.slot);
+    const n = document.createElement('span'); n.className = 'vdc-arq-n'; n.textContent = nome;
+    const m = document.createElement('span'); m.className = 'vdc-arq-m'; m.textContent = (vdcEhImg(a) ? 'Imagem' : 'PDF') + ' · Só leitura';
+    c.append(n, m);
+    row.append(ic, c);
+    const ac = document.createElement('div'); ac.className = 'vdc-arq-ac';
+    const u = vdcUrlHttps(a.url);
+    if (u) {
+      const ab = document.createElement('a'); ab.className = 'vdc-arq-ab'; ab.textContent = 'Abrir'; ab.href = u; ab.target = '_blank'; ab.rel = 'noopener noreferrer';
+      ab.setAttribute('aria-label', 'Abrir ' + nome + ' do dossiê'); ab.setAttribute('data-vdc-abrir-dossie', a.slot);
+      ab.addEventListener('click', (ev) => { if (st.docs && Date.now() - st.docs.t > VDC_URL_VALE) { ev.preventDefault(); vdcAbrirVelhoDossie(st, d.arquivos.indexOf(a)); } });
+      ac.appendChild(ab);
+    } else {
+      const sem = document.createElement('span'); sem.className = 'vdc-arq-m'; sem.textContent = 'Sem link agora.'; ac.appendChild(sem);
+    }
+    row.appendChild(ac);
+    box.appendChild(row);
+  });
+  return box;
+}
+/** O link do dossiê passou de 4 min: lê a lista de novo e abre o novo (a aba nasce no clique, senão o navegador bloqueia). */
+async function vdcAbrirVelhoDossie(st, i) {
+  let w = null;
+  try { w = window.open('about:blank', '_blank'); } catch (e) {}
+  if (w) { try { w.opener = null; } catch (e) {} }
+  await vdcRecarregarDocs(st);
+  if (vdcEst !== st) { try { if (w) w.close(); } catch (e) {} return; }
+  const a = st.docs && st.docs.dossie && st.docs.dossie.arquivos[i];
+  const u = a ? vdcUrlHttps(a.url) : '';
+  vdcRedesenhar(st);
+  if (!w || !u) { try { if (w) w.close(); } catch (e) {} showToast(w ? 'Não consegui abrir este arquivo agora.' : 'O navegador bloqueou a nova aba. Libere os pop-ups e tente de novo.'); return; }
+  try { w.location.replace(u); } catch (e) { try { w.close(); } catch (x) {} showToast('Não consegui abrir este arquivo agora.'); }
+}
+
+/** Ligações do card solar: a proposta e a venda da planilha. Dado pessoal (nome, cidade) só entra por textContent. */
+function vdcVincDe(j) {
+  const sug = j.sugestoes && typeof j.sugestoes === 'object' ? j.sugestoes : {};
+  const cod = (v) => (v == null || v === '') ? '' : String(v);
+  return {
+    proposta: cod(j.proposta), venda: cod(j.venda), por: typeof j.por === 'string' ? j.por : '', em: typeof j.em === 'string' ? j.em : '',
+    sugProp: Array.isArray(sug.propostas) ? sug.propostas.filter(x => x && typeof x === 'object' && x.codigo != null && x.codigo !== '') : [],
+    sugVenda: Array.isArray(sug.vendas) ? sug.vendas.filter(x => x && typeof x === 'object' && x.codigo != null && x.codigo !== '') : [],
+    vendasFora: j.vendas_indisponivel === true,
+  };
+}
+const vdcMsgVinc = (r) => {
+  const j = (r && r.json) || {};
+  if (r && (r.status === 401 || r.status === 403 || r.status === 0)) return vdcMsgErro(r);
+  if (typeof j.error === 'string' && j.error) return j.error;
+  const m = String(j.motivo || '');
+  if (r && r.status === 409) {
+    if (j.tentarDeNovo || m === 'tentarDeNovo') return 'Outra pessoa mexeu nisto agora. Tente de novo.';
+    if (j.conflito || m === 'conflito') return 'Isto já está ligado a outro card.';
+    return 'Não deu para ligar agora. Atualize e tente de novo.';
+  }
+  if (r && r.status === 404) return 'Não achei este item. Atualize a tela.';
+  if (r && r.status === 400) return 'Isto não pode ser ligado.';
+  if (r && r.status === 429) return 'Muitos pedidos seguidos. Espere um pouco e tente de novo.';
+  if (r && r.status === 503) return 'As ligações estão indisponíveis agora. Tente de novo em instantes.';
+  return 'Não consegui agora. Tente de novo.';
+};
+/** Lê as ligações e as sugestões. Não repinta: quem chama decide. */
+async function vdcLerVinc(st) {
+  const r = await vdcChamarVinc(st, 'GET');
+  // o resultado é do st mesmo que o card já tenha fechado (o preenchimento do Fechamento fecha o card e ainda precisa da proposta ligada)
+  const j = r.json || {};
+  if (r.status === 200 && j.ok !== false) { st.vinc = vdcVincDe(j); st.vincErroCarga = ''; return true; }
+  st.vincErroCarga = vdcMsgVinc(r);
+  return false;
+}
+function vdcCarregarVinc(st) {
+  st.vincErroCarga = '';
+  st.vincP = vdcLerVinc(st).then(() => { if (vdcEst === st) vdcPintar(st); });
+}
+/** Liga (valor = código) ou desliga (valor = null) UMA coisa por vez; manda só a chave que muda. Depois lê tudo de novo: o dossiê depende da proposta. */
+async function vdcLigar(st, tipo, valor) {
+  if (vdcEst !== st || st.vincOcupado) return;
+  st.vincOcupado = tipo; st.vincMsg = '';
+  vdcPintar(st);
+  const corpo = {}; corpo[tipo] = valor;
+  const r = await vdcChamarVinc(st, 'POST', corpo);
+  if (vdcEst !== st) return;
+  const j = r.json || {};
+  const ok = r.status === 200 && j.ok !== false;
+  if (ok) {
+    await Promise.all([vdcLerVinc(st), vdcRecarregarDocs(st)]);
+    if (vdcEst !== st) return;
+    showToast(valor == null ? (tipo === 'proposta' ? 'Proposta desligada.' : 'Venda desligada.') : (tipo === 'proposta' ? 'Proposta ligada.' : 'Venda ligada.'));
+  } else {
+    st.vincMsg = vdcMsgVinc(r);
+    // O estado pode ter mudado por outra pessoa: lê de novo para a tela não mentir.
+    if (r.status === 409 || r.status === 404) { await vdcLerVinc(st); if (vdcEst !== st) return; }
+  }
+  st.vincOcupado = '';
+  vdcPintar(st);
+}
+const vdcDataCurta = (v) => { const s = String(v == null ? '' : v); const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? m[3] + '/' + m[2] + '/' + m[1] : s; };
+function vdcMotivoVinc(m) {
+  const t = vdcNorm(m);
+  if (t.indexOf('telefone') >= 0) return 'Mesmo telefone';
+  if (t.indexOf('nome') >= 0) return 'Nome parecido';
+  return vdcRotuloLivre(m);
+}
+const vdcRotCodigo = (v) => { const s = String(v == null ? '' : v).trim(); return s ? (s.charAt(0) === '#' ? s : '#' + s) : ''; };
+function vdcPintarVinc(st) {
+  const V = st.no.vinc; if (!V) return;
+  const ativo = document.activeElement && V.contains(document.activeElement) ? document.activeElement : null;
+  const foco = ativo && ativo.dataset ? ativo.dataset.vdcFoco || '' : '';
+  V.replaceChildren();
+  const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = 'Ligações'; V.appendChild(tit);
+  if (!st.vinc) {
+    const p = document.createElement('p'); p.className = 'vdc-carga';
+    p.textContent = st.vincErroCarga || 'Carregando as ligações…';
+    V.appendChild(p);
+    if (st.vincErroCarga) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = 'Tentar de novo';
+      b.addEventListener('click', () => { st.vinc = null; vdcCarregarVinc(st); vdcPintar(st); });
+      V.appendChild(b);
+    }
+    return;
+  }
+  const v = st.vinc;
+  const bloco = (tipo, rotulo, ligado, sugs, ehProposta) => {
+    const box = document.createElement('div'); box.className = 'vdc-vinc-bl'; box.setAttribute('data-vdc-vinc-tipo', tipo);
+    const lin = document.createElement('div'); lin.className = 'vdc-vinc-lin';
+    const tx = document.createElement('span'); tx.className = 'vdc-vinc-tx';
+    const k = document.createElement('b'); k.textContent = rotulo + ': ';
+    const val = document.createElement('span'); val.textContent = ligado ? vdcRotCodigo(ligado) : 'nenhuma';
+    tx.append(k, val);
+    lin.appendChild(tx);
+    if (ligado) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = st.vincOcupado === tipo ? 'Desligando…' : 'Desligar';
+      b.disabled = !!st.vincOcupado; b.setAttribute('data-vdc-acao', 'desligar-' + tipo); b.dataset.vdcFoco = 'des-' + tipo;
+      b.setAttribute('aria-label', 'Desligar ' + rotulo.toLowerCase() + ' ' + vdcRotCodigo(ligado));
+      b.addEventListener('click', () => vdcLigar(st, tipo, null));
+      lin.appendChild(b);
+    }
+    box.appendChild(lin);
+    if (!ligado) {
+      if (!ehProposta && v.vendasFora) {
+        const av = document.createElement('p'); av.className = 'vdc-nota'; av.textContent = 'A planilha de vendas está fora do ar agora.'; box.appendChild(av);
+      }
+      sugs.slice(0, 5).forEach((s) => {
+        const it = document.createElement('div'); it.className = 'vdc-vinc-sug'; it.setAttribute('data-vdc-sug', String(s.codigo));
+        const c = document.createElement('div'); c.className = 'vdc-vinc-c';
+        const partes = [vdcRotCodigo(s.codigo), typeof s.cliente === 'string' ? s.cliente : '', ehProposta && typeof s.cidade === 'string' ? s.cidade : '',
+          ehProposta && s.kwp != null && s.kwp !== '' ? String(s.kwp).replace('.', ',') + ' kWp' : '', s.data ? vdcDataCurta(s.data) : ''].filter(Boolean);
+        const n = document.createElement('span'); n.className = 'vdc-vinc-n'; n.textContent = partes.join(' · ');
+        c.appendChild(n);
+        if (s.motivo) { const mt = document.createElement('span'); mt.className = 'vdc-tag'; mt.textContent = vdcMotivoVinc(s.motivo); c.appendChild(mt); }
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = st.vincOcupado === tipo ? 'Ligando…' : 'Ligar';
+        b.disabled = !!st.vincOcupado; b.setAttribute('data-vdc-acao', 'ligar-' + tipo); b.dataset.vdcFoco = 'lig-' + tipo + '-' + s.codigo;
+        b.setAttribute('aria-label', 'Ligar ' + rotulo.toLowerCase() + ' ' + vdcRotCodigo(s.codigo));
+        b.addEventListener('click', () => vdcLigar(st, tipo, String(s.codigo)));
+        it.append(c, b);
+        box.appendChild(it);
+      });
+    }
+    return box;
+  };
+  V.appendChild(bloco('proposta', 'Proposta', v.proposta, v.sugProp, true));
+  V.appendChild(bloco('venda', 'Venda da planilha', v.venda, v.sugVenda, false));
+  if ((v.proposta || v.venda) && (v.por || v.em)) {
+    const p = document.createElement('p'); p.className = 'vdc-nota';
+    p.textContent = 'Ligado' + (v.por ? ' por ' + v.por : '') + (v.em ? ' em ' + vdcDataCurta(v.em) : '') + '.';
+    V.appendChild(p);
+  }
+  if (st.vincMsg) { const m = document.createElement('p'); m.className = 'vdc-msg'; m.setAttribute('role', 'alert'); m.setAttribute('data-vdc-vinc-msg', '1'); m.textContent = st.vincMsg; V.appendChild(m); }
+  if (foco) {
+    const f = Array.from(V.querySelectorAll('[data-vdc-foco]')).find(x => x.dataset.vdcFoco === foco);
+    if (f && !f.disabled) { try { f.focus({ preventScroll: true }); } catch (e) {} }
+  }
+}
+
+// ── Solar: rateio do excedente ──────────────────────────────────────────────
+// O servidor confere o rateio e devolve `analise`: bloqueios (a soma passa de 100, UC repetida: vermelho, desligam a lista de rateio da
+// procuração) e avisos (amarelo, só avisam). O consumo da conta contra a geração da proposta é sempre aviso, nunca bloqueio.
+// Tudo que vem do servidor entra por textContent.
+const VDC_RAT_CAMPOS = (() => {
+  const l = ['rateio_modalidade', 'geradora_pct'];
+  for (let n = 1; n <= 5; n++) l.push('benef_' + n + '_uc', 'benef_' + n + '_titular', 'benef_' + n + '_doc', 'benef_' + n + '_pct');
+  return l;
+})();
+const vdcNumOuNulo = (v) => (v == null || v === '' || !isFinite(Number(v))) ? null : Number(v);
+const vdcFmtNum = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+/** `analise` vem na resposta do cadastro (GET e PUT), na raiz ou dentro do cadastro. */
+function vdcAnaliseDe(j) {
+  const a = (j && j.analise) || (j && j.cadastro && j.cadastro.analise);
+  if (!a || typeof a !== 'object') return null;
+  const lst = (v) => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [];
+  const r = a.rateio && typeof a.rateio === 'object' ? a.rateio : {};
+  const c = a.consumo && typeof a.consumo === 'object' ? a.consumo : {};
+  return { soma: vdcNumOuNulo(r.soma), bloqueios: lst(r.bloqueios), avisos: lst(r.avisos),
+    conta: vdcNumOuNulo(c.conta_kwh), proposta: vdcNumOuNulo(c.proposta_kwh), avisoConsumo: typeof c.aviso === 'string' ? c.aviso.trim() : '' };
+}
+const vdcRatBeneficiarias = (cad) => { let m = 0; for (let n = 1; n <= 5; n++) if (['uc', 'titular', 'doc', 'pct'].some(c => vdcV(cad, 'benef_' + n + '_' + c) !== '')) m = n; return m; };
+
+function vdcPintarRat(st) {
+  const R = st.no.rat; if (!R) return;
+  if (!st.cad) { R.replaceChildren(); st.rat = null; return; }
+  if (!st.rat) vdcMontarRat(st);
+  vdcRatSincroniza(st);
+  vdcPintarRatAnalise(st);
+}
+/** O formulário nasce UMA vez (o que a pessoa digita não some quando o bloco repinta). */
+function vdcMontarRat(st) {
+  const R = st.no.rat; R.replaceChildren();
+  const rat = st.rat = { inp: {}, blocos: [], visiveis: 1, an: null, msg: null, mais: null, salvar: null, erros: {} };
+  const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = 'Rateio do excedente'; R.appendChild(tit);
+  const campo = (k, rot, dica) => {
+    const lb = document.createElement('label'); lb.className = 'vdc-rat-f';
+    const sp = document.createElement('span'); sp.className = 'vdc-rat-r'; sp.textContent = rot;
+    let el;
+    if (k === 'rateio_modalidade') {
+      el = document.createElement('select'); el.className = 'vdc-in';
+      VDC_SOL_RATEIO_MODALIDADES.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; el.appendChild(o); });
+    } else {
+      el = document.createElement('input'); el.type = 'text'; el.className = 'vdc-in'; el.autocomplete = 'off';
+      if (/_pct$/.test(k)) el.inputMode = 'decimal';
+    }
+    el.setAttribute('data-vdc-rat', k);
+    el.addEventListener('input', () => { el.dataset.sujo = '1'; });
+    el.addEventListener('change', () => { el.dataset.sujo = '1'; });
+    const er = document.createElement('span'); er.className = 'vdc-erro'; er.hidden = true;
+    rat.inp[k] = el; rat.erros[k] = er;
+    lb.append(sp, el, er);
+    return lb;
+  };
+  const topo = document.createElement('div'); topo.className = 'vdc-rat-g';
+  topo.append(campo('rateio_modalidade', 'Modalidade'), campo('geradora_pct', 'Percentual da geradora (%)'));
+  R.appendChild(topo);
+  for (let n = 1; n <= 5; n++) {
+    const b = document.createElement('div'); b.className = 'vdc-rat-ben'; b.setAttribute('data-vdc-benef', String(n));
+    const t = document.createElement('p'); t.className = 'vdc-rat-bt'; t.textContent = 'Beneficiária ' + n; b.appendChild(t);
+    const g = document.createElement('div'); g.className = 'vdc-rat-g';
+    g.append(campo('benef_' + n + '_uc', 'Unidade consumidora'), campo('benef_' + n + '_titular', 'Titular'), campo('benef_' + n + '_doc', 'CPF ou CNPJ'), campo('benef_' + n + '_pct', 'Percentual (%)'));
+    b.appendChild(g); R.appendChild(b); rat.blocos.push(b);
+  }
+  const mais = document.createElement('button'); mais.type = 'button'; mais.className = 'vdc-btn vdc-btn-mini'; mais.textContent = 'Adicionar beneficiária'; mais.setAttribute('data-vdc-acao', 'benef-mais');
+  mais.addEventListener('click', () => { if (rat.visiveis < 5) { rat.visiveis++; vdcRatBlocos(st); } });
+  rat.mais = mais;
+  const an = document.createElement('div'); an.className = 'vdc-rat-an'; an.setAttribute('data-vdc-rat-an', '1'); rat.an = an;
+  const msg = document.createElement('p'); msg.className = 'vdc-msg'; msg.hidden = true; msg.setAttribute('role', 'status'); rat.msg = msg;
+  const sv = document.createElement('button'); sv.type = 'button'; sv.className = 'vdc-btn vdc-btn-mini'; sv.textContent = 'Salvar rateio'; sv.setAttribute('data-vdc-acao', 'rateio-salvar');
+  sv.addEventListener('click', () => vdcRatSalvar(st)); rat.salvar = sv;
+  const barra = document.createElement('div'); barra.className = 'vdc-acoes'; barra.append(mais, sv);
+  R.append(an, barra, msg);
+}
+function vdcRatBlocos(st) {
+  const rat = st.rat; if (!rat) return;
+  rat.blocos.forEach((b, i) => { b.hidden = i >= rat.visiveis; });
+  rat.mais.hidden = rat.visiveis >= 5;
+}
+/** Traz o cadastro para os campos que ninguém mexeu (o que está sendo digitado fica). */
+function vdcRatSincroniza(st) {
+  const rat = st.rat; if (!rat || !st.cad) return;
+  VDC_RAT_CAMPOS.forEach((k) => {
+    const el = rat.inp[k]; if (!el || el.dataset.sujo === '1') return;
+    el.value = vdcV(st.cad, k);
+  });
+  rat.visiveis = Math.max(rat.visiveis, vdcRatBeneficiarias(st.cad), 1);
+  vdcRatBlocos(st);
+  rat.salvar.disabled = !!st.ratGravando; rat.salvar.textContent = st.ratGravando ? 'Salvando…' : 'Salvar rateio';
+  rat.msg.hidden = !st.ratMsg; rat.msg.textContent = st.ratMsg || '';
+}
+function vdcPintarRatAnalise(st) {
+  const an = st.rat && st.rat.an; if (!an) return;
+  an.replaceChildren();
+  const a = st.analise;
+  if (!a) return;
+  if (a.soma != null) { const p = document.createElement('p'); p.className = 'vdc-sit'; p.setAttribute('data-vdc-rat-soma', '1'); p.textContent = 'Soma do rateio: ' + vdcFmtNum(a.soma) + '%'; an.appendChild(p); }
+  if (a.bloqueios.length) {
+    const bx = document.createElement('div'); bx.className = 'vdc-rat-bloq'; bx.setAttribute('role', 'alert'); bx.setAttribute('data-vdc-rat-bloq', '1');
+    const ul = document.createElement('ul'); a.bloqueios.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    const fim = document.createElement('p'); fim.textContent = 'Enquanto isso, a lista de rateio na procuração fica desligada.';
+    bx.append(ul, fim); an.appendChild(bx);
+  }
+  const avisos = a.avisos.slice();
+  if (a.avisoConsumo) avisos.push(a.avisoConsumo);
+  if (avisos.length) {
+    const bx = document.createElement('div'); bx.className = 'vdc-rat-av'; bx.setAttribute('data-vdc-rat-aviso', '1');
+    const ul = document.createElement('ul'); avisos.forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    bx.appendChild(ul); an.appendChild(bx);
+  }
+  if (a.conta != null && a.proposta != null) {
+    const p = document.createElement('p'); p.className = 'vdc-nota'; p.setAttribute('data-vdc-rat-consumo', '1');
+    p.textContent = 'Consumo da conta: ' + vdcFmtNum(a.conta) + ' kWh/mês · Geração da proposta: ' + vdcFmtNum(a.proposta) + ' kWh/mês';
+    an.appendChild(p);
+  }
+}
+async function vdcRatSalvar(st) {
+  const rat = st.rat;
+  if (vdcEst !== st || !rat || st.ratGravando || st.gravando || !st.cad) return;
+  const campos = {}; let invalido = false;
+  VDC_RAT_CAMPOS.forEach((k) => {
+    rat.erros[k].hidden = true; rat.erros[k].textContent = '';
+    let v = rat.inp[k].value.trim();
+    if (/_pct$/.test(k)) {
+      v = v.replace(',', '.');
+      if (v !== '' && !(/^\d+(\.\d+)?$/.test(v) && Number(v) <= 100)) { rat.erros[k].textContent = 'Use um número de 0 a 100.'; rat.erros[k].hidden = false; invalido = true; return; }
+    }
+    if (v !== vdcV(st.cad, k)) campos[k] = v;
+  });
+  if (invalido) { st.ratMsg = 'Corrija os campos destacados e salve de novo.'; vdcRatSincroniza(st); return; }
+  if (!Object.keys(campos).length) { st.ratMsg = 'Nada mudou no rateio.'; vdcRatSincroniza(st); return; }
+  st.ratGravando = true; st.ratMsg = ''; vdcRatSincroniza(st);
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos, fonte: 'manual' });
+  if (vdcEst !== st) return;
+  st.ratGravando = false;
+  const j = r.json || {};
+  if (r.status === 400 && j.erros && typeof j.erros === 'object') {
+    let n = 0;
+    VDC_RAT_CAMPOS.forEach((k) => { const m = j.erros[k]; if (m && rat.erros[k]) { n++; rat.erros[k].textContent = vdcMotivoTxt(m); rat.erros[k].hidden = false; } });
+    st.ratMsg = n ? 'Corrija os campos destacados e salve de novo.' : 'Algum valor não foi aceito. Confira e tente de novo.';
+    vdcRatSincroniza(st); return;
+  }
+  if (r.status !== 200 || j.ok === false || !j.cadastro) { st.ratMsg = vdcMsgErro(r, 'Não consegui gravar o rateio agora.'); vdcRatSincroniza(st); return; }
+  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j);
+  VDC_RAT_CAMPOS.forEach((k) => { delete rat.inp[k].dataset.sujo; });
+  st.ratMsg = '';
+  vdcPintar(st);
+  showToast('Rateio salvo.');
 }
 
 // ── Documentos anexados: nome, abrir, renomear e mover ─────────────────────
@@ -36212,7 +36809,13 @@ function vdcPainel(st, leitura) {
   let n = 0;
   // Agrupado por pessoa: cada grupo ganha o título na primeira linha dele.
   const linhasDe = [];
-  VDC_GRUPOS.forEach((g) => g.campos.forEach(([k, rot]) => linhasDe.push([k, rot, g])));
+  const conhecidos = new Set();
+  st.cfg.grupos.forEach((g) => g.campos.forEach(([k]) => conhecidos.add(k)));
+  st.cfg.grupos.forEach((g) => {
+    g.campos.forEach(([k, rot]) => linhasDe.push([k, rot, g]));
+    // Solar: sugestão com nome que a tela não lista entra no grupo do prefixo (nunca some calada).
+    if (st.cfg.grupoDe) Object.keys(sug).filter(k => !conhecidos.has(k) && st.cfg.grupoDe(k) === g.id).forEach(k => linhasDe.push([k, vdcRotuloLivre(k), g]));
+  });
   let grupoAtual = null;
   linhasDe.forEach(([k, rot, g]) => {
     const s = sug[k];
@@ -36275,7 +36878,7 @@ function vdcPainel(st, leitura) {
     const chave = slot + '\u0000' + tx;
     let e = vistos.get(chave);
     if (!e) { e = { slot, tx, campos: [] }; vistos.set(chave, e); nao.push(e); }
-    const rot = campo ? (VDC_ROT[campo] || String(campo).replace(/_/g, ' ')) : '';
+    const rot = campo ? (st.cfg.rot(campo) || String(campo).replace(/_/g, ' ')) : '';
     if (rot && e.campos.indexOf(rot) < 0) e.campos.push(rot);
   };
   (Array.isArray(leitura.descartadas) ? leitura.descartadas : []).forEach((x) => { if (x && typeof x === 'object') soma(typeof x.slot === 'string' ? x.slot : '', x.nota, typeof x.campo === 'string' ? x.campo : ''); });
@@ -36315,7 +36918,7 @@ async function vdcConfirmar(st) {
   });
   st.no.pnMsg.hidden = true;
   if (!Object.keys(campos).length) {
-    if (!vdcV(st.cad, 'nome')) { st.no.pnMsg.textContent = 'Marque pelo menos o nome do cliente para preencher os contratos.'; st.no.pnMsg.hidden = false; return; }
+    if (!vdcV(st.cad, 'nome')) { st.no.pnMsg.textContent = st.cfg.msgSemNome; st.no.pnMsg.hidden = false; return; }
     st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
     vdcPreencher(st);
     return;
@@ -36337,15 +36940,21 @@ async function vdcConfirmar(st) {
     return;
   }
   st.cad = j.cadastro;
+  if (st.cfg.rateio) st.analise = vdcAnaliseDe(j);
   st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
   vdcPintar(st);
   vdcPreencher(st);
 }
 
-function vdcPreencher(st) {
+async function vdcPreencher(st) {
   if (vdcEst !== st || !st.cad) return;
-  try { aplicarCadastroEletroposto(st.cad); }
-  catch (e) { console.error('cadastro: os formulários não foram preenchidos', e); st.msg = 'Não consegui preencher os formulários agora.'; vdcPintar(st); }
+  // solar: as ligações dizem qual proposta é a deste card; espera um pouco por elas se ainda não chegaram
+  if (st.cfg.ligacoes && !st.vinc && st.vincP) {
+    await Promise.race([st.vincP, new Promise(r => setTimeout(r, 3000))]);
+    if (vdcEst !== st) return;
+  }
+  try { st.cfg.aplicar(st.cad, st); }
+  catch (e) { console.error('cadastro: os formulários não foram preenchidos', e); st.msg = st.cfg.msgNaoPreencheu; vdcPintar(st); }
 }
 
 // ── Preencher os formulários do eletroposto ────────────────────────────────
@@ -36587,15 +37196,147 @@ function aplicarCadastroEletroposto(cad) {
   return { faltando, ausentes: Array.from(new Set(ausentes)) };
 }
 
+// ── Preencher o Fechamento solar (20/10/2026) ──────────────────────────────
+// O mesmo cadastro do eletroposto, mas para os campos `fs-*`. Escreve só a IDENTIDADE e a unidade geradora: sistema, valores e prazos
+// continuam sendo do que o consultor montou. Quando o cliente do formulário é outro, o anterior sai antes (fsLimparCliente, a mesma regra de
+// quando se puxa outra proposta), sem tocar nos dados técnicos.
+function vdcFmtDoc(v) {
+  const d = vdcDigitos(v);
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return String(v == null ? '' : v).trim();
+}
+const vdcFmtCep = (v) => { const d = vdcDigitos(v); return d.length === 8 ? d.replace(/(\d{5})(\d{3})/, '$1-$2') : String(v == null ? '' : v).trim(); };
+/** O formulário do Fechamento está com OUTRO cliente? Compara o documento (só dígitos) e, sem documento dos dois lados, o nome. */
+function vdcFsClienteMudou(C) {
+  const formDoc = vdcDigitos(fsVal('fs-doc')), formNome = vdcNorm(fsVal('fs-nome'));
+  if (!formDoc && !formNome) return false;
+  const cadDoc = vdcDigitos(C.cpf_cnpj), cadNome = vdcNorm(C.nome);
+  if (formDoc && cadDoc) return formDoc !== cadDoc;
+  if (formNome && cadNome) return formNome !== cadNome;
+  return true;
+}
+function aplicarCadastroSolar(cad, st) {
+  const C = {};
+  VDC_SOL_TODOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+  const tipo = vdcTipo(cad);
+  const nome = C.nome;
+  const ausentes = [];
+  // 1) sai do card e entra no Fechamento. O Fechamento monta os campos na primeira vez, então vem ANTES de escrever. A proposta que
+  // estiver aberta na sessão e NÃO for a ligada a este card, não é deste cliente: marca como vista para o Fechamento não puxar os
+  // dados dela por cima. A ligada fica livre: é a fonte certa do sistema e do valor.
+  const dAberta = (typeof dadosAtual !== 'undefined') ? dadosAtual : null;
+  const propLigada = st && st.vinc && st.vinc.proposta ? String(st.vinc.proposta).replace(/^#/, '') : '';
+  if (dAberta && dAberta.nome && dAberta.item && fsEhSolar({ dados: dAberta }) && !(propLigada && fsChave(dAberta) === 'c:' + propLigada)) fsVistoKey = fsChave(dAberta);
+  try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
+  navFechamentoSolar();
+  // 2) cliente outro: o anterior sai (identidade e o que é dele); sistema e valores ficam
+  const mudou = vdcFsClienteMudou(C);
+  if (mudou) { fsLimparCliente(); ['fs-nome', 'fs-tel', 'fs-cidade', 'fs-uf'].forEach(id => fsSet(id, '', true)); }
+  // 3) escreve. Escrito vira "digitado": puxar uma proposta depois não passa por cima do cadastro.
+  const por = (id, valor, fmt) => {
+    const el = fsEl(id);
+    if (!el) { ausentes.push(id); return; }
+    if (!valor) return;       // vazio fica como está: nada de texto de exemplo no lugar
+    el.value = fmt ? fmt(valor) : valor;
+    fsTocar(el);
+  };
+  const t = fsEl('fs-tipo');
+  if (t) { t.value = tipo; fsTocar(t); } else ausentes.push('fs-tipo');
+  fsTipoMudou();
+  por('fs-nome', nome);
+  por('fs-doc', C.cpf_cnpj, vdcFmtDoc);
+  if (tipo === 'PJ') {
+    por('fs-rep', [C.rep_nome, C.rep_cpf ? 'CPF ' + C.rep_cpf : ''].filter(Boolean).join(', '));
+  } else {
+    por('fs-rg', C.rg_ie); por('fs-orgao', C.orgao_emissor); por('fs-nacionalidade', C.nacionalidade);
+    por('fs-estado-civil', C.estado_civil); por('fs-profissao', C.profissao);
+  }
+  por('fs-cep', C.cep, vdcFmtCep);
+  por('fs-tel', C.telefone, (v) => epFoneBR(v) || v);
+  por('fs-end', C.endereco); por('fs-bairro', C.bairro); por('fs-cidade', C.cidade); por('fs-uf', C.uf.toUpperCase());
+  // unidade geradora: a UC e a concessionária da procuração; o endereço da instalação do contrato (a vistoria e o recibo seguem dele)
+  por('fs-p-uc', C.unidade_consumidora); por('fs-p-conc', C.concessionaria); por('fs-c-endinst', C.endereco_ponto);
+  // titular da conta de luz (quando não é o comprador): vira o outorgante da procuração. Sai SEMPRE o que havia antes (mesmo cliente
+  // também): titular apagado no cadastro, ou RG e qualificação apagados, não podem sobrar na procuração.
+  ['fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end'].forEach(id => fsSet(id, '', true));
+  if (C.tuc_nome) {
+    const tucEnd = [C.tuc_endereco, C.tuc_bairro && C.tuc_endereco.toLowerCase().indexOf(C.tuc_bairro.toLowerCase()) < 0 ? C.tuc_bairro : '',
+      C.tuc_cidade ? C.tuc_cidade + (C.tuc_uf ? '/' + C.tuc_uf : '') : '', C.tuc_cep ? 'CEP ' + C.tuc_cep : ''].filter(Boolean).join(', ');
+    por('fs-p-tuc-nome', C.tuc_nome);
+    por('fs-p-tuc-doc', C.tuc_cpf_cnpj, vdcFmtDoc);
+    por('fs-p-tuc-rg', C.tuc_rg_ie ? C.tuc_rg_ie + (C.tuc_orgao_emissor ? ' ' + C.tuc_orgao_emissor : '') : '');
+    por('fs-p-tuc-qualif', [C.tuc_nacionalidade, C.tuc_estado_civil, C.tuc_profissao].filter(Boolean).join(', '));
+    por('fs-p-tuc-end', tucEnd);
+    const det = fsEl('fs-det-tuc'); if (det) det.open = true;
+  }
+  // Conta de luz em nome de OUTRA pessoa e sem titular no cadastro: a procuração com o comprador exige um clique de confirmação.
+  const titularOutro = !C.tuc_nome && !!C.titular_conta && vdcNorm(C.titular_conta) !== vdcNorm(nome);
+  fsTitularAlerta(titularOutro ? C.titular_conta : '');
+  if (titularOutro) { const det = fsEl('fs-det-tuc'); if (det) det.open = true; }
+  // lista de rateio (anexo da procuração): geradora + beneficiárias, só quando há beneficiárias e o servidor não achou bloqueio.
+  // Sem beneficiárias a lista fica vazia e a procuração sai igual à de sempre. Com bloqueio o campo fica desligado, com o motivo.
+  const bloq = (st && st.analise && st.analise.bloqueios) || [];
+  const nBen = vdcRatBeneficiarias(cad);
+  const usoEl = fsEl('fs-p-rateio-uso'), listaEl = fsEl('fs-p-rateio-lista'), avisoEl = fsEl('fs-p-rateio-aviso');
+  let rateioOff = '';
+  if (usoEl && listaEl) {
+    const pct = (v) => v ? String(v).replace('%', '').replace('.', ',') + '%' : '';
+    const linhasRat = [];
+    if (nBen && !bloq.length) {
+      // o titular da geradora é o mesmo que assina a procuração: o titular da UC, ou o comprador
+      const gTit = C.tuc_nome || nome;
+      const gDoc = C.tuc_nome ? vdcFmtDoc(C.tuc_cpf_cnpj) : vdcFmtDoc(C.cpf_cnpj);
+      linhasRat.push(['Geradora', C.unidade_consumidora, gTit, gDoc, pct(C.geradora_pct)]);
+      for (let n = 1; n <= nBen; n++) {
+        const g = (c) => C['benef_' + n + '_' + c] || '';
+        if (g('uc') || g('titular') || g('doc') || g('pct')) linhasRat.push(['Beneficiária ' + n, g('uc'), g('titular'), vdcFmtDoc(g('doc')), pct(g('pct'))]);
+      }
+    }
+    usoEl.disabled = false;
+    listaEl.value = linhasRat.map(l => l.join(' | ')).join('\n'); fsTocar(listaEl);
+    usoEl.value = linhasRat.length ? 'sim' : 'nao'; fsTocar(usoEl);
+    if (nBen && bloq.length) {
+      usoEl.value = 'nao'; usoEl.disabled = true;
+      rateioOff = bloq.join(' ');
+      if (avisoEl) avisoEl.textContent = 'Lista de rateio desligada: ' + rateioOff;
+      const dr = fsEl('fs-det-rateio'); if (dr) dr.open = true;
+    } else if (avisoEl) avisoEl.textContent = '';
+  } else ausentes.push('fs-p-rateio-uso');
+  // a mesma fonte do cliente: puxar depois a proposta ligada não apaga o que o cadastro escreveu
+  const origemDe = () => { const p = st && st.vinc && st.vinc.proposta ? String(st.vinc.proposta).replace(/^#/, '') : ''; return p ? 'c:' + p : 'cadastro:' + (st ? st.id : ''); };
+  fsOrigemKey = origemDe();
+  // As ligações podem chegar depois do clique: quando chegarem, a origem passa a ser a da proposta ligada (puxá-la depois não apaga o cadastro).
+  if (st && !st.vinc && st.vincP) st.vincP.then(() => { if (st.vinc && fsOrigemKey === 'cadastro:' + st.id) fsOrigemKey = origemDe(); });
+  // 4) mostra a aba do contrato e avisa o que falta
+  fsTipoMudou(); fsProcModelo();
+  fsAba('contrato');
+  fsRevalida();
+  const lista = (Array.isArray(cad && cad.faltando) ? cad.faltando : []).filter(k => typeof k === 'string' && k && (tipo === 'PJ' || k.indexOf('rep_') !== 0))
+    .map(k => VDC_SOL_ROT[k] || vdcRotuloLivre(k));
+  const faltando = lista.slice(0, 8);
+  let msg = 'Fechamento preenchido com o cadastro de ' + (nome || 'cliente sem nome') + '. '
+    + (lista.length ? 'Faltando: ' + faltando.join(', ') + (lista.length > 8 ? ' e mais ' + (lista.length - 8) : '') + '.' : 'Tudo preenchido.');
+  // sistema e valor não vêm do cadastro: avisa quando o cliente mudou OU quando o Contrato está sem eles
+  if (mudou || !fsVal('fs-c-valor') || !fsVal('fs-c-kwp')) msg += ' Confira o sistema e o valor no Contrato: eles não vêm do cadastro.';
+  if (titularOutro) msg += ' ' + fsTitularMsg();
+  if (rateioOff) msg += ' A lista de rateio da procuração ficou desligada: ' + rateioOff;
+  vdcAvisar(msg, 'vdc-aviso-sol');
+  showToast('Fechamento preenchido com o cadastro de ' + (nome || 'cliente'));
+  if (ausentes.length) console.warn('cadastro: campos que não existem na tela: ' + Array.from(new Set(ausentes)).join(', '));
+  return { faltando: lista, ausentes: Array.from(new Set(ausentes)) };
+}
+
 // A faixa fica até alguém fechar (o toast some em 2 segundos, curto para uma lista do que falta).
-function vdcAvisar(txt) {
-  const box = document.getElementById('vdc-aviso');
+function vdcAvisar(txt, id) {
+  const box = document.getElementById(id || 'vdc-aviso');
   if (!box) return;
   const tx = box.querySelector('.vdc-aviso-tx');
   if (tx) tx.textContent = txt;
   box.hidden = !txt;
 }
-function vdcAvisoFechar() { vdcAvisar(''); }
+// Fecha as duas faixas: a do eletroposto e a do Fechamento solar (cada uma vive na sua tela).
+function vdcAvisoFechar() { vdcAvisar(''); vdcAvisar('', 'vdc-aviso-sol'); }
 /** Saiu da conta: o bloco, a faixa e qualquer leitura em voo são desta conta. */
 function vdcSessaoLimpar() { vdcFechar(); vdcAvisoFechar(); }
 
