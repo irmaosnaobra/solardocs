@@ -155,9 +155,9 @@ const dorme = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * Tenta pegar a trava da venda. true = pegou (e `meuStamp` identifica a linha dele). Trava vencida (`ate` no passado) é
  * tomada com delete condicional pelo `updated_at` lido, para duas instâncias não tomarem a mesma.
  */
-async function pegarTrava(chave: string, por: string, meuStamp: string): Promise<boolean> {
+async function pegarTrava(chave: string, por: string, meuStamp: string, ttlMs: number): Promise<boolean> {
   for (let rodada = 0; rodada < 3; rodada++) {
-    const ate = new Date(Date.now() + TRAVA_TTL_MS).toISOString();
+    const ate = new Date(Date.now() + ttlMs).toISOString();
     const { error } = await supabase.from('system_state').insert({ key: chave, value: { por, ate }, updated_at: meuStamp });
     if (!error) return true;
     if (codigoDe(error) !== '23505') throw new ErroCadastro('trava');
@@ -187,12 +187,12 @@ async function soltarTrava(chave: string, meuStamp: string): Promise<void> {
  * `ErroCadastro('ocupado')`. A trava SEMPRE é solta no `finally`, e só se ainda for a dele.
  * `id` é o id do card (eletroposto) ou, para outra linha, `<linha>:<código>` (o código do Solar não colide com um id de card).
  */
-export async function comTrava<T>(id: number | string, por: string, fn: () => Promise<T>): Promise<T> {
+export async function comTrava<T>(id: number | string, por: string, fn: () => Promise<T>, ttlMs: number = TRAVA_TTL_MS): Promise<T> {
   const chave = `${TRAVA_PREFIXO}${id}`;
   const meuStamp = new Date().toISOString();
   let pegou = false;
   for (let t = 0; t < TRAVA_TENTATIVAS && !pegou; t++) {
-    pegou = await pegarTrava(chave, por, meuStamp);
+    pegou = await pegarTrava(chave, por, meuStamp, ttlMs);
     if (!pegou && t < TRAVA_TENTATIVAS - 1) await dorme(TRAVA_ESPERA_MS);
   }
   if (!pegou) throw new ErroCadastro('ocupado');

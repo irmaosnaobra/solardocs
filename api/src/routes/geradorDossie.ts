@@ -11,6 +11,7 @@ import {
   caminhoArquivo, extensaoDe, assinar,
   credenciaisTrello, anexarNoTrello, comentarNoTrello, textoFichaTecnica,
   buscarCartao, listarCartoes, criarCartao, acharLista, nomeCartaoNovo, LISTA_CARTAO_NOVO,
+  trelloQuadroPublico, MSG_QUADRO_PUBLICO,
   type ArquivoDossie, type PropostaDossie, type Dossie,
 } from '../services/gerador/dossieVenda';
 
@@ -323,6 +324,8 @@ export function mountDossie(router: Router): void {
       // situação.
       const d = p.dossie;
       const board = String(process.env.TRELLO_BOARD_ID || '').trim() || TRELLO_BOARD_ID;
+      // Conferido na hora, antes de escrever qualquer coisa: o quadro público não recebe anexo nem o e-mail do cliente.
+      const publico = await trelloQuadroPublico(board);
 
       // ORDEM: cartão que o dossiê já conhece, depois o que o consultor
       // escolheu, depois procurar pelo nome, e só então CRIAR.
@@ -356,7 +359,7 @@ export function mountDossie(router: Router): void {
             return;
           }
           const nome = nomeCartaoNovo(p);
-          const novo = await criarCartao(cred, lista.id, nome, textoFichaTecnica(p, d));
+          const novo = await criarCartao(cred, lista.id, nome, textoFichaTecnica(p, d, publico));
           if (!novo.ok) {
             // Os documentos NÃO se perdem: continuam no bucket e o dossiê guarda
             // o motivo, pra tela oferecer o reenvio.
@@ -379,7 +382,13 @@ export function mountDossie(router: Router): void {
       let falhas = 0;
       const erros: string[] = [];
 
+      // QUADRO PÚBLICO: CNH e conta de luz não vão para um quadro que qualquer um abre. O cartão é criado ou atualizado (ficha
+      // técnica) sem anexo nenhum, os arquivos ficam `pendente` e o envio NÃO é dado como feito.
+      const faltaAnexar = ARQUIVOS_SOLAR.some((s) => (d.arquivos[s.key] || []).some((a) => !(a.trello_status === 'enviado' && a.trello_anexo_id)));
+      const anexosBloqueados = faltaAnexar && publico;
+
       for (const slot of ARQUIVOS_SOLAR) {
+        if (anexosBloqueados) break;
         for (const arq of d.arquivos[slot.key] || []) {
           if (arq.trello_status === 'enviado' && arq.trello_anexo_id) continue;
           const bytes = await baixarArquivo(arq.path);
@@ -413,15 +422,16 @@ export function mountDossie(router: Router): void {
       // descrição: sobrescrever a descrição apagaria o que a homologação
       // escreveu lá.
       if (!criouAgora) {
-        const ficha = await comentarNoTrello(cred, cardId, textoFichaTecnica(p, d), d.trello.comentario_id);
+        const ficha = await comentarNoTrello(cred, cardId, textoFichaTecnica(p, d, publico), d.trello.comentario_id);
         if (ficha.ok) d.trello.comentario_id = ficha.id;
         else { falhas++; erros.push(`ficha técnica: ${ficha.motivo}`); }
       }
 
       d.trello.card_id = cardId;
       d.trello.card_nome = cardNome ?? d.trello.card_nome;
-      d.trello.status = falhas === 0 ? 'enviado' : 'falhou';
-      d.trello.motivo = falhas === 0 ? null : erros.slice(0, 3).join(' · ');
+      // Bloqueado não é falha de rede nem sucesso: fica `pendente`, com o motivo, até o quadro ficar privado.
+      d.trello.status = anexosBloqueados ? (falhas === 0 ? 'pendente' : 'falhou') : (falhas === 0 ? 'enviado' : 'falhou');
+      d.trello.motivo = anexosBloqueados ? [MSG_QUADRO_PUBLICO, ...erros].slice(0, 3).join(' · ') : (falhas === 0 ? null : erros.slice(0, 3).join(' · '));
       d.trello.em = new Date().toISOString();
 
       // Grava o resultado por cima do que estiver no banco AGORA: um upload que
@@ -435,9 +445,10 @@ export function mountDossie(router: Router): void {
         dos.trello = { ...dos.trello, ...d.trello };
       });
 
-      res.status(falhas === 0 ? 200 : 207).json({
-        ok: falhas === 0,
+      res.status(falhas === 0 && !anexosBloqueados ? 200 : 207).json({
+        ok: falhas === 0 && !anexosBloqueados,
         enviados, falhas, erros,
+        ...(anexosBloqueados ? { anexos_bloqueados: true, error: MSG_QUADRO_PUBLICO } : {}),
         criou_cartao: criouAgora,
         cartao: { id: cardId, nome: d.trello.card_nome, url: d.trello.card_url ?? null },
         trello: salvo.trello,

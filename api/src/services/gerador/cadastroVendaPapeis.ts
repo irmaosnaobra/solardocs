@@ -65,7 +65,7 @@ export const DONO_DO_ITEM_SOLAR: Readonly<Record<string, DonoArquivo>> = {
 const donosDa = (linha: LinhaLeitura): Readonly<Record<string, DonoArquivo>> => (linha === 'vendasolar' ? DONO_DO_ITEM_SOLAR : DONO_DO_ITEM);
 
 const CAMPOS_DO_PONTO: readonly string[] = ['endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta'];
-const CAMPOS_DA_UNIDADE_GERADORA: readonly string[] = [...CAMPOS_DO_PONTO, 'uc_classe', 'consumo_medio_kwh'];
+const CAMPOS_DA_UNIDADE_GERADORA: readonly string[] = [...CAMPOS_DO_PONTO, 'uc_classe', 'consumo_medio_kwh', 'uc_fornecimento'];
 
 export function papelDoCampo(campo: Campo): PapelCampo {
   if (campo.startsWith('ced_')) return 'cedente';

@@ -125,7 +125,7 @@ describe('campos do cadastro por linha', () => {
     expect(ehCampo('uc_classe', 'eletroposto')).toBe(false);
     expect(ehCampo('ced_nome', 'eletroposto')).toBe(true);
     expect(CAMPOS.length).toBe(58);                    // o eletroposto não mudou
-    expect(CAMPOS_VENDASOLAR).toHaveLength(25 + 2 + 15 + 15 + 3 + 20 + 2 + 5 + 15 + 2);   // + rateio_modalidade, geradora_pct e benef_N_doc, + fin_* e os dois *_mesmo
+    expect(CAMPOS_VENDASOLAR).toHaveLength(25 + 3 + 15 + 15 + 3 + 20 + 2 + 5 + 15 + 2);   // + rateio_modalidade, geradora_pct e benef_N_doc, + fin_* e os dois *_mesmo, + uc_fornecimento (os 3 de CAMPOS_UC_SOLAR)
     expect(camposDaLinha('vendasolar')).toBe(CAMPOS_VENDASOLAR);
   });
   it('validação: percentual, consumo, classe e relação com o titular', () => {

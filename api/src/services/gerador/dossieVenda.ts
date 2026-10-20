@@ -388,7 +388,7 @@ export function credenciaisTrello(): CredenciaisTrello | null {
 /** Ficha técnica que vai no comentário do cartão. Os 5 campos de texto do
  *  dossiê não têm anexo pra representar — sem este comentário eles simplesmente
  *  nunca chegariam no Trello. */
-export function textoFichaTecnica(p: PropostaDossie, d: Dossie): string {
+export function textoFichaTecnica(p: PropostaDossie, d: Dossie, publico = false): string {
   const v = (k: string) => String(d.campos[k] || '').trim() || '—';
   const local = [p.cliente_cidade, p.cliente_uf].filter(Boolean).join(' / ') || '—';
   return [
@@ -396,7 +396,8 @@ export function textoFichaTecnica(p: PropostaDossie, d: Dossie): string {
     '',
     `- Proposta: ${p.codigo}`,
     `- Cidade: ${local}`,
-    `- E-mail: ${v('email')}`,
+    // Quadro público: o e-mail (e o telefone, que a ficha não leva) do cliente não vai; qualquer um lê.
+    publico ? '- Telefone e e-mail no gerador (quadro público).' : `- E-mail: ${v('email')}`,
     `- Placas: ${v('qtd_placa')} x ${v('marca_placa')}`,
     `- Inversores: ${v('qtd_inversor')} x ${v('marca_inversor')}`,
     '',
@@ -404,11 +405,52 @@ export function textoFichaTecnica(p: PropostaDossie, d: Dossie): string {
   ].join('\n');
 }
 
-async function trelloFetch(url: string, init?: RequestInit): Promise<Response> {
+export async function trelloFetch(url: string, init?: RequestInit): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 30_000);
   try {
     return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// ── Quadro público: nenhum documento pessoal vai para ele ────────────────────
+
+export const MSG_QUADRO_PUBLICO =
+  'O quadro do Trello está público: não anexo documento pessoal. Deixe o quadro privado no Trello e tente de novo.';
+
+const TTL_QUADRO_PUBLICO_MS = 60_000;
+const TIMEOUT_SONDA_QUADRO_MS = 8_000;
+const cacheQuadroPublico = new Map<string, number>();   // quadro -> até quando vale "é público"
+/** Para os testes: esquece o que já se sabe sobre o quadro. */
+export function limparCacheQuadroPublico(): void { cacheQuadroPublico.clear(); }
+
+/**
+ * O quadro abre SEM login? Pergunta sem key nem token (mesmo quando existem: a pergunta é o que um desconhecido enxerga) na URL
+ * da leitura do quadro. 200 com dados = PÚBLICO; 401, 403 e 404 = privado. Qualquer outra resposta (rede, tempo esgotado, 429,
+ * 5xx, corpo estranho) conta como PÚBLICO: na dúvida o documento pessoal não sai. SÓ "público" fica em cache (60 s): "privado"
+ * NUNCA é guardado, então cada envio confere na hora, e um quadro que acabou de ser aberto bloqueia o anexo seguinte.
+ */
+export async function trelloQuadroPublico(boardId: string): Promise<boolean> {
+  const ate = cacheQuadroPublico.get(boardId);
+  if (ate && ate > Date.now()) return true;
+  const guardar = (publico: boolean): boolean => {
+    if (publico) cacheQuadroPublico.set(boardId, Date.now() + TTL_QUADRO_PUBLICO_MS); else cacheQuadroPublico.delete(boardId);
+    return publico;
+  };
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), TIMEOUT_SONDA_QUADRO_MS);
+  try {
+    const r = await fetch(`https://trello.com/1/boards/${encodeURIComponent(boardId)}?fields=name`, { signal: ctrl.signal });
+    if (r.status === 401 || r.status === 403 || r.status === 404) return guardar(false);
+    if (r.status === 200) {
+      const j = await r.json().catch(() => null) as { id?: unknown; name?: unknown } | null;
+      return j && (typeof j.id === 'string' || typeof j.name === 'string') ? guardar(true) : true;
+    }
+    return true;
+  } catch {
+    return true;
   } finally {
     clearTimeout(t);
   }

@@ -6,9 +6,10 @@ import { ehSocio, podeVer } from '../services/gerador/solarObras';
 import { normalizarNome } from '../services/gerador/dossieVenda';
 import { codigoDeRota, nomesParecidos } from '../services/gerador/docsCliente';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
+import { mountVendaSolarTrello } from './geradorVendaSolarTrello';
 import { ErroDocs, lerPropostaResumo } from '../services/gerador/docsClienteBanco';
 import {
-  ErroHub, TRAVA_VINCULOS, lerLigacao, lerTodasLigacoes, gravarLigacao, quemUsa, listarVendidasParaVinculo, compararTelefones, mesmoConsultor,
+  ErroHub, TRAVA_VINCULOS, ligacaoSoDoTrello, lerLigacao, lerTodasLigacoes, gravarLigacao, quemUsa, listarVendidasParaVinculo, compararTelefones, mesmoConsultor,
   comCacheHub, invalidarCachesHub, segredoDoVinculo, type ForcaTelefone,
   type CandidatoProposta, type CandidatoVenda, type Ligacao,
 } from '../services/gerador/vendaSolarHub';
@@ -33,7 +34,11 @@ import {
 // Quem liga uma PROPOSTA: o consultor dela (o nome dele em `consultor_nome`) ou sócio, e ela tem que estar vendida. Quem liga
 // uma VENDA: quem a enxerga na planilha (o consultor efetivo dela, ou sócio). Assim ninguém dá acesso à venda de outro consultor.
 //
+//   POST /gerador/vendas-solares/:card/trello   monta ou atualiza o cartão do Trello (veja `geradorVendaSolarTrello.ts`)
+//
 // A ligação mora em `system_state` (`venda_solar:<card>`) SEM dado pessoal. Nenhum nome, telefone ou código vai para log.
+// Além de proposta e venda, ela guarda `trello_card` (o id do cartão do Trello), dentro da assinatura. Uma ligação criada só para
+// guardar o cartão (`por: 'trello'`, nada ligado) não impede o vínculo automático.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MSG_NAO_ACHEI = 'Venda não encontrada.';
@@ -171,16 +176,22 @@ export function mountVendaSolar(router: Router): void {
       // dois lados, com UM só candidato e do MESMO consultor do card (quem abriu, sócio inclusive, não muda isso). O resto é sugestão.
       const unicaProposta = lig.proposta ? null : c.autoProposta;
       const unicaVenda = lig.venda ? null : c.autoVenda;
-      if (!lido.existe && (unicaProposta || unicaVenda)) {
+      // Ligação que só guarda o cartão do Trello (`por: 'trello'`, nada ligado) conta como "nunca gravada": gravar o cartão não pode
+      // matar o vínculo automático. O cartão do Trello passa para a ligação nova.
+      if ((!lido.existe || ligacaoSoDoTrello(lido.lig)) && (unicaProposta || unicaVenda)) {
         try {
           const ligou = await comTrava(TRAVA_VINCULOS, g.nome, async () => {
             // Dentro da trava, de novo: ninguém gravou este card e ninguém levou a proposta ou a venda no meio do caminho.
-            if ((await lerLigacao(g.id)).existe) return false;
+            const atual = await lerLigacao(g.id);
+            if (atual.existe && !ligacaoSoDoTrello(atual.lig)) return false;
             const todas2 = await lerTodasLigacoes();
             const proposta = unicaProposta && quemUsa(todas2, g.id, 'proposta', unicaProposta.codigo) === null ? unicaProposta.codigo : null;
             const venda = unicaVenda && quemUsa(todas2, g.id, 'venda', unicaVenda.codigo) === null ? unicaVenda.codigo : null;
             if (!proposta && !venda) return false;
-            await gravarLigacao(g.id, { proposta, venda, por: 'auto', em: new Date().toISOString() });
+            await gravarLigacao(g.id, {
+              proposta, venda, por: 'auto', em: new Date().toISOString(),
+              ...(atual.lig.trello_card ? { trello_card: atual.lig.trello_card } : {}),
+            });
             invalidarCachesHub();
             return true;
           });
@@ -248,6 +259,8 @@ export function mountVendaSolar(router: Router): void {
           proposta: querProposta ? proposta : lig.proposta,
           venda: querVenda ? venda : lig.venda,
           por: g.nome, em: new Date().toISOString(),
+          // O cartão do Trello já ligado segue junto: religar a proposta não pode esquecê-lo.
+          ...(lig.trello_card ? { trello_card: lig.trello_card } : {}),
         };
         await gravarLigacao(g.id, novo);
         invalidarCachesHub();
@@ -263,4 +276,7 @@ export function mountVendaSolar(router: Router): void {
       falhou(res, 'ligar falhou', err);
     }
   });
+
+  // ── Cartão do Trello (21/10/2026): a rota mora em outro arquivo, com a MESMA guarda ────────────────────────────────────────
+  mountVendaSolarTrello(router, base, guarda);
 }

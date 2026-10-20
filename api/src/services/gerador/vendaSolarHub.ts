@@ -67,8 +67,17 @@ export async function lerCardSolarVendido(id: number): Promise<CardVendido | nul
 
 // ── Ligação ──────────────────────────────────────────────────────────────────
 
-export interface Ligacao { proposta: string | null; venda: string | null; por: string; em: string }
+/**
+ * `trello_card` (21/10/2026): o id do cartão do Trello criado ou achado para este card (24 hex). Opcional: ligação antiga não tem.
+ * Entra na assinatura SÓ quando existe, para as ligações já gravadas continuarem valendo.
+ */
+export interface Ligacao { proposta: string | null; venda: string | null; por: string; em: string; trello_card?: string | null }
 export const ligacaoVazia = (): Ligacao => ({ proposta: null, venda: null, por: '', em: '' });
+
+/** Quem gravou a ligação só para guardar o cartão do Trello (nenhuma proposta nem venda ligada, nenhuma decisão de gente). */
+export const POR_TRELLO = 'trello';
+/** A ligação existe só por causa do Trello: o vínculo automático por telefone ainda vale, como se a chave nunca tivesse sido gravada. */
+export const ligacaoSoDoTrello = (l: Ligacao): boolean => !l.proposta && !l.venda && l.por === POR_TRELLO;
 
 // ── Assinatura ───────────────────────────────────────────────────────────────
 // A chave pública do banco principal alcança o `system_state` e pode ESCREVER nele. Cada ligação gravada leva `sig`, o HMAC-SHA256
@@ -89,7 +98,9 @@ export function segredoDoVinculo(): Buffer | null {
 export function assinarLigacao(card: number, l: Ligacao): string | null {
   const segredo = segredoDoVinculo();
   if (!segredo) return null;
-  return crypto.createHmac('sha256', segredo).update(`${card}|${l.proposta ?? ''}|${l.venda ?? ''}|${l.por}|${l.em}`).digest('hex');
+  // `|trello:<id>` só quando há cartão: a ligação sem ele assina exatamente o texto de antes (as já gravadas seguem válidas).
+  const trello = l.trello_card ? `|trello:${l.trello_card}` : '';
+  return crypto.createHmac('sha256', segredo).update(`${card}|${l.proposta ?? ''}|${l.venda ?? ''}|${l.por}|${l.em}${trello}`).digest('hex');
 }
 
 /** A `sig` guardada confere com a ligação deste card? Sem segredo ou sem `sig`: não. */
@@ -108,6 +119,8 @@ function comAssinatura(card: number, l: Ligacao): Ligacao & { sig: string } {
 
 const RE_PROPOSTA = /^[A-Za-z0-9._-]{1,40}$/;
 const RE_VENDA = /^#\d{4,6}$/;
+/** Id de cartão do Trello: 24 caracteres hexadecimais. */
+export const RE_ID_TRELLO = /^[0-9a-f]{24}$/;
 
 /** O `value` do banco pode vir torto (a chave pública lê a tabela): só entra proposta e venda de formato válido. */
 export function lerLigacaoBruta(value: unknown): Ligacao {
@@ -117,6 +130,8 @@ export function lerLigacaoBruta(value: unknown): Ligacao {
     venda: typeof v.venda === 'string' && RE_VENDA.test(v.venda) ? v.venda : null,
     por: typeof v.por === 'string' ? v.por.slice(0, 60) : '',
     em: typeof v.em === 'string' ? v.em.slice(0, 40) : '',
+    // A chave só existe quando há cartão (ligação sem cartão tem o mesmo formato de antes).
+    ...(typeof v.trello_card === 'string' && RE_ID_TRELLO.test(v.trello_card) ? { trello_card: v.trello_card } : {}),
   };
 }
 

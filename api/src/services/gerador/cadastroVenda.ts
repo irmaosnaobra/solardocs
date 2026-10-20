@@ -54,7 +54,7 @@ export const CAMPOS_TITULAR_FINANCIAMENTO = [
 ] as const;
 export const CAMPOS_DECISAO_PAPEIS = ['homologacao_mesmo', 'financiamento_mesmo'] as const;
 export const OPCOES_PAPEL_MESMO = ['contratante', 'outra_pessoa'] as const;
-export const CAMPOS_UC_SOLAR = ['uc_classe', 'consumo_medio_kwh'] as const;
+export const CAMPOS_UC_SOLAR = ['uc_classe', 'consumo_medio_kwh', 'uc_fornecimento'] as const;
 export const MAX_BENEFICIARIAS = 5;
 export const CAMPOS_BENEFICIARIAS = [
   'benef_1_uc', 'benef_1_titular', 'benef_1_endereco', 'benef_1_pct',
@@ -86,6 +86,8 @@ export const QUALIDADES_CEDENTE = ['proprietario', 'possuidor', 'inquilino', 're
 export const RELACOES_TITULAR_UC = ['conjuge', 'pai_mae', 'filho', 'empresa', 'outro'] as const;
 /** Classe de consumo da unidade geradora (`uc_classe`). */
 export const CLASSES_UC = ['residencial', 'comercial', 'rural', 'industrial', 'poder_publico'] as const;
+/** Tipo de fornecimento (ligação) da unidade geradora (`uc_fornecimento`): o que a fatura chama de monofásico, bifásico ou trifásico. */
+export const FORNECIMENTOS_UC = ['monofasico', 'bifasico', 'trifasico'] as const;
 export type LinhaDoCadastro = LinhaCadastro;
 const SETS_DE_CAMPOS: Record<LinhaCadastro, ReadonlySet<string>> = {
   eletroposto: new Set<string>(CAMPOS),
@@ -213,6 +215,13 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
       return (CLASSES_UC as readonly string[]).includes(c)
         ? { ok: true, valor: c }
         : { ok: false, erro: 'Escolha: residencial, comercial, rural, industrial ou poder público.' };
+    }
+    case 'uc_fornecimento': {
+      // "Monofásico", "mono", "bi", "trifásico 380V", "3 fases": a chave guardada é uma das três.
+      const c = chaveDeOpcao(t);
+      const achou = (FORNECIMENTOS_UC as readonly string[]).includes(c) ? c
+        : /^mono/.test(c) ? 'monofasico' : /^bi(f|$)/.test(c) ? 'bifasico' : /^tri/.test(c) ? 'trifasico' : '';
+      return achou ? { ok: true, valor: achou } : { ok: false, erro: 'Escolha: monofásico, bifásico ou trifásico.' };
     }
     case 'relacao': {
       const c = chaveDeOpcao(t);
