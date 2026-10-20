@@ -3,7 +3,7 @@
 // dos cartões que já existem lá. Este módulo tem as regras PURAS (título, etiquetas, checklists, descrição, casamento do cartão)
 // e as chamadas ao Trello. A rota (`geradorVendaSolarTrello.ts`) junta as peças.
 //
-// Padrão medido no quadro: título `#NNNN - <Nome> - <Cidade> <UF>`; etiquetas do QUADRO (por nome, nunca criadas aqui); checklists
+// Padrão medido no quadro: título `#NNNN - (<Negociador>) <Titular> - <Cidade> <UF>`; etiquetas do QUADRO (por nome, nunca criadas aqui); checklists
 // BACKOFFICE e ENGENHARIA; descrição com telefone, e-mail, ligação e as linhas em negrito dos módulos e do inversor.
 //
 // Nada daqui põe valor pessoal em log. O motivo de um erro do Trello é só o status e um trecho curto da resposta (a URL, que leva
@@ -14,7 +14,7 @@ import {
   normalizarNome, casarCartao, trelloFetch, comentarNoTrello,
   type CredenciaisTrello, type TrelloCard,
 } from './dossieVenda';
-import { camposDaBeneficiaria, MAX_BENEFICIARIAS, type Cadastro } from './cadastroVenda';
+import { camposDaBeneficiaria, MAX_BENEFICIARIAS, nomeDaHomologacao, type Cadastro } from './cadastroVenda';
 
 // ── Constantes do quadro ─────────────────────────────────────────────────────
 
@@ -75,10 +75,45 @@ export function localDoCartao(cad: Cadastro, cidadeDoCard: unknown): string {
   return limpa(cidadeDoCard, 80);
 }
 
-/** `#NNNN - Nome - Cidade UF` com a venda ligada; `Nome - Cidade UF` sem ela. O nome é o do CARD (o negociador). */
-export function tituloDoCartao(a: { codigoVenda: string | null; nome: string; local: string }): string {
-  const nome = limpa(a.nome, 120) || 'Cliente';
-  const corpo = a.local ? `${nome} - ${a.local}` : nome;
+/** As palavras que contam para comparar duas pessoas: sem acento, minúsculas, sem as de até 2 letras ("de", "da", "do"). */
+const palavrasDoNome = (s: string): string[] => normalizarNome(s).split(' ').filter((p) => p.length > 2);
+
+/** O negociador e o titular são a mesma pessoa? Todas as palavras do negociador aparecem no titular ("Eloisa" e "Eloisa Elena Souza"). */
+export function mesmaPessoa(negociador: string, titular: string): boolean {
+  const doNegociador = palavrasDoNome(negociador);
+  if (!doNegociador.length) return false;
+  const doTitular = new Set(palavrasDoNome(titular));
+  return doNegociador.every((p) => doTitular.has(p));
+}
+
+/**
+ * Quem é o titular da venda para o título do cartão: o nome da homologação (`nomeDaHomologacao`: `tuc_nome` quando
+ * `homologacao_mesmo` é `outra_pessoa` ou não foi decidido; o contratante quando é `contratante`); se esse vier vazio, o
+ * contratante (`nome`); senão ''.
+ */
+export function titularDaVenda(cad: Cadastro): string {
+  const nomeDoContratante = (cad.campos as Record<string, { valor?: string } | undefined>).nome?.valor;
+  return limpa(nomeDaHomologacao(cad), 120) || limpa(nomeDoContratante, 120);
+}
+
+/**
+ * Título no padrão do quadro. `nome` é o do CARD (o negociador, com quem falamos); `titular` é em nome de quem a usina é
+ * homologada. Sem titular: `#NNNN - Nome - Cidade UF`. Titular que é a mesma pessoa do negociador (todas as palavras do nome do
+ * card aparecem nele): `#NNNN - Titular - Cidade UF`. Outra pessoa: `#NNNN - (PrimeiroNome) Titular - Cidade UF`, com o primeiro
+ * nome do card como foi escrito. Sem venda ligada não leva `#NNNN - `; sem local não leva ` - Cidade UF`.
+ */
+export function tituloDoCartao(a: { codigoVenda: string | null; nome: string; titular?: string | null; local: string }): string {
+  const nome = limpa(a.nome, 120);
+  const titular = limpa(a.titular, 120);
+  let quem: string;
+  if (!titular) quem = nome || 'Cliente';
+  else if (!nome || mesmaPessoa(nome, titular)) quem = titular;
+  else {
+    // Primeiro nome do card como foi escrito, sem parênteses (card "(Odécio) Ferreira" não vira "((Odécio)) Titular").
+    const primeiro = nome.split(' ')[0].replace(/[()]/g, '').trim();
+    quem = primeiro ? `(${primeiro}) ${titular}` : titular;
+  }
+  const corpo = a.local ? `${quem} - ${a.local}` : quem;
   return a.codigoVenda ? `${a.codigoVenda} - ${corpo}` : corpo;
 }
 
@@ -105,10 +140,13 @@ export type Achado =
  * Acha o cartão que já existe, nesta ordem: o que a pessoa escolheu (`card_id`, só vale se está entre os cartões abertos do
  * quadro), o guardado na ligação, o que abre com o MESMO `#NNNN` e, por último, o parecido pelo nome. Dois cartões possíveis em
  * qualquer passo = EMPATE (devolve os candidatos; nunca escolhe nem cria). Cartão achado só pelo nome e que já carrega OUTRO
- * `#NNNN` também vira empate: é de outra venda do mesmo nome.
+ * `#NNNN` também vira empate: é de outra venda do mesmo nome. Se nada casou, o nome do titular (palavra inteira, 2+ palavras)
+ * ainda pode apontar cartões, mas sempre como empate para confirmar, nunca como `achou`.
  */
 export function acharCartao(a: {
   cartoes: CartaoDoQuadro[]; escolhido?: string | null; guardado?: string | null; codigoVenda: string | null; nome: string;
+  /** Em nome de quem a usina é homologada: segundo nome possível no casamento pelo nome (o cartão traz `(Negociador) Titular`). */
+  titular?: string | null;
 }): Achado {
   const aberto = (id: string | null | undefined): CartaoDoQuadro | null => (id ? a.cartoes.find((c) => c.id === id) ?? null : null);
   const esc = aberto(a.escolhido);
@@ -139,6 +177,25 @@ export function acharCartao(a: {
     const pontos = a.cartoes.map((x) => ({ x, p: palavras.filter((w) => normalizarNome(x.name).includes(w)).length }));
     const topo = Math.max(0, ...pontos.map((y) => y.p));
     return { tipo: 'empate', candidatos: pontos.filter((y) => y.p === topo && topo >= 2).map((y) => y.x), motivo };
+  }
+
+  // Último recurso: o nome do TITULAR (o cartão traz `(Negociador) Titular`). Casa por palavra inteira, com todas as palavras do
+  // titular (3+ letras, no mínimo 2) no título do cartão. Cartão que só veio por aqui NUNCA é `achou`: vira empate, e o consultor confirma.
+  const doTitular = [...new Set(palavrasDoNome(a.titular ?? ''))];
+  if (doTitular.length >= 2) {
+    const candidatos = a.cartoes.filter((x) => {
+      const palavrasDoCartao = new Set(normalizarNome(x.name).split(' '));
+      return doTitular.every((p) => palavrasDoCartao.has(p));
+    });
+    if (candidatos.length) {
+      const deOutraVenda = !!numero && candidatos.every((x) => { const n = numeroDoTitulo(x.name); return n !== null && Number(n) !== Number(numero); });
+      return {
+        tipo: 'empate', candidatos,
+        motivo: deOutraVenda
+          ? 'Achei um cartão pelo nome do titular, mas ele é de outra venda. Confirme se é deste cliente.'
+          : 'Achei um cartão pelo nome do titular. Confirme se é deste cliente.',
+      };
+    }
   }
   return { tipo: 'nenhum' };
 }

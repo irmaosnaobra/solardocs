@@ -394,13 +394,14 @@ describe('cartão novo', () => {
     venda201();
     const res = await trello(201, { etiquetas_extra: ['Equipe Pablo', 'FASTRACK'] });
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ ok: true, previa: false, criou_cartao: true, ficha: 'descricao', titulo: '#0061 - Ana Souza - Uberlândia MG' });
+    expect(res.body).toMatchObject({ ok: true, previa: false, criou_cartao: true, ficha: 'descricao', titulo: '#0061 - Ana Souza Oliveira - Uberlândia MG' });
     const [c] = criacoes();
-    expect(c.params.name).toBe('#0061 - Ana Souza - Uberlândia MG');
+    // o card do Gerador é "Ana Souza" e o contratante "Ana Souza Oliveira": mesma pessoa, sai o nome do documento
+    expect(c.params.name).toBe('#0061 - Ana Souza Oliveira - Uberlândia MG');
     expect(c.params.idList).toBe(LISTA_NOVOS);
     expect(c.params.idLabels.split(',').sort()).toEqual(['lab-Cemig', 'lab-EXDEDENTES', 'lab-Equipe Pablo', 'lab-FASTRACK', 'lab-Rural', 'lab-Trifásico']);
     expect(c.params.desc).toBe(['(34) 98888-0001', 'ana@exemplo.com', 'Trifásico', '**18 - Canadian CS7N 600W**', '**1 - Growatt 10K**'].join('\n\n'));
-    expect(res.body.cartao).toMatchObject({ nome: '#0061 - Ana Souza - Uberlândia MG', lista: 'BASE DE CLIENTES' });
+    expect(res.body.cartao).toMatchObject({ nome: '#0061 - Ana Souza Oliveira - Uberlândia MG', lista: 'BASE DE CLIENTES' });
     // a ligação assinada guarda o cartão, e a venda e a proposta continuam
     const lig = (await lerLigacao(201)).lig;
     expect(lig).toMatchObject({ proposta: 'P1', venda: '#0061', por: 'nilce', trello_card: res.body.cartao.id });
@@ -724,12 +725,39 @@ describe('cartão que já existe', () => {
 });
 
 describe('prévia', () => {
+  it('titular da homologação é outra pessoa: título com o negociador entre parênteses; cartão só pelo titular vira empate, nunca achou', async () => {
+    venda201();
+    cadastro(201, {
+      nome: 'Ana Souza Oliveira', homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Eloisa Elena Lima', endereco_ponto: 'Rua A, 10, Centro, Uberlândia - MG',
+    });
+    const res = await trello(201, { previa: true });
+    expect(res.status).toBe(200);
+    expect(res.body.titulo).toBe('#0061 - (Ana) Eloisa Elena Lima - Uberlândia MG');
+    expect(res.body.cartao).toBeNull();
+    // venda #0061 ligada e um cartão de OUTRA venda (#0070) com o nome do titular: empate para confirmar, não é escolhido sozinho
+    t.quadro.cards.push(cartaoTrello(idFixo(5), '#0070 - (Ana) Eloisa Elena Lima - Uberlândia MG'));
+    const r2 = await trello(201, { previa: true });
+    expect(r2.status).toBe(200);
+    expect(r2.body.cartao).toBeNull();
+    expect(r2.body.candidatos.map((c: any) => c.id)).toEqual([idFixo(5)]);
+    expect(r2.body.motivo_empate).toContain('titular');
+    // o envio de verdade também não escolhe nem cria: 409 com o candidato
+    const envio = await trello(201, {});
+    expect(envio.status).toBe(409);
+    expect(envio.body).toMatchObject({ ok: false, precisa: 'escolher_cartao' });
+    expect(criacoes()).toHaveLength(0);
+    // com o #0061 no título, o número decide
+    t.quadro.cards.push(cartaoTrello(idFixo(6), '#0061 - (Ana) Eloisa Elena Lima - Uberlândia MG'));
+    const r3 = await trello(201, { previa: true });
+    expect(r3.body.cartao).toMatchObject({ existente: true, id: idFixo(6), achado_por: 'numero' });
+  });
+
   it('devolve o que faria e NÃO escreve: nem no Trello, nem na ligação, nem no registro', async () => {
     venda201();
     const antes = JSON.stringify([...h.linhas.entries()]);
     const res = await trello(201, { previa: true, etiquetas_extra: ['Equipe Pablo'] });
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ ok: true, previa: true, quadro_publico: false, anexos_bloqueados: false, cartao: null, titulo: '#0061 - Ana Souza - Uberlândia MG', lista: 'BASE DE CLIENTES' });
+    expect(res.body).toMatchObject({ ok: true, previa: true, quadro_publico: false, anexos_bloqueados: false, cartao: null, titulo: '#0061 - Ana Souza Oliveira - Uberlândia MG', lista: 'BASE DE CLIENTES' });
     expect(res.body.etiquetas.aplicar).toEqual(['Trifásico', 'Rural', 'Cemig', 'EXDEDENTES', 'Equipe Pablo']);
     expect(res.body.descricao).toContain('**18 - Canadian CS7N 600W**');
     expect(res.body.comentario).toBeNull();

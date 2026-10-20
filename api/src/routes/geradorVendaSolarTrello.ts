@@ -14,7 +14,7 @@ import {
   ErroHub, TRAVA_VINCULOS, POR_TRELLO, lerLigacao, gravarLigacao, type Ligacao,
 } from '../services/gerador/vendaSolarHub';
 import {
-  acharCartao, localDoCartao, tituloDoCartao, etiquetasAutomaticas, validarEtiquetasExtra, planoDeEtiquetas, planoDeChecklists,
+  acharCartao, localDoCartao, tituloDoCartao, titularDaVenda, etiquetasAutomaticas, validarEtiquetasExtra, planoDeEtiquetas, planoDeChecklists,
   passosDeChecklist, descricaoDoCartao, comentarioDaFicha, equipamentoDaProposta, nomearAnexos, extDoMime,
   lerQuadro, criarCartaoCompleto, adicionarEtiqueta, listarChecklists, criarChecklist, marcarItem, idsDosAnexos,
   lerRegistroTrello, gravarRegistroTrello, registroTrelloVazio, comentarNoTrello,
@@ -26,7 +26,7 @@ import {
 //
 //   POST /gerador/vendas-solares/:card/trello   { previa?: boolean, etiquetas_extra?: string[], card_id?: string }
 //
-// Monta o cartão no padrão do quadro (título `#NNNN - Nome - Cidade UF`, etiquetas do quadro, checklists BACKOFFICE e ENGENHARIA,
+// Monta o cartão no padrão do quadro (título `#NNNN - (Negociador) Titular - Cidade UF`, etiquetas do quadro, checklists BACKOFFICE e ENGENHARIA,
 // descrição) ou atualiza o que já existe. O cartão achado ou criado fica guardado na ligação assinada do card (`trello_card`).
 //
 // Resposta de `previa: true` (não escreve em lugar nenhum; só lê o Trello):
@@ -83,6 +83,8 @@ const naoVaiAoTrello = (slot: string): boolean =>
 
 interface Preparo {
   titulo: string;
+  /** Em nome de quem a usina é homologada ('' = sem dado). Entra no título e no casamento do cartão pelo nome. */
+  titular: string;
   codigoVenda: string | null;
   lig: Ligacao;
   cad: Cadastro;
@@ -120,7 +122,9 @@ async function preparar(g: DonoDoCard, publico: boolean): Promise<Preparo> {
   const proposta = dv ? await lerProposta(dv.proposta) : null;
 
   const nome = String(g.card.cliente_nome ?? '');
-  const titulo = tituloDoCartao({ codigoVenda: lig.venda, nome, local: localDoCartao(cad, g.card.cidade) });
+  // Titular: o nome da homologação (`tuc_nome` se `homologacao_mesmo` é outra_pessoa ou vazio; contratante se `contratante`); senão o contratante (`nome`).
+  const titular = titularDaVenda(cad);
+  const titulo = tituloDoCartao({ codigoVenda: lig.venda, nome, titular, local: localDoCartao(cad, g.card.cidade) });
   const telefoneCard = String(g.card.cliente_telefone ?? '');
   const temTelefone = telefoneCard.replace(/\D/g, '').length >= 8;
   const ligacao = slugValor(cad, 'uc_fornecimento');
@@ -152,7 +156,7 @@ async function preparar(g: DonoDoCard, publico: boolean): Promise<Preparo> {
   const rotulo = (slot: string): string => itemDoCatalogo('vendasolar', slot)?.rotulo ?? slot;
 
   return {
-    titulo, codigoVenda: lig.venda, lig, cad, descricao, comentario: comentarioDaFicha({ titulo, descricao }), ligacao, temTelefone,
+    titulo, titular, codigoVenda: lig.venda, lig, cad, descricao, comentario: comentarioDaFicha({ titulo, descricao }), ligacao, temTelefone,
     slots, anexos: nomearAnexos(brutos, rotulo),
     dossieAntigo: { cartao: proposta?.dossie.trello.card_id ?? null, anexos: antigos },
     desejadas: etiquetasAutomaticas(cad),
@@ -207,7 +211,7 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
         res.status(400).json({ ok: false, error: 'O cartão escolhido não está entre os cartões abertos do quadro.' });
         return;
       }
-      const achado = acharCartao({ cartoes: quadro.cartoes, escolhido, guardado: p.lig.trello_card ?? null, codigoVenda: p.codigoVenda, nome: String(g.card.cliente_nome ?? '') });
+      const achado = acharCartao({ cartoes: quadro.cartoes, escolhido, guardado: p.lig.trello_card ?? null, codigoVenda: p.codigoVenda, nome: String(g.card.cliente_nome ?? ''), titular: p.titular });
       const desejadas = [...p.desejadas, ...extra.validas.filter((e) => !p.desejadas.includes(e))];
       const plano = planoDeChecklists(p.slots, p.temTelefone, !!slugValor(p.cad, 'email'));
 

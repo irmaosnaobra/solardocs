@@ -8,7 +8,7 @@ vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: {}, geradorComServ
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
 import {
-  cidadeUfDoEndereco, localDoCartao, tituloDoCartao, numeroDoTitulo, acharCartao, etiquetasAutomaticas, validarEtiquetasExtra,
+  cidadeUfDoEndereco, localDoCartao, tituloDoCartao, mesmaPessoa, titularDaVenda, numeroDoTitulo, acharCartao, etiquetasAutomaticas, validarEtiquetasExtra,
   planoDeEtiquetas, planoDeChecklists, passosDeChecklist, descricaoDoCartao, equipamentoDaProposta, nomearAnexos, lerRegistroBruto,
   ITENS_BACKOFFICE, ITENS_ENGENHARIA, type CartaoDoQuadro,
 } from '../services/gerador/trelloVendaSolar';
@@ -29,6 +29,34 @@ describe('título do cartão', () => {
     expect(tituloDoCartao({ codigoVenda: '#0061', nome: 'Ana Souza', local: 'Uberlândia MG' })).toBe('#0061 - Ana Souza - Uberlândia MG');
     expect(tituloDoCartao({ codigoVenda: null, nome: 'Ana Souza', local: 'Uberlândia MG' })).toBe('Ana Souza - Uberlândia MG');
     expect(tituloDoCartao({ codigoVenda: '#0061', nome: '  Ana   Souza ', local: '' })).toBe('#0061 - Ana Souza');
+  });
+  it('sem titular: igual ao de sempre (nome do card, com ou sem #NNNN e local)', () => {
+    expect(tituloDoCartao({ codigoVenda: '#0062', nome: 'Odécio', titular: null, local: 'Uberaba MG' })).toBe('#0062 - Odécio - Uberaba MG');
+    expect(tituloDoCartao({ codigoVenda: '#0062', nome: 'Odécio', titular: '  ', local: 'Uberaba MG' })).toBe('#0062 - Odécio - Uberaba MG');
+    expect(tituloDoCartao({ codigoVenda: null, nome: '', local: '' })).toBe('Cliente');
+  });
+  it('titular que é a mesma pessoa do card: sai o nome do titular, sem parênteses', () => {
+    expect(tituloDoCartao({ codigoVenda: '#0063', nome: 'Eloisa', titular: 'Eloisa Elena Souza', local: 'Uberaba MG' })).toBe('#0063 - Eloisa Elena Souza - Uberaba MG');
+    expect(tituloDoCartao({ codigoVenda: '#0063', nome: 'Maria da Silva', titular: 'MARIA APARECIDA SILVA', local: 'Uberaba MG' })).toBe('#0063 - MARIA APARECIDA SILVA - Uberaba MG');
+    expect(mesmaPessoa('José Antônio', 'Jose Antonio Pereira')).toBe(true);
+    expect(mesmaPessoa('Odécio Ferreira', 'Eloisa Elena')).toBe(false);
+  });
+  it('titular que é outra pessoa: (PrimeiroNome do card) Titular, com e sem #NNNN e sem local', () => {
+    expect(tituloDoCartao({ codigoVenda: '#0062', nome: 'Odécio Ferreira', titular: 'Eloisa Elena', local: 'Uberaba MG' })).toBe('#0062 - (Odécio) Eloisa Elena - Uberaba MG');
+    expect(tituloDoCartao({ codigoVenda: null, nome: 'Odécio Ferreira', titular: 'Eloisa Elena', local: 'Uberaba MG' })).toBe('(Odécio) Eloisa Elena - Uberaba MG');
+    expect(tituloDoCartao({ codigoVenda: '#0062', nome: 'Odécio', titular: 'Eloisa Elena', local: '' })).toBe('#0062 - (Odécio) Eloisa Elena');
+  });
+  it('titularDaVenda: igual a nomeDaHomologacao (outra_pessoa ou vazio com tuc_nome = tuc_nome); contratante ou sem tuc_nome = contratante', () => {
+    expect(titularDaVenda(cadastro({ nome: 'Ana Souza', homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Eloisa Elena' }))).toBe('Eloisa Elena');
+    expect(titularDaVenda(cadastro({ nome: 'Ana Souza', homologacao_mesmo: 'outra_pessoa' }))).toBe('Ana Souza');
+    expect(titularDaVenda(cadastro({ nome: 'Ana Souza', homologacao_mesmo: 'contratante', tuc_nome: 'Eloisa Elena' }))).toBe('Ana Souza');
+    expect(titularDaVenda(cadastro({ nome: 'Ana Souza', tuc_nome: 'Eloisa Elena' }))).toBe('Eloisa Elena');
+    expect(titularDaVenda(cadastro({ nome: 'Ana Souza' }))).toBe('Ana Souza');
+    expect(titularDaVenda(cadastro({}))).toBe('');
+  });
+  it('primeiro nome do card sem parênteses; só parênteses = sai só o titular', () => {
+    expect(tituloDoCartao({ codigoVenda: '#0062', nome: '(Odécio) Ferreira', titular: 'Eloisa Elena', local: 'Uberaba MG' })).toBe('#0062 - (Odécio) Eloisa Elena - Uberaba MG');
+    expect(tituloDoCartao({ codigoVenda: '#0062', nome: '() Ferreira', titular: 'Eloisa Elena', local: 'Uberaba MG' })).toBe('#0062 - Eloisa Elena - Uberaba MG');
   });
   it('a cidade vem do fim do endereço da instalação, depois do contratante, depois do card', () => {
     expect(cidadeUfDoEndereco('Rua A, 10, Centro, Uberlândia - MG')).toEqual({ cidade: 'Uberlândia', uf: 'MG' });
@@ -76,6 +104,36 @@ describe('achar o cartão que já existe', () => {
     expect(empate.tipo).toBe('empate');
     expect(empate.tipo === 'empate' && empate.candidatos).toHaveLength(2);
     expect(acharCartao({ cartoes: quadro, codigoVenda: null, nome: 'Zeca Pagodinho' })).toEqual({ tipo: 'nenhum' });
+  });
+  it('cartão achado SÓ pelo titular nunca é `achou`: vira empate com o motivo para o consultor confirmar', () => {
+    const q = [cartao('t1', '#0062 - (Odécio) Eloisa Elena - Uberaba MG'), cartao('t2', '#0064 - (Igor) Laurentino Neto - Catalão GO')];
+    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio Ferreira' })).toEqual({ tipo: 'nenhum' });
+    const r = acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio Ferreira', titular: 'Eloisa Elena' });
+    expect(r).toEqual({ tipo: 'empate', candidatos: [q[0]], motivo: 'Achei um cartão pelo nome do titular. Confirme se é deste cliente.' });
+    // com o #NNNN da venda igual, quem decide é o número, como sempre
+    expect(acharCartao({ cartoes: q, codigoVenda: '#0062', nome: 'Odécio Ferreira', titular: 'Eloisa Elena' })).toMatchObject({ tipo: 'achou', por: 'numero', cartao: { id: 't1' } });
+    // o cartão que só o titular achou tem OUTRO número: o motivo diz que é de outra venda
+    const outra = acharCartao({ cartoes: q, codigoVenda: '#0099', nome: 'Odécio Ferreira', titular: 'Eloisa Elena' });
+    expect(outra.tipo).toBe('empate');
+    expect(outra.tipo === 'empate' && outra.motivo).toContain('outra venda');
+  });
+  it('negativo: card "Odécio" com contratante "Odécio Ferreira" não acha sozinho o cartão de OUTRO cliente', () => {
+    const q = [cartao('o1', '#0050 - Odécio Ferreira Neto - Araguari MG')];
+    const r = acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'Odécio Ferreira' });
+    expect(r.tipo).toBe('empate');
+    expect(r.tipo === 'empate' && r.candidatos.map((c) => c.id)).toEqual(['o1']);
+  });
+  it('negativo: o titular casa por palavra inteira ("Ana Lima" não casa com "Mariana Lima Souza") e exige 2 palavras', () => {
+    const q = [cartao('m1', '#0051 - Mariana Lima Souza - Uberaba MG')];
+    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'Ana Lima' })).toEqual({ tipo: 'nenhum' });
+    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'Lima' })).toEqual({ tipo: 'nenhum' });
+    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'De Lima' })).toEqual({ tipo: 'nenhum' });
+  });
+  it('dois cartões do titular = empate com os dois; o caminho do nome do card segue como era (achou)', () => {
+    const dois = acharCartao({ cartoes: [cartao('u1', 'Eloisa Elena - Uberaba MG'), cartao('u2', '(Igor) Eloisa Elena - Araguari MG')], codigoVenda: null, nome: 'Odécio', titular: 'Eloisa Elena' });
+    expect(dois.tipo === 'empate' && dois.candidatos.map((c) => c.id).sort()).toEqual(['u1', 'u2']);
+    expect(acharCartao({ cartoes: [cartao('b1', '#0062 - Bruno Lima - Araguari MG')], codigoVenda: null, nome: 'Bruno Lima', titular: 'Eloisa Elena' }))
+      .toMatchObject({ tipo: 'achou', por: 'nome', cartao: { id: 'b1' } });
   });
   it('cartão achado só pelo nome e que já tem OUTRO número vira empate (é de outra venda)', () => {
     const r = acharCartao({ cartoes: [cartao('c5', '#0050 - Ana Souza Oliveira - Uberlândia MG')], codigoVenda: '#0061', nome: 'Ana Souza Oliveira' });
