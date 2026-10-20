@@ -64,7 +64,8 @@ const GERA_NO_TEXTO = new RegExp([
   'desempenho\\b[^.]{0,40}(?:estimativ|\\d+\\s*%|kwh)',
 ].join('|'));
 // Promete: garante, assegura, promete, se responsabiliza pela, ou afirma o futuro com número ("vai gerar no mínimo 700 kWh").
-const GARANTE_NO_TEXTO = /(garant|assegur|promet|responsabiliz\w*\s+pel[ao]s?\b|compromete-se a (?:gerar|produzir)|se obriga a (?:gerar|produzir)|obriga-se a (?:gerar|produzir))/;
+// Todas começam em limite de palavra: "promet" sozinho casaria dentro de "compromete-se" (texto de fábrica do Completo).
+const GARANTE_NO_TEXTO = /(\bgarant\w*|\bassegur\w*|\bpromet\w*|\bresponsabiliz\w*\s+pel[ao]s?\b|\bcompromete-se a (?:gerar|produzir)|\bse obriga a (?:gerar|produzir)|\bobriga-se a (?:gerar|produzir))/;
 const FUTURO_GERA = /\b(?:vai|ira|vao|irao|devera|deverao)\s+(?:gerar|produzir)\b|\b(?:gerara|gerarao|produzira|produzirao)\b/;
 // Só a NEGAÇÃO da própria garantia sai da frase: "não constitui garantia", "estimativa, não garantia", "sem garantia de geração",
 // "não garante", "não se responsabiliza pela geração". "Não se responsabilizando por sombreamento" NÃO é negação da garantia.

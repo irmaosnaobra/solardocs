@@ -432,6 +432,8 @@ describe('geração garantida: o que bloqueia e o que passa', () => {
       'A CONTRATADA se responsabiliza pela geração mínima informada.',
       'A CONTRATADA garante a economia de 90% na conta de luz.',
       'A estimativa não é garantia, mas a CONTRATADA garante geração mínima de 600 kWh/mês.',
+      'A CONTRATADA promete geração de 700 kWh por mês.', 'A CONTRATADA assegura geração de 700 kWh/mês.',
+      'A CONTRATADA compromete-se a fornecer os equipamentos e promete geração de 700 kWh por mês.',
     ]) expect(geracaoComoGarantia(t), t).toBe(true);
   });
 
@@ -442,12 +444,18 @@ describe('geração garantida: o que bloqueia e o que passa', () => {
       'Bateria de 5 kWh com garantia de 10 anos.', 'A CONTRATADA garante o bom desempenho da instalação.', 'A CONTRATADA garante a instalação por 1 ano.',
       'Inversor de 5 kWh com garantia de 10 (dez) anos do fabricante.',
       'Garantia de 1 ano sobre a execução, cobrindo problemas estruturais gerados durante a obra.',
+      'A CONTRATADA compromete-se a fornecer os equipamentos especificados e a acompanhar a geração de créditos de energia junto à concessionária.',
+      'O CONTRATANTE se compromete a permitir o acesso ao local. A garantia do fabricante cobre defeitos de fabricação dos módulos.',
     ]) expect(geracaoComoGarantia(t), t).toBe(false);
   });
 
   it('o aviso vira bloqueio no checador só para a promessa, não para o falso positivo', () => {
     const bloqueia = conflitosCom('solar_m1', cl('extra', 'Extra', [it_('extra.1', 'A CONTRATADA garante geração de 700 kWh sem interrupção.')]));
     expect(bloqueia.bloqueado).toBe(true);
+    for (const t of ['solar_m1', 'solar_m2'] as const) {
+      const fabrica = conflitosCom(t, cl('extra', 'Do objeto', [it_('extra.1', 'A CONTRATADA compromete-se a fornecer os equipamentos e a acompanhar a geração de créditos de energia. A garantia do fabricante cobre os módulos. A geração é estimada e não constitui garantia.')]));
+      expect(fabrica.conflitos, t).toEqual([]);
+    }
     const passa = conflitosCom('solar_m1', cl('extra', 'Extra', [it_('extra.1', 'A bateria de 5 kWh tem garantia do fabricante por 10 anos, e a CONTRATADA garante o bom desempenho da instalação.')]));
     expect(passa.conflitos).toEqual([]);
   });
