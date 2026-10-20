@@ -79,6 +79,14 @@ export async function organizarDocs(
       let rotuloGravado = false;
       if (rot) {
         let mudou = false;
+        // O tipo que a IA deu ao CONTEÚDO fica guardado (vale mesmo com rótulo manual): o relatório de engenharia o usa para
+        // não levar documento pessoal de terceiro que esteja em `outros`. "outro" (sem tipo) apaga o que havia.
+        for (const d of docs) {
+          if (vivos && !vivos.has(d.id)) continue;
+          const tipo = SEM_TIPO.has(d.tipo) ? '' : d.tipo;
+          if (tipo && rot.tipos[d.id] !== tipo) { rot.tipos[d.id] = tipo; mudou = true; }
+          else if (!tipo && rot.tipos[d.id] !== undefined) { delete rot.tipos[d.id]; mudou = true; }
+        }
         for (const d of docs) {
           const ja = rot.rotulos[d.id];
           if (ja?.fonte === 'manual') { efetivo.set(d.id, ja.rotulo); continue; }
@@ -92,6 +100,7 @@ export async function organizarDocs(
           daIa.add(d.id);
         }
         if (vivos) for (const id of Object.keys(rot.rotulos)) if (!vivos.has(id)) { delete rot.rotulos[id]; mudou = true; }
+        if (vivos) for (const id of Object.keys(rot.tipos)) if (!vivos.has(id)) { delete rot.tipos[id]; mudou = true; }
         if (mudou) {
           try { await gravarRotulos(ctx.linha, ctx.codigo, rot, agora); rotuloGravado = true; } catch (e) {
             console.error('[docs-organizar] gravar rótulos', codigoDe(e));

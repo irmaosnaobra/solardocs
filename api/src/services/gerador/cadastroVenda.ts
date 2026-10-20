@@ -14,13 +14,27 @@ import type { RegistroGestao } from './gestaoClientes';
 import { ErroCadastro, lerCadastroBruto, gravarCadastroBruto, listarIdsComPasta, comTrava } from './cadastroVendaBanco';
 import { lerFichaComVersao, gravarFicha } from './fichaEletropostoBanco';
 
-export const CAMPOS = [
+// O cadastro tem PAPÉIS (19/10/2026): o comprador (campos sem prefixo, mais o representante `rep_*` e o ponto), o cedente do
+// arrendamento (`ced_*`), o avalista (`aval_*`) e o imóvel (`imovel_*`). É o mesmo JSON: o papel só vive no prefixo.
+export const CAMPOS_COMPRADOR = [
   'tipo', 'nome', 'cpf_cnpj', 'rg_ie', 'orgao_emissor', 'nascimento', 'nacionalidade', 'estado_civil', 'profissao',
   'email', 'telefone', 'endereco', 'bairro', 'cidade', 'uf', 'cep',
   'rep_nome', 'rep_cpf', 'rep_rg', 'rep_estado_civil', 'rep_profissao',
   'endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta',
 ] as const;
+export const CAMPOS_CEDENTE = [
+  'ced_nome', 'ced_cpf_cnpj', 'ced_rg_ie', 'ced_orgao_emissor', 'ced_nacionalidade', 'ced_estado_civil', 'ced_profissao',
+  'ced_endereco', 'ced_bairro', 'ced_cidade', 'ced_uf', 'ced_cep', 'ced_email', 'ced_telefone', 'ced_qualidade',
+] as const;
+export const CAMPOS_AVALISTA = [
+  'aval_nome', 'aval_cpf_cnpj', 'aval_rg_ie', 'aval_orgao_emissor', 'aval_nascimento', 'aval_nacionalidade', 'aval_estado_civil',
+  'aval_profissao', 'aval_endereco', 'aval_bairro', 'aval_cidade', 'aval_uf', 'aval_cep', 'aval_email', 'aval_telefone',
+] as const;
+export const CAMPOS_IMOVEL = ['imovel_matricula', 'imovel_cartorio', 'imovel_iptu'] as const;
+export const CAMPOS = [...CAMPOS_COMPRADOR, ...CAMPOS_CEDENTE, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL] as const;
 export type Campo = typeof CAMPOS[number];
+/** Papel do cedente em relação ao ponto (`ced_qualidade`). Guardado sem acento e em minúscula. */
+export const QUALIDADES_CEDENTE = ['proprietario', 'possuidor', 'inquilino', 'representante', 'condominio'] as const;
 export const ehCampo = (x: unknown): x is Campo => typeof x === 'string' && (CAMPOS as readonly string[]).includes(x);
 
 export type Fonte = 'manual' | 'ia' | 'ficha';
@@ -92,7 +106,14 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
   const t = valor.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (t === '') return { ok: true, valor: '' };
   if (t.length > MAX_CAMPO) return { ok: false, erro: `Texto longo demais (máximo ${MAX_CAMPO} caracteres).` };
-  switch (campo) {
+  // Os campos do cedente e do avalista seguem a regra do campo igual do comprador (`ced_cep` valida como `cep`).
+  switch (campo.replace(/^(ced|aval)_/, '')) {
+    case 'qualidade': {
+      const q = t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      return (QUALIDADES_CEDENTE as readonly string[]).includes(q)
+        ? { ok: true, valor: q }
+        : { ok: false, erro: 'Escolha: proprietário, possuidor, inquilino, representante ou condomínio.' };
+    }
     case 'tipo': {
       const u = t.toUpperCase();
       return u === 'PF' || u === 'PJ' ? { ok: true, valor: u } : { ok: false, erro: 'Tipo deve ser PF ou PJ.' };
@@ -156,7 +177,37 @@ export function tipoDoCadastro(c: Cadastro): Tipo {
 /** Campos obrigatórios ainda vazios, na ordem em que a tela os pede. Na PJ, `rg_ie` é a inscrição estadual (aceita "isento"). */
 export function faltando(c: Cadastro): Campo[] {
   const lista = tipoDoCadastro(c) === 'PJ' ? OBRIGATORIOS_PJ : OBRIGATORIOS_PF;
-  return lista.filter((k) => !c.campos[k]?.valor);
+  return [...lista.filter((k) => !c.campos[k]?.valor), ...faltandoDosPapeis(c)];
+}
+
+// Cedente, avalista e imóvel só entram na conta se alguém já começou a preencher: venda sem cedente (compra, ou o comprador é o
+// dono do ponto) nunca fica "incompleta" por causa deles. Quando a pessoa existe, o que falta é o que um contrato precisa dela.
+// Pessoa física (CPF com 11 dígitos, ou ainda sem documento) leva também RG, nacionalidade, estado civil e profissão; empresa
+// (CNPJ com 14 dígitos) e condomínio não têm esses campos.
+const OBRIGATORIOS_CEDENTE_BASE: Campo[] = ['ced_nome', 'ced_cpf_cnpj', 'ced_endereco', 'ced_bairro', 'ced_cidade', 'ced_uf', 'ced_cep', 'ced_qualidade'];
+const OBRIGATORIOS_CEDENTE_PF: Campo[] = ['ced_rg_ie', 'ced_nacionalidade', 'ced_estado_civil', 'ced_profissao'];
+const OBRIGATORIOS_AVALISTA_BASE: Campo[] = ['aval_nome', 'aval_cpf_cnpj', 'aval_endereco', 'aval_bairro', 'aval_cidade', 'aval_uf', 'aval_cep'];
+const OBRIGATORIOS_AVALISTA_PF: Campo[] = ['aval_rg_ie', 'aval_estado_civil', 'aval_profissao'];
+const OBRIGATORIOS_IMOVEL: Campo[] = ['imovel_matricula'];
+
+const temAlgum = (c: Cadastro, campos: readonly Campo[]): boolean => campos.some((k) => !!c.campos[k]?.valor);
+
+export interface FaltandoPorPapel { cedente: Campo[]; avalista: Campo[]; imovel: Campo[] }
+
+/** O que falta de cada papel EXTRA. Papel sem nenhum campo preenchido devolve lista vazia. */
+export function faltandoPorPapel(c: Cadastro): FaltandoPorPapel {
+  const sem = (lista: Campo[]): Campo[] => lista.filter((k) => !c.campos[k]?.valor);
+  const ehPj = (campo: Campo): boolean => tipoPeloDocumento(c.campos[campo]?.valor) === 'PJ';
+  return {
+    cedente: temAlgum(c, CAMPOS_CEDENTE) ? sem([...OBRIGATORIOS_CEDENTE_BASE, ...(ehPj('ced_cpf_cnpj') ? [] : OBRIGATORIOS_CEDENTE_PF)]) : [],
+    avalista: temAlgum(c, CAMPOS_AVALISTA) ? sem([...OBRIGATORIOS_AVALISTA_BASE, ...(ehPj('aval_cpf_cnpj') ? [] : OBRIGATORIOS_AVALISTA_PF)]) : [],
+    imovel: temAlgum(c, CAMPOS_IMOVEL) ? sem(OBRIGATORIOS_IMOVEL) : [],
+  };
+}
+
+function faltandoDosPapeis(c: Cadastro): Campo[] {
+  const f = faltandoPorPapel(c);
+  return [...f.cedente, ...f.avalista, ...f.imovel];
 }
 
 // ── Leitura e gravação do JSON ───────────────────────────────────────────────

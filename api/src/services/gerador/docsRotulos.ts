@@ -14,9 +14,16 @@ import type { Linha } from './docsCliente';
 export const ROTULO_MAX = 60;
 export type FonteRotulo = 'ia' | 'manual';
 export interface RotuloDoc { rotulo: string; fonte: FonteRotulo; por: string; em: string }
-export interface Rotulos { v: 1; rotulos: Record<string, RotuloDoc>; em: string }
+/**
+ * `tipos`: o TIPO que a IA deu ao CONTEÚDO de cada arquivo (chave do catálogo, ex. `documento_avalista`), por id. É diferente do
+ * rótulo (texto) e vale mesmo quando o rótulo é manual: o relatório de engenharia usa para não levar documento pessoal de
+ * terceiro que esteja em `outros`. Só chave do catálogo, nunca texto livre.
+ */
+export interface Rotulos { v: 1; rotulos: Record<string, RotuloDoc>; tipos: Record<string, string>; em: string }
 
-export const rotulosVazios = (): Rotulos => ({ v: 1, rotulos: {}, em: '' });
+export const rotulosVazios = (): Rotulos => ({ v: 1, rotulos: {}, tipos: {}, em: '' });
+
+const RE_TIPO = /^[a-z_]{1,40}$/;
 
 const RE_ID = /^[0-9a-f-]{36}$/;
 // eslint-disable-next-line no-control-regex
@@ -64,6 +71,10 @@ export function lerRotulosBruto(bruto: unknown): Rotulos {
     if (e.fonte !== 'ia' && e.fonte !== 'manual') continue;
     saida.rotulos[id] = { rotulo, fonte: e.fonte, por: typeof e.por === 'string' ? e.por : '', em: typeof e.em === 'string' ? e.em : '' };
   }
+  const t = o.tipos && typeof o.tipos === 'object' && !Array.isArray(o.tipos) ? (o.tipos as Record<string, unknown>) : {};
+  for (const [id, tipo] of Object.entries(t)) {
+    if (RE_ID.test(id) && typeof tipo === 'string' && RE_TIPO.test(tipo)) saida.tipos[id] = tipo;
+  }
   return saida;
 }
 
@@ -74,7 +85,7 @@ export async function lerRotulos(linha: Linha, codigo: string): Promise<Rotulos>
 
 /** Grava o objeto inteiro. Quem chama está dentro da trava da venda. */
 export async function gravarRotulos(linha: Linha, codigo: string, rot: Rotulos, agora: string): Promise<void> {
-  await gravarJsonBruto(caminhoRotulos(linha, codigo), { v: 1, rotulos: rot.rotulos, em: agora });
+  await gravarJsonBruto(caminhoRotulos(linha, codigo), { v: 1, rotulos: rot.rotulos, ...(Object.keys(rot.tipos).length ? { tipos: rot.tipos } : {}), em: agora });
 }
 
 /** Trava da venda: o id do card no eletroposto (a mesma do cadastro), `<linha>:<código>` nas outras. */

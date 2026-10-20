@@ -13,7 +13,7 @@ import {
 } from '../services/gerador/fichaEletropostoBanco';
 import { docsEnvioLimiter, docsEnvioIpLimiter } from '../middleware/rateLimiter';
 import {
-  CATALOGO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
+  CATALOGO, SLOTS_FORA_DO_RELATORIO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, corpoRelatorioSolar,
   corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover,
   limiteDoItem, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
@@ -545,7 +545,11 @@ export function mountClientesDocs(router: Router): void {
       const documentos: DocRel[] = [];
       const presentes = new Set<string>();
       for (const item of CATALOGO[ctx.linha]) {
+        if (SLOTS_FORA_DO_RELATORIO.has(item.chave)) continue;   // dado pessoal de terceiro: não serve à engenharia
         for (const a of reg.arquivos.filter((x) => x.slot === item.chave)) {
+          // Também pelo CONTEÚDO: o tipo que a IA deu ao arquivo (guardado com os rótulos) não pode ser de documento pessoal de
+          // terceiro, mesmo que ele esteja em `outros` ou em outro item.
+          if (ctx.linha === 'eletroposto' && SLOTS_FORA_DO_RELATORIO.has(rot?.tipos[a.id] ?? '')) continue;
           presentes.add(item.chave);
           const url = urls.get(a.caminho);
           // Só o nome dado pela IA entra (sem nome de pessoa nem número, por regra). O nome manual é texto livre e pode ter

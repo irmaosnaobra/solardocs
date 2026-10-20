@@ -46,7 +46,7 @@ vi.mock('../utils/anthropicClient', () => ({
         return {
           finalMessage: async () => {
             if (e.erro) throw e.erro;
-            return { stop_reason: e.parada ?? 'end_turn', content: [{ type: 'text', text: JSON.stringify(e.saida) }] };
+            return { stop_reason: e.parada ?? 'end_turn', content: [{ type: 'text', text: JSON.stringify(saidaEmLista(e.saida, (corpo as any)?.messages?.[0]?.content)) }] };
           },
         };
       },
@@ -190,6 +190,7 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 
+import { saidaEmLista } from './_saidaIaEmLista';
 import { mountCadastroVenda } from '../routes/geradorCadastroVenda';
 import { mountClientesEletroposto } from '../routes/geradorEletropostoClientes';
 import { mountClientesDocs } from '../routes/geradorClientesDocs';
@@ -447,17 +448,19 @@ describe('POST cadastro/ler (IA lê os documentos já anexados)', () => {
     const s = res.body.sugestoes;
     expect(s.nome).toEqual({ valor: 'ZZNOME Teste', slot: 'documento_titular', confianca: 'alta' });
     expect(s.cpf_cnpj).toEqual({ valor: '529.982.247-24', slot: 'documento_titular', confianca: 'baixa', nota: 'Dígito do CPF não confere.' });
-    expect(s.cep).toEqual({ valor: '38400-100', slot: 'conta_luz', confianca: 'alta' });
-    expect(s.unidade_consumidora.confianca).toBe('media');
+    expect(s.unidade_consumidora).toEqual({ valor: '0012345678', slot: 'conta_luz', confianca: 'media' });
     expect(s.rg_ie).toBeUndefined();   // vazio sai das sugestões
-    expect(s.endereco_ponto.slot).toBe('');   // slot que não foi lido não vale
+    // a conta da instalação só dá o PONTO: o CEP (campo de pessoa) sai; e dado sem arquivo de origem (a foto não é lida) também
+    expect(s.cep).toBeUndefined();
+    expect(s.endereco_ponto).toBeUndefined();
+    expect(res.body.descartadas.map((d: any) => d.campo).sort()).toEqual(['cep', 'endereco_ponto']);
     // a IA SÓ sugere: nada foi gravado
     expect(h.cad.has('eletroposto/101.json')).toBe(false);
     // o pedido
     expect(h.ia.chamadas).toHaveLength(1);
     const { corpo, opcoes } = h.ia.chamadas[0];
     expect(corpo.model).toBe('claude-sonnet-5-5');
-    expect(corpo.max_tokens).toBe(8000);
+    expect(corpo.max_tokens).toBe(12000);
     expect(corpo.system).toBe(SISTEMA_CADASTRO);
     expect(opcoes.timeout).toBe(90_000);
     expect('tool_choice' in corpo).toBe(false);
@@ -614,6 +617,25 @@ describe('POST cadastro/ler (IA lê os documentos já anexados)', () => {
     expect(res.status).toBe(502);
     expect(res.body).toEqual({ ok: false, motivo: 'ia_indisponivel' });
     expect(h.ia.chamadas).toHaveLength(1);
+  });
+  it('400 de pedido recusado (esquema complexo demais): NÃO troca de modelo, dá 502 e o MOTIVO vai para o log (sem sequência de dígitos)', async () => {
+    anexa(101, [doc('conta_luz', U2, 'pdf', 'application/pdf', PDF.length, '2026-10-19T11:00:00.000Z')]);
+    h.objetos.set(`eletroposto/101/${U2}.pdf`, PDF);
+    h.ia.fila.push({ erro: Object.assign(new Error('400 {"type":"error","error":{"type":"invalid_request_error","message":"Schema is too complex. 52998224725"}}'), { status: 400 }) });
+    const res = await ler(101);
+    expect(res.status).toBe(502);
+    expect(h.ia.chamadas).toHaveLength(1);   // 400 que não fala do modelo não gasta outra chamada
+    const falha = h.logs.find((l) => l[1] === 'leitura dos documentos falhou');
+    expect(falha).toBeTruthy();
+    const dados = falha![2] as { status: number; motivo: string };
+    expect(dados.status).toBe(400);
+    expect(dados.motivo).toContain('Schema is too complex');
+    expect(dados.motivo).not.toMatch(/\d{6}/);
+    // erro que não é 400 não leva motivo no log (só código e tipo)
+    h.logs.length = 0;
+    h.ia.fila.push({ erro: Object.assign(new Error('overloaded'), { status: 529 }) });
+    await ler(101);
+    expect((h.logs.find((l) => l[1] === 'leitura dos documentos falhou')![2] as any).motivo).toBeUndefined();
   });
   it('resposta cortada (max_tokens) ou fora do formato: 502, nunca sugestão pela metade', async () => {
     anexa(101, [doc('conta_luz', U2, 'pdf', 'application/pdf', PDF.length, '2026-10-19T11:00:00.000Z')]);

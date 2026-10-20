@@ -68,9 +68,21 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('obra_pronta', 'Fotos da obra pronta', 'imagem', true, true),
     it('outros', 'Outros documentos', 'ambos', false, true),
   ],
+  // Eletroposto: os documentos são por PESSOA e por FINALIDADE (19/10/2026). A CNH de uma pessoa nunca divide item com o
+  // comprovante de endereço dela nem com a de outra, e a conta de luz tem três itens (instalação, geradora, beneficiária).
+  // As chaves antigas (`documento_titular`, `conta_luz`) ficam: arquivo já enviado continua no lugar. Só mudou o rótulo.
   eletroposto: [
-    it('documento_titular', 'Documento do titular', 'ambos', true),
-    it('conta_luz', 'Conta de luz', 'ambos', true),
+    it('documento_titular', 'CNH ou documento pessoal do comprador', 'ambos', true),
+    it('comprovante_endereco_comprador', 'Comprovante de endereço do comprador', 'ambos', false),
+    it('documento_cedente', 'CNH ou documento pessoal do cedente (dono do ponto)', 'ambos', false),
+    it('comprovante_endereco_cedente', 'Comprovante de endereço do cedente', 'ambos', false),
+    it('documento_avalista', 'CNH ou documento pessoal do avalista', 'ambos', false),
+    it('comprovante_endereco_avalista', 'Comprovante de endereço do avalista', 'ambos', false),
+    it('documento_outra_pessoa', 'Documento de outra pessoa (cônjuge, sócio, representante)', 'ambos', false, true),
+    it('documento_imovel', 'Documento do imóvel: matrícula, escritura ou IPTU', 'ambos', false, true),
+    it('conta_luz', 'Conta de luz da instalação (ponto do carregador)', 'ambos', true),
+    it('conta_luz_geradora', 'Conta de luz da geradora (usina)', 'ambos', false),
+    it('conta_luz_beneficiaria', 'Conta de luz que recebe o excedente', 'ambos', false),
     it('foto_local', 'Foto do local', 'imagem', true),
     it('padrao', 'Foto do padrão de entrada', 'imagem', true),
     it('quadro_eletrico', 'Foto do quadro elétrico', 'imagem', true),
@@ -85,6 +97,15 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('outros', 'Outros documentos', 'ambos', false, true),
   ],
 };
+
+/**
+ * Itens que NÃO entram no relatório de engenharia (sai para terceiros): documento pessoal do avalista e de outras pessoas e
+ * os comprovantes de endereço não servem à engenharia e são dado pessoal de terceiro. Seguem no catálogo e na leitura por IA.
+ */
+export const SLOTS_FORA_DO_RELATORIO: ReadonlySet<string> = new Set([
+  'documento_avalista', 'documento_outra_pessoa',
+  'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
+]);
 
 export const itemDoCatalogo = (linha: Linha, chave: unknown): ItemDoc | null =>
   typeof chave === 'string' ? (CATALOGO[linha].find((x) => x.chave === chave) ?? null) : null;

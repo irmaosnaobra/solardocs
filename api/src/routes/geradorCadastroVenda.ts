@@ -7,7 +7,7 @@ import { ErroCadastro } from '../services/gerador/cadastroVendaBanco';
 import {
   ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, type Fonte,
 } from '../services/gerador/cadastroVenda';
-import { lerDocumentosDaVenda } from '../services/gerador/cadastroVendaLeitura';
+import { lerDocumentosDaVenda, type PessoasConhecidas } from '../services/gerador/cadastroVendaLeitura';
 import { lerRotulos } from '../services/gerador/docsRotulos';
 import { organizarDocs } from '../services/gerador/docsOrganizar';
 
@@ -19,7 +19,9 @@ import { organizarDocs } from '../services/gerador/docsOrganizar';
 //        (a primeira escrita migra o legado da ficha para o cadastro; veja `escreverCadastro`)
 //   POST /gerador/clientes/eletroposto/:codigo/cadastro/ler    a IA lê os documentos já anexados e SUGERE os campos (não
 //        grava o cadastro). Também ORGANIZA os anexos: tira de "outros" o que tem item próprio e dá nome a cada documento
-//        (resposta: `organizados`, e `aviso` se isso falhar; as sugestões vêm de qualquer jeito)
+//        (resposta: `organizados`, e `aviso` se isso falhar; as sugestões vêm de qualquer jeito). A IA lê por PAPEL (comprador,
+//        cedente `ced_*`, avalista `aval_*`, imóvel `imovel_*`): `descartadas` traz o que ela sugeriu e o servidor recusou por
+//        ser dado de outra pessoa, e `notas` traz as dúvidas dela sobre de quem é cada documento (os dois só quando houver).
 //
 // A guarda é a MESMA dos documentos (`contexto`): consultor só vê venda dele, sócio vê todas, só card vendido; venda
 // inexistente e alheia respondem IGUAL (404). O cadastro mora só no bucket privado `cadastros-venda` (nunca em
@@ -101,15 +103,33 @@ export function mountCadastroVenda(router: Router): void {
       await garantirBucketDocs();
       const { reg } = await lerDocs(ctx);
       // Quem já tem rótulo lê depois dos que ainda não têm. Bucket dos rótulos fora do ar: lê sem essa prioridade.
+      // O nome que a PESSOA deu (rótulo manual) vai ao modelo como pista de quem é o documento; o da IA não (seria a IA lendo a si mesma).
       const rotulados = new Set<string>();
-      try { for (const id of Object.keys((await lerRotulos('eletroposto', ctx.codigo)).rotulos)) rotulados.add(id); } catch (e) { logErro('rótulos indisponíveis', e); }
-      const r = await lerDocumentosDaVenda(reg.arquivos, { rotulados });
+      const nomesDados = new Map<string, string>();
+      try {
+        for (const [id, rot] of Object.entries((await lerRotulos('eletroposto', ctx.codigo)).rotulos)) {
+          rotulados.add(id);
+          if (rot.fonte === 'manual') nomesDados.set(id, rot.rotulo);
+        }
+      } catch (e) { logErro('rótulos indisponíveis', e); }
+      // Os nomes já conhecidos (para a IA casar o nome escrito no documento com a pessoa): o cadastro e, sem ele, o nome do card.
+      // Cadastro fora do ar NÃO derruba a leitura: ela segue só com o nome do card.
+      const pessoas: PessoasConhecidas = { comprador: ctx.cliente };
+      try {
+        const cad = await lerCadastroVisto(Number(ctx.codigo));
+        pessoas.comprador = cad.campos.nome?.valor || ctx.cliente;
+        pessoas.cedente = cad.campos.ced_nome?.valor;
+        pessoas.avalista = cad.campos.aval_nome?.valor;
+      } catch (e) { logErro('cadastro indisponível para os nomes da leitura', e); }
+      const r = await lerDocumentosDaVenda(reg.arquivos, { rotulados, nomesDados, pessoas });
       if (r.ok) {
         // A leitura também organiza: mover de "outros" para o item certo e gravar o nome. Falha NÃO derruba as sugestões.
         const org = await organizarDocs({ linha: 'eletroposto', codigo: ctx.codigo, nome: ctx.nome }, r.documentos, () => lerDocs(ctx));
         res.json({
           ok: true, sugestoes: r.sugestoes, lidos: r.lidos, ignorados: r.ignorados,
           organizados: org.organizados, ...(org.aviso ? { aviso: org.aviso } : {}),
+          ...(r.descartadas.length ? { descartadas: r.descartadas } : {}),
+          ...(r.notas.length ? { notas: r.notas } : {}),
         });
       } else if (r.motivo === 'sem_documentos') {
         res.status(409).json({ ok: false, motivo: 'sem_documentos', ignorados: r.ignorados });

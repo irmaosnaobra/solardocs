@@ -332,7 +332,11 @@ describe('módulo puro', () => {
       expect(CATALOGO[l].some((x) => x.obrigatorio)).toBe(true);
     }
     expect(CATALOGO.solar.map((x) => x.chave)).toEqual(['documento', 'conta_luz', 'fachada', 'padrao', 'disjuntor', 'medidor', 'contrato_assinado', 'art', 'projeto', 'parecer_acesso', 'obra_pronta', 'outros']);
-    expect(CATALOGO.eletroposto.map((x) => x.chave)).toEqual(['documento_titular', 'conta_luz', 'foto_local', 'padrao', 'quadro_eletrico', 'contrato_assinado', 'procuracao', 'anuencia', 'vistoria', 'art', 'projeto', 'parecer_acesso', 'instalacao', 'outros']);
+    expect(CATALOGO.eletroposto.map((x) => x.chave)).toEqual([
+      'documento_titular', 'comprovante_endereco_comprador', 'documento_cedente', 'comprovante_endereco_cedente', 'documento_avalista',
+      'comprovante_endereco_avalista', 'documento_outra_pessoa', 'documento_imovel', 'conta_luz', 'conta_luz_geradora', 'conta_luz_beneficiaria',
+      'foto_local', 'padrao', 'quadro_eletrico', 'contrato_assinado', 'procuracao', 'anuencia', 'vistoria', 'art', 'projeto', 'parecer_acesso',
+      'instalacao', 'outros']);
   });
 });
 
@@ -816,7 +820,7 @@ describe('relatório', () => {
     expect(Object.keys(x.body.obra).sort()).toEqual(['etapas', 'feitas', 'modelo_rotulo', 'previsto', 'total']);
     expect(x.body.pendencias.campos).toContain('Endereço');
     expect(x.body.pendencias.campos).not.toContain('CPF ou CNPJ');
-    expect(x.body.pendencias.documentos).toContain('Documento do titular');
+    expect(x.body.pendencias.documentos).toContain('CNH ou documento pessoal do comprador');
     expect(x.body.pendencias.documentos).not.toContain('Procuração');   // só quando o caso pede
     expect(x.body.pendencias.obra_concluida).toBe(false);
     expect(x.body.preliminar).toBe(true);
@@ -837,8 +841,25 @@ describe('relatório', () => {
     sobe(caminhoDe('eletroposto', '101', UUID, 'pdf'), 10, 'application/pdf');
     await registra('/clientes/eletroposto/101/docs', 'documento_titular', caminhoDe('eletroposto', '101', UUID, 'pdf'));
     const x = await get('/clientes/eletroposto/101/relatorio');
-    expect(x.body.documentos).toEqual([{ slot: 'documento_titular', rotulo: 'Documento do titular', mime: 'application/pdf', url: expect.stringMatching(/^https:\/\/docs\.test\//) }]);
-    expect(x.body.pendencias.documentos).not.toContain('Documento do titular');
+    expect(x.body.documentos).toEqual([{ slot: 'documento_titular', rotulo: 'CNH ou documento pessoal do comprador', mime: 'application/pdf', url: expect.stringMatching(/^https:\/\/docs\.test\//) }]);
+    expect(x.body.pendencias.documentos).not.toContain('CNH ou documento pessoal do comprador');
+  });
+  it('Eletroposto: o relatório NÃO leva documento do avalista, de outra pessoa nem comprovante de endereço; leva titular, cedente, imóvel e as contas', async () => {
+    const uuid = (n: number) => `${String(n).padStart(8, '0')}-3d4a-4b5c-8d6e-7f8091a2b3c4`;
+    const slots = [
+      'documento_titular', 'documento_cedente', 'documento_imovel', 'conta_luz', 'conta_luz_geradora', 'conta_luz_beneficiaria',
+      'documento_avalista', 'documento_outra_pessoa', 'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
+    ];
+    for (const [i, slot] of slots.entries()) {
+      const c = caminhoDe('eletroposto', '101', uuid(i + 1), 'pdf');
+      sobe(c, 10, 'application/pdf');
+      expect((await registra('/clientes/eletroposto/101/docs', slot, c)).status, slot).toBeLessThan(300);
+    }
+    const x = await get('/clientes/eletroposto/101/relatorio');
+    expect(x.status).toBe(200);
+    expect(x.body.documentos.map((d: any) => d.slot).sort()).toEqual(
+      ['conta_luz', 'conta_luz_beneficiaria', 'conta_luz_geradora', 'documento_cedente', 'documento_imovel', 'documento_titular']);
+    expect(JSON.stringify(x.body)).not.toMatch(/avalista|outra_pessoa|comprovante_endereco/);
   });
 });
 
