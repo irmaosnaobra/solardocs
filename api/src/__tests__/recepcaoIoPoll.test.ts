@@ -17,6 +17,8 @@ let claims: string[] = [];
 let donoRecepcao: string[] = [];
 let leadsBia: string[] = [];
 let vendedoraDona: string[] = [];
+/** telefone -> idade (em horas) do comprovante Pix pendente. */
+let comprovantePendente: Record<string, number> = {};
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -47,6 +49,13 @@ vi.mock('../services/agents/whatsapp/biaInboundService', () => ({
 vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
   ehGatilhoSolarDoc: (t: string) => /solardoc/i.test(t),
   vendedoraJaAtende: (p: string) => Promise.resolve(vendedoraDona.includes(p)),
+}));
+// Comprovante Pix esperando o e-mail: a Duda cede (a fila do SolarDoc libera a conta).
+vi.mock('../services/agents/whatsapp/pixSolicitado', () => ({
+  // Mesma regra do real: o pendente conta enquanto a idade couber em `maxHoras`.
+  temComprovantePendente: (p: string, maxHoras = 48) =>
+    Promise.resolve(p in comprovantePendente && comprovantePendente[p]! <= maxHoras),
+  acharEmail: (t: string) => (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.exec(t || '') ?? [null])[0],
 }));
 /** Telefones que ja tem reuniao marcada: a Duda nao fala com esses. */
 const comReuniao: string[] = [];
@@ -87,10 +96,60 @@ beforeEach(() => {
   donoRecepcao = [];
   leadsBia = [];
   vendedoraDona = [];
+  comprovantePendente = {};
   comReuniao.length = 0;
 });
 
 describe('poll da recepção', () => {
+  // O cliente mandou o comprovante Pix e a próxima mensagem é o e-mail da conta.
+  // Quem responde é a liberação do Pix; a Duda respondendo por cima mandaria a
+  // apresentação padrão a quem acabou de pagar. Vale também com a triagem aberta.
+  it('cede enquanto há comprovante Pix pendente, inclusive com a triagem aberta', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    comprovantePendente[LEAD] = 1;
+    donoRecepcao.push(LEAD);
+    eventos = [evento({ text: { message: 'leoimplant@gmail.com' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(atendidos).toHaveLength(0);
+    expect(r.pulados).toBe(1);
+    expect(r.erros).toBe(0);
+  });
+
+  // Entre 48h e 30 dias a Duda só cede à mensagem que traz e-mail: é essa que a
+  // liberação do Pix responde. Cedendo a todas, o cliente ficaria sem resposta; não
+  // cedendo à do e-mail, teria dois robôs falando.
+  it('pendente de 72h: cede ao texto com e-mail', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    comprovantePendente[LEAD] = 72;
+    eventos = [evento({ text: { message: 'meu email é leoimplant@gmail.com' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(atendidos).toHaveLength(0);
+    expect(r.pulados).toBe(1);
+  });
+
+  it('pendente de 72h: NÃO cede ao texto sem e-mail', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    comprovantePendente[LEAD] = 72;
+    eventos = [evento({ text: { message: 'bom dia, queria uma informação' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(r.atendidos).toBe(1);
+  });
+
+  it('sem comprovante pendente a Duda atende normalmente', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    eventos = [evento({ text: { message: 'leoimplant@gmail.com' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(r.atendidos).toBe(1);
+  });
+
   // Quem já tem reunião marcada NÃO é da recepção: a régua da agenda é dona
   // dessa conversa. Sem esta guarda, o cliente respondia o "SIM" que a régua
   // acabou de pedir e recebia "Oi! Sou a Duda, como posso te ajudar hoje?",

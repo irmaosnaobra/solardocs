@@ -1007,9 +1007,35 @@ export async function handleIncomingWhatsApp(
     if (comprovanteSource) {
       try {
         const { tryProcessAbandonedPixComprovante } = await import('./pixComprovanteService');
-        if (await tryProcessAbandonedPixComprovante(cleanPhone, comprovanteSource, originInstance)) return;
+        // `text` = legenda da foto: pode trazer o e-mail da conta.
+        if (await tryProcessAbandonedPixComprovante(cleanPhone, comprovanteSource, originInstance, text)) return;
       } catch (err) {
         logger.error('whatsapp', 'pix-abandono-comprovante falhou (segue fluxo)', err);
+      }
+    }
+
+    // A resposta com o E-MAIL de quem já mandou o comprovante e está esperando a
+    // liberação. Vem ANTES da recuperação, da Carla e do resto: sem isto o e-mail
+    // caía no roteamento de número desconhecido (a Giovanna de recuperação só atende
+    // quem tem sessão dela) e quem pagou ficava sem plano. Se havia comprovante
+    // pendente, a própria função libera e avisa o cliente; quando não libera, avisa
+    // o Thiago e a mensagem segue o fluxo normal.
+    if (!comprovanteSource && text && text.trim()) {
+      try {
+        const { acharEmail, temComprovantePendente } = await import('./pixSolicitado');
+        const emailPix = acharEmail(text);
+        // 720h = o prazo inteiro do registro: o e-mail libera mesmo depois das 48h
+        // em que a Duda cede.
+        if (emailPix && await temComprovantePendente(cleanPhone, 720)) {
+          const { liberarComprovantePendente } = await import('./pixComprovanteService');
+          // Só encerra se LIBEROU (a função já respondeu ao cliente). Reprovado,
+          // cartão ativo, já usado ou falha: segue o fluxo normal, pra quem pagou
+          // não ficar sem resposta e a Giovanna ainda guardar o e-mail.
+          const venc = await liberarComprovantePendente(cleanPhone, emailPix, senderName ?? null, originInstance);
+          if (venc) return;
+        }
+      } catch (err) {
+        logger.error('whatsapp', 'pix-comprovante pendente + e-mail falhou (segue fluxo)', err);
       }
     }
 

@@ -23,6 +23,12 @@ export interface ComprovantePendente {
   dedupKey: string;
   passou: boolean;
   em: string;
+  // Chave `pix_e2e:` do comprovante (quando o ID de Pix foi lido). Fica aqui pra
+  // que a liberação feita DEPOIS, quando o e-mail chega, grave a mesma trava.
+  e2eKey?: string | null;
+  // O Thiago já foi avisado de que a conta não pôde ser criada pra este pendente.
+  // Sem isto, cada nova tentativa (a Giovanna chama a mesma função) avisaria de novo.
+  avisadoFalha?: boolean;
 }
 
 export interface PixSolicitado {
@@ -34,6 +40,11 @@ export interface PixSolicitado {
   // foto e só depois o e-mail). Fica guardado aqui pra liberar assim que o
   // e-mail chegar, em vez de morrer num aviso pro Thiago resolver na mão.
   comprovante?: ComprovantePendente | null;
+  // 'desconhecido' = o registro nasceu de um comprovante de número que nenhum fluxo
+  // nosso conhecia (sem checkout, sem Pix pedido). A imagem seguinte do mesmo número
+  // continua passando pelo ramo do desconhecido (com a trava de ID de Pix), e não
+  // pelo ramo antigo, que não exige essa prova.
+  origem?: 'desconhecido' | null;
 }
 
 // Validade do registro: depois disso, um comprovante que chega sem contexto não
@@ -46,12 +57,28 @@ const VALIDADE_DIAS = 30;
 // DDD + número, que é o formato estável mesmo quando o Z-API manda com ou sem o
 // DDI 55 na frente.
 export function chaveTelefone(phone: string): string {
-  const d = (phone || '').replace(/\D/g, '');
-  return d.length > 11 ? d.slice(-11) : d;
+  let d = (phone || '').replace(/\D/g, '');
+  // Com DDI: 12 dígitos (sem o 9) ou 13 (com o 9). Tirar o 55 antes de cortar; o
+  // corte pelos últimos 11 dava chaves DIFERENTES pro mesmo número com e sem o 9.
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  else if (d.length > 11) d = d.slice(-11);
+  // Celular antigo sem o 9 (DDD + 8 dígitos começando em 6-9): põe o 9. Fixo
+  // (2-5) fica como está.
+  if (d.length === 10 && /[6-9]/.test(d[2] ?? '')) d = d.slice(0, 2) + '9' + d.slice(2);
+  return d;
 }
 
 function chave(phone: string): string {
   return `pix_solicitado:${chaveTelefone(phone)}`;
+}
+
+// Chave ANTIGA (até 20/10/2026): últimos 11 dígitos, sem tirar o 55. Dava chave
+// diferente pro mesmo número com e sem o 9, e pra 12 e 10 dígitos dava uma chave
+// que não é a nova. Registros gravados nos 30 dias anteriores ficam sob ela, então a
+// leitura tenta a nova e, se não achar, esta.
+function chaveLegada(phone: string): string {
+  const d = (phone || '').replace(/\D/g, '');
+  return `pix_solicitado:${d.length > 11 ? d.slice(-11) : d}`;
 }
 
 export async function registrarPixEnviado(phone: string, valor: number, nome?: string | null): Promise<void> {
@@ -73,18 +100,46 @@ export async function registrarPixEnviado(phone: string, valor: number, nome?: s
 }
 
 export async function lerPixSolicitado(phone: string): Promise<PixSolicitado | null> {
-  const { data } = await supabase
+  let { data } = await supabase
     .from('system_state').select('value').eq('key', chave(phone)).maybeSingle();
-  const v = (data as { value?: PixSolicitado } | null)?.value;
+  let v = (data as { value?: PixSolicitado } | null)?.value;
+  if (!v?.em && chaveLegada(phone) !== chave(phone)) {
+    ({ data } = await supabase
+      .from('system_state').select('value').eq('key', chaveLegada(phone)).maybeSingle());
+    v = (data as { value?: PixSolicitado } | null)?.value;
+  }
   if (!v?.em) return null;
   if (Date.now() - new Date(v.em).getTime() > VALIDADE_DIAS * 864e5) return null;
   return v;
 }
 
+// Há comprovante Pix esperando o e-mail deste telefone? Serve pra Duda (recepção
+// da linha IO) ceder: a resposta com o e-mail é do Pix, não de triagem. Nunca
+// lança: na dúvida (banco fora) devolve false e o fluxo segue como antes.
+//
+// `maxHoras`: o pendente só conta enquanto for RECENTE (48h por padrão). A Duda e o
+// webhook não podem calar por 30 dias por causa de um comprovante que ninguém
+// respondeu; quem quer o prazo inteiro do registro (liberar quando o e-mail chega)
+// passa um número maior.
+export async function temComprovantePendente(phone: string, maxHoras = 48): Promise<boolean> {
+  try {
+    const reg = await lerPixSolicitado(phone);
+    const pend = reg?.comprovante;
+    if (!pend) return false;
+    const desde = Date.parse(pend.em);
+    // Sem data legível, não dá pra provar que é recente: conta como pendente (o
+    // registro já expira sozinho em 30 dias).
+    if (Number.isNaN(desde)) return true;
+    return Date.now() - desde <= maxHoras * 3_600_000;
+  } catch {
+    return false;
+  }
+}
+
 // Guarda o comprovante que chegou sem e-mail. Se não havia nem registro de Pix
 // (comprovante espontâneo), cria um — o pagamento existe de qualquer jeito.
 export async function guardarComprovantePendente(
-  phone: string, comprovante: ComprovantePendente,
+  phone: string, comprovante: ComprovantePendente, extra: { origem?: 'desconhecido' } = {},
 ): Promise<void> {
   const atual = await lerPixSolicitado(phone);
   const payload: PixSolicitado = {
@@ -93,10 +148,21 @@ export async function guardarComprovantePendente(
     nome: atual?.nome ?? null,
     em: atual?.em ?? new Date().toISOString(),
     comprovante,
+    origem: extra.origem ?? null,
   };
   const { error } = await supabase
     .from('system_state').upsert({ key: chave(phone), value: payload }, { onConflict: 'key' });
   if (error) logger.error('pix-solicitado', `não guardei o comprovante pendente de ${phone}`, error);
+}
+
+// Marca no pendente que o aviso de falha ao criar a conta já foi dado.
+export async function marcarAvisoFalhaPendente(phone: string): Promise<void> {
+  const atual = await lerPixSolicitado(phone);
+  if (!atual?.comprovante) return;
+  await supabase.from('system_state').upsert({
+    key: chave(phone),
+    value: { ...atual, comprovante: { ...atual.comprovante, avisadoFalha: true } },
+  }, { onConflict: 'key' });
 }
 
 // Limpa o comprovante depois de liberado (o registro fica, o pendente sai).
@@ -132,6 +198,7 @@ export async function guardarEmailSePendente(phone: string, texto: string, nome?
     nome: nome ?? atual?.nome ?? null,
     em: atual?.em ?? new Date().toISOString(),
     comprovante: atual?.comprovante ?? null,
+    origem: atual?.origem ?? null,
   };
   const { error } = await supabase
     .from('system_state').upsert({ key: chave(phone), value: payload }, { onConflict: 'key' });

@@ -12,6 +12,7 @@ import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../servi
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../services/agents/whatsapp/whatsappAgentService';
 import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { recepcaoJaAtende } from '../services/io/recepcaoIo';
+import { acharEmail, temComprovantePendente } from '../services/agents/whatsapp/pixSolicitado';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -425,6 +426,11 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // gatilho SEM triagem aberta continua indo pra vendedora, como sempre foi.
   const recepcaoDona = textoRecup ? await recepcaoJaAtende(String(phone)) : false;
   if (!recepcaoDona && textoRecup && (ehGatilhoSolarDoc(textoRecup) || await vendedoraJaAtende(String(phone)))) return;
+  // Comprovante Pix esperando o e-mail deste telefone: a mensagem é do Pix e quem
+  // responde é a fila do SolarDoc. Vale mesmo com a recepção dona da conversa.
+  // De 48h a 30 dias só cede à mensagem com e-mail (a que a liberação responde).
+  if (textoRecup && (await temComprovantePendente(String(phone))
+    || (acharEmail(textoRecup) && await temComprovantePendente(String(phone), 720)))) return;
 
   if (textoRecup && await ehLeadRecuperacao(String(phone))) {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)

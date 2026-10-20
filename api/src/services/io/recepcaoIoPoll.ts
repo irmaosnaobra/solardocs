@@ -34,6 +34,7 @@ import { logger } from '../../utils/logger';
 import { tryClaimMessage } from '../agents/sdr/sdrAgentService';
 import { ehLeadRecuperacao } from '../agents/whatsapp/biaInboundService';
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../agents/whatsapp/whatsappAgentService';
+import { acharEmail, temComprovantePendente } from '../agents/whatsapp/pixSolicitado';
 import { handleRecepcaoIo, recepcaoJaAtende, temReuniaoAtiva } from './recepcaoIo';
 
 /** Instância Z-API da linha Irmãos na Obra. Mesmo valor que o poll da Bia usa. */
@@ -89,6 +90,15 @@ export async function pollRecepcaoIo(): Promise<{ atendidos: number; pulados: nu
     if (!phone || !texto) { pulados++; continue; }
 
     try {
+      // Comprovante Pix esperando o e-mail deste telefone: a mensagem é do Pix (a
+      // fila do SolarDoc libera a conta), não de triagem. Fica FORA da posse da
+      // recepção de propósito: até a Duda no meio da triagem cede, senão ela
+      // responderia o e-mail do cliente por cima da liberação.
+      // Até 48h cede a qualquer mensagem; de 48h a 30 dias só à que traz e-mail,
+      // porque é essa que a liberação do Pix vai responder (senão seriam 2 robôs).
+      if (await temComprovantePendente(phone)
+        || (acharEmail(texto) && await temComprovantePendente(phone, 720))) { pulados++; continue; }
+
       // Se a recepção JÁ é dona, ela continua sem perguntar nada a ninguém: a
       // triagem aberta vale mais que qualquer gatilho que apareça no meio dela.
       if (!(await recepcaoJaAtende(phone))) {

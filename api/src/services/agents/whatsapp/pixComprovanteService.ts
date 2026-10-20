@@ -6,8 +6,25 @@ import { logger } from '../../../utils/logger';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 import { novoAnthropic } from "../../../utils/anthropicClient";
 import {
-  lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente,
+  lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente, marcarAvisoFalhaPendente, PixSolicitado,
 } from './pixSolicitado';
+
+// ID de Pix de verdade (E2E do Bacen): "E" + ISPB de 8 dígitos + data-hora de 12
+// dígitos. É a prova de que o comprovante é de um Pix, e não de um boleto, de um
+// TED ou de uma imagem qualquer com o nome da empresa.
+const RE_ID_PIX = /^E\d{20}/;
+
+/**
+ * Chave de trava do E2E: `pix_e2e:<21 primeiros caracteres>:<valor inteiro>`.
+ * Usa só os 21 primeiros porque o leitor (visão) às vezes erra um caractere no
+ * FIM do ID; o começo (ISPB + data-hora) sai igual nas duas leituras. Devolve
+ * null quando não há ID de Pix legível: aí não existe chave pra gravar.
+ */
+export function chaveE2e(idTransacao: string | null | undefined, valor: number): string | null {
+  const id = String(idTransacao ?? '').replace(/\s+/g, '');
+  if (!RE_ID_PIX.test(id)) return null;
+  return `pix_e2e:${id.slice(0, 21).toUpperCase()}:${Math.round(valor)}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirmação de Pix por COMPROVANTE (cliente SolarDoc).
@@ -135,7 +152,9 @@ async function lerComprovante(img: ImgSrc): Promise<Comprovante | null> {
 //
 // Exportada para teste: é a função que decide se dinheiro vira acesso. Testá-la
 // direto evita ter que simular a IA de visão só pra exercitar as travas.
-export async function validarComprovante(c: Comprovante, identity: string): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string }> {
+export async function validarComprovante(
+  c: Comprovante, identity: string, opts: { exigirIdPix?: boolean } = {},
+): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string; e2eKey: string | null; jaUsado: 'telefone' | 'e2e' | null }> {
   const doc   = (c.recebedor_documento || '').replace(/\D/g, '');
   const nome  = (c.recebedor_nome || '').toLowerCase();
   const valor = Number(c.valor) || 0;
@@ -166,15 +185,33 @@ export async function validarComprovante(c: Comprovante, identity: string): Prom
     entradaRepetida = !!entrada?.length;
   }
 
-  const passou = recebedorOk && valorOk && dataOk && !(usado?.length) && !entradaRepetida;
+  // Regra EXTRA do número desconhecido (sem conta, sem checkout, sem Pix pedido):
+  // exige prova de Pix, e o mesmo Pix não vale duas vezes mesmo vindo de OUTRO
+  // telefone (o dedupKey é por telefone, então sozinho não pega esse reenvio).
+  const e2eKey = chaveE2e(c.id_transacao, valor);
+  let semIdPix = false;
+  let e2eUsado = false;
+  if (opts.exigirIdPix) {
+    semIdPix = !e2eKey;
+    if (e2eKey) {
+      const { data: e2e } = await supabase.from('system_state').select('key').eq('key', e2eKey).limit(1);
+      e2eUsado = !!e2e?.length;
+    }
+  }
+
+  const passou = recebedorOk && valorOk && dataOk && !(usado?.length) && !entradaRepetida && !semIdPix && !e2eUsado;
 
   const motivo = usado?.length ? 'comprovante já usado antes (reenvio?)'
+    : e2eUsado ? 'este Pix (ID) já foi usado antes, em outro telefone ou data'
     : !recebedorOk ? 'recebedor NÃO parece ser a Aioros'
     : !valorOk ? 'valor não bate com plano (19/27/49/67)'
     : !dataOk ? 'data ausente ou fora da janela'
     : entradaRepetida ? 'entrada de R$19 já usada por este número (é oferta de primeira vez)'
+    : semIdPix ? 'sem ID de Pix'
     : 'ok';
-  return { passou, motivo, valor, dedupKey };
+  // Reenvio de comprovante JÁ liberado: quem chama não responde nada e não deixa a imagem seguir.
+  const jaUsado = usado?.length ? 'telefone' as const : e2eUsado ? 'e2e' as const : null;
+  return { passou, motivo, valor, dedupKey, e2eKey, jaUsado };
 }
 
 // Empurra plano_expira_em +1 mês (base = vencimento atual se ainda no futuro, senão agora).
@@ -266,6 +303,66 @@ async function notificarThiago(
   }
 }
 
+// Grava a trava do E2E (`pix_e2e:`). true = JÁ existia (o mesmo Pix voltou, de
+// outro telefone ou relido): quem chama NÃO libera. Sem ID de Pix legível não há
+// chave e a função devolve false (os ramos antigos seguem só com o dedupKey).
+async function e2eJaUsado(e2eKey: string | null, valor: number, userId: string): Promise<boolean> {
+  if (!e2eKey) return false;
+  const { error } = await supabase.from('system_state')
+    .insert({ key: e2eKey, value: { user_id: userId, valor, at: new Date().toISOString() } });
+  if (!error) return false;
+  if ((error as { code?: string }).code === '23505') return true;
+  logger.error('pix-comprovante', 'trava do E2E não gravou (segue liberação)', error);
+  return false;
+}
+
+// Queima a entrada de R$19 (oferta de primeira vez). Falha grita no log, não bloqueia.
+async function queimarEntrada(cleanPhone: string, userId: string, email: string, venc: Date): Promise<void> {
+  const { error } = await supabase.from('system_state').insert({
+    key: chaveEntrada(cleanPhone),
+    value: { user_id: userId, email, at: new Date().toISOString(), vence: venc.toISOString() },
+  });
+  if (error) {
+    logger.error('pix-comprovante',
+      `ENTRADA R$19 NÃO MARCADA (${email}) — a trava de uma-vez-só não vai pegar neste número`, error);
+  }
+}
+
+// Data em horário de Brasília (a máquina roda em UTC) como dd/mm.
+const diaMes = (d: Date) => d.toLocaleDateString('pt-BR', {
+  timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit',
+});
+const valorBr = (v: number) => v.toFixed(2).replace('.', ',');
+
+/** Razão social da conta (tabela company, ligada por user_id). Sem ela, null. */
+async function razaoSocialDe(userId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase.from('company').select('nome').eq('user_id', userId).limit(1).maybeSingle();
+    const nome = String((data as { nome?: string } | null)?.nome ?? '').trim();
+    return nome || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Texto da confirmação do Pix liberado por e-mail. Uma bolha só.
+ * `linkSenha` só vem preenchido quando a conta foi criada AGORA, na mesma chamada:
+ * link de definir senha pra conta que já existia é entregar a conta de uma pessoa
+ * a quem digitou o e-mail dela.
+ */
+function textoConfirmacao(a: {
+  valor: number; plano: string; venc: Date; email: string; razao: string | null; linkSenha: string | null;
+}): string {
+  const rotulo = a.plano === 'ilimitado' ? 'Ilimitado' : a.plano.toUpperCase();
+  const inicio = `Pronto. Recebi seu Pix de R$ ${valorBr(a.valor)} e liberei o plano ${rotulo} até ${diaMes(a.venc)}`;
+  if (a.linkSenha) {
+    return `${inicio} na conta ${a.email}. Pra entrar, defina sua senha aqui: ${a.linkSenha}`;
+  }
+  const conta = `${inicio} na conta ${a.email}${a.razao ? `, da ${a.razao}` : ''}.`;
+  return `${conta} É só entrar em solardoc.app com o seu e-mail e a sua senha. Se não lembrar a senha, use "Esqueci minha senha" na tela de entrada.`;
+}
+
 // Retorna true se TRATOU o comprovante (liberou OU sinalizou) — o chamador então
 // NÃO cai no LLM geral. Retorna false se não é candidato/não é comprovante (segue fluxo).
 export async function tryProcessPixComprovante(
@@ -285,7 +382,7 @@ export async function tryProcessPixComprovante(
   const c = await lerComprovante(img);
   if (!c || !c.is_comprovante) return false; // não é comprovante → fluxo normal
 
-  const { passou, motivo, valor, dedupKey } = await validarComprovante(c, cleanPhone);
+  const { passou, motivo, valor, dedupKey, e2eKey } = await validarComprovante(c, cleanPhone);
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
 
   // ── AUTO-LIBERAÇÃO ──
@@ -300,6 +397,11 @@ export async function tryProcessPixComprovante(
         return true;
       }
       logger.error('pix-comprovante', 'dedup insert falhou (segue liberação)', dedupErr);
+    }
+    // Mesmo Pix (E2E) já usado, por outro telefone? Não libera de novo.
+    if (await e2eJaUsado(e2eKey, valor, user.id)) {
+      logger.info('pix-comprovante', `dedup E2E: Pix já usado (${user.email})`);
+      return true;
     }
 
     const alvo = PLANO_POR_VALOR[Math.round(valor)] ?? { plano: 'ilimitado', limite: 999999 };
@@ -405,15 +507,56 @@ type PixUser = {
 };
 const PIX_USER_COLS = 'id, email, password_hash, reset_token, plano, billing_status, plano_expira_em';
 
+type PixUserResult = PixUser & { criadaAgora: boolean };
+
+// Variantes BR do telefone (com/sem 55, com/sem o 9º dígito). Copiada de
+// `variantesBR` do whatsappAgentService de propósito: importar aquele arquivo
+// aqui cria ciclo (ele importa este de forma dinâmica) e quebra o require em CJS.
+function variantesTelefone(phone: string): string[] {
+  const limpo = (phone || '').replace('@c.us', '').replace(/\D/g, '');
+  if (!limpo) return [];
+  const c55 = limpo.startsWith('55') ? limpo : `55${limpo}`;
+  const com9 = c55.length === 12 ? c55.slice(0, 4) + '9' + c55.slice(4) : c55;
+  const sem9 = c55.length === 13 && c55[4] === '9' ? c55.slice(0, 4) + c55.slice(5) : c55;
+  return Array.from(new Set([limpo, c55, com9, sem9, c55.replace(/^55/, ''), com9.replace(/^55/, ''), sem9.replace(/^55/, '')].filter(Boolean)));
+}
+
+// Formato gravado em users.whatsapp: DDD + número, sem o 55.
+const whatsappSemDDI = (phone: string) => {
+  const d = (phone || '').replace(/\D/g, '');
+  return d.length >= 12 && d.startsWith('55') ? d.slice(2) : d;
+};
+
+// Grava o WhatsApp na conta SÓ se ela não tem um e NENHUMA outra conta usa este
+// telefone. Sobrescrever era a brecha: quem digitava o e-mail de outra pessoa
+// passava a ser "o telefone dela" e a Giovanna, que altera cadastro pelo telefone
+// da conta, passava a obedecê-lo.
+async function gravarWhatsappSeLivre(userId: string, atual: string | null | undefined, phone: string): Promise<void> {
+  if (atual || !phone) return;
+  try {
+    const { data: outros } = await supabase
+      .from('users').select('id').in('whatsapp', variantesTelefone(phone)).neq('id', userId).limit(1);
+    if (outros?.length) return;
+    await supabase.from('users').update({ whatsapp: whatsappSemDDI(phone) }).eq('id', userId);
+  } catch (err) {
+    logger.error('pix-comprovante', 'gravar whatsapp na conta falhou (segue)', err);
+  }
+}
+
 async function getOrCreatePixUser(
   email: string, nome: string | null, phone: string,
-): Promise<PixUser | null> {
+  opts: { whatsappSoSeLivre?: boolean } = {},
+): Promise<PixUserResult | null> {
   const emailLc = email.toLowerCase().trim();
   const { data: existing } = await supabase
-    .from('users').select(PIX_USER_COLS).eq('email', emailLc).maybeSingle();
+    .from('users').select(`${PIX_USER_COLS}, whatsapp`).eq('email', emailLc).maybeSingle();
   if (existing) {
-    if (phone) await supabase.from('users').update({ whatsapp: phone }).eq('id', existing.id);
-    return existing as PixUser;
+    if (opts.whatsappSoSeLivre) {
+      await gravarWhatsappSeLivre(existing.id, (existing as { whatsapp?: string | null }).whatsapp, phone);
+    } else if (phone) {
+      await supabase.from('users').update({ whatsapp: phone }).eq('id', existing.id);
+    }
+    return { ...(existing as PixUser), criadaAgora: false };
   }
   const token = crypto.randomBytes(32).toString('hex');
   const expiresIso = new Date(Date.now() + 30 * 864e5).toISOString();
@@ -429,14 +572,15 @@ async function getOrCreatePixUser(
     .single();
   if (error) {
     if ((error as { code?: string }).code === '23505') {
+      // Corrida: outra chamada criou a conta no meio. Aqui ela JÁ existia pra nós.
       const { data } = await supabase
         .from('users').select(PIX_USER_COLS).eq('email', emailLc).maybeSingle();
-      return (data as PixUser) ?? null;
+      return data ? { ...(data as PixUser), criadaAgora: false } : null;
     }
     logger.error('pix-comprovante', `criar conta pendente Pix falhou (${emailLc})`, error);
     return null;
   }
-  return created as PixUser;
+  return { ...(created as PixUser), criadaAgora: true };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,11 +605,17 @@ export async function liberarComprovantePendente(
     return null;
   }
 
-  const u = await getOrCreatePixUser(email, nome ?? reg?.nome ?? null, cleanPhone);
+  // whatsappSoSeLivre: o e-mail veio digitado na conversa, de quem quer que seja.
+  const u = await getOrCreatePixUser(email, nome ?? reg?.nome ?? null, cleanPhone, { whatsappSoSeLivre: true });
   if (!u) {
-    await sendWhatsApp(THIAGO_PHONE,
-      `⚠️ *Pix pendente*: ${email} mandou o e-mail mas FALHEI ao criar a conta. Libera no /admin ("+ Pix").`,
-      'solardoc').catch(() => {});
+    // Avisa UMA vez: o pendente fica (nova tentativa pode funcionar), mas o Thiago
+    // não recebe o mesmo alerta a cada mensagem do cliente.
+    if (!pend.avisadoFalha) {
+      await sendWhatsApp(THIAGO_PHONE,
+        `⚠️ *Pix pendente*: ${email} mandou o e-mail mas FALHEI ao criar a conta. Libera no /admin ("+ Pix").`,
+        'solardoc').catch(() => {});
+      await marcarAvisoFalhaPendente(cleanPhone).catch(() => {});
+    }
     return null;
   }
   if (ehCartaoAtivo(u)) {
@@ -485,29 +635,214 @@ export async function liberarComprovantePendente(
     logger.info('pix-comprovante', `pendente já liberado antes (${email})`);
     return null;
   }
+  // E a trava do E2E: o mesmo Pix não vira dois meses, nem por outro telefone.
+  if (await e2eJaUsado(pend.e2eKey ?? null, pend.valor, u.id)) {
+    await limparComprovantePendente(cleanPhone);
+    logger.info('pix-comprovante', `pendente: Pix (E2E) já usado antes (${email})`);
+    return null;
+  }
 
   const alvo = PLANO_POR_VALOR[Math.round(pend.valor)] ?? { plano: 'ilimitado', limite: 999999 };
   const venc = await liberarAcessoPix(u.id, u.plano_expira_em ?? null, alvo.plano, alvo.limite);
   await encerrarDunningPix(u.id, email, u.billing_status);
+  if (Math.round(pend.valor) === VALOR_ENTRADA_CURSO) await queimarEntrada(cleanPhone, u.id, email, venc);
   await limparComprovantePendente(cleanPhone);
 
+  // Link de definir senha SÓ pra conta criada agora, nesta chamada.
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
-  const linhas = ['Perfeito, achei aqui! ✅ Seu acesso ao SolarDoc está *liberado* 🌞'];
-  linhas.push(!u.password_hash && u.reset_token
-    ? `Pra entrar, é só definir sua senha aqui: ${dashboardUrl}/auth?mode=redefinir&token=${u.reset_token}`
-    : `É só entrar em ${dashboardUrl} com o seu e-mail (${email}). Qualquer dúvida me chama! 🙌`);
-  await sendHuman(cleanPhone, linhas, originInstance).catch(() => {});
+  const linkSenha = u.criadaAgora && u.reset_token
+    ? `${dashboardUrl}/auth?mode=redefinir&token=${u.reset_token}` : null;
+  const razao = u.criadaAgora ? null : await razaoSocialDe(u.id);
+  await sendHuman(cleanPhone, [
+    textoConfirmacao({ valor: pend.valor, plano: alvo.plano, venc, email: u.email || email, razao, linkSenha }),
+  ], originInstance, { maxBolhas: 1 }).catch(() => {});
 
   await sendWhatsApp(THIAGO_PHONE,
-    `✅ *AUTO-LIBERADO (Pix + e-mail depois)* — ${email} · ${brl(pend.valor)} · vence ${venc.toLocaleDateString('pt-BR')}.`,
+    `✅ *AUTO-LIBERADO (Pix + e-mail depois)* — ${email} · ${brl(pend.valor)} · vence ${diaMes(venc)}.`,
     'solardoc').catch(() => {});
   logger.info('pix-comprovante', `AUTO-liberado (e-mail depois) ${email} ${brl(pend.valor)}`);
   return venc;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NÚMERO DESCONHECIDO, SEM CHECKOUT E SEM PIX PEDIDO (a linha IO, principalmente).
+// O cliente paga e manda o comprovante de um número que não está em users.whatsapp
+// e que nenhum fluxo nosso conhece. Antes caía na agente como foto comum, sem
+// resposta. Agora: lê, confere que o dinheiro foi pra nós e libera o mês.
+//
+// É o ramo mais exposto do arquivo (ninguém nos apresentou esta pessoa), então tem
+// uma trava a mais: o comprovante precisa trazer ID de Pix. Reprovado NÃO responde
+// nada ao cliente: o robô não faz papel de fiscal de quem mandou foto qualquer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const RE_EMAIL_G = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const emailsDe = (t: string | null | undefined): string[] =>
+  (String(t ?? '').match(RE_EMAIL_G) ?? []).map(e => e.toLowerCase().trim());
+
+// ilike sem curinga: `_` e `%` são comuns em e-mail e casariam a conta errada.
+const escapaIlike = (v: string) => v.replace(/[\\%_]/g, m => `\\${m}`);
+
+type ContaAchada = PixUser & { nome?: string | null; whatsapp?: string | null };
+
+/**
+ * Acha a conta pelo e-mail que a pessoa digitou NESTA conversa: na legenda da foto
+ * ou nas mensagens recebidas dela nos últimos 7 dias. Só vale quando há exatamente
+ * uma conta. Dois e-mails de contas diferentes = ambíguo = sem conta (pede o e-mail).
+ */
+async function acharContaPelaConversa(cleanPhone: string, texto: string): Promise<ContaAchada | null> {
+  const emails = new Set<string>(emailsDe(texto));
+  try {
+    const desde = new Date(Date.now() - 7 * 864e5).toISOString();
+    const { data: msgs } = await supabase
+      .from('wa_mensagens').select('texto, tipo')
+      .in('telefone', variantesTelefone(cleanPhone))
+      .eq('from_me', false)
+      .gte('momment', desde)
+      .order('momment', { ascending: false })
+      .limit(100);
+    for (const m of (msgs ?? []) as Array<{ texto?: string | null }>) {
+      for (const e of emailsDe(m.texto)) emails.add(e);
+    }
+  } catch (err) {
+    logger.error('pix-comprovante', 'ler conversa pra achar e-mail falhou (segue sem)', err);
+  }
+  if (!emails.size) return null;
+
+  const contas = new Map<string, ContaAchada>();
+  for (const e of Array.from(emails).slice(0, 8)) {
+    const { data } = await supabase
+      .from('users').select(`${PIX_USER_COLS}, nome, whatsapp`).ilike('email', escapaIlike(e)).limit(2);
+    for (const u of (data ?? []) as ContaAchada[]) contas.set(u.id, u);
+  }
+  return contas.size === 1 ? Array.from(contas.values())[0]! : null;
+}
+
+// Legenda que o sistema mesmo põe quando a foto/PDF chega sem texto. Fora isso, a
+// pessoa escreveu algo (uma pergunta?) e o fluxo normal precisa responder.
+const LEGENDAS_PADRAO = new Set(['', '[imagem]', 'o cliente enviou esta imagem.', 'o cliente enviou um arquivo pdf.']);
+const legendaVazia = (t: string) => LEGENDAS_PADRAO.has(String(t ?? '').trim().toLowerCase());
+
+async function processarComprovanteDesconhecido(
+  cleanPhone: string, img: ImgSrc, originInstance: ZapiInstance, texto: string,
+  solicitado: PixSolicitado | null = null,
+): Promise<boolean> {
+  const c = await lerComprovante(img);
+  if (!c || !c.is_comprovante) return false; // não é comprovante → segue fluxo, sem enviar nada
+
+  const v = await validarComprovante(c, cleanPhone, { exigirIdPix: true });
+  const conta = await acharContaPelaConversa(cleanPhone, texto);
+
+  if (!v.passou || !AUTO_LIBERAR) {
+    // Silêncio com o cliente. O Thiago só é avisado quando a conversa já aponta uma
+    // conta SolarDoc de verdade (aí é cliente nosso, com dinheiro possivelmente pago).
+    // Reenvio do MESMO comprovante já liberado neste telefone: nada a dizer, e a
+    // imagem não segue pra Carla logo depois da confirmação.
+    // Só cala quando a foto veio sem legenda; com pergunta, o fluxo normal responde.
+    if (v.jaUsado === 'telefone') {
+      logger.info('pix-comprovante', `desconhecido: reenvio de comprovante já usado (${cleanPhone})`);
+      return legendaVazia(texto);
+    }
+    if (conta) {
+      await notificarThiago(
+        { email: conta.email, phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+        `⚠️ REVISAR (número desconhecido) — ${v.passou ? 'liberação automática desligada' : v.motivo}. Se ok, libera no /admin ("+ Pix").`,
+      );
+    }
+    logger.info('pix-comprovante', `desconhecido: reprovado (${cleanPhone}) motivo=${v.passou ? 'auto desligado' : v.motivo}`);
+    // O mesmo Pix (ID) vindo de OUTRO telefone: também não segue pra Carla.
+    return v.jaUsado === 'e2e' && legendaVazia(texto);
+  }
+
+  // ── Aprovado, mas sem conta: guarda e pede o e-mail, UMA vez por comprovante ──
+  if (!conta) {
+    const pend = solicitado?.comprovante ?? null;
+    if (pend) {
+      // Já há comprovante esperando o e-mail deste número. NÃO sobrescreve (perderia o
+      // e-mail da trava de ID do primeiro) e não pede de novo. Mesmo comprovante:
+      // silêncio. Outro comprovante: o Thiago decide, uma vez.
+      if (pend.dedupKey !== v.dedupKey) {
+        await notificarThiago(
+          { email: '(aguardando o e-mail do cliente)', phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+          `⚠️ SEGUNDO comprovante Pix (${brl(v.valor)}) de número que já tem outro esperando o e-mail. Não guardei: confere e libera no /admin ("+ Pix") se for pagamento novo.`,
+        );
+      }
+      return true;
+    }
+    await guardarComprovantePendente(cleanPhone, {
+      valor: v.valor, dedupKey: v.dedupKey, passou: true, em: new Date().toISOString(), e2eKey: v.e2eKey,
+    }, { origem: 'desconhecido' });
+    const { error: jaPediu } = await supabase.from('system_state').insert({
+      key: `pix_pediu_email:${v.dedupKey}`, value: { at: new Date().toISOString() },
+    });
+    if (jaPediu) {
+      // 23505 = outra execução já pediu: não repete. Qualquer outro erro: pede mesmo
+      // assim (melhor repetir o pedido do que deixar quem pagou no silêncio).
+      if ((jaPediu as { code?: string }).code === '23505') return true;
+      logger.error('pix-comprovante', 'marca do pedido de e-mail não gravou (pede mesmo assim)', jaPediu);
+    }
+    // Avisa o Thiago UMA vez: dinheiro entrou e a conta ainda não é conhecida.
+    await notificarThiago(
+      { email: '(aguardando o e-mail do cliente)', phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+      `⚠️ Pix válido (${brl(v.valor)}) de número desconhecido, SEM e-mail de conta. Pedi o e-mail; libero sozinho quando ele mandar. Se ele sumir, libera no /admin ("+ Pix").`,
+    );
+    await sendHuman(cleanPhone, [
+      `Recebi seu comprovante de R$ ${valorBr(v.valor)}. Qual o e-mail da sua conta no SolarDoc? Assim que você mandar, eu libero na hora.`,
+    ], originInstance, { maxBolhas: 1 }).catch(() => {});
+    logger.info('pix-comprovante', `desconhecido: comprovante guardado, e-mail pedido (${cleanPhone})`);
+    return true;
+  }
+
+  // ── Aprovado, com conta ──
+  if (ehCartaoAtivo(conta)) {
+    await notificarThiago(
+      { email: conta.email, phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+      '⚠️ Comprovante Pix de conta com CARTÃO ATIVO (número desconhecido) — NÃO liberei (evita corromper o billing do Stripe). Confere.',
+    );
+    return true;
+  }
+
+  // Trava atômica ANTES de liberar: o comprovante do telefone e o Pix pelo ID.
+  const { error: dedupErr } = await supabase.from('system_state').insert({
+    key: v.dedupKey, value: { user_id: conta.id, valor: v.valor, data: c.data, at: new Date().toISOString(), via: 'desconhecido' },
+  });
+  if (dedupErr) {
+    if ((dedupErr as { code?: string }).code === '23505') {
+      logger.info('pix-comprovante', `desconhecido: já processado (${conta.email})`);
+      return true;
+    }
+    logger.error('pix-comprovante', 'dedup insert falhou (desconhecido, segue)', dedupErr);
+  }
+  if (await e2eJaUsado(v.e2eKey, v.valor, conta.id)) {
+    logger.info('pix-comprovante', `desconhecido: Pix (E2E) já usado (${conta.email})`);
+    return true;
+  }
+
+  const alvo = PLANO_POR_VALOR[Math.round(v.valor)] ?? { plano: 'ilimitado', limite: 999999 };
+  const venc = await liberarAcessoPix(conta.id, conta.plano_expira_em ?? null, alvo.plano, alvo.limite);
+  await encerrarDunningPix(conta.id, conta.email, conta.billing_status);
+  if (Math.round(v.valor) === VALOR_ENTRADA_CURSO) await queimarEntrada(cleanPhone, conta.id, conta.email, venc);
+  await gravarWhatsappSeLivre(conta.id, conta.whatsapp, cleanPhone);
+  // Se havia um pendente do mesmo comprovante (a conta só apareceu agora), consome.
+  if (solicitado?.comprovante?.dedupKey === v.dedupKey) await limparComprovantePendente(cleanPhone);
+
+  await notificarThiago(
+    { email: conta.email, phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+    `✅ *AUTO-LIBERADO (número desconhecido + e-mail da conversa)* — vence ${diaMes(venc)}. Confere e arquiva o comprovante.`,
+  );
+  const razao = await razaoSocialDe(conta.id);
+  // Conta que já existia: NUNCA manda link de senha. Quem digitou o e-mail pode
+  // não ser o dono dele.
+  await sendHuman(cleanPhone, [
+    textoConfirmacao({ valor: v.valor, plano: alvo.plano, venc, email: conta.email, razao, linkSenha: null }),
+  ], originInstance, { maxBolhas: 1 }).catch(() => {});
+  logger.info('pix-comprovante', `AUTO-liberado (desconhecido) ${conta.email} ${brl(v.valor)}`);
+  return true;
+}
+
 // Chamado no inbound de número DESCONHECIDO com imagem. Retorna true se tratou.
+// `texto` = legenda da mensagem (pode trazer o e-mail da conta).
 export async function tryProcessAbandonedPixComprovante(
-  cleanPhone: string, img: ImgSrc, originInstance: ZapiInstance = 'solardoc',
+  cleanPhone: string, img: ImgSrc, originInstance: ZapiInstance = 'solardoc', texto = '',
 ): Promise<boolean> {
   const abRow = await findAbandonoByPhone(cleanPhone);
   // Segunda fonte de e-mail: o Pix que a Giovanna mandou a pedido do cliente,
@@ -517,8 +852,13 @@ export async function tryProcessAbandonedPixComprovante(
   const solicitado = await lerPixSolicitado(cleanPhone);
   const email = abRow?.email ?? solicitado?.email ?? null;
 
-  // Nem abandono nem Pix pendente → não é assunto nosso, segue o roteamento SDR.
-  if (!abRow && !solicitado) return false;
+  // Nem abandono nem Pix pendente: ramo do número desconhecido (lê, confere e libera
+  // sozinho, ou segue o roteamento normal sem dizer nada).
+  // Registro que nasceu de um comprovante desconhecido continua no mesmo ramo: a
+  // imagem seguinte tem que passar pela trava de ID de Pix, não pelo ramo antigo.
+  if (!abRow && (!solicitado || solicitado.origem === 'desconhecido')) {
+    return processarComprovanteDesconhecido(cleanPhone, img, originInstance, texto, solicitado);
+  }
 
   const c = await lerComprovante(img);
   if (!c || !c.is_comprovante) return false; // não é comprovante → segue fluxo
@@ -529,7 +869,7 @@ export async function tryProcessAbandonedPixComprovante(
   if (!email) {
     const v = await validarComprovante(c, cleanPhone);
     await guardarComprovantePendente(cleanPhone, {
-      valor: v.valor, dedupKey: v.dedupKey, passou: v.passou, em: new Date().toISOString(),
+      valor: v.valor, dedupKey: v.dedupKey, passou: v.passou, em: new Date().toISOString(), e2eKey: v.e2eKey,
     });
     await sendHuman(cleanPhone, [
       'Recebi seu comprovante, obrigada! 🙌',
@@ -547,14 +887,16 @@ export async function tryProcessAbandonedPixComprovante(
   // manda na liberação. `ab` mantém a forma que o resto da função já esperava.
   const ab = abRow ?? { id: null as string | null, email, nome: solicitado?.nome ?? null };
 
-  const { passou, motivo, valor, dedupKey } = await validarComprovante(c, cleanPhone);
+  const { passou, motivo, valor, dedupKey, e2eKey } = await validarComprovante(c, cleanPhone);
   const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
 
   if (passou && AUTO_LIBERAR) {
     // 1) Conta primeiro (idempotente por email UNIQUE). Se FALHAR (erro transitório de
     // DB), NÃO queima o dedup — tranquiliza o cliente e chama o Thiago, permitindo retry
     // no reenvio (senão o pagante ficaria preso em silêncio).
-    const u = await getOrCreatePixUser(ab.email, ab.nome, cleanPhone);
+    // Sem linha de abandono, o e-mail veio DIGITADO na conversa (de quem quer que
+    // seja): não toma o WhatsApp da conta e não ganha link de senha de conta velha.
+    const u = await getOrCreatePixUser(ab.email, ab.nome, cleanPhone, { whatsappSoSeLivre: !abRow });
     if (!u) {
       await sendHuman(cleanPhone, [
         'Recebi seu comprovante! 🙌 Tô confirmando aqui e já te libero — qualquer coisa te aviso por aqui.',
@@ -588,6 +930,10 @@ export async function tryProcessAbandonedPixComprovante(
       }
       logger.error('pix-comprovante', 'dedup insert falhou (abandono, segue)', dedupErr);
     }
+    if (await e2eJaUsado(e2eKey, valor, u.id)) {
+      logger.info('pix-comprovante', `dedup E2E (abandono): Pix já usado (${ab.email})`);
+      return true;
+    }
 
     const alvo = PLANO_POR_VALOR[Math.round(valor)] ?? { plano: 'ilimitado', limite: 999999 };
     const venc = await liberarAcessoPix(u.id, u.plano_expira_em ?? null, alvo.plano, alvo.limite);
@@ -602,7 +948,8 @@ export async function tryProcessAbandonedPixComprovante(
     }
 
     const linhas = ['Pagamento confirmado! ✅ Seu acesso ao SolarDoc (plano completo) está *liberado* 🌞'];
-    if (!u.password_hash && u.reset_token) {
+    const mandaLink = abRow ? !u.password_hash : u.criadaAgora;
+    if (mandaLink && u.reset_token) {
       linhas.push(`Pra entrar, é só definir sua senha aqui: ${dashboardUrl}/auth?mode=redefinir&token=${u.reset_token}`);
     } else {
       linhas.push(`É só entrar em ${dashboardUrl} com seu email (${ab.email}). Qualquer dúvida, me chama! 🙌`);
