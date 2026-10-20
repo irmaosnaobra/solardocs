@@ -125,8 +125,8 @@ export type SaidaHibridoIa = z.infer<typeof SaidaHibridoIa>;
 
 export type OperacaoHibridaSaida = OperacaoContrato & { modelo: TipoHibrido };
 export type ConflitoHibrido = { descricao: string; resolvido: boolean; como: string | null; origem: 'ia' | 'servidor' | 'ia+servidor' };
-type CategoriaConflito = 'foro' | 'vigencia' | 'remuneracao' | 'multa';
-type ConflitoDetectado = ConflitoHibrido & { categoria: CategoriaConflito; parte: TipoHibrido | null };
+export type CategoriaConflito = 'foro' | 'vigencia' | 'remuneracao' | 'multa';
+export type ConflitoDetectado = ConflitoHibrido & { categoria: CategoriaConflito; parte: TipoHibrido | null };
 export type PlanoHibrido = {
   tipos: [TipoHibrido, TipoHibrido];
   bloqueado: boolean;
@@ -145,13 +145,13 @@ export type ResultadoHibrido =
   | { ok: false; status: number; erro: string };
 
 // ── Texto ────────────────────────────────────────────────────────────────────
-const limpar = (s: unknown, max: number): string => String(s ?? '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
-const semAcento = (s: unknown): string => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export const limpar = (s: unknown, max: number): string => String(s ?? '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+export const semAcento = (s: unknown): string => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const fichas = (s: unknown): string[] => semAcento(s).split(/[^a-z0-9]+/).filter(Boolean);
 const maiuscula = (s: string): string => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 // ── Prompt (mora no servidor; nada que o navegador escreve entra aqui) ───────
-const FICHA_MODELO: Record<TipoHibrido, string> = {
+export const FICHA_MODELO: Record<TipoHibrido, string> = {
   completo: 'completo: contrato de FORNECIMENTO E INSTALAÇÃO de eletroposto (obra e venda). Partes: CONTRATADA (a NEXUS) e CONTRATANTE (o cliente). Travado: partes, objeto, preço total, sinal, tabela de pagamento, lista do escopo, assinaturas. Tem prazos de execução, garantia, multa e mora, rescisão.',
   socio50: 'socio50: sociedade em conta de participação (Código Civil, arts. 991 a 996) meio a meio. A NEXUS é a SÓCIA OSTENSIVA (implanta, opera, presta contas) e o cliente, dono do local, é o SÓCIO PARTICIPANTE. Travado: partes, objeto, capital, quadro de cotas, aportes, tabela de pagamento do aporte, escopo, assinaturas. É contrato de OPERAÇÃO e de sociedade.',
   cotas: 'cotas: sociedade em conta de participação com o capital dividido em cotas. A NEXUS é a SÓCIA OSTENSIVA e o cliente compra cota como SÓCIO PARTICIPANTE; as cotas que sobram entram por termo de adesão. Travado: partes, objeto, capital, quadro de cotas, aportes, tabela de pagamento do aporte, escopo, assinaturas. Nunca escreva promessa de rentabilidade, de retorno ou de renda.',
@@ -233,9 +233,9 @@ function montarMensagem(tipos: [TipoHibrido, TipoHibrido], mods: Record<string, 
 }
 
 // ── Modelo interno ───────────────────────────────────────────────────────────
-type ItemMod = { key: string; html: string; travado: boolean; campo: string | null };
+export type ItemMod = { key: string; html: string; travado: boolean; campo: string | null };
 /** `tituloOrig` é o título de ANTES de qualquer renomeação da IA: a checagem de conflito olha por ele, para renomear não esconder duplicata. */
-type ClausulaMod = { key: string; titulo: string; tituloOrig?: string; travada: boolean; itens: ItemMod[] };
+export type ClausulaMod = { key: string; titulo: string; tituloOrig?: string; travada: boolean; itens: ItemMod[] };
 const tituloDe = (c: ClausulaMod): string => c.tituloOrig ?? c.titulo;
 
 /** Normaliza o que veio do front e TIRA o conteúdo de todo item travado (vira marcador). */
@@ -266,7 +266,7 @@ function prepararModelos(tipos: [TipoHibrido, TipoHibrido], modelos: PedidoHibri
 }
 
 /** Aplica as operações já validadas, só para a checagem de conflito enxergar o texto final. */
-function aplicarOperacoes(base: ClausulaMod[], ops: OperacaoContrato[]): ClausulaMod[] {
+export function aplicarOperacoes(base: ClausulaMod[], ops: OperacaoContrato[]): ClausulaMod[] {
   const cl: ClausulaMod[] = base.map(c => ({ ...c, tituloOrig: tituloDe(c), itens: c.itens.map(i => ({ ...i })) }));
   const achaItem = (k: string | null) => {
     for (const c of cl) { const n = c.itens.findIndex(i => i.key === k); if (n >= 0) return { c, n }; }
@@ -306,7 +306,7 @@ function aplicarOperacoes(base: ClausulaMod[], ops: OperacaoContrato[]): Clausul
 //  3. remuneração: percentual E valor fixo na mesma Parte (piso/mínimo não é fixo);
 //  4. multa: mais de uma cláusula de multa/penalidade por Parte.
 // Item travado chega como marcador, então ele só é reconhecido por chave e campo.
-type Efetiva = { modelo: TipoHibrido; c: ClausulaMod };
+export type Efetiva = { modelo: TipoHibrido; c: ClausulaMod };
 // Tudo aqui olha pela chave de origem, pelo título ORIGINAL e pelo conteúdo (palavras no texto): a IA renomear
 // "Da multa" para "Da mora" não esconde a duplicata.
 const ehForoClausula = (c: ClausulaMod) => /\bforo\b/.test(semAcento(tituloDe(c))) || fichas(c.key).includes('foro');
@@ -315,8 +315,22 @@ const ehForoItem = (i: ItemMod) =>
   (!i.travado && /(elege-se|fica eleito|eleito o foro|foro da comarca|foro de )/.test(semAcento(i.html)));
 const VIGENCIA_NO_TEXTO = /(prazo de vigencia|vigera por|vigerara por|vigencia (?:sera|e) de|vigencia de \d)/;
 const ehVigClausula = (c: ClausulaMod) => /vigencia/.test(semAcento(tituloDe(c))) || fichas(c.key).includes('vigencia');
-const ehVigItem = (i: ItemMod) =>
-  fichas(i.key).includes('vigencia') || /vigencia/.test(semAcento(i.campo)) || (!i.travado && VIGENCIA_NO_TEXTO.test(semAcento(i.html)));
+// Renovação e prorrogação não são uma segunda vigência: "renova-se por igual período" estende a mesma. O item de
+// renovação pela chave ou pelo campo não conta, e o marcador {{i:prazo.vigencia}} que ele cita também não. Pelo texto, o
+// trecho de renovação ou prorrogação é CORTADO antes de testar: o que sobra só conta se ainda estabelece um prazo próprio
+// (vigência com número). "Vigência de 36 meses, prorrogável por igual período" continua sendo uma vigência; "a vigência
+// renova-se por igual período" sozinha não é.
+const ehRenovacao = (s: string) => /(renov|prorrog)/.test(s);
+const semTrechoDeRenovacao = (s: string) => s.replace(/[,;]?\s*[^,;.]*\b(?:renov|prorrog)\w*[^,;.]*/g, ' ');
+const ehVigItem = (i: ItemMod) => {
+  const textoLimpo = semAcento(String(i.html ?? '').replace(/\{\{[^}]*\}\}/g, ' '));
+  const deRenovacao = fichas(i.key).some(ehRenovacao) || ehRenovacao(semAcento(i.campo));
+  if (!deRenovacao && (fichas(i.key).includes('vigencia') || /vigencia/.test(semAcento(i.campo)))) return true;
+  if (i.travado) return false;
+  if (!ehRenovacao(textoLimpo)) return VIGENCIA_NO_TEXTO.test(textoLimpo);
+  const resto = semTrechoDeRenovacao(textoLimpo);
+  return VIGENCIA_NO_TEXTO.test(resto) && /\d/.test(resto);
+};
 const ehRemClausula = (c: ClausulaMod) => /(remunera|pagamento|repasse|retribui|contrapartida)/.test(semAcento(tituloDe(c)) + ' ' + semAcento(c.key));
 const MULTA_NO_TEXTO = /(clausula penal|(?:multa|penalidade)[^.;]{0,50}(?:rescis|descumprimento|inadimplemento contratual|desistencia)|(?:rescis|descumprimento|desistencia)[^.;]{0,50}(?:multa|penalidade))/;
 const SEM_MULTA = /(sem multa|sem penalidade|sem qualquer multa|isent[oa])/;
@@ -386,7 +400,7 @@ export function conflitosDoPlano(
 }
 
 // Texto (sem acento) que condiciona um objeto à contratação do outro. Descartado com aviso.
-const VENDA_CASADA: RegExp[] = [
+export const VENDA_CASADA: RegExp[] = [
   /(?:condicionad|vinculad|subordinad|atrelad)[oa]s?\s+(?:a|ao|aos|as)\s+[^.;]{0,60}(?:contrata|celebra|assinatura|aquisicao|outro contrato|outro objeto|segundo objeto|primeiro objeto|parte i)/,
   /somente se[^.;]{0,80}(?:contrat|celebr|assin)/,
   /desde que[^.;]{0,40}contrate/,
@@ -394,13 +408,34 @@ const VENDA_CASADA: RegExp[] = [
   /(?:\bso\b|apenas|somente)\s+(?:sera|serao|podera|poderao)[^.;]{0,60}\bse\b[^.;]{0,60}contrat/,
   /(?:contratacao|contratar|adquirir)\s+(?:conjunta|simultanea|casada)/,
   /(?:depende|dependera|dependente)\s+(?:da|de|do)\s+[^.;]{0,40}(?:contrata|celebracao|assinatura)/,
+  // Rescisão cruzada e "negócio único": "a rescisão de um implica a rescisão do outro", "...acarreta a do outro".
+  /rescisao\s+d[eo]\s+um\b[^.;]{0,40}(?:implica|acarreta|enseja|importa|gera|provoca|determina)[^.;]{0,40}\bd[oa]s?\s+outr[oa]s?/,
+  /\bnegocio\s+unico\b/,
+  /\bindivisiv(?:el|eis)\b/,
 ];
+
+// Autonomia DOS OBJETOS contratuais (a cláusula que só o servidor escreve). "Autonomia da bateria" e "profissional
+// autônomo" não são isso. Roda sobre texto sem acento e em minúsculas.
+const AUTONOMIA_NO_TEXTO: RegExp[] = [
+  /\bautonomia\s+(?:dos?|entre)\s+(?:(?:os|as|dois|duas)\s+)?(?:objetos?|contratos?|partes?|si)\b/,
+  /\bobjetos?\s+(?:\w+\s+){0,2}autonom[oa]s?\b/,
+  /\bautonom[oa]s?\s+entre\s+si\b/,
+  /\bindependencia\s+(?:entre|dos?)\s+(?:(?:os|as)\s+)?(?:objetos?|contratos?|partes?)\b/,
+];
+/** O título ("Da Autonomia"), o id ("autonomia", "hibrido.autonomia") e os textos de uma operação tratam da autonomia dos objetos? */
+export function ehTextoDeAutonomia(titulo: string | null | undefined, idNovo: string | null | undefined, textos: Array<string | null | undefined>): boolean {
+  const t = semAcento(titulo).trim();
+  if (/^(?:d[aoe]s?\s+)?autonomia(?:\s+d[ao]s?\s+objetos?.*)?$/.test(t)) return true;
+  if (/^(?:hibrido\.)?autonomia/.test(semAcento(idNovo).trim())) return true;
+  const corpo = semAcento([titulo, ...textos].filter(Boolean).join(' \n '));
+  return AUTONOMIA_NO_TEXTO.some(re => re.test(corpo));
+}
 
 /** Junta o conflito que a IA listou com o que o servidor achou na mesma categoria e Parte: uma entrada só. */
 const CATEGORIAS_NA_DESCRICAO: Array<[CategoriaConflito, RegExp]> = [
   ['foro', /\bforo/], ['vigencia', /vigencia/], ['remuneracao', /(remunera|percentual|valor fixo|\bfixo\b|repasse)/], ['multa', /(multa|penalidade|clausula penal)/],
 ];
-function juntarConflitos(ia: ConflitoHibrido[], servidor: ConflitoDetectado[], tipos: [TipoHibrido, TipoHibrido]): ConflitoHibrido[] {
+export function juntarConflitos(ia: ConflitoHibrido[], servidor: ConflitoDetectado[], tipos: [TipoHibrido, TipoHibrido]): ConflitoHibrido[] {
   const lista = ia.map(c => {
     const d = semAcento(c.descricao);
     const categoria = CATEGORIAS_NA_DESCRICAO.find(([, re]) => re.test(d))?.[0] ?? null;
@@ -433,7 +468,7 @@ export function montarPlano(tipos: [TipoHibrido, TipoHibrido], mods: Record<stri
     if (!tipos.includes(o.modelo)) { aviso(`Uma mudança foi descartada: ela mirava um modelo que não está neste contrato (${limpar(o.modelo, 20)}).`); continue; }
     // Em TODA operação (título, id, texto e itens, sem acento): autonomia só a do sistema, e nada que ligue um objeto ao outro.
     const conteudo = semAcento([o.titulo, o.id_novo, o.texto, ...(o.itens ?? [])].filter(Boolean).join(' \n '));
-    if (/autonom/.test(conteudo)) {
+    if (ehTextoDeAutonomia(o.titulo, o.id_novo, [o.texto, ...(o.itens ?? [])])) {
       aviso('A IA tentou escrever sobre a autonomia dos objetos; vale só a cláusula do sistema, que entra sempre.');
       continue;
     }

@@ -25,6 +25,7 @@ import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
 import { mountContratoHibrido } from './geradorContratoHibrido';
+import { mountContratoAgente } from './geradorContratoAgente';
 import { mountFinanceiro } from './geradorFinanceiro';
 import { mountClientes } from './geradorClientes';
 import { mountClientesEletroposto } from './geradorEletropostoClientes';
@@ -1201,5 +1202,7 @@ router.post('/contrato/redesenhar', aiLimiter, exigeConsultor, async (req: Reque
 });
 // Contrato híbrido (dois modelos num papel, em duas Partes): POST /contrato/hibrido, mesmos middlewares do redesenhar.
 mountContratoHibrido(router);
+// Agente do contrato (conversa que devolve ações, lista branca de campos e checagem de conflito): /contrato/agente, /contrato/agente/campos e /contrato/conflitos.
+mountContratoAgente(router);
 
 export default router;

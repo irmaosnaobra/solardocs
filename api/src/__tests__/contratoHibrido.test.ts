@@ -468,6 +468,17 @@ describe('travas nas operações da IA (autonomia e venda casada)', () => {
     expect(avisos(r)).toMatch(/autonomia dos objetos/);
     expect(r.autonomia.itens).toEqual(AUTONOMIA_ITENS);
   });
+  it('autonomia: a palavra sozinha ("autonomia da bateria", "profissional autônomo") NÃO descarta a operação', async () => {
+    fila(planoIa({
+      operacoes: [
+        op({ modelo: 'completo', tipo: 'inserir_item', depois_de: 'garantia.1', texto: 'A autonomia da bateria é de 4 horas.' }),
+        op({ modelo: 'completo', tipo: 'inserir_item', depois_de: 'garantia.1', texto: 'A revisão é feita por profissional autônomo credenciado.' }),
+      ] as any,
+    }));
+    const r = await ok();
+    expect(r.operacoes).toHaveLength(2);
+    expect(avisos(r)).not.toMatch(/autonomia dos objetos/);
+  });
   it('venda casada: texto que condiciona um objeto ao outro é descartado com aviso, em qualquer operação', async () => {
     fila(planoIa({
       operacoes: [

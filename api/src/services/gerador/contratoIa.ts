@@ -47,17 +47,19 @@ export const modelosContratoIa = (): string[] =>
  */
 export async function chamarIaContrato(
   cliente: ReturnType<typeof novoAnthropic>,
-  corpo: { system: string; user: string; format: unknown; log: string },
+  // `system` aceita lista de blocos de texto (com `cache_control`) para o agente do contrato; `effort` e `maxTokens` são
+  // opcionais e, sem eles, nada muda para o redesenhar e o híbrido.
+  corpo: { system: string | unknown[]; user: string; format: unknown; log: string; effort?: 'low' | 'medium' | 'high'; maxTokens?: number },
 ): Promise<{ msg: any; modelo: string }> {
   const modelos = modelosContratoIa();
   for (let i = 0; i < modelos.length; i++) {
     try {
       const stream = (cliente as any).messages.stream({
         model: modelos[i],
-        max_tokens: 32000,
+        max_tokens: corpo.maxTokens ?? 32000,
         // Texto jurídico que vai para o cliente assinar: profundidade importa mais
         // que velocidade. `high` é o padrão do modelo e fica explícito aqui.
-        output_config: { effort: 'high', format: corpo.format },
+        output_config: { effort: corpo.effort ?? 'high', format: corpo.format },
         system: corpo.system,
         messages: [{ role: 'user', content: corpo.user }],
       });
@@ -261,7 +263,7 @@ for (const f of [FRASE_OBJETO, FRASE_PARTES, FRASE_TRAVADOS]) {
   if (!SISTEMA.includes(f)) throw new Error('contratoIa: o prompt de sistema perdeu o trecho "' + f.slice(0, 40) + '"');
 }
 type TipoContrato = typeof TIPOS_CONTRATO[number];
-const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objeto: string; partes: string; travados: string }> = {
+export const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objeto: string; partes: string; travados: string }> = {
   socio50: {
     objeto: 'Você edita o contrato de sociedade em conta de participação (Código Civil, arts. 991 a 996) da NEXUS Eletropostos, empresa brasileira, para implantar e explorar um eletroposto (estação de recarga de veículos elétricos) em sociedade meio a meio: a NEXUS é a sócia ostensiva, que implanta, opera e presta contas, e o cliente é o sócio participante, dono do local.',
     partes: 'As partes se chamam SÓCIA OSTENSIVA (a NEXUS) e SÓCIO PARTICIPANTE (o cliente), em maiúsculas.',
