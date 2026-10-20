@@ -33,7 +33,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { novoAnthropic } from '../../utils/anthropicClient';
 import { logger } from '../../utils/logger';
 import {
-  Operacao, TIPOS_CONTRATO, chamarIaContrato, validarOperacoes,
+  Operacao, TIPOS_CONTRATO, chamarIaContrato, ehTipoSolar, validarOperacoes,
   type OperacaoContrato, type PedidoContratoIa,
 } from './contratoIa';
 
@@ -96,6 +96,7 @@ export function validarCombinacao(tipos: readonly string[]): { ok: true; tipos: 
   const [a, b] = tipos;
   for (const t of tipos) {
     if (t === 'termo_arr' || t === 'termo_inv') return { ok: false, motivo: 'Os termos de compromisso não entram em contrato híbrido.' };
+    if (ehTipoSolar(t)) return { ok: false, motivo: 'Os contratos solares não entram em contrato híbrido.' };
     if (!(TIPOS_CONTRATO as readonly string[]).includes(t)) return { ok: false, motivo: 'Modelo de contrato desconhecido.' };
   }
   if (a === b) return { ok: false, motivo: 'Escolha dois modelos diferentes.' };
@@ -125,7 +126,7 @@ export type SaidaHibridoIa = z.infer<typeof SaidaHibridoIa>;
 
 export type OperacaoHibridaSaida = OperacaoContrato & { modelo: TipoHibrido };
 export type ConflitoHibrido = { descricao: string; resolvido: boolean; como: string | null; origem: 'ia' | 'servidor' | 'ia+servidor' };
-export type CategoriaConflito = 'foro' | 'vigencia' | 'remuneracao' | 'multa';
+export type CategoriaConflito = 'foro' | 'vigencia' | 'remuneracao' | 'multa' | 'garantia' | 'prazo_obra' | 'geracao';
 export type ConflitoDetectado = ConflitoHibrido & { categoria: CategoriaConflito; parte: TipoHibrido | null };
 export type PlanoHibrido = {
   tipos: [TipoHibrido, TipoHibrido];
@@ -309,8 +310,8 @@ export function aplicarOperacoes(base: ClausulaMod[], ops: OperacaoContrato[]): 
 export type Efetiva = { modelo: TipoHibrido; c: ClausulaMod };
 // Tudo aqui olha pela chave de origem, pelo título ORIGINAL e pelo conteúdo (palavras no texto): a IA renomear
 // "Da multa" para "Da mora" não esconde a duplicata.
-const ehForoClausula = (c: ClausulaMod) => /\bforo\b/.test(semAcento(tituloDe(c))) || fichas(c.key).includes('foro');
-const ehForoItem = (i: ItemMod) =>
+export const ehForoClausula = (c: ClausulaMod) => /\bforo\b/.test(semAcento(tituloDe(c))) || fichas(c.key).includes('foro');
+export const ehForoItem = (i: ItemMod) =>
   fichas(i.key).includes('foro') || /\bforo\b/.test(semAcento(i.campo)) ||
   (!i.travado && /(elege-se|fica eleito|eleito o foro|foro da comarca|foro de )/.test(semAcento(i.html)));
 const VIGENCIA_NO_TEXTO = /(prazo de vigencia|vigera por|vigerara por|vigencia (?:sera|e) de|vigencia de \d)/;
@@ -434,6 +435,7 @@ export function ehTextoDeAutonomia(titulo: string | null | undefined, idNovo: st
 /** Junta o conflito que a IA listou com o que o servidor achou na mesma categoria e Parte: uma entrada só. */
 const CATEGORIAS_NA_DESCRICAO: Array<[CategoriaConflito, RegExp]> = [
   ['foro', /\bforo/], ['vigencia', /vigencia/], ['remuneracao', /(remunera|percentual|valor fixo|\bfixo\b|repasse)/], ['multa', /(multa|penalidade|clausula penal)/],
+  ['geracao', /(geracao|producao)/], ['garantia', /garanti/], ['prazo_obra', /(prazo (?:de|da) (?:instalacao|obra)|instalacao \(obra\)|\bobra\b)/],
 ];
 export function juntarConflitos(ia: ConflitoHibrido[], servidor: ConflitoDetectado[], tipos: [TipoHibrido, TipoHibrido]): ConflitoHibrido[] {
   const lista = ia.map(c => {

@@ -93,13 +93,20 @@ const ClausulaEntrada = z.object({
 });
 /** Os quatro contratos do /gerador (07/10/2026). Sem o campo, é o Completo,
  *  o de fornecimento e instalação, que é o que o /gerador mandava antes. */
-export const TIPOS_CONTRATO = ['completo', 'socio50', 'cotas', 'arrend', 'termo_arr', 'termo_inv', 'equip'] as const;
+export const TIPOS_ELETROPOSTO = ['completo', 'socio50', 'cotas', 'arrend', 'termo_arr', 'termo_inv', 'equip'] as const;
+/** Os dois contratos do Fechamento solar (20/10/2026): Padrão (14 cláusulas) e Completo (15). Só o assistente de contrato
+ *  (`/contrato/agente` e `/contrato/conflitos`) os conhece; o `/contrato/redesenhar` e o híbrido recusam. */
+export const TIPOS_SOLAR = ['solar_m1', 'solar_m2'] as const;
+/** Todos os tipos que o assistente conhece. */
+export const TIPOS_CONTRATO = [...TIPOS_ELETROPOSTO, ...TIPOS_SOLAR] as const;
+export const ehTipoSolar = (t: unknown): t is typeof TIPOS_SOLAR[number] => (TIPOS_SOLAR as readonly string[]).includes(String(t));
 export const PedidoContratoIa = z.object({
   pedido: z.string().trim().min(3).max(2000),
   clausulas: z.array(ClausulaEntrada).min(1).max(40),
   // Só o tipo: o texto que descreve cada contrato e o nome das partes mora
   // AQUI, no servidor. Nada que o navegador escreve vai para o prompt de sistema.
-  contrato: z.object({ tipo: z.enum(TIPOS_CONTRATO) }).optional(),
+  // Só os sete do eletroposto: o redesenhar antigo fala em NEXUS e não conhece o solar (o solar vai pelo agente).
+  contrato: z.object({ tipo: z.enum(TIPOS_ELETROPOSTO) }).optional(),
 });
 export type PedidoContratoIa = z.infer<typeof PedidoContratoIa>;
 /** Teto do pedido inteiro. O contrato real que o /gerador manda tem 15 a 25 KB;
@@ -262,7 +269,7 @@ const FRASE_TRAVADOS = '(objeto, preço total, sinal, tabela de pagamento, lista
 for (const f of [FRASE_OBJETO, FRASE_PARTES, FRASE_TRAVADOS]) {
   if (!SISTEMA.includes(f)) throw new Error('contratoIa: o prompt de sistema perdeu o trecho "' + f.slice(0, 40) + '"');
 }
-type TipoContrato = typeof TIPOS_CONTRATO[number];
+type TipoContrato = typeof TIPOS_ELETROPOSTO[number];
 export const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objeto: string; partes: string; travados: string }> = {
   socio50: {
     objeto: 'Você edita o contrato de sociedade em conta de participação (Código Civil, arts. 991 a 996) da NEXUS Eletropostos, empresa brasileira, para implantar e explorar um eletroposto (estação de recarga de veículos elétricos) em sociedade meio a meio: a NEXUS é a sócia ostensiva, que implanta, opera e presta contas, e o cliente é o sócio participante, dono do local.',

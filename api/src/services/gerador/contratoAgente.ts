@@ -30,9 +30,10 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { novoAnthropic } from '../../utils/anthropicClient';
 import { logger } from '../../utils/logger';
 import {
-  Operacao, OUTROS_CONTRATOS, TIPOS_CONTRATO, chamarIaContrato, validarOperacoes,
+  Operacao, OUTROS_CONTRATOS, TIPOS_CONTRATO, chamarIaContrato, ehTipoSolar, validarOperacoes,
   type OperacaoContrato, type PedidoContratoIa,
 } from './contratoIa';
+import { FICHA_SOLAR, clausulaComTravadoSolar, conflitosSolar, geracaoComoGarantia, itemTravadoSolar, mencionaNexus } from './contratoSolar';
 import {
   AVISO_JURIDICO, FICHA_MODELO, VENDA_CASADA, aplicarOperacoes, conflitosDoPlano, ehTextoDeAutonomia, juntarConflitos, limpar, semAcento, validarCombinacao,
   type ClausulaMod, type ConflitoHibrido, type Efetiva, type TipoHibrido,
@@ -176,6 +177,7 @@ const FICHA_TERMOS: Record<'termo_arr' | 'termo_inv', string> = {
 };
 const FICHAS = [
   FICHA_MODELO.completo, FICHA_MODELO.socio50, FICHA_MODELO.cotas, FICHA_MODELO.arrend, FICHA_TERMOS.termo_arr, FICHA_TERMOS.termo_inv, FICHA_MODELO.equip,
+  `${FICHA_SOLAR.solar_m1} Não entra em híbrido.`, `${FICHA_SOLAR.solar_m2} Não entra em híbrido.`,
 ].map(f => '- ' + f).join('\n');
 
 const catalogoCompacto = (): string =>
@@ -221,16 +223,16 @@ Uma mensagem com o ESTADO em JSON: "modelo" (o contrato aberto, ou null) ou "hib
   - inserir_clausula: depois_de = key da cláusula após a qual entra (ou "inicio"); titulo no formato "Do/Da/Das ..." como as outras; itens = lista de textos. Com id_novo curto e novo, os itens dela são citáveis como {{i:ID_NOVO.1}}.
   - remover_clausula / renomear_clausula: alvo = key da cláusula (renomear leva titulo).
   Campos da op que a operação não usa vão null. id_novo só existe em inserir_item e inserir_clausula.
-- modelo: troca o modelo (modelo = um dos 7). Depois de trocar, o texto do contrato novo ainda não existe: NÃO devolva "operacao" no mesmo turno (elas são descartadas); use continuar = true se houver mais a fazer. Campos do modelo novo podem ir no mesmo turno.
-- hibrido: tipos = dois modelos diferentes entre completo, socio50, cotas, arrend, equip (socio50 e cotas não se combinam; os termos não entram); pedido = instruções curtas para a montagem, ou null. Vale a regra da venda casada abaixo.
+- modelo: troca o modelo (modelo = um dos 9). Depois de trocar, o texto do contrato novo ainda não existe: NÃO devolva "operacao" no mesmo turno (elas são descartadas); use continuar = true se houver mais a fazer. Campos do modelo novo podem ir no mesmo turno.
+- hibrido: tipos = dois modelos diferentes entre completo, socio50, cotas, arrend, equip (socio50 e cotas não se combinam; os termos e os solares solar_m1 e solar_m2 não entram); pedido = instruções curtas para a montagem, ou null. Vale a regra da venda casada abaixo.
 - cadastro: puxa o cadastro do cliente do card vendido (partes, endereço, documentos). Só quando "cadastro.tem" é true; se faltar algo ("cadastro.faltando"), diga na resposta o que falta.
-- emitente: "aioros" ou "nexus", quando o consultor pedir para trocar quem emite o contrato.
+- emitente: "aioros" ou "nexus", quando o consultor pedir para trocar quem emite o contrato. Nos contratos solares o emitente é sempre "aioros": nunca devolva "nexus" com um modelo solar aberto.
 - previa: abre a prévia. Use quando o consultor pedir para ver, conferir ou gerar.
 
 ## Campo ou texto? Prefira SEMPRE o campo
 Mudar pelo campo mantém o contrato sincronizado: o texto é gerado a partir dos números. Se o pedido é trocar um número, prazo, percentual, valor ou opção que tem campo no catálogo, devolva a ação "campo" e NÃO uma "operacao" sobre o item que nasce dele (o catálogo diz de quais itens cada campo é a origem, em "origem_dos_itens"; uma operação sobre um item que você mudou pelo campo é descartada). VALOR E PERCENTUAL SÓ MUDAM PELO CAMPO: o servidor descarta toda operação de texto que introduza um valor em dinheiro (R$ e número) ou um percentual que não exista já no contrato ou nos campos atuais. Quando a estrutura dos campos não comporta o pedido (por exemplo, percentual E valor fixo juntos no arrendamento: o campo "ctr-arr-modo" aceita um OU outro), NÃO escreva o número por texto: explique em uma frase e pergunte ao consultor qual forma vale. Use "operacao" quando o pedido muda o TEXTO além do número, acrescenta ou tira uma cláusula ou item, ou não existe campo (sem número novo no texto). Se mudar o texto de um item com "campo", avise que, se o campo mudar depois, o pedido precisa ser refeito. Itens com key começando em "opc." são cláusulas de proteção ligadas por caixinha na tela; podem ser alteradas ou removidas se o pedido mandar, e você avisa que a caixinha faz o mesmo.
 
-## Os sete modelos
+## Os nove modelos
 ${FICHAS}
 Cada modelo tem o que é TRAVADO (partes, objeto, preço, sinal, tabelas, escopo, assinaturas, o que está na ficha acima): esses itens têm campo próprio na tela, o servidor os protege e você NUNCA os altera nem remove, nem removendo a cláusula inteira. Se o pedido depende de mudar um travado, explique na resposta qual campo da tela usar. Inserir um item novo depois de um travado é permitido. Você não define partes: nome, documento, endereço e representante vêm do cadastro e do formulário.
 
@@ -241,6 +243,18 @@ Na dúvida sobre quem é parte, pergunte; não presuma.
 
 ## Estilo dos contratos da casa (siga ao escrever)
 Frases curtas, uma ideia por item. Número por extenso entre parênteses quando for valor ou prazo ("60 (sessenta) dias"), só se o contrato já escreve assim. Nomes definidos em maiúscula (ÁREA, IMÓVEL, ELETROPOSTO, PONTO) e usados sempre do mesmo jeito. Sem juridiquês. Prazos claros (obra até 60 dias; prazo mínimo de 5 anos mais renovação). Multa de atraso de 2% mais juros de 1% ao mês. Foro da comarca do imóvel ou do cliente. Assinatura eletrônica reconhecida (MP 2.200-2, art. 10, § 2º). Estes são padrões de referência: valores só entram se o consultor pedir ou o contrato já os tiver.
+
+## Contratos solares (solar_m1 e solar_m2)
+Com um modelo solar aberto, você trabalha no contrato de energia solar do Fechamento da AIOROS GROUP LTDA, marca Irmãos na Obra. A AIOROS é a CONTRATADA e a única emitente. NUNCA escreva NEXUS, eletroposto, carregador ou sociedade num contrato solar: a NEXUS não é parte, não emite e não aparece no texto. Use o nome de parte do modelo aberto: CONTRATANTE no solar_m1 e CLIENTE no solar_m2. Se o consultor pedir algo de eletroposto num contrato solar, recuse em uma frase e diga o caminho certo.
+- Os campos do solar começam com "fs-c-" e só valem nos modelos solares; os campos "ctr-" são do eletroposto e nunca valem no solar.
+- Travado no solar (chega como "[travado: ...]"): partes e qualificação, tabela e componentes do sistema (kWp, módulos, inversor, bateria), local da instalação, valor, forma de pagamento e assinaturas. Mude pelos campos, nunca por texto: valor e forma de pagamento (fs-c-valor, fs-c-pagto), equipamentos e quantidades (fs-c-kwp, fs-c-nmod, fs-c-mod, fs-c-ninv, fs-c-tinv, fs-c-minv, fs-c-bat-marca, fs-c-bat-qtd, fs-c-bat-cap) e a geração estimada (fs-c-geracao). Tudo isso é sensível: o consultor confirma. Nome, CPF, CNPJ, RG, endereço do cliente, titular da unidade consumidora e dados da empresa não têm campo para você: peça ao consultor que preencha na tela.
+- A geração é ESTIMATIVA, calculada pela irradiação histórica da região e pela potência instalada. NUNCA escreva que a CONTRATADA garante, assegura ou promete geração, produção, economia ou retorno em kWh ou em reais. Pode escrever que a geração é estimada, que varia com clima, sombra, temperatura e rede, e que não é garantia. O servidor descarta o texto que promete geração, e a checagem de conflito bloqueia o contrato que a promete.
+- Garantias: módulos e inversor são do FABRICANTE (a CONTRATADA dá suporte ao acionamento); instalação é da CONTRATADA; bateria só existe se houver bateria no sistema. Cada equipamento tem UM prazo só: prazo de garantia pelos campos fs-c-gmod, fs-c-ginv, fs-c-ginst com fs-c-ginstun e fs-c-bat-gar, e nunca escreva um segundo prazo para o mesmo equipamento.
+- Prazos: projeto, aprovação da concessionária e instalação (obra) têm campo (fs-c-pproj, fs-c-paprov, fs-c-pinst). O prazo de aprovação é da distribuidora: não prometa prazo por ela. Nunca escreva um segundo prazo de obra.
+- Homologação junto à concessionária, vistoria técnica com laudo e Termo de Recebimento, manutenção (preventiva e corretiva depois da garantia, só por contratação específica) e rescisão (aviso de 30 dias) já têm texto: mude só se o consultor pedir, sem número novo.
+- Foro: um só, no campo fs-c-foro (a cidade também sai na linha da assinatura).
+- Estilo do solar: frases curtas, claras, sem juridiquês. Número por extenso entre parênteses quando o contrato já escreve assim ("10 (dez) dias úteis"). Nomes definidos em maiúsculas (CONTRATADA, CONTRATANTE ou CLIENTE) usados sempre do mesmo jeito.
+- Não há campo de testemunhas nem de vias no solar: não tente mudar isso.
 
 ## Cessão usada para pedir LIGAÇÃO NOVA na distribuidora
 A cessão serve para pedir a ligação nova (padrão de entrada e medidor próprios, em nome do cessionário). Base: REN ANEEL 1.000/2021, art. 67, IX (documento, com data, que comprove propriedade ou posse do imóvel); arts. 12 e 14 (a distribuidora não pode exigir firma reconhecida nem registro em cartório). Há distribuidoras (a Equatorial Goiás, por exemplo) que aceitam locação ou arrendamento como prova de posse, e matrícula, escritura ou IPTU como prova de propriedade. Carga acima de 75 kW tende a ser atendida em Grupo A (transformador ou subestação própria).
@@ -332,6 +346,8 @@ export function conflitosDoEstado(estado: Estado, grupos: Record<string, Clausul
     );
   }
   const t = (estado.tipo ?? 'completo') as unknown as TipoHibrido;
+  // Solar: checagem própria (a de multa do eletroposto trataria a multa de rescisão e a de interrupção como duplicata).
+  if (ehTipoSolar(estado.tipo)) return conflitosSolar(grupos[estado.tipo] || [], t);
   const vazio = VAZIO as unknown as TipoHibrido;
   return conflitosDoPlano(
     [t, vazio], { [t]: 'Este contrato' }, [], { [t]: (grupos[t] || []).map(c => ({ modelo: t, c })), [vazio]: [] },
@@ -391,6 +407,10 @@ const AVISO_MARCADOR = 'Uma mudança foi descartada: ela trazia um marcador inte
 // `cedente.legitimidade` nasce de "O cedente é" (ctr-arr-relacao); `ligacao.imovel` identifica o imóvel (matrícula,
 // cartório, IPTU) e depende também de "O cedente é". Nenhum desses campos está na lista branca.
 const ITENS_PROTEGIDOS = ['cedente.legitimidade', 'ligacao.imovel'];
+const AVISO_GERACAO_GARANTIDA = 'Uma mudança foi descartada: ela prometia ou garantia geração de energia. No contrato solar a geração é só uma estimativa.';
+const AVISO_NEXUS_NO_TEXTO = 'Uma mudança foi descartada: o contrato solar é da AIOROS (Irmãos na Obra) e o texto não pode citar a NEXUS.';
+const AVISO_SOLAR_TRAVADO = 'Uma mudança foi descartada: esse trecho do contrato solar tem campo próprio na tela e não muda por aqui.';
+const AVISO_NEXUS_NO_SOLAR = 'A troca de emitente foi descartada: o contrato solar é sempre da AIOROS (Irmãos na Obra), nunca da NEXUS.';
 const AVISO_AUTONOMIA ='A IA tentou escrever sobre a autonomia dos objetos; vale só a cláusula do sistema, que entra sempre.';
 const AVISO_VENDA_CASADA = 'Uma mudança foi descartada: ela ligava um objeto ao outro (venda casada, CDC art. 39, I). Cada objeto se contrata sozinho.';
 
@@ -447,6 +467,8 @@ export function processarAcoes(
           if (MARCADOR_COPIADO.test(v.valor)) { avisa(AVISO_MARCADOR); break; }
           const lig = textoLigaObjetos([v.valor]);
           if (lig) { avisa(lig === 'autonomia' ? AVISO_AUTONOMIA : AVISO_VENDA_CASADA); break; }
+          if (modelos.some(ehTipoSolar) && geracaoComoGarantia(v.valor)) { avisa(AVISO_GERACAO_GARANTIDA); break; }
+          if (modelos.some(ehTipoSolar) && mencionaNexus(v.valor)) { avisa(AVISO_NEXUS_NO_TEXTO); break; }
         }
         const antesBruto = ctx.campos.get(def.id);
         const antesN = antesBruto == null ? null : (() => { const x = validarValorCampo(def, antesBruto); return x.ok ? x.valor : antesBruto; })();
@@ -460,6 +482,7 @@ export function processarAcoes(
         break;
       }
       case 'emitente':
+        if (a.emitente === 'nexus' && modelosDoCampo().some(ehTipoSolar)) { avisa(AVISO_NEXUS_NO_SOLAR); break; }
         if (a.emitente && a.emitente !== ctx.emitente) emitente = a.emitente;
         break;
       case 'cadastro':
@@ -508,6 +531,14 @@ export function processarAcoes(
       if (MARCADOR_COPIADO.test([op.titulo, op.texto, ...(op.itens ?? [])].filter(Boolean).join(' '))) { avisa(AVISO_MARCADOR); continue; }
       const lig = textoLigaObjetos([op.texto, ...(op.itens ?? [])], op.titulo, op.id_novo);
       if (lig) { avisa(lig === 'autonomia' ? AVISO_AUTONOMIA : AVISO_VENDA_CASADA); continue; }
+      // Solar: a geração é estimativa. Texto que a garante, assegura ou promete cai (a IA nunca escreve promessa de geração).
+      if (ehTipoSolar(alvo) && geracaoComoGarantia(op.titulo, op.texto, ...(op.itens ?? []))) { avisa(AVISO_GERACAO_GARANTIDA); continue; }
+      if (ehTipoSolar(alvo) && mencionaNexus(op.titulo, op.texto, ...(op.itens ?? []))) { avisa(AVISO_NEXUS_NO_TEXTO); continue; }
+      // Solar: item travado pela CHAVE (mesmo que o front não mande `travado`), e cláusula com item travado não sai nem muda de nome.
+      if (ehTipoSolar(alvo) && (
+        ((op.tipo === 'substituir_item' || op.tipo === 'remover_item') && itemTravadoSolar(alvo, op.alvo)) ||
+        ((op.tipo === 'remover_clausula' || op.tipo === 'renomear_clausula') && clausulaComTravadoSolar(alvo, op.alvo))
+      )) { avisa(AVISO_SOLAR_TRAVADO); continue; }
       // Valor em dinheiro ou percentual que o contrato e os campos ainda não têm: só pelo campo.
       const novos = valoresNoTexto([op.titulo, op.texto, ...(op.itens ?? [])].filter(Boolean).join(' \n '));
       if ([...novos].some(k => !existentes().has(k))) { avisa(AVISO_VALOR_POR_TEXTO); continue; }
