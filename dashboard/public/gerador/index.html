@@ -36710,7 +36710,14 @@ const VDC_TR_PUBLICO = 'O quadro do Trello está público: os documentos não fo
 const VDC_TR_PUBLICO_PREVIA = 'O quadro do Trello está público: os documentos não serão anexados. Deixe o quadro privado no Trello e tente de novo.';
 const VDC_TR_PRAZO_PREVIA = 45000;
 const VDC_TR_PRAZO_ENVIO = 280000;   // o servidor sobe anexos por até 200 s; menos que isso a tela desistiria com o card ainda sendo gravado
-function vdcTrNovo() { return { fase: '', ocupado: '', previa: null, res: null, cands: null, msg: '', extras: [], cardId: '', foco: '' }; }
+function vdcTrNovo() { return { fase: '', ocupado: '', previa: null, res: null, cands: null, msg: '', extras: [], cardId: '', novo: false, motivo: '', foco: '' }; }
+/** O motivo do empate vem do servidor em minúscula e sem ponto, ou já como frase. Devolve '' se não veio texto. */
+function vdcTrMotivo(m) {
+  const s = typeof m === 'string' ? m.trim() : '';
+  if (!s) return '';
+  const f = s.charAt(0).toUpperCase() + s.slice(1);
+  return /[.!?]$/.test(f) ? f : f + '.';
+}
 const vdcTrUrl = (u) => (typeof u === 'string' && u.indexOf('https://trello.com/') === 0 && !/\s/.test(u)) ? u : '';
 const vdcTrTxt = (x) => typeof x === 'string' ? x : (x && typeof x === 'object' && typeof x.nome === 'string') ? x.nome : '';
 const vdcTrLista = (v) => Array.isArray(v) ? v.map(vdcTrTxt).filter(Boolean) : [];
@@ -36761,6 +36768,7 @@ function vdcTrCorpo(st, previa) {
   const c = { etiquetas_extra: T.extras.slice() };
   if (previa) c.previa = true;
   if (T.cardId) c.card_id = T.cardId;
+  else if (T.novo) c.novo = true;
   return c;
 }
 async function vdcTrPrevia(st) {
@@ -36782,15 +36790,19 @@ async function vdcTrEnviar(st) {
   if (vdcEst !== st || !T || T.ocupado) return;
   T.ocupado = 'envio'; T.msg = '';
   vdcPintarTrello(st);
-  const r = await vdcTrChamar(st, vdcTrCorpo(st, false));
+  const corpo = vdcTrCorpo(st, false);
+  // "Criar card novo" vale para um envio só: se a resposta se perder depois de o servidor
+  // criar o card, o próximo clique acha esse card pelo id guardado em vez de criar outro.
+  T.novo = false;
+  const r = await vdcTrChamar(st, corpo);
   if (vdcEst !== st) return;
   T.ocupado = '';
   const j = r.json || {};
   const cands = vdcTrCands(j.candidatos);
   if (r.status === 409 && j.precisa === 'escolher_cartao' && cands.length) {
-    T.cands = cands; T.cardId = ''; T.fase = 'escolha'; T.foco = 'pn';
+    T.cands = cands; T.cardId = ''; T.novo = false; T.motivo = typeof j.motivo === 'string' ? j.motivo : ''; T.fase = 'escolha'; T.foco = 'pn';
   } else if ((r.status === 200 || r.status === 207) && j.previa !== true && typeof j.ok === 'boolean') {
-    T.res = j; T.previa = null; T.cands = null; T.cardId = ''; T.fase = 'resultado'; T.foco = 'pn';
+    T.res = j; T.previa = null; T.cands = null; T.cardId = ''; T.novo = false; T.fase = 'resultado'; T.foco = 'pn';
   } else {
     T.msg = vdcTrMsgErro(r, true);
   }
@@ -36804,7 +36816,13 @@ function vdcTrFechar(st) {
 }
 function vdcTrEscolher(st, id, depois) {
   if (vdcEst !== st || !st.tre || st.tre.ocupado) return;
-  st.tre.cardId = id;
+  st.tre.cardId = id; st.tre.novo = false;
+  depois(st);
+}
+/** "Nenhum destes": o `card_id` some e o pedido seguinte vai com `novo: true`. */
+function vdcTrCriarNovo(st, depois) {
+  if (vdcEst !== st || !st.tre || st.tre.ocupado) return;
+  st.tre.cardId = ''; st.tre.novo = true;
   depois(st);
 }
 function vdcTrListaCands(st, cands, depois) {
@@ -36823,6 +36841,11 @@ function vdcTrListaCands(st, cands, depois) {
     row.append(t, ac);
     box.appendChild(row);
   });
+  const ax = vdcTrEl('div', 'vdc-acoes');
+  const nv = vdcTrBotao('vdc-btn vdc-btn-mini', 'Nenhum destes: criar card novo', 'trello-novo', () => vdcTrCriarNovo(st, depois), !!st.tre.ocupado);
+  nv.dataset.vdcFoco = 'cand-novo';
+  ax.appendChild(nv);
+  box.appendChild(ax);
   return box;
 }
 
@@ -36870,7 +36893,9 @@ function vdcTrPainelPrevia(st) {
     const u = vdcTrUrl(cartao.url);
     pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', nome), vdcTrEl('p', 'vdc-nota', 'Já existe no Trello: será atualizado.'), u ? vdcTrLink(u, 'Abrir no Trello') : null));
   } else if (empate) {
-    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', 'Mais de um card pode ser deste cliente. Escolha qual atualizar.'),
+    const mot = vdcTrMotivo(p.motivo_empate);
+    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', mot || 'Mais de um card pode ser deste cliente. Escolha qual atualizar.'),
+      mot ? vdcTrEl('p', 'vdc-nota', 'Escolha qual atualizar ou crie um card novo.') : null,
       vdcTrListaCands(st, cands, vdcTrPrevia)));
   } else {
     pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', 'Será criado um card novo.')));
@@ -36954,7 +36979,8 @@ function vdcTrPainelEscolha(st) {
   const pn = vdcTrEl('div', 'vdc-pn vdc-tre-pn'); pn.setAttribute('data-vdc-trello-painel', 'escolha');
   const t = vdcTrEl('p', 'vdc-pn-tit', 'Escolha o card'); t.tabIndex = -1; t.dataset.vdcFoco = 'pn';
   pn.appendChild(t);
-  pn.appendChild(vdcTrEl('p', 'vdc-pn-aj', 'Mais de um card pode ser deste cliente. Nada foi enviado ainda.'));
+  const mot = vdcTrMotivo(T.motivo);
+  pn.appendChild(vdcTrEl('p', 'vdc-pn-aj', mot ? mot + ' Nada foi enviado ainda.' : 'Mais de um card pode ser deste cliente. Nada foi enviado ainda.'));
   pn.appendChild(vdcTrListaCands(st, T.cands, vdcTrEnviar));
   const ac = vdcTrEl('div', 'vdc-acoes');
   ac.appendChild(vdcTrBotao('vdc-btn', 'Cancelar', 'trello-cancelar', () => vdcTrFechar(st), !!T.ocupado));

@@ -24,7 +24,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // CARTÃO DO TRELLO DA VENDA SOLAR (21/10/2026). Montada dentro de /gerador, de dentro de `mountVendaSolar` (a guarda é a dele).
 //
-//   POST /gerador/vendas-solares/:card/trello   { previa?: boolean, etiquetas_extra?: string[], card_id?: string }
+//   POST /gerador/vendas-solares/:card/trello   { previa?: boolean, etiquetas_extra?: string[], card_id?: string, novo?: boolean }
 //
 // Monta o cartão no padrão do quadro (título `#NNNN - (Negociador) Titular - Cidade UF`, etiquetas do quadro, checklists BACKOFFICE e ENGENHARIA,
 // descrição) ou atualiza o que já existe. O cartão achado ou criado fica guardado na ligação assinada do card (`trello_card`).
@@ -45,7 +45,9 @@ import {
 //     anexos: { enviados, ja_enviados, falhas, pendentes, bloqueados }, anexos_bloqueados?: true, erros: [texto], avisos: [texto] }
 //   200 quando tudo deu certo; 207 com `ok: false` quando algo falhou ou os anexos foram recusados (quadro público).
 // Empate (mais de um cartão possível): 409 { ok: false, precisa: 'escolher_cartao', candidatos }. A pessoa manda `card_id`, que
-// só vale se for um dos cartões abertos do quadro.
+// só vale se for um dos cartões abertos do quadro. Se nenhum dos candidatos é deste cliente, a pessoa manda `novo: true`: a rota não procura
+// cartão nenhum (nem o guardado na ligação, nem pelo #NNNN, nem pelo nome) e segue como cartão novo (na prévia: `cartao: null`, sem candidatos).
+// `card_id` tem prioridade sobre `novo`.
 //
 // QUADRO PÚBLICO: nenhum anexo vai. O cartão é criado ou atualizado sem eles e a resposta traz `anexos_bloqueados: true`.
 // Nada de valor pessoal em log: só o código do erro.
@@ -187,6 +189,7 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
     const previa = b.previa === true;
     if ((b.previa !== undefined && typeof b.previa !== 'boolean')
       || (b.etiquetas_extra !== undefined && (!Array.isArray(b.etiquetas_extra) || b.etiquetas_extra.length > 10 || b.etiquetas_extra.some((x) => typeof x !== 'string')))
+      || (b.novo !== undefined && typeof b.novo !== 'boolean')
       || (b.card_id !== undefined && b.card_id !== null && (typeof b.card_id !== 'string' || !RE_ID.test(b.card_id)))) {
       res.status(400).json({ ok: false, error: MSG_PEDIDO });
       return;
@@ -197,6 +200,7 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
       return;
     }
     const escolhido = typeof b.card_id === 'string' ? b.card_id : null;
+    const novo = b.novo === true;
     const board = String(process.env.TRELLO_BOARD_ID || '').trim() || TRELLO_BOARD_ID;
 
     // Tudo o que decide e escreve acontece aqui dentro. Prévia só lê e roda sem trava; o envio roda DENTRO da trava do card
@@ -211,7 +215,10 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
         res.status(400).json({ ok: false, error: 'O cartão escolhido não está entre os cartões abertos do quadro.' });
         return;
       }
-      const achado = acharCartao({ cartoes: quadro.cartoes, escolhido, guardado: p.lig.trello_card ?? null, codigoVenda: p.codigoVenda, nome: String(g.card.cliente_nome ?? ''), titular: p.titular });
+      // `novo` (sem `card_id`): a pessoa já viu os candidatos e disse que nenhum é deste cliente; não procura cartão nenhum.
+      const achado: ReturnType<typeof acharCartao> = novo && !escolhido
+        ? { tipo: 'nenhum' }
+        : acharCartao({ cartoes: quadro.cartoes, escolhido, guardado: p.lig.trello_card ?? null, codigoVenda: p.codigoVenda, nome: String(g.card.cliente_nome ?? ''), titular: p.titular });
       const desejadas = [...p.desejadas, ...extra.validas.filter((e) => !p.desejadas.includes(e))];
       const plano = planoDeChecklists(p.slots, p.temTelefone, !!slugValor(p.cad, 'email'));
 

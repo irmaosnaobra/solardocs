@@ -655,6 +655,65 @@ describe('achar o cartão que já existe', () => {
     expect(res.body.candidatos).toHaveLength(2);
     expect(criacoes()).toHaveLength(0);
   });
+
+  describe('novo: true (nenhum dos candidatos é deste cliente)', () => {
+    const empate = () => {
+      venda201();
+      t.quadro.cards.push(cartaoTrello(idFixo(3), '#0061 - Ana Souza Oliveira - Uberlandia MG'), cartaoTrello(idFixo(4), '#0061 - Ana Souza - Uberlândia MG'));
+    };
+    const noExistente = () => t.chamadas.filter((c) => c.caminho.includes(idFixo(3)) || c.caminho.includes(idFixo(4))).filter((c) => c.metodo !== 'GET');
+
+    it('envio: cria o cartão novo e não escreve em nenhum cartão que já existe', async () => {
+      empate();
+      expect((await trello(201, {})).status).toBe(409);
+      const res = await trello(201, { novo: true });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ ok: true, criou_cartao: true, ficha: 'descricao' });
+      expect(criacoes()).toHaveLength(1);
+      expect(noExistente()).toHaveLength(0);
+      expect(ligacaoGravada(201)?.trello_card).toBe(res.body.cartao.id);
+      expect([idFixo(3), idFixo(4)]).not.toContain(res.body.cartao.id);
+    });
+
+    it('envio: ignora também o cartão já guardado na ligação', async () => {
+      empate();
+      injeta(201, { proposta: 'P1', venda: '#0061', trello_card: idFixo(3) });
+      const res = await trello(201, { novo: true });
+      expect(res.status).toBe(200);
+      expect(res.body.criou_cartao).toBe(true);
+      expect(res.body.cartao.id).not.toBe(idFixo(3));
+      expect(criacoes()).toHaveLength(1);
+      expect(noExistente()).toHaveLength(0);
+    });
+
+    it('prévia: cartao null, sem candidatos e sem escrever', async () => {
+      empate();
+      const res = await trello(201, { previa: true, novo: true });
+      expect(res.status).toBe(200);
+      expect(res.body.cartao).toBeNull();
+      expect(res.body.candidatos).toBeUndefined();
+      expect(res.body.motivo_empate).toBeUndefined();
+      expect(res.body.descricao).toEqual(expect.any(String));
+      expect(escritas()).toHaveLength(0);
+    });
+
+    it('card_id vale mais que novo', async () => {
+      empate();
+      const res = await trello(201, { novo: true, card_id: idFixo(4) });
+      expect(res.status).toBe(200);
+      expect(res.body.cartao.id).toBe(idFixo(4));
+      expect(res.body.criou_cartao).toBe(false);
+      expect(criacoes()).toHaveLength(0);
+      const previa = await trello(201, { previa: true, novo: true, card_id: idFixo(4) });
+      expect(previa.body.cartao).toMatchObject({ existente: true, id: idFixo(4) });
+    });
+
+    it('novo que não é booleano é 400', async () => {
+      empate();
+      expect((await trello(201, { novo: 'sim' })).status).toBe(400);
+      expect(t.chamadas).toEqual([]);
+    });
+  });
 });
 
 describe('cartão que já existe', () => {
