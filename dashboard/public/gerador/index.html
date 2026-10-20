@@ -3025,6 +3025,32 @@ html.pv-aberto body{overflow:hidden}
 .vdc-dos{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;margin:0 0 2px}
 .vdc-dos-t{margin:0;font-size:12.5px;font-weight:800;color:var(--io-azul-tx,#93C5FD);overflow-wrap:anywhere}
 .vdc-org-av{margin:6px 0 0;padding:6px 8px;border-radius:8px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);overflow-wrap:anywhere}
+/* Solar: criar ou atualizar o card no Trello (20/10/2026). Só tokens; texto do servidor sempre quebra e nunca abre rolagem lateral. */
+.vdc-tre{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:12px;min-width:0}
+.vdc-tre .vdc-sec-t{margin-top:0}
+.vdc-tre-pn{min-width:0;margin:0;padding:10px;border-radius:10px;border:1px solid var(--n-bd2,#475569);background:var(--n-sf,#1E293B)}
+.vdc-tre-bl{display:grid;gap:4px;min-width:0;margin:10px 0 0}
+.vdc-tre-bl:first-of-type{margin-top:0}
+.vdc-tre-k{margin:0;font-size:12px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--n-tx3,#94A3B8);overflow-wrap:anywhere}
+.vdc-tre-v{margin:0;font-size:13.5px;line-height:1.4;color:var(--n-tx,#E5E7EB);overflow-wrap:anywhere}
+.vdc-tre-ul{margin:0;padding-left:18px;font-size:13px;line-height:1.4;color:var(--n-tx2,#B4C0D1)}
+.vdc-tre-ul li{overflow-wrap:anywhere}
+.vdc-tre-txt{margin:0;max-height:220px;overflow-y:auto;overflow-x:hidden;padding:8px 10px;border-radius:8px;border:1px solid var(--n-bd,#334155);background:var(--n-sf2,#182338);color:var(--n-tx2,#B4C0D1);font-family:inherit;font-size:12.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.vdc-tre-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.vdc-tre-ex{display:flex;flex-wrap:wrap;gap:6px 12px;min-width:0;margin:0;padding:0;border:0}
+.vdc-tre-ex legend{padding:0;margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--n-tx3,#94A3B8)}
+.vdc-tre-opc{display:inline-flex;align-items:center;gap:8px;min-height:44px;min-width:0;padding:4px 10px 4px 4px;font-size:13.5px;font-weight:700;color:var(--n-tx,#E5E7EB);cursor:pointer}
+.vdc-tre-opc input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--io-azul,#2563EB)}
+.vdc-tre-opc input:disabled+span{opacity:.6}
+.vdc-tre-cand{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf2,#182338);border:1px solid var(--n-bd,#334155)}
+.vdc-tre-cand-t{flex:1 1 150px;min-width:0;font-size:13.5px;font-weight:700;overflow-wrap:anywhere}
+.vdc-tre-cand-t span{display:block;font-size:12px;font-weight:600;color:var(--n-tx3,#94A3B8)}
+.vdc-tre-ax{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
+.vdc-tre-ax .vdc-arq-ab{text-decoration:none}
+.vdc-tre-er{margin:0;padding:8px 10px;border-radius:9px;background:var(--io-er-sf,rgba(248,113,113,.14));border:1px solid var(--io-er-bd,rgba(248,113,113,.4));color:var(--io-er-tx,#FCA5A5);font-size:13px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.vdc-tre-er ul{margin:4px 0 0;padding-left:18px;font-weight:600}
+.vdc-tre-er-t{margin:0;font-weight:800}
+.vdc-tre-tag-er{display:inline-block;margin:0 0 0 6px;padding:1px 8px;border-radius:999px;border:1px solid var(--io-er-bd,rgba(248,113,113,.4));background:var(--io-er-sf,rgba(248,113,113,.14));color:var(--io-er-tx,#FCA5A5);font-size:11.5px;font-weight:800}
 .fin{container-type:inline-size;container-name:fin;min-width:0;box-sizing:border-box;border-radius:12px;background:#0F172A;border:1px solid rgba(148,163,184,.3);color:#E5E7EB;text-align:left}
 .fin *{box-sizing:border-box}
 .fin.fin-solta{outline:2px dashed #60A5FA;outline-offset:-2px;background:#14213B}
@@ -36055,7 +36081,7 @@ const VDC_SOL_TUC = [...VDC_PESSOA_CAMPOS.filter(c => c[0] !== 'nascimento').map
 // Titular do financiamento (fin_*): quem assina o financiamento do sistema quando não é o contratante. Só existe na venda solar.
 const VDC_SOL_FIN = VDC_PESSOA_CAMPOS.map(([k, r]) => ['fin_' + k, r + ' do titular do financiamento']);
 const VDC_SOL_UG = [['unidade_consumidora', 'Unidade consumidora geradora'], ['concessionaria', 'Concessionária'], ['titular_conta', 'Titular da conta de luz'],
-  ['endereco_ponto', 'Endereço da instalação'], ['uc_classe', 'Classe da unidade'], ['consumo_medio_kwh', 'Consumo médio (kWh)']];
+  ['endereco_ponto', 'Endereço da instalação'], ['uc_classe', 'Classe da unidade'], ['uc_fornecimento', 'Tipo de fornecimento'], ['consumo_medio_kwh', 'Consumo médio (kWh)']];
 const VDC_SOL_UG_CHAVES = VDC_SOL_UG.map(c => c[0]);
 // Rateio do excedente (20/10/2026): modalidade, percentual da geradora e, por beneficiária, UC, titular, documento, endereço e percentual.
 // A IA não preenche modalidade, percentuais nem tipo: eles são digitados na seção "Rateio do excedente" do bloco.
@@ -36111,7 +36137,7 @@ const VDC_CFG = {
   vendasolar: {
     linha: 'vendasolar', campos: VDC_SOL_TODOS, rot: (k) => VDC_SOL_ROT[k] || '', grupos: VDC_SOL_GRUPOS, grupoDe: vdcGrupoSolar,
     secoes: VDC_SOL_SECOES, outrosPorPadrao: true, textoPreencher: 'Preencher Fechamento', msgSemNome: 'Marque pelo menos o nome do cliente para preencher o Fechamento.',
-    msgNaoPreencheu: 'Não consegui preencher o Fechamento agora.', ligacoes: true, rateio: true, linkTodos: false, papeis: true,
+    msgNaoPreencheu: 'Não consegui preencher o Fechamento agora.', ligacoes: true, rateio: true, linkTodos: false, papeis: true, trello: true,
     aplicar: (cad, st) => aplicarCadastroSolar(cad, st),
   },
 };
@@ -36199,13 +36225,13 @@ function vdcDetalhe(rec) {
   // O "Tentar de novo" do Pós-venda repinta o detalhe do MESMO card: com painel de conferência aberto, leitura ou anexo em andamento,
   // o bloco não é remontado (o que a pessoa conferiu e o envio em curso ficam).
   const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.cfg.linha === linha && vdcEst.no && vdcEst.no.sec.isConnected
-    && (!vdcEst.no.pn.hidden || vdcEst.lendo || vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || vdcEst.mesmoOcupado || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
+    && (!vdcEst.no.pn.hidden || (vdcEst.tre && (vdcEst.tre.ocupado || vdcEst.tre.fase)) || vdcEst.lendo ||vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || vdcEst.mesmoOcupado || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
   if (ativo) return;
   vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
   if (!vale) { el.hidden = true; el.replaceChildren(); return; }
   const st = { id: rec.id, cfg: VDC_CFG[linha], cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '',
     vinc: null, vincErroCarga: '', vincOcupado: '', vincMsg: '', analise: null, rat: null, ratMsg: '', ratGravando: false,
-    negociador: '', mesmoOcupado: '', mesmoMsg: null, aviso: '' };
+    negociador: '', mesmoOcupado: '', mesmoMsg: null, aviso: '', tre: VDC_CFG[linha].trello ? vdcTrNovo() : null };
   vdcEst = st;
   const sec = document.createElement('section');
   sec.className = 'vdc';
@@ -36227,9 +36253,12 @@ function vdcDetalhe(rec) {
   const vinc = st.cfg.ligacoes ? document.createElement('div') : null;
   const rat = st.cfg.rateio ? document.createElement('div') : null;
   if (rat) { rat.className = 'vdc-rat'; rat.setAttribute('data-vdc-rateio', '1'); }
-  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, vinc, docs, lista, org, rat, acoes, msg, pn, arqs); }
+  // Solar: o card no Trello fica depois dos botões, num nó próprio (o painel de conferência da leitura não é dele).
+  const tre = st.cfg.trello ? document.createElement('div') : null;
+  if (tre) { tre.className = 'vdc-tre'; tre.setAttribute('data-vdc-trello', '1'); }
+  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, vinc, docs, lista, org, rat, acoes, ...(tre ? [tre] : []), msg, pn, arqs); }
   else sec.append(h, topo, docs, lista, org, acoes, msg, pn, arqs);
-  st.no = { sec, topo, vinc, rat, docs, lista, org, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
+  st.no = { sec, topo, vinc, rat, docs, lista, org, acoes, tre, msg, pn, arqs, pnMsg: null, pnOk: null };
   // Os seletores de arquivo nascem no clique de Anexar (vdcInputDe): os itens vêm do catálogo do servidor, que chega depois.
   el.replaceChildren(sec);
   el.hidden = false;
@@ -36454,6 +36483,7 @@ function vdcPintar(st) {
   pre.disabled = st.lendo || st.gravando || !st.cad || !vdcV(st.cad, 'nome');
   pre.addEventListener('click', () => vdcPreencher(st));
   N.acoes.append(ler, pre);
+  if (N.tre) vdcPintarTrello(st);
   // aviso
   N.msg.hidden = !st.msg; N.msg.textContent = st.msg || '';
   // atalho para a lista completa
@@ -36669,6 +36699,313 @@ function vdcPintarVinc(st) {
     const f = Array.from(V.querySelectorAll('[data-vdc-foco]')).find(x => x.dataset.vdcFoco === foco);
     if (f && !f.disabled) { try { f.focus({ preventScroll: true }); } catch (e) {} }
   }
+}
+
+// ── Solar: criar ou atualizar o card no Trello (20/10/2026) ─────────────────
+// Dois passos: a prévia (o servidor só lê o Trello, não escreve) e o envio. O estado mora em `st.tre`, nunca só no DOM, porque o bloco
+// repinta o tempo todo. Texto do servidor entra só por textContent; link só se começar com https://trello.com/.
+const VDC_TR_EXTRAS = ['Equipe Própria', 'Equipe Thiago Ari', 'Equipe Branco', 'Equipe Pablo', 'FASTRACK'];
+const VDC_TR_SEM_CHAVE = 'O Trello ainda não está ligado no gerador.';
+const VDC_TR_PUBLICO = 'O quadro do Trello está público: os documentos não foram anexados. Deixe o quadro privado no Trello e tente de novo.';
+const VDC_TR_PUBLICO_PREVIA = 'O quadro do Trello está público: os documentos não serão anexados. Deixe o quadro privado no Trello e tente de novo.';
+const VDC_TR_PRAZO_PREVIA = 45000;
+const VDC_TR_PRAZO_ENVIO = 280000;   // o servidor sobe anexos por até 200 s; menos que isso a tela desistiria com o card ainda sendo gravado
+function vdcTrNovo() { return { fase: '', ocupado: '', previa: null, res: null, cands: null, msg: '', extras: [], cardId: '', foco: '' }; }
+const vdcTrUrl = (u) => (typeof u === 'string' && u.indexOf('https://trello.com/') === 0 && !/\s/.test(u)) ? u : '';
+const vdcTrTxt = (x) => typeof x === 'string' ? x : (x && typeof x === 'object' && typeof x.nome === 'string') ? x.nome : '';
+const vdcTrLista = (v) => Array.isArray(v) ? v.map(vdcTrTxt).filter(Boolean) : [];
+const vdcTrN = (v) => (typeof v === 'number' && isFinite(v)) ? v : (Array.isArray(v) ? v.length : 0);
+const vdcTrCands = (v) => Array.isArray(v) ? v.filter(c => c && typeof c === 'object' && typeof c.id === 'string' && c.id) : [];
+function vdcTrEl(tag, cls, txt) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt != null) e.textContent = txt;
+  return e;
+}
+function vdcTrBotao(cls, txt, acao, fn, desligado) {
+  const b = vdcTrEl('button', cls, txt); b.type = 'button'; b.setAttribute('data-vdc-acao', acao);
+  b.disabled = !!desligado;
+  b.addEventListener('click', fn);
+  return b;
+}
+function vdcTrLink(url, txt) {
+  const a = vdcTrEl('a', 'vdc-arq-ab', txt); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  a.setAttribute('data-vdc-trello-link', '1');
+  return a;
+}
+function vdcTrBloco(chave) {
+  const b = vdcTrEl('div', 'vdc-tre-bl');
+  b.appendChild(vdcTrEl('p', 'vdc-tre-k', chave));
+  for (let i = 1; i < arguments.length; i++) if (arguments[i]) b.appendChild(arguments[i]);
+  return b;
+}
+function vdcTrUl(itens) {
+  const ul = vdcTrEl('ul', 'vdc-tre-ul');
+  itens.forEach((t) => ul.appendChild(vdcTrEl('li', '', t)));
+  return ul;
+}
+/** A frase para a pessoa. 503 com `precisa: credencial` é o Trello sem chave: o texto do servidor fala de variável de ambiente e não aparece. */
+function vdcTrMsgErro(r, envio) {
+  const j = (r && r.json) || {};
+  if (r && r.status === 503 && j.precisa === 'credencial') return VDC_TR_SEM_CHAVE;
+  if (r && r.status === 0) return envio ? 'Sem resposta do servidor. O card pode ter sido criado: confira no Trello antes de tentar de novo.' : 'Sem conexão. Tente de novo.';
+  if (r && (r.status === 401 || r.status === 403)) return vdcMsgErro(r);
+  if (r && r.status !== 503 && typeof j.error === 'string' && j.error) return j.error;
+  return envio ? 'Não consegui enviar para o Trello agora. Tente de novo.' : 'Não consegui preparar a prévia agora. Tente de novo.';
+}
+function vdcTrChamar(st, corpo) {
+  return vdcFetch('/gerador/vendas-solares/' + encodeURIComponent(String(st.id)) + '/trello', 'POST', corpo, corpo.previa ? VDC_TR_PRAZO_PREVIA : VDC_TR_PRAZO_ENVIO);
+}
+function vdcTrCorpo(st, previa) {
+  const T = st.tre;
+  const c = { etiquetas_extra: T.extras.slice() };
+  if (previa) c.previa = true;
+  if (T.cardId) c.card_id = T.cardId;
+  return c;
+}
+async function vdcTrPrevia(st) {
+  const T = st.tre;
+  if (vdcEst !== st || !T || T.ocupado) return;
+  T.ocupado = 'previa'; T.msg = '';
+  if (!T.fase) T.foco = 'pn';
+  vdcPintarTrello(st);
+  const r = await vdcTrChamar(st, vdcTrCorpo(st, true));
+  if (vdcEst !== st) return;
+  T.ocupado = '';
+  const j = r.json || {};
+  if (r.status === 200 && j.ok !== false && j.previa === true) { T.previa = j; T.res = null; T.cands = null; T.fase = 'previa'; }
+  else T.msg = vdcTrMsgErro(r, false);
+  vdcPintarTrello(st);
+}
+async function vdcTrEnviar(st) {
+  const T = st.tre;
+  if (vdcEst !== st || !T || T.ocupado) return;
+  T.ocupado = 'envio'; T.msg = '';
+  vdcPintarTrello(st);
+  const r = await vdcTrChamar(st, vdcTrCorpo(st, false));
+  if (vdcEst !== st) return;
+  T.ocupado = '';
+  const j = r.json || {};
+  const cands = vdcTrCands(j.candidatos);
+  if (r.status === 409 && j.precisa === 'escolher_cartao' && cands.length) {
+    T.cands = cands; T.cardId = ''; T.fase = 'escolha'; T.foco = 'pn';
+  } else if ((r.status === 200 || r.status === 207) && j.previa !== true && typeof j.ok === 'boolean') {
+    T.res = j; T.previa = null; T.cands = null; T.cardId = ''; T.fase = 'resultado'; T.foco = 'pn';
+  } else {
+    T.msg = vdcTrMsgErro(r, true);
+  }
+  vdcPintarTrello(st);
+}
+function vdcTrFechar(st) {
+  if (vdcEst !== st || !st.tre || st.tre.ocupado) return;
+  st.tre = vdcTrNovo();
+  st.tre.foco = 'abrir';
+  vdcPintarTrello(st);
+}
+function vdcTrEscolher(st, id, depois) {
+  if (vdcEst !== st || !st.tre || st.tre.ocupado) return;
+  st.tre.cardId = id;
+  depois(st);
+}
+function vdcTrListaCands(st, cands, depois) {
+  const box = vdcTrEl('div', 'vdc-tre-bl'); box.setAttribute('data-vdc-trello-cands', '1');
+  cands.forEach((c, i) => {
+    const row = vdcTrEl('div', 'vdc-tre-cand'); row.setAttribute('data-vdc-trello-cand', c.id);
+    const t = vdcTrEl('div', 'vdc-tre-cand-t', typeof c.nome === 'string' ? c.nome : 'Card sem nome');
+    if (typeof c.lista === 'string' && c.lista) t.appendChild(vdcTrEl('span', '', c.lista));
+    const ac = vdcTrEl('div', 'vdc-tre-ax');
+    const u = vdcTrUrl(c.url);
+    if (u) ac.appendChild(vdcTrLink(u, 'Abrir'));
+    const b = vdcTrBotao('vdc-btn vdc-btn-mini', 'Usar este card', 'trello-usar', () => vdcTrEscolher(st, c.id, depois), !!st.tre.ocupado);
+    b.dataset.vdcFoco = 'cand-' + i;
+    b.setAttribute('aria-label', 'Usar o card ' + (typeof c.nome === 'string' ? c.nome : ''));
+    ac.appendChild(b);
+    row.append(t, ac);
+    box.appendChild(row);
+  });
+  return box;
+}
+
+function vdcPintarTrello(st) {
+  const N = st.no && st.no.tre, T = st.tre;
+  if (!N || !T) return;
+  const ativo = document.activeElement && N.contains(document.activeElement) ? document.activeElement : null;
+  const quer = T.foco || (ativo && ativo.dataset ? ativo.dataset.vdcFoco || '' : '');
+  N.replaceChildren();
+  N.appendChild(vdcTrEl('p', 'vdc-sec-t', 'Trello'));
+  if (T.fase === 'previa' && T.previa) N.appendChild(vdcTrPainelPrevia(st));
+  else if (T.fase === 'escolha' && T.cands) N.appendChild(vdcTrPainelEscolha(st));
+  else if (T.fase === 'resultado' && T.res) N.appendChild(vdcTrPainelResultado(st));
+  else {
+    const b = vdcTrBotao('vdc-btn', T.ocupado === 'previa' ? 'Preparando…' : 'Criar card no Trello', 'trello-criar', () => vdcTrPrevia(st), !!T.ocupado || st.carregando);
+    b.dataset.vdcFoco = 'abrir';
+    N.appendChild(b);
+    if (T.msg) { const m = vdcTrEl('p', 'vdc-msg', T.msg); m.setAttribute('role', 'alert'); m.setAttribute('data-vdc-trello-msg', '1'); N.appendChild(m); }
+  }
+  if (quer) {
+    const f = Array.from(N.querySelectorAll('[data-vdc-foco]')).find(x => x.dataset.vdcFoco === quer);
+    if (f && !f.disabled) {
+      T.foco = '';
+      try { f.focus({ preventScroll: quer !== 'pn' }); if (quer === 'pn') f.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+  }
+}
+
+function vdcTrPainelPrevia(st) {
+  const T = st.tre, p = T.previa;
+  const pn = vdcTrEl('div', 'vdc-pn vdc-tre-pn'); pn.setAttribute('data-vdc-trello-painel', 'previa');
+  const t = vdcTrEl('p', 'vdc-pn-tit', 'Conferir antes de enviar'); t.tabIndex = -1; t.dataset.vdcFoco = 'pn';
+  pn.appendChild(t);
+  if (T.ocupado === 'previa') { const a = vdcTrEl('p', 'vdc-pn-aj', 'Atualizando a prévia…'); a.setAttribute('role', 'status'); pn.appendChild(a); }
+  if (p.quadro_publico === true || p.anexos_bloqueados === true) {
+    const er = vdcTrEl('p', 'vdc-tre-er', VDC_TR_PUBLICO_PREVIA); er.setAttribute('role', 'alert'); er.setAttribute('data-vdc-trello-publico', '1');
+    pn.appendChild(vdcTrBloco('Anexos bloqueados', er));
+  }
+  // O card: já existe (atualiza), empate (a pessoa escolhe) ou novo.
+  const cartao = p.cartao && typeof p.cartao === 'object' ? p.cartao : null;
+  const cands = vdcTrCands(p.candidatos);
+  const empate = !cartao && cands.length > 0;
+  if (cartao) {
+    const nome = (typeof cartao.nome === 'string' && cartao.nome ? cartao.nome : 'Card') + (typeof cartao.lista === 'string' && cartao.lista ? ' · ' + cartao.lista : '');
+    const u = vdcTrUrl(cartao.url);
+    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', nome), vdcTrEl('p', 'vdc-nota', 'Já existe no Trello: será atualizado.'), u ? vdcTrLink(u, 'Abrir no Trello') : null));
+  } else if (empate) {
+    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', 'Mais de um card pode ser deste cliente. Escolha qual atualizar.'),
+      vdcTrListaCands(st, cands, vdcTrPrevia)));
+  } else {
+    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', 'Será criado um card novo.')));
+  }
+  if (typeof p.titulo === 'string' && p.titulo) pn.appendChild(vdcTrBloco('Título', vdcTrEl('p', 'vdc-tre-v', p.titulo)));
+  if (typeof p.lista === 'string' && p.lista) pn.appendChild(vdcTrBloco('Lista', vdcTrEl('p', 'vdc-tre-v', p.lista)));
+  if (!empate) {
+    const e = p.etiquetas && typeof p.etiquetas === 'object' ? p.etiquetas : {};
+    const aplicar = vdcTrLista(e.aplicar), jaTem = vdcTrLista(e.ja_tem), ausentes = vdcTrLista(e.ausentes);
+    const chips = vdcTrEl('div', 'vdc-tre-chips'); chips.setAttribute('data-vdc-trello-etiquetas', '1');
+    aplicar.forEach((n) => chips.appendChild(vdcTrEl('span', 'vdc-tag', n)));
+    const eb = vdcTrBloco('Etiquetas', aplicar.length ? chips : vdcTrEl('p', 'vdc-tre-v', 'Nenhuma etiqueta nova.'));
+    if (jaTem.length) eb.appendChild(vdcTrEl('p', 'vdc-nota', 'O card já tem: ' + jaTem.join(', ') + '.'));
+    if (ausentes.length) { const a = vdcTrEl('p', 'vdc-lst-av', 'Não existem no quadro e não serão criadas: ' + ausentes.join(', ') + '.'); a.setAttribute('data-vdc-trello-ausentes', '1'); eb.appendChild(a); }
+    (Array.isArray(e.conflitos) ? e.conflitos : []).forEach((c) => {
+      if (!c || typeof c !== 'object') return;
+      eb.appendChild(vdcTrEl('p', 'vdc-lst-av', 'O card já tem ' + (vdcTrTxt(c.existente) || 'outra etiqueta') + ' no lugar de ' + (vdcTrTxt(c.desejada) || 'outra') + '. Não vou mudar.'));
+    });
+    pn.appendChild(eb);
+  }
+  // Equipes e FASTRACK: as únicas etiquetas que a pessoa pede. A prévia é refeita a cada mudança, para mostrar o que o quadro tem.
+  const fs = vdcTrEl('fieldset', 'vdc-tre-ex'); fs.setAttribute('data-vdc-trello-extras', '1');
+  fs.appendChild(vdcTrEl('legend', '', 'Etiquetas extras'));
+  VDC_TR_EXTRAS.forEach((nome, i) => {
+    const lb = vdcTrEl('label', 'vdc-tre-opc');
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = nome; cb.checked = T.extras.indexOf(nome) >= 0; cb.disabled = !!T.ocupado;
+    cb.dataset.vdcFoco = 'ex-' + i;
+    cb.addEventListener('change', () => {
+      const k = T.extras.indexOf(nome);
+      if (cb.checked && k < 0) T.extras.push(nome);
+      if (!cb.checked && k >= 0) T.extras.splice(k, 1);
+      T.foco = 'ex-' + i;
+      vdcTrPrevia(st);
+    });
+    lb.append(cb, vdcTrEl('span', '', nome));
+    fs.appendChild(lb);
+  });
+  pn.appendChild(fs);
+  if (!empate) {
+    const c = p.checklists && typeof p.checklists === 'object' ? p.checklists : {};
+    const criar = vdcTrLista(c.criar), marcar = vdcTrLista(c.marcar);
+    const cb = vdcTrBloco('Checklists');
+    cb.appendChild(vdcTrEl('p', 'vdc-tre-v', criar.length ? 'Serão criadas: ' + criar.join(', ') + '.' : 'Nenhuma checklist nova.'));
+    if (marcar.length) { cb.appendChild(vdcTrEl('p', 'vdc-nota', marcar.length === 1 ? '1 item será marcado:' : marcar.length + ' itens serão marcados:')); cb.appendChild(vdcTrUl(marcar)); }
+    else cb.appendChild(vdcTrEl('p', 'vdc-nota', 'Nenhum item novo para marcar.'));
+    pn.appendChild(cb);
+    if (typeof p.descricao === 'string' && p.descricao) { const x = vdcTrEl('div', 'vdc-tre-txt', p.descricao); x.setAttribute('data-vdc-trello-descricao', '1'); pn.appendChild(vdcTrBloco('Descrição do card', x)); }
+    if (typeof p.comentario === 'string' && p.comentario) { const x = vdcTrEl('div', 'vdc-tre-txt', p.comentario); x.setAttribute('data-vdc-trello-comentario', '1'); pn.appendChild(vdcTrBloco('Comentário que será adicionado', x)); }
+    const bloq = p.quadro_publico === true || p.anexos_bloqueados === true;
+    const anexos = (Array.isArray(p.anexos) ? p.anexos : []).filter(a => a && typeof a === 'object' && typeof a.nome === 'string');
+    const ab = vdcTrBloco(anexos.length ? 'Anexos (' + anexos.length + ')' : 'Anexos');
+    if (!anexos.length) ab.appendChild(vdcTrEl('p', 'vdc-tre-v', 'Nenhum documento para anexar.'));
+    else {
+      const ul = vdcTrEl('ul', 'vdc-tre-ul'); ul.setAttribute('data-vdc-trello-anexos', '1');
+      anexos.forEach((a) => {
+        const li = vdcTrEl('li', '', a.nome + ' · ' + (a.ja_enviado === true ? 'já enviado' : 'novo'));
+        if (bloq && a.ja_enviado !== true) li.appendChild(vdcTrEl('span', 'vdc-tre-tag-er', 'Bloqueado: quadro público'));
+        ul.appendChild(li);
+      });
+      ab.appendChild(ul);
+    }
+    pn.appendChild(ab);
+  }
+  const ac = vdcTrEl('div', 'vdc-acoes');
+  if (!empate) {
+    const ok = vdcTrBotao('vdc-btn vdc-btn-pri', T.ocupado === 'envio' ? 'Enviando…' : (cartao ? 'Atualizar card' : 'Criar card'), 'trello-enviar', () => vdcTrEnviar(st), !!T.ocupado);
+    ok.dataset.vdcFoco = 'enviar';
+    ac.appendChild(ok);
+  }
+  const no = vdcTrBotao('vdc-btn', 'Cancelar', 'trello-cancelar', () => vdcTrFechar(st), T.ocupado === 'envio');
+  no.dataset.vdcFoco = 'cancelar';
+  ac.appendChild(no);
+  pn.appendChild(ac);
+  if (T.msg) { const m = vdcTrEl('p', 'vdc-msg', T.msg); m.setAttribute('role', 'alert'); m.setAttribute('data-vdc-trello-msg', '1'); pn.appendChild(m); }
+  return pn;
+}
+
+/** 409 no envio: mais de um card pode ser deste cliente. Escolher reenvia com `card_id` e as mesmas etiquetas extras. */
+function vdcTrPainelEscolha(st) {
+  const T = st.tre;
+  const pn = vdcTrEl('div', 'vdc-pn vdc-tre-pn'); pn.setAttribute('data-vdc-trello-painel', 'escolha');
+  const t = vdcTrEl('p', 'vdc-pn-tit', 'Escolha o card'); t.tabIndex = -1; t.dataset.vdcFoco = 'pn';
+  pn.appendChild(t);
+  pn.appendChild(vdcTrEl('p', 'vdc-pn-aj', 'Mais de um card pode ser deste cliente. Nada foi enviado ainda.'));
+  pn.appendChild(vdcTrListaCands(st, T.cands, vdcTrEnviar));
+  const ac = vdcTrEl('div', 'vdc-acoes');
+  ac.appendChild(vdcTrBotao('vdc-btn', 'Cancelar', 'trello-cancelar', () => vdcTrFechar(st), !!T.ocupado));
+  pn.appendChild(ac);
+  if (T.ocupado === 'envio') { const a = vdcTrEl('p', 'vdc-pn-aj', 'Enviando…'); a.setAttribute('role', 'status'); pn.appendChild(a); }
+  if (T.msg) { const m = vdcTrEl('p', 'vdc-msg', T.msg); m.setAttribute('role', 'alert'); m.setAttribute('data-vdc-trello-msg', '1'); pn.appendChild(m); }
+  return pn;
+}
+
+function vdcTrPainelResultado(st) {
+  const T = st.tre, j = T.res;
+  const ok = j.ok !== false;
+  const an = j.anexos && typeof j.anexos === 'object' ? j.anexos : {};
+  const erros = Array.isArray(j.erros) ? j.erros.filter(x => typeof x === 'string' && x) : [];
+  const avisos = Array.isArray(j.avisos) ? j.avisos.filter(x => typeof x === 'string' && x) : [];
+  const pn = vdcTrEl('div', 'vdc-pn vdc-tre-pn'); pn.setAttribute('data-vdc-trello-painel', 'resultado');
+  const t = vdcTrEl('p', 'vdc-pn-tit', (j.criou_cartao ? 'Card criado' : 'Card atualizado') + (ok ? '' : ', com pendências'));
+  t.tabIndex = -1; t.dataset.vdcFoco = 'pn';
+  pn.appendChild(t);
+  if (j.anexos_bloqueados === true || an.bloqueados === true) {
+    const er = vdcTrEl('p', 'vdc-tre-er', VDC_TR_PUBLICO); er.setAttribute('role', 'alert'); er.setAttribute('data-vdc-trello-publico', '1');
+    pn.appendChild(vdcTrBloco('Anexos bloqueados', er));
+  }
+  const cartao = j.cartao && typeof j.cartao === 'object' ? j.cartao : {};
+  const u = vdcTrUrl(cartao.url);
+  const nome = (typeof cartao.nome === 'string' && cartao.nome ? cartao.nome : (typeof j.titulo === 'string' ? j.titulo : '')) + (typeof cartao.lista === 'string' && cartao.lista ? ' · ' + cartao.lista : '');
+  pn.appendChild(vdcTrBloco('Card', nome ? vdcTrEl('p', 'vdc-tre-v', nome) : null, u ? vdcTrLink(u, 'Abrir no Trello') : null));
+  const feito = [];
+  const e = j.etiquetas && typeof j.etiquetas === 'object' ? j.etiquetas : {};
+  const aplicadas = vdcTrLista(e.aplicadas);
+  feito.push(aplicadas.length ? 'Etiquetas aplicadas: ' + aplicadas.join(', ') + '.' : 'Nenhuma etiqueta nova.');
+  const cl = j.checklists && typeof j.checklists === 'object' ? j.checklists : {};
+  feito.push('Checklists criadas: ' + vdcTrN(cl.criadas) + '. Itens marcados: ' + vdcTrN(cl.marcados) + '.');
+  feito.push(j.ficha === 'comentario' ? 'Comentário com a ficha adicionado ao card.' : 'Descrição gravada no card.');
+  const pa = [vdcTrN(an.enviados) + ' enviados'];
+  if (vdcTrN(an.ja_enviados)) pa.push(vdcTrN(an.ja_enviados) + ' já estavam no card');
+  if (vdcTrN(an.falhas)) pa.push(vdcTrN(an.falhas) + ' com falha');
+  if (vdcTrN(an.pendentes)) pa.push(vdcTrN(an.pendentes) + ' pendentes');
+  feito.push('Anexos: ' + pa.join(', ') + '.');
+  const fb = vdcTrBloco('O que foi feito', vdcTrUl(feito)); fb.setAttribute('data-vdc-trello-feito', '1');
+  pn.appendChild(fb);
+  if (avisos.length) { const a = vdcTrEl('div', 'vdc-lst-av'); a.setAttribute('data-vdc-trello-avisos', '1'); a.appendChild(vdcTrEl('b', '', 'Avisos')); a.appendChild(vdcTrUl(avisos)); pn.appendChild(a); }
+  if (erros.length) { const er = vdcTrEl('div', 'vdc-tre-er'); er.setAttribute('role', 'alert'); er.setAttribute('data-vdc-trello-erros', '1'); er.appendChild(vdcTrEl('p', 'vdc-tre-er-t', 'Não deu certo:')); er.appendChild(vdcTrUl(erros)); pn.appendChild(er); }
+  const ac = vdcTrEl('div', 'vdc-acoes');
+  if (!ok || vdcTrN(an.falhas) || vdcTrN(an.pendentes)) ac.appendChild(vdcTrBotao('vdc-btn vdc-btn-pri', 'Enviar o que faltou', 'trello-refazer', () => vdcTrPrevia(st), !!T.ocupado));
+  const fe = vdcTrBotao('vdc-btn', 'Fechar', 'trello-fechar', () => vdcTrFechar(st), !!T.ocupado);
+  fe.dataset.vdcFoco = 'fechar';
+  ac.appendChild(fe);
+  pn.appendChild(ac);
+  if (T.msg) { const m = vdcTrEl('p', 'vdc-msg', T.msg); m.setAttribute('role', 'alert'); m.setAttribute('data-vdc-trello-msg', '1'); pn.appendChild(m); }
+  return pn;
 }
 
 // ── Solar: rateio do excedente ──────────────────────────────────────────────
@@ -37331,6 +37668,7 @@ function vdcPainel(st, leitura) {
     if (igual) { const tg = document.createElement('span'); tg.className = 'vdc-nota'; tg.textContent = 'Igual ao cadastro.'; c.appendChild(tg); }
     if (difManual) { const tg = document.createElement('span'); tg.className = 'vdc-tag'; tg.textContent = 'Diferente do que foi digitado'; c.appendChild(tg); }
     if (s.confianca === 'baixa') { const tg = document.createElement('span'); tg.className = 'vdc-tag'; tg.textContent = 'Conferir'; c.appendChild(tg); }
+    if (k === 'uc_fornecimento') { const op = document.createElement('span'); op.className = 'vdc-nota'; op.textContent = 'Use: monofásico, bifásico ou trifásico.'; c.appendChild(op); }
     if (k === 'ced_qualidade') { const op = document.createElement('span'); op.className = 'vdc-nota'; op.textContent = 'Use: proprietário, possuidor, inquilino, representante ou condomínio.'; c.appendChild(op); }
     if (s.nota) { const nt = document.createElement('span'); nt.className = 'vdc-nota'; nt.textContent = String(s.nota); c.appendChild(nt); }
     const er = document.createElement('span'); er.className = 'vdc-erro'; er.hidden = true; c.appendChild(er);
