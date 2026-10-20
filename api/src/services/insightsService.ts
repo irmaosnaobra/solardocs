@@ -275,9 +275,20 @@ interface TrelloCard { id: string; name: string; idList: string; due?: string | 
 interface TrelloBoard { lists?: TrelloList[]; cards?: TrelloCard[]; }
 
 async function fetchTrello(): Promise<TrelloKpis> {
-  const res = await fetch(TRELLO_API);
+  // Com TRELLO_KEY e TRELLO_TOKEN a leitura vai assinada e o quadro pode ser
+  // privado. Lido aqui direto do env: importar o credenciaisTrello do
+  // dossieVenda fecharia ciclo (o dossieVenda importa este arquivo).
+  const key = String(process.env.TRELLO_KEY || '').trim();
+  const token = String(process.env.TRELLO_TOKEN || '').trim();
+  const auth = key && token ? `&key=${encodeURIComponent(key)}&token=${encodeURIComponent(token)}` : '';
+  // A URL carrega key e token: nunca entra em mensagem de erro nem em log.
+  const res = await fetch(TRELLO_API + auth);
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Board não está público — Trello → Settings → Visibility → Public');
+    if (res.status === 401) {
+      throw new Error(auth
+        ? 'Trello recusou a chave (401): confira TRELLO_KEY e TRELLO_TOKEN na Vercel'
+        : 'Quadro do Trello privado e sem TRELLO_KEY/TRELLO_TOKEN na Vercel');
+    }
     throw new Error(`HTTP ${res.status}`);
   }
   const board = (await res.json()) as TrelloBoard;
