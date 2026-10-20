@@ -2908,6 +2908,9 @@ html.pv-aberto body{overflow:hidden}
 .vdc-chip{max-width:100%;padding:3px 9px;border-radius:999px;border:1px solid var(--io-ambar-bd,rgba(251,191,36,.5));background:var(--io-av-sf,rgba(251,191,36,.12));color:var(--io-av-tx,#FCD34D);font-size:12px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
 .vdc-docs{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
 .vdc-doc{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf,#1E293B);border:1px solid var(--n-bd,#334155)}
+.vdc-sec-t{margin:6px 0 -2px;font-size:12px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--n-tx3,#94A3B8);overflow-wrap:anywhere}
+.vdc-sec-t:first-child{margin-top:0}
+.vdc-pn-gr{margin:14px 0 2px;font-size:12px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--io-azul-tx,#93C5FD);overflow-wrap:anywhere}
 .vdc-doc-t{flex:1 1 150px;min-width:0}
 .vdc-doc-n{display:block;font-size:13.5px;font-weight:700;overflow-wrap:anywhere}
 .vdc-doc-q{display:block;font-size:12px;color:var(--n-tx3,#94A3B8)}
@@ -22592,7 +22595,16 @@ function ctrArrRelacaoFichaBruta() {
 }
 // Mudou quem é o cessionário. Entrando no modo cliente, a qualidade do cedente que veio do formulário do cliente
 // (espelho ligado ou valor congelado igual ao dele) sai: vira "A confirmar", e o consultor é avisado.
+// Saiu do modo cliente (ou do arrendamento): o "O cedente é" que o cadastro escreveu era do cedente de fora e, daqui em diante, descreve
+// o cliente. Volta a seguir a ficha. Escolhido à mão (sem a marca do cadastro) fica.
+function vdcRelSoltar() {
+  const rel = document.getElementById('ctr-arr-relacao');
+  if (!rel || rel.dataset.vdcAuto !== '1') return;
+  delete rel.dataset.tocado; delete rel.dataset.vdcAuto;
+  if (typeof ctrEspSync === 'function') ctrEspSync();
+}
 function ctrCessMudou() {
+  if (!ctrArrCliAtivo()) vdcRelSoltar();
   if (ctrArrCliAtivo()) {
     const el = document.getElementById('ctr-arr-relacao'), ficha = ctrArrRelacaoFichaBruta(), temFicha = !!(epFicha && epFicha.localRel);
     let limpou = false;
@@ -22727,6 +22739,7 @@ function ctrTipoMudou(sel) {
   const antes = (sel && sel.dataset.antes) || 'completo';
   const para = ctrEhHibrido() ? 'hibrido' : ctrTipo();
   if (sel) { sel.dataset.tocado = '1'; sel.dataset.antes = sel.value; }
+  if (!ctrArrCliAtivo()) vdcRelSoltar();
   // Do termo de reserva para o contrato da MESMA sociedade (C04, S50-04): o
   // quadro, as cotas e a forma de pagamento que o investidor já assinou ficam.
   const mesmaSoc = antes === 'termo_inv' && ctrEhSoc(para) && orcVal('ctr-ti-uso') !== 'adesao' && ctrSocModo('termo_inv') === para;
@@ -26839,6 +26852,13 @@ function ctrHibSensivel(ds) {
   // Cedente de fora e avalista (19/10/2026): lidos direto da tela, com a chave ligada ou não, e em qualquer modelo.
   // Nome digitado no chat com a chave desligada também não pode sair.
   CTR_PESSOAS_IDS.forEach(id => { const x = orcVal(id).trim(); if (x.length >= 4) { v.add(x); v.add(orcEsc(x)); } });
+  // Os mesmos dois, como estão no CADASTRO aplicado (20/10/2026): o que o consultor apagou da tela, ou ainda não escreveu nela
+  // (cedente com o arrendamento no modo da NEXUS, avalista com a chave desligada), também não sai.
+  if (typeof ctrAgCad !== 'undefined' && ctrAgCad) {
+    ['ced', 'aval'].forEach(p => ['nome', 'cpf_cnpj', 'rg_ie', 'orgao_emissor', 'endereco', 'bairro', 'cidade', 'cep', 'telefone', 'email'].forEach(c => {
+      const x = vdcV(ctrAgCad, p + '_' + c); if (x.length >= 4) { v.add(x); v.add(orcEsc(x)); }
+    }));
+  }
   return [...v].sort((a, b) => b.length - a.length);
 }
 const ctrHibScrub = (html, sens) => sens.reduce((h, s) => h.split(s).join('[dado do cliente]'), String(html));
@@ -35443,11 +35463,45 @@ const VDC_CAMPOS = [
   ['endereco_ponto', 'Endereço do ponto de recarga'], ['unidade_consumidora', 'Unidade consumidora'], ['concessionaria', 'Concessionária'],
   ['titular_conta', 'Titular da conta de luz'],
 ];
-const VDC_ROT = Object.fromEntries(VDC_CAMPOS);
+// Cedente (dono do ponto), avalista e imóvel (20/10/2026). Ficam FORA do VDC_CAMPOS de propósito: o VDC_CAMPOS é o comprador e o ponto,
+// e o que preenche o formulário do comprador. Estes só contam no "X de Y" e em "Faltando" quando o servidor os pede (ele só pede
+// de quem já começou a preencher a pessoa).
+const VDC_PESSOA_CAMPOS = [
+  ['nome', 'Nome ou razão social'], ['cpf_cnpj', 'CPF ou CNPJ'], ['rg_ie', 'RG ou inscrição estadual'], ['orgao_emissor', 'Órgão emissor'],
+  ['nascimento', 'Nascimento'], ['nacionalidade', 'Nacionalidade'], ['estado_civil', 'Estado civil'], ['profissao', 'Profissão'],
+  ['endereco', 'Endereço'], ['bairro', 'Bairro'], ['cidade', 'Cidade'], ['uf', 'UF'], ['cep', 'CEP'], ['email', 'E-mail'], ['telefone', 'Telefone'],
+];
+const VDC_CED_CAMPOS = [...VDC_PESSOA_CAMPOS.filter(c => c[0] !== 'nascimento').map(([k, r]) => ['ced_' + k, r + ' do cedente']),
+  ['ced_qualidade', 'Papel do cedente no ponto']];
+const VDC_AVAL_CAMPOS = VDC_PESSOA_CAMPOS.map(([k, r]) => ['aval_' + k, r + ' do avalista']);
+const VDC_IMOVEL_CAMPOS = [['imovel_matricula', 'Matrícula do imóvel'], ['imovel_cartorio', 'Cartório do imóvel'], ['imovel_iptu', 'IPTU do imóvel']];
+const VDC_PONTO_CHAVES = ['endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta'];
+const VDC_EXTRAS = [...VDC_CED_CAMPOS, ...VDC_AVAL_CAMPOS, ...VDC_IMOVEL_CAMPOS];
+const VDC_ROT = Object.fromEntries([...VDC_CAMPOS, ...VDC_EXTRAS]);
+// A conferência agrupa por pessoa. Quem é de quem pelo nome do campo.
+const VDC_GRUPOS = [
+  { id: 'comprador', t: 'Comprador', campos: VDC_CAMPOS.filter(c => VDC_PONTO_CHAVES.indexOf(c[0]) < 0) },
+  { id: 'cedente', t: 'Cedente (dono do ponto)', campos: VDC_CED_CAMPOS },
+  { id: 'avalista', t: 'Avalista', campos: VDC_AVAL_CAMPOS },
+  { id: 'imovel', t: 'Imóvel', campos: VDC_IMOVEL_CAMPOS },
+  { id: 'ponto', t: 'Ponto de recarga', campos: VDC_CAMPOS.filter(c => VDC_PONTO_CHAVES.indexOf(c[0]) >= 0) },
+];
+// Quais itens do catálogo do servidor aparecem no card, e em que seção. A lista e os rótulos de cada item vêm do servidor
+// (`slots` do GET /docs): aqui só se diz a qual seção cada chave pertence. Item fora daqui (obra e instalação) não entra no
+// card, como sempre; segue na ficha do cliente e em "Ver todos os documentos".
+const VDC_SECOES = [
+  { t: 'Comprador', chaves: ['documento_titular', 'comprovante_endereco_comprador'] },
+  { t: 'Cedente (dono do ponto)', chaves: ['documento_cedente', 'comprovante_endereco_cedente'] },
+  { t: 'Avalista', chaves: ['documento_avalista', 'comprovante_endereco_avalista'] },
+  { t: 'Contas de luz', chaves: ['conta_luz', 'conta_luz_geradora', 'conta_luz_beneficiaria'] },
+  { t: 'Imóvel e outras pessoas', chaves: ['documento_imovel', 'documento_outra_pessoa'] },
+  { t: 'Outros', chaves: ['outros'] },
+];
+// Só para dar nome a um item quando o catálogo do servidor não carregou (a lista de arquivos e o "Não foram lidos").
 const VDC_SLOTS = [
-  { chave: 'documento_titular', rot: 'Documento do titular', dica: 'RG, CNH ou cartão CNPJ', aceita: 'ambos', varios: false },
-  { chave: 'conta_luz', rot: 'Conta de luz', dica: '', aceita: 'ambos', varios: false },
-  { chave: 'outros', rot: 'Outros', dica: 'contrato social etc.', aceita: 'ambos', varios: true },
+  { chave: 'documento_titular', rot: 'Documento do comprador' },
+  { chave: 'conta_luz', rot: 'Conta de luz' },
+  { chave: 'outros', rot: 'Outros' },
 ];
 const VDC_MAX_ARQ = 10 * 1024 * 1024;
 const VDC_LADO_MAX = 2560;
@@ -35464,7 +35518,7 @@ const vdcTipo = (cad) => {
 };
 function vdcNumeros(cad) {
   const falta = Array.isArray(cad && cad.faltando) ? cad.faltando.filter(k => VDC_ROT[k]) : [];
-  const feitos = VDC_CAMPOS.filter(c => c[0] !== 'tipo' && vdcV(cad, c[0]) !== '' && falta.indexOf(c[0]) < 0).length;
+  const feitos = [...VDC_CAMPOS, ...VDC_EXTRAS].filter(c => c[0] !== 'tipo' && vdcV(cad, c[0]) !== '' && falta.indexOf(c[0]) < 0).length;
   return { feitos, total: feitos + falta.length, falta };
 }
 function vdcMsgErro(r, padrao) {
@@ -35542,18 +35596,7 @@ function vdcDetalhe(rec) {
   const org = document.createElement('div'); org.setAttribute('role', 'status');
   sec.append(h, topo, docs, lista, org, acoes, msg, pn, arqs);
   st.no = { sec, topo, docs, lista, org, acoes, msg, pn, arqs, pnMsg: null, pnOk: null };
-  VDC_SLOTS.forEach((s) => {
-    const inp = document.createElement('input');
-    inp.type = 'file'; inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true'); inp.setAttribute('data-vdc-slot', s.chave);
-    inp.accept = 'image/*,application/pdf';
-    if (s.varios) inp.multiple = true;
-    inp.addEventListener('change', () => {
-      const lista = Array.from(inp.files || []);
-      inp.value = '';
-      if (lista.length) vdcAnexar(st, s, lista);
-    });
-    arqs.appendChild(inp);
-  });
+  // Os seletores de arquivo nascem no clique de Anexar (vdcInputDe): os itens vêm do catálogo do servidor, que chega depois.
   el.replaceChildren(sec);
   el.hidden = false;
   vdcPintar(st);
@@ -35581,9 +35624,28 @@ function vdcDocsDe(j) {
   };
 }
 
+/** O item como o servidor o descreve: rótulo, formato aceito e se aceita vários. `s` é um item do catálogo (ou só { chave }). */
 function vdcSlotInfo(st, s) {
-  const srv = ((st.docs && st.docs.slots) || []).find(x => x && x.chave === s.chave);
-  return { chave: s.chave, rot: s.rot, dica: s.dica, aceita: (srv && srv.aceita) || s.aceita, varios: srv ? srv.varios === true : s.varios };
+  const srv = ((st.docs && st.docs.slots) || []).find(x => x && x.chave === s.chave) || s;
+  return { chave: s.chave, rot: (typeof srv.rotulo === 'string' && srv.rotulo) ? srv.rotulo : vdcRotuloSlot(st, s.chave),
+    aceita: srv.aceita === 'imagem' || srv.aceita === 'pdf' ? srv.aceita : 'ambos', varios: srv.varios === true };
+}
+/** O seletor de arquivo do item, criado na primeira vez que se clica em Anexar. */
+function vdcInputDe(st, s) {
+  const caixa = st.no.arqs;
+  let inp = caixa.querySelector('input[data-vdc-slot="' + s.chave + '"]');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true'); inp.setAttribute('data-vdc-slot', s.chave);
+    inp.addEventListener('change', () => {
+      const lista = Array.from(inp.files || []);
+      inp.value = '';
+      if (lista.length) vdcAnexar(st, { chave: s.chave }, lista);
+    });
+    caixa.appendChild(inp);
+  }
+  inp.accept = vdcAccept(s.aceita); inp.multiple = !!s.varios;
+  return inp;
 }
 const vdcAccept = (aceita) => aceita === 'imagem' ? 'image/*' : aceita === 'pdf' ? 'application/pdf' : 'image/*,application/pdf';
 
@@ -35611,23 +35673,34 @@ function vdcPintar(st) {
   }
   // anexos
   N.docs.replaceChildren();
-  VDC_SLOTS.forEach((s0) => {
+  if (!st.docs && !st.carregando) {
+    // Sem o catálogo do servidor não há item para anexar.
+    const p = document.createElement('p'); p.className = 'vdc-carga'; p.setAttribute('data-vdc-sem-docs', '1'); p.textContent = 'Não consegui carregar os documentos agora.';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = 'Tentar de novo';
+    b.addEventListener('click', () => vdcCarregar(st));
+    N.docs.append(p, b);
+  }
+  VDC_SECOES.forEach((sc) => {
+    const itens = st.docs ? sc.chaves.map(ch => st.docs.slots.find(x => x && x.chave === ch)).filter(Boolean) : [];
+    if (!itens.length) return;
+    const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = sc.t; tit.setAttribute('data-vdc-secao', sc.t);
+    N.docs.appendChild(tit);
+    itens.forEach((s0) => {
     const s = vdcSlotInfo(st, s0);
     const qtd = st.docs ? st.docs.arquivos.filter(a => a && a.slot === s.chave).length : null;
     const sub = st.sub[s.chave];
     const row = document.createElement('div'); row.className = 'vdc-doc'; row.setAttribute('data-vdc-doc', s.chave);
     const t = document.createElement('div'); t.className = 'vdc-doc-t';
-    const nm = document.createElement('span'); nm.className = 'vdc-doc-n'; nm.textContent = s.rot + (s.dica ? ' (' + s.dica + ')' : '');
+    const nm = document.createElement('span'); nm.className = 'vdc-doc-n'; nm.textContent = s.rot;
     const q = document.createElement('span'); q.className = 'vdc-doc-q';
     q.textContent = sub ? ((sub.fase === 'enviando' ? 'Enviando' : 'Preparando') + (sub.n > 1 ? ' ' + (sub.i + 1) + ' de ' + sub.n : '') + '…')
       : (qtd == null ? '' : qtd === 0 ? 'Nenhum arquivo' : qtd === 1 ? '1 arquivo' : qtd + ' arquivos');
     t.append(nm, q);
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = s.varios ? 'Adicionar vários documentos' : 'Anexar';
-    b.disabled = !!sub; b.setAttribute('aria-label', (s.varios ? 'Adicionar vários documentos em ' : 'Anexar ') + s.rot.toLowerCase());
-    b.addEventListener('click', () => {
-      const inp = N.arqs.querySelector('input[data-vdc-slot="' + s.chave + '"]');
-      if (inp) { inp.accept = vdcAccept(s.aceita); inp.multiple = !!s.varios; inp.click(); }
-    });
+    // "Adicionar vários documentos" é só do item Outros (a IA organiza). Imóvel e outra pessoa também aceitam vários, mas são itens de pessoa: Anexar.
+    const mix = s.chave === 'outros';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = mix ? 'Adicionar vários documentos' : 'Anexar';
+    b.disabled = !!sub; b.setAttribute('aria-label', (mix ? 'Adicionar vários documentos em ' : 'Anexar ') + s.rot.toLowerCase());
+    b.addEventListener('click', () => { vdcInputDe(st, s).click(); });
     row.append(t, b);
     const rd = st.resDoc[s.chave];
     if (rd) {
@@ -35640,6 +35713,7 @@ function vdcPintar(st) {
     }
     if (st.msgDoc[s.chave]) { const m = document.createElement('p'); m.className = 'vdc-doc-m'; m.textContent = st.msgDoc[s.chave]; row.appendChild(m); }
     N.docs.appendChild(row);
+    });
   });
   vdcPintarLista(st);
   vdcPintarOrg(st);
@@ -36126,7 +36200,6 @@ const VDC_MOTIVOS = {
   muito_grande: 'arquivo grande demais', sem_texto: 'sem texto legível', nao_e_documento: 'não parece um documento do cliente',
 };
 const vdcMotivoTxt = (m) => VDC_MOTIVOS[String(m || '')] || String(m || 'não foi lido').replace(/_/g, ' ');
-const vdcSlotRot = (chave) => { const s = VDC_SLOTS.find(x => x.chave === chave); return s ? s.rot : String(chave || 'Documento').replace(/_/g, ' '); };
 
 function vdcPainel(st, leitura) {
   const pn = st.no.pn;
@@ -36137,12 +36210,21 @@ function vdcPainel(st, leitura) {
   pn.append(t, aj);
   const sug = leitura.sugestoes || {};
   let n = 0;
-  VDC_CAMPOS.forEach(([k, rot]) => {
+  // Agrupado por pessoa: cada grupo ganha o título na primeira linha dele.
+  const linhasDe = [];
+  VDC_GRUPOS.forEach((g) => g.campos.forEach(([k, rot]) => linhasDe.push([k, rot, g])));
+  let grupoAtual = null;
+  linhasDe.forEach(([k, rot, g]) => {
     const s = sug[k];
     if (!s || typeof s !== 'object') return;
     const lido = String(s.valor == null ? '' : s.valor).trim();
     if (lido === '') return;
     n++;
+    if (grupoAtual !== g) {
+      grupoAtual = g;
+      const gt = document.createElement('p'); gt.className = 'vdc-pn-gr'; gt.textContent = g.t; gt.setAttribute('data-vdc-grupo', g.id);
+      pn.appendChild(gt);
+    }
     const atualRec = st.cad && st.cad.campos && st.cad.campos[k];
     const atual = String((atualRec && atualRec.valor) == null ? '' : atualRec.valor).trim();
     const fonte = atualRec && atualRec.fonte;
@@ -36162,6 +36244,7 @@ function vdcPainel(st, leitura) {
     if (igual) { const tg = document.createElement('span'); tg.className = 'vdc-nota'; tg.textContent = 'Igual ao cadastro.'; c.appendChild(tg); }
     if (difManual) { const tg = document.createElement('span'); tg.className = 'vdc-tag'; tg.textContent = 'Diferente do que foi digitado'; c.appendChild(tg); }
     if (s.confianca === 'baixa') { const tg = document.createElement('span'); tg.className = 'vdc-tag'; tg.textContent = 'Conferir'; c.appendChild(tg); }
+    if (k === 'ced_qualidade') { const op = document.createElement('span'); op.className = 'vdc-nota'; op.textContent = 'Use: proprietário, possuidor, inquilino, representante ou condomínio.'; c.appendChild(op); }
     if (s.nota) { const nt = document.createElement('span'); nt.className = 'vdc-nota'; nt.textContent = String(s.nota); c.appendChild(nt); }
     const er = document.createElement('span'); er.className = 'vdc-erro'; er.hidden = true; c.appendChild(er);
     lin.append(ck, c);
@@ -36178,7 +36261,34 @@ function vdcPainel(st, leitura) {
     const box = document.createElement('div'); box.className = 'vdc-ign';
     const b = document.createElement('b'); b.textContent = 'Não foram lidos:'; box.appendChild(b);
     const ul = document.createElement('ul');
-    ign.forEach((x) => { const li = document.createElement('li'); li.textContent = vdcSlotRot(x.slot) + ': ' + vdcMotivoTxt(x.motivo); ul.appendChild(li); });
+    ign.forEach((x) => { const li = document.createElement('li'); li.textContent = vdcRotuloSlot(st, x.slot) + ': ' + vdcMotivoTxt(x.motivo); ul.appendChild(li); });
+    box.appendChild(ul); pn.appendChild(box);
+  }
+  // O que o servidor deixou de usar e por quê (dado de outra pessoa, conta que não é do ponto, documento sem dono) e as notas da leitura.
+  // Texto do servidor: só por textContent. Linhas iguais aparecem uma vez.
+  const nao = [];
+  const vistos = new Map();
+  // Descartadas do mesmo item e com a mesma nota viram uma linha só, com os campos que ficaram de fora.
+  const soma = (slot, nota, campo) => {
+    const tx = String(nota == null ? '' : nota).trim();
+    if (!tx) return;
+    const chave = slot + '\u0000' + tx;
+    let e = vistos.get(chave);
+    if (!e) { e = { slot, tx, campos: [] }; vistos.set(chave, e); nao.push(e); }
+    const rot = campo ? (VDC_ROT[campo] || String(campo).replace(/_/g, ' ')) : '';
+    if (rot && e.campos.indexOf(rot) < 0) e.campos.push(rot);
+  };
+  (Array.isArray(leitura.descartadas) ? leitura.descartadas : []).forEach((x) => { if (x && typeof x === 'object') soma(typeof x.slot === 'string' ? x.slot : '', x.nota, typeof x.campo === 'string' ? x.campo : ''); });
+  (Array.isArray(leitura.notas) ? leitura.notas : []).forEach((x) => { if (x && typeof x === 'object') soma(typeof x.slot === 'string' ? x.slot : '', x.nota, ''); });
+  if (nao.length) {
+    const box = document.createElement('div'); box.className = 'vdc-ign'; box.setAttribute('data-vdc-nao-usei', '1');
+    const b = document.createElement('b'); b.textContent = 'Não usei:'; box.appendChild(b);
+    const ul = document.createElement('ul');
+    nao.forEach((e) => {
+      const li = document.createElement('li');
+      li.textContent = (e.slot ? vdcRotuloSlot(st, e.slot) + ': ' : '') + (e.campos.length ? e.campos.join(', ') + '. ' : '') + e.tx;
+      ul.appendChild(li);
+    });
     box.appendChild(ul); pn.appendChild(box);
   }
   const ac = document.createElement('div'); ac.className = 'vdc-acoes';
@@ -36288,6 +36398,18 @@ function vdcLimparTerceiros() {
   });
   return tinha;
 }
+// Matrícula, cartório e IPTU do imóvel são do cliente anterior quando o cliente muda. Ficam fora do VDC_IDS_TERCEIROS de propósito:
+// o aviso "o dono do imóvel foi apagado" é da pessoa, não do registro do imóvel.
+const VDC_IDS_IMOVEL = ['ctr-ta-matricula', 'ctr-ta-cartorio', 'ctr-ta-iptu'];
+function vdcLimparImovel() {
+  VDC_IDS_IMOVEL.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = el.defaultValue || '';
+    vdcDispara(el);
+    delete el.dataset.tocado; delete el.dataset.manual; delete el.dataset.auto;
+  });
+}
 // Espelhos do contrato que mostram a identidade do cliente (ou o que sai dela). Eles NÃO são escritos: só voltam a seguir a fonte.
 const VDC_ESPELHOS_IDENTIDADE = [
   'ctr-contratante', 'ctr-contratante-doc', 'ctr-contratante-end', 'ctr-contratante-cep', 'ctr-contratante-ie', 'ctr-cidade',
@@ -36300,7 +36422,7 @@ const VDC_SEGUEM_A_FONTE = ['rec-cli-nome', 'rec-cli-doc', 'rec-cli-end', 'proc-
   'bnk-nome', 'bnk-doc', 'bnk-end', 'bnk-cep', 'bnk-bairro', 'bnk-cidade', 'bnk-uf'];
 document.addEventListener('input', (ev) => {
   const t = ev.target;
-  if (t && t.id === 'ctr-qualif' && t.dataset) delete t.dataset.vdcAuto;   // digitou: o texto passa a ser dele
+  if (t && (t.id === 'ctr-qualif' || t.id === 'ctr-arr-relacao') && t.dataset) delete t.dataset.vdcAuto;   // mexeu: o valor passa a ser dele
 }, true);
 
 function vdcDispara(el) {
@@ -36330,6 +36452,7 @@ function epLimparIdentidade() {
 function aplicarCadastroEletroposto(cad) {
   const C = {};
   VDC_CAMPOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+  VDC_EXTRAS.forEach(([k]) => { C[k] = vdcV(cad, k); });   // cedente, avalista e imóvel
   const tipo = vdcTipo(cad);
   const nome = C.nome;
   const ausentes = [];
@@ -36340,7 +36463,12 @@ function aplicarCadastroEletroposto(cad) {
   // Mesmo cliente (reaplicar): nada é limpo, só se escreve o que o cadastro tem; o que alguém digitou e o cadastro não tem fica.
   const mudou = vdcClienteMudou(C);
   let lim = { manteveQualif: false }, terceirosApagados = false;
-  if (mudou) { lim = epLimparIdentidade(); terceirosApagados = vdcLimparTerceiros(); }
+  if (mudou) {
+    lim = epLimparIdentidade(); terceirosApagados = vdcLimparTerceiros(); vdcLimparImovel();
+    // O "O cedente é" que o cadastro do cliente anterior escreveu volta a seguir a ficha do cliente novo (o ctrEspSync do fim puxa). O que o consultor escolheu fica.
+    const relAnt = document.getElementById('ctr-arr-relacao');
+    if (relAnt && relAnt.dataset.vdcAuto === '1') { delete relAnt.dataset.tocado; delete relAnt.dataset.vdcAuto; }
+  }
   // Cliente outro, por este caminho ou por qualquer outro: a conversa com o assistente, os retratos de Desfazer, as
   // confirmações pendentes e a resposta em voo eram do anterior (o mesmo que o ctrEstadoZerar faz). Reaplicar o cadastro
   // do MESMO cliente, inclusive pelo próprio assistente, não mexe na conversa.
@@ -36395,6 +36523,51 @@ function aplicarCadastroEletroposto(cad) {
     if (C.rg_ie) partes.push('portador(a) do RG nº ' + C.rg_ie + (C.orgao_emissor ? ' ' + C.orgao_emissor : ''));
     if (partes.length) { q.value = partes.join(', '); vdcDispara(q); q.dataset.vdcAuto = '1'; }
   }
+  // 3b) cedente (dono do ponto), avalista e imóvel: só entram quando o cadastro tem a pessoa (ced_nome, aval_nome) ou o dado.
+  // Com o cliente anterior já foram esvaziados acima; com o mesmo cliente só se escreve o que o cadastro tem.
+  // Arrendamento simples com o cliente como cessionário (não híbrido, não termo): só aí o cedente do cadastro é a contraparte.
+  // Nos outros modelos o "O cedente é" descreve o cliente e o cadastro não o toca.
+  const cessCliente = ctrArrCliAtivo();
+  const pessoa = (p) => {
+    const c = (s) => C[p + '_' + s];
+    const pj = vdcDigitos(c('cpf_cnpj')).length === 14;
+    const rua = c('endereco'), bairro = c('bairro');
+    return {
+      nome: c('nome'), doc: c('cpf_cnpj'), cep: c('cep'), tel: c('telefone'), email: c('email'),
+      // Empresa: a inscrição estadual não é RG e não há nacionalidade nem estado civil.
+      rg: !pj && c('rg_ie') ? c('rg_ie') + (c('orgao_emissor') ? ' ' + c('orgao_emissor') : '') : '',
+      qualif: pj ? '' : [c('nacionalidade'), c('estado_civil'), c('profissao')].filter(Boolean).join(', '),
+      end: [rua, bairro && rua.toLowerCase().indexOf(bairro.toLowerCase()) < 0 ? bairro : '', c('cidade') ? c('cidade') + (c('uf') ? '/' + c('uf') : '') : ''].filter(Boolean).join(', '),
+    };
+  };
+  const escrevePessoa = (p, o) => {
+    ['nome', 'doc', 'rg', 'qualif', 'end', 'cep', 'tel', 'email'].forEach((c) => por(['ctr-' + p + '-' + c], o[c]));
+  };
+  if (C.ced_nome) {
+    escrevePessoa('ced', pessoa('ced'));
+    // O papel do cedente no select do cartão Arrendamento. Só com o cliente como cessionário: no modo da NEXUS esse select descreve
+    // o cliente, e o dono do ponto do cadastro não pode mudá-lo. Possuidor e papel desconhecido não têm opção: não mexe.
+    const REL = { proprietario: 'proprietario', inquilino: 'locatario', representante: 'representante', condominio: 'condominio' };
+    const rel = document.getElementById('ctr-arr-relacao');
+    if (!rel) ausentes.push('ctr-arr-relacao');
+    // Escolhido à mão (tocado sem a marca do cadastro) fica, no mesmo cliente e na troca.
+    else if (cessCliente && !(rel.dataset.tocado === '1' && rel.dataset.vdcAuto !== '1') && REL[C.ced_qualidade] && [...rel.options].some(o => o.value === REL[C.ced_qualidade]) && rel.value !== REL[C.ced_qualidade]) {
+      rel.value = REL[C.ced_qualidade]; vdcDispara(rel);
+      rel.dataset.vdcAuto = '1';   // depois do disparo: o ouvinte do `input` apaga a marca de quem mexeu à mão
+    }
+  }
+  if (C.aval_nome) {
+    escrevePessoa('aval', pessoa('aval'));
+    const tem = document.getElementById('ctr-aval-tem');
+    if (!tem) ausentes.push('ctr-aval-tem');
+    else if (tem.value !== 'sim') { tem.value = 'sim'; vdcDispara(tem); }
+  }
+  // Imóvel: o que a pessoa digitou fica; entra o do cadastro onde está vazio (ou quando o cliente mudou e o campo já foi esvaziado).
+  [['ctr-ta-matricula', C.imovel_matricula], ['ctr-ta-cartorio', C.imovel_cartorio], ['ctr-ta-iptu', C.imovel_iptu]].forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if (!el) { ausentes.push(id); return; }
+    if (v && (mudou || el.value.trim() === '')) { el.value = v; vdcDispara(el); }
+  });
   // 4) os espelhos do contrato voltam a seguir a fonte (sem eventos: o ouvinte deles os marcaria como digitados)
   if (mudou) VDC_ESPELHOS_IDENTIDADE.forEach((id) => { const el = document.getElementById(id); if (el) delete el.dataset.tocado; });
   // 5) leva para os Contratos e avisa
@@ -36406,6 +36579,8 @@ function aplicarCadastroEletroposto(cad) {
   if (mudou) msg += ' Confira modelo e valores no Simulador: eles não vêm do cadastro.';
   if (terceirosApagados) msg += ' O dono do imóvel do cliente anterior foi apagado.';
   if (lim.manteveQualif) msg += ' A qualificação do contratante já tinha texto digitado e foi mantida: confira.';
+  // Cedente no cadastro e o arrendamento no modo da NEXUS: os campos do cedente ficam prontos para quando trocar o modo.
+  if (C.ced_nome && !cessCliente) msg += ' Dados do cedente prontos: eles entram quando escolher O cliente é o cessionário.';
   vdcAvisar(msg);
   showToast('Contratos preenchidos com o cadastro de ' + (nome || 'cliente'));
   if (ausentes.length) console.warn('cadastro: campos que não existem na tela: ' + Array.from(new Set(ausentes)).join(', '));

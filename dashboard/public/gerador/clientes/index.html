@@ -133,6 +133,9 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .gd-gh .cnt.ok{color:var(--gc-ok)}
 /* De 2 a 3 colunas: a coluna nunca é menor que 240 px nem menor que um terço da seção. */
 .gd-gb{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(240px,calc((100% - 32px) / 3)),1fr));gap:14px 16px;padding:16px}
+/* Eletroposto: os documentos agrupados por pessoa. O título ocupa a linha inteira da grade. */
+.dc-grp{grid-column:1 / -1;margin:6px 0 -6px;font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--gc-tx3);overflow-wrap:anywhere}
+.dc-grp:first-child{margin-top:0}
 .gd-f{min-width:0}
 .gd-f.larga{grid-column:1 / -1}
 .gd-lb{display:flex;align-items:baseline;gap:8px;margin:0 0 4px}
@@ -1304,6 +1307,13 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     b.addEventListener('click', fn);
     return b;
   }
+  var GRUPOS_DOCS_EP = [
+    ['Comprador', ['documento_titular', 'comprovante_endereco_comprador']],
+    ['Cedente (dono do ponto)', ['documento_cedente', 'comprovante_endereco_cedente']],
+    ['Avalista', ['documento_avalista', 'comprovante_endereco_avalista']],
+    ['Contas de luz', ['conta_luz', 'conta_luz_geradora', 'conta_luz_beneficiaria']],
+    ['Imóvel e outras pessoas', ['documento_imovel', 'documento_outra_pessoa']],
+  ];
   function secaoDocs(codigo, d) {
     var sec = el('section', 'gd-g'), gh = el('div', 'gd-gh'), cnt = el('span', 'cnt');
     gh.appendChild(el('h2', null, 'Documentos')); gh.appendChild(cnt); sec.appendChild(gh);
@@ -1321,7 +1331,21 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     cnt.textContent = obrig ? ok + ' de ' + obrig + ' obrigatórios' : '';
     cnt.className = 'cnt' + (obrig && ok === obrig ? ' ok' : '');
     var gb = el('div', 'gd-gb');
-    d.slots.forEach(function (s) { gb.appendChild(cartaoSlot(codigo, d, s)); });
+    if (EP) {
+      // Eletroposto: por pessoa. Os itens e os rótulos são os do servidor; aqui só se diz a que grupo cada chave pertence.
+      // O que não está nos grupos (contrato, obra, instalação) segue visível, depois deles e antes de "Outros".
+      var usados = {};
+      var grupo = function (titulo, itens) {
+        if (!itens.length) return;
+        gb.appendChild(el('h3', 'dc-grp', titulo));
+        itens.forEach(function (s) { usados[s.chave] = 1; gb.appendChild(cartaoSlot(codigo, d, s)); });
+      };
+      var dosSlots = function (chaves) { return chaves.map(function (ch) { return d.slots.filter(function (x) { return x.chave === ch; })[0]; }).filter(Boolean); };
+      GRUPOS_DOCS_EP.forEach(function (g) { grupo(g[0], dosSlots(g[1])); });
+      var marcados = {}; GRUPOS_DOCS_EP.concat([['', ['outros']]]).forEach(function (g) { g[1].forEach(function (ch) { marcados[ch] = 1; }); });
+      grupo('Contrato, obra e instalação', d.slots.filter(function (s) { return !marcados[s.chave]; }));
+      grupo('Outros', dosSlots(['outros']));
+    } else d.slots.forEach(function (s) { gb.appendChild(cartaoSlot(codigo, d, s)); });
     if (!d.slots.length) gb.appendChild(el('p', 'dc-vz', 'Nenhum item de documento para este cliente.'));
     sec.appendChild(gb);
     return sec;
