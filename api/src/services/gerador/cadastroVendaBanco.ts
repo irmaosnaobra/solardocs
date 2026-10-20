@@ -28,7 +28,12 @@ export const BUCKET_CADASTROS = 'cadastros-venda';
 export const LIMITE_CADASTRO_BYTES = 256 * 1024;
 const OPCOES_DO_BUCKET = { public: false, fileSizeLimit: LIMITE_CADASTRO_BYTES, allowedMimeTypes: ['application/json'] };
 
-export const caminhoCadastro = (id: number | string): string => `eletroposto/${id}.json`;
+/**
+ * Que cadastro: o do card vendido de eletroposto (`eletroposto/<id>.json`) ou o da venda SOLAR pelo card
+ * (`vendasolar/<id>.json`, 20/10/2026). Mesmo bucket privado, pastas separadas.
+ */
+export type LinhaCadastro = 'eletroposto' | 'vendasolar';
+export const caminhoCadastro = (id: number | string, linha: LinhaCadastro = 'eletroposto'): string => `${linha}/${id}.json`;
 
 const codigoDe = (e: unknown): string => String((e as { code?: unknown; statusCode?: unknown; status?: unknown } | null)?.code
   ?? (e as { statusCode?: unknown } | null)?.statusCode ?? (e as { status?: unknown } | null)?.status ?? 'desconhecido');
@@ -80,8 +85,8 @@ async function objetoAusente(caminho: string): Promise<boolean> {
 export const caminhoRotulos = (linha: string, codigo: string): string => `${linha}/${codigo}.docs.json`;
 
 /** O JSON do cadastro, ou null se o objeto não existe. Qualquer outra falha (rede, bucket, JSON torto) lança. */
-export async function lerCadastroBruto(id: number): Promise<unknown | null> {
-  return lerJsonBruto(caminhoCadastro(id));
+export async function lerCadastroBruto(id: number, linha: LinhaCadastro = 'eletroposto'): Promise<unknown | null> {
+  return lerJsonBruto(caminhoCadastro(id, linha));
 }
 
 /** O JSON de um caminho do bucket, ou null se o objeto não existe. Qualquer outra falha (rede, bucket, JSON torto) lança. */
@@ -99,8 +104,8 @@ export async function lerJsonBruto(caminho: string): Promise<unknown | null> {
 }
 
 /** Grava (sobrescreve) o JSON do cadastro. `cacheControl` zero: a leitura seguinte não pode ver a versão velha. */
-export async function gravarCadastroBruto(id: number, valor: unknown): Promise<void> {
-  return gravarJsonBruto(caminhoCadastro(id), valor);
+export async function gravarCadastroBruto(id: number, valor: unknown, linha: LinhaCadastro = 'eletroposto'): Promise<void> {
+  return gravarJsonBruto(caminhoCadastro(id, linha), valor);
 }
 
 /** Grava (sobrescreve) o JSON de um caminho do bucket. */
@@ -118,12 +123,12 @@ export async function gravarJsonBruto(caminho: string, valor: unknown): Promise<
  * Ids de card que TÊM cadastro (`eletroposto/<id>.json`). Serve para a grade da ficha só baixar o que existe, em vez de um
  * download por venda. Avança pelo que veio e só uma página vazia encerra (o Storage pode cortar abaixo do limite pedido).
  */
-export async function listarIdsComPasta(): Promise<Set<number>> {
+export async function listarIdsComPasta(linha: LinhaCadastro = 'eletroposto'): Promise<Set<number>> {
   await garantirBucketCadastros();
   const ids = new Set<number>();
   const PAGINA = 1000;
   for (let de = 0; de < 200_000;) {
-    const { data, error } = await supabase.storage.from(BUCKET_CADASTROS).list('eletroposto', {
+    const { data, error } = await supabase.storage.from(BUCKET_CADASTROS).list(linha, {
       limit: PAGINA, offset: de, sortBy: { column: 'name', order: 'asc' },
     });
     if (error || !Array.isArray(data)) throw new ErroCadastro('listar');

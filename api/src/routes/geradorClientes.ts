@@ -9,6 +9,8 @@ import {
   type Grade, type ColunaInterna, type RegistroGestao, type Celula,
 } from '../services/gerador/gestaoClientes';
 import { lerRegistros, lerRegistroComVersao, gravarRegistro, ErroGestao } from '../services/gerador/gestaoClientesBanco';
+import { lerCardSolarVendido, lerLigacao } from '../services/gerador/vendaSolarHub';
+import type { CardVendido } from '../services/gerador/fichaEletroposto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GESTÃO DE CLIENTES (solar) no /gerador: a Planilha Mestre como grade editável.
@@ -103,6 +105,54 @@ export async function codigosSolar(): Promise<string[]> {
   let pl: { dados: CacheGrade; atual: boolean };
   try { pl = await grade(false); } catch { throw new ErroVendaSolar(502); }
   return pl.dados.grade.vendas.map((v) => v.codigo);
+}
+
+/** O que o hub da venda solar precisa de cada venda da planilha para casar com o card: nome, telefone, data e consultor EFETIVO. */
+export interface VendaPlanilhaResumo { codigo: string; cliente: string; telefone: string; data: string; consultor: string }
+
+/**
+ * Todas as vendas da planilha (código `#NNNN`, cliente, telefone, data da venda e consultor efetivo), já com o que o sistema
+ * gravou por cima (`gestao_cliente:<NNNN>`): telefone e consultor corrigidos lá valem. Uso interno do servidor: o telefone
+ * nunca sai na resposta.
+ */
+export async function vendasDaPlanilha(): Promise<VendaPlanilhaResumo[]> {
+  let pl: { dados: CacheGrade; atual: boolean };
+  try { pl = await grade(false); } catch { throw new ErroVendaSolar(502); }
+  const { cols, grade: g } = pl.dados;
+  let regs: Map<string, RegistroGestao>;
+  try { regs = await lerRegistros(g.vendas.map((v) => v.codigo)); } catch { throw new ErroVendaSolar(500); }
+  const col = (chave: string): ColunaInterna | undefined => cols.find((c) => c.chave === chave);
+  const [cCliente, cContato, cData] = [col('cliente'), col('contato'), col('cadastro_trello')];
+  const texto = (c: ColunaInterna | undefined, bruto: string[], reg: RegistroGestao | undefined): string => {
+    if (!c) return '';
+    const v = celulaDe(c, bruto[c.indice] ?? '', reg).valor;
+    return v === null || v === undefined ? '' : String(v);
+  };
+  return g.vendas.map((v) => {
+    const reg = regs.get(v.codigo);
+    return {
+      codigo: v.codigo,
+      cliente: texto(cCliente, v.celulas, reg),
+      telefone: texto(cContato, v.celulas, reg),
+      data: texto(cData, v.celulas, reg).slice(0, 10),
+      consultor: consultorEfetivo(cols, v.celulas, reg),
+    };
+  });
+}
+
+/**
+ * Quem pode ver e mexer na venda solar de um card (a guarda da linha `vendasolar`): o card existe, é SOLAR (não eletroposto) e
+ * está `fechou`; e quem pede é sócio, ou o `vendedor_nome` do card, ou o consultor EFETIVO da venda da planilha ligada ao card
+ * (mesma regra de `vendaSolarDoDono`). A ordem importa: sócio e vendedor passam sem tocar na planilha, então planilha fora do ar
+ * não barra o próprio vendedor. Devolve null quando não existe OU não pode (as duas coisas são iguais para quem pede).
+ */
+export async function acessoVendaSolar(nome: string, socio: boolean, cardId: number): Promise<CardVendido | null> {
+  const card = await lerCardSolarVendido(cardId);
+  if (!card) return null;
+  if (socio || podeVer(nome, String(card.vendedor_nome ?? ''))) return card;
+  const { lig } = await lerLigacao(cardId);
+  if (lig.venda && await vendaSolarDoDono(nome, false, lig.venda)) return card;
+  return null;
 }
 
 function quem(req: Request): { nome: string; socio: boolean } {

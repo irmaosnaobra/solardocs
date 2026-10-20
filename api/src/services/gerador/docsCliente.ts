@@ -27,9 +27,12 @@ import {
   colunasFichaPara, celulaFicha, GRUPOS_FICHA, type CardVendido, type ObraEp,
 } from './fichaEletroposto';
 
-export type Linha = 'solar' | 'eletroposto';
-export const LINHAS: readonly Linha[] = ['solar', 'eletroposto'];
-export const ehLinha = (x: unknown): x is Linha => x === 'solar' || x === 'eletroposto';
+// `vendasolar` (20/10/2026): a venda SOLAR tendo o CARD VENDIDO como centro (código = id do card, como no eletroposto).
+// `solar` segue sendo a venda da planilha mãe (`#NNNN`). As duas convivem: o card e a venda ficam ligados pelo hub
+// (`venda_solar:<card>` no `system_state`, veja `vendaSolarHub.ts`).
+export type Linha = 'solar' | 'eletroposto' | 'vendasolar';
+export const LINHAS: readonly Linha[] = ['solar', 'eletroposto', 'vendasolar'];
+export const ehLinha = (x: unknown): x is Linha => x === 'solar' || x === 'eletroposto' || x === 'vendasolar';
 
 export const LIMITE_BYTES = 10 * 1024 * 1024;
 export const BUCKET_DOCS = 'fichas-docs';
@@ -96,6 +99,37 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('instalacao', 'Fotos da instalação', 'imagem', true, true),
     it('outros', 'Outros documentos', 'ambos', false, true),
   ],
+  // Venda SOLAR pelo card (20/10/2026). Também por PESSOA e por FINALIDADE. As chaves `documento_titular`, `conta_luz`, `fachada`,
+  // `padrao`, `disjuntor` e `medidor` são as mesmas do dossiê da proposta (`documento` do dossiê = `documento_titular` aqui).
+  // A conta de luz (`conta_luz`) é a da UNIDADE GERADORA, onde vão as placas; as contas das unidades que recebem o excedente
+  // ficam em `conta_luz_beneficiaria` (várias).
+  vendasolar: [
+    it('documento_titular', 'CNH ou documento pessoal do comprador', 'ambos', true),
+    it('comprovante_endereco_comprador', 'Comprovante de endereço do comprador', 'ambos', false),
+    it('documento_titular_uc', 'CNH ou documento do titular da conta de luz (quando não é o comprador)', 'ambos', false),
+    it('documento_outra_pessoa', 'Documento de outra pessoa (cônjuge, sócio, representante)', 'ambos', false, true),
+    it('documento_avalista', 'CNH ou documento pessoal do avalista', 'ambos', false),
+    it('comprovante_endereco_avalista', 'Comprovante de endereço do avalista', 'ambos', false),
+    it('conta_luz', 'Conta de luz da unidade geradora (onde vão as placas)', 'ambos', true),
+    it('conta_luz_beneficiaria', 'Conta de luz da unidade que recebe o excedente', 'ambos', false, true),
+    it('documento_imovel', 'Documento do imóvel: matrícula, escritura ou IPTU', 'ambos', false, true),
+    it('fachada', 'Foto da fachada', 'imagem', true),
+    it('padrao', 'Foto do padrão de entrada', 'imagem', true),
+    it('disjuntor', 'Foto do disjuntor', 'imagem', true),
+    it('medidor', 'Foto do relógio medidor', 'imagem', true),
+    it('contrato_assinado', 'Contrato assinado', 'ambos', true),
+    it('procuracao', 'Procuração', 'ambos', false),
+    it('outros', 'Outros documentos', 'ambos', false, true),
+  ],
+};
+
+/**
+ * Slot do dossiê da proposta -> item do catálogo `vendasolar`. Só leitura: o dossiê não migra. O `documento` do dossiê é o
+ * "documento com foto do TITULAR DA CONTA" de luz (veja `ARQUIVOS_SOLAR`), que nem sempre é o comprador: vira
+ * `documento_titular_uc`, e na leitura por IA só alimenta `tuc_*`.
+ */
+export const SLOT_DO_DOSSIE_NA_VENDASOLAR: Readonly<Record<string, string>> = {
+  documento: 'documento_titular_uc', conta_luz: 'conta_luz', fachada: 'fachada', padrao: 'padrao', disjuntor: 'disjuntor', medidor: 'medidor',
 };
 
 /**
@@ -132,6 +166,7 @@ export function codigoDeRota(linha: Linha, bruto: unknown): string | null {
     const n = Number(t.replace('#', ''));
     return n > 0 ? codigoCanonico(t).replace(/\D/g, '') : null;
   }
+  // Eletroposto e vendasolar: o id do card, sem zero à esquerda.
   if (!/^\d{1,12}$/.test(t) || Number(t) <= 0) return null;
   return String(Number(t));
 }
@@ -143,7 +178,7 @@ export function novoCaminho(linha: Linha, codigo: string, mime: string): string 
   return `${linha}/${codigo}/${crypto.randomUUID()}.${EXT_POR_MIME[mime] ?? 'bin'}`;
 }
 
-const RE_CAMINHO = /^(solar|eletroposto)\/(\d{1,12})\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|png|webp|pdf)$/;
+const RE_CAMINHO = /^(solar|eletroposto|vendasolar)\/(\d{1,12})\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|png|webp|pdf)$/;
 
 /** O caminho INTEIRO tem que casar o formato que o servidor gera. Qualquer outra coisa (`..`, barra extra, outra extensão) é null. */
 export function lerCaminho(caminho: unknown): { linha: Linha; codigo: string; uuid: string; ext: string; mime: string } | null {

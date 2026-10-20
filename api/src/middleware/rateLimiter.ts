@@ -6,10 +6,10 @@ export const ehRotaDaCaixa = (url: string | undefined): boolean => String(url ??
 /**
  * Os dois pedidos de ANEXO de venda: POST `/gerador/clientes/:linha/:codigo/docs/upload-url` e POST
  * `/gerador/clientes/:linha/:codigo/docs`. O limiter global roda no `app.ts` sem prefixo de montagem, então o caminho
- * inteiro está em `originalUrl` (com a query, que é cortada aqui). Regex ancorada nos dois lados: linha só solar ou
- * eletroposto, código só dígitos. `/docs/x/upload-url`, `..`, barra no fim e qualquer outro método NÃO casam.
+ * inteiro está em `originalUrl` (com a query, que é cortada aqui). Regex ancorada nos dois lados: linha só solar,
+ * eletroposto ou vendasolar (a venda solar pelo card; `solar` NÃO casa com `vendasolar`), código só dígitos. `/docs/x/upload-url`, `..`, barra no fim e qualquer outro método NÃO casam.
  */
-const RE_ENVIO_DOCS = /^\/gerador\/clientes\/(?:solar|eletroposto)\/\d{1,12}\/docs(?:\/upload-url)?$/;
+const RE_ENVIO_DOCS = /^\/gerador\/clientes\/(?:solar|eletroposto|vendasolar)\/\d{1,12}\/docs(?:\/upload-url)?$/;
 export const ehEnvioDeDocs = (metodo: string | undefined, url: string | undefined): boolean =>
   metodo === 'POST' && RE_ENVIO_DOCS.test(String(url ?? '').split('?')[0]);
 

@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
 import { exigeConsultor } from './geradorDossie';
 import { ehSocio, podeVer } from '../services/gerador/solarObras';
-import { vendaSolarDoDono, codigosSolar, ErroVendaSolar, type VendaSolarDoDono } from './geradorClientes';
+import { vendaSolarDoDono, codigosSolar, acessoVendaSolar, ErroVendaSolar, type VendaSolarDoDono } from './geradorClientes';
+import { lerLigacao } from '../services/gerador/vendaSolarHub';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
 import { celulaDe } from '../services/gerador/gestaoClientes';
@@ -16,7 +17,7 @@ import {
   CATALOGO, SLOTS_FORA_DO_RELATORIO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, corpoRelatorioSolar,
   corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover,
-  limiteDoItem, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
+  limiteDoItem, SLOT_DO_DOSSIE_NA_VENDASOLAR, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
@@ -112,6 +113,13 @@ export async function contexto(req: Request, res: Response, linhaFixa?: Linha): 
       const v = col ? celulaDe(col, s.venda.celulas[col.indice] ?? '', s.reg).valor : '';
       return { linha, codigo, nome, socio, cliente: typeof v === 'string' ? v : '', solar: s };
     }
+    if (linha === 'vendasolar') {
+      // Venda solar pelo card: o card existe, é SOLAR e está `fechou`; vê quem é o vendedor do card, o consultor da venda da
+      // planilha ligada a ele, ou sócio. Inexistente, de eletroposto, não vendido e alheio respondem IGUAL (404).
+      const c = await acessoVendaSolar(nome, socio, Number(codigo));
+      if (!c) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return null; }
+      return { linha, codigo, nome, socio, cliente: String(c.cliente_nome ?? ''), card: c };
+    }
     const card = await lerCardVendido(Number(codigo));
     if (!card || !(socio || podeVer(nome, String(card.vendedor_nome ?? '')))) {
       res.status(404).json({ ok: false, error: MSG_NAO_ACHEI });
@@ -154,28 +162,73 @@ const mimeDoDossie = (tipo: unknown, path: string): string => {
   return ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 };
 
-interface ArqVinculado { slot: string; mime: string; url: string | null }
+/** `path` e `tamanho` ficam no servidor (a leitura por IA baixa o arquivo); a resposta das rotas leva só slot, mime e url. */
+interface ArqVinculado { slot: string; mime: string; url: string | null; path: string; bytes: number; em: string }
 
 /**
- * Os arquivos do dossiê da proposta vinculada, lidos pelo servidor. Devolve só slot, mime e url: `nome` (o nome original)
- * e `path` ficam aqui. URL que não assinou vem null (quem chama decide); falha de leitura vira `indisponivel`.
+ * Os arquivos do dossiê da proposta vinculada, lidos pelo servidor. A resposta das rotas leva só slot, mime e url: `nome` (o
+ * nome original) fica aqui. URL que não assinou vem null (quem chama decide); falha de leitura vira `indisponivel`.
+ * `soDaProposta` (venda solar pelo card): os caminhos vêm de `propostas.dados`, que é editável, então só vale o que começa pelo
+ * código da PROPOSTA (`<codigo>/...`); senão um caminho injetado faria o servidor assinar (ou baixar) o arquivo de outra venda.
+ * A linha `solar` (já em produção) NÃO usa a trava: o comportamento dela não mudou.
  */
-async function lerDossieVinculado(proposta: string, segundos: number): Promise<{ arquivos: ArqVinculado[]; indisponivel: boolean }> {
+async function lerDossieVinculado(
+  proposta: string, segundos: number, comUrl = true, soDaProposta = false,
+): Promise<{ arquivos: ArqVinculado[]; indisponivel: boolean }> {
   try {
     const p = await lerProposta(proposta);
     if (!p) return { arquivos: [], indisponivel: false };
-    const pedidos: Array<{ slot: string; mime: string; path: string }> = [];
+    const pedidos: Array<{ slot: string; mime: string; path: string; bytes: number; em: string }> = [];
     for (const s of ARQUIVOS_SOLAR) {
-      for (const a of p.dossie.arquivos[s.key] ?? []) pedidos.push({ slot: s.key, mime: mimeDoDossie(a.tipo, a.path), path: a.path });
+      for (const a of p.dossie.arquivos[s.key] ?? []) {
+        if (soDaProposta && (typeof a.path !== 'string' || !a.path.startsWith(`${proposta}/`) || a.path.includes('..'))) {
+          console.error('[ficha-docs] caminho do dossiê fora da proposta', 'caminho_fora');
+          continue;
+        }
+        pedidos.push({ slot: s.key, mime: mimeDoDossie(a.tipo, a.path), path: a.path, bytes: Number(a.bytes) || 0, em: String(a.em ?? '') });
+      }
     }
     const urls = await Promise.all(pedidos.map(async (x) => {
+      if (!comUrl) return null;
       try { return await assinar(x.path, segundos); } catch { return null; }
     }));
-    return { arquivos: pedidos.map((x, i) => ({ slot: x.slot, mime: x.mime, url: urls[i] })), indisponivel: false };
+    return { arquivos: pedidos.map((x, i) => ({ ...x, url: urls[i] })), indisponivel: false };
   } catch (err) {
     logErro('dossiê vinculado falhou', err);
     return { arquivos: [], indisponivel: true };
   }
+}
+
+/**
+ * A proposta ligada ao card (venda solar pelo card), conferida de novo na LEITURA: o vínculo mora no `system_state`, que a chave
+ * pública do banco principal alcança, e um vínculo injetado serviria o dossiê (CNH, conta de luz) de outra proposta. Vale só se a
+ * proposta existe, está vendida e é do papel (sócio, ou o nome DELE em `consultor_nome`). null = nada ligado ou não vale.
+ */
+async function propostaLigadaAoCard(ctx: Ctx): Promise<string | null> {
+  const { lig } = await lerLigacao(Number(ctx.codigo));
+  if (!lig.proposta) return null;
+  const p = await lerPropostaResumo(lig.proposta);
+  if (p && p.vendido && propostaDoPapel(ctx, p.consultor_nome)) return lig.proposta;
+  console.error('[ficha-docs] vínculo fora do papel', 'vinculo_fora');
+  return null;
+}
+
+/** O slot do dossiê no catálogo da `vendasolar`, ou null (slot que o catálogo não tem). */
+const slotDaVendaSolar = (slotDoDossie: string): string | null => SLOT_DO_DOSSIE_NA_VENDASOLAR[slotDoDossie] ?? null;
+
+/**
+ * Os arquivos do dossiê da proposta ligada ao card, já nos itens da `vendasolar` (`documento` vira `documento_titular`).
+ * Só leitura: o dossiê não migra. `jpg` vira `jpeg`. null = nada ligado (ou o vínculo não vale).
+ */
+export async function dossieDaVendaSolar(ctx: Ctx, segundos: number, comUrl = true) {
+  const proposta = await propostaLigadaAoCard(ctx);
+  if (!proposta) return null;
+  const d = await lerDossieVinculado(proposta, segundos, comUrl, true);
+  const arquivos = d.arquivos.flatMap((a) => {
+    const slot = slotDaVendaSolar(a.slot);
+    return slot ? [{ ...a, slot, mime: a.mime === 'image/jpg' ? 'image/jpeg' : a.mime }] : [];
+  });
+  return { proposta, arquivos, indisponivel: d.indisponivel };
 }
 
 /**
@@ -201,6 +254,27 @@ async function blocoVinculo(ctx: Ctx, reg: RegistroDocs, segundos: number) {
     arquivos: d.arquivos.filter((a) => a.url).map((a) => ({ slot: a.slot, mime: a.mime, url: a.url as string })),
     ...(d.indisponivel ? { indisponivel: true } : {}),
   };
+}
+
+/**
+ * O campo `dossie` do GET dos documentos da `vendasolar`: `{ proposta, arquivos: [{ slot, url, mime, de: 'dossie' }] }`, ou null
+ * quando não há proposta ligada. Falha de leitura NUNCA derruba a lista: vira `dossie: null` e `dossie_indisponivel: true`.
+ */
+async function blocoDossieVendaSolar(ctx: Ctx): Promise<Record<string, unknown>> {
+  try {
+    const d = await dossieDaVendaSolar(ctx, SEG_URL_DOCS);
+    if (!d) return { dossie: null };
+    return {
+      dossie: {
+        proposta: d.proposta,
+        arquivos: d.arquivos.filter((a) => a.url).map((a) => ({ slot: a.slot, url: a.url as string, mime: a.mime, de: 'dossie' })),
+        ...(d.indisponivel ? { indisponivel: true } : {}),
+      },
+    };
+  } catch (err) {
+    logErro('dossiê da venda solar falhou', err);
+    return { dossie: null, dossie_indisponivel: true };
+  }
 }
 
 /**
@@ -238,6 +312,8 @@ export function mountClientesDocs(router: Router): void {
         arquivos: reg.arquivos.map((a) => lerNaTela(a, urls, rot)),
         ...(indisponivel ? { rotulos_indisponivel: true } : {}),
         vinculo: ctx.linha === 'solar' ? await blocoVinculo(ctx, reg, SEG_URL_DOCS) : null,
+        // Venda solar pelo card: o dossiê da proposta ligada, só leitura, já nos itens da `vendasolar`.
+        ...(ctx.linha === 'vendasolar' ? await blocoDossieVendaSolar(ctx) : {}),
         // A posse já limitou a dono ou sócio: quem chegou aqui pode remover.
         pode_remover: true,
       });
@@ -528,6 +604,20 @@ export function mountClientesDocs(router: Router): void {
         const c = corpoRelatorioSolar(s.cols, s.venda.celulas, s.reg);
         corpo = c;
         obraConcluida = c.liberado;   // o Solar não tem pós-venda por etapa: "sistema liberado" é o marco
+      } else if (ctx.linha === 'vendasolar') {
+        // O corpo vem da venda da planilha LIGADA ao card (mesmas colunas e mesmo filtro do relatório do solar: sem dinheiro,
+        // sem texto livre). Sem venda ligada, ou com uma venda que quem pede não enxerga na planilha, o relatório sai só com os
+        // documentos: a posse da venda é a mesma de sempre (sócio, ou o consultor efetivo dela), nunca com acesso de sócio emprestado.
+        const { lig } = await lerLigacao(Number(ctx.codigo));
+        const s = lig.venda ? await vendaSolarDoDono(ctx.nome, ctx.socio, lig.venda) : null;
+        if (s) {
+          const c = corpoRelatorioSolar(s.cols, s.venda.celulas, s.reg);
+          corpo = c;
+          obraConcluida = c.liberado;
+        } else {
+          corpo = { secoes: [], camposPendentes: [] };
+          obraConcluida = false;
+        }
       } else {
         const card = ctx.card as CardVendido;
         const id = card.id;
@@ -549,7 +639,7 @@ export function mountClientesDocs(router: Router): void {
         for (const a of reg.arquivos.filter((x) => x.slot === item.chave)) {
           // Também pelo CONTEÚDO: o tipo que a IA deu ao arquivo (guardado com os rótulos) não pode ser de documento pessoal de
           // terceiro, mesmo que ele esteja em `outros` ou em outro item.
-          if (ctx.linha === 'eletroposto' && SLOTS_FORA_DO_RELATORIO.has(rot?.tipos[a.id] ?? '')) continue;
+          if (ctx.linha !== 'solar' && SLOTS_FORA_DO_RELATORIO.has(rot?.tipos[a.id] ?? '')) continue;
           presentes.add(item.chave);
           const url = urls.get(a.caminho);
           // Só o nome dado pela IA entra (sem nome de pessoa nem número, por regra). O nome manual é texto livre e pode ter
@@ -559,6 +649,18 @@ export function mountClientesDocs(router: Router): void {
         }
       }
       // O que foi anexado no após-vender (dossiê da proposta vinculada) entra no lugar do item que está vazio aqui.
+      if (ctx.linha === 'vendasolar') {
+        // Venda solar pelo card: o dossiê da proposta ligada, já nos itens da `vendasolar`.
+        const dv = await dossieDaVendaSolar(ctx, SEG_URL_RELATORIO);
+        if (dv) {
+          const proprios = new Set(presentes);
+          for (const a of dv.arquivos) {
+            if (proprios.has(a.slot) || SLOTS_FORA_DO_RELATORIO.has(a.slot)) continue;
+            presentes.add(a.slot);
+            if (a.url) documentos.push({ slot: a.slot, rotulo: rotulo(a.slot), mime: a.mime, url: a.url });
+          }
+        }
+      }
       const propostaVinculada = ctx.linha === 'solar' ? await vinculoDaLeitura(ctx, reg) : null;
       if (propostaVinculada) {
         const d = await lerDossieVinculado(propostaVinculada, SEG_URL_RELATORIO);
@@ -588,6 +690,8 @@ function propostaDoPapel(ctx: Ctx, consultorDaProposta: string): boolean {
 /** Quem chega às rotas de documentos já passou na posse (dono ou sócio): a regra de remover é a mesma. */
 function podeRemover(ctx: Ctx): boolean {
   if (ctx.socio) return true;
+  // Venda solar pelo card: a posse já aceitou o vendedor do card, o consultor da venda ligada ou o sócio.
+  if (ctx.linha === 'vendasolar') return !!ctx.card;
   return ctx.linha === 'solar' ? !!ctx.solar : podeVer(ctx.nome, String(ctx.card?.vendedor_nome ?? ''));
 }
 

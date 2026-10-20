@@ -11,7 +11,7 @@
 // Nunca se loga valor de campo: só contagens, nomes de campo e de slot.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { RegistroGestao } from './gestaoClientes';
-import { ErroCadastro, lerCadastroBruto, gravarCadastroBruto, listarIdsComPasta, comTrava } from './cadastroVendaBanco';
+import { ErroCadastro, lerCadastroBruto, gravarCadastroBruto, listarIdsComPasta, comTrava, type LinhaCadastro } from './cadastroVendaBanco';
 import { lerFichaComVersao, gravarFicha } from './fichaEletropostoBanco';
 
 // O cadastro tem PAPÉIS (19/10/2026): o comprador (campos sem prefixo, mais o representante `rep_*` e o ponto), o cedente do
@@ -31,11 +31,48 @@ export const CAMPOS_AVALISTA = [
   'aval_profissao', 'aval_endereco', 'aval_bairro', 'aval_cidade', 'aval_uf', 'aval_cep', 'aval_email', 'aval_telefone',
 ] as const;
 export const CAMPOS_IMOVEL = ['imovel_matricula', 'imovel_cartorio', 'imovel_iptu'] as const;
+/** Os campos do eletroposto (o cadastro do card vendido de eletroposto). NÃO inclui os da venda solar. */
 export const CAMPOS = [...CAMPOS_COMPRADOR, ...CAMPOS_CEDENTE, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL] as const;
-export type Campo = typeof CAMPOS[number];
+
+// ── Venda SOLAR pelo card (`vendasolar`, 20/10/2026) ─────────────────────────
+// O mesmo cadastro, com outros papéis: o comprador (e o representante `rep_*`), o titular da conta de luz da unidade geradora
+// (`tuc_*`, quando não é o comprador), o avalista, o imóvel e as unidades BENEFICIÁRIAS (as que recebem o excedente), em
+// 5 vagas fixas `benef_1_*` a `benef_5_*`. A unidade geradora (onde vão as placas) reaproveita `unidade_consumidora`,
+// `concessionaria`, `titular_conta` e `endereco_ponto` e ganha `uc_classe` e `consumo_medio_kwh`. Não há cedente.
+export const CAMPOS_TITULAR_UC = [
+  'tuc_nome', 'tuc_cpf_cnpj', 'tuc_rg_ie', 'tuc_orgao_emissor', 'tuc_nacionalidade', 'tuc_estado_civil', 'tuc_profissao',
+  'tuc_endereco', 'tuc_bairro', 'tuc_cidade', 'tuc_uf', 'tuc_cep', 'tuc_email', 'tuc_telefone', 'tuc_relacao',
+] as const;
+export const CAMPOS_UC_SOLAR = ['uc_classe', 'consumo_medio_kwh'] as const;
+export const MAX_BENEFICIARIAS = 5;
+export const CAMPOS_BENEFICIARIAS = [
+  'benef_1_uc', 'benef_1_titular', 'benef_1_endereco', 'benef_1_pct',
+  'benef_2_uc', 'benef_2_titular', 'benef_2_endereco', 'benef_2_pct',
+  'benef_3_uc', 'benef_3_titular', 'benef_3_endereco', 'benef_3_pct',
+  'benef_4_uc', 'benef_4_titular', 'benef_4_endereco', 'benef_4_pct',
+  'benef_5_uc', 'benef_5_titular', 'benef_5_endereco', 'benef_5_pct',
+] as const;
+/** Os campos da venda solar pelo card. NÃO inclui `ced_*`. */
+export const CAMPOS_VENDASOLAR = [
+  ...CAMPOS_COMPRADOR, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_BENEFICIARIAS,
+] as const;
+const CAMPOS_TODOS = [...CAMPOS, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_BENEFICIARIAS] as const;
+/** Qualquer campo de qualquer cadastro. Quem decide se um campo vale é a LINHA (`ehCampo(x, linha)`). */
+export type Campo = typeof CAMPOS_TODOS[number];
 /** Papel do cedente em relação ao ponto (`ced_qualidade`). Guardado sem acento e em minúscula. */
 export const QUALIDADES_CEDENTE = ['proprietario', 'possuidor', 'inquilino', 'representante', 'condominio'] as const;
-export const ehCampo = (x: unknown): x is Campo => typeof x === 'string' && (CAMPOS as readonly string[]).includes(x);
+/** Quem é o titular da conta de luz em relação ao comprador (`tuc_relacao`). Guardado sem acento e em minúscula. */
+export const RELACOES_TITULAR_UC = ['conjuge', 'pai_mae', 'filho', 'empresa', 'outro'] as const;
+/** Classe de consumo da unidade geradora (`uc_classe`). */
+export const CLASSES_UC = ['residencial', 'comercial', 'rural', 'industrial', 'poder_publico'] as const;
+export type LinhaDoCadastro = LinhaCadastro;
+const SETS_DE_CAMPOS: Record<LinhaCadastro, ReadonlySet<string>> = {
+  eletroposto: new Set<string>(CAMPOS),
+  vendasolar: new Set<string>(CAMPOS_VENDASOLAR),
+};
+export const camposDaLinha = (linha: LinhaCadastro): readonly Campo[] => (linha === 'vendasolar' ? CAMPOS_VENDASOLAR : CAMPOS);
+/** O campo existe NESTA linha? Sem a linha, vale a do eletroposto (o que sempre valeu). */
+export const ehCampo = (x: unknown, linha: LinhaCadastro = 'eletroposto'): x is Campo => typeof x === 'string' && SETS_DE_CAMPOS[linha].has(x);
 
 export type Fonte = 'manual' | 'ia' | 'ficha';
 export type Tipo = 'PF' | 'PJ';
@@ -97,6 +134,25 @@ function dataReal(t: string): boolean {
 
 export type ResultadoCampo = { ok: true; valor: string } | { ok: false; erro: string };
 
+/** Opção de lista como chave guardada: sem acento, minúscula, espaço, barra e hífen viram `_` ("Pai/Mãe" vira `pai_mae`). */
+const chaveDeOpcao = (t: string): string =>
+  t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[\s/\-]+/g, '_').replace(/^_+|_+$/g, '');
+
+/**
+ * Número digitado: "350", "350,5", "1.234" (ponto de milhar), "1.234,5", "350.5", com "kWh" ou "%" no fim. null = não é número.
+ * Ponto só é milhar quando é grupo de 3 dígitos (`1.500` vale 1500); `350.5` é decimal.
+ */
+function numeroBR(texto: string, comMilhar = true): number | null {
+  let s = texto.replace(/\s+/g, '').replace(/(kwh|%)$/i, '');
+  if (!/^\d[\d.,]*$/.test(s)) return null;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (comMilhar && /^[1-9]\d{0,2}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+/** Como o número é guardado: texto com ponto decimal e até 2 casas, sem zeros à direita ("350", "350.5", "33.33"). */
+const numeroGuardado = (n: number): string => String(Math.round(n * 100) / 100);
+
 /**
  * Valida e normaliza UM campo. Vazio é permitido e significa "limpar". Devolve o valor já no formato guardado
  * (CPF/CNPJ e CEP formatados, UF em maiúscula, e-mail em minúscula, telefone só dígitos).
@@ -106,8 +162,29 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
   const t = valor.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (t === '') return { ok: true, valor: '' };
   if (t.length > MAX_CAMPO) return { ok: false, erro: `Texto longo demais (máximo ${MAX_CAMPO} caracteres).` };
-  // Os campos do cedente e do avalista seguem a regra do campo igual do comprador (`ced_cep` valida como `cep`).
-  switch (campo.replace(/^(ced|aval)_/, '')) {
+  // Percentual de uma unidade beneficiária (`benef_N_pct`): de 0 a 100. Guardado como número com ponto decimal, até 2 casas.
+  if (/^benef_[1-5]_pct$/.test(campo)) {
+    const n = numeroBR(t, false);   // percentual nunca passa de 100: o ponto é sempre decimal ("33.333" vale 33,33)
+    return n !== null && n >= 0 && n <= 100 ? { ok: true, valor: numeroGuardado(n) } : { ok: false, erro: 'Percentual de 0 a 100.' };
+  }
+  // Os campos do cedente, do avalista e do titular da UC seguem a regra do campo igual do comprador (`ced_cep` valida como `cep`).
+  switch (campo.replace(/^(ced|aval|tuc)_/, '')) {
+    case 'consumo_medio_kwh': {
+      const n = numeroBR(t);
+      return n !== null && n > 0 && n <= 1_000_000 ? { ok: true, valor: numeroGuardado(n) } : { ok: false, erro: 'Consumo médio em kWh, maior que zero.' };
+    }
+    case 'uc_classe': {
+      const c = chaveDeOpcao(t);
+      return (CLASSES_UC as readonly string[]).includes(c)
+        ? { ok: true, valor: c }
+        : { ok: false, erro: 'Escolha: residencial, comercial, rural, industrial ou poder público.' };
+    }
+    case 'relacao': {
+      const c = chaveDeOpcao(t);
+      return (RELACOES_TITULAR_UC as readonly string[]).includes(c)
+        ? { ok: true, valor: c }
+        : { ok: false, erro: 'Escolha: cônjuge, pai ou mãe, filho, empresa ou outro.' };
+    }
     case 'qualidade': {
       const q = t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
       return (QUALIDADES_CEDENTE as readonly string[]).includes(q)
@@ -175,9 +252,14 @@ export function tipoDoCadastro(c: Cadastro): Tipo {
 }
 
 /** Campos obrigatórios ainda vazios, na ordem em que a tela os pede. Na PJ, `rg_ie` é a inscrição estadual (aceita "isento"). */
-export function faltando(c: Cadastro): Campo[] {
+export function faltando(c: Cadastro, linha: LinhaCadastro = 'eletroposto'): Campo[] {
   const lista = tipoDoCadastro(c) === 'PJ' ? OBRIGATORIOS_PJ : OBRIGATORIOS_PF;
-  return [...lista.filter((k) => !c.campos[k]?.valor), ...faltandoDosPapeis(c)];
+  const proprios = lista.filter((k) => !c.campos[k]?.valor);
+  if (linha === 'vendasolar') {
+    const f = faltandoPorPapelSolar(c);
+    return [...proprios, ...f.titular_uc, ...f.avalista, ...f.imovel, ...f.beneficiarias];
+  }
+  return [...proprios, ...faltandoDosPapeis(c)];
 }
 
 // Cedente, avalista e imóvel só entram na conta se alguém já começou a preencher: venda sem cedente (compra, ou o comprador é o
@@ -205,6 +287,34 @@ export function faltandoPorPapel(c: Cadastro): FaltandoPorPapel {
   };
 }
 
+// Venda solar: o comprador e a unidade geradora (`endereco_ponto`, `unidade_consumidora`, `concessionaria`, os mesmos obrigatórios
+// do eletroposto) sempre contam. Titular da UC, avalista, imóvel e cada beneficiária só entram na conta se alguém já começou
+// a preencher aquela pessoa/vaga. O que o titular da UC precisa: documento, endereço e a relação com o comprador; PF leva RG,
+// estado civil e profissão. Beneficiária: a UC, o titular e o percentual (o percentual não vem da conta de luz).
+const OBRIGATORIOS_TITULAR_UC_BASE: Campo[] = ['tuc_nome', 'tuc_cpf_cnpj', 'tuc_endereco', 'tuc_bairro', 'tuc_cidade', 'tuc_uf', 'tuc_cep', 'tuc_relacao'];
+const OBRIGATORIOS_TITULAR_UC_PF: Campo[] = ['tuc_rg_ie', 'tuc_estado_civil', 'tuc_profissao'];
+
+export interface FaltandoPorPapelSolar { titular_uc: Campo[]; avalista: Campo[]; imovel: Campo[]; beneficiarias: Campo[] }
+
+/** Campos de uma vaga de beneficiária (1 a 5), na ordem em que a tela os pede. */
+export const camposDaBeneficiaria = (n: number): Campo[] =>
+  (['uc', 'titular', 'endereco', 'pct'] as const).map((s) => `benef_${n}_${s}` as Campo);
+
+export function faltandoPorPapelSolar(c: Cadastro): FaltandoPorPapelSolar {
+  const sem = (lista: Campo[]): Campo[] => lista.filter((k) => !c.campos[k]?.valor);
+  const ehPj = (campo: Campo): boolean => tipoPeloDocumento(c.campos[campo]?.valor) === 'PJ';
+  const beneficiarias: Campo[] = [];
+  for (let n = 1; n <= MAX_BENEFICIARIAS; n++) {
+    if (temAlgum(c, camposDaBeneficiaria(n))) beneficiarias.push(...sem([`benef_${n}_uc`, `benef_${n}_titular`, `benef_${n}_pct`] as Campo[]));
+  }
+  return {
+    titular_uc: temAlgum(c, CAMPOS_TITULAR_UC) ? sem([...OBRIGATORIOS_TITULAR_UC_BASE, ...(ehPj('tuc_cpf_cnpj') ? [] : OBRIGATORIOS_TITULAR_UC_PF)]) : [],
+    avalista: temAlgum(c, CAMPOS_AVALISTA) ? sem([...OBRIGATORIOS_AVALISTA_BASE, ...(ehPj('aval_cpf_cnpj') ? [] : OBRIGATORIOS_AVALISTA_PF)]) : [],
+    imovel: temAlgum(c, CAMPOS_IMOVEL) ? sem(OBRIGATORIOS_IMOVEL) : [],
+    beneficiarias,
+  };
+}
+
 function faltandoDosPapeis(c: Cadastro): Campo[] {
   const f = faltandoPorPapel(c);
   return [...f.cedente, ...f.avalista, ...f.imovel];
@@ -217,12 +327,12 @@ const txt = (x: unknown): string => (typeof x === 'string' ? x : '');
 const fonteDe = (x: unknown): Fonte => (FONTES.includes(String(x)) ? (x as Fonte) : 'manual');
 
 /** Normaliza o JSON do bucket (pode vir torto): só os campos conhecidos, só texto não vazio. */
-export function normalizarCadastro(raw: unknown): Cadastro {
+export function normalizarCadastro(raw: unknown, linha: LinhaCadastro = 'eletroposto'): Cadastro {
   const c = cadastroVazio();
   const v = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
   const campos = (v.campos && typeof v.campos === 'object' ? v.campos : {}) as Record<string, unknown>;
   for (const [k, g] of Object.entries(campos)) {
-    if (!ehCampo(k) || !g || typeof g !== 'object') continue;
+    if (!ehCampo(k, linha) || !g || typeof g !== 'object') continue;
     const x = g as Record<string, unknown>;
     const valor = txt(x.valor);
     if (!valor) continue;
@@ -232,7 +342,7 @@ export function normalizarCadastro(raw: unknown): Cadastro {
     for (const a of v.alteracoes) {
       if (!a || typeof a !== 'object') continue;
       const x = a as Record<string, unknown>;
-      if (!ehCampo(x.campo)) continue;
+      if (!ehCampo(x.campo, linha)) continue;
       c.alteracoes.push({ campo: x.campo, por: txt(x.por), em: txt(x.em), fonte: fonteDe(x.fonte) });
     }
     c.alteracoes = c.alteracoes.slice(-MAX_TRILHA_CADASTRO);
@@ -243,8 +353,8 @@ export function normalizarCadastro(raw: unknown): Cadastro {
 }
 
 /** O cadastro de um card, SÓ o que está no bucket. Objeto ainda inexistente = vazio; bucket com problema LANÇA. */
-export async function lerCadastro(id: number): Promise<Cadastro> {
-  return normalizarCadastro(await lerCadastroBruto(id));
+export async function lerCadastro(id: number, linha: LinhaCadastro = 'eletroposto'): Promise<Cadastro> {
+  return normalizarCadastro(await lerCadastroBruto(id, linha), linha);
 }
 
 // ── Legado: valores que a ficha guardou no `system_state` antes do cadastro ──
@@ -289,7 +399,9 @@ export function mesclarLegado(cad: Cadastro, reg: RegistroGestao): Cadastro {
 }
 
 /** O cadastro como a tela deve ver: o bucket mais o legado ainda não migrado. Lança se o bucket ou a ficha falharem. */
-export async function lerCadastroVisto(id: number): Promise<Cadastro> {
+export async function lerCadastroVisto(id: number, linha: LinhaCadastro = 'eletroposto'): Promise<Cadastro> {
+  // A venda solar pelo card nasceu já com o cadastro no bucket: não há legado da ficha para mesclar.
+  if (linha === 'vendasolar') return lerCadastro(id, linha);
   const cad = await lerCadastro(id);
   if (cad.migrado) return cad;
   return mesclarLegado(cad, (await lerFichaComVersao(id)).reg);
@@ -348,10 +460,11 @@ const TENTATIVAS_LIMPEZA = 4;
  */
 export async function escreverCadastro(
   id: number, mudancas: Partial<Record<string, string>>, por: string, fonte: Fonte, agora: string = new Date().toISOString(),
+  linha: LinhaCadastro = 'eletroposto',
 ): Promise<ResultadoEscrita> {
   const pedido: Array<[Campo, string]> = [];
   for (const [k, v] of Object.entries(mudancas)) {
-    if (!ehCampo(k) || typeof v !== 'string' || v.length > MAX_CAMPO) throw new ErroCadastro('campo');
+    if (!ehCampo(k, linha) || typeof v !== 'string' || v.length > MAX_CAMPO) throw new ErroCadastro('campo');
     pedido.push([k, v.trim()]);
   }
   if (!pedido.some(([k]) => k === 'tipo')) {
@@ -359,6 +472,7 @@ export async function escreverCadastro(
     const t = doc ? tipoPeloDocumento(doc[1]) : null;
     if (t) pedido.push(['tipo', t]);
   }
+  if (linha === 'vendasolar') return escreverCadastroSolar(id, pedido, por, fonte, agora);
   return comTrava(id, por, async () => {
     const noBucket = await lerCadastro(id);
     const ficha = await lerFichaComVersao(id);
@@ -393,11 +507,44 @@ export async function escreverCadastro(
   });
 }
 
+/**
+ * Escrita do cadastro da venda SOLAR pelo card: ler, aplicar e gravar, sob a trava da venda (`vendasolar:<id>`, a mesma dos
+ * rótulos). Não há ficha nem legado: só o bucket. Sempre `migrado: true`. `limpou` é sempre true (não há o que limpar).
+ */
+async function escreverCadastroSolar(
+  id: number, pedido: Array<[Campo, string]>, por: string, fonte: Fonte, agora: string,
+): Promise<ResultadoEscrita> {
+  const doc = pedido.find(([k, v]) => k === 'cpf_cnpj' && v);
+  const t = !pedido.some(([k]) => k === 'tipo') && doc ? tipoPeloDocumento(doc[1]) : null;
+  const todos: Array<[Campo, string]> = t ? [...pedido, ['tipo', t]] : pedido;
+  return comTrava(`vendasolar:${id}`, por, async () => {
+    const base = await lerCadastro(id, 'vendasolar');
+    const campos = { ...base.campos };
+    const trilha = [...base.alteracoes];
+    let mudou = !base.migrado;
+    for (const [k, v] of todos) {
+      if (v === '') {
+        if (!campos[k]) continue;
+        delete campos[k];
+      } else {
+        if (campos[k]?.valor === v) continue;
+        campos[k] = { valor: v, por, em: agora, fonte };
+      }
+      trilha.push({ campo: k, por, em: agora, fonte });
+      mudou = true;
+    }
+    const novo: Cadastro = { v: 1, campos, alteracoes: trilha.slice(-MAX_TRILHA_CADASTRO), em: mudou ? agora : base.em, migrado: true };
+    if (mudou) await gravarCadastroBruto(id, novo, 'vendasolar');
+    return { cad: novo, reg: { campos: {}, alteracoes: [], em: null }, limpou: true };
+  });
+}
+
 /** Grava campos e devolve o cadastro novo (a API do plano). Veja `escreverCadastro`. */
 export async function gravarCampos(
   id: number, mudancas: Partial<Record<string, string>>, por: string, fonte: Fonte, agora: string = new Date().toISOString(),
+  linha: LinhaCadastro = 'eletroposto',
 ): Promise<Cadastro> {
-  return (await escreverCadastro(id, mudancas, por, fonte, agora)).cad;
+  return (await escreverCadastro(id, mudancas, por, fonte, agora, linha)).cad;
 }
 
 // ── Resposta das rotas ───────────────────────────────────────────────────────
@@ -409,10 +556,10 @@ export interface VistaCadastro {
   faltando: Campo[];
   tipo: Tipo;
 }
-export function vistaDe(c: Cadastro): VistaCadastro {
+export function vistaDe(c: Cadastro, linha: LinhaCadastro = 'eletroposto'): VistaCadastro {
   const valores: Partial<Record<Campo, string>> = {};
-  for (const k of CAMPOS) { const g = c.campos[k]; if (g) valores[k] = g.valor; }
-  return { campos: c.campos, valores, faltando: faltando(c), tipo: tipoDoCadastro(c) };
+  for (const k of camposDaLinha(linha)) { const g = c.campos[k]; if (g) valores[k] = g.valor; }
+  return { campos: c.campos, valores, faltando: faltando(c, linha), tipo: tipoDoCadastro(c) };
 }
 
 // ── A ficha lê do cadastro (fonte única) ─────────────────────────────────────
