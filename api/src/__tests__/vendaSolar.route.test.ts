@@ -479,8 +479,8 @@ describe('cadastro da vendasolar', () => {
     // o mesmo card no eletroposto não enxerga nada disso (outra pasta)
     expect(h.cad.has('eletroposto/201.json')).toBe(false);
   });
-  it('o que falta: titular da UC e beneficiária só depois de começados', async () => {
-    const res = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria', benef_2_uc: '0098765432' } });
+  it('o que falta: titular da homologação só com homologacao_mesmo = outra_pessoa; beneficiária só depois de começada', async () => {
+    const res = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria', homologacao_mesmo: 'outra_pessoa', benef_2_uc: '0098765432' } });
     const f: string[] = res.body.cadastro.faltando;
     expect(f).toEqual(expect.arrayContaining(['tuc_cpf_cnpj', 'tuc_relacao', 'benef_2_titular', 'benef_2_pct']));
     expect(f).not.toContain('benef_1_uc');
@@ -508,6 +508,195 @@ describe('cadastro da vendasolar', () => {
     const sol = await put('/clientes/vendasolar/201/cadastro', { campos: { ced_cpf_cnpj: '52998224725' } });
     expect(sol.status).toBe(400);
     expect(h.cad.size).toBe(0);
+  });
+});
+
+describe('negociador, contratante, titular da homologação e do financiamento', () => {
+  const gestao = (codigo: string) => h.linhas.get(`gestao_cliente:${codigo}`)?.value as
+    { campos: Record<string, { valor: string; por: string; em: string }>; alteracoes: Array<{ coluna: string; antes: unknown; por: string }> } | undefined;
+  const homologacao = (codigo = '0057') => gestao(codigo)?.campos?.homologacao;
+  /** A planilha mãe com o "Nome na homologação" da #0057 já escrito no CSV (como se alguém tivesse digitado lá). */
+  const csvComHomologacao = (nome: string) => {
+    h.csv = paraCsv([venda('#0057', { 'NOME CLIENTE': 'Ana Souza', 'NOME HOMOLOGAÇÃO': nome, CONSULTOR: 'Nilce', CONTATO: '34988880001', 'CADASTRO TRELLO': '03/08/2026' })]);
+    limparCacheClientes();
+  };
+  const gravaTuc = (nome: string) => put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: nome } });
+
+  it('o GET devolve o negociador (o nome do card), só leitura: o cadastro grava outros nomes e o card fica como está', async () => {
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.negociador).toBe('Ana Souza');
+    const res = await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Pedro Contratante', homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza', financiamento_mesmo: 'outra_pessoa', fin_nome: 'Joao Banco' } });
+    expect(res.status).toBe(200);
+    expect(res.body.negociador).toBe('Ana Souza');
+    const g = await get('/clientes/vendasolar/201/cadastro');
+    expect(g.body.negociador).toBe('Ana Souza');
+    expect(g.body.cadastro.valores).toMatchObject({ nome: 'Pedro Contratante', tuc_nome: 'Maria Souza', fin_nome: 'Joao Banco', homologacao_mesmo: 'outra_pessoa', financiamento_mesmo: 'outra_pessoa' });
+    expect(h.cards.find((c) => c.id === 201)!.cliente_nome).toBe('Ana Souza');
+    // o `negociador` não é campo: tentar gravá-lo é campo desconhecido
+    const ruim = await put('/clientes/vendasolar/201/cadastro', { campos: { negociador: 'Outro' } });
+    expect(ruim.status).toBe(400);
+    expect(ruim.body.erros.negociador).toBe('Campo desconhecido.');
+  });
+  it('o eletroposto não recebe nada disto: sem negociador, e fin_* e *_mesmo são campos desconhecidos', async () => {
+    const g = await get('/clientes/eletroposto/202/cadastro', THIAGO);
+    expect(g.status).toBe(200);
+    expect(g.body.negociador).toBeUndefined();
+    const p = await put('/clientes/eletroposto/202/cadastro', { campos: { fin_nome: 'X', homologacao_mesmo: 'contratante', financiamento_mesmo: 'contratante' } }, THIAGO);
+    expect(p.status).toBe(400);
+    expect(p.body.erros).toMatchObject({ fin_nome: 'Campo desconhecido.', homologacao_mesmo: 'Campo desconhecido.', financiamento_mesmo: 'Campo desconhecido.' });
+    expect(h.cad.has('eletroposto/202.json')).toBe(false);
+    const ok = await put('/clientes/eletroposto/202/cadastro', { campos: { nome: 'Dora' } }, THIAGO);
+    expect(ok.status).toBe(200);
+    expect(ok.body.negociador).toBeUndefined();
+    expect(gestao('0057')).toBeUndefined();
+  });
+  it('fin_* valida e o faltando segue o *_mesmo; "contratante" esvazia o papel e o que veio junto no pedido', async () => {
+    const ruim = await put('/clientes/vendasolar/201/cadastro', { campos: { fin_cpf_cnpj: '111', fin_uf: 'XX', financiamento_mesmo: 'amigo' } });
+    expect(ruim.status).toBe(400);
+    expect(Object.keys(ruim.body.erros).sort()).toEqual(['fin_cpf_cnpj', 'fin_uf', 'financiamento_mesmo']);
+    expect(h.cad.size).toBe(0);
+    const a = await put('/clientes/vendasolar/201/cadastro', { campos: { financiamento_mesmo: 'outra_pessoa', fin_nome: 'Joao Banco', fin_cpf_cnpj: '52998224725' } });
+    expect(a.body.cadastro.valores.fin_cpf_cnpj).toBe('529.982.247-25');
+    expect(a.body.cadastro.faltando).toEqual(expect.arrayContaining(['fin_endereco', 'fin_cep', 'fin_rg_ie']));
+    expect(a.body.cadastro.faltando).not.toContain('fin_nome');
+    const b = await put('/clientes/vendasolar/201/cadastro', { campos: { financiamento_mesmo: 'contratante', fin_nome: 'Joao Banco' } });
+    expect(b.status).toBe(200);
+    expect(b.body.cadastro.valores.financiamento_mesmo).toBe('contratante');
+    expect(b.body.cadastro.valores.fin_nome).toBeUndefined();                 // saiu, e o fin_nome do mesmo pedido perdeu
+    expect(b.body.cadastro.valores.fin_cpf_cnpj).toBeUndefined();
+    expect(b.body.cadastro.faltando.some((k: string) => k.startsWith('fin_'))).toBe(false);
+    expect(cadastroDe(201).campos.fin_cpf_cnpj).toBeUndefined();
+    expect(JSON.stringify(cadastroDe(201).alteracoes)).not.toMatch(/Joao|52998224725/);   // a trilha guarda o campo, nunca o valor
+  });
+  it('planilha mãe: o nome do titular da homologação vai para a coluna "Nome na homologação" da venda ligada, só o nome', async () => {
+    await ligar(201, { venda: '#0057' });
+    const r = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Souza', tuc_cpf_cnpj: '52998224725', tuc_endereco: 'Rua A, 10' } });
+    expect(r.status).toBe(200);
+    expect(r.body.aviso).toBeUndefined();
+    expect(homologacao()).toMatchObject({ valor: 'Maria Souza', por: 'nilce' });
+    expect(gestao('0057')!.alteracoes[gestao('0057')!.alteracoes.length - 1]).toMatchObject({ coluna: 'homologacao', antes: null, por: 'nilce' });   // a trilha da Planilha do Cliente
+    expect(JSON.stringify(gestao('0057'))).not.toMatch(/529|Rua A/);       // nada de CPF nem endereço na planilha
+    expect(Object.keys(gestao('0057')!.campos)).toEqual(['homologacao']);    // só a coluna do nome; o `cliente` da planilha não é tocado
+  });
+  it('planilha mãe: o nome que esta via escreveu acompanha a troca; o contratante vira o nome quando homologacao_mesmo = contratante', async () => {
+    await ligar(201, { venda: '#0057' });
+    await gravaTuc('Maria Souza');
+    expect(homologacao()!.valor).toBe('Maria Souza');
+    await gravaTuc('Maria Souza Lima');
+    expect(homologacao()!.valor).toBe('Maria Souza Lima');
+    expect(gestao('0057')!.alteracoes.filter((a) => a.coluna === 'homologacao')).toHaveLength(2);
+    const igual = await gravaTuc('MARIA SOUZA LIMA');                         // o mesmo nome (sem acento e caixa): nada a gravar
+    expect(igual.status).toBe(200);
+    expect(gestao('0057')!.alteracoes.filter((a) => a.coluna === 'homologacao')).toHaveLength(2);
+    const c = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'contratante', nome: 'Pedro Contratante' } });
+    expect(c.body.cadastro.valores.tuc_nome).toBeUndefined();                 // "contratante" esvaziou o titular da homologação
+    expect(homologacao()!.valor).toBe('Pedro Contratante');
+    const d = await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Pedro C. Contratante' } });   // o contratante muda de nome: a planilha segue
+    expect(d.status).toBe(200);
+    expect(homologacao()!.valor).toBe('Pedro C. Contratante');
+    const sem = await put('/clientes/vendasolar/201/cadastro', { campos: { email: 'a@b.com' } });             // nada ligado ao nome: a planilha não é tocada
+    expect(sem.status).toBe(200);
+    expect(gestao('0057')!.alteracoes.filter((a) => a.coluna === 'homologacao')).toHaveLength(4);
+  });
+  it('planilha mãe: não sobrescreve o que alguém digitou, na planilha nem na Planilha do Cliente', async () => {
+    csvComHomologacao('Digitado Na Planilha');
+    await ligar(201, { venda: '#0057' });
+    const a = await gravaTuc('Maria Souza');
+    expect(a.status).toBe(200);
+    expect(a.body.aviso).toBeUndefined();
+    expect(gestao('0057')).toBeUndefined();                                   // o CSV tinha valor: nada gravado
+    expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');        // e o cadastro valeu
+    // agora vazio na planilha: a via escreve; depois a Giovanna digita por cima na Planilha do Cliente e a via respeita
+    csvComHomologacao('');
+    await gravaTuc('Joana Souza');
+    expect(homologacao()!.valor).toBe('Joana Souza');
+    h.linhas.set('gestao_cliente:0057', {
+      updated_at: 'g1',
+      value: { campos: { homologacao: { valor: 'Joana Digitada', por: 'giovanna', em: '2026-10-20T14:00:00.000Z' } }, alteracoes: [{ em: '2026-10-20T14:00:00.000Z', por: 'giovanna', coluna: 'homologacao', antes: 'Joana Souza' }], em: '2026-10-20T14:00:00.000Z' },
+    });
+    await gravaTuc('Terceira Pessoa');
+    expect(homologacao()).toMatchObject({ valor: 'Joana Digitada', por: 'giovanna' });
+    expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Terceira Pessoa');
+  });
+  it('planilha mãe: sem venda ligada, sem nome, ou pedido que não mexe no nome, não escreve nada', async () => {
+    await gravaTuc('Maria Souza');                                            // sem ligação
+    expect(gestao('0057')).toBeUndefined();
+    await ligar(201, { venda: '#0057' });
+    await put('/clientes/vendasolar/201/cadastro', { campos: { telefone: '34988880001', cidade: 'Uberlandia' } });   // não mexe em tuc_nome, nome nem homologacao_mesmo
+    expect(gestao('0057')).toBeUndefined();
+    const vazio = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: '' } });   // apagar o nome nunca grava vazio
+    expect(vazio.status).toBe(200);
+    expect(gestao('0057')).toBeUndefined();
+  });
+  it('planilha mãe: decide com a planilha FRESCA: cache dizendo vazio e planilha com nome digitado não grava', async () => {
+    await ligar(201, { venda: '#0057' });                                     // o cache da planilha agora diz "vazio"
+    h.csv = paraCsv([venda('#0057', { 'NOME CLIENTE': 'Ana Souza', 'NOME HOMOLOGAÇÃO': 'Digitado Agora', CONSULTOR: 'Nilce', CONTATO: '34988880001', 'CADASTRO TRELLO': '03/08/2026' })]);
+    const r = await gravaTuc('Maria Souza');                                  // sem limpar o cache
+    expect(r.status).toBe(200);
+    expect(r.body.aviso).toBeUndefined();
+    expect(gestao('0057')).toBeUndefined();
+    expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');
+  });
+  it('planilha mãe: planilha fora do ar com cópia no cache NÃO escreve (a cópia velha não decide), e avisa', async () => {
+    await ligar(201, { venda: '#0057' });                                     // há cópia no cache
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('erro', { status: 500 })));
+    const r = await gravaTuc('Maria Souza');
+    expect(r.status).toBe(200);
+    expect(r.body.aviso).toBe('Salvo. Não consegui conferir a planilha agora; o nome da homologação não foi copiado.');
+    expect(gestao('0057')).toBeUndefined();
+    expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');
+  });
+  it('planilha mãe: quem grava precisa enxergar a venda ligada: o vendedor do card A ligado à venda da consultora B não escreve nela; sócio escreve', async () => {
+    injeta(201, { venda: '#0058' });                                          // card da Nilce ligado à venda da Giovanna (ligação antiga ou injetada)
+    invalidarCachesHub();
+    const a = await gravaTuc('Maria Souza');
+    expect(a.status).toBe(200);
+    expect(a.body.aviso).toBe('Salvo. Você não tem acesso à venda ligada na planilha; o nome da homologação não foi copiado.');
+    expect(gestao('0058')).toBeUndefined();
+    expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');        // o cadastro valeu
+    const s = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Souza Lima' } }, THIAGO);
+    expect(s.body.aviso).toBeUndefined();
+    expect(gestao('0058')!.campos.homologacao).toMatchObject({ valor: 'Maria Souza Lima', por: 'thiago' });
+  });
+  it('contratante gravado: tuc_*/fin_* novos são ignorados, a não ser que o mesmo pedido mude o *_mesmo para outra_pessoa', async () => {
+    await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'contratante', financiamento_mesmo: 'contratante', nome: 'Pedro Contratante' } });
+    const a = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Souza', fin_nome: 'Joao Banco', fin_cpf_cnpj: '52998224725' } });
+    expect(a.status).toBe(200);
+    expect(a.body.cadastro.valores.tuc_nome).toBeUndefined();
+    expect(a.body.cadastro.valores.fin_nome).toBeUndefined();
+    expect(cadastroDe(201).campos.tuc_nome).toBeUndefined();
+    expect(cadastroDe(201).campos.fin_cpf_cnpj).toBeUndefined();
+    expect(a.body.cadastro.faltando.some((k: string) => /^(tuc|fin)_/.test(k))).toBe(false);
+    const b = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } });
+    expect(b.body.cadastro.valores).toMatchObject({ homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza', financiamento_mesmo: 'contratante' });
+    const c = await put('/clientes/vendasolar/201/cadastro', { campos: { fin_nome: 'Joao Banco' } });       // o financiamento segue "contratante"
+    expect(c.body.cadastro.valores.fin_nome).toBeUndefined();
+    const d = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Lima' } });         // e a homologação, agora outra pessoa, aceita
+    expect(d.body.cadastro.valores.tuc_nome).toBe('Maria Lima');
+  });
+  it('planilha mãe: falha na planilha ou no banco não derruba o PUT, vai num aviso; a venda sem a coluna também avisa', async () => {
+    await ligar(201, { venda: '#0057' });
+    limparCacheClientes();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('erro', { status: 500 })));
+    const r = await gravaTuc('Maria Souza');
+    expect(r.status).toBe(200);
+    expect(r.body.ok).toBe(true);
+    expect(r.body.aviso).toBe('Salvo. Não consegui conferir a planilha agora; o nome da homologação não foi copiado.');
+    expect(r.body.cadastro.valores.tuc_nome).toBe('Maria Souza');
+    expect(cadastroDe(201).campos.tuc_nome.valor).toBe('Maria Souza');
+    expect(gestao('0057')).toBeUndefined();
+    expect(JSON.stringify(h.logs)).not.toContain('Maria Souza');
+    // volta o ar: a próxima gravação do nome escreve
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (String(url).includes('docs.google.com') ? new Response(h.csv, { status: 200 }) : new Response('', { status: 404 }))));
+    limparCacheClientes();
+    const ok = await gravaTuc('Maria Souza Lima');
+    expect(ok.body.aviso).toBeUndefined();
+    expect(homologacao()!.valor).toBe('Maria Souza Lima');
+    // a venda ligada que sumiu da planilha
+    injeta(201, { ...ligacao(201), venda: '#0099' });
+    invalidarCachesHub();
+    const sumiu = await gravaTuc('Outra Maria');
+    expect(sumiu.status).toBe(200);
+    expect(sumiu.body.aviso).toMatch(/Não achei a venda ligada/);
   });
 });
 
@@ -745,8 +934,8 @@ describe('dossiê da proposta ligada, só leitura', () => {
     expect(res.body.cabecalho).toMatchObject({ linha: 'vendasolar', codigo: '201', cliente: 'Ana Souza' });
     const slots = res.body.documentos.map((d: any) => d.slot).sort();
     expect(slots).toEqual(['conta_luz', 'documento_titular_uc', 'fachada', 'medidor']);
-    expect(res.body.documentos.find((d: any) => d.slot === 'documento_titular_uc').rotulo).toBe('CNH ou documento do titular da conta de luz (quando não é o comprador)');
-    expect(res.body.pendencias.documentos).toContain('CNH ou documento pessoal do comprador');   // o documento do dossiê NÃO conta como o do comprador
+    expect(res.body.documentos.find((d: any) => d.slot === 'documento_titular_uc').rotulo).toBe('CNH ou documento do titular da homologação');
+    expect(res.body.pendencias.documentos).toContain('CNH ou documento do contratante');   // o documento do dossiê NÃO conta como o do contratante
     expect(res.body.secoes.length).toBeGreaterThan(0);
     expect(res.body.pendencias.obra_concluida).toBe(true);                // sistema liberado na venda ligada
     expect(JSON.stringify(res.body)).not.toMatch(/8\.887|7\.776|2\.345/);
@@ -822,6 +1011,40 @@ describe('leitura por IA da vendasolar', () => {
     expect(registro.arquivos).toHaveLength(4);
     expect(JSON.stringify([...h.cad.keys()])).not.toContain('201.json"');
     expect(JSON.stringify(res.body.organizados)).not.toContain('dossie:');
+  });
+  it('o documento do titular do financiamento só preenche fin_*; o nome do card vai como negociador, não como contratante', async () => {
+    anexa(201, [
+      { slot: 'documento_financiamento', uuid: U1, ext: 'pdf', mime: 'application/pdf', bytes: PDF.length, em: '2026-10-20T11:00:00.000Z' },
+      { slot: 'comprovante_endereco_financiamento', uuid: U2, ext: 'jpg', mime: 'image/jpeg', bytes: JPG.length, em: '2026-10-20T10:00:00.000Z' },
+    ]);
+    h.objetos.set(`vendasolar/201/${U1}.pdf`, PDF);
+    h.objetos.set(`vendasolar/201/${U2}.jpg`, JPG);
+    await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Souza', financiamento_mesmo: 'outra_pessoa' } });
+    h.ia.fila.push({
+      saida: (content: any[]) => ({
+        campos: [
+          campo('fin_nome', indiceDe(content, 'documento_financiamento'), 'Joao Banco'),
+          campo('fin_cpf_cnpj', indiceDe(content, 'documento_financiamento'), '529.982.247-25'),
+          campo('fin_endereco', indiceDe(content, 'comprovante_endereco_financiamento'), 'Rua C, 30'),
+          campo('nome', indiceDe(content, 'documento_financiamento'), 'Joao Banco'),              // descartada: é o documento do financiamento
+          campo('endereco', indiceDe(content, 'comprovante_endereco_financiamento'), 'Rua C, 30'), // descartada
+          campo('tuc_nome', indiceDe(content, 'documento_financiamento'), 'Joao Banco'),          // descartada
+          campo('financiamento_mesmo', indiceDe(content, 'documento_financiamento'), 'outra_pessoa'),   // nunca sai da IA
+        ],
+        documentos: [],
+      }),
+    });
+    const res = await post('/clientes/vendasolar/201/cadastro/ler', {});
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body.sugestoes).sort()).toEqual(['fin_cpf_cnpj', 'fin_endereco', 'fin_nome']);
+    expect(res.body.sugestoes.fin_nome.slot).toBe('documento_financiamento');
+    expect(res.body.descartadas.map((d: any) => d.campo).sort()).toEqual(['endereco', 'nome', 'tuc_nome']);
+    const textos = (h.ia.chamadas[0].corpo.messages[0].content as any[]).filter((b) => b.type === 'text').map((b) => b.text as string);
+    const pessoas = textos.find((t) => t.startsWith('Extraia')) ?? '';
+    expect(pessoas).toContain('negociador: "Ana Souza"');       // o nome do card
+    expect(pessoas).toContain('titular_uc: "Maria Souza"');
+    expect(pessoas).not.toContain('comprador:');                // sem contratante cadastrado, o nome do card NÃO vira o contratante
+    expect(cadastroDe(201).campos.fin_nome).toBeUndefined();    // só sugere
   });
   it('sem proposta ligada e sem anexo: 409 sem_documentos; o dossiê sozinho já basta para ler', async () => {
     expect((await post('/clientes/vendasolar/201/cadastro/ler', {})).status).toBe(409);

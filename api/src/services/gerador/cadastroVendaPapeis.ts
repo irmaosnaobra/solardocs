@@ -23,9 +23,9 @@ import type { Campo } from './cadastroVenda';
  */
 export type DonoArquivo =
   | 'comprador' | 'cedente' | 'avalista' | 'instalacao' | 'geradora' | 'beneficiaria' | 'outra_pessoa' | 'imovel'
-  | 'titular_uc' | 'unidade_geradora' | 'unidade_beneficiaria';
+  | 'titular_uc' | 'titular_financiamento' | 'unidade_geradora' | 'unidade_beneficiaria';
 /** A que papel do cadastro um campo pertence. */
-export type PapelCampo = 'comprador' | 'cedente' | 'avalista' | 'imovel' | 'ponto' | 'titular_uc' | 'beneficiaria';
+export type PapelCampo = 'comprador' | 'cedente' | 'avalista' | 'imovel' | 'ponto' | 'titular_uc' | 'financiamento' | 'beneficiaria';
 /** As linhas que têm leitura por IA. */
 export type LinhaLeitura = 'eletroposto' | 'vendasolar';
 
@@ -52,6 +52,8 @@ export const DONO_DO_ITEM_SOLAR: Readonly<Record<string, DonoArquivo>> = {
   documento_titular: 'comprador',
   comprovante_endereco_comprador: 'comprador',
   documento_titular_uc: 'titular_uc',
+  documento_financiamento: 'titular_financiamento',
+  comprovante_endereco_financiamento: 'titular_financiamento',
   documento_avalista: 'avalista',
   comprovante_endereco_avalista: 'avalista',
   documento_outra_pessoa: 'outra_pessoa',
@@ -70,6 +72,7 @@ export function papelDoCampo(campo: Campo): PapelCampo {
   if (campo.startsWith('aval_')) return 'avalista';
   if (campo.startsWith('imovel_')) return 'imovel';
   if (campo.startsWith('tuc_')) return 'titular_uc';
+  if (campo.startsWith('fin_')) return 'financiamento';
   if (campo.startsWith('benef_')) return 'beneficiaria';
   if (CAMPOS_DA_UNIDADE_GERADORA.includes(campo)) return 'ponto';
   return 'comprador';   // inclui o representante da empresa (`rep_*`)
@@ -79,7 +82,8 @@ export function papelDoCampo(campo: Campo): PapelCampo {
  * Que campos cada dono de arquivo pode alimentar. A pessoa dá os campos DELA (o comprovante de endereço dela é o endereço dela,
  * nunca o do ponto). A conta da instalação dá SÓ o ponto: no arrendamento ela costuma estar no nome do cedente, e isso não a faz
  * documento de pessoa. Geradora, beneficiária e documento de outra pessoa só classificam o arquivo. O imóvel dá `imovel_*`.
- * Venda solar: a unidade geradora dá o ponto (e a classe e o consumo), a beneficiária só `benef_*`, o titular da UC só `tuc_*`.
+ * Venda solar: a unidade geradora dá o ponto (e a classe e o consumo), a beneficiária só `benef_*`, o titular da homologação (da
+ * conta de luz) só `tuc_*` e o titular do financiamento só `fin_*`. O contratante (item `documento_titular`) dá os campos sem prefixo.
  */
 const PODE_ALIMENTAR: Readonly<Record<DonoArquivo, readonly PapelCampo[]>> = {
   comprador: ['comprador'],
@@ -91,6 +95,7 @@ const PODE_ALIMENTAR: Readonly<Record<DonoArquivo, readonly PapelCampo[]>> = {
   outra_pessoa: [],
   imovel: ['imovel'],
   titular_uc: ['titular_uc'],
+  titular_financiamento: ['financiamento'],
   unidade_geradora: ['ponto'],
   unidade_beneficiaria: ['beneficiaria'],
 };

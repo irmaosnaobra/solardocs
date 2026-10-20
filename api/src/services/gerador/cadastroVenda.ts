@@ -43,6 +43,17 @@ export const CAMPOS_TITULAR_UC = [
   'tuc_nome', 'tuc_cpf_cnpj', 'tuc_rg_ie', 'tuc_orgao_emissor', 'tuc_nacionalidade', 'tuc_estado_civil', 'tuc_profissao',
   'tuc_endereco', 'tuc_bairro', 'tuc_cidade', 'tuc_uf', 'tuc_cep', 'tuc_email', 'tuc_telefone', 'tuc_relacao',
 ] as const;
+// Quem é quem na venda solar (20/10/2026): o NEGOCIADOR é o nome do card (`agendamentos.cliente_nome`), com quem a equipe falou, e
+// nunca é alterado pelo cadastro. Três papéis têm documento: o CONTRATANTE (os campos sem prefixo), o TITULAR DA HOMOLOGAÇÃO
+// (`tuc_*`: a conta de luz e a usina ficam no nome dele, e ele assina a procuração) e o TITULAR DO FINANCIAMENTO (`fin_*`).
+// `homologacao_mesmo` e `financiamento_mesmo` dizem se o papel é o próprio contratante ou outra pessoa: com `contratante` os campos
+// do papel ficam vazios e os documentos usam os do contratante. Vazio = ainda não decidido.
+export const CAMPOS_TITULAR_FINANCIAMENTO = [
+  'fin_nome', 'fin_cpf_cnpj', 'fin_rg_ie', 'fin_orgao_emissor', 'fin_nascimento', 'fin_nacionalidade', 'fin_estado_civil', 'fin_profissao',
+  'fin_endereco', 'fin_bairro', 'fin_cidade', 'fin_uf', 'fin_cep', 'fin_email', 'fin_telefone',
+] as const;
+export const CAMPOS_DECISAO_PAPEIS = ['homologacao_mesmo', 'financiamento_mesmo'] as const;
+export const OPCOES_PAPEL_MESMO = ['contratante', 'outra_pessoa'] as const;
 export const CAMPOS_UC_SOLAR = ['uc_classe', 'consumo_medio_kwh'] as const;
 export const MAX_BENEFICIARIAS = 5;
 export const CAMPOS_BENEFICIARIAS = [
@@ -60,11 +71,12 @@ export const CAMPOS_DOC_BENEFICIARIAS = ['benef_1_doc', 'benef_2_doc', 'benef_3_
 export const MODALIDADES_RATEIO = ['autoconsumo_local', 'autoconsumo_remoto', 'geracao_compartilhada', 'multiplas_ucs'] as const;
 /** Os campos da venda solar pelo card. NÃO inclui `ced_*`. */
 export const CAMPOS_VENDASOLAR = [
-  ...CAMPOS_COMPRADOR, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_BENEFICIARIAS,
-  ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
+  ...CAMPOS_COMPRADOR, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_TITULAR_FINANCIAMENTO, ...CAMPOS_DECISAO_PAPEIS,
+  ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_BENEFICIARIAS, ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
 ] as const;
 const CAMPOS_TODOS = [
-  ...CAMPOS, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_BENEFICIARIAS, ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
+  ...CAMPOS, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_TITULAR_FINANCIAMENTO, ...CAMPOS_DECISAO_PAPEIS,
+  ...CAMPOS_BENEFICIARIAS, ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
 ] as const;
 /** Qualquer campo de qualquer cadastro. Quem decide se um campo vale é a LINHA (`ehCampo(x, linha)`). */
 export type Campo = typeof CAMPOS_TODOS[number];
@@ -183,9 +195,15 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
       ? { ok: true, valor: m }
       : { ok: false, erro: 'Escolha: autoconsumo local, autoconsumo remoto, geração compartilhada ou múltiplas unidades.' };
   }
-  // Os campos do cedente, do avalista e do titular da UC seguem a regra do campo igual do comprador (`ced_cep` valida como `cep`).
-  // O documento da beneficiária (`benef_N_doc`) valida como o CPF/CNPJ do comprador, com dígito.
-  switch (/^benef_[1-5]_doc$/.test(campo) ? 'cpf_cnpj' : campo.replace(/^(ced|aval|tuc)_/, '')) {
+  if ((CAMPOS_DECISAO_PAPEIS as readonly string[]).includes(campo)) {
+    const o = chaveDeOpcao(t);
+    return (OPCOES_PAPEL_MESMO as readonly string[]).includes(o)
+      ? { ok: true, valor: o }
+      : { ok: false, erro: 'Escolha: o contratante ou outra pessoa.' };
+  }
+  // Os campos do cedente, do avalista, do titular da UC e do titular do financiamento seguem a regra do campo igual do comprador
+  // (`ced_cep` valida como `cep`). O documento da beneficiária (`benef_N_doc`) valida como o CPF/CNPJ do comprador, com dígito.
+  switch (/^benef_[1-5]_doc$/.test(campo) ? 'cpf_cnpj' : campo.replace(/^(ced|aval|tuc|fin)_/, '')) {
     case 'consumo_medio_kwh': {
       const n = numeroBR(t);
       return n !== null && n > 0 && n <= 1_000_000 ? { ok: true, valor: numeroGuardado(n) } : { ok: false, erro: 'Consumo médio em kWh, maior que zero.' };
@@ -274,7 +292,7 @@ export function faltando(c: Cadastro, linha: LinhaCadastro = 'eletroposto'): Cam
   const proprios = lista.filter((k) => !c.campos[k]?.valor);
   if (linha === 'vendasolar') {
     const f = faltandoPorPapelSolar(c);
-    return [...proprios, ...f.titular_uc, ...f.avalista, ...f.imovel, ...f.beneficiarias];
+    return [...proprios, ...f.titular_uc, ...f.financiamento, ...f.avalista, ...f.imovel, ...f.beneficiarias];
   }
   return [...proprios, ...faltandoDosPapeis(c)];
 }
@@ -305,13 +323,29 @@ export function faltandoPorPapel(c: Cadastro): FaltandoPorPapel {
 }
 
 // Venda solar: o comprador e a unidade geradora (`endereco_ponto`, `unidade_consumidora`, `concessionaria`, os mesmos obrigatórios
-// do eletroposto) sempre contam. Titular da UC, avalista, imóvel e cada beneficiária só entram na conta se alguém já começou
-// a preencher aquela pessoa/vaga. O que o titular da UC precisa: documento, endereço e a relação com o comprador; PF leva RG,
+// do eletroposto) sempre contam. Titular da homologação (`tuc_*`) e titular do financiamento (`fin_*`) só entram na conta quando
+// `homologacao_mesmo` / `financiamento_mesmo` é `outra_pessoa`; avalista, imóvel e cada beneficiária, se alguém já começou
+// a preencher aquela pessoa/vaga. O que o titular da homologação precisa: documento, endereço e a relação com o comprador; PF leva RG,
 // estado civil e profissão. Beneficiária: a UC, o titular e o percentual (o percentual não vem da conta de luz).
 const OBRIGATORIOS_TITULAR_UC_BASE: Campo[] = ['tuc_nome', 'tuc_cpf_cnpj', 'tuc_endereco', 'tuc_bairro', 'tuc_cidade', 'tuc_uf', 'tuc_cep', 'tuc_relacao'];
 const OBRIGATORIOS_TITULAR_UC_PF: Campo[] = ['tuc_rg_ie', 'tuc_estado_civil', 'tuc_profissao'];
 
-export interface FaltandoPorPapelSolar { titular_uc: Campo[]; avalista: Campo[]; imovel: Campo[]; beneficiarias: Campo[] }
+const OBRIGATORIOS_FINANCIAMENTO_BASE: Campo[] = ['fin_nome', 'fin_cpf_cnpj', 'fin_endereco', 'fin_bairro', 'fin_cidade', 'fin_uf', 'fin_cep'];
+const OBRIGATORIOS_FINANCIAMENTO_PF: Campo[] = ['fin_rg_ie', 'fin_estado_civil', 'fin_profissao'];
+
+export interface FaltandoPorPapelSolar { titular_uc: Campo[]; financiamento: Campo[]; avalista: Campo[]; imovel: Campo[]; beneficiarias: Campo[] }
+
+/** O papel (titular da homologação ou do financiamento) é OUTRA pessoa? Só então os campos dele contam. Vazio (não decidido) e `contratante` = nada falta. */
+const ehOutraPessoa = (c: Cadastro, decisao: 'homologacao_mesmo' | 'financiamento_mesmo'): boolean => c.campos[decisao]?.valor === 'outra_pessoa';
+
+/**
+ * O nome que vai na homologação: o do titular da homologação (`tuc_nome`) quando é outra pessoa, o do contratante quando
+ * `homologacao_mesmo = contratante`. Sem decisão, o `tuc_nome` se houver. '' = não há nome para a homologação.
+ */
+export function nomeDaHomologacao(c: Cadastro): string {
+  if (c.campos.homologacao_mesmo?.valor === 'contratante') return c.campos.nome?.valor ?? '';
+  return c.campos.tuc_nome?.valor ?? '';
+}
 
 /** Campos de uma vaga de beneficiária (1 a 5), na ordem em que a tela os pede. */
 export const camposDaBeneficiaria = (n: number): Campo[] =>
@@ -325,7 +359,9 @@ export function faltandoPorPapelSolar(c: Cadastro): FaltandoPorPapelSolar {
     if (temAlgum(c, camposDaBeneficiaria(n))) beneficiarias.push(...sem([`benef_${n}_uc`, `benef_${n}_titular`, `benef_${n}_pct`] as Campo[]));
   }
   return {
-    titular_uc: temAlgum(c, CAMPOS_TITULAR_UC) ? sem([...OBRIGATORIOS_TITULAR_UC_BASE, ...(ehPj('tuc_cpf_cnpj') ? [] : OBRIGATORIOS_TITULAR_UC_PF)]) : [],
+    titular_uc: ehOutraPessoa(c, 'homologacao_mesmo') ? sem([...OBRIGATORIOS_TITULAR_UC_BASE, ...(ehPj('tuc_cpf_cnpj') ? [] : OBRIGATORIOS_TITULAR_UC_PF)]) : [],
+    financiamento: ehOutraPessoa(c, 'financiamento_mesmo')
+      ? sem([...OBRIGATORIOS_FINANCIAMENTO_BASE, ...(ehPj('fin_cpf_cnpj') ? [] : OBRIGATORIOS_FINANCIAMENTO_PF)]) : [],
     avalista: temAlgum(c, CAMPOS_AVALISTA) ? sem([...OBRIGATORIOS_AVALISTA_BASE, ...(ehPj('aval_cpf_cnpj') ? [] : OBRIGATORIOS_AVALISTA_PF)]) : [],
     imovel: temAlgum(c, CAMPOS_IMOVEL) ? sem(OBRIGATORIOS_IMOVEL) : [],
     beneficiarias,
@@ -462,6 +498,8 @@ export interface ResultadoEscrita {
   reg: RegistroGestao;
   /** false: o cadastro foi gravado, mas o `system_state` não deixou limpar o legado (a leitura já ignora o legado). */
   limpou: boolean;
+  /** Venda solar: o cadastro como estava ANTES desta escrita (o nome que a planilha recebeu da última vez sai daqui). */
+  antes?: Cadastro;
 }
 
 const TENTATIVAS_LIMPEZA = 4;
@@ -533,13 +571,28 @@ async function escreverCadastroSolar(
 ): Promise<ResultadoEscrita> {
   const doc = pedido.find(([k, v]) => k === 'cpf_cnpj' && v);
   const t = !pedido.some(([k]) => k === 'tipo') && doc ? tipoPeloDocumento(doc[1]) : null;
-  const todos: Array<[Campo, string]> = t ? [...pedido, ['tipo', t]] : pedido;
+  let todos: Array<[Campo, string]> = t ? [...pedido, ['tipo', t]] : pedido;
+  // "Mesmo que o contratante" esvazia o papel: os campos dele saem (e vão para a trilha), e o que veio junto no mesmo pedido para
+  // eles perde. Assim nenhum leitor (tela, documentos, contrato) enxerga um titular velho depois da troca.
+  for (const [decisao, campos] of [['homologacao_mesmo', CAMPOS_TITULAR_UC], ['financiamento_mesmo', CAMPOS_TITULAR_FINANCIAMENTO]] as const) {
+    if (todos.some(([k, v]) => k === decisao && v === 'contratante')) {
+      todos = [...todos.filter(([k]) => !(campos as readonly string[]).includes(k)), ...campos.map((k): [Campo, string] => [k, ''])];
+    }
+  }
   return comTrava(`vendasolar:${id}`, por, async () => {
     const base = await lerCadastro(id, 'vendasolar');
+    // Papel já gravado como "contratante": valor novo para os campos dele é ignorado, a não ser que o MESMO pedido mude a decisão
+    // para outra coisa (`outra_pessoa`, ou vazio). Limpar (valor vazio) continua valendo.
+    const ignorados = new Set<string>();
+    for (const [decisao, campos] of [['homologacao_mesmo', CAMPOS_TITULAR_UC], ['financiamento_mesmo', CAMPOS_TITULAR_FINANCIAMENTO]] as const) {
+      const pedida = todos.find(([k]) => k === decisao);
+      if ((pedida ? pedida[1] : base.campos[decisao]?.valor) === 'contratante') for (const k of campos) ignorados.add(k);
+    }
+    const aplicar = todos.filter(([k, v]) => v === '' || !ignorados.has(k));
     const campos = { ...base.campos };
     const trilha = [...base.alteracoes];
     let mudou = !base.migrado;
-    for (const [k, v] of todos) {
+    for (const [k, v] of aplicar) {
       if (v === '') {
         if (!campos[k]) continue;
         delete campos[k];
@@ -552,7 +605,7 @@ async function escreverCadastroSolar(
     }
     const novo: Cadastro = { v: 1, campos, alteracoes: trilha.slice(-MAX_TRILHA_CADASTRO), em: mudou ? agora : base.em, migrado: true };
     if (mudou) await gravarCadastroBruto(id, novo, 'vendasolar');
-    return { cad: novo, reg: { campos: {}, alteracoes: [], em: null }, limpou: true };
+    return { cad: novo, reg: { campos: {}, alteracoes: [], em: null }, limpou: true, antes: base };
   });
 }
 

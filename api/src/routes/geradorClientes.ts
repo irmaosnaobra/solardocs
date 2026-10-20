@@ -5,7 +5,7 @@ import { comLimite, limitesSolar } from './geradorSolar';
 import { ehSocio, podeVer, codigoCanonico } from '../services/gerador/solarObras';
 import {
   lerGrade, montarCatalogo, montarLinhas, colunasPara, colunaPublica, totais, validarValor, celulaDe,
-  progressoDe, houveConflito, aplicarGravacao, consultorEfetivo, GRUPOS, GRUPO_OUTROS,
+  progressoDe, houveConflito, aplicarGravacao, consultorEfetivo, nomeComparavel, GRUPOS, GRUPO_OUTROS,
   type Grade, type ColunaInterna, type RegistroGestao, type Celula,
 } from '../services/gerador/gestaoClientes';
 import { lerRegistros, lerRegistroComVersao, gravarRegistro, ErroGestao } from '../services/gerador/gestaoClientesBanco';
@@ -153,6 +153,47 @@ export async function acessoVendaSolar(nome: string, socio: boolean, cardId: num
   const { lig } = await lerLigacao(cardId);
   if (lig.venda && await vendaSolarDoDono(nome, false, lig.venda)) return card;
   return null;
+}
+
+/** O que `sincronizarNomeHomologacao` fez: gravou, já estava igual, deixou o que alguém digitou, ou a venda não tem a coluna. */
+export type ResultadoSincNome = 'gravou' | 'igual' | 'preservou' | 'sem_coluna' | 'ocupado' | 'sem_conferir' | 'sem_acesso';
+
+/**
+ * Escreve o NOME da homologação (coluna `homologacao`, "Nome na homologação") da venda `#NNNN` da planilha mãe, a partir do cadastro
+ * da venda solar pelo card. Mesmas peças da gravação de uma célula da Planilha do Cliente (`validarValor`, `aplicarGravacao` com o
+ * autor e a trilha de alterações, `gravarRegistro` com conferência de versão), mas SEM conflito de `base_em`: a regra de não
+ * sobrescrever é outra. Só grava quando a célula EFETIVA (a do sistema por cima da planilha) está vazia, ou quando o valor dela
+ * é o que esta mesma via escreveu da última vez (`nomeAnterior`, o nome da homologação do cadastro antes desta gravação). Valor
+ * digitado por gente, na planilha ou na Planilha do Cliente, fica como está. Nunca grava vazio. Só o nome: nada de CPF.
+ * Decide com a planilha FRESCA (nunca o cache de 5 min nem a cópia velha): se não deu para baixá-la agora, não escreve
+ * (`sem_conferir`). Exige a mesma posse da rota da célula (sócio, ou `podeVer` do consultor efetivo da venda): quem grava o
+ * cadastro mas não enxerga aquela venda não escreve nela (`sem_acesso`). Lança se o banco falhar (quem chama transforma em aviso).
+ */
+export async function sincronizarNomeHomologacao(
+  codigoVenda: string, nome: string, nomeAnterior: string, por: string, socio: boolean,
+): Promise<ResultadoSincNome> {
+  const novo = nome.replace(/\s+/g, ' ').trim();
+  if (!novo) return 'igual';
+  const codigo = codigoCanonico(codigoVenda);
+  const { dados, atual: fresca } = await grade(true);
+  if (!fresca) return 'sem_conferir';
+  const venda = dados.grade.vendas.find((v) => v.codigo === codigo);
+  const col = dados.cols.find((c) => c.chave === 'homologacao');
+  if (!venda || !col || col.calculada) return 'sem_coluna';
+  const v = validarValor(col, novo);
+  if (!v.ok) return 'preservou';
+  for (let tentativa = 0; tentativa < TENTATIVAS_GRAVAR; tentativa++) {
+    const { reg, versao } = await lerRegistroComVersao(codigo);
+    if (!(socio || podeVer(por, consultorEfetivo(dados.cols, venda.celulas, reg)))) return 'sem_acesso';
+    const antes = celulaDe(col, venda.celulas[col.indice] ?? '', reg);
+    const atual = antes.valor === null || antes.valor === undefined ? '' : String(antes.valor).replace(/\s+/g, ' ').trim();
+    if (atual && nomeComparavel(atual) === nomeComparavel(novo)) return 'igual';
+    const foiDestaVia = antes.origem === 'sistema' && !!nomeAnterior && nomeComparavel(atual) === nomeComparavel(nomeAnterior);
+    if (atual && !foiDestaVia) return 'preservou';
+    const agora = new Date().toISOString();
+    if (await gravarRegistro(codigo, aplicarGravacao(reg, col, v.valor, antes.valor, por, agora), versao, agora)) return 'gravou';
+  }
+  return 'ocupado';
 }
 
 function quem(req: Request): { nome: string; socio: boolean } {

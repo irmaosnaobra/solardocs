@@ -104,9 +104,13 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
   // A conta de luz (`conta_luz`) é a da UNIDADE GERADORA, onde vão as placas; as contas das unidades que recebem o excedente
   // ficam em `conta_luz_beneficiaria` (várias).
   vendasolar: [
-    it('documento_titular', 'CNH ou documento pessoal do comprador', 'ambos', true),
-    it('comprovante_endereco_comprador', 'Comprovante de endereço do comprador', 'ambos', false),
-    it('documento_titular_uc', 'CNH ou documento do titular da conta de luz (quando não é o comprador)', 'ambos', false),
+    // Os papéis (21/10/2026): o contratante (as chaves `documento_titular` e `comprovante_endereco_comprador` ficam, só mudou o
+    // rótulo), o titular da homologação (`documento_titular_uc`, a conta de luz e a usina no nome dele) e o titular do financiamento.
+    it('documento_titular', 'CNH ou documento do contratante', 'ambos', true),
+    it('comprovante_endereco_comprador', 'Comprovante de endereço do contratante', 'ambos', false),
+    it('documento_titular_uc', 'CNH ou documento do titular da homologação', 'ambos', false),
+    it('documento_financiamento', 'CNH ou documento do titular do financiamento', 'ambos', false),
+    it('comprovante_endereco_financiamento', 'Comprovante de endereço do titular do financiamento', 'ambos', false),
     it('documento_outra_pessoa', 'Documento de outra pessoa (cônjuge, sócio, representante)', 'ambos', false, true),
     it('documento_avalista', 'CNH ou documento pessoal do avalista', 'ambos', false),
     it('comprovante_endereco_avalista', 'Comprovante de endereço do avalista', 'ambos', false),
@@ -125,7 +129,7 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
 
 /**
  * Slot do dossiê da proposta -> item do catálogo `vendasolar`. Só leitura: o dossiê não migra. O `documento` do dossiê é o
- * "documento com foto do TITULAR DA CONTA" de luz (veja `ARQUIVOS_SOLAR`), que nem sempre é o comprador: vira
+ * "documento com foto do TITULAR DA CONTA" de luz (veja `ARQUIVOS_SOLAR`), que nem sempre é o contratante: vira
  * `documento_titular_uc`, e na leitura por IA só alimenta `tuc_*`.
  */
 export const SLOT_DO_DOSSIE_NA_VENDASOLAR: Readonly<Record<string, string>> = {
@@ -139,6 +143,7 @@ export const SLOT_DO_DOSSIE_NA_VENDASOLAR: Readonly<Record<string, string>> = {
 export const SLOTS_FORA_DO_RELATORIO: ReadonlySet<string> = new Set([
   'documento_avalista', 'documento_outra_pessoa',
   'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
+  'documento_financiamento', 'comprovante_endereco_financiamento',
 ]);
 
 export const itemDoCatalogo = (linha: Linha, chave: unknown): ItemDoc | null =>

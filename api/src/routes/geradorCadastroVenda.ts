@@ -6,8 +6,10 @@ import { ErroDocs, garantirBucketDocs, baixarObjeto, lerGeracaoDaProposta } from
 import { analisarSolar, type GeracaoDaProposta, type AnaliseSolar } from '../services/gerador/solarAnalise';
 import { ErroCadastro, type LinhaCadastro } from '../services/gerador/cadastroVendaBanco';
 import {
-  ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, type Fonte, type VistaCadastro,
+  ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, nomeDaHomologacao, type Cadastro, type Fonte, type VistaCadastro,
 } from '../services/gerador/cadastroVenda';
+import { sincronizarNomeHomologacao } from './geradorClientes';
+import { lerLigacao } from '../services/gerador/vendaSolarHub';
 import { lerDocumentosDaVenda, SLOTS_LIDOS_SOLAR, type PessoasConhecidas } from '../services/gerador/cadastroVendaLeitura';
 import { lerRotulos } from '../services/gerador/docsRotulos';
 import { organizarDocs } from '../services/gerador/docsOrganizar';
@@ -91,6 +93,39 @@ async function analiseDaVenda(ctx: Ctx, linha: LinhaCadastro, vista: VistaCadast
   return { analise: analisarSolar(vista.valores, geracao) };
 }
 
+/**
+ * Só a venda solar: `negociador` é o nome do card (`agendamentos.cliente_nome`), com quem a equipe conversou. Só leitura: o
+ * cadastro nunca o altera, e ele não é um dos papéis (contratante, titular da homologação, titular do financiamento).
+ */
+const extrasSolar = (ctx: Ctx, linha: LinhaCadastro): { negociador: string } | Record<string, never> =>
+  (linha === 'vendasolar' ? { negociador: ctx.cliente } : {});
+
+/**
+ * Planilha mãe (venda solar): o nome da homologação do cadastro vai para a coluna "Nome na homologação" da venda ligada ao card.
+ * Só quando o pedido mexeu em `tuc_nome`, `nome` ou `homologacao_mesmo`, o card tem venda ligada (assinada) e há nome. Só o NOME.
+ * Devolve o texto do `aviso` quando falha (a gravação do cadastro já valeu e não cai por causa disto); undefined = tudo certo
+ * ou nada a fazer.
+ */
+const AVISO_SEM_CONFERIR = 'Salvo. Não consegui conferir a planilha agora; o nome da homologação não foi copiado.';
+async function sincronizarHomologacao(ctx: Ctx, mexeu: string[], depois: Cadastro, antes: Cadastro | null): Promise<string | undefined> {
+  if (!mexeu.some((k) => k === 'tuc_nome' || k === 'nome' || k === 'homologacao_mesmo')) return undefined;
+  const nome = nomeDaHomologacao(depois);
+  if (!nome) return undefined;
+  try {
+    const { lig } = await lerLigacao(Number(ctx.codigo));
+    if (!lig.venda) return undefined;
+    const r = await sincronizarNomeHomologacao(lig.venda, nome, antes ? nomeDaHomologacao(antes) : '', ctx.nome, ctx.socio);
+    if (r === 'sem_coluna') return 'Salvo. Não achei a venda ligada, ou a coluna "Nome na homologação", na planilha.';
+    if (r === 'sem_acesso') return 'Salvo. Você não tem acesso à venda ligada na planilha; o nome da homologação não foi copiado.';
+    if (r === 'ocupado') return 'Salvo. Não consegui escrever o nome na homologação da planilha agora: outra pessoa estava gravando.';
+    if (r === 'sem_conferir') return AVISO_SEM_CONFERIR;
+    return undefined;
+  } catch (e) {
+    logErro('nome da homologação não foi para a planilha', e);
+    return AVISO_SEM_CONFERIR;
+  }
+}
+
 /** Baixa do bucket certo: o do dossiê (que devolve null em vez de lançar) ou o dos documentos da venda. */
 async function baixarDaLeitura(caminho: string): Promise<Buffer> {
   if (!caminho.startsWith(PREFIXO_DOSSIE)) return baixarObjeto(caminho);
@@ -111,7 +146,7 @@ export function mountCadastroVenda(router: Router): void {
         // Eletroposto: enquanto a primeira escrita não migrou, o legado da ficha aparece aqui (fonte 'ficha'): ficha e contrato
         // não discordam. Venda solar: só o bucket.
         const vista = vistaDe(await lerCadastroVisto(Number(ctx.codigo), linha), linha);
-        res.json({ ok: true, cadastro: vista, ...(await analiseDaVenda(ctx, linha, vista)) });
+        res.json({ ok: true, cadastro: vista, ...extrasSolar(ctx, linha), ...(await analiseDaVenda(ctx, linha, vista)) });
       } catch (err) {
         logErro('leitura falhou', err);
         indisponivel(res);
@@ -142,9 +177,15 @@ export function mountCadastroVenda(router: Router): void {
       try {
         const r = await escreverCadastro(Number(ctx.codigo), limpos, ctx.nome, fonte as Fonte, new Date().toISOString(), linha);
         const vista = vistaDe(r.cad, linha);
+        const avisos: string[] = [];
+        if (!r.limpou) avisos.push('Salvo. A limpeza do registro antigo da ficha fica para a próxima gravação.');
+        if (linha === 'vendasolar') {
+          const a = await sincronizarHomologacao(ctx, Object.keys(limpos), r.cad, r.antes ?? null);
+          if (a) avisos.push(a);
+        }
         res.json({
-          ok: true, cadastro: vista, ...(await analiseDaVenda(ctx, linha, vista)),
-          ...(r.limpou ? {} : { aviso: 'Salvo. A limpeza do registro antigo da ficha fica para a próxima gravação.' }),
+          ok: true, cadastro: vista, ...extrasSolar(ctx, linha), ...(await analiseDaVenda(ctx, linha, vista)),
+          ...(avisos.length ? { aviso: avisos.join(' ') } : {}),
         });
       } catch (err) {
         logErro('gravar falhou', err);
@@ -172,12 +213,19 @@ export function mountCadastroVenda(router: Router): void {
         } catch (e) { logErro('rótulos indisponíveis', e); }
         // Os nomes já conhecidos (para a IA casar o nome escrito no documento com a pessoa): o cadastro e, sem ele, o nome do card.
         // Cadastro fora do ar NÃO derruba a leitura: ela segue só com o nome do card.
-        const pessoas: PessoasConhecidas = { comprador: ctx.cliente };
+        // Venda solar: o nome do card é o NEGOCIADOR (com quem a equipe falou), que pode ser o contratante, o titular da homologação
+        // ou o do financiamento. Ele vai como pessoa própria e não é tomado por contratante enquanto o cadastro não diz.
+        const pessoas: PessoasConhecidas = linha === 'vendasolar' ? { negociador: ctx.cliente } : { comprador: ctx.cliente };
         try {
           const cad = await lerCadastroVisto(Number(ctx.codigo), linha);
-          pessoas.comprador = cad.campos.nome?.valor || ctx.cliente;
-          if (linha === 'vendasolar') pessoas.titular_uc = cad.campos.tuc_nome?.valor;
-          else pessoas.cedente = cad.campos.ced_nome?.valor;
+          if (linha === 'vendasolar') {
+            pessoas.comprador = cad.campos.nome?.valor;
+            pessoas.titular_uc = cad.campos.tuc_nome?.valor;
+            pessoas.titular_financiamento = cad.campos.fin_nome?.valor;
+          } else {
+            pessoas.comprador = cad.campos.nome?.valor || ctx.cliente;
+            pessoas.cedente = cad.campos.ced_nome?.valor;
+          }
           pessoas.avalista = cad.campos.aval_nome?.valor;
         } catch (e) { logErro('cadastro indisponível para os nomes da leitura', e); }
         const doDossie = linha === 'vendasolar' ? await arquivosDoDossie(ctx) : [];
