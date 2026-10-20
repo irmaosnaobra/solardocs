@@ -5883,7 +5883,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Partes</div>
         <div class="orc-cli-banner" id="ctr-partes-banner">—</div>
-        <div class="orc-note" style="margin-top:10px;margin-bottom:12px"><span class="ctr-rot-Nossa">Contratada</span> vem do card <b>Sua empresa</b>.</div>
+        <div class="orc-note" style="margin-top:10px;margin-bottom:12px" data-ctr-cess="nao"><span class="ctr-rot-Nossa">Contratada</span> vem do card <b>Sua empresa</b>.</div>
         <!-- Quem negocia é uma pessoa; quem assina costuma ser a empresa dela.
              Trocar o cliente do Simulador pra razão social resolveria o contrato
              e estragaria orçamento e recibo, que falam com a PESSOA. -->
@@ -5933,6 +5933,62 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="administradora">Administradora do imóvel ou do shopping</option>
             <option value="credor">Credor do imóvel (hipoteca ou alienação fiduciária)</option>
           </select></div></div>
+        <!-- CEDENTE TERCEIRO (19/10/2026). No Arrendamento com "O cliente" como cessionário, o
+             cedente é o dono ou possuidor do ponto, uma terceira pessoa. A NEXUS só redige. -->
+        <div class="orc-note" style="grid-column:1/-1;margin-top:10px" data-ctr-cess="cliente"><b>Cedente (dono ou possuidor do ponto):</b> neste modo o contrato é entre o cliente, que fica como cessionário, e o cedente abaixo. A NEXUS só redige e não é parte. A qualidade do cedente é a escolhida em "O cedente é", no cartão Arrendamento.</div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>Cedente (nome ou razão social)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-nome" placeholder="Quem cede a área" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>CPF/CNPJ do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-doc" placeholder="CPF ou CNPJ" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-cess="cedpj"><label>Representante legal do cedente (empresa)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-rep" placeholder="Quem assina pela empresa" oninput="ctrBanner()"></div></div>
+        <div class="eletro-field" data-ctr-cess="cedpj"><label>CPF do representante do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-rep-doc" placeholder="000.000.000-00"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>RG do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-rg" placeholder="Número e órgão emissor · em branco não sai"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>Nacionalidade, estado civil e profissão do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-qualif" placeholder="Ex.: brasileiro, casado, agricultor · em branco não sai"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>Endereço do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-end" placeholder="Rua, número, bairro, cidade"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>CEP do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-cep" inputmode="numeric" placeholder="00000-000"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>Telefone do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-tel" inputmode="tel" placeholder="(00) 00000-0000"></div></div>
+        <div class="eletro-field" data-ctr-cess="cliente"><label>E-mail do cedente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ced-email" inputmode="email" placeholder="nome@exemplo.com"></div></div>
+        <!-- AVALISTA (FIADOR) (19/10/2026). Só no Completo e na Compra e venda de equipamento,
+             fora do híbrido. Com avalista: qualificação no preâmbulo, cláusula da fiança e assinatura. -->
+        <div class="eletro-field" data-ctr-aval="pode" style="grid-column:1/-1;margin-top:10px"><label>Avalista (fiador)</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-aval-tem" onchange="ctrResumo()">
+            <option value="">Sem avalista</option>
+            <option value="sim">Com avalista: fiador e principal pagador</option>
+          </select></div></div>
+        <div class="orc-note" style="grid-column:1/-1" data-ctr-aval="hib">No contrato híbrido não há avalista: o preâmbulo e as assinaturas são únicos para as duas Partes, e a fiança ficaria numa Parte sem o fiador qualificado. Para ter avalista, gere o Completo ou a Compra e venda em papel próprio.</div>
+        <div class="orc-note" id="ctr-aval-nota" style="grid-column:1/-1" data-ctr-aval="sim">O fiador assina o contrato e responde com o cliente, solidariamente, até a quitação total.</div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>Avalista (nome ou razão social)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-nome" placeholder="Quem garante o contrato" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>CPF/CNPJ do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-doc" placeholder="CPF ou CNPJ" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-aval="pj"><label>Representante legal do avalista (empresa)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-rep" placeholder="Quem assina pela empresa"></div></div>
+        <div class="eletro-field" data-ctr-aval="pj"><label>CPF do representante do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-rep-doc" placeholder="000.000.000-00"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>RG do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-rg" placeholder="Número e órgão emissor · em branco não sai"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>Nacionalidade, estado civil e profissão do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-qualif" placeholder="Ex.: brasileiro, casado, empresário · em branco não sai" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-aval="pf"><label>Cônjuge do fiador (se casado)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-conj-nome" placeholder="Quem anui à fiança · em branco não sai" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-aval="pf"><label>CPF do cônjuge do fiador</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-conj-doc" placeholder="000.000.000-00"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>Endereço do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-end" placeholder="Rua, número, bairro, cidade"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>CEP do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-cep" inputmode="numeric" placeholder="00000-000"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>Telefone do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-tel" inputmode="tel" placeholder="(00) 00000-0000"></div></div>
+        <div class="eletro-field" data-ctr-aval="sim"><label>E-mail do avalista</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-aval-email" inputmode="email" placeholder="nome@exemplo.com"></div></div>
       </div>
 
       <div class="card">
@@ -6069,6 +6125,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="sub">Medidor da NEXUS na conta do cedente</option>
             <option value="refatura">Cedente paga a conta e cobra da NEXUS</option>
           </select></div></div>
+        <!-- QUEM É O CESSIONÁRIO (19/10/2026). Padrão: a NEXUS, como sempre. "O cliente": contrato entre
+             o cliente (instala e opera) e um terceiro dono do ponto; a NEXUS só redige e não é parte. -->
+        <div class="eletro-field" data-ctr-cess="pode"><label>Quem é o cessionário</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-cess" onchange="ctrCessMudou()">
+            <option value="nexus">A NEXUS (padrão)</option>
+            <option value="cliente">O cliente (contrato entre o cliente e o dono do ponto)</option>
+          </select></div></div>
+        <div class="orc-note" style="grid-column:1/-1" data-ctr-cess="hib">No contrato híbrido o cessionário é sempre a NEXUS: o preâmbulo é único para as duas Partes e não comporta um cedente de fora. Para o cliente como cessionário, gere o Arrendamento em papel próprio.</div>
+        <div class="orc-note" style="grid-column:1/-1" data-ctr-cess="cliente">Cessionário é o cliente: ele instala, opera e paga o valor mensal ao cedente. Onde este cartão diz NEXUS, vale o cliente.</div>
         <div class="eletro-field"><label>O cedente é</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-relacao" onchange="ctrResumo()">
             <option value="proprietario">Proprietário, com o imóvel livre</option>
@@ -22514,12 +22579,29 @@ function ctrSocPrazos() {
 // O "Local é seu" do formulário vira a condição do cedente. Quem ainda negocia
 // o local não pode ceder: sai em branco, para marcar à mão quando souber.
 function ctrArrRelacaoFicha() {
+  // Modo cliente: "O local é seu" fala do cessionário, não do cedente. A qualidade do cedente só se marca à mão.
+  return ctrArrCliAtivo() ? 'branco' : ctrArrRelacaoFichaBruta();
+}
+function ctrArrRelacaoFichaBruta() {
   const r = (epFicha && epFicha.localRel) || '';
   if (/^sou o propriet/i.test(r)) return 'proprietario';
   if (/^sou inquilino/i.test(r)) return 'locatario';
   if (/^(administro|represento)/i.test(r)) return 'representante';
   if (/ainda não é meu|negociando/i.test(r)) return 'branco';
   return 'proprietario';
+}
+// Mudou quem é o cessionário. Entrando no modo cliente, a qualidade do cedente que veio do formulário do cliente
+// (espelho ligado ou valor congelado igual ao dele) sai: vira "A confirmar", e o consultor é avisado.
+function ctrCessMudou() {
+  if (ctrArrCliAtivo()) {
+    const el = document.getElementById('ctr-arr-relacao'), ficha = ctrArrRelacaoFichaBruta(), temFicha = !!(epFicha && epFicha.localRel);
+    let limpou = false;
+    // Só há o que limpar quando o formulário do cliente respondeu "O local é seu".
+    if (temFicha && el && el.dataset.tocado === '1' && ficha !== 'branco' && el.value === ficha) { el.value = 'branco'; limpou = true; }
+    if (temFicha && ctrEspLigado('ctr-arr-relacao') && ficha !== 'branco') limpou = true;
+    if (limpou) showToast('A qualidade do cedente não vem do formulário do cliente: ficou "A confirmar". Marque quem é o cedente.');
+  }
+  ctrResumo();
 }
 // O modo da remuneração do arrendamento. Select ausente ou valor desconhecido
 // (snapshot de antes de 16/10/2026) é percentual, o comportamento de sempre.
@@ -22592,9 +22674,17 @@ function ctrTipoUi() {
   // Híbrido: o cartão aparece se serve a QUALQUER dos dois modelos marcados.
   const ativos = ctrTiposAtivos();
   const modos = ativos.map(x => ctrSocModo(x) || 'fora');
-  pane.querySelectorAll('[data-ctr-tipos],[data-ctr-socmodo],[data-ctr-ta],[data-ctr-ti],[data-ctr-arrmodo]').forEach(el => {
+  // Cedente terceiro e avalista (19/10/2026): cada atributo diz a condição por palavra.
+  //   data-ctr-cess  pode (Arrendamento simples) · cliente (cessionário = o cliente) · nao (o contrário) · hib (híbrido com arrendamento: o motivo)
+  //   data-ctr-aval  pode (Completo ou Compra e venda simples) · sim (com avalista) · hib (híbrido com um dos dois: o motivo)
+  const cessCli = ctrArrCliAtivo(), avalPode = ctrAvalPode(), avalSim = ctrAvalAtivo();
+  // cedpj e pj: o documento da pessoa de fora tem 14 dígitos (CNPJ), e aí aparece o representante.
+  const cessOk = v => ({ pode: !hib && ativos.includes('arrend'), cliente: cessCli, cedpj: cessCli && ctrPessoaPJ('ced'), nao: !cessCli, hib: hib && ativos.includes('arrend') })[v] !== false;
+  const avalOk = v => ({ pode: avalPode, sim: avalSim, pj: avalSim && ctrPessoaPJ('aval'), pf: avalSim && !ctrPessoaPJ('aval'), hib: hib && (ativos.includes('completo') || ativos.includes('equip')) })[v] !== false;
+  pane.querySelectorAll('[data-ctr-tipos],[data-ctr-socmodo],[data-ctr-ta],[data-ctr-ti],[data-ctr-arrmodo],[data-ctr-cess],[data-ctr-aval]').forEach(el => {
     const ds = el.dataset;
-    const ok = (!ds.ctrTipos || ds.ctrTipos.split(/\s+/).some(x => ativos.includes(x)))
+    const ok = (!ds.ctrCess || cessOk(ds.ctrCess)) && (!ds.ctrAval || avalOk(ds.ctrAval))
+      && (!ds.ctrTipos || ds.ctrTipos.split(/\s+/).some(x => ativos.includes(x)))
       // Lista de modos; "fora" é o tipo sem sociedade (arrendamento e termo do arrendador).
       && (!ds.ctrSocmodo || ds.ctrSocmodo.split(/\s+/).some(x => modos.includes(x)))
       // A força só existe no termo do arrendador e o uso só no do investidor:
@@ -22604,9 +22694,18 @@ function ctrTipoUi() {
       && (!ds.ctrArrmodo || ds.ctrArrmodo.split(/\s+/).includes(arrModo));
     el.classList.toggle('ctr-fora', !ok);
   });
+  // Fiador casado (ou sem estado civil escrito) sem cônjuge: a fiança pode não valer (Súmula 332 do STJ).
+  { const an = document.getElementById('ctr-aval-nota');
+    if (an && avalSim) {
+      const q = orcVal('ctr-aval-qualif'), casado = !ctrPessoaPJ('aval') && (q === '' || /casad|uni[aã]o est[aá]vel/i.test(q));
+      an.innerHTML = casado && !orcVal('ctr-aval-conj-nome')
+        ? '<b>Fiador casado: preencha o cônjuge, senão a fiança pode não valer (Súmula 332 do STJ).</b>'
+        : 'O fiador assina o contrato e responde com o cliente, solidariamente, até a quitação total. O cônjuge que assina anui à fiança (Código Civil, art. 1.647, III).';
+    } }
   const txt = (sel, v) => pane.querySelectorAll(sel).forEach(el => { if (el.textContent !== v) el.textContent = v; });
   // No híbrido cada parte tem um nome em cada Parte do papel: na tela ficam os nomes neutros.
   if (hib) { txt('.ctr-rot-Nossa', 'Empresa'); txt('.ctr-rot-Parte', 'Cliente'); txt('.ctr-rot-parte', 'cliente'); }
+  else if (cessCli) { txt('.ctr-rot-Nossa', CTR_NOMES_ARR_CLI.Nossa); txt('.ctr-rot-Parte', CTR_NOMES_ARR_CLI.Parte); txt('.ctr-rot-parte', CTR_NOMES_ARR_CLI.parte); }
   else { txt('.ctr-rot-Nossa', N.Nossa); txt('.ctr-rot-Parte', N.Parte); txt('.ctr-rot-parte', N.parte); }
   const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
   set('ctr-esc-tit', soc ? 'Escopo: o que o investimento cobre' : 'Escopo: o que entra no preço');
@@ -22736,7 +22835,7 @@ function ctrArrUi() {
       : (fat > 0 ? `No Simulador o ponto fatura <b>${money(fat)}/mês</b> em plena operação: <b>${ctrPctTxt(a.pct)}%</b> dão <b>${money(fat * a.pct / 100)}/mês</b> ao cedente, e cada ponto percentual vale ${money(fat / 100)}/mês.` : `<b>${ctrPctTxt(a.pct)}%</b> do faturamento bruto.`) + piso;
   }
   const rn = document.getElementById('ctr-arr-relacao-nota');
-  if (rn) rn.innerHTML = ({
+  if (rn) rn.innerHTML = (ctrArrCliAtivo() ? '<b>Aqui a qualidade é do cedente, o dono ou possuidor do ponto, e não vem do formulário do cliente: marque à mão.</b> ' : '') + ({
     proprietario: 'O cedente declara ser o dono e ter a posse do imóvel.',
     locado: 'Com o imóvel alugado, quem tem a posse é o inquilino: o contrato exige a <b>anuência escrita dele</b>.',
     // A frase segue a conta da locação (ctrTALocacaoCabe), a mesma do papel.
@@ -22795,6 +22894,61 @@ function ctrInterv() {
   const papel = CTR_INT_QUALIDADE[orcVal('ctr-int-qualidade')] ? orcVal('ctr-int-qualidade') : 'proprietario';
   return { nome, doc: orcVal('ctr-int-doc'), end: orcVal('ctr-int-end'), papel, qualidade: CTR_INT_QUALIDADE[papel], rep: orcVal('ctr-int-rep'), repDoc: orcVal('ctr-int-rep-doc') };
 }
+// ─── CEDENTE TERCEIRO E AVALISTA (19/10/2026) ────────────────────────────────
+// Duas pessoas que não são o cliente nem a NEXUS, com a mesma ficha de oito campos
+// (nome, doc, rg, qualif, end, cep, tel, email). São de IDENTIDADE: ficam fora da lista
+// branca do assistente e o ctrHibSensivel as lê direto da tela. São TERCEIROS ligados ao
+// cliente: somem quando o cliente muda (VDC_IDS_TERCEIROS).
+//   ced   cedente do Arrendamento com "Quem é o cessionário" = o cliente. A NEXUS só redige.
+//   aval  avalista (fiador) do Completo e da Compra e venda de equipamento.
+// Nos dois casos fora do híbrido: o preâmbulo e as assinaturas do papel híbrido são únicos
+// para as duas Partes e não têm lugar para uma terceira pessoa.
+// Pessoa jurídica (CNPJ no documento): o representante e o CPF dele entram na qualificação e na assinatura.
+// Com CPF no documento os dois campos de representante são ignorados, mesmo escritos.
+const CTR_PESSOA_CAMPOS = [['nome', 'nome'], ['doc', 'doc'], ['rg', 'rg'], ['qualif', 'qualif'], ['end', 'end'], ['cep', 'cep'], ['tel', 'tel'], ['email', 'email'], ['rep', 'rep'], ['repDoc', 'rep-doc']];
+// Cônjuge do fiador (opcional): anui à fiança (CC art. 1.647, III). Também é terceiro ligado ao cliente.
+const CTR_CONJ_IDS = ['ctr-aval-conj-nome', 'ctr-aval-conj-doc'];
+const CTR_PESSOAS_IDS = ['ced', 'aval'].flatMap(p => CTR_PESSOA_CAMPOS.map(([, c]) => `ctr-${p}-${c}`)).concat(CTR_CONJ_IDS);
+const ctrPessoa = p => {
+  const o = Object.fromEntries(CTR_PESSOA_CAMPOS.map(([k, c]) => [k, orcVal(`ctr-${p}-${c}`)]));
+  const pj = o.doc.replace(/\D/g, '').length === 14;
+  if (!pj) { o.rep = ''; o.repDoc = ''; }
+  // Cônjuge só do fiador pessoa física (empresa não tem cônjuge).
+  if (p === 'aval') { o.conjNome = pj ? '' : orcVal('ctr-aval-conj-nome'); o.conjDoc = pj ? '' : orcVal('ctr-aval-conj-doc'); }
+  return o;
+};
+// Masculino genérico: no contrato do cliente como cessionário, "o CESSIONÁRIO". A NEXUS segue "a CESSIONÁRIA".
+const CTR_NOMES_ARR_CLI = { nossa: 'CEDENTE', deles: 'CESSIONÁRIO', Nossa: 'Cedente', Parte: 'Cessionário', parte: 'cessionário' };
+// O CNPJ no documento da pessoa de fora liga os campos do representante na tela.
+const ctrPessoaPJ = p => orcVal(`ctr-${p}-doc`).replace(/\D/g, '').length === 14;
+// O texto do arrendamento é escrito para a NEXUS ("a CESSIONÁRIA"). No modo cliente passa ao masculino: artigo,
+// contração e os poucos adjetivos que concordam com ela. O texto livre do consultor (extra.*) não se toca.
+function ctrArrMasculino(modelo) {
+  // O que o consultor digitou (local, horário, Pix, cartório, foro) vem entre \u0001 e \u0002 (ctrModeloPecas) e não se toca.
+  const ART = { da: 'do', pela: 'pelo', na: 'no', a: 'o', A: 'O' };
+  const simples = [['fornecedora', 'fornecedor'], ['continua solidária', 'continua solidário'], ['ela pede', 'ele pede'], ['retirados por ela', 'retirados por ele'], ['por conta dela', 'por conta dele']];
+  const troca = t => {
+    t = t.replace(/à CESSIONÁRIA/g, 'ao CESSIONÁRIO')
+      .replace(/(^|[^A-Za-zÀ-ÿ0-9_])(da|pela|na|a|A) CESSIONÁRIA/g, (_, pre, art) => pre + ART[art] + ' CESSIONÁRIO')
+      .replace(/CESSIONÁRIA/g, 'CESSIONÁRIO');
+    return simples.reduce((x, [a, b]) => x.split(a).join(b), t);
+  };
+  const m = x => x == null ? x : String(x).split(/(\u0001[^\u0002]*\u0002)/).map((t, k) => k % 2 ? t.slice(1, -1) : troca(t)).join('');
+  // As cláusulas extras (texto livre) só perdem as marcas.
+  const limpa = x => x == null ? x : String(x).replace(/[\u0001\u0002]/g, '');
+  return modelo.map(c => Object.assign({}, c, { titulo: m(c.titulo), itens: c.itens.map(it => {
+    const f = /^extra\./.test(it.key) ? limpa : m;
+    return Object.assign({}, it, { html: f(it.html) }, it.iaTexto != null ? { iaTexto: f(it.iaTexto) } : {});
+  }) }));
+}
+const CTR_CED_QUALIDADE = {
+  proprietario: 'proprietário(a) do imóvel', locado: 'proprietário(a) do imóvel, alugado a terceiro', locatario: 'inquilino(a) do imóvel',
+  representante: 'administrador(a) ou representante do proprietário do imóvel', condominio: 'condomínio do imóvel',
+};
+// O cessionário é o cliente? Só no Arrendamento simples (ctrTipo() do Termo do Arrendador e do híbrido não conta).
+const ctrArrCliAtivo = () => !ctrEhHibrido() && ctrTipo() === 'arrend' && orcVal('ctr-arr-cess') === 'cliente';
+const ctrAvalPode = () => !ctrEhHibrido() && (ctrTipo() === 'completo' || ctrTipo() === 'equip');
+const ctrAvalAtivo = () => ctrAvalPode() && orcVal('ctr-aval-tem') === 'sim';
 // O interveniente é quem dá a anuência que este cedente precisa? Inquilino
 // precisa do proprietário; dono com o imóvel alugado precisa do inquilino.
 function ctrIntervAnui(rel, papel) {
@@ -22944,7 +23098,10 @@ const CTR_DOS_ITENS = [
   { key: 'doc_interveniente', grupo: 'doc', nome: 'Documento de identidade do interveniente anuente', dica: 'RG ou CNH de quem assina como interveniente', obrig: c => c.iv },
   { key: 'doc_procuracao', grupo: 'doc', nome: 'Procuração ou contrato de administração', dica: 'Quando quem assina representa o dono', obrig: c => c.rel === 'representante' },
   { key: 'doc_condominio', grupo: 'doc', nome: 'Ata ou autorização do condomínio ou do shopping', dica: 'Área comum precisa de autorização', obrig: c => c.rel === 'condominio' },
-  { key: 'doc_proc_nexus', grupo: 'doc', nome: 'Procuração à NEXUS para a distribuidora, assinada', dica: 'É ela que faz o prazo do pedido de acesso começar a correr. Anote a data da entrega na observação', obrig: c => c.prom || c.arr },
+  // No modo cliente (cessionário = o cliente) a procuração é do cedente ao cessionário; a NEXUS não é parte.
+  { key: 'doc_proc_nexus', grupo: 'doc',
+    get nome() { return ctrArrCliAtivo() ? 'Procuração do cedente ao cessionário para a distribuidora, assinada' : 'Procuração à NEXUS para a distribuidora, assinada'; },
+    get dica() { return ctrArrCliAtivo() ? 'É ela que deixa o cessionário tratar da ligação nova com a distribuidora. Anote a data da entrega na observação' : 'É ela que faz o prazo do pedido de acesso começar a correr. Anote a data da entrega na observação'; }, obrig: c => c.prom || c.arr },
   { key: 'doc_bandeira', grupo: 'doc', nome: 'Autorização da bandeira do posto', dica: 'Se o contrato com a distribuidora de combustível exigir', obrig: () => false },
   { key: 'doc_onus', grupo: 'doc', nome: 'Certidão de ônus do imóvel', dica: 'Penhora e hipoteca aparecem aqui', obrig: () => false },
   { key: 'foto_fachada', grupo: 'foto', nome: 'Fachada e entrada do estabelecimento', obrig: () => true },
@@ -23008,7 +23165,8 @@ async function ctrDosCarregar() {
 
 // Contexto que decide o que é obrigatório: quem é o cedente e se é empresa.
 function ctrDosCtx() {
-  const doc = String(ctrCampo('ctr-contratante-doc') || '').replace(/\D/g, '');
+  // O cedente é o cliente, a não ser que o cessionário seja o cliente: aí o cedente é o de fora.
+  const doc = String((ctrArrCliAtivo() ? orcVal('ctr-ced-doc') : ctrCampo('ctr-contratante-doc')) || '').replace(/\D/g, '');
   return { rel: ctrCampo('ctr-arr-relacao') || 'proprietario', pj: doc.length === 14,
     // Híbrido: com o arrendamento em QUALQUER Parte a procuração à NEXUS é obrigatória, como no simples
     // (ctrTipo() aí devolve o modelo que cobra, não o arrendamento).
@@ -23157,7 +23315,7 @@ function ctrDosBlocos(rotulo, d) {
     return `<tr><td><b>${e(i.nome)}</b>${ob ? '<span>obrigatório</span>' : ''}${o ? `<span>${e(o)}</span>` : ''}</td><td class="st ${cls}">${rot}</td><td>${arqs.length ? arqs.map(a => e(a.nome)).join('<br>') : '—'}</td></tr>`;
   });
   const cab = '<thead><tr><th>Item</th><th>Situação</th><th>Arquivo(s)</th></tr></thead>';
-  const blocos = [`<div class="ep-ctr-anexo">${e(rotulo)}</div><p class="ep-ctr-p">${ctrDos.id ? `Dossiê nº <b>${e(ctrDos.id)}</b>.` : 'Dossiê sem arquivos anexados.'} Situação de cada documento e relatório fotográfico do local na data deste instrumento, ${e(d.data.toLocaleDateString('pt-BR'))}.${ctrDos.id ? ' Os arquivos originais ficam guardados no aparelho da NEXUS em que este dossiê foi montado.' : ''}</p>`];
+  const blocos = [`<div class="ep-ctr-anexo">${e(rotulo)}</div><p class="ep-ctr-p">${ctrDos.id ? `Dossiê nº <b>${e(ctrDos.id)}</b>.` : 'Dossiê sem arquivos anexados.'} Situação de cada documento e relatório fotográfico do local na data deste instrumento, ${e(d.data.toLocaleDateString('pt-BR'))}.${ctrDos.id ? ' Os arquivos originais ficam guardados no aparelho ' + (d && d.arrCli ? '' : 'da NEXUS ') + 'em que este dossiê foi montado.' : ''}</p>`];
   for (let i = 0; i < linhas.length; i += 8) blocos.push(`<table class="ep-ctr-pag ep-ctr-dos">${cab}<tbody>${linhas.slice(i, i + 8).join('')}</tbody></table>`);
   const fotos = its.flatMap(i => ctrDosArquivos(i.key).filter(ctrDosEhImagem).map(r => ({ r, nome: i.nome })));
   if (fotos.length) blocos.push('<div class="ep-ctr-cl">Relatório fotográfico</div>');
@@ -23329,7 +23487,9 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
   'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
   'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-eq-atraso', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja', 'ctr-arr-soc-ref',
-  'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
+  'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir',
+  // Quem é o cessionário, o cedente de fora e o avalista (19/10/2026). Papel salvo antes não tem as chaves: orcSnapApply as zera.
+  'ctr-arr-cess', 'ctr-aval-tem', ...CTR_PESSOAS_IDS];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
 function ctrEspOrigem(id) {
@@ -23815,6 +23975,20 @@ const ctrInt = (id, padrao) => Math.max(1, Math.round(orcNum(orcVal(id)) || padr
 function ctrBanner() {
   const el = document.getElementById('ctr-partes-banner');
   if (!el) return;
+  // Cessionário = o cliente: as partes são ele e o cedente de fora. A NEXUS não é parte, então o CNPJ dela não cobra.
+  if (ctrArrCliAtivo()) {
+    const fc = [], dc = ctrCampo('ctr-contratante-doc');
+    if (!ctrCampo('ctr-contratante')) fc.push('nome do cessionário');
+    if (!dc) fc.push('CPF/CNPJ do cessionário');
+    if (dc.replace(/\D/g, '').length === 14 && !orcVal('ctr-rep')) fc.push('representante legal do cessionário');
+    if (!orcVal('ctr-ced-nome')) fc.push('nome do cedente');
+    if (!orcVal('ctr-ced-doc')) fc.push('CPF/CNPJ do cedente');
+    if (ctrPessoaPJ('ced') && !orcVal('ctr-ced-rep')) fc.push('representante legal do cedente');
+    el.innerHTML = fc.length
+      ? `Falta pra qualificar as partes: <b>${orcEsc(fc.join(' · '))}</b>. Sem isso o contrato sai com linha em branco no lugar.`
+      : `<b>${orcEsc(ctrCampo('ctr-contratante'))}</b> (cessionário) e <b>${orcEsc(orcVal('ctr-ced-nome'))}</b> (cedente): partes qualificadas.`;
+    return;
+  }
   const emp = epEmitGet();
   const falta = [];
   const doc = ctrCampo('ctr-contratante-doc');
@@ -23920,13 +24094,18 @@ function ctrDados() {
   const pagLinhas = (tipo === 'arrend' || tipo === 'termo_arr') ? [] : ctrPag.linhas
     .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: (tipo === 'termo_inv' || ctrEhSoc(tipo)) ? ctrPagCondicaoTotal(l) : ctrPagCondicao(l) }))
     .filter(l => l.conta.valor > 0 || l.forma);
+  // Cessionário = cliente (só no Arrendamento simples) e avalista (só no Completo e na Compra e venda,
+  // fora do híbrido): decididos UMA vez, aqui. Quem copia este objeto para outro modelo (a minuta do
+  // termo do arrendador) força os dois para desligado.
+  const arrCli = ctrArrCliAtivo() && tipo === 'arrend', avalOn = ctrAvalAtivo() && (tipo === 'completo' || tipo === 'equip');
   return {
     // Modelo do contrato e os números de cada um (null fora do modelo).
     tipo, soc: ctrSocModo(tipo) ? ctrSoc() : null, socP: ctrSocModo(tipo) ? ctrSocPrazos() : null,
     arr: (tipo === 'arrend' || tipo === 'termo_arr') ? ctrArr() : null,
+    arrCli, ced: arrCli ? ctrPessoa('ced') : null, aval: avalOn ? ctrPessoa('aval') : null,
     // Nomes das partes, termos (null fora deles), interveniente anuente e a
     // qualificação civil da parte, que só sai no papel quando escrita.
-    nomes: ctrNomes(tipo),
+    nomes: arrCli ? CTR_NOMES_ARR_CLI : ctrNomes(tipo),
     ta: tipo === 'termo_arr' ? ctrTA() : null, ti: (tipo === 'termo_inv' || ctrEhSoc(tipo)) ? ctrTI() : null,
     interv: (tipo === 'arrend' || tipo === 'termo_arr' || tipo === 'socio50') ? ctrInterv() : null,
     eqv: tipo === 'equip' ? ctrEqv() : null, eqAtraso: ctrInt('ctr-eq-atraso', 30),
@@ -23960,7 +24139,7 @@ function ctrDados() {
     sinalDoTermo: ctrEhSoc(tipo) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0,
     // A referência ao contrato de sociedade só vale no percentual: lá a
     // remuneração do local é o % do faturamento daquele contrato.
-    origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'), socRef: tipo === 'arrend' && ctrArrModo() !== 'fixo' ? orcVal('ctr-arr-soc-ref') : '',
+    origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'), socRef: tipo === 'arrend' && !arrCli && ctrArrModo() !== 'fixo' ? orcVal('ctr-arr-soc-ref') : '',
     vistoria: tipo === 'completo' && typeof visRefContrato === 'function' ? visRefContrato() : null,
     sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
@@ -24297,6 +24476,8 @@ function ctrModeloObra(d) {
       I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de ${d.prazoCorrigir} dias para correção.`),
       I('rescisao.desistencia', `Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido${d.sinal > 0 ? (d.sinalDoRecibo ? ', sem prejuízo da retenção do sinal na forma do recibo de sinal firmado' : ', sem prejuízo da retenção do sinal referido na {{i:preco.sinal}}') : ''}.`),
     ]),
+    // Fiança (19/10/2026): só com avalista, logo antes das disposições gerais. Sem avalista, não existe.
+    ctrClausulaFianca(d, C, I, 'CONTRATADA', 'CONTRATANTE'),
     C('gerais', 'Das disposições gerais', [
       I('gerais.aditivo', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.'),
       I('gerais.tolerancia', 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.'),
@@ -24376,6 +24557,8 @@ function ctrModeloEquip(d) {
       I('desistencia.inadimplemento', 'O descumprimento deste contrato, não sanado em 10 (dez) dias da notificação, permite à parte prejudicada resolvê-lo, com perdas e danos.'),
       I('opc.eq_limite', op('eq_limite') && !pf ? `Entre empresas, a responsabilidade da ${N} por este contrato fica limitada ao preço pago, e nenhuma das partes responde por lucro cessante, salvo dolo ou culpa grave.` : ''),
     ]),
+    // Fiança (19/10/2026): só com avalista, logo antes das disposições gerais. Sem avalista, não existe.
+    ctrClausulaFianca(d, C, I, N, D),
     C('gerais', 'Das disposições gerais', [
       I('opc.lgpd', op('lgpd') ? `Os dados pessoais do ${D} são tratados pela ${N} só para este contrato, a entrega, a garantia e as obrigações fiscais, na forma da Lei nº 13.709/2018 (LGPD).` : ''),
       I('gerais.aditivo', 'Alterações deste contrato só valem por escrito assinado pelas partes.'),
@@ -24392,12 +24575,13 @@ function ctrModelo(d) {
   if (d.tipo === 'equip') return ctrModeloEquip(d);
   if (d.tipo === 'termo_arr') return ctrModeloTermoArr(d);
   if (d.tipo === 'termo_inv') return ctrModeloTermoInv(d);
-  if (d.tipo === 'arrend') return ctrModeloArrend(d);
+  if (d.tipo === 'arrend') return d.arrCli ? ctrArrMasculino(ctrModeloArrend(d)) : ctrModeloArrend(d);
   if (ctrEhSoc(d.tipo)) return ctrModeloSociedade(d);
   return ctrModeloObra(d);
 }
 function ctrModeloPecas(d) {
-  const e = orcEsc;
+  // Modo cliente do Arrendamento: o texto digitado vai marcado, para o masculino (ctrArrMasculino) não o tocar.
+  const e = d.arrCli ? v => '\u0001' + orcEsc(v) + '\u0002' : orcEsc;
   return {
     e, money: ORC_MONEY,
     vazio: v => v ? e(v) : '<span class="ep-rec-vazio"></span>',
@@ -24613,7 +24797,8 @@ function ctrModeloArrend(d) {
   const fixoTodo = fixo && a.fixoMeses != null && a.fixoMeses >= a.vigencia;
   const iv = d.interv && d.interv.nome ? d.interv : null;
   const ivDono = !!iv && iv.papel === 'proprietario';
-  const premioR = d.premioReserva || (d.tipo === 'arrend' ? ctrMoeda(ctrCampo('ctr-arr-premio')) : 0);
+  // Com o cliente como cessionário não há reserva paga pela NEXUS (o termo de origem é papel dela).
+  const premioR = d.premioReserva || (d.tipo === 'arrend' && !d.arrCli ? ctrMoeda(ctrCampo('ctr-arr-premio')) : 0);
   // Anexada ao termo do arrendador, a minuta segue a conta da locação do termo:
   // os dois papéis não podem dizer coisas diferentes sobre ela.
   // ARR-04: o contrato final também faz a conta, com a data da locação da tela.
@@ -24646,7 +24831,7 @@ function ctrModeloArrend(d) {
           ctrCampo('ctr-ta-uc') && `unidade consumidora nº ${e(ctrCampo('ctr-ta-uc'))}${ctrCampo('ctr-ta-distribuidora') ? ` da ${e(ctrCampo('ctr-ta-distribuidora'))}` : ''}`,
         ].filter(Boolean); return di.length ? `Dados do IMÓVEL: ${di.join('; ')}.` : ''; })()),
       I('objeto.sociedade', d.socRef ? `Este contrato formaliza, para o pedido de ligação nova junto à distribuidora, a cessão da área prevista no Contrato de Sociedade em Conta de Participação ${e(d.socRef)}, firmado entre as partes. A remuneração do CEDENTE é a prevista naquele contrato, paga como custo da operação da sociedade, e não se soma a ela; havendo divergência entre os dois, prevalece o contrato de sociedade, e este contrato vigora enquanto ela durar.` : ''),
-      I('objeto.termo', d.tipo === 'arrend' && d.origemRef ? `Este contrato é celebrado em cumprimento ao Termo de Compromisso e Promessa de Cessão de Área ${e(d.origemRef)}, cujas cláusulas do valor da reserva e de sigilo sobrevivem a ele.` : ''),
+      I('objeto.termo', d.tipo === 'arrend' && !d.arrCli && d.origemRef ? `Este contrato é celebrado em cumprimento ao Termo de Compromisso e Promessa de Cessão de Área ${e(d.origemRef)}, cujas cláusulas do valor da reserva e de sigilo sobrevivem a ele.` : ''),
       I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, mais o espaço da base do carregador, do quadro elétrico, do medidor e do trajeto dos cabos, conforme croqui rubricado pelas partes. O estado da ÁREA na assinatura fica registrado ${op('dossie_anexo') ? 'no relatório fotográfico do dossiê do local, anexo a este contrato' : 'em fotos rubricadas pelas partes'}, que são a referência para a devolução da {{c:devolucao}}.`),
       I('objeto.natureza', `Este contrato não cria sociedade nem parceria. O CEDENTE não participa do negócio, não opera o PONTO, não define o preço da recarga e não responde pelo seu resultado${fixo ? '' : '. O percentual da {{i:remuneracao.pct}} é só o preço da cessão, medido por um índice objetivo: o CEDENTE não participa de lucro nem suporta prejuízo'}.`),
     ]),
@@ -24769,7 +24954,7 @@ function ctrModeloArrend(d) {
     C('sucessao', 'Da venda do imóvel e da transferência do contrato', [
       I('sucessao.vendaIv', ivDono ? 'Se vender o IMÓVEL, o INTERVENIENTE ANUENTE faz constar este contrato no documento de venda e faz o comprador assumir, no mesmo documento, o dever de respeitá-lo até o fim do prazo e das renovações. Não o fazendo, responde perante a CESSIONÁRIA pelas perdas e danos.' : ''),
       I('sucessao.venda', `Se vender ${ivDono ? 'o estabelecimento' : 'o IMÓVEL ou o estabelecimento'}, o CEDENTE informa este contrato ao comprador por escrito, faz constar dele no documento de venda e oferece ao comprador assumi-lo nas mesmas condições. Se o comprador não assumir, o contrato se encerra por culpa do CEDENTE.`),
-      I('sucessao.cessao', 'A CESSIONÁRIA pode transferir este contrato, avisando o CEDENTE, a empresa do seu grupo ou a quem comprar o PONTO, e continua solidária pelas obrigações anteriores à transferência. Explorar o PONTO em sociedade em conta de participação em que seja sócia ostensiva não é transferência, e ela continua a única parte perante o CEDENTE.'),
+      I('sucessao.cessao', 'A CESSIONÁRIA pode transferir este contrato, avisando o CEDENTE, ' + (d.arrCli && String(d.contratanteDoc || '').replace(/\D/g, '').length !== 14 ? 'a empresa de que seja sócio' : 'a empresa do seu grupo') + ' ou a quem comprar o PONTO, e continua solidária pelas obrigações anteriores à transferência.' + (d.arrCli ? '' : ' Explorar o PONTO em sociedade em conta de participação em que seja sócia ostensiva não é transferência, e ela continua a única parte perante o CEDENTE.')),
       I('sucessao.finalidade', 'Fora da {{i:sucessao.cessao}}, a ÁREA não pode ser usada para outro fim nem cedida a terceiro.'),
       I('sucessao.herdeiros', 'Este contrato obriga herdeiros e sucessores das partes.'),
     ]),
@@ -25404,9 +25589,13 @@ function ctrBlocosDoc(d, opts) {
       </div>
       <div class="ep-ctr-tit">${cab.titulo}</div>
       <div class="ep-ctr-sub">${cab.sub}</div>`,
-    `<p class="ep-ctr-p"><b>${N.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(epFoneBR(d.empresa.tel)) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}${d.empresa.socio ? `, neste ato representada por <b>${e(d.empresa.socio)}</b>${d.empresa.socioCpf ? ', CPF nº ' + e(d.empresa.socioCpf) : ''}` : ', neste ato representada na forma do seu contrato social'}.</p>`,
+    // Cessionário = o cliente: o 1º parágrafo é o do CEDENTE de fora, e a NEXUS não é parte (só redige).
+    (d.arrCli && d.ced) ? ctrPreambuloCedente(d, vazio) : `<p class="ep-ctr-p"><b>${N.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(epFoneBR(d.empresa.tel)) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}${d.empresa.socio ? `, neste ato representada por <b>${e(d.empresa.socio)}</b>${d.empresa.socioCpf ? ', CPF nº ' + e(d.empresa.socioCpf) : ''}` : ', neste ato representada na forma do seu contrato social'}.</p>`,
     `<p class="ep-ctr-p"><b>${N.deles}:</b> ${vazio(d.contratante)}${d.qualif ? ', ' + e(d.qualif) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${d.ie ? ', inscrição estadual nº ' + e(d.ie) : ''}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(epFoneBR(d.tel)) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
     iv ? `<p class="ep-ctr-p"><b>INTERVENIENTE ANUENTE:</b> ${e(iv.nome)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(iv.doc)}${iv.end ? ', com endereço em ' + e(iv.end) : ''}${iv.rep ? `, neste ato representado(a) por <b>${e(iv.rep)}</b>${iv.repDoc ? ', CPF nº ' + e(iv.repDoc) : ''}` : ''}, na qualidade de ${e(iv.qualidade)}, que assina este instrumento para anuir à cessão e às obras.</p>` : '',
+    // Avalista (fiador): só no Completo e na Compra e venda, com a caixa ligada. Sem ele, nada entra aqui.
+    ...(d.aval ? [ctrPreambuloAvalista(d, N, resolver)] : []),
+    ...(d.aval && d.aval.conjNome ? [ctrPreambuloConjuge(d)] : []),
     `<p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>`,
     ...blocosClausulas,
   ];
@@ -25414,21 +25603,66 @@ function ctrBlocosDoc(d, opts) {
   if (!opts.semFecho) blocos.push(ctrFecho(d, iv, N.nossa, N.deles));
   return blocos;
 }
+// A ficha de uma pessoa de fora (cedente ou avalista) no preâmbulo: nome, qualificação, RG, CPF/CNPJ,
+// endereço e contatos, só o que está escrito. Cidade do Simulador não entra: é a do ponto, não a dele.
+function ctrPessoaFicha(p, vazio) {
+  const e = orcEsc, end = epEndParte(p.end, p.cep, '');
+  return `${vazio(p.nome)}${p.qualif ? ', ' + e(p.qualif) : ''}${p.rg ? ', portador(a) do RG nº ' + e(p.rg) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(p.doc)}${end ? ', com endereço em ' + e(end) : ''}${p.tel ? ', telefone ' + e(epFoneBR(p.tel)) : ''}${p.email ? ', e-mail ' + e(p.email) : ''}${p.rep ? `, neste ato representado(a) por <b>${e(p.rep)}</b>${p.repDoc ? ', CPF nº ' + e(p.repDoc) : ''}` : ''}`;
+}
+// Arrendamento com o cliente como cessionário: quem cede é um terceiro, e a NEXUS não é parte.
+function ctrPreambuloCedente(d, vazio) {
+  const qual = CTR_CED_QUALIDADE[d.arr && d.arr.relacao];
+  return `<p class="ep-ctr-p"><b>${d.nomes.nossa}:</b> ${ctrPessoaFicha(d.ced, vazio)}${qual ? ', na qualidade de ' + qual : ''}.</p>`;
+}
+// Avalista (fiador): qualificado como tal e remetido à cláusula da fiança, que ele assina junto.
+function ctrPreambuloAvalista(d, N, resolver) {
+  const vazio = v => v ? orcEsc(v) : '<span class="ep-rec-vazio"></span>';
+  return `<p class="ep-ctr-p"><b>FIADOR:</b> ${ctrPessoaFicha(d.aval, vazio)}, que assina este instrumento como fiador e principal pagador das obrigações do ${N.deles}, na forma da ${resolver('{{c:fianca}}')}.</p>`;
+}
+// Cônjuge do fiador: anuente da fiança, só quando o nome está preenchido.
+function ctrPreambuloConjuge(d) {
+  const e = orcEsc, a = d.aval;
+  return `<p class="ep-ctr-p"><b>CÔNJUGE DO FIADOR (ANUENTE):</b> ${e(a.conjNome)}${a.conjDoc ? ', inscrito(a) no CPF nº ' + e(a.conjDoc) : ''}, que assina este instrumento para anuir à fiança, na forma do art. 1.647, III, do Código Civil.</p>`;
+}
+// A cláusula "Da fiança" do Completo e da Compra e venda de equipamento. Sem avalista, não existe.
+// `cred` é a parte que recebe (CONTRATADA, VENDEDORA); `dev` a que deve (CONTRATANTE, COMPRADOR).
+// Travada: é texto jurídico fechado, sem dado de pessoa, e a IA não a refaz nem a tira.
+function ctrClausulaFianca(d, C, I, cred, dev) {
+  if (!d.aval) return null;
+  return C('fianca', 'Da fiança', [
+    I('fianca.garantia', `O FIADOR, qualificado no preâmbulo, garante este contrato como principal pagador de todas as obrigações do ${dev}, e responde por elas solidariamente com ele perante a ${cred}.`, { travado: true }),
+    I('fianca.ordem', `O FIADOR renuncia ao benefício de ordem e obriga-se como devedor solidário e principal pagador: a ${cred} pode cobrá-lo sem cobrar antes o ${dev} (arts. 827 e 828 do Código Civil).`, { travado: true }),
+    I('fianca.prazo', `A fiança vale até a quitação total das obrigações do ${dev}, inclusive multas, juros, correção monetária e demais encargos deste contrato.`, { travado: true }),
+    I('fianca.conjuge', d.aval.conjNome ? 'O cônjuge do FIADOR, qualificado no preâmbulo, assina este contrato para anuir à fiança (art. 1.647, III, do Código Civil).' : '', { travado: true }),
+  ]);
+}
 // O fecho: data, assinaturas (cada uma com o nome do papel) e testemunhas. É UM
 // bloco só. No híbrido as duas assinaturas levam os papéis das duas Partes.
 function ctrFecho(d, iv, rotNossa, rotDeles) {
   const e = orcEsc;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const dataTxt = d.data.toLocaleDateString('pt-BR');
+  const av = d.aval || null;
+  // Cedente de fora no lugar da NEXUS: a assinatura da esquerda é dele.
+  const assinNossa = d.arrCli && d.ced
+    ? `<b>${vazio(d.ced.nome)}</b>${d.ced.doc ? `<span>CPF/CNPJ ${e(d.ced.doc)}</span>` : ''}${d.ced.rep ? e(d.ced.rep) + '<br>' : ''}${rotNossa}`
+    : `<b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}${rotNossa}`;
   return `<div class="ep-ctr-fim">
-      <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em ${iv ? 'três' : 'duas'} vias de igual teor${d.opc && d.opc.eletronica ? ' ou, eletronicamente, em via única' : ''}${d.testemunhas ? ', na presença das testemunhas abaixo' : ''}${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
+      <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em ${['duas', 'três', 'quatro', 'cinco'][(iv ? 1 : 0) + (av ? 1 : 0) + (av && av.conjNome ? 1 : 0)]} vias de igual teor${d.opc && d.opc.eletronica ? ' ou, eletronicamente, em via única' : ''}${d.testemunhas ? ', na presença das testemunhas abaixo' : ''}${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
       <div class="ep-ctr-assin">
-        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}${rotNossa}</div>
+        <div class="a">${assinNossa}</div>
         <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}${rotDeles}</div>
       </div>${iv ? `
       <div class="ep-ctr-assin" style="justify-content:center">
         <div class="a" style="flex:0 1 48%"><b>${e(iv.nome)}</b>${iv.doc ? `<span>CPF/CNPJ ${e(iv.doc)}</span>` : ''}${iv.rep ? e(iv.rep) + '<br>' : ''}INTERVENIENTE ANUENTE</div>
-      </div>` : ''}
+      </div>` : ''}${av ? (av.conjNome ? `
+      <div class="ep-ctr-assin">
+        <div class="a"><b>${vazio(av.nome)}</b>${av.doc ? `<span>CPF/CNPJ ${e(av.doc)}</span>` : ''}${av.rep ? e(av.rep) + '<br>' : ''}FIADOR</div>
+        <div class="a"><b>${e(av.conjNome)}</b>${av.conjDoc ? `<span>CPF ${e(av.conjDoc)}</span>` : ''}CÔNJUGE DO FIADOR (ANUENTE)</div>
+      </div>` : `
+      <div class="ep-ctr-assin" style="justify-content:center">
+        <div class="a" style="flex:0 1 48%"><b>${vazio(av.nome)}</b>${av.doc ? `<span>CPF/CNPJ ${e(av.doc)}</span>` : ''}${av.rep ? e(av.rep) + '<br>' : ''}FIADOR</div>
+      </div>`) : ''}
       ${d.testemunhas ? `<div class="ep-ctr-test">
         <div class="a"><b>Testemunha 1</b><span>Nome:</span><span>CPF:</span></div>
         <div class="a"><b>Testemunha 2</b><span>Nome:</span><span>CPF:</span></div>
@@ -25445,7 +25679,8 @@ function ctrAnexos(d) {
   if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa' && op('ta_minuta')) {
     // A minuta é o contrato de arrendamento com os MESMOS campos, sem número e
     // sem assinatura. O dossiê aqui é anexo do termo, não da minuta.
-    const dm = Object.assign({}, d, { tipo: 'arrend', nomes: ctrNomes('arrend'), num: '', opc: Object.assign({}, d.opc, { dossie_anexo: false }), premioReserva: d.ta.premio });
+    // A minuta do termo é sempre da NEXUS como cessionária, sem avalista: não herda o modo cliente.
+    const dm = Object.assign({}, d, { tipo: 'arrend', arrCli: false, ced: null, aval: null, nomes: ctrNomes('arrend'), num: '', opc: Object.assign({}, d.opc, { dossie_anexo: false }), premioReserva: d.ta.premio });
     out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de cessão de área, rubricada pelas partes</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
   }
   if (d.tipo === 'termo_inv' && d.soc && d.ti.uso !== 'adesao' && op('ti_minuta')) {
@@ -25478,7 +25713,7 @@ function ctrHTML(d) {
   // pessoa física no pé de todas as folhas.
   const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
   const cab = ctrCabecalho(d);
-  const nRub = 2 + (d.interv && d.interv.nome ? 1 : 0);
+  const nRub = 2 + (d.interv && d.interv.nome ? 1 : 0) + (d.aval ? 1 : 0) + (d.aval && d.aval.conjNome ? 1 : 0);
   const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span>${tot > 1 ? `<span class="ep-rubr">Rubricas ${'<i></i>'.repeat(nRub)}</span>` : ''}<span>Página ${n} de ${tot}</span></div>`;
   const blocos = ctrBlocosDoc(d);
   ctrAnexos(d).forEach(a => blocos.push(EP_QUEBRA, ...a));
@@ -25626,6 +25861,11 @@ function ctrAgSensivel(ds) {
   base.forEach(v => {
     String(v).split(/[,;\n]/).map(x => x.trim()).filter(x => x.length >= 6).forEach(x => { set.add(x); set.add(orcEsc(x)); });
     const dg = String(v).replace(/\D/g, '');
+    // Telefone fixo (10), com país (12 e 13) e CEP (8) escritos só com dígitos no chat (19/10/2026). O de 11 e o de 14 seguem abaixo.
+    // Cada um também na forma que se digita: CEP com hífen e telefone com parênteses.
+    if (dg.length === 8 || dg.length === 10 || dg.length === 12 || dg.length === 13) set.add(dg);
+    if (dg.length === 8) set.add(`${dg.slice(0, 5)}-${dg.slice(5)}`);
+    if (dg.length >= 10 && dg.length <= 13) set.add(epFoneBR(dg));
     if (dg.length === 11) { set.add(dg); set.add(`${dg.slice(0, 3)}.${dg.slice(3, 6)}.${dg.slice(6, 9)}-${dg.slice(9)}`); }
     if (dg.length === 14) { set.add(dg); set.add(`${dg.slice(0, 2)}.${dg.slice(2, 5)}.${dg.slice(5, 8)}/${dg.slice(8, 12)}-${dg.slice(12)}`); }
   });
@@ -26596,6 +26836,9 @@ function ctrHibSensivel(ds) {
     [d.contratante, d.contratanteDoc, d.contratanteEnd, d.cep, d.tel, d.email, d.rep, d.repDoc, d.local, d.end, d.doc, d.ie, d.qualif, d.cliente,
       iv.nome, iv.doc, iv.end, iv.rep, iv.repDoc].forEach(x => { x = String(x || '').trim(); if (x.length >= 4) { v.add(x); v.add(orcEsc(x)); } });
   });
+  // Cedente de fora e avalista (19/10/2026): lidos direto da tela, com a chave ligada ou não, e em qualquer modelo.
+  // Nome digitado no chat com a chave desligada também não pode sair.
+  CTR_PESSOAS_IDS.forEach(id => { const x = orcVal(id).trim(); if (x.length >= 4) { v.add(x); v.add(orcEsc(x)); } });
   return [...v].sort((a, b) => b.length - a.length);
 }
 const ctrHibScrub = (html, sens) => sens.reduce((h, s) => h.split(s).join('[dado do cliente]'), String(html));
@@ -27000,6 +27243,15 @@ async function ctrImprimir() {
     const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', !d.eqv.garantia && 'garantia',
       d.eqv.itens.some(i => !i.ncm) && 'NCM de algum item'].filter(Boolean);
     if (faltam.length && !confirm(`Sem ${faltam.join(', ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
+  }
+  // Cedente de fora (cessionário = o cliente) e avalista: sem nome ou documento o papel sai com a linha em branco, mas não passa calado.
+  if (d.ced) {
+    const faltam = [!d.ced.nome && 'nome do cedente', !d.ced.doc && 'CPF/CNPJ do cedente', ctrPessoaPJ('ced') && !d.ced.rep && 'representante do cedente (empresa não assina sozinha)'].filter(Boolean);
+    if (faltam.length && !confirm(`Sem ${faltam.join(' e ')}: o contrato sai com a linha em branco no lugar, e a NEXUS não é parte dele.\n\nGerar assim mesmo?`)) return;
+  }
+  if (d.aval) {
+    const faltam = [!d.aval.nome && 'nome do avalista', !d.aval.doc && 'CPF/CNPJ do avalista', ctrPessoaPJ('aval') && !d.aval.rep && 'representante do avalista (empresa não assina sozinha)'].filter(Boolean);
+    if (faltam.length && !confirm(`Sem ${faltam.join(' e ')}: a fiança sai com a linha em branco no lugar.\n\nGerar assim mesmo?`)) return;
   }
   // Sociedade cujas cotas não somam 100% não existe: trava, como na Sociedade em PDF.
   if (d.soc && !d.soc.cotasFecham) {
@@ -27426,8 +27678,9 @@ function anuInit() {
   const quer = anuCaso() === 'inquilino_cessao' ? 'locatario' : 'proprietario';
   const ivServe = !!iv.nome && iv.papel === quer;
   epSugerir([
-    ['anu-cedente', ctrCampo('ctr-contratante') || eletroTextos().cliente],
-    ['anu-cedente-doc', ctrCampo('ctr-contratante-doc') || orcVal('orc-cli-doc')],
+    // Cessionário = o cliente: o cedente da anuência é o de fora, não o cliente.
+    ['anu-cedente', ctrArrCliAtivo() ? orcVal('ctr-ced-nome') : (ctrCampo('ctr-contratante') || eletroTextos().cliente)],
+    ['anu-cedente-doc', ctrArrCliAtivo() ? orcVal('ctr-ced-doc') : (ctrCampo('ctr-contratante-doc') || orcVal('orc-cli-doc'))],
     ['anu-ref', anuRefSugerida()],
     ['anu-nome', ivServe ? iv.nome : ''], ['anu-doc', ivServe ? iv.doc : ''], ['anu-end', ivServe ? iv.end : ''],
     ['anu-rep', ivServe ? iv.rep : ''], ['anu-rep-doc', ivServe ? iv.repDoc : ''],
@@ -27451,8 +27704,10 @@ function anuDados() {
     // Mesma conta do contrato (ARR-04): locação que não cobre o prazo da cessão.
     locacaoCurta: caso === 'dono_cessao' && arr && !!dc.arr && ctrTALocacaoCabe(dc) !== true,
     nome: orcVal('anu-nome'), doc: orcVal('anu-doc'), end: orcVal('anu-end'), rep: orcVal('anu-rep'), repDoc: orcVal('anu-rep-doc'),
-    cedente: orcVal('anu-cedente') || ctrCampo('ctr-contratante') || eletroTextos().cliente,
+    cedente: orcVal('anu-cedente') || (dc.arrCli && dc.ced ? dc.ced.nome : ctrCampo('ctr-contratante')) || eletroTextos().cliente,
     cedenteDoc: orcVal('anu-cedente-doc'),
+    // Cessionário = o cliente (modo cliente do Arrendamento): a anuência cita o cliente no lugar da NEXUS.
+    cess: dc.arrCli ? { nome: dc.contratante, doc: dc.contratanteDoc } : null,
     ref: orcVal('anu-ref'),
     imovel: locImovel(),
     cidade: orcVal('proc-cidade') || eletroTextos().cidade,
@@ -27466,23 +27721,28 @@ function anuHTML(d) {
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const P = C.parte;
   const emp = d.empresa;
-  const nexus = `<b>${vazio(emp.razao || emp.nome)}</b>, inscrita no CNPJ sob o nº ${vazio(emp.cnpj)} (a "NEXUS")`;
+  const nexus = d.cess
+    ? `<b>${vazio(d.cess.nome)}</b>${d.cess.doc ? `, CPF/CNPJ nº ${e(d.cess.doc)}` : ''} (o "CESSIONÁRIO")`
+    : `<b>${vazio(emp.razao || emp.nome)}</b>, inscrita no CNPJ sob o nº ${vazio(emp.cnpj)} (a "NEXUS")`;
+  // No modo cliente, onde o texto diz NEXUS lê-se o CESSIONÁRIO (o cliente), com a concordância.
+  const nx = s => d.cess ? String(s).replace(/à NEXUS/g, 'ao CESSIONÁRIO').replace(/(^|[^A-Za-zÀ-ÿ0-9_])(da|pela|na|a|A) NEXUS/g, (_, pre, art) => pre + ({ da: 'do', pela: 'pelo', na: 'no', a: 'o', A: 'O' })[art] + ' CESSIONÁRIO').replace(/NEXUS/g, 'CESSIONÁRIO') : s;
   const cedente = `<b>${vazio(d.cedente)}</b>${d.cedenteDoc ? `, CPF/CNPJ nº ${e(d.cedenteDoc)}` : ''} (o "${P}")`;
   const instrumento = `${d.curto ? e(d.curto) : 'contrato'}${d.ref ? ' ' + e(d.ref) : ''}`;
   const imovelTxt = locImovelTxt(d.imovel);
   const obra = d.caso === 'dono_obra';
-  const objeto = {
+  const objeto = nx({
     dono_cessao: `O ANUENTE declara conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : d.tipo === 'termo_inv' ? ', e o contrato de sociedade em conta de participação na forma da minuta anexa a ele' : ''}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>. Declara ter recebido cópia do instrumento.`,
     inquilino_cessao: `O ANUENTE declara ser locatário do IMÓVEL, de propriedade de ${cedente}, e conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : ''}, firmado entre o CEDENTE e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>, abrindo mão da posse da área cedida enquanto o instrumento durar. Declara ter recebido cópia do instrumento.`,
     dono_obra: `O ANUENTE declara conhecer o ${instrumento}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, para o fornecimento e a instalação de estação de recarga de veículos elétricos no IMÓVEL, e <b>autoriza de forma expressa e específica</b> a instalação. Declara ter recebido cópia do instrumento.`,
-  }[d.caso];
-  const autoriza = [
+  }[d.caso]);
+  const autoriza0 = [
     'a execução das obras de implantação: base e proteção do equipamento, trajeto do cabeamento, quadro elétrico, medição e adequação do padrão de entrada, por empresa habilitada e com responsável técnico',
     `o pedido de ligação nova ou de aumento de carga junto à distribuidora${d.imovel.distribuidora ? ' ' + e(d.imovel.distribuidora) : ''}${d.imovel.uc ? `, para a unidade consumidora nº ${e(d.imovel.uc)}` : ''}, e a assinatura, por quem for o titular, dos formulários necessários`,
     obra ? 'o acesso da NEXUS e dos seus prepostos ao IMÓVEL durante a obra e nas manutenções'
       : 'o acesso da NEXUS e dos seus prepostos à área, para a implantação, a operação e a manutenção, e o acesso dos usuários à recarga',
   ];
-  const regras = obra ? [
+  const autoriza = autoriza0.map(nx);
+  const regras0 = obra ? [
     'Esta anuência vale durante a locação do CONTRATANTE e alcança a manutenção e a retirada dos equipamentos.',
     'Os equipamentos instalados pertencem ao CONTRATANTE, que pode retirá-los ao fim da locação, recompondo o local.',
     'Vendendo o IMÓVEL durante a locação, o ANUENTE dá ciência desta anuência ao adquirente.',
@@ -27496,6 +27756,7 @@ function anuHTML(d) {
       : 'A remuneração da cessão é do CEDENTE, e esta anuência não dá ao ANUENTE direito a remuneração nenhuma.',
     d.caso === 'dono_cessao' ? 'Vendendo o IMÓVEL, o ANUENTE faz constar a existência do instrumento no contrato de venda e faz o adquirente assumir, no mesmo contrato, o dever de respeitá-lo até o fim da vigência e das suas renovações. Não o fazendo, responde perante a NEXUS pelas perdas e danos.' : '',
   ].filter(Boolean);
+  const regras = regras0.map(nx);
   const quem = d.nome;
   const pageFoot = `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Termo de anuência · Eletroposto${quem ? ' · ' + e(quem) : ''}</span></span><span>Documento de uma via</span></div>`;
   return `<div class="ep-doc">
@@ -28709,6 +28970,11 @@ function orcSnapApply(s, tipo) {
   }
   { const hp = document.getElementById('ctr-hib-pedido'); if (hp) hp.value = ctrHib.pedido; }
   if (s.ctrModelos) Object.entries(s.ctrModelos).forEach(([id, val]) => { if (CTR_CAMPOS_MODELOS.includes(id)) set(id, val); });
+  // Papel de antes de 19/10/2026 não tem cessionário, cedente de fora nem avalista: volta ao padrão (a NEXUS, sem avalista),
+  // e não herda o que estava na tela. Reabrir o papel antigo sai igual ao que saiu.
+  { const m = s.ctrModelos || {};
+    set('ctr-arr-cess', m['ctr-arr-cess'] || 'nexus'); set('ctr-aval-tem', m['ctr-aval-tem'] || '');
+    CTR_PESSOAS_IDS.forEach(id => set(id, m[id] == null ? '' : m[id])); }
   // Arrendamento salvo antes de 16/10/2026 não tem o modo da remuneração: é
   // percentual, e não pode herdar o "fixo" do contrato aberto antes dele.
   // A renovação sem a chave fica VAZIA (igual ao prazo daquela proposta): o
@@ -35988,6 +36254,8 @@ const VDC_IDS_IDENTIDADE = [
 ];
 // Terceiros ligados ao cliente anterior (dono do imóvel, inquilino, interveniente). Nunca são preenchidos; só saem quando o cliente muda.
 const VDC_IDS_TERCEIROS = ['ctr-int-nome', 'ctr-int-doc', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-int-end', 'ctr-int-qualidade',
+  // Cedente de fora e avalista (19/10/2026): também são do cliente anterior. O modo do cessionário (ctr-arr-cess) é escolha do contrato e fica.
+  'ctr-aval-tem', ...CTR_PESSOAS_IDS,
   'anu-nome', 'anu-doc', 'anu-end', 'anu-rep', 'anu-rep-doc'];
 const vdcDigitos = (v) => String(v == null ? '' : v).replace(/\D/g, '');
 const vdcNorm = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
