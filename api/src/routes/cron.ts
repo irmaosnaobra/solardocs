@@ -1712,4 +1712,21 @@ router.get('/agenda-em-lote/conferir', async (req: Request, res: Response) => {
   }
 });
 
+// ── AGENTES 5040 · A6: leitura do anúncio de origem (só leitura) ─────────────
+// Das mensagens RECEBIDAS dos últimos N dias: quantas trazem bloco de anúncio,
+// os ids achados, a contagem por produto e (com chaves=1) os NOMES dos campos do
+// bloco. Nunca devolve valor de campo, telefone ou texto. ?meta=0 não chama a Meta.
+router.get('/agentes-5040/anuncios', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { relatorioAnuncios } = await import('../services/agentes5040/anuncio');
+    const dias = parseInt(String(req.query.dias ?? '30'), 10);
+    const r = await relatorioAnuncios(dias, { chaves: req.query.chaves === '1', meta: req.query.meta !== '0' });
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/anuncios falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
 export default router;

@@ -185,3 +185,142 @@ export async function buscarAnunciosComGastoMeta(conjuntoIds: string[], desde: s
   }
   return motivo ? { ok: false, motivo, anuncios } : { ok: true, anuncios };
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// ORIGEM DE UM ANÚNCIO: anúncio > conjunto > campanha > produto (20/10/2026)
+//
+// Pacote A6 dos agentes da 5040. O clique para o WhatsApp traz o id do anúncio
+// (externalAdReply.sourceId); aqui ele vira o NOME da campanha e, dela, o
+// produto. Só leitura (GET), mesmo token e mesmo timeout de 8 s. Nunca derruba
+// quem chama: erro volta como `ok: false` + motivo.
+//
+// Cache de 7 dias em system_state, chave `meta_ad:<adId>`. O valor guarda SÓ
+// ids e nomes de anúncio, conjunto e campanha: nada de ctwaClid, telefone ou
+// texto de conversa. O mapa manual `meta_campanha_produto` (nome da campanha
+// normalizado -> produto) vence a regra por palavra, para campanha que o nome
+// não entrega.
+// ───────────────────────────────────────────────────────────────────────────
+export type ProdutoCampanha = 'solardoc' | 'solar' | 'eletroposto';
+export interface ObjetoMeta { id: string; nome: string }
+export interface OrigemDoAnuncio {
+  ok: boolean;
+  anuncio?: ObjetoMeta;
+  conjunto?: ObjetoMeta;
+  campanha?: ObjetoMeta;
+  motivo?: string;
+  /** true quando veio do cache de 7 dias, sem chamar a Meta. */
+  doCache?: boolean;
+}
+
+const CACHE_ANUNCIO_MS = 7 * 24 * 60 * 60 * 1000;
+export const chaveCacheAnuncio = (adId: string) => `meta_ad:${adId}`;
+export const CHAVE_MAPA_CAMPANHA_PRODUTO = 'meta_campanha_produto';
+
+/** Lido na hora da chamada (não no carregamento do módulo): o token pode entrar
+ *  depois do boot, e o teste troca a env entre um caso e outro. */
+const tokenAgora = () => process.env.META_SYSTEM_USER_TOKEN || process.env.META_PIXEL_TOKEN || '';
+
+let importBanco: Promise<typeof import('../../utils/supabase')> | null = null;
+async function bancoPrincipal() {
+  // Import tardio: este arquivo não pode passar a exigir SUPABASE_* só por ser carregado.
+  // A promessa é guardada para as chamadas em paralelo compartilharem um import só.
+  importBanco ??= import('../../utils/supabase');
+  return (await importBanco).supabase;
+}
+
+const objMeta = (o: any): ObjetoMeta | undefined =>
+  o && o.id && o.name ? { id: String(o.id), nome: String(o.name) } : undefined;
+
+async function lerCacheAnuncio(adId: string): Promise<OrigemDoAnuncio | null> {
+  try {
+    const sb = await bancoPrincipal();
+    const { data } = await sb.from('system_state').select('value').eq('key', chaveCacheAnuncio(adId)).maybeSingle();
+    if (!data?.value) return null;
+    const v = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+    const em = Date.parse(String(v?.em || ''));
+    if (!Number.isFinite(em) || Date.now() - em > CACHE_ANUNCIO_MS) return null;
+    if (!v.anuncio?.id) return null;
+    return { ok: true, anuncio: v.anuncio, conjunto: v.conjunto, campanha: v.campanha, doCache: true };
+  } catch {
+    return null;
+  }
+}
+
+async function gravarCacheAnuncio(adId: string, o: OrigemDoAnuncio): Promise<void> {
+  try {
+    const sb = await bancoPrincipal();
+    const agora = new Date().toISOString();
+    const valor = JSON.stringify({ anuncio: o.anuncio, conjunto: o.conjunto, campanha: o.campanha, em: agora });
+    await sb.from('system_state').upsert({ key: chaveCacheAnuncio(adId), value: valor, updated_at: agora }, { onConflict: 'key' });
+  } catch {
+    /* cache é conforto: sem ele a próxima leitura só chama a Meta de novo */
+  }
+}
+
+/**
+ * Anúncio -> conjunto -> campanha. Só GET. `ok: false` com `motivo` quando o id
+ * não é de anúncio, não há token ou a Meta não responde; só sucesso entra no cache.
+ */
+export async function buscarOrigemDoAnuncio(adId: string): Promise<OrigemDoAnuncio> {
+  const id = String(adId || '').trim();
+  if (!ehIdMeta(id)) return { ok: false, motivo: 'id de anúncio inválido' };
+
+  const cache = await lerCacheAnuncio(id);
+  if (cache) return cache;
+
+  const token = tokenAgora();
+  if (!token) return { ok: false, motivo: 'sem META_SYSTEM_USER_TOKEN' };
+
+  try {
+    const campos = encodeURIComponent('name,adset{id,name},campaign{id,name}');
+    const j = await lerJson(`${GRAPH}/${id}?fields=${campos}&access_token=${token}`);
+    const anuncio = j?.name ? { id, nome: String(j.name) } : undefined;
+    if (!anuncio) return { ok: false, motivo: 'a Meta não devolveu um anúncio com esse id' };
+    const origem: OrigemDoAnuncio = { ok: true, anuncio, conjunto: objMeta(j.adset), campanha: objMeta(j.campaign) };
+    await gravarCacheAnuncio(id, origem);
+    return origem;
+  } catch (err) {
+    return { ok: false, motivo: String((err as Error)?.message || err).slice(0, 160) };
+  }
+}
+
+const normalizarNome = (s: string) =>
+  String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const PRODUTOS_VALIDOS: ProdutoCampanha[] = ['solardoc', 'solar', 'eletroposto'];
+
+/**
+ * Produto de uma campanha pelo NOME. Primeiro o mapa manual (`override`, chave =
+ * nome da campanha sem acento e em minúsculas), depois a regra por palavra:
+ * Nexus ou eletroposto = eletroposto; SolarDoc = solardoc; Irmãos na Obra ou
+ * Solar = solar. Sem pista, null (quem chama decide; ninguém chuta).
+ */
+export function produtoDaCampanha(
+  nome: string | null | undefined,
+  override?: Record<string, string> | null,
+): ProdutoCampanha | null {
+  const n = normalizarNome(nome || '');
+  if (!n) return null;
+  if (override && typeof override === 'object') {
+    for (const [k, v] of Object.entries(override)) {
+      if (normalizarNome(k) === n && PRODUTOS_VALIDOS.includes(v as ProdutoCampanha)) return v as ProdutoCampanha;
+    }
+  }
+  if (/\bnexus\b/.test(n) || n.includes('eletroposto')) return 'eletroposto';
+  if (/solar\s?doc/.test(n)) return 'solardoc';
+  if (n.includes('irmaos na obra') || /\bsolar\b/.test(n)) return 'solar';
+  return null;
+}
+
+/** Mapa manual meta_campanha_produto (JSON em system_state). Vazio se faltar ou estiver torto. */
+export async function lerMapaCampanhaProduto(): Promise<Record<string, string>> {
+  try {
+    const sb = await bancoPrincipal();
+    const { data } = await sb.from('system_state').select('value').eq('key', CHAVE_MAPA_CAMPANHA_PRODUTO).maybeSingle();
+    if (!data?.value) return {};
+    const v = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+}
