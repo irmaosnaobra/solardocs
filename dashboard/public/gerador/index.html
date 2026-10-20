@@ -2153,6 +2153,42 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 .ctr-ia-depois::before{content:'Depois: ';font-weight:800}
 .ctr-ia-alertas{margin:0;padding-left:18px;font-size:12px;line-height:1.5;color:#FDE68A}
 .ctr-ia-alertas li.forte{color:#FECACA}
+/* Assistente de contrato (19/10/2026). Cor só por token, com o escuro antigo de reserva:
+   o visual novo define --n-* e --io-* em html.io2, o antigo cai no valor depois da vírgula.
+   Nada aqui passa de 100% da largura: o texto quebra em vez de empurrar a página. */
+.ctr-ag-chat{display:flex;flex-direction:column;gap:10px;max-height:min(60vh,540px);overflow-y:auto;overflow-x:hidden;min-width:0;padding:2px}
+.ctr-ag-chat:empty{display:none}
+.ctr-ag-m{display:flex;flex-direction:column;gap:7px;max-width:94%;min-width:0;box-sizing:border-box;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.5;overflow-wrap:anywhere;border:1px solid var(--n-bd,rgba(255,255,255,.12));color:var(--n-tx,#E5E7EB)}
+.ctr-ag-m.usuario{align-self:flex-end;background:var(--io-azul-sf,rgba(59,130,246,.2))}
+.ctr-ag-m.assistente{align-self:flex-start;background:var(--n-sf2,#0f1a2e)}
+.ctr-ag-m.sistema{align-self:stretch;max-width:100%;background:transparent;border-style:dashed;color:var(--n-tx2,#CBD5E1);font-size:12.5px}
+.ctr-ag-m.falha{color:var(--io-er,#FECACA);border-color:var(--io-er,rgba(239,68,68,.45))}
+.ctr-ag-m.espera{color:var(--n-tx2,#BFDBFE);font-style:italic}
+.ctr-ag-t{margin:0;white-space:pre-wrap}
+.ctr-ag-q{margin:0;white-space:pre-wrap;font-weight:700;color:var(--io-info,#93C5FD)}
+.ctr-ag-tit{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--n-tx3,#94A3B8)}
+.ctr-ag-lista{margin:0;padding:0 0 0 10px;list-style:none;border-left:3px solid var(--io-ok,#22C55E);display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--n-tx2,#CBD5E1)}
+.ctr-ag-lista.aviso{border-left-color:var(--io-av,#F59E0B);color:var(--io-av,#FDE68A)}
+.ctr-ag-lista.falha{border-left-color:var(--io-er,#EF4444);color:var(--io-er,#FECACA)}
+.ctr-ag-achado,.ctr-ag-pend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:7px 9px;border-radius:9px;border:1px solid var(--n-bd,rgba(255,255,255,.12));background:var(--n-sf,transparent)}
+.ctr-ag-achado>span,.ctr-ag-pend>span{flex:1 1 180px;min-width:0;font-size:12.5px}
+.ctr-ag-pend .antes{color:var(--io-er,#FCA5A5)}
+.ctr-ag-pend .depois{color:var(--io-ok,#BBF7D0);font-weight:700}
+.ctr-ag-meta{font-size:11px;color:var(--n-tx3,#94A3B8)}
+.ctr-ag-acao{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.ctr-ag-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ctr-ag-entrada{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.ctr-ag-entrada .ctr-ta{flex:1 1 220px;min-width:0;width:auto}
+.ctr-ag-entrada .eletro-btn{flex:0 0 auto}
+.ctr-ag-entrada .eletro-btn[disabled]{opacity:.6;cursor:wait}
+.ctr-ag-ctrl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;min-height:0}
+.ctr-ag-ctrl:empty{display:none}
+.ctr-ag-cont{font-size:11.5px;color:var(--n-tx3,#94A3B8)}
+.ctr-ag-cont.perto{color:var(--io-av,#FDE68A);font-weight:700}
+.ctr-ag-juridico{font-size:12px;line-height:1.5;font-weight:700}
+.ctr-ag-det{min-width:0}
+.ctr-ag-det>summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--io-info,#93C5FD)}
+.ctr-ag-det[open]>summary{margin-bottom:8px}
 /* Etiqueta de espelhamento das listas (escopo e formas de pagamento). */
 .ctr-esp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
 .ctr-esp:empty{display:none}
@@ -6376,21 +6412,36 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note">Para mudar qualquer outra frase do contrato, gere a prévia e use <b>Editar texto</b>: dá para escrever direto na folha antes de baixar.</div>
       </div>
 
-      <!-- PEDIDO À IA (07/10/2026). O consultor escreve a mudança e a IA devolve
-           OPERAÇÕES sobre as cláusulas, que o /gerador aplica por cima do contrato
-           gerado na hora (ver ctrIaAplicar). Partes, preço, sinal, tabela de
-           pagamento e escopo são travados: têm campo próprio acima. -->
+      <!-- ASSISTENTE DE CONTRATO (19/10/2026, antes "Pedir mudança à IA" de 07/10/2026).
+           Uma conversa por contrato, simples ou híbrido. A IA devolve a fala e AÇÕES (campos,
+           operações sobre as cláusulas, modelo, híbrido, cadastro, emitente, prévia) que o
+           /gerador aplica com as funções de sempre (ver ctrAgExecutar e ctrIaAplicar).
+           Partes, preço, sinal, tabela de pagamento e escopo são travados: têm campo próprio acima. -->
       <div class="card" id="ctr-ia-card">
-        <div class="calc-card-title"><span class="dot"></span>Pedir mudança à IA</div>
-        <div class="orc-note" style="margin-top:-2px">Escreva a cláusula que você quer diferente e a IA ajusta o contrato. Partes, preço, sinal, tabela de pagamento e escopo continuam nos campos acima.</div>
-        <div class="eletro-field" style="grid-column:1/-1"><label>O que mudar no contrato</label>
-          <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-ia-pedido" class="ctr-ta" rows="3" maxlength="2000" placeholder="Ex.: inclua manutenção preventiva semestral por R$ 350 a visita · mude a garantia da instalação para 36 meses · tire a cláusula de reserva de domínio"></textarea></div></div>
-        <div class="ctr-ia-acoes">
-          <button type="button" class="eletro-btn primary" id="ctr-ia-btn" onclick="ctrIaPedir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"></path><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span> Aplicar pedido com a IA</span></button>
-          <button type="button" class="orc-link" id="ctr-ia-limpar" style="display:none" onclick="ctrIaLimpar()">Voltar ao contrato padrão</button>
+        <div class="calc-card-title"><span class="dot"></span>Assistente de contrato</div>
+        <div class="orc-note" style="margin-top:-2px">Diga o que quer e o assistente muda o contrato: campos, cláusulas, modelo, cadastro e prévia. Cada resposta mostra o que mudou, com Desfazer.</div>
+        <div class="ctr-ag-chat" id="ctr-ag-chat" role="log" aria-live="polite"></div>
+        <div class="ctr-ag-chips" id="ctr-ag-chips">
+          <button type="button" class="ctr-chip" onclick="ctrAgChip(this)">Revisar o contrato</button>
+          <button type="button" class="ctr-chip" onclick="ctrAgChip(this)">Deixar mais curto e claro</button>
+          <button type="button" class="ctr-chip" onclick="ctrAgChip(this)">Puxar o cadastro do cliente</button>
+          <button type="button" class="ctr-chip" onclick="ctrAgChip(this)">Mudar o prazo da obra</button>
+          <button type="button" class="ctr-chip" onclick="ctrAgChip(this)">Trocar para arrendamento com valor fixo</button>
         </div>
-        <div class="ctr-ia-msg" id="ctr-ia-msg"></div>
-        <div class="ctr-ia-lista" id="ctr-ia-lista"></div>
+        <div class="ctr-ag-entrada">
+          <textarea id="ctr-ag-texto" class="ctr-ta" rows="2" maxlength="2000" placeholder="Escreva o que mudar. Enter envia, Shift+Enter quebra a linha." onkeydown="ctrAgTecla(event)" oninput="ctrAgDigitou()"></textarea>
+          <button type="button" class="eletro-btn primary" id="ctr-ag-enviar" onclick="ctrAgEnviarCampo()"><span>Enviar</span></button>
+        </div>
+        <div class="ctr-ag-ctrl">
+          <button type="button" class="orc-link" id="ctr-ag-parar" hidden onclick="ctrAgPararAgora()">Parar</button>
+          <button type="button" class="orc-link" id="ctr-ia-limpar" style="display:none" onclick="ctrIaLimpar()">Voltar ao contrato padrão</button>
+          <span class="ctr-ag-cont" id="ctr-ag-cont"></span>
+        </div>
+        <div class="ctr-ia-msg espera ctr-ag-juridico" id="ctr-ag-jur">Esta minuta é um rascunho montado por IA. Passe por um advogado antes de enviar ao cliente.</div>
+        <details class="ctr-ag-det" id="ctr-ia-det">
+          <summary>Detalhe das mudanças no texto</summary>
+          <div class="ctr-ia-lista" id="ctr-ia-lista"></div>
+        </details>
       </div>
 
       <div class="eletro-acoes">
@@ -23127,6 +23178,9 @@ function ctrEstadoZerar() {
   ctrOpc = {};
   ctrIa = { pedidos: [] };
   ctrIaGeracao++;
+  // Outro cliente: a conversa com o assistente e o cadastro puxado são do anterior.
+  ctrAgCad = null; ctrAgZerar();
+  { const at = document.getElementById('ctr-ag-texto'); if (at) at.value = ''; }
   ctrHib = ctrHibNovo();
   { const hp = document.getElementById('ctr-hib-pedido'); if (hp) hp.value = ''; }
   { const hm = document.getElementById('ctr-hib-msg'); if (hm) { hm.className = 'ctr-ia-msg'; hm.textContent = ''; } }
@@ -23157,7 +23211,6 @@ function ctrEstadoZerar() {
   ctrDosRender();
   ctrResumo();
   ctrIaRender();
-  const m = document.getElementById('ctr-ia-msg'); if (m) { m.className = 'ctr-ia-msg'; m.innerHTML = ''; }
 }
 
 // Sinal já pago = o valor do recibo. Zero significa contrato sem sinal, e o
@@ -23817,6 +23870,8 @@ function ctrResumo() {
   ctrBanner();
   ctrIaRender();
   if (ctrEhHibrido() && ctrHib.plano) ctrHibRenderSoon();
+  // Com conflito apontado, mexer no contrato reconfere (sem IA) depois de um instante.
+  if (ctrAgBloqueado) ctrAgReconferirSoon();
 }
 
 // A consequência de esconder tem que estar na tela, no momento da decisão: sem a
@@ -23848,6 +23903,7 @@ function ctrInit() {
   ctrPctNota();
   ctrResumo();
   ctrIaRender();
+  ctrAgRender();
   ctrDosRender();
   ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
 }
@@ -24577,8 +24633,8 @@ function ctrModeloArrend(d) {
     proprietario: 'Declarar que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante todo o contrato.',
     locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e entregar na assinatura a anuência escrita do inquilino a esta cessão. ${anuenciaFalta}`,
     locatario: `Declarar que é inquilino do IMÓVEL e entregar na assinatura cópia do contrato de locação${ivDono ? '; a anuência do proprietário é a assinatura dele neste contrato como INTERVENIENTE ANUENTE' : ' e a autorização escrita e específica do proprietário'}. ${ivDono ? 'Terminada a locação antes do fim deste contrato ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de CEDENTE, nas mesmas condições, desde o dia seguinte ao fim da locação.' : locacaoTxt} ${anuenciaFalta}`,
-    representante: 'Declarar que administra ou representa o proprietário do IMÓVEL, com poderes documentados para esta cessão, cuja cópia integra este contrato.',
-    condominio: `Entregar na assinatura a ata da assembleia que autorizou esta cessão, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
+    representante: `Declarar que administra ou representa o proprietário do IMÓVEL, com poderes documentados para esta cessão${a.energia === 'uc' ? ' e para o pedido de ligação nova da {{c:ligacao}}' : ''}, cuja cópia integra este contrato.`,
+    condominio: `Entregar na assinatura a ata da assembleia que autorizou esta cessão${a.energia === 'uc' ? ', a ligação nova da {{c:ligacao}} e a passagem do ramal pela área comum' : ''}, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
     branco: 'Declarar a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, com anuência escrita do inquilino; ( ) inquilino, com autorização escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia.',
   }[a.relacao] || '';
   return [
@@ -24631,18 +24687,51 @@ function ctrModeloArrend(d) {
     ]),
     C('energia', 'Da energia e das despesas', [
       I('energia.config', {
-        uc: 'O PONTO tem ligação de energia própria, com padrão de entrada e medidor separados, em nome da CESSIONÁRIA, que paga integralmente a conta.',
+        uc: 'A energia do PONTO vem de ligação própria, pedida na forma da {{c:ligacao}}, e a CESSIONÁRIA paga integralmente a conta.',
         sub: 'O PONTO é atendido pela unidade consumidora do CEDENTE, com medidor aferido instalado e mantido pela CESSIONÁRIA, que reembolsa a cada mês o consumo medido pela tarifa efetiva da fatura do período, incluídos bandeira, tributos e encargos, mediante cópia da fatura.',
         refatura: 'O CEDENTE paga a fatura da unidade consumidora e cobra da CESSIONÁRIA o consumo do PONTO, apurado por medidor próprio, pela tarifa efetiva do período, mediante cópia da fatura.',
       }[a.energia] || ''),
       I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza o acréscimo comprovado da fatura que decorra só dessa mudança, sem o consumo já reembolsado na {{i:energia.config}}.' : ''),
       I('energia.despesas', 'Correm por conta da CESSIONÁRIA a obra, os equipamentos, o reforço de rede ou o transformador exigido pela concessionária, a internet, a plataforma, o meio de pagamento, a manutenção, o seguro e os tributos da operação. O CEDENTE não paga nenhuma despesa do PONTO.'),
-      I('energia.rede', 'O CEDENTE assina os documentos que a concessionária exigir do responsável pelo local e dá procuração específica para esse trâmite, sem que isso lhe gere custo.'),
+      // Com ligação própria (uc), os documentos da concessionária moram na cláusula da ligação nova.
+      I('energia.rede', a.energia === 'uc' ? '' : 'O CEDENTE assina os documentos que a concessionária exigir do responsável pelo local e dá procuração específica para esse trâmite, sem que isso lhe gere custo.'),
+    ]),
+    // Ligação nova (19/10/2026): só quando o PONTO tem ligação própria. É este contrato
+    // que prova a posse da ÁREA perante a concessionária (REN ANEEL 1.000/2021, art. 67, IX).
+    // A condição do CEDENTE e a matrícula/IPTU vêm dos campos que já existem na tela
+    // (O cedente é; O imóvel e a energia): nenhum campo novo.
+    a.energia !== 'uc' ? null : C('ligacao', 'Da ligação nova de energia', [
+      I('ligacao.autoriza', 'O CEDENTE autoriza expressamente a CESSIONÁRIA a pedir à concessionária de energia local, em nome da CESSIONÁRIA, ligação nova (unidade consumidora nova) para o PONTO, no endereço do IMÓVEL. A ligação terá padrão de entrada e medição próprios e, se a concessionária exigir, transformador ou subestação, instalados na ÁREA.'),
+      I('ligacao.posse', 'Para esse pedido, este contrato é o documento, com data, que comprova a posse da ÁREA pela CESSIONÁRIA (art. 67, IX, da Resolução Normativa ANEEL nº 1.000/2021) e vale perante a concessionária como arrendamento da ÁREA.'),
+      I('ligacao.imovel', (() => {
+        const mat = orcVal('ctr-ta-matricula'), cart = orcVal('ctr-ta-cartorio'), iptu = orcVal('ctr-ta-iptu');
+        // Matrícula e IPTU preenchidos já saem no objeto.imovel: aqui só se remete. Vazios, viram lacuna.
+        const ident = mat || iptu ? 'o descrito na {{i:objeto.imovel}}'
+          : `identificado pela matrícula nº ${lacuna} do cartório de registro de imóveis ${lacuna} ou pela inscrição do IPTU nº ${lacuna}`;
+        const cond = {
+          proprietario: 'ser proprietário do IMÓVEL',
+          locado: 'ser proprietário do IMÓVEL',
+          locatario: 'ser possuidor do IMÓVEL, como inquilino, com autorização do proprietário',
+          representante: 'representar o proprietário do IMÓVEL, com os poderes da {{i:cedente.legitimidade}}',
+          condominio: 'ser o condomínio do IMÓVEL, com a autorização da assembleia da {{i:cedente.legitimidade}}',
+        }[a.relacao];
+        const decl = cond ? `O CEDENTE declara ${cond}` : 'O CEDENTE confirma a condição da {{i:cedente.legitimidade}}';
+        return `O IMÓVEL é ${ident}. ${decl}. Na assinatura, o CEDENTE entrega à CESSIONÁRIA cópia da certidão da matrícula ou do carnê do IPTU, que integra este contrato.`;
+      })()),
+      I('energia.rede', 'O CEDENTE assina, sem custo, os formulários e as autorizações que a concessionária exigir do responsável pelo local e dá procuração específica para esse trâmite.'),
+      I('ligacao.acesso', 'O CEDENTE permite o acesso da concessionária à ÁREA para vistoria, ligação, leitura e manutenção, e a passagem do ramal de entrada pelo IMÓVEL até a ÁREA.'
+        + ({
+          locado: ' A anuência escrita do inquilino, entregue na forma da {{i:cedente.legitimidade}}, cobre também a ligação nova, o acesso da concessionária e a passagem do ramal.',
+          locatario: ` A autorização do proprietário${ivDono ? ', dada pela assinatura dele como INTERVENIENTE ANUENTE,' : ''} cobre também a ligação nova, o acesso da concessionária e a passagem do ramal.`,
+        }[a.relacao] || '')),
+      I('ligacao.titularidade', 'A unidade consumidora nova é da CESSIONÁRIA e não se confunde com a do IMÓVEL.'),
     ]),
     C('obras', 'Da obra e dos equipamentos', [
       I('obras.execucao', 'A obra é feita pela CESSIONÁRIA, por empresa habilitada, com ART de engenheiro responsável e conforme a ABNT NBR 17019, a NR-10 e as normas da concessionária. O projeto e o cronograma são apresentados antes ao CEDENTE, que só pode recusá-los por motivo técnico ou de segurança justificado.'),
       I('obras.danos', 'Dano causado ao IMÓVEL pela obra ou pela operação é reparado pela CESSIONÁRIA, por sua conta.'),
-      I('obras.propriedade', 'O carregador, os cabos, o quadro, o medidor, as proteções, o totem e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL. As obras não dão a nenhuma das partes direito de indenização nem de retenção durante o contrato. O CEDENTE não pode reter os equipamentos nem desligar ou bloquear o PONTO, nem mesmo por atraso no pagamento, que se resolve por cobrança ou encerramento.'),
+      I('obras.propriedade', (a.energia === 'uc'
+        ? 'O carregador, os cabos, o quadro, as proteções, o totem, o transformador e a subestação, se houver, e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL. O medidor é da concessionária.'
+        : 'O carregador, os cabos, o quadro, o medidor, as proteções, o totem e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL.') + ' As obras não dão a nenhuma das partes direito de indenização nem de retenção durante o contrato. O CEDENTE não pode reter os equipamentos nem desligar ou bloquear o PONTO, nem mesmo por atraso no pagamento, que se resolve por cobrança ou encerramento.'),
       I('obras.constricao', 'Se o IMÓVEL sofrer penhora, execução ou desapropriação, o CEDENTE avisa a CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para provar que os equipamentos são de terceiro.'),
       I('opc.arr_registro', op('arr_registro') ? 'As partes registram este contrato no Cartório de Registro de Títulos e Documentos e o averbam na matrícula do IMÓVEL, por conta da CESSIONÁRIA, para que valha perante terceiros.' : ''),
     ]),
@@ -24692,7 +24781,7 @@ function ctrModeloArrend(d) {
       I('rescisao.semculpa', 'Nos encerramentos sem culpa, acerta-se o valor do período decorrido, sem multa nem indenização. Em nenhum caso o encerramento autoriza reter, apreender ou desligar o equipamento.'),
     ]),
     C('devolucao', 'Da devolução da área', [
-      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira em até <b>${a.retirada} dias</b>, por sua conta, o carregador, os cabos, o quadro, o medidor, o totem, a sinalização e os demais componentes removíveis, e recompõe o pavimento, a pintura e a sinalização das vagas, devolvendo a ÁREA no estado das fotos da {{i:objeto.area}}, ressalvado o desgaste natural.`),
+      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira em até <b>${a.retirada} dias</b>, por sua conta, o carregador, os cabos, o quadro, ${a.energia === 'uc' ? '' : 'o medidor, '}o totem, a sinalização e os demais componentes removíveis, e recompõe o pavimento, a pintura e a sinalização das vagas, devolvendo a ÁREA no estado das fotos da {{i:objeto.area}}, ressalvado o desgaste natural.${a.energia === 'uc' ? ' Antes da retirada, ela pede à concessionária, por sua conta, o desligamento da unidade consumidora nova da {{c:ligacao}} e a retirada do medidor. O transformador e a subestação instalados na ÁREA também são retirados por ela, salvo se a concessionária exigir que fiquem, caso em que ficam no IMÓVEL, sem indenização.' : ''}`),
       I('devolucao.base', a.base === 'sai'
         ? 'A base de concreto e a ancoragem também são removidas pela CESSIONÁRIA, com recomposição do piso. Ficam no IMÓVEL, sem indenização, os eletrodutos enterrados, as caixas de passagem e o aterramento.'
         : 'Ficam no IMÓVEL, sem indenização, a base de concreto, a ancoragem, os eletrodutos enterrados, as caixas de passagem e o aterramento.'),
@@ -25396,12 +25485,11 @@ function ctrHTML(d) {
   return `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
 }
 
-// ─── A tela do pedido ────────────────────────────────────────────────────────
+// ─── A tela do assistente ────────────────────────────────────────────────────
 // A API é chamada DIRETO (api.solardoc.app aceita solardoc.app no CORS), sem o
 // proxy /_api: o limite de IA conta o IP de cada consultor, e uma resposta de
 // um minuto não esbarra no tempo do proxy.
 const CTR_IA_API = location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://api.solardoc.app';
-let ctrIaOcupado = false;
 
 // Itens cujos números vêm de um campo da tela. A IA recebe o nome do campo e é
 // instruída a mandar o consultor para ele quando o pedido é só trocar o número:
@@ -25441,7 +25529,9 @@ const CTR_IA_CAMPOS_TIPO = {
     'remuneracao.fixo': 'Arrendamento > Valor mensal fixo e Valor fixo nos primeiros', 'remuneracao.reajuste': 'Arrendamento > Reajuste depois, a cada 12 meses',
     'remuneracao.mora': 'Arrendamento > Multa por atraso e Juros de mora', 'prazo.vigencia': 'Arrendamento > Prazo mínimo',
     'prazo.renovacao': 'Arrendamento > Renova sozinho por mais e Aviso da NEXUS para não renovar', 'prazo.implantacao': 'Arrendamento > Fase de obra: ligar o ponto em até',
-    'energia.config': 'Arrendamento > Energia do ponto', 'operacao.horario': 'Arrendamento > Horário do ponto',
+    'energia.config': 'Arrendamento > Energia do ponto', 'ligacao.autoriza': 'Arrendamento > Energia do ponto',
+    'ligacao.imovel': 'O imóvel e a energia > Matrícula nº, Cartório de registro de imóveis e Inscrição do IPTU, e Arrendamento > O cedente é',
+    'operacao.horario': 'Arrendamento > Horário do ponto',
     'cedente.legitimidade': 'Arrendamento > O cedente é', 'rescisao.descumprimento': 'Arrendamento > Prazo para corrigir antes de rescindir',
     'rescisao.multa': 'Arrendamento > Multa por saída antecipada, em meses de remuneração, e Multa mínima', 'devolucao.retirada': 'Arrendamento > Retirada do equipamento em',
     'devolucao.base': 'Arrendamento > Base de concreto no fim', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
@@ -25477,30 +25567,6 @@ CTR_IA_CAMPOS_TIPO.termo_inv = {
 };
 const ctrIaCampo = (tipo, key) => (tipo === 'completo' ? CTR_IA_CAMPOS : (CTR_IA_CAMPOS_TIPO[tipo] || {}))[key] || null;
 
-// O que vai para a IA: o contrato como está agora (com os pedidos anteriores já
-// aplicados), em texto com os marcadores. As partes não vão, e o item do objeto
-// vai sem o local da instalação: endereço de cliente não sai daqui.
-function ctrIaPayload(pedido) {
-  const d = ctrDados();
-  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
-  const { pos } = ctrNumerar(modelo);
-  const corpo = {
-    pedido,
-    clausulas: modelo.map(c => ({
-      key: c.key, numero: `${pos[c.key].n}ª`, titulo: c.titulo, travada: !!c.travada,
-      itens: c.itens.map(it => ({
-        key: it.key, numero: `${pos[it.key].n}.${pos[it.key].m}`, texto: it.iaTexto || it.html, travado: !!it.travado,
-        campo: ctrIaCampo(d.tipo, it.key),
-      })),
-    })),
-  };
-  // Os modelos novos dizem à IA qual contrato é; o texto que o descreve e o
-  // nome das partes moram no servidor. O Completo vai sem, exatamente como
-  // antes: o servidor assume fornecimento e instalação.
-  if (d.tipo !== 'completo') corpo.contrato = { tipo: d.tipo };
-  return corpo;
-}
-
 // Números que a IA escreveu e que não estavam nem no contrato nem no pedido:
 // valor em real, percentual, prazo em dias/meses/anos, parcelas. É o tipo de
 // coisa que passa batido na leitura e custa caro depois.
@@ -25510,68 +25576,801 @@ function ctrIaNumeros(txt) {
   return (plano.match(re) || []).map(s => s.replace(/\([^)]*\)\s?/, '').replace(/\s+/g, ' ').trim().toLowerCase());
 }
 
-async function ctrIaPedir() {
-  if (ctrIaOcupado) return;
-  const campo = document.getElementById('ctr-ia-pedido');
-  const texto = (campo && campo.value || '').trim();
-  const msg = document.getElementById('ctr-ia-msg');
-  // Classe `falha`, nunca `erro`: o style.css global esconde todo `.erro`.
-  const diz = (html, tipo) => { if (msg) { msg.className = 'ctr-ia-msg ' + (tipo || ''); msg.innerHTML = html; } };
-  if (texto.length < 3) { diz('Escreva o que você quer mudar no contrato.', 'falha'); if (campo) campo.focus(); return; }
-  if (ctrIaPedidos().length >= 12) { diz('São 12 pedidos no máximo. Desfaça algum ou volte ao contrato padrão.', 'falha'); return; }
-  const tok = sessaoAtual && sessaoAtual.access_token;
-  if (!tok) { diz('Entre com sua conta para pedir à IA.', 'falha'); return; }
-  const d = ctrDados();
-  // Só o Completo precisa do preço para fazer sentido. Nos outros o contrato
-  // existe com lacuna no lugar do número, e é ele que a IA lê.
-  if (d.tipo === 'completo' && !(d.total > 0)) { diz('Defina o valor do projeto antes: a IA lê o contrato pronto.', 'falha'); return; }
-  // O contrato como estava NA HORA do pedido: de onde saem a base de cada troca
-  // e a cláusula-âncora de cada inserção.
-  const geracao = ctrIaGeracao;
-  const payload = ctrIaPayload(texto);
-  const htmlDe = {}, clausulaDe = {};
-  ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo)).modelo.forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
-  ctrIaOcupado = true;
-  const btn = document.getElementById('ctr-ia-btn');
-  if (btn) { btn.disabled = true; btn.lastChild.textContent = ' A IA está lendo o contrato...'; }
-  diz('A IA está lendo o contrato e escrevendo a mudança. Costuma levar de 10 segundos a 1 minuto.', 'espera');
+// ═══ ASSISTENTE DE CONTRATO (19/10/2026) ═════════════════════════════════════
+// Substitui o "Pedir mudança à IA". Uma conversa por contrato, simples ou híbrido: o
+// servidor (POST /gerador/contrato/agente) devolve a fala do assistente e uma lista de
+// AÇÕES; quem aplica é este arquivo, com as funções que já existiam:
+//   campo     escreve no input da tela e dispara input/change (lista branca do servidor)
+//   operacao  vira operação em ctrIa.pedidos (simples) ou em plano.extras (híbrido), reaplicada
+//             sobre o ctrModelo a cada geração: reabrir do histórico segue funcionando
+//   modelo / hibrido / emitente / cadastro / previa  chamam o fluxo de cada um
+// Regras que não se negociam:
+//   · dado do cliente nunca sai: mensagem, histórico, títulos e textos passam por ctrHibScrub,
+//     e item travado vai como "[travado: chave]";
+//   · texto do servidor entra só por textContent;
+//   · cada turno guarda um retrato ANTES de aplicar (só na memória) e tem Desfazer;
+//   · /gerador/contrato/conflitos roda depois de cada turno: bloqueado desliga o Gerar.
+const CTR_AG_MAX = 60;            // mensagens por contrato
+const CTR_AG_PERTO = 50;          // daqui para cima o contador avisa
+const CTR_AG_TXT_MAX = 1500;      // por texto guardado no histórico
+const CTR_AG_BLOQ = 'Resolva os conflitos antes de gerar.';
+const CTR_AG_JUR = 'Esta minuta é um rascunho montado por IA. Passe por um advogado antes de enviar ao cliente.';
+const ctrAgNovo = () => ({ msgs: [], n: 0 });
+let ctrAg = ctrAgNovo();
+let ctrAgCli = 0;                 // sobe a cada troca de cliente e a cada reabertura do histórico
+let ctrAgOcupado = false, ctrAgStatus = '', ctrAgSeg = 0, ctrAgTimer = null, ctrAgCtl = null;
+let ctrAgDigitado = false, ctrAgParado = false, ctrAgContinuando = '';
+let ctrAgBloqueado = false, ctrAgConflitoLista = [];
+let ctrAgCampos = null;           // a lista branca do servidor, uma vez por sessão
+let ctrAgCad = null;              // o último cadastro do card vendido aplicado nesta tela
+let ctrAgJurTxt = CTR_AG_JUR;
+let ctrAgTurnos = {};             // id do turno -> { snap, desfeito } (memória: não vai para o histórico)
+let ctrAgReconfT = null;
+let ctrAgConferenciaFalhou = false;   // a conferência de conflitos não respondeu: o Gerar fica desligado até responder
+let ctrAgAplicandoCadastro = false;   // o cadastro é puxado pelo próprio assistente (mesmo cliente: não zera a conversa)
+const CTR_AG_PEND = 'Confirme ou descarte a mudança de valor antes de gerar.';
+const CTR_AG_FALHA_CONF = 'Não consegui conferir os conflitos. Tente de novo.';
+// Campo de valor que o assistente quer mudar e que espera o clique: nada de gerar nem de abrir prévia enquanto houver.
+const ctrAgPendente = () => ctrAg.msgs.some(m => (m.pend || []).length);
+// O motivo que desliga o Gerar (texto vazio = liberado). Lido pelo ctrHibUi a cada tecla.
+const ctrAgGateMotivo = () => ctrAgBloqueado ? (ctrAgConferenciaFalhou ? CTR_AG_FALHA_CONF : CTR_AG_BLOQ) : (ctrAgPendente() ? CTR_AG_PEND : '');
+const ctrAgBloq = () => !!ctrAgGateMotivo();
+
+// O que não sai daqui: os valores inteiros que o ctrHibSensivel junta, mais os pedaços de endereço
+// (separados por vírgula ou ponto e vírgula, 6 letras ou mais) e o CPF/CNPJ com e sem pontuação.
+// Texto livre costuma citar só a rua, ou o documento sem os pontos.
+function ctrAgSensivel(ds) {
+  const base = ctrHibSensivel(ds), set = new Set(base);
+  // Dado do imóvel e da unidade consumidora (cartões "O imóvel e a energia"): nunca sai, venha de onde vier no texto.
+  ['ctr-ta-matricula', 'ctr-ta-cartorio', 'ctr-ta-iptu', 'ctr-ta-uc'].forEach(id => { const x = orcVal(id).trim(); if (x.length >= 4) { base.push(x); set.add(x); set.add(orcEsc(x)); } });
+  base.forEach(v => {
+    String(v).split(/[,;\n]/).map(x => x.trim()).filter(x => x.length >= 6).forEach(x => { set.add(x); set.add(orcEsc(x)); });
+    const dg = String(v).replace(/\D/g, '');
+    if (dg.length === 11) { set.add(dg); set.add(`${dg.slice(0, 3)}.${dg.slice(3, 6)}.${dg.slice(6, 9)}-${dg.slice(9)}`); }
+    if (dg.length === 14) { set.add(dg); set.add(`${dg.slice(0, 2)}.${dg.slice(2, 5)}.${dg.slice(5, 8)}/${dg.slice(8, 12)}-${dg.slice(12)}`); }
+  });
+  return [...set].sort((a, b) => b.length - a.length);
+}
+
+// ── Estado do contrato como o servidor precisa dele ──────────────────────────
+// Simples: o modelo com os pedidos já aplicados. Híbrido: o modelo de cada Parte com o plano
+// aplicado (ou o esqueleto, se ainda não há plano). Tudo escovado de dado do cliente.
+function ctrAgEstado() {
+  const hib = ctrEhHibrido();
+  const tipos = hib ? ctrHib.tipos.slice() : [ctrTipo()];
+  let ds, efet = {}, d = null;
+  if (hib) {
+    ds = ctrHibDados(tipos);
+    const pl = ctrHibPlano();
+    if (pl && tipos.length === 2) { try { efet = ctrHibConstruir(pl, ds).efet; } catch (e) { efet = {}; } }
+    tipos.forEach(t => { if (!efet[t]) efet[t] = ctrComTipo(t, () => ctrModelo(ds[t])); });
+  } else {
+    d = ctrDados(); ds = { [d.tipo]: d };
+    efet[d.tipo] = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo)).modelo;
+  }
+  const sens = ctrAgSensivel(ds);
+  const clausulas = [];
+  tipos.forEach(t => (efet[t] || []).forEach(c => {
+    const o = { key: c.key, titulo: ctrHibScrub(c.titulo, sens), itens: c.itens.map(it => ({
+      key: it.key, travado: !!it.travado, campo: ctrIaCampo(t, it.key),
+      html: it.travado ? `[travado: ${it.key}]` : ctrHibScrub(it.iaTexto || it.html, sens),
+    })) };
+    if (hib) o.modelo = t;
+    clausulas.push(o);
+  }));
+  return { hib, tipos, tipo: hib ? null : tipos[0], hibrido: hib ? { tipos } : null, clausulas, sens, efet, ds };
+}
+// A chave de "o contrato mudou enquanto a IA respondia": modelo ou par de modelos.
+const ctrAgImpressao = () => ctrTipoSel() + '|' + (ctrEhHibrido() ? ctrHib.tipos.join('+') : '');
+
+// ── A lista branca de campos ─────────────────────────────────────────────────
+function ctrAgToken() { return sessaoAtual && sessaoAtual.access_token; }
+async function ctrAgCarregarCampos() {
+  if (ctrAgCampos) return ctrAgCampos;
+  const tok = ctrAgToken();
+  if (!tok) return [];
   try {
-    const r = await fetch(CTR_IA_API + '/gerador/contrato/redesenhar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
-      body: JSON.stringify(payload),
-    });
+    const r = await fetch(CTR_IA_API + '/gerador/contrato/agente/campos', { headers: { 'Authorization': 'Bearer ' + tok } });
     const j = await r.json().catch(() => null);
-    // Trocou de cliente enquanto esperava? A resposta é do contrato anterior.
-    if (geracao !== ctrIaGeracao) { diz('O contrato mudou de cliente enquanto a IA respondia. O pedido foi descartado.', 'falha'); return; }
-    if (r.status === 401) { diz('Sua sessão expirou. Entre de novo e repita o pedido.', 'falha'); return; }
-    if (r.status === 403) { diz('Esta conta não é de consultor. Entre com a sua conta da equipe.', 'falha'); return; }
-    if (!r.ok || !j || !j.ok) { diz(orcEsc((j && j.error) || ('A IA não respondeu (' + r.status + '). Tente de novo.')), 'falha'); return; }
-    // Modelo novo e servidor que ainda não o conhece (o /gerador e a API sobem
-    // separados): a resposta tem nomes de parte do Completo. Descarta.
-    if (d.tipo !== 'completo' && j.tipo !== d.tipo) { diz('A IA ainda está sendo atualizada para este modelo de contrato. Tente de novo em um minuto.', 'falha'); return; }
-    const ops = (j.operacoes || []).map(op => {
-      const o = Object.assign({}, op);
+    const lista = Array.isArray(j) ? j : (j && Array.isArray(j.campos) ? j.campos : null);
+    if (r.ok && lista) ctrAgCampos = lista.filter(c => c && typeof c.id === 'string');
+  } catch (e) {}
+  return ctrAgCampos || [];
+}
+const ctrAgCampoDe = id => (ctrAgCampos || []).find(c => c.id === id) || null;
+// O campo vale para o modelo aberto (ou para qualquer dos dois do híbrido).
+function ctrAgCampoServe(c) {
+  if (!Array.isArray(c.modelos) || !c.modelos.length) return true;
+  const ativos = ctrTiposAtivos();
+  return c.modelos.some(m => ativos.includes(m) || m === 'todos' || (m === 'hibrido' && ctrEhHibrido()));
+}
+function ctrAgEl(id) {
+  const el = document.getElementById(id);
+  const pane = document.getElementById('eletro-pane-contrato');
+  return el && pane && pane.contains(el) && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && el.type !== 'file' ? el : null;
+}
+// "1.234,56" (tela) e "1234.56" (input number) viram número. Sem vírgula, o ponto é decimal só se
+// houver um ponto e no máximo 2 casas; "145.000" é cento e quarenta e cinco mil.
+// `dec` é o separador decimal que o servidor declarou para o campo ('.' ou ','); sem ele vale a heurística.
+function ctrAgNum(v, dec) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = String(v == null ? '' : v).replace(/[^\d.,-]/g, '');
+  if (!s || s === '-') return null;
+  if (dec === '.') s = s.replace(/,/g, '');
+  else if (dec === ',') s = s.replace(/\./g, '').replace(',', '.');
+  else if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  return isFinite(n) ? n : null;
+}
+const ctrAgSuf = el => { const p = el.parentElement; const s = p && p.querySelector('.suf'), pre = p && p.querySelector('.pre'); return { suf: s ? s.textContent.trim() : '', pre: pre ? pre.textContent.trim() : '' }; };
+// O valor de um campo como o servidor o lê: número para os numéricos, texto para o resto.
+function ctrAgLer(c) {
+  const el = ctrAgEl(c.id);
+  if (!el) return null;
+  const v = el.value;
+  if (['dinheiro', 'percentual', 'inteiro', 'numero'].includes(c.tipo)) return ctrAgNum(v, el.type === 'number' ? '.' : undefined);
+  return String(v == null ? '' : v);
+}
+// O valor como a pessoa lê na tela: "R$ 1.500,00", "90 dias".
+function ctrAgFmtTela(c, v) {
+  const el = ctrAgEl(c.id);
+  if (v == null || v === '') return 'em branco';
+  const suf = (el ? ctrAgSuf(el).suf : '') || (typeof c.unidade === 'string' ? c.unidade : '');
+  if (c.tipo === 'dinheiro') return ORC_MONEY(Number(v));
+  if (['percentual', 'inteiro', 'numero'].includes(c.tipo)) return Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + (suf ? (/^%/.test(suf) ? suf : ' ' + suf) : (c.tipo === 'percentual' ? '%' : ''));
+  if (c.tipo === 'opcao' && el && el.tagName === 'SELECT') { const o = [...el.options].find(x => x.value === String(v)); if (o) return o.textContent.trim().replace(/\s*[:.].*$/, '') || String(v); }
+  if (c.tipo === 'data') { const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/); if (m) return `${m[3]}/${m[2]}/${m[1]}`; }
+  return String(v);
+}
+// Escreve o valor no input do jeito que a tela espera. Devolve { ok, motivo, antes, depois } (texto de tela).
+function ctrAgEscrever(c, valor) {
+  const el = ctrAgEl(c.id);
+  if (!el) return { ok: false, motivo: `Não achei o campo "${c.rotulo || c.id}" na tela` };
+  if (!ctrAgCampoServe(c)) return { ok: false, motivo: `O campo "${c.rotulo || c.id}" não existe neste modelo de contrato` };
+  const antesRaw = ctrAgLer(c);
+  let out;
+  if (['dinheiro', 'percentual', 'inteiro', 'numero'].includes(c.tipo) && (valor === '' || valor == null)) {
+    out = '';   // o servidor manda '' para limpar o campo (zero:'limpa'): o campo fica em branco
+  } else if (['dinheiro', 'percentual', 'inteiro', 'numero'].includes(c.tipo)) {
+    let n = ctrAgNum(valor, c.decimal);
+    if (n == null) return { ok: false, motivo: `O valor de "${c.rotulo || c.id}" não é um número` };
+    if (c.tipo === 'inteiro') n = Math.round(n);
+    if (typeof c.min === 'number' && n < c.min) return { ok: false, motivo: `"${c.rotulo || c.id}" não pode ser menor que ${c.min}` };
+    if (typeof c.max === 'number' && n > c.max) return { ok: false, motivo: `"${c.rotulo || c.id}" não pode passar de ${c.max}` };
+    // input number: ponto decimal e nenhum ponto de milhar (a vírgula do teclado zera, o ponto de milhar corta três zeros).
+    // Campo de texto: formato brasileiro.
+    if (el.type === 'number') out = String(Math.round(n * 100) / 100);
+    else out = c.tipo === 'dinheiro' ? n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : n.toLocaleString('pt-BR', { useGrouping: false, maximumFractionDigits: 2 });
+  } else if (c.tipo === 'opcao') {
+    if (el.tagName !== 'SELECT') out = String(valor == null ? '' : valor);
+    else {
+      // valoresHtml: a opção que o servidor usa -> o valor do select (ex.: com -> "2", sem -> "").
+      const vh = c.valoresHtml && typeof c.valoresHtml === 'object' && Object.prototype.hasOwnProperty.call(c.valoresHtml, valor) ? String(c.valoresHtml[valor]) : valor;
+      const alvo = String(vh == null ? '' : vh).trim().toLowerCase();
+      const o = [...el.options].find(x => x.value.toLowerCase() === alvo) || [...el.options].find(x => x.textContent.trim().toLowerCase() === alvo);
+      if (!o) return { ok: false, motivo: `"${valor}" não é uma opção de "${c.rotulo || c.id}"` };
+      out = o.value;
+    }
+  } else if (c.tipo === 'data') {
+    const s = String(valor == null ? '' : valor).trim(), m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    out = m ? `${m[3]}-${m[2]}-${m[1]}` : s;
+    if (el.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(out)) return { ok: false, motivo: `A data de "${c.rotulo || c.id}" não está num formato que eu entenda` };
+  } else {
+    out = String(valor == null ? '' : valor).trim();
+    const lim = typeof c.maxLen === 'number' && c.maxLen > 0 ? c.maxLen : (el.maxLength > 0 ? el.maxLength : 0);
+    if (lim && out.length > lim) return { ok: false, motivo: `O texto de "${c.rotulo || c.id}" passa do limite do campo (${lim} caracteres)` };
+  }
+  el.value = out;
+  if (el.tagName !== 'SELECT' && el.value !== out && el.type === 'date') return { ok: false, motivo: `A data de "${c.rotulo || c.id}" não foi aceita pelo campo` };
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+  // Campo espelhado (copia de outra aba): marcado como TOCADO, senão o ctrEspSync desfaz a mudança.
+  if (c.espelho) el.dataset.tocado = '1';
+  const depoisRaw = ctrAgLer(c);
+  return { ok: true, antes: ctrAgFmtTela(c, antesRaw), depois: ctrAgFmtTela(c, depoisRaw), igual: String(antesRaw) === String(depoisRaw) };
+}
+
+// ── O retrato antes de cada turno (só na memória) ────────────────────────────
+function ctrAgSnapTake() {
+  const pane = document.getElementById('eletro-pane-contrato');
+  const campos = [];
+  if (pane) pane.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+    if (el.type === 'file' || el.closest('#ctr-ia-card')) return;   // o campo de texto do próprio assistente não é do contrato
+    const ck = el.type === 'checkbox' || el.type === 'radio';
+    campos.push({ id: el.id, v: ck ? null : el.value, ck: ck ? el.checked : null, t: el.dataset.tocado === undefined ? null : el.dataset.tocado, a: el.dataset.antes === undefined ? null : el.dataset.antes, va: el.dataset.vdcAuto === undefined ? null : el.dataset.vdcAuto });
+  });
+  const cp = x => JSON.parse(JSON.stringify(x));
+  return { campos, ctrPag: cp(ctrPag), ctrEsc: cp(ctrEsc), ctrOpc: cp(ctrOpc), ctrIa: cp(ctrIa), ctrHib: cp(ctrHib), emitente: EP_EMIT_SEL };
+}
+function ctrAgSnapApply(s) {
+  s.campos.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (!el) return;
+    if (c.ck != null) el.checked = c.ck; else el.value = c.v;
+    [['tocado', c.t], ['antes', c.a], ['vdcAuto', c.va]].forEach(([k, v]) => { if (v == null) delete el.dataset[k]; else el.dataset[k] = v; });
+  });
+  const cp = x => JSON.parse(JSON.stringify(x));
+  ctrPag = cp(s.ctrPag); ctrEsc = cp(s.ctrEsc); ctrOpc = cp(s.ctrOpc); ctrIa = cp(s.ctrIa); ctrHib = cp(s.ctrHib);
+  ctrIaGeracao++;                  // resposta do híbrido que ainda vem a caminho é de antes do Desfazer
+  const emitVolta = epEmitIdOk(s.emitente) || 'aioros', emitMudou = emitVolta !== EP_EMIT_SEL;
+  EP_EMIT_SEL = emitVolta;
+  try { epEmitBarAtualizar(); } catch (e) {}
+  ctrTipoUi(); ctrEscRender(); ctrOpcRender(); ctrPctNota(); ctrDosRender();
+  ctrResumo(); ctrIaRender(); ctrHibRender();
+  // Emitente de volta: o que a troca normal acompanha (Pix e foro do contrato, endereço do frete FOB, bloco do banco).
+  if (emitMudou) epEmitEscolher(emitVolta);
+}
+// Os campos do contrato que diferem entre dois retratos (valor ou marca). Sem o campo de texto do assistente.
+function ctrAgDiferem(a, b) {
+  const m = {}; (b || []).forEach(c => { m[c.id] = c; });
+  return (a || []).filter(c => { const o = m[c.id]; return o && (o.v !== c.v || o.ck !== c.ck); }).map(c => c.id);
+}
+
+// ── Aplicar as ações de um turno ─────────────────────────────────────────────
+// Ordem: o que muda a forma do contrato primeiro (modelo, híbrido, emitente, cadastro), depois os
+// campos, depois as operações de texto: elas se medem contra o contrato já com os campos novos.
+const CTR_AG_ORDEM = { modelo: 0, hibrido: 1, emitente: 2, cadastro: 3, campo: 4, operacao: 5, previa: 9 };
+function ctrAgNomeModelo(t) { return (CTR_TIPOS[t] && CTR_TIPOS[t].nome) || String(t); }
+// Número da cláusula pelo título, no modelo que o papel vai mostrar.
+function ctrAgNumeroCl(titulos, titulo) { const i = titulos.indexOf(titulo); return i >= 0 ? `Cláusula ${i + 1}` : 'Cláusula'; }
+function ctrAgLinhasOp(relatorio, antesT, depoisT) {
+  const linhas = [], falhas = [];
+  relatorio.forEach(r => {
+    r.mudancas.forEach(mu => {
+      const num = ctrAgNumeroCl(mu.tipo === 'tira' ? antesT : depoisT, mu.clausula);
+      const t = { troca: `${num}: texto reescrito`, inclui: `${num}: item novo`, nova: `Cláusula nova: ${mu.clausula}`, tira: `${num} tirada: ${mu.clausula}`,
+        remove: `${num}: trecho tirado`, renomeia: `${num}: renomeada para "${mu.depois}"` }[mu.tipo];
+      if (t) linhas.push(t);
+    });
+    r.falhas.forEach(f => falhas.push(`Uma mudança de texto não entrou: ${f.motivo}`));
+  });
+  return { linhas, falhas };
+}
+async function ctrAgExecutar(acoes, opts) {
+  opts = opts || {};
+  const res = { linhas: [], falhas: [], pend: [], previa: false, mudou: false, snap: ctrAgSnapTake() };
+  const lista = (Array.isArray(acoes) ? acoes : []).filter(a => a && typeof a === 'object').slice(0, 40)
+    .map((a, i) => ({ a, i })).sort((x, y) => ((CTR_AG_ORDEM[x.a.tipo] != null ? CTR_AG_ORDEM[x.a.tipo] : 6) - (CTR_AG_ORDEM[y.a.tipo] != null ? CTR_AG_ORDEM[y.a.tipo] : 6)) || x.i - y.i).map(x => x.a);
+  await ctrAgCarregarCampos();
+  const ops = [];
+  for (const a of lista) {
+    if (a.tipo === 'modelo') {
+      const sel = document.getElementById('ctr-tipo');
+      const t = String(a.modelo || '');
+      if (!sel || !CTR_TIPOS[t] || t === ctrTipoSel()) { if (t !== ctrTipoSel()) res.falhas.push(`Não conheço o modelo "${t}"`); continue; }
+      const de = ctrEhHibrido() ? 'Híbrido' : ctrAgNomeModelo(ctrTipo());
+      sel.value = t; ctrTipoMudou(sel);
+      res.linhas.push(`Modelo do contrato: ${de} para ${ctrAgNomeModelo(t)}`); res.mudou = true;
+    } else if (a.tipo === 'hibrido') {
+      const tipos = Array.isArray(a.tipos) ? a.tipos.slice(0, 2) : [];
+      if (tipos.length !== 2 || tipos[0] === tipos[1] || !tipos.every(t => CTR_HIB_MODELOS.includes(t)) || (tipos.includes('socio50') && tipos.includes('cotas'))) { res.falhas.push('Esses dois modelos não formam um contrato híbrido'); continue; }
+      const sel = document.getElementById('ctr-tipo');
+      if (!sel) continue;
+      if (!ctrEhHibrido()) { sel.value = 'hibrido'; ctrTipoMudou(sel); }
+      ctrHib = ctrHibNovo();
+      tipos.forEach(t => ctrHibMarca(t, true));
+      if (ctrHib.tipos.join('|') !== tipos.join('|')) { res.falhas.push('Não consegui marcar os dois modelos do híbrido'); continue; }
+      const hp = document.getElementById('ctr-hib-pedido'); if (hp) hp.value = String(a.pedido || '').slice(0, 2000);
+      ctrAgStatus = 'Montando o contrato híbrido'; ctrAgRender();
+      await ctrHibPedir();
+      const pl = ctrHibPlano();
+      if (pl) { res.linhas.push(`Contrato híbrido montado: Parte I ${ctrAgNomeModelo(tipos[0])}, Parte II ${ctrAgNomeModelo(tipos[1])}${pl.bloqueado ? ' (com conflitos)' : ''}`); res.mudou = true; }
+      else { const m = document.getElementById('ctr-hib-msg'); res.falhas.push('O contrato híbrido não foi montado' + (m && m.textContent ? ': ' + m.textContent : '')); res.mudou = true; }
+    } else if (a.tipo === 'emitente') {
+      const id = epEmitIdOk(a.emitente);
+      if (!id) { res.falhas.push('Não conheço esse emitente'); continue; }
+      if (id === EP_EMIT_SEL) continue;
+      const de = EP_EMIT_ROTULO[EP_EMIT_SEL] || EP_EMIT_SEL;
+      epEmitEscolher(id);
+      res.linhas.push(`Emitente: ${de} para ${EP_EMIT_ROTULO[id] || id}`); res.mudou = true;
+    } else if (a.tipo === 'cadastro') {
+      if (!ctrAgCad) { res.falhas.push('Não há cadastro do cliente para puxar. Abra o card vendido do eletroposto, confira os documentos e use "Confirmar e preencher tudo"'); continue; }
+      res.cadastro = true;
+      try {
+        ctrAgAplicandoCadastro = true;
+        const r = aplicarCadastroEletroposto(ctrAgCad);
+        res.linhas.push('Cadastro do cliente aplicado' + (r && r.faltando && r.faltando.length ? '. Faltando: ' + r.faltando.join(', ') : '. Tudo preenchido'));
+        res.mudou = true;
+      } catch (e) { res.falhas.push('Não consegui aplicar o cadastro agora'); }
+      finally { ctrAgAplicandoCadastro = false; }
+    } else if (a.tipo === 'campo') {
+      const c = ctrAgCampoDe(a.id);
+      if (!c) { res.falhas.push('Esse campo não está liberado para o assistente'); continue; }
+      // Campo sensível (da lista) ou marcado pelo servidor só muda com o clique em Aplicar, com antes e depois à vista.
+      // `confirmado` é só do clique no próprio pendente: achado, turno e continuação nunca o trazem.
+      if ((a.confirmar || c.sensivel) && !opts.confirmado) {
+        const cur = ctrAgLer(c);
+        res.pend.push({ id: c.id, valor: a.valor, rotulo: a.rotulo || c.rotulo || c.id, antes: ctrAgFmtTela(c, cur), depois: ctrAgFmtTela(c, ['dinheiro', 'percentual', 'inteiro', 'numero'].includes(c.tipo) ? ctrAgNum(a.valor, c.decimal) : a.valor) });
+        continue;
+      }
+      const r = ctrAgEscrever(c, a.valor);
+      if (!r.ok) { res.falhas.push(r.motivo); continue; }
+      if (r.igual) continue;
+      // "Prazo da obra: 60 para 90 dias": a unidade só aparece uma vez.
+      const suf = (ctrAgSuf(ctrAgEl(c.id)).suf || (typeof c.unidade === 'string' ? c.unidade : '')).trim();
+      const antesTxt = suf && !/^%/.test(suf) && r.antes.endsWith(' ' + suf) && r.depois.endsWith(' ' + suf) ? r.antes.slice(0, -suf.length - 1) : r.antes;
+      const rot = a.rotulo || c.rotulo || c.id;
+      res.linhas.push(r.antes === 'em branco' ? `${rot}: definido em ${r.depois}` : `${rot}: ${antesTxt} para ${r.depois}`); res.mudou = true;
+    } else if (a.tipo === 'operacao') {
+      if (a.op && typeof a.op === 'object') ops.push({ op: a.op, modelo: a.modelo || a.op.modelo || null });
+    } else if (a.tipo === 'previa') {
+      res.previa = true;
+    }
+  }
+  if (ops.length) {
+    const r = ctrEhHibrido() ? ctrAgOperacoesHib(ops, opts) : ctrAgOperacoesSimples(ops, opts);
+    res.linhas.push(...r.linhas); res.falhas.push(...r.falhas); if (r.linhas.length || r.falhas.length) res.mudou = true;
+  }
+  ctrResumo();
+  return res;
+}
+// Operações do contrato simples: um pedido por turno, como era o "Pedir mudança à IA".
+function ctrAgOperacoesSimples(itens, opts) {
+  const d = ctrDados();
+  const base = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
+  const htmlDe = {}, clausulaDe = {};
+  base.modelo.forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
+  const ops = itens.map(x => {
+    const o = Object.assign({}, x.op); delete o.modelo;
+    if (o.tipo === 'substituir_item' || o.tipo === 'remover_item') o.base = htmlDe[o.alvo] != null ? htmlDe[o.alvo] : null;
+    if (o.tipo === 'inserir_item') o.ancora = clausulaDe[o.depois_de] || null;
+    return o;
+  });
+  const ped = { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tipo: d.tipo, texto: String(opts.mensagem || '').slice(0, CTR_AG_TXT_MAX), ops, avisos: [], recusa: null, em: new Date().toISOString() };
+  const dep = ctrIaAplicar(ctrModelo(d), [...ctrIaPedidos(d.tipo), ped]);
+  const rel = dep.relatorio.filter(r => r.id === ped.id);
+  const { linhas, falhas } = ctrAgLinhasOp(rel, base.modelo.map(c => c.titulo), dep.modelo.map(c => c.titulo));
+  if (!linhas.length) return { linhas: [], falhas: falhas.length ? falhas : ['Nenhuma mudança de texto coube no contrato'] };
+  ctrIa.pedidos.push(ped);
+  ctrIaRender();
+  return { linhas, falhas };
+}
+// Operações do híbrido: cada turno e Parte é um pedido extra do plano, aplicado depois do plano
+// da IA. Sem extras o ctrHibConstruir sai igual. Cláusula nova entra na seção da Parte (e nas
+// "conhecidas"), cláusula tirada sai da lista: senão o plano acusaria "apareceu depois" ou "não existe mais".
+function ctrAgOperacoesHib(itens, opts) {
+  const pl = ctrHibPlano();
+  if (!pl || ctrHibVazio(pl)) return { linhas: [], falhas: ['O contrato híbrido ainda não foi montado: peça para montar antes de mudar o texto'] };
+  const tipos = pl.tipos, ds = ctrHibDados(tipos);
+  const consAntes = ctrHibConstruir(pl, ds), antes = consAntes.efet;
+  const linhas = [], falhas = [];
+  const novoId = 'hag' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+  pl.extras = pl.extras || {};
+  itens.filter(x => x.modelo && !tipos.includes(x.modelo)).forEach(x => falhas.push(`Uma mudança de texto era de um modelo que não está neste contrato (${ctrAgNomeModelo(x.modelo)})`));
+  tipos.forEach(t => {
+    const meus = itens.filter(x => (x.modelo || tipos[0]) === t);
+    if (!meus.length) return;
+    const htmlDe = {}, clausulaDe = {};
+    (antes[t] || []).forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
+    const ops = meus.map(x => {
+      const o = Object.assign({}, x.op); delete o.modelo;
       if (o.tipo === 'substituir_item' || o.tipo === 'remover_item') o.base = htmlDe[o.alvo] != null ? htmlDe[o.alvo] : null;
       if (o.tipo === 'inserir_item') o.ancora = clausulaDe[o.depois_de] || null;
       return o;
     });
-    if (!ops.length) {
-      diz((j.recusa ? '<b>A IA não mudou nada.</b> ' + orcEsc(j.recusa) : '<b>A IA não achou o que mudar.</b> Tente explicar de outro jeito.') +
-        ((j.avisos || []).length ? '<br>' + j.avisos.map(a => orcEsc(a)).join('<br>') : ''), 'falha');
-      return;
+    const ped = { id: `${novoId}_${t}`, ops };
+    const extrasAntes = (pl.extras[t] || []).slice();
+    pl.extras[t] = [...extrasAntes, ped];
+    const cons = ctrHibConstruir(pl, ds);
+    // Só o que este pedido fez: o relatório de cada Parte vem na ordem dos pedidos. O número da
+    // cláusula é o do papel inteiro (as duas Partes seguem a mesma contagem).
+    const r = ctrIaAplicar(ctrComTipo(t, () => ctrModelo(ds[t])), [{ id: 'hib_' + t, ops: (pl.ops && pl.ops[t]) || [] }, ...pl.extras[t]].filter(p => p.ops.length)).relatorio.filter(x => x.id === ped.id);
+    const doc = c => c.lista.map(x => (x.t === t ? x.c.titulo : null));
+    const lm = ctrAgLinhasOp(r, doc(consAntes), doc(cons));
+    if (!lm.linhas.length) { pl.extras[t] = extrasAntes; falhas.push(...(lm.falhas.length ? lm.falhas : ['Nenhuma mudança de texto coube no contrato'])); return; }
+    linhas.push(...lm.linhas.map(l => `Parte ${CTR_HIB_ROM[tipos.indexOf(t)]}, ${l.charAt(0).toLowerCase()}${l.slice(1)}`));
+    falhas.push(...lm.falhas);
+    // O plano acompanha o que o pedido criou e tirou.
+    pl.conhecidas = pl.conhecidas || {}; pl.conhecidas[t] = pl.conhecidas[t] || [];
+    pl.secoes = Array.isArray(pl.secoes) ? pl.secoes : [];
+    let sec = pl.secoes.find(s => s.modelo === t); if (!sec) { sec = { modelo: t, clausulas: [] }; pl.secoes.push(sec); }
+    sec.clausulas = Array.isArray(sec.clausulas) ? sec.clausulas : [];
+    ops.forEach(o => {
+      if (o.tipo === 'inserir_clausula' && o.id_novo) {
+        const k = `${ped.id}.${o.id_novo}`;
+        const i = sec.clausulas.indexOf(o.depois_de);
+        sec.clausulas.splice(i >= 0 ? i + 1 : sec.clausulas.length, 0, k); pl.conhecidas[t].push(k);
+      } else if (o.tipo === 'remover_clausula') {
+        sec.clausulas = sec.clausulas.filter(k => k !== o.alvo);
+        pl.comuns = (pl.comuns || []).filter(cm => !(cm.modelo === t && cm.key === o.alvo));
+      }
+    });
+  });
+  return { linhas, falhas };
+}
+
+// ── Conflitos, sem IA ────────────────────────────────────────────────────────
+async function ctrAgConferir() {
+  const tok = ctrAgToken();
+  if (!tok) return null;
+  const est = ctrAgEstado();
+  if (est.hib && est.tipos.length < 2) return { conflitos: [], bloqueado: false };
+  const cli = ctrAgCli, imp = ctrAgImpressao();
+  try {
+    const r = await fetch(CTR_IA_API + '/gerador/contrato/conflitos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify({ tipo: est.tipo, hibrido: est.hibrido, clausulas: est.clausulas }),
+    });
+    const j = await r.json().catch(() => null);
+    if (cli !== ctrAgCli || imp !== ctrAgImpressao()) return null;
+    if (!r.ok || !j) return null;
+    return { conflitos: Array.isArray(j.conflitos) ? j.conflitos : [], bloqueado: !!j.bloqueado };
+  } catch (e) { return null; }
+}
+const ctrAgTxt = x => {
+  if (x == null) return '';
+  if (typeof x === 'string') return x;
+  if (typeof x === 'object') { const t = x.descricao || x.texto || x.mensagem || ''; return (x.resolvido === true ? 'Resolvido: ' : x.resolvido === false ? 'Sem solução: ' : '') + String(t); }
+  return String(x);
+};
+// Guarda o resultado e liga ou desliga o Gerar (ctrHibUi lê a bandeira a cada tecla).
+function ctrAgAplicarBloqueio(rc, vindoDe, eraAntes) {
+  if (!rc) return;
+  const era = eraAntes === undefined ? ctrAgBloqueado : eraAntes;
+  ctrAgBloqueado = !!rc.bloqueado; ctrAgConferenciaFalhou = false;
+  ctrAgConflitoLista = rc.conflitos.map(ctrAgTxt).filter(Boolean).slice(0, 24);
+  ctrHibUi();
+  if (ctrAgBloqueado && (vindoDe === 'turno' || !era)) ctrAgMsg({ papel: 'sistema', falha: true, texto: CTR_AG_BLOQ, conflitos: ctrAgConflitoLista });
+  else if (era && !ctrAgBloqueado) ctrAgMsg({ papel: 'sistema', texto: 'Os conflitos foram resolvidos. O Gerar está liberado.' });
+}
+// Confere com o Gerar travado: a conferência é uma espera, e o contrato mudou. Se ela não responder, o Gerar
+// fica desligado com o motivo à vista (liberar sem saber seria o erro). Devolve true se a conferência respondeu.
+async function ctrAgConferirTravando(vindoDe) {
+  const cli = ctrAgCli, era = ctrAgBloqueado;
+  ctrAgBloqueado = true; ctrAgConferenciaFalhou = false; ctrHibUi();
+  const rc = await ctrAgConferir();
+  if (cli !== ctrAgCli) return false;
+  if (rc) { ctrAgAplicarBloqueio(rc, vindoDe, era); return true; }
+  ctrAgConferenciaFalhou = true; ctrHibUi();
+  ctrAgMsg({ papel: 'sistema', falha: true, texto: CTR_AG_FALHA_CONF, reconferir: true });
+  return false;
+}
+// Enquanto houver bloqueio, mexer num campo reconfere (sem IA) depois de um instante.
+function ctrAgReconferirSoon() {
+  if (ctrAgReconfT) clearTimeout(ctrAgReconfT);
+  ctrAgReconfT = setTimeout(async () => {
+    ctrAgReconfT = null;
+    if (!ctrAgBloqueado) return;
+    const rc = await ctrAgConferir();
+    if (rc) { ctrAgAplicarBloqueio(rc, 'reconf'); ctrAgRender(); }
+  }, 1500);
+}
+// Nem todo campo chama o ctrResumo ao mudar (a garantia, por exemplo, não chama): quem escuta é o painel inteiro.
+['input', 'change'].forEach(tipo => document.addEventListener(tipo, ev => {
+  if (ctrAgBloqueado && ev.target && ev.target.closest && ev.target.closest('#eletro-pane-contrato') && !ev.target.closest('#ctr-ia-card')) ctrAgReconferirSoon();
+}, true));
+
+// ── A conversa ───────────────────────────────────────────────────────────────
+function ctrAgMsg(m) {
+  m.id = m.id || 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  ctrAg.msgs.push(m);
+  if (ctrAg.msgs.length > 120) ctrAg.msgs.splice(0, ctrAg.msgs.length - 120);
+  return m;
+}
+// O que vai para o histórico: a conversa sem botões vivos e sem retratos.
+function ctrAgPersistir() {
+  const cut = s => String(s == null ? '' : s).slice(0, CTR_AG_TXT_MAX);
+  // No máximo as últimas 20 de cada papel (usuário, assistente, sistema), na ordem de antes.
+  const cont = {}, manter = new Set();
+  for (let i = ctrAg.msgs.length - 1; i >= 0; i--) { const p = ctrAg.msgs[i].papel; cont[p] = (cont[p] || 0) + 1; if (cont[p] <= 20) manter.add(i); }
+  return { n: ctrAg.n, msgs: ctrAg.msgs.filter((m, i) => manter.has(i)).map(m => ({
+    id: m.id, papel: m.papel, texto: cut(m.texto), falha: !!m.falha, pergunta: m.pergunta ? cut(m.pergunta) : '',
+    linhas: (m.linhas || []).slice(0, 30).map(cut), falhas: (m.falhas || []).slice(0, 30).map(cut), avisos: (m.avisos || []).slice(0, 20).map(cut),
+    conflitos: (m.conflitos || []).slice(0, 24).map(cut), meta: m.meta ? cut(m.meta) : '',
+    achados: (m.achados || []).slice(0, 12).map(a => ({ texto: cut(a.texto), feito: !!a.feito })),
+  })) };
+}
+function ctrAgRestaurar(s) {
+  const out = ctrAgNovo();
+  if (s && Array.isArray(s.msgs)) {
+    out.n = Math.max(0, Math.min(CTR_AG_MAX, Number(s.n) || 0));
+    out.msgs = s.msgs.filter(m => m && ['usuario', 'assistente', 'sistema'].includes(m.papel)).slice(-120).map(m => JSON.parse(JSON.stringify(m)));
+  }
+  return out;
+}
+// Zera tudo que é da conversa em andamento (troca de cliente, reabertura do histórico).
+function ctrAgZerar(novoEstado) {
+  ctrAgCli++;
+  ctrAg = novoEstado || ctrAgNovo();
+  ctrAgTurnos = {}; ctrAgBloqueado = false; ctrAgConferenciaFalhou = false; ctrAgConflitoLista = []; ctrAgStatus = ''; ctrAgJurTxt = CTR_AG_JUR;
+  ctrAgOcupado = false; ctrAgContinuando = '';
+  if (ctrAgTimer) { clearInterval(ctrAgTimer); ctrAgTimer = null; }
+  if (ctrAgReconfT) { clearTimeout(ctrAgReconfT); ctrAgReconfT = null; }
+  if (ctrAgCtl) { try { ctrAgCtl.abort(); } catch (e) {} }
+  ctrAgRender();
+}
+function ctrAgEl2(tag, cls, txt) { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; }
+function ctrAgRender() {
+  const box = document.getElementById('ctr-ag-chat');
+  if (!box) return;
+  const noFim = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.textContent = '';
+  const el = ctrAgEl2;
+  ctrAg.msgs.forEach((m, idx) => {
+    const b = el('div', 'ctr-ag-m ' + m.papel + (m.falha ? ' falha' : ''));
+    if (m.texto) b.appendChild(el('p', 'ctr-ag-t', m.texto));
+    if (m.pergunta) b.appendChild(el('p', 'ctr-ag-q', m.pergunta));
+    const lis = (cls, titulo, itens) => {
+      if (!itens || !itens.length) return;
+      if (titulo) b.appendChild(el('div', 'ctr-ag-tit', titulo));
+      const ul = el('ul', 'ctr-ag-lista ' + cls);
+      itens.forEach(t => ul.appendChild(el('li', '', t)));
+      b.appendChild(ul);
+    };
+    lis('', 'O que mudou', m.linhas);
+    lis('falha', '', m.falhas);
+    lis('falha', 'Conflitos', m.conflitos);
+    lis('aviso', 'Avisos', m.avisos);
+    (m.pend || []).forEach(p => {
+      const row = el('div', 'ctr-ag-pend');
+      const sp = el('span'); sp.appendChild(el('b', '', p.rotulo + ': '));
+      sp.appendChild(el('span', 'antes', p.antes)); sp.appendChild(document.createTextNode(' para ')); sp.appendChild(el('span', 'depois', p.depois));
+      row.appendChild(sp);
+      b.appendChild(row);
+    });
+    if ((m.pend || []).length) {
+      const bt = el('button', 'ctr-chip', 'Aplicar'); bt.type = 'button'; bt.disabled = ctrAgOcupado;
+      bt.title = 'Este campo é sensível: só muda com o seu clique.';
+      bt.addEventListener('click', () => ctrAgAplicarPend(m.id));
+      const ac = el('div', 'ctr-ag-acao'); ac.appendChild(bt);
+      const ds = el('button', 'orc-link', 'Descartar'); ds.type = 'button'; ds.disabled = ctrAgOcupado;
+      ds.addEventListener('click', () => ctrAgDescartarPend(m.id));
+      ac.appendChild(ds); b.appendChild(ac);
     }
-    ctrIa.pedidos.push({ id: 'p' + Date.now().toString(36), tipo: d.tipo, texto, ops, avisos: j.avisos || [], recusa: j.recusa || null, em: new Date().toISOString() });
-    if (campo && campo.value.trim() === texto) campo.value = '';
-    diz(j.recusa ? '<b>Feito em parte.</b> ' + orcEsc(j.recusa) + ' Confira abaixo o que mudou.' : 'Pronto. Confira abaixo o antes e o depois de cada mudança, e gere a prévia.', j.recusa ? 'espera' : 'ok');
-    ctrIaRender();
-  } catch (err) {
-    if (geracao === ctrIaGeracao) diz('Não consegui falar com a IA agora. Confira a internet e tente de novo.', 'falha');
+    if (m.reconferir && !ctrAgOcupado) {
+      const bt = el('button', 'ctr-chip', 'Conferir de novo'); bt.type = 'button';
+      bt.addEventListener('click', () => { m.reconferir = false; ctrAgConferirTravando('turno').then(() => ctrAgRender()); });
+      b.appendChild(bt);
+    }
+    (m.achados || []).forEach((a, i) => {
+      const row = el('div', 'ctr-ag-achado'); row.appendChild(el('span', '', a.texto || ''));
+      if (a.feito) row.appendChild(el('span', 'ctr-ag-meta', 'Aplicado'));
+      else if (Array.isArray(a.acoes) && a.acoes.length) {
+        const bt = el('button', 'ctr-chip', 'Aplicar'); bt.type = 'button'; bt.disabled = ctrAgOcupado;
+        bt.addEventListener('click', () => ctrAgAplicarAchado(m.id, i));
+        row.appendChild(bt);
+      }
+      b.appendChild(row);
+    });
+    if (m.meta) b.appendChild(el('div', 'ctr-ag-meta', m.meta));
+    const tn = m.turno && ctrAgTurnos[m.turno];
+    if (tn && !tn.desfeito && !ctrAgOcupado) {
+      const ac = el('div', 'ctr-ag-acao');
+      const bt = el('button', 'orc-link', 'Desfazer'); bt.type = 'button';
+      bt.addEventListener('click', () => ctrAgDesfazer(m.turno));
+      ac.appendChild(bt); b.appendChild(ac);
+    } else if (tn && tn.desfeito) b.appendChild(el('div', 'ctr-ag-meta', 'Desfeito'));
+    box.appendChild(b);
+  });
+  if (ctrAgOcupado) {
+    const b = el('div', 'ctr-ag-m sistema espera');
+    b.appendChild(el('p', 'ctr-ag-t', (ctrAgContinuando ? ctrAgContinuando + '. ' : '') + (ctrAgStatus || 'Pensando') + ' ' + ctrAgSeg + ' s'));
+    box.appendChild(b);
+  }
+  if (noFim || ctrAgOcupado) box.scrollTop = box.scrollHeight;
+  // Botões e contador.
+  const env = document.getElementById('ctr-ag-enviar'); if (env) env.disabled = ctrAgOcupado;
+  const par = document.getElementById('ctr-ag-parar'); if (par) par.hidden = !ctrAgOcupado;
+  const ch = document.getElementById('ctr-ag-chips'); if (ch) ch.querySelectorAll('button').forEach(x => { x.disabled = ctrAgOcupado; });
+  const cont = document.getElementById('ctr-ag-cont');
+  if (cont) {
+    const falta = CTR_AG_MAX - ctrAg.n;
+    cont.className = 'ctr-ag-cont' + (ctrAg.n >= CTR_AG_PERTO ? ' perto' : '');
+    cont.textContent = ctrAg.n >= CTR_AG_MAX ? 'Limite de ' + CTR_AG_MAX + ' mensagens neste contrato.' : ctrAg.n >= CTR_AG_PERTO ? 'Faltam ' + falta + ' mensagens neste contrato.' : '';
+  }
+  const jur = document.getElementById('ctr-ag-jur'); if (jur && jur.textContent !== ctrAgJurTxt) jur.textContent = ctrAgJurTxt;
+}
+function ctrAgTick() {
+  ctrAgSeg++;
+  const box = document.getElementById('ctr-ag-chat');
+  const ult = box && box.lastElementChild;
+  if (ctrAgOcupado && ult && ult.classList.contains('espera')) ult.firstElementChild.textContent = (ctrAgContinuando ? ctrAgContinuando + '. ' : '') + (ctrAgStatus || 'Pensando') + ' ' + ctrAgSeg + ' s';
+}
+
+// ── Enviar ───────────────────────────────────────────────────────────────────
+function ctrAgTecla(ev) {
+  if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); ctrAgEnviarCampo(); }
+}
+function ctrAgDigitou() { if (ctrAgOcupado) ctrAgDigitado = true; }
+function ctrAgChip(btn) { if (btn && !ctrAgOcupado) ctrAgEnviar(btn.textContent.trim()); }
+function ctrAgEnviarCampo() {
+  const campo = document.getElementById('ctr-ag-texto');
+  const t = (campo && campo.value || '').trim();
+  if (!t || ctrAgOcupado) return;
+  if (ctrAgEnviar(t) && campo) campo.value = '';
+}
+function ctrAgPararAgora() {
+  ctrAgParado = true;
+  if (ctrAgCtl) { try { ctrAgCtl.abort(); } catch (e) {} }
+}
+// Devolve false se não enviou (e diz por quê na conversa).
+function ctrAgEnviar(texto) {
+  if (ctrAgOcupado) return false;
+  if (!ctrAgToken()) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Entre com sua conta para falar com o assistente.' }); ctrAgRender(); return false; }
+  if (ctrAg.n >= CTR_AG_MAX) { ctrAgMsg({ papel: 'sistema', falha: true, texto: `Este contrato chegou a ${CTR_AG_MAX} mensagens. Para continuar, abra um contrato novo.` }); ctrAgRender(); return false; }
+  if (ctrEhHibrido() && ctrHib.tipos.length < 2) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Marque os dois modelos do contrato híbrido antes de falar com o assistente.' }); ctrAgRender(); return false; }
+  ctrAgOcupado = true;     // já aqui: dois cliques seguidos não abrem dois turnos
+  ctrAgMsg({ papel: 'usuario', texto: texto.slice(0, CTR_AG_TXT_MAX) });   // a fala aparece na hora, antes de qualquer espera
+  ctrAgLaco(texto.slice(0, 2000));
+  return true;
+}
+async function ctrAgLaco(texto) {
+  ctrAgParado = false; ctrAgDigitado = false; ctrAgContinuando = '';
+  const cli = ctrAgCli;
+  let extra = 0, msg = texto;
+  // "revisar" quando a fala é o chip "Revisar o contrato" ou começa com revisar/revise; o "continue" herda o modo.
+  const modo = /^\s*revis(ar|e)\b/i.test(texto) ? 'revisar' : 'normal';
+  try {
+    for (;;) {
+      const r = await ctrAgTurno(msg, extra > 0, modo);
+      if (cli !== ctrAgCli) return;
+      if (!r || !r.continuar || extra >= 2 || ctrAgParado || ctrAgDigitado) break;
+      if (ctrAg.n >= CTR_AG_MAX) break;
+      extra++; msg = 'continue'; ctrAgContinuando = `Continuando (${extra} de 2)`;
+    }
+  } catch (e) {
+    console.error('assistente de contrato', e);
+    if (cli === ctrAgCli) ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Algo deu errado aqui na tela. O que já foi aplicado continua no contrato, com Desfazer.' });
   } finally {
-    ctrIaOcupado = false;
-    if (btn) { btn.disabled = false; btn.lastChild.textContent = ' Aplicar pedido com a IA'; }
+    if (cli === ctrAgCli) {
+      if (ctrAgTimer) { clearInterval(ctrAgTimer); ctrAgTimer = null; }
+      ctrAgOcupado = false; ctrAgContinuando = ''; ctrAgStatus = ''; ctrAgCtl = null;
+      ctrHibUi(); ctrAgRender();
+    }
   }
 }
+function ctrAgErroHttp(status, j) {
+  if (status === 401) return 'Sua sessão expirou. Entre de novo e repita o pedido.';
+  if (status === 403) return 'Esta conta não é de consultor. Entre com a sua conta da equipe.';
+  if (status === 413) return 'O contrato é grande demais para enviar. Tire cláusulas ou comece um contrato novo.';
+  if (status === 429) return 'Muitos pedidos seguidos. Espere um pouco e tente de novo.';
+  if (status === 502) return 'A IA não respondeu agora. Tente de novo em instantes.';
+  if (status === 400 && j && typeof j.error === 'string' && j.error) return j.error;
+  return 'O assistente não respondeu (' + status + '). Tente de novo.';
+}
+// Um turno: pergunta ao servidor, aplica as ações, confere os conflitos, abre a prévia se pedida.
+async function ctrAgTurno(mensagem, continuacao, modo) {
+  const tok = ctrAgToken(), cli = ctrAgCli, imp = ctrAgImpressao();
+  // O cronômetro roda desde já: carregar a lista de campos também é espera.
+  ctrAgSeg = 0; ctrAgStatus = continuacao ? 'Lendo o contrato de novo' : 'Pensando';
+  if (!ctrAgTimer) ctrAgTimer = setInterval(ctrAgTick, 1000);
+  ctrAgRender();
+  const campos = await ctrAgCarregarCampos();
+  if (cli !== ctrAgCli) return null;
+  const est = ctrAgEstado(), sens = est.sens;
+  // Campo vazio vai com valor nulo: dizer que está em branco também é informação.
+  const lista = campos.filter(c => ctrAgEl(c.id) && ctrAgCampoServe(c)).map(c => { const v = ctrAgLer(c); return { id: c.id, valor: typeof v === 'string' ? ctrHibScrub(v, sens) : v }; });
+  // O histórico é o que veio antes: a fala nova (a última da lista, já na tela) vai em `mensagem`.
+  const historico = (continuacao ? ctrAg.msgs : ctrAg.msgs.slice(0, -1)).filter(m => m.papel === 'usuario' || m.papel === 'assistente').slice(-6)
+    .map(m => ({ papel: m.papel, texto: ctrHibScrub([m.texto, m.pergunta].filter(Boolean).join(' '), sens).slice(0, CTR_AG_TXT_MAX) }));
+  const cad = ctrAgCad ? { tem: true, faltando: (Array.isArray(ctrAgCad.faltando) ? ctrAgCad.faltando : []).filter(k => typeof k === 'string').slice(0, 30) } : { tem: false, faltando: [] };
+  const corpo = { modo: modo === 'revisar' ? 'revisar' : 'normal', tipo: est.tipo, hibrido: est.hibrido, clausulas: est.clausulas, campos: lista, emitente: epEmitEfetivo(), cadastro: cad, historico, mensagem: ctrHibScrub(mensagem, sens).slice(0, 2000) };
+  // O contador conta cada envio, inclusive o "continue".
+  ctrAg.n++;
+  ctrAgRender();
+  let r, j = null;
+  try {
+    ctrAgCtl = new AbortController();
+    const parar = setTimeout(() => { try { ctrAgCtl.abort(); } catch (e) {} }, 180000);
+    try {
+      r = await fetch(CTR_IA_API + '/gerador/contrato/agente', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+        body: JSON.stringify(corpo), signal: ctrAgCtl.signal,
+      });
+      j = await r.json().catch(() => null);
+    } finally { clearTimeout(parar); }
+  } catch (e) {
+    if (cli !== ctrAgCli) return null;
+    ctrAgMsg({ papel: 'sistema', falha: true, texto: ctrAgParado ? 'Parei. A resposta, se vier, não será aplicada.' : 'Não consegui falar com o assistente agora. Confira a internet e tente de novo.' });
+    return null;
+  }
+  // Trocou de cliente ou de modelo enquanto esperava? A resposta é de outro contrato.
+  if (cli !== ctrAgCli) return null;
+  if (imp !== ctrAgImpressao()) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'O contrato mudou enquanto o assistente respondia. A resposta foi descartada.' }); return null; }
+  if (!r.ok || !j || !j.ok) { ctrAgMsg({ papel: 'sistema', falha: true, texto: ctrAgErroHttp(r.status, j) }); return null; }
+  if (j.aviso_juridico) ctrAgJurTxt = String(j.aviso_juridico);
+  const acoes = Array.isArray(j.acoes) ? j.acoes : [];
+  ctrAgStatus = acoes.length ? 'Aplicando as mudanças' : ctrAgStatus; ctrAgRender();
+  const res = await ctrAgExecutar(acoes, { mensagem });
+  if (cli !== ctrAgCli) return null;
+  const turno = res.mudou ? 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4) : null;
+  if (turno) ctrAgTurnos[turno] = { snap: res.snap, desfeito: false, cadastro: !!res.cadastro, depois: null };
+  const pergunta = j.pergunta ? String(j.pergunta) : '';
+  const texto = j.resposta ? String(j.resposta) : (acoes.length || pergunta ? '' : 'Pronto.');
+  ctrAgMsg({
+    papel: 'assistente', texto, pergunta, linhas: res.linhas, falhas: res.falhas, pend: res.pend, turno,
+    avisos: (Array.isArray(j.avisos) ? j.avisos : []).map(ctrAgTxt).filter(Boolean).slice(0, 20),
+    achados: (Array.isArray(j.achados) ? j.achados : []).filter(a => a && (a.texto || a.descricao)).slice(0, 12).map(a => ({ texto: String(a.texto || a.descricao), acoes: Array.isArray(a.acoes) ? a.acoes : [], feito: false })),
+    meta: typeof j.ms === 'number' && j.ms > 0 ? `Respondeu em ${Math.max(1, Math.round(j.ms / 1000))} s` : '',
+  });
+  // Confere os conflitos com o estado de agora. Sem resposta da conferência, vale o que o turno trouxe.
+  // A conferência trava o Gerar enquanto espera; se não responder, o Gerar fica desligado com o motivo.
+  if (res.mudou || acoes.length) { ctrAgRender(); await ctrAgConferirTravando('turno'); }
+  else if (!ctrAgBloqueado && j.bloqueado) ctrAgAplicarBloqueio({ bloqueado: true, conflitos: Array.isArray(j.conflitos) ? j.conflitos : [] }, 'turno');
+  else if (Array.isArray(j.conflitos) && j.conflitos.length) ctrAgMsg({ papel: 'sistema', texto: 'O assistente apontou conflitos.', conflitos: j.conflitos.map(ctrAgTxt).filter(Boolean).slice(0, 24) });
+  if (cli !== ctrAgCli) return null;
+  if (turno) ctrAgTurnos[turno].depois = ctrAgSnapTake().campos;   // o que o turno deixou: base para saber se a pessoa mexeu depois
+  ctrHibUi(); ctrAgRender();
+  // A prévia por último, e só com o Gerar liberado: conflito, conferência que falhou e valor por confirmar a seguram.
+  if (res.previa) {
+    const gb = document.getElementById('ctr-gerar-btn'), gm = ctrAgGateMotivo();
+    if (gm || (gb && gb.disabled)) ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Não abri a prévia. ' + (gm || 'O Gerar está desligado: veja o aviso ao lado do botão.') });
+    else { ctrAgMsg({ papel: 'sistema', texto: 'Abrindo a prévia.' }); ctrAgRender(); try { await ctrImprimir(); } catch (e) { ctrAgMsg({ papel: 'sistema', falha: true, texto: 'Não consegui abrir a prévia agora.' }); } }
+  }
+  return { continuar: !!j.continuar && !pergunta };
+}
+
+// ── Aplicar o que pede clique, e Desfazer ────────────────────────────────────
+// `confirmado` só vem do clique no pendente (a pessoa viu o antes e o depois). Achado nunca o traz:
+// campo de valor dentro de achado cai de novo na confirmação, com antes e depois, numa mensagem nova.
+async function ctrAgAplicarAcoesManual(acoes, mensagem, confirmado) {
+  if (ctrAgOcupado) return;
+  const cli = ctrAgCli;
+  ctrAgOcupado = true; ctrAgStatus = 'Aplicando'; ctrAgSeg = 0; ctrAgRender();
+  try {
+    const res = await ctrAgExecutar(acoes, { mensagem, confirmado: !!confirmado });
+    if (cli !== ctrAgCli) return;
+    const turno = res.mudou ? 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4) : null;
+    if (turno) ctrAgTurnos[turno] = { snap: res.snap, desfeito: false, cadastro: !!res.cadastro, depois: null };
+    ctrAgMsg({ papel: 'sistema', texto: res.mudou ? 'Aplicado.' : (res.pend.length ? 'Confirme a mudança de valor para aplicar.' : 'Nada mudou.'), linhas: res.linhas, falhas: res.falhas, pend: res.pend, turno });
+    if (res.mudou) await ctrAgConferirTravando('turno');
+    if (cli !== ctrAgCli) return;
+    if (turno) ctrAgTurnos[turno].depois = ctrAgSnapTake().campos;
+  } finally {
+    if (cli === ctrAgCli) { ctrAgOcupado = false; ctrAgStatus = ''; ctrHibUi(); ctrAgRender(); }
+  }
+}
+function ctrAgAplicarPend(id) {
+  const m = ctrAg.msgs.find(x => x.id === id);
+  if (!m || !(m.pend || []).length || ctrAgOcupado) return;
+  const acoes = m.pend.map(p => ({ tipo: 'campo', id: p.id, rotulo: p.rotulo, valor: p.valor }));
+  m.pend = [];
+  ctrAgAplicarAcoesManual(acoes, '', true);
+}
+function ctrAgDescartarPend(id) {
+  const m = ctrAg.msgs.find(x => x.id === id);
+  if (!m || !(m.pend || []).length || ctrAgOcupado) return;
+  m.pend = [];
+  ctrAgMsg({ papel: 'sistema', texto: 'Mudança de valor descartada. O campo ficou como estava.' });
+  ctrHibUi(); ctrAgRender();
+}
+function ctrAgAplicarAchado(id, i) {
+  const m = ctrAg.msgs.find(x => x.id === id), a = m && m.achados && m.achados[i];
+  if (!a || a.feito || ctrAgOcupado) return;
+  a.feito = true;
+  ctrAgAplicarAcoesManual(a.acoes, a.texto, false);
+}
+async function ctrAgDesfazer(turno) {
+  const t = ctrAgTurnos[turno];
+  if (!t || t.desfeito || ctrAgOcupado) return;
+  // Desfazer um turno de que outros dependem desfaz os seguintes: o retrato é de antes deste.
+  const ids = Object.keys(ctrAgTurnos);
+  const seguintes = ids.slice(ids.indexOf(turno) + 1).filter(k => !ctrAgTurnos[k].desfeito);
+  if (seguintes.length && !confirm('Desfazer este turno também desfaz os ' + seguintes.length + ' seguinte(s), que foram feitos em cima dele. Desfazer todos?')) return;
+  // O que Desfazer não alcança, ou apaga sem a pessoa saber: pergunta antes.
+  const desfazendo = [turno, ...seguintes];
+  if (desfazendo.some(k => ctrAgTurnos[k].cadastro) &&
+      !confirm('Este turno puxou o cadastro do cliente. Os campos que ele preencheu fora do contrato (propostas, recibo, banco, procuração, venda de equipamento) não voltam por aqui. Desfazer só o contrato?')) return;
+  const mexeu = new Set();
+  desfazendo.forEach((k, n) => {
+    const ant = n === 0 ? null : ctrAgTurnos[desfazendo[n - 1]].depois;      // o que o turno anterior deixou x o que o seguinte encontrou
+    if (ant) ctrAgDiferem(ctrAgTurnos[k].snap.campos, ant).forEach(x => mexeu.add(x));
+  });
+  const ult = ctrAgTurnos[desfazendo[desfazendo.length - 1]].depois;         // o que o último turno deixou x o que há agora
+  if (ult) ctrAgDiferem(ctrAgSnapTake().campos, ult).forEach(x => mexeu.add(x));
+  if (mexeu.size && !confirm('Você mexeu em ' + mexeu.size + ' campo(s) do contrato depois deste turno. Desfazer devolve o contrato ao que era antes dele e apaga essas edições. Desfazer mesmo assim?')) return;
+  ctrAgSnapApply(t.snap);
+  desfazendo.forEach(k => { ctrAgTurnos[k].desfeito = true; });
+  ctrAgMsg({ papel: 'sistema', texto: seguintes.length ? `Desfeito, com os ${seguintes.length} turno(s) seguinte(s).` : 'Desfeito.' });
+  ctrAgRender();
+  // Gerar travado enquanto confere o contrato de volta; sem resposta da conferência, continua travado.
+  await ctrAgConferirTravando('turno');
+  ctrAgRender();
+}
+// Nota na conversa vinda de outro lugar da tela (o "Montar de novo" do híbrido refaz o plano).
+function ctrAgNota(texto) { ctrAgMsg({ papel: 'sistema', texto }); ctrAgRender(); }
 
 // Desfazer um pedido de que outros dependem (mexem no mesmo trecho, ou citam o
 // que ele criou) não desfaz o efeito: os seguintes trazem o texto dele embutido.
@@ -25599,6 +26398,8 @@ function ctrIaLimpar() {
   if (n && !confirm('Voltar ao contrato padrão? Os ' + n + ' pedido(s) feitos à IA saem.')) return;
   ctrIa = { pedidos: ctrIa.pedidos.filter(p => ctrIaTipoDe(p) !== t) };
   ctrIaRender();
+  // A conversa continua na tela: ela passa a dizer que o texto voltou ao padrão (os Desfazer antigos seguem valendo).
+  if (n) ctrAgNota('Voltei o texto ao contrato padrão. Os campos da tela não mudaram.');
 }
 
 // A lista de pedidos com o antes e o depois calculado AQUI (não o resumo da IA:
@@ -25610,7 +26411,7 @@ function ctrIaRender() {
   if (!box) return;
   const btnLimpar = document.getElementById('ctr-ia-limpar');
   const pedidos = ctrIaPedidos();
-  if (btnLimpar) btnLimpar.style.display = pedidos.length ? '' : 'none';
+  if (btnLimpar) btnLimpar.style.display = pedidos.length && !ctrEhHibrido() ? '' : 'none';
   if (!pedidos.length) { box.innerHTML = ''; return; }
   let d;
   try { d = ctrDados(); } catch (e) { return; }
@@ -25728,11 +26529,17 @@ function ctrHibMarca(t, on) {
 function ctrHibUi() {
   const hib = ctrEhHibrido();
   const card = document.getElementById('ctr-hib-card'); if (card) card.classList.toggle('ctr-fora', !hib);
-  const iaCard = document.getElementById('ctr-ia-card'); if (iaCard) iaCard.classList.toggle('ctr-fora', hib);
+  // O assistente de contrato serve aos dois. O que não vale no híbrido: a lista de pedidos de texto do contrato
+  // simples (o híbrido guarda as mudanças no plano) e o "Voltar ao contrato padrão".
+  const iaDet = document.getElementById('ctr-ia-det'); if (iaDet) iaDet.classList.toggle('ctr-fora', hib);
+  const iaLim = document.getElementById('ctr-ia-limpar'); if (iaLim && hib) iaLim.style.display = 'none';
+  // Conflito achado pelo assistente (sem IA) desliga o Gerar nos dois modelos. É uma bandeira lida a cada tecla:
+  // ctrResumo chama isto sempre, e um desligar de uma vez só seria desfeito na tecla seguinte.
+  const bl = ctrAgBloq();
   const gb = document.getElementById('ctr-gerar-btn'), gn = document.getElementById('ctr-gerar-nota');
   if (!hib) {
-    if (gb) gb.disabled = false;
-    if (gn) { gn.classList.add('ctr-fora'); gn.textContent = ''; }
+    if (gb) gb.disabled = bl;
+    if (gn) { gn.classList.toggle('ctr-fora', !bl); gn.textContent = ctrAgGateMotivo(); }
     return;
   }
   const tipos = ctrHib.tipos;
@@ -25770,8 +26577,9 @@ function ctrHibUi() {
     if (lb.textContent !== rot) lb.textContent = rot;
   }
   const lim = document.getElementById('ctr-hib-limpar'); if (lim) lim.style.display = ctrHib.plano ? '' : 'none';
-  if (gb) gb.disabled = !g.ok;
-  if (gn) { gn.classList.toggle('ctr-fora', g.ok); if (gn.textContent !== g.motivo) gn.textContent = g.motivo; }
+  const motivoGerar = !g.ok ? g.motivo : ctrAgGateMotivo();
+  if (gb) gb.disabled = !g.ok || bl;
+  if (gn) { gn.classList.toggle('ctr-fora', !motivoGerar); if (gn.textContent !== motivoGerar) gn.textContent = motivoGerar; }
 }
 function ctrHibLimpar() {
   if (ctrHib.plano && !confirm('Descartar o plano montado pela IA? O contrato híbrido volta a precisar de uma nova montagem.')) return;
@@ -25854,7 +26662,9 @@ async function ctrHibPedir() {
     if (!Array.isArray(j.tipos) || j.tipos.join('|') !== tipos.join('|')) { diz('A IA devolveu o plano de outros modelos. Tente de novo.', 'falha'); return; }
     ctrHib.tentativas++;
     ctrHib.pedido = pedido;
+    const tinhaExtras = !!(ctrHib.plano && ctrHib.plano.extras && Object.values(ctrHib.plano.extras).some(l => l.length));
     ctrHib.plano = ctrHibGuardar(j, tipos, base, htmlDe, clausulaDe);
+    if (tinhaExtras) ctrAgNota('O plano do contrato híbrido foi refeito. As mudanças de texto pedidas na conversa saíram dele: peça de novo o que ainda vale.');
     const pl = ctrHib.plano;
     if (pl.bloqueado || ctrHibVazio(pl)) diz('O plano veio bloqueado. Veja abaixo o que impede de gerar.', 'falha');
     else diz('Plano montado. Confira as Partes e os avisos abaixo e gere a prévia.', 'ok');
@@ -25901,7 +26711,8 @@ function ctrHibConstruir(pl, ds) {
   tipos.forEach(t => {
     const baseT = ctrComTipo(t, () => ctrModelo(ds[t]));
     const ped = { id: 'hib_' + t, ops: (pl.ops && pl.ops[t]) || [] };
-    const r = ctrIaAplicar(baseT, ped.ops.length ? [ped] : []);
+    // Depois do plano da IA entram, em ordem, os pedidos do assistente de contrato (pl.extras). Sem eles, nada muda.
+    const r = ctrIaAplicar(baseT, [...(ped.ops.length ? [ped] : []), ...(((pl.extras || {})[t]) || [])]);
     efet[t] = r.modelo; relat[t] = r.relatorio; chaveDe[t] = ctrIaAlias(ped).chave;
   });
   const prob = { falhas: [], semDestino: [], voltaram: [], novas: [], quebradas: [] };
@@ -26165,6 +26976,8 @@ function ctrPromessaRetorno(d, apPronto) {
   return '';
 }
 async function ctrImprimir() {
+  // Conflito apontado pelo assistente de contrato: o botão já está desligado, e isto cobre quem chega por outro caminho.
+  { const gm = ctrAgGateMotivo(); if (gm) { alert(gm); return; } }
   // Híbrido (19/10/2026): caminho próprio, com o plano da IA. Os outros modelos seguem abaixo, sem mudança.
   if (ctrEhHibrido()) return ctrImprimirHibrido();
   // As fotos do dossiê vêm do aparelho antes de montar o papel.
@@ -26242,7 +27055,7 @@ async function ctrImprimir() {
     const ap = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
     const qb = ctrNumerar(ap.modelo).quebradas;
     const nf = ap.relatorio.reduce((t, r) => t + r.falhas.length, 0);
-    if (nf && !confirm(nf + ' mudança(s) pedida(s) à IA não entra(m) no papel: o trecho mudou ou saiu do contrato depois do pedido. Veja em "Pedir mudança à IA".\n\nGerar assim mesmo?')) return;
+    if (nf && !confirm(nf + ' mudança(s) pedida(s) à IA não entra(m) no papel: o trecho mudou ou saiu do contrato depois do pedido. Veja em "Detalhe das mudanças no texto", no Assistente de contrato.\n\nGerar assim mesmo?')) return;
     if (qb.length && !confirm('Há citação de cláusula que ficou sem destino depois dos pedidos à IA (' + [...new Set(qb)].join(', ') + '). No papel ela sai como lacuna.\n\nGerar assim mesmo?')) return;
   }
   const difPag = ctrCent(d.saldo - d.pagSoma);
@@ -27695,6 +28508,8 @@ function orcSnapTake() {
     // Pedidos à IA: guardados como operações. A 2ª via reaplica sobre o contrato
     // reaberto e sai igual, sem chamar a IA de novo.
     ctrIa: JSON.parse(JSON.stringify(ctrIa)),
+    // A conversa com o assistente de contrato (só o texto, sem botões vivos nem retratos de Desfazer).
+    ...(ctrAg.msgs.length ? { ctrAg: ctrAgPersistir() } : {}),
     // Contrato híbrido (19/10/2026): os dois modelos, o texto pedido à IA e o plano inteiro.
     // Reabrir remonta o papel com os campos de agora, sem chamar a IA de novo.
     ctrHib: JSON.parse(JSON.stringify(ctrHib)),
@@ -27915,7 +28730,9 @@ function orcSnapApply(s, tipo) {
   }
   ctrIaGeracao++;
   ctrIa = s.ctrIa && Array.isArray(s.ctrIa.pedidos) ? JSON.parse(JSON.stringify(s.ctrIa)) : { pedidos: [] };
-  ctrDos = s.ctrDos && typeof s.ctrDos === 'object' ? Object.assign(ctrDosNovo(), JSON.parse(JSON.stringify(s.ctrDos))) : ctrDosNovo();
+  // A conversa volta do histórico (papel de antes do assistente não tem). Resposta em voo é descartada; o cadastro puxado era de outro cliente.
+  ctrAgCad = null; ctrAgZerar(ctrAgRestaurar(s.ctrAg));
+  ctrDos = s.ctrDos &&typeof s.ctrDos === 'object' ? Object.assign(ctrDosNovo(), JSON.parse(JSON.stringify(s.ctrDos))) : ctrDosNovo();
   ctrDosCache = {};
   ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
   ctrTipoUi();
@@ -35256,6 +36073,12 @@ function aplicarCadastroEletroposto(cad) {
   const mudou = vdcClienteMudou(C);
   let lim = { manteveQualif: false }, terceirosApagados = false;
   if (mudou) { lim = epLimparIdentidade(); terceirosApagados = vdcLimparTerceiros(); }
+  // Cliente outro, por este caminho ou por qualquer outro: a conversa com o assistente, os retratos de Desfazer, as
+  // confirmações pendentes e a resposta em voo eram do anterior (o mesmo que o ctrEstadoZerar faz). Reaplicar o cadastro
+  // do MESMO cliente, inclusive pelo próprio assistente, não mexe na conversa.
+  if (mudou && !ctrAgAplicandoCadastro) { ctrAgZerar(); const at = document.getElementById('ctr-ag-texto'); if (at) at.value = ''; }
+  // O assistente puxa de novo o último cadastro aplicado (o card fecha ao preencher e some do vdcEst).
+  ctrAgCad = cad;
   // 3) escreve
   const por = (ids, valor) => {
     ids.forEach((id) => {
