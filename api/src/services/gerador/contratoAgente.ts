@@ -33,7 +33,7 @@ import {
   Operacao, OUTROS_CONTRATOS, TIPOS_CONTRATO, chamarIaContrato, ehTipoSolar, validarOperacoes,
   type OperacaoContrato, type PedidoContratoIa,
 } from './contratoIa';
-import { FICHA_SOLAR, clausulaComTravadoSolar, conflitosSolar, geracaoComoGarantia, itemTravadoSolar, mencionaNexus } from './contratoSolar';
+import { FICHA_SOLAR, ancoraNasAssinaturas, clausulaComTravadoSolar, conflitosSolar, geracaoComoGarantia, itemTravadoSolar, mencionaNexus } from './contratoSolar';
 import {
   AVISO_JURIDICO, FICHA_MODELO, VENDA_CASADA, aplicarOperacoes, conflitosDoPlano, ehTextoDeAutonomia, juntarConflitos, limpar, semAcento, validarCombinacao,
   type ClausulaMod, type ConflitoHibrido, type Efetiva, type TipoHibrido,
@@ -409,6 +409,7 @@ const AVISO_MARCADOR = 'Uma mudança foi descartada: ela trazia um marcador inte
 const ITENS_PROTEGIDOS = ['cedente.legitimidade', 'ligacao.imovel'];
 const AVISO_GERACAO_GARANTIDA = 'Uma mudança foi descartada: ela prometia ou garantia geração de energia. No contrato solar a geração é só uma estimativa.';
 const AVISO_NEXUS_NO_TEXTO = 'Uma mudança foi descartada: o contrato solar é da AIOROS (Irmãos na Obra) e o texto não pode citar a NEXUS.';
+const AVISO_APOS_ASSINATURAS = 'Uma mudança foi descartada: nada pode ser escrito depois das assinaturas do contrato solar. Insira antes delas.';
 const AVISO_SOLAR_TRAVADO = 'Uma mudança foi descartada: esse trecho do contrato solar tem campo próprio na tela e não muda por aqui.';
 const AVISO_NEXUS_NO_SOLAR = 'A troca de emitente foi descartada: o contrato solar é sempre da AIOROS (Irmãos na Obra), nunca da NEXUS.';
 const AVISO_AUTONOMIA ='A IA tentou escrever sobre a autonomia dos objetos; vale só a cláusula do sistema, que entra sempre.';
@@ -539,6 +540,10 @@ export function processarAcoes(
         ((op.tipo === 'substituir_item' || op.tipo === 'remover_item') && itemTravadoSolar(alvo, op.alvo)) ||
         ((op.tipo === 'remover_clausula' || op.tipo === 'renomear_clausula') && clausulaComTravadoSolar(alvo, op.alvo))
       )) { avisa(AVISO_SOLAR_TRAVADO); continue; }
+      // Solar: nada entra depois das assinaturas (item na cláusula delas ou cláusula nova depois dela).
+      if (ehTipoSolar(alvo) && (op.tipo === 'inserir_item' || op.tipo === 'inserir_clausula') && ancoraNasAssinaturas(op.depois_de)) {
+        avisa(AVISO_APOS_ASSINATURAS); continue;
+      }
       // Valor em dinheiro ou percentual que o contrato e os campos ainda não têm: só pelo campo.
       const novos = valoresNoTexto([op.titulo, op.texto, ...(op.itens ?? [])].filter(Boolean).join(' \n '));
       if ([...novos].some(k => !existentes().has(k))) { avisa(AVISO_VALOR_POR_TEXTO); continue; }

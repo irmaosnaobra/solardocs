@@ -48,6 +48,10 @@ export function clausulaComTravadoSolar(tipo: string, chaveClausula: string | nu
   return !!chaveClausula && !!lista && lista.some(k => k.startsWith(chaveClausula + '.'));
 }
 
+/** A âncora é a cláusula das assinaturas ou um item dela? Nada pode entrar depois das assinaturas. */
+export const ancoraNasAssinaturas = (depoisDe: string | null | undefined): boolean =>
+  !!depoisDe && (depoisDe === 'assinaturas' || depoisDe.startsWith('assinaturas.'));
+
 /** O contrato solar é da AIOROS (Irmãos na Obra): a NEXUS não pode aparecer no texto. */
 export const mencionaNexus = (...textos: Array<string | null | undefined>): boolean =>
   textos.some(t => /\bnexus\b/.test(semAcento(t)));

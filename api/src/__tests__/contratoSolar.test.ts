@@ -479,6 +479,32 @@ describe('itens travados pela chave', () => {
   });
 });
 
+describe('nada depois das assinaturas', () => {
+  it('inserir_item na cláusula das assinaturas ou depois de um item dela, e inserir_clausula depois dela, caem nos dois modelos solares', async () => {
+    for (const t of ['solar_m1', 'solar_m2'] as const) {
+      fila(ia({ acoes: [
+        operacao({ tipo: 'inserir_item', depois_de: 'assinaturas', texto: 'Disposição final sem número.' }),
+        operacao({ tipo: 'inserir_item', depois_de: 'assinaturas.fecho', texto: 'Outra disposição sem número.' }),
+        operacao({ tipo: 'inserir_clausula', depois_de: 'assinaturas', titulo: 'Das disposições finais', itens: ['Texto sem número.'], id_novo: 'finais' }),
+        operacao({ tipo: 'inserir_item', depois_de: 'foro.comarca', texto: 'Texto sem número depois do foro.' }),
+      ] }));
+      const r = await ok(t);
+      expect(r.avisos.filter(a => /depois das assinaturas/.test(a)), t).toHaveLength(1);
+      const ops = r.acoes.filter(a => a.tipo === 'operacao');
+      expect(ops, t).toHaveLength(1);
+      expect(JSON.stringify(ops[0])).toContain('depois do foro');
+    }
+  });
+  it('no eletroposto a mesma âncora segue valendo', async () => {
+    fila(ia({ acoes: [operacao({ tipo: 'inserir_item', depois_de: 'assinaturas', texto: 'Texto sem número.' })] }));
+    const r = await pedirAgente(PedidoAgente.parse({
+      ...corpo('solar_m2'), tipo: 'completo', emitente: 'nexus',
+      clausulas: [cl('gerais', 'Das disposições gerais', [it_('gerais.1', 'Alterações só por escrito.')]), cl('assinaturas', 'Das assinaturas', [it_('assinaturas.1', 'Assinam as partes.')])],
+    }));
+    expect(r).toMatchObject({ ok: true, acoes: [{ tipo: 'operacao' }] });
+  });
+});
+
 describe('prazo de obra: só conclusão, execução ou entrega', () => {
   it('monitoramento e treinamento com prazo não contam como prazo de obra', () => {
     for (const texto of [
