@@ -105,9 +105,11 @@ export const FORMATO_CADASTRO = { type: formatoZod.type, schema: formatoZod.sche
 
 // Venda solar pelo card: o MESMO formato (duas listas planas), com o enum dos campos dessa linha. Ficam fora do que a IA pode
 // pedir: `tipo` (sai do tamanho do CPF/CNPJ), `tuc_relacao` (a relação com o comprador é decisão da pessoa) e `benef_N_pct`
-// (o percentual do rateio não está na conta de luz).
-const RE_PCT_BENEF = /^benef_[1-5]_pct$/;
-export const CAMPOS_PEDIDOS_SOLAR = CAMPOS_VENDASOLAR.filter((c) => c !== 'tipo' && c !== 'tuc_relacao' && !RE_PCT_BENEF.test(c));
+// (o percentual do rateio não está na conta de luz). Também ficam fora os campos do rateio (`rateio_modalidade`, `geradora_pct`
+// e `benef_N_doc`): são decisão da pessoa, e o enum da leitura não cresce com eles.
+const RE_PCT_BENEF = /^benef_[1-5]_(pct|doc)$/;
+const FORA_DA_LEITURA_SOLAR: ReadonlySet<string> = new Set(['tipo', 'tuc_relacao', 'rateio_modalidade', 'geradora_pct']);
+export const CAMPOS_PEDIDOS_SOLAR = CAMPOS_VENDASOLAR.filter((c) => !FORA_DA_LEITURA_SOLAR.has(c) && !RE_PCT_BENEF.test(c));
 export const EsquemaCadastroSolar = z.object({
   campos: z.array(z.object({
     campo: z.enum(CAMPOS_PEDIDOS_SOLAR as unknown as [string, ...string[]]),

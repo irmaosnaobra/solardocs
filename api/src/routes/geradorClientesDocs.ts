@@ -204,7 +204,7 @@ async function lerDossieVinculado(
  * pública do banco principal alcança, e um vínculo injetado serviria o dossiê (CNH, conta de luz) de outra proposta. Vale só se a
  * proposta existe, está vendida e é do papel (sócio, ou o nome DELE em `consultor_nome`). null = nada ligado ou não vale.
  */
-async function propostaLigadaAoCard(ctx: Ctx): Promise<string | null> {
+export async function propostaLigadaAoCard(ctx: Ctx): Promise<string | null> {
   const { lig } = await lerLigacao(Number(ctx.codigo));
   if (!lig.proposta) return null;
   const p = await lerPropostaResumo(lig.proposta);

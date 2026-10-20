@@ -52,11 +52,20 @@ export const CAMPOS_BENEFICIARIAS = [
   'benef_4_uc', 'benef_4_titular', 'benef_4_endereco', 'benef_4_pct',
   'benef_5_uc', 'benef_5_titular', 'benef_5_endereco', 'benef_5_pct',
 ] as const;
+// Rateio (20/10/2026): a modalidade, o percentual que fica na própria geradora e o CPF/CNPJ de cada beneficiária (para conferir
+// a titularidade no autoconsumo remoto). Quem preenche é a pessoa: a leitura por IA não pede nenhum destes.
+export const CAMPOS_RATEIO = ['rateio_modalidade', 'geradora_pct'] as const;
+export const CAMPOS_DOC_BENEFICIARIAS = ['benef_1_doc', 'benef_2_doc', 'benef_3_doc', 'benef_4_doc', 'benef_5_doc'] as const;
+/** Modalidade do rateio (`rateio_modalidade`): Lei 14.300/2022 e REN ANEEL 1.000. */
+export const MODALIDADES_RATEIO = ['autoconsumo_local', 'autoconsumo_remoto', 'geracao_compartilhada', 'multiplas_ucs'] as const;
 /** Os campos da venda solar pelo card. NÃO inclui `ced_*`. */
 export const CAMPOS_VENDASOLAR = [
   ...CAMPOS_COMPRADOR, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_BENEFICIARIAS,
+  ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
 ] as const;
-const CAMPOS_TODOS = [...CAMPOS, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_BENEFICIARIAS] as const;
+const CAMPOS_TODOS = [
+  ...CAMPOS, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_BENEFICIARIAS, ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
+] as const;
 /** Qualquer campo de qualquer cadastro. Quem decide se um campo vale é a LINHA (`ehCampo(x, linha)`). */
 export type Campo = typeof CAMPOS_TODOS[number];
 /** Papel do cedente em relação ao ponto (`ced_qualidade`). Guardado sem acento e em minúscula. */
@@ -163,12 +172,20 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
   if (t === '') return { ok: true, valor: '' };
   if (t.length > MAX_CAMPO) return { ok: false, erro: `Texto longo demais (máximo ${MAX_CAMPO} caracteres).` };
   // Percentual de uma unidade beneficiária (`benef_N_pct`): de 0 a 100. Guardado como número com ponto decimal, até 2 casas.
-  if (/^benef_[1-5]_pct$/.test(campo)) {
+  // `geradora_pct` é o percentual que fica na própria unidade geradora, com a mesma regra.
+  if (/^benef_[1-5]_pct$/.test(campo) || campo === 'geradora_pct') {
     const n = numeroBR(t, false);   // percentual nunca passa de 100: o ponto é sempre decimal ("33.333" vale 33,33)
     return n !== null && n >= 0 && n <= 100 ? { ok: true, valor: numeroGuardado(n) } : { ok: false, erro: 'Percentual de 0 a 100.' };
   }
+  if (campo === 'rateio_modalidade') {
+    const m = chaveDeOpcao(t);
+    return (MODALIDADES_RATEIO as readonly string[]).includes(m)
+      ? { ok: true, valor: m }
+      : { ok: false, erro: 'Escolha: autoconsumo local, autoconsumo remoto, geração compartilhada ou múltiplas unidades.' };
+  }
   // Os campos do cedente, do avalista e do titular da UC seguem a regra do campo igual do comprador (`ced_cep` valida como `cep`).
-  switch (campo.replace(/^(ced|aval|tuc)_/, '')) {
+  // O documento da beneficiária (`benef_N_doc`) valida como o CPF/CNPJ do comprador, com dígito.
+  switch (/^benef_[1-5]_doc$/.test(campo) ? 'cpf_cnpj' : campo.replace(/^(ced|aval|tuc)_/, '')) {
     case 'consumo_medio_kwh': {
       const n = numeroBR(t);
       return n !== null && n > 0 && n <= 1_000_000 ? { ok: true, valor: numeroGuardado(n) } : { ok: false, erro: 'Consumo médio em kWh, maior que zero.' };
@@ -298,7 +315,7 @@ export interface FaltandoPorPapelSolar { titular_uc: Campo[]; avalista: Campo[];
 
 /** Campos de uma vaga de beneficiária (1 a 5), na ordem em que a tela os pede. */
 export const camposDaBeneficiaria = (n: number): Campo[] =>
-  (['uc', 'titular', 'endereco', 'pct'] as const).map((s) => `benef_${n}_${s}` as Campo);
+  (['uc', 'titular', 'endereco', 'pct', 'doc'] as const).map((s) => `benef_${n}_${s}` as Campo);
 
 export function faltandoPorPapelSolar(c: Cadastro): FaltandoPorPapelSolar {
   const sem = (lista: Campo[]): Campo[] => lista.filter((k) => !c.campos[k]?.valor);

@@ -124,7 +124,7 @@ describe('campos do cadastro por linha', () => {
     expect(ehCampo('uc_classe', 'eletroposto')).toBe(false);
     expect(ehCampo('ced_nome', 'eletroposto')).toBe(true);
     expect(CAMPOS.length).toBe(58);                    // o eletroposto não mudou
-    expect(CAMPOS_VENDASOLAR).toHaveLength(25 + 2 + 15 + 15 + 3 + 20);
+    expect(CAMPOS_VENDASOLAR).toHaveLength(25 + 2 + 15 + 15 + 3 + 20 + 2 + 5);   // + rateio_modalidade, geradora_pct e benef_N_doc
     expect(camposDaLinha('vendasolar')).toBe(CAMPOS_VENDASOLAR);
   });
   it('validação: percentual, consumo, classe e relação com o titular', () => {
@@ -307,11 +307,11 @@ describe('leitura por IA da vendasolar', () => {
   it('esquema: mesma forma do eletroposto (duas listas planas), com o enum da linha; sem tipo, relação e percentual', () => {
     expect(Object.keys(EsquemaCadastroSolar.shape).sort()).toEqual(['campos', 'documentos']);
     expect(Object.keys(EsquemaCadastroSolar.shape.campos.element.shape).sort()).toEqual(['campo', 'confianca', 'indice', 'nota', 'valor']);
-    expect(CAMPOS_PEDIDOS_SOLAR).toHaveLength(CAMPOS_VENDASOLAR.length - 1 - 1 - 5);
+    expect(CAMPOS_PEDIDOS_SOLAR).toHaveLength(CAMPOS_VENDASOLAR.length - 1 - 1 - 5 - 2 - 5);   // o enum da leitura não cresceu com o rateio
     const json = JSON.stringify(FORMATO_CADASTRO_SOLAR);
     // O SDK escreve o enum dentro de `description` (aspas escapadas); o servidor reconfere a lista de qualquer jeito (`listaDeCampos`).
     for (const c of ['benef_1_uc', 'benef_5_endereco', 'tuc_nome', 'consumo_medio_kwh', 'uc_classe', 'rep_nome', 'aval_cep', 'imovel_iptu']) expect(json, c).toContain(`\\"${c}\\"`);
-    for (const c of ['benef_1_pct', 'benef_5_pct', 'tuc_relacao', 'tipo', 'ced_nome']) expect(json, c).not.toContain(`\\"${c}\\"`);
+    for (const c of ['benef_1_pct', 'benef_5_pct', 'tuc_relacao', 'tipo', 'ced_nome', 'rateio_modalidade', 'geradora_pct', 'benef_1_doc', 'benef_5_doc']) expect(json, c).not.toContain(`\\"${c}\\"`);
     expect(JSON.stringify(FORMATO_CADASTRO)).not.toContain('tuc_nome');     // o do eletroposto continua idêntico
     expect(FORMATO_CADASTRO_SOLAR.type).toBe('json_schema');
   });

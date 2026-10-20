@@ -26,6 +26,8 @@ const h = vi.hoisted(() => ({
   assinados: [] as string[],
   /** Quantas vezes a lista de TODAS as propostas vendidas foi lida (a por telefone não conta). */
   listagens: 0,
+  /** Derruba a leitura de propostas do Gerador: só o resumo (vínculo) ou só a geração. */
+  falha: null as 'resumo' | 'geracao' | null,
   tique: 0,
   sig: 0,
   ia: { fila: [] as Entrada[], chamadas: [] as Array<{ corpo: any; opcoes: any }> },
@@ -91,7 +93,18 @@ vi.mock('../utils/supabaseGerador', () => ({
     from: (tabela: string) => {
       if (tabela === 'agendamentos') return { select: () => consulta(h.cards) };
       if (tabela === 'propostas') {
-        return { select: () => consulta(h.propostas, (p) => ({ ...p, tel: p.dados?.telefoneDigitos ?? null, tel2: p.dados?.telefone ?? null }), (porTel) => { if (!porTel) h.listagens++; }) };
+        return {
+          select: (colunas = '') => consulta(h.propostas, (p) => {
+            // `falha` simula o banco do Gerador caindo só na leitura do resumo (o vínculo) ou só na da geração.
+            if (h.falha === 'resumo' && /vendido/.test(colunas)) throw new Error('banco fora do ar');
+            if (h.falha === 'geracao' && /mediaMensalGerada/.test(colunas)) throw new Error('banco fora do ar');
+            return {
+              ...p, tel: p.dados?.telefoneDigitos ?? null, tel2: p.dados?.telefone ?? null,
+              media: p.dados?.mediaMensalGerada ?? null, anual: p.dados?.geracaoAnualKwh ?? null,
+              mensal: p.dados?.mensalKwh ?? null, consumo: p.dados?.consumoKwh ?? null,
+            };
+          }, (porTel) => { if (!porTel) h.listagens++; }),
+        };
       }
       throw new Error(`tabela inesperada: ${tabela}`);
     },
@@ -343,6 +356,7 @@ beforeEach(() => {
   invalidarCachesHub(); reiniciarLogsDoHub();
   h.ia.fila = []; h.ia.chamadas = [];
   h.logs = [];
+  h.falha = null;
   delete process.env.SOLAR_SOCIOS;
   delete process.env.CADASTRO_IA_MODELO;
   limparCacheClientes(); limparCacheBucketDocs(); limparCacheBucketCadastros();
@@ -494,6 +508,101 @@ describe('cadastro da vendasolar', () => {
     const sol = await put('/clientes/vendasolar/201/cadastro', { campos: { ced_cpf_cnpj: '52998224725' } });
     expect(sol.status).toBe(400);
     expect(h.cad.size).toBe(0);
+  });
+});
+
+describe('análise do rateio e do consumo (cadastro da vendasolar)', () => {
+  // Formato real do gerador: `mensalKwh` é o array de 12 gerações mensais e `consumoKwh` é o consumo informado.
+  const DOZE = (media: number) => new Array(12).fill(media);
+  const comGeracao = (g: { mediaMensalGerada?: unknown; geracaoAnualKwh?: unknown; mensalKwh?: unknown; consumoKwh?: unknown }) => {
+    h.propostas = h.propostas.map((p) => (p.codigo === 'P1' ? { ...p, dados: { ...p.dados, ...g } } : p));
+  };
+  it('GET sem proposta ligada: rateio zerado e consumo sem comparação', async () => {
+    const res = await get('/clientes/vendasolar/201/cadastro');
+    expect(res.status).toBe(200);
+    expect(res.body.analise.rateio).toEqual({ soma: 0, bloqueios: [], avisos: [] });
+    expect(res.body.analise.consumo).toMatchObject({ base: null, proposta_kwh: null, aviso: null });
+  });
+  it('PUT grava mesmo com bloqueio (101%) e devolve a análise com o bloqueio', async () => {
+    const res = await put('/clientes/vendasolar/201/cadastro', { campos: { geradora_pct: '60', benef_1_uc: '0098765432', benef_1_pct: '41' } });
+    expect(res.status).toBe(200);
+    expect(res.body.analise.rateio.soma).toBe(101);
+    expect(res.body.analise.rateio.bloqueios.join(' ')).toMatch(/não pode passar de 100%/);
+    expect(cadastroDe(201).campos.benef_1_pct.valor).toBe('41');   // gravou
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.rateio.bloqueios).toHaveLength(1);
+  });
+  it('proposta ligada: usa a média gerada antes da anual; 80% e 140% avisam, 100% não', async () => {
+    comGeracao({ mediaMensalGerada: 800, mensalKwh: DOZE(700), geracaoAnualKwh: 12000, consumoKwh: 500 });
+    expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
+    const baixo = await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '1000' } });
+    expect(baixo.body.analise.consumo).toMatchObject({ base: 'proposta_media_gerada', proposta_kwh: 800, conta_kwh: 1000 });
+    expect(baixo.body.analise.consumo.aviso).toBe('O sistema da proposta gera 800 kWh/mês e a conta mostra 1.000 kWh/mês de consumo. Confira o dimensionamento.');
+    const alto = await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '571,43' } });   // 800 / 571,43 = 140%
+    expect(alto.body.analise.consumo.aviso).toMatch(/Confira o dimensionamento/);
+    const certo = await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '800' } });
+    expect(certo.body.analise.consumo.aviso).toBeNull();
+    // o GET repete a mesma análise
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.consumo).toEqual(certo.body.analise.consumo);
+  });
+  it('89% e 131% avisam pela média do array mensalKwh (sem mediaMensalGerada); o consumoKwh sai à parte', async () => {
+    comGeracao({ mediaMensalGerada: null, mensalKwh: DOZE(890), consumoKwh: 950 });
+    expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
+    const a = await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '1000' } });
+    expect(a.body.analise.consumo).toMatchObject({ base: 'proposta_mensal_12', proposta_kwh: 890, proposta_consumo_kwh: 950 });
+    expect(a.body.analise.consumo.aviso).toMatch(/gera 890 kWh\/mês e a conta mostra 1\.000 kWh\/mês/);
+    comGeracao({ mensalKwh: DOZE(1310) });
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.consumo.aviso).toMatch(/gera 1\.310 kWh\/mês/);
+    comGeracao({ mensalKwh: DOZE(1000) });
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.consumo.aviso).toBeNull();
+  });
+  it('sem média nem array, usa a geração anual / 12; só com o consumoKwh não compara; proposta fora do papel não entra', async () => {
+    comGeracao({ mediaMensalGerada: null, mensalKwh: null, geracaoAnualKwh: '6000', consumoKwh: 900 });
+    expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
+    const r = await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '500' } });
+    expect(r.body.analise.consumo).toMatchObject({ base: 'proposta_anual_12', proposta_kwh: 500, proposta_consumo_kwh: 900, aviso: null });
+    comGeracao({ mediaMensalGerada: null, mensalKwh: null, geracaoAnualKwh: null, consumoKwh: 500 });
+    const so = await get('/clientes/vendasolar/201/cadastro');
+    expect(so.body.analise.consumo).toMatchObject({ base: null, proposta_kwh: null, proposta_consumo_kwh: 500, aviso: null });
+    comGeracao({ geracaoAnualKwh: '6000', consumoKwh: 900 });
+    // a proposta passa a ser de outro consultor: o vínculo deixa de valer para a Nilce e a comparação some
+    h.propostas = h.propostas.map((p) => (p.codigo === 'P1' ? { ...p, consultor_nome: 'Giovanna' } : p));
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.consumo.base).toBeNull();
+  });
+  it('banco do Gerador fora do ar (vínculo ou geração): o GET e o PUT seguem com consumo.base null e o rateio intacto', async () => {
+    comGeracao({ mediaMensalGerada: 800, consumoKwh: 500 });
+    expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
+    await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '1000', geradora_pct: '60', benef_1_uc: '77', benef_1_pct: '41' } });
+    for (const falha of ['geracao', 'resumo'] as const) {
+      h.falha = falha;   // 'geracao' derruba lerGeracaoDaProposta; 'resumo' derruba propostaLigadaAoCard
+      const g = await get('/clientes/vendasolar/201/cadastro');
+      expect(g.status, falha).toBe(200);
+      expect(g.body.analise.consumo, falha).toMatchObject({ base: null, proposta_kwh: null, proposta_consumo_kwh: null, aviso: null, conta_kwh: 1000 });
+      expect(g.body.analise.rateio.soma, falha).toBe(101);
+      expect(g.body.analise.rateio.bloqueios, falha).toHaveLength(1);
+      const p = await put('/clientes/vendasolar/201/cadastro', { campos: { consumo_medio_kwh: '1000' } });
+      expect(p.status, falha).toBe(200);
+      expect(p.body.analise.consumo.base, falha).toBeNull();
+    }
+    h.falha = null;
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.analise.consumo.base).toBe('proposta_media_gerada');   // voltou ao normal
+  });
+  it('o eletroposto não recebe análise de solar', async () => {
+    const g = await get('/clientes/eletroposto/202/cadastro', THIAGO);
+    expect(g.status).toBe(200);
+    expect(g.body.analise).toBeUndefined();
+    const p = await put('/clientes/eletroposto/202/cadastro', { campos: { nome: 'Dora' } }, THIAGO);
+    expect(p.status).toBe(200);
+    expect(p.body.analise).toBeUndefined();
+  });
+  it('rateio_modalidade e benef_N_doc validam; o eletroposto os recusa', async () => {
+    const ok = await put('/clientes/vendasolar/201/cadastro', { campos: { rateio_modalidade: 'Autoconsumo remoto', geradora_pct: '50', benef_1_doc: '52998224725' } });
+    expect(ok.status).toBe(200);
+    expect(ok.body.cadastro.valores).toMatchObject({ rateio_modalidade: 'autoconsumo_remoto', geradora_pct: '50', benef_1_doc: '529.982.247-25' });
+    const ruim = await put('/clientes/vendasolar/201/cadastro', { campos: { rateio_modalidade: 'lua', geradora_pct: '101', benef_2_doc: '11111111111' } });
+    expect(ruim.status).toBe(400);
+    expect(Object.keys(ruim.body.erros).sort()).toEqual(['benef_2_doc', 'geradora_pct', 'rateio_modalidade']);
+    const ep = await put('/clientes/eletroposto/202/cadastro', { campos: { rateio_modalidade: 'autoconsumo_local', geradora_pct: '10', benef_1_doc: '52998224725' } }, THIAGO);
+    expect(ep.status).toBe(400);
   });
 });
 

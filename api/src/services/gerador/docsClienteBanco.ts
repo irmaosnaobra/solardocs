@@ -209,6 +209,24 @@ export async function lerPropostaResumo(codigo: string): Promise<PropostaResumo 
   return data ? resumo(data as Record<string, unknown>) : null;
 }
 
+/**
+ * O que a proposta guarda de geração e de consumo (formato do gerador): `dados.mediaMensalGerada` e `dados.geracaoAnualKwh`
+ * (números), `dados.mensalKwh` (ARRAY de 12 valores de geração, um por mês) e `dados.consumoKwh` (o consumo informado no
+ * dimensionamento). Só esses quatro valores (o `dados` inteiro leva o dossiê). O array vem inteiro (`->`, JSON), os outros como
+ * texto (`->>`). null = a proposta não existe.
+ */
+export async function lerGeracaoDaProposta(codigo: string): Promise<{
+  mediaMensalGerada: unknown; geracaoAnualKwh: unknown; mensalKwh: unknown; consumoKwh: unknown;
+} | null> {
+  const { data, error } = await supabaseGerador.from('propostas')
+    .select('media:dados->>mediaMensalGerada, anual:dados->>geracaoAnualKwh, mensal:dados->mensalKwh, consumo:dados->>consumoKwh')
+    .eq('codigo', codigo).maybeSingle();
+  if (error) throw new ErroDocs(codigoDe(error), 502);
+  if (!data) return null;
+  const r = data as Record<string, unknown>;
+  return { mediaMensalGerada: r.media ?? null, geracaoAnualKwh: r.anual ?? null, mensalKwh: r.mensal ?? null, consumoKwh: r.consumo ?? null };
+}
+
 /** Todas as propostas vendidas. Lê em páginas: o PostgREST corta em 1000 linhas e ignora `.limit()`. */
 export async function listarPropostasVendidas(): Promise<PropostaResumo[]> {
   const tudo: PropostaResumo[] = [];

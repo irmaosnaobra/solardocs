@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { exigeConsultor } from './geradorDossie';
-import { contexto, lerDocs, semCache, dossieDaVendaSolar, type Ctx } from './geradorClientesDocs';
+import { contexto, lerDocs, semCache, dossieDaVendaSolar, propostaLigadaAoCard, type Ctx } from './geradorClientesDocs';
 import { cadastroLeituraLimiter } from '../middleware/rateLimiter';
-import { ErroDocs, garantirBucketDocs, baixarObjeto } from '../services/gerador/docsClienteBanco';
+import { ErroDocs, garantirBucketDocs, baixarObjeto, lerGeracaoDaProposta } from '../services/gerador/docsClienteBanco';
+import { analisarSolar, type GeracaoDaProposta, type AnaliseSolar } from '../services/gerador/solarAnalise';
 import { ErroCadastro, type LinhaCadastro } from '../services/gerador/cadastroVendaBanco';
 import {
-  ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, type Fonte,
+  ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, type Fonte, type VistaCadastro,
 } from '../services/gerador/cadastroVenda';
 import { lerDocumentosDaVenda, SLOTS_LIDOS_SOLAR, type PessoasConhecidas } from '../services/gerador/cadastroVendaLeitura';
 import { lerRotulos } from '../services/gerador/docsRotulos';
@@ -74,6 +75,22 @@ async function arquivosDoDossie(ctx: Ctx): Promise<ArquivoDoc[]> {
   }
 }
 
+/**
+ * `analise` da venda solar (rateio e consumo contra a geração da proposta LIGADA). Só a `vendasolar` tem; o eletroposto responde
+ * sem ela. Proposta não ligada, fora do papel ou ilegível NÃO derruba o cadastro: a análise sai sem a comparação de consumo.
+ */
+async function analiseDaVenda(ctx: Ctx, linha: LinhaCadastro, vista: VistaCadastro): Promise<{ analise: AnaliseSolar } | Record<string, never>> {
+  if (linha !== 'vendasolar') return {};
+  let geracao: GeracaoDaProposta | null = null;
+  try {
+    const proposta = await propostaLigadaAoCard(ctx);
+    if (proposta) geracao = await lerGeracaoDaProposta(proposta);
+  } catch (e) {
+    logErro('geração da proposta indisponível para a análise', e);
+  }
+  return { analise: analisarSolar(vista.valores, geracao) };
+}
+
 /** Baixa do bucket certo: o do dossiê (que devolve null em vez de lançar) ou o dos documentos da venda. */
 async function baixarDaLeitura(caminho: string): Promise<Buffer> {
   if (!caminho.startsWith(PREFIXO_DOSSIE)) return baixarObjeto(caminho);
@@ -93,7 +110,8 @@ export function mountCadastroVenda(router: Router): void {
       try {
         // Eletroposto: enquanto a primeira escrita não migrou, o legado da ficha aparece aqui (fonte 'ficha'): ficha e contrato
         // não discordam. Venda solar: só o bucket.
-        res.json({ ok: true, cadastro: vistaDe(await lerCadastroVisto(Number(ctx.codigo), linha), linha) });
+        const vista = vistaDe(await lerCadastroVisto(Number(ctx.codigo), linha), linha);
+        res.json({ ok: true, cadastro: vista, ...(await analiseDaVenda(ctx, linha, vista)) });
       } catch (err) {
         logErro('leitura falhou', err);
         indisponivel(res);
@@ -123,8 +141,9 @@ export function mountCadastroVenda(router: Router): void {
       if (Object.keys(erros).length) { res.status(400).json({ ok: false, erros }); return; }
       try {
         const r = await escreverCadastro(Number(ctx.codigo), limpos, ctx.nome, fonte as Fonte, new Date().toISOString(), linha);
+        const vista = vistaDe(r.cad, linha);
         res.json({
-          ok: true, cadastro: vistaDe(r.cad, linha),
+          ok: true, cadastro: vista, ...(await analiseDaVenda(ctx, linha, vista)),
           ...(r.limpou ? {} : { aviso: 'Salvo. A limpeza do registro antigo da ficha fica para a próxima gravação.' }),
         });
       } catch (err) {
