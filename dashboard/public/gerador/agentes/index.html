@@ -1433,18 +1433,29 @@ setInterval(carregar, 120000);
     var m = el('div', 'en-msg'); m.id = 'en-vivo-msg'; m.setAttribute('role', 'status');
     var qtd = el('div', 'en-meta', 'Carregando os números de teste.'); qtd.id = 'en-vivo-qtd';
     var lista = el('div', 'en-sw-lista'); lista.id = 'en-vivo-lista';
+    var ult = el('div', 'en-meta', 'Carregando a última rodada ao vivo.'); ult.id = 'en-vivo-ultima';
     var cx = el('div');
     add(cx,
       el('div', 'en-rot', 'Falar com cliente'),
       el('p', 'en-aviso', 'Aqui a agente responde cliente de verdade na 5040. Deixe em "Só números de teste" até conferir o ensaio.'),
-      lista, m,
+      lista, ult, m,
       el('div', 'en-rot', 'Números de teste'), qtd,
       add(el('div', 'en-linha-form'), campo, add1, lim));
     return cx;
   }
 
+  function textoUltimaRodada(u) {
+    if (!u || typeof u !== 'object' || !u.em) return 'A rodada ao vivo ainda não rodou.';
+    var d = new Date(u.em);
+    if (isNaN(d.getTime())) return 'A rodada ao vivo ainda não rodou.';
+    var hora = d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    var c = Number(u.conversas_vistas) || 0, e = Number(u.enviadas) || 0;
+    return 'Última rodada ao vivo: ' + hora + ' (' + c + (c === 1 ? ' conversa, ' : ' conversas, ') + e + (e === 1 ? ' envio)' : ' envios)');
+  }
+
   function pintarInterruptores(j) {
     vivoEst.interr = j.interruptores || {};
+    if ('vivo_ultima' in j) { var uv = $('en-vivo-ultima'); if (uv) uv.textContent = textoUltimaRodada(j.vivo_ultima); }
     pintarVivo();
     var c = $('en-sw-lista');
     if (!c) return;

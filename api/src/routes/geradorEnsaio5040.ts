@@ -313,7 +313,13 @@ export function mountEnsaio5040(router: Router): void {
   }
 
   router.get('/ensaio/interruptores', ...base, soSocioControles, async (_req: Request, res: Response) => {
-    try { res.json({ ok: true, interruptores: await estadoInterruptores() }); } catch (err) { falhou(res, err); }
+    try {
+      const interruptores = await estadoInterruptores();
+      // Rastro da rodada ao vivo (cron/agentes-5040/vivo). Chave ausente ou ilegível = null.
+      let vivo_ultima: unknown = null;
+      try { vivo_ultima = objetoBruto((await lerChave('ag5040_vivo_ultima')).value); if (!Object.keys(vivo_ultima as object).length) vivo_ultima = null; } catch { vivo_ultima = null; }
+      res.json({ ok: true, interruptores, vivo_ultima });
+    } catch (err) { falhou(res, err); }
   });
 
   // Só os 4 nomes, só booleano. O que não vem no corpo fica como está.

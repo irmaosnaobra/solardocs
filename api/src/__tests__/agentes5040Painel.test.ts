@@ -402,6 +402,18 @@ describe('controles do sócio: interruptores e comandos', () => {
     expect(JSON.stringify(res.body)).not.toContain('valor-secreto');
   });
 
+  it('GET interruptores devolve vivo_ultima: o rastro da rodada viva, ou null quando nunca rodou', async () => {
+    const vazio = await pedir('get', '/gerador/ensaio/interruptores', THIAGO);
+    expect(vazio.status).toBe(200);
+    expect(vazio.body.vivo_ultima).toBeNull();
+    const rastro = { em: '2026-10-21T15:30:00.000Z', ligado: true, conversas_vistas: 4, enviadas: 1, parou: null };
+    semear2('ag5040_vivo_ultima', rastro);
+    const res = await pedir('get', '/gerador/ensaio/interruptores', THIAGO);
+    expect(res.body.vivo_ultima).toEqual(rastro);
+    expect(res.body.ok).toBe(true);
+    expect(Object.keys(res.body.interruptores)).toContain('duda_vivo');
+  });
+
   it('PUT interruptores: só os nomes da lista e só booleano; o resto do mapa fica; o cache é zerado', async () => {
     for (const ruim of [{}, { ensaio: 'sim' }, { ensaio: 1 }, { ensaio: null }, { foo: true }, { ensaio: true, foo: false }, []]) {
       const res = await pedir('put', '/gerador/ensaio/interruptores', THIAGO, ruim);

@@ -1797,6 +1797,26 @@ router.get('/agentes-5040/vivo', async (req: Request, res: Response) => {
   try {
     const { runVivoTick } = await import('../services/agentes5040/vivo');
     const r = await runVivoTick({ dry: req.query.dry === '1' });
+    // Rastro de que a rodada rodou (sem telefone, sem texto). Rodada seca não deixa rastro; com tudo desligado só o log,
+    // para não criar uma escrita a cada 2 min sem necessidade.
+    if (!r.dry) {
+      logger.info('cron', 'agentes-5040/vivo rodou', {
+        ligado: r.ligado, conversas_vistas: r.conversasVistas, elegiveis: r.elegiveis, enviadas: r.enviadas, parou: r.parou,
+      });
+      if (r.ligado) {
+        try {
+          const nomeRastro = 'ag5040_vivo_ultima';
+          const { error } = await supabase.from('system_state').upsert({
+            key: nomeRastro,
+            value: { em: new Date().toISOString(), ligado: r.ligado, conversas_vistas: r.conversasVistas, enviadas: r.enviadas, parou: r.parou },
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'key' });
+          if (error) logger.warn('cron', 'agentes-5040/vivo: rastro não gravado', { code: (error as { code?: string }).code ?? null });
+        } catch (e) {
+          logger.warn('cron', 'agentes-5040/vivo: rastro não gravado', { code: (e as { code?: string } | null)?.code ?? 'excecao' });
+        }
+      }
+    }
     res.status(r.ok ? 200 : 500).json(r);
   } catch (err) {
     logger.error('cron', 'agentes-5040/vivo falhou', err);
