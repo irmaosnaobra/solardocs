@@ -13,8 +13,10 @@
 //                    (tipo = conversa, engenharia, negociar_preco ou plataforma). A engenharia que usa o pacote (desconta
 //                    saldo) também sai SEMPRE por e-mail; o WhatsApp segue a trava por parceiro, tipo e dia.
 //   (c) pedido       equipamento: nexus_aviso:pedido:<pedido_id>                 um por pedido
-//                    engenharia e consultoria: nexus_aviso:pedido_<tipo>:<parceiro_id>:<AAAA-MM-DD>
-//                    um WhatsApp por parceiro, tipo e dia de Brasília (aval do chefe-antiban, 21/10).
+//                    engenharia, consultoria (Apoio de venda na tela) e manutencao (Plano de manutenção, v5):
+//                    nexus_aviso:pedido_<tipo>:<parceiro_id>:<AAAA-MM-DD>
+//                    um WhatsApp por parceiro, tipo e dia de Brasília (aval do chefe-antiban, 21/10; a manutenção usa
+//                    a MESMA trava, só com o tipo novo na chave).
 //                    O e-mail de QUALQUER pedido sai SEMPRE, inclusive quando a trava devolve 23505 (duplicado).
 //   (d) usina        nexus_aviso:usina:<usina_id>                                uma por usina indicada
 //   (e) oportunidade nexus_aviso:oportunidade:<oportunidade_id>:<status>         uma por resposta do parceiro
@@ -54,7 +56,7 @@ export interface DadosAviso {
   solicitacao?: { tipo: string; resumo?: string | null; usa_pacote?: boolean };
   /** (c) o pedido; numero e valor_total vêm da proposta ligada, quando há. `tipo` ausente = equipamento. */
   pedido?: {
-    id: string; tipo?: 'equipamento' | 'engenharia' | 'consultoria'; pacote?: number | null;
+    id: string; tipo?: 'equipamento' | 'engenharia' | 'consultoria' | 'manutencao'; pacote?: number | null;
     modelo?: string | null; quantidade?: number | null; numero?: string | null; valor_total?: number | null;
   };
   /** (f) a versão do Termo de Parceria aceito. */
@@ -75,6 +77,15 @@ function escaparHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/** Inteiro positivo para texto de aviso: nada de dado de parceiro entra sem passar por aqui. */
+function inteiro(v: unknown): number {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+const projetos = (n: number): string => `${n} ${n === 1 ? 'projeto' : 'projetos'}`;
+const carregadores = (n: number): string => `${n} ${n === 1 ? 'carregador' : 'carregadores'}`;
+
 function brl(v: unknown): string {
   const n = Number(v);
   return (Number.isFinite(n) ? n : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -92,8 +103,8 @@ export function chaveDoAviso(tipo: TipoAviso, d: DadosAviso, quando: Date = new 
   if (tipo === 'solicitacao') return `${PREFIXO_CHAVE}solicitacao:${d.parceiro.id}:${d.solicitacao?.tipo ?? 'conversa'}:${diaBRT(quando)}`;
   if (tipo === 'pedido') {
     const t = d.pedido?.tipo;
-    // Engenharia e consultoria: um WhatsApp por parceiro, tipo e dia (não por pedido). Equipamento: um por pedido.
-    if (t === 'engenharia' || t === 'consultoria') return `${PREFIXO_CHAVE}pedido_${t}:${d.parceiro.id}:${diaBRT(quando)}`;
+    // Engenharia, consultoria e manutenção: um WhatsApp por parceiro, tipo e dia (não por pedido). Equipamento: um por pedido.
+    if (t === 'engenharia' || t === 'consultoria' || t === 'manutencao') return `${PREFIXO_CHAVE}pedido_${t}:${d.parceiro.id}:${diaBRT(quando)}`;
     return `${PREFIXO_CHAVE}pedido:${d.pedido?.id ?? d.parceiro.id}`;
   }
   if (tipo === 'usina') return `${PREFIXO_CHAVE}usina:${d.usina?.id ?? d.parceiro.id}`;
@@ -145,10 +156,14 @@ export function textoDoAviso(tipo: TipoAviso, d: DadosAviso): string {
   }
   if (tipo === 'termo') return `${empresa} aceitou o Termo de Parceria NEXUS (${limpo(d.termo?.versao, 10) || 'v1'}). ${contato}`;
   if (tipo === 'pedido' && d.pedido?.tipo === 'engenharia') {
-    return `${empresa} fez pedido de pacote de engenharia (${Number(d.pedido.pacote) || 0} projetos). ${contato}${recado}`;
+    const n = inteiro(d.pedido.pacote);
+    return `${empresa} fez pedido de ${n === 1 ? 'engenharia' : 'pacote de engenharia'} (${projetos(n)}). ${contato}${recado}`;
   }
   if (tipo === 'pedido' && d.pedido?.tipo === 'consultoria') {
-    return `${empresa} fez pedido de consultoria de vendas NEXUS. ${contato}${recado}`;
+    return `${empresa} fez pedido de apoio de venda NEXUS. ${contato}${recado}`;
+  }
+  if (tipo === 'pedido' && d.pedido?.tipo === 'manutencao') {
+    return `${empresa} fez pedido de plano de manutenção NEXUS (${carregadores(inteiro(d.pedido.quantidade))}). ${contato}${recado}`;
   }
   if (tipo === 'pedido') {
     const p = d.pedido;
@@ -188,8 +203,12 @@ const SO_EMAIL_ACIMA_DO_TETO: ReadonlySet<TipoAviso> = new Set<TipoAviso>(['cada
 /** Assunto por tipo. Entra cru no <h2> do sendOpsAlert: só texto fixo nosso (e o número do pacote, validado), nunca dado de parceiro. */
 export function assuntoDoAviso(tipo: TipoAviso, d: DadosAviso): string {
   if (tipo === 'pedido') {
-    if (d.pedido?.tipo === 'engenharia') return `Portal NEXUS: pedido de pacote de engenharia (${Number(d.pedido.pacote) || 0} projetos)`;
-    if (d.pedido?.tipo === 'consultoria') return 'Portal NEXUS: pedido de consultoria';
+    if (d.pedido?.tipo === 'engenharia') {
+      const n = inteiro(d.pedido.pacote);
+      return `Portal NEXUS: pedido de ${n === 1 ? 'engenharia' : 'pacote de engenharia'} (${projetos(n)})`;
+    }
+    if (d.pedido?.tipo === 'consultoria') return 'Portal NEXUS: pedido de apoio de venda';
+    if (d.pedido?.tipo === 'manutencao') return `Portal NEXUS: pedido de plano de manutenção (${carregadores(inteiro(d.pedido.quantidade))})`;
     return 'Portal NEXUS: pedido de equipamento';
   }
   if (tipo === 'solicitacao' && d.solicitacao?.tipo === 'engenharia' && d.solicitacao.usa_pacote) {

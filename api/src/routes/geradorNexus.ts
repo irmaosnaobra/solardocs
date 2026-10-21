@@ -4,7 +4,7 @@
 //   Parceiro (JWT do SolarDoc, authMiddleware)
 //                  GET /nexus/eu, PUT /nexus/perfil, GET /nexus/procura,
 //                  POST/PUT/GET /nexus/propostas[/:id], POST /nexus/propostas/:id/link,
-//                  POST/GET /nexus/pedidos (tipo equipamento | engenharia | consultoria), POST/GET /nexus/solicitacoes,
+//                  POST/GET /nexus/pedidos (tipo equipamento | engenharia | consultoria | manutencao), POST/GET /nexus/solicitacoes,
 //                  POST /nexus/termo/aceitar
 //                  + oportunidades e usinas (geradorNexusRede.ts)
 //   Público        GET  /nexus/p/:token  (proposta pelo link do cliente final, conta abertura)
@@ -26,7 +26,9 @@ import { nexusCnpjLimiter } from '../middleware/rateLimiter';
 import { cnpjValido, formatarCnpj, soDigitos } from '../utils/cnpj';
 import { consultarCnpj } from '../services/nexus/receita';
 import { avisarComercial } from '../services/nexus/avisoComercial';
-import { ENTREGA, FINANCIAMENTO, PACOTES_ENGENHARIA, PRODUTOS, TERMO_VERSAO, catalogoParaFront } from '../services/nexus/catalogo';
+import {
+  ENTREGA, FINANCIAMENTO, MANUTENCAO_MAX, MANUTENCAO_MIN, PACOTES_ENGENHARIA, PRODUTOS, TERMO_VERSAO, catalogoParaFront, liberaEngenharia,
+} from '../services/nexus/catalogo';
 import { procuraDaUf, UFS } from '../services/nexus/procura';
 import {
   ErroBanco, Linha, acharLeadGerador, lerCompany, lerParceiro, marcarPerfilCompleto, montarEu, origemValida,
@@ -160,7 +162,7 @@ const CAMPOS_DO_PERFIL = [
 const TIPOS_SOLICITACAO = ['conversa', 'engenharia', 'negociar_preco', 'plataforma'] as const;
 type TipoSolicitacao = (typeof TIPOS_SOLICITACAO)[number];
 const LIMITE_DADOS_SOLICITACAO = 20 * 1024;
-const TIPOS_PEDIDO = ['equipamento', 'engenharia', 'consultoria'] as const;
+const TIPOS_PEDIDO = ['equipamento', 'engenharia', 'consultoria', 'manutencao'] as const;
 type TipoPedido = (typeof TIPOS_PEDIDO)[number];
 
 /** Linha de resumo da engenharia para o aviso: serviço e local, sem o resto do que o parceiro escreveu. */
@@ -452,8 +454,10 @@ export function mountNexus(router: Router): void {
 
   // ── Parceiro: pedidos por tipo ─────────────────────────────────────────────
   //   equipamento (padrão, o front v2 não manda tipo)  libera.pedido (Partner em diante)
-  //   engenharia  {pacote: 3|5|10}                      libera.pacotes_engenharia (Partner em diante)
-  //   consultoria {obs}                                 libera.consultoria (Partner em diante)
+  //   engenharia  {pacote: 1|3|5}                       pacote 1: libera.basico (perfil completo); 3 e 5: libera.pacotes_engenharia (Partner)
+  //   consultoria {obs}  (na tela: Apoio de venda)      libera.consultoria (Partner em diante)
+  //   manutencao  {quantidade: 1..50, obs}              libera.manutencao (Pro em diante)
+  // Insert que bate no CHECK do banco (23514) = a seção v5 da MIGRATION ainda não rodou: 503 servico_em_ativacao.
   router.post('/nexus/pedidos', ...parceiro, limitePedidos, rota('POST /nexus/pedidos', async (req, res) => {
     const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
     const tipo = (b.tipo == null || b.tipo === '' ? 'equipamento' : String(b.tipo)) as TipoPedido;
@@ -461,7 +465,13 @@ export function mountNexus(router: Router): void {
 
     const c = await contexto(req.userId);
     if (!c) { res.status(409).json({ erro: 'sem_parceiro' }); return; }
-    const liberado = tipo === 'equipamento' ? c.libera.pedido : tipo === 'engenharia' ? c.libera.pacotes_engenharia : c.libera.consultoria;
+    // O pacote é validado ANTES do gate: o gate do pacote de 1 projeto (perfil completo) difere do de 3 e 5 (Partner).
+    const pacote = tipo === 'engenharia' ? Number(b.pacote) : null;
+    if (tipo === 'engenharia' && !(PACOTES_ENGENHARIA as readonly number[]).includes(pacote as number)) { res.status(400).json({ erro: 'pacote_invalido' }); return; }
+    const liberado = tipo === 'equipamento' ? c.libera.pedido
+      : tipo === 'engenharia' ? liberaEngenharia(pacote as number, c.libera)
+      : tipo === 'manutencao' ? c.libera.manutencao
+      : c.libera.consultoria;
     if (!liberado) { res.status(403).json({ erro: 'etapa_bloqueada' }); return; }
 
     const obs = textoLivre(b.obs, 300);
@@ -487,10 +497,13 @@ export function mountNexus(router: Router): void {
       linha = { tipo, proposta_id: proposta?.id ?? null, modelo: produto.id, quantidade, pacote: null };
       aviso = { id: '', tipo, modelo: produto.nome, quantidade, numero: proposta?.numero ?? null, valor_total: proposta ? Number(proposta.valor_total) : null };
     } else if (tipo === 'engenharia') {
-      const pacote = Number(b.pacote);
-      if (!(PACOTES_ENGENHARIA as readonly number[]).includes(pacote)) { res.status(400).json({ erro: 'pacote_invalido' }); return; }
       linha = { tipo, proposta_id: null, modelo: null, quantidade: null, pacote };
       aviso = { id: '', tipo, pacote };
+    } else if (tipo === 'manutencao') {
+      const quantidade = Number(b.quantidade);
+      if (!Number.isInteger(quantidade) || quantidade < MANUTENCAO_MIN || quantidade > MANUTENCAO_MAX) { res.status(400).json({ erro: 'quantidade_invalida' }); return; }
+      linha = { tipo, proposta_id: null, modelo: null, quantidade, pacote: null };
+      aviso = { id: '', tipo, quantidade };
     } else {
       linha = { tipo, proposta_id: null, modelo: null, quantidade: null, pacote: null };
       aviso = { id: '', tipo };
@@ -501,7 +514,15 @@ export function mountNexus(router: Router): void {
       .insert({ user_id: req.userId, ...linha, status: 'solicitado', obs, created_at: agora, updated_at: agora })
       .select('id')
       .single();
-    if (ins.error) throw new ErroBanco(ins.error, 'gravação do pedido');
+    if (ins.error) {
+      // 23514 = check_violation: o CHECK de tipo/pacote do banco ainda é o antigo (seção v5 da MIGRATION por rodar). Sem aviso.
+      if ((ins.error as { code?: string }).code === '23514') {
+        logger.warn('nexus', 'pedido barrado pelo CHECK do banco: falta rodar a seção v5 da MIGRATION_nexus_portal.sql', ins.error);
+        res.status(503).json({ erro: 'servico_em_ativacao' });
+        return;
+      }
+      throw new ErroBanco(ins.error, 'gravação do pedido');
+    }
     const id = String((ins.data as Linha).id);
 
     await avisarComercial('pedido', { parceiro: c.parceiro as never, whatsapp: c.company?.whatsapp ?? null, pedido: { ...aviso, id }, obs });

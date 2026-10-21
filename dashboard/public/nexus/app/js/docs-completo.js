@@ -244,7 +244,7 @@
       + '<div class="nx-col fora"><div class="h">Fora do valor</div><ul class="nx-lista">'
       + (FORA.length ? FORA.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') : '<li>Nenhum item listado</li>') + '</ul>'
       + '<div class="nx-aviso">Item que não aparece em &quot;Dentro do valor&quot; é combinado e orçado à parte.</div></div></div>'
-      + (P.plataforma ? '<div class="nx-plat"><b>' + esc(P.plataforma) + '</b>A cobrança é um percentual do que o carregador fatura, e já está na conta de retorno desta proposta. Não soma ao valor total.</div>' : '')
+      + (P.manutencao || P.plataforma ? '<div class="nx-plat">' + [P.manutencao, P.plataforma].filter(Boolean).map(function (t) { return '<b>' + esc(t) + '.</b>'; }).join('') + 'Não somam ao valor total desta proposta.</div>' : '')
       + '<div class="nx-tarja nx-fim">' + brl(tot) + ' · valor total desta proposta</div>', 'com-banda'), 'O seu ponto'));
 
     // ── 9 · MODELO DE OPERACAO E GARANTIAS (bloco E) ───────────────────────

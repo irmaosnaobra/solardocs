@@ -299,3 +299,44 @@ notify pgrst, 'reload schema';
 
 -- Conferencia da v4 (deve devolver 1 linha, rls = true):
 --   select relname, relrowsecurity as rls from pg_class where relname = 'nexus_equipe';
+
+-- ===========================================================================================================
+-- v5 (22/10/2026): Servicos NEXUS com preco. Pedido tipo 'manutencao' e pacote de engenharia de 1 projeto.
+-- Rode SO este trecho (do comentario "-- v5" ate o fim). Idempotente: pode rodar de novo.
+-- Enquanto nao rodar, o pedido novo responde 503 servico_em_ativacao (a tela avisa) e o resto do portal segue normal.
+-- Os dois CHECKs nasceram inline na v3 (ADD COLUMN ... CHECK), sem nome: o Postgres os chamou
+-- nexus_pedidos_tipo_check e nexus_pedidos_pacote_check. O bloco abaixo derruba pelo nome E pelo catalogo (qualquer CHECK
+-- de uma coluna so, tipo ou pacote), para nao depender do nome.
+-- ===========================================================================================================
+alter table nexus_pedidos drop constraint if exists nexus_pedidos_tipo_check;
+alter table nexus_pedidos drop constraint if exists nexus_pedidos_pacote_check;
+
+do $$
+declare r record;
+begin
+  for r in
+    select c.conname
+      from pg_constraint c
+      join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
+     where c.conrelid = 'public.nexus_pedidos'::regclass
+       and c.contype = 'c'
+       and array_length(c.conkey, 1) = 1
+       and a.attname in ('tipo', 'pacote')
+  loop
+    execute format('alter table public.nexus_pedidos drop constraint %I', r.conname);
+  end loop;
+end
+$$;
+
+-- 10 fica so para nao quebrar linha antiga; a API passa a aceitar 1, 3 e 5.
+alter table nexus_pedidos add constraint nexus_pedidos_tipo_check
+  check (tipo in ('equipamento','engenharia','consultoria','manutencao'));
+alter table nexus_pedidos add constraint nexus_pedidos_pacote_check
+  check (pacote is null or pacote in (1,3,5,10));
+
+-- Faz o PostgREST enxergar a mudanca sem esperar.
+notify pgrst, 'reload schema';
+
+-- Conferencia da v5 (deve devolver 2 linhas: tipo com 'manutencao' e pacote com (1,3,5,10)):
+--   select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conrelid = 'nexus_pedidos'::regclass and contype = 'c' and conname in ('nexus_pedidos_tipo_check','nexus_pedidos_pacote_check');

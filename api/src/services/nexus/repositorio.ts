@@ -222,7 +222,7 @@ export async function montarEu(parceiro: Linha, company: Linha | null) {
     montagem_aprovada: !!parceiro.montagem_aprovada_em,
     adm, // v4: users.is_admin ou e-mail ativo em nexus_equipe (o portal mostra o item ADM)
     catalogo: catalogoParaFront(),
-    servicos: servicosParaFront(),
+    servicos: servicosParaFront(libera),
     saldo_engenharia: saldo,
     termo: { versao: TERMO_VERSAO, disponivel: libera.termo, aceito_em: termoAceito },
     entrega: ENTREGA,

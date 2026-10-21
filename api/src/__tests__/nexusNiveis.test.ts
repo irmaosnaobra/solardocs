@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calcularNivel, EntradaNivel, ehPro, TEXTO_BLOQUEIO } from '../services/nexus/niveis';
 import { calcularSaldoEngenharia } from '../services/nexus/repositorio';
-import { PACOTES_ENGENHARIA, SERVICOS, TERMO_VERSAO } from '../services/nexus/catalogo';
+import { PACOTES_ENGENHARIA, PRECOS, SERVICOS, TERMO_VERSAO, liberaEngenharia, reais, servicosParaFront } from '../services/nexus/catalogo';
 
 // Os níveis do Portal do Parceiro NEXUS (v3) são calculados na API. Estes testes travam cadastrado, partner, pro e
 // master, o que cada um libera, o texto de cada bloqueio e o "o que falta" para o próximo. Pro = primeira compra; a
@@ -30,7 +30,7 @@ const agora = '2026-10-21T15:00:00.000Z';
 
 const TODAS_AS_CHAVES = [
   'simulador', 'basico', 'completo', 'materiais', 'engenharia', 'negociar', 'usinas', 'conversa', 'pedido', 'selo',
-  'oportunidades', 'pacotes_engenharia', 'consultoria', 'plataforma', 'termo',
+  'oportunidades', 'pacotes_engenharia', 'consultoria', 'plataforma', 'termo', 'manutencao',
 ].sort();
 
 describe('níveis do parceiro NEXUS', () => {
@@ -40,7 +40,7 @@ describe('níveis do parceiro NEXUS', () => {
     expect(r.libera).toEqual({
       simulador: true, basico: false, completo: false, materiais: false, engenharia: false, negociar: false, usinas: false,
       conversa: false, pedido: false, selo: false, oportunidades: false,
-      pacotes_engenharia: false, consultoria: false, plataforma: false, termo: false,
+      pacotes_engenharia: false, consultoria: false, plataforma: false, termo: false, manutencao: false,
     });
     expect(r.progresso.proximo).toBe('partner');
     expect(r.progresso.faltam).toEqual(['perfil', 'primeira_proposta', 'conversa', 'aprovacao_partner']);
@@ -186,21 +186,46 @@ describe('níveis do parceiro NEXUS', () => {
 });
 
 describe('catálogo de serviços NEXUS', () => {
-  it('tem os pacotes de 3, 5 e 10, a consultoria e a plataforma, todos com preço "Negociado com o comercial" e nenhum número', () => {
-    expect(SERVICOS.map((s) => s.id)).toEqual(['eng-3', 'eng-5', 'eng-10', 'consultoria', 'plataforma']);
-    expect(PACOTES_ENGENHARIA).toEqual([3, 5, 10]);
-    for (const s of SERVICOS) {
-      expect(s.preco).toBe('Negociado com o comercial');
-      expect(JSON.stringify(s)).not.toMatch(/R\$\s*\d|\d+[.,]\d{3}/);
-      expect(JSON.stringify(s)).not.toMatch(/[—–]/);
-    }
-    expect(SERVICOS.find((s) => s.id === 'eng-5')).toMatchObject({ nome: 'Pacote de engenharia · 5 projetos', libera: 'partner', chave_libera: 'pacotes_engenharia', pacote: 5 });
-    expect(SERVICOS.find((s) => s.id === 'consultoria')).toMatchObject({ unidade: 'por atendimento', libera: 'partner' });
-    expect(SERVICOS.find((s) => s.id === 'plataforma')).toMatchObject({
-      libera: 'pro', sua_parte: 'Negociada com o comercial',
-      para_o_parceiro: 'Você revende a plataforma e recebe parte dos 10% todo mês, enquanto o ponto operar.',
-    });
+  it('v5: 7 serviços em 3 grupos, com preço em reais numa constante só, e o pacote de 10 saiu da venda', () => {
+    expect(SERVICOS.map((s) => s.id)).toEqual(['plataforma', 'eng-1', 'eng-3', 'eng-5', 'suporte_incluido', 'manutencao', 'apoio_venda']);
+    expect(PACOTES_ENGENHARIA).toEqual([1, 3, 5]);
+    expect(PRECOS).toEqual({ engenharia1: 3000, engenharia3: 7500, engenharia5: 10000, manutencaoMes: 200, apoioVenda: 500 });
+    expect(reais(3000)).toBe('R$ 3.000');
+    expect(reais(200)).toBe('R$ 200');
+    expect(reais(10000)).toBe('R$ 10.000');
     expect(TERMO_VERSAO).toBe('v1');
+  });
+
+  it('servicosParaFront: cadastrado com perfil completo libera só o eng-1 (e o suporte incluído); o resto traz o texto do cadeado', () => {
+    const { libera } = calcularNivel(base(perfil));
+    const s = Object.fromEntries(servicosParaFront(libera).map((x) => [x.id, x]));
+    expect(s['eng-1']).toMatchObject({ grupo: 'engenharia', preco_texto: 'R$ 3.000', preco_valor: 3000, libera: true, bloqueio: null, acao: 'pedido', pedido_tipo: 'engenharia', pacote: 1 });
+    expect(s['eng-3']).toMatchObject({ preco_texto: 'R$ 7.500', preco_valor: 7500, preco_por_projeto: 2500, economia: 1500, libera: false, bloqueio: 'Os pacotes com desconto liberam no nível Partner.' });
+    expect(s['eng-5']).toMatchObject({ preco_texto: 'R$ 10.000', preco_valor: 10000, preco_por_projeto: 2000, economia: 5000, libera: false });
+    expect(s['suporte_incluido']).toMatchObject({ grupo: 'suporte', libera: true, bloqueio: null, acao: null, preco_valor: null });
+    expect(s['manutencao']).toMatchObject({ grupo: 'suporte', preco_texto: 'R$ 200', preco_valor: 200, unidade: 'por mês por carregador', libera: false, bloqueio: 'Libera com a sua primeira compra de carregador NEXUS.', pedido_tipo: 'manutencao' });
+    expect(s['apoio_venda']).toMatchObject({ nome: 'Apoio de venda', preco_valor: 500, libera: false, bloqueio: 'Libera no nível Partner.', pedido_tipo: 'consultoria' });
+    expect(s['plataforma']).toMatchObject({ grupo: 'plataforma', preco_texto: '10% do que o ponto fatura em recarga', preco_valor: null, acao: 'solicitacao', libera: false });
+    expect(JSON.stringify(s)).not.toMatch(/[—–]/);
+  });
+
+  it('servicosParaFront: Partner libera eng-3, eng-5 e apoio de venda; só o Pro libera manutenção e plataforma', () => {
+    const partner = Object.fromEntries(servicosParaFront(calcularNivel(base({ ...perfil, partner_em: agora })).libera).map((x) => [x.id, x.libera]));
+    expect(partner).toEqual({ plataforma: false, 'eng-1': true, 'eng-3': true, 'eng-5': true, suporte_incluido: true, manutencao: false, apoio_venda: true });
+    const pro = servicosParaFront(calcularNivel(base({ ...perfil, carregadores_comprados: 1 })).libera);
+    expect(pro.every((x) => x.libera && x.bloqueio === null)).toBe(true);
+  });
+
+  it('liberaEngenharia: pacote 1 pelo perfil completo, 3 e 5 pelo Partner', () => {
+    expect(liberaEngenharia(1, { basico: true, pacotes_engenharia: false })).toBe(true);
+    expect(liberaEngenharia(3, { basico: true, pacotes_engenharia: false })).toBe(false);
+    expect(liberaEngenharia(5, { basico: false, pacotes_engenharia: true })).toBe(true);
+  });
+
+  it('manutencao libera no Pro e o bloqueio é o da primeira compra', () => {
+    expect(calcularNivel(base({ ...perfil, partner_em: agora })).libera.manutencao).toBe(false);
+    expect(calcularNivel(base({ carregadores_comprados: 1 })).libera.manutencao).toBe(true);
+    expect(calcularNivel(base(perfil)).bloqueios.manutencao).toBe(TEXTO_BLOQUEIO.compra);
   });
 });
 

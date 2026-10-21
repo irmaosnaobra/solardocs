@@ -100,8 +100,9 @@
       cliente: { nome: '', doc: '', cidade: '', uf: '', telefone: '', email: '', tipo_local: '' },
       equip: { modelo: p0.id, quantidade: 1, preco: p0.precoSugerido, precoEditado: false },
       itens: C.ITENS_PADRAO.map(function (i) { return { id: i.id, nome: i.nome, livre: !!i.livre, descricao: '', valor: '' }; }),
-      // Servicos NEXUS na proposta (opcional, desligado). engenharia e consultoria: valor que o parceiro cobra do cliente.
-      servicos: { ligado: false, engenharia: '', consultoria: '', plataforma: true },
+      // Servicos NEXUS na proposta (opcional, desligado). engenharia: valor de venda que o parceiro cobra do cliente (padrao R$ 3.000,00).
+      // manutencao e plataforma: linhas informativas que ja' estao na conta e nao somam ao total.
+      servicos: { ligado: false, engenharia: C.ENGENHARIA_PADRAO, manutencao: true, plataforma: true },
       prem: Object.assign({}, C.PREMISSAS_PADRAO),
       carrosEditado: false,
       usina: false, custoRede: C.PREMISSAS_PADRAO.custoKwh,
@@ -261,11 +262,11 @@
         + '<div class="nxg-st"><span>Subtotal de infraestrutura e serviços</span><b data-prev="subtotal">R$ 0,00</b></div></div>'
         + '<div class="nxg-total"><span>Total da proposta</span><b data-prev="invest">R$ 0,00</b></div></section>';
     }
-    // Engenharia e consultoria so' ligam com a liberacao do nivel (ctx.libera). Proposta que ja' tem o valor salvo continua editavel.
-    var BLOQ_PADRAO = 'Libera quando a sua empresa vira Partner NEXUS';
+    // A engenharia avulsa libera com o perfil completo (libera.engenharia/basico). Proposta que ja' tem o valor salvo continua editavel.
+    var BLOQ_PADRAO = 'Libera quando o perfil da empresa estiver completo';
     function campoServico(rot, chaveLibera, path, tip, rotInput) {
       var chaveForm = path.split('.')[1];
-      var livre = !!libera[chaveLibera] || C.lerMoeda(form.servicos[chaveForm]) > 0;
+      var livre = libera[chaveLibera] !== false || C.lerMoeda(form.servicos[chaveForm]) > 0;
       if (livre) return campo(rot, comAfixo(txt(path, { t: 'moeda', im: 'decimal', ph: '0,00', rot: rotInput }), 'R$'), { tip: tip });
       var motivo = (ctx.bloqueios && ctx.bloqueios[chaveLibera]) || BLOQ_PADRAO;
       return '<div class="nxg-campo nxg-travado" data-trava="' + chaveLibera + '"><label>' + esc(rot) + '</label>'
@@ -273,12 +274,12 @@
     }
     function cartaoServicos() {
       return '<section class="nxg-cartao"><h2>Serviços NEXUS na proposta</h2>'
-        + '<p class="nxg-sub">Opcional. Inclua a engenharia e a consultoria da NEXUS com o valor que você cobra do cliente. O preço de parceiro não aparece nos documentos.</p>'
+        + '<p class="nxg-sub">Opcional. Inclua a Engenharia NEXUS com o valor de venda que você cobra do cliente, e mostre o plano de manutenção e a plataforma como linhas informativas. O preço de parceiro não aparece nos documentos.</p>'
         + '<div class="nxg-forma">' + chave('servicos.ligado', 'Incluir serviços NEXUS na proposta')
         + '<div class="nxg-grade" data-gr="servicos">'
-        + campoServico('Engenharia NEXUS (projeto, ART e homologação)', 'pacotes_engenharia', 'servicos.engenharia', 'Projeto elétrico, ART e homologação na distribuidora. Digite o valor que você cobra do cliente. Em branco, o item fica fora da proposta.', 'Valor da engenharia NEXUS')
-        + campoServico('Consultoria de vendas NEXUS', 'consultoria', 'servicos.consultoria', 'Atendimento de um especialista NEXUS na reunião com o seu cliente. Digite o valor que você cobra do cliente. Em branco, o item fica fora da proposta.', 'Valor da consultoria de vendas')
-        + '<div class="nxg-campo larga">' + chave('servicos.plataforma', 'Mostrar a Plataforma NEXUS de gestão na proposta') + '</div>'
+        + campoServico('Engenharia NEXUS: valor de venda', 'engenharia', 'servicos.engenharia', 'Projeto, ART e acompanhamento da homologação. O padrão é R$ 3.000,00 e você pode mudar: a diferença para o que você paga à NEXUS é a sua margem. Em branco, o item fica fora da proposta.', 'Valor de venda da engenharia NEXUS')
+        + '<div class="nxg-campo larga">' + chave('servicos.manutencao', 'Mostrar o Plano de manutenção NEXUS (linha informativa, sem somar)') + '</div>'
+        + '<div class="nxg-campo larga">' + chave('servicos.plataforma', 'Mostrar a Plataforma NEXUS (linha informativa, sem somar)') + '</div>'
         + '<p class="nxg-nota larga" data-fn="svc-nota"></p>'
         + '</div></div></section>';
     }
@@ -667,10 +668,11 @@
       var gs = $('[data-gr="servicos"]'); if (gs) gs.classList.toggle('desligada', !form.servicos.ligado);
       var sn = $('[data-fn="svc-nota"]');
       if (sn) {
-        var plat = C.plataformaLinha(form);
+        var plat = C.plataformaLinha(form), man = C.manutencaoLinha(form);
         var partes = [];
-        if (c.totais.servicos > 0) partes.push('Serviços NEXUS no total da proposta: ' + C.moeda2(c.totais.servicos) + '.');
-        if (plat) partes.push(plat + '. Linha informativa: não tem valor de venda e não soma ao total, porque o Software NEXUS já está na conta.');
+        if (c.totais.servicos > 0) partes.push('Engenharia NEXUS no total da proposta: ' + C.moeda2(c.totais.servicos) + '.');
+        if (man) partes.push(man + '. Linha informativa: não soma ao total, porque a manutenção do Simulador já está na conta.');
+        if (plat) partes.push(plat + '. Linha informativa: não soma ao total, porque o Software NEXUS já está na conta.');
         sn.textContent = form.servicos.ligado ? partes.join(' ') : '';
       }
       $$('.nxg-pill').forEach(function (b) { var s = b.getAttribute('data-modelo') === form.equip.modelo; b.classList.toggle('sel', s); b.setAttribute('aria-pressed', String(s)); });

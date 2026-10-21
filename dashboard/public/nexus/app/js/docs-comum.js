@@ -125,9 +125,10 @@
       entrega: String(form.entrega || form.prazo || '').trim() || String(ctx.entrega || '').trim() || C.ENTREGA_PADRAO,
       instalacao: String(form.instalacao == null ? C.INSTALACAO_PADRAO : form.instalacao).trim(),
       obsLivre: String(form.obs || '').trim(),
-      // Servicos NEXUS na proposta: o total dos que entram no valor e a linha informativa da plataforma ('' = nao vai).
+      // Servicos NEXUS na proposta: o total dos que entram no valor e as linhas informativas da plataforma e da manutencao ('' = nao vai).
       servicosTotal: calc.totais.servicos || 0,
       plataforma: C.plataformaLinha(form),
+      manutencao: C.manutencaoLinha(form),
       selo: !!(ctx.libera && ctx.libera.selo),
       distribuidor: marca.distribuidor || D.distribuidor,
       pilares: (marca.pilares && marca.pilares.length) ? marca.pilares : D.PILARES

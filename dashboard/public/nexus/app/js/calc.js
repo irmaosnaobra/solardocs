@@ -199,13 +199,14 @@
     { id: 'outros', nome: 'Outros', livre: true }
   ];
 
-  // Servicos NEXUS na proposta (cartao opcional, desligado por padrao). Engenharia e consultoria entram com o valor
-  // que o PARCEIRO digita (o preco dele ao cliente: preco de parceiro nunca aparece). A plataforma nao tem valor de
-  // venda: e' so uma linha informativa, e o Software NEXUS (prem.software) ja' esta na conta. Chave desligada = nada conta,
-  // mesmo com valor digitado; proposta antiga, sem a chave "servicos", segue igual a antes.
+  // Servicos NEXUS na proposta (cartao opcional, desligado por padrao). So a Engenharia NEXUS entra com valor: o preco que
+  // o PARCEIRO cobra do cliente (padrao R$ 3.000,00, ele poe a margem); preco de parceiro nunca aparece. O Plano de
+  // manutencao NEXUS (premissa de manutencao do Simulador) e a Plataforma NEXUS (Software NEXUS, %) sao linhas informativas:
+  // ja' estao na conta e NAO somam ao total. Apoio de venda e' servico para o parceiro e nao vai na proposta; proposta antiga
+  // com "consultoria" salva abre sem erro e a chave e' ignorada. Chave desligada = nada conta, mesmo com valor digitado.
+  var ENGENHARIA_PADRAO = '3.000,00';
   var SERVICOS_PROPOSTA = [
-    { id: 'svc-eng', chave: 'engenharia', nome: 'Engenharia NEXUS (projeto, ART e homologação)' },
-    { id: 'svc-cons', chave: 'consultoria', nome: 'Consultoria de vendas NEXUS' }
+    { id: 'svc-eng', chave: 'engenharia', nome: 'Engenharia NEXUS: projeto, ART e acompanhamento da homologação' }
   ];
   function servicosDe(form) {
     var s = form && form.servicos;
@@ -220,7 +221,17 @@
     if (!s || !s.ligado || s.plataforma === false) return '';
     var prem = (form && form.prem) || {};
     var pct = prem.software === '' || prem.software == null ? PREMISSAS_PADRAO.software : num(prem.software);
-    return 'Plataforma NEXUS de gestão' + (pct > 0 ? ' · ' + pctRot(pct / 100) + ' do faturamento em recarga' : '');
+    if (!(pct > 0)) return '';
+    return 'Plataforma NEXUS, ' + pctRot(pct / 100) + ' da recarga, já está na conta';
+  }
+  // Linha informativa do plano de manutencao: so' aparece com a premissa de manutencao acima de zero (e' ela que esta na conta).
+  function manutencaoLinha(form) {
+    var s = form && form.servicos;
+    if (!s || !s.ligado || s.manutencao === false) return '';
+    var prem = (form && form.prem) || {};
+    var v = prem.manutMes === '' || prem.manutMes == null ? PREMISSAS_PADRAO.manutMes : num(prem.manutMes);
+    if (!(v > 0)) return '';
+    return 'Plano de manutenção NEXUS já está incluído na conta';
   }
 
   // Itens da proposta que entram no valor: os da infraestrutura e os servicos NEXUS com valor.
@@ -357,7 +368,7 @@
     pctRot: pctRot, lerMoeda: lerMoeda, lerNumero: lerNumero,
     computeEletro: computeEletro, cenariosSens: cenariosSens, paramsDe: paramsDe,
     pmtPriceCarencia: pmtPriceCarencia, orcEntradaParcela: orcEntradaParcela,
-    itensDe: itensDe, servicosDe: servicosDe, plataformaLinha: plataformaLinha, SERVICOS_PROPOSTA: SERVICOS_PROPOSTA, totalProposta: totalProposta, pagamento: pagamento, calcular: calcular,
+    itensDe: itensDe, servicosDe: servicosDe, plataformaLinha: plataformaLinha, manutencaoLinha: manutencaoLinha, ENGENHARIA_PADRAO: ENGENHARIA_PADRAO, SERVICOS_PROPOSTA: SERVICOS_PROPOSTA, totalProposta: totalProposta, pagamento: pagamento, calcular: calcular,
     paybackPlenoMeses: paybackPlenoMeses, fluxoMensal: fluxoMensal,
     proximaSexta18: proximaSexta18, prazoExtenso: prazoExtenso, dataBR: dataBR,
     validadeDias: validadeDias, validadeTexto: validadeTexto, nomeArquivo: nomeArquivo

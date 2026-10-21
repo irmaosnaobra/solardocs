@@ -896,3 +896,74 @@ html.np-teclado .np-tabs { display: none; }
 }
 @keyframes np-ban-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .np-banner { animation: none; } }
+
+/* ------------------------------------------------------------------ Serviços NEXUS (v5): plataforma, engenharia e suporte; e a seção Serviços do Início */
+.sv-grupo { gap: 16px; scroll-margin-top: 96px; }
+.sv-grupo:focus, .sv-faq:focus { outline: none; }
+.sv-grupo > h2, .sv-faq > h2 { font-size: 22px; font-weight: 800; line-height: 1.2; }
+.sv-serv { display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 20px; background: #fff; border: 1px solid var(--nx-bd); border-radius: var(--nx-r-cartao); box-shadow: var(--nx-sombra); }
+.sv-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.sv-cab h3 { font-size: 20px; font-weight: 800; line-height: 1.25; }
+.sv-bl { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sv-bl > p { font-size: 14px; line-height: 1.5; color: var(--nx-tx); }
+.sv-rot { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--nx-tx2); }
+.sv-custo { padding: 14px 16px; border-radius: var(--nx-r-controle); background: var(--nx-azul-sf); }
+.sv-custo .sv-rot { color: #004A9A; }
+.sv-preco { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.sv-preco strong { font-size: 32px; line-height: 1.1; font-weight: 800; color: var(--nx-tx); }
+.sv-preco span { font-size: 14px; font-weight: 500; color: var(--nx-tx2); }
+.sv-pacotes { margin-top: 2px; }
+.sv-pac { gap: 10px; }
+.sv-pac.econ { border: 2px solid var(--nx-azul-tx); padding: 15px; }
+.sv-pac-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; min-height: 28px; }
+.sv-pac .sv-preco strong { font-size: 30px; }
+.sv-eco { margin: 0; font-size: 14px; font-weight: 700; color: var(--nx-azul-tx); }
+.sv-eco.neutro { font-weight: 500; color: var(--nx-tx2); }
+.sv-saldo { gap: 10px; }
+.sv-saldo .np-num { grid-column: auto !important; }
+.sv-form { display: flex; flex-direction: column; gap: 12px; background: #fff; }
+.sv-como .nx-btn { align-self: flex-start; }
+.sv-faq { gap: 12px; scroll-margin-top: 96px; }
+.sv-faq-lista { display: flex; flex-direction: column; gap: 8px; }
+.sv-q { background: #fff; border: 1px solid var(--nx-bd); border-radius: 12px; box-shadow: var(--nx-sombra); }
+.sv-q summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 16px; cursor: pointer; list-style: none;
+  font-size: 15px; font-weight: 700; line-height: 1.3; -webkit-tap-highlight-color: transparent;
+}
+.sv-q summary::-webkit-details-marker { display: none; }
+.sv-q summary::after { content: ''; flex: none; width: 9px; height: 9px; margin-right: 4px; border: solid var(--nx-tx2); border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform .15s; }
+.sv-q[open] summary::after { transform: rotate(-135deg); }
+.sv-q p { padding: 0 16px 16px; font-size: 14px; line-height: 1.55; color: var(--nx-tx2); }
+
+.in-serv-grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.in-serv { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; padding: 18px; background: #fff; border: 1px solid var(--nx-bd); border-radius: 16px; box-shadow: var(--nx-sombra); }
+.in-serv .ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; background: var(--nx-azul-sf); color: var(--nx-azul-tx); }
+.in-serv h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
+.in-serv p { font-size: 14px; line-height: 1.5; color: var(--nx-tx2); }
+.in-serv-preco { display: flex; flex-direction: column; gap: 2px; width: 100%; margin-top: auto; padding: 10px 12px; border-radius: 12px; background: var(--nx-azul-sf); }
+.in-serv-preco .np-rot { color: #004A9A; }
+.in-serv-preco strong { font-size: 22px; line-height: 1.2; font-weight: 800; color: var(--nx-tx); }
+.in-serv-preco small { font-size: 13px; font-weight: 500; color: var(--nx-tx2); }
+.in-serv .nx-btn { width: 100%; }
+
+@media (min-width: 861px) {
+  .sv-serv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 32px; padding: 24px; align-items: start; }
+  .sv-serv > .sv-cab { grid-column: 1 / -1; }
+  .sv-serv[data-serv="engenharia"] > .sv-custo, .sv-serv[data-serv="engenharia"] > .sv-saldo, .sv-serv[data-serv="engenharia"] > .sv-como { grid-column: 1 / -1; }
+  .in-serv-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+}
+@media (max-width: 860.98px) {
+  .sv-grupo, .sv-faq { scroll-margin-top: calc(var(--np-top) + env(safe-area-inset-top, 0px) + 12px); }
+  .sv-grupo > h2, .sv-faq > h2 { font-size: 20px; }
+  .sv-serv { padding: 16px; }
+  .sv-serv .nx-btn, .sv-saldo .nx-btn { width: 100%; min-height: 48px; }
+  .sv-serv .np-lk { width: 100%; }
+  .sv-serv .np-lk .nx-btn { width: 100%; }
+  .sv-form input, .sv-form textarea { min-height: 48px; }
+  .sv-form textarea { min-height: 96px; }
+  .sv-q summary { min-height: 56px; }
+  .sv-preco strong { font-size: 28px; }
+  .sv-pac .sv-preco strong { font-size: 28px; }
+  .sv-como .nx-btn { align-self: stretch; }
+}
+@media (prefers-reduced-motion: reduce) { .sv-q summary::after { transition: none; } }

@@ -265,63 +265,82 @@ describe('NexusCalc: validade e nome do arquivo', () => {
   });
 });
 
-// Servicos NEXUS na proposta (v3): engenharia e consultoria entram com o valor que o PARCEIRO digita e somam ao
-// investimento; a plataforma e' so uma linha informativa (o Software NEXUS de 10% ja' esta na conta).
-//   caso do canvas (1x DC 80 a 69.990 + 30.000) + engenharia 6.000 + consultoria 1.500 = 107.490
-//   seguro/mes = 107.490 x 0,01 / 12 = 89,575 ; fixos = 200 + 200 + 89,575 = 489,575
-//   lucro/mes  = 14.460 - 4.200 - 2.313,60 - 489,575 = 7.456,825 (6,25 a menos que 7.463,075, so' pelo seguro maior)
+// Servicos NEXUS na proposta (v5): so a Engenharia NEXUS entra com valor (o preco de venda do PARCEIRO, padrao R$ 3.000,00)
+// e soma ao investimento. O Plano de manutencao (premissa de R$ 200/mes do Simulador) e a Plataforma NEXUS (Software 10%) sao
+// linhas informativas: ja' estao na conta e nao mudam nada. Apoio de venda nao vai na proposta.
+//   caso do canvas (1x DC 80 a 69.990 + 30.000) + engenharia 3.000 = 102.990
+//   seguro/mes = 102.990 x 0,01 / 12 = 85,825 ; fixos = 200 + 200 + 85,825 = 485,825
+//   lucro/mes  = 14.460 - 4.200 - 2.313,60 - 485,825 = 7.460,575 (2,50 a menos que 7.463,075, so' pelo seguro maior)
 describe('NexusCalc: servicos NEXUS na proposta', () => {
-  const svc = (extra = {}) => ({ ligado: true, engenharia: '6.000,00', consultoria: '1.500,00', plataforma: true, ...extra });
+  const svc = (extra = {}) => ({ ligado: true, engenharia: '3.000,00', manutencao: true, plataforma: true, ...extra });
   const casoSvc = (servicos: unknown) => ({ ...caso80(), servicos });
   const c = C.calcular(casoSvc(svc()));
 
-  it('engenharia 6.000 + consultoria 1.500 somam ao investimento: 99.990 + 7.500 = 107.490', () => {
-    expect(c.totais.servicos).toBe(7500);
-    expect(c.totais.itens).toBe(37500);
-    expect(c.totais.total).toBe(107490);
-    perto(c.r.investTotal, 107490);
+  it('o valor de venda padrao da engenharia e R$ 3.000,00', () => {
+    expect(C.ENGENHARIA_PADRAO).toBe('3.000,00');
+    expect(C.lerMoeda(C.ENGENHARIA_PADRAO)).toBe(3000);
   });
 
-  it('o seguro e o lucro acompanham o investimento novo: lucro/mes = 7.456,825', () => {
-    perto(c.r.seguroMes, 89.575, 3);
-    perto(c.r.fixosMes, 489.575, 3);
-    perto(c.r.lucroMes, 7456.825, 3);
+  it('engenharia de 3.000 soma ao investimento: 99.990 + 3.000 = 102.990', () => {
+    expect(c.totais.servicos).toBe(3000);
+    expect(c.totais.itens).toBe(33000);
+    expect(c.totais.total).toBe(102990);
+    perto(c.r.investTotal, 102990);
+  });
+
+  it('o parceiro pode por a margem: engenharia a 4.200 vira 99.990 + 4.200 = 104.190', () => {
+    expect(C.totalProposta(casoSvc(svc({ engenharia: '4.200,00' }))).total).toBe(104190);
+  });
+
+  it('o seguro e o lucro acompanham o investimento novo: lucro/mes = 7.460,575', () => {
+    perto(c.r.seguroMes, 85.825, 3);
+    perto(c.r.fixosMes, 485.825, 3);
+    perto(c.r.lucroMes, 7460.575, 3);
     perto(c.r.fatMes, 14460);
   });
 
-  it('retorno pleno = 107.490 / 7.456,825 = 14,415 meses', () => perto(c.paybackPleno, 14.415, 3));
+  it('retorno pleno = 102.990 / 7.460,575 = 13,805 meses', () => perto(c.paybackPleno, 13.805, 3));
 
-  it('o cartao em 18x sai do total novo: 107.490 / 18 = 5.971,67', () => perto(c.pg.cartao.parcela, 5971.6667, 3));
+  it('o cartao em 18x sai do total novo: 102.990 / 18 = 5.721,67', () => perto(c.pg.cartao.parcela, 5721.6667, 3));
 
-  it('os servicos viram itens do orcamento, depois da infraestrutura, com o nome dado', () => {
+  it('a engenharia vira item do orcamento, depois da infraestrutura, com o nome do bloco C', () => {
     const itens = C.itensDe(casoSvc(svc()));
-    const nomes = itens.map((i: { nome: string }) => i.nome);
-    expect(nomes.slice(-2)).toEqual(['Engenharia NEXUS (projeto, ART e homologação)', 'Consultoria de vendas NEXUS']);
-    expect(itens.slice(-2).map((i: { valor: number }) => i.valor)).toEqual([6000, 1500]);
+    const ultimo = itens[itens.length - 1];
+    expect(ultimo.nome).toBe('Engenharia NEXUS: projeto, ART e acompanhamento da homologação');
+    expect(ultimo.valor).toBe(3000);
+    expect(itens.length).toBe(SERVICOS_CANVAS.length + 1);
   });
 
-  it('a plataforma NAO muda a conta: ligada ou desligada, o mesmo total e o mesmo resultado', () => {
-    const com = C.calcular(casoSvc(svc({ plataforma: true })));
-    const sem = C.calcular(casoSvc(svc({ plataforma: false })));
+  it('manutencao e plataforma NAO mudam a conta: ligadas ou desligadas, o mesmo total e o mesmo resultado', () => {
+    const com = C.calcular(casoSvc(svc({ manutencao: true, plataforma: true })));
+    const sem = C.calcular(casoSvc(svc({ manutencao: false, plataforma: false })));
     expect(com.totais.total).toBe(sem.totais.total);
+    expect(com.totais.total).toBe(102990);
     expect(com.r.lucroMes).toBe(sem.r.lucroMes);
     expect(com.r.software).toBe(sem.r.software);
+    expect(com.r.manutMes).toBe(sem.r.manutMes);
     expect(com.r.fixosMes).toBe(sem.r.fixosMes);
-    // E sozinha (sem valor em engenharia nem consultoria) tambem nao soma nada.
-    const so = C.calcular(casoSvc({ ligado: true, engenharia: '', consultoria: '', plataforma: true }));
+    expect(com.paybackPleno).toBe(sem.paybackPleno);
+    // E sozinhas (engenharia em branco) tambem nao somam nada.
+    const so = C.calcular(casoSvc({ ligado: true, engenharia: '', manutencao: true, plataforma: true }));
     expect(so.totais.total).toBe(99990);
     expect(so.totais.servicos).toBe(0);
     perto(so.r.lucroMes, 7463.075, 3);
   });
 
-  it('a linha da plataforma acompanha o percentual do Software NEXUS da conta', () => {
-    expect(C.plataformaLinha(casoSvc(svc()))).toBe('Plataforma NEXUS de gestão · 10% do faturamento em recarga');
-    expect(C.plataformaLinha({ ...casoSvc(svc()), prem: { software: 8 } })).toBe('Plataforma NEXUS de gestão · 8% do faturamento em recarga');
+  it('as linhas informativas usam os textos do bloco C e seguem as premissas da conta', () => {
+    expect(C.plataformaLinha(casoSvc(svc()))).toBe('Plataforma NEXUS, 10% da recarga, já está na conta');
+    expect(C.plataformaLinha({ ...casoSvc(svc()), prem: { software: 8 } })).toBe('Plataforma NEXUS, 8% da recarga, já está na conta');
+    expect(C.plataformaLinha({ ...casoSvc(svc()), prem: { software: 0 } })).toBe('');
     expect(C.plataformaLinha(casoSvc(svc({ plataforma: false })))).toBe('');
     expect(C.plataformaLinha(casoSvc(svc({ ligado: false })))).toBe('');
+    expect(C.manutencaoLinha(casoSvc(svc()))).toBe('Plano de manutenção NEXUS já está incluído na conta');
+    expect(C.manutencaoLinha({ ...casoSvc(svc()), prem: { manutMes: 0 } })).toBe('');
+    expect(C.manutencaoLinha(casoSvc(svc({ manutencao: false })))).toBe('');
+    expect(C.manutencaoLinha(casoSvc(svc({ ligado: false })))).toBe('');
   });
 
-  it('chave desligada: valor digitado nao conta (nem item, nem total, nem linha da plataforma)', () => {
+  it('chave desligada: valor digitado nao conta (nem item, nem total, nem linhas informativas)', () => {
     const off = C.calcular(casoSvc(svc({ ligado: false })));
     expect(off.totais.total).toBe(99990);
     expect(off.totais.servicos).toBe(0);
@@ -334,10 +353,21 @@ describe('NexusCalc: servicos NEXUS na proposta', () => {
     expect(velha.totais.total).toBe(99990);
     expect(velha.totais.servicos).toBe(0);
     expect(C.plataformaLinha(caso80())).toBe('');
+    expect(C.manutencaoLinha(caso80())).toBe('');
   });
 
-  it('item de servico com valor vazio ou zero fica fora; so engenharia: 99.990 + 6.000 = 105.990', () => {
-    expect(C.totalProposta(casoSvc(svc({ consultoria: '0,00' }))).total).toBe(105990);
-    expect(C.servicosDe(casoSvc(svc({ engenharia: '', consultoria: '1.500,00' }))).map((i: { id: string }) => i.id)).toEqual(['svc-cons']);
+  it('proposta antiga com "consultoria" ligada abre sem erro: o item e ignorado, so a engenharia soma', () => {
+    const antiga = casoSvc({ ligado: true, engenharia: '6.000,00', consultoria: '1.500,00', plataforma: true });
+    const t = C.totalProposta(antiga);
+    expect(t.servicos).toBe(6000);
+    expect(t.total).toBe(105990);
+    expect(C.servicosDe(antiga).map((i: { id: string }) => i.id)).toEqual(['svc-eng']);
+    expect(C.itensDe(antiga).some((i: { id: string }) => i.id === 'svc-cons')).toBe(false);
+    expect(() => C.calcular(antiga)).not.toThrow();
+  });
+
+  it('engenharia com valor vazio ou zero fica fora do total', () => {
+    expect(C.totalProposta(casoSvc(svc({ engenharia: '0,00' }))).total).toBe(99990);
+    expect(C.servicosDe(casoSvc(svc({ engenharia: '' })))).toEqual([]);
   });
 });

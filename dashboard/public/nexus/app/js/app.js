@@ -127,6 +127,7 @@
     relogio: '<path d="M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>',
     tela: '<path d="M4 6h16v10H4zM8 20h8M12 16v4"/>',
     servicos: '<path d="M3 8h18v12H3zM8 8V5h8v3M3 13h18M11 13v2h2v-2"/>',
+    plataforma: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2M10 6h4M10 9h4"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     copiar: '<path d="M9 9h11v11H9zM5 15H4V4h11v1"/>',
     imprimir: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/>',
@@ -177,7 +178,7 @@
     propInicial: null, ultima: null, ultimoEquip: null, logoNovo: null, erroTexto: '', msgEntrada: '', shell: false,
     tela: 0, qtd: 1, foto: 0, frota: null, frotaErro: false, frotaCarregando: false, propostas: null, propErro: false,
     procura: {}, abrirCompra: false,
-    confirmaPacote: 0, consultoriaAberta: false, plataformaPedida: false, pedidosServ: null, pedidosServErro: false,
+    confirmaPacote: 0, manutAberta: false, apoioAberto: false, plataformaPedida: false, pedidosServ: null, pedidosServErro: false,
     termoTxt: undefined, termoErro: false, termoMsg: '', montagemDemo: null,
     cad: null, emailPre: '', instalarEv: null, instalouAgora: false, bannerFechado: false
   };
@@ -190,7 +191,7 @@
   var ROTAS = {
     inicio: { menu: 'Início', ctx: 'Resumo, mercado, equipamentos e oportunidades' },
     equipamentos: { menu: 'Equipamentos', ctx: 'Os carregadores da rede NEXUS' },
-    servicos: { menu: 'Serviços NEXUS', ctx: 'Engenharia em pacotes, consultoria de vendas, plataforma e pedido de engenharia', reqTodos: ['pacotes_engenharia', 'consultoria', 'plataforma', 'engenharia'] },
+    servicos: { menu: 'Serviços NEXUS', ctx: 'Plataforma, engenharia e suporte: o que inclui, quanto custa e como contratar', reqTodos: ['basico', 'pacotes_engenharia', 'consultoria', 'plataforma', 'manutencao'] },
     propostas: { menu: 'Propostas', ctx: 'Simulador, Orçamento Básico e Orçamento Completo' },
     oportunidades: { menu: 'Oportunidades', ctx: 'Clientes e obras da NEXUS na sua região', req: 'oportunidades' },
     usinas: { menu: 'Usinas', ctx: 'Indique uma usina', req: 'usinas', motivo: 'Complete o perfil da empresa para indicar usinas.' },
@@ -204,7 +205,7 @@
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
   /* A aba Mercado e a aba Engenharia deixaram de existir: #mercado abre o Início na seção Mercado e #engenharia abre Serviços em Pedir engenharia. */
   var ATALHO_SEC = { mercado: ['inicio', 'ini-mercado'], engenharia: ['servicos', 'sv-pedir-eng'] };
-  var SECOES = { inicio: { resumo: 'ini-resumo', carregadores: 'ini-carregadores', mercado: 'ini-mercado', oportunidades: 'ini-oportunidades' }, servicos: { engenharia: 'sv-pedir-eng' } };
+  var SECOES = { inicio: { resumo: 'ini-resumo', carregadores: 'ini-carregadores', servicos: 'ini-servicos', mercado: 'ini-mercado', oportunidades: 'ini-oportunidades' }, servicos: { plataforma: 'sv-plat', engenharia: 'sv-eng', suporte: 'sv-sup', pedir: 'sv-pedir-eng' } };
 
   /* Item ADM: so quando o /eu diz adm:true (is_admin ou e-mail ativo em nexus_equipe). Leva a pagina propria, nao a uma rota do portal. */
   function admOk() { return !!(S.eu && S.eu.adm === true && !S.demo); }
@@ -213,7 +214,7 @@
   var NIVEL_NOME = { cadastrado: 'Cadastrado', partner: 'Partner', pro: 'Partner Pro', master: 'Partner Master' };
   var NIVEL_IDX = { cadastrado: 1, partner: 2, pro: 3, master: 4 };
   /* Chaves novas da v3: se a API ainda nao mandar a chave, vale o nivel (partner: pacotes e consultoria; pro: plataforma, termo e oportunidades). */
-  var LIB_NIVEL = { pacotes_engenharia: 2, consultoria: 2, plataforma: 3, termo: 3, oportunidades: 3 };
+  var LIB_NIVEL = { pacotes_engenharia: 2, consultoria: 2, plataforma: 3, manutencao: 3, termo: 3, oportunidades: 3 };
   function libera(k) {
     var L = S.eu && S.eu.libera;
     if (L && L[k] != null) return !!L[k];
@@ -226,7 +227,7 @@
   var TX_PERFIL = 'Libera quando o perfil da empresa estiver completo';
   var BLOQ_PADRAO = {
     pedido: TX_PARTNER, pacotes_engenharia: TX_PARTNER, consultoria: TX_PARTNER, selo: TX_PARTNER,
-    plataforma: TX_COMPRA, termo: TX_COMPRA, oportunidades: TX_COMPRA,
+    plataforma: TX_COMPRA, manutencao: TX_COMPRA, termo: TX_COMPRA, oportunidades: TX_COMPRA,
     basico: TX_PERFIL, completo: TX_PERFIL, materiais: TX_PERFIL, engenharia: TX_PERFIL, negociar: TX_PERFIL, usinas: TX_PERFIL,
     conversa: 'Libera depois da primeira proposta'
   };
@@ -341,7 +342,7 @@
   /* Roteador unico de respostas: 503 vira Em breve, 401 volta para a entrada, 403 e 409 de CNPJ tem tela propria. */
   function roteia(r, opc) {
     var cod = r.data && (r.data.erro || r.data.error);
-    if (r.status === 503) { S.fase = 'embreve'; r.tratado = true; pintar(); return; }
+    if (r.status === 503 && cod !== 'servico_em_ativacao') { S.fase = 'embreve'; r.tratado = true; pintar(); return; }
     if (r.status === 401 && opc.comToken && !opc.semToken) {
       limparSessao(); S.eu = null; S.msgEntrada = 'Sua sessão expirou. Entre de novo.'; S.fase = 'entrada'; r.tratado = true; pintar(); return;
     }
@@ -416,7 +417,7 @@
       empresa: { nome: 'Empresa Exemplo Solar', nome_fantasia: 'Empresa Exemplo Solar', cnpj: '00000000000000', cidade: 'Goiânia', whatsapp: '00000000000', logo_base64: null },
       nivel: nv, progresso: prog,
       libera: lib, bloqueios: bl, montagem_aprovada: montagem,
-      saldo_engenharia: idx >= 3 ? (idx === 4 ? { comprados: 8, usados: 3, disponiveis: 5 } : { comprados: 3, usados: 1, disponiveis: 2 }) : { comprados: 0, usados: 0, disponiveis: 0 },
+      servicos: servicosDemo(idx), saldo_engenharia: idx >= 3 ? (idx === 4 ? { comprados: 8, usados: 3, disponiveis: 5 } : { comprados: 3, usados: 1, disponiveis: 2 }) : { comprados: 0, usados: 0, disponiveis: 0 },
       termo: { versao: 'v1', disponivel: idx >= 3, aceito_em: idx === 4 ? agora : null },
       catalogo: {
         marca: {
@@ -437,6 +438,21 @@
       contagens: { propostas_mes: 12, pedidos: 2, oportunidades_recebidas: 3, usinas: 1 },
       whatsappComercial: WA_PADRAO
     };
+  }
+  /* /eu v5: `servicos` como lista, com o booleano de cada nível (modo demonstração monta os mesmos dados). */
+  function servicosDemo(idx) {
+    function it(id, grupo, nome, texto, valor, unidade, lib, bloqueio, acao) {
+      return { id: id, grupo: grupo, nome: nome, preco_texto: texto, preco_valor: valor, unidade: unidade, libera: lib, bloqueio: lib ? null : bloqueio, acao: acao };
+    }
+    return [
+      it('plataforma', 'plataforma', 'Plataforma NEXUS', '10% do que o ponto fatura em recarga', null, 'do faturamento em recarga', idx >= 3, SV_TX_COMPRA, 'solicitacao'),
+      it('eng-1', 'engenharia', 'Engenharia NEXUS · 1 projeto', 'R$ 3.000', 3000, 'projeto', true, SV_TX_AVULSO, 'pedido'),
+      it('eng-3', 'engenharia', 'Pacote de engenharia · 3 projetos', 'R$ 7.500', 7500, '3 projetos', idx >= 2, SV_TX_PACOTES, 'pedido'),
+      it('eng-5', 'engenharia', 'Pacote de engenharia · 5 projetos', 'R$ 10.000', 10000, '5 projetos', idx >= 2, SV_TX_PACOTES, 'pedido'),
+      it('suporte_incluido', 'suporte', 'Suporte incluído no carregador', 'Sem custo', null, '', true, null, null),
+      it('manutencao', 'suporte', 'Plano de manutenção NEXUS', 'R$ 200 por mês por carregador', 200, 'por mês por carregador', idx >= 3, SV_TX_COMPRA, 'pedido'),
+      it('apoio_venda', 'suporte', 'Apoio de venda', 'R$ 500 por atendimento', 500, 'por atendimento', idx >= 2, SV_TX_PARTNER, 'pedido')
+    ];
   }
   var DEMO = null;
   function demoInicio() {
@@ -475,6 +491,7 @@
       pedidos: (NIVEL_IDX[S.eu && S.eu.nivel] || 1) >= 3 ? [
         { id: 'pd1', tipo: 'engenharia', pacote: 3, status: 'confirmado', created_at: new Date(agora - 12 * 86400000).toISOString() },
         { id: 'pd2', tipo: 'consultoria', status: 'negociando', created_at: new Date(agora - 2 * 86400000).toISOString() },
+        { id: 'pd4', tipo: 'manutencao', quantidade: 4, status: 'solicitado', created_at: new Date(agora - 86400000).toISOString() },
         { id: 'pd3', tipo: 'equipamento', modelo: 'nexus-dc-80', quantidade: 1, status: 'confirmado', created_at: new Date(agora - 30 * 86400000).toISOString() }
       ] : [],
       procura: {
@@ -1256,7 +1273,7 @@
   }
   /* Início: um só desenho para computador e celular. Ordem: nível e próximo passo, atalhos com informação viva, índice da página,
      resumo, carregadores, mercado (que era a aba Mercado), oportunidades, engenharia e faixa final. Só o bloco dos carregadores muda de forma. */
-  var SEC_INICIO = [['resumo', 'Resumo', 'ini-resumo'], ['carregadores', 'Carregadores', 'ini-carregadores'], ['mercado', 'Mercado', 'ini-mercado'], ['oportunidades', 'Oportunidades', 'ini-oportunidades']];
+  var SEC_INICIO = [['resumo', 'Resumo', 'ini-resumo'], ['carregadores', 'Carregadores', 'ini-carregadores'], ['servicos', 'Serviços', 'ini-servicos'], ['mercado', 'Mercado', 'ini-mercado'], ['oportunidades', 'Oportunidades', 'ini-oportunidades']];
   var IO = null, ioFim = null;
 
   /* Próxima ação real: a primeira etapa de progresso.faltam que o parceiro mesmo pode cumprir. Se só falta aprovação da equipe, leva à Minha parceria. */
@@ -1311,7 +1328,7 @@
   function servicosSub() {
     var sd = saldoEng();
     if (sd && sd.comprados > 0) return 'Saldo: ' + sd.disponiveis + (sd.disponiveis === 1 ? ' projeto' : ' projetos');
-    return travada('servicos') ? bloq('pacotes_engenharia') : 'Engenharia, consultoria e plataforma';
+    return travada('servicos') ? bloq('pacotes_engenharia') : 'Plataforma, engenharia e suporte';
   }
   function oportSub() {
     if (!libera('oportunidades')) return bloq('oportunidades');
@@ -1366,7 +1383,7 @@
   }
 
   function secaoCab(id, titulo, extra) {
-    return '<div class="np-tit-linha"><div class="np-tit-grupo"><h2 id="' + id + '-t">' + esc(titulo) + '</h2>' + (S.demo && titulo !== 'Carregadores' ? '<span class="nx-chip ex">Dados de exemplo</span>' : '') + '</div>' + (extra || '') + '</div>';
+    return '<div class="np-tit-linha"><div class="np-tit-grupo"><h2 id="' + id + '-t">' + esc(titulo) + '</h2>' + (S.demo && titulo !== 'Carregadores' && titulo !== 'Serviços NEXUS' ? '<span class="nx-chip ex">Dados de exemplo</span>' : '') + '</div>' + (extra || '') + '</div>';
   }
   function carregadoresHTML() {
     var ps = produtos(), h;
@@ -1387,6 +1404,21 @@
       '<button type="button" class="nx-btn sec" data-acao="ir" data-arg="propostas">Gerar proposta</button></div></article>';
   }
 
+  /* Início: os três serviços com o preço em destaque. O botão leva à tela Serviços NEXUS, na âncora do grupo. */
+  function servicosInicioHTML() {
+    var e1 = engValor(1), e5 = engValor(5) / 5, vMan = servValor('manutencao', MAN_PRECO);
+    var cartoes = [
+      ['plataforma', 'Plataforma NEXUS', 'O motorista carrega e paga pelo app. O dono do ponto acompanha tudo.', '10%', 'do que o ponto fatura em recarga', 'Ver plataforma', 'servicos/plataforma'],
+      ['engenharia', 'Engenharia NEXUS', 'Projeto elétrico, ART do projeto e acompanhamento da homologação na distribuidora.', 'De ' + rs(e5) + ' a ' + rs(e1), 'por projeto', 'Ver engenharia', 'servicos/engenharia'],
+      ['servicos', 'Suporte NEXUS', 'Ativação, suporte técnico, garantia e treinamento. Manutenção e apoio de venda opcionais.', 'Incluído no carregador', 'manutenção ' + rs(vMan) + ' por mês', 'Ver suporte', 'servicos/suporte']
+    ];
+    return '<section class="in-sec" id="ini-servicos" tabindex="-1" aria-labelledby="ini-servicos-t">' + secaoCab('ini-servicos', 'Serviços NEXUS') +
+      '<p class="nx-sub in-sub">Plataforma, engenharia e suporte para você revender carregadores NEXUS.</p><div class="in-serv-grade">' + cartoes.map(function (c) {
+        return '<article class="in-serv" data-serv-inicio="' + esc(c[0]) + '"><span class="ico">' + ic(c[0]) + '</span><h3>' + esc(c[1]) + '</h3><p>' + esc(c[2]) + '</p>' +
+          '<div class="in-serv-preco"><span class="np-rot">Preço</span><strong>' + esc(c[3]) + '</strong><small>' + esc(c[4]) + '</small></div>' +
+          '<button type="button" class="nx-btn sec" data-acao="ir" data-arg="' + esc(c[6]) + '">' + esc(c[5]) + '</button></article>';
+      }).join('') + '</div></section>';
+  }
   function telaInicio() {
     var h = '<div class="in">';
     h += nivelHTML();
@@ -1396,6 +1428,7 @@
     h += '<section class="in-sec" id="ini-resumo" tabindex="-1" aria-labelledby="ini-resumo-t">' + secaoCab('ini-resumo', 'Resumo do mês') + '<div class="in-nums" id="in-resumo-corpo">' + resumoCorpoHTML() + '</div></section>';
     h += '<section class="in-sec" id="ini-carregadores" tabindex="-1" aria-labelledby="ini-carregadores-t">' +
       secaoCab('ini-carregadores', 'Carregadores', '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="equipamentos">Ver todos</button>') + carregadoresHTML() + '</section>';
+    h += servicosInicioHTML();
     h += '<section class="in-sec" id="ini-mercado" tabindex="-1" aria-labelledby="ini-mercado-t">' + secaoCab('ini-mercado', 'Mercado') +
       '<p class="nx-sub in-sub">A procura por eletroposto que chega à NEXUS e a frota de veículos plug-in, com o seu estado em destaque.</p>' +
       '<h3 class="in-h3">Procura por eletroposto</h3><div id="in-m-proc">' + girando('Carregando a procura') + '</div>' +
@@ -1404,7 +1437,7 @@
       secaoCab('ini-oportunidades', 'Oportunidades na sua região', libera('oportunidades') ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="oportunidades">Ver todas</button>' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>') +
       '<div id="np-opsini">' + (libera('oportunidades') ? girando('Carregando as oportunidades') : opsBloqueadasHTML()) + '</div></section>';
     h += '<section class="np-chamadas in-chamadas"><div class="np-chamada"><span class="ico">' + ic('engenharia') + '</span><h3>Engenharia NEXUS</h3><p>Precisa de projeto elétrico, ART, estudo da entrada de energia ou homologação na distribuidora? A NEXUS faz para você.</p>' +
-      '<button type="button" class="nx-btn" data-acao="ir" data-arg="servicos/engenharia">Pedir engenharia</button></div></section>';
+      '<button type="button" class="nx-btn" data-acao="ir" data-arg="servicos/pedir">Pedir engenharia</button></div></section>';
     h += '<section class="np-rodape"><p>A NEXUS é importadora. O cliente e a obra da sua região são seus.</p><p>Nada é cobrado sobre a sua obra. Sem mensalidade. Sem taxa de entrada.</p></section>';
     return h + '</div>';
   }
@@ -2007,13 +2040,31 @@
     return h + '</div><div class="nx-cartao"><h2>Vitrine da NEXUS</h2><p style="margin-bottom:12px">A página pública que você pode mostrar aos seus clientes.</p><a class="nx-btn sec" href="/nexus" target="_blank" rel="noopener">Abrir a vitrine</a></div></section></div>';
   }
 
-  /* ------------------------------------------------------------------ Serviços NEXUS */
-  var PACOTES = [3, 5, 10];
-  var ESCOPO_PROJETO = ['Projeto elétrico do eletroposto', 'ART do projeto', 'Pedido de acesso e acompanhamento da homologação na distribuidora', 'Estudo da entrada de energia'];
-  var ESCOPO_CONSULTORIA = ['Especialista NEXUS na reunião com o seu cliente (online)', 'Revisão da proposta antes de enviar', 'Análise do ponto: entrada de energia, fluxo e potência indicada'];
-  var PLAT_O_QUE_E = 'Cuida da cobrança de cada recarga, do monitoramento do carregador, dos relatórios e do app do motorista. O ponto paga 10% do que fatura em recarga.';
-  var PLAT_PARA_VOCE = 'Você revende a plataforma e recebe parte dos 10% todo mês, enquanto o ponto operar.';
+  /* ------------------------------------------------------------------ Serviços NEXUS (v5): plataforma, engenharia e suporte, com preço e como contratar */
+  var PACOTES = [1, 3, 5];
+  var ENG_PRECO = { 1: 3000, 3: 7500, 5: 10000 };
+  var MAN_PRECO = 200, APOIO_PRECO = 500;
   var STATUS_PED = { solicitado: ['Solicitado', 'cz'], negociando: ['Em negociação', 'av'], confirmado: ['Confirmado', 'az'], cancelado: ['Cancelado', 'er'] };
+  /* Textos do cadeado (bloco B da v5): usados quando a API não manda `bloqueio`. */
+  var SV_TX_COMPRA = 'Libera com a sua primeira compra de carregador NEXUS.';
+  var SV_TX_AVULSO = 'O projeto avulso libera quando o seu perfil estiver completo.';
+  var SV_TX_PACOTES = 'Os pacotes com desconto liberam no nível Partner.';
+  var SV_TX_PARTNER = 'Libera no nível Partner.';
+  /* Chave de `libera` de cada serviço, para quando a API não manda o booleano por serviço. */
+  var SERV_CHAVE = { plataforma: 'plataforma', 'eng-1': 'basico', 'eng-3': 'pacotes_engenharia', 'eng-5': 'pacotes_engenharia', manutencao: 'manutencao', apoio_venda: 'consultoria' };
+  var SV_BLOQ = { plataforma: SV_TX_COMPRA, 'eng-1': SV_TX_AVULSO, 'eng-3': SV_TX_PACOTES, 'eng-5': SV_TX_PACOTES, manutencao: SV_TX_COMPRA, apoio_venda: SV_TX_PARTNER };
+  var SV_PLAT_INCLUI = ['Busca do ponto, recarga e pagamento pelo app', 'Pix, cartão e carteira', 'Tarifa definida pelo dono do ponto', 'Cada carregador em tempo real', 'Repasse conciliado', 'Relatórios', 'OCPP 1.6J aberto'];
+  var SV_ENG_INCLUI = ['Projeto elétrico do eletroposto', 'ART do projeto', 'Estudo da entrada de energia: padrão, demanda e se precisa de transformador', 'Pedido de acesso', 'Acompanhamento da homologação na distribuidora', 'Exemplo real: o DC 80 kW puxa perto de 90 kVA, e na CEMIG o padrão de baixa tensão vai até 75 kW'];
+  var SV_SUP_INCLUI = ['Ativação na plataforma: configuração do carregador, tarifa e app', 'Suporte técnico remoto pelo WhatsApp, em horário comercial', 'Diagnóstico pela telemetria da plataforma', 'Garantia de fábrica com peça de reposição no país', 'Treinamento online da sua equipe: instalação, comissionamento e manutenção'];
+  var SV_MAN_INCLUI = ['Monitoramento contínuo com alerta de falha', 'Atendimento remoto com prioridade', 'Roteiro de manutenção preventiva para a sua equipe seguir', 'Relatório mensal do carregador', 'Prioridade na peça de reposição (peça fora da garantia é cobrada à parte)'];
+  var SV_APOIO_INCLUI = ['Especialista NEXUS na reunião online com o seu cliente', 'Revisão da proposta antes do envio', 'Análise do ponto: entrada de energia, fluxo e potência indicada'];
+  var SV_FAQ = [
+    ['O pacote de engenharia vence?', 'O pacote vira saldo: você usa um projeto por obra, quando precisar. Sobre validade, fale com o comercial NEXUS.'],
+    ['Quem faz a obra?', 'A obra e a ART de execução são suas. A NEXUS faz o projeto, a ART do projeto e acompanha a homologação na distribuidora.'],
+    ['O que vem incluso sem pagar?', 'Em todo carregador: ativação na plataforma, suporte remoto pelo WhatsApp em horário comercial, diagnóstico pela telemetria, garantia de fábrica e treinamento online da sua equipe.'],
+    ['Como recebo a minha parte da plataforma?', 'Você recebe parte dos 10% todo mês, enquanto o ponto operar. O percentual é negociado com o comercial e libera com a primeira compra de carregador.']
+  ];
+  /* `servicos` vem do /eu como lista (v5): {id, grupo, nome, preco_texto, preco_valor, unidade, libera, bloqueio, acao}. Aceita também um objeto por id. */
   function servApi(id) {
     var L = S.eu && S.eu.servicos, r = null;
     if (Array.isArray(L)) L.forEach(function (x) { if (x && x.id === id) r = x; });
@@ -2021,77 +2072,142 @@
     return r || {};
   }
   function servNome(id, padrao) { var n = servApi(id).nome; return typeof n === 'string' && n ? n : padrao; }
-  function servEscopo(id, padrao) { var e = servApi(id).escopo; return Array.isArray(e) && e.length ? e.map(String) : padrao; }
-  function servPreco(id, padrao) { var p = servApi(id).preco; return typeof p === 'string' && p ? p : padrao; }
-  function nomePacote(n) { return servNome('eng-' + n, 'Pacote de engenharia · ' + n + ' projetos'); }
-  function listaChecks(itens) { return '<ul class="np-checks">' + itens.map(function (t) { return '<li>' + ic('check') + '<span>' + esc(t) + '</span></li>'; }).join('') + '</ul>'; }
-  function precoParceiro(id, rotulo, padrao) {
-    return '<div class="np-parc"><span class="np-rot">' + esc(rotulo) + '</span><strong>' + esc(servPreco(id, padrao)) + '</strong></div>';
+  /* Só vale o booleano da API (a v3 mandava texto 'partner'/'pro' em `libera`): senão, a chave de nível. */
+  function servLibera(id) {
+    var l = servApi(id).libera;
+    if (typeof l === 'boolean') return l;
+    var k = SERV_CHAVE[id];
+    return k ? libera(k) : true;
   }
-  function chipTravado(chave) { return libera(chave) ? '' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>'; }
+  function servBloq(id) {
+    var b = servApi(id).bloqueio;
+    return typeof b === 'string' && b.trim() ? maiuscula(b.trim()) : (SV_BLOQ[id] || SV_TX_COMPRA);
+  }
+  function servValor(id, padrao) { var v = servApi(id).preco_valor; return typeof v === 'number' && isFinite(v) && v > 0 ? v : padrao; }
+  function engValor(n) { return servValor('eng-' + n, ENG_PRECO[n]); }
+  function projetosTxt(n) { return n === 1 ? '1 projeto' : n + ' projetos'; }
+  function nomePacote(n) {
+    if (n === 1) return 'Engenharia NEXUS · 1 projeto';
+    return servNome('eng-' + n, 'Pacote de engenharia · ' + n + ' projetos');
+  }
+  function listaChecks(itens) { return '<ul class="np-checks">' + itens.map(function (t) { return '<li>' + ic('check') + '<span>' + esc(t) + '</span></li>'; }).join('') + '</ul>'; }
+  /* Botão travado com o texto de "o que libera" sempre visível (o texto é o do serviço, não o da chave). */
+  function lkTx(rotulo, texto, cls) {
+    var id = 'lk' + (++uidG);
+    return '<div class="np-lk"><button type="button" class="nx-btn' + (cls === '' ? '' : ' ' + (cls || 'sec')) + '" aria-disabled="true" aria-describedby="' + id + '" data-acao="travado" data-txt="' + esc(texto) + '">' +
+      ic('cadeado', 'p') + esc(rotulo) + '</button><small class="np-lktx" id="' + id + '">' + esc(texto) + '</small></div>';
+  }
+  function svBloco(rot, corpo, cls) { return '<div class="sv-bl' + (cls ? ' ' + cls : '') + '"><h4 class="sv-rot">' + esc(rot) + '</h4>' + corpo + '</div>'; }
+  function svPreco(grande, unidade) { return '<p class="sv-preco"><strong>' + esc(grande) + '</strong>' + (unidade ? '<span>' + esc(unidade) + '</span>' : '') + '</p>'; }
+  function svServico(o) {
+    var trv = o.travado === true;
+    return '<article class="sv-serv" data-serv="' + esc(o.id) + '" data-travado="' + (trv ? '1' : '0') + '" aria-label="' + esc(o.nome) + '">' +
+      '<header class="sv-cab"><h3>' + esc(o.nome) + '</h3>' + (trv ? '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>' : '') + '</header>' +
+      svBloco('O que é', '<p>' + esc(o.que) + '</p>') + svBloco('O que inclui', listaChecks(o.inclui)) +
+      svBloco('Quanto custa', o.custo, 'sv-custo') + svBloco('Como contratar', '<p>' + esc(o.como) + '</p>' + (o.acao || ''), 'sv-como') + '</article>';
+  }
+  function svGrupo(id, titulo, corpo) {
+    return '<section class="np-sec sv-grupo" id="' + id + '" tabindex="-1" aria-labelledby="' + id + '-t"><h2 id="' + id + '-t">' + esc(titulo) + '</h2>' + corpo + '</section>';
+  }
 
-  function telaServicos() {
-    var sd = saldoEng(), h = '<div class="np-pagina">';
-    h += '<section class="np-sec"><div><h1 class="nx-h1">Serviços NEXUS</h1><p class="nx-sub" style="max-width:720px;margin:0">Engenharia em pacotes, consultoria de vendas e a Plataforma NEXUS. Você usa com os seus clientes e a NEXUS entrega.</p></div></section>';
-
-    /* Engenharia em pacotes */
-    h += '<section class="np-sec" id="sv-eng"><div class="np-tit-grupo"><h2>Engenharia em pacotes</h2>' + chipTravado('pacotes_engenharia') + '</div>' +
-      '<p class="nx-sub" style="margin:0;max-width:720px">Compre projetos de 3 em 3, de 5 em 5 ou de 10 em 10 e use o saldo obra a obra, nos pontos dos seus clientes.</p>' +
-      '<div class="np-card"><h3>Cada projeto inclui</h3>' + listaChecks(servEscopo('eng-3', ESCOPO_PROJETO)) + '</div>';
+  function svEngenharia() {
+    var sd = saldoEng(), base = engValor(1);
+    var h = '<article class="sv-serv" data-serv="engenharia" aria-label="Engenharia NEXUS"><header class="sv-cab"><h3>Engenharia NEXUS</h3></header>' +
+      svBloco('O que é', '<p>Projeto do eletroposto feito pela NEXUS, do projeto elétrico ao acompanhamento da homologação na distribuidora. A obra e a ART de execução ficam com você.</p>') +
+      svBloco('O que inclui', listaChecks(SV_ENG_INCLUI));
+    var cartoes = PACOTES.map(function (n) {
+      var v = engValor(n), eco = Math.max(0, base * n - v), lib = servLibera('eng-' + n), acao;
+      var rot = n === 1 ? '1 projeto' : 'Pacote de ' + projetosTxt(n);
+      if (!lib) acao = lkTx('Contratar engenharia', servBloq('eng-' + n), '');
+      else if (S.confirmaPacote === n) {
+        acao = '<p class="np-confirma">Enviar o pedido de ' + projetosTxt(n) + ' de engenharia ao comercial?</p><div class="nx-linha-btn"><button type="button" class="nx-btn" data-acao="enviarPacote" data-arg="' + n + '">Enviar pedido</button>' +
+          '<button type="button" class="nx-btn sec" data-acao="cancelarPacote">Cancelar</button></div>';
+      } else acao = '<button type="button" class="nx-btn" data-acao="pedirPacote" data-arg="' + n + '" aria-label="Contratar engenharia, ' + esc(rot) + '">Contratar engenharia</button>';
+      return '<div class="np-pacote sv-pac' + (n === 5 ? ' econ' : '') + '" data-serv="eng-' + n + '" data-travado="' + (lib ? '0' : '1') + '" role="group" aria-label="' + esc(rot) + '">' +
+        '<div class="sv-pac-topo"><span class="np-rot">' + esc(rot) + '</span>' + (n === 5 ? '<span class="nx-chip az">Mais econômico</span>' : '') + (lib ? '' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>') + '</div>' +
+        svPreco(rs(v), n === 1 ? 'projeto avulso' : 'ou ' + rs(v / n) + ' cada') +
+        (n > 1 && eco > 0 ? '<p class="sv-eco">Você economiza ' + esc(rs(eco)) + '.</p>' : '<p class="sv-eco neutro">Pague só o projeto que precisar.</p>') + acao + '</div>';
+    }).join('');
+    h += svBloco('Quanto custa', '<div class="np-pacotes sv-pacotes">' + cartoes + '</div><p class="nx-dica">O pacote vira saldo: você usa um projeto por obra, quando precisar.</p>', 'sv-custo');
     if (sd) {
-      h += '<div class="np-card"><h3>Seu saldo de engenharia</h3><div class="np-saldo">' +
+      h += '<div class="sv-bl sv-saldo" id="sv-saldo"><h4 class="sv-rot">Seu saldo de engenharia</h4><div class="np-saldo">' +
         '<div class="np-num"><strong>' + esc(fmt(sd.comprados)) + '</strong><span>Projetos comprados</span></div>' +
         '<div class="np-num"><strong>' + esc(fmt(sd.usados)) + '</strong><span>Projetos usados</span></div>' +
         '<div class="np-num"><strong class="az">' + esc(fmt(sd.disponiveis)) + '</strong><span>Projetos disponíveis</span></div></div>' +
-        (sd.disponiveis > 0 ? '<div><button type="button" class="nx-btn" data-acao="ir" data-arg="servicos/engenharia">Usar um projeto do pacote</button></div>'
-          : '<p class="nx-dica">Sem saldo agora. Compre um pacote abaixo para usar nos próximos pontos.</p>') + '</div>';
-    } else {
-      h += '<div class="np-vazio-sec">Saldo disponível depois da primeira compra de pacote.</div>';
+        (sd.disponiveis > 0 ? '<div><button type="button" class="nx-btn" data-acao="ir" data-arg="servicos/pedir">Usar um projeto do pacote</button></div>'
+          : '<p class="nx-dica">Sem saldo agora. Contrate um pacote para usar nos próximos pontos.</p>') + '</div>';
     }
-    h += '<div class="np-pacotes">' + PACOTES.map(function (n) {
-      var acao;
-      if (!libera('pacotes_engenharia')) acao = lk('Comprar pacote', 'pacotes_engenharia', '');
-      else if (S.confirmaPacote === n) {
-        acao = '<p class="np-confirma">Enviar o pedido do pacote de ' + n + ' projetos ao comercial?</p><div class="nx-linha-btn"><button type="button" class="nx-btn" data-acao="enviarPacote" data-arg="' + n + '">Enviar pedido</button>' +
-          '<button type="button" class="nx-btn sec" data-acao="cancelarPacote">Cancelar</button></div>';
-      } else acao = '<button type="button" class="nx-btn" data-acao="pedirPacote" data-arg="' + n + '">Comprar pacote</button>';
-      return '<article class="np-pacote"><div><span class="np-rot">' + n + ' projetos</span><h3>' + esc(nomePacote(n)) + '</h3></div>' +
-        precoParceiro('eng-' + n, 'Preço de parceiro', 'Negociado com o comercial') + acao + '</article>';
-    }).join('') + '</div></section>';
+    h += svBloco('Como contratar', '<p>Escolha o projeto avulso ou o pacote e peça pelo portal, no botão Contratar engenharia do cartão.</p>', 'sv-como');
+    return h + '</article>';
+  }
 
-    /* Pedir engenharia: o formulário e a lista que eram da aba Engenharia (rede.js). Vem logo depois dos pacotes, antes de tudo que carrega depois. */
+  function telaServicos() {
+    var h = '<div class="np-pagina sv-pagina">';
+    h += '<section class="np-sec"><div><h1 class="nx-h1">Serviços NEXUS</h1><p class="nx-sub" style="max-width:720px;margin:0">Veja o que a NEXUS faz por você e pelo seu cliente, quanto custa e como contratar.</p></div></section>';
+
+    /* 1. Plataforma NEXUS */
+    var plLib = servLibera('plataforma'), acaoP;
+    if (!plLib) acaoP = lkTx('Falar com o comercial', servBloq('plataforma'), '');
+    else if (S.plataformaPedida) acaoP = '<span class="nx-chip az">Pedido enviado ao comercial</span>';
+    else acaoP = '<button type="button" class="nx-btn" data-acao="querPlataforma">Falar com o comercial</button>';
+    h += svGrupo('sv-plat', 'Plataforma', svServico({
+      id: 'plataforma', nome: servNome('plataforma', 'Plataforma NEXUS'), travado: !plLib,
+      que: 'Gestão e cobrança do eletroposto. O motorista acha o ponto, carrega e paga pelo app, por Pix, cartão ou carteira. O dono do ponto define a tarifa.',
+      inclui: SV_PLAT_INCLUI,
+      custo: svPreco('10%', 'do que o ponto fatura em recarga') + '<p>Sem mensalidade e sem taxa de adesão.</p>' +
+        '<p><b>Para você:</b> você revende a plataforma e recebe parte desses 10% todo mês, enquanto o ponto operar. O percentual é negociado com o comercial.</p>' +
+        '<p>O preço de parceiro do carregador vale com o ponto operando pela plataforma por 24 meses.</p>',
+      como: 'Para definir o seu percentual, fale com o comercial NEXUS.', acao: acaoP
+    }));
+
+    /* 2. Engenharia NEXUS */
+    h += svGrupo('sv-eng', 'Engenharia', svEngenharia());
+    /* Pedir engenharia: o formulário e a lista que eram da aba Engenharia (rede.js), logo abaixo dos pacotes. */
     h += '<section class="np-sec" id="sv-pedir-eng" tabindex="-1" aria-label="Pedir engenharia"><div id="np-rede-eng"></div></section>';
 
-    /* Consultoria de vendas */
-    var acaoC;
-    if (!libera('consultoria')) acaoC = lk('Pedir consultoria', 'consultoria', '');
-    else if (S.consultoriaAberta) {
-      acaoC = '<div class="np-form-inline" id="sv-cons"><div class="nx-campo"><label for="sv-cons-obs">O que você quer tratar (opcional)</label><textarea id="sv-cons-obs" maxlength="300"></textarea></div>' +
-        '<p class="nx-msg-erro" data-erro hidden></p><div class="nx-linha-btn"><button type="button" class="nx-btn" data-acao="enviarConsultoria">Enviar pedido</button>' +
-        '<button type="button" class="nx-btn sec" data-acao="cancelarConsultoria">Cancelar</button></div></div>';
-    } else acaoC = '<button type="button" class="nx-btn" data-acao="pedirConsultoria">Pedir consultoria</button>';
-    h += '<section class="np-sec" id="sv-cons-sec"><div class="np-tit-grupo"><h2>' + esc(servNome('consultoria', 'Consultoria de vendas NEXUS')) + '</h2>' + chipTravado('consultoria') + '</div>' +
-      '<div class="np-card"><div class="np-tit-grupo"><h3>O que está incluído</h3><span class="nx-chip az">Por atendimento</span></div>' +
-      listaChecks(servEscopo('consultoria', ESCOPO_CONSULTORIA)) + precoParceiro('consultoria', 'Preço de parceiro', 'Negociado com o comercial') + acaoC + '</div></section>';
+    /* 3. Suporte NEXUS */
+    var vMan = servValor('manutencao', MAN_PRECO), vApoio = servValor('apoio_venda', APOIO_PRECO);
+    var manLib = servLibera('manutencao'), apLib = servLibera('apoio_venda'), acaoM, acaoA;
+    if (!manLib) acaoM = lkTx('Contratar manutenção', servBloq('manutencao'), '');
+    else if (S.manutAberta) {
+      acaoM = '<div class="np-form-inline sv-form" id="sv-man"><div class="nx-campo"><label for="sv-man-qtd">Quantos carregadores terão o plano?</label>' +
+        '<input id="sv-man-qtd" type="number" inputmode="numeric" min="1" max="50" step="1" value="1"><span class="nx-dica">De 1 a 50. ' + esc(rs(vMan)) + ' por mês por carregador.</span></div>' +
+        '<div class="nx-campo"><label for="sv-man-obs">Observação (opcional)</label><textarea id="sv-man-obs" maxlength="300"></textarea></div>' +
+        '<p class="nx-msg-erro" data-erro hidden></p><div class="nx-linha-btn"><button type="button" class="nx-btn" data-acao="enviarManutencao">Enviar pedido</button>' +
+        '<button type="button" class="nx-btn sec" data-acao="cancelarManutencao">Cancelar</button></div></div>';
+    } else acaoM = '<button type="button" class="nx-btn" data-acao="pedirManutencao">Contratar manutenção</button>';
+    if (!apLib) acaoA = lkTx('Pedir apoio de venda', servBloq('apoio_venda'), '');
+    else if (S.apoioAberto) {
+      acaoA = '<div class="np-form-inline sv-form" id="sv-apoio"><div class="nx-campo"><label for="sv-ap-cli">Cliente</label><input id="sv-ap-cli" type="text" maxlength="100" autocomplete="off"></div>' +
+        '<div class="nx-campo"><label for="sv-ap-ponto">Ponto (cidade e local)</label><input id="sv-ap-ponto" type="text" maxlength="140" autocomplete="off"></div>' +
+        '<p class="nx-msg-erro" data-erro hidden></p><div class="nx-linha-btn"><button type="button" class="nx-btn" data-acao="enviarApoio">Enviar pedido</button>' +
+        '<button type="button" class="nx-btn sec" data-acao="cancelarApoio">Cancelar</button></div></div>';
+    } else acaoA = '<button type="button" class="nx-btn" data-acao="pedirApoio">Pedir apoio de venda</button>';
+    h += svGrupo('sv-sup', 'Suporte',
+      svServico({ id: 'suporte_incluido', nome: 'Suporte incluído no carregador', travado: false,
+        que: 'Tudo o que acompanha cada carregador NEXUS, sem custo, para você ativar, instalar e atender o seu cliente.', inclui: SV_SUP_INCLUI,
+        custo: svPreco('Sem custo', 'já vem em todo carregador NEXUS'), como: 'Não precisa contratar. Vem junto com cada carregador.', acao: '' }) +
+      svServico({ id: 'manutencao', nome: servNome('manutencao', 'Plano de manutenção NEXUS'), travado: !manLib,
+        que: 'Monitoramento contínuo do carregador pela plataforma, com alerta de falha e atendimento remoto com prioridade.', inclui: SV_MAN_INCLUI,
+        custo: svPreco(rs(vMan), 'por mês por carregador') + '<p>É o mesmo valor de manutenção que o Simulador já considera na conta do seu cliente.</p>',
+        como: 'Escolha os carregadores que terão o plano e peça pelo portal.', acao: acaoM }) +
+      svServico({ id: 'apoio_venda', nome: servNome('apoio_venda', 'Apoio de venda'), travado: !apLib,
+        que: 'Um especialista NEXUS entra na reunião online com o seu cliente, revisa a proposta antes de você enviar e analisa o ponto.', inclui: SV_APOIO_INCLUI,
+        custo: svPreco(rs(vApoio), 'por atendimento') + '<p>A primeira reunião de cada parceiro é por conta da NEXUS.</p>',
+        como: 'Peça o atendimento pelo portal e informe o cliente e o ponto.', acao: acaoA }));
 
-    /* Plataforma NEXUS */
-    var acaoP;
-    if (!libera('plataforma')) acaoP = lk('Quero revender a plataforma', 'plataforma', '');
-    else if (S.plataformaPedida) acaoP = '<span class="nx-chip az">Pedido enviado ao comercial</span>';
-    else acaoP = '<button type="button" class="nx-btn" data-acao="querPlataforma">Quero revender a plataforma</button>';
-    h += '<section class="np-sec" id="sv-plat"><div class="np-tit-grupo"><h2>' + esc(servNome('plataforma', 'Plataforma NEXUS de gestão')) + '</h2>' + chipTravado('plataforma') + '</div>' +
-      '<div class="np-card"><h3>O que é</h3><p>' + esc(PLAT_O_QUE_E) + '</p><h3>Para você</h3><p>' + esc(PLAT_PARA_VOCE) + '</p>' +
-      precoParceiro('plataforma', 'Sua parte', 'Negociada com o comercial') + acaoP + '</div></section>';
-
-    /* Pedidos */
+    /* Pedidos e perguntas frequentes */
     h += '<section class="np-sec"><h2>Seus pedidos de serviços</h2><div id="sv-pedidos">' + girando('Carregando os pedidos') + '</div></section>';
+    h += '<section class="np-sec sv-faq" id="sv-faq" aria-labelledby="sv-faq-t"><h2 id="sv-faq-t">Perguntas frequentes</h2><div class="sv-faq-lista">' + SV_FAQ.map(function (q) {
+      return '<details class="sv-q"><summary>' + esc(q[0]) + '</summary><p>' + esc(q[1]) + '</p></details>';
+    }).join('') + '</div></section>';
     return h + '</div>';
   }
   function posServicos() {
     carregarPedidosServ();
     montarEngenhariaEmbutida();
   }
-  /* O formulário fica num nó que sobrevive aos repaints da tela (pedir pacote, consultoria, recarregar o /eu): sem isso o texto digitado e o "Pedido recebido" sumiriam. */
+  /* O formulário fica num nó que sobrevive aos repaints da tela (pedir pacote, manutenção, recarregar o /eu): sem isso o texto digitado e o "Pedido recebido" sumiriam. */
   function montarEngenhariaEmbutida() {
     var slot = $('#np-rede-eng');
     if (!slot) return;
@@ -2119,40 +2235,52 @@
     api('GET', NX + '/pedidos', undefined, { quieto: true }).then(function (r) {
       if (S.tela !== t) return;
       if (r.ok && r.data && Array.isArray(r.data.pedidos)) {
-        S.pedidosServ = r.data.pedidos.filter(function (x) { return x && (x.tipo === 'engenharia' || x.tipo === 'consultoria'); });
+        S.pedidosServ = r.data.pedidos.filter(function (x) { return x && (x.tipo === 'engenharia' || x.tipo === 'consultoria' || x.tipo === 'manutencao'); });
         S.pedidosServErro = false;
       } else { S.pedidosServ = null; S.pedidosServErro = true; }
       pintarPedidosServ();
     });
+  }
+  function nomePedidoServ(x) {
+    if (x.tipo === 'engenharia') {
+      var n = Math.round(num(x.pacote));
+      return n === 1 ? 'Engenharia NEXUS · 1 projeto' : n > 1 ? 'Pacote de engenharia · ' + n + ' projetos' : 'Engenharia NEXUS';
+    }
+    if (x.tipo === 'manutencao') {
+      var q = Math.round(num(x.quantidade));
+      return 'Plano de manutenção NEXUS' + (q > 0 ? ' · ' + q + (q === 1 ? ' carregador' : ' carregadores') : '');
+    }
+    return 'Apoio de venda';
   }
   function pintarPedidosServ() {
     var el = $('#sv-pedidos');
     if (!el) return;
     if (S.pedidosServErro) { el.innerHTML = secErro('Não foi possível carregar os pedidos agora.', 'recarregarPedidosServ'); return; }
     var l = S.pedidosServ || [];
-    if (!l.length) { el.innerHTML = '<div class="np-vazio-sec">Nenhum pedido de serviço ainda. Quando você comprar um pacote ou pedir uma consultoria, ele aparece aqui com o andamento.</div>'; return; }
+    if (!l.length) { el.innerHTML = '<div class="np-vazio-sec">Nenhum pedido de serviço ainda. Quando você contratar engenharia, manutenção ou apoio de venda, o pedido aparece aqui com o andamento.</div>'; return; }
     el.innerHTML = '<ul class="np-pedidos">' + l.map(function (x) {
       var st = STATUS_PED[x.status] || [String(x.status || 'Solicitado'), 'cz'];
-      var nome = x.tipo === 'engenharia' ? nomePacote(num(x.pacote)) : servNome('consultoria', 'Consultoria de vendas NEXUS');
-      return '<li><div><b>' + esc(nome) + '</b><small>' + esc(dataBR(x.created_at)) + '</small></div><span class="nx-chip ' + esc(st[1]) + '">' + esc(st[0]) + '</span></li>';
+      return '<li><div><b>' + esc(nomePedidoServ(x)) + '</b><small>' + esc(dataBR(x.created_at)) + '</small></div><span class="nx-chip ' + esc(st[1]) + '">' + esc(st[0]) + '</span></li>';
     }).join('') + '</ul>';
   }
-  function postPedidoServ(corpo, btn, msgOk, tipoEv) {
+  function postPedidoServ(corpo, btn, msgOk, tipoEv, caixa) {
     ocupado(btn, true, 'Enviando');
     api('POST', NX + '/pedidos', corpo).then(function (r) {
       if (r.tratado) return;
       ocupado(btn, false);
       if (r.ok) {
-        ev(tipoEv, { pacote: corpo.pacote || null });
+        ev(tipoEv, { pacote: corpo.pacote || null, quantidade: corpo.tipo === 'manutencao' ? corpo.quantidade : null });
         toast(msgOk);
-        S.confirmaPacote = 0; S.consultoriaAberta = false;
+        S.confirmaPacote = 0; S.manutAberta = false; S.apoioAberto = false;
         pintarMain(true);
         if (!S.demo) recarregarEu();
         return;
       }
       var cod = r.data && (r.data.erro || r.data.error);
-      var c = $('#sv-cons');
-      var msg = cod === 'etapa_bloqueada' ? bloq(corpo.tipo === 'engenharia' ? 'pacotes_engenharia' : 'consultoria') : textoErro(r, 'Não foi possível enviar o pedido.');
+      var c = caixa ? $(caixa) : null, msg;
+      if (cod === 'servico_em_ativacao') msg = 'Este serviço está sendo ativado. Tente de novo em instantes ou fale com o comercial.';
+      else if (cod === 'etapa_bloqueada') msg = servBloq(corpo.tipo === 'engenharia' ? 'eng-' + (corpo.pacote === 1 ? 1 : 3) : corpo.tipo === 'manutencao' ? 'manutencao' : 'apoio_venda');
+      else msg = textoErro(r, 'Não foi possível enviar o pedido.');
       if (c) erroForm(c, msg); else toast(msg, true);
     });
   }
@@ -2168,9 +2296,9 @@
 
   /* ------------------------------------------------------------------ Minha parceria */
   var NIVEIS = [
-    { k: 'cadastrado', n: 'Nível 1', nome: 'Cadastrado', como: 'Grátis, com CNPJ ativo.', libera: ['Informação de mercado e da sua região', 'Simulador em PDF', 'Orçamentos, Materiais e engenharia avulsa, com o perfil completo'] },
-    { k: 'partner', n: 'Nível 2', nome: 'Partner', como: 'Depois da conversa com o comercial.', libera: ['Preço de parceiro e pedido de equipamento', 'Pacotes de engenharia de 3, 5 e 10 projetos', 'Consultoria de vendas', 'Selo Parceiro NEXUS'] },
-    { k: 'pro', n: 'Nível 3', nome: 'Partner Pro', como: 'A partir da primeira compra de carregador.', libera: ['Termo de Parceria', 'Oportunidades: clientes da sua região, depois de aceitar o termo', 'Revenda da Plataforma NEXUS'] },
+    { k: 'cadastrado', n: 'Nível 1', nome: 'Cadastrado', como: 'Grátis, com CNPJ ativo.', libera: ['Informação de mercado e da sua região', 'Simulador em PDF', 'Orçamentos, Materiais e engenharia avulsa (1 projeto), com o perfil completo'] },
+    { k: 'partner', n: 'Nível 2', nome: 'Partner', como: 'Depois da conversa com o comercial.', libera: ['Preço de parceiro e pedido de equipamento', 'Pacotes de engenharia de 3 e 5 projetos', 'Apoio de venda', 'Selo Parceiro NEXUS'] },
+    { k: 'pro', n: 'Nível 3', nome: 'Partner Pro', como: 'A partir da primeira compra de carregador.', libera: ['Termo de Parceria', 'Oportunidades: clientes da sua região, depois de aceitar o termo', 'Revenda da Plataforma NEXUS', 'Plano de manutenção NEXUS'] },
     { k: 'master', n: 'Nível 4', nome: 'Partner Master', como: 'A partir de 5 carregadores comprados.', libera: ['Prioridade nas oportunidades da sua região'] }
   ];
   var ENTREGA_NEXUS = ['Equipamento com preço de parceiro', 'Clientes e obras da sua região', 'Engenharia quando você precisar', 'Simulador, propostas e materiais com a sua marca', 'Peça de reposição e suporte no país'];
@@ -2925,7 +3053,7 @@
       fecharMais(true);
       if (S.demo) { location.href = '/nexus/app'; return; }
       limparSessao(); S.eu = null; S.msgEntrada = ''; S.emailPre = ''; S.cad = null; S.fase = 'entrada'; S.propostas = null; S.ultima = null; S.procura = {}; S.ops = null; S.engHost = null; S.secPend = '';
-      S.termoTxt = undefined; S.termoErro = false; S.termoMsg = ''; S.pedidosServ = null; S.confirmaPacote = 0; S.consultoriaAberta = false; S.plataformaPedida = false;
+      S.termoTxt = undefined; S.termoErro = false; S.termoMsg = ''; S.pedidosServ = null; S.confirmaPacote = 0; S.manutAberta = false; S.apoioAberto = false; S.plataformaPedida = false;
       history.replaceState(null, '', location.pathname + location.search); pintar();
     },
     tentarDeNovo: function () { if (getToken()) iniciarApp(); else { S.fase = 'entrada'; pintar(); } },
@@ -2938,21 +3066,31 @@
       copiar(LEGENDA[el.dataset.arg] || '').then(function () { toast('Legenda copiada.'); }, function () { toast('Não foi possível copiar. Selecione o texto e copie.', true); });
     },
     avisoPartner: function () { toast(bloq('pedido'), true); },
-    travado: function (el) { toast(bloq(el.dataset.arg), true); },
-    pedirPacote: function (el) { S.confirmaPacote = Number(el.dataset.arg) || 0; pintarMain(true); },
+    travado: function (el) { toast(el.dataset.txt || bloq(el.dataset.arg), true); },
+    pedirPacote: function (el) { S.confirmaPacote = Number(el.dataset.arg) || 0; S.manutAberta = false; S.apoioAberto = false; pintarMain(true); },
     cancelarPacote: function () { S.confirmaPacote = 0; pintarMain(true); },
     enviarPacote: function (el) {
       var n = Number(el.dataset.arg);
       if (PACOTES.indexOf(n) < 0) return;
       postPedidoServ({ tipo: 'engenharia', pacote: n }, el, 'Pedido do pacote de ' + n + ' projetos enviado ao comercial da NEXUS.', 'pediu_pacote_engenharia');
     },
-    pedirConsultoria: function () { S.consultoriaAberta = true; pintarMain(true); var t = $('#sv-cons-obs'); if (t) t.focus({ preventScroll: true }); },
-    cancelarConsultoria: function () { S.consultoriaAberta = false; pintarMain(true); },
-    enviarConsultoria: function (el) {
-      var t = $('#sv-cons-obs'), obs = t ? String(t.value || '').trim().slice(0, 300) : '';
-      var corpo = { tipo: 'consultoria' };
+    pedirManutencao: function () { S.manutAberta = true; S.apoioAberto = false; S.confirmaPacote = 0; pintarMain(true); var q = $('#sv-man-qtd'); if (q) q.focus({ preventScroll: true }); },
+    cancelarManutencao: function () { S.manutAberta = false; pintarMain(true); },
+    enviarManutencao: function (el) {
+      var q = $('#sv-man-qtd'), o = $('#sv-man-obs'), n = q ? Math.round(Number(String(q.value).replace(',', '.'))) : 0;
+      if (!(n >= 1 && n <= 50)) return erroForm($('#sv-man'), 'Informe quantos carregadores terão o plano, de 1 a 50.');
+      var corpo = { tipo: 'manutencao', quantidade: n }, obs = o ? String(o.value || '').trim().slice(0, 300) : '';
       if (obs) corpo.obs = obs;
-      postPedidoServ(corpo, el, 'Pedido de consultoria enviado ao comercial da NEXUS.', 'pediu_consultoria');
+      postPedidoServ(corpo, el, 'Pedido do plano de manutenção enviado ao comercial da NEXUS.', 'pediu_manutencao', '#sv-man');
+    },
+    pedirApoio: function () { S.apoioAberto = true; S.manutAberta = false; S.confirmaPacote = 0; pintarMain(true); var c = $('#sv-ap-cli'); if (c) c.focus({ preventScroll: true }); },
+    cancelarApoio: function () { S.apoioAberto = false; pintarMain(true); },
+    enviarApoio: function (el) {
+      var c = $('#sv-ap-cli'), p = $('#sv-ap-ponto');
+      var cli = c ? String(c.value || '').trim().slice(0, 100) : '', ponto = p ? String(p.value || '').trim().slice(0, 140) : '';
+      if (!cli) return erroForm($('#sv-apoio'), 'Informe o nome do cliente.');
+      if (!ponto) return erroForm($('#sv-apoio'), 'Informe o ponto: cidade e local.');
+      postPedidoServ({ tipo: 'consultoria', obs: 'Cliente: ' + cli + '. Ponto: ' + ponto + '.' }, el, 'Pedido de apoio de venda enviado ao comercial da NEXUS.', 'pediu_apoio_venda', '#sv-apoio');
     },
     querPlataforma: function (el) { querPlataforma(el); },
     recarregarPedidosServ: function () { S.pedidosServErro = false; var e = $('#sv-pedidos'); if (e) e.innerHTML = girando('Carregando os pedidos'); carregarPedidosServ(); },

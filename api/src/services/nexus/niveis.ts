@@ -53,6 +53,8 @@ export interface Libera {
   plataforma: boolean;
   /** Termo de Parceria (Pro em diante). */
   termo: boolean;
+  /** Pedido do Plano de manutenção NEXUS (Pro em diante, v5). */
+  manutencao: boolean;
 }
 
 /** Para cada item travado de `libera`, o texto de quando ele libera. Só as chaves travadas aparecem. */
@@ -114,7 +116,7 @@ function bloqueiosDe(libera: Libera, cadastro: boolean, pro: boolean): Bloqueios
       case 'pedido': case 'selo': case 'pacotes_engenharia': case 'consultoria':
         return TEXTO_BLOQUEIO.partner;
       case 'oportunidades': return pro ? TEXTO_BLOQUEIO.termo : TEXTO_BLOQUEIO.compra;
-      default: return TEXTO_BLOQUEIO.compra; // plataforma, termo
+      default: return TEXTO_BLOQUEIO.compra; // plataforma, termo, manutencao
     }
   };
   const out: Bloqueios = {};
@@ -151,6 +153,7 @@ export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progr
     consultoria: partner,
     plataforma: pro,
     termo: pro,
+    manutencao: pro,
   };
 
   let progresso: Progresso;

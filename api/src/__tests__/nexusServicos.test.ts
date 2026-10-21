@@ -70,12 +70,18 @@ describe('GET /nexus/eu na v3', () => {
     const r = await request(app()).get('/gerador/nexus/eu').set(bearer(U1));
     expect(r.status).toBe(200);
     expect(r.body.nivel).toBe('cadastrado');
-    expect(r.body.servicos.map((s: any) => s.id)).toEqual(['eng-3', 'eng-5', 'eng-10', 'consultoria', 'plataforma']);
-    expect(r.body.servicos.every((s: any) => s.preco === 'Negociado com o comercial')).toBe(true);
+    expect(r.body.servicos.map((s: any) => s.id)).toEqual(['plataforma', 'eng-1', 'eng-3', 'eng-5', 'suporte_incluido', 'manutencao', 'apoio_venda']);
+    expect(r.body.servicos.find((s: any) => s.id === 'eng-3')).toEqual({
+      id: 'eng-3', grupo: 'engenharia', nome: 'Engenharia NEXUS · pacote de 3 projetos', preco_texto: 'R$ 7.500', preco_valor: 7500,
+      unidade: '3 projetos, R$ 2.500 cada', libera: false, bloqueio: 'Os pacotes com desconto liberam no nível Partner.', acao: 'pedido',
+      pedido_tipo: 'engenharia', pacote: 3, preco_por_projeto: 2500, economia: 1500,
+    });
+    // cadastrado com perfil completo: o projeto avulso já libera
+    expect(r.body.servicos.find((s: any) => s.id === 'eng-1')).toMatchObject({ libera: true, bloqueio: null });
     expect(r.body.saldo_engenharia).toEqual({ comprados: 0, usados: 0, disponiveis: 0 });
     expect(r.body.termo).toEqual({ versao: 'v1', disponivel: false, aceito_em: null });
     expect(r.body.montagem_aprovada).toBe(false);
-    expect(r.body.libera).toMatchObject({ pacotes_engenharia: false, consultoria: false, plataforma: false, termo: false, oportunidades: false });
+    expect(r.body.libera).toMatchObject({ pacotes_engenharia: false, consultoria: false, plataforma: false, termo: false, oportunidades: false, manutencao: false });
     expect(r.body.bloqueios.plataforma).toBe('Libera com a primeira compra de carregador');
     expect(r.body.bloqueios.consultoria).toMatch(/^Libera quando a equipe NEXUS marca/);
     expect(r.body.bloqueios.simulador).toBeUndefined();
@@ -122,16 +128,16 @@ describe('POST /nexus/pedidos por tipo', () => {
     expect((await request(app()).post('/gerador/nexus/pedidos').set(bearer(U1)).send(corpo)).status).toBe(201);
   });
 
-  it.each([3, 5, 10])('engenharia com pacote de %i projetos: grava tipo e pacote, modelo e quantidade ficam nulos', async (pacote) => {
+  it.each([1, 3, 5])('engenharia com pacote de %i projetos: grava tipo e pacote, modelo e quantidade ficam nulos', async (pacote) => {
     semearParceiro(U1, PARTNER);
     const r = await request(app()).post('/gerador/nexus/pedidos').set(bearer(U1)).send({ tipo: 'engenharia', pacote });
     expect(r.status).toBe(201);
     expect(banco.linhas('nexus_pedidos')[0]).toMatchObject({ tipo: 'engenharia', pacote, modelo: null, quantidade: null, status: 'solicitado' });
   });
 
-  it('engenharia: pacote fora de 3, 5 e 10 é recusado', async () => {
+  it('engenharia: pacote fora de 1, 3 e 5 é recusado (o 10 saiu da venda)', async () => {
     semearParceiro(U1, PARTNER);
-    for (const pacote of [0, 1, 4, 7, 'abc', undefined]) {
+    for (const pacote of [0, 2, 4, 7, 10, 'abc', undefined]) {
       const r = await request(app()).post('/gerador/nexus/pedidos').set(bearer(U1)).send({ tipo: 'engenharia', pacote });
       expect(r.status).toBe(400);
       expect(r.body.erro).toBe('pacote_invalido');
@@ -152,13 +158,21 @@ describe('POST /nexus/pedidos por tipo', () => {
     expect(r.body.erro).toBe('tipo_invalido');
   });
 
-  it('engenharia e consultoria só do Partner em diante: o cadastrado com perfil completo leva 403', async () => {
+  it('pacotes de 3 e 5 e o Apoio de venda (consultoria) só do Partner em diante: o cadastrado com perfil completo leva 403, mas o projeto avulso passa', async () => {
     semearParceiro(U1);
-    for (const corpo of [{ tipo: 'engenharia', pacote: 3 }, { tipo: 'consultoria' }]) {
+    expect((await request(app()).post('/gerador/nexus/pedidos').set(bearer(U1)).send({ tipo: 'engenharia', pacote: 1 })).status).toBe(201);
+    for (const corpo of [{ tipo: 'engenharia', pacote: 3 }, { tipo: 'engenharia', pacote: 5 }, { tipo: 'consultoria' }]) {
       const r = await request(app()).post('/gerador/nexus/pedidos').set(bearer(U1)).send(corpo);
       expect(r.status).toBe(403);
       expect(r.body.erro).toBe('etapa_bloqueada');
     }
+    expect(banco.linhas('nexus_pedidos')).toHaveLength(1); // só o projeto avulso
+  });
+
+  it('o projeto avulso exige o perfil completo: sem cidade, UF e raio, 403', async () => {
+    semearParceiro(U1, { cidade: null, uf: null, raio_km: null });
+    const r = await request(app()).post('/gerador/nexus/pedidos').set(bearer(U1)).send({ tipo: 'engenharia', pacote: 1 });
+    expect(r.status).toBe(403);
     expect(banco.linhas('nexus_pedidos')).toHaveLength(0);
   });
 
@@ -171,7 +185,7 @@ describe('POST /nexus/pedidos por tipo', () => {
     expect(enviados.map((e) => e.texto)).toEqual([
       expect.stringMatching(/pediu equipamento: 2x NEXUS DC 80 kW/),
       expect.stringMatching(/fez pedido de pacote de engenharia \(5 projetos\)/),
-      expect.stringMatching(/fez pedido de consultoria de vendas NEXUS.*Recado: Posto novo/),
+      expect.stringMatching(/fez pedido de apoio de venda NEXUS.*Recado: Posto novo/),
     ]);
     expect(emails).toHaveLength(3);
     expect(enviados.every((e) => e.linha === 'io')).toBe(true);
@@ -199,7 +213,7 @@ describe('trava, e-mail e limite dos pedidos de serviço (aval do chefe-antiban)
     expect(enviados).toHaveLength(1);
     expect(travas()).toHaveLength(1);
     expect(travas()[0]).toMatch(new RegExp(`^nexus_aviso:pedido_consultoria:00000000-0000-4000-9000-000000000001:${dia}$`));
-    expect(emails).toEqual(['Portal NEXUS: pedido de consultoria', 'Portal NEXUS: pedido de consultoria']);
+    expect(emails).toEqual(['Portal NEXUS: pedido de apoio de venda', 'Portal NEXUS: pedido de apoio de venda']);
     expect(banco.linhas('nexus_pedidos')).toHaveLength(2);
   });
 
@@ -217,7 +231,7 @@ describe('trava, e-mail e limite dos pedidos de serviço (aval do chefe-antiban)
     expect(emails).toEqual([
       'Portal NEXUS: pedido de pacote de engenharia (3 projetos)',
       'Portal NEXUS: pedido de pacote de engenharia (5 projetos)',
-      'Portal NEXUS: pedido de consultoria',
+      'Portal NEXUS: pedido de apoio de venda',
     ]);
   });
 
@@ -235,7 +249,7 @@ describe('trava, e-mail e limite dos pedidos de serviço (aval do chefe-antiban)
     semearParceiro(U1, PARTNER);
     await pedir(app(), { tipo: 'consultoria' });
     expect(enviados).toHaveLength(0);
-    expect(emails).toEqual(['Portal NEXUS: pedido de consultoria']);
+    expect(emails).toEqual(['Portal NEXUS: pedido de apoio de venda']);
   });
 
   it('engenharia que usa o pacote: e-mail SEMPRE; o WhatsApp segue a trava por parceiro, tipo e dia', async () => {
@@ -274,7 +288,90 @@ describe('trava, e-mail e limite dos pedidos de serviço (aval do chefe-antiban)
     expect(assuntoDoAviso('pedido', { parceiro: p, pedido: { id: '1', tipo: 'equipamento' } })).toBe('Portal NEXUS: pedido de equipamento');
     expect(assuntoDoAviso('pedido', { parceiro: p, pedido: { id: '1' } })).toBe('Portal NEXUS: pedido de equipamento');
     expect(assuntoDoAviso('pedido', { parceiro: p, pedido: { id: '1', tipo: 'engenharia', pacote: 10 } })).toBe('Portal NEXUS: pedido de pacote de engenharia (10 projetos)');
-    expect(assuntoDoAviso('pedido', { parceiro: p, pedido: { id: '1', tipo: 'consultoria' } })).toBe('Portal NEXUS: pedido de consultoria');
+    expect(assuntoDoAviso('pedido', { parceiro: p, pedido: { id: '1', tipo: 'consultoria' } })).toBe('Portal NEXUS: pedido de apoio de venda');
+    expect(assuntoDoAviso('pedido', { parceiro: p, pedido: { id: '1', tipo: 'manutencao', quantidade: 4 } })).toBe('Portal NEXUS: pedido de plano de manutenção (4 carregadores)');
+  });
+});
+
+describe('pedido de plano de manutenção e a seção v5 da migration', () => {
+  const pedir = (corpo: object, uid = U1) => request(app()).post('/gerador/nexus/pedidos').set(bearer(uid)).send(corpo);
+  const travas = () => banco.linhas('system_state').map((x) => String(x.key));
+
+  it('só o Pro (primeira compra) pede: Partner leva 403 etapa_bloqueada e nada é gravado', async () => {
+    semearParceiro(U1, PARTNER);
+    const r = await pedir({ tipo: 'manutencao', quantidade: 2 });
+    expect(r.status).toBe(403);
+    expect(r.body.erro).toBe('etapa_bloqueada');
+    expect(banco.linhas('nexus_pedidos')).toHaveLength(0);
+  });
+
+  it('grava tipo manutencao com a quantidade de carregadores e a observação; modelo e pacote ficam nulos', async () => {
+    semearParceiro(U1, PRO_COM_TERMO);
+    const r = await pedir({ tipo: 'manutencao', quantidade: 3, obs: 'Dois no posto A e um no B' });
+    expect(r.status).toBe(201);
+    expect(r.body.tipo).toBe('manutencao');
+    expect(banco.linhas('nexus_pedidos')[0]).toMatchObject({ tipo: 'manutencao', quantidade: 3, modelo: null, pacote: null, status: 'solicitado', obs: 'Dois no posto A e um no B' });
+  });
+
+  it('quantidade de 1 a 50: fora disso, 400 quantidade_invalida', async () => {
+    semearParceiro(U1, PRO_COM_TERMO);
+    for (const quantidade of [0, 51, -1, 1.5, 'abc', undefined]) {
+      const r = await pedir({ tipo: 'manutencao', quantidade });
+      expect(r.status).toBe(400);
+      expect(r.body.erro).toBe('quantidade_invalida');
+    }
+    expect((await pedir({ tipo: 'manutencao', quantidade: 50 })).status).toBe(201);
+    expect(banco.linhas('nexus_pedidos')).toHaveLength(1);
+  });
+
+  it('2 pedidos no mesmo dia: 1 WhatsApp, 1 trava pedido_manutencao e 2 e-mails com o número de carregadores', async () => {
+    ligarAviso();
+    semearParceiro(U1, PRO_COM_TERMO);
+    await pedir({ tipo: 'manutencao', quantidade: 2 });
+    await pedir({ tipo: 'manutencao', quantidade: 1 });
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]!.texto).toMatch(/fez pedido de plano de manutenção NEXUS \(2 carregadores\)/);
+    expect(travas()).toHaveLength(1);
+    expect(travas()[0]).toMatch(/^nexus_aviso:pedido_manutencao:00000000-0000-4000-9000-000000000001:\d{4}-\d{2}-\d{2}$/);
+    expect(emails).toEqual(['Portal NEXUS: pedido de plano de manutenção (2 carregadores)', 'Portal NEXUS: pedido de plano de manutenção (1 carregador)']);
+  });
+
+  it('com o aviso desligado o e-mail do pedido de manutenção sai do mesmo jeito', async () => {
+    semearParceiro(U1, PRO_COM_TERMO);
+    await pedir({ tipo: 'manutencao', quantidade: 4 });
+    expect(enviados).toHaveLength(0);
+    expect(emails).toEqual(['Portal NEXUS: pedido de plano de manutenção (4 carregadores)']);
+  });
+
+  it('confirmar manutenção não soma carregador comprado (só equipamento soma)', async () => {
+    semearParceiro(U1, PARTNER);
+    banco.poe('nexus_pedidos', { id: PED1, user_id: U1, tipo: 'manutencao', quantidade: 9, status: 'solicitado' });
+    const r = await request(app()).patch(`/gerador/nexus/equipe/pedidos/${PED1}`).set(equipeAuth).send({ status: 'confirmado' });
+    expect(r.status).toBe(200);
+    expect(r.body.carregadores_comprados).toBe(0);
+  });
+
+  it('CHECK do banco ainda antigo (23514): 503 servico_em_ativacao, nada gravado e nenhum aviso', async () => {
+    ligarAviso();
+    semearParceiro(U1, PRO_COM_TERMO);
+    banco.falhas['nexus_pedidos.insert'] = { erro: { code: '23514', message: 'new row for relation "nexus_pedidos" violates check constraint "nexus_pedidos_tipo_check"' }, uma: true };
+    const r = await pedir({ tipo: 'manutencao', quantidade: 2 });
+    expect(r.status).toBe(503);
+    expect(r.body).toEqual({ erro: 'servico_em_ativacao' });
+    expect(banco.linhas('nexus_pedidos')).toHaveLength(0);
+    expect(enviados).toHaveLength(0);
+    expect(emails).toHaveLength(0);
+    expect(travas()).toHaveLength(0);
+    // depois da migration o mesmo pedido passa
+    expect((await pedir({ tipo: 'manutencao', quantidade: 2 })).status).toBe(201);
+  });
+
+  it('o 23514 também vale para o pacote de 1 projeto e um erro comum continua 500', async () => {
+    semearParceiro(U1, PARTNER);
+    banco.falhas['nexus_pedidos.insert'] = { erro: { code: '23514', message: 'check' }, uma: true };
+    expect((await pedir({ tipo: 'engenharia', pacote: 1 })).body.erro).toBe('servico_em_ativacao');
+    banco.falhas['nexus_pedidos.insert'] = { erro: { code: '23502', message: 'not null' }, uma: true };
+    expect((await pedir({ tipo: 'engenharia', pacote: 1 })).status).toBe(500);
   });
 });
 

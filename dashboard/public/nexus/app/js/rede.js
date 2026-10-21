@@ -947,7 +947,7 @@
     });
     function pintarSaldo() {
       if (comprados > 0) saldoTxt.textContent = 'Seu saldo de pacotes: ' + disp + (disp === 1 ? ' projeto disponível' : ' projetos disponíveis') + ' de ' + comprados + ' comprados.';
-      else saldoTxt.textContent = 'Precisa de vários projetos? Os pacotes de 3, 5 e 10 ficam em Serviços NEXUS, com preço de parceiro negociado com o comercial.';
+      else saldoTxt.textContent = 'Precisa de vários projetos? Os pacotes de 3 e 5 projetos ficam em Serviços NEXUS, com desconto sobre o projeto avulso.';
       usaTxt.textContent = 'Usar 1 projeto do meu pacote (saldo: ' + disp + ')';
       usaRot.hidden = disp <= 0;
       if (disp <= 0) usaPac.checked = false;

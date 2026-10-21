@@ -24,7 +24,7 @@ vi.mock('../utils/mailer', () => ({
   sendOpsAlert: vi.fn(async (assunto: string, html: string) => { emails.push({ assunto, html }); }),
 }));
 
-import { avisarComercial, chaveDoAviso, textoDoAviso, DadosAviso, TETO_WHATSAPP_POR_HORA } from '../services/nexus/avisoComercial';
+import { assuntoDoAviso, avisarComercial, chaveDoAviso, textoDoAviso, DadosAviso, TETO_WHATSAPP_POR_HORA } from '../services/nexus/avisoComercial';
 
 const PHONE = '5511900000000'; // número inventado só do teste
 const parceiro = {
@@ -182,8 +182,28 @@ describe('aviso ao comercial: envio e trava', () => {
       'Portal NEXUS: pedido de pacote de engenharia (3 projetos)',
     ]);
     expect(await avisarComercial('pedido', con)).toBe('enviado');
-    expect(textoDoAviso('pedido', con)).toMatch(/^Solar Exemplo fez pedido de consultoria de vendas NEXUS\./);
-    expect(emails[emails.length - 1].assunto).toBe('Portal NEXUS: pedido de consultoria');
+    expect(textoDoAviso('pedido', con)).toMatch(/^Solar Exemplo fez pedido de apoio de venda NEXUS\./);
+    expect(emails[emails.length - 1].assunto).toBe('Portal NEXUS: pedido de apoio de venda');
+  });
+
+  it('(c) pedido de engenharia de 1 projeto escreve no singular', () => {
+    const um = { parceiro, pedido: { id: 'pd-12', tipo: 'engenharia' as const, pacote: 1 } };
+    expect(textoDoAviso('pedido', um)).toMatch(/^Solar Exemplo fez pedido de engenharia \(1 projeto\)\./);
+    expect(assuntoDoAviso('pedido', um)).toBe('Portal NEXUS: pedido de engenharia (1 projeto)');
+  });
+
+  it('(c) pedido de manutenção: mesma trava por parceiro, tipo e dia; assunto com o número de carregadores; e-mail mesmo com 23505', async () => {
+    ligar();
+    const m = (id: string, quantidade: number) => ({ parceiro, pedido: { id, tipo: 'manutencao' as const, quantidade } });
+    expect(chaveDoAviso('pedido', m('pd-20', 3), new Date('2026-10-22T03:00:00Z'))).toBe(`nexus_aviso:pedido_manutencao:${parceiro.id}:2026-10-22`);
+    expect(await avisarComercial('pedido', m('pd-20', 3))).toBe('enviado');
+    expect(enviados[0].texto).toMatch(/^Solar Exemplo fez pedido de plano de manutenção NEXUS \(3 carregadores\)\./);
+    expect(await avisarComercial('pedido', m('pd-21', 1))).toBe('duplicado');
+    expect(enviados).toHaveLength(1);
+    expect(emails.map((e) => e.assunto)).toEqual([
+      'Portal NEXUS: pedido de plano de manutenção (3 carregadores)',
+      'Portal NEXUS: pedido de plano de manutenção (1 carregador)',
+    ]);
   });
 
   it('(c) pedido sem proposta ligada não escreve proposta nem valor', () => {

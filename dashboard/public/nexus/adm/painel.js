@@ -184,7 +184,7 @@ var STATUS_COR = { novo: 'az', em_contato: 'av', parceiro_ativo: 'ok', descartad
 var NIVEIS = { cadastrado: 'Cadastrado', partner: 'Partner', pro: 'Pro', master: 'Master' };
 var PEDIDO_ST = { solicitado: 'Solicitado', negociando: 'Negociando', confirmado: 'Confirmado', cancelado: 'Cancelado' };
 var PEDIDO_COR = { solicitado: 'az', negociando: 'av', confirmado: 'ok', cancelado: '' };
-var PEDIDO_TIPO = { equipamento: 'Equipamento', engenharia: 'Engenharia', consultoria: 'Consultoria' };
+var PEDIDO_TIPO = { equipamento: 'Equipamento', engenharia: 'Engenharia', consultoria: 'Apoio de venda', manutencao: 'Plano de manutenção' };
 var OPORT_ST = { rascunho: 'Rascunho', oferecida: 'Oferecida', aceita: 'Aceita', recusada: 'Recusada', expirada: 'Expirada', contato: 'Em contato', visita: 'Visita', orcamento: 'Orçamento', fechou: 'Fechou', perdeu: 'Perdeu' };
 var OPORT_COR = { rascunho: '', oferecida: 'az', aceita: 'ok', recusada: 'er', expirada: '', contato: 'av', visita: 'av', orcamento: 'av', fechou: 'ok', perdeu: 'er' };
 var OPORT_TIPO = { cliente: 'Cliente final', obra: 'Obra terceirizada' };
@@ -572,15 +572,18 @@ function carregarPedidos(f) { return buscarLista('pedidos', '/pedidos', 'pedidos
 // Pedido antigo, sem a coluna tipo, é de equipamento.
 function tipoDe(p) { return PEDIDO_TIPO[p.tipo] ? p.tipo : 'equipamento'; }
 function projetosTxt(n) { n = Number(n); return n === 1 ? '1 projeto' : fmtNum(n) + ' projetos'; }
+function carregadoresTxt(n) { n = Number(n); return n === 1 ? '1 carregador' : fmtNum(n) + ' carregadores'; }
 function tipoPedidoTxt(p) {
   var t = tipoDe(p);
   if (t === 'engenharia') return Number(p.pacote) > 0 ? 'Engenharia · ' + projetosTxt(p.pacote) : 'Engenharia';
+  if (t === 'manutencao') return Number(p.quantidade) > 0 ? 'Plano de manutenção · ' + carregadoresTxt(p.quantidade) : 'Plano de manutenção';
   return PEDIDO_TIPO[t];
 }
 function itemPedidoTxt(p) {
   var t = tipoDe(p);
-  if (t === 'engenharia') return Number(p.pacote) > 0 ? 'Pacote de ' + projetosTxt(p.pacote) : 'Pacote de engenharia';
-  if (t === 'consultoria') return 'Consultoria de vendas';
+  if (t === 'engenharia') return Number(p.pacote) === 1 ? 'Projeto avulso (1 projeto)' : Number(p.pacote) > 0 ? 'Pacote de ' + projetosTxt(p.pacote) : 'Pacote de engenharia';
+  if (t === 'manutencao') return 'Plano de manutenção NEXUS' + (Number(p.quantidade) > 0 ? ' · ' + carregadoresTxt(p.quantidade) : '');
+  if (t === 'consultoria') return 'Apoio de venda';
   return fmtNum(p.quantidade) + 'x ' + modeloTxt(p.modelo);
 }
 function pedidosFiltrados() {
@@ -1080,6 +1083,7 @@ var ERROS = {
   parceiro_sem_nivel: 'Esse parceiro ainda não é Pro: só quem já fez a primeira compra de carregador recebe oportunidades.',
   sem_termo_aceito: 'Este parceiro ainda não aceitou o Termo de Parceria.',
   sem_saldo: 'O parceiro não tem projeto disponível no pacote.',
+  servico_em_ativacao: 'Este serviço está sendo ativado. Tente de novo em instantes ou fale com o comercial.',
   sem_montagem_aprovada: 'Este parceiro não tem a montagem aprovada, e obra terceirizada só vai para quem tem. Aprove a montagem na ficha do parceiro ou escolha outro.',
   descricao_obrigatoria: 'Escreva a descrição da oportunidade.',
   contato_invalido: 'O contato do cliente final está inválido. Confira o nome e o telefone.',
@@ -1399,7 +1403,7 @@ var ESTRUTURA = [
   "          <option value=\"confirmado\">Confirmado</option><option value=\"cancelado\">Cancelado</option></select></div>",
   "        <div><label for=\"pd-tipo\">Tipo</label><select id=\"pd-tipo\" onchange=\"desenharPedidos()\">",
   "          <option value=\"\">Todos</option><option value=\"equipamento\">Equipamento</option><option value=\"engenharia\">Engenharia</option>",
-  "          <option value=\"consultoria\">Consultoria</option></select></div>",
+  "          <option value=\"consultoria\">Apoio de venda</option><option value=\"manutencao\">Plano de manutenção</option></select></div>",
   "        <div><label for=\"pd-busca\">Buscar</label><input id=\"pd-busca\" type=\"search\" placeholder=\"Empresa, tipo ou modelo\" oninput=\"desenharPedidos()\"></div>",
   "      </div>",
   "      <div class=\"barra-topo\"><p class=\"contagem\" id=\"pd-contagem\"></p><button type=\"button\" class=\"btn ghost sm\" id=\"csv-pedidos\" data-csv=\"pedidos\" disabled>Exportar CSV</button></div>",
