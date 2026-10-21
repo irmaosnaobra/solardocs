@@ -7,6 +7,11 @@ import {
   ErroArmazem, listarConversas, lerTurnos, lerTurnosNosDias, type MsgGravada, type TurnoGravado,
 } from '../services/agentes5040/armazem';
 import { runReplay } from '../services/agentes5040/replay';
+import { supabase } from '../utils/supabase';
+import { CHAVE_INTERRUPTORES, zerarCacheInterruptores, type NomeInterruptor } from '../services/agentes5040/interruptores';
+import {
+  ACOES, CHAVE_COMANDO, CHAVE_RESULTADO, IDADE_MAX_MS, ehAcao, lerComando, validarParams, type Params,
+} from '../services/agentes5040/comandos';
 import {
   ErroNotas, META_AVALIACOES, PRODUTO_DA_PERSONA, TAMANHO_MAX_COMENTARIO, apagarNota, autorSeguro, emParalelo, gravarNota,
   indiceDeNotas, lerIdDeNota, lerNotasDoTurno, lerTurnoExato, montarPlacar, resumoDeNotas, turnosComNota,
@@ -24,6 +29,9 @@ import {
 //   DELETE /gerador/ensaio/nota?turno=<wa_id>&nota=<autor>-<ts>    só o autor
 //   GET    /gerador/ensaio/placar                                  por agente; devolve `socio`
 //   POST   /gerador/ensaio/replay  {dias?, conversas?}             SÓ SÓCIO
+//   GET/PUT /gerador/ensaio/interruptores                          SÓ SÓCIO: liga e desliga as 4 peças da Fase A
+//   GET/POST /gerador/ensaio/comando                               SÓ SÓCIO: pede uma sonda (só GRAVA o pedido;
+//                                                                  quem executa é o cron do ensaio, em até 5 min)
 //
 // Este arquivo NÃO importa nada de envio (o teste agentes5040Isolamento anda pelo grafo a partir daqui).
 // O `exigeConsultor` é o de geradorDossie; `semCache` e `exigeEquipe` são cópias do geradorCaixa de propósito:
@@ -63,11 +71,13 @@ function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-function soSocio(req: Request, res: Response, next: NextFunction): void {
+const soSocioCom = (frase: string) => (req: Request, res: Response, next: NextFunction): void => {
   const nome = String((req as any).consultor?.nome || '');
-  if (!ehSocio(nome)) { res.status(403).json({ ok: false, error: 'Só sócio roda o replay.', precisa: 'socio' }); return; }
+  if (!ehSocio(nome)) { res.status(403).json({ ok: false, error: frase, precisa: 'socio' }); return; }
   next();
-}
+};
+const soSocio = soSocioCom('Só sócio roda o replay.');
+const soSocioControles = soSocioCom('Só sócio usa os controles.');
 
 function falhou(res: Response, err: unknown): void {
   // Só o código. A mensagem do driver pode trazer caminho, telefone ou texto.
@@ -248,5 +258,114 @@ export function mountEnsaio5040(router: Router): void {
         chamadas_ia: r.chamadasIA, parou: r.parou, janela_truncada: r.janelaTruncada, puladas: r.puladas,
       });
     } catch (err) { falhou(res, err); } finally { replayRodando = false; }
+  });
+  // ── Controles do sócio ──────────────────────────────────────────────────────
+
+  const bancoPrincipal = (): { from: (t: string) => any } => supabase as unknown as { from: (t: string) => any };
+
+  async function lerChave(chave: string): Promise<{ value: unknown; updated_at: string | null }> {
+    const { data, error } = await bancoPrincipal().from('system_state').select('value, updated_at').eq('key', chave).maybeSingle();
+    if (error) throw new ErroNotas('estado_leitura');
+    return { value: data?.value ?? null, updated_at: data?.updated_at ?? null };
+  }
+
+  const NOMES: readonly NomeInterruptor[] = ['ensaio', 'replay', 'ficha', 'sentinela'];
+
+  function mapaDoBanco(v: unknown): Partial<Record<NomeInterruptor, boolean>> {
+    let x = v;
+    if (typeof x === 'string') { try { x = JSON.parse(x); } catch { return {}; } }
+    if (!x || typeof x !== 'object' || Array.isArray(x)) return {};
+    const out: Partial<Record<NomeInterruptor, boolean>> = {};
+    for (const n of NOMES) if (typeof (x as Record<string, unknown>)[n] === 'boolean') out[n] = (x as Record<string, boolean>)[n];
+    return out;
+  }
+
+  /** O JSON gravado como objeto simples (cópia), com todas as chaves. Ilegível ou ausente = vazio. */
+  function objetoBruto(v: unknown): Record<string, unknown> {
+    let x = v;
+    if (typeof x === 'string') { try { x = JSON.parse(x); } catch { return {}; } }
+    return x && typeof x === 'object' && !Array.isArray(x) ? { ...(x as Record<string, unknown>) } : {};
+  }
+
+  /** '1', '0' ou null. Nunca devolve outro valor da env. */
+  const forcaDaEnv = (n: NomeInterruptor): '1' | '0' | null => {
+    const v = (process.env[`AGENTES5040_${n.toUpperCase()}`] ?? '').trim();
+    return v === '1' || v === '0' ? v : null;
+  };
+
+  async function estadoInterruptores() {
+    const banco = mapaDoBanco((await lerChave(CHAVE_INTERRUPTORES)).value);
+    const out: Record<string, { banco: boolean | null; env: '1' | '0' | null; ligado: boolean }> = {};
+    for (const n of NOMES) {
+      const env = forcaDaEnv(n);
+      out[n] = { banco: banco[n] ?? null, env, ligado: env === '1' ? true : env === '0' ? false : banco[n] === true };
+    }
+    return out;
+  }
+
+  router.get('/ensaio/interruptores', ...base, soSocioControles, async (_req: Request, res: Response) => {
+    try { res.json({ ok: true, interruptores: await estadoInterruptores() }); } catch (err) { falhou(res, err); }
+  });
+
+  // Só os 4 nomes, só booleano. O que não vem no corpo fica como está.
+  router.put('/ensaio/interruptores', ...base, soSocioControles, async (req: Request, res: Response) => {
+    const b = (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
+    const chaves = Object.keys(b);
+    if (!chaves.length) { res.status(400).json({ ok: false, error: 'Diga qual interruptor mudar.' }); return; }
+    for (const k of chaves) {
+      if (!(NOMES as readonly string[]).includes(k)) { res.status(400).json({ ok: false, error: 'Interruptor desconhecido.' }); return; }
+      if (typeof b[k] !== 'boolean') { res.status(400).json({ ok: false, error: 'Cada interruptor é ligado (true) ou desligado (false).' }); return; }
+    }
+    try {
+      // Lê o objeto inteiro e muda só os campos enviados: qualquer outra chave que já esteja no JSON fica como está.
+      // Ler e gravar não é atômico: dois PUTs simultâneos podem se sobrescrever (aceito; só sócio mexe, um por vez).
+      const novo = objetoBruto((await lerChave(CHAVE_INTERRUPTORES)).value);
+      for (const k of chaves) novo[k] = b[k] as boolean;
+      const { error } = await bancoPrincipal().from('system_state')
+        .upsert({ key: CHAVE_INTERRUPTORES, value: novo, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw new ErroNotas('estado_gravacao');
+      zerarCacheInterruptores();
+      res.json({ ok: true, interruptores: await estadoInterruptores() });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // O pedido de sonda. Mesma lista fechada e mesmos limites de parâmetro do comandos.ts (a validação é a de lá).
+  // Aqui só GRAVA ag5040_comando; o cron do ensaio executa em até 5 min e grava ag5040_comando_resultado.
+  router.post('/ensaio/comando', ...base, soSocioControles, async (req: Request, res: Response) => {
+    const b = (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
+    if (!ehAcao(b.acao)) { res.status(400).json({ ok: false, error: 'Ação fora da lista.', permitidas: [...ACOES] }); return; }
+    const params = (b.params && typeof b.params === 'object' && !Array.isArray(b.params) ? b.params : {}) as Params;
+    if (b.acao === 'ficha_teste' && b.confirmar !== true) {
+      res.status(400).json({ ok: false, error: 'A ficha de teste envia uma mensagem de verdade. Confirme.', precisa: 'confirmar' }); return;
+    }
+    const agora = new Date();
+    const v = validarParams(b.acao, params, agora);
+    if (!v.ok) { res.status(400).json({ ok: false, error: `Parâmetro inválido: ${v.motivo}.` }); return; }
+    try {
+      const atual = lerComando((await lerChave(CHAVE_COMANDO)).value);
+      if (atual && agora.getTime() - Date.parse(atual.pedido_em) <= IDADE_MAX_MS) {
+        res.status(409).json({ ok: false, error: 'Já tem um pedido aguardando o próximo ciclo. Espere ele rodar.', pedido_em: atual.pedido_em }); return;
+      }
+      const pedidoEm = agora.toISOString();
+      const { error } = await bancoPrincipal().from('system_state')
+        .upsert({ key: CHAVE_COMANDO, value: { acao: b.acao, params: JSON.parse(JSON.stringify(v.params)), pedido_em: pedidoEm }, updated_at: pedidoEm }, { onConflict: 'key' });
+      if (error) throw new ErroNotas('estado_gravacao');
+      res.status(202).json({ ok: true, acao: b.acao, pedido_em: pedidoEm });
+    } catch (err) { falhou(res, err); }
+  });
+
+  router.get('/ensaio/comando', ...base, soSocioControles, async (_req: Request, res: Response) => {
+    try {
+      const [c, r] = await Promise.all([lerChave(CHAVE_COMANDO), lerChave(CHAVE_RESULTADO)]);
+      const cmd = lerComando(c.value);
+      const pendente = !!cmd && Date.now() - Date.parse(cmd.pedido_em) <= IDADE_MAX_MS;
+      let resultado = r.value;
+      if (typeof resultado === 'string') { try { resultado = JSON.parse(resultado); } catch { resultado = null; } }
+      res.json({
+        ok: true, pendente,
+        comando: cmd ? { acao: cmd.acao, params: cmd.params, pedido_em: cmd.pedido_em } : null,
+        resultado: resultado && typeof resultado === 'object' ? resultado : null,
+      });
+    } catch (err) { falhou(res, err); }
   });
 }

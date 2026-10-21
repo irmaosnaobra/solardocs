@@ -354,3 +354,137 @@ describe('leitura em paralelo', () => {
     expect(listados).not.toContain('notas/11');
   });
 });
+
+describe('controles do sócio: interruptores e comandos', () => {
+  const estado = (k: string): any => banco.tabelas.system_state?.find((l: any) => l.key === k)?.value;
+  const semear2 = (key: string, value: unknown): void => { (banco.tabelas.system_state ??= []).push({ key, value, updated_at: '2026-10-20T10:00:00Z' }); };
+  const NOVAS: Array<['get' | 'put' | 'post', string]> = [
+    ['get', '/gerador/ensaio/interruptores'], ['put', '/gerador/ensaio/interruptores'],
+    ['get', '/gerador/ensaio/comando'], ['post', '/gerador/ensaio/comando'],
+  ];
+  beforeEach(() => {
+    for (const n of ['ENSAIO', 'REPLAY', 'FICHA', 'SENTINELA']) delete process.env[`AGENTES5040_${n}`];
+  });
+  const pedir = (m: 'get' | 'put' | 'post', url: string, quem: string, corpoReq: unknown = {}) =>
+    (request(app) as any)[m](url).set('Authorization', quem).send(corpoReq);
+
+  it('sem token 401; fora da equipe 403; equipe que não é sócio 403, e nada é gravado', async () => {
+    for (const [m, url] of NOVAS) {
+      expect((await pedir(m, url, 'Bearer nada')).status, `${m} ${url}`).toBe(401);
+      const fora = await pedir(m, url, FORA, { acao: 'sonda_armazem', ensaio: true });
+      expect(fora.status, `${m} ${url}`).toBe(403);
+      expect(fora.body.precisa).toBe('equipe');
+      const nilce = await pedir(m, url, NILCE, { acao: 'sonda_armazem', ensaio: true });
+      expect(nilce.status, `${m} ${url}`).toBe(403);
+      expect(nilce.body.precisa).toBe('socio');
+      expect(nilce.body.error).toBe('Só sócio usa os controles.');
+    }
+    expect(banco.escritas).toEqual([]);
+  });
+
+  it('GET interruptores: estado do banco, e a env só aparece como 1, 0 ou ausente', async () => {
+    semear2('ag5040_interruptores', { ensaio: true, ficha: false });
+    process.env.AGENTES5040_REPLAY = '1';
+    process.env.AGENTES5040_SENTINELA = 'valor-secreto-da-vercel';
+    process.env.AGENTES5040_FICHA = '0';
+    const res = await pedir('get', '/gerador/ensaio/interruptores', THIAGO);
+    expect(res.status).toBe(200);
+    expect(res.body.interruptores).toEqual({
+      ensaio: { banco: true, env: null, ligado: true },
+      replay: { banco: null, env: '1', ligado: true },
+      ficha: { banco: false, env: '0', ligado: false },
+      sentinela: { banco: null, env: null, ligado: false },
+    });
+    expect(JSON.stringify(res.body)).not.toContain('valor-secreto');
+  });
+
+  it('PUT interruptores: só os 4 nomes e só booleano; o resto do mapa fica; o cache é zerado', async () => {
+    for (const ruim of [{}, { ensaio: 'sim' }, { ensaio: 1 }, { ensaio: null }, { foo: true }, { ensaio: true, foo: false }, []]) {
+      const res = await pedir('put', '/gerador/ensaio/interruptores', THIAGO, ruim);
+      expect(res.status, JSON.stringify(ruim)).toBe(400);
+    }
+    expect(estado('ag5040_interruptores')).toBeUndefined();
+    // Uma chave que não é das 4 (de outra versão, por exemplo) já está no JSON: o PUT não pode apagá-la.
+    semear2('ag5040_interruptores', { ficha: false, extra: 'fica', aninhado: { a: 1 } });
+    expect((await pedir('put', '/gerador/ensaio/interruptores', THIAGO, { replay: true })).status).toBe(200);
+    const res = await pedir('put', '/gerador/ensaio/interruptores', THIAGO, { ensaio: true });
+    expect(res.status).toBe(200);
+    expect(estado('ag5040_interruptores')).toEqual({ ficha: false, extra: 'fica', aninhado: { a: 1 }, replay: true, ensaio: true });
+    expect(res.body.interruptores.ensaio.ligado).toBe(true);
+    const { ligado } = await import('../services/agentes5040/interruptores');
+    expect(await ligado('ensaio')).toBe(true);
+    await pedir('put', '/gerador/ensaio/interruptores', THIAGO, { ensaio: false });
+    expect(await ligado('ensaio')).toBe(false);   // sem o cache velho de 60 s
+  });
+
+  it('comando fora da lista, ou com parâmetro fora do limite: 400, e nada é gravado', async () => {
+    const ruins: Array<Record<string, unknown>> = [
+      { acao: 'apagar_tudo' }, { acao: 42 }, {}, { acao: 'enviar_mensagem', params: { telefone: '1' } },
+      { acao: 'anuncios', params: { dias: 99 } }, { acao: 'anuncios', params: { dias: 0 } },
+      { acao: 'replay_dry', params: { maxConversas: 2 } }, { acao: 'replay_dry', params: { maxTurnos: 3 } },
+      { acao: 'replay_dry', params: { desde: 'ontem' } },
+      { acao: 'replay_dry', params: { desde: '2026-10-20T00:00:00Z', ate: '2026-10-19T00:00:00Z' } },
+      { acao: 'ficha_sonda', params: {} }, { acao: 'ficha_sonda', params: { card: -3 } },
+    ];
+    for (const c of ruins) {
+      const res = await pedir('post', '/gerador/ensaio/comando', THIAGO, c);
+      expect(res.status, JSON.stringify(c)).toBe(400);
+    }
+    expect(estado('ag5040_comando')).toBeUndefined();
+  });
+
+  it('ficha_teste sem confirmar:true dá 400; com ele grava o pedido (sem o campo confirmar)', async () => {
+    for (const extra of [{}, { confirmar: false }, { confirmar: 'true' }, { confirmar: 1 }]) {
+      const res = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'ficha_teste', ...extra });
+      expect(res.status, JSON.stringify(extra)).toBe(400);
+      expect(res.body.precisa).toBe('confirmar');
+    }
+    expect(estado('ag5040_comando')).toBeUndefined();
+    const ok = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'ficha_teste', confirmar: true });
+    expect(ok.status).toBe(202);
+    expect(estado('ag5040_comando')).toEqual({ acao: 'ficha_teste', params: {}, pedido_em: ok.body.pedido_em });
+  });
+
+  it('comando válido só GRAVA o pedido (parâmetros normalizados), e um segundo pedido espera o primeiro', async () => {
+    const desde = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const res = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'replay_dry', params: { desde, extra: 'cai' } });
+    expect(res.status).toBe(202);
+    const gravado = estado('ag5040_comando');
+    expect(gravado.acao).toBe('replay_dry');
+    expect(gravado.pedido_em).toBe(res.body.pedido_em);
+    expect(gravado.params).toMatchObject({ maxConversas: 1, maxTurnos: 2, desde });
+    expect(gravado.params.extra).toBeUndefined();
+    expect(Number.isFinite(Date.parse(gravado.params.ate))).toBe(true);
+    expect(banco.escritas.map((e: any) => e.tabela)).toEqual(['system_state']);
+    const outro = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem' });
+    expect(outro.status).toBe(409);
+    expect(estado('ag5040_comando').acao).toBe('replay_dry');
+    expect(h.replay).not.toHaveBeenCalled();   // a rota não executa nada
+  });
+
+  it('GET comando: pendente, resultado e pedido velho (mais de 30 min não conta como pendente)', async () => {
+    const vazio = await pedir('get', '/gerador/ensaio/comando', THIAGO);
+    expect(vazio.body).toMatchObject({ ok: true, pendente: false, comando: null, resultado: null });
+    semear2('ag5040_comando_resultado', { acao: 'anuncios', pedido_em: 'x', ok: true, resultado: { mensagens_recebidas: 3 }, terminou_em: '2026-10-20T10:00:00Z' });
+    await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'anuncios', params: { dias: 7 } });
+    const pend = await pedir('get', '/gerador/ensaio/comando', THIAGO);
+    expect(pend.body.pendente).toBe(true);
+    expect(pend.body.comando).toMatchObject({ acao: 'anuncios', params: { dias: 7 } });
+    expect(pend.body.resultado.resultado).toEqual({ mensagens_recebidas: 3 });
+    // pedido esquecido há 2 h: não é pendente e não trava um pedido novo
+    banco.tabelas.system_state = banco.tabelas.system_state.filter((l: any) => l.key !== 'ag5040_comando');
+    semear2('ag5040_comando', { acao: 'anuncios', params: {}, pedido_em: new Date(Date.now() - 2 * 3_600_000).toISOString() });
+    expect((await pedir('get', '/gerador/ensaio/comando', THIAGO)).body.pendente).toBe(false);
+    expect((await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem' })).status).toBe(202);
+  });
+
+  it('erro de banco vira 502 genérico, sem vazar a mensagem do driver', async () => {
+    banco.falhar.system_state = { code: 'XX000', message: `falha ${TELEFONE}` };
+    for (const [m, url] of [['get', '/gerador/ensaio/interruptores'], ['get', '/gerador/ensaio/comando']] as const) {
+      const res = await pedir(m, url, THIAGO);
+      expect(res.status).toBe(502);
+      expect(res.text).not.toContain(TELEFONE);
+    }
+    expect(JSON.stringify(erroConsole.mock.calls)).not.toContain(TELEFONE);
+  });
+});

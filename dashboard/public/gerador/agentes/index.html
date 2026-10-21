@@ -309,6 +309,17 @@ html.io2{
 .en-form-pe{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .en-cont{font-size:12px;color:var(--en-tx3);font-variant-numeric:tabular-nums}
 
+.en-sw-lista{display:flex;flex-direction:column;gap:8px}
+.en-sw{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--en-bd);border-radius:10px;background:var(--en-sf2)}
+.en-sw-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.en-sw-txt b{color:var(--en-tit);font-size:14px}
+.en-sw-txt span{font-size:12.5px;color:var(--en-tx2);line-height:1.45}
+.en-tag.lig{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
+.en-tag.des{background:var(--en-sf3);border-color:var(--en-bd);color:var(--en-tx2)}
+.en-sondas{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.en-confirma{padding:10px 12px;border:1px solid var(--en-av);border-radius:10px;background:var(--en-av-sf)}
+.en-confirma .en-aviso{color:var(--en-av);margin-bottom:8px}
+.en-pre{margin:8px 0 0;padding:10px 12px;border:1px solid var(--en-bd);border-radius:10px;background:var(--en-bg);color:var(--en-tx);font-size:12.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace}
 @media(max-width:860px){
   .en-venc{grid-template-columns:1fr 1fr}
 }
@@ -323,6 +334,8 @@ html.io2{
   .en-linha-form .en-btn{flex:1 1 100%}
   .en-form-pe .en-btn{flex:1 1 100%}
   .en-entrada .en-btn{flex:1 1 100%}
+  .en-sw{flex-direction:column;align-items:stretch}
+  .en-sondas{grid-template-columns:1fr}
 }
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
@@ -977,7 +990,7 @@ setInterval(carregar, 120000);
     var c = $('en-socio');
     if (!est.socio || est.socioPintado) return;   // uma vez só: reconstruir fecharia os blocos e perderia o que está sendo digitado
     est.socioPintado = true;
-    add(c, blocoReplay(), blocoVencimentos());
+    add(c, blocoReplay(), blocoControles(), blocoVencimentos());
     c.style.flexDirection = 'column'; c.style.gap = '10px';
     mostrarSocio(!est.aberta);
   }
@@ -1085,6 +1098,193 @@ setInterval(carregar, 120000);
       pintarVenc();
       msg('en-venc-msg', 'ok', 'Calendário salvo.');
     }).catch(function (e) { msg('en-venc-msg', 'erro', textoDoErro(e)); });
+  }
+
+  // ── Controles (só sócio): interruptores e sondas ──
+  // Nada aqui executa nada: o painel GRAVA o pedido e o cron do ensaio roda a sonda em até 5 min.
+  var INTERRUPTORES = [
+    ['ensaio', 'Ensaio ao vivo', 'Lê as mensagens novas de lead e grava o que a agente responderia. Nada é enviado ao cliente.'],
+    ['replay', 'Replay', 'Libera o botão Rodar replay e o replay agendado.'],
+    ['ficha', 'Ficha ao consultor', 'Manda o resumo do cliente agendado ao WhatsApp do consultor dono do card.'],
+    ['sentinela', 'Sentinela de vencimentos', 'Às 7h confere as ferramentas pagas e avisa o dono quando algo vence.']
+  ];
+  var SONDAS = [
+    ['sonda_armazem', 'Testar armazenamento'],
+    ['ensaio_dry', 'Ensaio seco'],
+    ['replay_dry', 'Replay seco (2 turnos, últimos 7 dias)'],
+    ['anuncios', 'Anúncios'],
+    ['ficha_dry', 'Ficha seca'],
+    ['sentinela_seco', 'Sentinela seca'],
+    ['sentinela_sonda', 'Sonda da sentinela'],
+    ['pix_sonda', 'Sonda do Pix']
+  ];
+  var ROTULO_ACAO = { ficha_teste: 'Ficha de teste' };
+  SONDAS.forEach(function (s) { ROTULO_ACAO[s[0]] = s[1]; });
+  var ctl = { pedido: null, timer: null, botoes: [], rodandoDesde: null };
+  var PRAZO_RODANDO_MS = 6 * 60000;     // o cron apaga o pedido ANTES de rodar a sonda, que leva até 270 s
+  var PRAZO_ESPERA_MS = 35 * 60000;     // o pedido some da fila em 30 min
+
+  function formatar(v, nivel) {
+    var pad = new Array(nivel + 1).join('  ');
+    if (v === null || v === undefined) return pad + '-';
+    if (typeof v === 'boolean') return pad + (v ? 'sim' : 'não');
+    if (typeof v !== 'object') return pad + String(v);
+    if (Array.isArray(v)) {
+      if (!v.length) return pad + '(vazio)';
+      return v.map(function (x) {
+        return x !== null && typeof x === 'object' ? pad + '-\n' + formatar(x, nivel + 1) : pad + '- ' + formatar(x, 0);
+      }).join('\n');
+    }
+    var chaves = Object.keys(v);
+    if (!chaves.length) return pad + '(vazio)';
+    return chaves.map(function (k) {
+      var x = v[k];
+      return x !== null && typeof x === 'object' && (Array.isArray(x) ? x.length : Object.keys(x).length)
+        ? pad + k + ':\n' + formatar(x, nivel + 1)
+        : pad + k + ': ' + formatar(x, 0);
+    }).join('\n');
+  }
+
+  function pintarResultado(r) {
+    var cx = $('en-cmd-res');
+    if (!cx) return;
+    cx.textContent = '';
+    if (!r) { cx.appendChild(el('div', 'en-vazio', 'Ainda não há resultado de nenhuma sonda.')); return; }
+    var nome = ROTULO_ACAO[r.acao] || r.acao || 'Sonda';
+    var cab = el('div', 'en-msg ' + (r.ok ? 'ok' : 'erro'), nome + ': ' + (r.ok ? 'deu certo' : 'não deu certo') + (r.terminou_em ? ' - terminou ' + quando(r.terminou_em) : ''));
+    cx.appendChild(cab);
+    cx.appendChild(el('pre', 'en-pre', formatar(r.resultado, 0)));
+  }
+
+  function travarSondas(sim) { ctl.botoes.forEach(function (b) { b.disabled = sim; }); }
+
+  /** Para de esperar sem resultado: destrava os botões e AVISA (nunca para calada). */
+  function desistir(texto) {
+    ctl.pedido = null; ctl.rodandoDesde = null; parar(); travarSondas(false);
+    msg('en-cmd-msg', 'aviso', texto);
+  }
+
+  function conferirComando() {
+    return api('GET', 'ensaio/comando').then(function (j) {
+      var r = j.resultado;
+      var meu = ctl.pedido;
+      if (meu && r && r.pedido_em === meu) {
+        ctl.pedido = null; ctl.rodandoDesde = null; parar();
+        pintarResultado(r); travarSondas(false);
+        msg('en-cmd-msg', r.ok ? 'ok' : 'erro', r.ok ? 'Pronto. O resultado está abaixo.' : 'A sonda rodou e falhou. Veja abaixo.');
+        return;
+      }
+      if (!meu && j.pendente && j.comando) {   // pedido de antes de abrir a tela: retoma a espera
+        ctl.pedido = j.comando.pedido_em; travarSondas(true); iniciarEspera();
+      }
+      if (meu && j.pendente) ctl.rodandoDesde = null;
+      if (meu && !j.pendente) {
+        // O cron apaga o pedido ANTES de rodar a sonda (até 270 s): sem resultado novo, ela ainda está rodando.
+        if (!ctl.rodandoDesde) ctl.rodandoDesde = Date.now();
+        if (Date.now() - ctl.rodandoDesde > PRAZO_RODANDO_MS) {
+          desistir('O pedido saiu da fila e não apareceu resultado. Veja o último resultado abaixo ou peça de novo.');
+          pintarResultado(r);
+          return;
+        }
+        msg('en-cmd-msg', 'aviso', 'Rodando a sonda. Pode levar alguns minutos.');
+        return;
+      }
+      if (!meu) pintarResultado(r);
+      if (ctl.pedido) msg('en-cmd-msg', 'aviso', 'Pedido aguardando o próximo ciclo (até 5 min).');
+    });
+  }
+  function parar() { if (ctl.timer) { clearInterval(ctl.timer); ctl.timer = null; } }
+  function iniciarEspera() {
+    parar();
+    ctl.rodandoDesde = null;
+    msg('en-cmd-msg', 'aviso', 'Pedido aguardando o próximo ciclo (até 5 min).');
+    var inicio = Date.now();
+    var limite = (window.Ensaio && window.Ensaio.esperaMs) || PRAZO_ESPERA_MS;
+    ctl.timer = setInterval(function () {
+      if (!document.getElementById('en-cmd-msg')) { parar(); return; }
+      if (Date.now() - inicio > limite) {
+        desistir('A espera acabou e o pedido não teve resultado. Ele pode não ter rodado. Veja o último resultado abaixo ou peça de novo.');
+        return;
+      }
+      conferirComando().catch(function () {});
+    }, (window.Ensaio && window.Ensaio.pollMs) || 15000);
+  }
+
+  function pedirSonda(acao, params, extra) {
+    var corpo = { acao: acao, params: params || {} };
+    if (extra) for (var k in extra) corpo[k] = extra[k];
+    travarSondas(true);
+    msg('en-cmd-msg', '', 'Gravando o pedido.');
+    return api('POST', 'ensaio/comando', corpo).then(function (j) {
+      ctl.pedido = j.pedido_em;
+      iniciarEspera();
+    }).catch(function (e) {
+      travarSondas(false);
+      msg('en-cmd-msg', 'erro', textoDoErro(e));
+    });
+  }
+
+  function pintarInterruptores(j) {
+    var c = $('en-sw-lista');
+    if (!c) return;
+    c.textContent = '';
+    INTERRUPTORES.forEach(function (d) {
+      var s = (j.interruptores || {})[d[0]] || { banco: null, env: null, ligado: false };
+      var linha = el('div', 'en-sw');
+      var txt = el('div', 'en-sw-txt');
+      add(txt, el('b', null, d[1]), el('span', null, d[2]));
+      var forcado = s.env === '1' || s.env === '0';
+      var estado = forcado ? 'Forçado pela Vercel: ' + (s.ligado ? 'ligado' : 'desligado') : (s.ligado ? 'Ligado' : 'Desligado');
+      var tag = el('span', 'en-tag ' + (s.ligado ? 'lig' : 'des'), estado);
+      var ligar = s.banco !== true;
+      var b = botao(forcado ? 'Mudar na Vercel' : (ligar ? 'Ligar' : 'Desligar'), ligar && !forcado ? 'prim' : '', function () {
+        if (ligar && d[0] === 'ficha' && !window.confirm('Ligar a ficha faz o sistema mandar mensagens de verdade aos consultores. Ligar?')) return;
+        b.disabled = true;
+        var corpo = {}; corpo[d[0]] = ligar;
+        api('PUT', 'ensaio/interruptores', corpo).then(pintarInterruptores).catch(function (e) { b.disabled = false; msg('en-cmd-msg', 'erro', textoDoErro(e)); });
+      });
+      if (forcado) { b.disabled = true; b.title = 'Este interruptor está fixado por uma variável de ambiente da Vercel. Só se muda lá.'; }
+      add(linha, txt, tag, b);
+      c.appendChild(linha);
+    });
+  }
+
+  function blocoControles() {
+    var det = el('details', 'en-det');
+    add(det, el('summary', null, 'Controles'));
+    var corpo = el('div', 'en-det-corpo');
+    add(corpo, el('p', 'en-aviso', 'Interruptores das peças da Fase A e sondas. A sonda não roda na hora: o painel grava o pedido e o ciclo do ensaio executa em até 5 minutos. O resultado vem sem nome nem telefone.'));
+    add(corpo, el('div', 'en-rot', 'Interruptores'), Object.assign(el('div', 'en-sw-lista'), { id: 'en-sw-lista' }));
+    var grade = el('div', 'en-sondas');
+    ctl.botoes = [];
+    SONDAS.forEach(function (s) {
+      var b = botao(s[1], '', function () {
+        var params = {};
+        if (s[0] === 'replay_dry') params = { maxConversas: 1, maxTurnos: 2, desde: new Date(Date.now() - 7 * 86400000).toISOString(), ate: new Date().toISOString() };
+        pedirSonda(s[0], params);
+      });
+      ctl.botoes.push(b); grade.appendChild(b);
+    });
+    var teste = botao('Mandar ficha de teste para o celular do dono', '', function () { confirma.hidden = false; teste.hidden = true; });
+    teste.hidden = false;
+    ctl.botoes.push(teste);
+    var confirma = el('div', 'en-confirma');
+    confirma.hidden = true;
+    var sim = botao('Sim, mandar agora', 'prim', function () {
+      confirma.hidden = true; teste.hidden = false;
+      pedirSonda('ficha_teste', {}, { confirmar: true });
+    });
+    var nao = botao('Cancelar', '', function () { confirma.hidden = true; teste.hidden = false; });
+    add(confirma, el('p', 'en-aviso', 'Isto manda uma mensagem de verdade ao celular do dono, com uma ficha de exemplo. Confirma?'), add(el('div', 'en-linha-form'), sim, nao));
+    var m = el('div', 'en-msg'); m.id = 'en-cmd-msg'; m.setAttribute('role', 'status');
+    add(corpo, el('div', 'en-rot', 'Sondas'), grade, teste, confirma, m, el('div', 'en-rot', 'Último resultado'), Object.assign(el('div'), { id: 'en-cmd-res' }));
+    det.appendChild(corpo);
+    det.addEventListener('toggle', function () {
+      if (!det.open) return;
+      api('GET', 'ensaio/interruptores').then(pintarInterruptores).catch(function (e) { msg('en-cmd-msg', 'erro', textoDoErro(e)); });
+      conferirComando().catch(function (e) { msg('en-cmd-msg', 'erro', textoDoErro(e)); });
+    });
+    return det;
   }
 
   // ── lista de conversas ──
@@ -1293,6 +1493,10 @@ setInterval(carregar, 120000);
 
   // ── entrada ──
   window.Ensaio = {
+    /** Intervalo (ms) com que a tela confere se a sonda pedida já tem resultado. */
+    pollMs: 15000,
+    /** Quanto a tela espera por um pedido antes de avisar que acabou sem resultado (ms). */
+    esperaMs: 35 * 60000,
     /** Abre (ou reabre) o painel. `preset` é a agente do modal de onde veio, para já filtrar a lista. */
     mostrar: function (preset) {
       if (!est.montado) montar();
