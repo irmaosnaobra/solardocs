@@ -478,6 +478,32 @@ describe('controles do sócio: interruptores e comandos', () => {
     expect((await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem' })).status).toBe(202);
   });
 
+  it('o mesmo req_id reenviado não grava outro pedido (nem depois de o cron ter consumido o primeiro)', async () => {
+    const id = 'a1b2c3d4e5f60718293a4b5c';
+    const um = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem', req_id: id });
+    expect(um.status).toBe(202);
+    expect(um.body.duplicado).toBeUndefined();
+    // reenvio imediato: a rota responde com o mesmo pedido, sem 409 e sem gravar
+    const dois = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem', req_id: id });
+    expect(dois.status).toBe(202);
+    expect(dois.body).toMatchObject({ duplicado: true, pedido_em: um.body.pedido_em });
+    // o cron consome o pedido; um reenvio atrasado do mesmo clique continua sem criar pedido novo
+    banco.tabelas.system_state = banco.tabelas.system_state.filter((l: any) => l.key !== 'ag5040_comando');
+    const tres = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem', req_id: id });
+    expect(tres.status).toBe(202);
+    expect(tres.body.pedido_em).toBe(um.body.pedido_em);
+    expect(estado('ag5040_comando')).toBeUndefined();
+    // outro clique (outro req_id) é pedido novo
+    const novo = await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'anuncios', req_id: 'ffeeddccbbaa00998877' });
+    expect(novo.status).toBe(202);
+    expect(novo.body.pedido_em).not.toBe(um.body.pedido_em);
+    expect(estado('ag5040_comando').acao).toBe('anuncios');
+    // req_id inválido: 400; sem req_id continua valendo (clientes antigos)
+    for (const ruim of ['', 'xyz', 123, 'A'.repeat(70), '../x']) {
+      expect((await pedir('post', '/gerador/ensaio/comando', THIAGO, { acao: 'sonda_armazem', req_id: ruim })).status, String(ruim)).toBe(400);
+    }
+  });
+
   it('erro de banco vira 502 genérico, sem vazar a mensagem do driver', async () => {
     banco.falhar.system_state = { code: 'XX000', message: `falha ${TELEFONE}` };
     for (const [m, url] of [['get', '/gerador/ensaio/interruptores'], ['get', '/gerador/ensaio/comando']] as const) {

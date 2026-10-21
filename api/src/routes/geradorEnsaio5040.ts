@@ -263,6 +263,9 @@ export function mountEnsaio5040(router: Router): void {
 
   const bancoPrincipal = (): { from: (t: string) => any } => supabase as unknown as { from: (t: string) => any };
 
+  /** Último `req_id` aceito em POST /ensaio/comando: um reenvio do MESMO pedido (renovação de sessão, rede) não grava de novo. */
+  const CHAVE_REQ = 'ag5040_comando_req';
+
   async function lerChave(chave: string): Promise<{ value: unknown; updated_at: string | null }> {
     const { data, error } = await bancoPrincipal().from('system_state').select('value, updated_at').eq('key', chave).maybeSingle();
     if (error) throw new ErroNotas('estado_leitura');
@@ -338,10 +341,21 @@ export function mountEnsaio5040(router: Router): void {
     if (b.acao === 'ficha_teste' && b.confirmar !== true) {
       res.status(400).json({ ok: false, error: 'A ficha de teste envia uma mensagem de verdade. Confirme.', precisa: 'confirmar' }); return;
     }
+    const reqId = b.req_id === undefined ? null : b.req_id;
+    if (reqId !== null && (typeof reqId !== 'string' || !/^[0-9a-f]{8,64}$/.test(reqId))) {
+      res.status(400).json({ ok: false, error: 'Identificador do pedido inválido.' }); return;
+    }
     const agora = new Date();
     const v = validarParams(b.acao, params, agora);
     if (!v.ok) { res.status(400).json({ ok: false, error: `Parâmetro inválido: ${v.motivo}.` }); return; }
     try {
+      if (reqId) {
+        // O mesmo req_id de novo é reenvio do mesmo clique: responde com o pedido que já foi gravado, sem gravar outro.
+        const ult = (await lerChave(CHAVE_REQ)).value as { id?: unknown; acao?: unknown; pedido_em?: unknown } | null;
+        if (ult && ult.id === reqId && ult.acao === b.acao && typeof ult.pedido_em === 'string') {
+          res.status(202).json({ ok: true, acao: b.acao, pedido_em: ult.pedido_em, duplicado: true }); return;
+        }
+      }
       const atual = lerComando((await lerChave(CHAVE_COMANDO)).value);
       if (atual && agora.getTime() - Date.parse(atual.pedido_em) <= IDADE_MAX_MS) {
         res.status(409).json({ ok: false, error: 'Já tem um pedido aguardando o próximo ciclo. Espere ele rodar.', pedido_em: atual.pedido_em }); return;
@@ -350,6 +364,11 @@ export function mountEnsaio5040(router: Router): void {
       const { error } = await bancoPrincipal().from('system_state')
         .upsert({ key: CHAVE_COMANDO, value: { acao: b.acao, params: JSON.parse(JSON.stringify(v.params)), pedido_em: pedidoEm }, updated_at: pedidoEm }, { onConflict: 'key' });
       if (error) throw new ErroNotas('estado_gravacao');
+      if (reqId) {
+        // Se esta anotação falhar, o pedido já está gravado: o reenvio só perde a proteção, não o pedido.
+        await bancoPrincipal().from('system_state')
+          .upsert({ key: CHAVE_REQ, value: { id: reqId, acao: b.acao, pedido_em: pedidoEm }, updated_at: pedidoEm }, { onConflict: 'key' });
+      }
       res.status(202).json({ ok: true, acao: b.acao, pedido_em: pedidoEm });
     } catch (err) { falhou(res, err); }
   });

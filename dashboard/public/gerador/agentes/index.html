@@ -1120,7 +1120,13 @@ setInterval(carregar, 120000);
   ];
   var ROTULO_ACAO = { ficha_teste: 'Ficha de teste' };
   SONDAS.forEach(function (s) { ROTULO_ACAO[s[0]] = s[1]; });
-  var ctl = { pedido: null, timer: null, botoes: [], rodandoDesde: null };
+  var ctl = {
+    pedido: null,        // pedido_em do pedido que esta tela está esperando (null = nenhum)
+    inicio: 0,           // quando o pedido foi feito (relógio da parede: sobrevive a aba congelada)
+    timer: null, botoes: [], rodandoDesde: null,
+    enviando: false,     // POST em voo: clique duplo não reenvia
+    confere: false       // GET em voo: uma conferência por vez
+  };
   var PRAZO_RODANDO_MS = 6 * 60000;     // o cron apaga o pedido ANTES de rodar a sonda, que leva até 270 s
   var PRAZO_ESPERA_MS = 35 * 60000;     // o pedido some da fila em 30 min
 
@@ -1145,80 +1151,162 @@ setInterval(carregar, 120000);
     }).join('\n');
   }
 
+  function hora(d) {
+    try { return new Date(d).toLocaleTimeString('pt-BR', { timeZone: TZ }); } catch (e) { return ''; }
+  }
+  /** Linha de "estou vivo": a hora da última conferência, ou o que deu errado nela. */
+  function vivo(txt) { var v = $('en-cmd-vivo'); if (v) v.textContent = txt || ''; }
+
   function pintarResultado(r) {
     var cx = $('en-cmd-res');
     if (!cx) return;
     cx.textContent = '';
     if (!r) { cx.appendChild(el('div', 'en-vazio', 'Ainda não há resultado de nenhuma sonda.')); return; }
     var nome = ROTULO_ACAO[r.acao] || r.acao || 'Sonda';
-    var cab = el('div', 'en-msg ' + (r.ok ? 'ok' : 'erro'), nome + ': ' + (r.ok ? 'deu certo' : 'não deu certo') + (r.terminou_em ? ' - terminou ' + quando(r.terminou_em) : ''));
+    var cab = el('div', 'en-msg ' + (r.ok ? 'ok' : 'erro'),
+      nome + ': ' + (r.ok ? 'deu certo' : 'não deu certo') + (r.pedido_em ? ' - pedido às ' + quando(r.pedido_em) : '') + (r.terminou_em ? ', terminou ' + quando(r.terminou_em) : ''));
     cx.appendChild(cab);
     cx.appendChild(el('pre', 'en-pre', formatar(r.resultado, 0)));
+  }
+  /** Enquanto um pedido espera, o resultado ANTIGO sai da tela: ele não pode passar por o do pedido de agora. */
+  function pintarEspera() {
+    var cx = $('en-cmd-res');
+    if (!cx) return;
+    cx.textContent = '';
+    cx.appendChild(el('div', 'en-vazio', 'O resultado deste pedido aparece aqui quando a sonda terminar.'));
   }
 
   function travarSondas(sim) { ctl.botoes.forEach(function (b) { b.disabled = sim; }); }
 
-  /** Para de esperar sem resultado: destrava os botões e AVISA (nunca para calada). */
+  /** Solta a tela: nenhum pedido esperado, botões livres, sem relógio rodando. */
+  function liberar() {
+    ctl.pedido = null; ctl.rodandoDesde = null; ctl.inicio = 0;
+    parar(); travarSondas(false);
+  }
+  /** Para de esperar sem resultado: libera e AVISA (nunca para calada). */
   function desistir(texto) {
-    ctl.pedido = null; ctl.rodandoDesde = null; parar(); travarSondas(false);
+    liberar();
     msg('en-cmd-msg', 'aviso', texto);
   }
 
+  /** Esse resultado é do pedido que esperamos? Mesmo pedido_em, ou um resultado mais novo (o nosso foi superado). */
+  function ehDoPedido(r, meu) {
+    if (!r || !meu) return false;
+    if (r.pedido_em === meu) return true;
+    var a = Date.parse(r.pedido_em); var b = Date.parse(meu);
+    return isFinite(a) && isFinite(b) && a >= b;
+  }
+
+  /** Decide o que a tela mostra, a partir da resposta do GET. Pura em relação à rede. */
+  function aplicar(j) {
+    var r = j.resultado;
+    var meu = ctl.pedido;
+    if (meu && ehDoPedido(r, meu)) {
+      liberar();   // primeiro solta os botões: um erro ao desenhar o resultado nunca pode deixar a tela travada
+      msg('en-cmd-msg', r.ok ? 'ok' : 'erro', r.ok ? 'Pronto. O resultado está abaixo.' : 'A sonda rodou e falhou. Veja abaixo.');
+      try { pintarResultado(r); } catch (e) { msg('en-cmd-res', 'erro', 'A sonda terminou, mas não consegui mostrar o resultado.'); }
+      return;
+    }
+    if (!meu && j.pendente && j.comando && j.comando.pedido_em) {   // pedido de antes de abrir a tela: retoma a espera
+      ctl.pedido = j.comando.pedido_em;
+      ctl.inicio = Date.parse(j.comando.pedido_em) || Date.now();
+      travarSondas(true); pintarEspera(); iniciarEspera();
+      return;
+    }
+    if (meu && j.pendente) {
+      ctl.rodandoDesde = null;
+      msg('en-cmd-msg', 'aviso', 'Pedido aguardando o próximo ciclo (até 5 min).');
+      return;
+    }
+    if (meu) {
+      // O cron apaga o pedido ANTES de rodar a sonda (até 270 s): sem resultado novo, ela ainda está rodando.
+      if (!ctl.rodandoDesde) ctl.rodandoDesde = Date.now();
+      if (Date.now() - ctl.rodandoDesde > PRAZO_RODANDO_MS) {
+        desistir('O pedido saiu da fila e não apareceu resultado. Veja o último resultado abaixo ou peça de novo.');
+        pintarResultado(r);
+        return;
+      }
+      msg('en-cmd-msg', 'aviso', 'Rodando a sonda. Pode levar alguns minutos.');
+      return;
+    }
+    pintarResultado(r);
+  }
+
+  /** Uma conferência. Falha de rede NÃO é silenciosa: a tela diz que não conseguiu e que tenta de novo. */
   function conferirComando() {
+    if (ctl.confere) return Promise.resolve();
+    ctl.confere = true;
     return api('GET', 'ensaio/comando').then(function (j) {
-      var r = j.resultado;
-      var meu = ctl.pedido;
-      if (meu && r && r.pedido_em === meu) {
-        ctl.pedido = null; ctl.rodandoDesde = null; parar();
-        pintarResultado(r); travarSondas(false);
-        msg('en-cmd-msg', r.ok ? 'ok' : 'erro', r.ok ? 'Pronto. O resultado está abaixo.' : 'A sonda rodou e falhou. Veja abaixo.');
-        return;
-      }
-      if (!meu && j.pendente && j.comando) {   // pedido de antes de abrir a tela: retoma a espera
-        ctl.pedido = j.comando.pedido_em; travarSondas(true); iniciarEspera();
-      }
-      if (meu && j.pendente) ctl.rodandoDesde = null;
-      if (meu && !j.pendente) {
-        // O cron apaga o pedido ANTES de rodar a sonda (até 270 s): sem resultado novo, ela ainda está rodando.
-        if (!ctl.rodandoDesde) ctl.rodandoDesde = Date.now();
-        if (Date.now() - ctl.rodandoDesde > PRAZO_RODANDO_MS) {
-          desistir('O pedido saiu da fila e não apareceu resultado. Veja o último resultado abaixo ou peça de novo.');
-          pintarResultado(r);
-          return;
-        }
-        msg('en-cmd-msg', 'aviso', 'Rodando a sonda. Pode levar alguns minutos.');
-        return;
-      }
-      if (!meu) pintarResultado(r);
-      if (ctl.pedido) msg('en-cmd-msg', 'aviso', 'Pedido aguardando o próximo ciclo (até 5 min).');
+      ctl.confere = false;
+      vivo('Última conferência às ' + hora(Date.now()) + '.');
+      aplicar(j);
+    }, function (e) {
+      ctl.confere = false;
+      vivo('Não consegui conferir agora (' + textoDoErro(e) + ') Vou tentar de novo.');
+      if (ctl.pedido) msg('en-cmd-msg', 'aviso', 'Pedido aguardando. Não consegui conferir o resultado agora; tento de novo sozinho.');
     });
   }
   function parar() { if (ctl.timer) { clearInterval(ctl.timer); ctl.timer = null; } }
+  /** Um passo da espera: confere o prazo (pelo relógio da parede) e consulta. */
+  function passo() {
+    if (!ctl.pedido) { parar(); return; }
+    var limite = (window.Ensaio && window.Ensaio.esperaMs) || PRAZO_ESPERA_MS;
+    if (Date.now() - ctl.inicio > limite) {
+      desistir('A espera acabou e o pedido não teve resultado. Ele pode não ter rodado. Veja o último resultado abaixo ou peça de novo.');
+      return;
+    }
+    conferirComando();
+  }
   function iniciarEspera() {
     parar();
     ctl.rodandoDesde = null;
+    if (!ctl.inicio) ctl.inicio = Date.now();
     msg('en-cmd-msg', 'aviso', 'Pedido aguardando o próximo ciclo (até 5 min).');
-    var inicio = Date.now();
-    var limite = (window.Ensaio && window.Ensaio.esperaMs) || PRAZO_ESPERA_MS;
-    ctl.timer = setInterval(function () {
-      if (!document.getElementById('en-cmd-msg')) { parar(); return; }
-      if (Date.now() - inicio > limite) {
-        desistir('A espera acabou e o pedido não teve resultado. Ele pode não ter rodado. Veja o último resultado abaixo ou peça de novo.');
-        return;
-      }
-      conferirComando().catch(function () {});
-    }, (window.Ensaio && window.Ensaio.pollMs) || 15000);
+    ctl.timer = setInterval(passo, (window.Ensaio && window.Ensaio.pollMs) || 15000);
+  }
+  // Aba em segundo plano pode ter o relógio congelado ou desacelerado: ao voltar, confere na hora (e só uma vez por evento).
+  var ouvindoRetorno = false;
+  function ouvirRetorno() {
+    if (ouvindoRetorno) return;
+    ouvindoRetorno = true;
+    var voltou = function () { if (ctl.pedido && !document.hidden) passo(); };
+    document.addEventListener('visibilitychange', voltou);
+    window.addEventListener('focus', voltou);
+    window.addEventListener('online', voltou);
+  }
+
+  function novoIdDePedido() {
+    try {
+      var a = new Uint8Array(12); crypto.getRandomValues(a);
+      return Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+    } catch (e) {
+      return (Date.now().toString(16) + Math.random().toString(16).slice(2) + '0000000000000000').replace(/[^0-9a-f]/g, '').slice(0, 24);
+    }
   }
 
   function pedirSonda(acao, params, extra) {
-    var corpo = { acao: acao, params: params || {} };
+    // Um pedido por vez: com um POST em voo ou um pedido esperando, o clique não faz nada.
+    if (ctl.enviando || ctl.pedido) return Promise.resolve();
+    ctl.enviando = true;
+    // `req_id` é o MESMO se o navegador reenviar este POST (renovação de sessão, rede): o servidor reconhece e não grava de novo.
+    var corpo = { acao: acao, params: params || {}, req_id: novoIdDePedido() };
     if (extra) for (var k in extra) corpo[k] = extra[k];
     travarSondas(true);
     msg('en-cmd-msg', '', 'Gravando o pedido.');
     return api('POST', 'ensaio/comando', corpo).then(function (j) {
+      ctl.enviando = false;
+      if (!j || !j.pedido_em) { liberar(); msg('en-cmd-msg', 'erro', 'O pedido não voltou com a hora. Tente de novo.'); return; }
       ctl.pedido = j.pedido_em;
+      ctl.inicio = Date.now();
+      pintarEspera();
       iniciarEspera();
-    }).catch(function (e) {
+    }, function (e) {
+      ctl.enviando = false;
+      if (e && e.tipo === 'pedido' && /aguardando/.test(String(e.texto || ''))) {
+        // Já havia um pedido na fila (de outra aba ou pessoa): a tela passa a esperar por ele em vez de dar erro.
+        msg('en-cmd-msg', 'aviso', 'Já havia um pedido na fila. Esperando o resultado dele.');
+        return conferirComando().then(function () { if (!ctl.pedido) travarSondas(false); });
+      }
       travarSondas(false);
       msg('en-cmd-msg', 'erro', textoDoErro(e));
     });
@@ -1250,6 +1338,7 @@ setInterval(carregar, 120000);
   }
 
   function blocoControles() {
+    ouvirRetorno();
     var det = el('details', 'en-det');
     add(det, el('summary', null, 'Controles'));
     var corpo = el('div', 'en-det-corpo');
@@ -1277,12 +1366,15 @@ setInterval(carregar, 120000);
     var nao = botao('Cancelar', '', function () { confirma.hidden = true; teste.hidden = false; });
     add(confirma, el('p', 'en-aviso', 'Isto manda uma mensagem de verdade ao celular do dono, com uma ficha de exemplo. Confirma?'), add(el('div', 'en-linha-form'), sim, nao));
     var m = el('div', 'en-msg'); m.id = 'en-cmd-msg'; m.setAttribute('role', 'status');
-    add(corpo, el('div', 'en-rot', 'Sondas'), grade, teste, confirma, m, el('div', 'en-rot', 'Último resultado'), Object.assign(el('div'), { id: 'en-cmd-res' }));
+    var vivoEl = el('div', 'en-meta'); vivoEl.id = 'en-cmd-vivo'; vivoEl.setAttribute('role', 'status');
+    var conferir = botao('Conferir agora', '', function () { conferirComando(); });
+    add(corpo, el('div', 'en-rot', 'Sondas'), grade, teste, confirma, m, add(el('div', 'en-linha-form'), conferir), vivoEl,
+      el('div', 'en-rot', 'Último resultado'), Object.assign(el('div'), { id: 'en-cmd-res' }));
     det.appendChild(corpo);
     det.addEventListener('toggle', function () {
       if (!det.open) return;
       api('GET', 'ensaio/interruptores').then(pintarInterruptores).catch(function (e) { msg('en-cmd-msg', 'erro', textoDoErro(e)); });
-      conferirComando().catch(function (e) { msg('en-cmd-msg', 'erro', textoDoErro(e)); });
+      conferirComando();
     });
     return det;
   }
