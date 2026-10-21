@@ -136,7 +136,12 @@
     seta: '<path d="M9 6l6 6-6 6"/>',
     fechar: '<path d="M6 6l12 12M18 6L6 18"/>',
     compartilhar: '<path d="M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
-    celular: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>'
+    celular: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    instalar: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 6.5v6M9.5 10l2.5 2.5 2.5-2.5M10.5 18h3"/>',
+    maisq: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/>',
+    pontos: '<path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/>',
+    bussola: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z"/>',
+    monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'
   };
   function ic(nome, cls) {
     return '<svg class="nx-ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (ICONES[nome] || '') + '</svg>';
@@ -174,7 +179,7 @@
     procura: {}, abrirCompra: false,
     confirmaPacote: 0, consultoriaAberta: false, plataformaPedida: false, pedidosServ: null, pedidosServErro: false,
     termoTxt: undefined, termoErro: false, termoMsg: '', montagemDemo: null,
-    cad: null, emailPre: '', instalarEv: null
+    cad: null, emailPre: '', instalarEv: null, instalouAgora: false, bannerFechado: false
   };
   var propAtual = null;      /* proposta em edicao na tela Propostas: {id, numero} */
   var esperaScript = null;
@@ -193,9 +198,10 @@
     engenharia: { menu: 'Engenharia', ctx: 'Engenharia NEXUS', req: 'engenharia', motivo: 'Complete o perfil da empresa para pedir engenharia.' },
     materiais: { menu: 'Materiais', ctx: 'Fotos para divulgar o equipamento', req: 'materiais', motivo: 'Complete o perfil da empresa para liberar os Materiais.' },
     parceria: { menu: 'Minha parceria', ctx: 'Níveis, caminho e selo' },
-    perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' }
+    perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' },
+    instalar: { menu: 'Instalar o app', ctx: 'Deixe o portal na tela inicial do aparelho' }
   };
-  var ORDEM = ['inicio', 'mercado', 'equipamentos', 'servicos', 'propostas', 'oportunidades', 'usinas', 'engenharia', 'materiais', 'parceria'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
+  var ORDEM = ['inicio', 'mercado', 'equipamentos', 'servicos', 'propostas', 'oportunidades', 'usinas', 'engenharia', 'materiais', 'parceria', 'instalar'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
 
   /* Item ADM: so quando o /eu diz adm:true (is_admin ou e-mail ativo em nexus_equipe). Leva a pagina propria, nao a uma rota do portal. */
@@ -769,7 +775,7 @@
     return h;
   }
   function folhaHTML() {
-    var lista = ['equipamentos', 'servicos', 'mercado'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat(['engenharia', 'materiais', 'parceria', 'perfil']);
+    var lista = ['equipamentos', 'servicos', 'mercado'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat(['engenharia', 'materiais', 'parceria', 'instalar', 'perfil']);
     var algumTravado = false;
     var h = '<div class="np-folha-cab"><div class="np-alca" aria-hidden="true"></div><div class="np-folha-tit"><div><b id="np-folha-tit">Mais</b><small>' + esc([nomeEmpresa() || 'Sua empresa', NIVEL_NOME[nivel()] || ''].filter(Boolean).join(' · ')) + '</small></div>' +
       '<button type="button" class="np-icobtn claro" data-acao="fecharMais" data-foco aria-label="Fechar o menu">' + ic('fechar') + '</button></div></div>';
@@ -783,7 +789,7 @@
     if (admOk()) h += '<a class="np-f-tile" href="/nexus/adm"><span class="ico">' + ic('escudo') + '</span><span class="rot">ADM</span></a>';
     h += '<button type="button" class="np-f-tile sair" data-acao="sairConta"><span class="ico">' + ic('sair') + '</span><span class="rot">' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</span></button>';
     h += '</div>' + (algumTravado ? '<p class="np-f-nota">' + ic('cadeado', 'p') + '<span>Item com cadeado libera com o seu nível. Toque nele para ver como chegar.</span></p>' : '');
-    h += '<div id="np-inst-folha">' + instalarHTML() + '</div></div>';
+    h += '</div>';
     return h;
   }
   function montarCasca() {
@@ -793,13 +799,14 @@
       '<aside class="np-lado" id="np-lado"></aside>' +
       '<div class="np-corpo" id="np-corpo"><header class="np-head" id="np-head"></header><main class="np-main" id="nx-main" tabindex="-1"></main></div>' +
       '<nav class="np-tabs" id="np-tabs" aria-label="Menu do aplicativo"></nav>' +
+      '<div class="np-banner" id="np-banner" role="region" aria-label="Instalar o app NEXUS" hidden></div>' +
       '<div class="np-fundo" id="np-fundo" data-acao="fecharMais"></div>' +
       '<div class="np-folha" id="np-folha" role="dialog" aria-modal="true" aria-labelledby="np-folha-tit" tabindex="-1"></div>' +
       '<div class="nx-toast" id="nx-toast" role="status" hidden></div>';
     S.shell = true;
     MAIS = window.NexusFolha ? window.NexusFolha.criar({
       folha: $('#np-folha'), fundo: $('#np-fundo'),
-      inertar: function () { return [$('#np-corpo'), $('#np-top'), $('#np-tabs')]; },
+      inertar: function () { return [$('#np-corpo'), $('#np-top'), $('#np-tabs'), $('#np-banner')]; },
       alvoVolta: function () { return $('#np-tabs [data-acao="abrirMais"]'); }
     }) : null;
   }
@@ -811,6 +818,7 @@
     if (!(MAIS && MAIS.aberta)) $('#np-folha').innerHTML = folhaHTML();
     $('#np-head').innerHTML = cobrandHTML() + '<button type="button" class="nx-btn np-head-cta" data-acao="ir" data-arg="propostas">Gerar proposta</button>';
     if (mobile()) document.title = telaAtual().titulo + ' · NEXUS Parceiro';
+    pintarBanner();
   }
   function abrirMais(gatilho) {
     if (!MAIS) { toast('Não foi possível abrir o menu agora. Atualize a página.', true); irPara('perfil'); return; }
@@ -818,25 +826,219 @@
   }
   function fecharMais(semFoco) { if (MAIS && MAIS.aberta) MAIS.fechar(!semFoco); }
 
-  /* ---- instalar como app (PWA) ---- */
-  function emApp() { return !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true); }
+  /* ---- instalar como app (PWA) ----
+     Referencia: dashboard/src/hooks/usePwaInstall.ts (deteccao), baixe-app/page.tsx (passos) e components/InstallBanner (convite e "fechar"). */
+  var URL_APP = 'solardoc.app/nexus/app';
+  var CHAVE_FECHOU = 'nexus_install_dismiss';
+  var DIAS_SEM_VOLTAR = 30;
+  function emApp() { return !!(S.instalouAgora || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true); }
   function ehIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  /* 'ios' (Safari), 'ios-outro' (iPhone em outro navegador: so o Safari instala), 'android' ou 'desktop'. */
+  function aparelho() {
+    var ua = navigator.userAgent || '';
+    if (ehIOS()) return /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|DuckDuckGo|Instagram|FBAN|FBAV/.test(ua) ? 'ios-outro' : 'ios';
+    return /Android/i.test(ua) ? 'android' : 'desktop';
+  }
+
+  /* QR code em SVG, codigo proprio: modo byte, correcao L, versoes 1 a 4 (ate 78 bytes, um bloco so). Devolve a matriz [linha][coluna] de 0/1.
+     O segundo parametro (mascara de 0 a 7) so serve para conferir contra outra biblioteca; sem ele escolhe a de menor penalidade. */
+  function qrMatriz(texto, forca) {
+    var bytes = Array.prototype.slice.call(new TextEncoder().encode(texto)), TAB = [null, [19, 7], [34, 10], [55, 15], [80, 20]], v = 1, i, j, r, c;
+    while (v <= 4 && bytes.length > TAB[v][0] - 2) v++;
+    if (v > 4) return null;
+    var nd = TAB[v][0], ne = TAB[v][1], tam = 17 + 4 * v, bits = [];
+    function por(val, len) { for (var k = len - 1; k >= 0; k--) bits.push((val >>> k) & 1); }
+    por(4, 4); por(bytes.length, 8); bytes.forEach(function (b) { por(b, 8); });
+    por(0, Math.min(4, nd * 8 - bits.length));
+    while (bits.length % 8) bits.push(0);
+    var cw = [];
+    for (i = 0; i < bits.length; i += 8) { var x = 0; for (j = 0; j < 8; j++) x = x * 2 + bits[i + j]; cw.push(x); }
+    for (var pad = 0xEC; cw.length < nd; pad ^= 0xEC ^ 0x11) cw.push(pad);
+    /* Reed-Solomon sobre GF(256), polinomio 0x11D */
+    var EXP = [], LOG = [], g = [1], q = 1;
+    for (i = 0; i < 255; i++) { EXP[i] = q; LOG[q] = i; q <<= 1; if (q & 256) q ^= 0x11D; }
+    function mul(a, b) { return a && b ? EXP[(LOG[a] + LOG[b]) % 255] : 0; }
+    for (i = 0; i < ne; i++) { var ng = g.concat([0]); for (j = 0; j < g.length; j++) ng[j + 1] ^= mul(g[j], EXP[i]); g = ng; }
+    var rem = [];
+    for (i = 0; i < ne; i++) rem.push(0);
+    cw.forEach(function (b) { var f = b ^ rem.shift(); rem.push(0); for (var k = 0; k < ne; k++) rem[k] ^= mul(g[k + 1], f); });
+    cw = cw.concat(rem);
+    /* desenho: padroes fixos, formato, dados em zigue-zague, mascara */
+    var M = [], Fx = [];
+    for (i = 0; i < tam; i++) { M.push([]); Fx.push([]); for (j = 0; j < tam; j++) { M[i].push(0); Fx[i].push(false); } }
+    function pos(rr, cc, val) { M[rr][cc] = val ? 1 : 0; Fx[rr][cc] = true; }
+    [[0, 0], [0, tam - 7], [tam - 7, 0]].forEach(function (p) {
+      for (var dr = -1; dr <= 7; dr++) for (var dc = -1; dc <= 7; dc++) {
+        var rr = p[0] + dr, cc = p[1] + dc;
+        if (rr < 0 || cc < 0 || rr >= tam || cc >= tam) continue;
+        var d = Math.max(Math.abs(dr - 3), Math.abs(dc - 3));
+        pos(rr, cc, d !== 2 && d !== 4);
+      }
+    });
+    for (i = 8; i < tam - 8; i++) { pos(6, i, i % 2 === 0); pos(i, 6, i % 2 === 0); }
+    if (v >= 2) { var al = tam - 7; for (r = -2; r <= 2; r++) for (c = -2; c <= 2; c++) pos(al + r, al + c, Math.max(Math.abs(r), Math.abs(c)) !== 1); }
+    function formato(m) {
+      var d = (1 << 3) | m, rm = d;
+      for (var k = 0; k < 10; k++) rm = (rm << 1) ^ ((rm >>> 9) * 0x537);
+      var b = ((d << 10) | rm) ^ 0x5412;
+      function bt(n) { return (b >>> n) & 1; }
+      for (var a = 0; a <= 5; a++) pos(a, 8, bt(a));
+      pos(7, 8, bt(6)); pos(8, 8, bt(7)); pos(8, 7, bt(8));
+      for (a = 9; a < 15; a++) pos(8, 14 - a, bt(a));
+      for (a = 0; a < 8; a++) pos(8, tam - 1 - a, bt(a));
+      for (a = 8; a < 15; a++) pos(tam - 15 + a, 8, bt(a));
+      pos(tam - 8, 8, 1);
+    }
+    formato(0);
+    var n = 0;
+    for (var dir = tam - 1; dir >= 1; dir -= 2) {
+      if (dir === 6) dir = 5;
+      for (var vert = 0; vert < tam; vert++) for (j = 0; j < 2; j++) {
+        var cc2 = dir - j, rr2 = ((dir + 1) & 2) === 0 ? tam - 1 - vert : vert;
+        if (!Fx[rr2][cc2] && n < cw.length * 8) { M[rr2][cc2] = (cw[n >>> 3] >>> (7 - (n & 7))) & 1; n++; }
+      }
+    }
+    function mascara(m) {
+      for (var rr = 0; rr < tam; rr++) for (var cc = 0; cc < tam; cc++) {
+        if (Fx[rr][cc]) continue;
+        var t = m === 0 ? (rr + cc) % 2 === 0 : m === 1 ? rr % 2 === 0 : m === 2 ? cc % 3 === 0 : m === 3 ? (rr + cc) % 3 === 0 :
+          m === 4 ? (Math.floor(rr / 2) + Math.floor(cc / 3)) % 2 === 0 : m === 5 ? (rr * cc) % 2 + (rr * cc) % 3 === 0 :
+          m === 6 ? ((rr * cc) % 2 + (rr * cc) % 3) % 2 === 0 : ((rr + cc) % 2 + (rr * cc) % 3) % 2 === 0;
+        if (t) M[rr][cc] ^= 1;
+      }
+    }
+    function penalidade() {
+      var p = 0, escuros = 0, a, b, linha;
+      for (a = 0; a < tam; a++) for (b = 0; b < tam; b++) escuros += M[a][b];
+      for (var sentido = 0; sentido < 2; sentido++) for (a = 0; a < tam; a++) {
+        linha = [];
+        for (b = 0; b < tam; b++) linha.push(sentido ? M[b][a] : M[a][b]);
+        var seq = 1;
+        for (b = 1; b < tam; b++) { if (linha[b] === linha[b - 1]) { seq++; if (seq === 5) p += 3; else if (seq > 5) p++; } else seq = 1; }
+        var s = linha.join('');
+        for (b = 0; b + 11 <= tam; b++) { var w = s.substr(b, 11); if (w === '10111010000' || w === '00001011101') p += 40; }
+      }
+      for (a = 0; a < tam - 1; a++) for (b = 0; b < tam - 1; b++) { var z = M[a][b]; if (z === M[a][b + 1] && z === M[a + 1][b] && z === M[a + 1][b + 1]) p += 3; }
+      return p + (Math.ceil(Math.abs(escuros * 20 - tam * tam * 10) / (tam * tam)) - 1) * 10;
+    }
+    var melhor = forca != null ? forca : 0, menor = Infinity;
+    if (forca == null) {
+      for (var m = 0; m < 8; m++) { mascara(m); formato(m); var pn = penalidade(); mascara(m); if (pn < menor) { menor = pn; melhor = m; } }
+    }
+    mascara(melhor); formato(melhor);
+    return M;
+  }
+  function qrSvg(texto, aria) {
+    var m = qrMatriz(texto);
+    if (!m) return '';
+    var n = m.length, b = 4, d = '';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (m[r][c]) d += 'M' + (c + b) + ' ' + (r + b) + 'h1v1h-1z';
+    return '<svg class="np-qr" viewBox="0 0 ' + (n + 2 * b) + ' ' + (n + 2 * b) + '" role="img" aria-label="' + esc(aria) + '" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#0B1A2B"/></svg>';
+  }
+
+  /* Tela #instalar: o aparelho detectado vem primeiro, os outros ficam abaixo. */
+  function passosHTML(lista) {
+    return '<ol class="np-ipass">' + lista.map(function (p) {
+      return '<li><span class="tx">' + p.t + '</span>' + (p.ico ? '<span class="figura" aria-hidden="true">' + ic(p.ico) + '</span>' : '') + '</li>';
+    }).join('') + '</ol>';
+  }
+  function botaoCopiar() {
+    return '<button type="button" class="nx-btn sec np-copiar" data-acao="copiarEndereco" aria-label="Copiar o endereço ' + URL_APP + '">' + ic('copiar', 'p') + 'Copiar endereço</button>';
+  }
+  function cartaoInst(id, titulo, sub, ico, destaque, corpo) {
+    return '<section class="nx-cartao np-icard' + (destaque ? ' destaque' : '') + '" aria-labelledby="ic-' + id + '"><div class="cab"><span class="ico">' + ic(ico) + '</span>' +
+      '<div class="nm"><h2 id="ic-' + id + '">' + titulo + '</h2><small>' + sub + '</small></div>' + (destaque ? '<span class="nx-chip az">Seu aparelho</span>' : '') + '</div>' + corpo + '</section>';
+  }
+  function cartaoAndroid(dest) {
+    return cartaoInst('android', 'Android', 'Chrome', 'celular', dest, S.instalarEv
+      ? '<p class="np-ip">O seu navegador instala o app com um toque.</p><button type="button" class="nx-btn grande" data-acao="instalarApp">Instalar agora</button>'
+      : passosHTML([
+        { t: 'Toque nos <b>três pontos</b> no canto de cima', ico: 'pontos' },
+        { t: 'Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>', ico: 'instalar' },
+        { t: 'Confirme' }
+      ]));
+  }
+  function cartaoIPhone(dest, foraSafari) {
+    var aviso = foraSafari
+      ? '<div class="np-iaviso" role="note"><b>Você não está no Safari.</b><span>No iPhone só o Safari instala o app. Copie o endereço, abra o Safari e cole lá.</span><span class="np-end">' + URL_APP + '</span>' + botaoCopiar() + '</div>'
+      : '';
+    return cartaoInst('iphone', 'iPhone', 'Safari', 'celular', dest, aviso + passosHTML([
+      { t: 'Abra no <b>Safari</b>', ico: 'bussola' },
+      { t: 'Toque em <b>Compartilhar</b> (o quadrado com a seta)', ico: 'compartilhar' },
+      { t: 'Role e toque em <b>Adicionar à Tela de Início</b>', ico: 'maisq' },
+      { t: 'Toque em <b>Adicionar</b>' }
+    ]));
+  }
+  function cartaoComputador(dest) {
+    return cartaoInst('computador', 'Computador', 'Abra no celular', 'monitor', dest,
+      '<div class="np-pc"><div class="qr">' + qrSvg('https://' + URL_APP, 'QR code para abrir ' + URL_APP + ' no celular') + '</div>' +
+      '<div class="end"><p class="np-ip">Aponte a câmera do celular para o QR code ou abra o endereço no navegador do celular.</p><p class="np-end grande">' + URL_APP + '</p>' + botaoCopiar() + '</div></div>');
+  }
+  function telaInstalar() {
+    var ap = aparelho(), h = '<div class="np-pagina"><section class="np-sec np-instalar"><h1 class="nx-h1" style="margin:0">Instalar o app</h1>' +
+      '<p class="np-sub-i">Deixe o Portal do Parceiro NEXUS na tela do seu aparelho, como qualquer outro app.</p>';
+    if (emApp()) {
+      h += '<section class="nx-cartao np-iok" role="status"><span class="ico">' + ic('check') + '</span><div><h2>O app NEXUS já está instalado neste aparelho.</h2><p>Abra o portal pelo ícone na tela inicial.</p></div></section>';
+    } else {
+      var cartoes = { android: cartaoAndroid, ios: cartaoIPhone, computador: cartaoComputador };
+      var primeiro = ap === 'android' ? 'android' : ap === 'desktop' ? 'computador' : 'ios';
+      var outros = ['ios', 'android', 'computador'].filter(function (k) { return k !== primeiro; });
+      h += cartoes[primeiro](true, ap === 'ios-outro');
+      h += '<h2 class="np-outros">Em outros aparelhos</h2>' + outros.map(function (k) { return cartoes[k](false, false); }).join('');
+    }
+    h += '<section class="nx-cartao np-ioferece"><h2>O que o app oferece</h2><ul class="np-checks">' +
+      '<li>' + ic('check') + '<span>Abre em tela cheia, sem a barra do navegador.</span></li>' +
+      '<li>' + ic('check') + '<span>Fica como atalho na tela inicial do aparelho.</span></li>' +
+      '<li>' + ic('check') + '<span>Mesmas propostas e mesmo login do portal.</span></li></ul></section></section></div>';
+    return h;
+  }
+
+  /* Cartao do Inicio no celular: instala direto quando o navegador permite, e sempre leva a #instalar. */
   function instalarHTML() {
     if (!mobile() || emApp()) return '';
-    if (S.instalarEv) {
-      return '<div class="np-inst"><span class="ico">' + ic('celular') + '</span><div class="tx"><b>App NEXUS Parceiro</b><span>Abra o portal direto da tela inicial do celular.</span></div>' +
-        '<button type="button" class="nx-btn" data-acao="instalarApp">Instalar app</button></div>';
-    }
-    if (ehIOS()) {
-      return '<div class="np-inst ios"><span class="ico">' + ic('compartilhar') + '</span><div class="tx"><b>Instalar app</b><span>Toque em Compartilhar e depois em Adicionar à Tela de Início.</span></div></div>';
-    }
-    return '';
+    return '<div class="np-inst"><span class="ico">' + ic('instalar') + '</span><div class="tx"><b>Instalar app</b><span>Abra o portal direto da tela inicial, em tela cheia.</span></div>' +
+      '<div class="acoes">' + (S.instalarEv ? '<button type="button" class="nx-btn" data-acao="instalarApp">Instalar agora</button>' : '') +
+      '<button type="button" class="nx-btn ' + (S.instalarEv ? 'link' : '') + '" data-acao="ir" data-arg="instalar">Ver como instalar</button></div></div>';
+  }
+
+  /* Convite fixo no celular (padrao do InstallBanner do SolarDoc): so depois do login ou no demo, fora do app instalado. Fechar vale 30 dias. */
+  function bannerFechado() {
+    if (S.bannerFechado) return true;
+    try {
+      var t = Number(localStorage.getItem(CHAVE_FECHOU));
+      return t > 0 && Date.now() - t < DIAS_SEM_VOLTAR * 86400000;
+    } catch (e) { return false; }
+  }
+  function pintarBanner() {
+    var el = $('#np-banner');
+    if (!el) return;
+    var ver = S.fase === 'app' && mobile() && !emApp() && S.rota !== 'instalar' && !bannerFechado();
+    el.hidden = !ver;
+    el.innerHTML = ver
+      ? '<span class="ico" aria-hidden="true">' + ic('instalar') + '</span><div class="tx"><b>Instale o app NEXUS</b><span>Abre em tela cheia, direto da tela inicial.</span></div>' +
+        '<button type="button" class="np-ban-btn" data-acao="bannerInstalar" aria-label="Instalar o app NEXUS">Instalar</button>' +
+        '<button type="button" class="np-ban-x" data-acao="bannerFechar" aria-label="Fechar o convite para instalar o app. Ele só volta depois de 30 dias.">' + ic('fechar') + '</button>'
+      : '';
+    document.documentElement.classList.toggle('np-com-banner', ver);
   }
   function atualizarInstalar() {
-    ['np-inst-ini', 'np-inst-folha'].forEach(function (id) { var el = document.getElementById(id); if (el) el.innerHTML = instalarHTML(); });
+    var el = document.getElementById('np-inst-ini');
+    if (el) el.innerHTML = instalarHTML();
+    if (!S.shell) return;
+    pintarBanner();
+    if (S.rota === 'instalar') pintarMain(true);
+  }
+  function instalarAgora() {
+    var e = S.instalarEv;
+    if (!e || typeof e.prompt !== 'function') return;
+    S.instalarEv = null; atualizarInstalar();
+    try {
+      e.prompt();
+      if (e.userChoice && e.userChoice.then) e.userChoice.then(function (r) { if (r && r.outcome === 'accepted') toast('App instalado.'); });
+    } catch (x) { /* o navegador recusou: nada a fazer */ }
   }
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.instalarEv = e; atualizarInstalar(); });
-  window.addEventListener('appinstalled', function () { S.instalarEv = null; atualizarInstalar(); });
+  window.addEventListener('appinstalled', function () { S.instalarEv = null; S.instalouAgora = true; atualizarInstalar(); });
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('/nexus/sw.js', { scope: '/nexus/' }).catch(function (e) { if (window.console) console.warn('sw nexus', e && e.message); });
@@ -860,6 +1062,7 @@
     if (S.fase !== 'app') {
       if (MAIS) { MAIS.fechar(false); MAIS = null; }
       S.shell = false;
+      document.documentElement.classList.remove('np-com-banner');
       if (S.fase === 'boot') root.innerHTML = '<div class="nx-girando" style="min-height:100vh;justify-content:center"><div class="nx-spin"></div><span>Carregando o portal</span></div>';
       else if (S.fase === 'embreve') root.innerHTML = telaEmBreve();
       else if (S.fase === 'cnpj_inativo') root.innerHTML = telaCnpjInativo();
@@ -896,6 +1099,7 @@
     else if (r === 'materiais') h += travada(r) ? '<div class="np-pagina">' + trava(bloq('materiais'), '<button type="button" class="nx-btn" data-acao="ir" data-arg="perfil">Completar o perfil</button>') + '</div>' : telaMateriais();
     else if (r === 'parceria') { h += telaParceria(); pos = posParceria; }
     else if (r === 'perfil') h += telaPerfil();
+    else if (r === 'instalar') h += telaInstalar();
     main.innerHTML = h;
     if (!manter) {
       window.scrollTo(0, 0);
@@ -2584,14 +2788,15 @@
       if (S.rota === 'propostas' && S.sub !== 'lista') { window.scrollTo(0, 0); return; }
       fecharMais(true); irPara('propostas');
     },
-    instalarApp: function () {
-      var e = S.instalarEv;
-      if (!e || typeof e.prompt !== 'function') return;
-      S.instalarEv = null; atualizarInstalar();
-      try {
-        e.prompt();
-        if (e.userChoice && e.userChoice.then) e.userChoice.then(function (r) { if (r && r.outcome === 'accepted') toast('App instalado.'); });
-      } catch (x) { /* o navegador recusou: nada a fazer */ }
+    instalarApp: instalarAgora,
+    bannerInstalar: function () { if (S.instalarEv) instalarAgora(); else irPara('instalar'); },
+    bannerFechar: function () {
+      S.bannerFechado = true;
+      try { localStorage.setItem(CHAVE_FECHOU, String(Date.now())); } catch (e) { /* sem localStorage: fecha so ate recarregar */ }
+      pintarBanner();
+    },
+    copiarEndereco: function () {
+      copiar('https://' + URL_APP).then(function () { toast('Endereço copiado.'); }, function () { toast('Não foi possível copiar. Selecione o endereço e copie.', true); });
     },
     criarConta: function () {
       S.msgEntrada = ''; S.emailPre = ''; S.cad = novoCad();

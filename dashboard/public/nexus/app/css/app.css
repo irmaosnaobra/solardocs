@@ -781,3 +781,62 @@ html.np-teclado .np-tabs { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .ap-tile:active { transform: none; }
 }
+
+/* ------------------------------------------------------------------ instalar o app: tela #instalar, cartao do Inicio e convite fixo no celular */
+.np-instalar { gap: 16px; }
+.np-sub-i { color: var(--nx-tx2); font-size: 15px; line-height: 1.5; max-width: 640px; }
+.np-icard { margin-bottom: 0; display: flex; flex-direction: column; gap: 14px; }
+.np-icard.destaque { border-color: var(--nx-azul-tx); box-shadow: 0 0 0 1px var(--nx-azul-tx); }
+.np-icard .cab { display: flex; align-items: center; gap: 12px; }
+.np-icard .cab .ico, .np-iok .ico { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--nx-azul-sf); color: var(--nx-azul-tx); }
+.np-icard .nm { flex: 1 1 auto; min-width: 0; }
+.np-icard .nm h2 { font-size: 17px; font-weight: 800; line-height: 1.2; }
+.np-icard .nm small { display: block; font-size: 13px; color: var(--nx-tx2); }
+.np-outros { font-size: 17px; font-weight: 800; line-height: 1.2; margin-top: 8px; }
+.np-ip { font-size: 14px; color: var(--nx-tx2); line-height: 1.5; }
+.np-ipass { list-style: none; padding: 0; counter-reset: passo; display: flex; flex-direction: column; gap: 12px; }
+.np-ipass li { counter-increment: passo; position: relative; display: flex; align-items: center; gap: 12px; min-height: 48px; padding-left: 40px; font-size: 15px; line-height: 1.4; }
+.np-ipass li::before {
+  content: counter(passo); position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--nx-azul-sf); color: #004A9A; font-size: 13px; font-weight: 800;
+}
+.np-ipass .tx { flex: 1 1 auto; min-width: 0; }
+.np-ipass .figura { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--nx-bd2); background: var(--nx-sf2); color: var(--nx-tx); }
+.np-ipass .figura .nx-ic { width: 26px; height: 26px; }
+.np-iaviso { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: var(--nx-r-controle); background: var(--nx-av-sf); color: var(--nx-av); border: 1px solid #E6B677; font-size: 14px; line-height: 1.45; }
+.np-end { font-weight: 800; color: var(--nx-tx); overflow-wrap: anywhere; }
+.np-end.grande { font-size: 22px; line-height: 1.25; margin: 6px 0 12px; }
+.np-copiar { min-height: 48px; align-self: flex-start; }
+.np-pc { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+.np-pc .qr { flex: none; padding: 8px; border: 1px solid var(--nx-bd); border-radius: 12px; background: #fff; }
+.np-qr { display: block; width: 192px; height: 192px; }
+.np-pc .end { flex: 1 1 240px; min-width: 0; }
+.np-iok { display: flex; align-items: center; gap: 14px; margin-bottom: 0; border-color: var(--nx-azul-tx); background: var(--nx-azul-sf); }
+.np-iok h2 { font-size: 17px; font-weight: 800; line-height: 1.25; color: var(--nx-tx); }
+.np-iok p { font-size: 14px; color: var(--nx-tx2); margin-top: 2px; }
+.np-iok .ico { background: #fff; }
+.np-ioferece { margin-bottom: 0; }
+.np-inst .acoes { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.np-banner { display: none; }
+@media (max-width: 860.98px) {
+  .np-banner {
+    position: fixed; left: 8px; right: 8px; bottom: calc(var(--np-tabs) + env(safe-area-inset-bottom, 0px) + 8px); z-index: 920; display: flex; align-items: center; gap: 10px;
+    padding: 8px 2px 8px 12px; border-radius: 14px; background: var(--nx-navy); color: #fff; border: 1px solid var(--nx-navy-3); box-shadow: 0 10px 28px rgba(11, 26, 43, .35);
+    animation: np-ban-entra .25s ease;
+  }
+  .np-banner .ico { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: rgba(0, 133, 255, .18); border: 1px solid rgba(0, 133, 255, .45); color: #7DBBFF; }
+  .np-banner .tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .np-banner .tx b { font-size: 14px; font-weight: 800; line-height: 1.25; }
+  .np-banner .tx span { font-size: 12.5px; line-height: 1.35; color: var(--nx-inv2); }
+  .np-ban-btn { flex: none; min-width: 48px; min-height: 48px; padding: 0 16px; border: 1px solid #4DA3FF; border-radius: var(--nx-r-controle); background: var(--nx-azul-tx); color: #fff; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .np-ban-x { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border: 0; border-radius: var(--nx-r-controle); background: transparent; color: var(--nx-inv2); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .np-ban-x .nx-ic { width: 22px; height: 22px; }
+  .np-banner :focus-visible { outline-color: #fff; }
+  body:has(.nxg-barra) .np-banner, html.np-teclado .np-banner { display: none !important; }
+  html.np-com-banner .np-main:not(:has(.nxg-barra)) { padding-bottom: calc(var(--np-tabs) + env(safe-area-inset-bottom, 0px) + 96px); }
+  html.np-com-banner .nx-toast { bottom: calc(var(--np-tabs) + env(safe-area-inset-bottom, 0px) + 84px); }
+  .np-ipass li { font-size: 15px; }
+  .np-qr { width: 176px; height: 176px; }
+}
+@keyframes np-ban-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .np-banner { animation: none; } }
