@@ -316,6 +316,10 @@ html.io2{
 .en-sw-txt span{font-size:12.5px;color:var(--en-tx2);line-height:1.45}
 .en-tag.lig{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
 .en-tag.des{background:var(--en-sf3);border-color:var(--en-bd);color:var(--en-tx2)}
+.en-sw-vivo{flex-wrap:wrap}
+.en-sw-vivo .en-sw-txt{flex:1 1 200px}
+.en-sw-vivo .en-campo{flex:0 0 auto;min-width:180px}
+.en-vivo-tel{flex:1 1 220px}
 .en-sondas{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
 .en-confirma{padding:10px 12px;border:1px solid var(--en-av);border-radius:10px;background:var(--en-av-sf)}
 .en-confirma .en-aviso{color:var(--en-av);margin-bottom:8px}
@@ -335,6 +339,8 @@ html.io2{
   .en-form-pe .en-btn{flex:1 1 100%}
   .en-entrada .en-btn{flex:1 1 100%}
   .en-sw{flex-direction:column;align-items:stretch}
+  .en-sw-vivo .en-campo{min-width:0;flex:1 1 auto}
+  .en-vivo-tel{flex:1 1 100%}
   .en-sondas{grid-template-columns:1fr}
 }
 </style>
@@ -1312,7 +1318,132 @@ setInterval(carregar, 120000);
     });
   }
 
+  // ── Falar com cliente: interruptor *_vivo e quem a agente atende ──
+  var AGENTES_VIVO = [
+    ['duda', 'duda_vivo', 'Duda (Solar)', 'Duda'],
+    ['helena', 'helena_vivo', 'Helena (Eletroposto)', 'Helena'],
+    ['carla', 'carla_vivo', 'Carla (SolarDoc)', 'Carla']
+  ];
+  var MODOS_VIVO = [['teste', 'Só números de teste'], ['todos', 'Todos os leads']];
+  var vivoEst = { interr: null, alvo: null, ocupado: false };
+
+  function confirmaVivo(nome) { return window.confirm('A ' + nome + ' vai responder clientes de verdade na 5040. Confirma?'); }
+  function textoQtd(n) {
+    if (!(n > 0)) return 'Nenhum número de teste';
+    return n === 1 ? '1 número de teste' : n + ' números de teste';
+  }
+  function pintarQtdVivo() {
+    var q = $('en-vivo-qtd');
+    if (!q) return;
+    q.textContent = vivoEst.alvo ? textoQtd(Number(vivoEst.alvo.quantos) || 0) : 'Carregando os números de teste.';
+  }
+
+  function pintarVivo() {
+    var c = $('en-vivo-lista');
+    if (!c) return;
+    c.textContent = '';
+    var ints = vivoEst.interr || {};
+    var modos = (vivoEst.alvo && vivoEst.alvo.modos) || {};
+    AGENTES_VIVO.forEach(function (a) {
+      var s = ints[a[1]] || { banco: null, env: null, ligado: false };
+      var forcado = s.env === '1' || s.env === '0';
+      var modo = modos[a[0]] === 'todos' ? 'todos' : 'teste';
+      var linha = el('div', 'en-sw en-sw-vivo');
+      var txt = el('div', 'en-sw-txt');
+      var obs = !s.ligado ? 'Não responde cliente nenhum.' : (modo === 'todos' ? 'Responde a todos os leads.' : 'Responde só aos números de teste.');
+      add(txt, el('b', null, a[2]), el('span', null, obs + (forcado ? ' Fixado na Vercel.' : '')));
+      var tag = el('span', 'en-tag ' + (s.ligado ? 'lig' : 'des'), forcado ? 'Forçado pela Vercel: ' + (s.ligado ? 'ligado' : 'desligado') : (s.ligado ? 'Ligado' : 'Desligado'));
+      var campo = el('label', 'en-campo', 'Quem ela atende');
+      var sel = document.createElement('select');
+      MODOS_VIVO.forEach(function (o) { var op = el('option', null, o[1]); op.value = o[0]; if (o[0] === modo) op.selected = true; sel.appendChild(op); });
+      sel.disabled = !vivoEst.alvo || vivoEst.ocupado;
+      sel.addEventListener('change', function () {
+        var novo = sel.value;
+        if (novo === 'todos' && !confirmaVivo(a[3])) { sel.value = modo; return; }
+        var m = {}; m[a[0]] = novo;
+        gravarVivo(api('PUT', 'ensaio/vivo-alvo', { modos: m }), a[3] + (novo === 'todos' ? ' agora atende todos os leads.' : ' agora atende só os números de teste.'));
+      });
+      campo.appendChild(sel);
+      var ligar = s.banco !== true;
+      var b = botao(forcado ? 'Fixado na Vercel' : (ligar ? 'Ligar' : 'Desligar'), ligar && !forcado ? 'prim' : '', function () {
+        if (ligar && !confirmaVivo(a[3])) return;
+        var corpo = {}; corpo[a[1]] = ligar;
+        gravarVivo(api('PUT', 'ensaio/interruptores', corpo), a[3] + (ligar ? ' ligada.' : ' desligada.'));
+      });
+      if (forcado) { b.title = 'Este interruptor está fixado por uma variável de ambiente da Vercel. Só se muda lá.'; }
+      b.disabled = forcado || vivoEst.ocupado;
+      add(linha, txt, tag, campo, b);
+      c.appendChild(linha);
+    });
+  }
+
+  /** Uma gravação por vez. Dá certo: guarda o estado novo e repinta. Dá errado: repinta o estado antigo e diz o erro. */
+  function gravarVivo(promessa, okTexto) {
+    if (vivoEst.ocupado) return Promise.resolve(false);
+    vivoEst.ocupado = true;
+    pintarVivo(); botoesVivo(true);
+    msg('en-vivo-msg', '', 'Gravando.');
+    return promessa.then(function (j) {
+      vivoEst.ocupado = false;
+      if (j && j.interruptores) { pintarInterruptores(j); }
+      if (j && j.alvo) { vivoEst.alvo = j.alvo; }
+      pintarVivo(); pintarQtdVivo(); botoesVivo(false);
+      msg('en-vivo-msg', 'ok', okTexto);
+      return true;
+    }, function (e) {
+      vivoEst.ocupado = false;
+      pintarVivo(); botoesVivo(false);
+      msg('en-vivo-msg', 'erro', textoDoErro(e));
+      return false;
+    });
+  }
+  function botoesVivo(trava) {
+    ['en-vivo-add', 'en-vivo-limpar'].forEach(function (id) { var b = $(id); if (b) b.disabled = trava; });
+  }
+
+  function adicionarTeste() {
+    var campo = $('en-vivo-tel');
+    var digitos = String(campo && campo.value || '').replace(/\D/g, '');
+    if (!digitos) { msg('en-vivo-msg', 'erro', 'Digite o telefone com DDD.'); return; }
+    if (digitos.length < 10) { msg('en-vivo-msg', 'erro', 'Telefone incompleto. Use o DDD e o número.'); return; }
+    gravarVivo(api('PUT', 'ensaio/vivo-alvo', { telefone: digitos }), 'Número de teste adicionado.').then(function (deuCerto) {
+      if (deuCerto && campo) campo.value = '';
+    });
+  }
+  function apagarTestes() {
+    gravarVivo(api('PUT', 'ensaio/vivo-alvo', { limpar: true }), 'Números de teste apagados.');
+  }
+  function carregarVivo() {
+    api('GET', 'ensaio/vivo-alvo').then(function (j) {
+      vivoEst.alvo = j.alvo || null;
+      pintarVivo(); pintarQtdVivo();
+    }).catch(function (e) { msg('en-vivo-msg', 'erro', textoDoErro(e)); });
+  }
+
+  function blocoVivo() {
+    var tel = document.createElement('input');
+    tel.type = 'tel'; tel.id = 'en-vivo-tel'; tel.setAttribute('inputmode', 'tel'); tel.autocomplete = 'off'; tel.placeholder = '34 99999-9999';
+    tel.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); adicionarTeste(); } });
+    var campo = el('label', 'en-campo en-vivo-tel', 'Telefone com DDD');
+    campo.appendChild(tel);
+    var add1 = botao('Adicionar número de teste', 'prim', adicionarTeste); add1.id = 'en-vivo-add';
+    var lim = botao('Apagar números de teste', '', apagarTestes); lim.id = 'en-vivo-limpar';
+    var m = el('div', 'en-msg'); m.id = 'en-vivo-msg'; m.setAttribute('role', 'status');
+    var qtd = el('div', 'en-meta', 'Carregando os números de teste.'); qtd.id = 'en-vivo-qtd';
+    var lista = el('div', 'en-sw-lista'); lista.id = 'en-vivo-lista';
+    var cx = el('div');
+    add(cx,
+      el('div', 'en-rot', 'Falar com cliente'),
+      el('p', 'en-aviso', 'Aqui a agente responde cliente de verdade na 5040. Deixe em "Só números de teste" até conferir o ensaio.'),
+      lista, m,
+      el('div', 'en-rot', 'Números de teste'), qtd,
+      add(el('div', 'en-linha-form'), campo, add1, lim));
+    return cx;
+  }
+
   function pintarInterruptores(j) {
+    vivoEst.interr = j.interruptores || {};
+    pintarVivo();
     var c = $('en-sw-lista');
     if (!c) return;
     c.textContent = '';
@@ -1343,7 +1474,7 @@ setInterval(carregar, 120000);
     add(det, el('summary', null, 'Controles'));
     var corpo = el('div', 'en-det-corpo');
     add(corpo, el('p', 'en-aviso', 'Interruptores das peças da Fase A e sondas. A sonda não roda na hora: o painel grava o pedido e o ciclo do ensaio executa em até 5 minutos. O resultado vem sem nome nem telefone.'));
-    add(corpo, el('div', 'en-rot', 'Interruptores'), Object.assign(el('div', 'en-sw-lista'), { id: 'en-sw-lista' }));
+    add(corpo, el('div', 'en-rot', 'Interruptores'), Object.assign(el('div', 'en-sw-lista'), { id: 'en-sw-lista' }), blocoVivo());
     var grade = el('div', 'en-sondas');
     ctl.botoes = [];
     SONDAS.forEach(function (s) {
@@ -1374,6 +1505,7 @@ setInterval(carregar, 120000);
     det.addEventListener('toggle', function () {
       if (!det.open) return;
       api('GET', 'ensaio/interruptores').then(pintarInterruptores).catch(function (e) { msg('en-cmd-msg', 'erro', textoDoErro(e)); });
+      carregarVivo();
       conferirComando();
     });
     return det;
