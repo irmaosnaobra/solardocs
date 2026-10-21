@@ -61,6 +61,9 @@ import { telefoneBonito, quandoPorExtenso } from './eletropostoAgenda';
 import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
 import { agenteAtendeEste, cedeAAgente } from '../agentes5040/posse';
+import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
+
+export { SOLAR_BV_DEDUP_PREFIX };
 
 /** Marcador de envio efetivado. É por ele que o teto anti-ban da linha enxerga
  *  este agente — sem isto ele fura o teto em silêncio (ver lineThrottle.ts). */
@@ -122,32 +125,8 @@ const MAX_POR_TICK = 5;
  */
 export const SOLAR_ENTREGA_AMPLA_INICIO = '2026-08-13T22:00:00.000Z';
 
-/**
- * Quem NÃO recebe o recibo do cadastro.
- *
- * O filtro era `status = 'agendado'`, e essa é a causa nº 1 de 87 pessoas não
- * terem recebido nada em 30 dias: a ficha sai de "agendado" em MINUTOS (a triagem
- * é rápida) e some da fila pra sempre. Das 99 do Meta, 71 já não eram elegíveis
- * quando o tick olhou — 40 delas em `sem_interesse`.
- *
- * Invertido: em vez de listar quem pode, lista quem não pode.
- *   · cancelado / sem_interesse — a pessoa disse não. Recibo aqui é insistência.
- *   · fez_orcamento — já recebeu proposta. "Antes de te chamar, a gente monta o
- *     estudo" viraria mentira na cara de quem já viu o estudo.
- *   · perdido / fechou / fechou_concorrente: a conversa já terminou, pra um lado ou
- *     pro outro. "Este é o seu pré-atendimento" pra quem já fechou, com a gente ou
- *     com outro, é mensagem fora de hora. Entraram em 14/09/2026, quando a ficha
- *     995, marcada como perdido, voltou a contar no alarme de perdidos.
- * O resto (agendado, em_atendimento, nao_atendeu) RECEBE: são justamente os casos
- * em que a conversa ainda não aconteceu — e `nao_atendeu` é literalmente quem o
- * consultor tentou ligar e não alcançou.
- */
-/* `apalavrado` entrou em 30/09/2026 com a sala de espera: é quem já disse SIM e
- * está esperando uma peça de fora (o investidor, o terreno, a assinatura).
- * Ordem do Thiago no dia: "ela é uma pessoa que não fica recebendo mais
- * mensagem". Mandar "este é o seu pré-atendimento" pra quem já apertou a mão é
- * a mensagem mais fora de hora da lista inteira. */
-const STATUS_QUE_NAO_RECEBEM = ['cancelado', 'sem_interesse', 'fez_orcamento', 'perdido', 'fechou', 'fechou_concorrente', 'apalavrado'];
+// STATUS_QUE_NAO_RECEBEM (quem não recebe o recibo do cadastro, e por quê) e SOLAR_BV_DEDUP_PREFIX moram em agenda/solarStatus.ts,
+// um módulo sem envio, para o agendaEnvio.ts da agente conferir a mesma lista e gravar o mesmo marcador.
 
 /** Bolha maior que o padrão (160) de propósito: sem isso as frases longas se
  *  quebram no meio, viram 8+ mensagens seguidas, e o teto de 5 do `emBolhas`
@@ -201,10 +180,6 @@ async function devolverFicha(id: number, reservadaEm: string): Promise<void> {
   }
 }
 
-/** Marcador de "não mandei porque este telefone já recebeu". Fica fora dos prefixos
- *  do teto da linha (nada saiu) e é o que a varredura usa pra não confundir com
- *  envio interrompido. */
-export const SOLAR_BV_DEDUP_PREFIX = 'solar_bv_dedup:';
 /** Mesma pessoa que já recebeu nestes dias não recebe de novo por ficha nova. */
 const DEDUP_TELEFONE_DIAS = 30;
 
@@ -753,6 +728,19 @@ async function conferirReservasSemEnvio(desde: string): Promise<void> {
       semEnvio = ids
         .filter((id: number) => !existentes.has(`${SOLAR_BV_PREFIX}${id}`) && !existentes.has(`${SOLAR_BV_DEDUP_PREFIX}${id}`))
         .sort((a: number, b: number) => a - b);
+      // A ABERTURA do quiz (agentes5040, 21/10) reserva boas_vindas_at e entrega pela fila de agenda da Duda, que carimba
+      // ag5040_agenda_sent:<id>:abertura:<iso>. Enviada = esse carimbo; ainda na fila = ag5040_agenda_fila:<id>:abertura:<iso>
+      // (a fila entrega de 2 em 2 min, mas segura em pausa humana ou linha caída). Nenhum dos dois é alarme; carimbo em 'reservado' ou 'falhou' é. Os prefixos ficam
+      // escritos aqui de propósito: importar o agendaEnvio traria o envio da agente para dentro deste arquivo.
+      if (semEnvio.length > 0) {
+        try {
+          const daAbertura = await idsComAberturaNoEstado(semEnvio);
+          semEnvio = semEnvio.filter((id: number) => !daAbertura.has(id));
+        } catch (err) {
+          // Sem conseguir ler os carimbos da abertura, o alarme sai como antes (na dúvida, acusa).
+          logger.warn('solar-boas-vindas', 'ler os carimbos da abertura do quiz falhou, o alarme segue sem eles', err);
+        }
+      }
     }
 
     if (await mudou(ALARME_RESERVA_KEY, semEnvio.join(',')) && semEnvio.length > 0) {
@@ -762,6 +750,28 @@ async function conferirReservasSemEnvio(desde: string): Promise<void> {
   } catch (err) {
     logger.error('solar-boas-vindas', 'conferir reservas sem envio falhou', err);
   }
+}
+
+/**
+ * Dos ids, os que têm a abertura do quiz ENVIADA (ag5040_agenda_sent com value.estado === 'enviado') ou ainda na fila
+ * (ag5040_agenda_fila). Carimbo em 'reservado' (o envio pode ter morrido no meio) ou 'falhou' NÃO conta: esses o alarme acusa.
+ * Erro de leitura LANÇA.
+ */
+async function idsComAberturaNoEstado(ids: number[]): Promise<Set<number>> {
+  const achados = new Set<number>();
+  for (let i = 0; i < ids.length; i += 25) {
+    const lote = ids.slice(i, i + 25);
+    const filtro = lote.flatMap((id) => [`key.like.ag5040_agenda_sent:${id}:abertura:%`, `key.like.ag5040_agenda_fila:${id}:abertura:%`]).join(',');
+    const { data, error } = await supabase.from('system_state').select('key, value').or(filtro);
+    if (error) throw error;
+    for (const m of (data ?? []) as Array<{ key: string; value?: { estado?: string } | null }>) {
+      const achou = /^ag5040_agenda_(sent|fila):(\d+):abertura:/.exec(String(m.key));
+      if (!achou) continue;
+      if (achou[1] === 'sent' && m.value?.estado !== 'enviado') continue;
+      achados.add(Number(achou[2]));
+    }
+  }
+  return achados;
 }
 
 /**

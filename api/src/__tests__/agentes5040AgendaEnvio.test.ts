@@ -10,7 +10,7 @@ type Linha = { value: any; updated_at: string };
 
 const h = vi.hoisted(() => ({
   estado: new Map<string, Linha>(),
-  cards: new Map<number, { cliente_telefone: string | null; status: string | null; quando: string | null }>(),
+  cards: new Map<number, { cliente_telefone: string | null; status: string | null; quando: string | null; vendedor_nome?: string | null }>(),
   leiturasFila: 0,
   enviados: [] as Array<{ tel: string; partes: string[]; inst: string; opts: any }>,
   falhas: [] as Array<Error | null>,
@@ -125,6 +125,7 @@ import {
   type PedidoAgenda,
 } from '../services/agentes5040/agendaEnvio';
 import { sendHuman } from '../services/agents/zapiClient';
+import { STATUS_QUE_NAO_RECEBEM } from '../services/agenda/solarStatus';
 import { logger } from '../utils/logger';
 
 const AGORA = new Date('2026-10-21T15:00:00.000Z');                       // quarta, 12:00 em Brasília
@@ -710,5 +711,228 @@ describe('agendaEnvio: a rodada própria da fila (runAgendaTick, correção 8)',
     expect(carimbos()).toEqual([]);
     expect(h.estado.has('ag5040_agenda_trava')).toBe(false);
     expect(esperas).toEqual([]);
+  });
+});
+
+describe('agendaEnvio: a abertura do card do quiz (tipo abertura)', () => {
+  // Quinta 22/10 às 14h30 (Brasília), vista de quarta 21/10: "amanhã às 14h30".
+  const ab = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => pedido({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu', ...extra });
+
+  it('sai o texto fixo do caminho, com o nome, a consultora e o horário montado no envio; o carimbo é o da agenda e as boas-vindas NÃO são carimbadas de novo', async () => {
+    for (const [id, caminho] of [[501, 'ligacao'], [502, 'video'], [503, 'vistoria']] as const) {
+      h.cards.set(id, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
+      expect((await enfileirarAgenda(ab({ cardId: id, caminho }), AGORA)).ok).toBe(true);
+    }
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 3, descartadas: 0, mantidas: 0 });
+    expect(textos()).toEqual([
+      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Já está marcado: *Giovanna* te liga *amanhã às 14h30*. É uma ligação curta para entender sua conta.',
+      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Giovanna* te chama por vídeo amanhã às 14h30, com o estudo na tela. Responda SIM para confirmar.',
+      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Giovanna* vai aí amanhã às 14h30, visita técnica de uns 40 minutos. Responda SIM para confirmar.',
+    ]);
+    for (const e of h.enviados) { expect(e.partes).toHaveLength(1); expect(e.inst).toBe('io'); expect(e.opts).toEqual({ maxBolhas: 1, max: 160 }); }
+    expect(carimbos()).toEqual([501, 502, 503].map(id => chaveCarimboAgenda(id, 'abertura', QUANDO)).sort());
+    expect(h.boasVindas).toEqual([]);
+    expect(fila()).toEqual([]);
+  });
+
+  it('a fila guarda o caminho e o primeiro nome, nunca o telefone nem o texto pronto', async () => {
+    await enfileirarAgenda(ab({ nome: 'Irineu de Almeida' }), AGORA);
+    const v = h.estado.get(chaveFila(501, 'abertura', QUANDO))!.value;
+    expect(v).toMatchObject({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu', quando: QUANDO, descarta_em: QUANDO });
+    expect(JSON.stringify(v)).not.toMatch(/5534991360223|amanhã|14h30|Sou a Duda/);
+  });
+
+  it('enfileirar recusa caminho que não existe e bolha que não cabe nem sem nome e sem asteriscos', async () => {
+    expect(await enfileirarAgenda(ab({ caminho: 'curioso' }), AGORA)).toEqual({ ok: false, motivo: 'pedido_invalido' });
+    expect(await enfileirarAgenda(ab({ caminho: undefined }), AGORA)).toEqual({ ok: false, motivo: 'pedido_invalido' });
+    expect(await enfileirarAgenda(ab({ cardId: 502, caminho: 'vistoria', consultora: 'Maria' + 'a'.repeat(60) }), AGORA)).toEqual({ ok: false, motivo: 'bolha_invalida' });
+    expect(await enfileirarAgenda(ab({ cardId: 503, consultora: '' }), AGORA)).toEqual({ ok: false, motivo: 'bolha_invalida' });
+    expect(h.estado.size).toBe(0);
+  });
+
+  it('o reforço (reenvio depois de 5xx) não derruba a abertura: o texto é o mesmo', () => {
+    const c = { consultora: 'Giovanna', caminho: 'video', nome: 'Irineu', quando: 'amanhã às 14h30' };
+    expect(montarBolhaAgenda('abertura', c, true)).toBe(montarBolhaAgenda('abertura', c, false));
+    expect(montarBolhaAgenda('abertura', c)).not.toBeNull();
+  });
+
+  it('agenda de verdade: o teto cheio das agentes e da linha NÃO a segura (só 7h-21h, pausa humana, linha caída, chave repetida e 10 s)', async () => {
+    await enfileirarAgenda(ab(), AGORA);
+    // 40 envios recentes das agentes e 70 da linha: nenhum teto pode segurar
+    for (let i = 0; i < 40; i++) h.estado.set(`ag5040_sent:${i}:1`, { value: {}, updated_at: ant(30 * MIN) });
+    for (let i = 0; i < 70; i++) h.estado.set(`solar_boasvindas_sent:${1000 + i}`, { value: {}, updated_at: ant(30 * MIN) });
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+    expect(chamadas()).toBe(1);
+  });
+
+  it('pausa humana mantém na fila, e vence pela validade (= o horário do card)', async () => {
+    h.pode = { pode: false, motivo: 'humano-ativo' };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 0, mantidas: 1 });
+    expect(fila()).toEqual([chaveFila(501, 'abertura', QUANDO)]);
+    h.pode = { pode: true, motivo: 'sem-pausa' };
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+  });
+
+  it('linha caída mantém na fila; fora das 7h às 21h não lê nada', async () => {
+    h.cooldown = true;
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, mantidas: 1, parou: 'linha_pausada' });
+    h.cooldown = false;
+    expect(await enviarAgendaPendente(new Date('2026-10-22T01:30:00.000Z'))).toMatchObject({ enviadas: 0, parou: 'fora_da_janela' });   // 22h30 em Brasília
+    expect(chamadas()).toBe(0);
+    expect(fila()).toHaveLength(1);
+  });
+
+  it('card mudado de horário, cancelado ou com o horário já passado: descarta, sem enviar', async () => {
+    await enfileirarAgenda(ab({ cardId: 501 }), AGORA);
+    await enfileirarAgenda(ab({ cardId: 502 }), AGORA);
+    await enfileirarAgenda(ab({ cardId: 503 }), AGORA);
+    h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: '2026-10-23T13:00:00.000Z' });
+    h.cards.set(502, { cliente_telefone: TEL, status: 'cancelado', quando: QUANDO });
+    expect(await enviarAgendaPendente(new Date(Date.parse(QUANDO) + MIN))).toMatchObject({ enviadas: 0, descartadas: 3 });
+    expect(chamadas()).toBe(0);
+    expect(fila()).toEqual([]);
+  });
+
+  it('chave repetida: a abertura que já saiu não sai de novo, e enfileirar de novo recusa (ja_enviado)', async () => {
+    await enfileirarAgenda(ab(), AGORA);
+    await enviarAgendaPendente(AGORA);
+    expect(await enfileirarAgenda(ab(), AGORA)).toEqual({ ok: false, motivo: 'ja_enviado' });
+    expect(chamadas()).toBe(1);
+  });
+});
+
+describe('agendaEnvio: abertura descartada deixa o marcador solar_bv_dedup e o card é relido (status e consultora)', () => {
+  const ab = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => pedido({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu', ...extra });
+  const dedup = (id: number): string[] => [...h.estado.keys()].filter(k => k === `solar_bv_dedup:${id}`);
+  const todosDedup = (): string[] => [...h.estado.keys()].filter(k => k.startsWith('solar_bv_dedup:')).sort();
+
+  it('cada status que o solarBoasVindas não atende descarta a abertura SEM enviar, e deixa o marcador do card', async () => {
+    for (const status of STATUS_QUE_NAO_RECEBEM) {
+      h.estado.clear(); (sendHuman as any).mockClear();
+      h.cards.set(501, { cliente_telefone: TEL, status, quando: QUANDO });
+      await enfileirarAgenda(ab(), AGORA);
+      expect(await enviarAgendaPendente(AGORA), status).toMatchObject({ enviadas: 0, descartadas: 1, mantidas: 0 });
+      expect(chamadas(), status).toBe(0);
+      expect(fila(), status).toEqual([]);
+      expect(carimbos(), status).toEqual([]);
+      expect(dedup(501), status).toEqual(['solar_bv_dedup:501']);
+    }
+  });
+
+  it('o status vem relido com maiúscula e espaço também; status que recebe (agendado, em_atendimento, nao_atendeu) sai normalmente', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: ' FECHOU ', quando: QUANDO });
+    await enfileirarAgenda(ab(), AGORA);
+    expect((await enviarAgendaPendente(AGORA)).descartadas).toBe(1);
+    for (const [i, status] of (['agendado', 'em_atendimento', 'nao_atendeu'] as const).entries()) {
+      h.cards.set(502 + i, { cliente_telefone: TEL, status, quando: QUANDO });
+      await enfileirarAgenda(ab({ cardId: 502 + i }), AGORA);
+    }
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 3, descartadas: 0 });
+    expect(todosDedup()).toEqual(['solar_bv_dedup:501']);
+  });
+
+  it('confirma e remarca também conferem o status (descartam sem enviar), mas só a abertura grava o marcador', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: 'fez_orcamento', quando: QUANDO });
+    h.cards.set(502, { cliente_telefone: TEL, status: 'apalavrado', quando: QUANDO });
+    await enfileirarAgenda(pedido({ tipo: 'confirma', cardId: 501 }), AGORA);
+    await enfileirarAgenda(pedido({ tipo: 'remarca', cardId: 502 }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 2 });
+    expect(chamadas()).toBe(0);
+    expect(todosDedup()).toEqual([]);
+  });
+
+  it('a volta honesta só morre com o card cancelado: status de negociação não a segura', async () => {
+    h.cards.set(503, { cliente_telefone: TEL, status: 'fez_orcamento', quando: null });
+    await enfileirarAgenda(pedidoVolta({ cardId: 503 }), AGORA);
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+  });
+
+  it('opt-out, bloqueio, pausa humana vencida, cancelado, horário passado, sem número e número trocado deixam o marcador; horário mudado não (o alarme acusa)', async () => {
+    const casos: Array<[string, () => Promise<Date | void>]> = [
+      ['opt_out', async () => { h.motivos = ['opt_out']; }],
+      ['denuncia', async () => { h.motivos = ['denuncia']; }],
+      ['bloqueado', async () => { h.bloqueado = true; }],
+      ['pausa vencida', async () => { h.pode = { pode: false, motivo: 'humano-ativo' }; return new Date(AGORA.getTime() + 2 * HORA); }],
+      ['horário mudou', async () => { h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: '2026-10-23T13:00:00.000Z' }); }],
+      ['cancelado', async () => { h.cards.set(501, { cliente_telefone: TEL, status: 'cancelado', quando: QUANDO }); }],
+      ['horário passado', async () => new Date(Date.parse(QUANDO) + MIN)],
+      ['card sumiu', async () => { h.cards.delete(501); }],
+      ['sem número', async () => { h.cards.set(501, { cliente_telefone: '123', status: 'agendado', quando: QUANDO }); }],
+      ['número trocado', async () => { h.cards.set(501, { cliente_telefone: '5534988887777', status: 'agendado', quando: QUANDO }); }],
+    ];
+    for (const [nome, preparar] of casos) {
+      h.estado.clear(); (sendHuman as any).mockClear();
+      h.bloqueado = false; h.motivos = []; h.pode = { pode: true, motivo: 'sem-pausa' };
+      h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
+      await enfileirarAgenda(ab({ validoAte: dep(HORA) }), AGORA);
+      const quando = (await preparar()) ?? AGORA;
+      expect(await enviarAgendaPendente(quando), nome).toMatchObject({ enviadas: 0, descartadas: 1, mantidas: 0 });
+      expect(chamadas(), nome).toBe(0);
+      expect(fila(), nome).toEqual([]);
+      expect(dedup(501), nome).toEqual(nome === 'horário mudou' ? [] : ['solar_bv_dedup:501']);
+      expect(carimbos(), nome).toEqual([]);
+    }
+  });
+
+  it('o marcador nunca leva o prefixo do carimbo da agenda (que conta nos tetos), nem telefone, nem texto', async () => {
+    h.motivos = ['opt_out'];
+    await enfileirarAgenda(ab(), AGORA);
+    await enviarAgendaPendente(AGORA);
+    const chaves = [...h.estado.keys()];
+    expect(chaves).toEqual(['solar_bv_dedup:501']);
+    expect(chaves.some(k => k.startsWith('ag5040_agenda_sent:'))).toBe(false);
+    const linha = h.estado.get('solar_bv_dedup:501')!;
+    expect(linha.value).toMatchObject({ origem: 'abertura_descartada', motivo: 'opt_out' });
+    expect(JSON.stringify(linha)).not.toMatch(/5534991360223|Sou a Duda/);
+  });
+
+  it('número inválido na hora de enviar (HTTP 400/404 do destino): descarta e deixa o marcador; 5xx que pode ter chegado NÃO', async () => {
+    await enfileirarAgenda(ab({ cardId: 501 }), AGORA);
+    h.falhas.push(new Error('[zapi:io] HTTP 400 — {"error":"phone number invalid"}'));
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(dedup(501)).toEqual(['solar_bv_dedup:501']);
+    expect(fila()).toEqual([]);
+    // 5xx: o carimbo fica em falhou e o item espera o reenvio; sem marcador
+    await enfileirarAgenda(ab({ cardId: 502 }), AGORA);
+    h.falhas.push(new Error('Z-API HTTP 503'));
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, mantidas: 1 });
+    expect(dedup(502)).toEqual([]);
+  });
+
+  it('abertura enviada, mantida na fila (pausa humana) ou vista no dry NÃO grava o marcador', async () => {
+    await enfileirarAgenda(ab({ cardId: 501 }), AGORA);
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+    h.pode = { pode: false, motivo: 'humano-ativo' };
+    await enfileirarAgenda(ab({ cardId: 502 }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, mantidas: 1, descartadas: 0 });
+    h.pode = { pode: true, motivo: 'sem-pausa' };
+    h.motivos = ['opt_out'];
+    await enfileirarAgenda(ab({ cardId: 503 }), AGORA);
+    await enviarAgendaPendente(AGORA, { dry: true });
+    expect(todosDedup()).toEqual([]);
+  });
+
+  it('a consultora do texto é a do card AGORA (a ficha trocou de mãos depois do pedido); card sem consultora usa a do item', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, vendedor_nome: 'Nilce Souza' });
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, vendedor_nome: 'Diego' });
+    h.cards.set(503, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, vendedor_nome: '  ' });
+    await enfileirarAgenda(ab({ cardId: 501 }), AGORA);
+    await enfileirarAgenda(pedido({ tipo: 'confirma', cardId: 502 }), AGORA);
+    await enfileirarAgenda(ab({ cardId: 503 }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 3 });
+    const t = textos();
+    expect(t.some(x => x.includes('*Nilce* te liga') && !x.includes('Giovanna'))).toBe(true);
+    expect(t).toContain('Ficou marcado para amanhã às 14h30. A Diego te liga nesse horário.');
+    expect(t.some(x => x.includes('*Giovanna* te liga'))).toBe(true);
+  });
+
+  it('a consultora do card que não cabe nos 160 descarta a abertura (nada sai) e deixa o marcador', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, vendedor_nome: 'M' + 'a'.repeat(40) });
+    await enfileirarAgenda(ab({ caminho: 'vistoria' }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(chamadas()).toBe(0);
+    expect(dedup(501)).toEqual(['solar_bv_dedup:501']);
   });
 });

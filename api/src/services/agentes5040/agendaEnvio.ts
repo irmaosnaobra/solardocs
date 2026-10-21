@@ -21,6 +21,14 @@
 // (Brasília), e o card é relido: horário diferente do pedido ou já passado = descarta. O ISO entra na chave da fila e do
 // carimbo (ag5040_agenda_sent:<cardId>:<tipo>:<iso>), então a 2ª remarcação não colide com a 1ª.
 // A fila só é entregue das 7h às 21h (Brasília), a janela do transacional. O carimbo e o log nunca levam telefone.
+//
+// O tipo `abertura` (21/10/2026) é a confirmação do horário que o cliente escolheu no quiz solar, enfileirada pela rodada viva
+// (vivo.ts, abrirCardsDoQuiz) logo depois que o card nasce. Mesmas regras dos outros tipos: agenda de verdade, nenhum teto a segura,
+// quando = o horário do card, e card mudado ou horário passado descarta. O item leva também o caminho (ligacao, video, vistoria)
+// e o primeiro nome do cliente (nunca o telefone). Quem reserva boas_vindas_at é o vivo; aqui, depois que sai, nada é carimbado.
+// Abertura DESCARTADA na hora do envio (opt-out, pausa vencida, card mudado, cancelado ou com status que não recebe, horário passado,
+// número inválido) grava solar_bv_dedup:<cardId>: é o marcador que o alarme de reservas sem envio do solarBoasVindas já aceita (não entra
+// em nenhum teto). NUNCA com o prefixo do carimbo da agenda, que conta nos tetos e diria "enviado".
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -35,11 +43,12 @@ import { codigoDoErroDeEnvio, erroEhDoDestino, CHAVE_LINHA_PAUSA, CHAVE_LINHA_ER
 import { erroProvaQueNaoSaiu } from './fichaEnvio';
 import { marcarBoasVindasEnviada } from './agendaSolar';
 import { horaBRT } from './relogio';
-import { camposDeHorario, opcaoPorExtenso, primeiroNome } from './textosAgenda';
+import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
+import { camposDeHorario, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 
 const LOG = 'agenda-envio-5040';
 
-export type TipoAgenda = 'confirma' | 'remarca' | 'volta';
+export type TipoAgenda = 'confirma' | 'remarca' | 'volta' | 'abertura';
 
 export interface CamposAgenda {
   /** hoje | amanhã | "quinta, 23/10". */
@@ -51,6 +60,10 @@ export interface CamposAgenda {
   /** "amanhã às 9h" (só o tipo volta). */
   opcao1?: string;
   opcao2?: string;
+  /** Só a abertura: ligacao | video | vistoria, o primeiro nome do cliente e o horário por extenso ("amanhã às 14h30"). */
+  caminho?: string;
+  nome?: string;
+  quando?: string;
 }
 
 export interface PedidoAgenda {
@@ -71,6 +84,10 @@ export interface PedidoAgenda {
   opcoes?: [string, string];
   /** Reenvio de quem pode ter chegado (5xx ou timeout na bolha do turno): sai "Só reforçando: ...". */
   reforco?: boolean;
+  /** Só a abertura: ligacao | video | vistoria (o mesmo que o solarBoasVindas descobre pela observação do card). */
+  caminho?: string;
+  /** Só a abertura: o primeiro nome do cliente. Vazio = a bolha sai sem nome. */
+  nome?: string;
 }
 
 export const PREFIXO_FILA = 'ag5040_agenda_fila:';
@@ -104,7 +121,7 @@ export const isoCompacto = (iso: string): string => {
 export const chaveFila = (cardId: number, tipo: TipoAgenda, quando: string): string => `${PREFIXO_FILA}${cardId}:${tipo}:${isoCompacto(quando)}`;
 export const chaveCarimboAgenda = (cardId: number, tipo: TipoAgenda, quando: string): string => `${PREFIXO_CARIMBO_AGENDA}${cardId}:${tipo}:${isoCompacto(quando)}`;
 
-const TIPOS: readonly TipoAgenda[] = ['confirma', 'remarca', 'volta'];
+const TIPOS: readonly TipoAgenda[] = ['confirma', 'remarca', 'volta', 'abertura'];
 const TRAVESSAO = /[—–]/;
 const codigoDe = (e: unknown): string => String((e as { code?: string } | null)?.code ?? 'desconhecido').slice(0, 20);
 const texto = (v: unknown): string => String(v ?? '').trim();
@@ -133,6 +150,11 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
   } else if (tipo === 'volta') {
     if (!opcao1 || !opcao2) return null;
     bolha = `Consigo deixar a ligação marcada pra você: ${opcao1} ou ${opcao2}. Qual fica melhor?`;
+  } else if (tipo === 'abertura') {
+    // A abertura do card do quiz (textosAgenda.ts): ignora o reforço (o reenvio sai com o mesmo texto) e já se corta sozinha em 160.
+    const t = textoDeAbertura(c.caminho, c.nome, texto(c.quando), consultora);
+    if (!t) return null;
+    bolha = t;
   } else return null;
   if (TRAVESSAO.test(bolha) || bolha.includes('||')) return null;
   if (bolha.length > LIMITES_AGENDA.maxCaracteresBolha) return null;
@@ -140,7 +162,13 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
 }
 
 /** Os campos do texto, montados AGORA (Brasília) a partir dos ISOs do item. */
-function camposNoEnvio(tipo: TipoAgenda, quando: string, consultora: string, opcoes: readonly string[] | undefined, agoraIso: string): Partial<CamposAgenda> {
+function camposNoEnvio(
+  tipo: TipoAgenda, quando: string, consultora: string, opcoes: readonly string[] | undefined, agoraIso: string,
+  abertura?: { caminho?: string; nome?: string },
+): Partial<CamposAgenda> {
+  if (tipo === 'abertura') {
+    return { consultora: primeiroNome(consultora), caminho: abertura?.caminho ?? '', nome: abertura?.nome ?? '', quando: opcaoPorExtenso(quando, agoraIso) };
+  }
   if (tipo === 'volta') {
     return {
       consultora: primeiroNome(consultora),
@@ -168,6 +196,8 @@ interface ItemDaFila {
   consultora: string;
   opcoes?: [string, string];
   reforco?: boolean;
+  caminho?: string;
+  nome?: string;
   /** HMAC do telefone (chaveContato) e o id da chave que o gerou; null sem segredo. */
   tel_hmac: string | null;
   hmac_id: string | null;
@@ -191,9 +221,12 @@ export async function enfileirarAgenda(p: PedidoAgenda, agora: Date = new Date()
     ? [new Date(Date.parse(p.opcoes[0]!)).toISOString(), new Date(Date.parse(p.opcoes[1]!)).toISOString()] as [string, string]
     : undefined;
   if (p.tipo === 'volta' && !opcoes) return { ok: false, motivo: 'pedido_invalido' };
+  if (p.tipo === 'abertura' && !CAMINHOS_ABERTURA.includes(String(p.caminho))) return { ok: false, motivo: 'pedido_invalido' };
   const quando = new Date(Date.parse(p.quando)).toISOString();
   const consultora = primeiroNome(p.consultora);
-  if (!montarBolhaAgenda(p.tipo, camposNoEnvio(p.tipo, quando, consultora, opcoes, agora.toISOString()), p.reforco === true)) return { ok: false, motivo: 'bolha_invalida' };
+  const nome = p.tipo === 'abertura' ? primeiroNome(p.nome) : '';
+  const abertura = p.tipo === 'abertura' ? { caminho: p.caminho, nome } : undefined;
+  if (!montarBolhaAgenda(p.tipo, camposNoEnvio(p.tipo, quando, consultora, opcoes, agora.toISOString(), abertura), p.reforco === true)) return { ok: false, motivo: 'bolha_invalida' };
   const chave = chaveFila(cardId, p.tipo, quando);
   try {
     const { data: saiu, error: erroLeitura } = await supabase.from('system_state').select('key').eq('key', chaveCarimboAgenda(cardId, p.tipo, quando)).maybeSingle();
@@ -206,6 +239,7 @@ export async function enfileirarAgenda(p: PedidoAgenda, agora: Date = new Date()
       consultora,
       ...(opcoes ? { opcoes } : {}),
       ...(p.reforco === true ? { reforco: true } : {}),
+      ...(p.tipo === 'abertura' ? { caminho: String(p.caminho), ...(nome ? { nome } : {}) } : {}),
       tel_hmac: ck ? hmacDe(ck) : null, hmac_id: ck ? idChaveHmac() : null,
       valido_ate: new Date(Date.parse(p.validoAte)).toISOString(),
       em: agora.toISOString(),
@@ -291,6 +325,20 @@ async function contarErroDeLinha(quando: Date): Promise<void> {
 /** O erro de envio pode ter chegado ao lead e dar certo num reenvio? 5xx e timeout sim; 4xx e o resto não. */
 const permiteReenvio = (cod: string): boolean => /^http_5\d\d$/.test(cod) || cod === 'timeout';
 
+/**
+ * A abertura que a fila descartou de propósito (nada saiu): grava solar_bv_dedup:<cardId>, o marcador que o alarme de reservas sem
+ * envio do solarBoasVindas aceita no lugar do carimbo de envio. Fica de fora de todo teto (prefixo próprio). Nunca lança; o value
+ * não leva telefone.
+ */
+async function marcarAberturaDescartada(cardId: number, motivo: string, quando: Date): Promise<void> {
+  try {
+    const em = quando.toISOString();
+    const { error } = await supabase.from('system_state').upsert(
+      { key: `${SOLAR_BV_DEDUP_PREFIX}${cardId}`, value: { em, origem: 'abertura_descartada', motivo }, updated_at: em }, { onConflict: 'key' });
+    if (error) logger.error(LOG, `não gravei o marcador da abertura descartada do card ${cardId} (${codigoDe(error)})`);
+  } catch (err) { logger.error(LOG, `marcador da abertura descartada falhou (${codigoDe(err)})`); }
+}
+
 export interface OpcoesEnvioAgenda {
   /** Faz tudo menos escrever e enviar: devolve as contagens do que aconteceria. */
   dry?: boolean;
@@ -316,6 +364,13 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     if (dry) return;
     try { await supabase.from('system_state').delete().eq('key', chave); } catch { /* o próximo giro descarta de novo */ }
   };
+  // Tira o item da fila por decisão (nada saiu). Abertura: antes, marca o card com solar_bv_dedup para o alarme de reservas sem envio calar.
+  // Horário mudado é exceção: o card ficou sem confirmação nenhuma (a reserva e a posse seguram o robô antigo), então o alarme tem que acusar.
+  const descartar = async (chaveDaFila: string, cardId: number, tipo: TipoAgenda, motivo: string): Promise<void> => {
+    if (tipo === 'abertura' && !dry && motivo !== 'horario_mudou') await marcarAberturaDescartada(cardId, motivo, new Date(t));
+    await tirarDaFila(chaveDaFila);
+    res.descartadas++;
+  };
 
   for (const linha of itens) {
     if (res.enviadas >= LIMITES_AGENDA.porChamada) { res.parou = 'limite'; break; }
@@ -334,14 +389,14 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     }
 
     // 2. o horário passou (confirma, remarca) ou a volta tem mais de 2 h: a bolha perdeu o sentido
-    if (t >= descartaEm) { await tirarDaFila(linha.key); res.descartadas++; continue; }
+    if (t >= descartaEm) { await descartar(linha.key, cardId, tipo, 'horario_passou'); continue; }
 
     // 3. a bolha fixa, com dia e hora montados AGORA. Uma vaga da volta que já passou também mata o item.
-    if (tipo === 'volta' && (v.opcoes ?? []).some(o => !(Date.parse(String(o)) > t))) { await tirarDaFila(linha.key); res.descartadas++; continue; }
-    const montar = (reforco: boolean): string | null => montarBolhaAgenda(
-      tipo, camposNoEnvio(tipo, String(v.quando), String(v.consultora ?? ''), v.opcoes, new Date(t).toISOString()), reforco);
+    if (tipo === 'volta' && (v.opcoes ?? []).some(o => !(Date.parse(String(o)) > t))) { await descartar(linha.key, cardId, tipo, 'vaga_passou'); continue; }
+    const montar = (reforco: boolean, consultora: string = String(v.consultora ?? '')): string | null => montarBolhaAgenda(
+      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome }), reforco);
     if (!montar(v.reforco === true)) {
-      logger.error(LOG, `bolha inválida (${tipo}), descartada`); await tirarDaFila(linha.key); res.descartadas++; continue;
+      logger.error(LOG, `bolha inválida (${tipo}), descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue;
     }
 
     // 4. linha caída, relida antes de CADA envio: mantém e para (as próximas teriam o mesmo destino)
@@ -365,44 +420,58 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
       if (jaRe) { await tirarDaFila(linha.key); res.descartadas++; continue; }
       reenvio = true;
     }
-    const bolha = montar(reenvio || v.reforco === true);
-    if (!bolha) { logger.error(LOG, `bolha de reenvio inválida (${tipo}), descartada`); await tirarDaFila(linha.key); res.descartadas++; continue; }
+    let bolha = montar(reenvio || v.reforco === true);
+    if (!bolha) { logger.error(LOG, `bolha de reenvio inválida (${tipo}), descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue; }
 
     // 6. o telefone vem do card, nunca da fila. O card mudou (cancelado, outro horário, outro número)? Então o pedido morreu.
-    const { data: card, error: erroCard } = await supabaseGerador.from('agendamentos').select('id, cliente_telefone, status, quando').eq('id', cardId).maybeSingle();
+    const { data: card, error: erroCard } = await supabaseGerador.from('agendamentos').select('id, cliente_telefone, status, quando, vendedor_nome').eq('id', cardId).maybeSingle();
     if (erroCard) { logger.error(LOG, `leitura do card falhou (${codigoDe(erroCard)})`); res.mantidas++; continue; }
-    const c = card as { cliente_telefone?: string | null; status?: string | null; quando?: string | null } | null;
-    if (!c || String(c.status ?? '').trim().toLowerCase() === 'cancelado') { await tirarDaFila(linha.key); res.descartadas++; continue; }
+    const c = card as { cliente_telefone?: string | null; status?: string | null; quando?: string | null; vendedor_nome?: string | null } | null;
+    // O status é relido contra a MESMA lista do solarBoasVindas (agenda/solarStatus): quem já disse não, fechou, recebeu proposta ou
+    // está apalavrado não recebe a abertura nem a confirmação. A volta (card do "ligar agora") só morre se o card foi cancelado.
+    const statusDoCard = String(c?.status ?? '').trim().toLowerCase();
+    if (!c || statusDoCard === 'cancelado' || (tipo !== 'volta' && STATUS_QUE_NAO_RECEBEM.includes(statusDoCard))) {
+      await descartar(linha.key, cardId, tipo, c ? 'status_nao_recebe' : 'card_sumiu'); continue;
+    }
     // confirma e remarca: o card tem que seguir no horário do pedido (a volta não compara: o card do "ligar agora" não tem horário próprio)
     if (tipo !== 'volta' && Date.parse(String(c.quando ?? '')) !== quandoMs) {
       logger.error(LOG, `o horário do card ${cardId} mudou depois do pedido, descartado`);
-      await tirarDaFila(linha.key); res.descartadas++; continue;
+      await descartar(linha.key, cardId, tipo, 'horario_mudou'); continue;
     }
     const tel = String(c.cliente_telefone ?? '').replace(/\D/g, '');
     const ck = chaveContato(tel);
-    if (!ck) { logger.error(LOG, 'card sem telefone válido, descartado'); await tirarDaFila(linha.key); res.descartadas++; continue; }
+    if (!ck) { logger.error(LOG, 'card sem telefone válido, descartado'); await descartar(linha.key, cardId, tipo, 'sem_telefone'); continue; }
     // O card mudou de número depois do pedido? (só compara se os dois HMACs são da mesma chave)
     if (v.tel_hmac && v.hmac_id && v.hmac_id === idChaveHmac() && hmacDe(ck) !== v.tel_hmac) {
       logger.error(LOG, 'o telefone do card mudou depois do pedido, descartado');
-      await tirarDaFila(linha.key); res.descartadas++; continue;
+      await descartar(linha.key, cardId, tipo, 'telefone_mudou'); continue;
+    }
+    // A consultora é relida do card (a ficha pode ter trocado de mãos desde o pedido). Vazia no card = vale a do item.
+    if (tipo !== 'volta') {
+      const atual = primeiroNome(c.vendedor_nome);
+      if (atual) {
+        const nova = montar(reenvio || v.reforco === true, atual);
+        if (!nova) { logger.error(LOG, `bolha inválida (${tipo}) com a consultora do card, descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue; }
+        bolha = nova;
+      }
     }
 
     // 7. pausa humana (o gate falha aberto; LID cru não passa na chaveContato acima). Ativa: mantém até o validoAte;
     //    passado o validoAte com a pausa ainda ativa, a bolha perdeu o sentido e sai da fila.
     const gate = await podeFalarComLead(tel);
     if (!gate.pode) {
-      if (validoAte <= t) { await tirarDaFila(linha.key); res.descartadas++; } else res.mantidas++;
+      if (validoAte <= t) await descartar(linha.key, cardId, tipo, 'pausa_vencida'); else res.mantidas++;
       continue;
     }
 
     // 8. quem pediu para parar não recebe confirmação: descarta (opt-out, denúncia, fora do padrão). Leitura que falha segura.
-    if (await estaBloqueado(tel)) { await tirarDaFila(linha.key); res.descartadas++; continue; }
+    if (await estaBloqueado(tel)) { await descartar(linha.key, cardId, tipo, 'bloqueado'); continue; }
     let motivos: string[];
     try { motivos = await motivosDaSupressao(tel); } catch (err) {
       logger.error(LOG, `leitura da supressão falhou (${codigoDe(err)})`); res.mantidas++; continue;
     }
     if (motivos.includes('opt_out') || motivos.includes('denuncia') || motivos.includes('fora_do_padrao')) {
-      await tirarDaFila(linha.key); res.descartadas++; continue;
+      await descartar(linha.key, cardId, tipo, 'opt_out'); continue;
     }
 
     // 9. espaçamento de 10 s contra o último envio de QUALQUER robô da linha (no banco): completa a espera, sempre <= 10 s
@@ -449,7 +518,9 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
           value: { tipo, card_id: cardId, estado: 'falhou', erro: cod, ...(reenviavel ? { reenviavel: true } : {}) },
         }).eq('key', chaveReserva);
       } catch { /* o carimbo já está lá */ }
-      if (reenviavel) res.mantidas++; else { await tirarDaFila(linha.key); res.descartadas++; }
+      if (reenviavel) res.mantidas++;
+      else if (doDestino) await descartar(linha.key, cardId, tipo, 'numero_invalido');   // 4xx: o número não recebe, nada saiu
+      else { await tirarDaFila(linha.key); res.descartadas++; }                          // 5xx repetido: pode ter chegado, o alarme segue
       if (doDestino) {
         errosDestinoSeguidos++;
         if (errosDestinoSeguidos < 2) continue;   // o 1º é deste número, não da linha: segue com os outros

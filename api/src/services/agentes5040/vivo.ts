@@ -39,6 +39,12 @@
 //     suporte_giovanna (ficha à Giovanna) e, no fim de cada rodada, a volta honesta do ligar agora, o reenvio do suporte ao
 //     dono (a fila de agenda tem rota e relógio próprios: agendaEnvio.runAgendaTick). As peças puras moram em acoesVivo.ts. Depois que o card foi escrito
 //     ou a ficha saiu, nenhuma saída solta a vez (repetir a fala gravaria outro card ou mandaria outra ficha).
+//   · B1d-3, a ABERTURA do card do quiz solar (abrirCardsDoQuiz, no começo da rodada, só com a Duda ligada, SEM IA): card lp_solar com a
+//     marca do quiz, status agendado, `quando`, sem boas_vindas_at, criado há até 10 min, das 7h às 21h (Brasília), lead no escopo da
+//     Duda e SEM posse de ninguém. No máximo 3 por rodada. Ordem: monta e valida a bolha fixa (textosAgenda, até 160) > reserva
+//     boas_vindas_at (UPDATE ... IS NULL) > assume a posse da Duda > enfileira o tipo `abertura` da fila de agenda (quem ENTREGA é
+//     o agendaEnvio.ts, com a janela, a pausa humana e os 10 s). Só se a fila NÃO gravou, devolve a reserva e desfaz a posse criada
+//     agora; depois de enfileirado nada desfaz. Bolha que não cabe nos 160 = nada reservado, e o tick antigo manda depois dos 15 min.
 //   · envio ok = atualizarPosse({ate_wa_id, respostas + 1}) e gravarTurno (origem 'vivo', campo enviado).
 //   · dry: faz tudo, menos reservar, enviar, atualizar a posse, gravar e mandar ficha. Respeita o interruptor
 //     e o escopo (é a sonda do que a rodada viva faria), e passa dry:true ao enviarResposta, que roda todas as
@@ -58,8 +64,8 @@ import {
   acharVaga, alvoDaAgenda, bolhaLigarAgoraOk, cardSolarDe, citaAHora, desfazerCardSolar, destinoDaRecusa, horariosPorExtenso, kwhDoLead,
   lerCardParaFicha, observacaoDoCardDaDuda, ofertaDeHorarios, primeiroNome, situacaoDoCard, type Oferta,
 } from './acoesVivo';
-import { bolhaDeConfirmacao, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
-import { gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, silenciarLembretesDoCard } from './agendaSolar';
+import { bolhaDeConfirmacao, chaveFila, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
+import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard } from './agendaSolar';
 import { gravarMidiaCache, gravarTurno, lerMidiaCache, lerTurnos, type TurnoGravado } from './armazem';
 import { lerCards, lerConversa, montarContexto } from './contexto';
 import { clienteComCota, disjuntorAberto, liberarChave, reservarChave, type EstadoCota } from './cota';
@@ -76,15 +82,17 @@ import { hmacDe } from './hmac';
 import type { ClienteIA } from './ia';
 import type { DonaViva } from './interruptores';
 import { ehMidia } from './midia';
-import { agenteAtendeEste, atualizarPosse, type DadosPosse } from './posse';
+import { agenteAtendeEste, assumirPosse, atualizarPosse, desfazerPosseNova, lerPosse, type DadosPosse } from './posse';
 import { DONAS_NA_RODADA, donasDaRodadaLigadas } from './posseLeitura';
-import { diaBRT, horarioComercial } from './relogio';
+import { diaBRT, horaBRT, horarioComercial } from './relogio';
 import {
   comTranscricoes, falhaDeInfra, juntarDados, montarGravado, pensarTurno, textosDoLead, valoresDaPessoaDe, type ResultadoTurno,
 } from './turno';
+import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 import type { CardResumo, ContextoLead, Persona, SaidaAgente } from './tipos';
 import { enviarResposta, type ResultadoEnvio } from './vivoEnvio';
 import type { DecisaoPorteiro } from './porteiro';
+import { caminhoDaFicha } from '../agenda/solarRota';
 
 const LOG = 'vivo-5040';
 
@@ -113,6 +121,9 @@ export const LIMITES_VIVO = Object.freeze({
    */
   remarcadoEsperasMs: Object.freeze([2 * 60_000, 4 * 60_000, 8 * 60_000, 15 * 60_000]) as readonly number[],
 });
+
+/** A abertura do card do quiz (B1d-3): idade máxima do card, máximo por rodada e a janela de Brasília (7h inclusive, 21h exclusive). */
+export const LIMITES_ABERTURA = Object.freeze({ idadeMs: 10 * 60_000, porRodada: 3, horaDe: 7, horaAte: 21, leitura: 20 });
 
 /** Quanto esperar depois da tentativa de número `tentativas` (1 = a primeira) antes de retentar a ficha "remarcado". */
 export const esperaDoRemarcadoMs = (tentativas: number): number => {
@@ -172,6 +183,18 @@ export interface DecisaoVivo {
   ficha?: 'enviada' | 'ficharia' | 'adiada' | 'lead_ja_avisado' | 'falhou';
 }
 
+/** A abertura do card do quiz (B1d-3). Sem telefone: só ids de card e contagens. */
+export interface RelatorioAbertura {
+  vistos: number;
+  /** Cards que passaram por todos os filtros e chegaram à reserva (ou, no dry, à bolha). */
+  tentados: number;
+  /** Abertura entrou na fila de agenda. */
+  abertos: number;
+  puladas: Record<string, number>;
+  /** Só no dry: o card e a bolha que sairiam. */
+  sairia?: Array<{ card_id: number; bolha: string }>;
+}
+
 export interface RelatorioVivo {
   ok: boolean;
   ligado: boolean;
@@ -189,6 +212,8 @@ export interface RelatorioVivo {
   decisoes: DecisaoVivo[];
   /** Pendências olhadas nesta rodada: volta honesta do "ligar agora" e reenvio do suporte ao dono. */
   pendencias?: { voltas: number; reenvios: number; olhadas: number };
+  /** A abertura do card do quiz solar (B1d-3); ausente quando a Duda não está ligada na rodada. */
+  abertura?: RelatorioAbertura;
 }
 
 const vazio = (dry: boolean, extra: Partial<RelatorioVivo> = {}): RelatorioVivo => ({
@@ -329,6 +354,9 @@ export async function runVivoTick(opts: OpcoesVivo = {}): Promise<RelatorioVivo>
     const { cliente, estado } = clienteComCota(dry ? 'dry' : 'resposta', () => new Date(), lazy, inicio + LIMITES_VIVO.prazoEnvioMs);
     const g: G = { agora, agoraEnvio: () => opts.agora ?? new Date(), dry, inicio, r, cliente, estado, semModelo };
 
+    // 2b. a abertura do card do quiz (B1d-3). Só a Duda, sem IA (não depende do disjuntor). Erro aqui nunca derruba a rodada.
+    if ((donas as readonly string[]).includes('duda')) await abrirCardsDoQuiz(g);
+
     // 3. candidatas: a última fala do lead de cada conversa da última hora, com posse viva
     const desde = new Date(agora.getTime() - LIMITES_VIVO.buscaMs).toISOString();
     const lidas = await lerCandidatas(inst, desde, agora.toISOString());
@@ -364,6 +392,147 @@ export async function runVivoTick(opts: OpcoesVivo = {}): Promise<RelatorioVivo>
   } finally {
     if (travaToken) await soltarTrava(travaToken);
   }
+}
+
+// ── a abertura do card do quiz solar (B1d-3) ─────────────────────────────────
+
+type CardDaAbertura = {
+  id: number; cliente_nome: string | null; cliente_telefone: string | null; quando: string | null; observacao: string | null;
+  vendedor_nome: string | null; created_at: string | null; created_by: string | null; status: string | null; boas_vindas_at: string | null;
+};
+
+async function abrirCardsDoQuiz(g: G): Promise<void> {
+  const { r, dry, agora } = g;
+  const ab: RelatorioAbertura = { vistos: 0, tentados: 0, abertos: 0, puladas: {} };
+  r.abertura = ab;
+  try {
+    const hora = horaBRT(agora);
+    if (hora < LIMITES_ABERTURA.horaDe || hora >= LIMITES_ABERTURA.horaAte) { soma(ab.puladas, 'fora_das_7_as_21'); return; }
+    const desde = new Date(agora.getTime() - LIMITES_ABERTURA.idadeMs).toISOString();
+    const { data, error } = await supabaseGerador.from('agendamentos')
+      .select('id, cliente_nome, cliente_telefone, quando, observacao, vendedor_nome, created_at, created_by, status, boas_vindas_at')
+      .eq('created_by', 'lp_solar').eq('status', 'agendado').not('quando', 'is', null).is('boas_vindas_at', null)
+      .gte('created_at', desde).order('created_at', { ascending: true }).limit(LIMITES_ABERTURA.leitura);
+    if (error) { logger.error(LOG, `abertura: leitura dos cards falhou (${codigoDe(error)})`); soma(ab.puladas, 'leitura_falhou'); return; }
+    const cards = (data ?? []) as CardDaAbertura[];
+    ab.vistos = cards.length;
+    for (const card of cards) {
+      if (ab.tentados >= LIMITES_ABERTURA.porRodada) { soma(ab.puladas, 'limite_por_rodada'); break; }
+      if (Date.now() - g.inicio > LIMITES_VIVO.prazoEnvioMs) { soma(ab.puladas, 'prazo'); break; }
+      // Os filtros do banco refeitos aqui: se a consulta mudar (ou devolver a mais), o card errado não recebe abertura.
+      if (card.created_by !== 'lp_solar' || String(card.status ?? '').trim().toLowerCase() !== 'agendado' || card.boas_vindas_at) { soma(ab.puladas, 'card_fora_do_molde'); continue; }
+      const caminho = caminhoDaFicha(card.observacao);
+      if (!caminho || !CAMINHOS_ABERTURA.includes(caminho)) { soma(ab.puladas, 'nao_e_do_quiz'); continue; }
+      const criado = Date.parse(String(card.created_at ?? ''));
+      if (!Number.isFinite(criado) || criado < agora.getTime() - LIMITES_ABERTURA.idadeMs) { soma(ab.puladas, 'card_velho'); continue; }
+      const quandoMs = Date.parse(String(card.quando ?? ''));
+      if (!Number.isFinite(quandoMs)) { soma(ab.puladas, 'sem_horario'); continue; }
+      if (quandoMs <= agora.getTime()) { soma(ab.puladas, 'horario_passado'); continue; }
+      const consultora = primeiroNome(card.vendedor_nome);
+      if (!consultora) { soma(ab.puladas, 'sem_consultora'); continue; }
+      const tel = soDigitos(card.cliente_telefone);
+      const chave = chaveContato(tel);
+      if (!chave) { soma(ab.puladas, 'sem_chave'); continue; }
+      if (!(await agenteAtendeEste('duda', tel))) { soma(ab.puladas, 'fora_do_escopo'); continue; }
+      // Qualquer posse (a da Duda inclusive) = a conversa já é de alguém. O card que a própria Duda grava em acaoMarcar também é
+      // lp_solar e nasce com boas_vindas_at nulo: é a posse que o tira daqui (a confirmação dele sai pelo tipo `confirma`).
+      try {
+        if (await lerPosse(chave)) { soma(ab.puladas, 'com_posse'); continue; }
+      } catch { soma(ab.puladas, 'posse_ilegivel'); continue; }
+      // A bolha vem ANTES de qualquer escrita: a que não cabe nos 160 nem sem nome e sem asteriscos deixa o card para o tick antigo.
+      const quandoIso = new Date(quandoMs).toISOString();
+      const bolha = bolhaDeAbertura(caminho, card.cliente_nome, quandoIso, consultora, agora.toISOString());
+      if (!bolha) { soma(ab.puladas, 'bolha_nao_cabe'); continue; }
+      ab.tentados++;
+      if (dry) { (ab.sairia ??= []).push({ card_id: card.id, bolha }); continue; }
+
+      // 1) a reserva: o mesmo UPDATE ... IS NULL do tick antigo. Perdeu = outra rodada pegou o card.
+      const em = g.agoraEnvio().toISOString();
+      const reserva = await reservarBoasVindas(card.id, em);
+      if (reserva === 'perdeu') { soma(ab.puladas, 'reserva_perdida'); continue; }
+      if (reserva === 'erro') { await devolverBoasVindas(card.id, em); soma(ab.puladas, 'reserva_falhou'); continue; }
+      // 2) a posse da Duda (sem wa_id: o lead ainda não falou; a âncora é `em`). Sem ela, a reserva volta.
+      let posse = await assumirPosse(chave, 'duda', null, em);
+      if (posse === 'erro') {
+        // O INSERT pode ter entrado e a resposta se perdido: relê. A posse da Duda com a nossa âncora = vale; sem posse = a reserva volta;
+        // posse de outra dona ou de outra âncora = a conversa já era de alguém; leitura que falha = não mexe em nada (o alarme acusa).
+        let atual: DadosPosse | null;
+        try { atual = await lerPosse(chave); } catch {
+          soma(ab.puladas, 'posse_incerta');
+          logger.error(LOG, `abertura: não deu para reler a posse do card ${card.id}; a reserva fica e nada é enfileirado`);
+          continue;
+        }
+        posse = !atual ? 'erro' : (atual.dona === 'duda' && atual.desde === em ? 'assumida' : 'ja_tinha_dona');
+      }
+      if (posse !== 'assumida') {
+        await devolverBoasVindas(card.id, em);
+        soma(ab.puladas, posse === 'ja_tinha_dona' ? 'posse_tomada_agora' : 'posse_falhou');
+        continue;
+      }
+      // 3) a fila de agenda: ela guarda e reenvia. Só desfaz o que a fila NÃO gravou.
+      let enf: Awaited<ReturnType<typeof enfileirarAgenda>>;
+      try {
+        enf = await enfileirarAgenda({
+          tipo: 'abertura', cardId: card.id, telefone: tel, quando: quandoIso, validoAte: quandoIso, consultora, caminho,
+          nome: primeiroNome(card.cliente_nome),
+        }, g.agoraEnvio());
+      } catch { enf = { ok: false, motivo: 'erro' }; }
+      if (enf.ok) { ab.abertos++; continue; }
+      // 'ja_enviado' = o carimbo da abertura existe: ela SAIU, então a reserva e a posse ficam (devolver mandaria as boas-vindas de novo).
+      if (enf.motivo === 'ja_enviado') { soma(ab.puladas, 'abertura_ja_enviada'); continue; }
+      if (enf.motivo === 'erro') {
+        // 'erro' não prova que a fila não gravou (o upsert pode ter entrado e a resposta se perdido): a fila manda. Relê a chave do item;
+        // existe, ou a releitura falhou = nada é desfeito (nem reserva nem posse). Só desfaz se a releitura CONFIRMA que o item não está lá.
+        const naFila = await itemNaFila(chaveFila(card.id, 'abertura', quandoIso));
+        if (naFila === true) { ab.abertos++; soma(ab.puladas, 'fila_gravou_e_respondeu_erro'); continue; }
+        if (naFila === null) {
+          soma(ab.puladas, 'fila_incerta');
+          logger.error(LOG, `abertura: a fila respondeu erro e não deu para reler o item do card ${card.id}; reserva e posse ficam`);
+          continue;
+        }
+        // O item pode ter sumido porque a fila JÁ entregou e apagou no meio da releitura: com o carimbo da abertura de pé, nada é desfeito.
+        const carimbo = await carimboDeAberturaExiste(card.id);
+        if (carimbo !== false) {
+          if (carimbo) ab.abertos++;
+          soma(ab.puladas, carimbo ? 'fila_ja_entregou' : 'fila_incerta');
+          continue;
+        }
+      }
+      // A fila não gravou. A posse sai primeiro: se ela não sair, a reserva FICA (o card marcado sem envio é o que faz o alarme do
+      // solarBoasVindas acusar; devolver a reserva com a posse ainda de pé deixaria a conversa presa sem ninguém saber).
+      const posseDesfeita = await desfazerPosseNova(chave, 'duda', em);
+      if (!posseDesfeita) {
+        soma(ab.puladas, `fila_recusou_${enf.motivo}_posse_ficou`);
+        logger.error(LOG, `abertura: a fila não gravou o card ${card.id} (${enf.motivo}) e a posse não saiu; a reserva fica para o alarme acusar`);
+        continue;
+      }
+      await devolverBoasVindas(card.id, em);
+      soma(ab.puladas, `fila_recusou_${enf.motivo}`);
+      logger.error(LOG, `abertura: a fila não gravou o card ${card.id} (${enf.motivo}); reserva e posse desfeitas`);
+    }
+  } catch (e) {
+    logger.error(LOG, `abertura: erro interno (${codigoDe(e)})`);
+    soma(ab.puladas, 'erro_interno');
+  }
+}
+
+/** O item da fila de agenda existe? true | false (releitura confirmou que não) | null (a releitura falhou). Nunca lança. */
+async function itemNaFila(chave: string): Promise<boolean | null> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key').eq('key', chave).maybeSingle();
+    if (error) return null;
+    return !!data;
+  } catch { return null; }
+}
+
+/** Existe carimbo de abertura deste card (em qualquer estado)? true | false | null (a leitura falhou). Nunca lança. */
+async function carimboDeAberturaExiste(cardId: number): Promise<boolean | null> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key')
+      .like('key', `ag5040_agenda_sent:${cardId}:abertura:%`).limit(1);
+    if (error) return null;
+    return Array.isArray(data) && data.length > 0;
+  } catch { return null; }
 }
 
 type Seguir = 'seguir' | 'parar';

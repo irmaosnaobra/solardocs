@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 let fichas: any[] = [];
 let consultores: any[] = [];
+let falhaOr = false;   // faz a leitura dos carimbos da abertura (.or) devolver { error }
 let erroDoUpdate: any = null;   // simula o supabase-js devolvendo { error } sem lançar
 const enviadas: Array<{ phone: string; bolhas: string[] }> = [];
 const updates: Array<{ id: number; campo: string }> = [];
@@ -114,6 +115,14 @@ vi.mock('../utils/supabase', () => ({
           data: chaves.filter((k) => carimbos.includes(k) || estado.has(k)).map((key) => ({ key })),
           error: null,
         }),
+        // select('key, value').or('key.like.<prefixo>%,...'): os carimbos da abertura do quiz (varredura de reservas). O prefixo termina em
+        // ":", então o id 7 nunca casa com o 70. Devolve o value (o alarme só aceita o carimbo com estado 'enviado').
+        or: async (filtro: string) => {
+          if (falhaOr) return { data: null, error: { message: 'falhou' } };
+          const prefixos = filtro.split(',').map((c) => c.replace(/^key\.like\./, '').replace(/%$/, ''));
+          const todas = [...carimbos, ...estado.keys()];
+          return { data: todas.filter((k) => prefixos.some((p) => k.startsWith(p))).map((key) => ({ key, value: estado.get(key) ?? null })), error: null };
+        },
         maybeSingle: async () => ({ data: estado.has(q._chave) ? { value: estado.get(q._chave) } : null, error: null }),
         upsert: async (r: any) => {
           if (String(r.key).startsWith('solar_boasvindas_sent:')) carimbos.push(String(r.key));
@@ -365,6 +374,84 @@ describe('o backlog não vira rajada', () => {
     const alarmes = vi.mocked(logger.error).mock.calls.filter(([, msg]) => String(msg).includes('sem envio confirmado'));
     expect(alarmes).toHaveLength(1);
     expect(alarmes[0][2]).toEqual({ ids: [7] });
+  });
+
+  // A abertura do quiz (agentes5040) reserva boas_vindas_at e entrega pela fila de agenda da Duda: o carimbo dela é outro.
+  describe('a abertura do quiz não dá alarme falso', () => {
+    const reservaAntiga = (id: number) =>
+      ficha({ id, created_at: minutosAtras(60), boas_vindas_at: minutosAtras(30), cliente_telefone: `55349911100${String(id).padStart(2, '0')}` });
+    const alarmes = async () => {
+      const { logger } = await import('../utils/logger');
+      return vi.mocked(logger.error).mock.calls.filter(([, msg]) => String(msg).includes('sem envio confirmado'));
+    };
+
+    it('abertura enviada (ag5040_agenda_sent com estado enviado) e abertura ainda na fila (ag5040_agenda_fila) são calados', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(21), reservaAntiga(22)];
+      estado.set('ag5040_agenda_sent:21:abertura:20260820T170000Z', { tipo: 'abertura', card_id: 21, estado: 'enviado' });
+      estado.set('ag5040_agenda_fila:22:abertura:20260820T170000Z', { tipo: 'abertura' });
+      await tick();
+      expect(await alarmes()).toHaveLength(0);
+    });
+
+    it('o reenvio (carimbo :re com estado enviado) cala, mesmo com o carimbo principal em falhou', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(23)];
+      estado.set('ag5040_agenda_sent:23:abertura:20260820T170000Z', { estado: 'falhou', reenviavel: true });
+      estado.set('ag5040_agenda_sent:23:abertura:20260820T170000Z:re', { estado: 'enviado', reenvio: true });
+      await tick();
+      expect(await alarmes()).toHaveLength(0);
+    });
+
+    it('carimbo em reservado ou em falhou NÃO cala: o envio pode ter morrido no meio, e o alarme acusa', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(31), reservaAntiga(32), reservaAntiga(33), reservaAntiga(34)];
+      estado.set('ag5040_agenda_sent:31:abertura:20260820T170000Z', { estado: 'reservado' });
+      estado.set('ag5040_agenda_sent:32:abertura:20260820T170000Z', { estado: 'falhou', erro: 'http_400' });
+      estado.set('ag5040_agenda_sent:33:abertura:20260820T170000Z', {});                       // sem estado nenhum
+      estado.set('ag5040_agenda_sent:34:abertura:20260820T170000Z', { estado: 'enviado' });    // esta saiu
+      await tick();
+      const a = await alarmes();
+      expect(a).toHaveLength(1);
+      expect(a[0][2]).toEqual({ ids: [31, 32, 33] });
+    });
+
+    it('a abertura que a fila descartou de propósito (solar_bv_dedup) também cala, e a fila ainda com o item cala mesmo com o carimbo em falhou', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(41), reservaAntiga(42)];
+      estado.set('solar_bv_dedup:41', { em: 'x', origem: 'abertura_descartada', motivo: 'opt_out' });
+      estado.set('ag5040_agenda_sent:42:abertura:20260820T170000Z', { estado: 'falhou', reenviavel: true });
+      estado.set('ag5040_agenda_fila:42:abertura:20260820T170000Z', { tipo: 'abertura' });
+      await tick();
+      expect(await alarmes()).toHaveLength(0);
+    });
+
+    it('a leitura dos carimbos da abertura falhou: o alarme sai mesmo assim (na dúvida, acusa)', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(7)];
+      falhaOr = true;
+      await tick();
+      expect(await alarmes()).toHaveLength(1);
+      falhaOr = false;
+    });
+
+    it('a reserva sem envio de verdade continua acusada, e o carimbo de outro id ou de outro tipo não a salva', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(7), reservaAntiga(8), reservaAntiga(9), reservaAntiga(10)];
+      estado.set('ag5040_agenda_sent:8:abertura:20260820T170000Z', { estado: 'enviado' });   // a 8 saiu
+      estado.set('ag5040_agenda_sent:70:abertura:20260820T170000Z', {});                     // a 70 não é a 7
+      estado.set('ag5040_agenda_sent:9:confirma:20260820T170000Z', {});                      // confirma não é abertura
+      await tick(); await tick();
+      const a = await alarmes();
+      expect(a).toHaveLength(1);
+      expect(a[0][2]).toEqual({ ids: [7, 9, 10] });
+    });
   });
 
   it('o dry não grava estado de alarme nenhum', async () => {

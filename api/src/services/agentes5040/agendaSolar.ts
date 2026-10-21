@@ -148,6 +148,42 @@ export async function marcarBoasVindasEnviada(cardId: number): Promise<boolean> 
 }
 
 /**
+ * A RESERVA das boas-vindas da abertura do quiz: grava boas_vindas_at SÓ se ainda estiver vazio (o mesmo UPDATE ... IS NULL do
+ * reservarFicha do solarBoasVindas, que é o que impede o tick antigo de mandar as boas-vindas por cima). 'reservada' = foi esta
+ * chamada que gravou; 'perdeu' = outra rodada pegou antes ou o card sumiu; 'erro' = o banco falhou (nada a desfazer garantido: quem
+ * chama tenta devolver pelo carimbo). Nunca lança.
+ */
+export async function reservarBoasVindas(cardId: number, emIso: string): Promise<'reservada' | 'perdeu' | 'erro'> {
+  try {
+    const { data, error } = await supabaseGerador.from('agendamentos')
+      .update({ boas_vindas_at: emIso })
+      .eq('id', cardId)
+      .is('boas_vindas_at', null)
+      .select('id');
+    if (error) throw error;
+    return Array.isArray(data) && data.length > 0 ? 'reservada' : 'perdeu';
+  } catch (err) {
+    logger.error('agentes5040-agenda-solar', `reservar as boas-vindas do card ${cardId} falhou`, err);
+    return 'erro';
+  }
+}
+
+/** Devolve a reserva, mas só a desta chamada (confere o carimbo `emIso`). Duas tentativas. true = devolveu (ou não havia o que devolver). */
+export async function devolverBoasVindas(cardId: number, emIso: string): Promise<boolean> {
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    try {
+      const { error } = await supabaseGerador.from('agendamentos')
+        .update({ boas_vindas_at: null })
+        .eq('id', cardId)
+        .eq('boas_vindas_at', emIso);
+      if (!error) return true;
+    } catch { /* tenta de novo */ }
+  }
+  logger.error('agentes5040-agenda-solar', `A ABERTURA NÃO SAIU E O CARD ${cardId} FICOU COM AS BOAS-VINDAS MARCADAS, desmarcar na mão`);
+  return false;
+}
+
+/**
  * "Ligar agora" em card que JÁ existia: o lembrete de 5 min e o bom dia saem do ar (lembrete_5min_at e bomdia_at = agora),
  * senão sairiam por cima do aviso à consultora. true SÓ se o banco devolveu a linha atualizada. Nunca lança.
  */

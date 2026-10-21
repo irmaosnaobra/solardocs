@@ -3,6 +3,7 @@
 // agendaEnvio.ts montar "hoje", "amanhã" e "14h30" NA HORA DO ENVIO sem puxar o resto das ações (B1d-2, correção 1).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { Caminho } from '../agenda/solarRota';
 import { horaPorExtenso } from './personas/comum';
 import { diaBRT, diaDaSemanaBRT, horaBRT } from './relogio';
 
@@ -50,3 +51,50 @@ export function citaAHora(texto: string | null | undefined, iso: string): boolea
   if (m === 0) partes.push(String.raw`${hora}\s?h(?!\s?\d)`, String.raw`${hora}\s?horas?\b`);
   return new RegExp(String.raw`(?<![\d:])(?:${partes.join('|')})(?!\d)`, 'i').test(t);
 }
+
+// ── a ABERTURA do card do quiz solar (21/10/2026): a confirmação do horário que o cliente escolheu na página ──
+
+/** O limite de uma bolha da agenda. */
+export const MAX_BOLHA_ABERTURA = 160;
+
+/** Os caminhos do quiz que têm bolha de abertura (o curioso não tem horário marcado). */
+export type CaminhoAbertura = Extract<Caminho, 'ligacao' | 'video' | 'vistoria'>;
+export const CAMINHOS_ABERTURA: readonly string[] = ['ligacao', 'video', 'vistoria'];
+
+/** O primeiro nome limpo para a bolha: sem formatação do WhatsApp nem separador. Vazio quando não sobra letra. */
+const nomeDaAbertura = (nome: string | null | undefined): string => {
+  const n = primeiroNome(nome).replace(/[*_~`|]/g, '').trim();
+  return /\p{L}/u.test(n) ? n : '';
+};
+
+/**
+ * A bolha fixa de abertura, com {quando} já por extenso ("amanhã às 14h30"). Passou de 160: tira o nome; ainda passou: tira os
+ * asteriscos; ainda passou, ou faltou consultora, ou o caminho não existe: null (quem chama não enfileira).
+ */
+export function textoDeAbertura(
+  caminho: string | null | undefined, nome: string | null | undefined, quando: string, consultora: string,
+): string | null {
+  const c = primeiroNome(consultora).replace(/[*_~`|]/g, '');
+  const q = String(quando ?? '').trim();
+  if (!c || !q || !CAMINHOS_ABERTURA.includes(String(caminho))) return null;
+  const n = nomeDaAbertura(nome);
+  const monta = (comNome: boolean, a: string): string => {
+    const oi = comNome && n ? `Oi, ${n}!` : 'Oi!';
+    const quem = `${a}${c}${a}`;
+    const hora = `${a}${q}${a}`;
+    if (caminho === 'ligacao') return `${oi} Sou a Duda, da Irmãos na Obra. Já está marcado: ${quem} te liga ${hora}. É uma ligação curta para entender sua conta.`;
+    if (caminho === 'video') return `${oi} Sou a Duda, da Irmãos na Obra. Marcado: ${quem} te chama por vídeo ${q}, com o estudo na tela. Responda SIM para confirmar.`;
+    return `${oi} Sou a Duda, da Irmãos na Obra. Marcado: ${quem} vai aí ${q}, visita técnica de uns 40 minutos. Responda SIM para confirmar.`;
+  };
+  for (const [comNome, a] of [[true, '*'], [false, '*'], [false, '']] as Array<[boolean, string]>) {
+    const t = monta(comNome, a);
+    if (t.length <= MAX_BOLHA_ABERTURA && !/[—–]/.test(t) && !t.includes('||')) return t;
+  }
+  return null;
+}
+
+/** A abertura montada a partir do ISO do horário do card (Brasília, relativo a `agoraIso`). */
+export const bolhaDeAbertura = (
+  caminho: string | null | undefined, nome: string | null | undefined, quandoIso: string, consultora: string, agoraIso: string,
+): string | null => (diaCurto(quandoIso, agoraIso) && horaPorExtenso(quandoIso)
+  ? textoDeAbertura(caminho, nome, opcaoPorExtenso(quandoIso, agoraIso), consultora) : null);

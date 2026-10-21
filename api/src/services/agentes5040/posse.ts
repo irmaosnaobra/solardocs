@@ -87,6 +87,24 @@ export async function lerPosse(telefoneOuChave: string): Promise<DadosPosse | nu
   return d;
 }
 
+/**
+ * Desfaz a posse que ESTA chamada acabou de criar (a abertura do quiz cujo enfileirar não gravou): apaga só a linha dessa dona
+ * com esse `desde` e nada mais. Posse que já mudou (passou a outra dona, outro `desde`) fica. Nunca lança. true = a chamada correu sem erro.
+ */
+export async function desfazerPosseNova(telefoneOuChave: string, dona: DonaPosse, desde: string): Promise<boolean> {
+  const chave = chaveDaPosse(telefoneOuChave);
+  if (!chave) return false;
+  try {
+    const { error } = await supabase.from('whatsapp_sessions').delete()
+      .eq('phone', chave).eq('tipo', TIPO_POSSE).eq('lead_data->>dona', dona).eq('lead_data->>desde', desde);
+    if (error) throw new ErroPosse(String(error.code ?? 'desconhecido'));
+    return true;
+  } catch (e) {
+    console.error('[agentes5040] desfazer a posse nova falhou', codigoDe(e));
+    return false;
+  }
+}
+
 export type ResultadoAssumir = 'assumida' | 'ja_tinha_dona' | 'erro';
 
 /**
