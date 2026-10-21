@@ -178,11 +178,13 @@ export default function EscanearContaPage() {
       const fields: Record<string, string> = {};
       if (consumo) fields.consumo_kwh = String(consumo);
       if (tarifa) fields.tarifa_kwh = String(Number(tarifa.toFixed(4))).replace('.', ',');
-      // Taxa mínima = custo de disponibilidade (kWh mínimo × tarifa) + iluminação pública.
+      // Taxa mínima = custo de disponibilidade (kWh mínimo × tarifa). A iluminação
+      // pública (CIP) vai em campo próprio: continua na conta depois do solar.
       if (dispKwh && tarifa) {
-        const taxaMin = dispKwh * tarifa + ilum;
+        const taxaMin = dispKwh * tarifa;
         fields.taxa_minima = taxaMin.toFixed(2).replace('.', ',');
       }
+      if (ilum > 0) fields.iluminacao_publica = ilum.toFixed(2).replace('.', ',');
 
       localStorage.setItem('proposta-solar-draft-v1', JSON.stringify({
         clienteNome: created?.nome || '',
@@ -209,6 +211,11 @@ export default function EscanearContaPage() {
       {det.tarifa_kwh != null && (
         <div style={{ marginTop: 6, color: 'var(--color-text-muted, #94a3b8)' }}>
           Tarifa detectada: R$ {det.tarifa_kwh.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}/kWh — vai pra proposta (tarifa e taxa mínima).
+        </div>
+      )}
+      {det.iluminacao_publica != null && det.iluminacao_publica > 0 && (
+        <div style={{ marginTop: 6, color: 'var(--color-text-muted, #94a3b8)' }}>
+          Iluminação pública detectada: R$ {det.iluminacao_publica.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês — vai pra proposta.
         </div>
       )}
       {det.cpf_mascarado && (
@@ -296,6 +303,9 @@ export default function EscanearContaPage() {
           </div>
           {det?.consumo_medio_kwh != null && (
             <div className="ec-chip"><Zap size={14} strokeWidth={2.2} /> {det.consumo_medio_kwh.toLocaleString('pt-BR')} kWh/mês</div>
+          )}
+          {det?.iluminacao_publica != null && det.iluminacao_publica > 0 && (
+            <div className="ec-chip">Iluminação pública R$ {det.iluminacao_publica.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           )}
           <div className="ec-summaryActions">
             <button className="ec-primaryBtn" onClick={() => setModalOpen(true)}>

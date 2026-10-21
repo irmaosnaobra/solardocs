@@ -16,7 +16,7 @@ const clientSchema = z.object({
   telefone: z.string().optional(),
   telefone2: z.string().optional(),
   padrao: z.enum(['Monofásico', 'Bifásico', 'Trifásico']).optional(),
-  tipo_telhado: z.enum(['Fibromadeira', 'Fibrometal', 'Cimento', 'Cerâmico', 'Zinco', 'Sanduíche', 'Solo', 'Carport', 'Estrutura Metálica', 'Iluminação pública', 'Outro']).optional(),
+  tipo_telhado: z.enum(['Fibromadeira', 'Fibrometal', 'Cimento', 'Cerâmico', 'Zinco', 'Sanduíche', 'Solo', 'Carport', 'Estrutura Metálica', 'Outro']).optional(),
 });
 
 export async function listClients(req: Request, res: Response): Promise<void> {

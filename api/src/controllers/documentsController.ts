@@ -880,7 +880,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 const CLIENTE_ONLY = new Set<string>([
   'cliente_nome', 'codigo', 'cidade', 'uf', 'endereco', 'consumo_kwh', 'qtd_modulos', 'area_m2',
   'geracao_media_kwh', 'geracao_media', 'hsp', 'tarifa_kwh', 'investimento', 'preco_avista',
-  'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado',
+  'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado', 'iluminacao_publica',
   'bateria_capacidade_kwh', 'bateria_potencia_kw', 'bateria_ciclos', 'bateria_marca', 'bateria_garantia', 'bateria_tem',
 ]);
 // emitido_em pertence ao doc reemitido, nunca ao próximo: prefill que o arrastasse
@@ -909,7 +909,7 @@ function nomeComparavel(nome: string | null | undefined): string {
 
 // Mesma lista do formulário (TIPOS_TELHADO em PropostaSolarForm.tsx). Telhado do
 // cadastro fora dela ("Fibromadeira") não entra: a proposta não tem essa opção.
-const TIPOS_TELHADO_PROPOSTA = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport', 'Iluminação pública'];
+const TIPOS_TELHADO_PROPOSTA = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'];
 
 interface ClienteCadastro {
   nome: string | null;

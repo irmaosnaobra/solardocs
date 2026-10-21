@@ -2310,6 +2310,10 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const kwp = (qtdModulos * potenciaModulo) / 1000;
   const investimento = parseBRL(f.investimento);
   const taxaMinima = parseFloat(String(f.taxa_minima || '90').replace(',', '.')) || 90;
+  // Iluminação pública (CIP/COSIP): taxa da prefeitura que vem na conta e continua
+  // depois do solar. Só entra nos valores EXIBIDOS de conta hoje/depois; economia,
+  // payback e curvas não mudam (a CIP existe nos dois lados). Ausente/vazio/0 = 0.
+  const cip = Math.max(0, parseFloat(String(f.iluminacao_publica || '').replace(',', '.')) || 0);
   const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
 
@@ -2538,7 +2542,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
     </div>
     <div class="finGrid">
       <div class="fc"><div class="k">Economia mensal</div><div class="v num">${brl(economiaMensal)}</div></div>
-      <div class="fc"><div class="k">Conta após instalação</div><div class="v num">${brl(taxaMinima)}</div></div>
+      <div class="fc"><div class="k">Conta após instalação</div><div class="v num">${brl(taxaMinima + cip)}</div>${cip > 0 ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${pEsc(`Taxa mínima + iluminação pública ${brl(cip)}`)}</div>` : ''}</div>
       <div class="fc"><div class="k">Tempo de retorno</div><div class="v num">${paybackTexto}</div></div>
     </div>
   </div>
@@ -2687,6 +2691,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
 
   // Campos editáveis pelo tenant (com defaults seguros — propostas antigas continuam funcionando)
   const taxaMinima = parseFloat(String(f.taxa_minima || '90').toString().replace(',', '.')) || 90;
+  // Iluminação pública (CIP/COSIP): taxa da prefeitura que vem na conta e continua
+  // depois do solar. Só entra nos valores EXIBIDOS de conta hoje/depois; economia,
+  // payback e curvas não mudam (a CIP existe nos dois lados). Ausente/vazio/0 = 0.
+  const cip = Math.max(0, parseFloat(String(f.iluminacao_publica || '').replace(',', '.')) || 0);
   const prazoDias = parseInt(String(f.prazo_instalacao_dias || '45'), 10) || 45;
   const garPaineis = parseInt(String(f.garantia_paineis || '25'), 10) || 25;
   const garInversor = parseInt(String(f.garantia_inversor || '10'), 10) || 10;
@@ -2758,6 +2766,10 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const contaHoje = Math.round(consumoKwh * ref.tarifa);
   const contaComSolar = taxaMinima;
   const economiaMensal = Math.max(0, contaHoje - contaComSolar);
+  // Valores exibidos no antes vs depois: com CIP, os dois lados somam a mesma taxa.
+  const contaHojeExib = cip > 0 ? Math.round(consumoKwh * ref.tarifa + cip) : contaHoje;
+  const contaComSolarExib = contaComSolar + cip;
+  const cipTxt = cip > 0 ? cip.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
 
   // ── Resumo pra WhatsApp (botão Copiar do form). Montado AQUI de propósito:
   //    usa exatamente as mesmas variáveis do PDF (geração, economia, parcelas,
@@ -3268,14 +3280,14 @@ ${comCapa ? `
     <div class="compare">
       <div class="compare-card compare-antes">
         <div class="compare-label">Hoje você paga</div>
-        <div class="compare-value">${pBRL(contaHoje)}</div>
+        <div class="compare-value">${pBRL(contaHojeExib)}</div>
         <div class="compare-sub">por mês na sua conta</div>
       </div>
       <div class="compare-arrow">→</div>
       <div class="compare-card compare-depois">
         <div class="compare-label">Com energia solar</div>
-        <div class="compare-value">${pBRL(contaComSolar)}</div>
-        <div class="compare-sub">taxa mínima da concessionária</div>
+        <div class="compare-value">${pBRL(contaComSolarExib)}</div>
+        <div class="compare-sub">${cip > 0 ? pEsc(`taxa mínima da concessionária + iluminação pública ${cipTxt}`) : 'taxa mínima da concessionária'}</div>
       </div>
     </div>
     <div class="compare-savings">💰 Economia de ${pBRL(economiaMensal)} todo mês — em ${paybackTexto} o sistema se paga sozinho</div>

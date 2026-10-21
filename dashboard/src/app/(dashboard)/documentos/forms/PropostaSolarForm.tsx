@@ -8,7 +8,7 @@ import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
-import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, Lightbulb, FileText, LineChart, BookOpen } from 'lucide-react';
+import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen } from 'lucide-react';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -56,10 +56,9 @@ const ICONE_TELHADO: Record<string, React.ComponentType<{ size?: number; classNa
   'Laje': Grid3x3,
   'Solo': Mountain,
   'Carport': Car,
-  'Iluminação pública': Lightbulb,
 };
 
-const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport', 'Iluminação pública'] as const;
+const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
 
 const initialFields = {
   paleta: 'solar' as string, // 'solar'|'oceano'|... | 'custom' | 'empresa'
@@ -110,6 +109,9 @@ const initialFields = {
   // tarifa_kwh: deixar vazio = usa default do estado. Preencher = override por proposta.
   tarifa_kwh: '',
   taxa_minima: '90',
+  // Iluminação pública (CIP/COSIP) em R$/mês: taxa da prefeitura na conta de luz.
+  // Do cliente, não do kit. Vazio = não aparece na proposta.
+  iluminacao_publica: '',
   prazo_instalacao_dias: '45',
   // Validade da proposta em dias corridos. Vazio = 7 (default do servidor).
   // Vai no kit do vendedor, então a escolha se repete nas próximas propostas.
@@ -648,7 +650,7 @@ export default function PropostaSolarPage() {
       // garantia ficam (template do integrador, igual marca_inversor).
       bateria_qtd: '', bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
       geracao_media_kwh: '', hsp: '', investimento: '', preco_avista: '',
-      foto_telhado_b64: '', tipo_telhado: '',
+      foto_telhado_b64: '', tipo_telhado: '', iluminacao_publica: '',
       // marca/garantias/pagamento ficam como estão (template do integrador).
     }));
     limparRascunho();
@@ -1575,7 +1577,7 @@ export default function PropostaSolarPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <span>Tarifa, taxa mínima, prazo e validade</span>
+            <span>Tarifa, taxa mínima, iluminação pública, prazo e validade</span>
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>
               ajuste por região se preciso
             </span>
@@ -1594,6 +1596,13 @@ export default function PropostaSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Taxa mínima da concessionária (R$/mês)</label>
               <input type="text" inputMode="decimal" value={fields.taxa_minima} onChange={e => setField('taxa_minima', e.target.value)} placeholder="90" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Iluminação pública (R$/mês)</label>
+              <input type="text" inputMode="decimal" value={fields.iluminacao_publica} onChange={e => setField('iluminacao_publica', e.target.value)} placeholder="Ex: 25,90" className="input-field" />
+              <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                Taxa da prefeitura que vem na conta. Continua depois do solar.
+              </span>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Prazo de instalação (dias úteis)</label>

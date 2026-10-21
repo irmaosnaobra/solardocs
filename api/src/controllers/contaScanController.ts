@@ -46,7 +46,7 @@ const scanSchema = z.object({
 const PADROES = ['Monofásico', 'Bifásico', 'Trifásico'] as const;
 const TELHADOS = [
   'Fibromadeira', 'Fibrometal', 'Cimento', 'Cerâmico', 'Zinco',
-  'Sanduíche', 'Solo', 'Carport', 'Estrutura Metálica', 'Iluminação pública', 'Outro',
+  'Sanduíche', 'Solo', 'Carport', 'Estrutura Metálica', 'Outro',
 ] as const;
 
 const deburr = (s: string) =>
