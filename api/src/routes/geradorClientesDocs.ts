@@ -8,16 +8,16 @@ import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
 import { celulaDe } from '../services/gerador/gestaoClientes';
 import { lerCadastro, sobreporCadastro } from '../services/gerador/cadastroVenda';
-import { lerPosVenda, montarObra, celulaFicha, type CardVendido } from '../services/gerador/fichaEletroposto';
+import { celulaFicha, type CardVendido } from '../services/gerador/fichaEletroposto';
 import {
-  lerCardVendido, lerFichaComVersao, lerPosVendaComVersao, ErroFicha,
+  lerCardVendido, lerFichaComVersao, ErroFicha,
 } from '../services/gerador/fichaEletropostoBanco';
 import { docsEnvioLimiter, docsEnvioIpLimiter } from '../middleware/rateLimiter';
 import {
   CATALOGO, SLOTS_FORA_DO_RELATORIO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
-  lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, corpoRelatorioSolar,
-  corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover,
-  limiteDoItem, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
+  lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, dadosSolarPlanilha, dadosVendaSolar, dadosEletroposto,
+  equipamentoDaPlanilha, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover, TIPOS_FORA_DA_HOMOLOGACAO,
+  limiteDoItem, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocBruto, type DadosHomologacao, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
@@ -675,48 +675,38 @@ export function mountClientesDocs(router: Router): void {
       const urls = await assinarVarios(reg.arquivos.map((a) => a.caminho), SEG_URL_RELATORIO);
       const rotulo = (slot: string): string => CATALOGO[ctx.linha].find((x) => x.chave === slot)?.rotulo ?? slot;
 
-      let corpo: CorpoRelatorio; let obra = null; let obraConcluida: boolean; let cliente = ctx.cliente;
+      let dados: DadosHomologacao; let cliente = ctx.cliente;
       if (ctx.linha === 'solar') {
         const s = ctx.solar as VendaSolarDoDono;
-        const c = corpoRelatorioSolar(s.cols, s.venda.celulas, s.reg);
-        corpo = c;
-        obraConcluida = c.liberado;   // o Solar não tem pós-venda por etapa: "sistema liberado" é o marco
+        dados = dadosSolarPlanilha(equipamentoDaPlanilha(s.cols, s.venda.celulas, s.reg));
       } else if (ctx.linha === 'vendasolar') {
-        // O corpo vem da venda da planilha LIGADA ao card (mesmas colunas e mesmo filtro do relatório do solar: sem dinheiro,
-        // sem texto livre). Sem venda ligada, ou com uma venda que quem pede não enxerga na planilha, o relatório sai só com os
-        // documentos: a posse da venda é a mesma de sempre (sócio, ou o consultor efetivo dela), nunca com acesso de sócio emprestado.
-        const { lig } = await lerLigacao(Number(ctx.codigo));
+        // O cadastro do card vale para quem passou na posse do card. A venda da planilha LIGADA só entra (equipamento) para quem a
+        // enxerga na planilha: a posse da venda é a de sempre (sócio, ou o consultor efetivo dela), nunca acesso de sócio emprestado.
+        const id = Number(ctx.codigo);
+        const cad = await lerCadastro(id, 'vendasolar').catch((e) => { logErro('cadastro indisponível no relatório', e); return null; });
+        const { lig } = await lerLigacao(id);
         const s = lig.venda ? await vendaSolarDoDono(ctx.nome, ctx.socio, lig.venda) : null;
-        if (s) {
-          const c = corpoRelatorioSolar(s.cols, s.venda.celulas, s.reg);
-          corpo = c;
-          obraConcluida = c.liberado;
-        } else {
-          corpo = { secoes: [], camposPendentes: [] };
-          obraConcluida = false;
-        }
+        dados = dadosVendaSolar(cad, s ? equipamentoDaPlanilha(s.cols, s.venda.celulas, s.reg) : null, ctx.cliente);
       } else {
         const card = ctx.card as CardVendido;
         const id = card.id;
-        const [{ reg: fichaCrua }, { valor: pvBruto }] = await Promise.all([lerFichaComVersao(id), lerPosVendaComVersao(id)]);
+        const { reg: fichaCrua } = await lerFichaComVersao(id);
         // CPF, endereço e afins moram no cadastro (bucket privado): por cima da ficha. Bucket fora do ar: a ficha como está.
-        const ficha = sobreporCadastro(fichaCrua, await lerCadastro(id).catch((e) => { logErro('cadastro indisponível no relatório', e); return null; }));
-        corpo = corpoRelatorioEletroposto(card, ficha, lerPosVenda(pvBruto));
-        const o = montarObra(card, pvBruto, diaDeBrasilia(agora), false);
-        obra = obraParaRelatorio(o);
-        obraConcluida = o.concluido;
+        const cad = await lerCadastro(id).catch((e) => { logErro('cadastro indisponível no relatório', e); return null; });
+        const ficha = sobreporCadastro(fichaCrua, cad);
+        dados = dadosEletroposto(card, ficha, cad?.campos.tipo?.valor ?? '');
         const nomeFicha = celulaFicha('cliente', card, ficha, null)?.valor;
         if (typeof nomeFicha === 'string' && nomeFicha) cliente = nomeFicha;
       }
 
-      const documentos: DocRel[] = [];
+      const documentos: DocBruto[] = [];
       const presentes = new Set<string>();
       for (const item of CATALOGO[ctx.linha]) {
         if (SLOTS_FORA_DO_RELATORIO.has(item.chave)) continue;   // dado pessoal de terceiro: não serve à engenharia
         for (const a of reg.arquivos.filter((x) => x.slot === item.chave)) {
           // Também pelo CONTEÚDO: o tipo que a IA deu ao arquivo (guardado com os rótulos) não pode ser de documento pessoal de
           // terceiro, mesmo que ele esteja em `outros` ou em outro item.
-          if (ctx.linha !== 'solar' && SLOTS_FORA_DO_RELATORIO.has(rot?.tipos[a.id] ?? '')) continue;
+          if (TIPOS_FORA_DA_HOMOLOGACAO.has(rot?.tipos[a.id] ?? '')) continue;
           presentes.add(item.chave);
           const url = urls.get(a.caminho);
           // Só o nome dado pela IA entra (sem nome de pessoa nem número, por regra). O nome manual é texto livre e pode ter
@@ -750,8 +740,7 @@ export function mountClientesDocs(router: Router): void {
       }
       res.json(montarRelatorio({
         linha: ctx.linha, codigo: ctx.linha === 'solar' ? `#${ctx.codigo.padStart(4, '0')}` : ctx.codigo,
-        cliente, emitidoEm: agora, emitidoPor: ctx.nome,
-        corpo, obra, obraConcluida, documentos, slotsPresentes: presentes,
+        cliente, emitidoEm: agora, dados, documentos,
       }));
     } catch (err) {
       falhou(res, 'relatório falhou', err);

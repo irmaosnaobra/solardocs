@@ -13,6 +13,9 @@
 import type { RegistroGestao } from './gestaoClientes';
 import { ErroCadastro, lerCadastroBruto, gravarCadastroBruto, listarIdsComPasta, comTrava, type LinhaCadastro } from './cadastroVendaBanco';
 import { lerFichaComVersao, gravarFicha } from './fichaEletropostoBanco';
+import { lerCoordenadas } from './coordenadas';
+import { temDinheiro } from './semDinheiro';
+export { lerCoordenadas, type ResultadoCoordenadas } from './coordenadas';
 
 // O cadastro tem PAPÉIS (19/10/2026): o comprador (campos sem prefixo, mais o representante `rep_*` e o ponto), o cedente do
 // arrendamento (`ced_*`), o avalista (`aval_*`) e o imóvel (`imovel_*`). É o mesmo JSON: o papel só vive no prefixo.
@@ -31,8 +34,16 @@ export const CAMPOS_AVALISTA = [
   'aval_profissao', 'aval_endereco', 'aval_bairro', 'aval_cidade', 'aval_uf', 'aval_cep', 'aval_email', 'aval_telefone',
 ] as const;
 export const CAMPOS_IMOVEL = ['imovel_matricula', 'imovel_cartorio', 'imovel_iptu'] as const;
+/**
+ * Dados do ponto que a engenharia pede para homologar (21/10/2026): UF do ponto, coordenadas ("latitude, longitude"), valor do
+ * disjuntor em ampères e a lista de materiais. Valem nas duas linhas. O tipo do disjuntor só existe no eletroposto: no solar o
+ * tipo de fornecimento da unidade geradora (`uc_fornecimento`) já diz monofásico, bifásico ou trifásico.
+ */
+export const CAMPOS_ENGENHARIA = ['uf_ponto', 'coordenadas', 'disjuntor_a', 'materiais'] as const;
 /** Os campos do eletroposto (o cadastro do card vendido de eletroposto). NÃO inclui os da venda solar. */
-export const CAMPOS = [...CAMPOS_COMPRADOR, ...CAMPOS_CEDENTE, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL] as const;
+export const CAMPOS = [
+  ...CAMPOS_COMPRADOR, ...CAMPOS_CEDENTE, ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_ENGENHARIA, 'disjuntor_tipo',
+] as const;
 
 // ── Venda SOLAR pelo card (`vendasolar`, 20/10/2026) ─────────────────────────
 // O mesmo cadastro, com outros papéis: o comprador (e o representante `rep_*`), o titular da conta de luz da unidade geradora
@@ -72,7 +83,7 @@ export const MODALIDADES_RATEIO = ['autoconsumo_local', 'autoconsumo_remoto', 'g
 /** Os campos da venda solar pelo card. NÃO inclui `ced_*`. */
 export const CAMPOS_VENDASOLAR = [
   ...CAMPOS_COMPRADOR, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_TITULAR_FINANCIAMENTO, ...CAMPOS_DECISAO_PAPEIS,
-  ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_BENEFICIARIAS, ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS,
+  ...CAMPOS_AVALISTA, ...CAMPOS_IMOVEL, ...CAMPOS_BENEFICIARIAS, ...CAMPOS_RATEIO, ...CAMPOS_DOC_BENEFICIARIAS, ...CAMPOS_ENGENHARIA,
 ] as const;
 const CAMPOS_TODOS = [
   ...CAMPOS, ...CAMPOS_UC_SOLAR, ...CAMPOS_TITULAR_UC, ...CAMPOS_TITULAR_FINANCIAMENTO, ...CAMPOS_DECISAO_PAPEIS,
@@ -111,6 +122,8 @@ export interface Cadastro {
 }
 
 export const MAX_CAMPO = 200;
+/** Limite de um campo: a lista de materiais é texto corrido e acompanha o teto da ficha (300). */
+export const limiteDoCampo = (campo: string): number => (campo === 'materiais' ? 300 : MAX_CAMPO);
 export const MAX_TRILHA_CADASTRO = 50;
 export const cadastroVazio = (): Cadastro => ({ v: 1, campos: {}, alteracoes: [], em: null });
 
@@ -184,7 +197,7 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
   if (typeof valor !== 'string') return { ok: false, erro: 'Valor inválido.' };
   const t = valor.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (t === '') return { ok: true, valor: '' };
-  if (t.length > MAX_CAMPO) return { ok: false, erro: `Texto longo demais (máximo ${MAX_CAMPO} caracteres).` };
+  if (t.length > limiteDoCampo(campo)) return { ok: false, erro: `Texto longo demais (máximo ${limiteDoCampo(campo)} caracteres).` };
   // Percentual de uma unidade beneficiária (`benef_N_pct`): de 0 a 100. Guardado como número com ponto decimal, até 2 casas.
   // `geradora_pct` é o percentual que fica na própria unidade geradora, com a mesma regra.
   if (/^benef_[1-5]_pct$/.test(campo) || campo === 'geradora_pct') {
@@ -206,6 +219,22 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
   // Os campos do cedente, do avalista, do titular da UC e do titular do financiamento seguem a regra do campo igual do comprador
   // (`ced_cep` valida como `cep`). O documento da beneficiária (`benef_N_doc`) valida como o CPF/CNPJ do comprador, com dígito.
   switch (/^benef_[1-5]_doc$/.test(campo) ? 'cpf_cnpj' : campo.replace(/^(ced|aval|tuc|fin)_/, '')) {
+    case 'materiais':
+      // Texto livre que vai para a engenharia: valor em dinheiro não entra.
+      return temDinheiro(t) ? { ok: false, erro: 'Materiais sem valores, preços nem pagamento: só os itens.' } : { ok: true, valor: t };
+    case 'coordenadas': {
+      const c = lerCoordenadas(t);
+      return c.ok ? { ok: true, valor: c.texto } : { ok: false, erro: c.erro };
+    }
+    case 'disjuntor_a': {
+      const n = numeroBR(t.replace(/\s*a(mp[eè]res?)?$/i, ''), false);
+      return n !== null && n > 0 && n <= 5000 && Number.isInteger(n) ? { ok: true, valor: String(n) } : { ok: false, erro: 'Disjuntor em ampères, número inteiro maior que zero.' };
+    }
+    case 'disjuntor_tipo': {
+      const c = chaveDeOpcao(t);
+      const achou = /^mono/.test(c) ? 'Monofásico' : /^bi(f|$)/.test(c) ? 'Bifásico' : /^tri/.test(c) ? 'Trifásico' : '';
+      return achou ? { ok: true, valor: achou } : { ok: false, erro: 'Escolha: monofásico, bifásico ou trifásico.' };
+    }
     case 'consumo_medio_kwh': {
       const n = numeroBR(t);
       return n !== null && n > 0 && n <= 1_000_000 ? { ok: true, valor: numeroGuardado(n) } : { ok: false, erro: 'Consumo médio em kWh, maior que zero.' };
@@ -254,7 +283,8 @@ export function validarCampo(campo: Campo, valor: unknown): ResultadoCampo {
       const d = soDigitos(t);
       return d.length === 8 ? { ok: true, valor: `${d.slice(0, 5)}-${d.slice(5)}` } : { ok: false, erro: 'CEP com 8 dígitos.' };
     }
-    case 'uf': {
+    case 'uf':
+    case 'uf_ponto': {
       const u = t.toUpperCase();
       return UFS.includes(u) ? { ok: true, valor: u } : { ok: false, erro: 'UF inválida.' };
     }
@@ -426,6 +456,7 @@ export const FICHA_PARA_CADASTRO: Readonly<Record<string, Campo>> = {
   cliente: 'nome', cpf_cnpj: 'cpf_cnpj', rg_ie: 'rg_ie', contato: 'telefone', email: 'email', endereco: 'endereco',
   cep: 'cep', cidade: 'cidade', uf: 'uf', endereco_ponto: 'endereco_ponto', unidade_consumidora: 'unidade_consumidora',
   concessionaria: 'concessionaria', titular_conta: 'titular_conta',
+  uf_ponto: 'uf_ponto', coordenadas: 'coordenadas', disjuntor_tipo: 'disjuntor_tipo', disjuntor_a: 'disjuntor_a', materiais: 'materiais',
 };
 const CADASTRO_PARA_FICHA: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(FICHA_PARA_CADASTRO).map(([f, c]) => [c, f]),
@@ -528,7 +559,7 @@ export async function escreverCadastro(
 ): Promise<ResultadoEscrita> {
   const pedido: Array<[Campo, string]> = [];
   for (const [k, v] of Object.entries(mudancas)) {
-    if (!ehCampo(k, linha) || typeof v !== 'string' || v.length > MAX_CAMPO) throw new ErroCadastro('campo');
+    if (!ehCampo(k, linha) || typeof v !== 'string' || v.length > limiteDoCampo(k)) throw new ErroCadastro('campo');
     pedido.push([k, v.trim()]);
   }
   if (!pedido.some(([k]) => k === 'tipo')) {

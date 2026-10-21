@@ -927,23 +927,89 @@ describe('dossiê da proposta ligada, só leitura', () => {
     expect(res.status).toBe(200);
     expect(res.body.dossie.arquivos).toEqual([]);
   });
-  it('o relatório de engenharia leva o dossiê no lugar do item vazio e a venda da planilha ligada, sem dinheiro', async () => {
+  const valorRel = (corpo: any, rotulo: string): string | undefined => corpo.secoes.flatMap((x: any) => x.campos).find((c: any) => c.rotulo === rotulo)?.valor;
+  const PROIBIDOS = ['Consultor', 'Nilce', 'Modelo da venda', 'Data da venda', 'Contrato assinado', 'Obra não concluída', 'Engenheiro', 'emitido_por', '"obra"', 'obra_concluida', 'Forma de pagamento'];
+  const CAD = {
+    nome: 'Ana Souza', cpf_cnpj: '52998224725', concessionaria: 'Cemig', uf: 'MG', endereco_ponto: 'Rua das Flores, 10', unidade_consumidora: '0012345678',
+    titular_conta: 'Maria Souza', homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza', tuc_cpf_cnpj: '11144477735', uc_fornecimento: 'Trifásico',
+    coordenadas: '-18.912345, -48.275432', disjuntor_a: '50 A', materiais: 'Cabo solar 6 mm, string box',
+    rateio_modalidade: 'Autoconsumo remoto', geradora_pct: '33.33', benef_1_uc: '0098765432', benef_1_titular: 'Ana Souza', benef_1_pct: '40', benef_1_doc: '52998224725',
+  };
+  it('o relatório de homologação leva o cadastro do card, o dossiê classificado por seção e o rateio, sem dinheiro nem dado interno', async () => {
     await ligar(201, { proposta: 'P1', venda: '#0057' });
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: CAD })).status).toBe(200);
     const res = await get('/clientes/vendasolar/201/relatorio');
     expect(res.status).toBe(200);
     expect(res.body.cabecalho).toMatchObject({ linha: 'vendasolar', codigo: '201', cliente: 'Ana Souza' });
-    const slots = res.body.documentos.map((d: any) => d.slot).sort();
-    expect(slots).toEqual(['conta_luz', 'documento_titular_uc', 'fachada', 'medidor']);
+    expect(res.body.secoes.map((x: any) => x.numero)).toEqual([1, 2, 3, 4, 5]);
+    expect(valorRel(res.body, 'Estado')).toBe('MG');
+    expect(valorRel(res.body, 'Nome da concessionária')).toBe('Cemig');
+    expect(valorRel(res.body, 'Pessoa física ou jurídica')).toBe('Pessoa física');
+    // a homologação fica com outra pessoa: o "cliente" da seção 2 é ela (nome, CPF e PF/PJ do tuc_*)
+    expect(valorRel(res.body, 'Nome completo')).toBe('Maria Souza');
+    expect(valorRel(res.body, 'CPF')).toBe('111.444.777-35');
+    expect(JSON.stringify(res.body.secoes[1])).not.toContain('529.982');
+    expect(valorRel(res.body, 'Trocar titularidade?')).toBe('Não');            // a conta já está no nome de quem fica com a homologação
+    expect(valorRel(res.body, 'Tipo de disjuntor')).toBe('Trifásico');          // vem do tipo de fornecimento da geradora
+    expect(valorRel(res.body, 'Rede trifásica')).toBe('Sim');
+    expect(valorRel(res.body, 'Valor do disjuntor (A)')).toBe('50');
+    expect(valorRel(res.body, 'Latitude do projeto')).toBe('-18.912345');
+    expect(valorRel(res.body, 'Longitude do projeto')).toBe('-48.275432');
+    expect(valorRel(res.body, 'Materiais')).toBe('Cabo solar 6 mm, string box');
+    expect(valorRel(res.body, 'Documento de rateio: modalidade')).toBe('Autoconsumo remoto');
+    expect(valorRel(res.body, 'Documento de rateio: percentual da geradora')).toBe('33,33%');   // percentual não passa por filtro de texto
+    expect(valorRel(res.body, 'Beneficiária 1: percentual')).toBe('40%');
+    expect(res.body.pendencias).toEqual({ campos: [], documentos: ['Foto do padrão de entrada', 'Foto do disjuntor', 'Conta de energia das unidades beneficiárias'] });
+    // o documento da homologação (titular_uc, vindo do dossiê) é o documento com foto
+    expect(res.body.documentos.map((d: any) => d.arquivo).sort()).toEqual(['2-documento-com-foto', '3-conta-de-energia', '5-fachada-1', '5-medidor-1']);
     expect(res.body.documentos.find((d: any) => d.slot === 'documento_titular_uc').rotulo).toBe('CNH ou documento do titular da homologação');
-    expect(res.body.pendencias.documentos).toContain('CNH ou documento do contratante');   // o documento do dossiê NÃO conta como o do contratante
-    expect(res.body.secoes.length).toBeGreaterThan(0);
-    expect(res.body.pendencias.obra_concluida).toBe(true);                // sistema liberado na venda ligada
-    expect(JSON.stringify(res.body)).not.toMatch(/8\.887|7\.776|2\.345/);
-    // sem venda ligada: só os documentos
+    const t = JSON.stringify(res.body);
+    expect(t).not.toMatch(/8\.887|7\.776|2\.345/);
+    for (const p of PROIBIDOS) expect(t, p).not.toContain(p);
+    // sem venda ligada: o cadastro do card segue, só não há equipamento da planilha
     await ligar(201, { venda: null });
     const sem = await get('/clientes/vendasolar/201/relatorio');
-    expect(sem.body.secoes).toEqual([]);
-    expect(sem.body.pendencias.obra_concluida).toBe(false);
+    expect(valorRel(sem.body, 'Nome completo')).toBe('Maria Souza');   // quem fica com a homologação
+    expect(valorRel(sem.body, 'Potência total (kWp)')).toBe('');
+  });
+  it('eletroposto com o cadastro já no bucket: coordenadas separadas, disjuntor e materiais sem dinheiro; a IA nunca pede esses campos', async () => {
+    const ok = await put('/clientes/eletroposto/202/cadastro', { campos: { nome: 'Dora Eletroposto', coordenadas: '-18.9, -48.2', disjuntor_tipo: 'bifasico', disjuntor_a: '40', uf_ponto: 'go', materiais: 'Cabo 10 mm, haste' } });
+    expect(ok.status).toBe(200);
+    const rel = await get('/clientes/eletroposto/202/relatorio');
+    expect(rel.status).toBe(200);
+    expect(valorRel(rel.body, 'Latitude do projeto')).toBe('-18.9');
+    expect(valorRel(rel.body, 'Longitude do projeto')).toBe('-48.2');
+    expect(valorRel(rel.body, 'Tipo de disjuntor')).toBe('Bifásico');
+    expect(valorRel(rel.body, 'Valor do disjuntor (A)')).toBe('40');
+    expect(valorRel(rel.body, 'Estado')).toBe('GO');
+    expect(rel.body.pendencias.campos).toEqual([]);
+    expect((await put('/clientes/eletroposto/202/cadastro', { campos: { materiais: 'Cabo por R$ 3.000' } })).status).toBe(400);
+  });
+  it('o contratante fica com a homologação: o documento do titular da homologação anexado vale como o documento com foto dele; coordenada fora do intervalo é recusada', async () => {
+    await ligar(201, { proposta: 'P1' });
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza', titular_conta: 'ana souza', homologacao_mesmo: 'contratante' } })).status).toBe(200);
+    const res = await get('/clientes/vendasolar/201/relatorio');
+    expect(valorRel(res.body, 'Trocar titularidade?')).toBe('Não');
+    expect(res.body.documentos.map((d: any) => [d.slot, d.arquivo])).toContainEqual(['documento_titular_uc', '2-documento-com-foto']);
+    expect(res.body.pendencias.documentos).not.toContain('Documento com foto do cliente');
+    expect(valorRel(res.body, 'Nome completo')).toBe('Ana Souza');
+    expect(res.body.pendencias.campos).toEqual(['Coordenadas (latitude e longitude)', 'Tipo de disjuntor', 'Valor do disjuntor (A)']);
+    const ruim = await put('/clientes/vendasolar/201/cadastro', { campos: { coordenadas: '95, 200' } });
+    expect(ruim.status).toBe(400);
+    expect(JSON.stringify(ruim.body)).not.toContain('200');
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { coordenadas: '-18,9; -48,2', disjuntor_a: 'quarenta' } })).status).toBe(400);
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { coordenadas: '18.9 W, 48.2 S' } })).status).toBe(400);   // letra trocada
+  });
+  it('outra pessoa com a homologação e a conta no nome de um terceiro: troca a titularidade; materiais com valor ou "sinal" é barrado', async () => {
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { nome: 'Ana Souza', homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza', tuc_cpf_cnpj: '11222333000181', titular_conta: 'José Pereira' } })).status).toBe(200);
+    const res = await get('/clientes/vendasolar/201/relatorio');
+    expect(valorRel(res.body, 'Nome completo')).toBe('Maria Souza');
+    expect(valorRel(res.body, 'Pessoa física ou jurídica')).toBe('Pessoa jurídica');
+    expect(valorRel(res.body, 'CNPJ')).toBe('11.222.333/0001-81');
+    expect(valorRel(res.body, 'Trocar titularidade?')).toBe('Sim');
+    for (const t of ['Cabo 1.500,00', 'sinal de 30%', 'kit por R$ 3 mil']) {
+      expect((await put('/clientes/vendasolar/201/cadastro', { campos: { materiais: t } })).status, t).toBe(400);
+    }
   });
 });
 
@@ -1174,16 +1240,16 @@ describe('vínculo automático: só do mesmo consultor, com DDD, e um candidato'
 });
 
 describe('o relatório usa a posse da venda ligada', () => {
-  it('quem não é sócio e não enxerga a venda ligada recebe o relatório só com os documentos; quem enxerga, com as seções', async () => {
+  it('quem não enxerga a venda ligada recebe o cadastro do card sem o equipamento da planilha; quem enxerga, com ele', async () => {
     expect((await ligar(201, { venda: '#0058' }, THIAGO)).status).toBe(200);           // venda da Giovanna ligada ao card da Nilce
     const nilce = await get('/clientes/vendasolar/201/relatorio');
     expect(nilce.status).toBe(200);
-    expect(nilce.body.secoes).toEqual([]);
+    expect(nilce.body.secoes.map((x: any) => x.numero)).toEqual([1, 2, 3, 4, 5]);
     expect(JSON.stringify(nilce.body)).not.toContain('Bruno');
     const giovanna = await get('/clientes/vendasolar/201/relatorio', GIOVANNA);
     expect(giovanna.status).toBe(200);
-    expect(giovanna.body.secoes.length).toBeGreaterThan(0);
-    expect((await get('/clientes/vendasolar/201/relatorio', THIAGO)).body.secoes.length).toBeGreaterThan(0);
+    expect(giovanna.body.secoes.length).toBe(5);
+    expect((await get('/clientes/vendasolar/201/relatorio', THIAGO)).body.secoes.length).toBe(5);
   });
 });
 

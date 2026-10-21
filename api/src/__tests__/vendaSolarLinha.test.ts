@@ -124,8 +124,8 @@ describe('campos do cadastro por linha', () => {
     expect(ehCampo('benef_1_uc', 'eletroposto')).toBe(false);
     expect(ehCampo('uc_classe', 'eletroposto')).toBe(false);
     expect(ehCampo('ced_nome', 'eletroposto')).toBe(true);
-    expect(CAMPOS.length).toBe(58);                    // o eletroposto não mudou
-    expect(CAMPOS_VENDASOLAR).toHaveLength(25 + 3 + 15 + 15 + 3 + 20 + 2 + 5 + 15 + 2);   // + rateio_modalidade, geradora_pct e benef_N_doc, + fin_* e os dois *_mesmo, + uc_fornecimento (os 3 de CAMPOS_UC_SOLAR)
+    expect(CAMPOS.length).toBe(58 + 5);                // + uf_ponto, coordenadas, disjuntor_tipo, disjuntor_a e materiais (homologação, 21/10)
+    expect(CAMPOS_VENDASOLAR).toHaveLength(25 + 3 + 15 + 15 + 3 + 20 + 2 + 5 + 15 + 2 + 4);   // + rateio_modalidade, geradora_pct e benef_N_doc, + fin_* e os dois *_mesmo, + uc_fornecimento (os 3 de CAMPOS_UC_SOLAR), + 4 de engenharia (sem disjuntor_tipo: no solar é uc_fornecimento)
     expect(camposDaLinha('vendasolar')).toBe(CAMPOS_VENDASOLAR);
   });
   it('validação: percentual, consumo, classe e relação com o titular', () => {
@@ -309,7 +309,7 @@ describe('leitura por IA da vendasolar', () => {
   it('esquema: mesma forma do eletroposto (duas listas planas), com o enum da linha; sem tipo, relação e percentual', () => {
     expect(Object.keys(EsquemaCadastroSolar.shape).sort()).toEqual(['campos', 'documentos']);
     expect(Object.keys(EsquemaCadastroSolar.shape.campos.element.shape).sort()).toEqual(['campo', 'confianca', 'indice', 'nota', 'valor']);
-    expect(CAMPOS_PEDIDOS_SOLAR).toHaveLength(CAMPOS_VENDASOLAR.length - 1 - 1 - 5 - 2 - 5 - 2);   // o enum da leitura não cresceu com o rateio nem com as duas decisões *_mesmo (só com fin_*)
+    expect(CAMPOS_PEDIDOS_SOLAR).toHaveLength(CAMPOS_VENDASOLAR.length - 1 - 1 - 5 - 2 - 5 - 2 - 4);   // sem os 4 de engenharia (digitados por gente); o enum da leitura não cresceu com o rateio nem com as duas decisões *_mesmo (só com fin_*)
     const json = JSON.stringify(FORMATO_CADASTRO_SOLAR);
     // O SDK escreve o enum dentro de `description` (aspas escapadas); o servidor reconfere a lista de qualquer jeito (`listaDeCampos`).
     for (const c of ['benef_1_uc', 'benef_5_endereco', 'tuc_nome', 'consumo_medio_kwh', 'uc_classe', 'rep_nome', 'aval_cep', 'imovel_iptu']) expect(json, c).toContain(`\\"${c}\\"`);

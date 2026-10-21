@@ -93,7 +93,7 @@ describe('cadastro com papéis: cedente, avalista e imóvel', () => {
     expect([...CAMPOS_IMOVEL]).toEqual(['imovel_matricula', 'imovel_cartorio', 'imovel_iptu']);
     for (const antigo of ['tipo', 'nome', 'cpf_cnpj', 'rg_ie', 'cep', 'uf', 'rep_nome', 'rep_cpf', 'endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta']) expect(CAMPOS).toContain(antigo);
     expect(new Set(CAMPOS).size).toBe(CAMPOS.length);
-    expect(CAMPOS).toHaveLength(25 + 15 + 15 + 3);
+    expect(CAMPOS).toHaveLength(25 + 15 + 15 + 3 + 5);
   });
 
   it('validação: cada campo do cedente e do avalista segue a regra do campo igual do comprador', () => {
@@ -226,7 +226,7 @@ describe('o que vai ao modelo: nome dado pelo usuário e pessoas conhecidas', ()
     // O ajudante do SDK tira o `enum` do JSON Schema (a API só aceita um pedaço dele) e o põe na descrição do campo: o modelo
     // lê os nomes, e o servidor confere de novo (`listaDeCampos` ignora campo desconhecido, `confiancaDe` normaliza).
     const nomes = (d: string): string[] => JSON.parse(/\{enum: (\[.*\])\}/.exec(d)![1]);
-    expect(nomes(item.properties.campo.description)).toEqual(CAMPOS.filter((k) => k !== 'tipo'));   // PF ou PJ sai do tamanho do CPF/CNPJ
+    expect(nomes(item.properties.campo.description)).toEqual(CAMPOS.filter((k) => k !== 'tipo' && !['uf_ponto', 'coordenadas', 'disjuntor_a', 'materiais', 'disjuntor_tipo'].includes(k)));   // PF ou PJ sai do tamanho do CPF/CNPJ
     expect(nomes(item.properties.campo.description)).toEqual(expect.arrayContaining(['nome', 'ced_nome', 'ced_qualidade', 'aval_nascimento', 'imovel_iptu', 'titular_conta']));
     expect(nomes(item.properties.confianca.description)).toEqual(['alta', 'media', 'baixa']);
     // nada de objeto aninhado por campo nem de `$ref`: 2 listas, 5 + 4 propriedades

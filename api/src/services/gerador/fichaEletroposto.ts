@@ -73,6 +73,7 @@ const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', '
 const SIM_NAO = ['Sim', 'Não'];
 // Opções ESCRITAS. Lista aberta nunca deriva opção dos cards de outras pessoas: o consultor receberia dado alheio.
 const OPC_CONCESSIONARIA = ['Cemig', 'Equatorial'];
+const OPC_DISJUNTOR = ['Monofásico', 'Bifásico', 'Trifásico'];
 const OPC_FORMA_PAGTO = ['Pix', 'Transferência', 'Boleto', 'Cartão', 'Financiamento'];
 
 export const GRUPOS_FICHA = ['Venda', 'Cliente', 'Local do ponto', 'Negócio', 'Datas', 'Observação'] as const;
@@ -127,6 +128,12 @@ const DEFS: DefFicha[] = [
   d('concessionaria', 'Concessionária', 'lista', 'Local do ponto', { obrigatoria: true, opcoes: OPC_CONCESSIONARIA, livre: true }),
   d('titular_conta', 'Titular da conta de luz', 'texto', 'Local do ponto'),
   d('trifasico', 'Tem rede trifásica', 'lista', 'Local do ponto', { obrigatoria: true, opcoes: SIM_NAO }),
+  // Dados que a engenharia parceira pede para homologar (21/10/2026). Moram no cadastro (bucket privado), como o endereço do ponto.
+  d('uf_ponto', 'UF do ponto', 'lista', 'Local do ponto', { opcoes: UFS }),
+  d('coordenadas', 'Coordenadas (latitude, longitude)', 'texto', 'Local do ponto'),
+  d('disjuntor_tipo', 'Tipo de disjuntor', 'lista', 'Local do ponto', { opcoes: OPC_DISJUNTOR }),
+  d('disjuntor_a', 'Valor do disjuntor (A)', 'texto', 'Local do ponto'),
+  d('materiais', 'Materiais do projeto', 'texto', 'Local do ponto'),
   // Negócio
   d('equipamento', 'Equipamento', 'lista', 'Negócio', { obrigatoria: true, opcoes: [], livre: true }),
   d('qtd_carregadores', 'Qtd. de carregadores', 'inteiro', 'Negócio', { obrigatoria: true }),

@@ -36646,6 +36646,9 @@ const VDC_CAMPOS = [
   ['rep_rg', 'RG do representante'], ['rep_estado_civil', 'Estado civil do representante'], ['rep_profissao', 'Profissão do representante'],
   ['endereco_ponto', 'Endereço do ponto de recarga'], ['unidade_consumidora', 'Unidade consumidora'], ['concessionaria', 'Concessionária'],
   ['titular_conta', 'Titular da conta de luz'],
+  // Dados que a engenharia parceira pede para homologar (21/10/2026). Vão no relatório de engenharia da ficha do cliente.
+  ['uf_ponto', 'UF do ponto'], ['coordenadas', 'Coordenadas do projeto (latitude, longitude)'], ['disjuntor_tipo', 'Tipo de disjuntor'],
+  ['disjuntor_a', 'Valor do disjuntor (A)'], ['materiais', 'Materiais do projeto'],
 ];
 // Cedente (dono do ponto), avalista e imóvel (20/10/2026). Ficam FORA do VDC_CAMPOS de propósito: o VDC_CAMPOS é o comprador e o ponto,
 // e o que preenche o formulário do comprador. Estes só contam no "X de Y" e em "Faltando" quando o servidor os pede (ele só pede
@@ -36659,7 +36662,7 @@ const VDC_CED_CAMPOS = [...VDC_PESSOA_CAMPOS.filter(c => c[0] !== 'nascimento').
   ['ced_qualidade', 'Papel do cedente no ponto']];
 const VDC_AVAL_CAMPOS = VDC_PESSOA_CAMPOS.map(([k, r]) => ['aval_' + k, r + ' do avalista']);
 const VDC_IMOVEL_CAMPOS = [['imovel_matricula', 'Matrícula do imóvel'], ['imovel_cartorio', 'Cartório do imóvel'], ['imovel_iptu', 'IPTU do imóvel']];
-const VDC_PONTO_CHAVES = ['endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta'];
+const VDC_PONTO_CHAVES = ['endereco_ponto', 'unidade_consumidora', 'concessionaria', 'titular_conta', 'uf_ponto', 'coordenadas', 'disjuntor_tipo', 'disjuntor_a', 'materiais'];
 const VDC_EXTRAS = [...VDC_CED_CAMPOS, ...VDC_AVAL_CAMPOS, ...VDC_IMOVEL_CAMPOS];
 const VDC_ROT = Object.fromEntries([...VDC_CAMPOS, ...VDC_EXTRAS]);
 // A conferência agrupa por pessoa. Quem é de quem pelo nome do campo.
@@ -36695,7 +36698,9 @@ const VDC_SOL_TUC = [...VDC_PESSOA_CAMPOS.filter(c => c[0] !== 'nascimento').map
 // Titular do financiamento (fin_*): quem assina o financiamento do sistema quando não é o contratante. Só existe na venda solar.
 const VDC_SOL_FIN = VDC_PESSOA_CAMPOS.map(([k, r]) => ['fin_' + k, r + ' do titular do financiamento']);
 const VDC_SOL_UG = [['unidade_consumidora', 'Unidade consumidora geradora'], ['concessionaria', 'Concessionária'], ['titular_conta', 'Titular da conta de luz'],
-  ['endereco_ponto', 'Endereço da instalação'], ['uc_classe', 'Classe da unidade'], ['uc_fornecimento', 'Tipo de fornecimento'], ['consumo_medio_kwh', 'Consumo médio (kWh)']];
+  ['endereco_ponto', 'Endereço da instalação'], ['uc_classe', 'Classe da unidade'], ['uc_fornecimento', 'Tipo de fornecimento'], ['consumo_medio_kwh', 'Consumo médio (kWh)'],
+  // O tipo do disjuntor no solar é o tipo de fornecimento acima: não há campo à parte.
+  ['uf_ponto', 'UF do ponto'], ['coordenadas', 'Coordenadas do projeto (latitude, longitude)'], ['disjuntor_a', 'Valor do disjuntor (A)'], ['materiais', 'Materiais do projeto']];
 const VDC_SOL_UG_CHAVES = VDC_SOL_UG.map(c => c[0]);
 // Rateio do excedente (20/10/2026): modalidade, percentual da geradora e, por beneficiária, UC, titular, documento, endereço e percentual.
 // A IA não preenche modalidade, percentuais nem tipo: eles são digitados na seção "Rateio do excedente" do bloco.

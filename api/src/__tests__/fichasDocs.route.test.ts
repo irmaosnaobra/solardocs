@@ -747,119 +747,191 @@ describe('vínculo com a proposta (Solar)', () => {
   });
 });
 
-describe('relatório', () => {
+describe('relatório de homologação', () => {
   const todoTexto = (o: unknown): string => JSON.stringify(o);
   const SENTINELAS = ['ZZ', 'R$', '8.887', '7.776', '654,32', '987,65', '4.321', '111,22', '4.444', '555,44', '333,21', '222,10', '6.543', '2.345', 'Quitado', 'ZZClienteAlheio'];
+  // O que o dono NUNCA quer ver no pacote da engenharia, em qualquer linha.
+  const PROIBIDOS = ['Consultor', 'consultor', 'Nilce', 'thiago', 'Modelo da venda', 'Vendido em', 'Data da venda', 'Contrato assinado', 'Obra não concluída', 'Engenheiro',
+    'Etapa', 'Trilho', 'Forma de pagamento', 'Banco', 'Sinal', 'Preço', 'emitido_por', '"obra"', 'obra_concluida', 'meio_a_meio', '50/50', 'Responsável'];
+  const rotulosDe = (b: any): string[] => b.secoes.flatMap((s: any) => s.campos.map((c: any) => c.rotulo));
+  const valorDe2 = (b: any, rotulo: string): string | undefined => b.secoes.flatMap((s: any) => s.campos).find((c: any) => c.rotulo === rotulo)?.valor;
+  const fichaEp = (id: number, campos: Record<string, string | number>) => h.linhas.set(`cliente_ep:${id}`, {
+    value: { campos: Object.fromEntries(Object.entries(campos).map(([k, v]) => [k, { valor: v, por: 'x', em: 'e' }])), alteracoes: [], em: 'e' }, updated_at: 'f1',
+  });
 
-  it('Solar, como SÓCIO: nenhum campo de dinheiro, financeiro, custo, coluna nova ou depoimento', async () => {
+  it('Solar, como SÓCIO: as 5 seções do formulário, sem dinheiro, consultor, datas nem obra', async () => {
     const x = await get('/clientes/solar/57/relatorio', THIAGO);
     expect(x.status).toBe(200);
     const t = todoTexto(x.body);
     for (const s of SENTINELAS) expect(t, s).not.toContain(s);
+    for (const p of PROIBIDOS) expect(t, p).not.toContain(p);
     expect(x.headers['cache-control']).toBe('no-store');
-    const rotulos = x.body.secoes.flatMap((s: any) => s.campos.map((c: any) => c.rotulo));
-    expect(rotulos).toContain('Cliente');
-    for (const proibido of ['Valor da venda', 'Recebimento', 'Forma de pagamento', 'Origem do lead', 'Nota fiscal', 'Fator x', '% de lucro']) expect(rotulos).not.toContain(proibido);
-    expect(x.body.secoes.map((s: any) => s.titulo)).not.toContain('Financeiro');
-    expect(x.body.secoes.map((s: any) => s.titulo)).not.toContain('Custos da obra');
-    expect(x.body.cabecalho).toMatchObject({ linha: 'solar', codigo: '#0057', cliente: 'Ana Souza', emitido_por: 'thiago' });
-    expect(x.body.obra).toBeNull();
+    expect(x.body.secoes.map((s: any) => [s.numero, s.titulo])).toEqual([
+      [1, 'Informações da concessionária'], [2, 'Informações do cliente'], [3, 'Informações da instalação (unidade consumidora/geradora)'],
+      [4, 'Especificações do projeto'], [5, 'Documentos complementares'],
+    ]);
+    expect(Object.keys(x.body.cabecalho).sort()).toEqual(['cliente', 'codigo', 'emitido_em', 'linha']);
+    expect(x.body.cabecalho).toMatchObject({ linha: 'solar', codigo: '#0057', cliente: 'Ana Souza' });
+    expect(x.body.obra).toBeUndefined();
+    expect(Object.keys(x.body.pendencias).sort()).toEqual(['campos', 'documentos']);
+    expect(valorDe2(x.body, 'Estado')).toBe('MG');
   });
-  it('Solar, como consultor dono: o mesmo corte; a data e o telefone saem formatados', async () => {
+  it('Solar, como consultor dono: o mesmo corte', async () => {
     const x = await get('/clientes/solar/57/relatorio');
     expect(x.status).toBe(200);
     for (const s of SENTINELAS) expect(todoTexto(x.body), s).not.toContain(s);
-    const campos = x.body.secoes.flatMap((s: any) => s.campos);
-    expect(campos).toContainEqual({ rotulo: 'Data da venda', valor: '03/08/2026' });
-    expect(campos).toContainEqual({ rotulo: 'Telefone', valor: '(34) 98888-0001' });
+    for (const p of PROIBIDOS) expect(todoTexto(x.body), p).not.toContain(p);
+    expect(valorDe2(x.body, 'Módulos (placas)')).toBe('10 módulos');
+    expect(valorDe2(x.body, 'Nome completo')).toBe('Ana Souza');
   });
-  it('Solar: pendências certas (campos obrigatórios vazios, documentos sem arquivo), preliminar, e o dossiê vinculado quita o item', async () => {
+  it('Solar: faltam só entradas da engenharia, e o dossiê vinculado quita o documento e a fachada vira complemento', async () => {
     const a = await get('/clientes/solar/57/relatorio');
     expect(a.body.preliminar).toBe(true);
-    expect(a.body.pendencias.campos).toContain('Engenheiro');
-    expect(a.body.pendencias.campos).not.toContain('Cliente');
-    expect(a.body.pendencias.documentos).toContain('CNH ou identidade');
-    expect(a.body.pendencias.documentos).not.toContain('Outros documentos');
-    expect(a.body.pendencias.documentos).toHaveLength(11);
-    expect(a.body.pendencias.obra_concluida).toBe(false);
+    expect(a.body.pendencias.campos).toEqual(['Coordenadas (latitude e longitude)', 'Tipo de disjuntor', 'Valor do disjuntor (A)']);
+    expect(a.body.pendencias.documentos).toEqual(['Documento com foto do cliente', 'Conta de energia', 'Foto do padrão de entrada', 'Foto do disjuntor']);
     expect(a.body.documentos).toEqual([]);
-    // anexa uma foto da fachada e vincula a proposta que tem CNH e fachada no dossiê
     sobe(caminhoDe('solar', '0057'));
     await registra('/clientes/solar/57/docs', 'padrao', caminhoDe('solar', '0057'));
     await post('/clientes/solar/57/vincular-proposta', { proposta: 'IN-1' });
     const b = await get('/clientes/solar/57/relatorio');
-    expect(b.body.pendencias.documentos).not.toContain('CNH ou identidade');
-    expect(b.body.pendencias.documentos).not.toContain('Foto da fachada');
-    expect(b.body.pendencias.documentos).not.toContain('Foto do padrão de entrada');
-    expect(b.body.pendencias.documentos).toHaveLength(8);
-    expect(b.body.documentos.map((d: any) => d.slot).sort()).toEqual(['documento', 'fachada', 'padrao']);
-    expect(Object.keys(b.body.documentos[0]).sort()).toEqual(['mime', 'rotulo', 'slot', 'url']);
+    expect(b.body.pendencias.documentos).toEqual(['Conta de energia', 'Foto do disjuntor']);
+    expect(b.body.documentos.map((d: any) => [d.secao, d.tipo, d.arquivo])).toEqual([
+      [2, 'documento-com-foto', '2-documento-com-foto'], [5, 'padrao-de-entrada', '5-padrao-de-entrada-1'], [5, 'fachada', '5-fachada-1'],   // o anexado aqui primeiro, depois o do dossiê
+    ]);
+    expect(Object.keys(b.body.documentos[0]).sort()).toEqual(['arquivo', 'mime', 'rotulo', 'secao', 'slot', 'tipo', 'url']);
     expect(h.validades[h.validades.length - 1]).toBe(900);
     expect(todoTexto(b.body)).not.toMatch(/CNH-ANA|casa-da-ana|IN-1\/|documento-1/);
   });
-  it('Solar: obra concluída = sistema liberado', async () => {
+  it('Solar da planilha: sem coordenadas nem disjuntor para preencher, o nome é o da homologação', async () => {
     const x = await get('/clientes/solar/58/relatorio', THIAGO);
-    expect(x.body.pendencias.obra_concluida).toBe(true);
+    expect(x.status).toBe(200);
+    expect(valorDe2(x.body, 'Nome completo')).toBe('Bruno Lima');
+    expect(valorDe2(x.body, 'Trocar titularidade?')).toBe('');
   });
-  it('Eletroposto, como SÓCIO: sem valor da venda, sem R$, com a obra e as pendências', async () => {
-    h.linhas.set('cliente_ep:101', { value: { campos: {
-      valor: { valor: 123456.78, por: 'x', em: 'e' }, entrada: { valor: 77777.7, por: 'x', em: 'e' }, forma_pagto: { valor: 'ZZPIX', por: 'x', em: 'e' },
-      banco: { valor: 'ZZBANCO', por: 'x', em: 'e' }, cpf_cnpj: { valor: '123.456.789-09', por: 'x', em: 'e' },
-    }, alteracoes: [], em: 'e' }, updated_at: 'f1' });
+  it('Eletroposto: seções 1 a 5 com os nomes do formulário, PF, coordenadas separadas e sem dinheiro, consultor, modelo, datas nem obra', async () => {
+    fichaEp(101, {
+      valor: 654321.09, entrada: 77777.7, forma_pagto: 'ZZPIX', banco: 'ZZBANCO', cpf_cnpj: '123.456.789-09', uf: 'MG',
+      concessionaria: 'Cemig', endereco_ponto: 'Av. Brasil, 100', unidade_consumidora: '0012345678', titular_conta: 'Carlos Alves',
+      trifasico: 'Sim', coordenadas: '-18.912345, -48.275432', disjuntor_tipo: 'Trifásico', disjuntor_a: '63', materiais: 'Cabo 10 mm, haste de aterramento',
+      equipamento: 'Wallbox 22 kW', qtd_carregadores: 2, qtd_plugs: 4, potencia_kw: 22, contrato_assinado_em: '2026-09-01',
+    });
     const x = await get('/clientes/eletroposto/101/relatorio', THIAGO);
     expect(x.status).toBe(200);
     const t = todoTexto(x.body);
-    for (const s of ['250000', '250.000', 'R$', '123456', '77777', 'ZZPIX', 'ZZBANCO', 'ZZOBSPV']) expect(t, s).not.toContain(s);
-    expect(x.body.cabecalho).toMatchObject({ linha: 'eletroposto', codigo: '101', cliente: 'Carlos Alves', emitido_por: 'thiago' });
-    const campos = x.body.secoes.flatMap((s: any) => s.campos);
-    expect(campos).toContainEqual({ rotulo: 'CPF ou CNPJ', valor: '123.456.789-09' });
-    expect(campos.map((c: any) => c.rotulo)).not.toContain('Valor da venda');
-    expect(x.body.obra).toMatchObject({ modelo_rotulo: '50/50', previsto: '2026-10-05', total: 9, feitas: 1 });
-    expect(x.body.obra.etapas[0]).toEqual({ rotulo: 'Contrato assinado e sinal pago', feita: true, atual: false });
-    expect(x.body.obra.etapas.filter((e: any) => e.atual).map((e: any) => e.rotulo)).toEqual(['Projeto executivo e ART']);
-    expect(Object.keys(x.body.obra).sort()).toEqual(['etapas', 'feitas', 'modelo_rotulo', 'previsto', 'total']);
-    expect(x.body.pendencias.campos).toContain('Endereço');
-    expect(x.body.pendencias.campos).not.toContain('CPF ou CNPJ');
-    expect(x.body.pendencias.documentos).toContain('CNH ou documento pessoal do comprador');
-    expect(x.body.pendencias.documentos).not.toContain('Procuração');   // só quando o caso pede
-    expect(x.body.pendencias.obra_concluida).toBe(false);
-    expect(x.body.preliminar).toBe(true);
+    for (const s of ['250000', '250.000', 'R$', '654321', '77777', 'ZZPIX', 'ZZBANCO', 'ZZOBSPV']) expect(t, s).not.toContain(s);
+    for (const p of PROIBIDOS) expect(t, p).not.toContain(p);
+    expect(x.body.cabecalho).toMatchObject({ linha: 'eletroposto', codigo: '101', cliente: 'Carlos Alves' });
+    expect(rotulosDe(x.body)).toEqual([
+      'Estado', 'Nome da concessionária',
+      'Pessoa física ou jurídica', 'CPF', 'Nome completo',
+      'Endereço do ponto', 'Unidade consumidora', 'Titular da conta', 'Trocar titularidade?', 'Tipo de disjuntor', 'Valor do disjuntor (A)',
+      'Latitude do projeto', 'Longitude do projeto', 'Rede trifásica',
+      'Potência total (kW)', 'Equipamento', 'Quantidade de carregadores', 'Quantidade de plugs', 'Materiais',
+    ]);
+    expect(valorDe2(x.body, 'Pessoa física ou jurídica')).toBe('Pessoa física');
+    expect(valorDe2(x.body, 'CPF')).toBe('123.456.789-09');
+    expect(valorDe2(x.body, 'Latitude do projeto')).toBe('-18.912345');
+    expect(valorDe2(x.body, 'Longitude do projeto')).toBe('-48.275432');
+    expect(valorDe2(x.body, 'Trocar titularidade?')).toBe('Não');
+    expect(valorDe2(x.body, 'Valor do disjuntor (A)')).toBe('63');
+    expect(valorDe2(x.body, 'Quantidade de carregadores')).toBe('2');
+    expect(x.body.pendencias).toEqual({ campos: [], documentos: ['Documento com foto do cliente', 'Conta de energia', 'Foto do padrão de entrada', 'Foto do disjuntor ou do quadro elétrico'] });
+    expect(x.body.obra).toBeUndefined();
   });
-  it('Eletroposto, como consultor dono: o mesmo recorte; obra concluída aparece; venda alheia 404', async () => {
+  it('Eletroposto: "Trocar titularidade?" compara nomes sem acento nem caixa; titular diferente é Sim; sem titular não se sabe', async () => {
+    fichaEp(101, { titular_conta: 'CARLOS  ALVES' });
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Trocar titularidade?')).toBe('Não');
+    fichaEp(101, { titular_conta: 'Maria Souza' });
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Trocar titularidade?')).toBe('Sim');
+    fichaEp(101, { cliente: 'José Álvares', titular_conta: 'jose alvares' });
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Trocar titularidade?')).toBe('Não');
+    h.linhas.delete('cliente_ep:101');
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Trocar titularidade?')).toBe('');
+  });
+  it('Eletroposto: PJ mostra CNPJ; coordenadas no formato do Maps, com vírgula decimal ou fora do intervalo', async () => {
+    fichaEp(101, { cpf_cnpj: '11.222.333/0001-81', coordenadas: '-18,912345; -48,275432' });
+    const a = (await get('/clientes/eletroposto/101/relatorio')).body;
+    expect(valorDe2(a, 'Pessoa física ou jurídica')).toBe('Pessoa jurídica');
+    expect(valorDe2(a, 'CNPJ')).toBe('11.222.333/0001-81');
+    expect(valorDe2(a, 'Latitude do projeto')).toBe('-18.912345');
+    expect(valorDe2(a, 'Longitude do projeto')).toBe('-48.275432');
+    expect(a.pendencias.campos).not.toContain('Coordenadas (latitude e longitude)');
+    fichaEp(101, { coordenadas: '95.5, -48.2' });
+    const b = (await get('/clientes/eletroposto/101/relatorio')).body;
+    expect(valorDe2(b, 'Latitude do projeto')).toBe('');
+    expect(b.pendencias.campos[0]).toMatch(/^Coordenadas inválidas/);
+    expect(todoTexto(b)).not.toContain('95.5');
+    fichaEp(101, { coordenadas: 'sem sentido' });
+    expect((await get('/clientes/eletroposto/101/relatorio')).body.pendencias.campos[0]).toMatch(/^Coordenadas inválidas/);
+  });
+  it('Eletroposto: endereço e titular só perdem R$/reais/pix ("Km 12,50", "Rua da Entrada" e "Consultor" passam); materiais usa a regra larga', async () => {
+    fichaEp(101, { endereco_ponto: 'Rodovia BR-050 Km 12,50, Rua da Entrada', titular_conta: 'Av. Consultor Fulano', potencia_kw: 4.4, materiais: 'Cabo 1.500,00' });
+    const a = (await get('/clientes/eletroposto/101/relatorio')).body;
+    expect(valorDe2(a, 'Endereço do ponto')).toBe('Rodovia BR-050 Km 12,50, Rua da Entrada');
+    expect(valorDe2(a, 'Titular da conta')).toBe('Av. Consultor Fulano');
+    expect(valorDe2(a, 'Potência total (kW)')).toBe('4,4');
+    expect(valorDe2(a, 'Materiais')).toBe('');
+    fichaEp(101, { endereco_ponto: 'Rua A, paguei R$ 500', titular_conta: 'Fulano pix', materiais: 'Cabo 10 mm, haste' });
+    const b = (await get('/clientes/eletroposto/101/relatorio')).body;
+    expect(valorDe2(b, 'Endereço do ponto')).toBe('');
+    expect(valorDe2(b, 'Titular da conta')).toBe('');
+    expect(valorDe2(b, 'Materiais')).toBe('Cabo 10 mm, haste');
+  });
+  it('Eletroposto: UF do ponto vem do campo, senão da UF do cliente, senão da Cemig', async () => {
+    fichaEp(101, { uf_ponto: 'GO', uf: 'MG' });
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Estado')).toBe('GO');
+    fichaEp(101, { uf: 'SP' });
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Estado')).toBe('SP');
+    fichaEp(101, { concessionaria: 'Cemig' });
+    expect(valorDe2((await get('/clientes/eletroposto/101/relatorio')).body, 'Estado')).toBe('MG');
+  });
+  it('Eletroposto, como consultor dono: o mesmo recorte; venda alheia 404', async () => {
     const a = await get('/clientes/eletroposto/101/relatorio');
     expect(todoTexto(a.body)).not.toMatch(/250000|R\$/);
     h.cards[1].vendedor_nome = 'Nilce';
     const b = await get('/clientes/eletroposto/102/relatorio');
-    expect(b.body.pendencias.obra_concluida).toBe(true);
-    expect(b.body.obra).toMatchObject({ modelo_rotulo: 'Carregador avulso', feitas: 5, total: 5 });
+    expect(b.status).toBe(200);
     expect(todoTexto(b.body)).not.toMatch(/9876|R\$/);
+    for (const p of PROIBIDOS) expect(todoTexto(b.body), p).not.toContain(p);
     h.cards[1].vendedor_nome = 'Giovanna';
     expect((await get('/clientes/eletroposto/102/relatorio', GIOVANNA)).status).toBe(200);
     expect((await get('/clientes/eletroposto/102/relatorio')).status).toBe(404);
   });
-  it('Eletroposto: arquivos anexados entram em documentos e quitam a pendência', async () => {
+  it('Eletroposto: arquivos anexados entram classificados por seção e quitam a falta', async () => {
     sobe(caminhoDe('eletroposto', '101', UUID, 'pdf'), 10, 'application/pdf');
     await registra('/clientes/eletroposto/101/docs', 'documento_titular', caminhoDe('eletroposto', '101', UUID, 'pdf'));
     const x = await get('/clientes/eletroposto/101/relatorio');
-    expect(x.body.documentos).toEqual([{ slot: 'documento_titular', rotulo: 'CNH ou documento pessoal do comprador', mime: 'application/pdf', url: expect.stringMatching(/^https:\/\/docs\.test\//) }]);
-    expect(x.body.pendencias.documentos).not.toContain('CNH ou documento pessoal do comprador');
+    expect(x.body.documentos).toEqual([{
+      slot: 'documento_titular', rotulo: 'CNH ou documento pessoal do comprador', mime: 'application/pdf', secao: 2, tipo: 'documento-com-foto',
+      arquivo: '2-documento-com-foto', url: expect.stringMatching(/^https:\/\/docs\.test\//),
+    }]);
+    expect(x.body.pendencias.documentos).not.toContain('Documento com foto do cliente');
   });
-  it('Eletroposto: o relatório NÃO leva documento do avalista, de outra pessoa nem comprovante de endereço; leva titular, cedente, imóvel e as contas', async () => {
+  it('Eletroposto: só entra o que serve à engenharia; documento do titular atual só quando troca a titularidade', async () => {
     const uuid = (n: number) => `${String(n).padStart(8, '0')}-3d4a-4b5c-8d6e-7f8091a2b3c4`;
     const slots = [
-      'documento_titular', 'documento_cedente', 'documento_imovel', 'conta_luz', 'conta_luz_geradora', 'conta_luz_beneficiaria',
+      'documento_titular', 'documento_cedente', 'documento_imovel', 'conta_luz', 'conta_luz_geradora', 'conta_luz_beneficiaria', 'padrao', 'quadro_eletrico', 'foto_local',
       'documento_avalista', 'documento_outra_pessoa', 'comprovante_endereco_comprador', 'comprovante_endereco_cedente', 'comprovante_endereco_avalista',
+      'contrato_assinado', 'procuracao', 'anuencia', 'vistoria', 'art', 'projeto', 'parecer_acesso',
     ];
     for (const [i, slot] of slots.entries()) {
-      const c = caminhoDe('eletroposto', '101', uuid(i + 1), 'pdf');
-      sobe(c, 10, 'application/pdf');
+      const foto = ['padrao', 'quadro_eletrico', 'foto_local'].includes(slot);   // esses itens só aceitam imagem
+      const c = caminhoDe('eletroposto', '101', uuid(i + 1), foto ? 'jpg' : 'pdf');
+      sobe(c, 10, foto ? 'image/jpeg' : 'application/pdf');
       expect((await registra('/clientes/eletroposto/101/docs', slot, c)).status, slot).toBeLessThan(300);
     }
-    const x = await get('/clientes/eletroposto/101/relatorio');
-    expect(x.status).toBe(200);
-    expect(x.body.documentos.map((d: any) => d.slot).sort()).toEqual(
-      ['conta_luz', 'conta_luz_beneficiaria', 'conta_luz_geradora', 'documento_cedente', 'documento_imovel', 'documento_titular']);
-    expect(JSON.stringify(x.body)).not.toMatch(/avalista|outra_pessoa|comprovante_endereco/);
+    fichaEp(101, { titular_conta: 'Carlos Alves' });
+    const sem = await get('/clientes/eletroposto/101/relatorio');
+    expect(sem.status).toBe(200);
+    expect(sem.body.documentos.map((d: any) => d.arquivo)).toEqual([
+      '2-documento-com-foto', '3-conta-de-energia', '5-documento-do-imovel-1', '5-conta-de-energia-geradora-1', '5-conta-de-energia-beneficiaria-1',
+      '5-foto-do-local-1', '5-padrao-de-entrada-1', '5-quadro-eletrico-1',
+    ]);
+    expect(JSON.stringify(sem.body)).not.toMatch(/avalista|outra_pessoa|comprovante_endereco|contrato|procuracao|anuencia|vistoria|parecer/);
+    expect(sem.body.pendencias.documentos).toEqual([]);
+    fichaEp(101, { titular_conta: 'Maria Souza' });
+    const com = await get('/clientes/eletroposto/101/relatorio');
+    expect(com.body.documentos.find((d: any) => d.slot === 'documento_cedente')).toMatchObject({ secao: 5, tipo: 'documento-do-titular-atual', arquivo: '5-documento-do-titular-atual-1' });
   });
 });
 
@@ -1033,7 +1105,7 @@ describe('vínculo conferido na leitura', () => {
     expect(l.body.vinculo).toBeNull();
     const r = await get('/clientes/solar/57/relatorio');
     expect(r.body.documentos).toEqual([]);
-    expect(r.body.pendencias.documentos).toContain('CNH ou identidade');
+    expect(r.body.pendencias.documentos).toContain('Documento com foto do cliente');
     expect(h.sig).toBe(0);                         // nenhuma URL de dossiê foi assinada
     expect(JSON.stringify(spyErr.mock.calls)).toContain('vinculo_fora');
     // proposta que nem existe: também ignorada

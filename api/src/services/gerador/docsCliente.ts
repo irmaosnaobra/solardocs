@@ -14,18 +14,18 @@
 // o nome original do arquivo, que costuma trazer nome de cliente. A trilha também não
 // guarda nome nem caminho.
 //
-// O relatório NUNCA leva dinheiro, nem para sócio: ele sai do mesmo cliente, para o
-// papel de consultor, e ainda passa por um filtro de coluna financeira.
+// O relatório (pacote de homologação da engenharia parceira) NUNCA leva dinheiro, nem para sócio: cada seção sai de uma
+// lista escrita de campos, sem herdar grupo de coluna.
 // ─────────────────────────────────────────────────────────────────────────────
 import crypto from 'crypto';
 import { codigoCanonico } from './solarObras';
 import {
-  GRUPOS, GRUPO_OUTROS, celulaDe, preenchida, isoParaBR,
+  celulaDe, isoParaBR,
   type Coluna, type ColunaInterna, type Valor, type RegistroGestao,
 } from './gestaoClientes';
-import {
-  colunasFichaPara, celulaFicha, GRUPOS_FICHA, type CardVendido, type ObraEp,
-} from './fichaEletroposto';
+import { colunasFichaPara, celulaFicha, type CardVendido } from './fichaEletroposto';
+import { lerCoordenadas } from './coordenadas';
+import { semDinheiro, semDinheiroEstreito } from './semDinheiro';
 
 // `vendasolar` (20/10/2026): a venda SOLAR tendo o CARD VENDIDO como centro (código = id do card, como no eletroposto).
 // `solar` segue sendo a venda da planilha mãe (`#NNNN`). As duas convivem: o card e a venda ficam ligados pelo hub
@@ -341,10 +341,26 @@ export function assinaturaBate(mime: string, b: Uint8Array): boolean {
   }
 }
 
-// ── Relatório de engenharia ──────────────────────────────────────────────────
+// ── Relatório de homologação ─────────────────────────────────────────────────
+//
+// O relatório é o pacote que a empresa manda à engenharia parceira para HOMOLOGAR o projeto (21/10/2026). Segue o formulário
+// "Novo projeto" da engenharia, na mesma ordem e com os mesmos nomes:
+//   1. Informações da concessionária   2. Informações do cliente   3. Informações da instalação
+//   4. Especificações do projeto       5. Documentos complementares
+// NUNCA leva valor, preço, sinal, forma de pagamento, banco, consultor, modelo da venda, datas de venda ou de contrato, etapa
+// ou trilha da obra. Cada seção sai de uma lista ESCRITA de campos (nada herdado de grupo de coluna), então coluna nova da
+// ficha não vaza para a engenharia.
 
 export interface CampoRel { rotulo: string; valor: string }
-export interface SecaoRel { titulo: string; campos: CampoRel[] }
+export interface SecaoRel { numero: number; titulo: string; campos: CampoRel[] }
+
+export const TITULOS_SECAO: Readonly<Record<number, string>> = {
+  1: 'Informações da concessionária',
+  2: 'Informações do cliente',
+  3: 'Informações da instalação (unidade consumidora/geradora)',
+  4: 'Especificações do projeto',
+  5: 'Documentos complementares',
+};
 
 function formatoTelefone(d: string): string {
   const s = d.replace(/\D/g, '');
@@ -362,98 +378,380 @@ export function textoDoValor(col: Coluna, v: Valor | undefined): string {
   return typeof v === 'number' ? String(v).replace('.', ',') : String(v);
 }
 
-// Colunas do solar que NUNCA entram: tudo que é dinheiro por tipo, e tudo que é financeiro ou custo pelo grupo ORIGINAL
-// (a visão do consultor move `recebimento` do Financeiro para a Venda, então filtrar pelo grupo depois dela não pega).
-const GRUPOS_FORA_SOLAR: ReadonlySet<string> = new Set(['Financeiro', 'Custos da obra', GRUPO_OUTROS]);
-// Texto livre (obs, contrato de cooperativa) também fica de fora: alguém escreve valor ali, e o relatório pode ir para terceiros.
-const FORA_SOLAR: ReadonlySet<string> = new Set(['codigo', 'depoimento', 'obs', 'contrato_coop']);
+const ROTULO_MODALIDADE: Readonly<Record<string, string>> = {
+  autoconsumo_local: 'Autoconsumo local', autoconsumo_remoto: 'Autoconsumo remoto',
+  geracao_compartilhada: 'Geração compartilhada', multiplas_ucs: 'Várias unidades do mesmo titular',
+};
+const ROTULO_FORNECIMENTO: Readonly<Record<string, string>> = { monofasico: 'Monofásico', bifasico: 'Bifásico', trifasico: 'Trifásico' };
 
-export function colunasRelatorioSolar(cols: ColunaInterna[]): ColunaInterna[] {
-  return cols.filter((c) =>
-    c.quem_ve === 'todos' && c.tipo !== 'dinheiro' && !GRUPOS_FORA_SOLAR.has(c.grupo) && !FORA_SOLAR.has(c.chave));
+export interface BeneficiariaRel { n: number; uc: string; titular: string; documento: string; endereco: string; pct: string }
+export interface RateioRel { modalidade: string; geradoraPct: string; beneficiarias: BeneficiariaRel[] }
+
+/** Tudo que o relatório diz do projeto, já em texto. Cada linha (eletroposto, venda solar, solar da planilha) monta o seu. */
+export interface DadosHomologacao {
+  uf: string;
+  concessionaria: string;
+  tipo: 'PF' | 'PJ' | '';
+  documento: string;
+  nome: string;
+  enderecoPonto: string;
+  unidade: string;
+  titularConta: string;
+  /** null = não dá para saber (sem titular da conta e sem decisão no cadastro). */
+  trocarTitularidade: boolean | null;
+  disjuntorTipo: string;
+  disjuntorA: string;
+  /** O que o cadastro guardou ("latitude, longitude"); o relatório separa e valida. */
+  coordenadas: string;
+  trifasico: string;
+  rateio: RateioRel | null;
+  potencia: CampoRel;
+  especificacoes: CampoRel[];
+  materiais: string;
+  /** Venda solar: a homologação fica com OUTRA pessoa (o cliente da seção 2 é ela, e o documento com foto é o dela). */
+  homologacaoOutra?: boolean;
 }
 
-export interface CorpoRelatorio { secoes: SecaoRel[]; camposPendentes: string[] }
-
-export function corpoRelatorioSolar(cols: ColunaInterna[], celulasBrutas: string[], reg: RegistroGestao): CorpoRelatorio & { liberado: boolean } {
-  const colunas = colunasRelatorioSolar(cols);
-  const porGrupo = new Map<string, CampoRel[]>();
-  const pendentes: string[] = [];
-  let liberado = false;
-  for (const c of colunas) {
-    const cel = celulaDe(c, celulasBrutas[c.indice] ?? '', reg);
-    if (c.chave === 'sistema_liberado') liberado = cel.valor === 'Liberado';
-    const t = textoDoValor(c, cel.valor);
-    if (!preenchida(cel) || !t) {
-      if (c.obrigatoria) pendentes.push(c.rotulo);
-      continue;
-    }
-    const l = porGrupo.get(c.grupo) ?? [];
-    l.push({ rotulo: c.rotulo, valor: t });
-    porGrupo.set(c.grupo, l);
-  }
-  const secoes = GRUPOS.filter((g) => porGrupo.has(g)).map((g) => ({ titulo: g as string, campos: porGrupo.get(g) as CampoRel[] }));
-  return { secoes, camposPendentes: pendentes, liberado };
-}
-
-export function corpoRelatorioEletroposto(card: CardVendido, reg: RegistroGestao, pvBruto: Parameters<typeof celulaFicha>[3]): CorpoRelatorio {
-  // Visão do consultor para os dois papéis: as colunas de sócio (valor, forma de pagamento, entrada, banco) nem entram.
-  const colunas = colunasFichaPara(false).filter((c) => c.quem_ve === 'todos' && c.tipo !== 'dinheiro' && c.chave !== 'obs');
-  const porGrupo = new Map<string, CampoRel[]>();
-  const pendentes: string[] = [];
-  for (const c of colunas) {
-    const cel = celulaFicha(c.chave, card, reg, pvBruto);
-    const t = cel ? textoDoValor(c, cel.valor) : '';
-    if (!t) {
-      if (c.obrigatoria) pendentes.push(c.rotulo);
-      continue;
-    }
-    const l = porGrupo.get(c.grupo) ?? [];
-    l.push({ rotulo: c.rotulo, valor: t });
-    porGrupo.set(c.grupo, l);
-  }
-  const secoes = GRUPOS_FICHA.filter((g) => porGrupo.has(g)).map((g) => ({ titulo: g as string, campos: porGrupo.get(g) as CampoRel[] }));
-  return { secoes, camposPendentes: pendentes };
-}
-
-export interface ObraRel {
-  modelo_rotulo: string;
-  etapas: Array<{ rotulo: string; feita: boolean; atual: boolean }>;
-  feitas: number;
-  total: number;
-  previsto: string | null;
-}
-
-/** A obra do eletroposto para o relatório: sem valor e sem obs (o responsável da obra aparece nas seções: é pessoa, não dinheiro). Feita = antes da etapa atual. */
-export function obraParaRelatorio(o: ObraEp): ObraRel {
+/** Texto livre que sai para a engenharia sem nada que pareça dinheiro (números e quantidades não passam por aqui). */
+function limparTextos(d: DadosHomologacao): DadosHomologacao {
   return {
-    modelo_rotulo: o.modelo_rotulo,
-    etapas: o.etapas.map((e, i) => ({
-      rotulo: e.rotulo,
-      feita: i < o.feitas || (o.concluido && e.chave === 'concluido'),
-      atual: !o.falta_informar && !o.concluido && e.chave === o.etapa,
-    })),
-    feitas: o.feitas,
-    total: o.total,
-    previsto: o.previsto,
+    ...d,
+    // Nome, endereço e titular só perdem o que é claramente dinheiro; a regra larga é para o texto livre (materiais e especificações).
+    nome: semDinheiroEstreito(d.nome), enderecoPonto: semDinheiroEstreito(d.enderecoPonto), titularConta: semDinheiroEstreito(d.titularConta), materiais: semDinheiro(d.materiais),
+    especificacoes: d.especificacoes.map((e) => ({ ...e, valor: semDinheiro(e.valor) })),
   };
 }
 
-export interface DocRel { slot: string; rotulo: string; mime: string; url: string }
+const semAcento = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+/** Nome comparável: sem acento, minúsculo, só letras e dígitos separados por 1 espaço. */
+export const nomeComparavel = (s: string): string =>
+  semAcento(String(s ?? '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * "Trocar titularidade?": a conta de luz está no nome de outra pessoa. A decisão do cadastro da venda solar (`outra_pessoa` no
+ * titular da homologação) vale primeiro; sem ela, compara o titular da conta com o cliente (nomes normalizados). Sem titular
+ * da conta e sem decisão, não há como saber (null).
+ */
+export function trocarTitularidade(nome: string, titularConta: string, decisaoSolar = ''): boolean | null {
+  if (decisaoSolar === 'outra_pessoa') return true;
+  if (!nomeComparavel(titularConta)) return decisaoSolar === 'contratante' ? false : null;
+  if (!nomeComparavel(nome)) return null;
+  return nomeComparavel(titularConta) !== nomeComparavel(nome);
+}
+
+export const rotuloFornecimento = (k: string): string => ROTULO_FORNECIMENTO[k] ?? '';
+export const simNao = (v: boolean | null): string => (v === null ? '' : v ? 'Sim' : 'Não');
+
+/** Percentual guardado ("33.33") como o relatório mostra ("33,33%"). */
+const textoPct = (p: string): string => (p ? `${p.replace('.', ',')}%` : '');
+
+export interface CorpoRelatorio { secoes: SecaoRel[]; camposPendentes: string[] }
+
+export function corpoHomologacao(d: DadosHomologacao): CorpoRelatorio {
+  const pendentes: string[] = [];
+  const coord = d.coordenadas ? lerCoordenadas(d.coordenadas) : null;
+  if (!coord) pendentes.push('Coordenadas (latitude e longitude)');
+  else if (!coord.ok) pendentes.push('Coordenadas inválidas (latitude de -90 a 90, longitude de -180 a 180)');
+  if (!d.disjuntorTipo) pendentes.push('Tipo de disjuntor');
+  if (!d.disjuntorA) pendentes.push('Valor do disjuntor (A)');
+  if (d.rateio && d.rateio.beneficiarias.length) {
+    if (!d.rateio.modalidade) pendentes.push('Modalidade do rateio');
+    for (const b of d.rateio.beneficiarias) {
+      if (!b.uc) pendentes.push(`Unidade consumidora da beneficiária ${b.n}`);
+      if (!b.titular) pendentes.push(`Titular da beneficiária ${b.n}`);
+      if (!b.pct) pendentes.push(`Percentual da beneficiária ${b.n}`);
+    }
+  }
+
+  const s3: CampoRel[] = [
+    { rotulo: 'Endereço do ponto', valor: d.enderecoPonto },
+    { rotulo: 'Unidade consumidora', valor: d.unidade },
+    { rotulo: 'Titular da conta', valor: d.titularConta },
+    { rotulo: 'Trocar titularidade?', valor: simNao(d.trocarTitularidade) },
+    { rotulo: 'Tipo de disjuntor', valor: d.disjuntorTipo },
+    { rotulo: 'Valor do disjuntor (A)', valor: d.disjuntorA },
+    { rotulo: 'Latitude do projeto', valor: coord && coord.ok ? String(coord.lat) : '' },
+    { rotulo: 'Longitude do projeto', valor: coord && coord.ok ? String(coord.lon) : '' },
+    { rotulo: 'Rede trifásica', valor: d.trifasico },
+  ];
+  if (d.rateio && d.rateio.beneficiarias.length) {
+    s3.push({ rotulo: 'Documento de rateio: modalidade', valor: ROTULO_MODALIDADE[d.rateio.modalidade] ?? '' });
+    s3.push({ rotulo: 'Documento de rateio: percentual da geradora', valor: textoPct(d.rateio.geradoraPct) });
+    for (const b of d.rateio.beneficiarias) {
+      s3.push({ rotulo: `Beneficiária ${b.n}: unidade consumidora`, valor: b.uc });
+      s3.push({ rotulo: `Beneficiária ${b.n}: titular`, valor: b.titular });
+      if (b.documento) s3.push({ rotulo: `Beneficiária ${b.n}: CPF ou CNPJ`, valor: b.documento });
+      if (b.endereco) s3.push({ rotulo: `Beneficiária ${b.n}: endereço`, valor: b.endereco });
+      s3.push({ rotulo: `Beneficiária ${b.n}: percentual`, valor: textoPct(b.pct) });
+    }
+  }
+
+  const secoes: SecaoRel[] = [
+    { numero: 1, titulo: TITULOS_SECAO[1], campos: [
+      { rotulo: 'Estado', valor: d.uf },
+      { rotulo: 'Nome da concessionária', valor: d.concessionaria },
+    ] },
+    { numero: 2, titulo: TITULOS_SECAO[2], campos: [
+      { rotulo: 'Pessoa física ou jurídica', valor: d.tipo === 'PF' ? 'Pessoa física' : d.tipo === 'PJ' ? 'Pessoa jurídica' : '' },
+      { rotulo: d.tipo === 'PJ' ? 'CNPJ' : d.tipo === 'PF' ? 'CPF' : 'CPF ou CNPJ', valor: d.documento },
+      { rotulo: 'Nome completo', valor: d.nome },
+    ] },
+    { numero: 3, titulo: TITULOS_SECAO[3], campos: s3 },
+    { numero: 4, titulo: TITULOS_SECAO[4], campos: [d.potencia, ...d.especificacoes, { rotulo: 'Materiais', valor: d.materiais }] },
+    { numero: 5, titulo: TITULOS_SECAO[5], campos: [] },
+  ];
+  return { secoes, camposPendentes: pendentes };
+}
+
+// ── Dados de cada linha ──────────────────────────────────────────────────────
+
+const txtCad = (v: Valor | undefined): string => (v === null || v === undefined ? '' : String(v).trim());
+
+/** O Estado do ponto: o `uf_ponto`; sem ele, a UF do endereço do cliente; sem ela, a da Cemig (MG). */
+export function ufDoPonto(ufPonto: string, ufCliente: string, concessionaria: string): string {
+  const a = ufPonto.trim().toUpperCase();
+  if (a) return a;
+  const b = ufCliente.trim().toUpperCase();
+  if (b) return b;
+  return nomeComparavel(concessionaria) === 'cemig' ? 'MG' : '';
+}
+
+/** PF/PJ pelo `tipo` do cadastro; sem ele, pelo tamanho do CPF/CNPJ. */
+export function tipoDaPessoa(tipo: string, documento: string): 'PF' | 'PJ' | '' {
+  if (tipo === 'PF' || tipo === 'PJ') return tipo;
+  const n = documento.replace(/\D/g, '').length;
+  return n === 14 ? 'PJ' : n === 11 ? 'PF' : '';
+}
+
+/** Eletroposto: a ficha (já com o cadastro por cima) e o `tipo` guardado no cadastro (para o PF/PJ). */
+export function dadosEletroposto(card: CardVendido, reg: RegistroGestao, tipoCadastro: string): DadosHomologacao {
+  const colunas = colunasFichaPara(true);
+  const v = (k: string): string => {
+    const c = celulaFicha(k, card, reg, null);
+    const col = colunas.find((x) => x.chave === k);
+    return c && col ? textoDoValor(col, c.valor) : '';
+  };
+  const documento = v('cpf_cnpj');
+  const nome = v('cliente');
+  const titular = v('titular_conta');
+  const conc = v('concessionaria');
+  return limparTextos({
+    uf: ufDoPonto(v('uf_ponto'), v('uf'), conc),
+    concessionaria: conc,
+    tipo: tipoDaPessoa(tipoCadastro, documento),
+    documento,
+    nome,
+    enderecoPonto: v('endereco_ponto'),
+    unidade: v('unidade_consumidora'),
+    titularConta: titular,
+    trocarTitularidade: trocarTitularidade(nome, titular),
+    disjuntorTipo: v('disjuntor_tipo'),
+    disjuntorA: v('disjuntor_a'),
+    coordenadas: v('coordenadas'),
+    trifasico: v('trifasico'),
+    rateio: null,
+    potencia: { rotulo: 'Potência total (kW)', valor: v('potencia_kw') },
+    especificacoes: [
+      { rotulo: 'Equipamento', valor: v('equipamento') },
+      { rotulo: 'Quantidade de carregadores', valor: v('qtd_carregadores') },
+      { rotulo: 'Quantidade de plugs', valor: v('qtd_plugs') },
+    ],
+    materiais: v('materiais'),
+  });
+}
+
+/** O que a venda da planilha (ligada ao card, ou a própria venda solar) diz do equipamento. */
+export interface EquipamentoSolar {
+  cliente: string; homologacao: string; uf: string; concessionaria: string;
+  qtdPlaca: number | null; modeloPlaca: string; potPlaca: number | null;
+  qtdInversor: number | null; modeloInversor: string; estrutura: string;
+}
+
+export function equipamentoDaPlanilha(cols: ColunaInterna[], celulasBrutas: string[], reg: RegistroGestao): EquipamentoSolar {
+  const v = (k: string): Valor => {
+    const c = cols.find((x) => x.chave === k);
+    return c ? celulaDe(c, celulasBrutas[c.indice] ?? '', reg).valor : null;
+  };
+  const num = (k: string): number | null => { const x = v(k); return typeof x === 'number' && Number.isFinite(x) ? x : null; };
+  return {
+    cliente: txtCad(v('cliente')), homologacao: txtCad(v('homologacao')), uf: txtCad(v('uf')), concessionaria: txtCad(v('concessionaria')),
+    qtdPlaca: num('qtd_placa'), modeloPlaca: txtCad(v('modelo_placa')), potPlaca: num('pot_placa'),
+    qtdInversor: num('qtd_inversor'), modeloInversor: txtCad(v('modelo_inversor')), estrutura: txtCad(v('tipo_estrutura')),
+  };
+}
+
+const num2 = (n: number): string => String(Math.round(n * 100) / 100).replace('.', ',');
+
+function especificacoesSolar(e: EquipamentoSolar | null): Pick<DadosHomologacao, 'potencia' | 'especificacoes'> {
+  const kwp = e && e.qtdPlaca && e.potPlaca ? (e.qtdPlaca * e.potPlaca) / 1000 : null;
+  const qtdDe = (n: number | null, modelo: string, unidade: string): string =>
+    (n && modelo ? `${n} × ${modelo}` : n ? `${n} ${unidade}` : modelo);
+  const modeloPlaca = e ? [e.modeloPlaca, e.potPlaca && !/\d\s*w/i.test(e.modeloPlaca) ? `${num2(e.potPlaca)} W` : ''].filter(Boolean).join(' ') : '';
+  const placas = e ? qtdDe(e.qtdPlaca, modeloPlaca, 'módulos') : '';
+  const inversor = e ? qtdDe(e.qtdInversor, e.modeloInversor, 'inversores') : '';
+  return {
+    potencia: { rotulo: 'Potência total (kWp)', valor: kwp === null ? '' : num2(kwp) },
+    especificacoes: [
+      { rotulo: 'Módulos (placas)', valor: placas },
+      { rotulo: 'Inversor', valor: inversor },
+      { rotulo: 'Estrutura', valor: e ? e.estrutura : '' },
+    ],
+  };
+}
+
+/** O que o relatório lê do cadastro da venda (só `campos`, sem trilha). */
+export interface CadastroLeitura { campos: Partial<Record<string, { valor: string } | undefined>> }
+
+/** Venda solar pelo card: o cadastro do card manda; a venda da planilha ligada só completa (equipamento e, na falta, a concessionária). */
+export function dadosVendaSolar(cad: CadastroLeitura | null, planilha: EquipamentoSolar | null, nomeCard: string): DadosHomologacao {
+  const c = (k: string): string => cad?.campos[k]?.valor?.trim() ?? '';
+  const conc = c('concessionaria') || (planilha ? planilha.concessionaria : '');
+  const decisao = c('homologacao_mesmo');
+  // O "cliente" do relatório é quem fica com a homologação: o titular da homologação (tuc_*) quando é outra pessoa; senão o contratante.
+  const outra = decisao === 'outra_pessoa';
+  const documento = outra ? c('tuc_cpf_cnpj') : c('cpf_cnpj');
+  const nome = outra ? c('tuc_nome') : (c('nome') || nomeCard);
+  const titular = c('titular_conta');
+  const forn = c('uc_fornecimento');
+  const beneficiarias: BeneficiariaRel[] = [];
+  for (let n = 1; n <= 5; n++) {
+    const b = { n, uc: c(`benef_${n}_uc`), titular: c(`benef_${n}_titular`), documento: c(`benef_${n}_doc`), endereco: c(`benef_${n}_endereco`), pct: c(`benef_${n}_pct`) };
+    if (b.uc || b.titular || b.documento || b.endereco || b.pct) beneficiarias.push(b);
+  }
+  return limparTextos({
+    uf: ufDoPonto(c('uf_ponto'), c('uf'), conc),
+    concessionaria: conc,
+    tipo: tipoDaPessoa(outra ? '' : c('tipo'), documento),
+    documento,
+    nome,
+    enderecoPonto: c('endereco_ponto'),
+    unidade: c('unidade_consumidora'),
+    titularConta: titular,
+    // Troca quando o titular ATUAL da conta de luz não é quem fica com a homologação.
+    trocarTitularidade: trocarTitularidade(nome, titular),
+    homologacaoOutra: outra,
+    disjuntorTipo: rotuloFornecimento(forn),
+    disjuntorA: c('disjuntor_a'),
+    coordenadas: c('coordenadas'),
+    trifasico: forn ? (forn === 'trifasico' ? 'Sim' : 'Não') : '',
+    rateio: beneficiarias.length ? { modalidade: c('rateio_modalidade'), geradoraPct: c('geradora_pct'), beneficiarias } : null,
+    ...especificacoesSolar(planilha),
+    materiais: c('materiais'),
+  });
+}
+
+/** Venda solar da planilha mãe (`solar`): não há cadastro nem campos de disjuntor ou coordenadas; o nome é o da homologação. */
+export function dadosSolarPlanilha(e: EquipamentoSolar): DadosHomologacao {
+  return {
+    uf: ufDoPonto('', e.uf, e.concessionaria), concessionaria: e.concessionaria, tipo: '', documento: '', nome: e.homologacao || e.cliente,
+    enderecoPonto: '', unidade: '', titularConta: '', trocarTitularidade: null, disjuntorTipo: '', disjuntorA: '', coordenadas: '',
+    trifasico: '', rateio: null, ...especificacoesSolar(e), materiais: '',
+  };
+}
+
+// ── Documentos por seção ─────────────────────────────────────────────────────
+
+export interface DocBruto { slot: string; rotulo: string; mime: string; url: string }
+/** `secao` (2, 3 ou 5) e `tipo` (slug do nome do arquivo no ZIP) vêm do servidor: a tela não tem mapa próprio. */
+export interface DocRel extends DocBruto { secao: number; tipo: string; arquivo: string }
+
+interface Destino { secao: number; tipo: string }
+const COMPLEMENTOS: Record<string, Destino> = {
+  documento_imovel: { secao: 5, tipo: 'documento-do-imovel' },
+  padrao: { secao: 5, tipo: 'padrao-de-entrada' },
+  outros: { secao: 5, tipo: 'outros' },
+};
+/** Só entra o que serve à engenharia. Contrato, procuração, anuência, ART, projeto, parecer, vistoria e documento de terceiro ficam de fora. */
+const DESTINO_DOC: Record<Linha, Record<string, Destino>> = {
+  solar: {
+    documento: { secao: 2, tipo: 'documento-com-foto' },
+    conta_luz: { secao: 3, tipo: 'conta-de-energia' },
+    fachada: { secao: 5, tipo: 'fachada' },
+    padrao: { secao: 5, tipo: 'padrao-de-entrada' },
+    disjuntor: { secao: 5, tipo: 'disjuntor' },
+    medidor: { secao: 5, tipo: 'medidor' },
+    outros: { secao: 5, tipo: 'outros' },
+  },
+  eletroposto: {
+    documento_titular: { secao: 2, tipo: 'documento-com-foto' },
+    conta_luz: { secao: 3, tipo: 'conta-de-energia' },
+    conta_luz_geradora: { secao: 5, tipo: 'conta-de-energia-geradora' },
+    conta_luz_beneficiaria: { secao: 5, tipo: 'conta-de-energia-beneficiaria' },
+    foto_local: { secao: 5, tipo: 'foto-do-local' },
+    quadro_eletrico: { secao: 5, tipo: 'quadro-eletrico' },
+    instalacao: { secao: 5, tipo: 'instalacao' },
+    ...COMPLEMENTOS,
+  },
+  vendasolar: {
+    documento_titular: { secao: 2, tipo: 'documento-com-foto' },
+    documento_titular_uc: { secao: 2, tipo: 'documento-com-foto' },
+    conta_luz: { secao: 3, tipo: 'conta-de-energia' },
+    conta_luz_beneficiaria: { secao: 3, tipo: 'documento-de-rateio' },
+    fachada: { secao: 5, tipo: 'fachada' },
+    disjuntor: { secao: 5, tipo: 'disjuntor' },
+    medidor: { secao: 5, tipo: 'medidor' },
+    ...COMPLEMENTOS,
+  },
+};
+/** O documento de quem é o titular ATUAL da conta: só entra quando há troca de titularidade. */
+const SLOT_TITULAR_ATUAL: Partial<Record<Linha, string>> = { eletroposto: 'documento_cedente' };
+
+/** O que a IA classificou como documento que NÃO serve à engenharia (mesmo guardado em `outros` ou em outro item). */
+export const TIPOS_FORA_DA_HOMOLOGACAO: ReadonlySet<string> = new Set([
+  ...SLOTS_FORA_DO_RELATORIO, 'contrato_assinado', 'procuracao', 'anuencia', 'vistoria', 'art', 'projeto', 'parecer_acesso',
+]);
+
+const ORDEM_TIPOS = ['documento-com-foto', 'conta-de-energia', 'documento-de-rateio', 'documento-do-titular-atual'];
+
+/** Classifica os documentos por seção do formulário e dá o nome do arquivo no ZIP (`2-documento-com-foto`, `5-padrao-de-entrada-1`). */
+export function classificarDocumentos(linha: Linha, docsTodos: DocBruto[], trocaTitularidade: boolean | null, homologacaoOutra = false): DocRel[] {
+  const mapa = DESTINO_DOC[linha];
+  // Venda solar: o documento com foto é o de quem fica com a homologação. Outra pessoa: o dela; o contratante: o dele, ou o do titular da homologação se só esse veio.
+  const temContratante = docsTodos.some((d) => d.slot === 'documento_titular');
+  const docs = linha !== 'vendasolar' ? docsTodos : docsTodos.filter((d) => (homologacaoOutra
+    ? d.slot !== 'documento_titular' : d.slot !== 'documento_titular_uc' || !temContratante));
+  const atual = SLOT_TITULAR_ATUAL[linha];
+  const classificados: Array<DocBruto & Destino> = [];
+  for (const d of docs) {
+    const dest: Destino | null = d.slot === atual
+      ? (trocaTitularidade === true ? { secao: 5, tipo: 'documento-do-titular-atual' } : null)
+      : (mapa[d.slot] ?? null);
+    if (dest) classificados.push({ ...d, ...dest });
+  }
+  const ordem = (t: string): number => { const i = ORDEM_TIPOS.indexOf(t); return i < 0 ? ORDEM_TIPOS.length : i; };
+  classificados.sort((a, b) => a.secao - b.secao || ordem(a.tipo) - ordem(b.tipo));
+  const contagem = new Map<string, number>();
+  const total = new Map<string, number>();
+  for (const d of classificados) total.set(d.tipo, (total.get(d.tipo) ?? 0) + 1);
+  return classificados.map((d) => {
+    const n = (contagem.get(d.tipo) ?? 0) + 1;
+    contagem.set(d.tipo, n);
+    // Seção 5 e o rateio levam sempre o número; a conta de energia e o documento com foto, só quando há mais de um.
+    const numerado = d.secao === 5 || d.tipo === 'documento-de-rateio' || (total.get(d.tipo) ?? 0) > 1;
+    return { slot: d.slot, rotulo: d.rotulo, mime: d.mime, url: d.url, secao: d.secao, tipo: d.tipo, arquivo: `${d.secao}-${d.tipo}${numerado ? `-${n}` : ''}` };
+  });
+}
 
 export function montarRelatorio(a: {
-  linha: Linha; codigo: string; cliente: string; emitidoEm: string; emitidoPor: string;
-  corpo: CorpoRelatorio; obra: ObraRel | null; obraConcluida: boolean;
-  documentos: DocRel[]; slotsPresentes: ReadonlySet<string>;
+  linha: Linha; codigo: string; cliente: string; emitidoEm: string;
+  dados: DadosHomologacao; documentos: DocBruto[];
 }) {
-  const docsPend = CATALOGO[a.linha].filter((x) => x.obrigatorio && !a.slotsPresentes.has(x.chave)).map((x) => x.rotulo);
-  const pendencias = { campos: a.corpo.camposPendentes, documentos: docsPend, obra_concluida: a.obraConcluida };
+  const corpo = corpoHomologacao(a.dados);
+  const documentos = classificarDocumentos(a.linha, a.documentos, a.dados.trocarTitularidade, !!a.dados.homologacaoOutra);
+  const tem = (...tipos: string[]): boolean => documentos.some((d) => tipos.includes(d.tipo));
+  const docsPend: string[] = [];
+  if (!tem('documento-com-foto')) docsPend.push('Documento com foto do cliente');
+  if (!tem('conta-de-energia')) docsPend.push('Conta de energia');
+  if (!tem('padrao-de-entrada')) docsPend.push('Foto do padrão de entrada');
+  if (!tem('disjuntor', 'quadro-eletrico')) docsPend.push(a.linha === 'eletroposto' ? 'Foto do disjuntor ou do quadro elétrico' : 'Foto do disjuntor');
+  const benef = a.dados.rateio ? a.dados.rateio.beneficiarias.length : 0;
+  if (benef > 0 && documentos.filter((d) => d.tipo === 'documento-de-rateio').length < benef) docsPend.push('Conta de energia das unidades beneficiárias');
+  const pendencias = { campos: corpo.camposPendentes, documentos: docsPend };
   return {
-    cabecalho: { linha: a.linha, codigo: a.codigo, cliente: a.cliente, emitido_em: a.emitidoEm, emitido_por: a.emitidoPor },
-    secoes: a.corpo.secoes,
-    obra: a.obra,
-    documentos: a.documentos,
+    cabecalho: { linha: a.linha, codigo: a.codigo, cliente: a.cliente, emitido_em: a.emitidoEm },
+    secoes: corpo.secoes,
+    documentos,
     pendencias,
-    preliminar: pendencias.campos.length > 0 || pendencias.documentos.length > 0 || !pendencias.obra_concluida,
+    preliminar: pendencias.campos.length > 0 || pendencias.documentos.length > 0,
   };
 }

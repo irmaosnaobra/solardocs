@@ -23,7 +23,7 @@ import { logger } from '../../utils/logger';
 import { assinaturaBate, itemDoCatalogo, CATALOGO, type ArquivoDoc } from './docsCliente';
 import { baixarObjeto } from './docsClienteBanco';
 import { modeloInexistente, type ClienteLeitura } from './financeiroLeitura';
-import { CAMPOS, CAMPOS_VENDASOLAR, CAMPOS_DECISAO_PAPEIS, validarCampo, type Campo } from './cadastroVenda';
+import { CAMPOS, CAMPOS_VENDASOLAR, CAMPOS_DECISAO_PAPEIS, CAMPOS_ENGENHARIA, validarCampo, type Campo } from './cadastroVenda';
 import { donoDoArquivo, motivoDeDescarte, type LinhaLeitura } from './cadastroVendaPapeis';
 import { rotuloDaIa } from './docsRotulos';
 
@@ -86,7 +86,9 @@ export interface DocumentoLido { id: string; slot: string; tipo: string; rotulo:
 // organizar os anexos). O servidor converte a lista para `sugestoes[campo]` (`listaParaCampos`).
 // `indice` diz de QUAL arquivo o dado saiu: arquivo em `outros` não tem dono pelo item, e o servidor precisa saber de qual deles
 // veio para conferir de quem é (veja `limparSugestoes`).
-const CAMPOS_PEDIDOS = CAMPOS.filter((c) => c !== 'tipo');
+// Os dados da engenharia (coordenadas, disjuntor, materiais, UF do ponto) são digitados por gente, nunca lidos de documento.
+const FORA_DA_LEITURA_ENG: ReadonlySet<string> = new Set([...CAMPOS_ENGENHARIA, 'disjuntor_tipo']);
+const CAMPOS_PEDIDOS = CAMPOS.filter((c) => c !== 'tipo' && !FORA_DA_LEITURA_ENG.has(c));
 const EsquemaCampoLido = z.object({
   campo: z.enum(CAMPOS_PEDIDOS as unknown as [string, ...string[]]),
   valor: z.string(),
@@ -108,7 +110,7 @@ export const FORMATO_CADASTRO = { type: formatoZod.type, schema: formatoZod.sche
 // (o percentual do rateio não está na conta de luz). Também ficam fora os campos do rateio (`rateio_modalidade`, `geradora_pct`
 // e `benef_N_doc`) e as duas decisões `homologacao_mesmo` e `financiamento_mesmo`: são decisão da pessoa, nunca da IA.
 const RE_PCT_BENEF = /^benef_[1-5]_(pct|doc)$/;
-const FORA_DA_LEITURA_SOLAR: ReadonlySet<string> = new Set(['tipo', 'tuc_relacao', 'rateio_modalidade', 'geradora_pct', ...CAMPOS_DECISAO_PAPEIS]);
+const FORA_DA_LEITURA_SOLAR: ReadonlySet<string> = new Set(['tipo', 'tuc_relacao', 'rateio_modalidade', 'geradora_pct', ...CAMPOS_DECISAO_PAPEIS, ...FORA_DA_LEITURA_ENG]);
 export const CAMPOS_PEDIDOS_SOLAR = CAMPOS_VENDASOLAR.filter((c) => !FORA_DA_LEITURA_SOLAR.has(c) && !RE_PCT_BENEF.test(c));
 export const EsquemaCadastroSolar = z.object({
   campos: z.array(z.object({

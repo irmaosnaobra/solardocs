@@ -253,7 +253,6 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 /* ── Relatório de engenharia: só existe na impressão e sai sempre em claro ──
    A folha é papel branco, no tema claro ou no escuro. Por isso as cores dela ficam neste bloco, escritas uma vez
    (--rl-*), e não seguem os tokens da tela. */
-#rel{display:none}
 .rel{--rl-tx:#111827;--rl-tx2:#4B5563;--rl-bd:#9CA3AF;--rl-fraco:#E5E7EB;--rl-av:#92400E;--rl-av-sf:#FEF3C7;
   background:#FFFFFF;color:var(--rl-tx);font:12px/1.4 "Segoe UI",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rel h1,.rel h2,.rel h3,.rel p,.rel ul,.rel dl,.rel dd,.rel figure{margin:0;padding:0}
@@ -296,15 +295,25 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 .rl-pdfs h3{font-size:12px;margin-bottom:2px}
 .rl-pdfs li{margin-left:14px;list-style:disc}
 .rl-vazio{color:var(--rl-tx2)}
-.rl-ass{width:62%;margin-top:40px;break-inside:avoid}
-.rl-ass div{padding-top:4px;border-top:1px solid var(--rl-tx);font-size:11px}
-.rl-ass small{display:block;color:var(--rl-tx2);font-size:10.5px}
+.rl-pdf{grid-column:1/-1;padding:10px;border:1px dashed var(--rl-bd);color:var(--rl-tx2);font-size:11px}
+.rl-falha{grid-column:1/-1}
+/* Tela do relatório: a barra segue os tokens da página; a folha continua branca, como o papel. */
+.rl-tela{position:fixed;inset:0;z-index:55;display:flex;flex-direction:column;background:var(--gc-bg);color:var(--gc-tx)}
+.rl-tela[hidden]{display:none}
+.rl-barra{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:var(--gc-sf);border-bottom:1px solid var(--gc-bd)}
+.rl-sp{flex:1}
+.rl-estado{font-size:13px;color:var(--gc-tx2)}
+.rl-folha{flex:1;min-height:0;overflow:auto;padding:16px}
+.rl-folha .rel{max-width:210mm;margin:0 auto;padding:12mm;border:1px solid var(--gc-bd)}
+@media (max-width:860px){ .rl-folha{padding:8px} .rl-folha .rel{padding:14px} .rl-campos{grid-template-columns:minmax(0,1fr)} .rl-fotos{grid-template-columns:minmax(0,1fr)} }
 @page{size:A4 portrait;margin:14mm}
 @media print{
   html.gc-imprimindo{color-scheme:light!important;background:#FFFFFF!important}
   html.gc-imprimindo body{height:auto!important;overflow:visible!important;background:#FFFFFF!important}
-  html.gc-imprimindo .gc,html.gc-imprimindo .gc-aviso{display:none!important}
-  html.gc-imprimindo #rel{display:block}
+  html.gc-imprimindo .gc,html.gc-imprimindo .gc-aviso,html.gc-imprimindo .rl-barra{display:none!important}
+  html.gc-imprimindo .rl-tela{display:block!important;position:static;background:#FFFFFF}
+  html.gc-imprimindo .rl-folha{display:block;overflow:visible;padding:0}
+  html.gc-imprimindo .rl-folha .rel{max-width:none;margin:0;padding:0;border:0}
 }
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
@@ -354,7 +363,16 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   </div>
 </div>
 <div class="gc-aviso" id="aviso" role="status" hidden></div>
-<div class="rel" id="rel" aria-hidden="true"></div>
+<div class="rl-tela" id="relTela" hidden role="dialog" aria-modal="true" aria-label="Relatório para homologação do projeto">
+  <div class="rl-barra">
+    <button type="button" class="dc-bt" id="relFechar">Fechar</button>
+    <span class="rl-sp"></span>
+    <span class="rl-estado" id="relEstado" role="status"></span>
+    <button type="button" class="dc-bt pri" id="relPdf">Baixar PDF</button>
+    <button type="button" class="dc-bt pri" id="relZip">Baixar arquivos (ZIP)</button>
+  </div>
+  <div class="rl-folha"><div class="rel" id="rel" aria-hidden="true"></div></div>
+</div>
 
 <script>
 (function () {
@@ -387,7 +405,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   var campos = {};                  // controles da ficha aberta, por chave
   // Colunas que o servidor guarda no cadastro da venda (eletroposto). Com o armazenamento do cadastro fora do ar a venda vem
   // com `cadastro_indisponivel`: elas chegam do legado ou vazias, e gravar nelas não é confiável. As outras colunas seguem como são.
-  var COLS_CADASTRO = { cliente: 1, cpf_cnpj: 1, rg_ie: 1, contato: 1, email: 1, endereco: 1, cep: 1, cidade: 1, uf: 1, endereco_ponto: 1, unidade_consumidora: 1, concessionaria: 1, titular_conta: 1 };
+  var COLS_CADASTRO = { cliente: 1, cpf_cnpj: 1, rg_ie: 1, contato: 1, email: 1, endereco: 1, cep: 1, cidade: 1, uf: 1, endereco_ponto: 1, unidade_consumidora: 1, concessionaria: 1, titular_conta: 1, uf_ponto: 1, coordenadas: 1, disjuntor_tipo: 1, disjuntor_a: 1, materiais: 1 };
   var AVISO_CADASTRO = 'Cadastro do cliente fora do ar agora. Os dados pessoais estão só para leitura; tente de novo em alguns minutos.';
   function cadastroFora(l) { return !!EP && !!l && l.cadastro_indisponivel === true; }
   function colBloqueada(l, c) { return cadastroFora(l) && !!COLS_CADASTRO[c.chave]; }
@@ -1008,7 +1026,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         gravar(codigo, c, d.value, h);
       });
     } else {
-      var area = chave === 'obs';
+      var area = chave === 'obs' || chave === 'materiais';
       var inp = document.createElement(area ? 'textarea' : 'input');
       inp.id = id; h.ctl = inp;
       if (!area) { inp.type = 'text'; }
@@ -1037,6 +1055,22 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         if (e.key === 'Enter' && !area) { e.preventDefault(); inp.blur(); }
         else if (e.key === 'Escape') { e.preventDefault(); h.limparErro(); h.set(atual(), true); inp.blur(); }
       });
+      // Materiais do eletroposto: sugestão só com os itens que a ficha já sabe (equipamento e quantidades), sem inventar especificação.
+      if (chave === 'materiais' && EP) {
+        var sg = el('button', 'dc-bt', 'Sugerir com os itens do kit'); sg.type = 'button';
+        sg.addEventListener('click', function () {
+          var lin = linhaPor[codigo], cl = lin && lin.celulas ? lin.celulas : {};
+          var gv = function (k) { var x = cl[k] && cl[k].valor; return x == null ? '' : String(x).trim(); };
+          var partes = [];
+          if (gv('qtd_carregadores') || gv('equipamento')) partes.push((gv('qtd_carregadores') ? gv('qtd_carregadores') + ' ' : '') + 'carregador' + (Number(gv('qtd_carregadores')) > 1 ? 'es' : '') + (gv('equipamento') ? ' ' + gv('equipamento') : ''));
+          if (gv('qtd_plugs')) partes.push(gv('qtd_plugs') + (Number(gv('qtd_plugs')) > 1 ? ' plugs' : ' plug'));
+          if (!partes.length) { aviso('Preencha o equipamento e as quantidades antes de pedir a sugestão.'); return; }
+          if (inp.value.trim()) { aviso('Já há materiais escritos. Apague o texto para pedir a sugestão.'); return; }
+          inp.value = partes.join('; ').slice(0, 300);
+          gravar(codigo, c, inp.value, h);
+        });
+        f.appendChild(sg);
+      }
     }
     campos[chave] = h;
     h.set(cel0, true);
@@ -1764,10 +1798,30 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     }, function (e) { v.salvando = false; if (!ehLogin(e)) aviso('Não consegui vincular agora. Confira a conexão.'); pintarDocs(codigo); });
   }
 
-  // ── Relatório de engenharia ──
-  // A vista de impressão vive neste mesmo documento (uma aba nova teria sessão própria). Só aparece no papel.
-  var relOcupado = false, tituloAntes = null;
+  // ── Relatório para homologação do projeto ──
+  // O pacote que a empresa manda à engenharia parceira. Abre numa tela própria (a prévia do que sai no papel), com dois botões:
+  // "Baixar PDF" (imprime a mesma vista) e "Baixar arquivos (ZIP)". O servidor manda as seções 1 a 4 em campos, os documentos já
+  // classificados por seção (`secao`, `tipo`, `arquivo`) e a lista "Faltam para a engenharia". Nunca há valor em dinheiro aqui.
+  var relOcupado = false, zipOcupado = false, tituloAntes = null, relDados = null, relLinha = null, relEm = 0;
   var DINHEIRO = /R\$\s*\d/;
+  // Mesma divisão do servidor: nome, endereço e titular só perdem R$/reais/pix; materiais e especificações em texto livre, a regra larga.
+  // Campo numérico montado pelo servidor (potência, percentuais, disjuntor, coordenadas, quantidades) nunca passa por filtro de texto.
+  var SEM_DINHEIRO_ESTREITO = /r\$|\breais\b|\bpix\b/i;
+  var SEM_DINHEIRO_LARGO = /r\$|\breais\b|\bpix\b|\d+,\d{2}\b|\b(valor|pre[cç]o|sinal|parcelas?|entrada|desconto|consultor)\b/i;
+  function textoSeguro(rotulo, v) {
+    var r = String(rotulo || '');
+    if (/^(Nome completo|Endereço do ponto|Titular da conta|Beneficiária \d+: (titular|endereço))$/.test(r)) return SEM_DINHEIRO_ESTREITO.test(v) ? '' : v;
+    if (/^(Materiais|Equipamento|Módulos \(placas\)|Inversor|Estrutura)$/.test(r)) return SEM_DINHEIRO_LARGO.test(v) ? '' : v;
+    return v;
+  }
+  // Bibliotecas do cdnjs, versão fixa, carregadas só quando alguém pede (a ficha não paga esse peso).
+  // pdf.js 4.x (a 3.x tem a CVE-2024-4367: fonte maliciosa executa script na página). Biblioteca e worker na MESMA versão.
+  var PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
+  var PDFJS_SRI = 'sha384-+0ti2moQlmLN7WZHE2RHIf5lV8hHxhxEalN0il3YZceG26fUPyOkR0hp9daxk1i7';
+  var PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+  var JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  var JSZIP_SRI = 'sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG';
+  var PDF_LARGURA_MAX = 1600, PDF_PAGINAS_MAX = 8, PDF_JPEG = 0.82, URL_VALE_MS = 8 * 60 * 1000;
   function dataHora(iso) {
     try { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso)); } catch (e) { return String(iso || ''); }
   }
@@ -1783,22 +1837,52 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   }
   function blocoPend(pai, titulo, v) {
     var nomes = nomesPend(v);
-    if (nomes.length) {
-      var b = el('div', 'rl-pend'); b.appendChild(el('h3', null, titulo + ' (' + nomes.length + ')'));
-      var ul = el('ul'); nomes.forEach(function (n) { ul.appendChild(el('li', null, n)); }); b.appendChild(ul); pai.appendChild(b);
-    } else if (typeof v === 'number' && v > 0) { var b2 = el('div', 'rl-pend'); b2.appendChild(el('h3', null, titulo + ': ' + v)); pai.appendChild(b2); }
+    if (!nomes.length) return;
+    var b = el('div', 'rl-pend'); b.appendChild(el('h3', null, titulo));
+    var ul = el('ul'); nomes.forEach(function (n) { ul.appendChild(el('li', null, n)); }); b.appendChild(ul); pai.appendChild(b);
+  }
+  function extDoMime(m) {
+    m = String(m || '').toLowerCase();
+    return m === 'application/pdf' ? 'pdf' : m === 'image/png' ? 'png' : m === 'image/webp' ? 'webp' : 'jpg';
+  }
+  function ehPdf(d) { return String(d && d.mime || '').toLowerCase() === 'application/pdf'; }
+  function nomeNoPacote(d) { return String(d.arquivo || 'documento') + '.' + extDoMime(d.mime); }
+  function figura(src, legenda) {
+    var fg = el('figure', 'rl-foto'), im = el('img');
+    im.alt = legenda; im.referrerPolicy = 'no-referrer'; im.src = src; fg.appendChild(im);
+    fg.appendChild(el('figcaption', null, legenda));
+    return fg;
+  }
+  // Cada documento sai como imagem. A imagem entra direto; o PDF vira um espaço que `renderizarPdfs` preenche com as páginas.
+  function blocoDocumento(d, pai) {
+    var u = urlHttps(d.url), rot = String(d.rotulo || 'Documento');
+    if (!u) { pai.appendChild(el('div', 'rl-falha', rot + ': abra o arquivo no pacote (' + nomeNoPacote(d) + ')')); return; }
+    if (ehPdf(d)) {
+      var ph = el('div', 'rl-pdf', rot + ': preparando as páginas...');
+      ph.setAttribute('data-url', u); ph.setAttribute('data-rotulo', rot); ph.setAttribute('data-nome', nomeNoPacote(d));
+      pai.appendChild(ph);
+      return;
+    }
+    pai.appendChild(figura(u, rot));
+  }
+  function secaoDocumentos(raiz, docs, numero) {
+    var lista = docs.filter(function (d) { return d && Number(d.secao) === numero; });
+    if (!lista.length) return null;
+    var g = el('div', 'rl-fotos');
+    lista.forEach(function (d) { blocoDocumento(d, g); });
+    return g;
   }
   function montarRelatorio(R) {
     var raiz = $('rel'), cab = R.cabecalho || {};
     raiz.textContent = '';
     var linhaNome = String(cab.linha || (EP ? 'eletroposto' : 'solar')).toLowerCase();
-    linhaNome = linhaNome === 'solar' ? 'Solar' : linhaNome === 'eletroposto' ? 'Eletroposto' : linhaNome.charAt(0).toUpperCase() + linhaNome.slice(1);
+    linhaNome = linhaNome === 'solar' ? 'Solar' : linhaNome === 'vendasolar' ? 'Solar' : linhaNome === 'eletroposto' ? 'Eletroposto' : linhaNome.charAt(0).toUpperCase() + linhaNome.slice(1);
     var topo = el('header', 'rl-topo'), esq = el('div');
     esq.appendChild(el('div', 'rl-marca', 'Irmãos na Obra'));
-    esq.appendChild(el('h1', null, 'Relatório de engenharia'));
+    esq.appendChild(el('h1', null, 'Relatório para homologação do projeto'));
     esq.appendChild(el('div', 'rl-cli', String(cab.cliente || 'Cliente sem nome')));
     var meta = el('dl', 'rl-meta');
-    [['Linha', linhaNome], ['Código', String(cab.codigo == null ? '' : cab.codigo)], ['Emitido em', cab.emitido_em ? dataHora(cab.emitido_em) : ''], ['Emitido por', String(cab.emitido_por || '')]].forEach(function (p) {
+    [['Linha', linhaNome], ['Código', String(cab.codigo == null ? '' : cab.codigo)], ['Emitido em', cab.emitido_em ? dataHora(cab.emitido_em) : '']].forEach(function (p) {
       if (!p[1]) return; meta.appendChild(el('dt', null, p[0])); meta.appendChild(el('dd', null, p[1]));
     });
     topo.appendChild(esq); topo.appendChild(meta); raiz.appendChild(topo);
@@ -1806,120 +1890,275 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     var pd = R.pendencias || {};
     if (R.preliminar) {
       var pr = el('section', 'rl-prelim');
-      pr.appendChild(el('h2', null, 'Versão preliminar'));
-      pr.appendChild(el('p', null, 'Este relatório tem pendências e ainda não é a versão final.'));
-      blocoPend(pr, 'Campos sem preenchimento', pd.campos);
-      blocoPend(pr, 'Documentos que faltam', pd.documentos);
-      if (pd.obra_concluida === false) {   // no Solar o marco é "sistema liberado"; no Eletroposto, a última etapa da obra
-        var bo = el('div', 'rl-pend'); bo.appendChild(el('h3', null, 'Obra não concluída')); pr.appendChild(bo); }
+      pr.appendChild(el('h2', null, 'Faltam para a engenharia'));
+      pr.appendChild(el('p', null, 'Complete estes itens no card antes de mandar o pacote.'));
+      blocoPend(pr, 'Campos', pd.campos);
+      blocoPend(pr, 'Documentos', pd.documentos);
       raiz.appendChild(pr);
     }
 
-    (Array.isArray(R.secoes) ? R.secoes : []).forEach(function (s) {
+    var docs = Array.isArray(R.documentos) ? R.documentos : [];
+    var secoes = (Array.isArray(R.secoes) ? R.secoes : []).slice().sort(function (a, b) { return (a.numero || 0) - (b.numero || 0); });
+    secoes.forEach(function (s) {
+      var num = Number(s.numero) || 0;
       // O servidor não manda dinheiro; esta é a segunda trava.
       var campos = (Array.isArray(s.campos) ? s.campos : []).filter(function (c) { return c && !DINHEIRO.test(valorRel(c.valor)); });
-      if (!campos.length) return;
-      var sec = el('section', 'rl-sec'); sec.appendChild(el('h2', null, String(s.titulo || '')));
-      var dl = el('dl', 'rl-campos');
-      campos.forEach(function (c) {
-        var it = el('div', 'rl-c'), v = valorRel(c.valor);
-        it.appendChild(el('dt', null, String(c.rotulo || '')));
-        it.appendChild(el('dd', v ? null : 'sem', v || 'Não informado'));
-        dl.appendChild(it);
-      });
-      sec.appendChild(dl); raiz.appendChild(sec);
+      var fotos = secaoDocumentos(raiz, docs, num);
+      var sec = el('section', 'rl-sec'); sec.appendChild(el('h2', null, num + '. ' + String(s.titulo || '')));
+      if (campos.length) {
+        var dl = el('dl', 'rl-campos');
+        campos.forEach(function (c) {
+          var it = el('div', 'rl-c'), v = textoSeguro(c.rotulo, valorRel(c.valor));
+          it.appendChild(el('dt', null, String(c.rotulo || '')));
+          it.appendChild(el('dd', v ? null : 'sem', v || 'Não informado'));
+          dl.appendChild(it);
+        });
+        sec.appendChild(dl);
+      }
+      if (fotos) sec.appendChild(fotos);
+      else if (!campos.length) sec.appendChild(el('p', 'rl-vazio', 'Nenhum documento anexado.'));
+      raiz.appendChild(sec);
     });
-
-    var ob = R.obra;
-    if (ob && typeof ob === 'object') {
-      var so = el('section', 'rl-sec'); so.appendChild(el('h2', null, 'Obra'));
-      var top = el('div', 'rl-obra-top');
-      if (ob.modelo_rotulo) top.appendChild(el('span', null, 'Trilho: ' + String(ob.modelo_rotulo)));
-      var total = Number(ob.total) || 0, feitas = Number(ob.feitas) || 0;
-      top.appendChild(el('span', null, 'Etapas feitas: ' + feitas + ' de ' + total));
-      if (ob.previsto) top.appendChild(el('span', null, 'Previsto: ' + valorRel(ob.previsto)));
-      so.appendChild(top);
-      var bar = el('div', 'rl-bar'), fi = el('i'); fi.style.width = (total ? Math.min(100, Math.round(100 * feitas / total)) : 0) + '%'; bar.appendChild(fi); so.appendChild(bar);
-      var et = el('div', 'rl-etapas');
-      (Array.isArray(ob.etapas) ? ob.etapas : []).forEach(function (e) {
-        var x = el('div', 'rl-et' + (e.feita ? ' feita' : '') + (e.atual ? ' atual' : '')), cx = el('i', null, e.feita ? '✓' : '');
-        x.appendChild(cx); x.appendChild(el('span', null, String(e.rotulo || '') + (e.atual ? ' (em andamento)' : ''))); et.appendChild(x);
-      });
-      so.appendChild(et); raiz.appendChild(so);
-    }
-
-    var docs = Array.isArray(R.documentos) ? R.documentos : [];
-    var sd = el('section', 'rl-sec'); sd.appendChild(el('h2', null, 'Documentos'));
-    var fotos = docs.filter(function (x) { return x && /^image\//i.test(String(x.mime || '')); }), pdfs = docs.filter(function (x) { return x && !/^image\//i.test(String(x.mime || '')); });
-    if (!docs.length) sd.appendChild(el('p', 'rl-vazio', 'Nenhum documento anexado.'));
-    if (fotos.length) {
-      var gf = el('div', 'rl-fotos');
-      fotos.forEach(function (x) {
-        var fg = el('figure', 'rl-foto'), u = urlHttps(x.url);
-        if (u) { var im = el('img'); im.alt = String(x.rotulo || 'Documento'); im.referrerPolicy = 'no-referrer'; im.src = u; fg.appendChild(im); }
-        else fg.appendChild(el('div', 'rl-falha', 'Imagem indisponível'));
-        fg.appendChild(el('figcaption', null, String(x.rotulo || 'Documento'))); gf.appendChild(fg);
-      });
-      sd.appendChild(gf);
-    }
-    if (pdfs.length) {
-      var lp = el('div', 'rl-pdfs'); lp.appendChild(el('h3', null, 'Arquivos em PDF anexados'));
-      var ul = el('ul'); pdfs.forEach(function (x) { ul.appendChild(el('li', null, String(x.rotulo || 'Documento'))); }); lp.appendChild(ul); sd.appendChild(lp);
-    }
-    raiz.appendChild(sd);
-
-    var as = el('div', 'rl-ass'), ad = el('div', null, 'Responsável técnico'); ad.appendChild(el('small', null, 'Nome, registro profissional e data')); as.appendChild(ad); raiz.appendChild(as);
   }
-  // Espera todas as fotos; a que não chegou vira um aviso no papel (nunca um quadro em branco calado).
-  function esperarImagens(raiz) {
-    var imgs = Array.prototype.slice.call(raiz.querySelectorAll('img'));
-    var uma = function (im) {
-      return new Promise(function (ok) {
-        if (im.complete) return ok();
-        im.addEventListener('load', function () { ok(); }); im.addEventListener('error', function () { ok(); });
-      }).then(function () { return (im.decode && im.naturalWidth) ? im.decode().catch(function () {}) : null; });
-    };
-    var limite = new Promise(function (ok) { setTimeout(ok, 25000); });
-    return Promise.race([Promise.all(imgs.map(uma)), limite]).then(function () {
-      var falhas = 0;
-      imgs.forEach(function (im) {
-        if (im.complete && im.naturalWidth > 0) return;
-        falhas++;
-        var ph = el('div', 'rl-falha', 'Imagem indisponível');
-        if (im.parentNode) im.parentNode.replaceChild(ph, im);
+
+  // ── Bibliotecas e PDF ──
+  var scripts = {};
+  function carregarScript(src, sri) {
+    if (scripts[src]) return scripts[src];
+    scripts[src] = new Promise(function (ok, no) {
+      var s = document.createElement('script');
+      s.src = src; s.async = true; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
+      if (sri) s.integrity = sri;
+      s.onload = function () { ok(); };
+      s.onerror = function () { delete scripts[src]; no(new Error('cdn')); };
+      document.head.appendChild(s);
+    });
+    return scripts[src];
+  }
+  // O pdf.js 4 é módulo ES: baixo o arquivo com a conferência SRI (import() não tem integrity) e importo a partir do blob.
+  var pdfLib = null;
+  function carregarPdfJs() {
+    if (pdfLib) return pdfLib;
+    pdfLib = fetch(PDFJS_URL, { integrity: PDFJS_SRI, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' }).then(function (r) {
+      if (!r.ok) throw new Error('cdn');
+      return r.blob();
+    }).then(function (b) {
+      var u = URL.createObjectURL(new Blob([b], { type: 'text/javascript' }));
+      return import(u).then(function (m) { setTimeout(function () { URL.revokeObjectURL(u); }, 10000); return m; });
+    }).then(function (lib) {
+      if (!lib || !lib.getDocument || !lib.GlobalWorkerOptions) throw new Error('pdfjs');
+      lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      return lib;
+    }).catch(function (e) { pdfLib = null; throw e; });
+    return pdfLib;
+  }
+  function comLimite(p, ms) {
+    return Promise.race([p, new Promise(function (_, no) { setTimeout(function () { no(new Error('tempo')); }, ms); })]);
+  }
+  // Cada página vira um JPEG de até 1600 px de largura, sobre fundo branco (PDF com transparência não vira preto).
+  function paginasDoPdf(lib, url) {
+    return lib.getDocument({ url: url, withCredentials: false, isEvalSupported: false }).promise.then(function (pdf) {
+      var total = pdf.numPages, n = Math.min(total, PDF_PAGINAS_MAX), imgs = [], seq = Promise.resolve();
+      function pagina(i) {
+        return pdf.getPage(i).then(function (page) {
+          var v1 = page.getViewport({ scale: 1 }), escala = Math.min(2, PDF_LARGURA_MAX / v1.width), vp = page.getViewport({ scale: escala });
+          var c = document.createElement('canvas'); c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+          var cx = c.getContext('2d'); cx.fillStyle = '#FFFFFF'; cx.fillRect(0, 0, c.width, c.height);
+          return page.render({ canvasContext: cx, viewport: vp }).promise.then(function () {
+            imgs.push(c.toDataURL('image/jpeg', PDF_JPEG)); c.width = 0; c.height = 0; page.cleanup();
+          });
+        });
+      }
+      for (var i = 1; i <= n; i++) (function (k) { seq = seq.then(function () { return pagina(k); }); })(i);
+      return seq.then(function () { pdf.destroy(); return { imgs: imgs, total: total }; });
+    });
+  }
+  // Troca cada espaço de PDF pelas páginas. Quem falhar mostra o nome e manda abrir o arquivo no pacote. Idempotente.
+  function renderizarPdfs(raiz) {
+    var alvos = Array.prototype.slice.call(raiz.querySelectorAll('.rl-pdf'));
+    if (!alvos.length) return Promise.resolve(0);
+    var libP = carregarPdfJs();
+    return Promise.all(alvos.map(function (ph) {
+      if (ph._p) return ph._p;
+      var rot = ph.getAttribute('data-rotulo') || 'Documento', nome = ph.getAttribute('data-nome') || '';
+      ph._p = libP.then(function (lib) { return comLimite(paginasDoPdf(lib, ph.getAttribute('data-url')), 90000); }).then(function (r) {
+        if (!r.imgs.length) throw new Error('vazio');
+        var pai = ph.parentNode, ref = ph;
+        r.imgs.forEach(function (src, i) {
+          var fg = figura(src, rot + (r.total > 1 ? ' (página ' + (i + 1) + ' de ' + r.total + ')' : ''));
+          pai.insertBefore(fg, ref);
+        });
+        if (r.total > r.imgs.length) pai.insertBefore(el('div', 'rl-falha', rot + ': só as ' + r.imgs.length + ' primeiras páginas aparecem aqui. O arquivo inteiro está no pacote (' + nome + ').'), ref);
+        pai.removeChild(ph);
+        return 0;
+      }).catch(function () {
+        ph.className = 'rl-falha'; ph.textContent = rot + ': abra o arquivo no pacote (' + nome + ').';
+        return 1;
       });
+      return ph._p;
+    })).then(function (rs) { return rs.reduce(function (a, b) { return a + b; }, 0); });
+  }
+  // Espera os PDFs virarem página e todas as fotos chegarem; a que não chegou vira um aviso no papel (nunca um quadro em branco calado).
+  function esperarImagens(raiz) {
+    return renderizarPdfs(raiz).catch(function () { return 0; }).then(function (falhasPdf) {
+      var imgs = Array.prototype.slice.call(raiz.querySelectorAll('img'));
+      var uma = function (im) {
+        return new Promise(function (ok) {
+          if (im.complete) return ok();
+          im.addEventListener('load', function () { ok(); }); im.addEventListener('error', function () { ok(); });
+        }).then(function () { return (im.decode && im.naturalWidth) ? im.decode().catch(function () {}) : null; });
+      };
+      var limite = new Promise(function (ok) { setTimeout(ok, 25000); });
+      return Promise.race([Promise.all(imgs.map(uma)), limite]).then(function () {
+        var falhas = falhasPdf;
+        imgs.forEach(function (im) {
+          if (im.complete && im.naturalWidth > 0) return;
+          falhas++;
+          var ph = el('div', 'rl-falha', 'Imagem indisponível');
+          if (im.parentNode) im.parentNode.replaceChild(ph, im);
+        });
+        return falhas;
+      });
+    });
+  }
+
+  // ── Telas e botões ──
+  function estadoRel(txt) { $('relEstado').textContent = txt || ''; }
+  function botoesRel(ocupado) { $('relPdf').disabled = ocupado; $('relZip').disabled = ocupado; }
+  function buscarRelatorio(l) {
+    return api('GET', caminhoDoc(l, '/relatorio'), null, true).then(function (x) {
+      var j = x.json;
+      if (x.status !== 200 || !j || j.ok === false) throw erro('servidor', { msg: x.status === 403 ? 'Você não tem permissão para emitir este relatório.' : msgServidor(x, 'Não consegui gerar o relatório agora. Tente de novo.') });
+      return j;
+    });
+  }
+  function abrirRelatorio(j, l) {
+    relDados = j; relLinha = l; relEm = Date.now();
+    montarRelatorio(j);
+    var t = $('relTela'); t.hidden = false; $('rel').removeAttribute('aria-hidden');
+    document.documentElement.classList.add('gc-rel-aberto');
+    $('relFechar').focus();
+    estadoRel('Preparando as páginas dos PDFs...');
+    botoesRel(true);
+    return esperarImagens($('rel')).then(function (falhas) {
+      botoesRel(false);
+      estadoRel(falhas ? (falhas === 1 ? 'Um arquivo não pôde ser mostrado; ele vai no pacote.' : falhas + ' arquivos não puderam ser mostrados; eles vão no pacote.') : '');
       return falhas;
     });
   }
-  function fimImpressao() {
-    document.documentElement.classList.remove('gc-imprimindo');
-    if (tituloAntes != null) { document.title = tituloAntes; tituloAntes = null; }
-    $('rel').textContent = '';
+  function fecharRelatorio() {
+    $('relTela').hidden = true; $('rel').textContent = ''; $('rel').setAttribute('aria-hidden', 'true');
+    document.documentElement.classList.remove('gc-rel-aberto');
+    relDados = null; estadoRel('');
+    var b = $('gdRel'); if (b && !b.disabled && b.focus) b.focus();
   }
   function gerarRelatorio() {
     var codigo = detalhe, l = codigo && linhaPor[codigo];
     if (!l || relOcupado) return;
     relOcupado = true;
     var btn = $('gdRel'); btn.setAttribute('aria-busy', 'true'); btn.disabled = true;
-    api('GET', caminhoDoc(l, '/relatorio'), null, true).then(function (x) {
-      var j = x.json;
-      if (x.status !== 200 || !j || j.ok === false) throw erro('servidor', { msg: x.status === 403 ? 'Você não tem permissão para emitir este relatório.' : msgServidor(x, 'Não consegui gerar o relatório agora. Tente de novo.') });
-      montarRelatorio(j);
-      return esperarImagens($('rel'));
-    }).then(function (falhas) {
-      if (falhas) aviso(falhas === 1 ? 'Uma imagem não carregou e saiu como aviso no papel.' : falhas + ' imagens não carregaram e saíram como aviso no papel.');
+    buscarRelatorio(l).then(function (j) { return abrirRelatorio(j, l); }).catch(function (e) {
+      if (ehLogin(e)) return;
+      aviso((e && e.msg) || 'Não consegui gerar o relatório agora. Confira a conexão e tente de novo.');
+    }).then(function () { relOcupado = false; btn.removeAttribute('aria-busy'); btn.disabled = false; });
+  }
+  function fimImpressao() {
+    document.documentElement.classList.remove('gc-imprimindo');
+    if (tituloAntes != null) { document.title = tituloAntes; tituloAntes = null; }
+  }
+  // "Baixar PDF": imprime a prévia. As URLs assinadas valem 15 min: prévia velha é montada de novo antes de imprimir.
+  function baixarPdf() {
+    if (!relDados || !relLinha || relOcupado || zipOcupado) return;
+    relOcupado = true; botoesRel(true); estadoRel('Preparando o PDF...');
+    var l = relLinha;
+    var pronto = (Date.now() - relEm > URL_VALE_MS)
+      ? buscarRelatorio(l).then(function (j) { return abrirRelatorio(j, l); })
+      : esperarImagens($('rel'));
+    pronto.then(function (falhas) {
+      if (falhas) aviso(falhas === 1 ? 'Um arquivo não pôde ser mostrado e saiu como aviso no papel.' : falhas + ' arquivos não puderam ser mostrados e saíram como aviso no papel.');
       if (tituloAntes == null) tituloAntes = document.title;   // duas emissões seguidas sem afterprint no meio não podem guardar o título já trocado
-      document.title = 'Relatório de engenharia ' + l.codigo + (l.cliente ? ' ' + l.cliente : '');
+      document.title = 'Homologacao ' + l.codigo + (l.cliente ? ' ' + l.cliente : '');
       document.documentElement.classList.add('gc-imprimindo');
       window.print();
-      /* Reserva para navegador que não dispara afterprint (Safari antigo no iPhone): a vista some sozinha em 2 min,
-         para um Ctrl+P depois não imprimir o relatório anterior. No computador o print() segura até fechar o diálogo. */
+      /* Reserva para navegador que não dispara afterprint (Safari antigo no iPhone): a vista de impressão some sozinha em 2 min,
+         para um Ctrl+P depois não imprimir só o relatório. No computador o print() segura até fechar o diálogo. */
       setTimeout(function () { if (document.documentElement.classList.contains('gc-imprimindo')) fimImpressao(); }, 120000);
     }).catch(function (e) {
       if (ehLogin(e)) return;
       fimImpressao();
-      aviso((e && e.msg) || 'Não consegui gerar o relatório agora. Confira a conexão e tente de novo.');
-    }).then(function () { relOcupado = false; btn.removeAttribute('aria-busy'); btn.disabled = false; });
+      aviso((e && e.msg) || 'Não consegui preparar o PDF agora. Confira a conexão e tente de novo.');
+    }).then(function () { relOcupado = false; botoesRel(false); estadoRel(''); });
+  }
+
+  // ── ZIP ──
+  function tirarAcento(t) { var x = String(t == null ? '' : t); return x.normalize ? x.normalize('NFD').replace(/[̀-ͯ]/g, '') : x; }
+  function nomeZip(cab) {
+    var cod = tirarAcento(cab.codigo).replace(/^#/, '').replace(/[^A-Za-z0-9]+/g, '');
+    var cli = tirarAcento(cab.cliente).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+    return 'Homologacao_' + (cod || 'projeto') + (cli ? '_' + cli : '') + '.zip';
+  }
+  // Os campos das seções 1 a 4 em texto, para copiar e colar no portal da engenharia.
+  function textoDados(R) {
+    var cab = R.cabecalho || {}, L = [];
+    L.push('DADOS DO PROJETO PARA HOMOLOGAÇÃO', 'Cliente: ' + String(cab.cliente || ''), 'Código: ' + String(cab.codigo == null ? '' : cab.codigo));
+    if (cab.emitido_em) L.push('Emitido em: ' + dataHora(cab.emitido_em));
+    (Array.isArray(R.secoes) ? R.secoes : []).slice().sort(function (a, b) { return (a.numero || 0) - (b.numero || 0); }).forEach(function (s) {
+      if (!(Number(s.numero) >= 1 && Number(s.numero) <= 4)) return;
+      L.push('', Number(s.numero) + '. ' + String(s.titulo || ''));
+      (Array.isArray(s.campos) ? s.campos : []).forEach(function (c) {
+        if (!c) return;
+        var v = valorRel(c.valor);
+        v = textoSeguro(c.rotulo, v);
+        if (DINHEIRO.test(v)) return;
+        L.push(String(c.rotulo || '') + ': ' + (v || 'Não informado'));
+      });
+    });
+    var pd = R.pendencias || {}, falta = nomesPend(pd.campos).concat(nomesPend(pd.documentos));
+    if (falta.length) { L.push('', 'Faltam para a engenharia'); falta.forEach(function (f) { L.push('- ' + f); }); }
+    return L.join('\r\n') + '\r\n';
+  }
+  function baixarUm(d) {
+    var u = urlHttps(d.url);
+    if (!u) return Promise.reject(new Error('url'));
+    return fetch(u, { credentials: 'omit', referrerPolicy: 'no-referrer' }).then(function (r) {
+      if (!r.ok) throw new Error('http');
+      return r.blob();
+    });
+  }
+  function salvarBlob(blob, nome) {
+    var a = document.createElement('a'), u = URL.createObjectURL(blob);
+    a.href = u; a.download = nome; a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(u); }, 4000);
+  }
+  function baixarZip() {
+    if (!relDados || !relLinha || zipOcupado || relOcupado) return;
+    zipOcupado = true; botoesRel(true); estadoRel('Baixando os arquivos...');
+    var l = relLinha, falhas = [];
+    // Sempre um relatório novo: as URLs assinadas da prévia podem ter vencido.
+    Promise.all([buscarRelatorio(l), carregarScript(JSZIP_URL, JSZIP_SRI)]).then(function (r) {
+      var R = r[0];
+      if (!window.JSZip) throw erro('lib', { msg: 'Não consegui carregar o gerador de ZIP. Confira a conexão e tente de novo.' });
+      var zip = new window.JSZip(), docs = Array.isArray(R.documentos) ? R.documentos : [], feitos = 0, prox = 0;
+      zip.file('dados-do-projeto.txt', textoDados(R));
+      function trabalhador() {
+        if (prox >= docs.length) return Promise.resolve();
+        var d = docs[prox++];
+        return baixarUm(d).then(function (b) { zip.file(nomeNoPacote(d), b); }, function () { falhas.push(nomeNoPacote(d)); }).then(function () {
+          feitos++; estadoRel('Baixando os arquivos... ' + feitos + ' de ' + docs.length);
+          return trabalhador();
+        });
+      }
+      return Promise.all([trabalhador(), trabalhador(), trabalhador()]).then(function () {
+        estadoRel('Montando o ZIP...');
+        return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+      }).then(function (blob) { salvarBlob(blob, nomeZip(R.cabecalho || {})); });
+    }).then(function () {
+      aviso(falhas.length ? falhas.length + (falhas.length === 1 ? ' arquivo não baixou e ficou fora do ZIP: ' : ' arquivos não baixaram e ficaram fora do ZIP: ') + falhas.slice(0, 3).join(', ') + (falhas.length > 3 ? '...' : '') : 'ZIP pronto.');
+    }).catch(function (e) {
+      if (ehLogin(e)) return;
+      aviso((e && e.msg) || 'Não consegui montar o ZIP agora. Confira a conexão e tente de novo.');
+    }).then(function () { zipOcupado = false; botoesRel(false); estadoRel(''); });
   }
 
   // ── Controles ──
@@ -1938,8 +2177,12 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   });
   $('faixaBtn').addEventListener('click', function () { carregar(); });
   $('gdRel').addEventListener('click', gerarRelatorio);
+  $('relPdf').addEventListener('click', baixarPdf);
+  $('relZip').addEventListener('click', baixarZip);
+  $('relFechar').addEventListener('click', fecharRelatorio);
   window.addEventListener('afterprint', fimImpressao);
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('relTela').hidden && !relOcupado && !zipOcupado) { fecharRelatorio(); return; }
     if (e.key !== 'Escape' || !MOVEL.matches || $('gd').hidden) return;
     var a = document.activeElement, tag = a && a.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
