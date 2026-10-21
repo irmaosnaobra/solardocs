@@ -19,6 +19,7 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { lerPaginado } from '../../utils/lerPaginado';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
 import { MARGEM_LEITURA_MS, ocupacaoDaFichaSolar } from './solarRota';
 
@@ -31,16 +32,17 @@ export async function ocupacoesSolar(deIso: string, ateIso: string, donos?: read
   const de = new Date(new Date(deIso).getTime() - MARGEM_LEITURA_MS).toISOString();
   const ate = new Date(new Date(ateIso).getTime() + MARGEM_LEITURA_MS).toISOString();
   try {
-    let q = supabaseGerador.from('agendamentos')
-      .select('quando, vendedor_nome, created_by, cidade, observacao')
-      .eq('created_by', 'lp_solar')
-      .gte('quando', de).lte('quando', ate)
-      .not('status', 'in', FILTRO_NAO_OCUPA)
-      .limit(500);
-    if (donos?.length) q = q.in('vendedor_nome', [...donos]);
-    const { data, error } = await q;
-    if (error) throw error;
-    if (!data) throw new Error('resposta sem corpo');
+    // Paginado (21/10/2026): era `.limit(500)` seco, que cortava calado a partir
+    // da 501ª ficha e deixava a manhã de rota do sócio parecer livre.
+    const data = await lerPaginado<Record<string, unknown>>('solar-ocupacao', (p0, p1) => {
+      let q = supabaseGerador.from('agendamentos')
+        .select('quando, vendedor_nome, created_by, cidade, observacao')
+        .eq('created_by', 'lp_solar')
+        .gte('quando', de).lte('quando', ate)
+        .not('status', 'in', FILTRO_NAO_OCUPA);
+      if (donos?.length) q = q.in('vendedor_nome', [...donos]);
+      return q.order('quando', { ascending: true }).order('id', { ascending: true }).range(p0, p1);
+    });
     const lo = new Date(deIso).getTime(), hi = new Date(ateIso).getTime();
     const out: OcupacaoSolar[] = [];
     for (const a of data as Array<Record<string, unknown>>) {

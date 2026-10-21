@@ -40,6 +40,7 @@ import { ehHorarioDeAlmoco } from '../agenda/almoco';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { FILTRO_NAO_OCUPA } from '../agenda/salaDeEspera';
 import { ocupacoesSolar } from '../agenda/solarOcupacao';
+import { lerPaginado } from '../../utils/lerPaginado';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -266,26 +267,30 @@ export function livrePara(iso: string, dono: string, compromissos: Compromisso[]
  */
 export async function carregarCompromissos(deIso: string, ateIso: string): Promise<Compromisso[] | null> {
   try {
-    const [{ data, error }, solar] = await Promise.all([
-      supabaseGerador
-        .from('agendamentos').select('quando, vendedor_nome, status, created_by')
-        .gte('quando', deIso).lte('quando', ateIso)
-        .not('status', 'in', FILTRO_NAO_OCUPA)
-        .limit(2000),
+    const [data, solar] = await Promise.all([
+      // PAGINADO (21/10/2026): o PostgREST corta em 1000 linhas e ignora um
+      // `.limit(2000)`. Com a agenda passando disso, o corte deixava horário
+      // ocupado parecendo livre. Erro em qualquer página lança e cai no catch (null).
+      lerPaginado<{ quando: string | null; vendedor_nome: string | null; status: string | null; created_by: string | null }>(
+        'ep-vagas compromissos',
+        (de, ate) => supabaseGerador
+          .from('agendamentos').select('quando, vendedor_nome, status, created_by')
+          .gte('quando', deIso).lte('quando', ateIso)
+          .not('status', 'in', FILTRO_NAO_OCUPA)
+          // Ordem estável (quando + id): sem ela a paginação pula ou repete linha.
+          .order('quando', { ascending: true }).order('id', { ascending: true })
+          .range(de, ate),
+      ),
       // As fichas da LP do solar com o bloco pronto, inclusive as marcadas fora
       // da janela que ocupam tempo dentro dela (manhã de rota). Mesma leitura da
       // vitrine do eletroposto e do formulário do Meta.
       ocupacoesSolar(deIso, ateIso),
     ]);
-    if (error) throw error;
     // Sem a leitura do solar o robô PARA, como em qualquer outra falha de
     // leitura: oferecer um horário com o sócio na estrada é pior que esperar.
     if (solar === null) throw new Error('leitura das fichas do solar falhou');
     // Resposta SEM erro e SEM corpo não é uma agenda vazia — é uma resposta que
-    // não dá pra ler. Tratar como `[]` diria "está tudo livre" e o robô ofereceria
-    // horário ocupado; a agenda do eletroposto nunca está literalmente vazia nos
-    // próximos 21 dias, então null aqui é sempre falha, nunca fato.
-    if (!data) throw new Error('resposta sem corpo');
+    // não dá pra ler (o `lerPaginado` já lança nesse caso, em qualquer página).
     const lista: Compromisso[] = data
       .filter(a => a.quando && a.vendedor_nome)
       .filter(a => String(a.created_by || '') !== 'lp_solar')   // entram pela leitura do solar

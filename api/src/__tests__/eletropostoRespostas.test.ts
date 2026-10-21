@@ -73,6 +73,9 @@ vi.mock('../utils/supabaseGerador', () => ({
           }
           return q;
         },
+        // A régua de vagas pagina (order + range): uma página só, igual ao limit.
+        order() { return q; },
+        range() { return q.limit(); },
         limit() {
           if (tabela === 'consultores') return Promise.resolve({ data: [{ nome: 'Diego', whatsapp: '5534991360172' }], error: null });
           // A régua de vagas pergunta por `quando`+`vendedor_nome`; o tick de

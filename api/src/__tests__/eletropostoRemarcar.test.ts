@@ -45,6 +45,9 @@ vi.mock('../utils/supabaseGerador', () => ({
           return q;
         },
         limit() { return Promise.resolve({ data: compromissos, error: null }); },
+        // carregarCompromissos agora pagina (order + range); cabe numa página só.
+        order() { return q; },
+        range() { return Promise.resolve({ data: compromissos, error: null }); },
       };
       return q;
     },
