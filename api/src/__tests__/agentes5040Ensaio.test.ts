@@ -53,8 +53,12 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'log').mockImplementation(() => {});
+  // O ensaio entrega `() => new Date()` (relógio de verdade) para a cota; sem fixar, o dia da chave da cota
+  // seguia o dia em que o teste roda e quebrava depois da meia-noite de Brasília.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(AGORA);
 });
-afterEach(() => { vi.restoreAllMocks(); delete process.env.AGENTES5040_ENSAIO; });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); delete process.env.AGENTES5040_ENSAIO; });
 
 const chavesDoEstado = (): string[] => (banco.tabelas.system_state ?? []).map(l => l.key);
 
@@ -293,6 +297,23 @@ describe('ensaio: custo e travas de rodada', () => {
     expect(chavesDoEstado().filter(k => k.startsWith('ag5040_ia:vivo:2026-10-20:'))).toHaveLength(2);
     const t = JSON.parse(banco.objetos.get(`turnos/2026-10-20/${hmacDe(CHAVE)}/10.json`)!);
     expect(t.reescrita?.length).toBeGreaterThan(0);
+  });
+
+  // O dia da cota é o de BRASÍLIA, não o de UTC: 23:30 BRT já é o dia seguinte em UTC e a vaga continua a do dia 20.
+  it.each([
+    ['02:30 BRT', '2026-10-20T05:30:00Z', '2026-10-20'],
+    ['15:00 BRT', '2026-10-20T18:00:00Z', '2026-10-20'],
+    ['23:30 BRT (já é dia 21 em UTC)', '2026-10-21T02:30:00Z', '2026-10-20'],
+    ['00:30 BRT do dia 21', '2026-10-21T03:30:00Z', '2026-10-21'],
+  ])('o teto do dia segue o dia de Brasília: %s', async (_nome, relogio, dia) => {
+    vi.setSystemTime(new Date(relogio));
+    semear();
+    process.env.AGENTES5040_TETO_VIVO = '1';
+    banco.tabelas.system_state = [{ key: `ag5040_ia:vivo:${dia}:1`, value: {} }];
+    const ia = oResponder();
+    const r = await runEnsaioTick({ agora: AGORA, cliente: ia.cliente });
+    expect(ia.chamadas).toHaveLength(0);
+    expect(r.parou).toBe('teto');
   });
 
   it('trava de rodada: duas rodadas no mesmo intervalo de 5 min, a segunda sai', async () => {
