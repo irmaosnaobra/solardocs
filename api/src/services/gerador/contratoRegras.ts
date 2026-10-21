@@ -3,9 +3,10 @@
  *
  * Fonte única das regras: o especialista de contratos
  * (.claude/agents/especialista-contratos.md) escreve os modelos por elas.
- * A IA de contrato do gerador (contratoIa.ts e contratoAgente.ts) AINDA NÃO as
- * lê: passa a ler quando o prompt dela for trocado para importar este texto.
- * Até lá, mudar uma regra aqui só vale para o especialista.
+ * A IA de contrato do gerador também as lê: contratoIa.ts (`redesenhar`) e
+ * contratoAgente.ts (o agente) importam este texto e o põem no prompt de sistema.
+ * Mudar uma regra aqui muda o especialista e a IA do gerador juntos. O prompt do
+ * agente é um bloco com cache_control: mudar o texto invalida o cache uma vez.
  */
 export const REGRAS_CONTRATO = `REGRAS DOS CONTRATOS DO GERADOR
 
