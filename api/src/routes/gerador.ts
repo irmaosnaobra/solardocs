@@ -28,6 +28,7 @@ import { mountContratoHibrido } from './geradorContratoHibrido';
 import { mountContratoAgente } from './geradorContratoAgente';
 import { mountFinanceiro } from './geradorFinanceiro';
 import { mountClientes } from './geradorClientes';
+import { mountNexus } from './geradorNexus';
 import { mountClientesEletroposto } from './geradorEletropostoClientes';
 import { mountClientesDocs } from './geradorClientesDocs';
 import { mountCadastroVenda } from './geradorCadastroVenda';
@@ -1213,5 +1214,8 @@ router.post('/contrato/redesenhar', aiLimiter, exigeConsultor, async (req: Reque
 mountContratoHibrido(router);
 // Agente do contrato (conversa que devolve ações, lista branca de campos e checagem de conflito): /contrato/agente, /contrato/agente/campos e /contrato/conflitos.
 mountContratoAgente(router);
+// Portal do Parceiro NEXUS: /nexus/* (parceiro com o JWT do SolarDoc, equipe com exigeConsultor e duas rotas públicas). Cada rota
+// declara o que exige; este router não tem middleware global.
+mountNexus(router);
 
 export default router;

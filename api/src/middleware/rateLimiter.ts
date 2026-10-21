@@ -178,3 +178,13 @@ export const cadastroLeituraLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Consulta pública de CNPJ do Portal do Parceiro NEXUS (/gerador/nexus/cnpj/:cnpj): cada chamada vira um fetch na
+// BrasilAPI, então o limite é por IP e apertado. Um cadastro humano faz uma ou duas.
+export const nexusCnpjLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 20,
+  message: { ok: false, motivo: 'indisponivel' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

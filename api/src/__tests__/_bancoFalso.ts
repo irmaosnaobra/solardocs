@@ -13,6 +13,8 @@ const CHAVE_UNICA: Record<string, string> = { system_state: 'key', message_queue
 
 export const banco = {
   tabelas: {} as Record<string, Linha[]>,
+  /** Liga a projeção de colunas do select (select('a, b') devolve só a e b). Desligada por padrão: os testes antigos leem colunas que não pediram. */
+  projeta: false,
   /** Cada escrita feita, para o teste provar que NÃO escreveu. */
   escritas: [] as Array<{ tabela: string; op: string; payload: any }>,
   /** 'tabela.op' -> erro a devolver (uma vez, se `uma`). */
@@ -21,6 +23,7 @@ export const banco = {
     this.tabelas = {};
     this.escritas = [];
     this.falhas = {};
+    this.projeta = false;
   },
   linhas(t: string): Linha[] {
     return (this.tabelas[t] ??= []);
@@ -58,13 +61,16 @@ class Consulta implements PromiseLike<any> {
   private contagem = false;
   private cabeca = false;
   private limite = Infinity;
+  private deslocamento = 0;
   private ordem: { col: string; asc: boolean } | null = null;
   private onConflict = '';
+  private colunas = '';
 
   constructor(private tabela: string) {}
 
-  select(_cols?: string, opts?: { count?: string; head?: boolean }) {
+  select(cols?: string, opts?: { count?: string; head?: boolean }) {
     if (this.op === 'select') {
+      this.colunas = String(cols ?? '*');
       this.contagem = !!opts?.count;
       this.cabeca = !!opts?.head;
     } else {
@@ -105,6 +111,8 @@ class Consulta implements PromiseLike<any> {
   }
   order(col: string, opts?: { ascending?: boolean }) { this.ordem = { col, asc: opts?.ascending !== false }; return this; }
   limit(n: number) { this.limite = n; return this; }
+  /** range(de, ate) do PostgREST: ambos inclusivos. */
+  range(de: number, ate: number) { this.deslocamento = de; this.limite = ate - de + 1; return this; }
 
   async maybeSingle() { const r = await this.executa(); return { ...r, data: Array.isArray(r.data) ? (r.data[0] ?? null) : r.data }; }
   async single() { const r = await this.maybeSingle(); return r.data ? r : { ...r, data: null, error: r.error ?? { message: 'sem linha', code: 'PGRST116' } }; }
@@ -140,6 +148,7 @@ class Consulta implements PromiseLike<any> {
         if (this.tabela === 'system_state' && n.updated_at == null) n.updated_at = new Date().toISOString();
         if (n.created_at == null && this.tabela !== 'system_state') n.created_at = new Date().toISOString();
         if (this.tabela === 'tech_issues' && n.id == null) n.id = `ti-${t.length + 1}-xxxxxxxx`;
+        if (this.tabela.startsWith('nexus_') && n.id == null) n.id = globalThis.crypto.randomUUID();
         t.push(n);
       }
       return { data: this.devolve ? novas : null, error: null };
@@ -170,9 +179,18 @@ class Consulta implements PromiseLike<any> {
       rows = [...rows].sort((a, b) => (asc ? 1 : -1) * cmp(caminho(a, col), caminho(b, col)));
     }
     const total = rows.length;
-    rows = rows.slice(0, this.limite);
+    rows = rows.slice(this.deslocamento, this.deslocamento + this.limite);
     if (this.cabeca) return { data: null, error: null, count: total };
-    return { data: rows.map(r => ({ ...r })), error: null, count: this.contagem ? total : null };
+    const lista = banco.projeta && this.colunas.trim() !== '*' && this.colunas.trim() !== ''
+      ? this.colunas.split(',').map(c => c.trim()).filter(Boolean)
+      : null;
+    const recorta = (r: Linha): Linha => {
+      if (!lista) return { ...r };
+      const o: Linha = {};
+      for (const c of lista) if (c in r) o[c] = r[c];
+      return o;
+    };
+    return { data: rows.map(recorta), error: null, count: this.contagem ? total : null };
   }
 }
 

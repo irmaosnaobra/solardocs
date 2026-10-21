@@ -16,8 +16,10 @@ import styles from './home.module.css';
 import { toBrasilia, fmtDateBR } from '@/utils/brasilia';
 import { formatPlanName, firstName } from '@/utils/plan';
 import Skeleton, { SkeletonStats } from '@/components/Skeleton/Skeleton';
+import NexusBanner from '@/components/NexusBanner/NexusBanner';
 
 interface User {
+  id?: string;
   email: string;
   nome?: string | null;
   plano: string;
@@ -194,6 +196,9 @@ export default function DashboardPage() {
           {user.email} · <span className={styles.planTag}>{formatPlanName(user.plano)}</span>
         </p>
       </div>
+
+      {/* Convite ao Portal do Parceiro NEXUS: só com o portal ligado, fechável por usuário */}
+      <NexusBanner userId={user.id} />
 
       {/* STATS */}
       <div className={styles.statsGrid}>

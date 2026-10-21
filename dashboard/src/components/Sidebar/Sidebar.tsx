@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
 import { useAcessos } from '@/hooks/useAcessos';
+import { useNexusPortal } from '@/hooks/useNexusPortal';
 import { produtoPorId } from '@/lib/produtos';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
@@ -49,6 +50,13 @@ interface NavItem {
    * LP — nunca pra um beco. Quem tem vê o item normal, sem nada em volta.
    */
   produto?: string;
+  /** Selo ao lado do nome (ex.: "Novo"). */
+  badge?: string;
+  /**
+   * Destino fora do Next (página estática): navegação de página inteira com <a>
+   * comum, na mesma aba. <Link> tentaria resolver como rota do app.
+   */
+  paginaInteira?: boolean;
 }
 
 // ── Configuração das 5 seções ─────────────────────────────────────
@@ -99,6 +107,12 @@ const acessosItems: NavItem[] = [
 // o item parecia mais uma delas. Aqui ele é o "ver tudo" da seção de
 // disponíveis, e o nome diz isso.
 const lojaItem: NavItem = { href: '/produtos', icon: LayoutGrid, label: 'Ver tudo' };
+
+// Portal do Parceiro NEXUS: página estática em /nexus/app, fora do Next. Só entra
+// no menu quando o portal responde ligado (ver useNexusPortal).
+const nexusItem: NavItem = {
+  href: '/nexus/app?o=solardoc', icon: Zap, label: 'Parceiro NEXUS', badge: 'Novo', paginaInteira: true,
+};
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
 // Telas navegáveis pra free (sem paidOnly aqui), MAS o backend
@@ -161,6 +175,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
   const [open, setOpen] = useState(false);
   // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo).
   const { carregando: acessosCarregando, tem, bastidor } = useAcessos();
+  const nexusLigado = useNexusPortal();
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -260,7 +275,19 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
 
     const badge = item.count != null ? (
       <span className={styles.countBadge}>{item.count}</span>
+    ) : item.badge ? (
+      <span className={styles.badgeNovo}>{item.badge}</span>
     ) : null;
+
+    if (item.paginaInteira) {
+      return (
+        <a key={item.href} href={item.href} className={styles.navItem}>
+          <item.icon className={styles.navIcon} size={16} strokeWidth={1.75} />
+          <span className={styles.navLabel}>{item.label}</span>
+          {badge}
+        </a>
+      );
+    }
 
     if (item.external) {
       return (
@@ -324,6 +351,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         <div className={styles.navSection}>
           {topoItems.map(renderItem)}
           {visiveis.filter((i) => !travado(i)).map(renderItem)}
+          {nexusLigado && renderItem(nexusItem)}
         </div>
 
         {/* ── DISPONÍVEIS: só o que a pessoa AINDA NÃO tem ──

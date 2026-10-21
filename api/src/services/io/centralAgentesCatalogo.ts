@@ -412,6 +412,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['tracking_gerador_aviso'],
   }),
   e({
+    id: 'nexus_portal_aviso', nome: 'Aviso do Portal do Parceiro NEXUS', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Avisa o comercial do que o parceiro NEXUS faz',
+    papel: 'Cadastro de parceiro, pedido de conversa, engenharia ou preço, pedido de equipamento, usina indicada e resposta a oportunidade chegam ao número da equipe em uma bolha, no máximo 12 por hora (acima disso o cadastro e a usina vão só por e-mail). Nasce desligado: só roda com NEXUS_AVISO_LIGADO=1 e NEXUS_AVISO_PHONE preenchida.',
+    regra: { tipo: 'liga', env: 'NEXUS_AVISO_LIGADO', valor: '1', trim: true, exige: ['NEXUS_AVISO_PHONE'] }, fonte: 'services/nexus/avisoComercial.ts',
+    robos: ['nexus_aviso_comercial'],
+  }),
+  e({
     id: 'grupo_equipe', nome: 'Assistente do grupo da equipe', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Atende comandos do time no grupo, quando chamado',
     papel: 'Dentro do grupo de consultores, atende comandos do time quando alguém a chama pelo nome: buscar lead, assumir a conversa, registrar agendamento manual, descartar. O cartão de agendamento também sai para esse grupo.',

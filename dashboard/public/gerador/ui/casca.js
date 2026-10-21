@@ -54,6 +54,7 @@
       { chave: 'nav-agenda', rotulo: 'Agenda' },
       { chave: 'nav-prospeccao', rotulo: 'Prospecção' },
       { chave: 'nav-cobrancas', rotulo: 'Cobranças' },
+      { chave: 'nav-parceiros', rotulo: 'Parceiros' },
       { chave: 'nav-agentes', rotulo: 'Agentes' },
       { chave: 'nav-automacao', rotulo: 'Automação' },
       { sep: true },
@@ -99,13 +100,13 @@
     /* gerador-ir: destino pedido por outra pagina (subapps) -> funcao de navegacao existente. */
     ir: { inicio: 'navInicio', solar: 'navGerador', eletroposto: 'navEletroposto', crm: 'navCRM', automacao: 'navAutomacao', sair: 'sairGerador', perfil: 'abrirMeuPerfil', 'perfil-equipe': 'abrirPerfisEquipe' },
     /* Ordem da barra lateral do index (a dos subapps repete esta). */
-    barra: ['nav-inicio', 'nav-solar', 'nav-eletroposto', 'nav-agenda', 'nav-crm', 'nav-prospeccao', 'nav-cobrancas', 'nav-agentes', 'nav-automacao'],
+    barra: ['nav-inicio', 'nav-solar', 'nav-eletroposto', 'nav-agenda', 'nav-crm', 'nav-prospeccao', 'nav-cobrancas', 'nav-parceiros', 'nav-agentes', 'nav-automacao'],
     /* Onde cada item mora. `index`: grava gerador-ir e abre /gerador limpo. `sub`: abre /gerador/<nome>. */
     destinos: {
       'nav-inicio': { index: 'inicio' }, 'nav-solar': { index: 'solar' }, 'nav-eletroposto': { index: 'eletroposto' },
       'nav-crm': { index: 'crm' }, 'nav-automacao': { index: 'automacao' }, 'sair': { index: 'sair' },
       'perfil': { index: 'perfil' }, 'perfil-equipe': { index: 'perfil-equipe' },
-      'nav-agenda': { sub: 'agenda' }, 'nav-prospeccao': { sub: 'prospeccao' }, 'nav-cobrancas': { sub: 'cobrancas' }, 'nav-agentes': { sub: 'agentes' }
+      'nav-agenda': { sub: 'agenda' }, 'nav-prospeccao': { sub: 'prospeccao' }, 'nav-cobrancas': { sub: 'cobrancas' }, 'nav-parceiros': { sub: 'parceiros' }, 'nav-agentes': { sub: 'agentes' }
     },
     /* Subapps conhecidos. `ativo`: item aceso (estados, radar e metricas acendem Eletroposto: nao ha item proprio).
        `sessao`: false = a pagina abre sem login (estados e radar).
@@ -116,6 +117,7 @@
       { nome: 'agenda', caminho: '/gerador/agenda', titulo: 'Agenda', ctx: 'Agendamentos da semana', ativo: 'nav-agenda', sessao: true, adotar: ['#btn-refresh'] },
       { nome: 'prospeccao', caminho: '/gerador/prospeccao', titulo: 'Prospecção', ctx: 'Fila de contatos', ativo: 'nav-prospeccao', sessao: true, adotar: ['#btn-refresh'] },
       { nome: 'cobrancas', caminho: '/gerador/cobrancas', titulo: 'Cobranças', ctx: 'Cobranças dos clientes', ativo: 'nav-cobrancas', sessao: true, adotar: ['#amb'], vazios: ['#amb'] },
+      { nome: 'parceiros', caminho: '/gerador/parceiros', titulo: 'Parceiros', ctx: 'Parceiros NEXUS', ativo: 'nav-parceiros', sessao: true, adotar: ['#btn-refresh'] },
       { nome: 'agentes', caminho: '/gerador/agentes', titulo: 'Agentes', ctx: 'Central das agentes', ativo: 'nav-agentes', sessao: true, adotar: ['#btn-refresh'] },
       { nome: 'estados', caminho: '/gerador/estados', titulo: 'Melhores lugares', area: 'Eletroposto', ativo: 'nav-eletroposto', sessao: false },
       { nome: 'radar', caminho: '/gerador/radar', titulo: 'Radar da prospecção', area: 'Eletroposto', ativo: 'nav-eletroposto', sessao: false },
@@ -139,6 +141,7 @@
     'nav-crm': '<line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path>',
     'nav-prospeccao': '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="23"></line><line x1="1" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="23" y2="12"></line>',
     'nav-cobrancas': '<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><line x1="6" y1="15" x2="10" y2="15"></line>',
+    'nav-parceiros': '<rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>',
     'nav-agentes': '<rect x="4" y="8" width="16" height="12" rx="3"></rect><line x1="12" y1="4" x2="12" y2="8"></line><circle cx="12" cy="3" r="1"></circle><line x1="9" y1="13" x2="9" y2="14"></line><line x1="15" y1="13" x2="15" y2="14"></line>',
     'nav-automacao': '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>',
     'sb-atualizar': '<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>'

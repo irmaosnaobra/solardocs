@@ -189,6 +189,20 @@
   flex-shrink: 0;
 }
 
+/* Selo "Novo" (ex.: Parceiro NEXUS). Mesmo tamanho do countBadge, em azul NEXUS. */
+.badgeNovo {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 133, 255, 0.16);
+  color: #7cc0ff;
+  border: 1px solid rgba(0, 133, 255, 0.4);
+  flex-shrink: 0;
+}
+
 .tripleBadge {
   margin-left: auto;
   display: inline-flex;
@@ -444,7 +458,7 @@
   .navDivider { width: auto; height: auto; background: none; padding: 12px 12px 4px; margin: 0; }
   .navDividerLabel { display: block; }
   .navDividerLabelAdmin { display: block; }
-  .countBadge, .tripleBadge, .externalIcon { display: inline-flex; }
+  .countBadge, .badgeNovo, .tripleBadge, .externalIcon { display: inline-flex; }
   .navItemActive::before { width: 3px; }
 
   /* revela a seção Conta mobile-only dentro do drawer */

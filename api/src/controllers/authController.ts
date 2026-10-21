@@ -395,13 +395,19 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const token = signToken(user.id);
 
+    // Portal do Parceiro NEXUS (origem 'nexus' no corpo): conta nasce sem as boas-vindas do SolarDoc e sem o Lead do
+    // Meta, para não contaminar as campanhas do SolarDoc. Só lê o corpo cru; o resto do cadastro não muda.
+    const origemNexus = String(corpo?.origem || '') === 'nexus';
+
     // Meta CAPI — Lead (server-side, deduplica com pixel client)
-    sendMetaEvent('Lead', {
-      eventId:   req.headers['x-meta-event-id'] as string | undefined,
-      email:     body.email,
-      ip:        req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+    if (!origemNexus) {
+      sendMetaEvent('Lead', {
+        eventId:   req.headers['x-meta-event-id'] as string | undefined,
+        email:     body.email,
+        ip:        req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+    }
 
     // Boas-vindas: WhatsApp (Giovanna) + email (Resend).
     // Quem COMPROU (stripePlan) recebe o pacote de compra (agradece + confirma
@@ -420,7 +426,7 @@ export async function register(req: Request, res: Response): Promise<void> {
         tasks.push(sendPurchaseWhatsApp(body.whatsapp, stripePlan.plano, body.nome || null).catch(() => {}));
       }
       tasks.push(sendPurchaseEmail({ to: body.email, userId: user.id, nome: body.nome || null, plano: stripePlan.plano }).catch(() => {}));
-    } else {
+    } else if (!origemNexus) {
       if (body.whatsapp) {
         whatsappAttempted = true;
         tasks.push(sendWelcomeWhatsApp(body.whatsapp, body.email, body.nome || null).catch(() => {}));
