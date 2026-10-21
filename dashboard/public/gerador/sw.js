@@ -1,5 +1,5 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
-// Scope limitado a /gerador/ pra nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o interferir no resto do app.
+// Scope limitado a /gerador/ pra não interferir no resto do app.
 const CACHE = 'gerador-propostas-v414';
 const PRECACHE = [
   '/gerador/',
@@ -58,19 +58,19 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  // SÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ intercepta requests do /gerador/ (scope limitado)
+  // Só intercepta requests do /gerador/ (scope limitado)
   const url = new URL(req.url);
-  // SÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ o que ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© deste site. A API (api.solardoc.app) tambÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©m tem caminho /gerador/...,
+  // Só o que é deste site. A API (api.solardoc.app) também tem caminho /gerador/...,
   // e resposta de API com login nunca pode ir para o cache: ficaria velha e seria
-  // entregue ao prÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ximo que entrasse no mesmo aparelho.
+  // entregue ao próximo que entrasse no mesmo aparelho.
   if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith('/gerador/')) return;
 
-  // NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o cacheia chamadas Supabase (sempre online)
+  // Não cacheia chamadas Supabase (sempre online)
   if (req.url.includes('supabase.co')) return;
   if (req.method !== 'GET') return;
 
-  // Network-first pro HTML (sempre pega versÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o fresca quando online)
+  // Network-first pro HTML (sempre pega versão fresca quando online)
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(req)
@@ -80,15 +80,15 @@ self.addEventListener('fetch', (e) => {
           return res;
         })
         .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (
-          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ dentro.
+          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lá dentro.
           url.pathname.startsWith('/gerador/clientes/')
-            ? new Response('Sem conexÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+            ? new Response('Sem conexão.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
             : caches.match('/gerador/index.html'))))
     );
     return;
   }
 
-  // Cache-first pros assets estÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ticos
+  // Cache-first pros assets estáticos
   e.respondWith(
     caches.match(req).then(r => r || fetch(req).then(res => {
       const copy = res.clone();
