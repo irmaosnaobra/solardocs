@@ -326,6 +326,7 @@ export default function ClientModal({ client, onClose, onSave, seed, notice }: C
                 <option value="Solo">Solo</option>
                 <option value="Carport">Carport</option>
                 <option value="Estrutura Metálica">Estrutura Metálica</option>
+                <option value="Iluminação pública">Iluminação pública</option>
                 <option value="Outro">Outro</option>
               </select>
             </div>

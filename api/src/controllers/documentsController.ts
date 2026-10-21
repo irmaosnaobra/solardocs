@@ -909,7 +909,7 @@ function nomeComparavel(nome: string | null | undefined): string {
 
 // Mesma lista do formulário (TIPOS_TELHADO em PropostaSolarForm.tsx). Telhado do
 // cadastro fora dela ("Fibromadeira") não entra: a proposta não tem essa opção.
-const TIPOS_TELHADO_PROPOSTA = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'];
+const TIPOS_TELHADO_PROPOSTA = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport', 'Iluminação pública'];
 
 interface ClienteCadastro {
   nome: string | null;

@@ -8,7 +8,7 @@ import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
-import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen } from 'lucide-react';
+import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, Lightbulb, FileText, LineChart, BookOpen } from 'lucide-react';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -56,9 +56,10 @@ const ICONE_TELHADO: Record<string, React.ComponentType<{ size?: number; classNa
   'Laje': Grid3x3,
   'Solo': Mountain,
   'Carport': Car,
+  'Iluminação pública': Lightbulb,
 };
 
-const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'] as const;
+const TIPOS_TELHADO = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport', 'Iluminação pública'] as const;
 
 const initialFields = {
   paleta: 'solar' as string, // 'solar'|'oceano'|... | 'custom' | 'empresa'

@@ -377,6 +377,14 @@ describe('GET /documents/proposta-prefill', () => {
     });
   });
 
+  it('telhado "Iluminação pública" do cadastro chega igual na proposta', async () => {
+    await mockFontes([], [{ nome: 'Prefeitura', cidade: 'Uberlândia', uf: 'MG', endereco: null, tipo_telhado: 'Iluminação pública' }]);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Prefeitura' }).set('Authorization', AUTH);
+
+    expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', tipo_telhado: 'Iluminação pública' });
+  });
+
   it('telhado que a proposta não tem fica de fora', async () => {
     await mockFontes([], [{ nome: 'Jeziel', cidade: 'Campina Grande', uf: 'PB', endereco: null, tipo_telhado: 'Fibromadeira' }]);
 
