@@ -55,7 +55,9 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isHome = pathname === '/';
-  const isPublicPath = isHome || PUBLIC_PATHS.some(path => pathname.startsWith(path));
+  // '/pix' = o link curto do Pix que a Carla manda (src/app/pix/route.ts, redireciona pro checkout
+  // da Kiwify). EXATO, não prefixo: o prefixo abriria /pix-recorrente, que é rota logada.
+  const isPublicPath = isHome || pathname === '/pix' || PUBLIC_PATHS.some(path => pathname.startsWith(path));
 
   // Antes existia um curto-circuito VSL → cadastro: quem vinha da /apresentacao
   // era jogado direto no /auth?mode=register&plano=vip, pulando a LP. Removido:

@@ -7,6 +7,7 @@ import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 import { novoAnthropic } from "../../../utils/anthropicClient";
 import { hmacDe, idChaveHmac } from '../../agentes5040/hmac';
+import { tentarBonusPosPagamento } from '../../agentes5040/planilhaBonus';
 import {
   lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente, marcarAvisoFalhaPendente, PixSolicitado, chaveTelefone,
 } from './pixSolicitado';
@@ -703,6 +704,18 @@ export async function aplicarPagamentoPix(a: {
   // senão a Giovanna seguiria desmentindo a liberação com o bloco velho no prompt.
   const aceito = async (res: ResultadoPagamento): Promise<ResultadoPagamento> => {
     await apagarHandoffComprovante(cleanPhone);
+    // BÔNUS DA PLANILHA (Carla, B3c): só quando LIBEROU, e aqui o acesso, o crédito, a confirmação ao
+    // cliente e o aviso ao Thiago já foram. Só registra o direito (nada é enviado); nunca lança, tem
+    // prazo curto e não toca no resultado devolvido.
+    // E só quando o valor pago é o do plano (>= R$ 67): a entrada de R$ 19 (e o antigo R$ 27/49 da tabela)
+    // não conta. O dia do fechamento é o de agora (o comprovante é lido na hora em que chega).
+    if (res.resultado === 'liberou' && emCentavos(res.total) >= CENT_RENOVACAO) {
+      try {
+        await tentarBonusPosPagamento({ userId: user.id, email: user.email, telefone: cleanPhone, origem: 'pix_comprovante' });
+      } catch (err) {
+        logger.error('pix-comprovante', 'bônus da planilha falhou (pagamento intacto)', err);
+      }
+    }
     return res;
   };
 

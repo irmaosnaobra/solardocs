@@ -110,8 +110,13 @@ vi.mock('../utils/mailer', () => ({
   sendOpsAlert: vi.fn(async (assunto: string, corpo: string) => { alertas.push({ assunto, corpo }); }),
 }));
 
+// Gancho do bônus da planilha (Carla): aqui só interessa SE e COMO é chamado, e que o pagamento não muda.
+const bonusMock = vi.hoisted(() => ({ tentar: vi.fn(async (_a: any) => true) }));
+vi.mock('../services/agentes5040/planilhaBonus', () => ({ tentarBonusPosPagamento: bonusMock.tentar }));
+
 import {
   classificarProdutoKit,
+  instanteDoPagamentoKiwify,
   processarEventoKit,
   acessoDoUsuario,
   concederCursoPorAssinatura,
@@ -415,6 +420,69 @@ describe('processarEventoKit — mês avulso no Pix (R$67)', () => {
     expect(enviadosMesPix[0].contaNova).toBe(false);
     // Nada de e-mail do kit: ele não comprou curso nenhum.
     expect(enviados).toHaveLength(0);
+  });
+
+  it('bônus da planilha: chamado UMA vez, no mês pago, depois do acesso gravado', async () => {
+    bonusMock.tentar.mockClear();
+    bonusMock.tentar.mockImplementationOnce(async () => {
+      // quando o gancho roda, o acesso e o pedido já estão gravados
+      expect(db.users[0].plano).toBe('ilimitado');
+      expect(db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-67')!.trial_vip_ate).toBeTruthy();
+      return true;
+    });
+    await processarEventoKit(mes());
+    expect(bonusMock.tentar).toHaveBeenCalledTimes(1);
+    expect(bonusMock.tentar.mock.calls[0]![0]).toMatchObject({ email: EMAIL, origem: 'kiwify_pix', userId: db.users[0].id });
+    // reentrega do mesmo pedido pago: o gancho não roda de novo
+    await processarEventoKit(mes());
+    expect(bonusMock.tentar).toHaveBeenCalledTimes(1);
+  });
+
+  it('bônus da planilha: o dia é o da hora do PAGAMENTO no payload (approved_date), não o do webhook', async () => {
+    bonusMock.tentar.mockClear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-21T03:01:00Z')); // webhook às 00:01 de Brasília
+    try {
+      await processarEventoKit(mes({ payload: { approved_date: '2026-10-21 02:59' } })); // 23:59 BRT do dia 20
+    } finally { vi.useRealTimers(); }
+    expect(bonusMock.tentar).toHaveBeenCalledTimes(1);
+    expect((bonusMock.tentar.mock.calls[0]![0] as any).agora).toEqual(new Date('2026-10-21T02:59:00Z'));
+  });
+
+  it('instanteDoPagamentoKiwify: approved_date, depois updated_at; nunca created_at; ruim cai na hora atual', () => {
+    const agora = new Date('2026-10-21T12:00:00Z');
+    expect(instanteDoPagamentoKiwify({ approved_date: '2026-10-21 11:30' }, agora)).toEqual(new Date('2026-10-21T11:30:00Z'));
+    expect(instanteDoPagamentoKiwify({ approved_date: '2026-10-21T08:00:00-03:00' }, agora)).toEqual(new Date('2026-10-21T11:00:00Z'));
+    expect(instanteDoPagamentoKiwify({ updated_at: '2026-10-21 10:00' }, agora)).toEqual(new Date('2026-10-21T10:00:00Z'));
+    expect(instanteDoPagamentoKiwify({ created_at: '2026-10-21 10:00' }, agora)).toEqual(agora);
+    expect(instanteDoPagamentoKiwify({ approved_date: 'lixo' }, agora)).toEqual(agora);
+    expect(instanteDoPagamentoKiwify({ approved_date: '2026-10-22 09:00' }, agora)).toEqual(agora); // futuro
+    expect(instanteDoPagamentoKiwify({ approved_date: '2026-10-10 09:00' }, agora)).toEqual(agora); // velho demais
+    expect(instanteDoPagamentoKiwify(null, agora)).toEqual(agora);
+  });
+
+  it('bônus da planilha não é chamado em Pix pendente nem em outro produto', async () => {
+    bonusMock.tentar.mockClear();
+    await processarEventoKit(mes({ status: 'waiting_payment' }));
+    await processarEventoKit(evento({ orderId: 'ORDER-KIT' }));
+    expect(bonusMock.tentar).not.toHaveBeenCalled();
+  });
+
+  it('bônus da planilha que LANÇA (síncrono ou assíncrono) não muda o pagamento', async () => {
+    for (const falha of [
+      () => { throw new Error('bônus quebrou'); },
+      async () => { throw new Error('bônus quebrou depois'); },
+    ]) {
+      db.users = []; db.kit_pedidos = []; emails.clear(); enviadosMesPix.length = 0;
+      bonusMock.tentar.mockImplementationOnce(falha as any);
+      const r = await processarEventoKit(mes());
+      expect(r.acao).toBe('acesso_liberado');
+      expect(r.ok).toBe(true);
+      expect(db.users[0].plano).toBe('ilimitado');
+      expect(db.users[0].billing_status).toBe('active');
+      expect(enviadosMesPix).toHaveLength(1);
+      expect(db.kit_pedidos[0].status).toBe('paid');
+    }
   });
 
   it('reentrega da Kiwify não estende o acesso nem repete o e-mail', async () => {

@@ -15,6 +15,7 @@ import { pixCheckoutUrl, PIX_MES_VALOR, pixPublicoAtivo } from '../utils/pixInfo
 import { asaasHabilitado } from '../services/asaas/asaasClient';
 import { resolverPrecoAnual, precoAnualConhecido, ANUAL_VALOR, ANUAL_EQUIV_MES, FERRAMENTAS_DO_ANUAL } from '../services/precoAnual';
 import { concederAcesso } from '../services/produtos/acessos';
+import { tentarBonusPosPagamento } from '../services/agentes5040/planilhaBonus';
 import {
   buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
   registrarUsoCupom, resumoPublicoCupom, normalizarCodigo, CupomAplicado,
@@ -796,6 +797,16 @@ export function getPixCheckoutInfo(_req: Request, res: Response): void {
   });
 }
 
+/**
+ * GET /payments/pix-url (sem auth). Só a URL do checkout Pix da Kiwify (env SOLARDOC_PIX_CHECKOUT_URL,
+ * lida a cada chamada), ou null. Só https: qualquer outra coisa vira null, porque o dashboard
+ * REDIRECIONA para este valor (rota /pix) e uma env torta não pode virar redirecionamento estranho.
+ */
+export function getPixUrl(_req: Request, res: Response): void {
+  const url = pixCheckoutUrl();
+  res.json({ url: /^https:\/\/[^\s]+$/i.test(url) ? url : null });
+}
+
 export async function getCheckoutInfo(req: Request, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
@@ -1267,6 +1278,23 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         });
       } catch (err) {
         console.error('ledger/Purchase falhou (pagamento intacto):', err);
+      }
+
+      // ═══════════ BÔNUS DA PLANILHA (Carla, B3c) ═══════════
+      // Por ÚLTIMO e isolado: o plano, o ledger e o Purchase já estão gravados. Só REGISTRA o
+      // direito de quem fechou no mesmo dia da promessa (nada é enviado). Nunca lança, tem prazo
+      // curto e não toca em status, valor, plano nem liberação.
+      try {
+        await tentarBonusPosPagamento({
+          userId: userId ?? null,
+          email: email ?? null,
+          telefone: ((session.customer_details as any)?.phone as string | null) ?? null,
+          origem: 'stripe',
+          // O dia do fechamento é o do PAGAMENTO (event.created), não o do processamento do webhook.
+          agora: typeof event.created === 'number' ? new Date(event.created * 1000) : undefined,
+        });
+      } catch (err) {
+        console.error('[bonus-planilha] gancho falhou (pagamento intacto):', err);
       }
     }
   }

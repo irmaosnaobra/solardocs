@@ -119,6 +119,9 @@ vi.mock('../services/agents/zapiClient', () => ({
 vi.mock('../services/agents/whatsapp/biaInboundService', () => ({ ehLeadRecuperacao: vi.fn(async () => false) }));
 vi.mock('../services/agents/whatsapp/pausaHumana', () => ({ podeFalarComLead: vi.fn(async () => ({ pode: true })) }));
 vi.mock('../services/kitIntegradorService', () => ({ concederCursoPorAssinatura: vi.fn(async () => {}) }));
+// Gancho do bônus da planilha (Carla): aqui só interessa SE e COMO é chamado, e que o pagamento não muda.
+const bonusMock = vi.hoisted(() => ({ tentar: vi.fn(async (_a: any) => true) }));
+vi.mock('../services/agentes5040/planilhaBonus', () => ({ tentarBonusPosPagamento: bonusMock.tentar }));
 
 import { sendHuman, sendWhatsApp } from '../services/agents/zapiClient';
 import {
@@ -141,6 +144,10 @@ const LEO1 = {
 const AND3 = {
   is_comprovante: true, valor: 69.9, recebedor_nome: 'SEND CRISTTINY LIMA SANTOS DE A', recebedor_documento: '60453375000139',
   data: '2026-10-07', id_transacao: 'E607469482026100801I7A3980A7OMjI',
+};
+const PLANO67 = {
+  is_comprovante: true, valor: 67, recebedor_nome: 'Aioros Group Ltda', recebedor_documento: '63636043000188',
+  data: '2026-10-19', id_transacao: 'E0041696820261019194099uHT9pUwumly',
 };
 const NAO_COMPROVANTE = { is_comprovante: false };
 
@@ -209,6 +216,64 @@ describe('número desconhecido manda comprovante', () => {
     expect(t).not.toMatch(/redefinir|token/);
     // O telefone foi gravado na conta (estava vazio e ninguém mais o usa).
     expect(db.users[0]!.whatsapp).toBe(TEL_FORMATO_USERS);
+  });
+
+  it('1-bônus. libera e chama o gancho do bônus da planilha uma vez, depois do acesso e da confirmação', async () => {
+    leitura = PLANO67;
+    bonusMock.tentar.mockClear();
+    bonusMock.tentar.mockImplementationOnce(async () => {
+      expect(db.users[0]!.plano).toBe('ilimitado'); // acesso já liberado
+      expect(enviadas()).toHaveLength(1); // confirmação ao cliente já saiu
+      return true;
+    });
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
+    expect(bonusMock.tentar).toHaveBeenCalledTimes(1);
+    expect(bonusMock.tentar.mock.calls[0]![0]).toMatchObject({ userId: 'u1', email: 'leoimplant@gmail.com', telefone: TEL, origem: 'pix_comprovante' });
+  });
+
+  it('1-bônus-erro. gancho que LANÇA (síncrono ou assíncrono) não muda a liberação nem a confirmação', async () => {
+    for (const falha of [
+      () => { throw new Error('bônus quebrou'); },
+      async () => { throw new Error('bônus quebrou depois'); },
+    ]) {
+      db.system_state = []; db.users = [conta()]; (sendHuman as any).mockClear();
+      leitura = PLANO67;
+      bonusMock.tentar.mockImplementationOnce(falha as any);
+      const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
+      expect(r).toBe(true);
+      expect(db.users[0]).toMatchObject({ plano: 'ilimitado', limite_documentos: 999999, billing_status: 'active' });
+      expect(chaves().some((k) => k.startsWith('pix_e2e:E00416968202610191940'))).toBe(true);
+      expect(enviadas()).toHaveLength(1);
+      expect(textoEnviado()).toContain('liberei');
+    }
+  });
+
+  it('1-bônus-duplicado. reenvio do mesmo comprovante (duplicado) NÃO chama o gancho de novo', async () => {
+    bonusMock.tentar.mockClear();
+    leitura = PLANO67;
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
+    expect(bonusMock.tentar).toHaveBeenCalledTimes(1);
+    // reenvio do mesmo comprovante: duplicado, não libera de novo, não chama de novo
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
+    expect(bonusMock.tentar).toHaveBeenCalledTimes(1);
+  });
+
+  it('1-bônus-19. a entrada de R$ 19 libera, mas NÃO chama o gancho do bônus (só vale o valor do plano, >= 67)', async () => {
+    leitura = { ...LEO2, valor: 19, id_transacao: 'E0041696820261019194011111111' };
+    bonusMock.tentar.mockClear();
+    const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
+    expect(r).toBe(true);
+    expect(db.users[0]!.plano).not.toBe('free'); // liberou
+    expect(enviadas()).toHaveLength(1);
+    expect(bonusMock.tentar).not.toHaveBeenCalled();
+  });
+
+  it('1-bônus-27. o R$ 27 da tabela antiga também não conta', async () => {
+    leitura = LEO2;
+    bonusMock.tentar.mockClear();
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
+    expect(db.users[0]!.plano).toBe('pro');
+    expect(bonusMock.tentar).not.toHaveBeenCalled();
   });
 
   it('1b. legenda da foto com o e-mail também vale, e sem razão social não sobra vírgula', async () => {

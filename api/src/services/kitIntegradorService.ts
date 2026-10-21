@@ -20,6 +20,7 @@ import { supabase } from '../utils/supabase';
 import { sendKitAcessoEmail, sendFerramentaAcessoEmail, sendMesPixAcessoEmail, sendOpsAlert } from '../utils/mailer';
 import { liberarOffGrid, OFFGRID_PRODUTO_REGEX, OFFGRID_ADDON_PRECO } from './offgrid/acesso';
 import { concederAcesso } from './produtos/acessos';
+import { tentarBonusPosPagamento } from './agentes5040/planilhaBonus';
 
 /** Dias de VIP concedidos por quem leva o order bump. */
 export const KIT_BUMP_TRIAL_DIAS = 30;
@@ -106,6 +107,25 @@ export function classificarProdutoKit(
   if (/invent[áa]rio\s*(da\s*)?empresa(rial)?/i.test(nome)) return 'inventario';
   if (RE_KIT.test(nome)) return 'kit';
   return null;
+}
+
+/**
+ * O instante do PAGAMENTO no payload da Kiwify: `approved_date`, senão `updated_at` (nunca `created_at`,
+ * que no Pix é a criação do pedido, horas antes do pagamento). Com fuso (ISO) vale como veio; sem fuso
+ * ("2026-10-21 23:59"), a Kiwify manda em UTC. Campo ausente, ilegível, no futuro ou com mais de 36 h:
+ * a hora atual (o gancho só usa isto para decidir o DIA do fechamento).
+ */
+export function instanteDoPagamentoKiwify(payload: Record<string, unknown> | null | undefined, agora: Date = new Date()): Date {
+  for (const campo of ['approved_date', 'updated_at']) {
+    const bruto = String((payload ?? {})[campo] ?? '').trim();
+    if (!bruto) continue;
+    const iso = /(Z|[+-]\d{2}:?\d{2})$/i.test(bruto) ? bruto.replace(' ', 'T') : bruto.replace(' ', 'T') + 'Z';
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) continue;
+    if (t > agora.getTime() + 5 * 60_000 || t < agora.getTime() - 36 * 3600_000) continue;
+    return new Date(t);
+  }
+  return agora;
 }
 
 // ── Entrada normalizada (o webhook faz o parse, este service faz a regra) ────
@@ -456,6 +476,17 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
 
   // 'ja_processado' só quando o pedido JÁ estava pago antes — reentrega pura.
   const jaEstavaPago = pedidoExistente?.status === 'paid';
+
+  // BÔNUS DA PLANILHA (Carla, B3c): só mês avulso no Pix, na 1ª vez que o pedido paga, e DEPOIS de
+  // acesso, e-mail e pedido já gravados. Só registra o direito (nada é enviado); nunca lança, tem
+  // prazo curto e não toca em status, valor, plano nem na resposta abaixo.
+  if (evt.item === 'mes_pix' && !jaEstavaPago) {
+    try {
+      await tentarBonusPosPagamento({ userId, email, telefone: evt.telefone, origem: 'kiwify_pix', agora: instanteDoPagamentoKiwify(evt.payload) });
+    } catch (err) {
+      console.error('[kit] bônus da planilha falhou (pagamento intacto):', err);
+    }
+  }
 
   return {
     ok: true,
