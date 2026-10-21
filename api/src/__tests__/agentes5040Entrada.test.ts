@@ -330,14 +330,55 @@ describe('assumirNaEntrada: idempotência (webhook, fila e poll veem a mesma men
   });
 });
 
-describe('assumirNaEntrada: quem a porta NÃO assume nesta fase', () => {
-  it('(f) o porteiro decide a Helena (anúncio de eletroposto): false e nada gravado, mesmo com helena_vivo ligado', async () => {
+describe('assumirNaEntrada: a Helena (B2, eletroposto)', () => {
+  const donaDaPosse = () => (posses()[0]?.lead_data as { dona?: string } | undefined)?.dona;
+
+  it('(h) o porteiro decide a Helena (anúncio de eletroposto) com helena_vivo ligado e o lead no escopo: a posse nasce da Helena e o robô antigo cala', async () => {
     env({ DUDA: '1', HELENA: '1' }); alvo();
+    h.moc.produtoDaCampanha = 'eletroposto';
+    expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD, waId: 11 })).toBe(true);
+    expect(posses()).toHaveLength(1);
+    expect(donaDaPosse()).toBe('helena');
+    expect((posses()[0]!.lead_data as { ate_wa_id: number }).ate_wa_id).toBe(10);
+    expect(inserts()).toBe(1);
+  });
+
+  it('(h) só helena_vivo ligado: a Helena assume sozinha (a Duda desligada não é pré-requisito)', async () => {
+    env({ HELENA: '1' }); alvo();
+    h.moc.produtoDaCampanha = 'eletroposto';
+    expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD })).toBe(true);
+    expect(donaDaPosse()).toBe('helena');
+  });
+
+  it('(h) helena_vivo desligado, mesmo com a Duda ligada: o porteiro decide a Helena e a porta NÃO assume (false, nada gravado)', async () => {
+    env({ DUDA: '1' }); alvo();
     h.moc.produtoDaCampanha = 'eletroposto';
     expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD })).toBe(false);
     expect(posses()).toHaveLength(0);
     expect(inserts()).toBe(0);
   });
+
+  it('(h) lead fora do escopo da Helena (hmac fora da lista): false, nada gravado', async () => {
+    env({ DUDA: '1', HELENA: '1' }); alvo();
+    h.moc.produtoDaCampanha = 'eletroposto';
+    expect(await assumirNaEntrada(Y, { texto: 'oi', anuncio: AD })).toBe(false);
+    expect(posses()).toHaveLength(0);
+  });
+
+  it('(h) o porteiro decide a Duda com as duas ligadas: a posse é da Duda, não da Helena', async () => {
+    env({ DUDA: '1', HELENA: '1' }); alvo(); fatos({ origemCadastro: 'lp_solar' });
+    expect(await assumirNaEntrada(X, { texto: BOTAO_SOLAR })).toBe(true);
+    expect(donaDaPosse()).toBe('duda');
+  });
+
+  it('(h) posse da Helena já gravada: a porta cede (true) e não insere outra', async () => {
+    env({ HELENA: '1' }); alvo(); posse('helena', 'viva');
+    expect(await assumirNaEntrada(X, { texto: 'oi' })).toBe(true);
+    expect(inserts()).toBe(0);
+  });
+});
+
+describe('assumirNaEntrada: quem a porta NÃO assume nesta fase', () => {
 
   it('(f) o porteiro decide a Carla (anúncio do SolarDoc): false e nada gravado, mesmo com carla_vivo ligado', async () => {
     env({ DUDA: '1', CARLA: '1' }); alvo();
@@ -350,7 +391,7 @@ describe('assumirNaEntrada: quem a porta NÃO assume nesta fase', () => {
     env({ HELENA: '1' }); alvo(); fatos({ origemCadastro: 'lp_solar' });
     expect(await assumirNaEntrada(X, { texto: BOTAO_SOLAR })).toBe(false);
     expect(posses()).toHaveLength(0);
-    expect(h.fns.lerConversa).not.toHaveBeenCalled();
+    expect(inserts()).toBe(0);
   });
 
   it('(g) passo 7 (sem sinal do assunto), Giovanna (cliente do SolarDoc) e outro robô antigo na conversa: false, nada gravado', async () => {

@@ -12,9 +12,10 @@
 //   1. nenhum *_vivo ligado: false, sem leitura no banco;
 //   2. lead fora do escopo de toda dona ligada: false, sem ler a posse;
 //   3. já tem posse: o mesmo que cedeAAgente;
-//   4. sem posse: porteiro. Nesta fase a porta só assume a DUDA. Helena, Carla, Giovanna,
-//      passo 7 (pergunta), ninguém ou outro robô antigo na conversa = false (o antigo faz como hoje).
-//      Dona duda e agenteAtendeEste('duda') = assumirPosse por INSERT; 'assumida' = true; 'ja_tinha_dona'
+//   4. sem posse: porteiro. A porta assume a DUDA e a HELENA (B2): a dona que o porteiro escolhe só vale se o
+//      interruptor dela está ligado e o lead está no escopo dela. Carla, Giovanna, passo 7 (pergunta), ninguém
+//      ou outro robô antigo na conversa = false (o antigo faz como hoje).
+//      Dona duda/helena e agenteAtendeEste(dona) = assumirPosse por INSERT; 'assumida' = true; 'ja_tinha_dona'
 //      (23505: webhook, fila e poll viram a mesma mensagem) = o que o cedeAAgente diz da posse que a
 //      outra entrada gravou (viva = true); 'erro' = false;
 //   5. qualquer erro de leitura sem posse: false. Falha da porta nunca deixa o lead sem resposta.
@@ -106,8 +107,10 @@ export async function assumirNaEntrada(telefone: string | null | undefined, dado
     if (await cedeAAgente(telefone)) return true;
 
     // false pode ser "sem posse" ou "posse que não cede" (encerrada, de outra dona): só assume quem não tem NENHUMA.
-    // A porta só assume a Duda: sem ela ligada para este lead, nada mais a fazer (zero leitura de posse).
-    if (!(await agenteAtendeEste('duda', telefone))) return false;
+    // A porta assume a Duda e a Helena: sem nenhuma das duas ligada para este lead, nada mais a fazer (zero leitura de posse).
+    const podeDuda = await agenteAtendeEste('duda', telefone);
+    const podeHelena = await agenteAtendeEste('helena', telefone);
+    if (!podeDuda && !podeHelena) return false;
     const chave = chaveDaPosse(telefone);
     if (!chave) return false;
     // Posse que apareceu entre o cedeAAgente e esta leitura (a outra entrada foi mais rápida): vale o mesmo critério dele.
@@ -133,12 +136,14 @@ export async function assumirNaEntrada(telefone: string | null | undefined, dado
 
     const fatos = await lerFatosPorteiro(chave, msgs, anuncio.anuncio, { completa: true });
     const decisao = decidirDona(fatos);
-    if (decisao.dona !== 'duda') return false;
+    const dona: 'duda' | 'helena' | null =
+      decisao.dona === 'duda' && podeDuda ? 'duda' : decisao.dona === 'helena' && podeHelena ? 'helena' : null;
+    if (!dona) return false;
     // O mesmo escopo, de novo, no instante de gravar (o cache de 60 s pode ter virado durante as leituras).
-    if (!(await agenteAtendeEste('duda', telefone))) return false;
+    if (!(await agenteAtendeEste(dona, telefone))) return false;
 
     const ateWaId = typeof dados.waId === 'number' && Number.isFinite(dados.waId) ? dados.waId - 1 : null;
-    const r = await assumirPosse(chave, 'duda', ateWaId, ancoraDaPosse(dados.momento) ?? undefined);
+    const r = await assumirPosse(chave, dona, ateWaId, ancoraDaPosse(dados.momento) ?? undefined);
     if (r === 'erro') return false;
     // 'ja_tinha_dona' (23505) = a outra entrada gravou primeiro; a posse é dela e cala o antigo do mesmo jeito.
     return r === 'assumida' ? true : await cedeAAgente(telefone);

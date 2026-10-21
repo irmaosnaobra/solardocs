@@ -5,7 +5,8 @@
 // Este arquivo NÃO importa o zapiClient. Só alcança o envio por dois lugares: vivoEnvio.ts (a fala ao lead,
 // com todas as condições do chefe-antiban) e fichaEnvio.ts (a ficha ao consultor).
 //
-// Nesta fase só a Duda responde: helena_vivo e carla_vivo são ignorados aqui, como na porta (entrada.ts).
+// Nesta fase a Duda e a Helena (B2, eletroposto) respondem: carla_vivo é ignorado aqui, como na porta (entrada.ts). As regras da
+// Helena (ordem com o ep_respostas, quem cala, o card sem card) moram em helenaEp.ts e rodam ANTES da IA.
 //
 // Rodada, na ordem:
 //   · nenhuma dona da rodada ligada: sai, e a única leitura foi a do interruptor (cache de 60 s);
@@ -79,6 +80,11 @@ import {
   telefoneDoDono, tetoDaLinhaPermiteFicha,
 } from './fichaEnvio';
 import { hmacDe } from './hmac';
+import {
+  PREFIXO_PRESENCA, acharVagaEp, aindaLivreEp, bolhaCardCriado, bolhaPresencaAnotada, bolhaSemDetalhe, cardResumoDe, consultorDoCardNovo,
+  CONSULTORES_EP, fichaDoCardEp, funcoesEp, gravarCardSeNaoHouver, pendenciaEpDevida, provaDaPresenca, regrasDaHelena, situacaoDaConfirmacao,
+  pedeRemarcar, vagasDoConsultor, violacaoDaBolha, type EpMarcou, type Veredicto,
+} from './helenaEp';
 import type { ClienteIA } from './ia';
 import type { DonaViva } from './interruptores';
 import { ehMidia } from './midia';
@@ -93,6 +99,7 @@ import type { CardResumo, ContextoLead, Persona, SaidaAgente } from './tipos';
 import { enviarResposta, type ResultadoEnvio } from './vivoEnvio';
 import type { DecisaoPorteiro } from './porteiro';
 import { caminhoDaFicha } from '../agenda/solarRota';
+import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const LOG = 'vivo-5040';
 
@@ -149,10 +156,17 @@ export const ACOES_COM_FERRAMENTA: readonly string[] = [
  */
 export const BOLHA_PASSAGEM_GENERICA = 'Vou deixar a consultora cuidar daqui. Já mandei a nossa conversa toda pra ela, e ela te responde por aqui mesmo em breve.';
 export const BOLHA_PASSAGEM_AGENDA = 'Pra acertar o horário, a consultora fala com você. Já mandei a nossa conversa pra ela, e ela te chama por aqui em breve.';
+/** As mesmas bolhas, no masculino: os consultores do eletroposto são o Thiago e o Diego (COPY PARA O REDATOR). */
+export const BOLHA_PASSAGEM_GENERICA_EP = 'Vou passar a conversa pro consultor. Já mandei tudo o que a gente falou, e ele te responde por aqui em breve.';
+export const BOLHA_PASSAGEM_AGENDA_EP = 'Pra acertar o horário, o consultor fala com você. Já mandei a conversa pra ele, e ele te chama por aqui em breve.';
 const ACOES_DE_AGENDA: readonly string[] = ['marcar_horario', 'remarcar_horario'];
 /** As ações que a Duda executa de verdade na B1d-2c (o resto de ACOES_COM_FERRAMENTA segue virando ficha e passagem). */
 const ACOES_DA_DUDA_COM_AGENDA: readonly string[] = ['marcar_horario', 'ligar_agora', 'suporte_giovanna'];
-const bolhaDaPassagem = (acao?: string): string => (acao && ACOES_DE_AGENDA.includes(acao) ? BOLHA_PASSAGEM_AGENDA : BOLHA_PASSAGEM_GENERICA);
+const bolhaDaPassagem = (acao?: string, dona?: string): string => {
+  const agenda = !!acao && ACOES_DE_AGENDA.includes(acao);
+  if (dona === 'helena') return agenda ? BOLHA_PASSAGEM_AGENDA_EP : BOLHA_PASSAGEM_GENERICA_EP;
+  return agenda ? BOLHA_PASSAGEM_AGENDA : BOLHA_PASSAGEM_GENERICA;
+};
 
 const MOTIVO_LEGIVEL: Record<string, string> = {
   prazo: 'o cliente esperou mais de 15 minutos sem resposta',
@@ -160,7 +174,10 @@ const MOTIVO_LEGIVEL: Record<string, string> = {
   falha_ia: 'a agente não conseguiu responder por falha técnica',
   trava: 'a agente não achou uma resposta segura para dar',
   pediu_humano: 'o cliente pediu para falar com uma pessoa',
+  helena_remarcar: 'o cliente pediu para remarcar ou cancelar e nenhum robô da agenda cobre este card',
+  helena_sem_confirmacao: 'a confirmação oficial da reunião não saiu em 10 minutos',
 };
+const NOME_DA_DONA: Record<string, string> = { duda: 'Duda', helena: 'Helena', carla: 'Carla' };
 
 export interface OpcoesVivo {
   dry?: boolean;
@@ -317,6 +334,8 @@ interface G {
   cliente: ClienteIA;
   estado: EstadoCota;
   semModelo: boolean;
+  /** As donas ligadas nesta rodada (as pendências de tempo só rodam para elas). */
+  donas: readonly string[];
 }
 
 export async function runVivoTick(opts: OpcoesVivo = {}): Promise<RelatorioVivo> {
@@ -352,7 +371,7 @@ export async function runVivoTick(opts: OpcoesVivo = {}): Promise<RelatorioVivo>
     };
     // Cota PRÓPRIA da resposta viva ('resposta', 300/dia): o ensaio sombra ('vivo', 120/dia) não gasta a dela.
     const { cliente, estado } = clienteComCota(dry ? 'dry' : 'resposta', () => new Date(), lazy, inicio + LIMITES_VIVO.prazoEnvioMs);
-    const g: G = { agora, agoraEnvio: () => opts.agora ?? new Date(), dry, inicio, r, cliente, estado, semModelo };
+    const g: G = { agora, agoraEnvio: () => opts.agora ?? new Date(), dry, inicio, r, cliente, estado, semModelo, donas: donas as readonly string[] };
 
     // 2b. a abertura do card do quiz (B1d-3). Só a Duda, sem IA (não depende do disjuntor). Erro aqui nunca derruba a rodada.
     if ((donas as readonly string[]).includes('duda')) await abrirCardsDoQuiz(g);
@@ -384,7 +403,7 @@ export async function runVivoTick(opts: OpcoesVivo = {}): Promise<RelatorioVivo>
     // Pendências de tempo (volta honesta e reenvio do suporte) e a fila de agenda. Nada disso gasta o modelo.
     // Linha com problema (erro_linha): a rodada para por inteiro e as pendências esperam a próxima (2 min). A fila de agenda
     // NÃO é entregue aqui: tem rota e relógio próprios (/cron/agentes-5040/agenda, agendaEnvio.runAgendaTick).
-    if ((donas as readonly string[]).includes('duda') && r.parou !== 'erro_linha' && Date.now() - inicio <= LIMITES_VIVO.prazoEnvioMs) await varrerPendencias(g);
+    if (((donas as readonly string[]).includes('duda') || (donas as readonly string[]).includes('helena')) && r.parou !== 'erro_linha' && Date.now() - inicio <= LIMITES_VIVO.prazoEnvioMs) await varrerPendencias(g);
     return r;
   } catch (e) {
     logger.error(LOG, `a rodada falhou (${codigoDe(e)})`);
@@ -574,13 +593,45 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
   const idade = agoraMs - Date.parse(L.momment);
   if (!Number.isFinite(idade)) { soma(r.puladas, 'momento_invalido'); return 'seguir'; }
   if (idade < LIMITES_VIVO.rajadaMs) { soma(r.puladas, 'rajada'); return 'seguir'; }
-  if (r.processadas >= LIMITES_VIVO.maxConversas) { soma(r.puladas, 'limite_de_conversas'); return 'seguir'; }
 
-  const tel = await telefoneParaEnviar(chave, L.id);
   const base = { hmac8, wa_id: L.id, dona };
   const dec = (d: Partial<DecisaoVivo> & { resultado: string }): void => {
     r.decisoes.push({ ...base, acao: null, motivo: null, n_bolhas: 0, tamanho: 0, ...d });
   };
+
+  // 3b. A HELENA (B2): as regras que vêm antes de tudo (limite de conversas, prazo, vez e IA). Cala e espera não gastam nada.
+  // Espera passa dos 15 min = o robô da agenda não leu a tempo: cai no prazo abaixo, que passa ao humano com ficha.
+  let preparoH: Extract<Veredicto, { tipo: 'seguir' }> | null = null;
+  const textosDaFala = ultimoBlocoDoLead(msgs).map(m => String(m.texto ?? '').trim()).filter(Boolean);
+  if (dona === 'helena') {
+    const v = await regrasDaHelena({ chave, fala: L, textos: textosDaFala, agoraMs });
+    if (v.tipo === 'cala') {
+      if (!dry) await atualizarPosse(chave, { ate_wa_id: L.id });
+      soma(r.puladas, `helena_cala_${v.motivo}`);
+      dec({ resultado: 'calou', motivo: v.motivo });
+      return 'seguir';
+    }
+    if (v.tipo === 'espera' && idade <= LIMITES_VIVO.prazoFalaMs) {
+      soma(r.puladas, `helena_espera_${v.motivo}`);
+      dec({ resultado: 'espera', motivo: v.motivo });
+      return 'seguir';
+    }
+    if (v.tipo === 'humano') {
+      if (r.processadas >= LIMITES_VIVO.maxConversas) { soma(r.puladas, 'limite_de_conversas'); return 'seguir'; }
+      r.processadas++;
+      const telH = await telefoneParaEnviar(chave, L.id);
+      await passarAoHumano(g, {
+        chave, tel: telH, L, posse, hmac, motivo: 'helena_remarcar', bolha: true, acao: 'remarcar_horario', card: null, buscarCard: true,
+        nome: null, dec, detalhe: v.motivo,
+      });
+      return 'seguir';
+    }
+    if (v.tipo === 'seguir') preparoH = v;
+  }
+
+  if (r.processadas >= LIMITES_VIVO.maxConversas) { soma(r.puladas, 'limite_de_conversas'); return 'seguir'; }
+
+  const tel = await telefoneParaEnviar(chave, L.id);
 
   // 4. fala vencida, ou limite de respostas: passa ao humano sem gastar modelo (e sem depender da vez)
   if (idade > LIMITES_VIVO.prazoFalaMs) {
@@ -597,6 +648,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
   // 5. daqui para baixo é preciso falar com o lead e com o modelo
   if (!tel) { soma(r.puladas, 'sem_telefone'); return 'seguir'; }
   if (g.semModelo || g.estado.parou) { soma(r.puladas, 'ia_parada'); return 'parar'; }
+  if (dona === 'helena' && !preparoH) { soma(r.puladas, 'helena_sem_preparo'); return 'seguir'; }
 
   // Vez PRÓPRIA da rodada viva: a do ensaio sombra (ag5040_vez:<waId>) pode já estar reservada, por um lead que chegou
   // pelo poll antes da posse, e não pode prender esta rodada.
@@ -630,7 +682,27 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       const textos = textosDoLead(comTranscricoes(msgs, cacheMidia));
       oferta = await ofertaDeHorarios(alvoDaAgenda(cardSolarDoCtx(ctx0), kwhDoLead(dadosAnt, valoresDaPessoaDe(textos, dadosAnt))), ctx0.agora);
     }
-    const ctx: ContextoLead = { ...ctx0, anuncio: anuncio.anuncio, horariosLivres: horariosPorExtenso(oferta.vagas, ctx0.agora) };
+    // A Helena (B2): o card dela é o de ELETROPOSTO (nunca o do solar); sem card, o consultor e os horários saem daqui, uma vez só.
+    const ofertaH: { dono: string | null; vagas: string[] } = { dono: null, vagas: [] };
+    if (dona === 'helena' && preparoH) {
+      ctx0.card = preparoH.cardAlvo ? cardResumoDe(preparoH.cardAlvo) : null;
+      ctx0.cardSolar = null;
+      if (preparoH.semCard) {
+        const guardado = String(posse.ep_dono ?? '');
+        ofertaH.dono = CONSULTORES_EP.includes(guardado) ? guardado : await consultorDoCardNovo(tel);
+        if (ofertaH.dono && ofertaH.dono !== guardado && !dry) await atualizarPosse(chave, { ep_dono: ofertaH.dono });
+        ofertaH.vagas = ofertaH.dono ? await vagasDoConsultor(ofertaH.dono, g.agoraEnvio().getTime()) : [];
+      }
+    }
+    const avisosDaHelena = (): string[] => (dona !== 'helena' || !preparoH ? [] : [
+      AVISO_HELENA_VIVA,
+      ...(preparoH.semCard && ofertaH.vagas.length ? [AVISO_HELENA_MARCAR] : []),
+    ]);
+    const ctx: ContextoLead = {
+      ...ctx0, anuncio: anuncio.anuncio,
+      horariosLivres: horariosPorExtenso(dona === 'helena' ? ofertaH.vagas : oferta.vagas, ctx0.agora),
+      ...(dona === 'helena' ? { avisosDoSistema: avisosDaHelena() } : {}),
+    };
     const pensar = (c: ContextoLead): Promise<ResultadoTurno> => pensarTurno({
       persona: dona as Persona, ctx: c, novas: entrada, dadosAnteriores: dadosAnt, abertura: false, cliente: g.cliente, cacheMidia,
     });
@@ -693,6 +765,63 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       }
       const saida = pens.saida;
       const base2 = { acao: saida.acao, n_bolhas: saida.bolhas.length, tamanho: saida.bolhas.reduce((n, b) => n + b.length, 0) };
+
+      // 9a. A Helena (B2): suporte, presença e marcar sem card são dela; o resto (passar_*, calar, fala comum) cai nas rotas de baixo
+      if (dona === 'helena' && preparoH) {
+        const AH: ContextoAcao = {
+          g, chave, tel, L, posse, hmac, ctx0, oferta: { alvo: null, vagas: ofertaH.vagas }, dadosAnt, resultado, saida, base2, dec, registrar, soltar,
+          ep: { preparo: preparoH, dono: ofertaH.dono, vagas: ofertaH.vagas, textos: textosDaFala },
+          refazer: async (aviso: string): Promise<Seguir> => {
+            if (volta === 1) return AH.humano(`ferramenta:${saida.acao}`, 'segunda_tentativa');
+            const novas = ofertaH.dono ? await vagasDoConsultor(ofertaH.dono, g.agoraEnvio().getTime(), 4) : [];
+            if (!novas.length) return AH.humano(`ferramenta:${saida.acao}`, 'sem_horarios');
+            ofertaH.vagas = novas;
+            const ctx2: ContextoLead = { ...ctx, horariosLivres: horariosPorExtenso(novas, ctx0.agora), avisosDoSistema: [...avisosDaHelena(), aviso] };
+            return tratar(await pensar(ctx2), 1, oferta);
+          },
+          humano: async (motivo: string, detalhe?: string): Promise<Seguir> => {
+            await registrar(false, motivo);
+            await passarAoHumano(g, {
+              chave, tel, L, posse, hmac, motivo, bolha: true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec,
+              resumo: saida.resumo, dados: saida.dados, acao: saida.acao, ...(detalhe ? { detalhe } : {}),
+            });
+            return 'seguir';
+          },
+        };
+        // Remarcar ou cancelar DITO EM ÁUDIO: o ep_respostas e a regra de antes da IA só leem texto. Com card, nenhum robô cobre
+        // isto, então vai ao humano com a ficha (depois da transcrição, que só existe agora).
+        if (!preparoH.semCard) {
+          const doBloco = new Set(entrada.map(m => m.id));
+          const midias = [...cacheMidia.values(), ...resultado.midiasNovas].filter(b => doBloco.has(b.msgId));
+          const ditos = textosDoLead(comTranscricoes(entrada, cacheMidia), midias).filter(t => !textosDaFala.includes(t));
+          if (ditos.length && await pedeRemarcar(ditos)) {
+            await registrar(false, 'helena_remarcar:audio');
+            await passarAoHumano(g, {
+              chave, tel, L, posse, hmac, motivo: 'helena_remarcar', bolha: true, acao: 'remarcar_horario', card: ctx0.card, buscarCard: false,
+              nome: ctx0.nome, dec, detalhe: 'remarcar_em_audio',
+            });
+            return 'seguir';
+          }
+        }
+        // O lead com card de eletroposto que CONFIRMOU DE VERDADE (a regra do ep_respostas) é sempre da resposta ao SIM, qualquer
+        // que seja a ação que a IA devolveu: a prova, a releitura do card e a reserva por card vivem em acaoPresenca.
+        if (!preparoH.semCard && !preparoH.presencaRespondida && (await funcoesEp()).confirmouMesmo([...textosDaFala])) return acaoPresenca(AH);
+        const pedeComHorario = saida.acao === 'pedir_horarios' && (!preparoH.semCard || !!acharVagaEp(saida.dados.horario, ofertaH.vagas, ctx0.agora));
+        const vaiFalar = saida.acao === 'continuar' || saida.acao === 'nao_incomodar' || saida.acao === 'suporte_giovanna'
+          || (saida.acao === 'pedir_horarios' && !pedeComHorario);
+        if (vaiFalar) {
+          // A bolha que a persona ainda escreve pelo roteiro antigo (pedir SIM, prometer lembrete, dizer "confirmado") não sai:
+          // uma nova chance, e na segunda vez passa ao humano.
+          const viol = saida.bolhas.map(b => violacaoDaBolha(b, false)).find(Boolean);
+          if (viol) {
+            if (volta === 0) return tratar(await pensar({ ...ctx, avisosDoSistema: [...avisosDaHelena(), AVISO_BOLHA_BARRADA(viol)] }), 1, oferta);
+            return AH.humano('trava', `helena_bolha:${viol}`);
+          }
+        }
+        if (saida.acao === 'suporte_giovanna') return acaoSuporte(AH);
+        if (saida.acao === 'confirmar_presenca') return acaoPresenca(AH);
+        if (saida.acao === 'marcar_horario' || pedeComHorario) return acaoMarcarEp(AH);
+      }
 
       // 9b. a Duda marca, remarca, liga agora e passa o suporte (B1d-2c)
       if (dona === 'duda' && ACOES_DA_DUDA_COM_AGENDA.includes(saida.acao)) {
@@ -856,7 +985,7 @@ function textoDaFicha(p: PedidoHumano, card: CardResumo | null, destinoDono: str
     : { id: 0, vendedor_nome: null, quando: null, cliente_nome: p.nome, cidade: null, observacao: null, created_by: 'lp_solar' };
   const base = p.motivo.startsWith('ferramenta:') ? `o cliente pediu algo que só a consultora faz (${p.motivo.slice('ferramenta:'.length)})` : (MOTIVO_LEGIVEL[p.motivo] ?? p.motivo);
   const extra = [
-    `Conversa passada pela ${p.posse.dona === 'duda' ? 'Duda' : 'agente'}: ${base}`,
+    `Conversa passada pela ${p.posse.dona === 'duda' || p.posse.dona === 'helena' ? NOME_DA_DONA[p.posse.dona] : 'agente'}: ${base}`,
     ...(semCard ? ['Ainda sem card na agenda'] : []),
     ...(p.resumo ? [`Resumo: ${p.resumo}`] : []),
     ...Object.entries(p.dados ?? {}).slice(0, 4).map(([k, v]) => `${k}: ${v}`),
@@ -876,7 +1005,13 @@ const chaveFichaDaFala = (h: string): string => `ficha_lead:${h}`;
 async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
   const { r, dry, agora } = g;
   let card = p.card;
-  if (p.buscarCard) { try { card = (await lerCards(p.chave))[0] ?? null; } catch { card = null; } }
+  if (p.buscarCard) {
+    try {
+      const lista = await lerCards(p.chave);
+      // A Helena passa o card de ELETROPOSTO (o do solar é de outro consultor).
+      card = (p.posse.dona === 'helena' ? lista.find(c => ehOrigemEletroposto(c.created_by)) : lista[0]) ?? null;
+    } catch { card = null; }
+  }
   const nome = p.nome ?? card?.cliente_nome ?? null;
   const dec = (d: Partial<DecisaoVivo> & { resultado: string }): void =>
     p.dec({ acao: p.acao ?? null, motivo: p.detalhe ? `${p.motivo}:${String(p.detalhe).slice(0, 80)}` : p.motivo, ...d });
@@ -896,7 +1031,7 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
   const prefixoDono = teste ? (ehTeste === null ? PREFIXO_ALVO_ILEGIVEL : PREFIXO_TESTE) : telCons ? '' : `${motivoDono} Encaminhe esta ficha ao consultor certo.`;
   const texto = textoDaFicha(pedido, card, prefixoDono);
 
-  if (dry) { dec({ resultado: 'passaria_ao_humano', ficha: 'ficharia', ...(p.bolha ? { sairia: [bolhaDaPassagem(p.acao)] } : {}) }); return; }
+  if (dry) { dec({ resultado: 'passaria_ao_humano', ficha: 'ficharia', ...(p.bolha ? { sairia: [bolhaDaPassagem(p.acao, p.posse.dona)] } : {}) }); return; }
 
   const adiar = (): void => { soma(r.puladas, 'ficha_adiada'); dec({ resultado: 'ficha_adiada', ficha: 'adiada' }); };
   if (!hl || linhaIoEmCooldown()) { adiar(); return; }
@@ -928,7 +1063,7 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
 
   let patch: Partial<DadosPosse> = { estado: 'passou_humano', ate_wa_id: p.L.id };
   let enviadas = 0;
-  const bolhaFixa = bolhaDaPassagem(p.acao);
+  const bolhaFixa = bolhaDaPassagem(p.acao, p.posse.dona);
   if (p.bolha && p.tel) {
     const res = await enviarResposta({
       dona: p.posse.dona as DonaViva, telefone: p.tel, waIdAlvo: p.L.id, momentoFalaLead: p.L.momment,
@@ -945,6 +1080,10 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
 // ── as ações da Duda (B1d-2c): marcar, remarcar, ligar agora e suporte ───────────
 
 const AVISO_HORARIO = 'AVISO DO SISTEMA: o horário que ele escolheu não pôde ser marcado (outra pessoa pegou antes, ou já não está livre). Diga isso numa frase curta e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';
+const AVISO_HELENA_VIVA = 'AVISO DO SISTEMA: o pedido de confirmação da reunião e o lembrete saem de outro sistema, e valem por cima do roteiro. Você nunca pede SIM, nunca promete lembrete e nunca escreve "confirmado" (só na ação confirmar_presenca, quando ele respondeu SIM e o sistema liberar). Remarcar e cancelar não são com você.';
+const AVISO_HELENA_MARCAR = 'AVISO DO SISTEMA: ele ainda não tem reunião. Se escolher um horário da lista, use marcar_horario com dados horario igual ao texto da lista, e a sua bolha NÃO repete dia, hora nem consultor: diga só que a mensagem com os detalhes da reunião chega por aqui.';
+const AVISO_HORARIO_EP = 'AVISO DO SISTEMA: o horário que ele escolheu não pôde ser marcado (outra pessoa pegou antes, ou já não está livre). Diga isso numa frase curta e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';
+const AVISO_BOLHA_BARRADA = (motivo: string): string => `AVISO DO SISTEMA: a sua resposta foi barrada (${motivo}) e NÃO foi enviada. Reescreva sem pedir SIM, sem prometer lembrete e sem escrever "confirmado". Nesta resposta use a ação continuar.`;
 const AVISO_LIGAR_INDISPONIVEL = 'AVISO DO SISTEMA: a ligação imediata NÃO está disponível agora (não deu para avisar a consultora). Não use ligar_agora e não prometa ligação em instantes. Explique numa frase e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';
 const AVISO_FORA_DO_HORARIO = 'AVISO DO SISTEMA: o horário comercial acabou, então a ligação imediata NÃO está disponível. Não use ligar_agora. Diga que a consultora liga no próximo dia útil e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';
 
@@ -971,6 +1110,8 @@ interface ContextoAcao {
   refazer: (aviso: string, n?: number) => Promise<Seguir>;
   /** Ficha ao consultor e a bolha fixa de passagem (a de sempre). */
   humano: (motivo: string, detalhe?: string) => Promise<Seguir>;
+  /** Só a Helena (B2): o que as regras dela decidiram, o consultor e as vagas desta tentativa, e o que o lead escreveu. */
+  ep?: { preparo: Extract<Veredicto, { tipo: 'seguir' }>; dono: string | null; vagas: string[]; textos: string[] };
 }
 
 type ResultadoFicha = 'enviada' | 'adiada' | 'ja_avisada' | 'incerta';
@@ -1292,6 +1433,140 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
   return 'seguir';
 }
 
+// ── as ações da Helena (B2): marcar sem card e responder o SIM ───────────────
+
+/**
+ * marcar_horario da Helena. SÓ para quem não tem card de eletroposto em NENHUM status (as regras de helenaEp.ts já mandaram
+ * quem tem card para o robô de remarcação ou para o humano). O consultor saiu do donoDoTelefone/rodízio ANTES da IA e é o
+ * mesmo das vagas; o horário que a IA nomeou é casado com a lista, conferido com aindaLivre logo antes e gravado por
+ * gravarCardEletroposto (created_by agente_eletroposto, confirmacao_at NULO: é o gatilho da confirmação oficial do ep_agenda,
+ * que é quem pede o SIM). Horário tomado (23505) = no máximo UMA nova chamada à IA. A bolha sai na MESMA rodada, logo depois
+ * do insert, sem dia, hora, consultor, "confirmado" nem SIM; recusada, não vai para fila nenhuma (o ep_agenda confirma de
+ * qualquer jeito). Card escrito: nenhuma saída solta a vez. A pendência de 10 minutos fica na posse (ep_marcou).
+ */
+async function acaoMarcarEp(A: ContextoAcao): Promise<Seguir> {
+  const { g, saida, ctx0, dadosAnt, chave, tel, L, posse, dec } = A;
+  const { r, dry } = g;
+  const ep = A.ep!;
+  if (!ep.preparo.semCard) return A.humano(`ferramenta:${saida.acao}`, 'helena_com_card');
+  if (!ep.dono) return A.humano(`ferramenta:${saida.acao}`, 'sem_consultor');
+  const iso = acharVagaEp(saida.dados.horario, ep.vagas, ctx0.agora);
+  const nome = String(ctx0.nome ?? '').trim();
+  const bolhaIa = saida.bolhas[0] ?? '';
+  const bolha = bolhaIa && bolhaSemDetalhe(bolhaIa) ? bolhaIa : bolhaCardCriado(nome);
+  if (dry) {
+    dec({ resultado: iso ? 'marcaria' : 'marcaria_sem_horario', ...A.base2, ...(iso ? { sairia: [bolha] } : {}) });
+    return 'seguir';
+  }
+  if (!iso) return A.refazer(AVISO_HORARIO_EP);
+  if (!(await aindaLivreEp(iso, ep.dono))) return A.refazer(AVISO_HORARIO_EP);
+
+  const cidade = cidadeDoLead(saida.dados, dadosAnt) ?? ctx0.cadastros.find(c => c.cidade)?.cidade ?? ctx0.leadsMeta?.cidade ?? null;
+  // Relê os cards do telefone logo antes de gravar: card que nasceu depois das regras vai ao humano com a ficha.
+  const gr = await gravarCardSeNaoHouver(chave, fichaDoCardEp({ dono: ep.dono, iso, nome, tel, cidade, dados: { ...dadosAnt, ...saida.dados } }));
+  if (gr.status === 'ja_tem_card') return A.humano(`ferramenta:${saida.acao}`, 'helena_com_card');
+  if (gr.status === 'tomado') return A.refazer(AVISO_HORARIO_EP);
+  if (gr.status === 'bloqueado') {
+    // Fora do padrão: nenhuma ficha nasce e ninguém escreve.
+    await atualizarPosse(chave, { ate_wa_id: L.id });
+    await A.registrar(false, 'bloqueado');
+    soma(r.puladas, 'helena_bloqueado');
+    dec({ resultado: 'calou', ...A.base2, motivo: 'bloqueado' });
+    return 'seguir';
+  }
+  if (gr.status === 'erro') return A.humano('ferramenta:marcar_horario', 'gravar:erro');
+
+  // A PARTIR DAQUI O CARD ESTÁ ESCRITO: nada solta a vez, e erro nenhum sobe para o catch da conversa.
+  let parar: 'erro_linha' | 'espacamento' | null = null;
+  const agoraE = g.agoraEnvio();
+  try {
+    const marcou: EpMarcou = { cardId: gr.id, em: agoraE.toISOString(), wa_id: L.id, dono: ep.dono };
+    await atualizarPosse(chave, { ep_marcou: marcou });
+    const res: ResultadoEnvio = await enviarResposta({ dona: 'helena', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, agoraE);
+    if (res.ok) {
+      await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1 });
+      await A.registrar(true);
+      r.enviadas++;
+      dec({ resultado: 'marcou', ...A.base2, n_bolhas: 1, tamanho: bolha.length, ...(bolha !== bolhaIa ? { motivo: 'bolha_fixa' } : {}) });
+    } else {
+      // Sem fila: a confirmação oficial do ep_agenda sai de qualquer jeito.
+      await atualizarPosse(chave, { ate_wa_id: L.id });
+      await A.registrar(false, `acao_recusada:${res.motivo}`);
+      soma(r.puladas, `acao_recusa_${res.motivo}`);
+      dec({ resultado: 'marcou_sem_bolha', ...A.base2, motivo: res.detalhe ? `${res.motivo}:${res.detalhe}` : res.motivo });
+      if (res.motivo === 'erro_linha' || res.motivo === 'espacamento') parar = res.motivo;
+    }
+  } catch (err) {
+    logger.error(LOG, `conversa ${L.id}: erro depois de gravar o card ${gr.id} (${codigoDe(err)})`);
+    soma(r.puladas, 'erro_depois_de_gravar');
+    await atualizarPosse(chave, { ate_wa_id: L.id });
+  }
+  if (parar) { r.parou = parar; return 'parar'; }
+  return 'seguir';
+}
+
+/**
+ * confirmar_presenca da Helena = SÓ a bolha (quem grava a presença é o ep_respostas). Sai se, e só se: a fala é afirmativa de
+ * verdade (confirmouMesmo, a regra dele), o card relido está 'agendado' com presenca_confirmada_at já gravada, e é a 1ª vez
+ * neste card (ag5040_helena_presenca:<id> por INSERT). Qualquer outra coisa = silêncio: nunca diz "confirmado" sem prova.
+ */
+async function acaoPresenca(A: ContextoAcao): Promise<Seguir> {
+  const { g, saida, ctx0, chave, tel, L, posse, dec } = A;
+  const { r, dry } = g;
+  const ep = A.ep!;
+  const calar = async (motivo: string): Promise<Seguir> => {
+    if (!dry) await atualizarPosse(chave, { ate_wa_id: L.id });
+    await A.registrar(false, `presenca:${motivo}`);
+    soma(r.puladas, `helena_presenca_${motivo}`);
+    dec({ resultado: 'calou', ...A.base2, motivo });
+    return 'seguir';
+  };
+  const prova = await provaDaPresenca(ep.preparo.cards, ep.textos);
+  if (!prova.ok) return calar(prova.motivo);
+  // A bolha da IA só vale quando a ação dela foi confirmar_presenca; em qualquer outra, a fala era de outro assunto.
+  const bolhaIa = saida.acao === 'confirmar_presenca' ? (saida.bolhas[0] ?? '') : '';
+  const bolha = bolhaIa && violacaoDaBolha(bolhaIa, true) === null ? bolhaIa : bolhaPresencaAnotada(ctx0.nome);
+  if (dry) { dec({ resultado: 'responderia_sim', ...A.base2, sairia: [bolha] }); return 'seguir'; }
+
+  const chaveReserva = `${PREFIXO_PRESENCA}${prova.cardId}`;
+  const reserva = await reservarChave(chaveReserva, { estado: 'reservada' }, g.agora);
+  if (reserva === 'ja_existe') return calar('ja_respondida');
+  if (reserva === 'erro') { await A.soltar(); soma(r.puladas, 'helena_presenca_reserva_falhou'); dec({ resultado: 'recusada', ...A.base2, motivo: 'reserva_falhou' }); return 'seguir'; }
+
+  const res: ResultadoEnvio = await enviarResposta({ dona: 'helena', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
+  if (res.ok) {
+    await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1 });
+    await A.registrar(true);
+    r.enviadas++;
+    dec({ resultado: 'enviada', ...A.base2, n_bolhas: 1, tamanho: bolha.length });
+    return 'seguir';
+  }
+  const m = res.motivo;
+  const extra = { ...A.base2, motivo: res.detalhe ? `${m}:${res.detalhe}` : m };
+  switch (m) {
+    case 'linha_pausada': case 'teto_agentes': case 'teto_linha': case 'espacamento':
+      // Passageira: nada saiu. Devolve a reserva e a vez; a próxima rodada tenta de novo, dentro dos 15 min.
+      await liberarChave(chaveReserva);
+      await A.soltar();
+      soma(r.puladas, `recusa_${m}`);
+      dec({ resultado: 'recusada', ...extra });
+      if (m === 'espacamento') { r.parou = 'espacamento'; return 'parar'; }
+      return 'seguir';
+    case 'erro_linha':
+      await A.registrar(false, 'erro_linha');
+      soma(r.puladas, 'recusa_erro_linha');
+      r.parou = 'erro_linha';
+      dec({ resultado: 'recusada', ...extra });
+      return 'parar';
+    default:                                   // ja_respondido, prazo, pausa_humana, bloqueado, mudo, robo_do_outro_lado, bolha_invalida...
+      await atualizarPosse(chave, { ate_wa_id: L.id });
+      await A.registrar(false, m);
+      soma(r.puladas, `recusa_${m}`);
+      dec({ resultado: 'recusada', ...extra });
+      return 'seguir';
+  }
+}
+
 /**
  * suporte_giovanna. Ficha completa à Giovanna (reserva ag5040_suporte:<hmac>:<waId>); só se ela saiu a bolha do turno
  * diz que a Giovanna fala com ele; a posse passa a humano e lead_data.suporte guarda o aviso (o reenvio ao dono vem depois).
@@ -1300,7 +1575,8 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
 async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
   const { g, saida, ctx0, chave, tel, L, posse, hmac, dec } = A;
   const { r, dry } = g;
-  const bolha = saida.bolhas[0] || BOLHA_PASSAGEM_GENERICA;
+  const donaNome = NOME_DA_DONA[posse.dona] ?? 'agente';
+  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona);
   if (dry) { dec({ resultado: 'passaria_ao_humano', ...A.base2, ficha: 'ficharia', sairia: [bolha] }); return 'seguir'; }
 
   let destino = telefoneDoDono();
@@ -1317,13 +1593,13 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
     ? cardDaFichaDe(card)
     : { id: 0, vendedor_nome: null, quando: null, cliente_nome: ctx0.nome, cidade: null, observacao: null, created_by: 'lp_solar' };
   const ficha = await montarFicha(cardFicha, ctx0, { cliente: g.cliente });
-  const extras = ['Conversa passada pela Duda: o cliente precisa de suporte (cliente do SolarDoc, reembolso, cobrança ou reclamação)', ...linhasDoModelo(saida)];
+  const extras = [`Conversa passada pela ${donaNome}: o cliente precisa de suporte (cliente do SolarDoc, reembolso, cobrança ou reclamação)`, ...linhasDoModelo(saida)];
   const linhas = ficha.linhas.filter(l => !(!card && l.startsWith('Conversa completa:')));
   const iLink = linhas.findIndex(l => l.startsWith('Conversa completa:'));
   const comExtras = iLink >= 0 ? [...linhas.slice(0, iLink), ...extras, ...linhas.slice(iLink)] : [...linhas, ...extras];
   const texto = textoDaMensagem(
     blocoSeguro(comExtras), tel,
-    ['SUPORTE: a Duda passou este cliente para a Giovanna.', prefixoDono].filter(Boolean).join(' '),
+    [`SUPORTE: a ${donaNome} passou este cliente para a Giovanna.`, prefixoDono].filter(Boolean).join(' '),
   );
   const rf = await enviarFichaVivo(g, { chave, acao: 'suporte', cardId: card?.id ?? 0, n: String(L.id), reserva: `ag5040_suporte:${hmac}:${L.id}`, destino, texto });
   if (rf === 'adiada') {
@@ -1342,7 +1618,7 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
   let parar: 'erro_linha' | 'espacamento' | null = null;
   const avisadoEm = g.agoraEnvio().toISOString();
   try {
-    const res = await enviarResposta({ dona: 'duda', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
+    const res = await enviarResposta({ dona: posse.dona as DonaViva, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
     await atualizarPosse(chave, {
       estado: 'passou_humano', ate_wa_id: L.id, ...(res.ok ? { respostas: posse.respostas + 1 } : {}),
       suporte: { avisado_em: avisadoEm, wa_id: L.id, resumo: String(saida.resumo ?? '').slice(0, 200) },
@@ -1396,10 +1672,11 @@ export function pendenciaDevida(posse: DadosPosse, agoraMs: number): boolean {
   }
   const rem = posse.remarcado as RemarcadoPendente | undefined;
   if (rem && !(rem as { resolvido_em?: string }).resolvido_em && remarcadoDevida(rem, agoraMs)) return true;
+  if (posse.dona === 'helena' && pendenciaEpDevida(posse, agoraMs)) return true;
   return false;
 }
 
-/** As posses da Duda com volta, suporte ou ficha "remarcado" pendente (lidas por tipo e janela, filtradas aqui: o corte de 1000 linhas e o .or). */
+/** As posses da Duda (e da Helena: suporte e card marcado sem confirmação) com volta, suporte ou ficha "remarcado" pendente (lidas por tipo e janela, filtradas aqui: o corte de 1000 linhas e o .or). */
 async function lerPendencias(g: G): Promise<PosseComPendencia[]> {
   const corte = new Date(g.agora.getTime() - LIMITES_VIVO.pendenciaJanelaMs).toISOString();
   const achadas: PosseComPendencia[] = [];
@@ -1410,16 +1687,17 @@ async function lerPendencias(g: G): Promise<PosseComPendencia[]> {
     const lote = (data ?? []) as Array<{ phone: string; lead_data: Record<string, any> | null }>;
     for (const l of lote) {
       const o = l.lead_data;
-      if (!o || typeof o !== 'object' || o.dona !== 'duda') continue;
+      if (!o || typeof o !== 'object' || (o.dona !== 'duda' && o.dona !== 'helena')) continue;
       const ligar = o.ligar && typeof o.ligar === 'object' ? o.ligar : null;
       const suporte = o.suporte && typeof o.suporte === 'object' ? o.suporte : null;
       const remarcado = o.remarcado && typeof o.remarcado === 'object' ? o.remarcado : null;
       const volta = ligar && !ligar.volta_em && !ligar.resolvido_em;
       const reenvio = suporte && !suporte.dono_em && !suporte.resolvido_em;
       const fichaRemarcada = remarcado && !remarcado.resolvido_em;
-      if (!volta && !reenvio && !fichaRemarcada) continue;
+      const epMarcou = o.dona === 'helena' && o.ep_marcou && typeof o.ep_marcou === 'object' && !o.ep_marcou.resolvido_em;
+      if (!volta && !reenvio && !fichaRemarcada && !epMarcou) continue;
       if (!ESTADOS_DA_POSSE.includes(String(o.estado))) continue;
-      achadas.push({ chave: l.phone, posse: { ...o, dona: 'duda', estado: o.estado, desde: String(o.desde ?? ''), ate_wa_id: typeof o.ate_wa_id === 'number' ? o.ate_wa_id : null,
+      achadas.push({ chave: l.phone, posse: { ...o, dona: o.dona, estado: o.estado, desde: String(o.desde ?? ''), ate_wa_id: typeof o.ate_wa_id === 'number' ? o.ate_wa_id : null,
         respostas: Number(o.respostas) || 0, imagens: [], links: [] } as DadosPosse });
     }
     if (lote.length < 1000) break;
@@ -1437,7 +1715,7 @@ async function varrerPendencias(g: G): Promise<void> {
   try { lista = await lerPendencias(g); }
   catch (err) { logger.error(LOG, `pendências: ${String((err as Error)?.message ?? err).slice(0, 80)}`); return; }
   // Resolvidas e ainda-sem-vez saem ANTES do corte das mais recentes: senão 5 pendências em espera calariam as que já podem agir.
-  const devidas = lista.filter(p => pendenciaDevida(p.posse, g.agora.getTime()));
+  const devidas = lista.filter(p => g.donas.includes(p.posse.dona) && pendenciaDevida(p.posse, g.agora.getTime()));
   if (!devidas.length) return;
   const cont = (r.pendencias ??= { voltas: 0, reenvios: 0, olhadas: 0 });
   for (const p of devidas.slice(0, LIMITES_VIVO.pendenciasPorRodada)) {
@@ -1453,6 +1731,7 @@ async function varrerPendencias(g: G): Promise<void> {
       if (p.posse.remarcado && !(p.posse.remarcado as any).resolvido_em) {
         await retentarFichaRemarcada(g, p);
       }
+      if (p.posse.dona === 'helena' && pendenciaEpDevida(p.posse, g.agora.getTime())) await pendenciaDaConfirmacao(g, p);
     } catch (err) {
       logger.error(LOG, `pendência de uma posse falhou (${codigoDe(err)})`);
     }
@@ -1596,7 +1875,7 @@ async function reenvioSuporte(g: G, p: PosseComPendencia): Promise<boolean> {
   const marcar = async (extra: Record<string, unknown>): Promise<void> => { await atualizarPosse(p.chave, { suporte: { ...sup, ...extra } }); };
   if (p.posse.estado === 'nao_incomodar' || p.posse.estado === 'encerrada') {
     if (!dry) await marcar({ resolvido_em: agora.toISOString() });
-    g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: 'duda', acao: null, resultado: 'suporte_dispensado', motivo: p.posse.estado, n_bolhas: 0, tamanho: 0 });
+    g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_dispensado', motivo: p.posse.estado, n_bolhas: 0, tamanho: 0 });
     return false;
   }
 
@@ -1604,10 +1883,10 @@ async function reenvioSuporte(g: G, p: PosseComPendencia): Promise<boolean> {
   if (!conv.completa) return false;
   if (equipeFalouDepois(conv.msgs, avisadoMs)) {
     if (!dry) await marcar({ resolvido_em: agora.toISOString() });
-    g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: 'duda', acao: null, resultado: 'suporte_atendido', motivo: null, n_bolhas: 0, tamanho: 0 });
+    g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_atendido', motivo: null, n_bolhas: 0, tamanho: 0 });
     return false;
   }
-  if (dry) { g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: 'duda', acao: null, resultado: 'suporte_reenviaria', motivo: null, n_bolhas: 0, tamanho: 0 }); return false; }
+  if (dry) { g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_reenviaria', motivo: null, n_bolhas: 0, tamanho: 0 }); return false; }
   const tel = await telefoneParaEnviar(p.chave, waId);
   let card: CardResumo | null = null;
   try { card = (await lerCards(p.chave))[0] ?? null; } catch { card = null; }
@@ -1615,7 +1894,7 @@ async function reenvioSuporte(g: G, p: PosseComPendencia): Promise<boolean> {
     ? cardDaFichaDe(card)
     : { id: 0, vendedor_nome: null, quando: null, cliente_nome: null, cidade: null, observacao: null, created_by: 'lp_solar' };
   const extras = [
-    'Conversa passada pela Duda: o cliente precisa de suporte (cliente do SolarDoc, reembolso, cobrança ou reclamação)',
+    `Conversa passada pela ${NOME_DA_DONA[p.posse.dona] ?? 'agente'}: o cliente precisa de suporte (cliente do SolarDoc, reembolso, cobrança ou reclamação)`,
     ...(sup.resumo ? [`Resumo: ${sup.resumo}`] : []),
   ];
   const linhas = fichaDeCampos(cardFicha, extras).linhas.filter(l => !(!card && l.startsWith('Conversa completa:')));
@@ -1627,10 +1906,47 @@ async function reenvioSuporte(g: G, p: PosseComPendencia): Promise<boolean> {
     chave: p.chave, acao: 'suporte_dono', cardId: card?.id ?? 0, n: String(waId), reserva: `ag5040_suporte_dono:${hmac}:${waId}`, destino: telefoneDoDono(), texto,
   });
   g.r.decisoes.push({
-    hmac8: hmac.slice(0, 8), wa_id: waId, dona: 'duda', acao: null, resultado: 'suporte_reenviado_ao_dono', motivo: rf, n_bolhas: 0, tamanho: 0,
+    hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_reenviado_ao_dono', motivo: rf, n_bolhas: 0, tamanho: 0,
     ficha: rf === 'enviada' ? 'enviada' : rf === 'adiada' ? 'adiada' : rf === 'ja_avisada' ? 'lead_ja_avisado' : 'falhou',
   });
   if (rf === 'adiada') return false;                                // nada saiu: tenta na próxima rodada
   await marcar({ dono_em: agora.toISOString(), dono: rf });
   return rf === 'enviada';
+}
+
+/**
+ * A Helena marcou um card sem card prévio e a confirmação oficial (ep_agenda) é o que pede o SIM: 10 minutos depois, com
+ * confirmacao_at ainda nulo, a conversa passa ao humano com a ficha (sem bolha da IA). Confirmada, cancelada ou card que
+ * sumiu = só resolve. Ficha adiada (teto, cooldown) NÃO resolve: a próxima rodada tenta de novo.
+ */
+async function pendenciaDaConfirmacao(g: G, p: PosseComPendencia): Promise<void> {
+  const { dry, agora } = g;
+  const m = p.posse.ep_marcou as EpMarcou;
+  const hmac = hmacDe(p.chave);
+  const cardId = Number(m.cardId);
+  const waId = Number(m.wa_id);
+  if (!hmac || !Number.isInteger(cardId) || cardId <= 0 || !Number.isInteger(waId) || waId <= 0) {
+    if (!dry) await atualizarPosse(p.chave, { ep_marcou: { ...m, resolvido_em: agora.toISOString(), como: 'malformada' } });
+    return;
+  }
+  const hmac8 = hmac.slice(0, 8);
+  const reg = (resultado: string, motivo: string | null): void => {
+    g.r.decisoes.push({ hmac8, wa_id: waId, dona: 'helena', acao: null, resultado, motivo, n_bolhas: 0, tamanho: 0 });
+  };
+  const sit = await situacaoDaConfirmacao(cardId);
+  if (sit === null) return;                                         // leitura falhou: tenta na próxima rodada
+  if (sit !== 'ainda_nao') {
+    if (!dry) await atualizarPosse(p.chave, { ep_marcou: { ...m, resolvido_em: agora.toISOString(), como: sit } });
+    reg('confirmacao_dispensada', sit);
+    return;
+  }
+  const tel = await telefoneParaEnviar(p.chave, waId);
+  let adiada = false;
+  await passarAoHumano(g, {
+    chave: p.chave, tel, L: { id: waId, momment: m.em }, posse: p.posse, hmac, motivo: 'helena_sem_confirmacao', bolha: false,
+    card: null, buscarCard: true, nome: null, acao: 'marcar_horario',
+    dec: d => { if (d.resultado === 'ficha_adiada') adiada = true; g.r.decisoes.push({ hmac8, wa_id: waId, dona: 'helena', acao: null, motivo: null, n_bolhas: 0, tamanho: 0, ...d }); },
+  });
+  if (adiada) return;
+  if (!dry) await atualizarPosse(p.chave, { ep_marcou: { ...m, resolvido_em: agora.toISOString(), como: 'passou_ao_humano' } });
 }
