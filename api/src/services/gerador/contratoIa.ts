@@ -253,7 +253,7 @@ Regras do texto:
 4. Não invente valores. Preço, percentual, multa, prazo e quantidade só entram se estiverem no pedido ou já estiverem no contrato. Se o pedido precisar de um número que ele não deu, escreva a lacuna <span class="ep-rec-vazio"></span> no lugar e explique nos avisos.
 5. Itens e cláusulas com "travado"/"travada" = true têm campo próprio na tela (objeto, preço total, sinal, tabela de pagamento, lista do escopo). Não os altere nem os remova, nem removendo a cláusula inteira; se o pedido depender disso, explique em "recusa" qual campo da tela usar. Inserir um item novo depois de um travado é permitido.
 5b. Item com "campo" tem números que vêm daquele campo da tela (garantia, multa, prazos, foro, aviso prévio...). Se o pedido é só trocar esse número, não faça a operação: diga em "recusa" para usar o campo indicado, porque mudar pelo campo mantém o contrato sincronizado. Se o pedido muda o texto do item além do número, faça a mudança e avise que, se o campo mudar depois, este pedido precisa ser refeito.
-5c. Itens com key começando em "opc." são cláusulas de proteção ligadas e desligadas por caixinha na tela, exceto na sociedade (socio50 e cotas), onde os itens opc.* são fixos e não têm caixinha. Pode alterá-los ou removê-los se o pedido mandar; ao remover, avise que a caixinha faz o mesmo (na sociedade, avise só que o item é fixo no texto).
+5c. Itens com key começando em "opc." são cláusulas fixas ou que entram pelos dados do contrato: nenhum contrato tem caixinha na tela. Pode alterá-los ou removê-los se o pedido mandar; ao remover, avise só que o item é fixo no texto.
 6. Ao remover algo citado por outro item, ajuste também o item que cita (substituir_item), para nenhum marcador apontar para o vazio.
 7. Em "avisos", em português simples e no máximo uma frase cada, diga o que o consultor precisa saber: risco jurídico (por exemplo, cláusula que o Código de Defesa do Consumidor anula quando o cliente é pessoa física), conflito com outra cláusula, lacuna que ficou para preencher. Sem aviso, lista vazia.
 8. Se o pedido não for sobre o contrato, ou não der para atender sem violar estas regras, devolva operacoes vazias e explique em "recusa". Pedido misto: faça a parte possível e explique em "recusa" só a parte que não fez. Sem nada a recusar, recusa = null.
@@ -294,13 +294,13 @@ export const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objet
   // Termos de compromisso (08/10/2026): o papel entre a reunião e o contrato.
   termo_arr: {
     objeto: 'Você edita o termo de compromisso do dono do local (promessa de cessão de área ou carta de intenção) da NEXUS Eletropostos, empresa brasileira: antes do contrato de cessão, o dono reserva o local para a NEXUS estudar a instalação de um eletroposto (estação de recarga de veículos elétricos), com as condições da cessão já combinadas.',
-    partes: 'As partes se chamam pelos nomes que já aparecem nas cláusulas (COMPROMITENTE CEDENTE e COMPROMISSÁRIA CESSIONÁRIA na promessa, CEDENTE e CESSIONÁRIA na carta de intenção), em maiúsculas; o dono do local é o cedente e a NEXUS a cessionária.',
+    partes: 'As partes se chamam CEDENTE (o dono do local) e CESSIONÁRIA (a NEXUS), em maiúsculas, na promessa e na carta de intenção.',
     travados: '(objeto, remuneração da cessão, valor da reserva)',
   },
   termo_inv: {
     objeto: 'Você edita o termo de compromisso do investidor da NEXUS Eletropostos, empresa brasileira: reserva de cota em sociedade em conta de participação para um eletroposto (estação de recarga de veículos elétricos), antes do contrato da sociedade, ou adesão a uma sociedade em cotas já assinada. Nunca escreva promessa de rentabilidade, de retorno ou de renda.',
     partes: 'As partes se chamam pelos nomes que já aparecem nas cláusulas (INVESTIDOR e NEXUS na reserva, ADERENTE e SÓCIA OSTENSIVA na adesão), em maiúsculas.',
-    travados: '(objeto, quadro de cotas e aportes, depósito de reserva, tabela de pagamento)',
+    travados: '(objeto, quadro de cotas e aportes, depósito de reserva e, na adesão, tabela de pagamento; na reserva a tabela fica só na minuta anexa)',
   },
   // Compra e venda de equipamento avulso (09/10/2026): só o carregador, sem obra.
   equip: {

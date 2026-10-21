@@ -6413,8 +6413,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select></div></div>
         <div class="eletro-field" data-ctr-ti="reserva"><label>Quando o depósito é feito</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-deposito-quando" value="na assinatura deste termo"></div></div>
-        <div class="eletro-field" data-ctr-ti="reserva"><label>Retenção se desistir depois do prazo livre</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ti-arras" inputmode="decimal" placeholder="vale com a caixinha marcada"></div></div>
         <div class="orc-note" id="ctr-ti-nota" style="grid-column:1/-1">—</div>
       </div>
 
@@ -21615,9 +21613,10 @@ function recTipo() { const t = orcVal('rec-tipo'); return ['projeto'].concat(REC
 const REC_DESIST_ANTIGOS = {
   'Não havendo prosseguimento por desistência do contratante, ou por negativa do crédito pelo banco ou da conexão pela concessionária, o valor recebido fica como pagamento do projeto elétrico, que é entregue ao contratante com a ART e os documentos produzidos.': () => REC_DESIST_PADRAO,
   'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro (art. 418 do Código Civil).': () => REC_DESIST_EQUIP,
+  'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro. Não há outra indenização (art. 420 do Código Civil).': () => REC_DESIST_EQUIP,
 };
 const recDesistAtual = v => (REC_DESIST_ANTIGOS[v] ? REC_DESIST_ANTIGOS[v]() : v);
-const REC_DESIST_EQUIP = 'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro. Não há outra indenização (art. 420 do Código Civil).';
+const REC_DESIST_EQUIP = 'Desistindo o comprador, a vendedora retém este valor, ressalvado o arrependimento de 7 (sete) dias do comprador pessoa física (art. 49 do Código de Defesa do Consumidor). Desistindo a vendedora, devolve-o em dobro. Não há outra indenização (art. 420 do Código Civil).';
 // Quem paga (ou, na reserva do local, quem recebe) e de onde vem a sugestão.
 function recSugestaoParte(tipo) {
   if (tipo === 'equip') return { nome: eqVal('eq-cli-nome'), doc: eqVal('eq-cli-doc'), end: [eqVal('eq-cli-end'), eqVal('eq-cli-cidade')].filter(Boolean).join(', '),
@@ -21931,8 +21930,8 @@ function recHTMLNovo(d) {
   } else if (tipo === 'deposito') {
     corpo = `Recebemos de ${pagador}, a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de <b>depósito de reserva de participação</b> em sociedade em conta de participação para estação de recarga de veículos elétricos, na forma do ${ref}.`;
     clausulas = [
-      '<b>Natureza do valor.</b> A quantia acima é depósito de reserva: não é aporte, não torna o pagador sócio participante e não dá direito a resultado.',
-      '<b>Destino.</b> Assinado o contrato de sociedade, este valor é abatido do aporte. Não cumprida a condição do termo, ou exercida a desistência nele prevista, é devolvido na forma e no prazo do termo.',
+      '<b>Natureza do valor.</b> A quantia acima é sinal da reserva e vale como arras penitenciais, na forma do termo: não torna o pagador sócio participante nem dá direito a resultado.',
+      '<b>Destino.</b> Assinado o contrato de sociedade, este valor passa a ser parte do aporte já pago. Antes disso, segue o termo: volta inteiro na desistência no prazo livre e nos casos de fora, em dobro se a NEXUS desistir ou não cumprir o que promete, e fica com a NEXUS se o pagador desistir depois do prazo livre.',
       cartao ? '<b>Cartão.</b> Pago por cartão, a devolução é o estorno total da transação.' : '',
     ];
   } else if (tipo === 'parcela') {
@@ -22556,10 +22555,10 @@ const CTR_TIPOS = {
     nota: 'Venda só do equipamento, sem obra: o pedido (itens com NCM, frete e prazo) vem da aba Venda de equipamento. A instalação é do comprador, salvo se estiver listada no pedido.' },
   // TERMOS DE COMPROMISSO (08/10/2026): o papel entre a reunião e o contrato.
   // Os nomes das partes mudam com a força do termo e com o uso (ver ctrNomes).
-  termo_arr: { nome: 'Termo do Arrendador', termo: true, nossa: 'COMPROMISSÁRIA CESSIONÁRIA', deles: 'COMPROMITENTE CEDENTE', Nossa: 'Compromissária cessionária', Parte: 'Compromitente cedente', parte: 'compromitente cedente',
+  termo_arr: { nome: 'Termo do Arrendador', termo: true, nossa: 'CESSIONÁRIA', deles: 'CEDENTE', Nossa: 'Cessionária', Parte: 'Cedente', parte: 'cedente',
     nota: 'Termo do dono do local: segura o ponto enquanto a NEXUS estuda, com as condições da cessão já combinadas e o dossiê do local anexado. Na promessa, o dono fica obrigado se a NEXUS confirmar; na carta de intenção, só a vontade fica registrada.' },
   termo_inv: { nome: 'Termo do Investidor', termo: true, nossa: 'NEXUS', deles: 'INVESTIDOR', Nossa: 'NEXUS', Parte: 'Investidor', parte: 'investidor',
-    nota: 'Termo do investidor: reserva de cota antes de o contrato da sociedade existir (depósito parado, desistência livre, devolução se o capital não fechar) ou adesão a uma sociedade em cotas já assinada.' },
+    nota: 'Termo do investidor: reserva de cota antes de o contrato da sociedade existir (depósito que vale como sinal, desistência livre, minuta anexada) ou adesão a uma sociedade em cotas já assinada.' },
 };
 // CONTRATO HÍBRIDO (19/10/2026): o seletor ganha o valor 'hibrido' (dois modelos num
 // papel). `ctrTipo()` devolve o modelo que o formulário deve ler AGORA: dentro de
@@ -22598,14 +22597,11 @@ function ctrSocModo(t) {
   if (t === 'termo_inv') return orcVal('ctr-ti-uso') === 'adesao' || orcVal('ctr-ti-modelo') !== 'socio50' ? 'cotas' : 'socio50';
   return null;
 }
-// Os nomes das partes. Nos termos eles dependem da força e do uso: quem promete
-// ceder é COMPROMITENTE; na carta de intenção, que não promete, ficam os nomes
-// do contrato futuro; na adesão, quem entra é ADERENTE e a NEXUS já é a sócia
-// ostensiva. No Completo e nos contratos, os de sempre.
+// Os nomes das partes. O Termo do Arrendador usa CEDENTE e CESSIONÁRIA nas duas forças; no Termo do Investidor,
+// na adesão, quem entra é ADERENTE e a NEXUS já é a sócia ostensiva. No Completo e nos contratos, os de sempre.
 function ctrNomes(t) {
   t = t || ctrTipo();
   const T = CTR_TIPOS[t] || CTR_TIPOS.completo;
-  if (t === 'termo_arr' && orcVal('ctr-ta-nivel') === 'intencao') return { nossa: 'CESSIONÁRIA', deles: 'CEDENTE', Nossa: 'Cessionária', Parte: 'Cedente', parte: 'cedente' };
   if (t === 'termo_inv' && orcVal('ctr-ti-uso') === 'adesao') return { nossa: 'SÓCIA OSTENSIVA', deles: 'ADERENTE', Nossa: 'Sócia ostensiva', Parte: 'Aderente', parte: 'aderente' };
   return { nossa: T.nossa, deles: T.deles, Nossa: T.Nossa, Parte: T.Parte, parte: T.parte };
 }
@@ -22691,7 +22687,7 @@ function ctrSocPrazos() {
 // A multa e os juros da CONTRATADA por atraso não são parâmetro: seguem os campos do cliente (2% e 1% ao mês).
 function ctrObraPrazos() {
   return {
-    dia: Math.min(28, ctrInt('ctr-soc-dia', 15)), // dia do repasse do faturamento pela plataforma: o mesmo parâmetro da Sociedade (plataforma.entrega)
+    dia: 10,              // dia do repasse do faturamento pela plataforma (plataforma.entrega); o campo escondido ctr-soc-dia é da Sociedade
     suspensaoDias: 10,    // atraso de pagamento que deixa parar a obra e a plataforma (opc.suspensao)
     acordoFin: 10,        // dias para combinar outra forma se o banco não liberar (preco.financiamento)
     aceiteDias: 5,        // dias úteis para apontar defeito aparente (opc.aceite)
@@ -23027,7 +23023,6 @@ function ctrTI() {
     desist: Math.max(7, ctrInt('ctr-ti-desist', 7)), devolucao: ctrInt('ctr-ti-devolucao', 7),
     deposito: ctrMoeda(orcVal('ctr-ti-deposito')), depositoForma: orcVal('ctr-ti-deposito-forma') || 'Pix',
     depositoQuando: orcVal('ctr-ti-deposito-quando') || 'na assinatura deste termo',
-    arras: ctrMoeda(orcVal('ctr-ti-arras')),
     pep: orcVal('ctr-ti-pep') === 'sim' ? 'sim' : 'nao', faixa: orcVal('ctr-ti-faixa'),
     origem: ['anuncio', 'pessoal', 'indicacao'].includes(orcVal('ctr-ti-origem')) ? orcVal('ctr-ti-origem') : '',
   };
@@ -23108,7 +23103,7 @@ function ctrIntervAnui(rel, papel) {
 function ctrTALocacaoFimCessao(d, comRenovacao) {
   const ta = d.ta, a = d.arr;
   const x = new Date(d.data.getTime());
-  const prorroga = !!(d.opc && d.opc.ta_prorroga);
+  const prorroga = !!ta;   // a prorrogação do prazo do estudo vale sempre (opc.ta_prorroga)
   // No contrato final (sem termo) só contam implantação e prazos (ARR-04).
   x.setDate(x.getDate() + (ta ? ta.prazo * (prorroga ? 2 : 1) + (ta.nivel === 'promessa' ? ta.assinar : 0) : 0) + a.implant);
   x.setMonth(x.getMonth() + a.vigencia + (comRenovacao ? a.renovacao : 0));
@@ -23159,7 +23154,7 @@ function ctrTermoUi() {
   if (nn && t === 'termo_arr') {
     nn.innerHTML = orcVal('ctr-ta-nivel') === 'intencao'
       ? 'Registra a vontade e trava estudo, exclusividade, documentos e sigilo, mas <b>ninguém fica obrigado a assinar o contrato</b>. Bom para o primeiro contato, quando o dono ainda quer pensar.'
-      : 'O dono fica <b>obrigado a assinar o contrato de cessão</b> se a NEXUS confirmar o ponto no prazo, e a NEXUS fica livre para não confirmar. Para valer, a minuta do contrato vai anexada com os números do cartão Arrendamento (Código Civil, arts. 462 a 466).';
+      : 'O dono fica <b>obrigado a assinar o contrato de cessão</b> se a NEXUS confirmar o ponto no prazo, e a NEXUS fica livre para não confirmar. Para valer, a minuta do contrato vai sempre anexada, com os números do cartão Arrendamento (Código Civil, arts. 462 a 466).';
   }
   const ni = document.getElementById('ctr-ti-nota');
   if (ni && t === 'termo_inv') {
@@ -23170,7 +23165,11 @@ function ctrTermoUi() {
     if (ctrTermoOrigem && ctrTermoOrigem.valor) partes.push(`No cadastro, declarou investir <b>${orcEsc(ctrTermoOrigem.valor)}</b>.`);
     partes.push(ti.uso === 'adesao'
       ? 'Na adesão, o investidor entra na sociedade já assinada e aceita as cláusulas dela: confira o número e a data do contrato. O termo dá a ele login de leitura na plataforma desde a adesão (ou desde a operação, se o ponto ainda não opera).'
-      : `A reserva vale ${ti.validade} dias. Se ${ti.modelo === 'socio50' ? 'a distribuidora não aceitar o pedido de acesso do local dele' : 'o contrato de cessão do local não for assinado'} nesse prazo, o termo cai sozinho${ti.deposito > 0 ? ' e o depósito volta inteiro' : ''}.${ti.deposito > 0 && s.aporteCli > 0 ? ` O depósito já abate do aporte: a forma de pagamento cobra ${ORC_MONEY(Math.max(0, s.aporteCli - ti.deposito))}.` : ''}`);
+      : `A reserva vale ${ti.validade} dias. ${ti.deposito > 0
+        ? (ti.modelo === 'socio50'
+          ? 'Se a distribuidora não aceitar o pedido de acesso do local dele nesse prazo, o termo cai e o depósito volta inteiro. Se a NEXUS não protocolar o pedido ou não enviar o contrato no prazo, devolve em dobro. Se o investidor desistir depois do prazo livre, a NEXUS fica com o depósito (arras).'
+          : 'Se a NEXUS não assinar o contrato de cessão do local nesse prazo, devolve o depósito em dobro (inteiro, se o dono do local desistir ou a distribuidora negar). Se o investidor desistir depois do prazo livre, a NEXUS fica com o depósito (arras).')
+        : 'Sem depósito, qualquer lado encerra a reserva sem custo, e ela acaba sozinha no fim do prazo.'}${ti.deposito > 0 && s.aporteCli > 0 ? ` O depósito já abate do aporte: a forma de pagamento cobra ${ORC_MONEY(Math.max(0, s.aporteCli - ti.deposito))}.` : ''}`);
     if (ti.deposito > 0 && s.aporteCli > 0 && ti.deposito > s.aporteCli) partes.push('<b style="color:#fca5a5">O depósito passa o aporte.</b>');
     ni.innerHTML = partes.join(' ');
   }
@@ -23633,7 +23632,7 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-ta-premio-quando', 'ctr-ta-multa',
   'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
   'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
-  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-soc-dono', 'ctr-eq-atraso', 'ctr-eq-garantia', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja', 'ctr-arr-soc-ref',
+  'ctr-ti-deposito-quando', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-soc-dono', 'ctr-eq-atraso', 'ctr-eq-garantia', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja', 'ctr-arr-soc-ref',
   'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir',
   // Quem é o cessionário, o cedente de fora e o avalista (19/10/2026). Papel salvo antes não tem as chaves: orcSnapApply as zera.
   'ctr-arr-cess', 'ctr-aval-tem', ...CTR_PESSOAS_IDS];
@@ -23715,9 +23714,11 @@ function ctrEspelho(id, ligado, fonte, desligar, religar) {
 // quem paga é a NEXUS.
 // O pedido da compra e venda: a aba Venda de equipamento, com ou sem os itens
 // opcionais (caixinha do contrato). Valores em reais; os itens em centavos.
-// A instalação está vendida quando algum item do pedido tem "instala" na descrição (sem diferenciar maiúsculas): decide a nota fiscal,
-// a cláusula da instalação e o campo da garantia da instalação.
-const ctrEqInstVendida = q => !!q && (q.itens || []).some(i => /instala/i.test(String(i.desc || '')));
+// A instalação está vendida quando algum item do pedido tem "instala" na descrição (sem diferenciar maiúsculas) e não tem "kit":
+// "kit de instalação" é material, não serviço. Decide a nota fiscal, a cláusula da instalação e o campo da garantia da instalação.
+// Um só teste para a tela, o contrato e a impressão.
+const ctrEqItemInstala = i => { const t = String((i && i.desc) || ''); return /instala/i.test(t) && !/kit/i.test(t); };
+const ctrEqInstVendida = q => !!q && (q.itens || []).some(ctrEqItemInstala);
 function ctrEqv() {
   const vazio = { itens: [], fora: [], subtotal: 0, frete: 0, total: 0, num: '', freteTipo: 'CIF', entregaLocal: '', prazo: '', garantia: '', emit: {}, ie: '' };
   let p = null;
@@ -24429,7 +24430,7 @@ function ctrEqUi() {
   const gf = document.getElementById('ctr-eq-garantia-f');
   if (gf) gf.style.display = ctrEqInstVendida(q) ? '' : 'none';
   if (!q.itens.length) { el.innerHTML = '<b style="color:#fca5a5">Sem pedido.</b> Monte os itens na aba Venda de equipamento.'; return; }
-  const falta = [!q.prazo && 'prazo de entrega', q.itens.some(i => !i.ncm && !/instala/i.test(String(i.desc || ''))) && 'NCM'].filter(Boolean);
+  const falta = [!q.prazo && 'prazo de entrega', q.itens.some(i => !i.ncm && !ctrEqItemInstala(i)) && 'NCM'].filter(Boolean);
   el.innerHTML = `Orçamento de Venda${q.num ? ' nº <b>' + e(q.num) + '</b>' : ''}: <b>${q.itens.length} item(ns)</b>, total <b>${ORC_MONEY(q.total)}</b>, frete ${q.freteTipo === 'FOB' ? 'FOB' : 'CIF'}${q.prazo ? ', entrega em ' + e(q.prazo) : ''}${q.garantia ? ', garantia de ' + e(q.garantia) : ''}.`
     + (q.fora.length ? ` ${q.fora.length} opcional(is) fora da compra: para incluir, desmarque "opcional" no item.` : '')
     + (falta.length ? ` <b style="color:#fca5a5">Falta: ${falta.join(', ')}.</b>` : '');
@@ -24583,9 +24584,11 @@ function ctrDados() {
     // Cada linha das cláusulas extras vira um item numerado.
     extras: orcVal('ctr-extras').split(/\n+/).map(s => s.trim()).filter(Boolean),
     testemunhas: orcVal('ctr-testemunhas') !== '',
-    // Sociedade, Completo e Compra e venda: as proteções são fixas no texto. A assinatura eletrônica é sempre aceita (regra 15),
-    // e o ctrFecho lê este valor para escrever "ou, eletronicamente, em via única".
-    opc: Object.assign(Object.fromEntries(CTR_OPC.map(o => [o.id, ctrOpcOn(o.id)])), (ctrEhSoc(tipo) || tipo === 'completo' || tipo === 'equip') ? { eletronica: true } : {}),
+    // Nenhum contrato tem caixinha: as proteções são fixas no texto. A assinatura eletrônica é sempre aceita (regra 15),
+    // e o ctrFecho lê este valor para escrever "ou, eletronicamente, em via única". O dossiê do local vem dos dados
+    // (algo entregue ou anexado); lido pelo ctrAnexos e por objeto.area do arrendamento.
+    opc: Object.assign(Object.fromEntries(CTR_OPC.map(o => [o.id, ctrOpcOn(o.id)])), { eletronica: true },
+      (tipo === 'arrend' || tipo === 'termo_arr') ? { dossie_anexo: (() => { try { return !!ctrDosTem(); } catch (err) { return false; } })() } : {}),
     // 50/50: o sócio não é o dono do imóvel quando o campo da tela diz "não" ou, com o campo em "Pela ficha"
     // (vazio), quando o formulário do cliente diz que o local não é dele. Interveniente dono manda sobre os dois
     // (ctrModeloSociedade). Vale também na minuta do Termo do Investidor. Antes era a caixinha "anuencia".
@@ -24623,63 +24626,9 @@ function ctrDados() {
 // Desde 07/10/2026 cada uma diz em `tipos` em que modelo de contrato existe
 // (sem `tipos` = em todos), e `dicas` troca a explicação por modelo.
 // Sociedade, Completo e Compra e venda não têm mais caixinha: o que depende do caso entra pelos dados.
-const CTR_OPC = [
-  { id: 'eletronica', so: t => !ctrEhSoc(t) && t !== 'completo' && t !== 'equip', rot: 'Assinatura eletrônica', padrao: true,
-    dica: 'Reconhece a assinatura digital (Lei 14.063/2020). Assinado em plataforma que atesta a integridade, dispensa as testemunhas (CPC 784, §4º).' },
-  // No arrendamento a valor fixo não há demonstrativo nem dado de usuário: a caixinha some (volta no percentual).
-  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrTipo() !== 'completo' || ctrSoftware(), so: t => !ctrEhSoc(t) && t !== 'completo' && t !== 'equip' && (t !== 'arrend' || ctrArrModo() !== 'fixo'),
-    dica: 'Dados de recarga tratados só para operar a plataforma. Projeto, software e marca continuam da NEXUS. Nasce marcada quando o Software está no escopo.',
-    dicas: { arrend: 'O dono do local recebe só números agregados, nunca dado pessoal de motorista: mandar lista com placa ou telefone é tratamento sem base legal.' } },
-  // Completo e Compra e venda de equipamento: sem caixinhas (20/10/2026). O dono do imóvel (ctr-soc-dono), a reserva de domínio, o limite de
-  // responsabilidade (só empresa), a instalação vendida, o LGPD e a assinatura eletrônica são fixos no texto ou vêm dos dados do contrato.
-  // Sociedade (50/50 e cotas): sem caixinhas. Perda limitada, auditoria, preferência, LGPD, assinatura eletrônica e as declarações do investidor são fixas no texto (20/10/2026).
-  // Arrendamento.
-  { id: 'arr_exclusiv', tipos: ['arrend'], rot: 'Exclusividade no imóvel', padrao: true,
-    dica: 'O dono não instala nem autoriza outro carregador aberto ao público no mesmo imóvel. Só vale dentro do imóvel: raio em volta precisa de advogado.' },
-  { id: 'arr_privativo', tipos: ['arrend'], rot: 'Carregador privativo do dono permitido', padrao: true,
-    dica: 'A exclusividade não impede tomada ou carregador de uso próprio, sem cobrança e fechado ao público. Desmarcada, até a van do mercado tem que carregar no ponto.' },
-  { id: 'arr_auditoria', tipos: ['arrend'], rot: 'Auditoria anual do faturamento', padrao: true, so: () => ctrArrModo() !== 'fixo',
-    dica: 'Uma vez por ano o dono do local pode auditar a apuração. Diferença acima de 5% contra ele passa o custo para a NEXUS, que é quem mede a base do percentual.' },
-  { id: 'arr_registro', tipos: ['arrend'], rot: 'Registro em cartório e na matrícula', padrao: false,
-    dica: 'Registrado, o contrato vale contra quem comprar o imóvel ou o credor do dono. Sem registro, vale só entre as partes. Custa cartório, pago pela NEXUS.' },
-  { id: 'arr_publicidade', tipos: ['arrend'], rot: 'Uso do nome do estabelecimento na divulgação', padrao: false,
-    dica: 'Separado do cadastro nos mapas de recarga, que é sempre autorizado: este é o uso do nome e da imagem do local em anúncio da NEXUS.' },
-  // Dossiê do local, no termo do arrendador e no contrato de arrendamento.
-  { id: 'dossie_anexo', tipos: ['termo_arr', 'arrend'], rot: 'Anexar o dossiê do local ao PDF', padrao: () => ctrDosTem(),
-    dica: 'Checklist dos documentos e relatório fotográfico do local, em folhas próprias no fim do PDF. Liga sozinha quando o dossiê tem algo entregue ou anexado.' },
-  // Termo do Arrendador.
-  { id: 'ta_minuta', tipos: ['termo_arr'], rot: 'Anexar a minuta do contrato de cessão', padrao: () => orcVal('ctr-ta-nivel') !== 'intencao',
-    dica: 'Só na promessa. Ela só obriga se tiver todos os termos essenciais do contrato definitivo (Código Civil, art. 462): a minuta anexada, com os números do cartão Arrendamento, é o que cumpre isso.' },
-  { id: 'ta_exclusiv', tipos: ['termo_arr'], rot: 'Exclusividade durante o estudo', padrao: true,
-    dica: 'Enquanto o termo vale, o dono não cede nem negocia o local com outro eletroposto. É o que "segura" o ponto.' },
-  { id: 'ta_prorroga', tipos: ['termo_arr'], rot: 'Prazo estende se a distribuidora atrasar', padrao: true,
-    dica: 'O prazo do estudo cresce pelo tempo de atraso da distribuidora, uma vez e no máximo o mesmo prazo. Sem isto, a demora dela pode vencer o termo.' },
-  { id: 'ta_relatorio', tipos: ['termo_arr'], rot: 'Resumo do estudo para o dono', padrao: false,
-    dica: 'A NEXUS entrega ao dono o resultado técnico do estudo, sem projeção financeira. Ajuda a fechar, mas é compromisso a mais.' },
-  { id: 'ta_registro', tipos: ['termo_arr'], rot: 'Registro em cartório', padrao: false,
-    dica: 'Registrado, o termo ganha data certa e publicidade. Para valer contra quem comprar o imóvel, confirme com o advogado a averbação na matrícula. Custa cartório, pago pela NEXUS.' },
-  // Termo do Investidor.
-  { id: 'ti_minuta', tipos: ['termo_inv'], rot: 'Anexar a minuta do contrato de sociedade (só na reserva)', padrao: () => orcVal('ctr-ti-uso') !== 'adesao',
-    dica: 'O contrato de sociedade com os números do cartão Sociedade, sem assinatura, no fim do PDF. O investidor sabe exatamente o que vai assinar, e ninguém discute depois qual versão valia. Na adesão o anexo é a cópia do contrato já assinado, juntada à mão.' },
-  { id: 'ti_fila', tipos: ['termo_inv'], rot: 'Sem reserva além das cotas', padrao: true,
-    dica: 'A NEXUS não aceita, para o mesmo ponto, mais reservas do que cotas. Fila de espera por escrito parece captação pública (CVM).' },
-  { id: 'ti_arras', tipos: ['termo_inv'], rot: 'Retenção se desistir depois do prazo livre', padrao: false,
-    dica: 'Arras penitenciais de valor fixo e modesto (campo no cartão do termo). Sem isto, quem desiste recebe tudo de volta. Valor alto o juiz reduz.' },
-  { id: 'ti_risco', tipos: ['termo_inv'], rot: 'Ciência de risco', padrao: true,
-    dica: 'O investidor declara que pode perder o capital, que não administra, que não há revenda fácil da cota e que a ligação depende da distribuidora.' },
-  { id: 'ti_promessa', tipos: ['termo_inv'], rot: 'Sem promessa de retorno', padrao: true,
-    dica: 'O investidor declara que não decidiu por promessa de rentabilidade ou de renda mensal. É a cláusula que mais protege a NEXUS.' },
-  { id: 'ti_capacidade', tipos: ['termo_inv'], rot: 'Capacidade financeira', padrao: true,
-    dica: 'O valor não compromete o sustento dele. Com a faixa de renda ou patrimônio, se preenchida no cartão.' },
-  { id: 'ti_origem', tipos: ['termo_inv'], rot: 'Origem lícita e pessoa politicamente exposta', padrao: true,
-    dica: 'Declaração de origem dos recursos e se é pessoa politicamente exposta (campo no cartão).' },
-  { id: 'ti_indicacao', tipos: ['termo_inv'], rot: 'Sem pagamento por indicação', padrao: true,
-    dica: 'Ninguém ganha por trazer outro investidor. Pagar indicação foi um dos motivos da CVM em casos de sociedade em conta de participação.' },
-  { id: 'ti_sigilo', tipos: ['termo_inv'], rot: 'Sigilo do local e do dono', padrao: true,
-    dica: 'O investidor não usa nem divulga o local e o dono que conhecer pela NEXUS.' },
-  { id: 'ti_match', tipos: ['termo_inv'], rot: 'Autoriza apresentar ao dono do local', padrao: false,
-    dica: 'Consentimento para mostrar nome, cidade e valor do aporte ao dono do ponto. Marque só se ele autorizou.' },
-];
+// Nenhum contrato tem mais caixinha (21/10/2026): cada proteção é fixa no texto ou entra pelos dados do contrato. A lista fica vazia
+// de propósito: o cartão some (ctrOpcRender), ctrDados força a assinatura eletrônica e o dossiê do local sai dos dados (ctrDosTem).
+const CTR_OPC = [];
 function ctrOpcDoTipo(t) { return CTR_OPC.filter(o => (!o.tipos || o.tipos.includes(t)) && (!o.so || o.so(t))); }
 let ctrOpc = {};
 function ctrOpcOn(id) {
@@ -24705,7 +24654,7 @@ function ctrOpcRender() {
     return `<label class="ctr-opc-row ${on ? 'on' : 'off'}"><input type="checkbox"${on ? ' checked' : ''} onchange="ctrOpcMarca('${o.id}', this.checked)"><span><b>${orcEsc(o.rot)}</b><small>${orcEsc(dica)}</small></span></label>`;
   }).join('');
 }
-function ctrOpcMarca(id, on) { ctrOpc[id] = !!on; ctrOpcRender(); if (id === 'ta_prorroga') ctrTermoUi(); }
+function ctrOpcMarca(id, on) { ctrOpc[id] = !!on; ctrOpcRender(); }
 function ctrOpcReset() { ctrOpc = {}; ctrOpcRender(); }
 
 // ─── Paginação medida (05/10/2026) ──────────────────────────────────────────
@@ -24789,7 +24738,7 @@ function ctrModeloObra(d) {
   const P = d.obP;
   // Regra 12: pessoa física é consumidor. Sem documento preenchido vale o lado que mais protege o cliente.
   const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
-  const pf = dg === 0 || dg === 11, pj = dg === 14;
+  const pj = dg === 14, pf = !pj;
   const L = h => (pf && h ? `<b>${h}</b>` : h);
   // Regra 12: multa por atraso de pagamento do consumidor até 2% (CDC, art. 52, § 1º). A da CONTRATADA acompanha a do cliente.
   const multaCli = pf ? Math.min(d.multa, 2) : d.multa;
@@ -24916,7 +24865,7 @@ function ctrModeloObra(d) {
 //  - Sinal: arras penitenciais (art. 420). Quem desiste perde o sinal ou devolve em dobro.
 //  - Reserva de domínio sempre (521 a 528). Atraso de pagamento ou de entrega: o mesmo prazo (d.eqAtraso)
 //    para os dois lados. O atraso da VENDEDORA devolve tudo corrigido, com multa e juros, sem o dobro.
-//  - Instalação vendida: o item do pedido cuja descrição tem "instala" (ctrEqInstVendida).
+//  - Instalação vendida: o item do pedido cuja descrição tem "instala" e não tem "kit" (ctrEqInstVendida).
 //  - Comprador com CPF (ou sem documento) é consumidor: garantia legal, reclamação em 90 dias,
 //    arrependimento fora do estabelecimento (CDC 26, 49, 50), multa até 2%, foro do domicílio.
 function ctrModeloEquip(d) {
@@ -25260,9 +25209,18 @@ function ctrModeloSociedade(d) {
 // Nos dois: prazo mínimo em que ninguém sai sem motivo, renovação automática
 // uma vez salvo aviso da CESSIONÁRIA, e fase de obra sem pagamento.
 function ctrModeloArrend(d) {
-  const { e, money, vazio, lacuna, pct, op, C, I } = ctrModeloPecas(d);
+  const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
+  const { nx, px } = ctrPecasNum(e, money);
   const a = d.arr;
   const fixo = a.modo === 'fixo';
+  // Regra 12: o CEDENTE pessoa física ganha negrito no que limita direito dele e o foro do domicílio. No modo cliente ele é o lado forte
+  // (o cliente é o CESSIONÁRIO) e a NEXUS nem é parte: pf é sempre falso. Sem documento vale o lado que mais protege.
+  // A NEXUS mantém a proteção contra cobrança de lucro cessante (resp.indiretos): o dono do local não é consumidor.
+  const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
+  const pf = !d.arrCli && (dg === 0 || dg === 11);
+  const L = h => (pf && h ? `<b>${h}</b>` : h);
+  // Dossiê anexo: vem dos dados (ctrDados), e a minuta do Termo do Arrendador o desliga (o dossiê é anexo do termo).
+  const dos = !!(d.opc && d.opc.dossie_anexo);
   // Meses fixos iguais ou maiores que o prazo mínimo: fixo o prazo todo, sem degrau.
   const fixoTodo = fixo && a.fixoMeses != null && a.fixoMeses >= a.vigencia;
   const iv = d.interv && d.interv.nome ? d.interv : null;
@@ -25279,18 +25237,18 @@ function ctrModeloArrend(d) {
     : locacaoCabe === 'vigencia' ? 'A locação cobre o prazo mínimo deste contrato, e a renovação da {{i:prazo.renovacao}} depende da prorrogação da locação ou da autorização escrita do proprietário para esse período.'
     : 'A autorização do proprietário prevê que, terminada a locação antes do fim deste contrato ou das suas renovações, ele assume a posição de CEDENTE nas mesmas condições.';
   const extenso = v => `${money(v)} (${e(recExtenso(v))})`;
-  const objeto = loc => `O CEDENTE cede à CESSIONÁRIA o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), exclusivamente para instalar e explorar estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
-  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de encerramento por culpa do CEDENTE.'
-    + (iv ? ' A anuência do INTERVENIENTE ANUENTE, dada neste contrato, é irrevogável pelo prazo dele e das suas renovações.' : '');
+  const objeto = loc => `O CEDENTE cede à CESSIONÁRIA o uso de área do imóvel situado em <b>${loc}</b> (o IMÓVEL), só para instalar e explorar uma estação de recarga de veículos elétricos com <b>${nx(d.qtd)} carregador${d.qtd > 1 ? 'es' : ''} ${e(d.equipTxt || 'de corrente contínua')}</b> e ${nx(d.plugs)} ponto${d.plugs > 1 ? 's' : ''} de carregamento (o PONTO).`;
+  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de encerramento por culpa do CEDENTE'
+    + (iv ? ', e a anuência do INTERVENIENTE ANUENTE, dada neste contrato, não pode ser revogada durante o contrato e as suas renovações' : '') + '.';
   // A conta do cedente (Pix, muitas vezes o CPF) sai no papel e NÃO vai à IA.
-  const venc = conta => `O valor de cada mês vence no dia <b>${a.dia}</b> do mês seguinte${fixo ? '' : ', junto com o demonstrativo da {{i:contas.demonstrativo}}'}, e é pago por Pix ou transferência ${conta ? `para: ${conta}` : 'à conta que o CEDENTE indicar por escrito'}. O CEDENTE emite o recibo ou o documento fiscal correspondente, e cada parte responde pelos tributos sobre o que recebe.`;
+  const venc = conta => `O valor de cada mês vence no dia <b>${nx(a.dia)}</b> do mês seguinte${fixo ? '' : ', junto com o demonstrativo da {{i:contas.demonstrativo}}'}, e é pago por Pix ou transferência ${conta ? `para: ${conta}` : 'à conta que o CEDENTE indicar por escrito'}. O CEDENTE emite o recibo ou o documento fiscal correspondente, e cada parte responde pelos tributos sobre o que recebe.`;
   const legitimidade = {
     proprietario: 'Declarar que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante todo o contrato.',
     locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e entregar na assinatura a anuência escrita do inquilino a esta cessão. ${anuenciaFalta}`,
     locatario: `Declarar que é inquilino do IMÓVEL e entregar na assinatura cópia do contrato de locação${ivDono ? '; a anuência do proprietário é a assinatura dele neste contrato como INTERVENIENTE ANUENTE' : ' e a autorização escrita e específica do proprietário'}. ${ivDono ? 'Terminada a locação antes do fim deste contrato ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de CEDENTE, nas mesmas condições, desde o dia seguinte ao fim da locação.' : locacaoTxt} ${anuenciaFalta}`,
     representante: `Declarar que administra ou representa o proprietário do IMÓVEL, com poderes documentados para esta cessão${a.energia === 'uc' ? ' e para o pedido de ligação nova da {{c:ligacao}}' : ''}, cuja cópia integra este contrato.`,
     condominio: `Entregar na assinatura a ata da assembleia que autorizou esta cessão${a.energia === 'uc' ? ', a ligação nova da {{c:ligacao}} e a passagem do ramal pela área comum' : ''}, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
-    branco: 'Declarar a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, com anuência escrita do inquilino; ( ) inquilino, com autorização escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia.',
+    branco: 'Declarar a sua condição sobre o IMÓVEL, marcando uma opção: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado e anuência escrita do inquilino; ( ) inquilino, com autorização escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia. A cópia do documento que comprova a condição marcada integra este contrato.',
   }[a.relacao] || '';
   return [
     C('objeto', 'Do objeto', [
@@ -25302,52 +25260,56 @@ function ctrModeloArrend(d) {
         ].filter(Boolean); return di.length ? `Dados do IMÓVEL: ${di.join('; ')}.` : ''; })()),
       I('objeto.sociedade', d.socRef ? `Este contrato formaliza, para o pedido de ligação nova junto à distribuidora, a cessão da área prevista no Contrato de Sociedade em Conta de Participação ${e(d.socRef)}, firmado entre as partes. A remuneração do CEDENTE é a prevista naquele contrato, paga como custo da operação da sociedade, e não se soma a ela; havendo divergência entre os dois, prevalece o contrato de sociedade, e este contrato vigora enquanto ela durar.` : ''),
       I('objeto.termo', d.tipo === 'arrend' && !d.arrCli && d.origemRef ? `Este contrato é celebrado em cumprimento ao Termo de Compromisso e Promessa de Cessão de Área ${e(d.origemRef)}, cujas cláusulas do valor da reserva e de sigilo sobrevivem a ele.` : ''),
-      I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, mais o espaço da base do carregador, do quadro elétrico, do medidor e do trajeto dos cabos, conforme croqui rubricado pelas partes. O estado da ÁREA na assinatura fica registrado ${op('dossie_anexo') ? 'no relatório fotográfico do dossiê do local, anexo a este contrato' : 'em fotos rubricadas pelas partes'}, que são a referência para a devolução da {{c:devolucao}}.`),
-      I('objeto.natureza', `Este contrato não cria sociedade nem parceria. O CEDENTE não participa do negócio, não opera o PONTO, não define o preço da recarga e não responde pelo seu resultado${fixo ? '' : '. O percentual da {{i:remuneracao.pct}} é só o preço da cessão, medido por um índice objetivo: o CEDENTE não participa de lucro nem suporta prejuízo'}.`),
+      I('objeto.area', `A área cedida (a ÁREA) tem <b>${nx(a.vagas, true)} vaga${a.vagas > 1 ? 's' : ''} de estacionamento</b> só para recarga${a.area ? `, com <b>${e(a.area)} m²</b> no total` : ''}, mais o espaço da base do carregador, do quadro elétrico, do medidor e do trajeto dos cabos, conforme croqui rubricado pelas partes. O estado da ÁREA na assinatura fica registrado ${dos ? 'no relatório fotográfico do dossiê do local, anexo a este contrato' : 'em fotos rubricadas pelas partes'}, que são a referência para a devolução da {{c:devolucao}}.`),
+      I('objeto.natureza', fixo
+        ? 'Este contrato não cria sociedade nem parceria. O CEDENTE não participa do negócio, não opera o PONTO, não define o preço da recarga e não responde pelo seu resultado.'
+        : d.socRef
+          ? 'Este contrato trata só da cessão da ÁREA e não cria outra sociedade entre as partes além da prevista no contrato de sociedade citado na {{i:objeto.sociedade}}. O percentual da {{i:remuneracao.pct}} é só o preço da cessão, medido por um índice objetivo.'
+          : 'Este contrato não cria sociedade nem parceria. O CEDENTE não participa do negócio, não opera o PONTO, não define o preço da recarga e não responde pelo seu resultado. O percentual da {{i:remuneracao.pct}} é só o preço da cessão, medido por um índice objetivo.'),
     ]),
     C('prazo', 'Do prazo', [
-      I('prazo.vigencia', `O contrato vale pelo prazo mínimo de <b>${a.vigencia} meses</b> de funcionamento do PONTO. O início do funcionamento é a data da primeira recarga cobrada, e o 1º mês é o primeiro mês inteiro do calendário em funcionamento.`),
-      I('prazo.firme', 'Durante esse prazo, nenhuma das partes pode encerrar o contrato sem motivo. Ele só termina antes nos casos da {{c:rescisao}}.'),
-      I('prazo.renovacao', `Ao fim do prazo mínimo, o contrato se renova automaticamente por <b>${a.renovacao} meses</b>, nas mesmas condições, salvo se a CESSIONÁRIA avisar por escrito, com <b>${a.aviso} dias</b> de antecedência, que não quer renovar. Depois dessa renovação, nova prorrogação depende de acordo escrito entre as partes.`),
-      I('prazo.implantacao', `Da assinatura ao início do funcionamento corre a fase de obra, de até <b>${a.implant} dias</b>, sem pagamento ao CEDENTE. Qualquer das partes pode encerrar o contrato sem multa se esse prazo passar sem funcionamento por causa que não seja do CEDENTE, se a concessionária negar a ligação ou se a CESSIONÁRIA recusar por escrito o custo de reforço de rede. Nesses casos, a CESSIONÁRIA retira o que tiver instalado e recompõe a ÁREA.`),
+      I('prazo.vigencia', `O contrato vale pelo prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento do PONTO. O funcionamento começa na primeira recarga cobrada, e a contagem dos meses começa no primeiro mês inteiro do calendário em funcionamento.`),
+      I('prazo.firme', L('Durante esse prazo, nenhuma das partes pode encerrar o contrato sem motivo. Ele só termina antes nos casos da {{c:rescisao}}.')),
+      I('prazo.renovacao', `${L(`Ao fim do prazo mínimo, o contrato se renova automaticamente por <b>${nx(a.renovacao)} meses</b>, nas mesmas condições, salvo se a CESSIONÁRIA avisar por escrito, com <b>${nx(a.aviso)} dias</b> de antecedência, que não quer renovar.`)} Depois dessa renovação, nova prorrogação depende de acordo escrito entre as partes.`),
+      I('prazo.implantacao', `Da assinatura ao início do funcionamento corre a fase de obra, de até <b>${nx(a.implant)} dias</b>, sem pagamento ao CEDENTE. Qualquer das partes pode encerrar o contrato sem multa se esse prazo passar sem funcionamento por causa que não seja do CEDENTE, se a concessionária negar a ligação ou se a CESSIONÁRIA recusar por escrito o custo de reforço de rede. Nesses casos, a CESSIONÁRIA retira o que tiver instalado e recompõe a ÁREA.`),
     ]),
     fixo ? C('remuneracao', 'Do valor mensal', [
-      I('remuneracao.fixo', `Pela cessão, a CESSIONÁRIA paga ao CEDENTE o valor mensal fixo de <b>${a.fixo > 0 ? extenso(a.fixo) : lacuna}</b> ${fixoTodo ? 'durante todo o prazo mínimo' : `nos primeiros <b>${a.fixoMeses == null ? lacuna : a.fixoMeses + ' meses'}</b> de funcionamento`}.`, { travado: true }),
+      I('remuneracao.fixo', `Pela cessão, a CESSIONÁRIA paga ao CEDENTE o valor mensal fixo de <b>${a.fixo > 0 ? extenso(a.fixo) : lacuna}</b> ${fixoTodo ? 'durante todo o prazo mínimo' : `nos primeiros <b>${a.fixoMeses == null ? lacuna : nx(a.fixoMeses) + ' meses'}</b> de funcionamento`}.`, { travado: true }),
       // Vazio é lacuna; 0 é "sem reajuste"; meses fixos no prazo todo não têm
       // degrau antes da renovação. A tabela só sai quando tem degrau (ctrArrTemTabela).
       I('remuneracao.reajuste', a.reajuste === 0
         ? 'O valor não tem reajuste, nem no prazo mínimo nem na renovação, salvo aditivo escrito.'
-        : `${fixoTodo ? 'Havendo renovação, o valor' : 'Depois desse período, o valor'} é reajustado em <b>${a.reajuste == null ? lacuna : pct(a.reajuste) + '%'}</b> a cada 12 (doze) meses, sempre sobre o valor em vigor${ctrArrTemTabela(a) ? ', conforme a tabela a seguir. Havendo renovação, o reajuste continua a cada 12 (doze) meses' : fixoTodo ? '' : '. Havendo renovação, o reajuste continua a cada 12 (doze) meses'}.`, { travado: true, bloco: 'faixas' }),
-      I('remuneracao.devido', 'O valor é devido com ou sem movimento no PONTO, ressalvada a {{i:operacao.fechamento}}. Os dias de funcionamento do mês de início, antes do 1º mês, são pagos em proporção ao valor mensal.'),
+        : `${fixoTodo ? 'Havendo renovação, o valor' : 'Depois desse período, o valor'} é reajustado em <b>${a.reajuste == null ? lacuna : px(a.reajuste)}</b> a cada 12 (doze) meses, sempre sobre o valor em vigor${ctrArrTemTabela(a) ? ', conforme a tabela a seguir. Havendo renovação, o reajuste continua a cada 12 (doze) meses' : fixoTodo ? '' : '. Havendo renovação, o reajuste continua a cada 12 (doze) meses'}.`, { travado: true, bloco: 'faixas' }),
+      I('remuneracao.devido', 'O valor é devido com ou sem movimento no PONTO, ressalvada a {{i:operacao.fechamento}}. Os dias de funcionamento antes do primeiro mês inteiro são pagos em proporção ao valor mensal.'),
       I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
       // Só na minuta anexada ao termo do arrendador (ctrAnexos põe o valor) e no contrato que veio dele.
       I('remuneracao.reserva', premioR > 0 ? `O valor de <b>${extenso(premioR)}</b> pago ao CEDENTE na reserva do local é abatido do primeiro valor mensal devido e dos seguintes, até se esgotar.` : ''),
-      I('remuneracao.mora', `O atraso gera multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
+      I('remuneracao.mora', `O atraso de pagamento da CESSIONÁRIA gera multa de ${px(a.moraMulta)} sobre o valor em atraso, juros de ${px(a.moraJuros)} ao mês e correção pelo IPCA. O CEDENTE paga os mesmos acréscimos sobre o que dever por este contrato e pagar com atraso${pf && a.moraMulta > 2 ? ', com a multa limitada a 2% (dois por cento)' : ''}.`),
     ]) : C('remuneracao', 'Da remuneração do CEDENTE', [
-      I('remuneracao.pct', `Pela cessão, a CESSIONÁRIA paga ao CEDENTE <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>, apurado a cada mês.`, { travado: true }),
+      I('remuneracao.pct', `Pela cessão, a CESSIONÁRIA paga ao CEDENTE <b>${a.pct > 0 ? px(a.pct) : lacuna} do faturamento bruto de recarga do PONTO</b>, apurado a cada mês.`, { travado: true }),
       I('remuneracao.base', 'Faturamento bruto é tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia entregue, taxa de ativação, tempo de permanência e qualquer outra receita do PONTO. Recarga gratuita, com desconto, de cortesia ou de campanha entra na base pelo preço de tabela do dia. Dele não se deduz energia, meio de pagamento, plataforma, internet, tributo, manutenção, seguro nem depreciação.'),
-      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de funcionamento, a remuneração do mês não é inferior a <b>${extenso(a.piso)}</b>, valor reajustado a cada 12 (doze) meses pelo IPCA. O percentual não se reajusta, porque já acompanha o preço da recarga.` : '', { travado: true }),
+      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>mês ${nx(a.carencia)}</b> de funcionamento, a remuneração do mês não é inferior a <b>${extenso(a.piso)}</b>, valor reajustado a cada 12 (doze) meses pelo IPCA. O percentual não se reajusta, porque já acompanha o preço da recarga.` : '', { travado: true }),
       I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
       I('remuneracao.reserva', premioR > 0 ? `O valor de <b>${extenso(premioR)}</b> pago ao CEDENTE na reserva do local é abatido da primeira remuneração devida e das seguintes, até se esgotar.` : ''),
-      I('remuneracao.mora', `O atraso gera multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
+      I('remuneracao.mora', `O atraso de pagamento da CESSIONÁRIA gera multa de ${px(a.moraMulta)} sobre o valor em atraso, juros de ${px(a.moraJuros)} ao mês e correção pelo IPCA. O CEDENTE paga os mesmos acréscimos sobre o que dever por este contrato e pagar com atraso${pf && a.moraMulta > 2 ? ', com a multa limitada a 2% (dois por cento)' : ''}.`),
     ]),
     // Só no percentual: quem mede a base é quem paga, e estas são as garantias do cedente.
     fixo ? null : C('contas', 'Da medição e da prestação de contas', [
       I('contas.demonstrativo', 'A base de apuração é o registro da plataforma de gestão e cobrança do PONTO (protocolo OCPP). Até o vencimento, a CESSIONÁRIA entrega ao CEDENTE o demonstrativo do mês, com o número de sessões, a energia entregue, o faturamento bruto discriminado, as recargas gratuitas ou promocionais, o percentual e o valor devido, acompanhado do extrato da plataforma.'),
       I('contas.painel', 'O CEDENTE tem acesso de leitura à plataforma, por login próprio, durante todo o contrato e até o demonstrativo do último mês, restrito aos dados do PONTO e sem dado pessoal de usuário, sócio ou investidor. O que a plataforma mostra é estimativa: o valor devido é o do demonstrativo. Falha técnica, manutenção ou troca de plataforma não suspende o demonstrativo e, enquanto ele for entregue, não é descumprimento.'),
-      I('contas.contestacao', 'O CEDENTE pode contestar o demonstrativo por escrito em 30 (trinta) dias do recebimento, e a CESSIONÁRIA responde em 10 (dez) dias úteis com o extrato bruto da plataforma.'),
-      I('opc.arr_auditoria', op('arr_auditoria') ? 'Uma vez por ano, o CEDENTE pode auditar a apuração por profissional habilitado que assine termo de confidencialidade, por sua conta. Apurada diferença maior que 5% (cinco por cento) do que lhe era devido no período, contra ele, o custo da auditoria passa à CESSIONÁRIA, que paga a diferença com os acréscimos da {{i:remuneracao.mora}}.' : ''),
-      I('contas.falha', `Faltando registro por troca de plataforma ou por falha de telemetria por mais de 15 (quinze) dias, a CESSIONÁRIA paga, pelos dias sem registro, a média diária dos meses apurados, até os três últimos${a.piso > 0 ? ', ou o piso proporcional, se maior' : ''}, e acerta a diferença quando o registro voltar.`),
+      I('contas.contestacao', 'O CEDENTE pode contestar o demonstrativo por escrito em 30 (trinta) dias do recebimento, e a CESSIONÁRIA responde em 10 (dez) dias úteis com o extrato bruto da plataforma. A diferença reconhecida é paga com os acréscimos da {{i:remuneracao.mora}} no vencimento seguinte.'),
+      I('opc.arr_auditoria', 'Uma vez por ano, o CEDENTE pode auditar a apuração, por sua conta, por profissional habilitado que assine termo de confidencialidade. A diferença achada é paga como na {{i:contas.contestacao}} e, se passar de 5% (cinco por cento) do que lhe era devido no período auditado, a CESSIONÁRIA paga também o custo da auditoria.'),
+      I('contas.falha', `Faltando registro por troca de plataforma ou por falha de telemetria por mais de 15 (quinze) dias, a CESSIONÁRIA paga, pelos dias sem registro, a média diária dos meses apurados, até os 3 (três) últimos${a.piso > 0 ? ', ou o piso proporcional, se maior' : ''}, e acerta a diferença quando o registro voltar.`),
       I('contas.conflito', 'Como a CESSIONÁRIA opera a plataforma que mede a base da remuneração, os direitos desta cláusula não se afastam por acordo verbal.'),
     ]),
     C('energia', 'Da energia e das despesas', [
       I('energia.config', {
         uc: 'A energia do PONTO vem de ligação própria, pedida na forma da {{c:ligacao}}, e a CESSIONÁRIA paga integralmente a conta.',
-        sub: 'O PONTO é atendido pela unidade consumidora do CEDENTE, com medidor aferido instalado e mantido pela CESSIONÁRIA, que reembolsa a cada mês o consumo medido pela tarifa efetiva da fatura do período, incluídos bandeira, tributos e encargos, mediante cópia da fatura.',
-        refatura: 'O CEDENTE paga a fatura da unidade consumidora e cobra da CESSIONÁRIA o consumo do PONTO, apurado por medidor próprio, pela tarifa efetiva do período, mediante cópia da fatura.',
+        sub: 'O PONTO é atendido pela unidade consumidora do CEDENTE, com medidor aferido instalado e mantido pela CESSIONÁRIA. A cada mês, o CEDENTE envia a cópia da fatura, e a CESSIONÁRIA reembolsa o consumo medido pela tarifa efetiva do período, incluídos bandeira, tributos e encargos.',
+        refatura: 'O CEDENTE paga a fatura da unidade consumidora e cobra da CESSIONÁRIA, com a cópia da fatura, o consumo do PONTO, apurado por medidor próprio, pela tarifa efetiva do período.',
       }[a.energia] || ''),
-      I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza o acréscimo comprovado da fatura que decorra só dessa mudança, sem o consumo já reembolsado na {{i:energia.config}}.' : ''),
-      I('energia.despesas', 'Correm por conta da CESSIONÁRIA a obra, os equipamentos, o reforço de rede ou o transformador exigido pela concessionária, a internet, a plataforma, o meio de pagamento, a manutenção, o seguro e os tributos da operação. O CEDENTE não paga nenhuma despesa do PONTO.'),
+      I('energia.conta', a.energia !== 'uc' ? 'O CEDENTE mantém em dia a fatura da sua unidade consumidora. Se ela atrasar, a CESSIONÁRIA pode pagá-la e descontar o valor do que deve ao CEDENTE, e o corte por falta de pagamento dele é descumprimento deste contrato. Se a carga do PONTO mudar o enquadramento ou a demanda contratada dessa unidade, a CESSIONÁRIA paga o acréscimo comprovado da fatura que decorra só dessa mudança, sem o consumo já reembolsado na {{i:energia.config}}.' : ''),
+      I('energia.despesas', 'Correm por conta da CESSIONÁRIA a obra, os equipamentos, o reforço de rede ou o transformador exigido pela concessionária, a internet, a plataforma, o meio de pagamento, a manutenção, o seguro e os tributos da operação. Nenhuma despesa do PONTO fica com o CEDENTE.'),
       // Com ligação própria (uc), os documentos da concessionária moram na cláusula da ligação nova.
       I('energia.rede', a.energia === 'uc' ? '' : 'O CEDENTE assina os documentos que a concessionária exigir do responsável pelo local e dá procuração específica para esse trâmite, sem que isso lhe gere custo.'),
     ]),
@@ -25356,7 +25318,7 @@ function ctrModeloArrend(d) {
     // A condição do CEDENTE e a matrícula/IPTU vêm dos campos que já existem na tela
     // (O cedente é; O imóvel e a energia): nenhum campo novo.
     a.energia !== 'uc' ? null : C('ligacao', 'Da ligação nova de energia', [
-      I('ligacao.autoriza', 'O CEDENTE autoriza expressamente a CESSIONÁRIA a pedir à concessionária de energia local, em nome da CESSIONÁRIA, ligação nova (unidade consumidora nova) para o PONTO, no endereço do IMÓVEL. A ligação terá padrão de entrada e medição próprios e, se a concessionária exigir, transformador ou subestação, instalados na ÁREA.'),
+      I('ligacao.autoriza', 'O CEDENTE autoriza expressamente a CESSIONÁRIA a pedir à concessionária de energia local, em nome da CESSIONÁRIA, ligação nova (unidade consumidora nova) para o PONTO, no endereço do IMÓVEL. O padrão de entrada e a medição são próprios do PONTO e, com o transformador ou a subestação que a concessionária pedir, ficam na ÁREA, que inclui também o local do IMÓVEL que a concessionária indicar para eles.'),
       I('ligacao.posse', 'Para esse pedido, este contrato é o documento, com data, que comprova a posse da ÁREA pela CESSIONÁRIA (art. 67, IX, da Resolução Normativa ANEEL nº 1.000/2021) e vale perante a concessionária como arrendamento da ÁREA.'),
       I('ligacao.imovel', (() => {
         const mat = orcVal('ctr-ta-matricula'), cart = orcVal('ctr-ta-cartorio'), iptu = orcVal('ctr-ta-iptu');
@@ -25376,6 +25338,7 @@ function ctrModeloArrend(d) {
       I('energia.rede', 'O CEDENTE assina, sem custo, os formulários e as autorizações que a concessionária exigir do responsável pelo local e dá procuração específica para esse trâmite.'),
       I('ligacao.acesso', 'O CEDENTE permite o acesso da concessionária à ÁREA para vistoria, ligação, leitura e manutenção, e a passagem do ramal de entrada pelo IMÓVEL até a ÁREA.'
         + ({
+          branco: ' Se o CEDENTE não for o proprietário, o documento da {{i:cedente.legitimidade}} cobre também a ligação nova, o acesso da concessionária e a passagem do ramal.',
           locado: ' A anuência escrita do inquilino, entregue na forma da {{i:cedente.legitimidade}}, cobre também a ligação nova, o acesso da concessionária e a passagem do ramal.',
           locatario: ` A autorização do proprietário${ivDono ? ', dada pela assinatura dele como INTERVENIENTE ANUENTE,' : ''} cobre também a ligação nova, o acesso da concessionária e a passagem do ramal.`,
         }[a.relacao] || '')),
@@ -25385,10 +25348,10 @@ function ctrModeloArrend(d) {
       I('obras.execucao', 'A obra é feita pela CESSIONÁRIA, por empresa habilitada, com ART de engenheiro responsável e conforme a ABNT NBR 17019, a NR-10 e as normas da concessionária. O projeto e o cronograma são apresentados antes ao CEDENTE, que só pode recusá-los por motivo técnico ou de segurança justificado.'),
       I('obras.danos', 'Dano causado ao IMÓVEL pela obra ou pela operação é reparado pela CESSIONÁRIA, por sua conta.'),
       I('obras.propriedade', (a.energia === 'uc'
-        ? 'O carregador, os cabos, o quadro, as proteções, o totem, o transformador e a subestação, se houver, e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL. O medidor é da concessionária.'
-        : 'O carregador, os cabos, o quadro, o medidor, as proteções, o totem e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL.') + ' As obras não dão a nenhuma das partes direito de indenização nem de retenção durante o contrato. O CEDENTE não pode reter os equipamentos nem desligar ou bloquear o PONTO, nem mesmo por atraso no pagamento, que se resolve por cobrança ou encerramento.'),
+        ? 'O carregador, os cabos, o quadro, as proteções, o totem, o transformador e a subestação, se houver, e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL, e o medidor é da concessionária.'
+        : 'O carregador, os cabos, o quadro, o medidor, as proteções, o totem e os demais equipamentos são da CESSIONÁRIA, são removíveis e não passam a fazer parte do IMÓVEL.') + ' As obras não dão a nenhuma das partes direito de indenização nem de retenção durante o contrato. ' + L('O CEDENTE não pode reter os equipamentos nem desligar ou bloquear o PONTO, nem mesmo por atraso no pagamento, que se resolve por cobrança ou encerramento.')),
       I('obras.constricao', 'Se o IMÓVEL sofrer penhora, execução ou desapropriação, o CEDENTE avisa a CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para provar que os equipamentos são de terceiro.'),
-      I('opc.arr_registro', op('arr_registro') ? 'As partes registram este contrato no Cartório de Registro de Títulos e Documentos e o averbam na matrícula do IMÓVEL, por conta da CESSIONÁRIA, para que valha perante terceiros.' : ''),
+      I('opc.arr_registro', `A CESSIONÁRIA pode, por sua conta, registrar este contrato no Cartório de Registro de Títulos e Documentos e pedir o seu registro na matrícula do IMÓVEL, e o CEDENTE assina o que o cartório pedir para isso. ${L('Este contrato continua em vigor se o IMÓVEL for vendido e, registrado, vale também perante o comprador e terceiros.')}`),
     ]),
     C('operacao', 'Do funcionamento', [
       I('operacao.horario', {
@@ -25398,8 +25361,8 @@ function ctrModeloArrend(d) {
       }[a.horario] || ''),
       I('operacao.acesso', 'O CEDENTE garante aos usuários acesso livre às vagas nesse horário, sem cobrança de entrada, sem exigência de consumo e sem obstrução, e garante à CESSIONÁRIA acesso para manutenção em horário combinado e, em emergência, a qualquer hora.'),
       I('operacao.tarifa', 'O preço da recarga é definido só pela CESSIONÁRIA. O CEDENTE não mexe no equipamento, na plataforma nem na configuração, salvo para acionar o botão de emergência em situação de risco, e a CESSIONÁRIA orienta a equipe dele sobre esse desligamento.'),
-      I('opc.arr_exclusiv', op('arr_exclusiv') ? `Durante o contrato, o CEDENTE não instala nem autoriza outra estação de recarga aberta ao público no IMÓVEL.${op('arr_privativo') ? ' Pode manter carregador de uso privado, sem cobrança, para veículos próprios ou da sua frota.' : ''} A CESSIONÁRIA pode abrir outros pontos onde quiser.` : ''),
-      I('operacao.fechamento', `Se o estabelecimento fechar e impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${fixo ? 'o valor mensal fica suspenso e ' : a.piso > 0 ? 'o piso da {{i:remuneracao.piso}} fica suspenso e ' : ''}os prazos da {{c:prazo}} se prorrogam pelo mesmo período. Passados 60 (sessenta) dias de fechamento, a CESSIONÁRIA pode encerrar o contrato sem multa, e a retirada e a recomposição da ÁREA correm por conta do CEDENTE, salvo caso fortuito ou força maior.`),
+      I('opc.arr_exclusiv', `${L('Durante o contrato, o CEDENTE não instala nem autoriza outra estação de recarga aberta ao público no IMÓVEL.')} Ele pode manter carregador de uso privado, sem cobrança, para veículos próprios ou da sua frota. A CESSIONÁRIA pode abrir outros pontos onde quiser.`),
+      I('operacao.fechamento', `Se o estabelecimento fechar e impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${fixo ? 'o valor mensal fica suspenso e ' : a.piso > 0 ? 'o piso da {{i:remuneracao.piso}} fica suspenso e ' : ''}os prazos da {{c:prazo}} se prorrogam pelo mesmo período. ${L('Passados 60 (sessenta) dias de fechamento, a CESSIONÁRIA pode encerrar o contrato sem multa, e a retirada e a recomposição da ÁREA correm por conta do CEDENTE, salvo caso fortuito ou força maior.')}`),
     ]),
     C('cedente', 'Das obrigações do CEDENTE', [
       I('cedente.legitimidade', legitimidade),
@@ -25413,72 +25376,96 @@ function ctrModeloArrend(d) {
       I('cessionaria.seguro', 'Manter seguro do equipamento contra incêndio, dano elétrico, vandalismo e furto, e seguro de responsabilidade civil por danos a terceiros e ao IMÓVEL, mostrando as apólices quando o CEDENTE pedir.'),
       I('cessionaria.usuario', 'Responder perante os usuários como fornecedora do serviço de recarga e manter o CEDENTE livre de reclamação de usuário, de órgão de defesa do consumidor, do fisco ou de terceiro ligada ao PONTO.'),
       I('cessionaria.marca', 'Instalar sinalização e totem com tamanho e posição aprovados pelo CEDENTE, obtendo a licença municipal quando exigida. O CEDENTE autoriza a divulgação do nome, do endereço, do horário e de fotos do local nos aplicativos e mapas de recarga.'),
-      I('opc.arr_publicidade', op('arr_publicidade') ? 'O CEDENTE autoriza também o uso do nome, da imagem e do endereço do estabelecimento pela CESSIONÁRIA em material institucional e publicitário.' : ''),
     ]),
     C('responsabilidade', 'Da responsabilidade', [
       I('resp.divisao', 'A CESSIONÁRIA responde pelos danos da instalação e da operação do PONTO, e o CEDENTE, pelos danos do estado e da conservação do IMÓVEL.'),
       I('resp.guarda', 'O CEDENTE não é depositário dos equipamentos e não responde por furto, vandalismo ou dano causado por terceiro, salvo culpa comprovada.'),
       I('resp.indiretos', 'Nenhuma das partes responde por lucro cessante da outra, e a falta de energia da concessionária não gera responsabilidade a nenhuma delas.'),
-      I('resp.projecoes', fixo ? '' : 'Estudos, simulações e projeções apresentados na negociação não são garantia de faturamento, de movimento ou de remuneração ao CEDENTE.'),
+      I('resp.projecoes', fixo ? '' : L('Estudos, simulações e projeções apresentados na negociação não são garantia de faturamento, de movimento ou de remuneração ao CEDENTE.')),
     ]),
     C('sucessao', 'Da venda do imóvel e da transferência do contrato', [
       I('sucessao.vendaIv', ivDono ? 'Se vender o IMÓVEL, o INTERVENIENTE ANUENTE faz constar este contrato no documento de venda e faz o comprador assumir, no mesmo documento, o dever de respeitá-lo até o fim do prazo e das renovações. Não o fazendo, responde perante a CESSIONÁRIA pelas perdas e danos.' : ''),
-      I('sucessao.venda', `Se vender ${ivDono ? 'o estabelecimento' : 'o IMÓVEL ou o estabelecimento'}, o CEDENTE informa este contrato ao comprador por escrito, faz constar dele no documento de venda e oferece ao comprador assumi-lo nas mesmas condições. Se o comprador não assumir, o contrato se encerra por culpa do CEDENTE.`),
-      I('sucessao.cessao', 'A CESSIONÁRIA pode transferir este contrato, avisando o CEDENTE, ' + (d.arrCli && String(d.contratanteDoc || '').replace(/\D/g, '').length !== 14 ? 'a empresa de que seja sócio' : 'a empresa do seu grupo') + ' ou a quem comprar o PONTO, e continua solidária pelas obrigações anteriores à transferência.' + (d.arrCli ? '' : ' Explorar o PONTO em sociedade em conta de participação em que seja sócia ostensiva não é transferência, e ela continua a única parte perante o CEDENTE.')),
+      I('sucessao.venda', `Se vender ${ivDono ? 'o estabelecimento' : 'o IMÓVEL ou o estabelecimento'}, o CEDENTE informa este contrato ao comprador por escrito, faz constar dele no documento de venda e oferece ao comprador assumi-lo nas mesmas condições. ${L('Se o comprador não assumir, o contrato se encerra por culpa do CEDENTE.')}`),
+      I('sucessao.cessao', L('A CESSIONÁRIA pode transferir este contrato, avisando o CEDENTE, ' + (d.arrCli && String(d.contratanteDoc || '').replace(/\D/g, '').length !== 14 ? 'a empresa de que seja sócio' : 'a empresa do seu grupo') + ' ou a quem comprar o PONTO, e continua solidária pelas obrigações anteriores à transferência.' + (d.arrCli ? '' : ' Explorar o PONTO em sociedade em conta de participação em que seja sócia ostensiva não é transferência, e ela continua a única parte perante o CEDENTE.'))),
       I('sucessao.finalidade', 'Fora da {{i:sucessao.cessao}}, a ÁREA não pode ser usada para outro fim nem cedida a terceiro.'),
       I('sucessao.herdeiros', 'Este contrato obriga herdeiros e sucessores das partes.'),
     ]),
     C('rescisao', 'Do encerramento', [
       I('rescisao.hipoteses', 'O contrato termina no fim do prazo sem renovação, por acordo entre as partes, por desapropriação, sinistro ou interdição do IMÓVEL e nos casos da {{i:prazo.implantacao}} e da {{i:operacao.fechamento}}.'),
-      I('rescisao.descumprimento', `A parte prejudicada pode encerrar o contrato se a outra descumprir uma cláusula e não corrigir em <b>${a.corrigir} dias</b> da notificação. O CEDENTE pode encerrá-lo também por atraso do pagamento superior a 60 (sessenta) dias.`),
-      I('rescisao.multa', a.multaSaida > 0 ? `Quem der causa ao encerramento, inclusive encerrando o contrato sem motivo durante o prazo, paga à outra parte multa de <b>${a.multaSaida} ${fixo ? 'valores mensais em vigor' : 'meses da remuneração média dos meses apurados, até os 12 (doze) últimos'}</b>${!fixo && a.piso > 0 ? ', ou do piso da {{i:remuneracao.piso}}, se maior' : ''}${a.multaMin > 0 ? `, e nunca inferior a <b>${money(a.multaMin)}</b>` : ''}, reduzida na proporção dos meses já cumpridos do prazo em curso.` : ''),
-      I('rescisao.cedente', 'Se o contrato terminar por culpa do CEDENTE, ou se ele o encerrar sem motivo, ele ressarce também o custo comprovado da obra ainda não amortizado, calculado de forma linear pelo prazo mínimo da {{i:prazo.vigencia}}, e o custo de retirada do equipamento.'),
+      I('rescisao.descumprimento', `A parte prejudicada pode encerrar o contrato se a outra descumprir uma cláusula e não corrigir em <b>${nx(a.corrigir)} dias</b> da notificação. O CEDENTE pode encerrá-lo também por atraso do pagamento superior a 60 (sessenta) dias.`),
+      I('rescisao.multa', a.multaSaida > 0 ? L(`Quem der causa ao encerramento, inclusive encerrando o contrato sem motivo durante o prazo, paga à outra parte multa de <b>${nx(a.multaSaida)} ${fixo ? (a.multaSaida > 1 ? 'valores mensais' : 'valor mensal') + ' em vigor' : (a.multaSaida > 1 ? 'meses' : 'mês') + ' da remuneração média dos meses apurados, até os 12 (doze) últimos'}</b>${!fixo && a.piso > 0 ? ', ou do piso da {{i:remuneracao.piso}}, se maior' : ''}${a.multaMin > 0 ? `, e nunca inferior a <b>${extenso(a.multaMin)}</b>` : ''}, reduzida na proporção dos meses já cumpridos do prazo em curso.`) : ''),
+      I('rescisao.cedente', L('Se o contrato terminar por culpa do CEDENTE, ou se ele o encerrar sem motivo, ele ressarce também o custo comprovado da obra ainda não amortizado, calculado de forma linear pelo prazo mínimo da {{i:prazo.vigencia}}, e o custo de retirada do equipamento.')),
       I('rescisao.semculpa', 'Nos encerramentos sem culpa, acerta-se o valor do período decorrido, sem multa nem indenização. Em nenhum caso o encerramento autoriza reter, apreender ou desligar o equipamento.'),
     ]),
     C('devolucao', 'Da devolução da área', [
-      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira em até <b>${a.retirada} dias</b>, por sua conta, o carregador, os cabos, o quadro, ${a.energia === 'uc' ? '' : 'o medidor, '}o totem, a sinalização e os demais componentes removíveis, e recompõe o pavimento, a pintura e a sinalização das vagas, devolvendo a ÁREA no estado das fotos da {{i:objeto.area}}, ressalvado o desgaste natural.${a.energia === 'uc' ? ' Antes da retirada, ela pede à concessionária, por sua conta, o desligamento da unidade consumidora nova da {{c:ligacao}} e a retirada do medidor. O transformador e a subestação instalados na ÁREA também são retirados por ela, salvo se a concessionária exigir que fiquem, caso em que ficam no IMÓVEL, sem indenização.' : ''}`),
+      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira em até <b>${nx(a.retirada)} dias</b>, por sua conta, os equipamentos da {{i:obras.propriedade}} e a sinalização, recompõe o pavimento, a pintura e a sinalização das vagas e devolve a ÁREA no estado das fotos da {{i:objeto.area}}, ressalvado o desgaste natural.${a.energia === 'uc' ? ' Antes da retirada, ela pede à concessionária, por sua conta, o desligamento da unidade consumidora nova da {{c:ligacao}} e a retirada do medidor. Se a concessionária exigir que o transformador ou a subestação fiquem, eles ficam no IMÓVEL, sem indenização.' : ''}`),
       I('devolucao.base', a.base === 'sai'
         ? 'A base de concreto e a ancoragem também são removidas pela CESSIONÁRIA, com recomposição do piso. Ficam no IMÓVEL, sem indenização, os eletrodutos enterrados, as caixas de passagem e o aterramento.'
         : 'Ficam no IMÓVEL, sem indenização, a base de concreto, a ancoragem, os eletrodutos enterrados, as caixas de passagem e o aterramento.'),
-      I('devolucao.estado', 'Sem apontamento escrito do CEDENTE em 10 (dez) dias da retirada, a ÁREA se considera recebida em ordem.'),
-      I('devolucao.abandono', 'Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo por conta dela, sem adquirir a propriedade nem o direito de vendê-lo.'),
+      I('devolucao.estado', L('Sem apontamento escrito do CEDENTE em 10 (dez) dias da retirada, a ÁREA se considera recebida em ordem.')),
+      I('devolucao.abandono', L('Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo por conta dela, sem adquirir a propriedade nem o direito de vendê-lo.')),
     ]),
     C('gerais', 'Disposições gerais e foro', [
-      I('gerais.aditivo', `Mudança de área, de equipamento, de prazo ou de valor só vale por aditivo escrito assinado pelas partes${premioR > 0 && d.tipo === 'arrend' ? ', ressalvado o abatimento da {{i:remuneracao.reserva}}' : ''}.`),
-      I('gerais.avisos', 'Os avisos deste contrato valem quando enviados por escrito, inclusive por e-mail ou WhatsApp, aos contatos indicados no preâmbulo.'),
-      I('gerais.tolerancia', 'Tolerar um descumprimento não significa renunciar ao direito.'),
+      I('gerais.aditivo', `Mudança de área, de equipamento, de prazo ou de valor só vale por aditivo escrito assinado pelas partes${premioR > 0 && d.tipo === 'arrend' ? ', ressalvado o abatimento da {{i:remuneracao.reserva}}' : ''}. Os avisos deste contrato valem quando enviados por escrito, inclusive por e-mail ou WhatsApp, aos contatos indicados no preâmbulo. Tolerar um descumprimento não significa renunciar ao direito.`),
       I('gerais.confidencialidade', fixo ? '' : 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou o exercício dos direitos da {{c:contas}}.'),
-      I('opc.lgpd', !fixo && op('lgpd') ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
-      I('opc.eletronica', op('eletronica') ? 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, nos termos do art. 10, § 2º, da Medida Provisória nº 2.200-2/2001.' : ''),
+      I('opc.lgpd', !fixo ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
+      I('opc.eletronica', 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, com o mesmo efeito da assinatura à mão (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).'),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
-      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para resolver as questões deste contrato, com renúncia a qualquer outro.`),
+      I('gerais.nexus', d.arrCli ? 'A NEXUS Eletropostos, cuja marca está no cabeçalho, não é parte deste contrato e não garante nem responde pelas obrigações do CEDENTE ou do CESSIONÁRIO.' : ''),
+      I('foro.comarca', pf
+        ? `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para resolver as questões deste contrato, ressalvado ao CEDENTE o foro do seu domicílio.`
+        : `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para resolver as questões deste contrato, com renúncia a qualquer outro.`),
     ]),
   ].filter(Boolean);
 }
 
-// ─── TERMO DO ARRENDADOR (08/10/2026) ────────────────────────────────────────
-// PROMESSA: promessa unilateral de cessão (CC art. 466). O dono (COMPROMITENTE
-// CEDENTE) fica obrigado; a NEXUS (COMPROMISSÁRIA CESSIONÁRIA) decide se
-// confirma no prazo do estudo. Vale como contrato preliminar porque leva todos
-// os termos essenciais da cessão (art. 462): os do cartão Arrendamento e a
-// minuta anexada. Sem cláusula de arrependimento, a NEXUS pode exigir o
-// contrato (arts. 463 e 464). Em troca, o dono sai livre se a NEXUS não pedir o
-// acesso à distribuidora no prazo (desenho das torres de telecom).
+// Os números dos termos que não têm campo na tela (21/10/2026, aprovados pelo dono). Todo número sai com o extenso (nx).
+function ctrTermosPrazos() {
+  return {
+    invDocs: 15,        // dias para o investidor do 50/50 entregar os documentos (condicao.docs)
+    invProtocolo: 30,   // dias para a NEXUS protocolar o pedido de acesso depois dos documentos (condicao.nexus)
+    arrVisita: 24,      // horas de aviso antes de visitar o imóvel (estudo.prazo)
+    arrSociedade: 10,   // dias para o dono aceitar a proposta de sociedade (objeto.exploracao)
+    arrDevolucao: 10,   // dias para o dono devolver o valor da reserva (reserva.destino)
+    arrSigilo: 2,       // anos de sigilo depois do fim do termo (gerais.sigilo)
+    arrDados: 30,       // dias para devolver ou apagar os documentos pessoais (opc.lgpd)
+  };
+}
+
+// ─── TERMO DO ARRENDADOR (08/10/2026; texto definitivo em 21/10/2026) ───────
+// PROMESSA: promessa unilateral de cessão (CC art. 466). O dono (CEDENTE) fica
+// obrigado; a NEXUS (CESSIONÁRIA) decide se confirma no prazo do estudo. Vale
+// como contrato preliminar porque leva todos os termos essenciais da cessão
+// (art. 462): os do cartão Arrendamento e a minuta, que SEMPRE vai anexada.
+// Em troca, o dono sai livre se a NEXUS não pedir o acesso à distribuidora no
+// prazo, e a NEXUS paga a mesma multa se confirmar e não assinar.
 // INTENÇÃO: só registra a vontade; obrigam estudo, exclusividade, documentos,
 // sigilo e custos. Romper de má-fé depois de despesa alheia é o art. 422.
+// Não existe cláusula opcional: o que muda de um caso para outro entra pelos
+// dados (promessa ou carta, valor fixo ou percentual, reserva paga, interveniente,
+// inquilino, dono pessoa física). Os números sem campo são de ctrTermosPrazos().
+// Regras da casa: api/src/services/gerador/contratoRegras.ts. Teto: 3 folhas.
 function ctrModeloTermoArr(d) {
-  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
+  const { nx, px, rx } = ctrPecasNum(e, money);
+  const P = ctrTermosPrazos();
   const a = d.arr, ta = d.ta, N = d.nomes.nossa, D = d.nomes.deles;
+  // Regra 12: o dono pessoa física ganha negrito no que limita direito dele e o foro do domicílio. Sem documento vale o lado que mais protege.
+  const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
+  const pf = dg === 0 || dg === 11;
+  const L = h => (pf && h ? `<b>${h}</b>` : h);
   const prom = ta.nivel === 'promessa';
   const fixo = a.modo === 'fixo';
-  const anexoMinuta = prom && op('ta_minuta');
-  const anexoDos = op('dossie_anexo');
-  const nDos = anexoMinuta ? 'II' : 'I';
+  const fixoTodo = fixo && a.fixoMeses != null && a.fixoMeses >= a.vigencia;
+  const premio = ta.premio > 0, multa = prom && ta.multa > 0;
+  const dos = !!(d.opc && d.opc.dossie_anexo);
+  const nDos = prom ? 'II' : 'I';
   const iv = d.interv && d.interv.nome ? d.interv : null;
-  const equip = `<b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento`;
+  const ivAnui = !!iv && ctrIntervAnui(a.relacao, iv.papel);
+  const equip = `<b>${nx(d.qtd)} carregador${d.qtd > 1 ? 'es' : ''} ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${nx(d.plugs)} ponto${d.plugs > 1 ? 's' : ''} de carregamento`;
   const objeto = loc => prom
-    ? `Pelo presente termo, o ${D} promete ceder à ${N}, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), destinada à instalação, à operação e à exploração comercial de estação de recarga de veículos elétricos composta por ${equip} (o "PONTO"), nas condições da {{c:condicoes}}${anexoMinuta ? ' e da minuta do contrato de cessão que integra este termo como Anexo I' : ''}.`
-    : `Pelo presente termo, o ${D} manifesta a intenção de ceder à ${N}, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), para a instalação e a exploração comercial de estação de recarga de veículos elétricos composta por ${equip} (o "PONTO"), e as partes registram as condições em que pretendem negociar.`;
+    ? `O ${D} promete ceder à ${N}, de forma onerosa, o uso de área do imóvel em <b>${loc}</b> (o IMÓVEL), para instalar e explorar uma estação de recarga de veículos elétricos com ${equip} (o PONTO), nas condições da {{c:condicoes}} e da minuta do contrato de cessão do Anexo I, que faz parte deste termo.`
+    : `O ${D} tem a intenção de ceder à ${N}, de forma onerosa, o uso de área do imóvel em <b>${loc}</b> (o IMÓVEL), para instalar e explorar uma estação de recarga de veículos elétricos com ${equip} (o PONTO), e as partes registram aqui as condições em que vão negociar.`;
   const dadosImovel = [
     ta.tipoLocal && `estabelecimento: ${e(ta.tipoLocal)}`,
     ta.matricula && `matrícula nº ${e(ta.matricula)}${ta.cartorio ? ` do ${e(ta.cartorio)}` : ''}`,
@@ -25489,252 +25476,238 @@ function ctrModeloTermoArr(d) {
   ].filter(Boolean);
   const horario = { '24h': '24 (vinte e quatro) horas por dia, todos os dias', estab: 'no horário de funcionamento do estabelecimento', outro: a.horarioTxt ? e(a.horarioTxt) : lacuna }[a.horario] || lacuna;
   const energia = { uc: `ligação própria em nome da ${N}`, sub: `medidor da ${N} na unidade consumidora do ${D}, com reembolso do consumo`, refatura: `conta paga pelo ${D} e reembolsada pela ${N}` }[a.energia] || lacuna;
-  const verbo = prom ? 'esta promessa' : 'este termo';
   const leiInq = '(arts. 13 e 23, VI, da Lei nº 8.245/1991)';
-  // A locação cobre a cessão inteira (prazo mínimo e renovação)? Só aí o papel
-  // diz que não passa dela. Cobrindo só o prazo mínimo, a renovação fica
-  // condicionada. Sem a data, ou sem cobrir, o texto pede a assunção.
+  // A locação cobre a cessão inteira (prazo mínimo e renovação)? Só aí o papel diz que não passa dela.
   const cabeLocacao = ctrTALocacaoCabe(d);
-  const locacaoTxt = cabeLocacao === true ? ', e a cessão e a sua renovação não ultrapassam o prazo da locação'
-    : cabeLocacao === 'vigencia' ? ', e a locação cobre o prazo mínimo da cessão: a renovação automática dela depende da prorrogação da locação ou da autorização escrita do proprietário para esse período'
-    : '. A anuência deve prever que, terminada a locação antes do fim da cessão ou das suas renovações, o proprietário assume a posição de cedente nas mesmas condições';
-  const ivAnui = !!iv && ctrIntervAnui(a.relacao, iv.papel);
+  const locacaoTxt = cabeLocacao === true ? ', e a cessão e a renovação cabem no prazo da locação.'
+    : cabeLocacao === 'vigencia' ? '. A locação cobre o prazo mínimo da cessão, e a renovação depende da prorrogação da locação ou de autorização escrita do dono.'
+    : '. A autorização deve prever que o dono assume o lugar de cedente, nas mesmas condições, se a locação acabar antes da cessão ou das renovações.';
+  const locFim = ta.locacaoFim ? `, com locação até ${ctrDataBR(ta.locacaoFim)}` : '';
   const legitimidade = {
-    proprietario: `O ${D} declara ser proprietário do IMÓVEL, com a sua posse direta, sem ônus ou restrição que impeça a cessão.`,
-    locado: `O ${D} declara ser proprietário do IMÓVEL, alugado a terceiro, que ${ivAnui ? 'assina este termo como INTERVENIENTE ANUENTE e anui à cessão e às obras' : 'dará a sua anuência escrita à cessão e às obras até a assinatura do contrato de cessão, sem a qual ele não será assinado'}.`,
-    locatario: `O ${D} declara ser locatário do IMÓVEL${ta.locacaoFim ? `, com locação vigente até ${ctrDataBR(ta.locacaoFim)}` : ''}. ${ivAnui
-      ? `O proprietário assina este termo como INTERVENIENTE ANUENTE e autoriza a cessão e as obras ${leiInq}. Terminada a locação antes do fim da cessão ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de cedente no contrato de cessão, nas mesmas condições, desde o dia seguinte ao fim da locação, para que a cessão não se extinga com ela.`
-      : `A cessão e as obras dependem da anuência escrita do proprietário ${leiInq}, sem a qual o contrato de cessão não será assinado${locacaoTxt}.`}`,
-    representante: `O ${D} declara administrar ou representar o proprietário do IMÓVEL, com poderes para ${verbo}, cuja prova integra o dossiê do local.`,
-    condominio: `O ${D} declara que ${prom ? 'esta promessa foi autorizada' : 'este termo foi autorizado'} na forma da convenção do condomínio, cuja ata integra o dossiê do local.`,
-    branco: `O ${D} declara a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, com anuência escrita do locatário; ( ) locatário, com anuência escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia.`,
+    proprietario: `O ${D} declara ser dono do IMÓVEL, com a posse direta e sem ônus que impeça a cessão.`,
+    locado: `O ${D} declara ser dono do IMÓVEL, alugado a terceiro, que ${ivAnui ? 'assina este termo como INTERVENIENTE ANUENTE e autoriza a cessão e as obras' : 'dará autorização escrita à cessão e às obras até a assinatura do contrato de cessão, que sem ela não é assinado'}.`,
+    locatario: ivAnui
+      ? `O ${D} declara ser inquilino do IMÓVEL${locFim}. O dono assina este termo como INTERVENIENTE ANUENTE e autoriza a cessão e as obras ${leiInq}. Se a locação acabar antes da cessão ou das renovações, ele assume o lugar de cedente nas mesmas condições, desde o dia seguinte.`
+      : `O ${D} declara ser inquilino do IMÓVEL${locFim}. A cessão e as obras dependem de autorização escrita do dono ${leiInq}, sem a qual o contrato de cessão não é assinado${locacaoTxt}`,
+    representante: `O ${D} declara administrar ou representar o dono do IMÓVEL, com poderes para ${prom ? 'esta promessa' : 'este termo'}, cuja prova faz parte do dossiê do local.`,
+    condominio: `O ${D} declara que ${prom ? 'esta promessa foi autorizada' : 'este termo foi autorizado'} na forma da convenção do condomínio, com a ata no dossiê do local.`,
+    branco: `O ${D} declara a sua condição sobre o IMÓVEL: ( ) dono, com a posse direta; ( ) dono, com o IMÓVEL alugado e autorização escrita do inquilino; ( ) inquilino, com autorização escrita do dono, sem passar do prazo da locação; ( ) administrador ou representante do dono, com poderes documentados; ( ) condomínio, com ata de assembleia.`,
   }[a.relacao] || '';
+  const vagas = `<b>${nx(a.vagas, true)} vaga${a.vagas > 1 ? 's' : ''}</b> de estacionamento${a.area ? `, com cerca de ${e(a.area)} m²` : ''}`;
   return [
     C('objeto', 'Do objeto', [
       I('objeto.promessa', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
       I('objeto.imovel', dadosImovel.length ? `Dados do IMÓVEL: ${dadosImovel.join('; ')}.` : ''),
       I('objeto.exploracao', ta.modelo === 'aberto'
         ? (prom
-          ? `A ${N} pode, no aviso da {{i:exercicio.aviso}}, propor ao ${D} uma sociedade entre as partes em lugar da cessão, que dependerá de contrato próprio. Não aceita a proposta em 10 (dez) dias, vale a cessão nas condições da {{c:condicoes}}${anexoMinuta ? ' e do Anexo I' : ''}.`
-          : `O modelo de exploração do PONTO, cessão à ${N} ou sociedade entre as partes, será definido ao fim do estudo da {{c:estudo}}. Sendo cessão, valem as condições da {{c:condicoes}}.`)
-        : `A ${N} explorará o PONTO por conta e risco próprios, diretamente ou por sociedade em conta de participação de que seja sócia ostensiva, e arcará com todo o investimento.`),
+          ? `No aviso da {{i:exercicio.aviso}}, a ${N} pode propor ao ${D} uma sociedade entre os dois no lugar da cessão, por contrato próprio. Se ele não aceitar em ${nx(P.arrSociedade)} dias, vale a cessão, com todo o investimento por conta da ${N} e sem responsabilidade do ${D} pelo resultado.`
+          : `O modelo, cessão à ${N} ou sociedade entre as partes, é definido ao fim do estudo. Na cessão, valem as condições da {{c:condicoes}}, com todo o investimento por conta da ${N} e sem responsabilidade do ${D} pelo resultado.`)
+        : `A ${N} explora o PONTO por sua conta e risco, diretamente ou por sociedade em conta de participação em que seja sócia ostensiva. Todo o investimento é dela: o ${D} não paga por ele nem responde pelo resultado do PONTO.`),
     ]),
     C('condicoes', prom ? 'Das condições da cessão' : 'Das condições pretendidas', [
-      // A remuneração e o prazo seguem o modo do cartão Arrendamento, como a minuta anexa.
-      I('condicoes.remuneracao', `${prom ? 'A cessão será remunerada com' : 'As partes pretendem negociar a cessão nas condições a seguir. Remuneração pretendida:'} ${fixo
-        ? `<b>valor mensal fixo de ${a.fixo > 0 ? money(a.fixo) : lacuna}</b>${a.fixoMeses != null && a.fixoMeses >= a.vigencia ? ' durante todo o prazo mínimo' : ` nos primeiros ${a.fixoMeses == null ? lacuna : a.fixoMeses} meses de funcionamento`}, devido com ou sem movimento${a.reajuste === 0 ? ' e sem reajuste' : ` e reajustado em ${a.reajuste == null ? lacuna : pct(a.reajuste) + '%'} a cada 12 (doze) meses seguintes, sobre o valor em vigor`}`
-        : `<b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>${a.piso > 0 ? `, com piso mensal de <b>${money(a.piso)}</b> a partir do ${a.carencia}º mês de operação` : ''}`}, pago até o dia ${a.dia} do mês seguinte.`, { travado: true }),
-      I('condicoes.prazo', `${prom ? 'O contrato de cessão terá prazo mínimo de' : 'Prazo mínimo pretendido do contrato de cessão:'} <b>${a.vigencia} meses</b> de funcionamento do PONTO, contados da primeira recarga cobrada, em que nenhuma das partes o encerra sem motivo, com renovação automática por ${a.renovacao} meses salvo aviso da ${N} com ${a.aviso} dias de antecedência, e fase de obra de até ${a.implant} dias sem pagamento.`),
-      I('condicoes.area', `A área compreende <b>${a.vagas} vaga(s)</b> de estacionamento${a.area ? `, num total de ${e(a.area)} m²` : ''}, com o PONTO funcionando ${horario} e atendido por ${energia}.`),
-      I('condicoes.vagas', prom ? `A localização das vagas é a do croqui do dossiê do local${anexoDos ? `, no Anexo ${nDos}` : ''}. Faltando o croqui, a ${N} indica as vagas no aviso da {{i:exercicio.aviso}}, e o ${D} só pode recusá-las por motivo técnico ou de segurança justificado.` : ''),
-      // O acesso à plataforma só existe no modo percentual: no valor fixo a minuta não o dá.
-      I('condicoes.painel', fixo ? '' : `${prom ? `No contrato de cessão, o ${D} terá` : `Pretende-se que, no contrato de cessão, o ${D} tenha`} acesso de leitura à plataforma de gestão do PONTO, por login próprio, a partir da energização, restrito aos dados do PONTO e sem dados pessoais de usuários, para acompanhar o faturamento e a remuneração de cada mês, além do demonstrativo mensal, que é o que vale para o pagamento.`),
-      I('condicoes.custos', `Estudo, projeto, obra, equipamentos, ligação à rede e operação correm por conta da ${N}. O ${D} não paga por eles e não responde pelo resultado do PONTO, ressalvadas as obrigações e as penalidades deste termo e do contrato de cessão.`),
+      I('condicoes.remuneracao', `A ${N} ${prom ? 'pagará' : 'pretende pagar'} ao ${D} ` + (fixo
+        ? `${a.fixo > 0 ? `<b>valor mensal fixo de ${money(a.fixo)}</b> (${e(recExtenso(a.fixo))})` : `<b>valor mensal fixo</b> de ${lacuna}`} ${fixoTodo ? 'durante todo o prazo mínimo' : `nos primeiros ${a.fixoMeses == null ? lacuna : nx(a.fixoMeses)} meses de funcionamento`}, com ou sem movimento, ${a.reajuste === 0 ? 'sem reajuste' : `reajustado em ${a.reajuste == null ? lacuna : px(a.reajuste)} a cada 12 (doze) meses seguintes, sobre o valor em vigor`}, até o dia ${nx(a.dia)} do mês seguinte.`
+        : `<b>${a.pct > 0 ? px(a.pct) : lacuna} do faturamento bruto de recarga do PONTO</b>${a.piso > 0 ? `, com piso mensal de ${rx(a.piso)} a partir do mês ${nx(a.carencia)} de operação` : ''}, até o dia ${nx(a.dia)} do mês seguinte.`), { travado: true }),
+      I('condicoes.prazo', prom
+        ? `O contrato de cessão terá prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento, contados da primeira recarga cobrada, em que ninguém sai sem motivo.`
+        : `O contrato de cessão pretendido tem prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento, contados da primeira recarga cobrada, em que ninguém sai sem motivo, renovação automática por ${nx(a.renovacao)} meses, salvo aviso da ${N} com ${nx(a.aviso)} dias de antecedência, e fase de obra de até ${nx(a.implant)} dias sem pagamento.`),
+      I('condicoes.area', prom
+        ? `A área tem ${vagas}, nas posições do croqui do dossiê do local${dos ? ` (Anexo ${nDos})` : ''}. Sem croqui, a ${N} indica as vagas no aviso da {{i:exercicio.aviso}}, e o ${D} só as recusa por motivo técnico ou de segurança.`
+        : `A área tem ${vagas}, com o PONTO funcionando ${horario} e energia por ${energia}.`),
+      // O acesso à plataforma só existe no percentual. Na promessa está na minuta anexa.
+      I('condicoes.painel', !prom && !fixo ? `Pretende-se que o ${D} tenha login de leitura na plataforma do PONTO, sem dados pessoais de usuários, e receba o demonstrativo mensal, que é o que vale para o pagamento.` : ''),
       I('condicoes.minuta', prom
-        ? (anexoMinuta
-          ? `As demais condições são as da minuta do Anexo I, que o ${D} declara ter lido e aceitado, e o contrato de cessão será assinado nos termos dela, ressalvado o que as partes ajustarem por escrito.`
-          : `As demais condições serão as do contrato de cessão onerosa de área da ${N}, cuja minuta, na versão entregue na data deste termo, o ${D} declara ter recebido, lido e rubricado.`)
-        : 'Estas condições são a base da negociação e serão detalhadas no contrato de cessão, que só obriga as partes depois de assinado.'),
+        ? `As demais condições, inclusive renovação, fase de obra, horário e energia, são as da minuta do Anexo I, que o ${D} declara ter lido e aceitado, e o contrato de cessão é assinado nos termos dela, salvo ajuste escrito.`
+        : 'Estas condições são a base da negociação e só obrigam com a assinatura do contrato de cessão.'),
     ], true),
     C('estudo', 'Do estudo do local', [
-      I('estudo.prazo', `A ${N} terá <b>${ta.prazo} dias</b> contados da assinatura para estudar a viabilidade do PONTO, podendo visitar o IMÓVEL, fotografar, medir, levantar o padrão de entrada e a rede elétrica e pedir à distribuidora o parecer de acesso.`),
-      I('estudo.acesso', `As visitas são combinadas com o ${D} com antecedência mínima de 24 (vinte e quatro) horas, por conta da ${N}, que recompõe o que mexer e responde pelo dano que causar.`),
-      I('estudo.protocolo', `A ${N} protocolará o pedido de acesso junto à distribuidora em até <b>${ta.protocolo} dias</b> da assinatura. Esse prazo e o da {{i:estudo.prazo}} não correm enquanto o ${D} não entregar os documentos da {{i:cedente.docs}} e a procuração da {{i:cedente.distribuidora}}. Vencido o prazo sem o protocolo, e enquanto ele não for feito, o ${D} pode encerrar este termo por aviso escrito, sem ônus para nenhuma das partes.`),
-      I('opc.ta_prorroga', op('ta_prorroga') ? `Não tendo a distribuidora respondido ao pedido de acesso até o fim do prazo da {{i:estudo.prazo}}, esse prazo se prorroga até a resposta, uma única vez e por no máximo igual período, mediante aviso escrito da ${N} antes do vencimento.` : ''),
-      I('opc.ta_relatorio', op('ta_relatorio') ? `Concluído o estudo, a ${N} entrega ao ${D} um resumo do resultado técnico, sem obrigação de fornecer projeções financeiras.` : ''),
+      I('estudo.prazo', `A ${N} tem <b>${nx(ta.prazo)} dias</b> da assinatura para estudar o PONTO: visitar, fotografar e medir o IMÓVEL, com aviso de ${nx(P.arrVisita)} horas, levantar a rede elétrica e pedir o parecer da distribuidora. Ela recompõe o que mexer e repara todo dano que causar ao IMÓVEL.`),
+      I('estudo.protocolo', `A ${N} protocola o pedido de acesso na distribuidora em até <b>${nx(ta.protocolo)} dias</b> da assinatura. Esse prazo e o da {{i:estudo.prazo}} param enquanto o ${D} não entregar o que pedem a {{i:cedente.docs}} e a {{i:cedente.distribuidora}}. Sem o protocolo no prazo, o ${D} pode encerrar este termo por aviso escrito, sem custo para ninguém.`),
+      I('opc.ta_prorroga', `Se a distribuidora não responder ao pedido de acesso até o fim do prazo da {{i:estudo.prazo}}, a ${N} pode prorrogá-lo uma vez, até a resposta e por no máximo o mesmo período, por aviso escrito antes do vencimento.`),
+      I('cessionaria.custos', `O estudo e o pedido de acesso são pagos pela ${N}. Se este termo acabar sem o contrato de cessão, cada parte fica com os seus custos${premio ? ', o valor da reserva segue a {{i:reserva.destino}}' : ''}, e quem o descumpriu ou causou dano continua respondendo por isso.`),
     ]),
-    prom ? C('exercicio', 'Da confirmação e da assinatura do contrato', [
-      I('exercicio.aviso', `Dentro do prazo da {{i:estudo.prazo}}, a ${N} comunicará por escrito ao ${D} se confirma o PONTO. Confirmado, as partes assinarão o contrato de cessão em até <b>${ta.assinar} dias</b> do aviso.`),
-      I('exercicio.livre', `A ${N} decide livremente se confirma o PONTO. Sem o aviso no prazo, este termo se extingue de pleno direito, sem multa nem indenização pela falta de confirmação (art. 466 do Código Civil).`),
-      I('exercicio.arrependimento', `Esta promessa é irrevogável e irretratável e não admite arrependimento do ${D} desde a assinatura até a celebração do contrato de cessão ou a extinção deste termo, inclusive durante ${op('ta_prorroga') ? 'a prorrogação da {{i:opc.ta_prorroga}} e ' : ''}o prazo de assinatura da {{i:exercicio.aviso}}.`),
-      I('exercicio.recusa', `Recusando-se o ${D} a assinar o contrato de cessão depois da confirmação, a ${N} pode, à sua escolha: (a) exigir a celebração do contrato (arts. 463 e 464 do Código Civil), com as perdas e danos do atraso; ou (b) considerar desfeito este termo e cobrar ${ta.multa > 0 ? `a multa de <b>${money(ta.multa)}</b> (${e(recExtenso(ta.multa))}), que vale como mínimo da indenização, podendo provar prejuízo maior (arts. 410, 416, parágrafo único, e 465 do Código Civil)` : 'as perdas e danos (art. 465 do Código Civil)'}.`),
-    ]) : C('negociacao', 'Da natureza deste termo', [
-      I('negociacao.natureza', 'Este termo registra a intenção das partes e não as obriga a celebrar o contrato de cessão, que só existe depois de assinado. Todas as demais cláusulas deste termo obrigam as partes desde a assinatura.'),
+    prom ? C('exercicio', 'Da confirmação, da assinatura e do prazo deste termo', [
+      I('exercicio.aviso', `Dentro do prazo do estudo, a ${N} avisa por escrito se confirma o PONTO. Confirmado, as partes assinam o contrato de cessão em até <b>${nx(ta.assinar)} dias</b> do aviso.`),
+      I('exercicio.livre', L(`A ${N} decide livremente se confirma, e o ${D} não pode desistir desta promessa enquanto ela valer. Sem o aviso no prazo, este termo acaba sem multa nem indenização (art. 466 do Código Civil).`)),
+      I('exercicio.recusa', L(`Se o ${D} se recusar a assinar o contrato de cessão depois da confirmação, a ${N} pode exigir a assinatura, com as perdas e danos do atraso (arts. 463 e 464 do Código Civil), ou desfazer este termo e cobrar ${multa ? `multa de ${money(ta.multa)} (${e(recExtenso(ta.multa))}), que é o mínimo da indenização (art. 416, parágrafo único, do Código Civil)` : 'as perdas e danos (art. 465 do Código Civil)'}.`)),
+      I('exercicio.nexus', `Se a ${N} confirmar o PONTO e não assinar o contrato de cessão no prazo da {{i:exercicio.aviso}}, por motivo que não seja do ${D}${iv ? ' nem do INTERVENIENTE ANUENTE' : ''}, ele pode desfazer este termo e cobrar dela ${multa ? 'a mesma multa, também como mínimo da indenização' : 'as perdas e danos'}.`),
+      I('vigencia.prazo', 'Este termo vale até a assinatura do contrato de cessão. Ele acaba antes se o prazo do estudo, com a {{i:opc.ta_prorroga}}, passar sem o aviso da {{i:exercicio.aviso}}, no caso da {{i:estudo.protocolo}} ou por descumprimento.'),
+    ]) : C('negociacao', 'Da natureza e do prazo deste termo', [
+      I('negociacao.natureza', 'Este termo não obriga as partes a assinar o contrato de cessão. As demais cláusulas obrigam desde a assinatura.'),
       I('negociacao.boafe', 'Encerrar a negociação não gera indenização, salvo ruptura contrária à boa-fé depois de despesas que a outra parte fez confiando no negócio (art. 422 do Código Civil).'),
+      I('vigencia.prazo', 'Este termo vale até a assinatura do contrato de cessão ou o fim do prazo do estudo, com a {{i:opc.ta_prorroga}}, o que vier primeiro.'),
     ]),
-    op('ta_exclusiv') ? C('exclusividade', 'Da exclusividade', [
-      I('opc.ta_exclusiv', `Durante a vigência deste termo, o ${D} não cede, não promete ceder e não negocia com terceiro área do IMÓVEL para estação de recarga de veículos elétricos aberta ao público.`),
-    ]) : null,
-    ta.premio > 0 ? C('reserva', 'Do valor da reserva', [
-      I('reserva.valor', `Pela reserva do local, a ${N} paga ao ${D} <b>${money(ta.premio)}</b> (${e(recExtenso(ta.premio))}), ${e(ta.premioQuando)}. Esse valor é o preço da reserva do local e do prazo de estudo e não constitui arras nem sinal${prom && ta.multa > 0 ? ', nem se compensa com a multa da {{i:exercicio.recusa}}' : ''}.`, { travado: true }),
+    premio ? C('reserva', 'Do valor da reserva', [
+      I('reserva.valor', `Pela reserva do local e do prazo do estudo, a ${N} paga ao ${D} ${rx(ta.premio)}, ${e(ta.premioQuando)}. Esse valor não é sinal${multa ? ' e não se desconta da multa da {{i:exercicio.recusa}}' : ''}.`, { travado: true }),
       I('reserva.destino', prom
-        ? `Assinado o contrato de cessão, esse valor é abatido da primeira remuneração devida e, se ela não bastar, das seguintes, até se esgotar, e esta cláusula sobrevive à assinatura do contrato. Extinto este termo sem o contrato porque a ${N} não confirmou o PONTO, ou pelo encerramento da {{i:estudo.protocolo}}, o valor fica com o ${D}. Extinto por descumprimento do ${D}, ele devolve o valor em 10 (dez) dias, corrigido pelo IPCA, sem prejuízo do que prevê a {{i:exercicio.recusa}}.`
-        : `Assinado o contrato de cessão, esse valor é abatido da primeira remuneração devida e, se ela não bastar, das seguintes, até se esgotar. Extinto este termo sem o contrato, o valor fica com o ${D}, salvo se ele encerrar a negociação antes do fim do prazo da {{i:estudo.prazo}}${op('ta_exclusiv') ? ' ou descumprir a exclusividade' : ''}, caso em que o devolve em 10 (dez) dias, corrigido pelo IPCA.`),
+        ? `Assinado o contrato de cessão, o valor é descontado da primeira remuneração e das seguintes, até acabar. Se este termo acabar sem o contrato nos casos da {{i:exercicio.livre}}, da {{i:exercicio.nexus}} ou da {{i:estudo.protocolo}}, o valor fica com o ${D}. Se acabar por descumprimento do ${D}, ele o devolve em ${nx(P.arrDevolucao)} dias, corrigido pelo IPCA.`
+        : `Assinado o contrato de cessão, o valor é descontado da primeira remuneração e das seguintes, até acabar. Se este termo acabar sem o contrato, o valor fica com o ${D}, salvo se ele encerrar a negociação antes do fim do estudo ou descumprir a {{i:opc.ta_exclusiv}}: aí o devolve em ${nx(P.arrDevolucao)} dias, corrigido pelo IPCA.`),
     ]) : null,
-    C('cedente', `Das obrigações e declarações do ${D}`, [
+    C('cedente', `Das obrigações do ${D}`, [
       I('cedente.legitimidade', legitimidade),
       I('cedente.interveniente', iv ? (prom
-        ? `O INTERVENIENTE ANUENTE assina o contrato de cessão na mesma qualidade, no prazo da {{i:exercicio.aviso}}. A anuência que ele dá neste termo é irrevogável e vale para o contrato de cessão${anexoMinuta ? ' celebrado nos termos do Anexo I' : ''} e para as suas renovações.`
-        : 'A anuência que o INTERVENIENTE ANUENTE dá neste termo vale para o contrato de cessão que as partes vierem a celebrar nestas condições, que ele assina na mesma qualidade.') : ''),
-      I('cedente.docs', `O ${D} entrega à ${N}, em até <b>${ta.docs} dias</b> da assinatura, os documentos do dossiê do local${anexoDos ? `, cuja situação consta do Anexo ${nDos}` : ': documento de identidade, prova da propriedade ou da posse do IMÓVEL, conta de energia e, quando for o caso, contrato de locação, anuências e poderes de representação'}.`),
-      I('cedente.distribuidora', `O ${D} assina os documentos que dependam da titularidade da unidade consumidora e outorga à ${N} procuração específica para o pedido de acesso, sem custo para ele.`),
-      I('cedente.posse', `O ${D} autoriza a ${N} a usar a área para pedir em nome próprio a ligação nova, o acesso à rede e as licenças do PONTO, e a apresentar este termo como prova dessa autorização à distribuidora e à prefeitura.`),
-      I('cedente.aviso', `O ${D} comunica à ${N}, de imediato, venda, promessa de venda, oneração, penhora ou locação do IMÓVEL e, nos atos que dependam dele, faz constar a existência deste termo.${prom ? ` Vendendo ou prometendo vender o IMÓVEL durante este termo, o ${D} faz o adquirente assumir este termo no próprio instrumento${ta.multa > 0 ? '; não o fazendo, responde pela multa da {{i:exercicio.recusa}}' : ''}.` : ''}`),
-      I('cedente.area', `O ${D} não altera a área reservada nem a instalação elétrica do IMÓVEL de modo que prejudique o estudo, sem aviso prévio à ${N}.`),
-      I('cedente.descumprimento', `Descumprida ${op('ta_exclusiv') ? 'a exclusividade da {{c:exclusividade}}' : 'esta cláusula'}, ou sendo falsa a declaração da {{i:cedente.legitimidade}}, a ${N} pode considerar ${prom ? 'desfeito' : 'encerrado'} este termo e cobrar ${prom && ta.multa > 0 ? 'a multa da {{i:exercicio.recusa}}, que vale como mínimo da indenização' : 'as perdas e danos'}${ta.premio > 0 ? ', com a devolução da {{i:reserva.destino}}' : ''}.`),
+        ? 'O INTERVENIENTE ANUENTE assina o contrato de cessão na mesma qualidade, no prazo da {{i:exercicio.aviso}}. A anuência que ele dá aqui é irrevogável e vale também para o contrato de cessão e as renovações.'
+        : 'A anuência do INTERVENIENTE ANUENTE vale para o contrato de cessão que as partes assinarem nestas condições, e ele o assina na mesma qualidade.') : ''),
+      I('cedente.docs', `Em até <b>${nx(ta.docs)} dias</b> da assinatura, o ${D} entrega à ${N} os documentos do dossiê do local${dos ? `, cuja situação está no Anexo ${nDos}` : ': documento de identidade, prova da propriedade ou da posse do IMÓVEL, conta de energia e, se houver, contrato de locação, autorizações e procurações'}.`),
+      I('cedente.distribuidora', `O ${D} dá à ${N} procuração para o pedido de acesso e assina, sem custo para ele, o que depender da titularidade da unidade consumidora. Ele autoriza a ${N} a pedir em nome próprio a ligação nova, o acesso à rede e as licenças do PONTO, e a mostrar este termo à distribuidora e à prefeitura como prova disso.`),
+      I('cedente.aviso', `O ${D} avisa a ${N}, de imediato, de venda, promessa de venda, oneração, penhora ou locação do IMÓVEL e informa a existência deste termo nos atos que dependam dele.${prom ? ` Se vender ou prometer vender o IMÓVEL, faz o comprador assumir este termo no próprio contrato${multa ? ', sob pena da multa da {{i:exercicio.recusa}}' : ''}.` : ''}`),
+      I('opc.ta_exclusiv', L(`Enquanto este termo valer, o ${D} não cede, não promete ceder nem negocia com terceiro área do IMÓVEL para estação de recarga aberta ao público, e não altera, sem avisar antes a ${N}, a área reservada nem a instalação elétrica de modo que prejudique o estudo.`)),
+      I('cedente.descumprimento', L(`Se o ${D} descumprir a {{i:opc.ta_exclusiv}} ou se a declaração da {{i:cedente.legitimidade}} for falsa, a ${N} pode ${prom ? 'desfazer' : 'encerrar'} este termo e cobrar ${multa ? 'a multa da {{i:exercicio.recusa}}, como mínimo da indenização' : 'as perdas e danos'}${premio ? ', além da devolução da {{i:reserva.destino}}' : ''}.`)),
     ]),
-    C('cessionaria', `Das obrigações da ${N}`, [
-      I('cessionaria.custos', prom
-        ? `A ${N} arca com todos os custos do estudo e do pedido de acesso. O ${D} não os reembolsa, salvo se der causa à extinção deste termo, caso em que eles integram as perdas e danos da {{i:exercicio.recusa}}.`
-        : `A ${N} arca com todos os custos do estudo e do pedido de acesso. O ${D} não os reembolsa, salvo na ruptura da {{i:negociacao.boafe}} ou no descumprimento deste termo por ele.`),
-      I('cessionaria.danos', `A ${N} repara qualquer dano causado ao IMÓVEL nas visitas e nos levantamentos.`),
-      I('cessionaria.uso', `A ${N} usa os documentos e as fotos do dossiê só para o estudo, o pedido de acesso e o contrato de cessão.`),
-    ]),
-    C('vigencia', 'Do prazo e da extinção', [
-      I('vigencia.prazo', prom
-        ? `Este termo vigora da assinatura até a assinatura do contrato de cessão. Ele se extingue antes disso: (a) no fim do prazo da {{i:estudo.prazo}}${op('ta_prorroga') ? ', com a prorrogação da {{i:opc.ta_prorroga}}' : ''}, se a ${N} não tiver dado o aviso da {{i:exercicio.aviso}}; (b) pelo encerramento da {{i:estudo.protocolo}}; ou (c) por descumprimento, na forma deste termo. Dado o aviso no prazo, este termo segue em vigor até a assinatura do contrato de cessão e, havendo recusa do ${D}, até o fim das medidas da {{i:exercicio.recusa}}.`
-        : `Este termo vigora da assinatura até a assinatura do contrato de cessão ou o fim do prazo da {{i:estudo.prazo}}${op('ta_prorroga') ? ', com a prorrogação da {{i:opc.ta_prorroga}}' : ''}, o que ocorrer primeiro.`),
-      I('vigencia.custos', `Extinto este termo sem o contrato de cessão, cada parte arca com os seus custos${ta.premio > 0 ? ', e o valor da {{c:reserva}} segue a {{i:reserva.destino}}' : ''}, ressalvada a responsabilidade de quem tiver descumprido este termo.`),
-      I('vigencia.sobrevive', `A extinção deste termo não afasta a responsabilidade por descumprimento anterior a ela nem a reparação de danos da {{i:cessionaria.danos}}, e o sigilo da {{i:gerais.sigilo}} sobrevive a ela. Extinto este termo sem o contrato de cessão, a ${N} devolve ou elimina, em 30 (trinta) dias, os documentos pessoais do dossiê, salvo o que a lei mandar guardar (arts. 15 e 16, I, da Lei nº 13.709/2018).`),
-    ]),
-    C('gerais', 'Das disposições gerais', [
-      I('gerais.sigilo', `As partes mantêm sigilo sobre as condições deste termo e o resultado do estudo, salvo exigência legal e o que a ${N} precisar mostrar à distribuidora, aos órgãos públicos, a assessores, a financiadores e a sócios e investidores do PONTO, que ficam sujeitos ao mesmo sigilo. O sigilo dura 2 (dois) anos depois da extinção deste termo.`),
-      I('gerais.comunicacoes', 'As comunicações deste termo são feitas por escrito, entregues em mão com recibo, por carta com aviso de recebimento ou pelo e-mail ou WhatsApp das partes indicados no preâmbulo ou usados por elas nesta negociação, e valem da data do envio. Os prazos deste termo são contados em dias corridos.'),
-      I('gerais.sucessores', 'Este termo obriga herdeiros e sucessores das partes.'),
-      I('gerais.proposta', `A versão deste termo enviada para leitura antes da assinatura não constitui proposta e só obriga depois de assinada (art. 427 do Código Civil).${anexoMinuta ? ' O Anexo I, rubricado pelas partes, integra este termo desde a assinatura.' : ''}`),
-      I('opc.ta_registro', op('ta_registro') ? `As partes registrarão este termo no Cartório de Registro de Títulos e Documentos, às expensas da ${N}, para que produza efeito perante terceiros (art. 463, parágrafo único, do Código Civil).` : ''),
-      I('gerais.aditivo', 'Alterações deste termo só valem por escrito assinado pelas partes.'),
-      I('gerais.tolerancia', tolerancia),
-      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais e os documentos trocados são tratados só para o estudo do local, o pedido de acesso e o contrato de cessão, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
-      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+    C('gerais', 'Das disposições gerais e do foro', [
+      I('gerais.sigilo', `Por ${nx(P.arrSigilo)} anos depois do fim deste termo, as partes mantêm sigilo sobre as condições dele e o resultado do estudo, salvo exigência legal. A ${N} pode mostrá-los à distribuidora, a órgãos públicos, a assessores, a financiadores e a sócios e investidores do PONTO, que ficam sob o mesmo sigilo.`),
+      I('opc.lgpd', `A ${N} usa os dados pessoais e os documentos do dossiê só para o estudo, o pedido de acesso e o contrato de cessão. Sem o contrato, ela os devolve ou apaga em ${nx(P.arrDados)} dias, salvo o que a lei mandar guardar (Lei nº 13.709/2018).`),
+      I('gerais.aditivo', 'Este termo só obriga depois de assinado, obriga herdeiros e sucessores e só muda por escrito assinado pelas partes. Os avisos valem do envio, por escrito, inclusive por e-mail ou WhatsApp, aos contatos do preâmbulo ou aos usados nesta negociação, e os prazos são em dias corridos. Tolerar descumprimento não é renúncia ao direito.'),
+      I('opc.eletronica', 'As partes aceitam a assinatura eletrônica deste termo, por meio que comprove autoria e integridade (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).'),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
-    ]),
-    C('foro', 'Do foro', [
-      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste termo, com renúncia a qualquer outro.`),
+      I('foro.comarca', pf
+        ? `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, ressalvado ao ${D} o foro do seu domicílio.`
+        : `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, com renúncia a qualquer outro.`),
     ]),
   ].filter(Boolean);
 }
 
-// ─── TERMO DO INVESTIDOR (08/10/2026) ────────────────────────────────────────
-// RESERVA: intenção e reserva, sem sociedade (a SCP se prova por qualquer meio,
-// CC art. 992, e um termo com dinheiro pago poderia ser lido como entrada nela:
-// por isso a cláusula de natureza diz que ninguém é sócio ainda). O depósito
-// fica parado sob condição: capital inteiro e local contratado no prazo. Não
-// cumprida, tudo volta. Desistência livre nos primeiros dias, sem custo.
+// ─── TERMO DO INVESTIDOR (08/10/2026; texto definitivo em 21/10/2026) ────────
+// RESERVA: reserva de cota antes do contrato da sociedade (a SCP se prova por
+// qualquer meio, CC art. 992, e um termo com dinheiro pago poderia ser lido como
+// entrada nela: por isso a cláusula da natureza diz que ninguém é sócio ainda).
+// O depósito é sinal e vale como arras penitenciais nos dois sentidos (art. 420):
+// o investidor que desiste depois do prazo livre perde o depósito, a NEXUS que
+// desiste ou não cumpre o que promete devolve em dobro, e fato de fora devolve
+// inteiro. Sem depósito, qualquer lado encerra sem custo. Na assinatura do
+// contrato o depósito vira parte do aporte já pago (art. 417). A minuta do
+// contrato de sociedade SEMPRE vai anexada na reserva, com a tabela de pagamento.
 // ADESÃO: o termo que o contrato de cotas cita ("ingressarão por termo de
 // adesão"). O aderente aceita o contrato já assinado e fica com as cotas dele.
 // CVM: termo padrão para quem veio de anúncio é prova de oferta pública; a tela
 // avisa. Nada de promessa de rentabilidade em lugar nenhum do papel.
+// Não existe cláusula opcional: o que muda de um caso para outro entra pelos
+// dados (reserva ou adesão, 50/50 ou cotas, depósito, pessoa física ou empresa,
+// cartão, origem do contato). Os números sem campo são de ctrTermosPrazos().
+// Regras da casa: api/src/services/gerador/contratoRegras.ts. Teto: 2,5 folhas.
 function ctrModeloTermoInv(d) {
-  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
+  const { nx, px, rx } = ctrPecasNum(e, money);
+  const P = ctrTermosPrazos();
   const s = d.soc, ti = d.ti, N = d.nomes.nossa, D = d.nomes.deles;
+  // Regra 12: pessoa física é consumidor. Sem documento preenchido vale o lado mais protetivo.
+  const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
+  const pf = dg === 0 || dg === 11;
+  const L = h => (pf && h ? `<b>${h}</b>` : h);
+  const multaCli = pf ? Math.min(d.multa, 2) : d.multa;
   const ades = ti.uso === 'adesao';
-  const cotas = s.t === 'cotas';
   const s50 = !ades && ti.modelo === 'socio50';
-  const onde = ades ? `em <b>${ti.ponto ? e(ti.ponto) : lacuna}</b>`
-    : s50 ? `no local do ${D}, em <b>${ti.ponto ? e(ti.ponto) : lacuna}</b>`
-    : ti.ponto ? `em <b>${e(ti.ponto)}</b>`
-    : `em ponto a definir${ti.regiao ? ` em ${e(ti.regiao)}` : ''}${ti.raio > 0 ? `, a até ${ti.raio} km ${ti.regiao ? `do centro de ${e(ti.regiao)}` : 'do endereço do ' + D}` : ''}`;
-  const qtdTxt = cotas ? `<b>${s.qtd} cota(s) de ${pct(s.cota)}%</b>` : `participação de <b>${pct(s.cotaCli)}%</b> no resultado`;
-  const aporteTxt = s.aporteCli > 0 ? `<b>${money(s.aporteCli)}</b> (${e(recExtenso(s.aporteCli))})` : `<b>${lacuna}</b>`;
+  const cotas = s.t === 'cotas';
+  const dep = !ades && ti.deposito > 0, depAdes = ades && ti.deposito > 0;
+  const semPonto = !ti.ponto && !s50;
+  const naoDono = s50 && !!d.socNaoDono;
+  const cartaoDep = /cart/i.test(ti.depositoForma || '');
   const temCartao = d.pagLinhas.some(l => /cart[ãa]o/i.test(l.forma));
-  const dep = ti.deposito > 0 && !ades;
-  // A declaração de origem só sai quando o consultor marcou que conhece a
-  // pessoa de fora do anúncio. O papel nunca diz "não veio de anúncio" de quem veio.
-  // Arras só com depósito, e nunca acima dele (a retenção cabe no que foi pago).
-  const arrasOn = dep && op('ti_arras') && ti.arras > 0;
-  const arrasEf = Math.min(ti.arras, ti.deposito);
+  const ondeTxt = loc => ades ? `em <b>${loc}</b>`
+    : s50 ? `no local do ${D}, em <b>${loc}</b>`
+    : `em <b>${loc}</b>`;
+  const onde = ti.ponto
+    ? ondeTxt(e(ti.ponto))
+    : (ades ? ondeTxt(lacuna)
+      : s50 ? ondeTxt(lacuna)
+      : `em local a definir${ti.regiao ? ` em ${e(ti.regiao)}` : ''}${ti.raio > 0 ? `, a até ${nx(ti.raio)} km ${ti.regiao ? `do centro de ${e(ti.regiao)}` : 'do endereço do ' + D}` : ''}`);
+  const qtdTxt = cotas ? `<b>${nx(s.qtd, true)} cota${s.qtd > 1 ? 's' : ''} de ${px(s.cota)}</b>` : `participação de <b>${px(s.cotaCli)}</b> no resultado`;
+  const aporteTxt = s.aporteCli > 0 ? rx(s.aporteCli) : lacuna;
+  // A declaração de origem só sai quando o consultor marcou que conhece a pessoa de fora do anúncio. O papel nunca diz "não veio de anúncio" de quem veio.
   const origemTxt = { pessoal: 'contato pessoal anterior a este negócio', indicacao: 'indicação de um conhecido' }[ti.origem] || '';
-  const declOrigem = origemTxt ? `O ${D} declara que conheceu a ${N} por <b>${origemTxt}</b> e que este termo não lhe foi enviado por anúncio, link aberto ou mensagem em massa.` : '';
-  const declaracoes = C('declaracoes', `Das declarações do ${D}`, [
-    I('opc.ti_risco', op('ti_risco') ? `O ${D} declara saber que: pode perder todo o capital aportado; ${ades ? 'é' : 'será'} sócio participante, sem gestão do negócio, que cabe à sócia ostensiva; não há mercado para revender a cota nem garantia de liquidez; a energização do PONTO depende da distribuidora de energia; falindo a sócia ostensiva, o saldo dele é crédito sem garantia (art. 994, § 2º, do Código Civil)${dep ? `; e, até a assinatura do contrato de sociedade, o depósito é crédito dele contra a ${N}, sem garantia` : ''}.` : ''),
-    I('declaracoes.conflito', `O ${D} sabe que a ${N} é, ao mesmo tempo, sócia ostensiva, fornecedora da implantação pelo seu próprio preço e fornecedora da plataforma de gestão, remunerada com ${s.software > 0 ? pct(s.software) : lacuna}% do faturamento bruto.${!(s.aporteN > 0) && s.aporteNDef && s.cotaN > 0 ? ` A cota de ${pct(s.cotaN)}% da ${N} remunera a gestão, sem aporte em dinheiro.` : ''}`),
-    I('declaracoes.estado', ades ? `O ${D} declara ter recebido da ${N}, por escrito, o estado da sociedade nesta data: capital integralizado, valores já empregados com autorização dos sócios e fase da implantação do PONTO.` : ''),
-    I('opc.ti_promessa', op('ti_promessa') ? `O ${D} declara que não decidiu com base em promessa de rentabilidade, de prazo de retorno ou de renda mensal, e que estudos e simulações recebidos são projeções, não garantia.` : ''),
-    I('opc.ti_capacidade', op('ti_capacidade') ? `O ${D} declara que o valor do aporte não compromete o seu sustento${ti.faixa ? `, e informa ter, aproximadamente, ${e(ti.faixa)}` : ''}.` : ''),
-    I('opc.ti_origem', op('ti_origem') ? `O ${D} declara que os recursos têm origem lícita e que ${ti.pep === 'sim' ? 'é' : 'não é'} pessoa politicamente exposta.` : ''),
-    I('opc.ti_indicacao', op('ti_indicacao') ? `A ${N} não paga ao ${D}, e o ${D} não recebe de ninguém, valor por indicar outros investidores.` : ''),
-  ]);
-  const gerais = C('gerais', 'Das disposições gerais', [
-    I('opc.ti_sigilo', op('ti_sigilo') ? (s50 ? `O ${D} mantém sigilo sobre o estudo e as condições comerciais da ${N} que vier a conhecer.` : `O ${D} mantém sigilo sobre o estudo, o local e o dono do local que vier a conhecer.`) : ''),
-    I('opc.ti_match', op('ti_match') && !s50 ? `<b>O ${D} autoriza, de forma específica, a ${N} a apresentar o seu nome, a sua cidade e o valor do seu aporte ao dono do local pretendido, só para esta negociação, e pode revogar esta autorização a qualquer momento, por aviso na forma da {{i:gerais.comunicacoes}}.</b>` : ''),
-    I('opc.lgpd', op('lgpd') ? `Os dados do ${D} são tratados pela ${N}, controladora, para os procedimentos deste negócio, a pedido dele (art. 7º, V, da Lei nº 13.709/2018). Encerrado o negócio, ficam guardados só pelo prazo das obrigações legais e para o exercício de direitos (arts. 7º, VI, e 16, I). Os direitos do art. 18 se exercem por aviso na forma da {{i:gerais.comunicacoes}}.` : ''),
-    I('gerais.proposta', `A versão deste termo enviada para leitura antes da assinatura não constitui proposta e só obriga depois de assinada (art. 427 do Código Civil).${!ades && op('ti_minuta') ? ' O Anexo I, rubricado pelas partes, integra este termo desde a assinatura.' : ''}`),
-    I('gerais.comunicacoes', 'As comunicações deste termo são feitas por escrito, entregues em mão com recibo, por carta com aviso de recebimento ou pelo e-mail ou WhatsApp das partes indicados no preâmbulo ou usados por elas nesta negociação, e valem da data do envio. Os prazos deste termo são contados em dias corridos.'),
-    I('gerais.sucessores', ades ? 'Este termo obriga herdeiros e sucessores das partes.'
-      : `Este termo obriga os sucessores da ${N}. Falecendo o ${D} antes da assinatura do contrato de sociedade, a reserva se extingue${dep ? ', e o depósito é devolvido aos herdeiros no prazo da {{i:deposito.devolucao}}' : ''}.`),
-    I('gerais.aditivo', 'Alterações deste termo só valem por escrito assinado pelas partes.'),
-    I('gerais.tolerancia', tolerancia),
-    I('opc.eletronica', op('eletronica') ? eletronica : ''),
-    ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
-  ]);
-  const foro = C('foro', 'Do foro', [
-    I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste termo, com renúncia a qualquer outro.`),
-  ]);
-  const depAdesP = ades && ti.deposito > 0;
-  const pagamento = [
-    d.pagLinhas.length
-      ? I(ades ? 'cotas.forma' : 'condicoes.pagamento', ades ? (depAdesP ? `O saldo do aporte, de <b>${money(d.saldo)}</b>, já abatido o depósito de reserva de <b>${money(ti.deposito)}</b>, será pago da seguinte forma:` : 'O aporte será pago da seguinte forma:')
-        : dep ? `O saldo do aporte, de <b>${money(d.saldo)}</b>, já abatido o depósito da {{i:deposito.valor}}, será pago a partir da assinatura do contrato de sociedade, na forma pretendida a seguir:`
-        : 'O aporte será pago a partir da assinatura do contrato de sociedade, na forma pretendida a seguir:', { bloco: 'pagamento', travado: true })
-      : I(ades ? 'cotas.forma' : 'condicoes.pagamento', `Forma ${ades ? '' : 'pretendida '}de pagamento do aporte: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
-    I(ades ? 'cotas.obs' : 'condicoes.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
-    I(ades ? 'cotas.acrescimo' : 'condicoes.acrescimo', d.temAcr ? 'O acréscimo do parcelamento é custo do pagamento: não integra o aporte, não aumenta a cota e volta junto em todo estorno.' : ''),
-    I(ades ? 'cotas.dados' : 'condicoes.dados', d.pagDados ? `Os pagamentos serão feitos em favor da ${N} por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
-  ];
+  const privado = I('objeto.privado', origemTxt ? `Este termo resulta de negociação individual e não é oferta pública de valores mobiliários. O ${D} declara que conheceu a ${N} por <b>${origemTxt}</b> e que não recebeu este termo por anúncio, link aberto ou mensagem em massa.` : '');
+  const origem = I('opc.ti_origem', `O ${D} declara que os recursos têm origem lícita, que ${ti.pep === 'sim' ? 'é' : 'não é'} pessoa politicamente exposta e que o aporte não compromete o seu sustento${ti.faixa ? `, e informa ter, aproximadamente, ${e(ti.faixa)}` : ''}.${ades ? ' Esta declaração prevalece sobre a do CONTRATO.' : ''}`);
+  const promessa = I('opc.ti_promessa', L(`O ${D} declara que estudos e simulações recebidos são projeções, não garantia, e que não decidiu com base em promessa de rentabilidade, de prazo de retorno ou de renda mensal.`));
+  const eletronica = I('opc.eletronica', 'As partes aceitam a assinatura eletrônica deste termo, por meio que comprove autoria e integridade (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).');
+  const extras = d.extras.map((x, i) => I('extra.' + (i + 1), e(x)));
+  const foro = I('foro.comarca', pf
+    ? `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, ressalvado ao ${D} o foro do seu domicílio.`
+    : `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, com renúncia a qualquer outro.`);
 
-  const depAdes = ades && ti.deposito > 0;
-  if (ades) return [
-    C('objeto', 'Do objeto da adesão', [
-      I('objeto.adesao', `O ${D} adere ao Contrato de Sociedade em Conta de Participação nº <b>${vazio(ti.contratoNum)}</b>, firmado em <b>${ti.contratoData ? ctrDataBR(ti.contratoData) : lacuna}</b> (o "CONTRATO"), para a implantação e a exploração comercial de estação de recarga de veículos elétricos ${onde} (o "PONTO"), e ingressa na sociedade como sócio participante, nas condições deste termo.`, { travado: true }),
-      I('objeto.copia', `O ${D} declara ter recebido cópia integral do CONTRATO, assinada pelas partes dele, que rubrica e que integra este termo como anexo, e cujas cláusulas passam a obrigá-lo como se o tivesse assinado.`),
-      I('objeto.admissao', `A admissão do ${D} está consentida na Cláusula <b>${ti.consent ? e(ti.consent) : lacuna}</b> do CONTRATO, nos termos do art. 995 do Código Civil, e se faz nas mesmas condições nele previstas para as cotas.`),
-      I('objeto.privado', declOrigem),
-      I('objeto.reserva', depAdes ? `Esta adesão cumpre o Termo de Compromisso e Reserva de Cota${d.origemRef ? ' ' + e(d.origemRef) : ' firmado entre as partes'}, que se extingue com a assinatura deste termo, e o depósito nele feito abate do aporte na forma da {{i:cotas.forma}}.` : ''),
-    ]),
-    C('cotas', 'Das cotas e do aporte', [
-      I('cotas.subscricao', `O ${D} subscreve ${qtdTxt} e se obriga a integralizar aporte de ${aporteTxt}, na forma da {{i:cotas.forma}}, ficando o quadro de cotas, depois desta adesão, como a seguir.`, { bloco: 'cotas', travado: true }),
-      ...pagamento,
-      I('cotas.desistencia', `O ${D} pode desistir desta adesão em até <b>${ti.desist} dias</b> da assinatura, sem custo e sem justificar, por aviso escrito na forma da {{i:gerais.comunicacoes}}, e recebe de volta todo o valor pago em até ${ti.devolucao} dias${temCartao ? ', por estorno total da transação quando pago por cartão' : ''}.`),
-      I('cotas.cartao', temCartao ? `Pago por cartão, o aporte considera-se integralizado na autorização da transação. <b>Passado o prazo da {{i:cotas.desistencia}}, a contestação ou o estorno pedido pelo ${D} equivale à falta de pagamento.</b>` : ''),
-      I('cotas.mora', `O atraso no pagamento sujeita o ${D} a multa de ${pct(d.multa)}% sobre o valor em atraso e juros de ${pct(d.juros)}% ao mês, aplicando-se ao aporte não pago as regras de inadimplência do CONTRATO.`),
-      I('cotas.captacao', `Enquanto o capital do CONTRATO não estiver completo, o aporte fica reservado e, não completado no prazo nele previsto, é devolvido ao ${D} na forma do CONTRATO.`),
-      I('cotas.painel', `A ${N} dá ao ${D} acesso de leitura à plataforma de gestão do PONTO, por login próprio e pessoal, a partir da adesão ou do início da operação do PONTO, o que vier depois, para acompanhar o faturamento e o resultado de cada mês e a parte que cabe a ele, quando houver, sem dados pessoais de usuários nem dos demais sócios, e entrega a ele todo mês o demonstrativo do resultado, ainda que o mês não gere distribuição. O valor mostrado na plataforma é estimativa, e vale o demonstrativo. O que o ${D} vê na plataforma é confidencial, ainda que ele desista na forma da {{i:cotas.desistencia}}.`),
-    ], true),
-    declaracoes, gerais, foro,
-  ].filter(Boolean);
+  if (ades) {
+    const comTabela = d.pagLinhas.length > 0;
+    const inicio = depAdes ? `O saldo do aporte, de ${rx(d.saldo)}, já descontado o depósito de ${rx(ti.deposito)}, é pago` : 'O aporte é pago';
+    return [
+      C('objeto', 'Da adesão', [
+        I('objeto.adesao', `O ${D} adere ao Contrato de Sociedade em Conta de Participação nº <b>${vazio(ti.contratoNum)}</b>, de <b>${ti.contratoData ? ctrDataBR(ti.contratoData) : lacuna}</b> (o CONTRATO), para implantar e explorar uma estação de recarga de veículos elétricos ${onde} (o PONTO), e entra na sociedade como sócio participante.`, { travado: true, iaTexto: `O ${D} adere ao Contrato de Sociedade em Conta de Participação nº <b>${vazio(ti.contratoNum)}</b>, de <b>${ti.contratoData ? ctrDataBR(ti.contratoData) : lacuna}</b> (o CONTRATO), para implantar e explorar uma estação de recarga de veículos elétricos em <b>[local da instalação]</b> (o PONTO), e entra na sociedade como sócio participante.` }),
+        I('objeto.copia', `O ${D} recebeu cópia integral do CONTRATO assinado, que rubrica e que faz parte deste termo. As cláusulas do CONTRATO, inclusive as declarações do sócio participante, passam a obrigá-lo como se o tivesse assinado.`),
+        I('objeto.admissao', `A entrada do ${D} está consentida na Cláusula <b>${ti.consent ? e(ti.consent) : lacuna}</b> do CONTRATO (art. 995 do Código Civil), nas mesmas condições das demais cotas.`),
+        I('objeto.reserva', depAdes ? `Esta adesão cumpre o Termo de Compromisso e Reserva de Cota${d.origemRef ? ' ' + e(d.origemRef) : ' firmado entre as partes'}, que acaba com a assinatura deste termo. O depósito feito nele é parte do aporte já pago e está descontado na {{i:cotas.forma}}.` : ''),
+      ]),
+      C('cotas', 'Das cotas e do aporte', [
+        I('cotas.subscricao', `O ${D} subscreve ${qtdTxt} e paga aporte de ${aporteTxt}, na forma da {{i:cotas.forma}}. O quadro de cotas, depois desta adesão, fica como abaixo.`, { bloco: 'cotas', travado: true }),
+        comTabela
+          ? I('cotas.forma', `${inicio} como no quadro abaixo.${d.pagObs ? ' ' + e(d.pagObs) : ''}`, { bloco: 'pagamento', travado: true })
+          : I('cotas.forma', `${inicio} assim: ${d.pagObs ? e(d.pagObs) : lacuna}.`, { travado: true }),
+        I('cotas.dados', `${d.pagDados ? `Os pagamentos são feitos à ${N} por <b>${e(d.pagDados)}</b>, e pagamento a terceiro ou em outra conta não quita o aporte.` : ''}${d.pagDados && d.temAcr ? ' ' : ''}${d.temAcr ? 'O acréscimo do parcelamento é custo do meio de pagamento: não aumenta a cota e volta junto em toda devolução.' : ''}`),
+        I('cotas.desistencia', `O ${D} pode desistir desta adesão em até <b>${nx(ti.desist)} dias</b> da assinatura, sem custo e sem justificar, por aviso escrito, e recebe de volta tudo o que pagou ${pf ? 'de imediato, corrigido (art. 49 do Código de Defesa do Consumidor)' : `em até ${nx(ti.devolucao)} dias`}${temCartao ? ', com estorno total da compra no cartão' : ''}.`),
+        I('cotas.cartao', temCartao ? `No cartão, o aporte conta como pago na autorização da compra. ${L(`Passado o prazo da {{i:cotas.desistencia}}, contestação ou estorno pedido pelo ${D} vale como falta de pagamento.`)}` : ''),
+        I('cotas.mora', `Parcela em atraso tem multa de ${px(multaCli)} e juros de ${px(d.juros)} ao mês, e o aporte não pago segue as regras de inadimplência do CONTRATO. A ${N} paga a mesma multa e os mesmos juros sobre devolução que fizer com atraso.`),
+        I('cotas.painel', `O ${D} tem login pessoal de leitura na plataforma do PONTO, desde a adesão ou o início da operação, o que vier depois, e recebe o demonstrativo mensal na forma do CONTRATO.`),
+      ], true),
+      C('declaracoes', `Das declarações do ${D}`, [
+        privado,
+        I('opc.ti_risco', L(`O ${D} declara saber que pode perder todo o capital aportado, que é sócio participante, sem gestão do negócio, que não há mercado para revender a cota nem garantia de liquidez, que a energização do PONTO depende da distribuidora e que, se a ${N} falir, o saldo dele é crédito sem garantia (art. 994, § 2º, do Código Civil).`)),
+        I('declaracoes.estado', `O ${D} recebeu por escrito o estado da sociedade nesta data: capital integralizado, valores já usados com autorização dos sócios e fase da implantação do PONTO.`),
+        promessa,
+        origem,
+        I('opc.ti_indicacao', `A ${N} não paga ao ${D}, e ele não recebe de ninguém, valor por indicar outros investidores.`),
+      ]),
+      C('gerais', 'Das disposições gerais e do foro', [
+        I('opc.ti_sigilo', `O ${D} mantém sigilo sobre o estudo, o local, o dono do local e o que vir na plataforma, mesmo que desista na forma da {{i:cotas.desistencia}}.`),
+        I('opc.lgpd', `A ${N} trata os dados do ${D} só para este negócio e mantém sigilo sobre eles. Depois, ela os guarda só pelo prazo das obrigações legais e para o exercício de direitos (Lei nº 13.709/2018).`),
+        I('gerais.aditivo', 'Este termo só obriga depois de assinado, obriga herdeiros e sucessores das partes e só muda por escrito assinado por elas. Os avisos valem do envio, por escrito, inclusive por e-mail ou WhatsApp, aos contatos do preâmbulo ou aos usados nesta negociação, e os prazos são em dias corridos. Tolerar descumprimento não é renúncia ao direito.'),
+        eletronica, ...extras, foro,
+      ]),
+    ].filter(Boolean);
+  }
 
+  const reservaTxt = loc => `O ${D} reserva ${qtdTxt}, com aporte de ${aporteTxt}, na sociedade em conta de participação que vai formar com a ${N}, como sócia ostensiva, para implantar e explorar uma estação de recarga de veículos elétricos ${loc} (o PONTO).`;
   return [
-    C('objeto', 'Do objeto e da natureza deste termo', [
-      I('objeto.reserva', `O ${D} manifesta a intenção de participar, como sócio participante, de sociedade em conta de participação a ser constituída com a ${N} como sócia ostensiva, para a implantação e a exploração comercial de estação de recarga de veículos elétricos ${onde} (o "PONTO"), e reserva para isso ${qtdTxt}, correspondente a aporte de ${aporteTxt}, nas condições da {{c:condicoes}}.`, { travado: true }),
-      I('objeto.natureza', `Este termo registra intenção e reserva. Não constitui sociedade nem torna o ${D} sócio participante${dep ? ', e o depósito não é aporte nem dá direito a resultado' : ''}. O vínculo societário só nasce com a assinatura do contrato de sociedade, ou, se ele já estiver assinado com outro sócio participante, do termo de adesão a ele, que as partes se obrigam a assinar depois de cumprida a condição da {{c:condicao}}, ressalvados a desistência e o cancelamento da {{c:desistencia}}.`),
-      I('objeto.privado', origemTxt ? `Este termo resulta de negociação individual entre as partes e não constitui oferta pública de valores mobiliários. ${declOrigem}` : ''),
+    C('objeto', 'Da reserva', [
+      I('objeto.reserva', reservaTxt(onde), { travado: true, iaTexto: reservaTxt('em <b>[local da instalação]</b>') }),
+      I('objeto.natureza', `Este termo é só a reserva: ninguém é sócio ainda${dep ? ', e o depósito não dá direito a resultado' : ''}. A sociedade nasce com a assinatura do contrato de sociedade do Anexo I${cotas ? ' ou, se ele já estiver assinado com outros sócios, do termo de adesão a ele' : ''}.`),
     ]),
-    C('condicoes', 'Das condições pretendidas', [
-      I('condicoes.quadro', `O capital pretendido é de <b>${s.invest > 0 ? money(s.invest) : lacuna}</b>, distribuído conforme o quadro a seguir, e o resultado do PONTO será dividido na proporção das cotas, depois de deduzidos todos os custos da operação, inclusive a plataforma de gestão da ${N}, de ${s.software > 0 ? pct(s.software) : lacuna}% do faturamento bruto${s.arrend > 0 ? (s50 ? `, e a remuneração do local, de ${pct(s.arrend)}% do faturamento bruto, paga ao ${D}` : `, e a remuneração do dono do local, de ${pct(s.arrend)}% do faturamento bruto`) : ''}.`, { bloco: 'cotas', travado: true }),
-      ...pagamento,
-      I('condicoes.painel', `No contrato de sociedade, o ${D} terá acesso de leitura à plataforma de gestão do PONTO, por login próprio, a partir do início da operação, sem dados pessoais de usuários nem dos demais sócios, para acompanhar o faturamento e o resultado de cada mês e a parte que cabe a ele, quando houver${s50 && s.arrend > 0 ? ', além da remuneração do local' : ''}, e receberá o demonstrativo mensal, que é o que vale para o pagamento.`),
-      I('condicoes.minuta', op('ti_minuta')
-        ? `As demais condições são as da minuta do contrato de sociedade do Anexo I, que o ${D} declara ter lido.`
-        : `As demais condições serão as do contrato de sociedade em conta de participação da ${N}, cuja minuta, na versão entregue na data deste termo, o ${D} declara ter recebido e rubricado.`),
+    C('condicoes', 'Das condições da sociedade', [
+      I('condicoes.quadro', `O capital previsto é de ${s.invest > 0 ? rx(s.invest) : lacuna}, dividido como no quadro abaixo. O resultado do PONTO é dividido pelas cotas depois de pagos os custos da operação, inclusive a plataforma de gestão da ${N}, de ${s.software > 0 ? px(s.software) : lacuna} do faturamento bruto${s.arrend > 0 ? (s50 ? `, e a remuneração do local, de ${px(s.arrend)} do faturamento bruto, paga ao ${D}` : `, e a remuneração do dono do local, de ${px(s.arrend)} do faturamento bruto`) : ''}.`, { bloco: 'cotas', travado: true }),
+      I('condicoes.pagamento', `O aporte${dep ? ', já descontado o depósito da {{i:deposito.valor}},' : ''} é pago depois da assinatura do contrato de sociedade, na forma da minuta do Anexo I.`, { travado: true }),
+      I('condicoes.minuta', `As demais condições são as da minuta do Anexo I, que faz parte deste termo e que o ${D} declara ter lido, inclusive o login de leitura na plataforma e o demonstrativo mensal.`),
     ], true),
-    C('condicao', 'Da condição e da validade da reserva', [
+    C('condicao', 'Do prazo, das obrigações e da desistência', [
       I('condicao.eventos', s50
-        ? `A reserva depende de que, em até <b>${ti.validade} dias</b> da assinatura, a ${N} confirme a viabilidade técnica do local do ${D}, com o pedido de acesso aceito pela distribuidora. Cumprida a condição, as partes assinam o contrato de sociedade em até ${ti.assinar} dias.`
-        : `A reserva depende de que, em até <b>${ti.validade} dias</b> da assinatura, o contrato de cessão do local esteja assinado. Cumprida a condição, as partes assinam o contrato de sociedade em até ${ti.assinar} dias, e o capital que faltar segue a captação prevista nele.`),
-      I('condicao.docs', s50 ? `O ${D}, titular da unidade consumidora do local, entrega à ${N}, em até <b>15 dias</b> da assinatura, a conta de energia recente, o documento do imóvel e a procuração para representá-lo junto à distribuidora, e assina os formulários que dependam da titularidade. A ${N} protocola o pedido de acesso em até <b>30 dias</b> da entrega.` : ''),
-      I('condicao.suspensao', s50 ? `O prazo da {{i:condicao.eventos}} não corre enquanto o ${D} não entregar o que pede a {{i:condicao.docs}}.` : ''),
-      I('condicao.falha', `Não cumprida a condição no prazo, este termo se resolve de pleno direito, sem multa nem indenização para nenhuma das partes${dep ? ', com a devolução da {{i:deposito.devolucao}}' : ''}.`),
-      I('condicao.boafe', `Considera-se cumprida a condição cujo cumprimento a ${N} tiver impedido de má-fé (art. 129 do Código Civil).`),
-      I('opc.ti_fila', op('ti_fila') && !s50 ? 'A ' + N + ' não aceita, para o mesmo ponto, mais reservas do que as cotas do quadro da {{i:condicoes.quadro}}.' : ''),
+        ? `A reserva depende de a distribuidora aceitar o pedido de acesso do PONTO em até <b>${nx(ti.validade)} dias</b> da assinatura. Aceito o pedido, as partes assinam o contrato de sociedade em até ${nx(ti.assinar)} dias.`
+        : `A ${N} ${semPonto ? 'escolhe o local do PONTO e assina o contrato de cessão dele' : 'assina o contrato de cessão do local do PONTO'} em até <b>${nx(ti.validade)} dias</b> da assinatura. Assinado esse contrato, as partes assinam o contrato de sociedade em até ${nx(ti.assinar)} dias, e o capital que faltar segue a captação prevista nele.`),
+      I('condicao.docs', s50 ? `Em até ${nx(P.invDocs)} dias da assinatura, o ${D} entrega à ${N} a conta de energia, o documento do imóvel${naoDono ? ', a autorização escrita do dono do imóvel para a instalação, a ligação nova e a cessão da área' : ''} e procuração para o pedido de acesso, e o prazo da {{i:condicao.eventos}} não corre enquanto faltar documento. ${L(`Passados os ${nx(P.invDocs)} dias sem a entrega, a ${N} pode, por aviso, tratar o atraso como desistência do ${D}.`)}` : ''),
+      I('condicao.nexus', `A ${N} ${s50 ? `protocola o pedido de acesso em até ${nx(P.invProtocolo)} dias da entrega dos documentos, ` : ''}envia o contrato de sociedade para assinatura no prazo da {{i:condicao.eventos}}, igual à minuta do Anexo I salvo ajuste escrito${dep ? ', e guarda o depósito sem usá-lo até lá' : ''}.${cotas ? ' Ela não aceita, para o PONTO, mais reservas do que as cotas do quadro da {{i:condicoes.quadro}}.' : ''}`),
+      I('desistencia.livre', dep
+        ? `O ${D} pode desistir em até <b>${nx(ti.desist)} dias</b> da assinatura${semPonto ? ' ou do aviso escrito do local escolhido, o que vier depois' : ''}, sem custo e sem justificar, por aviso escrito. O depósito volta ${pf ? 'de imediato, corrigido (art. 49 do Código de Defesa do Consumidor)' : 'no prazo da {{i:deposito.devolucao}}'}.`
+        : 'Sem depósito, cada parte pode encerrar a reserva a qualquer momento antes da assinatura do contrato de sociedade, por aviso escrito, sem multa nem indenização, e ela acaba sozinha no fim do prazo da {{i:condicao.eventos}} se o que ele prevê não acontecer.'),
+      I('desistencia.nexus', dep ? L(s50
+        ? `Se a distribuidora não responder no prazo da {{i:condicao.eventos}}, este termo acaba. A ${N} também pode encerrá-lo se a distribuidora negar o acesso ou exigir obra de rede por conta do interessado, ou se o local for tecnicamente inviável, com o motivo dado por escrito. Nesses casos ninguém paga multa, e o depósito volta inteiro.`
+        : `A ${N} pode encerrar este termo se a distribuidora negar o acesso ao local ou exigir obra de rede por conta do interessado, se o local for tecnicamente inviável, com o motivo dado por escrito, ou se o dono do local desistir da cessão. Nesses casos ninguém paga multa, e o depósito volta inteiro.`) : ''),
     ]),
     dep ? C('deposito', 'Do depósito de reserva', [
-      I('deposito.valor', `Para garantir a reserva, o ${D} deposita <b>${money(ti.deposito)}</b> (${e(recExtenso(ti.deposito))}), por ${e(ti.depositoForma)}, ${e(ti.depositoQuando)}, em favor da ${N}. Até o cumprimento da condição da {{c:condicao}}, o depósito só pode ser devolvido ou abatido do aporte, na forma desta cláusula.`, { travado: true }),
-      I('deposito.abate', 'Assinado o contrato de sociedade, ou o termo de adesão a ele, o depósito é abatido do aporte, e a forma de pagamento da {{i:condicoes.pagamento}} já considera esse abatimento.'),
-      I('deposito.devolucao', `Não cumprida a condição, desistindo o ${D} no prazo da {{i:desistencia.livre}} ou cancelando a ${N} a reserva, a ${N} devolve todo o depósito em até <b>${ti.devolucao} dias</b>, contados do fim do prazo da {{i:condicao.eventos}}, do aviso de desistência ou do cancelamento. ${/cart/i.test(ti.depositoForma) ? 'A devolução é o estorno total da transação, que cancela as parcelas a vencer.' : `A devolução é feita por transferência para conta do ${D}, com correção pelo IPCA.`}`),
-      I('opc.ti_arras', arrasOn ? (ti.arras >= ti.deposito
-        ? `<b>Desistindo o ${D} sem motivo depois do prazo da {{i:desistencia.livre}} e antes da assinatura do contrato de sociedade, a ${N} retém todo o depósito a título de arras penitenciais, sem outra indenização (art. 420 do Código Civil).</b>`
-        : `<b>Desistindo o ${D} sem motivo depois do prazo da {{i:desistencia.livre}} e antes da assinatura do contrato de sociedade, a ${N} retém ${money(arrasEf)} a título de arras penitenciais, sem outra indenização (art. 420 do Código Civil), e devolve o restante no prazo da {{i:deposito.devolucao}}.</b>`) : ''),
+      I('deposito.valor', `O ${D} paga à ${N} um depósito de ${rx(ti.deposito)}, por ${e(ti.depositoForma)}${d.pagDados ? `, para <b>${e(d.pagDados)}</b>` : ''}, ${e(ti.depositoQuando)}.`, { travado: true }),
+      I('opc.ti_arras', L(s50
+        ? 'O depósito é sinal e vale como arras penitenciais (art. 420 do Código Civil). Se o ' + D + ' desistir depois do prazo da {{i:desistencia.livre}}, inclusive deixando de assinar o contrato no prazo, a ' + N + ' fica com ele. Se a ' + N + ' desistir fora dos casos da {{i:desistencia.nexus}}, impedir de má-fé a aceitação do pedido de acesso ou não cumprir no prazo a {{i:condicao.nexus}}, devolve o depósito em dobro, e não há outra indenização para nenhum dos dois.'
+        : 'O depósito é sinal e vale como arras penitenciais (art. 420 do Código Civil). Se o ' + D + ' desistir depois do prazo da {{i:desistencia.livre}}, inclusive deixando de assinar o contrato no prazo, a ' + N + ' fica com ele. Se a ' + N + ' desistir fora dos casos da {{i:desistencia.nexus}}, não assinar o contrato de cessão do local no prazo da {{i:condicao.eventos}} ou não cumprir no prazo a {{i:condicao.nexus}}, devolve o depósito em dobro, e não há outra indenização para nenhum dos dois.')),
+      I('deposito.devolucao', `${pf ? 'Fora do caso da {{i:desistencia.livre}}, toda' : 'Toda'} devolução é feita em até <b>${nx(ti.devolucao)} dias</b> do fato que a causar, ${cartaoDep ? 'pelo estorno total da compra no cartão e, no que passar dele, por transferência' : `por transferência para conta do ${D}, corrigida pelo IPCA`}. Se o ${D} falecer antes da assinatura do contrato, a reserva acaba e o depósito volta inteiro aos herdeiros.`),
+      I('deposito.abate', `Na assinatura do contrato de sociedade${cotas ? ' ou do termo de adesão' : ''}, o depósito passa a ser parte do aporte já pago (art. 417 do Código Civil). Daí em diante, valem só as regras do contrato.`),
     ]) : null,
-    C('desistencia', 'Da desistência', [
-      I('desistencia.livre', !ti.ponto && !s50
-        ? `O ${D} pode desistir da reserva, sem custo e sem justificar, em até <b>${ti.desist} dias</b> da assinatura ou da comunicação escrita do local escolhido pela ${N}, o que vier depois, por aviso escrito na forma da {{i:gerais.comunicacoes}}.`
-        : `O ${D} pode desistir da reserva em até <b>${ti.desist} dias</b> da assinatura, sem custo e sem justificar, por aviso escrito na forma da {{i:gerais.comunicacoes}}.`),
-      I('desistencia.depois', dep && !arrasOn ? `Desistindo depois desse prazo e antes da assinatura do contrato de sociedade, o ${D} recebe de volta todo o depósito no prazo da {{i:deposito.devolucao}}.` : ''),
-      I('desistencia.nexus', `A ${N} pode cancelar a reserva${dep ? ', devolvendo todo o depósito no prazo da {{i:deposito.devolucao}},' : ''} se a distribuidora negar o acesso ao PONTO ou o condicionar a obra de rede por conta do interessado${ti.modelo === 'socio50' ? '' : ', ou se o dono do local desistir da cessão'}.`),
-      I('desistencia.arrasNexus', arrasOn ? `<b>Cancelando a ${N} a reserva fora dessas hipóteses, ela devolve o depósito acrescido de ${money(arrasEf)}, no prazo da {{i:deposito.devolucao}}.</b>` : ''),
+    C('declaracoes', `Das declarações do ${D}`, [
+      privado,
+      I('opc.ti_risco', L(`O ${D} declara saber que pode perder todo o capital aportado, que não vai participar da gestão, que não há mercado para revender a cota nem garantia de liquidez, que a energização do PONTO depende da distribuidora e que, se a sócia ostensiva falir, o saldo dele é crédito sem garantia (art. 994, § 2º, do Código Civil)${dep ? ', como o depósito até a assinatura do contrato' : ''}.`)),
+      I('declaracoes.conflito', `O ${D} sabe que a ${N} será a sócia ostensiva, fará a implantação pelo seu próprio preço e fornecerá a plataforma de gestão da {{i:condicoes.quadro}}. Ele faz desde já as demais declarações que a minuta do Anexo I atribui ao SÓCIO PARTICIPANTE, e a {{i:opc.ti_origem}} prevalece sobre elas.`),
+      promessa,
+      origem,
     ]),
-    declaracoes, gerais, foro,
+    C('gerais', 'Das disposições gerais e do foro', [
+      I('opc.ti_sigilo', `O ${D} mantém sigilo sobre ${s50 ? 'o estudo e as condições comerciais da ' + N : 'o estudo, o local e o dono do local'} que conhecer por este termo.`),
+      I('opc.ti_match', cotas ? `<b>O ${D} autoriza a ${N} a mostrar o seu nome, a sua cidade e o valor do seu aporte ao dono do local pretendido, só para negociar o local, e pode revogar a autorização por aviso escrito.</b>` : ''),
+      I('opc.lgpd', `A ${N} trata os dados do ${D} só para este negócio e mantém sigilo sobre eles${cotas ? ', salvo o que a {{i:opc.ti_match}} permite' : ''}. Depois, ela os guarda só pelo prazo das obrigações legais e para o exercício de direitos (Lei nº 13.709/2018).`),
+      I('gerais.aditivo', `Este termo só obriga depois de assinado, obriga os sucessores da ${N} e só muda por escrito assinado pelas partes. Os avisos valem do envio, por escrito, inclusive por e-mail ou WhatsApp, aos contatos do preâmbulo ou aos usados nesta negociação, e os prazos são em dias corridos. Tolerar descumprimento não é renúncia ao direito.`),
+      eletronica, ...extras, foro,
+    ]),
   ].filter(Boolean);
 }
 
@@ -25973,7 +25946,7 @@ function ctrQuadroCotas(d) {
     if (s.livres > 0) linhas.push([`<b>Cotas ainda não subscritas</b><span>${s.livres} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.livres * s.cota), s.aporte > 0 ? money(s.livres * s.aporte) : lac]);
   } else if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, ${comoOutros}</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
   linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
-  if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, 'Não há', money(s.falta)]);
+  if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, 'a definir', money(s.falta)]);
   const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
   const totalTxt = totalAportes > 0 && (s.aporteNDef || s.aporteN > 0) ? money(totalAportes) : lac;
   return `<table class="ep-ctr-pag ep-ctr-cotas">
@@ -26159,14 +26132,14 @@ function ctrFecho(d, iv, rotNossa, rotDeles) {
 function ctrAnexos(d) {
   const op = id => !!(d.opc && d.opc[id]);
   const out = [];
-  if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa' && op('ta_minuta')) {
+  if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa') {
     // A minuta é o contrato de arrendamento com os MESMOS campos, sem número e
     // sem assinatura. O dossiê aqui é anexo do termo, não da minuta.
     // A minuta do termo é sempre da NEXUS como cessionária, sem avalista: não herda o modo cliente.
     const dm = Object.assign({}, d, { tipo: 'arrend', arrCli: false, ced: null, aval: null, nomes: ctrNomes('arrend'), num: '', opc: Object.assign({}, d.opc, { dossie_anexo: false }), premioReserva: d.ta.premio });
     out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de cessão de área, rubricada pelas partes</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
   }
-  if (d.tipo === 'termo_inv' && d.soc && d.ti.uso !== 'adesao' && op('ti_minuta')) {
+  if (d.tipo === 'termo_inv' && d.soc && d.ti.uso !== 'adesao') {
     const dm = Object.assign({}, d, { tipo: d.soc.t, nomes: ctrNomes(d.soc.t), local: d.ti.ponto, num: '', sinal: d.sinal + (d.depReserva || 0),
       // O depósito do termo é o sinal da minuta (o contrato o cumpre), não arras: sem isto o texto chamaria o depósito de arras penitenciais.
       sinalDoTermo: (d.sinal + (d.depReserva || 0)) > 0, origemRef: d.num ? 'nº ' + d.num : '' });
@@ -26247,7 +26220,7 @@ const CTR_IA_CAMPOS_SOC = {
 const CTR_IA_CAMPOS_TIPO = {
   socio50: CTR_IA_CAMPOS_SOC, cotas: CTR_IA_CAMPOS_SOC,
   equip: {
-    'entrega.atraso': 'Compra e venda: o pedido > Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar', 'preco.mora': 'Compra e venda: o pedido > Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar',
+    'entrega.atraso': 'Compra e venda: o pedido > Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar', 'preco.mora': 'Valor e formas de pagamento > os mesmos números do atraso de pagamento (percentual e juros de mora), e Compra e venda: o pedido > Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar',
     'instalacao.garantia': 'Compra e venda: o pedido > Garantia da instalação',
     'preco.dados': 'Valor e formas de pagamento > Dados para pagamento', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
   },
@@ -26275,6 +26248,7 @@ CTR_IA_CAMPOS_TIPO.termo_arr = {
   'estudo.protocolo': 'Termo do Arrendador > NEXUS pede o acesso à distribuidora em até',
   'exercicio.aviso': 'Termo do Arrendador > Assinar o contrato depois da confirmação em até',
   'exercicio.recusa': 'Termo do Arrendador > Multa se o dono recusar assinar',
+  'exercicio.nexus': 'Termo do Arrendador > Multa se o dono recusar assinar',
   'reserva.valor': 'Termo do Arrendador > Valor pago ao dono pela reserva e Quando a reserva é paga',
   'cedente.docs': 'Termo do Arrendador > Dono entrega os documentos em até',
   'cedente.legitimidade': 'Arrendamento > O cedente é',
@@ -26289,9 +26263,9 @@ CTR_IA_CAMPOS_TIPO.termo_inv = {
   'deposito.valor': 'Termo do Investidor > Depósito de reserva, Forma do depósito e Quando o depósito é feito',
   'deposito.devolucao': 'Termo do Investidor > Devolução do depósito em até',
   'desistencia.livre': 'Termo do Investidor > Desistência livre em até',
-  'opc.ti_arras': 'Termo do Investidor > Retenção se desistir depois do prazo livre',
-  'opc.ti_origem': 'Termo do Investidor > Pessoa politicamente exposta',
-  'opc.ti_capacidade': 'Termo do Investidor > Renda ou patrimônio aproximado',
+  'opc.ti_arras': 'Termo do Investidor > Depósito de reserva',
+  'cotas.desistencia': 'Termo do Investidor > Desistência livre em até e Devolução do depósito em até',
+  'opc.ti_origem': 'Termo do Investidor > Pessoa politicamente exposta e Renda ou patrimônio aproximado',
   'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
 };
 // Contrato solar do Fechamento. O servidor casa o id do campo (fs-c-*) no texto para achar a garantia e a obra: o id tem de estar aqui.
@@ -27751,7 +27725,7 @@ async function ctrImprimirHibrido() {
     if (['arrend', 'socio50', 'cotas'].includes(d.tipo) && !d.local &&
         !confirm(`${nomeDe(t)}: sem o endereço do local do ponto (campo "Local da instalação"). O papel sai com a linha em branco.\n\nGerar assim mesmo?`)) return;
     if (d.tipo === 'equip') {
-      const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', d.eqv.itens.some(i => !i.ncm && !/instala/i.test(String(i.desc || ''))) && 'NCM de algum item'].filter(Boolean);
+      const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', d.eqv.itens.some(i => !i.ncm && !ctrEqItemInstala(i)) && 'NCM de algum item'].filter(Boolean);
       if (faltam.length && !confirm(`${nomeDe(t)}: sem ${faltam.join(', ')}. O contrato sai com a linha em branco no lugar.\n\nGerar assim mesmo?`)) return;
     }
     if (d.soc) {
@@ -27842,7 +27816,7 @@ async function ctrImprimir() {
   if (d.tipo === 'equip') {
     if (!(d.total > 0)) { alert('Monte o pedido na aba "Venda de equipamento" antes de gerar o contrato: itens, frete, prazo e garantia vêm de lá.'); return; }
     const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega',
-      d.eqv.itens.some(i => !i.ncm && !/instala/i.test(String(i.desc || ''))) && 'NCM de algum item'].filter(Boolean);
+      d.eqv.itens.some(i => !i.ncm && !ctrEqItemInstala(i)) && 'NCM de algum item'].filter(Boolean);
     if (faltam.length && !confirm(`Sem ${faltam.join(', ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
   }
   // Cedente de fora (cessionário = o cliente) e avalista: sem nome ou documento o papel sai com a linha em branco, mas não passa calado.
@@ -27867,8 +27841,6 @@ async function ctrImprimir() {
   }
   if (d.tipo === 'arrend' && d.socRef && Math.abs(ctrPctLe(ctrCampo('ctr-arr-pct')) - ctrPctLe(ctrCampo('ctr-soc-arrend'))) > 0.001 &&
       !confirm(`O percentual deste arrendamento (${ctrPctTxt(ctrPctLe(ctrCampo('ctr-arr-pct')))}%) é diferente do contrato de sociedade (${ctrPctTxt(ctrPctLe(ctrCampo('ctr-soc-arrend')))}%). Os dois contratos dizem que a remuneração é uma só.\n\nGerar assim mesmo?`)) return;
-  if (d.tipo === 'arrend' && d.opc && d.opc.arr_registro && !orcVal('ctr-ta-matricula') &&
-      !confirm('O registro na matrícula está marcado, mas o contrato não cita a matrícula do imóvel (cartão "O imóvel e a energia").\n\nGerar assim mesmo?')) return;
   // O aviso de campo vazio segue o modo da remuneração do arrendamento.
   if (d.arr && d.arr.modo === 'fixo') {
     const faltam = [!(d.arr.fixo > 0) && 'o valor mensal fixo', d.arr.fixoMeses == null && 'os meses de valor fixo', d.arr.reajuste == null && 'o reajuste'].filter(Boolean);
@@ -27876,8 +27848,6 @@ async function ctrImprimir() {
   } else if (d.arr && !(d.arr.pct > 0) && !confirm('Sem o percentual do faturamento: a remuneração do cedente sai em branco, para preencher à mão.\n\nGerar assim mesmo?')) return;
   // Termo do arrendador: o pedido do dono é "dossiê completo e aí sim assinar".
   // Não trava (o termo pode sair antes, para o dono ler), mas diz o que falta.
-  if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa' && !(d.opc && d.opc.ta_minuta) &&
-      !confirm('A promessa vai sem a minuta do contrato de cessão anexada.\n\nSem ela, a promessa só obriga se os termos essenciais estiverem todos no termo (Código Civil, art. 462), e fica mais difícil provar o que foi prometido. Gerar assim mesmo?')) return;
   if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa') {
     const r = ctrDosResumo();
     if (r.faltam.length && !confirm(`O dossiê do local está incompleto: faltam ${r.faltam.length} de ${r.obrig} itens obrigatórios (${r.faltam.slice(0, 4).join(', ')}${r.faltam.length > 4 ? '...' : ''}).\n\nO termo segura o local de verdade com o dossiê completo. Gerar assim mesmo?`)) return;
@@ -29570,6 +29540,11 @@ function orcSnapApply(s, tipo) {
   }
   { const hp = document.getElementById('ctr-hib-pedido'); if (hp) hp.value = ctrHib.pedido; }
   if (s.ctrModelos) Object.entries(s.ctrModelos).forEach(([id, val]) => { if (CTR_CAMPOS_MODELOS.includes(id)) set(id, val); });
+  // Papel salvo antes de 21/10/2026, quando ainda havia caixinhas: a "Anuência do proprietário" ligada vira "O imóvel é do cliente? Não"
+  // (ctr-soc-dono), e o papel com os opcionais da Venda de equipamento DENTRO do preço avisa, sem mexer no preço sozinho.
+  { const oo = (s.ctrOpc && typeof s.ctrOpc === 'object') ? s.ctrOpc : {};
+    if (oo.anuencia && !orcVal('ctr-soc-dono')) set('ctr-soc-dono', 'nao');
+    if (oo.eq_opcionais) showToast('Este papel foi feito com os opcionais fora do preço; confira os itens e o preço antes de gerar.'); }
   // Papel de antes de 19/10/2026 não tem cessionário, cedente de fora nem avalista: volta ao padrão (a NEXUS, sem avalista),
   // e não herda o que estava na tela. Reabrir o papel antigo sai igual ao que saiu.
   { const m = s.ctrModelos || {};

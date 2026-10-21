@@ -1,6 +1,6 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
-// Scope limitado a /gerador/ pra nÃƒÂ£o interferir no resto do app.
-const CACHE = 'gerador-propostas-v411';
+// Scope limitado a /gerador/ pra nÃƒÆ’Ã‚Â£o interferir no resto do app.
+const CACHE = 'gerador-propostas-v412';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',
@@ -58,19 +58,19 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  // SÃƒÂ³ intercepta requests do /gerador/ (scope limitado)
+  // SÃƒÆ’Ã‚Â³ intercepta requests do /gerador/ (scope limitado)
   const url = new URL(req.url);
-  // SÃƒÂ³ o que ÃƒÂ© deste site. A API (api.solardoc.app) tambÃƒÂ©m tem caminho /gerador/...,
+  // SÃƒÆ’Ã‚Â³ o que ÃƒÆ’Ã‚Â© deste site. A API (api.solardoc.app) tambÃƒÆ’Ã‚Â©m tem caminho /gerador/...,
   // e resposta de API com login nunca pode ir para o cache: ficaria velha e seria
-  // entregue ao prÃƒÂ³ximo que entrasse no mesmo aparelho.
+  // entregue ao prÃƒÆ’Ã‚Â³ximo que entrasse no mesmo aparelho.
   if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith('/gerador/')) return;
 
-  // NÃƒÂ£o cacheia chamadas Supabase (sempre online)
+  // NÃƒÆ’Ã‚Â£o cacheia chamadas Supabase (sempre online)
   if (req.url.includes('supabase.co')) return;
   if (req.method !== 'GET') return;
 
-  // Network-first pro HTML (sempre pega versÃƒÂ£o fresca quando online)
+  // Network-first pro HTML (sempre pega versÃƒÆ’Ã‚Â£o fresca quando online)
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(req)
@@ -80,15 +80,15 @@ self.addEventListener('fetch', (e) => {
           return res;
         })
         .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (
-          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lÃƒÂ¡ dentro.
+          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lÃƒÆ’Ã‚Â¡ dentro.
           url.pathname.startsWith('/gerador/clientes/')
-            ? new Response('Sem conexÃƒÂ£o.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+            ? new Response('Sem conexÃƒÆ’Ã‚Â£o.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
             : caches.match('/gerador/index.html'))))
     );
     return;
   }
 
-  // Cache-first pros assets estÃƒÂ¡ticos
+  // Cache-first pros assets estÃƒÆ’Ã‚Â¡ticos
   e.respondWith(
     caches.match(req).then(r => r || fetch(req).then(res => {
       const copy = res.clone();

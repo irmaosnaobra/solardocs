@@ -160,7 +160,8 @@ describe('termos de compromisso (08/10/2026)', () => {
   it('o prompt descreve cada termo e proíbe promessa de retorno ao investidor', () => {
     const arr = sistemaPara('termo_arr'), inv = sistemaPara('termo_inv');
     expect(arr).toMatch(/termo de compromisso do dono do local/);
-    expect(arr).toMatch(/COMPROMITENTE CEDENTE/);
+    expect(arr).toMatch(/CEDENTE \(o dono do local\) e CESSIONÁRIA \(a NEXUS\)/);
+    expect(arr).not.toMatch(/COMPROMITENTE|COMPROMISSÁRIA/);
     expect(inv).toMatch(/reserva de cota/);
     expect(inv).toMatch(/Nunca escreva promessa de rentabilidade/);
     for (const p of [arr, inv]) expect(p).not.toMatch(/CONTRATADA e CONTRATANTE/);

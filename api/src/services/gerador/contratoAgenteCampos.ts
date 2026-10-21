@@ -162,16 +162,15 @@ export const CAMPOS_AGENTE: CampoAgente[] = [
   dias('ctr-ta-docs', 'Dono entrega os documentos em até', TA, 90, { termo_arr: ['cedente.docs'] }),
   { id: 'ctr-ta-premio', rotulo: 'Valor pago ao dono pela reserva', tipo: 'dinheiro', min: 0, max: 10_000_000, unidade: 'R$', modelos: TA, sensivel: true, zero: 'limpa', itens: { termo_arr: ['reserva.valor'] } },
   { id: 'ctr-ta-premio-quando', rotulo: 'Quando a reserva é paga', tipo: 'texto', maxLen: 80, modelos: TA, itens: { termo_arr: ['reserva.valor'] } },
-  { id: 'ctr-ta-multa', rotulo: 'Multa se o dono recusar assinar', tipo: 'dinheiro', min: 0, max: 10_000_000, unidade: 'R$', modelos: TA, sensivel: true, zero: 'limpa', itens: { termo_arr: ['exercicio.recusa'] } },
+  { id: 'ctr-ta-multa', rotulo: 'Multa se o dono recusar assinar', tipo: 'dinheiro', min: 0, max: 10_000_000, unidade: 'R$', modelos: TA, sensivel: true, zero: 'limpa', itens: { termo_arr: ['exercicio.recusa', 'exercicio.nexus'] } },
 
   // ── Termo do investidor ────────────────────────────────────────────────────
   dias('ctr-ti-validade', 'A reserva vale por', TI, 365, { termo_inv: ['condicao.eventos'] }),
   dias('ctr-ti-assinar', 'Assinar o contrato depois que o capital fechar em até', TI, 90, { termo_inv: ['condicao.eventos'] }),
-  dias('ctr-ti-desist', 'Desistência livre em até', TI, 90, { termo_inv: ['desistencia.livre'] }, 7),
-  dias('ctr-ti-devolucao', 'Devolução do depósito em até', TI, 90, { termo_inv: ['deposito.devolucao'] }),
-  { id: 'ctr-ti-deposito', rotulo: 'Depósito de reserva', tipo: 'dinheiro', min: 0, max: 10_000_000, unidade: 'R$', modelos: TI, sensivel: true, zero: 'limpa', itens: { termo_inv: ['deposito.valor'] } },
+  dias('ctr-ti-desist', 'Desistência livre em até', TI, 90, { termo_inv: ['desistencia.livre', 'cotas.desistencia'] }, 7),
+  dias('ctr-ti-devolucao', 'Devolução do depósito em até', TI, 90, { termo_inv: ['deposito.devolucao', 'cotas.desistencia'] }),
+  { id: 'ctr-ti-deposito', rotulo: 'Depósito de reserva', tipo: 'dinheiro', min: 0, max: 10_000_000, unidade: 'R$', modelos: TI, sensivel: true, zero: 'limpa', itens: { termo_inv: ['deposito.valor', 'opc.ti_arras'] } },
   { id: 'ctr-ti-deposito-quando', rotulo: 'Quando o depósito é feito', tipo: 'texto', maxLen: 80, modelos: TI, itens: { termo_inv: ['deposito.valor'] } },
-  { id: 'ctr-ti-arras', rotulo: 'Retenção se desistir depois do prazo livre', tipo: 'dinheiro', min: 0, max: 10_000_000, unidade: 'R$', modelos: TI, sensivel: true, zero: 'limpa', itens: { termo_inv: ['opc.ti_arras'] } },
   { id: 'ctr-ti-raio', rotulo: 'Distância do ponto, em km', tipo: 'inteiro', min: 0, max: 1000, unidade: 'km', modelos: TI, itens: { termo_inv: ['objeto.reserva'] } },
 
   // ── Contrato solar do Fechamento (20/10/2026): `solar_m1` (Completo) e `solar_m2` (Padrão) ──────────────────────────
