@@ -25,6 +25,7 @@ import { sendHuman, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
+import { cedeAAgente } from '../../agentes5040/posse';
 
 import { carregarCerebro } from '../../io/cerebroAgentes';
 import { DEPOIMENTOS } from '../../../utils/depoimentos';
@@ -261,6 +262,10 @@ export async function runCarlaSemCnpjFollowup(): Promise<{ enviados: number; enc
 
     if (!intervaloAtingido(count, lastAt, signup, INTERVALOS_SEM_CNPJ, now)) continue;
 
+    // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não recebe o follow-up por cima.
+    // Por usuário, antes do teto; nada é gravado ao pular (o toque não conta e volta quando a posse acabar).
+    if (await cedeAAgente(u.whatsapp)) continue;
+
     // Teto anti-ban COMPARTILHADO (sem_cnpj + inativo) na linha solardoc. Estourou
     // → para de varrer (break, não continue): o resto fica pro próximo ciclo horário.
     if (!(await dentroDoTetoCarla())) {
@@ -354,6 +359,9 @@ export async function runCarlaInativoFollowup(): Promise<{ enviados: number; enc
     const ultAtividade = ultimoDoc[u.id] ?? new Date(u.created_at);
 
     if (!intervaloAtingido(count, lastAt, ultAtividade, INTERVALOS_INATIVO, now)) continue;
+
+    // AGENTES DA LINHA 5040 (Fase B): idem ao fluxo sem_cnpj.
+    if (await cedeAAgente(u.whatsapp)) continue;
 
     // Mesmo teto anti-ban compartilhado da linha solardoc. Estourou → para o ciclo.
     if (!(await dentroDoTetoCarla())) {

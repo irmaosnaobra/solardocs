@@ -101,6 +101,7 @@ class Consulta implements PromiseLike<any> {
   in(c: string, vs: any[]) { this.filtros.push(r => vs.includes(caminho(r, c))); return this; }
   is(c: string, v: any) { this.filtros.push(r => (v === null ? caminho(r, c) == null : caminho(r, c) === v)); return this; }
   gte(c: string, v: any) { this.filtros.push(r => caminho(r, c) != null && cmp(caminho(r, c), v) >= 0); return this; }
+  lte(c: string, v: any) { this.filtros.push(r => caminho(r, c) != null && cmp(caminho(r, c), v) <= 0); return this; }
   lt(c: string, v: any) { this.filtros.push(r => caminho(r, c) != null && cmp(caminho(r, c), v) < 0); return this; }
   like(c: string, p: string) { this.filtros.push(r => casaLike(caminho(r, c), p)); return this; }
   /** ilike do PostgREST: `*` e `%` são curinga, sem diferenciar maiúscula. */

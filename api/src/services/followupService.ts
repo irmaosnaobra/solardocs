@@ -4,6 +4,7 @@ import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, 
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
 import { pixAutomatico, pixPublicoAtivo } from '../utils/pixInfo';
 import { asaasHabilitado } from './asaas/asaasClient';
+import { cedeAAgente } from './agentes5040/posse';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -522,6 +523,12 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     // este fallback a Giovanna simplesmente não existe pra eles.
     const phone = r.phone || u?.whatsapp || null;
 
+    // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não recebe o opener da Giovanna por
+    // cima. Só o WhatsApp é cortado (o e-mail segue, é outro canal). Sem e-mail, nada saiu: não conta o toque
+    // (ele volta quando a posse acabar). Com tudo desligado o cedeAAgente devolve false sem ler posse nem alvo.
+    const agenteSegura = phone ? await cedeAAgente(phone) : false;
+    if (agenteSegura && !r.email) { skipped++; continue; }
+
     if (r.email) {
       try { await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome }); }
       catch (e) { console.error('abandon email falhou:', e); }
@@ -529,7 +536,7 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     // WhatsApp: GIOVANNA conversacional de recuperação — se apresenta, puxa papo e manda
     // o Pix no momento certo (não é blast fixo). O toque vem de recovery_attempts+1.
     // "Sem medo de ban" (Thiago 25/jul/2026) → manda em TODO toque. Best-effort.
-    if (phone) {
+    if (phone && !agenteSegura) {
       try { await enviarOpenerRecuperacao(phone, nome, (r.recovery_attempts ?? 0) + 1, { userId: u?.id ?? null }); }
       catch (e) { console.error('abandon giovanna opener falhou:', e); }
     }

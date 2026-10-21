@@ -42,6 +42,7 @@ import { sendHuman } from '../zapiClient';
 import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna } from '../whatsapp/lineThrottle';
 import { carregarBloqueioProativo } from '../../io/ioSend';
 import { BOLHAS_CARLA } from './carlaAcoes';
+import { cedeAAgente } from '../../agentes5040/posse';
 import { novoAnthropic } from "../../../utils/anthropicClient";
 
 const anthropic = novoAnthropic();
@@ -195,6 +196,10 @@ export async function runCarlaRetomada(opts: { dry?: boolean } = {}): Promise<Re
     // Quem já fechou não é puxado. Quem pediu pra parar, também não.
     if (l.estagio === 'fechado' || l.estagio === 'perdido') continue;
     if (bloqueado(l.phone)) { out.pulados.push(`${l.phone}: bloqueio proativo`); continue; }
+    // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não recebe a retomada da Carla antiga por
+    // cima. Por lead; nada é gravado ao pular (o toque não conta e volta quando a posse acabar). Com tudo desligado
+    // o cedeAAgente devolve false sem ler posse nem alvo.
+    if (await cedeAAgente(l.phone)) { out.pulados.push(`${l.phone}: agente nova segura a conversa`); continue; }
 
     const { data: sess } = await supabase
       .from('whatsapp_sessions').select('messages').eq('tipo', 'sdr_b2b').eq('phone', l.phone).maybeSingle();

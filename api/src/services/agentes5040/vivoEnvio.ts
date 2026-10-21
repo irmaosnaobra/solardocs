@@ -7,7 +7,8 @@
 // até 160 caracteres, pela instância 'io'). Condições do chefe-antiban, NESTA ordem. A primeira que
 // barrar encerra; nada é reservado, enviado nem carimbado antes de todas passarem:
 //
-//   1. bolha: uma só, até 160, sem travessão (a peça link/Pix tem validação própria, não tem teto de 160);
+//   1. bolha: uma só, até 160, sem travessão. A peça (link | pix | imagem, no máximo UMA por resposta) tem validação
+//      própria; peça inválida CAI e a bolha sai sozinha (nunca derruba a resposta);
 //   2. prazo: a fala do lead tem até 15 min NA HORA DO ENVIO;
 //   3. linha pausada (ag5040_linha_pausa) ou em cooldown na memória: não reserva, para não queimar o carimbo;
 //   4. pausa humana (podeFalarComLead; telefone sem chave, como um LID cru, também barra);
@@ -17,32 +18,49 @@
 //      = não fala e a rodada passa ao humano ('pediu_humano'). 'nunca_respondeu' e os mudos de wa_mudos valem só
 //      para toque proativo (frio e abertura) e NÃO barram resposta;
 //   7. robô do outro lado (temRoboAtendendo e pareceRoboDeles sobre a fala do lead);
-//   8. teto das agentes: ag5040_sent:% com updated_at na última 1 h < 20 e em 24 h < 120;
+//   8. teto das agentes: ag5040_sent:% com updated_at na última 1 h e em 24 h: contador + n <= 20 e <= 120, onde
+//      n = 1 + (tem peça). Não cabe com a peça = a peça cai e a bolha sai sozinha; não cabe nem a bolha = recusa;
 //   9. teto de emergência da linha: tudo que a linha conta + ag5040_sent: + ficha_lead: (as fichas ao consultor
-//      saem pela mesma linha) < 60 na hora e < 450 em 24 h;
+//      saem pela mesma linha): contador + n <= 60 na hora e <= 450 em 24 h (mesma regra do n);
 //  10. espaçamento: 10 s contra o último ag5040_sent no BANCO (nunca sleep);
 //  11. dry encerra aqui, sem reservar;
 //  12. reserva por INSERT ag5040_sent:<waIdAlvo>:1 (23505 = ja_respondido, nada sai);
 //  13. sendHuman(tel, [bolha], 'io', { maxBolhas: 1, max: 160 });
-//  14. peça link/Pix em 2ª chamada, carimbo :2, SÓ se a bolha saiu;
-//  15. erro de linha conta em ag5040_linha_erros; 2 seguidos gravam ag5040_linha_pausa (15 min); envio ok zera.
+//  14. a peça, SÓ se a bolha saiu: espera de 2 a 5 s, DEPOIS reserva a chave :2 com a hora de agora (new Date(), não o
+//      `agora` injetado: o espaçamento de 10 s das outras respostas mede a partir do envio da peça), e só então envia
+//      (link/Pix pelo sendHuman, imagem pelo sendImage). A imagem conta como 1 mensagem física;
+//  15. erro de linha (da bolha OU da peça, imagem inclusive) conta em ag5040_linha_erros; 2 seguidos gravam
+//      ag5040_linha_pausa (15 min); envio ok zera.
 //
 // O carimbo de um envio que falhou FICA (conta no teto e a mesma fala não é reenviada). O prefixo
 // `ag5040_sent:` fica FORA de BOT_SENT_PREFIXES de propósito e nunca é `aviso_sent:`. Nenhum valor
-// gravado aqui leva telefone: só dona, waId e hora. Todas as janelas saem do `agora` injetado.
-// Imagem fica para a B3.
+// gravado aqui leva telefone: só dona, waId e hora. As janelas dos tetos saem do `agora` injetado.
+// Regras da imagem (3 por conversa, cada card 1 vez, lead falou entre duas, nunca no 1º toque) são da rodada (vivo.ts), não daqui.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { sendHuman, linhaEmCooldown } from '../agents/zapiClient';
+import { sendHuman, sendImage, linhaEmCooldown } from '../agents/zapiClient';
 import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
 import { chaveContato, estaBloqueado, motivosDaSupressao } from '../agents/whatsapp/silenciar';
 import { pareceRoboDeles, temRoboAtendendo, marcarRoboDoOutroLado } from '../agents/whatsapp/roboDoOutroLado';
 import { prefixosDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
 import { classificarErroEnvio } from '../chefe/decidir';
+import { crc16 } from '../../utils/pixBrCode';
 
 const LOG = 'vivo-envio-5040';
+
+/**
+ * A peça da resposta: no MÁXIMO UMA, sempre na chave ag5040_sent:<waId>:2.
+ *   link   : texto = só a URL, https em solardoc.app;
+ *   pix    : texto = só o código copia e cola (começa em 000201, sem espaço nem texto junto);
+ *   imagem : url = https://solardoc.app/depoimentos/<arquivo>.jpg; slug identifica o card; legenda opcional (<= 160, sem travessão).
+ * Peça inválida ou que não cabe nos tetos CAI: a bolha sai sozinha (ver `pecaCaiu` no resultado).
+ */
+export type PecaEnvio =
+  | { tipo: 'link'; texto: string }
+  | { tipo: 'pix'; texto: string }
+  | { tipo: 'imagem'; url: string; slug: string; legenda?: string };
 
 export interface PedidoEnvio {
   dona: 'duda' | 'helena' | 'carla';
@@ -50,7 +68,7 @@ export interface PedidoEnvio {
   waIdAlvo: number;
   momentoFalaLead: string;
   bolha: string;
-  peca?: { tipo: 'link' | 'pix'; texto: string };
+  peca?: PecaEnvio;
   dry?: boolean;
 }
 
@@ -60,7 +78,7 @@ export type MotivoRecusa =
   | 'pediu_humano';
 
 export type ResultadoEnvio =
-  | { ok: true; enviadas: number; carimbos: string[] }
+  | { ok: true; enviadas: number; carimbos: string[]; /** Só presente quando a peça pedida caiu: 'teto' ou 'invalida:<motivo>'. */ pecaCaiu?: string }
   | { ok: false; motivo: MotivoRecusa; detalhe?: string };
 
 export const PREFIXO_CARIMBO = 'ag5040_sent:';
@@ -126,15 +144,48 @@ function bolhaInvalida(p: PedidoEnvio): string | null {
   if (b.includes('||')) return 'mais_de_uma_bolha';
   if (!Number.isInteger(p.waIdAlvo) || p.waIdAlvo <= 0) return 'wa_id';
   if (!['duda', 'helena', 'carla'].includes(p.dona)) return 'dona';
-  if (p.peca) {
-    const t = String(p.peca.texto ?? '');
-    if (p.peca.tipo !== 'link' && p.peca.tipo !== 'pix') return 'peca_tipo';
-    if (!t.trim()) return 'peca_vazia';
+  return null;
+}
+
+// BR Code inteiro e só ele: começa no 000201, só ASCII imprimível (o nome do recebedor tem espaço) e termina no CRC (6304 + 4 hex).
+const RE_PIX = /^000201[ -~]+6304[0-9A-F]{4}$/;
+const pixComCrcCerto = (c: string): boolean => crc16(c.slice(0, -4)) === c.slice(-4);
+const RE_LINK = /^https:\/\/solardoc\.app\/\S*$/;
+const RE_IMAGEM_CAMINHO = /^\/depoimentos\/[A-Za-z0-9_-]+\.jpg$/;
+const RE_SLUG = /^[a-z0-9][a-z0-9_-]{0,80}$/i;
+
+/** Motivo da recusa da peça (ela cai, a bolha sai sozinha), ou null se a peça é válida. Não lança. */
+function pecaInvalida(peca: unknown): string | null {
+  if (!peca || typeof peca !== 'object' || Array.isArray(peca)) return 'peca_forma';
+  const x = peca as Record<string, unknown>;
+  const tipo = x.tipo;
+  if (tipo === 'link' || tipo === 'pix') {
+    if (typeof x.texto !== 'string') return 'peca_vazia';
+    const t = x.texto.trim();
+    if (!t) return 'peca_vazia';
     if (t.length > LIMITES.maxCaracteresPeca) return 'peca_longa';
     if (TRAVESSAO.test(t)) return 'peca_travessao';
     if (t.includes('||')) return 'peca_com_separador';
+    if (tipo === 'pix') return RE_PIX.test(t) && pixComCrcCerto(t) ? null : 'pix_formato';
+    return RE_LINK.test(t) ? null : 'link_fora_do_dominio';
   }
-  return null;
+  if (tipo === 'imagem') {
+    if (typeof x.url !== 'string') return 'imagem_url';
+    let u: URL;
+    try { u = new URL(x.url); } catch { return 'imagem_url'; }
+    if (u.href !== x.url || u.protocol !== 'https:' || u.hostname !== 'solardoc.app' || u.port || u.username || u.password
+      || u.search || u.hash || !RE_IMAGEM_CAMINHO.test(u.pathname)) return 'imagem_url';
+    if (typeof x.slug !== 'string' || !RE_SLUG.test(x.slug)) return 'imagem_slug';
+    if (x.legenda !== undefined && x.legenda !== null) {
+      if (typeof x.legenda !== 'string') return 'imagem_legenda';
+      const l = x.legenda.trim();
+      if (l.length > LIMITES.maxCaracteresBolha) return 'imagem_legenda_longa';
+      if (TRAVESSAO.test(l)) return 'imagem_legenda_travessao';
+      if (l.includes('||')) return 'imagem_legenda_com_separador';
+    }
+    return null;
+  }
+  return 'peca_tipo';
 }
 
 // ── contagens e estado (system_state, sem dado pessoal) ──────────────────────
@@ -262,6 +313,15 @@ export async function enviarResposta(p: PedidoEnvio, agora: Date = new Date()): 
   const invalida = bolhaInvalida(p);
   if (invalida) return recusa('bolha_invalida', invalida);
 
+  // A peça (uma só) tem validação própria: inválida CAI e a bolha sai sozinha.
+  let peca: PecaEnvio | null = null;
+  let pecaCaiu: string | undefined;
+  if (p.peca !== undefined && p.peca !== null) {
+    const motivoPeca = pecaInvalida(p.peca);
+    if (motivoPeca) { pecaCaiu = `invalida:${motivoPeca}`; logger.warn(LOG, `peça da fala ${p.waIdAlvo} recusada: ${motivoPeca}`); }
+    else peca = p.peca;
+  }
+
   // 2. prazo: a fala do lead tem até 15 min na hora do envio
   const fala = Date.parse(String(p.momentoFalaLead ?? ''));
   if (!Number.isFinite(fala)) return recusa('prazo', 'momento_invalido');
@@ -299,22 +359,25 @@ export async function enviarResposta(p: PedidoEnvio, agora: Date = new Date()): 
   const robo = await roboDoOutroLado(p);
   if (robo) return robo;
 
-  // 8. teto das agentes
-  const agHora = await contarCarimbos([PREFIXO_CARIMBO], new Date(t0 - HORA_MS), LIMITES.tetoAgentesHora);
-  if (agHora === null) return recusa('teto_agentes', 'leitura_falhou');
-  if (agHora >= LIMITES.tetoAgentesHora) return recusa('teto_agentes', `hora:${agHora}`);
-  const agDia = await contarCarimbos([PREFIXO_CARIMBO], new Date(t0 - DIA_MS), LIMITES.tetoAgentesDia);
-  if (agDia === null) return recusa('teto_agentes', 'leitura_falhou');
-  if (agDia >= LIMITES.tetoAgentesDia) return recusa('teto_agentes', `dia:${agDia}`);
-
-  // 9. teto de emergência da linha: o que a linha conta (frio e agenda) + os carimbos das agentes
+  // 8 e 9. os 4 tetos: das agentes (1 h / 24 h) e de emergência da linha (o que a linha conta, frio e agenda, + os
+  // carimbos das agentes + as fichas), na mesma ordem de sempre. Confere contador + n <= limite, com n = 1 + tem peça
+  // (a imagem também é 1 mensagem física). Nem a bolha cabe (contador >= limite) = recusa. A bolha cabe mas a peça
+  // não, em qualquer um dos 4 = a peça cai e a bolha sai sozinha.
   const prefixosLinha = [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, PREFIXO_CARIMBO, PREFIXO_FICHA])];
-  const lnHora = await contarCarimbos(prefixosLinha, new Date(t0 - HORA_MS), LIMITES.tetoLinhaHora);
-  if (lnHora === null) return recusa('teto_linha', 'leitura_falhou');
-  if (lnHora >= LIMITES.tetoLinhaHora) return recusa('teto_linha', `hora:${lnHora}`);
-  const lnDia = await contarCarimbos(prefixosLinha, new Date(t0 - DIA_MS), LIMITES.tetoLinhaDia);
-  if (lnDia === null) return recusa('teto_linha', 'leitura_falhou');
-  if (lnDia >= LIMITES.tetoLinhaDia) return recusa('teto_linha', `dia:${lnDia}`);
+  const tetos: Array<{ motivo: 'teto_agentes' | 'teto_linha'; prefixos: string[]; janelaMs: number; limite: number; nome: 'hora' | 'dia' }> = [
+    { motivo: 'teto_agentes', prefixos: [PREFIXO_CARIMBO], janelaMs: HORA_MS, limite: LIMITES.tetoAgentesHora, nome: 'hora' },
+    { motivo: 'teto_agentes', prefixos: [PREFIXO_CARIMBO], janelaMs: DIA_MS, limite: LIMITES.tetoAgentesDia, nome: 'dia' },
+    { motivo: 'teto_linha', prefixos: prefixosLinha, janelaMs: HORA_MS, limite: LIMITES.tetoLinhaHora, nome: 'hora' },
+    { motivo: 'teto_linha', prefixos: prefixosLinha, janelaMs: DIA_MS, limite: LIMITES.tetoLinhaDia, nome: 'dia' },
+  ];
+  let cabeAPeca = true;
+  for (const t of tetos) {
+    const c = await contarCarimbos(t.prefixos, new Date(t0 - t.janelaMs), t.limite);
+    if (c === null) return recusa(t.motivo, 'leitura_falhou');
+    if (c + 1 > t.limite) return recusa(t.motivo, `${t.nome}:${c}`);
+    if (c + 2 > t.limite) cabeAPeca = false;
+  }
+  if (peca && !cabeAPeca) { peca = null; pecaCaiu = 'teto'; }
 
   // 10. espaçamento: 10 s contra o último ag5040_sent no banco
   const { data: ultimo, error: erroUltimo } = await supabase
@@ -347,31 +410,40 @@ export async function enviarResposta(p: PedidoEnvio, agora: Date = new Date()): 
     return recusa('erro_linha', cod);
   }
   await marcarCarimbo(chave1, 'enviado');
-  await zerarErros(agora);
+  // O contador de erros seguidos só zera DEPOIS da peça: bolha ok + peça com erro tem que contar, senão uma peça que
+  // falha toda vez (a bolha sempre zerando antes) nunca chegaria aos 2 seguidos que pausam a linha.
+  let pecaFalhou = false;
   let enviadas = 1;
 
-  // 14. a peça (link ou Pix), em 2ª chamada, só porque a bolha saiu
-  if (p.peca) {
+  // 14. a peça (link, Pix ou imagem), só porque a bolha saiu. Espera 2 a 5 s e SÓ ENTÃO reserva o :2 com a hora de
+  // agora: o carimbo é o que o espaçamento de 10 s das outras respostas mede, e ele tem que valer a hora do envio.
+  if (peca) {
+    await dormir(TEMPOS.entreBolhaEPecaMs());
     const chave2 = chaveCarimbo(p.waIdAlvo, 2);
-    const r2 = await reservar(chave2, p, agora);
+    const agoraPeca = new Date();
+    const r2 = await reservar(chave2, p, agoraPeca);
     if (r2 === 'ok') {
       carimbos.push(chave2);
       try {
-        await dormir(TEMPOS.entreBolhaEPecaMs());
-        await sendHuman(p.telefone, [p.peca.texto.trim()], 'io', { maxBolhas: 1, max: LIMITES.maxCaracteresPeca });
+        if (peca.tipo === 'imagem') {
+          await sendImage(p.telefone, peca.url, (peca.legenda ?? '').trim(), 'io');
+        } else {
+          await sendHuman(p.telefone, [peca.texto.trim()], 'io', { maxBolhas: 1, max: LIMITES.maxCaracteresPeca });
+        }
         await marcarCarimbo(chave2, 'enviado');
         enviadas = 2;
       } catch (err) {
-        // A bolha já saiu: o resultado segue ok com enviadas = 1, e o erro conta para a linha.
+        // A bolha já saiu: o resultado segue ok com enviadas = 1, e o erro conta para a linha (imagem inclusive).
         const cod2 = codigoDoErroDeEnvio(err);
         logger.error(LOG, `envio da peça ${p.waIdAlvo} falhou: ${cod2}`);
         await marcarCarimbo(chave2, 'falhou', cod2);
-        if (!erroEhDoDestino(err)) await contarErroDeLinha(agora);
+        if (!erroEhDoDestino(err)) { pecaFalhou = true; await contarErroDeLinha(agoraPeca); }
       }
     } else if (r2 === 'erro') {
       logger.error(LOG, `peça ${p.waIdAlvo}: reserva não gravou, a peça não sai`);
     }
   }
+  if (!pecaFalhou) await zerarErros(agora);
 
-  return { ok: true, enviadas, carimbos };
+  return { ok: true, enviadas, carimbos, ...(pecaCaiu ? { pecaCaiu } : {}) };
 }

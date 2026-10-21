@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // B1c-2, o envio da resposta ao vivo (vivoEnvio.ts). Banco, WhatsApp e gates simulados na memória. Prova: cada checagem
 // barra e NADA é enviado nem carimbado; a ordem das checagens; os tetos nos limites (19/20, 59/60, 119/120, 449/450);
@@ -10,8 +10,13 @@ type Linha = { value: any; updated_at: string };
 const h = vi.hoisted(() => ({
   estado: new Map<string, Linha>(),
   wa: new Map<number, string | null>(),
-  enviados: [] as Array<{ tel: string; partes: string[]; inst: string; opts: any }>,
+  /** `reserva2` = o updated_at do carimbo :2 NO MOMENTO em que a chamada saiu (prova que reservou antes de enviar). */
+  enviados: [] as Array<{ tel: string; partes: string[]; inst: string; opts: any; reserva2?: string }>,
+  imagens: [] as Array<{ tel: string; url: string; legenda: string; inst: string; reserva2?: string }>,
+  /** A ordem física dos envios: 'bolha' (sendHuman) e 'imagem' (sendImage). */
+  ordem: [] as string[],
   falhas: [] as Array<Error | null>, // uma entrada por chamada ao sendHuman; vazio = ok
+  falhasImagem: [] as Array<Error | null>, // uma entrada por chamada ao sendImage; vazio = ok
   cooldown: false,
   pode: { pode: true, motivo: 'sem-pausa' } as any,
   bloqueado: false,
@@ -91,8 +96,15 @@ vi.mock('../services/agents/zapiClient', () => ({
   solardocViaIo: () => false,
   linhaEmCooldown: () => h.cooldown,
   sendHuman: vi.fn(async (tel: string, partes: string[], inst: string, opts: any) => {
-    h.enviados.push({ tel, partes, inst, opts });
+    h.enviados.push({ tel, partes, inst, opts, reserva2: h.estado.get('ag5040_sent:1001:2')?.updated_at });
+    h.ordem.push('bolha');
     const f = h.falhas.shift();
+    if (f) throw f;
+  }),
+  sendImage: vi.fn(async (tel: string, url: string, legenda: string, inst: string) => {
+    h.imagens.push({ tel, url, legenda, inst, reserva2: h.estado.get('ag5040_sent:1001:2')?.updated_at });
+    h.ordem.push('imagem');
+    const f = h.falhasImagem.shift();
     if (f) throw f;
   }),
 }));
@@ -117,8 +129,9 @@ vi.mock('../services/agents/whatsapp/roboDoOutroLado', () => ({
 
 import { enviarResposta, codigoDoErroDeEnvio, TEMPOS, CHAVE_LINHA_PAUSA, CHAVE_LINHA_ERROS, type PedidoEnvio } from '../services/agentes5040/vivoEnvio';
 import { prefixosDaLinha, PREFIXOS_AGENDA } from '../services/agents/whatsapp/lineThrottle';
-import { sendHuman } from '../services/agents/zapiClient';
+import { sendHuman, sendImage } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
+import { gerarPixCopiaECola } from '../utils/pixBrCode';
 
 const AGORA = new Date('2026-10-21T15:00:00.000Z');
 const TEL = '5534991360223';
@@ -134,15 +147,21 @@ const semear = (prefixo: string, n: number, quandoMs: number, base = 0): void =>
 };
 const carimbosDasAgentes = (): string[] => [...h.estado.keys()].filter(k => k.startsWith('ag5040_sent:'));
 const chamadas = (): number => (sendHuman as any).mock.calls.length;
+const chamadasImagem = (): number => (sendImage as any).mock.calls.length;
 
 beforeEach(() => {
   h.estado.clear(); h.wa.clear(); h.enviados.length = 0; h.falhas.length = 0; h.marcou.length = 0;
+  h.imagens.length = 0; h.ordem.length = 0; h.falhasImagem.length = 0;
   h.cooldown = false; h.pode = { pode: true, motivo: 'sem-pausa' }; h.bloqueado = false; h.motivos = []; h.mudosLidos = 0;
   h.motivosLanca = false; h.temRobo = false; h.veredito = { nivel: 'nenhum' }; h.podeChamadas = 0; h.falhaLeitura = null;
   for (const id of [1, 2, 3, 1001, 1002]) h.wa.set(id, 'oi, quero saber mais');
   TEMPOS.entreBolhaEPecaMs = () => 0;
-  (sendHuman as any).mockClear();
+  (sendHuman as any).mockClear(); (sendImage as any).mockClear();
+  // O relógio de verdade (new Date() do :2 da peça) fica parado em AGORA; os testes que provam a hora do envio da peça movem.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(AGORA);
 });
+afterEach(() => { vi.useRealTimers(); });
 
 describe('vivoEnvio: o caminho feliz', () => {
   it('uma bolha pela linha io, com maxBolhas 1 e max 160, e o carimbo :1 gravado', async () => {
@@ -195,11 +214,14 @@ describe('vivoEnvio: cada checagem barra e nada sai nem é carimbado', () => {
     expect(chamadas()).toBe(1);
   });
 
-  it('bolha_invalida: peça vazia, com travessão ou com separador', async () => {
-    for (const texto of ['', 'link — aqui', 'a||b']) {
-      expect(await enviarResposta(pedido({ peca: { tipo: 'link', texto } }), AGORA)).toMatchObject({ ok: false, motivo: 'bolha_invalida' });
+  it('peça vazia, com travessão ou com separador: a peça cai e a bolha sai sozinha (não é bolha_invalida)', async () => {
+    for (const [i, texto] of ['', 'https://solardoc.app/a — b', 'https://solardoc.app/a||b'].entries()) {
+      const r = await enviarResposta(pedido({ waIdAlvo: i + 1, peca: { tipo: 'link', texto } }), new Date(AGORA.getTime() + i * 20_000));
+      expect(r).toMatchObject({ ok: true, enviadas: 1, carimbos: [`ag5040_sent:${i + 1}:1`] });
+      expect((r as any).pecaCaiu).toMatch(/^invalida:/);
     }
-    semRastro();
+    expect(chamadas()).toBe(3);
+    expect(carimbosDasAgentes().filter(k => k.endsWith(':2'))).toEqual([]);
   });
 
   it('prazo: fala de 16 min atrás barra; 15 min exatos passam', async () => {
@@ -530,7 +552,7 @@ describe('vivoEnvio: a reserva', () => {
 
 describe('vivoEnvio: a peça (link ou Pix)', () => {
   it('a peça sai em 2ª chamada, depois da bolha, com o carimbo :2', async () => {
-    const codigoPix = '00020126580014br.gov.bcb.pix0136' + 'x'.repeat(200);
+    const codigoPix = PIX;
     const r = await enviarResposta(pedido({ peca: { tipo: 'pix', texto: codigoPix } }), AGORA);
     expect(r).toEqual({ ok: true, enviadas: 2, carimbos: ['ag5040_sent:1001:1', 'ag5040_sent:1001:2'] });
     expect(chamadas()).toBe(2);
@@ -554,6 +576,239 @@ describe('vivoEnvio: a peça (link ou Pix)', () => {
     expect(r).toEqual({ ok: true, enviadas: 1, carimbos: ['ag5040_sent:1001:1', 'ag5040_sent:1001:2'] });
     expect(chamadas()).toBe(2);
     expect(h.estado.get(CHAVE_LINHA_ERROS)!.value.n).toBe(1);
+  });
+});
+
+// ── B3a: a peça única (link | pix | imagem), os tetos com n = 1 + peça e as validações ──────────────────────────────
+// Um Pix GERADO de verdade (nome do recebedor com espaço, CRC16 certo), como o que a Carla manda.
+const PIX = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
+const PIX_CRC_TROCADO = PIX.slice(0, -4) + (PIX.endsWith('0000') ? 'FFFF' : '0000');
+const LINK = 'https://solardoc.app/assinar';
+const CARD = 'https://solardoc.app/depoimentos/card-lucas-rsc-solar.jpg';
+const IMAGEM = { tipo: 'imagem' as const, url: CARD, slug: 'lucas-rsc-solar', legenda: 'Um caso real de quem usa.' };
+const PECAS: Array<[string, NonNullable<PedidoEnvio['peca']>]> = [
+  ['link', { tipo: 'link', texto: LINK }],
+  ['pix', { tipo: 'pix', texto: PIX }],
+  ['imagem', IMAGEM],
+];
+/** Quantas mensagens físicas saíram (bolhas + imagens). */
+const fisicas = (): number => chamadas() + chamadasImagem();
+
+describe('vivoEnvio: o teto soma a peça (n = 1 + tem peça) nos 4 contadores', () => {
+  const CASOS: Array<[string, string, number, number]> = [
+    // [nome, prefixo semeado, idade do carimbo em ms, limite do contador]
+    ['agentes na hora', 'ag5040_sent:', 30 * MIN, 20],
+    ['agentes em 24 h', 'ag5040_sent:', 5 * HORA, 120],
+    ['emergência da linha na hora', 'limpapro_recovery:', 20 * MIN, 60],
+    ['emergência da linha em 24 h', 'gerador_followup:', 5 * HORA, 450],
+  ];
+
+  for (const [nome, prefixo, idade, limite] of CASOS) {
+    for (const [tipo, peca] of PECAS) {
+      it(`${nome} (${tipo}): limite-1 carimbos com peça = a peça cai e sai 1; limite-2 = saem 2; limite = recusa`, async () => {
+        semear(prefixo, limite - 1, idade);
+        const cai = await enviarResposta(pedido({ peca }), AGORA);
+        expect(cai).toEqual({ ok: true, enviadas: 1, carimbos: ['ag5040_sent:1001:1'], pecaCaiu: 'teto' });
+        expect(fisicas()).toBe(1);
+        expect(chamadasImagem()).toBe(0);
+        expect(h.estado.has('ag5040_sent:1001:2')).toBe(false);
+
+        h.estado.clear(); (sendHuman as any).mockClear(); (sendImage as any).mockClear();
+        semear(prefixo, limite - 2, idade);
+        const saem2 = await enviarResposta(pedido({ peca }), AGORA);
+        expect(saem2).toEqual({ ok: true, enviadas: 2, carimbos: ['ag5040_sent:1001:1', 'ag5040_sent:1001:2'] });
+        expect(fisicas()).toBe(2);
+
+        h.estado.clear(); (sendHuman as any).mockClear(); (sendImage as any).mockClear();
+        semear(prefixo, limite, idade);
+        expect(await enviarResposta(pedido({ peca }), AGORA)).toMatchObject({ ok: false });
+        expect(fisicas()).toBe(0);
+      });
+    }
+  }
+
+  it('sem peça o limite não muda: limite-1 passa (como antes), limite barra', async () => {
+    semear('ag5040_sent:', 19, 30 * MIN);
+    expect(await enviarResposta(pedido(), AGORA)).toEqual({ ok: true, enviadas: 1, carimbos: ['ag5040_sent:1001:1'] });
+  });
+
+  it('o :1 e o :2 de uma resposta contam nos tetos da seguinte (a peça pesa 2 no total)', async () => {
+    semear('ag5040_sent:', 17, 30 * MIN, 100);
+    expect((await enviarResposta(pedido({ waIdAlvo: 1, peca: PECAS[0]![1] }), AGORA)).ok).toBe(true); // 17 + 2 = 19
+    const t2 = new Date(AGORA.getTime() + 20_000);
+    const r = await enviarResposta(pedido({ waIdAlvo: 2, momentoFalaLead: new Date(t2.getTime() - 5_000).toISOString(), peca: PECAS[0]![1] }), t2);
+    expect(r).toMatchObject({ ok: true, enviadas: 1, pecaCaiu: 'teto' }); // 19 + 2 = 21 > 20: cai
+  });
+});
+
+describe('vivoEnvio: validação da peça (inválida = a peça cai e a bolha sai sozinha)', () => {
+  const caiu = async (peca: any): Promise<void> => {
+    h.estado.clear(); h.enviados.length = 0; h.imagens.length = 0; h.ordem.length = 0;
+    (sendHuman as any).mockClear(); (sendImage as any).mockClear();
+    const r = await enviarResposta(pedido({ peca }), AGORA);
+    expect(r, JSON.stringify(peca)).toMatchObject({ ok: true, enviadas: 1, carimbos: ['ag5040_sent:1001:1'] });
+    expect((r as any).pecaCaiu, JSON.stringify(peca)).toMatch(/^invalida:/);
+    expect(chamadas()).toBe(1);
+    expect(h.enviados[0]!.partes).toEqual(['Oi, tudo bem? Me conta a média da sua conta de luz.']);
+    expect(chamadasImagem()).toBe(0);
+    expect(h.estado.has('ag5040_sent:1001:2')).toBe(false);
+  };
+
+  it('pix: só o código GERADO de verdade (000201..., CRC16 certo); texto colado antes ou depois, CRC trocado e lixo caem', async () => {
+    expect(PIX).toMatch(/ /); // o nome do recebedor tem espaço: o gerador real tem que passar
+    for (const texto of ['chave pix 123', 'Copie e cole: ' + PIX, PIX + ' obrigado', 'Pix: ' + PIX + ' fim', PIX_CRC_TROCADO,
+      PIX.replace('000201', '000200'), PIX.slice(0, 6), `${PIX}\nOutro texto`, '00020126580014br.gov.bcb.pix0136' + 'x'.repeat(120), '']) {
+      await caiu({ tipo: 'pix', texto });
+    }
+    h.estado.clear(); h.enviados.length = 0; (sendHuman as any).mockClear();
+    expect(((await enviarResposta(pedido({ peca: { tipo: 'pix', texto: `  ${PIX}\n` } }), AGORA)) as any).enviadas).toBe(2); // borda em branco não conta
+    expect(h.enviados[1]!.partes).toEqual([PIX]);
+  });
+
+  it('link: só https em solardoc.app, sozinho', async () => {
+    for (const texto of [
+      'http://solardoc.app/pix', 'https://evil.com/solardoc.app/', 'https://solardoc.app.evil.com/x', 'https://solardoc.app@evil.com/x',
+      'veja https://solardoc.app/pix', 'https://solardoc.app/pix e mais', 'solardoc.app/pix', 'https://www.solardoc.app/pix',
+    ]) await caiu({ tipo: 'link', texto });
+  });
+
+  it('imagem: https em solardoc.app/depoimentos/*.jpg e nada mais', async () => {
+    for (const url of [
+      'http://solardoc.app/depoimentos/card-a.jpg', 'https://solardoc.app/depoimentos/card-a.png', 'https://solardoc.app/depoimentos/card-a.jpeg',
+      'https://solardoc.app/outra/card-a.jpg', 'https://solardoc.app/depoimentos/sub/card-a.jpg', 'https://solardoc.app/depoimentos/../card-a.jpg',
+      'https://solardoc.app/depoimentos/card-a.jpg?x=1', 'https://solardoc.app/depoimentos/card-a.jpg#a', 'https://evil.com/depoimentos/card-a.jpg',
+      'https://solardoc.app.evil.com/depoimentos/card-a.jpg', 'https://solardoc.app:8443/depoimentos/card-a.jpg', 'https://u@solardoc.app/depoimentos/card-a.jpg',
+      'data:image/jpeg;base64,AAAA', 'card-a.jpg', '',
+    ]) await caiu({ ...IMAGEM, url });
+  });
+
+  it('imagem: slug e legenda seguem as regras (legenda vazia pode; > 160, travessão e || não)', async () => {
+    await caiu({ ...IMAGEM, slug: '' });
+    await caiu({ ...IMAGEM, slug: 'a b' });
+    await caiu({ ...IMAGEM, legenda: 'a'.repeat(161) });
+    await caiu({ ...IMAGEM, legenda: 'Um caso — real' });
+    await caiu({ ...IMAGEM, legenda: 'um||dois' });
+    h.estado.clear(); (sendHuman as any).mockClear(); (sendImage as any).mockClear(); h.imagens.length = 0;
+    const { legenda: _l, ...semLegenda } = IMAGEM;
+    expect(((await enviarResposta(pedido({ peca: semLegenda }), AGORA)) as any).enviadas).toBe(2);
+    expect(h.imagens[0]!.legenda).toBe('');
+    h.estado.clear(); h.imagens.length = 0;
+    expect(((await enviarResposta(pedido({ peca: { ...IMAGEM, legenda: 'a'.repeat(160) } }), AGORA)) as any).enviadas).toBe(2);
+  });
+
+  it('tipo desconhecido, peça que não é objeto e lista de peças: a peça cai', async () => {
+    await caiu({ tipo: 'video', texto: 'https://solardoc.app/a' });
+    await caiu('https://solardoc.app/a');
+    await caiu([{ tipo: 'link', texto: LINK }, { tipo: 'pix', texto: PIX }]);
+  });
+
+  it('peça inválida não é bolha inválida: a bolha segue obedecendo as regras dela', async () => {
+    expect(await enviarResposta(pedido({ bolha: '', peca: { tipo: 'link', texto: LINK } }), AGORA)).toMatchObject({ ok: false, motivo: 'bolha_invalida' });
+    expect(fisicas()).toBe(0);
+  });
+});
+
+describe('vivoEnvio: a peça única, o carimbo :2 e a imagem', () => {
+  it.each(PECAS)('%s: sai UMA peça só, no :2, e nunca existe :3', async (_t, peca) => {
+    const r = await enviarResposta(pedido({ peca }), AGORA);
+    expect(r).toEqual({ ok: true, enviadas: 2, carimbos: ['ag5040_sent:1001:1', 'ag5040_sent:1001:2'] });
+    expect(fisicas()).toBe(2);
+    expect(carimbosDasAgentes().sort()).toEqual(['ag5040_sent:1001:1', 'ag5040_sent:1001:2']);
+    // a mesma fala de novo: nada sai (nem outra peça)
+    const t2 = new Date(AGORA.getTime() + 30_000);
+    expect(await enviarResposta(pedido({ peca }), t2)).toEqual({ ok: false, motivo: 'ja_respondido' });
+    expect(fisicas()).toBe(2);
+  });
+
+  it('link e Pix saem pelo sendHuman (1 bolha, até 900) e a imagem pelo sendImage, sempre pela linha io', async () => {
+    await enviarResposta(pedido({ waIdAlvo: 1, peca: { tipo: 'pix', texto: PIX } }), AGORA);
+    expect(h.enviados[1]).toMatchObject({ inst: 'io', partes: [PIX], opts: { maxBolhas: 1, max: 900 } });
+    await enviarResposta(pedido({ waIdAlvo: 2, momentoFalaLead: new Date(AGORA.getTime() + 15_000).toISOString(), peca: IMAGEM }), new Date(AGORA.getTime() + 20_000));
+    expect(h.imagens).toHaveLength(1);
+    expect(h.imagens[0]).toMatchObject({ tel: TEL, url: CARD, legenda: 'Um caso real de quem usa.', inst: 'io' });
+    expect(h.enviados).toHaveLength(3); // 2 bolhas + a peça Pix; a imagem não passou pelo sendHuman
+  });
+
+  it('imagem só depois da bolha: a ordem física é bolha, imagem', async () => {
+    await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(h.ordem).toEqual(['bolha', 'imagem']);
+  });
+
+  it('bolha que falha: a imagem NÃO sai, não ganha :2 e o resultado é erro_linha', async () => {
+    h.falhas.push(new Error('z-api 500'));
+    const r = await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(r).toMatchObject({ ok: false, motivo: 'erro_linha' });
+    expect(chamadasImagem()).toBe(0);
+    expect(carimbosDasAgentes()).toEqual(['ag5040_sent:1001:1']);
+  });
+
+  it('erro da imagem conta como erro de linha: 1 conta, 2 seguidos pausam a linha por 15 min; a bolha continua enviada', async () => {
+    h.falhasImagem.push(new Error('[zapi:io] HTTP 500 - falha'), new Error('[zapi:io] HTTP 500 - falha'));
+    const r1 = await enviarResposta(pedido({ waIdAlvo: 1, peca: IMAGEM }), AGORA);
+    expect(r1).toEqual({ ok: true, enviadas: 1, carimbos: ['ag5040_sent:1:1', 'ag5040_sent:1:2'] });
+    expect(h.estado.get('ag5040_sent:1:2')!.value).toEqual({ estado: 'falhou', erro: 'http_500' });
+    expect(h.estado.get(CHAVE_LINHA_ERROS)!.value.n).toBe(1);
+    expect(h.estado.has(CHAVE_LINHA_PAUSA)).toBe(false);
+    const t2 = new Date(AGORA.getTime() + 20_000);
+    await enviarResposta(pedido({ waIdAlvo: 2, momentoFalaLead: new Date(t2.getTime() - 5_000).toISOString(), peca: IMAGEM }), t2);
+    expect(h.estado.get(CHAVE_LINHA_ERROS)!.value.n).toBe(2);
+    expect(h.estado.has(CHAVE_LINHA_PAUSA)).toBe(true);
+    const t3 = new Date(t2.getTime() + 60_000);
+    expect(await enviarResposta(pedido({ waIdAlvo: 3, momentoFalaLead: new Date(t3.getTime() - 5_000).toISOString() }), t3))
+      .toMatchObject({ ok: false, motivo: 'linha_pausada' });
+  });
+
+  it('resposta inteira ok (bolha e peça) zera o contador de erros seguidos; peça com erro não zera', async () => {
+    h.estado.set(CHAVE_LINHA_ERROS, { value: { n: 1 }, updated_at: ant(HORA) });
+    await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(h.estado.get(CHAVE_LINHA_ERROS)!.value.n).toBe(0);
+    h.falhas.push(null as any, new Error('[zapi:io] HTTP 500 - falha'));
+    await enviarResposta(pedido({ waIdAlvo: 2, momentoFalaLead: new Date(AGORA.getTime() + 15_000).toISOString(), peca: { tipo: 'link', texto: LINK } }), new Date(AGORA.getTime() + 20_000));
+    expect(h.estado.get(CHAVE_LINHA_ERROS)!.value.n).toBe(1);
+  });
+
+  it('erro da imagem do DESTINO (4xx de número inválido) não conta nos 2 seguidos, como o da bolha', async () => {
+    h.falhasImagem.push(new Error('[zapi:io] HTTP 400 — {"error":"phone number invalid"}'));
+    await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(h.estado.get(CHAVE_LINHA_ERROS)?.value?.n ?? 0).toBe(0);
+  });
+
+  it(':2 é reservada com a hora do ENVIO da peça (new Date()), não com a hora injetada, e ANTES de a peça sair', async () => {
+    const DEPOIS = new Date(AGORA.getTime() + 4_000); // 4 s depois: o tempo que a bolha e a espera levariam
+    vi.setSystemTime(DEPOIS);
+    await enviarResposta(pedido({ peca: { tipo: 'link', texto: LINK } }), AGORA);
+    expect(h.estado.get('ag5040_sent:1001:1')!.updated_at).toBe(AGORA.toISOString());
+    expect(h.estado.get('ag5040_sent:1001:2')!.updated_at).toBe(DEPOIS.toISOString());
+    expect(h.enviados[1]!.reserva2).toBe(DEPOIS.toISOString()); // já estava gravada quando a peça saiu
+    // e o espaçamento de 10 s das outras respostas passa a medir a partir dela
+    const t = new Date(AGORA.getTime() + 12_000); // 8 s depois da peça: ainda barra
+    expect(await enviarResposta(pedido({ waIdAlvo: 2, momentoFalaLead: new Date(t.getTime() - 5_000).toISOString() }), t))
+      .toMatchObject({ ok: false, motivo: 'espacamento' });
+  });
+
+  it(':2 da imagem também vale a hora do envio e já está gravada quando o sendImage roda', async () => {
+    const DEPOIS = new Date(AGORA.getTime() + 3_500);
+    vi.setSystemTime(DEPOIS);
+    await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(h.imagens[0]!.reserva2).toBe(DEPOIS.toISOString());
+  });
+
+  it('a espera entre a bolha e a peça (2 a 5 s) acontece ANTES de reservar o :2', async () => {
+    const esperas: string[] = [];
+    TEMPOS.entreBolhaEPecaMs = () => { esperas.push(h.estado.has('ag5040_sent:1001:2') ? 'depois' : 'antes'); return 0; };
+    await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(esperas).toEqual(['antes']);
+  });
+
+  it('nada do que se grava com a imagem leva o telefone', async () => {
+    await enviarResposta(pedido({ peca: IMAGEM }), AGORA);
+    expect(JSON.stringify([...h.estado.entries()])).not.toContain('34991360223');
+  });
+
+  it('dry com imagem: não reserva nem envia nada', async () => {
+    expect(await enviarResposta(pedido({ peca: IMAGEM, dry: true }), AGORA)).toEqual({ ok: false, motivo: 'dry' });
+    expect(fisicas()).toBe(0);
+    expect(carimbosDasAgentes()).toEqual([]);
   });
 });
 
