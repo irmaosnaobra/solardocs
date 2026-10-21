@@ -171,6 +171,8 @@ export interface EntradaTurno {
   cliente: ClienteIA;
   /** Mídias já lidas (histórico e novas). Recebe o que for lido agora. */
   cacheMidia: CacheMidia;
+  /** Carla: cards de depoimento que a posse já registra (lead_data.imagens.length). A trava vale o maior entre isto e a conversa. */
+  depoimentosJaEnviados?: number;
 }
 
 export interface ResultadoTurno {
@@ -207,6 +209,7 @@ export async function pensarTurno(e: EntradaTurno): Promise<ResultadoTurno> {
       acoesSemFala: ACOES_SEM_FALA,
       agora: ctx.agora,
       prazosDaPessoa: prazosDaPessoaDe(textos, e.dadosAnteriores),
+      ...(e.depoimentosJaEnviados !== undefined ? { depoimentosJaEnviados: e.depoimentosJaEnviados } : {}),
       ...(e.abertura ? { permiteIniciativa: 'abertura' as const } : {}),
     },
   });

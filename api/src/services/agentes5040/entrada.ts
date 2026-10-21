@@ -12,10 +12,11 @@
 //   1. nenhum *_vivo ligado: false, sem leitura no banco;
 //   2. lead fora do escopo de toda dona ligada: false, sem ler a posse;
 //   3. já tem posse: o mesmo que cedeAAgente;
-//   4. sem posse: porteiro. A porta assume a DUDA e a HELENA (B2): a dona que o porteiro escolhe só vale se o
-//      interruptor dela está ligado e o lead está no escopo dela. Carla, Giovanna, passo 7 (pergunta), ninguém
-//      ou outro robô antigo na conversa = false (o antigo faz como hoje).
-//      Dona duda/helena e agenteAtendeEste(dona) = assumirPosse por INSERT; 'assumida' = true; 'ja_tinha_dona'
+//   4. sem posse: porteiro. A porta assume a DUDA, a HELENA (B2) e a CARLA (B3b): a dona que o porteiro escolhe só vale
+//      se o interruptor dela está ligado e o lead está no escopo dela. Giovanna (cliente com conta: passo 3 do
+//      porteiro; a Carla nunca assume quem já tem conta), passo 7 (pergunta), ninguém ou outro robô antigo na
+//      conversa = false (o antigo faz como hoje).
+//      Dona duda/helena/carla e agenteAtendeEste(dona) = assumirPosse por INSERT; 'assumida' = true; 'ja_tinha_dona'
 //      (23505: webhook, fila e poll viram a mesma mensagem) = o que o cedeAAgente diz da posse que a
 //      outra entrada gravou (viva = true); 'erro' = false;
 //   5. qualquer erro de leitura sem posse: false. Falha da porta nunca deixa o lead sem resposta.
@@ -107,10 +108,11 @@ export async function assumirNaEntrada(telefone: string | null | undefined, dado
     if (await cedeAAgente(telefone)) return true;
 
     // false pode ser "sem posse" ou "posse que não cede" (encerrada, de outra dona): só assume quem não tem NENHUMA.
-    // A porta assume a Duda e a Helena: sem nenhuma das duas ligada para este lead, nada mais a fazer (zero leitura de posse).
+    // A porta assume a Duda, a Helena e a Carla: sem nenhuma ligada para este lead, nada mais a fazer (zero leitura de posse).
     const podeDuda = await agenteAtendeEste('duda', telefone);
     const podeHelena = await agenteAtendeEste('helena', telefone);
-    if (!podeDuda && !podeHelena) return false;
+    const podeCarla = await agenteAtendeEste('carla', telefone);
+    if (!podeDuda && !podeHelena && !podeCarla) return false;
     const chave = chaveDaPosse(telefone);
     if (!chave) return false;
     // Posse que apareceu entre o cedeAAgente e esta leitura (a outra entrada foi mais rápida): vale o mesmo critério dele.
@@ -136,8 +138,11 @@ export async function assumirNaEntrada(telefone: string | null | undefined, dado
 
     const fatos = await lerFatosPorteiro(chave, msgs, anuncio.anuncio, { completa: true });
     const decisao = decidirDona(fatos);
-    const dona: 'duda' | 'helena' | null =
-      decisao.dona === 'duda' && podeDuda ? 'duda' : decisao.dona === 'helena' && podeHelena ? 'helena' : null;
+    // Cliente com conta nunca é da Carla (o porteiro já o manda à Giovanna no passo 3; a checagem é de cinto e suspensório).
+    const dona: 'duda' | 'helena' | 'carla' | null =
+      decisao.dona === 'duda' && podeDuda ? 'duda'
+        : decisao.dona === 'helena' && podeHelena ? 'helena'
+          : decisao.dona === 'carla' && podeCarla && !fatos.ehClienteSolarDoc ? 'carla' : null;
     if (!dona) return false;
     // O mesmo escopo, de novo, no instante de gravar (o cache de 60 s pode ter virado durante as leituras).
     if (!(await agenteAtendeEste(dona, telefone))) return false;

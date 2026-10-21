@@ -378,15 +378,44 @@ describe('assumirNaEntrada: a Helena (B2, eletroposto)', () => {
   });
 });
 
-describe('assumirNaEntrada: quem a porta NÃO assume nesta fase', () => {
+describe('assumirNaEntrada: a Carla (B3b, SolarDoc)', () => {
+  const donaDaPosse = () => (posses()[0]?.lead_data as { dona?: string } | undefined)?.dona;
 
-  it('(f) o porteiro decide a Carla (anúncio do SolarDoc): false e nada gravado, mesmo com carla_vivo ligado', async () => {
-    env({ DUDA: '1', CARLA: '1' }); alvo();
+  // Mudança de expectativa em B3b: antes (f) afirmava que a porta NÃO assumia a Carla mesmo com carla_vivo ligado.
+  it('(i) o porteiro decide a Carla (anúncio do SolarDoc) com carla_vivo ligado e o lead no escopo: a posse nasce da Carla e o robô antigo cala', async () => {
+    env({ CARLA: '1' }); alvo();
+    h.moc.produtoDaCampanha = 'solardoc';
+    expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD, waId: 11 })).toBe(true);
+    expect(posses()).toHaveLength(1);
+    expect(donaDaPosse()).toBe('carla');
+    expect(inserts()).toBe(1);
+  });
+
+  it('(i) carla_vivo desligado (as outras ligadas): o porteiro decide a Carla e a porta NÃO assume', async () => {
+    env({ DUDA: '1', HELENA: '1' }); alvo();
     h.moc.produtoDaCampanha = 'solardoc';
     expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD })).toBe(false);
     expect(posses()).toHaveLength(0);
+    expect(inserts()).toBe(0);
   });
 
+  it('(i) lead fora do escopo da Carla (hmac fora da lista): false, nada gravado', async () => {
+    env({ CARLA: '1' }); alvo();
+    h.moc.produtoDaCampanha = 'solardoc';
+    expect(await assumirNaEntrada(Y, { texto: 'oi', anuncio: AD })).toBe(false);
+    expect(posses()).toHaveLength(0);
+  });
+
+  it('(i) cliente com conta nunca é da Carla: o porteiro manda à Giovanna (passo 3) e a porta não assume', async () => {
+    env({ DUDA: '1', CARLA: '1' }); alvo();
+    fatos({ ehClienteSolarDoc: true, origemCadastro: 'solardoc' });
+    expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD })).toBe(false);
+    expect(posses()).toHaveLength(0);
+    expect(inserts()).toBe(0);
+  });
+});
+
+describe('assumirNaEntrada: quem a porta NÃO assume nesta fase', () => {
   it('(f) só helena_vivo ligado e o porteiro decide a Duda: a Duda não atende este lead, false e nada gravado', async () => {
     env({ HELENA: '1' }); alvo(); fatos({ origemCadastro: 'lp_solar' });
     expect(await assumirNaEntrada(X, { texto: BOTAO_SOLAR })).toBe(false);

@@ -8,6 +8,8 @@
 //  · concederSeFechouNoDia({ userId, telefone, origem, agora }): chamado DEPOIS de um pagamento
 //    já processado e gravado. Só se a promessa é do MESMO dia, grava (INSERT, nunca sobrescreve)
 //    `ag5040_bonus_planilha:<userId>` = { dia, origem }. Devolve true só quando concedeu agora.
+//  · fecharPosseDaCarla(telefones): quem pagou deixa de ser lead da Carla. Só posse dona carla + estado viva
+//    vira encerrada; Duda, Helena e humano nunca são tocadas. Roda dentro do gancho abaixo.
 //  · tentarBonusPosPagamento(...): o gancho dos três caminhos de pagamento. Resolve o telefone
 //    do usuário (users.whatsapp, 1 leitura simples), tem prazo curto e NUNCA lança: o pagamento
 //    não pode mudar por causa do bônus (nem status, nem valor, nem plano, nem liberação).
@@ -20,6 +22,7 @@ import { supabase } from '../../utils/supabase';
 import { chaveContato } from '../agents/whatsapp/silenciar';
 import { hmacDe } from './hmac';
 import { diaBRT, type Instante } from './relogio';
+import { atualizarPosse, chaveDaPosse, lerPosse } from './posse';
 
 export const PREFIXO_PROMESSA = 'ag5040_planilha_prometida:';
 export const PREFIXO_BONUS = 'ag5040_bonus_planilha:';
@@ -83,6 +86,28 @@ export async function concederSeFechouNoDia(a: {
 }
 
 /**
+ * Quem pagou não é mais lead da Carla: se a posse deste telefone é da Carla e está viva, ela fecha (estado encerrada).
+ * Posse de Duda, Helena ou humano nunca é tocada. Telefones iguais depois da normalização (55, 9º dígito) contam uma vez.
+ * Nunca lança: o pagamento já foi processado e não pode mudar por causa disto.
+ */
+export async function fecharPosseDaCarla(telefones: ReadonlyArray<string | null | undefined>): Promise<boolean> {
+  let fechou = false;
+  const vistos = new Set<string>();
+  for (const t of telefones) {
+    try {
+      const ck = chaveDaPosse(t);
+      if (!ck || vistos.has(ck)) continue;
+      vistos.add(ck);
+      const p = await lerPosse(ck);
+      if (p && p.dona === 'carla' && p.estado === 'viva' && await atualizarPosse(ck, { estado: 'encerrada' })) fechou = true;
+    } catch {
+      /* erro de leitura ou de gravação: segue sem mudar nada */
+    }
+  }
+  return fechou;
+}
+
+/**
  * O gancho dos pagamentos. Chamar DEPOIS de o pagamento estar processado e gravado.
  * `telefone` é o plano B (o do próprio pagamento) quando o usuário não tem users.whatsapp.
  * Sempre resolve (nunca lança, nunca passa de PRAZO_GANCHO_MS): devolve true só se concedeu.
@@ -107,6 +132,8 @@ export async function tentarBonusPosPagamento(a: {
         if (u?.id) userId = String(u.id);
         whatsapp = u?.whatsapp ?? null;
       }
+      // A posse da Carla fecha quando o pagamento entra (a Giovanna atende daqui em diante), com ou sem direito ao bônus.
+      await fecharPosseDaCarla([whatsapp, a.telefone ?? null]);
       if (!userId) return false;
       const agora = a.agora ?? new Date();
       const candidatos = [whatsapp, a.telefone ?? null].filter((t): t is string => !!chaveContato(t));

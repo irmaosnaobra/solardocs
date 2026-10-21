@@ -5,8 +5,10 @@
 // Este arquivo NÃO importa o zapiClient. Só alcança o envio por dois lugares: vivoEnvio.ts (a fala ao lead,
 // com todas as condições do chefe-antiban) e fichaEnvio.ts (a ficha ao consultor).
 //
-// Nesta fase a Duda e a Helena (B2, eletroposto) respondem: carla_vivo é ignorado aqui, como na porta (entrada.ts). As regras da
-// Helena (ordem com o ep_respostas, quem cala, o card sem card) moram em helenaEp.ts e rodam ANTES da IA.
+// A Duda, a Helena (B2, eletroposto) e a Carla (B3b, SolarDoc) respondem. As regras da Helena (ordem com o ep_respostas, quem
+// cala, o card sem card) moram em helenaEp.ts e rodam ANTES da IA. A Carla (carlaVivo.ts): lead que JÁ tem conta = a posse
+// dela fecha (estado encerrada) antes da IA e a Giovanna atende pelo caminho de hoje; a peça (assinatura, Pix, avulso,
+// depoimento) sai do peca.id pela peça única do vivoEnvio; prometer_planilha só registra o direito (planilhaBonus).
 //
 // Rodada, na ordem:
 //   · nenhuma dona da rodada ligada: sai, e a única leitura foi a do interruptor (cache de 60 s);
@@ -65,6 +67,7 @@ import {
   acharVaga, alvoDaAgenda, bolhaLigarAgoraOk, cardSolarDe, citaAHora, desfazerCardSolar, destinoDaRecusa, horariosPorExtenso, kwhDoLead,
   lerCardParaFicha, observacaoDoCardDaDuda, ofertaDeHorarios, primeiroNome, situacaoDoCard, type Oferta,
 } from './acoesVivo';
+import { avisosDaCarla, planejarCarla, type PlanoCarla } from './carlaVivo';
 import { bolhaDeConfirmacao, chaveFila, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
 import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard } from './agendaSolar';
 import { gravarMidiaCache, gravarTurno, lerMidiaCache, lerTurnos, type TurnoGravado } from './armazem';
@@ -96,7 +99,7 @@ import {
 } from './turno';
 import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 import type { CardResumo, ContextoLead, Persona, SaidaAgente } from './tipos';
-import { enviarResposta, type ResultadoEnvio } from './vivoEnvio';
+import { enviarResposta, type PecaEnvio, type ResultadoEnvio } from './vivoEnvio';
 import type { DecisaoPorteiro } from './porteiro';
 import { caminhoDaFicha } from '../agenda/solarRota';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
@@ -403,7 +406,7 @@ export async function runVivoTick(opts: OpcoesVivo = {}): Promise<RelatorioVivo>
     // Pendências de tempo (volta honesta e reenvio do suporte) e a fila de agenda. Nada disso gasta o modelo.
     // Linha com problema (erro_linha): a rodada para por inteiro e as pendências esperam a próxima (2 min). A fila de agenda
     // NÃO é entregue aqui: tem rota e relógio próprios (/cron/agentes-5040/agenda, agendaEnvio.runAgendaTick).
-    if (((donas as readonly string[]).includes('duda') || (donas as readonly string[]).includes('helena')) && r.parou !== 'erro_linha' && Date.now() - inicio <= LIMITES_VIVO.prazoEnvioMs) await varrerPendencias(g);
+    if (((donas as readonly string[]).includes('duda') || (donas as readonly string[]).includes('helena') || (donas as readonly string[]).includes('carla')) && r.parou !== 'erro_linha' && Date.now() - inicio <= LIMITES_VIVO.prazoEnvioMs) await varrerPendencias(g);
     return r;
   } catch (e) {
     logger.error(LOG, `a rodada falhou (${codigoDe(e)})`);
@@ -664,6 +667,27 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     // 6. contexto
     const ctx0 = await montarContexto(chave, { msgs, completa: true }, { agora: agora.toISOString() });
     if (!ctx0.completa) { await soltar(); soma(r.puladas, 'contexto_incompleto'); return 'seguir'; }
+    // A Carla não atende quem já tem conta (lerEhCliente, dentro do montarContexto): a posse dela fecha antes da IA e a
+    // Giovanna atende pelo caminho de hoje (encerrada não cede, os robôs antigos voltam).
+    // A fala dele NÃO pode sumir: ficha à Giovanna pelo caminho do suporte (reserva ag5040_suporte:<hmac>:<waId>; número de
+    // teste vai ao dono), SEM bolha ao lead. Ficha adiada (cooldown, teto) = a posse fica viva e a próxima rodada tenta.
+    if (dona === 'carla' && ctx0.ehClienteSolarDoc) {
+      const rf = dry ? null : await fichaDoClienteComConta(g, { chave, tel, L, hmac, ctx0 });
+      if (rf === 'adiada') {
+        await soltar();
+        soma(r.puladas, 'ficha_adiada');
+        dec({ resultado: 'ficha_adiada', motivo: 'cliente_com_conta', ficha: 'adiada' });
+        return 'seguir';
+      }
+      if (!dry) await atualizarPosse(chave, { estado: 'encerrada', ate_wa_id: L.id });
+      await soltar();
+      soma(r.puladas, 'carla_lead_ja_e_cliente');
+      dec({
+        resultado: dry ? 'encerraria_a_posse' : 'posse_encerrada', motivo: 'cliente_com_conta',
+        ...(rf ? { ficha: rf === 'enviada' ? 'enviada' : rf === 'ja_avisada' ? 'lead_ja_avisado' : 'falhou' } : dry ? { ficha: 'ficharia' } : {}),
+      });
+      return 'seguir';
+    }
     const primeiro = msgs.find(m => m.autor === 'lead');
     const anuncio = primeiro ? await anuncioDaMensagem(primeiro.id) : { ok: true, anuncio: null };
     let turnosAntes: TurnoGravado[];
@@ -702,9 +726,11 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       ...ctx0, anuncio: anuncio.anuncio,
       horariosLivres: horariosPorExtenso(dona === 'helena' ? ofertaH.vagas : oferta.vagas, ctx0.agora),
       ...(dona === 'helena' ? { avisosDoSistema: avisosDaHelena() } : {}),
+      ...(dona === 'carla' ? { avisosDoSistema: avisosDaCarla(posse, g.agoraEnvio()) } : {}),
     };
     const pensar = (c: ContextoLead): Promise<ResultadoTurno> => pensarTurno({
       persona: dona as Persona, ctx: c, novas: entrada, dadosAnteriores: dadosAnt, abertura: false, cliente: g.cliente, cacheMidia,
+      ...(dona === 'carla' ? { depoimentosJaEnviados: posse.imagens.length } : {}),
     });
 
     // 7. o modelo. `tratar` é o resto do turno; a ação de agenda que não deu certo chama o modelo de novo, UMA vez
@@ -823,8 +849,8 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
         if (saida.acao === 'marcar_horario' || pedeComHorario) return acaoMarcarEp(AH);
       }
 
-      // 9b. a Duda marca, remarca, liga agora e passa o suporte (B1d-2c)
-      if (dona === 'duda' && ACOES_DA_DUDA_COM_AGENDA.includes(saida.acao)) {
+      // 9b. a Duda marca, remarca, liga agora e passa o suporte (B1d-2c); a Carla passa o suporte (ficha à Giovanna, B3b)
+      if ((dona === 'duda' && ACOES_DA_DUDA_COM_AGENDA.includes(saida.acao)) || (dona === 'carla' && saida.acao === 'suporte_giovanna')) {
         const A: ContextoAcao = {
           g, chave, tel, L, posse, hmac, ctx0, oferta: ofertaDaVez, dadosAnt, resultado, saida, base2, dec, registrar, soltar,
           refazer: async (aviso: string, n = 4): Promise<Seguir> => {
@@ -870,9 +896,34 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       // 12. fala comum ou despedida
       const bolha = saida.bolhas[0]!;
       const segunda = saida.bolhas[1];
-      const peca = saida.peca && (saida.peca.tipo === 'link' || saida.peca.tipo === 'pix') && segunda
+      let peca: PecaEnvio | undefined = saida.peca && (saida.peca.tipo === 'link' || saida.peca.tipo === 'pix') && segunda
         ? { tipo: saida.peca.tipo, texto: segunda } : undefined;
       const naoIncomodar = saida.acao === 'nao_incomodar';
+
+      // A Carla (B3b): a peça sai do peca.id (carlaVivo), nunca do texto da 2ª bolha. Peça recusada pelo portão = uma nova
+      // chamada ao modelo com o aviso; na segunda vez, humano com ficha (a bolha que anuncia a peça não sai sozinha).
+      let planoC: PlanoCarla | null = null;
+      if (dona === 'carla') {
+        peca = undefined;
+        if (!naoIncomodar) {
+          const pl = planejarCarla({ saida, posse, msgs: ctx0.msgs, fala: L, textosDoLead: textosDaFala });
+          if (!pl.ok) {
+            if (volta === 0) return tratar(await pensar({ ...ctx, avisosDoSistema: [...(ctx.avisosDoSistema ?? []), pl.aviso] }), 1, oferta);
+            await registrar(false, `carla_peca:${pl.motivo}`);
+            await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: `carla_peca:${pl.motivo}` });
+            return 'seguir';
+          }
+          planoC = pl;
+          peca = pl.peca;
+          // O registro da imagem vai para a posse ANTES do envio; se não gravou, a imagem não sai.
+          if (pl.antes && !dry && !(await atualizarPosse(chave, pl.antes))) {
+            await soltar();
+            soma(r.puladas, 'carla_posse_nao_gravou');
+            dec({ resultado: 'recusada', ...base2, motivo: 'posse_nao_gravou' });
+            return 'seguir';
+          }
+        }
+      }
 
       // O estado nao_incomodar é gravado ANTES da despedida: se algo falhar daqui em diante, a conversa já está calada
       // (lado seguro). Em troca, uma despedida recusada pelo envio NÃO é tentada de novo: a pessoa pediu para parar.
@@ -883,9 +934,17 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       // O silêncio vem DEPOIS da despedida (o enviarResposta barraria uma fala a quem já está no opt-out).
       if (naoIncomodar && !dry) await silenciarContato(tel, 'opt_out', 'agentes5040-vivo');
 
+      // Os efeitos da peça e da promessa da Carla (pagamento registrado, promessa, card liberado de novo) e o patch da posse.
+      let patchCarla: Partial<DadosPosse> = {};
+      if (planoC && !dry) {
+        try { patchCarla = await planoC.depois(res, { tel, nome: ctx0.nome, agora: g.agoraEnvio() }); }
+        catch (err) { logger.error(LOG, `conversa ${L.id}: efeitos da peça da Carla falharam (${codigoDe(err)})`); }
+        if (!res.ok && Object.keys(patchCarla).length) await atualizarPosse(chave, patchCarla);
+      }
+
       if (res.ok) {
         if (!dry) {
-          if (!naoIncomodar) await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1 });
+          if (!naoIncomodar) await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1, ...patchCarla });
           await registrar(true);
         }
         r.enviadas++;
@@ -896,7 +955,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       const extra = { ...base2, motivo: res.detalhe ? `${m}:${res.detalhe}` : m };
       switch (m) {
         case 'dry':
-          dec({ resultado: naoIncomodar ? 'despedida_sairia' : 'sairia', ...extra, motivo: null, sairia: [bolha, ...(peca && !naoIncomodar ? [peca.texto] : [])] });
+          dec({ resultado: naoIncomodar ? 'despedida_sairia' : 'sairia', ...extra, motivo: null, sairia: [bolha, ...(peca && !naoIncomodar ? [peca.tipo === 'imagem' ? `[imagem ${peca.slug}]` : peca.texto] : [])] });
           return 'seguir';
         case 'ja_respondido':
           if (!dry) await atualizarPosse(chave, { ate_wa_id: L.id });
@@ -1572,13 +1631,8 @@ async function acaoPresenca(A: ContextoAcao): Promise<Seguir> {
  * diz que a Giovanna fala com ele; a posse passa a humano e lead_data.suporte guarda o aviso (o reenvio ao dono vem depois).
  * Número de teste: a ficha vai ao dono, não à Giovanna.
  */
-async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
-  const { g, saida, ctx0, chave, tel, L, posse, hmac, dec } = A;
-  const { r, dry } = g;
-  const donaNome = NOME_DA_DONA[posse.dona] ?? 'agente';
-  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona);
-  if (dry) { dec({ resultado: 'passaria_ao_humano', ...A.base2, ficha: 'ficharia', sairia: [bolha] }); return 'seguir'; }
-
+/** Destino da ficha de suporte: a Giovanna (ou o dono, com o motivo na 1ª linha, se o lead é de teste, o alvo é ilegível ou falta o telefone dela). */
+async function destinoDoSuporte(chave: string): Promise<{ destino: string; prefixoDono: string }> {
   let destino = telefoneDoDono();
   const ehTeste = await leadEhDeTeste(chave);
   let prefixoDono = ehTeste === null ? PREFIXO_ALVO_ILEGIVEL : PREFIXO_TESTE;
@@ -1588,6 +1642,42 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
     destino = telGiovanna ?? telefoneDoDono();
     prefixoDono = telGiovanna ? '' : 'Sem telefone cadastrado para a Giovanna. Encaminhe esta ficha a ela.';
   }
+  return { destino, prefixoDono };
+}
+
+/**
+ * A Carla viu que o lead já tem conta: a fala dele vai à Giovanna como suporte, sem bolha ao lead e sem IA. A reserva é a
+ * mesma do suporte (ag5040_suporte:<hmac>:<waId>), então repetir a rodada nunca manda duas fichas.
+ */
+async function fichaDoClienteComConta(g: G, p: {
+  chave: string; tel: string | null; L: { id: number; momment: string }; hmac: string; ctx0: ContextoLead;
+}): Promise<ResultadoFicha> {
+  const { destino, prefixoDono } = await destinoDoSuporte(p.chave);
+  const card = p.ctx0.card;
+  const cardFicha: CardDaFicha = card
+    ? cardDaFichaDe(card)
+    : { id: 0, vendedor_nome: null, quando: null, cliente_nome: p.ctx0.nome, cidade: null, observacao: null, created_by: 'lp_solar' };
+  const ultima = [...p.ctx0.msgs].reverse().find(m => m.autor === 'lead' && String(m.texto ?? '').trim());
+  const extras = [
+    'Conversa passada pela Carla: o lead já tem conta no SolarDoc e a conversa saiu da Carla. A fala dele ficou sem resposta, atenda',
+    ...(ultima ? [`Última fala dele: ${String(ultima.texto).replace(/\s+/g, ' ').trim().slice(0, 200)}`] : []),
+  ];
+  const linhas = fichaDeCampos(cardFicha, extras).linhas.filter(l => !(!card && l.startsWith('Conversa completa:')));
+  const texto = textoDaMensagem(
+    blocoSeguro(linhas), p.tel,
+    ['SUPORTE: a Carla passou este cliente para a Giovanna.', prefixoDono].filter(Boolean).join(' '),
+  );
+  return enviarFichaVivo(g, { chave: p.chave, acao: 'suporte', cardId: card?.id ?? 0, n: String(p.L.id), reserva: `ag5040_suporte:${p.hmac}:${p.L.id}`, destino, texto });
+}
+
+async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
+  const { g, saida, ctx0, chave, tel, L, posse, hmac, dec } = A;
+  const { r, dry } = g;
+  const donaNome = NOME_DA_DONA[posse.dona] ?? 'agente';
+  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona);
+  if (dry) { dec({ resultado: 'passaria_ao_humano', ...A.base2, ficha: 'ficharia', sairia: [bolha] }); return 'seguir'; }
+
+  const { destino, prefixoDono } = await destinoDoSuporte(chave);
   const card = ctx0.card;
   const cardFicha: CardDaFicha = card
     ? cardDaFichaDe(card)
@@ -1687,7 +1777,7 @@ async function lerPendencias(g: G): Promise<PosseComPendencia[]> {
     const lote = (data ?? []) as Array<{ phone: string; lead_data: Record<string, any> | null }>;
     for (const l of lote) {
       const o = l.lead_data;
-      if (!o || typeof o !== 'object' || (o.dona !== 'duda' && o.dona !== 'helena')) continue;
+      if (!o || typeof o !== 'object' || (o.dona !== 'duda' && o.dona !== 'helena' && o.dona !== 'carla')) continue;
       const ligar = o.ligar && typeof o.ligar === 'object' ? o.ligar : null;
       const suporte = o.suporte && typeof o.suporte === 'object' ? o.suporte : null;
       const remarcado = o.remarcado && typeof o.remarcado === 'object' ? o.remarcado : null;

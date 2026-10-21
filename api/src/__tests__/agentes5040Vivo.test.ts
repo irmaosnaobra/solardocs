@@ -115,7 +115,8 @@ afterEach(() => {
 
 describe('rodada viva: interruptor, trava e prazo', () => {
   it('nada ligado (env) = zero leitura de banco, zero modelo, zero envio', async () => {
-    process.env.AGENTES5040_DUDA_VIVO = '0'; process.env.AGENTES5040_HELENA_VIVO = '0';
+    // B3b: a Carla entrou na rodada, então o 'nada ligado' também desliga o carla_vivo (senão a leitura do interruptor vai ao banco).
+    process.env.AGENTES5040_DUDA_VIVO = '0'; process.env.AGENTES5040_HELENA_VIVO = '0'; process.env.AGENTES5040_CARLA_VIVO = '0';
     semearLead(); alvo([hmacDe(CHAVE)!]);
     const antes = banco.leituras.length;
     const r = await rodar();
@@ -127,16 +128,17 @@ describe('rodada viva: interruptor, trava e prazo', () => {
     expect(banco.escritas).toEqual([]);
   });
 
-  it('carla_vivo ligado sozinho não liga nada nesta fase (a Helena entrou na B2)', async () => {
+  // Mudança de expectativa em B3b: antes afirmava que carla_vivo ligado sozinho não ligava a rodada.
+  it('carla_vivo ligado sozinho liga a rodada (B3b): o relatório diz ligado', async () => {
     process.env.AGENTES5040_DUDA_VIVO = '0'; process.env.AGENTES5040_HELENA_VIVO = '0';
     process.env.AGENTES5040_CARLA_VIVO = '1';
-    semearLead(0, { dona: 'carla' }); alvo([hmacDe(CHAVE)!]);
-    const antes = banco.leituras.length;
-    const r = await rodar();
-    expect(r.ligado).toBe(false);
-    expect(banco.leituras.length).toBe(antes);
-    expect(h.enviar).not.toHaveBeenCalled();
-    delete process.env.AGENTES5040_HELENA_VIVO; delete process.env.AGENTES5040_CARLA_VIVO;
+    alvo([hmacDe(CHAVE)!]);
+    try {
+      const r = await rodar();
+      expect(r.ligado).toBe(true);
+    } finally {
+      delete process.env.AGENTES5040_HELENA_VIVO; delete process.env.AGENTES5040_CARLA_VIVO;
+    }
   });
 
   it('helena_vivo ligado sozinho liga a rodada (B2): o relatório diz ligado', async () => {

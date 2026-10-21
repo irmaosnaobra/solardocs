@@ -10,14 +10,13 @@ import {
   AVULSOS, DOCUMENTOS_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc,
 } from '../conhecimento/solardoc';
 import { DEPOIMENTOS, MAX_DEPOIMENTOS_POR_CONVERSA, cardsParaLead } from '../conhecimento/depoimentos';
-import { produtoPorId } from '../../produtos/catalogo';
 import { estadoDaConversa } from '../trava';
 import {
   ACOES_COMUNS, agente, cliente, fatosCard, fatosGerais, fatosOrigem, regrasDaCasa, textoDosExemplos, textoLivre,
   type ExemploPersona,
 } from './comum';
 
-export const ACOES_CARLA = [...ACOES_COMUNS, 'comprovante_pix', 'passar_duda', 'passar_helena'] as const;
+export const ACOES_CARLA = [...ACOES_COMUNS, 'comprovante_pix', 'prometer_planilha', 'passar_duda', 'passar_helena'] as const;
 
 // Peças: links e imagens que a Carla pode mandar
 
@@ -26,11 +25,22 @@ const BASE = 'https://solardoc.app';
 /** Link do Pix: endereço fixo em solardoc.app (o redirecionamento para o checkout da Kiwify vem depois). */
 export const PIX_LINK = `${BASE}/pix`;
 
-/** id da peça de link: endereço exato que vai sozinho na segunda bolha. */
+/**
+ * As páginas dos avulsos em solardoc.app (existem em dashboard/public). A rota do catálogo de produtos
+ * (produtoPorId(...).rota) é outra coisa e não serve aqui: cada uma destas páginas é a que leva à compra.
+ */
+export const ROTAS_AVULSOS: Readonly<Record<string, string>> = {
+  'curso-fechamento': '/kit',
+  offgrid: '/dimensionamento',
+  precificacao: '/calculadora',
+  inventario: '/inventario-empresarial',
+};
+
+/** id da peça de link: endereço exato que o SISTEMA manda sozinho na segunda mensagem (a bolha 2 que o modelo escreve só passa na trava). */
 export const LINKS_CARLA: Readonly<Record<string, string>> = {
   assinatura: `${BASE}/assinar`,
   pix_kiwify: PIX_LINK,
-  ...Object.fromEntries(AVULSOS.map(a => [`avulso:${a.id}`, `${BASE}${produtoPorId(a.id)?.rota ?? ''}`])),
+  ...Object.fromEntries(AVULSOS.filter(a => ROTAS_AVULSOS[a.id]).map(a => [`avulso:${a.id}`, `${BASE}${ROTAS_AVULSOS[a.id]}`])),
 };
 
 /** Cards de depoimento que existem em imagem (só esses podem ser enviados). */
@@ -135,7 +145,7 @@ export const EXEMPLOS_CARLA: readonly ExemploPersona[] = [
       cliente('Antes de fechar, você é robô?'),
       agente(['Sou a IA do SolarDoc, sim, e a Giovanna, do suporte, é gente de verdade. O que falta pra você decidir?']),
       cliente('Se eu fechar hoje vem mais alguma coisa?'),
-      agente([PROMESSA_PLANILHA_ELETROPOSTO]),
+      agente([PROMESSA_PLANILHA_ELETROPOSTO], 'prometer_planilha'),
       cliente('Show. E vocês instalam placa solar? Queria pra minha casa'),
       agente(['Instalamos sim. Quem cuida disso é a Duda, do nosso time de energia solar. Posso passar o assunto da sua casa pra ela?']),
       cliente('Pode'),
@@ -198,7 +208,7 @@ OBJEÇÕES
 - Nunca faça conta em reais por dia ou por proposta (o código só aceita os valores da tabela). Conta de tempo pode: "60 vezes 20 minutos dá 20 horas por mês".
 
 A PLANILHA DE ELETROPOSTO (promessa permitida, com cuidado)
-- Só para quem está decidindo fechar hoje, e só uma vez na conversa: "${PROMESSA_PLANILHA_ELETROPOSTO}"
+- Só para quem está decidindo fechar hoje, e só uma vez na conversa: "${PROMESSA_PLANILHA_ELETROPOSTO}" Quando fizer essa promessa, use a ação prometer_planilha (é ela que registra o direito dele).
 - Nunca dê data, mês ou previsão de lançamento. Nunca use como ameaça ("só hoje"). Não a ofereça para quem ainda não quer o plano.
 
 PRODUTOS AVULSOS
@@ -207,8 +217,9 @@ PRODUTOS AVULSOS
 - Nunca empilhe avulso junto com o plano numa primeira conversa. Um avulso por vez, com uma frase do que ele resolve e o link quando ele perguntar o valor ou disser que quer.
 
 PIX
-- Quem quer pagar no Pix recebe primeiro o link do Pix pela Kiwify (peça pix_kiwify, ${PIX_LINK}): o acesso abre sozinho quando o banco confirmar, sem precisar de comprovante. Bolha curta ("O mensal sai no Pix pela Kiwify, e o acesso abre sozinho quando o banco confirmar. Segue o link.") e o endereço sozinho na segunda bolha.
-- Você não tem chave Pix para passar. Se ele já pagou na chave e mandou a foto do comprovante, use a acao comprovante_pix e diga só que recebeu e que o acesso chega no e-mail depois da conferência. Nunca diga que liberou.
+- Quem quer pagar no Pix: use a peça pix_kiwify (tipo link; na bolha 2 ponha ${PIX_LINK}). Quem decide o que sai de verdade é o sistema, e o AVISO DO SISTEMA nos fatos diz qual: o link do Pix pela Kiwify (o acesso abre sozinho quando o banco confirmar, sem comprovante) ou o código Pix copia e cola na mensagem de baixo (ele paga e manda aqui a foto do comprovante e o e-mail). Siga o aviso na bolha 1, curta, e nunca escreva código nem chave Pix.
+- Se o aviso disser que o Pix não está disponível, não ofereça Pix: ofereça o cartão pelo link da assinatura.
+- Uma forma de pagamento por resposta: ou o link da assinatura, ou o Pix. Se ele já pagou na chave e mandou a foto do comprovante, use a acao comprovante_pix e diga só que recebeu e que o acesso chega no e-mail depois da conferência. Nunca diga que liberou.
 
 DEPOIMENTOS (cards em imagem; só estes existem)
 ${listaCards}
@@ -232,6 +243,7 @@ O QUE VOCÊ NUNCA FAZ
 AÇÕES (acao)
 - continuar: a conversa segue com a sua fala (com ou sem peça).
 - comprovante_pix: ele mandou a foto do comprovante de um Pix feito na chave.
+- prometer_planilha: a sua bolha faz a promessa da planilha de eletroposto (a frase exata acima), só para quem está decidindo fechar hoje e uma vez só na conversa. Sem peça.
 - suporte_giovanna: reembolso, cancelamento, reclamação, cobrança, acesso que não chegou, problema que você não resolve. A ficha vai para a Giovanna antes da sua bolha sair.
 - passar_duda: ele aceitou falar de energia solar para casa ou empresa dele (bolhas vazias).
 - passar_helena: ele aceitou falar de eletroposto (bolhas vazias).
@@ -254,6 +266,8 @@ export function fatosCarla(ctx: ContextoLead): string {
   l.push(ctx.ehClienteSolarDoc
     ? 'Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).'
     : 'Conta no SolarDoc com este WhatsApp: não (não diga que liberou).');
+
+  for (const a of ctx.avisosDoSistema ?? []) if (String(a ?? '').trim()) l.push(String(a).trim());
 
   const msgs = ctx.msgs ?? [];
   const nossas = msgs.filter(m => m.autor !== 'lead').map(m => `${m.media_url ?? ''} ${m.texto ?? ''}`).join(' ');

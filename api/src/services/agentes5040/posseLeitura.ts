@@ -18,8 +18,8 @@ import {
 } from './interruptores';
 import { hmacDe, idChaveHmac } from './hmac';
 
-/** Nesta fase a Duda e a Helena (B2) respondem na rodada viva; carla_vivo é ignorado, como na porta. */
-export const DONAS_NA_RODADA: readonly DonaViva[] = ['duda', 'helena'];
+/** A Duda, a Helena (B2) e a Carla (B3b, só a linha io) respondem na rodada viva. */
+export const DONAS_NA_RODADA: readonly DonaViva[] = ['duda', 'helena', 'carla'];
 
 /** As donas da rodada com o interruptor ligado. Sem nenhuma, a única leitura foi a do interruptor (cache de 60 s). */
 export async function donasDaRodadaLigadas(): Promise<DonaViva[]> {
