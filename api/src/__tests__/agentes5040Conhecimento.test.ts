@@ -100,10 +100,10 @@ describe('conhecimento: depoimentos', () => {
     }
   });
 
-  it('só os 3 cards que existem em public/depoimentos têm arquivo', () => {
-    const noDisco = readdirSync(join(DASHBOARD, 'public', 'depoimentos')).filter(f => f.endsWith('.png')).sort();
+  it('os 11 cards (JPG) que existem em public/depoimentos têm arquivo', () => {
+    const noDisco = readdirSync(join(DASHBOARD, 'public', 'depoimentos')).filter(f => f.endsWith('.jpg')).sort();
     const nosDados = DEPOIMENTOS.map(d => d.cardArquivo).filter((x): x is string => !!x).sort();
-    expect(noDisco).toHaveLength(3);
+    expect(noDisco).toHaveLength(11);
     expect(nosDados).toEqual(noDisco);
   });
 
@@ -111,7 +111,7 @@ describe('conhecimento: depoimentos', () => {
     expect(cardsParaLead({ cidade: 'Londrina', uf: 'PR' })[0]!.slug).toBe('lucas-rsc-solar');
     expect(cardsParaLead({ cidade: 'Porto Alegre', uf: 'RS' })[0]!.slug).toBe('alessandro-forca-solar');
     expect(cardsParaLead({ cidade: 'Salvador', uf: 'BA' })[0]!.slug).toBe('antonio-exxel-solar');
-    expect(cardsParaLead({ uf: 'PA' })).toHaveLength(3);
+    expect(cardsParaLead({ uf: 'PA' })).toHaveLength(11);
     expect(cardsParaLead({ cidade: 'Londrina', uf: 'PR' }, ['lucas-rsc-solar']).map(d => d.slug)).not.toContain('lucas-rsc-solar');
     expect(regiaoDaUF('ba')).toBe('nordeste');
     expect(regiaoDaUF('xx')).toBeNull();

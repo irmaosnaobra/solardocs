@@ -2,9 +2,9 @@
 // DEPOIMENTOS DA LANDING (dashboard/src/components/Landing/Landing.tsx), por perfil.
 //
 // A FALA NÃO ENTRA AQUI, de propósito: a agente nunca escreve a fala de um
-// depoimento. Ela só pode mandar o CARD em imagem, e hoje só 3 cards existem em
-// dashboard/public/depoimentos/. Os outros 8 ficam sem arquivo (cardArquivo = null)
-// e não podem ser enviados.
+// depoimento. Ela só pode mandar o CARD em imagem (JPG 1080x1080), e os 11 cards
+// existem em dashboard/public/depoimentos/. Depoimento sem arquivo (cardArquivo =
+// null) não pode ser enviado.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Regiao = 'norte' | 'nordeste' | 'centro-oeste' | 'sudeste' | 'sul';
@@ -36,17 +36,17 @@ const d = (slug: string, nome: string, empresa: string, cidade: string, uf: stri
   ({ slug, nome, empresa, cidade, uf, regiao: REGIAO_DA_UF[uf]!, cardArquivo });
 
 export const DEPOIMENTOS: readonly Depoimento[] = [
-  d('juliano-grilo-energia', 'Juliano Grilo', 'Grilo Energia Solar', 'Artur Nogueira', 'SP'),
-  d('vanderlei-american-energy', 'Vanderlei', 'American Energy Solar', 'Rondonópolis', 'MT'),
-  d('lucas-rsc-solar', 'Lucas Paulino', 'RSC Solar', 'Londrina', 'PR', 'card-lucas-rsc-solar.png'),
-  d('alessandro-forca-solar', 'Alessandro Goulart', 'Força Solar', 'Feliz', 'RS', 'card-alessandro-forca-solar.png'),
-  d('gsi-energia-solar', 'GSI Energia Solar', '', 'Unaí', 'MG'),
-  d('ronailson-alves-cardoso', 'Ronailson Klesley', 'Alves Cardoso Solar', 'Abreulândia', 'TO'),
-  d('vicente-vff-energia', 'Vicente', 'VFF Energia Solar', 'Campinas', 'SP'),
-  d('antonio-exxel-solar', 'Antônio Henrique', 'Exxel Solar', 'Xique-Xique', 'BA', 'card-antonio-exxel-solar.png'),
-  d('eduardo-eclipse-solar', 'Eduardo Boso', 'Eclipse Solar', 'Sarandi', 'PR'),
-  d('carlos-vs-solar', 'Carlos Vinícius', 'VS Solar Energia Solar', 'Piripiri', 'PI'),
-  d('gedalih-energia-solar', 'Gedalih Energia Solar', '', 'Varginha', 'MG'),
+  d('juliano-grilo-energia', 'Juliano Grilo', 'Grilo Energia Solar', 'Artur Nogueira', 'SP', 'card-juliano-grilo-energia.jpg'),
+  d('vanderlei-american-energy', 'Vanderlei', 'American Energy Solar', 'Rondonópolis', 'MT', 'card-vanderlei-american-energy.jpg'),
+  d('lucas-rsc-solar', 'Lucas Paulino', 'RSC Solar', 'Londrina', 'PR', 'card-lucas-rsc-solar.jpg'),
+  d('alessandro-forca-solar', 'Alessandro Goulart', 'Força Solar', 'Feliz', 'RS', 'card-alessandro-forca-solar.jpg'),
+  d('gsi-energia-solar', 'GSI Energia Solar', '', 'Unaí', 'MG', 'card-gsi-energia-solar.jpg'),
+  d('ronailson-alves-cardoso', 'Ronailson Klesley', 'Alves Cardoso Solar', 'Abreulândia', 'TO', 'card-ronailson-alves-cardoso.jpg'),
+  d('vicente-vff-energia', 'Vicente', 'VFF Energia Solar', 'Campinas', 'SP', 'card-vicente-vff-energia.jpg'),
+  d('antonio-exxel-solar', 'Antônio Henrique', 'Exxel Solar', 'Xique-Xique', 'BA', 'card-antonio-exxel-solar.jpg'),
+  d('eduardo-eclipse-solar', 'Eduardo Boso', 'Eclipse Solar', 'Sarandi', 'PR', 'card-eduardo-eclipse-solar.jpg'),
+  d('carlos-vs-solar', 'Carlos Vinícius', 'VS Solar Energia Solar', 'Piripiri', 'PI', 'card-carlos-vs-solar.jpg'),
+  d('gedalih-energia-solar', 'Gedalih Energia Solar', '', 'Varginha', 'MG', 'card-gedalih-energia-solar.jpg'),
 ];
 
 export const MAX_DEPOIMENTOS_POR_CONVERSA = 2;
