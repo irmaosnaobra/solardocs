@@ -673,6 +673,83 @@ html.np-teclado .np-tabs { display: none; }
   body.np-print-termo #np-termo-print .aceite { margin-top: 10mm; font-weight: 700; font-size: 11pt; }
 }
 
+/* ------------------------------------------------------------------ Início (computador e celular): nível, atalhos, índice, resumo, carregadores, mercado, oportunidades */
+.in { display: flex; flex-direction: column; gap: 24px; min-width: 0; max-width: 1120px; margin: 0 auto; }
+.in-nivel { --in-t: var(--nx-tx); --in-t2: var(--nx-tx2); --in-ac: var(--nx-azul-tx); --in-trilho: var(--nx-bd); display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 32px; padding: 20px; border-radius: var(--nx-r-cartao); background: #fff; border: 1px solid var(--nx-bd); box-shadow: var(--nx-sombra); color: var(--in-t); }
+.in-nv-col { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.in-ola { font-size: 26px; line-height: 1.15; font-weight: 500; color: var(--in-t2); }
+.in-ola b { font-weight: 800; color: var(--in-t); }
+.in-loc { font-size: 13px; color: var(--in-t2); margin-top: -6px; }
+.in-rot { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--in-t2); }
+.in-nv { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.in-nome { margin: 2px 0 0; font-size: 28px; line-height: 1.1; font-weight: 800; color: var(--in-t); }
+.in-etapa { font-size: 12px; font-weight: 700; color: var(--in-ac); white-space: nowrap; }
+.in-barra { height: 8px; border-radius: 999px; background: var(--in-trilho); overflow: hidden; }
+.in-barra i { display: block; height: 100%; border-radius: 999px; background: var(--in-ac); }
+.in-prox { font-size: 13px; line-height: 1.4; color: var(--in-t); }
+.in-falta { font-size: 12px; line-height: 1.4; color: var(--in-t2); margin-top: -4px; }
+.in-passo { flex: 0 1 340px; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.nx-btn.in-cta { width: 100%; min-height: 48px; font-size: 15px; }
+.in-nivel .np-lktx { color: var(--in-t2); }
+
+.in-atalhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.in-tile {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 12px; min-height: 104px; padding: 14px; border: 1px solid var(--nx-bd);
+  border-radius: 16px; background: #fff; box-shadow: var(--nx-sombra); color: var(--nx-tx); font-family: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.in-tile .ico { display: flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--nx-azul-sf); color: var(--nx-azul-tx); }
+.in-tile .tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.in-tile .rot { font-size: 15px; font-weight: 800; line-height: 1.2; }
+.in-tile .sub { font-size: 12px; font-weight: 500; line-height: 1.35; color: var(--nx-tx2); }
+.in-tile:hover { background: var(--nx-azul-sf); }
+.in-tile.prim { background: var(--nx-azul-tx); border-color: var(--nx-azul-tx); color: #fff; }
+.in-tile.prim:hover { background: var(--nx-azul-h); }
+.in-tile.prim .ico { background: rgba(255, 255, 255, .2); color: #fff; }
+.in-tile.prim .sub { color: #fff; }
+.in-tile .cad { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--nx-chip); color: var(--nx-tx2); }
+.in-tile .cad .nx-ic { width: 13px; height: 13px; stroke-width: 2.4; }
+
+.in-indice { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0; scrollbar-width: none; background: var(--nx-bg); }
+.in-indice::-webkit-scrollbar { display: none; }
+.in-chip {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border: 1px solid var(--nx-bd2); border-radius: 999px; background: #fff;
+  color: var(--nx-tx); font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+}
+.in-chip:hover { background: var(--nx-azul-sf); color: var(--nx-tx); }
+.in-chip.ativa { background: var(--nx-azul-tx); border-color: var(--nx-azul-tx); color: #fff; }
+
+.in-sec { display: flex; flex-direction: column; gap: 16px; min-width: 0; scroll-margin-top: 96px; }
+.in-sec:focus, #sv-pedir-eng:focus { outline: none; }
+#sv-pedir-eng { scroll-margin-top: 96px; }
+.in-sec h2 { font-size: 20px; font-weight: 800; line-height: 1.2; }
+.in-h3 { font-size: 16px; font-weight: 800; line-height: 1.25; margin-top: 8px; }
+.in-sub { max-width: 720px; margin: 0; }
+.in-nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.in-nums .np-num { grid-column: auto !important; }
+.in-nums .np-num strong.sem { font-size: 20px; line-height: 1.2; color: var(--nx-tx2); }
+.in-f3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 4px 0 0; }
+.in-f3 > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.in-f3 dt { font-size: 12px; font-weight: 600; color: var(--nx-inv2); }
+.in-f3 dd { margin: 0; font-size: 18px; font-weight: 800; color: #fff; }
+.in-f3.claro span { font-size: 12px; font-weight: 600; color: var(--nx-tx2); }
+.in-f3.claro b { font-size: 18px; font-weight: 800; color: var(--nx-tx); }
+.in-fontes { display: flex; flex-direction: column; gap: 4px; }
+.in .np-card > .nx-btn.in-27 { align-self: flex-start; }
+.in .np-grande { font-size: 56px; }
+.in-chamadas .np-chamada { flex-basis: 100%; }
+.nr-emb .nr-h1 { font-size: 20px; }
+
+@media (min-width: 861px) {
+  .in { gap: 40px; }
+  .in-nivel { padding: 24px; }
+  .in-atalhos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .in-tile { flex-direction: row; align-items: center; justify-content: flex-start; min-height: 88px; padding: 16px; }
+  .in-tile .cad { top: 14px; right: 14px; }
+  .in-nums { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .np-nav.baixo { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .12); }
+  .np-nav.baixo + .np-emp { margin-top: 0; }
+}
+
 /* ------------------------------------------------------------------ celular: formato de aplicativo (ate 860 px). O desktop nao muda. */
 .nx-cad-voltar { display: none; }
 @media (max-width: 860.98px) {
@@ -695,41 +772,28 @@ html.np-teclado .np-tabs { display: none; }
   }
   .nx-cad-voltar .nx-ic { width: 26px; height: 26px; stroke-width: 2.2; }
 
-  /* Inicio como aplicativo */
-  .ap { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-  .ap-sec { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .ap-sec h2 { font-size: 18px; font-weight: 800; line-height: 1.2; }
-  .ap-tit { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
-  .ap-nivel { display: flex; flex-direction: column; gap: 10px; padding: 18px 16px 16px; border-radius: 18px; background: var(--nx-navy); color: #fff; }
-  .ap-ola { font-size: 14px; color: var(--nx-inv2); }
-  .ap-ola b { color: #fff; font-weight: 800; }
-  .ap-loc { font-size: 12px; color: var(--nx-inv2); margin-top: -6px; }
-  .ap-nv { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 4px; }
-  .ap-rot { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--nx-inv2); }
-  .ap-nv h2 { margin: 2px 0 0; font-size: 28px; line-height: 1.1; font-weight: 800; color: #fff; }
-  .ap-etapa { font-size: 12px; font-weight: 700; color: var(--nx-verde); white-space: nowrap; }
-  .np-barra.ap { background: var(--nx-navy-3); }
-  .np-barra.ap i { background: var(--nx-verde); }
-  .ap-prox { font-size: 13px; line-height: 1.4; color: #fff; }
-  .ap-falta { font-size: 12px; line-height: 1.4; color: var(--nx-inv2); margin-top: -4px; }
-  .ap-nivel .ap-rot { margin-top: 4px; }
-  .nx-btn.ap-cta { width: 100%; min-height: 48px; background: var(--nx-verde); color: var(--nx-navy); font-size: 15px; }
-  .nx-btn.ap-cta:hover, .nx-btn.ap-cta:active { background: #2EE60F; color: var(--nx-navy); }
-  .ap .np-inst { margin-top: -8px; }
-
-  .ap-atalhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .ap-tile {
-    position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 12px; min-height: 96px; padding: 14px; border: 1px solid var(--nx-bd);
-    border-radius: 16px; background: #fff; box-shadow: var(--nx-sombra); color: var(--nx-tx); font-family: inherit; font-size: 15px; font-weight: 800; line-height: 1.2; text-align: left; cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+  /* Início como aplicativo: o cartão do nível fica azul-marinho e o índice da página fica preso logo abaixo da barra de cima */
+  .in-nivel { --in-t: #fff; --in-t2: var(--nx-inv2); --in-ac: var(--nx-verde); --in-trilho: var(--nx-navy-3); padding: 18px 16px 16px; border-radius: 18px; background: var(--nx-navy); border-color: var(--nx-navy); }
+  .in-ola { font-size: 14px; line-height: 1.3; }
+  .in-nv-col { flex-basis: 100%; }
+  .in-passo { flex-basis: 100%; }
+  .nx-btn.in-cta { background: var(--nx-verde); color: var(--nx-navy); }
+  .nx-btn.in-cta:hover, .nx-btn.in-cta:active { background: #2EE60F; color: var(--nx-navy); }
+  .in .np-inst { margin-top: -8px; }
+  .in-tile:active { background: var(--nx-azul-sf); }
+  .in-tile.prim:active { background: var(--nx-azul-h); }
+  .in-indice {
+    position: sticky; top: calc(var(--np-top) + env(safe-area-inset-top, 0px)); z-index: 860; margin: 0 -16px; padding: 4px 16px; border-bottom: 1px solid var(--nx-bd);
   }
-  .ap-tile .ico { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: var(--nx-azul-sf); color: var(--nx-azul-tx); }
-  .ap-tile:active { background: var(--nx-azul-sf); }
-  .ap-tile.prim { background: var(--nx-azul-tx); border-color: var(--nx-azul-tx); color: #fff; }
-  .ap-tile.prim .ico { background: rgba(255, 255, 255, .2); color: #fff; }
-  .ap-tile.prim:active { background: var(--nx-azul-h); }
-  .ap-tile .cad { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--nx-chip); color: var(--nx-tx2); }
-  .ap-tile .cad .nx-ic { width: 13px; height: 13px; stroke-width: 2.4; }
+  .in-chip { min-height: 48px; }
+  .in-sec { scroll-margin-top: calc(var(--np-top) + env(safe-area-inset-top, 0px) + 64px); }
+  #sv-pedir-eng { scroll-margin-top: calc(var(--np-top) + env(safe-area-inset-top, 0px) + 12px); }
+  .in-sec h2 { font-size: 18px; }
+  .in .nx-btn, .np-linkgrande { min-height: 48px; }
+  .in-chamadas .np-chamada { padding: 16px; }
+
+  /* Inicio como aplicativo */
+
 
   .ap-carrossel {
     display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; margin: 0 -16px; padding: 4px 16px 8px;
@@ -754,13 +818,6 @@ html.np-teclado .np-tabs { display: none; }
   .ap-dots i { width: 6px; height: 6px; border-radius: 999px; background: var(--nx-campo); }
   .ap-dots i.on { width: 18px; background: var(--nx-azul-tx); }
 
-  .ap-mini { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px 4px; background: #fff; border: 1px solid var(--nx-bd); border-radius: 16px; box-shadow: var(--nx-sombra); }
-  .ap-mini .topo { display: flex; align-items: center; gap: 14px; }
-  .ap-mini .n { flex: none; font-size: 44px; line-height: 1; font-weight: 800; color: var(--nx-azul-tx); }
-  .ap-mini .tit { font-size: 14px; font-weight: 700; line-height: 1.3; }
-  .ap-mini-svg { display: block; width: 100%; height: auto; font-family: var(--nx-fonte); }
-  .ap-mini .nota { font-size: 12px; line-height: 1.4; color: var(--nx-tx2); }
-  .ap-mini .np-linkgrande { align-self: flex-start; }
 
   .ap-ops { display: flex; flex-direction: column; overflow: hidden; background: #fff; border: 1px solid var(--nx-bd); border-radius: 16px; box-shadow: var(--nx-sombra); }
   .ap-op { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 72px; padding: 12px 14px; border: 0; border-top: 1px solid var(--nx-bd); background: transparent; color: var(--nx-tx); font-family: inherit; text-align: left; cursor: pointer; }
@@ -779,7 +836,6 @@ html.np-teclado .np-tabs { display: none; }
   .ap-trava .nx-btn { min-height: 48px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ap-tile:active { transform: none; }
 }
 
 /* ------------------------------------------------------------------ instalar o app: tela #instalar, cartao do Inicio e convite fixo no celular */

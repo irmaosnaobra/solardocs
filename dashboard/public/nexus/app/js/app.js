@@ -1,5 +1,5 @@
 /* Portal do Parceiro NEXUS: casca (sessao, rotas por hash, telas de informacao, eventos, modo demonstracao).
-   JavaScript puro, sem build. Desenho: canvas aprovado de 21/10/2026 (Main, Celular, Mercado, Equipamento, Parceria).
+   JavaScript puro, sem build. Desenho: canvas aprovado de 21/10/2026 (Main, Celular, Equipamento, Parceria; o Mercado virou seção do Início).
    Documentos: window.NexusGerar.montar(container, ctx) (js/gerar.js). Rede (oportunidades, usinas, engenharia):
    window.NexusRede.montar(container, tela, ctx) (js/rede.js). Todo texto vindo da API passa por esc() antes de virar HTML.
    Contrato do ctx (v2): { parceiro, empresa, nivel, progresso, libera, catalogo, entrega, financiamento, demo,
@@ -188,21 +188,23 @@
   var uidG = 0;
 
   var ROTAS = {
-    inicio: { menu: 'Início', ctx: 'Informação de mercado, equipamentos e oportunidades' },
-    mercado: { menu: 'Mercado', ctx: 'Frota plug-in e procura por eletroposto' },
+    inicio: { menu: 'Início', ctx: 'Resumo, mercado, equipamentos e oportunidades' },
     equipamentos: { menu: 'Equipamentos', ctx: 'Os carregadores da rede NEXUS' },
-    servicos: { menu: 'Serviços NEXUS', ctx: 'Engenharia em pacotes, consultoria de vendas e plataforma', reqTodos: ['pacotes_engenharia', 'consultoria', 'plataforma'] },
+    servicos: { menu: 'Serviços NEXUS', ctx: 'Engenharia em pacotes, consultoria de vendas, plataforma e pedido de engenharia', reqTodos: ['pacotes_engenharia', 'consultoria', 'plataforma', 'engenharia'] },
     propostas: { menu: 'Propostas', ctx: 'Simulador, Orçamento Básico e Orçamento Completo' },
     oportunidades: { menu: 'Oportunidades', ctx: 'Clientes e obras da NEXUS na sua região', req: 'oportunidades' },
     usinas: { menu: 'Usinas', ctx: 'Indique uma usina', req: 'usinas', motivo: 'Complete o perfil da empresa para indicar usinas.' },
-    engenharia: { menu: 'Engenharia', ctx: 'Engenharia NEXUS', req: 'engenharia', motivo: 'Complete o perfil da empresa para pedir engenharia.' },
     materiais: { menu: 'Materiais', ctx: 'Fotos para divulgar o equipamento', req: 'materiais', motivo: 'Complete o perfil da empresa para liberar os Materiais.' },
     parceria: { menu: 'Minha parceria', ctx: 'Níveis, caminho e selo' },
     perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' },
     instalar: { menu: 'Instalar o app', ctx: 'Deixe o portal na tela inicial do aparelho' }
   };
-  var ORDEM = ['inicio', 'mercado', 'equipamentos', 'servicos', 'propostas', 'oportunidades', 'usinas', 'engenharia', 'materiais', 'parceria', 'instalar'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
+  var ORDEM = ['inicio', 'propostas', 'equipamentos', 'servicos', 'oportunidades', 'usinas', 'parceria', 'materiais'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
+  var BAIXO = ['perfil', 'instalar'];
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
+  /* A aba Mercado e a aba Engenharia deixaram de existir: #mercado abre o Início na seção Mercado e #engenharia abre Serviços em Pedir engenharia. */
+  var ATALHO_SEC = { mercado: ['inicio', 'ini-mercado'], engenharia: ['servicos', 'sv-pedir-eng'] };
+  var SECOES = { inicio: { resumo: 'ini-resumo', carregadores: 'ini-carregadores', mercado: 'ini-mercado', oportunidades: 'ini-oportunidades' }, servicos: { engenharia: 'sv-pedir-eng' } };
 
   /* Item ADM: so quando o /eu diz adm:true (is_admin ou e-mail ativo em nexus_equipe). Leva a pagina propria, nao a uma rota do portal. */
   function admOk() { return !!(S.eu && S.eu.adm === true && !S.demo); }
@@ -267,13 +269,15 @@
     var t = location.hash.replace(/^#\/?/, '').split('?')[0];
     if (!t) return null;
     var partes = t.split('/');
+    if (ATALHO_SEC[partes[0]]) return { r: ATALHO_SEC[partes[0]][0], sub: '', sec: ATALHO_SEC[partes[0]][1] };
     var r = ALIAS[partes[0]] || partes[0];
     if (!ROTAS[r]) return null;
     if (r === 'usinas' && !MOSTRAR_USINAS) {
       try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (e) { /* ok */ }
-      return { r: 'inicio', sub: '' };
+      return { r: 'inicio', sub: '', sec: '' };
     }
-    return { r: r, sub: partes.slice(1).join('/') };
+    if (SECOES[r]) return { r: r, sub: '', sec: SECOES[r][partes[1]] || '' };
+    return { r: r, sub: partes.slice(1).join('/'), sec: '' };
   }
   function irPara(h) {
     h = String(h || '').replace(/^#\/?/, '');
@@ -727,11 +731,13 @@
   function ladoHTML() {
     var h = '<div class="logo"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos"></div><nav class="np-nav" aria-label="Menu principal">';
     ORDEM.forEach(function (r) { h += itemMenu(r); });
+    h += '</nav><nav class="np-nav baixo" aria-label="Conta e aplicativo">';
+    BAIXO.forEach(function (r) { h += itemMenu(r); });
     if (admOk()) h += '<a class="np-n-item" href="/nexus/adm">' + ic('escudo', 'm') + '<span>ADM</span></a>';
     h += '</nav><div class="np-emp"><b>' + esc(nomeEmpresa() || 'Sua empresa') + '</b>' +
       (localParceiro() ? '<span class="loc">' + esc(localParceiro()) + '</span>' : '') +
       '<span class="nivel">' + esc(NIVEL_NOME[nivel()] || '') + '</span>' +
-      '<div class="acoes"><button type="button" data-acao="ir" data-arg="perfil">Editar perfil</button><button type="button" data-acao="sairConta">' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</button></div></div>';
+      '<div class="acoes"><button type="button" data-acao="sairConta">' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</button></div></div>';
     return h;
   }
   /* ---- casca do celular (abaixo de 861 px): barra de cima, barra de baixo com o botao Gerar e a gaveta Mais ---- */
@@ -775,7 +781,7 @@
     return h;
   }
   function folhaHTML() {
-    var lista = ['equipamentos', 'servicos', 'mercado'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat(['engenharia', 'materiais', 'parceria', 'instalar', 'perfil']);
+    var lista = ['equipamentos', 'servicos'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat(['parceria', 'materiais', 'perfil', 'instalar']);
     var algumTravado = false;
     var h = '<div class="np-folha-cab"><div class="np-alca" aria-hidden="true"></div><div class="np-folha-tit"><div><b id="np-folha-tit">Mais</b><small>' + esc([nomeEmpresa() || 'Sua empresa', NIVEL_NOME[nivel()] || ''].filter(Boolean).join(' · ')) + '</small></div>' +
       '<button type="button" class="np-icobtn claro" data-acao="fecharMais" data-foco aria-label="Fechar o menu">' + ic('fechar') + '</button></div></div>';
@@ -1085,14 +1091,15 @@
     if (esperaScript) { clearInterval(esperaScript); esperaScript = null; }
     S.tela++;
     GRAFS = [];
+    desligarIndice();
     var r = S.rota, h = faixaDemo(), pos = null;
+    if (r !== 'servicos') S.engHost = null;
     if (r === 'inicio') { h += telaInicio(); pos = posInicio; }
-    else if (r === 'mercado') { h += telaMercado(); pos = posMercado; }
     else if (r === 'equipamentos') { h += S.sub && produtoPor(S.sub) ? telaEquipamento(produtoPor(S.sub)) : telaEquipamentos(); pos = posEquipamento; }
     else if (r === 'servicos') { h += telaServicos(); pos = posServicos; }
     else if (r === 'propostas') { h += telaPropostas(); pos = posPropostas; }
     else if (r === 'oportunidades') { h += libera('oportunidades') ? telaRede('oportunidades') : telaOpsBloqueada(); pos = libera('oportunidades') ? function () { montarRede('oportunidades'); } : null; }
-    else if (r === 'usinas' || r === 'engenharia') {
+    else if (r === 'usinas') {
       h += travada(r) ? '<div class="np-pagina">' + trava(bloq(ROTAS[r].req), '<button type="button" class="nx-btn" data-acao="ir" data-arg="perfil">Completar o perfil</button>') + '</div>' : telaRede(r);
       pos = travada(r) ? null : function () { montarRede(r); };
     }
@@ -1107,6 +1114,7 @@
     }
     if (pos) pos();
     desenharGrafs();
+    if (!manter && S.sec) irSecaoDepois(S.sec);
   }
 
   /* ------------------------------------------------------------------ graficos SVG (largura real do contêiner, sem rolagem) */
@@ -1246,72 +1254,127 @@
       return (FALTA[k] || k).replace(/^./, function (c) { return c.toLowerCase(); });
     }).join(', ') + '.';
   }
-  function telaInicio() {
-    if (mobile()) return telaInicioApp();
+  /* Início: um só desenho para computador e celular. Ordem: nível e próximo passo, atalhos com informação viva, índice da página,
+     resumo, carregadores, mercado (que era a aba Mercado), oportunidades, engenharia e faixa final. Só o bloco dos carregadores muda de forma. */
+  var SEC_INICIO = [['resumo', 'Resumo', 'ini-resumo'], ['carregadores', 'Carregadores', 'ini-carregadores'], ['mercado', 'Mercado', 'ini-mercado'], ['oportunidades', 'Oportunidades', 'ini-oportunidades']];
+  var IO = null, ioFim = null;
+
+  /* Próxima ação real: a primeira etapa de progresso.faltam que o parceiro mesmo pode cumprir. Se só falta aprovação da equipe, leva à Minha parceria. */
+  function proximoPasso(pr) {
+    var f = (pr && pr.faltam) || [], i, k;
+    var agir = {
+      perfil: { rot: 'Complete o perfil', acao: 'ir', arg: 'perfil' },
+      primeira_proposta: { rot: 'Gere a primeira proposta', acao: 'ir', arg: 'propostas' },
+      papel_montagem: { rot: 'Marque Montagem e Engenharia no perfil', acao: 'ir', arg: 'perfil' },
+      primeira_compra: { rot: 'Peça o primeiro equipamento', acao: 'ir', arg: 'equipamentos' },
+      compras: { rot: 'Peça mais equipamentos', acao: 'ir', arg: 'equipamentos' },
+      aceite_termo: { rot: 'Aceite o Termo de Parceria', acao: 'irTermoParceria', arg: '' }
+    };
+    for (i = 0; i < f.length; i++) {
+      k = f[i];
+      if (k === 'conversa') {
+        return libera('conversa') ? { rot: 'Agende a conversa com o comercial', acao: 'conversa', arg: '' }
+          : { rot: 'Agende a conversa com o comercial', trava: 'conversa' };
+      }
+      if (agir[k]) return agir[k];
+    }
+    if (f.indexOf('aprovacao_montagem') >= 0) return { rot: 'Acompanhe a aprovação da montagem', acao: 'ir', arg: 'parceria' };
+    if (f.length) return { rot: 'Acompanhe a aprovação da NEXUS', acao: 'ir', arg: 'parceria' };
+    return { rot: 'Gere uma proposta', acao: 'ir', arg: 'propostas' };
+  }
+  function ctaPasso(pp) {
+    if (pp.trava) return lk(pp.rot, pp.trava, '');
+    return '<button type="button" class="nx-btn in-cta" data-acao="' + pp.acao + '"' + (pp.arg ? ' data-arg="' + esc(pp.arg) + '"' : '') + '>' + esc(pp.rot) + '</button>';
+  }
+  function nivelHTML() {
     var eu = S.eu, p = eu.parceiro || {}, nv = nivel(), idx = NIVEL_IDX[nv] || 1, pr = eu.progresso || {};
     var prox = pr.proximo ? NIVEL_NOME[pr.proximo] : '';
-    var linha = [NIVEL_NOME[nv]];
-    if (localParceiro()) linha.push(localParceiro());
-    if (p.raio_km) linha.push('Raio de atendimento de ' + fmt(p.raio_km) + ' km');
-    var c = eu.contagens || {};
-    var nums = [
-      [c.propostas_mes, 'Propostas geradas no mês'], [c.pedidos, 'Pedidos de equipamento'],
-      [c.oportunidades_recebidas, 'Oportunidades recebidas']
-    ];
-    if (MOSTRAR_USINAS) nums.push([c.usinas, 'Usinas indicadas']);
-    var h = '<div class="np-pagina">';
-    h += '<section class="np-saud"><div class="tx"><h1>Olá, ' + esc(nomeEmpresa() || 'parceiro') + '</h1><p>' + esc(linha.join(' · ')) + '</p></div>' +
-      '<div class="np-prog"><div class="l"><span>' + (prox ? 'Próximo nível: ' + esc(prox) : 'Nível máximo') + '</span><span>Etapa ' + idx + ' de 4</span></div>' +
-      '<div class="np-barra" role="img" aria-label="Progresso até o próximo nível: etapa ' + idx + ' de 4"><i style="width:' + (idx * 25) + '%"></i></div>' +
-      '<span class="c">' + esc(prox ? COMO[nv] : COMO.master) + '</span>' +
-      (textoFaltam(pr) ? '<span class="c">' + esc(textoFaltam(pr)) + '</span>' : '') + '</div></section>';
-    h += '<section class="np-sec"><h2>Os carregadores da rede</h2>' + cardsProdutos() + '</section>';
-    h += '<section class="np-sec"><div class="np-tit-grupo"><h2>Sua parceria em números</h2>' + (S.demo ? '<span class="nx-chip ex">Dados de exemplo</span>' : '') + '</div><div class="np-nums">' +
-      nums.map(function (n) { return '<div class="np-num"><strong>' + esc(fmt(n[0])) + '</strong><span>' + esc(n[1]) + '</span></div>'; }).join('') + '</div></section>';
-    h += '<section class="np-sec"><h2>Procura na sua região</h2><div id="np-procura">' + girando('Carregando a procura') + '</div></section>';
-    h += '<section class="np-sec"><h2>Mercado no seu estado</h2><div id="np-mercuf">' + girando('Carregando o mercado') + '</div></section>';
-    h += '<section class="np-sec"><div class="np-tit-linha"><div class="np-tit-grupo"><h2>Oportunidades na sua região</h2></div>' +
-      (libera('oportunidades') ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="oportunidades">Ver todas as oportunidades</button>' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>') + '</div>' +
-      '<div id="np-opsini">' + (libera('oportunidades') ? girando('Carregando as oportunidades') : opsBloqueadasHTML()) + '</div></section>';
-    h += '<section class="np-chamadas">' + (MOSTRAR_USINAS ? '<div class="np-chamada"><span class="ico">' + ic('usinas') + '</span><h3>Indique uma usina</h3><p>Conhece uma usina solar com energia sobrando? A NEXUS compra energia para a rede de eletropostos.</p>' +
-      '<button type="button" class="nx-btn" data-acao="ir" data-arg="usinas">Indicar usina</button></div>' : '') +
-      '<div class="np-chamada" id="servicos"><span class="ico">' + ic('servicos') + '</span><h3>Serviços NEXUS</h3><p>Engenharia em pacotes de 3, 5 e 10 projetos, consultoria de vendas e a Plataforma NEXUS para você revender.' +
-      (saldoEng() && saldoEng().comprados > 0 ? ' Seu saldo de engenharia: ' + saldoEng().disponiveis + (saldoEng().disponiveis === 1 ? ' projeto.' : ' projetos.') : '') + '</p>' +
-      (travada('servicos') ? lkNota('pacotes_engenharia') : '') +
-      '<button type="button" class="nx-btn" data-acao="ir" data-arg="servicos">Ver os serviços</button></div>' +
-      '<div class="np-chamada" id="engenharia"><span class="ico">' + ic('engenharia') + '</span><h3>Engenharia NEXUS</h3><p>Precisa de projeto elétrico, ART, estudo da entrada de energia ou homologação na distribuidora? A NEXUS faz para você.</p>' +
-      '<button type="button" class="nx-btn" data-acao="ir" data-arg="engenharia">Pedir engenharia</button></div></section>';
-    h += '<section class="np-rodape"><p>A NEXUS é importadora. O cliente e a obra da sua região são seus.</p><p>Nada é cobrado sobre a sua obra. Sem mensalidade. Sem taxa de entrada.</p></section>';
-    return h + '</div>';
-  }
-  function posInicio() {
-    if (mobile()) { posInicioApp(); return; }
-    carregarProcura('np-procura', true);
-    carregarFrota(function () { var el = $('#np-mercuf'); if (el) el.innerHTML = mercadoUfHTML(true); desenharGrafs(); }, 'np-mercuf');
-    if (libera('oportunidades')) carregarOpsInicio();
+    var linha = [localParceiro(), p.raio_km ? 'raio de ' + fmt(p.raio_km) + ' km' : ''].filter(Boolean).join(' · ');
+    var pp = proximoPasso(pr);
+    return '<section class="in-nivel" aria-labelledby="ini-h1"><div class="in-nv-col">' +
+      '<h1 class="in-ola" id="ini-h1">Olá, <b>' + esc(nomeEmpresa() || 'parceiro') + '</b></h1>' + (linha ? '<p class="in-loc">' + esc(linha) + '</p>' : '') +
+      '<div class="in-nv"><div><span class="in-rot">Seu nível</span><p class="in-nome">' + esc(NIVEL_NOME[nv] || '') + '</p></div><span class="in-etapa">Etapa ' + idx + ' de 4</span></div>' +
+      '<div class="in-barra" role="img" aria-label="Progresso até o próximo nível: etapa ' + idx + ' de 4"><i style="width:' + (idx * 25) + '%"></i></div>' +
+      '<p class="in-prox">' + esc(prox ? 'Próximo nível: ' + prox + '. ' + COMO[nv] : COMO.master) + '</p>' +
+      (textoFaltam(pr) ? '<p class="in-falta">' + esc(textoFaltam(pr)) + '</p>' : '') + '</div>' +
+      '<div class="in-passo"><span class="in-rot">Próximo passo</span>' + ctaPasso(pp) + '</div></section>';
   }
 
-  /* ------------------------------------------------------------------ Inicio no celular (formato de aplicativo) */
-  function proximoPasso(pr) {
-    var k = pr && pr.faltam && pr.faltam[0];
-    var m = {
-      perfil: ['Completar o perfil', 'perfil'],
-      primeira_proposta: ['Gerar a primeira proposta', 'propostas'],
-      papel_montagem: ['Marcar Montagem e Engenharia no perfil', 'perfil'],
-      primeira_compra: ['Ver os carregadores', 'equipamentos'],
-      compras: ['Ver os carregadores', 'equipamentos'],
-      conversa: ['Ver o caminho até o próximo nível', 'parceria'],
-      aprovacao_partner: ['Ver o caminho até o próximo nível', 'parceria'],
-      aprovacao_montagem: ['Ver o caminho até o próximo nível', 'parceria']
-    };
-    if (k === 'aceite_termo') return { rot: 'Ler e aceitar o termo', acao: 'irTermoParceria', arg: '' };
-    var x = m[k] || ['Gerar uma proposta', 'propostas'];
-    return { rot: x[0], acao: 'ir', arg: x[1] };
+  /* atalhos com informação viva */
+  function propostasSub() {
+    var l = S.propostas;
+    if (!l) return S.propEstado === 'erro' ? 'Ver as suas propostas' : 'Carregando';
+    if (!l.length) return 'Nenhuma gerada ainda';
+    var m = l.filter(function (p) { return num(p.aberturas) > 0; }).length;
+    return l.length + (l.length === 1 ? ' gerada' : ' geradas') + ' · ' + m + (m === 1 ? ' aberta' : ' abertas') + ' pelo cliente';
   }
-  function atalhoApp(rot, icone, destino, opc) {
+  function servicosSub() {
+    var sd = saldoEng();
+    if (sd && sd.comprados > 0) return 'Saldo: ' + sd.disponiveis + (sd.disponiveis === 1 ? ' projeto' : ' projetos');
+    return travada('servicos') ? bloq('pacotes_engenharia') : 'Engenharia, consultoria e plataforma';
+  }
+  function oportSub() {
+    if (!libera('oportunidades')) return bloq('oportunidades');
+    if (!S.ops) return S.opsErro ? 'Ver as oportunidades' : 'Carregando';
+    var n = S.ops.filter(function (o) { return o.status === 'oferecida'; }).length;
+    return n === 0 ? 'Nenhuma nova' : n === 1 ? '1 nova' : n + ' novas';
+  }
+  function tileInicio(rot, icone, destino, sub, subId, opc) {
     opc = opc || {};
-    return '<button type="button" class="ap-tile' + (opc.prim ? ' prim' : '') + '" data-acao="ir" data-arg="' + esc(destino) + '"><span class="ico">' + ic(icone) + '</span>' +
-      '<span class="rot">' + esc(rot) + (opc.trava ? '<span class="sr">, travado</span>' : '') + '</span>' + (opc.trava ? '<span class="cad">' + ic('cadeado', 'p') + '</span>' : '') + '</button>';
+    return '<button type="button" class="in-tile' + (opc.prim ? ' prim' : '') + '" data-acao="ir" data-arg="' + esc(destino) + '"><span class="ico">' + ic(icone) + '</span>' +
+      '<span class="tx"><span class="rot">' + esc(rot) + (opc.trava ? '<span class="sr">, travado</span>' : '') + '</span><small class="sub"' + (subId ? ' id="' + subId + '"' : '') + '>' + esc(sub) + '</small></span>' +
+      (opc.trava ? '<span class="cad">' + ic('cadeado', 'p') + '</span>' : '') + '</button>';
+  }
+  function atalhosHTML() {
+    var ps = produtos(), nv = NIVEL_NOME[nivel()] || '';
+    return '<section class="in-atalhos" aria-label="Atalhos">' +
+      tileInicio('Gerar proposta', 'gerar', 'propostas', 'Simulador, Básico e Completo', '', { prim: true }) +
+      tileInicio('Minhas propostas', 'propostas', 'propostas/lista', propostasSub(), 'in-sub-propostas') +
+      tileInicio('Equipamentos', 'equipamentos', 'equipamentos', ps.length ? ps.length + (ps.length === 1 ? ' carregador da rede' : ' carregadores da rede') : 'Carregadores da rede') +
+      tileInicio('Serviços NEXUS', 'servicos', 'servicos', servicosSub(), 'in-sub-servicos', { trava: travada('servicos') }) +
+      tileInicio('Oportunidades', 'oportunidades', 'oportunidades', oportSub(), 'in-sub-oport', { trava: !libera('oportunidades') }) +
+      tileInicio('Minha parceria', 'parceria', 'parceria', 'Nível ' + nv) + '</section>';
+  }
+  function indiceHTML() {
+    return '<nav class="in-indice" id="ini-indice" aria-label="Nesta página">' + SEC_INICIO.map(function (s) {
+      return '<a class="in-chip" href="#inicio/' + s[0] + '" data-acao="irSecao" data-arg="' + s[2] + '" data-sec="' + s[2] + '">' + esc(s[1]) + '</a>';
+    }).join('') + '</nav>';
+  }
+
+  /* resumo do mês: o que o /eu e as listas já trazem; sem dado, "Sem dado" (zero é um número de verdade) */
+  function celulaResumo(valor, rotulo) {
+    var sem = valor == null;
+    return '<div class="np-num"><strong' + (sem ? ' class="sem"' : '') + '>' + esc(sem ? 'Sem dado' : fmt(valor)) + '</strong><span>' + esc(rotulo) + '</span></div>';
+  }
+  function resumoCorpoHTML() {
+    var c = (S.eu && S.eu.contagens) || {}, b = brt(), links = null, obras = null;
+    if (S.propostas) {
+      links = S.propostas.filter(function (p) {
+        if (!(num(p.aberturas) > 0) || !p.ultima_abertura_em) return false;
+        var u = brt(new Date(p.ultima_abertura_em));
+        return u.ano === b.ano && u.mes === b.mes;
+      }).length;
+    }
+    if (S.ops && libera('oportunidades')) obras = S.ops.filter(function (o) { return o.tipo === 'obra'; }).length;
+    return celulaResumo(c.propostas_mes == null ? null : num(c.propostas_mes), 'Propostas geradas no mês') + celulaResumo(links, 'Links abertos pelos clientes') +
+      celulaResumo(c.pedidos == null ? null : num(c.pedidos), 'Pedidos de equipamento') + celulaResumo(obras, 'Obras recebidas');
+  }
+  function atualizarVivo() {
+    var a = $('#in-sub-propostas'); if (a) a.textContent = propostasSub();
+    var b = $('#in-sub-oport'); if (b) b.textContent = oportSub();
+    var c = $('#in-resumo-corpo'); if (c) c.innerHTML = resumoCorpoHTML();
+  }
+
+  function secaoCab(id, titulo, extra) {
+    return '<div class="np-tit-linha"><div class="np-tit-grupo"><h2 id="' + id + '-t">' + esc(titulo) + '</h2>' + (S.demo && titulo !== 'Carregadores' ? '<span class="nx-chip ex">Dados de exemplo</span>' : '') + '</div>' + (extra || '') + '</div>';
+  }
+  function carregadoresHTML() {
+    var ps = produtos(), h;
+    if (!mobile()) return cardsProdutos();
+    h = ps.length ? '<div class="ap-carrossel" role="region" aria-label="Carregadores da rede. Deslize para o lado para ver o próximo." tabindex="0">' + ps.map(cardCarrossel).join('') + '</div>' +
+      (ps.length > 1 ? '<div class="ap-dots" aria-hidden="true">' + ps.map(function (x, i) { return '<i' + (i === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' : '')
+      : '<div class="np-vazio-sec">O catálogo não carregou. Atualize a página.</div>';
+    return h;
   }
   function cardCarrossel(p) {
     var I = infoDe(p);
@@ -1323,39 +1386,32 @@
       '<button type="button" class="nx-btn" data-acao="ir" data-arg="equipamentos/' + esc(p.id) + '">Ver detalhes</button>' +
       '<button type="button" class="nx-btn sec" data-acao="ir" data-arg="propostas">Gerar proposta</button></div></article>';
   }
-  function telaInicioApp() {
-    var eu = S.eu, p = eu.parceiro || {}, nv = nivel(), idx = NIVEL_IDX[nv] || 1, pr = eu.progresso || {};
-    var prox = pr.proximo ? NIVEL_NOME[pr.proximo] : '';
-    var pp = proximoPasso(pr);
-    var linha = [localParceiro(), p.raio_km ? 'raio de ' + fmt(p.raio_km) + ' km' : ''].filter(Boolean).join(' · ');
-    var ps = produtos();
-    var h = '<div class="ap">';
-    h += '<section class="ap-nivel" aria-label="Seu nível na rede"><p class="ap-ola">Olá, <b>' + esc(nomeEmpresa() || 'parceiro') + '</b></p>' + (linha ? '<p class="ap-loc">' + esc(linha) + '</p>' : '') +
-      '<div class="ap-nv"><div><span class="ap-rot">Seu nível</span><h2>' + esc(NIVEL_NOME[nv] || '') + '</h2></div><span class="ap-etapa">Etapa ' + idx + ' de 4</span></div>' +
-      '<div class="np-barra ap" role="img" aria-label="Progresso até o próximo nível: etapa ' + idx + ' de 4"><i style="width:' + (idx * 25) + '%"></i></div>' +
-      '<p class="ap-prox">' + esc(prox ? 'Próximo nível: ' + prox + '. ' + COMO[nv] : COMO.master) + '</p>' +
-      (textoFaltam(pr) ? '<p class="ap-falta">' + esc(textoFaltam(pr)) + '</p>' : '') +
-      '<span class="ap-rot">Próximo passo</span><button type="button" class="nx-btn ap-cta" data-acao="' + pp.acao + '"' + (pp.arg ? ' data-arg="' + esc(pp.arg) + '"' : '') + '>' + esc(pp.rot) + '</button></section>';
+
+  function telaInicio() {
+    var h = '<div class="in">';
+    h += nivelHTML();
     h += '<div id="np-inst-ini">' + instalarHTML() + '</div>';
-    h += '<section class="ap-sec" aria-label="Atalhos"><div class="ap-atalhos">' +
-      atalhoApp('Gerar proposta', 'gerar', 'propostas', { prim: true }) + atalhoApp('Equipamentos', 'equipamentos', 'equipamentos') +
-      atalhoApp('Serviços NEXUS', 'servicos', 'servicos', { trava: travada('servicos') }) + atalhoApp('Minhas propostas', 'propostas', 'propostas/lista') +
-      atalhoApp('Engenharia', 'engenharia', 'engenharia', { trava: travada('engenharia') }) + atalhoApp('Minha parceria', 'parceria', 'parceria') + '</div></section>';
-    h += '<section class="ap-sec"><div class="ap-tit"><h2>Os carregadores da rede</h2><button type="button" class="np-linkgrande" data-acao="ir" data-arg="equipamentos">Ver todos</button></div>' +
-      (ps.length ? '<div class="ap-carrossel" role="region" aria-label="Carregadores da rede. Deslize para o lado para ver o próximo." tabindex="0">' + ps.map(cardCarrossel).join('') + '</div>' +
-        (ps.length > 1 ? '<div class="ap-dots" aria-hidden="true">' + ps.map(function (x, i) { return '<i' + (i === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' : '')
-        : '<div class="np-vazio-sec">O catálogo não carregou. Atualize a página.</div>') + '</section>';
-    h += '<section class="ap-sec"><div class="ap-tit"><h2>Procura na sua região</h2>' + (S.demo ? '<span class="nx-chip ex">Dados de exemplo</span>' : '') + '</div><div id="np-procura">' + girando('Carregando a procura') + '</div></section>';
-    h += '<section class="ap-sec"><h2>Mercado no seu estado</h2><div id="np-mercuf">' + girando('Carregando o mercado') + '</div></section>';
-    h += '<section class="ap-sec"><div class="ap-tit"><h2>Oportunidades na sua região</h2>' +
-      (libera('oportunidades') ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="oportunidades">Ver todas</button>' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>') + '</div>' +
-      '<div id="np-opsini">' + (libera('oportunidades') ? girando('Carregando as oportunidades') : opsBloqueadasMini()) + '</div></section>';
+    h += atalhosHTML();
+    h += indiceHTML();
+    h += '<section class="in-sec" id="ini-resumo" tabindex="-1" aria-labelledby="ini-resumo-t">' + secaoCab('ini-resumo', 'Resumo do mês') + '<div class="in-nums" id="in-resumo-corpo">' + resumoCorpoHTML() + '</div></section>';
+    h += '<section class="in-sec" id="ini-carregadores" tabindex="-1" aria-labelledby="ini-carregadores-t">' +
+      secaoCab('ini-carregadores', 'Carregadores', '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="equipamentos">Ver todos</button>') + carregadoresHTML() + '</section>';
+    h += '<section class="in-sec" id="ini-mercado" tabindex="-1" aria-labelledby="ini-mercado-t">' + secaoCab('ini-mercado', 'Mercado') +
+      '<p class="nx-sub in-sub">A procura por eletroposto que chega à NEXUS e a frota de veículos plug-in, com o seu estado em destaque.</p>' +
+      '<h3 class="in-h3">Procura por eletroposto</h3><div id="in-m-proc">' + girando('Carregando a procura') + '</div>' +
+      '<div id="in-m-frota">' + girando('Carregando o mercado') + '</div><div class="in-fontes" id="in-m-fontes"></div></section>';
+    h += '<section class="in-sec" id="ini-oportunidades" tabindex="-1" aria-labelledby="ini-oportunidades-t">' +
+      secaoCab('ini-oportunidades', 'Oportunidades na sua região', libera('oportunidades') ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="oportunidades">Ver todas</button>' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>') +
+      '<div id="np-opsini">' + (libera('oportunidades') ? girando('Carregando as oportunidades') : opsBloqueadasHTML()) + '</div></section>';
+    h += '<section class="np-chamadas in-chamadas"><div class="np-chamada"><span class="ico">' + ic('engenharia') + '</span><h3>Engenharia NEXUS</h3><p>Precisa de projeto elétrico, ART, estudo da entrada de energia ou homologação na distribuidora? A NEXUS faz para você.</p>' +
+      '<button type="button" class="nx-btn" data-acao="ir" data-arg="servicos/engenharia">Pedir engenharia</button></div></section>';
     h += '<section class="np-rodape"><p>A NEXUS é importadora. O cliente e a obra da sua região são seus.</p><p>Nada é cobrado sobre a sua obra. Sem mensalidade. Sem taxa de entrada.</p></section>';
     return h + '</div>';
   }
-  function posInicioApp() {
-    carregarProcura('np-procura', 'mini');
-    carregarFrota(function () { var el = $('#np-mercuf'); if (el) el.innerHTML = mercadoUfMini(); }, 'np-mercuf');
+  function posInicio() {
+    carregarProcura('in-m-proc');
+    carregarFrota(pintarMercadoFrota, 'in-m-frota');
+    carregarPropostasInicio();
     if (libera('oportunidades')) carregarOpsInicio();
     var car = $('.ap-carrossel');
     if (car && car.children.length > 1) {
@@ -1365,41 +1421,145 @@
         $$('.ap-dots i').forEach(function (d, k) { d.classList.toggle('on', k === i); });
       }, { passive: true });
     }
+    observarSecoes();
   }
-  /* grafico pequeno de colunas (SVG proprio, largura 100%; o desenharGrafs ignora caixas estreitas) */
-  function miniBarras(linhas, aria) {
-    var W = 240, H = 76, base = 56, topo = 6, n = linhas.length, gap = 8, bw = (W - gap * (n - 1)) / n, max = 1, out = '';
-    linhas.forEach(function (l) { max = Math.max(max, l.val); });
-    linhas.forEach(function (l, i) {
-      var hh = Math.max(3, (l.val / max) * (base - topo)), x = i * (bw + gap), y = base - hh, cor = l.dest ? '#0060C7' : '#7D8CA3';
-      out += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hh.toFixed(1) + '" rx="3" fill="' + cor + '"' + (l.parcial ? ' fill-opacity=".35" stroke="' + cor + '" stroke-width="1.5"' : '') + '/>' +
-        '<text x="' + (x + bw / 2).toFixed(1) + '" y="70" text-anchor="middle" font-size="10" font-weight="' + (l.dest ? 700 : 500) + '" fill="#4A5568">' + esc(l.rot) + '</text>';
+  function carregarPropostasInicio() {
+    var t = S.tela;
+    S.propEstado = S.propostas ? 'ok' : 'carregando';
+    listarPropostas().then(function (l) { S.propostas = l; S.propErro = false; S.propEstado = 'ok'; }, function () { if (!S.propostas) S.propEstado = 'erro'; }).then(function () {
+      if (S.tela !== t) return;
+      atualizarVivo(); reajustarSecao();
     });
-    return '<svg class="ap-mini-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(aria) + '">' + out + '</svg>';
   }
-  function procuraMini(d, uf) {
-    var n = d.meses.length;
-    var linhas = d.meses.map(function (m, i) { return { rot: rotuloMes(m.mes), val: num(m.total), dest: true, parcial: i === n - 1 }; });
-    var tres = d.meses.slice(-3).reduce(function (a, m) { return a + num(m.total); }, 0);
-    var aria = 'Gráfico de colunas das reuniões de eletroposto agendadas pela NEXUS no Brasil por mês: ' + linhas.map(function (l) { return l.rot + ' ' + fmt(l.val); }).join(', ') + '. O último mês é parcial';
-    return '<div class="ap-mini"><div class="topo"><strong class="n">' + esc(fmt(uf ? d.reunioes_90d_uf : tres)) + '</strong><p class="tit">' +
-      (uf ? 'Reuniões de eletroposto em ' + esc(nomeUf(uf)) + ' nos últimos 90 dias' : 'Reuniões de eletroposto agendadas pela NEXUS no Brasil nos 3 últimos meses') + '</p></div>' +
-      miniBarras(linhas, aria) + '<p class="nota">Barras: reuniões por mês no Brasil, o último mês é parcial.' + (uf ? '' : ' Informe a UF no perfil para ver o seu estado.') + '</p>' +
-      '<p class="np-fonte">' + esc(fonteProcura(d.meses)) + '</p>' +
-      '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="' + (uf ? 'mercado' : 'perfil') + '">' + (uf ? 'Ver o mercado' : 'Completar o perfil') + '</button></div>';
+
+  /* índice da página: seção atual marcada (IntersectionObserver), toque leva à seção */
+  function reduzMovimento() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function rolarPara(id, suave) {
+    var el = document.getElementById(id);
+    if (!el) return false;
+    el.scrollIntoView({ block: 'start', behavior: suave && !reduzMovimento() ? 'smooth' : 'auto' });
+    try { el.focus({ preventScroll: true }); } catch (e) { /* ok */ }
+    return true;
   }
-  function mercadoUfMini() {
+  /* Chegou por #mercado ou #engenharia: rola depois de pintar e de novo quando o conteúdo de cima termina de carregar, até o parceiro mexer na tela. */
+  function irSecaoDepois(id) {
+    S.secPend = id; S.secAte = Date.now() + 5000;
+    requestAnimationFrame(function () { rolarPara(id, false); });
+  }
+  function reajustarSecao() { if (S.secPend && Date.now() < S.secAte) rolarPara(S.secPend, false); }
+  function marcarChip(id) {
+    var linha = $('#ini-indice');
+    $$('.in-chip').forEach(function (a) {
+      var on = a.dataset.sec === id;
+      a.classList.toggle('ativa', on);
+      if (on) { a.setAttribute('aria-current', 'true'); if (linha && linha.scrollWidth > linha.clientWidth) linha.scrollLeft = Math.max(0, a.offsetLeft - 16); }
+      else a.removeAttribute('aria-current');
+    });
+  }
+  function desligarIndice() {
+    if (IO) { IO.disconnect(); IO = null; }
+    if (ioFim) { window.removeEventListener('scroll', ioFim); ioFim = null; }
+  }
+  function observarSecoes() {
+    desligarIndice();
+    if (!('IntersectionObserver' in window)) return;
+    var ids = SEC_INICIO.map(function (s) { return s[2]; }), noFim = false;
+    var topo = mobile() ? 160 : 110;
+    /* Seção atual = a última cuja borda de cima já passou da linha logo abaixo das barras fixas. O IntersectionObserver só avisa quando recalcular. */
+    function avaliar() {
+      var ativo = '';
+      if (noFim) ativo = ids[ids.length - 1];
+      else ids.forEach(function (id) { var el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= topo + 8) ativo = id; });
+      marcarChip(ativo);
+    }
+    IO = new IntersectionObserver(function () { avaliar(); }, { rootMargin: '-' + topo + 'px 0px -55% 0px', threshold: [0, .1, .25, .5, .75, 1] });
+    ids.forEach(function (id) { var el = document.getElementById(id); if (el) IO.observe(el); });
+    var espera = false;
+    ioFim = function () {
+      if (espera) return;
+      espera = true;
+      requestAnimationFrame(function () {
+        espera = false;
+        noFim = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+        avaliar();
+      });
+    };
+    window.addEventListener('scroll', ioFim, { passive: true });
+  }
+
+  /* mercado: procura (API) e frota (JSON) */
+  function pintarFontes() {
+    var el = $('#in-m-fontes');
+    if (!el) return;
+    var F = S.frota, uf = ufDoParceiro(), d = S.procura[uf || 'BR'], f = [], h = '';
+    if (F) f.push(F.fonte.split(',')[0] + ', ' + F.anterior.rotulo.split(' ')[0] + ' e ' + F.referencia.rotulo + ' (frota plug-in por estado e município)');
+    if (d && d.meses) f.push(fonteProcura(d.meses).replace(/^Fonte: /, '').replace(/\.$/, '') + ' (reuniões de eletroposto)');
+    if (f.length) h += '<p class="np-fonte">Fontes: ' + esc(f.join('; ')) + '.</p>';
+    if (F && F.definicao) h += '<p class="np-fonte">' + esc(F.definicao) + '</p>';
+    el.innerHTML = h;
+  }
+  function procuraInicioHTML(d, uf) {
+    var usaUf = !!uf && d.meses.every(function (m) { return m.uf_total != null; });
+    var h = '<div class="np-par">';
+    if (uf) h += '<div class="np-card"><span class="np-grande">' + esc(fmt(d.reunioes_90d_uf)) + '</span><p class="tit">Reuniões de eletroposto em ' + esc(nomeUf(uf)) + ' nos últimos 90 dias</p><p class="nota">Só conta reuniões com o estado identificado.</p></div>';
+    else h += '<div class="np-card"><h3>Informe a UF da sua empresa</h3><p class="nota">Com a UF no perfil, mostramos a procura por eletroposto no seu estado.</p><button type="button" class="nx-btn sec" data-acao="ir" data-arg="perfil">Completar o perfil</button></div>';
+    h += '<div class="np-card dois"><h3>' + (usaUf ? 'Reuniões de eletroposto em ' + esc(nomeUf(uf)) + ', por mês' : 'Reuniões de eletroposto agendadas pela NEXUS no Brasil, por mês') + '</h3>' + colunasMeses(d, uf) + '</div></div>';
+    if (d.pct_fora_mg_go_df != null) h += '<div class="np-faixa-pct"><span class="p">' + esc(Math.round(d.pct_fora_mg_go_df)) + '%</span>da procura com estado identificado vem de fora de MG, GO e DF. É aí que entra o parceiro regional.</div>';
+    return h;
+  }
+  function pintarMercadoFrota() {
+    var el = $('#in-m-frota');
+    if (!el) return;
+    el.innerHTML = frotaInicioHTML();
+    desenharGrafs(); pintarFontes(); reajustarSecao();
+  }
+  function linhasRanking(todos) {
+    var uf = ufDoParceiro(), es = dadosEstados().sort(function (a, b) { return b.jul - a.jul; });
+    var lista = todos ? es : es.slice(0, 5), linhas = [];
+    lista.forEach(function (e) { linhas.push({ rot: e.uf, val: e.jul, txt: fmt(e.jul) + ' · ' + sinal(e.pct, 1) + '%', dest: e.uf === uf }); });
+    if (!todos && uf) {
+      es.forEach(function (e) { if (e.uf === uf && !lista.some(function (x) { return x.uf === uf; })) linhas.push({ rot: e.uf, val: e.jul, txt: fmt(e.jul) + ' · ' + sinal(e.pct, 1) + '%', dest: true, sep: true }); });
+    }
+    return linhas;
+  }
+  function rankingChart(todos) {
+    var linhas = linhasRanking(todos), F = S.frota;
+    var aria = 'Gráfico de barras horizontais da frota de veículos plug-in por estado em ' + F.referencia.rotulo + ' e o crescimento sobre ' + F.anterior.rotulo.split(' ')[0] + ', ' + (todos ? 'nos ' + linhas.length + ' estados' : 'os 5 maiores' + (ufDoParceiro() ? ' e o seu estado' : '')) + ': ' +
+      linhas.map(function (l) { return l.rot + ' ' + l.txt; }).join(', ');
+    return registrarGraf(function (W) { return svgBarrasH(W, linhas, aria, { rowH: todos ? 26 : 30, barH: todos ? 17 : 19 }); });
+  }
+  function frotaInicioHTML() {
     var F = S.frota, uf = ufDoParceiro(), es = dadosEstados();
-    var maiores = es.slice().sort(function (a, b) { return b.jul - a.jul; });
-    var top = maiores.slice(0, 6), meu = es.filter(function (e) { return e.uf === uf; })[0];
-    if (meu && !top.some(function (e) { return e.uf === uf; })) top[top.length - 1] = meu;
-    var linhas = top.map(function (e) { return { rot: e.uf, val: e.jul, dest: e.uf === uf }; });
-    var bj = F.brasil.julho, bn = F.brasil.junho, alta = bn > 0 ? Math.round((bj / bn - 1) * 100) : 0;
-    var aria = 'Gráfico de colunas de veículos plug-in por estado, os maiores' + (meu ? ' e ' + meu.nome : '') + ': ' + linhas.map(function (l) { return l.rot + ' ' + fmt(l.val); }).join(', ');
-    return '<div class="ap-mini"><div class="topo"><strong class="n">' + esc(fmt(meu ? meu.jul : bj)) + '</strong><p class="tit">' + (meu ? 'Veículos plug-in em ' + esc(meu.nome) : 'Veículos plug-in no Brasil') + '</p></div>' +
-      miniBarras(linhas, aria) + '<p class="nota">' + esc(fmt(bj)) + ' no Brasil, alta de ' + esc(alta) + '% de ' + esc(F.anterior.rotulo.split(' ')[0]) + ' para ' + esc(F.referencia.rotulo.split(' ')[0]) + '.' + (meu ? ' Seu estado em azul.' : ' Informe a UF no perfil para ver o seu estado.') + '</p>' +
-      '<p class="np-fonte">Fonte: ' + esc(F.fonte.split(',')[0]) + ', ' + esc(F.referencia.rotulo) + '.</p>' +
-      '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="mercado">Ver mercado completo</button></div>';
+    var meu = es.filter(function (e) { return e.uf === uf; })[0];
+    var mesA = F.anterior.rotulo.split(' ')[0], mesB = F.referencia.rotulo.split(' ')[0];
+    var bj = F.brasil.julho, bn = F.brasil.junho, alta = bn > 0 ? (bj / bn - 1) * 100 : 0;
+    var h = '<h3 class="in-h3">Frota plug-in</h3><div class="np-par">';
+    if (meu) {
+      var rank = es.slice().sort(function (a, b) { return b.jul - a.jul; }).map(function (e) { return e.uf; }).indexOf(uf) + 1;
+      h += '<div class="np-escuro"><span class="np-rot">' + esc(meu.nome) + '</span><span class="v">' + esc(fmt(meu.jul)) + '</span><p>Veículos plug-in em ' + esc(F.referencia.rotulo) + '</p>' +
+        '<dl class="in-f3"><div><dt>' + esc(mesA.charAt(0).toUpperCase() + mesA.slice(1)) + '</dt><dd>' + esc(fmt(meu.jun)) + '</dd></div><div><dt>' + esc(mesB.charAt(0).toUpperCase() + mesB.slice(1)) + '</dt><dd>' + esc(fmt(meu.jul)) + '</dd></div>' +
+        '<div><dt>Crescimento</dt><dd>' + esc(sinal(meu.pct, 1)) + '%</dd></div></dl>' +
+        '<p class="s">' + esc(sinal(meu.dif)) + ' carros no mês. É o ' + rank + 'º estado do Brasil em frota plug-in.</p></div>';
+    } else {
+      h += '<div class="np-card"><span class="np-grande m">' + esc(fmt(bj)) + '</span><p class="tit">Veículos plug-in no Brasil em ' + esc(F.referencia.rotulo) + '</p><p class="nota">Informe a UF da empresa no perfil para ver a frota, a posição e as cidades do seu estado.</p>' +
+        '<button type="button" class="nx-btn sec" data-acao="ir" data-arg="perfil">Completar o perfil</button></div>';
+    }
+    h += '<div class="np-card"><h3>Brasil</h3><div class="in-f3 claro"><div><span>' + esc(F.referencia.rotulo) + '</span><b>' + esc(fmt(bj)) + '</b></div><div><span>' + esc(F.anterior.rotulo) + '</span><b>' + esc(fmt(bn)) + '</b></div><div><span>Crescimento</span><b>' + esc(sinal(alta, 1)) + '%</b></div></div>' +
+      '<p class="nota">' + esc(sinal(bj - bn)) + ' carros plug-in a mais em um mês.</p></div></div>';
+    if (meu) {
+      var cid = F.cidades.filter(function (c) { return c.uf === uf; }).sort(function (a, b) { return b.julho - a.julho; }).slice(0, 5);
+      h += '<div class="np-card"><div><h3>Onde vender no seu estado</h3><p class="nota">' + (cid.length ? 'As ' + (cid.length === 1 ? 'cidade' : cid.length + ' cidades') + ' de ' + esc(meu.nome) + ' com mais carros plug-in, entre as que têm ' + esc(F.piso_cidade) + ' ou mais veículos.' : '') + '</p></div>';
+      if (cid.length) {
+        var lc = cid.map(function (c) { return { rot: c.nome, val: c.julho, txt: fmt(c.julho) }; });
+        var ariaC = 'Gráfico de barras horizontais das cidades de ' + meu.nome + ' com mais carros plug-in em ' + F.referencia.rotulo + ': ' + lc.map(function (l) { return l.rot + ' ' + l.txt; }).join(', ');
+        h += registrarGraf(function (W) { return svgBarrasH(W, lc, ariaC, { rowH: 30, barH: 19 }); });
+      } else h += '<div class="np-vazio-sec">Nenhuma cidade do estado chega a ' + esc(F.piso_cidade) + ' veículos plug-in.</div>';
+      h += '</div>';
+    }
+    h += '<div class="np-card"><div><h3>Ranking do Brasil</h3><p class="nota">Frota plug-in em ' + esc(F.referencia.rotulo) + ' e crescimento sobre ' + esc(mesA) + '.' + (uf ? ' ' + esc(nomeUf(uf)) + ' em destaque.' : '') + '</p></div>' +
+      '<div id="in-m-rank">' + rankingChart(!!S.todosEstados) + '</div>' +
+      '<button type="button" class="nx-btn sec in-27" data-acao="estados27" aria-expanded="' + (!!S.todosEstados) + '" aria-controls="in-m-rank">' + (S.todosEstados ? 'Ver só os 5 primeiros' : 'Ver os ' + es.length + ' estados') + '</button></div>';
+    return h;
   }
   function opMini(o) {
     var local = [o.cidade ? o.cidade + (o.uf ? '/' + o.uf : '') : (o.uf || ''), o.distancia_km != null ? fmt(o.distancia_km) + ' km' : ''].filter(Boolean).join(' · ');
@@ -1424,16 +1584,16 @@
   function ufDoParceiro() { var u = S.eu && S.eu.parceiro && S.eu.parceiro.uf; return u && UFS.indexOf(String(u).toUpperCase()) >= 0 ? String(u).toUpperCase() : ''; }
   var NOME_UF = { AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia", CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás", MA: "Maranhão", MT: "Mato Grosso", MS: "Mato Grosso do Sul", MG: "Minas Gerais", PA: "Pará", PB: "Paraíba", PR: "Paraná", PE: "Pernambuco", PI: "Piauí", RJ: "Rio de Janeiro", RN: "Rio Grande do Norte", RS: "Rio Grande do Sul", RO: "Rondônia", RR: "Roraima", SC: "Santa Catarina", SP: "São Paulo", SE: "Sergipe", TO: "Tocantins" };
   function nomeUf(uf) { return NOME_UF[uf] || uf; }
-  function carregarProcura(destino, completo) {
+  function carregarProcura(destino) {
     var uf = ufDoParceiro(), t = S.tela;
     var chave = uf || 'BR';
-    function pinta(d) { var el = document.getElementById(destino); if (el && S.tela === t) { el.innerHTML = procuraHTML(d, completo, uf); desenharGrafs(); } }
+    function pinta(d) { var el = document.getElementById(destino); if (el && S.tela === t) { el.innerHTML = procuraInicioHTML(d, uf); desenharGrafs(); pintarFontes(); reajustarSecao(); } }
     function erro() {
       var el = document.getElementById(destino);
       if (el && S.tela === t) el.innerHTML = secErro('Não foi possível carregar a procura agora.', 'recarregarProcura');
     }
     if (S.procura[chave]) { pinta(S.procura[chave]); return; }
-    S.procuraDestino = destino; S.procuraCompleto = !!completo;
+    S.procuraDestino = destino;
     api('GET', NX + '/procura' + (uf ? '?uf=' + uf : ''), undefined, { quieto: true }).then(function (r) {
       if (S.tela !== t) return;
       if (r.ok && r.data && Array.isArray(r.data.meses)) { S.procura[chave] = r.data; pinta(r.data); }
@@ -1447,39 +1607,13 @@
     var ma = MESES[+a.slice(5, 7) - 1], mb = MESES[+b.slice(5, 7) - 1];
     return 'Fonte: Agenda NEXUS, ' + (a.slice(0, 4) === b.slice(0, 4) ? ma + ' a ' + mb + ' de ' + b.slice(0, 4) : ma + ' de ' + a.slice(0, 4) + ' a ' + mb + ' de ' + b.slice(0, 4)) + '.';
   }
-  function colunasMeses(d) {
-    var n = d.meses.length, pts = d.meses.map(function (m, i) { return { rot: rotuloMes(m.mes), val: num(m.total), parcial: i === n - 1 }; });
+  function colunasMeses(d, uf) {
+    var usaUf = !!uf && d.meses.every(function (m) { return m.uf_total != null; });
+    var n = d.meses.length, pts = d.meses.map(function (m, i) { return { rot: rotuloMes(m.mes), val: num(usaUf ? m.uf_total : m.total), parcial: i === n - 1 }; });
     var b = brt(d.atualizado_em ? new Date(d.atualizado_em) : new Date());
     var parcial = 'Parcial, até ' + p2(b.dia) + '/' + p2(b.mes);
-    var aria = 'Gráfico de colunas das reuniões de eletroposto agendadas pela NEXUS no Brasil: ' + d.meses.map(function (m) { return rotuloMes(m.mes) + ' ' + num(m.total); }).join(', ') + ' (último mês parcial, ' + parcial.toLowerCase() + ')';
+    var aria = 'Gráfico de colunas das reuniões de eletroposto agendadas pela NEXUS ' + (usaUf ? 'em ' + nomeUf(uf) : 'no Brasil') + ' por mês: ' + pts.map(function (p) { return p.rot + ' ' + fmt(p.val); }).join(', ') + ' (último mês parcial, ' + parcial.toLowerCase() + ')';
     return registrarGraf(function (W, id) { return svgColunas(W, id, pts, 'Reuniões agendadas', parcial, aria); });
-  }
-  function barrasPorUf(d, uf) {
-    var lista = (d.por_uf || []).slice(), top = lista.slice(0, 10), linhas = [];
-    top.forEach(function (x) { linhas.push({ rot: x.uf, val: num(x.total), txt: fmt(x.total), dest: x.uf === uf }); });
-    if (uf && !top.some(function (x) { return x.uf === uf; })) {
-      lista.forEach(function (x) { if (x.uf === uf) linhas.push({ rot: x.uf, val: num(x.total), txt: fmt(x.total), dest: true, sep: true }); });
-    }
-    if (!linhas.length) return '<div class="np-vazio-sec">Ainda não há reuniões com o estado identificado.</div>';
-    var aria = 'Gráfico de barras horizontais das reuniões de eletroposto com estado identificado: ' + linhas.map(function (l) { return l.rot + ' ' + l.txt; }).join(', ');
-    return registrarGraf(function (W) { return svgBarrasH(W, linhas, aria); });
-  }
-  function procuraHTML(d, completo, uf) {
-    if (completo === 'mini') return procuraMini(d, uf);
-    if (completo) {
-      return '<div class="np-par" style="align-items:flex-start"><div class="np-card"><h3>Reuniões de eletroposto agendadas pela NEXUS no Brasil, por mês</h3>' + colunasMeses(d) + '</div>' +
-        '<div class="np-card"><div><h3>Reuniões por estado, só com o estado identificado</h3>' + (uf ? '<p class="nota">' + esc(nomeUf(uf)) + ' em destaque.</p>' : '') + '</div>' + barrasPorUf(d, uf) + '</div></div><p class="np-fonte">' + esc(fonteProcura(d.meses)) + '</p>';
-    }
-    var h = '<div class="np-par">';
-    if (uf) {
-      h += '<div class="np-card"><span class="np-grande">' + esc(fmt(d.reunioes_90d_uf)) + '</span><p class="tit">Reuniões de eletroposto em ' + esc(nomeUf(uf)) + ' nos últimos 90 dias</p><p class="nota">Só conta reuniões com o estado identificado.</p></div>';
-    } else {
-      h += '<div class="np-card"><h3>Informe a UF da sua empresa</h3><p class="nota">Com a UF no perfil, mostramos a procura por eletroposto no seu estado.</p><button type="button" class="nx-btn sec" data-acao="ir" data-arg="perfil">Completar o perfil</button></div>';
-    }
-    h += '<div class="np-card dois"><h3>Reuniões de eletroposto agendadas pela NEXUS no Brasil</h3>' + colunasMeses(d) + '</div></div>';
-    if (d.pct_fora_mg_go_df != null) h += '<div class="np-faixa-pct"><span class="p">' + esc(Math.round(d.pct_fora_mg_go_df)) + '%</span>da procura com estado identificado vem de fora de MG, GO e DF. É aí que entra o parceiro regional.</div>';
-    h += '<p class="np-fonte">' + esc(fonteProcura(d.meses)) + '</p>';
-    return h;
   }
 
   /* Frota (JSON estatico) */
@@ -1507,26 +1641,6 @@
     });
   }
   function sinal(n, d) { return (n >= 0 ? '+' : '-') + fmt(Math.abs(n), d); }
-  function refRotulo() { return S.frota.referencia.rotulo; }
-  function mercadoUfHTML(resumo) {
-    var F = S.frota, uf = ufDoParceiro(), es = dadosEstados();
-    var maiores = es.slice().sort(function (a, b) { return b.jul - a.jul; });
-    var top = maiores.slice(0, 10), linhas = [];
-    top.forEach(function (e) { linhas.push({ rot: e.uf, val: e.jul, txt: fmt(e.jul) + (e.uf === uf ? ' · ' + e.nome : ''), dest: e.uf === uf }); });
-    var meu = es.filter(function (e) { return e.uf === uf; })[0];
-    if (meu && !top.some(function (e) { return e.uf === uf; })) linhas.push({ rot: meu.uf, val: meu.jul, txt: fmt(meu.jul) + ' · ' + meu.nome, dest: true, sep: true });
-    var bj = F.brasil.julho, bn = F.brasil.junho, alta = bn > 0 ? Math.round((bj / bn - 1) * 100) : 0;
-    var aria = 'Gráfico de barras horizontais de veículos plug-in por estado, os 10 maiores' + (meu ? ' e ' + meu.nome : '') + ': ' + linhas.map(function (l) { return l.rot + ' ' + fmt(l.val); }).join(', ');
-    var h = '<div class="np-par"><div class="np-card">';
-    if (meu) h += '<span class="np-grande m">' + esc(fmt(meu.jul)) + '</span><p class="tit">Veículos plug-in em ' + esc(meu.nome) + '</p><p class="nota">' + esc(fmt(bj)) + ' no Brasil, alta de ' + esc(alta) + '% de ' + esc(F.anterior.rotulo.split(' ')[0]) + ' para ' + esc(F.referencia.rotulo.split(' ')[0]) + '.</p>';
-    else h += '<span class="np-grande m">' + esc(fmt(bj)) + '</span><p class="tit">Veículos plug-in no Brasil</p><p class="nota">Alta de ' + esc(alta) + '% de ' + esc(F.anterior.rotulo.split(' ')[0]) + ' para ' + esc(F.referencia.rotulo.split(' ')[0]) + '. Informe a UF no perfil para ver o seu estado.</p><button type="button" class="nx-btn sec" data-acao="ir" data-arg="perfil">Completar o perfil</button>';
-    h += '</div><div class="np-card dois"><h3>Veículos plug-in por estado, os 10 maiores' + (meu && !top.some(function (e) { return e.uf === uf; }) ? ' e ' + esc(meu.nome) : (meu ? '' : '')) + '</h3>' +
-      registrarGraf(function (W) { return svgBarrasH(W, linhas, aria); }) + '</div></div>';
-    h += '<div class="np-tit-linha"><p class="np-fonte">Fonte: ' + esc(F.fonte.split(',')[0]) + ', ' + esc(F.referencia.rotulo) + '.</p>' +
-      (resumo ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="mercado">Ver mercado completo</button>' : '') + '</div>';
-    return h;
-  }
-
   /* Oportunidades na Início */
   function tipoOp(o) { return o.tipo === 'obra' ? 'Obra terceirizada NEXUS' : 'Cliente para você vender'; }
   function opLinha(o, comBotao) {
@@ -1538,12 +1652,16 @@
     var t = S.tela;
     api('GET', NX + '/oportunidades', undefined, { quieto: true }).then(function (r) {
       var el = $('#np-opsini');
-      if (!el || S.tela !== t) return;
-      if (!r.ok) { el.innerHTML = secErro('Não foi possível carregar as oportunidades agora.', 'recarregarOps'); return; }
-      var l = ((r.data && r.data.oportunidades) || []).filter(function (o) { return o.status === 'oferecida'; })
+      if (S.tela !== t) return;
+      if (!r.ok) { S.ops = null; S.opsErro = true; atualizarVivo(); if (el) el.innerHTML = secErro('Não foi possível carregar as oportunidades agora.', 'recarregarOps'); return; }
+      S.ops = (r.data && r.data.oportunidades) || []; S.opsErro = false;
+      atualizarVivo();
+      if (!el) return;
+      var l = S.ops.filter(function (o) { return o.status === 'oferecida'; })
         .sort(function (a, b) { return new Date(a.prazo_aceite) - new Date(b.prazo_aceite); }).slice(0, 3);
       if (!l.length) { el.innerHTML = '<div class="np-vazio-sec">Nenhuma oportunidade aberta na sua região agora. Quando a NEXUS tiver um cliente ou uma obra para você, ela aparece aqui.</div>'; return; }
       el.innerHTML = mobile() ? '<div class="ap-ops">' + l.map(opMini).join('') + '</div>' : '<div class="np-ops">' + l.map(function (o) { return opLinha(o, true); }).join('') + '</div>';
+      reajustarSecao();
     });
   }
   function opsBloqueadasHTML() {
@@ -1558,54 +1676,6 @@
   }
   function telaOpsBloqueada() {
     return '<div class="np-pagina"><section class="np-sec"><h1 class="nx-h1">Oportunidades na sua região</h1><p class="nx-sub">Clientes e obras da NEXUS que chegam para os parceiros Pro da sua região.</p>' + opsBloqueadasHTML() + '</section></div>';
-  }
-
-  /* ------------------------------------------------------------------ Mercado */
-  function telaMercado() {
-    return '<div class="np-pagina"><section class="np-sec"><div><h1 class="nx-h1">Mercado</h1><p class="nx-sub" style="max-width:720px;margin:0">A frota de veículos plug-in no Brasil e a procura por eletroposto que chega à NEXUS.</p></div>' +
-      '<div id="np-mer-a">' + girando('Carregando o mercado') + '</div></section>' +
-      '<section class="np-sec" id="np-mer-b"></section>' +
-      '<section class="np-sec"><h2>Procura que chega à NEXUS</h2><div id="np-mer-c">' + girando('Carregando a procura') + '</div></section></div>';
-  }
-  function posMercado() {
-    carregarFrota(function () {
-      var a = $('#np-mer-a'), b = $('#np-mer-b');
-      if (!a || !b) return;
-      var m = mercadoCompleto();
-      a.innerHTML = m.kpis; b.innerHTML = m.estados;
-      desenharGrafs();
-    }, 'np-mer-a');
-    carregarProcura('np-mer-c', true);
-  }
-  function mercadoCompleto() {
-    var F = S.frota, uf = ufDoParceiro(), es = dadosEstados();
-    var bj = F.brasil.julho, bn = F.brasil.junho, dif = bj - bn, alta = bn > 0 ? Math.round((bj / bn - 1) * 100) : 0;
-    var mesA = F.anterior.rotulo.split(' ')[0], mesB = F.referencia.rotulo.split(' ')[0];
-    var kpis = '<div class="np-kpis"><div class="np-num"><strong class="az">' + esc(fmt(bj)) + '</strong><span>Veículos plug-in no Brasil em ' + esc(F.referencia.rotulo) + '</span></div>' +
-      '<div class="np-num"><strong>' + esc(sinal(dif)) + '</strong><span>Carros plug-in a mais em um mês</span></div>' +
-      '<div class="np-num"><strong>' + esc(sinal(alta)) + '%</strong><span>Alta da frota de ' + esc(mesA) + ' para ' + esc(mesB) + '</span></div></div>';
-    var cres = es.slice().sort(function (a, b) { return b.pct - a.pct; });
-    var linhas = cres.map(function (e) { return { rot: e.uf, val: Math.max(e.pct, 0.1), txt: sinal(e.pct, 1) + '% · ' + sinal(e.dif) + ' carros', dest: e.uf === uf }; });
-    var ariaE = 'Gráfico de barras horizontais com o crescimento da frota plug-in de ' + mesA + ' para ' + mesB + ' nos ' + es.length + ' estados, do maior para o menor: ' + cres.map(function (e) { return e.uf + ' ' + sinal(e.pct, 1) + '%'; }).join(', ');
-    var h = '<h2>Frota plug-in por estado</h2><div class="np-par" style="align-items:flex-start"><div class="np-card dois"><div><h3>Crescimento da frota de ' + esc(mesA) + ' para ' + esc(mesB) + ', nos ' + es.length + ' estados</h3><p class="nota">Do maior para o menor crescimento.' + (uf ? ' ' + esc(nomeUf(uf)) + ' em destaque.' : '') + '</p></div>' +
-      registrarGraf(function (W) { return svgBarrasH(W, linhas, ariaE, { rowH: 26, barH: 17 }); }) + '</div><div style="display:flex;flex-direction:column;gap:16px;min-width:0">';
-    var meu = es.filter(function (e) { return e.uf === uf; })[0];
-    if (meu) {
-      var rank = es.slice().sort(function (a, b) { return b.jul - a.jul; }).map(function (e) { return e.uf; }).indexOf(uf) + 1;
-      h += '<div class="np-escuro"><span class="np-rot">' + esc(meu.nome) + '</span><span class="v">' + esc(fmt(meu.jul)) + '</span><p>Veículos plug-in em ' + esc(F.referencia.rotulo) + '</p><p class="s">' + esc(sinal(meu.dif)) + ' no mês, alta de ' + esc(fmt(meu.pct, 1)) + '%. É o ' + rank + 'º estado em frota.</p></div>';
-      var cid = F.cidades.filter(function (c) { return c.uf === uf; }).sort(function (a, b) { return b.julho - a.julho; });
-      h += '<div class="np-card"><div><h3>Cidades de ' + esc(meu.nome) + ' com mais carros plug-in</h3><p class="nota">' + (cid.length ? (cid.length === 1 ? 'A cidade do estado com ' : 'As ' + cid.length + ' cidades do estado com ') + esc(F.piso_cidade) + ' ou mais veículos.' : '') + '</p></div>';
-      if (cid.length) {
-        var lc = cid.slice(0, 12).map(function (c) { return { rot: c.nome, val: c.julho, txt: fmt(c.julho) }; });
-        var ariaC = 'Gráfico de barras horizontais das cidades de ' + meu.nome + ' com mais carros plug-in em ' + F.referencia.rotulo + ': ' + lc.map(function (l) { return l.rot + ' ' + l.txt; }).join(', ');
-        h += registrarGraf(function (W) { return svgBarrasH(W, lc, ariaC, { rowH: 30, barH: 19 }); });
-      } else h += '<div class="np-vazio-sec">Nenhuma cidade do estado chega a ' + esc(F.piso_cidade) + ' veículos plug-in.</div>';
-      h += '</div>';
-    } else {
-      h += '<div class="np-card"><h3>Veja o seu estado</h3><p class="nota">Informe a UF da empresa no perfil para ver a frota e as cidades do seu estado.</p><button type="button" class="nx-btn sec" data-acao="ir" data-arg="perfil">Completar o perfil</button></div>';
-    }
-    h += '</div></div><p class="np-fonte">Fonte: ' + esc(F.fonte.split(',')[0]) + ', ' + esc(mesA) + ' e ' + esc(F.referencia.rotulo) + '.</p>';
-    return { kpis: kpis, estados: h };
   }
 
   /* ------------------------------------------------------------------ Equipamentos */
@@ -1973,7 +2043,7 @@
         '<div class="np-num"><strong>' + esc(fmt(sd.comprados)) + '</strong><span>Projetos comprados</span></div>' +
         '<div class="np-num"><strong>' + esc(fmt(sd.usados)) + '</strong><span>Projetos usados</span></div>' +
         '<div class="np-num"><strong class="az">' + esc(fmt(sd.disponiveis)) + '</strong><span>Projetos disponíveis</span></div></div>' +
-        (sd.disponiveis > 0 ? '<div><button type="button" class="nx-btn" data-acao="ir" data-arg="engenharia">Usar um projeto do pacote</button></div>'
+        (sd.disponiveis > 0 ? '<div><button type="button" class="nx-btn" data-acao="ir" data-arg="servicos/engenharia">Usar um projeto do pacote</button></div>'
           : '<p class="nx-dica">Sem saldo agora. Compre um pacote abaixo para usar nos próximos pontos.</p>') + '</div>';
     } else {
       h += '<div class="np-vazio-sec">Saldo disponível depois da primeira compra de pacote.</div>';
@@ -1988,6 +2058,9 @@
       return '<article class="np-pacote"><div><span class="np-rot">' + n + ' projetos</span><h3>' + esc(nomePacote(n)) + '</h3></div>' +
         precoParceiro('eng-' + n, 'Preço de parceiro', 'Negociado com o comercial') + acao + '</article>';
     }).join('') + '</div></section>';
+
+    /* Pedir engenharia: o formulário e a lista que eram da aba Engenharia (rede.js). Vem logo depois dos pacotes, antes de tudo que carrega depois. */
+    h += '<section class="np-sec" id="sv-pedir-eng" tabindex="-1" aria-label="Pedir engenharia"><div id="np-rede-eng"></div></section>';
 
     /* Consultoria de vendas */
     var acaoC;
@@ -2014,7 +2087,33 @@
     h += '<section class="np-sec"><h2>Seus pedidos de serviços</h2><div id="sv-pedidos">' + girando('Carregando os pedidos') + '</div></section>';
     return h + '</div>';
   }
-  function posServicos() { carregarPedidosServ(); }
+  function posServicos() {
+    carregarPedidosServ();
+    montarEngenhariaEmbutida();
+  }
+  /* O formulário fica num nó que sobrevive aos repaints da tela (pedir pacote, consultoria, recarregar o /eu): sem isso o texto digitado e o "Pedido recebido" sumiriam. */
+  function montarEngenhariaEmbutida() {
+    var slot = $('#np-rede-eng');
+    if (!slot) return;
+    if (S.engHost) { slot.appendChild(S.engHost); return; }
+    var host = document.createElement('div');
+    S.engHost = host;
+    slot.appendChild(host);
+    var c = ctxBase(); c.embutido = true;
+    if (!window.NexusRede || typeof window.NexusRede.montar !== 'function') {
+      esperarScript(function () { return window.NexusRede && typeof window.NexusRede.montar === 'function'; }, host, 'Carregando', function () { montarEngenhariaEmbutida2(host, c); });
+      return;
+    }
+    montarEngenhariaEmbutida2(host, c);
+  }
+  function montarEngenhariaEmbutida2(host, c) {
+    host.innerHTML = '';
+    try { window.NexusRede.montar(host, 'engenharia', c); }
+    catch (e) {
+      host.innerHTML = '<div class="nx-cartao nx-vazio">' + ic('engenharia') + '<h2>Não foi possível abrir o pedido de engenharia</h2><p>Tente de novo. Se continuar assim, fale com a gente.</p><button type="button" class="nx-btn" data-acao="repintar">Tentar de novo</button></div>';
+      if (window.console) console.error('NexusRede.montar falhou', e);
+    }
+  }
   function carregarPedidosServ() {
     var t = S.tela;
     api('GET', NX + '/pedidos', undefined, { quieto: true }).then(function (r) {
@@ -2449,7 +2548,7 @@
       if (ehCadastro()) { aposSessaoCadastro(); return; }
       S.fase = 'app';
       var rh = rotaDoHash();
-      S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : '';
+      S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : ''; S.sec = rh ? rh.sec : '';
       pintar();
       var chave = 'nx_abriu', ja = false;
       try { ja = !!sessionStorage.getItem(chave); sessionStorage.setItem(chave, '1'); } catch (e) { /* ok */ }
@@ -2527,7 +2626,7 @@
       return api('PUT', NX + '/perfil', corpo).then(function (r) {
         if (r.tratado) return;
         if (r.ok && r.data && r.data.parceiro && ehCadastro()) { S.eu = r.data; aposSessaoCadastro(); return; }
-        if (r.ok && r.data && r.data.parceiro) { S.eu = r.data; S.fase = 'app'; S.rota = 'perfil'; S.sub = ''; history.replaceState(null, '', '#perfil'); pintar(); toast('Empresa cadastrada. Agora complete o perfil.'); return; }
+        if (r.ok && r.data && r.data.parceiro) { S.eu = r.data; S.fase = 'app'; S.rota = 'perfil'; S.sub = ''; S.sec = ''; history.replaceState(null, '', '#perfil'); pintar(); toast('Empresa cadastrada. Agora complete o perfil.'); return; }
         ocupado(btn, false);
         erroForm(f, textoErro(r, 'Não foi possível salvar o CNPJ.'));
       });
@@ -2606,7 +2705,7 @@
   function aposSessaoCadastro() {
     if (perfilCompleto()) {
       try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (e) { /* ok */ }
-      S.fase = 'app'; S.rota = 'inicio'; S.sub = ''; S.cad = null;
+      S.fase = 'app'; S.rota = 'inicio'; S.sub = ''; S.sec = ''; S.cad = null;
       pintar();
       return;
     }
@@ -2719,7 +2818,7 @@
         ev('perfil_salvo');
         if (!perfilCompleto()) { erroForm(f, 'O perfil ainda não ficou completo. Confira o logo, a cidade, a UF, o raio e o papel da empresa.'); return; }
         try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (x) { /* ok */ }
-        S.fase = 'app'; S.rota = 'inicio'; S.sub = ''; S.cad = null;
+        S.fase = 'app'; S.rota = 'inicio'; S.sub = ''; S.sec = ''; S.cad = null;
         pintar();
         toast('Cadastro completo. Bem-vindo à rede NEXUS.');
         return;
@@ -2778,6 +2877,21 @@
   var ACOES = {
     ir: function (el) { fecharMais(true); irPara(el.dataset.arg); },
     voltar: function (el) { fecharMais(true); irPara(el.dataset.arg); },
+    irSecao: function (el, e) {
+      if (e && e.preventDefault) e.preventDefault();
+      S.secPend = '';
+      var id = el.dataset.arg;
+      if (rolarPara(id, true)) marcarChip(id);
+    },
+    estados27: function (el) {
+      S.todosEstados = !S.todosEstados;
+      var r = $('#in-m-rank');
+      if (!r || !S.frota) return;
+      r.innerHTML = rankingChart(!!S.todosEstados);
+      el.setAttribute('aria-expanded', String(!!S.todosEstados));
+      el.textContent = S.todosEstados ? 'Ver só os 5 primeiros' : 'Ver os ' + S.frota.estados.length + ' estados';
+      desenharGrafs();
+    },
     irTab: function (el) {
       var h = el.dataset.arg, atual = S.rota + (S.sub ? '/' + S.sub : '');
       if (atual === h) { window.scrollTo(0, 0); return; }
@@ -2810,7 +2924,7 @@
     sairConta: function () {
       fecharMais(true);
       if (S.demo) { location.href = '/nexus/app'; return; }
-      limparSessao(); S.eu = null; S.msgEntrada = ''; S.emailPre = ''; S.cad = null; S.fase = 'entrada'; S.propostas = null; S.ultima = null; S.procura = {};
+      limparSessao(); S.eu = null; S.msgEntrada = ''; S.emailPre = ''; S.cad = null; S.fase = 'entrada'; S.propostas = null; S.ultima = null; S.procura = {}; S.ops = null; S.engHost = null; S.secPend = '';
       S.termoTxt = undefined; S.termoErro = false; S.termoMsg = ''; S.pedidosServ = null; S.confirmaPacote = 0; S.consultoriaAberta = false; S.plataformaPedida = false;
       history.replaceState(null, '', location.pathname + location.search); pintar();
     },
@@ -2860,9 +2974,9 @@
     enviouLink: function (el) { ev('enviou_link_whatsapp', { proposta: el.dataset.arg }); },
     recarregarProps: function () { S.propErro = false; $('#nx-props').innerHTML = girando('Carregando as propostas'); carregarPropostas(); },
     recarregarProcura: function () {
-      var d = S.procuraDestino || 'np-procura', el = document.getElementById(d);
+      var d = S.procuraDestino || 'in-m-proc', el = document.getElementById(d);
       if (el) el.innerHTML = girando('Carregando a procura');
-      carregarProcura(d, S.procuraCompleto);
+      carregarProcura(d);
     },
     recarregarFrota: function () { S.frota = null; pintarMain(true); },
     recarregarOps: function () { $('#np-opsini').innerHTML = girando('Carregando as oportunidades'); carregarOpsInicio(); },
@@ -2953,7 +3067,7 @@
     if (S.fase !== 'app') return;
     var rh = rotaDoHash();
     var antes = S.rota + '/' + S.sub;
-    S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : '';
+    S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : ''; S.sec = rh ? rh.sec : '';
     if (S.rota !== 'equipamentos' || antes !== S.rota + '/' + S.sub) { if (!S.abrirCompra) { S.qtd = 1; S.foto = 0; } }
     fecharMais(true);
     if (window.NexusFolha) window.NexusFolha.fecharTodas();
@@ -2974,6 +3088,7 @@
     document.addEventListener('focusin', function (e) { if (mobile() && campoTexto(e.target)) document.documentElement.classList.add('np-teclado'); });
     document.addEventListener('focusout', function () { setTimeout(function () { if (!campoTexto(document.activeElement)) document.documentElement.classList.remove('np-teclado'); }, 80); });
     window.addEventListener('hashchange', aoMudarHash);
+    ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (t) { window.addEventListener(t, function () { S.secPend = ''; }, { passive: true }); });
     /* Cruzou os 861 px (girou o aparelho, redimensionou a janela): fecha a gaveta e repinta no formato certo. */
     var mudouTela = function () {
       if (S.fase !== 'app' || !S.shell) return;
@@ -2992,12 +3107,12 @@
       S.montagemDemo = mm ? mm[1] === '1' : null;
       S.eu = euDemo(S.nivelDemo); S.fase = 'app';
       var rd = rotaDoHash();
-      S.rota = rd ? rd.r : 'inicio'; S.sub = rd ? rd.sub : '';
+      S.rota = rd ? rd.r : 'inicio'; S.sub = rd ? rd.sub : ''; S.sec = rd ? rd.sec : '';
       pintar();
       return;
     }
     var rh = rotaDoHash();
-    S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : '';
+    S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : ''; S.sec = rh ? rh.sec : '';
     pintar();
     api('GET', NX + '/status', undefined, { semToken: true, quieto: true, timeout: 8000 }).then(function (r) {
       if (r.status === 503 || (r.ok && r.data && r.data.ligado === false)) { S.fase = 'embreve'; pintar(); return; }

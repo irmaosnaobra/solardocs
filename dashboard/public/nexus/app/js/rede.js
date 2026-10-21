@@ -166,7 +166,7 @@
     return h('div', 'nr-cartao nr-estado', [h('p', 'nr-estado-t', titulo), h('p', 'nr-estado-p', texto)]);
   }
   function cabecalho(inst, titulo, sub) {
-    var linha = h('div', 'nr-tit-linha', [h('h1', 'nr-h1', titulo)]);
+    var linha = h('div', 'nr-tit-linha', [h(inst.ctx.embutido ? 'h2' : 'h1', 'nr-h1', titulo)]);
     if (inst.ctx.demo) linha.appendChild(h('span', 'nr-selo-demo', 'Dados de exemplo'));
     return h('section', 'nr-cab', [linha, h('p', 'nr-sub', sub)]);
   }
@@ -913,7 +913,7 @@
 
   function engenharia(inst) {
     var ctx = inst.ctx, root = inst.root, libera = ctx.libera || {};
-    var cab = cabecalho(inst, 'Engenharia NEXUS', 'Precisa de projeto elétrico, ART, estudo da entrada de energia ou homologação na distribuidora? A NEXUS faz para você.');
+    var cab = cabecalho(inst, ctx.embutido ? 'Pedir engenharia' : 'Engenharia NEXUS', 'Precisa de projeto elétrico, ART, estudo da entrada de energia ou homologação na distribuidora? A NEXUS faz para você.');
     root.appendChild(cab);
     if (!libera.engenharia) {
       root.appendChild(bloqueioPerfil(inst, 'Complete o perfil da empresa para pedir engenharia', 'O pedido fica liberado quando o perfil da sua empresa está completo.'));
@@ -939,7 +939,12 @@
     var usaRot = h('label', 'nr-radio nr-usa-pacote', [usaPac, usaTxt], { 'for': inst.pfx + 'pacote' });
     var saldoTxt = h('p', 'nr-regras-p', '');
     var irPacotes = btn('Ver os pacotes', 'sec');
-    irPacotes.addEventListener('click', function () { if (typeof ctx.irPara === 'function') ctx.irPara('#servicos'); });
+    irPacotes.addEventListener('click', function () {
+      /* Dentro de Serviços NEXUS os pacotes estão logo acima: rola até eles em vez de repintar a tela. */
+      var alvo = ctx.embutido ? document.getElementById('sv-eng') : null;
+      if (alvo) { alvo.scrollIntoView({ block: 'start', behavior: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
+      if (typeof ctx.irPara === 'function') ctx.irPara('#servicos');
+    });
     function pintarSaldo() {
       if (comprados > 0) saldoTxt.textContent = 'Seu saldo de pacotes: ' + disp + (disp === 1 ? ' projeto disponível' : ' projetos disponíveis') + ' de ' + comprados + ' comprados.';
       else saldoTxt.textContent = 'Precisa de vários projetos? Os pacotes de 3, 5 e 10 ficam em Serviços NEXUS, com preço de parceiro negociado com o comercial.';
@@ -1050,7 +1055,7 @@
     var meu = ++seq;
     ctx = ctx || {};
     limpar(container);
-    var root = h('div', 'nr nr-' + tela);
+    var root = h('div', 'nr nr-' + tela + (ctx.embutido ? ' nr-emb' : ''));
     container.appendChild(root);
     var inst = {
       ctx: ctx, root: root, pfx: 'nr' + (++uid) + '-', contadores: [], botoes: {}, tick: null,
