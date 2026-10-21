@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar/Sidebar';
 import TopBar from '@/components/TopBar/TopBar';
 import UpgradeModal from '@/components/UpgradeModal/UpgradeModal';
 import InstallBanner from '@/components/InstallBanner/InstallBanner';
+import NexusBanner from '@/components/NexusBanner/NexusBanner';
 import WhatsAppFab from '@/components/WhatsAppFab/WhatsAppFab';
 import LinkPagarPix, { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
@@ -502,6 +503,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <main className={styles.main}>
         <TopBar userEmail={user.email} companyLogo={companyLogo} />
         <div className={styles.content}>
+          {/* Convite ao Portal do Parceiro NEXUS: uma vez, no topo de toda tela logada (é onde o login
+              cai: /empresa e /dashboard). Fora das telas de admin e de compra. O banner só abre com o
+              portal ligado e lembra o fechar por usuário. */}
+          {!pathname.startsWith('/admin') && !naTelaPix && !naLoja && <NexusBanner userId={user.id} />}
           {/* Comprador do kit sem empresa: convite, não portão. É o que substitui
               o redirect pra /empresa — ele precisa da empresa cadastrada pros
               modelos saírem com a marca dele, mas descobre isso navegando. */}

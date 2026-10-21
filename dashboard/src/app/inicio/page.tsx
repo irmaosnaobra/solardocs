@@ -11,6 +11,7 @@ import {
 import { isAuthenticated } from '@/services/auth';
 import api from '@/services/api';
 import Logo from '@/components/Logo/Logo';
+import NexusBanner from '@/components/NexusBanner/NexusBanner';
 import './inicio.css';
 
 // ── Tela de atalho (launcher) — SÓ no celular ──────────────────────────────────
@@ -46,6 +47,7 @@ export default function InicioPage() {
   const [falhou, setFalhou] = useState(false);
   const [empresa, setEmpresa] = useState('');
   const [logo, setLogo] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Só vale pra quem tem empresa cadastrada; sem CNPJ → finalizar cadastro.
   // Falha de servidor ou de rede NÃO é "sem CNPJ": antes qualquer erro mandava pra
@@ -66,6 +68,14 @@ export default function InicioPage() {
     });
   }, [router]);
 
+  // Só para o banner do Portal NEXUS (fechar lembrado por usuário). Se falhar, o banner
+  // simplesmente não aparece: não derruba a tela. Estado só dentro do retorno da chamada.
+  const carregarUsuario = useCallback(() => {
+    api.get('/auth/me', { timeout: 12000 })
+      .then(({ data }) => { if (data?.user?.id) setUserId(String(data.user.id)); })
+      .catch(() => { /* sem id, sem banner */ });
+  }, []);
+
   useEffect(() => {
     // No PC, nada muda: cai direto na plataforma (o atalho é só de celular).
     if (typeof window !== 'undefined' && window.innerWidth > 768) {
@@ -74,7 +84,8 @@ export default function InicioPage() {
     }
     if (!isAuthenticated()) { router.replace('/auth?mode=login'); return; }
     carregar();
-  }, [router, carregar]);
+    carregarUsuario();
+  }, [router, carregar, carregarUsuario]);
 
   if (falhou) {
     return (
@@ -109,6 +120,9 @@ export default function InicioPage() {
         <span className="ini-brand"><span className="ini-solar">Solar</span><span className="ini-doc">Doc</span> App</span>
         <Link href={PLATAFORMA} className="ini-plataforma">Plataforma <ArrowRight size={15} strokeWidth={2.4} /></Link>
       </header>
+
+      {/* Convite ao Portal do Parceiro NEXUS: só com o portal ligado, fechável por usuário */}
+      <div className="ini-nexus"><NexusBanner userId={userId} /></div>
 
       <div className="ini-hero">
         <div className="ini-avatar">

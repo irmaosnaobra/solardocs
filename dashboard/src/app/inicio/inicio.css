@@ -72,3 +72,15 @@
 @media (min-width: 520px) {
   .ini-grid, .ini-top, .ini-hero { max-width: 460px; margin-left: auto; margin-right: auto; width: 100%; }
 }
+
+/* Banner do Portal NEXUS: a tela é clara, o banner herda os tokens escuros da plataforma. */
+.ini-nexus {
+  --color-surface: #ffffff;
+  --color-border: #e5e5e5;
+  --color-text: #111111;
+  --color-text-muted: #555555;
+  --sombra-card: none;
+  margin-top: 14px;
+}
+.ini-nexus > [role="region"] { margin-bottom: 0; }
+@media (min-width: 769px) { .ini-nexus { max-width: 460px; margin-left: auto; margin-right: auto; } }
