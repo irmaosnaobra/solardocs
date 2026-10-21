@@ -13,9 +13,9 @@ const RAIZES = [
   'ensaio', 'replay', 'armazem', 'cota', 'ia', 'contexto', 'porteiro', 'turno', 'anuncioDoLead', 'interruptores',
   join('personas', 'index'),
 ].map(n => join(A5040, `${n}.ts`));
-// A3 (painel) entra quando existir.
+// A3 (painel): a rota existe e entra sempre. Se o arquivo sumir, o teste tem que falhar.
 const ROTA_PAINEL = join(SRC, 'routes', 'geradorEnsaio5040.ts');
-if (existsSync(ROTA_PAINEL)) RAIZES.push(ROTA_PAINEL);
+RAIZES.push(ROTA_PAINEL);
 
 /** Módulos de envio: nenhum arquivo do percurso pode ser um destes. */
 const ARQUIVOS_DE_ENVIO = ['zapiClient', 'ioSend', 'encaminharMidiaConsultor', 'filaAlerta', 'lineThrottle', 'whatsappAgentService'];

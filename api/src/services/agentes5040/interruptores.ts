@@ -40,6 +40,15 @@ async function lerPadrao(): Promise<unknown> {
   return data?.value;
 }
 
+/** Lê o valor bruto da chave (objeto ou texto JSON) e devolve só o que está `true`/`false`. null = ilegível. */
+export function mapaDosInterruptores(v: unknown): Partial<Record<NomeInterruptor, boolean>> | null {
+  const m = comoMapa(v);
+  if (!m) return null;
+  const saida: Partial<Record<NomeInterruptor, boolean>> = {};
+  for (const n of ['ensaio', 'replay', 'ficha', 'sentinela'] as const) if (typeof m[n] === 'boolean') saida[n] = m[n] as boolean;
+  return saida;
+}
+
 function comoMapa(v: unknown): Mapa | null {
   let x = v;
   if (typeof x === 'string') { try { x = JSON.parse(x); } catch { return null; } }

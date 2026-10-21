@@ -143,6 +143,23 @@ describe('o selo copia a chave que o código do robô lê', () => {
     expect(selo('sentinela_vacuo', { VACUO_OFF: '0' })).toBe('ligado');
   });
 
+  it('ficha e sentinela (interruptor): ligam pela env OU pela chave do banco, e a env 0 vence a chave', () => {
+    for (const [id, env, nome] of [['ficha_consultor_5040', 'AGENTES5040_FICHA', 'ficha'], ['sentinela_ferramentas', 'AGENTES5040_SENTINELA', 'sentinela']] as const) {
+      expect(selo(id, {}), id).toBe('desligado');
+      expect(selo(id, {}, { ...SEM_BANCO, interruptores: {} }), id).toBe('desligado');
+      expect(selo(id, {}, { ...SEM_BANCO, interruptores: null }), id).toBe('desligado');
+      expect(selo(id, { [env]: '1' }), id).toBe('ligado');
+      expect(selo(id, { [env]: ' 1 ' }), id).toBe('ligado');
+      expect(selo(id, {}, { ...SEM_BANCO, interruptores: { [nome]: true } }), id).toBe('ligado');
+      expect(selo(id, {}, { ...SEM_BANCO, interruptores: { [nome]: false } }), id).toBe('desligado');
+      expect(selo(id, { [env]: '0' }, { ...SEM_BANCO, interruptores: { [nome]: true } }), id).toBe('desligado');
+      expect(selo(id, { [env]: '1' }, { ...SEM_BANCO, interruptores: { [nome]: false } }), id).toBe('ligado');
+      expect(chaveDaRegra(porId(id).regra), id).toBe(`${env} ou ag5040_interruptores`);
+    }
+    // um interruptor de outra peça não liga esta
+    expect(selo('sentinela_ferramentas', {}, { ...SEM_BANCO, interruptores: { ficha: true } })).toBe('desligado');
+  });
+
   it('PESQUISA_WHATSAPP_OFF compara sem trim, como o serviço', () => {
     expect(selo('pesquisa_satisfacao', { PESQUISA_WHATSAPP_OFF: '1' })).toBe('desligado');
     expect(selo('pesquisa_satisfacao', { PESQUISA_WHATSAPP_OFF: ' 1' })).toBe('ligado');

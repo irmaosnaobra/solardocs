@@ -43,6 +43,9 @@ export const AREAS: ReadonlyArray<{ id: AreaId; nome: string }> = Object.freeze(
  * - `sempre`: não existe chave. Roda sempre que o cron chama.
  * - `desliga`: roda, salvo se a variável tiver EXATAMENTE `valor` (`'1'` ou `'true'`).
  * - `liga`: não roda, salvo se a variável tiver EXATAMENTE `valor` (sempre `'true'`).
+ * - `interruptor`: peça da Fase A dos agentes 5040 (ficha, sentinela). Liga pela env
+ *   AGENTES5040_<NOME>=1 OU pela chave ag5040_interruptores do banco; a env `0` desliga e
+ *   sobrescreve. Mesma lógica do `ligado()` de services/agentes5040/interruptores.ts.
  * - `banco_recepcao` e `banco_helena`: a chave vive em `system_state` (vale em 1
  *   minuto, sem deploy) e a variável de ambiente é o freio de mão.
  *
@@ -56,7 +59,8 @@ export type RegraDaChave =
    *  SOLAR_BOASVINDAS_OFF). `parcial`: chave que para só uma parte; vira Pausado, não Desligado. */
   | ({ tipo: 'desliga'; tambem?: readonly ChaveDeEnv[]; parcial?: ChaveDeEnv & { motivo: string } } & ChaveDeEnv)
   /** `exige`: variáveis que o robô também precisa ter preenchidas (só o NOME, nunca o valor). */
-  | { tipo: 'liga'; env: string; valor: 'true'; trim?: boolean; minusculas?: boolean; exige?: readonly string[] }
+  | { tipo: 'liga'; env: string; valor: 'true' | '1'; trim?: boolean; minusculas?: boolean; exige?: readonly string[] }
+  | { tipo: 'interruptor'; nome: 'ensaio' | 'replay' | 'ficha' | 'sentinela' }
   | { tipo: 'banco_recepcao' }
   | { tipo: 'banco_helena' };
 
@@ -338,6 +342,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['sentinela_vacuo'],
   }),
   e({
+    id: 'sentinela_ferramentas', nome: 'Sentinela das ferramentas', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Avisa o dono antes de ferramenta paga vencer ou zerar',
+    papel: 'Toda manhã às 7h20 (Brasília) confere as ferramentas pagas (Meta, Z-API, Anthropic, OpenAI) e o calendário de vencimentos que o sócio mantém. Manda UMA mensagem ao dono só quando algo vence em até 7 dias (30 para domínio), já venceu ou falhou, e fica calada quando está tudo em dia. No mesmo aviso vai o resumo da Giovanna em dia útil. Não fala com cliente nenhum.',
+    regra: { tipo: 'interruptor', nome: 'sentinela' }, fonte: 'services/io/sentinelaEnvio.ts',
+    robos: ['sentinela_ferramentas'],
+  }),
+  e({
     id: 'lembrete_followup', nome: 'Lembrete de follow-up', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Manda a cada consultor o card parado mais urgente',
     papel: 'Acha o card parado mais urgente de CADA consultor e manda "liga agora nesse cliente" no celular dele. Um por pessoa a cada 30 minutos, das 10h às 20h, sem domingo e sem feriado. Não fala com cliente nenhum.',
@@ -350,6 +361,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     papel: 'De 2 em 2 horas, de segunda a sexta, manda o placar da linha inteira: quantas conversas estão com a última palavra do cliente, e o delta contra o placar anterior. Não sai nome nenhum. Foi pedido para a Giovanna saber quanta gente espera retorno.',
     regra: off1('PLACAR_OFF'), fonte: 'services/io/placarGiovanna.ts',
     robos: ['placar_giovanna'],
+  }),
+  e({
+    id: 'ficha_consultor_5040', nome: 'Ficha ao consultor', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Manda ao consultor o resumo do cliente que agendou',
+    papel: 'Todo cliente agendado de solar e eletroposto gera um resumo de contexto, gravado no card e mandado no celular do consultor dono dele, com o link da conversa. Substitui os avisos de lead novo que ele já recebia pelo mesmo evento: um aviso só por lead. Não fala com cliente nenhum. Nasce desligada: o dono liga pelo interruptor da ficha (AGENTES5040_FICHA=1 ou a chave ag5040_interruptores).',
+    regra: { tipo: 'interruptor', nome: 'ficha' }, fonte: 'services/agentes5040/fichaEnvio.ts',
+    robos: ['ficha_consultor_5040'],
   }),
   e({
     id: 'agenda_proxima', nome: 'Próxima agenda', area: 'avisos', canal: 'whatsapp', linha: 'io',
@@ -490,6 +508,8 @@ export interface ChavesDoBanco {
   helenaOff: boolean | null;
   /** `inv_agente_disjuntor` aberto (2 erros de envio seguidos, ou 3 pedidos de parada). */
   helenaDisjuntor?: boolean | null;
+  /** `ag5040_interruptores`: o que está true/false. `null` = erro de leitura; ausente = não lida (vale desligado). */
+  interruptores?: Partial<Record<'ensaio' | 'replay' | 'ficha' | 'sentinela', boolean>> | null;
 }
 
 export interface EstadoCalculado {
@@ -513,6 +533,7 @@ export function chaveDaRegra(regra: RegraDaChave): string | undefined {
     case 'sempre': return undefined;
     case 'desliga': return [regra.env, ...(regra.tambem ?? []).map(t => t.env)].join(' ou ');
     case 'liga': return regra.env;
+    case 'interruptor': return `AGENTES5040_${regra.nome.toUpperCase()} ou ag5040_interruptores`;
     case 'banco_recepcao': return 'recepcao_io:ativa';
     case 'banco_helena': return 'inv_agente_off';
   }
@@ -547,6 +568,19 @@ export function estadoDaRegra(regra: RegraDaChave, env: NodeJS.ProcessEnv, banco
       const falta = (regra.exige ?? []).filter(n => !(env[n] ?? '').trim());
       if (falta.length) return { selo: 'desligado', chave, motivo: `Falta preencher na Vercel: ${falta.join(', ')}` };
       return { selo: 'ligado', chave };
+    }
+    case 'interruptor': {
+      const nomeEnv = `AGENTES5040_${regra.nome.toUpperCase()}`;
+      const porEnv = (env[nomeEnv] ?? '').trim();
+      if (porEnv === '0') return { selo: 'desligado', chave, motivo: `${nomeEnv}=0 desliga na Vercel` };
+      if (porEnv === '1') return { selo: 'ligado', chave };
+      if (banco.interruptores?.[regra.nome] === true) return { selo: 'ligado', chave };
+      return {
+        selo: 'desligado', chave,
+        motivo: banco.interruptores === null
+          ? 'Não consegui ler a chave no banco: a peça fica desligada nesse caso'
+          : `Nasce desligada: liga com ${nomeEnv}=1 ou pela chave ag5040_interruptores no banco`,
+      };
     }
     case 'banco_recepcao': {
       if ((env.RECEPCAO_IO_OFF ?? '').trim() === '1') {

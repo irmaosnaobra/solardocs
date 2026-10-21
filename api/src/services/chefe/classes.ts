@@ -283,7 +283,11 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   sdr_io_aviso: robo('aviso_interno_p2', ['services/agents/sdr/sdrIoPolling.ts']),
   lembrete_followup: robo('aviso_interno_p2', ['services/io/lembreteFollowupService.ts']),
   sentinela_vacuo: robo('aviso_interno_p2', ['services/io/sentinelaVacuo.ts']),
+  // Vencimentos das ferramentas pagas + resumo da Giovanna ao dono, 7h20 de Brasília, 1 bolha, só quando algo pede ação.
+  sentinela_ferramentas: robo('aviso_interno_p2', ['services/io/sentinelaEnvio.ts']),
   placar_giovanna: robo('aviso_interno_p2', ['services/io/placarGiovanna.ts']),
+  // A ficha ao consultor dono do card (agentes 5040, A4): 1 bolha, 1 por lead, substitui os 5 avisos antigos.
+  ficha_consultor_5040: robo('aviso_interno_p2', ['services/agentes5040/fichaEnvio.ts'], { nasceDeEvento: true, urgente: true }),
   leads_meta_alerta: robo('aviso_interno_p2', ['services/agenda/leadsMetaService.ts']),
   fb_aviso_equipe: robo('aviso_interno_p2', ['services/instagram/fbMensagens.ts']),
   prospeccao_aviso: robo('aviso_interno_p2', ['services/io/prospeccaoAviso.ts', 'routes/cron.ts']),

@@ -73,6 +73,11 @@ import { sendWhatsApp } from '../services/agents/zapiClient';
 import { supabase } from '../utils/supabase';
 import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
 import { avancarPendentes } from '../services/gerador/redes/publicador';
+import { rodarSentinelaFerramentas, depsRodadaReais } from '../services/agentes5040/sentinelaRodada';
+import { enviarAviso } from '../services/io/sentinelaEnvio';
+import { novoAnthropic } from '../utils/anthropicClient';
+import { runFichaConsultorTick } from '../services/agentes5040/fichaTick';
+import { executarComandoPendente, depsDoBanco, type MapaAcoes } from '../services/agentes5040/comandos';
 
 const router = Router();
 
@@ -422,6 +427,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['vacuo', () => runSentinelaVacuo()],             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
       ['lembrete_followup', () => runLembreteFollowupTick()],       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
       ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda no outro dia; card da Giovanna ou da Nilce vai pra OUTRA (SOLAR_NAO_ATENDEU_TROCA_OFF desfaz), o resto fica com o mesmo consultor. 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
+      ['ficha_5040', () => runFichaConsultorTick()],            // agentes 5040 (A4): todo cliente agendado de solar e eletroposto gera a ficha no card e no celular do consultor dono; o MESMO interruptor faz os 5 avisos antigos saírem cedo (nasce desligada: interruptor `ficha`, ver interruptores.ts)
     ];
     const assentados = await Promise.allSettled(TAREFAS.map(([, roda]) => roda()));
     // A resposta é montada PELO NOME que está ao lado da chamada, não pela
@@ -1725,6 +1731,209 @@ router.get('/agentes-5040/anuncios', async (req: Request, res: Response) => {
     res.status(r.ok ? 200 : 500).json(r);
   } catch (err) {
     logger.error('cron', 'agentes-5040/anuncios falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// ── AGENTES 5040 · A2: ensaio (modo sombra) e replay. NADA é enviado a ninguém. ─────────────
+// Ensaio: a cada 5 min (vercel.json), lead novo da linha IO; a agente escreve o que responderia e o
+// rascunho vai para o bucket privado ensaio-5040. Nasce DESLIGADO (interruptor 'ensaio').
+// ?dry=1 ignora o interruptor, usa o modelo (é a sonda de cache), não grava nem reserva; ?uma=1 = uma conversa.
+//
+// Canal de comando das sondas (services/agentes5040/comandos.ts): a rota do ensaio, ANTES de tudo e mesmo com o
+// interruptor desligado, executa o comando que o orquestrador gravou em system_state.ag5040_comando. A ligação das
+// ações fica aqui (e não no módulo do ensaio) para o ensaio nunca alcançar o envio. Resultado sem dado pessoal.
+function acoesDoComando(): MapaAcoes {
+  return {
+    sonda_armazem: async () => (await import('../services/agentes5040/armazem')).sondarArmazem(),
+    ensaio_dry: async () => (await import('../services/agentes5040/ensaio')).runEnsaioTick({ dry: true, uma: true }),
+    replay_dry: async p => (await import('../services/agentes5040/replay')).runReplay({
+      desde: p.desde as Date, ate: p.ate as Date, maxConversas: p.maxConversas as number, maxTurnos: p.maxTurnos as number, dry: true,
+    }),
+    anuncios: async p => (await import('../services/agentes5040/anuncio')).relatorioAnuncios(p.dias as number, { chaves: false, meta: true }),
+    ficha_dry: async () => runFichaConsultorTick({ dry: true }),
+    ficha_sonda: async p => (await import('../services/agentes5040/fichaTick')).sondaFichaNoCard(p.card as number),
+    ficha_teste: async () => (await import('../services/agentes5040/fichaTick')).enviarFichaDeTeste(RESUMO_DESTINO),
+    sentinela_seco: async () => rodarSentinelaFerramentas(
+      depsRodadaReais({
+        principal: supabase, gerador: supabaseGerador, novoAnthropic,
+        enviar: (texto, opts) => enviarAviso(texto, RESUMO_DESTINO, {}, opts),
+        registrar: (nivel, msg, dado) => (nivel === 'erro' ? logger.error('sentinela-ferr', msg, dado) : logger.info('sentinela-ferr', msg, dado)),
+      }),
+      { seco: true },
+    ),
+    sentinela_sonda: async () => (await import('../services/agentes5040/sentinelaSonda')).sondaSentinela(supabase),
+    pix_sonda: async () => (await rodarPixTxidSonda()).corpo,
+  };
+}
+
+router.get('/agentes-5040/ensaio', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const comando = await executarComandoPendente({
+      ...depsDoBanco(supabase),
+      acoes: acoesDoComando(),
+      registrar: (nivel, msg, dado) => (nivel === 'erro' ? logger.error('cron', `comando 5040: ${msg}`, dado) : logger.info('cron', `comando 5040: ${msg}`, dado)),
+    });
+    // Rodou um comando: esta chamada já gastou o tempo da função. O ensaio segue no próximo ciclo de 5 min.
+    if (comando.estado === 'executado') { res.json({ ok: comando.ok !== false, comando }); return; }
+    const { runEnsaioTick } = await import('../services/agentes5040/ensaio');
+    const r = await runEnsaioTick({ dry: req.query.dry === '1', uma: req.query.uma === '1' });
+    res.status(r.ok ? 200 : 500).json(comando.estado === 'nenhum' ? r : { ...r, comando });
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/ensaio falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// Replay de conversas passadas: ?desde=ISO&ate=ISO (padrão: os últimos 30 dias), &maxConversas=5&maxTurnos=8&dry=1.
+router.get('/agentes-5040/replay', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { runReplay } = await import('../services/agentes5040/replay');
+    const agora = new Date();
+    const data = (v: unknown, padrao: Date): Date => {
+      const d = new Date(String(v ?? ''));
+      return typeof v === 'string' && v && Number.isFinite(d.getTime()) ? d : padrao;
+    };
+    const inteiro = (v: unknown): number | undefined => {
+      const n = parseInt(String(v ?? ''), 10);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
+    const r = await runReplay({
+      desde: data(req.query.desde, new Date(agora.getTime() - 30 * 86_400_000)),
+      ate: data(req.query.ate, agora),
+      maxConversas: inteiro(req.query.maxConversas),
+      maxTurnos: inteiro(req.query.maxTurnos),
+      dry: req.query.dry === '1',
+    });
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/replay falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// Sonda do armazém: escreve, lê, confirma que não sobrescreve, lista, apaga e confirma bucket privado.
+router.get('/agentes-5040/sonda-armazem', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { sondarArmazem } = await import('../services/agentes5040/armazem');
+    const r = await sondarArmazem();
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/sonda-armazem falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// ── A7: sonda do "mesmo comprovante não libera duas vezes" ───────────────────
+// Só a camada de reserva/validação: grava um código de TESTE para o dono A, confere
+// que o dono B é recusado e que o A segue, e apaga a chave no fim (mesmo se falhar
+// no meio). Telefones fictícios; não chama nenhum caminho de liberação e não mexe
+// no acesso de ninguém.
+// O corpo vive numa função para o canal de comando (ação pix_sonda) rodar a MESMA sonda.
+async function rodarPixTxidSonda(): Promise<{ status: number; corpo: Record<string, unknown> }> {
+  let chave: string | null = null;
+  try {
+    const { reservarTxid, txidDeOutroNumero, chaveTxid, normalizarTxid } =
+      await import('../services/agents/whatsapp/pixComprovanteService');
+    const { hmacDe } = await import('../services/agentes5040/hmac');
+    if (!hmacDe('teste')) {
+      return { status: 200, corpo: { ok: true, ligada: false, motivo: 'sem segredo de HMAC: checagem desligada' } };
+    }
+    const txid = normalizarTxid(`SONDAPIXTXIDTESTE${Date.now()}${Math.floor(Math.random() * 1e6)}`);
+    if (!txid) return { status: 500, corpo: { ok: false, error: 'txid de teste ilegível' } };
+    chave = chaveTxid(txid);
+    const A = '00000000001';
+    const B = '00000000002';
+    const a1 = await reservarTxid(txid, A, 1);
+    const b = await reservarTxid(txid, B, 1);
+    const a2 = await reservarTxid(txid, A, 1);
+    const bVe = await txidDeOutroNumero(txid, B);
+    const aVe = await txidDeOutroNumero(txid, A);
+    const { data: gravada } = await supabase.from('system_state').select('value').eq('key', chave).maybeSingle();
+    const texto = JSON.stringify({ chave, valor: (gravada as { value?: unknown } | null)?.value ?? null });
+    const semTelefone = !texto.includes(A) && !texto.includes(B);
+    const passos = { a_primeira: a1, b_recusado: b, a_de_novo: a2, validar_b_recusa: bVe, validar_a_passa: !aVe, sem_telefone: semTelefone };
+    const ok = a1 === 'seguir' && b === 'outro' && a2 === 'seguir' && bVe === true && aVe === false && semTelefone;
+    return { status: ok ? 200 : 500, corpo: { ok, ligada: true, passos } };
+  } catch (err) {
+    logger.error('cron', 'pix-txid-sonda falhou', err);
+    return { status: 500, corpo: { ok: false, error: 'falha', message: String((err as Error)?.message ?? err) } };
+  } finally {
+    if (chave) {
+      try { await supabase.from('system_state').delete().eq('key', chave); }
+      catch (err) { logger.error('cron', 'pix-txid-sonda: não apaguei a chave de teste', err); }
+    }
+  }
+}
+router.get('/pix-txid-sonda', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  const r = await rodarPixTxidSonda();
+  res.status(r.status).json(r.corpo);
+});
+
+// Sentinela das ferramentas (7h20 de Brasília): vencimentos, saldo e cota das ferramentas pagas
+// mais o resumo da Giovanna, numa mensagem só e só quando algo pede ação. Calada quando tudo está
+// em dia. Nasce desligada: liga pelo interruptor `sentinela` (env AGENTES5040_SENTINELA ou a chave
+// ag5040_interruptores). ?seco=1 devolve o texto sem enviar nem gravar nada, mesmo desligada.
+router.get('/sentinela-ferramentas', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const r = await rodarSentinelaFerramentas(
+      depsRodadaReais({
+        principal: supabase, gerador: supabaseGerador, novoAnthropic,
+        enviar: (texto, opts) => enviarAviso(texto, RESUMO_DESTINO, {}, opts),
+        registrar: (nivel, msg, dado) => (nivel === 'erro' ? logger.error('sentinela-ferr', msg, dado) : logger.info('sentinela-ferr', msg, dado)),
+      }),
+      { seco: req.query.seco === '1' },
+    );
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'sentinela-ferramentas falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// Sonda da sentinela: foto da Giovanna escreve/lê/apaga e a reserva do dia só deixa um vencer
+// (2º insert = 23505). Só chaves de teste, não envia nada.
+router.get('/sentinela-ferramentas/sonda', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { sondaSentinela } = await import('../services/agentes5040/sentinelaSonda');
+    const r = await sondaSentinela(supabase);
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'sentinela-ferramentas/sonda falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// ── A4: a ficha ao consultor. Quem dispara de verdade é a tarefa `ficha_5040` do /process-messages. ──
+// ?dry=1 mostra o que a rodada faria (só ids e estado: sem IA, sem reserva, sem envio, sem nome nem campo do card).
+// ?sonda=1&card=<id> escreve a ficha de teste NAQUELE card, confere a primeira linha e as colunas
+// derivadas pelo gatilho do banco, e restaura tudo. ?teste=1 manda uma ficha inventada SÓ ao celular
+// do dono (RESUMO_DIA_WHATS). Sem nenhum dos três, roda a rodada normal (exige o interruptor `ficha` ligado). Os três modos de prova funcionam com ele desligado.
+router.get('/ficha-5040', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const fichaTick = await import('../services/agentes5040/fichaTick');
+    if (req.query.sonda === '1') {
+      const id = Number(req.query.card);
+      if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ ok: false, error: 'card invalido' }); return; }
+      const r = await fichaTick.sondaFichaNoCard(id);
+      res.status(r.ok ? 200 : 500).json(r);
+      return;
+    }
+    if (req.query.teste === '1') {
+      const r = await fichaTick.enviarFichaDeTeste(RESUMO_DESTINO);
+      res.status(r.enviado ? 200 : 429).json({ ok: r.enviado, ...r });
+      return;
+    }
+    res.json({ ok: true, ...(await fichaTick.runFichaConsultorTick({ dry: req.query.dry === '1' })) });
+  } catch (err) {
+    logger.error('cron', 'ficha-5040 falhou', err);
     res.status(500).json({ ok: false, error: 'falha' });
   }
 });

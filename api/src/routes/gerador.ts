@@ -34,6 +34,8 @@ import { mountCadastroVenda } from './geradorCadastroVenda';
 import { mountVendaSolar } from './geradorVendaSolar';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
+import { mountSentinela } from './geradorSentinela';
+import { mountEnsaio5040 } from './geradorEnsaio5040';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1175,6 +1177,10 @@ mountVendaSolar(router);
 mountPerfil(router);
 // Automação como centro das redes, fase 1 (servidor): Reels, status da 5040 e caixa de comentários. Cada item nasce desligado.
 mountRedes(router);
+// Calendário de vencimentos da sentinela das ferramentas (só sócio).
+mountSentinela(router);
+// Painel do ensaio das agentes da 5040: lê as respostas que elas dariam e recebe a nota da equipe (nada é enviado).
+mountEnsaio5040(router);
 
 // Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
 mountEletropostoAtendimento(router);
