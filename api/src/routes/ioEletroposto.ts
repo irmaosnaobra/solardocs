@@ -17,6 +17,7 @@ import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../serv
 import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
+import { lerPaginado } from '../utils/lerPaginado';
 import { geocodificarLote, ItemGeo } from '../services/io/eletropostoGeo';
 import { geoLimiter, funilEletropostoLimiter } from '../middleware/rateLimiter';
 import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, idDoTelefone } from '../utils/capiQuiz';
@@ -481,13 +482,18 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   const ate = String(req.query.ate || '').slice(0, 30);
   if (!de || !ate) { res.status(400).json({ error: 'de/ate obrigatorios' }); return; }
   try {
-    const [ocupadosQ, totalQ, solar] = await Promise.all([
-      supabaseGerador.from('agendamentos')
+    const [ocupadosLidos, totalQ, solar] = await Promise.all([
+      // Paginado (21/10/2026): era `.limit(500)`, que o PostgREST corta em 1000 e
+      // que cortava calado a partir da 501ª linha. Erro em qualquer página lança
+      // e cai no catch, que devolve `ocupados: null` (a página abre a grade e a gravação revalida).
+      lerPaginado<Record<string, unknown>>('io-eletroposto agenda', (p0, p1) => supabaseGerador.from('agendamentos')
         .select('quando, vendedor_nome, created_by, status')
         .gte('quando', de).lte('quando', ate)
         .in('vendedor_nome', DONOS_EP)
         .not('status', 'in', FILTRO_NAO_OCUPA)
-        .limit(500),
+        // Ordem estável (quando + id): sem ela a paginação pula ou repete linha.
+        .order('quando', { ascending: true }).order('id', { ascending: true })
+        .range(p0, p1)),
       // O rodízio é pelo TOTAL já marcado pela LP — a página só precisa do
       // próximo nome, não da lista.
       consultaDoRodizio([ORIGEM_LP_EP]),
@@ -504,7 +510,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
     // marca `solar` e a vitrine aplica os 60 min de antes: errar para menos
     // tempo de estrada é melhor que travar a agenda inteira.
     const solarLido = Array.isArray(solar);
-    const ocupados: Array<Record<string, unknown>> = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
+    const ocupados: Array<Record<string, unknown>> = ocupadosLidos
       .filter(a => !(solarLido && a.created_by === 'lp_solar'))
       .filter(a => a.quando)
       // ── O VERMELHO DEVOLVE O HORÁRIO (19/08/2026) ──────────────────────────

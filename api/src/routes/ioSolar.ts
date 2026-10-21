@@ -10,6 +10,7 @@ import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
+import { lerPaginado } from '../utils/lerPaginado';
 import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
 import { SOCIOS_VISITA, DONAS_LIGACAO, caminhoDaFicha, donoDaFaixa } from '../services/agenda/solarRota';
 import {
@@ -179,13 +180,18 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   const ate = String(req.query.ate || '').slice(0, 30);
   if (!de || !ate) { res.status(400).json({ error: 'de/ate obrigatorios' }); return; }
   try {
-    const [ocupadosQ, altaQ, proximoBaixa] = await Promise.all([
-      supabaseGerador.from('agendamentos')
+    const [ocupadosLidos, altaQ, proximoBaixa] = await Promise.all([
+      // Paginado (21/10/2026): era `.limit(500)`, que o PostgREST corta em 1000 e
+      // que cortava calado a partir da 501ª linha. Erro em qualquer página lança
+      // e cai no catch, que devolve `ocupados: null` (a página abre a grade e a gravação revalida).
+      lerPaginado<Record<string, unknown>>('io-solar agenda', (p0, p1) => supabaseGerador.from('agendamentos')
         .select('quando, vendedor_nome, created_by')
         .gte('quando', de).lte('quando', ate)
         .in('vendedor_nome', DONOS_SOLAR)
         .not('status', 'in', FILTRO_NAO_OCUPA)
-        .limit(500),
+        // Ordem estável (quando + id): sem ela a paginação pula ou repete linha.
+        .order('quando', { ascending: true }).order('id', { ascending: true })
+        .range(p0, p1)),
       // A vez da conta alta agora sai do MESMO contador que o cron do Meta e o
       // ManyChat giram (`leads_meta_state.rodizio_idx`), e não mais de uma
       // contagem própria de fichas `lp_solar`. Duas razões, e a segunda é a que
@@ -208,7 +214,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
       proximoDaContaBaixa(),
     ]);
 
-    const ocupados = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
+    const ocupados = ocupadosLidos
       .filter(a => a.quando)
       .map(a => ({
         ts: new Date(String(a.quando)).getTime(),
@@ -370,21 +376,24 @@ async function lerOcupacoes(pessoas: string[]): Promise<Ocupacao[] | null> {
   const agora = Date.now();
   const de = new Date(agora).toISOString();
   const ate = new Date(agora + (DIAS_VARRIDOS + 1) * 86_400_000).toISOString();
-  const [outrasQ, solar, blqQ] = await Promise.all([
-    supabaseGerador.from('agendamentos')
+  const [outras, solar, blqQ] = await Promise.all([
+    // Paginado (21/10/2026): era `.limit(2000)`, e o PostgREST corta em 1000.
+    // Erro em qualquer página vira null, como o `outrasQ.error` de antes.
+    lerPaginado<Record<string, unknown>>('io-solar ocupacoes', (p0, p1) => supabaseGerador.from('agendamentos')
       .select('quando, vendedor_nome, created_by, status')
       .gte('quando', new Date(agora - 2 * 3_600_000).toISOString()).lte('quando', ate)
       .in('vendedor_nome', pessoas)
       .neq('created_by', 'lp_solar')
       .not('status', 'in', FILTRO_NAO_OCUPA)
-      .limit(2000),
+      .order('quando', { ascending: true }).order('id', { ascending: true })
+      .range(p0, p1)).catch(err => { logger.error('io-solar-ocupacoes', 'falha lendo as fichas', err); return null; }),
     ocupacoesSolar(de, ate, pessoas),
     supabaseGerador.from('agenda_bloqueios')
       .select('inicio, fim, vendedor_nome').in('vendedor_nome', pessoas).gte('fim', de).limit(500),
   ]);
-  if (outrasQ.error || !outrasQ.data || solar === null) return null;
+  if (!outras || solar === null) return null;
   const out: Ocupacao[] = [];
-  for (const a of outrasQ.data as Array<Record<string, unknown>>) {
+  for (const a of outras) {
     // Vermelho do eletroposto devolve o horário, como na vitrine de lá.
     if (a.status === 'nao_atendeu' && ehOrigemEletroposto(a.created_by)) continue;
     const b = blocoDaFicha(a as never);
