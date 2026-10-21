@@ -183,7 +183,7 @@ a:hover { color: var(--nx-azul-h); }
 .np-alca { width: 40px; height: 4px; margin: 4px auto 12px; border-radius: 999px; background: rgba(255, 255, 255, .24); }
 .np-f-item {
   display: flex; align-items: center; gap: 14px; width: 100%; min-height: 52px; padding: 12px; border: 0; border-radius: var(--nx-r-controle);
-  background: transparent; cursor: pointer; color: #fff; font-size: 16px; font-weight: 500; text-align: left;
+  background: transparent; cursor: pointer; color: #fff; font-size: 16px; font-weight: 500; text-align: left; text-decoration: none;
 }
 .np-f-item:hover { background: rgba(255, 255, 255, .08); }
 .np-f-item.ativa { background: rgba(255, 255, 255, .12); font-weight: 700; }
@@ -258,6 +258,23 @@ a:hover { color: var(--nx-azul-h); }
 .nx-cnpj-estado { font-size: 13px; font-weight: 600; min-height: 18px; }
 .nx-cnpj-estado.ok { color: var(--nx-ok); }
 .nx-cnpj-estado.er { color: var(--nx-er); }
+
+/* cadastro guiado em 3 passos (#cadastro) */
+.nx-ent-in.cad { max-width: 520px; }
+.nx-passo { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--nx-azul-tx); text-transform: uppercase; letter-spacing: .04em; }
+.nx-prog { display: flex; gap: 6px; margin-bottom: 16px; }
+.nx-prog span { flex: 1 1 0; height: 6px; border-radius: 999px; background: var(--nx-cinza); }
+.nx-prog span.feito { background: var(--nx-azul-tx); }
+.nx-prog span.atual { background: var(--nx-azul); }
+.nx-ent-card.cad h1:focus { outline: none; }
+.nx-erro-campo { font-size: 13px; font-weight: 600; color: var(--nx-er); }
+.nx-campo input[aria-invalid="true"], .nx-campo select[aria-invalid="true"] { border-color: var(--nx-er); }
+.nx-ent-card.cad .nx-cartao { box-shadow: none; padding: 14px; }
+.nx-ent-card.cad .nx-cartao:focus { outline: 2px solid var(--nx-azul-tx); outline-offset: 2px; }
+.nx-bloqueio { margin: 0 0 14px; padding: 12px; border-radius: var(--nx-r-controle); background: var(--nx-er-sf); color: var(--nx-er); }
+.nx-bloqueio b { display: block; margin-bottom: 4px; font-size: 14px; }
+.nx-bloqueio p { margin: 0 0 10px; font-size: 13px; line-height: 1.45; }
+.nx-ent-rodape .nx-btn.link { display: inline-flex; min-height: 36px; padding: 4px 8px; vertical-align: baseline; }
 .nx-tela-cheia { text-align: center; }
 .nx-tela-cheia .nx-btn { margin-top: 8px; }
 .nx-tela-cheia p { color: var(--nx-tx2); font-size: 15px; margin-bottom: 14px; }

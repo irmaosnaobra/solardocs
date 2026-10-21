@@ -8,7 +8,8 @@
 //                  POST /nexus/termo/aceitar
 //                  + oportunidades e usinas (geradorNexusRede.ts)
 //   Público        GET  /nexus/p/:token  (proposta pelo link do cliente final, conta abertura)
-//   Equipe (consultor do Gerador, exigeConsultor): geradorNexusEquipe.ts; convite por e-mail (só sócio): geradorNexusConvite.ts
+//   Equipe (exigeEquipeNexus: token do Gerador OU JWT do SolarDoc de admin/equipe): geradorNexusEquipe.ts; convite por e-mail
+//   (só sócio): geradorNexusConvite.ts; ADM, membros e funil (v4): geradorNexusAdm.ts
 //
 // O router de /gerador não tem middleware global: cada rota declara o que exige, então nada barra o parceiro nem as
 // rotas públicas. Tabela ausente (a MIGRATION_nexus_portal.sql ainda não rodou) = 503 `portal_desligado` em tudo que
@@ -36,6 +37,7 @@ import { UUID, contexto, exigePortalLigado, ok, rota, textoLivre } from './gerad
 import { mountNexusRede } from './geradorNexusRede';
 import { mountNexusEquipe } from './geradorNexusEquipe';
 import { mountNexusConvite } from './geradorNexusConvite';
+import { mountNexusAdm } from './geradorNexusAdm';
 
 // ── Cadastro do parceiro ─────────────────────────────────────────────────────
 
@@ -607,4 +609,5 @@ export function mountNexus(router: Router): void {
   mountNexusRede(router);
   mountNexusEquipe(router);
   mountNexusConvite(router);
+  mountNexusAdm(router);
 }

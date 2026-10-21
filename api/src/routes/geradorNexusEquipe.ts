@@ -1,4 +1,4 @@
-// Portal do Parceiro NEXUS: rotas da EQUIPE (consultor do Gerador, exigeConsultor). Montadas por mountNexusEquipe(router),
+// Portal do Parceiro NEXUS: rotas da EQUIPE (exigeEquipeNexus: token do Gerador OU JWT do SolarDoc de admin/equipe). Montadas por mountNexusEquipe(router),
 // chamado no fim do mountNexus. Alimentam o painel /gerador/parceiros.
 //
 //   GET   /nexus/equipe/parceiros              lista com nível, contagens e os totais do painel
@@ -18,7 +18,7 @@
 
 import { Router } from 'express';
 import { supabase } from '../utils/supabase';
-import { exigeConsultor } from './geradorDossie';
+import { exigeEquipeNexus } from '../services/nexus/equipeAuth';
 import { calcularNivel } from '../services/nexus/niveis';
 import { emailOportunidadeOferecida } from '../services/nexus/email';
 import { inicioDiaBRT, inicioMesBRT } from '../services/nexus/tempo';
@@ -76,7 +76,7 @@ function contatoValido(v: unknown): { nome: string | null; telefone: string | nu
 }
 
 export function mountNexusEquipe(router: Router): void {
-  const equipe = [exigeConsultor, exigePortalLigado];
+  const equipe = [exigeEquipeNexus, exigePortalLigado];
 
   // ── Parceiros ──────────────────────────────────────────────────────────────
   router.get('/nexus/equipe/parceiros', ...equipe, rota('GET /nexus/equipe/parceiros', async (_req, res) => {

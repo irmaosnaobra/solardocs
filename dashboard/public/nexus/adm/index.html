@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ADM do Portal do Parceiro NEXUS</title>
+<meta name="description" content="Painel da equipe do Portal do Parceiro NEXUS.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B1A2B">
+<link rel="icon" href="/nexus/favicon.ico">
+<link rel="apple-touch-icon" href="/nexus/img/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/nexus/app/css/app.css">
+<link rel="stylesheet" href="/nexus/adm/painel.css">
+<style>
+/* Casca do ADM: reaproveita .np-top, .np-lado e .np-corpo do portal; aqui só o que o portal não tem. */
+html, body { max-width: 100%; overflow-x: hidden; }
+.adm-top-acoes { display: flex; align-items: center; gap: 8px; }
+.adm-btn-top {
+  min-height: 44px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, .24); border-radius: var(--nx-r-controle);
+  background: transparent; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.adm-btn-top:hover { background: rgba(255, 255, 255, .08); }
+.adm-app .np-main { padding-bottom: 48px; }
+.adm-titulo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.adm-titulo h1 { font-size: 24px; font-weight: 800; line-height: 1.2; color: var(--nx-tx); }
+.adm-titulo p { font-size: 14px; color: var(--nx-tx2); }
+.adm-quem { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; font-size: 13px; color: var(--nx-tx2); }
+.adm-app .np-pagina { gap: 20px; }
+.adm-gate .nx-ent-card { padding: 22px 18px; }
+.adm-gate .nx-ent-card h1 { margin-bottom: 8px; }
+.adm-gate .nx-ent-card .sub b { overflow-wrap: anywhere; color: var(--nx-tx); }
+.adm-gate .nx-ent-card code { background: var(--nx-chip); padding: 2px 6px; border-radius: 6px; font-size: 13px; word-break: break-all; }
+.adm-gate .nx-btn + .nx-btn { margin-top: 8px; }
+@media (min-width: 861px) {
+  .adm-top-acoes { display: none; }
+  .adm-app .np-main { padding: 28px 28px 56px; }
+}
+</style>
+</head>
+<body class="pn-nx">
+
+<!-- Telas inteiras: entrada, sem acesso (403), portal desligado (503), erro e carregando -->
+<div id="adm-gate" class="adm-gate" aria-live="polite"></div>
+
+<!-- Painel (só depois de GET /gerador/nexus/adm/eu responder 200) -->
+<div id="adm-app" class="adm-app" hidden>
+  <header class="np-top">
+    <img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos">
+    <div class="adm-top-acoes">
+      <button type="button" class="adm-btn-top" data-adm="atualizar" aria-label="Atualizar os dados">Atualizar</button>
+      <button type="button" class="adm-btn-top" data-adm="sair">Sair</button>
+    </div>
+  </header>
+  <aside class="np-lado" id="adm-lado">
+    <div class="logo"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos"></div>
+    <nav class="np-nav" aria-label="Menu do ADM">
+      <a class="np-n-item ativa" href="/nexus/adm" aria-current="page">
+        <svg class="nx-ic m" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Painel ADM</span>
+      </a>
+      <a class="np-n-item" href="/nexus/app">
+        <svg class="nx-ic m" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"/></svg><span>Portal do parceiro</span>
+      </a>
+    </nav>
+    <div class="np-emp">
+      <b id="adm-lado-email"></b>
+      <span class="loc" id="adm-lado-papel"></span>
+      <div class="acoes">
+        <button type="button" data-adm="atualizar">Atualizar os dados</button>
+        <button type="button" data-adm="sair">Sair</button>
+      </div>
+    </div>
+  </aside>
+  <div class="np-corpo">
+    <main class="np-main" id="adm-main" tabindex="-1">
+      <div class="np-pagina">
+        <div class="adm-titulo">
+          <h1>ADM do Portal do Parceiro</h1>
+          <p>Parceiros, funil, pedidos, oportunidades, propostas e a equipe com acesso.</p>
+          <div class="adm-quem" id="adm-quem"></div>
+        </div>
+        <div id="painel-raiz" class="pn"></div>
+      </div>
+    </main>
+  </div>
+</div>
+<noscript><p style="padding:24px">Ative o JavaScript para usar o ADM do Portal do Parceiro NEXUS.</p></noscript>
+
+<!-- Configuração do painel compartilhado (painel.js). manual: o painel só começa quando esta página manda, depois do /adm/eu. -->
+<script>
+window.PAINEL_NEXUS = {
+  auth: 'solardoc',
+  manual: true,
+  aoPerderSessao: function () { if (window.AdmPagina) window.AdmPagina.perdeuSessao(); }
+};
+</script>
+<script src="/nexus/adm/painel.js"></script>
+<script>
+(function () {
+  'use strict';
+  var TOKEN_KEY = 'solardoc_token';
+  var USER_KEY = 'solardoc_user';
+  var API = '/_api';
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* Cookies do SolarDoc, do mesmo jeito que o portal grava (nexus/app/js/app.js) */
+  function lerCookie(nome) {
+    var partes = document.cookie ? document.cookie.split('; ') : [];
+    for (var i = 0; i < partes.length; i++) {
+      var k = partes[i].indexOf('=');
+      if (k < 0) continue;
+      if (partes[i].slice(0, k) === nome) {
+        try { return decodeURIComponent(partes[i].slice(k + 1)); } catch (e) { return partes[i].slice(k + 1); }
+      }
+    }
+    return '';
+  }
+  function gravarCookie(nome, valor) {
+    var seguro = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = nome + '=' + encodeURIComponent(valor) + '; path=/; max-age=604800; SameSite=Lax' + seguro;
+  }
+  function apagarCookie(nome) { document.cookie = nome + '=; path=/; max-age=0; SameSite=Lax'; }
+  function emailDoCookie() {
+    try { var u = JSON.parse(lerCookie(USER_KEY) || 'null'); return (u && u.email) || ''; } catch (e) { return ''; }
+  }
+  function limparSessao() { apagarCookie(TOKEN_KEY); apagarCookie(USER_KEY); }
+
+  /* Telas inteiras */
+  var LOGO = '<img class="nx-ent-logo" src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos">';
+  function gate(html) {
+    $('adm-app').hidden = true;
+    var g = $('adm-gate');
+    g.hidden = false;
+    g.innerHTML = '<div class="nx-ent"><div class="nx-ent-in">' + LOGO + html + '</div></div>';
+    window.scrollTo(0, 0);
+  }
+  function telaCarregando() {
+    gate('<div class="nx-ent-card"><div class="nx-girando"><div class="nx-spin"></div><span>Abrindo o ADM</span></div></div>');
+  }
+  function telaLogin(msg) {
+    gate('<div class="nx-ent-card"><h1>ADM do Portal do Parceiro NEXUS</h1>' +
+      '<p class="sub">Entre com o e-mail e a senha do SolarDoc. O ADM é só da equipe.</p>' +
+      '<form id="adm-form" novalidate><p class="nx-msg-erro" id="adm-erro"' + (msg ? '' : ' hidden') + '>' + esc(msg || '') + '</p>' +
+      '<div class="nx-campo"><label for="adm-email">E-mail</label><input id="adm-email" name="email" type="email" autocomplete="username" inputmode="email"></div>' +
+      '<div class="nx-campo"><label for="adm-senha">Senha</label><input id="adm-senha" name="password" type="password" autocomplete="current-password"></div>' +
+      '<button type="submit" class="nx-btn grande" id="adm-entrar">Entrar</button></form>' +
+      '<p class="nx-ent-rodape"><a href="/nexus/app">Ir para o portal do parceiro</a></p></div>');
+    var f = $('adm-form');
+    f.addEventListener('submit', function (ev) { ev.preventDefault(); entrar(f); });
+    $('adm-email').focus();
+  }
+  function telaSemAcesso(email) {
+    gate('<div class="nx-ent-card"><h1>Sem acesso ao ADM</h1>' +
+      '<p class="sub">' + (email ? 'Você entrou como <b>' + esc(email) + '</b>, e esta conta não tem acesso ao ADM. ' : 'Esta conta não tem acesso ao ADM. ') +
+      'Peça a um administrador para liberar o seu e-mail na aba Equipe.</p>' +
+      '<button type="button" class="nx-btn grande" data-adm="sair">Sair</button></div>');
+  }
+  function telaDesligado() {
+    gate('<div class="nx-ent-card"><h1>O portal ainda está desligado</h1>' +
+      '<p class="sub">As tabelas do Portal do Parceiro NEXUS ainda não existem no banco. Para ligar, rode o arquivo <code>MIGRATION_nexus_portal.sql</code> ' +
+      '(fica na raiz do repositório) no banco principal do SolarDoc e recarregue esta página.</p>' +
+      '<button type="button" class="nx-btn grande" data-adm="verificar">Tentar de novo</button>' +
+      '<button type="button" class="nx-btn sec grande" data-adm="sair">Sair</button></div>');
+  }
+  function telaErro(txt) {
+    gate('<div class="nx-ent-card"><h1>Não foi possível abrir o ADM</h1>' +
+      '<p class="sub">' + esc(txt || 'Confira a internet e tente de novo.') + '</p>' +
+      '<button type="button" class="nx-btn grande" data-adm="verificar">Tentar de novo</button>' +
+      '<button type="button" class="nx-btn sec grande" data-adm="sair">Sair</button></div>');
+  }
+  function erroForm(txt) { var e = $('adm-erro'); if (!e) return; e.textContent = txt || ''; e.hidden = !txt; }
+
+  /* Login: o mesmo do SolarDoc */
+  function entrar(f) {
+    var email = String(f.elements.email.value || '').trim(), senha = f.elements.password.value;
+    if (!/^\S+@\S+\.\S+$/.test(email)) return erroForm('Informe um e-mail válido.');
+    if (!senha) return erroForm('Informe a senha.');
+    erroForm('');
+    var btn = $('adm-entrar'); btn.disabled = true; btn.textContent = 'Entrando';
+    fetch(API + '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, cache: 'no-store',
+      body: JSON.stringify({ email: email, password: senha })
+    }).then(function (r) {
+      return r.text().then(function (t) { var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; } return { status: r.status, json: j }; });
+    }, function () { return { status: 0, json: null }; }).then(function (x) {
+      if (x.status >= 200 && x.status < 300 && x.json && x.json.token) {
+        gravarCookie(TOKEN_KEY, x.json.token);
+        if (x.json.user) { try { gravarCookie(USER_KEY, JSON.stringify(x.json.user)); } catch (e) { /* segue sem o usuário */ } }
+        verificar();
+        return;
+      }
+      btn.disabled = false; btn.textContent = 'Entrar';
+      erroForm(x.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar. Tente de novo.');
+    });
+  }
+
+  /* Acesso: depois do login, GET /gerador/nexus/adm/eu decide qual tela aparece */
+  var verificando = false;
+  function verificar() {
+    var tk = lerCookie(TOKEN_KEY);
+    if (!tk) { telaLogin(''); return; }
+    if (verificando) return;
+    verificando = true;
+    telaCarregando();
+    fetch(API + '/gerador/nexus/adm/eu', { headers: { Authorization: 'Bearer ' + tk, Accept: 'application/json' }, cache: 'no-store' })
+      .then(function (r) {
+        return r.text().then(function (t) { var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; } return { status: r.status, json: j }; });
+      }, function () { return { status: 0, json: null }; })
+      .then(function (x) {
+        verificando = false;
+        if (x.status === 200 && x.json && x.json.ok !== false) { abrirPainel(x.json); return; }
+        if (x.status === 401) { limparSessao(); telaLogin('Sua sessão expirou. Entre de novo.'); return; }
+        if (x.status === 403) { telaSemAcesso((x.json && x.json.email) || emailDoCookie()); return; }
+        if (x.status === 503) { telaDesligado(); return; }
+        telaErro(x.status === 0 ? 'Sem conexão com o servidor. Confira a internet e tente de novo.' : 'O servidor respondeu com erro (' + x.status + ').');
+      });
+  }
+
+  var PAPEL = function (eu) { return eu.socio ? 'Sócio' : (eu.gerirEquipe ? 'Administrador' : 'Equipe'); };
+  function abrirPainel(eu) {
+    $('adm-gate').hidden = true; $('adm-gate').innerHTML = '';
+    $('adm-app').hidden = false;
+    var email = eu.email || emailDoCookie();
+    $('adm-lado-email').textContent = email || 'Equipe NEXUS';
+    $('adm-lado-papel').textContent = PAPEL(eu);
+    $('adm-quem').innerHTML = '<span class="nx-chip az">' + esc(PAPEL(eu)) + '</span><span>' + esc(email) + '</span>';
+    window.PainelNexus.iniciar({ email: email, nome: eu.nome || '', socio: !!eu.socio, gerirEquipe: !!eu.gerirEquipe, via: eu.via || 'solardoc' });
+  }
+  function sair() { limparSessao(); telaLogin(''); }
+
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest ? ev.target.closest('[data-adm]') : null;
+    if (!b) return;
+    var a = b.getAttribute('data-adm');
+    if (a === 'sair') sair();
+    else if (a === 'verificar') verificar();
+    else if (a === 'atualizar') window.PainelNexus.recarregar();
+  });
+
+  window.AdmPagina = { perdeuSessao: function () { limparSessao(); telaLogin('Sua sessão expirou. Entre de novo.'); } };
+  verificar();
+})();
+</script>
+</body>
+</html>

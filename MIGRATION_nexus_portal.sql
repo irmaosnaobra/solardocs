@@ -269,3 +269,33 @@ notify pgrst, 'reload schema';
 -- Conferencia depois de rodar (deve devolver 6 linhas, rls = true em todas):
 --   select relname, relrowsecurity as rls from pg_class
 --    where relname in ('nexus_parceiros','nexus_propostas','nexus_pedidos','nexus_oportunidades','nexus_usinas','nexus_solicitacoes');
+
+-- ===========================================================================================================
+-- v4 (22/10/2026): equipe do ADM NEXUS por e-mail (login do SolarDoc). Idempotente: pode rodar de novo.
+-- Quem entra em /nexus/adm: users.is_admin = true, OU o e-mail ATIVO nesta tabela (papel 'admin' ou 'socio').
+-- Papel 'socio' tambem gere a equipe e dispara o convite por e-mail; papel 'admin' so entra no ADM.
+-- A tabela e OPCIONAL: a sonda de "portal ligado" nao a exige, e sem ela so users.is_admin entra no ADM.
+-- Nenhum e-mail e inserido aqui (o repositorio e publico): quem tem is_admin adiciona a equipe pela aba Equipe do ADM.
+-- RLS ligado e SEM policy, como as outras: o acesso e so pela API com a service role.
+-- ===========================================================================================================
+create table if not exists nexus_equipe (
+  id          uuid primary key default gen_random_uuid(),
+  email       text not null unique,
+  papel       text not null check (papel in ('admin','socio')),
+  ativo       boolean not null default true,
+  criado_por  text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- user_id: a conta (users.id) a quem o acesso foi liberado. A API so aceita a linha quando o JWT e dessa conta; linha sem
+-- user_id (null) nao da acesso. Sem foreign key de proposito: apagar a conta nao pode apagar o historico da equipe.
+alter table nexus_equipe add column if not exists user_id uuid;
+
+alter table nexus_equipe enable row level security;
+
+-- Faz o PostgREST enxergar a tabela nova sem esperar.
+notify pgrst, 'reload schema';
+
+-- Conferencia da v4 (deve devolver 1 linha, rls = true):
+--   select relname, relrowsecurity as rls from pg_class where relname = 'nexus_equipe';

@@ -7,6 +7,7 @@ import { soDigitos } from '../../utils/cnpj';
 import { catalogoParaFront, ENTREGA, FINANCIAMENTO, servicosParaFront, TERMO_VERSAO, WHATSAPP_COMERCIAL } from './catalogo';
 import { calcularNivel, EntradaNivel, perfilCompleto } from './niveis';
 import { inicioMesBRT } from './tempo';
+import { acessoAdm } from './equipe';
 
 export type Linha = Record<string, any>;
 
@@ -91,7 +92,7 @@ export async function lerParceiro(userId: string): Promise<Linha | null> {
 }
 
 export const ORIGENS_VALIDAS: readonly string[] = Object.freeze([
-  'portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio',
+  'portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro',
 ]);
 
 export function origemValida(v: unknown): string {
@@ -202,7 +203,7 @@ export async function contagensDoParceiro(userId: string) {
 export async function montarEu(parceiro: Linha, company: Linha | null) {
   const { nivel, progresso, libera, bloqueios } = calcularNivel(entradaDoNivel(parceiro, company));
   const userId = String(parceiro.user_id);
-  const [contagens, saldo] = await Promise.all([contagensDoParceiro(userId), saldoEngenharia(userId)]);
+  const [contagens, saldo, adm] = await Promise.all([contagensDoParceiro(userId), saldoEngenharia(userId), acessoAdm(userId)]);
   const termoAceito = termoAceitoNaVersao(parceiro) ? String(parceiro.termo_aceito_em) : null;
   return {
     parceiro: visaoDoParceiro(parceiro),
@@ -219,6 +220,7 @@ export async function montarEu(parceiro: Linha, company: Linha | null) {
     libera,
     bloqueios,
     montagem_aprovada: !!parceiro.montagem_aprovada_em,
+    adm, // v4: users.is_admin ou e-mail ativo em nexus_equipe (o portal mostra o item ADM)
     catalogo: catalogoParaFront(),
     servicos: servicosParaFront(),
     saldo_engenharia: saldo,

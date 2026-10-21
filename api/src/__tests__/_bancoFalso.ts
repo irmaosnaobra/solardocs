@@ -55,8 +55,15 @@ function cmp(a: any, b: any): number {
 }
 
 function casaLike(valor: any, padrao: string): boolean {
-  const re = new RegExp('^' + padrao.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*') + '$');
-  return re.test(String(valor ?? ''));
+  // Como o LIKE do Postgres: % = qualquer trecho, _ = um caractere, barra invertida escapa o próximo caractere.
+  const lit = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let re = '';
+  for (let i = 0; i < padrao.length; i++) {
+    const c = padrao[i]!;
+    if (c === '\\' && i + 1 < padrao.length) { re += lit(padrao[++i]!); continue; }
+    re += c === '%' ? '.*' : c === '_' ? '.' : lit(c);
+  }
+  return new RegExp('^' + re + '$', 's').test(String(valor ?? ''));
 }
 
 class Consulta implements PromiseLike<any> {

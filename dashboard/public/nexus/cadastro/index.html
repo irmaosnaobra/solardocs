@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cadastre a sua empresa no Portal do Parceiro NEXUS</title>
+<meta name="description" content="Grátis para empresas com CNPJ ativo. Venda e instale carregadores rápidos NEXUS na sua região.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0B1A2B">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NEXUS Eletropostos">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="Cadastre a sua empresa no Portal do Parceiro NEXUS">
+<meta property="og:description" content="Grátis para empresas com CNPJ ativo. Venda e instale carregadores rápidos NEXUS na sua região.">
+<meta property="og:url" content="https://solardoc.app/nexus/cadastro">
+<meta property="og:image" content="https://solardoc.app/gerador/nexus-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cadastre a sua empresa no Portal do Parceiro NEXUS">
+<meta name="twitter:description" content="Grátis para empresas com CNPJ ativo. Venda e instale carregadores rápidos NEXUS na sua região.">
+<meta name="twitter:image" content="https://solardoc.app/gerador/nexus-og.png">
+<link rel="icon" href="/nexus/favicon.ico">
+<meta http-equiv="refresh" content="2;url=/nexus/app?o=link_cadastro#cadastro">
+<style>
+  html, body { margin: 0; min-height: 100vh; background: #0B1A2B; color: #fff; font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; box-sizing: border-box; }
+  img { width: 190px; max-width: 70%; height: auto; }
+  p { margin: 0; font-size: 15px; color: #C9D3E0; }
+  a { color: #FFFFFF; font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos">
+  <p>Abrindo o cadastro do Portal do Parceiro NEXUS.</p>
+  <p><a href="/nexus/app?o=link_cadastro#cadastro" id="nx-seguir">Se a página não abrir, toque aqui</a></p>
+</main>
+<script>
+(function () {
+  /* Leva junto qualquer utm_* da URL e marca a origem do cadastro. */
+  var q = ['o=link_cadastro'];
+  try {
+    var p = new URLSearchParams(location.search);
+    p.forEach(function (v, k) {
+      if (/^utm_[a-z_]+$/.test(k) && v) q.push(k + '=' + encodeURIComponent(v.slice(0, 120)));
+    });
+  } catch (e) { /* sem URLSearchParams, segue só com a origem */ }
+  var destino = '/nexus/app?' + q.join('&') + '#cadastro';
+  var a = document.getElementById('nx-seguir');
+  if (a) a.setAttribute('href', destino);
+  location.replace(destino);
+})();
+</script>
+<noscript><p style="padding:0 24px 24px"><a href="/nexus/app?o=link_cadastro#cadastro">Abrir o cadastro do Portal do Parceiro NEXUS</a></p></noscript>
+</body>
+</html>

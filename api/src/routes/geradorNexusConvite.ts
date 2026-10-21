@@ -1,5 +1,5 @@
-// Portal do Parceiro NEXUS: convite por e-mail às contas do SolarDoc com CNPJ. Só a equipe e só SÓCIO (exigeConsultor +
-// consultor na env SOLAR_SOCIOS, a mesma regra de services/gerador/solarObras.ts). Montado por mountNexusConvite(router).
+// Portal do Parceiro NEXUS: convite por e-mail às contas do SolarDoc com CNPJ. Só a equipe e só SÓCIO (exigeEquipeNexus + req.equipe.socio:
+// no Gerador, o consultor na env SOLAR_SOCIOS; no SolarDoc, users.is_admin ou papel 'socio' em nexus_equipe). Montado por mountNexusConvite(router).
 //
 //   GET  /nexus/equipe/convites/email/previa
 //        -> {total, ja_enviados, a_enviar, excluidos_optout, ja_parceiros, sem_email, lote, amostra:[empresa,...até 5]}
@@ -20,18 +20,17 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { soDigitos } from '../utils/cnpj';
-import { exigeConsultor } from './geradorDossie';
-import { ehSocio } from '../services/gerador/solarObras';
+import { exigeEquipeNexus } from '../services/nexus/equipeAuth';
 import { Linha } from '../services/nexus/repositorio';
 import { PREFIXO_TRAVA_CONVITE, enviarConvite, tomarTrava } from '../services/nexus/email';
 import { exigePortalLigado, lerTudo, lotes, ok, rota } from './geradorNexusBase';
 
 export const LOTE_CONVITE = 40;
 
-/** Só sócio dispara e vê. Roda DEPOIS do exigeConsultor, que preenche req.consultor. */
+/** Só sócio dispara e vê. Roda DEPOIS do exigeEquipeNexus, que preenche req.equipe.socio (Gerador: SOLAR_SOCIOS; SolarDoc:
+ *  is_admin ou papel 'socio'). Nunca decide pelo nome do e-mail: conta do SolarDoc com nome de sócio não vira sócio. */
 export function exigeSocio(req: Request, res: Response, next: NextFunction): void {
-  const nome = String((req as unknown as { consultor?: { nome?: string } }).consultor?.nome ?? '');
-  if (!ehSocio(nome)) {
+  if (req.equipe?.socio !== true) {
     res.status(403).json({ erro: 'so_socio' });
     return;
   }
@@ -98,7 +97,7 @@ async function lerPublico(): Promise<Publico> {
 const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export function mountNexusConvite(router: Router): void {
-  const equipe = [exigeConsultor, exigeSocio, exigePortalLigado];
+  const equipe = [exigeEquipeNexus, exigeSocio, exigePortalLigado];
 
   router.get('/nexus/equipe/convites/email/previa', ...equipe, rota('GET /nexus/equipe/convites/email/previa', async (_req, res) => {
     const p = await lerPublico();

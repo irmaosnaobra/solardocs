@@ -19,7 +19,7 @@
   var WA_PADRAO = '5534998165040';
   var TOKEN_KEY = 'solardoc_token';
   var USER_KEY = 'solardoc_user';
-  var ORIGENS = ['portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio'];
+  var ORIGENS = ['portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro'];
   var TZ = 'America/Sao_Paulo';
   var UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -113,6 +113,7 @@
     engenharia: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4 2.5-2.5z"/>',
     materiais: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>',
     parceria: '<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3zM9 12l2 2 4-4"/>',
+    escudo: '<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/>',
     perfil: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M10 21v-4h4v4"/>',
     mais: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
@@ -159,12 +160,13 @@
 
   /* ------------------------------------------------------------------ estado e rotas */
   var S = {
-    demo: false, nivelDemo: 'pro', fase: 'boot', eu: null, rota: 'inicio', sub: '', aba: 'entrar',
+    demo: false, nivelDemo: 'pro', fase: 'boot', eu: null, rota: 'inicio', sub: '',
     propInicial: null, ultima: null, ultimoEquip: null, logoNovo: null, erroTexto: '', msgEntrada: '', shell: false,
     tela: 0, qtd: 1, foto: 0, frota: null, frotaErro: false, frotaCarregando: false, propostas: null, propErro: false,
     procura: {}, abrirCompra: false,
     confirmaPacote: 0, consultoriaAberta: false, plataformaPedida: false, pedidosServ: null, pedidosServErro: false,
-    termoTxt: undefined, termoErro: false, termoMsg: '', montagemDemo: null
+    termoTxt: undefined, termoErro: false, termoMsg: '', montagemDemo: null,
+    cad: null, emailPre: ''
   };
   var propAtual = null;      /* proposta em edicao na tela Propostas: {id, numero} */
   var esperaScript = null;
@@ -189,6 +191,8 @@
   var TABS = ['inicio', 'equipamentos', 'propostas', 'oportunidades'];
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
 
+  /* Item ADM: so quando o /eu diz adm:true (is_admin ou e-mail ativo em nexus_equipe). Leva a pagina propria, nao a uma rota do portal. */
+  function admOk() { return !!(S.eu && S.eu.adm === true && !S.demo); }
   function wpp() { return (S.eu && S.eu.whatsappComercial) || WA_PADRAO; }
   function nivel() { return (S.eu && S.eu.nivel) || 'cadastrado'; }
   var NIVEL_NOME = { cadastrado: 'Cadastrado', partner: 'Partner', pro: 'Partner Pro', master: 'Partner Master' };
@@ -589,7 +593,6 @@
       '<button type="button" class="nx-btn link grande" style="margin-top:6px" data-acao="sairConta">Sair</button></div></div></div>';
   }
   function telaEntrada() {
-    var criar = S.aba === 'criar';
     return '<div class="nx-ent"><div class="nx-ent-in">' + logoEntrada() +
       '<div class="nx-ent-card"><h1>Portal do Parceiro NEXUS</h1>' +
       '<p class="sub">Para empresas que querem vender ou instalar carregadores rápidos NEXUS na sua região.</p>' +
@@ -598,24 +601,98 @@
       '<li>' + ic('check') + '<span>Propostas prontas com o logo da sua empresa.</span></li>' +
       '<li>' + ic('check') + '<span>Revenda, obras ou os dois: você escolhe o seu papel.</span></li></ul>' +
       '<div class="nx-abas" role="tablist">' +
-      '<button type="button" role="tab" class="nx-aba" id="aba-entrar" aria-selected="' + (!criar) + '" data-acao="aba" data-arg="entrar">Entrar</button>' +
-      '<button type="button" role="tab" class="nx-aba" id="aba-criar" aria-selected="' + criar + '" data-acao="aba" data-arg="criar">Criar conta da empresa</button></div>' +
+      '<button type="button" role="tab" class="nx-aba" id="aba-entrar" aria-selected="true">Entrar</button>' +
+      '<button type="button" role="tab" class="nx-aba" id="aba-criar" aria-selected="false" data-acao="criarConta">Criar conta da empresa</button></div>' +
       (S.msgEntrada ? '<p class="np-aviso">' + esc(S.msgEntrada) + '</p>' : '') +
-      '<form data-form="login" novalidate' + (criar ? ' hidden' : '') + '><p class="nx-msg-erro" data-erro hidden></p>' +
-      '<div class="nx-campo"><label for="lg-email">E-mail</label><input id="lg-email" name="email" type="email" autocomplete="username" inputmode="email"></div>' +
+      '<form data-form="login" novalidate><p class="nx-msg-erro" data-erro hidden></p>' +
+      '<div class="nx-campo"><label for="lg-email">E-mail</label><input id="lg-email" name="email" type="email" autocomplete="username" inputmode="email" value="' + esc(S.emailPre) + '"></div>' +
       '<div class="nx-campo"><label for="lg-senha">Senha</label><input id="lg-senha" name="password" type="password" autocomplete="current-password"></div>' +
       '<button type="submit" class="nx-btn grande">Entrar</button>' +
       '<p class="nx-ent-rodape">Já usa o SolarDoc? Entre com o mesmo e-mail e senha.<br><a href="/auth">Esqueci a minha senha</a></p></form>' +
-      '<form data-form="cadastro" novalidate' + (criar ? '' : ' hidden') + '><p class="nx-msg-erro" data-erro hidden></p>' +
-      '<div class="nx-campo"><label for="cd-nome">Seu nome</label><input id="cd-nome" name="nome" type="text" autocomplete="name"></div>' +
-      '<div class="nx-campo"><label for="cd-email">E-mail</label><input id="cd-email" name="email" type="email" autocomplete="email" inputmode="email"></div>' +
-      '<div class="nx-campo"><label for="cd-senha">Senha</label><input id="cd-senha" name="password" type="password" autocomplete="new-password"><span class="nx-dica">Use pelo menos 6 caracteres.</span></div>' +
-      '<div class="nx-campo"><label for="cd-fone">WhatsApp com DDD</label><input id="cd-fone" name="whatsapp" type="tel" autocomplete="tel-national" inputmode="tel" placeholder="(00) 00000-0000" data-mascara="fone"></div>' +
-      '<div class="nx-campo"><label for="cd-cnpj">CNPJ da empresa</label><input id="cd-cnpj" name="cnpj" type="text" inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" data-mascara="cnpj"><span class="nx-cnpj-estado" data-cnpj-estado></span></div>' +
-      '<div class="nx-campo"><label for="cd-emp">Nome da empresa</label><input id="cd-emp" name="empresa" type="text" autocomplete="organization"></div>' +
-      '<button type="submit" class="nx-btn grande">Criar conta da empresa</button>' +
-      '<p class="nx-ent-rodape">Já usa o SolarDoc? Entre com o mesmo e-mail e senha.</p></form>' +
       '</div></div></div>';
+  }
+
+  /* ------------------------------------------------------------------ cadastro guiado (#cadastro, 3 passos) */
+  var TX_BLOQUEIO_CNPJ = 'Ele não aparece como ativo na Receita Federal. Confira o número ou regularize a situação da empresa e tente de novo. O portal é só para empresas. Se você acha que foi engano, fale com a gente pelo WhatsApp.';
+  function ehCadastro() { return /^#\/?cadastro(\/|\?|$)/.test(location.hash); }
+  function perfilCompleto() { return libera('basico'); }
+  function novoCad() { return { passo: 1, nome: '', email: '', fone: '', senha: '', conf: '', aceito: false, cnpj: '', empresa: '', fila: [], vistos: {} }; }
+  /* cadastro_passo: sem token ainda (passos 1 e 2) o evento espera na fila e sai logo depois do register. */
+  function evPasso(n) {
+    var c = S.cad;
+    if (!c || c.vistos[n]) return;
+    c.vistos[n] = 1;
+    if (getToken()) ev('cadastro_passo', { passo: n }); else c.fila.push(n);
+  }
+  function campoCad(id, nome, rotulo, controle, dica) {
+    return '<div class="nx-campo"><label for="' + id + '">' + esc(rotulo) + '</label>' + controle +
+      (dica ? '<span class="nx-dica" id="d-' + id + '">' + esc(dica) + '</span>' : '') +
+      '<span class="nx-erro-campo" id="e-' + id + '" data-erro-de="' + nome + '" role="alert" hidden></span></div>';
+  }
+  function inpCad(id, nome, tipo, extra, valor, comDica) {
+    return '<input id="' + id + '" name="' + nome + '" type="' + tipo + '" ' + (extra || '') + ' value="' + esc(valor == null ? '' : valor) + '" aria-describedby="' + (comDica ? 'd-' + id + ' ' : '') + 'e-' + id + '">';
+  }
+  function cabecaCad(n, titulo, sub) {
+    var seg = '';
+    for (var i = 1; i <= 3; i++) seg += '<span class="' + (i < n ? 'feito' : i === n ? 'atual' : '') + '"></span>';
+    return '<p class="nx-passo">Passo ' + n + ' de 3</p><div class="nx-prog" role="img" aria-label="Passo ' + n + ' de 3">' + seg + '</div>' +
+      '<h1 id="cad-h1" tabindex="-1">' + esc(titulo) + '</h1><p class="sub">' + esc(sub) + '</p>';
+  }
+  function telaCadastro() {
+    var c = S.cad || novoCad(), n = c.passo, h;
+    if (n === 1) {
+      h = cabecaCad(1, 'Crie a sua conta', 'Grátis para empresas com CNPJ ativo. Você usa o mesmo e-mail e senha no SolarDoc.') +
+        '<form data-form="cad1" novalidate><p class="nx-msg-erro" data-erro hidden></p>' +
+        campoCad('c1-nome', 'nome', 'Seu nome completo', inpCad('c1-nome', 'nome', 'text', 'autocomplete="name"', c.nome)) +
+        campoCad('c1-email', 'email', 'E-mail', inpCad('c1-email', 'email', 'email', 'autocomplete="email" inputmode="email"', c.email)) +
+        campoCad('c1-fone', 'whatsapp', 'WhatsApp com DDD', inpCad('c1-fone', 'whatsapp', 'tel', 'autocomplete="tel-national" inputmode="tel" placeholder="(00) 00000-0000" data-mascara="fone"', fmtFone(c.fone))) +
+        campoCad('c1-senha', 'password', 'Senha', inpCad('c1-senha', 'password', 'password', 'autocomplete="new-password"', '', true), 'Pelo menos 8 caracteres e 1 número.') +
+        campoCad('c1-conf', 'confirma', 'Repita a senha', inpCad('c1-conf', 'confirma', 'password', 'autocomplete="new-password"', '')) +
+        '<div class="nx-campo"><label class="nx-marcar" for="c1-aceito"><input type="checkbox" id="c1-aceito" name="aceito"' + (c.aceito ? ' checked' : '') + ' aria-describedby="e-c1-aceito"><span>Aceito os <a href="/termos" target="_blank" rel="noopener noreferrer">termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener noreferrer">política de privacidade</a>.</span></label>' +
+        '<span class="nx-erro-campo" id="e-c1-aceito" data-erro-de="aceito" role="alert" hidden></span></div>' +
+        '<button type="submit" class="nx-btn grande">Continuar</button></form>' +
+        '<p class="nx-ent-rodape">Já tem conta no SolarDoc? <button type="button" class="nx-btn link" data-acao="cadEntrar">Entrar</button></p>';
+    } else if (n === 2) {
+      h = cabecaCad(2, 'Dados da empresa', 'O portal é só para empresas com CNPJ ativo na Receita Federal.') +
+        '<form data-form="cad2" novalidate><p class="nx-msg-erro" data-erro hidden></p>' +
+        campoCad('c2-cnpj', 'cnpj', 'CNPJ da empresa', inpCad('c2-cnpj', 'cnpj', 'text', 'inputmode="numeric" autocomplete="off" placeholder="00.000.000/0000-00" data-mascara="cnpj"', fmtCnpj(c.cnpj)) + '<span class="nx-cnpj-estado" data-cnpj-estado></span>') +
+        '<div class="nx-bloqueio" data-bloqueio role="alert" hidden><b>Não conseguimos liberar este CNPJ</b><p>' + esc(TX_BLOQUEIO_CNPJ) + '</p>' +
+        '<a class="nx-btn wa" href="' + waLink('Oi, tudo bem? Meu CNPJ não foi liberado no Portal do Parceiro NEXUS e acho que foi engano.') + '" rel="noopener">' + ic('conversa') + 'Falar no WhatsApp</a></div>' +
+        campoCad('c2-emp', 'empresa', 'Nome da empresa', inpCad('c2-emp', 'empresa', 'text', 'autocomplete="organization"', c.empresa, true), 'Preenchido com a razão social quando o CNPJ é ativo. Você pode editar.') +
+        '<button type="submit" class="nx-btn grande">Criar a minha conta</button>' +
+        '<button type="button" class="nx-btn link grande" style="margin-top:6px" data-acao="cadVoltar">Voltar</button></form>';
+    } else {
+      var p = (S.eu && S.eu.parceiro) || {}, e = (S.eu && S.eu.empresa) || {};
+      var logo = imgSegura(S.logoNovo) || imgSegura(e.logo_base64);
+      h = cabecaCad(3, 'Complete o perfil da empresa', 'Com o perfil completo ficam liberados o Orçamento Básico, o Orçamento Completo, os Materiais e a Engenharia.') +
+        '<form data-form="cad3" novalidate><p class="nx-msg-erro" data-erro hidden></p>' +
+        '<div class="nx-cartao" id="c3-logo" tabindex="-1" data-foco-de="logo"><h2>Logo da empresa</h2><p class="nx-dica" style="margin-bottom:10px">Aparece nas propostas ao lado da NEXUS. Prefira fundo transparente.</p>' +
+        '<div class="nx-logo-area"><div class="nx-logo-prev" id="nx-logo-prev">' + (logo ? '<img src="' + esc(logo) + '" alt="Logo da empresa">' : 'Sem logo') + '</div>' +
+        '<div><input class="nx-arquivo" type="file" id="nx-logo-arq" accept="image/png,image/jpeg,image/webp" aria-label="Escolher o logo da empresa" aria-describedby="e-c3-logo">' +
+        '<label class="nx-btn sec" for="nx-logo-arq" tabindex="0" id="nx-logo-btn">' + (logo ? 'Trocar o logo' : 'Escolher o logo') + '</label>' +
+        '<p class="nx-dica" style="margin-top:6px">PNG, JPG ou WebP. A imagem é reduzida para até 600 px de largura.</p></div></div>' +
+        '<span class="nx-erro-campo" id="e-c3-logo" data-erro-de="logo" role="alert" hidden></span></div>' +
+        '<div class="nx-cartao"><h2>Onde a sua empresa atende</h2><div class="nx-grade2">' +
+        campoCad('c3-cidade', 'cidade', 'Cidade', inpCad('c3-cidade', 'cidade', 'text', 'autocomplete="address-level2"', p.cidade, true), 'Onde a sua empresa fica.') +
+        campoCad('c3-uf', 'uf', 'UF', '<select id="c3-uf" name="uf" aria-describedby="e-c3-uf"><option value="">Escolha</option>' +
+          UFS.map(function (u) { return '<option' + (String(p.uf || '').toUpperCase() === u ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select>') +
+        campoCad('c3-raio', 'raio_km', 'Raio de atendimento (km)', inpCad('c3-raio', 'raio_km', 'number', 'inputmode="numeric" min="1" max="5000"', p.raio_km, true), 'Distância máxima que a sua equipe atende, a partir da sua cidade.') +
+        campoCad('c3-eq', 'equipe_tamanho', 'Tamanho da equipe', inpCad('c3-eq', 'equipe_tamanho', 'number', 'inputmode="numeric" min="0" max="10000"', p.equipe_tamanho, true), 'Quantas pessoas trabalham nos projetos e em campo.') +
+        '</div></div>' +
+        '<div class="nx-cartao" id="c3-papeis" tabindex="-1" data-foco-de="papel"><h2>Papéis</h2><p class="nx-dica" style="margin-bottom:10px">Marque um ou os dois.</p>' +
+        marca('papel_revenda', p.papel_revenda, 'Revenda', 'Você vende o carregador NEXUS para os seus clientes, com preço de parceiro.') +
+        marca('papel_montagem', p.papel_montagem, 'Montagem e Engenharia', 'Você executa, na sua região, as obras chave na mão que a NEXUS vende.') +
+        '<span class="nx-erro-campo" id="e-c3-papel" data-erro-de="papel" role="alert" hidden></span></div>' +
+        '<div class="nx-cartao"><h2>Capacidades</h2><p class="nx-dica" style="margin-bottom:10px">Marque o que a sua equipe executa. Pode deixar em branco.</p>' +
+        marca('cap_eletrica_bt', p.cap_eletrica_bt, 'Instalação elétrica de baixa tensão', '') +
+        marca('cap_eletrica_mt', p.cap_eletrica_mt, 'Instalação elétrica de média tensão', '') +
+        marca('cap_engenharia_art', p.cap_engenharia_art, 'Engenharia com ART', 'Marque se a empresa tem engenheiro que emite a ART dos projetos.') +
+        marca('cap_obra_civil', p.cap_obra_civil, 'Obra civil', 'Base, valas, calçada e acabamento do local do carregador.') +
+        marca('cap_homologacao', p.cap_homologacao, 'Homologação na distribuidora', 'Pedido de acesso e aprovação do projeto na concessionária de energia.') +
+        marca('cap_ja_instala', p.cap_ja_instala, 'Já instala carregador de carro elétrico', 'Marque se a empresa já instalou algum, de qualquer potência.') + '</div>' +
+        '<button type="submit" class="nx-btn grande">Concluir o cadastro</button></form>';
+    }
+    return '<div class="nx-ent"><div class="nx-ent-in cad">' + logoEntrada() + '<div class="nx-ent-card cad">' + h + '</div></div></div>';
   }
 
   /* ------------------------------------------------------------------ casca (menu, topo, abas) */
@@ -635,6 +712,7 @@
   function ladoHTML() {
     var h = '<div class="logo"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos"></div><nav class="np-nav" aria-label="Menu principal">';
     ORDEM.forEach(function (r) { h += itemMenu(r); });
+    if (admOk()) h += '<a class="np-n-item" href="/nexus/adm">' + ic('escudo', 'm') + '<span>ADM</span></a>';
     h += '</nav><div class="np-emp"><b>' + esc(nomeEmpresa() || 'Sua empresa') + '</b>' +
       (localParceiro() ? '<span class="loc">' + esc(localParceiro()) + '</span>' : '') +
       '<span class="nivel">' + esc(NIVEL_NOME[nivel()] || '') + '</span>' +
@@ -657,6 +735,7 @@
       var tr = travada(r);
       h += '<button type="button" class="np-f-item' + (S.rota === r ? ' ativa' : '') + '" data-acao="ir" data-arg="' + r + '">' + ic(r) + '<span>' + esc(ROTAS[r].menu) + '</span>' + (tr ? ic('cadeado', 'p fim') : '') + '</button>';
     });
+    if (admOk()) h += '<a class="np-f-item" href="/nexus/adm">' + ic('escudo') + '<span>ADM</span></a>';
     h += '<button type="button" class="np-f-item" data-acao="sairConta">' + ic('sair') + '<span>' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</span></button>';
     return h;
   }
@@ -703,8 +782,10 @@
       else if (S.fase === 'cnpj_inativo') root.innerHTML = telaCnpjInativo();
       else if (S.fase === 'sem_cnpj') root.innerHTML = telaSemCnpj();
       else if (S.fase === 'erro') root.innerHTML = telaErro();
+      else if (S.fase === 'cadastro') root.innerHTML = telaCadastro();
       else root.innerHTML = telaEntrada();
       window.scrollTo(0, 0);
+      if (S.fase === 'cadastro') focoCad();
       return;
     }
     if (!S.shell) montarCasca();
@@ -1944,6 +2025,7 @@
     S.fase = 'boot'; pintar();
     return carregarEu().then(function (ok) {
       if (!ok) return;
+      if (ehCadastro()) { aposSessaoCadastro(); return; }
       S.fase = 'app';
       var rh = rotaDoHash();
       S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : '';
@@ -1994,7 +2076,7 @@
       if (dig(inp.value) !== d) return;
       estadoCnpj(f, info);
       var emp = $('[name=empresa]', f);
-      if (info.ativa && info.razao && emp && !emp.value) emp.value = info.razao;
+      if (info.ativa && info.razao && emp && (!emp.value || emp.dataset.auto === '1')) { emp.value = info.razao; emp.dataset.auto = '1'; }
     });
   }
   function valorDe(f, nome) { var i = f.elements[nome]; return i ? String(i.value || '').trim() : ''; }
@@ -2006,36 +2088,9 @@
     erroForm(f, '');
     var btn = $('[type=submit]', f); ocupado(btn, true, 'Entrando');
     api('POST', '/auth/login', { email: email, password: senha }, { semToken: true, quieto: true }).then(function (r) {
-      if (r.ok && r.data && r.data.token) { S.msgEntrada = ''; salvarSessao(r.data); iniciarApp(); return; }
+      if (r.ok && r.data && r.data.token) { S.msgEntrada = ''; S.emailPre = ''; salvarSessao(r.data); iniciarApp(); return; }
       ocupado(btn, false);
       erroForm(f, r.status === 401 ? 'E-mail ou senha incorretos.' : textoErro(r, 'Não foi possível entrar. Tente de novo.'));
-    });
-  }
-  function enviarCadastro(f) {
-    var nome = valorDe(f, 'nome'), email = valorDe(f, 'email'), senha = f.elements.password.value;
-    var fone = dig(f.elements.whatsapp.value), cnpj = dig(f.elements.cnpj.value), emp = valorDe(f, 'empresa');
-    if (nome.length < 2) return erroForm(f, 'Informe o seu nome.');
-    if (!/^\S+@\S+\.\S+$/.test(email)) return erroForm(f, 'Informe um e-mail válido.');
-    if (senha.length < 6) return erroForm(f, 'A senha precisa ter pelo menos 6 caracteres.');
-    if (fone.length < 10 || fone.length > 11) return erroForm(f, 'Informe o WhatsApp com DDD.');
-    if (!cnpjValido(cnpj)) return erroForm(f, 'CNPJ inválido. Confira o número.');
-    erroForm(f, '');
-    var btn = $('[type=submit]', f); ocupado(btn, true, 'Criando a conta');
-    verificarCnpj(cnpj).then(function (info) {
-      if (info.bloqueia) { S.fase = 'cnpj_inativo'; pintar(); return; }
-      if (info.invalido) { ocupado(btn, false); estadoCnpj(f, info); return erroForm(f, 'CNPJ inválido. Confira o número.'); }
-      var empresa = emp || info.razao || '';
-      if (!empresa) { ocupado(btn, false); return erroForm(f, 'Informe o nome da empresa.'); }
-      return api('POST', '/auth/register', { nome: nome, email: email, password: senha, whatsapp: fone, empresa: empresa, cnpj: cnpj, origem: 'nexus' }, { semToken: true, quieto: true }).then(function (r) {
-        if (r.ok && r.data && r.data.token) {
-          salvarSessao(r.data); S.msgEntrada = '';
-          ev('cadastrou'); pix('CadastroParceiroNexus');
-          iniciarApp(true);
-          return;
-        }
-        ocupado(btn, false);
-        erroForm(f, textoErro(r, 'Não foi possível criar a conta. Tente de novo.'));
-      });
     });
   }
   function enviarSemCnpj(f) {
@@ -2050,6 +2105,7 @@
       if (emp || info.razao) corpo.empresa = emp || info.razao;
       return api('PUT', NX + '/perfil', corpo).then(function (r) {
         if (r.tratado) return;
+        if (r.ok && r.data && r.data.parceiro && ehCadastro()) { S.eu = r.data; aposSessaoCadastro(); return; }
         if (r.ok && r.data && r.data.parceiro) { S.eu = r.data; S.fase = 'app'; S.rota = 'perfil'; S.sub = ''; history.replaceState(null, '', '#perfil'); pintar(); toast('Empresa cadastrada. Agora complete o perfil.'); return; }
         ocupado(btn, false);
         erroForm(f, textoErro(r, 'Não foi possível salvar o CNPJ.'));
@@ -2083,6 +2139,168 @@
         ev('perfil_salvo');
         pintarNav(); pintarMain();
         toast(!antes && libera('basico') ? 'Perfil completo. Orçamentos, Materiais e Engenharia liberados.' : 'Perfil salvo.');
+        return;
+      }
+      erroForm(f, textoErro(r, 'Não foi possível salvar o perfil.'));
+    });
+  }
+
+  /* ------------------------------------------------------------------ cadastro guiado: logica */
+  function erroCampo(f, nome, msg) {
+    var s = $('[data-erro-de="' + nome + '"]', f), i = f.elements[nome];
+    if (s) { s.textContent = msg || ''; s.hidden = !msg; }
+    if (i && i.setAttribute) { if (msg) i.setAttribute('aria-invalid', 'true'); else i.removeAttribute('aria-invalid'); }
+  }
+  /* regras: [[nome, mensagem ou '']] na ordem da tela. Mostra todas as mensagens, foca a primeira e devolve true se nao houve erro. */
+  function validarCampos(f, regras) {
+    var primeiro = null;
+    regras.forEach(function (r) {
+      erroCampo(f, r[0], r[1]);
+      if (r[1] && !primeiro) primeiro = r[0];
+    });
+    if (primeiro) {
+      var el = f.elements[primeiro] || $('[data-foco-de="' + primeiro + '"]', f);
+      if (el && el.focus) { try { el.focus(); } catch (e) { /* ok */ } }
+    }
+    return !primeiro;
+  }
+  function lerCad(f, passo) {
+    var c = S.cad;
+    if (!c || !f) return;
+    if (passo === 1) {
+      c.nome = valorDe(f, 'nome'); c.email = valorDe(f, 'email'); c.fone = dig(f.elements.whatsapp.value);
+      c.senha = f.elements.password.value; c.conf = f.elements.confirma.value; c.aceito = !!f.elements.aceito.checked;
+    } else if (passo === 2) {
+      c.cnpj = dig(f.elements.cnpj.value); c.empresa = valorDe(f, 'empresa');
+    }
+  }
+  function focoCad() { var h = $('#cad-h1'); if (h) { try { h.focus({ preventScroll: true }); } catch (e) { /* ok */ } } }
+  function irPasso(n) {
+    if (!S.cad) S.cad = novoCad();
+    S.cad.passo = n; S.fase = 'cadastro';
+    evPasso(n);
+    pintar();
+    if (n === 2 && S.cad.cnpj) { var i = $('#c2-cnpj'); if (i) conferirCnpjCampo(i); }
+  }
+  function aposSessaoCadastro() {
+    if (perfilCompleto()) {
+      try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (e) { /* ok */ }
+      S.fase = 'app'; S.rota = 'inicio'; S.sub = ''; S.cad = null;
+      pintar();
+      return;
+    }
+    irPasso(3);
+  }
+  function abrirCadastro() {
+    if (S.demo || (S.fase !== 'app' && S.fase !== 'entrada')) return;
+    if (getToken()) { if (S.eu) aposSessaoCadastro(); else iniciarApp(); return; }
+    S.cad = novoCad(); irPasso(1);
+  }
+  function jaTemConta(email) {
+    if (S.cad) { S.cad.senha = ''; S.cad.conf = ''; }
+    S.emailPre = email;
+    S.msgEntrada = 'Você já tem conta no SolarDoc com este e-mail. Entre com a sua senha.';
+    S.fase = 'entrada';
+    pintar();
+    var s = $('#lg-senha'); if (s) { try { s.focus(); } catch (e) { /* ok */ } }
+  }
+  function voltarComErro(nome, msg) {
+    irPasso(1);
+    var f = $('[data-form=cad1]');
+    if (f) validarCampos(f, [[nome, msg]]);
+  }
+  function enviarCad1(f) {
+    lerCad(f, 1);
+    var c = S.cad;
+    var ok = validarCampos(f, [
+      ['nome', c.nome.length < 2 ? 'Informe o seu nome completo.' : ''],
+      ['email', /^\S+@\S+\.\S+$/.test(c.email) ? '' : 'Informe um e-mail válido.'],
+      ['whatsapp', c.fone.length < 10 || c.fone.length > 11 ? 'Informe o WhatsApp com DDD, com 10 ou 11 números.' : ''],
+      ['password', c.senha.length < 8 ? 'A senha precisa de pelo menos 8 caracteres.' : (!/\d/.test(c.senha) ? 'A senha precisa ter pelo menos 1 número.' : '')],
+      ['confirma', c.conf !== c.senha ? 'As senhas não conferem.' : ''],
+      ['aceito', c.aceito ? '' : 'É preciso aceitar os termos para continuar.']
+    ]);
+    if (!ok) return;
+    erroForm(f, '');
+    irPasso(2);
+  }
+  function enviarCad2(f) {
+    lerCad(f, 2);
+    var c = S.cad, bloqueio = $('[data-bloqueio]', f);
+    if (bloqueio) bloqueio.hidden = true;
+    var ok = validarCampos(f, [
+      ['cnpj', cnpjValido(c.cnpj) ? '' : 'CNPJ inválido. Confira o número.'],
+      ['empresa', c.empresa.length < 2 ? 'Informe o nome da empresa.' : '']
+    ]);
+    if (!ok) return;
+    erroForm(f, '');
+    var btn = $('[type=submit]', f); ocupado(btn, true, 'Verificando o CNPJ');
+    verificarCnpj(c.cnpj).then(function (info) {
+      if (info.bloqueia) {
+        ocupado(btn, false); estadoCnpj(f, info);
+        if (bloqueio) { bloqueio.hidden = false; bloqueio.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        return;
+      }
+      if (info.invalido) { ocupado(btn, false); estadoCnpj(f, info); validarCampos(f, [['cnpj', 'CNPJ inválido. Confira o número.'], ['empresa', '']]); return; }
+      btn.textContent = 'Criando a conta';
+      var corpo = { nome: c.nome, email: c.email, password: c.senha, whatsapp: c.fone, empresa: c.empresa, cnpj: c.cnpj, origem: 'nexus' };
+      return api('POST', '/auth/register', corpo, { semToken: true, quieto: true }).then(function (r) {
+        if (r.ok && r.data && r.data.token) {
+          salvarSessao(r.data); S.msgEntrada = '';
+          c.senha = ''; c.conf = '';
+          c.fila.forEach(function (n) { ev('cadastro_passo', { passo: n }); });
+          c.fila = [];
+          ev('cadastrou'); pix('CadastroParceiroNexus');
+          carregarEu().then(function (certo) { if (certo) aposSessaoCadastro(); });
+          return;
+        }
+        ocupado(btn, false);
+        /* 409: e-mail ja cadastrado ('Email já cadastrado') ou conta com plano ativado ('JA_TEM_CONTA_PLANO_ATIVADO'). */
+        if (r.status === 409) { jaTemConta(c.email); return; }
+        var cod = r.data && typeof r.data.error === 'string' ? r.data.error : '';
+        if (/CNPJ/i.test(cod)) { validarCampos(f, [['cnpj', 'CNPJ inválido. Confira o número.'], ['empresa', '']]); return; }
+        if (/WhatsApp/i.test(cod)) { voltarComErro('whatsapp', 'Informe o WhatsApp com DDD, com 10 ou 11 números.'); return; }
+        if (/e-?mail/i.test(cod)) { voltarComErro('email', 'Informe um e-mail válido.'); return; }
+        if (/senha/i.test(cod)) { voltarComErro('password', 'A senha precisa de pelo menos 8 caracteres e 1 número.'); return; }
+        erroForm(f, textoErro(r, 'Não foi possível criar a conta. Tente de novo.'));
+      });
+    });
+  }
+  function enviarCad3(f) {
+    var e = (S.eu && S.eu.empresa) || {};
+    var logo = imgSegura(S.logoNovo) || imgSegura(e.logo_base64);
+    var rv = f.elements.papel_revenda.checked, mo = f.elements.papel_montagem.checked;
+    var cidade = valorDe(f, 'cidade'), uf = valorDe(f, 'uf'), raio = valorDe(f, 'raio_km'), eq = valorDe(f, 'equipe_tamanho');
+    var ok = validarCampos(f, [
+      ['logo', logo ? '' : 'Escolha o logo da empresa. Ele aparece nas propostas ao lado da NEXUS.'],
+      ['cidade', cidade.length < 2 ? 'Informe a cidade da empresa.' : ''],
+      ['uf', uf ? '' : 'Escolha a UF.'],
+      ['raio_km', raio === '' || !(Number(raio) >= 1) ? 'Informe o raio de atendimento em km, de 1 a 5000.' : (Number(raio) > 5000 ? 'O raio máximo é 5000 km.' : '')],
+      ['equipe_tamanho', eq !== '' && !(Number(eq) >= 0 && Number(eq) <= 10000) ? 'Informe um número de 0 a 10000, ou deixe em branco.' : ''],
+      ['papel', rv || mo ? '' : 'Marque pelo menos um papel: Revenda ou Montagem e Engenharia.']
+    ]);
+    if (!ok) return;
+    erroForm(f, '');
+    var corpo = {
+      cidade: cidade, uf: uf, raio_km: Math.round(Number(raio)), papel_revenda: rv, papel_montagem: mo,
+      cap_eletrica_bt: f.elements.cap_eletrica_bt.checked, cap_eletrica_mt: f.elements.cap_eletrica_mt.checked,
+      cap_engenharia_art: f.elements.cap_engenharia_art.checked, cap_obra_civil: f.elements.cap_obra_civil.checked,
+      cap_homologacao: f.elements.cap_homologacao.checked, cap_ja_instala: f.elements.cap_ja_instala.checked,
+      equipe_tamanho: eq === '' ? null : Math.round(Number(eq))
+    };
+    if (S.logoNovo) corpo.logo_base64 = S.logoNovo;
+    var btn = $('[type=submit]', f); ocupado(btn, true, 'Salvando');
+    api('PUT', NX + '/perfil', corpo).then(function (r) {
+      if (r.tratado) return;
+      ocupado(btn, false);
+      if (r.ok && r.data && r.data.parceiro) {
+        S.eu = r.data; S.logoNovo = null; S.procura = {};
+        ev('perfil_salvo');
+        if (!perfilCompleto()) { erroForm(f, 'O perfil ainda não ficou completo. Confira o logo, a cidade, a UF, o raio e o papel da empresa.'); return; }
+        try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (x) { /* ok */ }
+        S.fase = 'app'; S.rota = 'inicio'; S.sub = ''; S.cad = null;
+        pintar();
+        toast('Cadastro completo. Bem-vindo à rede NEXUS.');
         return;
       }
       erroForm(f, textoErro(r, 'Não foi possível salvar o perfil.'));
@@ -2138,17 +2356,18 @@
   }
   var ACOES = {
     ir: function (el) { fecharMais(); irPara(el.dataset.arg); },
-    aba: function (el) {
-      S.aba = el.dataset.arg; S.msgEntrada = '';
-      var criar = S.aba === 'criar';
-      $('#aba-entrar').setAttribute('aria-selected', String(!criar)); $('#aba-criar').setAttribute('aria-selected', String(criar));
-      $('[data-form=login]').hidden = criar; $('[data-form=cadastro]').hidden = !criar;
+    criarConta: function () {
+      S.msgEntrada = ''; S.emailPre = ''; S.cad = novoCad();
+      try { history.replaceState(null, '', location.pathname + location.search + '#cadastro'); } catch (e) { /* ok */ }
+      irPasso(1);
     },
+    cadEntrar: function () { S.msgEntrada = ''; S.fase = 'entrada'; pintar(); },
+    cadVoltar: function () { lerCad($('[data-form=cad2]'), 2); irPasso(1); },
     abrirMais: function () { var f = $('#np-folha'); f.innerHTML = folhaHTML(); f.hidden = false; $('#np-fundo').hidden = false; },
     fecharMais: fecharMais,
     sairConta: function () {
       if (S.demo) { location.href = '/nexus/app'; return; }
-      limparSessao(); S.eu = null; S.msgEntrada = ''; S.fase = 'entrada'; S.aba = 'entrar'; S.propostas = null; S.ultima = null; S.procura = {};
+      limparSessao(); S.eu = null; S.msgEntrada = ''; S.emailPre = ''; S.cad = null; S.fase = 'entrada'; S.propostas = null; S.ultima = null; S.procura = {};
       S.termoTxt = undefined; S.termoErro = false; S.termoMsg = ''; S.pedidosServ = null; S.confirmaPacote = 0; S.consultoriaAberta = false; S.plataformaPedida = false;
       history.replaceState(null, '', location.pathname + location.search); pintar();
     },
@@ -2256,31 +2475,38 @@
     var f = e.target;
     if (!f || !f.dataset || !f.dataset.form) return;
     e.preventDefault();
-    var m = { login: enviarLogin, cadastro: enviarCadastro, semCnpj: enviarSemCnpj, perfil: enviarPerfil }[f.dataset.form];
+    var m = { login: enviarLogin, semCnpj: enviarSemCnpj, perfil: enviarPerfil, cad1: enviarCad1, cad2: enviarCad2, cad3: enviarCad3 }[f.dataset.form];
     if (m) m(f);
   }
   function aoDigitar(e) {
     var t = e.target;
-    if (t.dataset && t.dataset.mascara === 'cnpj') { t.value = fmtCnpj(t.value); conferirCnpjCampo(t); }
+    if (t.dataset && t.dataset.mascara === 'cnpj') {
+      t.value = fmtCnpj(t.value);
+      var bq = t.form && $('[data-bloqueio]', t.form); if (bq) bq.hidden = true;
+      conferirCnpjCampo(t);
+    }
     else if (t.dataset && t.dataset.mascara === 'fone') t.value = fmtFone(t.value);
+    else if (t.name === 'empresa' && t.dataset) delete t.dataset.auto;
   }
   function aoMudar(e) {
     var t = e.target;
     if (t.id === 'nx-logo-arq' && t.files && t.files[0]) {
       var arq = t.files[0];
+      var fc = $('[data-form=cad3]');
       redimensionarLogo(arq).then(function (url) {
         S.logoNovo = url;
         var pv = $('#nx-logo-prev');
         if (pv) pv.innerHTML = '<img src="' + esc(url) + '" alt="Prévia do logo">';
         var b = $('#nx-logo-btn'); if (b) b.textContent = 'Trocar o logo';
-        erroForm($('[data-form=perfil]'), '');
-      }, function (err) { erroForm($('[data-form=perfil]'), err.message); });
+        if (fc) erroCampo(fc, 'logo', ''); else erroForm($('[data-form=perfil]'), '');
+      }, function (err) { if (fc) erroCampo(fc, 'logo', err.message); else erroForm($('[data-form=perfil]'), err.message); });
       t.value = '';
     }
   }
 
   /* ------------------------------------------------------------------ rotas por hash e partida */
   function aoMudarHash() {
+    if (ehCadastro()) { abrirCadastro(); return; }
     if (S.fase !== 'app') return;
     var rh = rotaDoHash();
     var antes = S.rota + '/' + S.sub;
@@ -2322,6 +2548,7 @@
     api('GET', NX + '/status', undefined, { semToken: true, quieto: true, timeout: 8000 }).then(function (r) {
       if (r.status === 503 || (r.ok && r.data && r.data.ligado === false)) { S.fase = 'embreve'; pintar(); return; }
       if (getToken()) iniciarApp();
+      else if (ehCadastro()) { S.cad = novoCad(); irPasso(1); }
       else { S.fase = 'entrada'; pintar(); }
     });
   }
