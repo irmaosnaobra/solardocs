@@ -8,7 +8,12 @@ import {
 } from '../services/agentes5040/armazem';
 import { runReplay } from '../services/agentes5040/replay';
 import { supabase } from '../utils/supabase';
-import { CHAVE_INTERRUPTORES, zerarCacheInterruptores, type NomeInterruptor } from '../services/agentes5040/interruptores';
+import {
+  CHAVE_INTERRUPTORES, CHAVE_VIVO_ALVO, DONAS_LIBERADAS_PARA_TODOS, DONAS_VIVAS, MAX_ALVOS, NOMES_INTERRUPTORES, alvoDoValor, zerarCacheInterruptores,
+  type DonaViva, type ModoVivo, type NomeInterruptor,
+} from '../services/agentes5040/interruptores';
+import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
+import { chaveContato } from '../services/agents/whatsapp/silenciar';
 import {
   ACOES, CHAVE_COMANDO, CHAVE_RESULTADO, IDADE_MAX_MS, ehAcao, lerComando, validarParams, type Params,
 } from '../services/agentes5040/comandos';
@@ -29,7 +34,8 @@ import {
 //   DELETE /gerador/ensaio/nota?turno=<wa_id>&nota=<autor>-<ts>    só o autor
 //   GET    /gerador/ensaio/placar                                  por agente; devolve `socio`
 //   POST   /gerador/ensaio/replay  {dias?, conversas?}             SÓ SÓCIO
-//   GET/PUT /gerador/ensaio/interruptores                          SÓ SÓCIO: liga e desliga as 4 peças da Fase A
+//   GET/PUT /gerador/ensaio/interruptores                          SÓ SÓCIO: liga e desliga as peças (4 da Fase A + duda_vivo, helena_vivo, carla_vivo)
+//   GET/PUT /gerador/ensaio/vivo-alvo                              SÓ SÓCIO: quem a rodada viva atende (até 3 números de teste, só o HMAC)
 //   GET/POST /gerador/ensaio/comando                               SÓ SÓCIO: pede uma sonda (só GRAVA o pedido;
 //                                                                  quem executa é o cron do ensaio, em até 5 min)
 //
@@ -272,7 +278,7 @@ export function mountEnsaio5040(router: Router): void {
     return { value: data?.value ?? null, updated_at: data?.updated_at ?? null };
   }
 
-  const NOMES: readonly NomeInterruptor[] = ['ensaio', 'replay', 'ficha', 'sentinela'];
+  const NOMES: readonly NomeInterruptor[] = NOMES_INTERRUPTORES;
 
   function mapaDoBanco(v: unknown): Partial<Record<NomeInterruptor, boolean>> {
     let x = v;
@@ -329,6 +335,75 @@ export function mountEnsaio5040(router: Router): void {
       if (error) throw new ErroNotas('estado_gravacao');
       zerarCacheInterruptores();
       res.json({ ok: true, interruptores: await estadoInterruptores() });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // ── O ALVO DA RODADA VIVA (adendo B/E) ─────────────────────────────────────
+  // system_state.ag5040_vivo_alvo = { kid, hmacs (até 3), modos, atualizado_em }. Telefone cru NUNCA é gravado
+  // nem devolvido: entra, vira chaveContato, vira HMAC e é descartado. Chave ausente = modo teste com lista
+  // vazia = a agente não atende ninguém. Liberar para todos é só o modo 'todos', passo explícito.
+  async function estadoAlvo() {
+    const alvo = alvoDoValor((await lerChave(CHAVE_VIVO_ALVO)).value);
+    const kid = idChaveHmac();
+    const modos: Record<string, ModoVivo> = {};
+    for (const d of DONAS_VIVAS) modos[d] = alvo.modos[d] ?? 'teste';
+    // Só conta o que o leitor vai conseguir casar: hmac de outra chave (kid trocado) não casa com ninguém.
+    const quantos = kid && alvo.kid === kid ? alvo.hmacs.length : 0;
+    return { quantos, modos, atualizado_em: alvo.atualizado_em };
+  }
+
+  router.get('/ensaio/vivo-alvo', ...base, soSocioControles, async (_req: Request, res: Response) => {
+    try { res.json({ ok: true, alvo: await estadoAlvo() }); } catch (err) { falhou(res, err); }
+  });
+
+  router.put('/ensaio/vivo-alvo', ...base, soSocioControles, async (req: Request, res: Response) => {
+    const b = (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
+    const querTelefone = b.telefone !== undefined && b.telefone !== null && b.telefone !== '';
+    const querLimpar = b.limpar === true;
+    const querModos = b.modos !== undefined && b.modos !== null;
+    if (!querTelefone && !querLimpar && !querModos) { res.status(400).json({ ok: false, error: 'Diga o que mudar.' }); return; }
+    if (b.limpar !== undefined && typeof b.limpar !== 'boolean') { res.status(400).json({ ok: false, error: 'O campo limpar é true ou false.' }); return; }
+
+    let novoHmac: string | null = null;
+    if (querTelefone) {
+      const digitos = typeof b.telefone === 'string' ? b.telefone.replace(/\D/g, '') : '';
+      const chave = digitos.length >= 10 && digitos.length <= 13 ? chaveContato(digitos) : null;
+      if (!chave) { res.status(400).json({ ok: false, error: 'Telefone inválido.' }); return; }
+      novoHmac = hmacDe(chave);
+      if (!novoHmac || !idChaveHmac()) { res.status(503).json({ ok: false, error: 'Sem a chave de segurança para guardar o número.' }); return; }
+    }
+    const novosModos: Partial<Record<string, ModoVivo>> = {};
+    if (querModos) {
+      const m = b.modos;
+      if (!m || typeof m !== 'object' || Array.isArray(m)) { res.status(400).json({ ok: false, error: 'Modos inválidos.' }); return; }
+      for (const [k, v] of Object.entries(m as Record<string, unknown>)) {
+        if (!(DONAS_VIVAS as readonly string[]).includes(k)) { res.status(400).json({ ok: false, error: 'Agente desconhecida.' }); return; }
+        if (v !== 'teste' && v !== 'todos') { res.status(400).json({ ok: false, error: 'O modo é teste ou todos.' }); return; }
+        if (v === 'todos' && !DONAS_LIBERADAS_PARA_TODOS.includes(k as DonaViva)) {
+          res.status(400).json({ ok: false, error: 'Ainda não dá para liberar essa agente para todos os leads.' }); return;
+        }
+        novosModos[k] = v;
+      }
+    }
+
+    try {
+      // Ler e gravar não é atômico: dois PUTs simultâneos podem se sobrescrever (aceito; só sócio mexe, um por vez).
+      const atual = alvoDoValor((await lerChave(CHAVE_VIVO_ALVO)).value);
+      const kid = idChaveHmac();
+      // Lista gravada com outra chave de HMAC não casa com ninguém: recomeça vazia, com o kid em uso.
+      let hmacs = kid && atual.kid === kid ? [...atual.hmacs] : [];
+      if (querLimpar) hmacs = [];
+      if (novoHmac && !hmacs.includes(novoHmac)) {
+        if (hmacs.length >= MAX_ALVOS) { res.status(400).json({ ok: false, error: `No máximo ${MAX_ALVOS} números de teste.` }); return; }
+        hmacs.push(novoHmac);
+      }
+      const modos = { ...atual.modos, ...novosModos };
+      const agora = new Date().toISOString();
+      const { error } = await bancoPrincipal().from('system_state')
+        .upsert({ key: CHAVE_VIVO_ALVO, value: { kid, hmacs, modos, atualizado_em: agora }, updated_at: agora }, { onConflict: 'key' });
+      if (error) throw new ErroNotas('estado_gravacao');
+      zerarCacheInterruptores();
+      res.json({ ok: true, alvo: await estadoAlvo() });
     } catch (err) { falhou(res, err); }
   });
 

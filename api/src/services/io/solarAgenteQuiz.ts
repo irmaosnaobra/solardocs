@@ -46,6 +46,7 @@ import { pareceRoboDeles } from '../agents/whatsapp/roboDoOutroLado';
 import { INSTANCE_ID_IO } from './solarRespostas';
 import { quandoPorExtenso, telefoneBonito } from './eletropostoAgenda';
 import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
+import { cedeAAgente } from '../agentes5040/posse';
 
 export const desligado = () => (process.env.SOLAR_AGENTE_OFF || '').trim() === '1';
 
@@ -333,6 +334,13 @@ export async function runSolarAgenteQuizTick(opts: { dry?: boolean } = {}): Prom
     if (!novas.length) continue;
     const ultima = novas[novas.length - 1].momment;
     const tel = String(lead.whatsapp || '').replace(/\D/g, '');
+
+    // AGENTES DA LINHA 5040 (Fase B). Sempre por LEAD, nunca pelo interruptor sozinho, e sem escrever
+    // nada ao pular (nem marcador): o lead fora do escopo de teste segue como hoje.
+    //  · conversa que a Duda nova já segura (a POSSE existe): a antiga cala, abra ou não conversa nova aqui;
+    //  · lead no escopo, mas sem posse: a antiga segue como hoje.
+    if (await cedeAAgente(tel)) continue;
+
     const gravarMarcador = async (m: Marcador) => {
       if (opts.dry) return;
       const em = new Date().toISOString();

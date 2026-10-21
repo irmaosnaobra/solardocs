@@ -204,6 +204,8 @@ export function fatosDaEpoca(a: {
     anuncio: a.anuncio,
     primeiroTextoDoLead: primeiro ? String(primeiro.texto) : null,
     origemCadastro: origemDaEpoca(a.dados, a.ms),
+    // O replay não tem como saber que sessão antiga existia naquela época: lê como "sem outro robô".
+    outroRoboAtivo: false,
   };
 }
 

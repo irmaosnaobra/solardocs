@@ -56,6 +56,7 @@ import { carregarSilenciados } from '../agents/whatsapp/silenciar';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { quizSolarAtende } from './solarAgenteQuiz';
 import { investidorAtende } from './investidorAgentePosse';
+import { cedeAAgente } from '../agentes5040/posse';
 
 const anthropic = novoAnthropic();
 
@@ -573,6 +574,10 @@ export async function handleRecepcaoIo(
       logger.info('recepcao-io', 'investidor em conversa com a Helena: a agente de investidores responde por ele', { phone });
       return;
     }
+
+    // Conversa de uma agente nova da linha 5040 (Fase B): a triagem não se apresenta por cima dela.
+    // Reforço do corte do poll e do webhook, porque este handler tem outros chamadores.
+    if (await cedeAAgente(phone)) return;
 
     const sessao = await lerSessao(phone);
     const lead: LeadData = sessao?.lead ?? { estado: 'triando', turnos: 0 };

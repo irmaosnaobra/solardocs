@@ -4,7 +4,8 @@
 //
 // Ordem (spec seção 3):
 //   1. humano na conversa, não incomodar, bloqueado ou mudo: ninguém;
-//   2. a conversa já tem dona: ela;
+//   2. a conversa já tem dona (posse viva): ela;
+//      sem dona e com outro robô antigo na conversa: ninguém (o antigo termina);
 //   3. já é cliente do SolarDoc: Giovanna robô do suporte (fora das três);
 //   4. anúncio de clique para WhatsApp (ID do anúncio > campanha > produto);
 //   5. texto pronto de botão das nossas páginas;
@@ -85,8 +86,12 @@ export function decidirDona(f: FatosPorteiro): DecisaoPorteiro {
     if (f.bloqueado) return { dona: null, passo: 1, motivo: 'contato bloqueado' };
     if (f.mudo) return { dona: null, passo: 1, motivo: 'contato mudo' };
 
-    // 2. já tem dona
+    // 2. já tem dona (posse viva). Vem ANTES do robô antigo: se a nova já é dona e aparece sessão
+    // antiga, o antigo cede à posse; calar a nova aqui deixaria ninguém respondendo.
     if (f.donaAtual) return { dona: f.donaAtual, passo: 2, motivo: `a conversa já é da ${f.donaAtual}` };
+
+    // Virada: conversa que um robô antigo já abriu termina com ele. Só decide quando ainda não há dona.
+    if (f.outroRoboAtivo) return { dona: null, passo: 1, motivo: 'outro robô na conversa' };
 
     // 3. cliente do SolarDoc
     if (f.ehClienteSolarDoc) return { dona: 'giovanna_suporte', passo: 3, motivo: 'cliente do SolarDoc: suporte' };

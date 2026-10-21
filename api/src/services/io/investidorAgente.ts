@@ -74,6 +74,7 @@ import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { guardarTipoDoCard } from '../agenda/etiquetaCard';
 import { ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from './eletropostoCard';
 import { INV_SESSAO_PREFIX, sessaoEhDaHelena, type EstagioInvestidor } from './investidorAgentePosse';
+import { cedeAAgente } from '../agentes5040/posse';
 import {
   antesDoInicio, janelaAberta, tetoDoDia, dataBrasilia, horaBrasiliaTexto, inicioDoDiaBrasiliaIso,
   montarFila, montarFilaResgate, renderAbertura, textoDaAbertura, primeiroNome,
@@ -1609,7 +1610,12 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
   // A mesma régua que os outros robôs leem (sessaoEhDaHelena): abertura que
   // falhou e `chamado` sem resposta há mais de 10 dias já não são dela, e aí
   // quem atende é a recepção. As duas pontas não podem discordar.
-  const ativas = [...sessoes.entries()].filter(([, s]) => sessaoEhDaHelena(s, agora) && s.telefone);
+  const daHelena = [...sessoes.entries()].filter(([, s]) => sessaoEhDaHelena(s, agora) && s.telefone);
+  // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não é respondida por esta Helena.
+  // Por lead (cedeAAgente lê a posse; sem *_vivo ligado devolve false sem ler nada).
+  const cedeu = await Promise.all(daHelena.map(([, s]) => cedeAAgente(s.telefone)));
+  const cedidas = new Set(daHelena.filter((_, n) => cedeu[n]).map(([k]) => k));
+  const ativas = daHelena.filter(([k]) => !cedidas.has(k));
   if (!ativas.length) return semResposta('sem_conversa_ativa');
 
   // O que chegou na linha destas pessoas desde o que já foi lido. Filtrado por
@@ -1636,7 +1642,7 @@ export async function runInvestidorRespostasTick(): Promise<ResultadoRespostas> 
   for (const m of entrada.sort((a, b) => (a.momment < b.momment ? -1 : a.momment > b.momment ? 1 : 0))) {
     const k = chaveContato(m.telefone);
     const s = k ? sessoes.get(k) : undefined;
-    if (!k || !s || !sessaoEhDaHelena(s, agora)) continue;
+    if (!k || !s || !sessaoEhDaHelena(s, agora) || cedidas.has(k)) continue;
     if (m.momment <= (s.ate || s.aberto_em)) continue;
     if (!novasDe.has(k)) novasDe.set(k, []);
     novasDe.get(k)!.push(m);

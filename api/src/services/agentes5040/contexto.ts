@@ -29,6 +29,7 @@ import {
 } from '../agents/whatsapp/silenciar';
 import { desligado as pausaDesligada } from '../agents/whatsapp/pausaHumana';
 import { proximasVagas } from '../io/eletropostoVagas';
+import { INV_SESSAO_PREFIX, sessaoSeguraOutrosRobos } from '../io/investidorAgentePosse';
 import { quandoPorExtenso } from './personas/comum';
 import type {
   AnuncioOrigem, CadastroEletroposto, CardResumo, ContextoLead, FatosPorteiro, LeadMetaResumo, MsgConversa, Persona,
@@ -247,9 +248,53 @@ async function humanoAtivo(chave: string, agoraMs: number): Promise<boolean> {
   return agoraMs - ultimo <= janelaPausaH() * 3600_000;
 }
 
+/**
+ * Outro robô ANTIGO já está nesta conversa? (virada da Fase B: as agentes novas só assumem conversa nova)
+ *   · whatsapp_sessions sdr_b2b (Carla antiga) ou solar_quiz (Duda do quiz): a sessão existir E ter
+ *     updated_at nos últimos 7 dias (as sessões não expiram; sem janela, lead de meses atrás nunca
+ *     chegaria à agente nova);
+ *   · recepcao_io com estado 'triando' (a Duda da triagem, a mesma régua de recepcaoJaAtende);
+ *   · recuperacao (a Bia), só com a recuperação habilitada, como ehLeadRecuperacao;
+ *   · inv_agente:<chave> (Helena de investidores) que segura os outros robôs (sessaoSeguraOutrosRobos).
+ * A sessão do próprio robô novo (tipo 'ag5040') não entra aqui. Erro SOBE (modo estrito).
+ * Os tipos ficam escritos aqui de propósito: importar as constantes puxaria zapiClient e o SDK da
+ * Anthropic para o caminho do ensaio.
+ */
+const TIPOS_QUE_BASTA_EXISTIR = ['sdr_b2b', 'solar_quiz'] as const;
+// Essas duas sessões nunca expiram sozinhas: só contam como "conversa aberta" se tiveram toque
+// (whatsapp_sessions.updated_at, regravado a cada mensagem) nos últimos 7 dias. Sem data legível
+// = conta (na dúvida ninguém chuta).
+const JANELA_SESSAO_ANTIGA_DIAS = 7;
+const sessaoAntigaViva = (updatedAt: unknown, agoraMs: number): boolean => {
+  const t = Date.parse(String(updatedAt ?? ''));
+  if (!Number.isFinite(t)) return true;
+  return agoraMs - t <= JANELA_SESSAO_ANTIGA_DIAS * 86_400_000;
+};
+const recuperacaoHabilitada = (): boolean => process.env.RECUP_ENABLED === 'true' && !!instanciaIO();
+
+async function lerOutroRoboAtivo(chave: string, agoraMs: number): Promise<boolean> {
+  const [sessoes, inv] = await Promise.all([
+    supabase.from('whatsapp_sessions').select('phone, tipo, lead_data, updated_at')
+      .in('phone', variantesDaChave(chave))
+      .in('tipo', ['sdr_b2b', 'solar_quiz', 'recepcao_io', 'recuperacao']),
+    supabase.from('system_state').select('value').eq('key', `${INV_SESSAO_PREFIX}${chave}`).maybeSingle(),
+  ]);
+  if (sessoes.error) throw new ErroBanco(String(sessoes.error.code ?? 'desconhecido'));
+  if (inv.error) throw new ErroBanco(String(inv.error.code ?? 'desconhecido'));
+  const doContato = ((sessoes.data ?? []) as Array<{ phone: string; tipo: string; lead_data: unknown; updated_at?: string | null }>)
+    .filter(r => mesmoContato(r.phone, chave));
+  for (const r of doContato) {
+    if ((TIPOS_QUE_BASTA_EXISTIR as readonly string[]).includes(r.tipo) && sessaoAntigaViva(r.updated_at, agoraMs)) return true;
+    if (r.tipo === 'recepcao_io' && ((r.lead_data ?? {}) as { estado?: unknown }).estado === 'triando') return true;
+    if (r.tipo === 'recuperacao' && recuperacaoHabilitada()) return true;
+  }
+  return inv.data ? sessaoSeguraOutrosRobos((inv.data as { value?: unknown }).value, agoraMs) : false;
+}
+
 const FATOS_VAZIOS: FatosPorteiro = {
   leituraOk: false, humanoNaConversa: false, naoIncomodar: false, bloqueado: false, mudo: false,
   donaAtual: null, ehClienteSolarDoc: false, anuncio: null, primeiroTextoDoLead: null, origemCadastro: null,
+  outroRoboAtivo: false,
 };
 
 /**
@@ -271,8 +316,9 @@ export async function lerFatosPorteiro(
     if (!/^\d{10}$/.test(chave)) return { ...FATOS_VAZIOS };      // lid: sem telefone resolvido
     const agoraMs = opts.agora instanceof Date ? opts.agora.getTime() : (opts.agora ?? Date.now());
     const listas = opts.listas ?? await carregarListasDeBarragem();
-    const [pausaAtiva, card, lead, cadastros, cliente] = await Promise.all([
+    const [pausaAtiva, card, lead, cadastros, cliente, outroRobo] = await Promise.all([
       humanoAtivo(chave, agoraMs), lerCard(chave), lerLeadsMeta(chave), lerCadastros(chave), lerEhCliente(chave),
+      lerOutroRoboAtivo(chave, agoraMs),
     ]);
     const janela = janelaPausaH() * 3600_000;
     // Fala recente da equipe SEMPRE conta como humano, mesmo com PAUSA_HUMANA_OFF=1 (o desligador é da tabela de pausas).
@@ -290,6 +336,7 @@ export async function lerFatosPorteiro(
       anuncio,
       primeiroTextoDoLead: primeiro ? String(primeiro.texto) : null,
       origemCadastro: origemDe(card, lead, cadastros, agoraMs),
+      outroRoboAtivo: outroRobo,
     };
   } catch (e) {
     console.error('[agentes5040] leitura dos fatos do porteiro falhou', codigoDoErro(e));

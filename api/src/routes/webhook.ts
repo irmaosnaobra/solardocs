@@ -14,6 +14,7 @@ import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminhar
 import { recepcaoJaAtende } from '../services/io/recepcaoIo';
 import { acharEmail, temComprovantePendente } from '../services/agents/whatsapp/pixSolicitado';
 import { HANDOFF_CEDE_MIN, temHandoffComprovante } from '../services/agents/whatsapp/comprovanteHandoff';
+import { cedeAAgente } from '../services/agentes5040/posse';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -434,6 +435,12 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
     || (acharEmail(textoRecup) && await temComprovantePendente(String(phone), 720)))) return;
   // Comprovante reprovado há no máximo 5 min: o fluxo do comprovante já respondeu.
   if (textoRecup && await temHandoffComprovante(String(phone), HANDOFF_CEDE_MIN / 60)) return;
+
+  // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova (Carla, Duda, Helena) segura não cai
+  // na Bia, no áudio nem na Luma por cima dela. Fica DEPOIS do Pix (comprovante e e-mail respondem a
+  // liberação) e vale para texto e mídia. Sem nenhum interruptor *_vivo ligado, ou com o lead fora do
+  // escopo de teste, devolve false sem ler a posse e tudo segue como sempre foi.
+  if (await cedeAAgente(String(phone))) return;
 
   if (textoRecup && await ehLeadRecuperacao(String(phone))) {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)

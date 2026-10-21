@@ -118,6 +118,12 @@ export interface FatosPorteiro {
   primeiroTextoDoLead: string | null;
   /** created_by do card ou form_id do cadastro mais recente deste telefone. */
   origemCadastro: string | null;
+  /**
+   * Outro robô antigo já está na conversa (sessão sdr_b2b, solar_quiz, recepcao_io em triando,
+   * recuperacao, ou inv_agente que segura os outros robôs): as agentes novas só assumem conversa
+   * NOVA, então o porteiro devolve ninguém (passo 1).
+   */
+  outroRoboAtivo: boolean;
 }
 
 /** Retrato da conversa que a trava usa. */

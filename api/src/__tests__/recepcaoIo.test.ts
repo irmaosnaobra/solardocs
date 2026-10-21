@@ -154,6 +154,13 @@ vi.mock('../utils/logger', () => ({
 const helena = vi.hoisted(() => ({ atende: false }));
 vi.mock('../services/io/investidorAgentePosse', () => ({ investidorAtende: vi.fn(async () => helena.atende) }));
 
+// Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL.
+const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
+vi.mock('../services/agentes5040/posse', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/posse')>();
+  return { ...real, cedeAAgente: async (t: string) => (cortes.cede.has(String(t)) ? true : real.cedeAAgente(t)) };
+});
+
 const LEAD = '5534987654321';
 
 function jsonIA(resposta: string, produto: string | null = null, motivo: string | null = null, nome: string | null = null) {
@@ -179,6 +186,7 @@ beforeEach(() => {
   temRobo = false;
   silenciados = [];
   helena.atende = false;
+  cortes.cede.clear();
 });
 
 describe('recepção da linha IO', () => {
@@ -472,6 +480,28 @@ describe('investidor em conversa com a Helena (agente de investidores)', () => {
     await handleRecepcaoIo(LEAD, 'Bom dia');
 
     expect(chamadasIA).toBe(1);
+    expect(enviadasAoLead.length).toBeGreaterThan(0);
+  });
+});
+
+describe('agente nova da linha 5040 em conversa (Fase B1b)', () => {
+  it('a Duda da triagem não fala por cima, não grava sessão e não chama a IA', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    cortes.cede.add(LEAD);
+    respostaIA = jsonIA('Oi! Sou a Duda. Como posso ajudar?');
+
+    await handleRecepcaoIo(LEAD, 'Bom dia');
+
+    expect(enviadasAoLead).toHaveLength(0);
+    expect(avisosInternos).toHaveLength(0);
+    expect(chamadasIA).toBe(0);
+    expect(sessoes).toEqual({});
+  });
+
+  it('tudo desligado (posse real, nada forçado): a Duda atende como hoje', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    respostaIA = jsonIA('Oi! Me conta o que você precisa.');
+    await handleRecepcaoIo(LEAD, 'Bom dia');
     expect(enviadasAoLead.length).toBeGreaterThan(0);
   });
 });

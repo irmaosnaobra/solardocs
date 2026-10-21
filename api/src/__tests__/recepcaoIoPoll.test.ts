@@ -81,6 +81,14 @@ vi.mock('../services/io/recepcaoIo', () => ({
   temReuniaoAtiva: (p: string) => Promise.resolve(comReuniao.includes(p)),
 }));
 
+// Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL
+// (neste harness o banco não responde ao que a posse lê, e o real devolve false: tudo como hoje).
+const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
+vi.mock('../services/agentes5040/posse', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/posse')>();
+  return { ...real, cedeAAgente: async (t: string) => (cortes.cede.has(String(t)) ? true : real.cedeAAgente(t)) };
+});
+
 const INSTANCIA = '3F26F6ECE67D72BB7FCA6244BF24326C';
 const LEAD = '5534987654321';
 
@@ -107,6 +115,7 @@ beforeEach(() => {
   comprovantePendente = {};
   handoffMin = {};
   comReuniao.length = 0;
+  cortes.cede.clear();
 });
 
 describe('poll da recepção', () => {
@@ -298,5 +307,36 @@ describe('poll da recepção', () => {
     expect(r.erros).toBe(1);
     expect(r.atendidos).toBe(1);
     expect(atendidos[0].phone).toBe('5534900000008');
+  });
+});
+
+describe('poll da recepção: agentes novas da linha 5040 (Fase B1b)', () => {
+  it('conversa que uma agente nova segura: o poll pula, mesmo com a triagem aberta, e não atende', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    cortes.cede.add(LEAD);
+    donoRecepcao.push(LEAD);
+    eventos = [evento(), evento({ phone: '5534900000009' })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(atendidos.map(a => a.phone)).toEqual(['5534900000009']);   // o outro lead segue como hoje
+    expect(r.pulados).toBe(1);
+    expect(r.atendidos).toBe(1);
+  });
+
+  it('o comprovante Pix continua ACIMA do corte (o corte não muda quem responde o Pix)', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    cortes.cede.add(LEAD);
+    comprovantePendente[LEAD] = 1;
+    eventos = [evento({ text: { message: 'leoimplant@gmail.com' } })];
+    const r = await pollRecepcaoIo();
+    expect(atendidos).toHaveLength(0);
+    expect(r.pulados).toBe(1);
+  });
+
+  it('tudo desligado (posse real, nada forçado): a recepção atende como hoje', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    eventos = [evento()];
+    expect((await pollRecepcaoIo()).atendidos).toBe(1);
   });
 });

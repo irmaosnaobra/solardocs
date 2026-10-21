@@ -138,6 +138,12 @@ function fabrica(base: Record<string, Row[]>) {
 vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => fabrica(h.banco.main)(t) } }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => fabrica(h.banco.ger)(t) } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+// Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL.
+const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
+vi.mock('../services/agentes5040/posse', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/posse')>();
+  return { ...real, cedeAAgente: async (t: string) => (cortes.cede.has(String(t)) ? true : real.cedeAAgente(t)) };
+});
 vi.mock('../utils/mediaProcessor', () => ({
   transcribeAudio: vi.fn(async (url: string, mime: string) => { h.audio.chamadas.push({ url, mime }); return h.audio.fn(url); }),
 }));
@@ -291,7 +297,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(LARGADA);
 });
-afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; });
+afterEach(() => { cortes.cede.clear(); vi.useRealTimers(); process.env = { ...envOriginal }; });
 
 const abrir = (quando: Date = new Date()) => { vi.setSystemTime(quando); return runInvestidorAberturaTick({ agora: quando }); };
 
@@ -720,6 +726,30 @@ describe('respostas: a conversa', () => {
     expect(falando.map(a => [a.tabela, a.id])).toEqual([['eletroposto_parceria', 1], ['eletroposto_nota1', 21]]);
     expect(falando.every(a => a.or === 'status.is.null,status.eq.novo')).toBe(true);
     expect(h.banco.ger.eletroposto_parceria!.find(x => x.id === 1)!.status).toBe('falando');
+  });
+
+  it('agente nova da linha 5040 segura a conversa (Fase B1b): esta Helena não responde, não chama a IA e não anda a sessão; a outra pessoa segue', async () => {
+    sessao(ANA); sessao(BRUNO, { telefone: '5534999990002', nome: 'Bruno Reis' });
+    cortes.cede.add('5534999990001');
+    chegou('5534999990001', 'Sim, continuo com interesse');
+    chegou('5534999990002', 'Sim, tenho interesse');
+    ia('continuar', ['Que bom.']);
+
+    const r = await responder();
+
+    expect(r).toMatchObject({ respondidas: 1, erros: 0 });
+    expect(h.ia.chamadas).toBe(1);
+    expect(h.zap.humano.map(x => x.tel)).toEqual(['5534999990002']);
+    expect(sessaoDe(ANA)).toMatchObject({ estagio: 'chamado', respostas: 0 });
+  });
+
+  it('só a conversa cedida tem mensagem nova: nada é lido nem enviado (sem_conversa_ativa)', async () => {
+    sessao(ANA);
+    cortes.cede.add('5534999990001');
+    chegou('5534999990001', 'Sim');
+    expect(await responder()).toMatchObject({ respondidas: 0, motivo: 'sem_conversa_ativa' });
+    expect(h.ia.chamadas).toBe(0);
+    expect(h.zap.humano).toHaveLength(0);
   });
 
   it('a IA recebe a abertura no histórico, o consultor e a mensagem nova', async () => {

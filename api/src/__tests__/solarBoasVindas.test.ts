@@ -129,6 +129,13 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
 
+// Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL.
+const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
+vi.mock('../services/agentes5040/posse', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/posse')>();
+  return { ...real, cedeAAgente: async (t: string) => (cortes.cede.has(String(t)) ? true : real.cedeAAgente(t)) };
+});
+
 const AGORA = new Date('2026-08-20T16:00:00.000Z');
 const minutosAtras = (m: number) => new Date(AGORA.getTime() - m * 60_000).toISOString();
 
@@ -501,5 +508,102 @@ describe('a mensagem', () => {
     for (const proibido of ['em instantes', 'em alguns minutos', 'ainda hoje', 'em até']) {
       expect(t).not.toContain(proibido);
     }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AGENTES DA LINHA 5040 (Fase B1b): a Duda nova abre o card do quiz; o antigo é a rede de segurança.
+// Interruptores e alvo REAIS (env + system_state), o corte é por LEAD.
+// ═════════════════════════════════════════════════════════════════════════════
+describe('Fase B: a Duda nova e as boas-vindas antigas', () => {
+  const QUIZ = 'LP SOLAR QUIZ · Casa · LIGAÇÃO';
+  const X = '5534991110001';
+  const Y = '5534992220002';
+  const cardQuiz = (id: number, tel: string, minutos: number, over: Partial<any> = {}) =>
+    ficha({ id, cliente_telefone: tel, telefone_norm: tel.slice(-10), observacao: QUIZ, created_at: minutosAtras(minutos), ...over });
+  async function alvo(tels: string[], modos: Record<string, string> = {}) {
+    process.env.AGENTES5040_HMAC = 'segredo-de-teste';
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    const { hmacDe, idChaveHmac } = await import('../services/agentes5040/hmac');
+    const { chaveContato } = await import('../services/agents/whatsapp/silenciar');
+    estado.set('ag5040_vivo_alvo', { kid: idChaveHmac(), hmacs: tels.map(t => hmacDe(chaveContato(t)!)), modos });
+  }
+  // O posse real guarda o alvo em cache de 60 s e sobrevive ao resetModules. O relógio do teste é fixo, então
+  // cada teste avança 61 s sobre o anterior (os cards de 2 min viram, no máximo, 9 min: ainda abaixo dos 15).
+  let n = 0;
+  // Este describe grava AGENTES5040_DUDA_VIVO e AGENTES5040_HMAC no process.env: guarda o que havia e devolve ao fim.
+  const CHAVES_ENV = ['AGENTES5040_DUDA_VIVO', 'AGENTES5040_HMAC'] as const;
+  let envAntes: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    envAntes = Object.fromEntries(CHAVES_ENV.map(k => [k, process.env[k]]));
+    cortes.cede.clear();
+    vi.setSystemTime(new Date(AGORA.getTime() + (++n) * 61_000));
+  });
+  afterEach(() => {
+    for (const k of CHAVES_ENV) { if (envAntes[k] === undefined) delete process.env[k]; else process.env[k] = envAntes[k]; }
+  });
+
+  it('TESTE OBRIGATÓRIO: duda_vivo ligado, alvo = [X]: o lead Y recebe as boas-vindas antigas; o X (card novo) fica para a Duda nova', async () => {
+    await alvo([X]);
+    fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 2)];
+    const r = await tick();
+    expect(r.enviadas).toBe(1);
+    expect(enviadas.map(e => e.phone)).toEqual([Y]);
+    expect(updates).toEqual([{ id: 2, campo: 'boas_vindas_at' }]);
+    expect(fichas[0].boas_vindas_at).toBeNull();   // intacto: a reserva é da Duda nova
+  });
+
+  it('o X com mais de 15 min sem boas-vindas: o antigo manda como hoje (rede de segurança)', async () => {
+    await alvo([X]);
+    fichas = [cardQuiz(1, X, 20)];
+    expect((await tick()).enviadas).toBe(1);
+    expect(enviadas.map(e => e.phone)).toEqual([X]);
+  });
+
+  it('card que não é do quiz, mesmo do X: o antigo manda (a Duda nova só abre card do quiz)', async () => {
+    await alvo([X]);
+    fichas = [ficha({ id: 1, created_by: 'lead-meta', cliente_telefone: X, telefone_norm: X.slice(-10), created_at: minutosAtras(2) })];
+    expect((await tick()).enviadas).toBe(1);
+  });
+
+  it('sem alvo gravado: a Duda nova não atende ninguém e o antigo manda como hoje', async () => {
+    process.env.AGENTES5040_HMAC = 'segredo-de-teste';
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    fichas = [cardQuiz(1, X, 2)];
+    expect((await tick()).enviadas).toBe(1);
+  });
+
+  it('interruptor desligado, mesmo com o alvo gravado: o antigo manda como hoje', async () => {
+    await alvo([X]);
+    process.env.AGENTES5040_DUDA_VIVO = '0';
+    fichas = [cardQuiz(1, X, 2)];
+    expect((await tick()).enviadas).toBe(1);
+  });
+
+  it('modo todos gravado, mas a Duda ainda fora da lista de liberadas: vale como teste e o antigo manda como hoje', async () => {
+    await alvo([X], { duda: 'todos' });
+    fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 2)];
+    const r = await tick();
+    expect(r.enviadas).toBe(1);
+    expect(enviadas.map(e => e.phone)).toEqual([Y]);   // só o X (alvo) espera a Duda nova
+  });
+
+  it('modo todos (Duda liberada): card novo do quiz de qualquer lead espera a Duda nova (15 min); depois disso o antigo manda', async () => {
+    const { DONAS_LIBERADAS_PARA_TODOS } = await import('../services/agentes5040/posse');
+    (DONAS_LIBERADAS_PARA_TODOS as string[]).push('duda');
+    await alvo([], { duda: 'todos' });
+    fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 20)];
+    expect((await tick()).enviadas).toBe(1);
+    expect(enviadas.map(e => e.phone)).toEqual([Y]);
+    (DONAS_LIBERADAS_PARA_TODOS as string[]).length = 0;
+  });
+
+  it('conversa que uma agente nova já segura (posse): o antigo não manda por cima, em idade nenhuma, e a ficha não é marcada', async () => {
+    cortes.cede.add('5534991110001');
+    fichas = [cardQuiz(1, X, 60), cardQuiz(2, Y, 60)];
+    const r = await tick();
+    expect(r.enviadas).toBe(1);
+    expect(enviadas.map(e => e.phone)).toEqual([Y]);
+    expect(updates).toEqual([{ id: 2, campo: 'boas_vindas_at' }]);
   });
 });

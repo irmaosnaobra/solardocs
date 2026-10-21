@@ -57,6 +57,7 @@ import { msg } from './_agentes5040Util';
 const base: FatosPorteiro = {
   leituraOk: true, humanoNaConversa: false, naoIncomodar: false, bloqueado: false, mudo: false,
   donaAtual: null, ehClienteSolarDoc: false, anuncio: null, primeiroTextoDoLead: null, origemCadastro: null,
+  outroRoboAtivo: false,
 };
 const f = (x: Partial<FatosPorteiro>): FatosPorteiro => ({ ...base, ...x });
 
@@ -74,6 +75,22 @@ describe('porteiro: os sete passos, nesta ordem', () => {
     for (const k of ['humanoNaConversa', 'naoIncomodar', 'bloqueado', 'mudo'] as const) {
       const d = decidirDona(f({ [k]: true, donaAtual: 'carla', anuncio: { adId: '1', produto: 'solar' } }));
       expect(d, k).toMatchObject({ dona: null, passo: 1 });
+    }
+  });
+
+  it('outro robô antigo na conversa SEM dona = ninguém, com o motivo certo, mesmo com anúncio e cadastro', () => {
+    const d = decidirDona(f({ outroRoboAtivo: true, donaAtual: null, anuncio: { adId: '1', produto: 'solar' }, origemCadastro: 'lp_solar' }));
+    expect(d).toMatchObject({ dona: null, passo: 1, motivo: 'outro robô na conversa' });
+  });
+
+  it('a dona atual vale mais que o robô antigo: posse da Duda viva + sessão solar_quiz ativa = a Duda responde', () => {
+    expect(decidirDona(f({ outroRoboAtivo: true, donaAtual: 'duda' }))).toMatchObject({ dona: 'duda', passo: 2 });
+    expect(decidirDona(f({ outroRoboAtivo: false, donaAtual: 'duda' }))).toMatchObject({ dona: 'duda', passo: 2 });
+  });
+
+  it('pausa humana vale mais que a dona atual, com ou sem robô antigo', () => {
+    for (const k of ['humanoNaConversa', 'naoIncomodar', 'bloqueado', 'mudo'] as const) {
+      expect(decidirDona(f({ [k]: true, donaAtual: 'duda', outroRoboAtivo: true })), k).toMatchObject({ dona: null, passo: 1 });
     }
   });
 
@@ -313,5 +330,104 @@ describe('contexto: leitura da conversa', () => {
 
   it('chave inválida: incompleta', async () => {
     expect((await lerConversa('abc')).completa).toBe(false);
+  });
+});
+
+describe('contexto: outroRoboAtivo (virada da Fase B)', () => {
+  const listas: ListasDeBarragem = { silenciado: () => false, bloqueado: () => false, mudo: () => false };
+  const agora = Date.parse('2026-10-20T15:00:00Z');
+  const lead = [msg('lead', 'Oi, quero saber de energia solar', { momment: '2026-10-20T14:59:00Z' })];
+  const ler = () => lerFatosPorteiro('0000000001', lead, null, { listas, agora, completa: true });
+  const sessao = (tipo: string, extra: Record<string, unknown> = {}, phone = '550000000001') => ({ phone, tipo, lead_data: extra });
+
+  beforeEach(() => {
+    h.estado.tabelas = {};
+    h.estado.chamadas = [];
+    h.estado.escritas = [];
+    delete process.env.RECUP_ENABLED;
+  });
+
+  it('sem sessão nenhuma: false', async () => {
+    expect((await ler()).outroRoboAtivo).toBe(false);
+  });
+
+  it('sdr_b2b e solar_quiz bastam existir, em qualquer formato de telefone', async () => {
+    for (const tipo of ['sdr_b2b', 'solar_quiz']) {
+      for (const phone of ['550000000001', '5500900000001', '0000000001', '00900000001']) {
+        h.estado.tabelas = { whatsapp_sessions: { data: [sessao(tipo, {}, phone)], error: null } };
+        expect((await ler()).outroRoboAtivo, `${tipo} ${phone}`).toBe(true);
+      }
+    }
+  });
+
+  it('sdr_b2b e solar_quiz só contam se a sessão foi atualizada nos últimos 7 dias', async () => {
+    const diasAtras = (n: number) => new Date(agora - n * 86_400_000).toISOString();
+    for (const tipo of ['sdr_b2b', 'solar_quiz']) {
+      h.estado.tabelas = { whatsapp_sessions: { data: [{ ...sessao(tipo), updated_at: diasAtras(2) }], error: null } };
+      expect((await ler()).outroRoboAtivo, `${tipo} 2 dias`).toBe(true);
+      h.estado.tabelas = { whatsapp_sessions: { data: [{ ...sessao(tipo), updated_at: diasAtras(8) }], error: null } };
+      expect((await ler()).outroRoboAtivo, `${tipo} 8 dias`).toBe(false);
+    }
+    // a janela não vale para a triagem: recepcao_io triando conta mesmo com sessão velha
+    h.estado.tabelas = { whatsapp_sessions: { data: [{ ...sessao('recepcao_io', { estado: 'triando' }), updated_at: diasAtras(30) }], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(true);
+  });
+
+  it('sessão de OUTRO contato (mesmos 8 dígitos, outro DDD) não conta', async () => {
+    h.estado.tabelas = { whatsapp_sessions: { data: [sessao('sdr_b2b', {}, '5511900000001')], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(false);
+  });
+
+  it('recepcao_io só em triando; entregue não conta', async () => {
+    h.estado.tabelas = { whatsapp_sessions: { data: [sessao('recepcao_io', { estado: 'triando' })], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(true);
+    h.estado.tabelas = { whatsapp_sessions: { data: [sessao('recepcao_io', { estado: 'entregue' })], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(false);
+  });
+
+  it('recuperacao (Bia) só conta com a recuperação habilitada, como ehLeadRecuperacao', async () => {
+    h.estado.tabelas = { whatsapp_sessions: { data: [sessao('recuperacao')], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(false);
+    process.env.RECUP_ENABLED = 'true';
+    const inst = process.env.ZAPI_INSTANCE_ID_IO;
+    process.env.ZAPI_INSTANCE_ID_IO = 'inst-io';
+    try {
+      expect((await ler()).outroRoboAtivo).toBe(true);
+    } finally {
+      delete process.env.RECUP_ENABLED;
+      if (inst === undefined) delete process.env.ZAPI_INSTANCE_ID_IO; else process.env.ZAPI_INSTANCE_ID_IO = inst;
+    }
+  });
+
+  it('a posse da própria agente nova (ag5040) não conta como outro robô', async () => {
+    h.estado.tabelas = { whatsapp_sessions: { data: [sessao('ag5040', { dona: 'duda', estado: 'viva' }, '0000000001')], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(false);
+  });
+
+  it('inv_agente ativa segura os outros robôs; sem_interesse não', async () => {
+    h.estado.tabelas = { system_state: { data: [{ value: { estagio: 'conversando', aberto_em: '2026-10-19T10:00:00Z' } }], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(true);
+    h.estado.tabelas = { system_state: { data: [{ value: { estagio: 'sem_interesse' } }], error: null } };
+    expect((await ler()).outroRoboAtivo).toBe(false);
+  });
+
+  it('erro ao ler as sessões ou o inv_agente: leituraOk=false e o porteiro cala (modo estrito)', async () => {
+    for (const tabela of ['whatsapp_sessions', 'system_state']) {
+      h.estado.tabelas = { [tabela]: { data: null, error: { code: '57014' } } };
+      const r = await ler();
+      expect(r.leituraOk, tabela).toBe(false);
+      expect(decidirDona(r), tabela).toMatchObject({ dona: null, passo: 'falha' });
+    }
+  });
+
+  it('com outro robô ativo, o porteiro cala mesmo com anúncio e cadastro que apontariam para uma agente', async () => {
+    h.estado.tabelas = {
+      whatsapp_sessions: { data: [sessao('sdr_b2b')], error: null },
+      agendamentos: { data: [{ id: 7, status: 'agendado', cliente_telefone: '5500900000001', created_by: 'lp_solar', created_at: '2026-10-19T12:00:00Z' }], error: null },
+    };
+    const r = await ler();
+    expect(r).toMatchObject({ leituraOk: true, outroRoboAtivo: true, origemCadastro: 'lp_solar' });
+    expect(decidirDona(r)).toMatchObject({ dona: null, passo: 1, motivo: 'outro robô na conversa' });
+    expect(h.estado.escritas).toEqual([]);
   });
 });

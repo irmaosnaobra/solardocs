@@ -13,6 +13,7 @@ import { novoAnthropic } from "../../../utils/anthropicClient";
 import { GIOVANNA_TOOLS, GiovannaCtx, executarFerramentaGiovanna, montarAvisoDono } from './giovannaFerramentas';
 import { podeFalarComLead, registrarBloqueio } from './pausaHumana';
 import { chaveContato } from './silenciar';
+import { cedeAAgente } from '../../agentes5040/posse';
 import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 
@@ -1057,6 +1058,11 @@ export async function handleIncomingWhatsApp(
       }
     }
 
+    // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não segue para a Carla antiga.
+    // Fica DEPOIS do comprovante, do e-mail do Pix e da recuperação (esses respondem a liberação e a
+    // cobrança). Sem *_vivo ligado, ou com o lead fora do escopo de teste, devolve false e nada muda.
+    if (originInstance === 'io' && await cedeAAgente(cleanPhone)) return;
+
     const lowerText = text.trim().toLowerCase();
 
     // B2C signals (Irmãos na Obra) — frases dos anúncios Meta de energia solar
@@ -1084,6 +1090,8 @@ export async function handleIncomingWhatsApp(
     // Roteamento: prioriza sessão existente, depois trigger, depois ad (B2B por default).
     // originInstance vai pra Carla → ela responde pela MESMA linha que o lead contatou
     // (o lead do anúncio na linha IO recebe resposta do número da IO, não da solardoc).
+    // (Fase B) Conversa que a Carla nova segura já saiu lá em cima, pelo cedeAAgente (depende da POSSE existir,
+    // não do escopo): lead no escopo e sem posse segue aqui, e a antiga abre como hoje.
     if (b2bSession || isB2bTriggered) {
       const { handleSolarDocB2bLead } = await import('../sdr/sdrB2bAgentService');
       await handleSolarDocB2bLead(cleanPhone, text, senderName, tracking, imageSource, originInstance);

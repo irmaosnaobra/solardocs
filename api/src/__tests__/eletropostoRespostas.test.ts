@@ -7,6 +7,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const state = new Map<string, { key: string; value: any; updated_at: string }>();
 let fichas: any[] = [];
 let inbound: any[] = [];
+/** Linha de posse da agente nova (whatsapp_sessions, tipo ag5040) que o banco falso devolve; null = sem posse. */
+let posseDaAgente: any = null;
 const avisos: Array<{ phone: string; texto: string }> = [];
 const presencas: Array<{ id: number; valor: string | null }> = [];
 const respostas: Array<{ id: number; valor: string | null }> = [];
@@ -30,7 +32,10 @@ vi.mock('../utils/supabase', () => ({
         // O robô de remarcação lê/apaga chave a chave (oferta em aberto e carimbo
         // do bom dia). Sem estes três, o passo de remarcação estourava e o
         // try/catch do tick engolia — a ligação passava nos testes sem existir.
-        maybeSingle() { return Promise.resolve({ data: state.get(String(q._filtros['key'])) ?? null, error: null }); },
+        maybeSingle() {
+          if (tabela === 'whatsapp_sessions') return Promise.resolve({ data: posseDaAgente, error: null });
+          return Promise.resolve({ data: state.get(String(q._filtros['key'])) ?? null, error: null });
+        },
         delete() { q._del = true; return q; },
         upsert(p: any) { for (const r of (Array.isArray(p) ? p : [p])) state.set(r.key, r); return Promise.resolve({ error: null }); },
         limit() {
@@ -133,6 +138,7 @@ beforeEach(() => {
   aoLead.length = 0; remarcacoes.length = 0; compromissos = [];
   fichas = [ficha()]; inbound = [msg()];
   helena.chaves = new Set<string>();
+  posseDaAgente = null;
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -526,5 +532,43 @@ describe('a origem da agenda em lote só avisa o consultor dono', () => {
     await tick();
     expect(respostas.map(x => x.id)).toEqual([1]);
     expect(avisos.some(a => a.texto.includes('LEAD DA SUA AGENDA ESCREVEU'))).toBe(false);
+  });
+});
+
+describe('agente nova da linha 5040 com posse viva (Fase B1b)', () => {
+  // A régua antiga NÃO cede a conversa: ela segue gravando lead_resposta_at e a presença, avisando o time e
+  // remarcando. Quem cala por posse são os robôs que falam com o lead (Carla, Duda, Helena), não esta régua.
+  async function comPosseViva() {
+    process.env.AGENTES5040_HMAC = 'segredo-de-teste';
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    const { hmacDe, idChaveHmac } = await import('../services/agentes5040/hmac');
+    const { chaveContato } = await import('../services/agents/whatsapp/silenciar');
+    const chave = chaveContato('5569984488158')!;
+    state.set('ag5040_vivo_alvo', { key: 'ag5040_vivo_alvo', updated_at: AGORA.toISOString(), value: { kid: idChaveHmac(), hmacs: [hmacDe(chave)], modos: {} } });
+    posseDaAgente = { lead_data: { dona: 'duda', estado: 'viva', desde: TOQUE, ate_wa_id: 1, respostas: 1, imagens: [], links: [] } };
+    // prova de que o cenário é de posse viva de verdade: o corte da posse diria "cala"
+    const { cedeAAgente } = await import('../services/agentes5040/posse');
+    expect(await cedeAAgente('5569984488158')).toBe(true);
+  }
+
+  it('a régua AINDA grava lead_resposta_at e a presença e avisa o time (duda_vivo ligado, alvo no número, posse viva)', async () => {
+    await comPosseViva();
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(avisos).toHaveLength(2);                                  // Thiago e Diego
+    expect(avisos[0].texto).toContain('Irineu de Almeida');
+    expect(respostas).toEqual([{ id: 1, valor: expect.any(String) }]);   // o update de lead_resposta_at: 1 vez
+    expect(presencas).toEqual([{ id: 1, valor: expect.any(String) }]);
+  });
+
+  it('e a remarcação automática ainda roda: o pedido de remarcar vira oferta ao lead', async () => {
+    await comPosseViva();
+    inbound = [msg({ texto: 'preciso remarcar' })];
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(aoLead).toHaveLength(1);
+    expect(aoLead[0].bolhas.join(' ')).toContain('1)');
+    expect(respostas).toHaveLength(1);
+    expect(avisos[0].texto).toContain('O robô já ofereceu');
   });
 });

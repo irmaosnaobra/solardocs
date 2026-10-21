@@ -37,6 +37,7 @@ import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../agents/whatsapp/whatsap
 import { acharEmail, temComprovantePendente } from '../agents/whatsapp/pixSolicitado';
 import { HANDOFF_CEDE_MIN, temHandoffComprovante } from '../agents/whatsapp/comprovanteHandoff';
 import { handleRecepcaoIo, recepcaoJaAtende, temReuniaoAtiva } from './recepcaoIo';
+import { cedeAAgente } from '../agentes5040/posse';
 
 /** Instância Z-API da linha Irmãos na Obra. Mesmo valor que o poll da Bia usa. */
 const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
@@ -102,6 +103,10 @@ export async function pollRecepcaoIo(): Promise<{ atendidos: number; pulados: nu
       // Comprovante reprovado agora há pouco (5 min): o fluxo do comprovante já
       // respondeu a ESTA mensagem, e a Duda não fala por cima. Um robô só.
       if (await temHandoffComprovante(phone, HANDOFF_CEDE_MIN / 60)) { pulados++; continue; }
+
+      // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não é da recepção, nem
+      // quando a triagem já estava aberta. Fica DEPOIS do Pix. Sem *_vivo ligado devolve false.
+      if (await cedeAAgente(phone)) { pulados++; continue; }
 
       // Se a recepção JÁ é dona, ela continua sem perguntar nada a ninguém: a
       // triagem aberta vale mais que qualquer gatilho que apareça no meio dela.

@@ -30,7 +30,7 @@ vi.mock('../services/agentes5040/replay', () => ({ runReplay: (...a: unknown[]) 
 
 import { novoBanco, type BancoFalso } from './_agentes5040Fake';
 import { mountEnsaio5040 } from '../routes/geradorEnsaio5040';
-import { hmacDe } from '../services/agentes5040/hmac';
+import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
 import { zerarCacheArmazem, type TurnoGravado } from '../services/agentes5040/armazem';
 import { emParalelo, gravarNota, zerarCacheNotas } from '../services/agentes5040/notas';
 
@@ -361,9 +361,10 @@ describe('controles do sócio: interruptores e comandos', () => {
   const NOVAS: Array<['get' | 'put' | 'post', string]> = [
     ['get', '/gerador/ensaio/interruptores'], ['put', '/gerador/ensaio/interruptores'],
     ['get', '/gerador/ensaio/comando'], ['post', '/gerador/ensaio/comando'],
+    ['get', '/gerador/ensaio/vivo-alvo'], ['put', '/gerador/ensaio/vivo-alvo'],
   ];
   beforeEach(() => {
-    for (const n of ['ENSAIO', 'REPLAY', 'FICHA', 'SENTINELA']) delete process.env[`AGENTES5040_${n}`];
+    for (const n of ['ENSAIO', 'REPLAY', 'FICHA', 'SENTINELA', 'DUDA_VIVO', 'HELENA_VIVO', 'CARLA_VIVO']) delete process.env[`AGENTES5040_${n}`];
   });
   const pedir = (m: 'get' | 'put' | 'post', url: string, quem: string, corpoReq: unknown = {}) =>
     (request(app) as any)[m](url).set('Authorization', quem).send(corpoReq);
@@ -394,11 +395,14 @@ describe('controles do sócio: interruptores e comandos', () => {
       replay: { banco: null, env: '1', ligado: true },
       ficha: { banco: false, env: '0', ligado: false },
       sentinela: { banco: null, env: null, ligado: false },
+      duda_vivo: { banco: null, env: null, ligado: false },
+      helena_vivo: { banco: null, env: null, ligado: false },
+      carla_vivo: { banco: null, env: null, ligado: false },
     });
     expect(JSON.stringify(res.body)).not.toContain('valor-secreto');
   });
 
-  it('PUT interruptores: só os 4 nomes e só booleano; o resto do mapa fica; o cache é zerado', async () => {
+  it('PUT interruptores: só os nomes da lista e só booleano; o resto do mapa fica; o cache é zerado', async () => {
     for (const ruim of [{}, { ensaio: 'sim' }, { ensaio: 1 }, { ensaio: null }, { foo: true }, { ensaio: true, foo: false }, []]) {
       const res = await pedir('put', '/gerador/ensaio/interruptores', THIAGO, ruim);
       expect(res.status, JSON.stringify(ruim)).toBe(400);
@@ -415,6 +419,139 @@ describe('controles do sócio: interruptores e comandos', () => {
     expect(await ligado('ensaio')).toBe(true);
     await pedir('put', '/gerador/ensaio/interruptores', THIAGO, { ensaio: false });
     expect(await ligado('ensaio')).toBe(false);   // sem o cache velho de 60 s
+  });
+
+  it('PUT interruptores liga duda_vivo, helena_vivo e carla_vivo e preserva o resto do mapa', async () => {
+    semear2('ag5040_interruptores', { ensaio: true });
+    const res = await pedir('put', '/gerador/ensaio/interruptores', THIAGO, { duda_vivo: true, carla_vivo: false });
+    expect(res.status).toBe(200);
+    expect(estado('ag5040_interruptores')).toEqual({ ensaio: true, duda_vivo: true, carla_vivo: false });
+    expect(res.body.interruptores.duda_vivo).toEqual({ banco: true, env: null, ligado: true });
+    expect(res.body.interruptores.carla_vivo).toEqual({ banco: false, env: null, ligado: false });
+  });
+
+  describe('vivo-alvo: quem a rodada viva atende', () => {
+    const URL_ALVO = '/gerador/ensaio/vivo-alvo';
+    const HM_X = () => hmacDe('1188880001')!;
+
+    it('GET sem a chave: modo teste nas três, nenhum número, sem data', async () => {
+      const res = await pedir('get', URL_ALVO, THIAGO);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ ok: true, alvo: { quantos: 0, modos: { duda: 'teste', helena: 'teste', carla: 'teste' }, atualizado_em: null } });
+    });
+
+    it('PUT telefone: guarda só o HMAC da chave (qualquer formato), sem duplicar, e nunca ecoa o telefone', async () => {
+      for (const tel of ['5511988880001', '11988880001', '(11) 98888-0001']) {
+        const res = await pedir('put', URL_ALVO, THIAGO, { telefone: tel });
+        expect(res.status, String(tel)).toBe(200);
+        expect(res.body.alvo.quantos).toBe(1);
+        expect(JSON.stringify(res.body)).not.toContain('98888');
+      }
+      const v = estado('ag5040_vivo_alvo');
+      expect(v.hmacs).toEqual([HM_X()]);
+      expect(v.kid).toBe(idChaveHmac());
+      expect(typeof v.atualizado_em).toBe('string');
+      expect(JSON.stringify(v)).not.toContain('98888');
+      expect(JSON.stringify(v)).not.toContain('1188880001');
+      expect(JSON.stringify(logConsole.mock.calls) + JSON.stringify(erroConsole.mock.calls)).not.toContain('98888');
+    });
+
+    it('PUT telefone inválido: 400 e nada é gravado', async () => {
+      for (const tel of ['123', '', 'abc', '5511988880001999999', '120363000000000000', 11988880001, [], {}]) {
+        const res = await pedir('put', URL_ALVO, THIAGO, { telefone: tel });
+        expect(res.status, JSON.stringify(tel)).toBe(400);
+      }
+      expect(estado('ag5040_vivo_alvo')).toBeUndefined();
+    });
+
+    it('PUT: no máximo 3 números; o 4º é 400 com a frase certa, e repetir um que já está não conta', async () => {
+      for (const tel of ['11988880001', '11988880002', '11988880003']) {
+        expect((await pedir('put', URL_ALVO, THIAGO, { telefone: tel })).status).toBe(200);
+      }
+      const quarto = await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880004' });
+      expect(quarto.status).toBe(400);
+      expect(quarto.body.error).toBe('No máximo 3 números de teste.');
+      expect(estado('ag5040_vivo_alvo').hmacs).toHaveLength(3);
+      const repetido = await pedir('put', URL_ALVO, THIAGO, { telefone: '5511988880002' });
+      expect(repetido.status).toBe(200);
+      expect(repetido.body.alvo.quantos).toBe(3);
+    });
+
+    it('PUT limpar zera os números e mantém os modos; modos só aceitam as 3 agentes e os 2 valores', async () => {
+      await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001', modos: { duda: 'teste' } });
+      const res = await pedir('put', URL_ALVO, THIAGO, { limpar: true });
+      expect(res.status).toBe(200);
+      expect(res.body.alvo).toMatchObject({ quantos: 0, modos: { duda: 'teste', helena: 'teste', carla: 'teste' } });
+      expect(estado('ag5040_vivo_alvo').hmacs).toEqual([]);
+      for (const ruim of [{}, { modos: { duda: 'sim' } }, { modos: { giovanna: 'todos' } }, { modos: 'todos' }, { modos: [] }, { limpar: 'sim' }]) {
+        const r = await pedir('put', URL_ALVO, THIAGO, ruim);
+        expect(r.status, JSON.stringify(ruim)).toBe(400);
+      }
+      expect(estado('ag5040_vivo_alvo').modos).toEqual({ duda: 'teste' });
+    });
+
+    it('PUT com modo todos para dona fora da lista de liberadas = 400, e nada é gravado; teste segue aceito', async () => {
+      await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001' });
+      const antes = JSON.stringify(estado('ag5040_vivo_alvo'));
+      for (const modos of [{ duda: 'todos' }, { carla: 'todos' }, { helena: 'teste', duda: 'todos' }]) {
+        const r = await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880002', modos });
+        expect(r.status, JSON.stringify(modos)).toBe(400);
+        expect(r.body).toEqual({ ok: false, error: 'Ainda não dá para liberar essa agente para todos os leads.' });
+      }
+      expect(JSON.stringify(estado('ag5040_vivo_alvo'))).toBe(antes);
+      const ok = await pedir('put', URL_ALVO, THIAGO, { modos: { duda: 'teste' } });
+      expect(ok.status).toBe(200);
+    });
+
+    it('apagar a lista nunca libera para todos: a agente segue sem atender ninguém, e o PUT de todos é recusado', async () => {
+      await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001' });
+      await pedir('put', URL_ALVO, THIAGO, { limpar: true });
+      process.env.AGENTES5040_DUDA_VIVO = '1';
+      try {
+        const { agenteAtendeEste } = await import('../services/agentes5040/posse');
+        expect(await agenteAtendeEste('duda', '11988880001')).toBe(false);
+        const r = await pedir('put', URL_ALVO, THIAGO, { modos: { duda: 'todos' } });
+        expect(r.status).toBe(400);
+        expect(await agenteAtendeEste('duda', '11988880001')).toBe(false);
+      } finally {
+        delete process.env.AGENTES5040_DUDA_VIVO;
+      }
+    });
+
+    it('o número gravado casa com o leitor (agenteAtendeEste); o cache é zerado ao gravar', async () => {
+      process.env.AGENTES5040_HELENA_VIVO = '1';
+      try {
+        const { agenteAtendeEste } = await import('../services/agentes5040/posse');
+        expect(await agenteAtendeEste('helena', '5511988880001')).toBe(false);
+        await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001' });
+        expect(await agenteAtendeEste('helena', '5511988880001')).toBe(true);
+        expect(await agenteAtendeEste('helena', '5511988880002')).toBe(false);
+      } finally {
+        delete process.env.AGENTES5040_HELENA_VIVO;
+      }
+    });
+
+    it('lista gravada com outra chave de HMAC (kid trocado): GET conta 0 e o PUT recomeça vazio', async () => {
+      semear2('ag5040_vivo_alvo', { kid: 'deadbeef', hmacs: [HM_X()], modos: { carla: 'todos' }, atualizado_em: '2026-10-20T10:00:00Z' });
+      expect((await pedir('get', URL_ALVO, THIAGO)).body.alvo.quantos).toBe(0);
+      const res = await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880002' });
+      expect(res.body.alvo).toMatchObject({ quantos: 1, modos: { carla: 'todos' } });
+      expect(estado('ag5040_vivo_alvo').hmacs).not.toContain(HM_X());
+      expect(estado('ag5040_vivo_alvo').kid).toBe(idChaveHmac());
+    });
+
+    it('sem segredo de HMAC: PUT de telefone dá 503 e não grava', async () => {
+      const guardado = process.env.AGENTES5040_HMAC;
+      const servico = process.env.SUPABASE_SERVICE_KEY;
+      delete process.env.AGENTES5040_HMAC; delete process.env.SUPABASE_SERVICE_KEY;
+      try {
+        expect((await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001' })).status).toBe(503);
+        expect(estado('ag5040_vivo_alvo')).toBeUndefined();
+      } finally {
+        process.env.AGENTES5040_HMAC = guardado!;
+        if (servico !== undefined) process.env.SUPABASE_SERVICE_KEY = servico;
+      }
+    });
   });
 
   it('comando fora da lista, ou com parâmetro fora do limite: 400, e nada é gravado', async () => {

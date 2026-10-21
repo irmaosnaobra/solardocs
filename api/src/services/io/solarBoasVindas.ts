@@ -60,6 +60,7 @@ import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { telefoneBonito, quandoPorExtenso } from './eletropostoAgenda';
 import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
+import { agenteAtendeEste, cedeAAgente } from '../agentes5040/posse';
 
 /** Marcador de envio efetivado. É por ele que o teto anti-ban da linha enxerga
  *  este agente — sem isto ele fura o teto em silêncio (ver lineThrottle.ts). */
@@ -101,6 +102,12 @@ export const SOLAR_BOASVINDAS_INICIO = '2026-08-04T00:00:00.000Z';
 // não mandar. Como a fila é varrida a cada 5 min, a janela larga JÁ É o retry —
 // quem o teto barrou volta a ser candidato no tick seguinte, por 24 horas.
 const JANELA_MS = 24 * 60 * 60 * 1000;
+/**
+ * A Duda nova (Fase B) abre sozinha o card do quiz de até 10 min. O tick antigo deixa passar 15 min
+ * (5 de folga) antes de mandar as boas-vindas por conta própria: é a rede de segurança se a nova falhar.
+ * Vale só para o lead no escopo da Duda nova; para os outros o antigo manda como sempre mandou.
+ */
+const DUDA_NOVA_ESPERA_MS = 15 * 60_000;
 const MAX_POR_TICK = 5;
 
 /**
@@ -520,6 +527,15 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     // de cadastro: não passa pela trava de "este telefone já recebeu". O próprio
     // quiz já não deixa nascer segunda ficha com horário futuro (`ja marcado`).
     const caminhoQuiz = ficha.created_by === 'lp_solar' ? caminhoDaFicha(ficha.observacao) : null;
+    // AGENTES DA LINHA 5040 (Fase B). Por LEAD, nunca pelo interruptor sozinho, e sem marcar a ficha:
+    //  · conversa que uma agente nova já segura: o antigo não manda por cima, em nenhuma idade;
+    //  · card do quiz no escopo da Duda nova, com menos de 15 min e sem boas-vindas: é ela quem abre.
+    //    Depois dos 15 min o antigo manda como hoje.
+    if (await cedeAAgente(tel)
+      || (caminhoQuiz && agora - Date.parse(String(ficha.created_at)) < DUDA_NOVA_ESPERA_MS && await agenteAtendeEste('duda', tel))) {
+      candidatos--;
+      continue;
+    }
     if (!opts.dry && !caminhoQuiz) {
       let repetido = telefonesDaRodada.has(chaveTel);
       if (!repetido) {
@@ -816,6 +832,9 @@ export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promi
     const tipo = 'nao_marcou';
     const tel = String(l.whatsapp || '').replace(/\D/g, '');
     if (!tel) continue;
+    // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não recebe esta mensagem por
+    // cima. Por lead; não cede o tick inteiro. Sem carimbo: nada é gravado ao pular.
+    if (await cedeAAgente(tel)) continue;
     const bolhas = bolhasNaoMarcouQuiz(l.nome, l.consultor, resumoDoLead(campos, l.cidade));
     const chave = `${SOLAR_BV_PREFIX}quiz_${l.lead_id}`;
 
