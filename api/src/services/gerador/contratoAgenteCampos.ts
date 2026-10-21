@@ -87,11 +87,11 @@ export const CAMPOS_AGENTE: CampoAgente[] = [
 
   // ── Dinheiro do contrato de obra, equipamento e sociedade ──────────────────
   { id: 'ctr-total', rotulo: 'Valor total do projeto', tipo: 'dinheiro', min: 0.01, max: 100_000_000, unidade: 'R$', modelos: OB, sensivel: true, espelho: true, itens: { completo: ['preco.total'] } },
-  { id: 'ctr-sinal', rotulo: 'Sinal já pago', tipo: 'dinheiro', min: 0, max: 100_000_000, unidade: 'R$', modelos: PAGA, sensivel: true, espelho: true, zero: 'sim', itens: { completo: ['preco.sinal'], socio50: ['aporte.valor', 'aporte.forma', 'aporte.inadimplencia'], cotas: ['aporte.valor', 'aporte.forma', 'aporte.inadimplencia'] } },
+  { id: 'ctr-sinal', rotulo: 'Sinal já pago', tipo: 'dinheiro', min: 0, max: 100_000_000, unidade: 'R$', modelos: PAGA, sensivel: true, espelho: true, zero: 'sim', itens: { completo: ['preco.sinal', 'preco.forma', 'preco.financiamento', 'rescisao.desistencia', 'rescisao.execucao', 'opc.distribuidora'], equip: ['preco.sinal', 'desistencia.sinal'], socio50: ['aporte.valor', 'aporte.forma', 'aporte.inadimplencia'], cotas: ['aporte.valor', 'aporte.forma', 'aporte.inadimplencia'] } },
   { id: 'ctr-sinal-destino', rotulo: 'Destino do sinal', tipo: 'texto', maxLen: 80, modelos: OB },
   { id: 'ctr-pag-obs', rotulo: 'Observação das formas de pagamento (sem forma na lista, vira a cláusula de pagamento inteira)', tipo: 'texto', maxLen: 800, multilinha: true, modelos: PAGA, sensivel: true, itens: { completo: ['preco.forma'], socio50: ['aporte.forma'], cotas: ['aporte.forma'] } },
-  { id: 'ctr-multa', rotulo: 'Multa por atraso no pagamento', tipo: 'percentual', min: 0, max: 10, unidade: '%', decimal: '.', modelos: PAGA, itens: { completo: ['preco.mora'], socio50: ['aporte.mora'], cotas: ['aporte.mora'] } },
-  { id: 'ctr-juros', rotulo: 'Juros de mora por mês', tipo: 'percentual', min: 0, max: 5, unidade: '% ao mês', decimal: '.', modelos: PAGA, itens: { completo: ['preco.mora'], socio50: ['aporte.mora'], cotas: ['aporte.mora'] } },
+  { id: 'ctr-multa', rotulo: 'Multa por atraso no pagamento', tipo: 'percentual', min: 0, max: 10, unidade: '%', decimal: '.', modelos: PAGA, itens: { completo: ['preco.mora', 'prazo.atraso'], equip: ['preco.mora', 'entrega.mora'], socio50: ['aporte.mora'], cotas: ['aporte.mora'] } },
+  { id: 'ctr-juros', rotulo: 'Juros de mora por mês', tipo: 'percentual', min: 0, max: 5, unidade: '% ao mês', decimal: '.', modelos: PAGA, itens: { completo: ['preco.mora', 'prazo.atraso'], equip: ['preco.mora', 'entrega.mora'], socio50: ['aporte.mora'], cotas: ['aporte.mora'] } },
 
   // ── Completo (fornecimento e instalação) ───────────────────────────────────
   { id: 'ctr-prazo-unid', rotulo: 'Prazos contados em', tipo: 'opcao', opcoes: ['uteis', 'corridos'], modelos: OB },
@@ -108,7 +108,8 @@ export const CAMPOS_AGENTE: CampoAgente[] = [
   { id: 'ctr-mostra-pct', rotulo: 'Mostrar o percentual da plataforma no contrato', tipo: 'opcao', opcoes: ['mostrar', 'omitir'], valoresHtml: { mostrar: '1', omitir: '' }, modelos: OB },
 
   // ── Compra e venda de equipamento ──────────────────────────────────────────
-  dias('ctr-eq-atraso', 'Atraso na entrega que deixa o comprador desistir', ['equip'], 180),
+  dias('ctr-eq-atraso', 'Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar', ['equip'], 180, { equip: ['entrega.atraso', 'preco.mora'] }),
+  meses('ctr-eq-garantia', 'Garantia da instalação (quando a instalação está no pedido)', ['equip'], 120, { equip: ['instalacao.garantia'] }),
 
   // ── Sociedade (50/50 e cotas) e termo do investidor ────────────────────────
   { id: 'ctr-soc-invest', rotulo: 'Investimento total (capital)', tipo: 'dinheiro', min: 0.01, max: 1_000_000_000, unidade: 'R$', modelos: SOC_TI, sensivel: true, espelho: true, itens: { socio50: ['capital.total', 'capital.quadro'], cotas: ['capital.total', 'capital.quadro'], termo_inv: ['condicoes.quadro'] } },

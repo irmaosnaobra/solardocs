@@ -2116,7 +2116,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 /* Sufixo longo ("% ao mês", "meses") cobria o número: o respiro padrão de 44px
    é do "%" e do "dias". Dois ids pra vencer a regra do formulário empilhado. */
 #eletroSection .orc-wrap #ctr-juros{padding-right:88px}
-#eletroSection .orc-wrap #ctr-garantia{padding-right:64px}
+#eletroSection .orc-wrap #ctr-garantia,#eletroSection .orc-wrap #ctr-eq-garantia{padding-right:64px}
 /* Caixinha de espelho: ao lado do rótulo de cada campo que copia outra aba.
    Grade no campo pra ela ficar na linha do rótulo; os dois ids vencem o
    formulário empilhado. No celular desce pra linha de baixo do rótulo. */
@@ -6087,8 +6087,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card" data-ctr-tipos="equip">
         <div class="calc-card-title"><span class="dot"></span>Compra e venda: o pedido</div>
         <div class="orc-note" id="ctr-eq-resumo" style="grid-column:1/-1">—</div>
-        <div class="eletro-field"><label>Atraso na entrega que deixa o comprador desistir</label>
+        <div class="eletro-field"><label>Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-eq-atraso" inputmode="numeric" min="1" value="30"><span class="suf">dias</span></div></div>
+        <div class="eletro-field" id="ctr-eq-garantia-f" style="display:none"><label>Garantia da instalação</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-eq-garantia" inputmode="numeric" min="1" value="12"><span class="suf">meses</span></div></div>
+        <div class="orc-note" style="grid-column:1/-1">O campo da garantia da instalação aparece quando algum item do pedido tem "instala" na descrição (ex.: "Instalação do carregador"): aí o contrato leva a cláusula da instalação e a nota fiscal de serviço.</div>
         <div class="orc-note" style="grid-column:1/-1">Itens, NCM, frete, local de entrega, prazo e garantia vêm da aba <b>Venda de equipamento</b>: mude lá e o contrato acompanha. <button type="button" class="orc-link" onclick="eletroSubaba('equipamento')">Abrir Venda de equipamento →</button></div>
       </div>
 
@@ -6259,13 +6262,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select></div></div>
         <div class="eletro-field" id="ctr-arr-f-horario"><label>Horário combinado</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-horario-txt" placeholder="Ex.: das 6h às 23h, de segunda a sábado"></div></div>
-        <div class="eletro-field" data-ctr-tipos="socio50 termo_inv" data-ctr-socmodo="socio50"><label>O imóvel é do sócio participante?</label>
+      </div>
+
+      <!-- DE QUEM É O IMÓVEL (20/10/2026): decide o termo de anuência do proprietário no Completo e na Sociedade 50/50. Um campo só (ctr-soc-dono). -->
+      <div class="card" data-ctr-tipos="completo socio50 termo_inv" data-ctr-socmodo="socio50 fora">
+        <div class="calc-card-title"><span class="dot"></span>De quem é o imóvel</div>
+        <div class="eletro-field"><label id="ctr-dono-rot">O imóvel é do sócio participante?</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-soc-dono" onchange="ctrResumo()">
             <option value="">Pela ficha do cliente</option>
             <option value="sim">Sim, o sócio é o dono</option>
             <option value="nao">Não, o sócio é inquilino ou tem outro direito</option>
           </select></div></div>
-        <div class="orc-note" style="grid-column:1/-1" data-ctr-tipos="socio50 termo_inv" data-ctr-socmodo="socio50">Em "Pela ficha do cliente" vale o que o formulário disse sobre o local. "Não" põe no contrato o termo de anuência do proprietário. Se houver interveniente dono do imóvel, vale o interveniente.</div>
+        <div class="orc-note" style="grid-column:1/-1" id="ctr-dono-nota">Em "Pela ficha do cliente" vale o que o formulário disse sobre o local. "Não" põe no contrato o termo de anuência do proprietário. Se houver interveniente dono do imóvel, vale o interveniente.</div>
       </div>
 
       <!-- O IMÓVEL (09/10/2026): matrícula, IPTU e unidade consumidora saem no
@@ -16884,8 +16892,6 @@ function nxCompletoDeck(d) {
     'Carregador ' + (d.modelo || 'NEXUS'), 'Projeto de engenharia', 'Homologação na concessionária',
     'Padrão de entrada 200A', 'Transformador 220/380', 'Infraestrutura elétrica e cabeamento', 'Infraestrutura civil',
     'Cobertura', 'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
-  const FORA = (Array.isArray(d.excluiPor) && d.excluiPor.length) ? d.excluiPor
-    : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
   const AVISO_FORA = d.avisoFora || 'Reforço da rede ou obra exigida pela distribuidora, se houver, é orçado à parte depois do parecer de acesso.';
   const KON = d.kitOn || { cobert: true, civil: true };
 
@@ -16901,12 +16907,11 @@ function nxCompletoDeck(d) {
         <div class="d">${KON.cobert !== false ? 'Cobertura, sinalização' : 'Sinalização'}, piso demarcado e a máquina ligada. ${KON.civil !== false ? 'Obra civil e elétrica inclusas' : 'Obra elétrica inclusa'}, e a equipe é nossa.</div>
       </div>
     </div>
-    <div class="nx-kick" style="margin-top:14px">O que está dentro do valor, e o que não está</div>
+    <div class="nx-kick" style="margin-top:14px">O que está dentro do valor</div>
     <div class="nx-duas">
       <div class="nx-col dentro"><div class="h">Dentro do valor</div>
         <ul class="nx-lista">${DENTRO.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>
-      <div class="nx-col fora"><div class="h">Por sua conta</div>
-        <ul class="nx-lista">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+      <div class="nx-col fora"><div class="h">Se a rede exigir mais</div>
         <div class="nx-aviso">${esc(AVISO_FORA)}</div></div>
     </div>
     <div class="nx-tarja nx-fim">${brl(E.invest)} · ${SOC ? 'o seu aporte na sociedade' : 'valor total do projeto, chave na mão'}</div>
@@ -17157,8 +17162,6 @@ function epCompletoA4(d) {
     'Carregador ' + (d.modelo || 'NEXUS'), 'Projeto de engenharia', 'Homologação na concessionária',
     'Padrão de entrada 200A', 'Transformador 220/380', 'Infraestrutura elétrica e cabeamento', 'Infraestrutura civil',
     'Cobertura', 'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
-  const FORA = (Array.isArray(d.excluiPor) && d.excluiPor.length) ? d.excluiPor
-    : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
   const AVISO_FORA = d.avisoFora || 'Reforço da rede ou obra exigida pela distribuidora, se houver, é orçado à parte depois do parecer de acesso.';
   const KON = d.kitOn || { cobert: true, civil: true };
 
@@ -17189,15 +17192,14 @@ function epCompletoA4(d) {
       <div class="ep-kpi"><div class="k">Entrega</div><div class="v peq">25 dias</div></div>
     </div>
 
-    <div class="ep-section">O que está dentro do valor, e o que não está</div>
+    <div class="ep-section">O que está dentro do valor</div>
     <div class="ep-cols ep-avoid-break">
       <div class="ep-box">
         <h3>Dentro do valor</h3>
         <ul class="ep-lista dentro">${DENTRO.map(i => `<li>${orcEsc(i)}</li>`).join('')}</ul>
       </div>
       <div class="ep-box">
-        <h3>Por sua conta</h3>
-        <ul class="ep-lista fora">${FORA.map(i => `<li>${orcEsc(i)}</li>`).join('')}</ul>
+        <h3>Se a rede exigir mais</h3>
         <p class="ep-p aviso">${orcEsc(AVISO_FORA)}</p>
       </div>
     </div>
@@ -17329,7 +17331,7 @@ function epCompletoPayload(versao, comSociedade, invPapel) {
       : (orcVal('orc-obs') || ORC_OBS_PADRAO),
     modelo: epEquipRotulo(t.equip) || 'Carregador NEXUS',
     // CM-05: o kit marcado no Orçamento, o mesmo do contrato e do banco.
-    ...(() => { const k = epKitDoPapel(epEquipRotulo(t.equip) || 'NEXUS'); return { inclui: k.inclui, excluiPor: k.fora, avisoFora: k.aviso, kitOn: k.on }; })(),
+    ...(() => { const k = epKitDoPapel(epEquipRotulo(t.equip) || 'NEXUS'); return { inclui: k.inclui, avisoFora: k.aviso, kitOn: k.on }; })(),
     quantidade: orcEpQtdCarregadores(), bicos: p.plugs,
     ent: {
       carros: p.carros, carga: p.carga, precoKwh: p.precoKwh, custoKwh: p.custoKwh,
@@ -17927,7 +17929,8 @@ function epKitDoPapel(modelo) {
     civil: ['Infraestrutura civil'], cobert: ['Cobertura'], mao: ['Mão de obra e instalação'],
   };
   const ordem = ['carreg', 'proj', 'padrao', 'trafo', 'cabo', 'civil', 'cobert', 'mao'];
-  const inclui = [], fora = ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+  // "fora" guarda só o kit desmarcado; a lista do que o cliente cuida (espaço, ligação, energia) vive no contrato Completo, não no deck.
+  const inclui = [], fora = [];
   ordem.forEach(id => (on(id) ? inclui : fora).push(...nomes[id]));
   inclui.push('Garantia de 24 meses da instalação');
   const falta = [!on('padrao') && 'Padrão de entrada', !on('trafo') && 'transformador'].filter(Boolean);
@@ -20353,15 +20356,18 @@ const orcEpArquivo = d => {
 // NCM, unidade, quantidade e valor unitário — por isso a tabela tem preço por item,
 // que no chave-na-mão é proibido.
 // Sem Simulador e sem bloco de retorno: quem compra equipamento já tem o projeto.
-const ORC_EQ_OBS_PADRAO = 'Fornecimento de equipamento. Não inclui projeto elétrico, '
-  + 'obra civil, instalação, cabeamento, comissionamento nem homologação na concessionária: '
-  + 'esses itens são orçados por endereço. Valores válidos durante o prazo deste orçamento. '
+const ORC_EQ_OBS_PADRAO = 'Fornecimento de equipamento. O preço cobre os itens listados; opcionais e serviços '
+  + '(projeto elétrico, obra civil, instalação, cabeamento, comissionamento e homologação na concessionária) '
+  + 'só entram se estiverem listados, e o resto é orçado por endereço. Valores válidos durante o prazo deste orçamento. '
   + 'Garantia de fábrica contra defeito de fabricação, pelo prazo indicado, contada da emissão da nota fiscal, '
-  + 'somada à garantia legal. A instalação é do comprador e deve ser feita por profissional habilitado, com ART; '
-  + 'a garantia não cobre a instalação nem dano por sobretensão, descarga atmosférica, mau uso ou intervenção de terceiros. '
+  + 'somada à garantia legal. Sem instalação listada, ela é do comprador e deve ser feita por profissional habilitado, com ART; '
+  + 'o conserto de dano por instalação inadequada, sobretensão, descarga atmosférica, mau uso ou intervenção de terceiros é feito por orçamento próprio, fora da garantia. '
   + 'Em venda para outro estado, o DIFAL do ICMS é recolhido pelo comprador quando ele for contribuinte do imposto; '
   + 'quando não for, é recolhido pela vendedora.';
 
+// Observação padrão de antes de 20/10/2026 ("Não inclui..."): campo salvo com ela volta para o texto de hoje.
+const ORC_EQ_OBS_ANTIGO = /^Fornecimento de equipamento. N.o inclui projeto el.trico, /;
+const eqObsAtual = v => (ORC_EQ_OBS_ANTIGO.test(String(v || '')) ? ORC_EQ_OBS_PADRAO : v);
 // Tabela de itens. Dinheiro em centavos inteiros no payload: o comprador soma a
 // coluna e confere contra o total, e float não fecha a conta.
 // Centavos exatos de um campo do payload. Vem de `d.cent` quando existe; link
@@ -20412,7 +20418,7 @@ function orc1EquipTabela(d) {
       <th class="n">Un</th><th class="n">Qtd</th><th class="n">V. unitário</th><th class="n">V. total</th>
     </tr></thead>
     <tbody>${linhas}${somasHTML}
-      <tr class="tot"><td colspan="6">Total do fornecimento${temOpc ? ' <i>(não inclui os itens opcionais)</i>' : ''}</td><td class="n">${brl(campo('total'))}</td></tr>
+      <tr class="tot"><td colspan="6">Total do fornecimento${temOpc ? ' <i>(os opcionais somam só quando escolhidos)</i>' : ''}</td><td class="n">${brl(campo('total'))}</td></tr>
     </tbody>
   </table>`;
 }
@@ -20731,7 +20737,7 @@ function orcEquipPayload() {
     // que a coluna da tabela some exatamente o total impresso no rodape.
     cent: { total: t.total, subtotal: t.subtotal, frete: t.frete, opcionais: t.opcionais },
     condicoes: equipLerCondicoes(),
-    obs: eqVal('eq-obs') || ORC_EQ_OBS_PADRAO,
+    obs: eqObsAtual(eqVal('eq-obs')) || ORC_EQ_OBS_PADRAO,
     vendedor: { nome: vendNome, contato: vendTel },
     empresa: (typeof orc1EpEmpresa === 'function') ? orc1EpEmpresa() : { nome: EP_MARCA },
   };
@@ -21506,8 +21512,8 @@ function epBasicoImprimir() {
 // seis meses depois, quando o saldo é cobrado.
 //
 // Duas travas de redação que o documento carrega de propósito:
-//  1) uma natureza só. É "sinal e princípio de pagamento" (arras confirmatórias,
-//     art. 417 do Código Civil) do começo ao fim. Misturar "sinal creditado" com
+//  1) uma natureza só. É "sinal e princípio de pagamento" (arras penitenciais,
+//     art. 420 do Código Civil) do começo ao fim. Misturar "sinal creditado" com
 //     "taxa de serviço não restituível" no mesmo papel é dar ao cliente duas
 //     leituras contraditórias do mesmo dinheiro.
 //  2) o gatilho tem dono. "Após a aprovação" não diz quem aprova — o campo abre
@@ -21516,9 +21522,9 @@ function epBasicoImprimir() {
 // 09/10/2026, decisão do dono: negado o crédito pelo banco ou a conexão pela
 // distribuidora, o cliente recebe tudo o que foi feito e o sinal paga isso.
 const REC_DESIST_PADRAO =
-  'Não havendo prosseguimento por desistência do contratante, ou por negativa do crédito pelo banco ' +
-  'ou da conexão pela concessionária, o valor recebido fica como pagamento do projeto elétrico, que é ' +
-  'entregue ao contratante com a ART e os documentos produzidos.';
+  'Antes do início da execução, desistindo o contratante, ele perde este valor, que paga o projeto elétrico ' +
+  'entregue a ele com a ART e os documentos produzidos; desistindo a contratada, devolve-o em dobro, corrigido ' +
+  '(art. 420 do Código Civil). Negado o crédito pelo banco ou a conexão pela concessionária, o valor também paga esse projeto.';
 
 // ── Valor por extenso: recibo sem extenso é recibo pela metade ──
 const REC_EX_U = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
@@ -21605,7 +21611,13 @@ function recBase() {
 // dinheiro que entra ou sai antes e durante o contrato.
 const REC_NOVOS = ['equip', 'deposito', 'aporte', 'premio', 'parcela'];
 function recTipo() { const t = orcVal('rec-tipo'); return ['projeto'].concat(REC_NOVOS).includes(t) ? t : 'sinal'; }
-const REC_DESIST_EQUIP = 'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro (art. 418 do Código Civil).';
+// Textos de antes de 20/10/2026 (arras confirmatórias). Campo salvo com um deles volta para o texto de hoje: o mesmo dinheiro nunca sai com duas naturezas.
+const REC_DESIST_ANTIGOS = {
+  'Não havendo prosseguimento por desistência do contratante, ou por negativa do crédito pelo banco ou da conexão pela concessionária, o valor recebido fica como pagamento do projeto elétrico, que é entregue ao contratante com a ART e os documentos produzidos.': () => REC_DESIST_PADRAO,
+  'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro (art. 418 do Código Civil).': () => REC_DESIST_EQUIP,
+};
+const recDesistAtual = v => (REC_DESIST_ANTIGOS[v] ? REC_DESIST_ANTIGOS[v]() : v);
+const REC_DESIST_EQUIP = 'Desistindo o comprador, a vendedora retém este valor. Desistindo a vendedora, devolve-o em dobro. Não há outra indenização (art. 420 do Código Civil).';
 // Quem paga (ou, na reserva do local, quem recebe) e de onde vem a sugestão.
 function recSugestaoParte(tipo) {
   if (tipo === 'equip') return { nome: eqVal('eq-cli-nome'), doc: eqVal('eq-cli-doc'), end: [eqVal('eq-cli-end'), eqVal('eq-cli-cidade')].filter(Boolean).join(', '),
@@ -21672,7 +21684,7 @@ function recTipoMudou() {
     if (t) t.textContent = { equip: 'Recibo de sinal do equipamento', deposito: 'Recibo de depósito de reserva', aporte: 'Recibo de aporte', premio: 'Recibo da reserva do local', parcela: 'Recibo de pagamento' }[tipo];
     const n = document.getElementById('rec-tipo-note');
     if (n) n.innerHTML = {
-      equip: 'Sinal da compra de equipamento avulso: o total vem da aba <b>Venda de equipamento</b>, o papel mostra o saldo e as regras de desistência do art. 418, e o comprador assina junto.',
+      equip: 'Sinal da compra de equipamento avulso: o total vem da aba <b>Venda de equipamento</b>, o papel mostra o saldo e as regras de desistência do art. 420 (arras penitenciais), e o comprador assina junto.',
       deposito: 'Depósito do <b>Termo do Investidor</b>: não é aporte e não faz do investidor sócio. Abate do aporte no contrato de sociedade ou volta na forma do termo. O investidor assina junto.',
       aporte: 'Pagamento do <b>aporte</b> do sócio ou cotista, contra o aporte total do cartão Sociedade. O papel mostra quanto falta.',
       premio: 'O dinheiro <b>sai</b> da NEXUS e vai para o dono do local, pelo <b>Termo do Arrendador</b>: quem assina este recibo é o <b>dono</b>, que é quem recebe.',
@@ -21696,7 +21708,7 @@ function recTipoMudou() {
       pctEl.value = String(c ? equipSinalPct(c) : 30);
     }
     const ds = document.getElementById('rec-desist');
-    if (ds && tipo === 'equip' && (!ds.value.trim() || ds.value === REC_DESIST_PADRAO)) ds.value = REC_DESIST_EQUIP;
+    if (ds && tipo === 'equip' && (!ds.value.trim() || recDesistAtual(ds.value) === REC_DESIST_PADRAO)) ds.value = REC_DESIST_EQUIP;
     const el = document.getElementById('rec-valor');
     if (el && el.dataset.tocado !== '1') recCalc(); else recResumo();
     return;
@@ -21706,7 +21718,7 @@ function recTipoMudou() {
     const pctEl = document.getElementById('rec-pct');
     if (pctEl && pctEl.dataset.tocado !== '1') pctEl.value = '5';
     const ds = document.getElementById('rec-desist');
-    if (ds && ds.value === REC_DESIST_EQUIP) ds.value = REC_DESIST_PADRAO;
+    if (ds && recDesistAtual(ds.value) === REC_DESIST_EQUIP) ds.value = REC_DESIST_PADRAO;
   }
   const nomeRot = document.querySelector('#rec-cli-nome') && document.querySelector('#rec-cli-nome').closest('.eletro-field').querySelector('label');
   const docRot = document.querySelector('#rec-cli-doc') && document.querySelector('#rec-cli-doc').closest('.eletro-field').querySelector('label');
@@ -21849,7 +21861,7 @@ function recBanner() {
 }
 function recInit() {
   const d = document.getElementById('rec-data'); if (d && !d.value) d.value = orcHojeISO();
-  const t = document.getElementById('rec-desist'); if (t && !t.value.trim()) t.value = REC_DESIST_PADRAO;
+  const t = document.getElementById('rec-desist'); if (t) t.value = t.value.trim() ? recDesistAtual(t.value) : REC_DESIST_PADRAO;
   recTipoMudou();
   recCalc();
   recBanner();
@@ -21874,7 +21886,7 @@ function recDados() {
     base, sinal, saldo: Math.max(0, base - sinal), pct: orcNum(orcVal('rec-pct')),
     forma: orcVal('rec-forma') || 'Pix',
     fim: orcVal('rec-fim'), gatilho: orcVal('rec-gatilho'),
-    desist: orcVal('rec-desist') || REC_DESIST_PADRAO,
+    desist: recDesistAtual(orcVal('rec-desist')) || REC_DESIST_PADRAO,
     obs: orcVal('rec-obs'),
     avulso: recAvulso(),
     vendedor: { nome: t.autor, contato: t.contato },
@@ -21962,7 +21974,7 @@ function recHTMLNovo(d) {
         <tr class="hl"><td>Saldo a pagar na forma da condição contratada</td><td class="num">${money(saldo)}</td></tr>
       </table>`;
     clausulas = [
-      '<b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil), parte do preço do pedido.',
+      '<b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b>, parte do preço do pedido, que vale como <b>arras penitenciais</b> (art. 420 do Código Civil).',
       `<b>Abatimento.</b> Este valor é abatido do preço, restando o saldo de <b>${money(saldo)}</b>, pago na forma da condição contratada.`,
       `<b>Desistência.</b> ${e(d.desist || REC_DESIST_EQUIP)}`,
       '<b>Nota fiscal.</b> A nota fiscal dos equipamentos é emitida na forma da legislação, pelo valor total do pedido.',
@@ -22081,7 +22093,7 @@ function recHTML(d) {
         <li><b>Entrega.</b> Concluído o serviço, o projeto elétrico e a respectiva ART são entregues ao contratante.</li>
         <li><b>Exigência da concessionária.</b> Havendo exigência ou reprovação por causa não imputável ao contratante, as adequações e a reapresentação do projeto são feitas <b>sem custo adicional</b>.</li>
         <li><b>Quitação.</b> O pagamento acima dá <b>plena e geral quitação</b> do serviço descrito, nada mais havendo a cobrar por ele.</li>`
-          : `<li><b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil), que é parte do preço do projeto, e não taxa avulsa.</li>
+          : `<li><b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b>, que é parte do preço do projeto, e não taxa avulsa. Ele vale como <b>arras penitenciais</b> (art. 420 do Código Civil), na forma do contrato.</li>
         <li><b>Abatimento.</b> Sendo ${e(d.gatilho)} e firmado o contrato de fornecimento e instalação, este valor é <b>integralmente abatido do valor total</b>, restando o saldo de <b>${money(d.saldo)}</b>, pago na forma e nos prazos do contrato. Parcelamento ou financiamento, quando houver, incidem sobre esse saldo.</li>
         <li><b>O que este valor cobre.</b> ${e(fimCap)}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
         <li><b>Desistência.</b> ${e(d.desist)}</li>
@@ -22541,7 +22553,7 @@ const CTR_TIPOS = {
   cotas: { nome: 'Cotas por %', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
     nota: 'Sociedade em conta de participação dividida em cotas: o cliente compra uma ou mais, a NEXUS administra e fica com a dela, e o local vem por arrendamento. Enquanto o capital não fecha, o dinheiro fica parado, e volta se não fechar no prazo.' },
   equip: { nome: 'Compra e venda de equipamento', nossa: 'VENDEDORA', deles: 'COMPRADOR', Nossa: 'Vendedora', Parte: 'Comprador', parte: 'comprador',
-    nota: 'Venda só do equipamento, sem obra: o pedido (itens com NCM, frete, prazo e garantia) vem da aba Venda de equipamento. Instalação é do comprador, por profissional habilitado.' },
+    nota: 'Venda só do equipamento, sem obra: o pedido (itens com NCM, frete e prazo) vem da aba Venda de equipamento. A instalação é do comprador, salvo se estiver listada no pedido.' },
   // TERMOS DE COMPROMISSO (08/10/2026): o papel entre a reunião e o contrato.
   // Os nomes das partes mudam com a força do termo e com o uso (ver ctrNomes).
   termo_arr: { nome: 'Termo do Arrendador', termo: true, nossa: 'COMPROMISSÁRIA CESSIONÁRIA', deles: 'COMPROMITENTE CEDENTE', Nossa: 'Compromissária cessionária', Parte: 'Compromitente cedente', parte: 'compromitente cedente',
@@ -22673,6 +22685,22 @@ function ctrSocPrazos() {
     guardaDocs: 5,         // anos de guarda dos documentos do ponto (resultado.contas)
     docsDias: 10,          // dias úteis para entregar documento pedido (resultado.contas)
     mudancaLocal: 60,      // dias para propor a mudança de local depois de perdê-lo (dissolucao.mudanca)
+  };
+}
+// Os números do Completo que não têm campo na tela (20/10/2026, aprovados pelo dono). Todo número sai com o extenso (nx).
+// A multa e os juros da CONTRATADA por atraso não são parâmetro: seguem os campos do cliente (2% e 1% ao mês).
+function ctrObraPrazos() {
+  return {
+    dia: Math.min(28, ctrInt('ctr-soc-dia', 15)), // dia do repasse do faturamento pela plataforma: o mesmo parâmetro da Sociedade (plataforma.entrega)
+    suspensaoDias: 10,    // atraso de pagamento que deixa parar a obra e a plataforma (opc.suspensao)
+    acordoFin: 10,        // dias para combinar outra forma se o banco não liberar (preco.financiamento)
+    aceiteDias: 5,        // dias úteis para apontar defeito aparente (opc.aceite)
+    reajusteDias: 60,     // atraso do início da execução, por causa do cliente, que corrige o saldo (opc.reajuste)
+    reservaAtraso: 30,    // atraso de parcela que deixa cobrar o saldo ou retomar o equipamento (opc.reserva)
+    devolucaoAtraso: 90,  // atraso da CONTRATADA que deixa o cliente encerrar e receber tudo (prazo.devolucao)
+    devolucaoDias: 30,    // prazo de toda devolução e da multa paga sem saldo
+    aprovaAditivo: 30,    // dias para o cliente aprovar o custo da distribuidora ou o aditivo (opc.distribuidora)
+    arrependimento: 7,    // CDC, art. 49 (rescisao.arrependimento)
   };
 }
 // O "Local é seu" do formulário vira a condição do cedente. Quem ainda negocia
@@ -22821,6 +22849,16 @@ function ctrTipoUi() {
   set('ctr-t-total-rot', t === 'termo_inv' ? 'Aporte deste investidor' : (soc ? 'Aporte deste sócio' : 'Valor total do projeto'));
   set('ctr-soc-cota-rot', modo === 'cotas' ? 'Cada cota vale' : 'Cota do sócio');
   set('ctr-soc-aporte-rot', modo === 'cotas' ? 'Aporte por cota' : 'Aporte do sócio');
+  { const cli = ativos.includes('completo');
+    set('ctr-dono-rot', cli ? 'O imóvel é do cliente?' : 'O imóvel é do sócio participante?');
+    set('ctr-dono-nota', cli
+      ? 'Em "Pela ficha do cliente" vale o que o formulário disse sobre o local. "Não" põe no contrato o termo de anuência do proprietário, que o cliente entrega junto com os documentos.'
+      : 'Em "Pela ficha do cliente" vale o que o formulário disse sobre o local. "Não" põe no contrato o termo de anuência do proprietário. Se houver interveniente dono do imóvel, vale o interveniente.');
+    const sd = document.getElementById('ctr-soc-dono');
+    if (sd) {
+      const tx = { '': 'Pela ficha do cliente', sim: cli ? 'Sim, o cliente é o dono' : 'Sim, o sócio é o dono', nao: cli ? 'Não, o cliente é inquilino ou tem outro direito' : 'Não, o sócio é inquilino ou tem outro direito' };
+      [...sd.options].forEach(o => { if (tx[o.value] !== undefined && o.textContent !== tx[o.value]) o.textContent = tx[o.value]; });
+    } }
   set('ctr-soc-arrend-rot', modo === 'cotas' ? 'Arrendamento ao dono do local, % do faturamento' : 'Arrendamento ao sócio pelo local, % do faturamento');
   const nota = document.getElementById('ctr-tipo-nota');
   if (nota) {
@@ -23595,7 +23633,7 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-ta-premio-quando', 'ctr-ta-multa',
   'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
   'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
-  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-soc-dono', 'ctr-eq-atraso', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja', 'ctr-arr-soc-ref',
+  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-soc-dono', 'ctr-eq-atraso', 'ctr-eq-garantia', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja', 'ctr-arr-soc-ref',
   'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir',
   // Quem é o cessionário, o cedente de fora e o avalista (19/10/2026). Papel salvo antes não tem as chaves: orcSnapApply as zera.
   'ctr-arr-cess', 'ctr-aval-tem', ...CTR_PESSOAS_IDS];
@@ -23677,12 +23715,16 @@ function ctrEspelho(id, ligado, fonte, desligar, religar) {
 // quem paga é a NEXUS.
 // O pedido da compra e venda: a aba Venda de equipamento, com ou sem os itens
 // opcionais (caixinha do contrato). Valores em reais; os itens em centavos.
+// A instalação está vendida quando algum item do pedido tem "instala" na descrição (sem diferenciar maiúsculas): decide a nota fiscal,
+// a cláusula da instalação e o campo da garantia da instalação.
+const ctrEqInstVendida = q => !!q && (q.itens || []).some(i => /instala/i.test(String(i.desc || '')));
 function ctrEqv() {
   const vazio = { itens: [], fora: [], subtotal: 0, frete: 0, total: 0, num: '', freteTipo: 'CIF', entregaLocal: '', prazo: '', garantia: '', emit: {}, ie: '' };
   let p = null;
   try { p = (document.getElementById('eq-itens') && typeof orcEquipPayload === 'function') ? orcEquipPayload() : null; } catch (e) { p = null; }
   if (!p) return vazio;
-  const comOpc = ctrOpcOn('eq_opcionais');
+  // Sem caixinha desde 20/10/2026: o item opcional fica fora do preço e do contrato. Para comprar um opcional, desmarque "opcional" no item.
+  const comOpc = false;
   const itens = p.itens.filter(i => comOpc || !i.opcional);
   const fora = comOpc ? [] : p.itens.filter(i => i.opcional);
   const sub = itens.reduce((a, i) => a + i.unit * i.qtd, 0);
@@ -24383,10 +24425,13 @@ function ctrEqUi() {
   const el = document.getElementById('ctr-eq-resumo');
   if (!el || !ctrTiposAtivos().includes('equip')) return;
   const q = ctrEqv(), e = orcEsc;
+  // A garantia da instalação só aparece quando há instalação vendida no pedido.
+  const gf = document.getElementById('ctr-eq-garantia-f');
+  if (gf) gf.style.display = ctrEqInstVendida(q) ? '' : 'none';
   if (!q.itens.length) { el.innerHTML = '<b style="color:#fca5a5">Sem pedido.</b> Monte os itens na aba Venda de equipamento.'; return; }
-  const falta = [!q.prazo && 'prazo de entrega', !q.garantia && 'garantia', q.itens.some(i => !i.ncm) && 'NCM'].filter(Boolean);
+  const falta = [!q.prazo && 'prazo de entrega', q.itens.some(i => !i.ncm && !/instala/i.test(String(i.desc || ''))) && 'NCM'].filter(Boolean);
   el.innerHTML = `Orçamento de Venda${q.num ? ' nº <b>' + e(q.num) + '</b>' : ''}: <b>${q.itens.length} item(ns)</b>, total <b>${ORC_MONEY(q.total)}</b>, frete ${q.freteTipo === 'FOB' ? 'FOB' : 'CIF'}${q.prazo ? ', entrega em ' + e(q.prazo) : ''}${q.garantia ? ', garantia de ' + e(q.garantia) : ''}.`
-    + (q.fora.length ? ` ${q.fora.length} opcional(is) fora da compra.` : '')
+    + (q.fora.length ? ` ${q.fora.length} opcional(is) fora da compra: para incluir, desmarque "opcional" no item.` : '')
     + (falta.length ? ` <b style="color:#fca5a5">Falta: ${falta.join(', ')}.</b>` : '');
 }
 function ctrResumo() {
@@ -24475,7 +24520,7 @@ function ctrDados() {
   const arrCli = ctrArrCliAtivo() && tipo === 'arrend', avalOn = ctrAvalAtivo() && (tipo === 'completo' || tipo === 'equip');
   return {
     // Modelo do contrato e os números de cada um (null fora do modelo).
-    tipo, soc: ctrSocModo(tipo) ? ctrSoc() : null, socP: ctrSocModo(tipo) ? ctrSocPrazos() : null,
+    tipo, soc: ctrSocModo(tipo) ? ctrSoc() : null, socP: ctrSocModo(tipo) ? ctrSocPrazos() : null, obP: tipo === 'completo' ? ctrObraPrazos() : null,
     arr: (tipo === 'arrend' || tipo === 'termo_arr') ? ctrArr() : null,
     arrCli, ced: arrCli ? ctrPessoa('ced') : null, aval: avalOn ? ctrPessoa('aval') : null,
     // Nomes das partes, termos (null fora deles), interveniente anuente e a
@@ -24530,20 +24575,26 @@ function ctrDados() {
     prazoCredito: ctrInt('ctr-prazo-credito', 30),
     prazoCorrigir: ctrInt('ctr-prazo-corrigir', 10),
     prazoAviso: ctrInt('ctr-prazo-aviso', 30),
-    garantia: ctrInt('ctr-garantia', 24),
+    // Completo: garantia da instalação da obra (24 meses). Compra e venda: garantia da instalação vendida no pedido (12 meses).
+    garantia: tipo === 'equip' ? ctrInt('ctr-eq-garantia', 12) : ctrInt('ctr-garantia', 24),
     multa: orcNum(orcVal('ctr-multa')),
     juros: orcNum(orcVal('ctr-juros')),
     foro: ctrCampo('ctr-foro'),
     // Cada linha das cláusulas extras vira um item numerado.
     extras: orcVal('ctr-extras').split(/\n+/).map(s => s.trim()).filter(Boolean),
     testemunhas: orcVal('ctr-testemunhas') !== '',
-    // Sociedade: as proteções são fixas no texto. A assinatura eletrônica é sempre aceita (regra 15),
+    // Sociedade, Completo e Compra e venda: as proteções são fixas no texto. A assinatura eletrônica é sempre aceita (regra 15),
     // e o ctrFecho lê este valor para escrever "ou, eletronicamente, em via única".
-    opc: Object.assign(Object.fromEntries(CTR_OPC.map(o => [o.id, ctrOpcOn(o.id)])), ctrEhSoc(tipo) ? { eletronica: true } : {}),
+    opc: Object.assign(Object.fromEntries(CTR_OPC.map(o => [o.id, ctrOpcOn(o.id)])), (ctrEhSoc(tipo) || tipo === 'completo' || tipo === 'equip') ? { eletronica: true } : {}),
     // 50/50: o sócio não é o dono do imóvel quando o campo da tela diz "não" ou, com o campo em "Pela ficha"
     // (vazio), quando o formulário do cliente diz que o local não é dele. Interveniente dono manda sobre os dois
     // (ctrModeloSociedade). Vale também na minuta do Termo do Investidor. Antes era a caixinha "anuencia".
     socNaoDono: ctrSocModo(tipo) === 'socio50' && (() => {
+      const v = orcVal('ctr-soc-dono');
+      return v === 'nao' || (v === '' && epFichaNaoDono());
+    })(),
+    // Completo: o mesmo campo ("O imóvel é do cliente?") decide o termo de anuência do proprietário (opc.anuencia). Não há interveniente no Completo.
+    naoDono: tipo === 'completo' && (() => {
       const v = orcVal('ctr-soc-dono');
       return v === 'nao' || (v === '' && epFichaNaoDono());
     })(),
@@ -24571,43 +24622,16 @@ function ctrDados() {
 // marcar ou desmarcar fica em ctrOpc e manda sobre o padrão.
 // Desde 07/10/2026 cada uma diz em `tipos` em que modelo de contrato existe
 // (sem `tipos` = em todos), e `dicas` troca a explicação por modelo.
-const CTR_OB = ['completo'];
+// Sociedade, Completo e Compra e venda não têm mais caixinha: o que depende do caso entra pelos dados.
 const CTR_OPC = [
-  { id: 'suspensao', tipos: CTR_OB, rot: 'Suspensão por falta de pagamento', padrao: true,
-    dica: 'Atraso de mais de 10 dias deixa parar a obra e a plataforma até regularizar, e os prazos esperam junto.' },
-  { id: 'distribuidora', tipos: CTR_OB, rot: 'Exigências e negativa da concessionária', padrao: true,
-    dica: 'Reforço de rede e obra de conexão que a concessionária pedir ficam com o cliente. Conexão negada encerra sem multa, pagos os custos.' },
-  { id: 'vistoria', tipos: CTR_OB, rot: 'Condição do local fora da vistoria', padrao: true,
-    dica: 'O que não dava para ver na vistoria (aterramento, distância do quadro, padrão) vira aditivo, e o prazo espera a aprovação.' },
-  { id: 'aceite', tipos: CTR_OB, rot: 'Recebimento da obra', padrao: true,
-    dica: '5 dias úteis para apontar defeito aparente depois do comissionamento. Silêncio ou começar a vender recarga valem como aceite.' },
-  { id: 'risco', tipos: CTR_OB, rot: 'Guarda e seguro dos equipamentos', padrao: true,
-    dica: 'Entregue no local, furto, vandalismo e batida passam a ser risco do cliente, que contrata o seguro.' },
-  { id: 'eletronica', so: t => !ctrEhSoc(t), rot: 'Assinatura eletrônica', padrao: true,
+  { id: 'eletronica', so: t => !ctrEhSoc(t) && t !== 'completo' && t !== 'equip', rot: 'Assinatura eletrônica', padrao: true,
     dica: 'Reconhece a assinatura digital (Lei 14.063/2020). Assinado em plataforma que atesta a integridade, dispensa as testemunhas (CPC 784, §4º).' },
   // No arrendamento a valor fixo não há demonstrativo nem dado de usuário: a caixinha some (volta no percentual).
-  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrTipo() !== 'completo' || ctrSoftware(), so: t => !ctrEhSoc(t) && (t !== 'arrend' || ctrArrModo() !== 'fixo'),
+  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrTipo() !== 'completo' || ctrSoftware(), so: t => !ctrEhSoc(t) && t !== 'completo' && t !== 'equip' && (t !== 'arrend' || ctrArrModo() !== 'fixo'),
     dica: 'Dados de recarga tratados só para operar a plataforma. Projeto, software e marca continuam da NEXUS. Nasce marcada quando o Software está no escopo.',
     dicas: { arrend: 'O dono do local recebe só números agregados, nunca dado pessoal de motorista: mandar lista com placa ou telefone é tratamento sem base legal.' } },
-  // Na sociedade (50/50 e a minuta do Termo do Investidor) o dono do imóvel vem dos dados: interveniente e formulário (ctrDados.socNaoDono).
-  { id: 'anuencia', tipos: ['completo'],
-    rot: 'Autorização do dono do imóvel', padrao: () => epFichaNaoDono(),
-    dica: 'Para inquilino ou quem representa o dono: a anuência escrita do proprietário vem junto com os documentos. Nasce marcada quando o formulário diz que o local não é dele.' },
-  { id: 'reajuste', tipos: CTR_OB, rot: 'Reajuste se o início atrasar', padrao: false,
-    dica: 'Se a obra demorar mais de 60 dias para começar por causa do cliente, o saldo corrige pelo IPCA e o equipamento importado pelo câmbio.' },
-  { id: 'reserva', tipos: CTR_OB, rot: 'Reserva de domínio até quitar', padrao: false,
-    dica: 'O equipamento só passa a ser do cliente quando ele pagar tudo. Serve em venda parcelada direta; com financiamento, a garantia é do banco. Contra terceiros, só vale registrada em cartório.' },
-  { id: 'limite', tipos: CTR_OB, rot: 'Limite de responsabilidade', padrao: false,
-    dica: 'Responsabilidade limitada ao valor do contrato, sem lucro cessante. Só vale entre empresas: com pessoa física (consumidor) a cláusula é nula.' },
-  // Compra e venda de equipamento (09/10/2026).
-  { id: 'eq_opcionais', tipos: ['equip'], rot: 'Incluir os itens opcionais na compra', padrao: false,
-    dica: 'Os itens marcados como opcionais no orçamento entram no contrato e somam no preço. Desmarcado, o contrato diz que eles não fazem parte da compra.' },
-  { id: 'eq_reserva', tipos: ['equip'], rot: 'Reserva de domínio até quitar', padrao: true,
-    dica: 'O equipamento só passa a ser do comprador quando ele pagar tudo (Código Civil, arts. 521 a 528). Importa quando a entrega vem antes da quitação. Contra terceiros, só vale registrado em cartório.' },
-  { id: 'eq_limite', tipos: ['equip'], rot: 'Limite de responsabilidade (só entre empresas)', padrao: () => String(ctrCampo('ctr-contratante-doc') || '').replace(/\D/g, '').length === 14,
-    dica: 'Responsabilidade da vendedora limitada ao preço, sem lucro cessante. Com pessoa física a cláusula é nula (CDC), e por isso nasce marcada só quando o comprador tem CNPJ e só sai no papel nesse caso.' },
-  { id: 'eq_instalacao', tipos: ['equip'], rot: 'Oferecer a instalação à parte', padrao: true,
-    dica: 'Uma frase dizendo que a instalação pode ser contratada com a NEXUS por orçamento próprio.' },
+  // Completo e Compra e venda de equipamento: sem caixinhas (20/10/2026). O dono do imóvel (ctr-soc-dono), a reserva de domínio, o limite de
+  // responsabilidade (só empresa), a instalação vendida, o LGPD e a assinatura eletrônica são fixos no texto ou vêm dos dados do contrato.
   // Sociedade (50/50 e cotas): sem caixinhas. Perda limitada, auditoria, preferência, LGPD, assinatura eletrônica e as declarações do investidor são fixas no texto (20/10/2026).
   // Arrendamento.
   { id: 'arr_exclusiv', tipos: ['arrend'], rot: 'Exclusividade no imóvel', padrao: true,
@@ -24752,122 +24776,131 @@ function epPaginar(blocos, pe) {
 //      pagina. O que a IA não tocou continua vindo dos campos, ao vivo.
 // Travado = tem campo próprio na tela; a IA não mexe (e o servidor descarta).
 // Desde 07/10/2026 este é o contrato do Completo; ctrModelo escolhe pelo modelo.
+// Texto definitivo desde 20/10/2026 (aprovado pelo dono), nas regras de
+// api/src/services/gerador/contratoRegras.ts. Não existe cláusula opcional: o que muda de um caso
+// para outro entra pelos dados (pessoa física ou empresa, sinal, Software, financiamento, cartão,
+// parcelamento direto, vistoria, dono do imóvel, fiador). Os prazos que não têm campo na tela são
+// constantes de ctrObraPrazos(). Marco do sinal (decisão do dono): até a compra do equipamento
+// avisada por escrito ou o início da obra vale arras (rescisao.desistencia); depois, o cliente paga
+// os custos e o equipamento comprado (rescisao.execucao).
 function ctrModeloObra(d) {
-  const e = orcEsc, money = ORC_MONEY;
-  const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
-  const pct = n => e(String(n).replace('.', ','));
-  const op = id => !!(d.opc && d.opc[id]);
+  const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
+  const { nx, px, rx } = ctrPecasNum(e, money);
+  const P = d.obP;
+  // Regra 12: pessoa física é consumidor. Sem documento preenchido vale o lado que mais protege o cliente.
+  const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
+  const pf = dg === 0 || dg === 11, pj = dg === 14;
+  const L = h => (pf && h ? `<b>${h}</b>` : h);
+  // Regra 12: multa por atraso de pagamento do consumidor até 2% (CDC, art. 52, § 1º). A da CONTRATADA acompanha a do cliente.
+  const multaCli = pf ? Math.min(d.multa, 2) : d.multa;
   const temOperacao = d.software;
-  // Omitiu a remuneração? o item some e a referência a ele também.
   const temRemun = d.software && d.mostraPct;
-  // Cláusula com algum item travado também é travada (não sai nem muda de nome).
-  const C = (key, titulo, itens, travada) => ({ key, titulo, travada: !!travada || itens.some(it => it && it.travado), itens: itens.filter(Boolean) });
-  const I = (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null;
-  const base = d.sinal > 0 ? 'saldo' : 'preço';
-  // FINANCIAMENTO tem uma condicao que nenhuma outra forma tem: depende de um
-  // TERCEIRO dizer sim. Sem isto escrito, o cliente assina, o banco nega tres
-  // semanas depois e o contrato segue de pe' cobrando o saldo.
-  const ressalvaFin = `A aprovação e a liberação do crédito devem ocorrer em até ${d.prazoCredito} dias da assinatura. ` +
-    'Não aprovado o financiamento nesse prazo, as partes ajustarão nova forma de pagamento em até 10 dias; não havendo acordo, o contrato fica resolvido, ' +
-    (d.sinal > 0
-      ? (d.sinalDoRecibo ? 'ficando o sinal, na forma do recibo de sinal firmado, como pagamento do projeto elétrico e dos documentos entregues ao CONTRATANTE, sem outra multa para nenhuma das partes' : 'ficando o sinal referido na {{i:preco.sinal}} como pagamento do projeto elétrico e dos documentos entregues ao CONTRATANTE, sem outra multa para nenhuma das partes')
-      : 'devendo o CONTRATANTE apenas os custos já incorridos e comprovados pela CONTRATADA') +
-    '. O prazo da {{i:prazo.obra}} não corre antes da liberação do crédito: vale o marco nele previsto ou a liberação, o que ocorrer por último.';
+  const pctSw = ctrPctLe(d.softwarePct);
+  const temCartao = d.pagLinhas.some(l => /cart[ãa]o/i.test(l.forma));
+  // Parte do preço parcelada direto com a CONTRATADA, sem banco e sem cartão: é o que pede reserva de domínio.
+  const parcDireto = d.pagLinhas.some(l => !l.conta.fin && !/cart[ãa]o/i.test(l.forma) && l.conta.parc > 1);
+  const v = d.vistoria;
+  const naoDono = !!d.naoDono;
+  const objeto = loc => `A CONTRATADA fornece e instala, para o CONTRATANTE, uma estação de recarga de veículos elétricos com <b>${nx(d.qtd)} carregador${d.qtd > 1 ? 'es' : ''} ${e(d.equipTxt || 'de corrente contínua')}</b> e ${nx(d.plugs)} ponto${d.plugs > 1 ? 's' : ''} de carregamento, em <b>${loc}</b>.`;
   const marcoObra = {
-    aprovacao: 'contados da <b>aprovação do projeto pela concessionária</b>, e não da assinatura, por não estar o prazo de análise sob governo das partes',
+    aprovacao: 'contados da <b>aprovação do projeto pela distribuidora</b>, e não da assinatura, porque o tempo de análise dela não depende das partes',
     assinatura: 'contados da <b>assinatura deste contrato</b>',
-    entrada: 'contados da <b>compensação do primeiro pagamento</b> previsto na {{c:preco}}',
-    docs: 'contados da <b>entrega completa, pelo CONTRATANTE, dos documentos</b> previstos na {{i:contratante.docs}}',
+    entrada: 'contados da <b>compensação do primeiro pagamento</b> da {{i:preco.forma}}',
+    docs: 'contados da <b>entrega de todos os documentos</b> da {{i:contratante.docs}}',
   }[d.marco] || '';
 
   return [
     C('objeto', 'Do objeto', [
-      I('objeto.estacao', `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`,
-        // Tudo aqui vem de campos (equipamento, quantidade, pontos, local): travado.
-        // E para a IA vai sem o local, que costuma ser o endereço do cliente.
-        { travado: true, iaTexto: `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>[local da instalação]</b>.` }),
-      I('objeto.escopo', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? ', além da plataforma de gestão, na forma da {{c:plataforma}}' : ''}, conforme a {{c:escopo}}.`),
+      // Tudo aqui vem de campos (equipamento, quantidade, pontos, local): travado. Para a IA vai sem o local, que costuma ser o endereço do cliente.
+      I('objeto.estacao', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
     ]),
     C('escopo', 'Do escopo', [
-      I('escopo.lista', 'O preço cobre só o que está no quadro abaixo. O que não estiver nele, inclusive obra que a distribuidora exigir, é orçado à parte. As obrigações do CONTRATANTE quanto a documentação, demanda de energia e consumo seguem a {{c:contratante}}.', { bloco: 'escopo', travado: true }),
+      I('escopo.lista', 'O preço cobre o que está no quadro abaixo. Outro serviço, inclusive obra de conexão, reforço de rede ou participação financeira que a distribuidora de energia exigir para ligar a estação (REN ANEEL nº 1.000/2021), é custo do CONTRATANTE, orçado à parte e feito só com a aprovação escrita dele.', { bloco: 'escopo', travado: true }),
+      I('vistoria.relatorio', v ? `A vistoria técnica do local está no Relatório de Vistoria Técnica${v.num ? ' nº ' + e(v.num) : ''}${v.data ? ', de ' + e(v.data) : ''}, assinado pelas partes, que faz parte deste contrato.${v.temAdeq ? ' ' + ({ incluidas: 'As adequações que ele aponta estão no preço.', parte: 'As adequações que ele aponta são orçadas à parte, em aditivo.', orcar: 'As adequações que ele aponta são orçadas e só são feitas depois da aprovação do CONTRATANTE.' }[v.preco] || '') : ''}` : ''),
+      I('opc.vistoria', 'Condição do local que a vistoria não tinha como ver, como o aterramento, a distância até o quadro de energia ou a capacidade do padrão de entrada e da rede interna, é orçada em aditivo.'),
     ], true),
-    C('preco', 'Do preço e da forma de pagamento', [
-      I('preco.total', `O preço total dos serviços e equipamentos é de <b>${money(d.total)}</b> (${e(recExtenso(d.total))}).`, { travado: true }),
+    C('preco', 'Do preço e do pagamento', [
+      I('preco.total', `O preço total do fornecimento e da instalação é de ${d.total > 0 ? rx(d.total) : lacuna}.`, { travado: true }),
       I('preco.sinal', d.sinal > 0
-        ? `O CONTRATANTE já pagou, a título de <b>sinal e princípio de pagamento</b>, a quantia de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}),${d.sinalDestino ? ` destinada ${e(d.sinalDestino)},` : ''} a qual é <b>integralmente abatida</b> do preço, remanescendo o saldo de <b>${money(d.saldo)}</b>.`
-        : 'Não houve pagamento de sinal antecipado, correndo o preço integralmente na forma do item seguinte.', { travado: true }),
+        ? (d.sinalDoRecibo
+          ? `O CONTRATANTE já pagou, pelo recibo de sinal firmado entre as partes, a quantia de ${rx(d.sinal)} como sinal e princípio de pagamento${d.sinalDestino ? ', destinada ' + e(d.sinalDestino) : ''}. Ela é abatida do preço, e falta pagar o saldo de ${rx(d.saldo)}. O sinal passa a seguir a {{i:rescisao.desistencia}}.`
+          : `O CONTRATANTE já pagou a quantia de ${rx(d.sinal)} como sinal e princípio de pagamento${d.sinalDestino ? ', destinada ' + e(d.sinalDestino) : ''}. Ela é abatida do preço, e falta pagar o saldo de ${rx(d.saldo)}.`)
+        : '', { travado: true }),
       d.pagLinhas.length
-        ? I('preco.forma', `O ${base} será pago da seguinte forma:`, { bloco: 'pagamento', travado: true })
-        : I('preco.forma', `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : '<span class="ep-rec-vazio"></span>'}`, { travado: true }),
-      I('preco.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
-      I('preco.acrescimo', d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui; a coluna Valor indica a parte do preço quitada por aquela forma.' : ''),
-      I('preco.dados', d.pagDados ? `Os pagamentos serão feitos em favor da CONTRATADA por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
-      I('preco.financiamento', d.temFin ? ressalvaFin : ''),
-      I('preco.mora', `O atraso no pagamento de qualquer parcela sujeita o CONTRATANTE a multa de ${pct(d.multa)}% e juros de ${pct(d.juros)}% ao mês, suspendendo os prazos da {{c:prazos}} enquanto perdurar.`),
-      I('opc.suspensao', op('suspensao') ? `O atraso superior a 10 (dez) dias no pagamento de qualquer parcela autoriza a CONTRATADA a suspender a execução dos serviços${temOperacao ? ' e o acesso à plataforma' : ''} até a regularização, prorrogando-se os prazos pelo período da suspensão.` : ''),
-      I('opc.reserva', op('reserva') ? 'Os equipamentos fornecidos permanecem de propriedade da CONTRATADA até a quitação integral do preço, na forma dos arts. 521 a 528 do Código Civil (reserva de domínio), cabendo ao CONTRATANTE, até lá, a sua guarda e conservação.' : ''),
-      I('opc.reajuste', op('reajuste') ? 'Se o início da execução atrasar mais de 60 (sessenta) dias por fato imputável ao CONTRATANTE, o saldo será reajustado pela variação do IPCA no período, e a parcela correspondente aos equipamentos importados, pela variação cambial do mesmo período.' : ''),
+        ? I('preco.forma', `${d.sinal > 0 ? 'O saldo' : 'O preço'} é pago como no quadro abaixo.${d.pagObs ? ' ' + e(d.pagObs) : ''}${d.temAcr ? ' Nas formas parceladas com acréscimo, as parcelas já trazem o acréscimo, e a coluna Valor mostra a parte do preço paga por aquela forma.' : ''}`, { bloco: 'pagamento', travado: true })
+        : I('preco.forma', `${d.sinal > 0 ? 'O saldo' : 'O preço'} é pago assim: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
+      I('preco.dados', d.pagDados ? `Os pagamentos são feitos à CONTRATADA por <b>${e(d.pagDados)}</b>. Pagamento a terceiro ou em outra conta não quita o preço.` : ''),
+      I('preco.cartao', temCartao ? L('No cartão, o pagamento conta como feito na autorização da compra, e contestação ou estorno pedido pelo CONTRATANTE sem motivo vale como falta de pagamento.') : ''),
+      I('preco.financiamento', d.temFin ? L(`Na parte financiada, o banco tem de aprovar e liberar o crédito em até ${nx(d.prazoCredito)} dias da assinatura. Se não liberar, as partes combinam outra forma de pagamento em até ${nx(P.acordoFin)} dias e, sem acordo, este contrato se encerra sem multa: ${d.sinal > 0 ? 'o sinal paga o projeto e os documentos, que são entregues ao CONTRATANTE' : 'o CONTRATANTE paga só os custos já feitos e comprovados e recebe o projeto e os documentos'}, e o mais que ele tiver pago volta em até ${nx(P.devolucaoDias)} dias. O prazo da {{i:prazo.obra}} conta do marco nele previsto ou da liberação do crédito, o que vier por último.`) : ''),
+      I('preco.mora', `Parcela em atraso tem multa de ${px(multaCli)} e juros de ${px(d.juros)} ao mês. A CONTRATADA paga a mesma multa e os mesmos juros sobre devolução que fizer com atraso.`),
+      I('opc.suspensao', L(`Com mais de ${nx(P.suspensaoDias)} dias de atraso, a CONTRATADA pode parar a obra${temOperacao ? ' e o acesso à plataforma' : ''} até o pagamento, e os prazos da {{c:prazos}} se estendem pelo tempo parado.`)),
     ]),
-    C('prazos', 'Dos prazos', [
-      I('prazo.projeto', `O projeto elétrico e o respectivo protocolo junto à concessionária serão apresentados em até <b>${d.prazoProjeto} ${d.unid}</b> contados da assinatura deste e da entrega, pelo CONTRATANTE, dos documentos da {{c:contratante}}.`),
-      I('prazo.equipamento', `Os equipamentos chegam ao local da instalação em até <b>${d.prazoEquip} dias</b> contados da compensação do primeiro pagamento previsto na {{c:preco}}${d.temFin ? ' ou, havendo financiamento, da liberação do crédito' : ''}.`),
-      I('prazo.obra', `A obra será entregue em até <b>${d.prazoObra} ${d.unid}</b> ${marcoObra}.`),
-      I('prazo.suspensao', 'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.'),
-      I('opc.distribuidora', op('distribuidora') ? `Reforço de rede, obra de conexão ou participação financeira exigidos pela concessionária correm por conta do CONTRATANTE. Negada a conexão pela concessionária, qualquer das partes poderá rescindir este contrato sem multa, entregando a CONTRATADA ao CONTRATANTE o projeto elétrico e os documentos produzidos${d.sinal > 0 ? ', e ficando o sinal como pagamento deles' : ', pagos os custos já incorridos e comprovados pela CONTRATADA'}.` : ''),
-      I('vistoria.relatorio', d.vistoria ? `A vistoria técnica do local está registrada no Relatório de Vistoria Técnica${d.vistoria.num ? ' nº ' + e(d.vistoria.num) : ''}${d.vistoria.data ? ', de ' + d.vistoria.data : ''}, assinado pelas partes, que integra este contrato${d.vistoria.temAdeq ? { incluidas: ', e as adequações nele apontadas estão incluídas no preço', parte: ', e as adequações nele apontadas não estão no preço e são orçadas em aditivo', orcar: ', e as adequações nele apontadas são orçadas e aprovadas pelo CONTRATANTE antes da execução' }[d.vistoria.preco] : ''}.` : ''),
-      I('opc.vistoria', op('vistoria') ? 'Condição do local não identificável na vistoria técnica (aterramento, distância até o quadro de energia, capacidade do padrão de entrada ou da rede interna) será orçada em aditivo, ficando os prazos suspensos até a aprovação deste pelo CONTRATANTE.' : ''),
+    C('prazos', 'Dos prazos e dos atrasos', [
+      I('prazo.projeto', `A CONTRATADA protocola o projeto elétrico na distribuidora em até <b>${nx(d.prazoProjeto)} ${d.unid}</b>, contados da assinatura ou da entrega dos documentos da {{i:contratante.docs}}, o que vier por último.`),
+      I('prazo.equipamento', `Os equipamentos chegam ao local em até <b>${nx(d.prazoEquip)} dias</b>, contados da compensação do primeiro pagamento da {{i:preco.forma}}${d.temFin ? ' ou da liberação do crédito, o que vier por último' : ''}.`),
+      I('prazo.obra', `A CONTRATADA entrega a obra em até <b>${nx(d.prazoObra)} ${d.unid}</b>, ${marcoObra}.`),
+      I('prazo.suspensao', L('Os prazos ficam suspensos pelo tempo que durarem exigência ou atraso da distribuidora, falta de energia ou de acesso ao local, embargo, caso fortuito ou força maior, aditivo à espera de aprovação e atraso do CONTRATANTE em pagamento ou documento.')),
+      I('prazo.atraso', `Passado o prazo da {{i:prazo.projeto}} ou da {{i:prazo.obra}}, sem contar as suspensões, a CONTRATADA paga ao CONTRATANTE multa de ${px(multaCli)}, uma vez só, e juros de ${px(d.juros)} ao mês enquanto durar o atraso, sobre o valor que ele já pagou. Esse valor é abatido do saldo ou, sem saldo a pagar, pago em até ${nx(P.devolucaoDias)} dias da entrega da obra.`),
+      I('prazo.devolucao', `Se o atraso da {{i:prazo.atraso}} chegar a <b>${nx(P.devolucaoAtraso)} dias</b>, o CONTRATANTE pode encerrar este contrato e recebe de volta, em até ${nx(P.devolucaoDias)} dias, tudo o que pagou${d.temAcr ? ', inclusive o acréscimo do parcelamento' : ''}, corrigido pelo IPCA e sem desconto, com a multa e os juros devidos${d.temFin ? ', e a parte paga pelo banco volta ao banco, se o financiamento exigir' : ''}. A CONTRATADA retira à sua custa os equipamentos e o material que levou ao local e recompõe a área.`),
+      I('opc.reajuste', L(`Se o início da execução ({{i:rescisao.execucao}}) atrasar mais de ${nx(P.reajusteDias)} dias por causa do CONTRATANTE, o saldo ainda não pago é corrigido pelo IPCA do período.${pj ? ' Se, nesse tempo, o preço dos equipamentos ainda não comprados subir mais que o IPCA, a diferença comprovada pela cotação do fornecedor entra no saldo.' : ''}`)),
     ]),
     C('contratada', 'Das obrigações da CONTRATADA', [
-      I('contratada.projeto', 'Elaborar o projeto de engenharia, recolher a ART e protocolar a solicitação junto à concessionária.'),
-      I('contratada.instalacao', 'Fornecer os equipamentos e executar a instalação com mão de obra especializada, atendendo às normas técnicas aplicáveis.'),
-      I('contratada.homologacao', 'Acompanhar a homologação e entregar a estação em funcionamento, com orientação de uso ao CONTRATANTE.'),
-      I('opc.aceite', op('aceite') ? 'Concluído o comissionamento, o CONTRATANTE terá 5 (cinco) dias úteis para apontar por escrito eventuais vícios aparentes. Decorrido o prazo sem apontamento, ou iniciada a operação comercial da estação, a obra considera-se recebida, sem prejuízo da garantia da {{c:garantia}}.' : ''),
+      I('contratada.projeto', 'A CONTRATADA faz o projeto de engenharia, recolhe a ART e pede a conexão à distribuidora em nome do titular da ligação ({{i:contratante.demanda}}).'),
+      I('contratada.instalacao', 'A CONTRATADA fornece os equipamentos e faz a instalação com equipe especializada, seguindo as normas técnicas, e conserta à sua custa dano que a equipe dela causar no local.'),
+      I('contratada.homologacao', 'A CONTRATADA acompanha a homologação na distribuidora e entrega a estação funcionando, com orientação de uso ao CONTRATANTE.'),
+      I('opc.aceite', L(`A obra está entregue no aviso escrito da CONTRATADA de que a estação funciona. O CONTRATANTE tem ${nx(P.aceiteDias)} dias úteis para apontar por escrito defeito aparente, e defeito que impeça o funcionamento adia a entrega até o conserto. Sem apontamento, ou começada a venda de recargas, a obra está recebida, sem prejuízo da garantia da {{c:garantia}}${pf ? ' e dos prazos de reclamação do Código de Defesa do Consumidor' : ''}.`)),
     ]),
     C('contratante', 'Das obrigações do CONTRATANTE', [
-      I('contratante.local', 'Disponibilizar o local da instalação livre e desimpedido, com acesso para equipe, veículos e equipamentos.'),
-      I('contratante.docs', `Fornecer, em até <b>${d.prazoDocs} ${d.unid}</b> contados da assinatura, a documentação necessária ao projeto e à homologação: titularidade do imóvel ou autorização do proprietário, conta de energia, autorização do titular da unidade consumidora quando esta estiver em nome de terceiro, e dados cadastrais. Vencido o prazo sem a entrega, os prazos da CONTRATADA ficam suspensos na forma da {{i:prazo.suspensao}}, sem prejuízo do reajuste de custos de equipamento que decorrer da demora.`),
-      I('contratante.demanda', 'Contratar junto à concessionária a demanda de energia compatível com a potência instalada e arcar com o consumo.'),
-      I('contratante.pagamentos', 'Efetuar os pagamentos nas datas acordadas.'),
-      I('opc.risco', op('risco') ? 'A partir da entrega dos equipamentos no local da instalação, a guarda e os riscos de furto, roubo, vandalismo, colisão e intempéries passam ao CONTRATANTE, a quem cabe contratar o seguro patrimonial correspondente.' : ''),
+      I('contratante.local', 'O CONTRATANTE entrega o local da instalação livre, com acesso para a equipe, os veículos e os equipamentos durante a obra e, depois dela, para a garantia e a manutenção.'),
+      I('contratante.docs', `O CONTRATANTE entrega, em até <b>${nx(d.prazoDocs)} ${d.unid}</b> da assinatura, os documentos do projeto e da conexão: prova da posse do imóvel ou autorização do dono, conta de energia, autorização do titular da unidade consumidora, se for outra pessoa, e dados cadastrais.`),
+      I('contratante.demanda', 'A ligação da estação fica em nome do CONTRATANTE ou de quem vai operá-la, que assina os pedidos à distribuidora e dá à CONTRATADA procuração específica para o trâmite. O CONTRATANTE contrata a demanda de energia compatível com a potência instalada e paga a energia consumida, inclusive nos testes.'),
+      I('opc.risco', L('Depois que os equipamentos chegam ao local, a guarda deles e o risco de furto, roubo, vandalismo, batida e temporal passam ao CONTRATANTE, salvo dano causado pela equipe da CONTRATADA. Cabe a ele fazer o seguro dos equipamentos.')),
+      I('opc.reserva', parcDireto ? L(`Até o pagamento total do preço, os equipamentos continuam da CONTRATADA (reserva de domínio, arts. 521 a 528 do Código Civil), e o CONTRATANTE não os vende, não os dá em garantia e não os tira do local. Se uma parcela atrasar mais de ${nx(P.reservaAtraso)} dias, a CONTRATADA pode, depois de notificar o CONTRATANTE, cobrar todo o saldo ou retomar os equipamentos, na forma dos arts. 526 e 527 do Código Civil.`) : ''),
+      I('local.bens', 'Os equipamentos são bens móveis, podem ser retirados e não se incorporam ao imóvel.'),
+      // Dono do imóvel: dado, não caixinha. O select "O imóvel é do cliente?" e a ficha do formulário decidem (ctrDados.naoDono).
+      I('opc.anuencia', naoDono ? L('O CONTRATANTE não é o dono do imóvel e entrega, com os documentos da {{i:contratante.docs}}, o termo de anuência do proprietário, que autoriza a instalação, a obra e a ligação de energia. Se o proprietário não autorizar, vale a desistência da {{i:rescisao.desistencia}} ou da {{i:rescisao.execucao}}, conforme a fase. Ordem do proprietário para retirar a estação depois de instalada não muda o que o CONTRATANTE deve.') : ''),
+      I('contratante.proprietario', naoDono ? '' : 'O CONTRATANTE declara ser o dono do imóvel onde fica a estação.'),
     ]),
     C('garantia', 'Da garantia', [
-      I('garantia.instalacao', `A <b>instalação</b> (projeto, montagem, infraestrutura elétrica e comissionamento) tem garantia de <b>${d.garantia} meses</b> contados do <b>comissionamento</b> ({{i:contratada.homologacao}}), prestada pela CONTRATADA e cobrindo defeitos de execução, sem prejuízo das garantias legais.`),
-      I('garantia.equipamentos', 'Os <b>equipamentos</b> são cobertos pela garantia do respectivo <b>fabricante</b>, nos prazos e condições do certificado que acompanha cada bem, entregue ao CONTRATANTE no recebimento. A CONTRATADA não amplia esse prazo, e se responsabiliza por intermediar o acionamento da garantia junto ao fabricante durante o período indicado na {{i:garantia.instalacao}}, sem custo de mão de obra.'),
-      I('garantia.exclusoes', 'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.'),
+      I('garantia.instalacao', `A CONTRATADA garante a instalação (projeto, montagem, infraestrutura elétrica e comissionamento) por <b>${nx(d.garantia)} meses</b>, contados da entrega da {{i:opc.aceite}}, e corrige à sua custa todo defeito de execução que aparecer nesse prazo. As garantias desta cláusula se somam às que a lei dá.`),
+      I('garantia.equipamentos', `${L('Os equipamentos têm a garantia do fabricante, no prazo e nas condições do certificado entregue ao CONTRATANTE, e não a da {{i:garantia.instalacao}}.')} Durante o prazo da {{i:garantia.instalacao}}, a CONTRATADA aciona o fabricante pelo CONTRATANTE, sem cobrar mão de obra.`),
+      I('garantia.exclusoes', L('Dano causado por uso fora do manual, vandalismo, raio, oscilação da rede, intervenção de quem a CONTRATADA não autorizou ou falta de manutenção é consertado por orçamento à parte.')),
     ]),
     C('projecoes', 'Das projeções de resultado', [
-      I('projecoes.natureza', 'Os estudos de viabilidade, simulações, orçamentos e demais materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas constituem <b>projeção técnica fundamentada nas premissas neles declaradas</b>, e <b>não representam promessa, garantia ou compromisso de resultado econômico</b> por parte da CONTRATADA.'),
-      I('projecoes.fatores', 'O resultado efetivo depende de fatores alheios à execução da obra (movimento de veículos no local, tarifa de energia da concessionária, preço praticado pelo CONTRATANTE, condições regulatórias e a própria operação do ponto), todos sob gestão exclusiva do CONTRATANTE.'),
-      I('projecoes.plataforma', temOperacao ? 'A remuneração da CONTRATADA pela plataforma, prevista na {{c:plataforma}}, é contraprestação de serviço e não a torna sócia, participante do resultado ou responsável pelo desempenho econômico da operação.' : ''),
-      I('opc.limite', op('limite') ? 'Ressalvados os casos de dolo, a responsabilidade da CONTRATADA por perdas e danos decorrentes deste contrato limita-se ao valor nele pago, excluídos lucros cessantes, perda de faturamento e perda de uma chance.' : ''),
+      I('projecoes.natureza', L('Estudos, simulações e outros materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas são <b>projeções</b>, feitas com as premissas que eles mostram, e <b>não são promessa nem garantia de resultado</b>. O resultado depende de fatores que a CONTRATADA não controla, como o movimento de veículos, a tarifa de energia, a concorrência, as regras do setor e a operação da estação, que é do CONTRATANTE. Ele declara que não decidiu com base em promessa de rentabilidade, de prazo de retorno ou de renda.')),
+      I('opc.limite', pj ? 'A responsabilidade da CONTRATADA por perdas e danos deste contrato fica limitada ao valor que ela recebeu, e nenhuma das partes responde por lucro cessante, perda de faturamento ou perda de uma chance, salvo dolo.' : ''),
     ]),
     C('tributos', 'Dos tributos e da nota fiscal', [
-      I('tributos.inclusos', 'Os tributos incidentes já estão computados no preço. Eventual DIFAL em operação interestadual, quando aplicável, é de responsabilidade do CONTRATANTE.'),
-      I('tributos.nf', 'A CONTRATADA emitirá a nota fiscal correspondente na forma da legislação.'),
+      I('tributos.inclusos', 'O preço já tem os tributos, e a CONTRATADA emite a nota fiscal na forma da lei. Em venda para outro estado, o diferencial de alíquota do ICMS (DIFAL) é do CONTRATANTE: ele o recolhe se for contribuinte do imposto e, se não for, a CONTRATADA recolhe e ele a reembolsa.'),
     ]),
     temOperacao ? C('plataforma', 'Da plataforma de gestão', [
-      I('plataforma.entrega', 'A CONTRATADA entrega e mantém a <b>plataforma de gestão e cobrança</b> da estação (protocolo OCPP), com cadastro do ponto, definição do preço da recarga pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recarga e de faturamento.'),
-      I('plataforma.remuneracao', temRemun ? `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${pct(d.softwarePct)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.` : ''),
-      I('plataforma.continuado', `O equipamento e a obra entregues na forma das Cláusulas {{n:objeto}} a {{n:tributos}} são de propriedade do CONTRATANTE${op('reserva') ? ', observada a reserva de domínio da {{c:preco}},' : ''} e não dependem da manutenção da plataforma, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de ${d.prazoAviso} dias${temRemun ? ', cessando a partir de então a remuneração da {{i:plataforma.remuneracao}}' : ''}.`),
+      I('plataforma.entrega', `A CONTRATADA implanta e mantém a plataforma de gestão e cobrança da estação (protocolo OCPP), com cadastro do ponto, preço da recarga definido pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recargas e de faturamento. O faturamento da estação é repassado ao CONTRATANTE até o dia ${nx(P.dia)} do mês seguinte. A plataforma é um serviço e não torna a CONTRATADA sócia do CONTRATANTE nem responsável pelo resultado da estação.`),
+      I('plataforma.remuneracao', temRemun ? `Pela operação da plataforma, a CONTRATADA recebe <b>${px(pctSw)} do faturamento bruto</b> da estação, apurado por mês e descontado do repasse da {{i:plataforma.entrega}}.` : ''),
+      I('plataforma.continuado', `Os equipamentos e a obra são do CONTRATANTE${parcDireto ? ', depois da quitação da {{i:opc.reserva}},' : ''} e não dependem da plataforma. A plataforma é serviço continuado, que dura enquanto as partes quiserem, e qualquer delas pode encerrá-la com aviso de ${nx(d.prazoAviso)} dias${temRemun ? ', quando acaba a remuneração da {{i:plataforma.remuneracao}}' : ''}.`),
     ]) : null,
-    C('rescisao', 'Da rescisão', [
-      I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de ${d.prazoCorrigir} dias para correção.`),
-      I('rescisao.desistencia', `Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido${d.sinal > 0 ? (d.sinalDoRecibo ? ', sem prejuízo da retenção do sinal na forma do recibo de sinal firmado' : ', sem prejuízo da retenção do sinal referido na {{i:preco.sinal}}') : ''}.`),
+    C('rescisao', 'Da desistência e do encerramento', [
+      I('rescisao.arrependimento', pf ? `Se este contrato foi fechado fora do estabelecimento da CONTRATADA, como pela internet, por telefone ou em visita, o CONTRATANTE pode desistir dele em até ${nx(P.arrependimento)} dias da assinatura e recebe de volta, de imediato e corrigido, o que pagou nesse prazo (art. 49 do Código de Defesa do Consumidor). ${L(`Nesse caso, o prazo da {{i:prazo.equipamento}} só começa depois desses ${nx(P.arrependimento)} dias.`)}` : ''),
+      I('rescisao.desistencia', d.sinal > 0
+        ? L(`O sinal vale como arras penitenciais (art. 420 do Código Civil). ${pf ? 'Passado o prazo da {{i:rescisao.arrependimento}} e antes' : 'Antes'} do início da execução, se o CONTRATANTE desistir, perde o sinal, que paga o projeto e os documentos entregues a ele; se a CONTRATADA desistir, devolve o sinal em dobro, corrigido pelo IPCA. Nos dois casos, o mais que o CONTRATANTE tiver pago volta a ele em até ${nx(P.devolucaoDias)} dias, sem outra indenização.`)
+        : L(`${pf ? 'Passado o prazo da {{i:rescisao.arrependimento}} e antes' : 'Antes'} do início da execução, se o CONTRATANTE desistir, paga só os custos já feitos e comprovados, recebe o projeto e os documentos e tem de volta o mais que tiver pago, em até ${nx(P.devolucaoDias)} dias. A desistência da CONTRATADA, em qualquer fase, é descumprimento ({{i:rescisao.descumprimento}}).`)),
+      I('rescisao.execucao', L(`A execução começa com a compra dos equipamentos, avisada por escrito ao CONTRATANTE, ou com o começo da obra, o que vier primeiro. Depois disso, o CONTRATANTE que desistir paga os custos comprovados e os equipamentos comprados, que ficam com ele, descontado o que já pagou${d.sinal > 0 ? ', e a desistência da CONTRATADA é descumprimento ({{i:rescisao.descumprimento}})' : ''}.`)),
+      I('opc.distribuidora', L(`Se a distribuidora negar a conexão, ou se o CONTRATANTE não aprovar em até ${nx(P.aprovaAditivo)} dias o custo da {{i:escopo.lista}} ou o aditivo da {{i:opc.vistoria}}, qualquer das partes pode encerrar este contrato sem multa. O CONTRATANTE fica com o projeto e os documentos, ${d.sinal > 0 ? 'que o sinal paga' : 'e paga só os custos já feitos e comprovados de projeto, ART, taxas da distribuidora e obra no local'}, e recebe de volta o mais que tiver pago em até ${nx(P.devolucaoDias)} dias. Os equipamentos já comprados ficam com a CONTRATADA.`)),
+      I('rescisao.descumprimento', `Se uma parte descumprir este contrato e não corrigir em ${nx(d.prazoCorrigir)} dias da notificação, a outra pode encerrá-lo, e quem deu causa responde por perdas e danos.`),
     ]),
     // Fiança (19/10/2026): só com avalista, logo antes das disposições gerais. Sem avalista, não existe.
     ctrClausulaFianca(d, C, I, 'CONTRATADA', 'CONTRATANTE'),
     C('gerais', 'Das disposições gerais', [
-      I('gerais.aditivo', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.'),
-      I('gerais.tolerancia', 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.'),
-      I('opc.anuencia', op('anuencia') ? 'Não sendo o CONTRATANTE proprietário do imóvel, ele declara ter autorização do proprietário para a instalação e apresentará a anuência escrita deste junto com a documentação da {{i:contratante.docs}}.' : ''),
-      I('opc.lgpd', op('lgpd') ? (temOperacao
-        ? 'Os dados de recarga e de usuários da estação são tratados pela CONTRATADA exclusivamente para a operação da plataforma, na forma da Lei nº 13.709/2018 (LGPD). O projeto, o software e a marca utilizados permanecem de propriedade da CONTRATADA.'
-        : 'Os dados pessoais trocados entre as partes serão tratados exclusivamente para a execução deste contrato, na forma da Lei nº 13.709/2018 (LGPD). O projeto de engenharia permanece de propriedade intelectual da CONTRATADA.') : ''),
-      I('opc.eletronica', op('eletronica') ? 'As partes admitem como válida a assinatura eletrônica deste instrumento, por meio que comprove a autoria e a integridade do documento, nos termos do art. 10, § 2º, da Medida Provisória nº 2.200-2/2001, com os mesmos efeitos da assinatura de próprio punho.' : ''),
+      I('gerais.aditivo', 'Este contrato substitui os entendimentos anteriores sobre o mesmo assunto e só muda por aditivo assinado pelas partes. Os avisos valem quando enviados por escrito, inclusive por e-mail, aos contatos das partes no início deste contrato. Tolerar descumprimento não é novação nem renúncia ao direito.'),
+      I('opc.lgpd', temOperacao
+        ? 'A CONTRATADA trata os dados de recarga e de usuários da estação só para operar a plataforma, na forma da Lei nº 13.709/2018 (LGPD). O projeto, o software e a marca são da CONTRATADA, e o CONTRATANTE pode usar o projeto nesta estação.'
+        : 'Os dados pessoais trocados entre as partes são usados só para este contrato, na forma da Lei nº 13.709/2018 (LGPD). O projeto de engenharia é da CONTRATADA, e o CONTRATANTE pode usá-lo nesta estação.'),
+      I('opc.eletronica', 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, com o mesmo efeito da assinatura à mão (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).'),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
     ]),
     C('foro', 'Do foro', [
-      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`),
+      I('foro.comarca', pf
+        ? `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, ressalvado ao CONTRATANTE o foro do seu domicílio.`
+        : `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, com renúncia a qualquer outro.`),
     ]),
   ].filter(Boolean);
 }
@@ -24875,79 +24908,97 @@ function ctrModeloObra(d) {
 // O contrato de cada modelo. Mesma forma do ctrModeloObra: cláusulas com chave
 // estável, itens com chave, referência cruzada por marcador, travado = número de
 // campo que a IA não mexe. Cláusula que fica sem item nenhum não existe.
-// ─── COMPRA E VENDA DE EQUIPAMENTO (09/10/2026) ──────────────────────────────
-// Venda de coisa móvel (CC arts. 481 a 532), sem obra. Sinal como arras
-// confirmatórias (417 e 418), riscos até a entrega com a vendedora (492) e no
-// FOB com o comprador desde o transportador (494), reserva de domínio opcional
-// (521 a 528). Comprador com CPF é tratado como consumidor: garantia legal,
-// prazo de reclamação e arrependimento fora do estabelecimento (CDC 26, 49, 50).
+// ─── COMPRA E VENDA DE EQUIPAMENTO ───────────────────────────────────────────
+// Venda de coisa móvel (CC arts. 481 a 532), sem obra. Texto definitivo desde 20/10/2026 (aprovado
+// pelo dono), nas regras de api/src/services/gerador/contratoRegras.ts. Não existe cláusula opcional:
+// o que muda de um contrato para outro entra pelos dados (pessoa física ou empresa, sinal, cartão,
+// financiamento, FOB ou CIF, instalação listada no pedido, fiador).
+//  - Sinal: arras penitenciais (art. 420). Quem desiste perde o sinal ou devolve em dobro.
+//  - Reserva de domínio sempre (521 a 528). Atraso de pagamento ou de entrega: o mesmo prazo (d.eqAtraso)
+//    para os dois lados. O atraso da VENDEDORA devolve tudo corrigido, com multa e juros, sem o dobro.
+//  - Instalação vendida: o item do pedido cuja descrição tem "instala" (ctrEqInstVendida).
+//  - Comprador com CPF (ou sem documento) é consumidor: garantia legal, reclamação em 90 dias,
+//    arrependimento fora do estabelecimento (CDC 26, 49, 50), multa até 2%, foro do domicílio.
 function ctrModeloEquip(d) {
-  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
+  const { nx, px, rx } = ctrPecasNum(e, money);
   const q = d.eqv, N = d.nomes.nossa, D = d.nomes.deles;
-  const pf = String(d.contratanteDoc || '').replace(/\D/g, '').length === 11;
+  // Aqui pessoa física é tudo o que não é CNPJ: documento vazio ou errado vale o lado que mais protege o cliente.
+  const pj = String(d.contratanteDoc || '').replace(/\D/g, '').length === 14, pf = !pj;
+  const L = h => (pf && h ? `<b>${h}</b>` : h);
+  const multaCli = pf ? Math.min(d.multa, 2) : d.multa;
+  const sinal = d.sinal > 0;
+  const base = sinal ? 'O saldo' : 'O preço';
   const fob = q.freteTipo === 'FOB';
-  const base = d.sinal > 0 ? 'saldo' : 'preço';
   const temCartao = d.pagLinhas.some(l => /cart[ãa]o/i.test(l.forma));
-  return [
+  const instVendida = ctrEqInstVendida(q);
+  const local = q.entregaLocal ? `, em <b>${e(q.entregaLocal)}</b>` : '';
+  const clausulas = [
     C('objeto', 'Do objeto', [
-      I('objeto.venda', `A ${N} vende ao ${D}, e este compra, os equipamentos descritos a seguir, novos e com as especificações do Orçamento de Venda${q.num ? ` nº <b>${e(q.num)}</b>` : ''}, que integra este contrato.`, { bloco: 'itens', travado: true }),
-      I('objeto.opcionais', q.fora.length ? `Os itens oferecidos como opcionais no orçamento (${q.fora.map(i => e(i.desc || 'item')).join(', ')}) não fazem parte desta compra.` : ''),
-      I('objeto.escopo', 'Esta compra não inclui projeto elétrico, obra civil, instalação, cabeamento, comissionamento nem homologação junto à distribuidora de energia.'),
-      I('opc.eq_instalacao', op('eq_instalacao') ? `A instalação pode ser contratada à parte com a ${N}, por orçamento próprio.` : ''),
+      I('objeto.venda', `A ${N} vende ao ${D} os equipamentos novos do quadro abaixo, com as especificações do Orçamento de Venda${q.num ? ` nº <b>${e(q.num)}</b>` : ''}, que faz parte deste contrato.`, { bloco: 'itens', travado: true }),
+      I('objeto.escopo', 'O preço cobre o que está no quadro. Projeto elétrico, obra, cabeamento, instalação e homologação na distribuidora só fazem parte desta compra se estiverem nele, e o resto é orçado à parte. Onde o orçamento disser diferente, vale este contrato.'),
     ]),
     C('preco', 'Do preço e do pagamento', [
-      I('preco.total', `O preço total é de <b>${d.total > 0 ? money(d.total) : lacuna}</b>${d.total > 0 ? ` (${e(recExtenso(d.total))})` : ''}${q.frete > 0 ? `, incluído o frete de ${money(q.frete)}` : ''}.`, { travado: true }),
-      I('preco.sinal', d.sinal > 0 ? `O ${D} já pagou, a título de <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil), <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), abatido do preço, restando o saldo de <b>${money(d.saldo)}</b>.` : ''),
+      I('preco.total', `O preço total é de ${d.total > 0 ? rx(d.total) : lacuna}${q.frete > 0 ? `, já com o frete de ${rx(q.frete)}` : ''}.`, { travado: true }),
+      I('preco.sinal', sinal ? `O ${D} já pagou ${rx(d.sinal)} de sinal, abatido do preço, e resta o saldo de ${rx(d.saldo)}. O sinal, inclusive o pago por recibo, segue a {{i:desistencia.sinal}}.` : ''),
       d.pagLinhas.length
-        ? I('preco.forma', `O ${base} será pago da seguinte forma:`, { bloco: 'pagamento', travado: true })
-        : I('preco.forma', `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
-      I('preco.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
-      I('preco.acrescimo', d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui, e a coluna Valor indica a parte do preço quitada por aquela forma.' : ''),
-      I('preco.dados', d.pagDados ? `Os pagamentos serão feitos em favor da ${N} por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
-      I('preco.cartao', temCartao ? `Pago por cartão, o valor considera-se recebido na autorização da transação, e a contestação ou o estorno pedido pelo ${D} sem causa equivale à falta de pagamento.` : ''),
-      I('preco.mora', `O atraso no pagamento sujeita o ${D} a multa de ${pct(d.multa)}% sobre o valor em atraso, juros de ${pct(d.juros)}% ao mês e correção pelo IPCA.`),
-      I('opc.eq_reserva', op('eq_reserva') ? `<b>Até o pagamento integral do preço, a propriedade dos equipamentos fica reservada à ${N}</b> (arts. 521 a 528 do Código Civil). Atrasando o ${D} o pagamento por mais de 30 (trinta) dias, a ${N} pode, depois de notificá-lo, cobrar as parcelas vencidas e a vencer ou recuperar a posse dos equipamentos, retendo do que já foi pago a depreciação e as despesas (art. 527).` : ''),
+        ? I('preco.forma', `${base} é pago como no quadro abaixo.${d.pagObs ? ' ' + e(d.pagObs) : ''}${d.temAcr ? ' No parcelado, o preço daquela condição é a soma das parcelas da coluna Condição.' : ''}`, { bloco: 'pagamento', travado: true })
+        : I('preco.forma', `${base} é pago assim: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
+      I('preco.dados', [
+        d.pagDados ? `Os pagamentos são feitos à ${N} por <b>${e(d.pagDados)}</b>, e pagamento a terceiro ou em outra conta não quita o preço.` : '',
+        temCartao ? L('No cartão, o pagamento vale na autorização da compra, e contestação ou estorno pedido sem motivo vale como falta de pagamento.') : '',
+      ].filter(Boolean).join(' ')),
+      I('preco.financiamento', d.temFin ? `Se o banco recusar o crédito da parte financiada, as partes combinam outra forma de pagamento em até ${nx(10)} dias da recusa. Sem acordo, a ${N} pode encerrar este contrato como na {{i:preco.mora}}.` : ''),
+      I('preco.mora', `Pagamento em atraso tem multa de ${px(multaCli)}, juros de ${px(d.juros)} ao mês e correção pelo IPCA. ${L(`Se o pagamento atrasar mais de <b>${nx(d.eqAtraso)} dias</b>, a ${N} pode, por aviso escrito, cobrar todo o saldo de uma vez ou encerrar este contrato. Encerrado antes da entrega, ${sinal ? 'vale como desistência do ' + D + ' ({{i:desistencia.sinal}})' : 'ela devolve em até ' + nx(10) + ' dias o que recebeu, menos a multa e os juros acima'}; depois da entrega, vale a {{i:opc.eq_reserva}}.`)}`),
+      I('opc.eq_reserva', `${L('Os equipamentos só passam a ser do ' + D + ' com o preço todo pago (reserva de domínio, arts. 521 a 528 do Código Civil).')} Encerrado o contrato depois da entrega, a ${N} retoma os equipamentos e devolve o que recebeu, sinal incluído, menos a depreciação, as despesas e o mais que lhe for devido (arts. 525 a 527).`),
     ], true),
-    C('entrega', 'Da entrega', [
-      I('entrega.prazo', `A ${N} entrega os equipamentos no prazo de <b>${q.prazo ? e(q.prazo) : lacuna}</b>, contado da confirmação do primeiro pagamento previsto na {{i:preco.forma}}.`),
+    C('entrega', 'Da entrega e da nota fiscal', [
+      I('entrega.prazo', `A ${N} entrega os equipamentos no prazo de <b>${q.prazo ? e(q.prazo) : lacuna}</b>, contado da confirmação do primeiro pagamento da {{i:preco.forma}}. ${L('O prazo fica suspenso enquanto houver pagamento vencido.')}`),
       I('entrega.local', fob
-        ? `O ${D} retira os equipamentos, ou os faz retirar por transportador indicado por ele, no estabelecimento da ${N}${q.entregaLocal ? `, em <b>${e(q.entregaLocal)}</b>` : ''}, e o frete corre por conta dele (FOB). Os riscos passam ao ${D} na entrega ao transportador (art. 494 do Código Civil).`
-        : `A entrega é feita no endereço do ${D}${q.entregaLocal ? `, em <b>${e(q.entregaLocal)}</b>` : ''}, com frete por conta da ${N} (CIF), que responde pelos riscos até a entrega (art. 492 do Código Civil).`),
-      I('entrega.conferencia', `No recebimento, o ${D} confere a quantidade e o estado das embalagens e anota no comprovante de entrega qualquer avaria aparente. Vício aparente ou de fácil constatação deve ser comunicado por escrito em até ${pf ? '90 (noventa) dias do recebimento (art. 26, II, do Código de Defesa do Consumidor)' : '30 (trinta) dias do recebimento (art. 445 do Código Civil)'}.`),
-      I('entrega.atraso', `Atrasando a entrega por mais de <b>${d.eqAtraso} dias</b> por causa imputável à ${N}, o ${D} pode resolver este contrato e receber de volta o que tiver pago, corrigido pelo IPCA, em até 10 (dez) dias. Caso fortuito ou força maior suspende o prazo pelo tempo que durar, com aviso ao ${D} (art. 393 do Código Civil).`),
+        ? `O ${D} retira os equipamentos no estabelecimento da ${N}${local}, por conta própria ou por transportador que indicar, e paga o frete (FOB). O aviso de que estão prontos cumpre a {{i:entrega.prazo}}. ${L('Os riscos passam ao ' + D + ' na entrega ao transportador ou, se ele atrasar a retirada, desde o atraso (arts. 492 e 494 do Código Civil).')}`
+        : `A ${N} contrata o transporte (CIF) e entrega os equipamentos no endereço do ${D}${local}, com os riscos por conta dela até a entrega. ${L('Se o ' + D + ' não receber na data combinada, os riscos passam a ele (art. 492 do Código Civil).')}`),
+      I('entrega.conferencia', `Na entrega, o ${D} confere os volumes e anota no comprovante qualquer avaria. Defeito aparente ou fácil de ver é comunicado por escrito em até ${pf ? '90 (noventa) dias (art. 26, II, do Código de Defesa do Consumidor, CDC)' : '30 (trinta) dias (art. 445 do Código Civil)'}.`),
+      I('entrega.mora', `Se a entrega atrasar por causa da ${N}, ela paga a multa, os juros e a correção da {{i:preco.mora}} sobre o que o ${D} já pagou, até a entrega. Caso fortuito ou força maior suspende o prazo enquanto durar, com aviso ao ${D} (art. 393 do Código Civil).`),
+      I('entrega.atraso', `Se o atraso da {{i:entrega.mora}} passar de <b>${nx(d.eqAtraso)} dias</b>, o ${D} pode encerrar este contrato por aviso escrito, e a ${N} devolve em até ${nx(10)} dias tudo o que ele pagou, sinal incluído, corrigido pelo IPCA, com a multa e os juros da {{i:entrega.mora}}${sinal ? ', sem o dobro da {{i:desistencia.sinal}}' : ''}.`),
+      I('fiscal.nf', instVendida
+        ? `A ${N} emite a nota fiscal dos equipamentos na expedição e a nota fiscal de serviço da instalação na conclusão, pelos valores do quadro. Em venda para outro estado, o DIFAL do ICMS é do ${D} contribuinte do imposto e, se ele não for, da ${N}.`
+        : `A ${N} emite a nota fiscal na expedição, pelo preço deste contrato. Em venda para outro estado, o DIFAL do ICMS é do ${D} contribuinte do imposto e, se ele não for, da ${N}.`),
     ]),
-    C('instalacao', 'Da instalação', [
-      I('instalacao.responsavel', `A instalação é do ${D} e deve ser feita por profissional habilitado, com Anotação de Responsabilidade Técnica, seguindo o manual do fabricante, as normas técnicas aplicáveis (inclusive a ABNT NBR 5410 e a ABNT NBR 17019) e as exigências da distribuidora de energia.`),
-      I('instalacao.terceiro', `A ${N} não responde por dano ou defeito causado por instalação, adaptação ou intervenção feita por terceiro.`),
+    C('instalacao', 'Da instalação', instVendida ? [
+      I('instalacao.responsavel', `A ${N} faz a instalação do quadro da {{i:objeto.venda}} em data combinada depois da entrega, por profissional habilitado com Anotação de Responsabilidade Técnica (ART), seguindo o manual do fabricante, as normas técnicas (inclusive ABNT NBR 5410 e NBR 17019) e as exigências da distribuidora de energia.`),
+      I('instalacao.local', `O ${D} deixa o local livre e com acesso para a equipe na data combinada. Obra, troca do padrão de entrada ou aumento de carga que o local precise e que não estejam no quadro são avisados por escrito antes do serviço e orçados à parte.`),
+      I('instalacao.garantia', `A ${N} corrige sem custo o defeito de execução da instalação que aparecer em até <b>${nx(d.garantia)} meses</b> da conclusão.`),
+      I('instalacao.terceiro', L(`A ${N} não responde por dano ou defeito causado por instalação, adaptação ou intervenção feita por terceiro.`)),
+    ] : [
+      I('instalacao.responsavel', `A instalação é do ${D}, feita por profissional habilitado com Anotação de Responsabilidade Técnica (ART), seguindo o manual do fabricante, as normas técnicas (inclusive ABNT NBR 5410 e NBR 17019) e as exigências da distribuidora de energia. ${L('Cabe a ele confirmar antes que o local tem a energia pedida na ficha técnica.')}`),
+      I('opc.eq_instalacao', `Se o ${D} quiser, a ${N} faz a instalação por orçamento próprio.`),
+      I('instalacao.terceiro', L(`A ${N} não responde por dano ou defeito causado por instalação, adaptação ou intervenção feita por terceiro.`)),
     ]),
     C('garantia', 'Da garantia', [
-      I('garantia.fabrica', `Os equipamentos têm garantia de fábrica contra defeito de fabricação pelo prazo de <b>${q.garantia ? e(q.garantia) : lacuna}</b>, contado da emissão da nota fiscal${pf ? ', somado à garantia legal de 90 (noventa) dias (arts. 26, II, e 50 do Código de Defesa do Consumidor)' : ''}, na forma do certificado do fabricante.`),
-      I('garantia.exclusoes', 'A garantia não cobre: instalação inadequada ou feita sem profissional habilitado; sobretensão, descarga atmosférica ou falha da rede elétrica; mau uso, queda, umidade fora da especificação ou vandalismo; desgaste natural de cabos e conectores; e intervenção de pessoa não autorizada.'),
-      I('garantia.acionamento', `O ${D} aciona a garantia por escrito, com o número de série, a descrição do defeito e fotos, e a ${N} intermedeia o atendimento do fabricante, que pode reparar ou substituir a peça ou o equipamento.`),
+      I('garantia.fabrica', `Os equipamentos têm a garantia do fabricante contra defeito de fabricação, pelo prazo e nas condições do termo de garantia dele, que a ${N} entrega ao ${D} na assinatura, com a ficha técnica.${pf ? ' Essa garantia se soma à garantia legal de 90 (noventa) dias (arts. 26, II, e 50 do CDC).' : ''}`),
+      I('garantia.exclusoes', `A garantia cobre defeito de fabricação. ${L('O conserto de dano causado por ' + (instVendida ? '' : 'instalação fora da {{i:instalacao.responsavel}}, ') + 'intervenção de pessoa não autorizada, sobretensão, descarga atmosférica, falha da rede elétrica, mau uso, queda, umidade fora da especificação, vandalismo ou desgaste natural de cabos e conectores é feito pela ' + N + ' por orçamento próprio, fora da garantia.')}`),
+      I('garantia.acionamento', `O ${D} aciona a garantia por escrito, com número de série, defeito e fotos, e a ${N} leva o pedido ao fabricante e acompanha o conserto ou a troca.`),
     ]),
-    C('fiscal', 'Da nota fiscal e dos tributos', [
-      I('fiscal.nf', `A ${N} emite a nota fiscal dos equipamentos na expedição, pelo preço deste contrato.`),
-      I('fiscal.difal', `Em venda para outro estado, o diferencial de alíquota do ICMS é recolhido pelo ${D} quando ele for contribuinte do imposto; quando não for, é recolhido pela ${N}.`),
-    ]),
-    C('desistencia', 'Da desistência e da rescisão', [
-      I('desistencia.cdc', pf ? `Sendo a compra feita fora do estabelecimento da ${N}, o ${D} pode desistir em até 7 (sete) dias da assinatura ou do recebimento, com a devolução imediata de tudo o que pagou (art. 49 do Código de Defesa do Consumidor).` : ''),
-      I('desistencia.sinal', d.sinal > 0 ? `${pf ? 'Fora desse prazo, desistindo' : 'Desistindo'} o ${D} antes da entrega, a ${N} retém o sinal da {{i:preco.sinal}}; desistindo a ${N}, devolve-o em dobro, corrigido pelo IPCA (art. 418 do Código Civil).` : ''),
-      I('desistencia.inadimplemento', 'O descumprimento deste contrato, não sanado em 10 (dez) dias da notificação, permite à parte prejudicada resolvê-lo, com perdas e danos.'),
-      I('opc.eq_limite', op('eq_limite') && !pf ? `Entre empresas, a responsabilidade da ${N} por este contrato fica limitada ao preço pago, e nenhuma das partes responde por lucro cessante, salvo dolo ou culpa grave.` : ''),
+    C('desistencia', 'Da desistência e do encerramento', [
+      I('desistencia.cdc', pf ? `Se a compra foi feita fora do estabelecimento da ${N}, o ${D} pode desistir em até ${nx(7)} dias da assinatura ou do recebimento e devolver os equipamentos como os recebeu. A ${N} devolve de imediato tudo o que ele pagou, corrigido (art. 49 do CDC).` : ''),
+      I('desistencia.sinal', sinal ? `O sinal vale como arras penitenciais (art. 420 do Código Civil). ${L((pf ? 'Fora do prazo da {{i:desistencia.cdc}}, se' : 'Se') + ' o ' + D + ' desistir antes da entrega, perde o sinal')}; se a ${N} desistir, devolve o sinal em dobro, corrigido pelo IPCA. ${L('As devoluções, inclusive do que foi pago além do sinal, saem em até ' + nx(10) + ' dias, e não há outra indenização.')}` : ''),
+      I('desistencia.inadimplemento', `Nos demais descumprimentos não corrigidos em ${nx(10)} dias do aviso escrito, a parte prejudicada pode encerrar este contrato, e quem deu causa responde por perdas e danos.`),
+      I('opc.eq_limite', pj ? 'Entre empresas, a indenização por perdas e danos que uma parte deva à outra fica limitada ao valor já pago por este contrato, sem lucro cessante, salvo dolo ou culpa grave. O limite não alcança o preço, a multa e os juros.' : ''),
     ]),
     // Fiança (19/10/2026): só com avalista, logo antes das disposições gerais. Sem avalista, não existe.
     ctrClausulaFianca(d, C, I, N, D),
-    C('gerais', 'Das disposições gerais', [
-      I('opc.lgpd', op('lgpd') ? `Os dados pessoais do ${D} são tratados pela ${N} só para este contrato, a entrega, a garantia e as obrigações fiscais, na forma da Lei nº 13.709/2018 (LGPD).` : ''),
-      I('gerais.aditivo', 'Alterações deste contrato só valem por escrito assinado pelas partes.'),
-      I('gerais.tolerancia', tolerancia),
-      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+    C('gerais', 'Das disposições gerais e do foro', [
+      I('gerais.aditivo', 'Este contrato substitui os entendimentos anteriores sobre esta compra e só muda por aditivo assinado pelas partes. Avisos valem por escrito, inclusive por e-mail, e tolerar descumprimento não é novação nem renúncia ao direito.'),
+      I('projecoes.natureza', L(`Estudo ou simulação de resultado é projeção, não promessa nem garantia da ${N}.`)),
+      I('opc.lgpd', `A ${N} usa os dados pessoais do ${D} só para cumprir este contrato e a lei (Lei nº 13.709/2018, LGPD).`),
+      I('opc.eletronica', 'As partes aceitam a assinatura eletrônica deste contrato (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).'),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
-    ]),
-    C('foro', 'Do foro', [
-      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato${pf ? ', ressalvado ao consumidor o foro do seu domicílio' : ', com renúncia a qualquer outro'}.`),
+      I('foro.comarca', pf
+        ? `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, ressalvado ao ${D} o foro do seu domicílio.`
+        : `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b>, com renúncia a qualquer outro.`),
     ]),
   ].filter(Boolean);
+  return clausulas;
 }
 function ctrModelo(d) {
   if (d.tipo === 'equip') return ctrModeloEquip(d);
@@ -24956,6 +25007,21 @@ function ctrModelo(d) {
   if (d.tipo === 'arrend') return d.arrCli ? ctrArrMasculino(ctrModeloArrend(d)) : ctrModeloArrend(d);
   if (ctrEhSoc(d.tipo)) return ctrModeloSociedade(d);
   return ctrModeloObra(d);
+}
+// Número com extenso, percentual com extenso e dinheiro em negrito: os mesmos da Sociedade (regra 3).
+function ctrPecasNum(e, money) {
+  const nx = (n, fem) => {
+    let tx = recExInt(n);
+    if (fem) tx = tx.replace(/\bum\b/g, 'uma').replace(/\bdois\b/g, 'duas').replace(/entos\b/g, 'entas');
+    return `${n} (${tx})`;
+  };
+  const px = v => {
+    const tx = ctrPctTxt(v), [i, dd] = tx.split(',');
+    const dec = dd ? ' vírgula ' + (dd.length > 1 && dd[0] === '0' ? 'zero ' + recExInt(+dd) : recExInt(+dd)) : '';
+    return `${e(tx)}% (${recExInt(+i)}${dec} por cento)`;
+  };
+  const rx = v => `<b>${money(v)}</b> (${e(recExtenso(v))})`;
+  return { nx, px, rx };
 }
 function ctrModeloPecas(d) {
   // Modo cliente do Arrendamento: o texto digitado vai marcado, para o masculino (ctrArrMasculino) não o tocar.
@@ -25025,8 +25091,8 @@ function ctrModeloSociedade(d) {
   const arrendLocal = s.arrend > 0;
   const ivS = socio50 && d.interv && d.interv.nome ? d.interv : null;
   const ivDonoS = !!ivS && ivS.papel === 'proprietario';
-  // Regra 12: pessoa física é consumidor. Mesmo teste do modelo de equipamento.
-  // Sem documento preenchido vale o lado mais protetivo: pessoa física, não empresa.
+  // Regra 12: pessoa física é consumidor. Sem documento preenchido vale o lado mais protetivo: pessoa física, não empresa.
+  // O Completo usa este mesmo teste; a Compra e venda usa !pj, que só difere com documento digitado errado.
   const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
   const pf = dg === 0 || dg === 11;
   const L = h => (pf && h ? `<b>${h}</b>` : h);
@@ -25867,7 +25933,7 @@ function ctrCabecalho(d) {
   }
   if (d.tipo === 'equip') return {
     titulo: 'Contrato de Compra e Venda<br>de Equipamento para Recarga de Veículos Elétricos',
-    sub: 'Fornecimento de equipamento, sem instalação',
+    sub: ctrEqInstVendida(d.eqv) ? 'Fornecimento de equipamento com instalação' : 'Fornecimento de equipamento, sem instalação',
     rodape: 'Compra e venda de equipamento · Eletroposto', curto: 'Contrato de compra e venda de equipamento' };
   if (d.tipo === 'arrend') return {
     titulo: 'Contrato de Cessão de Área<br>para Estação de Recarga de Veículos Elétricos',
@@ -25907,7 +25973,7 @@ function ctrQuadroCotas(d) {
     if (s.livres > 0) linhas.push([`<b>Cotas ainda não subscritas</b><span>${s.livres} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.livres * s.cota), s.aporte > 0 ? money(s.livres * s.aporte) : lac]);
   } else if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, ${comoOutros}</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
   linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
-  if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, '—', money(s.falta)]);
+  if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, 'Não há', money(s.falta)]);
   const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
   const totalTxt = totalAportes > 0 && (s.aporteNDef || s.aporteN > 0) ? money(totalAportes) : lac;
   return `<table class="ep-ctr-pag ep-ctr-cotas">
@@ -25951,7 +26017,7 @@ function ctrQuadros(d) {
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   return {
     // Sociedade: lista em 2 colunas e, sem item na lista, sem caixa (o texto do capital não manda olhar "abaixo").
-    escopo: ctrEhSoc(d.tipo) && !(d.incluso || []).some(x => String(x).trim()) ? '' : `<div class="ep-ctr-esc${ctrEhSoc(d.tipo) ? ' duas' : ''}">
+    escopo: ctrEhSoc(d.tipo) && !(d.incluso || []).some(x => String(x).trim()) ? '' : `<div class="ep-ctr-esc${(ctrEhSoc(d.tipo) || d.tipo === 'completo') ? ' duas' : ''}">
         <div><h4>Incluído</h4><ul>${(d.incluso || []).map(i => `<li>${e(d.tipo === 'completo' && /^software de gest[aã]o$/i.test(String(i).trim()) ? 'Implantação e configuração da plataforma de gestão (a operação é remunerada na forma da cláusula da plataforma)' : i)}</li>`).join('') || '<li><span class="ep-rec-vazio"></span></li>'}</ul></div>
       </div>`,
     pagamento: !d.pagLinhas.length ? '' : `<table class="ep-ctr-pag">
@@ -26043,9 +26109,8 @@ function ctrPreambuloConjuge(d) {
 function ctrClausulaFianca(d, C, I, cred, dev) {
   if (!d.aval) return null;
   return C('fianca', 'Da fiança', [
-    I('fianca.garantia', `O FIADOR, qualificado no preâmbulo, garante este contrato como principal pagador de todas as obrigações do ${dev}, e responde por elas solidariamente com ele perante a ${cred}.`, { travado: true }),
-    I('fianca.ordem', `O FIADOR renuncia ao benefício de ordem e obriga-se como devedor solidário e principal pagador: a ${cred} pode cobrá-lo sem cobrar antes o ${dev} (arts. 827 e 828 do Código Civil).`, { travado: true }),
-    I('fianca.prazo', `A fiança vale até a quitação total das obrigações do ${dev}, inclusive multas, juros, correção monetária e demais encargos deste contrato.`, { travado: true }),
+    I('fianca.garantia', `O FIADOR garante, como devedor solidário e principal pagador, todas as obrigações do ${dev}, inclusive multa, juros e correção, até a quitação total.`, { travado: true }),
+    I('fianca.ordem', `Ele renuncia ao benefício de ordem: a ${cred} pode cobrá-lo sem cobrar antes o ${dev} (arts. 827 e 828 do Código Civil).`, { travado: true }),
     I('fianca.conjuge', d.aval.conjNome ? 'O cônjuge do FIADOR, qualificado no preâmbulo, assina este contrato para anuir à fiança (art. 1.647, III, do Código Civil).' : '', { travado: true }),
   ]);
 }
@@ -26150,7 +26215,10 @@ const CTR_IA_API = location.hostname === 'localhost' ? 'http://localhost:3001' :
 // instruída a mandar o consultor para ele quando o pedido é só trocar o número:
 // mudar pelo campo mantém o contrato sincronizado.
 const CTR_IA_CAMPOS = {
-  'prazo.projeto': 'Prazos > Projeto elétrico e protocolo', 'prazo.obra': 'Prazos > Entrega da obra',
+  'prazo.projeto': 'Prazos > Projeto elétrico e protocolo', 'prazo.obra': 'Prazos > Entrega da obra', 'prazo.equipamento': 'Prazos > Equipamento no local em até',
+  // Sem a palavra "multa" no rótulo: o híbrido conta como multa todo item cujo campo a cita, e o Completo ficaria com duas cláusulas de multa.
+  'prazo.atraso': 'Valor e formas de pagamento > os mesmos números do atraso de pagamento',
+  'opc.anuencia': 'De quem é o imóvel > O imóvel é do cliente?', 'contratante.proprietario': 'De quem é o imóvel > O imóvel é do cliente?',
   'contratante.docs': 'Prazos > Cliente entrega os documentos em', 'garantia.instalacao': 'Prazos > Garantia da instalação',
   'preco.mora': 'Valor e formas de pagamento > Multa por atraso e Juros de mora', 'preco.financiamento': 'Prazos > Banco aprova o financiamento em',
   'preco.dados': 'Valor e formas de pagamento > Dados para pagamento', 'rescisao.descumprimento': 'Prazos > Prazo para corrigir antes de rescindir',
@@ -26178,6 +26246,11 @@ const CTR_IA_CAMPOS_SOC = {
 };
 const CTR_IA_CAMPOS_TIPO = {
   socio50: CTR_IA_CAMPOS_SOC, cotas: CTR_IA_CAMPOS_SOC,
+  equip: {
+    'entrega.atraso': 'Compra e venda: o pedido > Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar', 'preco.mora': 'Compra e venda: o pedido > Atraso (de entrega ou de pagamento) que deixa a outra parte encerrar',
+    'instalacao.garantia': 'Compra e venda: o pedido > Garantia da instalação',
+    'preco.dados': 'Valor e formas de pagamento > Dados para pagamento', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
+  },
   arrend: {
     'objeto.cessao': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
     'objeto.area': 'Arrendamento > Vagas cedidas e Área cedida', 'remuneracao.pct': 'Arrendamento > Percentual do faturamento bruto',
@@ -27678,7 +27751,7 @@ async function ctrImprimirHibrido() {
     if (['arrend', 'socio50', 'cotas'].includes(d.tipo) && !d.local &&
         !confirm(`${nomeDe(t)}: sem o endereço do local do ponto (campo "Local da instalação"). O papel sai com a linha em branco.\n\nGerar assim mesmo?`)) return;
     if (d.tipo === 'equip') {
-      const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', !d.eqv.garantia && 'garantia', d.eqv.itens.some(i => !i.ncm) && 'NCM de algum item'].filter(Boolean);
+      const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', d.eqv.itens.some(i => !i.ncm && !/instala/i.test(String(i.desc || ''))) && 'NCM de algum item'].filter(Boolean);
       if (faltam.length && !confirm(`${nomeDe(t)}: sem ${faltam.join(', ')}. O contrato sai com a linha em branco no lugar.\n\nGerar assim mesmo?`)) return;
     }
     if (d.soc) {
@@ -27768,8 +27841,8 @@ async function ctrImprimir() {
       !confirm('O termo 50/50 sai sem o endereço do local do investidor (campo "Local do ponto"). O PONTO fica em branco no termo e na minuta.\n\nGerar assim mesmo?')) return;
   if (d.tipo === 'equip') {
     if (!(d.total > 0)) { alert('Monte o pedido na aba "Venda de equipamento" antes de gerar o contrato: itens, frete, prazo e garantia vêm de lá.'); return; }
-    const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega', !d.eqv.garantia && 'garantia',
-      d.eqv.itens.some(i => !i.ncm) && 'NCM de algum item'].filter(Boolean);
+    const faltam = [!d.contratanteDoc && 'CPF/CNPJ do comprador', !d.eqv.prazo && 'prazo de entrega',
+      d.eqv.itens.some(i => !i.ncm && !/instala/i.test(String(i.desc || ''))) && 'NCM de algum item'].filter(Boolean);
     if (faltam.length && !confirm(`Sem ${faltam.join(', ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
   }
   // Cedente de fora (cessionário = o cliente) e avalista: sem nome ou documento o papel sai com a linha em branco, mas não passa calado.
@@ -29381,7 +29454,7 @@ function orcSnapApply(s, tipo) {
   // Recibo de sinal. Orçamento salvo antes deste campo não traz nada: o set()
   // ignora null e o recibo fica no padrão (5% do total), que é como ele nasceria.
   set('rec-tipo', s.recTipo); set('rec-num', s.recNum); set('rec-data', s.recData); set('rec-pct', s.recPct);
-  set('rec-forma', s.recForma); set('rec-fim', s.recFim); set('rec-gatilho', s.recGatilho); set('rec-desist', s.recDesist); set('rec-obs', s.recObs);
+  set('rec-forma', s.recForma); set('rec-fim', s.recFim); set('rec-gatilho', s.recGatilho); set('rec-desist', recDesistAtual(s.recDesist)); set('rec-obs', s.recObs);
   // Recibos novos: referência, já pago e as partes voltam como foram assinados.
   set('rec-antes', s.recAntes); set('rec-parcela', s.recParcela);
   // TR-01: Simulador, Procuração e Proposta de banco como estavam no papel.

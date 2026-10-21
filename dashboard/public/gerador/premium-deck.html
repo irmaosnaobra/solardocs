@@ -473,21 +473,19 @@ function montar(D) {
     'Carregador ' + D.modelo, 'Projeto de engenharia', 'Homologação na concessionária',
     'Padrão de entrada 200A', 'Transformador 220/380', 'Infraestrutura elétrica e cabeamento', 'Infraestrutura civil',
     'Cobertura', 'Mão de obra e instalação', 'Garantia de 24 meses da instalação'];
-  const FORA = Array.isArray(D.excluiPor) && D.excluiPor.length ? D.excluiPor : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
   const AVISO_FORA = D.avisoFora || 'Reforço da rede ou obra exigida pela distribuidora, se houver, é orçado à parte depois do parecer de acesso.';
   add(11, `<section class="slide">
   <div class="faixa"></div>${marca()}
   <div class="wrap topo" style="padding-top:104px">
-    <div class="titulo menor">O que está dentro do valor<span class="g">, e o que não está</span></div>
+    <div class="titulo menor">O que está dentro do valor</div>
     <div class="duas">
       <div>
         <div class="sobre">Dentro do valor</div>
         <ul class="lista">${DENTRO.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
       </div>
       <div>
-        <div class="sobre azul">Por sua conta</div>
-        <ul class="lista azul">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
-        <div class="cartao azul" style="margin-top:22px">${esc(AVISO_FORA)}</div>
+        <div class="sobre azul">Se a rede exigir mais</div>
+        <div class="cartao azul">${esc(AVISO_FORA)}</div>
       </div>
     </div>
   </div>
