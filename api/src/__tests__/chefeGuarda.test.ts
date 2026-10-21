@@ -332,6 +332,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/agenda/manychatLeadService.ts': { robos: ['manychat_aviso'], classeMaxima: 'aviso_interno_p2' },
   'services/agenda/reagendarDigest.ts': { robos: ['reagendar_digest'], classeMaxima: 'aviso_interno_p2' },
   'services/agentes5040/fichaEnvio.ts': { robos: ['ficha_consultor_5040'], classeMaxima: 'aviso_interno_p2' },
+  'services/agentes5040/vivoEnvio.ts': { robos: ['duda_vivo_5040', 'helena_vivo_5040', 'carla_vivo_5040'], classeMaxima: 'reativo_p1' },
   'services/agents/sdr/carlaRetomada.ts': { robos: ['carla_retomada'], classeMaxima: 'frio_p5' },
   'services/agents/sdr/sdrAgentService.ts': { robos: ['sdr_grupo_interno'], classeMaxima: 'aviso_interno_p2' },
   'services/agents/sdr/sdrB2bAgentService.ts': { robos: ['carla_b2b_reativa'], classeMaxima: 'reativo_p1' },

@@ -2,8 +2,8 @@
 // COTA DO ENSAIO E DO REPLAY. O saldo da Anthropic já zerou 4 vezes: o ensaio nunca pode ser
 // o motivo de a produção emudecer.
 //
-//  · Teto de chamadas à IA por dia de Brasília: AGENTES5040_TETO_VIVO (padrão 120) e
-//    AGENTES5040_TETO_REPLAY (padrão 120). Cada CHAMADA REAL ao modelo reserva uma vaga antes de
+//  · Teto de chamadas à IA por dia de Brasília: AGENTES5040_TETO_VIVO (padrão 120, o ensaio sombra),
+//    AGENTES5040_TETO_REPLAY (padrão 120) e AGENTES5040_TETO_RESPOSTA (padrão 300, a rodada viva, cota própria). Cada CHAMADA REAL ao modelo reserva uma vaga antes de
 //    sair (um pensar chega a 4 chamadas: principal, reserva, e o dobro numa reescrita).
 //  · A vaga é uma linha de system_state, ag5040_ia:<tipo>:<dia>:<n>, reservada por INSERT (a chave
 //    única decide a corrida; 23505 tenta a próxima). Sem telefone, nome ou texto.
@@ -11,7 +11,7 @@
 //    FECHA SOZINHO depois de DISJUNTOR_MINUTOS (60); para fechar antes, apague a chave em system_state
 //    (fecharDisjuntor). NUNCA grava `ia_falha:*` (esse estado vira os robôs ao vivo para humano).
 //  · Ligar e desligar: interruptores.ts (ligado('ensaio'), ligado('replay')), fora deste arquivo.
-//  · Faxina: linhas ag5040_ia:, ag5040_lock: e ag5040_vez: com mais de 7 dias, uma vez por dia.
+//  · Faxina: linhas ag5040_ia:, ag5040_lock:, ag5040_vez:, ag5040_vez_vivo: e outras com mais de 7 dias, uma vez por dia.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -19,21 +19,25 @@ import { classificarFalhaIA, type ClienteIA } from './ia';
 import { diaBRT } from './relogio';
 
 /** 'dry' = a sonda (?dry=1): teto PRÓPRIO por dia, para uma sonda esquecida num loop não comer a cota do vivo nem a do replay. */
-export type TipoCota = 'vivo' | 'replay' | 'dry';
+export type TipoCota = 'vivo' | 'replay' | 'dry' | 'resposta';
 
 export const CHAVE_DISJUNTOR = 'ag5040_disjuntor';
 export const DISJUNTOR_MINUTOS = 60;
 export const TETO_PADRAO = 120;
 export const TETO_DRY_PADRAO = 10;
+/** Teto da rodada viva (tipo 'resposta'): AGENTES5040_TETO_RESPOSTA. Cota própria, separada da do ensaio sombra. */
+export const TETO_RESPOSTA_PADRAO = 300;
 const DIAS_DA_FAXINA = 7;
 const PAGINA = 1000;
 const MAX_TENTATIVAS = 8;
 
 /** Teto do dia. Env inválida, zero ou negativa volta ao padrão (teto zero seria "desligado" calado). */
 export function tetoDe(tipo: TipoCota): number {
-  const env = tipo === 'vivo' ? 'AGENTES5040_TETO_VIVO' : tipo === 'replay' ? 'AGENTES5040_TETO_REPLAY' : 'AGENTES5040_TETO_DRY';
+  const env = tipo === 'vivo' ? 'AGENTES5040_TETO_VIVO' : tipo === 'replay' ? 'AGENTES5040_TETO_REPLAY'
+    : tipo === 'resposta' ? 'AGENTES5040_TETO_RESPOSTA' : 'AGENTES5040_TETO_DRY';
   const bruto = Number(String(process.env[env] ?? '').trim());
-  return Number.isInteger(bruto) && bruto > 0 ? bruto : tipo === 'dry' ? TETO_DRY_PADRAO : TETO_PADRAO;
+  return Number.isInteger(bruto) && bruto > 0 ? bruto
+    : tipo === 'dry' ? TETO_DRY_PADRAO : tipo === 'resposta' ? TETO_RESPOSTA_PADRAO : TETO_PADRAO;
 }
 
 const prefixoDaCota = (tipo: TipoCota, dia: string): string => `ag5040_ia:${tipo}:${dia}:`;
@@ -203,7 +207,7 @@ export function clienteComCota(
 
 // ── faxina ───────────────────────────────────────────────────────────────────
 
-const PREFIXOS_DA_FAXINA = ['ag5040_ia:', 'ag5040_lock:', 'ag5040_vez:', 'ag5040_faxina:', 'ag5040_tent:'] as const;
+const PREFIXOS_DA_FAXINA = ['ag5040_ia:', 'ag5040_lock:', 'ag5040_vez:', 'ag5040_vez_vivo:', 'ag5040_faxina:', 'ag5040_tent:'] as const;
 
 /**
  * Conta a tentativa de um turno que falhou por motivo de infraestrutura SEM ser crédito/chave/teto (400, timeout,

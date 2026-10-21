@@ -93,6 +93,11 @@ export const IGNORADOS: Readonly<Record<string, string>> = Object.freeze({
   fb_publicar: 'Reel publicado por clique na tela de Redes.',
   ig_resposta_manual: 'Resposta que uma pessoa digita a um comentário do Instagram.',
   fb_resposta_manual: 'Resposta que uma pessoa digita a um comentário do Facebook.',
+  // Resposta ao vivo das agentes da 5040 (Fase B1c): nascem desligadas atrás de duda_vivo, helena_vivo e
+  // carla_vivo. O cartão de cada uma entra com o painel da B1e; até lá ficam fora da tela.
+  duda_vivo_5040: 'Resposta ao vivo da Duda (Fase B), desligada. O cartão entra com o painel da B1e.',
+  helena_vivo_5040: 'Resposta ao vivo da Helena (Fase B), desligada. O cartão entra com o painel da B1e.',
+  carla_vivo_5040: 'Resposta ao vivo da Carla (Fase B), desligada. O cartão entra com o painel da B1e.',
 });
 
 const e = (x: EntradaDoCatalogo): EntradaDoCatalogo => Object.freeze({ ...x, robos: Object.freeze([...x.robos]) });

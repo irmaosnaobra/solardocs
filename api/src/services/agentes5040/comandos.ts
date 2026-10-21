@@ -15,7 +15,9 @@
 //   4. grava 'ag5040_comando_resultado' = { acao, pedido_em, ok, resultado, terminou_em } (até ~4 KB).
 //
 // O resultado NUNCA leva dado pessoal: só contagens, ids de card, estados, nomes de campo, tamanhos, uso de
-// tokens, modelo e motivos. Bolhas, previas e textos viram só o tamanho.
+// tokens, modelo e motivos. Bolhas, previas e textos viram só o tamanho. ÚNICA exceção: o vivo_seco guarda as
+// bolhas que a rodada viva SAIRIA mandando (campo `sairia`, uma a uma por limparTexto: sem telefone), porque o
+// dono confere a fala antes de ligar a Duda.
 //
 // Este arquivo é PURO em relação ao envio: as ações chegam por injeção (a ligação das que enviam, ficha_teste
 // e sentinela, fica no cron.ts), e ele não importa zapiClient nem nada que o alcance.
@@ -35,7 +37,7 @@ export const PRAZO_ACAO_MS = 270_000;
 
 export const ACOES = [
   'sonda_armazem', 'ensaio_dry', 'replay_dry', 'anuncios', 'ficha_dry', 'ficha_sonda',
-  'ficha_teste', 'sentinela_seco', 'sentinela_sonda', 'pix_sonda',
+  'ficha_teste', 'sentinela_seco', 'sentinela_sonda', 'pix_sonda', 'vivo_seco', 'posse_sonda',
 ] as const;
 export type Acao = typeof ACOES[number];
 export const ehAcao = (x: unknown): x is Acao => typeof x === 'string' && (ACOES as readonly string[]).includes(x);
@@ -223,6 +225,27 @@ export function resumir(acao: Acao, bruto: unknown): unknown {
       return {
         ok: o.ok !== false, estado: textoOuNulo(o.estado, 30), alertas: numero(o.alertas) ?? 0, giovanna: o.giovanna === true,
         texto_tamanho: typeof o.texto === 'string' ? o.texto.length : 0, calada: o.texto === null || o.texto === undefined,
+      };
+    case 'vivo_seco': {
+      const decisoes = (Array.isArray(o.decisoes) ? o.decisoes : []).slice(0, 10).map(d => {
+        const it = objeto(d) ?? {};
+        return {
+          wa_id: numero(it.wa_id), dona: textoOuNulo(it.dona, 20), acao: textoOuNulo(it.acao, 40), resultado: textoOuNulo(it.resultado, 40),
+          motivo: textoOuNulo(it.motivo, 80), ficha: textoOuNulo(it.ficha, 20), n_bolhas: numero(it.n_bolhas) ?? 0, tamanho: numero(it.tamanho) ?? 0,
+          sairia: (Array.isArray(it.sairia) ? it.sairia : []).slice(0, 3).map(b => limparTexto(b, 200)),
+        };
+      });
+      return {
+        ok: o.ok !== false, ligado: o.ligado === true, dry: o.dry === true, motivo: textoOuNulo(o.motivo), ocupada: o.ocupada === true,
+        parou: textoOuNulo(o.parou, 20), conversas_vistas: numero(o.conversasVistas) ?? 0, elegiveis: numero(o.elegiveis) ?? 0,
+        processadas: numero(o.processadas) ?? 0, enviadas: numero(o.enviadas) ?? 0, chamadasIA: numero(o.chamadasIA) ?? 0,
+        puladas: contagens(o.puladas), decisoes_total: Array.isArray(o.decisoes) ? o.decisoes.length : 0, decisoes,
+      };
+    }
+    case 'posse_sonda':
+      return {
+        ok: o.ok === true, resultado: textoOuNulo(o.resultado, 10), primeira: textoOuNulo(o.primeira, 20), segunda: textoOuNulo(o.segunda, 20),
+        linhas_depois_de_2: numero(o.linhas_depois_de_2), linhas_depois_de_apagar: numero(o.linhas_depois_de_apagar), motivo: textoOuNulo(o.motivo, 80),
       };
     case 'anuncios': {
       // O id do anúncio é número longo de propósito (não é telefone): passa inteiro se for só dígitos.

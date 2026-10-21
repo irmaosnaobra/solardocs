@@ -32,6 +32,7 @@ import {
 import { hmacDe } from './hmac';
 import { ehMidia } from './midia';
 import { ligado } from './interruptores';
+import { donasDaRodadaLigadas, posseVivaServida } from './posseLeitura';
 import type { ClienteIA } from './ia';
 import { decidirDona } from './porteiro';
 import {
@@ -200,6 +201,8 @@ export async function runEnsaioTick(opts: OpcoesEnsaio = {}): Promise<RelatorioE
     if (!candidatas.length) { if (!dry) await faxinar(agora); return r; }
 
     // Quem já foi ensaiado nesta mensagem não gasta leitura nem modelo.
+    // A rodada viva cuida da conversa que tem posse viva de dona ligada e no escopo: o ensaio pula (as duas usam a mesma vez).
+    const donasVivas = await donasDaRodadaLigadas();
     const jaFeitas = dry ? new Set<string>() : await chavesExistentes(candidatas.map(c => `ag5040_vez:${c.waId}`));
     const listas = await carregarListasDeBarragem();
     const base: ClienteIA = opts.cliente ?? (novoAnthropic() as unknown as ClienteIA);
@@ -212,6 +215,7 @@ export async function runEnsaioTick(opts: OpcoesEnsaio = {}): Promise<RelatorioE
       if (estado.parou) { r.parou = estado.parou; break; }
       if (r.comModelo >= maxModelo || r.decididas >= MAX_DECISOES_POR_RODADA) break;
       if (jaFeitas.has(`ag5040_vez:${c.waId}`)) { soma(r.puladas, 'ja_ensaiada'); continue; }
+      if (donasVivas.length && await posseVivaServida(c.chave, donasVivas)) { soma(r.puladas, 'posse_viva'); continue; }
       await processarCandidata(c, { agora, dry, listas, cliente, estado, r, maxModelo });
     }
     if (estado.parou && !r.parou) r.parou = estado.parou;

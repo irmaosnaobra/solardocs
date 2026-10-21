@@ -81,12 +81,22 @@ vi.mock('../services/io/recepcaoIo', () => ({
   temReuniaoAtiva: (p: string) => Promise.resolve(comReuniao.includes(p)),
 }));
 
-// Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL
-// (neste harness o banco não responde ao que a posse lê, e o real devolve false: tudo como hoje).
-const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
-vi.mock('../services/agentes5040/posse', async (orig) => {
-  const real = await orig<typeof import('../services/agentes5040/posse')>();
-  return { ...real, cedeAAgente: async (t: string) => (cortes.cede.has(String(t)) ? true : real.cedeAAgente(t)) };
+// Fase B1b/B1c-1: o corte de conversa é a PORTA (assumirNaEntrada). Força o corte em telefones escolhidos e
+// guarda com que dados a porta foi chamada; o resto segue a porta REAL (neste harness o banco não responde
+// ao que a posse lê, e a real devolve false: tudo como hoje).
+const cortes = vi.hoisted(() => ({
+  cede: new Set<string>(),
+  chamadas: [] as Array<{ tel: unknown; dados: any }>,
+}));
+vi.mock('../services/agentes5040/entrada', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/entrada')>();
+  return {
+    ...real,
+    assumirNaEntrada: async (t: string, dados: any) => {
+      cortes.chamadas.push({ tel: t, dados });
+      return cortes.cede.has(String(t)) ? true : real.assumirNaEntrada(t, dados);
+    },
+  };
 });
 
 const INSTANCIA = '3F26F6ECE67D72BB7FCA6244BF24326C';
@@ -116,6 +126,7 @@ beforeEach(() => {
   handoffMin = {};
   comReuniao.length = 0;
   cortes.cede.clear();
+  cortes.chamadas.length = 0;
 });
 
 describe('poll da recepção', () => {
@@ -322,6 +333,18 @@ describe('poll da recepção: agentes novas da linha 5040 (Fase B1b)', () => {
     expect(atendidos.map(a => a.phone)).toEqual(['5534900000009']);   // o outro lead segue como hoje
     expect(r.pulados).toBe(1);
     expect(r.atendidos).toBe(1);
+  });
+
+  it('a porta recebe o texto e o payload inteiro do evento (o anúncio vem dele)', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    const ad = { sourceId: '120210000000000001' };
+    eventos = [evento({ text: { message: 'Quero simular meu projeto de energia solar' }, externalAdReply: ad, momment: 1760000000000 })];
+    await pollRecepcaoIo();
+    expect(cortes.chamadas).toHaveLength(1);
+    expect(cortes.chamadas[0]!.tel).toBe(LEAD);
+    expect(cortes.chamadas[0]!.dados.texto).toBe('Quero simular meu projeto de energia solar');
+    expect(cortes.chamadas[0]!.dados.anuncio.externalAdReply).toEqual(ad);
+    expect(cortes.chamadas[0]!.dados.momento).toBe(1760000000000);      // a âncora da posse sai do momento da mensagem
   });
 
   it('o comprovante Pix continua ACIMA do corte (o corte não muda quem responde o Pix)', async () => {

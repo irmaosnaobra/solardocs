@@ -154,11 +154,21 @@ vi.mock('../utils/logger', () => ({
 const helena = vi.hoisted(() => ({ atende: false }));
 vi.mock('../services/io/investidorAgentePosse', () => ({ investidorAtende: vi.fn(async () => helena.atende) }));
 
-// Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL.
-const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
-vi.mock('../services/agentes5040/posse', async (orig) => {
-  const real = await orig<typeof import('../services/agentes5040/posse')>();
-  return { ...real, cedeAAgente: async (t: string) => (cortes.cede.has(String(t)) ? true : real.cedeAAgente(t)) };
+// Fase B1b/B1c-1: o corte de conversa é a PORTA (assumirNaEntrada). Força o corte em telefones escolhidos e
+// guarda com que dados a porta foi chamada; o resto segue a porta REAL.
+const cortes = vi.hoisted(() => ({
+  cede: new Set<string>(),
+  chamadas: [] as Array<{ tel: unknown; dados: any }>,
+}));
+vi.mock('../services/agentes5040/entrada', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/entrada')>();
+  return {
+    ...real,
+    assumirNaEntrada: async (t: string, dados: any) => {
+      cortes.chamadas.push({ tel: t, dados });
+      return cortes.cede.has(String(t)) ? true : real.assumirNaEntrada(t, dados);
+    },
+  };
 });
 
 const LEAD = '5534987654321';
@@ -187,6 +197,7 @@ beforeEach(() => {
   silenciados = [];
   helena.atende = false;
   cortes.cede.clear();
+  cortes.chamadas.length = 0;
 });
 
 describe('recepção da linha IO', () => {
@@ -496,6 +507,24 @@ describe('agente nova da linha 5040 em conversa (Fase B1b)', () => {
     expect(avisosInternos).toHaveLength(0);
     expect(chamadasIA).toBe(0);
     expect(sessoes).toEqual({});
+  });
+
+  it('a porta recebe o texto da mensagem e o payload que o poll repassa (o anúncio)', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    respostaIA = jsonIA('Oi! Me conta o que você precisa.');
+    const payload = { externalAdReply: { sourceId: '120210000000000001' }, momment: 1760000000000 };
+    await handleRecepcaoIo(LEAD, 'Bom dia', 'Ana', payload);
+    expect(cortes.chamadas).toHaveLength(1);
+    expect(cortes.chamadas[0]!.tel).toBe(LEAD);
+    expect(cortes.chamadas[0]!.dados).toEqual({ texto: 'Bom dia', anuncio: payload, momento: 1760000000000 });
+  });
+
+  it('sem payload (outro chamador): a porta é chamada com anuncio null, e a Duda atende como hoje', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    respostaIA = jsonIA('Oi! Me conta o que você precisa.');
+    await handleRecepcaoIo(LEAD, 'Bom dia');
+    expect(cortes.chamadas[0]!.dados).toEqual({ texto: 'Bom dia', anuncio: null, momento: null });
+    expect(enviadasAoLead.length).toBeGreaterThan(0);
   });
 
   it('tudo desligado (posse real, nada forçado): a Duda atende como hoje', async () => {

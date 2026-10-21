@@ -56,7 +56,7 @@ import { carregarSilenciados } from '../agents/whatsapp/silenciar';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { quizSolarAtende } from './solarAgenteQuiz';
 import { investidorAtende } from './investidorAgentePosse';
-import { cedeAAgente } from '../agentes5040/posse';
+import { assumirNaEntrada } from '../agentes5040/entrada';
 
 const anthropic = novoAnthropic();
 
@@ -502,6 +502,8 @@ export async function handleRecepcaoIo(
   phoneBruto: string,
   texto: string,
   senderName?: string | null,
+  /** O payload da mensagem (webhook_debug), para a porta das agentes ler o anúncio de origem. */
+  payload?: Record<string, unknown> | null,
 ): Promise<void> {
   if (!(await ligada())) return;
 
@@ -577,7 +579,7 @@ export async function handleRecepcaoIo(
 
     // Conversa de uma agente nova da linha 5040 (Fase B): a triagem não se apresenta por cima dela.
     // Reforço do corte do poll e do webhook, porque este handler tem outros chamadores.
-    if (await cedeAAgente(phone)) return;
+    if (await assumirNaEntrada(phone, { texto: msg, anuncio: payload ?? null, momento: (payload as { momment?: number | string | null } | null | undefined)?.momment ?? null })) return;
 
     const sessao = await lerSessao(phone);
     const lead: LeadData = sessao?.lead ?? { estado: 'triando', turnos: 0 };

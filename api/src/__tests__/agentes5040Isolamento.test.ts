@@ -2,7 +2,7 @@
 // import() e require) a partir do ensaio, do replay e de tudo que eles usam, e reprova se algum arquivo
 // alcançar o envio. O controle positivo prova que o andador enxerga o zapiClient quando ele está lá.
 import { describe, it, expect, vi } from 'vitest';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { dirname, join, relative, sep } from 'path';
 import * as ts from 'typescript';
 
@@ -191,6 +191,37 @@ describe('isolamento do ensaio: nada do percurso alcança o envio', () => {
       }
     }
   });
+
+  it('na pasta agentes5040/ só fichaEnvio.ts e vivoEnvio.ts importam um módulo de envio (entrada, posse, vivo e o resto só chegam por eles)', () => {
+    const todos: string[] = [];
+    const anda = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) anda(join(dir, e.name));
+        else if (e.name.endsWith('.ts')) todos.push(join(dir, e.name));
+      }
+    };
+    anda(A5040);
+    expect(todos.length).toBeGreaterThan(25);
+    const ENVIA = ['fichaEnvio', 'vivoEnvio'];
+    expect(ENVIA.every(n => todos.map(nomeBase).includes(n))).toBe(true);
+    const achados: string[] = [];
+    for (const a of todos.filter(a => !ENVIA.includes(nomeBase(a)))) {
+      for (const { spec } of carregamentos(a)) {
+        const alvo = resolver(a, spec);
+        const nome = alvo ? nomeBase(alvo) : spec.split('/').pop()!;
+        if (ARQUIVOS_DE_ENVIO.includes(nome)) achados.push(`${rel(a)} importa ${spec}`);
+      }
+    }
+    expect(achados).toEqual([]);
+  });
+
+  it('os dois que enviam importam o zapiClient, e a partir do vivoEnvio.ts o andador acha o zapiClient (controle positivo)', () => {
+    for (const nome of ['fichaEnvio', 'vivoEnvio']) {
+      const arq = join(A5040, `${nome}.ts`);
+      expect(existsSync(arq), nome).toBe(true);
+      expect([...percurso([arq]).keys()].map(nomeBase), nome).toContain('zapiClient');
+    }
+  }, 60_000);
 
   it('controle positivo: a partir do solarAgenteQuiz.ts o andador acha o zapiClient', () => {
     const quiz = join(SRC, 'services', 'io', 'solarAgenteQuiz.ts');

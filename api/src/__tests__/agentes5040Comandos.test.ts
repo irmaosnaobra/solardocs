@@ -43,11 +43,43 @@ describe('canal de comando das agentes 5040', () => {
     expect(e.vezes.size).toBe(0);
   });
 
-  it('a lista fechada tem as 10 ações e nada de envio livre', () => {
+  it('a lista fechada tem as 12 ações e nada de envio livre', () => {
     expect([...ACOES].sort()).toEqual([
-      'anuncios', 'ensaio_dry', 'ficha_dry', 'ficha_sonda', 'ficha_teste', 'pix_sonda',
-      'replay_dry', 'sentinela_seco', 'sentinela_sonda', 'sonda_armazem',
+      'anuncios', 'ensaio_dry', 'ficha_dry', 'ficha_sonda', 'ficha_teste', 'pix_sonda', 'posse_sonda',
+      'replay_dry', 'sentinela_seco', 'sentinela_sonda', 'sonda_armazem', 'vivo_seco',
     ]);
+  });
+
+  it('vivo_seco: grava contagens e as bolhas que sairiam, sem telefone nem hmac; posse_sonda: ok e números', async () => {
+    const bruto = {
+      ok: true, ligado: true, dry: true, conversasVistas: 4, elegiveis: 2, processadas: 1, enviadas: 0, chamadasIA: 1, parou: null,
+      puladas: { rajada: 1, sem_posse_viva: 3 },
+      decisoes: [{
+        hmac8: 'abcd1234', wa_id: 77, dona: 'duda', acao: 'continuar', resultado: 'sairia', motivo: null, n_bolhas: 1, tamanho: 40,
+        sairia: ['Oi, aqui é a Duda. Me chama no 34 99999-8888 se precisar.'],
+      }],
+    };
+    const a = montar(cmd('vivo_seco'), { vivo_seco: async () => bruto });
+    expect(await executarComandoPendente(a.deps)).toMatchObject({ estado: 'executado', acao: 'vivo_seco', ok: true });
+    const r = a.e.resultado!.resultado as any;
+    expect(r).toMatchObject({ dry: true, conversas_vistas: 4, elegiveis: 2, processadas: 1, enviadas: 0, puladas: { rajada: 1, sem_posse_viva: 3 }, decisoes_total: 1 });
+    expect(r.decisoes[0]).toMatchObject({ wa_id: 77, resultado: 'sairia', n_bolhas: 1 });
+    expect(r.decisoes[0].sairia[0]).toMatch(/^Oi, aqui é a Duda/);
+    const texto = JSON.stringify(a.e.resultado);
+    expect(texto).not.toContain('99999');
+    expect(texto).not.toContain('abcd1234');
+
+    const b = montar(cmd('posse_sonda'), {
+      posse_sonda: async () => ({ ok: true, resultado: 'ok', primeira: 'assumida', segunda: 'ja_tinha_dona', linhas_depois_de_2: 1, linhas_depois_de_apagar: 0 }),
+    });
+    await executarComandoPendente(b.deps);
+    expect(b.e.resultado).toMatchObject({ ok: true, resultado: { ok: true, resultado: 'ok', segunda: 'ja_tinha_dona', linhas_depois_de_2: 1, linhas_depois_de_apagar: 0 } });
+
+    const c = montar(cmd('posse_sonda'), {
+      posse_sonda: async () => ({ ok: false, resultado: 'falhou', primeira: 'assumida', segunda: 'assumida', linhas_depois_de_2: 2, linhas_depois_de_apagar: 0 }),
+    });
+    await executarComandoPendente(c.deps);
+    expect(c.e.resultado).toMatchObject({ ok: false, resultado: { resultado: 'falhou', linhas_depois_de_2: 2 } });
   });
 
   it('comando com mais de 30 minutos é descartado sem rodar', async () => {

@@ -32,6 +32,12 @@ function comoLike(padrao: string, ignorarCaixa: boolean): RegExp {
 }
 
 function valorDe(l: Linha, coluna: string): unknown {
+  // "value->>token": o campo de dentro do json (como o PostgREST).
+  if (coluna.includes('->>')) {
+    const [c, k] = coluna.split('->>');
+    const v = l[c!];
+    return v && typeof v === 'object' ? (v as Linha)[k!] : undefined;
+  }
   // "payload->externalAdReply" e afins: devolve o campo inteiro.
   return l[coluna.split('->')[0]!];
 }
@@ -103,9 +109,10 @@ export function novoBanco(): BancoFalso {
         return { data: null, error: null };
       }
       if (op === 'update') {
-        for (const l of casam()) Object.assign(l, payload);
+        const alvos = casam();
+        for (const l of alvos) Object.assign(l, payload);
         banco.escritas.push({ tabela: nome, op: 'update' });
-        return { data: null, error: null };
+        return { data: alvos.map(l => ({ ...l })), error: null };
       }
       if (op === 'delete') {
         const alvo = new Set(casam());

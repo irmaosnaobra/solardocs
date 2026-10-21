@@ -1764,6 +1764,8 @@ function acoesDoComando(): MapaAcoes {
     ),
     sentinela_sonda: async () => (await import('../services/agentes5040/sentinelaSonda')).sondaSentinela(supabase),
     pix_sonda: async () => (await rodarPixTxidSonda()).corpo,
+    vivo_seco: async () => (await import('../services/agentes5040/vivo')).runVivoTick({ dry: true }),
+    posse_sonda: async () => (await import('../services/agentes5040/posseSonda')).sondaPosse(),
   };
 }
 
@@ -1782,6 +1784,22 @@ router.get('/agentes-5040/ensaio', async (req: Request, res: Response) => {
     res.status(r.ok ? 200 : 500).json(comando.estado === 'nenhum' ? r : { ...r, comando });
   } catch (err) {
     logger.error('cron', 'agentes-5040/ensaio falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
+// ── AGENTES 5040 · Fase B: a rodada viva (B1c-3). RESPONDE DE VERDADE, só conversa com posse viva de dona ligada e
+// no escopo (interruptor duda_vivo + ag5040_vivo_alvo). Cron próprio de 2 em 2 minutos (vercel.json), trava única
+// ag5040_vivo_lock. Sem nada ligado não lê o banco. ?dry=1 faz tudo menos reservar, enviar, atualizar a posse e
+// mandar ficha, e devolve o relatório (inclui as bolhas que sairiam). Protegida como as outras rotas de cron.
+router.get('/agentes-5040/vivo', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { runVivoTick } = await import('../services/agentes5040/vivo');
+    const r = await runVivoTick({ dry: req.query.dry === '1' });
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/vivo falhou', err);
     res.status(500).json({ ok: false, error: 'falha' });
   }
 });

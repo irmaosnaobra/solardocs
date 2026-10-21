@@ -213,7 +213,7 @@ const BOT_SENT_PREFIXES = [
 // carimbam `carla_sent:<user>` (carlaThrottle.marcarEnvioCarla), então uma chave só
 // cobre os três. Lido a cada chamada de propósito: a env var muda sem redeploy do
 // módulo em memória.
-function prefixosDaLinha(): string[] {
+export function prefixosDaLinha(): string[] {
   return solardocViaIo() ? [...BOT_SENT_PREFIXES, 'carla_sent:'] : [...BOT_SENT_PREFIXES];
 }
 
@@ -243,7 +243,7 @@ function prefixosDaLinha(): string[] {
 // contando a linha inteira, que é o que ela sempre fez. O que impede rajada
 // continua sendo o ESPAÇAMENTO lá embaixo, que segue olhando TODO envio da
 // linha, agenda inclusive — um follow-up nunca sai colado num lembrete.
-const PREFIXOS_AGENDA = [
+export const PREFIXOS_AGENDA = [
   'ep_agenda_sent:',        // agendamento do eletroposto
   'ep_remarcar_sent:',      // remarcação do eletroposto
   'solar_boasvindas_sent:', // ficha de solar recém-preenchida

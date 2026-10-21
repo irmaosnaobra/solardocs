@@ -82,6 +82,8 @@ export interface TurnoGravado {
   /** O que foi respondido de verdade depois (replay, e ao vivo quando já houve resposta). */
   real: MsgGravada[] | null;
   gravado_em: string;
+  /** Só na rodada viva (Fase B): a fala saiu de verdade? Ausente no ensaio e no replay. */
+  enviado?: boolean;
 }
 
 export type ResultadoGravacao = 'gravado' | 'ja_existia';

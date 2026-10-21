@@ -89,13 +89,18 @@ export async function lerPosse(telefoneOuChave: string): Promise<DadosPosse | nu
 
 export type ResultadoAssumir = 'assumida' | 'ja_tinha_dona' | 'erro';
 
-/** Primeira posse, por INSERT. 23505 (chave única phone+tipo) = a conversa já tinha dona. */
-export async function assumirPosse(telefoneOuChave: string, dona: DonaPosse, waId: number | null): Promise<ResultadoAssumir> {
+/**
+ * Primeira posse, por INSERT. 23505 (chave única phone+tipo) = a conversa já tinha dona.
+ * `desde` (ISO) é a âncora da posse: sem ele vale a hora de agora. A porta passa o momento da mensagem que abriu
+ * a conversa (menos 60 s), para o poll atrasado ainda enxergar essa fala.
+ */
+export async function assumirPosse(telefoneOuChave: string, dona: DonaPosse, waId: number | null, desde?: string): Promise<ResultadoAssumir> {
   const chave = chaveDaPosse(telefoneOuChave);
   if (!chave || !DONAS_POSSE.includes(dona)) return 'erro';
   try {
     const agora = new Date().toISOString();
-    const lead_data: DadosPosse = { dona, estado: 'viva', desde: agora, ate_wa_id: waId, respostas: 0, imagens: [], links: [] };
+    const ancora = desde && Number.isFinite(Date.parse(desde)) ? new Date(Date.parse(desde)).toISOString() : agora;
+    const lead_data: DadosPosse = { dona, estado: 'viva', desde: ancora, ate_wa_id: waId, respostas: 0, imagens: [], links: [] };
     const { error } = await supabase.from('whatsapp_sessions').insert({
       phone: chave, tipo: TIPO_POSSE, nome: null, messages: [], lead_data, updated_at: agora,
     });

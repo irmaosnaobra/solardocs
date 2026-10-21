@@ -13,7 +13,7 @@ import { novoAnthropic } from "../../../utils/anthropicClient";
 import { GIOVANNA_TOOLS, GiovannaCtx, executarFerramentaGiovanna, montarAvisoDono } from './giovannaFerramentas';
 import { podeFalarComLead, registrarBloqueio } from './pausaHumana';
 import { chaveContato } from './silenciar';
-import { cedeAAgente } from '../../agentes5040/posse';
+import { assumirNaEntrada } from '../../agentes5040/entrada';
 import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 
@@ -1061,7 +1061,7 @@ export async function handleIncomingWhatsApp(
     // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não segue para a Carla antiga.
     // Fica DEPOIS do comprovante, do e-mail do Pix e da recuperação (esses respondem a liberação e a
     // cobrança). Sem *_vivo ligado, ou com o lead fora do escopo de teste, devolve false e nada muda.
-    if (originInstance === 'io' && await cedeAAgente(cleanPhone)) return;
+    if (originInstance === 'io' && await assumirNaEntrada(cleanPhone, { texto: text })) return;
 
     const lowerText = text.trim().toLowerCase();
 

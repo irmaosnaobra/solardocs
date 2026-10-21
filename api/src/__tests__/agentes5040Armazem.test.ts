@@ -89,6 +89,22 @@ describe('cota', () => {
     delete process.env.AGENTES5040_TETO_VIVO;
   });
 
+  it("cota 'resposta' (a rodada viva): padrão 300, env AGENTES5040_TETO_RESPOSTA troca, separada da do ensaio ('vivo')", async () => {
+    delete process.env.AGENTES5040_TETO_RESPOSTA; delete process.env.AGENTES5040_TETO_VIVO;
+    expect(tetoDe('resposta')).toBe(300);
+    expect(tetoDe('vivo')).toBe(120);
+    process.env.AGENTES5040_TETO_RESPOSTA = '2';
+    expect(tetoDe('resposta')).toBe(2);
+    expect(tetoDe('vivo')).toBe(120);
+    process.env.AGENTES5040_TETO_RESPOSTA = '-1';
+    expect(tetoDe('resposta')).toBe(300);
+    process.env.AGENTES5040_TETO_RESPOSTA = '1';
+    banco.tabelas.system_state = [{ key: 'ag5040_ia:vivo:2026-10-20:1', value: {} }, { key: 'ag5040_ia:vivo:2026-10-20:2', value: {} }];
+    expect(await reservarChamada('resposta', agora)).toEqual({ ok: true, n: 1 });
+    expect(await reservarChamada('resposta', agora)).toEqual({ ok: false, motivo: 'teto' });
+    delete process.env.AGENTES5040_TETO_RESPOSTA;
+  });
+
   it('reserva por insert, contando do que já existe; passou do teto, recusa', async () => {
     process.env.AGENTES5040_TETO_REPLAY = '3';
     banco.tabelas.system_state = [{ key: 'ag5040_ia:replay:2026-10-20:1', value: {} }];
@@ -121,12 +137,13 @@ describe('cota', () => {
     banco.tabelas.system_state = [
       { key: 'ag5040_ia:vivo:2026-10-01:1', value: { em: '2026-10-01T10:00:00Z' } },
       { key: 'ag5040_vez:55', value: { em: '2026-10-02T10:00:00Z' } },
+      { key: 'ag5040_vez_vivo:56', value: { em: '2026-10-02T10:00:00Z' } },
       { key: 'ag5040_lock:123', value: { em: '2026-10-19T10:00:00Z' } },
       { key: 'ag5040_faxina:2026-10-05', value: { em: '2026-10-05T10:00:00Z' } },
       { key: 'ag5040_interruptores', value: { ensaio: true } },
       { key: 'ag5040_disjuntor', value: { ate: '2026-10-01T00:00:00Z' } },
     ];
-    expect(await faxinar(agora)).toBe(3);
+    expect(await faxinar(agora)).toBe(4);
     expect(banco.tabelas.system_state!.map(l => l.key).sort()).toEqual(['ag5040_disjuntor', 'ag5040_faxina:2026-10-20', 'ag5040_interruptores', 'ag5040_lock:123']);
     expect(await faxinar(agora)).toBe(0);
   });

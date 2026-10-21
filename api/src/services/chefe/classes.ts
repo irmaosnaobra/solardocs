@@ -234,6 +234,13 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // RESPONDE: quem ela chamou escreveu de volta. Cala quando um humano entrou
   // (podeFalarComLead em investidorAgente.ts), como a Duda e a agente do quiz.
   investidor_agente_respostas: robo('reativo_p1', ['services/io/investidorAgente.ts'], { respeitaPausa: true }),
+  // As três agentes da 5040 AO VIVO (Fase B1c): Duda, Helena e Carla respondem quem escreveu, 1 bolha de até
+  // 160 caracteres, pela linha IO, com pausa humana. Um arquivo só envia por elas (vivoEnvio.ts) e o carimbo
+  // delas (ag5040_sent:<waId>:<n>) fica FORA de BOT_SENT_PREFIXES de propósito: o teto próprio e o de emergência
+  // da linha moram no vivoEnvio.ts. A peça de link ou Pix não entra nos 160 (código Pix passa de 200).
+  duda_vivo_5040: robo('reativo_p1', ['services/agentes5040/vivoEnvio.ts'], { respeitaPausa: true, maxBolhas: 1, maxCaracteres: 160 }),
+  helena_vivo_5040: robo('reativo_p1', ['services/agentes5040/vivoEnvio.ts'], { respeitaPausa: true, maxBolhas: 1, maxCaracteres: 160 }),
+  carla_vivo_5040: robo('reativo_p1', ['services/agentes5040/vivoEnvio.ts'], { respeitaPausa: true, maxBolhas: 1, maxCaracteres: 160 }),
   bia_inbound: robo('reativo_p1', ['services/agents/whatsapp/biaInboundService.ts']),
   // Resposta a quem PEDIU para remarcar: agenda [regra do dono, 07/10]. O HEAD
   // conta o carimbo como agenda (lineThrottle.ts:208): divergência conhecida,

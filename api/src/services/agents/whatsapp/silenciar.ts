@@ -84,6 +84,23 @@ async function lerSupressaoInteira(motivo: string | null): Promise<string[]> {
 }
 
 /**
+ * Os MOTIVOS de supressão gravados para este telefone (todos os formatos do mesmo contato), em leitura ESTRITA:
+ * erro de leitura SOBE (quem chama barra). Existe para quem RESPONDE a quem acabou de escrever: ali só alguns
+ * motivos barram (opt_out, denuncia, fora_do_padrao) e 'pediu_humano' manda a conversa para uma pessoa;
+ * 'nunca_respondeu' é regra de toque proativo e não vale para resposta. `[]` = sem registro.
+ * A tabela guarda o telefone em dígitos de formatos variados: acha pelos 8 últimos e confere a chave inteira.
+ */
+export async function motivosDaSupressao(phone: string | null | undefined): Promise<string[]> {
+  const k = chaveContato(phone);
+  if (!k) throw new Error('telefone sem chave');
+  const { data, error } = await supabase.from('whatsapp_suppression').select('phone, motivo').like('phone', `%${k.slice(-8)}`);
+  if (error) throw new Error('leitura da supressão falhou: ' + mensagemDoErro(error));
+  return ((data ?? []) as { phone: string; motivo: string | null }[])
+    .filter(r => chaveContato(r.phone) === k)
+    .map(r => String(r.motivo ?? ''));
+}
+
+/**
  * Grava o pedido de parada. Idempotente, e nunca derruba o atendimento: quem
  * chama está no meio de responder ao cliente, e falhar aqui não pode virar
  * silêncio pra quem acabou de escrever.

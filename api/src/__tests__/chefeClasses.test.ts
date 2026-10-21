@@ -133,13 +133,15 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     // mudar quem fala com humano dentro da conversa: passa pela DIVERGENCIAS.
     const naoFrios = robos.filter(([, r]) => r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4');
     expect(naoFrios.filter(([, r]) => r.respeitaPausa).map(([n]) => n).sort())
-      .toEqual(['duda_recepcao', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas']);
+      .toEqual(['carla_vivo_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas']);
   });
 
   it('evento nasce de evento e sai em 1 bolha; só reativo tem 2 bolhas', () => {
     for (const [nome, r] of robos) {
       if (r.classe === 'evento_p0') expect({ nome, ev: r.nasceDeEvento, b: r.maxBolhas }).toEqual({ nome, ev: true, b: 1 });
-      expect(r.maxBolhas, nome).toBe(r.classe === 'reativo_p1' ? 2 : 1);
+      // As três agentes ao vivo da 5040 são reativo_p1 de 1 bolha de até 160 (parecer do chefe-antiban, B1c).
+      const vivo5040 = /^(duda|helena|carla)_vivo_5040$/.test(nome);
+      expect(r.maxBolhas, nome).toBe(r.classe === 'reativo_p1' && !vivo5040 ? 2 : 1);
     }
   });
 

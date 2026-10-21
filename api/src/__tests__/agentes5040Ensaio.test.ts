@@ -14,6 +14,7 @@ import { runEnsaioTick, ehLeadNovo, ultimoBlocoDoLead, lerCandidatas } from '../
 import { pensarTurno, qualificacaoDe, valoresDaPessoaDe } from '../services/agentes5040/turno';
 import { zerarCacheArmazem } from '../services/agentes5040/armazem';
 import { zerarCacheInterruptores } from '../services/agentes5040/interruptores';
+import { idChaveHmac } from '../services/agentes5040/hmac';
 import { CHAVE_DISJUNTOR, clienteComCota, tetoDe } from '../services/agentes5040/cota';
 import { hmacDe } from '../services/agentes5040/hmac';
 import type { ContextoLead, MsgConversa } from '../services/agentes5040/tipos';
@@ -637,5 +638,67 @@ describe('ensaio: nome composto do consultor no card (Diego Souza)', () => {
     const ia = oResponder();
     await runEnsaioTick({ agora: AGORA, cliente: ia.cliente });
     expect(JSON.stringify(ia.chamadas[0]!.body.messages)).toContain('Horários livres (ofereça dois destes');
+  });
+});
+
+
+describe('ensaio: a rodada viva cuida da conversa que tem posse viva', () => {
+  const alvo = (hmacs: string[]) => {
+    banco.tabelas.system_state = [
+      ...(banco.tabelas.system_state ?? []),
+      { key: 'ag5040_vivo_alvo', value: { kid: idChaveHmac(), hmacs, modos: {}, atualizado_em: '2026-10-20T10:00:00Z' } },
+    ];
+  };
+  const posse = (extra: Record<string, unknown> = {}) => {
+    banco.tabelas.whatsapp_sessions = [{ phone: CHAVE, tipo: 'ag5040', lead_data: { dona: 'duda', estado: 'viva', desde: '2026-10-20T14:44:00Z', ate_wa_id: null, respostas: 0, imagens: [], links: [], ...extra } }];
+  };
+  afterEach(() => { delete process.env.AGENTES5040_DUDA_VIVO; });
+
+  it('posse viva da Duda ligada e no escopo: o ensaio pula, não gasta modelo nem reserva a vez', async () => {
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    semear(); posse(); alvo([hmacDe(CHAVE)!]);
+    const ia = oResponder();
+    const r = await runEnsaioTick({ agora: AGORA, cliente: ia.cliente });
+    expect(r.puladas.posse_viva).toBe(1);
+    expect(r.comModelo).toBe(0);
+    expect(ia.chamadas).toHaveLength(0);
+    expect(chavesDoEstado().filter(k => k.startsWith('ag5040_vez:'))).toEqual([]);
+    expect(escritasProibidas(banco)).toEqual([]);
+  });
+
+  it('posse que já passou ao humano, lead fora do alvo, dona desligada ou sem posse: o ensaio segue normal', async () => {
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    semear(); posse({ estado: 'passou_humano' }); alvo([hmacDe(CHAVE)!]);
+    let ia = oResponder();
+    expect((await runEnsaioTick({ agora: AGORA, cliente: ia.cliente })).comModelo).toBe(1);
+
+    banco.tabelas.system_state = banco.tabelas.system_state!.filter(l => !/^ag5040_(vez|lock):/.test(String(l.key)));
+    zerarCacheInterruptores();
+    posse(); banco.tabelas.system_state = banco.tabelas.system_state!.filter(l => l.key !== 'ag5040_vivo_alvo'); alvo([hmacDe('3400000000')!]);
+    ia = oResponder();
+    expect((await runEnsaioTick({ agora: AGORA, cliente: ia.cliente })).comModelo).toBe(1);
+
+    banco.tabelas.system_state = banco.tabelas.system_state!.filter(l => !/^ag5040_(vez|lock):/.test(String(l.key)));
+    zerarCacheInterruptores();
+    process.env.AGENTES5040_DUDA_VIVO = '0';
+    banco.tabelas.system_state = banco.tabelas.system_state!.filter(l => l.key !== 'ag5040_vivo_alvo'); alvo([hmacDe(CHAVE)!]);
+    ia = oResponder();
+    expect((await runEnsaioTick({ agora: AGORA, cliente: ia.cliente })).comModelo).toBe(1);
+
+    banco.tabelas.system_state = banco.tabelas.system_state!.filter(l => !/^ag5040_(vez|lock):/.test(String(l.key)));
+    zerarCacheInterruptores();
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    banco.tabelas.whatsapp_sessions = [];
+    ia = oResponder();
+    expect((await runEnsaioTick({ agora: AGORA, cliente: ia.cliente })).comModelo).toBe(1);
+  });
+
+  it('o dry também pula a conversa que a rodada viva vai atender', async () => {
+    process.env.AGENTES5040_DUDA_VIVO = '1';
+    semear(); posse(); alvo([hmacDe(CHAVE)!]);
+    const ia = oResponder();
+    const r = await runEnsaioTick({ agora: AGORA, cliente: ia.cliente, dry: true });
+    expect(r.puladas.posse_viva).toBe(1);
+    expect(ia.chamadas).toHaveLength(0);
   });
 });
