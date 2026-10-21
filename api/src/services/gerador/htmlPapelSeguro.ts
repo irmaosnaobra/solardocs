@@ -41,6 +41,8 @@ function urlPerigosa(v: string): boolean {
   if (/^data:/.test(u)) return !/^data:image\//.test(u);
   return false;
 }
+/** `<use href="data:image/svg+xml,...">` carrega um SVG com script como documento: em href/xlink:href só `data:` de imagem raster passa. */
+const urlSvgEmHref = (v: string): boolean => /^data:image\/svg/.test(normalizarUrl(v));
 /** `srcset` é uma lista de URLs: qualquer uma perigosa derruba o atributo. */
 const srcsetPerigoso = (v: string): boolean => v.split(',').some((p) => urlPerigosa(p.trim().split(/\s+/)[0] ?? ''));
 
@@ -99,7 +101,10 @@ function atributoPerigoso(a: Atributo): boolean {
   if (!nome) return false;
   if (nome.startsWith('on') || nome === 'srcdoc') return true;
   const v = a.valor ?? '';
-  if (ATRIBUTOS_URL.has(nome)) return nome === 'srcset' ? srcsetPerigoso(v) : urlPerigosa(v);
+  if (ATRIBUTOS_URL.has(nome)) {
+    if ((nome === 'href' || nome === 'xlink:href') && urlSvgEmHref(v)) return true;
+    return nome === 'srcset' ? srcsetPerigoso(v) : urlPerigosa(v);
+  }
   if (nome === 'style') return cssPerigoso(v);
   return false;
 }

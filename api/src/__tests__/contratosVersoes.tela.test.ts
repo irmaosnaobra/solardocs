@@ -62,7 +62,7 @@ function criarSandbox(): Ctx {
     history: { pushState() {}, replaceState() {} },
     setTimeout: () => 0, setInterval: () => 0, clearTimeout() {}, clearInterval() {}, requestAnimationFrame: () => 0, queueMicrotask() {},
     fetch: nunca, addEventListener() {}, removeEventListener() {}, matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
-    getComputedStyle: () => ({}), Image: function () {}, FormData: function () {}, URL, URLSearchParams, Intl, Date, Math, JSON, Promise,
+    getComputedStyle: () => ({}), Blob, Image: function () {}, FormData: function () {}, URL, URLSearchParams, Intl, Date, Math, JSON, Promise,
     MutationObserver: function (this: any) { this.observe = () => {}; }, IntersectionObserver: function (this: any) { this.observe = () => {}; }, ResizeObserver: function (this: any) { this.observe = () => {}; },
     supabase: { createClient: () => new Proxy({}, { get: () => () => new Proxy(function () {}, { get: () => () => ({ then: () => {} }) }) }) },
     alert() {}, confirm: () => true, prompt: () => '', innerWidth: 1200, innerHeight: 900, performance: { now: () => 0 },
@@ -191,6 +191,30 @@ describe('versões no card: a tela', () => {
     rodar(`ctrCardSet('ele', null)`);
   });
 
+  it('o limite do corpo conta BYTES, não caracteres: 2,2 milhões de "é" (4,4 MB em UTF-8) é recusado', async () => {
+    rodar(`globalThis.__chamadas = []; globalThis.__toasts = []; vdcFetch = async (rota, metodo) => { __chamadas.push([rota, metodo]); return { status: 201, json: { ok: true, versao: {} } }; }; showToast = (m) => { __toasts.push(String(m)); };`);
+    await rodar(`ctrVersEnviar('ele', { tipo: 'Contrato', html: 'é'.repeat(2200000), snap: {}, card: ${JSON.stringify(A)} })`);
+    expect(rodar('__chamadas.length')).toBe(0);
+    expect(rodar('__toasts.join(" ")')).toMatch(/grande demais/);
+  });
+  it('a limpeza do snapshot só escapa as chaves que viram HTML cru: "consumo > 100" e "A & B" nos campos voltam iguais; <img onerror> nas chaves cruas segue neutralizado', () => {
+    const snap = {
+      ctrModelos: { 'ctr-arr-dados': 'consumo > 100 kWh e A & B' }, campos: { 'fs-obs': 'consumo > 100 e <b>x</b>' }, ctrExtras: 'item 1 > item 0', sim: { 'el-cliente': 'Ana & Cia <Ltda>' },
+      ctrEsc: { extras: [{ nome: '<img src=x onerror=alert(1)> > 5', inc: true }] },
+      ctrIa: { pedidos: [{ id: 1, texto: '<img src=x onerror=alert(2)>', ops: [{ tipo: 'inserir_item', texto: '<img src=x onerror=alert(3)>ok <b>x</b>' }] }] },
+      itens: [{ nome: '<svg onload=alert(4)>' }],
+    };
+    const l = rodar(`ctrSnapLimpo(${JSON.stringify(snap)})`);
+    expect(l.ctrModelos['ctr-arr-dados']).toBe('consumo > 100 kWh e A & B');
+    expect(l.campos['fs-obs']).toBe('consumo > 100 e <b>x</b>');
+    expect(l.ctrExtras).toBe('item 1 > item 0');
+    expect(l.sim['el-cliente']).toBe('Ana & Cia <Ltda>');
+    expect(JSON.stringify(l.ctrEsc)).not.toMatch(/<img/i);
+    expect(JSON.stringify(l.ctrEsc)).toContain('&gt; 5');
+    expect(JSON.stringify(l.ctrIa)).not.toMatch(/<img/i);
+    expect(JSON.stringify(l.ctrIa)).toContain('ok <b>x</b>');
+    expect(JSON.stringify(l.itens)).not.toMatch(/<svg/i);
+  });
   it('corpo acima de 4,3 MB nem é enviado: avisa que segue no histórico do aparelho', async () => {
     rodar(`globalThis.__chamadas = []; globalThis.__toasts = []; vdcFetch = async (rota, metodo) => { __chamadas.push([rota, metodo]); return { status: 201, json: { ok: true, versao: {} } }; }; showToast = (m) => { __toasts.push(String(m)); };`);
     await rodar(`ctrVersEnviar('ele', { tipo: 'Contrato', html: 'x'.repeat(4400000), snap: {}, card: ${JSON.stringify(A)} })`);

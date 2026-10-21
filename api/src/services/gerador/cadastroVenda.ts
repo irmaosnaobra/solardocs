@@ -108,7 +108,7 @@ export const camposDaLinha = (linha: LinhaCadastro): readonly Campo[] => (linha 
 /** O campo existe NESTA linha? Sem a linha, vale a do eletroposto (o que sempre valeu). */
 export const ehCampo = (x: unknown, linha: LinhaCadastro = 'eletroposto'): x is Campo => typeof x === 'string' && SETS_DE_CAMPOS[linha].has(x);
 
-export type Fonte = 'manual' | 'ia' | 'ficha';
+export type Fonte = 'manual' | 'ia' | 'ficha' | 'contrato';   // 'contrato': a identidade editada num papel do /gerador e levada ao cadastro no Gerar
 export type Tipo = 'PF' | 'PJ';
 export interface CampoGravado { valor: string; por: string; em: string; fonte: Fonte }
 export interface TrilhaCadastro { campo: Campo; por: string; em: string; fonte: Fonte }
@@ -414,7 +414,7 @@ function faltandoDosPapeis(c: Cadastro): Campo[] {
 
 // ── Leitura e gravação do JSON ───────────────────────────────────────────────
 
-const FONTES: readonly string[] = ['manual', 'ia', 'ficha'];
+const FONTES: readonly string[] = ['manual', 'ia', 'ficha', 'contrato'];
 const txt = (x: unknown): string => (typeof x === 'string' ? x : '');
 const fonteDe = (x: unknown): Fonte => (FONTES.includes(String(x)) ? (x as Fonte) : 'manual');
 

@@ -21,7 +21,7 @@ import { baixarArquivo } from '../services/gerador/dossieVenda';
 // que têm cadastro: `eletroposto` e `vendasolar` (a venda solar pelo card, 20/10/2026). O formato é o mesmo.
 //
 //   GET  /gerador/clientes/:linha/:codigo/cadastro        campos, o que falta e o tipo (PF ou PJ)
-//   PUT  /gerador/clientes/:linha/:codigo/cadastro        { campos: { campo: texto }, fonte?: 'ia'|'manual' }
+//   PUT  /gerador/clientes/:linha/:codigo/cadastro        { campos: { campo: texto }, fonte?: 'ia'|'manual'|'contrato' }
 //        (eletroposto: a primeira escrita migra o legado da ficha para o cadastro; veja `escreverCadastro`)
 //   POST /gerador/clientes/:linha/:codigo/cadastro/ler    a IA lê os documentos já anexados e SUGERE os campos (não
 //        grava o cadastro). Também ORGANIZA os anexos: tira de "outros" o que tem item próprio e dá nome a cada documento
@@ -160,7 +160,7 @@ export function mountCadastroVenda(router: Router): void {
       const b = corpoDe(req);
       const campos = b && b.campos && typeof b.campos === 'object' && !Array.isArray(b.campos) ? (b.campos as Record<string, unknown>) : null;
       const fonte = b?.fonte === undefined ? 'manual' : b.fonte;
-      if (!campos || Object.keys(campos).length === 0 || (fonte !== 'manual' && fonte !== 'ia')) {
+      if (!campos || Object.keys(campos).length === 0 || (fonte !== 'manual' && fonte !== 'ia' && fonte !== 'contrato')) {
         res.status(400).json({ ok: false, error: MSG_PEDIDO });
         return;
       }
@@ -175,6 +175,20 @@ export function mountCadastroVenda(router: Router): void {
       }
       if (Object.keys(erros).length) { res.status(400).json({ ok: false, erros }); return; }
       try {
+        // Controle de versão opcional (`base_em`: o instante mais novo que a tela viu no cadastro): campo gravado por outra pessoa DEPOIS disso,
+        // com valor diferente do que vai ser gravado, é conflito (409) e nada é gravado. Uma aba velha não sobrescreve gravação mais nova.
+        const baseEm = typeof b?.base_em === 'string' ? Date.parse(b.base_em) : NaN;
+        if (Number.isFinite(baseEm)) {
+          const atual = await lerCadastroVisto(Number(ctx.codigo), linha);
+          const conflitos = Object.entries(limpos).filter(([k, v]) => {
+            const g = (atual.campos as Record<string, { valor?: string; em?: string } | undefined>)[k];
+            return !!g && Date.parse(String(g.em ?? '')) > baseEm && g.valor !== v;
+          }).map(([k]) => k);
+          if (conflitos.length) {
+            res.status(409).json({ ok: false, motivo: 'conflito', conflitos, error: 'Outra pessoa alterou este cadastro agora. Atualize os dados do cliente e confira.' });
+            return;
+          }
+        }
         const r = await escreverCadastro(Number(ctx.codigo), limpos, ctx.nome, fonte as Fonte, new Date().toISOString(), linha);
         const vista = vistaDe(r.cad, linha);
         const avisos: string[] = [];

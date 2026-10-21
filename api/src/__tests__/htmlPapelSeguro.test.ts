@@ -85,6 +85,14 @@ describe('limparHtmlPapel', () => {
     expect(r).not.toMatch(/[\t\n\f\r /]on(error|mouseover)=|javascript/i);
   });
 
+  it('href/xlink:href com data:image/svg+xml (um <use> carrega um SVG com script) é recusado, inclusive disfarçado; data:image raster segue', () => {
+    const SVG = 'data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cscript%3Ealert(1)%3C/script%3E%3C/svg%3E';
+    const casos = [`<svg><use href="${SVG}#a"/></svg>`, `<svg><use xlink:href="${SVG}#a"/></svg>`, '<svg><use href="data&colon;image/svg+xml,x"/></svg>',
+      '<svg><use href="DATA:IMAGE/SVG+XML;base64,AAAA"/></svg>', '<svg><use href=" da	ta:image/svg+xml,x"/></svg>', `<a href="${SVG}">x</a>`];
+    for (const c of casos) expect(limparHtmlPapel(c), c).not.toMatch(/data:image\/svg|data&colon;|DATA:IMAGE|da	ta/i);
+    expect(limparHtmlPapel('<img src="data:image/png;base64,AAAA" alt="x">')).toBe('<img src="data:image/png;base64,AAAA" alt="x">');
+    expect(limparHtmlPapel('<svg><use href="#forma"/></svg>')).toBe('<svg><use href="#forma"/></svg>');
+  });
   it('<style> comum fora de svg continua intacto, e o de dentro de svg perde só a tag', () => {
     expect(limparHtmlPapel('<style>.a{color:red}</style>')).toBe('<style>.a{color:red}</style>');
     expect(limparHtmlPapel('<svg><style>.a{fill:red}</style><path d="M0 0"/></svg>')).toBe('<svg>.a{fill:red}<path d="M0 0"/></svg>');

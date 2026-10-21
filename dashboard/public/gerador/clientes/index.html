@@ -1176,6 +1176,25 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     if (txt === 'Salvo') salvoTimer = setTimeout(function () { s.textContent = ''; }, 2500);
   }
 
+  // Planilha embutida do Eletroposto: salvou uma coluna do CADASTRO do card, então o /gerador (a página-mãe, mesma origem) reaplica o cadastro
+  // nos contratos se este é o card ligado lá. Só avisa QUAL card; quem decide e confere é a página-mãe. Fora do modo embutido não faz nada.
+  function avisarPaiCadastro(l, c) {
+    try {
+      if (!EP || !EMB || !COLS_CADASTRO[c.chave] || window.parent === window) return;
+      window.parent.postMessage({ tipo: 'cadastro-atualizado', linha: 'eletroposto', codigo: String((l.codigoApi != null) ? l.codigoApi : l.codigo) }, location.origin);
+    } catch (e) {}
+  }
+  // O contrato (página-mãe) gravou o cadastro de um card: recarrega a planilha, sem mexer se há gravação em andamento.
+  window.addEventListener('message', function (ev) {
+    try {
+      if (!ev || ev.origin !== location.origin || ev.source !== window.parent || window.parent === window) return;
+      var d = ev.data;
+      if (!EP || !EMB || !d || d.tipo !== 'cadastro-recarregar' || d.linha !== 'eletroposto') return;
+      for (var k in pend) { if (pend[k] > 0) return; }
+      carregar();
+    } catch (e) {}
+  });
+
   function enviar(l, c, texto, antes) {
     var chaveBase = l.codigo + '|' + c.chave;
     var corpo = { codigo: (EP && l.codigoApi != null) ? l.codigoApi : l.codigo, coluna: c.chave, valor: texto, base_em: baseEm[chaveBase] || (D && D.em) };
@@ -1204,6 +1223,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         var hn = campos[c.chave], forcarNorm = false;
         if (hn && hn.ctl && detalhe === l.codigo && document.activeElement === hn.ctl && hn.ctl.tagName !== 'SELECT') forcarNorm = String(hn.ctl.value).trim() === String(texto == null ? '' : texto).trim();
         depoisDeMudar(l.codigo, c.chave, 'Salvo', 'ok', forcarNorm);
+        avisarPaiCadastro(l, c);
         return;
       }
       if (x.status === 409 && j.celula) {

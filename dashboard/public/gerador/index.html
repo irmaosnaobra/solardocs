@@ -18272,6 +18272,7 @@ function eletroNovoProjeto() {
 // por aqui: antes só a aba Contratos era limpa, e o recibo, a procuração e a
 // proposta de banco do cliente seguinte saíam com os dados do anterior.
 function epLimparCliente() {
+  vdcBase.ele = null; vdcDiff.ele = null;
   // O emitente e' escolha POR DOCUMENTO: outro cliente comeca no padrao (AIOROS).
   // O perfil que os cartoes de cadastro editam nao e' do cliente e fica como esta.
   try { EP_EMIT_SEL = 'aioros'; epEmitBarAtualizar(); } catch (e) {}
@@ -22321,6 +22322,7 @@ function epVendRestaurar() {
 let epPrevEstado = null;   // { html, arquivo, opts } — opts null = documento que pagina
 
 function epPreview(o) {
+  if (vdcCarregando()) { showToast('Carregando os dados do cliente… Espere um instante e gere de novo.'); return; }
   epPrevEstado = o;
   const bg = document.getElementById('ep-preview');
   const doc = document.getElementById('ep-prev-doc');
@@ -22391,6 +22393,7 @@ function epPrevFechar() {
 function epPrevSaida() {
   const s = epPrevEstado;
   if (!s) return;
+  if (vdcCarregando()) { showToast('Carregando os dados do cliente… Espere um instante e gere de novo.'); return; }
   // Texto mexido na folha: sai o que está NA TELA, sem o contenteditable.
   let html = s.html;
   if (s.editado) html = epPrevHtmlEditado();
@@ -22413,6 +22416,8 @@ function epPrevSaida() {
       ctrVersEnviar('ele', { tipo: s.hist.tipo, rotulo: s.hist.rotulo, modelo: s.hist.modelo, num: s.hist.num, data: s.hist.data, editado: !!s.hist.editado, snap: s.hist.snap || orcSnapTake(),
         html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, emit: s.emit, emitSelo: s.emitSelo, card: (s.hist.snap && s.hist.snap.ctrCard) || ctrCardLigado });
     } catch (e) {}
+    // Gerar (e só ele): o que a pessoa editou na identidade vai também para o cadastro do card. Extra: nunca bloqueia nem espera.
+    try { vdcVoltaParaCadastro('ele'); } catch (e) {}
     s.hist = null;
     try { if (typeof epHistOrcRender === 'function') epHistOrcRender(); } catch (e) {}
   }
@@ -23502,6 +23507,7 @@ function ctrDosBlocos(rotulo, d) {
 
 function ctrEstadoZerar() {
   ctrCardSet('ele', null);   // outro cliente: o card ligado era do anterior
+  vdcOrigemEp = '';          // e os formulários deixam de ser "de um card": nada volta ao cadastro até aplicar de novo
   // Modelo do contrato volta ao Completo, sem marca de escolhido: a ficha do
   // próximo cliente pode escolher sozinha.
   const tpEl = document.getElementById('ctr-tipo');
@@ -29337,6 +29343,7 @@ function epAbrirEntrada(e, cardDaVersao) {
   eletroSubaba('orcamento');
   orcSnapApply(e.snap, e.tipo);
   if (cardPapel) ctrCardSet('ele', cardPapel);   // depois do apply e do limpar: o card da versão fica ligado
+  if (cardPapel) vdcConferirVersao('ele');      // cadastro diferente do salvo: só a faixa, nada muda sem o clique
   // Termo (08/10/2026) reabre na aba dele, com o dossiê do aparelho de volta.
   // Contrato, recibo e orçamento do carregador também (09/10/2026).
   // TR-09: a aba Orçamento saiu da barra; papel de orçamento abre no Simulador.
@@ -29350,11 +29357,17 @@ function epAbrirEntrada(e, cardDaVersao) {
 // Dois estados separados, um por tela: `ctrCardLigado` (contratos do eletroposto) e `fsCardLigado` (Fechamento solar). Nunca se misturam.
 let ctrCardLigado = null;   // { linha: 'eletroposto'|'vendasolar', codigo, nome }
 let fsCardLigado = null;
+// Entrega 2: `vdcBase[c]` = o que os formulários tinham logo depois de aplicar o cadastro do card (a volta do contrato só leva o que mudou
+// depois); `vdcDiff[c]` = a faixa "os dados do cliente mudaram desde esta versão". Ambos são de UM card (guardam a chave) e zeram ao trocar.
+let vdcBase = { ele: null, sol: null };
+let vdcDiff = { ele: null, sol: null };
+let vdcPendente = { ele: 0, sol: 0 };   // aplicar do cadastro do card novo em andamento: o Gerar espera (senão sai papel vazio ou com dado velho)
+const vdcCarregando = () => vdcPendente.ele > 0 || vdcPendente.sol > 0;
 const CTR_VERS = {
   ele: { lista: null, chave: '', erro: '', carregando: false, socio: false, busca: false, achados: null, buscaErro: '', seq: 0, timer: 0 },
   sol: { lista: null, chave: '', erro: '', carregando: false, socio: false, busca: false, achados: null, buscaErro: '', seq: 0, timer: 0 },
 };
-const CTR_VERS_MAX_CORPO = 4300000;
+const CTR_VERS_MAX_CORPO = 4300000;   // em BYTES (Blob), não em caracteres
 const ctrCardGet = c => (c === 'sol' ? fsCardLigado : ctrCardLigado);
 const ctrCardChave = k => (k ? k.linha + ':' + k.codigo : '');
 function ctrCardNormal(k) {
@@ -29371,6 +29384,8 @@ function ctrCardSet(c, k) {
   const e = CTR_VERS[c];
   e.busca = false; e.achados = null; e.buscaErro = '';
   if (ctrCardChave(k) !== e.chave) { e.lista = null; e.erro = ''; e.carregando = false; e.seq++; e.chave = ctrCardChave(k); }
+  if (vdcBase[c] && vdcBase[c].origem !== ctrCardChave(k)) vdcBase[c] = null;
+  if (vdcDiff[c] && vdcDiff[c].chave !== ctrCardChave(k)) vdcDiff[c] = null;
   try { ctrCardUi(c); } catch (er) { /* a tela ainda não existe */ }
 }
 /** A origem `linha:id` que o preenchimento a partir do card grava (vdcOrigemEp / vdcOrigemFs) liga o card sozinha. */
@@ -29397,6 +29412,12 @@ function ctrCardUi(c) {
     if (k) {
       h += `<div class="${sol ? 'fs-sub' : 'orc-note'}" style="margin-top:0">Contrato ligado a: <b>${esc(k.nome || 'cliente')}</b> · card ${esc(k.codigo)}</div>` +
         `<div style="display:flex;gap:6px;margin-top:8px"><button type="button" class="${btn}" onclick="ctrCardTrocar('${c}')">Trocar</button><button type="button" class="${btn}" onclick="ctrCardDesligar('${c}')">Desligar</button></div>`;
+      // Versão reaberta com o cadastro diferente na identidade: avisa e oferece aplicar. Só o clique muda o papel. Mesmas classes nos dois visuais.
+      const df = vdcDiff[c];
+      if (df && df.chave === ctrCardChave(k)) {
+        h += `<div class="${sol ? 'fs-sub' : 'orc-note'}" data-vdc-diff="${c}" style="margin-top:8px">Os dados do cliente mudaram desde esta versão${df.rotulos.length ? ': ' + esc(df.rotulos.slice(0, 5).join(', ')) : ''}.</div>` +
+          `<div style="margin-top:8px"><button type="button" class="${btn}" onclick="vdcAtualizarDaFaixa('${c}')">Atualizar com os dados atuais do cliente</button></div>`;
+      }
     } else {
       h += `<div class="${sol ? 'fs-sub' : 'orc-note'}" style="margin-top:0">Este contrato não está ligado a um cliente: ele não fica salvo no card.</div>`;
     }
@@ -29442,7 +29463,20 @@ function ctrBuscaRender(c) {
 }
 function ctrCardEscolher(c, i) {
   const x = (CTR_VERS[c].achados || [])[i]; if (!x) return;
-  ctrCardSet(c, { linha: x.linha, codigo: x.codigo, nome: x.nome });
+  const novo = ctrCardNormal({ linha: x.linha, codigo: x.codigo, nome: x.nome }); if (!novo) return;
+  // Outro cliente: o que veio do cadastro do card anterior (identidade, terceiros, imóvel) não pode ficar na tela do novo.
+  const atual = ctrCardGet(c), origemAtual = c === 'sol' ? vdcOrigemFs : vdcOrigemEp;
+  const outro = (!!atual && ctrCardChave(atual) !== ctrCardChave(novo)) || (!!origemAtual && origemAtual !== ctrCardChave(novo));
+  const vendido = x.status === 'fechou';
+  // Outro cliente: esvazia ANTES de buscar o cadastro novo (vendido ou não); sem cadastro para aplicar, fica só o nome do card novo.
+  if (outro) vdcLimparDoCardAnterior(c, novo, vendido);
+  else ctrCardSet(c, novo);
+  // Card vendido: o cadastro dele entra sozinho em todos os papéis (o mesmo aplicar do "Confirmar"), sem navegar, tratando como OUTRO cliente.
+  // Enquanto não chega, o Gerar espera.
+  if (vendido) {
+    vdcPendente[c]++;
+    vdcAplicarDoCard(c, ctrCardGet(c), { toast: true, outroCliente: outro }).then(() => { vdcPendente[c] = Math.max(0, vdcPendente[c] - 1); });
+  }
 }
 
 async function ctrVersCarregar(c) {
@@ -29506,11 +29540,21 @@ function ctrTextoSeguro(t) {
   return x.split(CTR_SEG_A + 'lacuna' + CTR_SEG_B).join('<span class="ep-rec-vazio"></span>')
     .split(CTR_SEG_A).join('<').split(CTR_SEG_B).join('>');
 }
-function ctrSnapLimpo(v) {
+// Só estas chaves do snapshot têm texto que algum gerador joga CRU no HTML do papel (operações da IA, cláusulas extras e itens do escopo,
+// pagamentos, plano do híbrido, conversa do assistente, itens da proposta de banco e do pedido, dossiê). O resto (campos aplicados por
+// .value/.checked, e os que os geradores escapam com e()) passa sem escapar: "consumo > 100" volta igual.
+const CTR_SNAP_CRU = ['ctrIa', 'solIa', 'ctrEsc', 'ctrPag', 'ctrHib', 'ctrAg', 'itens', 'pags', 'bnkItens', 'eqPedido', 'ctrDos'];
+function ctrSnapLimpoTudo(v) {
   if (typeof v === 'string') return ctrTextoSeguro(v);
-  if (Array.isArray(v)) return v.map(ctrSnapLimpo);
-  if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach(k => { o[k] = ctrSnapLimpo(v[k]); }); return o; }
+  if (Array.isArray(v)) return v.map(ctrSnapLimpoTudo);
+  if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach(k => { o[k] = ctrSnapLimpoTudo(v[k]); }); return o; }
   return v;
+}
+function ctrSnapLimpo(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return ctrSnapLimpoTudo(v);
+  const o = {};
+  Object.keys(v).forEach(k => { o[k] = CTR_SNAP_CRU.indexOf(k) >= 0 ? ctrSnapLimpoTudo(v[k]) : v[k]; });
+  return o;
 }
 async function ctrVersAbrir(c, id) {
   const v = await ctrVersBuscar(c, id);
@@ -29597,7 +29641,7 @@ async function ctrVersEnviar(c, reg) {
       snap: reg.snap || {}, html: reg.html, arquivo: reg.arquivo || '', titulo: reg.titulo || '', opts: reg.opts || null, emit: reg.emit || null, emitSelo: reg.emitSelo || '',
     };
     // O servidor recusa acima de 4 MB: nem tenta enviar o que já se sabe que não cabe (4,3 MB de corpo ~ 4 MB em UTF-8 com folga).
-    if (JSON.stringify(corpo).length > CTR_VERS_MAX_CORPO) { if (typeof showToast === 'function') showToast('Este papel é grande demais para salvar no card; ele segue no histórico deste aparelho.'); return; }
+    if (new Blob([JSON.stringify(corpo)]).size > CTR_VERS_MAX_CORPO) { if (typeof showToast === 'function') showToast('Este papel é grande demais para salvar no card; ele segue no histórico deste aparelho.'); return; }
     const r = await vdcFetch(ctrVersRota(k), 'POST', corpo, 45000);
     if (r.status === 201 && r.json && r.json.ok) {
       if (typeof showToast === 'function') showToast('Salvo no card de ' + (k.nome || 'cliente') + '.');
@@ -29704,6 +29748,7 @@ function orcSnapApply(s, tipo) {
   // contrato (Pix, foro) voltam do proprio snapshot, entao nao se refaz o espelho aqui.
   EP_EMIT_SEL = epEmitIdOk(s.emitente) || 'aioros';
   try { epEmitBarAtualizar(); } catch (e) {}
+  vdcBase.ele = null; vdcDiff.ele = null;   // campos de uma versão salva: nada volta ao cadastro até alguém aplicar o cadastro de novo
   if (s.ctrCard) ctrCardSet('ele', s.ctrCard);   // papel de antes não traz o card: segue o que está ligado
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
   const setck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
@@ -31159,6 +31204,7 @@ let fsVistoKey = '';
 // Trocou de cliente: tudo que é DO cliente e a proposta não traz sai da tela, senão o papel sai
 // com o nome de B e o CPF e o endereço de A.
 function fsLimparCliente() {
+  vdcBase.sol = null; vdcDiff.sol = null; vdcOrigemFs = '';
   ctrCardSet('sol', null);   // outro cliente: o card ligado era do anterior
   ['fs-doc', 'fs-cep', 'fs-end', 'fs-bairro', 'fs-rep', 'fs-c-endinst', 'fs-r-endinst', 'fs-p-uc', 'fs-r-datactr', 'fs-c-num'].forEach(id => fsSet(id, '', true));
   fsSet('fs-tipo', 'PF', true);
@@ -31382,6 +31428,7 @@ function fsReabrirEntrada(h, cardDaVersao) {
     && !confirm(`Abrir o papel de ${cardPapel.nome || 'outro cliente'} troca o cliente ligado (${fsCardLigado.nome || 'outro cliente'}). Os campos dele saem da tela.\n\nContinuar?`)) return;
   // papel de ONTEM não traz os campos novos no snapshot: limpa antes, senão ficam os do cliente anterior
   fsLimparNovos();
+  vdcBase.sol = null; vdcDiff.sol = null;   // campos de uma versão salva: nada volta ao cadastro até alguém aplicar o cadastro de novo
   Object.keys(h.snap.campos || {}).forEach(k => { const el = fsEl(k); if (el) { el.value = h.snap.campos[k]; el.dataset.tocado = '1'; } });
   const host = fsEl('fs-r-pags'); if (host) host.innerHTML = '';
   (h.snap.pags && h.snap.pags.length ? h.snap.pags : [{}]).forEach(p => fsPagAdd(p));
@@ -31403,7 +31450,7 @@ function fsReabrirEntrada(h, cardDaVersao) {
   ctrIaRender();
   const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.' + (h.fotos > 0 ? ' As fotos ficam só na 2ª via.' : '');
   const av = fsEl('fs-v-fotos-aviso'); if (av) av.textContent = h.fotos > 0 ? 'As fotos ficam só na 2ª via. Este papel tinha ' + h.fotos + (h.fotos === 1 ? ' foto' : ' fotos') + ': adicione de novo se for imprimir outra vez.' : '';
-  if (cardPapel) ctrCardSet('sol', cardPapel);
+  if (cardPapel) { ctrCardSet('sol', cardPapel); vdcConferirVersao('sol'); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -32868,6 +32915,7 @@ function fsPreview(o) {
         ctrVersEnviar('sol', { tipo: o.tipo, rotulo: o.tipo, modelo: '', num: o.num || '', data: hojeBR, editado: !!r.editado, snap, html: r.html, arquivo: o.arquivo, titulo: o.titulo,
           opts: o.opts || null, emit: 'aioros', emitSelo: '', card: snap.fsCard });
       } catch (er) {}
+      try { vdcVoltaParaCadastro('sol'); } catch (er) {}   // Gerar: a identidade editada também vai para o cadastro do card
       epPapelGrava({ id, html: r.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts || null, editado: !!r.editado, em: new Date().toISOString() }).then(res => {
         if (res !== false) return;
         const aviso = 'Não deu para guardar a 2ª via neste aparelho. Baixe o PDF agora.';
@@ -38929,7 +38977,7 @@ function vdcPainel(st, leitura) {
     const c = document.createElement('div'); c.className = 'vdc-lin-c';
     const r = document.createElement('span'); r.className = 'vdc-lin-r'; r.textContent = rot;
     const a = document.createElement('span'); a.className = 'vdc-lin-a';
-    a.textContent = atual === '' ? 'Hoje: vazio' : 'Hoje: ' + atual + (fonte === 'manual' ? ' (digitado)' : fonte === 'ficha' ? ' (da ficha)' : fonte === 'ia' ? ' (lido antes)' : '');
+    a.textContent = atual === '' ? 'Hoje: vazio' : 'Hoje: ' + atual + (fonte === 'manual' ? ' (digitado)' : fonte === 'ficha' ? ' (da ficha)' : fonte === 'ia' ? ' (lido antes)' : fonte === 'contrato' ? ' (do contrato)' : '');
     const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'vdc-in'; inp.value = lido; inp.disabled = igual;
     inp.setAttribute('aria-label', 'Valor lido para ' + rot); inp.autocomplete = 'off';
     c.append(r, a, inp);
@@ -39170,14 +39218,21 @@ function aplicarCadastroEletroposto(cad, opts) {
   const nome = C.nome;
   const ausentes = [];
   // 1) sai do card, entra no eletroposto (o Simulador abre primeiro; a aba final vem no fim)
-  try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
-  navEletroposto();
+  // `quieto` (ligar o card pelo seletor, planilha, volta do contrato): não navega, não abre aba e não pinta a faixa; só garante os painéis montados.
+  const quieto = !!(opts && opts.quieto);
+  if (quieto) { try { orcInit(); } catch (e) {} }
+  else {
+    try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
+    navEletroposto();
+  }
   // 2) limpa o cliente anterior (e os terceiros dele, se o cliente é outro)
   // Mesmo cliente (reaplicar): nada é limpo, só se escreve o que o cadastro tem; o que alguém digitou e o cadastro não tem fica.
   const origem = (opts && opts.origem) || '';
   const outroCard = !!origem && !!vdcOrigemEp && vdcOrigemEp !== origem;
   // Editando uma pessoa do MESMO card o cliente é o mesmo: nada de esvaziar os terceiros. Formulário vindo de outro card: sempre "outro cliente".
-  const mudou = outroCard || (apagou.size ? false : vdcClienteMudou(C));
+  // `mesmoCliente` (reaplicar o cadastro do card JÁ ligado: planilha, contrato, "Atualizar com os dados atuais"): o cliente é o mesmo por
+  // definição, e o nome/CPF do formulário podem estar diferentes do cadastro de propósito. Nunca esvazia terceiros.
+  const mudou = (opts && opts.mesmoCliente) ? false : (outroCard || !!(opts && opts.outroCliente) || (apagou.size ? false : vdcClienteMudou(C)));
   if (origem) vdcOrigemEp = origem;
   let lim = { manteveQualif: false }, terceirosApagados = false;
   if (mudou) {
@@ -39196,7 +39251,10 @@ function aplicarCadastroEletroposto(cad, opts) {
   ctrAgCad = cad;
   // 3) escreve
   // `fontes`: as chaves do cadastro de onde vem o valor. Só quando a pessoa apagou uma delas (e o valor derivado ficou vazio) o campo é esvaziado.
+  // `preservar` (planilha mudou o cadastro enquanto há edição de identidade no contrato ainda não gerada): essas chaves não são escritas.
+  const preservar = (opts && opts.preservar instanceof Set) ? opts.preservar : new Set();
   const por = (ids, valor, fontes) => {
+    if (fontes && fontes.some((k) => preservar.has(k))) return;
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (!el) { ausentes.push(id); return; }
@@ -39212,37 +39270,16 @@ function aplicarCadastroEletroposto(cad, opts) {
       if (VDC_SEGUEM_A_FONTE.indexOf(id) >= 0) delete el.dataset.tocado;
     });
   };
-  const endCompleto = [C.endereco, C.bairro && C.endereco.toLowerCase().indexOf(C.bairro.toLowerCase()) < 0 ? C.bairro : ''].filter(Boolean).join(', ');
-  const cidadeUF = (sep) => C.cidade ? C.cidade + (C.uf ? sep + C.uf : '') : '';
   // Os campos de empresa (IE e representante) só são escritos para PJ; ao apagar, também saem se a pessoa era PJ antes da edição.
   const pjOuEra = tipo === 'PJ' || tipoAntes === 'PJ';
-  const dePJ = (v) => tipo === 'PJ' ? v : '';
-  por(['el-cliente', 'eq-cli-nome', 'rec-cli-nome', 'proc-outorgante', 'bnk-nome'], nome, ['nome']);
-  por(['orc-cli-doc', 'eq-cli-doc', 'rec-cli-doc', 'proc-outorgante-doc', 'bnk-doc'], C.cpf_cnpj, ['cpf_cnpj']);
-  if (pjOuEra) por(['orc-cli-ie', 'eq-cli-ie'], dePJ(C.rg_ie), ['rg_ie']);
-  por(['orc-cli-end', 'eq-cli-end', 'rec-cli-end', 'proc-outorgante-end'], endCompleto, ['endereco', 'bairro']);
-  por(['bnk-end'], C.endereco, ['endereco']);
-  por(['orc-cli-cep', 'bnk-cep'], C.cep, ['cep']);
-  por(['bnk-bairro'], C.bairro, ['bairro']);
-  por(['el-cidade'], cidadeUF('-'), ['cidade', 'uf']);
-  por(['eq-cli-cidade'], cidadeUF('/'), ['cidade', 'uf']);
-  por(['bnk-cidade'], C.cidade, ['cidade']);
-  por(['bnk-uf'], C.uf, ['uf']);
-  por(['orc-cli-tel', 'eq-cli-tel'], C.telefone, ['telefone']);
-  por(['orc-cli-email'], C.email, ['email']);
-  if (pjOuEra) {
-    por(['ctr-rep', 'proc-rep'], dePJ(C.rep_nome), ['rep_nome']);
-    por(['ctr-rep-doc', 'proc-rep-doc'], dePJ(C.rep_cpf), ['rep_cpf']);
-  }
-  por(['proc-uc'], C.unidade_consumidora, ['unidade_consumidora']);
-  por(['proc-concessionaria'], C.concessionaria, ['concessionaria']);
-  por(['proc-local'], C.endereco_ponto, ['endereco_ponto']);
+  // O MESMO mapa (VDC_MAPA_EP) que a volta do contrato para o cadastro lê ao contrário (vdcColetarVolta).
+  VDC_MAPA_EP.forEach((m) => { if (m.pj && !pjOuEra) return; por(m.ids, m.v(C, tipo), m.fontes); });
   // O local do ponto no contrato (a agenda e a ficha escrevem aqui e marcam como digitado). Entra o do cadastro quando o campo está
   // vazio, ainda segue o espelho, ou o cliente mudou. Sem endereço do ponto e cliente novo, solta o do cliente anterior.
   const loc = document.getElementById('ctr-local');
   if (!loc) ausentes.push('ctr-local');
   else if (C.endereco_ponto) {
-    if (mudou || loc.dataset.tocado !== '1' || loc.value.trim() === '') { loc.value = C.endereco_ponto; vdcDispara(loc); }
+    if (mudou || (opts && opts.atualizar) || (loc.dataset.tocado !== '1' || loc.value.trim() === '') && !preservar.has('endereco_ponto')) { loc.value = C.endereco_ponto; vdcDispara(loc); if (opts && opts.atualizar) delete loc.dataset.tocado; }
   } else if (mudou || apagou.has('endereco_ponto')) { loc.value = ''; if (apagou.has('endereco_ponto')) vdcDispara(loc); delete loc.dataset.tocado; }
   // qualificação civil (pessoa física): sai na frase do contratante, antes do CPF
   const q = document.getElementById('ctr-qualif');
@@ -39273,10 +39310,8 @@ function aplicarCadastroEletroposto(cad, opts) {
     };
   };
   // De quais chaves do cadastro (sem o prefixo da pessoa) vem cada campo do contrato.
-  const FONTES_PESSOA = { nome: ['nome'], doc: ['cpf_cnpj'], rg: ['rg_ie', 'orgao_emissor'], qualif: ['nacionalidade', 'estado_civil', 'profissao'],
-    end: ['endereco', 'bairro', 'cidade', 'uf'], cep: ['cep'], tel: ['telefone'], email: ['email'] };
   const escrevePessoa = (p, o) => {
-    ['nome', 'doc', 'rg', 'qualif', 'end', 'cep', 'tel', 'email'].forEach((c) => por(['ctr-' + p + '-' + c], o[c], FONTES_PESSOA[c].map(k => p + '_' + k)));
+    Object.keys(VDC_PESSOA_MAPA).forEach((c) => por(['ctr-' + p + '-' + c], o[c], VDC_PESSOA_MAPA[c].fontes.map(k => p + '_' + k)));
   };
   // Pessoa sem nome no cadastro não é escrita; mas se a pessoa apagou algo dela, os campos que vinham dali saem do contrato.
   const apagouPessoa = (p) => [...apagou].some(k => k.indexOf(p + '_') === 0);
@@ -39311,18 +39346,23 @@ function aplicarCadastroEletroposto(cad, opts) {
     else if (tem.value !== 'sim') { tem.value = 'sim'; vdcDispara(tem); }
   }
   // Imóvel: o que a pessoa digitou fica; entra o do cadastro onde está vazio (ou quando o cliente mudou e o campo já foi esvaziado).
-  const fonteImovel = { 'ctr-ta-matricula': 'imovel_matricula', 'ctr-ta-cartorio': 'imovel_cartorio', 'ctr-ta-iptu': 'imovel_iptu' };
-  [['ctr-ta-matricula', C.imovel_matricula], ['ctr-ta-cartorio', C.imovel_cartorio], ['ctr-ta-iptu', C.imovel_iptu]].forEach(([id, v]) => {
+  const fonteImovel = VDC_IMOVEL_MAPA;
+  Object.keys(VDC_IMOVEL_MAPA).map((id) => [id, C[VDC_IMOVEL_MAPA[id]]]).forEach(([id, v]) => {
     const el = document.getElementById(id);
     if (!el) { ausentes.push(id); return; }
+    if (preservar.has(fonteImovel[id])) return;
     if (v && (mudou || el.value.trim() === '')) { el.value = v; vdcDispara(el); }
     else if (!v && fonteImovel[id] && apagou.has(fonteImovel[id])) { el.value = el.defaultValue || ''; vdcDispara(el); delete el.dataset.tocado; delete el.dataset.manual; delete el.dataset.auto; }
   });
   // 4) os espelhos do contrato voltam a seguir a fonte (sem eventos: o ouvinte deles os marcaria como digitados)
-  if (mudou) VDC_ESPELHOS_IDENTIDADE.forEach((id) => { const el = document.getElementById(id); if (el) delete el.dataset.tocado; });
+  // "Atualizar com os dados atuais" (versão reaberta): os espelhos que a versão deixou como digitados voltam a seguir a fonte; senão o papel sai com o dado velho.
+  const atualizar = !!(opts && opts.atualizar);
+  if (mudou || atualizar) VDC_ESPELHOS_IDENTIDADE.forEach((id) => { const el = document.getElementById(id); if (el) delete el.dataset.tocado; });
   // 5) leva para os Contratos e avisa
-  eletroSubaba('contrato');
+  if (!quieto) eletroSubaba('contrato');
   try { if (typeof ctrEspSync === 'function') ctrEspSync(); if (typeof ctrResumo === 'function') ctrResumo(); } catch (e) {}
+  vdcDiff.ele = null;
+  if (origem) vdcBaseTirarEp(origem, C, tipo, cad);   // o que está nos formulários agora é "o que o cadastro disse": a volta só leva o que mudar depois disto
   const faltando = (Array.isArray(cad && cad.faltando) ? cad.faltando : []).filter(k => VDC_ROT[k] && (tipo === 'PJ' || k.indexOf('rep_') !== 0)).map(k => VDC_ROT[k]);
   let msg = 'Contratos preenchidos com o cadastro de ' + (nome || 'cliente sem nome') + '. '
     + (faltando.length ? 'Faltando: ' + faltando.join(', ') + '.' : 'Tudo preenchido.');
@@ -39331,8 +39371,8 @@ function aplicarCadastroEletroposto(cad, opts) {
   if (lim.manteveQualif) msg += ' A qualificação do contratante já tinha texto digitado e foi mantida: confira.';
   // Cedente no cadastro e o arrendamento no modo da NEXUS: os campos do cedente ficam prontos para quando trocar o modo.
   if (C.ced_nome && !cessCliente) msg += ' Dados do cedente prontos: eles entram quando escolher O cliente é o cessionário.';
-  vdcAvisar(msg);
-  showToast('Contratos preenchidos com o cadastro de ' + (nome || 'cliente'));
+  if (!quieto) { vdcAvisar(msg); showToast('Contratos preenchidos com o cadastro de ' + (nome || 'cliente')); }
+  else if (opts && opts.toast) showToast(opts.toast === true ? 'Dados de ' + (nome || 'cliente') + ' aplicados nos papéis.' : opts.toast);
   if (ausentes.length) console.warn('cadastro: campos que não existem na tela: ' + Array.from(new Set(ausentes)).join(', '));
   return { faltando, ausentes: Array.from(new Set(ausentes)) };
 }
@@ -39348,6 +39388,337 @@ function vdcFmtDoc(v) {
   return String(v == null ? '' : v).trim();
 }
 const vdcFmtCep = (v) => { const d = vdcDigitos(v); return d.length === 8 ? d.replace(/(\d{5})(\d{3})/, '$1-$2') : String(v == null ? '' : v).trim(); };
+
+// ═══ Um cadastro, vários papéis (21/10/2026, entrega 2 de 2) ═══════════════════════════════════════════════════════════════
+// REGRAS DO PRODUTO (decididas pelo dono):
+//  1. Identidade do cliente e de terceiros (nome, CPF/CNPJ, RG/IE, contato, e-mail, endereço, CEP, cidade, UF, endereço do ponto, UC,
+//     concessionária, titular da conta, cedente, avalista, imóvel; no solar `tuc_*` e `fin_*`): com card ligado vem do CADASTRO e vale mais
+//     que o Simulador/Orçamento (`orc-cli-*`).
+//  2. Números do negócio (valor, sinal, parcelas, kit, potência, prazos) vêm do orçamento/simulador e do snapshot: NUNCA do cadastro e NUNCA
+//     para o cadastro. Por isso os mapas abaixo só listam campos de identidade: o que não está neles não anda em sentido nenhum.
+//  3. Reabrir uma versão salva mostra os campos como foram salvos; se o cadastro atual difere na identidade, a faixa "Os dados do cliente
+//     mudaram desde esta versão" oferece o botão que aplica o cadastro. Nada muda sem o clique.
+//  4. Toda via (aplicar, gravar de volta, postMessage da planilha) é travada pelo card ligado: `ctrCardLigado`/`fsCardLigado`, a origem do
+//     formulário (`vdcOrigemEp`/`vdcOrigemFs`) e a base (`vdcBase`) têm de ser do MESMO card, senão não escreve em lugar nenhum.
+//
+// UM mapa só: o `aplicarCadastro*` o lê para ESCREVER nos formulários, `vdcColetarVolta` o lê ao contrário para levar ao cadastro o que a
+// pessoa editou no contrato, e `vdcDiffEp`/`vdcDiffSol` o leem para comparar uma versão salva com o cadastro de agora.
+// `ids`: onde o aplicar escreve. `esp`: espelhos do contrato (seguem a fonte; só a volta os lê, porque é neles que se digita).
+// `v(C, tipo)`: o texto que o cadastro dá. `volta(texto, C)`: as chaves do cadastro que o texto editado representa.
+// Texto do endereço do comprador ("rua, bairro") ao contrário: termina no bairro do cadastro -> tira; termina em OUTRO bairro (sem número) -> rua e
+// bairro separados; sem bairro no cadastro, ou fim com número ("Apto 12"), o texto todo é a rua. Nunca junta "rua, bairro novo, bairro velho".
+const vdcEnderecoDe = (t, C) => {
+  const b = C.bairro || '';
+  if (b && t.toLowerCase().endsWith(', ' + b.toLowerCase())) return { endereco: t.slice(0, t.length - b.length - 2).trim() };
+  const i = t.lastIndexOf(',');
+  if (b && i > 0) {
+    const ini = t.slice(0, i).trim(), resto = t.slice(i + 1).trim();
+    if (ini && resto && !/\d/.test(resto)) return { endereco: ini, bairro: resto };
+  }
+  return { endereco: t };
+};
+const vdcDigitado = (id) => { const el = document.getElementById(id); return !!el && !!el.dataset && el.dataset.tocado === '1'; };
+const vdcCidadeDe = (t) => { const m = /^(.+?)\s*[-/]\s*([A-Za-z]{2})$/.exec(t); return m ? { cidade: m[1].trim(), uf: m[2].toUpperCase() } : { cidade: t }; };
+const VDC_MAPA_EP = [
+  { ids: ['el-cliente', 'eq-cli-nome', 'rec-cli-nome', 'proc-outorgante', 'bnk-nome'], esp: ['ctr-contratante'], fontes: ['nome'], v: (C) => C.nome, volta: (t) => ({ nome: t }) },
+  { ids: ['orc-cli-doc', 'eq-cli-doc', 'rec-cli-doc', 'proc-outorgante-doc', 'bnk-doc'], esp: ['ctr-contratante-doc'], fontes: ['cpf_cnpj'], dig: true, v: (C) => C.cpf_cnpj, volta: (t) => ({ cpf_cnpj: t }) },
+  { ids: ['orc-cli-ie', 'eq-cli-ie'], esp: ['ctr-contratante-ie'], pj: true, fontes: ['rg_ie'], v: (C, tipo) => tipo === 'PJ' ? C.rg_ie : '', volta: (t) => ({ rg_ie: t }) },
+  // Endereço do comprador: "rua, bairro". Ao contrário, o bairro do cadastro sai do fim do texto; sem ele, o texto todo é a rua.
+  { ids: ['orc-cli-end', 'eq-cli-end', 'rec-cli-end', 'proc-outorgante-end'], esp: ['ctr-contratante-end'], fontes: ['endereco', 'bairro'],
+    v: (C) => [C.endereco, C.bairro && C.endereco.toLowerCase().indexOf(C.bairro.toLowerCase()) < 0 ? C.bairro : ''].filter(Boolean).join(', '), volta: vdcEnderecoDe },
+  { ids: ['bnk-end'], fontes: ['endereco'], v: (C) => C.endereco, volta: (t) => ({ endereco: t }) },
+  { ids: ['orc-cli-cep', 'bnk-cep'], esp: ['ctr-contratante-cep'], fontes: ['cep'], dig: true, v: (C) => C.cep, volta: (t) => ({ cep: t }) },
+  { ids: ['bnk-bairro'], fontes: ['bairro'], v: (C) => C.bairro, volta: (t) => ({ bairro: t }) },
+  { ids: ['el-cidade'], esp: ['ctr-cidade'], fontes: ['cidade', 'uf'], v: (C) => C.cidade ? C.cidade + (C.uf ? '-' + C.uf : '') : '', volta: (t) => vdcCidadeDe(t) },
+  { ids: ['eq-cli-cidade'], fontes: ['cidade', 'uf'], v: (C) => C.cidade ? C.cidade + (C.uf ? '/' + C.uf : '') : '', volta: (t) => vdcCidadeDe(t) },
+  { ids: ['bnk-cidade'], fontes: ['cidade'], v: (C) => C.cidade, volta: (t) => ({ cidade: t }) },
+  { ids: ['bnk-uf'], fontes: ['uf'], v: (C) => C.uf, volta: (t) => ({ uf: t.toUpperCase() }) },
+  { ids: ['orc-cli-tel', 'eq-cli-tel'], esp: ['ctr-contratante-tel'], fontes: ['telefone'], dig: true, v: (C) => C.telefone, volta: (t) => ({ telefone: t }) },
+  { ids: ['orc-cli-email'], esp: ['ctr-contratante-email'], fontes: ['email'], v: (C) => C.email, volta: (t) => ({ email: t }) },
+  { ids: ['ctr-rep', 'proc-rep'], pj: true, fontes: ['rep_nome'], v: (C, tipo) => tipo === 'PJ' ? C.rep_nome : '', volta: (t) => ({ rep_nome: t }) },
+  { ids: ['ctr-rep-doc', 'proc-rep-doc'], pj: true, fontes: ['rep_cpf'], dig: true, v: (C, tipo) => tipo === 'PJ' ? C.rep_cpf : '', volta: (t) => ({ rep_cpf: t }) },
+  { ids: ['proc-uc'], esp: ['ctr-ta-uc'], fontes: ['unidade_consumidora'], v: (C) => C.unidade_consumidora, volta: (t) => ({ unidade_consumidora: t }) },
+  { ids: ['proc-concessionaria'], esp: ['ctr-ta-distribuidora'], fontes: ['concessionaria'], v: (C) => C.concessionaria, volta: (t) => ({ concessionaria: t }) },
+  // `ctr-local` tem regra própria no aplicar (só entra se vazio, espelho ou cliente novo): aqui só a volta o lê.
+  { ids: ['proc-local'], esp: ['ctr-local'], fontes: ['endereco_ponto'], v: (C) => C.endereco_ponto, volta: (t) => ({ endereco_ponto: t }) },
+];
+// Cedente (dono do ponto) e avalista no contrato: `ctr-<ced|aval>-<campo>`. `chave`: o campo do cadastro quando a volta é possível; rg,
+// qualificação e endereço são montados de vários campos e não voltam.
+const VDC_PESSOA_MAPA = {
+  nome: { fontes: ['nome'], chave: 'nome' }, doc: { fontes: ['cpf_cnpj'], chave: 'cpf_cnpj', dig: true }, rg: { fontes: ['rg_ie', 'orgao_emissor'] },
+  qualif: { fontes: ['nacionalidade', 'estado_civil', 'profissao'] }, end: { fontes: ['endereco', 'bairro', 'cidade', 'uf'] },
+  cep: { fontes: ['cep'], chave: 'cep', dig: true }, tel: { fontes: ['telefone'], chave: 'telefone', dig: true }, email: { fontes: ['email'], chave: 'email' },
+};
+const VDC_IMOVEL_MAPA = { 'ctr-ta-matricula': 'imovel_matricula', 'ctr-ta-cartorio': 'imovel_cartorio', 'ctr-ta-iptu': 'imovel_iptu' };
+// Fechamento solar: `pf` = só pessoa física (para empresa vai vazio). Os compostos (representante, RG+órgão, qualificação, endereço do
+// titular) são montados de vários campos e ficam no aplicar, sem volta.
+const vdcFoneFmt = (v) => epFoneBR(v) || v;
+const VDC_MAPA_SOL = [
+  { id: 'fs-nome', chave: 'nome' }, { id: 'fs-doc', chave: 'cpf_cnpj', fmt: vdcFmtDoc, dig: true },
+  { id: 'fs-rg', chave: 'rg_ie', pf: true }, { id: 'fs-orgao', chave: 'orgao_emissor', pf: true }, { id: 'fs-nacionalidade', chave: 'nacionalidade', pf: true },
+  { id: 'fs-estado-civil', chave: 'estado_civil', pf: true }, { id: 'fs-profissao', chave: 'profissao', pf: true },
+  { id: 'fs-cep', chave: 'cep', fmt: vdcFmtCep, dig: true }, { id: 'fs-tel', chave: 'telefone', fmt: vdcFoneFmt, dig: true },
+  { id: 'fs-end', chave: 'endereco' }, { id: 'fs-bairro', chave: 'bairro' }, { id: 'fs-cidade', chave: 'cidade' }, { id: 'fs-uf', chave: 'uf', fmt: (v) => v.toUpperCase() },
+  { id: 'fs-p-uc', chave: 'unidade_consumidora' }, { id: 'fs-p-conc', chave: 'concessionaria' }, { id: 'fs-c-endinst', chave: 'endereco_ponto' },
+];
+const VDC_MAPA_SOL_TUC = [{ id: 'fs-p-tuc-nome', chave: 'tuc_nome' }, { id: 'fs-p-tuc-doc', chave: 'tuc_cpf_cnpj', fmt: vdcFmtDoc, dig: true }];
+const VDC_MAPA_SOL_FIN = [
+  { id: 'fs-b-fin-nome', chave: 'fin_nome' }, { id: 'fs-b-fin-doc', chave: 'fin_cpf_cnpj', fmt: vdcFmtDoc, dig: true }, { id: 'fs-b-fin-cep', chave: 'fin_cep', fmt: vdcFmtCep, dig: true },
+  { id: 'fs-b-fin-tel', chave: 'fin_telefone', fmt: vdcFoneFmt, dig: true }, { id: 'fs-b-fin-email', chave: 'fin_email' },
+];
+const VDC_MAPA_SOL_TODOS = [...VDC_MAPA_SOL, ...VDC_MAPA_SOL_TUC, ...VDC_MAPA_SOL_FIN];
+
+const vdcTexto = (id) => { const el = document.getElementById(id); return el && el.value != null ? String(el.value).trim() : null; };
+function vdcIdsEp() {
+  const s = [];
+  VDC_MAPA_EP.forEach((m) => { (m.esp || []).forEach((i) => s.push(i)); m.ids.forEach((i) => s.push(i)); });
+  ['ced', 'aval'].forEach((p) => Object.keys(VDC_PESSOA_MAPA).forEach((c) => { if (VDC_PESSOA_MAPA[c].chave) s.push('ctr-' + p + '-' + c); }));
+  Object.keys(VDC_IMOVEL_MAPA).forEach((i) => s.push(i));
+  return s;
+}
+function vdcValoresDe(ids) { const o = {}; ids.forEach((id) => { const t = vdcTexto(id); if (t !== null) o[id] = t; }); return o; }
+/** Logo depois de aplicar o cadastro: o que está nos formulários é "o que o cadastro disse". A volta só leva o que mudar a partir daqui. */
+/** O instante mais novo que o cadastro mostra (ISO), para o `base_em` da volta: gravação de outra pessoa depois dele é conflito. */
+function vdcEmDe(cad) {
+  let mx = 0;
+  Object.values((cad && cad.campos) || {}).forEach((g) => { const t = Date.parse(g && g.em); if (t > mx) mx = t; });
+  return mx ? new Date(mx).toISOString() : '';
+}
+function vdcBaseTirarEp(origem, C, tipo, cad) { vdcBase.ele = { origem, tipo, em: vdcEmDe(cad), C: Object.assign({}, C), vals: vdcValoresDe(vdcIdsEp()) }; }
+function vdcBaseTirarSol(origem, C, tipo, cad) { vdcBase.sol = { origem, tipo, em: vdcEmDe(cad), C: Object.assign({}, C), vals: vdcValoresDe(VDC_MAPA_SOL_TODOS.map((m) => m.id)) }; }
+
+/** As chaves do cadastro que a pessoa EDITOU nos formulários desde a última aplicação (vazio não conta: apagar um campo não apaga o cadastro). */
+function vdcColetarVolta(c, idsOut) {
+  const base = vdcBase[c], out = {};
+  const marca = (ids) => { if (Array.isArray(idsOut)) ids.forEach((i) => idsOut.push(i)); };
+  if (!base) return out;
+  const mudou = (id) => { const t = vdcTexto(id); return t && Object.prototype.hasOwnProperty.call(base.vals, id) && t !== base.vals[id] ? t : ''; };
+  // Espelho do contrato (`esp`) SEGUE a fonte enquanto ninguém digita nele (troca de modelo, edição na cidade...): só vale como edição se
+  // `dataset.tocado === '1'`, que o ouvinte de `input` põe quando a pessoa digita. Senão o valor derivado iria para o cadastro como se fosse digitado.
+  const digitado = vdcDigitado;
+  const poe = (o) => Object.keys(o).forEach((k) => { if (o[k] && !(k in out)) out[k] = o[k]; });
+  if (c === 'ele') {
+    VDC_MAPA_EP.forEach((m) => {
+      if (m.pj && base.tipo !== 'PJ') return;
+      const mud = [...(m.esp || []).filter(digitado), ...m.ids].filter((i) => mudou(i));   // o espelho digitado primeiro: é no contrato que se digita
+      if (mud.length) { marca(mud); poe(m.volta(mudou(mud[0]), base.C)); }
+    });
+    ['ced', 'aval'].forEach((p) => Object.keys(VDC_PESSOA_MAPA).forEach((k) => {
+      const mp = VDC_PESSOA_MAPA[k], t = mp.chave ? mudou('ctr-' + p + '-' + k) : '';
+      if (t) { marca(['ctr-' + p + '-' + k]); poe({ [p + '_' + mp.chave]: t }); }
+    }));
+    Object.keys(VDC_IMOVEL_MAPA).forEach((id) => { const t = mudou(id); if (t) { marca([id]); poe({ [VDC_IMOVEL_MAPA[id]]: t }); } });
+  } else {
+    VDC_MAPA_SOL_TODOS.forEach((m) => {
+      if (m.pf && base.tipo === 'PJ') return;
+      const t = mudou(m.id);
+      if (t) poe({ [m.chave]: m.chave === 'uf' ? t.toUpperCase() : t });
+    });
+  }
+  return out;
+}
+const vdcRotulosVolta = (campos) => {
+  const r = Object.keys(campos).map((k) => String(VDC_ROT[k] || VDC_SOL_ROT[k] || vdcRotuloLivre(k)).toLowerCase());
+  return r.slice(0, 4).join(', ') + (r.length > 4 ? ' e mais ' + (r.length - 4) : '');
+};
+
+/** O cadastro do card `k` (GET), no formato que o aplicar espera. Nulo: card não vendido, sem acesso ou sem rede (nunca lança). */
+async function vdcLerCadDoCard(c, k, comVinc) {
+  const linha = c === 'sol' ? 'vendasolar' : 'eletroposto';
+  if (!k || k.linha !== linha) return null;
+  const st = { id: k.codigo, cfg: VDC_CFG[linha], cad: null, aviso: '', analise: null, vinc: null };
+  const r = await vdcChamar(st, 'GET', '/cadastro');
+  if (!(r && r.status === 200 && r.json && r.json.ok !== false && r.json.cadastro)) return null;
+  st.cad = r.json.cadastro;
+  if (c === 'sol') { st.analise = vdcAnaliseDe(r.json); vdcGuardaExtras(st, r.json); st.aviso = ''; if (comVinc) await vdcLerVinc(st); }
+  return st;
+}
+/** Busca o cadastro do card e aplica NA HORA, sem navegar. Só se o card ligado ainda é `k` quando a resposta chega. */
+async function vdcAplicarDoCard(c, k, opts) {
+  try {
+    const chave = ctrCardChave(k);
+    const st = await vdcLerCadDoCard(c, k, true);
+    if (!st || ctrCardChave(ctrCardGet(c)) !== chave) return false;
+    st.cfg.aplicar(st.cad, st, Object.assign({}, opts, { origem: chave, quieto: true }));
+    return true;
+  } catch (e) { console.error('cadastro: não consegui aplicar o cadastro do card', e); return false; }
+}
+
+/**
+ * Depois de gravar no cadastro: escreve nos OUTROS papéis só as chaves que acabaram de ser gravadas (o mesmo mapa), sem reaplicar o cadastro
+ * inteiro. Reaplicar tudo esvaziaria titular, financiamento e terceiros que a pessoa digitou à mão e que não voltam ao cadastro.
+ * No Fechamento solar cada `fs-*` já é a fonte única de todos os papéis: só a base é refeita.
+ */
+function vdcPropagarVolta(c, chave, cad, escritas) {
+  try {
+    if (ctrCardChave(ctrCardGet(c)) !== chave) return;
+    const esc = new Set(escritas);
+    if (c === 'sol') {
+      const C = {}; VDC_SOL_TODOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+      vdcBaseTirarSol(chave, C, vdcTipo(cad), cad);
+      return;
+    }
+    const C = {}; VDC_CAMPOS.forEach(([k]) => { C[k] = vdcV(cad, k); }); VDC_EXTRAS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+    const tipo = vdcTipo(cad);
+    const poe = (id, v) => {
+      const el = document.getElementById(id);
+      if (!el || !v || String(el.value) === v) return;
+      el.value = v; vdcDispara(el);
+      if (VDC_SEGUEM_A_FONTE.indexOf(id) >= 0) delete el.dataset.tocado;
+    };
+    VDC_MAPA_EP.forEach((m) => {
+      if ((m.pj && tipo !== 'PJ') || !m.fontes.some((f) => esc.has(f))) return;
+      const v = m.v(C, tipo);
+      m.ids.forEach((id) => poe(id, v));
+    });
+    ['ced', 'aval'].forEach((p) => Object.keys(VDC_PESSOA_MAPA).forEach((k) => {
+      const mp = VDC_PESSOA_MAPA[k];
+      if (mp.chave && esc.has(p + '_' + mp.chave)) poe('ctr-' + p + '-' + k, C[p + '_' + mp.chave]);
+    }));
+    Object.keys(VDC_IMOVEL_MAPA).forEach((id) => { if (esc.has(VDC_IMOVEL_MAPA[id])) poe(id, C[VDC_IMOVEL_MAPA[id]]); });
+    ctrAgCad = cad;
+    try { ctrEspSync(); ctrResumo(); } catch (e) {}
+    vdcBaseTirarEp(chave, C, tipo, cad);
+  } catch (e) { console.error('cadastro: não consegui propagar o que voltou', e); }
+}
+
+/**
+ * Trocou para OUTRO card sem cadastro para aplicar (não vendido): esvazia no eletroposto ou no Fechamento a identidade, os terceiros e o imóvel
+ * que vieram do cadastro do card anterior (o mesmo mapa), deixa só o nome do card novo e liga o card novo. Números do negócio não são tocados.
+ */
+function vdcLimparDoCardAnterior(c, novo, carregando) {
+  try {
+    if (c === 'sol') {
+      fsLimparCliente();   // desliga o card (ctrCardSet null), esvazia documento, endereço e o assistente
+      VDC_MAPA_SOL_TODOS.forEach((m) => fsSet(m.id, '', true));
+      ['fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end'].concat(FS_B_FIN).forEach((id) => fsSet(id, '', true));
+      fsSet('fs-nome', novo.nome || '', true);
+      vdcOrigemFs = '';
+    } else {
+      epLimparIdentidade(); vdcLimparTerceiros(); vdcLimparImovel();
+      const loc = document.getElementById('ctr-local'); if (loc) { loc.value = ''; delete loc.dataset.tocado; }
+      const cli = document.getElementById('el-cliente'); if (cli) { cli.value = novo.nome || ''; vdcDispara(cli); }
+      ctrAgZerar(undefined, 'ele'); ctrAgCad = null;
+      vdcOrigemEp = '';
+      try { ctrEspSync(); ctrResumo(); } catch (e) {}
+    }
+    vdcBase[c] = null; vdcDiff[c] = null;
+    ctrCardSet(c, novo);
+    showToast(carregando ? 'Dados do cliente anterior foram limpos; carregando os dados do novo cliente…' : 'Dados do cliente anterior foram limpos; preencha os do novo cliente.');
+  } catch (e) { console.error('cadastro: não consegui limpar os dados do cliente anterior', e); ctrCardSet(c, novo); }
+}
+
+/** Gerar: leva ao cadastro do card ligado o que a pessoa editou na identidade. Só no Gerar, só com o formulário vindo DESTE card. Nunca lança. */
+async function vdcVoltaParaCadastro(c) {
+  try {
+    const k = ctrCardGet(c), base = vdcBase[c];
+    if (!k || !base) return;
+    const chave = ctrCardChave(k), linha = c === 'sol' ? 'vendasolar' : 'eletroposto';
+    if (k.linha !== linha || base.origem !== chave || (c === 'sol' ? vdcOrigemFs : vdcOrigemEp) !== chave) return;
+    let campos = vdcColetarVolta(c);
+    if (!Object.keys(campos).length) return;
+    const st = { id: k.codigo, cfg: VDC_CFG[linha] };
+    const baseEm = base.em ? { base_em: base.em } : {};   // gravação de outra pessoa depois da leitura vira 409, nunca sobrescrita calada
+    let r = await vdcChamar(st, 'PUT', '/cadastro', { campos, fonte: 'contrato', ...baseEm });
+    let recusados = [];
+    // O servidor valida tudo antes de gravar: um valor recusado (CPF com dígito errado) derruba a leva. Tira o recusado e tenta de novo.
+    if (r.status === 400 && r.json && r.json.erros && typeof r.json.erros === 'object') {
+      recusados = Object.keys(r.json.erros);
+      campos = Object.fromEntries(Object.entries(campos).filter(([kk]) => recusados.indexOf(kk) < 0));
+      r = Object.keys(campos).length ? await vdcChamar(st, 'PUT', '/cadastro', { campos, fonte: 'contrato', ...baseEm }) : null;
+    }
+    if (ctrCardChave(ctrCardGet(c)) !== chave) return;   // trocou de cliente no meio: nada do que voltou é desta tela
+    if (r && r.status === 409) {
+      const cf = r.json && Array.isArray(r.json.conflitos) ? vdcRotulosVolta(Object.fromEntries(r.json.conflitos.map((x) => [x, 1]))) : '';
+      showToast('Outra pessoa alterou o cadastro deste cliente' + (cf ? ' (' + cf + ')' : '') + ' e o que você editou não foi gravado. Confira os dados do cliente.');
+      return;
+    }
+    const rec = vdcRotulosVolta(Object.fromEntries(recusados.map((x) => [x, 1])));
+    if (r && r.status === 200 && r.json && r.json.ok !== false && r.json.cadastro) {
+      showToast('Atualizado no cadastro do cliente: ' + vdcRotulosVolta(campos) + '.' + (recusados.length ? ' Não aceitos pelo cadastro: ' + rec + '.' : ''));
+      vdcPropagarVolta(c, chave, r.json.cadastro, Object.keys(campos));   // os outros papéis recebem o dado novo (só estas chaves)
+      if (c === 'ele') vdcPlanilhaAvisar(k);
+    } else showToast('Não consegui atualizar o cadastro do cliente' + (recusados.length ? ': ' + rec + ' não foi aceito' : ' agora') + '. O papel saiu normalmente.');
+  } catch (e) { /* o Gerar nunca espera por isto */ }
+}
+
+/** Avisa a planilha (iframe do Eletroposto, se aberta) que o cadastro deste card mudou por aqui: ela recarrega. */
+function vdcPlanilhaAvisar(k) {
+  try {
+    if (!k || k.linha !== 'eletroposto') return;
+    const f = document.getElementById('planilha-eletro-frame');
+    if (f && f.getAttribute && f.getAttribute('src') && f.contentWindow) f.contentWindow.postMessage({ tipo: 'cadastro-recarregar', linha: k.linha, codigo: String(k.codigo) }, location.origin);
+  } catch (e) {}
+}
+/** A planilha (mesma origem, o iframe do Eletroposto) salvou o cadastro de um card: se é o card ligado, reaplica. De qualquer outro, ignora. */
+function vdcMsgPlanilha(ev) {
+  try {
+    if (!ev || ev.origin !== location.origin) return;
+    const f = document.getElementById('planilha-eletro-frame');
+    if (!f || !f.contentWindow || ev.source !== f.contentWindow) return;
+    const d = ev.data;
+    if (!d || d.tipo !== 'cadastro-atualizado' || d.linha !== 'eletroposto' || !/^\d{1,12}$/.test(String(d.codigo))) return;
+    const k = ctrCardLigado, chave = 'eletroposto:' + String(Number(d.codigo));
+    if (!k || ctrCardChave(k) !== chave || vdcOrigemEp !== chave) return;   // outro card (ou formulário de outro card): não toca em nada
+    // Edição de identidade no contrato ainda não gerada: a planilha não sobrescreve calada. As chaves editadas ficam como estão (e continuam
+    // "editadas" para o Gerar levar ao cadastro); o resto recebe o que a planilha mudou.
+    const ids = [], editadas = vdcColetarVolta('ele', ids), preservar = new Set(Object.keys(editadas)), antes = vdcBase.ele;
+    vdcAplicarDoCard('ele', k, { mesmoCliente: true, preservar }).then((ok) => {
+      if (!ok || !preservar.size || !antes || !vdcBase.ele || vdcBase.ele.origem !== chave) return;
+      ids.forEach((id) => { if (Object.prototype.hasOwnProperty.call(antes.vals, id)) vdcBase.ele.vals[id] = antes.vals[id]; });
+      showToast('A planilha mudou dados do cliente; o que você editou no contrato foi mantido.');
+    });
+  } catch (e) {}
+}
+window.addEventListener('message', vdcMsgPlanilha);
+
+// Versão reaberta: compara a identidade que está na tela (como foi salva) com o cadastro de agora. Só mostra a faixa; não muda nada.
+function vdcDiffEp(cad) {
+  const C = {}; VDC_CAMPOS.forEach(([k]) => { C[k] = vdcV(cad, k); }); VDC_EXTRAS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+  const tipo = vdcTipo(cad), rot = [];
+  const difere = (esp, cur, dig) => !!esp && !!cur && (dig ? vdcDigitos(esp) !== vdcDigitos(cur) : vdcNorm(esp) !== vdcNorm(cur));
+  VDC_MAPA_EP.forEach((m) => {
+    if (m.pj && tipo !== 'PJ') return;
+    // Também o que foi digitado direto no espelho do contrato (versão que não passou pelo Simulador).
+    const curs = [m.ids.map((i) => vdcTexto(i) || '').find(Boolean), ...(m.esp || []).filter(vdcDigitado).map((i) => vdcTexto(i) || '')];
+    if (curs.some((cur) => difere(m.v(C, tipo), cur, m.dig))) rot.push(VDC_ROT[m.fontes[0]] || m.fontes[0]);
+  });
+  ['ced', 'aval'].forEach((p) => Object.keys(VDC_PESSOA_MAPA).forEach((k) => {
+    const mp = VDC_PESSOA_MAPA[k];
+    if (mp.chave && difere(C[p + '_' + mp.chave], vdcTexto('ctr-' + p + '-' + k), mp.dig)) rot.push(VDC_ROT[p + '_' + mp.chave]);
+  }));
+  return Array.from(new Set(rot));
+}
+function vdcDiffSol(cad) {
+  const C = {}; VDC_SOL_TODOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
+  const tipo = vdcTipo(cad), rot = [];
+  VDC_MAPA_SOL_TODOS.forEach((m) => {
+    if (m.pf && tipo === 'PJ') return;
+    const esp = C[m.chave], cur = vdcTexto(m.id);
+    if (esp && cur && (m.dig ? vdcDigitos(esp) !== vdcDigitos(cur) : vdcNorm(esp) !== vdcNorm(cur))) rot.push(VDC_SOL_ROT[m.chave] || m.chave);
+  });
+  return Array.from(new Set(rot));
+}
+async function vdcConferirVersao(c) {
+  try {
+    const k = ctrCardGet(c); if (!k) return;
+    const chave = ctrCardChave(k);
+    vdcDiff[c] = null;
+    const st = await vdcLerCadDoCard(c, k, false);
+    if (!st || ctrCardChave(ctrCardGet(c)) !== chave) return;
+    const rot = c === 'sol' ? vdcDiffSol(st.cad) : vdcDiffEp(st.cad);
+    if (!rot.length) return;
+    vdcDiff[c] = { chave, rotulos: rot.map((x) => String(x).toLowerCase()) };
+    ctrCardUi(c);
+    showToast('Os dados do cliente mudaram desde esta versão.');
+  } catch (e) {}
+}
+/** O botão da faixa: aplica o cadastro atual (e só então a faixa some). */
+async function vdcAtualizarDaFaixa(c) {
+  const k = ctrCardGet(c); if (!k) return;
+  const ok = await vdcAplicarDoCard(c, k, { mesmoCliente: true, atualizar: true, toast: true });
+  if (ok) { vdcDiff[c] = null; try { ctrCardUi(c); } catch (e) {} } else showToast('Não consegui buscar os dados do cliente agora.');
+}
 /** O formulário do Fechamento está com OUTRO cliente? Compara o documento (só dígitos) e, sem documento dos dois lados, o nome. */
 function vdcFsClienteMudou(C) {
   const formDoc = vdcDigitos(fsVal('fs-doc')), formNome = vdcNorm(fsVal('fs-nome'));
@@ -39379,14 +39750,21 @@ function aplicarCadastroSolar(cad, st, opts) {
   const dAberta = (typeof dadosAtual !== 'undefined') ? dadosAtual : null;
   const propLigada = st && st.vinc && st.vinc.proposta ? String(st.vinc.proposta).replace(/^#/, '') : '';
   if (dAberta && dAberta.nome && dAberta.item && fsEhSolar({ dados: dAberta }) && !(propLigada && fsChave(dAberta) === 'c:' + propLigada)) fsVistoKey = fsChave(dAberta);
-  try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
-  navFechamentoSolar();
+  // `quieto` (ligar o card pelo seletor, planilha, volta do contrato): não navega nem muda de aba; só garante o Fechamento montado.
+  const quieto = !!(opts && opts.quieto);
+  if (quieto) { if (!fsMontado) { fsMontar(); fsMontado = true; } }
+  else {
+    try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
+    navFechamentoSolar();
+  }
   // 2) cliente outro: o anterior sai (identidade e o que é dele); sistema e valores ficam
   const origem = (opts && opts.origem) || '';
   const outroCard = !!origem && !!vdcOrigemFs && vdcOrigemFs !== origem;   // formulário vindo de outro card: sempre "outro cliente"
-  const mudou = outroCard || (apagou.size ? false : vdcFsClienteMudou(C));   // editando uma pessoa do mesmo card o cliente é o mesmo
+  // `mesmoCliente`: reaplicar o cadastro do card JÁ ligado (planilha, contrato, "Atualizar"): o cliente é o mesmo, nada é esvaziado.
+  const mudou = (opts && opts.mesmoCliente) ? false : (outroCard || !!(opts && opts.outroCliente) || (apagou.size ? false : vdcFsClienteMudou(C)));   // editando uma pessoa do mesmo card o cliente é o mesmo
   if (origem) vdcOrigemFs = origem;
   if (mudou) { fsLimparCliente(); ['fs-nome', 'fs-tel', 'fs-cidade', 'fs-uf'].forEach(id => fsSet(id, '', true)); }
+  if (origem) vdcOrigemFs = origem;   // o fsLimparCliente zera a origem; este cadastro é o de agora
   if (origem) ctrCardDeOrigem('sol', origem, nome);   // o Fechamento fica ligado ao card (depois da limpeza)
   // 3) escreve. Escrito vira "digitado": puxar uma proposta depois não passa por cima do cadastro.
   // `fontes`: as chaves do cadastro de onde vem o valor; só se a pessoa apagou uma delas o campo (de valor derivado vazio) é esvaziado.
@@ -39403,27 +39781,19 @@ function aplicarCadastroSolar(cad, st, opts) {
   const t = fsEl('fs-tipo');
   if (t) { t.value = tipo; fsTocar(t); } else ausentes.push('fs-tipo');
   fsTipoMudou();
-  por('fs-nome', nome, null, ['nome']);
-  por('fs-doc', C.cpf_cnpj, vdcFmtDoc, ['cpf_cnpj']);
   // Os dois ramos (empresa e pessoa física) rodam: o que não vale para o tipo atual vai vazio e só sai do formulário se foi apagado.
   const pj = tipo === 'PJ';
+  // O MESMO mapa (VDC_MAPA_SOL) que a volta do contrato para o cadastro lê ao contrário (vdcColetarVolta). Inclui a unidade geradora
+  // (UC e concessionária da procuração, endereço da instalação do contrato).
+  VDC_MAPA_SOL.forEach((m) => por(m.id, m.pf && pj ? '' : C[m.chave], m.fmt, [m.chave]));
   por('fs-rep', pj ? [C.rep_nome, C.rep_cpf ? 'CPF ' + C.rep_cpf : ''].filter(Boolean).join(', ') : '', null, ['rep_nome', 'rep_cpf']);
-  por('fs-rg', pj ? '' : C.rg_ie, null, ['rg_ie']); por('fs-orgao', pj ? '' : C.orgao_emissor, null, ['orgao_emissor']);
-  por('fs-nacionalidade', pj ? '' : C.nacionalidade, null, ['nacionalidade']);
-  por('fs-estado-civil', pj ? '' : C.estado_civil, null, ['estado_civil']); por('fs-profissao', pj ? '' : C.profissao, null, ['profissao']);
-  por('fs-cep', C.cep, vdcFmtCep, ['cep']);
-  por('fs-tel', C.telefone, (v) => epFoneBR(v) || v, ['telefone']);
-  por('fs-end', C.endereco, null, ['endereco']); por('fs-bairro', C.bairro, null, ['bairro']); por('fs-cidade', C.cidade, null, ['cidade']); por('fs-uf', C.uf.toUpperCase(), null, ['uf']);
-  // unidade geradora: a UC e a concessionária da procuração; o endereço da instalação do contrato (a vistoria e o recibo seguem dele)
-  por('fs-p-uc', C.unidade_consumidora, null, ['unidade_consumidora']); por('fs-p-conc', C.concessionaria, null, ['concessionaria']); por('fs-c-endinst', C.endereco_ponto, null, ['endereco_ponto']);
   // titular da conta de luz (quando não é o comprador): vira o outorgante da procuração. Sai SEMPRE o que havia antes (mesmo cliente
   // também): titular apagado no cadastro, ou RG e qualificação apagados, não podem sobrar na procuração.
   ['fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end'].forEach(id => fsSet(id, '', true));
   if (usaTuc) {
     const tucEnd = [C.tuc_endereco, C.tuc_bairro && C.tuc_endereco.toLowerCase().indexOf(C.tuc_bairro.toLowerCase()) < 0 ? C.tuc_bairro : '',
       C.tuc_cidade ? C.tuc_cidade + (C.tuc_uf ? '/' + C.tuc_uf : '') : '', C.tuc_cep ? 'CEP ' + C.tuc_cep : ''].filter(Boolean).join(', ');
-    por('fs-p-tuc-nome', C.tuc_nome);
-    por('fs-p-tuc-doc', C.tuc_cpf_cnpj, vdcFmtDoc);
+    VDC_MAPA_SOL_TUC.forEach((m) => por(m.id, C[m.chave], m.fmt));
     por('fs-p-tuc-rg', C.tuc_rg_ie ? C.tuc_rg_ie + (C.tuc_orgao_emissor ? ' ' + C.tuc_orgao_emissor : '') : '');
     por('fs-p-tuc-qualif', [C.tuc_nacionalidade, C.tuc_estado_civil, C.tuc_profissao].filter(Boolean).join(', '));
     por('fs-p-tuc-end', tucEnd);
@@ -39433,14 +39803,10 @@ function aplicarCadastroSolar(cad, st, opts) {
   // quando o cadastro diz "outra pessoa"; vazio, a proposta de banco sai com o contratante.
   FS_B_FIN.forEach(id => fsSet(id, '', true));
   if (usaFin) {
-    por('fs-b-fin-nome', C.fin_nome);
-    por('fs-b-fin-doc', C.fin_cpf_cnpj, vdcFmtDoc);
+    VDC_MAPA_SOL_FIN.forEach((m) => por(m.id, C[m.chave], m.fmt));
     por('fs-b-fin-rg', C.fin_rg_ie ? C.fin_rg_ie + (C.fin_orgao_emissor ? ' ' + C.fin_orgao_emissor : '') : '');
     por('fs-b-fin-qualif', [C.fin_nacionalidade, C.fin_estado_civil, C.fin_profissao].filter(Boolean).join(', '));
     por('fs-b-fin-end', solEnd(C.fin_endereco, C.fin_bairro && C.fin_endereco.toLowerCase().indexOf(C.fin_bairro.toLowerCase()) < 0 ? C.fin_bairro : '', C.fin_cidade, C.fin_uf.toUpperCase()));
-    por('fs-b-fin-cep', C.fin_cep, vdcFmtCep);
-    por('fs-b-fin-tel', C.fin_telefone, (v) => epFoneBR(v) || v);
-    por('fs-b-fin-email', C.fin_email);
     const det = fsEl('fs-det-fin'); if (det) det.open = true;
   }
   // Conta de luz em nome de OUTRA pessoa e sem titular no cadastro: a procuração com o comprador exige um clique de confirmação.
@@ -39490,8 +39856,10 @@ function aplicarCadastroSolar(cad, st, opts) {
   if (st && !st.vinc && st.vincP) st.vincP.then(() => { if (st.vinc && fsOrigemKey === 'cadastro:' + st.id) fsOrigemKey = origemDe(); });
   // 4) mostra a aba do contrato e avisa o que falta
   fsTipoMudou(); fsProcModelo();
-  fsAba('contrato');
+  if (!quieto) fsAba('contrato');
   fsRevalida();
+  vdcDiff.sol = null;
+  if (origem) vdcBaseTirarSol(origem, C, tipo, cad);   // o que está nos formulários agora é "o que o cadastro disse": a volta só leva o que mudar depois disto
   const lista = (Array.isArray(cad && cad.faltando) ? cad.faltando : []).filter(k => typeof k === 'string' && k && (tipo === 'PJ' || k.indexOf('rep_') !== 0))
     .map(k => VDC_SOL_ROT[k] || vdcRotuloLivre(k));
   const faltando = lista.slice(0, 8);
@@ -39506,8 +39874,8 @@ function aplicarCadastroSolar(cad, st, opts) {
   if (usaFin && !decFin) msg += ' Confirme no card se o titular do financiamento é outra pessoa.';
   if (avisoPut) msg += ' ' + avisoPut;
   if (rateioOff) msg += ' A lista de rateio da procuração ficou desligada: ' + rateioOff;
-  vdcAvisar(msg, 'vdc-aviso-sol');
-  showToast('Fechamento preenchido com o cadastro de ' + (nome || 'cliente'));
+  if (!quieto) { vdcAvisar(msg, 'vdc-aviso-sol'); showToast('Fechamento preenchido com o cadastro de ' + (nome || 'cliente')); }
+  else if (opts && opts.toast) showToast(opts.toast === true ? 'Dados de ' + (nome || 'cliente') + ' aplicados no Fechamento.' : opts.toast);
   if (ausentes.length) console.warn('cadastro: campos que não existem na tela: ' + Array.from(new Set(ausentes)).join(', '));
   return { faltando: lista, ausentes: Array.from(new Set(ausentes)) };
 }

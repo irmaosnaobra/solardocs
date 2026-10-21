@@ -3,7 +3,7 @@ import { exigeConsultor } from './geradorDossie';
 import { semCache } from './geradorClientesDocs';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
-import { ehSocio, podeVer } from '../services/gerador/solarObras';
+import { ehSocio, podeVer, nomeSimples } from '../services/gerador/solarObras';
 import { ErroCadastro } from '../services/gerador/cadastroVendaBanco';
 import { vendaSolarDoDono } from './geradorClientes';
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
@@ -94,15 +94,19 @@ export function mountContratosVersoes(router: Router): void {
     const q = String(req.query.q ?? '').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
     if (q.length < 2) { res.json({ ok: true, cards: [] }); return; }
     try {
-      let consulta = supabaseGerador.from('agendamentos').select('id, cliente_nome, cidade, vendedor_nome, created_by, status').ilike('cliente_nome', `%${q}%`);
+      // O nome do CLIENTE também é tolerante: vogal, c e letra acentuada viram curinga ("Jose" acha "José" e "José" acha "Jose"). O refino é abaixo.
+      const qCuringa = q.replace(/[aeioucÀ-ſ]/gi, '_');
+      let consulta = supabaseGerador.from('agendamentos').select('id, cliente_nome, cidade, vendedor_nome, created_by, status').ilike('cliente_nome', `%${qCuringa}%`);
       // Pré-filtro tolerante a acento ("jose" acha "José"): as vogais e o c viram curinga. A regra de verdade é a `podeVer` abaixo,
       // a mesma da posse (nomeSimples no lado da planilha).
       if (!socio) consulta = consulta.ilike('vendedor_nome', nome.replace(/[aeiouc]/gi, '_'));
-      const { data, error } = await consulta.order('id', { ascending: false }).range(0, 59);
+      const { data, error } = await consulta.order('id', { ascending: false }).range(0, 399);   // o refino sem acento vem DEPOIS: buscar poucas linhas some com cliente antiga
       if (error) throw new ErroCadastro('cards');
       const cards = ((data ?? []) as Array<{ id?: unknown; cliente_nome?: unknown; cidade?: unknown; vendedor_nome?: unknown; created_by?: unknown; status?: unknown }>)
         // O filtro do banco é só um pré-filtro: a regra de verdade é a mesma da posse.
         .filter((c) => Number.isInteger(c.id) && (socio || podeVer(nome, String(c.vendedor_nome ?? ''))))
+        // O curinga acima deixa passar nomes parecidos demais ("Fulano" e "Falino"): o refino compara sem acento e sem caixa.
+        .filter((c) => nomeSimples(c.cliente_nome).includes(nomeSimples(q)))
         .slice(0, 30)
         .map((c) => ({ linha: linhaDoCard(c.created_by), codigo: String(c.id), nome: String(c.cliente_nome ?? ''), cidade: String(c.cidade ?? ''), status: String(c.status ?? '') }));
       res.json({ ok: true, cards });

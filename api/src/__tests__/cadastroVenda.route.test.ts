@@ -379,9 +379,27 @@ describe('GET e PUT do cadastro', () => {
     expect(pj.body.cadastro.tipo).toBe('PJ');
     expect(pj.body.cadastro.campos.cpf_cnpj.fonte).toBe('ia');
     expect(pj.body.cadastro.faltando).toContain('rep_nome');
-    expect((await getCad(101)).body.cadastro.campos.nome.valor).toBe('Carlos Alves');
+    // o contrato (Gerar) grava a identidade editada com fonte 'contrato'; o servidor guarda a fonte como veio
+    const ct = await putCad(101, { campos: { nome: 'Carlos Alves Neto' }, fonte: 'contrato' });
+    expect(ct.status).toBe(200);
+    expect(ct.body.cadastro.campos.nome).toMatchObject({ valor: 'Carlos Alves Neto', fonte: 'contrato' });
+    expect(cadastroDe(101).campos.nome.fonte).toBe('contrato');
+    expect((await getCad(101)).body.cadastro.campos.nome.valor).toBe('Carlos Alves Neto');
     // o cadastro NUNCA vai para o system_state
     expect([...h.linhas.keys()].some((k) => k.startsWith('cadastro') || k.startsWith('cliente_ep'))).toBe(false);
+  });
+  it('PUT com base_em: campo gravado por outra pessoa DEPOIS da leitura e com valor diferente é 409 e nada é gravado; valor igual, ou leitura mais nova, passa', async () => {
+    await putCad(101, { campos: { nome: 'Nome da planilha' } });
+    const passado = '2000-01-01T00:00:00.000Z', futuro = '2999-01-01T00:00:00.000Z';
+    const c409 = await putCad(101, { campos: { nome: 'Nome do contrato', email: 'a@b.com' }, fonte: 'contrato', base_em: passado });
+    expect(c409.status).toBe(409);
+    expect(c409.body.conflitos).toEqual(['nome']);
+    expect(cadastroDe(101).campos.nome.valor).toBe('Nome da planilha');
+    expect(cadastroDe(101).campos.email).toBeUndefined();
+    expect((await putCad(101, { campos: { nome: 'Nome da planilha' }, fonte: 'contrato', base_em: passado })).status).toBe(200);
+    expect((await putCad(101, { campos: { nome: 'Nome do contrato' }, fonte: 'contrato', base_em: futuro })).status).toBe(200);
+    expect(cadastroDe(101).campos.nome.valor).toBe('Nome do contrato');
+    expect((await putCad(101, { campos: { nome: 'Sem controle' }, fonte: 'contrato' })).status).toBe(200);   // sem base_em, como sempre
   });
   it('PUT com um campo inválido: 400 com os erros por campo e NADA é gravado', async () => {
     const res = await putCad(101, { campos: { nome: 'Ana', cpf_cnpj: '111.111.111-11', cep: '12' } });
@@ -397,6 +415,7 @@ describe('GET e PUT do cadastro', () => {
     expect((await putCad(101, { campos: {} })).status).toBe(400);
     expect((await putCad(101, {})).status).toBe(400);
     expect((await putCad(101, { campos: { nome: 'Ana' }, fonte: 'ficha' })).status).toBe(400);
+    expect((await putCad(101, { campos: { nome: 'Ana' }, fonte: 'qualquer' })).status).toBe(400);
     expect((await putCad(101, { campos: { nome: 12 } })).status).toBe(400);
     expect(h.cad.size).toBe(0);
   });

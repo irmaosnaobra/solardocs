@@ -46,8 +46,10 @@ vi.mock('../utils/supabaseGerador', () => ({
             eq: (c: string, v: unknown) => { f[c] = v; return b; },
             ilike: (c: string, v: string) => { f[`ilike:${c}`] = new RegExp('^' + v.toLowerCase().replace(/%/g, '.*').replace(/_/g, '.') + '$'); return b; },
             order: () => b,
-            range: async () => ({
-              data: h.cards.filter((r) => Object.entries(f).every(([c, v]) => !c.startsWith('ilike:') || (v as RegExp).test(String(r[c.slice(6)] ?? '').toLowerCase()))),
+            // Como o banco: mais novos primeiro e só a janela pedida.
+            range: async (de: number, ate: number) => ({
+              data: h.cards.filter((r) => Object.entries(f).every(([c, v]) => !c.startsWith('ilike:') || (v as RegExp).test(String(r[c.slice(6)] ?? '').toLowerCase())))
+                .sort((x, y) => Number(y.id) - Number(x.id)).slice(de, ate + 1),
               error: null,
             }),
             maybeSingle: async () => ({ data: h.cards.find((r) => r.id === f.id) ?? null, error: null }),
@@ -277,7 +279,7 @@ describe('versões dos contratos ligadas ao card', () => {
     const meus = await request(app).get('/gerador/contratos/cards?q=fulano').set('Authorization', NILCE);
     expect(meus.status).toBe(200);
     expect(meus.body.cards.map((c: any) => c.codigo).sort()).toEqual(['101', '103']);   // o 102 é da Giovanna
-    expect(meus.body.cards[0]).toMatchObject({ linha: 'eletroposto', nome: 'Fulano de Teste' });
+    expect(meus.body.cards.find((c: any) => c.codigo === '101')).toMatchObject({ linha: 'eletroposto', nome: 'Fulano de Teste' });
     const todos = await request(app).get('/gerador/contratos/cards?q=fulano').set('Authorization', THIAGO);
     expect(todos.body.cards.map((c: any) => c.codigo).sort()).toEqual(['101', '102', '103']);
     expect(todos.body.cards.find((c: any) => c.codigo === '103').linha).toBe('vendasolar');
@@ -368,5 +370,20 @@ describe('versões dos contratos ligadas ao card', () => {
     expect(jose.body.cards.map((c: any) => c.codigo)).toEqual(['105']);
     expect((await lista('eletroposto', 105, 'Bearer tk-jose')).status).toBe(200);
     expect((await lista('eletroposto', 101, 'Bearer tk-jose')).status).toBe(404);
+  });
+  it('seletor de cards: com mais de 60 cards que o curinga deixa passar ("Bruno" casa com o padrão de "Ana"), uma cliente ANTIGA ainda aparece (o refino vem antes do corte)', async () => {
+    for (let i = 0; i < 80; i++) h.cards.push(card(1000 + i, { cliente_nome: `Bruno Costa ${i}`, vendedor_nome: 'Nilce' }));
+    h.cards.push(card(9, { cliente_nome: 'Ana Antiga Souza', vendedor_nome: 'Nilce' }));
+    const r = await request(app).get('/gerador/contratos/cards?q=ana').set('Authorization', NILCE);
+    expect(r.body.cards.map((c: any) => c.codigo)).toEqual(['9']);
+  });
+  it('seletor de cards: o nome do CLIENTE casa sem acento nos dois sentidos ("Jose" acha "José" e "José" acha "Jose"), sem trazer nome parecido demais', async () => {
+    h.cards.push(card(106, { cliente_nome: 'José Almeida' }), card(107, { cliente_nome: 'Jose Pereira' }), card(108, { cliente_nome: 'Josefa Costa' }), card(109, { cliente_nome: 'Joao Prado' }));
+    const a = await request(app).get('/gerador/contratos/cards?q=' + encodeURIComponent('Jose')).set('Authorization', NILCE);
+    expect(a.body.cards.map((c: any) => c.codigo).sort()).toEqual(['106', '107', '108']);
+    const b = await request(app).get('/gerador/contratos/cards?q=' + encodeURIComponent('José')).set('Authorization', NILCE);
+    expect(b.body.cards.map((c: any) => c.codigo).sort()).toEqual(['106', '107', '108']);
+    const c = await request(app).get('/gerador/contratos/cards?q=' + encodeURIComponent('josé alm')).set('Authorization', NILCE);
+    expect(c.body.cards.map((x: any) => x.codigo)).toEqual(['106']);
   });
 });
