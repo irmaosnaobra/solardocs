@@ -10,6 +10,8 @@ let compromissos: any[] = [];
 const updates: Array<{ id: number; patch: any }> = [];
 const enviadas: Array<{ phone: string; bolhas: string[] }> = [];
 let tetoLivre = true;
+/** Espaçamento da linha: por padrão libera; o teste de dois frios faz o 2º esperar. */
+let espacoLivre = true;
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -59,6 +61,7 @@ vi.mock('../services/agents/zapiClient', () => ({
 }));
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
+  respeitaEspacamentoLinha: vi.fn(async () => espacoLivre),
 }));
 
 // Quinta, 13/08/2026, 10h BRT (13h UTC). A grade do dia (desde 13/10/2026: 08:00 às
@@ -100,7 +103,7 @@ const ficha = (over: Partial<any> = {}) => ({
 const envOriginal = { ...process.env };
 beforeEach(() => {
   state.clear(); updates.length = 0; enviadas.length = 0;
-  compromissos = []; tetoLivre = true;
+  compromissos = []; tetoLivre = true; espacoLivre = true;
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -395,6 +398,50 @@ describe('a conversa de ponta a ponta', () => {
       .toContain('REMARCADO PELO ROBÔ');
     expect(linhaDoAviso({ acao: 'sem_vaga' })).toContain('encaixe manual');
     expect(linhaDoAviso({ acao: 'nada' })).toBe(null);
+  });
+});
+
+// ── ESPAÇAMENTO DA LINHA NO ENVIO FRIO (21/10/2026) ─────────────────────────
+// Com POR_TICK=2 saíam dois frios colados. O frio agora pergunta o espaçamento da
+// linha antes de enviar; a resposta (transacional) segue como era.
+describe('ofertarPorConta e o espaçamento da linha', () => {
+  const copy = (_n: string, ofertas: string[]) => [`horários: ${ofertas.length}`];
+
+  it('dois frios no mesmo tick: o 2º espera, sem carimbo e sem oferta gravada', async () => {
+    const { ofertarPorConta } = await mod();
+    const { respeitaEspacamentoLinha } = await import('../services/agents/whatsapp/lineThrottle');
+    // O 1º envio carimba (ep_oferta_fria:) e fecha o espaço para o 2º.
+    vi.mocked(respeitaEspacamentoLinha).mockClear();
+    vi.mocked(respeitaEspacamentoLinha).mockImplementation(async () => enviadas.length === 0);
+    const r1 = await ofertarPorConta(ficha({ id: 1 }), copy, { transacional: false, silencioSemVaga: true });
+    const r2 = await ofertarPorConta(ficha({ id: 2, cliente_telefone: '5534999887766' }), copy,
+      { transacional: false, silencioSemVaga: true });
+    vi.mocked(respeitaEspacamentoLinha).mockImplementation(async () => espacoLivre);
+    expect(r1.acao).toBe('ofertou');
+    expect(r2.acao).toBe('nada');
+    expect(enviadas).toHaveLength(1);
+    expect(state.has('ep_oferta_fria:1:oferta')).toBe(true);
+    expect([...state.keys()].some(k => k.includes(':2:') || k === 'ep_remarcar:2')).toBe(false);
+  });
+
+  it('o transacional não pergunta o espaçamento e envia mesmo com a linha espaçada', async () => {
+    const { ofertarPorConta } = await mod();
+    const { respeitaEspacamentoLinha } = await import('../services/agents/whatsapp/lineThrottle');
+    vi.mocked(respeitaEspacamentoLinha).mockClear();
+    espacoLivre = false;
+    const r = await ofertarPorConta(ficha(), copy, { transacional: true });
+    expect(r.acao).toBe('ofertou');
+    expect(enviadas).toHaveLength(1);
+    expect(respeitaEspacamentoLinha).not.toHaveBeenCalled();
+  });
+
+  it('frio com a linha espaçada: não envia', async () => {
+    const { ofertarPorConta } = await mod();
+    espacoLivre = false;
+    const r = await ofertarPorConta(ficha(), copy, { transacional: false, silencioSemVaga: true });
+    expect(r.acao).toBe('nada');
+    expect(enviadas).toHaveLength(0);
+    expect(state.has('ep_remarcar:1')).toBe(false);
   });
 });
 

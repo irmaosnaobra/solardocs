@@ -38,7 +38,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
-import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
+import { dentroDoTetoHorarioLinha, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
 import {
   quandoPorExtenso, horaCurta, telefoneBonito, EP_AGENDA_PREFIX, EP_NAO_ATENDEU_PREFIX,
 } from './eletropostoAgenda';
@@ -601,6 +601,13 @@ export async function ofertarPorConta(
       ? { transacional: true, pisoHora: respostaPisoHora(), pisoDia: RESPOSTA_PISO_DIA }
       : { transacional: false }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
+      return false;
+    }
+    // Envio FRIO respeita o espaçamento mínimo da linha (10-15 min do envio
+    // anterior): com POR_TICK=2 saíam dois frios colados. Quem não passa espera o
+    // próximo tick, sem carimbo. A resposta (transacional) não passa por aqui.
+    if (ehCampanha && !(await respeitaEspacamentoLinha())) {
+      logger.info('ep-remarcar', 'espaçamento da linha — oferta fria espera o próximo tick', { id: ficha.id });
       return false;
     }
     // Uma mensagem, sempre, campanha ou conversa: as copies acima já são texto

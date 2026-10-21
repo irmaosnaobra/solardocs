@@ -40,9 +40,9 @@
 // ── 19H, E O PORQUÊ ──
 // É a hora em que o dia acabou e o consultor já marcou os cards. Antes disso a
 // lista estaria pela metade, e o mesmo lead receberia o toque enquanto o
-// consultor ainda tenta falar com ele. A janela vai até as 21h (o limite da
-// linha), e a fila é lenta: 2 por rodada, com o teto anti-ban antes de cada
-// envio.
+// consultor ainda tenta falar com ele. A janela do 1º toque vai até as 20h (o
+// limite do frio da linha), e a fila é lenta: 2 por rodada, com o teto anti-ban
+// e o espaçamento da linha antes de cada envio.
 //
 // ── A CONVERSA NÃO É NOVA ──
 // A oferta sai pelo `ofertarPorConta`, o mesmo do robô de remarcação, e grava a
@@ -74,14 +74,16 @@ export const EP_FUP_NAOATENDIDO_PREFIX = 'ep_fup_naoatendido:';
 const BRT_TZ = 'America/Sao_Paulo';
 
 const HORA_INICIO = Number(process.env.EP_FUP_NAOATENDIDO_HORA || 19);
-const HORA_FIM = 21;
+/** O 1º toque é frio e a janela do frio da linha fecha às 20h (lineThrottle). Era
+ *  21h: o r1 das 20h às 21h saía fora da janela da linha. */
+const HORA_FIM = 20;
 /** Reunião de até 2 dias atrás. O consultor às vezes marca o card no dia
  *  seguinte, e sem essa folga essas fichas nunca seriam chamadas de volta. Mais
  *  que isso é história velha, e aí o texto "o consultor te chamou hoje" mente. */
 const JANELA_DIAS = Number(process.env.EP_FUP_NAOATENDIDO_DIAS || 2);
 const POR_TICK = Number(process.env.EP_FUP_NAOATENDIDO_POR_TICK || 2);
 /** Horas depois do 1º toque para o 2º e o 3º, e para a queda na lista. As duas
- *  primeiras caem de manhã (o 1º sai entre 19h e 21h), que é quando a linha está
+ *  primeiras caem de manhã (o 1º sai entre 19h e 20h), que é quando a linha está
  *  vazia e a pessoa está resolvendo o dia. */
 const R2_APOS_H = Number(process.env.EP_FUP_NAOATENDIDO_R2_H || 20);
 const R3_APOS_H = Number(process.env.EP_FUP_NAOATENDIDO_R3_H || 68);
@@ -154,7 +156,7 @@ export async function runEletropostoNaoAtendidoFupTick(
 ): Promise<ResultadoFupNaoAtendido> {
   if (desligado()) return zero('desligado');
   const hora = horaBrasilia();
-  // Duas janelas: o 1º toque é das 19h às 21h (o dia acabou e os cards estão
+  // Duas janelas: o 1º toque é das 19h às 20h (o dia acabou e os cards estão
   // marcados) e os toques 2 e 3 são diurnos, porque caem no dia seguinte e em
   // D+3. Fora das duas, só a queda na lista continua valendo: ela não manda
   // mensagem nenhuma, e segurar uma ficha fora da janela seria adiar por nada.

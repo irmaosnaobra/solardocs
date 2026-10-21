@@ -225,6 +225,22 @@ describe('follow-up do não atendido', () => {
     expect(ofertados).toHaveLength(0);
   });
 
+  // A janela do frio da linha fecha às 20h: o 1º toque vai de 19h a 20h.
+  it('o 1º toque às 20h30 não sai (a janela do frio fechou às 20h)', async () => {
+    vi.setSystemTime(new Date('2026-09-22T23:30:00.000Z')); // 20h30 BRT
+    fichas = [ficha()];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(ofertados).toHaveLength(0);
+    expect(r.motivo).toBe('fora_da_janela');
+  });
+
+  it('o 1º toque às 19h30 sai', async () => {
+    vi.setSystemTime(new Date('2026-09-22T22:30:00.000Z')); // 19h30 BRT
+    fichas = [ficha()];
+    expect((await runEletropostoNaoAtendidoFupTick()).ofertas).toBe(1);
+  });
+
   it('de madrugada não roda nada', async () => {
     vi.setSystemTime(new Date('2026-09-23T06:00:00.000Z')); // 3h BRT
     fichas = [ficha()];
