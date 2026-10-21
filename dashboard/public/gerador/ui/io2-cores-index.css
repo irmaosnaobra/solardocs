@@ -896,6 +896,7 @@ html.io2[data-mode="app"]:not(#_):not(#_) .ctr-pag-modelos > span{color:var(--n-
 html.io2[data-mode="app"]:not(#_):not(#_) .ctr-chip{background-color:var(--io-azul-sf);border-color:rgba(96,165,250,.4);color:var(--io-info)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ctr-chip:hover{background-color:var(--io-azul-sf);color:var(--n-tx)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ctr-pag-row{background-color:var(--n-sf2);border-color:var(--n-bd)}
+html.io2[data-mode="app"]:not(#_):not(#_) .ctr-pag-row.inc{border-color:var(--io-er)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ctr-pag-cab b{color:var(--io-info)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ctr-pag-cond{color:var(--n-tx)}
 html.io2[data-mode="app"]:not(#_):not(#_) .ctr-pf > span{color:var(--n-tx3)}

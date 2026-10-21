@@ -1,6 +1,6 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
-// Scope limitado a /gerador/ pra não interferir no resto do app.
-const CACHE = 'gerador-propostas-v409';
+// Scope limitado a /gerador/ pra nÃ£o interferir no resto do app.
+const CACHE = 'gerador-propostas-v410';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',
@@ -58,19 +58,19 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  // Só intercepta requests do /gerador/ (scope limitado)
+  // SÃ³ intercepta requests do /gerador/ (scope limitado)
   const url = new URL(req.url);
-  // Só o que é deste site. A API (api.solardoc.app) também tem caminho /gerador/...,
+  // SÃ³ o que Ã© deste site. A API (api.solardoc.app) tambÃ©m tem caminho /gerador/...,
   // e resposta de API com login nunca pode ir para o cache: ficaria velha e seria
-  // entregue ao próximo que entrasse no mesmo aparelho.
+  // entregue ao prÃ³ximo que entrasse no mesmo aparelho.
   if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith('/gerador/')) return;
 
-  // Não cacheia chamadas Supabase (sempre online)
+  // NÃ£o cacheia chamadas Supabase (sempre online)
   if (req.url.includes('supabase.co')) return;
   if (req.method !== 'GET') return;
 
-  // Network-first pro HTML (sempre pega versão fresca quando online)
+  // Network-first pro HTML (sempre pega versÃ£o fresca quando online)
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
     e.respondWith(
       fetch(req)
@@ -80,15 +80,15 @@ self.addEventListener('fetch', (e) => {
           return res;
         })
         .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (
-          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lá dentro.
+          // A planilha vive num iframe do app: devolver o index.html no lugar dela subiria um segundo app lÃ¡ dentro.
           url.pathname.startsWith('/gerador/clientes/')
-            ? new Response('Sem conexão.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+            ? new Response('Sem conexÃ£o.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
             : caches.match('/gerador/index.html'))))
     );
     return;
   }
 
-  // Cache-first pros assets estáticos
+  // Cache-first pros assets estÃ¡ticos
   e.respondWith(
     caches.match(req).then(r => r || fetch(req).then(res => {
       const copy = res.clone();

@@ -2091,8 +2091,13 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
 .ctr-chip{padding:7px 12px;border-radius:999px;border:1px solid rgba(96,165,250,.4);background:rgba(59,130,246,.10);color:#BFDBFE;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
 .ctr-chip:hover{background:rgba(59,130,246,.22);color:#fff}
 .ctr-pag-lista{display:flex;flex-direction:column;gap:8px}
-.ctr-pag-row{display:grid;grid-template-columns:2fr 1.3fr .8fr .9fr 2fr;gap:8px 10px;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:11px;padding:10px 12px}
+.ctr-pag-row{display:grid;grid-template-columns:2fr 1.3fr .8fr 1.2fr .9fr 2fr;gap:8px 10px;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:11px;padding:10px 12px}
 .ctr-pag-cab{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+.ctr-pag-row.inc{border-color:var(--io-er,rgba(239,68,68,.6))}
+.ctr-pag-resto{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--io-info,#93C5FD);border:1px solid currentColor;border-radius:999px;padding:1px 8px}
+.ctr-pag-rk{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--n-tx2,#CBD5E1);cursor:pointer;white-space:nowrap}
+.ctr-pag-rk input{width:auto;margin:0}
+.ctr-pf input[readonly]{opacity:.75;cursor:default}
 .ctr-pag-cab b{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#93C5FD}
 .ctr-pag-cond{flex:1;min-width:0;font-size:12.5px;color:#E5E7EB;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 .ctr-pf{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -6488,6 +6493,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field" style="grid-column:span 2" data-ctr-tipos="completo"><label>O sinal foi destinado a</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
         <div class="orc-note" id="ctr-sinal-nota">—</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label for="ctr-pag-texto">Como o cliente vai pagar</label>
+          <div class="ctr-ag-entrada"><textarea id="ctr-pag-texto" class="ctr-ta" rows="2" maxlength="1500" placeholder="Ex.: 10 mil de Pix na assinatura, 10x de R$ 6.549 no cartão e o restante na entrega da NF"></textarea><button type="button" class="eletro-btn" id="ctr-pag-montar" onclick="ctrPagMontar()">Montar</button></div>
+          <div id="ctr-pag-previa" aria-live="polite"></div>
+          <div class="orc-note" style="margin-top:4px">A IA só separa as formas do que você escreveu e não inventa número. A conta (restante, parcela, taxa) é feita aqui, depois do clique em Aplicar.</div></div>
         <div class="ctr-pag-modelos"><span>Modelos rápidos</span>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('vista')">À vista no Pix</button>
           <button type="button" class="ctr-chip" data-ctr-tipos="completo" onclick="ctrPagAplicar('cartao')">Entrada + cartão</button>
@@ -6524,7 +6533,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Juros de mora</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-juros" inputmode="decimal" step="0.5" min="0" value="1"><span class="suf">% ao mês</span></div></div>
         <div class="eletro-field" style="grid-column:1/-1"><label>Observações do pagamento (opcional)</label>
-          <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-pag-obs" class="ctr-ta" rows="3" placeholder="Ex.: as parcelas do cartão são lançadas na maquininha da contratada. Sem nenhuma forma na lista acima, este texto vira a cláusula de pagamento inteira."></textarea></div></div>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-pag-obs" class="ctr-ta" rows="3" placeholder="Ex.: as parcelas do cartão são lançadas na maquininha da contratada. Com saldo a pagar, o contrato só é gerado com pelo menos uma forma na lista acima."></textarea></div></div>
         <div class="orc-note" id="ctr-pag-ficha" style="display:none"></div>
       </div>
 
@@ -18702,8 +18711,14 @@ function socPreset(qual) {
 // outro. Perguntado qual dos dois lados cedia, ele respondeu 3.662, entao o fator
 // e' o que se ajusta: 3.662 x 18 / 50.000 = 1,31832, e a conta fecha no centavo.
 // Mexer nele mexe em TODA cota — num aporte de R$ 75 mil o 18x vira R$ 5.493.
-const SOC_FATOR_10X = 1.11;
-const SOC_FATOR_18X = 1.31832;
+// A taxa do cartão mora numa tabela só: acréscimo TOTAL (em %) por número de parcelas, só o que a casa usa em contrato.
+// O contrato (tabela de pagamento do /gerador) e a Sociedade em PDF leem daqui. Parcelamento no cartão fora desta
+// tabela só vale com a parcela digitada (campo "Parcela negociada" da linha).
+const CTR_TAXA_CARTAO = { 10: 11, 18: 31.832 };
+// Fator = 1 + taxa/100, arredondado: 1 + 31.832/100 em ponto flutuante não dá exatamente 1,31832.
+const ctrFatorCartao = n => Math.round((1 + CTR_TAXA_CARTAO[n] / 100) * 1e8) / 1e8;
+const SOC_FATOR_10X = ctrFatorCartao(10);
+const SOC_FATOR_18X = ctrFatorCartao(18);
 /** O acrescimo do cartao como o cliente le': "11%" e "31,8%", nunca "1,31832". */
 const socAcrescimo = fator => String(Math.round((fator - 1) * 1000) / 10).replace('.', ',') + '%';
 function socPagLinhas(aporte) {
@@ -23871,50 +23886,143 @@ function ctrMoeda(v) {
 const ctrCent = n => Math.round((n || 0) * 100) / 100;
 const ctrFmt = n => ctrCent(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function ctrPagLinha(forma, valor, parc, acr, quando, obs) {
+// Linha da tabela de pagamento. Três coisas mandam na conta dela:
+//   parcValor  a parcela negociada, DIGITADA ("10x de R$ 6.549"): total = parcelas x parcela, e o acréscimo sai da conta.
+//   acr        a taxa digitada (a do Orçamento, por exemplo). '' = sem taxa digitada: o cartão lê CTR_TAXA_CARTAO.
+//   resto      quita sempre o saldo menos as outras linhas (ctrPagResolve), em toda leitura. Nunca congela.
+function ctrPagLinha(forma, valor, parc, acr, quando, obs, ex) {
+  ex = ex || {};
   return {
     forma: forma || '', valor: valor > 0 ? ctrFmt(valor) : '',
     parc: String(Math.max(1, Math.round(parc || 1))),
-    acr: acr > 0 ? String(acr).replace('.', ',') : '',
+    // '0' = alguém disse que não há acréscimo (o Orçamento com juros 0): não pode cair na tabela do cartão.
+    acr: acr > 0 ? String(acr).replace('.', ',') : (ex.acrZero ? '0' : ''),
+    parcValor: ex.parcValor > 0 ? ctrFmt(ex.parcValor) : '',
+    resto: !!ex.resto,
     quando: quando || '', obs: obs || '',
   };
 }
-// Acréscimo é o TOTAL sobre a parte paga naquela forma (a mesma lógica do
-// 18x/22,5% do Orçamento), não juro ao mês.
+const ctrPagCartao = f => /cart[ãa]o/i.test(f || '') && !/d[ée]bito/i.test(f || '');
+const ctrPct2 = n => String(Math.round(n * 100) / 100).replace('.', ',');
+// A conta de UMA linha, sem tela e sem estado. Acréscimo é o TOTAL sobre a parte paga naquela forma (a mesma lógica do
+// 18x/22,5% do Orçamento), não juro ao mês. `incompleto` diz por que a linha não fecha (o Gerar não passa com ela).
 function ctrPagConta(l) {
   const valor = ctrMoeda(l.valor);
   const parc = Math.max(1, Math.round(orcNum(l.parc) || 1));
-  const acr = Math.max(0, orcNum(l.acr));
-  return { valor, parc, acr, parcela: valor * (1 + acr / 100) / parc, fin: /financ/i.test(l.forma || '') };
+  const fin = /financ/i.test(l.forma || '');
+  const parcValor = ctrMoeda(l.parcValor);
+  const acrDigitado = String(l.acr == null ? '' : l.acr).trim() !== '';
+  let acr = Math.max(0, orcNum(l.acr)), parcela = valor * (1 + acr / 100) / parc, origem = 'digitado', incompleto = '';
+  if (!fin && parc > 1) {
+    if (parcValor > 0) {
+      parcela = Math.round(parcValor * 100) / 100;
+      origem = 'parcela';
+      acr = valor > 0 ? (parcela * parc / valor - 1) * 100 : 0;
+      if (valor > 0 && parcela * parc < valor - 0.005) incompleto = `A parcela de ${ORC_MONEY(parcela)} em ${parc}x soma menos que o valor da forma (${ORC_MONEY(valor)}).`;
+    } else if (!acrDigitado && ctrPagCartao(l.forma)) {
+      if (CTR_TAXA_CARTAO[parc] != null) {
+        acr = CTR_TAXA_CARTAO[parc]; origem = 'tabela';
+        parcela = valor * (1 + acr / 100) / parc;
+      } else {
+        incompleto = `O cartão em ${parc}x não tem taxa na tabela da casa (só ${Object.keys(CTR_TAXA_CARTAO).join('x e ')}x). Digite a parcela negociada ou mude o número de parcelas.`;
+      }
+    }
+  }
+  // Forma sem valor (e que não é o restante) não quita nada do preço: a parcela dela seria cobrada POR CIMA do saldo.
+  if (!incompleto && !l.resto && valor <= 0 && (l.forma || '').trim()) incompleto = `A forma "${(l.forma || '').trim()}" está sem valor: falta quanto do preço esta forma quita.`;
+  const parcelaCent = Math.round(parcela * 100) / 100;
+  return { valor, parc, acr, parcela, parcelaCent, total: Math.round(parcelaCent * parc * 100) / 100, fin, origem, incompleto, parcValor };
+}
+// "10x de R$ 6.549,00, total de R$ 65.490,00 (acréscimo de 4,78%)": a parcela e o total fecham no centavo.
+function ctrPagTxtTotal(c) {
+  return `${c.parc}x de ${ORC_MONEY(c.parcelaCent)}, total de ${ORC_MONEY(c.total)}${c.acr > 0 ? ` (acréscimo de ${ctrPct2(c.acr)}%)` : ''}`;
 }
 // Financiamento não tem parcela nossa: quem dá o número é o banco.
 function ctrPagCondicao(l) {
   const c = ctrPagConta(l);
   if (c.fin) return c.parc > 1 ? `em até ${c.parc}x, conforme aprovação da instituição financeira` : 'conforme aprovação da instituição financeira';
   if (c.parc <= 1) return 'parcela única';
+  if (c.incompleto) return `${c.parc}x: falta a taxa ou a parcela`;
+  if (c.origem === 'parcela') return ctrPagTxtTotal(c);
   return `${c.parc}x de ${ORC_MONEY(c.parcela)}${c.acr > 0 ? ` (acréscimo de ${String(c.acr).replace('.', ',')}%)` : ''}`;
 }
 // No termo do investidor, parcelado com acréscimo diz também o total pago (o
 // Completo e os contratos seguem com a condição de sempre).
 function ctrPagCondicaoTotal(l) {
   const c = ctrPagConta(l);
-  if (c.fin || c.parc <= 1 || !(c.acr > 0)) return ctrPagCondicao(l);
-  const parcela = Math.round(c.parcela * 100) / 100;
-  return `${c.parc}x de ${ORC_MONEY(parcela)}, total de ${ORC_MONEY(parcela * c.parc)} (acréscimo de ${String(Math.round(c.acr * 100) / 100).replace('.', ',')}%)`;
+  if (c.fin || c.parc <= 1 || c.incompleto || c.origem === 'parcela' || !(c.acr > 0)) return ctrPagCondicao(l);
+  return ctrPagTxtTotal(c);
 }
+// Papel reaberto do histórico. A linha antiga (sem a chave `resto`) sem acréscimo digitado valia 0%: ela vira '0' para não
+// ganhar a taxa da tabela (10x 11%, 18x 31,832%) nem travar 6x/12x. Preço já ofertado não muda. Não há exceção para
+// "papel antigo": quem gera de novo passa pela mesma trava de qualquer contrato.
+function ctrPagRestaurar(sp) {
+  const p = JSON.parse(JSON.stringify(sp));
+  p.linhas.forEach(l => { if (!('resto' in l) && String(l.acr == null ? '' : l.acr).trim() === '') l.acr = '0'; });
+  return p;
+}
+// Forma de pagamento escrita só em texto (Observações do pagamento ou "Como o cliente vai pagar"), sem tabela.
+const ctrPagSoTexto = () => !!(orcVal('ctr-pag-obs') || orcVal('ctr-pag-texto'));
+const CTR_PAG_MSG_SO_TEXTO = 'A forma de pagamento está só em texto. Clique em Montar para virar a tabela, confira e gere.';
 function ctrPagTotal() { return ctrPag.linhas.reduce((t, l) => t + ctrPagConta(l).valor, 0); }
+
+// ─── A conta do pagamento, sem tela e sem estado ─────────────────────────────
+// A tela, o Gerar e o híbrido leem tudo daqui. A linha "restante" vale o saldo menos as outras, SEMPRE: ela nunca
+// congela, nem com `ctrPag.tocado`. No máximo uma por tabela (a primeira vale).
+function ctrPagResolve(linhas, saldo) {
+  const cp = linhas.map(l => Object.assign({}, l));
+  const ri = cp.findIndex(l => l.resto);
+  cp.forEach((l, i) => { if (i !== ri) l.resto = false; });
+  if (ri >= 0) {
+    const outros = cp.reduce((t, l, i) => i === ri ? t : t + ctrMoeda(l.valor), 0);
+    const v = ctrCent(Math.max(0, (saldo || 0) - outros));
+    cp[ri].valor = v > 0 ? ctrFmt(v) : '';
+  }
+  return cp;
+}
+// Diferença de arredondamento de até R$ 0,05 não trava.
+const CTR_PAG_TOL = 0.05;
+const ctrPagFecha = dif => Math.abs(dif) <= CTR_PAG_TOL + 1e-9;
+// Linha sem valor e sem forma é rascunho abandonado: não conta nem vai pro papel. O restante em zero (o sinal já cobre o
+// saldo) também não: não imprime "R$ 0,00".
+const ctrPagLinhaVale = l => ctrMoeda(l.valor) > 0 || (!!(l.forma || '').trim() && !l.resto);
+function ctrPagCalc(linhas, saldo) {
+  const ls = ctrPagResolve(linhas, saldo);
+  const itens = ls.filter(ctrPagLinhaVale);
+  const contas = itens.map(l => ctrPagConta(l));
+  const soma = ctrCent(contas.reduce((t, c) => t + c.valor, 0));
+  return { linhas: ls, itens, contas, soma, dif: ctrCent((saldo || 0) - soma), incompletas: contas.filter(c => c.incompleto).map(c => c.incompleto) };
+}
+// Os modelos que imprimem a tabela de pagamento. Arrendamento e termo do arrendador não cobram nada do cliente.
+const CTR_PAG_IMPRIME = ['completo', 'equip', 'socio50', 'cotas', 'termo_inv'];
+// O que impede de gerar o contrato (texto vazio = pode gerar). Sem "gerar assim mesmo": foi assim que saiu um contrato
+// com "Cartão R$ 72.000,00" para um saldo de R$ 62.500,00.
+// `soTexto`: a lista está vazia mas há texto (observações ou "Como o cliente vai pagar"): a mensagem manda montar a tabela.
+// Sem exceção para papel antigo: todo contrato que imprime pagamento exige linhas.
+function ctrPagTrava(tipo, linhas, saldo, soTexto) {
+  if (!CTR_PAG_IMPRIME.includes(tipo)) return '';
+  const pc = ctrPagCalc(linhas, saldo);
+  if (!pc.itens.length && soTexto && saldo > CTR_PAG_TOL) return CTR_PAG_MSG_SO_TEXTO;
+  if (!pc.itens.length) return saldo > CTR_PAG_TOL ? 'O contrato imprime a forma de pagamento, mas a lista está vazia. Monte o pagamento (modelo rápido, "Como o cliente vai pagar" ou "+ Adicionar forma de pagamento") antes de gerar.' : '';
+  if (pc.incompletas.length) return pc.incompletas[0] + ' Ajuste o pagamento antes de gerar.';
+  if (!ctrPagFecha(pc.dif)) return `As formas de pagamento somam ${ORC_MONEY(pc.soma)} e o valor devido é ${ORC_MONEY(saldo)}. Ajuste o pagamento antes de gerar.`;
+  return '';
+}
 
 // Modelos prontos, todos sobre o saldo. A última linha leva o centavo que sobra
 // do arredondamento: a soma fecha sempre no saldo exato.
 function ctrPagModelo(tipo, saldo) {
   const L = ctrPagLinha;
-  if (tipo === 'vista') return [L('Pix', saldo, 1, 0, 'Na assinatura do contrato')];
+  // A linha principal de cada modelo é "o restante": vale o saldo menos as outras, sempre.
+  const R = { resto: true };
+  if (tipo === 'vista') return [L('Pix', saldo, 1, 0, 'Na assinatura do contrato', '', R)];
   if (tipo === 'cartao') {
     // A entrada do Orçamento é sobre o preço; o sinal já pago sai dela.
     const e = orcEntradaCalc(ctrTotal()), r = [];
     const ent = Math.max(0, Math.min(saldo, ctrCent(e.entrada - ctrSinalPago())));
     if (ent > 0) r.push(L('Pix', ent, 1, 0, 'Na assinatura do contrato'));
-    r.push(L('Cartão de crédito', ctrCent(saldo - ent), e.parcelas, e.juros, 'Na assinatura do contrato'));
+    // A taxa é a digitada no Orçamento (juros 0 conta como digitado: não cai na tabela da Sociedade).
+    r.push(L('Cartão de crédito', ctrCent(saldo - ent), e.parcelas, e.juros, 'Na assinatura do contrato', '', { resto: true, acrZero: true }));
     return r;
   }
   if (tipo === 'fin') {
@@ -23925,25 +24033,24 @@ function ctrPagModelo(tipo, saldo) {
     // CM-09: a parcela simulada só vale se o principal é o mesmo da simulação.
     const mesma = Math.abs(financiado - f.financiado) < 1;
     r.push(L('Financiamento bancário', financiado, f.parcelas, 0, 'Na liberação do crédito pelo banco',
-      f.parcela > 0 && mesma ? `Parcela estimada de ${ORC_MONEY(f.parcela)}, sujeita à análise de crédito.` : 'Taxa e parcelas definidas pela instituição financeira.'));
+      f.parcela > 0 && mesma ? `Parcela estimada de ${ORC_MONEY(f.parcela)}, sujeita à análise de crédito.` : 'Taxa e parcelas definidas pela instituição financeira.', R));
     return r;
   }
   if (tipo === 'etapas') {
     const a = ctrCent(saldo * 0.3), b = ctrCent(saldo * 0.4);
     return [L('Pix ou transferência', a, 1, 0, 'Na assinatura do contrato'),
             L('Pix ou transferência', b, 1, 0, 'Na entrega dos equipamentos no local da obra'),
-            L('Pix ou transferência', ctrCent(saldo - a - b), 1, 0, 'Na conclusão da instalação (comissionamento)')];
+            L('Pix ou transferência', ctrCent(saldo - a - b), 1, 0, 'Na conclusão da instalação (comissionamento)', '', R)];
   }
   if (tipo === 'boleto') {
     const a = ctrCent(saldo * 0.3);
     return [L('Pix', a, 1, 0, 'Na assinatura do contrato'),
-            L('Boleto bancário', ctrCent(saldo - a), 6, 0, 'Mensais, a primeira 30 dias após a assinatura')];
+            L('Boleto bancário', ctrCent(saldo - a), 6, 0, 'Mensais, a primeira 30 dias após a assinatura', '', R)];
   }
   // As condições da COTA (decisão do dono, 29/09/2026): os mesmos fatores do
-  // cartão da Sociedade em PDF e do anúncio. O 18x sobre R$ 50 mil fecha em
-  // R$ 3.662,00, o número que o anúncio promete. Acréscimo arredondado no
-  // milionésimo: (1,31832 - 1) x 100 em ponto flutuante dá 31,832000000000004.
-  const acrDe = f => Math.round((f - 1) * 1e8) / 1e6;
+  // cartão da Sociedade em PDF e do anúncio, agora na tabela CTR_TAXA_CARTAO. O 18x
+  // sobre R$ 50 mil fecha em R$ 3.662,00, o número que o anúncio promete. A linha
+  // sai SEM acréscimo digitado: a taxa vem da tabela, num lugar só.
   // Compra e venda de equipamento: sinal no pedido e saldo antes de o
   // equipamento sair do estoque, com o percentual da condição da aba Venda de
   // equipamento (30% se não houver).
@@ -23952,10 +24059,10 @@ function ctrPagModelo(tipo, saldo) {
     const pct = (c && typeof equipSinalPct === 'function' && equipSinalPct(c)) || 30;
     const a = ctrCent(saldo * pct / 100);
     return [L('Pix', a, 1, 0, 'Na assinatura deste contrato'),
-            L('Pix ou transferência', ctrCent(saldo - a), 1, 0, 'Quando o equipamento chegar ao estoque da vendedora, antes da expedição')];
+            L('Pix ou transferência', ctrCent(saldo - a), 1, 0, 'Quando o equipamento chegar ao estoque da vendedora, antes da expedição', '', R)];
   }
-  if (tipo === 'cartao10') return [L('Cartão de crédito', saldo, 10, acrDe(SOC_FATOR_10X), 'Na assinatura do contrato')];
-  if (tipo === 'cartao18') return [L('Cartão de crédito', saldo, 18, acrDe(SOC_FATOR_18X), 'Na assinatura do contrato')];
+  if (tipo === 'cartao10') return [L('Cartão de crédito', saldo, 10, 0, 'Na assinatura do contrato', '', R)];
+  if (tipo === 'cartao18') return [L('Cartão de crédito', saldo, 18, 0, 'Na assinatura do contrato', '', R)];
   return [];
 }
 // O que a lista mostra antes de alguém mexer: a condição marcada no Orçamento.
@@ -23984,19 +24091,41 @@ function ctrPagSugerida(saldo) {
   return ctrPagModelo(daFicha || 'cartao', saldo);
 }
 
+// O restante da tela acompanha o saldo de agora: o valor é gravado na linha para o que for salvo e impresso.
+function ctrPagSync() {
+  ctrPagResolve(ctrPag.linhas, ctrSaldo()).forEach((r, i) => { ctrPag.linhas[i].valor = r.valor; ctrPag.linhas[i].resto = r.resto; });
+}
+// Atualiza a linha na tela SEM redesenhar (redesenhar tira o foco de quem está digitando).
+function ctrPagRowUi(row, l) {
+  const c = ctrPagConta(l);
+  const cond = row.querySelector('.ctr-pag-cond'); if (cond) cond.textContent = ctrPagCondicao(l);
+  row.classList.toggle('inc', !!c.incompleto);
+  const v = row.querySelector('input[data-k="valor"]');
+  if (v) { v.readOnly = !!l.resto; if (l.resto && v.value !== l.valor) v.value = l.valor; }
+  const a = row.querySelector('input[data-k="acr"]');
+  if (a) a.placeholder = c.origem === 'tabela' ? ctrPct2(c.acr) + ' (tabela)' : c.origem === 'parcela' ? ctrPct2(c.acr) + ' (da parcela)' : '0';
+  const b = row.querySelector('.ctr-pag-resto'); if (b) b.style.display = l.resto ? '' : 'none';
+  const k = row.querySelector('input[data-k="resto"]'); if (k) k.checked = !!l.resto;
+}
+function ctrPagRowsUi() {
+  document.querySelectorAll('#ctr-pag-lista .ctr-pag-row').forEach(row => { const l = ctrPag.linhas[Number(row.dataset.i)]; if (l) ctrPagRowUi(row, l); });
+}
 function ctrPagRender() {
   const box = document.getElementById('ctr-pag-lista');
   if (!box) return;
+  ctrPagSync();
   box.innerHTML = ctrPag.linhas.length ? ctrPag.linhas.map((l, i) => `<div class="ctr-pag-row" data-i="${i}">
-      <div class="ctr-pag-cab"><b>Forma ${i + 1}</b><span class="ctr-pag-cond">${orcEsc(ctrPagCondicao(l))}</span><button type="button" class="ctr-x" onclick="ctrPagRemove(${i})" title="Tirar esta forma" aria-label="Tirar esta forma">×</button></div>
+      <div class="ctr-pag-cab"><b>Forma ${i + 1}</b><span class="ctr-pag-resto" style="display:none">o restante do saldo</span><span class="ctr-pag-cond">${orcEsc(ctrPagCondicao(l))}</span><label class="ctr-pag-rk" title="O valor desta forma é sempre o saldo menos as outras"><input type="checkbox" data-k="resto" onchange="ctrPagResto(this)"> Restante</label><button type="button" class="ctr-x" onclick="ctrPagRemove(${i})" title="Tirar esta forma" aria-label="Tirar esta forma">×</button></div>
       <label class="ctr-pf ctr-pf-forma"><span>Forma</span><input type="text" list="ctr-dl-formas" value="${ctrAttr(l.forma)}" data-k="forma" oninput="ctrPagCampo(this)" placeholder="Pix, boleto, cartão, permuta..."></label>
       <label class="ctr-pf"><span>Valor (R$)</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.valor)}" data-k="valor" oninput="ctrPagCampo(this)" placeholder="0,00"></label>
       <label class="ctr-pf"><span>Parcelas</span><input type="number" class="num" inputmode="numeric" min="1" value="${ctrAttr(l.parc)}" data-k="parc" oninput="ctrPagCampo(this)"></label>
+      <label class="ctr-pf"><span>Parcela negociada (R$)</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.parcValor)}" data-k="parcValor" oninput="ctrPagCampo(this)" placeholder="Só se digitada"></label>
       <label class="ctr-pf"><span>Acréscimo %</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.acr)}" data-k="acr" oninput="ctrPagCampo(this)" placeholder="0"></label>
       <label class="ctr-pf ctr-pf-quando"><span>Vencimento</span><input type="text" list="ctr-dl-quando" value="${ctrAttr(l.quando)}" data-k="quando" oninput="ctrPagCampo(this)" placeholder="Quando se paga"></label>
       <label class="ctr-pf ctr-pf-obs"><span>Observação (opcional)</span><input type="text" value="${ctrAttr(l.obs)}" data-k="obs" oninput="ctrPagCampo(this)" placeholder="Ex.: bandeira do cartão, banco do financiamento, nº de boletos"></label>
     </div>`).join('')
-    : '<div class="ctr-vazio">Nenhuma forma na lista. Use um modelo rápido ou adicione uma forma. Sem forma nenhuma, a cláusula de pagamento sai com o texto das observações.</div>';
+    : '<div class="ctr-vazio">Nenhuma forma na lista. Use um modelo rápido, escreva em "Como o cliente vai pagar" ou adicione uma forma.</div>';
+  ctrPagRowsUi();
   ctrPagSoma();
 }
 function ctrPagCampo(inp) {
@@ -24005,9 +24134,19 @@ function ctrPagCampo(inp) {
   if (!l) return;
   l[inp.dataset.k] = inp.value;
   ctrPag.tocado = true;
-  const c = row.querySelector('.ctr-pag-cond');
-  if (c) c.textContent = ctrPagCondicao(l);
+  ctrPagSync();      // mexeu numa linha: o restante acompanha
+  ctrPagRowsUi();
   ctrPagSoma();
+}
+// "Restante" liga numa linha só e desliga nas outras. Desligar deixa o valor que a linha tinha.
+function ctrPagResto(ck) {
+  const row = ck.closest('.ctr-pag-row');
+  const l = row && ctrPag.linhas[Number(row.dataset.i)];
+  if (!l) return;
+  ctrPag.linhas.forEach(x => { x.resto = false; });
+  l.resto = !!ck.checked;
+  ctrPag.tocado = true;
+  ctrPagRender();
 }
 function ctrPagRemove(i) { ctrPag.linhas.splice(i, 1); ctrPag.tocado = true; ctrPagRender(); }
 // Forma nova nasce com o que FALTA para fechar o saldo: é quase sempre isso
@@ -24016,40 +24155,179 @@ function ctrPagAdd() {
   ctrPag.linhas.push(ctrPagLinha('', Math.max(0, ctrCent(ctrSaldo() - ctrPagTotal())), 1, 0, '', ''));
   ctrPag.tocado = true;
   ctrPagRender();
-  const ult = document.querySelector('#ctr-pag-lista .ctr-pag-row:last-child input');
+  const ult = document.querySelector('#ctr-pag-lista .ctr-pag-row:last-child input:not([type=checkbox])');
   if (ult) ult.focus();
 }
 function ctrPagAplicar(tipo) { ctrPag.linhas = ctrPagModelo(tipo, ctrSaldo()); ctrPag.tocado = true; ctrPagRender(); }
 function ctrPagReset() { ctrPag.tocado = false; ctrResumo(); }
 function ctrPagFechar() {
   const l = ctrPag.linhas[ctrPag.linhas.length - 1];
-  if (!l) return;
+  if (!l || l.resto) return;
   const outros = ctrPagTotal() - ctrPagConta(l).valor;
   l.valor = ctrFmt(Math.max(0, ctrSaldo() - outros));
   ctrPag.tocado = true;
   ctrPagRender();
 }
 // Soma das formas contra o saldo. Fechar no centavo é o que impede o papel de
-// cobrar a mais ou deixar parte do preço sem forma nenhuma.
+// cobrar a mais ou deixar parte do preço sem forma nenhuma. O que a tela diz
+// aqui é o mesmo que o Gerar confere (ctrPagTrava).
 function ctrPagDesligar() { ctrPag.tocado = true; ctrPagSoma(); }
 function ctrPagSoma() {
   ctrEspelho('ctr-pag-esp', !ctrPag.tocado, 'Orçamento', 'ctrPagDesligar()', 'ctrPagReset()');
   const el = document.getElementById('ctr-pag-soma');
   if (!el) return;
-  const saldo = ctrSaldo(), soma = ctrPagTotal(), dif = ctrCent(saldo - soma);
-  const fechar = ' <button type="button" class="orc-link" onclick="ctrPagFechar()">Ajustar a última forma</button>';
-  if (!ctrPag.linhas.length) {
-    el.className = 'ctr-pag-soma';
-    el.innerHTML = 'Sem formas na lista: a cláusula de pagamento sai com o texto das <b>observações</b> abaixo.';
-  } else if (Math.abs(dif) < 0.01) {
+  const saldo = ctrSaldo(), pc = ctrPagCalc(ctrPag.linhas, saldo), soma = pc.soma, dif = pc.dif;
+  const temResto = pc.linhas.some(l => l.resto);
+  const fechar = temResto ? '' : ' <button type="button" class="orc-link" onclick="ctrPagFechar()">Ajustar a última forma</button>';
+  if (!pc.itens.length) {
+    if (CTR_PAG_IMPRIME.includes(ctrTipo()) && saldo > CTR_PAG_TOL && ctrPagSoTexto()) {
+      el.className = 'ctr-pag-soma dif';
+      el.textContent = CTR_PAG_MSG_SO_TEXTO;
+    } else if (CTR_PAG_IMPRIME.includes(ctrTipo()) && saldo > CTR_PAG_TOL) {
+      el.className = 'ctr-pag-soma dif';
+      el.innerHTML = 'Sem formas na lista: o contrato <b>não é gerado</b> sem o pagamento. Use um modelo rápido, escreva em "Como o cliente vai pagar" ou adicione uma forma.';
+    } else {
+      el.className = 'ctr-pag-soma';
+      el.innerHTML = 'Sem formas na lista: a cláusula de pagamento sai com o texto das <b>observações</b> abaixo.';
+    }
+  } else if (pc.incompletas.length) {
+    el.className = 'ctr-pag-soma dif';
+    el.innerHTML = `<b>${orcEsc(pc.incompletas[0])}</b> O contrato não é gerado assim.`;
+  } else if (ctrPagFecha(dif)) {
     el.className = 'ctr-pag-soma fecha';
     el.innerHTML = `As formas somam <b>${ORC_MONEY(soma)}</b>, exatamente o saldo a pagar.`;
   } else if (dif > 0) {
     el.className = 'ctr-pag-soma dif';
-    el.innerHTML = `As formas somam ${ORC_MONEY(soma)}. <b>Faltam ${ORC_MONEY(dif)}</b> para fechar o saldo de ${ORC_MONEY(saldo)}.${fechar}`;
+    el.innerHTML = `As formas somam ${ORC_MONEY(soma)}. <b>Faltam ${ORC_MONEY(dif)}</b> para fechar o saldo de ${ORC_MONEY(saldo)}.${fechar} O contrato não é gerado assim.`;
   } else {
     el.className = 'ctr-pag-soma dif';
-    el.innerHTML = `As formas somam ${ORC_MONEY(soma)}. <b>Passam ${ORC_MONEY(-dif)}</b> do saldo de ${ORC_MONEY(saldo)}.${fechar}`;
+    el.innerHTML = `As formas somam ${ORC_MONEY(soma)}. <b>Passam ${ORC_MONEY(-dif)}</b> do saldo de ${ORC_MONEY(saldo)}.${temResto ? ' Diminua as outras formas: o restante já está em zero.' : fechar} O contrato não é gerado assim.`;
+  }
+}
+
+// ─── "Como o cliente vai pagar": texto livre vira as linhas ──────────────────
+// A IA (o agente de contrato, ação "pagamento") só separa o que está escrito: o servidor recusa número que não esteja no
+// texto. As linhas voltam numa prévia e o valor só entra com o clique em Aplicar; a conta é feita aqui (ctrPagCalc).
+let ctrPagProp = null, ctrPagMontando = false;
+const CTR_PAG_FORMA_NOME = { 'Pix': 'Pix', 'Transferência': 'Transferência bancária (TED)', 'Boleto': 'Boleto bancário', 'Cartão de crédito': 'Cartão de crédito', 'Financiamento': 'Financiamento bancário', 'Dinheiro': 'Dinheiro', 'Outro': 'Outro' };
+// Texto da IA e do servidor só entra por textContent. A classe é `falha`, nunca `erro` (o style.css global esconde todo `.erro`).
+function ctrPagPreviaMsg(txt, falha) {
+  const box = document.getElementById('ctr-pag-previa');
+  if (!box) return;
+  box.textContent = '';
+  if (!txt) return;
+  const d = document.createElement('div');
+  d.className = 'ctr-ia-msg' + (falha ? ' falha' : '');
+  d.textContent = txt;
+  box.appendChild(d);
+}
+function ctrPagPreviaTxt(x) {
+  const partes = [];
+  partes.push(x.resto ? 'o restante do saldo' : (x.valor > 0 ? ORC_MONEY(x.valor) : 'valor não informado'));
+  if (x.parc > 1) partes.push(`em ${x.parc}x` + (x.parcValor > 0 ? ` de ${ORC_MONEY(x.parcValor)} (parcela negociada)` : ''));
+  if (x.quando) partes.push(x.quando);
+  return `${x.forma}: ${partes.join(', ')}` + (x.obs ? ` (${x.obs})` : '');
+}
+function ctrPagPreviaRender() {
+  const box = document.getElementById('ctr-pag-previa');
+  if (!box) return;
+  box.textContent = '';
+  const p = ctrPagProp;
+  if (!p) return;
+  const cab = document.createElement('div');
+  cab.className = 'ctr-ia-msg';
+  cab.textContent = p.resposta || 'Confira as formas que a IA separou do seu texto.';
+  box.appendChild(cab);
+  const ul = document.createElement('ul');
+  ul.className = 'ctr-ag-lista';
+  p.linhas.forEach(x => { const li = document.createElement('li'); li.textContent = ctrPagPreviaTxt(x); ul.appendChild(li); });
+  box.appendChild(ul);
+  const nota = document.createElement('div');
+  nota.className = 'orc-note';
+  nota.textContent = 'Ao aplicar, o gerador faz a conta: restante, parcela e taxa. Essas formas trocam as da lista.';
+  box.appendChild(nota);
+  const bar = document.createElement('div');
+  bar.className = 'ctr-ag-acao';
+  const ok = document.createElement('button');
+  ok.type = 'button'; ok.className = 'eletro-btn'; ok.textContent = 'Aplicar'; ok.onclick = ctrPagPreviaAplicar;
+  const no = document.createElement('button');
+  no.type = 'button'; no.className = 'orc-link'; no.textContent = 'Descartar'; no.onclick = () => { ctrPagProp = null; ctrPagPreviaMsg(''); };
+  bar.appendChild(ok); bar.appendChild(no);
+  box.appendChild(bar);
+}
+function ctrPagPreviaAplicar() {
+  const p = ctrPagProp;
+  if (!p || !p.linhas.length) return;
+  let temResto = false;
+  ctrPag.linhas = p.linhas.slice(0, 6).map(x => {
+    const resto = !!x.resto && !temResto;
+    if (resto) temResto = true;
+    const parc = Number.isInteger(x.parc) ? x.parc : 1;
+    return ctrPagLinha(CTR_PAG_FORMA_NOME[x.forma] || x.forma, resto ? 0 : (Number(x.valor) || 0), parc, 0, x.quando || '', x.obs || '', { resto, parcValor: Number(x.parcValor) || 0 });
+  });
+  ctrPag.tocado = true;
+  ctrPagProp = null;
+  ctrPagRender();
+  ctrPagPreviaMsg('Formas aplicadas. Confira a lista e a soma.');
+}
+async function ctrPagMontar() {
+  if (ctrPagMontando) return;
+  const ta = document.getElementById('ctr-pag-texto'), btn = document.getElementById('ctr-pag-montar');
+  const texto = (ta && ta.value || '').trim();
+  ctrPagProp = null;
+  if (!texto) { ctrPagPreviaMsg('Escreva como o cliente vai pagar.', true); if (ta) ta.focus(); return; }
+  const tok = ctrAgToken();
+  if (!tok) { ctrPagPreviaMsg('Entre na sua conta para usar a IA.', true); return; }
+  const saldo = ctrSaldo();
+  if (!(saldo > 0)) { ctrPagPreviaMsg('Não há saldo a pagar neste contrato.', true); return; }
+  // Nome, documento e contato do cliente não vão para a IA (o servidor mascara documento, e-mail e telefone).
+  let msg = texto;
+  try { msg = ctrHibScrub(texto, ctrHibSensivel({ a: ctrDados() })); } catch (e) {}
+  ctrPagMontando = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Montando...'; }
+  ctrPagPreviaMsg('A IA está lendo o texto...');
+  try {
+    let r, j = null;
+    try {
+      const ctl = new AbortController();
+      const parar = setTimeout(() => { try { ctl.abort(); } catch (e) {} }, 90000);
+      try {
+        r = await fetch(CTR_IA_API + '/gerador/contrato/agente', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+          body: JSON.stringify({
+            modo: 'pagamento', tipo: ctrTipo(), hibrido: null, clausulas: [], campos: [], mensagem: msg.slice(0, 2000),
+            pagamento: {
+              total: ctrTotal(), sinal: ctrSinalPago() + ctrDepReserva(), saldo,
+              taxas: Object.keys(CTR_TAXA_CARTAO).map(n => ({ parcelas: Number(n), acrescimo: CTR_TAXA_CARTAO[n] })),
+            },
+          }),
+          signal: ctl.signal,
+        });
+        j = await r.json().catch(() => null);
+      } finally { clearTimeout(parar); }
+    } catch (e) {
+      ctrPagPreviaMsg('Não consegui falar com a IA agora. Confira a internet e tente de novo.', true);
+      return;
+    }
+    if (!r.ok || !j || !j.ok) { ctrPagPreviaMsg(ctrAgErroHttp(r.status, j), true); return; }
+    const acao = (Array.isArray(j.acoes) ? j.acoes : []).find(a => a && a.tipo === 'pagamento');
+    const pergunta = (acao && acao.pergunta) || j.pergunta;
+    if (pergunta) { ctrPagPreviaMsg(String(pergunta)); return; }
+    if (!acao || !Array.isArray(acao.linhas) || !acao.linhas.length) {
+      ctrPagPreviaMsg(String((Array.isArray(j.avisos) && j.avisos[0]) || j.resposta || 'Não consegui montar o pagamento a partir desse texto.'), true);
+      return;
+    }
+    ctrPagProp = {
+      resposta: j.resposta ? String(j.resposta) : '',
+      linhas: acao.linhas.slice(0, 6).map(x => ({
+        forma: String(x.forma || ''), valor: Number(x.valor) > 0 ? Number(x.valor) : 0, parc: Number.isInteger(x.parc) ? x.parc : 1,
+        parcValor: Number(x.parcValor) > 0 ? Number(x.parcValor) : 0, quando: String(x.quando || ''), obs: x.obs ? String(x.obs) : '', resto: !!x.resto,
+      })),
+    };
+    ctrPagPreviaRender();
+  } finally {
+    ctrPagMontando = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Montar'; }
   }
 }
 
@@ -24126,8 +24404,9 @@ function ctrResumo() {
   set('ctr-t-sinal-rot', (ctrDepReserva() > 0 || (ctrEhSoc(ctrTipo()) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0)) ? 'Depósito da reserva, abatido' : 'Sinal já pago');
   set('ctr-t-saldo', ORC_MONEY(saldo));
   // Ninguém mexeu na lista: ela acompanha o Orçamento e o saldo de agora.
+  // O restante NUNCA congela: mexeu o aporte ou o sinal, a linha dele acompanha, com a lista tocada ou não.
   if (!ctrPag.tocado) { ctrPag.linhas = ctrPagSugerida(saldo); ctrPagRender(); }
-  else ctrPagSoma();
+  else { ctrPagSync(); ctrPagRowsUi(); ctrPagSoma(); }
   ctrPrazoNota();
   const nf = document.getElementById('ctr-pag-ficha');
   if (nf) {
@@ -24185,7 +24464,9 @@ function ctrDados() {
   const tipo = ctrTipo();
   // Linha sem valor e sem forma é rascunho abandonado: não vai pro papel. No
   // arrendamento o cliente não paga nada, e a tabela não existe.
-  const pagLinhas = (tipo === 'arrend' || tipo === 'termo_arr') ? [] : ctrPag.linhas
+  // O restante é resolvido numa CÓPIA, com o saldo desta chamada (o híbrido chama uma vez por modelo): nunca grava na tela.
+  const pagLinhas = (tipo === 'arrend' || tipo === 'termo_arr') ? [] : ctrPagResolve(ctrPag.linhas, Math.max(0, total - sinal - ctrDepReserva()))
+    .filter(ctrPagLinhaVale)
     .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: (tipo === 'termo_inv' || ctrEhSoc(tipo)) ? ctrPagCondicaoTotal(l) : ctrPagCondicao(l) }))
     .filter(l => l.conta.valor > 0 || l.forma);
   // Cessionário = cliente (só no Arrendamento simples) e avalista (só no Completo e na Compra e venda,
@@ -27388,6 +27669,10 @@ async function ctrImprimirHibrido() {
     if (d.tipo === 'equip' && !(d.total > 0)) { alert(`${nomeDe(t)}: monte o pedido na aba "Venda de equipamento" antes de gerar.`); return; }
     if (d.soc && !d.soc.cotasFecham) { alert(`${nomeDe(t)}: as cotas somam ${ctrPctTxt(d.soc.somaCotas)}%. Ajuste o cartão "Sociedade" até fechar 100% antes de gerar.`); return; }
   }
+  // Pagamento que não fecha o saldo, linha incompleta ou tabela vazia: o contrato não sai, no objeto que leva a tabela.
+  { const cobra = tipos.find(t => CTR_HIB_COBRA.includes(t));
+    const trava = cobra ? ctrPagTrava(ds[cobra].tipo, ctrPag.linhas, ds[cobra].saldo, ctrPagSoTexto()) : '';
+    if (trava) { alert(trava); return; } }
   for (const t of tipos) {
     const d = ds[t];
     if (['arrend', 'socio50', 'cotas'].includes(d.tipo) && !d.local &&
@@ -27420,13 +27705,7 @@ async function ctrImprimirHibrido() {
     if (ti && !ti.origem && !confirm(`${nomeDe(t)}: "Como o investidor conheceu a NEXUS" está em branco. O papel não vai declarar negociação individual.\n\nGerar assim mesmo?`)) return;
     if (ti && ti.origem === 'anuncio' && !confirm(`${nomeDe(t)}: este investidor chegou por anúncio, formulário ou quiz. O papel pode ser lido pela CVM como prova de oferta pública de valor mobiliário (Lei nº 6.385/1976, art. 19). Gere só com orientação do advogado. Gerar assim mesmo?`)) return;
   }
-  // A forma de pagamento que não fecha o saldo, no objeto que leva a tabela.
-  const cobra = tipos.find(t => CTR_HIB_COBRA.includes(t));
-  if (cobra) {
-    const d = ds[cobra], difPag = ctrCent(d.saldo - d.pagSoma);
-    if (d.pagLinhas.length && Math.abs(difPag) >= 0.01 &&
-        !confirm(`${nomeDe(cobra)}: as formas de pagamento somam ${ORC_MONEY(d.pagSoma)}, mas o saldo a pagar é ${ORC_MONEY(d.saldo)} (${difPag > 0 ? 'faltam' : 'passam'} ${ORC_MONEY(Math.abs(difPag))}).\n\nGerar o contrato assim mesmo?`)) return;
-  }
+  // (A forma de pagamento que não fecha o saldo trava lá em cima, no objeto que leva a tabela.)
   if (dP.num) {
     const outro = epHistOrcList().find(h => h.num === dP.num && (h.modelo !== 'hibrido' || (h.cliente && h.cliente !== (dP.contratante || dP.cliente))));
     if (outro && !confirm(`O nº ${dP.num} já saiu em outro papel: ${outro.rotulo || outro.tipo} de ${outro.cliente || 'cliente sem nome'}, em ${outro.data}.\n\nGerar com o mesmo número?`)) return;
@@ -27479,6 +27758,8 @@ async function ctrImprimir() {
       : 'O "Valor total do projeto" do contrato está vazio. Digite o valor ou marque "Espelho: Orçamento" ao lado dele.');
     return;
   }
+  // Pagamento que não fecha o saldo, linha incompleta ou tabela vazia: o contrato não sai. Nada de "gerar assim mesmo".
+  { const trava = ctrPagTrava(d.tipo, ctrPag.linhas, d.saldo, ctrPagSoTexto()); if (trava) { alert(trava); return; } }
   // O local do PONTO em branco no arrendamento e na sociedade sai como lacuna,
   // e endereço residencial no lugar dele é o erro que mais volta do balcão.
   if (['arrend', 'termo_arr', 'socio50', 'cotas'].includes(d.tipo) && !d.local &&
@@ -27546,8 +27827,6 @@ async function ctrImprimir() {
       !confirm('Sem o local do ponto do contrato: a adesão sai com a linha em branco no lugar do PONTO.\n\nGerar assim mesmo?')) return;
   if (d.tipo === 'termo_inv' && d.ti.uso === 'adesao' && !d.ti.contratoNum &&
       !confirm('Sem o número do contrato da sociedade: a adesão sai com a linha em branco no lugar.\n\nGerar assim mesmo?')) return;
-  // Formas que não fecham o saldo = papel cobrando a mais ou deixando parte do
-  // preço sem forma. Não trava (pode ser de propósito), mas não passa calado.
   // Pedido à IA que tirou um trecho citado em outro lugar deixa a citação sem
   // destino; no papel ela vira lacuna. Não trava, mas não passa calada.
   if (ctrIaPedidos(d.tipo).length) {
@@ -27557,9 +27836,6 @@ async function ctrImprimir() {
     if (nf && !confirm(nf + ' mudança(s) pedida(s) à IA não entra(m) no papel: o trecho mudou ou saiu do contrato depois do pedido. Veja em "Detalhe das mudanças no texto", no Assistente de contrato.\n\nGerar assim mesmo?')) return;
     if (qb.length && !confirm('Há citação de cláusula que ficou sem destino depois dos pedidos à IA (' + [...new Set(qb)].join(', ') + '). No papel ela sai como lacuna.\n\nGerar assim mesmo?')) return;
   }
-  const difPag = ctrCent(d.saldo - d.pagSoma);
-  if (d.pagLinhas.length && Math.abs(difPag) >= 0.01 &&
-      !confirm(`As formas de pagamento somam ${ORC_MONEY(d.pagSoma)}, mas o saldo a pagar é ${ORC_MONEY(d.saldo)} (${difPag > 0 ? 'faltam' : 'passam'} ${ORC_MONEY(Math.abs(difPag))}).\n\nGerar o contrato assim mesmo?`)) return;
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   if (d.num) {
     const outro = epHistOrcList().find(h => h.num === d.num && (h.modelo !== d.tipo || (h.cliente && h.cliente !== (d.contratante || d.cliente))));
@@ -29166,12 +29442,16 @@ function orcSnapApply(s, tipo) {
   set('ctr-prazo-credito', s.ctrPrazoCredito); set('ctr-prazo-corrigir', s.ctrPrazoCorrigir); set('ctr-prazo-aviso', s.ctrPrazoAviso);
   set('ctr-testemunhas', s.ctrTestemunhas); set('ctr-mostra-pct', s.ctrMostraPct);
   ctrEsc = s.ctrEsc ? Object.assign(ctrEscNovo(), JSON.parse(JSON.stringify(s.ctrEsc))) : ctrEscNovo();
-  if (s.ctrPag && Array.isArray(s.ctrPag.linhas)) ctrPag = JSON.parse(JSON.stringify(s.ctrPag));
+  if (s.ctrPag && Array.isArray(s.ctrPag.linhas)) ctrPag = ctrPagRestaurar(s.ctrPag);
   // Contrato salvo antes da lista: a forma de pagamento era UM texto. Ele volta
   // inteiro nas observações e a lista fica vazia — sem forma na lista, as
   // observações SÃO a cláusula 3.3, palavra por palavra como foi assinada.
   else if (s.ctrPagTocado && s.ctrPagamento) { ctrPag = { tocado: true, linhas: [] }; set('ctr-pag-obs', s.ctrPagamento); }
   else ctrPag = { tocado: false, linhas: [] };
+  // Papel antigo só com texto (lista vazia): o texto vai para "Como o cliente vai pagar" e o consultor só clica em Montar.
+  // O Gerar trava até a tabela existir; a 2ª via (HTML guardado) não passa por aqui e fica como foi emitida.
+  { const tx = document.getElementById('ctr-pag-texto'); if (tx) tx.value = ctrPag.linhas.length ? '' : orcVal('ctr-pag-obs'); }
+  ctrPagProp = null; ctrPagPreviaMsg('');
   // CONTRATO de antes de 05/10/2026 (snapshot sem `ctrOpc`): a 2ª via tem que
   // sair como foi assinada — sem as cláusulas de proteção e sem as linhas de
   // testemunha, que ele nunca teve. Qualquer outro papel antigo (orçamento,
