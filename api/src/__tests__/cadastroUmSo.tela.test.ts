@@ -72,6 +72,7 @@ function criarSandbox(): Ctx {
     navFechamentoSolar: 'function () {}', fsTipoMudou: 'function () {}', fsProcModelo: 'function () {}', fsAba: 'function () {}', fsRevalida: 'function () {}',
     orcInit: 'function () {}', recTipoMudou: 'function () {}', ctrEscRender: 'function () {}', orcKitMarcado: 'function () { return false; }', fsTitularAlerta: 'function () {}', fsFinAlerta: 'function () {}', fsLimparCliente: 'function () { __fsLimpou = (typeof __fsLimpou === "undefined" ? 0 : __fsLimpou) + 1; }',
   };
+  vm.runInContext('__vdcFetchReal = vdcFetch;', ctx);
   vm.runInContext('__ctrEspSyncReal = ctrEspSync;', ctx);   // o teste do papel gerado liga o espelho de verdade
   for (const [nome, corpo] of Object.entries(mudos)) { try { vm.runInContext(`${nome} = ${corpo};`, ctx); } catch { /* const: fica o original */ } }
   return ctx;
@@ -442,6 +443,40 @@ describe('um cadastro, vários papéis', () => {
       chamadas.length = 0;
       await rodar('vdcVoltaParaCadastro("ele")'); await fluxo();
       expect(puts()[0].corpo.campos).toEqual({ endereco: 'Rua X 10, Apto 12' });
+    });
+    it('endereço: rua com vírgula própria ("Av. Brasil, s/n") não vira bairro quando o bairro sai; com o mesmo número de vírgulas da base, separa', async () => {
+      cads['eletroposto:101'].campos.endereco = campo('Av. Brasil, s/n');   // base do papel: "Av. Brasil, s/n, Centro"
+      await escolher('ele', { ...A, status: 'fechou' });
+      expect(val('orc-cli-end')).toBe('Av. Brasil, s/n, Centro');
+      chamadas.length = 0;
+      el('orc-cli-end').value = 'Av. Brasil, s/n';
+      await rodar('vdcVoltaParaCadastro("ele")'); await fluxo();
+      expect(puts()[0].corpo.campos).toEqual({ endereco: 'Av. Brasil, s/n' });
+      expect(cads['eletroposto:101'].campos.bairro.valor).toBe('Centro');
+      // "Rua X 10, Centro" -> "Rua X 10, Jardim" (mesma contagem de vírgulas) continua separando
+      cads['eletroposto:101'].campos.endereco = campo('Rua X 10');
+      await escolher('ele', { ...B, status: 'agendado' });
+      await escolher('ele', { ...A, status: 'fechou' });
+      chamadas.length = 0;
+      el('orc-cli-end').value = 'Rua X 10, Jardim';
+      await rodar('vdcVoltaParaCadastro("ele")'); await fluxo();
+      expect(puts()[0].corpo.campos).toEqual({ endereco: 'Rua X 10', bairro: 'Jardim' });
+    });
+    it('a pendência do solar não trava o Gerar do eletroposto, e a do eletroposto não trava o do solar', () => {
+      rodar("vdcPendente = { ele: 0, sol: 1 }; epPrevEstado = null;");
+      rodar("try { epPreview({ html: '<p>x</p>', arquivo: 'a', titulo: 'a' }); } catch (e) {}");
+      expect(rodar('epPrevEstado')).not.toBeNull();   // eletroposto passou
+      rodar("epPrevEstado = null; try { epPreview({ html: '<p>x</p>', arquivo: 'a', titulo: 'a', ctx: 'sol' }); } catch (e) {}");
+      expect(rodar('epPrevEstado')).toBeNull();       // solar esperou
+      rodar("vdcPendente = { ele: 1, sol: 0 }; epPrevEstado = null; try { epPreview({ html: '<p>x</p>', arquivo: 'a', titulo: 'a', ctx: 'sol' }); } catch (e) {}");
+      expect(rodar('epPrevEstado')).not.toBeNull();
+      expect(readFileSync(HTML, 'utf8')).toMatch(/hist: null, ctx: 'sol',/);
+    });
+    it('vdcFetch: a renovação do token travada estoura no mesmo prazo (status 0), sem prender quem espera', async () => {
+      rodar("globalThis.__orig = [finToken, setTimeout, clearTimeout]; finToken = () => new Promise(() => {}); setTimeout = (f) => { f(); return 1; }; clearTimeout = () => {};");
+      try {
+        expect(await rodar("__vdcFetchReal('/x', 'GET')")).toEqual({ status: 0, json: null });
+      } finally { rodar("[finToken, setTimeout, clearTimeout] = __orig;"); }
     });
     it('trocar de A para B vendido esvazia A ANTES de buscar B e o Gerar espera enquanto o cadastro de B não chegou', async () => {
       await escolher('ele', { ...A, status: 'fechou' });

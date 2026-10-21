@@ -22322,7 +22322,7 @@ function epVendRestaurar() {
 let epPrevEstado = null;   // { html, arquivo, opts } — opts null = documento que pagina
 
 function epPreview(o) {
-  if (vdcCarregando()) { showToast('Carregando os dados do cliente… Espere um instante e gere de novo.'); return; }
+  if (vdcCarregando(o && o.ctx)) { showToast('Carregando os dados do cliente… Espere um instante e gere de novo.'); return; }
   epPrevEstado = o;
   const bg = document.getElementById('ep-preview');
   const doc = document.getElementById('ep-prev-doc');
@@ -22393,7 +22393,7 @@ function epPrevFechar() {
 function epPrevSaida() {
   const s = epPrevEstado;
   if (!s) return;
-  if (vdcCarregando()) { showToast('Carregando os dados do cliente… Espere um instante e gere de novo.'); return; }
+  if (vdcCarregando(s.ctx)) { showToast('Carregando os dados do cliente… Espere um instante e gere de novo.'); return; }
   // Texto mexido na folha: sai o que está NA TELA, sem o contenteditable.
   let html = s.html;
   if (s.editado) html = epPrevHtmlEditado();
@@ -29362,7 +29362,7 @@ let fsCardLigado = null;
 let vdcBase = { ele: null, sol: null };
 let vdcDiff = { ele: null, sol: null };
 let vdcPendente = { ele: 0, sol: 0 };   // aplicar do cadastro do card novo em andamento: o Gerar espera (senão sai papel vazio ou com dado velho)
-const vdcCarregando = () => vdcPendente.ele > 0 || vdcPendente.sol > 0;
+const vdcCarregando = (ctx) => vdcPendente[ctx === 'sol' ? 'sol' : 'ele'] > 0;   // cada tela só espera o PRÓPRIO cadastro
 const CTR_VERS = {
   ele: { lista: null, chave: '', erro: '', carregando: false, socio: false, busca: false, achados: null, buscaErro: '', seq: 0, timer: 0 },
   sol: { lista: null, chave: '', erro: '', carregando: false, socio: false, busca: false, achados: null, buscaErro: '', seq: 0, timer: 0 },
@@ -32905,7 +32905,7 @@ function fsPreview(o) {
   const snap = fsSnap(o.tipo === 'Contrato');
   const hojeBR = new Date().toLocaleDateString('pt-BR');
   epPreview({
-    html: o.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts, hist: null,
+    html: o.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts, hist: null, ctx: 'sol',
     emit: 'aioros',   // Fechamento solar: o selo e' sempre da AIOROS, qualquer que seja o controle do eletroposto
     aoSair: r => {
       // fotos: só a CONTAGEM vai para o histórico (o localStorage não aguenta imagem); as fotos vivem na 2ª via
@@ -37173,8 +37173,13 @@ function vdcChamarVinc(st, metodo, corpo) {
   return vdcFetch('/gerador/vendas-solares/' + encodeURIComponent(String(st.id)) + '/vinculos', metodo, corpo, 20000);
 }
 async function vdcFetch(rota, metodo, corpo, ms) {
-  let tok = '';
-  try { tok = await finToken(); } catch (e) { tok = ''; }
+  let tok = '', estourou = false, tt = 0;
+  // A renovação do token entra no MESMO prazo da chamada: se ela travar, a tela (e a trava do Gerar) não ficam presas para sempre.
+  try {
+    tok = await Promise.race([finToken(), new Promise((ok) => { tt = setTimeout(() => { estourou = true; ok(''); }, ms || 20000); })]);
+  } catch (e) { tok = ''; }
+  if (tt) clearTimeout(tt);
+  if (estourou) return { status: 0, json: null };
   if (!tok) return { status: 401, json: null };
   const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
   const t = ctrl ? setTimeout(() => ctrl.abort(), ms || 20000) : null;
@@ -39407,11 +39412,15 @@ const vdcFmtCep = (v) => { const d = vdcDigitos(v); return d.length === 8 ? d.re
 // `v(C, tipo)`: o texto que o cadastro dá. `volta(texto, C)`: as chaves do cadastro que o texto editado representa.
 // Texto do endereço do comprador ("rua, bairro") ao contrário: termina no bairro do cadastro -> tira; termina em OUTRO bairro (sem número) -> rua e
 // bairro separados; sem bairro no cadastro, ou fim com número ("Apto 12"), o texto todo é a rua. Nunca junta "rua, bairro novo, bairro velho".
+// O texto de base ("rua, bairro") que o aplicar escreve, para contar vírgulas: só se separa rua e bairro quando o texto editado tem o MESMO número
+// de vírgulas da base (a rua "Av. Brasil, s/n" tem uma vírgula sua; tirar o bairro não pode virar "s/n" bairro).
+const vdcEndComposto = (C) => [C.endereco, C.bairro && C.endereco.toLowerCase().indexOf(C.bairro.toLowerCase()) < 0 ? C.bairro : ''].filter(Boolean).join(', ');
+const vdcVirgulas = (t) => (String(t).match(/,/g) || []).length;
 const vdcEnderecoDe = (t, C) => {
   const b = C.bairro || '';
   if (b && t.toLowerCase().endsWith(', ' + b.toLowerCase())) return { endereco: t.slice(0, t.length - b.length - 2).trim() };
   const i = t.lastIndexOf(',');
-  if (b && i > 0) {
+  if (b && i > 0 && vdcVirgulas(t) === vdcVirgulas(vdcEndComposto(C))) {
     const ini = t.slice(0, i).trim(), resto = t.slice(i + 1).trim();
     if (ini && resto && !/\d/.test(resto)) return { endereco: ini, bairro: resto };
   }
@@ -39425,7 +39434,7 @@ const VDC_MAPA_EP = [
   { ids: ['orc-cli-ie', 'eq-cli-ie'], esp: ['ctr-contratante-ie'], pj: true, fontes: ['rg_ie'], v: (C, tipo) => tipo === 'PJ' ? C.rg_ie : '', volta: (t) => ({ rg_ie: t }) },
   // Endereço do comprador: "rua, bairro". Ao contrário, o bairro do cadastro sai do fim do texto; sem ele, o texto todo é a rua.
   { ids: ['orc-cli-end', 'eq-cli-end', 'rec-cli-end', 'proc-outorgante-end'], esp: ['ctr-contratante-end'], fontes: ['endereco', 'bairro'],
-    v: (C) => [C.endereco, C.bairro && C.endereco.toLowerCase().indexOf(C.bairro.toLowerCase()) < 0 ? C.bairro : ''].filter(Boolean).join(', '), volta: vdcEnderecoDe },
+    v: (C) => vdcEndComposto(C), volta: vdcEnderecoDe },
   { ids: ['bnk-end'], fontes: ['endereco'], v: (C) => C.endereco, volta: (t) => ({ endereco: t }) },
   { ids: ['orc-cli-cep', 'bnk-cep'], esp: ['ctr-contratante-cep'], fontes: ['cep'], dig: true, v: (C) => C.cep, volta: (t) => ({ cep: t }) },
   { ids: ['bnk-bairro'], fontes: ['bairro'], v: (C) => C.bairro, volta: (t) => ({ bairro: t }) },
