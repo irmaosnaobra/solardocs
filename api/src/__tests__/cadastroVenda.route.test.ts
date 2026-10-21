@@ -400,6 +400,35 @@ describe('GET e PUT do cadastro', () => {
     expect((await putCad(101, { campos: { nome: 12 } })).status).toBe(400);
     expect(h.cad.size).toBe(0);
   });
+  it('"Limpar os dados desta pessoa": PUT manual com valor vazio apaga só os campos do cedente; comprador e avalista ficam', async () => {
+    await putCad(101, { campos: {
+      nome: 'Carlos Alves', cpf_cnpj: '52998224725', cidade: 'Uberlandia',
+      ced_nome: 'Dona Marta', ced_cpf_cnpj: '11144477735', ced_cidade: 'Araguari', ced_qualidade: 'proprietário',
+      aval_nome: 'Seu Jorge', aval_telefone: '34988880002',
+    } });
+    const antes = cadastroDe(101).campos;
+    expect(antes.ced_nome.valor).toBe('Dona Marta');
+    // o pedido leva '' só para o que a pessoa tem; fonte manual
+    const res = await putCad(101, { campos: { ced_nome: '', ced_cpf_cnpj: '', ced_cidade: '', ced_qualidade: '' }, fonte: 'manual' });
+    expect(res.status).toBe(200);
+    const depois = cadastroDe(101).campos;
+    expect(Object.keys(depois).filter((k) => k.startsWith('ced_'))).toEqual([]);
+    expect(depois.nome.valor).toBe('Carlos Alves');
+    expect(depois.cpf_cnpj).toEqual(antes.cpf_cnpj);
+    expect(depois.cidade.valor).toBe('Uberlandia');
+    expect(depois.aval_nome.valor).toBe('Seu Jorge');
+    expect(depois.aval_telefone.valor).toBe('34988880002');
+    expect(res.body.cadastro.campos.ced_nome).toBeUndefined();
+    expect(res.body.cadastro.campos.aval_nome.valor).toBe('Seu Jorge');
+    // corrigir dado de uma pessoa (editar) não mexe nas outras
+    const ed = await putCad(101, { campos: { nome: 'Carlos A. Alves' }, fonte: 'manual' });
+    expect(ed.status).toBe(200);
+    expect(cadastroDe(101).campos.nome).toMatchObject({ valor: 'Carlos A. Alves', fonte: 'manual' });
+    expect(cadastroDe(101).campos.aval_nome.valor).toBe('Seu Jorge');
+    // limpar o que já está vazio é aceito e não muda nada; corpo sem campo continua 400
+    expect((await putCad(101, { campos: { ced_nome: '' } })).status).toBe(200);
+    expect((await putCad(101, { campos: {} })).status).toBe(400);
+  });
   it('bucket fora do ar: GET e PUT dão 503 cadastro_indisponivel', async () => {
     h.cadFora = true;
     const g = await getCad(101);

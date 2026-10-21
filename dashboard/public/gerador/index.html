@@ -2993,6 +2993,20 @@ html.pv-aberto body{overflow:hidden}
 .vdc-arq-ed .vdc-in{flex:1 1 160px}
 .vdc-arq-ed .vdc-btn{min-height:40px;padding:6px 12px;font-size:13px}
 .vdc-arq-er{grid-column:1 / -1;margin:0;font-size:12.5px;font-weight:700;line-height:1.4;color:var(--io-er-tx,#FCA5A5);overflow-wrap:anywhere}
+.vdc-btn-ex{color:var(--io-er-tx,#FCA5A5)}
+.vdc-arq-sel optgroup{font-style:normal;font-weight:800}
+.vdc-pes{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:10px 0 0;min-width:0}
+.vdc-pes[hidden]{display:none}
+.vdc-pes .vdc-sec-t{margin-top:0}
+.vdc-pes-av{display:grid;gap:8px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--io-av-sf,rgba(251,191,36,.1));border:1px solid var(--io-ambar-bd,rgba(251,191,36,.4));color:var(--io-av-tx,#FCD34D);font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.vdc-pes-av p{margin:0}
+.vdc-pes-bt{display:flex;flex-wrap:wrap;gap:6px 8px}
+.vdc-pes-bt .vdc-btn{min-height:40px;padding:6px 12px;font-size:13px}
+.vdc-pes-p{display:grid;gap:8px;min-width:0;padding:8px 10px;border-radius:9px;background:var(--n-sf,#1E293B);border:1px solid var(--n-bd,#334155)}
+.vdc-pes-c{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;min-width:0}
+.vdc-pes-n{margin:0;font-size:13.5px;font-weight:800;overflow-wrap:anywhere}
+.vdc-pes-m{display:block;font-size:12px;font-weight:400;color:var(--n-tx3,#94A3B8)}
+.vdc-pes-c .vdc-btn{min-height:40px;padding:6px 12px;font-size:13px}
 .vdc-org{margin-top:10px;padding:8px 10px;border-radius:9px;background:var(--io-ok-sf,rgba(74,222,128,.12));border:1px solid var(--io-ok-bd,rgba(74,222,128,.4));color:var(--n-tx,#E5E7EB);font-size:13px;line-height:1.4}
 .vdc-org-t{margin:0;font-weight:800}
 .vdc-org ul{margin:4px 0 0;padding-left:18px}
@@ -36732,13 +36746,13 @@ const VDC_CFG = {
     linha: 'eletroposto', campos: [...VDC_CAMPOS, ...VDC_EXTRAS], rot: (k) => VDC_ROT[k] || '', grupos: VDC_GRUPOS, grupoDe: null,
     secoes: VDC_SECOES, outrosPorPadrao: false, textoPreencher: 'Preencher contratos', msgSemNome: 'Marque pelo menos o nome do cliente para preencher os contratos.',
     msgNaoPreencheu: 'Não consegui preencher os formulários agora.', ligacoes: false, rateio: false, linkTodos: true,
-    aplicar: (cad) => aplicarCadastroEletroposto(cad),
+    aplicar: (cad, st, opts) => aplicarCadastroEletroposto(cad, opts),
   },
   vendasolar: {
     linha: 'vendasolar', campos: VDC_SOL_TODOS, rot: (k) => VDC_SOL_ROT[k] || '', grupos: VDC_SOL_GRUPOS, grupoDe: vdcGrupoSolar,
     secoes: VDC_SOL_SECOES, outrosPorPadrao: true, textoPreencher: 'Preencher Fechamento', msgSemNome: 'Marque pelo menos o nome do cliente para preencher o Fechamento.',
     msgNaoPreencheu: 'Não consegui preencher o Fechamento agora.', ligacoes: true, rateio: true, linkTodos: false, papeis: true, trello: true,
-    aplicar: (cad, st) => aplicarCadastroSolar(cad, st),
+    aplicar: (cad, st, opts) => aplicarCadastroSolar(cad, st, opts),
   },
 };
 /** O nome do campo para a tela: o da lista, ou (solar) o próprio nome em palavras. */
@@ -36825,12 +36839,13 @@ function vdcDetalhe(rec) {
   // O "Tentar de novo" do Pós-venda repinta o detalhe do MESMO card: com painel de conferência aberto, leitura ou anexo em andamento,
   // o bloco não é remontado (o que a pessoa conferiu e o envio em curso ficam).
   const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.cfg.linha === linha && vdcEst.no && vdcEst.no.sec.isConnected
-    && (!vdcEst.no.pn.hidden || (vdcEst.tre && (vdcEst.tre.ocupado || vdcEst.tre.fase)) || vdcEst.lendo ||vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || vdcEst.mesmoOcupado || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
+    && (!vdcEst.no.pn.hidden || (vdcEst.tre && (vdcEst.tre.ocupado || vdcEst.tre.fase)) || vdcEst.lendo ||vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || vdcEst.mesmoOcupado || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || !!vdcEst.pesEdit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
   if (ativo) return;
   vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
   if (!vale) { el.hidden = true; el.replaceChildren(); return; }
   const st = { id: rec.id, cfg: VDC_CFG[linha], cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '',
     vinc: null, vincErroCarga: '', vincOcupado: '', vincMsg: '', analise: null, rat: null, ratMsg: '', ratGravando: false,
+    pesEdit: null, pesForcar: false, avisoDocs: false,
     negociador: '', mesmoOcupado: '', mesmoMsg: null, aviso: '', tre: VDC_CFG[linha].trello ? vdcTrNovo() : null };
   vdcEst = st;
   const sec = document.createElement('section');
@@ -36849,6 +36864,8 @@ function vdcDetalhe(rec) {
     setTimeout(() => { if (vdcEst === st && st.listaPendente && !lista.contains(document.activeElement)) vdcPintar(st); }, 0);
   });
   const org = document.createElement('div'); org.setAttribute('role', 'status');
+  // Dados por pessoa (editar/limpar) e o aviso de "os documentos mudaram de pessoa": nó próprio, que o redesenho do bloco não apaga digitando.
+  const pes = document.createElement('div'); pes.className = 'vdc-pes'; pes.setAttribute('data-vdc-pessoas', '1'); pes.hidden = true;
   // Solar: as ligações com a proposta e a venda da planilha ficam entre a situação e os documentos.
   const vinc = st.cfg.ligacoes ? document.createElement('div') : null;
   const rat = st.cfg.rateio ? document.createElement('div') : null;
@@ -36856,9 +36873,9 @@ function vdcDetalhe(rec) {
   // Solar: o card no Trello fica depois dos botões, num nó próprio (o painel de conferência da leitura não é dele).
   const tre = st.cfg.trello ? document.createElement('div') : null;
   if (tre) { tre.className = 'vdc-tre'; tre.setAttribute('data-vdc-trello', '1'); }
-  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, vinc, docs, lista, org, rat, acoes, ...(tre ? [tre] : []), msg, pn, arqs); }
-  else sec.append(h, topo, docs, lista, org, acoes, msg, pn, arqs);
-  st.no = { sec, topo, vinc, rat, docs, lista, org, acoes, tre, msg, pn, arqs, pnMsg: null, pnOk: null };
+  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, vinc, docs, lista, org, pes, rat, acoes, ...(tre ? [tre] : []), msg, pn, arqs); }
+  else sec.append(h, topo, docs, lista, org, pes, acoes, msg, pn, arqs);
+  st.no = { sec, topo, vinc, rat, docs, lista, org, pes, acoes, tre, msg, pn, arqs, pnMsg: null, pnOk: null };
   // Os seletores de arquivo nascem no clique de Anexar (vdcInputDe): os itens vêm do catálogo do servidor, que chega depois.
   el.replaceChildren(sec);
   el.hidden = false;
@@ -37072,6 +37089,7 @@ function vdcPintar(st) {
   }
   vdcPintarLista(st);
   vdcPintarOrg(st);
+  vdcPintarPessoas(st);
   // botões
   N.acoes.replaceChildren();
   const ler = document.createElement('button'); ler.type = 'button'; ler.className = 'vdc-btn vdc-btn-pri'; ler.setAttribute('data-vdc-acao', 'ler');
@@ -37804,11 +37822,37 @@ function vdcRotuloSlot(st, chave) {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Documento';
 }
 const vdcNomeArq = (st, a) => (typeof a.rotulo === 'string' && a.rotulo.trim()) ? a.rotulo.trim() : vdcRotuloSlot(st, a.slot);
-/** Itens do catálogo que aceitam o formato do arquivo (mesma regra do servidor). Os já ocupados ficam: o servidor responde 409 com a frase. */
+/** Itens do catálogo que aceitam o formato do arquivo (mesma regra do servidor), qualquer um da venda (inclusive `outros`).
+ *  Os de um arquivo só já ocupados ficam: mover para eles pergunta se troca os dois de lugar. */
 function vdcDestinos(st, a) {
   const pdf = String(a.mime || '').toLowerCase() === 'application/pdf';
-  return ((st.docs && st.docs.slots) || []).filter(s => s && typeof s.chave === 'string' && s.chave !== a.slot && s.chave !== 'outros'
+  return ((st.docs && st.docs.slots) || []).filter(s => s && typeof s.chave === 'string' && s.chave !== a.slot
     && (s.aceita === 'ambos' || (s.aceita === 'pdf' ? pdf : (s.aceita === 'imagem' && !pdf))));
+}
+/** O item de um arquivo só já tem OUTRO arquivo? (mover para ele pede a troca dos dois de lugar) */
+function vdcDestinoOcupado(st, a, chave) {
+  const info = vdcSlotInfo(st, { chave });
+  return !info.varios && !!st.docs && st.docs.arquivos.some(x => x && x.slot === chave && x.id !== a.id);
+}
+/** Os destinos agrupados pela seção do card (Comprador, Cedente, Avalista...), para o nome da pessoa/papel aparecer na escolha. */
+function vdcDestinosAgrupados(st, a) {
+  const dest = vdcDestinos(st, a);
+  const usados = new Set();
+  const grupos = [];
+  vdcSecoesDe(st).forEach((sc) => {
+    const itens = sc.chaves.map(ch => dest.find(s => s.chave === ch)).filter(Boolean);
+    itens.forEach(s => usados.add(s.chave));
+    if (itens.length) grupos.push({ t: sc.t, itens });
+  });
+  const resto = dest.filter(s => !usados.has(s.chave));
+  if (resto.length) grupos.push({ t: 'Outros itens', itens: resto });
+  return grupos;
+}
+/** Item que guarda documento de uma PESSOA (CNH, comprovante de endereço, documento do imóvel ou de outra pessoa): mexer neles muda de quem são os dados. */
+const vdcSlotDePessoa = (chave) => /^(documento_|comprovante_endereco_)/.test(String(chave || ''));
+/** Depois de mover, trocar, substituir ou excluir um documento de pessoa: o aviso de que os dados lidos antes não acompanham o arquivo. */
+function vdcAvisoPessoas(st, chaves) {
+  if (chaves.some(vdcSlotDePessoa)) st.avisoDocs = true;
 }
 function vdcMsgPatch(r, padrao) {
   const j = (r && r.json) || {};
@@ -37901,15 +37945,26 @@ function vdcPintarLista(st) {
           rn.addEventListener('click', () => { st.edit = { id: a.id, texto: typeof a.rotulo === 'string' ? a.rotulo : '', gravando: false, foco: true }; delete st.lin[a.id]; vdcRedesenhar(st); });
           ac.appendChild(rn);
         }
-        if (st.docs.pode && a.slot === 'outros') {
-          const dest = vdcDestinos(st, a);
-          if (dest.length) {
-            const sel = document.createElement('select'); sel.className = 'vdc-arq-sel'; sel.setAttribute('data-vdc-mover', String(a.id)); sel.dataset.vdcFoco = 'mv:' + a.id; sel.setAttribute('aria-label', 'Mover para'); sel.disabled = !!lin.ocupado;
+        if (st.docs.pode) {
+          const grupos = vdcDestinosAgrupados(st, a);
+          if (grupos.length) {
+            const sel = document.createElement('select'); sel.className = 'vdc-arq-sel'; sel.setAttribute('data-vdc-mover', String(a.id)); sel.dataset.vdcFoco = 'mv:' + a.id; sel.setAttribute('aria-label', 'Mover ' + nome + ' para'); sel.disabled = !!lin.ocupado;
             const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Mover para…'; sel.appendChild(o0);
-            dest.forEach((s) => { const o = document.createElement('option'); o.value = s.chave; o.textContent = vdcRotuloSlot(st, s.chave); sel.appendChild(o); });
-            sel.addEventListener('change', () => { if (sel.value) vdcMover(st, a, sel.value); });
+            grupos.forEach((g) => {
+              const og = document.createElement('optgroup'); og.label = g.t;
+              g.itens.forEach((s) => { const o = document.createElement('option'); o.value = s.chave; o.textContent = vdcRotuloSlot(st, s.chave) + (vdcDestinoOcupado(st, a, s.chave) ? ' (já tem arquivo: troca de lugar)' : ''); og.appendChild(o); });
+              sel.appendChild(og);
+            });
+            sel.addEventListener('change', () => { if (sel.value) vdcPedirMover(st, a, sel.value); });
             ac.appendChild(sel);
           }
+          const tr = document.createElement('button'); tr.type = 'button'; tr.className = 'vdc-btn'; tr.textContent = 'Trocar arquivo'; tr.dataset.vdcFoco = 'tr:' + a.id;
+          tr.setAttribute('data-vdc-acao', 'trocar-arquivo'); tr.setAttribute('aria-label', 'Trocar o arquivo de ' + nome); tr.disabled = !!lin.ocupado;
+          tr.addEventListener('click', () => vdcEscolherTroca(st, a));
+          const ex = document.createElement('button'); ex.type = 'button'; ex.className = 'vdc-btn vdc-btn-ex'; ex.textContent = 'Excluir'; ex.dataset.vdcFoco = 'ex:' + a.id;
+          ex.setAttribute('data-vdc-acao', 'excluir'); ex.setAttribute('aria-label', 'Excluir ' + nome); ex.disabled = !!lin.ocupado;
+          ex.addEventListener('click', () => vdcExcluir(st, a));
+          ac.append(tr, ex);
         }
         row.appendChild(ac);
       }
@@ -37975,22 +38030,110 @@ async function vdcRenomear(st, a) {
   vdcRedesenhar(st);
 }
 
-async function vdcMover(st, a, slot) {
+/** A escolha do "Mover para…": destino de um arquivo só já ocupado pergunta se troca os dois de lugar (sem "sim" nada muda). */
+function vdcPedirMover(st, a, slot) {
+  if (vdcEst !== st) return;
+  if (vdcDestinoOcupado(st, a, slot)) {
+    if (!confirm('O item "' + vdcRotuloSlot(st, slot) + '" já tem um arquivo. Trocar os dois de lugar?')) { vdcRedesenhar(st); return; }
+    vdcMover(st, a, slot, true);
+    return;
+  }
+  vdcMover(st, a, slot, false);
+}
+async function vdcMover(st, a, slot, trocar) {
   const lin = st.lin[a.id] = { ocupado: true, erro: '' };
   vdcRedesenhar(st);
-  const r = await vdcChamar(st, 'PATCH', '/docs/' + encodeURIComponent(String(a.id)), { slot });
+  const r = await vdcChamar(st, 'PATCH', '/docs/' + encodeURIComponent(String(a.id)), trocar ? { slot, trocar: true } : { slot });
   if (vdcEst !== st) return;
   const j = r.json || {};
   if (r.status === 200 && j.ok !== false && j.arquivo && typeof j.arquivo === 'object') {
     vdcTrocarArq(st, j.arquivo);
+    if (j.trocado && typeof j.trocado === 'object') vdcTrocarArq(st, j.trocado);
     delete st.lin[a.id];
+    vdcAvisoPessoas(st, [a.slot, slot]);
     vdcRedesenhar(st);
-    showToast('Documento movido para ' + vdcRotuloSlot(st, slot) + '.');
+    showToast(j.trocado ? 'Os dois documentos trocaram de lugar.' : 'Documento movido para ' + vdcRotuloSlot(st, slot) + '.');
     return;
   }
   lin.ocupado = false;
   lin.erro = vdcMsgPatch(r, 'Não consegui mover agora.');
   // Conflito de gravação ou item cheio: a lista pode ter mudado por outra pessoa. Lê de novo para o seletor não mentir.
+  if (r.status === 409 || r.status === 404) await vdcRecarregarDocs(st);
+  if (vdcEst !== st) return;
+  // O destino ficou ocupado no meio do caminho (alguém anexou enquanto a tela estava aberta): mesma pergunta, agora com a lista nova.
+  if (!trocar && r.status === 409 && String(j.motivo || '') === 'slot_ocupado' && vdcDestinoOcupado(st, a, slot)) {
+    delete st.lin[a.id];
+    vdcPedirMover(st, a, slot);
+    return;
+  }
+  vdcRedesenhar(st);
+}
+
+/** "Trocar arquivo": escolhe um arquivo novo para o MESMO item. O antigo só sai depois de o novo gravar (o servidor faz numa gravação só). */
+function vdcEscolherTroca(st, a) {
+  if (vdcEst !== st || !st.docs || !st.docs.pode) return;
+  const info = vdcSlotInfo(st, { chave: a.slot });
+  const caixa = st.no.arqs;
+  let inp = caixa.querySelector('input[data-vdc-trocar]');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.tabIndex = -1; inp.setAttribute('aria-hidden', 'true'); inp.setAttribute('data-vdc-trocar', '1');
+    caixa.appendChild(inp);
+  }
+  inp.accept = vdcAccept(info.aceita); inp.multiple = false;
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    inp.value = '';
+    if (f) vdcTrocarEnviar(st, a, f);
+  };
+  inp.click();
+}
+async function vdcTrocarEnviar(st, a, f) {
+  if (vdcEst !== st) return;
+  const lin = st.lin[a.id] = { ocupado: true, erro: '' };
+  vdcRedesenhar(st);
+  try {
+    const slot = vdcSlotInfo(st, { chave: a.slot });
+    const p = await vdcPreparar(f, slot);
+    if (vdcEst !== st) return;
+    await vdcEnviar(st, slot, p, a.id);
+  } catch (e) {
+    if (vdcEst !== st) return;
+    lin.ocupado = false;
+    lin.erro = ((e && e.msg) || 'Não consegui trocar o arquivo agora.') + ' O arquivo antigo continua no lugar.';
+    await vdcRecarregarDocs(st);
+    if (vdcEst !== st) return;
+    vdcRedesenhar(st);
+    return;
+  }
+  delete st.lin[a.id];
+  await vdcRecarregarDocs(st);
+  if (vdcEst !== st) return;
+  vdcAvisoPessoas(st, [a.slot]);
+  vdcRedesenhar(st);
+  showToast('Arquivo trocado.');
+}
+
+/** "Excluir": pede confirmação e apaga o arquivo (o servidor tira o registro e o objeto). */
+async function vdcExcluir(st, a) {
+  if (vdcEst !== st || !st.docs || !st.docs.pode) return;
+  if (!confirm('Excluir "' + vdcNomeArq(st, a) + '"? O arquivo é apagado e não dá para desfazer.')) return;
+  const lin = st.lin[a.id] = { ocupado: true, erro: '' };
+  vdcRedesenhar(st);
+  const r = await vdcChamar(st, 'DELETE', '/docs/' + encodeURIComponent(String(a.id)));
+  if (vdcEst !== st) return;
+  const j = r.json || {};
+  if (r.status === 200 && j.ok !== false) {
+    delete st.lin[a.id];
+    await vdcRecarregarDocs(st);
+    if (vdcEst !== st) return;
+    vdcAvisoPessoas(st, [a.slot]);
+    vdcRedesenhar(st);
+    showToast('Documento excluído.');
+    return;
+  }
+  lin.ocupado = false;
+  lin.erro = vdcMsgPatch(r, 'Não consegui excluir agora.');
   if (r.status === 409 || r.status === 404) await vdcRecarregarDocs(st);
   if (vdcEst !== st) return;
   vdcRedesenhar(st);
@@ -38017,6 +38160,177 @@ function vdcPintarOrg(st) {
     box.appendChild(av);
   }
 }
+// ── Dados por pessoa: editar, limpar e o aviso de "os documentos mudaram de pessoa" ──────────
+// Mora no nó `pes` (fora de `docs`, `topo` e `acoes`, que o redesenho esvazia a cada progresso de envio): o que a pessoa digita não some.
+// Quem edita só manda os campos que mudaram (PUT /cadastro, fonte manual; valor vazio apaga o campo). Os valores só entram na tela por value/textContent.
+const VDC_DICAS = {
+  tipo: 'Use PF ou PJ.', uc_fornecimento: 'Use: monofásico, bifásico ou trifásico.',
+  ced_qualidade: 'Use: proprietário, possuidor, inquilino, representante ou condomínio.',
+  tuc_relacao: 'Use: cônjuge, pai ou mãe, filho, empresa ou outro.',
+};
+const VDC_MSG_AVISO_DOCS = 'Os documentos mudaram de pessoa. Os dados lidos antes continuam no cadastro: leia os documentos de novo ou edite os dados de quem mudou.';
+/** As pessoas (grupos do cadastro) que já têm algum dado. O rateio tem editor próprio; papel "mesma pessoa do contratante" não tem dado. */
+function vdcPessoasLista(st) {
+  if (!st.cad) return [];
+  return st.cfg.grupos.filter((g) => {
+    if (g.id === 'benef') return false;
+    if (st.cfg.papeis && g.decisao && vdcDecisao(st.cad, g.decisao) === 'contratante') return false;
+    return g.campos.some(([k]) => vdcV(st.cad, k));
+  });
+}
+function vdcPintarPessoas(st) {
+  const P = st.no && st.no.pes; if (!P) return;
+  const ativo = document.activeElement && P.contains(document.activeElement) ? document.activeElement : null;
+  if (ativo && !st.pesForcar) return;      // foco no editor: não repinta no meio da digitação
+  st.pesForcar = false;
+  P.replaceChildren();
+  const edit = st.pesEdit;
+  const grupos = vdcPessoasLista(st);
+  if (edit && !grupos.some(g => g.id === edit.g)) { const g0 = st.cfg.grupos.find(x => x.id === edit.g); if (g0) grupos.push(g0); }
+  if (!st.avisoDocs && !grupos.length) { P.hidden = true; return; }
+  P.hidden = false;
+  const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = 'Dados por pessoa'; P.appendChild(tit);
+  if (st.avisoDocs) {
+    const av = document.createElement('div'); av.className = 'vdc-pes-av'; av.setAttribute('role', 'status'); av.setAttribute('data-vdc-aviso-docs', '1');
+    const tx = document.createElement('p'); tx.textContent = VDC_MSG_AVISO_DOCS;
+    const bt = document.createElement('div'); bt.className = 'vdc-pes-bt';
+    const ocupado = !!(st.lendo || st.gravando);
+    const ler = document.createElement('button'); ler.type = 'button'; ler.className = 'vdc-btn vdc-btn-pri'; ler.textContent = 'Ler documentos de novo'; ler.setAttribute('data-vdc-acao', 'aviso-ler');
+    ler.disabled = ocupado || !st.cad;
+    ler.addEventListener('click', () => { st.avisoDocs = false; st.pesForcar = true; vdcPintar(st); vdcLer(st); });
+    bt.appendChild(ler);
+    if (grupos.length) {
+      const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'vdc-btn'; ed.textContent = 'Editar dados'; ed.setAttribute('data-vdc-acao', 'aviso-editar');
+      ed.addEventListener('click', () => {
+        st.pesFocoApos = 'ed:' + grupos[0].id; st.pesForcar = true; vdcPintarPessoas(st);
+        try { P.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      });
+      bt.appendChild(ed);
+    }
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'vdc-btn'; x.textContent = 'Dispensar'; x.setAttribute('data-vdc-acao', 'aviso-fechar');
+    x.addEventListener('click', () => { st.avisoDocs = false; st.pesForcar = true; vdcPintarPessoas(st); });
+    bt.appendChild(x);
+    av.append(tx, bt); P.appendChild(av);
+  }
+  grupos.forEach((g) => P.appendChild(edit && edit.g === g.id ? vdcFormPessoa(st, g, edit) : vdcLinhaPessoa(st, g)));
+  if (st.pesFocoApos) {
+    const chave = st.pesFocoApos; st.pesFocoApos = '';
+    const f = Array.from(P.querySelectorAll('[data-vdc-pfoco]')).find(el => el.dataset.vdcPfoco === chave);
+    if (f && !f.disabled) { try { f.focus({ preventScroll: true }); } catch (e) {} }
+  }
+}
+/** A linha da pessoa: o título do grupo, o nome que está nos dados (para reconhecer de quem são) e "Editar dados". */
+function vdcLinhaPessoa(st, g) {
+  const box = document.createElement('div'); box.className = 'vdc-pes-p'; box.setAttribute('data-vdc-pessoa', g.id);
+  const c = document.createElement('div'); c.className = 'vdc-pes-c';
+  const t = document.createElement('p'); t.className = 'vdc-pes-n'; t.textContent = g.t;
+  const feitos = g.campos.filter(([k]) => vdcV(st.cad, k)).length;
+  const kNome = g.campos.map(([k]) => k).find(k => /(^|_)nome$/.test(k) && vdcV(st.cad, k));
+  const m = document.createElement('span'); m.className = 'vdc-pes-m';
+  m.textContent = (kNome ? vdcV(st.cad, kNome) + ' · ' : '') + feitos + (feitos === 1 ? ' campo preenchido' : ' campos preenchidos');
+  t.appendChild(m);
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn'; b.textContent = 'Editar dados'; b.setAttribute('data-vdc-acao', 'pessoa-editar');
+  b.dataset.vdcPfoco = 'ed:' + g.id; b.setAttribute('aria-label', 'Editar dados: ' + g.t); b.disabled = !!(st.lendo || st.gravando);
+  b.addEventListener('click', () => {
+    const vals = {}; g.campos.forEach(([k]) => { vals[k] = vdcV(st.cad, k); });
+    st.pesEdit = { g: g.id, vals, erros: {}, msg: '', gravando: false };
+    st.pesFocoApos = 'in:' + g.id; st.pesForcar = true; vdcPintarPessoas(st);
+  });
+  c.append(t, b); box.appendChild(c);
+  return box;
+}
+/** O formulário de uma pessoa: os campos atuais, "Salvar", "Limpar os dados desta pessoa" e "Cancelar". */
+function vdcFormPessoa(st, g, e) {
+  const box = document.createElement('div'); box.className = 'vdc-pes-p'; box.setAttribute('data-vdc-pessoa', g.id); box.setAttribute('data-vdc-editando', '1');
+  const t = document.createElement('p'); t.className = 'vdc-pes-n'; t.textContent = 'Editar dados: ' + g.t; box.appendChild(t);
+  const grade = document.createElement('div'); grade.className = 'vdc-rat-g';
+  const ocupado = !!(e.gravando || st.lendo || st.gravando);
+  let primeiro = true;
+  g.campos.forEach(([k, rot]) => {
+    const lb = document.createElement('label'); lb.className = 'vdc-rat-f';
+    const sp = document.createElement('span'); sp.className = 'vdc-rat-r'; sp.textContent = rot;
+    const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'vdc-in'; inp.autocomplete = 'off'; inp.value = e.vals[k] == null ? '' : e.vals[k];
+    inp.setAttribute('data-vdc-pes-campo', k); inp.disabled = ocupado;
+    if (primeiro) { inp.dataset.vdcPfoco = 'in:' + g.id; primeiro = false; }
+    inp.addEventListener('input', () => { e.vals[k] = inp.value; });
+    inp.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); vdcPesSalvar(st, false); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); vdcPesCancelar(st, g); }   // só fecha o editor: o card não fecha
+    });
+    lb.append(sp, inp);
+    if (VDC_DICAS[k]) { const d = document.createElement('span'); d.className = 'vdc-nota'; d.textContent = VDC_DICAS[k]; lb.appendChild(d); }
+    if (e.erros[k]) { const er = document.createElement('span'); er.className = 'vdc-erro'; er.textContent = e.erros[k]; lb.appendChild(er); }
+    grade.appendChild(lb);
+  });
+  box.appendChild(grade);
+  const ac = document.createElement('div'); ac.className = 'vdc-acoes';
+  const sv = document.createElement('button'); sv.type = 'button'; sv.className = 'vdc-btn vdc-btn-pri'; sv.textContent = e.gravando ? 'Salvando…' : 'Salvar'; sv.disabled = ocupado;
+  sv.setAttribute('data-vdc-acao', 'pessoa-salvar'); sv.addEventListener('click', () => vdcPesSalvar(st, false));
+  const lp = document.createElement('button'); lp.type = 'button'; lp.className = 'vdc-btn vdc-btn-ex'; lp.textContent = 'Limpar os dados desta pessoa'; lp.disabled = ocupado;
+  lp.setAttribute('data-vdc-acao', 'pessoa-limpar');
+  lp.addEventListener('click', () => {
+    if (!confirm('Limpar os dados de "' + g.t + '"? Os campos dessa pessoa são apagados do cadastro. As outras pessoas não mudam.')) return;
+    vdcPesSalvar(st, true);
+  });
+  const cn = document.createElement('button'); cn.type = 'button'; cn.className = 'vdc-btn'; cn.textContent = 'Cancelar'; cn.disabled = !!e.gravando;
+  cn.setAttribute('data-vdc-acao', 'pessoa-cancelar'); cn.addEventListener('click', () => vdcPesCancelar(st, g));
+  ac.append(sv, lp, cn); box.appendChild(ac);
+  if (e.msg) { const m = document.createElement('p'); m.className = 'vdc-msg'; m.setAttribute('role', 'alert'); m.textContent = e.msg; box.appendChild(m); }
+  return box;
+}
+function vdcPesCancelar(st, g) {
+  if (vdcEst !== st || (st.pesEdit && st.pesEdit.gravando)) return;
+  st.pesEdit = null; st.pesFocoApos = 'ed:' + g.id; st.pesForcar = true; vdcPintarPessoas(st);
+}
+/** Grava a edição (só o que mudou) ou, com `limpar`, apaga todos os campos preenchidos da pessoa. Depois reaplica nos contratos, como o "Confirmar". */
+async function vdcPesSalvar(st, limpar) {
+  const e = st.pesEdit;
+  if (vdcEst !== st || !e || e.gravando || st.lendo || st.gravando || !st.cad) return;
+  const g = st.cfg.grupos.find(x => x.id === e.g); if (!g) return;
+  const campos = {};
+  g.campos.forEach(([k]) => {
+    const atual = vdcV(st.cad, k);
+    if (limpar) { if (atual) campos[k] = ''; return; }
+    const v = String(e.vals[k] == null ? '' : e.vals[k]).trim();
+    if (v !== atual) campos[k] = v;
+  });
+  e.erros = {}; e.msg = '';
+  if (!Object.keys(campos).length) {
+    e.msg = limpar ? 'Esta pessoa não tem dados no cadastro.' : 'Nada mudou.';
+    st.pesForcar = true; vdcPintarPessoas(st); return;
+  }
+  e.gravando = true; st.pesForcar = true; vdcPintarPessoas(st);
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos, fonte: 'manual' });
+  if (vdcEst !== st) return;
+  e.gravando = false;
+  const j = r.json || {};
+  if (r.status === 400 && j.erros && typeof j.erros === 'object') {
+    let n = 0;
+    Object.keys(j.erros).forEach((k) => { if (g.campos.some(c => c[0] === k)) { e.erros[k] = vdcMotivoTxt(j.erros[k]); n++; } });
+    e.msg = n ? 'Corrija os campos destacados e salve de novo.' : 'Algum valor não foi aceito. Confira e tente de novo.';
+    st.pesForcar = true; vdcPintarPessoas(st); return;
+  }
+  if (r.status !== 200 || j.ok === false || !j.cadastro) {
+    e.msg = vdcMsgErro(r, 'Não consegui gravar os dados agora.');
+    st.pesForcar = true; vdcPintarPessoas(st); return;
+  }
+  const tipoAntes = vdcTipo(st.cad);
+  st.cad = j.cadastro;
+  if (st.cfg.rateio) st.analise = vdcAnaliseDe(j);
+  vdcGuardaExtras(st, j);
+  st.pesEdit = null; st.avisoDocs = false; st.pesFocoApos = 'ed:' + g.id; st.pesForcar = true;
+  if (st.no.pn && !st.no.pn.hidden) vdcPainelPapeis(st);
+  vdcPintar(st);
+  showToast(limpar ? 'Dados apagados.' : 'Dados salvos.');
+  // Reaplica nos contratos como o "Confirmar" (isso fecha o card). O que a pessoa apagou também sai dos formulários (só os campos que o mesmo
+  // mapa do preenchimento escreve a partir daquelas chaves), mesmo sem o nome do cliente: é justamente o caso de limpar o comprador.
+  const apagados = new Set(Object.keys(campos).filter(k => campos[k] === ''));
+  if (apagados.size) { vdcPreencher(st, { limpar: apagados, tipoAntes }); return; }
+  if (vdcV(st.cad, 'nome')) { vdcPreencher(st); return; }
+  st.msg = 'Dados salvos. Sem o nome do cliente, ' + (st.cfg.linha === 'vendasolar' ? 'o Fechamento' : 'os contratos') + ' não foram preenchidos.';
+  vdcPintar(st);
+}
+
 function vdcOrganizados(st, j) {
   const lista = Array.isArray(j.organizados) ? j.organizados.filter(x => x && typeof x === 'object') : [];
   const aviso = typeof j.aviso === 'string' ? j.aviso.trim() : '';
@@ -38136,8 +38450,10 @@ async function vdcPreparar(f, slot) {
 /** "Sem espaço" (para o resto do lote) é decidido SÓ pelo status: 413, ou 409 com um dos motivos de espaço do servidor. Nunca pelo texto da frase. */
 const VDC_MOTIVOS_ESPACO = ['slot_ocupado', 'muitos_no_item', 'muitos_na_venda'];
 const vdcSemEspaco = (r) => !!r && (r.status === 413 || (r.status === 409 && VDC_MOTIVOS_ESPACO.indexOf(String((r.json && r.json.motivo) || '')) >= 0));
-async function vdcEnviar(st, slot, p) {
-  const a = await vdcChamar(st, 'POST', '/docs/upload-url', { slot: slot.chave, mime: p.mime, bytes: p.blob.size });
+async function vdcEnviar(st, slot, p, substitui) {
+  // `substitui` (id do arquivo antigo do mesmo item) só vem do "Trocar arquivo": o servidor põe o novo no lugar do antigo numa gravação só.
+  const extra = substitui ? { substitui: String(substitui) } : {};
+  const a = await vdcChamar(st, 'POST', '/docs/upload-url', { slot: slot.chave, mime: p.mime, bytes: p.blob.size, ...extra });
   const j = a.json || {};
   if (a.status !== 200 || j.ok === false || typeof j.upload_url !== 'string' || typeof j.caminho !== 'string') {
     const srv = typeof j.error === 'string' ? j.error : '';
@@ -38163,7 +38479,7 @@ async function vdcEnviar(st, slot, p) {
   try { r = await fetch(alvo, { method: String(j.metodo || 'PUT').toUpperCase() === 'POST' ? 'POST' : 'PUT', headers: h, body: p.blob }); }
   catch (e) { throw vdcInvalido('Sem conexão. Tente de novo.'); }
   if (!r.ok) throw vdcInvalido('O envio não terminou (erro ' + r.status + '). Tente de novo.');
-  const b = await vdcChamar(st, 'POST', '/docs', { slot: slot.chave, caminho: j.caminho });
+  const b = await vdcChamar(st, 'POST', '/docs', { slot: slot.chave, caminho: j.caminho, ...extra });
   if (b.status < 200 || b.status >= 300 || (b.json && b.json.ok === false)) {
     const er2 = vdcInvalido((b.json && typeof b.json.error === 'string' && b.json.error) || 'O arquivo subiu, mas não consegui registrar. Tente de novo.');
     if (vdcSemEspaco(b)) { er2.semEspaco = true; er2.curto = 'sem espaço'; }
@@ -38216,6 +38532,7 @@ async function vdcAnexar(st, slot0, arquivos) {
 async function vdcLer(st) {
   if (vdcEst !== st || st.lendo || st.gravando) return;
   st.lendo = true; st.msg = ''; st.org = null;
+  st.avisoDocs = false; st.pesForcar = true;   // a leitura nova é justamente o que o aviso de "mudou de pessoa" pede
   st.no.pn.hidden = true; st.no.pn.replaceChildren(); st.linhas = [];
   vdcPintar(st);
   const r = await vdcChamar(st, 'POST', '/cadastro/ler', {}, 120000);
@@ -38396,14 +38713,14 @@ async function vdcConfirmar(st) {
   vdcPreencher(st);
 }
 
-async function vdcPreencher(st) {
+async function vdcPreencher(st, opts) {
   if (vdcEst !== st || !st.cad) return;
   // solar: as ligações dizem qual proposta é a deste card; espera um pouco por elas se ainda não chegaram
   if (st.cfg.ligacoes && !st.vinc && st.vincP) {
     await Promise.race([st.vincP, new Promise(r => setTimeout(r, 3000))]);
     if (vdcEst !== st) return;
   }
-  try { st.cfg.aplicar(st.cad, st); }
+  try { st.cfg.aplicar(st.cad, st, Object.assign({}, opts, { origem: st.cfg.linha + ':' + st.id })); }
   catch (e) { console.error('cadastro: os formulários não foram preenchidos', e); st.msg = st.cfg.msgNaoPreencheu; vdcPintar(st); }
 }
 
@@ -38508,7 +38825,19 @@ function epLimparIdentidade() {
   return { manteveQualif: manteve };
 }
 
-function aplicarCadastroEletroposto(cad) {
+// De qual card (linha:id) vieram os dados que estão nos formulários dos contratos. Formulário esvaziado ao limpar o comprador não tem mais
+// documento nem nome para comparar (vdcClienteMudou diria "não há de quem se livrar"), mas cedente, avalista e imóvel do card A podem
+// continuar nos campos: abrir/confirmar OUTRO card sempre trata o cliente como outro e limpa identidade, terceiros e imóvel.
+let vdcOrigemEp = '', vdcOrigemFs = '';
+/**
+ * `opts` (só o "Editar dados" / "Limpar os dados desta pessoa" passa): { limpar: Set com as chaves do cadastro que a pessoa apagou,
+ * tipoAntes: 'PF'|'PJ' de antes da edição }. Os campos do formulário que o mesmo mapa abaixo preenche A PARTIR dessas chaves ficam
+ * vazios quando o valor derivado é vazio; nenhum outro campo é tocado e o cliente não é tratado como "outro" (os terceiros ficam).
+ * Sem `opts` (o "Confirmar" da leitura por IA) vazio continua sendo ignorado.
+ */
+function aplicarCadastroEletroposto(cad, opts) {
+  const apagou = (opts && opts.limpar instanceof Set) ? opts.limpar : new Set();
+  const tipoAntes = (opts && opts.tipoAntes) || '';
   const C = {};
   VDC_CAMPOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
   VDC_EXTRAS.forEach(([k]) => { C[k] = vdcV(cad, k); });   // cedente, avalista e imóvel
@@ -38520,7 +38849,11 @@ function aplicarCadastroEletroposto(cad) {
   navEletroposto();
   // 2) limpa o cliente anterior (e os terceiros dele, se o cliente é outro)
   // Mesmo cliente (reaplicar): nada é limpo, só se escreve o que o cadastro tem; o que alguém digitou e o cadastro não tem fica.
-  const mudou = vdcClienteMudou(C);
+  const origem = (opts && opts.origem) || '';
+  const outroCard = !!origem && !!vdcOrigemEp && vdcOrigemEp !== origem;
+  // Editando uma pessoa do MESMO card o cliente é o mesmo: nada de esvaziar os terceiros. Formulário vindo de outro card: sempre "outro cliente".
+  const mudou = outroCard || (apagou.size ? false : vdcClienteMudou(C));
+  if (origem) vdcOrigemEp = origem;
   let lim = { manteveQualif: false }, terceirosApagados = false;
   if (mudou) {
     lim = epLimparIdentidade(); terceirosApagados = vdcLimparTerceiros(); vdcLimparImovel();
@@ -38535,11 +38868,18 @@ function aplicarCadastroEletroposto(cad) {
   // O assistente puxa de novo o último cadastro aplicado (o card fecha ao preencher e some do vdcEst).
   ctrAgCad = cad;
   // 3) escreve
-  const por = (ids, valor) => {
+  // `fontes`: as chaves do cadastro de onde vem o valor. Só quando a pessoa apagou uma delas (e o valor derivado ficou vazio) o campo é esvaziado.
+  const por = (ids, valor, fontes) => {
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (!el) { ausentes.push(id); return; }
-      if (!valor) return;       // vazio fica vazio: nada de texto de exemplo no lugar
+      if (!valor) {
+        if (fontes && fontes.some(k => apagou.has(k))) {
+          el.value = el.defaultValue || ''; vdcDispara(el);
+          delete el.dataset.tocado; delete el.dataset.manual; delete el.dataset.auto;
+        }
+        return;       // vazio fica vazio: nada de texto de exemplo no lugar
+      }
       el.value = valor;
       vdcDispara(el);
       if (VDC_SEGUEM_A_FONTE.indexOf(id) >= 0) delete el.dataset.tocado;
@@ -38547,33 +38887,36 @@ function aplicarCadastroEletroposto(cad) {
   };
   const endCompleto = [C.endereco, C.bairro && C.endereco.toLowerCase().indexOf(C.bairro.toLowerCase()) < 0 ? C.bairro : ''].filter(Boolean).join(', ');
   const cidadeUF = (sep) => C.cidade ? C.cidade + (C.uf ? sep + C.uf : '') : '';
-  por(['el-cliente', 'eq-cli-nome', 'rec-cli-nome', 'proc-outorgante', 'bnk-nome'], nome);
-  por(['orc-cli-doc', 'eq-cli-doc', 'rec-cli-doc', 'proc-outorgante-doc', 'bnk-doc'], C.cpf_cnpj);
-  if (tipo === 'PJ') por(['orc-cli-ie', 'eq-cli-ie'], C.rg_ie);
-  por(['orc-cli-end', 'eq-cli-end', 'rec-cli-end', 'proc-outorgante-end'], endCompleto);
-  por(['bnk-end'], C.endereco);
-  por(['orc-cli-cep', 'bnk-cep'], C.cep);
-  por(['bnk-bairro'], C.bairro);
-  por(['el-cidade'], cidadeUF('-'));
-  por(['eq-cli-cidade'], cidadeUF('/'));
-  por(['bnk-cidade'], C.cidade);
-  por(['bnk-uf'], C.uf);
-  por(['orc-cli-tel', 'eq-cli-tel'], C.telefone);
-  por(['orc-cli-email'], C.email);
-  if (tipo === 'PJ') {
-    por(['ctr-rep', 'proc-rep'], C.rep_nome);
-    por(['ctr-rep-doc', 'proc-rep-doc'], C.rep_cpf);
+  // Os campos de empresa (IE e representante) só são escritos para PJ; ao apagar, também saem se a pessoa era PJ antes da edição.
+  const pjOuEra = tipo === 'PJ' || tipoAntes === 'PJ';
+  const dePJ = (v) => tipo === 'PJ' ? v : '';
+  por(['el-cliente', 'eq-cli-nome', 'rec-cli-nome', 'proc-outorgante', 'bnk-nome'], nome, ['nome']);
+  por(['orc-cli-doc', 'eq-cli-doc', 'rec-cli-doc', 'proc-outorgante-doc', 'bnk-doc'], C.cpf_cnpj, ['cpf_cnpj']);
+  if (pjOuEra) por(['orc-cli-ie', 'eq-cli-ie'], dePJ(C.rg_ie), ['rg_ie']);
+  por(['orc-cli-end', 'eq-cli-end', 'rec-cli-end', 'proc-outorgante-end'], endCompleto, ['endereco', 'bairro']);
+  por(['bnk-end'], C.endereco, ['endereco']);
+  por(['orc-cli-cep', 'bnk-cep'], C.cep, ['cep']);
+  por(['bnk-bairro'], C.bairro, ['bairro']);
+  por(['el-cidade'], cidadeUF('-'), ['cidade', 'uf']);
+  por(['eq-cli-cidade'], cidadeUF('/'), ['cidade', 'uf']);
+  por(['bnk-cidade'], C.cidade, ['cidade']);
+  por(['bnk-uf'], C.uf, ['uf']);
+  por(['orc-cli-tel', 'eq-cli-tel'], C.telefone, ['telefone']);
+  por(['orc-cli-email'], C.email, ['email']);
+  if (pjOuEra) {
+    por(['ctr-rep', 'proc-rep'], dePJ(C.rep_nome), ['rep_nome']);
+    por(['ctr-rep-doc', 'proc-rep-doc'], dePJ(C.rep_cpf), ['rep_cpf']);
   }
-  por(['proc-uc'], C.unidade_consumidora);
-  por(['proc-concessionaria'], C.concessionaria);
-  por(['proc-local'], C.endereco_ponto);
+  por(['proc-uc'], C.unidade_consumidora, ['unidade_consumidora']);
+  por(['proc-concessionaria'], C.concessionaria, ['concessionaria']);
+  por(['proc-local'], C.endereco_ponto, ['endereco_ponto']);
   // O local do ponto no contrato (a agenda e a ficha escrevem aqui e marcam como digitado). Entra o do cadastro quando o campo está
   // vazio, ainda segue o espelho, ou o cliente mudou. Sem endereço do ponto e cliente novo, solta o do cliente anterior.
   const loc = document.getElementById('ctr-local');
   if (!loc) ausentes.push('ctr-local');
   else if (C.endereco_ponto) {
     if (mudou || loc.dataset.tocado !== '1' || loc.value.trim() === '') { loc.value = C.endereco_ponto; vdcDispara(loc); }
-  } else if (mudou) { loc.value = ''; delete loc.dataset.tocado; }
+  } else if (mudou || apagou.has('endereco_ponto')) { loc.value = ''; if (apagou.has('endereco_ponto')) vdcDispara(loc); delete loc.dataset.tocado; }
   // qualificação civil (pessoa física): sai na frase do contratante, antes do CPF
   const q = document.getElementById('ctr-qualif');
   if (!q) ausentes.push('ctr-qualif');
@@ -38581,6 +38924,9 @@ function aplicarCadastroEletroposto(cad) {
     const partes = [C.nacionalidade, C.estado_civil, C.profissao].filter(Boolean);
     if (C.rg_ie) partes.push('portador(a) do RG nº ' + C.rg_ie + (C.orgao_emissor ? ' ' + C.orgao_emissor : ''));
     if (partes.length) { q.value = partes.join(', '); vdcDispara(q); q.dataset.vdcAuto = '1'; }
+    else if (q.dataset.vdcAuto === '1' && ['nacionalidade', 'estado_civil', 'profissao', 'rg_ie', 'orgao_emissor'].some(k => apagou.has(k))) {
+      q.value = ''; vdcDispara(q); delete q.dataset.vdcAuto;   // só a qualificação que o cadastro escreveu (marca vdcAuto); a digitada fica
+    }
   }
   // 3b) cedente (dono do ponto), avalista e imóvel: só entram quando o cadastro tem a pessoa (ced_nome, aval_nome) ou o dado.
   // Com o cliente anterior já foram esvaziados acima; com o mesmo cliente só se escreve o que o cadastro tem.
@@ -38599,9 +38945,20 @@ function aplicarCadastroEletroposto(cad) {
       end: [rua, bairro && rua.toLowerCase().indexOf(bairro.toLowerCase()) < 0 ? bairro : '', c('cidade') ? c('cidade') + (c('uf') ? '/' + c('uf') : '') : ''].filter(Boolean).join(', '),
     };
   };
+  // De quais chaves do cadastro (sem o prefixo da pessoa) vem cada campo do contrato.
+  const FONTES_PESSOA = { nome: ['nome'], doc: ['cpf_cnpj'], rg: ['rg_ie', 'orgao_emissor'], qualif: ['nacionalidade', 'estado_civil', 'profissao'],
+    end: ['endereco', 'bairro', 'cidade', 'uf'], cep: ['cep'], tel: ['telefone'], email: ['email'] };
   const escrevePessoa = (p, o) => {
-    ['nome', 'doc', 'rg', 'qualif', 'end', 'cep', 'tel', 'email'].forEach((c) => por(['ctr-' + p + '-' + c], o[c]));
+    ['nome', 'doc', 'rg', 'qualif', 'end', 'cep', 'tel', 'email'].forEach((c) => por(['ctr-' + p + '-' + c], o[c], FONTES_PESSOA[c].map(k => p + '_' + k)));
   };
+  // Pessoa sem nome no cadastro não é escrita; mas se a pessoa apagou algo dela, os campos que vinham dali saem do contrato.
+  const apagouPessoa = (p) => [...apagou].some(k => k.indexOf(p + '_') === 0);
+  const vaziaPessoa = () => ({ nome: '', doc: '', rg: '', qualif: '', end: '', cep: '', tel: '', email: '' });
+  if (!C.ced_nome && apagouPessoa('ced')) {
+    escrevePessoa('ced', vaziaPessoa());
+    const relA = document.getElementById('ctr-arr-relacao');
+    if (relA && relA.dataset.vdcAuto === '1' && apagou.has('ced_qualidade')) { relA.value = (relA.options && relA.options[0] ? relA.options[0].value : ''); vdcDispara(relA); delete relA.dataset.vdcAuto; delete relA.dataset.tocado; }
+  }
   if (C.ced_nome) {
     escrevePessoa('ced', pessoa('ced'));
     // O papel do cedente no select do cartão Arrendamento. Só com o cliente como cessionário: no modo da NEXUS esse select descreve
@@ -38615,6 +38972,11 @@ function aplicarCadastroEletroposto(cad) {
       rel.dataset.vdcAuto = '1';   // depois do disparo: o ouvinte do `input` apaga a marca de quem mexeu à mão
     }
   }
+  if (!C.aval_nome && apagouPessoa('aval')) {
+    escrevePessoa('aval', vaziaPessoa());
+    const temA = document.getElementById('ctr-aval-tem');
+    if (temA && temA.value === 'sim' && apagou.has('aval_nome')) { temA.value = ''; vdcDispara(temA); }   // "Com avalista" sem avalista no cadastro
+  }
   if (C.aval_nome) {
     escrevePessoa('aval', pessoa('aval'));
     const tem = document.getElementById('ctr-aval-tem');
@@ -38622,10 +38984,12 @@ function aplicarCadastroEletroposto(cad) {
     else if (tem.value !== 'sim') { tem.value = 'sim'; vdcDispara(tem); }
   }
   // Imóvel: o que a pessoa digitou fica; entra o do cadastro onde está vazio (ou quando o cliente mudou e o campo já foi esvaziado).
+  const fonteImovel = { 'ctr-ta-matricula': 'imovel_matricula', 'ctr-ta-cartorio': 'imovel_cartorio', 'ctr-ta-iptu': 'imovel_iptu' };
   [['ctr-ta-matricula', C.imovel_matricula], ['ctr-ta-cartorio', C.imovel_cartorio], ['ctr-ta-iptu', C.imovel_iptu]].forEach(([id, v]) => {
     const el = document.getElementById(id);
     if (!el) { ausentes.push(id); return; }
     if (v && (mudou || el.value.trim() === '')) { el.value = v; vdcDispara(el); }
+    else if (!v && fonteImovel[id] && apagou.has(fonteImovel[id])) { el.value = el.defaultValue || ''; vdcDispara(el); delete el.dataset.tocado; delete el.dataset.manual; delete el.dataset.auto; }
   });
   // 4) os espelhos do contrato voltam a seguir a fonte (sem eventos: o ouvinte deles os marcaria como digitados)
   if (mudou) VDC_ESPELHOS_IDENTIDADE.forEach((id) => { const el = document.getElementById(id); if (el) delete el.dataset.tocado; });
@@ -38666,7 +39030,9 @@ function vdcFsClienteMudou(C) {
   if (formNome && cadNome) return formNome !== cadNome;
   return true;
 }
-function aplicarCadastroSolar(cad, st) {
+/** `opts`: o mesmo do aplicarCadastroEletroposto ({ limpar: Set de chaves apagadas }). Sem ele, vazio continua ignorado. */
+function aplicarCadastroSolar(cad, st, opts) {
+  const apagou = (opts && opts.limpar instanceof Set) ? opts.limpar : new Set();
   const C = {};
   VDC_SOL_TODOS.forEach(([k]) => { C[k] = vdcV(cad, k); });
   const tipo = vdcTipo(cad);
@@ -38689,32 +39055,39 @@ function aplicarCadastroSolar(cad, st) {
   try { if (typeof crmDetAtual !== 'undefined' && crmDetAtual) crmFecharDetalhe(); } catch (e) {}
   navFechamentoSolar();
   // 2) cliente outro: o anterior sai (identidade e o que é dele); sistema e valores ficam
-  const mudou = vdcFsClienteMudou(C);
+  const origem = (opts && opts.origem) || '';
+  const outroCard = !!origem && !!vdcOrigemFs && vdcOrigemFs !== origem;   // formulário vindo de outro card: sempre "outro cliente"
+  const mudou = outroCard || (apagou.size ? false : vdcFsClienteMudou(C));   // editando uma pessoa do mesmo card o cliente é o mesmo
+  if (origem) vdcOrigemFs = origem;
   if (mudou) { fsLimparCliente(); ['fs-nome', 'fs-tel', 'fs-cidade', 'fs-uf'].forEach(id => fsSet(id, '', true)); }
   // 3) escreve. Escrito vira "digitado": puxar uma proposta depois não passa por cima do cadastro.
-  const por = (id, valor, fmt) => {
+  // `fontes`: as chaves do cadastro de onde vem o valor; só se a pessoa apagou uma delas o campo (de valor derivado vazio) é esvaziado.
+  const por = (id, valor, fmt, fontes) => {
     const el = fsEl(id);
     if (!el) { ausentes.push(id); return; }
-    if (!valor) return;       // vazio fica como está: nada de texto de exemplo no lugar
+    if (!valor) {
+      if (fontes && fontes.some(k => apagou.has(k))) fsSet(id, '', true);
+      return;       // vazio fica como está: nada de texto de exemplo no lugar
+    }
     el.value = fmt ? fmt(valor) : valor;
     fsTocar(el);
   };
   const t = fsEl('fs-tipo');
   if (t) { t.value = tipo; fsTocar(t); } else ausentes.push('fs-tipo');
   fsTipoMudou();
-  por('fs-nome', nome);
-  por('fs-doc', C.cpf_cnpj, vdcFmtDoc);
-  if (tipo === 'PJ') {
-    por('fs-rep', [C.rep_nome, C.rep_cpf ? 'CPF ' + C.rep_cpf : ''].filter(Boolean).join(', '));
-  } else {
-    por('fs-rg', C.rg_ie); por('fs-orgao', C.orgao_emissor); por('fs-nacionalidade', C.nacionalidade);
-    por('fs-estado-civil', C.estado_civil); por('fs-profissao', C.profissao);
-  }
-  por('fs-cep', C.cep, vdcFmtCep);
-  por('fs-tel', C.telefone, (v) => epFoneBR(v) || v);
-  por('fs-end', C.endereco); por('fs-bairro', C.bairro); por('fs-cidade', C.cidade); por('fs-uf', C.uf.toUpperCase());
+  por('fs-nome', nome, null, ['nome']);
+  por('fs-doc', C.cpf_cnpj, vdcFmtDoc, ['cpf_cnpj']);
+  // Os dois ramos (empresa e pessoa física) rodam: o que não vale para o tipo atual vai vazio e só sai do formulário se foi apagado.
+  const pj = tipo === 'PJ';
+  por('fs-rep', pj ? [C.rep_nome, C.rep_cpf ? 'CPF ' + C.rep_cpf : ''].filter(Boolean).join(', ') : '', null, ['rep_nome', 'rep_cpf']);
+  por('fs-rg', pj ? '' : C.rg_ie, null, ['rg_ie']); por('fs-orgao', pj ? '' : C.orgao_emissor, null, ['orgao_emissor']);
+  por('fs-nacionalidade', pj ? '' : C.nacionalidade, null, ['nacionalidade']);
+  por('fs-estado-civil', pj ? '' : C.estado_civil, null, ['estado_civil']); por('fs-profissao', pj ? '' : C.profissao, null, ['profissao']);
+  por('fs-cep', C.cep, vdcFmtCep, ['cep']);
+  por('fs-tel', C.telefone, (v) => epFoneBR(v) || v, ['telefone']);
+  por('fs-end', C.endereco, null, ['endereco']); por('fs-bairro', C.bairro, null, ['bairro']); por('fs-cidade', C.cidade, null, ['cidade']); por('fs-uf', C.uf.toUpperCase(), null, ['uf']);
   // unidade geradora: a UC e a concessionária da procuração; o endereço da instalação do contrato (a vistoria e o recibo seguem dele)
-  por('fs-p-uc', C.unidade_consumidora); por('fs-p-conc', C.concessionaria); por('fs-c-endinst', C.endereco_ponto);
+  por('fs-p-uc', C.unidade_consumidora, null, ['unidade_consumidora']); por('fs-p-conc', C.concessionaria, null, ['concessionaria']); por('fs-c-endinst', C.endereco_ponto, null, ['endereco_ponto']);
   // titular da conta de luz (quando não é o comprador): vira o outorgante da procuração. Sai SEMPRE o que havia antes (mesmo cliente
   // também): titular apagado no cadastro, ou RG e qualificação apagados, não podem sobrar na procuração.
   ['fs-p-tuc-nome', 'fs-p-tuc-doc', 'fs-p-tuc-rg', 'fs-p-tuc-qualif', 'fs-p-tuc-end'].forEach(id => fsSet(id, '', true));

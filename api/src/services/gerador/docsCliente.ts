@@ -268,6 +268,20 @@ export function comArquivoMovido(reg: RegistroDocs, id: string, slot: string, po
     alteracoes: cortaTrilha([...reg.alteracoes, { em, por, acao: 'moveu', slot }]),
   };
 }
+/**
+ * Troca dois arquivos de item NUM só registro (atômico: quem grava, grava os dois). `idA` vai para o item de `idB` e `idB` para o
+ * de `idA`. A trilha guarda só os itens novos, nunca rótulo nem nome.
+ */
+export function comArquivosTrocados(reg: RegistroDocs, idA: string, idB: string, por: string, em: string): RegistroDocs {
+  const a = reg.arquivos.find((x) => x.id === idA);
+  const b = reg.arquivos.find((x) => x.id === idB);
+  if (!a || !b) return reg;
+  return {
+    ...reg,
+    arquivos: reg.arquivos.map((x) => (x.id === idA ? { ...x, slot: b.slot } : x.id === idB ? { ...x, slot: a.slot } : x)),
+    alteracoes: cortaTrilha([...reg.alteracoes, { em, por, acao: 'moveu', slot: b.slot }, { em, por, acao: 'moveu', slot: a.slot }]),
+  };
+}
 /** Por que `a` NÃO cabe no item `item` (null = cabe). O próprio arquivo não conta nos tetos: mover não aumenta o total. */
 export function motivoSemEspacoParaMover(reg: RegistroDocs, id: string, item: ItemDoc): ReturnType<typeof motivoSemEspaco> {
   return motivoSemEspaco({ ...reg, arquivos: reg.arquivos.filter((x) => x.id !== id) }, item);

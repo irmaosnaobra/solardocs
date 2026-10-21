@@ -17,7 +17,7 @@ import {
   CATALOGO, SLOTS_FORA_DO_RELATORIO, LIMITE_BYTES, LIMITES, ehLinha, codigoDeRota, itemDoCatalogo, mimeServeAoItem, normalizarMime, novoCaminho,
   lerCaminho, comArquivo, semArquivo, comVinculo, motivoSemEspaco, nomesParecidos, corpoRelatorioSolar,
   corpoRelatorioEletroposto, obraParaRelatorio, montarRelatorio, assinaturaBate, comArquivoMovido, motivoSemEspacoParaMover,
-  limiteDoItem, SLOT_DO_DOSSIE_NA_VENDASOLAR, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
+  limiteDoItem, SLOT_DO_DOSSIE_NA_VENDASOLAR, comArquivosTrocados, type ArquivoDoc, type Linha, type RegistroDocs, type DocRel, type CorpoRelatorio, type ItemDoc,
 } from '../services/gerador/docsCliente';
 import {
   ErroDocs, garantirBucketDocs, lerPrimeirosBytes, assinarEnvio, sondarObjeto, removerObjeto, assinarVarios, lerDocsComVersao, gravarDocs,
@@ -34,7 +34,10 @@ import { lerRotulos, gravarRotulos, rotuloManual, travaDaVenda, type Rotulos } f
 //   POST   /clientes/:linha/:codigo/docs/upload-url         { slot, mime, bytes } -> URL assinada de envio e caminho
 //   POST   /clientes/:linha/:codigo/docs                    { slot, caminho } registra o que foi enviado
 //   DELETE /clientes/:linha/:codigo/docs/:id                remove o arquivo e o metadado
-//   PATCH  /clientes/:linha/:codigo/docs/:id                { rotulo?: string, slot?: string } renomeia e/ou move de item
+//   PATCH  /clientes/:linha/:codigo/docs/:id                { rotulo?: string, slot?: string, trocar?: true } renomeia e/ou move de item;
+//          `trocar` com o destino de 1 arquivo só ocupado troca os dois de lugar numa gravação só (resposta traz `trocado`)
+//   POST   .../docs/upload-url e .../docs                   aceitam `substitui: <id>` ("Trocar arquivo"): o novo toma o lugar do antigo
+//          do mesmo item numa gravação só e o objeto antigo só é apagado depois dela
 //          (o rótulo mora no bucket privado `cadastros-venda`, nunca no `system_state`; veja services/gerador/docsRotulos.ts)
 //   GET    /clientes/solar/:codigo/sugestoes-proposta       propostas vendidas de nome parecido
 //   POST   /clientes/solar/:codigo/vincular-proposta        { proposta }
@@ -57,6 +60,38 @@ import { lerRotulos, gravarRotulos, rotuloManual, travaDaVenda, type Rotulos } f
 
 const MSG_NAO_ACHEI = 'Venda não encontrada.';
 const MSG_PEDIDO = 'Pedido inválido.';
+const MSG_SUBSTITUI = 'O arquivo a trocar não está neste item. Atualize a lista.';
+/**
+ * Apaga do bucket o objeto do arquivo que acabou de ser trocado: 2 tentativas com uma espera curta. Se as duas falharem não há fila de
+ * limpeza no projeto: o log leva só a venda e o id do arquivo (nunca o caminho nem dado pessoal) para o objeto não ficar órfão calado.
+ * O registro já não aponta para ele e o caminho já está em `apagados`, então ninguém consegue abri-lo ou registrá-lo de novo.
+ */
+async function apagarAntigo(ctx: Ctx, antigo: ArquivoDoc): Promise<void> {
+  for (let t = 0; t < 2; t++) {
+    try { await removerObjeto(antigo.caminho); return; } catch (e) {
+      if (t === 0) await new Promise((r) => setTimeout(r, 300));
+      else console.error(`[ficha-docs] objeto antigo ficou no bucket e precisa de limpeza (venda ${ctx.linha}:${ctx.codigo}, arquivo ${antigo.id})`, e instanceof ErroDocs ? e.codigo : 'interno');
+    }
+  }
+}
+/** O nome que a PESSOA deu ao arquivo antigo passa para o novo; o nome da IA e o tipo lido eram do conteúdo antigo e saem. Falha só vai para o log. */
+async function levarRotulo(ctx: Ctx, antigoId: string, novoId: string, agora: string): Promise<void> {
+  try {
+    await comTrava(travaDaVenda(ctx.linha, ctx.codigo), ctx.nome, async () => {
+      const rot = await lerRotulos(ctx.linha, ctx.codigo);
+      const r = rot.rotulos[antigoId];
+      if (!r && !(antigoId in rot.tipos)) return;
+      if (r && r.fonte === 'manual') rot.rotulos[novoId] = { ...r, em: agora };
+      delete rot.rotulos[antigoId]; delete rot.tipos[antigoId];
+      await gravarRotulos(ctx.linha, ctx.codigo, rot, agora);
+    });
+  } catch (e) { logErro('levar o nome do arquivo trocado falhou', e); }
+}
+/** `substitui` do corpo: '' = não pediu; o id (36 caracteres) quando pediu; null = veio em formato inválido. */
+const substituiDe = (b: Record<string, unknown>): string | null => {
+  if (b.substitui === undefined) return '';
+  return typeof b.substitui === 'string' && /^[0-9a-f-]{36}$/.test(b.substitui) ? b.substitui : null;
+};
 const MSG_LER = 'Não consegui ler os dados agora. Tente de novo em instantes.';
 const MSG_GRAVAR = 'Não consegui gravar agora. Tente de novo.';
 const TENTATIVAS = 4;
@@ -337,10 +372,15 @@ export function mountClientesDocs(router: Router): void {
     const bytes = b.bytes;
     if (typeof bytes !== 'number' || !Number.isInteger(bytes) || bytes <= 0) { res.status(400).json({ ok: false, error: 'Diga o tamanho do arquivo.' }); return; }
     if (bytes > LIMITE_BYTES) { res.status(400).json({ ok: false, error: 'O arquivo passa de 10 MB.' }); return; }
+    const subId = substituiDe(b);
+    if (subId === null) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    if (subId && !podeRemover(ctx)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
     try {
       await garantirBucketDocs();
       const { reg } = await lerDocs(ctx);
-      const motivo = motivoSemEspaco(reg, item);
+      // "Trocar arquivo": o novo toma o lugar do `substitui`, que tem que estar neste mesmo item. O antigo não conta no espaço.
+      if (subId && reg.arquivos.find((x) => x.id === subId)?.slot !== item.chave) { res.status(400).json({ ok: false, error: MSG_SUBSTITUI }); return; }
+      const motivo = subId ? motivoSemEspacoParaMover(reg, subId, item) : motivoSemEspaco(reg, item);
       if (motivo) { res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item) }); return; }
       const caminho = novoCaminho(ctx.linha, ctx.codigo, mime);
       const env = await assinarEnvio(caminho);
@@ -363,6 +403,9 @@ export function mountClientesDocs(router: Router): void {
     const c = lerCaminho(b.caminho);
     if (!c || c.linha !== ctx.linha || c.codigo !== ctx.codigo) { res.status(400).json({ ok: false, error: 'Caminho inválido.' }); return; }
     const caminho = b.caminho as string;
+    const subId = substituiDe(b);
+    if (subId === null) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
+    if (subId && !podeRemover(ctx)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
     try {
       await garantirBucketDocs();
       // Caminho já apagado nunca volta: o token de envio vale 2 h e o mesmo caminho poderia ser reenviado depois do DELETE.
@@ -402,7 +445,13 @@ export function mountClientesDocs(router: Router): void {
           res.status(409).json({ ok: false, error: 'Este arquivo já foi registrado.' });
           return;
         }
-        const motivo = motivoSemEspaco(reg, item);
+        const antigo = subId ? reg.arquivos.find((x) => x.id === subId) : undefined;
+        if (subId && (!antigo || antigo.slot !== item.chave)) {
+          await removerObjeto(caminho).catch((e) => logErro('limpeza falhou', e));
+          res.status(400).json({ ok: false, error: MSG_SUBSTITUI });
+          return;
+        }
+        const motivo = subId ? motivoSemEspacoParaMover(reg, subId, item) : motivoSemEspaco(reg, item);
         if (motivo) {
           await removerObjeto(caminho).catch((e) => logErro('limpeza falhou', e));
           res.status(409).json({ ok: false, motivo, error: mensagemSemEspaco(motivo, item) });
@@ -410,10 +459,17 @@ export function mountClientesDocs(router: Router): void {
         }
         const agora = new Date().toISOString();
         const arq = { id: crypto.randomUUID(), slot: item.chave, caminho, mime: sonda.mime, bytes: sonda.bytes, em: agora, por: ctx.nome };
-        if (!(await gravarDocs(ctx.linha, ctx.codigo, comArquivo(reg, arq), versao, agora))) continue;   // perdeu a corrida: lê de novo
+        // Troca: UMA gravação põe o novo e tira o antigo do registro. O objeto antigo só é apagado depois dela; se a gravação falhar,
+        // o antigo continua como estava (o novo fica solto no bucket e a pessoa tenta de novo).
+        const novoReg = antigo ? comArquivo(semArquivo(reg, antigo.id, ctx.nome, agora), arq) : comArquivo(reg, arq);
+        if (!(await gravarDocs(ctx.linha, ctx.codigo, novoReg, versao, agora))) continue;   // perdeu a corrida: lê de novo
+        if (antigo) {
+          await apagarAntigo(ctx, antigo);
+          await levarRotulo(ctx, antigo.id, arq.id, agora);
+        }
         let urls = new Map<string, string>();
         try { urls = await assinarVarios([caminho], SEG_URL_DOCS); } catch (e) { logErro('assinar falhou', e); }
-        res.json({ ok: true, arquivo: lerNaTela(arq, urls) });
+        res.json({ ok: true, arquivo: lerNaTela(arq, urls), ...(antigo ? { substituiu: antigo.id } : {}) });
         return;
       }
       res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta ficha agora. Tente de novo.' });
@@ -480,16 +536,34 @@ export function mountClientesDocs(router: Router): void {
           const a = reg.arquivos.find((x) => x.id === id);
           if (!a) return { status: 404 as const, corpo: { ok: false, error: 'Arquivo não encontrado.' } };
           let atual = a;
+          let trocado: ArquivoDoc | null = null;
           if (itemNovo && itemNovo.chave !== a.slot) {
             if (!mimeServeAoItem(itemNovo, a.mime)) {
               return { status: 400 as const, corpo: { ok: false, motivo: 'formato_nao_aceito', error: itemNovo.aceita === 'imagem' ? 'Este item aceita só foto (jpg, png ou webp).' : 'Este item aceita só pdf.' } };
             }
             const motivo = motivoSemEspacoParaMover(reg, id, itemNovo);
-            if (motivo) return { status: 409 as const, corpo: { ok: false, motivo, error: mensagemSemEspaco(motivo, itemNovo) } };
-            const agora = new Date().toISOString();
-            const novo = comArquivoMovido(reg, id, itemNovo.chave, ctx.nome, agora);
-            if (!(await gravarDocs(ctx.linha, ctx.codigo, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
-            atual = { ...a, slot: itemNovo.chave };
+            // `trocar: true` só vale com o destino de UM arquivo só já ocupado: o arquivo de lá vai para o item de origem, nos dois
+            // sentidos numa gravação só. Destino com espaço (ou que aceita vários) é um move comum; destino cheio de vários não troca.
+            if (motivo === 'slot_ocupado' && b.trocar === true) {
+              const ocupante = reg.arquivos.find((x) => x.slot === itemNovo.chave && x.id !== id);
+              const itemOrigem = itemDoCatalogo(ctx.linha, a.slot);
+              if (!ocupante || !itemOrigem || !mimeServeAoItem(itemOrigem, ocupante.mime)) {
+                return { status: 400 as const, corpo: { ok: false, motivo: 'troca_nao_cabe', error: 'O arquivo que está lá não pode ir para o item de origem (tipo de arquivo diferente).' } };
+              }
+              const agora = new Date().toISOString();
+              if (!(await gravarDocs(ctx.linha, ctx.codigo, comArquivosTrocados(reg, id, ocupante.id, ctx.nome, agora), versao, agora))) continue;
+              atual = { ...a, slot: itemNovo.chave };
+              trocado = { ...ocupante, slot: a.slot };
+            } else {
+              if (motivo) {
+                const error = motivo === 'slot_ocupado' ? 'Este item já tem um arquivo. Troque os dois de lugar ou remova o atual antes de mover.' : mensagemSemEspaco(motivo, itemNovo);
+                return { status: 409 as const, corpo: { ok: false, motivo, error } };
+              }
+              const agora = new Date().toISOString();
+              const novo = comArquivoMovido(reg, id, itemNovo.chave, ctx.nome, agora);
+              if (!(await gravarDocs(ctx.linha, ctx.codigo, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
+              atual = { ...a, slot: itemNovo.chave };
+            }
           }
           if (rot) {
             const agora = new Date().toISOString();
@@ -503,16 +577,19 @@ export function mountClientesDocs(router: Router): void {
               };
             }
           }
-          return { status: 200 as const, arquivo: atual, rot };
+          return { status: 200 as const, arquivo: atual, trocado, rot };
         }
         return { status: 409 as const, corpo: { ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta ficha agora. Tente de novo.' } };
       });
       if (feito.status !== 200) { res.status(feito.status).json(feito.corpo); return; }
       let urls = new Map<string, string>();
-      try { urls = await assinarVarios([feito.arquivo.caminho], SEG_URL_DOCS); } catch (e) { logErro('assinar falhou', e); }
+      try { urls = await assinarVarios([feito.arquivo.caminho, ...(feito.trocado ? [feito.trocado.caminho] : [])], SEG_URL_DOCS); } catch (e) { logErro('assinar falhou', e); }
       // Só mover: o rótulo que o arquivo já tinha acompanha (leitura que falha não derruba a resposta).
       const rotulos = feito.rot ?? (await rotulosOuNulo(ctx)).rot;
-      res.json({ ok: true, arquivo: lerNaTela(feito.arquivo, urls, rotulos) });
+      res.json({
+        ok: true, arquivo: lerNaTela(feito.arquivo, urls, rotulos),
+        ...(feito.trocado ? { trocado: lerNaTela(feito.trocado, urls, rotulos) } : {}),
+      });
     } catch (err) {
       if (err instanceof ErroCadastro) {
         logErro('renomear falhou', err);
