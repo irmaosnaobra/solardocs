@@ -186,6 +186,144 @@ a{color:var(--blue)}
   .topbar{padding:12px 14px}.strip{padding:9px 12px}.sv{padding:2px 10px}
   .page{padding:12px 10px}.grid{grid-template-columns:1fr}
 }
+
+/* ===== ENSAIO (painel das respostas que a agente daria) =====
+   Papéis de cor próprios do painel. Visual antigo (sem io2): escuro, como o resto da página.
+   Visual novo (html.io2): cada papel aponta para o token do papel, no claro e no escuro.
+   Nenhuma cor escrita à mão fora deste bloco. */
+:root{
+  --en-bg:#0F172A; --en-sf:#1E293B; --en-sf2:#172033; --en-sf3:#2A3A52; --en-bd:#334155; --en-campo:#7C8DA5;
+  --en-tx:#E5E7EB; --en-tx2:#B4C0D2; --en-tx3:#98A8BF; --en-tit:#F8FAFC;
+  --en-link:#7DB4FF; --en-marcado:#1D4ED8; --en-marcado-tx:#FFFFFF; --en-fill:#60A5FA;
+  --en-ok:#4ADE80; --en-ok-sf:#0F2A1B; --en-ok-bd:#2F7A4C;
+  --en-er:#F87171; --en-er-sf:#3A1616; --en-er-bd:#8A3C3C;
+  --en-av:#FBBF24; --en-av-sf:#3A2A0C;
+  --en-ela-sf:#1E3A8A; --en-ela-tx:#FFFFFF; --en-ela-bd:#3B5BC4;
+  --en-prim:#1D4ED8; --en-prim-tx:#FFFFFF;
+}
+html.io2{
+  --en-bg:var(--n-bg); --en-sf:var(--n-sf); --en-sf2:var(--n-sf2); --en-sf3:var(--n-sf3); --en-bd:var(--n-bd); --en-campo:var(--io-borda-campo);
+  --en-tx:var(--n-tx); --en-tx2:var(--n-tx2); --en-tx3:var(--n-tx3); --en-tit:var(--io-titulo);
+  --en-link:var(--io-azul-tx); --en-marcado:var(--io-marcado); --en-marcado-tx:var(--n-inv); --en-fill:var(--io-azul);
+  --en-ok:var(--io-ok-tx); --en-ok-sf:var(--io-ok-sf); --en-ok-bd:var(--io-ok-bd);
+  --en-er:var(--io-er-tx); --en-er-sf:var(--io-er-sf); --en-er-bd:var(--io-er-bd);
+  --en-av:var(--io-av-tx); --en-av-sf:var(--io-av-sf);
+  --en-ela-sf:var(--io-azul-sf); --en-ela-tx:var(--n-tx); --en-ela-bd:var(--io-azul);
+  --en-prim:var(--io-amarelo); --en-prim-tx:var(--io-tinta);
+}
+.en-entrada{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;padding:12px 14px;background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px;color:var(--en-tx)}
+.en-entrada-txt{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.en-entrada-txt b{font-size:14.5px;color:var(--en-tit)}
+.en-entrada-txt span{font-size:12.5px;color:var(--en-tx2);line-height:1.45}
+.en-entrada button{font-family:inherit;font-size:14px;cursor:pointer}
+.mbox.larga{width:min(1040px,100%)}
+#corpo-ensaio{padding:0;min-height:340px;background:var(--en-bg);color:var(--en-tx)}
+.en{padding:14px 16px 22px;display:flex;flex-direction:column;gap:14px}
+.en button,.en select,.en input,.en textarea{font-family:inherit;font-size:14px;color:inherit}
+.en button{cursor:pointer}
+.en :focus-visible{outline:2px solid var(--en-link);outline-offset:2px}
+.en-aviso{font-size:12.5px;color:var(--en-tx2);line-height:1.55;margin:0}
+.en-msg{font-size:13px;line-height:1.5;padding:10px 12px;border-radius:10px;border:1px solid var(--en-bd);background:var(--en-sf);color:var(--en-tx)}
+.en-msg.erro{background:var(--en-er-sf);border-color:var(--en-er-bd);color:var(--en-er)}
+.en-msg.ok{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
+.en-msg.aviso{background:var(--en-av-sf);border-color:var(--en-av);color:var(--en-av)}
+.en-msg:empty{display:none}
+
+/* Placar */
+.en-placar{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.en-card{background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px;padding:12px 14px;min-width:0}
+.en-card-nome{font-weight:700;font-size:15px;color:var(--en-tit)}
+.en-card-prod{font-size:12px;color:var(--en-tx2);margin-top:1px}
+.en-card-num{display:flex;gap:16px;margin-top:10px}
+.en-card-num b{display:block;font-size:20px;font-weight:700;color:var(--en-tit);font-variant-numeric:tabular-nums;line-height:1.15}
+.en-card-num span{display:block;font-size:11.5px;color:var(--en-tx2);margin-top:2px}
+.en-barra{height:8px;border-radius:99px;background:var(--en-sf3);overflow:hidden;margin-top:11px}
+.en-barra i{display:block;height:100%;background:var(--en-fill);border-radius:99px}
+.en-card-falta{font-size:12px;color:var(--en-tx2);margin-top:6px}
+
+/* Blocos de sócio */
+.en-det{background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px}
+.en-det>summary{list-style:none;display:flex;align-items:center;min-height:48px;padding:0 14px;font-weight:700;font-size:14px;color:var(--en-tit);cursor:pointer;border-radius:12px}
+.en-det>summary::-webkit-details-marker{display:none}
+.en-det>summary::after{content:"+";margin-left:auto;font-size:20px;line-height:1;color:var(--en-tx2)}
+.en-det[open]>summary::after{content:"\2212"}
+.en-det-corpo{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.en-linha-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.en-campo{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--en-tx2);min-width:0}
+.en-campo input,.en-campo select,.en-filtros select{height:44px;padding:0 10px;border:1px solid var(--en-campo);border-radius:10px;background:var(--en-bg);color:var(--en-tx);font-size:16px;min-width:0}
+.en-venc{display:grid;grid-template-columns:minmax(0,2fr) 150px 96px minmax(0,2fr) auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--en-bd);border-radius:10px;background:var(--en-sf2)}
+
+/* Botões */
+.en-btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--en-campo);background:transparent;color:var(--en-tx);font-weight:600}
+.en-btn:hover{background:var(--en-sf3)}
+.en-btn:disabled{opacity:.55;cursor:not-allowed}
+.en-btn.prim{background:var(--en-prim);border-color:var(--en-prim);color:var(--en-prim-tx);font-weight:700}
+.en-btn.prim:hover{filter:brightness(.96)}
+.en-btn.perigo{color:var(--en-er);border-color:var(--en-er-bd)}
+
+/* Filtros e lista */
+.en-filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.en-lista{display:flex;flex-direction:column;border:1px solid var(--en-bd);border-radius:12px;overflow:hidden;background:var(--en-sf)}
+.en-item{display:flex;flex-direction:column;gap:3px;width:100%;min-height:62px;padding:10px 14px;border:0;border-bottom:1px solid var(--en-bd);background:transparent;text-align:left;color:var(--en-tx)}
+.en-item:last-child{border-bottom:0}
+.en-item:hover{background:var(--en-sf3)}
+.en-item-l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.en-item-nome{font-weight:700;color:var(--en-tit)}
+.en-item-l2{font-size:12.5px;color:var(--en-tx2)}
+.en-tag{display:inline-block;padding:2px 9px;border-radius:99px;border:1px solid var(--en-bd);background:var(--en-sf2);font-size:11.5px;font-weight:700;color:var(--en-tx2);white-space:nowrap}
+.en-tag.ag{background:var(--en-ela-sf);border-color:var(--en-ela-bd);color:var(--en-ela-tx)}
+.en-vazio{padding:26px 16px;text-align:center;color:var(--en-tx2);font-size:13.5px}
+
+/* Conversa */
+.en-topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.en-topo h3{margin:0;font-size:15px;color:var(--en-tit)}
+.en-turnos{display:flex;flex-direction:column;gap:14px}
+.en-turno{background:var(--en-sf);border:1px solid var(--en-bd);border-radius:12px;padding:12px 12px 14px;display:flex;flex-direction:column;gap:7px}
+.en-turno-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--en-tx2)}
+.en-turno-cab b{color:var(--en-tit);font-size:13px}
+.en-rot{font-size:11.5px;font-weight:700;color:var(--en-tx2);margin-top:4px}
+.en-rot.dir{align-self:flex-end;text-align:right}
+.en-b{max-width:82%;padding:8px 12px;border-radius:12px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.en-b.lead{align-self:flex-start;background:var(--en-sf2);border:1px solid var(--en-bd);color:var(--en-tx);border-bottom-left-radius:3px}
+.en-b.ela{align-self:flex-end;background:var(--en-ela-sf);border:1px solid var(--en-ela-bd);color:var(--en-ela-tx);border-bottom-right-radius:3px}
+.en-b.real{align-self:flex-end;background:var(--en-sf3);border:1px solid var(--en-bd);color:var(--en-tx2);border-bottom-right-radius:3px}
+.en-b small{display:block;font-size:11px;color:var(--en-tx3);margin-top:3px}
+.en-meta{font-size:12px;color:var(--en-tx2);line-height:1.45}
+.en-meta.dir{align-self:flex-end;text-align:right}
+.en-calada{align-self:flex-end;max-width:82%;padding:8px 12px;border-radius:12px;border:1px dashed var(--en-campo);color:var(--en-tx2);font-size:13px;line-height:1.5}
+.en-notas{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.en-nota{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--en-bd);border-radius:10px;background:var(--en-sf2);font-size:12.5px;line-height:1.45}
+.en-nota .txt{flex:1;min-width:0;overflow-wrap:anywhere}
+.en-nota .txt b{color:var(--en-tit)}
+.en-nota.certo{border-color:var(--en-ok-bd)}
+.en-nota.errado{border-color:var(--en-er-bd)}
+.en-form{margin-top:6px;padding-top:10px;border-top:1px solid var(--en-bd);display:flex;flex-direction:column;gap:9px}
+.en-par{display:flex;gap:8px;flex-wrap:wrap}
+.en-par .en-btn{min-width:96px}
+.en-par .en-btn[aria-pressed="true"].c{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
+.en-par .en-btn[aria-pressed="true"].e{background:var(--en-er-sf);border-color:var(--en-er-bd);color:var(--en-er)}
+.en-notas-chips{display:flex;gap:6px;flex-wrap:wrap}
+.en-chip{min-width:44px;min-height:44px;padding:0 8px;border-radius:10px;border:1px solid var(--en-campo);background:transparent;color:var(--en-tx);font-weight:700;font-variant-numeric:tabular-nums}
+.en-chip[aria-pressed="true"]{background:var(--en-marcado);border-color:var(--en-marcado);color:var(--en-marcado-tx)}
+.en-form textarea{width:100%;min-height:64px;padding:9px 11px;border:1px solid var(--en-campo);border-radius:10px;background:var(--en-bg);color:var(--en-tx);font-size:16px;resize:vertical}
+.en-form-pe{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.en-cont{font-size:12px;color:var(--en-tx3);font-variant-numeric:tabular-nums}
+
+@media(max-width:860px){
+  .en-venc{grid-template-columns:1fr 1fr}
+}
+@media(max-width:640px){
+  .modal.ensaio{padding:0}
+  .modal.ensaio .mbox{width:100%;max-height:100vh;height:100vh;border-radius:0;border-left:0;border-right:0}
+  .en{padding:12px 10px 20px}
+  .en-b,.en-calada{max-width:94%}
+  .en-venc{grid-template-columns:1fr}
+  .en-placar{grid-template-columns:1fr}
+  .en-linha-form .en-campo{flex:1 1 100%}
+  .en-linha-form .en-btn{flex:1 1 100%}
+  .en-form-pe .en-btn{flex:1 1 100%}
+  .en-entrada .en-btn{flex:1 1 100%}
+}
 </style>
 <link rel="stylesheet" href="/gerador/ui/io2.css" media="not all" data-io2>
 <link rel="stylesheet" href="/gerador/ui/io2-cores-agentes.css" media="not all" data-io2>
@@ -213,6 +351,13 @@ a{color:var(--blue)}
 </div>
 
 <div class="page">
+  <div class="en-entrada">
+    <div class="en-entrada-txt">
+      <b>Ensaio das agentes</b>
+      <span>Leia o que cada agente responderia em conversas reais e dê nota. Nada é enviado ao cliente.</span>
+    </div>
+    <button type="button" class="en-btn prim" id="btn-ensaio" onclick="abrirEnsaioGeral()">Abrir o ensaio</button>
+  </div>
   <div class="linhas" id="linhas"></div>
   <div class="filtros" id="filtros"></div>
   <div id="conteudo"><div class="vazio-tela">Carregando as agentes…</div></div>
@@ -244,6 +389,7 @@ a{color:var(--blue)}
     <div class="mtabs">
       <button id="tab-chat" class="on" onclick="trocarAba('chat')">💬 Conversar</button>
       <button id="tab-cerebro" onclick="trocarAba('cerebro')">🧠 Cérebro</button>
+      <button id="tab-ensaio" onclick="trocarAba('ensaio')">Ensaio</button>
     </div>
 
     <div class="mbody" id="corpo-chat">
@@ -268,6 +414,10 @@ a{color:var(--blue)}
       <button onclick="salvarCerebro()" id="btn-salvar">Salvar</button>
       <button class="sec" onclick="testarRascunho()">Testar sem salvar</button>
       <button class="sec" onclick="restaurarCerebro()">Voltar ao original</button>
+    </div>
+
+    <div class="mbody" id="corpo-ensaio" style="display:none">
+      <div class="en" id="en-raiz"></div>
     </div>
   </div>
 </div>
@@ -498,9 +648,30 @@ async function carregarCerebros(){
   } catch(e){ cerebros = []; }
 }
 
+// Ao abrir pela barra do topo (sem agente), só a aba Ensaio existe; ao abrir por uma agente, as três.
+function modoAgente(sim){
+  document.getElementById('tab-chat').style.display = sim ? '' : 'none';
+  document.getElementById('tab-cerebro').style.display = sim ? '' : 'none';
+  document.getElementById('m-rosto').style.display = sim ? '' : 'none';
+}
+function abrirEnsaioGeral(){
+  atual = null;
+  modoAgente(false);
+  document.getElementById('m-tit').textContent = 'Ensaio das agentes';
+  document.getElementById('m-sub').textContent = 'Leia o que cada agente responderia e dê nota. Nada é enviado.';
+  document.getElementById('modal').classList.add('on');
+  trocarAba('ensaio');
+}
+function personaDoAgente(){
+  if (!atual) return '';
+  const m = /carla|duda|helena/.exec((String(atual.agente_id || '') + ' ' + String(atual.nome || '')).toLowerCase());
+  return m ? m[0] : '';
+}
+
 function abrirModal(id, aba){
   atual = cerebros.find(c => c.id === id);
   if (!atual) return;
+  modoAgente(true);
   conversa = [];
   document.getElementById('m-tit').textContent = nomeTela(atual.nome);
   document.getElementById('m-sub').textContent =
@@ -512,17 +683,22 @@ function abrirModal(id, aba){
   document.getElementById('modal').classList.add('on');
   trocarAba(aba || 'chat');
 }
-function fecharModal(){ document.getElementById('modal').classList.remove('on'); }
+function fecharModal(){ document.getElementById('modal').classList.remove('on', 'ensaio'); }
 
 function trocarAba(aba){
-  const chat = aba === 'chat';
+  const chat = aba === 'chat', cerebro = aba === 'cerebro', ensaio = aba === 'ensaio';
   document.getElementById('tab-chat').classList.toggle('on', chat);
-  document.getElementById('tab-cerebro').classList.toggle('on', !chat);
+  document.getElementById('tab-cerebro').classList.toggle('on', cerebro);
+  document.getElementById('tab-ensaio').classList.toggle('on', ensaio);
   document.getElementById('corpo-chat').style.display = chat ? '' : 'none';
   document.getElementById('rodape-chat').style.display = chat ? '' : 'none';
-  document.getElementById('corpo-cerebro').style.display = chat ? 'none' : '';
-  document.getElementById('rodape-cerebro').style.display = chat ? 'none' : '';
+  document.getElementById('corpo-cerebro').style.display = cerebro ? '' : 'none';
+  document.getElementById('rodape-cerebro').style.display = cerebro ? '' : 'none';
+  document.getElementById('corpo-ensaio').style.display = ensaio ? '' : 'none';
+  document.getElementById('modal').classList.toggle('ensaio', ensaio);
+  document.querySelector('#modal .mbox').classList.toggle('larga', ensaio);
   if (chat) setTimeout(() => document.getElementById('msg').focus(), 50);
+  if (ensaio && window.Ensaio) window.Ensaio.mostrar(personaDoAgente());
 }
 
 function pintarChat(){
@@ -629,6 +805,504 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape'){ fecharDetal
 carregar();
 // A tela é de vigilância: sozinha ela se atualiza de 2 em 2 minutos.
 setInterval(carregar, 120000);
+</script>
+<script>
+/* ===== ENSAIO: o que cada agente responderia, e a nota da equipe =====
+   Só leitura das respostas que a agente DARIA: nada aqui envia mensagem. Texto de cliente entra
+   sempre por textContent. Sessão lida e renovada do mesmo jeito que a caixa (whatsapp/index.html). */
+(function () {
+  'use strict';
+
+  var SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+  var SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6'; // gitleaks:allow (chave publica de navegador, a mesma do index.html; o .gitleaks.toml libera em dashboard/public)
+  var BASE = '/_api/gerador/';
+  // O replay pode passar de 3 minutos: vai DIRETO à API (como a IA do contrato no index.html), sem o proxy /_api. O resto segue pelo proxy.
+  var BASE_DIRETA = location.hostname === 'localhost' ? 'http://localhost:3001/gerador/'
+    : (location.hostname === '127.0.0.1' ? BASE : 'https://api.solardoc.app/gerador/');
+  var TZ = 'America/Sao_Paulo';
+  var ROT = { carla: 'Carla', duda: 'Duda', helena: 'Helena', ninguem: 'Sem agente' };
+  var PROD = { carla: 'SolarDoc', duda: 'Solar', helena: 'Eletroposto', ninguem: 'O porteiro calou a conversa' };
+
+  var est = { montado: false, socio: false, filtros: { persona: '', produto: '', origem: '', dias: '30' }, aberta: null, venc: null, vencCarregado: false, socioPintado: false };
+  var ver = 0;   // descarta resposta velha quando o usuário muda de filtro ou de conversa
+
+  // ── utilitários de tela ──
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined && txt !== null) e.textContent = txt; return e; }
+  function add(pai) { for (var i = 1; i < arguments.length; i++) if (arguments[i]) pai.appendChild(arguments[i]); return pai; }
+  function botao(txt, cls, onclick) { var b = el('button', 'en-btn' + (cls ? ' ' + cls : ''), txt); b.type = 'button'; if (onclick) b.addEventListener('click', onclick); return b; }
+  function quando(iso) {
+    try { return new Date(iso).toLocaleString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+  }
+  function diaCurto(d) { var m = /^\d{4}-(\d{2})-(\d{2})$/.exec(String(d || '')); return m ? m[2] + '/' + m[1] : ''; }
+  function dec(n) { return n === null || n === undefined ? '-' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  function nomeAgente(p) { return ROT[p] || 'Sem agente'; }
+  function msg(id, tipo, texto) { var m = $(id); if (!m) return; m.className = 'en-msg' + (tipo ? ' ' + tipo : ''); m.textContent = texto || ''; }
+
+  // ── sessão e API ──
+  function irParaLogin() { location.replace('/gerador'); }
+  function erro(tipo, extra) { var e = new Error(tipo); e.tipo = tipo; if (extra) for (var k in extra) e[k] = extra[k]; return e; }
+  function lerSessao() { try { return JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) { return null; } }
+  function sessaoViva(s) { return !!(s && s.access_token && Number(s.expira_em || 0) > Date.now()); }
+  var renovando = null;
+  function renovar(tokenUsado) {
+    if (renovando) return renovando;
+    var rodar = function () { return renovarAgora(tokenUsado); };
+    var p = (navigator.locks && navigator.locks.request) ? navigator.locks.request('gerador-sessao-renovar', rodar) : rodar();
+    renovando = Promise.resolve(p).then(function (v) { renovando = null; return v; }, function (e) { renovando = null; throw e; });
+    return renovando;
+  }
+  function renovarAgora(tokenUsado) {
+    var s = lerSessao();   // relida dentro da trava: outra aba pode ter renovado
+    if (!s || !s.refresh_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    if (sessaoViva(s) && s.access_token !== tokenUsado) return Promise.resolve(s.access_token);
+    var meu = s.refresh_token;
+    return fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: meu })
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) { return { r: r, j: j }; });
+    }, function () { throw erro('rede'); }).then(function (x) {
+      if (x.r.ok && x.j && x.j.access_token) {
+        try {
+          localStorage.setItem(SESSAO_KEY, JSON.stringify({
+            access_token: x.j.access_token,
+            refresh_token: x.j.refresh_token || meu,
+            expira_em: Date.now() + (Number(x.j.expires_in || 3600) - 300) * 1000
+          }));
+        } catch (e) {}
+        return x.j.access_token;
+      }
+      if (x.r.status >= 500 || x.r.status === 429) throw erro('rede');
+      var atual = lerSessao();
+      if (atual && atual.refresh_token !== meu && sessaoViva(atual)) return atual.access_token;
+      try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
+      irParaLogin();
+      throw erro('login');
+    });
+  }
+  function obterToken() {
+    var s = lerSessao();
+    if (!s || !s.access_token) { irParaLogin(); return Promise.reject(erro('login')); }
+    return sessaoViva(s) ? Promise.resolve(s.access_token) : renovar(null);
+  }
+  function pedir(metodo, caminho, corpo, tk, espera, direto) {
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var tt = ctrl ? setTimeout(function () { ctrl.abort(); }, espera || 20000) : null;
+    var opt = { method: metodo, headers: { 'Authorization': 'Bearer ' + tk }, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined };
+    if (corpo !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(corpo); }
+    return fetch((direto ? BASE_DIRETA : BASE) + caminho, opt).then(function (r) {
+      if (tt) clearTimeout(tt);
+      if (r.status === 401) throw erro('nao-autorizado');
+      return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, json: j }; });
+    }, function () { if (tt) clearTimeout(tt); throw erro('rede'); });
+  }
+  /** Devolve o JSON quando deu certo; senão lança com tipo (login, equipe, socio, limite, servidor, rede) e a mensagem da API. */
+  function api(metodo, caminho, corpo, espera, direto) {
+    return obterToken().then(function (tk) {
+      return pedir(metodo, caminho, corpo, tk, espera, direto).catch(function (e) {
+        if (e.tipo !== 'nao-autorizado') throw e;
+        return renovar(tk).then(function (tk2) {
+          return pedir(metodo, caminho, corpo, tk2, espera, direto).catch(function (e2) { if (e2.tipo === 'nao-autorizado') { irParaLogin(); throw erro('login'); } throw e2; });
+        });
+      });
+    }).then(function (x) {
+      var j = x.json || {};
+      if (x.status >= 200 && x.status < 300 && j.ok !== false) return j;
+      if (x.status === 403 && j.precisa === 'login') { irParaLogin(); throw erro('login'); }
+      if (x.status === 403 && j.precisa === 'equipe') throw erro('equipe', { texto: j.error });
+      if (x.status === 403 && j.precisa === 'socio') throw erro('socio', { texto: j.error });
+      if (x.status === 429) throw erro('limite', { texto: 'Muitas consultas em pouco tempo. Espere um pouco.' });
+      throw erro(x.status >= 500 ? 'servidor' : 'pedido', { texto: j.error || 'Não deu certo.' });
+    });
+  }
+  function textoDoErro(e) {
+    if (e && e.texto) return e.texto;
+    if (e && e.tipo === 'rede') return 'Sem conexão com o servidor. Tente de novo.';
+    return 'Não deu certo. Tente de novo.';
+  }
+
+  // ── esqueleto ──
+  function montar() {
+    var raiz = $('en-raiz');
+    raiz.textContent = '';
+    add(raiz,
+      el('p', 'en-aviso', 'Aqui você lê o que a agente responderia em cada turno de uma conversa real e dá nota. Nada daqui vai para o WhatsApp de ninguém.'),
+      Object.assign(el('div'), { id: 'en-status' }),
+      Object.assign(el('div', 'en-placar'), { id: 'en-placar' }),
+      Object.assign(el('div', 'en-socio'), { id: 'en-socio' }),
+      Object.assign(el('div'), { id: 'en-corpo' })
+    );
+    $('en-status').className = 'en-msg';
+    est.montado = true;
+  }
+
+  // ── placar ──
+  function pintarPlacar(j) {
+    var c = $('en-placar');
+    c.textContent = '';
+    (j.placar || []).forEach(function (p) {
+      var card = el('div', 'en-card');
+      add(card, el('div', 'en-card-nome', nomeAgente(p.persona)), el('div', 'en-card-prod', PROD[p.persona] || ''));
+      var num = el('div', 'en-card-num');
+      var a = el('div'); add(a, el('b', null, p.pct_certo === null ? '-' : p.pct_certo + '%'), el('span', null, 'certo'));
+      var b = el('div'); add(b, el('b', null, dec(p.media)), el('span', null, 'nota média'));
+      var d = el('div'); add(d, el('b', null, String(p.turnos_avaliados)), el('span', null, 'turnos avaliados'));
+      add(num, a, b, d);
+      var barra = el('div', 'en-barra');
+      barra.setAttribute('role', 'progressbar');
+      barra.setAttribute('aria-valuemin', '0');
+      barra.setAttribute('aria-valuemax', String(j.meta));
+      barra.setAttribute('aria-valuenow', String(Math.min(p.turnos_avaliados, j.meta)));
+      var i = document.createElement('i');
+      i.style.width = Math.min(100, Math.round((p.turnos_avaliados / j.meta) * 100)) + '%';
+      barra.appendChild(i);
+      add(card, num, barra, el('div', 'en-card-falta', p.faltam > 0 ? 'Faltam ' + p.faltam + ' para ' + j.meta : 'Meta de ' + j.meta + ' turnos atingida'));
+      c.appendChild(card);
+    });
+  }
+  function carregarPlacar() {
+    return api('GET', 'ensaio/placar').then(function (j) {
+      est.socio = !!j.socio;
+      pintarPlacar(j);
+      pintarSocio();
+      if (j.notas_parciais) msg('en-status', 'aviso', 'Tem nota demais para ler de uma vez: os números do placar podem estar um pouco abaixo do real.');
+    });
+  }
+
+  // ── blocos do sócio ──
+  function pintarSocio() {
+    var c = $('en-socio');
+    if (!est.socio || est.socioPintado) return;   // uma vez só: reconstruir fecharia os blocos e perderia o que está sendo digitado
+    est.socioPintado = true;
+    add(c, blocoReplay(), blocoVencimentos());
+    c.style.flexDirection = 'column'; c.style.gap = '10px';
+    mostrarSocio(!est.aberta);
+  }
+  /** Os blocos do sócio só aparecem na lista; com uma conversa aberta saem da frente. */
+  function mostrarSocio(sim) {
+    var c = $('en-socio');
+    if (c) c.style.display = sim && est.socio ? 'flex' : 'none';
+  }
+
+  function blocoReplay() {
+    var det = el('details', 'en-det');
+    add(det, el('summary', null, 'Rodar replay'));
+    var corpo = el('div', 'en-det-corpo');
+    var dias = el('select'); dias.id = 'en-rp-dias';
+    [['7', 'Últimos 7 dias'], ['14', 'Últimos 14 dias'], ['30', 'Últimos 30 dias']].forEach(function (o) { var op = el('option', null, o[1]); op.value = o[0]; dias.appendChild(op); });
+    var qtd = el('select'); qtd.id = 'en-rp-qtd';
+    [['1', '1 conversa'], ['3', '3 conversas'], ['5', '5 conversas']].forEach(function (o) { var op = el('option', null, o[1]); op.value = o[0]; if (o[0] === '3') op.selected = true; qtd.appendChild(op); });
+    var cd = el('label', 'en-campo', 'Janela'); cd.appendChild(dias);
+    var cq = el('label', 'en-campo', 'Quantas'); cq.appendChild(qtd);
+    var rodar = botao('Rodar replay', 'prim', function () {
+      if (!window.confirm('O replay pede a resposta da agente para turnos antigos e gasta chamadas de IA do teto do replay. Rodar agora?')) return;
+      rodar.disabled = true; rodar.textContent = 'Rodando';
+      msg('en-rp-msg', '', 'Rodando o replay. Pode levar alguns minutos.');
+      api('POST', 'ensaio/replay', { dias: Number(dias.value), conversas: Number(qtd.value) }, 290000, true).then(function (j) {
+        if (!j.ligado) { msg('en-rp-msg', 'aviso', 'O replay está desligado' + (j.motivo ? ' (' + j.motivo + ')' : '') + '. Quem liga é o interruptor do replay.'); return; }
+        var t = j.conversas_processadas + ' conversas, ' + j.turnos_gravados + ' turnos novos, ' + j.turnos_ja_existiam + ' que já existiam, ' + j.chamadas_ia + ' chamadas de IA.';
+        if (j.parou) t += ' Parou por: ' + j.parou + '.';
+        if (j.motivo) t += ' ' + j.motivo + '.';
+        msg('en-rp-msg', 'ok', t);
+        listar();
+      }).catch(function (e) { msg('en-rp-msg', 'erro', textoDoErro(e)); }).then(function () { rodar.disabled = false; rodar.textContent = 'Rodar replay'; });
+    });
+    var linha = el('div', 'en-linha-form'); add(linha, cd, cq, rodar);
+    var m = el('div', 'en-msg'); m.id = 'en-rp-msg'; m.setAttribute('role', 'status');
+    add(corpo, el('p', 'en-aviso', 'O replay refaz turnos de conversas passadas com o histórico da época. Respeita o interruptor e o teto diário do replay.'), linha, m);
+    det.appendChild(corpo);
+    return det;
+  }
+
+  function blocoVencimentos() {
+    var det = el('details', 'en-det');
+    add(det, el('summary', null, 'Vencimentos das ferramentas'));
+    var corpo = el('div', 'en-det-corpo');
+    var lista = el('div'); lista.id = 'en-venc-lista'; lista.style.display = 'flex'; lista.style.flexDirection = 'column'; lista.style.gap = '8px';
+    var m = el('div', 'en-msg'); m.id = 'en-venc-msg'; m.setAttribute('role', 'status');
+    var linha = el('div', 'en-linha-form');
+    add(linha,
+      botao('Adicionar ferramenta', '', function () { est.venc.push({ ferramenta: '', vence_em: '', cartao_final: '', observacao: '' }); pintarVenc(); }),
+      botao('Salvar calendário', 'prim', salvarVenc)
+    );
+    add(corpo,
+      el('p', 'en-aviso', 'Todo dia às 7h o sistema confere estas datas e avisa o dono quando algo vence em até 7 dias (30 para domínio). Só o final do cartão, 4 dígitos. Nada de número completo.'),
+      lista, linha, m);
+    det.appendChild(corpo);
+    det.addEventListener('toggle', function () {
+      if (det.open && !est.vencCarregado) carregarVenc();
+    });
+    return det;
+  }
+  function carregarVenc() {
+    msg('en-venc-msg', '', 'Lendo o calendário.');
+    api('GET', 'sentinela/vencimentos').then(function (j) {
+      est.venc = (j.vencimentos || []).map(function (v) { return { ferramenta: v.ferramenta || '', vence_em: v.vence_em || '', cartao_final: v.cartao_final || '', observacao: v.observacao || '' }; });
+      est.vencCarregado = true;
+      msg('en-venc-msg', '', '');
+      pintarVenc();
+    }).catch(function (e) { msg('en-venc-msg', 'erro', textoDoErro(e)); });
+  }
+  function pintarVenc() {
+    var c = $('en-venc-lista');
+    if (!c) return;
+    c.textContent = '';
+    if (!est.venc || !est.venc.length) { c.appendChild(el('div', 'en-vazio', 'Nenhuma ferramenta no calendário ainda.')); return; }
+    est.venc.forEach(function (v, i) {
+      var linha = el('div', 'en-venc');
+      function campo(rotulo, tipo, chave, extra) {
+        var l = el('label', 'en-campo', rotulo);
+        var inp = document.createElement('input');
+        inp.type = tipo; inp.value = v[chave] || '';
+        if (extra) for (var k in extra) inp.setAttribute(k, extra[k]);
+        inp.addEventListener('input', function () { v[chave] = inp.value; });
+        l.appendChild(inp);
+        return l;
+      }
+      add(linha,
+        campo('Ferramenta', 'text', 'ferramenta', { maxlength: '60' }),
+        campo('Vence em', 'date', 'vence_em'),
+        campo('Cartão (final)', 'text', 'cartao_final', { maxlength: '4', inputmode: 'numeric', pattern: '[0-9]{4}' }),
+        campo('Observação', 'text', 'observacao', { maxlength: '120' }),
+        botao('Remover', 'perigo', function () { est.venc.splice(i, 1); pintarVenc(); })
+      );
+      c.appendChild(linha);
+    });
+  }
+  function salvarVenc() {
+    var itens = est.venc.map(function (v) {
+      var o = { ferramenta: String(v.ferramenta || '').trim(), vence_em: String(v.vence_em || '').trim() };
+      if (String(v.cartao_final || '').trim()) o.cartao_final = String(v.cartao_final).trim();
+      if (String(v.observacao || '').trim()) o.observacao = String(v.observacao).trim();
+      return o;
+    });
+    msg('en-venc-msg', '', 'Salvando.');
+    api('PUT', 'sentinela/vencimentos', { vencimentos: itens }).then(function (j) {
+      est.venc = (j.vencimentos || []).map(function (v) { return { ferramenta: v.ferramenta || '', vence_em: v.vence_em || '', cartao_final: v.cartao_final || '', observacao: v.observacao || '' }; });
+      pintarVenc();
+      msg('en-venc-msg', 'ok', 'Calendário salvo.');
+    }).catch(function (e) { msg('en-venc-msg', 'erro', textoDoErro(e)); });
+  }
+
+  // ── lista de conversas ──
+  function select(rotulo, chave, opcoes) {
+    var l = el('label', 'en-campo', rotulo);
+    var s = document.createElement('select');
+    opcoes.forEach(function (o) { var op = el('option', null, o[1]); op.value = o[0]; if (est.filtros[chave] === o[0]) op.selected = true; s.appendChild(op); });
+    s.addEventListener('change', function () { est.filtros[chave] = s.value; listar(); });
+    l.appendChild(s);
+    return l;
+  }
+  function pintarFiltros() {
+    var c = el('div', 'en-filtros');
+    add(c,
+      select('Agente', 'persona', [['', 'Todas'], ['carla', 'Carla'], ['duda', 'Duda'], ['helena', 'Helena'], ['ninguem', 'Sem agente']]),
+      select('Produto', 'produto', [['', 'Todos'], ['solardoc', 'SolarDoc'], ['solar', 'Solar'], ['eletroposto', 'Eletroposto']]),
+      select('Origem', 'origem', [['', 'Ao vivo e replay'], ['vivo', 'Ao vivo'], ['replay', 'Replay']]),
+      select('Período', 'dias', [['7', '7 dias'], ['14', '14 dias'], ['30', '30 dias'], ['90', '90 dias']])
+    );
+    return c;
+  }
+  function listar() {
+    var corpo = $('en-corpo');
+    est.aberta = null;
+    mostrarSocio(true);
+    var minha = ++ver;
+    corpo.textContent = '';
+    add(corpo, pintarFiltros(), Object.assign(el('div', 'en-lista'), { id: 'en-lista' }));
+    $('en-lista').appendChild(el('div', 'en-vazio', 'Carregando as conversas.'));
+    var f = est.filtros;
+    var q = 'dias=' + encodeURIComponent(f.dias) + (f.persona ? '&persona=' + f.persona : '') + (f.produto ? '&produto=' + f.produto : '') + (f.origem ? '&origem=' + f.origem : '');
+    api('GET', 'ensaio/conversas?' + q).then(function (j) {
+      if (minha !== ver) return;
+      var lista = $('en-lista'); lista.textContent = '';
+      if (!j.conversas.length) {
+        lista.appendChild(el('div', 'en-vazio', 'Nenhuma conversa ensaiada com esses filtros. O ensaio ao vivo grava um turno por mensagem nova de lead; o replay (só sócio) traz conversas passadas.'));
+        return;
+      }
+      j.conversas.forEach(function (c) {
+        var b = el('button', 'en-item'); b.type = 'button';
+        var l1 = el('div', 'en-item-l1');
+        add(l1, el('span', 'en-item-nome', 'Conversa ' + c.id.slice(0, 6)), el('span', 'en-tag ag', nomeAgente(c.persona)), el('span', 'en-tag', c.origem === 'replay' ? 'Replay' : 'Ao vivo'));
+        if (c.produto) l1.appendChild(el('span', 'en-tag', c.produto));
+        var datas = diaCurto(c.primeira_data) + (c.ultima_data ? ' a ' + quando(c.ultima_data) : '');
+        var nota = c.com_nota ? c.com_nota + ' com nota' + (c.media_nota !== null ? ', média ' + dec(c.media_nota) : '') : 'sem nota ainda';
+        add(b, l1, el('div', 'en-item-l2', datas + ' - ' + c.turnos + (c.turnos === 1 ? ' turno' : ' turnos') + ' - ' + nota));
+        b.addEventListener('click', function () { abrirConversa(c); });
+        lista.appendChild(b);
+      });
+    }).catch(function (e) {
+      if (minha !== ver) return;
+      var lista = $('en-lista'); lista.textContent = '';
+      lista.appendChild(el('div', 'en-vazio', tratarErro(e)));
+    });
+  }
+  function tratarErro(e) {
+    if (e && e.tipo === 'equipe') return 'Esta tela é só para a equipe.';
+    return textoDoErro(e);
+  }
+
+  // ── conversa aberta ──
+  function abrirConversa(c, manterRolagem) {
+    est.aberta = c;
+    mostrarSocio(false);
+    var minha = ++ver;
+    var corpo = $('en-corpo');
+    var rolagem = manterRolagem ? $('corpo-ensaio').scrollTop : 0;
+    corpo.textContent = '';
+    var topo = el('div', 'en-topo');
+    add(topo, botao('Voltar à lista', '', function () { listar(); carregarPlacar().catch(function () {}); }),
+      el('h3', null, 'Conversa ' + c.id.slice(0, 6) + ' - ' + nomeAgente(c.persona)));
+    var cont = el('div', 'en-turnos');
+    add(corpo, topo, cont);
+    cont.appendChild(el('div', 'en-vazio', 'Carregando a conversa.'));
+    api('GET', 'ensaio/conversa?id=' + c.id + '&de=' + encodeURIComponent(c.primeira_data) + '&ate=' + encodeURIComponent(String(c.ultima_data || '').slice(0, 10) || c.primeira_data)).then(function (j) {
+      if (minha !== ver) return;
+      cont.textContent = '';
+      if (!j.turnos.length) { cont.appendChild(el('div', 'en-vazio', 'Esta conversa não tem turnos na janela lida.')); return; }
+      j.turnos.forEach(function (t, i) { cont.appendChild(pintarTurno(c, t, i + 1)); });
+      if (manterRolagem) $('corpo-ensaio').scrollTop = rolagem;
+    }).catch(function (e) {
+      if (minha !== ver) return;
+      cont.textContent = '';
+      cont.appendChild(el('div', 'en-vazio', tratarErro(e)));
+    });
+  }
+
+  function textoDaMsg(m) { return m.texto && String(m.texto).trim() ? m.texto : '[' + (m.tipo || 'mensagem') + ']'; }
+  var AUTOR_REAL = { robo: 'robô', equipe: 'equipe', lead: 'cliente' };
+
+  function pintarTurno(c, t, n) {
+    var card = el('div', 'en-turno');
+    var cab = el('div', 'en-turno-cab');
+    add(cab, el('b', null, 'Turno ' + n), el('span', null, quando(t.momento)), el('span', 'en-tag', t.origem === 'replay' ? 'Replay' : 'Ao vivo'));
+    card.appendChild(cab);
+
+    if (t.kind === 'abertura') card.appendChild(el('div', 'en-meta', 'Abertura: aqui a conversa começa por uma fala nossa.'));
+    (t.entrada || []).forEach(function (m) {
+      var b = el('div', 'en-b lead', textoDaMsg(m));
+      b.appendChild(el('small', null, 'Cliente - ' + quando(m.momento)));
+      card.appendChild(b);
+    });
+
+    var porteiro = (t.passo === 'falha' ? 'Porteiro falhou' : 'Porteiro, passo ' + t.passo) + (t.motivo_porteiro ? ': ' + t.motivo_porteiro : '');
+    card.appendChild(el('div', 'en-meta dir', porteiro));
+
+    if (t.pergunta_porteiro) {
+      card.appendChild(el('div', 'en-rot dir', 'O porteiro perguntaria'));
+      card.appendChild(el('div', 'en-b ela', t.pergunta_porteiro));
+    }
+    if (t.falou && t.bolhas && t.bolhas.length) {
+      card.appendChild(el('div', 'en-rot dir', 'A agente responderia (' + nomeAgente(t.persona) + ')'));
+      t.bolhas.forEach(function (b) { card.appendChild(el('div', 'en-b ela', b)); });
+      var extra = [];
+      if (t.acao) extra.push('Ação: ' + t.acao);
+      if (t.peca) extra.push('Peça: ' + (t.peca.tipo || '') + (t.peca.id ? ' (' + t.peca.id + ')' : ''));
+      if (extra.length) card.appendChild(el('div', 'en-meta dir', extra.join(' - ')));
+    } else if (!t.pergunta_porteiro) {
+      card.appendChild(el('div', 'en-calada', 'A agente ficou calada' + (t.motivo_silencio || t.motivo_porteiro ? ': ' + (t.motivo_silencio || t.motivo_porteiro) : '.')));
+    }
+
+    if (t.real && t.real.length) {
+      card.appendChild(el('div', 'en-rot dir', 'Respondido de verdade'));
+      t.real.forEach(function (m) {
+        var b = el('div', 'en-b real', textoDaMsg(m));
+        b.appendChild(el('small', null, (AUTOR_REAL[m.autor] || m.autor) + ' - ' + quando(m.momento)));
+        card.appendChild(b);
+      });
+    } else {
+      card.appendChild(el('div', 'en-meta dir', 'Sem resposta registrada depois deste turno.'));
+    }
+
+    if (t.notas && t.notas.length) {
+      var notas = el('div', 'en-notas');
+      t.notas.forEach(function (nt) {
+        var li = el('div', 'en-nota ' + (nt.certo ? 'certo' : 'errado'));
+        var txt = el('div', 'txt');
+        add(txt, el('b', null, nt.autor + ': ' + (nt.certo ? 'Certo' : 'Errado') + ', nota ' + nt.nota), el('span', null, ' (' + quando(nt.em) + ')'));
+        if (nt.comentario) txt.appendChild(el('div', null, nt.comentario));
+        li.appendChild(txt);
+        if (nt.minha) {
+          li.appendChild(botao('Apagar', 'perigo', function (ev) {
+            if (!window.confirm('Apagar esta nota?')) return;
+            ev.target.disabled = true;
+            api('DELETE', 'ensaio/nota?turno=' + t.turno + '&nota=' + encodeURIComponent(nt.id)).then(function () {
+              abrirConversa(c, true); carregarPlacar().catch(function () {});
+            }).catch(function (e) { ev.target.disabled = false; msg('en-status', 'erro', textoDoErro(e)); });
+          }));
+        }
+        notas.appendChild(li);
+      });
+      card.appendChild(notas);
+    }
+    card.appendChild(formularioNota(c, t));
+    return card;
+  }
+
+  function formularioNota(c, t) {
+    var f = el('div', 'en-form');
+    var certo = null; var nota = null;
+    var bCerto = botao('Certo', 'c'); var bErrado = botao('Errado', 'e');
+    bCerto.setAttribute('aria-pressed', 'false'); bErrado.setAttribute('aria-pressed', 'false');
+    var chips = el('div', 'en-notas-chips');
+    chips.setAttribute('role', 'group'); chips.setAttribute('aria-label', 'Nota de 0 a 10');
+    var botoes = [];
+    var salvar = botao('Salvar avaliação', 'prim');
+    var ta = document.createElement('textarea');
+    ta.maxLength = 500; ta.rows = 2; ta.placeholder = 'Comentário curto (opcional)';
+    ta.setAttribute('aria-label', 'Comentário');
+    var cont = el('span', 'en-cont', '0/500');
+    var m = el('div', 'en-msg'); m.setAttribute('role', 'status');
+
+    function atualizar() {
+      bCerto.setAttribute('aria-pressed', String(certo === true));
+      bErrado.setAttribute('aria-pressed', String(certo === false));
+      botoes.forEach(function (b, i) { b.setAttribute('aria-pressed', String(nota === i)); });
+      salvar.disabled = certo === null || nota === null;
+    }
+    bCerto.addEventListener('click', function () { certo = true; atualizar(); });
+    bErrado.addEventListener('click', function () { certo = false; atualizar(); });
+    for (var i = 0; i <= 10; i++) {
+      (function (valor) {
+        var b = el('button', 'en-chip', String(valor)); b.type = 'button';
+        b.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-label', 'Nota ' + valor);
+        b.addEventListener('click', function () { nota = valor; atualizar(); });
+        botoes.push(b); chips.appendChild(b);
+      })(i);
+    }
+    ta.addEventListener('input', function () { cont.textContent = ta.value.length + '/500'; });
+    salvar.addEventListener('click', function () {
+      if (certo === null || nota === null) return;
+      salvar.disabled = true; salvar.textContent = 'Salvando';
+      api('POST', 'ensaio/nota', { conversa: c.id, turno: t.turno, dia: t.dia, certo: certo, nota: nota, comentario: ta.value.trim() }).then(function () {
+        abrirConversa(c, true); carregarPlacar().catch(function () {});
+      }).catch(function (e) {
+        m.className = 'en-msg erro'; m.textContent = textoDoErro(e);
+        salvar.textContent = 'Salvar avaliação'; atualizar();
+      });
+    });
+    var par = el('div', 'en-par'); add(par, bCerto, bErrado);
+    var pe = el('div', 'en-form-pe'); add(pe, salvar, cont);
+    add(f, el('div', 'en-rot', 'Sua avaliação deste turno'), par, chips, ta, pe, m);
+    atualizar();
+    return f;
+  }
+
+  // ── entrada ──
+  window.Ensaio = {
+    /** Abre (ou reabre) o painel. `preset` é a agente do modal de onde veio, para já filtrar a lista. */
+    mostrar: function (preset) {
+      if (!est.montado) montar();
+      est.filtros.persona = (preset && ROT[preset] && preset !== 'ninguem') ? preset : '';
+      msg('en-status', '', '');
+      listar();
+      carregarPlacar().catch(function (e) { msg('en-status', 'erro', tratarErro(e)); });
+    }
+  };
+})();
 </script>
   <script src="/lib/telemetria.js" defer></script>
 <script defer src="/gerador/ui/casca.js"></script>

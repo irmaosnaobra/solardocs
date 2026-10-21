@@ -1,0 +1,252 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import { exigeConsultor } from './geradorDossie';
+import { caixaIpLimiter, caixaPessoaLimiter } from '../middleware/rateLimiter';
+import { equipeAutorizada } from '../services/gerador/caixaWhatsapp';
+import { ehSocio } from '../services/gerador/solarObras';
+import {
+  ErroArmazem, listarConversas, lerTurnos, lerTurnosNosDias, type MsgGravada, type TurnoGravado,
+} from '../services/agentes5040/armazem';
+import { runReplay } from '../services/agentes5040/replay';
+import {
+  ErroNotas, META_AVALIACOES, PRODUTO_DA_PERSONA, TAMANHO_MAX_COMENTARIO, apagarNota, autorSeguro, emParalelo, gravarNota,
+  indiceDeNotas, lerIdDeNota, lerNotasDoTurno, lerTurnoExato, montarPlacar, resumoDeNotas, turnosComNota,
+  type ChavePersona, type NotaGravada,
+} from '../services/agentes5040/notas';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAINEL DO ENSAIO DAS AGENTES (A3). Montado dentro de /gerador. A tela mostra conversa de cliente,
+// então a pilha é a mesma da caixa: sem cache, limite por IP, consultor logado (`exigeConsultor`),
+// limite por pessoa, e a lista fechada da equipe (CAIXA_EQUIPE).
+//
+//   GET    /gerador/ensaio/conversas?dias&produto&persona&origem   lista (hmac, nunca telefone)
+//   GET    /gerador/ensaio/conversa?id=<hmac>[&de=&ate=]           os turnos da conversa, com as notas
+//   POST   /gerador/ensaio/nota    {conversa, turno, dia?, certo, nota 0-10, comentario <=500}
+//   DELETE /gerador/ensaio/nota?turno=<wa_id>&nota=<autor>-<ts>    só o autor
+//   GET    /gerador/ensaio/placar                                  por agente; devolve `socio`
+//   POST   /gerador/ensaio/replay  {dias?, conversas?}             SÓ SÓCIO
+//
+// Este arquivo NÃO importa nada de envio (o teste agentes5040Isolamento anda pelo grafo a partir daqui).
+// O `exigeConsultor` é o de geradorDossie; `semCache` e `exigeEquipe` são cópias do geradorCaixa de propósito:
+// importar o geradorCaixa traria a caixa inteira para o grafo.
+//
+// "O que foi respondido de verdade" vem do campo `real` do turno. O HMAC é de mão única: não há como voltar ao
+// telefone para reler a wa_mensagens, e esta rota não tenta.
+//
+// Erro vira mensagem genérica; o log leva só o código. Telefone e texto de mensagem nunca vão para log.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DIAS_PADRAO = 30;
+const DIAS_MAX = 90;
+const MAX_CONVERSAS = 200;
+const REPLAY_DIAS_PADRAO = 7;
+const REPLAY_DIAS_MAX = 30;
+const REPLAY_CONVERSAS_PADRAO = 3;
+const REPLAY_CONVERSAS_MAX = 5;
+const REPLAY_TURNOS = 8;
+
+const HMAC = /^[0-9a-f]{64}$/;
+const DIA = /^\d{4}-\d{2}-\d{2}$/;
+const PERSONAS: readonly ChavePersona[] = ['carla', 'duda', 'helena', 'ninguem'];
+const PRODUTOS: Record<string, ChavePersona> = { solardoc: 'carla', solar: 'duda', eletroposto: 'helena' };
+
+function semCache(_req: Request, res: Response, next: NextFunction): void {
+  res.set('Cache-Control', 'no-store');
+  next();
+}
+
+function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
+  const nome = String((req as any).consultor?.nome || '');
+  if (!equipeAutorizada(nome, process.env.CAIXA_EQUIPE)) {
+    res.status(403).json({ ok: false, error: 'Esta tela é só para a equipe.', precisa: 'equipe' });
+    return;
+  }
+  next();
+}
+
+function soSocio(req: Request, res: Response, next: NextFunction): void {
+  const nome = String((req as any).consultor?.nome || '');
+  if (!ehSocio(nome)) { res.status(403).json({ ok: false, error: 'Só sócio roda o replay.', precisa: 'socio' }); return; }
+  next();
+}
+
+function falhou(res: Response, err: unknown): void {
+  // Só o código. A mensagem do driver pode trazer caminho, telefone ou texto.
+  const codigo = err instanceof ErroArmazem || err instanceof ErroNotas ? err.codigo : 'interno';
+  console.error('[ensaio5040] falhou', codigo);
+  res.status(502).json({ ok: false, error: 'Não consegui ler o ensaio agora. Tente de novo em instantes.' });
+}
+
+const um = (v: unknown): string => String(Array.isArray(v) ? v[0] : v ?? '').trim();
+
+function lerDias(v: unknown): number {
+  const n = Number(um(v));
+  if (!Number.isFinite(n) || n < 1) return DIAS_PADRAO;
+  return Math.min(DIAS_MAX, Math.floor(n));
+}
+
+const eu = (req: Request): string | null => autorSeguro((req as any).consultor?.nome);
+
+const produtoDe = (persona: string | null, dona: string | null): string | null => {
+  const p = persona ?? dona;
+  return p === 'carla' || p === 'duda' || p === 'helena' ? PRODUTO_DA_PERSONA[p] : null;
+};
+
+const msgParaTela = (m: MsgGravada) => ({ autor: m.autor, tipo: m.tipo, texto: m.texto, momento: m.momento });
+
+const notaParaTela = (n: NotaGravada, quem: string | null) => ({
+  id: n.id, autor: n.autor, certo: n.certo, nota: n.nota, comentario: n.comentario, em: n.em, minha: quem !== null && n.autor === quem,
+});
+
+/** Dias (YYYY-MM-DD) de `de` a `ate`, no máximo DIAS_MAX. */
+function diasEntre(de: string, ate: string): string[] {
+  const a = Date.parse(`${de}T00:00:00Z`); const b = Date.parse(`${ate}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return [];
+  const out: string[] = [];
+  for (let t = a; t <= b && out.length < DIAS_MAX; t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10));
+  return out;
+}
+
+function turnoParaTela(t: TurnoGravado, notas: NotaGravada[], quem: string | null) {
+  return {
+    turno: t.wa_id, dia: t.dia, momento: t.momento, kind: t.kind, origem: t.origem,
+    dona: t.dona, passo: t.passo, motivo_porteiro: t.motivo_porteiro, persona: t.persona,
+    falou: t.falou, bolhas: t.bolhas, acao: t.acao, peca: t.peca,
+    motivo_silencio: t.motivo_silencio, pergunta_porteiro: t.pergunta_porteiro, modelo: t.modelo,
+    entrada: (t.entrada ?? []).map(msgParaTela),
+    real: t.real ? t.real.map(msgParaTela) : null,
+    notas: notas.map(n => notaParaTela(n, quem)),
+  };
+}
+
+let replayRodando = false;
+
+export function mountEnsaio5040(router: Router): void {
+  // Limite por IP antes do login, por pessoa depois dele (ver middleware/rateLimiter.ts).
+  const base = [semCache, caixaIpLimiter, exigeConsultor, caixaPessoaLimiter, exigeEquipe] as const;
+
+  // 1) Lista de conversas ensaiadas, com a nota de cada uma.
+  router.get('/ensaio/conversas', ...base, async (req: Request, res: Response) => {
+    const dias = lerDias(req.query.dias);
+    const produto = um(req.query.produto).toLowerCase();
+    const persona = um(req.query.persona).toLowerCase();
+    const origem = um(req.query.origem).toLowerCase();
+    if (produto && !PRODUTOS[produto]) { res.status(400).json({ ok: false, error: 'Produto inválido.' }); return; }
+    if (persona && !PERSONAS.includes(persona as ChavePersona)) { res.status(400).json({ ok: false, error: 'Agente inválida.' }); return; }
+    if (origem && origem !== 'vivo' && origem !== 'replay') { res.status(400).json({ ok: false, error: 'Origem inválida.' }); return; }
+    try {
+      const [lista, indice] = await Promise.all([
+        listarConversas({ dias, origem: origem ? (origem as 'vivo' | 'replay') : undefined, max: MAX_CONVERSAS }),
+        indiceDeNotas(),
+      ]);
+      const alvoPersona = persona || (produto ? PRODUTOS[produto]! : '');
+      const conversas = lista
+        .map(c => {
+          // A agente da conversa, não a do último turno: o turno barrado pelo porteiro (humano entrou) não tira a conversa dela.
+          const p = c.persona_conversa ?? c.ultimo.persona;
+          const chave: ChavePersona = p ?? (c.ultimo.dona === 'carla' || c.ultimo.dona === 'duda' || c.ultimo.dona === 'helena' ? c.ultimo.dona : 'ninguem');
+          const r = resumoDeNotas(indice.porTurno, c.wa_ids);
+          return {
+            id: c.hmac, persona: chave, produto: produtoDe(p, c.ultimo.dona), origem: c.ultimo.origem, dona: c.ultimo.dona,
+            primeira_data: c.primeiro_dia, ultima_data: c.ultimo.momento, turnos: c.turnos, com_nota: r.com_nota, media_nota: r.media,
+          };
+        })
+        .filter(c => !alvoPersona || c.persona === alvoPersona);
+      res.json({ ok: true, dias, notas_parciais: indice.truncado, conversas });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // 2) Os turnos de UMA conversa, com as notas de cada um.
+  router.get('/ensaio/conversa', ...base, async (req: Request, res: Response) => {
+    const id = um(req.query.id);
+    if (!HMAC.test(id)) { res.status(400).json({ ok: false, error: 'Conversa inválida.' }); return; }
+    const de = um(req.query.de); const ate = um(req.query.ate);
+    if ((de && !DIA.test(de)) || (ate && !DIA.test(ate))) { res.status(400).json({ ok: false, error: 'Data inválida.' }); return; }
+    try {
+      const turnos = de && ate ? await lerTurnosNosDias(id, diasEntre(de, ate)) : await lerTurnos(id, DIAS_MAX);
+      const quem = eu(req);
+      // Só lê a pasta de notas dos turnos que têm nota (uma lista da pasta `notas/` diz quais), e vários ao mesmo tempo.
+      const comNota = await turnosComNota();
+      const saida = await emParalelo(turnos, async t => turnoParaTela(t, comNota.has(t.wa_id) ? await lerNotasDoTurno(t.wa_id) : [], quem));
+      res.json({ ok: true, id, turnos: saida });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // 3) Dar nota. Só acrescenta: cada nota é um arquivo novo.
+  router.post('/ensaio/nota', ...base, async (req: Request, res: Response) => {
+    const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const quem = eu(req);
+    const comentario = b.comentario === undefined || b.comentario === null ? '' : b.comentario;
+    const erro = (m: string) => res.status(400).json({ ok: false, error: m });
+    if (!quem) return void erro('Conta sem nome.');
+    if (typeof b.conversa !== 'string' || !HMAC.test(b.conversa)) return void erro('Conversa inválida.');
+    if (typeof b.turno !== 'number' || !Number.isSafeInteger(b.turno) || b.turno <= 0) return void erro('Turno inválido.');
+    if (typeof b.certo !== 'boolean') return void erro('Diga se está certo ou errado.');
+    if (typeof b.nota !== 'number' || !Number.isInteger(b.nota) || b.nota < 0 || b.nota > 10) return void erro('A nota é um número inteiro de 0 a 10.');
+    if (typeof comentario !== 'string' || comentario.length > TAMANHO_MAX_COMENTARIO) return void erro(`O comentário tem no máximo ${TAMANHO_MAX_COMENTARIO} caracteres.`);
+    if (b.dia !== undefined && (typeof b.dia !== 'string' || !DIA.test(b.dia))) return void erro('Data inválida.');
+    try {
+      // O turno tem que existir; persona e origem vêm do turno gravado, nunca do cliente.
+      const turno = typeof b.dia === 'string'
+        ? await lerTurnoExato(b.dia, b.conversa, b.turno)
+        : (await lerTurnos(b.conversa, DIAS_MAX)).find(t => t.wa_id === b.turno) ?? null;
+      if (!turno) { res.status(404).json({ ok: false, error: 'Esse turno não existe.' }); return; }
+      const { id } = await gravarNota({
+        turno: turno.wa_id, hmac: turno.hmac, persona: turno.persona, origem: turno.origem,
+        autor: quem, certo: b.certo, nota: b.nota, comentario: comentario.trim(),
+      });
+      res.status(201).json({ ok: true, id });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // 4) Apagar a própria nota.
+  router.delete('/ensaio/nota', ...base, async (req: Request, res: Response) => {
+    const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const turno = Number(um(req.query.turno) || b.turno);
+    const nota = um(req.query.nota) || um(b.nota);
+    const quem = eu(req);
+    if (!quem || !Number.isSafeInteger(turno) || turno <= 0 || !lerIdDeNota(nota)) {
+      res.status(400).json({ ok: false, error: 'Nota inválida.' }); return;
+    }
+    try {
+      const r = await apagarNota(turno, nota, quem);
+      if (r === 'nao_e_sua') { res.status(403).json({ ok: false, error: 'Só quem deu a nota pode apagar.' }); return; }
+      if (r === 'nao_existe') { res.status(404).json({ ok: false, error: 'Essa nota não existe.' }); return; }
+      res.json({ ok: true });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // 5) Placar por agente. `socio` diz à tela se mostra o replay e os vencimentos (o servidor confere de novo).
+  router.get('/ensaio/placar', ...base, async (req: Request, res: Response) => {
+    try {
+      const indice = await indiceDeNotas();
+      res.json({
+        ok: true, socio: ehSocio(String((req as any).consultor?.nome || '')), meta: META_AVALIACOES,
+        notas_parciais: indice.truncado, placar: montarPlacar(indice.porTurno),
+      });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // 6) Replay de conversas passadas. SÓ SÓCIO. Nunca repassa `dry` (ele ignora o interruptor e gasta modelo);
+  // a janela e o número de conversas têm teto fixo aqui, e o replay tem teto diário e interruptor próprios.
+  router.post('/ensaio/replay', ...base, soSocio, async (req: Request, res: Response) => {
+    const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const inteiro = (v: unknown, padrao: number, max: number): number => {
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 1 ? Math.min(max, Math.floor(n)) : padrao;
+    };
+    if (replayRodando) { res.status(409).json({ ok: false, error: 'Já tem um replay rodando. Espere ele terminar.' }); return; }
+    replayRodando = true;
+    try {
+      const dias = inteiro(b.dias, REPLAY_DIAS_PADRAO, REPLAY_DIAS_MAX);
+      const maxConversas = inteiro(b.conversas, REPLAY_CONVERSAS_PADRAO, REPLAY_CONVERSAS_MAX);
+      const ate = new Date();
+      const r = await runReplay({ desde: new Date(ate.getTime() - dias * 86_400_000), ate, maxConversas, maxTurnos: REPLAY_TURNOS });
+      // Só números: nada de hmac, de texto ou de telefone na resposta.
+      res.status(r.ok ? 200 : 502).json({
+        ok: r.ok, ligado: r.ligado, motivo: r.motivo ?? null, dias, conversas_vistas: r.conversasVistas,
+        conversas_processadas: r.conversasProcessadas, turnos_gravados: r.turnosGravados, turnos_ja_existiam: r.turnosJaExistiam,
+        chamadas_ia: r.chamadasIA, parou: r.parou, janela_truncada: r.janelaTruncada, puladas: r.puladas,
+      });
+    } catch (err) { falhou(res, err); } finally { replayRodando = false; }
+  });
+}

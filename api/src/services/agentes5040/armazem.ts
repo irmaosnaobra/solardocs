@@ -209,9 +209,20 @@ export async function lerTurnosNosDias(hmac: string, diasLista: readonly string[
 export interface ConversaListada {
   hmac: string;
   dia: string;
+  /** Dia (BRT) do turno mais antigo visto na janela lida. */
+  primeiro_dia: string;
+  /** Os wa_id dos turnos vistos (nome dos arquivos). O painel cruza com as notas. */
+  wa_ids: number[];
   turnos: number;
   ultimo: Pick<TurnoGravado, 'wa_id' | 'momento' | 'origem' | 'persona' | 'dona' | 'falou'>;
+  /**
+   * A agente que ficou com a conversa: a persona do último turno que teve uma. Quando o turno mais novo foi barrado
+   * pelo porteiro (humano entrou, por exemplo), olha até 3 turnos para trás. null = nenhum dos lidos teve persona.
+   */
+  persona_conversa: TurnoGravado['persona'];
 }
+
+const RECUOS_PERSONA = 3;
 
 /**
  * As conversas ensaiadas nos últimos `dias` dias. `origem` filtra pelo último turno de cada uma.
@@ -222,7 +233,7 @@ export async function listarConversas(
 ): Promise<ConversaListada[]> {
   await garantirBucketEnsaio();
   const max = opts.max ?? 200;
-  const achadas = new Map<string, { dia: string; arquivos: string[] }>();
+  const achadas = new Map<string, { dia: string; primeiro: string; arquivos: string[]; pares: Array<{ dia: string; id: number }> }>();
   dias: for (const dia of await diasComTurnos(opts.dias ?? DIAS_PADRAO)) {
     for (const pasta of await listarPasta(`turnos/${dia}`)) {
       if (!hmacValido(pasta.name)) continue;
@@ -230,19 +241,27 @@ export async function listarConversas(
       if (!arquivos.length) continue;
       const atual = achadas.get(pasta.name);
       // Dias vêm do mais novo ao mais velho: o primeiro dia visto é o do último turno; só soma a contagem.
-      if (atual) atual.arquivos.push(...arquivos); else achadas.set(pasta.name, { dia, arquivos });
+      const pares = arquivos.map(n => ({ dia, id: Number(n.replace('.json', '')) })).filter(x => Number.isFinite(x.id));
+      if (atual) { atual.arquivos.push(...arquivos); atual.primeiro = dia; atual.pares.push(...pares); } else achadas.set(pasta.name, { dia, primeiro: dia, arquivos, pares });
       if (achadas.size >= max * 3) break dias;
     }
   }
   const saida: ConversaListada[] = [];
-  for (const [hmac, { dia, arquivos }] of achadas) {
-    const maisNovo = arquivos.map(n => Number(n.replace('.json', ''))).filter(Number.isFinite).sort((a, b) => b - a)[0];
+  for (const [hmac, { dia, primeiro, arquivos, pares }] of achadas) {
+    const recentes = [...pares].sort((a, b) => b.id - a.id);
+    const maisNovo = recentes[0];
     if (maisNovo === undefined) continue;
-    const t = await baixarJson<TurnoGravado>(caminhoDoTurno(dia, hmac, maisNovo));
+    const t = await baixarJson<TurnoGravado>(caminhoDoTurno(maisNovo.dia, hmac, maisNovo.id));
     if (!t) continue;
     if (opts.origem && t.origem !== opts.origem) continue;
+    let personaConversa = t.persona;
+    for (let i = 1; personaConversa === null && i <= RECUOS_PERSONA && i < recentes.length; i++) {
+      const antes = await baixarJson<TurnoGravado>(caminhoDoTurno(recentes[i]!.dia, hmac, recentes[i]!.id));
+      if (antes) personaConversa = antes.persona;
+    }
     saida.push({
-      hmac, dia, turnos: arquivos.length,
+      persona_conversa: personaConversa,
+      hmac, dia, primeiro_dia: primeiro, wa_ids: arquivos.map(n => Number(n.replace('.json', ''))).filter(Number.isFinite), turnos: arquivos.length,
       ultimo: { wa_id: t.wa_id, momento: t.momento, origem: t.origem, persona: t.persona, dona: t.dona, falou: t.falou },
     });
     if (saida.length >= max) break;
