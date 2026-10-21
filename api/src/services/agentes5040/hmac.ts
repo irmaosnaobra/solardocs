@@ -20,6 +20,16 @@ export function chaveHmac(): Buffer | null {
   return null;
 }
 
+/**
+ * Identificador da chave em uso: 8 hex do sha256 da chave (não revela a chave). Quem
+ * grava um HMAC grava junto este id, e assim sabe que um HMAC de chave antiga (troca de
+ * AGENTES5040_HMAC ou de SUPABASE_SERVICE_KEY) não é comparável. Sem chave, null.
+ */
+export function idChaveHmac(): string | null {
+  const k = chaveHmac();
+  return k ? createHash('sha256').update(k).digest('hex').slice(0, 8) : null;
+}
+
 /** HMAC-SHA256 em hexadecimal (64 caracteres). Texto vazio ou sem chave devolve null. */
 export function hmacDe(texto: string | null | undefined): string | null {
   const t = String(texto ?? '');

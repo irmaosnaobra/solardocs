@@ -6,6 +6,7 @@ import { logger } from '../../../utils/logger';
 import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
 import { novoAnthropic } from "../../../utils/anthropicClient";
+import { hmacDe, idChaveHmac } from '../../agentes5040/hmac';
 import {
   lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente, marcarAvisoFalhaPendente, PixSolicitado, chaveTelefone,
 } from './pixSolicitado';
@@ -85,6 +86,96 @@ export const PLANO_POR_VALOR: Record<number, { plano: string; limite: number }> 
   49: { plano: 'ilimitado',  limite: 999999 },
   67: { plano: 'ilimitado',  limite: 999999 },
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// O MESMO código de transação não libera duas vezes (pacote A7).
+// A liberação pela FOTO continua; o que muda é que o código lido no comprovante é
+// guardado, e o mesmo código vindo de OUTRO número não libera de novo. Se o código
+// não puder ser lido, se faltar o segredo AGENTES5040_HMAC ou se QUALQUER coisa der
+// errado nesta checagem, o comportamento é o de sempre: quem pagou de verdade nunca
+// é barrado por ela. Telefone NUNCA vai em claro na chave nem no valor.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Maiúsculas, só letra e número. Menos de 20 caracteres = ilegível (null).
+ * O piso de 20 é o que impede de tratar como código de transação o que se repete em
+ * TODO comprovante legítimo: a chave Pix da Aioros (CNPJ, 14 dígitos) e os txid fixos
+ * do copia-e-cola (SOLARDOCVIP, SOLARDOCCURSO). Lidos como código, eles fariam o 2º
+ * cliente que paga parecer "o mesmo código de outro número".
+ */
+export function normalizarTxid(x: unknown): string | null {
+  if (typeof x !== 'string') return null;
+  const t = x.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return t.length < 20 ? null : t;
+}
+
+export const chaveTxid = (txid: string) =>
+  `pix_txid:${crypto.createHash('sha256').update(txid).digest('hex')}`;
+
+/**
+ * HMAC do telefone (últimos 11 dígitos, como o pix_solicitado), pelo hmacDe do
+ * agentes5040/hmac.ts (segredo: AGENTES5040_HMAC ou a chave derivada do serviço).
+ * null = sem segredo = checagem nova desligada.
+ */
+function donoDoTelefone(phone: string): string | null {
+  const d = (phone || '').replace(/\D/g, '');
+  const base = d.length > 11 ? d.slice(-11) : d;
+  if (!base) return null;
+  return hmacDe(base);
+}
+
+type RegistroTxid = { dono?: string; kid?: string } | null | undefined;
+
+/**
+ * O registro gravado é de OUTRO número? Só quando tem dono, foi gravado com a MESMA
+ * chave de HMAC de agora (kid igual) e o dono é diferente. Registro sem kid (antigo) ou
+ * de outra chave (troca de AGENTES5040_HMAC ou da SUPABASE_SERVICE_KEY) não é
+ * comparável: segue como hoje, senão a troca de segredo faria o mesmo número virar "outro".
+ */
+function ehDeOutroDono(reg: RegistroTxid, meu: string, kidAtual: string): boolean {
+  if (!reg?.dono || !reg.kid || reg.kid !== kidAtual) return false;
+  return reg.dono !== meu;
+}
+
+/** Dono já gravado para o código: true só quando é comprovadamente de outro número. */
+export async function txidDeOutroNumero(txid: string | null, phone: string): Promise<boolean> {
+  try {
+    const meu = donoDoTelefone(phone);
+    const kid = idChaveHmac();
+    if (!txid || !meu || !kid) return false;
+    const { data } = await supabase.from('system_state').select('value').eq('key', chaveTxid(txid)).maybeSingle();
+    return ehDeOutroDono((data as { value?: RegistroTxid } | null)?.value, meu, kid);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reserva o código por insert, ANTES de liberar. 'outro' = 23505 de outro dono (não libera).
+ * Todo o resto (mesmo dono, outro erro, sem segredo, sem código legível) = 'seguir'.
+ */
+export async function reservarTxid(txid: string | null, phone: string, valor: number): Promise<'seguir' | 'outro'> {
+  try {
+    const dono = donoDoTelefone(phone);
+    const kid = idChaveHmac();
+    if (!txid || !dono || !kid) return 'seguir';
+    const chave = chaveTxid(txid);
+    const { error } = await supabase.from('system_state')
+      .insert({ key: chave, value: { dono, kid, valor, em: new Date().toISOString() } });
+    if (!error) return 'seguir';
+    if ((error as { code?: string }).code !== '23505') {
+      logger.error('pix-comprovante', 'pix_txid insert falhou (segue como antes)', error);
+      return 'seguir';
+    }
+    const { data } = await supabase.from('system_state').select('value').eq('key', chave).maybeSingle();
+    return ehDeOutroDono((data as { value?: RegistroTxid } | null)?.value, dono, kid) ? 'outro' : 'seguir';
+  } catch (err) {
+    logger.error('pix-comprovante', 'pix_txid reserva falhou (segue como antes)', err);
+    return 'seguir';
+  }
+}
+
+const MOTIVO_TXID_OUTRO = 'código já usado por outro número';
 
 /** Chave que marca que este telefone JÁ usou a entrada de R$19 (é de primeira vez). */
 const chaveEntrada = (identity: string) => `pix19_entrada:${identity.replace(/\D/g, '')}`;
@@ -169,7 +260,7 @@ async function lerComprovante(img: ImgSrc): Promise<Comprovante | null> {
 // direto evita ter que simular a IA de visão só pra exercitar as travas.
 export async function validarComprovante(
   c: Comprovante, identity: string, opts: { exigirIdPix?: boolean } = {},
-): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string; e2eKey: string | null; jaUsado: 'telefone' | 'e2e' | null; repetidoSemE2e: boolean; repetidoTardio: boolean; recebedorOk: boolean; codigo: CodigoMotivo | null; modo: ModoPagamento | null }> {
+): Promise<{ passou: boolean; motivo: string; valor: number; dedupKey: string; e2eKey: string | null; txid: string | null; txidDeOutro: boolean; jaUsado: 'telefone' | 'e2e' | null; repetidoSemE2e: boolean; repetidoTardio: boolean; recebedorOk: boolean; codigo: CodigoMotivo | null; modo: ModoPagamento | null }> {
   const doc   = (c.recebedor_documento || '').replace(/\D/g, '');
   const nome  = (c.recebedor_nome || '').toLowerCase();
   const valor = Number(c.valor) || 0;
@@ -245,11 +336,18 @@ export async function validarComprovante(
     }
   }
 
+  // Mesmo código de transação já gravado por OUTRO número → não libera (vale em TODO
+  // ramo, não só no desconhecido). Sem código legível, sem segredo ou com erro de
+  // leitura, isto é sempre false (como antes).
+  const txid = normalizarTxid(c.id_transacao);
+  const txidDeOutro = await txidDeOutroNumero(txid, identity);
+
   // Entrada já usada: antes do corte reprova (o Thiago decide); depois do corte vira parcial.
-  const passou = recebedorOk && valorOk && dataOk && !(usado?.length) && !(entradaRepetida && !posCorte) && !semIdPix && !e2eUsado;
+  const passou = recebedorOk && valorOk && dataOk && !(usado?.length) && !(entradaRepetida && !posCorte) && !semIdPix && !e2eUsado && !txidDeOutro;
 
   const motivo = usado?.length ? 'comprovante já usado antes (reenvio?)'
     : e2eUsado ? 'este Pix (ID) já foi usado antes, em outro telefone ou data'
+    : txidDeOutro ? MOTIVO_TXID_OUTRO
     : !recebedorOk ? 'recebedor NÃO parece ser a Aioros'
     : !valorOk ? (posCorte ? 'valor ilegível ou zerado no comprovante' : 'valor não bate com plano (19/27/49/67)')
     : !dataOk ? 'data ausente ou fora da janela'
@@ -257,7 +355,9 @@ export async function validarComprovante(
     : semIdPix ? 'sem ID de Pix'
     : 'ok';
   // Reenvio de comprovante JÁ liberado: quem chama não responde nada e não deixa a imagem seguir.
-  const jaUsado = usado?.length ? 'telefone' as const : e2eUsado ? 'e2e' as const : null;
+  // Código de transação de OUTRO número conta como 'e2e' (mesmo Pix vindo de outro
+  // telefone): vira 'ja_usado' pra Giovanna e o Thiago é avisado (avisaThiagoDoReprovado).
+  const jaUsado = usado?.length ? 'telefone' as const : (e2eUsado || txidDeOutro) ? 'e2e' as const : null;
   // Código estável do motivo (a Giovanna age por ele; o texto `motivo` é só pra log e aviso).
   const codigo: CodigoMotivo | null = passou ? null
     : jaUsado ? 'ja_usado'
@@ -271,7 +371,7 @@ export async function validarComprovante(
     : (Math.round(valor) === VALOR_ENTRADA_CURSO && !entradaRepetida) ? 'entrada'
     : emCentavos(valor) >= CENT_RENOVACAO ? 'cheio'
     : 'parcial';
-  return { passou, motivo, valor, dedupKey, e2eKey, jaUsado, repetidoSemE2e, repetidoTardio, recebedorOk, codigo, modo };
+  return { passou, motivo, valor, dedupKey, e2eKey, txid, txidDeOutro, jaUsado, repetidoSemE2e, repetidoTardio, recebedorOk, codigo, modo };
 }
 
 // Empurra plano_expira_em +1 mês (base = vencimento atual se ainda no futuro, senão agora).
@@ -442,10 +542,14 @@ export interface PagamentoValidado {
   e2eKey: string | null;
   modo: ModoPagamento;
   data: string | null;
+  /** Código da transação normalizado (normalizarTxid). null = ilegível: a trava do txid fica fora. */
+  txid?: string | null;
 }
 
 export interface ResultadoPagamento {
-  resultado: 'liberou' | 'parcial' | 'duplicado' | 'falhou';
+  // 'txid_outro' = o código da transação já está reservado por OUTRO número: nada foi
+  // creditado e o Thiago já foi avisado. Quem chama trata como comprovante reprovado.
+  resultado: 'liberou' | 'parcial' | 'duplicado' | 'falhou' | 'txid_outro';
   venc: Date | null;
   total: number;
   restante: number;
@@ -547,6 +651,15 @@ export async function aplicarPagamentoPix(a: {
       await sendWhatsApp(THIAGO_PHONE, `*Pix de ${user.email}* (${cleanPhone}): ${texto}`, 'solardoc').catch(() => {});
     }
   };
+
+  // 0) Código da transação reservado ANTES do dedup e de creditar (vale pra TODOS os
+  // ramos que liberam, porque todos passam por aqui). Outro número já reservou → não
+  // credita. Sem código legível, sem segredo ou com erro: 'seguir', como sempre foi.
+  if (await reservarTxid(pag.txid ?? null, cleanPhone, pag.valor) === 'outro') {
+    await avisar(`⚠️ REVISAR — ${MOTIVO_TXID_OUTRO}. Não creditei. Se o dinheiro chegou na Aioros, libera no /admin ("+ Pix").`);
+    logger.info('pix-comprovante', `txid de outro número (${user.email}, ${a.via}): não creditou`);
+    return { resultado: 'txid_outro', venc: null, total: 0, restante: 0 };
+  }
 
   // 1) Travas atômicas ANTES de creditar. O registro guarda o E2E: é ele que distingue
   // um reenvio (mesmo Pix) de um segundo Pix legítimo de mesmo valor no mesmo dia.
@@ -704,34 +817,36 @@ export async function tryProcessPixComprovante(
   // ── REPROVADO: o contexto vai pra Giovanna, que explica e orienta ──
   // Antes saía uma frase fixa ("recebi, já te libero") que prometia o que o sistema
   // não ia fazer. Reenvio do mesmo comprovante sem legenda: silêncio.
-  if (!passou) {
-    if (v0.jaUsado === 'telefone' && legendaVazia(texto)) {
+  // `thiagoJaAvisado`: o aplicarPagamentoPix já avisou (código de outro número pego na reserva).
+  const reprovar = async (v: ResultadoValidacao, thiagoJaAvisado = false): Promise<boolean> => {
+    if (v.jaUsado === 'telefone' && legendaVazia(texto)) {
       logger.info('pix-comprovante', `reenvio de comprovante já usado (${user.email})`);
-      if (v0.repetidoSemE2e || v0.repetidoTardio) await avisarRepetidoSemE2e(user.email, cleanPhone, c, img, v0.valor, v0.repetidoTardio);
+      if (v.repetidoSemE2e || v.repetidoTardio) await avisarRepetidoSemE2e(user.email, cleanPhone, c, img, v.valor, v.repetidoTardio);
       return true;
     }
     // Uma explicação por comprovante, e do 3º reprovado em 24h em diante, silêncio.
-    const ctl = await controleDeInsistencia({ cleanPhone, c, v: v0, img, emailConta: user.email });
+    const ctl = await controleDeInsistencia({ cleanPhone, c, v, img, emailConta: user.email });
     if (ctl === 'silencio') return true;
     // Já explicado: sem legenda é silêncio; com pergunta, o fluxo normal (Giovanna) responde.
     if (ctl === 'explicado') return legendaVazia(texto);
-    await guardarHandoffComprovante(cleanPhone, montarHandoff(c, v0, originInstance));
+    await guardarHandoffComprovante(cleanPhone, montarHandoff(c, v, originInstance));
     // O Thiago só entra quando o dinheiro, se saiu, chegou na Aioros (e não é reenvio).
-    if (avisaThiagoDoReprovado(v0)) {
+    if (!thiagoJaAvisado && avisaThiagoDoReprovado(v)) {
       await notificarThiago(
-        { email: user.email, phone: cleanPhone, valor, comprovante: c }, img,
-        `⚠️ REVISAR — ${motivo}. A Giovanna responde ao cliente explicando. Se o dinheiro chegou, libera no /admin ("+ Pix").`,
+        { email: user.email, phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+        `⚠️ REVISAR — ${v.motivo}. A Giovanna responde ao cliente explicando. Se o dinheiro chegou, libera no /admin ("+ Pix").`,
       );
     }
-    logger.info('pix-comprovante', `reprovado, segue pra Giovanna (${user.email}) motivo=${motivo}`);
+    logger.info('pix-comprovante', `reprovado, segue pra Giovanna (${user.email}) motivo=${v.motivo}`);
     return false;
-  }
+  };
+  if (!passou) return reprovar(v0);
 
   // ── AUTO-LIBERAÇÃO (ou parcial: soma no crédito e pede o resto) ──
   if (passou && AUTO_LIBERAR) {
-    await aplicarPagamentoPix({
+    const r = await aplicarPagamentoPix({
       user: { id: user.id, email: user.email, plano_expira_em: uRow?.plano_expira_em, billing_status: uRow?.billing_status },
-      pag: { valor, dedupKey, e2eKey, modo: v0.modo ?? 'tabela', data: c.data ?? null },
+      pag: { valor, dedupKey, e2eKey, txid: v0.txid, modo: v0.modo ?? 'tabela', data: c.data ?? null },
       cleanPhone, originInstance, comprovante: c, img, via: 'conhecido',
       confirmar: async ({ venc, entrada }) => {
         // Orienta o cliente. Conta pendente (pagou no abandono, sem senha) → link pra definir senha.
@@ -754,6 +869,8 @@ export async function tryProcessPixComprovante(
       },
       statusThiago: ({ venc }) => `✅ *AUTO-LIBERADO* — vence ${venc.toLocaleDateString('pt-BR')}. Confere e arquiva o comprovante.`,
     });
+    // Código de outro número pego na reserva (corrida): segue a regra do reprovado.
+    if (r.resultado === 'txid_outro') return reprovar(reprovadoPorTxid(v0), true);
     return true;
   }
 
@@ -923,6 +1040,16 @@ export async function aplicarComprovantePendente(
     return nada;
   }
 
+  // Código da transação reservado ANTES de achar/criar a conta: se outro número já o
+  // usou, não nasce conta sem crédito. O Thiago decide (saída de "não passou nas travas").
+  if (await reservarTxid(pend.txid ?? null, cleanPhone, pend.valor) === 'outro') {
+    await sendWhatsApp(THIAGO_PHONE,
+      `*Pix pendente com e-mail agora* — ${email} (${cleanPhone}) · ${brl(pend.valor)}. REVISAR: ${MOTIVO_TXID_OUTRO}. Não liberei: confere e libera no /admin ("+ Pix").`,
+      'solardoc').catch(() => {});
+    await limparComprovantePendente(cleanPhone);
+    return nada;
+  }
+
   // whatsappSoSeLivre: o e-mail veio digitado na conversa, de quem quer que seja.
   const u = await getOrCreatePixUser(email, nome ?? reg?.nome ?? null, cleanPhone, { whatsappSoSeLivre: true });
   if (!u) {
@@ -948,7 +1075,7 @@ export async function aplicarComprovantePendente(
   const r = await aplicarPagamentoPix({
     user: u,
     // Pendente de antes da regra dos R$ 67 não tem `modo`: segue a tabela antiga.
-    pag: { valor: pend.valor, dedupKey: pend.dedupKey, e2eKey: pend.e2eKey ?? null, modo: pend.modo ?? await modoDoPendenteAntigo(pend, cleanPhone), data: pend.data ?? null },
+    pag: { valor: pend.valor, dedupKey: pend.dedupKey, e2eKey: pend.e2eKey ?? null, txid: pend.txid ?? null, modo: pend.modo ?? await modoDoPendenteAntigo(pend, cleanPhone), data: pend.data ?? null },
     cleanPhone, originInstance, via: 'email-depois',
     confirmar: async ({ venc, total, alvo }) => {
       // Link de definir senha SÓ pra conta criada agora, nesta chamada.
@@ -962,6 +1089,12 @@ export async function aplicarComprovantePendente(
     statusThiago: ({ venc, total }) => `✅ *AUTO-LIBERADO (Pix + e-mail depois)* — ${brl(total)} · vence ${diaMes(venc)}.`,
   });
   if (r.resultado === 'falhou') return nada; // o Thiago foi avisado; o pendente fica
+  // Código já usado por outro número: não liberou, o Thiago foi avisado e decide.
+  // O pendente sai (mesma saída de "não passou nas travas").
+  if (r.resultado === 'txid_outro') {
+    await limparComprovantePendente(cleanPhone);
+    return nada;
+  }
   // Liberou, creditou parcial ou já estava processado: o pendente cumpriu o papel.
   await limparComprovantePendente(cleanPhone);
   // Já processado antes: o e-mail do cliente segue pro fluxo normal e recebe resposta.
@@ -1035,6 +1168,40 @@ const LEGENDAS_PADRAO = new Set(['', '[imagem]', 'o cliente enviou esta imagem.'
 const legendaVazia = (t: string) => LEGENDAS_PADRAO.has(String(t ?? '').trim().toLowerCase());
 
 type ResultadoValidacao = Awaited<ReturnType<typeof validarComprovante>>;
+
+/**
+ * O comprovante passou nas travas, mas a reserva do código da transação acusou OUTRO
+ * número (corrida que a checagem do validarComprovante não viu). Vira reprovado com o
+ * mesmo desenho do "mesmo Pix de outro telefone": 'ja_usado' pra Giovanna.
+ */
+function reprovadoPorTxid(v: ResultadoValidacao): ResultadoValidacao {
+  return { ...v, passou: false, motivo: MOTIVO_TXID_OUTRO, txidDeOutro: true, jaUsado: 'e2e', codigo: 'ja_usado', modo: null };
+}
+
+/**
+ * Número desconhecido SEM sinal do SolarDoc recusado pela trava do código: o cliente
+ * não ouve nada (regra do main), mas o Thiago é avisado UMA vez por código. Comprovante
+ * repetido vindo de número que ninguém conhece é o sinal de golpe. A reserva é por
+ * insert em `pix_txid_aviso:<sha256 do código>` (sem telefone): 23505 = já avisado.
+ * Qualquer outro erro avisa mesmo assim (repetir o aviso é melhor que perdê-lo).
+ */
+async function avisarTxidOutroSemSinal(cleanPhone: string, c: Comprovante, img: ImgSrc, v: ResultadoValidacao): Promise<void> {
+  if (!v.txidDeOutro || !v.txid) return;
+  try {
+    const key = `pix_txid_aviso:${crypto.createHash('sha256').update(v.txid).digest('hex')}`;
+    const { error } = await supabase.from('system_state').insert({ key, value: { em: new Date().toISOString() } });
+    if (error) {
+      if ((error as { code?: string }).code === '23505') return;
+      logger.error('pix-comprovante', 'reserva do aviso de txid não gravou (avisa mesmo assim)', error);
+    }
+  } catch (err) {
+    logger.error('pix-comprovante', 'reserva do aviso de txid falhou (avisa mesmo assim)', err);
+  }
+  await notificarThiago(
+    { email: '(número desconhecido, sem conta)', phone: cleanPhone, valor: v.valor, comprovante: c }, img,
+    `⚠️ POSSÍVEL GOLPE — ${MOTIVO_TXID_OUTRO}, vindo de número desconhecido sem sinal do SolarDoc. Não respondi nem liberei. Confere.`,
+  );
+}
 
 function montarHandoff(c: Comprovante, v: ResultadoValidacao, instancia: string): HandoffComprovante {
   return {
@@ -1145,6 +1312,8 @@ function mensagemFixaReprovado(c: Comprovante, v: ResultadoValidacao): string {
 async function reprovadoComMensagemFixa(a: {
   cleanPhone: string; c: Comprovante; v: ResultadoValidacao; img: ImgSrc;
   originInstance: ZapiInstance; texto: string; emailConta?: string | null;
+  /** O aplicarPagamentoPix já avisou o Thiago (código de outro número pego na reserva). */
+  thiagoJaAvisado?: boolean;
 }): Promise<boolean> {
   const { cleanPhone, c, v, img, originInstance, texto } = a;
   // Reenvio do MESMO comprovante já liberado, sem legenda: nada a dizer.
@@ -1172,7 +1341,9 @@ async function reprovadoComMensagemFixa(a: {
   if (ctl === 'silencio') return true;
   if (ctl === 'explicado') return legendaVazia(texto);
 
-  if (v.codigo === 'recebedor') {
+  if (a.thiagoJaAvisado) {
+    // Nada: o aviso ao Thiago já saiu de dentro do aplicarPagamentoPix.
+  } else if (v.codigo === 'recebedor') {
     // Pix para outra empresa de quem fala do SolarDoc: o Thiago quer saber (1 linha).
     await notificarThiago(
       { email: a.emailConta ?? '(conta ainda não identificada)', phone: cleanPhone, valor: v.valor, comprovante: c }, img,
@@ -1200,6 +1371,28 @@ async function processarComprovanteDesconhecido(
   const v = await validarComprovante(c, cleanPhone, { exigirIdPix: true });
   const conta = await acharContaPelaConversa(cleanPhone, texto);
 
+  // Reprovado (inclusive pela trava do código da transação). `thiagoJaAvisado`: o
+  // aplicarPagamentoPix já avisou.
+  const reprovar = async (vR: ResultadoValidacao, thiagoJaAvisado = false): Promise<boolean> => {
+    // Reenvio do mesmo comprovante, sem legenda: silêncio.
+    if (vR.jaUsado === 'telefone' && legendaVazia(texto)) {
+      logger.info('pix-comprovante', `desconhecido: reenvio de comprovante já usado (${cleanPhone})`);
+      return true;
+    }
+    // Só age com sinal do SolarDoc: Pix pedido ou e-mail de conta existente na conversa
+    // (o abandono nunca chega aqui: tem ramo próprio). Sem sinal (pagamento de obra
+    // solar, foto qualquer), o fluxo segue como sempre, sem resposta nossa.
+    if (!solicitado && !conta) {
+      logger.info('pix-comprovante', `desconhecido: reprovado e sem sinal do SolarDoc (${cleanPhone}) motivo=${vR.motivo}`);
+      // Calado pro cliente, mas código de outro número avisa o Thiago (1 vez por código).
+      await avisarTxidOutroSemSinal(cleanPhone, c, img, vR);
+      return false;
+    }
+    return reprovadoComMensagemFixa({
+      cleanPhone, c, v: vR, img, originInstance, texto, emailConta: conta?.email ?? null, thiagoJaAvisado,
+    });
+  };
+
   if (!v.passou || !AUTO_LIBERAR) {
     // Passou nas travas, mas o AUTO está desligado: quem decide é o Thiago.
     if (v.passou) {
@@ -1211,21 +1404,7 @@ async function processarComprovanteDesconhecido(
       }
       return false;
     }
-    // Reprovado. Reenvio do mesmo comprovante, sem legenda: silêncio.
-    if (v.jaUsado === 'telefone' && legendaVazia(texto)) {
-      logger.info('pix-comprovante', `desconhecido: reenvio de comprovante já usado (${cleanPhone})`);
-      return true;
-    }
-    // Só age com sinal do SolarDoc: Pix pedido ou e-mail de conta existente na conversa
-    // (o abandono nunca chega aqui: tem ramo próprio). Sem sinal (pagamento de obra
-    // solar, foto qualquer), o fluxo segue como sempre, sem resposta nossa.
-    if (!solicitado && !conta) {
-      logger.info('pix-comprovante', `desconhecido: reprovado e sem sinal do SolarDoc (${cleanPhone}) motivo=${v.motivo}`);
-      return false;
-    }
-    return reprovadoComMensagemFixa({
-      cleanPhone, c, v, img, originInstance, texto, emailConta: conta?.email ?? null,
-    });
+    return reprovar(v);
   }
 
   // ── Aprovado, mas sem conta: guarda e pede o e-mail, UMA vez por comprovante ──
@@ -1243,9 +1422,13 @@ async function processarComprovanteDesconhecido(
       }
       return true;
     }
+    // Quem pagou e mandou a foto sem e-mail reserva o código JÁ: senão outro número
+    // encaminhando a mesma foto antes do e-mail chegar levaria o dele à revisão.
+    // Reserva acusou outro dono (corrida): é reprovado, não vira pendente.
+    if (await reservarTxid(v.txid, cleanPhone, v.valor) === 'outro') return reprovar(reprovadoPorTxid(v));
     await guardarComprovantePendente(cleanPhone, {
       valor: v.valor, dedupKey: v.dedupKey, passou: true, em: new Date().toISOString(), e2eKey: v.e2eKey,
-      modo: v.modo ?? 'tabela', data: c.data ?? null,
+      txid: v.txid, modo: v.modo ?? 'tabela', data: c.data ?? null,
     }, { origem: 'desconhecido' });
     const { error: jaPediu } = await supabase.from('system_state').insert({
       key: `pix_pediu_email:${v.dedupKey}`, value: { at: new Date().toISOString() },
@@ -1283,7 +1466,7 @@ async function processarComprovanteDesconhecido(
   const razao = await razaoSocialDe(conta.id);
   const r = await aplicarPagamentoPix({
     user: conta,
-    pag: { valor: v.valor, dedupKey: v.dedupKey, e2eKey: v.e2eKey, modo: v.modo ?? 'tabela', data: c.data ?? null },
+    pag: { valor: v.valor, dedupKey: v.dedupKey, e2eKey: v.e2eKey, txid: v.txid, modo: v.modo ?? 'tabela', data: c.data ?? null },
     cleanPhone, originInstance, comprovante: c, img, via: 'desconhecido',
     confirmar: async ({ venc, total, alvo }) => {
       // Conta que já existia: NUNCA manda link de senha. Quem digitou o e-mail pode
@@ -1295,6 +1478,8 @@ async function processarComprovanteDesconhecido(
     statusThiago: ({ venc }) => `✅ *AUTO-LIBERADO (número desconhecido + e-mail da conversa)* — vence ${diaMes(venc)}. Confere e arquiva o comprovante.`,
   });
   if (r.resultado === 'duplicado') return true;
+  // Código de outro número pego na reserva: segue a regra do reprovado (o Thiago já sabe).
+  if (r.resultado === 'txid_outro') return reprovar(reprovadoPorTxid(v), true);
   await gravarWhatsappSeLivre(conta.id, conta.whatsapp, cleanPhone);
   // Se havia um pendente do mesmo comprovante (a conta só apareceu agora), consome.
   if (solicitado?.comprovante?.dedupKey === v.dedupKey) await limparComprovantePendente(cleanPhone);
@@ -1336,9 +1521,17 @@ export async function tryProcessAbandonedPixComprovante(
         cleanPhone, c, v, img, originInstance, texto,
       });
     }
+    // Quem pagou e mandou a foto sem e-mail reserva o código JÁ: senão outro número
+    // encaminhando a mesma foto antes do e-mail chegar levaria o dele à revisão.
+    // Reserva acusou outro dono (corrida): é reprovado, não vira pendente.
+    if (await reservarTxid(v.txid, cleanPhone, v.valor) === 'outro') {
+      return reprovadoComMensagemFixa({
+        cleanPhone, c, v: reprovadoPorTxid(v), img, originInstance, texto,
+      });
+    }
     await guardarComprovantePendente(cleanPhone, {
       valor: v.valor, dedupKey: v.dedupKey, passou: v.passou, em: new Date().toISOString(), e2eKey: v.e2eKey,
-      modo: v.modo ?? 'tabela', data: c.data ?? null,
+      txid: v.txid, modo: v.modo ?? 'tabela', data: c.data ?? null,
     });
     await sendHuman(cleanPhone, [
       'Recebi seu comprovante, obrigada! 🙌',
@@ -1369,6 +1562,14 @@ export async function tryProcessAbandonedPixComprovante(
   }
 
   if (passou && AUTO_LIBERAR) {
+    // 0) Código da transação reservado ANTES de achar/criar a conta: outro número já o
+    // usou → reprovado (regra do main), e não nasce conta sem crédito.
+    if (await reservarTxid(vAb.txid, cleanPhone, valor) === 'outro') {
+      return reprovadoComMensagemFixa({
+        cleanPhone, c, v: reprovadoPorTxid(vAb), img, originInstance, texto, emailConta: ab.email,
+      });
+    }
+
     // 1) Conta primeiro (idempotente por email UNIQUE). Se FALHAR (erro transitório de
     // DB), NÃO queima o dedup — tranquiliza o cliente e chama o Thiago, permitindo retry
     // no reenvio (senão o pagante ficaria preso em silêncio).
@@ -1398,9 +1599,9 @@ export async function tryProcessAbandonedPixComprovante(
     }
 
     // 3) Aplica o pagamento (travas atômicas, soma de parciais, libera quando chega a R$ 67).
-    await aplicarPagamentoPix({
+    const r = await aplicarPagamentoPix({
       user: u,
-      pag: { valor, dedupKey, e2eKey, modo: vAb.modo ?? 'tabela', data: c.data ?? null },
+      pag: { valor, dedupKey, e2eKey, txid: vAb.txid, modo: vAb.modo ?? 'tabela', data: c.data ?? null },
       cleanPhone, originInstance, comprovante: c, img, via: abRow ? 'abandono' : 'pix-solicitado',
       // Só quando LIBERA: o abandono é marcado como recuperado e o dunning é encerrado.
       aposLiberar: async () => {
@@ -1423,6 +1624,12 @@ export async function tryProcessAbandonedPixComprovante(
       },
       statusThiago: ({ venc }) => `✅ *AUTO-LIBERADO (abandono→Pix)* — vence ${venc.toLocaleDateString('pt-BR')}. Confere e arquiva.`,
     });
+    // Código de outro número pego na reserva: segue a regra do reprovado (o Thiago já sabe).
+    if (r.resultado === 'txid_outro') {
+      return reprovadoComMensagemFixa({
+        cleanPhone, c, v: reprovadoPorTxid(vAb), img, originInstance, texto, emailConta: ab.email, thiagoJaAvisado: true,
+      });
+    }
     return true;
   }
 

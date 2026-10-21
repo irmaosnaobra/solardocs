@@ -34,6 +34,9 @@ export interface ComprovantePendente {
   // tabela antiga de valores.
   modo?: 'tabela' | 'entrada' | 'cheio' | 'parcial';
   data?: string | null;
+  // Código da transação lido no comprovante, JÁ normalizado (null = ilegível).
+  // Quando o e-mail chega, a liberação reserva este código antes de soltar o acesso.
+  txid?: string | null;
 }
 
 export interface PixSolicitado {
