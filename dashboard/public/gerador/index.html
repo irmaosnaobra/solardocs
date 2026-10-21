@@ -24525,6 +24525,16 @@ function ctrInit() {
   ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
 }
 
+// Modo cliente do Arrendamento: o papel não leva a marca da NEXUS. O carregador do Simulador vem como "NEXUS DC80 · 80 kW";
+// aqui vira "de corrente contínua de 80 kW" (a potência do dado). Texto sem a marca fica como o consultor escreveu.
+function ctrEquipSemMarca(txt) {
+  const s = String(txt == null ? '' : txt).trim();
+  if (!/nexus/i.test(s)) return s;
+  const kw = s.match(/(\d+(?:[.,]\d+)?)\s*k\s*w/i);
+  const ca = /\bAC\b|alternada/i.test(s);
+  const base = 'de corrente ' + (ca ? 'alternada' : 'contínua');
+  return kw ? base + ' de ' + kw[1] + ' kW' : base;
+}
 function ctrDados() {
   const t = eletroTextos();
   const emp = epEmitGet();
@@ -24566,7 +24576,7 @@ function ctrDados() {
     // Na compra e venda não há Simulador: quem negociou é o comprador da aba
     // Venda de equipamento (cabeçalho, nome do arquivo e Histórico).
     cliente: tipo === 'equip' ? (eqVal('eq-cli-nome') || ctrCampo('ctr-contratante') || t.cliente) : t.cliente, cidade: ctrCampo('ctr-cidade'), equip: t.equip,
-    equipTxt: ctrCampo('ctr-equip'),
+    equipTxt: arrCli ? ctrEquipSemMarca(ctrCampo('ctr-equip')) : ctrCampo('ctr-equip'),
     contratante: ctrCampo('ctr-contratante'),
     contratanteDoc: ctrCampo('ctr-contratante-doc'),
     contratanteEnd: ctrCampo('ctr-contratante-end'),
@@ -25435,7 +25445,6 @@ function ctrModeloArrend(d) {
       I('opc.lgpd', !fixo ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
       I('opc.eletronica', 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, com o mesmo efeito da assinatura à mão (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).'),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
-      I('gerais.nexus', d.arrCli ? 'A NEXUS Eletropostos, cuja marca está no cabeçalho, não é parte deste contrato e não garante nem responde pelas obrigações do CEDENTE ou do CESSIONÁRIO.' : ''),
       I('foro.comarca', pf
         ? `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para resolver as questões deste contrato, ressalvado ao CEDENTE o foro do seu domicílio.`
         : `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para resolver as questões deste contrato, com renúncia a qualquer outro.`),
@@ -25935,7 +25944,7 @@ function ctrCabecalho(d) {
   if (d.tipo === 'arrend') return {
     titulo: 'Contrato de Cessão de Área<br>para Estação de Recarga de Veículos Elétricos',
     sub: d.arr && d.arr.modo === 'fixo' ? 'Valor mensal fixo' : 'Remuneração sobre o faturamento do ponto',
-    rodape: 'Cessão de Área · Eletroposto', curto: 'Contrato de cessão de área' };
+    rodape: d.arrCli ? 'Cessão de Área · Recarga de veículos elétricos' : 'Cessão de Área · Eletroposto', curto: 'Contrato de cessão de área' };
   if (ctrEhSoc(d.tipo)) {
     const rot = d.tipo === 'cotas' ? 'Cotas de ' + ctrPctTxt(d.soc.cota) + '%' : 'Sociedade ' + socRotulo(d.soc.cota);
     return {
@@ -26060,7 +26069,7 @@ function ctrBlocosDoc(d, opts) {
 
   const blocos = [
     `<div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        ${d.arrCli ? '' : '<div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>'}
         <div class="ep-ctr-ident">${d.num ? (cab.numRot || 'Contrato') + ' nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">${cab.titulo}</div>
@@ -26194,13 +26203,18 @@ function ctrHTML(d) {
   // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
   // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
   // pessoa física no pé de todas as folhas.
+  const blocos = ctrBlocosDoc(d);
+  ctrAnexos(d).forEach(a => blocos.push(EP_QUEBRA, ...a));
+  return `<div class="ep-doc">${epPaginar(blocos, (n, tot) => ctrRodapeHTML(d, n, tot))}</div>`;
+}
+// O pé de cada folha do contrato. No Arrendamento com o cliente como cessionário (modo cliente) a NEXUS não é parte:
+// sem o ícone da marca no pé (o texto do pé também não a cita, ver ctrCabecalho).
+function ctrRodapeHTML(d, n, tot) {
+  const e = orcEsc;
   const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
   const cab = ctrCabecalho(d);
   const nRub = 2 + (d.interv && d.interv.nome ? 1 : 0) + (d.aval ? 1 : 0) + (d.aval && d.aval.conjNome ? 1 : 0);
-  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span>${tot > 1 ? `<span class="ep-rubr">Rubricas ${'<i></i>'.repeat(nRub)}</span>` : ''}<span>Página ${n} de ${tot}</span></div>`;
-  const blocos = ctrBlocosDoc(d);
-  ctrAnexos(d).forEach(a => blocos.push(EP_QUEBRA, ...a));
-  return `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
+  return `<div class="ep-pagefoot"><span class="ep-foot-esq">${d.arrCli ? '' : EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span>${tot > 1 ? `<span class="ep-rubr">Rubricas ${'<i></i>'.repeat(nRub)}</span>` : ''}<span>Página ${n} de ${tot}</span></div>`;
 }
 
 // ─── A tela do assistente ────────────────────────────────────────────────────
@@ -27068,7 +27082,7 @@ async function ctrAgTurno(mensagem, continuacao, modo) {
   const historico = (continuacao ? ctrAg.msgs : ctrAg.msgs.slice(0, -1)).filter(m => m.papel === 'usuario' || m.papel === 'assistente').slice(-6)
     .map(m => ({ papel: m.papel, texto: ctrHibScrub([m.texto, m.pergunta].filter(Boolean).join(' '), sens).slice(0, CTR_AG_TXT_MAX) }));
   const cad = ctrAgCtx !== 'sol' && ctrAgCad ? { tem: true, faltando: (Array.isArray(ctrAgCad.faltando) ? ctrAgCad.faltando : []).filter(k => typeof k === 'string').slice(0, 30) } : { tem: false, faltando: [] };
-  const corpo = { modo: modo === 'revisar' ? 'revisar' : 'normal', tipo: est.tipo, hibrido: est.hibrido, clausulas: est.clausulas, campos: lista, emitente: ctrAgCtx === 'sol' ? 'aioros' : epEmitEfetivo(), cadastro: cad, historico, mensagem: ctrHibScrub(mensagem, sens).slice(0, 2000) };
+  const corpo = { modo: modo === 'revisar' ? 'revisar' : 'normal', tipo: est.tipo, hibrido: est.hibrido, clausulas: est.clausulas, campos: lista, emitente: ctrAgCtx === 'sol' ? 'aioros' : epEmitEfetivo(), arrCli: ctrAgCtx !== 'sol' && ctrArrCliAtivo(), cadastro: cad, historico, mensagem: ctrHibScrub(mensagem, sens).slice(0, 2000) };
   // O contador conta cada envio, inclusive o "continue".
   ctrAg.n++;
   ctrAgRender();
@@ -28346,11 +28360,12 @@ function anuHTML(d) {
   ].filter(Boolean);
   const regras = regras0.map(nx);
   const quem = d.nome;
-  const pageFoot = `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Termo de anuência · Eletroposto${quem ? ' · ' + e(quem) : ''}</span></span><span>Documento de uma via</span></div>`;
+  // Modo cliente (d.cess): a NEXUS não é parte, então nem a logo no topo nem o ícone no pé.
+  const pageFoot = `<div class="ep-pagefoot"><span class="ep-foot-esq">${d.cess ? '' : EP_FOOT_LOGO}<span>Termo de anuência · ${d.cess ? 'Recarga de veículos elétricos' : 'Eletroposto'}${quem ? ' · ' + e(quem) : ''}</span></span><span>Documento de uma via</span></div>`;
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
       <div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        ${d.cess ? '' : '<div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>'}
         <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">Termo de Anuência</div>

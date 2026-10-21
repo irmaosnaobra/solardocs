@@ -236,7 +236,7 @@ const CENARIOS: Record<string, Cenario[]> = {
     { nome: 'percentual com contrato de sociedade e reserva paga', tipo: 'arrend', campos: { ...PF, 'ctr-arr-pct': '5', 'ctr-arr-soc-ref': 'CS-1', 'ctr-arr-premio': '1.000,00', 'ctr-origem-ref': 'TA-1' }, vale: r => tem(r, 'não cria outra sociedade entre as partes') },
     { nome: 'multa de mora do cedente pessoa física limitada a 2%', tipo: 'arrend', campos: { ...PF, 'ctr-arr-pct': '5', 'ctr-arr-mora-multa': '10' }, vale: r => tem(r, 'com a multa limitada a 2% (dois por cento)') },
     { nome: 'cliente é o cessionário (cedente terceiro)', tipo: 'arrend', campos: { ...PF, 'ctr-arr-pct': '5', 'ctr-arr-cess': 'cliente', 'ctr-ced-nome': 'Cedente Teste', 'ctr-ced-doc': '666.999.222-77', 'ctr-ced-end': 'Rua do Cedente, 7, Cidade Teste/MG' },
-      vale: ambos(r => tem(r, 'não é parte deste contrato e não garante'), r => nao(r, /domic[ií]lio/), r => expect(r.blocos.join('')).not.toMatch(/<b>Durante o contrato, o CEDENTE não instala/)) },
+      vale: ambos(r => nao(r, 'não é parte deste contrato'), r => tem(r, 'Cedente Teste'), r => nao(r, /domic[ií]lio/), r => expect(r.blocos.join('')).not.toMatch(/<b>Durante o contrato, o CEDENTE não instala/)) },
   ],
   termo_arr: [
     { nome: 'promessa, pessoa física', tipo: 'termo_arr', campos: { ...PF, 'ctr-arr-pct': '5', 'ctr-ta-nivel': 'promessa', 'ctr-ta-premio': '1.000,00' } },
@@ -339,6 +339,66 @@ describe('contratos do /gerador: o sandbox carrega o index.html real', () => {
     for (const f of ['ctrModelo', 'ctrModeloSociedade', 'ctrModeloObra', 'ctrModeloEquip', 'ctrModeloArrend', 'ctrModeloTermoInv', 'ctrModeloTermoArr', 'ctrModeloSolarUnico', 'ctrNumerar', 'ctrPagTrava', 'fsPagTrava']) {
       expect(typeof SB[f], f).toBe('function');
     }
+  });
+});
+
+describe('contratos do /gerador: Arrendamento com o cliente como cessionário não leva a marca da NEXUS', () => {
+  const CED = { 'ctr-arr-cess': 'cliente', 'ctr-ced-nome': 'Cedente Teste', 'ctr-ced-doc': '666.999.222-77', 'ctr-ced-end': 'Rua do Cedente, 7, Cidade Teste/MG' };
+  // O papel inteiro: cabeçalho, corpo, fecho com as assinaturas e o pé de cada folha (ctrRodapeHTML, o mesmo que o ctrHTML usa).
+  const papel = (r: any) => [...r.blocos, ...(r.anexos || []), ctrRodape(r.d, 1, 2), ctrRodape(r.d, 2, 2)].join(' ');
+  const ctrRodape = (d: any, n: number, tot: number): string => { SB.__d = d; return rodar(`ctrRodapeHTML(__d, ${n}, ${tot})`); };
+  const MARCA = /NEXUS|Nexus|AIOROS|nexus-logo|nexus-x/;
+
+  it('modo cliente: nem NEXUS, nem AIOROS, nem logo, nem ícone do pé, mesmo com o carregador "NEXUS DC80" do Simulador', () => {
+    for (const energia of ['uc', 'sub']) {
+      const r = gerar('arrend', { ...PF, ...CED, 'ctr-arr-pct': '5', 'ctr-arr-energia': energia, 'ctr-equip': 'NEXUS DC80 · 80 kW' });
+      expect(r.d.arrCli).toBe(true);
+      const html = papel(r);
+      expect(html.match(MARCA), 'marca no papel (energia ' + energia + ')').toBeNull();
+      expect(textoDe(r)).toMatch(/carregador de corrente contínua de 80 kW/);
+      // As proteções do contrato entre cliente e cedente seguem.
+      if (energia === 'uc') tem(r, 'autoriza expressamente', 'comprova a posse da ÁREA', 'Dados do IMÓVEL');
+      tem(r, 'Cedente Teste', 'CEDENTE', 'CESSIONÁRIO', 'Das obrigações do CEDENTE');
+    }
+  });
+
+  it('modo cliente com valor fixo, pessoa jurídica e dono interveniente: sem marca', () => {
+    const r = gerar('arrend', { ...PJ, ...CED, ...DONO, 'ctr-arr-modo': 'fixo', 'ctr-arr-fixo': '2.000,00', 'ctr-arr-fixo-meses': '24', 'ctr-arr-reajuste': '10', 'ctr-arr-relacao': 'locatario', 'ctr-int-qualidade': 'locatario', 'ctr-equip': 'NEXUS DC80 · 80 kW' });
+    expect(papel(r).match(MARCA)).toBeNull();
+  });
+
+  // A Anuência que acompanha o Arrendamento: o proprietário (ou o inquilino) anui à cessão entre o cedente e o CLIENTE.
+  const ANU = { 'anu-nome': 'Dono Teste', 'anu-doc': '333.666.999-60', 'anu-end': 'Rua do Dono, 5, Cidade Teste/MG', 'ctr-tipo': 'arrend' };
+  const anuencia = (c: Record<string, string>): string => { for (const k of Object.keys(campos)) delete campos[k]; Object.assign(campos, c); return rodar('anuHTML(anuDados())'); };
+
+  it('Anuência em modo cliente: sem logo, sem ícone e sem NEXUS/AIOROS, e o cliente aparece como CESSIONÁRIO', () => {
+    for (const caso of ['dono_cessao', 'inquilino_cessao']) {
+      const h = anuencia({ ...PF, ...CED, ...ANU, 'anu-caso': caso, 'ctr-arr-pct': '5', 'ctr-equip': 'NEXUS DC80 · 80 kW' });
+      expect(h.match(MARCA), 'marca na anuência (' + caso + ')').toBeNull();
+      expect(h).toContain('Cliente Teste');
+      expect(h).toContain('CESSIONÁRIO');
+      expect(h).toContain('Dono Teste');
+    }
+  });
+
+  it('Anuência fora do modo cliente: a NEXUS continua (logo, ícone e partes)', () => {
+    const h = anuencia({ ...PF, ...ANU, 'anu-caso': 'dono_cessao', 'ctr-arr-pct': '5' });
+    expect(h).toContain('nexus-logo-papel.png');
+    expect(h).toContain('nexus-x.png');
+    expect(h).toContain('(a "NEXUS")');
+    expect(h).toContain('Termo de anuência · Eletroposto');
+  });
+
+  it('modo normal: a NEXUS continua no cabeçalho, no pé e nas partes', () => {
+    const r = gerar('arrend', { ...PF, 'ctr-arr-pct': '5' });
+    expect(r.d.arrCli).toBeFalsy();
+    const html = papel(r);
+    expect(html).toContain('nexus-logo-papel.png');
+    expect(html).toContain('nexus-x.png');
+    expect(html).toContain('NEXUS Eletropostos');
+    expect(html).toContain('Cessão de Área · Eletroposto');
+    expect(html).not.toContain('Recarga de veículos elétricos · Cliente Teste');
+    expect(html).not.toContain('não é parte deste contrato');
   });
 });
 

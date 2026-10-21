@@ -569,6 +569,54 @@ describe('pedirAgente: conflitos no estado', () => {
 });
 
 // ── Segurança do que vai ao modelo ───────────────────────────────────────────
+describe('Arrendamento em modo cliente: a marca não entra no papel', () => {
+  const cls = () => [
+    cl('objeto', 'Do objeto', [it_('objeto.cessao', 'Cessão da área.', { travado: true, campo: 'objeto' })]),
+    cl('operacao', 'Do funcionamento', [it_('operacao.tarifa', 'O preço da recarga é definido só pela CESSIONÁRIA.')]),
+    cl('foro', 'Do foro', [it_('foro.comarca', 'Fica eleito o foro da comarca de Uberlândia/MG.', { campo: 'Foro, assinatura e cláusulas extras > Foro (comarca)' })]),
+  ];
+  const base = { tipo: 'arrend', clausulas: cls() };
+  it('PedidoAgente aceita arrCli e o servidor repassa ao contexto', () => {
+    expect(PedidoAgente.parse(corpo({ ...base, arrCli: true })).arrCli).toBe(true);
+    expect(PedidoAgente.parse(corpo(base)).arrCli).toBeUndefined();
+  });
+  it('com arrCli, operação que cita NEXUS ou AIOROS é descartada com aviso; a sem marca passa', async () => {
+    fila(ia({ acoes: [
+      operacao({ tipo: 'substituir_item', alvo: 'operacao.tarifa', texto: 'A NEXUS define o preço da recarga.' }),
+      operacao({ tipo: 'inserir_item', depois_de: 'operacao.tarifa', texto: 'A plataforma Aioros cobra as recargas.' }),
+      operacao({ tipo: 'inserir_clausula', depois_de: 'operacao', id_novo: 'extra', titulo: 'Da Nexus Eletropostos', itens: ['Texto.'] }),
+    ] }));
+    const r = await ok({ ...base, arrCli: true });
+    expect(r.acoes).toEqual([]);
+    expect(r.avisos.join(' ')).toMatch(/cliente é o cessionário e o papel não leva a NEXUS nem a AIOROS/);
+    fila(ia({ acoes: [operacao({ tipo: 'substituir_item', alvo: 'operacao.tarifa', texto: 'O preço da recarga é definido só pelo CESSIONÁRIO, no sistema de gestão e cobrança.' })] }));
+    const r2 = await ok({ ...base, arrCli: true });
+    expect(r2.acoes.map((a: any) => a.tipo)).toEqual(['operacao']);
+    expect(r2.avisos.join(' ')).not.toMatch(/não leva a NEXUS/);
+  });
+  it('com arrCli, campo de texto com a marca é descartado', async () => {
+    fila(ia({ acoes: [campo('ctr-foro', 'Foro da NEXUS Eletropostos')] }));
+    const r = await ok({ ...base, arrCli: true });
+    expect(r.acoes).toEqual([]);
+    expect(r.avisos.join(' ')).toMatch(/não leva a NEXUS nem a AIOROS/);
+  });
+  it('sem arrCli (a NEXUS é parte), a mesma operação vale', async () => {
+    fila(ia({ acoes: [operacao({ tipo: 'substituir_item', alvo: 'operacao.tarifa', texto: 'A NEXUS define o preço da recarga.' })] }));
+    const r = await ok(base);
+    expect(r.acoes.map((a: any) => a.tipo)).toEqual(['operacao']);
+  });
+  it('arrCli não vaza para outro modelo: no Completo a NEXUS segue permitida', async () => {
+    fila(ia({ acoes: [operacao({ tipo: 'substituir_item', alvo: 'garantia.instalacao', texto: 'A garantia da NEXUS é de 36 meses.' })] }));
+    const r = await ok({ arrCli: true });
+    expect(r.acoes.map((a: any) => a.tipo)).toEqual(['operacao']);
+  });
+  it('o modelo recebe o aviso de que o Arrendamento está em modo cliente', async () => {
+    fila(ia());
+    await ok({ ...base, arrCli: true });
+    expect(JSON.stringify(h.chamadas[0].corpo)).toMatch(/arrendamento_modo_cliente/);
+  });
+});
+
 describe('o que vai ao modelo', () => {
   it('item travado vira marcador, dado pessoal no texto é mascarado e o histórico entra como dado, não como turnos', async () => {
     fila(ia());

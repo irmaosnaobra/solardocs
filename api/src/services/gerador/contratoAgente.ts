@@ -70,6 +70,8 @@ export const PedidoAgente = z.object({
   clausulas: z.array(ClausulaAg).max(90),
   campos: z.array(z.object({ id: z.string().max(60), valor: z.union([z.string().max(2000), z.number()]).nullish() })).max(250).default([]),
   emitente: z.enum(['aioros', 'nexus']).nullish(),
+  /** O Arrendamento aberto está em modo cliente (o cliente é o cessionário): o papel não leva NEXUS nem AIOROS. */
+  arrCli: z.boolean().nullish(),
   cadastro: z.object({ tem: z.boolean(), faltando: z.array(z.string().max(80)).max(30).default([]) }).nullish(),
   historico: z.array(z.object({ papel: z.enum(['usuario', 'assistente']), texto: z.string().max(2000) })).max(30).default([]),
   mensagem: z.string().trim().min(1).max(3000),
@@ -248,7 +250,7 @@ ${FICHAS}
 Cada modelo tem o que é TRAVADO (partes, objeto, preço, sinal, tabelas, escopo, assinaturas, o que está na ficha acima): esses itens têm campo próprio na tela, o servidor os protege e você NUNCA os altera nem remove, nem removendo a cláusula inteira. Se o pedido depende de mudar um travado, explique na resposta qual campo da tela usar. Inserir um item novo depois de um travado é permitido. Você não define partes: nome, documento, endereço e representante vêm do cadastro e do formulário.
 
 ## De que lado cada um está: duas famílias de contrato
-(a) CESSÃO / ARRENDAMENTO DE ÁREA. Muitas vezes é firmada entre o CLIENTE (CESSIONÁRIO: instala e opera o eletroposto) e um TERCEIRO (CEDENTE: dono ou possuidor do ponto). Nesse caso a NEXUS/AIOROS NÃO é parte: ela só redige. Leia as partes do contrato aberto antes de escrever e nunca ponha a NEXUS como parte, nem fale "a NEXUS paga" ou "a NEXUS instala", quando o contrato diz CESSIONÁRIA para o cliente. Quando a NEXUS é a cessionária (modelo arrend/termo_arr com ela na posição de CESSIONÁRIA), siga o texto como está.
+(a) CESSÃO / ARRENDAMENTO DE ÁREA. Muitas vezes é firmada entre o CLIENTE (CESSIONÁRIO: instala e opera o eletroposto) e um TERCEIRO (CEDENTE: dono ou possuidor do ponto). Nesse caso a NEXUS/AIOROS NÃO é parte: ela só redige. Leia as partes do contrato aberto antes de escrever e nunca ponha a NEXUS como parte, nem fale "a NEXUS paga" ou "a NEXUS instala", quando o contrato diz CESSIONÁRIA para o cliente. Quando a NEXUS é a cessionária (modelo arrend/termo_arr com ela na posição de CESSIONÁRIA), siga o texto como está. No Arrendamento em modo cliente (o CLIENTE é o CESSIONÁRIO e um terceiro é o CEDENTE), o papel não leva nada da NEXUS: o modelo é da NEXUS, mas ela não é parte e não aparece. Você NUNCA escreve NEXUS, AIOROS nem a marca, nem o nome do equipamento da marca (escreva \"carregador de veículos elétricos\" e a potência), nem a plataforma da NEXUS (escreva \"sistema de gestão e cobrança das recargas\"), nem diz que a NEXUS não é parte, no texto, em cláusula nova ou em campo. Como no solar, ela simplesmente não existe no papel.
 (b) FORNECIMENTO E INSTALAÇÃO. É entre o cliente (CONTRATANTE) e a NEXUS, marca de AIOROS (CONTRATADA), com a plataforma de gestão em cláusula própria.
 Na dúvida sobre quem é parte, pergunte; não presuma.
 
@@ -424,13 +426,17 @@ const AVISO_MARCADOR = 'Uma mudança foi descartada: ela trazia um marcador inte
 const ITENS_PROTEGIDOS = ['cedente.legitimidade', 'ligacao.imovel'];
 const AVISO_GERACAO_GARANTIDA = 'Uma mudança foi descartada: ela prometia ou garantia geração de energia. No contrato solar a geração é só uma estimativa.';
 const AVISO_NEXUS_NO_TEXTO = 'Uma mudança foi descartada: o contrato solar é da AIOROS (Irmãos na Obra) e o texto não pode citar a NEXUS.';
+const AVISO_MARCA_NO_ARRCLI = 'Uma mudança foi descartada: neste Arrendamento o cliente é o cessionário e o papel não leva a NEXUS nem a AIOROS. O texto não pode citar a marca.';
 const AVISO_APOS_ASSINATURAS = 'Uma mudança foi descartada: nada pode ser escrito depois das assinaturas do contrato solar. Insira antes delas.';
 const AVISO_SOLAR_TRAVADO = 'Uma mudança foi descartada: esse trecho do contrato solar tem campo próprio na tela e não muda por aqui.';
 const AVISO_NEXUS_NO_SOLAR = 'A troca de emitente foi descartada: o contrato solar é sempre da AIOROS (Irmãos na Obra), nunca da NEXUS.';
 const AVISO_AUTONOMIA ='A IA tentou escrever sobre a autonomia dos objetos; vale só a cláusula do sistema, que entra sempre.';
 const AVISO_VENDA_CASADA = 'Uma mudança foi descartada: ela ligava um objeto ao outro (venda casada, CDC art. 39, I). Cada objeto se contrata sozinho.';
 
-type Contexto = { estado: Estado; campos: Map<string, string>; emitente: 'aioros' | 'nexus' | null; cadastro: { tem: boolean; faltando: string[] } | null };
+/** Texto que cita a NEXUS ou a AIOROS (sem acento, palavra inteira). */
+const mencionaMarca = (...textos: Array<string | null | undefined>): boolean =>
+  textos.some(t => /\b(nexus|aioros)\b/.test(String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()));
+type Contexto = { arrCli?: boolean; estado: Estado; campos: Map<string, string>; emitente: 'aioros' | 'nexus' | null; cadastro: { tem: boolean; faltando: string[] } | null };
 
 /**
  * Confere as ações da IA. `avisos` recebe o que foi descartado e por quê. Cada chamada é independente (os achados
@@ -485,6 +491,7 @@ export function processarAcoes(
           if (lig) { avisa(lig === 'autonomia' ? AVISO_AUTONOMIA : AVISO_VENDA_CASADA); break; }
           if (modelos.some(ehTipoSolar) && geracaoComoGarantia(v.valor)) { avisa(AVISO_GERACAO_GARANTIDA); break; }
           if (modelos.some(ehTipoSolar) && mencionaNexus(v.valor)) { avisa(AVISO_NEXUS_NO_TEXTO); break; }
+          if (ctx.arrCli && modelos.includes('arrend') && mencionaMarca(v.valor)) { avisa(AVISO_MARCA_NO_ARRCLI); break; }
         }
         const antesBruto = ctx.campos.get(def.id);
         const antesN = antesBruto == null ? null : (() => { const x = validarValorCampo(def, antesBruto); return x.ok ? x.valor : antesBruto; })();
@@ -550,6 +557,8 @@ export function processarAcoes(
       // Solar: a geração é estimativa. Texto que a garante, assegura ou promete cai (a IA nunca escreve promessa de geração).
       if (ehTipoSolar(alvo) && geracaoComoGarantia(op.titulo, op.texto, ...(op.itens ?? []))) { avisa(AVISO_GERACAO_GARANTIDA); continue; }
       if (ehTipoSolar(alvo) && mencionaNexus(op.titulo, op.texto, ...(op.itens ?? []))) { avisa(AVISO_NEXUS_NO_TEXTO); continue; }
+      // Arrendamento em modo cliente: a NEXUS não é parte e não aparece no papel (como no solar). Marca no texto cai.
+      if (ctx.arrCli && alvo === 'arrend' && mencionaMarca(op.titulo, op.texto, ...(op.itens ?? []))) { avisa(AVISO_MARCA_NO_ARRCLI); continue; }
       // Solar: item travado pela CHAVE (mesmo que o front não mande `travado`), e cláusula com item travado não sai nem muda de nome.
       if (ehTipoSolar(alvo) && (
         ((op.tipo === 'substituir_item' || op.tipo === 'remover_item') && itemTravadoSolar(alvo, op.alvo)) ||
@@ -621,7 +630,7 @@ function montarMensagem(p: PedidoAgente, ctx: Contexto): string {
   const doc = {
     modelo: estado.hibrido ? null : estado.tipo,
     hibrido: estado.hibrido ? { tipos: estado.hibrido } : null,
-    emitente: ctx.emitente,
+    emitente: ctx.emitente, ...(ctx.arrCli ? { arrendamento_modo_cliente: true } : {}),
     cadastro: ctx.cadastro ? { tem: ctx.cadastro.tem, faltando: ctx.cadastro.faltando } : { tem: false, faltando: [] },
     campos_atuais: camposAtuais,
     contrato,
@@ -798,7 +807,7 @@ export async function pedirAgente(p: PedidoAgente): Promise<ResultadoAgente> {
   const campos = new Map<string, string>();
   for (const c of p.campos) if (CAMPO_POR_ID.has(c.id) && c.valor != null) campos.set(c.id, String(c.valor));   // fora da lista branca, ignora
   const ctx: Contexto = {
-    estado, campos, emitente: p.emitente ?? null,
+    estado, campos, emitente: p.emitente ?? null, arrCli: !!p.arrCli,
     cadastro: p.cadastro ? { tem: p.cadastro.tem, faltando: p.cadastro.faltando.map(f => limpar(f, 80)) } : null,
   };
 

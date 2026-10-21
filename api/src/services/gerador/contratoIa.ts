@@ -288,7 +288,7 @@ export const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objet
   },
   arrend: {
     objeto: 'Você edita o contrato de cessão onerosa de área (arrendamento do ponto) da NEXUS Eletropostos, empresa brasileira: o cliente, dono do local, cede a área e a NEXUS investe tudo, instala e explora um eletroposto (estação de recarga de veículos elétricos), pagando a ele um percentual do faturamento bruto.',
-    partes: 'As partes se chamam CEDENTE (o cliente, dono do local) e CESSIONÁRIA (a NEXUS), em maiúsculas.',
+    partes: 'As partes se chamam CEDENTE (o cliente, dono do local) e CESSIONÁRIA (a NEXUS), em maiúsculas. Se o contrato aberto tem o cliente como CESSIONÁRIO e um terceiro como CEDENTE (modo cliente), a NEXUS não é parte e nunca aparece: não escreva NEXUS, AIOROS nem a marca, nem o nome do equipamento ou da plataforma da marca.',
     travados: '(objeto, percentual da remuneração, piso mensal)',
   },
   // Termos de compromisso (08/10/2026): o papel entre a reunião e o contrato.
