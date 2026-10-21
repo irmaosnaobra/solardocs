@@ -5911,6 +5911,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-contrato" style="display:none;">
     <div class="pesquisa-info">O contrato fecha o que o orçamento propôs. Partes, valor, prazos e obrigações saem do que já está preenchido nas outras abas — aqui você completa só o que é do contrato.</div>
     <div class="orc-wrap">
+      <!-- CLIENTE DESTE CONTRATO (21/10/2026): o card ao qual os papéis gerados ficam ligados no servidor. -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Cliente deste contrato</div>
+        <div id="ctr-card-ele"></div>
+      </div>
       <!-- MODELO DO CONTRATO (07/10/2026). Um contrato por jeito de fazer
            negócio da LP: Completo (o de sempre), Sociedade 50/50, Arrendamento
            do ponto e Cotas por %. A ficha do formulário escolhe sozinha pelo
@@ -6614,6 +6619,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="eletro-acoes">
         <button type="button" class="eletro-btn primary" id="ctr-gerar-btn" onclick="ctrImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Gerar contrato PDF</button>
         <div class="orc-note ctr-fora" id="ctr-gerar-nota" style="flex:1 1 100%"></div>
+      </div>
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Versões salvas deste cliente</div>
+        <div id="ctr-vers-ele"></div>
       </div>
     </div>
     </div><!-- /eletro-pane-contrato -->
@@ -12211,6 +12220,7 @@ function eletroSubaba(qual) {
   eletroEquipRender();
   eletroVendedorAuto();
   if (qual === 'historico') { epHistOrcRender(); eletroHistCarregar(); }
+  if (qual === 'contrato') { try { ctrCardUi('ele'); } catch (e) {} }
   // Cadastros lê a nuvem: só busca quando a aba abre, e reusa o que já tem em
   // memória nas reaberturas seguintes (o ↻ da própria tela força a releitura).
   if (qual === 'cadastros') cadCarregar();
@@ -22398,6 +22408,11 @@ function epPrevSaida() {
     // mexido à mão), mesmo que o Simulador e as abas tenham mudado. `emit` e
     // `emitSelo`: quem assinou aquele papel (a 2ª via mostra o mesmo selo).
     epPapelGrava({ id: s.hist.id, html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, editado: !!s.editado, emit: s.emit, emitSelo: s.emitSelo, em: new Date().toISOString() });
+    // Cliente ligado: a mesma versão também vai para o card, no servidor. Extra: nunca bloqueia nem muda o que está acima.
+    try {
+      ctrVersEnviar('ele', { tipo: s.hist.tipo, rotulo: s.hist.rotulo, modelo: s.hist.modelo, num: s.hist.num, data: s.hist.data, editado: !!s.hist.editado, snap: s.hist.snap || orcSnapTake(),
+        html, arquivo: s.arquivo, titulo: s.titulo || '', opts: s.opts || null, emit: s.emit, emitSelo: s.emitSelo, card: (s.hist.snap && s.hist.snap.ctrCard) || ctrCardLigado });
+    } catch (e) {}
     s.hist = null;
     try { if (typeof epHistOrcRender === 'function') epHistOrcRender(); } catch (e) {}
   }
@@ -23486,6 +23501,7 @@ function ctrDosBlocos(rotulo, d) {
 }
 
 function ctrEstadoZerar() {
+  ctrCardSet('ele', null);   // outro cliente: o card ligado era do anterior
   // Modelo do contrato volta ao Completo, sem marca de escolhido: a ficha do
   // próximo cliente pode escolher sozinha.
   const tpEl = document.getElementById('ctr-tipo');
@@ -29299,24 +29315,299 @@ function epHistOrcRender() {
     '</tbody>';
 }
 function epHistOrcAbrir(id) {
-  const e = epHistOrcList().find(x => x.id === id);
+  epAbrirEntrada(epHistOrcList().find(x => x.id === id), null);
+}
+// O mesmo caminho para o histórico do aparelho e para as versões salvas no card (`cardDaVersao`: o card de onde a versão veio).
+function epAbrirEntrada(e, cardDaVersao) {
   if (!e || !e.snap) return;
   // TR-02: abrir o papel de outro cliente por cima do cliente aberto misturava
   // os dois (CPF de um, nome e preço do outro).
   const aberto = orcVal('el-cliente');
   const doPapel = (e.snap.sim && e.snap.sim['el-cliente']) || e.cliente || '';
-  if (aberto && doPapel && aberto !== doPapel) {
-    if (!confirm(`Abrir o papel de ${doPapel} troca o cliente aberto (${aberto}). Os campos de ${aberto} saem da tela.\n\nContinuar?`)) return;
+  const cardPapel = ctrCardNormal(cardDaVersao || e.snap.ctrCard);
+  const outroNome = !!(aberto && doPapel && aberto !== doPapel);
+  const outroCard = !!(ctrCardLigado && cardPapel && ctrCardChave(ctrCardLigado) !== ctrCardChave(cardPapel));
+  if (outroNome || outroCard) {
+    const msg = outroNome
+      ? `Abrir o papel de ${doPapel} troca o cliente aberto (${aberto}). Os campos de ${aberto} saem da tela.\n\nContinuar?`
+      : `Abrir o papel de ${cardPapel.nome || 'outro cliente'} troca o cliente ligado (${ctrCardLigado.nome || 'outro cliente'}). Os campos dele saem da tela.\n\nContinuar?`;
+    if (!confirm(msg)) return;
     if (typeof epLimparCliente === 'function') epLimparCliente();
   }
   eletroSubaba('orcamento');
   orcSnapApply(e.snap, e.tipo);
+  if (cardPapel) ctrCardSet('ele', cardPapel);   // depois do apply e do limpar: o card da versão fica ligado
   // Termo (08/10/2026) reabre na aba dele, com o dossiê do aparelho de volta.
   // Contrato, recibo e orçamento do carregador também (09/10/2026).
   // TR-09: a aba Orçamento saiu da barra; papel de orçamento abre no Simulador.
   const aba = { Termo: 'contrato', Contrato: 'contrato', Recibo: 'recibo', 'Orçamento Carregador': 'equipamento', 'Procuração': 'procuracao', 'Anuência': 'procuracao', 'Vistoria técnica': 'procuracao', 'Proposta de banco': 'finame' }[e.tipo] || 'simulador';
   eletroSubaba(aba);
 }
+// ===== Versões salvas no card do cliente (21/10/2026, entrega 1 de 2) =====
+// Cada papel gerado vai também para o servidor (bucket privado próprio `contratos-versoes`, nunca o `cadastros-venda`), ligado ao card do cliente,
+// para voltar, editar e imprimir em qualquer aparelho. O histórico local (orc_hist_v1 / sol_fech_hist_v1) e a 2ª via do aparelho
+// seguem exatamente como eram: o envio é um EXTRA, e falhar nunca bloqueia a geração nem o histórico.
+// Dois estados separados, um por tela: `ctrCardLigado` (contratos do eletroposto) e `fsCardLigado` (Fechamento solar). Nunca se misturam.
+let ctrCardLigado = null;   // { linha: 'eletroposto'|'vendasolar', codigo, nome }
+let fsCardLigado = null;
+const CTR_VERS = {
+  ele: { lista: null, chave: '', erro: '', carregando: false, socio: false, busca: false, achados: null, buscaErro: '', seq: 0, timer: 0 },
+  sol: { lista: null, chave: '', erro: '', carregando: false, socio: false, busca: false, achados: null, buscaErro: '', seq: 0, timer: 0 },
+};
+const CTR_VERS_MAX_CORPO = 4300000;
+const ctrCardGet = c => (c === 'sol' ? fsCardLigado : ctrCardLigado);
+const ctrCardChave = k => (k ? k.linha + ':' + k.codigo : '');
+function ctrCardNormal(k) {
+  if (!k || typeof k !== 'object') return null;
+  const linha = k.linha === 'vendasolar' ? 'vendasolar' : (k.linha === 'eletroposto' ? 'eletroposto' : '');
+  const codigo = String(k.codigo == null ? '' : k.codigo).trim();
+  if (!linha || !/^\d{1,12}$/.test(codigo) || Number(codigo) <= 0) return null;
+  return { linha, codigo: String(Number(codigo)), nome: String(k.nome == null ? '' : k.nome).slice(0, 120) };
+}
+/** Liga (ou desliga, com null) o card da tela `c` ('ele' ou 'sol'). Outro card zera a lista de versões e ela é lida de novo. */
+function ctrCardSet(c, k) {
+  k = ctrCardNormal(k);
+  if (c === 'sol') fsCardLigado = k; else ctrCardLigado = k;
+  const e = CTR_VERS[c];
+  e.busca = false; e.achados = null; e.buscaErro = '';
+  if (ctrCardChave(k) !== e.chave) { e.lista = null; e.erro = ''; e.carregando = false; e.seq++; e.chave = ctrCardChave(k); }
+  try { ctrCardUi(c); } catch (er) { /* a tela ainda não existe */ }
+}
+/** A origem `linha:id` que o preenchimento a partir do card grava (vdcOrigemEp / vdcOrigemFs) liga o card sozinha. */
+function ctrCardDeOrigem(c, origem, nome) {
+  const m = /^(eletroposto|vendasolar):(\d{1,12})$/.exec(String(origem || ''));
+  if (m) ctrCardSet(c, { linha: m[1], codigo: m[2], nome: nome || '' });
+}
+function ctrVersMsg(r, padrao) {
+  const j = (r && r.json) || {};
+  if (r && r.status === 401) return 'Sua sessão terminou. Entre de novo no Gerador.';
+  if (r && r.status === 0) return 'Sem conexão.';
+  if (typeof j.error === 'string' && j.error) return j.error;
+  return padrao;
+}
+const ctrVersRota = k => '/gerador/contratos/' + k.linha + '/' + k.codigo + '/versoes';
+const ctrVersQuem = v => String(v.autor || '').split('@')[0];
+
+function ctrCardUi(c) {
+  const bar = document.getElementById('ctr-card-' + c);
+  const k = ctrCardGet(c), e = CTR_VERS[c], sol = c === 'sol';
+  if (bar) {
+    const esc = orcEsc, btn = sol ? 'fs-btn-sec' : 'eletro-btn ehist-btn';
+    let h = '';
+    if (k) {
+      h += `<div class="${sol ? 'fs-sub' : 'orc-note'}" style="margin-top:0">Contrato ligado a: <b>${esc(k.nome || 'cliente')}</b> · card ${esc(k.codigo)}</div>` +
+        `<div style="display:flex;gap:6px;margin-top:8px"><button type="button" class="${btn}" onclick="ctrCardTrocar('${c}')">Trocar</button><button type="button" class="${btn}" onclick="ctrCardDesligar('${c}')">Desligar</button></div>`;
+    } else {
+      h += `<div class="${sol ? 'fs-sub' : 'orc-note'}" style="margin-top:0">Este contrato não está ligado a um cliente: ele não fica salvo no card.</div>`;
+    }
+    if (!k || e.busca) {
+      const inp = `<input id="ctr-card-q-${c}" type="search" autocomplete="off" placeholder="Digite o nome do cliente" aria-label="Cliente deste contrato" oninput="ctrBuscaDigitou('${c}', this)">`;
+      h += `<div style="margin-top:8px">` + (sol ? `<div class="fs-puxar">${inp}</div>` : `<div class="eletro-field"><label for="ctr-card-q-${c}">Cliente deste contrato</label><div class="eletro-inp eletro-inp-wide">${inp}</div></div>`) +
+        `<div id="ctr-card-res-${c}"></div></div>`;
+    }
+    bar.innerHTML = h;
+    ctrBuscaRender(c);
+  }
+  ctrVersRender(c);
+  if (k && e.lista === null && !e.carregando) ctrVersCarregar(c);
+}
+function ctrCardTrocar(c) { CTR_VERS[c].busca = true; CTR_VERS[c].achados = null; ctrCardUi(c); const q = document.getElementById('ctr-card-q-' + c); if (q && q.focus) q.focus(); }
+function ctrCardDesligar(c) { ctrCardSet(c, null); }
+function ctrBuscaDigitou(c, el) {
+  const e = CTR_VERS[c], q = String(el.value || '').trim();
+  clearTimeout(e.timer);
+  e.achados = null; e.buscaErro = '';
+  if (q.length < 2) { ctrBuscaRender(c); return; }
+  e.timer = setTimeout(() => ctrBuscaRodar(c, q), 350);
+}
+async function ctrBuscaRodar(c, q) {
+  const e = CTR_VERS[c];
+  const r = await vdcFetch('/gerador/contratos/cards?q=' + encodeURIComponent(q), 'GET');
+  const atual = document.getElementById('ctr-card-q-' + c);
+  if (!atual || String(atual.value || '').trim() !== q) return;   // digitou mais: esta resposta é velha
+  if (r.status === 200 && r.json && r.json.ok) {
+    // O contrato do eletroposto lista cards do eletroposto; o Fechamento solar, os de venda solar.
+    e.achados = (r.json.cards || []).filter(x => x.linha === (c === 'sol' ? 'vendasolar' : 'eletroposto'));
+    e.buscaErro = '';
+  } else { e.achados = []; e.buscaErro = ctrVersMsg(r, 'Não consegui buscar os clientes agora.'); }
+  ctrBuscaRender(c);
+}
+function ctrBuscaRender(c) {
+  const host = document.getElementById('ctr-card-res-' + c); if (!host) return;
+  const e = CTR_VERS[c], sol = c === 'sol', esc = orcEsc;
+  if (e.buscaErro) { host.innerHTML = `<div class="${sol ? 'fs-sub' : 'orc-note'}">${esc(e.buscaErro)}</div>`; return; }
+  if (!e.achados) { host.innerHTML = ''; return; }
+  if (!e.achados.length) { host.innerHTML = `<div class="${sol ? 'fs-sub' : 'orc-note'}">Nenhum cliente seu com esse nome.</div>`; return; }
+  host.innerHTML = e.achados.map((x, i) => `<div style="margin-top:6px"><button type="button" class="${sol ? 'fs-btn-sec' : 'eletro-btn ehist-btn'}" style="text-align:left" onclick="ctrCardEscolher('${c}', ${i})">${esc(x.nome || 'Sem nome')}${x.cidade ? ' · ' + esc(x.cidade) : ''} · card ${esc(x.codigo)}</button></div>`).join('');
+}
+function ctrCardEscolher(c, i) {
+  const x = (CTR_VERS[c].achados || [])[i]; if (!x) return;
+  ctrCardSet(c, { linha: x.linha, codigo: x.codigo, nome: x.nome });
+}
+
+async function ctrVersCarregar(c) {
+  const k = ctrCardGet(c), e = CTR_VERS[c]; if (!k) return;
+  const meu = ++e.seq, chave = ctrCardChave(k);
+  e.carregando = true; e.erro = ''; ctrVersRender(c);
+  const r = await vdcFetch(ctrVersRota(k), 'GET');
+  if (meu !== e.seq || ctrCardChave(ctrCardGet(c)) !== chave) return;   // trocou de cliente no meio
+  e.carregando = false;
+  if (r.status === 200 && r.json && r.json.ok) { e.lista = Array.isArray(r.json.versoes) ? r.json.versoes : []; e.socio = !!r.json.socio; }
+  else { e.lista = []; e.erro = ctrVersMsg(r, 'Não consegui carregar as versões salvas agora.'); }
+  ctrVersRender(c);
+}
+function ctrVersRender(c) {
+  const host = document.getElementById('ctr-vers-' + c); if (!host) return;
+  const k = ctrCardGet(c), e = CTR_VERS[c], sol = c === 'sol', esc = orcEsc;
+  const nota = t => `<div class="${sol ? 'fs-sub' : 'orc-note'}" style="margin-top:0">${t}</div>`;
+  if (!k) { host.innerHTML = nota('Ligue o contrato a um cliente para ver aqui as versões que ficaram salvas no card dele.'); return; }
+  if (e.carregando && !e.lista) { host.innerHTML = nota('Carregando…'); return; }
+  const retry = `<div style="margin-top:8px"><button type="button" class="${sol ? 'fs-btn-sec' : 'eletro-btn ehist-btn'}" onclick="ctrVersCarregar('${c}')">Tentar de novo</button></div>`;
+  if (e.erro) { host.innerHTML = nota(esc(e.erro)) + retry; return; }
+  const l = e.lista || [];
+  if (!l.length) { host.innerHTML = nota('Nenhuma versão salva para ' + esc(k.nome || 'este cliente') + ' ainda. Os papéis que você gerar com o cliente ligado aparecem aqui.'); return; }
+  const acoes = v => {
+    const id = esc(v.id), b = sol ? 'fs-btn-sec' : 'eletro-btn ehist-btn';
+    return `<button type="button" class="${b}" onclick="ctrVersAbrir('${c}','${id}')" title="Reabre os campos para editar e gerar de novo">Abrir para editar</button>` +
+      `<button type="button" class="${b}" onclick="ctrVersImprimir('${c}','${id}')" title="O papel exatamente como saiu">Imprimir</button>` +
+      (e.socio ? `<button type="button" class="${b}" onclick="ctrVersExcluir('${c}','${id}')">Excluir</button>` : '');
+  };
+  const data = v => v.data || (v.em ? new Date(v.em).toLocaleDateString('pt-BR') : '');
+  if (sol) {
+    host.innerHTML = l.map(v => `<div class="fs-h"><div class="i"><b>${esc(v.rotulo || v.tipo)}</b>${v.editado ? ' <span class="ed">texto editado</span>' : ''}<small>${esc(data(v))}${v.num ? ' · nº ' + esc(v.num) : ''} · ${esc(ctrVersQuem(v))}</small></div><div class="a">${acoes(v)}</div></div>`).join('');
+    return;
+  }
+  host.innerHTML = '<div class="eletro-cmp-scroll"><table class="eletro-cmp ehist"><thead><tr><th>Data</th><th style="text-align:left">Papel</th><th style="text-align:left">Nº</th><th style="text-align:left">Autor</th><th></th></tr></thead><tbody>' +
+    l.map(v => `<tr><td class="lbl">${esc(data(v))}</td><td class="lbl">${esc(v.rotulo || v.tipo)}${v.editado ? ' <em>(texto editado)</em>' : ''}</td><td class="lbl">${esc(v.num || '')}</td><td class="lbl">${esc(ctrVersQuem(v))}</td><td style="text-align:right;white-space:nowrap">${acoes(v)}</td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+/** A versão inteira do servidor, ou null (com aviso). */
+async function ctrVersBuscar(c, id) {
+  const k = ctrCardGet(c); if (!k) return null;
+  if (typeof showToast === 'function') showToast('Abrindo a versão salva…');
+  const r = await vdcFetch(ctrVersRota(k) + '/' + encodeURIComponent(id), 'GET', undefined, 30000);
+  if (r.status === 200 && r.json && r.json.ok && r.json.versao) return r.json.versao;
+  const m = r.status === 404 ? 'Esta versão não existe mais.' : ctrVersMsg(r, 'Não consegui abrir a versão agora.');
+  if (typeof showToast === 'function') showToast(m);
+  return null;
+}
+// O snapshot de uma versão salva veio de OUTRA pessoa: nada dele pode virar marcação no papel. O "Abrir para editar" só aplica campos por
+// .value/.checked/seleção (orcSnapApply e fsReabrirEntrada), nunca joga HTML guardado na página, e os textos que os geradores inserem
+// no papel sem escapar (pedidos à IA e suas operações, cláusulas extras, plano do híbrido, conversa do assistente, itens) saem daqui
+// limpos: só <b>, <i> e <br> (e a lacuna do papel) ficam; qualquer outro < ou > vira entidade.
+const CTR_SEG_A = String.fromCharCode(1), CTR_SEG_B = String.fromCharCode(2);
+function ctrTextoSeguro(t) {
+  let x = String(t).split(CTR_SEG_A).join('').split(CTR_SEG_B).join('');
+  x = x.replace(/<(\/?)(b|i)>/gi, (m, f, n) => CTR_SEG_A + f + n.toLowerCase() + CTR_SEG_B)
+    .replace(/<br\s*\/?>/gi, CTR_SEG_A + 'br' + CTR_SEG_B)
+    .replace(/<span class="ep-rec-vazio"><\/span>/g, CTR_SEG_A + 'lacuna' + CTR_SEG_B);
+  x = x.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return x.split(CTR_SEG_A + 'lacuna' + CTR_SEG_B).join('<span class="ep-rec-vazio"></span>')
+    .split(CTR_SEG_A).join('<').split(CTR_SEG_B).join('>');
+}
+function ctrSnapLimpo(v) {
+  if (typeof v === 'string') return ctrTextoSeguro(v);
+  if (Array.isArray(v)) return v.map(ctrSnapLimpo);
+  if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach(k => { o[k] = ctrSnapLimpo(v[k]); }); return o; }
+  return v;
+}
+async function ctrVersAbrir(c, id) {
+  const v = await ctrVersBuscar(c, id);
+  if (!v || !v.snap) return;
+  v.snap = ctrSnapLimpo(v.snap);
+  const k = ctrCardGet(c);
+  if (c === 'sol') fsReabrirEntrada({ id: v.id, tipo: v.tipo, cliente: ((v.snap.campos || {})['fs-nome']) || '', fotos: 0, snap: v.snap }, k);
+  else epAbrirEntrada({ id: v.id, tipo: v.tipo, cliente: ((v.snap.sim || {})['el-cliente']) || '', snap: v.snap }, k);
+}
+/**
+ * Imprime o HTML guardado exatamente como saiu, SEM a trava de pagamento do contrato. O HTML veio de outra pessoa (outro consultor,
+ * outro aparelho), então NÃO entra na página: vai num iframe `sandbox="allow-same-origin allow-modals"`, sem `allow-scripts`
+ * (nenhum <script> nem on* roda). allow-same-origin deixa a página chamar print() no iframe; allow-modals é o que o navegador
+ * exige para o print() não ser ignorado (testado no Edge: sem ele o print() é descartado; sem same-origin a página nem alcança o
+ * print() do iframe). O papel é estilizado pelas folhas de estilo da própria página, então elas são copiadas para dentro do iframe.
+ */
+async function ctrVersImprimir(c, id) {
+  const v = await ctrVersBuscar(c, id);
+  if (!v || !v.html) return;
+  ctrVersImprimirFechar();
+  const titulo = (v.titulo || v.tipo || 'Documento') + ' · 2ª via';
+  const estilos = [...document.querySelectorAll('style, link[rel="stylesheet"]')].map(el => el.outerHTML).join('\n');
+  const doc = '<!doctype html><html><head><meta charset="utf-8"><title>' + orcEsc(v.arquivo || titulo) + '</title>' + estilos
+    + '<style>html,body{margin:0;background:#fff}body.print-doc #eletro-print{display:block!important}</style></head>'
+    + '<body class="print-doc"><div id="eletro-print">' + v.html + '</div></body></html>';
+  const ov = document.createElement('div');
+  ov.id = 'ctr-vers-ov'; ov.className = 'ep-prev-bg'; ov.style.display = 'flex'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Papel salvo');
+  ov.innerHTML = '<div class="ep-prev-bar"><div class="ep-prev-tit"></div><div class="ep-prev-acoes">'
+    + '<button type="button" class="eletro-btn primary" onclick="ctrVersImprimirAgora()">Imprimir / PDF</button>'
+    + '<button type="button" class="eletro-btn" onclick="ctrVersImprimirFechar()">Fechar</button></div></div>'
+    + '<div class="ep-prev-nota">O papel exatamente como foi salvo no card. Para mudar alguma coisa, use <b>Abrir para editar</b>.</div>'
+    + '<div class="ep-prev-scroll"><div class="ep-prev-palco"><div class="ep-prev-folha"><iframe id="ctr-vers-frame" title="Papel salvo" sandbox="allow-same-origin allow-modals" style="width:100%;height:297mm;border:0;display:block"></iframe></div></div></div>';
+  ov.querySelector('.ep-prev-tit').textContent = titulo;
+  ov.addEventListener('click', e => { if (e.target === ov) ctrVersImprimirFechar(); });
+  document.body.appendChild(ov);
+  const fr = document.getElementById('ctr-vers-frame');
+  fr.addEventListener('load', () => {
+    try {
+      const d = fr.contentDocument; if (!d) return;
+      // Papel de UMA folha: o mesmo encaixe que o orc1Imprimir faz (zoom que cabe em A4), medido dentro do iframe.
+      const o = v.opts;
+      if (o && o.umaPagina) {
+        const el = d.querySelector(o.alvo || '.orc1');
+        if (el) {
+          const reg = d.createElement('div'); reg.style.cssText = 'position:absolute;visibility:hidden;height:291mm'; d.body.appendChild(reg);
+          const lim = reg.offsetHeight; reg.remove();
+          const alt = el.scrollHeight, f = lim > 0 && alt > 0 ? lim / alt : 1;
+          if (f < 1 && f >= (o.piso || 0.82)) el.style.zoom = String(f.toFixed(4));
+        }
+      }
+      fr.style.height = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight) + 'px';
+    } catch (e) { /* sem same-origin não há o que ajustar */ }
+  });
+  fr.srcdoc = doc;
+}
+function ctrVersImprimirAgora() {
+  const fr = document.getElementById('ctr-vers-frame');
+  if (!fr || !fr.contentWindow) return;
+  fr.contentWindow.focus(); fr.contentWindow.print();
+}
+function ctrVersImprimirFechar() {
+  const ov = document.getElementById('ctr-vers-ov'); if (ov) ov.remove();
+}
+async function ctrVersExcluir(c, id) {
+  const k = ctrCardGet(c); if (!k) return;
+  if (!confirm('Excluir esta versão salva de ' + (k.nome || 'este cliente') + '?\n\nIsso não pode ser desfeito.')) return;
+  const r = await vdcFetch(ctrVersRota(k) + '/' + encodeURIComponent(id), 'DELETE');
+  if (r.status === 200 && r.json && r.json.ok) { if (typeof showToast === 'function') showToast('Versão excluída.'); }
+  else if (typeof showToast === 'function') showToast(r.status === 403 ? 'Só sócio exclui uma versão salva.' : ctrVersMsg(r, 'Não consegui excluir agora.'));
+  CTR_VERS[c].lista = null; ctrVersCarregar(c);
+}
+/**
+ * O ponto de gravação único: chamado onde o papel já entra no histórico local (epPrevSaida e o aoSair do Fechamento solar).
+ * Sem card ligado não faz nada. Falha de rede ou do servidor vira um aviso curto e NUNCA lança, nem bloqueia nada: quem chama
+ * não espera por isto.
+ */
+async function ctrVersEnviar(c, reg) {
+  const k = ctrCardNormal(reg && reg.card);
+  if (!k || !reg.html) return;
+  const aviso = m => { try { if (typeof showToast === 'function') showToast('Este papel não ficou salvo no card: ' + m + ' Ele segue no histórico deste aparelho.'); } catch (er) {} };
+  try {
+    const corpo = {
+      tipo: reg.tipo || 'Documento', rotulo: reg.rotulo || reg.tipo || '', modelo: reg.modelo || '', num: reg.num || '', data: reg.data || '', editado: !!reg.editado,
+      snap: reg.snap || {}, html: reg.html, arquivo: reg.arquivo || '', titulo: reg.titulo || '', opts: reg.opts || null, emit: reg.emit || null, emitSelo: reg.emitSelo || '',
+    };
+    // O servidor recusa acima de 4 MB: nem tenta enviar o que já se sabe que não cabe (4,3 MB de corpo ~ 4 MB em UTF-8 com folga).
+    if (JSON.stringify(corpo).length > CTR_VERS_MAX_CORPO) { if (typeof showToast === 'function') showToast('Este papel é grande demais para salvar no card; ele segue no histórico deste aparelho.'); return; }
+    const r = await vdcFetch(ctrVersRota(k), 'POST', corpo, 45000);
+    if (r.status === 201 && r.json && r.json.ok) {
+      if (typeof showToast === 'function') showToast('Salvo no card de ' + (k.nome || 'cliente') + '.');
+      if (ctrCardChave(ctrCardGet(c)) === ctrCardChave(k)) { CTR_VERS[c].lista = null; ctrVersCarregar(c); }
+      return;
+    }
+    aviso(ctrVersMsg(r, 'o servidor recusou.'));
+  } catch (er) { aviso('sem conexão.'); }
+}
+
 // Snapshot do formulário do Orçamento completo (pra reabrir)
 function orcSnapTake() {
   const v = id => (document.getElementById(id)?.value) || '';
@@ -29328,6 +29619,8 @@ function orcSnapTake() {
   return {
     // Id do emitente escolhido para este papel ('aioros' | 'nexus'); orcSnapApply o restaura.
     emitente: EP_EMIT_SEL,
+    // Cliente (card) ligado a este contrato: a versão salva no servidor e o "Abrir" levam o card junto.
+    ctrCard: ctrCardLigado ? { linha: ctrCardLigado.linha, codigo: ctrCardLigado.codigo, nome: ctrCardLigado.nome } : null,
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'), validadeModo: v('orc-validade-modo'),
     doc: v('orc-cli-doc'), ie: v('orc-cli-ie'), end: v('orc-cli-end'), cep: v('orc-cli-cep'), tel: v('orc-cli-tel'), email: v('orc-cli-email'),
     // Valor do projeto: guarda sempre o número que saiu no documento. `valorTocado`
@@ -29411,6 +29704,7 @@ function orcSnapApply(s, tipo) {
   // contrato (Pix, foro) voltam do proprio snapshot, entao nao se refaz o espelho aqui.
   EP_EMIT_SEL = epEmitIdOk(s.emitente) || 'aioros';
   try { epEmitBarAtualizar(); } catch (e) {}
+  if (s.ctrCard) ctrCardSet('ele', s.ctrCard);   // papel de antes não traz o card: segue o que está ligado
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
   const setck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
   set('orc-num', s.num); set('orc-data', s.data); set('orc-validade', s.validade);
@@ -30411,6 +30705,7 @@ function fsMontar() {
   const host = fsEl('fs-corpo'); if (!host) return;
   const dinheiro = { pre: 'R$', mode: 'decimal', blur: 'fsMoeda(this)', ph: '0,00' };
   host.innerHTML =
+    fsCard('Cliente deste contrato', `<div id="ctr-card-sol"></div>`) +
     fsCard('Puxar de uma proposta', `
       <div class="fs-puxar"><input id="fs-pux" list="fs-pux-list" autocomplete="off" placeholder="Digite o nome do cliente ou o código" onchange="fsPuxarDigitado()" aria-label="Proposta solar">
         <datalist id="fs-pux-list"></datalist>
@@ -30567,7 +30862,8 @@ function fsMontar() {
     `<div id="fs-msg" class="fs-msg" role="alert"></div>
     <div class="fs-aviso ruim" id="fsag-gate" role="status" style="margin:0 0 10px"></div>
     <button type="button" class="fs-btn-main" id="fs-btn-emitir" onclick="fsEmitir()">Ver e imprimir</button>` +
-    fsCard('Papéis emitidos', `<div id="fs-hist"></div>`, ' id="fs-hist-card"');
+    fsCard('Papéis emitidos', `<div id="fs-hist"></div>`, ' id="fs-hist-card"') +
+    fsCard('Versões salvas deste cliente', `<div id="ctr-vers-sol"></div>`, ' id="fs-vers-card"');
 
   // padrões da casa (SolarDoc)
   const p = { 'fs-c-data': solHoje(), 'fs-p-data': solHoje(), 'fs-r-data': solHoje(),
@@ -30863,6 +31159,7 @@ let fsVistoKey = '';
 // Trocou de cliente: tudo que é DO cliente e a proposta não traz sai da tela, senão o papel sai
 // com o nome de B e o CPF e o endereço de A.
 function fsLimparCliente() {
+  ctrCardSet('sol', null);   // outro cliente: o card ligado era do anterior
   ['fs-doc', 'fs-cep', 'fs-end', 'fs-bairro', 'fs-rep', 'fs-c-endinst', 'fs-r-endinst', 'fs-p-uc', 'fs-r-datactr', 'fs-c-num'].forEach(id => fsSet(id, '', true));
   fsSet('fs-tipo', 'PF', true);
   const host = fsEl('fs-r-pags'); if (host) { host.innerHTML = ''; fsPagAdd(); }
@@ -30916,9 +31213,21 @@ function fsTitularAlertaPinta() {
     box.appendChild(b);
   }
 }
+// A proposta puxada é do mesmo cliente do card ligado (mesmo nome, ou a proposta que o card tem ligada)? Então puxar não desliga o card.
+function fsMesmoClienteDoCard(d, row) {
+  const k = fsCardLigado; if (!k) return false;
+  const n = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const nome = (d && d.nome) || (row && row.cliente_nome) || '';
+  if (nome && k.nome && n(nome) === n(k.nome)) return true;
+  try {
+    return typeof vdcEst !== 'undefined' && !!vdcEst && String(vdcEst.id) === k.codigo && !!(vdcEst.vinc && vdcEst.vinc.proposta)
+      && fsChave(d, row) === 'c:' + String(vdcEst.vinc.proposta).replace(/^#/, '');
+  } catch (e) { return false; }
+}
 function fsAplicarFonte(d, row) {
   const key = fsChave(d, row);
-  if (key !== fsOrigemKey) { fsLimparCliente(); fsAplicarDados(d, true, row); }
+  const manter = fsMesmoClienteDoCard(d, row) ? fsCardLigado : null;
+  if (key !== fsOrigemKey) { fsLimparCliente(); if (manter) ctrCardSet('sol', manter); fsAplicarDados(d, true, row); }
   else fsAplicarDados(d, false, row);   // o mesmo cliente de novo: o que foi digitado fica
   fsOrigemKey = key;
   fsSincronizaNovos(fsAbaAtual);
@@ -31032,6 +31341,7 @@ function fsHistAdd(e) {
   catch (er) { if (typeof showToast === 'function') showToast('O aparelho recusou guardar o histórico (espaço cheio).'); }
 }
 function fsHistRender() {
+  try { ctrCardUi('sol'); } catch (e) {}
   const host = fsEl('fs-hist'); if (!host) return;
   const l = fsHistList();
   if (!l.length) { host.innerHTML = '<div class="fs-sub">Nenhum papel emitido neste aparelho ainda. Os que você imprimir aparecem aqui.</div>'; return; }
@@ -31044,7 +31354,7 @@ function fsSnap(comAssistente) {
   document.querySelectorAll('#fechamentoSolarSection input[id^="fs-"], #fechamentoSolarSection select[id^="fs-"], #fechamentoSolarSection textarea[id^="fs-"]').forEach(el => { if (el.id !== 'fs-pux') campos[el.id] = el.value; });
   // As fotos da vistoria NÃO entram aqui (estourariam a cota do localStorage): ficam na memória da
   // tela e na cópia do papel no IndexedDB. Os itens da proposta de banco são linhas, como os pagamentos.
-  const snap = { aba: fsAbaAtual, campos, pags: fsPagsRaw(), itens: fsBItensRaw() };
+  const snap = { aba: fsAbaAtual, campos, pags: fsPagsRaw(), itens: fsBItensRaw(), fsCard: fsCardLigado ? { linha: fsCardLigado.linha, codigo: fsCardLigado.codigo, nome: fsCardLigado.nome } : null };
   // O contrato leva os pedidos de texto e a conversa do assistente (20/10/2026), para reabrir igual. Papel de antes não tem.
   if (comAssistente) {
     snap.solIa = JSON.parse(JSON.stringify(ctrIa.pedidos.filter(ctrIaEhSolar)));
@@ -31063,9 +31373,13 @@ function fsPagLegado(snap) {
   fsPagTxtGrava(fsVal('fs-c-pagto'));
   fsPagGrava(ctrPagModelo('vista', saldo));
 }
-function fsReabrir(id) {
-  const h = fsHistList().find(x => x.id === id);
+function fsReabrir(id) { fsReabrirEntrada(fsHistList().find(x => x.id === id), null); }
+// O mesmo caminho para o histórico do aparelho e para as versões salvas no card (`cardDaVersao`: o card de onde a versão veio).
+function fsReabrirEntrada(h, cardDaVersao) {
   if (!h || !h.snap) return;
+  const cardPapel = ctrCardNormal(cardDaVersao || h.snap.fsCard);
+  if (fsCardLigado && cardPapel && ctrCardChave(fsCardLigado) !== ctrCardChave(cardPapel)
+    && !confirm(`Abrir o papel de ${cardPapel.nome || 'outro cliente'} troca o cliente ligado (${fsCardLigado.nome || 'outro cliente'}). Os campos dele saem da tela.\n\nContinuar?`)) return;
   // papel de ONTEM não traz os campos novos no snapshot: limpa antes, senão ficam os do cliente anterior
   fsLimparNovos();
   Object.keys(h.snap.campos || {}).forEach(k => { const el = fsEl(k); if (el) { el.value = h.snap.campos[k]; el.dataset.tocado = '1'; } });
@@ -31077,7 +31391,7 @@ function fsReabrir(id) {
   const avRe = fsEl('fs-p-rateio-aviso'); if (avRe) avRe.textContent = '';
   fsTitularAlerta(''); fsFinAlerta('');
   fsFotosLimpa();
-  fsOrigemKey = 'reaberto:' + id;
+  fsOrigemKey = 'reaberto:' + h.id;
   // O assistente do contrato: os pedidos de texto e a conversa do papel reaberto. Papel de antes não tem: o contrato sai como saiu.
   ctrIa = { pedidos: ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)).concat(Array.isArray(h.snap.solIa) ? JSON.parse(JSON.stringify(h.snap.solIa)).filter(ctrIaEhSolar).map(ctrSolarPedidoLegado) : []) };
   ctrAgZerar(ctrAgRestaurar(h.snap.ctrAg), 'sol');
@@ -31089,6 +31403,7 @@ function fsReabrir(id) {
   ctrIaRender();
   const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.' + (h.fotos > 0 ? ' As fotos ficam só na 2ª via.' : '');
   const av = fsEl('fs-v-fotos-aviso'); if (av) av.textContent = h.fotos > 0 ? 'As fotos ficam só na 2ª via. Este papel tinha ' + h.fotos + (h.fotos === 1 ? ' foto' : ' fotos') + ': adicione de novo se for imprimir outra vez.' : '';
+  if (cardPapel) ctrCardSet('sol', cardPapel);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -32548,6 +32863,11 @@ function fsPreview(o) {
     aoSair: r => {
       // fotos: só a CONTAGEM vai para o histórico (o localStorage não aguenta imagem); as fotos vivem na 2ª via
       fsHistAdd({ id, tipo: o.tipo, cliente: o.cliente, valor: o.valor, num: o.num, data: hojeBR, snap, editado: !!r.editado, fotos: o.fotos || 0 });
+      // Cliente ligado: a mesma versão também vai para o card, no servidor. Extra: nunca bloqueia nem muda o histórico acima.
+      try {
+        ctrVersEnviar('sol', { tipo: o.tipo, rotulo: o.tipo, modelo: '', num: o.num || '', data: hojeBR, editado: !!r.editado, snap, html: r.html, arquivo: o.arquivo, titulo: o.titulo,
+          opts: o.opts || null, emit: 'aioros', emitSelo: '', card: snap.fsCard });
+      } catch (er) {}
       epPapelGrava({ id, html: r.html, arquivo: o.arquivo, titulo: o.titulo, opts: o.opts || null, editado: !!r.editado, em: new Date().toISOString() }).then(res => {
         if (res !== false) return;
         const aviso = 'Não deu para guardar a 2ª via neste aparelho. Baixe o PDF agora.';
@@ -38866,6 +39186,8 @@ function aplicarCadastroEletroposto(cad, opts) {
     const relAnt = document.getElementById('ctr-arr-relacao');
     if (relAnt && relAnt.dataset.vdcAuto === '1') { delete relAnt.dataset.tocado; delete relAnt.dataset.vdcAuto; }
   }
+  // O contrato fica ligado ao card de onde vieram os dados (depois da limpeza acima, que desliga o card do cliente anterior).
+  if (origem) ctrCardDeOrigem('ele', origem, nome);
   // Cliente outro, por este caminho ou por qualquer outro: a conversa com o assistente, os retratos de Desfazer, as
   // confirmações pendentes e a resposta em voo eram do anterior (o mesmo que o ctrEstadoZerar faz). Reaplicar o cadastro
   // do MESMO cliente, inclusive pelo próprio assistente, não mexe na conversa.
@@ -39065,6 +39387,7 @@ function aplicarCadastroSolar(cad, st, opts) {
   const mudou = outroCard || (apagou.size ? false : vdcFsClienteMudou(C));   // editando uma pessoa do mesmo card o cliente é o mesmo
   if (origem) vdcOrigemFs = origem;
   if (mudou) { fsLimparCliente(); ['fs-nome', 'fs-tel', 'fs-cidade', 'fs-uf'].forEach(id => fsSet(id, '', true)); }
+  if (origem) ctrCardDeOrigem('sol', origem, nome);   // o Fechamento fica ligado ao card (depois da limpeza)
   // 3) escreve. Escrito vira "digitado": puxar uma proposta depois não passa por cima do cadastro.
   // `fontes`: as chaves do cadastro de onde vem o valor; só se a pessoa apagou uma delas o campo (de valor derivado vazio) é esvaziado.
   const por = (id, valor, fmt, fontes) => {

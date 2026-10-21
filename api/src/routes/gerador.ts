@@ -32,6 +32,7 @@ import { mountNexus } from './geradorNexus';
 import { mountClientesEletroposto } from './geradorEletropostoClientes';
 import { mountClientesDocs } from './geradorClientesDocs';
 import { mountCadastroVenda } from './geradorCadastroVenda';
+import { mountContratosVersoes } from './geradorContratosVersoes';
 import { mountVendaSolar } from './geradorVendaSolar';
 import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
@@ -1172,6 +1173,8 @@ mountClientesEletroposto(router);
 mountClientesDocs(router);
 // Cadastro da venda do eletroposto (bucket privado) e leitura dos documentos por IA: a ficha e os contratos leem daqui.
 mountCadastroVenda(router);
+// Versoes dos contratos e papeis, ligadas ao card do cliente (bucket privado próprio contratos-versoes, nunca o cadastros-venda).
+mountContratosVersoes(router);
 // Venda solar pelo card vendido (linha `vendasolar`): ligações do card com a proposta e com a venda da planilha mãe.
 mountVendaSolar(router);
 // Meu perfil: WhatsApp e foto de cada consultor (sócio edita o de qualquer um). O nome nunca muda.
