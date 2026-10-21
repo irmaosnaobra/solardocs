@@ -184,6 +184,30 @@ describe('follow-up do não atendido', () => {
     expect((await runEletropostoNaoAtendidoFupTick()).ofertas).toBe(1);
   });
 
+  // Frio não sai no domingo (a regra da linha bloqueia; este tick não a chama).
+  // 27/09/2026 é domingo, 28 segunda, 26 sábado. 10h BRT = 13h UTC (2º toque, diurno).
+  it.each([
+    ['domingo 10h', '2026-09-27T13:00:00.000Z', 0],
+    ['segunda 10h', '2026-09-28T13:00:00.000Z', 1],
+    ['sábado 10h', '2026-09-26T13:00:00.000Z', 1],
+  ])('dia da semana: %s', async (_nome, quando, ofertas) => {
+    vi.setSystemTime(new Date(quando as string));
+    fichas = [ficha()];
+    estado = [{ key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`, updated_at: horasAtras(21) }];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(ofertas);
+    expect(ofertados).toHaveLength(ofertas as number);
+    if (ofertas === 0) expect(r.motivo).toBe('fora_da_janela');
+  });
+
+  it('domingo às 19h30 também não sai o 1º toque', async () => {
+    vi.setSystemTime(new Date('2026-09-27T22:30:00.000Z')); // 19h30 BRT
+    fichas = [ficha()];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(r.motivo).toBe('fora_da_janela');
+  });
+
   it('dois na fila, um por vez é o teto do tick', async () => {
     fichas = [ficha({ id: 1 }), ficha({ id: 2 }), ficha({ id: 3 })];
     const r = await runEletropostoNaoAtendidoFupTick();

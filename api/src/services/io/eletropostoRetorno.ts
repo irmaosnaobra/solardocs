@@ -74,7 +74,17 @@ const VALIDADE_MS = 8 * 24 * 3600_000;
 
 const desligado = () => (process.env.EP_RETORNO_OFF || '').trim() === '1';
 
+/** Domingo em Brasília. A regra da linha (`dentroDaJanelaDiurna`) já barra frio no
+ *  domingo; este tick não a chama, então repete o dia aqui. Quem ficou pra
+ *  domingo sai na segunda, no primeiro tick dentro da janela. Mesmo botão de
+ *  liberar da linha: JANELA_DOMINGO_ON=1. */
+function ehDomingoBrasilia(now = new Date()): boolean {
+  if (process.env.JANELA_DOMINGO_ON === '1') return false;
+  return now.toLocaleString('en-US', { timeZone: BRT_TZ, weekday: 'short' }) === 'Sun';
+}
+
 function foraDaJanela(now = new Date()): boolean {
+  if (ehDomingoBrasilia(now)) return true;
   const h = Number(now.toLocaleString('en-US', { timeZone: BRT_TZ, hour12: false, hour: '2-digit' }));
   return h < JANELA_INICIO_H || h >= JANELA_FIM_H;
 }

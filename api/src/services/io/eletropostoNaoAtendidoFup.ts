@@ -96,6 +96,15 @@ function horaBrasilia(now = new Date()): number {
   return Number(now.toLocaleString('en-US', { timeZone: BRT_TZ, hour12: false, hour: '2-digit' }));
 }
 
+/** Domingo em Brasília. A regra da linha (`dentroDaJanelaDiurna`) já barra frio no
+ *  domingo; este tick não a chama, então repete o dia aqui. O que ficou pra
+ *  domingo sai na segunda, no primeiro tick dentro da janela. Mesmo botão de
+ *  liberar da linha: JANELA_DOMINGO_ON=1. */
+function ehDomingoBrasilia(now = new Date()): boolean {
+  if (process.env.JANELA_DOMINGO_ON === '1') return false;
+  return now.toLocaleString('en-US', { timeZone: BRT_TZ, weekday: 'short' }) === 'Sun';
+}
+
 /** Os mesmos campos que a régua do SIM usa pra montar a ficha da lista: quem não
  *  compareceu vira entrada no Curioso pelo MESMO caminho, com a mesma regra de
  *  destino. Uma implementação só de "vira ficha", em `eletropostoCobraSim`. */
@@ -151,7 +160,7 @@ export async function runEletropostoNaoAtendidoFupTick(
   // mensagem nenhuma, e segurar uma ficha fora da janela seria adiar por nada.
   const naJanelaDoPrimeiro = hora >= HORA_INICIO && hora < HORA_FIM;
   const naJanelaDiurna = hora >= DIA_INICIO_H && hora < DIA_FIM_H;
-  if (!opts.dry && !naJanelaDoPrimeiro && !naJanelaDiurna) return zero('fora_da_janela');
+  if (!opts.dry && (ehDomingoBrasilia() || (!naJanelaDoPrimeiro && !naJanelaDiurna))) return zero('fora_da_janela');
 
   const agora = Date.now();
   const dry = opts.dry === true;

@@ -53,6 +53,7 @@ vi.mock('../utils/supabase', () => ({
 /** Agenda de Thiago/Diego que a régua de vagas enxerga (vazia = tarde toda livre). */
 let compromissos: any[] = [];
 const remarcacoes: Array<{ id: number; patch: any }> = [];
+let erroDaVolta: any = null;
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
     from: (tabela: string) => {
@@ -63,6 +64,11 @@ vi.mock('../utils/supabaseGerador', () => ({
         lte() { return q; }, not() { return q; },
         update(patch: any) { q._update = patch; return q; },
         eq(_c: string, v: any) {
+          // Voltar de `cancelado` pra `agendado` (`.eq('id').eq('status')`): o teste
+          // pode simular o horário já revendido (23505 = quadro ocupado).
+          if (q._update && q._update.status === 'agendado' && Object.keys(q._update).length === 1) {
+            return { eq: () => Promise.resolve({ error: erroDaVolta }) };
+          }
           if (q._update) {
             // Presença e remarcação escrevem na MESMA tabela: separa pelo patch.
             if ('quando' in q._update) remarcacoes.push({ id: Number(v), patch: q._update });
@@ -135,7 +141,7 @@ function msg(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   state.clear(); avisos.length = 0; presencas.length = 0; respostas.length = 0;
-  aoLead.length = 0; remarcacoes.length = 0; compromissos = [];
+  aoLead.length = 0; remarcacoes.length = 0; compromissos = []; erroDaVolta = null;
   fichas = [ficha()]; inbound = [msg()];
   helena.chaves = new Set<string>();
   posseDaAgente = null;
@@ -382,6 +388,26 @@ describe('remarcação automática, pela ponta do tick', () => {
     expect(aoLead).toHaveLength(0);
     expect(r.previa?.[0]?.aviso).toContain('REMARCADO PELO ROBÔ');   // decide igual, só não faz
     expect(state.has('ep_remarcar:1')).toBe(true);                   // a oferta continua de pé
+  });
+});
+
+// Quem aparece DEPOIS de o horário ter sido liberado e revendido recebe a lista de
+// horários novos. É resposta a quem acabou de escrever: tem que sair como
+// transacional (carimbo de agenda), nunca como frio (`ep_oferta_fria:`), que comeria
+// o teto de 6/h e 30/dia de campanha.
+describe('horário revendido: a oferta é transacional', () => {
+  it('não carimba ep_oferta_fria: e carimba o de agenda', async () => {
+    fichas = [ficha({ status: 'cancelado' })];
+    state.set('ep_liberado_sim:1', { key: 'ep_liberado_sim:1', value: {}, updated_at: TOQUE });
+    erroDaVolta = { code: '23505' };
+    inbound = [msg({ texto: 'Trava o horário', momment: antes(5) })];
+    const r = await tick();
+    expect(r.avisados).toBe(1);
+    expect(aoLead).toHaveLength(1);                       // a lista saiu pro lead
+    const chaves = [...state.keys()];
+    expect(chaves.some(k => k.startsWith('ep_oferta_fria:'))).toBe(false);
+    expect(chaves.some(k => k.startsWith('ep_remarcar_sent:1:'))).toBe(true);
+    expect(avisos[0].texto).toContain('DEPOIS de o horário dele ter sido liberado');
   });
 });
 

@@ -188,6 +188,22 @@ describe('o tick', () => {
     expect((await runEletropostoRetornoTick()).motivo).toBe('fora_da_janela');
   });
 
+  // Frio não sai no domingo (a regra da linha, `dentroDaJanelaDiurna`, bloqueia;
+  // este tick não a chama). 27/09/2026 é domingo, 28 segunda, 26 sábado.
+  it.each([
+    ['domingo 10h', '2026-09-27T13:00:00.000Z', 0, 'fora_da_janela'],
+    ['segunda 10h', '2026-09-28T13:00:00.000Z', 1, undefined],
+    ['sábado 10h', '2026-09-26T13:00:00.000Z', 1, undefined],
+  ])('dia da semana: %s', async (_nome, quando, ofertas, motivo) => {
+    vi.setSystemTime(new Date(quando as string));
+    estado = [liberado(1, 21)];
+    fichas = [ficha(1)];
+    const r = await runEletropostoRetornoTick();
+    expect(r.ofertas).toBe(ofertas);
+    expect(r.motivo).toBe(motivo);
+    expect(ofertados).toHaveLength(ofertas as number);
+  });
+
   it('kill-switch para tudo', async () => {
     process.env.EP_RETORNO_OFF = '1';
     estado = [liberado(1, 21)];

@@ -562,8 +562,10 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     try {
       const r = slotFoiTomado
         // Quem chegou tarde não recebe "sua reunião está de pé": recebe a lista
-        // dos próximos horários, com a frase que explica o que aconteceu.
-        ? await ofertarPorConta(ficha, bolhasSlotTomado, { rodada: 1 })
+        // dos próximos horários, com a frase que explica o que aconteceu. É
+        // resposta a quem ACABOU de escrever: transacional, senão carimba
+        // `ep_oferta_fria:` e come o teto do frio (e some em domingo/humano).
+        ? await ofertarPorConta(ficha, bolhasSlotTomado, { rodada: 1, transacional: true })
         : await passoDeRemarcacao(
           ficha, textosDaVez, telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null);
       posRemarcacao = linhaDoAviso(r);
