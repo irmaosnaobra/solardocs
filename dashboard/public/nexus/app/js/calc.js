@@ -199,22 +199,48 @@
     { id: 'outros', nome: 'Outros', livre: true }
   ];
 
+  // Servicos NEXUS na proposta (cartao opcional, desligado por padrao). Engenharia e consultoria entram com o valor
+  // que o PARCEIRO digita (o preco dele ao cliente: preco de parceiro nunca aparece). A plataforma nao tem valor de
+  // venda: e' so uma linha informativa, e o Software NEXUS (prem.software) ja' esta na conta. Chave desligada = nada conta,
+  // mesmo com valor digitado; proposta antiga, sem a chave "servicos", segue igual a antes.
+  var SERVICOS_PROPOSTA = [
+    { id: 'svc-eng', chave: 'engenharia', nome: 'Engenharia NEXUS (projeto, ART e homologação)' },
+    { id: 'svc-cons', chave: 'consultoria', nome: 'Consultoria de vendas NEXUS' }
+  ];
+  function servicosDe(form) {
+    var s = form && form.servicos;
+    if (!s || !s.ligado) return [];
+    return SERVICOS_PROPOSTA.map(function (x) {
+      return { id: x.id, nome: x.nome, valor: lerMoeda(s[x.chave]), livre: false, servico: true };
+    }).filter(function (x) { return x.valor > 0; });
+  }
+  // Linha informativa da plataforma ('' quando nao vai na proposta). O percentual e' o do Software NEXUS da conta.
+  function plataformaLinha(form) {
+    var s = form && form.servicos;
+    if (!s || !s.ligado || s.plataforma === false) return '';
+    var prem = (form && form.prem) || {};
+    var pct = prem.software === '' || prem.software == null ? PREMISSAS_PADRAO.software : num(prem.software);
+    return 'Plataforma NEXUS de gestão' + (pct > 0 ? ' · ' + pctRot(pct / 100) + ' do faturamento em recarga' : '');
+  }
+
+  // Itens da proposta que entram no valor: os da infraestrutura e os servicos NEXUS com valor.
   function itensDe(form) {
     var itens = (form && form.itens) || [];
     return itens.map(function (i) {
       var valor = lerMoeda(i.valor);
       var nome = i.livre ? (String(i.descricao || '').trim() || 'Outros') : i.nome;
       return { id: i.id, nome: nome, valor: valor, livre: !!i.livre };
-    });
+    }).concat(servicosDe(form));
   }
 
-  // Total = equipamento x quantidade + itens (spec). Tudo em REAIS.
+  // Total = equipamento x quantidade + itens (spec). Tudo em REAIS. "servicos" ja' esta dentro de "itens".
   function totalProposta(form) {
     var e = (form && form.equip) || {};
     var qtd = Math.max(0, Math.round(num(e.quantidade)));
     var equipamento = lerMoeda(e.preco) * qtd;
     var itens = itensDe(form).reduce(function (s, i) { return s + i.valor; }, 0);
-    return { equipamento: equipamento, itens: itens, total: equipamento + itens };
+    var servicos = servicosDe(form).reduce(function (s, i) { return s + i.valor; }, 0);
+    return { equipamento: equipamento, itens: itens, servicos: servicos, total: equipamento + itens };
   }
 
   // Condicao de pagamento. Cada forma liga/desliga; a entrada e' opcional (0 = sem entrada).
@@ -331,7 +357,7 @@
     pctRot: pctRot, lerMoeda: lerMoeda, lerNumero: lerNumero,
     computeEletro: computeEletro, cenariosSens: cenariosSens, paramsDe: paramsDe,
     pmtPriceCarencia: pmtPriceCarencia, orcEntradaParcela: orcEntradaParcela,
-    itensDe: itensDe, totalProposta: totalProposta, pagamento: pagamento, calcular: calcular,
+    itensDe: itensDe, servicosDe: servicosDe, plataformaLinha: plataformaLinha, SERVICOS_PROPOSTA: SERVICOS_PROPOSTA, totalProposta: totalProposta, pagamento: pagamento, calcular: calcular,
     paybackPlenoMeses: paybackPlenoMeses, fluxoMensal: fluxoMensal,
     proximaSexta18: proximaSexta18, prazoExtenso: prazoExtenso, dataBR: dataBR,
     validadeDias: validadeDias, validadeTexto: validadeTexto, nomeArquivo: nomeArquivo

@@ -97,3 +97,103 @@ export function catalogoParaFront(): { marca: typeof marca; produtos: ProdutoCat
     produtos: PRODUTOS.map((p) => ({ ...p, specs: { ...p.specs } })),
   };
 }
+
+// ── Serviços NEXUS (v3, 21/10/2026) ──────────────────────────────────────────
+// Produtos que o parceiro revende com margem. NENHUM preço numérico de serviço no código: o preço de parceiro é
+// sempre "Negociado com o comercial".
+
+export const PRECO_NEGOCIADO = 'Negociado com o comercial';
+export const PACOTES_ENGENHARIA = Object.freeze([3, 5, 10] as const);
+export type PacoteEngenharia = (typeof PACOTES_ENGENHARIA)[number];
+
+/** Versão do Termo de Parceria que a API aceita no POST /termo/aceitar. O texto mora em dashboard/public/nexus/app/dados/. */
+export const TERMO_VERSAO = 'v1';
+
+/** Escopo de 1 projeto de engenharia; o pacote de N projetos repete este escopo N vezes. */
+export const ESCOPO_PROJETO_ENGENHARIA: readonly string[] = Object.freeze([
+  'Projeto elétrico do eletroposto',
+  'ART do projeto',
+  'Pedido de acesso e acompanhamento da homologação na distribuidora',
+  'Estudo da entrada de energia',
+]);
+
+export interface ServicoNexus {
+  id: 'eng-3' | 'eng-5' | 'eng-10' | 'consultoria' | 'plataforma';
+  grupo: 'engenharia' | 'consultoria' | 'plataforma';
+  nome: string;
+  /** O que o parceiro recebe. Na engenharia é o escopo de CADA projeto do pacote. */
+  escopo: readonly string[];
+  /** Quantos projetos o pacote tem (só engenharia). */
+  pacote: PacoteEngenharia | null;
+  /** Como se cobra: 'por pacote' ou 'por atendimento'. */
+  unidade: string | null;
+  /** Preço de parceiro. Sempre texto, nunca número. */
+  preco: string;
+  /** Nível mínimo e a chave de `libera` que destrava o botão de pedido. */
+  libera: 'partner' | 'pro';
+  chave_libera: 'pacotes_engenharia' | 'consultoria' | 'plataforma';
+  /** Só a plataforma: o que ela é e a parte do parceiro. */
+  descricao: string | null;
+  para_o_parceiro: string | null;
+  sua_parte: string | null;
+}
+
+const engenharia = (n: PacoteEngenharia): ServicoNexus => ({
+  id: `eng-${n}` as ServicoNexus['id'],
+  grupo: 'engenharia',
+  nome: `Pacote de engenharia · ${n} projetos`,
+  escopo: ESCOPO_PROJETO_ENGENHARIA,
+  pacote: n,
+  unidade: 'por pacote',
+  preco: PRECO_NEGOCIADO,
+  libera: 'partner',
+  chave_libera: 'pacotes_engenharia',
+  descricao: null,
+  para_o_parceiro: null,
+  sua_parte: null,
+});
+
+export const SERVICOS: readonly ServicoNexus[] = Object.freeze([
+  ...PACOTES_ENGENHARIA.map(engenharia),
+  {
+    id: 'consultoria',
+    grupo: 'consultoria',
+    nome: 'Consultoria de vendas NEXUS',
+    escopo: [
+      'Especialista NEXUS na reunião com o seu cliente (online)',
+      'Revisão da proposta antes de enviar',
+      'Análise do ponto: entrada de energia, fluxo e potência indicada',
+    ],
+    pacote: null,
+    unidade: 'por atendimento',
+    preco: PRECO_NEGOCIADO,
+    libera: 'partner',
+    chave_libera: 'consultoria',
+    descricao: null,
+    para_o_parceiro: null,
+    sua_parte: null,
+  },
+  {
+    id: 'plataforma',
+    grupo: 'plataforma',
+    nome: 'Plataforma NEXUS de gestão',
+    escopo: [
+      'Cobrança de cada recarga',
+      'Monitoramento do carregador',
+      'Relatórios de uso e de receita',
+      'App do motorista',
+    ],
+    pacote: null,
+    unidade: null,
+    preco: PRECO_NEGOCIADO,
+    libera: 'pro',
+    chave_libera: 'plataforma',
+    descricao: 'Cobrança de cada recarga, monitoramento, relatórios e app do motorista. O ponto paga 10% do que fatura em recarga.',
+    para_o_parceiro: 'Você revende a plataforma e recebe parte dos 10% todo mês, enquanto o ponto operar.',
+    sua_parte: 'Negociada com o comercial',
+  },
+] as ServicoNexus[]);
+
+export function servicosParaFront(): ServicoNexus[] {
+  return SERVICOS.map((s) => ({ ...s, escopo: [...s.escopo] }));
+}

@@ -220,3 +220,12 @@
 .nr-ind-l { font-size: 13px; color: var(--nr-tx2); }
 .nr-retorno { flex: 1 1 100%; font-size: 13px; color: var(--nr-tx2); padding: 8px 12px; border-radius: 10px; background: var(--nr-sf2); }
 .nr-retorno b { color: var(--nr-tx); }
+
+/* v3: saldo de pacotes na engenharia e nota de obra travada */
+.nr-saldo-eng { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin-bottom: 16px; }
+.nr-saldo-eng .nr-regras-p { flex: 1 1 260px; min-width: 0; }
+.nr-saldo-eng .nr-btn { flex: 0 0 auto; }
+.nr-usa-pacote { margin: 0 0 16px; max-width: 100%; height: auto; padding-top: 10px; padding-bottom: 10px; }
+.nr-usa-pacote[hidden] { display: none; }
+.nr-lknota { display: flex; flex-direction: column; gap: 8px; }
+.nr-lk-t { display: flex; align-items: center; gap: 8px; font-size: 14px; }

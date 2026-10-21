@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proposta de eletroposto</title>
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0B1A2B">
+<link rel="icon" href="/nexus/favicon.ico">
+<link rel="apple-touch-icon" href="/nexus/img/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/nexus/app/css/docs.css">
+<style>
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  html, body { margin: 0; padding: 0; }
+  body { min-height: 100vh; background: #E3E8EF; color: #0B1A2B; font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.5; overflow-x: hidden; }
+  [hidden] { display: none !important; }
+  h1, h2, p { margin: 0; }
+
+  /* Barra do topo: marca e as duas acoes. Fica colada no alto para o botao de PDF estar sempre a mao. */
+  .pp-barra { position: sticky; top: 0; z-index: 10; background: #0B1A2B; color: #fff; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); box-shadow: 0 2px 10px rgba(11, 26, 43, .25); }
+  .pp-barra-in { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+  .pp-marca { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .pp-marca img { height: 24px; width: auto; display: block; flex: 0 0 auto; }
+  .pp-marca span { font-size: 12.5px; font-weight: 600; color: #C9D3E0; white-space: nowrap; }
+  .pp-acoes { display: flex; gap: 10px; flex-wrap: wrap; min-width: 0; }
+  .pp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px; border-radius: 10px; border: 1px solid transparent;
+    font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; max-width: 100%; }
+  .pp-btn svg { width: 18px; height: 18px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .pp-btn.prim { background: #0060C7; color: #fff; }
+  .pp-btn.prim:hover { background: #004A9A; }
+  .pp-btn.sec { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); }
+  .pp-btn.sec:hover { background: rgba(255, 255, 255, .1); }
+  .pp-btn .nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pp-btn:focus-visible { outline: 3px solid #7DB8FF; outline-offset: 2px; }
+
+  /* Folhas: cada uma em pe (210 x 297 mm), reduzida por JS para caber na largura da janela. */
+  .pp-folhas { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .pp-folha { position: relative; overflow: hidden; flex: 0 0 auto; background: #0B1A2B; box-shadow: 0 2px 4px rgba(11, 26, 43, .18), 0 10px 28px rgba(11, 26, 43, .18); }
+  .pp-esc { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .pp-rodape { max-width: 520px; margin: 0 auto; padding: 4px 16px 32px; text-align: center; font-size: 12.5px; color: #44546A; }
+
+  /* Estados: carregando, link invalido, indisponivel e erro. */
+  .pp-estado { max-width: 460px; margin: 0 auto; padding: 56px 16px; }
+  .pp-cartao { background: #fff; border: 1px solid #DDE3EC; border-radius: 14px; padding: 28px 22px; text-align: center; box-shadow: 0 1px 2px rgba(11, 26, 43, .06), 0 4px 12px rgba(11, 26, 43, .05); }
+  .pp-cartao img { height: 26px; width: auto; display: block; margin: 0 auto 18px; }
+  .pp-cartao h1 { font-size: 20px; font-weight: 800; line-height: 1.25; margin-bottom: 8px; }
+  .pp-cartao p { font-size: 14.5px; color: #44546A; }
+  .pp-cartao .pp-btn { margin-top: 18px; }
+  .pp-cartao .pp-btn.prim { color: #fff; }
+  .pp-giro { width: 30px; height: 30px; margin: 0 auto 14px; border-radius: 50%; border: 3px solid #DDE3EC; border-top-color: #0060C7; animation: pp-gira .8s linear infinite; }
+  @keyframes pp-gira { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .pp-giro { animation: none; } }
+
+  @media (max-width: 640px) {
+    .pp-barra-in { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+    .pp-acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .pp-folhas { padding: 12px 8px; }
+  }
+  @media print { .pp-barra, .pp-rodape, .pp-estado { display: none !important; } }
+</style>
+</head>
+<body>
+<header class="pp-barra" id="pp-barra" hidden>
+  <div class="pp-barra-in">
+    <div class="pp-marca"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos"><span id="pp-num"></span></div>
+    <div class="pp-acoes">
+      <button type="button" class="pp-btn prim" id="pp-pdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>Salvar em PDF</button>
+      <a class="pp-btn sec" id="pp-zap" href="#" target="_blank" rel="noopener noreferrer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.7-5.2A8.5 8.5 0 1 1 21 12z"></path></svg><span class="nome" id="pp-zap-nome"></span></a>
+    </div>
+  </div>
+</header>
+
+<main id="pp-estado" class="pp-estado" aria-live="polite">
+  <div class="pp-cartao"><div class="pp-giro" role="presentation"></div><h1>Carregando a proposta</h1><p>Isso leva só um instante.</p></div>
+</main>
+
+<div id="pp-deck" class="pp-folhas" hidden></div>
+<p id="pp-rodape" class="pp-rodape" hidden>Proposta feita no Portal do Parceiro NEXUS Eletropostos.</p>
+<noscript><p style="padding:24px">Ative o JavaScript para ver esta proposta.</p></noscript>
+
+<!-- Caminhos absolutos: o servidor tira a barra final e um caminho relativo resolveria um nivel acima. -->
+<script src="/nexus/app/js/calc.js"></script>
+<script src="/nexus/app/js/docs-comum.js"></script>
+<script src="/nexus/app/js/docs-completo.js"></script>
+<script src="/nexus/p/proposta.js"></script>
+</body>
+</html>

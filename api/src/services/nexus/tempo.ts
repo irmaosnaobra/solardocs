@@ -34,3 +34,12 @@ export function inicioDiaBRT(dia: string): Date | null {
   const d = new Date(t + BRT_MS);
   return Number.isNaN(d.getTime()) || diaBRT(d) !== dia ? null : d;
 }
+
+/** "dd/mm/aaaa às HH:MM" em Brasília, para texto de e-mail e de tela. Sem Intl: o relógio da máquina está em UTC. */
+export function formatarBRT(d: Date | string): string {
+  const t = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(t.getTime())) return '';
+  const x = new Date(t.getTime() - BRT_MS);
+  const dois = (n: number) => String(n).padStart(2, '0');
+  return `${dois(x.getUTCDate())}/${dois(x.getUTCMonth() + 1)}/${x.getUTCFullYear()} às ${dois(x.getUTCHours())}:${dois(x.getUTCMinutes())}`;
+}

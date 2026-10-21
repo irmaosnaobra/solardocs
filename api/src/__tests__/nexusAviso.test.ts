@@ -159,9 +159,31 @@ describe('aviso ao comercial: envio e trava', () => {
     expect(enviados[0].texto).toBe('Solar Exemplo pediu equipamento: 2x NEXUS DC 80 kW, proposta 20260001, R$ 139.980,00.');
     expect(emails).toHaveLength(1);
     expect(chaves()).toEqual(['nexus_aviso:pedido:pd-1']);
+    // Trava duplicada: o WhatsApp não repete, mas o e-mail do pedido sai SEMPRE.
     expect(await avisarComercial('pedido', pedido)).toBe('duplicado');
     expect(enviados).toHaveLength(1);
-    expect(emails).toHaveLength(1);
+    expect(emails).toHaveLength(2);
+  });
+
+  it('(c) pedido de engenharia e de consultoria: chave por parceiro, tipo e dia; texto e assunto por tipo; e-mail mesmo com 23505', async () => {
+    ligar();
+    const eng = { parceiro, pedido: { id: 'pd-9', tipo: 'engenharia' as const, pacote: 5 } };
+    const con = { parceiro, pedido: { id: 'pd-10', tipo: 'consultoria' as const } };
+    expect(chaveDoAviso('pedido', eng, new Date('2026-10-22T01:00:00Z'))).toBe(`nexus_aviso:pedido_engenharia:${parceiro.id}:2026-10-21`);
+    expect(chaveDoAviso('pedido', con, new Date('2026-10-22T03:00:00Z'))).toBe(`nexus_aviso:pedido_consultoria:${parceiro.id}:2026-10-22`);
+    expect(await avisarComercial('pedido', eng)).toBe('enviado');
+    expect(enviados[0].texto).toMatch(/^Solar Exemplo fez pedido de pacote de engenharia \(5 projetos\)\./);
+    expect(emails[0].assunto).toBe('Portal NEXUS: pedido de pacote de engenharia (5 projetos)');
+    // outro pedido de engenharia no mesmo dia (outro id): sem WhatsApp, com e-mail
+    expect(await avisarComercial('pedido', { parceiro, pedido: { id: 'pd-11', tipo: 'engenharia', pacote: 3 } })).toBe('duplicado');
+    expect(enviados).toHaveLength(1);
+    expect(emails.map((e) => e.assunto)).toEqual([
+      'Portal NEXUS: pedido de pacote de engenharia (5 projetos)',
+      'Portal NEXUS: pedido de pacote de engenharia (3 projetos)',
+    ]);
+    expect(await avisarComercial('pedido', con)).toBe('enviado');
+    expect(textoDoAviso('pedido', con)).toMatch(/^Solar Exemplo fez pedido de consultoria de vendas NEXUS\./);
+    expect(emails[emails.length - 1].assunto).toBe('Portal NEXUS: pedido de consultoria');
   });
 
   it('(c) pedido sem proposta ligada não escreve proposta nem valor', () => {

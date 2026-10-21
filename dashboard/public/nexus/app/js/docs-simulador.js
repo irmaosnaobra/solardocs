@@ -100,6 +100,8 @@
           ['Preço do kWh ao motorista', C.moeda2(r.precoKwh)],
           ['Taxa de ativação por sessão', seTem('ativacao', C.moeda2(r.ativacao))],
           ['Quantidade de carregadores', P.quantidade],
+          ['Serviços NEXUS incluídos', P.servicosTotal > 0 ? money(P.servicosTotal) : ''],
+          ['Plataforma NEXUS de gestão', P.plataforma ? 'Já na conta (Software NEXUS)' : ''],
           ['Ocupação inicial até a plena', Math.round(r.ocupIni * 100) + '% até 100% em ' + r.mesesRampa + ' meses'],
           ['Investimento total', money(r.investTotal), true]
         ]) + '</table></div>'

@@ -214,7 +214,9 @@ describe('GET /gerador/nexus/eu', () => {
     banco.poe('nexus_oportunidades', { id: 'x4', parceiro_user_id: U1, status: 'rascunho' });
     const r = await request(app()).get('/gerador/nexus/eu').set(bearer(U1));
     expect(r.body.nivel).toBe('pro');
-    expect(r.body.libera.oportunidades).toBe(true);
+    // Pro sem o Termo aceito ainda não recebe oportunidade, e o bloqueio diz o que fazer.
+    expect(r.body.libera.oportunidades).toBe(false);
+    expect(r.body.bloqueios.oportunidades).toBe('Aceite o Termo de Parceria para receber oportunidades');
     expect(r.body.contagens).toEqual({ propostas_mes: 0, pedidos: 1, oportunidades_recebidas: 1, usinas: 1 });
   });
 });

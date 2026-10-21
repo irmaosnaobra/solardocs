@@ -37,6 +37,10 @@
     C.itensDe(P.form).filter(function (i) { return i.valor > 0; }).forEach(function (i) {
       linhas.push('<tr><td>' + esc(i.nome) + '</td><td class="q">1</td><td class="v">' + esc(C.moeda2(i.valor)) + '</td></tr>');
     });
+    // Plataforma NEXUS: linha informativa (a cobranca e' o percentual do faturamento, ja' na conta). Nao soma ao total.
+    if (P.plataforma) {
+      linhas.push('<tr class="info"><td>' + esc(P.plataforma) + '</td><td class="q">1</td><td class="v">Não soma ao total</td></tr>');
+    }
     var fora = D.escopo(P).fora;
 
     var local = [P.cliente.local, P.cliente.tipo_local].filter(Boolean).join(' · ');

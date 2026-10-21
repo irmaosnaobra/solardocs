@@ -590,6 +590,13 @@
       var ul = h('ul', 'nr-regras-l');
       REGRAS.forEach(function (r) { ul.appendChild(h('li', null, [h('span', 'nr-ponto', null, { 'aria-hidden': 'true' }), h('span', null, r)])); });
       areaLado.appendChild(h('section', 'nr-regras', [h('h2', 'nr-h2', 'Regras da rede'), ul]));
+      /* obra terceirizada so chega para quem tem o selo de montagem aprovada (a equipe NEXUS aprova, fora do nivel) */
+      if (ctx.montagem_aprovada === false) {
+        areaLado.appendChild(h('section', 'nr-cartao nr-lknota', [
+          h('div', 'nr-lk-t', [ic('cadeado', 'nr-ic-p'), h('b', null, 'Obra terceirizada: travada')]),
+          h('p', 'nr-dica', 'Libera quando a equipe NEXUS aprovar a montagem da sua empresa. Enquanto isso, você recebe os clientes para vender.')
+        ]));
+      }
     }
 
     /* acoes */
@@ -698,7 +705,8 @@
     var ctx = inst.ctx, root = inst.root, nivel = str(ctx.nivel) || 'cadastrado';
     var NOMES = { cadastrado: 'Cadastrado', partner: 'Partner', pro: 'Partner Pro', master: 'Partner Master' };
     var ETAPA_N = { cadastrado: 1, partner: 2, pro: 3, master: 4 };
-    var aviso = nivel === 'partner' ? 'Faça a primeira compra para virar Partner Pro' : 'Chegue ao Partner Pro para receber clientes da sua região';
+    var aviso = (ctx.bloqueios && typeof ctx.bloqueios.oportunidades === 'string' && ctx.bloqueios.oportunidades) || 'Libera com a primeira compra de carregador';
+    aviso = aviso.charAt(0).toUpperCase() + aviso.slice(1);
     var n = ETAPA_N[nivel] || 1;
 
     // o que falta: do progresso da API; sem ele, dos campos do parceiro
@@ -708,8 +716,10 @@
       papel_montagem: 'Marcar Montagem e Engenharia no seu perfil',
       carregadores_comprados: 'Fazer a primeira compra de carregador NEXUS',
       primeira_compra: 'Fazer a primeira compra de carregador NEXUS',
-      montagem_aprovada: 'Ter a montagem aprovada pela equipe NEXUS',
-      montagem_aprovada_em: 'Ter a montagem aprovada pela equipe NEXUS',
+      termo: 'Aceitar o Termo de Parceria',
+      aceite_termo: 'Aceitar o Termo de Parceria',
+      termo_aceito: 'Aceitar o Termo de Parceria',
+      aprovacao_partner: 'Virar Partner, depois da conversa com o comercial',
       perfil: 'Completar o perfil da empresa'
     };
     var itens = [];
@@ -723,9 +733,8 @@
       var p = ctx.parceiro || {};
       itens = [
         { t: ROT.partner, feito: !!p.partner_em || nivel === 'partner' || nivel === 'pro' || nivel === 'master' },
-        { t: ROT.papel_montagem, feito: !!p.papel_montagem },
         { t: ROT.carregadores_comprados, feito: Number(p.carregadores_comprados) >= 1 },
-        { t: ROT.montagem_aprovada, feito: !!p.montagem_aprovada_em }
+        { t: ROT.termo, feito: !!(ctx.termo && ctx.termo.aceito_em) }
       ];
     }
     var ul = h('ul', 'nr-falta');
@@ -900,7 +909,7 @@
     ['projeto_eletrico', 'Projeto elétrico'], ['art', 'ART'], ['estudo_entrada', 'Estudo da entrada de energia'],
     ['homologacao', 'Homologação na distribuidora'], ['outro', 'Outro']
   ];
-  var STATUS_SOLIC = { aberta: ['Aberta', 'av'], em_andamento: ['Em andamento', ''], concluida: ['Concluída', 'ok'] };
+  var STATUS_SOLIC = { aberta: ['Aberta', 'av'], em_andamento: ['Em andamento', ''], concluida: ['Concluída', 'ok'], cancelada: ['Cancelada', 'cz'] };
 
   function engenharia(inst) {
     var ctx = inst.ctx, root = inst.root, libera = ctx.libera || {};
@@ -920,10 +929,31 @@
     var pot = campo(inst, 'pot', 'Potência do carregador, em kW (opcional)', entrada('text', { inputmode: 'decimal', autocomplete: 'off' }), 'Exemplo: 80 ou 120.');
     var desc = campo(inst, 'desc', 'Descrição do que você precisa', h('textarea', 'nr-ta', '', { rows: '4', maxlength: '1000' }), 'Conte o que já existe no ponto e o que falta.', 'nr-inteira');
     var campos = { servico: serv, cidade: cidade, uf: uf, pot: pot, desc: desc };
+
+    /* saldo de pacotes: com projeto disponivel, o pedido pode consumir 1 (usa_pacote); sem saldo, leva aos pacotes em Servicos NEXUS */
+    var sd = ctx.saldo_engenharia && typeof ctx.saldo_engenharia === 'object' ? ctx.saldo_engenharia : null;
+    var comprados = sd ? (Number(sd.comprados) || 0) : 0;
+    var disp = sd ? (Number(sd.disponiveis) || 0) : 0;
+    var usaPac = entrada('checkbox', { id: inst.pfx + 'pacote' });
+    var usaTxt = h('span', null, '');
+    var usaRot = h('label', 'nr-radio nr-usa-pacote', [usaPac, usaTxt], { 'for': inst.pfx + 'pacote' });
+    var saldoTxt = h('p', 'nr-regras-p', '');
+    var irPacotes = btn('Ver os pacotes', 'sec');
+    irPacotes.addEventListener('click', function () { if (typeof ctx.irPara === 'function') ctx.irPara('#servicos'); });
+    function pintarSaldo() {
+      if (comprados > 0) saldoTxt.textContent = 'Seu saldo de pacotes: ' + disp + (disp === 1 ? ' projeto disponível' : ' projetos disponíveis') + ' de ' + comprados + ' comprados.';
+      else saldoTxt.textContent = 'Precisa de vários projetos? Os pacotes de 3, 5 e 10 ficam em Serviços NEXUS, com preço de parceiro negociado com o comercial.';
+      usaTxt.textContent = 'Usar 1 projeto do meu pacote (saldo: ' + disp + ')';
+      usaRot.hidden = disp <= 0;
+      if (disp <= 0) usaPac.checked = false;
+    }
+    pintarSaldo();
+    root.appendChild(h('section', 'nr-regras nr-saldo-eng', [saldoTxt, irPacotes]));
     var msg = h('div', 'nr-msg', null, { 'aria-live': 'polite' });
     var enviar = btn('Pedir engenharia', 'grande', 'submit');
     var form = h('form', 'nr-cartao nr-form', [
       h('div', 'nr-grade', [serv.wrap, pot.wrap, cidade.wrap, uf.wrap, desc.wrap]),
+      usaRot,
       h('div', 'nr-form-rodape', [enviar, msg])
     ], { novalidate: true });
 
@@ -944,13 +974,22 @@
       if (mostrarErros(campos, e)) { msg.appendChild(h('p', 'nr-msg-erro', 'Confira os campos marcados e envie de novo.', { role: 'alert' })); return; }
       var dados = { servico: serv.el.value, servico_nome: nomeServ, cidade: c, uf: uf.el.value, descricao: d };
       if (p != null) dados.potencia_kw = p;
+      var usou = !!(usaPac.checked && disp > 0);
+      if (usou) dados.usa_pacote = true;
       S.enviando = true; enviar.disabled = true; enviar.textContent = 'Enviando';
       chamar(inst, 'POST', '/solicitacoes', { tipo: 'engenharia', dados: dados }).then(function (res) {
         if (!inst.vivo()) return;
         S.enviando = false; enviar.disabled = false; enviar.textContent = 'Pedir engenharia';
         limpar(msg);
-        if (!res.ok) { msg.appendChild(h('p', 'nr-msg-erro', erroTexto(res), { role: 'alert' })); return; }
-        evento(inst, 'pediu_engenharia', { servico: dados.servico, uf: dados.uf });
+        if (!res.ok) {
+          var cod = res.data && (res.data.erro || res.data.error);
+          var texto = cod === 'sem_saldo' ? 'Você não tem projeto disponível no pacote. Desmarque a opção ou compre um pacote em Serviços NEXUS.' : erroTexto(res);
+          if (cod === 'sem_saldo') { disp = 0; pintarSaldo(); }
+          msg.appendChild(h('p', 'nr-msg-erro', texto, { role: 'alert' }));
+          return;
+        }
+        evento(inst, 'pediu_engenharia', { servico: dados.servico, uf: dados.uf, usa_pacote: usou });
+        if (usou) { disp = Math.max(0, disp - 1); pintarSaldo(); if (typeof ctx.atualizar === 'function') { try { ctx.atualizar(); } catch (e) { /* o saldo local ja foi atualizado */ } } }
         msg.appendChild(h('p', 'nr-msg-ok', [ic('ok', 'nr-ic-p'), 'Pedido recebido. A equipe NEXUS retorna para você.'], { role: 'status' }));
         form.reset();
         var nova = res.data && typeof res.data === 'object' && res.data.id ? res.data : {};
@@ -985,6 +1024,7 @@
           h('div', 'nr-ind-t', [h('span', 'nr-ind-n', nomeS || 'Engenharia'), h('span', 'nr-ind-l', meta)]),
           chip(st[0], st[1])
         ]);
+        if (d.usa_pacote) li.appendChild(h('p', 'nr-retorno', [h('b', null, 'Pago com o pacote: '), 'Usou 1 projeto do saldo.']));
         if (s.obs_equipe) li.appendChild(h('p', 'nr-retorno', [h('b', null, 'Retorno da equipe: '), str(s.obs_equipe)]));
         ul.appendChild(li);
       });

@@ -105,7 +105,7 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
 /* Filtros */
 .filtros{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:10px;margin-bottom:12px}
 .filtros.prop{grid-template-columns:1fr 2fr auto}
-.filtros.simples{grid-template-columns:1fr 2fr auto}
+.filtros.simples{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
 @media(max-width:900px){.filtros{grid-template-columns:1fr 1fr}.filtros .busca{grid-column:1 / -1}.filtros.prop,.filtros.simples{grid-template-columns:1fr}}
 .contagem{font-size:12.5px;color:var(--p-tx2);margin:0 0 10px}
 .barra-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -135,11 +135,11 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
   background:var(--p-sf);border:1px dashed var(--p-bd2);border-radius:12px}
 
 /* Propostas */
-.prop-lin{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.6fr) minmax(0,1.6fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:6px 14px;
+.prop-lin{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1.2fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,1.3fr);gap:6px 14px;
   align-items:center;background:var(--p-sf);border:1px solid var(--p-bd);border-radius:12px;padding:12px 14px;font-size:13px}
 .prop-lin > div{min-width:0;overflow-wrap:anywhere}
-@media(max-width:760px){.prop-lin{grid-template-columns:1fr 1fr}}
-.prop-cab{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.6fr) minmax(0,1.6fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:14px;
+@media(max-width:760px){.prop-lin{grid-template-columns:1fr 1fr}.prop-lin > .larga{grid-column:1 / -1}}
+.prop-cab{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1.2fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,1.3fr);gap:14px;
   padding:0 14px 6px;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--p-tx3);font-weight:800}
 @media(max-width:760px){.prop-cab{display:none}}
 
@@ -157,6 +157,18 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
 .novo-form{display:grid;gap:12px}
 .grade2{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .grade2 .larga{grid-column:1 / -1}
+
+/* Cadeado (recurso travado) e bloco de convite por e-mail */
+.trava{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:10px;border:1px dashed var(--p-bd2);
+  background:var(--p-sf2);color:var(--p-tx2);font-size:12.5px;font-weight:700}
+.trava svg,.ic-cad{width:15px;height:15px;flex:0 0 auto;display:inline-block;vertical-align:-3px;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.conv .totais{margin-bottom:12px}
+.conv .acao-conv{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.conv .pergunta{font-weight:800;margin:0 0 8px}
+.conv .retorno{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:var(--p-ok-sf);color:var(--p-ok);font-weight:700;overflow-wrap:anywhere}
+.conv .retorno.er{background:var(--p-er-sf);color:var(--p-er)}
+.conv .retorno.av{background:var(--p-av-sf);color:var(--p-av)}
 
 /* Ficha do parceiro */
 .fundo-ficha{position:fixed;inset:0;background:rgba(11,18,32,.55);z-index:9000;display:flex;justify-content:flex-end}
@@ -204,6 +216,7 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
 <div class="wrap">
 
   <div id="estado" class="card estado" role="status" aria-live="polite"></div>
+  <div id="convite-off" class="card conv oculto"></div>
 
   <div id="painel" class="oculto">
 
@@ -211,9 +224,11 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
 
     <div class="card">
       <h2>Parceiros por nível</h2>
-      <p class="sub">Cadastrado: CNPJ ativo. Partner: conversa feita e marcada pela equipe. Pro: Partner com 1 carregador comprado e montagem aprovada. Master: 5 carregadores comprados.</p>
+      <p class="sub">Cadastrado: CNPJ ativo. Partner: conversa feita e marcada pela equipe. Pro: primeira compra de carregador. Master: 5 carregadores comprados. A montagem aprovada é um selo à parte: só quem tem recebe oportunidade de obra.</p>
       <div class="etapas-graf" id="grafico"></div>
     </div>
+
+    <div class="card conv" id="convite-box" aria-live="polite"></div>
 
     <div class="abas" role="tablist" aria-label="Seções" id="abas"></div>
 
@@ -239,7 +254,10 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
         <div><label for="pd-status">Status</label><select id="pd-status" onchange="desenharPedidos()">
           <option value="">Todos</option><option value="solicitado">Solicitado</option><option value="negociando">Negociando</option>
           <option value="confirmado">Confirmado</option><option value="cancelado">Cancelado</option></select></div>
-        <div><label for="pd-busca">Buscar</label><input id="pd-busca" type="search" placeholder="Empresa ou modelo" oninput="desenharPedidos()"></div>
+        <div><label for="pd-tipo">Tipo</label><select id="pd-tipo" onchange="desenharPedidos()">
+          <option value="">Todos</option><option value="equipamento">Equipamento</option><option value="engenharia">Engenharia</option>
+          <option value="consultoria">Consultoria</option></select></div>
+        <div><label for="pd-busca">Buscar</label><input id="pd-busca" type="search" placeholder="Empresa, tipo ou modelo" oninput="desenharPedidos()"></div>
       </div>
       <p class="contagem" id="pd-contagem"></p>
       <div class="lista" id="pd-lista"></div>
@@ -277,10 +295,11 @@ textarea{min-height:76px;resize:vertical;line-height:1.5}
       <div class="filtros simples">
         <div><label for="so-status">Status</label><select id="so-status" onchange="desenharSolicitacoes()">
           <option value="">Todos</option><option value="aberta">Aberta</option><option value="em_andamento">Em andamento</option>
-          <option value="concluida">Concluída</option></select></div>
+          <option value="concluida">Concluída</option><option value="cancelada">Cancelada</option></select></div>
         <div><label for="so-tipo">Tipo</label><select id="so-tipo" onchange="desenharSolicitacoes()">
           <option value="">Todos</option><option value="conversa">Conversa com o comercial</option>
-          <option value="engenharia">Engenharia</option><option value="negociar_preco">Negociar preço</option></select></div>
+          <option value="engenharia">Engenharia</option><option value="negociar_preco">Negociar preço</option>
+          <option value="plataforma">Plataforma NEXUS</option></select></div>
       </div>
       <p class="contagem" id="so-contagem"></p>
       <div class="lista" id="so-lista"></div>
@@ -380,9 +399,9 @@ function obterToken() {
   if (!s || !s.access_token) { irParaLogin(); return Promise.reject(erro('login')); }
   return sessaoViva(s) ? Promise.resolve(s.access_token) : renovar(null);
 }
-function pedir(metodo, caminho, corpo, tk) {
+function pedir(metodo, caminho, corpo, tk, tmo) {
   var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-  var tt = ctrl ? setTimeout(function () { ctrl.abort(); }, 20000) : null;
+  var tt = ctrl ? setTimeout(function () { ctrl.abort(); }, tmo || 20000) : null;
   var h = { 'Authorization': 'Bearer ' + tk };
   if (corpo) h['Content-Type'] = 'application/json';
   return fetch(API + caminho, { method: metodo, headers: h, body: corpo ? JSON.stringify(corpo) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
@@ -392,12 +411,12 @@ function pedir(metodo, caminho, corpo, tk) {
     }, function () { if (tt) clearTimeout(tt); throw erro('rede'); });
 }
 // Devolve { status, json } para qualquer resposta do servidor. 401: renova uma vez; se continuar, volta ao login.
-function api(metodo, caminho, corpo) {
+function api(metodo, caminho, corpo, tmo) {
   return obterToken().then(function (tk) {
-    return pedir(metodo, caminho, corpo, tk).then(function (x) {
+    return pedir(metodo, caminho, corpo, tk, tmo).then(function (x) {
       if (x.status !== 401) return x;
       return renovar(tk).then(function (tk2) {
-        return pedir(metodo, caminho, corpo, tk2).then(function (y) {
+        return pedir(metodo, caminho, corpo, tk2, tmo).then(function (y) {
           if (y.status === 401) { irParaLogin(); throw erro('login'); }
           return y;
         });
@@ -457,15 +476,16 @@ var STATUS_COR = { novo: 'az', em_contato: 'av', parceiro_ativo: 'ok', descartad
 var NIVEIS = { cadastrado: 'Cadastrado', partner: 'Partner', pro: 'Pro', master: 'Master' };
 var PEDIDO_ST = { solicitado: 'Solicitado', negociando: 'Negociando', confirmado: 'Confirmado', cancelado: 'Cancelado' };
 var PEDIDO_COR = { solicitado: 'az', negociando: 'av', confirmado: 'ok', cancelado: '' };
+var PEDIDO_TIPO = { equipamento: 'Equipamento', engenharia: 'Engenharia', consultoria: 'Consultoria' };
 var OPORT_ST = { rascunho: 'Rascunho', oferecida: 'Oferecida', aceita: 'Aceita', recusada: 'Recusada', expirada: 'Expirada', contato: 'Em contato', visita: 'Visita', orcamento: 'Orçamento', fechou: 'Fechou', perdeu: 'Perdeu' };
 var OPORT_COR = { rascunho: '', oferecida: 'az', aceita: 'ok', recusada: 'er', expirada: '', contato: 'av', visita: 'av', orcamento: 'av', fechou: 'ok', perdeu: 'er' };
 var OPORT_TIPO = { cliente: 'Cliente final', obra: 'Obra terceirizada' };
 var USINA_ST = { recebida: 'Recebida', em_analise: 'Em análise', contrato: 'Contrato', descartada: 'Descartada' };
 var USINA_COR = { recebida: 'az', em_analise: 'av', contrato: 'ok', descartada: '' };
 var USINA_INT = { vender_creditos: 'Vender créditos', alugar: 'Alugar', outro: 'Outro' };
-var SOL_ST = { aberta: 'Aberta', em_andamento: 'Em andamento', concluida: 'Concluída' };
-var SOL_COR = { aberta: 'az', em_andamento: 'av', concluida: 'ok' };
-var SOL_TIPO = { conversa: 'Conversa com o comercial', engenharia: 'Engenharia', negociar_preco: 'Negociar preço' };
+var SOL_ST = { aberta: 'Aberta', em_andamento: 'Em andamento', concluida: 'Concluída', cancelada: 'Cancelada' };
+var SOL_COR = { aberta: 'az', em_andamento: 'av', concluida: 'ok', cancelada: '' };
+var SOL_TIPO = { conversa: 'Conversa com o comercial', engenharia: 'Engenharia', negociar_preco: 'Negociar preço', plataforma: 'Plataforma NEXUS' };
 var ORIGENS = { portal: 'Portal', solardoc: 'Menu do SolarDoc', solardoc_banner: 'Banner do SolarDoc', partner_lp: 'Página /nexus/partner', convite_email: 'Convite por e-mail', convite_wpp: 'Convite por WhatsApp', anuncio: 'Anúncio' };
 var CAPS = [
   ['cap_eletrica_bt', 'Elétrica de baixa tensão'], ['cap_eletrica_mt', 'Elétrica de média tensão'],
@@ -475,8 +495,7 @@ var CAPS = [
 // Chaves de progresso.faltam como a API devolve (api/src/services/nexus/niveis.ts). Chave desconhecida nunca aparece crua.
 var FALTA = {
   perfil: 'Perfil completo', primeira_proposta: 'Primeira proposta', conversa: 'Conversa com o comercial',
-  aprovacao_partner: 'Marcação de Partner pela equipe', papel_montagem: 'Papel de Montagem e Engenharia no perfil',
-  aprovacao_montagem: 'Aprovação da Montagem pela equipe', primeira_compra: 'Primeiro carregador comprado',
+  aprovacao_partner: 'Marcação de Partner pela equipe', primeira_compra: 'Primeiro carregador comprado',
   compras: 'Carregadores comprados'
 };
 function faltaRotulo(k, pr) {
@@ -504,7 +523,7 @@ function nivelDe(p) {
   if (p.nivel && NIVEIS[p.nivel]) return p.nivel;
   var c = Number(p.carregadores_comprados) || 0;
   if (c >= 5) return 'master';
-  if (c >= 1 && p.montagem_aprovada_em) return 'pro';
+  if (c >= 1) return 'pro';
   if (p.partner_em) return 'partner';
   return 'cadastrado';
 }
@@ -529,9 +548,11 @@ function mostrarEstado(html, classe) {
   e.innerHTML = html;
   e.classList.remove('oculto');
   $('painel').classList.add('oculto');
+  $('convite-off').classList.add('oculto');
 }
 function mostrarPainel() {
   $('estado').classList.add('oculto');
+  $('convite-off').classList.add('oculto');
   $('painel').classList.remove('oculto');
 }
 function estadoCarregando() { mostrarEstado('<span class="spin"></span>Carregando os parceiros'); }
@@ -540,6 +561,9 @@ function estadoDesligado() {
     '<p>As tabelas do Portal do Parceiro NEXUS ainda não existem no banco. Para ligar, rode o arquivo ' +
     '<code>MIGRATION_nexus_portal.sql</code> (fica na raiz do repositório) no banco principal do SolarDoc e recarregue esta página.</p>' +
     '<button type="button" class="btn" onclick="carregar()">Tentar de novo</button>', 'desligado');
+  // O convite aparece, mas desligado: só liga quando o portal estiver ligado.
+  $('convite-off').innerHTML = conviteHtml('desligada');
+  $('convite-off').classList.remove('oculto');
 }
 function estadoErro(msg) {
   mostrarEstado('<h2>Não consegui carregar os parceiros</h2><p>' + esc(msg || 'Confira a internet e tente de novo.') + '</p>' +
@@ -547,6 +571,113 @@ function estadoErro(msg) {
 }
 function estadoSemPermissao() {
   mostrarEstado('<h2>Esta página é só da equipe</h2><p>Sua conta não tem permissão para ver os parceiros. Se isso for engano, fale com um sócio.</p>', 'erro');
+}
+
+/* ── Convite por e-mail (só sócio dispara) ── */
+var LOTE = 40;
+var CV = { fase: 'carregando', previa: null, confirmando: false, enviando: false, incerto: false, semPermissao: false, retorno: null };
+var ICONE_CADEADO = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
+function numOuSem(v) { return v == null || !isFinite(Number(v)) ? 'Sem dado' : fmtNum(v); }
+function conviteHtml(fase) {
+  var pv = CV.previa;
+  var h = '<h2>Convite por e-mail</h2><p class="sub">Convida por e-mail as contas do SolarDoc que têm CNPJ e ainda não são parceiras. Cada envio manda até ' + LOTE +
+    ' convites, e ninguém recebe o mesmo convite duas vezes.</p>';
+  var mostraNumeros = pv && (fase === 'pronta' || fase === 'travada');
+  if (mostraNumeros) {
+    h += '<div class="totais">' + [
+      [numOuSem(pv.total), 'No público do convite'], [numOuSem(pv.ja_enviados), 'Já enviados'],
+      [numOuSem(pv.excluidos_optout), 'Fora por descadastro'], [numOuSem(pv.ja_parceiros), 'Já são parceiros']
+    ].map(function (i) { return '<div class="tot"><div class="n">' + esc(i[0]) + '</div><div class="r">' + esc(i[1]) + '</div></div>'; }).join('') + '</div>';
+    var am = Array.isArray(pv.amostra) ? pv.amostra.slice(0, 5) : [];
+    if (am.length) h += '<p class="peq">Exemplos de quem recebe: ' + am.map(function (e) { return esc(e); }).join(', ') + '.</p>';
+  }
+  var rotuloBtn = 'Enviar próximo lote (' + LOTE + ')';
+  if (fase === 'carregando') return h + '<p class="peq"><span class="spin"></span>Carregando a prévia do convite</p>';
+  if (fase === 'desligada') {
+    return h + '<div class="acao-conv"><span class="trava">' + ICONE_CADEADO + 'Desligado</span><button type="button" class="btn" disabled>' + esc(rotuloBtn) + '</button></div>' +
+      '<p class="peq" style="margin:10px 0 0">O convite só liga junto com o portal. Rode o <code>MIGRATION_nexus_portal.sql</code> inteiro e recarregue a página.</p>';
+  }
+  if (fase === 'travada') {
+    return h + '<div class="acao-conv"><span class="trava">' + ICONE_CADEADO + 'Só sócio dispara</span><button type="button" class="btn" disabled>' + esc(rotuloBtn) + '</button></div>' +
+      '<p class="peq" style="margin:10px 0 0">Você pode olhar este bloco, mas só um sócio consegue enviar os convites.</p>';
+  }
+  if (fase === 'erro') {
+    return h + '<div class="retorno er">Não consegui carregar a prévia do convite. <button type="button" class="btn sm" data-cv="recarregar">Tentar de novo</button></div>';
+  }
+  // fase 'pronta'
+  var semMais = (pv && pv.total != null && Number(pv.total) === 0) || (CV.retorno && CV.retorno.tipo === 'ok' && CV.retorno.restantes != null && Number(CV.retorno.restantes) === 0);
+  if (CV.confirmando) {
+    h += '<p class="pergunta">Enviar ' + LOTE + ' convites agora?</p><p class="peq" style="margin:0 0 10px">Cada convite sai por e-mail para o dono da conta e não dá para desfazer.</p>' +
+      '<div class="acao-conv"><button type="button" class="btn" data-cv="confirmar">Sim, enviar agora</button><button type="button" class="btn ghost" data-cv="cancelar">Cancelar</button></div>';
+  } else {
+    h += '<div class="acao-conv"><button type="button" class="btn" data-cv="pedir"' + (CV.enviando || CV.incerto || semMais ? ' disabled' : '') + '>' +
+      esc(CV.enviando ? 'Enviando…' : rotuloBtn) + '</button></div>';
+    if (semMais && !CV.enviando) h += '<p class="peq" style="margin:10px 0 0">Não há convites restantes para enviar.</p>';
+  }
+  if (CV.enviando) h += '<p class="peq" style="margin:10px 0 0"><span class="spin"></span>Enviando os convites. Não feche a página.</p>';
+  if (CV.retorno) {
+    var r = CV.retorno;
+    h += '<div class="retorno ' + (r.tipo === 'ok' ? '' : r.tipo) + '" role="status">' + (r.tipo === 'ok'
+      ? 'Enviados: ' + esc(numOuSem(r.enviados)) + '. Restantes: ' + esc(numOuSem(r.restantes)) + '.'
+      : esc(r.texto)) + '</div>';
+  }
+  return h;
+}
+function desenharConvite() {
+  var box = $('convite-box');
+  box.innerHTML = conviteHtml(CV.semPermissao && CV.fase === 'pronta' ? 'travada' : CV.fase);
+  if (CV.confirmando) { var c = box.querySelector('[data-cv="cancelar"]'); if (c) c.focus(); }
+}
+function carregarConvite(manterRetorno) {
+  if (!manterRetorno) { CV.fase = 'carregando'; CV.retorno = null; CV.confirmando = false; CV.incerto = false; desenharConvite(); }
+  return api('GET', '/convites/email/previa').then(function (x) {
+    if (desligado(x)) { CV.fase = 'desligada'; CV.previa = null; }
+    else if (x.status === 403) { CV.fase = 'travada'; CV.previa = null; CV.semPermissao = true; }
+    else if (okHttp(x)) { CV.fase = 'pronta'; CV.previa = x.json; CV.incerto = false; }
+    else CV.fase = 'erro';
+    desenharConvite();
+  }).catch(function (e) {
+    if (e && e.tipo === 'login') return;
+    CV.fase = 'erro'; desenharConvite();
+  });
+}
+function enviarLote() {
+  if (CV.enviando || CV.incerto) return;
+  CV.enviando = true; CV.confirmando = false; CV.retorno = null;
+  desenharConvite();
+  // Mandar 40 e-mails leva mais que os 20 s das outras chamadas.
+  api('POST', '/convites/email/enviar', { confirmar: true }, 280000).then(function (x) {
+    CV.enviando = false;
+    if (x.status === 403) { CV.semPermissao = true; CV.fase = 'travada'; desenharConvite(); return; }
+    if (desligado(x)) { CV.fase = 'desligada'; desenharConvite(); return; }
+    if (okHttp(x)) {
+      CV.retorno = { tipo: Number(x.json.enviados) > 0 ? 'ok' : 'av', enviados: x.json.enviados, restantes: x.json.restantes };
+      if (Number(x.json.falhas) > 0 || x.json.parou_por_erro) {
+        // O lote parou no meio: não é sucesso. Mostra o aviso de erro com o número de envios que saíram.
+        CV.retorno = { tipo: 'er', texto: 'O lote parou por erro depois de ' + numOuSem(x.json.enviados) + ' envios. Confira e tente o próximo lote.' };
+      } else if (CV.retorno.tipo === 'av') CV.retorno.texto = 'Nenhum convite foi enviado. Restantes: ' + numOuSem(x.json.restantes) + '.';
+      desenharConvite();
+      return carregarConvite(true);
+    }
+    // Resposta de erro do servidor: pode ter enviado parte. Trava o botão até a prévia ser relida.
+    if (x.status < 500) {
+      // 4xx: o servidor recusou antes de enviar. Nada saiu.
+      CV.retorno = { tipo: 'er', texto: 'O servidor recusou o envio (' + x.status + '). Nenhum convite saiu.' };
+      desenharConvite();
+      return;
+    }
+    CV.incerto = true;
+    CV.retorno = { tipo: 'er', texto: 'O envio não terminou (' + x.status + '). Alguns convites podem ter saído. Confira a prévia antes de enviar de novo.' };
+    desenharConvite();
+    return carregarConvite(true);
+  }).catch(function (e) {
+    CV.enviando = false;
+    if (e && e.tipo === 'login') return;
+    CV.incerto = true;
+    CV.retorno = { tipo: 'av', texto: 'Sem resposta do servidor. Os convites podem ter saído. Confira a prévia antes de enviar de novo.' };
+    desenharConvite();
+    return carregarConvite(true);
+  });
 }
 
 /* ── Carga principal (parceiros e totais) ── */
@@ -570,6 +701,7 @@ function carregar(silencioso) {
     desenharAbas();
     montarUFs();
     desenharLista();
+    if (!silencioso) carregarConvite(false);
     if (aba !== 'parceiros') abrirAba(aba, true);
     if (fichaId) desenharFicha();
   }).catch(function (e) {
@@ -724,21 +856,37 @@ function vazioOuLista(destino, l, vazioMsg, filtroMsg, total) {
 
 /* ── Pedidos ── */
 function carregarPedidos(f) { return buscarLista('pedidos', '/pedidos', 'pedidos', 'pd-lista', desenharPedidos, f); }
+// Pedido antigo, sem a coluna tipo, é de equipamento.
+function tipoDe(p) { return PEDIDO_TIPO[p.tipo] ? p.tipo : 'equipamento'; }
+function projetosTxt(n) { n = Number(n); return n === 1 ? '1 projeto' : fmtNum(n) + ' projetos'; }
+function tipoPedidoTxt(p) {
+  var t = tipoDe(p);
+  if (t === 'engenharia') return Number(p.pacote) > 0 ? 'Engenharia · ' + projetosTxt(p.pacote) : 'Engenharia';
+  return PEDIDO_TIPO[t];
+}
+function itemPedidoTxt(p) {
+  var t = tipoDe(p);
+  if (t === 'engenharia') return Number(p.pacote) > 0 ? 'Pacote de ' + projetosTxt(p.pacote) : 'Pacote de engenharia';
+  if (t === 'consultoria') return 'Consultoria de vendas';
+  return fmtNum(p.quantidade) + 'x ' + modeloTxt(p.modelo);
+}
 function desenharPedidos() {
   var todos = ST.pedidos; if (!todos) return;
-  var st = $('pd-status').value, q = semAcento($('pd-busca').value.trim());
+  var st = $('pd-status').value, tp = $('pd-tipo').value, q = semAcento($('pd-busca').value.trim());
   var l = todos.filter(function (p) {
     if (st && p.status !== st) return false;
-    if (q && semAcento(empresaDe(p.user_id, p.empresa) + ' ' + modeloTxt(p.modelo)).indexOf(q) === -1) return false;
+    if (tp && tipoDe(p) !== tp) return false;
+    if (q && semAcento(empresaDe(p.user_id, p.empresa) + ' ' + tipoPedidoTxt(p) + ' ' + itemPedidoTxt(p)).indexOf(q) === -1) return false;
     return true;
   });
   contar('pd-contagem', l.length, 'pedido', 'pedidos');
-  if (vazioOuLista('pd-lista', l, 'Nenhum parceiro pediu equipamento ainda.', 'Nenhum pedido com esses filtros.', todos.length)) return;
+  if (vazioOuLista('pd-lista', l, 'Nenhum parceiro fez pedido ainda.', 'Nenhum pedido com esses filtros.', todos.length)) return;
   $('pd-lista').innerHTML = l.map(function (p) {
     return '<div class="reg" data-kind="pedido" data-id="' + esc(p.id) + '">' +
       '<div class="reg-topo"><div><div class="tit">' + esc(empresaDe(p.user_id, p.empresa) || 'Parceiro') + '</div>' +
-        '<div class="peq">' + esc(fmtNum(p.quantidade) + 'x ' + modeloTxt(p.modelo)) + ' · pedido em ' + esc(fmtData(p.created_at, true)) +
+        '<div class="peq">Pedido em ' + esc(fmtData(p.created_at, true)) +
         (p.proposta_numero ? ' · proposta ' + esc(p.proposta_numero) : '') + '</div></div>' + pill(PEDIDO_ST, PEDIDO_COR, p.status) + '</div>' +
+      '<div class="kv">' + par('Tipo', esc(tipoPedidoTxt(p))) + par('Item', esc(itemPedidoTxt(p))) + '</div>' +
       (p.obs ? '<div class="peq"><b>Observação do parceiro:</b> ' + esc(p.obs) + '</div>' : '') +
       (p.confirmado_em ? '<div class="peq">Confirmado em ' + esc(fmtData(p.confirmado_em, true)) + '</div>' : '') +
       '<div class="reg-edit">' +
@@ -814,14 +962,29 @@ function prazoDoCartao(card) {
   if (d.getTime() <= Date.now()) return { erro: 'O prazo para aceitar precisa ser no futuro.' };
   return { iso: d.toISOString(), mudou: e.value !== e.getAttribute('data-orig') };
 }
+// Selo de montagem do parceiro sugerido: o que a API manda ou, na falta, o que a lista de parceiros já carregada diz.
+function temMontagem(x) {
+  if (x.montagem_aprovada === true || x.montagem_aprovada_em) return true;
+  if (x.montagem_aprovada === false) return false;
+  var p = D && D.parceiros.filter(function (q) { return String(q.user_id) === String(x.user_id); })[0];
+  return !!(p && p.montagem_aprovada_em);
+}
 function desenharSugestoes(o, s) {
   if (s === 'carregando') return '<div class="peq"><span class="spin"></span>Buscando parceiros da região</div>';
   if (s === 'erro') return '<div class="peq">Não consegui buscar as sugestões. Tente de novo.</div>';
-  if (!s.length) return '<div class="peq">Nenhum parceiro Pro ou Master em ' + esc(o.uf || 'esta UF') + ' ainda. Quando houver, aparece aqui.</div>';
+  // Obra terceirizada só vai para quem tem a montagem aprovada: a API já filtra, e aqui se confere de novo.
+  var obra = o.tipo === 'obra';
+  if (obra) s = s.filter(temMontagem);
+  if (!s.length) {
+    return obra
+      ? '<div class="peq">Nenhum parceiro Pro ou Master com montagem aprovada em ' + esc(o.uf || 'esta UF') + ' ainda. Obra terceirizada só vai para quem tem o selo de montagem aprovada. Aprove a montagem na ficha do parceiro.</div>'
+      : '<div class="peq">Nenhum parceiro Pro ou Master em ' + esc(o.uf || 'esta UF') + ' ainda. Quando houver, aparece aqui.</div>';
+  }
   return s.map(function (x) {
     var pl = x.placar || {};
     var tempo = pl.tempo_medio_resposta_h != null ? ' · responde em ' + fmtNum(Math.round(Number(pl.tempo_medio_resposta_h) * 10) / 10) + ' h' : '';
     return '<div class="sug-item"><div><b>' + esc(x.empresa || 'Parceiro') + '</b> · ' + esc(NIVEIS[x.nivel] || x.nivel || '') +
+      (temMontagem(x) ? ' <span class="pill ok">Montagem aprovada</span>' : '') +
       '<div class="peq">' + esc([x.cidade, x.uf].filter(Boolean).join('/')) + (x.raio_km ? ' · raio de ' + fmtNum(x.raio_km) + ' km' : '') +
       '<br>Aceitou ' + fmtNum(pl.aceitas || 0) + ', recusou ' + fmtNum(pl.recusadas || 0) + tempo + '</div></div>' +
       '<button type="button" class="btn sm" data-do="oferecer" data-user="' + esc(x.user_id) + '" data-nome="' + esc(x.empresa || 'parceiro') + '">Oferecer</button></div>';
@@ -832,7 +995,7 @@ function abrirNovaOportunidade() {
   var box = $('op-nova');
   if (!box.classList.contains('oculto')) { box.classList.add('oculto'); return; }
   var prazo = new Date(Date.now() + 48 * 3600e3).toLocaleString('sv-SE', { timeZone: TZ }).slice(0, 16).replace(' ', 'T');
-  box.innerHTML = '<h2>Nova oportunidade</h2><p class="sub">Fica como rascunho até você oferecer a um parceiro Pro ou Master. O contato do cliente final só aparece para o parceiro depois que ele aceitar.</p>' +
+  box.innerHTML = '<h2>Nova oportunidade</h2><p class="sub">Fica como rascunho até você oferecer a um parceiro Pro ou Master. Obra terceirizada só vai para parceiro com montagem aprovada. O contato do cliente final só aparece para o parceiro depois que ele aceitar.</p>' +
     '<div class="novo-form"><div class="grade2">' +
       '<div><label for="n-tipo">Tipo</label><select id="n-tipo"><option value="cliente">Cliente final</option><option value="obra">Obra terceirizada</option></select></div>' +
       '<div><label for="n-cidade">Cidade</label><input id="n-cidade" maxlength="80"></div>' +
@@ -917,13 +1080,13 @@ function desenharUsinas() {
 
 /* ── Solicitações ── */
 function carregarSolicitacoes(f) { return buscarLista('solicitacoes', '/solicitacoes', 'solicitacoes', 'so-lista', desenharSolicitacoes, f); }
-var DADOS_ROT = { servico: 'Serviço', tipo_servico: 'Serviço', cidade: 'Cidade', uf: 'UF', potencia: 'Potência', potencia_kw: 'Potência (kW)', descricao: 'Descrição', obs: 'Observação', modelo: 'Modelo', quantidade: 'Quantidade', mensagem: 'Mensagem' };
+var DADOS_ROT = { usa_pacote: 'Usa o pacote de engenharia', servico: 'Serviço', tipo_servico: 'Serviço', cidade: 'Cidade', uf: 'UF', potencia: 'Potência', potencia_kw: 'Potência (kW)', descricao: 'Descrição', obs: 'Observação', modelo: 'Modelo', quantidade: 'Quantidade', mensagem: 'Mensagem' };
 function dadosHtml(d) {
   if (!d || typeof d !== 'object') return '';
   var ks = Object.keys(d).filter(function (k) { return d[k] != null && d[k] !== ''; }).slice(0, 12);
   if (!ks.length) return '';
   return '<div class="kv">' + ks.map(function (k) {
-    var v = typeof d[k] === 'object' ? JSON.stringify(d[k]) : String(d[k]);
+    var v = typeof d[k] === 'boolean' ? (d[k] ? 'Sim' : 'Não') : typeof d[k] === 'object' ? JSON.stringify(d[k]) : String(d[k]);
     return par(DADOS_ROT[k] || k.replace(/_/g, ' ').replace(/^./, function (c) { return c.toUpperCase(); }), esc(v.slice(0, 500)));
   }).join('') + '</div>';
 }
@@ -978,6 +1141,20 @@ function carregarPropostas(forcar) {
 }
 function modeloTxt(m) { return MODELOS[m] || m || 'Sem modelo'; }
 var SAIDAS = { simulador: 'Simulador', basico: 'Orçamento Básico', completo: 'Orçamento Completo' };
+// Aberturas do link da proposta. Campo que a API não mandou vira "Sem dado", nunca zero inventado.
+function linkPlano(x) {
+  if (x.aberturas == null || !isFinite(Number(x.aberturas))) return 'Sem dado';
+  var n = Number(x.aberturas);
+  if (n <= 0) return 'Ainda não aberta';
+  return 'Aberta ' + (n === 1 ? '1 vez' : fmtNum(n) + ' vezes') + (x.ultima_abertura_em ? ' · última em ' + fmtData(x.ultima_abertura_em, true) : '');
+}
+function linkTxt(x) {
+  var n = Number(x.aberturas);
+  if (x.aberturas == null || !isFinite(n)) return '<span class="peq">Sem dado</span>';
+  if (n <= 0) return 'Ainda não aberta';
+  return 'Aberta ' + (n === 1 ? '1 vez' : fmtNum(n) + ' vezes') +
+    (x.ultima_abertura_em ? '<div class="peq">Última em ' + esc(fmtData(x.ultima_abertura_em, true)) + '</div>' : '');
+}
 function desenharPropostas() {
   var todos = ST.propostas; if (!todos) return;
   var q = semAcento($('p-busca').value.trim());
@@ -988,7 +1165,7 @@ function desenharPropostas() {
   contar('p-contagem', l.length, 'proposta', 'propostas');
   if (!todos.length) { $('p-lista').innerHTML = '<div class="vazio">Nenhuma proposta neste período.</div>'; return; }
   if (!l.length) { $('p-lista').innerHTML = '<div class="vazio">Nenhuma proposta com esses filtros.</div>'; return; }
-  $('p-lista').innerHTML = '<div class="prop-cab"><div>Data</div><div>Empresa</div><div>Cliente</div><div>Modelo</div><div>Valor</div><div>Saída</div></div>' +
+  $('p-lista').innerHTML = '<div class="prop-cab"><div>Data</div><div>Empresa</div><div>Cliente</div><div>Modelo</div><div>Valor</div><div>Saída</div><div>Link</div></div>' +
     '<div class="lista">' + l.map(function (p) {
       var local = [p.cliente_cidade, p.cliente_uf].filter(Boolean).join('/');
       return '<div class="prop-lin">' +
@@ -998,6 +1175,7 @@ function desenharPropostas() {
         '<div><span class="rot">Modelo</span>' + esc(fmtNum(p.quantidade) + 'x ' + modeloTxt(p.modelo)) + '</div>' +
         '<div><span class="rot">Valor</span>' + esc(fmtReal(p.valor_total)) + '</div>' +
         '<div><span class="rot">Saída</span>' + esc(SAIDAS[p.saida_ultima] || 'Sem saída') + '</div>' +
+        '<div class="larga"><span class="rot">Link</span>' + linkTxt(p) + '</div>' +
         '</div>';
     }).join('') + '</div>';
 }
@@ -1010,7 +1188,10 @@ var ERROS = {
   oportunidade_em_andamento: 'Esta oportunidade está em andamento com um parceiro. Só dá para trocar o parceiro quando ela estiver em rascunho, recusada ou expirada.',
   parceiro_obrigatorio: 'Escolha o parceiro antes de oferecer.',
   parceiro_invalido: 'Parceiro não encontrado.',
-  parceiro_sem_nivel: 'Esse parceiro ainda não é Pro: só Pro e Master recebem oportunidades.',
+  parceiro_sem_nivel: 'Esse parceiro ainda não é Pro: só quem já fez a primeira compra de carregador recebe oportunidades.',
+  sem_termo_aceito: 'Este parceiro ainda não aceitou o Termo de Parceria.',
+  sem_saldo: 'O parceiro não tem projeto disponível no pacote.',
+  sem_montagem_aprovada: 'Este parceiro não tem a montagem aprovada, e obra terceirizada só vai para quem tem. Aprove a montagem na ficha do parceiro ou escolha outro.',
   descricao_obrigatoria: 'Escreva a descrição da oportunidade.',
   contato_invalido: 'O contato do cliente final está inválido. Confira o nome e o telefone.',
   cidade_obrigatoria: 'Informe a cidade.',
@@ -1062,7 +1243,12 @@ function acaoRegistro(botao) {
     if (v !== null && isNaN(v)) { toast('Valor negociado inválido. Use só números, por exemplo 0,00.'); return; }
     var corpo = { status: campo(card, 'status'), obs_equipe: campo(card, 'obs_equipe') };
     if (v !== null) corpo.valor_negociado = v;
-    salvar(botao, 'PATCH', '/pedidos/' + enc, corpo, corpo.status === 'confirmado' ? 'Pedido salvo. Carregadores comprados recalculados.' : 'Pedido salvo.');
+    var ped = (ST.pedidos || []).filter(function (x) { return String(x.id) === String(id); })[0];
+    var tipoPed = ped ? tipoDe(ped) : 'equipamento';
+    var okPed = 'Pedido salvo.';
+    if (corpo.status === 'confirmado' && tipoPed === 'equipamento') okPed = 'Pedido salvo. Carregadores comprados recalculados.';
+    else if (corpo.status === 'confirmado' && tipoPed === 'engenharia') okPed = 'Pedido salvo. Saldo de engenharia do parceiro atualizado.';
+    salvar(botao, 'PATCH', '/pedidos/' + enc, corpo, okPed);
   } else if (fazer === 'salvar-oportunidade') {
     var corpoOp = { status: campo(card, 'status'), valor_servico: campo(card, 'valor_servico') };
     var pzOp = prazoDoCartao(card);
@@ -1110,7 +1296,7 @@ function abrirFicha(id) {
   else carregarPropostasDaFicha();
 }
 function carregarPropostasDaFicha() {
-  return api('GET', '/propostas').then(function (x) {
+  return api('GET', '/propostas?desde=2020-01-01').then(function (x) {
     var box = $('fa-props');
     if (okHttp(x)) {
       PROPS_ALL = arr(x.json, 'propostas');
@@ -1147,6 +1333,26 @@ function faltaTxt(p) {
   return (prox ? 'Para chegar a ' + prox + ' falta: ' : 'Falta: ') + pr.faltam.map(function (k) { return faltaRotulo(k, pr); }).join(', ') + '.';
 }
 
+// Saldo de engenharia: comprados, usados e disponíveis vêm calculados da API.
+function saldoHtml(p) {
+  var s = p.saldo_engenharia;
+  if (!s || typeof s !== 'object') return par('Saldo de engenharia', 'Sem dado');
+  return par('Projetos comprados', s.comprados == null ? 'Sem dado' : esc(fmtNum(s.comprados))) +
+    par('Projetos usados', s.usados == null ? 'Sem dado' : esc(fmtNum(s.usados))) +
+    par('Projetos disponíveis', s.disponiveis == null ? 'Sem dado' : '<b>' + esc(fmtNum(s.disponiveis)) + '</b>');
+}
+// Termo: aceito (com a data), pendente (disponível desde a primeira compra) ou travado.
+function termoHtml(p) {
+  if (p.termo_aceito_em) return '<span class="pill ok">Aceito em ' + esc(fmtData(p.termo_aceito_em)) + '</span>' + (p.termo_versao ? '<div class="peq">Versão ' + esc(p.termo_versao) + '</div>' : '');
+  var n = nivelDe(p);
+  if (n === 'pro' || n === 'master') return '<span class="pill av">Pendente</span><div class="peq">Disponível, o parceiro ainda não aceitou.</div>';
+  return '<span class="trava">' + ICONE_CADEADO + 'Travado</span><div class="peq">Libera com a primeira compra de carregador.</div>';
+}
+function seloHtml(p) {
+  if (p.montagem_aprovada_em) return '<span class="pill ok">Montagem aprovada</span><div class="peq">Desde ' + esc(fmtData(p.montagem_aprovada_em)) + '. Recebe obras.</div>';
+  if (p.papel_montagem) return '<span class="pill av">Aguardando aprovação</span><div class="peq">Escolheu o papel, a equipe ainda não aprovou.</div>';
+  return '<span class="pill">Sem selo</span><div class="peq">Não escolheu o papel Montagem e Engenharia.</div>';
+}
 function desenharFicha() {
   var p = achar(fichaId);
   var f = $('ficha');
@@ -1174,6 +1380,12 @@ function desenharFicha() {
       par('Carregadores comprados', esc(fmtNum(p.carregadores_comprados))) +
     '</div>' + (falta ? '<p class="peq" style="margin:10px 0 0">' + esc(falta) + '</p>' : '') + '</div>' +
 
+    '<div class="bloco"><h3>Engenharia, termo e selo</h3><div class="kv">' +
+      saldoHtml(p) +
+      par('Termo de Parceria', termoHtml(p)) +
+      par('Selo de montagem', seloHtml(p)) +
+    '</div></div>' +
+
     '<div class="bloco"><h3>Empresa</h3><div class="kv">' +
       par('Papéis', pp.length ? esc(pp.join(' e ')) : 'Ainda não escolheu') +
       par('Status', pill(STATUS, STATUS_COR, p.status || 'novo')) +
@@ -1192,7 +1404,7 @@ function desenharFicha() {
     '<div class="bloco"><h3>Movimento</h3><div class="kv">' +
       par('Propostas', esc(fmtNum(p.propostas_total))) + par('Propostas em 30 dias', esc(fmtNum(p.propostas_30d))) +
       par('Última proposta', p.ultima_proposta_em ? esc(fmtData(p.ultima_proposta_em)) : 'Nenhuma') +
-      par('Pedidos de equipamento', esc(fmtNum(p.pedidos_total))) +
+      par('Pedidos (todos os tipos)', esc(fmtNum(p.pedidos_total))) +
     '</div>' + (ev.length ? '<div class="kv" style="margin-top:12px">' + ev.map(function (e) { return par(e[0], esc(fmtData(e[1], true))); }).join('') + '</div>' : '') + '</div>' +
 
     '<div class="bloco"><h3>Ações da equipe</h3><div class="acoes">' +
@@ -1203,7 +1415,7 @@ function desenharFicha() {
         '<button type="button" class="btn ' + (p.partner_em ? 'ghost' : '') + '" data-acao="partner" data-val="' + (p.partner_em ? '0' : '1') + '">' + (p.partner_em ? 'Tirar de Partner' : 'Marcar como Partner') + '</button>' +
         '<button type="button" class="btn ' + (p.montagem_aprovada_em ? 'ghost' : '') + '" data-acao="montagem" data-val="' + (p.montagem_aprovada_em ? '0' : '1') + '"' + (semMontagem && !p.montagem_aprovada_em ? ' disabled title="O parceiro não escolheu o papel Montagem e Engenharia"' : '') + '>' + (p.montagem_aprovada_em ? 'Tirar aprovação de montagem' : 'Aprovar montagem') + '</button>' +
       '</div>' +
-      (semMontagem && !p.montagem_aprovada_em ? '<p class="peq" style="margin:0">Aprovar montagem só vale para quem escolheu o papel Montagem e Engenharia no perfil.</p>' : '') +
+      (semMontagem && !p.montagem_aprovada_em ? '<p class="peq" style="margin:0">Aprovar montagem só vale para quem escolheu o papel Montagem e Engenharia no perfil. O selo libera as oportunidades do tipo obra.</p>' : '') +
       '<div><label for="fa-notas">Notas da equipe</label><textarea id="fa-notas" maxlength="4000" placeholder="Só a equipe vê estas notas">' + esc(p.notas_equipe || '') + '</textarea></div>' +
       '<div class="linha"><button type="button" class="btn" data-acao="notas">Salvar notas</button>' + linkWpp(p.whatsapp, msg, 'Abrir WhatsApp do parceiro') + '</div>' +
     '</div></div>' +
@@ -1224,7 +1436,8 @@ function desenharFichaPropostas() {
     var local = [x.cliente_cidade, x.cliente_uf].filter(Boolean).join('/');
     return '<div class="item"><b>N° ' + esc(x.numero) + '</b> · ' + esc(fmtData(x.created_at)) + '<br>' +
       esc(x.cliente_nome || 'Cliente sem nome') + (local ? ' · ' + esc(local) : '') + '<br>' +
-      esc(fmtNum(x.quantidade) + 'x ' + modeloTxt(x.modelo)) + ' · ' + esc(fmtReal(x.valor_total)) + '</div>';
+      esc(fmtNum(x.quantidade) + 'x ' + modeloTxt(x.modelo)) + ' · ' + esc(fmtReal(x.valor_total)) + '<br>' +
+      '<span class="peq">Link: ' + esc(linkPlano(x)) + '</span></div>';
   }).join('') + (l.length > 50 ? '<div class="peq">Mostrando as 50 mais recentes de ' + l.length + '.</div>' : '');
 }
 
@@ -1247,6 +1460,15 @@ function agir(botao) {
 $('lista').addEventListener('click', function (ev) {
   var b = ev.target.closest ? ev.target.closest('.lin') : null;
   if (b) abrirFicha(b.getAttribute('data-id'));
+});
+$('convite-box').addEventListener('click', function (ev) {
+  var b = ev.target.closest ? ev.target.closest('[data-cv]') : null;
+  if (!b || b.disabled) return;
+  var a = b.getAttribute('data-cv');
+  if (a === 'pedir' && !CV.enviando && !CV.incerto) { CV.confirmando = true; desenharConvite(); }
+  else if (a === 'cancelar') { CV.confirmando = false; desenharConvite(); var p0 = $('convite-box').querySelector('[data-cv="pedir"]'); if (p0) p0.focus(); }
+  else if (a === 'confirmar') enviarLote();
+  else if (a === 'recarregar') carregarConvite(false);
 });
 $('abas').addEventListener('click', function (ev) {
   var b = ev.target.closest ? ev.target.closest('button[data-aba]') : null;

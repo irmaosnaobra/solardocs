@@ -1,12 +1,16 @@
-// Os níveis do parceiro NEXUS (v2, 21/10/2026), calculados AQUI e nunca no front. Função pura (sem banco, sem relógio).
-// Substitui a trilha de 5 etapas da v1.
+// Os níveis do parceiro NEXUS (v3, 21/10/2026), calculados AQUI e nunca no front. Função pura (sem banco, sem relógio).
 //
 //   cadastrado  CNPJ ativo ('ativa' ou 'nao_verificado'). Libera início, mercado, procura, equipamentos e Simulador.
 //               Com o perfil completo (logo, cidade, UF, raio e ao menos um papel) libera Orçamento Básico, Completo,
-//               materiais, engenharia, usinas e negociar preço. Depois da primeira proposta libera pedir a conversa.
-//   partner     a equipe marca partner_em (depois da conversa). Libera pedido de equipamento e selo.
-//   pro         carregadores_comprados >= 1 E montagem_aprovada_em (a equipe aprova) E papel_montagem. Libera oportunidades.
-//   master      carregadores_comprados >= 5. Só rótulo de prioridade nesta fase: sozinho NÃO libera oportunidades.
+//               materiais, engenharia avulsa, usinas e negociar preço. Depois da primeira proposta libera pedir a conversa.
+//   partner     a equipe marca partner_em (depois da conversa). Libera pedido de equipamento, compra de pacotes de
+//               engenharia, consultoria de vendas e selo.
+//   pro         carregadores_comprados >= 1 (SÓ a primeira compra confirmada). Libera o Termo de Parceria e a revenda da
+//               Plataforma NEXUS. Oportunidades exigem também o Termo aceito na versão vigente. A montagem aprovada NÃO entra mais aqui: é um selo à parte
+//               (montagem_aprovada_em) que só decide quem recebe oportunidade do tipo 'obra'.
+//   master      carregadores_comprados >= 5. Só rótulo de prioridade nesta fase.
+//
+// A escada é cumulativa: quem já comprou tem tudo do Partner, mesmo que a equipe desmarque partner_em depois.
 
 export type Nivel = 'cadastrado' | 'partner' | 'pro' | 'master';
 
@@ -25,6 +29,8 @@ export interface EntradaNivel {
   carregadores_comprados: number;
   /** Vem da company da conta (é o mesmo logo do SolarDoc). */
   tem_logo: boolean;
+  /** Aceitou o Termo de Parceria na versão vigente (termo_versao igual à do catálogo e termo_aceito_em preenchido). */
+  termo_aceito?: boolean;
 }
 
 export interface Libera {
@@ -39,7 +45,18 @@ export interface Libera {
   pedido: boolean;
   selo: boolean;
   oportunidades: boolean;
+  /** Compra de pacotes de engenharia de 3, 5 ou 10 projetos (Partner em diante). */
+  pacotes_engenharia: boolean;
+  /** Consultoria de vendas NEXUS (Partner em diante). */
+  consultoria: boolean;
+  /** Revenda da Plataforma NEXUS de gestão (Pro em diante). */
+  plataforma: boolean;
+  /** Termo de Parceria (Pro em diante). */
+  termo: boolean;
 }
+
+/** Para cada item travado de `libera`, o texto de quando ele libera. Só as chaves travadas aparecem. */
+export type Bloqueios = Partial<Record<keyof Libera, string>>;
 
 export interface Progresso {
   proximo: Nivel | null;
@@ -72,21 +89,50 @@ export function perfilCompleto(p: EntradaNivel): boolean {
   return faltasDoPerfil(p).length === 0;
 }
 
-/** Pode receber oportunidades: comprou ao menos 1, a equipe aprovou a montagem e a empresa tem o papel. */
+/** Pro: comprou ao menos 1 carregador (compra confirmada). Montagem aprovada e papel não entram na regra. */
 export function ehPro(p: EntradaNivel): boolean {
-  return Number(p.carregadores_comprados) >= 1 && !!p.montagem_aprovada_em && p.papel_montagem === true;
+  return Number(p.carregadores_comprados) >= 1;
 }
 
-export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progresso; libera: Libera } {
+export const TEXTO_BLOQUEIO = Object.freeze({
+  cadastro: 'Libera com o cadastro da empresa com CNPJ ativo',
+  perfil: 'Libera com o perfil completo: logo, cidade e UF, raio de atendimento e um papel',
+  proposta: 'Libera depois da primeira proposta gerada',
+  partner: 'Libera quando a equipe NEXUS marca a sua empresa como Partner, depois da conversa com o comercial',
+  compra: 'Libera com a primeira compra de carregador',
+  termo: 'Aceite o Termo de Parceria para receber oportunidades',
+});
+
+function bloqueiosDe(libera: Libera, cadastro: boolean, pro: boolean): Bloqueios {
+  const motivo = (chave: keyof Libera): string => {
+    if (chave === 'simulador') return TEXTO_BLOQUEIO.cadastro;
+    if (!cadastro) return TEXTO_BLOQUEIO.cadastro;
+    switch (chave) {
+      case 'basico': case 'completo': case 'materiais': case 'engenharia': case 'negociar': case 'usinas':
+        return TEXTO_BLOQUEIO.perfil;
+      case 'conversa': return libera.basico ? TEXTO_BLOQUEIO.proposta : TEXTO_BLOQUEIO.perfil;
+      case 'pedido': case 'selo': case 'pacotes_engenharia': case 'consultoria':
+        return TEXTO_BLOQUEIO.partner;
+      case 'oportunidades': return pro ? TEXTO_BLOQUEIO.termo : TEXTO_BLOQUEIO.compra;
+      default: return TEXTO_BLOQUEIO.compra; // plataforma, termo
+    }
+  };
+  const out: Bloqueios = {};
+  for (const k of Object.keys(libera) as Array<keyof Libera>) if (!libera[k]) out[k] = motivo(k);
+  return out;
+}
+
+export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progresso; libera: Libera; bloqueios: Bloqueios } {
   const cadastro = cadastroConcluido(p);
   const perfil = cadastro && perfilCompleto(p);
   const comprados = Math.max(0, Math.floor(Number(p.carregadores_comprados) || 0));
   const pro = cadastro && ehPro(p);
+  const partner = cadastro && (!!p.partner_em || pro);
 
   const nivel: Nivel =
     cadastro && comprados >= CARREGADORES_PARA_MASTER ? 'master'
     : pro ? 'pro'
-    : cadastro && p.partner_em ? 'partner'
+    : partner ? 'partner'
     : 'cadastrado';
 
   const libera: Libera = {
@@ -98,9 +144,13 @@ export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progr
     negociar: perfil,
     usinas: perfil,
     conversa: perfil && !!p.primeira_proposta_em,
-    pedido: cadastro && !!p.partner_em,
-    selo: cadastro && !!p.partner_em,
-    oportunidades: pro,
+    pedido: partner,
+    selo: partner,
+    oportunidades: pro && p.termo_aceito === true,
+    pacotes_engenharia: partner,
+    consultoria: partner,
+    plataforma: pro,
+    termo: pro,
   };
 
   let progresso: Progresso;
@@ -111,16 +161,12 @@ export function calcularNivel(p: EntradaNivel): { nivel: Nivel; progresso: Progr
     if (!p.partner_em) faltam.push('aprovacao_partner');
     progresso = { proximo: 'partner', faltam };
   } else if (nivel === 'partner') {
-    const faltam: string[] = [];
-    if (p.papel_montagem !== true) faltam.push('papel_montagem');
-    if (!p.montagem_aprovada_em) faltam.push('aprovacao_montagem');
-    if (comprados < 1) faltam.push('primeira_compra');
-    progresso = { proximo: 'pro', faltam };
+    progresso = { proximo: 'pro', faltam: ['primeira_compra'] };
   } else if (nivel === 'pro') {
     progresso = { proximo: 'master', faltam: ['compras'], carregadores_faltam: CARREGADORES_PARA_MASTER - comprados };
   } else {
     progresso = { proximo: null, faltam: [] };
   }
 
-  return { nivel, progresso, libera };
+  return { nivel, progresso, libera, bloqueios: bloqueiosDe(libera, cadastro, pro) };
 }

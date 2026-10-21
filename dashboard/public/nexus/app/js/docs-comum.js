@@ -82,11 +82,14 @@
 
   // ===== O pacote que os tres documentos leem =====
   // ctx: o que a casca entrega. form: o formulario. numero: o numero da proposta (vem do salvarProposta).
+  // opcoes.agora: data-base do documento (a pagina publica usa a data em que a proposta foi gerada, para o
+  // cliente nao ver "hoje" e uma validade nova a cada abertura). Sem ela, vale o momento atual.
   // NADA aqui leva logo_base64 para dentro de `dados` (limite de 200 KB), nem precoRevenda.
-  D.preparar = function (ctx, form, numero) {
+  D.preparar = function (ctx, form, numero, opcoes) {
     ctx = ctx || {};
     var calc = C.calcular(form);
-    var agora = new Date();
+    var base = opcoes && opcoes.agora ? new Date(opcoes.agora) : null;
+    var agora = base && !isNaN(base.getTime()) ? base : new Date();
     var emp = ctx.empresa || {};
     var par = ctx.parceiro || {};
     var marca = (ctx.catalogo && ctx.catalogo.marca) || {};
@@ -122,6 +125,9 @@
       entrega: String(form.entrega || form.prazo || '').trim() || String(ctx.entrega || '').trim() || C.ENTREGA_PADRAO,
       instalacao: String(form.instalacao == null ? C.INSTALACAO_PADRAO : form.instalacao).trim(),
       obsLivre: String(form.obs || '').trim(),
+      // Servicos NEXUS na proposta: o total dos que entram no valor e a linha informativa da plataforma ('' = nao vai).
+      servicosTotal: calc.totais.servicos || 0,
+      plataforma: C.plataformaLinha(form),
       selo: !!(ctx.libera && ctx.libera.selo),
       distribuidor: marca.distribuidor || D.distribuidor,
       pilares: (marca.pilares && marca.pilares.length) ? marca.pilares : D.PILARES

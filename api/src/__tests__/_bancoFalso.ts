@@ -19,7 +19,13 @@ export const banco = {
   escritas: [] as Array<{ tabela: string; op: string; payload: any }>,
   /** 'tabela.op' -> erro a devolver (uma vez, se `uma`). */
   falhas: {} as Record<string, { erro: NonNullable<Erro>; uma?: boolean; pular?: number }>,
+  /** Respostas forçadas de rpc(nome): o teste põe o que a função do banco devolveria. Sem entrada, vale o padrão de rpc(). */
+  rpcs: {} as Record<string, (args: any) => { data: any; error: Erro }>,
+  /** Cada rpc chamada, para o teste provar que a rota passou pela função. */
+  rpcChamadas: [] as Array<{ nome: string; args: any }>,
   reset() {
+    this.rpcs = {};
+    this.rpcChamadas = [];
     this.tabelas = {};
     this.escritas = [];
     this.falhas = {};
@@ -196,5 +202,28 @@ class Consulta implements PromiseLike<any> {
 
 export const supabase = {
   from: (t: string) => new Consulta(t),
-  rpc: async () => ({ data: null, error: null }),
+  rpc: async (nome: string, args?: any) => {
+    banco.rpcChamadas.push({ nome, args });
+    const forcada = banco.rpcs[nome];
+    if (forcada) return forcada(args);
+    if (nome === 'nexus_usar_pacote') return usarPacoteFalso(args);
+    return { data: null, error: null };
+  },
 };
+
+/**
+ * nexus_usar_pacote do banco falso: a mesma conta da função SQL (comprados - usados > 0, insere 'aberta'). Roda sem await no meio,
+ * então é atômica como a transação com advisory lock do Postgres.
+ */
+function usarPacoteFalso(args: { p_user: string; p_dados: Linha }): { data: any; error: Erro } {
+  const comprados = banco.linhas('nexus_pedidos')
+    .filter((p) => p.user_id === args.p_user && p.tipo === 'engenharia' && p.status === 'confirmado')
+    .reduce((s, p) => s + (Number(p.pacote) || 0), 0);
+  const usados = banco.linhas('nexus_solicitacoes')
+    .filter((x) => x.user_id === args.p_user && x.tipo === 'engenharia' && x.status !== 'cancelada' && x.dados?.usa_pacote === true).length;
+  if (comprados - usados <= 0) return { data: { ok: false, erro: 'sem_saldo' }, error: null };
+  const id = globalThis.crypto.randomUUID();
+  const agora = new Date().toISOString();
+  banco.linhas('nexus_solicitacoes').push({ id, user_id: args.p_user, tipo: 'engenharia', dados: { ...args.p_dados }, status: 'aberta', created_at: agora, updated_at: agora });
+  return { data: { ok: true, id }, error: null };
+}

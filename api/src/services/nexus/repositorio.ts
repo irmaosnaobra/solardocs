@@ -4,7 +4,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { soDigitos } from '../../utils/cnpj';
-import { catalogoParaFront, ENTREGA, FINANCIAMENTO, WHATSAPP_COMERCIAL } from './catalogo';
+import { catalogoParaFront, ENTREGA, FINANCIAMENTO, servicosParaFront, TERMO_VERSAO, WHATSAPP_COMERCIAL } from './catalogo';
 import { calcularNivel, EntradaNivel, perfilCompleto } from './niveis';
 import { inicioMesBRT } from './tempo';
 
@@ -25,10 +25,21 @@ export function tabelaAusente(causa: { code?: string; message?: string } | null 
   return /could not find the table|relation .*nexus_.* does not exist/i.test(String(causa.message ?? ''));
 }
 
+/**
+ * 42703 (Postgres: coluna inexistente) e PGRST204 (PostgREST: coluna fora do cache do schema) = a seção v3 da migration
+ * não rodou. SÓ a sonda usa isto: um bug de coluna numa rota não pode desligar o portal por 60 s.
+ */
+export function colunaAusente(causa: { code?: string; message?: string } | null | undefined): boolean {
+  if (!causa) return false;
+  const code = String(causa.code ?? '');
+  if (code === '42703' || code === 'PGRST204') return true;
+  return /column .* does not exist|could not find the .* column/i.test(String(causa.message ?? ''));
+}
+
 // ── Sonda "as tabelas existem?" com cache de 60 s ────────────────────────────
 // Só guarda resposta DEFINITIVA (existe ou ausente). Erro passageiro do banco não vira "portal desligado" por 60 s.
 const TTL_SONDA_MS = 60_000;
-/** A sonda de "portal ligado" exige as 6 tabelas da MIGRATION_nexus_portal.sql. */
+/** A sonda de "portal ligado" exige as 6 tabelas da MIGRATION_nexus_portal.sql e as colunas da seção v3 (link_token etc.). */
 export const TABELAS_DO_PORTAL = [
   'nexus_parceiros', 'nexus_propostas', 'nexus_pedidos', 'nexus_oportunidades', 'nexus_usinas', 'nexus_solicitacoes',
 ] as const;
@@ -46,8 +57,12 @@ export async function portalLigado(): Promise<boolean> {
   const agora = Date.now();
   if (sonda && sonda.ate > agora) return sonda.ligado;
   try {
-    const respostas = await Promise.all(TABELAS_DO_PORTAL.map((t) => supabase.from(t).select('id').limit(1)));
-    if (respostas.some((r) => tabelaAusente(r.error))) {
+    // As colunas novas da v3 entram na mesma leitura: o portal só liga com o arquivo inteiro rodado.
+    const colunas: Record<string, string> = {
+      nexus_propostas: 'id, link_token', nexus_pedidos: 'id, tipo, pacote', nexus_parceiros: 'id, termo_aceito_em',
+    };
+    const respostas = await Promise.all(TABELAS_DO_PORTAL.map((t) => supabase.from(t).select(colunas[t] ?? 'id').limit(1)));
+    if (respostas.some((r) => tabelaAusente(r.error) || colunaAusente(r.error))) {
       sonda = { ligado: false, ate: agora + TTL_SONDA_MS };
       return false;
     }
@@ -133,6 +148,11 @@ export async function acharLeadGerador(telefone: unknown): Promise<{ id: string;
   }
 }
 
+/** O Termo de Parceria foi aceito na versão vigente? Versão antiga conta como pendente. */
+export function termoAceitoNaVersao(parceiro: Linha): boolean {
+  return parceiro.termo_versao === TERMO_VERSAO && !!parceiro.termo_aceito_em;
+}
+
 // ── Montagem da resposta do /eu ──────────────────────────────────────────────
 export function entradaDoNivel(parceiro: Linha, company: Linha | null): EntradaNivel {
   return {
@@ -149,6 +169,7 @@ export function entradaDoNivel(parceiro: Linha, company: Linha | null): EntradaN
     montagem_aprovada_em: parceiro.montagem_aprovada_em ?? null,
     carregadores_comprados: Number(parceiro.carregadores_comprados) || 0,
     tem_logo: !!company?.logo_base64,
+    termo_aceito: termoAceitoNaVersao(parceiro),
   };
 }
 
@@ -179,7 +200,10 @@ export async function contagensDoParceiro(userId: string) {
 }
 
 export async function montarEu(parceiro: Linha, company: Linha | null) {
-  const { nivel, progresso, libera } = calcularNivel(entradaDoNivel(parceiro, company));
+  const { nivel, progresso, libera, bloqueios } = calcularNivel(entradaDoNivel(parceiro, company));
+  const userId = String(parceiro.user_id);
+  const [contagens, saldo] = await Promise.all([contagensDoParceiro(userId), saldoEngenharia(userId)]);
+  const termoAceito = termoAceitoNaVersao(parceiro) ? String(parceiro.termo_aceito_em) : null;
   return {
     parceiro: visaoDoParceiro(parceiro),
     empresa: {
@@ -193,10 +217,15 @@ export async function montarEu(parceiro: Linha, company: Linha | null) {
     nivel,
     progresso,
     libera,
+    bloqueios,
+    montagem_aprovada: !!parceiro.montagem_aprovada_em,
     catalogo: catalogoParaFront(),
+    servicos: servicosParaFront(),
+    saldo_engenharia: saldo,
+    termo: { versao: TERMO_VERSAO, disponivel: libera.termo, aceito_em: termoAceito },
     entrega: ENTREGA,
     financiamento: { ...FINANCIAMENTO },
-    contagens: await contagensDoParceiro(String(parceiro.user_id)),
+    contagens,
     whatsappComercial: WHATSAPP_COMERCIAL,
   };
 }
@@ -211,12 +240,60 @@ export async function marcarPerfilCompleto(parceiro: Linha, company: Linha | nul
   return { ...parceiro, perfil_completo_em: agora, updated_at: agora };
 }
 
-/** Soma dos carregadores dos pedidos CONFIRMADOS do parceiro, gravada em nexus_parceiros.carregadores_comprados. */
+/** Pedido de equipamento? Linha sem `tipo` (anterior à v3) é equipamento. */
+export const ehPedidoDeEquipamento = (x: Linha): boolean => (x.tipo ?? 'equipamento') === 'equipamento';
+
+/** Soma dos carregadores dos pedidos de EQUIPAMENTO CONFIRMADOS do parceiro, gravada em nexus_parceiros.carregadores_comprados. */
 export async function recalcularCarregadores(userId: string): Promise<number> {
-  const { data, error } = await supabase.from('nexus_pedidos').select('quantidade').eq('user_id', userId).eq('status', 'confirmado');
+  const { data, error } = await supabase.from('nexus_pedidos').select('quantidade, tipo').eq('user_id', userId).eq('status', 'confirmado');
   if (error) throw new ErroBanco(error, 'soma dos pedidos confirmados');
-  const total = ((data as Linha[] | null) ?? []).reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
+  const total = ((data as Linha[] | null) ?? []).filter(ehPedidoDeEquipamento).reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
   const up = await supabase.from('nexus_parceiros').update({ carregadores_comprados: total, updated_at: new Date().toISOString() }).eq('user_id', userId);
   if (up.error) throw new ErroBanco(up.error, 'gravação de carregadores_comprados');
   return total;
+}
+
+export interface SaldoEngenharia {
+  comprados: number;
+  usados: number;
+  disponiveis: number;
+}
+
+/**
+ * Saldo de engenharia, calculado (sem coluna): comprados = soma de `pacote` dos pedidos de engenharia CONFIRMADOS;
+ * usados = solicitações de engenharia com dados.usa_pacote === true e status diferente de 'cancelada'.
+ * Função pura: quem chama traz as linhas (do parceiro, ou de todos filtrando por user_id antes).
+ */
+export function calcularSaldoEngenharia(pedidos: Linha[], solicitacoes: Linha[]): SaldoEngenharia {
+  const comprados = pedidos
+    .filter((p) => p.tipo === 'engenharia' && p.status === 'confirmado')
+    .reduce((s, p) => s + (Number(p.pacote) || 0), 0);
+  const usados = solicitacoes.filter((x) => x.tipo === 'engenharia' && x.status !== 'cancelada' && x.dados?.usa_pacote === true).length;
+  return { comprados, usados, disponiveis: Math.max(0, comprados - usados) };
+}
+
+export async function saldoEngenharia(userId: string): Promise<SaldoEngenharia> {
+  const [pedidos, sols] = await Promise.all([
+    supabase.from('nexus_pedidos').select('tipo, status, pacote').eq('user_id', userId).eq('tipo', 'engenharia').eq('status', 'confirmado'),
+    supabase.from('nexus_solicitacoes').select('tipo, status, dados').eq('user_id', userId).eq('tipo', 'engenharia').neq('status', 'cancelada'),
+  ]);
+  if (pedidos.error) throw new ErroBanco(pedidos.error, 'pedidos de engenharia');
+  if (sols.error) throw new ErroBanco(sols.error, 'solicitações de engenharia');
+  return calcularSaldoEngenharia((pedidos.data as Linha[] | null) ?? [], (sols.data as Linha[] | null) ?? []);
+}
+
+export type ResultadoUsoPacote = { ok: true; id: string } | { ok: false; erro: 'sem_saldo' };
+
+/**
+ * Grava a solicitação de engenharia que consome 1 projeto do pacote, SEM corrida: a função nexus_usar_pacote (seção v3 da
+ * MIGRATION_nexus_portal.sql) trava por parceiro (pg_advisory_xact_lock), confere o saldo e insere na mesma transação.
+ * Devolve {ok:true, id} ou {ok:false, erro:'sem_saldo'}. Erro do banco (função ausente inclusive) sobe como ErroBanco.
+ */
+export async function usarPacote(userId: string, dados: Record<string, unknown>): Promise<ResultadoUsoPacote> {
+  const { data, error } = await supabase.rpc('nexus_usar_pacote', { p_user: userId, p_dados: dados });
+  if (error) throw new ErroBanco(error, 'uso do pacote de engenharia');
+  const r = (data ?? null) as { ok?: boolean; id?: unknown; erro?: unknown } | null;
+  if (r?.ok === true && r.id) return { ok: true, id: String(r.id) };
+  if (r?.ok === false && r.erro === 'sem_saldo') return { ok: false, erro: 'sem_saldo' };
+  throw new ErroBanco({ message: 'resposta inesperada da função nexus_usar_pacote' }, 'uso do pacote de engenharia');
 }

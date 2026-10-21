@@ -1,4 +1,4 @@
--- Portal do Parceiro NEXUS (v2, 21/10/2026). Banco PRINCIPAL do SolarDoc (o mesmo de users e company).
+-- Portal do Parceiro NEXUS (v2 + v3, 21/10/2026). Banco PRINCIPAL do SolarDoc (o mesmo de users e company).
 --
 -- Quem roda: o dono, no SQL Editor do Supabase. Ninguem consegue rodar isto de fora.
 -- Enquanto nao rodar, a API responde 503 `portal_desligado` nas rotas do parceiro e da equipe,
@@ -12,6 +12,10 @@
 -- entao uma policy com auth.uid() nao protegeria nada. O acesso e so pela API com a service role, e a API filtra
 -- por usuario (rotas do parceiro) e por equipe (rotas /equipe, que exigem consultor). A chave publishable, que
 -- qualquer um tem, fica sem acesso nenhum a estas tabelas.
+--
+-- v3 (rodada 3): a secao "v3" no fim deste arquivo ACRESCENTA colunas e amplia dois CHECKs. Tudo idempotente
+-- (add column if not exists, drop constraint if exists + add constraint): rodar o arquivo inteiro de novo nao da erro.
+-- A sonda de "portal ligado" confere tambem nexus_propostas.link_token, entao o portal so liga com o arquivo inteiro.
 --
 -- users.id e UUID (api/database/schema.sql), entao todo user_id tambem e UUID.
 
@@ -176,6 +180,91 @@ alter table nexus_pedidos      enable row level security;
 alter table nexus_oportunidades enable row level security;
 alter table nexus_usinas       enable row level security;
 alter table nexus_solicitacoes enable row level security;
+
+-- ===========================================================================================================
+-- v3 (21/10/2026): servicos NEXUS (pacotes de engenharia, consultoria, plataforma), link publico da proposta e Termo.
+-- Idempotente: pode rodar de novo, com ou sem a v2 ja aplicada.
+-- ===========================================================================================================
+
+-- Pedidos por tipo: equipamento (modelo + quantidade), engenharia (pacote de 3, 5 ou 10 projetos) e consultoria.
+alter table nexus_pedidos add column if not exists tipo text not null default 'equipamento'
+  check (tipo in ('equipamento','engenharia','consultoria'));
+alter table nexus_pedidos add column if not exists pacote int
+  check (pacote is null or pacote in (3,5,10));
+alter table nexus_pedidos alter column modelo drop not null;
+alter table nexus_pedidos alter column quantidade drop not null;
+
+-- Solicitacoes: tipo 'plataforma' e status 'cancelada' (cancelada devolve o projeto ao saldo de engenharia).
+-- Os dois CHECKs nasceram inline e sem nome, entao o Postgres os chamou <tabela>_<coluna>_check.
+alter table nexus_solicitacoes drop constraint if exists nexus_solicitacoes_tipo_check;
+alter table nexus_solicitacoes add constraint nexus_solicitacoes_tipo_check
+  check (tipo in ('conversa','engenharia','negociar_preco','plataforma'));
+alter table nexus_solicitacoes drop constraint if exists nexus_solicitacoes_status_check;
+alter table nexus_solicitacoes add constraint nexus_solicitacoes_status_check
+  check (status in ('aberta','em_andamento','concluida','cancelada'));
+
+-- Link publico da proposta (com contagem de aberturas).
+alter table nexus_propostas add column if not exists link_token           text;
+create unique index if not exists nexus_propostas_link_token_key on nexus_propostas (link_token);
+alter table nexus_propostas add column if not exists link_criado_em       timestamptz;
+alter table nexus_propostas add column if not exists aberturas            int not null default 0;
+alter table nexus_propostas add column if not exists primeira_abertura_em timestamptz;
+alter table nexus_propostas add column if not exists ultima_abertura_em   timestamptz;
+
+-- Termo de Parceria (aceite).
+alter table nexus_parceiros add column if not exists termo_versao      text;
+alter table nexus_parceiros add column if not exists termo_aceito_em   timestamptz;
+
+-- Saldo de engenharia (sem coluna, calculado pela API): comprados = soma de nexus_pedidos.pacote com tipo 'engenharia'
+-- e status 'confirmado'; usados = nexus_solicitacoes tipo 'engenharia' com dados.usa_pacote = true e status <> 'cancelada'.
+
+-- Uso do pacote de engenharia SEM corrida: trava por parceiro, confere o saldo e insere na mesma transacao.
+-- A API chama por supabase.rpc('nexus_usar_pacote', {p_user, p_dados}) com a service role. user_id e uuid (users.id).
+create or replace function nexus_usar_pacote(p_user uuid, p_dados jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_comprados bigint;
+  v_usados    bigint;
+  v_id        uuid;
+begin
+  perform pg_advisory_xact_lock(hashtext('nexus_pacote:' || p_user::text));
+
+  select coalesce(sum(pacote), 0) into v_comprados
+    from nexus_pedidos
+   where user_id = p_user and tipo = 'engenharia' and status = 'confirmado';
+
+  select count(*) into v_usados
+    from nexus_solicitacoes
+   where user_id = p_user and tipo = 'engenharia' and status <> 'cancelada'
+     and dados->>'usa_pacote' = 'true';
+
+  if v_comprados - v_usados <= 0 then
+    return jsonb_build_object('ok', false, 'erro', 'sem_saldo');
+  end if;
+
+  insert into nexus_solicitacoes (user_id, tipo, dados, status)
+  values (p_user, 'engenharia', p_dados, 'aberta')
+  returning id into v_id;
+
+  return jsonb_build_object('ok', true, 'id', v_id);
+end;
+$$;
+
+revoke all on function nexus_usar_pacote(uuid, jsonb) from public, anon, authenticated;
+grant execute on function nexus_usar_pacote(uuid, jsonb) to service_role;
+
+-- Faz o PostgREST enxergar as colunas novas sem esperar.
+notify pgrst, 'reload schema';
+
+-- Conferencia da v3 (deve devolver as 8 colunas):
+--   select table_name, column_name from information_schema.columns
+--    where (table_name = 'nexus_pedidos'   and column_name in ('tipo','pacote'))
+--       or (table_name = 'nexus_propostas' and column_name in ('link_token','link_criado_em','aberturas','primeira_abertura_em','ultima_abertura_em'))
+--       or (table_name = 'nexus_parceiros' and column_name in ('termo_versao','termo_aceito_em'));
 
 -- Conferencia depois de rodar (deve devolver 6 linhas, rls = true em todas):
 --   select relname, relrowsecurity as rls from pg_class

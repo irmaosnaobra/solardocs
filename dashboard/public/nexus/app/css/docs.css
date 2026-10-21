@@ -176,6 +176,19 @@
 .nxg-chip.forte { background: #0060C7; color: #fff; }
 .nxg-acs { display: flex; flex-wrap: wrap; gap: 8px; }
 .nxg-sec.peq, .nxg-prim.peq { padding: 0 14px; }
+/* Item de servico travado pelo nivel: cadeado e o que libera */
+.nxg-travado .nxg-trava-linha { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; border: 1px dashed #B9C4D4; border-radius: 10px; background: var(--g-sf2); color: var(--g-tx2); font-size: 13.5px; line-height: 1.4; }
+.nxg-travado .ic { display: inline-flex; flex: 0 0 auto; color: var(--g-tx2); }
+/* Link da proposta para o cliente final (depois do Completo) */
+.nxg-envio .nxg-btn-link { min-height: 72px; color: var(--g-tx); border: 1px solid #C5D0DD; background: #fff; border-radius: 14px; font: inherit; }
+.nxg-envio .nxg-btn-link .ic { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 10px; background: var(--nx-azul-sf, #EAF3FF); color: var(--g-azul-tx); }
+.nxg-envio .nxg-btn-link .t b { color: var(--g-tx); font-size: 16px; font-weight: 800; }
+.nxg-envio .nxg-btn-link .t i { color: var(--g-tx2); font-size: 13px; opacity: 1; }
+.nxg-link-rot { display: block; font-size: 13px; font-weight: 600; margin: 4px 0 6px; }
+.nxg-link-url { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--nx-bd2, #B9C4D4); border-radius: 10px; background: var(--g-sf2); color: var(--g-tx); font: inherit; font-size: 13.5px; text-overflow: ellipsis; }
+.nxg-link-acs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.nxg-link-acs .nxg-sec, .nxg-link-acs .nxg-prim { flex: 1 1 140px; text-decoration: none; }
+.nxg-link-host:empty { display: none; }
 .nxg-vazio { background: var(--g-sf); border: 1px dashed #B9C4D4; border-radius: 14px; padding: 28px 20px; text-align: center; color: var(--g-tx2); font-size: 14px; }
 .nxg-vazio p { margin: 0 0 6px; }
 .nxg-vazio b { color: var(--g-tx); }
@@ -340,6 +353,8 @@
 .nb-itens td.q { text-align: center; width: 18mm; }
 .nb-itens td.v { text-align: right; padding-right: 0; white-space: nowrap; font-variant-numeric: tabular-nums; width: 42mm; }
 .nb-itens tr.eq td { font-weight: 700; }
+.nb-itens tr.info td { color: #4A5568; font-size: 14px; }
+.nb-itens tr.info td.v { font-weight: 600; }
 .nb-itens td small { display: block; font-size: 14px; font-weight: 500; color: #4A5568; }
 .nb-total { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; padding: 14px 20px; border-radius: 12px; background: #0B1A2B; color: #fff; }
 .nb-total .t { font-size: 18px; font-weight: 700; }
@@ -562,6 +577,8 @@
 /* Marcadores desenhados em CSS (nao texto): pseudo-elemento com caractere entraria na camada de texto do PDF. */
 .nx-lista li::before { content: ''; position: absolute; left: 1px; top: .72em; width: 11px; height: 6px; border-left: 2.5px solid var(--nx-verde); border-bottom: 2.5px solid var(--nx-verde); transform: rotate(-45deg) translateY(-3px); }
 .nx-col.fora .nx-lista li::before { left: 1px; top: .62em; width: 10px; height: 10px; border: 2px solid #4FB0FF; border-radius: 50%; transform: none; }
+.nx-plat { margin-top: 12px; padding: 11px 14px; border: 1px dashed var(--nx-linha2); border-radius: 10px; font-size: 9pt; line-height: 1.5; color: var(--nx-suave); }
+.nx-plat b { display: block; margin-bottom: 2px; font-size: 9.6pt; font-weight: 800; color: var(--nx-texto); }
 .nx-aviso { margin-top: 16px; background: var(--nx-azul-bg); border: 1px solid rgba(0, 133, 255, .34); border-radius: 10px; padding: 14px 16px; font-size: 9.8pt; line-height: 1.55; color: var(--nx-texto); font-weight: 600; }
 
 /* fecho */

@@ -71,3 +71,22 @@ export const propostaOk = (saida: 'simulador' | 'basico' | 'completo' = 'simulad
   valor_total: 139980,
   dados: { form: { a: 1 } },
 });
+
+export const PED1 = '00000000-0000-4000-a000-0000000000d1';
+export const PED2 = '00000000-0000-4000-a000-0000000000d2';
+export const SOL1 = '00000000-0000-4000-a000-0000000000e1';
+export const OP1 = '00000000-0000-4000-a000-000000000001';
+
+/** Partner: a equipe marcou partner_em. Perfil completo (semearParceiro). */
+export const PARTNER = { partner_em: '2026-10-01T10:00:00Z', primeira_proposta_em: '2026-09-30T10:00:00Z' };
+/** Pro com o Termo aceito: primeira compra confirmada e termo v1 aceito. */
+export const PRO_COM_TERMO = { ...PARTNER, carregadores_comprados: 1, termo_versao: 'v1', termo_aceito_em: '2026-10-03T10:00:00Z' };
+
+/** Simula o consultor da equipe: 'tc' = Thiago (sócio), 'tn' = Ana (consultora que não é sócia). */
+export function tokensDeConsultor(): Record<string, { email: string; confirmado: boolean }> {
+  return {
+    tc: { email: 'Thiago@irmaosnaobra.app', confirmado: true },
+    tn: { email: 'ana@irmaosnaobra.app', confirmado: true },
+  };
+}
+export const naoSocioAuth = { Authorization: 'Bearer tn' };

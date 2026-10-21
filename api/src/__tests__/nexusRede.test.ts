@@ -38,12 +38,13 @@ vi.mock('../utils/mailer', () => ({
 }));
 
 import { resetSondaPortal } from '../services/nexus/repositorio';
+import { enviador } from '../services/nexus/email';
 import { placarDoParceiro, tempoDeRespostaMs } from '../routes/geradorNexusRede';
 
 const OP = '00000000-0000-4000-a000-000000000001';
 const futuro = () => new Date(Date.now() + 3 * 24 * 3_600_000).toISOString();
 const passado = () => new Date(Date.now() - 3_600_000).toISOString();
-const PRO = { partner_em: '2026-10-01T10:00:00Z', montagem_aprovada_em: '2026-10-02T10:00:00Z', carregadores_comprados: 1 };
+const PRO = { partner_em: '2026-10-01T10:00:00Z', montagem_aprovada_em: '2026-10-02T10:00:00Z', carregadores_comprados: 1, termo_versao: 'v1', termo_aceito_em: '2026-10-03T10:00:00Z' };
 
 function semearOportunidade(extra: Record<string, unknown> = {}) {
   const o = {
@@ -66,9 +67,10 @@ beforeEach(() => {
   consultor.tokens = { tc: { email: 'Thiago@irmaosnaobra.app', confirmado: true } };
   delete process.env.NEXUS_AVISO_LIGADO;
   delete process.env.NEXUS_AVISO_PHONE;
+  vi.spyOn(enviador, 'enviar').mockResolvedValue(undefined); // nenhum e-mail sai de verdade
   receita('ativa');
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 const ligarAviso = () => {
   process.env.NEXUS_AVISO_LIGADO = '1';

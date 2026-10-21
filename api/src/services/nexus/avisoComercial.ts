@@ -10,13 +10,18 @@
 //
 //   (a) cadastro     nexus_aviso:cadastro:<parceiro_id>                          uma por parceiro
 //   (b) solicitação  nexus_aviso:solicitacao:<parceiro_id>:<tipo>:<AAAA-MM-DD>   uma por tipo a cada dia de Brasília
-//                    (tipo = conversa, engenharia ou negociar_preco)
-//   (c) pedido       nexus_aviso:pedido:<pedido_id>                              um por pedido, SEMPRE também por e-mail
+//                    (tipo = conversa, engenharia, negociar_preco ou plataforma). A engenharia que usa o pacote (desconta
+//                    saldo) também sai SEMPRE por e-mail; o WhatsApp segue a trava por parceiro, tipo e dia.
+//   (c) pedido       equipamento: nexus_aviso:pedido:<pedido_id>                 um por pedido
+//                    engenharia e consultoria: nexus_aviso:pedido_<tipo>:<parceiro_id>:<AAAA-MM-DD>
+//                    um WhatsApp por parceiro, tipo e dia de Brasília (aval do chefe-antiban, 21/10).
+//                    O e-mail de QUALQUER pedido sai SEMPRE, inclusive quando a trava devolve 23505 (duplicado).
 //   (d) usina        nexus_aviso:usina:<usina_id>                                uma por usina indicada
 //   (e) oportunidade nexus_aviso:oportunidade:<oportunidade_id>:<status>         uma por resposta do parceiro
+//   (f) termo        nexus_aviso:termo:<parceiro_id>:<versao>                    um por parceiro e versão do Termo aceito
 //
 //   Teto: no máximo 12 avisos de WhatsApp por hora (conta as chaves `nexus_aviso:` da última hora). Acima disso o
-//   (a) e o (d) saem só por e-mail; (b), (c) e (e) são urgentes e saem sempre pelo WhatsApp.
+//   (a), o (d) e o (f) saem só por e-mail; (b), (c) e (e) são urgentes e saem sempre pelo WhatsApp.
 //   Gerar proposta NÃO avisa.
 //   Webhook opcional: se N8N_ELETROPOSTO_WEBHOOK_URL existir, um POST JSON com timeout de 5 s. Sem a env, nada.
 
@@ -26,7 +31,7 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import { sendOpsAlert } from '../../utils/mailer';
 import { diaBRT } from './tempo';
 
-export type TipoAviso = 'cadastro' | 'solicitacao' | 'pedido' | 'usina' | 'oportunidade';
+export type TipoAviso = 'cadastro' | 'solicitacao' | 'pedido' | 'usina' | 'oportunidade' | 'termo';
 export type ResultadoAviso = 'enviado' | 'email' | 'duplicado' | 'desligado';
 
 export const PREFIXO_CHAVE = 'nexus_aviso:';
@@ -45,10 +50,15 @@ export interface DadosAviso {
     papel_montagem?: boolean;
   };
   whatsapp?: string | null;
-  /** (b) tipo = conversa | engenharia | negociar_preco; resumo = serviço e local, só para engenharia. */
-  solicitacao?: { tipo: string; resumo?: string | null };
-  /** (c) o pedido; numero e valor_total vêm da proposta ligada, quando há. */
-  pedido?: { id: string; modelo?: string | null; quantidade?: number | null; numero?: string | null; valor_total?: number | null };
+  /** (b) tipo = conversa | engenharia | negociar_preco | plataforma; resumo = serviço e local, só para engenharia. */
+  solicitacao?: { tipo: string; resumo?: string | null; usa_pacote?: boolean };
+  /** (c) o pedido; numero e valor_total vêm da proposta ligada, quando há. `tipo` ausente = equipamento. */
+  pedido?: {
+    id: string; tipo?: 'equipamento' | 'engenharia' | 'consultoria'; pacote?: number | null;
+    modelo?: string | null; quantidade?: number | null; numero?: string | null; valor_total?: number | null;
+  };
+  /** (f) a versão do Termo de Parceria aceito. */
+  termo?: { versao: string };
   /** (d) a usina indicada. */
   usina?: { id: string; dono_nome?: string | null; cidade?: string | null; uf?: string | null; potencia_kwp?: number | null; interesse?: string | null };
   /** (e) a oportunidade e o status novo (aceita, recusada, contato, visita, orcamento, fechou, perdeu). */
@@ -80,8 +90,14 @@ function papeis(p: DadosAviso['parceiro']): string {
 export function chaveDoAviso(tipo: TipoAviso, d: DadosAviso, quando: Date = new Date()): string {
   if (tipo === 'cadastro') return `${PREFIXO_CHAVE}cadastro:${d.parceiro.id}`;
   if (tipo === 'solicitacao') return `${PREFIXO_CHAVE}solicitacao:${d.parceiro.id}:${d.solicitacao?.tipo ?? 'conversa'}:${diaBRT(quando)}`;
-  if (tipo === 'pedido') return `${PREFIXO_CHAVE}pedido:${d.pedido?.id ?? d.parceiro.id}`;
+  if (tipo === 'pedido') {
+    const t = d.pedido?.tipo;
+    // Engenharia e consultoria: um WhatsApp por parceiro, tipo e dia (não por pedido). Equipamento: um por pedido.
+    if (t === 'engenharia' || t === 'consultoria') return `${PREFIXO_CHAVE}pedido_${t}:${d.parceiro.id}:${diaBRT(quando)}`;
+    return `${PREFIXO_CHAVE}pedido:${d.pedido?.id ?? d.parceiro.id}`;
+  }
   if (tipo === 'usina') return `${PREFIXO_CHAVE}usina:${d.usina?.id ?? d.parceiro.id}`;
+  if (tipo === 'termo') return `${PREFIXO_CHAVE}termo:${d.parceiro.id}:${d.termo?.versao ?? 'v1'}`;
   return `${PREFIXO_CHAVE}oportunidade:${d.oportunidade?.id ?? d.parceiro.id}:${d.oportunidade?.status ?? 'x'}`;
 }
 
@@ -120,10 +136,19 @@ export function textoDoAviso(tipo: TipoAviso, d: DadosAviso): string {
     const t = d.solicitacao?.tipo;
     if (t === 'engenharia') {
       const resumo = limpo(d.solicitacao?.resumo, 120);
-      return `${empresa} pediu serviço de engenharia${resumo ? `: ${resumo}` : ''}. ${contato}${recado}`;
+      const pacote = d.solicitacao?.usa_pacote ? ' (usa 1 projeto do pacote)' : '';
+      return `${empresa} pediu serviço de engenharia${resumo ? `: ${resumo}` : ''}${pacote}. ${contato}${recado}`;
     }
+    if (t === 'plataforma') return `${empresa} quer revender a Plataforma NEXUS de gestão. ${contato}${recado}`;
     if (t === 'negociar_preco') return `${empresa} quer negociar o preço do equipamento com o comercial. ${contato}${recado}`;
     return `${empresa} pediu conversa com o comercial. ${contato}${recado}`;
+  }
+  if (tipo === 'termo') return `${empresa} aceitou o Termo de Parceria NEXUS (${limpo(d.termo?.versao, 10) || 'v1'}). ${contato}`;
+  if (tipo === 'pedido' && d.pedido?.tipo === 'engenharia') {
+    return `${empresa} fez pedido de pacote de engenharia (${Number(d.pedido.pacote) || 0} projetos). ${contato}${recado}`;
+  }
+  if (tipo === 'pedido' && d.pedido?.tipo === 'consultoria') {
+    return `${empresa} fez pedido de consultoria de vendas NEXUS. ${contato}${recado}`;
   }
   if (tipo === 'pedido') {
     const p = d.pedido;
@@ -154,15 +179,33 @@ const ASSUNTO: Record<TipoAviso, string> = {
   pedido: 'Portal NEXUS: pedido de equipamento',
   usina: 'Portal NEXUS: usina indicada',
   oportunidade: 'Portal NEXUS: resposta a oportunidade',
+  termo: 'Portal NEXUS: Termo de Parceria aceito',
 };
 
 /** Os que, acima do teto de 12 por hora, saem só por e-mail. O resto é urgente e sai sempre pelo WhatsApp. */
-const SO_EMAIL_ACIMA_DO_TETO: ReadonlySet<TipoAviso> = new Set<TipoAviso>(['cadastro', 'usina']);
+const SO_EMAIL_ACIMA_DO_TETO: ReadonlySet<TipoAviso> = new Set<TipoAviso>(['cadastro', 'usina', 'termo']);
 
-async function emailDoAviso(tipo: TipoAviso, texto: string, motivo: string): Promise<void> {
-  // O assunto entra cru no <h2> do sendOpsAlert: só texto fixo nosso, nunca dado de parceiro.
+/** Assunto por tipo. Entra cru no <h2> do sendOpsAlert: só texto fixo nosso (e o número do pacote, validado), nunca dado de parceiro. */
+export function assuntoDoAviso(tipo: TipoAviso, d: DadosAviso): string {
+  if (tipo === 'pedido') {
+    if (d.pedido?.tipo === 'engenharia') return `Portal NEXUS: pedido de pacote de engenharia (${Number(d.pedido.pacote) || 0} projetos)`;
+    if (d.pedido?.tipo === 'consultoria') return 'Portal NEXUS: pedido de consultoria';
+    return 'Portal NEXUS: pedido de equipamento';
+  }
+  if (tipo === 'solicitacao' && d.solicitacao?.tipo === 'engenharia' && d.solicitacao.usa_pacote) {
+    return 'Portal NEXUS: solicitação de engenharia (usa 1 projeto do pacote)';
+  }
+  return ASSUNTO[tipo];
+}
+
+/** Avisos cujo e-mail sai SEMPRE, com ou sem WhatsApp, trava ou teto: todo pedido, e a engenharia que desconta saldo do pacote. */
+export function emailSempre(tipo: TipoAviso, d: DadosAviso): boolean {
+  return tipo === 'pedido' || (tipo === 'solicitacao' && d.solicitacao?.tipo === 'engenharia' && d.solicitacao.usa_pacote === true);
+}
+
+async function emailDoAviso(tipo: TipoAviso, d: DadosAviso, texto: string, motivo: string): Promise<void> {
   await sendOpsAlert(
-    ASSUNTO[tipo],
+    assuntoDoAviso(tipo, d),
     `<p>${escaparHtml(texto)}</p><p style="color:#64748b;font-size:13px;">${escaparHtml(motivo)}</p>`,
   ).catch((e) => logger.error('nexus-aviso', 'e-mail do aviso também falhou', e));
 }
@@ -177,7 +220,7 @@ async function chamarWebhook(tipo: TipoAviso, d: DadosAviso): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        evento: `nexus_${tipo === 'solicitacao' ? (d.solicitacao?.tipo ?? tipo) : tipo}`,
+        evento: `nexus_${tipo === 'solicitacao' ? (d.solicitacao?.tipo ?? tipo) : tipo === 'pedido' && d.pedido?.tipo && d.pedido.tipo !== 'equipamento' ? `pedido_${d.pedido.tipo}` : tipo}`,
         empresa: d.parceiro.empresa ?? null,
         cnpj: d.parceiro.cnpj ?? null,
         cidade: d.parceiro.cidade ?? null,
@@ -224,8 +267,8 @@ export async function avisarComercial(tipo: TipoAviso, d: DadosAviso): Promise<R
     if (!ligado || !destino) {
       // O pedido de equipamento é dinheiro: o e-mail sai SEMPRE, mesmo com o aviso desligado. Sem trava (cada pedido tem
       // id próprio, não há aviso em dobro a evitar), sem WhatsApp e sem webhook: esses só com a env ligada.
-      if (tipo === 'pedido') {
-        await emailDoAviso(tipo, textoDoAviso(tipo, d), 'Aviso por WhatsApp desligado (NEXUS_AVISO_LIGADO). Só este e-mail foi enviado.');
+      if (emailSempre(tipo, d)) {
+        await emailDoAviso(tipo, d, textoDoAviso(tipo, d), 'Aviso por WhatsApp desligado (NEXUS_AVISO_LIGADO). Só este e-mail foi enviado.');
         return 'email';
       }
       return 'desligado';
@@ -241,8 +284,13 @@ export async function avisarComercial(tipo: TipoAviso, d: DadosAviso): Promise<R
     });
     if (travaErr) {
       // 23505 = já avisado. Qualquer outro erro também para aqui: sem trava confiável, repetir é pior que perder um aviso.
-      if ((travaErr as { code?: string }).code !== '23505') {
-        logger.error('nexus-aviso', 'trava do aviso falhou, não vou arriscar avisar em dobro', travaErr);
+      const jaAvisado = (travaErr as { code?: string }).code === '23505';
+      if (!jaAvisado) logger.error('nexus-aviso', 'trava do aviso falhou, não vou arriscar avisar em dobro', travaErr);
+      // O WhatsApp não repete, mas o e-mail do pedido (e da engenharia que desconta saldo) sai SEMPRE.
+      if (emailSempre(tipo, d)) {
+        await emailDoAviso(tipo, d, textoDoAviso(tipo, d), jaAvisado
+          ? 'O WhatsApp deste tipo já foi avisado hoje para este parceiro (trava por parceiro, tipo e dia). Só este e-mail foi enviado.'
+          : 'Não consegui tomar a trava do WhatsApp. Só este e-mail foi enviado.');
       }
       return 'duplicado';
     }
@@ -252,17 +300,17 @@ export async function avisarComercial(tipo: TipoAviso, d: DadosAviso): Promise<R
     let resultado: ResultadoAviso;
 
     if (SO_EMAIL_ACIMA_DO_TETO.has(tipo) && acimaDoTeto) {
-      await emailDoAviso(tipo, texto, 'O teto de 12 avisos por hora no WhatsApp foi atingido, então este foi só por e-mail.');
+      await emailDoAviso(tipo, d, texto, 'O teto de 12 avisos por hora no WhatsApp foi atingido, então este foi só por e-mail.');
       resultado = 'email';
     } else {
       try {
         await sendWhatsApp(destino, texto, 'io');
         resultado = 'enviado';
-        // O pedido de equipamento é dinheiro: vai SEMPRE também por e-mail, mesmo com o WhatsApp certo.
-        if (tipo === 'pedido') await emailDoAviso(tipo, texto, 'Cópia do aviso enviado pelo WhatsApp.');
+        // O pedido é dinheiro (e a engenharia com pacote desconta saldo): vai SEMPRE também por e-mail.
+        if (emailSempre(tipo, d)) await emailDoAviso(tipo, d, texto, 'Cópia do aviso enviado pelo WhatsApp.');
       } catch (err) {
         logger.error('nexus-aviso', 'WhatsApp do aviso não passou, caindo para o e-mail', err);
-        await emailDoAviso(tipo, texto, 'O WhatsApp não passou (linha fora, cooldown ou token). Segue o conteúdo do aviso.');
+        await emailDoAviso(tipo, d, texto, 'O WhatsApp não passou (linha fora, cooldown ou token). Segue o conteúdo do aviso.');
         resultado = 'email';
       }
     }

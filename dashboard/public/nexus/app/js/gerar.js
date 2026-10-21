@@ -9,7 +9,8 @@
  * ctx (v2). Tudo que nao for obrigatorio tem reserva, para a casca poder entregar por partes:
  *   {parceiro, empresa, nivel, libera, catalogo, entrega, financiamento, demo, propostaInicial|null,
  *    salvarProposta(payload, opcoes) -> Promise<{id, numero}>, onGerou(saida, proposta), evento(tipo, dados),
- *    listarPropostas() -> Promise<[...] | {propostas:[...]}>, pedirEquipamento(proposta), api(metodo, caminho, corpo)}
+ *    listarPropostas() -> Promise<[...] | {propostas:[...]}>, pedirEquipamento(proposta), api(metodo, caminho, corpo),
+ *    criarLink(propostaId) -> Promise<{token, url}>  (v3: botao "Enviar link ao cliente" depois do Completo)}
  *  `opcoes` (2o argumento de salvarProposta) = {id, numero} da proposta que o formulario esta editando,
  *  ou {id:null} quando e' proposta nova. A casca deve usar isso para decidir entre POST e PUT.
  *
@@ -84,6 +85,7 @@
   var ICONE_APRES = svg('M4 4h16v12H4zM8 20h8M12 16v4', 22);
   var ICONE_AJUDA = svg('M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01', 18);
   var ICONE_MAIS = svg('M12 5v14M5 12h14', 16);
+  var ICONE_LINK = svg('M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1', 22);
   var ICONE_RESTAURAR = svg('M3 12a9 9 0 1 0 3-6.7M3 4v5h5', 16);
   var ICONES_SAIDA = { simulador: ICONE_PDF, basico: ICONE_DOC, completo: ICONE_APRES };
 
@@ -96,6 +98,8 @@
       cliente: { nome: '', doc: '', cidade: '', uf: '', telefone: '', email: '', tipo_local: '' },
       equip: { modelo: p0.id, quantidade: 1, preco: p0.precoSugerido, precoEditado: false },
       itens: C.ITENS_PADRAO.map(function (i) { return { id: i.id, nome: i.nome, livre: !!i.livre, descricao: '', valor: '' }; }),
+      // Servicos NEXUS na proposta (opcional, desligado). engenharia e consultoria: valor que o parceiro cobra do cliente.
+      servicos: { ligado: false, engenharia: '', consultoria: '', plataforma: true },
       prem: Object.assign({}, C.PREMISSAS_PADRAO),
       carrosEditado: false,
       usina: false, custoRede: C.PREMISSAS_PADRAO.custoKwh,
@@ -117,7 +121,7 @@
     var d = ini.dados || {};
     var s = d.form || null;
     if (s) {
-      ['cliente', 'equip', 'prem', 'pg', 'validade'].forEach(function (k) { if (s[k]) f[k] = Object.assign({}, f[k], s[k]); });
+      ['cliente', 'equip', 'prem', 'pg', 'validade', 'servicos'].forEach(function (k) { if (s[k]) f[k] = Object.assign({}, f[k], s[k]); });
       if (Array.isArray(s.itens)) {
         var vistos = {};
         f.itens = f.itens.map(function (i) {
@@ -249,6 +253,27 @@
         + '<div class="nxg-st"><span>Subtotal de infraestrutura e serviços</span><b data-prev="subtotal">R$ 0,00</b></div></div>'
         + '<div class="nxg-total"><span>Total da proposta</span><b data-prev="invest">R$ 0,00</b></div></section>';
     }
+    // Engenharia e consultoria so' ligam com a liberacao do nivel (ctx.libera). Proposta que ja' tem o valor salvo continua editavel.
+    var BLOQ_PADRAO = 'Libera quando a sua empresa vira Partner NEXUS';
+    function campoServico(rot, chaveLibera, path, tip, rotInput) {
+      var chaveForm = path.split('.')[1];
+      var livre = !!libera[chaveLibera] || C.lerMoeda(form.servicos[chaveForm]) > 0;
+      if (livre) return campo(rot, comAfixo(txt(path, { t: 'moeda', im: 'decimal', ph: '0,00', rot: rotInput }), 'R$'), { tip: tip });
+      var motivo = (ctx.bloqueios && ctx.bloqueios[chaveLibera]) || BLOQ_PADRAO;
+      return '<div class="nxg-campo nxg-travado" data-trava="' + chaveLibera + '"><label>' + esc(rot) + '</label>'
+        + '<div class="nxg-trava-linha"><span class="ic">' + ICONE_CADEADO + '</span><span>' + esc(motivo) + '</span></div></div>';
+    }
+    function cartaoServicos() {
+      return '<section class="nxg-cartao"><h2>Serviços NEXUS na proposta</h2>'
+        + '<p class="nxg-sub">Opcional. Inclua a engenharia e a consultoria da NEXUS com o valor que você cobra do cliente. O preço de parceiro não aparece nos documentos.</p>'
+        + '<div class="nxg-forma">' + chave('servicos.ligado', 'Incluir serviços NEXUS na proposta')
+        + '<div class="nxg-grade" data-gr="servicos">'
+        + campoServico('Engenharia NEXUS (projeto, ART e homologação)', 'pacotes_engenharia', 'servicos.engenharia', 'Projeto elétrico, ART e homologação na distribuidora. Digite o valor que você cobra do cliente. Em branco, o item fica fora da proposta.', 'Valor da engenharia NEXUS')
+        + campoServico('Consultoria de vendas NEXUS', 'consultoria', 'servicos.consultoria', 'Atendimento de um especialista NEXUS na reunião com o seu cliente. Digite o valor que você cobra do cliente. Em branco, o item fica fora da proposta.', 'Valor da consultoria de vendas')
+        + '<div class="nxg-campo larga">' + chave('servicos.plataforma', 'Mostrar a Plataforma NEXUS de gestão na proposta') + '</div>'
+        + '<p class="nxg-nota larga" data-fn="svc-nota"></p>'
+        + '</div></div></section>';
+    }
     function cartaoPremissas() {
       var corpo = GRUPOS.map(function (g) {
         return '<div class="nxg-grupo"><h3>' + esc(g.titulo) + '</h3><div class="nxg-grade">' + g.itens.map(function (c) {
@@ -309,7 +334,8 @@
         + '<p class="nxg-nota">Em operação plena, sem a rampa de ocupação. O Simulador em PDF considera a rampa. ' + esc(D.TEXTOS.avisoSimulador) + '</p></section>'
         + '<section class="nxg-cartao nxg-acoes"><h2>Gerar documento</h2><div class="nxg-btns">' + botoes + '</div>'
         + '<p class="nxg-msg" data-fn="msg" role="alert" hidden></p>'
-        + '<p class="nxg-nota">O PDF abre na janela de impressão. Escolha “Salvar como PDF”.</p></section>';
+        + '<p class="nxg-nota">O PDF abre na janela de impressão. Escolha “Salvar como PDF”.</p></section>'
+        + '<div class="nxg-link-host" data-fn="link-host"></div>';
     }
 
     // Grafico de linha do caixa acumulado (desenho do canvas: viewBox 480 x 262, area 56..456 x 21..220).
@@ -415,9 +441,90 @@
 
     // ---------- desenho ----------
     function desenhar() {
-      raiz.innerHTML = '<div class="nxg-grid"><div class="nxg-form">' + cartaoCliente() + cartaoEquip() + cartaoItens() + cartaoPremissas() + cartaoPagamento() + '</div>'
+      raiz.innerHTML = '<div class="nxg-grid"><div class="nxg-form">' + cartaoCliente() + cartaoEquip() + cartaoItens() + cartaoServicos() + cartaoPremissas() + cartaoPagamento() + '</div>'
         + '<aside class="nxg-lado">' + resumo() + '</aside></div><div class="nxg-props-host">' + secaoPropostas() + '</div>';
       atualizar();
+      pintarLink();
+    }
+
+    // ---------- link da proposta para o cliente final (v3) ----------
+    // So depois de gerar o Completo (ou ao reabrir uma proposta que ja' tem link): o cliente abre o Completo em /nexus/p/.
+    var completoGerado = false;
+    var link = ctx.propostaInicial && ctx.propostaInicial.link_token ? { url: urlDoToken(ctx.propostaInicial.link_token) } : null;
+    var linkOcupado = false, linkMsg = '', linkMsgErro = false;
+    function urlDoToken(t) { return 'https://solardoc.app/nexus/p/?t=' + encodeURIComponent(t); }
+    function textoWhats(url) { return 'Segue a proposta de eletroposto: ' + url; }
+    function pintarLink() {
+      var host = $('[data-fn="link-host"]');
+      if (!host) return;
+      if (!libera.completo || !(completoGerado || link)) { host.innerHTML = ''; return; }
+      var corpo;
+      if (!link) {
+        corpo = '<button type="button" class="nxg-btn nxg-btn-link' + (linkOcupado ? ' ocupado' : '') + '" data-acao="link"' + (linkOcupado ? ' aria-disabled="true"' : '') + '><span class="ic">' + ICONE_LINK + '</span>'
+          + '<span class="t"><b>Enviar link ao cliente</b><i>' + (linkOcupado ? 'Criando o link...' : 'O cliente abre a proposta no celular') + '</i></span></button>';
+      } else {
+        corpo = '<label class="nxg-link-rot" for="nxg-link-url">Link da proposta</label>'
+          + '<input id="nxg-link-url" class="nxg-link-url" type="text" readonly value="' + esc(link.url) + '" aria-label="Link da proposta para o cliente">'
+          + '<div class="nxg-link-acs"><button type="button" class="nxg-prim peq" data-acao="copiar">Copiar link</button>'
+          + '<a class="nxg-sec peq nxg-link-wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=' + encodeURIComponent(textoWhats(link.url)) + '">Enviar no WhatsApp</a></div>'
+          + '<p class="nxg-nota">O link mostra a última versão salva. Se mudar a proposta, gere o Orçamento Completo de novo.</p>';
+      }
+      host.innerHTML = '<section class="nxg-cartao nxg-envio"><h2>Enviar ao cliente</h2>'
+        + (link ? '' : '<p class="nxg-sub">O cliente vê o Orçamento Completo no celular, sem baixar nada, e você acompanha as aberturas em Minhas propostas.</p>')
+        + corpo + '<p class="nxg-msg' + (linkMsgErro ? ' erro' : '') + '" role="alert"' + (linkMsg ? '' : ' hidden') + '>' + esc(linkMsg) + '</p></section>';
+    }
+    function mensagemLink(t, erro) {
+      linkMsg = t || ''; linkMsgErro = !!erro;
+      var m = $('[data-fn="link-host"] .nxg-msg');
+      if (m) { m.hidden = !linkMsg; m.textContent = linkMsg; m.classList.toggle('erro', linkMsgErro); }
+    }
+    // Normaliza a resposta: a casca devolve {token, url}; a rota crua pode vir embrulhada em {data}.
+    function normalizarLink(r) {
+      var x = r && r.data && (r.data.url || r.data.token) ? r.data : r;
+      if (!x) return null;
+      if (x.url) return { url: String(x.url) };
+      if (x.token) return { url: urlDoToken(x.token) };
+      return null;
+    }
+    function criarLinkDe(id) {
+      if (typeof ctx.criarLink === 'function') return Promise.resolve(ctx.criarLink(id));
+      if (ctx.demo || id === 'demo') return Promise.resolve({ token: 'exemplo', url: urlDoToken('exemplo') });
+      if (typeof ctx.api === 'function') return Promise.resolve(ctx.api('POST', '/gerador/nexus/propostas/' + encodeURIComponent(id) + '/link'));
+      return Promise.reject(new Error('Não foi possível criar o link agora.'));
+    }
+    function enviarLink() {
+      if (linkOcupado || ocupado) return;
+      var c = C.calcular(form), erro = validar('completo', c);
+      if (erro) { mensagemLink(erro, true); return; }
+      linkOcupado = true; mensagemLink('', false); pintarLink();
+      var payload = montarPayload('completo', c);
+      var salvar;
+      try {
+        salvar = ctx.salvarProposta ? Promise.resolve(ctx.salvarProposta(payload, atual ? { id: atual.id, numero: atual.numero } : { id: null })) : Promise.resolve({ id: 'demo', numero: '20260000' });
+      } catch (e) { salvar = Promise.reject(e); }
+      salvar.then(function (res) {
+        atual = { id: res && res.id, numero: res && res.numero };
+        return criarLinkDe(atual.id);
+      }).then(function (r) {
+        var l = normalizarLink(r);
+        if (!l) throw new Error('Não foi possível criar o link agora. Tente de novo.');
+        link = l; linkMsg = ''; linkMsgErro = false;
+        carregarLista();
+      }).catch(function (e) {
+        linkMsg = (e && e.message) || 'Não foi possível criar o link agora. Tente de novo.'; linkMsgErro = true;
+        if (window.console) console.error('NexusGerar link', e);
+      }).then(function () { linkOcupado = false; pintarLink(); });
+    }
+    function copiarLink() {
+      if (!link) return;
+      var ok = function () { mensagemLink('Link copiado.', false); };
+      var plano = function () {
+        var el = $('#nxg-link-url');
+        try { if (el) { el.focus(); el.select(); el.setSelectionRange(0, 9999); } if (document.execCommand('copy')) { ok(); return; } } catch (e) {}
+        mensagemLink('Não foi possível copiar. Toque no link, selecione e copie.', true);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link.url).then(ok, plano);
+      else plano();
     }
 
     // ---------- previa e estados ----------
@@ -462,6 +569,15 @@
       var nval = $('[data-fn="validade"]'); if (nval) nval.textContent = C.validadeTexto(form.validade, new Date()) + '.';
       var gd = $('[data-gr="dias"]'); if (gd) gd.hidden = form.validade.modo !== 'dias';
       ['cartao', 'fin'].forEach(function (k) { var g = $('[data-gr="' + k + '"]'); if (g) g.classList.toggle('desligada', form.pg[k] === false); });
+      var gs = $('[data-gr="servicos"]'); if (gs) gs.classList.toggle('desligada', !form.servicos.ligado);
+      var sn = $('[data-fn="svc-nota"]');
+      if (sn) {
+        var plat = C.plataformaLinha(form);
+        var partes = [];
+        if (c.totais.servicos > 0) partes.push('Serviços NEXUS no total da proposta: ' + C.moeda2(c.totais.servicos) + '.');
+        if (plat) partes.push(plat + '. Linha informativa: não tem valor de venda e não soma ao total, porque o Software NEXUS já está na conta.');
+        sn.textContent = form.servicos.ligado ? partes.join(' ') : '';
+      }
       $$('.nxg-pill').forEach(function (b) { var s = b.getAttribute('data-modelo') === form.equip.modelo; b.classList.toggle('sel', s); b.setAttribute('aria-pressed', String(s)); });
     }
     function agendar() { if (pendente) return; pendente = true; requestAnimationFrame(function () { pendente = false; atualizar(); }); }
@@ -495,7 +611,7 @@
         else { form.prem.custoKwh = form.custoRede; }
         if (c) c.value = mostrarNum(form.prem.custoKwh);
       }
-      if (path === 'validade.modo' || path === 'usina' || /^pg\./.test(path)) { set(path, lerCampo(el)); }
+      if (path === 'validade.modo' || path === 'usina' || /^pg\./.test(path) || /^servicos\./.test(path)) { set(path, lerCampo(el)); }
       agendar();
     });
     // Campo de dinheiro: ao sair, escreve "69.990,00". Ao entrar, seleciona tudo.
@@ -545,7 +661,9 @@
         var u = $('[data-p="usina"]'); if (u) u.checked = false;
         mensagem('Premissas restauradas para o padrão do Simulador.', false);
         atualizar();
-      } else if (acao === 'recarregar') carregarLista();
+      } else if (acao === 'link') enviarLink();
+      else if (acao === 'copiar') copiarLink();
+      else if (acao === 'recarregar') carregarLista();
       else if (acao === 'abrir') abrirProposta(lista && lista[i], false);
       else if (acao === 'duplicar') abrirProposta(lista && lista[i], true);
       else if (acao === 'pedir') { if (ctx.pedirEquipamento && lista && lista[i]) ctx.pedirEquipamento(lista[i]); }
@@ -559,6 +677,9 @@
         form = formDaProposta(C, ctx, completa);
         if (duplicar) { atual = null; form.obs = form.obs || ''; }
         else atual = { id: completa.id || p.id, numero: completa.numero || p.numero };
+        completoGerado = false;
+        link = !duplicar && completa.link_token ? { url: urlDoToken(completa.link_token) } : null;
+        linkMsg = '';
         desenhar();
         mensagem(duplicar ? 'Proposta ' + (p.numero || '') + ' copiada como nova. Ajuste e gere de novo.' : 'Proposta ' + (p.numero || '') + ' aberta. Ao gerar, ela é atualizada.', false);
         if (raiz.scrollIntoView) raiz.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -608,7 +729,7 @@
                    telefone: form.cliente.telefone, email: form.cliente.email, tipo_local: form.cliente.tipo_local },
         equipamento: { modelo: prod.nome || form.equip.modelo, quantidade: Math.round(C.num(form.equip.quantidade)), preco_unitario: C.lerMoeda(form.equip.preco) },
         valor_total: Math.round(c.totais.total * 100) / 100,
-        dados: { versao: 2, form: f, resumo: resumoCalc }
+        dados: { versao: 2, form: f, resumo: resumoCalc, emitida_em: new Date().toISOString() }
       };
     }
     function textoBotao(b, saida, t) { var i = b && b.querySelector('i'); if (i) i.textContent = t != null ? t : SAIDAS[saida].sub; }
@@ -636,6 +757,7 @@
                              modelo: payload.equipamento.modelo, quantidade: payload.equipamento.quantidade, valor_total: payload.valor_total, saida_ultima: saida, dados: payload.dados });
           }
           if (ctx.onGerou) ctx.onGerou(saida, { id: res && res.id, numero: res && res.numero });
+          if (saida === 'completo') { completoGerado = true; pintarLink(); }
           carregarLista();
         });
       }).catch(function (e) {

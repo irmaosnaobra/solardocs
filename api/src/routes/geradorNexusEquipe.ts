@@ -9,15 +9,21 @@
 //   GET   /nexus/equipe/usinas                 PATCH /nexus/equipe/usinas/:id {status, obs_equipe}
 //   GET   /nexus/equipe/solicitacoes           PATCH /nexus/equipe/solicitacoes/:id {status, obs_equipe}
 //
+// v3: os pedidos têm tipo (equipamento, engenharia com pacote, consultoria); a lista de parceiros traz o saldo de
+// engenharia, o aceite do Termo e o selo de montagem; as propostas trazem as aberturas do link; oferecer uma oportunidade
+// manda e-mail ao parceiro e recusa 'obra' para quem não tem montagem aprovada (409 `sem_montagem_aprovada`).
+// O convite por e-mail (só sócio) mora em geradorNexusConvite.ts.
+//
 // "Mês" = mês corrente em Brasília. Listas paginam de 1000 em 1000 (o PostgREST corta ali).
 
 import { Router } from 'express';
 import { supabase } from '../utils/supabase';
 import { exigeConsultor } from './geradorDossie';
 import { calcularNivel } from '../services/nexus/niveis';
+import { emailOportunidadeOferecida } from '../services/nexus/email';
 import { inicioDiaBRT, inicioMesBRT } from '../services/nexus/tempo';
 import { UFS } from '../services/nexus/procura';
-import { ErroBanco, Linha, entradaDoNivel, recalcularCarregadores } from '../services/nexus/repositorio';
+import { ErroBanco, Linha, calcularSaldoEngenharia, ehPedidoDeEquipamento, entradaDoNivel, recalcularCarregadores, saldoEngenharia } from '../services/nexus/repositorio';
 import { DIA_MS, UUID, exigePortalLigado, lerTudo, lotes, ok, rota, textoLivre } from './geradorNexusBase';
 import { STATUS_APOS_ACEITE, tempoDeRespostaMs } from './geradorNexusRede';
 
@@ -28,7 +34,7 @@ const STATUS_OPORTUNIDADE = ['rascunho', 'oferecida', 'aceita', 'recusada', 'exp
 const PODE_TROCAR_PARCEIRO: readonly string[] = ['rascunho', 'recusada', 'expirada'];
 const ABERTAS_OPORTUNIDADE = ['oferecida', 'aceita', 'contato', 'visita', 'orcamento'];
 const STATUS_USINA = ['recebida', 'em_analise', 'contrato', 'descartada'] as const;
-const STATUS_SOLICITACAO = ['aberta', 'em_andamento', 'concluida'] as const;
+const STATUS_SOLICITACAO = ['aberta', 'em_andamento', 'concluida', 'cancelada'] as const;
 
 const noConjunto = (xs: readonly string[], v: unknown): v is string => typeof v === 'string' && xs.includes(v);
 
@@ -91,7 +97,9 @@ export function mountNexusEquipe(router: Router): void {
     const propostas = await lerTudo('propostas dos parceiros', (de, ate) =>
       supabase.from('nexus_propostas').select('user_id, quantidade, valor_total, created_at').order('created_at', { ascending: false }).range(de, ate));
     const pedidos = await lerTudo('pedidos dos parceiros', (de, ate) =>
-      supabase.from('nexus_pedidos').select('user_id, quantidade, status, confirmado_em, created_at').order('created_at', { ascending: false }).range(de, ate));
+      supabase.from('nexus_pedidos').select('user_id, tipo, pacote, quantidade, status, confirmado_em, created_at').order('created_at', { ascending: false }).range(de, ate));
+    const engenharias = await lerTudo('solicitações de engenharia', (de, ate) =>
+      supabase.from('nexus_solicitacoes').select('user_id, tipo, status, dados').eq('tipo', 'engenharia').neq('status', 'cancelada').order('created_at', { ascending: false }).range(de, ate));
     const propostasDe = new Map<string, Linha[]>();
     for (const pr of propostas) {
       const k = String(pr.user_id);
@@ -99,7 +107,13 @@ export function mountNexusEquipe(router: Router): void {
       if (l) l.push(pr); else propostasDe.set(k, [pr]);
     }
     const pedidosDe = new Map<string, number>();
-    for (const pd of pedidos) pedidosDe.set(String(pd.user_id), (pedidosDe.get(String(pd.user_id)) ?? 0) + 1);
+    const pedidosEngDe = new Map<string, Linha[]>();
+    for (const pd of pedidos) {
+      pedidosDe.set(String(pd.user_id), (pedidosDe.get(String(pd.user_id)) ?? 0) + 1);
+      if (pd.tipo === 'engenharia') pedidosEngDe.set(String(pd.user_id), [...(pedidosEngDe.get(String(pd.user_id)) ?? []), pd]);
+    }
+    const solsEngDe = new Map<string, Linha[]>();
+    for (const sl of engenharias) solsEngDe.set(String(sl.user_id), [...(solsEngDe.get(String(sl.user_id)) ?? []), sl]);
 
     const contar = async (tabela: string, filtro: (q: any) => any): Promise<number> => {
       const r = await filtro(supabase.from(tabela).select('id', { count: 'exact', head: true }));
@@ -131,6 +145,10 @@ export function mountNexusEquipe(router: Router): void {
         propostas_30d: minhas.filter((x) => String(x.created_at) >= desde30).length,
         ultima_proposta_em: minhas[0]?.created_at ?? null,
         pedidos_total: pedidosDe.get(String(p.user_id)) ?? 0,
+        saldo_engenharia: calcularSaldoEngenharia(pedidosEngDe.get(String(p.user_id)) ?? [], solsEngDe.get(String(p.user_id)) ?? []),
+        termo_versao: p.termo_versao ?? null,
+        termo_aceito_em: p.termo_aceito_em ?? null,
+        montagem_aprovada_em: p.montagem_aprovada_em ?? null,
       };
     });
 
@@ -147,7 +165,7 @@ export function mountNexusEquipe(router: Router): void {
       empresas_ativas_mes: new Set(doMes.map((x) => String(x.user_id))).size,
       pedidos_abertos: pedidos.filter((x) => x.status === 'solicitado' || x.status === 'negociando').length,
       carregadores_confirmados_mes: pedidos
-        .filter((x) => x.status === 'confirmado' && x.confirmado_em && String(x.confirmado_em) >= mesIso)
+        .filter((x) => ehPedidoDeEquipamento(x) && x.status === 'confirmado' && x.confirmado_em && String(x.confirmado_em) >= mesIso)
         .reduce((s, x) => s + (Number(x.quantidade) || 0), 0),
       oportunidades_abertas,
       usinas_novas,
@@ -199,7 +217,7 @@ export function mountNexusEquipe(router: Router): void {
     const propostas = await lerTudo('propostas da equipe', (de, ate) =>
       supabase
         .from('nexus_propostas')
-        .select('id, user_id, numero, saida_ultima, cliente_nome, cliente_cidade, cliente_uf, modelo, quantidade, valor_total, created_at')
+        .select('id, user_id, numero, saida_ultima, cliente_nome, cliente_cidade, cliente_uf, modelo, quantidade, valor_total, created_at, link_criado_em, aberturas, primeira_abertura_em, ultima_abertura_em')
         .gte('created_at', desdeIso)
         .order('created_at', { ascending: false })
         .range(de, ate));
@@ -270,7 +288,7 @@ export function mountNexusEquipe(router: Router): void {
     if (!pedido) { res.status(404).json({ erro: 'nao_encontrado' }); return; }
     // Qualquer mudança de status refaz a soma dos confirmados: é ela que sobe o parceiro para Pro e Master.
     const carregadores_comprados = await recalcularCarregadores(String(pedido.user_id));
-    res.json({ pedido, carregadores_comprados });
+    res.json({ pedido, carregadores_comprados, saldo_engenharia: await saldoEngenharia(String(pedido.user_id)) });
   }));
 
   // ── Oportunidades ──────────────────────────────────────────────────────────
@@ -382,7 +400,12 @@ export function mountNexusEquipe(router: Router): void {
       const pr = ok(await supabase.from('nexus_parceiros').select('*').eq('user_id', alvo).limit(1), 'leitura do parceiro da oportunidade');
       const parceiro = ((pr.data as Linha[] | null) ?? [])[0];
       if (!parceiro) { res.status(400).json({ erro: 'parceiro_invalido' }); return; }
-      if (!calcularNivel(entradaDoNivel(parceiro, null)).libera.oportunidades) { res.status(409).json({ erro: 'parceiro_sem_nivel' }); return; }
+      const nivelDele = calcularNivel(entradaDoNivel(parceiro, null));
+      if (!nivelDele.libera.termo) { res.status(409).json({ erro: 'parceiro_sem_nivel' }); return; }
+      // Pro (1ª compra) sem o Termo aceito na versão vigente ainda não recebe oportunidade.
+      if (!nivelDele.libera.oportunidades) { res.status(409).json({ erro: 'sem_termo_aceito' }); return; }
+      // Obra só vai para quem tem o selo de montagem aprovada. Oportunidade do tipo 'cliente' vai para qualquer Pro.
+      if (atual.tipo === 'obra' && !parceiro.montagem_aprovada_em) { res.status(409).json({ erro: 'sem_montagem_aprovada' }); return; }
       patch.parceiro_user_id = alvo;
     }
 
@@ -398,20 +421,25 @@ export function mountNexusEquipe(router: Router): void {
     const up = ok(await supabase.from('nexus_oportunidades').update(patch).eq('id', id).select('*'), 'atualização da oportunidade');
     const nova = ((up.data as Linha[] | null) ?? [])[0];
     if (!nova) { res.status(404).json({ erro: 'nao_encontrada' }); return; }
-    res.json({ oportunidade: nova });
+    // Oferecida agora (ou reoferecida a outro parceiro): o parceiro recebe o e-mail. Nunca derruba o PATCH.
+    let email_parceiro: string | null = null;
+    if (status === 'oferecida' && (mudouStatus || reoferta) && nova.parceiro_user_id) {
+      email_parceiro = await emailOportunidadeOferecida(nova, String(nova.parceiro_user_id));
+    }
+    res.json({ oportunidade: nova, email_parceiro });
   }));
 
   router.get('/nexus/equipe/oportunidades/:id/sugestoes', ...equipe, rota('GET /nexus/equipe/oportunidades/:id/sugestoes', async (req, res) => {
     const id = String(req.params.id);
     if (!UUID.test(id)) { res.status(404).json({ erro: 'nao_encontrada' }); return; }
-    const lida = ok(await supabase.from('nexus_oportunidades').select('id, cidade, uf').eq('id', id).limit(1), 'leitura da oportunidade');
+    const lida = ok(await supabase.from('nexus_oportunidades').select('id, tipo, cidade, uf').eq('id', id).limit(1), 'leitura da oportunidade');
     const op = ((lida.data as Linha[] | null) ?? [])[0];
     if (!op) { res.status(404).json({ erro: 'nao_encontrada' }); return; }
 
-    // Só quem pode receber: Pro ou Master (compra confirmada + montagem aprovada) da mesma UF.
+    // Só quem pode receber: Pro ou Master (compra confirmada) com o Termo aceito, da mesma UF; obra exige também a montagem aprovada.
     const daUf = await lerTudo('parceiros da UF', (de, ate) =>
       supabase.from('nexus_parceiros').select('*').eq('uf', op.uf).order('created_at', { ascending: false }).range(de, ate));
-    const aptos = daUf.filter((p) => calcularNivel(entradaDoNivel(p, null)).libera.oportunidades);
+    const aptos = daUf.filter((p) => calcularNivel(entradaDoNivel(p, null)).libera.oportunidades && (op.tipo !== 'obra' || !!p.montagem_aprovada_em));
     const ids = aptos.map((p) => String(p.user_id));
     const zaps = await whatsappsDe(ids);
 
@@ -444,6 +472,7 @@ export function mountNexusEquipe(router: Router): void {
         uf: p.uf ?? null,
         raio_km: p.raio_km ?? null,
         nivel: calcularNivel(entradaDoNivel(p, null)).nivel,
+        montagem_aprovada: !!p.montagem_aprovada_em,
         whatsapp: zaps.get(String(p.user_id)) ?? null,
         mesma_cidade: mesmaCidade(p),
         placar: placar(String(p.user_id)),
@@ -508,6 +537,16 @@ async function atualizarComNota(
     patch.obs_equipe = b.obs_equipe === null ? null : String(b.obs_equipe).slice(0, 1000);
   }
   if (!Object.keys(patch).length) { res.status(400).json({ erro: 'nada_para_mudar' }); return; }
+  // Reabrir uma solicitação que usa o pacote (sai de 'cancelada') volta a gastar 1 projeto: só com saldo disponível.
+  if (tabela === 'nexus_solicitacoes' && typeof patch.status === 'string' && patch.status !== 'cancelada') {
+    const atual = ok(await supabase.from(tabela).select('id, user_id, tipo, status, dados').eq('id', id).limit(1), 'leitura da solicitação');
+    const antes = ((atual.data as Linha[] | null) ?? [])[0];
+    if (antes && antes.status === 'cancelada' && antes.tipo === 'engenharia' && antes.dados?.usa_pacote === true
+      && (await saldoEngenharia(String(antes.user_id))).disponiveis <= 0) {
+      res.status(409).json({ erro: 'sem_saldo' });
+      return;
+    }
+  }
   patch.updated_at = new Date().toISOString();
   const up = ok(await supabase.from(tabela).update(patch).eq('id', id).select('*'), `atualização de ${nome}`);
   const linha = ((up.data as Linha[] | null) ?? [])[0];

@@ -508,3 +508,86 @@ a:hover { color: var(--nx-azul-h); }
   .np-corpo { margin: 0; padding: 0; }
   .np-main { padding: 0; }
 }
+
+/* ------------------------------------------------------------------ v3: cadeados, servicos, termo, link da proposta */
+.np-lk { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.np-lk .nx-btn { max-width: 100%; }
+.np-acoes .np-lk { align-items: stretch; }
+.np-acoes .np-lk .nx-btn { width: 100%; }
+.nx-linha-btn .np-lk { flex: 1 1 200px; }
+.nx-linha-btn .np-lk .nx-btn { width: 100%; }
+.np-lktx { display: block; font-size: 12px; line-height: 1.35; font-weight: 500; color: var(--nx-tx2); }
+.np-parc .np-lktx { color: #004A9A; }
+.np-lknota { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; font-weight: 600; color: var(--nx-tx2); }
+.np-lknota .nx-ic { margin-top: 2px; color: var(--nx-tx3); }
+.np-aviso.lk { display: flex; align-items: flex-start; gap: 8px; }
+.np-aviso.lk .nx-ic { margin-top: 3px; }
+.nx-btn .nx-ic.p { stroke-width: 2.2; }
+.np-chamada .np-lknota { color: var(--nx-tx2); }
+.np-bloq .aviso .np-lktx { font-size: 13px; font-weight: 500; }
+
+/* servicos */
+.np-saldo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.np-saldo .np-num { padding: 12px; box-shadow: none; background: var(--nx-sf2); }
+.np-saldo .np-num strong { font-size: 28px; }
+.np-pacotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; align-items: stretch; }
+.np-pacote { background: #fff; border: 1px solid var(--nx-bd); border-radius: var(--nx-r-cartao); box-shadow: var(--nx-sombra); padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.np-pacote h3 { font-size: 18px; font-weight: 800; line-height: 1.25; }
+.np-pacote > .nx-btn, .np-pacote > .np-lk { margin-top: auto; }
+.np-pacote > .np-lk .nx-btn { width: 100%; }
+.np-confirma { font-size: 14px; font-weight: 700; }
+.np-card > p { font-size: 14px; color: var(--nx-tx2); }
+.np-pedidos { list-style: none; padding: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--nx-bd); border-radius: var(--nx-r-cartao); box-shadow: var(--nx-sombra); }
+.np-pedidos li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 12px 16px; border-top: 1px solid var(--nx-bd); }
+.np-pedidos li:first-child { border-top: 0; }
+.np-pedidos b { display: block; font-size: 14px; font-weight: 700; }
+.np-pedidos small { font-size: 12px; color: var(--nx-tx2); }
+
+/* niveis e caminho com cadeado */
+.np-nivel.trav { background: var(--nx-sf2); }
+.np-checks.trv .nx-ic { color: var(--nx-tx3); }
+.np-checks.trv li { color: var(--nx-tx2); }
+.np-nivel .topo .nx-chip .nx-ic { width: 12px; height: 12px; }
+.np-selomont { margin-top: 12px; }
+.np-passo.trav .bola { color: var(--nx-tx3); background: var(--nx-sf2); }
+.np-passo.trav .bola .nx-ic { width: 13px; height: 13px; stroke-width: 2.4; }
+.nx-chip .nx-ic.p { width: 12px; height: 12px; }
+
+/* termo de parceria */
+.np-termo-trava { flex-direction: row; align-items: flex-start; gap: 14px; }
+.np-termo-trava > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; align-items: flex-start; }
+.np-termo-trava .ico { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; border-radius: 10px; background: var(--nx-chip); color: var(--nx-tx2); }
+.np-termo-doc { max-height: 460px; overflow: auto; padding: 16px; border: 1px solid var(--nx-bd); border-radius: var(--nx-r-controle); background: var(--nx-sf2); font-size: 14px; line-height: 1.6; color: var(--nx-tx); overflow-wrap: anywhere; }
+.np-termo-doc h1 { font-size: 20px; font-weight: 800; margin: 0 0 12px; }
+.np-termo-doc h2 { font-size: 16px; font-weight: 800; margin: 18px 0 8px; }
+.np-termo-doc h3 { font-size: 15px; font-weight: 700; margin: 14px 0 6px; }
+.np-termo-doc p { margin: 0 0 10px; }
+.np-termo-doc ol, .np-termo-doc ul { margin: 0 0 10px; padding-left: 22px; }
+.np-termo-doc li { margin-bottom: 6px; }
+.np-termo-doc table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.np-termo-doc th, .np-termo-doc td { border: 1px solid var(--nx-bd2); padding: 6px 8px; text-align: left; }
+.np-termo-doc img { max-width: 100%; height: auto; }
+.np-termo-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.np-termo-acoes .nx-btn { flex: 0 0 auto; }
+#np-termo-print { display: none; }
+
+/* link da proposta */
+.np-link { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--nx-bd); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.np-link .st { font-size: 13px; font-weight: 700; }
+.np-link .url { font-size: 12px; color: var(--nx-tx2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-link .nx-linha-btn { margin-top: 4px; }
+.np-link .nx-linha-btn .nx-btn { min-height: 40px; padding: 6px 14px; font-size: 13px; }
+
+@media (max-width: 420px) {
+  .np-termo-trava { flex-direction: column; }
+  .np-saldo .np-num strong { font-size: 24px; }
+}
+@media print {
+  body.np-print-termo > *:not(#np-termo-print) { display: none !important; }
+  body.np-print-termo { background: #fff !important; }
+  body.np-print-termo #np-termo-print { display: block !important; padding: 18mm; color: #000; font-family: var(--nx-fonte); }
+  body.np-print-termo #np-termo-print .cab { margin-bottom: 14mm; }
+  body.np-print-termo #np-termo-print .cab img { height: 12mm; width: auto; }
+  body.np-print-termo #np-termo-print .np-termo-doc { max-height: none; overflow: visible; border: 0; background: #fff; padding: 0; font-size: 11pt; }
+  body.np-print-termo #np-termo-print .aceite { margin-top: 10mm; font-weight: 700; font-size: 11pt; }
+}
