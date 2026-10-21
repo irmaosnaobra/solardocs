@@ -314,6 +314,7 @@ a:hover { color: var(--nx-azul-h); }
 .np-acoes .nx-btn { min-height: 48px; font-size: 15px; width: 100%; }
 
 .np-nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.np-num:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .np-num { background: #fff; border: 1px solid var(--nx-bd); border-radius: var(--nx-r-cartao); box-shadow: var(--nx-sombra); padding: 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .np-num strong { font-size: 36px; line-height: 1; font-weight: 800; }
 .np-num strong.az { color: var(--nx-azul-tx); }

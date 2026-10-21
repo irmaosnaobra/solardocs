@@ -320,6 +320,7 @@ var ST = {};             // listas das outras abas, por nome (null = ainda não 
 var PROPS_DESDE = null;  // período em que ST.propostas foi carregada
 var PROPS_ALL = null;    // todas as propostas, só para a ficha do parceiro
 var aba = 'parceiros';
+var MOSTRAR_USINAS = false; // true religa a aba Usinas e o total "Usinas novas"
 var fichaId = null;
 var foco = null;
 var carregando = false;
@@ -490,7 +491,7 @@ var UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA'
 var ABAS = [
   ['parceiros', 'Parceiros', null], ['pedidos', 'Pedidos', 'pedidos_abertos'], ['oportunidades', 'Oportunidades', 'oportunidades_abertas'],
   ['usinas', 'Usinas', 'usinas_novas'], ['solicitacoes', 'Solicitações', 'solicitacoes_abertas'], ['propostas', 'Propostas', null]
-];
+].filter(function (a) { return MOSTRAR_USINAS || a[0] !== 'usinas'; });
 
 function papeis(p) {
   var l = [];
@@ -590,7 +591,7 @@ function desenharTotais() {
   ];
   [['pedidos_abertos', 'Pedidos abertos'], ['carregadores_confirmados_mes', 'Carregadores confirmados no mês'],
    ['oportunidades_abertas', 'Oportunidades abertas'], ['usinas_novas', 'Usinas novas'], ['solicitacoes_abertas', 'Solicitações abertas']
-  ].forEach(function (c) { if (t[c[0]] != null) itens.push([fmtNum(t[c[0]]), c[1]]); });
+  ].filter(function (c) { return MOSTRAR_USINAS || c[0] !== 'usinas_novas'; }).forEach(function (c) { if (t[c[0]] != null) itens.push([fmtNum(t[c[0]]), c[1]]); });
   $('totais').innerHTML = itens.map(function (i) {
     return '<div class="tot"><div class="n">' + esc(i[0]) + '</div><div class="r">' + esc(i[1]) + '</div></div>';
   }).join('');

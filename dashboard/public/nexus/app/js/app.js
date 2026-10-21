@@ -9,6 +9,8 @@
 (function () {
   'use strict';
 
+  /* Chave da indicação de usinas: false oculta menu, cartão do Início, número e linha do acordo; o código fica. */
+  const MOSTRAR_USINAS = false;
   var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var API = LOCAL ? 'http://localhost:3001' : '/_api';
   var NX = '/gerador/nexus';
@@ -173,7 +175,7 @@
     parceria: { menu: 'Minha parceria', ctx: 'Níveis, caminho e selo' },
     perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' }
   };
-  var ORDEM = ['inicio', 'mercado', 'equipamentos', 'propostas', 'oportunidades', 'usinas', 'engenharia', 'materiais', 'parceria'];
+  var ORDEM = ['inicio', 'mercado', 'equipamentos', 'propostas', 'oportunidades', 'usinas', 'engenharia', 'materiais', 'parceria'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
   var TABS = ['inicio', 'equipamentos', 'propostas', 'oportunidades'];
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
 
@@ -196,6 +198,10 @@
     var partes = t.split('/');
     var r = ALIAS[partes[0]] || partes[0];
     if (!ROTAS[r]) return null;
+    if (r === 'usinas' && !MOSTRAR_USINAS) {
+      try { history.replaceState(null, '', location.pathname + location.search + '#inicio'); } catch (e) { /* ok */ }
+      return { r: 'inicio', sub: '' };
+    }
     return { r: r, sub: partes.slice(1).join('/') };
   }
   function irPara(h) {
@@ -724,7 +730,7 @@
       entrada: 'O DC 80 kW puxa perto de 90 kVA. Na CEMIG, o padrão de baixa tensão (ND-5.1) vai até 75 kW: o ponto precisa de estudo da entrada de energia.'
     },
     'nexus-dc-120': {
-      tag: 'Divide a potência entre as vagas', fotos: ['dc-frente-limpo', 'p-dc', 'dc-3q-esq', 'dc-traseira'],
+      tag: 'Divide a potência entre as vagas', fotos: ['p-dc', 'dc-frente-limpo', 'dc-3q-dir', 'dc-lateral'],
       alt: 'Carregador NEXUS DC 120 kW, vista frontal com a porta fechada',
       entrada: 'Todo ponto precisa de estudo da entrada de energia antes da compra. A Engenharia NEXUS faz esse estudo para você.'
     }
@@ -787,8 +793,9 @@
     var c = eu.contagens || {};
     var nums = [
       [c.propostas_mes, 'Propostas geradas no mês'], [c.pedidos, 'Pedidos de equipamento'],
-      [c.oportunidades_recebidas, 'Oportunidades recebidas'], [c.usinas, 'Usinas indicadas']
+      [c.oportunidades_recebidas, 'Oportunidades recebidas']
     ];
+    if (MOSTRAR_USINAS) nums.push([c.usinas, 'Usinas indicadas']);
     var h = '<div class="np-pagina">';
     h += '<section class="np-saud"><div class="tx"><h1>Olá, ' + esc(nomeEmpresa() || 'parceiro') + '</h1><p>' + esc(linha.join(' · ')) + '</p></div>' +
       '<div class="np-prog"><div class="l"><span>' + (prox ? 'Próximo nível: ' + esc(prox) : 'Nível máximo') + '</span><span>Etapa ' + idx + ' de 4</span></div>' +
@@ -803,8 +810,8 @@
     h += '<section class="np-sec"><div class="np-tit-linha"><div class="np-tit-grupo"><h2>Oportunidades na sua região</h2></div>' +
       (libera('oportunidades') ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="oportunidades">Ver todas as oportunidades</button>' : '') + '</div>' +
       '<div id="np-opsini">' + (libera('oportunidades') ? girando('Carregando as oportunidades') : opsBloqueadasHTML()) + '</div></section>';
-    h += '<section class="np-chamadas"><div class="np-chamada"><span class="ico">' + ic('usinas') + '</span><h3>Indique uma usina</h3><p>Conhece uma usina solar com energia sobrando? A NEXUS compra energia para a rede de eletropostos.</p>' +
-      '<button type="button" class="nx-btn" data-acao="ir" data-arg="usinas">Indicar usina</button></div>' +
+    h += '<section class="np-chamadas">' + (MOSTRAR_USINAS ? '<div class="np-chamada"><span class="ico">' + ic('usinas') + '</span><h3>Indique uma usina</h3><p>Conhece uma usina solar com energia sobrando? A NEXUS compra energia para a rede de eletropostos.</p>' +
+      '<button type="button" class="nx-btn" data-acao="ir" data-arg="usinas">Indicar usina</button></div>' : '') +
       '<div class="np-chamada" id="engenharia"><span class="ico">' + ic('engenharia') + '</span><h3>Engenharia NEXUS</h3><p>Precisa de projeto elétrico, ART, estudo da entrada de energia ou homologação na distribuidora? A NEXUS faz para você.</p>' +
       '<button type="button" class="nx-btn" data-acao="ir" data-arg="engenharia">Pedir engenharia</button></div></section>';
     h += '<section class="np-rodape"><p>A NEXUS é importadora. O cliente e a obra da sua região são seus.</p><p>Nada é cobrado sobre a sua obra. Sem mensalidade. Sem taxa de entrada.</p></section>';
@@ -1280,7 +1287,8 @@
     { k: 'master', n: 'Nível 4', nome: 'Partner Master', como: 'A partir de 5 carregadores comprados.', libera: ['Condição comercial por volume', 'Prioridade nas oportunidades'] }
   ];
   var ENTREGA_NEXUS = ['Equipamento com preço de parceiro', 'Clientes e obras da sua região', 'Engenharia quando você precisar', 'Simulador, propostas e materiais com a sua marca', 'Peça de reposição e suporte no país'];
-  var ENTREGA_VOCE = ['Compra o equipamento da NEXUS', 'Atende o cliente encaminhado no prazo', 'Dá baixa de cada oportunidade', 'Opera o ponto pela plataforma de cobrança NEXUS por 24 meses', 'Indica usinas'];
+  var ENTREGA_VOCE = ['Compra o equipamento da NEXUS', 'Atende o cliente encaminhado no prazo', 'Dá baixa de cada oportunidade', 'Opera o ponto pela plataforma de cobrança NEXUS por 24 meses'];
+  if (MOSTRAR_USINAS) ENTREGA_VOCE.push('Indica usinas');
   function passosCaminho() {
     var p = S.eu.parceiro || {}, comprados = num(p.carregadores_comprados), L = [];
     L.push({ nome: 'Perfil completo', feito: libera('basico'), acao: libera('basico') ? '' : '<button type="button" class="nx-btn" data-acao="ir" data-arg="perfil">Completar o perfil</button>' });
