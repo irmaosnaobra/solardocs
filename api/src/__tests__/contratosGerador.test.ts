@@ -212,6 +212,8 @@ const CENARIOS: Record<string, Cenario[]> = {
       vale: ambos(r => tem(r, 'nota fiscal de serviço da instalação', /corrige sem custo o defeito de execução da instalação/), r => expect(r.d.eqv.itens.length).toBe(2)) },
     { nome: 'com "Kit de instalação": é material, não instalação vendida', tipo: 'equip', campos: { ...PF }, extra: { eqv: eqvCom({ desc: 'Kit de instalação', ncm: '8536.90.90', unit: 300000 }) },
       vale: r => { nao(r, 'nota fiscal de serviço da instalação', 'defeito de execução da instalação'); expect(r.d.eqv.itens.some((i: any) => /kit/i.test(i.desc))).toBe(true); SB.__q = r.d.eqv; expect(rodar('ctrEqInstVendida(__q)')).toBe(false); } },
+    { nome: 'com "Instalação do kit carregador": a descrição não começa com kit, é instalação vendida', tipo: 'equip', campos: { ...PF }, extra: { eqv: eqvCom({ desc: 'Instalação do kit carregador', unit: 800000 }) }, lacuna: true /* serviço não tem NCM */,
+      vale: r => { tem(r, 'nota fiscal de serviço da instalação'); SB.__q = r.d.eqv; expect(rodar('ctrEqInstVendida(__q)')).toBe(true); } },
     { nome: 'frete FOB', tipo: 'equip', campos: { ...PF }, extra: { eqv: { ...EQV, freteTipo: 'FOB' } }, vale: r => tem(r, '(FOB)') },
     { nome: 'multa de 10% digitada: pessoa física no máximo 2%', tipo: 'equip', campos: { ...PF, 'ctr-multa': '10' }, extra: { eqv: EQV }, vale: ambos(r => tem(r, '2% (dois por cento)'), r => nao(r, '10% (dez por cento)')) },
     { nome: 'limite de responsabilidade só com CNPJ', tipo: 'equip', campos: { ...PF }, extra: { eqv: EQV }, vale: r => nao(r, /limitada ao valor já pago/) },
@@ -259,6 +261,8 @@ const CENARIOS: Record<string, Cenario[]> = {
     { nome: 'reserva em cotas com depósito no cartão, local definido, origem pessoal: arras e dobro', tipo: 'termo_inv', campos: { ...PF, ...COTAS, 'ctr-ti-uso': 'reserva', 'ctr-ti-deposito': '5.000,00', 'ctr-ti-deposito-forma': 'cartão de crédito', 'ctr-ti-ponto': 'Av. Teste, 1, Cidade Teste/MG', 'ctr-ti-origem': 'pessoal' },
       vale: ambos(r => tem(r, 'arras penitenciais', 'em dobro', 'não assinar o contrato de cessão do local', 'estorno total da compra no cartão', 'contato pessoal anterior', 'devolve o depósito em dobro'), r => nao(r, 'Forma pretendida')) },
     { nome: 'reserva em cotas, empresa, com depósito, sem local definido', tipo: 'termo_inv', lacuna: true, campos: { ...PJ, ...COTAS, 'ctr-ti-uso': 'reserva', 'ctr-ti-deposito': '5.000,00', 'ctr-ti-regiao': 'Cidade Teste/MG', 'ctr-ti-raio': '50' }, vale: ambos(r => nao(r, /domic[ií]lio/), r => tem(r, 'local a definir', 'a até 50 (cinquenta) km')) },
+    { nome: 'reserva em cotas com o campo escondido ctr-sinal preenchido: a minuta anexa diz só o depósito da reserva', tipo: 'termo_inv', campos: { ...PF, ...COTAS, 'ctr-ti-ponto': 'Av. Exemplo, 200, Cidade Teste/MG', 'ctr-ti-uso': 'reserva', 'ctr-ti-deposito': '5.000,00', 'ctr-sinal': '7.000,00' },
+      vale: r => { const anexo = (r.anexos || []).join(' ').replace(/<[^>]+>/g, ' '); expect(r.d.sinal).toBeGreaterThan(0); expect(anexo).toMatch(/5\.000,00/); expect(anexo).not.toMatch(/7\.000,00|12\.000,00/); } },
     { nome: 'reserva no 50/50 sem depósito', tipo: 'termo_inv', campos: { ...PF, ...SOC, 'ctr-ti-ponto': 'Av. Exemplo, 200, Cidade Teste/MG', 'ctr-ti-uso': 'reserva', 'ctr-ti-modelo': 'socio50' }, vale: r => tem(r, 'Sem depósito, cada parte pode encerrar') },
     { nome: 'reserva no 50/50, o investidor não é o dono do imóvel', tipo: 'termo_inv', campos: { ...PF, ...SOC, 'ctr-ti-uso': 'reserva', 'ctr-ti-modelo': 'socio50', 'ctr-ti-deposito': '5.000,00', 'ctr-soc-dono': 'nao', 'ctr-ti-ponto': 'Av. Teste, 1, Cidade Teste/MG' },
       vale: ambos(r => tem(r, 'autorização escrita do dono do imóvel', 'protocola o pedido de acesso em até 30 (trinta) dias', 'impedir de má-fé a aceitação do pedido de acesso'), r => nao(r, 'não assinar o contrato de cessão do local')) },
@@ -499,10 +503,43 @@ describe('contrato solar: um contrato só, sem promessa de geração, com pagame
     expect(velho.relatorio[0].falhas.length).toBe(1);
     expect(velho.relatorio[0].falhas[0].motivo).toMatch(/mudou depois do pedido/);
   });
-  it('com texto E tabela, o contrato imprime só a tabela (o texto livre não vira papel)', () => {
-    const r = gerarSolar(1, { ...SOLAR, 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas', 'fs-c-pagjson': PIX_RESTO() });
+  it('com texto E tabela: texto igual ao aplicado imprime só a tabela; texto diferente trava; modelo rápido sem texto passa', () => {
+    const TXT = 'Entrada de 30% e saldo em 12 parcelas';
+    const r = gerarSolar(1, { ...SOLAR, 'fs-c-pagto': TXT, 'fs-c-pagtxt': TXT, 'fs-c-pagjson': PIX_RESTO() });
     expect(textoDe(r)).not.toMatch(/Entrada de 30%/);
     expect(r.trava).toBe('');
+    // Texto escrito e não montado (a tabela é a padrão "Pix, o restante"): a soma fecha, mas o contrato sairia "saldo inteiro no Pix".
+    const naoMontado = gerarSolar(1, { ...SOLAR, 'fs-c-pagto': 'Entrada de 5 mil no Pix e 12x no cartão', 'fs-c-pagtxt': '', 'fs-c-pagjson': PIX_RESTO() });
+    expect(naoMontado.trava).toMatch(/a tabela não foi montada a partir desse texto/);
+    expect(naoMontado.trava).toMatch(/Clique em Montar \(ou em À vista no Pix\), confira e gere \(ou apague o texto se a tabela já está certa\)/);
+    // Texto editado depois do Aplicar também trava.
+    expect(gerarSolar(1, { ...SOLAR, 'fs-c-pagto': TXT + ' e mais um pouco', 'fs-c-pagtxt': TXT, 'fs-c-pagjson': PIX_RESTO() }).trava).toMatch(/não foi montada/);
+    // Modelo rápido / padrão da casa, sem texto escrito: passa.
+    expect(gerarSolar(1, { ...SOLAR, 'fs-c-pagtxt': '', 'fs-c-pagjson': PIX_RESTO() }).trava).toBe('');
+  });
+  it('papel solar antigo reaberto: "À vista via Pix: R$ X." com X igual ao saldo monta a linha à vista sozinha; outro texto segue travado', () => {
+    const reabrir = (c: Record<string, string>, snapCampos: Record<string, string> = {}) => {
+      for (const k of Object.keys(campos)) delete campos[k];
+      Object.assign(campos, { ...SOLAR, ...c });
+      SB.__snap = { campos: snapCampos };
+      rodar(`(() => { globalThis.__gr = null; globalThis.__tx = null;
+        if (!globalThis.__gOrig) { globalThis.__gOrig = fsPagGrava; globalThis.__tOrig = fsPagTxtGrava; }
+        fsPagGrava = l => { __gr = l; }; fsPagTxtGrava = t => { __tx = t; };
+        try { fsPagLegado(__snap); } finally { fsPagGrava = __gOrig; fsPagTxtGrava = __tOrig; } })()`);
+      return { gr: SB.__gr, tx: SB.__tx };
+    };
+    const ok = reabrir({ 'fs-c-pagto': 'À vista via Pix: R$ 45.000,00.' });
+    expect(ok.tx).toBe('À vista via Pix: R$ 45.000,00.');
+    expect(ok.gr.length).toBe(1);
+    expect(ok.gr[0].forma).toBe('Pix');
+    expect(ok.gr[0].resto).toBe(true);
+    // Com a linha à vista gravada e o texto marcado como aplicado, o Gerar passa.
+    expect(gerarSolar(1, { ...SOLAR, 'fs-c-pagto': ok.tx, 'fs-c-pagtxt': ok.tx, 'fs-c-pagjson': JSON.stringify(ok.gr) }).trava).toBe('');
+    // X diferente do saldo, outro texto ou papel que já tem o campo novo: nada é montado, e a trava segue.
+    expect(reabrir({ 'fs-c-pagto': 'À vista via Pix: R$ 40.000,00.' }).gr).toBeNull();
+    expect(reabrir({ 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' }).gr).toBeNull();
+    expect(reabrir({ 'fs-c-pagto': 'À vista via Pix: R$ 45.000,00.' }, { 'fs-c-pagtxt': '' }).gr).toBeNull();
+    expect(gerarSolar(1, { ...SOLAR, 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' }).trava).toMatch(/só em texto/);
   });
 });
 
@@ -520,6 +557,19 @@ describe('contratos do /gerador: tabela de pagamento', () => {
   it('soma diferente do saldo bloqueia, com a mensagem da tela', () => {
     const msg = SB.ctrPagTrava('socio50', [L('Cartão de crédito', 72000, 10, 0, 'Na assinatura')], 62500);
     expect(msg).toBe('As formas de pagamento somam R$ 72.000,00 e o valor devido é R$ 62.500,00. Ajuste o pagamento antes de gerar.');
+  });
+  it('texto de "Como o cliente vai pagar" que não montou a tabela trava; igual ao aplicado ou vazio passa (eletroposto)', () => {
+    const linhas = SB.ctrPagModelo('vista', 62500);
+    const msg = (texto: string, ok: string) => { for (const k of Object.keys(campos)) delete campos[k]; campos['ctr-pag-texto'] = texto; SB.__ok = ok; return rodar('ctrPag.txtok = __ok; ctrPagNaoMontado()'); };
+    expect(SB.ctrPagTrava('socio50', linhas, 62500, false, msg('10 mil de Pix e 10x no cartão', ''))).toMatch(/a tabela não foi montada a partir desse texto\. Clique em Montar, confira e gere \(ou apague o texto se a tabela já está certa\)\./);
+    expect(SB.ctrPagTrava('socio50', linhas, 62500, false, msg('10 mil de Pix e 10x no cartão', '10 mil de Pix e 10x no cartão'))).toBe('');
+    expect(SB.ctrPagTrava('socio50', linhas, 62500, false, msg('', ''))).toBe('');
+    expect(SB.ctrPagTrava('socio50', linhas, 62500, false, msg('10 mil de Pix e 10x no cartão', 'outro texto'))).toMatch(/não foi montada/);
+    // O modelo rápido guarda o texto aplicado vazio: texto escrito depois dele trava.
+    rodar("ctrPag.txtok = 'x'; ctrPagAplicar('vista');");
+    expect(rodar('ctrPag.txtok')).toBe('');
+    rodar("ctrPag.txtok = 'x'; ctrPagReset();");
+    expect(rodar('ctrPag.txtok')).toBe('');
   });
   it('diferença de 0,03 não bloqueia', () => {
     expect(SB.ctrPagTrava('socio50', [L('Pix', 62499.97, 1, 0, '')], 62500)).toBe('');

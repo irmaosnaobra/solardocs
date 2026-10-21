@@ -6500,7 +6500,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
         <div class="orc-note" id="ctr-sinal-nota">—</div>
         <div class="eletro-field" style="grid-column:1/-1"><label for="ctr-pag-texto">Como o cliente vai pagar</label>
-          <div class="ctr-ag-entrada"><textarea id="ctr-pag-texto" class="ctr-ta" rows="2" maxlength="1500" placeholder="Ex.: 10 mil de Pix na assinatura, 10x de R$ 6.549 no cartão e o restante na entrega da NF"></textarea><button type="button" class="eletro-btn" id="ctr-pag-montar" onclick="ctrPagMontar()">Montar</button></div>
+          <div class="ctr-ag-entrada"><textarea id="ctr-pag-texto" class="ctr-ta" rows="2" maxlength="1500" oninput="ctrPagSoma()" placeholder="Ex.: 10 mil de Pix na assinatura, 10x de R$ 6.549 no cartão e o restante na entrega da NF"></textarea><button type="button" class="eletro-btn" id="ctr-pag-montar" onclick="ctrPagMontar()">Montar</button></div>
           <div id="ctr-pag-previa" aria-live="polite"></div>
           <div class="orc-note" style="margin-top:4px">A IA só separa as formas do que você escreveu e não inventa número. A conta (restante, parcela, taxa) é feita aqui, depois do clique em Aplicar.</div></div>
         <div class="ctr-pag-modelos"><span>Modelos rápidos</span>
@@ -23714,10 +23714,10 @@ function ctrEspelho(id, ligado, fonte, desligar, religar) {
 // quem paga é a NEXUS.
 // O pedido da compra e venda: a aba Venda de equipamento, com ou sem os itens
 // opcionais (caixinha do contrato). Valores em reais; os itens em centavos.
-// A instalação está vendida quando algum item do pedido tem "instala" na descrição (sem diferenciar maiúsculas) e não tem "kit":
-// "kit de instalação" é material, não serviço. Decide a nota fiscal, a cláusula da instalação e o campo da garantia da instalação.
+// A instalação está vendida quando algum item do pedido tem "instala" na descrição (sem diferenciar maiúsculas) e a descrição não COMEÇA com "kit":
+// "Kit de instalação" é material, não serviço; "Instalação do kit carregador" é serviço. Decide a nota fiscal, a cláusula da instalação e o campo da garantia da instalação.
 // Um só teste para a tela, o contrato e a impressão.
-const ctrEqItemInstala = i => { const t = String((i && i.desc) || ''); return /instala/i.test(t) && !/kit/i.test(t); };
+const ctrEqItemInstala = i => { const t = String((i && i.desc) || ''); return /instala/i.test(t) && !/^\s*kit\b/i.test(t); };
 const ctrEqInstVendida = q => !!q && (q.itens || []).some(ctrEqItemInstala);
 function ctrEqv() {
   const vazio = { itens: [], fora: [], subtotal: 0, frete: 0, total: 0, num: '', freteTipo: 'CIF', entregaLocal: '', prazo: '', garantia: '', emit: {}, ie: '' };
@@ -24007,6 +24007,11 @@ function ctrPagRestaurar(sp) {
 // Forma de pagamento escrita só em texto (Observações do pagamento ou "Como o cliente vai pagar"), sem tabela.
 const ctrPagSoTexto = () => !!(orcVal('ctr-pag-obs') || orcVal('ctr-pag-texto'));
 const CTR_PAG_MSG_SO_TEXTO = 'A forma de pagamento está só em texto. Clique em Montar para virar a tabela, confira e gere.';
+// Texto de "Como o cliente vai pagar" que não foi o que montou a tabela: vazio = nada a conferir; igual ao texto aplicado = a tabela veio dele.
+// `ok` é o texto que o Aplicar (ou o modelo rápido, que guarda vazio) deixou guardado.
+const ctrPagTextoNaoMontado = (texto, ok) => { const t = String(texto || '').trim(); return !!t && t !== String(ok || '').trim(); };
+const CTR_PAG_MSG_NAO_MONTADO = 'Você escreveu como o cliente vai pagar, mas a tabela não foi montada a partir desse texto. Clique em Montar, confira e gere (ou apague o texto se a tabela já está certa).';
+const CTR_PAG_MSG_NAO_MONTADO_SOL = 'Você escreveu como o cliente vai pagar, mas a tabela não foi montada a partir desse texto. Clique em Montar (ou em À vista no Pix), confira e gere (ou apague o texto se a tabela já está certa).';
 function ctrPagTotal() { return ctrPag.linhas.reduce((t, l) => t + ctrPagConta(l).valor, 0); }
 
 // ─── A conta do pagamento, sem tela e sem estado ─────────────────────────────
@@ -24042,12 +24047,14 @@ const CTR_PAG_IMPRIME = ['completo', 'equip', 'socio50', 'cotas', 'termo_inv', '
 // com "Cartão R$ 72.000,00" para um saldo de R$ 62.500,00.
 // `soTexto`: a lista está vazia mas há texto (observações ou "Como o cliente vai pagar"): a mensagem manda montar a tabela.
 // Sem exceção para papel antigo: todo contrato que imprime pagamento exige linhas.
-function ctrPagTrava(tipo, linhas, saldo, soTexto) {
+function ctrPagTrava(tipo, linhas, saldo, soTexto, naoMontado, msgNaoMontado) {
   if (!CTR_PAG_IMPRIME.includes(tipo)) return '';
   const pc = ctrPagCalc(linhas, saldo);
   if (!pc.itens.length && soTexto && saldo > CTR_PAG_TOL) return CTR_PAG_MSG_SO_TEXTO;
   if (!pc.itens.length) return saldo > CTR_PAG_TOL ? 'O contrato imprime a forma de pagamento, mas a lista está vazia. Monte o pagamento (modelo rápido, "Como o cliente vai pagar" ou "+ Adicionar forma de pagamento") antes de gerar.' : '';
   if (pc.incompletas.length) return pc.incompletas[0] + ' Ajuste o pagamento antes de gerar.';
+  // A soma fecha, mas o texto escrito pode dizer outra coisa que a tabela (padrão ou modelo rápido): sem Montar, o contrato sairia errado.
+  if (naoMontado && saldo > CTR_PAG_TOL) return msgNaoMontado || CTR_PAG_MSG_NAO_MONTADO;
   if (!ctrPagFecha(pc.dif)) return `As formas de pagamento somam ${ORC_MONEY(pc.soma)} e o valor devido é ${ORC_MONEY(saldo)}. Ajuste o pagamento antes de gerar.`;
   return '';
 }
@@ -24201,8 +24208,10 @@ function ctrPagAdd() {
   const ult = document.querySelector('#ctr-pag-lista .ctr-pag-row:last-child input:not([type=checkbox])');
   if (ult) ult.focus();
 }
-function ctrPagAplicar(tipo) { ctrPag.linhas = ctrPagModelo(tipo, ctrSaldo()); ctrPag.tocado = true; ctrPagRender(); }
-function ctrPagReset() { ctrPag.tocado = false; ctrResumo(); }
+// Modelo rápido e "voltar ao Orçamento" guardam o texto aplicado vazio: a tabela não veio de nenhum texto escrito.
+function ctrPagAplicar(tipo) { ctrPag.linhas = ctrPagModelo(tipo, ctrSaldo()); ctrPag.tocado = true; ctrPag.txtok = ''; ctrPagRender(); }
+function ctrPagReset() { ctrPag.tocado = false; ctrPag.txtok = ''; ctrResumo(); }
+const ctrPagNaoMontado = () => ctrPagTextoNaoMontado(orcVal('ctr-pag-texto'), ctrPag.txtok);
 function ctrPagFechar() {
   const l = ctrPag.linhas[ctrPag.linhas.length - 1];
   if (!l || l.resto) return;
@@ -24236,6 +24245,9 @@ function ctrPagSoma() {
   } else if (pc.incompletas.length) {
     el.className = 'ctr-pag-soma dif';
     el.innerHTML = `<b>${orcEsc(pc.incompletas[0])}</b> O contrato não é gerado assim.`;
+  } else if (CTR_PAG_IMPRIME.includes(ctrTipo()) && saldo > CTR_PAG_TOL && ctrPagNaoMontado()) {
+    el.className = 'ctr-pag-soma dif';
+    el.textContent = CTR_PAG_MSG_NAO_MONTADO;
   } else if (ctrPagFecha(dif)) {
     el.className = 'ctr-pag-soma fecha';
     el.innerHTML = `As formas somam <b>${ORC_MONEY(soma)}</b>, exatamente o saldo a pagar.`;
@@ -24309,6 +24321,7 @@ function ctrPagPreviaAplicar() {
     return ctrPagLinha(CTR_PAG_FORMA_NOME[x.forma] || x.forma, resto ? 0 : (Number(x.valor) || 0), parc, 0, x.quando || '', x.obs || '', { resto, parcValor: Number(x.parcValor) || 0 });
   });
   ctrPag.tocado = true;
+  ctrPag.txtok = p.texto || '';   // o texto de que a tabela veio: se ele mudar depois, o Gerar trava
   ctrPagProp = null;
   ctrPagRender();
   ctrPagPreviaMsg('Formas aplicadas. Confira a lista e a soma.');
@@ -24361,6 +24374,7 @@ async function ctrPagMontar() {
       return;
     }
     ctrPagProp = {
+      texto,
       resposta: j.resposta ? String(j.resposta) : '',
       linhas: acao.linhas.slice(0, 6).map(x => ({
         forma: String(x.forma || ''), valor: Number(x.valor) > 0 ? Number(x.valor) : 0, parc: Number.isInteger(x.parc) ? x.parc : 1,
@@ -25043,7 +25057,7 @@ function ctrModeloSociedade(d) {
   // Regra 12: pessoa física é consumidor. Sem documento preenchido vale o lado mais protetivo: pessoa física, não empresa.
   // O Completo usa este mesmo teste; a Compra e venda usa !pj, que só difere com documento digitado errado.
   const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
-  const pf = dg === 0 || dg === 11;
+  const pf = dg !== 14;
   const L = h => (pf && h ? `<b>${h}</b>` : h);
   // Regra 3: número com o extenso. fem = palavra feminina (parcelas, vagas): "2 (duas)".
   const nx = (n, fem) => {
@@ -25217,7 +25231,7 @@ function ctrModeloArrend(d) {
   // (o cliente é o CESSIONÁRIO) e a NEXUS nem é parte: pf é sempre falso. Sem documento vale o lado que mais protege.
   // A NEXUS mantém a proteção contra cobrança de lucro cessante (resp.indiretos): o dono do local não é consumidor.
   const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
-  const pf = !d.arrCli && (dg === 0 || dg === 11);
+  const pf = !d.arrCli && dg !== 14;
   const L = h => (pf && h ? `<b>${h}</b>` : h);
   // Dossiê anexo: vem dos dados (ctrDados), e a minuta do Termo do Arrendador o desliga (o dossiê é anexo do termo).
   const dos = !!(d.opc && d.opc.dossie_anexo);
@@ -25444,7 +25458,7 @@ function ctrTermosPrazos() {
 // Não existe cláusula opcional: o que muda de um caso para outro entra pelos
 // dados (promessa ou carta, valor fixo ou percentual, reserva paga, interveniente,
 // inquilino, dono pessoa física). Os números sem campo são de ctrTermosPrazos().
-// Regras da casa: api/src/services/gerador/contratoRegras.ts. Teto: 3 folhas.
+// Regras da casa: api/src/services/gerador/contratoRegras.ts. Teto: 3,5 folhas (termos).
 function ctrModeloTermoArr(d) {
   const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
   const { nx, px, rx } = ctrPecasNum(e, money);
@@ -25452,7 +25466,7 @@ function ctrModeloTermoArr(d) {
   const a = d.arr, ta = d.ta, N = d.nomes.nossa, D = d.nomes.deles;
   // Regra 12: o dono pessoa física ganha negrito no que limita direito dele e o foro do domicílio. Sem documento vale o lado que mais protege.
   const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
-  const pf = dg === 0 || dg === 11;
+  const pf = dg !== 14;
   const L = h => (pf && h ? `<b>${h}</b>` : h);
   const prom = ta.nivel === 'promessa';
   const fixo = a.modo === 'fixo';
@@ -25506,11 +25520,11 @@ function ctrModeloTermoArr(d) {
     ]),
     C('condicoes', prom ? 'Das condições da cessão' : 'Das condições pretendidas', [
       I('condicoes.remuneracao', `A ${N} ${prom ? 'pagará' : 'pretende pagar'} ao ${D} ` + (fixo
-        ? `${a.fixo > 0 ? `<b>valor mensal fixo de ${money(a.fixo)}</b> (${e(recExtenso(a.fixo))})` : `<b>valor mensal fixo</b> de ${lacuna}`} ${fixoTodo ? 'durante todo o prazo mínimo' : `nos primeiros ${a.fixoMeses == null ? lacuna : nx(a.fixoMeses)} meses de funcionamento`}, com ou sem movimento, ${a.reajuste === 0 ? 'sem reajuste' : `reajustado em ${a.reajuste == null ? lacuna : px(a.reajuste)} a cada 12 (doze) meses seguintes, sobre o valor em vigor`}, até o dia ${nx(a.dia)} do mês seguinte.`
+        ? `${a.fixo > 0 ? `<b>valor mensal fixo de ${money(a.fixo)}</b> (${e(recExtenso(a.fixo))})` : `<b>valor mensal fixo</b> de ${lacuna}`} ${fixoTodo ? 'durante todo o prazo mínimo' : `nos primeiros ${a.fixoMeses == null ? lacuna : nx(a.fixoMeses)} meses de funcionamento`}, com ou sem movimento, salvo a suspensão se o estabelecimento fechar e impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${a.reajuste === 0 ? 'sem reajuste' : `reajustado em ${a.reajuste == null ? lacuna : px(a.reajuste)} a cada 12 (doze) meses seguintes, sobre o valor em vigor`}, até o dia ${nx(a.dia)} do mês seguinte.`
         : `<b>${a.pct > 0 ? px(a.pct) : lacuna} do faturamento bruto de recarga do PONTO</b>${a.piso > 0 ? `, com piso mensal de ${rx(a.piso)} a partir do mês ${nx(a.carencia)} de operação` : ''}, até o dia ${nx(a.dia)} do mês seguinte.`), { travado: true }),
       I('condicoes.prazo', prom
-        ? `O contrato de cessão terá prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento, contados da primeira recarga cobrada, em que ninguém sai sem motivo.`
-        : `O contrato de cessão pretendido tem prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento, contados da primeira recarga cobrada, em que ninguém sai sem motivo, renovação automática por ${nx(a.renovacao)} meses, salvo aviso da ${N} com ${nx(a.aviso)} dias de antecedência, e fase de obra de até ${nx(a.implant)} dias sem pagamento.`),
+        ? `O contrato de cessão terá prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento, em que ninguém sai sem motivo. O funcionamento começa na primeira recarga cobrada, e a contagem dos meses começa no primeiro mês inteiro do calendário em funcionamento.`
+        : `O contrato de cessão pretendido tem prazo mínimo de <b>${nx(a.vigencia)} meses</b> de funcionamento, em que ninguém sai sem motivo, contados do primeiro mês inteiro do calendário após a primeira recarga cobrada, renovação automática por ${nx(a.renovacao)} meses, salvo aviso da ${N} com ${nx(a.aviso)} dias de antecedência, e fase de obra de até ${nx(a.implant)} dias sem pagamento.`),
       I('condicoes.area', prom
         ? `A área tem ${vagas}, nas posições do croqui do dossiê do local${dos ? ` (Anexo ${nDos})` : ''}. Sem croqui, a ${N} indica as vagas no aviso da {{i:exercicio.aviso}}, e o ${D} só as recusa por motivo técnico ou de segurança.`
         : `A área tem ${vagas}, com o PONTO funcionando ${horario} e energia por ${energia}.`),
@@ -25584,7 +25598,7 @@ function ctrModeloTermoArr(d) {
 // Não existe cláusula opcional: o que muda de um caso para outro entra pelos
 // dados (reserva ou adesão, 50/50 ou cotas, depósito, pessoa física ou empresa,
 // cartão, origem do contato). Os números sem campo são de ctrTermosPrazos().
-// Regras da casa: api/src/services/gerador/contratoRegras.ts. Teto: 2,5 folhas.
+// Regras da casa: api/src/services/gerador/contratoRegras.ts. Teto: 3,5 folhas (termos).
 function ctrModeloTermoInv(d) {
   const { e, money, vazio, lacuna, C, I } = ctrModeloPecas(d);
   const { nx, px, rx } = ctrPecasNum(e, money);
@@ -25592,7 +25606,7 @@ function ctrModeloTermoInv(d) {
   const s = d.soc, ti = d.ti, N = d.nomes.nossa, D = d.nomes.deles;
   // Regra 12: pessoa física é consumidor. Sem documento preenchido vale o lado mais protetivo.
   const dg = String(d.contratanteDoc || '').replace(/\D/g, '').length;
-  const pf = dg === 0 || dg === 11;
+  const pf = dg !== 14;
   const L = h => (pf && h ? `<b>${h}</b>` : h);
   const multaCli = pf ? Math.min(d.multa, 2) : d.multa;
   const ades = ti.uso === 'adesao';
@@ -26140,9 +26154,10 @@ function ctrAnexos(d) {
     out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de cessão de área, rubricada pelas partes</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
   }
   if (d.tipo === 'termo_inv' && d.soc && d.ti.uso !== 'adesao') {
-    const dm = Object.assign({}, d, { tipo: d.soc.t, nomes: ctrNomes(d.soc.t), local: d.ti.ponto, num: '', sinal: d.sinal + (d.depReserva || 0),
+    const dm = Object.assign({}, d, { tipo: d.soc.t, nomes: ctrNomes(d.soc.t), local: d.ti.ponto, num: '', sinal: d.depReserva || 0,
       // O depósito do termo é o sinal da minuta (o contrato o cumpre), não arras: sem isto o texto chamaria o depósito de arras penitenciais.
-      sinalDoTermo: (d.sinal + (d.depReserva || 0)) > 0, origemRef: d.num ? 'nº ' + d.num : '' });
+      // Só o depósito da reserva conta como já pago: o campo escondido "ctr-sinal" não soma a ele.
+      sinalDoTermo: (d.depReserva || 0) > 0, origemRef: d.num ? 'nº ' + d.num : '' });
     out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de sociedade em conta de participação</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
   }
   if ((d.tipo === 'termo_arr' || d.tipo === 'arrend') && op('dossie_anexo')) {
@@ -26370,7 +26385,7 @@ function ctrAgUi() { if (ctrAgCtx === 'sol') fsAgUi(); else ctrHibUi(); }
 // Contrato solar único (21/10/2026): sempre solar_m1. O seletor "Modelo" saiu da tela.
 function fsModeloSolar() { return 1; }
 const CTR_AG_SOL_NAO = {
-  modelo: 'No contrato solar o modelo se escolhe no campo "Modelo" do Fechamento. O assistente não troca de modelo.',
+  modelo: 'O contrato solar é um só.',
   hibrido: 'O contrato solar não tem versão híbrida.',
   emitente: 'O contrato solar é sempre da AIOROS (Irmãos na Obra). O assistente não troca o emitente.',
   cadastro: 'O cadastro do cliente do Fechamento solar entra pelo card vendido, não por aqui.',
@@ -27715,7 +27730,7 @@ async function ctrImprimirHibrido() {
   }
   // Pagamento que não fecha o saldo, linha incompleta ou tabela vazia: o contrato não sai, no objeto que leva a tabela.
   { const cobra = tipos.find(t => CTR_HIB_COBRA.includes(t));
-    const trava = cobra ? ctrPagTrava(ds[cobra].tipo, ctrPag.linhas, ds[cobra].saldo, ctrPagSoTexto()) : '';
+    const trava = cobra ? ctrPagTrava(ds[cobra].tipo, ctrPag.linhas, ds[cobra].saldo, ctrPagSoTexto(), ctrPagNaoMontado()) : '';
     if (trava) { alert(trava); return; } }
   for (const t of tipos) {
     const d = ds[t];
@@ -27803,7 +27818,7 @@ async function ctrImprimir() {
     return;
   }
   // Pagamento que não fecha o saldo, linha incompleta ou tabela vazia: o contrato não sai. Nada de "gerar assim mesmo".
-  { const trava = ctrPagTrava(d.tipo, ctrPag.linhas, d.saldo, ctrPagSoTexto()); if (trava) { alert(trava); return; } }
+  { const trava = ctrPagTrava(d.tipo, ctrPag.linhas, d.saldo, ctrPagSoTexto(), ctrPagNaoMontado()); if (trava) { alert(trava); return; } }
   // O local do PONTO em branco no arrendamento e na sociedade sai como lacuna,
   // e endereço residencial no lugar dele é o erro que mais volta do balcão.
   if (['arrend', 'termo_arr', 'socio50', 'cotas'].includes(d.tipo) && !d.local &&
@@ -29541,7 +29556,15 @@ function orcSnapApply(s, tipo) {
   // (ctr-soc-dono), e o papel com os opcionais da Venda de equipamento DENTRO do preço avisa, sem mexer no preço sozinho.
   { const oo = (s.ctrOpc && typeof s.ctrOpc === 'object') ? s.ctrOpc : {};
     if (oo.anuencia && !orcVal('ctr-soc-dono')) set('ctr-soc-dono', 'nao');
-    if (oo.eq_opcionais) showToast('Este papel foi feito com os opcionais fora do preço; confira os itens e o preço antes de gerar.'); }
+    // Preço já ofertado não muda: o papel com os opcionais dentro do preço mantém os itens incluídos (tira a marca de opcional), e o total fica o do papel.
+    if (oo.eq_opcionais) {
+      const marcados = [...document.querySelectorAll('#eq-itens .eq-i-opc')].filter(o => o.checked);
+      if (marcados.length) {
+        marcados.forEach(o => { o.checked = false; });
+        if (typeof equipCalc === 'function') { try { equipCalc(); } catch (e) {} }
+        showToast('Este papel incluía os opcionais no preço; eles foram mantidos no preço. Confira antes de gerar.');
+      }
+    } }
   // Papel de antes de 19/10/2026 não tem cessionário, cedente de fora nem avalista: volta ao padrão (a NEXUS, sem avalista),
   // e não herda o que estava na tela. Reabrir o papel antigo sai igual ao que saiu.
   { const m = s.ctrModelos || {};
@@ -30410,7 +30433,8 @@ function fsMontar() {
       <div class="ctr-ag-acao" style="margin-top:8px"><button type="button" class="eletro-btn" id="fs-pag-montar" onclick="fsPagMontar()">Montar</button><button type="button" class="orc-link" onclick="fsPagVista()">À vista no Pix</button></div>
       <div id="fs-pag-previa"></div><div id="fs-pag-lista"></div><div id="fs-pag-soma" class="ctr-pag-soma"></div>
       <div class="orc-note">O contrato imprime a tabela das formas, nunca o texto: escreva como o cliente vai pagar, clique em Montar e confira antes de Aplicar. O sinal fica fora da tabela, que soma o saldo (valor total menos o sinal).</div>
-      <textarea id="fs-c-pagjson" style="display:none" tabindex="-1" aria-hidden="true"></textarea>`) +
+      <textarea id="fs-c-pagjson" style="display:none" tabindex="-1" aria-hidden="true"></textarea>
+      <textarea id="fs-c-pagtxt" style="display:none" tabindex="-1" aria-hidden="true"></textarea>`) +
       fsCard('Prazos <span class="fs-opc">dias</span>', `<div class="fs-grid g3">
         ${fsF('fs-c-pproj', 'Projeto <span class="hint">(úteis)</span>', { mode: 'numeric' })}
         ${fsF('fs-c-paprov', 'Aprovação', { mode: 'numeric' })}
@@ -30534,7 +30558,11 @@ function fsPagSaldo() {
   return Math.max(0, ctrCent(v - Math.min(solParseBRL(fsVal('fs-c-sinal')), v || Infinity)));
 }
 // O que impede de gerar o contrato (vazio = pode). O texto sem tabela e a soma diferente do saldo travam, como no eletroposto.
-function fsPagTrava(d) { return ctrPagTrava('solar_m1', fsPagLinhas(), d.saldo, !!fsVal('fs-c-pagto')); }
+// `fs-c-pagtxt` (campo escondido, vai no snapshot) guarda o texto de que a tabela veio: o do Aplicar do Montar, ou vazio quando a tabela
+// nasceu do padrão da casa ou de "À vista no Pix". Texto escrito diferente dele = tabela que não veio do texto.
+const fsPagNaoMontado = () => ctrPagTextoNaoMontado(fsVal('fs-c-pagto'), fsVal('fs-c-pagtxt'));
+function fsPagTrava(d) { return ctrPagTrava('solar_m1', fsPagLinhas(), d.saldo, !!fsVal('fs-c-pagto'), fsPagNaoMontado(), CTR_PAG_MSG_NAO_MONTADO_SOL); }
+function fsPagTxtGrava(t) { const el = fsEl('fs-c-pagtxt'); if (!el) return; el.value = String(t || '').trim(); el.dataset.tocado = '1'; }
 function fsPagGrava(linhas) {
   const el = fsEl('fs-c-pagjson'); if (!el) return;
   el.value = linhas.length ? JSON.stringify(linhas) : '';
@@ -30546,6 +30574,7 @@ function fsPagVista() {
   const saldo = fsPagSaldo();
   if (!(saldo > 0)) { fsPagPreviaMsg('Preencha o valor total antes (e o sinal tem de ser menor que ele).', true); return; }
   fsPagProp = null; fsPagPreviaMsg('');
+  fsPagTxtGrava('');
   fsPagGrava(ctrPagModelo('vista', saldo));
 }
 function fsPagPreviaMsg(txt, falha) {
@@ -30587,6 +30616,7 @@ function fsPagAplicar() {
     return ctrPagLinha(CTR_PAG_FORMA_NOME[x.forma] || x.forma, resto ? 0 : (Number(x.valor) || 0), parc, 0, x.quando || '', x.obs || '', { resto, parcValor: Number(x.parcValor) || 0 });
   });
   fsPagProp = null;
+  fsPagTxtGrava(p.texto);
   fsPagGrava(linhas);
   fsPagPreviaMsg('Formas aplicadas. Confira a lista e a soma.');
 }
@@ -30602,7 +30632,7 @@ async function fsPagMontar() {
   if (!(saldo > 0)) { fsPagPreviaMsg('Não há saldo a pagar: preencha o valor total (o sinal tem de ser menor que ele).', true); return; }
   // Nome, documento e contato do cliente não vão para a IA (o servidor mascara documento, e-mail e telefone).
   let msg = texto;
-  try { msg = ctrHibScrub(texto, ctrAgSensivel({ solar_m1: fsCtrDados() })); } catch (e) {}
+  try { msg = ctrHibScrub(texto, fsAgSensivelBase()); } catch (e) {}
   fsPagMontando = true;
   if (btn) { btn.disabled = true; btn.textContent = 'Montando...'; }
   fsPagPreviaMsg('A IA está lendo o texto...');
@@ -30638,6 +30668,7 @@ async function fsPagMontar() {
       return;
     }
     fsPagProp = {
+      texto,
       resposta: j.resposta ? String(j.resposta) : '',
       linhas: acao.linhas.slice(0, 6).map(x => ({
         forma: String(x.forma || ''), valor: Number(x.valor) > 0 ? Number(x.valor) : 0, parc: Number.isInteger(x.parc) ? x.parc : 1,
@@ -30673,6 +30704,7 @@ function fsPagRender() {
     cls += ' dif';
     txt = fsVal('fs-c-pagto') ? CTR_PAG_MSG_SO_TEXTO : 'Sem formas na lista: o contrato não é gerado sem o pagamento. Escreva como o cliente vai pagar e clique em Montar, ou use À vista no Pix.';
   } else if (pc.incompletas.length) { cls += ' dif'; txt = pc.incompletas[0] + ' O contrato não é gerado assim.'; }
+  else if (fsPagNaoMontado()) { cls += ' dif'; txt = CTR_PAG_MSG_NAO_MONTADO_SOL; }
   else if (ctrPagFecha(pc.dif)) { cls += ' fecha'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + ', exatamente o saldo a pagar' + (sinal > 0 ? ' (valor total menos o sinal de ' + ORC_MONEY(sinal) + ')' : '') + '.'; }
   else if (pc.dif > 0) { cls += ' dif'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + '. Faltam ' + ORC_MONEY(pc.dif) + ' para fechar o saldo de ' + ORC_MONEY(saldo) + '. O contrato não é gerado assim.'; }
   else { cls += ' dif'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + '. Passam ' + ORC_MONEY(-pc.dif) + ' do saldo de ' + ORC_MONEY(saldo) + '. O contrato não é gerado assim.'; }
@@ -30775,6 +30807,7 @@ function fsAplicarDados(d, forcar, row) {
   fsSet('fs-c-pagto', '', f);
   fsSet('fs-c-sinal', '', f);
   fsSet('fs-c-pagjson', preco ? JSON.stringify([ctrPagLinha('Pix', 0, 1, 0, 'Na assinatura do contrato', '', { resto: true })]) : '', f);
+  fsSet('fs-c-pagtxt', '', f);   // a tabela padrão não veio de texto nenhum
   if (d.garPaineis) fsSet('fs-c-gmod', d.garPaineis, f);
   if (d.garInv) fsSet('fs-c-ginv', d.garInv, f);
   if (d.garInstalacao) fsSet('fs-c-ginst', d.garInstalacao, f);
@@ -30980,6 +31013,17 @@ function fsSnap(comAssistente) {
   }
   return snap;
 }
+// Papel solar de antes da trava do texto (21/10/2026) não tem `fs-c-pagtxt`. O texto padrão "À vista via Pix: R$ X." com X igual ao saldo
+// e sem tabela vira a linha à vista, sem IA, e conta como texto aplicado. Qualquer outro texto fica como está: a trava manda Montar.
+function fsPagLegado(snap) {
+  if (snap && snap.campos && Object.prototype.hasOwnProperty.call(snap.campos, 'fs-c-pagtxt')) return;
+  const m = /^\s*À vista via Pix: R\$ ([\d.]+,\d{2})\.?\s*$/.exec(fsVal('fs-c-pagto'));
+  if (!m || fsPagLinhas().length) return;
+  const saldo = fsPagSaldo();
+  if (!(saldo > 0) || Math.abs(solParseBRL(m[1]) - saldo) > CTR_PAG_TOL) return;
+  fsPagTxtGrava(fsVal('fs-c-pagto'));
+  fsPagGrava(ctrPagModelo('vista', saldo));
+}
 function fsReabrir(id) {
   const h = fsHistList().find(x => x.id === id);
   if (!h || !h.snap) return;
@@ -31000,6 +31044,7 @@ function fsReabrir(id) {
   ctrAgZerar(ctrAgRestaurar(h.snap.ctrAg), 'sol');
   { const at = fsEl('fsag-texto'); if (at) at.value = ''; }
   fsPagProp = null; fsPagPreviaMsg('');
+  fsPagLegado(h.snap);
   fsTipoMudou(); fsProcModelo(); fsRecResumo(); fsBancoResumo(); fsTermoChkVisual(); fsTermoContador(); fsPagRender();
   fsAba(h.snap.aba || 'contrato');
   ctrIaRender();
@@ -31836,7 +31881,7 @@ function fsLimpaCampo(id) {
 function fsLimparNovos() {
   Object.keys(FS_ESPELHOS).forEach(a => FS_ESPELHOS[a].forEach(p => fsLimpaCampo(p[0])));
   FS_NOVOS_DO_CLIENTE.forEach(fsLimpaCampo);
-  ['fs-c-sinal', 'fs-c-pagto', 'fs-c-pagjson'].forEach(fsLimpaCampo);   // o pagamento é do cliente de antes
+  ['fs-c-sinal', 'fs-c-pagto', 'fs-c-pagjson', 'fs-c-pagtxt'].forEach(fsLimpaCampo);   // o pagamento é do cliente de antes
   fsPagProp = null; fsPagPreviaMsg(''); fsPagRender();
   const pad = fsPadroesNovos();
   ['fs-v-data', 'fs-t-data', 'fs-b-data'].forEach(id => fsSet(id, pad[id], true));
