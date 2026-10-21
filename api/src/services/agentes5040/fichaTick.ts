@@ -43,7 +43,7 @@ import {
   type CardDaFicha, type ResultadoEscrita,
 } from './ficha';
 import {
-  carregarTelefonesConsultores, enviarFichaAoConsultor, erroProvaQueNaoSaiu, linhaIoEmCooldown, telefoneDoConsultor, telefoneDoDono,
+  carregarTelefonesConsultores, enviarFichaAoConsultor, erroProvaQueNaoSaiu, leadEhDeTeste, linhaIoEmCooldown, telefoneDoConsultor, telefoneDoDono,
 } from './fichaEnvio';
 import type { ContextoLead } from './tipos';
 
@@ -300,13 +300,15 @@ async function rodarFicha(opts: OpcoesDaRodada): Promise<ResultadoDaRodada> {
 
     // Destino: o consultor dono do card, ou o dono com o motivo na 1ª linha. Nenhum caso pula o card calado.
     const vendedor = String(card.vendedor_nome ?? '').trim();
-    const telCons = telefoneDoConsultor(mapaTabela, vendedor);
+    const chave = chaveContato(card.cliente_telefone);
+    // Número de TESTE (hmac em ag5040_vivo_alvo.hmacs): a ficha vai SÓ ao dono, nunca à consultora. Alvo ilegível = destino normal.
+    const ehTeste = chave ? (await leadEhDeTeste(chave)) === true : false;
+    const telCons = ehTeste ? null : telefoneDoConsultor(mapaTabela, vendedor);
     const destino: 'consultor' | 'dono' = telCons ? 'consultor' : 'dono';
-    const motivo = telCons ? '' : vendedor
+    const motivo = telCons ? '' : ehTeste ? 'Lead de teste: esta ficha vai só para o dono.' : vendedor
       ? `Sem telefone cadastrado para o consultor ${vendedor.replace(/\s+/g, ' ').slice(0, 40)}.`
       : 'Card sem consultor dono.';
     const telDestino = telCons ?? telefoneDoDono();
-    const chave = chaveContato(card.cliente_telefone);
     const hl = chave ? hmacDe(`${chave}|${produtoDoCard(card.created_by)}|${semAcento(vendedor)}`) : null;
 
     // 1. reservas

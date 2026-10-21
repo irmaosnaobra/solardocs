@@ -40,6 +40,7 @@ import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
 import { chaveContato, estaBloqueado, motivosDaSupressao } from '../agents/whatsapp/silenciar';
 import { pareceRoboDeles, temRoboAtendendo, marcarRoboDoOutroLado } from '../agents/whatsapp/roboDoOutroLado';
 import { prefixosDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
+import { classificarErroEnvio } from '../chefe/decidir';
 
 const LOG = 'vivo-envio-5040';
 
@@ -106,6 +107,13 @@ export function codigoDoErroDeEnvio(e: unknown): string {
   if (/timeout|timed out|abort/i.test(m)) return 'timeout';
   return 'falha';
 }
+
+/**
+ * O erro é do DESTINO (número inválido ou inexistente: 4xx comum do Z-API que não é instância fora)? É a mesma régua
+ * do chefe (classificarErroEnvio === 'destino'). Esse erro NÃO conta nos 2 seguidos que pausam a linha por 15 min:
+ * dois leads com telefone ruim não podem calar a linha inteira (correção 13 do B1d-2).
+ */
+export const erroEhDoDestino = (err: unknown): boolean => classificarErroEnvio(err) === 'destino';
 const TRAVESSAO = /[—–]/;
 
 // ── 1. validação das falas ───────────────────────────────────────────────────
@@ -335,7 +343,7 @@ export async function enviarResposta(p: PedidoEnvio, agora: Date = new Date()): 
     const cod = codigoDoErroDeEnvio(err);
     logger.error(LOG, `envio da fala ${p.waIdAlvo} falhou: ${cod}`);
     await marcarCarimbo(chave1, 'falhou', cod);
-    await contarErroDeLinha(agora);
+    if (!erroEhDoDestino(err)) await contarErroDeLinha(agora);
     return recusa('erro_linha', cod);
   }
   await marcarCarimbo(chave1, 'enviado');
@@ -358,7 +366,7 @@ export async function enviarResposta(p: PedidoEnvio, agora: Date = new Date()): 
         const cod2 = codigoDoErroDeEnvio(err);
         logger.error(LOG, `envio da peça ${p.waIdAlvo} falhou: ${cod2}`);
         await marcarCarimbo(chave2, 'falhou', cod2);
-        await contarErroDeLinha(agora);
+        if (!erroEhDoDestino(err)) await contarErroDeLinha(agora);
       }
     } else if (r2 === 'erro') {
       logger.error(LOG, `peça ${p.waIdAlvo}: reserva não gravou, a peça não sai`);

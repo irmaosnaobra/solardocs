@@ -165,7 +165,7 @@ describe('vivoEnvio: o caminho feliz', () => {
   });
 
   it('o prefixo ag5040_sent: não entra na lista da linha do HEAD (fica fora de BOT_SENT_PREFIXES)', () => {
-    expect(prefixosDaLinha().some(p => p.startsWith('ag5040'))).toBe(false);
+    expect(prefixosDaLinha().filter(p => p.startsWith('ag5040'))).toEqual(['ag5040_agenda_sent:']); // só o da agenda, que é agenda
     for (const a of PREFIXOS_AGENDA) expect(prefixosDaLinha()).toContain(a);
   });
 });
@@ -393,6 +393,16 @@ describe('vivoEnvio: os tetos', () => {
     expect(carimbosDasAgentes()).toEqual([]);
   });
 
+  it('o carimbo da agenda da Duda (ag5040_agenda_sent:) está nas duas listas e conta UMA vez no teto de emergência (59 passam, 60 barram)', async () => {
+    expect(PREFIXOS_AGENDA).toContain('ag5040_agenda_sent:');
+    expect(prefixosDaLinha()).toContain('ag5040_agenda_sent:');
+    semear('ag5040_agenda_sent:', 59, 20 * MIN);
+    expect((await enviarResposta(pedido(), AGORA)).ok).toBe(true);
+    h.estado.clear(); (sendHuman as any).mockClear();
+    semear('ag5040_agenda_sent:', 60, 20 * MIN);
+    expect(await enviarResposta(pedido(), AGORA)).toMatchObject({ ok: false, motivo: 'teto_linha', detalhe: 'hora:60' });
+  });
+
   it('a ficha ao consultor (ficha_lead:) sai pela mesma linha e pesa no teto de emergência', async () => {
     semear('limpapro_recovery:', 30, 20 * MIN);
     semear('ficha_lead:', 29, 20 * MIN);
@@ -592,5 +602,23 @@ describe('vivoEnvio: erro de linha', () => {
     h.falhas.push(new Error('z-api 500'));
     await enviarResposta(pedido(), AGORA);
     expect(h.estado.get(CHAVE_LINHA_PAUSA)!.value.ate).toBe(new Date(AGORA.getTime() + 15 * MIN).toISOString());
+  });
+  it('número inválido (4xx do destino) NÃO conta nos 2 erros seguidos: dois leads com telefone ruim não pausam a linha', async () => {
+    h.falhas.push(new Error('[zapi:io] HTTP 400 — {"error":"phone number invalid"}'), new Error('[zapi:io] HTTP 404 — {"error":"Phone not exists"}'));
+    const r1 = await enviarResposta(pedido({ waIdAlvo: 1 }), AGORA);
+    expect(r1).toMatchObject({ ok: false, motivo: 'erro_linha', detalhe: 'http_400' });
+    const t2 = new Date(AGORA.getTime() + 20_000);
+    await enviarResposta(pedido({ waIdAlvo: 2, momentoFalaLead: new Date(t2.getTime() - 5_000).toISOString() }), t2);
+    expect(h.estado.get(CHAVE_LINHA_ERROS)?.value?.n ?? 0).toBe(0);
+    expect(h.estado.has(CHAVE_LINHA_PAUSA)).toBe(false);
+    // o carimbo do que falhou fica (não reenvia a mesma fala) e a linha segue livre para o próximo
+    const t3 = new Date(t2.getTime() + 20_000);
+    expect((await enviarResposta(pedido({ waIdAlvo: 3, momentoFalaLead: new Date(t3.getTime() - 5_000).toISOString() }), t3)).ok).toBe(true);
+  });
+
+  it('erro de instância fora (HTTP 400 "disconnected") continua sendo erro de LINHA e conta', async () => {
+    h.falhas.push(new Error('[zapi:io] HTTP 400 — {"error":"Enqueue message is disabled for this instance when whatsapp is disconnected"}'));
+    await enviarResposta(pedido(), AGORA);
+    expect(h.estado.get(CHAVE_LINHA_ERROS)!.value.n).toBe(1);
   });
 });

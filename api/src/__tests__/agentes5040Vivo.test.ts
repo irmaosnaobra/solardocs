@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   enviar: vi.fn(),
   ficha: vi.fn(),
   cooldown: false,
+  teste: false as boolean | null,
 }));
 vi.mock('../utils/supabase', () => ({ supabase: new Proxy({}, { get: (_t, k) => h.principal.cliente[k as string] }) }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: new Proxy({}, { get: (_t, k) => h.gerador.cliente[k as string] }) }));
@@ -21,8 +22,16 @@ vi.mock('../services/agentes5040/fichaEnvio', () => ({
   enviarFichaAoConsultor: (...a: unknown[]) => h.ficha(...a),
   erroProvaQueNaoSaiu: (e: any) => /em cooldown|credenciais Z-API ausentes/i.test(String(e?.message ?? e)),
   linhaIoEmCooldown: () => h.cooldown,
+  leadEhDeTeste: async () => h.teste,
   telefoneDoConsultor: (m: Map<string, string>, n: string) => m.get(String(n ?? '').trim().toLowerCase().split(' ')[0]!) ?? null,
   telefoneDoDono: () => '34900000000',
+  tetoDaLinhaPermiteFicha: async () => 'ok',
+}));
+// A fila de agenda (B1d-2c) nunca fala de verdade aqui, e a rodada viva não a entrega (tem rota e relógio próprios). Os
+// testes das ações moram em agentes5040VivoAcoes.test.ts.
+vi.mock('../services/agentes5040/agendaEnvio', () => ({
+  enfileirarAgenda: async () => ({ ok: true, chave: 'ag5040_agenda_fila:0:confirma' }),
+  bolhaDeConfirmacao: () => null,
 }));
 
 import { iaFalsa, novoBanco, respostaIA, saidaJson, type BancoFalso } from './_agentes5040Fake';
@@ -83,7 +92,7 @@ const rodar = (extra: Record<string, unknown> = {}) => runVivoTick({ agora: AGOR
 beforeEach(() => {
   banco = novoBanco(); gerador = novoBanco();
   h.principal = banco; h.gerador = gerador;
-  h.cooldown = false;
+  h.cooldown = false; h.teste = false;
   h.enviar.mockReset().mockImplementation(async (p: any) => (p.dry ? { ok: false, motivo: 'dry' } : { ok: true, enviadas: 1, carimbos: [`ag5040_sent:${p.waIdAlvo}:1`] }));
   h.ficha.mockReset().mockResolvedValue(undefined);
   process.env.ZAPI_INSTANCE_ID_IO = 'inst-io';

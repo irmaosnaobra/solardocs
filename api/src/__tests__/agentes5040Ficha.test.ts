@@ -158,7 +158,9 @@ import {
 } from '../services/agentes5040/ficha';
 import { TELEFONES_DE_RESERVA } from '../services/agentes5040/fichaEnvio';
 import { runFichaConsultorTick, sondaFichaNoCard, enviarFichaDeTeste, LINHAS_DA_SONDA } from '../services/agentes5040/fichaTick';
-import { zerarCacheInterruptores } from '../services/agentes5040/interruptores';
+import { CHAVE_VIVO_ALVO, zerarCacheInterruptores } from '../services/agentes5040/interruptores';
+import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
+import { leadEhDeTeste } from '../services/agentes5040/fichaEnvio';
 import { fichaConsultorLigada, fichaCobre, fichaSubstituiAviso, ORIGENS_COM_FICHA } from '../services/agentes5040/chaves';
 
 const AGORA = new Date('2026-10-20T15:00:00.000Z');
@@ -1000,5 +1002,49 @@ describe('janela de 6 horas e card perdido', () => {
     h.agend.push(novoCard(9, { created_at: ATRAS(380) }));
     await rodar();
     expect(h.enviados).toEqual([]);
+  });
+});
+
+
+describe('número de TESTE: a ficha vai só ao celular do dono (correção 15 do B1d-2)', () => {
+  const alvo = (hmacs: string[], kid: string | null = idChaveHmac()): void => {
+    h.estado.set(CHAVE_VIVO_ALVO, { value: { kid, hmacs, modos: {}, atualizado_em: ATRAS(60) }, updated_at: ATRAS(60) });
+    zerarCacheInterruptores();
+  };
+
+  it('card de lead cujo hmac está na lista de teste: a ficha sai para o dono, nunca para a consultora', async () => {
+    h.agend.push(novoCard(1));                                           // vendedor Diego, com telefone na tabela
+    alvo([hmacDe('3491113333')!]);
+    const r = await rodar();
+    expect(r.itens[0]).toMatchObject({ id: 1, resultado: 'enviada', destino: 'dono' });
+    expect(h.enviados).toHaveLength(1);
+    expect(h.enviados[0]!.tel).toBe('34991360223');                      // o celular do dono (padrão do telefoneDoDono)
+    expect(h.enviados[0]!.tel).not.toBe('34991172222');
+    expect(h.enviados[0]!.texto).toContain('Lead de teste');
+  });
+
+  it('lead que NÃO está na lista (ou kid trocado) segue para a consultora', async () => {
+    h.agend.push(novoCard(1));
+    alvo([hmacDe('3499999999')!]);
+    await rodar();
+    expect(h.enviados[0]!.tel).toBe('34991172222');
+    h.enviados.length = 0; h.estado.clear(); h.agend.length = 0; h.agend.push(novoCard(2, { cliente_telefone: '5534991113333' }));
+    alvo([hmacDe('3491113333')!], 'outro-kid');
+    await rodar();
+    expect(h.enviados[0]!.tel).toBe('34991172222');
+  });
+
+  it('alvo ilegível no fichaTick: destino normal (a ficha de lead de verdade não pode ir parar no dono)', async () => {
+    h.agend.push(novoCard(1));
+    await rodar();
+    expect(h.enviados[0]!.tel).toBe('34991172222');
+  });
+
+  it('leadEhDeTeste: true na lista, false fora dela e sem chave, e mesma chave de hmac do kid', async () => {
+    alvo([hmacDe('3491113333')!]);
+    expect(await leadEhDeTeste('3491113333')).toBe(true);
+    expect(await leadEhDeTeste('3400000000')).toBe(false);
+    expect(await leadEhDeTeste('')).toBe(false);
+    expect(await leadEhDeTeste(null)).toBe(false);
   });
 });

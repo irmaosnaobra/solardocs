@@ -323,6 +323,13 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   giovanna_agenda: robo('transacional_agenda_p3', ['services/io/solarAgendaGiovanna.ts'], {
     carimbos: [agenda('solar_giovanna_sent:')], podeTerPrazo: true, respeitaPausa: true, agenda: true,
   }),
+  // A Duda da 5040 (B1d-2a): a bolha FIXA de agenda (confirma, remarca, volta honesta do "ligar agora") quando a
+  // bolha do turno (P1) foi recusada. AGENDA: nenhum freio de volume a segura (teto das agentes 20/120, de
+  // emergência 60/450 e prazo de 15 min), mas o carimbo ag5040_agenda_sent:<cardId>:<tipo>:<iso> conta neles. Só espaça
+  // 10 s, para com linha caída, chave repetida e pausa humana. 1 bolha de até 160, pela linha IO.
+  duda_agenda_5040: robo('transacional_agenda_p3', ['services/agentes5040/agendaEnvio.ts'], {
+    carimbos: [agenda('ag5040_agenda_sent:')], podeTerPrazo: true, respeitaPausa: true, agenda: true, maxBolhas: 1, maxCaracteres: 160,
+  }),
   // Hoje até 7 bolhas (BOLHA_TETO, solarBoasVindas.ts:147) e sem janela (:514);
   // aqui 1 bolha e, passada a ficha fresca, a janela do transacional. NÃO é
   // agenda: é o recibo do cadastro e não fala de horário (solarBoasVindas.ts:20).

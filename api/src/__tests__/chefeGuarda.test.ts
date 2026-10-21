@@ -149,7 +149,7 @@ import { DIVERGENCIAS } from '../services/chefe/regulamento';
 //     (5 mistos: whatsappAgentService, dunningService, webhook,
 //     pixComprovanteService e ioIndicacoes; e 3 só de evento, fora de
 //     ARQUIVOS_MISTOS: authController, paymentsController e trafegoController)
-//     e 7 com robô de agenda (ARQUIVOS_COM_ROBO_DE_AGENDA). Ali um lote novo, com
+//     e 8 com robô de agenda (ARQUIVOS_COM_ROBO_DE_AGENDA). Ali um lote novo, com
 //     o nome do robô de evento ou de agenda do próprio arquivo, passa: sai a 60
 //     em 10 min como evento, ou fora dos freios de volume e da rajada por robô
 //     como agenda. Em eletropostoRemarcar e eletropostoRespostas a oferta fria
@@ -331,6 +331,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/agenda/leadsMetaService.ts': { robos: ['leads_meta_alerta'], classeMaxima: 'aviso_interno_p2' },
   'services/agenda/manychatLeadService.ts': { robos: ['manychat_aviso'], classeMaxima: 'aviso_interno_p2' },
   'services/agenda/reagendarDigest.ts': { robos: ['reagendar_digest'], classeMaxima: 'aviso_interno_p2' },
+  'services/agentes5040/agendaEnvio.ts': { robos: ['duda_agenda_5040'], classeMaxima: 'lembrete_p1' },
   'services/agentes5040/fichaEnvio.ts': { robos: ['ficha_consultor_5040'], classeMaxima: 'aviso_interno_p2' },
   'services/agentes5040/vivoEnvio.ts': { robos: ['duda_vivo_5040', 'helena_vivo_5040', 'carla_vivo_5040'], classeMaxima: 'reativo_p1' },
   'services/agents/sdr/carlaRetomada.ts': { robos: ['carla_retomada'], classeMaxima: 'frio_p5' },
@@ -411,7 +412,7 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
 });
 
 /**
- * Os 7 arquivos que hospedam um robô de AGENDA (CLASSE_POR_ROBO[*].agenda), com
+ * Os 8 arquivos que hospedam um robô de AGENDA (CLASSE_POR_ROBO[*].agenda), com
  * os robôs frios que moram no mesmo arquivo. A regra robo não separa robôs do
  * mesmo arquivo: um lote novo escrito num deles, pedindo com o nome do robô de
  * agenda dali, passa e sai como agenda (fora dos freios de volume e da rajada por
@@ -421,6 +422,7 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
  * chamada, na fase da catraca (números cravados no chefeQuedas).
  */
 const ARQUIVOS_COM_ROBO_DE_AGENDA: Readonly<Record<string, { agenda: readonly string[]; frio: readonly string[] }>> = Object.freeze({
+  'services/agentes5040/agendaEnvio.ts': { agenda: ['duda_agenda_5040'], frio: [] },
   'services/io/eletropostoAgenda.ts': { agenda: ['ep_agenda'], frio: [] },
   'services/io/eletropostoAlerta10min.ts': { agenda: ['ep_alerta_10min'], frio: [] },
   'services/io/eletropostoCobraSim.ts': { agenda: ['ep_cobra_sim'], frio: [] },
@@ -1909,6 +1911,14 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     for (const a of ['eletropostoRemarcar', 'eletropostoRespostas']) expect({ a, no: subagente.includes(a) }).toEqual({ a, no: true });
   });
 
+  it('a regra "AGENDA NUNCA BLOQUEIA" do regulamento lista, à mão, todo robô de agenda (inclusive duda_agenda_5040)', () => {
+    const regra = DIVERGENCIAS.find(d => d.startsWith('AGENDA NUNCA BLOQUEIA'))!;
+    expect(regra).toBeTruthy();
+    const deAgenda = Object.entries(CLASSE_POR_ROBO).filter(([, r]) => r.agenda).map(([n]) => n).sort();
+    expect(deAgenda).toContain('duda_agenda_5040');
+    for (const nome of deAgenda) expect({ nome, no: regra.includes(nome) }).toEqual({ nome, no: true });
+  });
+
   it('REMARCAÇÃO PEDIDA: arquivo novo, ou um dos arquivos só da oferta fria, pedindo ep_remarcar_reativo reprova; nos dois que hospedam a remarcação passa (dívida)', () => {
     for (const arquivo of ['api/src/services/io/roboNovo.ts', 'api/src/services/io/eletropostoRetorno.ts', 'api/src/services/io/eletropostoNaoAtendidoFup.ts']) {
       const r = reprovaEm(pedido('ep_remarcar_reativo'), arquivo);
@@ -1921,7 +1931,7 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     }
   });
 
-  it('DÍVIDA DECLARADA: num arquivo que hospeda robô de evento (8) ou de agenda (7) a regra não separa a classe', () => {
+  it('DÍVIDA DECLARADA: num arquivo que hospeda robô de evento (8) ou de agenda (8) a regra não separa a classe', () => {
     // O que expõe não é ser misto, é ter robô de evento (ou de agenda) entre os
     // permitidos. Um lote novo pedindo com o nome do robô de evento do próprio
     // arquivo passa nesta guarda e sai como evento: 60 em 10 min, de madrugada e
@@ -1938,7 +1948,7 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     // Três deles não estão em ARQUIVOS_MISTOS: só têm robô de evento.
     expect(deClasse('evento_p0').filter(a => !(a in ARQUIVOS_MISTOS))).toEqual(['controllers/authController.ts', 'controllers/paymentsController.ts', 'controllers/trafegoController.ts']);
     expect(deClasse('lembrete_p1')).toEqual([
-      'services/io/eletropostoAgenda.ts', 'services/io/eletropostoAlerta10min.ts', 'services/io/eletropostoCobraSim.ts',
+      'services/agentes5040/agendaEnvio.ts', 'services/io/eletropostoAgenda.ts', 'services/io/eletropostoAlerta10min.ts', 'services/io/eletropostoCobraSim.ts',
       'services/io/solarAgendaGiovanna.ts', 'services/io/solarBoasVindas.ts',
     ]);
     for (const [arquivo, robo] of [

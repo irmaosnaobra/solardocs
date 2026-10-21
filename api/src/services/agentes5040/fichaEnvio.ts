@@ -15,6 +15,8 @@
 import { sendWhatsApp, linhaEmCooldown } from '../agents/zapiClient';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { MAX_CARACTERES_FICHA } from './chaves';
+import { hmacDe, idChaveHmac } from './hmac';
+import { lerAlvoVivo } from './interruptores';
 
 
 const soDigitos = (s: unknown): string => String(s ?? '').replace(/\D/g, '');
@@ -59,6 +61,27 @@ export async function carregarTelefonesConsultores(): Promise<{ ok: true; mapa: 
   }
 }
 
+/**
+ * O lead é NÚMERO DE TESTE (o hmac da chave dele está em ag5040_vivo_alvo.hmacs, com o mesmo kid)? Ficha de número de teste vai
+ * só para o celular do DONO (telefoneDoDono), nunca para a consultora nem para a Giovanna. true = é de teste; false = não é;
+ * null = não deu para ler o alvo (quem chama decide: a rodada viva manda ao dono, o fichaTick segue o destino normal).
+ * Vale o alvo inteiro, em qualquer modo da dona: número que está na lista de teste é de teste.
+ */
+export async function leadEhDeTeste(chave: string | null | undefined): Promise<boolean | null> {
+  try {
+    const k = String(chave ?? '');
+    if (!k) return false;
+    const alvo = await lerAlvoVivo();
+    if (!alvo) return null;
+    const kid = idChaveHmac();
+    if (!kid || alvo.kid !== kid) return false;
+    const h = hmacDe(k);
+    return !!h && alvo.hmacs.includes(h);
+  } catch {
+    return null;
+  }
+}
+
 /** O telefone do consultor dono do card, ou null. */
 export function telefoneDoConsultor(mapa: ReadonlyMap<string, string>, vendedorNome: string | null | undefined): string | null {
   const nome = chaveNome(vendedorNome);
@@ -74,4 +97,41 @@ export async function enviarFichaAoConsultor(telefone: string, texto: string): P
   if (!corpo.trim()) throw new Error('ficha vazia');
   if (corpo.length > MAX_CARACTERES_FICHA) throw new Error('ficha passa de uma bolha');
   await sendWhatsApp(tel, corpo, 'io');
+}
+
+/**
+ * Teto de emergência da linha para a ficha da B1d (a rodada viva confere ANTES de cada ficha): a mesma conta do
+ * vivoEnvio (tudo que a linha conta, mais ag5040_sent: e ficha_lead:), 60 na última hora e 450 em 24 h.
+ * 'teto' = a linha já passou do limite (a ficha espera); 'erro' = não deu para contar (conta que não se fez não passa).
+ * O lineThrottle e o vivoEnvio entram por import dinâmico: só quem chama este teto os carrega, e os
+ * testes da ficha antiga seguem sem eles. Só este arquivo da pasta pode tocar a contagem da linha (isolamento).
+ */
+export async function tetoDaLinhaPermiteFicha(agora: Date): Promise<'ok' | 'teto' | 'erro'> {
+  try {
+    const { supabase } = await import('../../utils/supabase');
+    const { prefixosDaLinha, PREFIXOS_AGENDA } = await import('../agents/whatsapp/lineThrottle');
+    const envio = await import('./vivoEnvio');
+    const prefixos = [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, envio.PREFIXO_CARIMBO, envio.PREFIXO_FICHA])];
+    const filtro = prefixos.map(p => `key.like.${p}%`).join(',');
+    const contar = async (desde: Date, parar: number): Promise<number | null> => {
+      let total = 0;
+      for (let de = 0; de < 100_000; de += 1000) {
+        const { data, error } = await supabase.from('system_state').select('key').or(filtro)
+          .gte('updated_at', desde.toISOString()).order('key', { ascending: true }).range(de, de + 999);
+        if (error) return null;
+        const lote = (data ?? []) as unknown[];
+        total += lote.length;
+        if (total >= parar || lote.length < 1000) return total;
+      }
+      return total;
+    };
+    const hora = await contar(new Date(agora.getTime() - 3_600_000), envio.LIMITES.tetoLinhaHora);
+    if (hora === null) return 'erro';
+    if (hora >= envio.LIMITES.tetoLinhaHora) return 'teto';
+    const dia = await contar(new Date(agora.getTime() - 86_400_000), envio.LIMITES.tetoLinhaDia);
+    if (dia === null) return 'erro';
+    return dia >= envio.LIMITES.tetoLinhaDia ? 'teto' : 'ok';
+  } catch {
+    return 'erro';
+  }
 }

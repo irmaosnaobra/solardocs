@@ -98,6 +98,7 @@ export const IGNORADOS: Readonly<Record<string, string>> = Object.freeze({
   duda_vivo_5040: 'Resposta ao vivo da Duda (Fase B), desligada. O cartão entra com o painel da B1e.',
   helena_vivo_5040: 'Resposta ao vivo da Helena (Fase B), desligada. O cartão entra com o painel da B1e.',
   carla_vivo_5040: 'Resposta ao vivo da Carla (Fase B), desligada. O cartão entra com o painel da B1e.',
+  duda_agenda_5040: 'Fila de confirmações de agenda da Duda (Fase B1d). A fila de confirmações roda sozinha, mesmo com a Duda desligada: só manda o que já foi marcado. O cartão entra com o painel da B1e.',
 });
 
 const e = (x: EntradaDoCatalogo): EntradaDoCatalogo => Object.freeze({ ...x, robos: Object.freeze([...x.robos]) });

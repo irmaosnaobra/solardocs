@@ -42,7 +42,7 @@ vi.mock('../utils/supabaseGerador', () => ({
 }));
 
 import {
-  vagasSolar, aindaLivreSolar, consultoraDaFaixa, gravarCardSolar, remarcarCardSolar, marcarBoasVindasEnviada,
+  vagasSolar, aindaLivreSolar, consultoraDaFaixa, gravarCardSolar, remarcarCardSolar, marcarBoasVindasEnviada, silenciarLembretesDoCard,
 } from '../services/agentes5040/agendaSolar';
 
 // 21/10/2026 (quarta), 09:00 em Brasília = 12:00 UTC.
@@ -195,6 +195,35 @@ describe('gravarCardSolar', () => {
     expect(h.inserts[0].observacao).toContain('Pediu ligação pelo WhatsApp');
   });
 
+  describe('o bom dia do card novo da agente (correção 12)', () => {
+    it('HOJE antes das 11h (Brasília): o card nasce com bomdia_at = agora; o lembrete de 5 min segue de fora', async () => {
+      // AGORA = 09:00 BRT de quarta 21/10; a ligação é hoje às 14:30
+      const r = await gravarCardSolar({ ...ficha, quando: brt('2026-10-21', '14:30') }, { faixa: 'novo' });
+      expect(r.status).toBe('ok');
+      expect(h.inserts[0].bomdia_at).toBe(new Date(AGORA).toISOString());
+      expect(h.inserts[0]).not.toHaveProperty('lembrete_5min_at');
+      expect(h.inserts[0]).toHaveProperty('boas_vindas_at', null);
+    });
+    it('HOJE a partir das 11h, ou OUTRO dia: bomdia_at não entra (a régua fala no dia certo)', async () => {
+      vi.setSystemTime(Date.parse('2026-10-21T14:00:00Z'));          // 11:00 BRT
+      await gravarCardSolar({ ...ficha, quando: brt('2026-10-21', '15:00') }, { faixa: 'novo' });
+      expect(h.inserts[0]).not.toHaveProperty('bomdia_at');
+      vi.setSystemTime(AGORA);
+      await gravarCardSolar({ ...ficha, quando: brt('2026-10-22', '10:00') }, { faixa: 'novo' });
+      expect(h.inserts[1]).not.toHaveProperty('bomdia_at');
+    });
+    it('o caminho do quiz (sem faixa) continua IDÊNTICO: hoje antes das 11h não ganha bomdia_at', async () => {
+      await gravarCardSolar({ ...ficha, quando: brt('2026-10-21', '14:30') });
+      expect(h.inserts[0]).not.toHaveProperty('bomdia_at');
+      expect(h.inserts[0]).not.toHaveProperty('boas_vindas_at');
+    });
+    it('ligarAgora segue com lembrete e bom dia de agora', async () => {
+      await gravarCardSolar({ ...ficha, quando: brt('2026-10-21', '09:00') }, { ligarAgora: true });
+      expect(h.inserts[0].bomdia_at).toBe(new Date(AGORA).toISOString());
+      expect(h.inserts[0].lembrete_5min_at).toBe(new Date(AGORA).toISOString());
+    });
+  });
+
   it('da agente: horário tomado = horario_tomado e NADA é gravado; leitura quebrada = erro e nada é gravado', async () => {
     h.compromissos = [{ ts: Date.parse(ficha.quando), dono: 'Nilce', ep: false }];
     expect(await gravarCardSolar(ficha, { faixa: 'novo' })).toEqual({ status: 'horario_tomado' });
@@ -251,6 +280,21 @@ describe('marcarBoasVindasEnviada', () => {
     expect(await marcarBoasVindasEnviada(77)).toBe(false);
     h.updateResultado = { data: null, error: { code: 'XX000', message: 'boom' } };
     expect(await marcarBoasVindasEnviada(77)).toBe(false);
+  });
+});
+
+describe('silenciarLembretesDoCard (ligar agora em card que já existia)', () => {
+  it('UPDATE do card pelo id: lembrete_5min_at e bomdia_at = agora; true só se o banco devolveu a linha', async () => {
+    h.updateResultado = { data: [{ id: 5 }], error: null };
+    expect(await silenciarLembretesDoCard(5)).toBe(true);
+    expect(h.updates[0]).toEqual({ lembrete_5min_at: new Date(AGORA).toISOString(), bomdia_at: new Date(AGORA).toISOString() });
+    expect(h.updateEqs).toEqual([['id', 5]]);
+  });
+  it('nenhuma linha atualizada ou erro do banco = false, sem estourar', async () => {
+    h.updateResultado = { data: [], error: null };
+    expect(await silenciarLembretesDoCard(5)).toBe(false);
+    h.updateResultado = { data: null, error: { code: 'XX000' } };
+    expect(await silenciarLembretesDoCard(5)).toBe(false);
   });
 });
 

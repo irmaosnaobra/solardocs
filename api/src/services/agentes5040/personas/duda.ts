@@ -194,6 +194,7 @@ export function fatosDuda(ctx: ContextoLead): string {
     l.push(`Sem nome no card: até ${MIL_KWH} kWh diga "a consultora"; acima, o ${QUEM.visita} (visita) ou o ${QUEM.grande} (reunião).`);
   }
   l.push(...fatosHorarios(ctx));
+  for (const a of ctx.avisosDoSistema ?? []) if (String(a ?? '').trim()) l.push(String(a).trim());
   return l.join('\n');
 }
 

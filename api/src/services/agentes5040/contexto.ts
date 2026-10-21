@@ -115,6 +115,14 @@ export async function lerCards(chave: string): Promise<CardResumo[]> {
     .map(({ cliente_telefone: _t, ...card }) => card);
 }
 
+/**
+ * O card do SOLAR é o mais novo DO SOLAR da lista (do mais novo ao mais velho) que NÃO está cancelado: não o mais novo de
+ * qualquer produto (a agenda da Duda é só do solar), e um cancelado mais novo não esconde o agendado mais velho.
+ */
+export const cardSolarDaLista = (cards: ReadonlyArray<CardResumo>): CardResumo | null =>
+  cards.find(c => !String(c.created_by ?? '').toLowerCase().includes('eletroposto')
+    && String(c.status ?? '').trim().toLowerCase() !== 'cancelado') ?? null;
+
 async function lerCard(chave: string): Promise<CardResumo | null> {
   return (await lerCards(chave))[0] ?? null;
 }
@@ -361,6 +369,7 @@ export async function montarContexto(
   const agora = opts.agora ?? new Date().toISOString();
   let completa = conversa.completa;
   let card: CardResumo | null = null;
+  let cardSolar: CardResumo | null = null;
   let leadsMeta: LeadMetaResumo | null = null;
   let cadastros: CadastroEletroposto[] = [];
   let cliente = false;
@@ -368,9 +377,12 @@ export async function montarContexto(
     completa = false;
   } else {
     try {
-      [card, leadsMeta, cadastros, cliente] = await Promise.all([
-        lerCard(chave), lerLeadsMeta(chave), lerCadastros(chave), lerEhCliente(chave),
+      let cards: CardResumo[];
+      [cards, leadsMeta, cadastros, cliente] = await Promise.all([
+        lerCards(chave), lerLeadsMeta(chave), lerCadastros(chave), lerEhCliente(chave),
       ]);
+      card = cards[0] ?? null;
+      cardSolar = cardSolarDaLista(cards);
     } catch (e) {
       console.error('[agentes5040] leitura do contexto falhou', codigoDoErro(e));
       completa = false;
@@ -378,7 +390,7 @@ export async function montarContexto(
   }
   const nome = card?.cliente_nome || leadsMeta?.nome || cadastros.find(c => c.nome)?.nome || null;
   return {
-    chave, nome, msgs: conversa.msgs, completa, card, leadsMeta, cadastros,
+    chave, nome, msgs: conversa.msgs, completa, card, cardSolar, leadsMeta, cadastros,
     ehClienteSolarDoc: cliente, anuncio: opts.anuncio ?? null, qualificado: !!opts.qualificado, agora,
   };
 }

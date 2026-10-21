@@ -100,7 +100,11 @@ export async function gravarCardSolar(
     if (conf === 'erro') return { status: 'erro', erro: new Error('não deu para conferir a agenda') };
     if (conf !== 'ok') return { status: conf };
   }
-  const agoraIso = new Date().toISOString();
+  const agoraMs = Date.now();
+  const agoraIso = new Date(agoraMs).toISOString();
+  // Caminho da agente: card de HOJE criado antes das 11h (Brasília) já nasce com o bom dia carimbado. A janela do bom dia
+  // (7h às 11h, solarAgendaGiovanna) está aberta e ele sairia por cima da confirmação. A rota do quiz não entra aqui.
+  const bomDiaJaDado = !!faixa && ymdBRT(Date.parse(f.quando)) === ymdBRT(agoraMs) && new Date(agoraMs - 3 * 3_600_000).getUTCHours() < 11;
   const { data, error } = await supabaseGerador.from('agendamentos').insert({
     vendedor_nome: f.dono,
     quando: f.quando,
@@ -114,7 +118,7 @@ export async function gravarCardSolar(
     ...(f.utm ?? {}),
     // Da agente as boas-vindas nascem NULAS: quem carimba é marcarBoasVindasEnviada, depois que a confirmação saiu.
     ...(faixa ? { boas_vindas_at: null } : {}),
-    ...(opts.ligarAgora ? { lembrete_5min_at: agoraIso, bomdia_at: agoraIso } : {}),
+    ...(opts.ligarAgora ? { lembrete_5min_at: agoraIso, bomdia_at: agoraIso } : bomDiaJaDado ? { bomdia_at: agoraIso } : {}),
   }).select(COLUNAS_DO_CARD).single();
   if (error) {
     // 23505 = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
@@ -139,6 +143,25 @@ export async function marcarBoasVindasEnviada(cardId: number): Promise<boolean> 
     return Array.isArray(data) && data.length > 0;
   } catch (err) {
     logger.error('agentes5040-agenda-solar', `carimbar as boas-vindas do card ${cardId} falhou`, err);
+    return false;
+  }
+}
+
+/**
+ * "Ligar agora" em card que JÁ existia: o lembrete de 5 min e o bom dia saem do ar (lembrete_5min_at e bomdia_at = agora),
+ * senão sairiam por cima do aviso à consultora. true SÓ se o banco devolveu a linha atualizada. Nunca lança.
+ */
+export async function silenciarLembretesDoCard(cardId: number): Promise<boolean> {
+  try {
+    const agoraIso = new Date().toISOString();
+    const { data, error } = await supabaseGerador.from('agendamentos')
+      .update({ lembrete_5min_at: agoraIso, bomdia_at: agoraIso })
+      .eq('id', cardId)
+      .select('id');
+    if (error) throw error;
+    return Array.isArray(data) && data.length > 0;
+  } catch (err) {
+    logger.error('agentes5040-agenda-solar', `silenciar os lembretes do card ${cardId} falhou`, err);
     return false;
   }
 }

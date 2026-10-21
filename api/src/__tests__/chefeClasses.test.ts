@@ -133,7 +133,7 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     // mudar quem fala com humano dentro da conversa: passa pela DIVERGENCIAS.
     const naoFrios = robos.filter(([, r]) => r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4');
     expect(naoFrios.filter(([, r]) => r.respeitaPausa).map(([n]) => n).sort())
-      .toEqual(['carla_vivo_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas']);
+      .toEqual(['carla_vivo_5040', 'duda_agenda_5040', 'duda_recepcao', 'duda_vivo_5040', 'ep_cobra_sim', 'giovanna_agenda', 'giovanna_reativa', 'helena_vivo_5040', 'investidor_agente_respostas', 'solar_agente_quiz', 'solar_boas_vindas']);
   });
 
   it('evento nasce de evento e sai em 1 bolha; só reativo tem 2 bolhas', () => {
@@ -148,7 +148,7 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
   it('nenhum robô nasce como lembrete_p1: P1 de agenda é sempre pelo prazo', () => {
     for (const [, r] of robos) expect(r.classe).not.toBe('lembrete_p1');
     const comPrazo = robos.filter(([, r]) => r.podeTerPrazo).map(([n]) => n).sort();
-    expect(comPrazo).toEqual(['ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'giovanna_agenda', 'solar_boas_vindas']);
+    expect(comPrazo).toEqual(['duda_agenda_5040', 'ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'giovanna_agenda', 'solar_boas_vindas']);
   });
 
   it('os robôs da limpeza não entram', () => {
@@ -167,7 +167,7 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
   // [regra do dono, 07/10] AGENDA NUNCA BLOQUEIA. A lista é fixada pelo nome:
   // pôr ou tirar um robô dela muda o que nenhum freio de volume segura.
   it('os robôs de agenda são os da regra do dono; as boas-vindas do solar não são agenda', () => {
-    expect(robosDeAgenda()).toEqual(['ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'ep_reagenda_auto', 'ep_remarcar_reativo', 'giovanna_agenda']);
+    expect(robosDeAgenda()).toEqual(['duda_agenda_5040', 'ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'ep_reagenda_auto', 'ep_remarcar_reativo', 'giovanna_agenda']);
     expect(CLASSE_POR_ROBO.solar_boas_vindas!.agenda).toBe(false);
     expect(ROBO_DESCONHECIDO.agenda).toBe(false);
     // Nenhum frio, evento ou robô de lote é agenda.

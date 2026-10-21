@@ -88,6 +88,11 @@ export interface ContextoLead {
   /** false = a leitura foi cortada ou falhou: a agente não fala. */
   completa: boolean;
   card: CardResumo | null;
+  /**
+   * O card mais novo do SOLAR deste telefone (o `card` acima é o mais novo de qualquer produto e pode ser de eletroposto).
+   * A agenda da Duda (marcar, remarcar, ligar agora) só olha este. Ausente = quem montou o contexto não o preencheu.
+   */
+  cardSolar?: CardResumo | null;
   leadsMeta: LeadMetaResumo | null;
   cadastros: CadastroEletroposto[];
   ehClienteSolarDoc: boolean;
@@ -101,6 +106,11 @@ export interface ContextoLead {
    * Ausente ou vazio = o sistema não trouxe nenhum (a persona usa pedir_horarios). Nunca preenchido no replay.
    */
   horariosLivres?: string[];
+  /**
+   * Avisos do sistema para a Duda na 2ª chamada de um mesmo turno (B1d-2c): "o horário foi tomado", "ligar agora não
+   * está disponível". Entram nos fatos como estão. Ausente ou vazio = nenhum aviso (o caso de todo turno comum).
+   */
+  avisosDoSistema?: string[];
 }
 
 /** O que o porteiro precisa saber. `leituraOk=false` = ninguém responde. */

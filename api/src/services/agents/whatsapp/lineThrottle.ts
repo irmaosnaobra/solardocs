@@ -205,6 +205,10 @@ const BOT_SENT_PREFIXES = [
   // `status_io_sent:<dia>:<n>`. Conta como 1 frio da linha e fica FORA de PREFIXOS_AGENDA.
   // O teto próprio (3 por dia) e as 2 h entre status moram no arquivo dele.
   'status_io_sent:',
+  // [21/10] A bolha fixa de agenda da Duda (agendaEnvio.ts): `ag5040_agenda_sent:<card>:<tipo>`. Conta na linha e no
+  // espaçamento, e também está em PREFIXOS_AGENDA (agenda: o frio não a soma). O `ag5040_sent:` das respostas
+  // das agentes continua FORA desta lista, de propósito.
+  'ag5040_agenda_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -249,6 +253,7 @@ export const PREFIXOS_AGENDA = [
   'solar_boasvindas_sent:', // ficha de solar recém-preenchida
   'solar_giovanna_sent:',   // os dois toques do dia da reunião
   'ep_cobra_sim:',          // régua do SIM: cobrança e aviso de horário liberado
+  'ag5040_agenda_sent:',    // a bolha fixa de agenda da Duda (agendaEnvio.ts); NUNCA ag5040_sent:, que fica fora da lista
 ] as const;
 
 /** Só os prefixos de envio FRIO (o que não é agenda nem transacional). */

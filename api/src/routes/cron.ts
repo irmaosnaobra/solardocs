@@ -1824,6 +1824,27 @@ router.get('/agentes-5040/vivo', async (req: Request, res: Response) => {
   }
 });
 
+// ── AGENTES 5040 · a fila de agenda da Duda (B1d-2, correção 8): confirmação de horário e volta honesta que a bolha do
+// turno não pôde levar. Relógio PRÓPRIO de 2 em 2 minutos (vercel.json), independente de qualquer *_vivo ligado: fora das
+// 7h às 21h (Brasília) sai sem ler nada, fila vazia custa 1 leitura, trava própria com token. ?dry=1 faz tudo menos
+// reservar, enviar, apagar da fila e travar. Protegida como as outras rotas de cron.
+router.get('/agentes-5040/agenda', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { runAgendaTick } = await import('../services/agentes5040/agendaEnvio');
+    const r = await runAgendaTick({ dry: req.query.dry === '1' });
+    if (!r.dry && r.comFila) {
+      logger.info('cron', 'agentes-5040/agenda rodou', {
+        enviadas: r.agenda?.enviadas ?? 0, descartadas: r.agenda?.descartadas ?? 0, mantidas: r.agenda?.mantidas ?? 0, parou: r.agenda?.parou ?? null,
+      });
+    }
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/agenda falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
 // Replay de conversas passadas: ?desde=ISO&ate=ISO (padrão: os últimos 30 dias), &maxConversas=5&maxTurnos=8&dry=1.
 router.get('/agentes-5040/replay', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
