@@ -1060,6 +1060,7 @@
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-agendado { --crmp-ponto: var(--io-azul-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.crm-col-reagendar, .crm-col-nao_atendeu) { --crmp-ponto: var(--io-av-tx); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-whatsapp { --crmp-ponto: var(--io-wa-tx); }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-base { --crmp-ponto: var(--io-info); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp :is(.crm-col-fez_orcamento, .crm-col-proposta_apresentada, .crm-col-em_atendimento) { --crmp-ponto: var(--io-titulo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-apalavrado { --crmp-ponto: var(--io-amarelo); }
   html.io2[data-mode="app"]:not(#_):not(#_):not(#_) #crmSection.io2-crmp .crm-col-vendido { --crmp-ponto: var(--io-ok-tx); }

@@ -2528,6 +2528,10 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .epo-campo.falta select{bor
    Âmbar de propósito: não é vitória (verde do Vendido) nem perda (vermelho),
    é o aperto de mão esperando a peça que falta. */
 .crm-col-apalavrado .crm-col-head{box-shadow:inset 0 3px 0 #FCD34D}
+/* BASE (21/10/2026): quem a Duda ou a Helena ainda seguram. Azul-claro de propósito: é fila de entrada, não negócio. */
+.crm-col-base .crm-col-head{box-shadow:inset 0 3px 0 #7DD3FC}
+.crm-card-base{cursor:default}
+.crm-status-selo.selo-base{background:rgba(125,211,252,.18);color:#7DD3FC}
 /* card de cliente */
 .crm-card{background:#1c2c47;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
 /* Card em espera: ambar tingido, nao solido. Solido apagaria o texto branco, e
@@ -35927,6 +35931,9 @@ function voltarDosLeads() {
 // Ordem = funil, da entrada à direita. Temperatura "puxa" o card, forçando o
 // consultor a classificar a agenda (senão fica empacado em "Reagendar"/"Agendado").
 const CRM_ETAPAS = {
+  // A BASE (21/10/2026): quem a Duda (solar) ou a Helena (eletroposto) ainda segura e que não está com o consultor.
+  // Vem da rota /gerador/base-5040 (crmCarregarBase) e é a PRIMEIRA coluna dos dois quadros.
+  base:        { lbl: 'Base',              ic: '📥' },
   agendado:    { lbl: 'Agendado',          ic: '📅' },
   reagendar:   { lbl: 'Reagendar',         ic: '🔄' },
   em_atendimento: { lbl: 'Negociando', ic: '🕐' },
@@ -36057,7 +36064,7 @@ function navCRM(opts) {
       const naCol = (prod) => crmClientes.filter(c =>
         crmEhDoProduto(c, prod)
         && (crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor)
-        && crmColunaDaEtapa(c.etapa, prod) === opts.coluna).length;
+        && crmColunaDaEtapa(crmEtapaNoQuadro(c, prod), prod) === opts.coluna).length;
       if (!naCol('solar') && naCol('eletroposto')) crmFiltroProduto = 'eletroposto';
     }
     crmRenderFiltros();
@@ -42635,6 +42642,8 @@ async function carregarCRM(forcar) {
   renderCRM();
   // O selo de etapa dos vendidos do eletroposto: depois do quadro, sem bloquear.
   pvCarregarSelos();
+  // A Base chega DEPOIS do primeiro desenho (o quadro abre como sempre, sem esperar a rota) e redesenha quando volta.
+  crmCarregarBase().then(() => { crmClientes.forEach(crmDerivar); crmRenderFiltros(); renderCRM(); }).catch(() => {});
 }
 
 // ── A SALA DE ESPERA, DESENHADA NO QUADRO ──────────────────────────────────
@@ -42726,6 +42735,84 @@ async function crmCarregarEsperas() {
     } catch (e) { console.warn('lista de bloqueados nao carregou', e); }
     crmEtiquetas = etiquetas;
   } catch (e) { crmEsperas = {}; crmEtiquetas = {}; }
+}
+
+// ── A BASE DAS AGENTES (21/10/2026) ────────────────────────────────────────
+//
+// A coluna Base mostra quem a Duda (solar) e a Helena (eletroposto) ainda seguram e que não está com o consultor. A lista mora
+// no servidor (GET /gerador/base-5040, uma chamada por produto), porque sai de posse, conversa e card juntos. Exige login: a
+// resposta leva nome e telefone, então vai o token DA PESSOA. Falha ou sem sessão = lista vazia, e o quadro desenha igual.
+//   · item com cardId: o cliente já é um card do quadro; a etapa dele vira 'base' (ver crmDerivar) e o selo diz como está;
+//   · item sem card: não existe cliente no quadro, então desenha um cartão simples (cartaoBase, no renderCRM).
+let crmBase = { solar: [], eletroposto: [] };   // itens da rota, por produto
+let crmBaseCards = {};                          // { '<cardId>': { produto, item } }
+const CRM_BASE_ETAPA_TXT = { chegou: 'Chegou', em_conversa: 'Em conversa', sem_resposta: 'Sem resposta', estacionado: 'Estacionado' };
+const CRM_BASE_DONA_TXT = { duda: 'Duda', helena: 'Helena' };
+
+async function crmCarregarBase() {
+  const vazio = { solar: [], eletroposto: [] };
+  try {
+    try { await authRenovarSePreciso(); } catch (e) { /* sem sessão: cai na lista vazia abaixo */ }
+    const tok = sessaoAtual && sessaoAtual.access_token;
+    if (!tok) { crmBase = vazio; crmBaseCards = {}; return; }
+    const pega = async (produto) => {
+      const ctrl = new AbortController();
+      const corta = setTimeout(() => ctrl.abort(), 8000);   // rota lenta não pode deixar a Base pendurada
+      try {
+        const r = await fetch(`${CTR_IA_API}/gerador/base-5040?produto=${produto}`, { headers: { 'Authorization': 'Bearer ' + tok }, signal: ctrl.signal });
+        if (!r.ok) return [];
+        const j = await r.json().catch(() => null);
+        if (j && j.cortou) console.warn('Base cortada pelo servidor:', produto);
+        return (j && j.ok && Array.isArray(j.itens)) ? j.itens : [];
+      } catch (e) { return []; } finally { clearTimeout(corta); }
+    };
+    const [solar, eletroposto] = await Promise.all([pega('solar'), pega('eletroposto')]);
+    const cards = {};
+    solar.forEach(it => { if (it.cardId) cards[String(it.cardId)] = { produto: 'solar', item: it }; });
+    eletroposto.forEach(it => { if (it.cardId) cards[String(it.cardId)] = { produto: 'eletroposto', item: it }; });
+    crmBase = { solar, eletroposto };
+    crmBaseCards = cards;
+  } catch (e) { crmBase = vazio; crmBaseCards = {}; }
+}
+
+/** "há 20 min", "há 5 h", "há 3 d" a partir de uma data ISO. Vazio se a data não vale. */
+function crmHaQuanto(iso) {
+  const t = Date.parse(String(iso || ''));
+  if (!Number.isFinite(t)) return '';
+  const min = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (min < 60) return `há ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `há ${h} h`;
+  return `há ${Math.round(h / 24)} d`;
+}
+
+/** O texto curto da etapa na Base: "Sem resposta · há 5 h" (estacionado diz quando volta). */
+function crmBaseTexto(it) {
+  const et = CRM_BASE_ETAPA_TXT[it.etapa] || 'Em conversa';
+  if (it.etapa === 'estacionado') {
+    const t = Date.parse(String(it.volta_em || ''));
+    if (Number.isFinite(t)) {
+      const d = new Date(t);
+      return `${et} · volta ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+    return et;
+  }
+  const quando = crmHaQuanto(it.etapa === 'chegou' ? it.desde : (it.ultima_fala_em || it.desde));
+  return quando ? `${et} · ${quando}` : et;
+}
+
+/** Os itens da Base SEM card do quadro aberto, prontos para a coluna: sem consultor (só em "Geral"), pela busca, e sem repetir
+ *  quem já é um cliente do quadro (mesma chave de telefone). */
+function crmBaseSimples(produto) {
+  if (crmFiltroConsultor !== '__todos__') return [];
+  const busca = (document.getElementById('crm-busca')?.value || '').trim().toLowerCase();
+  const chaves = new Set(crmClientes.map(c => c.key));
+  return (crmBase[produto] || []).filter(it => {
+    if (it.cardId) return false;
+    if (chaves.has(crmTelKey(it.telefone))) return false;
+    if (busca && !`${it.nome} ${it.telefone} ${it.cidade}`.toLowerCase().includes(busca)) return false;
+    return true;
+  });
 }
 
 // Junta as 3 fontes num mapa por chave de telefone (ou nome quando sem telefone).
@@ -42982,6 +43069,21 @@ function crmDerivar(c) {
   // negócio, então ela ganha dos quatro modelos. Quem aperta APALAVRADO aperta
   // DEPOIS de já ter escolhido arrendamento ou 50/50.
   const naEspera = !!(c.agId && crmEsperas[String(c.agId)]);
+  // A BASE (21/10/2026) NÃO muda `c.etapa`: ela só vale DENTRO do quadro do produto da agente (ver crmEtapaNoQuadro). No quadro do
+  // outro produto o card segue a derivação normal, como sempre. A marca só pega a ficha que o servidor devolveu E que, na tela de
+  // agora, ainda é a mais nova do produto dela e ainda está cancelada ou não atendeu: status de consultor (agendado, proposta,
+  // apalavrado, vendido...) nunca é escondido pela Base, nem se mudou depois da leitura. Além disso a ficha mais nova de TODAS
+  // (statusAg) também tem que ser cancelada ou não atendeu, e o cliente não pode ser vendido nem estar na sala de espera: venda,
+  // apalavrado, qualquer ficha fechada e arrendamento ganham da Base.
+  c.baseProduto = null;
+  c.baseItem = null;
+  const podeBase = !vendida && !naEspera && !agOrd.some(a => a.status === 'fechou') && (statusAg === 'cancelado' || statusAg === 'nao_atendeu');
+  for (const a of (podeBase ? agOrd : [])) {
+    const b = crmBaseCards[String(a.id)];
+    if (!b) continue;
+    const doProduto = agOrd.find(x => crmEhEletroposto(x) === crmEhEletroposto(a));
+    if (doProduto === a && (a.status === 'cancelado' || a.status === 'nao_atendeu')) { c.baseProduto = b.produto; c.baseItem = b.item; break; }
+  }
   let etapa;
   if (vendida || statusAg === 'fechou') {
     etapa = 'vendido';
@@ -43031,6 +43133,11 @@ function crmDerivar(c) {
 // O cliente pertence ao quadro aberto? (ver c.temSolar / c.temEp em crmDerivar)
 function crmEhDoProduto(c, produto) {
   return produto === 'eletroposto' ? !!c.temEp : !!c.temSolar;
+}
+
+// A etapa do cliente NESTE quadro: 'base' só no quadro do produto da agente que o segura; no outro vale a derivação normal.
+function crmEtapaNoQuadro(c, produto) {
+  return c.baseProduto === produto ? 'base' : c.etapa;
 }
 
 // Troca de quadro. Nada mais muda: mesmo consultor, mesma busca — só o produto.
@@ -43124,8 +43231,8 @@ const CRM_KANBAN = {
   // FEZ ORÇAMENTO também fica, e só no solar: lá a marca é automática (sai do
   // `gerarOrcamentoDoDetalhe`), e no eletroposto não existe uma única ficha com
   // esse status — medido em 01/10: 43 no solar, 0 no eletroposto.
-  eletroposto: ['agendado', 'nao_atendeu', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'cotista', 'integrador', 'apalavrado', 'vendido', 'sem_interesse'],
-  solar:       ['agendado', 'reagendar', 'whatsapp', 'fez_orcamento', 'apalavrado', 'vendido', 'perdido'],
+  eletroposto: ['base', 'agendado', 'nao_atendeu', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'cotista', 'integrador', 'apalavrado', 'vendido', 'sem_interesse'],
+  solar:       ['base', 'agendado', 'reagendar', 'whatsapp', 'fez_orcamento', 'apalavrado', 'vendido', 'perdido'],
 };
 
 // ONDE CADA ETAPA CAI NUM QUADRO QUE NÃO TEM COLUNA PRÓPRIA PRA ELA.
@@ -43212,17 +43319,18 @@ function renderCRM() {
     && (crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor));
   const kpiBox = document.getElementById('crm-kpis');
   if (kpiBox) {
-    const cont = (et) => baseKpi.filter(c => c.etapa === et).length;
+    const etQ = (c) => crmEtapaNoQuadro(c, crmFiltroProduto);
+    const cont = (et) => baseKpi.filter(c => etQ(c) === et).length;
     const total = baseKpi.length;
-    const fechados = new Set(['vendido', 'perdido']);
-    const ativos = baseKpi.filter(c => !fechados.has(c.etapa)).length;
+    const fechados = new Set(['vendido', 'perdido', 'base']);   // 'base' fora de Em aberto e do Pipeline: a Base não muda os KPIs
+    const ativos = baseKpi.filter(c => !fechados.has(etQ(c))).length;
     const vendidos = cont('vendido');
     // No arrendamento QUEM investe é a casa: o valor da proposta dele não é
     // dinheiro a receber e inflaria o Pipeline. Fora da conta. Em "Em aberto" ele
     // continua, porque trabalho aberto ele é.
     const semReceita = new Set([...fechados, 'arrendamento']);
     const pipeline = baseKpi
-      .filter(c => !semReceita.has(c.etapa))
+      .filter(c => !semReceita.has(etQ(c)))
       .reduce((s, c) => s + Number(c.valor || 0), 0);
     // O 4º parametro (clique) so e usado no KPI "Vendidos" do quadro do eletroposto.
     const kpi = (lbl, val, cls, clique) => clique
@@ -43311,6 +43419,14 @@ function renderCRM() {
     return statusBadge(et);
   };
 
+  /** Na coluna Base: quem segura, a etapa e há quanto tempo. */
+  const baseBadge = (c) => {
+    const it = crmEtapaNoQuadro(c, crmFiltroProduto) === 'base' ? c.baseItem : null;
+    if (!it) return '';
+    const dona = CRM_BASE_DONA_TXT[it.dona] || '';
+    return `<span class="crm-status-selo selo-base" title="${escapeHtml(dona ? 'Conversa com a ' + dona : 'Conversa com a agente')}">${escapeHtml((dona ? dona + ' · ' : '') + crmBaseTexto(it))}</span>`;
+  };
+
   const esperaBadge = (c) => {
     const e = crmEsperas[String(c.agId)];
     if (!e) {
@@ -43339,14 +43455,29 @@ function renderCRM() {
   const porEtapa = {};
   crmOrdemDoQuadro(crmFiltroProduto).forEach(k => { porEtapa[k] = []; });
   lista.forEach(c => {
-    const col = crmColunaDaEtapa(c.etapa, crmFiltroProduto);
+    const col = crmColunaDaEtapa(crmEtapaNoQuadro(c, crmFiltroProduto), crmFiltroProduto);
     (porEtapa[col] || (porEtapa[col] = [])).push(c);
   });
+  // Quem está na Base e ainda não tem card: cartão simples, só na coluna Base (ver crmBaseSimples).
+  const baseSimples = crmBaseSimples(crmFiltroProduto);
+  const cartaoBase = (it) => {
+    const dona = CRM_BASE_DONA_TXT[it.dona] || '';
+    const tel = it.telefone ? `<a class="crm-card-tel" href="tel:${escapeHtml(it.telefone)}" title="Ligar">📱 ${escapeHtml(crmTelDisplay(it.telefone))}</a>` : '';
+    return `<div class="crm-card crm-card-base">
+      <div class="crm-card-top"><span class="crm-card-nome">${escapeHtml(it.nome || 'Sem nome')}</span></div>
+      ${tel}
+      <div class="crm-card-meta">${dona ? `<span class="crm-card-cons">${escapeHtml(dona)}</span>` : ''}${it.cidade ? `<span class="crm-card-cid">📍 ${escapeHtml(it.cidade)}</span>` : ''}</div>
+      <span class="crm-status-selo selo-base">${escapeHtml(crmBaseTexto(it))}</span>
+    </div>`;
+  };
 
   // Monta um card compacto de cliente
   const card = (c) => {
     const valorTxt = c.valor ? '<span class="crm-card-val">R$ ' + Math.round(c.valor).toLocaleString('pt-BR') + '</span>' : '';
     const wpp = c.tel ? `<a class="crm-act crm-act-wpp" href="https://wa.me/${c.tel}" target="_blank" rel="noopener" title="WhatsApp" onclick="event.stopPropagation()">💬</a>` : '';
+    // Na Base, o botão abre a conversa na caixa do /gerador (ela abre pelo card: ?card=<id>).
+    const abrirConversa = (crmEtapaNoQuadro(c, crmFiltroProduto) === 'base' && c.baseItem && c.baseItem.cardId)
+      ? `<a class="crm-act" href="/gerador/whatsapp/?card=${encodeURIComponent(c.baseItem.cardId)}" target="_blank" rel="noopener" title="Abrir a conversa" onclick="event.stopPropagation()">🗨️</a>` : '';
     // Um botão por produto que o cliente tem. Com os dois, aparecem os dois — é
     // como o consultor descobre, batendo o olho, que o cliente também recebeu
     // orçamento do outro lado.
@@ -43384,11 +43515,11 @@ function renderCRM() {
       <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
       ${foraDoPadrao(c)
         ? '<span class="crm-status-selo selo-fora">FORA DO PADRÃO</span>'
-        : `${presencaBadge(c)}${etiquetaBadge(c)}${statusBadge(c.statusAg)}${motivoBadge(c)}${esperaBadge(c)}`}
+        : `${baseBadge(c)}${presencaBadge(c)}${etiquetaBadge(c)}${statusBadge(c.statusAg)}${motivoBadge(c)}${esperaBadge(c)}`}
       ${pvSeloCrm(c)}
       <div class="crm-card-foot">
         ${valorTxt}
-        <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>
+        <span class="crm-card-acoes">${abrirConversa}${reagBtn}${wpp}${verProp}</span>
       </div>
     </div>`;
   };
@@ -43404,13 +43535,14 @@ function renderCRM() {
   board.innerHTML = ordemQuadro.map(etKey => {
     const et = CRM_ETAPAS[etKey] || { lbl: etKey, ic: '•' };
     const cards = porEtapa[etKey] || [];
-    const corpo = cards.length
-      ? cards.map(card).join('')
+    const simples = etKey === 'base' ? baseSimples : [];
+    const corpo = (cards.length || simples.length)
+      ? cards.map(card).join('') + simples.map(cartaoBase).join('')
       : '<div class="crm-col-vazia">—</div>';
     return `<div class="crm-col crm-col-${etKey}">
       <div class="crm-col-head">
         <span class="crm-col-tit">${et.ic} ${et.lbl}</span>
-        <span class="crm-col-qt">${cards.length}</span>
+        <span class="crm-col-qt">${cards.length + simples.length}</span>
       </div>
       <div class="crm-col-body">${corpo}</div>
     </div>`;

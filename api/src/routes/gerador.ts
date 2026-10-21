@@ -38,6 +38,7 @@ import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { mountSentinela } from './geradorSentinela';
 import { mountEnsaio5040 } from './geradorEnsaio5040';
+import { mountBase5040 } from './geradorBase5040';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
@@ -1185,6 +1186,8 @@ mountRedes(router);
 mountSentinela(router);
 // Painel do ensaio das agentes da 5040: lê as respostas que elas dariam e recebe a nota da equipe (nada é enviado).
 mountEnsaio5040(router);
+// Coluna Base do CRM: posses da Duda e da Helena que ainda não estão com o consultor (só leitura, nada é enviado).
+mountBase5040(router);
 
 // Situação dos investidores na conversa com a Helena (colunas da aba Investidores).
 mountEletropostoAtendimento(router);
