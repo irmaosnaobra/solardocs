@@ -3,7 +3,7 @@
 // escrita, e não chama o logger: seus erros vão para o console com o CÓDIGO e nada mais; nunca
 // telefone, nome ou texto.
 // ÚNICA ESCRITA ALCANÇÁVEL daqui: os horários livres (lerHorariosLivres) chamam
-// eletropostoVagas.proximasVagas, que usa o logger do projeto, e o logger grava em error_logs
+// eletropostoVagas.proximasVagas (Helena) ou agendaSolarVagas.vagasSolar (Duda; só leitura), que usam o logger do projeto, e o logger grava em error_logs
 // quando a leitura da agenda FALHA. Nenhuma tabela do cliente, da conversa ou da agenda é escrita.
 // O logger já estava no percurso (silenciar.ts e pausaHumana.ts o importam).
 //
@@ -29,6 +29,7 @@ import {
 } from '../agents/whatsapp/silenciar';
 import { desligado as pausaDesligada } from '../agents/whatsapp/pausaHumana';
 import { proximasVagas } from '../io/eletropostoVagas';
+import { vagasSolar } from './agendaSolarVagas';
 import { INV_SESSAO_PREFIX, sessaoSeguraOutrosRobos } from '../io/investidorAgentePosse';
 import { quandoPorExtenso } from './personas/comum';
 import type {
@@ -208,7 +209,11 @@ export async function lerHorariosLivres(
   try {
     const dono = donoDoHorario(persona, card, lead, cadastros);
     if (!dono) return [];
-    const vagas = await proximasVagas(dono, 4, { agora: Date.parse(agora) });
+    // A Duda marca ligação do SOLAR: grade e ocupação do solar (agendaSolarVagas), nunca a do eletroposto.
+    // Lead sem card = cliente novo (:00/:30); quem já tem card (inclusive nao_atendeu) remarca nos :15/:45.
+    const vagas = persona === 'duda'
+      ? await vagasSolar({ dono, caminho: 'ligacao', n: 4, agora: Date.parse(agora), faixa: card ? 'remarcacao' : 'novo' })
+      : await proximasVagas(dono, 4, { agora: Date.parse(agora) });
     return (vagas ?? []).map(iso => quandoPorExtenso(iso, agora)).filter(Boolean);
   } catch (e) {
     console.error('[agentes5040] leitura dos horários falhou', codigoDoErro(e));

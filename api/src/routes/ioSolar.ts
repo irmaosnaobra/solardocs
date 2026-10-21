@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
+import { gravarCardSolar } from '../services/agentes5040/agendaSolar';
 import { logger } from '../utils/logger';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
@@ -524,23 +525,22 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     const endereco = dec.caminho === 'vistoria' ? limparEndereco(b.endereco) : null;
     const quando = new Date(msDe(ymd, h)).toISOString();
     const src = String(b.src || '').trim().toLowerCase();
-    const { data, error } = await supabaseGerador.from('agendamentos').insert({
-      vendedor_nome: dono,
+    // O insert do card mora em agendaSolar.ts (21/10/2026), compartilhado com a agente; sem opções ele grava
+    // exatamente o que esta rota gravava aqui.
+    const gravado = await gravarCardSolar({
+      dono,
       quando,
-      cliente_nome: e.nome,
-      cliente_telefone: e.tel,
+      nome: e.nome,
+      tel: e.tel,
       cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
-      status: 'agendado',
-      observacao: montarObservacao(e.resp, dec, endereco, semHorario).slice(0, 4000),
-      created_by: 'lp_solar',
-      ...(/^[a-z0-9_-]{1,20}$/.test(src) ? { src } : {}),
-      ...utmDe(b),
-    }).select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao, utm_source, utm_campaign').single();
-    if (error) {
-      // 23505 = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
-      if ((error as { code?: string }).code === '23505') { res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias }); return; }
-      throw error;
-    }
+      observacao: montarObservacao(e.resp, dec, endereco, semHorario),
+      src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null,
+      utm: utmDe(b),
+    });
+    // 'horario_tomado' = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
+    if (gravado.status === 'horario_tomado') { res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias }); return; }
+    if (gravado.status === 'erro') throw gravado.erro;
+    const data = gravado.card;
     const leadId = `quiz_${e.alvo}`;
     await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b) });
 
