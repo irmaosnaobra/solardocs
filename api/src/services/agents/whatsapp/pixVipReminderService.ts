@@ -28,33 +28,30 @@ const COOLDOWN_DIAS = 20;
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
-// Valor da renovação mensal por Pix, POR PLANO. O alvo do lembrete é qualquer
-// plano pago, então mandar 67 fixo cobrava R$67 de quem tem PRO de R$27 — a
-// pessoa pagaria a mais ou (mais provável) não pagaria nada. O comprovante já
-// aceita 27 e 67, então só o pedido estava errado.
-const PIX_VALOR_POR_PLANO: Record<string, number> = { pro: 27, ilimitado: 67 };
-const PIX_VALOR_PADRAO = 67;
-
-function valorDoPlano(plano: string | null): number {
-  return PIX_VALOR_POR_PLANO[(plano || '').toLowerCase()] ?? PIX_VALOR_PADRAO;
-}
+// Valor da renovação mensal por Pix: R$ 67 para TODO plano, desde 20/10/2026 (regra do
+// dono). Antes era por plano (PRO pagava 27); hoje quem manda 27 recebe o aviso de que
+// faltam R$ 40 e o Pix do restante (ver aplicarPagamentoPix).
+const VALOR_RENOVACAO = PIX_MES_VALOR;
 
 // Partes da mensagem de renovação: pitch + copia-e-cola (sozinho, fácil de copiar) +
 // instrução do comprovante. O cliente paga e manda o comprovante → pixComprovanteService
 // lê, valida e empurra o plano_expira_em +1 mês na hora.
-function montarPartes(nome: string | null, valor: number): string[] {
+const AVISO_PRO = 'A partir de agora a renovação no Pix é R$ 67,00, já com o plano Ilimitado.';
+
+export function montarPartes(nome: string | null, valor: number = VALOR_RENOVACAO, plano: string | null = null): string[] {
+  // Quem ainda está no PRO de R$ 27 é avisado da mudança NA MESMA bolha do pedido (sem bolha nova).
+  const aviso = (plano || '').toLowerCase() === 'pro' ? ` ${AVISO_PRO}` : '';
   const oi = nome ? `Oi ${nome.split(' ')[0]}! ` : 'Oi! ';
 
   // RENOVAÇÃO EM UM CLIQUE. O checkout da Kiwify cobra, o webhook empilha mais 30
   // dias em cima do que resta (concederMesPago) e ninguém confere comprovante —
   // o mesmo trilho que a recuperação de abandono usa.
-  // Só vale quando o valor do plano dele é o do produto lá (R$ 67). Quem paga
-  // R$ 27 continua no copia-e-cola: mandar o link errado seria cobrar a mais.
+  // O valor é sempre R$ 67 (o do produto lá), então o link vale para todo plano.
   const link = pixCheckoutUrl();
   if (link && valor === PIX_MES_VALOR) {
     return [
       `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
-      `Pra renovar por mais um mês (R$ ${valor}), é só pagar por aqui 👇`,
+      `Pra renovar por mais um mês (R$ ${valor}), é só pagar por aqui 👇${aviso}`,
       link,
       'Escolhe *Pix* na página que o QR aparece na hora. Seu acesso é estendido sozinho quando o pagamento cair — não precisa mandar comprovante 🙌',
     ];
@@ -63,7 +60,7 @@ function montarPartes(nome: string | null, valor: number): string[] {
   const copia = gerarPixCopiaECola({ valor, txid: 'SOLARDOCVIP' });
   return [
     `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
-    `Pra renovar por mais um mês (R$ ${valor}, seu plano atual), é só copiar o Pix abaixo e pagar no app do seu banco 👇`,
+    `Pra renovar por mais um mês (R$ ${valor}), é só copiar o Pix abaixo e pagar no app do seu banco 👇${aviso}`,
     copia,
     'Assim que pagar, me manda o *comprovante aqui* que eu confirmo e libero na hora. Qualquer dúvida me chama! 🙌',
   ];
@@ -107,7 +104,7 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
     }
 
     try {
-      await sendHuman(u.whatsapp, montarPartes(u.nome, valorDoPlano(u.plano)), 'solardoc');
+      await sendHuman(u.whatsapp, montarPartes(u.nome, VALOR_RENOVACAO, u.plano), 'solardoc');
       await supabase
         .from('users')
         .update({ pix_reminder_last_sent_at: new Date().toISOString() })

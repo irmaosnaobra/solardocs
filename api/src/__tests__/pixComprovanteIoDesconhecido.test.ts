@@ -20,7 +20,7 @@ let falhaMarcaDoPedido = false; // simula erro (não 23505) ao gravar a marca do
 
 function query(table: string) {
   const filtros: Array<(r: Row) => boolean> = [];
-  let modo: 'select' | 'insert' | 'update' | 'upsert' = 'select';
+  let modo: 'select' | 'insert' | 'update' | 'upsert' | 'delete' = 'select';
   let pendente: Row | null = null;
   let patch: Row | null = null;
   let onConflict = '';
@@ -52,6 +52,11 @@ function query(table: string) {
       db[table] = [...(db[table] ?? []), { ...pendente! }];
       return { data: pendente, error: null };
     }
+    if (modo === 'delete') {
+      const alvos = linhas();
+      db[table] = (db[table] ?? []).filter((r) => !alvos.includes(r));
+      return { data: alvos, error: null };
+    }
     if (modo === 'update') {
       const alvos = linhas();
       alvos.forEach((r) => Object.assign(r, patch));
@@ -67,6 +72,7 @@ function query(table: string) {
       modo = 'upsert'; pendente = row; onConflict = opts?.onConflict || ''; return q;
     },
     update: (p: Row) => { modo = 'update'; patch = p; return q; },
+    delete: () => { modo = 'delete'; return q; },
     eq: (col: string, val: any) => { filtros.push((r) => String(r[col]) === String(val)); return q; },
     neq: (col: string, val: any) => { filtros.push((r) => String(r[col]) !== String(val)); return q; },
     in: (col: string, vals: any[]) => { filtros.push((r) => vals.map(String).includes(String(r[col]))); return q; },
@@ -110,6 +116,8 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendImage: vi.fn(async () => {}),
   sendDocument: vi.fn(async () => {}),
 }));
+vi.mock('../services/agents/whatsapp/biaInboundService', () => ({ ehLeadRecuperacao: vi.fn(async () => false) }));
+vi.mock('../services/agents/whatsapp/pausaHumana', () => ({ podeFalarComLead: vi.fn(async () => ({ pode: true })) }));
 vi.mock('../services/kitIntegradorService', () => ({ concederCursoPorAssinatura: vi.fn(async () => {}) }));
 
 import { sendHuman, sendWhatsApp } from '../services/agents/zapiClient';
@@ -282,7 +290,7 @@ describe('número desconhecido manda comprovante', () => {
     expect(db.users[0]!.whatsapp).toBe('34900000000');
   });
 
-  it('3. o mesmo Pix relido com o E2E de 32 caracteres, de OUTRO telefone: barrado pela pix_e2e', async () => {
+  it('3. o mesmo Pix relido com o E2E de 32 caracteres, de OUTRO telefone, sem sinal do SolarDoc: barrado, fluxo de hoje', async () => {
     leitura = LEO2;
     await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
     const venc1 = db.users[0]!.plano_expira_em;
@@ -291,14 +299,14 @@ describe('número desconhecido manda comprovante', () => {
     leitura = { ...LEO2, id_transacao: 'E00416968202610191940uHT9pUwumly' };
     const r = await tryProcessAbandonedPixComprovante('5534988887777', IMG, 'io', '');
 
-    // true: o Pix já foi usado, a imagem não segue pra Carla.
-    expect(r).toBe(true);
+    // sem e-mail de conta, sem Pix pedido e sem abandono: nada a dizer, segue o fluxo de hoje
+    expect(r).toBe(false);
     expect(enviadas()).toHaveLength(0);
     expect(db.users[0]!.plano_expira_em).toBe(venc1); // não somou outro mês
     expect(db.system_state.some((r2) => r2.key.startsWith('pix_solicitado:34988887777'))).toBe(false);
   });
 
-  it('3b. o mesmo Pix com e-mail de conta na conversa: barrado também, e o Thiago é avisado', async () => {
+  it('3b. o mesmo Pix de OUTRO telefone com e-mail de conta na conversa: 1 mensagem fixa e o Thiago é avisado', async () => {
     leitura = LEO2;
     await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
     const venc1 = db.users[0]!.plano_expira_em;
@@ -311,8 +319,9 @@ describe('número desconhecido manda comprovante', () => {
     const r = await tryProcessAbandonedPixComprovante('5534988887777', IMG, 'io', '');
 
     expect(r).toBe(true);
-    expect(enviadas()).toHaveLength(0);
     expect(db.users[0]!.plano_expira_em).toBe(venc1);
+    expect(enviadas()).toHaveLength(1);
+    expect(textoEnviado()).toBe('Aqui é a Giovanna, do suporte do SolarDoc. Esse comprovante já foi usado para liberar um acesso antes. Se você fez um pagamento novo, me manda o comprovante dele.');
     expect((sendWhatsApp as any).mock.calls.some((c: any[]) => String(c[1]).includes('REVISAR'))).toBe(true);
   });
 
@@ -328,16 +337,17 @@ describe('número desconhecido manda comprovante', () => {
     expect(db.system_state).toHaveLength(0);
   });
 
-  it('4b. data boa e recebedor certo, mas SEM ID de Pix: reprovado ("sem ID de Pix")', async () => {
+  it('4b. data boa e recebedor certo, mas SEM ID de Pix, com e-mail de conta: mensagem fixa + Thiago ("sem ID de Pix")', async () => {
     leitura = { ...LEO2, id_transacao: 'AUTENTICACAO 8F3A 22' };
     db.wa_mensagens.push(mensagemRecebida('leoimplant@gmail.com'));
 
     const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
 
-    expect(r).toBe(false);
-    expect(enviadas()).toHaveLength(0);
+    expect(r).toBe(true);
+    expect(enviadas()).toHaveLength(1);
+    expect(textoEnviado()).toContain('Não consegui confirmar esse pagamento por aqui. Pode me mandar o comprovante do Pix, em foto ou PDF da tela do banco?');
     expect(db.users[0]!.plano).toBe('free');
-    // conta existente na conversa: o Thiago recebe o motivo
+    // recebedor Aioros: o Thiago recebe o motivo
     const aviso = (sendWhatsApp as any).mock.calls.find((c: any[]) => String(c[1]).includes('REVISAR'));
     expect(String(aviso?.[1])).toContain('sem ID de Pix');
   });
@@ -353,16 +363,30 @@ describe('número desconhecido manda comprovante', () => {
     expect(db.users[0]!.plano).toBe('free');
   });
 
-  it('5b. pagamento a terceiro com e-mail de conta existente na conversa: só o Thiago é avisado', async () => {
+  it('5b. pagamento a terceiro com e-mail de conta existente na conversa: 1 mensagem fixa pela io (sem pergunta) e o Thiago é avisado', async () => {
     leitura = AND3;
     db.wa_mensagens.push(mensagemRecebida('é leoimplant@gmail.com'));
 
     const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
 
-    expect(r).toBe(false);
-    expect(enviadas()).toHaveLength(0);
-    expect((sendWhatsApp as any).mock.calls.some((c: any[]) => c[0] === '34991360223' && String(c[1]).includes('REVISAR'))).toBe(true);
+    expect(r).toBe(true);
+    expect(enviadas()).toHaveLength(1);
+    expect(enviadas()[0]![0]).toBe(TEL);
+    expect(enviadas()[0]![2]).toBe('io');
+    expect(enviadas()[0]![3]).toEqual({ maxBolhas: 1 });
+    expect(enviadas()[0]![1]).toHaveLength(1);
+    expect(textoEnviado()).toBe(
+      'Aqui é a Giovanna, do suporte do SolarDoc. Vi seu comprovante de R$ 69,90, mas esse Pix foi para SEND CRISTTINY LIMA SANTOS DE A, e não para a gente. '
+      + 'O SolarDoc recebe só pela Aioros Group Ltda, CNPJ 63.636.043/0001-88, então esse pagamento não chegou aqui.',
+    );
+    expect(textoEnviado()).not.toMatch(/[—–]|\p{Extended_Pictographic}|\?/u);
+    // Possível pagamento a terceiro de quem fala do SolarDoc: o Thiago quer saber.
+    const avisos = (sendWhatsApp as any).mock.calls.filter((c: any[]) => c[0] === '34991360223');
+    expect(avisos).toHaveLength(1);
+    expect(String(avisos[0][1])).toContain('TERCEIRO');
     expect(db.users[0]!.plano).toBe('free');
+    const h = db.system_state.find((x) => x.key === `pix_handoff:${TEL_FORMATO_USERS}`)!;
+    expect(h.value).toMatchObject({ codigo: 'recebedor', recebedor_ok: false, instancia: 'io' });
   });
 
   it('6. imagem que não é comprovante: false, nada', async () => {
@@ -438,7 +462,7 @@ describe('comprovante sem e-mail: pendente do desconhecido', () => {
     expect(reg.value.comprovante.e2eKey).toBe('pix_e2e:E00416968202610191940:27');
   });
 
-  it('8b. leo1 depois de um pendente desconhecido: não libera, nada enviado; o e-mail libera o bom', async () => {
+  it('8b. leo1 depois de um pendente desconhecido: não libera, recebe a mensagem de data; o e-mail libera o bom', async () => {
     leitura = LEO2;
     await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
     (sendHuman as any).mockClear();
@@ -446,8 +470,10 @@ describe('comprovante sem e-mail: pendente do desconhecido', () => {
 
     leitura = LEO1;
     const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
-    expect(r).toBe(false);
-    expect(enviadas()).toHaveLength(0);
+    // Há pendente (sinal do SolarDoc): o comprovante velho recebe a mensagem fixa de data
+    expect(r).toBe(true);
+    expect(enviadas()).toHaveLength(1);
+    expect(textoEnviado()).toContain('Esse comprovante é de 28/08');
     expect(db.users[0]!.plano).toBe('free');
 
     const venc = await liberarComprovantePendente(TEL, 'leoimplant@gmail.com', null, 'io');
@@ -550,12 +576,12 @@ describe('reenvio já usado e falha ao criar a conta', () => {
     expect(enviadas()).toHaveLength(0);
   });
 
-  it('11b. o mesmo Pix de outro telefone: mesma regra da legenda', async () => {
+  it('11b. o mesmo Pix de outro telefone sem sinal do SolarDoc: fluxo de hoje (false), com ou sem legenda', async () => {
     leitura = LEO2;
     await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'leoimplant@gmail.com');
     leitura = { ...LEO2, id_transacao: 'E00416968202610191940uHT9pUwumly' };
 
-    expect(await tryProcessAbandonedPixComprovante('5534988887777', IMG, 'io', '')).toBe(true);
+    expect(await tryProcessAbandonedPixComprovante('5534988887777', IMG, 'io', '')).toBe(false);
     expect(await tryProcessAbandonedPixComprovante('5534988887777', IMG, 'io', 'já liberou?')).toBe(false);
   });
 
@@ -576,5 +602,80 @@ describe('reenvio já usado e falha ao criar a conta', () => {
     falhaCriarConta = false;
     const v3 = await liberarComprovantePendente(TEL, 'novo@cliente.com', null, 'io');
     expect(v3).toBeInstanceOf(Date);
+  });
+});
+
+describe('reprovado: uma explicação por comprovante e teto de 3 em 24h', () => {
+  const variante = (dia: string) => ({ ...AND3, data: dia });
+
+  it('13. o MESMO comprovante reprovado duas vezes: explica uma vez, a 2ª é silêncio (true)', async () => {
+    leitura = AND3;
+    db.wa_mensagens.push(mensagemRecebida('é leoimplant@gmail.com'));
+
+    expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '')).toBe(true);
+    expect(enviadas()).toHaveLength(1);
+    expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '')).toBe(true);
+    expect(enviadas()).toHaveLength(1);
+    // já explicado, mas agora com pergunta na legenda: o fluxo normal responde
+    expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', 'e agora?')).toBe(false);
+    expect(enviadas()).toHaveLength(1);
+  });
+
+  it('14. do 3º reprovado em 24h: o Thiago é avisado UMA vez e o robô cala', async () => {
+    db.wa_mensagens.push(mensagemRecebida('é leoimplant@gmail.com'));
+    const avisosDoTeto = () => (sendWhatsApp as any).mock.calls
+      .filter((c: any[]) => String(c[1]).includes('REPROVADO deste número em 24h'));
+
+    leitura = variante('2026-10-07');
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    leitura = variante('2026-10-08');
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    expect(enviadas()).toHaveLength(2);
+    expect(avisosDoTeto()).toHaveLength(0);
+
+    leitura = variante('2026-10-09'); // 3º
+    expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '')).toBe(true);
+    expect(enviadas()).toHaveLength(2);
+    expect(avisosDoTeto()).toHaveLength(1);
+
+    leitura = variante('2026-10-10'); // 4º: continua calado e não avisa de novo
+    expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '')).toBe(true);
+    expect(enviadas()).toHaveLength(2);
+    expect(avisosDoTeto()).toHaveLength(1);
+  });
+
+  it('14b. passadas 24h o contador recomeça', async () => {
+    db.wa_mensagens.push(mensagemRecebida('é leoimplant@gmail.com'));
+    for (const d of ['2026-10-07', '2026-10-08', '2026-10-09']) {
+      leitura = variante(d);
+      await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    }
+    expect(enviadas()).toHaveLength(2);
+    vi.setSystemTime(new Date('2026-10-21T17:30:00Z'));
+    db.wa_mensagens.push(mensagemRecebida('é leoimplant@gmail.com'));
+    leitura = variante('2026-10-20');
+    await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+    expect(enviadas()).toHaveLength(3);
+  });
+
+  it('15. R$ 5.000 para terceiro, sem sinal do SolarDoc: fluxo de hoje (false), sem handoff e sem mensagem', async () => {
+    leitura = { ...AND3, valor: 5000 };
+
+    const r = await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '');
+
+    expect(r).toBe(false);
+    expect(enviadas()).toHaveLength(0);
+    expect((sendWhatsApp as any).mock.calls).toHaveLength(0);
+    expect(db.system_state.some((x) => x.key.startsWith('pix_handoff:'))).toBe(false);
+  });
+
+  it('16. pausa humana na conversa: o robô não fala por cima', async () => {
+    const { podeFalarComLead } = await import('../services/agents/whatsapp/pausaHumana');
+    (podeFalarComLead as any).mockResolvedValueOnce({ pode: false });
+    leitura = AND3;
+    db.wa_mensagens.push(mensagemRecebida('é leoimplant@gmail.com'));
+
+    expect(await tryProcessAbandonedPixComprovante(TEL, IMG, 'io', '')).toBe(false);
+    expect(enviadas()).toHaveLength(0);
   });
 });

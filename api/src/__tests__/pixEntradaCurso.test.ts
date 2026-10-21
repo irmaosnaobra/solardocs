@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Travas do comprovante de Pix — com foco na ENTRADA de R$19.
@@ -99,7 +99,14 @@ function comprovante(over: Record<string, any> = {}) {
   } as any;
 }
 
-beforeEach(() => { db.system_state = []; db.users = []; db.kit_pedidos = []; });
+// Relógio fixo no dia 20/10/2026 (o dia do corte dos R$ 67): "hoje" nas fixtures é a
+// data do corte, e as regras ANTIGAS são exercitadas com datas pinadas antes dele.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-20T17:00:00Z'));
+  db.system_state = []; db.users = []; db.kit_pedidos = [];
+});
+afterEach(() => { vi.useRealTimers(); });
 
 describe('trava da entrada de R$19', () => {
   it('a primeira vez passa', async () => {
@@ -176,8 +183,9 @@ describe('travas gerais que a entrada não pode furar', () => {
     expect(reenvio.motivo).toMatch(/já usado antes/i);
   });
 
-  it('recusa valor que não é de plano nenhum (ex.: R$15)', async () => {
-    const r = await validarComprovante(comprovante({ valor: 15 }), TELEFONE);
+  // Antes do corte dos R$ 67 (20/10/2026) vale a tabela antiga: só 19, 27, 49 e 67.
+  it('recusa valor que não é de plano nenhum (ex.: R$15), em data anterior ao corte', async () => {
+    const r = await validarComprovante(comprovante({ valor: 15, data: '2026-10-19' }), TELEFONE);
     expect(r.passou).toBe(false);
     expect(r.motivo).toMatch(/valor não bate/i);
   });
@@ -267,5 +275,61 @@ describe('R$19 → curso + 30 dias de plataforma', () => {
 
     const acesso = await acessoDoUsuario(USER, EMAIL);
     expect(acesso.temKit).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REGRA DE 20/10/2026: quem renova no Pix paga R$ 67,00. Data ANTERIOR ao corte segue a
+// tabela antiga; a partir do corte, 67 ou mais libera e menos que isso é PARCIAL (não é
+// reprovação), exceto a entrada de R$ 19 de primeira vez.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('modo do pagamento (corte dos R$ 67)', () => {
+  const modo = async (over: Record<string, any>) => (await validarComprovante(comprovante(over), TELEFONE));
+
+  it('R$ 27 de 19/10 (antes do corte) segue a tabela antiga: passa e vira PRO', async () => {
+    const r = await modo({ valor: 27, data: '2026-10-19' });
+    expect(r.passou).toBe(true);
+    expect(r.modo).toBe('tabela');
+    expect(PLANO_POR_VALOR[27]).toEqual({ plano: 'pro', limite: 90 });
+  });
+
+  it('R$ 27 de 20/10 NÃO é reprovado: passa como PARCIAL', async () => {
+    const r = await modo({ valor: 27, data: '2026-10-20' });
+    expect(r.passou).toBe(true);
+    expect(r.modo).toBe('parcial');
+  });
+
+  it('R$ 67 e R$ 70 de 20/10 passam como pagamento cheio', async () => {
+    expect((await modo({ valor: 67, data: '2026-10-20' })).modo).toBe('cheio');
+    expect((await modo({ valor: 70, data: '2026-10-20' })).modo).toBe('cheio');
+  });
+
+  it('qualquer valor legível depois do corte passa; valor ilegível reprova', async () => {
+    expect((await modo({ valor: 15, data: '2026-10-20' })).modo).toBe('parcial');
+    const zero = await modo({ valor: 0, data: '2026-10-20' });
+    expect(zero.passou).toBe(false);
+    expect(zero.codigo).toBe('valor');
+    expect(zero.motivo).toMatch(/ilegível/i);
+  });
+
+  it('R$ 19 de primeira vez continua sendo a entrada', async () => {
+    const r = await modo({ valor: 19, data: '2026-10-20' });
+    expect(r.modo).toBe('entrada');
+  });
+
+  it('R$ 19 com a entrada já usada: depois do corte vira PARCIAL, antes do corte segue reprovado', async () => {
+    db.system_state.push({ key: `pix19_entrada:${TELEFONE}` });
+    const depois = await modo({ valor: 19, data: '2026-10-20' });
+    expect(depois.passou).toBe(true);
+    expect(depois.modo).toBe('parcial');
+    const antes = await modo({ valor: 19, data: '2026-10-18' });
+    expect(antes.passou).toBe(false);
+    expect(antes.codigo).toBe('entrada_repetida');
+  });
+
+  it('o corte compara a data impressa, não o relógio: 23h de 19/10 em Brasília ainda é tabela antiga', async () => {
+    vi.setSystemTime(new Date('2026-10-20T02:30:00Z')); // 23h30 de 19/10 em Brasília, já 20/10 em UTC
+    const r = await modo({ valor: 27, data: '2026-10-19' });
+    expect(r.modo).toBe('tabela');
   });
 });

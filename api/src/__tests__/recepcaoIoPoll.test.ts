@@ -19,6 +19,8 @@ let leadsBia: string[] = [];
 let vendedoraDona: string[] = [];
 /** telefone -> idade (em horas) do comprovante Pix pendente. */
 let comprovantePendente: Record<string, number> = {};
+/** telefone -> idade (em MINUTOS) do handoff de comprovante reprovado. */
+let handoffMin: Record<string, number> = {};
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -56,6 +58,12 @@ vi.mock('../services/agents/whatsapp/pixSolicitado', () => ({
   temComprovantePendente: (p: string, maxHoras = 48) =>
     Promise.resolve(p in comprovantePendente && comprovantePendente[p]! <= maxHoras),
   acharEmail: (t: string) => (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.exec(t || '') ?? [null])[0],
+}));
+// Comprovante reprovado agora há pouco: o fluxo do comprovante já respondeu a esta mensagem.
+vi.mock('../services/agents/whatsapp/comprovanteHandoff', () => ({
+  HANDOFF_CEDE_MIN: 5,
+  temHandoffComprovante: (p: string, maxHoras = 24) =>
+    Promise.resolve(p in handoffMin && handoffMin[p]! <= maxHoras * 60),
 }));
 /** Telefones que ja tem reuniao marcada: a Duda nao fala com esses. */
 const comReuniao: string[] = [];
@@ -97,6 +105,7 @@ beforeEach(() => {
   leadsBia = [];
   vendedoraDona = [];
   comprovantePendente = {};
+  handoffMin = {};
   comReuniao.length = 0;
 });
 
@@ -135,6 +144,29 @@ describe('poll da recepção', () => {
     const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
     comprovantePendente[LEAD] = 72;
     eventos = [evento({ text: { message: 'bom dia, queria uma informação' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(r.atendidos).toBe(1);
+  });
+
+  // O fluxo do comprovante respondeu ESTA mensagem agora há pouco: um robô só. Passados
+  // 5 minutos a conversa é da Duda de novo (a cessão não pode durar o dia inteiro).
+  it('cede com comprovante reprovado há 2 min', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    handoffMin[LEAD] = 2;
+    eventos = [evento({ text: { message: 'e agora, como faço?' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(atendidos).toHaveLength(0);
+    expect(r.pulados).toBe(1);
+  });
+
+  it('NÃO cede com comprovante reprovado há 10 min', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    handoffMin[LEAD] = 10;
+    eventos = [evento({ text: { message: 'e agora, como faço?' } })];
 
     const r = await pollRecepcaoIo();
 

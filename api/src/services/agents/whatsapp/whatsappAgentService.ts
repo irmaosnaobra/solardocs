@@ -14,6 +14,7 @@ import { GIOVANNA_TOOLS, GiovannaCtx, executarFerramentaGiovanna, montarAvisoDon
 import { podeFalarComLead, registrarBloqueio } from './pausaHumana';
 import { chaveContato } from './silenciar';
 import { lerRegulamento } from '../../chefe/regulamento';
+import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 
 const anthropic = novoAnthropic();
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -144,7 +145,9 @@ export async function vendedoraJaAtende(phone: string): Promise<boolean> {
 export function buildSystemPrompt(user: {
   email: string; plano: string; nome_empresa?: string; tem_cnpj: boolean; nome?: string; billing_status?: string | null;
 }, promoCtx?: { ativadoAgora?: boolean; jaAtivado?: boolean; email?: string },
-   oferta?: OfertaCupom | null): string {
+   oferta?: OfertaCupom | null,
+   // Comprovante que o sistema não aceitou (últimas 24h): vira um bloco no fim do prompt.
+   comprovanteHandoff?: HandoffComprovante | null): string {
   // PREÇO ÚNICO: a Giovanna não nomeia degrau pro cliente. 'pro' é contrato
   // antigo (R$27, teto de 90 docs) — ela precisa SABER do teto pra não prometer
   // ilimitado a quem não tem, mas nunca chama isso de "plano PRO" na conversa.
@@ -210,7 +213,7 @@ não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; co
 - NÃO existe escolha de plano. Não há "básico e avançado", não há degrau, não há comparação. É uma assinatura só — e você NUNCA usa os nomes "PRO" ou "VIP" com o cliente.
 - Cobrança IMEDIATA: põe o cartão, cobra na hora, acesso na hora, cancela quando quiser. NÃO existe mais "7 dias grátis / cobra no 8º dia" — não prometa isso.
 - GARANTIA DE 7 DIAS: não serviu, devolve o valor integral. É esse o argumento que tira o risco.
-- Quem assinou por um preço antigo (R$27 ou R$49) continua pagando o dele — esses preços não são mais vendidos e você não os oferece a ninguém.
+- Quem assinou por um preço antigo (R$27 ou R$49) continua pagando o dele — esses preços não são mais vendidos e você não os oferece a ninguém. No cartão ele segue no preço dele; renovando no Pix, desde 20/10/2026 são R$ 67,00 para todo mundo (se pagar menos, o sistema avisa quanto falta).
 
 ━━ 🎓 A OFERTA DE ENTRADA: curso Kit de Fechamento por R$ 19 ━━
 O QUE ELE COMPRA: o curso *Kit de Fechamento* — 6 módulos + bônus, 32 objeções respondidas
@@ -282,7 +285,9 @@ Este usuário JÁ PAGA (R$ 27/mês, contrato antigo com teto de 90 documentos/m�
 NÃO ofereça nada de forma proativa e NUNCA compare planos — não existe mais escada.
 Atenda como suporte. SÓ SE ELE reclamar do teto, disser que bateu no limite ou pedir
 mais volume, você conta com naturalidade que a assinatura de hoje é R$ 67/mês e não tem
-teto — e manda pra ${APP_URL}. Fora esse caso, nem toque no assunto de preço.`;
+teto — e manda pra ${APP_URL}. Fora esse caso, nem toque no assunto de preço.
+Se ele perguntar como RENOVAR por Pix: desde 20/10/2026 a renovação no Pix é R$ 67,00 para todo mundo,
+inclusive para este contrato de R$ 27 no cartão. Se pagar menos, o sistema avisa quanto falta e manda o Pix do restante.`;
   } else {
     vendaBloco = `
 ━━ CONTEXTO ━━
@@ -356,7 +361,7 @@ ${vendaBloco}
 - REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
 - CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
 - COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir *logo, cor e fotos*; 3) gerar propostas solares, contratos, procurações e recibos com a marca dele. Tem também *Escanear Conta* (foto da conta de luz vira cliente).
-- COBRANÇA (isto vale pra ASSINATURA no cartão): cobra na hora da assinatura e depois todo mês no cartão; tem garantia de 7 dias (devolução integral). Se o cartão falhar, dá pra pagar por *Pix* — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite assinatura nem cartão: são caminhos diferentes e misturar derruba a venda.
+- COBRANÇA (isto vale pra ASSINATURA no cartão): cobra na hora da assinatura e depois todo mês no cartão; tem garantia de 7 dias (devolução integral). Se o cartão falhar, dá pra pagar por *Pix* (a renovação no Pix é R$ 67,00; pagando menos, o sistema avisa quanto falta e manda o Pix do restante) — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite assinatura nem cartão: são caminhos diferentes e misturar derruba a venda.
 - NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
 - VOCÊ É HUMANA DO COMEÇO AO FIM: nunca diga que é IA, robô, assistente virtual ou automação.
   Se elogiarem o atendimento, agradece natural ("valeu! 😊") e segue. Se perguntarem direto se é
@@ -406,7 +411,7 @@ REGRAS DAS FERRAMENTAS:
 - Escreva frase por frase, cada mensagem começando com letra maiúscula, sem travessão e sem emoji colorido.
 
 ━━ FORMATO ━━
-Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}`;
+Máximo 2 bolhas separadas por ||. Frases curtas.${promoBloco}${dunningBloco}${comprovanteHandoff ? `\n\n${blocoComprovanteGiovanna(comprovanteHandoff)}` : ''}`;
 }
 
 // ─── tags da resposta ────────────────────────────────────────────
@@ -1027,12 +1032,13 @@ export async function handleIncomingWhatsApp(
         // 720h = o prazo inteiro do registro: o e-mail libera mesmo depois das 48h
         // em que a Duda cede.
         if (emailPix && await temComprovantePendente(cleanPhone, 720)) {
-          const { liberarComprovantePendente } = await import('./pixComprovanteService');
-          // Só encerra se LIBEROU (a função já respondeu ao cliente). Reprovado,
-          // cartão ativo, já usado ou falha: segue o fluxo normal, pra quem pagou
-          // não ficar sem resposta e a Giovanna ainda guardar o e-mail.
-          const venc = await liberarComprovantePendente(cleanPhone, emailPix, senderName ?? null, originInstance);
-          if (venc) return;
+          const { aplicarComprovantePendente } = await import('./pixComprovanteService');
+          // Só encerra se TRATOU: liberou o mês, creditou um pagamento PARCIAL (a função já
+          // respondeu com o que falta e o Pix do restante) ou o comprovante já estava
+          // processado. Reprovado, cartão ativo e falha ao criar a conta: segue o fluxo
+          // normal, pra quem pagou não ficar sem resposta e a Giovanna guardar o e-mail.
+          const r = await aplicarComprovantePendente(cleanPhone, emailPix, senderName ?? null, originInstance);
+          if (r.tratado) return;
         }
       } catch (err) {
         logger.error('whatsapp', 'pix-comprovante pendente + e-mail falhou (segue fluxo)', err);
@@ -1132,7 +1138,7 @@ export async function handleIncomingWhatsApp(
   if (comprovanteSource) {
     try {
       const { tryProcessPixComprovante } = await import('./pixComprovanteService');
-      if (await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance)) return;
+      if (await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance, text)) return;
     } catch (err) {
       logger.error('whatsapp', 'pix-comprovante falhou (segue fluxo normal)', err);
     }
@@ -1210,9 +1216,21 @@ export async function handleIncomingWhatsApp(
     return;
   }
 
+  // Comprovante que o sistema não aceitou (últimas 24h): a Giovanna recebe o contexto.
+  // Se o handoff é FRESCO (até 10 min), ela responde mesmo com o teto de turnos
+  // estourado: é a resposta que o cliente está esperando. Os outros gates seguem.
+  let comprovanteHandoff: HandoffComprovante | null = null;
+  try {
+    comprovanteHandoff = await lerHandoffComprovante(cleanPhone);
+  } catch (err) {
+    logger.error('whatsapp', 'ler handoff do comprovante falhou (segue sem)', err);
+  }
+  const handoffFresco = !!comprovanteHandoff
+    && Date.now() - Date.parse(comprovanteHandoff.em) <= HANDOFF_FRESCO_MIN * 60_000;
+
   const MAX_TURNOS_AUTO = 12;
   const turnosNossos = session.messages.filter((m) => m.role === 'assistant').length;
-  if (turnosNossos >= MAX_TURNOS_AUTO) {
+  if (turnosNossos >= MAX_TURNOS_AUTO && !handoffFresco) {
     logger.info('giovanna-antiloop', `sessão ${cleanPhone} atingiu ${turnosNossos} turnos — para de auto-responder (provável loop bot-bot / handoff humano)`);
     // Marca como respondido pra sair de qualquer cadência e não reabrir o ciclo.
     await supabase.from('users').update({ whatsapp_replied_at: new Date().toISOString() }).eq('id', user.id);
@@ -1258,7 +1276,7 @@ export async function handleIncomingWhatsApp(
   };
   // A oferta é lida do banco a cada resposta: desligar o cupom lá tira ele da
   // boca da Giovanna no mesmo instante, sem deploy.
-  const system = buildSystemPrompt(userCtx, promoCtx, await ofertaCupomAtiva());
+  const system = buildSystemPrompt(userCtx, promoCtx, await ofertaCupomAtiva(), comprovanteHandoff);
   const trabalho: any[] = [...messages];
 
   // Só o `create` entra no try: se a IA caiu por crédito/chave, tenta a resposta fixa e RELANÇA o
@@ -1308,9 +1326,19 @@ export async function handleIncomingWhatsApp(
   }
   if (!raw) raw = TEXTO_SEM_RESPOSTA;
 
-  const { pedeHumano, pedePix, pedePixCurso, pedeLinkCupom, pedeImagemKit, parts } = parseTagsResposta(raw);
+  const { pedeHumano, pedePix: pedePixDoModelo, pedePixCurso, pedeLinkCupom, pedeImagemKit, parts } = parseTagsResposta(raw);
 
-  await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
+  // TRAVA NO CÓDIGO (anti-ban): com comprovante reprovado em pauta (24h), o Pix só sai
+  // quando o motivo é "recebedor não é a Aioros", e uma vez só por conversa. Nos
+  // outros motivos o marcador é removido sempre. Fora do handoff, tudo como antes.
+  let pedePix = pedePixDoModelo;
+  if (pedePixDoModelo && comprovanteHandoff && !(await pixDoHandoffPodeSair(comprovanteHandoff, session.messages, cleanPhone))) {
+    pedePix = false;
+    logger.info('whatsapp', `[[ENVIAR_PIX]] removido (comprovante reprovado: ${comprovanteHandoff.codigo})`);
+  }
+
+  // Com [[ENVIAR_PIX]] a resposta sai em 1 bolha de texto (o Pix vai logo depois, em outra).
+  await sendHuman(cleanPhone, parts, originInstance, pedePix ? { maxBolhas: 1 } : undefined);  // responde pela linha que o cliente contatou
 
   // A frente robusta do corte: se a PRÓPRIA Giovanna acabou de dizer que está
   // falando com um sistema automático, essa é a última mensagem. No caso da Luz
@@ -1377,9 +1405,10 @@ export async function handleIncomingWhatsApp(
     // deixa a liberação acontecer sozinha (regra do Thiago, 08/08/2026).
     try {
       const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
-      const { bolhasPix, registrarPixEnviado } = await import('./pixSolicitado');
+      const { partesPixSobDemanda, registrarPixEnviado } = await import('./pixSolicitado');
       const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
-      await sendHuman(cleanPhone, bolhasPix(copia, 67), originInstance).catch(() => {});
+      // Texto, instrução e o copia-e-cola POR ÚLTIMO, em no máximo 2 bolhas (o código nunca é fundido).
+      await sendHuman(cleanPhone, partesPixSobDemanda(copia, 67), originInstance, { maxBolhas: 1 }).catch(() => {});
       await registrarPixEnviado(cleanPhone, 67, senderName ?? null);
     } catch (err) {
       logger.error('whatsapp', 'enviar Pix (sob demanda) falhou', err);

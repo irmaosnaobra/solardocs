@@ -29,6 +29,11 @@ export interface ComprovantePendente {
   // O Thiago já foi avisado de que a conta não pôde ser criada pra este pendente.
   // Sem isto, cada nova tentativa (a Giovanna chama a mesma função) avisaria de novo.
   avisadoFalha?: boolean;
+  // Como o comprovante foi validado (ver `modo` em pixComprovanteService) e a data
+  // impressa nele. Sem `modo`, o pendente é de antes da regra dos R$ 67 e segue a
+  // tabela antiga de valores.
+  modo?: 'tabela' | 'entrada' | 'cheio' | 'parcial';
+  data?: string | null;
 }
 
 export interface PixSolicitado {
@@ -76,9 +81,12 @@ function chave(phone: string): string {
 // diferente pro mesmo número com e sem o 9, e pra 12 e 10 dígitos dava uma chave
 // que não é a nova. Registros gravados nos 30 dias anteriores ficam sob ela, então a
 // leitura tenta a nova e, se não achar, esta.
-function chaveLegada(phone: string): string {
+export function chaveTelefoneLegada(phone: string): string {
   const d = (phone || '').replace(/\D/g, '');
-  return `pix_solicitado:${d.length > 11 ? d.slice(-11) : d}`;
+  return d.length > 11 ? d.slice(-11) : d;
+}
+function chaveLegada(phone: string): string {
+  return `pix_solicitado:${chaveTelefoneLegada(phone)}`;
 }
 
 export async function registrarPixEnviado(phone: string, valor: number, nome?: string | null): Promise<void> {
@@ -212,6 +220,15 @@ export async function guardarEmailSePendente(phone: string, texto: string, nome?
 
 // As bolhas do Pix. A instrução é SEMPRE a mesma nos dois pedidos — comprovante
 // E e-mail — porque é o par mínimo pra liberar sozinho.
+/**
+ * Partes do Pix pedido à Giovanna de suporte: texto, instrução do comprovante e o
+ * copia-e-cola POR ÚLTIMO (com maxBolhas 1 o texto vira 1 bolha e o código, que nunca é
+ * fundido, vem sozinho depois dela).
+ */
+export function partesPixSobDemanda(copiaECola: string, valor: number): string[] {
+  return [...bolhasPix(copiaECola, valor).slice(1), copiaECola];
+}
+
 export function bolhasPix(copiaECola: string, valor: number): string[] {
   return [
     copiaECola,

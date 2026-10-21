@@ -13,6 +13,7 @@ import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../services/agents/whatsap
 import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { recepcaoJaAtende } from '../services/io/recepcaoIo';
 import { acharEmail, temComprovantePendente } from '../services/agents/whatsapp/pixSolicitado';
+import { HANDOFF_CEDE_MIN, temHandoffComprovante } from '../services/agents/whatsapp/comprovanteHandoff';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -431,6 +432,8 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // De 48h a 30 dias só cede à mensagem com e-mail (a que a liberação responde).
   if (textoRecup && (await temComprovantePendente(String(phone))
     || (acharEmail(textoRecup) && await temComprovantePendente(String(phone), 720)))) return;
+  // Comprovante reprovado há no máximo 5 min: o fluxo do comprovante já respondeu.
+  if (textoRecup && await temHandoffComprovante(String(phone), HANDOFF_CEDE_MIN / 60)) return;
 
   if (textoRecup && await ehLeadRecuperacao(String(phone))) {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)

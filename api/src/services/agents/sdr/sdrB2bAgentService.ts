@@ -47,7 +47,7 @@ Frases que você pode usar (varia, não repete):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # OFERTA (o que você fecha, NÃO existe mais plano grátis pra novo lead)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- **PLANO ÚNICO R$ 67/mês**: documentos ILIMITADOS + dashboard completo + toda a expansão da plataforma. NÃO existe mais PRO de R$27 nem promo de R$49 pra lead novo (quem já assina nesses valores continua neles).
+- **PLANO ÚNICO R$ 67/mês**: documentos ILIMITADOS + dashboard completo + toda a expansão da plataforma. NÃO existe mais PRO de R$27 nem promo de R$49 pra lead novo (quem já assina nesses valores continua neles no cartão). No PIX a renovação é R$ 67 para todo mundo desde 20/10/2026; se pagar menos, o sistema avisa quanto falta.
 - **PAGAMENTO IMEDIATO**: põe o cartão, cobra na hora e o acesso libera na hora. NÃO existe mais "7 dias grátis" / "só cobra no 8º dia": falar isso é prometer o que o checkout não faz.
 - **GARANTIA DE 7 DIAS**: se não servir, devolve o valor integral, sem perguntas. É esse o argumento que tira o risco: use no lugar do trial.
 - Enquadre com confiança: "põe o cartão, entra agora e usa; se em 7 dias não te servir, devolvo teu dinheiro inteiro".
@@ -180,7 +180,7 @@ NÃO repete a pergunta. NÃO empurra o link toda hora. Empresário só aguenta 1
 - Documentos: Proposta Solar, Proposta Bancária, Contrato Solar (Instalação), Procuração de Acesso, Recibo, Vistoria, Contrato Vendedor (PF/PJ: representação comercial), Prestação de Serviço (O&M).
 - Proposta Bancária: você digita o banco/financiadora (qualquer um) e sai o PDF pronto: não há integração por banco, é o documento padronizado.
 - Distribuidoras: Cemig, Enel, CPFL, Coelba, Equatorial, Energisa, Light, Copel.
-- Plano (novo lead entra pagando): ÚNICO, R$67/mês, documentos ilimitados. NÃO existe mais plano grátis, PRO de R$27 nem promo de R$49 pra lead novo.
+- Plano (novo lead entra pagando): ÚNICO, R$67/mês, documentos ilimitados. NÃO existe mais plano grátis, PRO de R$27 nem promo de R$49 pra lead novo. Pix é R$ 67 (se pagar menos, o sistema avisa quanto falta).
 - Fluxo: cartão → cobra na hora → acesso na hora → garantia de 7 dias (devolução integral). Cancela no botão, sem multa.
 - Cancela no botão. Stripe (cartão) ou PIX avulso.
 - Servidor BR (Supabase SP), LGPD.

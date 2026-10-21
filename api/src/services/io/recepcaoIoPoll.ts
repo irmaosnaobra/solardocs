@@ -35,6 +35,7 @@ import { tryClaimMessage } from '../agents/sdr/sdrAgentService';
 import { ehLeadRecuperacao } from '../agents/whatsapp/biaInboundService';
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../agents/whatsapp/whatsappAgentService';
 import { acharEmail, temComprovantePendente } from '../agents/whatsapp/pixSolicitado';
+import { HANDOFF_CEDE_MIN, temHandoffComprovante } from '../agents/whatsapp/comprovanteHandoff';
 import { handleRecepcaoIo, recepcaoJaAtende, temReuniaoAtiva } from './recepcaoIo';
 
 /** Instância Z-API da linha Irmãos na Obra. Mesmo valor que o poll da Bia usa. */
@@ -98,6 +99,9 @@ export async function pollRecepcaoIo(): Promise<{ atendidos: number; pulados: nu
       // porque é essa que a liberação do Pix vai responder (senão seriam 2 robôs).
       if (await temComprovantePendente(phone)
         || (acharEmail(texto) && await temComprovantePendente(phone, 720))) { pulados++; continue; }
+      // Comprovante reprovado agora há pouco (5 min): o fluxo do comprovante já
+      // respondeu a ESTA mensagem, e a Duda não fala por cima. Um robô só.
+      if (await temHandoffComprovante(phone, HANDOFF_CEDE_MIN / 60)) { pulados++; continue; }
 
       // Se a recepção JÁ é dona, ela continua sem perguntar nada a ninguém: a
       // triagem aberta vale mais que qualquer gatilho que apareça no meio dela.
