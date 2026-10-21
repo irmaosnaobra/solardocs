@@ -3,6 +3,15 @@
    Documentos e o que vira PDF ficam de fora. Prefixo com cinco :not(#_): vence as folhas anteriores (quatro). */
 @media screen {
 
+/* ===== Prefixo "R$" e sufixo longo nao cobrem o numero ======================================
+   A regra geral de input do visual novo (quatro :not e um id da secao) zera o respiro que o campo reservava para o
+   prefixo/sufixo: no Fechamento solar o "R$" caia em cima dos primeiros digitos, e o "{'P': 'html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_)'}o mes" do Juros de mora em cima
+   do valor. Aqui o respiro volta, com a especificidade acima dela. So medida: a cor segue nos tokens das folhas anteriores. */
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .fs-inp.has-pre input { padding-left: 42px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) .fs-inp.has-suf input { padding-right: 72px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .orc-wrap #ctr-juros { padding-right: 88px; }
+  html.io2[data-mode="app"]:not(#_):not(#_):not(#_):not(#_):not(#_) #eletroSection .orc-wrap :is(#ctr-garantia, #ctr-eq-garantia) { padding-right: 64px; }
+
 
 /* ===== Simulador: Potencia Carregador empilha como os outros campos do cartao Projeto ======
    Sem declarar display no .eletro-field: ele segue flex, so que em linhas (rotulo em cima, campo embaixo). */

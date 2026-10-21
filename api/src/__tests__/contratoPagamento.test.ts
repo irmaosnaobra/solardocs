@@ -76,6 +76,8 @@ describe('pagamento: linhas válidas', () => {
     for (const f of FORMAS_PAGAMENTO) expect(SISTEMA_PAGAMENTO).toContain(f);
     expect(SISTEMA_PAGAMENTO).toMatch(/NUNCA calcule/);
     expect(SISTEMA_PAGAMENTO).toMatch(/resto: true/);
+    expect(SISTEMA_PAGAMENTO).toMatch(/SEMPRE preencha quando/);
+    expect(SISTEMA_PAGAMENTO).toMatch(/cartão sem vencimento assume "na assinatura do contrato"/);
     const u = c.messages[0].content as string;
     expect(u).toContain('"saldo_a_pagar":100000');
     expect(u).toContain('"sinal_ja_pago":0');

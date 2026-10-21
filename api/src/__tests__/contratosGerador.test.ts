@@ -477,8 +477,13 @@ describe('contrato solar: um contrato só, sem promessa de geração, com pagame
     const trava = (c: Record<string, string>) => gerarSolar(1, { ...SOLAR, ...c }).trava as string;
     expect(trava({ 'fs-c-pagjson': PIX_RESTO() })).toBe('');
     expect(trava({ 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': PIX_RESTO() })).toBe('');
-    expect(trava({ 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': pagJson(['Pix', 45000, 1, 0, '']) })).toMatch(/somam R\$ 45\.000,00 e o valor devido é R\$ 40\.000,00/);
-    expect(trava({ 'fs-c-pagjson': pagJson(['Pix', 30000, 1, 0, '']) })).toMatch(/somam R\$ 30\.000,00 e o valor devido é R\$ 45\.000,00/);
+    expect(trava({ 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': pagJson(['Pix', 45000, 1, 0, 'Na assinatura']) })).toMatch(/somam R\$ 45\.000,00 e o valor devido é R\$ 40\.000,00/);
+    expect(trava({ 'fs-c-pagjson': pagJson(['Pix', 30000, 1, 0, 'Na assinatura']) })).toMatch(/somam R\$ 30\.000,00 e o valor devido é R\$ 45\.000,00/);
+    expect(trava({ 'fs-c-pagjson': pagJson(['Pix', 45000, 1, 0, '']) })).toMatch(/falta quando esta forma é paga/);
+    // Cartão sem vencimento assume a assinatura: passa, e o contrato imprime a data na coluna VENCIMENTO.
+    expect(trava({ 'fs-c-pagjson': pagJson(['Cartão de crédito', 0, 10, 0, '', '', { resto: true }]) })).toBe('');
+    const r = gerarSolar(1, { ...SOLAR, 'fs-c-pagjson': pagJson(['Cartão de crédito', 0, 10, 0, '', '', { resto: true }]) });
+    expect(r.d.pagLinhas[0].quando).toBe('Na assinatura do contrato');
     expect(trava({ 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' })).toMatch(/só em texto/);
     expect(trava({})).toMatch(/lista está vazia/);
     expect(trava({ 'fs-c-pagjson': pagJson(['Cartão de crédito', 0, 7, 0, '', '', { resto: true }]) })).toMatch(/7x não tem taxa/);
@@ -572,13 +577,32 @@ describe('contratos do /gerador: tabela de pagamento', () => {
     expect(rodar('ctrPag.txtok')).toBe('');
   });
   it('diferença de 0,03 não bloqueia', () => {
-    expect(SB.ctrPagTrava('socio50', [L('Pix', 62499.97, 1, 0, '')], 62500)).toBe('');
+    expect(SB.ctrPagTrava('socio50', [L('Pix', 62499.97, 1, 0, 'Na assinatura')], 62500)).toBe('');
   });
   it('diferença de 0,06 bloqueia', () => {
-    expect(SB.ctrPagTrava('socio50', [L('Pix', 62499.94, 1, 0, '')], 62500)).not.toBe('');
+    expect(SB.ctrPagTrava('socio50', [L('Pix', 62499.94, 1, 0, 'Na assinatura')], 62500)).not.toBe('');
   });
   it('sem nenhuma forma de pagamento e com saldo, bloqueia; arrendamento nunca trava', () => {
     expect(SB.ctrPagTrava('completo', [], 1000)).not.toBe('');
     expect(SB.ctrPagTrava('arrend', [], 1000)).toBe('');
+  });
+  it('cartão sem vencimento assume "Na assinatura do contrato" e não trava; o papel e a tela leem o mesmo valor', () => {
+    const linhas = [L('Pix', 10000, 1, 0, 'Na entrega da NF'), L('Cartão de crédito', 52500, 10, 0, '', '', {})];
+    expect(SB.ctrPagTrava('socio50', linhas, 62500)).toBe('');
+    expect(SB.ctrPagQuando(linhas[1])).toBe('Na assinatura do contrato');
+    expect(SB.ctrPagQuando(linhas[0])).toBe('Na entrega da NF');
+    expect(SB.ctrPagConta(linhas[1]).incompleto).toBe('');
+    // Cartão de débito não é crédito: não ganha o padrão.
+    expect(SB.ctrPagQuando(L('Cartão de débito', 100, 1, 0, ''))).toBe('');
+  });
+  it.each(['Pix', 'Boleto bancário', 'Transferência', 'Financiamento bancário', 'Dinheiro', 'Permuta'])('%s sem vencimento fica incompleta e trava', forma => {
+    const linhas = [L(forma, 62500, 1, 0, '')];
+    const c = SB.ctrPagConta(linhas[0]);
+    expect(c.incompleto).toMatch(/falta quando esta forma é paga/);
+    expect(SB.ctrPagTrava('socio50', linhas, 62500)).toMatch(/falta quando esta forma é paga.*Ajuste o pagamento antes de gerar/);
+    expect(SB.ctrPagTrava('socio50', [L(forma, 62500, 1, 0, 'Na assinatura')], 62500)).toBe('');
+  });
+  it('vencimento só com espaços conta como vazio', () => {
+    expect(SB.ctrPagTrava('socio50', [L('Pix', 62500, 1, 0, '   ')], 62500)).toMatch(/falta quando/);
   });
 });

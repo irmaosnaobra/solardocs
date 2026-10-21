@@ -679,7 +679,7 @@ CONTEXTO em JSON (tipo de contrato, total, sinal já pago, saldo a pagar e a tab
   - valor: quanto do PREÇO essa linha quita, em reais, como número. Só quando o texto traz o número; senão null (e então a linha só pode ser a restante, ou você pergunta).
   - parc: número de parcelas, inteiro de 1 a 24. null quando é pagamento único ou o texto não diz.
   - parcValor: o valor de CADA parcela, só quando o texto diz o valor da parcela ("10x de R$ 6.549"). Senão null.
-  - quando: quando se paga, nas palavras do texto, curto (até 80 caracteres). Se o texto não diz, string vazia.
+  - quando: quando se paga, nas palavras do texto, curto (até 80 caracteres). SEMPRE preencha quando o texto diz algum momento ("na assinatura", "na entrega", "dia 10", "30 dias depois", "quando liberar o banco"), inclusive na forma restante e no cartão. Só deixe string vazia se o texto realmente não diz. Atenção: o contrato só sai com todas as formas com vencimento; o cartão sem vencimento assume "na assinatura do contrato", e as demais formas sem vencimento ficam incompletas e travam.
   - obs: observação curta que o texto traz (banco, bandeira), ou null.
   - resto: true quando o texto diz "o restante", "o resto", "o saldo", "a diferença" ou equivalente: a linha quita o que sobra depois das outras. Nela, valor vai null. No máximo uma linha com resto true.
 
@@ -689,7 +689,8 @@ CONTEXTO em JSON (tipo de contrato, total, sinal já pago, saldo a pagar e a tab
 3. Cartão parcelado sem o valor da parcela: não invente taxa. Ponha parc = N, e o valor só se o texto o traz (ou resto). A taxa sai da tabela da casa, que o CONTEXTO mostra.
 4. Uma única forma, sem valor e sem outra linha no texto, quita todo o saldo: resto true.
 5. Faltando informação para fechar, faça UMA pergunta curta e devolva linhas vazia. Exemplos: duas ou mais formas sem valor e nenhuma é o restante; "10x no cartão" sem valor quando o texto já tem outra forma restante; percentual do preço ("30% de entrada") sem o valor em reais; forma parcelada com a parcela dita ("10x de R$ 6.549") mas sem quanto do preço ela quita e que não é a restante; forma que não está na lista e não cabe em "Outro".
-6. Não escreva dado pessoal (nome, documento, endereço, telefone, e-mail). Não faça nada além do pagamento.`;
+6. Vencimento: copie para "quando" o momento que o texto liga àquela forma ("10 mil no Pix na assinatura e o restante em 10x no cartão" dá quando "na assinatura" no Pix; o cartão fica vazio porque o texto não diz). Se o texto não diz quando uma forma que NÃO é cartão é paga, faça UMA pergunta curta sobre o vencimento em vez de devolver a linha sem quando.
+7. Não escreva dado pessoal (nome, documento, endereço, telefone, e-mail). Não faça nada além do pagamento.`;
 
 /** Números escritos num texto: "1.234" e "1234,5" nas leituras brasileiras, e com "mil", "k" e "milhão" como escala. */
 export function numerosDoTexto(t: string): number[] {

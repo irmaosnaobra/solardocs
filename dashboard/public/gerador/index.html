@@ -23947,6 +23947,14 @@ function ctrPagLinha(forma, valor, parc, acr, quando, obs, ex) {
 }
 const ctrPagCartao = f => /cart[ãa]o/i.test(f || '') && !/d[ée]bito/i.test(f || '');
 const ctrPct2 = n => String(Math.round(n * 100) / 100).replace('.', ',');
+// Quando a linha é paga. Cartão sem vencimento escrito é cobrado na assinatura (a tela e o papel mostram isso); as demais
+// formas não têm padrão: sem `quando` a linha fica incompleta (ver ctrPagConta).
+const CTR_PAG_QUANDO_CARTAO = 'Na assinatura do contrato';
+function ctrPagQuando(l) {
+  const q = String((l && l.quando) || '').trim();
+  if (q) return q;
+  return ctrPagCartao(l && l.forma) ? CTR_PAG_QUANDO_CARTAO : '';
+}
 // A conta de UMA linha, sem tela e sem estado. Acréscimo é o TOTAL sobre a parte paga naquela forma (a mesma lógica do
 // 18x/22,5% do Orçamento), não juro ao mês. `incompleto` diz por que a linha não fecha (o Gerar não passa com ela).
 function ctrPagConta(l) {
@@ -23973,6 +23981,7 @@ function ctrPagConta(l) {
   }
   // Forma sem valor (e que não é o restante) não quita nada do preço: a parcela dela seria cobrada POR CIMA do saldo.
   if (!incompleto && !l.resto && valor <= 0 && (l.forma || '').trim()) incompleto = `A forma "${(l.forma || '').trim()}" está sem valor: falta quanto do preço esta forma quita.`;
+  if (!incompleto && (l.forma || '').trim() && !ctrPagQuando(l) && (valor > 0 || !l.resto)) incompleto = `A forma "${(l.forma || '').trim()}" está sem vencimento: falta quando esta forma é paga.`;
   const parcelaCent = Math.round(parcela * 100) / 100;
   return { valor, parc, acr, parcela, parcelaCent, total: Math.round(parcelaCent * parc * 100) / 100, fin, origem, incompleto, parcValor };
 }
@@ -24154,6 +24163,7 @@ function ctrPagRowUi(row, l) {
   if (v) { v.readOnly = !!l.resto; if (l.resto && v.value !== l.valor) v.value = l.valor; }
   const a = row.querySelector('input[data-k="acr"]');
   if (a) a.placeholder = c.origem === 'tabela' ? ctrPct2(c.acr) + ' (tabela)' : c.origem === 'parcela' ? ctrPct2(c.acr) + ' (da parcela)' : '0';
+  const q = row.querySelector('input[data-k="quando"]'); if (q) q.placeholder = ctrPagCartao(l.forma) ? CTR_PAG_QUANDO_CARTAO + ' (padrão do cartão)' : 'Quando se paga';
   const b = row.querySelector('.ctr-pag-resto'); if (b) b.style.display = l.resto ? '' : 'none';
   const k = row.querySelector('input[data-k="resto"]'); if (k) k.checked = !!l.resto;
 }
@@ -24171,7 +24181,7 @@ function ctrPagRender() {
       <label class="ctr-pf"><span>Parcelas</span><input type="number" class="num" inputmode="numeric" min="1" value="${ctrAttr(l.parc)}" data-k="parc" oninput="ctrPagCampo(this)"></label>
       <label class="ctr-pf"><span>Parcela negociada (R$)</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.parcValor)}" data-k="parcValor" oninput="ctrPagCampo(this)" placeholder="Só se digitada"></label>
       <label class="ctr-pf"><span>Acréscimo %</span><input type="text" class="num" inputmode="decimal" value="${ctrAttr(l.acr)}" data-k="acr" oninput="ctrPagCampo(this)" placeholder="0"></label>
-      <label class="ctr-pf ctr-pf-quando"><span>Vencimento</span><input type="text" list="ctr-dl-quando" value="${ctrAttr(l.quando)}" data-k="quando" oninput="ctrPagCampo(this)" placeholder="Quando se paga"></label>
+      <label class="ctr-pf ctr-pf-quando"><span>Vencimento</span><input type="text" list="ctr-dl-quando" value="${ctrAttr(l.quando)}" data-k="quando" oninput="ctrPagCampo(this)" placeholder="${ctrPagCartao(l.forma) ? CTR_PAG_QUANDO_CARTAO + ' (padrão do cartão)' : 'Quando se paga'}"></label>
       <label class="ctr-pf ctr-pf-obs"><span>Observação (opcional)</span><input type="text" value="${ctrAttr(l.obs)}" data-k="obs" oninput="ctrPagCampo(this)" placeholder="Ex.: bandeira do cartão, banco do financiamento, nº de boletos"></label>
     </div>`).join('')
     : '<div class="ctr-vazio">Nenhuma forma na lista. Use um modelo rápido, escreva em "Como o cliente vai pagar" ou adicione uma forma.</div>';
@@ -24527,7 +24537,7 @@ function ctrDados() {
   // O restante é resolvido numa CÓPIA, com o saldo desta chamada (o híbrido chama uma vez por modelo): nunca grava na tela.
   const pagLinhas = (tipo === 'arrend' || tipo === 'termo_arr') ? [] : ctrPagResolve(ctrPag.linhas, Math.max(0, total - sinal - ctrDepReserva()))
     .filter(ctrPagLinhaVale)
-    .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: (tipo === 'termo_inv' || ctrEhSoc(tipo)) ? ctrPagCondicaoTotal(l) : ctrPagCondicao(l) }))
+    .map(l => ({ forma: (l.forma || '').trim(), quando: ctrPagQuando(l), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: (tipo === 'termo_inv' || ctrEhSoc(tipo)) ? ctrPagCondicaoTotal(l) : ctrPagCondicao(l) }))
     .filter(l => l.conta.valor > 0 || l.forma);
   // Cessionário = cliente (só no Arrendamento simples) e avalista (só no Completo e na Compra e venda,
   // fora do híbrido): decididos UMA vez, aqui. Quem copia este objeto para outro modelo (a minuta do
@@ -30693,7 +30703,7 @@ function fsPagRender() {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px';
     const t = document.createElement('span');
-    t.textContent = (l.forma || 'Forma sem nome') + ': ' + ORC_MONEY(ctrPagConta(l).valor) + ' · ' + ctrPagCondicao(l) + (l.quando ? ' · ' + l.quando : '');
+    t.textContent = (l.forma || 'Forma sem nome') + ': ' + ORC_MONEY(ctrPagConta(l).valor) + ' · ' + ctrPagCondicao(l) + (ctrPagQuando(l) ? ' · ' + ctrPagQuando(l) : '');
     const x = document.createElement('button'); x.type = 'button'; x.className = 'orc-link'; x.textContent = 'Tirar'; x.onclick = () => fsPagTira(i);
     row.appendChild(t); row.appendChild(x); box.appendChild(row);
   });
@@ -31169,7 +31179,7 @@ function fsCtrDados() {
   const sinal = Math.min(solParseBRL(fsVal('fs-c-sinal')), valorN || Infinity);
   const saldo = Math.max(0, ctrCent(valorN - sinal));
   const pagLinhas = ctrPagResolve(fsPagLinhas(), saldo).filter(ctrPagLinhaVale)
-    .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: ctrPagCondicao(l) }))
+    .map(l => ({ forma: (l.forma || '').trim(), quando: ctrPagQuando(l), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: ctrPagCondicao(l) }))
     .filter(l => l.conta.valor > 0 || l.forma);
   return {
     cli, emp: solEmp(), modelo: 1, num: fsVal('fs-c-num'),
