@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabase } from '../utils/supabase';
+import { supabaseGerador } from '../utils/supabaseGerador';
+import { chaveContato } from '../services/agents/whatsapp/silenciar';
 import { exigeConsultor } from './geradorDossie';
 import { caixaIpLimiter, caixaPessoaLimiter } from '../middleware/rateLimiter';
 import {
@@ -238,6 +240,25 @@ export function mountCaixa(router: Router): void {
         contatos: Object.fromEntries(contatos),
         atendimento,
       });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // 5) De um card da agenda para a conversa dele (o link da ficha ao consultor: ?card=<id>). O link
+  //    não leva telefone: o servidor lê o card e devolve só a CHAVE do contato (DDD + 8 últimos), a mesma
+  //    que a lista da caixa já usa. Só leitura, atrás da mesma pilha de proteção das outras rotas.
+  router.get('/caixa/do-card', ...base, async (req: Request, res: Response) => {
+    const bruto = String(Array.isArray(req.query.id) ? req.query.id[0] : req.query.id ?? '').trim();
+    const id = /^\d{1,12}$/.test(bruto) ? Number(bruto) : NaN;
+    if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ ok: false, error: 'Card inválido.' }); return; }
+    try {
+      const { data, error } = await supabaseGerador.from('agendamentos')
+        .select('id, cliente_nome, cliente_telefone').eq('id', id).maybeSingle();
+      if (error) throw new ErroBanco(String(error.code ?? 'desconhecido'));
+      if (!data) { res.status(404).json({ ok: false, error: 'Não achei este card.' }); return; }
+      const linha = data as { cliente_nome: string | null; cliente_telefone: string | null };
+      const chave = chaveContato(linha.cliente_telefone);
+      if (!chave || !chaveValida(chave)) { res.status(404).json({ ok: false, error: 'Este card não tem telefone.' }); return; }
+      res.json({ ok: true, chave, nome: linha.cliente_nome ? String(linha.cliente_nome) : null });
     } catch (err) { falhou(res, err); }
   });
 

@@ -275,6 +275,12 @@ html.io2-casca .cx-sair{display:none}
   var tiques = 0;
   var emVoo = false;
   var listaPronta = false;
+  // Link da ficha ao consultor: /gerador/whatsapp/?card=<id>. O link não leva telefone; o servidor resolve o card.
+  var cardPedido = (function () {
+    try { var v = new URLSearchParams(location.search).get('card') || ''; return /^\d{1,12}$/.test(v) ? v : ''; } catch (e) { return ''; }
+  })();
+  var cardTratado = false;
+  var avisoCard = '';
 
   var $ = function (id) { return document.getElementById(id); };
   var elCx = $('cx'), elItens = $('itens'), elFaixa = $('faixa');
@@ -506,6 +512,7 @@ html.io2-casca .cx-sair{display:none}
     var topo = elItens.scrollTop;
     elItens.textContent = '';
     if (!listaPronta) { return; }
+    if (avisoCard) elItens.appendChild(el('li', 'cx-nota', avisoCard));
     var todas = ordenadas();
     var vis = todas.filter(passaFiltro);
     if (!vis.length) {
@@ -705,6 +712,7 @@ html.io2-casca .cx-sair{display:none}
       temMaisAntigas = !!j.tem_mais;
       if (j.contato) { var cc = conversas.get(chave); if (cc && !cc.nome && j.contato.nome) { cc.nome = j.contato.nome; cabecalho(cc); desenharLista(); } }
       desenharTudo();
+      if (!msgs.length && c.avulsa) $('msgs').appendChild(el('div', 'cx-sis', 'Este cliente ainda não escreveu na linha 5040.'));
       rolarAoFim();
       mostrarFaixa(false);
     }).catch(function (e) {
@@ -798,6 +806,30 @@ html.io2-casca .cx-sair{display:none}
     }
   }
 
+  // Abre a conversa do card do link (?card=<id>), uma vez, quando a lista já carregou. O cliente pode não
+  // estar na lista dos últimos dias (lead novo da landing, conversa antiga): então entra uma linha avulsa.
+  function abrirDoCard() {
+    if (!cardPedido || cardTratado || !listaPronta || parado) return;
+    cardTratado = true;
+    api('do-card?id=' + encodeURIComponent(cardPedido)).then(function (j) {
+      var chave = j && j.chave;
+      if (!chave) throw erro('rede');
+      if (!conversas.get(chave)) {
+        conversas.set(chave, {
+          chave: chave, nome: j.nome || '', telefone: '', wa: '', sem_telefone: false, atendimento: null,
+          nao_respondidas: 0, maxId: 0, avulsa: true,
+          ultima: { id: 0, momento: new Date().toISOString(), autor: 'lead', tipo: 'texto', trecho: 'Aberta pelo link da ficha' }
+        });
+        desenharLista();
+      }
+      abrir(chave);
+    }).catch(function (e) {
+      if (e && e.tipo === 'login') return;
+      avisoCard = 'Não consegui abrir a conversa deste card. Confira se ele existe e tem telefone.';
+      desenharLista();
+    });
+  }
+
   function atualizarEstado() {
     api('estado').then(function (j) {
       var l = j.linha || {};
@@ -835,7 +867,7 @@ html.io2-casca .cx-sair{display:none}
     if (parado || document.hidden || emVoo) return;
     if (!listaPronta || cursor == null) {
       emVoo = true;
-      carregarLista(!listaPronta).then(function () { atualizarEstado(); }).catch(function (e) { if (e.tipo === 'rede') { falhas++; mostrarFaixa(true); } })
+      carregarLista(!listaPronta).then(function () { atualizarEstado(); abrirDoCard(); }).catch(function (e) { if (e.tipo === 'rede') { falhas++; mostrarFaixa(true); } })
         .then(function () { emVoo = false; if (listaPronta) { falhas = 0; agendar(ritmo()); } else agendar(espera(falhas, 0)); });
       return;
     }

@@ -1,6 +1,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
+import { fichaSubstituiAviso } from '../agentes5040/chaves';
 import {
   montarObservacaoSolar, organizarFicha, medirTemperatura,
   consumoDaFicha, consumoTipico,
@@ -443,7 +444,10 @@ function montarObservacao(fields: FieldItem[]): string {
 /** Avisa o consultor da vez no WhatsApp, com a ficha organizada e a temperatura. */
 async function avisarConsultor(consultor: string, lead: {
   nome: string; whatsapp: string; cidade: string; quando: Date; fields: FieldItem[];
-}): Promise<void> {
+}, cardId: number | null = null): Promise<void> {
+  // Com o interruptor `ficha` ligado quem avisa este consultor é a ficha (tarefa ficha_5040): um aviso só por lead.
+  // Desligado, este aviso grava a marca aviso_antigo:<id> e a ficha pula o card.
+  if (await fichaSubstituiAviso({ id: cardId, created_by: 'lead-meta', status: 'agendado' })) return;
   const numero = TEL_CONSULTOR[consultor.toLowerCase()];
   if (!numero) { logger.error('leads-meta-alerta', `sem telefone pro consultor ${consultor}`); return; }
 
@@ -592,7 +596,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
             // um WhatsApp que falha não pode derrubar o sync dos outros leads.
             void avisarConsultor(consultor, {
               nome, whatsapp, cidade, quando: slot, fields,
-            });
+            }, agendadoId);
           }
           // confirmação no WhatsApp: não sai daqui. O cron que mandava
           // (lembretesAgenda) ficou mudo desde 28/07 e foi apagado em 05/10/2026;

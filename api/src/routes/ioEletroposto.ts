@@ -3,6 +3,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 // Os eventos do funil vivem em pc_eventos, no projeto solardoc-pro.
 import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
+import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
 import { logger } from '../utils/logger';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { montarFunil, FUNIL_COLUNAS, type EventoFunil, type ResultadoFunil } from '../services/io/funilEletroposto';
@@ -248,7 +249,7 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabaseGerador
       .from('agendamentos')
-      .select('id,vendedor_nome,quando,cliente_nome,cliente_telefone,cidade,temperatura,observacao,created_at,created_by')
+      .select('id,vendedor_nome,quando,cliente_nome,cliente_telefone,cidade,temperatura,observacao,created_at,created_by,status')
       .eq('id', id)
       .eq('created_by', 'lp_eletroposto')   // só ficha da LP
       .single();
@@ -265,6 +266,9 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
       garantirEstudo(data),
       new Promise<null>(resolve => setTimeout(() => resolve(null), 2000)),
     ]).catch(() => null);
+    // Com o interruptor `ficha` ligado o consultor dono do card recebe a ficha (tarefa ficha_5040) no lugar deste aviso
+    // à equipe inteira: um aviso só por lead. O estudo acima já nasceu (o link dele segue valendo no card).
+    if (await fichaSubstituiAviso(data)) { res.json({ ok: true, enviados: 0, substituido_pela_ficha: true }); return; }
     // O tipo do card (`tipo_card:<id>`, gravado pelo /agendar antes de responder à LP)
     // escolhe o aviso. Leitura que falha devolve null e o aviso sai como sempre.
     const tipo = await lerTipoDoCard(id);

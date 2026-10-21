@@ -32,6 +32,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { proximoDaContaBaixa } from './filaContaBaixa';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
+import { fichaSubstituiAviso } from '../agentes5040/chaves';
 import {
   normalizeTelBR,
   dentroDaArea,
@@ -143,7 +144,11 @@ async function avisarSolar(
   consultor: string,
   lead: { nome: string; whatsapp: string; cidade: string; quando: Date; fields: FieldItem[] },
   temperatura: string,
+  cardId: number | null = null,
 ): Promise<void> {
+  // Com o interruptor `ficha` ligado quem avisa este consultor é a ficha (tarefa ficha_5040): um aviso só por lead.
+  // Desligado, este aviso grava a marca aviso_antigo:<id> e a ficha pula o card.
+  if (await fichaSubstituiAviso({ id: cardId, created_by: 'manychat', status: 'agendado' })) return;
   const numero = TEL_CONSULTOR[consultor.toLowerCase()];
   if (!numero) { logger.error('manychat-lead', `sem telefone pro consultor ${consultor}`); return; }
   const ficha = organizarFicha(lead.fields);
@@ -175,8 +180,10 @@ async function avisarSolar(
 /** Aviso do lead de ELETROPOSTO pro time (Thiago + Diego), igual à LP. */
 async function avisarEletroposto(lead: {
   nome: string; whatsapp: string; cidade: string; capital: string; perfil: string;
-  quando: Date; temperatura: string; dono: string;
+  quando: Date; temperatura: string; dono: string; cardId?: number | null;
 }): Promise<void> {
+  // Com o interruptor `ficha` ligado quem avisa o consultor dono do card é a ficha (tarefa ficha_5040): um aviso só por lead.
+  if (await fichaSubstituiAviso({ id: lead.cardId ?? null, created_by: 'manychat_eletroposto', status: 'agendado' })) return;
   const REC: Record<string, string> = { quente: '♻️♻️♻️', morno: '♻️♻️', frio: '♻️' };
   const NOME: Record<string, string> = { quente: '*LEAD QUENTE*', morno: '*Lead morno*', frio: '*Lead frio*' };
   const selo = `${REC[lead.temperatura] || '♻️'} ${NOME[lead.temperatura] || '*Lead*'}`;
@@ -331,7 +338,7 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
       // AWAIT (não fire-and-forget): serverless congela o processo após a resposta,
       // então um void aqui derrubaria o aviso do consultor. avisarSolar já engole
       // o próprio erro, então awaitar não trava o fluxo se o WhatsApp falhar.
-      await avisarSolar(consultor, { nome, whatsapp, cidade, quando, fields }, temperatura);
+      await avisarSolar(consultor, { nome, whatsapp, cidade, quando, fields }, temperatura, agendadoId);
     }
   } else {
     await avisarForaArea('solar', nome, whatsapp, cidade);
@@ -523,7 +530,7 @@ async function ingestEletroposto(p: ManychatLeadPayload, nome: string, whatsapp:
   if (agErr) { logger.error('manychat-lead', 'erro criar agendamento eletroposto', agErr); return { ok: false, motivo: 'erro ao gravar' }; }
 
   // AWAIT: serverless congela após a resposta; avisarEletroposto engole erros.
-  await avisarEletroposto({ nome, whatsapp, cidade: cidadePonto, capital, perfil, quando, temperatura, dono });
+  await avisarEletroposto({ nome, whatsapp, cidade: cidadePonto, capital, perfil, quando, temperatura, dono, cardId: (agIns as any)?.id ?? null });
 
   logger.info('manychat-lead', `eletroposto: ${nome} (${temperatura}) → ${dono}`);
   return { ok: true, produto: 'eletroposto', destino: 'GERADOR', consultor: dono, quando: quando.toISOString(), temperatura };

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
+import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
 import { logger } from '../utils/logger';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
@@ -98,7 +99,7 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabaseGerador
       .from('agendamentos')
-      .select('id,vendedor_nome,quando,cliente_nome,cliente_telefone,cidade,temperatura,observacao,created_at,created_by')
+      .select('id,vendedor_nome,quando,cliente_nome,cliente_telefone,cidade,temperatura,observacao,created_at,created_by,status')
       .eq('id', id)
       .eq('created_by', 'lp_solar')   // só ficha da LP solar
       .single();
@@ -107,6 +108,10 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
 
     const idade = Date.now() - new Date(data.created_at).getTime();
     if (idade > JANELA_MS) { res.status(410).json({ error: 'fora da janela' }); return; }
+
+    // Com o interruptor `ficha` ligado o consultor dono do card recebe a ficha (tarefa ficha_5040) no lugar deste
+    // aviso à equipe inteira: um aviso só por lead. Cancelado não tem ficha, então segue o aviso de sempre.
+    if (await fichaSubstituiAviso(data)) { res.json({ ok: true, enviados: 0, substituido_pela_ficha: true }); return; }
 
     jaAvisado.add(id);   // marca ANTES de enviar: falha de envio não vira loop de retry
     const msg = montarMensagem(data);
@@ -544,7 +549,11 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     // Aviso no celular de QUEM ATENDE, com tudo (ordem de 08/10/2026: "cada um,
     // além de receber na agenda, recebe no celular com todos os detalhes").
     // Esperado (a Vercel corta o que roda depois da resposta), teto de 4 s.
-    const alvos = [TEL_AVISO[dono.toLowerCase()]].filter(Boolean);
+    // Com o interruptor `ficha` ligado o aviso ao dono sai pela ficha (tarefa ficha_5040) e a lista de alvos fica vazia.
+    // O card acabou de nascer como 'agendado' e created_by 'lp_solar'. O CAPI (acima) segue como sempre.
+    const alvos = (await fichaSubstituiAviso({ id: data.id, created_by: 'lp_solar', status: 'agendado' }))
+      ? []
+      : [TEL_AVISO[dono.toLowerCase()]].filter(Boolean);
     const msg = avisoDaEquipe(data as FichaDoAviso);
     await Promise.race([
       Promise.allSettled(alvos.map(n => sendWhatsApp(n, msg, 'io'))).then(r => r.forEach((x, i) => {
