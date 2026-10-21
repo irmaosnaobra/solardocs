@@ -731,7 +731,7 @@
     },
     'nexus-dc-120': {
       tag: 'Divide a potência entre as vagas', fotos: ['p-dc', 'dc-frente-limpo', 'dc-3q-dir', 'dc-lateral'],
-      alt: 'Carregador NEXUS DC 120 kW, vista frontal com a porta fechada',
+      alt: 'Carregador NEXUS DC 120 kW, vista frontal com tela e cabos',
       entrada: 'Todo ponto precisa de estudo da entrada de energia antes da compra. A Engenharia NEXUS faz esse estudo para você.'
     }
   };
