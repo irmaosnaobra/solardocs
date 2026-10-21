@@ -87,6 +87,8 @@
   var ICONE_MAIS = svg('M12 5v14M5 12h14', 16);
   var ICONE_LINK = svg('M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1', 22);
   var ICONE_RESTAURAR = svg('M3 12a9 9 0 1 0 3-6.7M3 4v5h5', 16);
+  var ICONE_X = svg('M6 6l12 12M18 6L6 18', 22);
+  var ICONE_CHEV = svg('M6 9l6 6 6-6', 20);
   var ICONES_SAIDA = { simulador: ICONE_PDF, basico: ICONE_DOC, completo: ICONE_APRES };
 
   // ===== O formulario padrao =====
@@ -164,6 +166,12 @@
     var atual = ctx.propostaInicial && ctx.propostaInicial.id ? { id: ctx.propostaInicial.id, numero: ctx.propostaInicial.numero } : null;
     var sessao = [];          // propostas geradas nesta tela (so na demonstracao)
     var lista = null;         // Minhas propostas: null = carregando, [] = vazio, false = erro
+    // Celular (ate 860 px): secoes em sanfona (uma aberta por vez), barra fixa com o total e escolha do documento em gaveta.
+    var mq = window.matchMedia ? window.matchMedia('(max-width: 860.98px)') : null;
+    var movel = function () { return !!(mq && mq.matches); };
+    var reduzido = function () { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); };
+    var secAberta = 'cliente';
+    var escolha = null;       // controlador da gaveta "Gerar documento"
 
     container.innerHTML = '<div class="nxg"></div>';
     var raiz = container.querySelector('.nxg');
@@ -315,15 +323,18 @@
     }
 
     // ---------- resumo (lado direito) ----------
-    function resumo() {
-      var linha = function (rot, k, forte) { return '<div class="nxg-lin' + (forte ? ' forte' : '') + '"><span>' + rot + '</span><b data-prev="' + k + '">0</b></div>'; };
-      var botoes = ['simulador', 'basico', 'completo'].map(function (saida) {
+    function botoesSaida() {
+      return ['simulador', 'basico', 'completo'].map(function (saida) {
         var ok = saida === 'simulador' ? libera.simulador !== false : !!libera[saida];
         var S = SAIDAS[saida];
         return '<button type="button" class="nxg-btn' + (ok ? '' : ' trava') + '" data-saida="' + saida + '" aria-disabled="' + (ok ? 'false' : 'true') + '"'
           + (ok ? '' : ' data-motivo="' + esc(S.motivo) + '"') + '><span class="ic">' + (ok ? ICONES_SAIDA[saida] : ICONE_CADEADO) + '</span>'
           + '<span class="t"><b>' + S.rot + '</b><i>' + esc(ok ? S.sub : S.motivo) + '</i></span></button>';
       }).join('');
+    }
+    function resumo() {
+      var linha = function (rot, k, forte) { return '<div class="nxg-lin' + (forte ? ' forte' : '') + '"><span>' + rot + '</span><b data-prev="' + k + '">0</b></div>'; };
+      var botoes = botoesSaida();
       return '<section class="nxg-hero" aria-live="polite"><span class="nxg-etq" data-fn="etq">1x NEXUS</span><span class="nxg-etq2">Em operação plena</span>'
         + '<p class="nxg-ret" data-fn="retorno">Retorno em cerca de <b>0</b> meses</p></section>'
         + '<section class="nxg-cartao nxg-resumo">' + linha('Investimento total', 'invest2', true) + linha('Faturamento estimado', 'fat') + linha('Custos de operação', 'custos') + linha('Lucro estimado', 'lucro', true)
@@ -332,9 +343,9 @@
         + '<div class="nxg-lin dupla"><span>Financiamento</span><b data-prev="p-fin">0</b><small data-fn="carencia"></small></div></section>'
         + '<section class="nxg-cartao"><h2>Caixa acumulado em 60 meses</h2><div class="nxg-grafico" data-fn="grafico"></div>'
         + '<p class="nxg-nota">Em operação plena, sem a rampa de ocupação. O Simulador em PDF considera a rampa. ' + esc(D.TEXTOS.avisoSimulador) + '</p></section>'
-        + '<section class="nxg-cartao nxg-acoes"><h2>Gerar documento</h2><div class="nxg-btns">' + botoes + '</div>'
+        + (movel() ? '' : '<section class="nxg-cartao nxg-acoes"><h2>Gerar documento</h2><div class="nxg-btns">' + botoes + '</div>'
         + '<p class="nxg-msg" data-fn="msg" role="alert" hidden></p>'
-        + '<p class="nxg-nota">O PDF abre na janela de impressão. Escolha “Salvar como PDF”.</p></section>'
+        + '<p class="nxg-nota">O PDF abre na janela de impressão. Escolha “Salvar como PDF”.</p></section>')
         + '<div class="nxg-link-host" data-fn="link-host"></div>';
     }
 
@@ -441,11 +452,95 @@
 
     // ---------- desenho ----------
     function desenhar() {
+      if (escolha && escolha.aberta) escolha.fechar(false);
+      escolha = null;
       raiz.innerHTML = '<div class="nxg-grid"><div class="nxg-form">' + cartaoCliente() + cartaoEquip() + cartaoItens() + cartaoServicos() + cartaoPremissas() + cartaoPagamento() + '</div>'
         + '<aside class="nxg-lado">' + resumo() + '</aside></div><div class="nxg-props-host">' + secaoPropostas() + '</div>';
+      if (movel()) { sanfona(); barraEscolha(); }
       atualizar();
       pintarLink();
     }
+
+    // ---------- celular: sanfona, barra fixa e gaveta ----------
+    var SECOES = [['cliente', 'Cliente'], ['equip', 'Equipamento'], ['itens', 'Infraestrutura e serviços'], ['servicos', 'Serviços NEXUS na proposta'], ['premissas', 'Premissas do Simulador'], ['pagamento', 'Pagamento e prazos']];
+    function sanfona() {
+      $$('.nxg-form > .nxg-cartao').forEach(function (card, i) {
+        var sec = SECOES[i];
+        if (!sec) return;
+        var k = sec[0], h2 = card.querySelector('h2'), cab = h2.parentNode === card ? h2 : h2.parentNode;
+        var aberta = secAberta === k;
+        card.classList.add('acc'); card.classList.toggle('fechada', !aberta); card.setAttribute('data-sec', k);
+        h2.innerHTML = '<button type="button" id="nxg-accb-' + k + '" class="nxg-acc-btn" data-acao="sanfona" data-sec="' + k + '" aria-expanded="' + aberta + '" aria-controls="nxg-acc-' + k + '">'
+          + '<span class="tx"><span class="tt">' + esc(sec[1]) + '</span><span class="res" data-acc-res="' + k + '"></span></span>' + ICONE_CHEV + '</button>';
+        var corpo = document.createElement('div');
+        corpo.className = 'nxg-acc-corpo'; corpo.id = 'nxg-acc-' + k;
+        corpo.setAttribute('role', 'region'); corpo.setAttribute('aria-labelledby', 'nxg-accb-' + k);
+        var irmao = cab.nextSibling;
+        while (irmao) { var prox = irmao.nextSibling; corpo.appendChild(irmao); irmao = prox; }
+        card.appendChild(corpo);
+      });
+    }
+    function abrirSecao(k) {
+      secAberta = secAberta === k ? '' : k;
+      $$('.nxg-form > .nxg-cartao.acc').forEach(function (c) {
+        var a = c.getAttribute('data-sec') === secAberta;
+        c.classList.toggle('fechada', !a);
+        var b = c.querySelector('.nxg-acc-btn');
+        if (b) b.setAttribute('aria-expanded', String(a));
+      });
+      if (secAberta) {
+        var alvo = $('.nxg-cartao[data-sec="' + secAberta + '"]');
+        if (alvo && alvo.scrollIntoView) setTimeout(function () { alvo.scrollIntoView({ block: 'start', behavior: reduzido() ? 'auto' : 'smooth' }); }, 30);
+      }
+    }
+    function resumosSanfona(c) {
+      var rs = function (k, t) { var e = $('[data-acc-res="' + k + '"]'); if (e) e.textContent = t; };
+      var cid = [form.cliente.cidade, form.cliente.uf].filter(Boolean).join('/');
+      rs('cliente', [String(form.cliente.nome || '').trim(), cid].filter(Boolean).join(' · ') || 'Informe o nome do cliente');
+      var q = Math.max(1, Math.round(C.num(form.equip.quantidade)) || 1);
+      rs('equip', q + 'x ' + ((produto() || {}).nome || 'carregador NEXUS') + ' · ' + C.moeda2(c.totais.equipamento));
+      rs('itens', c.totais.itens > 0 ? 'Subtotal ' + C.moeda2(c.totais.itens) : 'Nenhum valor informado');
+      rs('servicos', form.servicos.ligado ? (c.totais.servicos > 0 ? 'Incluídos · ' + C.moeda2(c.totais.servicos) : 'Ligado, sem valor') : 'Desligado');
+      var igual = function (a, b) {
+        var x = typeof a === 'number' ? a : C.lerNumero(a), y = typeof b === 'number' ? b : C.lerNumero(b);
+        return isFinite(x) && isFinite(y) ? Math.abs(x - y) < 1e-9 : String(a) === String(b);
+      };
+      var mudou = !!form.usina || Object.keys(C.PREMISSAS_PADRAO).some(function (k) { return k !== 'carros' && !igual(form.prem[k], C.PREMISSAS_PADRAO[k]); });
+      rs('premissas', mudou ? 'Ajustadas' : 'Padrão do Simulador');
+      var pg = [c.pg.vista ? 'À vista' : '', c.pg.cartao ? 'Cartão ' + c.pg.cartao.parcelas + 'x' : '', c.pg.fin ? 'Financiamento ' + c.pg.fin.parcelas + 'x' : ''].filter(Boolean).join(' · ');
+      rs('pagamento', pg || 'Nenhuma condição marcada');
+    }
+    function barraEscolha() {
+      var host = document.createElement('div');
+      host.className = 'nxg-mov';
+      host.innerHTML = '<div class="nxg-barra" role="region" aria-label="Total da proposta e geração do documento"><div class="tot"><small>Total da proposta</small><b data-prev="invest">R$ 0,00</b></div>'
+        + '<button type="button" class="nxg-barra-btn" data-acao="escolher" aria-haspopup="dialog">Gerar</button></div>'
+        + '<div class="np-fundo" data-acao="fechar-escolha"></div>'
+        + '<div class="np-folha nxg-folha" role="dialog" aria-modal="true" aria-labelledby="nxg-fo-tit" tabindex="-1">'
+        + '<div class="np-folha-cab"><div class="np-alca" aria-hidden="true"></div><div class="np-folha-tit"><div><b id="nxg-fo-tit">Gerar documento</b><small>Escolha o formato da proposta</small></div>'
+        + '<button type="button" class="np-icobtn claro" data-acao="fechar-escolha" data-foco aria-label="Fechar">' + ICONE_X + '</button></div></div>'
+        + '<div class="np-folha-corpo"><div class="nxg-btns">' + botoesSaida() + '</div>'
+        + '<p class="nxg-msg" data-fn="msg" role="alert" hidden></p>'
+        + '<p class="nxg-nota">O PDF abre na janela de impressão. Escolha “Salvar como PDF”.</p></div></div>';
+      raiz.appendChild(host);
+      escolha = window.NexusFolha ? window.NexusFolha.criar({
+        folha: host.querySelector('.np-folha'), fundo: host.querySelector('.np-fundo'),
+        inertar: function () {
+          var lista = [], fundoEl = host.querySelector('.np-fundo');
+          for (var n = host.querySelector('.np-folha'); n && n.id !== 'nx-root' && n.parentNode; n = n.parentNode) {
+            Array.prototype.forEach.call(n.parentNode.children, function (c) { if (c !== n && c !== fundoEl && !/^(SCRIPT|STYLE)$/.test(c.tagName)) lista.push(c); });
+          }
+          return lista;
+        },
+        alvoVolta: function () { return host.querySelector('.nxg-barra-btn'); }
+      }) : null;
+    }
+    // Cruzou os 861 px com o formulario aberto: repinta no formato certo sem perder o que foi digitado (o estado fica em `form`).
+    var aoCruzar = function () {
+      if (!raiz.isConnected) { if (mq && mq.removeEventListener) mq.removeEventListener('change', aoCruzar); return; }
+      desenhar();
+    };
+    if (mq && mq.addEventListener) mq.addEventListener('change', aoCruzar);
 
     // ---------- link da proposta para o cliente final (v3) ----------
     // So depois de gerar o Completo (ou ao reabrir uma proposta que ja' tem link): o cliente abre o Completo em /nexus/p/.
@@ -579,6 +674,7 @@
         sn.textContent = form.servicos.ligado ? partes.join(' ') : '';
       }
       $$('.nxg-pill').forEach(function (b) { var s = b.getAttribute('data-modelo') === form.equip.modelo; b.classList.toggle('sel', s); b.setAttribute('aria-pressed', String(s)); });
+      if (movel()) resumosSanfona(c);
     }
     function agendar() { if (pendente) return; pendente = true; requestAnimationFrame(function () { pendente = false; atualizar(); }); }
 
@@ -643,10 +739,24 @@
       var modelo = alvo.getAttribute('data-modelo');
       if (modelo) { trocarModelo(modelo); return; }
       var saida = alvo.getAttribute('data-saida');
-      if (saida) { gerar(saida, alvo); return; }
+      if (saida) {
+        var jaOcupado = ocupado;   // toque duplo: o segundo toque nao roda nada e nao pode fechar a gaveta no meio
+        var gerando = gerar(saida, alvo);
+        // No celular a gaveta fecha quando o documento sai; se deu erro, ela fica aberta com o aviso.
+        if (!jaOcupado && escolha && gerando && gerando.then) gerando.then(function () {
+          var m = $('[data-fn="msg"]');
+          if (m && !m.hidden) return;
+          escolha.fechar(true);
+          if (saida === 'completo') { var lh = $('[data-fn="link-host"]'); if (lh && lh.firstChild && lh.scrollIntoView) lh.scrollIntoView({ block: 'center', behavior: reduzido() ? 'auto' : 'smooth' }); }
+        });
+        return;
+      }
       var acao = alvo.getAttribute('data-acao');
       var i = Number(alvo.getAttribute('data-i'));
-      if (acao === 'dica') {
+      if (acao === 'sanfona') abrirSecao(alvo.getAttribute('data-sec'));
+      else if (acao === 'escolher') { if (escolha) escolha.abrir(alvo); }
+      else if (acao === 'fechar-escolha') { if (escolha) escolha.fechar(true); }
+      else if (acao === 'dica') {
         var cx = alvo.closest('.nxg-campo');
         var p = cx && cx.querySelector('.nxg-dica-txt');
         if (p) { p.hidden = !p.hidden; alvo.setAttribute('aria-expanded', String(!p.hidden)); }
@@ -737,7 +847,10 @@
       if (ocupado) return Promise.resolve();
       var c = C.calcular(form);
       var erro = validar(saida, c);
-      if (erro) { mensagem(erro, true); return Promise.resolve(); }
+      if (erro) {
+        if (movel()) { var sk = /nome do cliente/.test(erro) ? 'cliente' : (/quantidade|preço unitário|modelo/.test(erro) ? 'equip' : ''); if (sk && secAberta !== sk) abrirSecao(sk); }
+        mensagem(erro, true); return Promise.resolve();
+      }
       mensagem('', false);
       ocupado = true;
       $$('.nxg-btn').forEach(function (b) { b.classList.add('ocupado'); });
@@ -776,7 +889,7 @@
       getForm: function () { return JSON.parse(JSON.stringify(form)); },
       calcular: function () { return C.calcular(form); },
       gerar: function (saida) { var b = $('[data-saida="' + saida + '"]'); return gerar(saida, b); },
-      destruir: function () { container.innerHTML = ''; }
+      destruir: function () { if (escolha && escolha.aberta) escolha.fechar(false); if (mq && mq.removeEventListener) mq.removeEventListener('change', aoCruzar); container.innerHTML = ''; }
     };
   }
 

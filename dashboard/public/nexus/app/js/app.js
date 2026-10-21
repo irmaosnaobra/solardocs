@@ -26,6 +26,8 @@
   var MES_AB = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   /* ------------------------------------------------------------------ utilidades */
+  var MQ = window.matchMedia ? window.matchMedia('(max-width: 860.98px)') : null;
+  function mobile() { return !!(MQ && MQ.matches); }
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function esc(v) {
@@ -128,7 +130,13 @@
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     copiar: '<path d="M9 9h11v11H9zM5 15H4V4h11v1"/>',
     imprimir: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/>',
-    termo: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5M9 13h6M9 17h4"/>'
+    termo: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5M9 13h6M9 17h4"/>',
+    gerar: '<path d="M12 5v14M5 12h14"/>',
+    voltar: '<path d="M15 18l-6-6 6-6"/>',
+    seta: '<path d="M9 6l6 6-6 6"/>',
+    fechar: '<path d="M6 6l12 12M18 6L6 18"/>',
+    compartilhar: '<path d="M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+    celular: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>'
   };
   function ic(nome, cls) {
     return '<svg class="nx-ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (ICONES[nome] || '') + '</svg>';
@@ -166,7 +174,7 @@
     procura: {}, abrirCompra: false,
     confirmaPacote: 0, consultoriaAberta: false, plataformaPedida: false, pedidosServ: null, pedidosServErro: false,
     termoTxt: undefined, termoErro: false, termoMsg: '', montagemDemo: null,
-    cad: null, emailPre: ''
+    cad: null, emailPre: '', instalarEv: null
   };
   var propAtual = null;      /* proposta em edicao na tela Propostas: {id, numero} */
   var esperaScript = null;
@@ -188,7 +196,6 @@
     perfil: { menu: 'Perfil', ctx: 'Dados e capacidades da empresa' }
   };
   var ORDEM = ['inicio', 'mercado', 'equipamentos', 'servicos', 'propostas', 'oportunidades', 'usinas', 'engenharia', 'materiais', 'parceria'].filter(function (r) { return MOSTRAR_USINAS || r !== 'usinas'; });
-  var TABS = ['inicio', 'equipamentos', 'propostas', 'oportunidades'];
   var ALIAS = { trilha: 'parceria', gerar: 'propostas', selo: 'parceria', credenciado: 'parceria' };
 
   /* Item ADM: so quando o /eu diz adm:true (is_admin ou e-mail ativo em nexus_equipe). Leva a pagina propria, nao a uma rota do portal. */
@@ -635,7 +642,9 @@
   function cabecaCad(n, titulo, sub) {
     var seg = '';
     for (var i = 1; i <= 3; i++) seg += '<span class="' + (i < n ? 'feito' : i === n ? 'atual' : '') + '"></span>';
-    return '<p class="nx-passo">Passo ' + n + ' de 3</p><div class="nx-prog" role="img" aria-label="Passo ' + n + ' de 3">' + seg + '</div>' +
+    var volta = n === 1 ? '<button type="button" class="nx-cad-voltar" data-acao="cadEntrar" aria-label="Voltar para entrar">' + ic('voltar') + '</button>' :
+      (n === 2 ? '<button type="button" class="nx-cad-voltar" data-acao="cadVoltar" aria-label="Voltar ao passo 1">' + ic('voltar') + '</button>' : '');
+    return volta + '<p class="nx-passo">Passo ' + n + ' de 3</p><div class="nx-prog" role="img" aria-label="Passo ' + n + ' de 3">' + seg + '</div>' +
       '<h1 id="cad-h1" tabindex="-1">' + esc(titulo) + '</h1><p class="sub">' + esc(sub) + '</p>';
   }
   function telaCadastro() {
@@ -719,47 +728,120 @@
       '<div class="acoes"><button type="button" data-acao="ir" data-arg="perfil">Editar perfil</button><button type="button" data-acao="sairConta">' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</button></div></div>';
     return h;
   }
+  /* ---- casca do celular (abaixo de 861 px): barra de cima, barra de baixo com o botao Gerar e a gaveta Mais ---- */
+  var MAIS = null;
+  function telaAtual() {
+    var r = S.rota, sub = S.sub, R = ROTAS[r] || ROTAS.inicio, p;
+    var t = { titulo: R.menu, voltar: '' };
+    if (r === 'propostas') t.titulo = sub === 'lista' ? 'Minhas propostas' : 'Gerar proposta';
+    else if (r === 'equipamentos' && sub && (p = produtoPor(sub))) { t.titulo = p.nome; t.voltar = 'equipamentos'; }
+    else if (r === 'parceria' && sub === 'termo') { t.titulo = 'Termo de Parceria'; t.voltar = 'parceria'; }
+    if (!t.voltar && r !== 'inicio' && r !== 'oportunidades' && r !== 'propostas') t.voltar = 'inicio';
+    return t;
+  }
+  function topoHTML() {
+    var t = telaAtual(), logo = imgSegura(S.eu && S.eu.empresa && S.eu.empresa.logo_base64), nome = nomeEmpresa() || 'Sua empresa';
+    var parc = logo ? '<img src="' + esc(logo) + '" alt="">' : '<span>' + esc(nome) + '</span>';
+    return '<div class="np-top-1"><img class="nx" src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos">' +
+      '<button type="button" class="np-top-parc" data-acao="ir" data-arg="perfil" aria-label="Em parceria com ' + esc(nome) + '. Abrir o perfil da empresa"><small>Em parceria com</small><span class="pill">' + parc + '</span></button></div>' +
+      '<div class="np-top-2">' + (t.voltar ? '<button type="button" class="np-voltar" data-acao="voltar" data-arg="' + esc(t.voltar) + '" aria-label="Voltar">' + ic('voltar') + '</button>' : '') +
+      '<p class="np-top-tit">' + esc(t.titulo) + '</p></div>';
+  }
   function tabsHTML() {
+    var r = S.rota, sub = S.sub;
+    var itens = [
+      { k: 'inicio', rot: 'Início', icone: 'inicio', arg: 'inicio', at: r === 'inicio' },
+      { k: 'propostas', rot: 'Propostas', icone: 'propostas', arg: 'propostas/lista', at: r === 'propostas' && sub === 'lista' },
+      { k: 'gerar', rot: 'Gerar', icone: 'gerar', arg: 'propostas', at: r === 'propostas' && sub !== 'lista', central: true },
+      { k: 'oportunidades', rot: 'Oportunidades', icone: 'oportunidades', arg: 'oportunidades', at: r === 'oportunidades', tr: travada('oportunidades') }
+    ];
     var h = '';
-    TABS.forEach(function (r) {
-      var tr = travada(r), at = S.rota === r;
-      h += '<button type="button" class="np-tab' + (at ? ' ativa' : '') + '" data-acao="ir" data-arg="' + r + '"' + (at ? ' aria-current="page"' : '') + '>' + ic(r) + (tr ? ic('cadeado', 'np-cad') : '') + '<span>' + esc(ROTAS[r].menu) + '</span></button>';
+    itens.forEach(function (it) {
+      var at = it.at ? ' aria-current="page"' : '';
+      if (it.central) {
+        h += '<button type="button" class="np-tab np-gerar' + (it.at ? ' ativa' : '') + '" data-acao="gerarProposta"' + at + '><span class="fab">' + ic('gerar') + '</span><span class="rot">' + it.rot + '</span></button>';
+        return;
+      }
+      h += '<button type="button" class="np-tab' + (it.at ? ' ativa' : '') + '" data-acao="irTab" data-arg="' + it.arg + '"' + at + '>' + ic(it.icone) + (it.tr ? ic('cadeado', 'np-cad') + '<span class="sr">, travado</span>' : '') + '<span class="rot">' + esc(it.rot) + '</span></button>';
     });
-    var emMais = TABS.indexOf(S.rota) < 0;
-    h += '<button type="button" class="np-tab' + (emMais ? ' ativa' : '') + '" data-acao="abrirMais" aria-haspopup="dialog">' + ic('mais') + '<span>Mais</span></button>';
+    var emMais = !(r === 'inicio' || r === 'propostas' || r === 'oportunidades');
+    h += '<button type="button" class="np-tab' + (emMais ? ' ativa' : '') + '" data-acao="abrirMais" aria-haspopup="dialog">' + ic('mais') + '<span class="rot">Mais</span></button>';
     return h;
   }
   function folhaHTML() {
-    var h = '<div class="np-alca"></div>';
-    ORDEM.concat(['perfil']).forEach(function (r) {
+    var lista = ['equipamentos', 'servicos', 'mercado'].concat(MOSTRAR_USINAS ? ['usinas'] : []).concat(['engenharia', 'materiais', 'parceria', 'perfil']);
+    var algumTravado = false;
+    var h = '<div class="np-folha-cab"><div class="np-alca" aria-hidden="true"></div><div class="np-folha-tit"><div><b id="np-folha-tit">Mais</b><small>' + esc([nomeEmpresa() || 'Sua empresa', NIVEL_NOME[nivel()] || ''].filter(Boolean).join(' · ')) + '</small></div>' +
+      '<button type="button" class="np-icobtn claro" data-acao="fecharMais" data-foco aria-label="Fechar o menu">' + ic('fechar') + '</button></div></div>';
+    h += '<div class="np-folha-corpo"><div class="np-grade-f">';
+    lista.forEach(function (r) {
       var tr = travada(r);
-      h += '<button type="button" class="np-f-item' + (S.rota === r ? ' ativa' : '') + '" data-acao="ir" data-arg="' + r + '">' + ic(r) + '<span>' + esc(ROTAS[r].menu) + '</span>' + (tr ? ic('cadeado', 'p fim') : '') + '</button>';
+      if (tr) algumTravado = true;
+      h += '<button type="button" class="np-f-tile' + (S.rota === r ? ' ativa' : '') + '" data-acao="ir" data-arg="' + r + '"' + (S.rota === r ? ' aria-current="page"' : '') + '><span class="ico">' + ic(r) + (tr ? '<span class="cad">' + ic('cadeado', 'p') + '</span>' : '') + '</span>' +
+        '<span class="rot">' + esc(ROTAS[r].menu) + (tr ? '<span class="sr">, travado</span>' : '') + '</span></button>';
     });
-    if (admOk()) h += '<a class="np-f-item" href="/nexus/adm">' + ic('escudo') + '<span>ADM</span></a>';
-    h += '<button type="button" class="np-f-item" data-acao="sairConta">' + ic('sair') + '<span>' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</span></button>';
+    if (admOk()) h += '<a class="np-f-tile" href="/nexus/adm"><span class="ico">' + ic('escudo') + '</span><span class="rot">ADM</span></a>';
+    h += '<button type="button" class="np-f-tile sair" data-acao="sairConta"><span class="ico">' + ic('sair') + '</span><span class="rot">' + (S.demo ? 'Sair da demonstração' : 'Sair') + '</span></button>';
+    h += '</div>' + (algumTravado ? '<p class="np-f-nota">' + ic('cadeado', 'p') + '<span>Item com cadeado libera com o seu nível. Toque nele para ver como chegar.</span></p>' : '');
+    h += '<div id="np-inst-folha">' + instalarHTML() + '</div></div>';
     return h;
   }
   function montarCasca() {
     var root = $('#nx-root');
     root.innerHTML =
-      '<header class="np-top"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos">' +
-      '<button type="button" class="np-icobtn" data-acao="abrirMais" aria-label="Abrir o menu" aria-haspopup="dialog">' + ic('menu') + '</button></header>' +
+      '<header class="np-top" id="np-top"></header>' +
       '<aside class="np-lado" id="np-lado"></aside>' +
-      '<div class="np-corpo"><header class="np-head" id="np-head"></header><main class="np-main" id="nx-main" tabindex="-1"></main></div>' +
-      '<nav class="np-tabs" id="np-tabs" aria-label="Abas principais"></nav>' +
-      '<div class="np-fundo" id="np-fundo" hidden data-acao="fecharMais"></div>' +
-      '<div class="np-folha" id="np-folha" role="dialog" aria-label="Menu" hidden></div>' +
+      '<div class="np-corpo" id="np-corpo"><header class="np-head" id="np-head"></header><main class="np-main" id="nx-main" tabindex="-1"></main></div>' +
+      '<nav class="np-tabs" id="np-tabs" aria-label="Menu do aplicativo"></nav>' +
+      '<div class="np-fundo" id="np-fundo" data-acao="fecharMais"></div>' +
+      '<div class="np-folha" id="np-folha" role="dialog" aria-modal="true" aria-labelledby="np-folha-tit" tabindex="-1"></div>' +
       '<div class="nx-toast" id="nx-toast" role="status" hidden></div>';
     S.shell = true;
+    MAIS = window.NexusFolha ? window.NexusFolha.criar({
+      folha: $('#np-folha'), fundo: $('#np-fundo'),
+      inertar: function () { return [$('#np-corpo'), $('#np-top'), $('#np-tabs')]; },
+      alvoVolta: function () { return $('#np-tabs [data-acao="abrirMais"]'); }
+    }) : null;
   }
   function pintarNav() {
     if (!S.shell) return;
+    $('#np-top').innerHTML = topoHTML();
     $('#np-lado').innerHTML = ladoHTML();
     $('#np-tabs').innerHTML = tabsHTML();
-    $('#np-folha').innerHTML = folhaHTML();
+    if (!(MAIS && MAIS.aberta)) $('#np-folha').innerHTML = folhaHTML();
     $('#np-head').innerHTML = cobrandHTML() + '<button type="button" class="nx-btn np-head-cta" data-acao="ir" data-arg="propostas">Gerar proposta</button>';
+    if (mobile()) document.title = telaAtual().titulo + ' · NEXUS Parceiro';
   }
-  function fecharMais() { var f = $('#np-folha'), u = $('#np-fundo'); if (f) f.hidden = true; if (u) u.hidden = true; }
+  function abrirMais(gatilho) {
+    if (!MAIS) { toast('Não foi possível abrir o menu agora. Atualize a página.', true); irPara('perfil'); return; }
+    $('#np-folha').innerHTML = folhaHTML(); MAIS.abrir(gatilho);
+  }
+  function fecharMais(semFoco) { if (MAIS && MAIS.aberta) MAIS.fechar(!semFoco); }
+
+  /* ---- instalar como app (PWA) ---- */
+  function emApp() { return !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true); }
+  function ehIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function instalarHTML() {
+    if (!mobile() || emApp()) return '';
+    if (S.instalarEv) {
+      return '<div class="np-inst"><span class="ico">' + ic('celular') + '</span><div class="tx"><b>App NEXUS Parceiro</b><span>Abra o portal direto da tela inicial do celular.</span></div>' +
+        '<button type="button" class="nx-btn" data-acao="instalarApp">Instalar app</button></div>';
+    }
+    if (ehIOS()) {
+      return '<div class="np-inst ios"><span class="ico">' + ic('compartilhar') + '</span><div class="tx"><b>Instalar app</b><span>Toque em Compartilhar e depois em Adicionar à Tela de Início.</span></div></div>';
+    }
+    return '';
+  }
+  function atualizarInstalar() {
+    ['np-inst-ini', 'np-inst-folha'].forEach(function (id) { var el = document.getElementById(id); if (el) el.innerHTML = instalarHTML(); });
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.instalarEv = e; atualizarInstalar(); });
+  window.addEventListener('appinstalled', function () { S.instalarEv = null; atualizarInstalar(); });
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/nexus/sw.js', { scope: '/nexus/' }).catch(function (e) { if (window.console) console.warn('sw nexus', e && e.message); });
+    });
+  }
   function toast(msg, erro) {
     var t = $('#nx-toast');
     if (!t) return;
@@ -776,6 +858,7 @@
     var root = $('#nx-root');
     if (!root) return;
     if (S.fase !== 'app') {
+      if (MAIS) { MAIS.fechar(false); MAIS = null; }
       S.shell = false;
       if (S.fase === 'boot') root.innerHTML = '<div class="nx-girando" style="min-height:100vh;justify-content:center"><div class="nx-spin"></div><span>Carregando o portal</span></div>';
       else if (S.fase === 'embreve') root.innerHTML = telaEmBreve();
@@ -960,6 +1043,7 @@
     }).join(', ') + '.';
   }
   function telaInicio() {
+    if (mobile()) return telaInicioApp();
     var eu = S.eu, p = eu.parceiro || {}, nv = nivel(), idx = NIVEL_IDX[nv] || 1, pr = eu.progresso || {};
     var prox = pr.proximo ? NIVEL_NOME[pr.proximo] : '';
     var linha = [NIVEL_NOME[nv]];
@@ -997,9 +1081,139 @@
     return h + '</div>';
   }
   function posInicio() {
+    if (mobile()) { posInicioApp(); return; }
     carregarProcura('np-procura', true);
     carregarFrota(function () { var el = $('#np-mercuf'); if (el) el.innerHTML = mercadoUfHTML(true); desenharGrafs(); }, 'np-mercuf');
     if (libera('oportunidades')) carregarOpsInicio();
+  }
+
+  /* ------------------------------------------------------------------ Inicio no celular (formato de aplicativo) */
+  function proximoPasso(pr) {
+    var k = pr && pr.faltam && pr.faltam[0];
+    var m = {
+      perfil: ['Completar o perfil', 'perfil'],
+      primeira_proposta: ['Gerar a primeira proposta', 'propostas'],
+      papel_montagem: ['Marcar Montagem e Engenharia no perfil', 'perfil'],
+      primeira_compra: ['Ver os carregadores', 'equipamentos'],
+      compras: ['Ver os carregadores', 'equipamentos'],
+      conversa: ['Ver o caminho até o próximo nível', 'parceria'],
+      aprovacao_partner: ['Ver o caminho até o próximo nível', 'parceria'],
+      aprovacao_montagem: ['Ver o caminho até o próximo nível', 'parceria']
+    };
+    if (k === 'aceite_termo') return { rot: 'Ler e aceitar o termo', acao: 'irTermoParceria', arg: '' };
+    var x = m[k] || ['Gerar uma proposta', 'propostas'];
+    return { rot: x[0], acao: 'ir', arg: x[1] };
+  }
+  function atalhoApp(rot, icone, destino, opc) {
+    opc = opc || {};
+    return '<button type="button" class="ap-tile' + (opc.prim ? ' prim' : '') + '" data-acao="ir" data-arg="' + esc(destino) + '"><span class="ico">' + ic(icone) + '</span>' +
+      '<span class="rot">' + esc(rot) + (opc.trava ? '<span class="sr">, travado</span>' : '') + '</span>' + (opc.trava ? '<span class="cad">' + ic('cadeado', 'p') + '</span>' : '') + '</button>';
+  }
+  function cardCarrossel(p) {
+    var I = infoDe(p);
+    return '<article class="ap-car"><div class="foto"><img src="' + esc(fotoUrl(I.fotos[0])) + '" alt="' + esc(I.alt) + '" loading="lazy"></div><div class="c">' +
+      '<div><h3>' + esc(p.nome) + '</h3><p class="ger">' + esc(I.tag) + '</p></div>' +
+      '<div class="pr"><span class="np-rot">Preço de tabela</span><strong>' + esc(rs(p.precoSugerido)) + '</strong><small>Teto para o cliente final</small></div>' +
+      '<div class="neg"><span class="np-rot">Seu preço de parceiro</span><b>Negociado com o comercial</b>' +
+      (libera('negociar') ? '' : '<small class="np-lktx">' + ic('cadeado', 'p') + ' ' + esc(bloq('negociar')) + '</small>') + '</div>' +
+      '<button type="button" class="nx-btn" data-acao="ir" data-arg="equipamentos/' + esc(p.id) + '">Ver detalhes</button>' +
+      '<button type="button" class="nx-btn sec" data-acao="ir" data-arg="propostas">Gerar proposta</button></div></article>';
+  }
+  function telaInicioApp() {
+    var eu = S.eu, p = eu.parceiro || {}, nv = nivel(), idx = NIVEL_IDX[nv] || 1, pr = eu.progresso || {};
+    var prox = pr.proximo ? NIVEL_NOME[pr.proximo] : '';
+    var pp = proximoPasso(pr);
+    var linha = [localParceiro(), p.raio_km ? 'raio de ' + fmt(p.raio_km) + ' km' : ''].filter(Boolean).join(' · ');
+    var ps = produtos();
+    var h = '<div class="ap">';
+    h += '<section class="ap-nivel" aria-label="Seu nível na rede"><p class="ap-ola">Olá, <b>' + esc(nomeEmpresa() || 'parceiro') + '</b></p>' + (linha ? '<p class="ap-loc">' + esc(linha) + '</p>' : '') +
+      '<div class="ap-nv"><div><span class="ap-rot">Seu nível</span><h2>' + esc(NIVEL_NOME[nv] || '') + '</h2></div><span class="ap-etapa">Etapa ' + idx + ' de 4</span></div>' +
+      '<div class="np-barra ap" role="img" aria-label="Progresso até o próximo nível: etapa ' + idx + ' de 4"><i style="width:' + (idx * 25) + '%"></i></div>' +
+      '<p class="ap-prox">' + esc(prox ? 'Próximo nível: ' + prox + '. ' + COMO[nv] : COMO.master) + '</p>' +
+      (textoFaltam(pr) ? '<p class="ap-falta">' + esc(textoFaltam(pr)) + '</p>' : '') +
+      '<span class="ap-rot">Próximo passo</span><button type="button" class="nx-btn ap-cta" data-acao="' + pp.acao + '"' + (pp.arg ? ' data-arg="' + esc(pp.arg) + '"' : '') + '>' + esc(pp.rot) + '</button></section>';
+    h += '<div id="np-inst-ini">' + instalarHTML() + '</div>';
+    h += '<section class="ap-sec" aria-label="Atalhos"><div class="ap-atalhos">' +
+      atalhoApp('Gerar proposta', 'gerar', 'propostas', { prim: true }) + atalhoApp('Equipamentos', 'equipamentos', 'equipamentos') +
+      atalhoApp('Serviços NEXUS', 'servicos', 'servicos', { trava: travada('servicos') }) + atalhoApp('Minhas propostas', 'propostas', 'propostas/lista') +
+      atalhoApp('Engenharia', 'engenharia', 'engenharia', { trava: travada('engenharia') }) + atalhoApp('Minha parceria', 'parceria', 'parceria') + '</div></section>';
+    h += '<section class="ap-sec"><div class="ap-tit"><h2>Os carregadores da rede</h2><button type="button" class="np-linkgrande" data-acao="ir" data-arg="equipamentos">Ver todos</button></div>' +
+      (ps.length ? '<div class="ap-carrossel" role="region" aria-label="Carregadores da rede. Deslize para o lado para ver o próximo." tabindex="0">' + ps.map(cardCarrossel).join('') + '</div>' +
+        (ps.length > 1 ? '<div class="ap-dots" aria-hidden="true">' + ps.map(function (x, i) { return '<i' + (i === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>' : '')
+        : '<div class="np-vazio-sec">O catálogo não carregou. Atualize a página.</div>') + '</section>';
+    h += '<section class="ap-sec"><div class="ap-tit"><h2>Procura na sua região</h2>' + (S.demo ? '<span class="nx-chip ex">Dados de exemplo</span>' : '') + '</div><div id="np-procura">' + girando('Carregando a procura') + '</div></section>';
+    h += '<section class="ap-sec"><h2>Mercado no seu estado</h2><div id="np-mercuf">' + girando('Carregando o mercado') + '</div></section>';
+    h += '<section class="ap-sec"><div class="ap-tit"><h2>Oportunidades na sua região</h2>' +
+      (libera('oportunidades') ? '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="oportunidades">Ver todas</button>' : '<span class="nx-chip cz">' + ic('cadeado', 'p') + 'Travado</span>') + '</div>' +
+      '<div id="np-opsini">' + (libera('oportunidades') ? girando('Carregando as oportunidades') : opsBloqueadasMini()) + '</div></section>';
+    h += '<section class="np-rodape"><p>A NEXUS é importadora. O cliente e a obra da sua região são seus.</p><p>Nada é cobrado sobre a sua obra. Sem mensalidade. Sem taxa de entrada.</p></section>';
+    return h + '</div>';
+  }
+  function posInicioApp() {
+    carregarProcura('np-procura', 'mini');
+    carregarFrota(function () { var el = $('#np-mercuf'); if (el) el.innerHTML = mercadoUfMini(); }, 'np-mercuf');
+    if (libera('oportunidades')) carregarOpsInicio();
+    var car = $('.ap-carrossel');
+    if (car && car.children.length > 1) {
+      car.addEventListener('scroll', function () {
+        var w = car.children[0].offsetWidth + 12, n = car.children.length;
+        var i = car.scrollLeft + car.clientWidth >= car.scrollWidth - 2 ? n - 1 : Math.round(car.scrollLeft / w);
+        $$('.ap-dots i').forEach(function (d, k) { d.classList.toggle('on', k === i); });
+      }, { passive: true });
+    }
+  }
+  /* grafico pequeno de colunas (SVG proprio, largura 100%; o desenharGrafs ignora caixas estreitas) */
+  function miniBarras(linhas, aria) {
+    var W = 240, H = 76, base = 56, topo = 6, n = linhas.length, gap = 8, bw = (W - gap * (n - 1)) / n, max = 1, out = '';
+    linhas.forEach(function (l) { max = Math.max(max, l.val); });
+    linhas.forEach(function (l, i) {
+      var hh = Math.max(3, (l.val / max) * (base - topo)), x = i * (bw + gap), y = base - hh, cor = l.dest ? '#0060C7' : '#7D8CA3';
+      out += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hh.toFixed(1) + '" rx="3" fill="' + cor + '"' + (l.parcial ? ' fill-opacity=".35" stroke="' + cor + '" stroke-width="1.5"' : '') + '/>' +
+        '<text x="' + (x + bw / 2).toFixed(1) + '" y="70" text-anchor="middle" font-size="10" font-weight="' + (l.dest ? 700 : 500) + '" fill="#4A5568">' + esc(l.rot) + '</text>';
+    });
+    return '<svg class="ap-mini-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(aria) + '">' + out + '</svg>';
+  }
+  function procuraMini(d, uf) {
+    var n = d.meses.length;
+    var linhas = d.meses.map(function (m, i) { return { rot: rotuloMes(m.mes), val: num(m.total), dest: true, parcial: i === n - 1 }; });
+    var tres = d.meses.slice(-3).reduce(function (a, m) { return a + num(m.total); }, 0);
+    var aria = 'Gráfico de colunas das reuniões de eletroposto agendadas pela NEXUS no Brasil por mês: ' + linhas.map(function (l) { return l.rot + ' ' + fmt(l.val); }).join(', ') + '. O último mês é parcial';
+    return '<div class="ap-mini"><div class="topo"><strong class="n">' + esc(fmt(uf ? d.reunioes_90d_uf : tres)) + '</strong><p class="tit">' +
+      (uf ? 'Reuniões de eletroposto em ' + esc(nomeUf(uf)) + ' nos últimos 90 dias' : 'Reuniões de eletroposto agendadas pela NEXUS no Brasil nos 3 últimos meses') + '</p></div>' +
+      miniBarras(linhas, aria) + '<p class="nota">Barras: reuniões por mês no Brasil, o último mês é parcial.' + (uf ? '' : ' Informe a UF no perfil para ver o seu estado.') + '</p>' +
+      '<p class="np-fonte">' + esc(fonteProcura(d.meses)) + '</p>' +
+      '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="' + (uf ? 'mercado' : 'perfil') + '">' + (uf ? 'Ver o mercado' : 'Completar o perfil') + '</button></div>';
+  }
+  function mercadoUfMini() {
+    var F = S.frota, uf = ufDoParceiro(), es = dadosEstados();
+    var maiores = es.slice().sort(function (a, b) { return b.jul - a.jul; });
+    var top = maiores.slice(0, 6), meu = es.filter(function (e) { return e.uf === uf; })[0];
+    if (meu && !top.some(function (e) { return e.uf === uf; })) top[top.length - 1] = meu;
+    var linhas = top.map(function (e) { return { rot: e.uf, val: e.jul, dest: e.uf === uf }; });
+    var bj = F.brasil.julho, bn = F.brasil.junho, alta = bn > 0 ? Math.round((bj / bn - 1) * 100) : 0;
+    var aria = 'Gráfico de colunas de veículos plug-in por estado, os maiores' + (meu ? ' e ' + meu.nome : '') + ': ' + linhas.map(function (l) { return l.rot + ' ' + fmt(l.val); }).join(', ');
+    return '<div class="ap-mini"><div class="topo"><strong class="n">' + esc(fmt(meu ? meu.jul : bj)) + '</strong><p class="tit">' + (meu ? 'Veículos plug-in em ' + esc(meu.nome) : 'Veículos plug-in no Brasil') + '</p></div>' +
+      miniBarras(linhas, aria) + '<p class="nota">' + esc(fmt(bj)) + ' no Brasil, alta de ' + esc(alta) + '% de ' + esc(F.anterior.rotulo.split(' ')[0]) + ' para ' + esc(F.referencia.rotulo.split(' ')[0]) + '.' + (meu ? ' Seu estado em azul.' : ' Informe a UF no perfil para ver o seu estado.') + '</p>' +
+      '<p class="np-fonte">Fonte: ' + esc(F.fonte.split(',')[0]) + ', ' + esc(F.referencia.rotulo) + '.</p>' +
+      '<button type="button" class="np-linkgrande" data-acao="ir" data-arg="mercado">Ver mercado completo</button></div>';
+  }
+  function opMini(o) {
+    var local = [o.cidade ? o.cidade + (o.uf ? '/' + o.uf : '') : (o.uf || ''), o.distancia_km != null ? fmt(o.distancia_km) + ' km' : ''].filter(Boolean).join(' · ');
+    return '<button type="button" class="ap-op" data-acao="ir" data-arg="oportunidades"><span class="c"><span class="t"><span class="np-tipo' + (o.tipo === 'obra' ? '' : ' cli') + '">' + esc(tipoOp(o)) + '</span><span class="loc">' + esc(local) + '</span></span>' +
+      '<span class="d">' + esc(o.descricao || '') + '</span><span class="prazo">' + ic('relogio', 'p') + esc(prazoTxt(o.prazo_aceite)) + '</span></span>' + ic('seta', 'p fim') + '</button>';
+  }
+  function opsBloqueadasMini() {
+    var pro = (NIVEL_IDX[nivel()] || 1) >= 3;
+    return '<div class="ap-trava"><span class="ico">' + ic('cadeado') + '</span><div><p class="b">' + esc(bloq('oportunidades')) + '</p>' +
+      '<p class="np-lktx">Clientes e obras da NEXUS na sua região chegam aos parceiros Pro que aceitaram o Termo de Parceria, com prazo para aceitar.</p>' +
+      (pro ? '<button type="button" class="nx-btn" data-acao="irTermoParceria">Ler e aceitar o termo</button>' : '<button type="button" class="nx-btn" data-acao="ir" data-arg="parceria">Ver como chegar</button>') + '</div></div>';
+  }
+  function termoCartaoApp() {
+    var t = termo(), aceito = !!t.aceito_em;
+    if (!libera('termo')) return termoSecaoHTML();
+    return '<section class="np-sec" id="np-termo"><div class="np-tit-grupo"><h2>Termo de Parceria</h2>' + (aceito ? '<span class="nx-chip az">Aceito em ' + esc(dataBR(t.aceito_em)) + '</span>' : '') + '</div>' +
+      '<div class="np-card"><p>As regras da parceria entre a NEXUS e a sua empresa. ' + (aceito ? 'Você já aceitou e pode ler de novo.' : 'Você lê e aceita por aqui.') + '</p>' +
+      '<button type="button" class="nx-btn' + (aceito ? ' sec' : '') + '" data-acao="irTermoParceria">' + (aceito ? 'Ler o termo' : 'Ler e aceitar o termo') + '</button></div></section>';
   }
 
   /* Procura (API) */
@@ -1047,6 +1261,7 @@
     return registrarGraf(function (W) { return svgBarrasH(W, linhas, aria); });
   }
   function procuraHTML(d, completo, uf) {
+    if (completo === 'mini') return procuraMini(d, uf);
     if (completo) {
       return '<div class="np-par" style="align-items:flex-start"><div class="np-card"><h3>Reuniões de eletroposto agendadas pela NEXUS no Brasil, por mês</h3>' + colunasMeses(d) + '</div>' +
         '<div class="np-card"><div><h3>Reuniões por estado, só com o estado identificado</h3>' + (uf ? '<p class="nota">' + esc(nomeUf(uf)) + ' em destaque.</p>' : '') + '</div>' + barrasPorUf(d, uf) + '</div></div><p class="np-fonte">' + esc(fonteProcura(d.meses)) + '</p>';
@@ -1124,10 +1339,11 @@
       var l = ((r.data && r.data.oportunidades) || []).filter(function (o) { return o.status === 'oferecida'; })
         .sort(function (a, b) { return new Date(a.prazo_aceite) - new Date(b.prazo_aceite); }).slice(0, 3);
       if (!l.length) { el.innerHTML = '<div class="np-vazio-sec">Nenhuma oportunidade aberta na sua região agora. Quando a NEXUS tiver um cliente ou uma obra para você, ela aparece aqui.</div>'; return; }
-      el.innerHTML = '<div class="np-ops">' + l.map(function (o) { return opLinha(o, true); }).join('') + '</div>';
+      el.innerHTML = mobile() ? '<div class="ap-ops">' + l.map(opMini).join('') + '</div>' : '<div class="np-ops">' + l.map(function (o) { return opLinha(o, true); }).join('') + '</div>';
     });
   }
   function opsBloqueadasHTML() {
+    if (mobile()) return opsBloqueadasMini();
     var amostra = ['Obra terceirizada NEXUS · Cidade da sua região', 'Cliente para você vender · Cidade da sua região', 'Cliente para você vender · Cidade da sua região'];
     return '<div class="np-ops"><div class="np-bloq"><div class="fundo" aria-hidden="true">' +
       amostra.map(function (t) { return '<div class="np-op"><div class="c"><div class="t"><span class="np-tipo">' + esc(t) + '</span></div><p>Exemplo de pedido de cliente ou de obra com o prazo para aceitar.</p></div></div>'; }).join('') + '</div>' +
@@ -1693,6 +1909,7 @@
     return h + '</article>';
   }
   function telaParceria() {
+    if (mobile() && S.sub === 'termo') return '<div class="np-pagina">' + termoSecaoHTML() + '</div>';
     var nv = nivel(), p = S.eu.parceiro || {}, comprados = num(p.carregadores_comprados), atualIdx = NIVEL_IDX[nv] || 1;
     var h = '<div class="np-pagina"><section class="np-sec"><h1 class="nx-h1" style="margin:0">Minha parceria</h1><div class="np-niveis">';
     NIVEIS.forEach(function (n) {
@@ -1711,7 +1928,7 @@
     var meta = Math.min(comprados, 5);
     h += '<li class="np-passo' + (comprados >= 5 ? ' feito' : '') + '"><span class="bola">' + (comprados >= 5 ? ic('check') : '') + '</span><span class="nm">Carregadores para Master: ' + meta + ' de 5</span>' +
       (comprados >= 5 ? '<span class="st">Feito</span>' : '<div class="mini"><span>Faltam ' + (5 - meta) + (5 - meta === 1 ? ' carregador' : ' carregadores') + '</span><div class="np-barra" role="img" aria-label="Carregadores para Master: ' + meta + ' de 5"><i style="width:' + (meta * 20) + '%"></i></div></div>') + '</li></ul></section>';
-    h += termoSecaoHTML();
+    h += mobile() ? termoCartaoApp() : termoSecaoHTML();
     h += '<section class="np-sec"><h2>O acordo ganha-ganha</h2><div class="np-acordo"><div class="np-card"><h3>A NEXUS entrega</h3><ul>' +
       ENTREGA_NEXUS.map(function (t) { return '<li>' + ic('check') + '<span>' + esc(t) + '</span></li>'; }).join('') + '</ul></div><div class="np-card voce"><h3>Você entrega</h3><ul>' +
       ENTREGA_VOCE.map(function (t) { return '<li>' + ic('check') + '<span>' + esc(t) + '</span></li>'; }).join('') + '</ul></div></div></section>';
@@ -1731,8 +1948,8 @@
     return h + '</section></div>';
   }
   function posParceria() {
-    if (libera('selo')) desenharSelo();
-    if (libera('termo')) carregarTermo();
+    if (libera('selo') && $('#nx-selo')) desenharSelo();
+    if (libera('termo') && (!mobile() || S.sub === 'termo')) carregarTermo();
     if (S.irTermo) { S.irTermo = false; var tm = $('#np-termo'); if (tm) tm.scrollIntoView({ block: 'start' }); }
   }
 
@@ -2355,7 +2572,27 @@
     }, function (e) { ocupado(el, false); erroForm(c, e.message); });
   }
   var ACOES = {
-    ir: function (el) { fecharMais(); irPara(el.dataset.arg); },
+    ir: function (el) { fecharMais(true); irPara(el.dataset.arg); },
+    voltar: function (el) { fecharMais(true); irPara(el.dataset.arg); },
+    irTab: function (el) {
+      var h = el.dataset.arg, atual = S.rota + (S.sub ? '/' + S.sub : '');
+      if (atual === h) { window.scrollTo(0, 0); return; }
+      fecharMais(true); irPara(h);
+    },
+    /* Gerar: se o formulario ja esta na tela, nao repinta (irPara no mesmo hash apagaria o que foi digitado). */
+    gerarProposta: function () {
+      if (S.rota === 'propostas' && S.sub !== 'lista') { window.scrollTo(0, 0); return; }
+      fecharMais(true); irPara('propostas');
+    },
+    instalarApp: function () {
+      var e = S.instalarEv;
+      if (!e || typeof e.prompt !== 'function') return;
+      S.instalarEv = null; atualizarInstalar();
+      try {
+        e.prompt();
+        if (e.userChoice && e.userChoice.then) e.userChoice.then(function (r) { if (r && r.outcome === 'accepted') toast('App instalado.'); });
+      } catch (x) { /* o navegador recusou: nada a fazer */ }
+    },
     criarConta: function () {
       S.msgEntrada = ''; S.emailPre = ''; S.cad = novoCad();
       try { history.replaceState(null, '', location.pathname + location.search + '#cadastro'); } catch (e) { /* ok */ }
@@ -2363,9 +2600,10 @@
     },
     cadEntrar: function () { S.msgEntrada = ''; S.fase = 'entrada'; pintar(); },
     cadVoltar: function () { lerCad($('[data-form=cad2]'), 2); irPasso(1); },
-    abrirMais: function () { var f = $('#np-folha'); f.innerHTML = folhaHTML(); f.hidden = false; $('#np-fundo').hidden = false; },
-    fecharMais: fecharMais,
+    abrirMais: function (el) { abrirMais(el); },
+    fecharMais: function () { fecharMais(); },
     sairConta: function () {
+      fecharMais(true);
       if (S.demo) { location.href = '/nexus/app'; return; }
       limparSessao(); S.eu = null; S.msgEntrada = ''; S.emailPre = ''; S.cad = null; S.fase = 'entrada'; S.propostas = null; S.ultima = null; S.procura = {};
       S.termoTxt = undefined; S.termoErro = false; S.termoMsg = ''; S.pedidosServ = null; S.confirmaPacote = 0; S.consultoriaAberta = false; S.plataformaPedida = false;
@@ -2402,7 +2640,7 @@
     aceitarTermo: function (el) { aceitarTermo(el); },
     imprimirTermo: imprimirTermo,
     recarregarTermo: function () { S.termoErro = false; S.termoTxt = undefined; carregarTermo(); },
-    irTermoParceria: function () { S.irTermo = true; fecharMais(); irPara('parceria'); },
+    irTermoParceria: function () { fecharMais(true); if (mobile()) { irPara('parceria/termo'); return; } S.irTermo = true; irPara('parceria'); },
     irTermo: function (el, e) { if (e && e.preventDefault) e.preventDefault(); var t = $('#np-termo'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
     criarLinkProp: function (el) {
       ocupado(el, true, 'Criando');
@@ -2512,7 +2750,8 @@
     var antes = S.rota + '/' + S.sub;
     S.rota = rh ? rh.r : 'inicio'; S.sub = rh ? rh.sub : '';
     if (S.rota !== 'equipamentos' || antes !== S.rota + '/' + S.sub) { if (!S.abrirCompra) { S.qtd = 1; S.foto = 0; } }
-    fecharMais();
+    fecharMais(true);
+    if (window.NexusFolha) window.NexusFolha.fecharTodas();
     pintarNav(); pintarMain();
   }
   function boot() {
@@ -2524,9 +2763,19 @@
     root.addEventListener('change', aoMudar);
     root.addEventListener('keydown', function (e) {
       if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.id === 'nx-logo-btn') { e.preventDefault(); $('#nx-logo-arq').click(); }
-      if (e.key === 'Escape') fecharMais();
     });
+    /* Digitando no celular: as barras fixas saem da frente (senao comem metade da tela que sobra com o teclado aberto). */
+    var campoTexto = function (el) { return !!(el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(checkbox|radio|button|submit|file|range)$/.test(el.type || '')); };
+    document.addEventListener('focusin', function (e) { if (mobile() && campoTexto(e.target)) document.documentElement.classList.add('np-teclado'); });
+    document.addEventListener('focusout', function () { setTimeout(function () { if (!campoTexto(document.activeElement)) document.documentElement.classList.remove('np-teclado'); }, 80); });
     window.addEventListener('hashchange', aoMudarHash);
+    /* Cruzou os 861 px (girou o aparelho, redimensionou a janela): fecha a gaveta e repinta no formato certo. */
+    var mudouTela = function () {
+      if (S.fase !== 'app' || !S.shell) return;
+      fecharMais(true); pintarNav();
+      if (!(S.rota === 'propostas' && S.sub !== 'lista')) pintarMain(true);   /* o gerador repinta a si mesmo e guarda o que foi digitado */
+    };
+    if (MQ) { if (MQ.addEventListener) MQ.addEventListener('change', mudouTela); else if (MQ.addListener) MQ.addListener(mudouTela); }
     var rt;
     window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(desenharGrafs, 150); });
 
