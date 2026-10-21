@@ -720,7 +720,7 @@ const PRI: Record<Classe, number> = { evento_p0: 0, reativo_p1: 1, lembrete_p1: 
 /** Grupo da lista explícita, sorteado com o sufixo trocado do que o pedido usa. */
 const GRUPO_DA_LISTA = '120363000000000000-group';
 /** Os robôs de agenda da regra do dono (07/10), escritos à parte. */
-const AGENDA = ['ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'ep_reagenda_auto', 'ep_remarcar_reativo', 'giovanna_agenda'];
+const AGENDA = ['ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'ep_reagenda_auto', 'ep_remarcar_reativo', 'giovanna_agenda', 'duda_agenda_5040'];
 /** Freios de VOLUME: nenhum deles pode ser o motivo de segurar agenda. */
 const FREIOS_DE_VOLUME = [
   'teto_proativo_total', 'teto_linha_hora', 'teto_linha_dia', 'reservado_prioridade_maior', 'volume_sustentado',
