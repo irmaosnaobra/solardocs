@@ -173,31 +173,32 @@ export const CAMPOS_AGENTE: CampoAgente[] = [
   { id: 'ctr-ti-deposito-quando', rotulo: 'Quando o depósito é feito', tipo: 'texto', maxLen: 80, modelos: TI, itens: { termo_inv: ['deposito.valor'] } },
   { id: 'ctr-ti-raio', rotulo: 'Distância do ponto, em km', tipo: 'inteiro', min: 0, max: 1000, unidade: 'km', modelos: TI, itens: { termo_inv: ['objeto.reserva'] } },
 
-  // ── Contrato solar do Fechamento (20/10/2026): `solar_m1` (Completo) e `solar_m2` (Padrão) ──────────────────────────
+  // ── Contrato solar do Fechamento (21/10/2026): um contrato só. `solar_m1` é o contrato; `solar_m2` é o mesmo, para papel antigo ──
   // Ids reais do formulário `fs-c-*`. Sensível = muda preço, equipamento ou o que a empresa promete ao cliente. NUNCA entram:
   // nome, CPF/CNPJ, RG, endereço e representante do cliente (`fs-*`), titular e número da UC, endereço da instalação
-  // (`fs-c-endinst`), número do contrato (`fs-c-num`), dados da empresa e o modelo (`fs-c-modelo`, que é a ação "modelo").
+  // (`fs-c-endinst`), número do contrato (`fs-c-num`), dados da empresa e as formas de pagamento montadas (`fs-c-pagjson`, que só a tela escreve, pelo Montar e Aplicar).
   // As chaves de item abaixo são o CONTRATO com o front: o modelo de cláusulas do Fechamento tem de usá-las.
   { id: 'fs-c-data', rotulo: 'Data do contrato', tipo: 'data', modelos: SOL, itens: { solar_m1: ['assinaturas.fecho'], solar_m2: ['assinaturas.fecho'] } },
   { id: 'fs-c-foro', rotulo: 'Cidade e foro (comarca; a cidade também sai na linha da assinatura)', tipo: 'texto', maxLen: 80, modelos: SOL, itens: { solar_m1: ['foro.comarca'], solar_m2: ['foro.comarca'] } },
   { id: 'fs-c-valor', rotulo: 'Valor total do contrato solar', tipo: 'dinheiro', min: 0.01, max: 100_000_000, unidade: 'R$', modelos: SOL, sensivel: true, itens: { solar_m1: ['preco.valor'], solar_m2: ['preco.valor'] } },
-  { id: 'fs-c-pagto', rotulo: 'Condições de pagamento do contrato solar (texto livre; sem forma na lista, vira a cláusula inteira)', tipo: 'texto', maxLen: 800, multilinha: true, modelos: SOL, sensivel: true, itens: { solar_m1: ['preco.forma'], solar_m2: ['preco.forma'] } },
+  { id: 'fs-c-sinal', rotulo: 'Sinal do contrato solar (arras penitenciais; fica fora da tabela de pagamento, que soma o saldo)', tipo: 'dinheiro', min: 0.01, max: 100_000_000, unidade: 'R$', modelos: SOL, sensivel: true, itens: { solar_m1: ['preco.sinal', 'preco.forma', 'rescisao.antes'], solar_m2: ['preco.sinal', 'preco.forma', 'rescisao.antes'] } },
+  { id: 'fs-c-pagto', rotulo: 'Como o cliente vai pagar (texto livre; só vira a tabela do contrato quando o consultor clica em Montar e Aplicar)', tipo: 'texto', maxLen: 800, multilinha: true, modelos: SOL, sensivel: true, itens: { solar_m1: ['preco.forma'], solar_m2: ['preco.forma'] } },
   { id: 'fs-c-kwp', rotulo: 'Potência instalada', tipo: 'numero', min: 0.1, max: 100_000, unidade: 'kWp', decimal: ',', modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
   { id: 'fs-c-geracao', rotulo: 'Geração média estimada (estimativa, nunca garantia)', tipo: 'numero', min: 1, max: 10_000_000, unidade: 'kWh/mês', decimal: ',', modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
-  { id: 'fs-c-nmod', rotulo: 'Número de módulos', tipo: 'inteiro', min: 1, max: 10_000, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-mod', rotulo: 'Marca e potência do módulo', tipo: 'texto', maxLen: 80, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-ninv', rotulo: 'Número de inversores', tipo: 'inteiro', min: 1, max: 500, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-tinv', rotulo: 'Tipo do inversor', tipo: 'opcao', opcoes: ['on-grid', 'hibrido', 'off-grid', 'microinversor'], valoresHtml: { hibrido: 'híbrido' }, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-minv', rotulo: 'Marca e modelo do inversor', tipo: 'texto', maxLen: 80, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-bat-marca', rotulo: 'Bateria: marca e modelo (vazio = sem bateria)', tipo: 'texto', maxLen: 80, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-bat-qtd', rotulo: 'Bateria: quantidade', tipo: 'inteiro', min: 1, max: 200, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-bat-cap', rotulo: 'Bateria: capacidade de cada uma', tipo: 'numero', min: 0.1, max: 10_000, unidade: 'kWh', decimal: ',', modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.componentes'] } },
-  { id: 'fs-c-bat-gar', rotulo: 'Garantia da bateria (do fabricante)', tipo: 'inteiro', min: 1, max: 30, unidade: 'anos', modelos: SOL, sensivel: true, itens: { solar_m1: ['garantias.bateria'], solar_m2: ['garantias.equipamentos'] } },
-  { id: 'fs-c-pproj', rotulo: 'Prazo do projeto técnico', tipo: 'inteiro', min: 1, max: 365, unidade: 'dias', modelos: SOL, itens: { solar_m1: ['prazos.projeto'], solar_m2: ['prazos.projeto'] } },
+  { id: 'fs-c-nmod', rotulo: 'Número de módulos', tipo: 'inteiro', min: 1, max: 10_000, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-mod', rotulo: 'Marca e potência do módulo', tipo: 'texto', maxLen: 80, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-ninv', rotulo: 'Número de inversores', tipo: 'inteiro', min: 1, max: 500, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-tinv', rotulo: 'Tipo do inversor', tipo: 'opcao', opcoes: ['on-grid', 'hibrido', 'off-grid', 'microinversor'], valoresHtml: { hibrido: 'híbrido' }, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-minv', rotulo: 'Marca e modelo do inversor', tipo: 'texto', maxLen: 80, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-bat-marca', rotulo: 'Bateria: marca e modelo (vazio = sem bateria)', tipo: 'texto', maxLen: 80, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-bat-qtd', rotulo: 'Bateria: quantidade', tipo: 'inteiro', min: 1, max: 200, modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-bat-cap', rotulo: 'Bateria: capacidade de cada uma', tipo: 'numero', min: 0.1, max: 10_000, unidade: 'kWh', decimal: ',', modelos: SOL, sensivel: true, itens: { solar_m1: ['objeto.sistema'], solar_m2: ['objeto.sistema'] } },
+  { id: 'fs-c-bat-gar', rotulo: 'Garantia da bateria (do fabricante)', tipo: 'inteiro', min: 1, max: 30, unidade: 'anos', modelos: SOL, sensivel: true, itens: { solar_m1: ['garantias.bateria'], solar_m2: ['garantias.bateria'] } },
+  { id: 'fs-c-pproj', rotulo: 'Prazo do projeto técnico, em dias úteis', tipo: 'inteiro', min: 1, max: 365, unidade: 'dias úteis', modelos: SOL, itens: { solar_m1: ['prazos.projeto'], solar_m2: ['prazos.projeto'] } },
   { id: 'fs-c-paprov', rotulo: 'Prazo de aprovação na concessionária', tipo: 'inteiro', min: 1, max: 365, unidade: 'dias', modelos: SOL, itens: { solar_m1: ['prazos.aprovacao'], solar_m2: ['prazos.aprovacao'] } },
   { id: 'fs-c-pinst', rotulo: 'Prazo da instalação (obra), em dias úteis', tipo: 'inteiro', min: 1, max: 365, unidade: 'dias úteis', modelos: SOL, itens: { solar_m1: ['prazos.obra'], solar_m2: ['prazos.obra'] } },
-  { id: 'fs-c-gmod', rotulo: 'Garantia dos módulos (do fabricante)', tipo: 'inteiro', min: 1, max: 40, unidade: 'anos', modelos: SOL, sensivel: true, itens: { solar_m1: ['garantias.modulos'], solar_m2: ['garantias.equipamentos'] } },
-  { id: 'fs-c-ginv', rotulo: 'Garantia do inversor (do fabricante)', tipo: 'inteiro', min: 1, max: 30, unidade: 'anos', modelos: SOL, sensivel: true, itens: { solar_m1: ['garantias.inversor'], solar_m2: ['garantias.equipamentos'] } },
+  { id: 'fs-c-gmod', rotulo: 'Garantia dos módulos (do fabricante)', tipo: 'inteiro', min: 1, max: 40, unidade: 'anos', modelos: SOL, sensivel: true, itens: { solar_m1: ['garantias.modulos'], solar_m2: ['garantias.modulos'] } },
+  { id: 'fs-c-ginv', rotulo: 'Garantia do inversor (do fabricante)', tipo: 'inteiro', min: 1, max: 30, unidade: 'anos', modelos: SOL, sensivel: true, itens: { solar_m1: ['garantias.inversor'], solar_m2: ['garantias.inversor'] } },
   { id: 'fs-c-ginst', rotulo: 'Garantia da instalação (a unidade está em "Unidade da garantia da instalação")', tipo: 'inteiro', min: 1, max: 120, modelos: SOL, itens: { solar_m1: ['garantias.instalacao'], solar_m2: ['garantias.instalacao'] } },
   { id: 'fs-c-ginstun', rotulo: 'Unidade da garantia da instalação', tipo: 'opcao', opcoes: ['anos', 'meses'], modelos: SOL, itens: { solar_m1: ['garantias.instalacao'], solar_m2: ['garantias.instalacao'] } },
 ];

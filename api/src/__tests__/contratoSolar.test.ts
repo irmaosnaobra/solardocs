@@ -54,31 +54,30 @@ const cl = (key: string, titulo: string, itens: ReturnType<typeof it_>[]) => ({ 
 
 const DISCLAIMER = 'A geração informada é uma ESTIMATIVA baseada na irradiação solar histórica da região e na potência instalada. A produção real varia conforme clima, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede, não constituindo garantia de geração mínima.';
 
-// Contrato Padrão (14 cláusulas), com as chaves propostas ao front.
+// Contrato solar único (10 cláusulas), com as chaves propostas ao front. O solar_m2 só reabre papel antigo e usa as mesmas chaves.
 const m2 = () => [
   cl('partes', 'Das partes', [
-    it_('partes.contratada', '[travado: partes]', { travado: true }), it_('partes.cliente', '[travado: partes]', { travado: true }),
-    it_('partes.resumo', '[travado: resumo]', { travado: true }),
+    it_('partes.contratada', '[travado: partes]', { travado: true }), it_('partes.contratante', '[travado: partes]', { travado: true }),
   ]),
   cl('objeto', 'Objeto', [
-    it_('objeto.sistema', '[travado: kwp]', { travado: true, campo: 'fs-c-kwp, fs-c-geracao' }),
+    it_('objeto.sistema', '[travado: kwp]', { travado: true, campo: 'fs-c-kwp, fs-c-geracao, fs-c-nmod, fs-c-mod, fs-c-ninv, fs-c-minv, fs-c-endinst' }),
     it_('objeto.geracao_nota', DISCLAIMER),
-    it_('objeto.componentes', '[travado: componentes]', { travado: true, campo: 'fs-c-nmod, fs-c-mod, fs-c-ninv, fs-c-minv' }),
-    it_('objeto.local', '[travado: local]', { travado: true, campo: 'fs-c-endinst' }),
-    it_('objeto.cliente_area', 'Fica no escopo do CLIENTE deixar a área em condições para implantação da usina, como por exemplo limpeza e terraplanagem quando se fizer necessário.'),
+    it_('objeto.cliente_area', 'Fica no escopo do CONTRATANTE deixar a área em condições para implantação da usina, como por exemplo limpeza e terraplanagem quando se fizer necessário.'),
   ]),
   cl('prazos', 'Prazos e execução', [
     it_('prazos.abertura', 'A CONTRATADA deverá:'),
-    it_('prazos.projeto', 'Submeter o projeto técnico em até 5 (cinco) dias após o cumprimento das obrigações pelo CLIENTE.', { campo: 'fs-c-pproj' }),
-    it_('prazos.aprovacao', 'Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até 40 (quarenta) dias, salvo pendências atribuídas ao CLIENTE ou terceiros.', { campo: 'fs-c-paprov' }),
+    it_('prazos.projeto', 'Submeter o projeto técnico em até 5 (cinco) dias após o cumprimento das obrigações pelo CONTRATANTE.', { campo: 'fs-c-pproj' }),
+    it_('prazos.aprovacao', 'Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até 40 (quarenta) dias, salvo pendências atribuídas ao CONTRATANTE ou terceiros.', { campo: 'fs-c-paprov' }),
     it_('prazos.obra', 'Realizar a instalação completa em até 10 (dez) dias úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.', { campo: 'fs-c-pinst' }),
-    it_('prazos.suspensao', 'Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CLIENTE, dos fabricantes ou de órgãos reguladores.'),
+    it_('prazos.suspensao', 'Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CONTRATANTE, dos fabricantes ou de órgãos reguladores.'),
   ]),
   cl('preco', 'Valor e condições de pagamento', [it_('preco.valor', '[travado: valor]', { travado: true }), it_('preco.forma', '[travado: pagamento]', { travado: true })]),
   cl('garantias', 'Garantias e manutenção', [
-    it_('garantias.equipamentos', 'Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo 25 (vinte e cinco) anos para módulos fotovoltaicos, 10 (dez) anos para o inversor, 5 (cinco) anos para a bateria, e prazos específicos para demais componentes conforme manual do fabricante.', { campo: 'fs-c-gmod, fs-c-ginv, fs-c-bat-gar' }),
+    it_('garantias.modulos', 'Módulos: garantia do fabricante de 25 (vinte e cinco) anos contra defeito de fabricação e degradação acima da prevista no manual.', { campo: 'fs-c-gmod' }),
+    it_('garantias.inversor', 'Inversor: garantia do fabricante de 10 (dez) anos contra defeito de funcionamento e falha de componentes eletrônicos.', { campo: 'fs-c-ginv' }),
+    it_('garantias.bateria', 'Bateria: garantia do fabricante de 5 (cinco) anos contra defeito de funcionamento e perda de capacidade acima da prevista no manual.', { campo: 'fs-c-bat-gar' }),
     it_('garantias.instalacao', 'Instalação: A garantia de instalação é de 1 (um) ano, válida somente para defeitos de instalação devidamente constatados por laudo técnico.', { campo: 'fs-c-ginst' }),
-    it_('garantias.exclusoes', 'Exclusões de Garantia: A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.'),
+    it_('garantias.perda', 'Exclusões de Garantia: A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.'),
   ]),
   cl('rescisao', 'Rescisão contratual', [it_('rescisao.geral', 'Este contrato poderá ser rescindido a qualquer momento, desde que uma das partes comunique a outra com antecedência mínima de 30 dias. Em caso de rescisão por descumprimento, será cobrada multa de 10% sobre o valor total do contrato.')]),
   cl('desempenho', 'Desempenho e geração de energia', [
@@ -87,7 +86,7 @@ const m2 = () => [
     it_('desempenho.responsabilidade', 'A CONTRATADA não se responsabiliza por perdas de geração de energia decorrentes de fatores externos ou mudanças estruturais no local de instalação, tais como sombras adicionais.'),
   ]),
   cl('manutencao', 'Manutenção preventiva e corretiva', [it_('manutencao.preventiva', 'Após o período de garantia, a CONTRATADA poderá oferecer um serviço de manutenção preventiva e corretiva, mediante a contratação específica entre as partes.')]),
-  cl('interrupcao', 'Multa por interrupção não autorizada', [it_('interrupcao.multa', 'Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.')]),
+  cl('interrupcao', 'Multa por interrupção não autorizada', [it_('interrupcao.multa', 'Caso o CONTRATANTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.')]),
   cl('foro', 'Foro', [it_('foro.comarca', 'As partes elegem o Foro da Comarca de Uberlândia para dirimir eventuais controvérsias decorrentes deste contrato, renunciando a qualquer outro foro.', { campo: 'fs-c-foro' })]),
   cl('assinaturas', 'Assinaturas', [it_('assinaturas.fecho', '[travado: assinaturas]', { travado: true, campo: 'fs-c-data' })]),
 ];
@@ -220,8 +219,8 @@ describe('lista branca do solar', () => {
 
   it('o catálogo do prompt traz os campos solares, a AIOROS e a regra de nunca escrever NEXUS no solar', () => {
     for (const c of solares) expect(SISTEMA_AGENTE).toContain(`"id":"${c.id}"`);
-    for (const t of ['Os nove modelos', 'Contratos solares (solar_m1 e solar_m2)', 'AIOROS GROUP LTDA', 'Irmãos na Obra', 'NUNCA escreva NEXUS', 'CLIENTE no solar_m2',
-      'CONTRATANTE no solar_m1', 'ESTIMATIVA', 'UM prazo só']) expect(SISTEMA_AGENTE, t).toContain(t);
+    for (const t of ['Os nove modelos', 'Contratos solares (solar_m1 e solar_m2)', 'AIOROS GROUP LTDA', 'Irmãos na Obra', 'NUNCA escreva NEXUS', 'O cliente é sempre o CONTRATANTE',
+      'fs-c-sinal', 'ESTIMATIVA', 'UM prazo só']) expect(SISTEMA_AGENTE, t).toContain(t);
   });
 
   it('os itens travados e as chaves de campo propostas ao front existem na lista de origem dos itens', () => {
@@ -232,7 +231,12 @@ describe('lista branca do solar', () => {
       for (const k of ITENS_TRAVADOS_SOLAR[m]) expect(k).toMatch(/^[a-z]+\.[a-z_]+$/);
     }
     expect(camposDoItem('solar_m1', 'garantias.modulos')).toEqual(['fs-c-gmod']);
-    expect(camposDoItem('solar_m2', 'garantias.equipamentos').sort()).toEqual(['fs-c-bat-gar', 'fs-c-ginv', 'fs-c-gmod']);
+    expect(camposDoItem('solar_m2', 'garantias.modulos')).toEqual(['fs-c-gmod']);
+    expect(camposDoItem('solar_m2', 'garantias.bateria')).toEqual(['fs-c-bat-gar']);
+    // O sinal é dado novo: manda no item do sinal e no do preço.
+    for (const m of ['solar_m1', 'solar_m2'] as const) expect(camposDoItem(m, 'preco.sinal'), m).toEqual(['fs-c-sinal']);
+    // Um contrato só: as listas de itens travados dos dois tipos são a mesma.
+    expect(ITENS_TRAVADOS_SOLAR.solar_m2).toEqual(ITENS_TRAVADOS_SOLAR.solar_m1);
   });
 
   it('validação: dinheiro BR, decimal com vírgula, inteiro e opção sem acento', () => {
@@ -263,7 +267,7 @@ describe('agente no contrato solar', () => {
 
   it('valor e percentual escritos por texto são descartados no solar; o que já existe no contrato passa', async () => {
     fila(ia({ acoes: [
-      operacao({ alvo: 'garantias.exclusoes', texto: 'A garantia vale mediante pagamento adicional de R$ 3.000,00.' }),
+      operacao({ alvo: 'garantias.perda', texto: 'A garantia vale mediante pagamento adicional de R$ 3.000,00.' }),
       operacao({ alvo: 'rescisao.geral', texto: 'Em caso de rescisão por descumprimento, será cobrada multa de 25% sobre o valor total do contrato.' }),
       operacao({ alvo: 'rescisao.geral', texto: 'Em caso de rescisão por descumprimento, será cobrada multa de 10% sobre o valor total do contrato, notificada por escrito.' }),
     ] }));
@@ -414,7 +418,7 @@ describe('conflitos próprios do solar', () => {
   });
 
   it('o agente devolve o conflito do solar já sobre o resultado das operações válidas', async () => {
-    fila(ia({ acoes: [operacao({ tipo: 'inserir_item', depois_de: 'garantias.exclusoes', texto: 'A garantia dos módulos é de 30 (trinta) anos.' })] }));
+    fila(ia({ acoes: [operacao({ tipo: 'inserir_item', depois_de: 'garantias.perda', texto: 'A garantia dos módulos é de 30 (trinta) anos.' })] }));
     const r = await ok('solar_m2');
     expect(r.bloqueado).toBe(true);
     expect(r.conflitos.map(c => c.descricao).join(' ')).toMatch(/garantia dos módulos aparece com prazos diferentes/);

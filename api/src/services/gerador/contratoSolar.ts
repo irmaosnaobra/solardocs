@@ -1,9 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTRATO SOLAR NO AGENTE (20/10/2026)
 //
-// Os dois contratos do Fechamento solar do /gerador entram no assistente de contrato:
-//   solar_m1  Completo (15 cláusulas, partes CONTRATADA e CONTRATANTE)
-//   solar_m2  Padrão (14 cláusulas, partes CONTRATADA e CLIENTE)
+// O contrato solar do Fechamento do /gerador entra no assistente de contrato. Desde 21/10/2026 é UM contrato só (10 cláusulas,
+// partes CONTRATADA e CONTRATANTE):
+//   solar_m1  o contrato solar. Todo contrato novo é salvo assim.
+//   solar_m2  o MESMO contrato: só existe para reabrir papel antigo (o Padrão de 14 cláusulas saiu). Mesmas chaves, mesmos travados.
 // Emitente sempre a AIOROS GROUP LTDA, marca Irmãos na Obra. A NEXUS nunca aparece no contrato solar.
 //
 // Este arquivo guarda o que é só do solar: a ficha de cada modelo para o prompt, a lista dos itens travados (o contrato
@@ -20,9 +21,10 @@ import {
 
 export const EMPRESA_SOLAR = 'AIOROS GROUP LTDA (marca Irmãos na Obra)';
 
+const FICHA_CONTRATO_SOLAR = 'contrato de fornecimento e instalação de sistema de energia solar fotovoltaica (10 cláusulas). Partes: CONTRATADA (a AIOROS GROUP LTDA, marca Irmãos na Obra) e CONTRATANTE (o cliente; pessoa física é consumidor e vale o CDC). Cobre: objeto e especificações do sistema, preço e pagamento (sinal como arras penitenciais, tabela de formas de pagamento, financiamento, cartão, multa e juros de atraso), prazos (projeto, aprovação da distribuidora, instalação, suspensões e atraso da CONTRATADA), homologação na distribuidora, obrigações do contratante, entrega e vistoria, garantias (módulos e inversor do fabricante, instalação da CONTRATADA, bateria se houver) e manutenção, geração de energia (a geração é ESTIMATIVA, nunca garantia), desistência e encerramento (arrependimento de 7 dias só de pessoa física) e disposições gerais com o foro. Travado: partes, qualificação do contratante, tabela de especificações do sistema, valor, sinal, forma de pagamento, assinaturas.';
 export const FICHA_SOLAR = {
-  solar_m1: 'solar_m1: contrato COMPLETO de fornecimento e instalação de sistema de energia solar fotovoltaica (15 cláusulas). Partes: CONTRATADA (a AIOROS GROUP LTDA, marca Irmãos na Obra) e CONTRATANTE (o cliente). Cobre: objeto e especificações, qualificação das partes, etapas dos serviços (visita técnica, projeto, aquisição, instalação, comissionamento, homologação), prazos (projeto, aprovação da concessionária, instalação), valor e pagamento, garantias (módulos e inversor do fabricante, instalação, bateria se houver), obrigações do contratante, homologação junto à concessionária, desempenho (a geração é ESTIMATIVA, nunca garantia), entrega e vistoria técnica, manutenção, rescisão, disposições gerais e foro. Travado: partes e qualificação, tabela de especificações do sistema, valor, forma de pagamento, assinaturas.',
-  solar_m2: 'solar_m2: contrato PADRÃO de serviços de instalação de usina fotovoltaica (14 cláusulas). Partes: CONTRATADA (a AIOROS GROUP LTDA, marca Irmãos na Obra) e CLIENTE (o cliente; neste modelo ele se chama CLIENTE, não CONTRATANTE). Cobre: objeto e componentes, prazos (projeto, aprovação, instalação), valor e pagamento, garantias e manutenção, obrigações do cliente, rescisão, disposições gerais, desempenho e geração (ESTIMATIVA, nunca garantia), manutenção preventiva e corretiva, vistoria técnica, transferência, responsabilidades ambientais, multa por interrupção não autorizada e foro. Travado: partes e quadro-resumo, valor, forma de pagamento, componentes do sistema, local da instalação, assinaturas.',
+  solar_m1: `solar_m1: ${FICHA_CONTRATO_SOLAR}`,
+  solar_m2: `solar_m2: o mesmo ${FICHA_CONTRATO_SOLAR} Só existe para reabrir papel antigo: contrato novo é sempre solar_m1.`,
 } as const;
 
 /**
@@ -30,9 +32,10 @@ export const FICHA_SOLAR = {
  * texto sobre o item que nasce de um campo mudado no mesmo turno (`itens` em contratoAgenteCampos.ts). Chave de cláusula
  * = prefixo antes do ponto. Itens com campo (não travados): prazos.projeto, prazos.aprovacao, prazos.obra, garantias.*, foro.comarca.
  */
+const TRAVADOS_SOLAR = ['partes.contratada', 'partes.contratante', 'qualificacao.contratante', 'objeto.sistema', 'preco.valor', 'preco.sinal', 'preco.forma', 'assinaturas.fecho'];
 export const ITENS_TRAVADOS_SOLAR: Record<'solar_m1' | 'solar_m2', string[]> = {
-  solar_m1: ['partes.contratada', 'partes.contratante', 'qualificacao.contratada', 'qualificacao.contratante', 'objeto.sistema', 'preco.valor', 'preco.forma', 'assinaturas.fecho'],
-  solar_m2: ['partes.contratada', 'partes.cliente', 'partes.resumo', 'partes.qualificacao', 'objeto.sistema', 'objeto.componentes', 'objeto.local', 'preco.valor', 'preco.forma', 'assinaturas.fecho'],
+  solar_m1: TRAVADOS_SOLAR,
+  solar_m2: TRAVADOS_SOLAR,
 };
 
 /**

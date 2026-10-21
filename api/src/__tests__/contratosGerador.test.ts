@@ -10,17 +10,18 @@
  * remissão aponta para item que existe, nenhuma chave repetida, sem "neste ato", sem "justo e contratado" e
  * sem travessão. "Não incluído" fica proibido só nos modelos já reescritos pelas regras da casa
  * (contratoRegras.ts); nos outros há `it.todo`. Ao terminar a reescrita de um modelo, tire o nome dele de
- * AINDA_NAO_REESCRITOS e a regra passa a valer.
+ * AINDA_NAO_REESCRITOS e a regra passa a valer. Todos os modelos estão reescritos (o solar, o último, em 21/10/2026).
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import { conflitosSolar, geracaoComoGarantia } from '../services/gerador/contratoSolar';
 
 const HTML = join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador', 'index.html');
 
 // Modelos cujo texto ainda não foi reescrito pelas regras da casa. Remova daqui quando for reescrito.
-const AINDA_NAO_REESCRITOS = ['solar_m1', 'solar_m2'];
+const AINDA_NAO_REESCRITOS: string[] = [];
 
 // ─── O sandbox ───────────────────────────────────────────────────────────────
 type Ctx = Record<string, any>;
@@ -115,12 +116,17 @@ function gerar(tipo: string, c: Record<string, string>, extra: Extra = {}) {
 
 function gerarSolar(m: 1 | 2, c: Record<string, string>) {
   for (const k of Object.keys(campos)) delete campos[k];
-  Object.assign(campos, { 'fs-c-modelo': String(m), ...c });
+  Object.assign(campos, c);
+  rodar('ctrIa = { pedidos: [] };');
   return rodar(`(() => {
     const d = fsCtrDados();
     const modelo = ctrModeloSolar(d, ${m});
     const { resolver, quebradas, pos } = ctrNumerarSolar(ctrSolarEstilos(modelo));
-    return { d, modelo, quebradas, pos, resolver, blocos: fsCtrBlocosSolar(d, ${m}).blocos };
+    // O modelo com os pedidos aplicados, no formato que o assistente manda ao servidor (travado vira marcador, o campo vem de ctrIaCampo).
+    const efet = ctrIaAplicar(modelo, ctrIaPedidos('solar_m1')).modelo;
+    const paraServidor = efet.map(c => ({ key: c.key, titulo: c.titulo, travada: !!c.travada, itens: c.itens.map(it => ({ key: it.key, travado: !!it.travado,
+      campo: ctrIaCampo('solar_m1', it.key), html: it.travado ? '[travado: ' + it.key + ']' : String(it.iaTexto || it.html).split(SOL_PUA).join('') })) }));
+    return { d, modelo, quebradas, pos, resolver, blocos: fsCtrBlocosSolar(d, ${m}).blocos, paraServidor, igual: JSON.stringify(ctrModeloSolar(d, 1)) === JSON.stringify(ctrModeloSolar(d, 2)), trava: fsPagTrava(d) };
   })()`);
 }
 
@@ -262,9 +268,40 @@ const CENARIOS: Record<string, Cenario[]> = {
   ],
 };
 
-const SOLAR = { 'fs-c-num': 'TESTE-1', 'fs-c-data': '2026-10-20', 'fs-c-foro': 'Cidade Teste/MG', 'fs-c-kwp': '10,8', 'fs-c-nmod': '20', 'fs-c-mod': 'Módulo Teste 540 W', 'fs-c-ninv': '1', 'fs-c-tinv': 'On-grid', 'fs-c-minv': 'Inversor Teste 10 kW',
-  'fs-c-valor': '45.000,00', 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas', 'fs-c-geracao': '1.400', 'fs-c-pproj': '10', 'fs-c-paprov': '30', 'fs-c-pinst': '15', 'fs-c-gmod': '25', 'fs-c-ginv': '10', 'fs-c-ginst': '5', 'fs-c-ginstun': 'anos',
+const SOLAR = { 'fs-nome': 'Cliente Teste', 'fs-tipo': 'PF', 'fs-doc': '111.444.777-35', 'fs-end': 'Rua Exemplo, 100', 'fs-bairro': 'Centro', 'fs-cidade': 'Cidade Teste', 'fs-uf': 'MG',
+  'fs-c-num': 'TESTE-1', 'fs-c-data': '2026-10-20', 'fs-c-foro': 'Cidade Teste/MG', 'fs-c-kwp': '10,8', 'fs-c-nmod': '20', 'fs-c-mod': 'Módulo Teste 540 W', 'fs-c-ninv': '1', 'fs-c-tinv': 'On-grid', 'fs-c-minv': 'Inversor Teste 10 kW',
+  'fs-c-valor': '45.000,00', 'fs-c-geracao': '1.400', 'fs-c-pproj': '10', 'fs-c-paprov': '30', 'fs-c-pinst': '15', 'fs-c-gmod': '25', 'fs-c-ginv': '10', 'fs-c-ginst': '5', 'fs-c-ginstun': 'anos',
   'fs-c-endinst': 'Rua Exemplo, 100, Cidade Teste/MG' };
+const SOLAR_PJ = { ...SOLAR, 'fs-nome': 'Empresa Teste Ltda', 'fs-tipo': 'PJ', 'fs-doc': '11.222.333/0001-81', 'fs-rep': 'Representante Teste' };
+const SOLAR_BAT = { 'fs-c-bat-marca': 'Bateria Teste 5 kWh', 'fs-c-bat-qtd': '2', 'fs-c-bat-cap': '5', 'fs-c-bat-gar': '5' };
+// As formas de pagamento moram no campo escondido fs-c-pagjson (JSON). O sandbox já carregou a ctrPagLinha da tela.
+const pagJson = (...l: any[][]) => JSON.stringify(l.map(a => SB.ctrPagLinha(...a)));
+const PIX_RESTO = () => pagJson(['Pix', 0, 1, 0, 'Na assinatura do contrato', '', { resto: true }]);
+type CenarioSolar = { nome: string; campos: () => Record<string, string>; vale?: (r: any) => void; lacuna?: boolean };
+const SOLAR_CENARIOS: CenarioSolar[] = [
+  { nome: 'pessoa física, sem sinal', campos: () => ({ ...SOLAR, 'fs-c-pagjson': PIX_RESTO() }),
+    vale: ambos(foroDoConsumidor, r => tem(r, /desistir dele em até 7 \(sete\) dias/, /10% \(dez por cento\) do preço/, /fora do prazo da cláusula 9\.1/), r => nao(r, 'arras penitenciais'), r => expect(r.blocos.join('')).toMatch(/<b>Obra que não estiver/)) },
+  { nome: 'pessoa física, com sinal e Pix', campos: () => ({ ...SOLAR, 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': PIX_RESTO() }),
+    vale: ambos(r => tem(r, 'arras penitenciais', 'em dobro', /O saldo de\s+R\$ 40\.000,00/, /desistir fora do prazo da cláusula 9\.1/), r => nao(r, /10% \(dez por cento\) do preço/), r => expect(r.d.saldo).toBe(40000)) },
+  { nome: 'empresa, sem sinal', campos: () => ({ ...SOLAR_PJ, 'fs-c-pagjson': PIX_RESTO() }),
+    vale: ambos(r => tem(r, 'Representante Teste', /10% \(dez por cento\) do preço/, 'com renúncia a qualquer outro'), r => nao(r, /domic[ií]lio/, /desistir dele em até 7 \(sete\) dias/, /arrependimento/i),
+      r => expect(r.blocos.join('')).not.toMatch(/<b>Obra que não estiver/)) },
+  { nome: 'empresa, com sinal', campos: () => ({ ...SOLAR_PJ, 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': PIX_RESTO() }),
+    vale: ambos(r => tem(r, 'arras penitenciais', 'em dobro'), r => nao(r, /domic[ií]lio/, /desistir fora do prazo da cláusula/, /desistir dele em até 7 \(sete\) dias/)) },
+  { nome: 'financiamento: entrada no Pix e o restante financiado', campos: () => ({ ...SOLAR, 'fs-c-pagjson': pagJson(['Pix', 15000, 1, 0, 'Na assinatura'], ['Financiamento bancário', 0, 36, 0, 'Na liberação do crédito', '', { resto: true }]) }),
+    vale: ambos(r => tem(r, 'Financiamento bancário', 'depende do banco', 'liberar o crédito em até 30 (trinta) dias', /acaba sem multa/), r => expect(r.d.temFin).toBe(true)) },
+  { nome: 'cartão em 10x', campos: () => ({ ...SOLAR, 'fs-c-pagjson': pagJson(['Cartão de crédito', 0, 10, 0, 'Na assinatura do contrato', '', { resto: true }]) }),
+    vale: ambos(r => tem(r, 'Cartão de crédito', 'No cartão, o pagamento conta como feito na autorização', 'O acréscimo do parcelamento já está nas parcelas'), r => expect(r.d.temAcr).toBe(true)) },
+  { nome: 'com bateria', campos: () => ({ ...SOLAR, ...SOLAR_BAT, 'fs-c-pagjson': PIX_RESTO() }),
+    vale: ambos(r => tem(r, 'Bateria Teste 5 kWh', /garantia do fabricante de 5 \(cinco\) anos contra defeito de funcionamento e perda de capacidade/)) },
+  { nome: 'sem geração informada: a tabela não promete nada e a cláusula de geração fica', campos: () => ({ ...SOLAR, 'fs-c-geracao': '', 'fs-c-pagjson': PIX_RESTO() }),
+    vale: ambos(r => nao(r, 'Geração estimada'), r => tem(r, 'não promessa nem garantia')) },
+  { nome: 'garantia da instalação em meses', campos: () => ({ ...SOLAR, 'fs-c-ginst': '18', 'fs-c-ginstun': 'meses', 'fs-c-pagjson': PIX_RESTO() }), vale: r => tem(r, /garantia da CONTRATADA de 18 \(dezoito\) meses/) },
+  { nome: 'conta de luz em nome de outra pessoa', campos: () => ({ ...SOLAR, 'fs-p-tuc-nome': 'Titular Teste', 'fs-c-pagjson': PIX_RESTO() }), vale: ambos(r => tem(r, 'Como a conta de energia está em nome de outra pessoa'), r => nao(r, 'Titular Teste')) },
+  { nome: 'papel antigo: forma de pagamento só em texto, sem tabela', lacuna: false, campos: () => ({ ...SOLAR, 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' }),
+    vale: ambos(r => tem(r, 'Entrada de 30% e saldo em 12 parcelas'), r => expect(r.trava).toMatch(/só em texto/), r => expect(r.d.pagLinhas).toEqual([])) },
+];
+const noModeloSolar = (r: any) => r.modelo.flatMap((c: any) => c.itens.map((i: any) => i.key));
 
 // ─── As verificações ─────────────────────────────────────────────────────────
 function confereEstrutura(r: any, rotulo: string) {
@@ -295,7 +332,7 @@ beforeAll(() => { SB = criarSandbox(); }, 30000);
 describe('contratos do /gerador: o sandbox carrega o index.html real', () => {
   it('os scripts inline rodam e as funções dos contratos existem', () => {
     expect(SB.__errosDeCarga).toEqual([]);
-    for (const f of ['ctrModelo', 'ctrModeloSociedade', 'ctrModeloObra', 'ctrModeloEquip', 'ctrModeloArrend', 'ctrModeloTermoInv', 'ctrModeloTermoArr', 'ctrModeloSolarM1', 'ctrModeloSolarM2', 'ctrNumerar', 'ctrPagTrava']) {
+    for (const f of ['ctrModelo', 'ctrModeloSociedade', 'ctrModeloObra', 'ctrModeloEquip', 'ctrModeloArrend', 'ctrModeloTermoInv', 'ctrModeloTermoArr', 'ctrModeloSolarUnico', 'ctrNumerar', 'ctrPagTrava', 'fsPagTrava']) {
       expect(typeof SB[f], f).toBe('function');
     }
   });
@@ -322,11 +359,23 @@ describe('contratos do /gerador: estrutura de todos os modelos', () => {
       }
     });
   }
-  for (const m of [1, 2] as const) {
-    it(`solar_m${m}: sem marcador solto, sem undefined, remissões e chaves em ordem`, () => {
-      confereEstrutura(gerarSolar(m, SOLAR), `solar_m${m}`);
-    });
-  }
+  describe('solar', () => {
+    for (const c of SOLAR_CENARIOS) {
+      for (const m of [1, 2] as const) {
+        it(`solar_m${m} / ${c.nome}: sem marcador solto, sem undefined, remissões e chaves em ordem`, () => {
+          const r = gerarSolar(m, c.campos());
+          noPapel(r, r.d.cli.nome);
+          if (c.vale) c.vale(r);
+          confereEstrutura(r, `solar_m${m} / ${c.nome}`);
+          if (!c.lacuna) {
+            const html = r.blocos.join('');
+            const onde = [...html.matchAll(/ep-rec-vazio/g)].map(x => html.slice(Math.max(0, x.index! - 90), x.index!).replace(/<[^>]+>/g, '').replace(/\s+/g, ' '));
+            expect(onde, `solar / ${c.nome}: lacuna sobrando depois de`).toEqual([]);
+          }
+        });
+      }
+    }
+  });
 });
 
 describe('contratos do /gerador: regras de escrita da casa', () => {
@@ -339,9 +388,15 @@ describe('contratos do /gerador: regras de escrita da casa', () => {
     }
     if (!reescrito) it.todo(`${modelo}: sem "Não incluído" (ligar quando a reescrita sair)`);
   }
-  for (const m of [1, 2] as const) {
-    it(`solar_m${m}: sem "neste ato", "justo e contratado" nem travessão`, () => confereEstilo(gerarSolar(m, SOLAR), 'solar_m' + m, false));
-    if (AINDA_NAO_REESCRITOS.includes('solar_m' + m)) it.todo(`solar_m${m}: sem "Não incluído" (ligar quando a reescrita sair)`);
+  for (const c of SOLAR_CENARIOS) {
+    it(`solar / ${c.nome}: sem "neste ato", "doravante", "mediante", "Não incluído", travessão nem NEXUS`, () => {
+      const r = gerarSolar(1, c.campos());
+      confereEstilo(r, 'solar / ' + c.nome, true);
+      const t = textoDe(r);
+      expect(t).not.toMatch(/doravante|mediante|justifica/i);
+      expect(t, 'a AIOROS emite: NEXUS não aparece').not.toMatch(/nexus/i);
+      expect(r.blocos.join(''), 'NEXUS nem no HTML (logo, alt)').not.toMatch(/nexus/i);
+    });
   }
   it('as verificações pegam o defeito (o teste não passa por ficar cego)', () => {
     const falso = (html: string) => ({ modelo: [{ key: 'a', titulo: 'Da coisa', itens: [{ key: 'a.1', html }] }], resolver: (h: string) => h, quebradas: [], blocos: ['<p>' + html + '</p>'] });
@@ -354,6 +409,103 @@ describe('contratos do /gerador: regras de escrita da casa', () => {
 });
 
 // ─── O pagamento (ctrPag*) ───────────────────────────────────────────────────
+// ─── O contrato solar único ──────────────────────────────────────────────────
+describe('contrato solar: um contrato só, sem promessa de geração, com pagamento que fecha', () => {
+  it('solar_m1 e solar_m2 devolvem exatamente o mesmo modelo, e o título é um só', () => {
+    for (const c of SOLAR_CENARIOS) {
+      const r = gerarSolar(1, c.campos());
+      expect(r.igual, c.nome).toBe(true);
+      expect(r.blocos[0], c.nome).toContain('Contrato de Fornecimento e Instalação de Sistema de Energia Solar Fotovoltaica');
+      expect(gerarSolar(2, c.campos()).blocos.join(''), c.nome).toBe(r.blocos.join(''));
+    }
+  });
+  it('dez cláusulas numeradas, nenhuma com mais de 8 itens, partes e assinaturas sem número', () => {
+    const r = gerarSolar(1, { ...SOLAR, ...SOLAR_BAT, 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': pagJson(['Pix', 15000, 1, 0, 'Na assinatura'], ['Financiamento bancário', 0, 36, 0, 'Na liberação do crédito', '', { resto: true }], ['Cartão de crédito', 5000, 10, 0, '']) });
+    const numeradas = r.modelo.filter((c: any) => !c.semNumero);
+    expect(numeradas.map((c: any) => c.key)).toEqual(['objeto', 'preco', 'prazos', 'homologacao', 'obrigacoes', 'entrega', 'garantias', 'desempenho', 'rescisao', 'gerais']);
+    for (const c of numeradas) expect(c.itens.length, c.key).toBeLessThanOrEqual(8);
+    expect(r.modelo.filter((c: any) => c.semNumero).map((c: any) => c.key)).toEqual(['partes', 'assinaturas']);
+    expect(noModeloSolar(r).filter((k: string) => /^(etapas|qualificacao\.contratada|manutencao\.(garantia|limpeza)|preco\.inicio|objeto\.geracao)/.test(k))).toEqual([]);
+  });
+  it('as regras do texto: o foro só existe em foro.comarca, os prazos vêm de um lugar só, sem multa de 5% por mexer no sistema', () => {
+    for (const c of SOLAR_CENARIOS) {
+      const r = gerarSolar(1, c.campos());
+      const foros = r.modelo.flatMap((cl: any) => cl.itens.filter((i: any) => /\bforo\b/i.test(String(i.html).replace(/<[^>]+>/g, ''))).map((i: any) => i.key));
+      expect(foros, c.nome).toEqual(['foro.comarca']);
+      expect(textoDe(r), c.nome).not.toMatch(/5% \(cinco por cento\)|variação de até 10%/);
+      expect(textoDe(r), c.nome).toMatch(/60 \(sessenta\) dias de atraso/);
+      expect(textoDe(r), c.nome).toMatch(/30 \(trinta\) dias/);
+    }
+  });
+  it('nenhuma promessa de geração ou de economia, e nenhum conflito do servidor, em todos os casos', () => {
+    for (const c of SOLAR_CENARIOS) {
+      const r = gerarSolar(1, c.campos());
+      const textos = r.paraServidor.flatMap((cl: any) => [cl.titulo, ...cl.itens.filter((i: any) => !i.travado).map((i: any) => i.html)]);
+      expect(geracaoComoGarantia(...textos), c.nome + ': promete geração').toBe(false);
+      expect(conflitosSolar(r.paraServidor, 'solar_m1' as any), c.nome).toEqual([]);
+    }
+  });
+  it('a checagem enxerga o defeito: promessa de geração e dois prazos de garantia são pegos', () => {
+    const r = gerarSolar(1, { ...SOLAR, 'fs-c-pagjson': PIX_RESTO() });
+    const ruim = [...r.paraServidor, { key: 'extra', titulo: 'Extra', travada: false, itens: [{ key: 'extra.1', travado: false, campo: null, html: 'A CONTRATADA garante geração mínima de 1.400 kWh por mês.' },
+      { key: 'extra.2', travado: false, campo: null, html: 'A garantia da instalação é de 2 (dois) anos.' }] }];
+    const c = conflitosSolar(ruim, 'solar_m1' as any).map(x => x.categoria);
+    expect(c).toContain('geracao');
+    expect(c).toContain('garantia');
+  });
+  it('arrependimento de 7 dias: só a pessoa física tem a cláusula, e só ela é consumidor no foro', () => {
+    const pf = gerarSolar(1, { ...SOLAR, 'fs-c-pagjson': PIX_RESTO() }), pj = gerarSolar(1, { ...SOLAR_PJ, 'fs-c-pagjson': PIX_RESTO() });
+    expect(noModeloSolar(pf)).toContain('rescisao.arrependimento');
+    expect(noModeloSolar(pj)).not.toContain('rescisao.arrependimento');
+    expect(textoDe(pf)).toMatch(/domic[ií]lio/);
+    expect(textoDe(pj)).not.toMatch(/domic[ií]lio/);
+  });
+  it('a tabela de pagamento sai no mesmo bloco da frase, com a soma e as colunas', () => {
+    const r = gerarSolar(1, { ...SOLAR, 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': pagJson(['Pix', 15000, 1, 0, 'Na assinatura'], ['Pix', 0, 1, 0, 'Na conclusão', '', { resto: true }]) });
+    const bloco = r.blocos.find((b: string) => /é pago como no quadro abaixo/.test(b));
+    expect(bloco).toBeTruthy();
+    expect(bloco).toContain('ep-ctr-pag');
+    expect(bloco.replace(/<[^>]+>/g, ' ')).toMatch(/Forma\s+Valor\s+Condição\s+Vencimento/);
+    expect(r.d.pagSoma).toBe(40000);
+    expect(r.trava).toBe('');
+  });
+  it('a trava do Gerar: soma diferente do saldo, forma incompleta, só texto e sem nada bloqueiam; o sinal fica fora da soma', () => {
+    const trava = (c: Record<string, string>) => gerarSolar(1, { ...SOLAR, ...c }).trava as string;
+    expect(trava({ 'fs-c-pagjson': PIX_RESTO() })).toBe('');
+    expect(trava({ 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': PIX_RESTO() })).toBe('');
+    expect(trava({ 'fs-c-sinal': '5.000,00', 'fs-c-pagjson': pagJson(['Pix', 45000, 1, 0, '']) })).toMatch(/somam R\$ 45\.000,00 e o valor devido é R\$ 40\.000,00/);
+    expect(trava({ 'fs-c-pagjson': pagJson(['Pix', 30000, 1, 0, '']) })).toMatch(/somam R\$ 30\.000,00 e o valor devido é R\$ 45\.000,00/);
+    expect(trava({ 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' })).toMatch(/só em texto/);
+    expect(trava({})).toMatch(/lista está vazia/);
+    expect(trava({ 'fs-c-pagjson': pagJson(['Cartão de crédito', 0, 7, 0, '', '', { resto: true }]) })).toMatch(/7x não tem taxa/);
+  });
+  it('pedido salvo do assistente em papel antigo: a chave que mudou é traduzida, o pedido vira solar_m1 e o texto antigo falha de forma visível', () => {
+    gerarSolar(1, { ...SOLAR, 'fs-c-pagjson': PIX_RESTO() });
+    const m2 = rodar(`ctrSolarPedidoLegado({ id: 'p1', tipo: 'solar_m2', ops: [{ tipo: 'substituir_item', alvo: 'garantias.exclusoes', texto: 'Vale {{i:prazos.nota}} e {{c:manutencao}}.' },
+      { tipo: 'inserir_item', depois_de: 'multa.interrupcao', texto: 'Novo.' }, { tipo: 'remover_clausula', alvo: 'ambiental' }] })`);
+    expect(m2.tipo).toBe('solar_m1');
+    expect(m2.ops[0].alvo).toBe('garantias.perda');
+    expect(m2.ops[0].texto).toBe('Vale {{i:prazos.suspensao}} e {{c:garantias}}.');
+    expect(m2.ops[1].depois_de).toBe('obrigacoes.intervencao');
+    expect(m2.ops[2].alvo).toBe('objeto');
+    const m1 = rodar(`ctrSolarPedidoLegado({ id: 'p2', tipo: 'solar_m1', ops: [{ tipo: 'substituir_item', alvo: 'etapas.visita', texto: 'x' }, { tipo: 'remover_item', alvo: 'foro.comarca' }] })`);
+    expect(m1.tipo).toBe('solar_m1');
+    expect(m1.ops[0].alvo).toBe('objeto.escopo');
+    expect(m1.ops[1].alvo).toBe('foro.comarca');
+    // Aplicado ao contrato novo: sem texto antigo (base) entra; com o texto antigo falha de forma visível, e o papel sai com o texto dos campos.
+    SB.__p = [m2]; SB.__p2 = [{ ...m2, id: 'p3', ops: [{ ...m2.ops[0], base: 'Texto antigo do item.' }] }];
+    const livre = rodar('ctrIaAplicar(ctrModeloSolar(fsCtrDados()), __p)'), velho = rodar('ctrIaAplicar(ctrModeloSolar(fsCtrDados()), __p2)');
+    expect(livre.relatorio[0].mudancas.some((x: any) => x.tipo === 'troca')).toBe(true);
+    expect(velho.relatorio[0].falhas.length).toBe(1);
+    expect(velho.relatorio[0].falhas[0].motivo).toMatch(/mudou depois do pedido/);
+  });
+  it('com texto E tabela, o contrato imprime só a tabela (o texto livre não vira papel)', () => {
+    const r = gerarSolar(1, { ...SOLAR, 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas', 'fs-c-pagjson': PIX_RESTO() });
+    expect(textoDe(r)).not.toMatch(/Entrada de 30%/);
+    expect(r.trava).toBe('');
+  });
+});
+
 describe('contratos do /gerador: tabela de pagamento', () => {
   const L = (...a: any[]) => SB.ctrPagLinha(...a);
   it('aporte 72.500 com sinal 10.000 no cartão em 10x: restante 62.500, parcela 6.937,50, total 69.375,00', () => {

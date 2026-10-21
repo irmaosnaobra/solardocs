@@ -24037,7 +24037,7 @@ function ctrPagCalc(linhas, saldo) {
   return { linhas: ls, itens, contas, soma, dif: ctrCent((saldo || 0) - soma), incompletas: contas.filter(c => c.incompleto).map(c => c.incompleto) };
 }
 // Os modelos que imprimem a tabela de pagamento. Arrendamento e termo do arrendador não cobram nada do cliente.
-const CTR_PAG_IMPRIME = ['completo', 'equip', 'socio50', 'cotas', 'termo_inv'];
+const CTR_PAG_IMPRIME = ['completo', 'equip', 'socio50', 'cotas', 'termo_inv', 'solar_m1', 'solar_m2'];
 // O que impede de gerar o contrato (texto vazio = pode gerar). Sem "gerar assim mesmo": foi assim que saiu um contrato
 // com "Cartão R$ 72.000,00" para um saldo de R$ 62.500,00.
 // `soTexto`: a lista está vazia mas há texto (observações ou "Como o cliente vai pagar"): a mensagem manda montar a tabela.
@@ -26271,23 +26271,20 @@ CTR_IA_CAMPOS_TIPO.termo_inv = {
 // Contrato solar do Fechamento. O servidor casa o id do campo (fs-c-*) no texto para achar a garantia e a obra: o id tem de estar aqui.
 const CTR_IA_CAMPOS_SOLAR = {
   'prazos.projeto': 'Contrato > Prazos > Projeto (fs-c-pproj)', 'prazos.aprovacao': 'Contrato > Prazos > Aprovação (fs-c-paprov)',
-  'prazos.obra': 'Contrato > Prazos > Instalação, em dias úteis (fs-c-pinst)', 'foro.comarca': 'Contrato > Modelo do contrato > Cidade e foro (fs-c-foro)',
+  'prazos.obra': 'Contrato > Prazos > Instalação, em dias úteis (fs-c-pinst)', 'foro.comarca': 'Contrato > Dados do contrato > Cidade e foro (fs-c-foro)',
   'garantias.instalacao': 'Contrato > Garantias > Instalação e Unidade (fs-c-ginst, fs-c-ginstun)',
   // Travados: a IA não mexe, mas precisa do nome exato do campo para explicar.
-  'objeto.sistema': 'Contrato > Sistema contratado e Bateria (fs-c-kwp, fs-c-geracao, fs-c-nmod, fs-c-mod, fs-c-ninv, fs-c-minv, fs-c-bat-*)',
-  'objeto.componentes': 'Contrato > Sistema contratado e Bateria (fs-c-nmod, fs-c-mod, fs-c-ninv, fs-c-tinv, fs-c-minv, fs-c-bat-*)',
-  'objeto.local': 'Contrato > Sistema contratado > Endereço de instalação (fs-c-endinst)',
-  'preco.valor': 'Contrato > Valor e pagamento > Valor total (fs-c-valor)', 'preco.forma': 'Contrato > Valor e pagamento > Condições de pagamento (fs-c-pagto)',
+  'objeto.sistema': 'Contrato > Sistema contratado e Bateria (fs-c-kwp, fs-c-geracao, fs-c-nmod, fs-c-mod, fs-c-ninv, fs-c-tinv, fs-c-minv, fs-c-endinst, fs-c-bat-*)',
+  'preco.valor': 'Contrato > Valor e pagamento > Valor total (fs-c-valor)', 'preco.sinal': 'Contrato > Valor e pagamento > Sinal (fs-c-sinal)',
+  'preco.forma': 'Contrato > Valor e pagamento > Como o cliente vai pagar e as formas montadas (fs-c-pagto)',
   // Sem a palavra "foro" nem o id fs-c-foro aqui: o servidor conta como foro todo item cujo campo a cita, e o fecho viraria o segundo.
-  'assinaturas.fecho': 'Contrato > Modelo do contrato > Data (fs-c-data)',
+  'assinaturas.fecho': 'Contrato > Dados do contrato > Data (fs-c-data)',
 };
 CTR_IA_CAMPOS_TIPO.solar_m1 = Object.assign({}, CTR_IA_CAMPOS_SOLAR, {
   'garantias.modulos': 'Contrato > Garantias > Módulos (fs-c-gmod)', 'garantias.inversor': 'Contrato > Garantias > Inversor (fs-c-ginv)',
   'garantias.bateria': 'Contrato > Bateria > Garantia (fs-c-bat-gar)',
 });
-CTR_IA_CAMPOS_TIPO.solar_m2 = Object.assign({}, CTR_IA_CAMPOS_SOLAR, {
-  'garantias.equipamentos': 'Contrato > Garantias > Módulos e Inversor (fs-c-gmod, fs-c-ginv) e Bateria > Garantia (fs-c-bat-gar)',
-});
+CTR_IA_CAMPOS_TIPO.solar_m2 = CTR_IA_CAMPOS_TIPO.solar_m1;   // um contrato só; o solar_m2 só aparece em papel antigo
 const ctrIaCampo = (tipo, key) => (tipo === 'completo' ? CTR_IA_CAMPOS : (CTR_IA_CAMPOS_TIPO[tipo] || {}))[key] || null;
 
 // Números que a IA escreveu e que não estavam nem no contrato nem no pedido:
@@ -26370,8 +26367,8 @@ function ctrAgSync(forcar) {
 function ctrAgDoCtx(q) { return q === ctrAgCtx ? ctrAg : ((ctrAgGaveta[q] && ctrAgGaveta[q].ctrAg) || ctrAgNovo()); }
 // O que muda com o contexto na tela: onde o botão de gerar liga e desliga.
 function ctrAgUi() { if (ctrAgCtx === 'sol') fsAgUi(); else ctrHibUi(); }
-// "Fechamento solar > Modelo": 1 é o Completo (solar_m1), qualquer outro é o Padrão (solar_m2), como o fsCtrDados lê.
-function fsModeloSolar() { const el = document.getElementById('fs-c-modelo'); return el && el.value === '1' ? 1 : 2; }
+// Contrato solar único (21/10/2026): sempre solar_m1. O seletor "Modelo" saiu da tela.
+function fsModeloSolar() { return 1; }
 const CTR_AG_SOL_NAO = {
   modelo: 'No contrato solar o modelo se escolhe no campo "Modelo" do Fechamento. O assistente não troca de modelo.',
   hibrido: 'O contrato solar não tem versão híbrida.',
@@ -30384,8 +30381,7 @@ function fsMontar() {
       <button type="button" class="fs-tab" role="tab" data-aba="vistoria" onclick="fsAba('vistoria')">Vistoria</button>
     </div>
     <div id="fs-pane-contrato">` +
-      fsCard('Modelo do contrato', `<div class="fs-grid">
-        ${fsF('fs-c-modelo', 'Modelo', { cls: 's2', sel: [['2', 'Padrão (14 cláusulas)'], ['1', 'Completo (15 cláusulas)']] })}
+      fsCard('Dados do contrato', `<div class="fs-grid">
         ${fsF('fs-c-num', 'Nº do contrato <span class="hint">(opcional)</span>', { ph: '001/2026' })}
         ${fsF('fs-c-data', 'Data', { type: 'date' })}
         ${fsF('fs-c-foro', 'Cidade e foro', { cls: 's2', ph: 'Uberlândia' })}
@@ -30408,10 +30404,15 @@ function fsMontar() {
       </div>`) +
       fsCard('Valor e pagamento', `<div class="fs-grid">
         ${fsF('fs-c-valor', 'Valor total', Object.assign({ cls: 's2' }, dinheiro, { ph: '27.400,00' }))}
-        ${fsF('fs-c-pagto', 'Condições de pagamento', { cls: 's2', area: 3, ph: 'Ex.: Entrada de R$ 5.000,00 no Pix e saldo em 12x no cartão.' })}
-      </div>`) +
+        ${fsF('fs-c-sinal', 'Sinal <span class="hint">(opcional)</span>', Object.assign({ cls: 's2' }, dinheiro))}
+        ${fsF('fs-c-pagto', 'Como o cliente vai pagar', { cls: 's2', area: 3, ph: 'Ex.: Entrada de R$ 5.000,00 no Pix e o restante em 12x no cartão.' })}
+      </div>
+      <div class="ctr-ag-acao" style="margin-top:8px"><button type="button" class="eletro-btn" id="fs-pag-montar" onclick="fsPagMontar()">Montar</button><button type="button" class="orc-link" onclick="fsPagVista()">À vista no Pix</button></div>
+      <div id="fs-pag-previa"></div><div id="fs-pag-lista"></div><div id="fs-pag-soma" class="ctr-pag-soma"></div>
+      <div class="orc-note">O contrato imprime a tabela das formas, nunca o texto: escreva como o cliente vai pagar, clique em Montar e confira antes de Aplicar. O sinal fica fora da tabela, que soma o saldo (valor total menos o sinal).</div>
+      <textarea id="fs-c-pagjson" style="display:none" tabindex="-1" aria-hidden="true"></textarea>`) +
       fsCard('Prazos <span class="fs-opc">dias</span>', `<div class="fs-grid g3">
-        ${fsF('fs-c-pproj', 'Projeto', { mode: 'numeric' })}
+        ${fsF('fs-c-pproj', 'Projeto <span class="hint">(úteis)</span>', { mode: 'numeric' })}
         ${fsF('fs-c-paprov', 'Aprovação', { mode: 'numeric' })}
         ${fsF('fs-c-pinst', 'Instalação <span class="hint">(úteis)</span>', { mode: 'numeric' })}
       </div>`) +
@@ -30517,6 +30518,167 @@ function fsMontar() {
   fsTipoMudou(); fsProcModelo();
 }
 
+// ─── Como o cliente vai pagar (solar, 21/10/2026) ────────────────────────────
+// As formas moram num campo escondido (fs-c-pagjson), para o fsSnap guardar e o Reabrir devolver. A conta é a do eletroposto
+// (ctrPagConta, ctrPagResolve, ctrPagCalc, ctrPagTrava); o estado NÃO: ctrPag é do eletroposto e nunca é lido nem escrito aqui.
+// A IA (modo 'pagamento' de /gerador/contrato/agente) só separa o que está escrito no texto; o valor só entra com o clique em Aplicar.
+let fsPagProp = null, fsPagMontando = false;
+const fsPagLinhas = () => {
+  try {
+    const a = JSON.parse(fsVal('fs-c-pagjson') || '[]');
+    return (Array.isArray(a) ? a : []).slice(0, 6).map(x => Object.assign(ctrPagLinha('', 0, 1, 0, '', ''), x && typeof x === 'object' ? x : {}));
+  } catch (e) { return []; }
+};
+function fsPagSaldo() {
+  const v = solParseBRL(fsVal('fs-c-valor'));
+  return Math.max(0, ctrCent(v - Math.min(solParseBRL(fsVal('fs-c-sinal')), v || Infinity)));
+}
+// O que impede de gerar o contrato (vazio = pode). O texto sem tabela e a soma diferente do saldo travam, como no eletroposto.
+function fsPagTrava(d) { return ctrPagTrava('solar_m1', fsPagLinhas(), d.saldo, !!fsVal('fs-c-pagto')); }
+function fsPagGrava(linhas) {
+  const el = fsEl('fs-c-pagjson'); if (!el) return;
+  el.value = linhas.length ? JSON.stringify(linhas) : '';
+  el.dataset.tocado = '1';
+  fsAgDepois();
+}
+function fsPagTira(i) { const l = fsPagLinhas(); l.splice(i, 1); fsPagGrava(l); }
+function fsPagVista() {
+  const saldo = fsPagSaldo();
+  if (!(saldo > 0)) { fsPagPreviaMsg('Preencha o valor total antes (e o sinal tem de ser menor que ele).', true); return; }
+  fsPagProp = null; fsPagPreviaMsg('');
+  fsPagGrava(ctrPagModelo('vista', saldo));
+}
+function fsPagPreviaMsg(txt, falha) {
+  const box = fsEl('fs-pag-previa'); if (!box) return;
+  box.textContent = '';
+  if (!txt) return;
+  const d = document.createElement('div');
+  d.className = 'ctr-ia-msg' + (falha ? ' falha' : '');
+  d.textContent = txt;
+  box.appendChild(d);
+}
+function fsPagPreviaRender() {
+  const box = fsEl('fs-pag-previa'); if (!box) return;
+  box.textContent = '';
+  const p = fsPagProp; if (!p) return;
+  const cab = document.createElement('div'); cab.className = 'ctr-ia-msg';
+  cab.textContent = p.resposta || 'Confira as formas que a IA separou do seu texto.';
+  box.appendChild(cab);
+  const ul = document.createElement('ul'); ul.className = 'ctr-ag-lista';
+  p.linhas.forEach(x => { const li = document.createElement('li'); li.textContent = ctrPagPreviaTxt(x); ul.appendChild(li); });
+  box.appendChild(ul);
+  const nota = document.createElement('div'); nota.className = 'orc-note';
+  nota.textContent = 'Ao aplicar, o gerador faz a conta: restante, parcela e taxa. Essas formas trocam as da lista.';
+  box.appendChild(nota);
+  const bar = document.createElement('div'); bar.className = 'ctr-ag-acao';
+  const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'eletro-btn'; ok.textContent = 'Aplicar'; ok.onclick = fsPagAplicar;
+  const no = document.createElement('button'); no.type = 'button'; no.className = 'orc-link'; no.textContent = 'Descartar'; no.onclick = () => { fsPagProp = null; fsPagPreviaMsg(''); };
+  bar.appendChild(ok); bar.appendChild(no);
+  box.appendChild(bar);
+}
+function fsPagAplicar() {
+  const p = fsPagProp;
+  if (!p || !p.linhas.length) return;
+  let temResto = false;
+  const linhas = p.linhas.slice(0, 6).map(x => {
+    const resto = !!x.resto && !temResto;
+    if (resto) temResto = true;
+    const parc = Number.isInteger(x.parc) ? x.parc : 1;
+    return ctrPagLinha(CTR_PAG_FORMA_NOME[x.forma] || x.forma, resto ? 0 : (Number(x.valor) || 0), parc, 0, x.quando || '', x.obs || '', { resto, parcValor: Number(x.parcValor) || 0 });
+  });
+  fsPagProp = null;
+  fsPagGrava(linhas);
+  fsPagPreviaMsg('Formas aplicadas. Confira a lista e a soma.');
+}
+async function fsPagMontar() {
+  if (fsPagMontando) return;
+  const ta = fsEl('fs-c-pagto'), btn = fsEl('fs-pag-montar');
+  const texto = (ta && ta.value || '').trim();
+  fsPagProp = null;
+  if (!texto) { fsPagPreviaMsg('Escreva como o cliente vai pagar.', true); if (ta) ta.focus(); return; }
+  const tok = ctrAgToken();
+  if (!tok) { fsPagPreviaMsg('Entre na sua conta para usar a IA.', true); return; }
+  const total = solParseBRL(fsVal('fs-c-valor')), saldo = fsPagSaldo();
+  if (!(saldo > 0)) { fsPagPreviaMsg('Não há saldo a pagar: preencha o valor total (o sinal tem de ser menor que ele).', true); return; }
+  // Nome, documento e contato do cliente não vão para a IA (o servidor mascara documento, e-mail e telefone).
+  let msg = texto;
+  try { msg = ctrHibScrub(texto, ctrAgSensivel({ solar_m1: fsCtrDados() })); } catch (e) {}
+  fsPagMontando = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Montando...'; }
+  fsPagPreviaMsg('A IA está lendo o texto...');
+  try {
+    let r, j = null;
+    try {
+      const ctl = new AbortController();
+      const parar = setTimeout(() => { try { ctl.abort(); } catch (e) {} }, 90000);
+      try {
+        r = await fetch(CTR_IA_API + '/gerador/contrato/agente', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+          body: JSON.stringify({
+            modo: 'pagamento', tipo: 'solar_m1', hibrido: null, clausulas: [], campos: [], mensagem: msg.slice(0, 2000),
+            pagamento: {
+              total, sinal: Math.max(0, ctrCent(total - saldo)), saldo,
+              taxas: Object.keys(CTR_TAXA_CARTAO).map(n => ({ parcelas: Number(n), acrescimo: CTR_TAXA_CARTAO[n] })),
+            },
+          }),
+          signal: ctl.signal,
+        });
+        j = await r.json().catch(() => null);
+      } finally { clearTimeout(parar); }
+    } catch (e) {
+      fsPagPreviaMsg('Não consegui falar com a IA agora. Confira a internet e tente de novo.', true);
+      return;
+    }
+    if (!r.ok || !j || !j.ok) { fsPagPreviaMsg(ctrAgErroHttp(r.status, j), true); return; }
+    const acao = (Array.isArray(j.acoes) ? j.acoes : []).find(a => a && a.tipo === 'pagamento');
+    const pergunta = (acao && acao.pergunta) || j.pergunta;
+    if (pergunta) { fsPagPreviaMsg(String(pergunta)); return; }
+    if (!acao || !Array.isArray(acao.linhas) || !acao.linhas.length) {
+      fsPagPreviaMsg(String((Array.isArray(j.avisos) && j.avisos[0]) || j.resposta || 'Não consegui montar o pagamento a partir desse texto.'), true);
+      return;
+    }
+    fsPagProp = {
+      resposta: j.resposta ? String(j.resposta) : '',
+      linhas: acao.linhas.slice(0, 6).map(x => ({
+        forma: String(x.forma || ''), valor: Number(x.valor) > 0 ? Number(x.valor) : 0, parc: Number.isInteger(x.parc) ? x.parc : 1,
+        parcValor: Number(x.parcValor) > 0 ? Number(x.parcValor) : 0, quando: String(x.quando || ''), obs: x.obs ? String(x.obs) : '', resto: !!x.resto,
+      })),
+    };
+    fsPagPreviaRender();
+  } finally {
+    fsPagMontando = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Montar'; }
+  }
+}
+// A lista das formas aplicadas e a conta contra o saldo (a mesma que o Gerar confere, fsPagTrava).
+function fsPagRender() {
+  const box = fsEl('fs-pag-lista'), so = fsEl('fs-pag-soma');
+  if (!box || !so) return;
+  const valor = solParseBRL(fsVal('fs-c-valor')), sinal = solParseBRL(fsVal('fs-c-sinal'));
+  const saldo = fsPagSaldo(), pc = ctrPagCalc(fsPagLinhas(), saldo);
+  box.textContent = '';
+  pc.linhas.forEach((l, i) => {
+    if (!ctrPagLinhaVale(l)) return;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px';
+    const t = document.createElement('span');
+    t.textContent = (l.forma || 'Forma sem nome') + ': ' + ORC_MONEY(ctrPagConta(l).valor) + ' · ' + ctrPagCondicao(l) + (l.quando ? ' · ' + l.quando : '');
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'orc-link'; x.textContent = 'Tirar'; x.onclick = () => fsPagTira(i);
+    row.appendChild(t); row.appendChild(x); box.appendChild(row);
+  });
+  let cls = 'ctr-pag-soma', txt = '';
+  if (!(valor > 0)) txt = 'Preencha o valor total para conferir o pagamento.';
+  else if (sinal > 0 && sinal >= valor) { cls += ' dif'; txt = 'O sinal tem de ser menor que o valor total do contrato.'; }
+  else if (!pc.itens.length) {
+    cls += ' dif';
+    txt = fsVal('fs-c-pagto') ? CTR_PAG_MSG_SO_TEXTO : 'Sem formas na lista: o contrato não é gerado sem o pagamento. Escreva como o cliente vai pagar e clique em Montar, ou use À vista no Pix.';
+  } else if (pc.incompletas.length) { cls += ' dif'; txt = pc.incompletas[0] + ' O contrato não é gerado assim.'; }
+  else if (ctrPagFecha(pc.dif)) { cls += ' fecha'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + ', exatamente o saldo a pagar' + (sinal > 0 ? ' (valor total menos o sinal de ' + ORC_MONEY(sinal) + ')' : '') + '.'; }
+  else if (pc.dif > 0) { cls += ' dif'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + '. Faltam ' + ORC_MONEY(pc.dif) + ' para fechar o saldo de ' + ORC_MONEY(saldo) + '. O contrato não é gerado assim.'; }
+  else { cls += ' dif'; txt = 'As formas somam ' + ORC_MONEY(pc.soma) + '. Passam ' + ORC_MONEY(-pc.dif) + ' do saldo de ' + ORC_MONEY(saldo) + '. O contrato não é gerado assim.'; }
+  so.className = cls; so.textContent = txt;
+}
+
 // do cadastro da empresa (editável): só entra onde o consultor ainda não mexeu
 function fsPrefillEmpresa() {
   const e = epEmitGet('aioros');   // Fechamento solar: sempre o perfil aioros
@@ -30609,10 +30771,14 @@ function fsAplicarDados(d, forcar, row) {
   // precoOrcamento = precoVista = o valor do investimento que o cliente viu (com o acréscimo de distância)
   const preco = Number(d.precoVista || d.precoOrcamento) || 0;
   fsSet('fs-c-valor', preco ? solFmt(preco) : '', f);
-  fsSet('fs-c-pagto', preco ? 'À vista via Pix: R$ ' + solFmt(preco) + '.' : '', f);
+  // O texto de "Como o cliente vai pagar" nasce vazio; a tabela nasce com o padrão da casa (Pix à vista, o restante do saldo).
+  fsSet('fs-c-pagto', '', f);
+  fsSet('fs-c-sinal', '', f);
+  fsSet('fs-c-pagjson', preco ? JSON.stringify([ctrPagLinha('Pix', 0, 1, 0, 'Na assinatura do contrato', '', { resto: true })]) : '', f);
   if (d.garPaineis) fsSet('fs-c-gmod', d.garPaineis, f);
   if (d.garInv) fsSet('fs-c-ginv', d.garInv, f);
   if (d.garInstalacao) fsSet('fs-c-ginst', d.garInstalacao, f);
+  fsPagRender();
   fsSet('fs-r-valctr', preco ? solFmt(preco) : '', f);
   fsSet('fs-r-desc', kwp ? 'instalação de usina fotovoltaica de ' + kwp + ' kWp' : '', f);
   fsTipoMudou();
@@ -30830,10 +30996,11 @@ function fsReabrir(id) {
   fsFotosLimpa();
   fsOrigemKey = 'reaberto:' + id;
   // O assistente do contrato: os pedidos de texto e a conversa do papel reaberto. Papel de antes não tem: o contrato sai como saiu.
-  ctrIa = { pedidos: ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)).concat(Array.isArray(h.snap.solIa) ? JSON.parse(JSON.stringify(h.snap.solIa)).filter(ctrIaEhSolar) : []) };
+  ctrIa = { pedidos: ctrIa.pedidos.filter(p => !ctrIaEhSolar(p)).concat(Array.isArray(h.snap.solIa) ? JSON.parse(JSON.stringify(h.snap.solIa)).filter(ctrIaEhSolar).map(ctrSolarPedidoLegado) : []) };
   ctrAgZerar(ctrAgRestaurar(h.snap.ctrAg), 'sol');
   { const at = fsEl('fsag-texto'); if (at) at.value = ''; }
-  fsTipoMudou(); fsProcModelo(); fsRecResumo(); fsBancoResumo(); fsTermoChkVisual(); fsTermoContador();
+  fsPagProp = null; fsPagPreviaMsg('');
+  fsTipoMudou(); fsProcModelo(); fsRecResumo(); fsBancoResumo(); fsTermoChkVisual(); fsTermoContador(); fsPagRender();
   fsAba(h.snap.aba || 'contrato');
   ctrIaRender();
   const m = fsEl('fs-pux-msg'); if (m) m.textContent = 'Campos de ' + (h.cliente || 'cliente') + ' reabertos. Confira e imprima de novo.' + (h.fotos > 0 ? ' As fotos ficam só na 2ª via.' : '');
@@ -30879,6 +31046,8 @@ function fsFaltas(aba) {
     else fsFaltasVistoria(faltam, invalidos, outros);
   } else if (aba === 'contrato') {
     if (!(solParseBRL(fsVal('fs-c-valor')) > 0)) faltam.push('fs-c-valor');
+    { const vN = solParseBRL(fsVal('fs-c-valor')), sN = solParseBRL(fsVal('fs-c-sinal'));
+      if (sN > 0 && vN > 0 && sN >= vN) outros.push({ el: fsEl('fs-c-sinal'), msg: 'O sinal tem de ser menor que o valor total do contrato.' }); }
     FS_INT.forEach(p => { const v = fsVal(p[0]); if (v && !/^\d+$/.test(v)) invalidos.push({ el: fsEl(p[0]), rot: p[1] }); });
   } else if (aba === 'procuracao') {
     if (fsVal('fs-p-modelo') !== '3' && !fsVal('fs-p-uc')) faltam.push('fs-p-uc');
@@ -30920,6 +31089,7 @@ function fsAoMudar(ev) {
     if (/^fs-t-chk/.test(el.id)) fsTermoChkVisual();
     if (el.id === 'fs-t-ressalva') fsTermoContador();
     if (/^fs-c-/.test(el.id)) ctrIaRender();   // a lista de mudanças do assistente acompanha o campo que mudou
+    if (el.id === 'fs-c-valor' || el.id === 'fs-c-sinal' || el.id === 'fs-c-pagto') fsPagRender();
   }
   fsRevalida();
 }
@@ -30950,8 +31120,20 @@ function fsCtrDados() {
   const valorN = solParseBRL(fsVal('fs-c-valor'));
   const gerN = solParseBRL(fsVal('fs-c-geracao'));
   const endInst = fsVal('fs-c-endinst');
+  // Sinal fora da tabela; a tabela soma o saldo. O restante é resolvido numa CÓPIA, com o saldo de agora (ctrPagResolve).
+  const sinal = Math.min(solParseBRL(fsVal('fs-c-sinal')), valorN || Infinity);
+  const saldo = Math.max(0, ctrCent(valorN - sinal));
+  const pagLinhas = ctrPagResolve(fsPagLinhas(), saldo).filter(ctrPagLinhaVale)
+    .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: ctrPagCondicao(l) }))
+    .filter(l => l.conta.valor > 0 || l.forma);
   return {
-    cli, emp: solEmp(), modelo: fsVal('fs-c-modelo') === '1' ? 1 : 2, num: fsVal('fs-c-num'), data: fsVal('fs-c-data') || solHoje(),
+    cli, emp: solEmp(), modelo: 1, num: fsVal('fs-c-num'),
+    sinal, saldo, pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
+    // O texto de "Como o cliente vai pagar" só vira papel pela tabela. Sem formas montadas (papel antigo), ele aparece na cláusula e a geração trava.
+    pagObs: pagLinhas.length ? '' : fsVal('fs-c-pagto'),
+    temFin: pagLinhas.some(l => l.conta.fin),
+    temAcr: pagLinhas.some(l => !l.conta.fin && l.conta.acr > 0 && l.conta.parc > 1),
+    tucOutro: !!fsVal('fs-p-tuc-nome'), data: fsVal('fs-c-data') || solHoje(),
     foro: fsVal('fs-c-foro'), kwp: fsVal('fs-c-kwp'), geracao: gerN, nmod: fsVal('fs-c-nmod'), mod: fsVal('fs-c-mod'), ninv: fsVal('fs-c-ninv'),
     tinv: fsVal('fs-c-tinv'), minv: fsVal('fs-c-minv'), endInst: endInst || cli.endFull, bat,
     valorN, pagto: fsVal('fs-c-pagto'), pproj: fsVal('fs-c-pproj'), paprov: fsVal('fs-c-paprov'), pinst: fsVal('fs-c-pinst'),
@@ -30988,229 +31170,193 @@ const solProt = v => typeof v === 'string' ? v.split('{{').join('{' + SOL_PUA + 
 const ctrSolarC = (key, titulo, itens, extra) => { const its = itens.filter(Boolean); return Object.assign({ key, titulo, travada: its.some(it => it.travado), itens: its }, extra || {}); };
 const ctrSolarI = (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null;
 const CTR_SOLAR_GRUPOS = { 'sol-partes': blocos => `<div class="sol-partes">\n      ${blocos.join('\n      ')}\n    </div>` };
-function ctrSolarTipo(modelo) { return modelo === 1 ? 'solar_m1' : 'solar_m2'; }
+// Contrato novo é sempre solar_m1. O solar_m2 só aparece em pedido salvo de papel antigo (ctrSolarPedidoLegado o traduz).
+function ctrSolarTipo() { return 'solar_m1'; }
+// Pedido salvo do assistente em papel de antes de 21/10/2026: o contrato era outro (Padrão = solar_m2, Completo = solar_m1 com
+// outras chaves). A chave que mudou de lugar é traduzida; o pedido vira solar_m1. Operação que carrega o texto antigo (base)
+// continua falhando de forma visível se o texto do item mudou: o papel sai com o texto dos campos, que está certo.
+const SOL_DEPARA_ITEM = {
+  solar_m2: { 'partes.cliente': 'partes.contratante', 'partes.resumo': 'objeto.sistema', 'partes.qualificacao': 'partes.contratante', 'objeto.sistema': 'objeto.objetivo',
+    'objeto.geracao': 'desempenho.dimensionamento', 'objeto.componentes': 'objeto.sistema', 'objeto.local': 'objeto.sistema', 'objeto.escopo': 'obrigacoes.telhado',
+    'prazos.nota': 'prazos.suspensao', 'garantias.equipamentos': 'garantias.modulos', 'garantias.exclusoes': 'garantias.perda', 'obrigacoes.monitorar': 'obrigacoes.anomalias',
+    'rescisao.prazo': 'rescisao.iniciativa', 'desempenho.estimado': 'desempenho.dimensionamento', 'desempenho.responsabilidade': 'desempenho.variacao',
+    'vistoria.laudo': 'entrega.vistoria', 'transferencia.cliente': 'gerais.cessao', 'ambiental.partes': 'obrigacoes.anomalias', 'multa.interrupcao': 'obrigacoes.intervencao' },
+  solar_m1: { 'partes.intro': 'partes.contratante', 'partes.boafe': 'partes.contratante', 'objeto.normas': 'objeto.objetivo', 'objeto.geracao': 'desempenho.dimensionamento',
+    'qualificacao.contratada': 'partes.contratada', 'qualificacao.capacidade': 'qualificacao.contratante', 'etapas.intro': 'objeto.escopo', 'etapas.visita': 'objeto.escopo',
+    'etapas.projeto': 'objeto.escopo', 'etapas.aquisicao': 'objeto.escopo', 'etapas.instalacao': 'objeto.escopo', 'etapas.comissionamento': 'objeto.escopo',
+    'etapas.homologacao': 'homologacao.definicao', 'prazos.distribuidora': 'homologacao.documentacao', 'preco.inicio': 'prazos.intro', 'garantias.intro': 'garantias.modulos',
+    'obrigacoes.acesso': 'obrigacoes.telhado', 'obrigacoes.pagamentos': 'preco.mora', 'homologacao.interligacao': 'homologacao.definicao', 'desempenho.monitoramento': 'desempenho.variacao',
+    'entrega.laudo': 'entrega.vistoria', 'manutencao.garantia': 'garantias.instalacao', 'manutencao.limpeza': 'manutencao.posgarantia', 'rescisao.intro': 'rescisao.iniciativa',
+    'rescisao.acordo': 'rescisao.iniciativa', 'gerais.independencia': 'gerais.alteracoes', 'gerais.integralidade': 'gerais.alteracoes' },
+};
+const SOL_DEPARA_CLAUSULA = {
+  solar_m2: { manutencao: 'garantias', vistoria: 'entrega', transferencia: 'gerais', ambiental: 'objeto', multa: 'obrigacoes', foro: 'gerais' },
+  solar_m1: { qualificacao: 'objeto', etapas: 'objeto', manutencao: 'garantias', foro: 'gerais' },
+};
+function ctrSolarPedidoLegado(p) {
+  const t = ctrIaTipoDe(p);
+  if (t !== 'solar_m1' && t !== 'solar_m2') return p;
+  const chave = k => { if (!k) return k; const s = String(k); const tab = s.indexOf('.') >= 0 ? SOL_DEPARA_ITEM[t] : SOL_DEPARA_CLAUSULA[t]; return tab[s] || s; };
+  const marcas = s => s == null ? s : String(s).replace(/\{\{([cin]):([A-Za-z0-9._-]+)\}\}/g, (x, tp, k) => '{{' + tp + ':' + chave(k) + '}}');
+  const q = JSON.parse(JSON.stringify(p));
+  q.tipo = 'solar_m1';
+  (q.ops || []).forEach(op => {
+    ['alvo', 'depois_de', 'ancora'].forEach(f => { if (op[f]) op[f] = chave(op[f]); });
+    if (op.texto != null) op.texto = marcas(op.texto);
+    if (Array.isArray(op.itens)) op.itens = op.itens.map(marcas);
+  });
+  return q;
+}
 function ctrIaEhSolar(p) { return /^solar_m[12]$/.test(ctrIaTipoDe(p)); }
 // As cláusulas sem número (partes, assinaturas do Padrão) não entram na conta do "Cláusula N" do "O que mudou".
 function ctrAgTitulos(modelo) { return modelo.filter(c => !c.semNumero).map(c => c.titulo); }
 
-function ctrModeloSolar(d0, modelo) {
-  const m = modelo === 1 || modelo === 2 ? modelo : (d0 && d0.modelo === 1 ? 1 : 2);
-  const d = solProt(d0);
-  return m === 1 ? ctrModeloSolarM1(d) : ctrModeloSolarM2(d);
+// Solar_m1 e solar_m2 devolvem o MESMO texto (21/10/2026): o segundo argumento só existe por compatibilidade.
+function ctrModeloSolar(d0) {
+  return ctrModeloSolarUnico(solProt(d0));
 }
 
-// Contrato Padrão: contratoSolarM2 do SolarDoc (14 cláusulas)
-function ctrModeloSolarM2(d) {
-  const e = solEsc, emp = d.emp, cli = d.cli;
-  const C = ctrSolarC, I = ctrSolarI;
-  const geracaoTxt = d.geracao > 0 ? `${e(Math.round(d.geracao).toLocaleString('pt-BR'))} kWh/mês` : '';
-  const res = (k, v) => `<tr><td class="k">${e(k)}</td><td>${v}</td></tr>`;
-  const componentes = `Os componentes principais incluem ${solV(d.nmod)} módulos de ${solV(d.mod)}, ${solV(d.ninv)} inversor ${solV(d.tinv)} ${solV(d.minv)}` +
-    (d.bat.tem ? `, sistema de armazenamento com ${d.bat.qtd > 1 ? d.bat.qtd + ' baterias' : 'bateria'} ${e(d.bat.marca)}${d.bat.spec.length ? ' (' + e(d.bat.spec.join(' · ')) + ')' : ''}` : '') +
-    ', cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).';
-  const garEquip = `Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${solUn(d.gmod, 'ano', 'anos')} para módulos fotovoltaicos, ${solUn(d.ginv, 'ano', 'anos')} para o inversor, ` +
-    (solBatGar(d) ? `${solBatGar(d)} para a bateria, ` : '') + 'e prazos específicos para demais componentes conforme manual do fabricante.';
-  const valorTxt = d.valorN > 0 ? `R$ ${solFmt(d.valorN)} (${e(solExtenso(d.valorN))})` : SOL_LACUNA;
-  const foro = d.foro || '';
-  const linhas = [res('Potência instalada', `${solV(d.kwp)} kWp`),
-    geracaoTxt ? res('Geração estimada', '~' + geracaoTxt + ' em média anual') : '',
-    res('Local de instalação', solV(d.endInst)),
-    d.valorN > 0 ? res('Valor total', valorTxt) : '',
-    res('Foro eleito', solV(foro))];
-  const tabela = '<table class="sol-res"><tbody>' + linhas.map(l => '\n      ' + l).join('') + '\n    </tbody></table>';
-  return [
-    C('partes', 'Partes', [
-      I('partes.contratada', `<div class="sol-parte"><div class="cap">Contratada</div><b>${e(emp.razao)} (Irmãos na Obra)</b><br>inscrita no CNPJ sob o nº ${e(emp.cnpj)}${emp.end ? ', com sede em ' + e(emp.end) : ''}</div>`, { travado: true, estilo: 'raw', grupo: 'sol-partes' }),
-      I('partes.cliente', `<div class="sol-parte"><div class="cap">${cli.pj ? 'Cliente (PJ)' : 'Cliente'}</div><b>${solV(cli.nome)}</b>${cli.qualif ? ', ' + e(cli.qualif) : ''}<br>${cli.pj ? 'CNPJ' : 'CPF'} nº ${solV(cli.doc)}, ${cli.pj ? 'sediada em' : 'residente na'} ${solV(cli.endFull)}${cli.pj && cli.rep ? ', neste ato representada por ' + e(cli.rep) : ''}</div>`, { travado: true, estilo: 'raw', grupo: 'sol-partes' }),
-      I('partes.resumo', tabela, { travado: true, estilo: 'raw' }),
-      I('partes.qualificacao', `Entre as partes: ${solQualifEmp(emp)}, doravante denominada CONTRATADA, e ${solQualifCli(cli, 'm2')}, doravante denominado CLIENTE, tem-se ajustado o presente CONTRATO, conforme os seguintes termos e condições:`, { travado: true }),
-    ], { semNumero: true, semTitulo: true }),
-    C('objeto', 'Objeto', [
-      I('objeto.sistema', `A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${solV(d.kwp)} kWp${geracaoTxt ? `, com geração estimada de ~${geracaoTxt} em média anual` : ''}, fornecendo materiais, equipamentos e executando o comissionamento.`, { travado: true }),
-      d.geracao > 0 ? I('objeto.geracao', 'A geração informada é uma ESTIMATIVA baseada na irradiação solar histórica da região e na potência instalada. A produção real varia conforme clima, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede, não constituindo garantia de geração mínima.', { estilo: 'nt' }) : null,
-      I('objeto.componentes', componentes, { travado: true }),
-      I('objeto.local', `<span class="rot">Local de instalação:</span> ${solV(d.endInst)}`, { travado: true }),
-      I('objeto.escopo', 'Fica no escopo do CLIENTE deixar a área em condições para implantação da usina, como por exemplo limpeza e terraplanagem quando se fizer necessário.'),
-    ]),
-    C('prazos', 'Prazos e execução', [
-      I('prazos.intro', 'A CONTRATADA deverá:'),
-      I('prazos.projeto', `Submeter o projeto técnico em até ${solUn(d.pproj, 'dia', 'dias')} após o cumprimento das obrigações pelo CLIENTE.`, { estilo: 'ul' }),
-      I('prazos.aprovacao', `Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até ${solUn(d.paprov, 'dia', 'dias')}, salvo pendências atribuídas ao CLIENTE ou terceiros.`, { estilo: 'ul' }),
-      I('prazos.obra', `Realizar a instalação completa em até ${solUn(d.pinst, 'dia', 'dias')} úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.`, { estilo: 'ul' }),
-      I('prazos.nota', 'Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CLIENTE, dos fabricantes ou de órgãos reguladores. Em situações de força maior, os prazos serão reajustados de acordo com novo cronograma acordado entre as partes.', { estilo: 'nt' }),
-    ]),
-    C('preco', 'Valor e condições de pagamento', [
-      I('preco.valor', `O valor total dos serviços é de ${valorTxt}, sendo o pagamento realizado da seguinte forma:`, { travado: true }),
-      I('preco.forma', d.pagto ? solTxt(d.pagto) : SOL_LACUNA, { travado: true }),
-    ]),
-    C('garantias', 'Garantias e manutenção', [
-      I('garantias.equipamentos', garEquip),
-      I('garantias.instalacao', `<span class="rot">Instalação:</span> A garantia de instalação é de ${solGarInst(d)}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.`),
-      I('garantias.exclusoes', '<span class="rot">Exclusões de Garantia:</span> A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.'),
-      I('garantias.telhas', 'Fica acordado entre as partes que, caso ocorram quebras de telhas durante a execução do serviço, será realizada a reposição das mesmas. A responsabilidade pela substituição será definida de comum acordo entre as partes, considerando a fragilidade e as condições do material.'),
-    ]),
-    C('obrigacoes', 'Obrigações do cliente', [
-      I('obrigacoes.intro', 'O CLIENTE compromete-se a:'),
-      I('obrigacoes.documentos', 'Disponibilizar toda a documentação necessária para a elaboração do projeto técnico e fornecer acesso adequado ao local de instalação, incluindo rede elétrica e pontos de aterramento conforme normas vigentes.', { estilo: 'ul' }),
-      I('obrigacoes.monitorar', 'Monitorar a integridade do local de instalação e reportar eventuais falhas à CONTRATADA. Modificações no imóvel que prejudiquem a operação do sistema fotovoltaico são de responsabilidade do CLIENTE.', { estilo: 'ul' }),
-    ]),
-    C('rescisao', 'Rescisão contratual', [
-      I('rescisao.prazo', 'Este contrato poderá ser rescindido a qualquer momento, desde que uma das partes comunique a outra com antecedência mínima de 30 dias, assumindo a parte responsável os custos e penalidades decorrentes. Em caso de rescisão por descumprimento, será cobrada multa de 10% sobre o valor total do contrato.'),
-    ]),
-    C('gerais', 'Disposições gerais', [
-      I('gerais.confidencialidade', '<span class="rot">Confidencialidade:</span> As partes concordam em manter a confidencialidade sobre as informações trocadas durante a execução do presente contrato.'),
-      I('gerais.cessao', '<span class="rot">Cessão de Direitos:</span> Nenhuma das partes poderá transferir seus direitos e obrigações sob este contrato sem o consentimento por escrito da outra parte.'),
-      I('gerais.alteracoes', '<span class="rot">Alterações:</span> Qualquer alteração neste contrato deverá ser formalizada por meio de termo aditivo assinado por ambas as partes.'),
-    ]),
-    C('desempenho', 'Desempenho e geração de energia', [
-      I('desempenho.estimado', 'O desempenho estimado da usina é baseado em condições climáticas e operacionais normais.'),
-      I('desempenho.variacao', 'A geração de energia pode variar até 10% devido a condições climáticas e características do local.'),
-      I('desempenho.responsabilidade', 'A CONTRATADA não se responsabiliza por perdas de geração de energia decorrentes de fatores externos ou mudanças estruturais no local de instalação, tais como sombras adicionais.'),
-    ]),
-    C('manutencao', 'Manutenção preventiva e corretiva', [
-      I('manutencao.posgarantia', 'Após o período de garantia, a CONTRATADA poderá oferecer um serviço de manutenção preventiva e corretiva, mediante a contratação específica entre as partes. Esse serviço incluirá verificação de funcionamento, limpeza dos módulos e ajustes técnicos, caso necessários.'),
-    ]),
-    C('vistoria', 'Vistoria técnica e documentação de conformidade', [
-      I('vistoria.laudo', 'Ao término da instalação, será realizada uma vistoria técnica para avaliar a conformidade do sistema com os padrões de segurança e regulamentações vigentes. A CONTRATADA emitirá um laudo técnico documentando as condições de instalação, que deverá ser assinado por ambas as partes.'),
-    ]),
-    C('transferencia', 'Transferência de contrato e usina', [
-      I('transferencia.cliente', 'O CLIENTE poderá transferir este contrato para terceiros, mediante autorização expressa da CONTRATADA e desde que o novo titular cumpra com as obrigações contratuais aqui previstas.'),
-    ]),
-    C('ambiental', 'Responsabilidades ambientais e sustentabilidade', [
-      I('ambiental.partes', 'As partes reconhecem a natureza sustentável deste contrato e comprometem-se a atuar de forma a minimizar impactos ambientais durante e após a instalação. O CLIENTE concorda em manter a área de instalação livre de obstruções e a CONTRATADA assegura que todos os materiais e equipamentos usados estão de acordo com as normas ambientais.'),
-    ]),
-    C('multa', 'Multa por interrupção não autorizada', [
-      I('multa.interrupcao', 'Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.'),
-    ]),
-    C('foro', 'Foro', [
-      I('foro.comarca', `As partes elegem o Foro da Comarca de ${solV(foro)} para dirimir eventuais controvérsias decorrentes deste contrato, renunciando a qualquer outro foro.`),
-    ]),
-    C('assinaturas', 'Assinaturas', [
-      I('assinaturas.fecho', solCtrFecho(d, { vias: false }), { travado: true, estilo: 'raw' }),
-    ], { semNumero: true, semTitulo: true, fim: true }),
-  ];
+// Contrato solar DEFINITIVO (21/10/2026): um texto só para solar_m1 e solar_m2. O Padrão (14 cláusulas) e o Completo (15) saíram.
+// Contrato novo é salvo como solar_m1; solar_m2 só existe para reabrir papel antigo, que sai neste mesmo texto.
+// Regras: contratoRegras.ts. Emitente sempre a AIOROS GROUP LTDA (marca Irmãos na Obra): a palavra NEXUS não aparece.
+// Todo número do texto sai de solPrazos() ou de um campo da tela (regra 14). Remissão só por marcador ({{c:..}} e {{i:..}}).
+// Cláusulas numeradas: itens `num` (N.M). Fora disso: partes e assinaturas (sem número e sem título).
+function solPrazos() {
+  return {
+    docs: 5,          // dias úteis para entregar os documentos (obrigacoes.documentos)
+    aviso: 30,        // dias de aviso para desistir antes da entrega (rescisao.iniciativa)
+    corrigir: 5,      // dias úteis para corrigir antes de encerrar (rescisao.descumprimento)
+    devolucao: 15,    // dias para devolver o que não é da outra parte (rescisao.antes e rescisao.culpa)
+    penal: 10,        // % do preço de quem desiste, SEM sinal (rescisao.antes)
+    multa: 2,         // % de multa por atraso, dos dois lados (preco.mora e prazos.atraso)
+    juros: 1,         // % de juros ao mês por atraso, dos dois lados
+    atraso: 60,       // dias de atraso que deixam o outro lado encerrar (decisão do dono, 21/10/2026)
+    fabricante: 30,   // teto da suspensão por atraso do fabricante (prazos.suspensao; decisão do dono)
+    credito: 30,      // dias para o banco liberar o crédito (preco.financiamento)
+    acordoCredito: 10, // dias para combinar outra forma se o banco não liberar
+  };
 }
-
-// Contrato Completo: contratoSolarM1 do SolarDoc (15 cláusulas)
-function ctrModeloSolarM1(d) {
+function ctrModeloSolarUnico(d) {
   const e = solEsc, emp = d.emp, cli = d.cli;
   const C = ctrSolarC, I = ctrSolarI;
-  const geracaoTxt = d.geracao > 0 ? `${e(Math.round(d.geracao).toLocaleString('pt-BR'))} kWh/mês` : '';
-  const foro = d.foro || '';
+  const P = solPrazos();
+  // Regra 12: pessoa física é consumidor (fs-tipo; PF é o padrão). Negrito só para ela.
+  const pf = !cli.pj;
+  const L = h => (pf && h ? `<b>${h}</b>` : h);
+  const nx = n => `${n} (${recExInt(n)})`;
+  const px = v => {
+    const t = ctrPctTxt(v), [i, dd] = t.split(',');
+    const dec = dd ? ' vírgula ' + (dd.length > 1 && dd[0] === '0' ? 'zero ' + recExInt(+dd) : recExInt(+dd)) : '';
+    return `${e(t)}% (${recExInt(+i)}${dec} por cento)`;
+  };
+  const rx = v => `<b>R$ ${solFmt(v)}</b> (${e(recExtenso(v))})`;
+  const multa = pf ? Math.min(P.multa, 2) : P.multa;
+  const N = { estilo: 'num' }, NT = { estilo: 'num', travado: true };
+  const sinal = d.sinal > 0 ? d.sinal : 0;
+  const pagL = Array.isArray(d.pagLinhas) ? d.pagLinhas : [];
+  const temCartao = pagL.some(l => /cart[ãa]o/i.test(l.forma));
+  const geraTxt = d.geracao > 0 ? Math.round(d.geracao).toLocaleString('pt-BR') : '';
   const row = (k, v) => `<tr><td class="k">${e(k)}</td><td>${v}</td></tr>`;
-  const batG = solBatGar(d);
   const linhas = [row('Potência instalada', `${solV(d.kwp)} kWp`),
     row('Módulos', `${solV(d.nmod)} unidade(s) · ${solV(d.mod)}`),
     row('Inversores', `${solV(d.ninv)} unidade(s) · ${solV(d.tinv)} / ${solV(d.minv)}`),
     d.bat.tem ? row('Bateria', e(d.bat.titulo) + (d.bat.spec.length ? ' · ' + e(d.bat.spec.join(' · ')) : '')) : '',
-    geracaoTxt ? row('Geração estimada', `~${geracaoTxt} (média anual)`) : '',
+    geraTxt ? row('Geração estimada', `~${e(geraTxt)} kWh/mês, média anual, projeção da {{c:desempenho}}`) : '',
     row('Local de instalação', solV(d.endInst))];
-  const tabela = '<table class="sol-res"><tbody>' + linhas.map(l => '\n        ' + l).join('') + '\n      </tbody></table>';
-  const L = { estilo: 'li' };
+  const tabela = '<p class="ep-ctr-p">Especificações do sistema:</p><table class="sol-res"><tbody>' + linhas.map(l => '\n        ' + l).join('') + '\n      </tbody></table>';
+  const batG = solBatGar(d);
+  const dadosPag = [emp.pix && 'chave Pix ' + e(emp.pix), emp.conta && 'conta ' + e(emp.conta)].filter(Boolean).join(' ou ');
+  const valorTxt = d.valorN > 0 ? rx(d.valorN) : SOL_LACUNA;
   return [
     C('partes', 'Partes', [
-      I('partes.intro', 'Este contrato é celebrado entre:'),
-      I('partes.contratada', `<b>CONTRATADA:</b> ${solQualifEmp(emp).replace(', inscrita', ', pessoa jurídica de direito privado, inscrita')}, doravante denominada simplesmente CONTRATADA.`, { travado: true }),
-      I('partes.contratante', `<b>CONTRATANTE:</b> ${solQualifCli(cli, 'm1')}, doravante denominado(a) simplesmente CONTRATANTE.`, { travado: true }),
-      I('partes.boafe', 'As partes, de comum acordo, celebram o presente contrato com base na transparência, na boa-fé e no interesse mútuo, sob as condições a seguir estabelecidas:'),
+      I('partes.contratada', `<b>CONTRATADA:</b> <b>${e(emp.razao)}</b> (Irmãos na Obra), pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${e(emp.cnpj)}${emp.end ? `, com sede em ${e(emp.end)}` : ''}.`, { travado: true }),
+      I('partes.contratante', pf
+        ? `<b>CONTRATANTE:</b> ${solV(cli.nome)}${cli.qualif ? ', ' + e(cli.qualif) : ''}, pessoa física, inscrita no CPF sob o nº ${solV(cli.doc)}, residente e domiciliada em ${solV(cli.endFull)}.`
+        : `<b>CONTRATANTE:</b> ${solV(cli.nome)}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${solV(cli.doc)}, com sede em ${solV(cli.endFull)}${cli.rep ? `, representada por ${e(cli.rep)}` : ''}.`, { travado: true }),
     ], { semNumero: true, semTitulo: true }),
-    C('objeto', 'OBJETO DO CONTRATO', [
-      I('objeto.objetivo', 'A CONTRATADA compromete-se a fornecer os equipamentos especificados, elaborar o projeto técnico, realizar a instalação completa e providenciar a homologação junto à concessionária de energia elétrica local, entregando ao CONTRATANTE um sistema de geração de energia solar fotovoltaica em pleno funcionamento.'),
-      I('objeto.sistema', '<p class="ep-ctr-p">Especificações do sistema contratado:</p>' + tabela, { travado: true, estilo: 'raw' }),
-      I('objeto.escopo', 'O escopo completo da CONTRATADA inclui: levantamento técnico no local, elaboração do projeto elétrico, aquisição e transporte dos equipamentos, instalação dos módulos, inversores e demais componentes, realização dos testes de funcionamento (comissionamento) e encaminhamento do pedido de conexão à concessionária de energia.'),
-      I('objeto.adequacoes', 'Adequações estruturais no imóvel (como reforço de telhado, terraplanagem ou obras civis) não estão incluídas no escopo deste contrato e serão informadas ao CONTRATANTE previamente, caso necessário, para deliberação conjunta.'),
-      I('objeto.normas', 'Todos os serviços serão executados em conformidade com as normas da ABNT NBR 16690, com as resoluções normativas da ANEEL e com os requisitos técnicos da concessionária local de energia elétrica.'),
-      d.geracao > 0 ? I('objeto.geracao', 'A geração informada é uma ESTIMATIVA calculada a partir da irradiação solar histórica da região e da potência instalada. A produção real varia conforme condições climáticas, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede da concessionária, não constituindo garantia de geração mínima.') : null,
+    C('objeto', 'Do objeto', [
+      I('objeto.objetivo', 'A CONTRATADA fornece e instala para o CONTRATANTE o sistema de energia solar fotovoltaica descrito abaixo, faz o projeto, pede a homologação na distribuidora de energia e entrega o sistema funcionando. Ela segue as normas técnicas e as regras da ANEEL e da distribuidora.', N),
+      I('objeto.sistema', tabela, { travado: true, estilo: 'raw' }),
+      I('objeto.escopo', 'O preço cobre a visita técnica, o projeto elétrico com ART, os equipamentos da tabela com cabos, conectores, estruturas de fixação e proteções elétricas, o transporte, a montagem, os testes de funcionamento (comissionamento) e o pedido de conexão à distribuidora, acompanhado até a ligação do sistema à rede.', N),
+      I('objeto.adequacoes', L('Obra que não estiver nesta cláusula, como reforço de telhado, obra civil, terraplanagem ou adequação do padrão de entrada, é orçada à parte e só é feita com a aprovação do CONTRATANTE, avisado antes pela CONTRATADA.'), N),
+      I('qualificacao.contratante', 'O CONTRATANTE declara que conhece o sistema, as condições do local e este contrato, e que o assina por vontade própria.', NT),
     ]),
-    C('qualificacao', 'IDENTIFICAÇÃO E QUALIFICAÇÃO DAS PARTES', [
-      I('qualificacao.contratada', 'A CONTRATADA é uma empresa especializada no fornecimento, instalação e manutenção de sistemas fotovoltaicos, com experiência comprovada no setor de energia solar.', { travado: true, estilo: 'num' }),
-      I('qualificacao.contratante', 'O CONTRATANTE declara ter tomado conhecimento das características do sistema adquirido, das condições do local de instalação e das especificações técnicas descritas neste instrumento.', { travado: true, estilo: 'num' }),
-      I('qualificacao.capacidade', 'Ambas as partes são capazes civilmente e firmam este contrato de forma livre e voluntária, sem qualquer vício de consentimento.', { estilo: 'num' }),
+    C('preco', 'Do preço e do pagamento', [
+      I('preco.valor', `O preço total deste contrato é de ${valorTxt}.`, NT),
+      sinal > 0 ? I('preco.sinal', `Desse preço, ${rx(sinal)} são o sinal, pago até a assinatura deste contrato. ` + L(`O sinal vale como arras penitenciais (art. 420 do Código Civil): se o CONTRATANTE desistir${pf ? ' fora do prazo da {{i:rescisao.arrependimento}}' : ''}, perde o sinal, e se a CONTRATADA desistir, devolve o sinal em dobro, sem outra indenização para ninguém.`), NT) : null,
+      pagL.length
+        ? I('preco.forma', `${sinal > 0 ? `O saldo de ${rx(d.saldo)}` : 'O preço'} é pago como no quadro abaixo.${d.pagObs ? ' ' + e(d.pagObs) : ''}${d.temAcr ? ' O acréscimo do parcelamento já está nas parcelas e é custo do meio de pagamento.' : ''}`, { estilo: 'num', bloco: 'pagamento', travado: true })
+        : I('preco.forma', `${sinal > 0 ? 'O saldo' : 'O preço'} é pago assim: ${d.pagObs ? solTxt(d.pagObs) : SOL_LACUNA}`, NT),
+      I('preco.dados', `Todo pagamento é feito à CONTRATADA${dadosPag ? `, por <b>${dadosPag}</b>,` : ''} ou por cobrança emitida em nome dela. Pagamento a terceiro, inclusive a vendedor, não quita o preço.`, N),
+      d.temFin ? I('preco.financiamento', `A parte financiada depende do banco, que tem de liberar o crédito em até ${nx(P.credito)} dias da assinatura. ` + L(`Se não liberar, e as partes não combinarem outra forma de pagamento em até ${nx(P.acordoCredito)} dias, este contrato acaba sem multa, e o CONTRATANTE recebe de volta tudo o que pagou, descontados só os custos já feitos e comprovados.`) + ' Os prazos da {{c:prazos}} contam também da liberação do crédito.', N) : null,
+      temCartao ? I('preco.cartao', L('No cartão, o pagamento conta como feito na autorização da compra. Contestação ou estorno pedido pelo CONTRATANTE sem motivo vale como falta de pagamento.'), N) : null,
+      I('preco.mora', `Parcela em atraso tem multa de ${px(multa)}, juros de ${px(P.juros)} ao mês e correção pelo IPCA, e os prazos da {{c:prazos}} ficam suspensos até o pagamento. ` + L(`Passados ${nx(P.atraso)} dias de atraso, a CONTRATADA pode encerrar este contrato por aviso escrito, com as consequências da {{i:rescisao.descumprimento}}.`), N),
     ]),
-    C('etapas', 'OBJETO DETALHADO: ETAPAS DOS SERVIÇOS', [
-      I('etapas.intro', 'A execução dos serviços pela CONTRATADA seguirá as seguintes etapas:'),
-      I('etapas.visita', 'Visita técnica e levantamento: avaliação detalhada do local de instalação, verificação da estrutura de suporte, da rede elétrica existente e das condições de acesso;', L),
-      I('etapas.projeto', 'Projeto técnico: elaboração do projeto elétrico fotovoltaico conforme normas da ABNT e exigências da concessionária, incluindo memorial descritivo, diagramas unifilares e documentação de ART (Anotação de Responsabilidade Técnica);', L),
-      I('etapas.aquisicao', 'Aquisição de materiais: fornecimento de todos os equipamentos e materiais descritos neste contrato, incluindo módulos, inversores, cabos, conectores, estruturas de fixação e dispositivos de proteção elétrica;', L),
-      I('etapas.instalacao', 'Instalação: execução da montagem física do sistema, instalação elétrica, fixação dos módulos na estrutura do telhado ou solo, instalação do inversor e realização de todas as conexões necessárias;', L),
-      I('etapas.comissionamento', 'Comissionamento: testes de funcionamento e verificação dos parâmetros de operação do sistema antes da entrega ao CONTRATANTE;', L),
-      I('etapas.homologacao', 'Homologação: encaminhamento e acompanhamento do processo de solicitação de conexão junto à concessionária de energia elétrica, incluindo envio da documentação técnica e interligação da instalação à rede.', L),
+    C('prazos', 'Dos prazos', [
+      I('prazos.intro', 'Os prazos abaixo contam da confirmação do primeiro pagamento e da entrega dos documentos da {{i:obrigacoes.documentos}}, o que vier por último, e só então a CONTRATADA começa os serviços.', N),
+      I('prazos.projeto', `<b>Projeto:</b> a CONTRATADA faz o projeto técnico e o envia à distribuidora em até ${solUn(d.pproj, 'dia', 'dias')} úteis.`, N),
+      I('prazos.aprovacao', `<b>Aprovação:</b> prazo estimado de até ${solUn(d.paprov, 'dia', 'dias')}, que depende da análise da distribuidora.`, N),
+      I('prazos.obra', `<b>Instalação:</b> a CONTRATADA instala o sistema em até ${solUn(d.pinst, 'dia', 'dias')} úteis depois da aprovação da distribuidora.`, N),
+      I('prazos.suspensao', L(`Os prazos ficam suspensos, com aviso ao CONTRATANTE, enquanto durar: atraso dele nos documentos, no acesso ou no pagamento; adequação do local que caiba a ele; chuva que impeça o trabalho seguro; demora da distribuidora na análise e exigência dela que não venha de erro do projeto; força maior; e atraso do fabricante na entrega dos equipamentos, por até ${nx(P.fabricante)} dias.`) + ' O prazo de resposta às exigências da {{i:homologacao.documentacao}} não fica suspenso.', N),
+      I('prazos.atraso', `Se a CONTRATADA passar do prazo do projeto ({{i:prazos.projeto}}), da instalação ({{i:prazos.obra}}) ou de resposta às exigências da distribuidora ({{i:homologacao.documentacao}}), fora das suspensões da {{i:prazos.suspensao}}, paga ao CONTRATANTE multa de ${px(multa)}, juros de ${px(P.juros)} ao mês e correção pelo IPCA sobre o valor que ele já pagou, até cumprir a etapa atrasada. Passados ${nx(P.atraso)} dias de atraso, o CONTRATANTE pode encerrar este contrato por aviso escrito, na forma da {{i:rescisao.culpa}}.`, N),
     ]),
-    C('prazos', 'PRAZOS', [
-      I('prazos.intro', 'Os prazos abaixo são contados a partir da data em que o CONTRATANTE entregar toda a documentação solicitada e efetuar o pagamento inicial previsto neste contrato:'),
-      I('prazos.projeto', `Projeto técnico: até ${solUn(d.pproj, 'dia', 'dias')} úteis após o envio da documentação pelo CONTRATANTE;`, L),
-      I('prazos.aprovacao', `Aprovação da concessionária: prazo médio de até ${solUn(d.paprov, 'dia', 'dias')}, podendo variar conforme a análise e cronograma interno da distribuidora de energia;`, L),
-      I('prazos.obra', `Instalação: até ${solUn(d.pinst, 'dia', 'dias')} úteis após a aprovação do projeto pela concessionária.`, L),
-      I('prazos.distribuidora', 'É importante destacar que o prazo de aprovação da concessionária está sujeito ao fluxo interno de cada distribuidora e pode sofrer variações por fatores alheios ao controle da CONTRATADA. Em todos os casos, a CONTRATADA manterá o CONTRATANTE informado sobre o andamento do processo e atuará de forma ativa para minimizar eventuais atrasos.'),
-      I('prazos.suspensao', 'Os prazos ficam automaticamente suspensos em casos de: atraso na entrega de documentos pelo CONTRATANTE; necessidade de adequações no local de instalação; atrasos na distribuição de equipamentos pelos fabricantes; ou situações de força maior devidamente documentadas.'),
+    C('homologacao', 'Da homologação na distribuidora', [
+      I('homologacao.definicao', 'A homologação é o pedido na distribuidora que permite ligar o sistema à rede e compensar a energia injetada, na forma da Lei nº 14.300/2022 e da Resolução Normativa ANEEL nº 1.000/2021. A CONTRATADA prepara e envia a documentação técnica em nome do CONTRATANTE, pela procuração dele, e acompanha o pedido até a ligação.', N),
+      I('homologacao.documentacao', L('Os prazos de análise, vistoria e troca do medidor são da distribuidora e não dependem da CONTRATADA.') + ' Ela informa o CONTRATANTE de cada etapa e responde às exigências da distribuidora que caibam a ela no mesmo prazo do projeto ({{i:prazos.projeto}}).', N),
+      I('homologacao.negativa', L('Se a distribuidora negar a conexão ou limitar a potência por motivo da rede, e não por erro do projeto, a CONTRATADA propõe o ajuste possível, por aditivo. Se o CONTRATANTE não aceitar, qualquer parte pode encerrar este contrato sem multa. Ele recebe o projeto e tudo o que pagou, descontados só os custos já feitos e comprovados, e fica com o que foi comprado com esse valor.'), N),
     ]),
-    C('preco', 'VALOR E CONDIÇÕES DE PAGAMENTO', [
-      I('preco.valor', `O valor total deste contrato é de ${d.valorN > 0 ? `R$ ${solFmt(d.valorN)} (${e(solExtenso(d.valorN))})` : SOL_LACUNA}, a ser pago conforme as condições abaixo acordadas:`, { travado: true }),
-      I('preco.forma', d.pagto ? solTxt(d.pagto) : SOL_LACUNA, { travado: true }),
-      I('preco.inicio', 'O início dos serviços fica condicionado à confirmação do pagamento da primeira parcela.'),
+    C('obrigacoes', 'Das obrigações do contratante', [
+      I('obrigacoes.intro', 'Cabe ao CONTRATANTE:', { estilo: 'p' }),
+      I('obrigacoes.documentos', `Entregar, em até ${nx(P.docs)} dias úteis da assinatura, os documentos que a CONTRATADA pedir, como a conta de energia e os documentos do imóvel e pessoais, e assinar a procuração para o pedido na distribuidora. ` +
+        (d.tucOutro ? 'Como a conta de energia está em nome de outra pessoa, entregar também a autorização escrita do titular dela.' : 'Se o imóvel ou a conta de energia estiver em nome de outra pessoa, entregar também a autorização escrita dela.'), N),
+      I('obrigacoes.telhado', 'Dar acesso livre ao imóvel nos dias combinados e deixar o local pronto, com a área limpa e o telhado ou o solo em condições de receber o peso do sistema. Se houver dúvida sobre a estrutura, a CONTRATADA indica um profissional para avaliá-la.', N),
+      I('obrigacoes.padrao', L('Manter o padrão de entrada e a instalação elétrica do imóvel como a distribuidora exige. A adequação, se for precisa, pode ser feita pela CONTRATADA por orçamento à parte.'), N),
+      I('obrigacoes.intervencao', 'Não mexer no sistema nem deixar terceiro mexer nele sem autorização escrita da CONTRATADA, e não ligá-lo à rede antes da aprovação da distribuidora.', N),
+      I('obrigacoes.anomalias', 'Manter a área do sistema livre de sombra e obstrução que possa evitar e avisar a CONTRATADA, assim que souber, de alarme, defeito ou mudança no imóvel que afete o sistema.', N),
     ]),
-    C('garantias', 'GARANTIAS', [
-      I('garantias.intro', 'A CONTRATADA oferece as seguintes garantias sobre este contrato:'),
-      I('garantias.modulos', `Módulos fotovoltaicos: ${solUn(d.gmod, 'ano', 'anos')} de garantia, fornecida diretamente pelo fabricante, cobrindo defeitos de fabricação e degradação fora dos parâmetros técnicos informados em manual;`, L),
-      I('garantias.inversor', `Inversor: ${solUn(d.ginv, 'ano', 'anos')} de garantia do fabricante, incluindo cobertura contra defeitos de funcionamento e falhas de componentes eletrônicos;`, L),
-      I('garantias.instalacao', `Serviços de instalação: ${solGarInst(d)} de garantia sobre a execução dos serviços realizados pela CONTRATADA, cobrindo exclusivamente defeitos provenientes da instalação, como infiltrações causadas pela fixação, falhas em conexões elétricas ou problemas estruturais gerados durante a obra.`, L),
-      batG ? I('garantias.bateria', `Bateria: ${batG} de garantia do fabricante, cobrindo defeitos de funcionamento e perda de capacidade fora dos parâmetros técnicos informados em manual.`, L) : null,
-      I('garantias.fabricantes', 'Vale destacar que as garantias dos equipamentos são administradas diretamente pelos respectivos fabricantes. Nos casos em que for necessário acionar a garantia de um equipamento, a CONTRATADA prestará suporte ao CONTRATANTE no processo de acionamento junto ao fabricante, facilitando os trâmites necessários.'),
-      I('garantias.perda', 'A garantia perde a validade em situações de: uso inadequado do sistema; intervenções realizadas por terceiros não autorizados; danos causados por descargas elétricas, inundações, granizo ou outros eventos de força maior; ou modificações estruturais no imóvel que afetem o sistema após a instalação.'),
-      I('garantias.telhas', 'Em caso de quebra acidental de telhas durante a execução dos serviços, a CONTRATADA realizará a reposição das peças danificadas, sendo que a definição de responsabilidade levará em consideração as condições originais do material no momento da instalação.'),
+    C('entrega', 'Da entrega', [
+      I('entrega.vistoria', 'Concluída a instalação, as partes fazem juntas a vistoria do sistema. A CONTRATADA mostra o funcionamento, orienta o uso e entrega o laudo técnico de conformidade com as normas e com este contrato.', N),
+      I('entrega.termo', 'O CONTRATANTE assina então o Termo de Recebimento, que registra o sistema recebido funcionando e a orientação de uso, com as ressalvas que ele anotar.', N),
     ]),
-    C('obrigacoes', 'OBRIGAÇÕES DO CONTRATANTE', [
-      I('obrigacoes.intro', 'Para que os serviços sejam executados dentro do prazo e com a qualidade esperada, o CONTRATANTE se compromete a:'),
-      I('obrigacoes.documentos', 'Fornecer, no prazo de até 5 (cinco) dias úteis após a assinatura deste contrato, toda a documentação solicitada pela CONTRATADA, incluindo conta de energia elétrica, documentos do imóvel e documentos pessoais necessários para o projeto e homologação;', L),
-      I('obrigacoes.acesso', 'Garantir livre acesso ao imóvel nos dias e horários acordados para a realização da vistoria, da instalação e de eventuais visitas técnicas;', L),
-      I('obrigacoes.telhado', 'Certificar-se, antes da instalação, de que a estrutura do telhado está em condições adequadas para suportar o peso e as cargas do sistema fotovoltaico; caso haja dúvidas, a CONTRATADA poderá indicar um profissional para avaliação;', L),
-      I('obrigacoes.padrao', 'Verificar, com antecedência, se o padrão de entrada de energia elétrica está de acordo com as exigências da concessionária local; eventuais adequações no padrão são de responsabilidade do CONTRATANTE e poderão ser realizadas pela CONTRATADA mediante orçamento adicional;', L),
-      I('obrigacoes.pagamentos', 'Efetuar os pagamentos nas datas acordadas, conforme condições estabelecidas na {{c:preco}};', L),
-      I('obrigacoes.intervencao', 'Não realizar, por conta própria ou por meio de terceiros, qualquer modificação, intervenção ou manutenção no sistema instalado sem autorização prévia da CONTRATADA;', L),
-      I('obrigacoes.anomalias', 'Comunicar à CONTRATADA, no menor prazo possível, qualquer anomalia, alarme ou irregularidade no funcionamento do sistema.', L),
+    C('garantias', 'Das garantias e da manutenção', [
+      I('garantias.modulos', `<b>Módulos:</b> garantia do fabricante de ${solUn(d.gmod, 'ano', 'anos')} contra defeito de fabricação e degradação acima da prevista no manual.`, N),
+      I('garantias.inversor', `<b>Inversor:</b> garantia do fabricante de ${solUn(d.ginv, 'ano', 'anos')} contra defeito de funcionamento e falha de componentes eletrônicos.`, N),
+      batG ? I('garantias.bateria', `<b>Bateria:</b> garantia do fabricante de ${batG} contra defeito de funcionamento e perda de capacidade acima da prevista no manual.`, N) : null,
+      I('garantias.instalacao', `<b>Instalação:</b> garantia da CONTRATADA de ${solGarInst(d)}, a contar da entrega do sistema ({{c:entrega}}), para o defeito que vier da obra e for constatado em vistoria técnica. Nesse prazo, a CONTRATADA corrige o defeito sem custo.`, N),
+      I('garantias.fabricantes', pf
+        ? 'As garantias dos equipamentos seguem os certificados dos fabricantes, entregues com o sistema, e a CONTRATADA aciona o fabricante pelo CONTRATANTE quando for preciso.'
+        : 'As garantias dos equipamentos são só dos fabricantes, nas condições dos certificados entregues com o sistema, e a CONTRATADA ajuda o CONTRATANTE a acioná-las.', N),
+      I('garantias.perda', L('A garantia da instalação vale para o uso normal do sistema e deixa de valer para o dano causado por mau uso, intervenção de terceiro sem autorização da CONTRATADA, raio, enchente, granizo, sobretensão da rede, outra força maior ou obra no imóvel que atinja o sistema.'), N),
+      I('garantias.telhas', 'A CONTRATADA repõe à sua custa a telha que quebrar durante a obra. A telha que a visita técnica apontar como já quebrada, trincada ou fragilizada pelo tempo é reposta pelo CONTRATANTE.', N),
+      I('manutencao.posgarantia', 'Depois da garantia, a CONTRATADA pode fazer a manutenção preventiva e corretiva por proposta própria. Ela recomenda limpar os módulos e verificar as conexões ao menos uma vez por ano.', N),
     ]),
-    C('homologacao', 'HOMOLOGAÇÃO JUNTO À CONCESSIONÁRIA', [
-      I('homologacao.definicao', 'A homologação (etapa que permite a interligação do sistema fotovoltaico à rede elétrica e a geração de créditos de energia) depende da aprovação e do cronograma interno da concessionária de energia elétrica local.'),
-      I('homologacao.documentacao', 'A CONTRATADA é responsável por elaborar e enviar toda a documentação técnica exigida, além de acompanhar o processo junto à distribuidora. No entanto, os prazos de análise e aprovação são definidos exclusivamente pela concessionária, estando fora do controle direto da CONTRATADA.'),
-      I('homologacao.interligacao', 'Durante o período de análise, o sistema pode estar instalado, mas não conectado à rede. Após a aprovação, será realizada a interligação e o sistema passará a operar em sua capacidade total. A CONTRATADA informará o CONTRATANTE sobre cada etapa do processo de homologação.'),
+    C('desempenho', 'Da geração de energia', [
+      I('desempenho.dimensionamento', L('O sistema foi dimensionado pelo consumo informado pelo CONTRATANTE e pela irradiação solar histórica da região, e a estimativa de geração deste contrato e da proposta comercial é projeção técnica, não promessa nem garantia de geração ou de economia.'), N),
+      I('desempenho.variacao', L('A geração real muda com o clima, a temperatura, a sujeira nos módulos, a sombra e a qualidade da rede da distribuidora. Essa variação, a sombra nova e a mudança no imóvel depois da instalação não são defeito do sistema nem da instalação.') + '', N),
+      I('desempenho.compensacao', L('O crédito de energia e o desconto na conta seguem a Lei nº 14.300/2022 e as regras da ANEEL e da distribuidora, inclusive a cobrança pelo uso da rede. Mudança nessas regras ou nas tarifas não altera este contrato.'), N),
     ]),
-    C('desempenho', 'DESEMPENHO DO SISTEMA', [
-      I('desempenho.dimensionamento', 'O sistema fornecido foi dimensionado com base no perfil de consumo informado pelo CONTRATANTE e nos dados históricos de irradiância solar da região de instalação. A estimativa de geração apresentada na proposta comercial constitui uma projeção técnica fundamentada, mas não representa uma garantia de produção exata.'),
-      I('desempenho.variacao', 'A geração real de energia poderá apresentar variação de até 10% (dez por cento) em relação à estimativa, em razão de fatores naturais e externos, como: variações climáticas e de irradiância ao longo do ano; temperatura ambiente, que pode afetar o rendimento dos módulos; sombreamento por árvores, edificações ou estruturas próximas; qualidade e estabilidade da rede elétrica local.'),
-      I('desempenho.monitoramento', 'A CONTRATADA não se responsabiliza por variações de geração decorrentes desses fatores externos. O monitoramento do sistema pode ser feito por meio de aplicativo disponibilizado pelo fabricante do inversor, permitindo ao CONTRATANTE acompanhar a produção em tempo real.'),
+    C('rescisao', 'Da desistência e do encerramento', [
+      pf ? I('rescisao.arrependimento', 'Se este contrato for fechado fora do estabelecimento da CONTRATADA, como em visita, por telefone ou pela internet, o CONTRATANTE pode desistir dele em até 7 (sete) dias da assinatura, sem multa, e recebe de volta de imediato tudo o que pagou, corrigido (art. 49 do Código de Defesa do Consumidor). ' + L('A CONTRATADA pode esperar esse prazo para comprar os equipamentos, sem que a espera conte como atraso.'), N) : null,
+      I('rescisao.iniciativa', `As partes podem encerrar este contrato por acordo escrito a qualquer momento. Qualquer parte também pode desistir dele antes da entrega do sistema, por aviso escrito com ${nx(P.aviso)} dias de antecedência.`, N),
+      I('rescisao.antes', sinal > 0
+        ? L(`Quem desistir paga à outra parte o sinal, na forma da {{i:preco.sinal}}, como única indenização. O que o CONTRATANTE pagou além do sinal volta para ele em até ${nx(P.devolucao)} dias, ressalvado o acerto da {{i:rescisao.depois}}.`)
+        : L(`Quem desistir${pf ? ', fora do prazo da {{i:rescisao.arrependimento}},' : ''} paga à outra parte ${px(P.penal)} do preço, como única indenização. O que o CONTRATANTE pagou volta para ele em até ${nx(P.devolucao)} dias, descontado esse valor quando a desistência for dele e ressalvado o acerto da {{i:rescisao.depois}}.`), N),
+      I('rescisao.depois', L('Se quem desistir for o CONTRATANTE, ele paga também o serviço já feito e os equipamentos já comprados para este contrato, na proporção do preço e com os comprovantes, e fica com eles. O total pago por ele nunca passa do preço.'), N),
+      I('rescisao.descumprimento', L(`Se uma parte descumprir este contrato e não corrigir em ${nx(P.corrigir)} dias úteis da notificação, a outra pode encerrá-lo. Se a culpa for do CONTRATANTE, valem as consequências da desistência dele ({{i:rescisao.antes}} e {{i:rescisao.depois}}).`), N),
+      I('rescisao.culpa', `Se quem desistir for a CONTRATADA, ou se o contrato acabar por culpa dela, o CONTRATANTE escolhe entre: (a) receber de volta tudo o que pagou, corrigido pelo IPCA, com a retirada do que foi instalado e o local refeito, à custa dela; ou (b) ficar com o que já foi entregue, pago na proporção do preço, e receber de volta o restante. Nos dois casos, a devolução é feita em até ${nx(P.devolucao)} dias, e vale também a {{i:rescisao.antes}}.`, N),
     ]),
-    C('entrega', 'ENTREGA E VISTORIA TÉCNICA', [
-      I('entrega.vistoria', 'Ao término da instalação, antes da entrega formal do sistema ao CONTRATANTE, será realizada uma vistoria técnica conjunta, na qual a CONTRATADA apresentará o sistema instalado, demonstrará seu funcionamento e esclarecerá eventuais dúvidas sobre a operação.'),
-      I('entrega.laudo', 'A CONTRATADA emitirá, após o comissionamento, um laudo técnico de conformidade atestando que o sistema foi instalado de acordo com as normas vigentes e com as especificações contratadas.'),
-      I('entrega.termo', 'A entrega formal do sistema será documentada por Termo de Recebimento, a ser assinado pelo CONTRATANTE, declarando que recebeu o sistema em perfeitas condições de funcionamento e que foi devidamente orientado sobre sua operação.'),
+    C('gerais', 'Das disposições gerais e do foro', [
+      I('gerais.alteracoes', 'Este contrato substitui a proposta e qualquer acordo verbal anterior sobre o mesmo assunto, e só muda por aditivo assinado pelas partes. Os avisos valem quando enviados por escrito, inclusive por e-mail ou mensagem, aos contatos das partes. Tolerar um descumprimento não é renúncia ao direito nem novação.', N),
+      I('gerais.cessao', 'Nenhuma parte transfere este contrato sem a concordância escrita da outra. Com ela, o CONTRATANTE pode transferi-lo a quem assumir as obrigações dele, como o comprador do imóvel.', N),
+      I('gerais.confidencialidade', 'As partes guardam sigilo das informações técnicas e comerciais deste contrato. A CONTRATADA usa os dados pessoais do CONTRATANTE só para executá-lo, inclusive no pedido à distribuidora e no financiamento, se houver, na forma da Lei nº 13.709/2018 (LGPD).', N),
+      I('gerais.eletronica', 'As partes aceitam a assinatura eletrônica deste contrato, por meio que comprove autoria e integridade, com o mesmo efeito da assinatura à mão (MP nº 2.200-2/2001, art. 10, § 2º). Assinado em plataforma de assinatura eletrônica, ele dispensa testemunhas para ser cobrado diretamente (CPC, art. 784, § 4º).', N),
+      I('foro.comarca', pf
+        ? `Fica eleito o foro da comarca de <b>${solV(d.foro)}</b>, ressalvado ao CONTRATANTE o foro do seu domicílio.`
+        : `Fica eleito o foro da comarca de <b>${solV(d.foro)}</b>, com renúncia a qualquer outro.`, N),
     ]),
-    C('manutencao', 'MANUTENÇÃO', [
-      I('manutencao.garantia', 'Durante o período de garantia da instalação, a CONTRATADA prestará assistência técnica sem custo adicional nos casos de defeitos cobertos pela garantia prevista na {{c:garantias}}.'),
-      I('manutencao.posgarantia', 'Após o encerramento do período de garantia, a CONTRATADA poderá oferecer serviço de manutenção preventiva e corretiva mediante proposta específica, que poderá incluir: inspeção visual e elétrica dos módulos e conexões; limpeza dos módulos fotovoltaicos; verificação e atualização de firmware do inversor; análise de desempenho do sistema; e relatório técnico de funcionamento.'),
-      I('manutencao.limpeza', 'Para preservar o desempenho do sistema ao longo do tempo, recomenda-se a realização de limpeza periódica dos módulos e a verificação das conexões ao menos uma vez por ano.'),
-    ]),
-    C('rescisao', 'RESCISÃO', [
-      I('rescisao.intro', 'Este contrato poderá ser encerrado nas seguintes situações:'),
-      I('rescisao.acordo', 'Por mútuo acordo entre as partes, a qualquer momento, mediante formalização por escrito;', L),
-      I('rescisao.iniciativa', 'Por iniciativa de qualquer das partes, mediante comunicação prévia de 30 (trinta) dias, sem necessidade de justificativa;', L),
-      I('rescisao.descumprimento', 'De imediato, pela parte prejudicada, em caso de descumprimento grave das obrigações previstas neste instrumento, desde que a parte infratora seja notificada previamente com prazo de 5 (cinco) dias úteis para sanar a irregularidade.', L),
-      I('rescisao.antes', 'Na hipótese de rescisão antes do início da execução dos serviços, por iniciativa do CONTRATANTE sem justa causa, será retido um percentual de 10% (dez por cento) sobre o valor total do contrato, a título de cobertura dos custos administrativos e de projeto já incorridos pela CONTRATADA.'),
-      I('rescisao.depois', 'Se a rescisão ocorrer após o início dos serviços, os valores correspondentes ao trabalho já realizado e aos materiais já adquiridos ou instalados deverão ser apurados e compensados proporcionalmente entre as partes, de forma justa e documentada.'),
-      I('rescisao.culpa', 'Em caso de rescisão por culpa exclusiva da CONTRATADA, os valores eventualmente pagos pelo CONTRATANTE que não correspondam a serviços ou materiais efetivamente entregues serão devolvidos integralmente no prazo de 15 (quinze) dias.'),
-    ]),
-    C('gerais', 'DISPOSIÇÕES GERAIS', [
-      I('gerais.alteracoes', 'Alterações: qualquer modificação nas condições deste contrato deverá ser formalizada por Termo Aditivo, assinado por ambas as partes;', L),
-      I('gerais.cessao', 'Cessão: os direitos e obrigações deste contrato não poderão ser transferidos a terceiros sem o consentimento expresso e por escrito da outra parte;', L),
-      I('gerais.confidencialidade', 'Confidencialidade: as informações técnicas e comerciais trocadas em razão deste contrato são de caráter reservado e não deverão ser divulgadas a terceiros sem autorização;', L),
-      I('gerais.independencia', 'Independência das cláusulas: a eventual nulidade ou ineficácia de qualquer disposição deste instrumento não afetará a validade das demais;', L),
-      I('gerais.integralidade', 'Integralidade: este documento representa a totalidade do acordado entre as partes, substituindo qualquer proposta, orçamento ou entendimento verbal anterior sobre o mesmo objeto.', L),
-    ]),
-    C('foro', 'FORO', [
-      I('foro.comarca', `As partes elegem, de comum acordo, o Foro da Comarca de ${solV(foro)} para dirimir eventuais dúvidas, divergências ou litígios decorrentes deste contrato, renunciando a qualquer outro por mais privilegiado que seja.`),
-    ]),
-    C('assinaturas', 'ASSINATURAS', [
-      I('assinaturas.fecho', solCtrFecho(d, { vias: true, num: '{{n:assinaturas}}' }), { travado: true, estilo: 'raw' }),
-    ], { semTitulo: true, fim: true }),
+    C('assinaturas', 'Assinaturas', [
+      I('assinaturas.fecho', solCtrFecho(d), { travado: true, estilo: 'raw' }),
+    ], { semNumero: true, semTitulo: true, fim: true }),
   ];
 }
 
@@ -31252,7 +31398,7 @@ function ctrNumerarSolar(modelo) {
 }
 // O HTML das cláusulas do modelo já com os pedidos aplicados, um bloco por parágrafo, alínea ou tabela
 // (o título da cláusula vai grudado no primeiro bloco: título órfão no pé da folha não se manda).
-function ctrSolarClausulas(efet, versal) {
+function ctrSolarClausulas(efet, versal, quadros) {
   const e = solEsc;
   const est = ctrSolarEstilos(efet);
   const { resolver } = ctrNumerarSolar(est);
@@ -31280,11 +31426,13 @@ function ctrSolarClausulas(efet, versal) {
       i++;
       const h = resolver(x.html);
       if (!h) continue;
-      if (x.estilo === 'li') blocos.push(`<p class="ep-ctr-li">${String.fromCharCode(97 + letra++)}) ${h}</p>`);
-      else if (x.estilo === 'num') blocos.push(`<p class="ep-ctr-p">${n}.${++num}. ${h}</p>`);
-      else if (x.estilo === 'nt') blocos.push(`<p class="ep-ctr-p sol-nt">${h}</p>`);
+      // O quadro (a tabela de pagamento) vai no MESMO bloco da frase que o apresenta: tabela órfã em folha nova não se manda.
+      const q = x.bloco && quadros ? (quadros[x.bloco] || '') : '';
+      if (x.estilo === 'li') blocos.push(`<p class="ep-ctr-li">${String.fromCharCode(97 + letra++)}) ${h}</p>${q}`);
+      else if (x.estilo === 'num') blocos.push(`<p class="ep-ctr-p">${n}.${++num}. ${h}</p>${q}`);
+      else if (x.estilo === 'nt') blocos.push(`<p class="ep-ctr-p sol-nt">${h}</p>${q}`);
       else if (x.estilo === 'raw') blocos.push(h);
-      else blocos.push(`<p class="ep-ctr-p">${h}</p>`);
+      else blocos.push(`<p class="ep-ctr-p">${h}</p>${q}`);
     }
     if (!blocos.length) return;
     if (!c.semTitulo) blocos[0] = `<div class="ep-ctr-cl">${n}. ${e(versal ? String(c.titulo).toUpperCase() : c.titulo)}</div>` + blocos[0];
@@ -31293,36 +31441,32 @@ function ctrSolarClausulas(efet, versal) {
   return out.map(b => b.split(SOL_PUA).join(''));
 }
 
-// Os dois contratos do Fechamento solar: cabeçalho, cláusulas do modelo (com os pedidos do assistente) e fecho.
-function fsCtrBlocosSolar(d, modelo) {
+// O contrato do Fechamento solar: cabeçalho, cláusulas do modelo (com os pedidos do assistente) e fecho.
+function fsCtrBlocosSolar(d) {
   const e = solEsc;
   const dataTxt = solDataLonga(d.data), foro = d.foro || '';
   const topo = solTopoCtr(`${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${foro ? ' · ' + e(foro) : ''}`) +
-    `<div class="ep-ctr-tit">${modelo === 1 ? 'Contrato de Fornecimento e Instalação de Sistema de Energia Solar Fotovoltaica' : 'Contrato de Serviços de Instalação de Usina Fotovoltaica'}</div><div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>`;
-  const { modelo: efet } = ctrIaAplicar(ctrModeloSolar(d, modelo), ctrIaPedidos(ctrSolarTipo(modelo)));
-  return { blocos: [topo, ...ctrSolarClausulas(efet, modelo === 1)].filter(Boolean), quem: d.cli.nome };
+    `<div class="ep-ctr-tit">Contrato de Fornecimento e Instalação de Sistema de Energia Solar Fotovoltaica</div><div class="ep-ctr-sub">Instrumento particular · ${e(dataTxt)}</div>`;
+  const { modelo: efet } = ctrIaAplicar(ctrModeloSolar(d), ctrIaPedidos(ctrSolarTipo()));
+  const quadros = ctrQuadros({ tipo: 'solar_m1', pagLinhas: d.pagLinhas || [], pagSoma: d.pagSoma || 0 });
+  return { blocos: [topo, ...ctrSolarClausulas(efet, false, quadros)].filter(Boolean), quem: d.cli.nome };
 }
-function fsCtrBlocosM2(d) { return fsCtrBlocosSolar(d, 2); }
-function fsCtrBlocosM1(d) { return fsCtrBlocosSolar(d, 1); }
 
-// fecho comum aos dois contratos: local e data, assinaturas e testemunhas
-function solCtrFecho(d, o) {
+// O fecho do contrato: local e data, assinaturas e as duas testemunhas. Assina à mão ou por meio eletrônico (gerais.eletronica).
+function solCtrFecho(d) {
   const e = solEsc, emp = d.emp, cli = d.cli;
   const dataTxt = solDataLonga(d.data);
-  const intro = o.vias
-    ? `<div class="ep-ctr-cl">${o.num || 15}. ASSINATURAS</div><p class="ep-ctr-p">E, por estarem de acordo com todos os termos e condições acima estabelecidos, as partes assinam o presente contrato em 2 (duas) vias de igual teor e forma.</p>`
-    : '<p class="ep-ctr-p" style="margin-top:14px">Por estarem de pleno acordo com os termos deste contrato, as partes assinam o presente documento.</p>';
   return `<div class="ep-ctr-fim">
-      ${intro}
+      <p class="ep-ctr-p" style="margin-top:14px">Por estarem de acordo, as partes assinam este contrato à mão, em 2 (duas) vias iguais e com as 2 (duas) testemunhas abaixo, ou por meio eletrônico, na forma da {{i:gerais.eletronica}}.</p>
       <p class="ep-ctr-p">${d.foro ? e(d.foro) + ', ' : ''}${e(dataTxt)}.</p>
       <div class="ep-ctr-assin">
-        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>neste ato representada por ${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}${o.vias ? 'CONTRATADA' : 'Empresa contratada'}</div>
-        <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}${o.vias ? 'CONTRATANTE' : 'Cliente contratante'}</div>
+        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>representada por ${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}CONTRATADA</div>
+        <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}CONTRATANTE</div>
       </div>
-      ${o.vias ? '' : `<div class="ep-ctr-test">
+      <div class="ep-ctr-test">
         <div class="a"><b>Testemunha 1</b><span>Nome e CPF:</span></div>
         <div class="a"><b>Testemunha 2</b><span>Nome e CPF:</span></div>
-      </div>`}
+      </div>
     </div>`;
 }
 
@@ -31377,7 +31521,7 @@ function fsAgUi() {
   const nota = fsEl('fsag-gate'); if (nota) nota.textContent = on ? motivo : '';
 }
 // Depois que o assistente mexeu em campo ou texto: o aviso de campo faltando, a lista de mudanças e o botão.
-function fsAgDepois() { fsRevalida(); ctrIaRender(); fsAgUi(); }
+function fsAgDepois() { fsPagRender(); fsRevalida(); ctrIaRender(); fsAgUi(); }
 // O retrato de antes de cada turno: só os campos da aba Contrato e os pedidos de texto do contrato solar.
 function fsAgSnapTake() {
   const pane = fsEl('fs-pane-contrato');
@@ -31404,7 +31548,8 @@ function fsContrato() {
   const d = fsCtrDados();
   if (fsMostraFaltas(fsFaltas('contrato'))) return;
   { const gm = ctrAgGateMotivo(); if (gm) { fsMsg(gm); return; } }
-  const { blocos, quem } = d.modelo === 1 ? fsCtrBlocosM1(d) : fsCtrBlocosM2(d);
+  { const tr = fsPagTrava(d); if (tr) { fsMsg(tr, [fsEl('fs-c-pagto')]); return; } }   // a soma das formas tem de fechar no saldo, como no eletroposto
+  const { blocos, quem } = fsCtrBlocosSolar(d);
   const rot = 'Contrato de instalação de usina fotovoltaica';
   const pageFoot = (n, tot) => solRodape(rot, quem, n, tot, tot > 1 ? 2 : 0);
   const html = `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
@@ -31691,6 +31836,8 @@ function fsLimpaCampo(id) {
 function fsLimparNovos() {
   Object.keys(FS_ESPELHOS).forEach(a => FS_ESPELHOS[a].forEach(p => fsLimpaCampo(p[0])));
   FS_NOVOS_DO_CLIENTE.forEach(fsLimpaCampo);
+  ['fs-c-sinal', 'fs-c-pagto', 'fs-c-pagjson'].forEach(fsLimpaCampo);   // o pagamento é do cliente de antes
+  fsPagProp = null; fsPagPreviaMsg(''); fsPagRender();
   const pad = fsPadroesNovos();
   ['fs-v-data', 'fs-t-data', 'fs-b-data'].forEach(id => fsSet(id, pad[id], true));
   for (let i = 1; i <= FS_TERMO_ITENS.length; i++) fsSet('fs-t-chk' + i, 'sim', true);
