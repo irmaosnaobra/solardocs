@@ -43,7 +43,7 @@ const envOriginal = { ...process.env };
 beforeEach(() => { capturados.length = 0; vi.resetModules(); });
 afterEach(() => { process.env = { ...envOriginal }; });
 
-async function contaDoHead(desvio: boolean): Promise<{ linha: string[]; frio: string[]; espaco: string[] }> {
+async function contaDoHead(desvio: boolean): Promise<{ linha: string[]; frio: string[]; espaco: string[]; balde: string[] }> {
   if (desvio) process.env.ZAPI_SOLARDOC_VIA_IO = '1'; else delete process.env.ZAPI_SOLARDOC_VIA_IO;
   delete process.env.LINHA_RECONECTADA_EM;
   const lt = await import('../services/agents/whatsapp/lineThrottle');
@@ -56,7 +56,10 @@ async function contaDoHead(desvio: boolean): Promise<{ linha: string[]; frio: st
   capturados.length = 0;
   await lt.respeitaEspacamentoLinha();
   const espaco = prefixosDe(capturados[0]!);
-  return { linha, frio, espaco };
+  // 21/10: o ESPAÇAMENTO ganhou uma 2ª consulta, com janela curta, só para o terceiro balde (PREFIXOS_RESPOSTA_AGENTES). Ela existe só no
+  // lineThrottle; o espelho do chefe não a conhece (ver o teste "divergência explícita" abaixo). A comparação de conjunto segue na 1ª consulta.
+  const balde = capturados[1] ? prefixosDe(capturados[1]) : [];
+  return { linha, frio, espaco, balde };
 }
 
 const ordenado = (xs: string[]) => [...new Set(xs)].sort();
@@ -76,6 +79,25 @@ describe('prefixos derivados = conta do lineThrottle.ts de hoje', () => {
       const agendaHead = head.linha.filter(p => !head.frio.includes(p));
       expect(ordenado(prefixosAgendaDerivados())).toEqual(ordenado(agendaHead));
       expect(head.linha.includes('carla_sent:')).toBe(desvio);
+    });
+  }
+
+  for (const desvio of [false, true]) {
+    it(`divergência explícita (desvio ${desvio ? 'LIGADO' : 'desligado'}): o terceiro balde existe no lineThrottle e NÃO no espelho do chefe`, async () => {
+      const head = await contaDoHead(desvio);
+      const balde = ['ag5040_sent:', 'ficha_lead:'];
+      // No lineThrottle: só no espaçamento (consulta de 2 min). Fora da linha, do frio e da agenda, da hora e do dia.
+      expect(ordenado(head.balde)).toEqual(ordenado(balde));
+      for (const p of balde) {
+        expect(head.linha).not.toContain(p);
+        expect(head.frio).not.toContain(p);
+        expect(head.espaco).not.toContain(p);
+      }
+      // No espelho do chefe: em lugar nenhum (o teto próprio das agentes, 20/1 h e 120/24 h, mora no vivoEnvio).
+      const espelho = [
+        ...prefixosDaLinhaDerivados({ solardocViaIo: desvio }), ...prefixosFriosDerivados({ solardocViaIo: desvio }), ...prefixosAgendaDerivados(),
+      ];
+      for (const p of balde) expect(espelho).not.toContain(p);
     });
   }
 

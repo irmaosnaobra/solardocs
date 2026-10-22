@@ -215,7 +215,7 @@ export async function runCarlaRetomada(opts: { dry?: boolean } = {}): Promise<Re
     // O teto da linha é checado por ENVIO, não uma vez por tick: entre um e
     // outro o eletroposto pode ter gasto o orçamento, e quem descobre isso
     // depois é a linha caindo.
-    if (!opts.dry && !(await dentroDoTetoHorarioLinha())) {
+    if (!opts.dry && !(await dentroDoTetoHorarioLinha({ robo: 'carla_retomada' }))) {
       out.pulados.push('teto da linha atingido');
       break;
     }

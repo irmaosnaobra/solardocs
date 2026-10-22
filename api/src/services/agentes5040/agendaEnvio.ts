@@ -12,7 +12,9 @@
 // dele (ag5040_agenda_sent:<cardId>:<tipo>:<iso>) conta nesses tetos, porque está em PREFIXOS_AGENDA e em BOT_SENT_PREFIXES.
 // Só param este robô: pausa humana (mantém na fila; se já passou do validoAte, descarta), linha caída (mantém na
 // fila para a volta), chave repetida (o carimbo já existe), opt-out/denúncia/bloqueio, card cancelado ou mudado, sem
-// telefone ou com número trocado, o horário que já passou, e o espaçamento de 10 s contra QUALQUER envio da linha.
+// telefone ou com número trocado, o horário que já passou, e o espaçamento contra QUALQUER envio da linha: 25 s mais um sorteio de
+// 0 a 35 s (a rajada de bolhas de confirmação, uma colada na outra, é assinatura de robô), ou só 10 s no ÚLTIMO MOMENTO ÚTIL (validoAte
+// em menos de 30 min). A fila sai na ordem do validoAte (o que vence antes sai antes) e nunca é segurada por teto.
 // O prazo (validoAte) NÃO descarta: no fim útil o item sai, só com os 10 s.
 //
 // A FILA mora em system_state: ag5040_agenda_fila:<cardId>:<tipo>:<iso compacto>. O value NÃO leva telefone: leva o HMAC
@@ -96,22 +98,37 @@ export const PREFIXO_CARIMBO_AGENTES = 'ag5040_sent:';
 export const CHAVE_TRAVA_AGENDA = 'ag5040_agenda_trava';
 
 export const LIMITES_AGENDA = Object.freeze({
+  /**
+   * Quantos envios a chamada faz. O cron é de 2 em 2 minutos e a função vive 300 s: cada envio espera até 25 + 35 = 60 s,
+   * então 3 envios cabem em ~180 s + digitação, e o orcamentoMs abaixo corta a chamada antes de passar disso.
+   */
   porChamada: 3,
-  espacamentoMs: 10_000,
+  /** Espaçamento padrão contra o último envio da linha (qualquer robô), mais um sorteio de 0 a sorteioMs. */
+  espacamentoMs: 25_000,
+  sorteioMs: 35_000,
+  /** No último momento útil (validoAte em menos de ultimoMomentoMs) vale só este espaçamento, sem sorteio. */
+  espacamentoUrgenteMs: 10_000,
+  ultimoMomentoMs: 30 * 60_000,
+  /** Soma máxima das esperas de espaçamento de uma chamada: o item que passaria disto fica na fila para a próxima (nada é perdido). */
+  orcamentoMs: 150_000,
   maxCaracteresBolha: 160,
   /** Quantos itens da fila a chamada olha (os mantidos na fila não podem esconder os outros). */
-  leituraDaFila: 50,
+  leituraDaFila: 200,
   /** A volta honesta morre 2 h depois do aviso do "ligar agora". */
   voltaVidaMs: 2 * 3_600_000,
   /** A fila só é entregue das 7h às 21h (Brasília). */
   entregaDe: 7,
   entregaAte: 21,
-  /** Validade da trava da rodada da fila (a rodada dura menos de 1 min). */
-  travaMs: 120_000,
+  /** Validade da trava da rodada da fila. A rodada dura até ~orcamentoMs + envios (~3 min); abaixo dos 300 s da função. */
+  travaMs: 240_000,
 });
 
-/** Espera para completar o espaçamento (sempre <= 10 s). Os testes zeram. */
-export const TEMPOS_AGENDA = { esperar: (ms: number): Promise<void> => (ms > 0 ? new Promise(r => setTimeout(r, ms)) : Promise.resolve()) };
+/** Espera para completar o espaçamento (<= espacamentoMs + sorteioMs) e o sorteio dele. Os testes trocam os dois. */
+export const TEMPOS_AGENDA = {
+  esperar: (ms: number): Promise<void> => (ms > 0 ? new Promise(r => setTimeout(r, ms)) : Promise.resolve()),
+  /** Inteiro de 0 a maxMs. */
+  sorteio: (maxMs: number): number => Math.floor(Math.random() * (maxMs + 1)),
+};
 
 /** 2026-10-23T17:30:00.000Z (ou +00:00) vira 20261023T173000Z: a mesma chave para o mesmo instante. */
 export const isoCompacto = (iso: string): string => {
@@ -263,7 +280,7 @@ export interface ResultadoAgenda {
   /** Ficaram na fila (pausa humana, linha caída, leitura que falhou, erro de envio que permite reenvio). */
   mantidas: number;
   /** Por que a chamada parou antes do fim da fila, se parou. */
-  parou?: 'linha_pausada' | 'leitura_falhou' | 'erro_de_envio' | 'limite' | 'fora_da_janela';
+  parou?: 'linha_pausada' | 'leitura_falhou' | 'erro_de_envio' | 'limite' | 'fora_da_janela' | 'tempo';
 }
 
 type Linha = { key: string; value: any; updated_at: string };
@@ -359,7 +376,16 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
   const { data: fila, error: erroFila } = await supabase.from('system_state').select('key, value, updated_at')
     .like('key', `${PREFIXO_FILA}%`).order('updated_at', { ascending: true }).limit(LIMITES_AGENDA.leituraDaFila);
   if (erroFila) { logger.error(LOG, `leitura da fila falhou (${codigoDe(erroFila)})`); return { ...res, parou: 'leitura_falhou' }; }
-  const itens = (fila ?? []) as Linha[];
+  // A ordem é a do validoAte (o que vence antes sai antes); empate pela entrada na fila (a leitura já vem por updated_at, e o sort é estável).
+  // Item malformado (sem valido_ate legível) vai na frente: sai da fila no passo 1 sem custar nada.
+  const venceEm = (l: Linha): number => { const x = Date.parse(String((l.value as { valido_ate?: string } | null)?.valido_ate ?? '')); return Number.isFinite(x) ? x : -Infinity; };
+  const itens = ((fila ?? []) as Linha[]).map((l, i) => ({ l, i })).sort((a, b) => {
+    const va = venceEm(a.l), vb = venceEm(b.l);
+    return va === vb ? a.i - b.i : va < vb ? -1 : 1;
+  }).map(x => x.l);
+  const inicio = t;
+  // O orçamento mede também o tempo REAL da chamada (envio, digitação e leituras também gastam os 300 s da função), não só as esperas simuladas.
+  const inicioReal = Date.now();
   const tirarDaFila = async (chave: string): Promise<void> => {
     if (dry) return;
     try { await supabase.from('system_state').delete().eq('key', chave); } catch { /* o próximo giro descarta de novo */ }
@@ -474,12 +500,20 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
       await descartar(linha.key, cardId, tipo, 'opt_out'); continue;
     }
 
-    // 9. espaçamento de 10 s contra o último envio de QUALQUER robô da linha (no banco): completa a espera, sempre <= 10 s
+    // 9. espaçamento contra o último envio de QUALQUER robô da linha (no banco; o carimbo dos envios desta chamada também conta):
+    //    25 s mais um sorteio de 0 a 35 s, ou só 10 s no último momento útil (validoAte em menos de 30 min, vencido inclusive).
+    //    Completa a espera. Nunca segura por teto; só o orçamento de tempo da chamada deixa o item para a próxima rodada.
     const ultimo = await ultimoEnvioEm();
     if (ultimo === null) { res.mantidas++; res.parou = 'leitura_falhou'; break; }
-    if (ultimo !== 'nenhum' && t - ultimo < LIMITES_AGENDA.espacamentoMs) {
-      const falta = LIMITES_AGENDA.espacamentoMs - (t - ultimo);
-      if (falta > LIMITES_AGENDA.espacamentoMs) { res.mantidas++; continue; } // relógio do banco à frente do nosso: não espera
+    const urgente = validoAte - t < LIMITES_AGENDA.ultimoMomentoMs;
+    const alvoMs = urgente ? LIMITES_AGENDA.espacamentoUrgenteMs : LIMITES_AGENDA.espacamentoMs + TEMPOS_AGENDA.sorteio(LIMITES_AGENDA.sorteioMs);
+    if (ultimo !== 'nenhum' && t - ultimo < alvoMs) {
+      const falta = alvoMs - (t - ultimo);
+      if (falta > alvoMs) { res.mantidas++; continue; } // relógio do banco à frente do nosso: não espera
+      if (!dry && Math.max(t - inicio, Date.now() - inicioReal) + falta > LIMITES_AGENDA.orcamentoMs) {
+        // a espera não cabe no tempo da chamada: este e o resto ficam na fila para o próximo giro (*/2)
+        res.mantidas += itens.length - itens.indexOf(linha); res.parou = 'tempo'; break;
+      }
       if (!dry) { await TEMPOS_AGENDA.esperar(falta); t += falta; }
     }
 

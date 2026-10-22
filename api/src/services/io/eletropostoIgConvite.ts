@@ -200,7 +200,7 @@ export async function runEletropostoIgConviteTick(opts: { dry?: boolean } = {}):
   }
   if (!publico.length) return { enviados: 0, motivo: 'ninguem_pendente' };
   if (foraDaJanela()) return { enviados: 0, motivo: 'fora_da_janela', publico: publico.length };
-  if (!(await dentroDoTetoHorarioLinha())) return { enviados: 0, motivo: 'teto_linha', publico: publico.length };
+  if (!(await dentroDoTetoHorarioLinha({ robo: 'ep_ig_convite' }))) return { enviados: 0, motivo: 'teto_linha', publico: publico.length };
 
   // O espaçamento se mede na PRÓPRIA ficha mais recente que já recebeu convite —
   // sem marcador em system_state pra manter sincronizado. Uma fonte de verdade só.

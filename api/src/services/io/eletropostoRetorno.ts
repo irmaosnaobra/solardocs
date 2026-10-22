@@ -241,7 +241,7 @@ export async function runEletropostoRetornoTick(opts: { dry?: boolean } = {}): P
         rodada === 'r1' ? bolhasRetorno1 : bolhasRetorno2,
         // `rodada` do estado de oferta: a mesma contagem que o robô de remarcação
         // usa pra parar depois de 2 listas sem escolha.
-        { rodada: rodada === 'r1' ? 1 : 2, silencioSemVaga: true, transacional: false },
+        { rodada: rodada === 'r1' ? 1 : 2, silencioSemVaga: true, transacional: false, robo: 'ep_oferta_fria' },
       );
       if (r.acao === 'ofertou') {
         await supabase.from('system_state').upsert(

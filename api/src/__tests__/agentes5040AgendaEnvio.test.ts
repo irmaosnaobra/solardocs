@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // B1d-2a, o robô de agenda da Duda (agendaEnvio.ts). Banco e WhatsApp simulados na memória. Prova: o texto exato
 // de cada bolha fixa (<= 160), montado NA HORA DO ENVIO a partir do ISO do item; o card relido (mudou ou passou = descarta);
-// pausa humana não sai e fica; linha caída não sai e fica; espaçamento de 10 s medido no banco; reserva duplicada não
+// pausa humana não sai e fica; linha caída não sai e fica; espaçamento (25 s + sorteio, ou 10 s no último momento útil) medido no banco; reserva duplicada não
 // reenvia; o teto das agentes cheio NÃO segura; a janela das 7h às 21h e a rodada própria da fila (trava com token);
 // nada de telefone no que se grava nem no log; no máximo 3 por chamada. A contagem é a das chamadas ao sendHuman.
 
@@ -121,10 +121,11 @@ vi.mock('../services/agentes5040/agendaSolar', () => ({
 }));
 
 import {
-  enfileirarAgenda, enviarAgendaPendente, montarBolhaAgenda, chaveFila, chaveCarimboAgenda, isoCompacto, runAgendaTick, TEMPOS_AGENDA,
+  enfileirarAgenda, enviarAgendaPendente, montarBolhaAgenda, chaveFila, chaveCarimboAgenda, isoCompacto, runAgendaTick, TEMPOS_AGENDA, LIMITES_AGENDA,
   type PedidoAgenda,
 } from '../services/agentes5040/agendaEnvio';
 import { sendHuman } from '../services/agents/zapiClient';
+const SORTEIO_REAL = TEMPOS_AGENDA.sorteio;
 import { STATUS_QUE_NAO_RECEBEM } from '../services/agenda/solarStatus';
 import { logger } from '../utils/logger';
 
@@ -159,6 +160,7 @@ beforeEach(() => {
   h.escondeCarimbo = false; h.falhaCard = false; h.aposEnvio = null; h.boasVindas.length = 0;
   for (const id of [501, 502, 503, 504, 505, 506]) h.cards.set(id, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
   TEMPOS_AGENDA.esperar = async (ms: number) => { esperas.push(ms); };
+  TEMPOS_AGENDA.sorteio = () => 0;   // determinístico: o sorteio de 0 a 35 s tem teste próprio
   (sendHuman as any).mockClear();
   (logger.error as any).mockClear();
 });
@@ -365,20 +367,83 @@ describe('agendaEnvio: o que para o envio', () => {
     expect(carimbos()).toEqual([chaveCarimboAgenda(501, 'confirma', QUANDO)]);
   });
 
-  it('espaçamento: último envio da linha há 4 s (ag5040_sent) completa a espera de 6 s e carimba na hora certa', async () => {
+  it('espaçamento: último envio da linha há 4 s (ag5040_sent) completa a espera de 21 s (25 s de base) e carimba na hora certa', async () => {
     h.estado.set('ag5040_sent:9:1', { value: { estado: 'enviado' }, updated_at: ant(4_000) });
     await enfileirarAgenda(pedido(), AGORA);
     const r = await enviarAgendaPendente(AGORA);
     expect(r.enviadas).toBe(1);
+    expect(esperas).toEqual([21_000]);
+    expect(h.estado.get(chaveCarimboAgenda(501, 'confirma', QUANDO))!.updated_at).toBe(new Date(AGORA.getTime() + 21_000).toISOString());
+  });
+
+  it('o sorteio de 0 a 35 s entra no espaçamento: com o sorteio no máximo a espera é de 56 s, e o item no último momento útil NÃO leva sorteio (10 s)', async () => {
+    TEMPOS_AGENDA.sorteio = (max: number) => max;   // 35 s
+    h.estado.set('ag5040_sent:9:1', { value: { estado: 'enviado' }, updated_at: ant(4_000) });
+    await enfileirarAgenda(pedido(), AGORA);
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+    expect(esperas).toEqual([56_000]);
+    h.estado.clear(); esperas.length = 0;
+    h.estado.set('ag5040_sent:9:1', { value: { estado: 'enviado' }, updated_at: ant(4_000) });
+    await enfileirarAgenda(pedido({ validoAte: dep(20 * MIN) }), AGORA);                 // vence em menos de 30 min
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
     expect(esperas).toEqual([6_000]);
-    expect(h.estado.get(chaveCarimboAgenda(501, 'confirma', QUANDO))!.updated_at).toBe(new Date(AGORA.getTime() + 6_000).toISOString());
+    h.estado.clear(); esperas.length = 0;
+    h.estado.set('ag5040_sent:9:1', { value: { estado: 'enviado' }, updated_at: ant(4_000) });
+    await enfileirarAgenda(pedido({ validoAte: ant(5 * MIN) }), AGORA);                  // já venceu: agenda nunca bloqueia, sai com os 10 s
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+    expect(esperas).toEqual([6_000]);
+  });
+
+  it('o sorteio real fica entre 0 e 35 s e varia', () => {
+    const v = Array.from({ length: 300 }, () => SORTEIO_REAL(LIMITES_AGENDA.sorteioMs));
+    expect(Math.min(...v)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...v)).toBeLessThanOrEqual(35_000);
+    expect(new Set(v).size).toBeGreaterThan(50);
+  });
+
+  it('o orçamento de 150 s mede também o tempo REAL: envios lentos (sem espera simulada) também cortam a chamada, sem descartar', async () => {
+    const base = Date.now(); let relogio = 0;
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => base + relogio);
+    try {
+      h.aposEnvio = () => { relogio += 100_000; };          // cada envio "demora" 100 s de relógio real
+      for (const id of [501, 502, 503]) await enfileirarAgenda(pedido({ cardId: id }), AGORA);
+      const r = await enviarAgendaPendente(AGORA);
+      expect(r).toMatchObject({ enviadas: 2, descartadas: 0, mantidas: 1, parou: 'tempo' });
+      expect(esperas).toEqual([25_000]);                    // a 3ª (100 s + 100 s + 25 s) passaria dos 150 s
+      expect(fila()).toHaveLength(1);
+    } finally { spy.mockRestore(); }
+  });
+
+  it('a ordem é a do validoAte: o que vence antes sai antes, mesmo entrando depois na fila', async () => {
+    await enfileirarAgenda(pedido({ cardId: 501, tipo: 'confirma', validoAte: dep(5 * HORA) }), AGORA);
+    await enfileirarAgenda(pedido({ cardId: 502, tipo: 'remarca', validoAte: dep(1 * HORA) }), new Date(AGORA.getTime() + 1_000));
+    await enfileirarAgenda(pedido({ cardId: 504, tipo: 'confirma', validoAte: dep(3 * HORA) }), new Date(AGORA.getTime() + 2_000));
+    const r = await enviarAgendaPendente(AGORA);
+    expect(r.enviadas).toBe(3);
+    const ordem = [502, 504, 501].map(id => id === 502 ? chaveCarimboAgenda(502, 'remarca', QUANDO) : chaveCarimboAgenda(id, 'confirma', QUANDO));
+    const marcas = ordem.map(k => Date.parse(h.estado.get(k)!.updated_at));
+    expect(marcas[0]).toBeLessThan(marcas[1]!);
+    expect(marcas[1]).toBeLessThan(marcas[2]!);
+    expect(textos()[0]).toContain('mudei');
+  });
+
+  it('cabe no tempo da rota: a espera que passaria do orçamento da chamada deixa o resto na fila (parou: tempo), sem descartar', async () => {
+    TEMPOS_AGENDA.sorteio = (max: number) => max;
+    h.estado.set('ag5040_sent:9:1', { value: { estado: 'enviado' }, updated_at: ant(1_000) });   // a 1ª espera 59 s, a 2ª 60 s, a 3ª passaria de 150 s
+    for (const id of [501, 502, 503]) await enfileirarAgenda(pedido({ cardId: id }), AGORA);
+    const r = await enviarAgendaPendente(AGORA);
+    expect(r).toMatchObject({ enviadas: 2, descartadas: 0, mantidas: 1, parou: 'tempo' });
+    expect(esperas).toEqual([59_000, 60_000]);
+    expect(fila()).toHaveLength(1);
+    expect(LIMITES_AGENDA.orcamentoMs + 3 * 15_000).toBeLessThan(LIMITES_AGENDA.travaMs);   // a trava cobre a rodada inteira
+    expect(LIMITES_AGENDA.travaMs).toBeLessThan(300_000);                                   // e vence antes da função
   });
 
   it('espaçamento também olha o carimbo de agenda, e sem envio recente não espera', async () => {
     h.estado.set('ag5040_agenda_sent:7:confirma:20261021T100000Z', { value: { estado: 'enviado' }, updated_at: ant(9_000) });
     await enfileirarAgenda(pedido(), AGORA);
     await enviarAgendaPendente(AGORA);
-    expect(esperas).toEqual([1_000]);
+    expect(esperas).toEqual([16_000]);
     h.estado.clear(); esperas.length = 0;
     await enfileirarAgenda(pedido({ cardId: 502 }), AGORA);
     await enviarAgendaPendente(AGORA);
@@ -386,7 +451,7 @@ describe('agendaEnvio: o que para o envio', () => {
   });
 
   it('espaçamento vale contra QUALQUER envio da linha (agenda do eletroposto, Giovanna, aviso, ficha)', async () => {
-    for (const [prefixo, ms, esperado] of [['ep_agenda_sent:', 3_000, 7_000], ['solar_giovanna_sent:', 8_000, 2_000], ['aviso_sent:', 5_000, 5_000], ['ficha_lead:', 1_000, 9_000]] as const) {
+    for (const [prefixo, ms, esperado] of [['ep_agenda_sent:', 3_000, 22_000], ['solar_giovanna_sent:', 8_000, 17_000], ['aviso_sent:', 5_000, 20_000], ['ficha_lead:', 1_000, 24_000]] as const) {
       h.estado.clear(); esperas.length = 0;
       h.estado.set(`${prefixo}x:1`, { value: {}, updated_at: ant(ms) });
       await enfileirarAgenda(pedido(), AGORA);
@@ -395,13 +460,13 @@ describe('agendaEnvio: o que para o envio', () => {
     }
   });
 
-  it('dois na mesma chamada saem espaçados 10 s um do outro', async () => {
+  it('dois na mesma chamada saem espaçados 25 s um do outro (sorteio zerado)', async () => {
     await enfileirarAgenda(pedido({ cardId: 501 }), AGORA);
     await enfileirarAgenda(pedido({ cardId: 502, tipo: 'remarca' }), AGORA);
     await enviarAgendaPendente(AGORA);
     const a = Date.parse(h.estado.get(chaveCarimboAgenda(501, 'confirma', QUANDO))!.updated_at);
     const b = Date.parse(h.estado.get(chaveCarimboAgenda(502, 'remarca', QUANDO))!.updated_at);
-    expect(Math.abs(b - a)).toBe(10_000);
+    expect(Math.abs(b - a)).toBe(25_000);
   });
 
   it('reserva duplicada não reenvia: carimbo já existente tira da fila sem enviar', async () => {
@@ -482,7 +547,7 @@ describe('agendaEnvio: regra "agenda nunca bloqueia"', () => {
     expect(r1).toMatchObject({ enviadas: 3, parou: 'limite' });
     expect(chamadas()).toBe(3);
     expect(fila()).toHaveLength(2);
-    const r2 = await enviarAgendaPendente(new Date(AGORA.getTime() + 30_000));
+    const r2 = await enviarAgendaPendente(new Date(AGORA.getTime() + 90_000));
     expect(r2.enviadas).toBe(2);
     expect(chamadas()).toBe(5);
     expect(fila()).toEqual([]);
@@ -597,9 +662,9 @@ describe('agendaEnvio: erro de envio e dado pessoal', () => {
     expect(r).toMatchObject({ enviadas: 0, descartadas: 2, mantidas: 1, parou: 'erro_de_envio' });
     expect(chamadas()).toBe(2);
     expect(h.estado.get('ag5040_linha_erros')!.value.n).toBe(2);
-    const ate = Date.parse(h.estado.get('ag5040_linha_pausa')!.value.ate);       // 15 min contados do relógio da chamada (+ o espaçamento de 10 s)
+    const ate = Date.parse(h.estado.get('ag5040_linha_pausa')!.value.ate);       // 15 min contados do relógio da chamada (+ o espaçamento de 25 s)
     expect(ate).toBeGreaterThanOrEqual(AGORA.getTime() + 15 * MIN);
-    expect(ate).toBeLessThanOrEqual(AGORA.getTime() + 15 * MIN + 10_000);
+    expect(ate).toBeLessThanOrEqual(AGORA.getTime() + 15 * MIN + 25_000);
     expect(fila()).toEqual([chaveFila(503, 'confirma', QUANDO)]);
   });
 
@@ -725,9 +790,9 @@ describe('agendaEnvio: a abertura do card do quiz (tipo abertura)', () => {
     }
     expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 3, descartadas: 0, mantidas: 0 });
     expect(textos()).toEqual([
-      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Já está marcado: *Giovanna* te liga *amanhã às 14h30*. É uma ligação curta para entender sua conta.',
-      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Giovanna* te chama por vídeo amanhã às 14h30, com o estudo na tela. Responda SIM para confirmar.',
-      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Giovanna* vai aí amanhã às 14h30, visita técnica de uns 40 minutos. Responda SIM para confirmar.',
+      'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Giovanna* te liga amanhã às 14h30. É uma ligação curta para entender sua conta.',
+      'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Giovanna* te chama por vídeo amanhã às 14h30. Responda SIM para confirmar.',
+      'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Giovanna* vai aí amanhã às 14h30, visita técnica. Responda SIM para confirmar.',
     ]);
     for (const e of h.enviados) { expect(e.partes).toHaveLength(1); expect(e.inst).toBe('io'); expect(e.opts).toEqual({ maxBolhas: 1, max: 160 }); }
     expect(carimbos()).toEqual([501, 502, 503].map(id => chaveCarimboAgenda(id, 'abertura', QUANDO)).sort());
@@ -739,7 +804,7 @@ describe('agendaEnvio: a abertura do card do quiz (tipo abertura)', () => {
     await enfileirarAgenda(ab({ nome: 'Irineu de Almeida' }), AGORA);
     const v = h.estado.get(chaveFila(501, 'abertura', QUANDO))!.value;
     expect(v).toMatchObject({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu', quando: QUANDO, descarta_em: QUANDO });
-    expect(JSON.stringify(v)).not.toMatch(/5534991360223|amanhã|14h30|Sou a Duda/);
+    expect(JSON.stringify(v)).not.toMatch(/5534991360223|amanhã|14h30|Aqui é a Duda/);
   });
 
   it('enfileirar recusa caminho que não existe e bolha que não cabe nem sem nome e sem asteriscos', async () => {
@@ -885,7 +950,7 @@ describe('agendaEnvio: abertura descartada deixa o marcador solar_bv_dedup e o c
     expect(chaves.some(k => k.startsWith('ag5040_agenda_sent:'))).toBe(false);
     const linha = h.estado.get('solar_bv_dedup:501')!;
     expect(linha.value).toMatchObject({ origem: 'abertura_descartada', motivo: 'opt_out' });
-    expect(JSON.stringify(linha)).not.toMatch(/5534991360223|Sou a Duda/);
+    expect(JSON.stringify(linha)).not.toMatch(/5534991360223|Aqui é a Duda/);
   });
 
   it('número inválido na hora de enviar (HTTP 400/404 do destino): descarta e deixa o marcador; 5xx que pode ter chegado NÃO', async () => {

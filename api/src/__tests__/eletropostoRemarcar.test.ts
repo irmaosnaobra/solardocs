@@ -435,6 +435,18 @@ describe('ofertarPorConta e o espaçamento da linha', () => {
     expect(respeitaEspacamentoLinha).not.toHaveBeenCalled();
   });
 
+  it('B4c (sombra): o frio se identifica como ep_oferta_fria no teto da linha, e a resposta transacional não leva robo', async () => {
+    const { ofertarPorConta } = await mod();
+    const { dentroDoTetoHorarioLinha } = await import('../services/agents/whatsapp/lineThrottle');
+    vi.mocked(dentroDoTetoHorarioLinha).mockClear();
+    await ofertarPorConta(ficha(), copy, { transacional: false, silencioSemVaga: true });
+    const chamadasTeto = vi.mocked(dentroDoTetoHorarioLinha).mock.calls;
+    expect(chamadasTeto[chamadasTeto.length - 1]?.[0]).toEqual({ transacional: false, robo: 'ep_oferta_fria' });
+    vi.mocked(dentroDoTetoHorarioLinha).mockClear();
+    await ofertarPorConta(ficha({ id: 7, cliente_telefone: '5534999000777' }), copy, { transacional: true });
+    for (const c of vi.mocked(dentroDoTetoHorarioLinha).mock.calls) expect((c[0] as any)?.robo).toBeUndefined();
+  });
+
   it('frio com a linha espaçada: não envia', async () => {
     const { ofertarPorConta } = await mod();
     espacoLivre = false;

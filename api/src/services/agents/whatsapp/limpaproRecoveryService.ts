@@ -946,7 +946,8 @@ export async function runLimpaproRecoveryConsumer(opts: { dry?: boolean } = {}):
     // Madrugada: os 4 toques da Bia são mensagem de venda fria — segura pra manhã.
     // break (não continue) porque a janela vale pra fila inteira, não pro lead.
     if (!opts.dry && !dentroDaJanelaDiurna()) { out.mantidos++; bump('fora_da_janela_diurna'); break; }
-    if (!opts.dry && !(await dentroDoTetoHorario())) { out.mantidos++; bump('teto_horario'); break; }
+    // `robo`: só para a contagem da sombra da vaga da Base (B4c, lineThrottle); com a env desligada nada é segurado por isso.
+    if (!opts.dry && !(await dentroDoTetoHorario({ robo: 'bia_recuperacao' }))) { out.mantidos++; bump('teto_horario'); break; }
     // Margem de 5 min entre dois envios da linha (anti-rajada). Na prática limita o
     // tick a 1 envio, já que o /process-messages roda de 5 em 5 min — MAX_ENVIOS_POR_TICK
     // fica como teto de segurança, não como ritmo.

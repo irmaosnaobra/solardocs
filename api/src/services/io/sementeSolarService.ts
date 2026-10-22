@@ -218,7 +218,7 @@ export async function runSementeTick(opts: { dry?: boolean } = {}): Promise<Resu
   const ultimoMs = new Date(((ult?.value ?? {}) as { at?: string }).at ?? 0).getTime();
   if (agora - ultimoMs < intervaloEnviosMs()) return { enviados: 0, motivo: 'intervalo', publico: publico.length };
 
-  if (!(await dentroDoTetoHorarioLinha())) return { enviados: 0, motivo: 'teto_linha', publico: publico.length };
+  if (!(await dentroDoTetoHorarioLinha({ robo: 'semente' }))) return { enviados: 0, motivo: 'teto_linha', publico: publico.length };
 
   const alvo = publico[0];
   const nowIso = new Date().toISOString();

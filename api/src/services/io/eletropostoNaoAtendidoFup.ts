@@ -299,7 +299,7 @@ export async function runEletropostoNaoAtendidoFupTick(
         // horário" pra quem não apareceu é um contato a mais sem oferta nenhuma.
         // A rodada da oferta acompanha o degrau, então o robô de remarcação
         // continua parando depois de 2 listas sem escolha.
-        { rodada: passo === 'r1' ? 1 : 2, silencioSemVaga: true, transacional: false },
+        { rodada: passo === 'r1' ? 1 : 2, silencioSemVaga: true, transacional: false, robo: 'ep_oferta_fria' },
       );
       if (r.acao === 'ofertou') {
         await supabase.from('system_state').upsert(

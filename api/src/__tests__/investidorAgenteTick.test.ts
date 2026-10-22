@@ -424,7 +424,7 @@ describe('abertura: os portões, todos antes do claim', () => {
 
   it('a linha: sem rampa pede o piso do dia em maxPorDia (40), sem transacional e sem piso de hora', async () => {
     await abrir();
-    expect(h.linha.pedidosDeTeto).toEqual([{ pisoDia: 40 }]);
+    expect(h.linha.pedidosDeTeto).toEqual([{ pisoDia: 40, robo: 'investidor_agente_abertura' }]);
   });
 
   it('com a rampa de reconexão armada: sem piso nenhum, e o teto do dia vira o da rampa', async () => {
@@ -433,7 +433,7 @@ describe('abertura: os portões, todos antes do claim', () => {
     expect(await abrir(brt('2026-10-11T15:00'))).toMatchObject({ motivo: 'teto_do_dia' });
     h.banco.main.system_state = [];
     expect((await abrir(brt('2026-10-11T15:00'))).enviados).toBe(1);
-    expect(h.linha.pedidosDeTeto).toEqual([undefined]);
+    expect(h.linha.pedidosDeTeto).toEqual([{ robo: 'investidor_agente_abertura' }]);
   });
 
   it('teto da linha e espaçamento da linha seguram', async () => {
@@ -2558,7 +2558,7 @@ describe('retomadas dos toques 2 a 5', () => {
       // O mesmo piso da abertura (maxPorDia), e sem piso com a rampa armada.
       h.linha.espaco = true;
       await retomar();
-      expect(h.linha.pedidosDeTeto).toContainEqual({ pisoDia: 40 });
+      expect(h.linha.pedidosDeTeto).toContainEqual({ pisoDia: 40, robo: 'investidor_agente_abertura' });
     });
 
     it('os dois cortes de mudo: o de 3 toques em 60 dias e o dos 3 carimbos próprios', async () => {

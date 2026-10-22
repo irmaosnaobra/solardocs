@@ -19,6 +19,9 @@
 
 import { supabase } from '../../../utils/supabase';
 import { solardocViaIo } from '../zapiClient';
+import { logger } from '../../../utils/logger';
+import { ehFeriadoBR } from '../../../utils/feriadosBR';
+import { diaBRT, diaDaSemanaBRT, horaBRT } from '../../agentes5040/relogio';
 
 // Cap de segurança por hora na linha física (anti-ban). Compartilhado por todos os bots.
 //
@@ -261,6 +264,26 @@ export const PREFIXOS_AGENDA = [
   'ag5040_agenda_sent:',    // a bolha fixa de agenda da Duda (agendaEnvio.ts); NUNCA ag5040_sent:, que fica fora da lista
 ] as const;
 
+// ─── TERCEIRO BALDE: as respostas das agentes da 5040 (21/10/2026) ───────────
+// `ag5040_sent:` (a resposta ao vivo da Duda, Helena e Carla) e `ficha_lead:` (a ficha ao consultor) saem pela
+// mesma linha, mas ficam FORA de BOT_SENT_PREFIXES de propósito: o teto próprio delas (20/1 h e 120/24 h, vivoEnvio)
+// não pode ser segurado pelo teto do frio, e o frio não pode ficar sem orçamento por causa de resposta a quem
+// escreveu (a lição de 14 a 17/09, acima). Elas entram em UM lugar desta conta:
+//   o ESPAÇAMENTO da linha (respeitaEspacamentoLinha), com janela CURTA de 2 min (a resposta ao vivo não pode ser seguida,
+//   colada, por um frio), enquanto o resto da linha segue com 10 a 15 min.
+// Não entram no teto do frio (hora nem 24 h) nem em NENHUMA conta do transacional (hora ou dia): robô de agenda e boas-vindas
+// não podem ser segurados por resposta das agentes ("agenda nunca bloqueia"). Elas contam no 20/1 h e 120/24 h das agentes
+// e nos 60/450 de emergência, que moram no vivoEnvio.
+export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:'] as const;
+
+/** Janela do espaçamento contra o balde das respostas das agentes (env só para afrouxar/apertar sem deploy). */
+const espacamentoRespostaMs = (): number => Number(process.env.ESPACAMENTO_RESPOSTA_MS || 2 * 60 * 1000);
+
+/** prefixosDaLinha() mais o balde das respostas das agentes (a lista completa do que sai pela linha). */
+export function prefixosTotalDaLinha(): string[] {
+  return [...new Set([...prefixosDaLinha(), ...PREFIXOS_RESPOSTA_AGENTES])];
+}
+
 /** Só os prefixos de envio FRIO (o que não é agenda nem transacional). */
 function prefixosFrios(): string[] {
   return prefixosDaLinha().filter(p => !(PREFIXOS_AGENDA as readonly string[]).includes(p));
@@ -279,7 +302,7 @@ function prefixosFrios(): string[] {
  * quem pode passar por cima com `piso*` e precisa enxergar o todo pra decidir.
  */
 export async function dentroDoTetoHorarioLinha(
-  opts: { transacional?: boolean; pisoHora?: number; pisoDia?: number } = {},
+  opts: { transacional?: boolean; pisoHora?: number; pisoDia?: number; robo?: string } = {},
 ): Promise<boolean> {
   const tetos = await tetosVigentesLinha();
   // Frio não encosta na reserva; transacional usa o dia inteiro.
@@ -295,23 +318,98 @@ export async function dentroDoTetoHorarioLinha(
   // que derrubou a linha em agosto; o piso o eleva, não o remove.
   const tetoHora = Math.max(tetos.hora, opts.pisoHora ?? 0);
   const tetoDia = Math.max(tetoDiaBase, opts.pisoDia ?? 0);
-  // Frio conta só frio; transacional conta a linha inteira (ver PREFIXOS_AGENDA).
-  const orFilter = (opts.transacional ? prefixosDaLinha() : prefixosFrios())
-    .map(p => `key.like.${p}%`).join(',');
+  // Frio conta só frio; transacional conta a linha inteira (ver PREFIXOS_AGENDA). O balde das respostas das agentes
+  // (PREFIXOS_RESPOSTA_AGENTES) não entra em nenhuma das duas, na hora nem no dia.
+  const prefixosDia = opts.transacional ? prefixosDaLinha() : prefixosFrios();
+  const prefixosHora = prefixosDia;
+  const filtroDe = (ps: string[]): string => ps.map(p => `key.like.${p}%`).join(',');
 
-  const contar = async (janelaMs: number, teto: number): Promise<number> => {
+  const contar = async (janelaMs: number, teto: number, prefixos: string[]): Promise<number> => {
     const desde = new Date(Date.now() - janelaMs).toISOString();
     const { data } = await supabase
       .from('system_state').select('key')
-      .or(orFilter)
+      .or(filtroDe(prefixos))
       .gte('updated_at', desde)
       .limit(teto + 1);
     return data?.length ?? 0;
   };
 
-  if (await contar(60 * 60 * 1000, tetoHora) >= tetoHora) return false;
+  if (await contar(60 * 60 * 1000, tetoHora, prefixosHora) >= tetoHora) return false;
   // Teto do DIA (24h corridas). Sem ele, 6/h autorizava 144 contatos frios num dia.
-  return (await contar(24 * 60 * 60 * 1000, tetoDia)) < tetoDia;
+  const n24 = await contar(24 * 60 * 60 * 1000, tetoDia, prefixosDia);
+  if (n24 >= tetoDia) return false;
+  // B4c (sombra): só o frio que se identifica (`robo`) consulta a vaga da Base. Sem `robo`, nada além do que sempre houve.
+  if (opts.robo && !opts.transacional && await vagaDaBaseSegura(opts.robo, tetoDia, n24)) return false;
+  return true;
+}
+
+// ─── VAGA GUARDADA DA BASE (B4c, parecer do chefe de 21/10/2026) ─────────────
+// A retomada da Base das agentes (ag5040_retomada:) divide o MESMO teto frio de 30/24 h com o LimpaPro e o ep_oferta_fria.
+// A vaga da Base é mín(5, teto frio vigente / 6): os outros frios só passam se o frio das 24 h estiver abaixo de
+// (teto - vagas da Base ainda não usadas), e a vaga só fica guardada com a fila da Base cheia e fresca
+// (ag5040_base_fila = { vazia: false, em < 20 min }) dentro da janela da Base.
+//
+// MODO SOMBRA: por 7 dias só se CONTA quantas vezes alguém seria segurado (log `vaga_da_base (sombra)` e o contador
+// ag5040_base_sombra:<dia BRT> = { n, robos }, sem telefone), e NINGUÉM é segurado. A env AGENTES5040_BASE_VAGA=1
+// (desligada por padrão, lida a cada chamada) liga o modo real. Falha de leitura nunca segura ninguém.
+const FILA_BASE_FRESCA_MS = 20 * 60_000;
+const VAGA_BASE_MAX = 5;
+const PREFIXO_RETOMADA_BASE = 'ag5040_retomada:';
+const CHAVE_FILA_DA_BASE = 'ag5040_base_fila';
+const PREFIXO_SOMBRA_BASE = 'ag5040_base_sombra:';
+/** O robô da Base nunca é seguro pela vaga dela mesma. */
+const ROBOS_DA_BASE = ['base_retomada_5040', 'base'];
+
+/** Mesma regra de dentroDaJanelaBase (agentes5040/baseRegras.ts): 9h às 20h BRT, segunda a sábado, fora de feriado nacional. Um teste confere as duas. */
+export function dentroDaJanelaDaBaseLinha(now: Date): boolean {
+  const dow = diaDaSemanaBRT(now);
+  const h = horaBRT(now);
+  if (dow < 1 || dow > 6 || h < 0) return false;
+  if (ehFeriadoBR(diaBRT(now))) return false;
+  return h >= 9 && h < 20;
+}
+
+/** true = SEGURAR de verdade (só com AGENTES5040_BASE_VAGA=1). Em sombra devolve false depois de registrar. Nunca lança. */
+async function vagaDaBaseSegura(robo: string, tetoFrioDia: number, frio24h: number, now: Date = new Date()): Promise<boolean> {
+  try {
+    if (ROBOS_DA_BASE.includes(robo)) return false;
+    const vaga = Math.min(VAGA_BASE_MAX, Math.floor(tetoFrioDia / 6));
+    if (vaga <= 0 || !dentroDaJanelaDaBaseLinha(now)) return false;
+    const { data: fila } = await supabase.from('system_state').select('value').eq('key', CHAVE_FILA_DA_BASE).maybeSingle();
+    const f = (fila as { value?: { vazia?: boolean; em?: string } } | null)?.value;
+    const em = Date.parse(String(f?.em ?? ''));
+    if (!f || f.vazia !== false || !Number.isFinite(em) || now.getTime() - em >= FILA_BASE_FRESCA_MS || em > now.getTime() + 60_000) return false;
+    const desde = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: usadas, error } = await supabase.from('system_state').select('key')
+      .like('key', `${PREFIXO_RETOMADA_BASE}%`).gte('updated_at', desde).limit(vaga);
+    if (error) return false;
+    const naoUsadas = Math.max(0, vaga - (usadas?.length ?? 0));
+    if (naoUsadas <= 0 || frio24h < tetoFrioDia - naoUsadas) return false;
+    // SERIA segurado.
+    if (process.env.AGENTES5040_BASE_VAGA === '1') {
+      logger.info('linha', 'vaga_da_base', { robo });
+      return true;
+    }
+    logger.info('linha', 'vaga_da_base (sombra)', { robo });
+    await contarSombraDaBase(robo, now);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** ag5040_base_sombra:<dia BRT> = { n, robos: { <robo>: <n> } }. Leitura-e-escrita sem trava: na sombra, perder 1 contagem numa corrida é aceitável. */
+async function contarSombraDaBase(robo: string, now: Date): Promise<void> {
+  try {
+    const chave = `${PREFIXO_SOMBRA_BASE}${diaBRT(now)}`;
+    const { data } = await supabase.from('system_state').select('value').eq('key', chave).maybeSingle();
+    const v = (data as { value?: { n?: number; robos?: Record<string, number> } } | null)?.value ?? {};
+    const robos: Record<string, number> = { ...(v.robos ?? {}) };
+    robos[robo] = (Number(robos[robo]) || 0) + 1;
+    const iso = now.toISOString();
+    await supabase.from('system_state').upsert(
+      { key: chave, value: { n: (Number(v.n) || 0) + 1, robos }, updated_at: iso }, { onConflict: 'key' });
+  } catch { /* contador de observação: nunca derruba o envio */ }
 }
 
 // ─── JANELA DIURNA — mensagem fria não sai de madrugada ──────────────────────
@@ -384,7 +482,8 @@ const ESPACAMENTO_JITTER_MS     = Number(process.env.ESPACAMENTO_JITTER_MS || 5 
  * Pergunta na forma "houve QUALQUER envio na última janela?" — mesma forma do teto
  * horário (janela + limit), sem depender de ordenação.
  */
-export async function respeitaEspacamentoLinha(prefixos = prefixosDaLinha()): Promise<boolean> {
+export async function respeitaEspacamentoLinha(prefixosExplicitos?: string[]): Promise<boolean> {
+  const prefixos = prefixosExplicitos ?? prefixosDaLinha();
   if (process.env.ESPACAMENTO_OFF === '1') return true;
   // Lido a cada chamada (não da constante): instância quente não recarrega módulo, e
   // sem isto o aperto não expiraria até o próximo deploy.
@@ -395,5 +494,14 @@ export async function respeitaEspacamentoLinha(prefixos = prefixosDaLinha()): Pr
     .or(prefixos.map(p => `key.like.${p}%`).join(','))
     .gte('updated_at', desde)
     .limit(1);
-  return (data?.length ?? 0) === 0;               // nada nos últimos 5 min → pode ir
+  if ((data?.length ?? 0) > 0) return false;      // algo nos últimos 10-15 min → espera
+  // Sem prefixos explícitos (a linha toda), o balde das respostas das agentes entra com a janela CURTA de 2 min: um frio não sai
+  // colado numa resposta ao vivo, mas também não espera 10-15 min por ela. Prefixos explícitos (a Carla fora do desvio) ficam como eram.
+  if (prefixosExplicitos) return true;
+  const respostas = await supabase
+    .from('system_state').select('key')
+    .or(PREFIXOS_RESPOSTA_AGENTES.map(p => `key.like.${p}%`).join(','))
+    .gte('updated_at', new Date(Date.now() - espacamentoRespostaMs()).toISOString())
+    .limit(1);
+  return (respostas.data?.length ?? 0) === 0;
 }

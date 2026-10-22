@@ -569,7 +569,7 @@ async function ofertar(
 export async function ofertarPorConta(
   ficha: Ficha,
   copy: (nome: string, ofertas: string[], quem: string) => string[],
-  opts: { rodada?: number; dry?: boolean; silencioSemVaga?: boolean; transacional?: boolean } = {},
+  opts: { rodada?: number; dry?: boolean; silencioSemVaga?: boolean; transacional?: boolean; robo?: string } = {},
 ): Promise<ResultadoRemarcar> {
   if (desligado() || !ficha.cliente_telefone) return { acao: 'nada' };
   const quem = String(ficha.vendedor_nome || '').trim();
@@ -599,7 +599,8 @@ export async function ofertarPorConta(
     }
     if (!(await dentroDoTetoHorarioLinha(opts.transacional === true
       ? { transacional: true, pisoHora: respostaPisoHora(), pisoDia: RESPOSTA_PISO_DIA }
-      : { transacional: false }))) {
+      // `robo`: só para a contagem da sombra da vaga da Base (B4c). Cobre o NaoAtendidoFup e o Retorno, que passam por aqui.
+      : { transacional: false, robo: opts.robo ?? 'ep_oferta_fria' }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
       return false;
     }

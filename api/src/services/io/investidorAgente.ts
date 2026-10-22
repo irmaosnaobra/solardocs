@@ -597,8 +597,8 @@ export async function runInvestidorAberturaTick(opts: { agora?: Date } = {}): Pr
   //    por HORA e o espaçamento continuam sendo o freio, sem piso nenhum. Com a
   //    rampa de reconexão armada nem esse piso vale.
   const linhaComFolga = rampa
-    ? await dentroDoTetoHorarioLinha()
-    : await dentroDoTetoHorarioLinha({ pisoDia: maxPorDia() });
+    ? await dentroDoTetoHorarioLinha({ robo: 'investidor_agente_abertura' })
+    : await dentroDoTetoHorarioLinha({ pisoDia: maxPorDia(), robo: 'investidor_agente_abertura' });
   if (!linhaComFolga) return semEnvio('teto_da_linha');
   if (!(await respeitaEspacamentoLinha())) return semEnvio('espacamento_da_linha');
 
@@ -2121,8 +2121,8 @@ export async function runInvestidorRetomadaTick(opts: { agora?: Date } = {}): Pr
 
   // 6) A linha: os mesmos freios da abertura.
   const linhaComFolga = rampa
-    ? await dentroDoTetoHorarioLinha()
-    : await dentroDoTetoHorarioLinha({ pisoDia: maxPorDia() });
+    ? await dentroDoTetoHorarioLinha({ robo: 'investidor_agente_abertura' })
+    : await dentroDoTetoHorarioLinha({ pisoDia: maxPorDia(), robo: 'investidor_agente_abertura' });
   if (!linhaComFolga) return sem('teto_da_linha');
   if (!(await respeitaEspacamentoLinha())) return sem('espacamento_da_linha');
 

@@ -550,7 +550,10 @@ describe('runFichaConsultorTick', () => {
     await rodar();
     expect([...h.estado.keys()].some(k => k.startsWith('aviso_sent:'))).toBe(false);
     const lt = readFileSync(join(__dirname, '..', 'services', 'agents', 'whatsapp', 'lineThrottle.ts'), 'utf8');
-    expect(lt).not.toMatch(/'ficha_card:'|'ficha_lead:'/);
+    // 21/10: o terceiro balde (PREFIXOS_RESPOSTA_AGENTES) nomeia ficha_lead: de propósito, só para o espaçamento e o total da hora do
+    // transacional; fora dele, nenhuma lista (BOT_SENT_PREFIXES, PREFIXOS_AGENDA) pode citar os dois.
+    expect(lt.replace(/export const PREFIXOS_RESPOSTA_AGENTES = [^;]*;/, '')).not.toMatch(/'ficha_card:'|'ficha_lead:'/);
+    // (a prova em execução de que prefixosDaLinha() e PREFIXOS_AGENDA não os têm está em lineThrottleBalde.test.ts)
   });
 
   it('23505 na reserva do card (outro chamador na frente): não grava e não envia', async () => {

@@ -164,7 +164,7 @@ async function conferirDuasHoras(agora: number): Promise<Recusa | null> {
 
 /** 6 e 7) O frio da linha: teto horário e do dia (sem piso nenhum) e o espaçamento entre envios. */
 async function conferirLinhaFria(): Promise<Recusa | null> {
-  if (!(await dentroDoTetoHorarioLinha())) return { motivo: 'teto_da_linha', http: 429 };
+  if (!(await dentroDoTetoHorarioLinha({ robo: 'status_5040' }))) return { motivo: 'teto_da_linha', http: 429 };
   if (!(await respeitaEspacamentoLinha())) return { motivo: 'espacamento_da_linha', http: 429 };
   return null;
 }
