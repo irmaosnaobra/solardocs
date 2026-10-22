@@ -36,6 +36,7 @@ import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { varrerComentariosFacebook } from '../services/instagram/fbComentarios';
 import { varrerInboxFacebook } from '../services/instagram/fbMensagens';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
+import { normalizarCidadesRecentes } from '../services/io/normalizarCidadesRecentes';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
@@ -1586,6 +1587,8 @@ router.get('/master', async (req: Request, res: Response) => {
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     ['sonda-documentos',            () => runSondaDocumentos()],   // monitor: assinante apanhando no documento (3× o mesmo doc em 30min, PDF que falhou, revisão barrada). Só avisa — não mexe em documento de ninguém.
     ['entrada-io-digest',           () => runEntradaIoDigest()],       // 12h e 18h: quem escreveu no 5040 hoje (ninguém responde por robô nessa linha)
+
+    ['cidades-normalizar',          () => normalizarCidadesRecentes()], // cidade das fichas dos últimos 3 dias vira "Município-UF" (só ok/ddd, até 500 por rodada; nunca lança)
 
     // ['inventory-low-stock',         () => runInventoryLowStockAlert()], // [GATED] digest de estoque baixo — ligar após adoção do Inventário
   ];

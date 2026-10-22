@@ -26,6 +26,7 @@ import { UFS } from '../services/nexus/procura';
 import { ErroBanco, Linha, calcularSaldoEngenharia, ehPedidoDeEquipamento, entradaDoNivel, recalcularCarregadores, saldoEngenharia } from '../services/nexus/repositorio';
 import { DIA_MS, UUID, exigePortalLigado, lerTudo, lotes, ok, rota, textoLivre } from './geradorNexusBase';
 import { STATUS_APOS_ACEITE, tempoDeRespostaMs } from './geradorNexusRede';
+import { chaveMunicipio, normalizarCidade } from '../services/io/cidadeParse';
 
 const STATUS_PARCEIRO = ['novo', 'em_contato', 'parceiro_ativo', 'descartado'] as const;
 const STATUS_PEDIDO = ['solicitado', 'negociando', 'confirmado', 'cancelado'] as const;
@@ -462,7 +463,19 @@ export function mountNexusEquipe(router: Router): void {
       return { aceitas, recusadas, tempo_medio_resposta_h: media };
     };
 
-    const mesmaCidade = (p: Linha) => String(p.cidade ?? '').trim().toLowerCase() === String(op.cidade ?? '').trim().toLowerCase();
+    // Compara o município, não o texto: a oportunidade pode vir "Fortaleza-CE" (formato
+    // único dos leads desde 22/10/2026) e o parceiro ter digitado "fortaleza". UF só
+    // desempata quando os dois lados têm.
+    const cidadeDe = (texto: unknown, ufCol?: unknown) => {
+      const s = normalizarCidade(String(texto ?? ''));
+      return { chave: chaveMunicipio(s.cidade ?? String(texto ?? '')), uf: s.uf || (ufCol ? String(ufCol).trim().toUpperCase() : null) };
+    };
+    const cidadeOp = cidadeDe(op.cidade, op.uf);
+    const mesmaCidade = (p: Linha) => {
+      if (!cidadeOp.chave) return false;
+      const c = cidadeDe(p.cidade, p.uf);
+      return c.chave === cidadeOp.chave && (!c.uf || !cidadeOp.uf || c.uf === cidadeOp.uf);
+    };
     const sugestoes = aptos
       .map((p) => ({
         user_id: p.user_id,

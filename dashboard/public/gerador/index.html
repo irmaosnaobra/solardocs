@@ -8805,10 +8805,9 @@ function avatarConsultorHtml(nome) {
 }
 
 function _propostaRowFromDados(d) {
-  const cidade = (d.cidade || '').trim();
-  const partes = cidade.split(',').map(s => s.trim()).filter(Boolean);
-  const cidNome = partes[0] || null;
-  const uf = partes[1] || null;
+  const sepCid = separarCidadeUf(d.cidade);
+  const cidNome = sepCid.cidade || null;
+  const uf = sepCid.uf || null;
   return {
     dados: d,
     consultor_nome: d.consultor || null,
@@ -9050,6 +9049,7 @@ function distCacheSet(cidade, uf, km) {
 async function geocodeCidade(cidade, uf) {
   cidade = (cidade || '').trim();
   uf = (uf || '').trim();
+  if (!uf) { const sep = separarCidadeUf(cidade); cidade = sep.cidade; uf = sep.uf; }   // "Uberlândia-MG" digitado no campo
   if (!cidade) return null;
 
   const cached = distCacheGet(cidade, uf);
@@ -9559,8 +9559,9 @@ async function gerar() {
   const nome = document.getElementById('f-nome').value.trim();
   const telefone = document.getElementById('f-telefone').value.trim();
   const telefoneDigitos = normalizeTelefone(telefone);
-  const cidadeNome = document.getElementById('f-cidade').value.trim();
-  const uf = document.getElementById('f-uf').value;
+  const sepCid = separarCidadeUf(document.getElementById('f-cidade').value);   // "Uberlândia-MG" digitado vira Uberlândia + MG
+  const cidadeNome = sepCid.cidade;
+  const uf = document.getElementById('f-uf').value || sepCid.uf;
   const cidade = [cidadeNome, uf].filter(Boolean).join(', ');
 
   // Garante que a busca de distância (se em andamento) finalize antes de calcular preço.
@@ -31162,7 +31163,8 @@ function fsAplicarDados(d, forcar, row) {
   if (!d) return;
   row = row || {};
   const f = !!forcar;
-  const cid = String(d.cidade || '').split(',').map(s => s.trim());
+  const sepCid = separarCidadeUf(d.cidade);
+  const cid = [sepCid.cidade, sepCid.uf];
   fsSet('fs-nome', d.nome || row.cliente_nome || '', f);
   fsSet('fs-tel', d.telefone ? epFoneBR(d.telefone) : '', f);
   fsSet('fs-cidade', cid[0] || row.cliente_cidade || '', f);
@@ -36321,7 +36323,7 @@ async function crmSalvarEdicao() {
       }
       if (cidade) {
         // dados.cidade costuma ser "Cidade, UF" — preserva a UF se já existia.
-        const ufAntiga = (String(d.cidade || '').split(',')[1] || '').trim();
+        const ufAntiga = separarCidadeUf(d.cidade).uf;
         d.cidade = ufAntiga ? `${cidade}, ${ufAntiga}` : cidade;
       }
       const body = { cliente_nome: nome, dados: d };
@@ -42270,10 +42272,11 @@ function crmAgendarDoDetalhe() {
 function preencherClienteNoForm({ nome, tel, cidade, uf, telhado, fase, distanciaKm, excedente } = {}) {
   let cidNome = '', ufDaCidade = '';
   if (cidade) {
-    // aceita "Cidade/UF" (agenda) ou "Cidade, UF" (proposta)
-    const partes = String(cidade).split(/[\/,]/).map(s => s.trim());
-    cidNome = partes[0] || '';
-    ufDaCidade = (partes[1] || '').toUpperCase().slice(0, 2);
+    // aceita "Cidade/UF" (agenda), "Cidade, UF" (proposta) e "Cidade-UF" (a coluna normalizada).
+    // Sem separar o "-UF" o f-cidade ficava "Uberlândia-MG" e a HSP da cidade nunca era achada.
+    const sep = separarCidadeUf(cidade);
+    cidNome = sep.cidade;
+    ufDaCidade = sep.uf;
   }
   const ufFinal = (uf || ufDaCidade || '').toUpperCase().slice(0, 2);
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
@@ -44848,9 +44851,9 @@ async function editarProposta(codigo) {
     document.getElementById('f-telefone').value = d.telefone || '';
     let cidNome = '', uf = '';
     if (d.cidade) {
-      const partes = d.cidade.split(',').map(s => s.trim());
-      cidNome = partes[0] || '';
-      uf = partes[1] || '';
+      const sep = separarCidadeUf(d.cidade);   // "Cidade, UF" (o gravado) ou "Cidade-UF" (legado do lead)
+      cidNome = sep.cidade;
+      uf = sep.uf;
     }
     document.getElementById('f-cidade').value = cidNome;
     document.getElementById('f-uf').value = uf;

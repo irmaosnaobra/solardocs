@@ -113,6 +113,9 @@ describe('conhecimento: depoimentos', () => {
     expect(cardsParaLead({ cidade: 'Salvador', uf: 'BA' })[0]!.slug).toBe('antonio-exxel-solar');
     expect(cardsParaLead({ uf: 'PA' })).toHaveLength(11);
     expect(cardsParaLead({ cidade: 'Londrina', uf: 'PR' }, ['lucas-rsc-solar']).map(d => d.slug)).not.toContain('lucas-rsc-solar');
+    // Card e leads_meta gravam "Município-UF" desde 22/10/2026, e a Carla passa só a cidade.
+    expect(cardsParaLead({ cidade: 'Londrina-PR' })[0]!.slug).toBe('lucas-rsc-solar');
+    expect(cardsParaLead({ cidade: 'Salvador-BA' })[0]!.slug).toBe('antonio-exxel-solar');
     expect(regiaoDaUF('ba')).toBe('nordeste');
     expect(regiaoDaUF('xx')).toBeNull();
   });

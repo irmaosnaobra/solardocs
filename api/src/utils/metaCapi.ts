@@ -58,9 +58,9 @@ export function separarNome(nome: unknown): { fn: string; ln: string } {
   return { fn: partes[0] || '', ln: partes.length > 1 ? partes[partes.length - 1] : '' };
 }
 
-/** "Uberlândia", "Uberlândia, MG" ou "Uberlândia/MG" viram "uberlandia". */
+/** "Uberlândia", "Uberlândia, MG", "Uberlândia/MG" e "Uberlândia-MG" (formato da agenda) viram "uberlandia". */
 export function normCidade(s: unknown): string {
-  return semAcento(String(s ?? '').split(/[,/]| - /)[0]).replace(/[^a-z]/g, '');
+  return semAcento(String(s ?? '').split(/[,/]| - /)[0].replace(/-[A-Z]{2}\s*$/, '')).replace(/[^a-z]/g, '');
 }
 
 /** UF de duas letras, minúscula. Aceita "MG", "mg" ou o fim de "Uberlândia, MG". */

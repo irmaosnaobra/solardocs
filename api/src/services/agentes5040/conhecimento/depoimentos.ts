@@ -7,6 +7,8 @@
 // null) não pode ser enviado.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { normalizarCidade } from '../../io/cidadeParse';
+
 export type Regiao = 'norte' | 'nordeste' | 'centro-oeste' | 'sudeste' | 'sul';
 
 export interface Depoimento {
@@ -62,8 +64,11 @@ export function cardsParaLead(
   perfil: { cidade?: string | null; uf?: string | null },
   jaEnviados: readonly string[] = [],
 ): Depoimento[] {
-  const cidade = norm(perfil.cidade);
-  const uf = String(perfil.uf ?? '').trim().toUpperCase();
+  // Desde 22/10/2026 o card e o leads_meta gravam "Londrina-PR": a UF do fim sai
+  // antes de comparar, senão o depoimento da mesma cidade perde para o resto.
+  const separada = normalizarCidade(perfil.cidade ?? null);
+  const cidade = norm(separada.cidade ?? perfil.cidade);
+  const uf = String(perfil.uf || separada.uf || '').trim().toUpperCase();
   const regiao = regiaoDaUF(uf);
   const nota = (x: Depoimento): number =>
     cidade && norm(x.cidade) === cidade ? 0 : uf && x.uf === uf ? 1 : regiao && x.regiao === regiao ? 2 : 3;

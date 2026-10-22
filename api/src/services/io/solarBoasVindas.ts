@@ -58,6 +58,7 @@ import { sendHuman } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { telefoneBonito, quandoPorExtenso } from './eletropostoAgenda';
+import { cidadeParaTexto } from './cidadeCanonica';
 import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
 import { agenteAtendeEste, cedeAAgente } from '../agentes5040/posse';
@@ -308,7 +309,8 @@ export function resumoDaFicha(observacao: string | null | undefined): string {
   const linhas = String(observacao || '').split('\n');
   const val = (rot: string) => (linhas.find(l => l.startsWith(rot)) || '').slice(rot.length).trim();
   const conta = val('Conta de luz:').replace(/\s*\(.*\)$/, '');
-  const cidade = val('Cidade:').split(' · ')[0].replace(/-[A-Z]{2}$/, '');
+  // A coluna guarda "Município-UF"; ao lead vai só o município ("em Uberlândia", não "em Uberlândia-MG").
+  const cidade = cidadeParaTexto(val('Cidade:').split(' · ')[0]);
   const imovel = val('Imóvel:').toLowerCase();
   const quando = val('Quando quer:').toLowerCase();
   const pag = val('Pagamento:').toLowerCase();

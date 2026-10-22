@@ -55,11 +55,42 @@ function normalizeCidade(c) {
     .toLowerCase().trim().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ');
 }
 
+// Separa "Cidade" de "UF" em texto digitado ou vindo da agenda: "Uberlândia/MG", "Uberlândia, MG"
+// e "Uberlândia-MG" (formato único da coluna `cidade` desde a normalização). O `-UF` só vale com
+// sigla de 2 letras que EXISTE no fim ("Ji-Paraná-RO" -> Ji-Paraná/RO), então "Ji-Paraná" e
+// "Xique-Xique" passam intactos. Sem isto o f-cidade ficava "Uberlândia-MG", o getRef procurava
+// "uberlandiamg", não achava a HSP da cidade e caía na do estado, sem erro nenhum.
+const UF_POR_EXTENSO = {
+  acre: 'AC', alagoas: 'AL', amapa: 'AP', amazonas: 'AM', bahia: 'BA', ceara: 'CE', 'distrito federal': 'DF',
+  'espirito santo': 'ES', goias: 'GO', maranhao: 'MA', 'mato grosso': 'MT', 'mato grosso do sul': 'MS',
+  'minas gerais': 'MG', para: 'PA', paraiba: 'PB', parana: 'PR', pernambuco: 'PE', piaui: 'PI',
+  'rio de janeiro': 'RJ', 'rio grande do norte': 'RN', 'rio grande do sul': 'RS', rondonia: 'RO',
+  roraima: 'RR', 'santa catarina': 'SC', 'sao paulo': 'SP', sergipe: 'SE', tocantins: 'TO',
+};
+function separarCidadeUf(texto) {
+  const s = String(texto || '').replace(/\s+/g, ' ').trim();
+  if (!s) return { cidade: '', uf: '' };
+  const partes = s.split(/\s*[\/,]\s*/);
+  let cidade = (partes[0] || '').trim();
+  // Depois da barra/vírgula só vale UF de verdade: a sigla ("MG") ou o estado por extenso
+  // ("Minas Gerais"). "Minas Gerais" cortado em 2 letras virava "MI", que não existe.
+  const depois = (partes[1] || '').trim();
+  let uf = '';
+  if (/^[A-Za-z]{2}$/.test(depois) && HSP_TARIFA_BR[depois.toUpperCase()]) uf = depois.toUpperCase();
+  else if (depois) uf = UF_POR_EXTENSO[normalizeCidade(depois)] || '';
+  if (!uf) {
+    const m = cidade.match(/^(.*\S)\s*-\s*([A-Za-z]{2})$/);
+    if (m && HSP_TARIFA_BR[m[2].toUpperCase()]) { cidade = m[1].trim(); uf = m[2].toUpperCase(); }
+  }
+  return { cidade, uf };
+}
+
 function getRef(uf, cidade) {
-  const u = (uf || '').trim().toUpperCase();
+  const sep = separarCidadeUf(cidade);
+  const u = (uf || sep.uf || '').trim().toUpperCase();
   const stateRef = HSP_TARIFA_BR[u] || { hsp: 5.2, tarifa: 0.95 };
   if (!cidade) return stateRef;
-  const cityHsp = HSP_CIDADE[normalizeCidade(cidade)];
+  const cityHsp = HSP_CIDADE[normalizeCidade(sep.cidade)];
   return cityHsp ? { hsp: cityHsp, tarifa: stateRef.tarifa } : stateRef;
 }
 

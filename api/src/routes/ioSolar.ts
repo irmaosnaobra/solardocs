@@ -4,6 +4,7 @@ import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
 import { gravarCardSolar } from '../services/agentes5040/agendaSolar';
 import { logger } from '../utils/logger';
+import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
 import { FILA_CONTA_ALTA } from '../services/agenda/leadSolarFicha';
@@ -303,7 +304,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
       quando,
       cliente_nome: nome,
       cliente_telefone: tel,
-      cidade: String(b.cidade || '').trim().slice(0, 200) || null,
+      cidade: cidadeParaGravar(String(b.cidade || '').trim().slice(0, 200), tel),
       status: 'agendado',
       temperatura: b.temperatura === 'quente' ? 'quente' : 'morno',
       observacao: String(b.observacao || '').slice(0, 4000),
@@ -464,7 +465,7 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
     const gravou = String(req.query.dry || '') !== '1' && await gravarLead(leadId, {
       form_id: FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
-      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
+      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel),
       // Curioso não tem horário, mas tem dono pela faixa de consumo (lista para depois).
       field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b), consultor: dec.candidatos[0] ?? donoDaFaixa(dec.kwh), fora_area: false,
     });
@@ -532,7 +533,7 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
       quando,
       nome: e.nome,
       tel: e.tel,
-      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
+      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel),
       observacao: montarObservacao(e.resp, dec, endereco, semHorario),
       src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null,
       utm: utmDe(b),

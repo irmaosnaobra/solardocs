@@ -34,6 +34,11 @@ const UF_POR_NOME: Record<string, string> = {
 
 const SIGLAS = new Set(Object.values(UF_POR_NOME));
 
+/** O texto INTEIRO é o nome de um estado ("Goiás", "Distrito Federal")? Sigla sozinha não conta. */
+export function ehNomeDeEstado(texto: string | null | undefined): boolean {
+  return Object.prototype.hasOwnProperty.call(UF_POR_NOME, semAcento(String(texto || '')).replace(/\s+/g, ' '));
+}
+
 /** Tira acento e caixa. NÃO mexe em pontuação — ela carrega a UF nesta etapa. */
 export function semAcento(s: string): string {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();

@@ -1,5 +1,6 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { cidadeParaGravar } from '../io/cidadeCanonica';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { fichaSubstituiAviso } from '../agentes5040/chaves';
 import {
@@ -580,7 +581,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
               quando: slot.toISOString(),
               cliente_nome: nome,
               cliente_telefone: whatsapp,
-              cidade: cidade || null,
+              cidade: cidadeParaGravar(cidade, whatsapp),
               observacao: obs,   // ficha já vem pronta e em ordem fixa (leadSolarFicha)
               status: 'agendado',
               created_by: 'lead-meta',
@@ -609,7 +610,7 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
           lead_id: lead.id,
           form_id: formId,
           created_time: lead.created_time,
-          nome, whatsapp, email, cidade,
+          nome, whatsapp, email, cidade: cidade ? cidadeParaGravar(cidade, whatsapp) : cidade,
           field_data: fields,
           agendado_id: agendadoId,
           consultor,

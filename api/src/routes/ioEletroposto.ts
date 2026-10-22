@@ -23,6 +23,7 @@ import { geoLimiter, funilEletropostoLimiter } from '../middleware/rateLimiter';
 import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, idDoTelefone } from '../utils/capiQuiz';
 // O rodízio e o gravador do card saíram daqui para um serviço (10/10/2026): a
 // agente de investidores grava o mesmo card e não pode importar a rota.
+import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { DONOS_EP, ORIGEM_LP_EP, ORIGEM_AGENTE_EP, consultaDoRodizio, donoDaVez, gravarCardEletroposto } from '../services/io/eletropostoCard';
 // A marca da etiqueta de negócio do card (`etiqueta_card:<id>`), a mesma que o
 // /gerador grava: desde 13/10/2026 o card da LP já nasce com ela.
@@ -423,7 +424,7 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   if (!jaGravado) {
     try {
       const { data, error } = await supabaseGerador
-        .from('eletroposto_nota1').insert(lead).select('id').single();
+        .from('eletroposto_nota1').insert({ ...lead, cidade: cidadeParaGravar(lead.cidade, telefone) }).select('id').single();
       if (error) throw error;
       id = data?.id ?? null;
     } catch (err) {
@@ -870,7 +871,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     quando,
     cliente_nome: nome,
     cliente_telefone: tel,
-    cidade: String(b.cidade || '').trim().slice(0, 120) || null,
+    cidade: cidadeParaGravar(String(b.cidade || '').trim().slice(0, 120), tel),
     status: 'agendado',
     temperatura: b.temperatura === 'quente' ? 'quente' : 'morno',
     observacao: String(b.observacao || '').slice(0, 4000),
@@ -901,7 +902,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     //    em Schedule, contaria a reunião em dobro (página velha em cache);
     //  - LeadQuente, que não tem gêmeo no navegador: NOTA 3 ou capital de R$ 100 mil
     //    pra cima. O id fixo por telefone faz o Meta descartar o reenvio.
-    const pessoa = { telefone: tel, nome, cidade: ficha.cidade };
+    const pessoa = { telefone: tel, nome, cidade: String(b.cidade || '').trim().slice(0, 120) || null };
     const navegador = navegadorDe(req, b);
     const eventId = eventIdDe(b.event_id);
     const nota = Number(String(ficha.observacao).match(/^NOTA ([123])\s*·/m)?.[1] ?? 0);
@@ -1371,10 +1372,12 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   // é trabalho da casa, e prender o lead esperando WhatsApp da equipe seria
   // cobrar dele o nosso tempo.
   let reg: Record<string, unknown> | null = null;
+  // Só o valor da coluna vira "Município-UF"; `bruto.cidade` segue cru para os avisos.
+  const linhaGravar = linha.cidade ? { ...linha, cidade: cidadeParaGravar(linha.cidade, telefone) } : linha;
   try {
     const { data, error } = await supabaseGerador
       .from('eletroposto_parceria')
-      .upsert(linha, { onConflict: 'lado,telefone' })
+      .upsert(linhaGravar, { onConflict: 'lado,telefone' })
       .select('*').single();
     if (error) throw error;
     reg = data as Record<string, unknown>;

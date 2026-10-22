@@ -31,6 +31,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { proximoDaContaBaixa } from './filaContaBaixa';
 import { logger } from '../../utils/logger';
+import { cidadeParaGravar } from '../io/cidadeCanonica';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { fichaSubstituiAviso } from '../agentes5040/chaves';
 import {
@@ -323,7 +324,7 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
         quando: quando.toISOString(),
         cliente_nome: nome,
         cliente_telefone: whatsapp,
-        cidade: cidade || null,
+        cidade: cidadeParaGravar(cidade, whatsapp),
         temperatura,
         observacao: obs,
         status: 'agendado',
@@ -348,7 +349,7 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     lead_id: leadId,
     form_id: 'manychat',
     created_time: new Date().toISOString(),
-    nome, whatsapp, email: p.email || '', cidade,
+    nome, whatsapp, email: p.email || '', cidade: cidade ? cidadeParaGravar(cidade, whatsapp) : cidade,
     field_data: fields,
     agendado_id: agendadoId,
     consultor,
@@ -431,7 +432,7 @@ async function registrarLeadIgParaLP(
     .from('eletroposto_nota1')
     .insert({
       nome, telefone: whatsapp,
-      cidade: cidadePonto || null,
+      cidade: cidadeParaGravar(cidadePonto, whatsapp),
       perfil: perfil || null,
       email: p.email || null,
       ficha,
@@ -518,7 +519,7 @@ async function ingestEletroposto(p: ManychatLeadPayload, nome: string, whatsapp:
       quando: quando.toISOString(),
       cliente_nome: nome,
       cliente_telefone: whatsapp,
-      cidade: cidadePonto || null,
+      cidade: cidadeParaGravar(cidadePonto, whatsapp),
       temperatura,
       observacao: obs,
       status: 'agendado',

@@ -26,6 +26,8 @@ describe('normalização do que identifica a pessoa', () => {
   it('cidade e UF saem do jeito que o Meta compara', () => {
     expect(normCidade('Uberlândia, MG')).toBe('uberlandia');
     expect(normCidade('Uberlândia/MG')).toBe('uberlandia');
+    expect(normCidade('Uberlândia-MG')).toBe('uberlandia');
+    expect(normCidade('Ji-Paraná-RO')).toBe('jiparana');
     expect(normCidade('São João del-Rei')).toBe('saojoaodelrei');
     expect(normUf('MG')).toBe('mg');
     expect(normUf('Uberlândia, MG')).toBe('mg');

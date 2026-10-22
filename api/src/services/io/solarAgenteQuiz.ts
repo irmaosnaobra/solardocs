@@ -45,6 +45,7 @@ import { estaBloqueado } from '../agents/whatsapp/silenciar';
 import { pareceRoboDeles } from '../agents/whatsapp/roboDoOutroLado';
 import { INSTANCE_ID_IO } from './solarRespostas';
 import { quandoPorExtenso, telefoneBonito } from './eletropostoAgenda';
+import { cidadeParaTexto } from './cidadeCanonica';
 import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
 import { cedeAAgente } from '../agentes5040/posse';
 
@@ -104,7 +105,7 @@ export function montarSistema(ctx: ContextoLead): string {
   const quando = ctx.quandoIso ? quandoPorExtenso(ctx.quandoIso) : null;
   const fatos = [
     `Nome do cliente: ${ctx.nome || 'não informado'}`,
-    `Cidade: ${ctx.cidade || 'não informada'}`,
+    `Cidade: ${cidadeParaTexto(ctx.cidade) || 'não informada'}`,   // sem o "-UF": a IA repete isto ao lead
     `Situação: ${ROTULO_CAMINHO[ctx.caminho]}`,
     ctx.quem ? `Quem atende o cliente: ${ctx.quem}` : '',
     quando ? `Horário marcado: ${quando}` : '',
