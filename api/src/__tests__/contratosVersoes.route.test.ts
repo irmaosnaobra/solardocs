@@ -19,6 +19,9 @@ const h = vi.hoisted(() => ({
   buscados: [] as string[],
   ligacoes: {} as Record<number, string>,
   donosDaVenda: {} as Record<string, string[]>,
+  /** Registro do alocador (`codigo_solar:<NNNN>`): código -> card. `registroCai` derruba a leitura. */
+  registros: {} as Record<string, number>,
+  registroCai: false,
   lerListas: 0,
   ordem: [] as string[],
   tique: 0,
@@ -128,6 +131,14 @@ vi.mock('../routes/geradorClientes', async (importOriginal) => ({
 vi.mock('../services/gerador/vendaSolarHub', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../services/gerador/vendaSolarHub')>()),
   lerLigacao: vi.fn(async (card: number) => ({ lig: { venda: h.ligacoes[card] ?? '' }, existe: !!h.ligacoes[card] })),
+}));
+
+vi.mock('../services/gerador/vendaSolarRegistro', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/gerador/vendaSolarRegistro')>()),
+  codigoDoAlocadorDoCard: vi.fn(async (codigo: string, cardId: number) => {
+    if (h.registroCai) throw new Error('banco fora');
+    return h.registros[codigo] === cardId || h.registros[codigo] === -1;   // -1: presente com assinatura inválida
+  }),
 }));
 
 import { mountContratosVersoes } from '../routes/geradorContratosVersoes';
@@ -325,6 +336,25 @@ describe('versões dos contratos ligadas ao card', () => {
     // essa regra é só da venda solar: a mesma ligação não abre um card do eletroposto
     h.ligacoes[102] = '#0057'; h.donosDaVenda['#0057'] = ['nilce'];
     expect((await lista('eletroposto', 102, NILCE)).status).toBe(404);
+  });
+
+  it('venda solar com código do ALOCADOR deste card: o consultor da linha do Excel não passa; ligação de gente passa; registro ilegível é 503', async () => {
+    h.registros = {}; h.registroCai = false;
+    h.cards.push(card(104, { vendedor_nome: 'Giovanna', created_by: 'quiz_solar', status: 'fechou' }));
+    h.ligacoes[104] = '#0057'; h.donosDaVenda['#0057'] = ['nilce'];
+    h.registros['#0057'] = 104;
+    expect((await lista('vendasolar', 104, NILCE)).status).toBe(404);
+    expect((await lista('vendasolar', 104, GIOVANNA)).status).toBe(200);   // vendedor do card
+    expect((await lista('vendasolar', 104, THIAGO)).status).toBe(200);     // sócio
+    h.registros['#0057'] = -1;    // presente com assinatura inválida: na dúvida, nega
+    expect((await lista('vendasolar', 104, NILCE)).status).toBe(404);
+    h.registros['#0057'] = 999;   // registro de OUTRO card: a ligação vale como sempre
+    expect((await lista('vendasolar', 104, NILCE)).status).toBe(200);
+    delete h.registros['#0057'];
+    expect((await lista('vendasolar', 104, NILCE)).status).toBe(200);
+    h.registroCai = true;
+    expect((await lista('vendasolar', 104, NILCE)).status).toBe(503);
+    h.registroCai = false;
   });
 
   it('o HTML é limpo ao gravar: script, onerror e javascript: saem; o papel normal fica igual', async () => {

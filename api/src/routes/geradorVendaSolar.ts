@@ -7,10 +7,12 @@ import { normalizarNome } from '../services/gerador/dossieVenda';
 import { codigoDeRota, nomesParecidos } from '../services/gerador/docsCliente';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
 import { mountVendaSolarTrello } from './geradorVendaSolarTrello';
+import { mountVendaSolarCliente } from './geradorVendaSolarCliente';
+import { lerRegistroDoCodigo } from '../services/gerador/vendaSolarRegistro';
 import { ErroDocs, lerPropostaResumo } from '../services/gerador/docsClienteBanco';
 import {
   ErroHub, TRAVA_VINCULOS, lerLigacao, lerTodasLigacoes, gravarLigacao, quemUsa, listarVendidasParaVinculo, compararTelefones, mesmoConsultor,
-  comCacheHub, invalidarCachesHub, segredoDoVinculo, type ForcaTelefone,
+  comCacheHub, invalidarCachesHub, segredoDoVinculo, propostaDoPapel, type ForcaTelefone,
   type CandidatoProposta, type CandidatoVenda, type Ligacao,
 } from '../services/gerador/vendaSolarHub';
 
@@ -38,6 +40,10 @@ import {
 // uma VENDA: quem a enxerga na planilha (o consultor efetivo dela, ou sócio). Assim ninguém dá acesso à venda de outro consultor.
 //
 //   POST /gerador/vendas-solares/:card/trello   monta ou atualiza o cartão do Trello (veja `geradorVendaSolarTrello.ts`)
+//   POST /gerador/vendas-solares/:card/cliente  dá o `#NNNN` do cliente pelo alocador único do servidor (veja `geradorVendaSolarCliente.ts`)
+//
+// `venda_origem` no GET (fase 2): 'gerador' quando a venda ligada é um código que o alocador deu a ESTE card (registro assinado
+// `codigo_solar:<NNNN>`), 'planilha' quando é uma venda ligada por gente; ausente sem venda. Falha ao ler o registro só tira o campo.
 //
 // A ligação mora em `system_state` (`venda_solar:<card>`) SEM dado pessoal. Nenhum nome, telefone ou código vai para log.
 // Além de proposta e venda, ela guarda `trello_card` (o id do cartão do Trello), dentro da assinatura. Uma ligação criada só para
@@ -65,10 +71,6 @@ function falhou(res: Response, que: string, err: unknown): void {
   if (err instanceof ErroDocs) { res.status(err.http).json({ ok: false, error: err.mensagem }); return; }
   res.status(500).json({ ok: false, error: MSG_LER });
 }
-
-/** Sócio liga qualquer proposta; consultor, só as com o nome DELE em `consultor_nome` (vazio = só sócio). */
-const propostaDoPapel = (nome: string, socio: boolean, consultorDaProposta: string): boolean =>
-  socio || (!!consultorDaProposta.trim() && podeVer(nome, consultorDaProposta));
 
 /** Formato do card na rota (só dígitos, id do card) e a POSSE. Devolve null depois de responder. */
 async function guarda(req: Request, res: Response) {
@@ -171,9 +173,18 @@ export function mountVendaSolar(router: Router): void {
       };
       const { lig } = lido;
       const c = await candidatos(q, lig, todas);
+      // De onde veio o número ligado (só leitura; falha tira o campo, não derruba o GET).
+      let vendaOrigem: 'gerador' | 'planilha' | null = null;
+      if (lig.venda) {
+        try {
+          const reg = await lerRegistroDoCodigo(lig.venda);
+          vendaOrigem = reg && reg.card === g.id ? 'gerador' : 'planilha';
+        } catch (err) { logErro('registro do código indisponível', err); }
+      }
       // Regra do dono (22/10/2026): telefone não identifica cliente. Aqui NADA é gravado; quem liga é o consultor, pelo POST.
       res.json({
         ok: true, ...corpoLigacao(lig),
+        ...(vendaOrigem ? { venda_origem: vendaOrigem } : {}),
         sugestoes: { propostas: c.propostas, vendas: c.vendas },
         ...(c.vendasIndisponivel ? { vendas_indisponivel: true } : {}),
       });
@@ -212,7 +223,10 @@ export function mountVendaSolar(router: Router): void {
         if (!p || !propostaDoPapel(g.nome, g.socio, p.consultor_nome)) { res.status(404).json({ ok: false, error: 'Proposta não encontrada.' }); return; }
         if (!p.vendido) { res.status(409).json({ ok: false, error: 'Só uma proposta vendida pode ser ligada.' }); return; }
       }
-      if (venda && !(await vendaSolarDoDono(g.nome, g.socio, venda))) {
+      // O número que o alocador deu a ESTE card (registro assinado com `card` igual) pode ser religado mesmo antes de entrar no
+      // Excel: desligar por engano não pode obrigar a gastar outro número. O de outro card segue a regra de sempre.
+      // O registro só é lido quando a planilha não deu a venda: registro fora do ar não derruba todo Ligar.
+      if (venda && !(await vendaSolarDoDono(g.nome, g.socio, venda)) && (await lerRegistroDoCodigo(venda))?.card !== g.id) {
         res.status(404).json({ ok: false, error: 'Venda da planilha não encontrada.' });
         return;
       }
@@ -251,4 +265,6 @@ export function mountVendaSolar(router: Router): void {
 
   // ── Cartão do Trello (21/10/2026): a rota mora em outro arquivo, com a MESMA guarda ────────────────────────────────────────
   mountVendaSolarTrello(router, base, guarda);
+  // ── Cliente na planilha (fase 2): o `#NNNN` pelo alocador, com a MESMA base e a MESMA guarda ──────────────────────────────
+  mountVendaSolarCliente(router, base, guarda);
 }

@@ -127,6 +127,21 @@ export function numeroDoTitulo(titulo: string): string | null {
 
 // Na conta do maior número só entram exatamente 4 dígitos (`#0064`): `#20251` ou `#00610` no começo de um nome não puxam a sequência.
 const RE_NUMERO_NO_TITULO = /^\s*#(\d{4})(?!\d)/;
+
+/** O `#NNNN` que abre o título de um cartão, com EXATAMENTE 4 dígitos (`#0065 - ...`); null para `#20251`, `#00610` ou sem número. */
+export function codigoDoTitulo(titulo: string): string | null {
+  const m = RE_NUMERO_NO_TITULO.exec(String(titulo ?? ''));
+  return m ? `#${m[1]}` : null;
+}
+
+/**
+ * O instante (ms) em que o cartão nasceu, pela data que o id do Trello carrega: os 8 primeiros hexadecimais são os segundos Unix.
+ * null quando o id não tem 24 hexadecimais. Pura.
+ */
+export function criadoEmDoCartao(id: string | null | undefined): number | null {
+  if (typeof id !== 'string' || !/^[0-9a-f]{24}$/i.test(id)) return null;
+  return parseInt(id.slice(0, 8), 16) * 1000;
+}
 const RE_CODIGO_DA_VENDA = /^\s*#?(\d{4})\s*$/;
 
 /**
@@ -528,9 +543,22 @@ export type ResNumero<T> = { ok: true; dados: T } | { ok: false; motivo: string;
 export async function lerNomesDeTodosOsCartoes(
   cred: CredenciaisTrello, boardId: string, opcoes: { pagina?: number; maxPaginas?: number } = {},
 ): Promise<ResNumero<string[]>> {
+  const r = await lerTodosOsCartoes(cred, boardId, opcoes);
+  return r.ok ? { ok: true, dados: r.dados.map((c) => c.name) } : r;
+}
+
+/**
+ * Id e nome de todos os cartões do quadro, abertos E arquivados (mesma leitura, mesma paginação e mesmas falhas de
+ * `lerNomesDeTodosOsCartoes`). Com os ids, o alocador do `#NNNN` lê o título do cartão guardado e conta as ocorrências de um número
+ * numa chamada só.
+ */
+export async function lerTodosOsCartoes(
+  cred: CredenciaisTrello, boardId: string, opcoes: { pagina?: number; maxPaginas?: number } = {},
+): Promise<ResNumero<Array<{ id: string; name: string }>>> {
   const pagina = opcoes.pagina ?? CARTOES_POR_PAGINA;
   const maxPaginas = opcoes.maxPaginas ?? MAX_PAGINAS_CARTOES;
   const nomes = new Map<string, string>();
+  const lista = (): Array<{ id: string; name: string }> => [...nomes.entries()].map(([id, name]) => ({ id, name }));
   let antes = '';
   for (let n = 0; n < maxPaginas; n++) {
     const r = await chamar<Array<{ id?: string; name?: string }>>(
@@ -540,7 +568,7 @@ export async function lerNomesDeTodosOsCartoes(
     if (!r.ok) return { ok: false, motivo: r.motivo, causa: 'quadro' };
     if (!Array.isArray(r.dados)) return { ok: false, motivo: 'o Trello não devolveu os cartões do quadro', causa: 'quadro' };
     for (const c of r.dados) if (c && typeof c.id === 'string') nomes.set(c.id, String(c.name ?? ''));
-    if (r.dados.length < pagina) return { ok: true, dados: [...nomes.values()] };
+    if (r.dados.length < pagina) return { ok: true, dados: lista() };
     // O `before` assume que o Trello devolve do mais novo para o mais antigo; o quadro hoje tem bem menos de 1000 cards (1 página).
     const menor = r.dados.map((c) => String(c?.id ?? '')).filter(Boolean).sort()[0] ?? '';
     if (!menor || (antes && menor >= antes)) break;   // a página não andou: não dá para saber o que falta

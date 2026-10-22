@@ -80,6 +80,8 @@ vi.mock('../utils/supabase', () => ({
 }));
 
 import { mountClientes, limparCacheClientes, codigosSolar, codigosSolarAtuais } from '../routes/geradorClientes';
+import { leituraAtualDaPlanilha } from '../routes/geradorClientes';
+import { dependenciasDoAlocador } from '../routes/geradorVendaSolarCliente';
 import { mountSolar, limparCachesSolar, limitesSolar } from '../routes/geradorSolar';
 
 const CABECALHO: string[] = [
@@ -463,5 +465,29 @@ describe('Obras enxerga o que a Gestão preencheu', () => {
     const res = await request(app).get('/gerador/solar/obras').set('Authorization', NILCE);
     expect(res.status).toBe(200);
     expect(res.body.obras.map((o: { codigo: string }) => o.codigo).sort()).toEqual(['#0057', '#0059']);
+  });
+});
+
+describe('planilha do alocador: fresca, cópia do cache e fallback sem overlay', () => {
+  it('fresca falhou: a cópia vem só do cache (sem baixar), com o consultor efetivo; overlays fora: consultor vazio em toda linha', async () => {
+    h.linhas.set('gestao_cliente:0057', { updated_at: 'g', value: { campos: { consultor: { valor: 'Giovanna', por: 'thiago', em: '2026-10-13T10:00:00.000Z' } }, alteracoes: [], em: null } });
+    const fresca = await leituraAtualDaPlanilha();
+    expect(fresca.vendas.find((v) => v.codigo === '#0057')?.consultor).toBe('Giovanna');
+    const deps = dependenciasDoAlocador();
+    h.planilhaFora = true;
+    await expect(deps.lerPlanilhaAtual()).rejects.toBeTruthy();
+    const baixou = (global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+    const copia = await deps.lerPlanilhaCopia!();
+    expect((global.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(baixou);   // a cópia não baixa nada
+    expect(copia.codigos).toEqual(fresca.codigos);
+    expect(copia.vendas.find((v) => v.codigo === '#0057')?.consultor).toBe('Giovanna');
+    // overlays fora: o consultor do CSV pode não ser o efetivo, então fica vazio (só sócio vê a linha)
+    h.erroLeitura = true;
+    const semOverlay = await deps.lerPlanilhaCopia!();
+    expect(semOverlay.codigos).toEqual(fresca.codigos);
+    expect(semOverlay.vendas.every((v) => v.consultor === '')).toBe(true);
+    // sem cache nenhum: a cópia falha (o Excel fica desconhecido)
+    limparCacheClientes();
+    await expect(deps.lerPlanilhaCopia!()).rejects.toBeTruthy();
   });
 });

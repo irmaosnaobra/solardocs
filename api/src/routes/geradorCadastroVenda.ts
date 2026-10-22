@@ -10,11 +10,12 @@ import {
 } from '../services/gerador/cadastroVenda';
 import { sincronizarNomeHomologacao } from './geradorClientes';
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
+import { codigoDoAlocadorDoCard } from '../services/gerador/vendaSolarRegistro';
 import { lerDocumentosDaVenda, SLOTS_LIDOS_SOLAR, type PessoasConhecidas } from '../services/gerador/cadastroVendaLeitura';
 import { lerRotulos } from '../services/gerador/docsRotulos';
 import { organizarDocs } from '../services/gerador/docsOrganizar';
 import { MIMES_ACEITOS, type ArquivoDoc } from '../services/gerador/docsCliente';
-import { baixarArquivo } from '../services/gerador/dossieVenda';
+import { baixarArquivo, lerProposta } from '../services/gerador/dossieVenda';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CADASTRO DA VENDA (um por card vendido) e leitura dos documentos por IA. Montadas dentro de /gerador, para as duas linhas
@@ -114,6 +115,11 @@ async function sincronizarHomologacao(ctx: Ctx, mexeu: string[], depois: Cadastr
   try {
     const { lig } = await lerLigacao(Number(ctx.codigo));
     if (!lig.venda) return undefined;
+    // Código dado pelo alocador a ESTE card: silêncio total, esteja o código na planilha ou não. A grade deriva o nome na leitura;
+    // escrever aqui poria dado pessoal em `system_state` e, num conflito, o nome de um cliente na linha de outro. Se esta leitura
+    // falhar, cai no `catch` (não sincroniza, avisa): nunca "na dúvida, grava".
+    // Registro presente com assinatura inválida também cala (na dúvida, não escreve nome em `system_state`).
+    if (await codigoDoAlocadorDoCard(lig.venda, Number(ctx.codigo))) return undefined;
     const r = await sincronizarNomeHomologacao(lig.venda, nome, antes ? nomeDaHomologacao(antes) : '', ctx.nome, ctx.socio);
     if (r === 'sem_coluna') return 'Salvo. Não achei a venda ligada, ou a coluna "Nome na homologação", na planilha.';
     if (r === 'sem_acesso') return 'Salvo. Você não tem acesso à venda ligada na planilha; o nome da homologação não foi copiado.';
@@ -124,6 +130,30 @@ async function sincronizarHomologacao(ctx: Ctx, mexeu: string[], depois: Cadastr
     logErro('nome da homologação não foi para a planilha', e);
     return AVISO_SEM_CONFERIR;
   }
+}
+
+/**
+ * Só a venda solar, e só quando o cadastro NÃO tem e-mail: o e-mail da proposta ligada (válida e do papel de quem pede) como
+ * SUGESTÃO. Primeiro o do dossiê (`dossie.campos.email`), depois `dados.email`, cada um passando por `validarCampo`. Nunca grava:
+ * quem salva é a pessoa, pelo PUT. Falha ou e-mail inválido = sem sugestão (o cadastro sai do mesmo jeito).
+ */
+async function sugestoesDaVenda(ctx: Ctx, linha: LinhaCadastro, vista: VistaCadastro): Promise<{ sugestoes: { email: string } } | Record<string, never>> {
+  if (linha !== 'vendasolar') return {};
+  if (String((vista.valores as Record<string, unknown>).email ?? '').trim()) return {};
+  try {
+    const codigo = await propostaLigadaAoCard(ctx);
+    if (!codigo) return {};
+    const p = await lerProposta(codigo);
+    if (!p) return {};
+    for (const bruto of [p.dossie.campos.email, p.dados.email]) {
+      if (typeof bruto !== 'string' || !bruto.trim()) continue;
+      const r = validarCampo('email', bruto);
+      if (r.ok && r.valor) return { sugestoes: { email: r.valor } };
+    }
+  } catch (e) {
+    logErro('e-mail da proposta indisponível para a sugestão', e);
+  }
+  return {};
 }
 
 /** Baixa do bucket certo: o do dossiê (que devolve null em vez de lançar) ou o dos documentos da venda. */
@@ -146,7 +176,10 @@ export function mountCadastroVenda(router: Router): void {
         // Eletroposto: enquanto a primeira escrita não migrou, o legado da ficha aparece aqui (fonte 'ficha'): ficha e contrato
         // não discordam. Venda solar: só o bucket.
         const vista = vistaDe(await lerCadastroVisto(Number(ctx.codigo), linha), linha);
-        res.json({ ok: true, cadastro: vista, ...extrasSolar(ctx, linha), ...(await analiseDaVenda(ctx, linha, vista)) });
+        res.json({
+          ok: true, cadastro: vista, ...extrasSolar(ctx, linha), ...(await analiseDaVenda(ctx, linha, vista)),
+          ...(await sugestoesDaVenda(ctx, linha, vista)),
+        });
       } catch (err) {
         logErro('leitura falhou', err);
         indisponivel(res);

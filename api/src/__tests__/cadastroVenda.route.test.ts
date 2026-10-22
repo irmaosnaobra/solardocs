@@ -997,7 +997,8 @@ describe('trava por venda', () => {
     h.linhas.set('cadastro_trava:101', { value: { por: 'x', ate: '2000-01-01T00:00:00.000Z' }, updated_at: 'velho' });
     expect((await putCad(101, { campos: { nome: 'Ana' } })).status).toBe(200);
     expect(h.linhas.has('cadastro_trava:101')).toBe(false);
-    h.linhas.set('cadastro_trava:101', { value: { por: 'x', ate: '2999-01-01T00:00:00.000Z' }, updated_at: 'vivo' });
+    // viva = `ate` no futuro e dentro do maior prazo legítimo (um `ate` no ano 2999 é forjado e vale vencido: veja cadastroVendaBancoTrava)
+    h.linhas.set('cadastro_trava:101', { value: { por: 'x', ate: new Date(Date.now() + 60_000).toISOString() }, updated_at: 'vivo' });
     const res = await putCad(101, { campos: { email: 'a@b.com' } });
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ ok: false, motivo: 'cadastro_indisponivel', ocupado: true });

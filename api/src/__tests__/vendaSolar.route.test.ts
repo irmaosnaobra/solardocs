@@ -32,6 +32,8 @@ const h = vi.hoisted(() => ({
   sig: 0,
   ia: { fila: [] as Entrada[], chamadas: [] as Array<{ corpo: any; opcoes: any }> },
   logs: [] as unknown[][],
+  /** A leitura de `codigo_solar:*` (registro do alocador) falha. */
+  registroCai: false,
 }));
 
 vi.mock('../utils/logger', () => ({
@@ -164,6 +166,7 @@ vi.mock('../utils/supabase', () => ({
             }),
             eq: (_c: string, k: string) => ({
               maybeSingle: async () => {
+                if (h.registroCai && k.startsWith('codigo_solar:')) return { data: null, error: { code: 'XX000', message: 'banco fora' } };
                 const l = h.linhas.get(k);
                 return { data: l ? { key: k, value: l.value, updated_at: l.updated_at } : null, error: null };
               },
@@ -226,6 +229,7 @@ import { limparCacheBucketDocs } from '../services/gerador/docsClienteBanco';
 import { limparCacheBucketCadastros } from '../services/gerador/cadastroVendaBanco';
 import * as hubReal from '../services/gerador/vendaSolarHub';
 import { assinarLigacao, invalidarCachesHub, reiniciarLogsDoHub, type Ligacao } from '../services/gerador/vendaSolarHub';
+import { assinarRegistro, type RegistroCodigo } from '../services/gerador/vendaSolarRegistro';
 import { SISTEMA_CADASTRO_SOLAR } from '../services/gerador/cadastroVendaLeitura';
 import { CATALOGO } from '../services/gerador/docsCliente';
 
@@ -357,7 +361,7 @@ beforeEach(() => {
   invalidarCachesHub(); reiniciarLogsDoHub();
   h.ia.fila = []; h.ia.chamadas = [];
   h.logs = [];
-  h.falha = null;
+  h.falha = null; h.registroCai = false;
   delete process.env.SOLAR_SOCIOS;
   delete process.env.CADASTRO_IA_MODELO;
   limparCacheClientes(); limparCacheBucketDocs(); limparCacheBucketCadastros();
@@ -1365,6 +1369,135 @@ describe('cache de 60 s do GET de vínculos', () => {
     const volta = await vinculos(205);
     expect(volta.body.vendas_indisponivel).toBeUndefined();
     expect(volta.body.sugestoes.vendas.length).toBeGreaterThan(0);
+  });
+});
+
+describe('fase 2: código do alocador (venda_origem, religar, guarda, sincronia e e-mail sugerido)', () => {
+  const registro = (r: Partial<RegistroCodigo> & { codigo: string; card: number }) => {
+    const x: RegistroCodigo = { por: 'nilce', em: '2026-10-20T10:00:00.000Z', origem: 'novo', ...r };
+    h.linhas.set(`codigo_solar:${x.codigo.slice(1)}`, { updated_at: 'r', value: { ...x, sig: assinarRegistro(x) } });
+  };
+  const foto = () => JSON.stringify([...h.linhas.entries()].filter(([k]) => !k.startsWith('cadastro_trava:')));
+
+  it('GET /vinculos traz venda_origem (gerador, planilha, ausente) e não escreve nada, nem com candidata forte do mesmo consultor', async () => {
+    injeta(207, { venda: '#0070', por: 'gerador' });
+    registro({ codigo: '#0070', card: 207 });
+    injeta(201, { venda: '#0057' });
+    let antes = foto();
+    const g = await vinculos(207);
+    expect(g.status).toBe(200);
+    expect(g.body.venda_origem).toBe('gerador');
+    expect((await vinculos(201)).body.venda_origem).toBe('planilha');
+    const sem = await vinculos(206);
+    expect(sem.body.venda_origem).toBeUndefined();
+    expect(foto()).toBe(antes);
+    // ligação por = gerador SEM proposta e uma única candidata forte do mesmo consultor: nada é ligado, ela volta sugerida
+    injeta(201, { venda: '#0071', por: 'gerador' });
+    registro({ codigo: '#0071', card: 201 });
+    antes = foto();
+    const s = await vinculos(201);
+    expect(s.body.proposta).toBeNull();
+    expect(s.body.sugestoes.propostas.find((p: { codigo: string }) => p.codigo === 'P1')).toMatchObject({ sugerida: true });
+    expect(foto()).toBe(antes);
+    // falha ao ler o registro só tira o campo
+    h.registroCai = true;
+    const caiu = await vinculos(207);
+    expect(caiu.status).toBe(200);
+    expect(caiu.body.venda_origem).toBeUndefined();
+  });
+
+  it('S3: desligar por engano e religar o número do PRÓPRIO card funciona mesmo fora do Excel; o de outro card não', async () => {
+    injeta(201, { venda: '#0070', por: 'gerador' });
+    registro({ codigo: '#0070', card: 201 });
+    expect((await ligar(201, { venda: null })).status).toBe(200);
+    expect(ligacao(201)!.venda).toBeNull();
+    const religa = await ligar(201, { venda: '#0070' });
+    expect(religa.status).toBe(200);
+    expect(ligacao(201)!.venda).toBe('#0070');
+    // número do alocador de OUTRO card, fora do Excel: 404 (não está na planilha) e nada muda
+    registro({ codigo: '#0072', card: 205 });
+    expect((await ligar(206, { venda: '#0072' })).status).toBe(404);
+    // e o do próprio card, se outro card já o usa: 409 dentro da trava
+    registro({ codigo: '#0073', card: 206 });
+    injeta(205, { venda: '#0073', por: 'nilce' });
+    expect((await ligar(206, { venda: '#0073' })).status).toBe(409);
+  });
+
+  it('guarda: o consultor da linha do Excel com o mesmo número NÃO passa no card de código do alocador; sócio e vendedor passam; ligação de gente segue valendo', async () => {
+    // #0058 é da Giovanna no Excel; o card 201 é da Nilce
+    injeta(201, { venda: '#0058', por: 'gerador' });
+    registro({ codigo: '#0058', card: 201 });
+    for (const url of ['/clientes/vendasolar/201/docs', '/clientes/vendasolar/201/cadastro']) {
+      expect((await get(url, GIOVANNA)).status).toBe(404);
+      expect((await get(url, NILCE)).status).toBe(200);
+      expect((await get(url, THIAGO)).status).toBe(200);
+    }
+    // sem registro (ligação feita por gente): o consultor da venda continua passando
+    h.linhas.delete('codigo_solar:0058');
+    injeta(201, { venda: '#0058', por: 'giovanna' });
+    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(200);
+  });
+
+  it('sincronia do nome da homologação: calada para código do alocador (no CSV ou não); a leitura do registro falhando avisa e não escreve', async () => {
+    injeta(201, { venda: '#0057', por: 'gerador' });
+    registro({ codigo: '#0057', card: 201 });
+    const a = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } });
+    expect(a.status).toBe(200);
+    expect(a.body.aviso).toBeUndefined();
+    expect(h.linhas.has('gestao_cliente:0057')).toBe(false);
+    injeta(205, { venda: '#0070', por: 'gerador' });
+    registro({ codigo: '#0070', card: 205 });
+    const b = await put('/clientes/vendasolar/205/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } });
+    expect(b.body.aviso).toBeUndefined();
+    // registro ilegível: não sincroniza ("na dúvida, grava" nunca)
+    h.linhas.delete('codigo_solar:0057');
+    injeta(201, { venda: '#0057', por: 'nilce' });
+    h.registroCai = true;
+    const c = await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Souza Lima' } });
+    expect(c.status).toBe(200);
+    expect(c.body.aviso).toBe('Salvo. Não consegui conferir a planilha agora; o nome da homologação não foi copiado.');
+    expect(h.linhas.has('gestao_cliente:0057')).toBe(false);
+    // código de gente com o registro legível: sincroniza como sempre
+    h.registroCai = false;
+    await put('/clientes/vendasolar/201/cadastro', { campos: { tuc_nome: 'Maria Souza Lima' } });
+    expect((h.linhas.get('gestao_cliente:0057')?.value as any)?.campos?.homologacao?.valor).toBe('Maria Souza Lima');
+  });
+
+  it('P1: registro presente com assinatura INVÁLIDA conta como do alocador: a guarda nega o consultor da planilha e a sincronia cala', async () => {
+    injeta(201, { venda: '#0058', por: 'nilce' });
+    h.linhas.set('codigo_solar:0058', { updated_at: 'r', value: { codigo: '#0058', card: 201, por: 'x', em: 'x', origem: 'novo', sig: 'forjada' } });
+    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/docs', NILCE)).status).toBe(200);
+    injeta(201, { venda: '#0057', por: 'nilce' });
+    h.linhas.set('codigo_solar:0057', { updated_at: 'r', value: { codigo: '#0057', card: 201, sig: 'forjada' } });
+    const a = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } });
+    expect(a.status).toBe(200);
+    expect(h.linhas.has('gestao_cliente:0057')).toBe(false);
+  });
+
+  it('R5: registro fora do ar não derruba o Ligar de uma venda que a planilha dá', async () => {
+    h.registroCai = true;
+    const r = await ligar(201, { venda: '#0057' });
+    expect(r.status).toBe(200);
+    expect(ligacao(201)!.venda).toBe('#0057');
+  });
+
+  it('e-mail sugerido: só com cadastro sem e-mail e proposta ligada válida; dossiê antes de dados.email; nunca grava', async () => {
+    h.propostas[0].dados = { ...h.propostas[0].dados, email: 'dados@exemplo.com' };
+    h.propostas[0].dados.dossie.campos = { email: 'Dossie@Exemplo.com' };
+    injeta(201, { proposta: 'P1' });
+    const g = await get('/clientes/vendasolar/201/cadastro');
+    expect(g.body.sugestoes).toEqual({ email: 'dossie@exemplo.com' });
+    expect(h.cad.has('vendasolar/201.json')).toBe(false);
+    h.propostas[0].dados.dossie.campos = { email: 'nao-e-email' };
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.sugestoes).toEqual({ email: 'dados@exemplo.com' });
+    // cadastro com e-mail: sem sugestão; sem proposta ligada: sem sugestão
+    expect((await put('/clientes/vendasolar/201/cadastro', { campos: { email: 'cliente@exemplo.com' } })).status).toBe(200);
+    expect((await get('/clientes/vendasolar/201/cadastro')).body.sugestoes).toBeUndefined();
+    expect((await get('/clientes/vendasolar/206/cadastro')).body.sugestoes).toBeUndefined();
+    const ruim = await put('/clientes/vendasolar/201/cadastro', { campos: { email: 'sem arroba' } });
+    expect(ruim.status).toBe(400);
+    expect(ruim.body.erros.email).toBe('E-mail inválido.');
   });
 });
 

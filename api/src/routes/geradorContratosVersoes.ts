@@ -5,7 +5,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ehSocio, podeVer, nomeSimples } from '../services/gerador/solarObras';
 import { ErroCadastro } from '../services/gerador/cadastroVendaBanco';
-import { vendaSolarDoDono } from './geradorClientes';
+import { vendaSolarDoDono, vendaLigadaVale } from './geradorClientes';
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
 import {
   ehLinhaContrato, ehUuid, listarVersoes, lerVersao, gravarVersao, apagarVersao, LIMITE_VERSAO_BYTES, LIMITE_VERSOES, type LinhaContrato,
@@ -61,7 +61,8 @@ async function posse(req: Request, res: Response): Promise<{ linha: LinhaContrat
       ok = false;
       if (linha === 'vendasolar') {
         const { lig } = await lerLigacao(card);
-        ok = !!lig.venda && !!(await vendaSolarDoDono(nome, false, lig.venda));
+        // Código dado pelo alocador a ESTE card: a via do consultor da planilha nunca concede (`vendaLigadaVale`).
+        ok = !!lig.venda && await vendaLigadaVale(card, lig.venda) && !!(await vendaSolarDoDono(nome, false, lig.venda));
       }
     }
     if (!ok) {

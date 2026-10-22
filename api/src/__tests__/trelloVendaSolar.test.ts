@@ -11,6 +11,7 @@ import {
   cidadeUfDoEndereco, localDoCartao, tituloDoCartao, mesmaPessoa, titularDaVenda, numeroDoTitulo, acharCartao, cartoesParecidos, proximoCodigoDaSequencia, etiquetasAutomaticas, validarEtiquetasExtra,
   planoDeEtiquetas, planoDeChecklists, passosDeChecklist, descricaoDoCartao, equipamentoDaProposta, nomearAnexos, lerRegistroBruto,
   ITENS_BACKOFFICE, ITENS_ENGENHARIA, lerNomesDeTodosOsCartoes, proximoNumeroDaSequencia, acharCartaoCriado, type CartaoDoQuadro,
+  codigoDoTitulo, criadoEmDoCartao, lerTodosOsCartoes,
 } from '../services/gerador/trelloVendaSolar';
 import { trelloQuadroPublico, limparCacheQuadroPublico } from '../services/gerador/dossieVenda';
 import { normalizarCadastro, validarCampo, ehCampo, type Cadastro } from '../services/gerador/cadastroVenda';
@@ -122,6 +123,26 @@ describe('achar o cartão que já existe', () => {
   });
 });
 
+describe('número e idade do cartão (fase 2)', () => {
+  it('codigoDoTitulo: só #NNNN de EXATAMENTE 4 dígitos no começo', () => {
+    expect(codigoDoTitulo('#0065 - (Cristiano) Titular - Uberlândia MG')).toBe('#0065');
+    expect(codigoDoTitulo('  #0064 - X')).toBe('#0064');
+    expect(codigoDoTitulo('#20251 - Fora')).toBeNull();
+    expect(codigoDoTitulo('#00610 - Outro')).toBeNull();
+    expect(codigoDoTitulo('Cliente #0070')).toBeNull();
+  });
+  it('criadoEmDoCartao: a data dos 8 primeiros hexadecimais do id; id curto, sem hex ou nulo dá null', () => {
+    const ms = Date.UTC(2026, 9, 22, 14, 55, 0);
+    const id = `${(ms / 1000).toString(16)}${'0'.repeat(15)}1`;
+    expect(id).toHaveLength(24);
+    expect(criadoEmDoCartao(id)).toBe(ms);
+    expect(criadoEmDoCartao('abc')).toBeNull();
+    expect(criadoEmDoCartao('z'.repeat(24))).toBeNull();
+    expect(criadoEmDoCartao(null)).toBeNull();
+    expect(criadoEmDoCartao(undefined)).toBeNull();
+  });
+});
+
 describe('leitura paginada dos cartões do quadro', () => {
   const cred = { key: 'k', token: 't' };
   const idsDe = (n: number): string[] => Array.from({ length: n }, (_, i) => `${String(i + 1).padStart(24, '0')}`);
@@ -147,6 +168,19 @@ describe('leitura paginada dos cartões do quadro', () => {
     expect(paginas.map((p) => p.before ?? null)).toEqual([null, ids[4], ids[1]]);
     const n = await proximoNumeroDaSequencia(cred, 'quadro', undefined, { pagina: 3, maxPaginas: 5 });
     expect(n).toEqual({ ok: true, dados: '#0091' });
+  });
+  it('lerTodosOsCartoes: ids e nomes de todas as páginas, com fields=name; lerNomesDeTodosOsCartoes devolve os mesmos nomes', async () => {
+    const ids = idsDe(7);
+    const paginas = quadroDe(ids, (id) => `Card ${id.slice(-2)}`);
+    const r = await lerTodosOsCartoes(cred, 'quadro', { pagina: 3, maxPaginas: 5 });
+    expect(r.ok && r.dados.map((c) => c.id).sort()).toEqual([...ids].sort());
+    expect(paginas[0]).toMatchObject({ fields: 'name' });
+    const nomes = await lerNomesDeTodosOsCartoes(cred, 'quadro', { pagina: 3, maxPaginas: 5 });
+    expect(nomes.ok && nomes.dados).toEqual(r.ok && r.dados.map((c) => c.name));
+    quadroDe(idsDe(7), () => 'Card');
+    expect(await lerTodosOsCartoes(cred, 'quadro', { pagina: 3, maxPaginas: 2 })).toMatchObject({ ok: false, causa: 'quadro_grande' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 500 })));
+    expect(await lerTodosOsCartoes(cred, 'quadro')).toMatchObject({ ok: false, causa: 'quadro' });
   });
   it('página cheia no último limite de páginas: erro próprio (quadro_grande), nunca número em cima de lista cortada', async () => {
     quadroDe(idsDe(7), () => 'Card');

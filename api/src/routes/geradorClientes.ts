@@ -9,7 +9,8 @@ import {
   type Grade, type ColunaInterna, type RegistroGestao, type Celula,
 } from '../services/gerador/gestaoClientes';
 import { lerRegistros, lerRegistroComVersao, gravarRegistro, ErroGestao } from '../services/gerador/gestaoClientesBanco';
-import { lerCardSolarVendido, lerLigacao } from '../services/gerador/vendaSolarHub';
+import { lerCardSolarVendido, lerLigacao, type VendaCsvParaVinculo } from '../services/gerador/vendaSolarHub';
+import { codigoDoAlocadorDoCard } from '../services/gerador/vendaSolarRegistro';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,22 +119,70 @@ export async function codigosSolarAtuais(): Promise<string[]> {
   return pl.dados.grade.vendas.map((v) => v.codigo);
 }
 
-/** O que o hub da venda solar precisa de cada venda da planilha para casar com o card: nome, telefone, data e consultor EFETIVO. */
-export interface VendaPlanilhaResumo { codigo: string; cliente: string; telefone: string; data: string; consultor: string }
+/**
+ * O que o hub da venda solar precisa de cada venda da planilha para casar com o card: nome, nome da homologação, telefone, data e
+ * consultor EFETIVO.
+ */
+export type VendaPlanilhaResumo = VendaCsvParaVinculo;
 
 /**
- * Todas as vendas da planilha (código `#NNNN`, cliente, telefone, data da venda e consultor efetivo), já com o que o sistema
- * gravou por cima (`gestao_cliente:<NNNN>`): telefone e consultor corrigidos lá valem. Uso interno do servidor: o telefone
- * nunca sai na resposta.
+ * Todas as vendas da planilha (código `#NNNN`, cliente, nome da homologação, telefone, data da venda e consultor efetivo), já com o
+ * que o sistema gravou por cima (`gestao_cliente:<NNNN>`): telefone e consultor corrigidos lá valem. Uso interno do servidor: o
+ * telefone nunca sai na resposta.
  */
 export async function vendasDaPlanilha(): Promise<VendaPlanilhaResumo[]> {
   let pl: { dados: CacheGrade; atual: boolean };
   try { pl = await grade(false); } catch { throw new ErroVendaSolar(502); }
-  const { cols, grade: g } = pl.dados;
+  return resumoDasVendas(pl.dados);
+}
+
+/**
+ * A planilha lida AGORA (`grade(true)`), para o alocador do `#NNNN`: os códigos e o resumo de cada venda. Cache de até 5 min ou
+ * cópia velha de até 6 h poderiam esconder uma venda recém-numerada: planilha que não respondeu (`atual: false`) é erro 502.
+ */
+export async function leituraAtualDaPlanilha(): Promise<{ codigos: string[]; vendas: VendaPlanilhaResumo[] }> {
+  let pl: { dados: CacheGrade; atual: boolean };
+  try { pl = await grade(true); } catch { throw new ErroVendaSolar(502); }
+  if (!pl.atual) throw new ErroVendaSolar(502);
+  const vendas = await resumoDasVendas(pl.dados);
+  return { codigos: pl.dados.grade.vendas.map((v) => v.codigo), vendas };
+}
+
+/**
+ * A mesma leitura, do cache de 5 min (ou da cópia velha de até 6 h), como o `codigosSolar` da fase 1. SÓ para a PRÉVIA do cartão do
+ * Trello: ela não escreve nada e o número dela é provisório. A criação usa `leituraAtualDaPlanilha`.
+ */
+export async function leituraDaPlanilhaEmCache(): Promise<{ codigos: string[]; vendas: VendaPlanilhaResumo[] }> {
+  let pl: { dados: CacheGrade; atual: boolean };
+  try { pl = await grade(false); } catch { throw new ErroVendaSolar(502); }
+  // Cópia de conferência: se os overlays não respondem, vale o CSV puro (os códigos estão completos; só o que foi corrigido por cima falta).
+  const vendas = await resumoDasVendas(pl.dados, true);
+  return { codigos: pl.dados.grade.vendas.map((v) => v.codigo), vendas };
+}
+
+/**
+ * A CÓPIA de conferência do alocador quando a leitura fresca falha: SÓ o cache do módulo (até 6 h), sem baixar nada (o Excel fora
+ * não pode segurar a trava do número com outra espera de download). Sem cache: erro (o Excel fica desconhecido).
+ */
+export async function leituraDaPlanilhaDoCache(): Promise<{ codigos: string[]; vendas: VendaPlanilhaResumo[] }> {
+  if (!cache || Date.now() - cache.ts >= VALIDADE_COPIA_VELHA_MS) throw new ErroVendaSolar(502);
+  const dados = cache;
+  const vendas = await resumoDasVendas(dados, true);
+  return { codigos: dados.grade.vendas.map((v) => v.codigo), vendas };
+}
+
+async function resumoDasVendas(dados: CacheGrade, semOverlayVale = false): Promise<VendaPlanilhaResumo[]> {
+  const { cols, grade: g } = dados;
   let regs: Map<string, RegistroGestao>;
-  try { regs = await lerRegistros(g.vendas.map((v) => v.codigo)); } catch { throw new ErroVendaSolar(500); }
+  let semOverlay = false;
+  try { regs = await lerRegistros(g.vendas.map((v) => v.codigo)); } catch {
+    if (!semOverlayVale) throw new ErroVendaSolar(500);
+    console.error('[clientes] overlays fora; resumo só com o CSV', 'overlay_fora');
+    regs = new Map();
+    semOverlay = true;
+  }
   const col = (chave: string): ColunaInterna | undefined => cols.find((c) => c.chave === chave);
-  const [cCliente, cContato, cData] = [col('cliente'), col('contato'), col('cadastro_trello')];
+  const [cCliente, cHomologacao, cContato, cData] = [col('cliente'), col('homologacao'), col('contato'), col('cadastro_trello')];
   const texto = (c: ColunaInterna | undefined, bruto: string[], reg: RegistroGestao | undefined): string => {
     if (!c) return '';
     const v = celulaDe(c, bruto[c.indice] ?? '', reg).valor;
@@ -144,25 +193,39 @@ export async function vendasDaPlanilha(): Promise<VendaPlanilhaResumo[]> {
     return {
       codigo: v.codigo,
       cliente: texto(cCliente, v.celulas, reg),
+      homologacao: texto(cHomologacao, v.celulas, reg),
       telefone: texto(cContato, v.celulas, reg),
       data: texto(cData, v.celulas, reg).slice(0, 10),
-      consultor: consultorEfetivo(cols, v.celulas, reg),
+      // Sem overlay o consultor do CSV pode não ser o EFETIVO (um sócio pode tê-lo trocado): vazio, e só sócio vê a linha.
+      consultor: semOverlay ? '' : consultorEfetivo(cols, v.celulas, reg),
     };
   });
 }
 
 /**
+ * A venda da planilha ligada ao card vale como PERMISSÃO (o consultor dela passa na guarda do card)? Não quando o código foi dado
+ * pelo alocador do servidor a ESTE card (registro assinado `codigo_solar:<NNNN>` com `card` igual): se o Excel ganhar depois uma
+ * linha com esse número de OUTRO cliente, o consultor dela leria o cadastro e os documentos deste. Ligação feita por gente, ou a
+ * antiga `por: 'auto'`: confia, como sempre. Erro de banco sobe (`ErroHub`). Nunca lê cadastro nem compara nome.
+ */
+export async function vendaLigadaVale(cardId: number, codigo: string): Promise<boolean> {
+  // Registro presente com assinatura inválida também nega (na dúvida, o consultor da planilha não ganha o card).
+  return !(await codigoDoAlocadorDoCard(codigo, cardId));
+}
+
+/**
  * Quem pode ver e mexer na venda solar de um card (a guarda da linha `vendasolar`): o card existe, é SOLAR (não eletroposto) e
  * está `fechou`; e quem pede é sócio, ou o `vendedor_nome` do card, ou o consultor EFETIVO da venda da planilha ligada ao card
- * (mesma regra de `vendaSolarDoDono`). A ordem importa: sócio e vendedor passam sem tocar na planilha, então planilha fora do ar
- * não barra o próprio vendedor. Devolve null quando não existe OU não pode (as duas coisas são iguais para quem pede).
+ * (mesma regra de `vendaSolarDoDono`), SÓ quando a venda ligada não é um código do alocador deste card (`vendaLigadaVale`). A
+ * ordem importa: sócio e vendedor passam sem tocar na planilha, então planilha fora do ar não barra o próprio vendedor. Devolve
+ * null quando não existe OU não pode (as duas coisas são iguais para quem pede).
  */
 export async function acessoVendaSolar(nome: string, socio: boolean, cardId: number): Promise<CardVendido | null> {
   const card = await lerCardSolarVendido(cardId);
   if (!card) return null;
   if (socio || podeVer(nome, String(card.vendedor_nome ?? ''))) return card;
   const { lig } = await lerLigacao(cardId);
-  if (lig.venda && await vendaSolarDoDono(nome, false, lig.venda)) return card;
+  if (lig.venda && await vendaLigadaVale(cardId, lig.venda) && await vendaSolarDoDono(nome, false, lig.venda)) return card;
   return null;
 }
 

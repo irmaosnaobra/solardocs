@@ -13,7 +13,8 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import type { CardVendido } from './fichaEletroposto';
-import { nomeSimples } from './solarObras';
+import { nomeSimples, podeVer } from './solarObras';
+import { normalizarNome } from './dossieVenda';
 
 export const PREFIXO_VENDA_SOLAR = 'venda_solar:';
 export const chaveVendaSolar = (card: number): string => `${PREFIXO_VENDA_SOLAR}${card}`;
@@ -57,6 +58,26 @@ export function ehCardSolarVendido(c: Partial<CardVendido> | null | undefined): 
     && !ehOrigemEletroposto(c.created_by);
 }
 
+/** Tamanho do lote do `.in('id', ...)`: a URL do PostgREST não pode crescer sem limite. */
+const LOTE_CARDS = 150;
+
+/**
+ * Os cards destes ids (qualquer status e qualquer origem), em lotes de 150. Card que não existe simplesmente não está no mapa.
+ * Qualquer erro de leitura lança `ErroHub`: nunca devolve um mapa incompleto como se fosse completo.
+ */
+export async function lerCardsPorIds(ids: readonly number[]): Promise<Map<number, CardVendido>> {
+  const mapa = new Map<number, CardVendido>();
+  const unicos = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))];
+  for (let i = 0; i < unicos.length; i += LOTE_CARDS) {
+    const lote = unicos.slice(i, i + LOTE_CARDS);
+    const { data, error } = await supabaseGerador.from('agendamentos').select(COLUNAS_CARD).in('id', lote);
+    if (error) throw new ErroHub(codigoDe(error));
+    if (!Array.isArray(data)) throw new ErroHub('cards');
+    for (const c of data as unknown as CardVendido[]) if (c && Number.isInteger(c.id)) mapa.set(c.id, c);
+  }
+  return mapa;
+}
+
 /** O card vendido solar, ou null se não existe, não está `fechou` ou é de eletroposto (as três coisas são iguais para quem pede). */
 export async function lerCardSolarVendido(id: number): Promise<CardVendido | null> {
   const { data, error } = await supabaseGerador.from('agendamentos').select(COLUNAS_CARD).eq('id', id).maybeSingle();
@@ -76,6 +97,11 @@ export const ligacaoVazia = (): Ligacao => ({ proposta: null, venda: null, por: 
 
 /** Quem gravou a ligação só para guardar o cartão do Trello (nenhuma proposta nem venda ligada, nenhuma decisão de gente). */
 export const POR_TRELLO = 'trello';
+/**
+ * Quem gravou a ligação ao dar o número novo do próprio card (o alocador de `#NNNN`, `vendaSolarCodigo.ts`). Quem pediu fica no
+ * registro do código (`codigo_solar:<NNNN>`), para auditoria. Nenhuma ligação nova grava `por: 'auto'`.
+ */
+export const POR_GERADOR = 'gerador';
 /** A ligação existe só por causa do Trello: o vínculo automático por telefone ainda vale, como se a chave nunca tivesse sido gravada. */
 export const ligacaoSoDoTrello = (l: Ligacao): boolean => !l.proposta && !l.venda && l.por === POR_TRELLO;
 
@@ -241,6 +267,71 @@ export const mesmoConsultor = (a: unknown, b: unknown): boolean => {
   const [x, y] = [nomeSimples(a), nomeSimples(b)];
   return !!x && x === y;
 };
+
+/**
+ * Uma venda da planilha mãe com o que o hub precisa: código, cliente, nome da homologação, telefone, data da venda e o consultor
+ * EFETIVO (com o que o sistema gravou por cima já aplicado). Uso só no servidor: o telefone nunca sai na resposta.
+ */
+export interface VendaCsvParaVinculo { codigo: string; cliente: string; homologacao: string; telefone: string; data: string; consultor: string }
+
+/** Sócio vê qualquer proposta; consultor, só as com o nome DELE em `consultor_nome` (vazio = só sócio). */
+export const propostaDoPapel = (nome: string, socio: boolean, consultorDaProposta: string): boolean =>
+  socio || (!!String(consultorDaProposta ?? '').trim() && podeVer(nome, consultorDaProposta));
+
+/**
+ * As vendas cujo telefone casa com o do card ('forte' ou 'fraca'), na ordem da lista. Telefone igual NUNCA liga nada (família usa o
+ * mesmo número): serve só para PERGUNTAR (o portão do alocador) e para AVISAR.
+ */
+export function candidatasPorTelefone<T extends { telefone: string }>(
+  telefone: unknown, vendas: readonly T[],
+): Array<{ venda: T; forca: 'forte' | 'fraca' }> {
+  const saida: Array<{ venda: T; forca: 'forte' | 'fraca' }> = [];
+  for (const venda of vendas) {
+    const forca = compararTelefones(telefone, venda.telefone);
+    if (forca) saida.push({ venda, forca });
+  }
+  return saida;
+}
+
+/** O conjunto das palavras de um nome (sem acento, minúsculas, só as de 3 letras ou mais), em ordem, como texto. '' com menos de 2. */
+function conjuntoDoNome(nome: unknown): string {
+  const palavras = [...new Set(normalizarNome(String(nome ?? '')).split(' ').filter((p) => p.length >= 3))].sort();
+  return palavras.length >= 2 ? palavras.join(' ') : '';
+}
+
+/**
+ * A linha da planilha e a linha do Gerador são o MESMO cliente? Só se (a) algum nome da planilha e algum do Gerador têm o MESMO
+ * conjunto de palavras (2 ou mais), E (b) algum telefone do Gerador é 'forte' contra o da planilha, OU o consultor é o mesmo.
+ * Telefone, mesmo forte, NUNCA basta sozinho: família usa o mesmo número, e o nome do card pode ser o do negociador.
+ */
+export function mesmoClienteEstrito(
+  csv: { nomes: string[]; telefone: string; consultor: string },
+  ger: { nomes: string[]; telefones: string[]; vendedor: string },
+): boolean {
+  const doCsv = new Set(csv.nomes.map(conjuntoDoNome).filter(Boolean));
+  if (!doCsv.size) return false;
+  if (!ger.nomes.map(conjuntoDoNome).some((c) => c && doCsv.has(c))) return false;
+  if (ger.telefones.some((t) => compararTelefones(t, csv.telefone) === 'forte')) return true;
+  return mesmoConsultor(csv.consultor, ger.vendedor);
+}
+
+/** "#0064", "#0064 e #0066", "#0064, #0066 e #0070". */
+const listaDeCodigos = (codigos: readonly string[]): string =>
+  (codigos.length <= 1 ? codigos.join('') : `${codigos.slice(0, -1).join(', ')} e ${codigos[codigos.length - 1]}`);
+
+/**
+ * O aviso de mesmo telefone: só códigos de linhas do Excel que quem pede pode ver, o número do cliente novo e a CONTAGEM das que ele
+ * não vê. Nunca telefone nem dado de outro cliente. Sem códigos e sem ocultas: ''.
+ */
+export function avisoMesmoTelefone(codigos: readonly string[], numero: string, ocultas = 0): string {
+  const frases: string[] = [];
+  if (codigos.length) {
+    const linhas = codigos.length === 1 ? `da linha ${codigos[0]}` : `das linhas ${listaDeCodigos(codigos)}`;
+    frases.push(`Mesmo telefone ${linhas} do Excel. Se for a mesma venda, use no Excel o número ${numero}.`);
+  }
+  if (ocultas > 0) frases.push('Há também venda com este telefone na planilha de outra pessoa. Se for o mesmo cliente, avise um sócio.');
+  return frases.join(' ');
+}
 
 /** Uma proposta vendida de solar com o que o vínculo precisa. `telefones`: `dados.telefoneDigitos` e `dados.telefone` (os dois, como no `admin.ts`). */
 export interface PropostaVendida { codigo: string; cliente: string; cidade: string; kwp: number | null; data: string; consultor: string; telefones: string[] }

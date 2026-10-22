@@ -149,6 +149,12 @@ export const TRAVA_PREFIXO = 'cadastro_trava:';
 export const TRAVA_TTL_MS = 15_000;
 export const TRAVA_TENTATIVAS = 5;
 export const TRAVA_ESPERA_MS = 250;
+/**
+ * Nenhuma trava legítima vale mais que isto (a maior TTL é 360 s, a do número do cliente). `ate` além de agora + 400 s foi FORJADO
+ * pela chave pública (que alcança `system_state`): é tratado como vencido, senão uma linha com `ate` no ano 2100 deixaria todo
+ * mundo em "ocupado" para sempre.
+ */
+export const TRAVA_ATE_MAXIMO_MS = 400_000;
 const dorme = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -167,7 +173,8 @@ async function pegarTrava(chave: string, por: string, meuStamp: string, ttlMs: n
     if (!data) continue;   // soltaram agora: tenta de novo já
     const l = data as { value?: { ate?: unknown } | null; updated_at?: string | null };
     const ate0 = Date.parse(String(l.value?.ate ?? ''));
-    if (Number.isFinite(ate0) && ate0 >= Date.now()) return false;
+    // Viva só se `ate` está no futuro E dentro do maior prazo legítimo (acima dele foi forjada: vale vencida).
+    if (Number.isFinite(ate0) && ate0 >= Date.now() && ate0 <= Date.now() + TRAVA_ATE_MAXIMO_MS) return false;
     const alvo = supabase.from('system_state').delete().eq('key', chave);
     const { error: eDel } = await (l.updated_at ? alvo.eq('updated_at', l.updated_at) : alvo.is('updated_at', null)).select('key');
     if (eDel) throw new ErroCadastro('trava');
@@ -186,14 +193,20 @@ async function soltarTrava(chave: string, meuStamp: string): Promise<void> {
  * Roda `fn` com a trava da venda. Escritas da mesma venda esperam (até ~5 tentativas curtas); sem conseguir, lança
  * `ErroCadastro('ocupado')`. A trava SEMPRE é solta no `finally`, e só se ainda for a dele.
  * `id` é o id do card (eletroposto) ou, para outra linha, `<linha>:<código>` (o código do Solar não colide com um id de card).
+ * `espera` (opcional): quantas tentativas e quanto tempo entre elas (padrão: `TRAVA_TENTATIVAS` e `TRAVA_ESPERA_MS`).
  */
-export async function comTrava<T>(id: number | string, por: string, fn: () => Promise<T>, ttlMs: number = TRAVA_TTL_MS): Promise<T> {
+export async function comTrava<T>(
+  id: number | string, por: string, fn: () => Promise<T>, ttlMs: number = TRAVA_TTL_MS,
+  espera?: { tentativas?: number; esperaMs?: number },
+): Promise<T> {
   const chave = `${TRAVA_PREFIXO}${id}`;
   const meuStamp = new Date().toISOString();
+  const tentativas = Math.max(1, espera?.tentativas ?? TRAVA_TENTATIVAS);
+  const esperaMs = Math.max(0, espera?.esperaMs ?? TRAVA_ESPERA_MS);
   let pegou = false;
-  for (let t = 0; t < TRAVA_TENTATIVAS && !pegou; t++) {
+  for (let t = 0; t < tentativas && !pegou; t++) {
     pegou = await pegarTrava(chave, por, meuStamp, ttlMs);
-    if (!pegou && t < TRAVA_TENTATIVAS - 1) await dorme(TRAVA_ESPERA_MS);
+    if (!pegou && t < tentativas - 1) await dorme(esperaMs);
   }
   if (!pegou) throw new ErroCadastro('ocupado');
   try {
