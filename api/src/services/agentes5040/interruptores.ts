@@ -29,7 +29,7 @@ export const DONAS_VIVAS: readonly DonaViva[] = ['duda', 'helena', 'carla'];
  * o modo 'todos' de cada dona no ag5040_vivo_alvo (painel). Modo 'todos' gravado para dona fora desta lista vale
  * como 'teste' (posse.ts) e o painel recusa gravá-lo.
  */
-export const DONAS_LIBERADAS_PARA_TODOS: readonly DonaViva[] = ['duda', 'helena'];
+export const DONAS_LIBERADAS_PARA_TODOS: readonly DonaViva[] = ['duda', 'helena', 'carla'];
 export const interruptorDaDona = (d: DonaViva): NomeInterruptor => `${d}_vivo` as NomeInterruptor;
 
 export const CHAVE_INTERRUPTORES = 'ag5040_interruptores';
