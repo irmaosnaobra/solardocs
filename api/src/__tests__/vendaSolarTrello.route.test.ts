@@ -31,9 +31,27 @@ const t = vi.hoisted(() => ({
   semLabelsNoQuadro: false,
   labelsCaem: false,
   atrasoCriarMs: 0,
+  arquivados: [] as any[],             // cartões arquivados do quadro (só a leitura `cards/all` os devolve)
+  codigosPlanilha: null as string[] | null,   // null = planilha fora do ar
+  numeracaoCai: false,
+  planilhaVelha: false,               // a planilha só responde com cópia velha (`atual: false`)
+  avancaQuadroMs: 0,                  // a leitura do quadro (no começo do pedido) demora tanto
+  avancaRelogioMs: 0,                 // a próxima leitura `cards/all` demora tanto (o relógio de mentira anda)
+  criaTarde: false,                   // o POST cria, a resposta se perde, e o quadro só mostra o cartão depois de `demoraAparecer` leituras
+  pendentes: [] as any[],
+  demoraAparecer: 0,
+  ocultosNaNumeracao: [] as string[], // ids que `cards/all` não devolve
+  registroCai: false,                 // a leitura do registro do envio falha
+  criaMasFalha: false,                // o POST cria o cartão no Trello mas a resposta se perde (500 / tempo esgotado)
 }));
 
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+// Só a lista de códigos da planilha mãe é simulada (a numeração a lê); o resto do módulo segue de verdade.
+vi.mock('../routes/geradorClientes', async (orig) => ({
+  ...(await orig<typeof import('../routes/geradorClientes')>()),
+  codigosSolar: async () => { if (!t.codigosPlanilha) throw new Error('planilha fora do ar'); return t.codigosPlanilha; },
+  codigosSolarAtuais: async () => { if (!t.codigosPlanilha || t.planilhaVelha) throw new Error('planilha sem resposta fresca'); return t.codigosPlanilha; },
+}));
 
 function consulta(linhas: Array<Record<string, any>>) {
   const f: Record<string, unknown> = {};
@@ -118,6 +136,7 @@ vi.mock('../utils/supabase', () => ({
         select: () => ({
           eq: (_c: string, k: string) => ({
             maybeSingle: async () => {
+              if (t.registroCai && k.startsWith('trello_venda_solar:')) return { data: null, error: { code: 'XX000', message: 'banco fora' } };
               const l = h.linhas.get(k);
               return { data: l ? { key: k, value: l.value, updated_at: l.updated_at } : null, error: null };
             },
@@ -242,7 +261,17 @@ async function trelloFalso(url: string, init?: RequestInit): Promise<Response> {
       if (t.sondaCai) throw new Error('rede caiu');
       return t.publico ? json({ id: 'Q', name: t.quadro.name }) : new Response('unauthorized', { status: 401 });
     }
+    if (t.avancaQuadroMs) { vi.setSystemTime(Date.now() + t.avancaQuadroMs); t.avancaQuadroMs = 0; }
+    if (t.pendentes.length) {
+      if (t.demoraAparecer > 0) t.demoraAparecer--; else { t.quadro.cards.push(...t.pendentes); t.pendentes = []; }
+    }
     return json({ name: t.quadro.name, lists: t.quadro.lists, cards: t.quadro.cards, ...(t.semLabelsNoQuadro ? {} : { labels: t.quadro.labels }) });
+  }
+  if (metodo === 'GET' && /^\/boards\/[^/]+\/cards\/all$/.test(caminho)) {
+    if (t.numeracaoCai) return new Response('boom', { status: 500 });
+    if (t.avancaRelogioMs) { vi.setSystemTime(Date.now() + t.avancaRelogioMs); t.avancaRelogioMs = 0; }
+    const todos = [...t.quadro.cards, ...t.arquivados].filter((c) => !t.ocultosNaNumeracao.includes(c.id)).map((c) => ({ id: c.id, name: c.name })).sort((x, y) => (x.id < y.id ? 1 : -1));
+    return json(todos.filter((c) => !params.before || c.id < params.before).slice(0, Number(params.limit) || 1000));
   }
   if (metodo === 'GET' && /^\/boards\/[^/]+\/labels$/.test(caminho)) return t.labelsCaem ? new Response('boom', { status: 500 }) : json(t.quadro.labels);
   if (metodo === 'GET' && /^\/boards\/[^/]+\/lists$/.test(caminho)) return json(t.quadro.lists);
@@ -250,8 +279,10 @@ async function trelloFalso(url: string, init?: RequestInit): Promise<Response> {
     if (t.atrasoCriarMs) await new Promise((ok) => setTimeout(ok, t.atrasoCriarMs));
     if (t.falhaAoCriar) return new Response('boom', { status: 500 });
     const id = novoId();
+    const perdeu = t.criaMasFalha || t.criaTarde; const tarde = t.criaTarde; t.criaMasFalha = false; t.criaTarde = false;
     const ids = (params.idLabels ?? '').split(',').filter(Boolean);
-    t.quadro.cards.push({ id, name: params.name, idList: params.idList, shortUrl: `https://trello.com/c/${id.slice(-6)}`, desc: params.desc, labels: ids.map((i) => ({ id: i, name: i.replace(/^lab-/, '') })) });
+    (tarde ? t.pendentes : t.quadro.cards).push({ id, name: params.name, idList: params.idList, shortUrl: `https://trello.com/c/${id.slice(-6)}`, desc: params.desc, labels: ids.map((i) => ({ id: i, name: i.replace(/^lab-/, '') })) });
+    if (perdeu) return new Response('boom', { status: 500 });
     return json({ id, shortUrl: `https://trello.com/c/${id.slice(-6)}` });
   }
   let m = /^\/cards\/([^/]+)\/idLabels$/.exec(caminho);
@@ -322,6 +353,8 @@ beforeEach(() => {
   invalidarCachesHub(); reiniciarLogsDoHub(); limparCacheBucketDocs(); limparCacheBucketCadastros(); limparCacheQuadroPublico();
 
   t.publico = false; t.sondaCai = false; t.seq = 0; t.falhaAoCriar = false; t.semLabelsNoQuadro = false; t.labelsCaem = false; t.atrasoCriarMs = 0;
+  t.arquivados = []; t.codigosPlanilha = []; t.numeracaoCai = false; t.criaMasFalha = false;
+  t.planilhaVelha = false; t.avancaQuadroMs = 0; t.avancaRelogioMs = 0; t.criaTarde = false; t.pendentes = []; t.demoraAparecer = 0; t.ocultosNaNumeracao = []; t.registroCai = false;
   t.chamadas = []; t.checklists = new Map(); t.anexos = new Map();
   t.quadro = {
     name: 'Quadro de teste',
@@ -408,14 +441,245 @@ describe('cartão novo', () => {
     expect(registroGravado(201)?.card_id).toBe(res.body.cartao.id);
   });
 
-  it('sem venda ligada o título não leva código; sem ligação nenhuma a chave nasce com por = trello', async () => {
+  it('sem venda ligada o título leva o PRÓXIMO número da sequência (arquivados contam); sem ligação nenhuma a chave nasce com por = trello', async () => {
     cadastro(201, { cidade: 'Uberaba', uf: 'MG', email: 'ana@exemplo.com' });
+    t.arquivados = [cartaoTrello(idFixo(40), '#0064 - (Igor) Laurentino Neto - Catalão GO')];   // maior que o aberto (#0062)
     const res = await trello(201, {});
     expect(res.status).toBe(200);
-    expect(criacoes()[0].params.name).toBe('Ana Souza - Uberaba MG');
+    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0065 - Ana Souza - Uberaba MG' });
+    expect(criacoes()[0].params.name).toBe('#0065 - Ana Souza - Uberaba MG');
+    expect(res.body.cartao.nome).toBe('#0065 - Ana Souza - Uberaba MG');
+    // a leitura que conta os números pede TODOS os cartões e só o campo name
+    const leitura = t.chamadas.find((c) => /\/cards\/all$/.test(c.caminho));
+    expect(leitura?.params).toMatchObject({ fields: 'name' });
+    // o número calculado NÃO vira `venda` da ligação (vínculo assinado com a planilha): só o cartão é guardado
     expect(ligacaoGravada(201)).toMatchObject({ proposta: null, venda: null, por: 'trello', trello_card: res.body.cartao.id });
-    // sem uc_fornecimento não há etiqueta de ligação; Urbana é o padrão
     expect(criacoes()[0].params.idLabels).toBe('lab-Urbana');
+    // segundo envio: acha o cartão pela ligação, não cria outro nem gasta número
+    t.chamadas = [];
+    const de_novo = await trello(201, {});
+    expect(de_novo.body).toMatchObject({ criou_cartao: false });
+    expect(criacoes()).toHaveLength(0);
+    expect(t.chamadas.some((c) => /\/cards\/all$/.test(c.caminho))).toBe(false);
+  });
+
+  it('código maior na planilha mãe não é reusado; planilha fora do ar segue só com o quadro', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.codigosPlanilha = ['#0061', '#0068', '#0066'];
+    const previa = await trello(201, { previa: true });
+    expect(previa.body).toMatchObject({ numero_provisorio: true, titulo: '#0069 - Ana Souza - Uberaba MG' });
+    const res = await trello(201, {});
+    expect(res.body.titulo).toBe('#0069 - Ana Souza - Uberaba MG');
+    // planilha fora do ar: a prévia segue só com o quadro (provisório); a CRIAÇÃO recusa, sem criar card
+    h.linhas.delete('venda_solar:201'); h.linhas.delete('trello_venda_solar:201');
+    t.codigosPlanilha = null;
+    t.chamadas = [];
+    const previa2 = await trello(201, { previa: true, novo: true });
+    expect(previa2.status).toBe(200);
+    expect(previa2.body).toMatchObject({ numero_provisorio: true, titulo: '#0070 - Ana Souza - Uberaba MG' });
+    const sem = await trello(201, { novo: true });
+    expect(sem.status).toBe(502);
+    expect(sem.body.error).toBe('Não consegui conferir a numeração da planilha. Tente de novo em instantes.');
+    expect(criacoes()).toHaveLength(0);
+    expect(escritas()).toEqual([]);
+  });
+
+  it('só números de EXATAMENTE 4 dígitos contam: #20251 e #00610 no começo do nome não pulam a sequência', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.arquivados = [cartaoTrello(idFixo(40), '#20251 - Fora do padrão'), cartaoTrello(idFixo(41), '#00610 - Outro')];
+    t.codigosPlanilha = ['#20251', '#12'];
+    const res = await trello(201, {});
+    expect(res.body.titulo).toBe('#0063 - Ana Souza - Uberaba MG');
+  });
+
+  it('a ligação não gravou (trava dos vínculos ocupada): o registro guarda o cartão e o 2º envio NÃO cria outro', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    // trava global dos vínculos tomada por outra pessoa: `guardarCartaoNaLigacao` desiste depois de ~1 s
+    h.linhas.set('cadastro_trava:vendasolar_vinculos', { value: { por: 'outro', ate: new Date(Date.now() + 60_000).toISOString() }, updated_at: 'trava' });
+    const primeiro = await trello(201, {});
+    expect(primeiro.status).toBe(200);
+    expect(primeiro.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
+    expect(primeiro.body.avisos.join(' ')).toMatch(/registro do envio/);
+    expect(primeiro.body.avisos.join(' ')).not.toMatch(/pelo nome/);
+    expect(ligacaoGravada(201)).toBeUndefined();
+    expect(registroGravado(201)?.card_id).toBe(primeiro.body.cartao.id);
+    t.chamadas = [];
+    const segundo = await trello(201, {});
+    expect(segundo.status).toBe(200);
+    expect(segundo.body).toMatchObject({ criou_cartao: false, ficha: 'comentario' });
+    expect(segundo.body.cartao.id).toBe(primeiro.body.cartao.id);
+    expect(criacoes()).toHaveLength(0);
+    expect(t.quadro.cards.filter((c) => /Ana Souza/.test(c.name))).toHaveLength(1);
+  });
+
+  it('o Trello criou o cartão mas a resposta se perdeu: a rota adota o cartão do número reservado e o 2º envio não cria outro', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.criaMasFalha = true;
+    const primeiro = await trello(201, {});
+    expect(primeiro.status).toBe(200);
+    expect(primeiro.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
+    expect(criacoes()).toHaveLength(1);
+    const nascido = t.quadro.cards.find((c) => c.name === '#0063 - Ana Souza - Uberaba MG');
+    expect(primeiro.body.cartao.id).toBe(nascido.id);
+    expect(registroGravado(201)?.card_id).toBe(nascido.id);
+    expect(ligacaoGravada(201)).toMatchObject({ trello_card: nascido.id });
+    t.chamadas = [];
+    const segundo = await trello(201, {});
+    expect(segundo.body).toMatchObject({ criou_cartao: false });
+    expect(criacoes()).toHaveLength(0);
+    // criação que falha de verdade (nada nasceu): segue 502 e nada fica guardado
+    h.linhas.clear();
+    t.quadro.cards = t.quadro.cards.filter((c) => c.id !== nascido.id);
+    t.falhaAoCriar = true;
+    const falha = await trello(201, {});
+    expect(falha.status).toBe(502);
+    expect(registroGravado(201)).toBeUndefined();
+  });
+
+  it('a prévia traz o título com número provisório; o envio recalcula na hora (outro cartão tomou o número no meio)', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    const previa = await trello(201, { previa: true });
+    expect(previa.body).toMatchObject({ ok: true, numero_provisorio: true, titulo: '#0063 - Ana Souza - Uberaba MG', cartao: null });
+    expect(escritas()).toEqual([]);
+    t.quadro.cards.push(cartaoTrello(idFixo(41), '#0063 - Outro Cliente - Catalão GO'));   // alguém criou o #0063 depois da prévia
+    const res = await trello(201, {});
+    expect(res.body.titulo).toBe('#0064 - Ana Souza - Uberaba MG');
+    expect(criacoes()[0].params.name).toBe('#0064 - Ana Souza - Uberaba MG');
+  });
+
+  it('não consegue ler o quadro com os arquivados: erro claro e nenhum cartão criado (na prévia também)', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.numeracaoCai = true;
+    const previa = await trello(201, { previa: true });
+    expect(previa.status).toBe(502);
+    expect(previa.body.error).toBe('Não consegui conferir a numeração do quadro. Tente de novo em instantes.');
+    const res = await trello(201, {});
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/numeração/);
+    expect(criacoes()).toHaveLength(0);
+    expect(escritas()).toEqual([]);
+    expect(ligacaoGravada(201)).toBeUndefined();
+  });
+
+  it('com a venda ligada o título continua com o número DA VENDA e a numeração do quadro nem é lida', async () => {
+    venda201();
+    t.arquivados = [cartaoTrello(idFixo(40), '#0090 - Alguém - Catalão GO')];
+    const previa = await trello(201, { previa: true });
+    expect(previa.body).toMatchObject({ numero_provisorio: false, titulo: '#0061 - Ana Souza Oliveira - Uberlândia MG' });
+    const res = await trello(201, {});
+    expect(res.body.titulo).toBe('#0061 - Ana Souza Oliveira - Uberlândia MG');
+    expect(t.chamadas.some((c) => /\/cards\/all$/.test(c.caminho))).toBe(false);
+  });
+
+  it('prazo interno (contado do COMEÇO do pedido): >150 s de leituras desistem ANTES do POST, nada é criado e a trava do número é solta', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.avancaRelogioMs = 160_000;
+    const lento = await trello(201, {});
+    expect(lento.status).toBe(502);
+    expect(lento.body.error).toBe('O Trello está lento agora. Nada foi criado. Tente de novo em instantes.');
+    expect(criacoes()).toHaveLength(0);
+    expect(escritas()).toEqual([]);
+    expect(h.linhas.has('cadastro_trava:trello_numero_solar')).toBe(false);
+    // a trava foi solta: o envio seguinte (rápido) passa
+    expect((await trello(201, {})).status).toBe(200);
+  });
+
+  it('o prazo conta desde a entrada do pedido: quadro lento ANTES de pegar a trava também desiste sem criar', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.avancaQuadroMs = 160_000;
+    const lento = await trello(201, {});
+    expect(lento.status).toBe(502);
+    expect(lento.body.error).toBe('O Trello está lento agora. Nada foi criado. Tente de novo em instantes.');
+    expect(criacoes()).toHaveLength(0);
+    expect(h.linhas.has('cadastro_trava:trello_numero_solar')).toBe(false);
+    expect(h.linhas.has('cadastro_trava:trello:201')).toBe(false);
+  });
+
+  it('planilha só com cópia velha (atual: false): a prévia segue com o cache, a CRIAÇÃO recusa sem criar card', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.codigosPlanilha = ['#0070'];
+    t.planilhaVelha = true;
+    const previa = await trello(201, { previa: true });
+    expect(previa.status).toBe(200);
+    expect(previa.body).toMatchObject({ numero_provisorio: true, titulo: '#0071 - Ana Souza - Uberaba MG' });
+    const res = await trello(201, {});
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('Não consegui conferir a numeração da planilha. Tente de novo em instantes.');
+    expect(criacoes()).toHaveLength(0);
+  });
+
+  it('adoção ignora cartão que JÁ EXISTIA antes do POST, mesmo com o número reservado', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    // aberto no quadro, mas a leitura da numeração não o enxerga: o número reservado é o dele (#0063)
+    t.quadro.cards.push(cartaoTrello(idFixo(60), '#0063 - Velho - Catalão GO'));
+    t.ocultosNaNumeracao = [idFixo(60)];
+    t.falhaAoCriar = true;
+    const res = await trello(201, {});
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/Não consegui criar o cartão/);
+    expect(registroGravado(201)).toBeUndefined();
+    expect(ligacaoGravada(201)).toBeUndefined();
+  }, 20_000);
+
+  it('o Trello só mostra o cartão criado depois: a 2ª releitura (após ~2,5 s) o acha e adota', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.criaTarde = true;
+    t.demoraAparecer = 1;   // a 1ª releitura ainda não vê o cartão; a 2ª vê
+    const res = await trello(201, {});
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberaba MG' });
+    expect(criacoes()).toHaveLength(1);
+    expect(res.body.cartao.id).toBe(t.quadro.cards.find((c) => c.name === '#0063 - Ana Souza - Uberaba MG').id);
+    expect(registroGravado(201)?.card_id).toBe(res.body.cartao.id);
+    // nenhuma releitura vê o cartão: 502 (as duas tentativas)
+    h.linhas.clear(); t.quadro.cards = t.quadro.cards.filter((c) => c.id !== res.body.cartao.id);
+    t.criaTarde = true; t.demoraAparecer = 5;
+    const nada = await trello(201, {});
+    expect(nada.status).toBe(502);
+    t.pendentes = [];
+  }, 20_000);
+
+  it('a prévia sobrevive à falha na leitura do registro (vale registro vazio); a criação mantém o erro e não cria', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    t.registroCai = true;
+    const previa = await trello(201, { previa: true });
+    expect(previa.status).toBe(200);
+    expect(previa.body).toMatchObject({ ok: true, previa: true, numero_provisorio: true });
+    const res = await trello(201, {});
+    expect(res.status).toBe(500);
+    expect(criacoes()).toHaveLength(0);
+  });
+
+  it('o cartão guardado foi arquivado (não está mais aberto): a prévia avisa que um card novo será criado', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    injeta(201, { trello_card: idFixo(77) });   // não está entre os abertos do quadro
+    const previa = await trello(201, { previa: true });
+    expect(previa.body.cartao).toBeNull();
+    expect(previa.body.avisos).toEqual(['O card guardado foi arquivado no Trello. Um card novo será criado.']);
+    // guardado aberto ou nada guardado: sem aviso
+    t.quadro.cards.push(cartaoTrello(idFixo(77), '#0050 - Ana Souza - Uberaba MG'));
+    expect((await trello(201, { previa: true })).body.avisos).toBeUndefined();
+    h.linhas.clear();
+    expect((await trello(201, { previa: true })).body.avisos).toBeUndefined();
+    // o cartão do registro (ligação que não gravou) arquivado também avisa
+    h.linhas.set('trello_venda_solar:201', { value: { card_id: idFixo(78), comentario_id: null, anexados: {} }, updated_at: 'r' });
+    expect((await trello(201, { previa: true })).body.avisos).toHaveLength(1);
+  });
+
+  it('datasheets do módulo e do inversor marcam os dois itens do BACKOFFICE e sobem como anexo', async () => {
+    venda201();
+    anexa(201, [
+      { slot: 'padrao', mime: 'image/jpeg', ext: 'jpg' }, { slot: 'medidor', mime: 'image/jpeg', ext: 'jpg' },
+      { slot: 'datasheet_modulo', mime: 'application/pdf', ext: 'pdf' }, { slot: 'datasheet_inversor', mime: 'application/pdf', ext: 'pdf' },
+      { slot: 'datasheet_inversor', mime: 'application/pdf', ext: 'pdf' },
+    ]);
+    const res = await trello(201, {});
+    expect(res.status).toBe(200);
+    const back = t.checklists.get(res.body.cartao.id)![0];
+    const estado = Object.fromEntries(back.checkItems.map((i: any) => [i.name, i.state]));
+    expect(estado['DataSheet Inversor']).toBe('complete');
+    expect(estado['Datasheet Modulo']).toBe('complete');
+    expect(anexosEnviados().map((a) => a.nome)).toEqual(expect.arrayContaining(['Datasheet dos módulos.pdf', 'Datasheet do inversor.pdf', 'Datasheet do inversor 2.pdf']));
   });
 
   it('as checklists nascem com os itens e os marcados saem dos documentos, do telefone e do e-mail', async () => {
@@ -647,13 +911,32 @@ describe('achar o cartão que já existe', () => {
     expect(criacoes()).toHaveLength(0);
   });
 
-  it('empate por nome (sem venda ligada) também devolve candidatos', async () => {
+  it('só nome parecido (sem venda ligada) NÃO escolhe nem edita: cria cartão novo com o próximo número e a prévia só avisa', async () => {
     cadastro(201, { email: 'a@b.com' });
     t.quadro.cards.push(cartaoTrello(idFixo(5), 'Ana Souza Lima - Uberlândia MG'), cartaoTrello(idFixo(6), 'Ana Souza Pires - Araguari MG'));
+    const previa = await trello(201, { previa: true });
+    expect(previa.status).toBe(200);
+    expect(previa.body.cartao).toBeNull();
+    expect(previa.body.candidatos).toBeUndefined();
+    expect(previa.body).toMatchObject({ numero_provisorio: true, titulo: '#0063 - Ana Souza - Uberlândia' });
+    expect(previa.body.parecidos.map((x: any) => x.id).sort()).toEqual([idFixo(5), idFixo(6)]);
+    expect(previa.body.parecidos[0]).toEqual(expect.objectContaining({ titulo: expect.any(String) }));
+    expect(escritas()).toEqual([]);
     const res = await trello(201, {});
-    expect(res.status).toBe(409);
-    expect(res.body.candidatos).toHaveLength(2);
-    expect(criacoes()).toHaveLength(0);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0063 - Ana Souza - Uberlândia' });
+    expect(criacoes()).toHaveLength(1);
+    // nada foi escrito nos cartões parecidos
+    expect(t.chamadas.filter((c) => c.caminho.includes(idFixo(5)) || c.caminho.includes(idFixo(6))).filter((c) => c.metodo !== 'GET')).toHaveLength(0);
+  });
+
+  it('só nome parecido COM venda ligada (outro número) também cria o cartão da venda, sem editar o parecido', async () => {
+    venda201();
+    t.quadro.cards.push(cartaoTrello(idFixo(5), '#0050 - Ana Souza Oliveira - Uberlandia MG'));
+    const res = await trello(201, {});
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ criou_cartao: true, titulo: '#0061 - Ana Souza Oliveira - Uberlândia MG' });
+    expect(t.chamadas.filter((c) => c.caminho.includes(idFixo(5))).filter((c) => c.metodo !== 'GET')).toHaveLength(0);
   });
 
   describe('novo: true (nenhum dos candidatos é deste cliente)', () => {
@@ -793,18 +1076,14 @@ describe('prévia', () => {
     expect(res.status).toBe(200);
     expect(res.body.titulo).toBe('#0061 - (Ana) Eloisa Elena Lima - Uberlândia MG');
     expect(res.body.cartao).toBeNull();
-    // venda #0061 ligada e um cartão de OUTRA venda (#0070) com o nome do titular: empate para confirmar, não é escolhido sozinho
+    // venda #0061 ligada e um cartão de OUTRA venda (#0070) com o nome do titular: só aviso (`parecidos`), nunca candidato nem escolha
     t.quadro.cards.push(cartaoTrello(idFixo(5), '#0070 - (Ana) Eloisa Elena Lima - Uberlândia MG'));
     const r2 = await trello(201, { previa: true });
     expect(r2.status).toBe(200);
     expect(r2.body.cartao).toBeNull();
-    expect(r2.body.candidatos.map((c: any) => c.id)).toEqual([idFixo(5)]);
-    expect(r2.body.motivo_empate).toContain('titular');
-    // o envio de verdade também não escolhe nem cria: 409 com o candidato
-    const envio = await trello(201, {});
-    expect(envio.status).toBe(409);
-    expect(envio.body).toMatchObject({ ok: false, precisa: 'escolher_cartao' });
-    expect(criacoes()).toHaveLength(0);
+    expect(r2.body.candidatos).toBeUndefined();
+    expect(r2.body.parecidos.map((c: any) => c.id)).toEqual([idFixo(5)]);
+
     // com o #0061 no título, o número decide
     t.quadro.cards.push(cartaoTrello(idFixo(6), '#0061 - (Ana) Eloisa Elena Lima - Uberlândia MG'));
     const r3 = await trello(201, { previa: true });

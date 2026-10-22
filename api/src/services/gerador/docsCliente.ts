@@ -121,6 +121,10 @@ export const CATALOGO: Record<Linha, readonly ItemDoc[]> = {
     it('padrao', 'Foto do padrão de entrada', 'imagem', true),
     it('disjuntor', 'Foto do disjuntor', 'imagem', true),
     it('medidor', 'Foto do relógio medidor', 'imagem', true),
+    // Datasheets (22/10/2026): vão ao Trello e ao relatório de engenharia. Mais de um arquivo: dois modelos de módulo, dois inversores.
+    // Obrigatório só pesa no relatório (lista de pendências e o selo "preliminar"); não trava contrato, Trello nem envio.
+    it('datasheet_modulo', 'Datasheet dos módulos', 'ambos', true, true),
+    it('datasheet_inversor', 'Datasheet do inversor', 'ambos', true, true),
     it('contrato_assinado', 'Contrato assinado', 'ambos', true),
     it('procuracao', 'Procuração', 'ambos', false),
     it('outros', 'Outros documentos', 'ambos', false, true),

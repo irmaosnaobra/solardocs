@@ -37106,6 +37106,7 @@ const VDC_SOL_SECOES = [
   { t: 'Avalista', chaves: ['documento_avalista', 'comprovante_endereco_avalista'] },
   { t: 'Contas de luz', chaves: ['conta_luz', 'conta_luz_beneficiaria'] },
   { t: 'Fotos de homologação', chaves: ['fachada', 'padrao', 'disjuntor', 'medidor'] },
+  { t: 'Equipamento', chaves: ['datasheet_modulo', 'datasheet_inversor'] },
   { t: 'Imóvel e outras pessoas', chaves: ['documento_imovel', 'documento_outra_pessoa'] },
   { t: 'Outros', chaves: ['contrato_assinado', 'procuracao', 'outros'] },
 ];
@@ -37901,9 +37902,26 @@ function vdcTrPainelPrevia(st) {
       mot ? vdcTrEl('p', 'vdc-nota', 'Escolha qual atualizar ou crie um card novo.') : null,
       vdcTrListaCands(st, cands, vdcTrPrevia)));
   } else {
-    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', 'Será criado um card novo.')));
+    // Card novo. Sem venda ligada o título leva o PRÓXIMO número da sequência, ainda provisório: o servidor o reserva na criação.
+    const prov = p.numero_provisorio === true && typeof p.titulo === 'string' && p.titulo;
+    const bl = vdcTrBloco('Card',
+      vdcTrEl('p', 'vdc-tre-v', prov ? 'Card novo: ' + p.titulo + ' (número reservado na criação)' : 'Será criado um card novo.'));
+    // Nome parecido é só aviso: não escolhe nem atualiza card nenhum.
+    (Array.isArray(p.parecidos) ? p.parecidos : []).slice(0, 3).forEach((x) => {
+      if (!x || typeof x !== 'object' || typeof x.titulo !== 'string' || !x.titulo) return;
+      const av = vdcTrEl('p', 'vdc-lst-av', 'Já existe card com nome parecido: ' + x.titulo + '. Confira se não é o mesmo cliente.');
+      av.setAttribute('data-vdc-trello-parecido', '1');
+      bl.appendChild(av);
+      const u = vdcTrUrl(x.url);
+      if (u) bl.appendChild(vdcTrLink(u, 'Abrir no Trello'));
+    });
+    (Array.isArray(p.avisos) ? p.avisos : []).forEach((x) => {
+      const t = vdcTrMotivo(x);
+      if (t) { const av = vdcTrEl('p', 'vdc-lst-av', t); av.setAttribute('data-vdc-trello-aviso', '1'); bl.appendChild(av); }
+    });
+    pn.appendChild(bl);
   }
-  if (typeof p.titulo === 'string' && p.titulo) pn.appendChild(vdcTrBloco('Título', vdcTrEl('p', 'vdc-tre-v', p.titulo)));
+  if (typeof p.titulo === 'string' && p.titulo && !(p.numero_provisorio === true && !cartao && !empate)) pn.appendChild(vdcTrBloco('Título', vdcTrEl('p', 'vdc-tre-v', p.titulo)));
   if (typeof p.lista === 'string' && p.lista) pn.appendChild(vdcTrBloco('Lista', vdcTrEl('p', 'vdc-tre-v', p.lista)));
   if (!empate) {
     const e = p.etiquetas && typeof p.etiquetas === 'object' ? p.etiquetas : {};

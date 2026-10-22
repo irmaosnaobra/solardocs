@@ -79,7 +79,7 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 
-import { mountClientes, limparCacheClientes } from '../routes/geradorClientes';
+import { mountClientes, limparCacheClientes, codigosSolar, codigosSolarAtuais } from '../routes/geradorClientes';
 import { mountSolar, limparCachesSolar, limitesSolar } from '../routes/geradorSolar';
 
 const CABECALHO: string[] = [
@@ -252,6 +252,14 @@ describe('GET /clientes/solar', () => {
     const copia = await get(THIAGO, '?fresco=1');
     expect(copia.status).toBe(200);
     expect(copia.body.fonte.planilha).toBe(false);
+  });
+  it('codigosSolarAtuais lê a planilha agora e recusa a cópia velha; codigosSolar (os outros chamadores) segue servindo o cache', async () => {
+    expect(await codigosSolarAtuais()).toEqual(expect.arrayContaining(['#0057', '#0059']));
+    h.planilhaFora = true;
+    expect(await codigosSolar()).toEqual(expect.arrayContaining(['#0057']));   // cache de até 5 min, como sempre
+    await expect(codigosSolarAtuais()).rejects.toMatchObject({ http: 502 });   // planilha não respondeu: a cópia velha NÃO vale
+    h.planilhaFora = false;
+    expect(await codigosSolarAtuais()).toEqual(expect.arrayContaining(['#0059']));
   });
   it('banco fora do ar: 502, nunca grade vazia fingindo que nada foi preenchido, e sem vazar o erro', async () => {
     h.erroLeitura = true;

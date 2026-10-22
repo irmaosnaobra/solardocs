@@ -77,16 +77,28 @@ describe('a linha nova em cada ponto fixo', () => {
 
 describe('catálogo da vendasolar', () => {
   const cat = CATALOGO.vendasolar;
-  it('tem os 18 itens (16 + os dois do titular do financiamento), com as chaves do dossiê onde elas existem', () => {
+  it('tem os 20 itens (18 + os dois datasheets), com as chaves do dossiê onde elas existem', () => {
     expect(cat.map((i) => i.chave)).toEqual([
       'documento_titular', 'comprovante_endereco_comprador', 'documento_titular_uc', 'documento_financiamento', 'comprovante_endereco_financiamento',
       'documento_outra_pessoa', 'documento_avalista', 'comprovante_endereco_avalista', 'conta_luz', 'conta_luz_beneficiaria', 'documento_imovel', 'fachada', 'padrao', 'disjuntor', 'medidor',
-      'contrato_assinado', 'procuracao', 'outros',
+      'datasheet_modulo', 'datasheet_inversor', 'contrato_assinado', 'procuracao', 'outros',
     ]);
     for (const [doDossie, daVenda] of Object.entries(SLOT_DO_DOSSIE_NA_VENDASOLAR)) expect(itemDoCatalogo('vendasolar', daVenda), doDossie).toBeTruthy();
     // o `documento` do dossiê é o documento com foto do TITULAR DA CONTA, não necessariamente o do comprador
     expect(SLOT_DO_DOSSIE_NA_VENDASOLAR.documento).toBe('documento_titular_uc');
     expect(SLOT_DO_DOSSIE_NA_VENDASOLAR.conta_luz).toBe('conta_luz');
+  });
+  it('datasheets: aceitam pdf e imagem, vários arquivos, obrigatórios só para o relatório; a IA de leitura não os lê', () => {
+    for (const k of ['datasheet_modulo', 'datasheet_inversor']) {
+      expect(itemDoCatalogo('vendasolar', k), k).toMatchObject({ aceita: 'ambos', obrigatorio: true, varios: true });
+      expect(mimeServeAoItem(itemDoCatalogo('vendasolar', k)!, 'application/pdf'), k).toBe(true);
+      expect(mimeServeAoItem(itemDoCatalogo('vendasolar', k)!, 'image/png'), k).toBe(true);
+      expect(SLOTS_LIDOS_SOLAR, k).not.toContain(k);
+      expect(SLOTS_FORA_DO_RELATORIO.has(k), k).toBe(false);   // ficha do fabricante: não é dado pessoal, vai ao relatório e ao Trello
+      expect(itemDoCatalogo('eletroposto', k), k).toBeNull();
+    }
+    expect(itemDoCatalogo('vendasolar', 'datasheet_modulo')?.rotulo).toBe('Datasheet dos módulos');
+    expect(itemDoCatalogo('vendasolar', 'datasheet_inversor')?.rotulo).toBe('Datasheet do inversor');
   });
   it('as 4 fotos de homologação só aceitam imagem; o resto aceita pdf', () => {
     for (const f of ['fachada', 'padrao', 'disjuntor', 'medidor']) {
@@ -99,14 +111,14 @@ describe('catálogo da vendasolar', () => {
   });
   it('vários: outra pessoa, beneficiária, imóvel e outros; os demais aceitam um só', () => {
     const varios = cat.filter((i) => i.varios).map((i) => i.chave).sort();
-    expect(varios).toEqual(['conta_luz_beneficiaria', 'documento_imovel', 'documento_outra_pessoa', 'outros']);
+    expect(varios).toEqual(['conta_luz_beneficiaria', 'datasheet_inversor', 'datasheet_modulo', 'documento_imovel', 'documento_outra_pessoa', 'outros']);
     expect(limiteDoItem(itemDoCatalogo('vendasolar', 'documento_imovel')!)).toBe(LIMITES.porItem);
     expect(limiteDoItem(itemDoCatalogo('vendasolar', 'outros')!)).toBe(LIMITES.outros);
     expect(LIMITES.total).toBe(100);
     expect(motivoSemEspaco({ ...registroDocsVazio(), arquivos: [{ id: 'a', slot: 'conta_luz', caminho: 'c', mime: 'application/pdf', bytes: 1, em: '', por: '' }] }, itemDoCatalogo('vendasolar', 'conta_luz')!)).toBe('slot_ocupado');
   });
-  it('obrigatórios: comprador, conta da geradora, 4 fotos e contrato; o resto não trava', () => {
-    expect(cat.filter((i) => i.obrigatorio).map((i) => i.chave).sort()).toEqual(['conta_luz', 'contrato_assinado', 'disjuntor', 'documento_titular', 'fachada', 'medidor', 'padrao']);
+  it('obrigatórios (só pesam no relatório): comprador, conta da geradora, 4 fotos, 2 datasheets e contrato; o resto não', () => {
+    expect(cat.filter((i) => i.obrigatorio).map((i) => i.chave).sort()).toEqual(['conta_luz', 'contrato_assinado', 'datasheet_inversor', 'datasheet_modulo', 'disjuntor', 'documento_titular', 'fachada', 'medidor', 'padrao']);
   });
 });
 

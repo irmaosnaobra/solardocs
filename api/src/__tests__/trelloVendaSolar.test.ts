@@ -8,9 +8,9 @@ vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: {}, geradorComServ
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
 import {
-  cidadeUfDoEndereco, localDoCartao, tituloDoCartao, mesmaPessoa, titularDaVenda, numeroDoTitulo, acharCartao, etiquetasAutomaticas, validarEtiquetasExtra,
+  cidadeUfDoEndereco, localDoCartao, tituloDoCartao, mesmaPessoa, titularDaVenda, numeroDoTitulo, acharCartao, cartoesParecidos, proximoCodigoDaSequencia, etiquetasAutomaticas, validarEtiquetasExtra,
   planoDeEtiquetas, planoDeChecklists, passosDeChecklist, descricaoDoCartao, equipamentoDaProposta, nomearAnexos, lerRegistroBruto,
-  ITENS_BACKOFFICE, ITENS_ENGENHARIA, type CartaoDoQuadro,
+  ITENS_BACKOFFICE, ITENS_ENGENHARIA, lerNomesDeTodosOsCartoes, proximoNumeroDaSequencia, acharCartaoCriado, type CartaoDoQuadro,
 } from '../services/gerador/trelloVendaSolar';
 import { trelloQuadroPublico, limparCacheQuadroPublico } from '../services/gerador/dossieVenda';
 import { normalizarCadastro, validarCampo, ehCampo, type Cadastro } from '../services/gerador/cadastroVenda';
@@ -98,46 +98,93 @@ describe('achar o cartão que já existe', () => {
     expect(r.tipo).toBe('empate');
     expect(r.tipo === 'empate' && r.candidatos.map((c) => c.id).sort()).toEqual(['c1', 'c9']);
   });
-  it('sem número, acha pelo nome (duas palavras em comum); nome com empate devolve os candidatos', () => {
-    expect(acharCartao({ cartoes: quadro, codigoVenda: null, nome: 'Bruno Lima' })).toMatchObject({ tipo: 'achou', por: 'nome', cartao: { id: 'c3' } });
-    const empate = acharCartao({ cartoes: [cartao('x1', 'Maria Souza Lima - Uberlândia MG'), cartao('x2', 'Maria Souza Lima - Araguari MG')], codigoVenda: null, nome: 'Maria Souza Lima' });
-    expect(empate.tipo).toBe('empate');
-    expect(empate.tipo === 'empate' && empate.candidatos).toHaveLength(2);
-    expect(acharCartao({ cartoes: quadro, codigoVenda: null, nome: 'Zeca Pagodinho' })).toEqual({ tipo: 'nenhum' });
+  it('nome parecido NUNCA escolhe cartão: sem número, sem guardado e sem escolhido o resultado é `nenhum`', () => {
+    expect(acharCartao({ cartoes: quadro, codigoVenda: null })).toEqual({ tipo: 'nenhum' });
+    // cartão de OUTRO número com nome parecido também não vira empate: venda vendida é cartão novo
+    expect(acharCartao({ cartoes: [cartao('c5', '#0050 - Ana Souza Oliveira - Uberlândia MG')], codigoVenda: '#0061' })).toEqual({ tipo: 'nenhum' });
   });
-  it('cartão achado SÓ pelo titular nunca é `achou`: vira empate com o motivo para o consultor confirmar', () => {
+  it('cartoesParecidos: só avisa. Nome do card (2+ palavras de 3+ letras) e nome do titular (palavra inteira, 2+ palavras)', () => {
+    const ids = (r: CartaoDoQuadro[]) => r.map((c) => c.id).sort();
+    expect(ids(cartoesParecidos({ cartoes: quadro, nome: 'Bruno Lima' }))).toEqual(['c3']);
+    expect(cartoesParecidos({ cartoes: quadro, nome: 'Zeca Pagodinho' })).toEqual([]);
+    expect(ids(cartoesParecidos({ cartoes: [cartao('x1', 'Maria Souza Lima - Uberlândia MG'), cartao('x2', 'Maria Souza Lima - Araguari MG')], nome: 'Maria Souza Lima' }))).toEqual(['x1', 'x2']);
     const q = [cartao('t1', '#0062 - (Odécio) Eloisa Elena - Uberaba MG'), cartao('t2', '#0064 - (Igor) Laurentino Neto - Catalão GO')];
-    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio Ferreira' })).toEqual({ tipo: 'nenhum' });
-    const r = acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio Ferreira', titular: 'Eloisa Elena' });
-    expect(r).toEqual({ tipo: 'empate', candidatos: [q[0]], motivo: 'Achei um cartão pelo nome do titular. Confirme se é deste cliente.' });
-    // com o #NNNN da venda igual, quem decide é o número, como sempre
-    expect(acharCartao({ cartoes: q, codigoVenda: '#0062', nome: 'Odécio Ferreira', titular: 'Eloisa Elena' })).toMatchObject({ tipo: 'achou', por: 'numero', cartao: { id: 't1' } });
-    // o cartão que só o titular achou tem OUTRO número: o motivo diz que é de outra venda
-    const outra = acharCartao({ cartoes: q, codigoVenda: '#0099', nome: 'Odécio Ferreira', titular: 'Eloisa Elena' });
-    expect(outra.tipo).toBe('empate');
-    expect(outra.tipo === 'empate' && outra.motivo).toContain('outra venda');
+    expect(cartoesParecidos({ cartoes: q, nome: 'Odécio Ferreira' })).toEqual([]);
+    expect(ids(cartoesParecidos({ cartoes: q, nome: 'Odécio Ferreira', titular: 'Eloisa Elena' }))).toEqual(['t1']);
+    const m = [cartao('m1', '#0051 - Mariana Lima Souza - Uberaba MG')];
+    expect(cartoesParecidos({ cartoes: m, nome: 'Odécio', titular: 'Ana Lima' })).toEqual([]);
+    expect(cartoesParecidos({ cartoes: m, nome: 'Odécio', titular: 'Lima' })).toEqual([]);
   });
-  it('negativo: card "Odécio" com contratante "Odécio Ferreira" não acha sozinho o cartão de OUTRO cliente', () => {
-    const q = [cartao('o1', '#0050 - Odécio Ferreira Neto - Araguari MG')];
-    const r = acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'Odécio Ferreira' });
-    expect(r.tipo).toBe('empate');
-    expect(r.tipo === 'empate' && r.candidatos.map((c) => c.id)).toEqual(['o1']);
+  it('com o #NNNN da venda igual, quem decide é o número, mesmo com titular de outro nome', () => {
+    const q = [cartao('t1', '#0062 - (Odécio) Eloisa Elena - Uberaba MG'), cartao('t2', '#0064 - (Igor) Laurentino Neto - Catalão GO')];
+    expect(acharCartao({ cartoes: q, codigoVenda: '#0062' })).toMatchObject({ tipo: 'achou', por: 'numero', cartao: { id: 't1' } });
+    expect(acharCartao({ cartoes: q, codigoVenda: '#0099' })).toEqual({ tipo: 'nenhum' });
   });
-  it('negativo: o titular casa por palavra inteira ("Ana Lima" não casa com "Mariana Lima Souza") e exige 2 palavras', () => {
-    const q = [cartao('m1', '#0051 - Mariana Lima Souza - Uberaba MG')];
-    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'Ana Lima' })).toEqual({ tipo: 'nenhum' });
-    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'Lima' })).toEqual({ tipo: 'nenhum' });
-    expect(acharCartao({ cartoes: q, codigoVenda: null, nome: 'Odécio', titular: 'De Lima' })).toEqual({ tipo: 'nenhum' });
+});
+
+describe('leitura paginada dos cartões do quadro', () => {
+  const cred = { key: 'k', token: 't' };
+  const idsDe = (n: number): string[] => Array.from({ length: n }, (_, i) => `${String(i + 1).padStart(24, '0')}`);
+  /** Um quadro de mentira com `ids` e `/cards/all` que respeita `limit` e `before` (do mais novo para o mais antigo). */
+  const quadroDe = (ids: string[], nome: (id: string) => string) => {
+    const paginas: Array<Record<string, string>> = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = new URL(url);
+      const params = Object.fromEntries(u.searchParams);
+      paginas.push(params);
+      const todos = [...ids].sort().reverse().filter((id) => !params.before || id < params.before).slice(0, Number(params.limit));
+      return new Response(JSON.stringify(todos.map((id) => ({ id, name: nome(id) }))), { status: 200 });
+    }));
+    return paginas;
+  };
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('pagina com `before` (menor id lido) até vir página menor que o limite, e acha o maior número de qualquer página', async () => {
+    const ids = idsDe(7);
+    const paginas = quadroDe(ids, (id) => (id === ids[1] ? '#0090 - Antigo arquivado' : `Card ${id.slice(-2)}`));
+    const r = await lerNomesDeTodosOsCartoes(cred, 'quadro', { pagina: 3, maxPaginas: 5 });
+    expect(r.ok && r.dados).toHaveLength(7);
+    expect(paginas.map((p) => p.before ?? null)).toEqual([null, ids[4], ids[1]]);
+    const n = await proximoNumeroDaSequencia(cred, 'quadro', undefined, { pagina: 3, maxPaginas: 5 });
+    expect(n).toEqual({ ok: true, dados: '#0091' });
   });
-  it('dois cartões do titular = empate com os dois; o caminho do nome do card segue como era (achou)', () => {
-    const dois = acharCartao({ cartoes: [cartao('u1', 'Eloisa Elena - Uberaba MG'), cartao('u2', '(Igor) Eloisa Elena - Araguari MG')], codigoVenda: null, nome: 'Odécio', titular: 'Eloisa Elena' });
-    expect(dois.tipo === 'empate' && dois.candidatos.map((c) => c.id).sort()).toEqual(['u1', 'u2']);
-    expect(acharCartao({ cartoes: [cartao('b1', '#0062 - Bruno Lima - Araguari MG')], codigoVenda: null, nome: 'Bruno Lima', titular: 'Eloisa Elena' }))
-      .toMatchObject({ tipo: 'achou', por: 'nome', cartao: { id: 'b1' } });
+  it('página cheia no último limite de páginas: erro próprio (quadro_grande), nunca número em cima de lista cortada', async () => {
+    quadroDe(idsDe(7), () => 'Card');
+    const r = await lerNomesDeTodosOsCartoes(cred, 'quadro', { pagina: 3, maxPaginas: 2 });
+    expect(r).toMatchObject({ ok: false, causa: 'quadro_grande' });
+    expect(await proximoNumeroDaSequencia(cred, 'quadro', undefined, { pagina: 3, maxPaginas: 2 })).toMatchObject({ ok: false, causa: 'quadro_grande' });
   });
-  it('cartão achado só pelo nome e que já tem OUTRO número vira empate (é de outra venda)', () => {
-    const r = acharCartao({ cartoes: [cartao('c5', '#0050 - Ana Souza Oliveira - Uberlândia MG')], codigoVenda: '#0061', nome: 'Ana Souza Oliveira' });
-    expect(r.tipo).toBe('empate');
+  it('acharCartaoCriado: só adota cartão que NÃO estava na lista lida antes do POST, e só se for um único com o número', async () => {
+    const velho = 'a'.repeat(24), novo = 'b'.repeat(24);
+    const stub = (cartoes: Array<{ id: string; name: string }>) => vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(
+      { name: 'Q', lists: [{ id: 'l1', name: 'L' }], labels: [], cards: cartoes.map((c) => ({ ...c, idList: 'l1' })) }), { status: 200 })));
+    stub([{ id: velho, name: '#0063 - Velho' }]);
+    expect(await acharCartaoCriado(cred, 'quadro', '#0063', new Set([velho]))).toBeNull();
+    expect((await acharCartaoCriado(cred, 'quadro', '#0063'))?.id).toBe(velho);
+    stub([{ id: velho, name: '#0063 - Velho' }, { id: novo, name: '#0063 - Nosso' }]);
+    expect(await acharCartaoCriado(cred, 'quadro', '#0063', new Set([velho])).then((c) => c?.id)).toBe(novo);
+    expect(await acharCartaoCriado(cred, 'quadro', '#0063')).toBeNull();   // dois com o mesmo número: não adota
+  });
+  it('planilha obrigatória na criação: falha vira causa `planilha`; sem a exigência (prévia) segue só com o quadro', async () => {
+    quadroDe(idsDe(2), (id) => `#0010 - ${id.slice(-2)}`);
+    const cai = async (): Promise<string[]> => { throw new Error('fora do ar'); };
+    expect(await proximoNumeroDaSequencia(cred, 'quadro', cai, { planilhaObrigatoria: true })).toMatchObject({ ok: false, causa: 'planilha' });
+    expect(await proximoNumeroDaSequencia(cred, 'quadro', cai)).toEqual({ ok: true, dados: '#0011' });
+  });
+});
+
+describe('próximo número da sequência', () => {
+  it('maior #NNNN do começo do nome (abertos e arquivados) + 1, com 4 dígitos; nome sem número no começo não conta', () => {
+    expect(proximoCodigoDaSequencia(['#0062 - Bruno', '#0064 - (Igor) Laurentino', 'Ana Souza', 'ELETROPOSTO #0099 - X', 'Ana #0070'])).toBe('#0065');
+    expect(proximoCodigoDaSequencia([])).toBe('#0001');
+    expect(proximoCodigoDaSequencia(['#0999 - A'])).toBe('#1000');
+    // só 4 dígitos exatos: #00610 e #20251 no começo do nome não entram na conta
+    expect(proximoCodigoDaSequencia(['#00610 - Outro', '#20251 - Fora'], ['#20251'])).toBe('#0001');
+  });
+  it('o maior código da planilha também conta, nunca se reusa', () => {
+    expect(proximoCodigoDaSequencia(['#0062 - Bruno'], ['#0061', '#0066', '#0065'])).toBe('#0067');
+    expect(proximoCodigoDaSequencia(['#0070 - Bruno'], ['#0066'])).toBe('#0071');
+    expect(proximoCodigoDaSequencia(['#0070 - Bruno'], ['lixo', '', '#12'])).toBe('#0071');
   });
 });
 
@@ -185,6 +232,14 @@ describe('checklists', () => {
     expect(vazio.BACKOFFICE.some((i) => i.marcado)).toBe(false);
     // CNH do contratante também marca o item do documento
     expect(planoDeChecklists(new Set(['documento_titular']), false, false).BACKOFFICE.find((i) => i.nome.startsWith('Doc'))?.marcado).toBe(true);
+  });
+  it('os dois datasheets marcam pelos itens datasheet_inversor e datasheet_modulo (texto exato do quadro)', () => {
+    const marcado = (set: string[], nome: string) => planoDeChecklists(new Set(set), false, false).BACKOFFICE.find((i) => i.nome === nome)?.marcado;
+    expect(marcado(['datasheet_inversor'], 'DataSheet Inversor')).toBe(true);
+    expect(marcado(['datasheet_inversor'], 'Datasheet Modulo')).toBe(false);
+    expect(marcado(['datasheet_modulo'], 'Datasheet Modulo')).toBe(true);
+    expect(marcado(['datasheet_modulo'], 'DataSheet Inversor')).toBe(false);
+    expect(marcado([], 'Datasheet Modulo')).toBe(false);
   });
   it('card existente: não recria a checklist que já tem e só marca o que ficou completo (nunca desmarca)', () => {
     const plano = planoDeChecklists(slots, true, false);

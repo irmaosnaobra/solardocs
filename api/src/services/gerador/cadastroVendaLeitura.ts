@@ -35,7 +35,9 @@ const LOG = 'cadastro-venda';
  */
 export const SLOTS_LIDOS: readonly string[] = CATALOGO.eletroposto.filter((i) => i.aceita !== 'imagem').map((i) => i.chave);
 /** Idem para a venda solar pelo card: ficam de fora as 4 fotos de homologação (fachada, padrão, disjuntor, medidor). */
-export const SLOTS_LIDOS_SOLAR: readonly string[] = CATALOGO.vendasolar.filter((i) => i.aceita !== 'imagem').map((i) => i.chave);
+/** Datasheet é ficha do fabricante, não documento de pessoa: a IA não lê e não gasta vaga do teto de arquivos lidos. */
+const SLOTS_NAO_LIDOS_SOLAR: ReadonlySet<string> = new Set(['datasheet_modulo', 'datasheet_inversor']);
+export const SLOTS_LIDOS_SOLAR: readonly string[] = CATALOGO.vendasolar.filter((i) => i.aceita !== 'imagem' && !SLOTS_NAO_LIDOS_SOLAR.has(i.chave)).map((i) => i.chave);
 const slotsLidosDa = (linha: LinhaLeitura): readonly string[] => (linha === 'vendasolar' ? SLOTS_LIDOS_SOLAR : SLOTS_LIDOS);
 export const MAX_ARQUIVOS_LIDOS = 20;
 /** Quantos arquivos de `outros` sem rótulo (PDFs primeiro, depois fotos) passam à frente do documento do titular e da conta de luz. O resto espera o fim da fila. */
@@ -227,6 +229,8 @@ export const DESCRICAO_DOS_ITENS_SOLAR: Record<string, string> = {
   medidor: 'foto do relógio medidor da concessionária',
   contrato_assinado: 'contrato de venda do sistema solar, assinado, mesmo que fotografado',
   procuracao: 'procuração em que o titular autoriza outra pessoa a agir por ele junto à concessionária',
+  datasheet_modulo: 'datasheet (ficha técnica) do módulo fotovoltaico, documento do fabricante: não é documento de pessoa e NÃO preenche campo nenhum',
+  datasheet_inversor: 'datasheet (ficha técnica) do inversor, documento do fabricante: não é documento de pessoa e NÃO preenche campo nenhum',
 };
 const ehFotoDoLocalSolar = (chave: string): boolean => CATALOGO.vendasolar.some((i) => i.chave === chave && i.aceita === 'imagem');
 const LISTA_FOTOS_SOLAR = TIPOS_DO_CATALOGO_SOLAR.filter((i) => ehFotoDoLocalSolar(i.chave))

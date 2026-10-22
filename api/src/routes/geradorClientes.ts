@@ -107,6 +107,17 @@ export async function codigosSolar(): Promise<string[]> {
   return pl.dados.grade.vendas.map((v) => v.codigo);
 }
 
+/**
+ * Os códigos da planilha lidos AGORA (`grade(true)`), para quem vai reservar um número novo: cache de até 5 min ou cópia velha de até
+ * 6 h poderiam esconder uma venda recém-numerada. Planilha que não respondeu (cópia, `atual: false`) é erro 502, nunca um valor velho.
+ */
+export async function codigosSolarAtuais(): Promise<string[]> {
+  let pl: { dados: CacheGrade; atual: boolean };
+  try { pl = await grade(true); } catch { throw new ErroVendaSolar(502); }
+  if (!pl.atual) throw new ErroVendaSolar(502);
+  return pl.dados.grade.vendas.map((v) => v.codigo);
+}
+
 /** O que o hub da venda solar precisa de cada venda da planilha para casar com o card: nome, telefone, data e consultor EFETIVO. */
 export interface VendaPlanilhaResumo { codigo: string; cliente: string; telefone: string; data: string; consultor: string }
 

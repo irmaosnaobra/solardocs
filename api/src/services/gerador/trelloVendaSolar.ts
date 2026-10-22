@@ -11,8 +11,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from '../../utils/supabase';
 import {
-  normalizarNome, casarCartao, trelloFetch, comentarNoTrello,
-  type CredenciaisTrello, type TrelloCard,
+  normalizarNome, trelloFetch, comentarNoTrello,
+  type CredenciaisTrello,
 } from './dossieVenda';
 import { camposDaBeneficiaria, MAX_BENEFICIARIAS, nomeDaHomologacao, type Cadastro } from './cadastroVenda';
 
@@ -123,6 +123,30 @@ export function numeroDoTitulo(titulo: string): string | null {
   return m ? m[1] : null;
 }
 
+// ── Próximo número da sequência ──────────────────────────────────────────────
+
+// Na conta do maior número só entram exatamente 4 dígitos (`#0064`): `#20251` ou `#00610` no começo de um nome não puxam a sequência.
+const RE_NUMERO_NO_TITULO = /^\s*#(\d{4})(?!\d)/;
+const RE_CODIGO_DA_VENDA = /^\s*#?(\d{4})\s*$/;
+
+/**
+ * O próximo `#NNNN` da sequência do quadro: o maior número de 4 dígitos que abre o nome de um cartão (`#0064 - ...`; abertos e arquivados) e o
+ * maior código de venda da planilha mãe (`#0061`), mais 1, com no mínimo 4 dígitos. Nome sem `#NNNN` no começo não conta.
+ * Função pura, reutilizável: a criação da linha do cliente na planilha usa a mesma numeração.
+ */
+export function proximoCodigoDaSequencia(nomesDosCartoes: readonly string[], codigosDaPlanilha: readonly string[] = []): string {
+  let maior = 0;
+  for (const nome of nomesDosCartoes) {
+    const m = RE_NUMERO_NO_TITULO.exec(String(nome ?? ''));
+    if (m) maior = Math.max(maior, Number(m[1]));
+  }
+  for (const c of codigosDaPlanilha) {
+    const m = RE_CODIGO_DA_VENDA.exec(String(c ?? ''));
+    if (m) maior = Math.max(maior, Number(m[1]));
+  }
+  return `#${String(maior + 1).padStart(4, '0')}`;
+}
+
 // ── Casamento do cartão ──────────────────────────────────────────────────────
 
 export interface CartaoDoQuadro {
@@ -132,21 +156,18 @@ export interface CartaoDoQuadro {
 export interface CandidatoCartao { id: string; nome: string; lista: string | null }
 
 export type Achado =
-  | { tipo: 'achou'; cartao: CartaoDoQuadro; por: 'escolhido' | 'guardado' | 'numero' | 'nome' }
+  | { tipo: 'achou'; cartao: CartaoDoQuadro; por: 'escolhido' | 'guardado' | 'numero' }
   | { tipo: 'empate'; candidatos: CartaoDoQuadro[]; motivo: string }
   | { tipo: 'nenhum' };
 
 /**
  * Acha o cartão que já existe, nesta ordem: o que a pessoa escolheu (`card_id`, só vale se está entre os cartões abertos do
- * quadro), o guardado na ligação, o que abre com o MESMO `#NNNN` e, por último, o parecido pelo nome. Dois cartões possíveis em
- * qualquer passo = EMPATE (devolve os candidatos; nunca escolhe nem cria). Cartão achado só pelo nome e que já carrega OUTRO
- * `#NNNN` também vira empate: é de outra venda do mesmo nome. Se nada casou, o nome do titular (palavra inteira, 2+ palavras)
- * ainda pode apontar cartões, mas sempre como empate para confirmar, nunca como `achou`.
+ * quadro), o guardado na ligação e o que abre com o MESMO `#NNNN` da venda ligada. Mais de um cartão com o mesmo número = EMPATE
+ * (devolve os candidatos; nunca escolhe nem cria). Nome do card ou do titular NUNCA escolhem cartão (22/10/2026): venda vendida
+ * é cartão novo, e o nome parecido só vira aviso (`cartoesParecidos`).
  */
 export function acharCartao(a: {
-  cartoes: CartaoDoQuadro[]; escolhido?: string | null; guardado?: string | null; codigoVenda: string | null; nome: string;
-  /** Em nome de quem a usina é homologada: segundo nome possível no casamento pelo nome (o cartão traz `(Negociador) Titular`). */
-  titular?: string | null;
+  cartoes: CartaoDoQuadro[]; escolhido?: string | null; guardado?: string | null; codigoVenda: string | null;
 }): Achado {
   const aberto = (id: string | null | undefined): CartaoDoQuadro | null => (id ? a.cartoes.find((c) => c.id === id) ?? null : null);
   const esc = aberto(a.escolhido);
@@ -163,41 +184,30 @@ export function acharCartao(a: {
     if (iguais.length === 1) return { tipo: 'achou', cartao: iguais[0], por: 'numero' };
     if (iguais.length > 1) return { tipo: 'empate', candidatos: iguais, motivo: 'mais de um cartão com o mesmo número' };
   }
+  return { tipo: 'nenhum' };
+}
 
-  const { c, motivo } = casarCartao(a.cartoes as TrelloCard[], a.nome, '');
-  if (c) {
-    const dele = numeroDoTitulo(c.name);
-    if (numero && dele !== null && Number(dele) !== Number(numero)) {
-      return { tipo: 'empate', candidatos: [c as CartaoDoQuadro], motivo: 'o cartão parecido é de outra venda' };
+/**
+ * Cartões abertos que PARECEM ser deste cliente (nome do card com 2+ palavras de 3+ letras em comum, ou todas as palavras do
+ * titular, 2+). Só para AVISAR na prévia: nunca escolhe, edita nem bloqueia nada.
+ */
+export function cartoesParecidos(a: { cartoes: CartaoDoQuadro[]; nome: string; titular?: string | null }): CartaoDoQuadro[] {
+  const achados = new Map<string, CartaoDoQuadro>();
+  const palavras = normalizarNome(a.nome).split(' ').filter((p) => p.length >= 3);
+  if (palavras.length) {
+    for (const c of a.cartoes) {
+      const nome = normalizarNome(c.name);
+      if (palavras.filter((w) => nome.includes(w)).length >= 2) achados.set(c.id, c);
     }
-    return { tipo: 'achou', cartao: c as CartaoDoQuadro, por: 'nome' };
   }
-  if (motivo === 'mais de um cartão parecido') {
-    const palavras = normalizarNome(a.nome).split(' ').filter((p) => p.length >= 3);
-    const pontos = a.cartoes.map((x) => ({ x, p: palavras.filter((w) => normalizarNome(x.name).includes(w)).length }));
-    const topo = Math.max(0, ...pontos.map((y) => y.p));
-    return { tipo: 'empate', candidatos: pontos.filter((y) => y.p === topo && topo >= 2).map((y) => y.x), motivo };
-  }
-
-  // Último recurso: o nome do TITULAR (o cartão traz `(Negociador) Titular`). Casa por palavra inteira, com todas as palavras do
-  // titular (3+ letras, no mínimo 2) no título do cartão. Cartão que só veio por aqui NUNCA é `achou`: vira empate, e o consultor confirma.
   const doTitular = [...new Set(palavrasDoNome(a.titular ?? ''))];
   if (doTitular.length >= 2) {
-    const candidatos = a.cartoes.filter((x) => {
-      const palavrasDoCartao = new Set(normalizarNome(x.name).split(' '));
-      return doTitular.every((p) => palavrasDoCartao.has(p));
-    });
-    if (candidatos.length) {
-      const deOutraVenda = !!numero && candidatos.every((x) => { const n = numeroDoTitulo(x.name); return n !== null && Number(n) !== Number(numero); });
-      return {
-        tipo: 'empate', candidatos,
-        motivo: deOutraVenda
-          ? 'Achei um cartão pelo nome do titular, mas ele é de outra venda. Confirme se é deste cliente.'
-          : 'Achei um cartão pelo nome do titular. Confirme se é deste cliente.',
-      };
+    for (const c of a.cartoes) {
+      const doCartao = new Set(normalizarNome(c.name).split(' '));
+      if (doTitular.every((p) => doCartao.has(p))) achados.set(c.id, c);
     }
   }
-  return { tipo: 'nenhum' };
+  return [...achados.values()];
 }
 
 // ── Etiquetas ────────────────────────────────────────────────────────────────
@@ -280,6 +290,8 @@ export function planoDeChecklists(slots: ReadonlySet<string>, temTelefone: boole
     'Foto n° do Medidor': tem('medidor'),
     'Foto Padrão': tem('padrao'),
     'Foto Fachada': tem('fachada'),
+    'DataSheet Inversor': tem('datasheet_inversor'),
+    'Datasheet Modulo': tem('datasheet_modulo'),
     'Doc - CNH ou Identidade (Se for CNPJ - contrato social)': tem('documento_titular', 'documento_titular_uc'),
     'Conta de Energia': tem('conta_luz'),
     'Procuração assinada': tem('procuracao'),
@@ -498,6 +510,78 @@ export async function lerQuadro(cred: CredenciaisTrello, boardId: string): Promi
       etiquetas: labels.filter((e) => e.name).map((e) => ({ id: e.id, name: String(e.name) })),
     },
   };
+}
+
+/** Cartões por página na leitura de todos os cartões (o teto do Trello por chamada) e quantas páginas no máximo. */
+const CARTOES_POR_PAGINA = 1000;
+const MAX_PAGINAS_CARTOES = 10;
+
+/** Resultado da numeração. `causa`: o quadro não respondeu, o quadro é grande demais, ou a planilha não respondeu. */
+export type ResNumero<T> = { ok: true; dados: T } | { ok: false; motivo: string; causa: 'quadro' | 'quadro_grande' | 'planilha' };
+
+/**
+ * Os NOMES de todos os cartões do quadro, abertos E arquivados (`/boards/<id>/cards/all`, só o campo `name`), em páginas: a cada
+ * página pede os cartões anteriores ao MENOR id já lido (`before`), até vir uma página menor que o limite. Os arquivados contam porque
+ * o número de um cartão arquivado não pode ser reusado. Se passar do teto de páginas, ou a página não avançar, é erro (`quadro_grande`):
+ * lista possivelmente cortada nunca vira número.
+ */
+export async function lerNomesDeTodosOsCartoes(
+  cred: CredenciaisTrello, boardId: string, opcoes: { pagina?: number; maxPaginas?: number } = {},
+): Promise<ResNumero<string[]>> {
+  const pagina = opcoes.pagina ?? CARTOES_POR_PAGINA;
+  const maxPaginas = opcoes.maxPaginas ?? MAX_PAGINAS_CARTOES;
+  const nomes = new Map<string, string>();
+  let antes = '';
+  for (let n = 0; n < maxPaginas; n++) {
+    const r = await chamar<Array<{ id?: string; name?: string }>>(
+      cred, 'GET', `/boards/${encodeURIComponent(boardId)}/cards/all`,
+      { fields: 'name', limit: String(pagina), ...(antes ? { before: antes } : {}) }, 'https://trello.com/1',
+    );
+    if (!r.ok) return { ok: false, motivo: r.motivo, causa: 'quadro' };
+    if (!Array.isArray(r.dados)) return { ok: false, motivo: 'o Trello não devolveu os cartões do quadro', causa: 'quadro' };
+    for (const c of r.dados) if (c && typeof c.id === 'string') nomes.set(c.id, String(c.name ?? ''));
+    if (r.dados.length < pagina) return { ok: true, dados: [...nomes.values()] };
+    // O `before` assume que o Trello devolve do mais novo para o mais antigo; o quadro hoje tem bem menos de 1000 cards (1 página).
+    const menor = r.dados.map((c) => String(c?.id ?? '')).filter(Boolean).sort()[0] ?? '';
+    if (!menor || (antes && menor >= antes)) break;   // a página não andou: não dá para saber o que falta
+    antes = menor;
+  }
+  return { ok: false, motivo: 'o quadro tem cartões demais para conferir a numeração', causa: 'quadro_grande' };
+}
+
+/**
+ * O próximo `#NNNN` para um cartão novo: o maior número de TODOS os cartões do quadro (abertos e arquivados) e dos códigos de venda da
+ * planilha mãe, mais 1. `lerCodigosDaPlanilha` vem de quem chama (o serviço não importa rota). `planilhaObrigatoria` (a CRIAÇÃO): se a
+ * planilha não responde, é erro `planilha`, porque o número poderia repetir um código que já existe lá; sem ela (a prévia) segue só com
+ * o quadro e o número é provisório. Falha na leitura do quadro = erro (nunca se cria cartão sem número). Reutilizável: a criação da
+ * linha do cliente na planilha usa a mesma numeração. Quem cria precisa recalcular na hora e dentro de uma trava.
+ */
+export async function proximoNumeroDaSequencia(
+  cred: CredenciaisTrello, boardId: string, lerCodigosDaPlanilha?: () => Promise<string[]>,
+  opcoes: { planilhaObrigatoria?: boolean; pagina?: number; maxPaginas?: number } = {},
+): Promise<ResNumero<string>> {
+  let planilhaCaiu = false;
+  const [nomes, planilha] = await Promise.all([
+    lerNomesDeTodosOsCartoes(cred, boardId, opcoes),
+    lerCodigosDaPlanilha ? lerCodigosDaPlanilha().catch(() => { planilhaCaiu = true; return [] as string[]; }) : Promise.resolve([] as string[]),
+  ]);
+  if (!nomes.ok) return nomes;
+  if (planilhaCaiu && opcoes.planilhaObrigatoria) return { ok: false, motivo: 'a planilha não respondeu', causa: 'planilha' };
+  return { ok: true, dados: proximoCodigoDaSequencia(nomes.dados, planilha) };
+}
+
+/**
+ * Depois de uma criação que falhou ou estourou o tempo: o cartão pode ter nascido no Trello mesmo assim. Procura, entre os abertos,
+ * UM cartão cujo título abre com o #NNNN que acabou de ser reservado. O número é único, então isto não é casar por nome.
+ */
+export async function acharCartaoCriado(
+  cred: CredenciaisTrello, boardId: string, codigo: string, jaExistiam: ReadonlySet<string> = new Set(),
+): Promise<CartaoDoQuadro | null> {
+  const q = await lerQuadro(cred, boardId);
+  if (!q.ok) return null;
+  // Só vale cartão que NÃO estava na lista lida antes do POST: um cartão que já existia com este número não é o que acabamos de criar.
+  const a = acharCartao({ cartoes: q.dados.cartoes.filter((c) => !jaExistiam.has(c.id)), codigoVenda: codigo });
+  return a.tipo === 'achou' ? a.cartao : null;
 }
 
 export async function criarCartaoCompleto(
