@@ -15,6 +15,7 @@
  */
 (function () {
   'use strict';
+  function cidUf(c, u) { return window.NxCidadeUf ? window.NxCidadeUf(c, u) : [c, u].filter(Boolean).join('/'); }
   var C = window.NexusCalc;
   var D = window.NexusDocs = window.NexusDocs || {};
 
@@ -97,8 +98,8 @@
     var produto = null;
     for (var i = 0; i < produtos.length; i++) if (produtos[i].id === form.equip.modelo) produto = produtos[i];
     var cli = form.cliente || {};
-    var cidadeEmp = par.cidade ? par.cidade + (par.uf ? '/' + par.uf : '') : (emp.cidade || '');
-    var localCli = [cli.cidade, cli.uf].filter(Boolean).join('/');
+    var cidadeEmp = par.cidade ? cidUf(par.cidade, par.uf) : (emp.cidade || '');
+    var localCli = cidUf(cli.cidade, cli.uf);
     return {
       ctx: ctx, form: form, calc: calc, numero: numero || '',
       agora: agora, data: C.dataBR(agora),

@@ -70,6 +70,7 @@
   ];
   var TIP_USINA = 'Ligada, o custo do kWh cai para R$ 0,30. Você pode ajustar o valor. Serve para o ponto que gera a própria energia em uma usina solar.';
   var TIPOS_LOCAL = ['Posto de combustível', 'Hotel ou pousada', 'Restaurante', 'Shopping ou comércio', 'Supermercado', 'Estacionamento', 'Condomínio', 'Rodovia', 'Frota própria', 'Empresa ou indústria', 'Outro'];
+  function cidUf(c, u) { return window.NxCidadeUf ? window.NxCidadeUf(c, u) : [c, u].filter(Boolean).join('/'); }
   var UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
   var SAIDAS = {
     simulador: { rot: 'Simulador em PDF', sub: 'Resumo do investimento para o cliente', motivo: 'Cadastre a empresa para liberar o Simulador em PDF.' },
@@ -404,7 +405,7 @@
       else if (!lista.length) corpo = '<div class="nxg-vazio"><p><b>Você ainda não gerou propostas.</b></p><p>Gere o Simulador, o Orçamento Básico ou o Orçamento Completo, e a proposta aparece aqui.</p></div>';
       else corpo = '<div class="nxg-tab"><table><thead><tr><th scope="col">Número</th><th scope="col">Cliente</th><th scope="col">Cidade</th><th scope="col">Equipamento</th><th scope="col" class="d">Valor</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead><tbody>'
         + lista.map(function (p, i) {
-          var cidade = [p.cliente_cidade, p.cliente_uf].filter(Boolean).join('/');
+          var cidade = cidUf(p.cliente_cidade, p.cliente_uf);
           /* pedido_em e pedido_status saíram da proposta na v2: o pedido mora em /pedidos e liga por proposta_id. */
           var pedido = !!(p.id && pedidosPorProposta[p.id]);
           var abrir = '<button type="button" class="nxg-sec peq" data-acao="abrir" data-i="' + i + '">Abrir</button>'
@@ -496,7 +497,7 @@
     }
     function resumosSanfona(c) {
       var rs = function (k, t) { var e = $('[data-acc-res="' + k + '"]'); if (e) e.textContent = t; };
-      var cid = [form.cliente.cidade, form.cliente.uf].filter(Boolean).join('/');
+      var cid = cidUf(form.cliente.cidade, form.cliente.uf);
       rs('cliente', [String(form.cliente.nome || '').trim(), cid].filter(Boolean).join(' · ') || 'Informe o nome do cliente');
       var q = Math.max(1, Math.round(C.num(form.equip.quantidade)) || 1);
       rs('equip', q + 'x ' + ((produto() || {}).nome || 'carregador NEXUS') + ' · ' + C.moeda2(c.totais.equipamento));

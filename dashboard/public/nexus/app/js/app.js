@@ -587,11 +587,22 @@
       ic('cadeado', 'p') + esc(rotulo) + '</button><small class="np-lktx" id="' + id + '">' + esc(bloq(chave)) + '</small></div>';
   }
   function lkNota(chave) { return '<p class="np-lknota">' + ic('cadeado', 'p') + '<span>' + esc(bloq(chave)) + '</span></p>'; }
+  /* Junta cidade e UF sem repetir a sigla: o cadastro do SolarDoc ja traz "Uberlândia MG" na cidade. Unico lugar do portal que monta "Cidade/UF". */
+  function cidadeUf(cidade, uf) {
+    var c = String(cidade == null ? '' : cidade).trim(), u = String(uf == null ? '' : uf).trim().toUpperCase();
+    var m = c.match(/^(.*\S)\s*(?:[\/,\u2013\u2014-]\s*|\s)([A-Za-z]{2})$/);
+    if (m) {
+      var sig = m[2].toUpperCase();
+      if (u ? sig === u : UFS.indexOf(sig) >= 0) { c = m[1].replace(/[\s,\/\u2013\u2014-]+$/, ''); if (!u) u = sig; }
+    }
+    return c && u ? c + '/' + u : (c || u);
+  }
+  window.NxCidadeUf = cidadeUf;
   function localParceiro() {
     var p = (S.eu && S.eu.parceiro) || {};
     var e = (S.eu && S.eu.empresa) || {};
     var cid = p.cidade || e.cidade || '';
-    return cid ? cid + (p.uf ? '/' + p.uf : '') : (p.uf || '');
+    return cidadeUf(cid, p.uf);
   }
 
   /* ------------------------------------------------------------------ fases de tela inteira */
@@ -1595,7 +1606,7 @@
     return h;
   }
   function opMini(o) {
-    var local = [o.cidade ? o.cidade + (o.uf ? '/' + o.uf : '') : (o.uf || ''), o.distancia_km != null ? fmt(o.distancia_km) + ' km' : ''].filter(Boolean).join(' · ');
+    var local = [cidadeUf(o.cidade, o.uf), o.distancia_km != null ? fmt(o.distancia_km) + ' km' : ''].filter(Boolean).join(' · ');
     return '<button type="button" class="ap-op" data-acao="ir" data-arg="oportunidades"><span class="c"><span class="t"><span class="np-tipo' + (o.tipo === 'obra' ? '' : ' cli') + '">' + esc(tipoOp(o)) + '</span><span class="loc">' + esc(local) + '</span></span>' +
       '<span class="d">' + esc(o.descricao || '') + '</span><span class="prazo">' + ic('relogio', 'p') + esc(prazoTxt(o.prazo_aceite)) + '</span></span>' + ic('seta', 'p fim') + '</button>';
   }
@@ -1677,7 +1688,7 @@
   /* Oportunidades na Início */
   function tipoOp(o) { return o.tipo === 'obra' ? 'Obra terceirizada NEXUS' : 'Cliente para você vender'; }
   function opLinha(o, comBotao) {
-    var local = [o.cidade ? o.cidade + (o.uf ? '/' + o.uf : '') : (o.uf || ''), o.distancia_km != null ? fmt(o.distancia_km) + ' km' : ''].filter(Boolean).join(' · ');
+    var local = [cidadeUf(o.cidade, o.uf), o.distancia_km != null ? fmt(o.distancia_km) + ' km' : ''].filter(Boolean).join(' · ');
     return '<div class="np-op"><div class="c"><div class="t"><span class="np-tipo' + (o.tipo === 'obra' ? '' : ' cli') + '">' + esc(tipoOp(o)) + '</span><span class="loc">' + esc(local) + '</span></div><p>' + esc(o.descricao || '') + '</p></div>' +
       '<div class="r"><span class="prazo">' + ic('relogio', 'p') + esc(prazoTxt(o.prazo_aceite)) + '</span>' + (comBotao ? '<button type="button" class="nx-btn" data-acao="ir" data-arg="oportunidades">Ver</button>' : '') + '</div></div>';
   }
@@ -1992,7 +2003,7 @@
       return;
     }
     c.innerHTML = '<div class="np-lista-prop">' + l.map(function (p) {
-      var local = [p.cliente_cidade, p.cliente_uf].filter(Boolean).join('/');
+      var local = cidadeUf(p.cliente_cidade, p.cliente_uf);
       return '<article class="np-prop"><div class="topo"><div><span class="num">Proposta ' + esc(p.numero) + '</span><p class="cli">' + esc(p.cliente_nome || 'Cliente sem nome') + '</p></div></div>' +
         '<p class="lin">' + esc(local || 'Local não informado') + '</p>' +
         '<p class="lin">' + esc((p.quantidade || 1) + 'x ' + (p.modelo || 'Modelo não informado')) + ' · ' + esc(SAIDA_ROT[p.saida_ultima] || '') + '</p>' +

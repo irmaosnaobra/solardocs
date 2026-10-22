@@ -8,8 +8,36 @@ import { catalogoParaFront, ENTREGA, FINANCIAMENTO, servicosParaFront, TERMO_VER
 import { calcularNivel, EntradaNivel, perfilCompleto } from './niveis';
 import { inicioMesBRT } from './tempo';
 import { acessoAdm } from './equipe';
+import { UFS } from './procura';
 
 export type Linha = Record<string, any>;
+
+/**
+ * O cadastro do SolarDoc guarda a cidade já com a UF ("Uberlândia MG", "Goiânia - GO", "Cuiabá/MT", "Brasília, DF").
+ * Se a cidade termina com uma sigla das 27 UFs e o uf veio vazio, separa; se o uf já veio e é igual, só limpa a cidade.
+ * Sigla diferente do uf informado fica como está. Sem sigla (ex.: "Palmas"), nada muda.
+ */
+export function separarCidadeUf(cidadeBruta: unknown, ufBruto?: unknown): { cidade: string | null; uf: string | null } {
+  let cidade = String(cidadeBruta ?? '').trim();
+  const ufDado = String(ufBruto ?? '').trim().toUpperCase();
+  let uf = UFS.includes(ufDado) ? ufDado : '';
+  const m = cidade.match(/^(.*\S)\s*(?:[\/,\u2013\u2014-]\s*|\s)([A-Za-z]{2})$/);
+  if (m) {
+    const sigla = m[2].toUpperCase();
+    if (UFS.includes(sigla) && (!uf || sigla === uf)) {
+      cidade = m[1].replace(/[\s,\/\u2013\u2014-]+$/, '');
+      uf = sigla;
+    }
+  }
+  return { cidade: cidade || null, uf: uf || null };
+}
+
+/** Texto "Cidade/UF" para aviso, e-mail e resumo, com a mesma regra do portal: não repete a sigla que já vem na cidade. */
+export function cidadeUf(cidade: unknown, uf?: unknown): string {
+  const s = separarCidadeUf(cidade, uf);
+  const u = s.uf ?? (String(uf ?? '').trim().toUpperCase() || null);
+  return s.cidade && u ? `${s.cidade}/${u}` : (s.cidade ?? u ?? '');
+}
 
 /** Erro do banco embrulhado, para a rota decidir entre 503 (tabela ausente) e 500. */
 export class ErroBanco extends Error {

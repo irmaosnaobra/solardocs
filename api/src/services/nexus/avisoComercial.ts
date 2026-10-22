@@ -32,6 +32,7 @@ import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { sendOpsAlert } from '../../utils/mailer';
 import { diaBRT } from './tempo';
+import { cidadeUf } from './repositorio';
 
 export type TipoAviso = 'cadastro' | 'solicitacao' | 'pedido' | 'usina' | 'oportunidade' | 'termo';
 export type ResultadoAviso = 'enviado' | 'email' | 'duplicado' | 'desligado';
@@ -127,7 +128,7 @@ const INTERESSE_TEXTO: Record<string, string> = { vender_creditos: 'vender créd
 function onde(cidade: unknown, uf: unknown): string {
   const c = limpo(cidade);
   const u = limpo(uf, 2);
-  return c ? `${c}${u ? '/' + u : ''}` : u;
+  return cidadeUf(c, u);
 }
 
 export function textoDoAviso(tipo: TipoAviso, d: DadosAviso): string {

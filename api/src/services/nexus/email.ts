@@ -13,7 +13,7 @@ import { Resend } from 'resend';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { unsubToken } from '../../controllers/unsubscribeController';
-import { Linha } from './repositorio';
+import { Linha, cidadeUf } from './repositorio';
 import { formatarBRT } from './tempo';
 
 export const PREFIXO_TRAVA_OPORTUNIDADE = 'nexus_email_op:';
@@ -82,9 +82,7 @@ export const ASSUNTO_OPORTUNIDADE = 'Nova oportunidade NEXUS na sua região';
 /** Corpo do e-mail. Só tipo, cidade, pedido e prazo: o contato do cliente final NUNCA entra aqui. */
 export function htmlOportunidade(o: { tipo: unknown; cidade: unknown; uf: unknown; descricao: unknown; prazo_aceite: unknown }): string {
   const tipo = o.tipo === 'obra' ? 'Obra de eletroposto' : 'Cliente para atender';
-  const cidade = String(o.cidade ?? '').trim();
-  const uf = String(o.uf ?? '').trim();
-  const lugar = cidade ? `${cidade}${uf ? '/' + uf : ''}` : uf;
+  const lugar = cidadeUf(o.cidade, o.uf);
   const pedido = String(o.descricao ?? '').trim().slice(0, 400);
   const prazo = o.prazo_aceite ? formatarBRT(String(o.prazo_aceite)) : '';
   const linha = (rotulo: string, valor: string) =>

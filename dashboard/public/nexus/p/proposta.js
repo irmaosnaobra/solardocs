@@ -9,6 +9,17 @@
  */
 (function () {
   'use strict';
+  var UFS_CID = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+  function cidadeUf(cidade, uf) {
+    var c = String(cidade == null ? '' : cidade).trim(), u = String(uf == null ? '' : uf).trim().toUpperCase();
+    var m = c.match(/^(.*\S)\s*(?:[\/,\u2013\u2014-]\s*|\s)([A-Za-z]{2})$/);
+    if (m) {
+      var sig = m[2].toUpperCase();
+      if (u ? sig === u : UFS_CID.indexOf(sig) >= 0) { c = m[1].replace(/[\s,\/\u2013\u2014-]+$/, ''); if (!u) u = sig; }
+    }
+    return c && u ? c + '/' + u : (c || u);
+  }
+  window.NxCidadeUf = cidadeUf;
 
   var API = '/_api/gerador/nexus/p/';
   var C = window.NexusCalc, D = window.NexusDocs;
@@ -67,7 +78,7 @@
     if (!form) throw new Error('proposta sem formulario');
     var ctx = {
       demo: false,
-      empresa: { nome: texto(pa.empresa), cidade: [pa.cidade, pa.uf].filter(Boolean).join('/'), whatsapp: texto(pa.whatsapp), logo_base64: pa.logo_base64 || '' },
+      empresa: { nome: texto(pa.empresa), cidade: cidadeUf(pa.cidade, pa.uf), whatsapp: texto(pa.whatsapp), logo_base64: pa.logo_base64 || '' },
       parceiro: { empresa: texto(pa.empresa), cidade: texto(pa.cidade), uf: texto(pa.uf) },
       catalogo: resp.catalogo || {},
       entrega: resp.entrega || '',

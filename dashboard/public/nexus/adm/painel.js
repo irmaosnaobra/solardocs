@@ -214,6 +214,16 @@ function faltaRotulo(k, pr) {
   return FALTA[k] || 'Outro requisito do nível';
 }
 var MODELOS = { 'nexus-dc-80': 'NEXUS DC 80 kW', 'nexus-dc-120': 'NEXUS DC 120 kW' };
+/* Copia de cidadeUf() de app/js/app.js (esta pagina nao carrega o app). */
+function cidadeUf(cidade, uf) {
+  var c = String(cidade == null ? '' : cidade).trim(), u = String(uf == null ? '' : uf).trim().toUpperCase();
+  var m = c.match(/^(.*\S)\s*(?:[\/,\u2013\u2014-]\s*|\s)([A-Za-z]{2})$/);
+  if (m) {
+    var sig = m[2].toUpperCase();
+    if (u ? sig === u : UFS.indexOf(sig) >= 0) { c = m[1].replace(/[\s,\/\u2013\u2014-]+$/, ''); if (!u) u = sig; }
+  }
+  return c && u ? c + '/' + u : (c || u);
+}
 var UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 // Funil e Equipe só no ADM (/nexus/adm); o /gerador/parceiros segue com as abas de sempre.
 var ABAS = [
@@ -516,7 +526,7 @@ function desenharLista() {
   }
   $('lista').innerHTML = l.map(function (p) {
     var pp = papeis(p);
-    var local = [p.cidade, p.uf].filter(Boolean).join('/') || 'Sem cidade';
+    var local = cidadeUf(p.cidade, p.uf) || 'Sem cidade';
     return '<button type="button" class="lin" data-id="' + esc(p.id) + '">' +
       '<div class="col"><div class="emp">' + esc(p.empresa || 'Empresa sem nome') + '</div>' +
         '<div class="peq">' + esc(fmtCnpj(p.cnpj)) + ' · ' + esc(local) + '</div></div>' +
@@ -645,7 +655,7 @@ function desenharOportunidades() {
     var sugAberta = SUG[o.id];
     var podeOferecer = o.status === 'rascunho' || o.status === 'recusada' || o.status === 'expirada';
     return '<div class="reg" data-kind="oportunidade" data-id="' + esc(o.id) + '">' +
-      '<div class="reg-topo"><div><div class="tit">' + esc(OPORT_TIPO[o.tipo] || o.tipo) + ' em ' + esc([o.cidade, o.uf].filter(Boolean).join('/')) + '</div>' +
+      '<div class="reg-topo"><div><div class="tit">' + esc(OPORT_TIPO[o.tipo] || o.tipo) + ' em ' + esc(cidadeUf(o.cidade, o.uf)) + '</div>' +
         '<div class="peq">' + esc(o.descricao || '') + '</div></div>' + pill(OPORT_ST, OPORT_COR, o.status) + '</div>' +
       '<div class="kv">' +
         par('Parceiro', emp ? esc(emp) : 'Ainda não oferecida') +
@@ -705,7 +715,7 @@ function desenharSugestoes(o, s) {
     var tempo = pl.tempo_medio_resposta_h != null ? ' · responde em ' + fmtNum(Math.round(Number(pl.tempo_medio_resposta_h) * 10) / 10) + ' h' : '';
     return '<div class="sug-item"><div><b>' + esc(x.empresa || 'Parceiro') + '</b> · ' + esc(NIVEIS[x.nivel] || x.nivel || '') +
       (temMontagem(x) ? ' <span class="pill ok">Montagem aprovada</span>' : '') +
-      '<div class="peq">' + esc([x.cidade, x.uf].filter(Boolean).join('/')) + (x.raio_km ? ' · raio de ' + fmtNum(x.raio_km) + ' km' : '') +
+      '<div class="peq">' + esc(cidadeUf(x.cidade, x.uf)) + (x.raio_km ? ' · raio de ' + fmtNum(x.raio_km) + ' km' : '') +
       '<br>Aceitou ' + fmtNum(pl.aceitas || 0) + ', recusou ' + fmtNum(pl.recusadas || 0) + tempo + '</div></div>' +
       '<button type="button" class="btn sm" data-do="oferecer" data-user="' + esc(x.user_id) + '" data-nome="' + esc(x.empresa || 'parceiro') + '">Oferecer</button></div>';
   }).join('');
@@ -778,7 +788,7 @@ function desenharUsinas() {
   $('us-lista').innerHTML = l.map(function (u) {
     var msg = 'Oi, tudo bem?\nAqui é da NEXUS Eletropostos.\nRecebemos a indicação da sua usina' + (u.cidade ? ' em ' + u.cidade : '') + ' pelo Portal do Parceiro.\nPodemos conversar?';
     return '<div class="reg" data-kind="usina" data-id="' + esc(u.id) + '">' +
-      '<div class="reg-topo"><div><div class="tit">' + esc(u.dono_nome || 'Dono sem nome') + ' · ' + esc([u.cidade, u.uf].filter(Boolean).join('/')) + '</div>' +
+      '<div class="reg-topo"><div><div class="tit">' + esc(u.dono_nome || 'Dono sem nome') + ' · ' + esc(cidadeUf(u.cidade, u.uf)) + '</div>' +
         '<div class="peq">Indicada por ' + esc(empresaDe(u.user_id, u.empresa) || 'parceiro') + ' em ' + esc(fmtData(u.created_at)) + '</div></div>' +
         pill(USINA_ST, USINA_COR, u.status) + '</div>' +
       '<div class="kv">' +
@@ -891,10 +901,10 @@ function desenharPropostas() {
   if (!l.length) { $('p-lista').innerHTML = '<div class="vazio">Nenhuma proposta com esses filtros.</div>'; return; }
   $('p-lista').innerHTML = '<div class="prop-cab"><div>Data</div><div>Empresa</div><div>Cliente</div><div>Modelo</div><div>Valor</div><div>Saída</div><div>Link</div></div>' +
     '<div class="lista">' + l.map(function (p) {
-      var local = [p.cliente_cidade, p.cliente_uf].filter(Boolean).join('/');
+      var local = cidadeUf(p.cliente_cidade, p.cliente_uf);
       return '<div class="prop-lin">' +
         '<div><span class="rot">Data</span>' + esc(fmtData(p.created_at)) + '<div class="peq">N° ' + esc(p.numero) + '</div></div>' +
-        '<div><span class="rot">Empresa</span><b>' + esc(p.empresa || 'Sem nome') + '</b><div class="peq">' + esc([p.cidade_parceiro, p.uf_parceiro].filter(Boolean).join('/')) + '</div></div>' +
+        '<div><span class="rot">Empresa</span><b>' + esc(p.empresa || 'Sem nome') + '</b><div class="peq">' + esc(cidadeUf(p.cidade_parceiro, p.uf_parceiro)) + '</div></div>' +
         '<div><span class="rot">Cliente</span>' + esc(p.cliente_nome || 'Sem nome') + '<div class="peq">' + esc(local) + '</div></div>' +
         '<div><span class="rot">Modelo</span>' + esc(fmtNum(p.quantidade) + 'x ' + modeloTxt(p.modelo)) + '</div>' +
         '<div><span class="rot">Valor</span>' + esc(fmtReal(p.valor_total)) + '</div>' +
@@ -1261,7 +1271,7 @@ function desenharFicha() {
   var p = achar(fichaId);
   var f = $('ficha');
   if (!p) { f.innerHTML = '<div class="vazio">Parceiro não encontrado. Feche e recarregue a lista.</div>'; return; }
-  var local = [p.cidade, p.uf].filter(Boolean).join('/') || 'Sem cidade';
+  var local = cidadeUf(p.cidade, p.uf) || 'Sem cidade';
   var pp = papeis(p);
   var msg = 'Oi, tudo bem?\nAqui é da NEXUS Eletropostos.\nVi o cadastro da ' + (p.empresa || 'sua empresa') + ' no Portal do Parceiro e quero te ajudar com os próximos passos.';
   var origem = ORIGENS[p.origem] || p.origem || 'Não informada';
@@ -1337,7 +1347,7 @@ function desenharFichaPropostas() {
   if (!l) return;
   if (!l.length) { box.innerHTML = '<div class="item">Este parceiro ainda não gerou propostas.</div>'; return; }
   box.innerHTML = l.slice(0, 50).map(function (x) {
-    var local = [x.cliente_cidade, x.cliente_uf].filter(Boolean).join('/');
+    var local = cidadeUf(x.cliente_cidade, x.cliente_uf);
     return '<div class="item"><b>N° ' + esc(x.numero) + '</b> · ' + esc(fmtData(x.created_at)) + '<br>' +
       esc(x.cliente_nome || 'Cliente sem nome') + (local ? ' · ' + esc(local) : '') + '<br>' +
       esc(fmtNum(x.quantidade) + 'x ' + modeloTxt(x.modelo)) + ' · ' + esc(fmtReal(x.valor_total)) + '<br>' +

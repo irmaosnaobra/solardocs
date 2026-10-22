@@ -32,7 +32,7 @@ import {
 import { procuraDaUf, UFS } from '../services/nexus/procura';
 import {
   ErroBanco, Linha, acharLeadGerador, lerCompany, lerParceiro, marcarPerfilCompleto, montarEu, origemValida,
-  portalLigado, usarPacote, utmDe,
+  cidadeUf, portalLigado, separarCidadeUf, usarPacote, utmDe,
 } from '../services/nexus/repositorio';
 import { colunasDe, inserirProposta, validarProposta } from '../services/nexus/propostas';
 import { UUID, contexto, exigePortalLigado, ok, rota, textoLivre } from './geradorNexusBase';
@@ -94,12 +94,14 @@ async function garantirParceiro(
   const lead = await acharLeadGerador(company?.whatsapp);
   const agora = new Date().toISOString();
   const nomeEmpresa = String(company?.nome_fantasia || company?.nome || opcoes.empresaNova || '').trim().slice(0, 255) || null;
+  const local = separarCidadeUf(((company?.cidade ? String(company.cidade).trim().slice(0, 80) : '') || lead?.cidade || null), null);
   const linha = {
     user_id: userId,
     empresa: nomeEmpresa,
     cnpj,
     cnpj_situacao: situacao,
-    cidade: (company?.cidade ? String(company.cidade).trim().slice(0, 80) : '') || lead?.cidade || null,
+    cidade: local.cidade,
+    uf: local.uf,
     equipe_tamanho: lead?.equipe ?? null,
     origem: opcoes.origem,
     status: 'novo',
@@ -169,9 +171,7 @@ type TipoPedido = (typeof TIPOS_PEDIDO)[number];
 function resumoDaEngenharia(dados: Record<string, unknown>): string {
   // O portal manda servico_nome (texto) e servico (código do select); o nome vence, o código é reserva.
   const servico = textoLivre(dados.servico_nome, 60) ?? textoLivre(dados.servico, 60) ?? '';
-  const cidade = textoLivre(dados.cidade, 60) ?? '';
-  const uf = textoLivre(dados.uf, 2) ?? '';
-  const lugar = cidade ? `${cidade}${uf ? '/' + uf : ''}` : uf;
+  const lugar = cidadeUf(textoLivre(dados.cidade, 60), textoLivre(dados.uf, 2));
   return [servico, lugar ? `em ${lugar}` : ''].filter(Boolean).join(' ');
 }
 

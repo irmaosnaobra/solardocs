@@ -218,3 +218,5 @@ body.pn-nx{
 }
 body.pn-nx .pn{font-size:14.5px;min-width:0}
 body.pn-nx #toast{background:var(--nx-navy);border-color:var(--nx-navy-3);bottom:24px}
+/* O corpo do portal tem overflow-wrap:anywhere; abas, botoes e etiquetas nao quebram no meio da palavra. */
+body.pn-nx .abas button,body.pn-nx .btn,body.pn-nx .pill{overflow-wrap:normal;word-break:normal}

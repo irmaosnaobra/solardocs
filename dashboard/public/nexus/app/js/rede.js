@@ -14,6 +14,7 @@
   var timer = null;     // contagem regressiva da montagem atual
   var uid = 0;          // prefixo de id por montagem (label for= nunca colide)
 
+  function cidUf(c, u) { return window.NxCidadeUf ? window.NxCidadeUf(c, u) : [c, u].filter(Boolean).join('/'); }
   var UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
   var ICO = {
@@ -324,7 +325,7 @@
   }
   function tipoNome(o) { return o.tipo === 'obra' ? 'Obra terceirizada NEXUS' : 'Cliente para você vender'; }
   function localTxt(o) {
-    var l = o.cidade + (o.uf ? '/' + o.uf : '');
+    var l = cidUf(o.cidade, o.uf);
     if (o.km != null) l += ' · ' + Math.round(o.km) + ' km';
     return l || 'Local não informado';
   }
@@ -873,7 +874,7 @@
         var st = STATUS_USINA[u.status] || [str(u.status) || 'Recebida', 'cz'];
         var kw = Number(u.potencia_kwp);
         var titulo = !isNaN(kw) && u.potencia_kwp != null && u.potencia_kwp !== '' ? 'Usina de ' + fmtNum(kw) + ' kWp' : (str(u.dono_nome) || 'Usina');
-        var local = str(u.cidade) + (u.uf ? '/' + str(u.uf) : '');
+        var local = cidUf(str(u.cidade), str(u.uf));
         var data = fmtData(u.created_at);
         ul.appendChild(h('li', 'nr-ind-i', [
           h('div', 'nr-ind-t', [h('span', 'nr-ind-n', titulo), h('span', 'nr-ind-l', [local, data ? (local ? ' · ' : '') + 'Enviada em ' + data : ''])]),
@@ -1022,7 +1023,7 @@
         var st = STATUS_SOLIC[s.status] || [str(s.status) || 'Aberta', 'cz'];
         var nomeS = str(d.servico_nome);
         if (!nomeS) SERVICOS.forEach(function (x) { if (x[0] === d.servico) nomeS = x[1]; });
-        var local = str(d.cidade) + (d.uf ? '/' + str(d.uf) : '');
+        var local = cidUf(str(d.cidade), str(d.uf));
         var data = fmtData(s.created_at);
         var meta = [local, d.potencia_kw != null && d.potencia_kw !== '' ? fmtNum(d.potencia_kw) + ' kW' : '', data ? 'Enviado em ' + data : ''].filter(Boolean).join(' · ');
         var li = h('li', 'nr-ind-i', [
