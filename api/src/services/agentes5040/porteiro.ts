@@ -16,6 +16,7 @@
 
 import { chaveDaLinha, type LinhaWa, type MapaLid } from '../gerador/caixaWhatsapp';
 import { PERSONA_DO_PRODUTO, type Dona, type FatosPorteiro, type Produto } from './tipos';
+import { ehGatilhoSolarDoc } from '../agents/whatsapp/gatilhoSolarDoc';
 
 export const PERGUNTA_DO_PORTEIRO = 'Você quer saber de energia solar, de eletroposto ou do SolarDoc?';
 
@@ -61,6 +62,10 @@ export function produtoDoBotao(texto: string | null | undefined): Produto | null
   if (!t) return null;
   for (const b of BOTOES) if (t.startsWith(b.prefixo)) return b.produto;
   for (const b of BOTOES_POR_TRECHO) if (t.includes(b.trecho)) return b.produto;
+  // O pedido de informação sobre o SolarDoc (a frase do anúncio, "Quero saber sobre a SolarDoc", e as variações) é
+  // o MESMO gatilho da Carla antiga: assim a porta decide igual nos três caminhos (webhook, fila e poll) e a Carla
+  // nova assume antes da antiga abrir a sessão pela fila, onde o anúncio não chega.
+  if (ehGatilhoSolarDoc(String(texto ?? ''))) return 'solardoc';
   return null;
 }
 

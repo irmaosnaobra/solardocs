@@ -145,6 +145,19 @@ describe('porteiro: botões e origens', () => {
     expect(produtoDoBotao('Quero o Kit de Fechamento do Integrador (R$ 27)')).toBe('solardoc');
   });
 
+  it('o pedido de informação sobre o SolarDoc (a frase do anúncio) é o MESMO gatilho da Carla antiga', async () => {
+    const { ehGatilhoSolarDoc } = await import('../services/agents/whatsapp/whatsappAgentService');
+    const { ehGatilhoSolarDoc: doModulo } = await import('../services/agents/whatsapp/gatilhoSolarDoc');
+    expect(ehGatilhoSolarDoc).toBe(doModulo);      // uma definição só, nos dois caminhos
+    for (const t of ['Quero saber sobre a SolarDoc', 'Quero saber MAIS sobre o SolarDoc.App', 'gostaria de mais informações sobre o app solardoc', 'Sobre o Solardoc']) {
+      expect(ehGatilhoSolarDoc(t), t).toBe(true);
+      expect(produtoDoBotao(t), t).toBe('solardoc');
+    }
+    // Quem já é cliente e pede ajuda não casa (vai para o suporte), e texto de solar segue solar.
+    expect(produtoDoBotao('estou usando o SolarDoc Pro e preciso de ajuda')).toBeNull();
+    expect(produtoDoBotao('Olá! Quero simular meu projeto de energia solar')).toBe('solar');
+  });
+
   it('o que é ambíguo ou de quem já comprou não adivinha', () => {
     expect(produtoDoBotao('Comprei o Kit de Fechamento e preciso do acesso')).toBeNull();
     expect(produtoDoBotao('Oi, minha proposta expirou e eu gostaria de receber uma nova.')).toBeNull();
