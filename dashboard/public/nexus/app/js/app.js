@@ -193,7 +193,7 @@
     equipamentos: { menu: 'Equipamentos', ctx: 'Os carregadores da rede NEXUS' },
     servicos: { menu: 'Serviços NEXUS', ctx: 'Plataforma, engenharia e suporte: o que inclui, quanto custa e como contratar', reqTodos: ['basico', 'pacotes_engenharia', 'consultoria', 'plataforma', 'manutencao'] },
     propostas: { menu: 'Propostas', ctx: 'Simulador, Orçamento Básico e Orçamento Completo' },
-    oportunidades: { menu: 'Oportunidades', ctx: 'Clientes e obras da NEXUS na sua região', req: 'oportunidades' },
+    oportunidades: { menu: 'Oportunidade', ctx: 'Clientes e obras da NEXUS na sua região', req: 'oportunidades' },
     usinas: { menu: 'Usinas', ctx: 'Indique uma usina', req: 'usinas', motivo: 'Complete o perfil da empresa para indicar usinas.' },
     materiais: { menu: 'Materiais', ctx: 'Fotos para divulgar o equipamento', req: 'materiais', motivo: 'Complete o perfil da empresa para liberar os Materiais.' },
     parceria: { menu: 'Minha parceria', ctx: 'Níveis, caminho e selo' },
@@ -793,7 +793,7 @@
       { k: 'inicio', rot: 'Início', icone: 'inicio', arg: 'inicio', at: r === 'inicio' },
       { k: 'propostas', rot: 'Propostas', icone: 'propostas', arg: 'propostas/lista', at: r === 'propostas' && sub === 'lista' },
       { k: 'gerar', rot: 'Gerar', icone: 'gerar', arg: 'propostas', at: r === 'propostas' && sub !== 'lista', central: true },
-      { k: 'oportunidades', rot: 'Oportunidades', icone: 'oportunidades', arg: 'oportunidades', at: r === 'oportunidades', tr: travada('oportunidades') }
+      { k: 'oportunidades', rot: 'Oportunidade', icone: 'oportunidades', arg: 'oportunidades', at: r === 'oportunidades', tr: travada('oportunidades') }
     ];
     var h = '';
     itens.forEach(function (it) {
@@ -1284,7 +1284,7 @@
   }
   /* Início: um só desenho para computador e celular. Ordem: nível e próximo passo, atalhos com informação viva, índice da página,
      resumo, carregadores, mercado (que era a aba Mercado), oportunidades, engenharia e faixa final. Só o bloco dos carregadores muda de forma. */
-  var SEC_INICIO = [['resumo', 'Resumo', 'ini-resumo'], ['carregadores', 'Carregadores', 'ini-carregadores'], ['servicos', 'Serviços', 'ini-servicos'], ['mercado', 'Mercado', 'ini-mercado'], ['oportunidades', 'Oportunidades', 'ini-oportunidades']];
+  var SEC_INICIO = [['resumo', 'Resumo', 'ini-resumo'], ['carregadores', 'Carregadores', 'ini-carregadores'], ['servicos', 'Serviços', 'ini-servicos'], ['mercado', 'Mercado', 'ini-mercado'], ['oportunidades', 'Oportunidade', 'ini-oportunidades']];
   var IO = null, ioFim = null;
 
   /* Próxima ação real: a primeira etapa de progresso.faltam que o parceiro mesmo pode cumprir. Se só falta aprovação da equipe, leva à Minha parceria. */
@@ -1360,7 +1360,7 @@
       tileInicio('Minhas propostas', 'propostas', 'propostas/lista', propostasSub(), 'in-sub-propostas') +
       tileInicio('Equipamentos', 'equipamentos', 'equipamentos', ps.length ? ps.length + (ps.length === 1 ? ' carregador da rede' : ' carregadores da rede') : 'Carregadores da rede') +
       tileInicio('Serviços NEXUS', 'servicos', 'servicos', servicosSub(), 'in-sub-servicos', { trava: travada('servicos') }) +
-      tileInicio('Oportunidades', 'oportunidades', 'oportunidades', oportSub(), 'in-sub-oport', { trava: !libera('oportunidades') }) +
+      tileInicio('Oportunidade', 'oportunidades', 'oportunidades', oportSub(), 'in-sub-oport', { trava: !libera('oportunidades') }) +
       tileInicio('Minha parceria', 'parceria', 'parceria', 'Nível ' + nv) + '</section>';
   }
   function indiceHTML() {
