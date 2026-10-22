@@ -37675,6 +37675,11 @@ function vdcPintarVinc(st) {
       if (!ehProposta && v.vendasFora) {
         const av = document.createElement('p'); av.className = 'vdc-nota'; av.textContent = 'A planilha de vendas está fora do ar agora.'; box.appendChild(av);
       }
+      // Regra do dono (22/10/2026): telefone não identifica cliente (família usa o mesmo número). Nada liga sozinho: o consultor confere e liga.
+      if (sugs.slice(0, 5).some((s) => vdcNorm(s && s.motivo).indexOf('telefone') >= 0)) {
+        const av = document.createElement('p'); av.className = 'vdc-nota'; av.setAttribute('data-vdc-vinc-aviso', tipo);
+        av.textContent = 'Mesmo telefone. Confira se é esta ' + (ehProposta ? 'proposta' : 'venda') + ' antes de ligar.'; box.appendChild(av);
+      }
       sugs.slice(0, 5).forEach((s) => {
         const it = document.createElement('div'); it.className = 'vdc-vinc-sug'; it.setAttribute('data-vdc-sug', String(s.codigo));
         const c = document.createElement('div'); c.className = 'vdc-vinc-c';
@@ -44109,7 +44114,7 @@ let _vendaCodigo = null;
 //     ficha de agenda, e inventar card pra elas seria pior que nao ter.
 const VENDA_FOLGA_DIAS = 7;
 
-function vendaCardAlvo(fichas, vendidoEm) {
+function vendaCardsPossiveis(fichas, vendidoEm) {
   const lim = new Date(vendidoEm).getTime() + VENDA_FOLGA_DIAS * 86400000;
   const quando = (a) => (a && a.quando ? new Date(a.quando).getTime() : null);
   return (fichas || [])
@@ -44117,7 +44122,20 @@ function vendaCardAlvo(fichas, vendidoEm) {
     .filter(a => { const q = quando(a); return q === null || q <= lim; })
     // o de reuniao mais recente; os sem data ficam por ultimo, porque data e
     // informacao e a falta dela nao pode ganhar de quem tem.
-    .sort((x, y) => (quando(y) ?? -Infinity) - (quando(x) ?? -Infinity))[0] || null;
+    .sort((x, y) => (quando(y) ?? -Infinity) - (quando(x) ?? -Infinity));
+}
+function vendaCardAlvo(fichas, vendidoEm) {
+  return vendaCardsPossiveis(fichas, vendidoEm)[0] || null;
+}
+
+/** Liga ESSA proposta a ESSE card solar (o POST manual de vinculos). Regra do dono (22/10/2026): telefone NAO identifica cliente, entao
+ *  so se chama quando o card nao foi escolhido por telefone entre varios. Nao trava a tela, nunca lanca e nao sobrescreve ligacao existente. */
+async function vendaLigarPropostaAoCard(cardId, codigoProposta) {
+  try {
+    if (!cardId || !codigoProposta || typeof vdcChamarVinc !== 'function') return;
+    // soSeVazia: o servidor recusa (409) dentro da trava se o card ja tem proposta, sem corrida entre ler e gravar.
+    await vdcChamarVinc({ id: cardId }, 'POST', { proposta: String(codigoProposta), soSeVazia: true });
+  } catch (e) { console.warn('a proposta nao foi ligada ao card', e); }
 }
 
 /** As fichas de agenda deste telefone.
@@ -44338,12 +44356,16 @@ async function confirmarVenda() {
     try {
       const telProp = (r && r.dados && (r.dados.telefoneDigitos || r.dados.telefone)) || '';
       const fichas = await vendaFichasDoTelefone(telProp);
-      const alvo = vendaCardAlvo(fichas, vendidoEm);
+      const possiveis = vendaCardsPossiveis(fichas, vendidoEm);
+      const alvo = possiveis[0] || null;
+      // So solar, e so quando ha UM card possivel: com varios, o alvo e escolhido por telefone e nao se liga nada.
+      const ligarAoCard = !!alvo && possiveis.length === 1 && !(r && (r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto')));
       if (!alvo) {
         avisoCard = fichas.length
           ? ' · nenhum card desta venda (os que existem sao cancelados ou de outro ciclo)'
           : ' · sem card na agenda';
       } else if (alvo.status === 'fechou') {
+        // Sem ligar: o card ja estava vendido ANTES desta venda e foi achado so pelo telefone (familia usa o mesmo numero).
         avisoCard = ' · o card ja estava como vendido';
         cardEpVenda = alvo;
       } else {
@@ -44360,6 +44382,8 @@ async function confirmarVenda() {
         });
         avisoCard = ` · card ${alvo.id} saiu de ${antes.toUpperCase()} pra VENDIDO`;
         cardEpVenda = alvo;
+        // So aqui: foi esta venda que fechou o card. UM card possivel, so solar, sem await.
+        if (ligarAoCard) vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
       }
     } catch (e) {
       console.warn('o card nao foi marcado', e);

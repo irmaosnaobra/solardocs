@@ -213,8 +213,8 @@ export function ultimos8(tel: unknown): string {
 }
 
 export type MotivoCandidato = 'telefone' | 'nome';
-export interface CandidatoProposta { codigo: string; cliente: string; cidade: string; kwp: number | null; data: string; motivo: MotivoCandidato }
-export interface CandidatoVenda { codigo: string; cliente: string; data: string; motivo: MotivoCandidato }
+export interface CandidatoProposta { codigo: string; cliente: string; cidade: string; kwp: number | null; data: string; motivo: MotivoCandidato; sugerida?: boolean }
+export interface CandidatoVenda { codigo: string; cliente: string; data: string; motivo: MotivoCandidato; sugerida?: boolean }
 
 /** O telefone só em dígitos, sem o 55 do país (quando sobram 10 ou 11 dígitos). */
 export function telefoneNacional(tel: unknown): string {

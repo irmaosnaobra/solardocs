@@ -9,7 +9,7 @@ import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
 import { mountVendaSolarTrello } from './geradorVendaSolarTrello';
 import { ErroDocs, lerPropostaResumo } from '../services/gerador/docsClienteBanco';
 import {
-  ErroHub, TRAVA_VINCULOS, ligacaoSoDoTrello, lerLigacao, lerTodasLigacoes, gravarLigacao, quemUsa, listarVendidasParaVinculo, compararTelefones, mesmoConsultor,
+  ErroHub, TRAVA_VINCULOS, lerLigacao, lerTodasLigacoes, gravarLigacao, quemUsa, listarVendidasParaVinculo, compararTelefones, mesmoConsultor,
   comCacheHub, invalidarCachesHub, segredoDoVinculo, type ForcaTelefone,
   type CandidatoProposta, type CandidatoVenda, type Ligacao,
 } from '../services/gerador/vendaSolarHub';
@@ -21,11 +21,14 @@ import {
 //   GET  /gerador/vendas-solares/:card/vinculos
 //        -> { ok, proposta, venda, por, em, sugestoes: { propostas: [{ codigo, cliente, cidade, kwp, data, motivo }],
 //                                                         vendas:    [{ codigo, cliente, data, motivo }] } }
-//        `motivo` é 'telefone' (últimos 8 dígitos iguais ao do card) ou 'nome' (nome parecido; só sugestão). Se NUNCA houve
-//        ligação deste card e há EXATAMENTE um candidato por telefone num tipo, o servidor liga sozinho (`por: 'auto'`).
-//        Nunca liga só por nome. Depois de qualquer gravação (inclusive desligar) a ligação não é refeita sozinha.
-//   POST /gerador/vendas-solares/:card/vinculos   { proposta?: string | null, venda?: string | null }
+//        `motivo` é 'telefone' (últimos 8 dígitos iguais ao do card) ou 'nome' (nome parecido; só sugestão).
+//        REGRA DO DONO (22/10/2026): telefone NÃO identifica cliente (família usa o mesmo número). Este GET NUNCA grava: nem venda nem
+//        proposta. Quando há UM candidato por telefone, com DDD dos dois lados e do mesmo consultor, ele volta com `sugerida: true` e
+//        o consultor confirma no POST. Ligações `por: 'auto'` já gravadas antes disso ficam como estão.
+//   POST /gerador/vendas-solares/:card/vinculos   { proposta?: string | null, venda?: string | null, soSeVazia?: true }
 //        liga (texto) ou desliga (null) cada uma; a chave ausente não mexe. -> { ok, proposta, venda, por, em }
+//        `soSeVazia: true` (a confirmação de venda pela proposta): dentro da trava, se o card JÁ tem aquilo que se quer ligar, não grava e
+//        responde 409. O botão manual "Ligar" não manda e segue como sempre.
 //
 // A guarda é a da linha `vendasolar` (`acessoVendaSolar`): card solar `fechou`; vê quem é o vendedor do card, o consultor da venda
 // ligada ou sócio. Inexistente, de eletroposto, não vendido e alheio respondem IGUAL (404).
@@ -38,7 +41,7 @@ import {
 //
 // A ligação mora em `system_state` (`venda_solar:<card>`) SEM dado pessoal. Nenhum nome, telefone ou código vai para log.
 // Além de proposta e venda, ela guarda `trello_card` (o id do cartão do Trello), dentro da assinatura. Uma ligação criada só para
-// guardar o cartão (`por: 'trello'`, nada ligado) não impede o vínculo automático.
+// guardar o cartão (`por: 'trello'`, nada ligado) é só isso: não liga proposta nem venda.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MSG_NAO_ACHEI = 'Venda não encontrada.';
@@ -97,13 +100,12 @@ async function candidatos(
   const vendidas = (await comCacheHub('propostas_vendidas', listarVendidasParaVinculo))
     .filter((p) => propostaDoPapel(q.nome, q.socio, p.consultor) && livres(p.codigo));
   const propostas: CandidatoProposta[] = [];
-  let autoProposta: CandidatoProposta | null = null;
   const porTel = vendidas
     .map((p) => ({ p, forca: melhorForca(q.telefone, p.telefones) }))
     .filter((x) => x.forca !== null);
   for (const { p } of porTel) propostas.push({ codigo: p.codigo, cliente: p.cliente, cidade: p.cidade, kwp: p.kwp, data: p.data, motivo: 'telefone' });
-  // Só liga sozinho: UM candidato por telefone, com DDD dos dois lados, e do MESMO consultor do card.
-  if (porTel.length === 1 && porTel[0].forca === 'forte' && mesmoConsultor(porTel[0].p.consultor, q.vendedor)) autoProposta = propostas[0];
+  // Só MARCA como sugerida (nunca liga): UM candidato por telefone, com DDD dos dois lados, e do MESMO consultor do card.
+  if (porTel.length === 1 && porTel[0].forca === 'forte' && mesmoConsultor(porTel[0].p.consultor, q.vendedor)) propostas[0].sugerida = true;
   if (!lig.proposta && alvoNome) {
     const jaTem = new Set(propostas.map((p) => p.codigo));
     for (const p of vendidas) {
@@ -115,7 +117,6 @@ async function candidatos(
 
   // Vendas da planilha (lista guardada 60 s): só as que o pedinte enxerga (consultor efetivo ou sócio).
   const vendas: CandidatoVenda[] = [];
-  let autoVenda: CandidatoVenda | null = null;
   let vendasIndisponivel = false;
   try {
     let fortes = 0;
@@ -131,7 +132,7 @@ async function candidatos(
       vendas.push(c);
       if (forca) { comTelefone++; if (forca === 'forte') { fortes++; ultimaForte = { c, consultor: v.consultor }; } }
     }
-    if (comTelefone === 1 && fortes === 1 && ultimaForte && mesmoConsultor(ultimaForte.consultor, q.vendedor)) autoVenda = ultimaForte.c;
+    if (comTelefone === 1 && fortes === 1 && ultimaForte && mesmoConsultor(ultimaForte.consultor, q.vendedor)) ultimaForte.c.sugerida = true;
   } catch (err) {
     logErro('planilha indisponível para as sugestões', err);
     vendasIndisponivel = true;
@@ -141,7 +142,6 @@ async function candidatos(
   vendas.sort((a, b) => ordem(a.motivo) - ordem(b.motivo));
   return {
     propostas: propostas.slice(0, MAX_SUGESTOES * 2), vendas: vendas.slice(0, MAX_SUGESTOES * 2), vendasIndisponivel,
-    autoProposta, autoVenda,
   };
 }
 
@@ -159,7 +159,7 @@ function melhorForca(telefoneDoCard: string, telefones: string[]): ForcaTelefone
 export function mountVendaSolar(router: Router): void {
   const base = [exigeConsultor, semCache];
 
-  // ── Ler (e ligar sozinho, quando só há um por telefone) ────────────────────
+  // ── Ler (nunca grava: telefone só sugere) ──────────────────────────────────
   router.get('/vendas-solares/:card/vinculos', ...base, async (req: Request, res: Response) => {
     const g = await guarda(req, res);
     if (!g) return;
@@ -169,41 +169,9 @@ export function mountVendaSolar(router: Router): void {
         nome: g.nome, socio: g.socio, id: g.id, clienteNome: String(g.card.cliente_nome ?? ''), telefone: String(g.card.cliente_telefone ?? ''),
         vendedor: String(g.card.vendedor_nome ?? ''),
       };
-      let { lig } = lido;
-      let c = await candidatos(q, lig, todas);
-
-      // Vínculo automático: só quando a chave NUNCA foi gravada (desligar grava a chave, então não religa), por telefone COM DDD dos
-      // dois lados, com UM só candidato e do MESMO consultor do card (quem abriu, sócio inclusive, não muda isso). O resto é sugestão.
-      const unicaProposta = lig.proposta ? null : c.autoProposta;
-      const unicaVenda = lig.venda ? null : c.autoVenda;
-      // Ligação que só guarda o cartão do Trello (`por: 'trello'`, nada ligado) conta como "nunca gravada": gravar o cartão não pode
-      // matar o vínculo automático. O cartão do Trello passa para a ligação nova.
-      if ((!lido.existe || ligacaoSoDoTrello(lido.lig)) && (unicaProposta || unicaVenda)) {
-        try {
-          const ligou = await comTrava(TRAVA_VINCULOS, g.nome, async () => {
-            // Dentro da trava, de novo: ninguém gravou este card e ninguém levou a proposta ou a venda no meio do caminho.
-            const atual = await lerLigacao(g.id);
-            if (atual.existe && !ligacaoSoDoTrello(atual.lig)) return false;
-            const todas2 = await lerTodasLigacoes();
-            const proposta = unicaProposta && quemUsa(todas2, g.id, 'proposta', unicaProposta.codigo) === null ? unicaProposta.codigo : null;
-            const venda = unicaVenda && quemUsa(todas2, g.id, 'venda', unicaVenda.codigo) === null ? unicaVenda.codigo : null;
-            if (!proposta && !venda) return false;
-            await gravarLigacao(g.id, {
-              proposta, venda, por: 'auto', em: new Date().toISOString(),
-              ...(atual.lig.trello_card ? { trello_card: atual.lig.trello_card } : {}),
-            });
-            invalidarCachesHub();
-            return true;
-          });
-          if (ligou) {
-            lig = (await lerLigacao(g.id)).lig;
-            c = await candidatos(q, lig, await lerTodasLigacoes());
-          }
-        } catch (err) {
-          // Trava ocupada ou banco: o vínculo automático fica para a próxima vez. A leitura não cai.
-          logErro('vínculo automático falhou', err);
-        }
-      }
+      const { lig } = lido;
+      const c = await candidatos(q, lig, todas);
+      // Regra do dono (22/10/2026): telefone não identifica cliente. Aqui NADA é gravado; quem liga é o consultor, pelo POST.
       res.json({
         ok: true, ...corpoLigacao(lig),
         sugestoes: { propostas: c.propostas, vendas: c.vendas },
@@ -221,6 +189,7 @@ export function mountVendaSolar(router: Router): void {
     const b = corpoDe(req);
     const querProposta = !!b && Object.prototype.hasOwnProperty.call(b, 'proposta');
     const querVenda = !!b && Object.prototype.hasOwnProperty.call(b, 'venda');
+    const soSeVazia = !!b && b.soSeVazia === true;
     if (!b || (!querProposta && !querVenda)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
     // Sem segredo para assinar a ligação, nada é gravado.
     if (!segredoDoVinculo()) { logErro('sem segredo para assinar a ligação', { codigo: 'sem_segredo' }); res.status(503).json({ ok: false, error: MSG_GRAVAR }); return; }
@@ -249,6 +218,9 @@ export function mountVendaSolar(router: Router): void {
       }
       const saida = await comTrava(TRAVA_VINCULOS, g.nome, async () => {
         const [{ lig }, todas] = await Promise.all([lerLigacao(g.id), lerTodasLigacoes()]);
+        if (soSeVazia && ((proposta && lig.proposta) || (venda && lig.venda))) {
+          return { status: 409 as const, corpo: { ok: false, error: 'Este card já tem ligação. Nada foi trocado.' } };
+        }
         if (proposta && quemUsa(todas, g.id, 'proposta', proposta) !== null) {
           return { status: 409 as const, corpo: { ok: false, error: 'Esta proposta já está ligada a outra venda.' } };
         }

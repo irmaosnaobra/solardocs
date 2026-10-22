@@ -224,6 +224,7 @@ import { mountCadastroVenda } from '../routes/geradorCadastroVenda';
 import { mountVendaSolar } from '../routes/geradorVendaSolar';
 import { limparCacheBucketDocs } from '../services/gerador/docsClienteBanco';
 import { limparCacheBucketCadastros } from '../services/gerador/cadastroVendaBanco';
+import * as hubReal from '../services/gerador/vendaSolarHub';
 import { assinarLigacao, invalidarCachesHub, reiniciarLogsDoHub, type Ligacao } from '../services/gerador/vendaSolarHub';
 import { SISTEMA_CADASTRO_SOLAR } from '../services/gerador/cadastroVendaLeitura';
 import { CATALOGO } from '../services/gerador/docsCliente';
@@ -805,17 +806,39 @@ describe('ligações do card com a proposta e a venda', () => {
     expect((await ligar(201, { proposta: 'P1' }, GIOVANNA)).status).toBe(404);
     expect(ligacao(201)).toBeUndefined();
   });
-  it('liga SOZINHO quando há exatamente um candidato por telefone em cada tipo; a ligação não leva dado pessoal', async () => {
+  it('o GET NUNCA liga sozinho (regra do dono, 22/10): um candidato forte por telefone em cada tipo volta como sugerida e nada é gravado', async () => {
+    const antes = [...h.linhas.keys()];
     const res = await vinculos(201);
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ ok: true, proposta: 'P1', venda: '#0057', por: 'auto' });
-    expect(res.body.em).toBe('2026-10-20T15:00:00.000Z');
-    expect(res.body.sugestoes).toEqual({ propostas: [], vendas: [] });     // o que já está ligado não vira sugestão; P2 não vendida, P7 é eletroposto
-    expect(ligacao(201)).toEqual({ proposta: 'P1', venda: '#0057', por: 'auto', em: '2026-10-20T15:00:00.000Z', sig: expect.stringMatching(/^[0-9a-f]{64}$/) });
-    expect(JSON.stringify(ligacao(201))).not.toMatch(/Ana|Souza|3498888|98888/);
+    expect(res.body).toMatchObject({ ok: true, proposta: null, venda: null });
+    expect(res.body.por).not.toBe('auto');
+    const props = res.body.sugestoes.propostas;
+    const vds = res.body.sugestoes.vendas;
+    expect(props[0]).toMatchObject({ codigo: 'P1', motivo: 'telefone', sugerida: true });
+    expect(vds[0]).toMatchObject({ codigo: '#0057', motivo: 'telefone', sugerida: true });
+    expect(props.map((p: any) => p.codigo)).not.toContain('P2');      // não vendida
+    expect(props.map((p: any) => p.codigo)).not.toContain('P7');      // eletroposto
+    expect(ligacao(201)).toBeUndefined();
+    expect([...h.linhas.keys()]).toEqual(antes);
+    expect([...h.linhas.keys()].some((k) => k.startsWith('venda_solar:'))).toBe(false);
+  });
+  it('candidata forte do mesmo consultor: o GET devolve, sem chamar gravarLigacao nem gravar no system_state', async () => {
+    const gravar = vi.spyOn(hubReal, 'gravarLigacao');
+    const antes = new Map([...h.linhas.entries()].map(([k, l]) => [k, JSON.stringify(l.value)]));
+    const res = await vinculos(207);        // Nilce, vendedora do card e dona de P5 e #0060, telefone com DDD dos dois lados
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ proposta: null, venda: null });
+    expect(res.body.sugestoes.propostas.map((p: any) => [p.codigo, p.motivo, p.sugerida])).toEqual([['P5', 'telefone', true]]);
+    expect(res.body.sugestoes.vendas.map((v: any) => [v.codigo, v.motivo, v.sugerida])).toEqual([['#0060', 'telefone', true]]);
+    expect(gravar).not.toHaveBeenCalled();
+    expect(new Map([...h.linhas.entries()].map(([k, l]) => [k, JSON.stringify(l.value)]))).toEqual(antes);
+    // a segunda leitura é igual: nada mudou de uma para a outra
+    expect((await vinculos(207)).body).toMatchObject({ proposta: null, venda: null });
+    expect(gravar).not.toHaveBeenCalled();
+    gravar.mockRestore();
   });
   it('desligar uma ponta grava a chave e o GET NÃO religa sozinho', async () => {
-    await vinculos(201);
+    await ligar(201, { proposta: 'P1', venda: '#0057' });
     const off = await ligar(201, { proposta: null });
     expect(off.status).toBe(200);
     expect(off.body).toMatchObject({ proposta: null, venda: '#0057', por: 'nilce' });
@@ -858,6 +881,32 @@ describe('ligações do card com a proposta e a venda', () => {
     expect((await ligar(201, { venda: '57' })).status).toBe(200);                // '57' e '#0057' são a mesma venda
     expect(ligacao(201)).toMatchObject({ proposta: 'P3', venda: '#0057', por: 'nilce' });
   });
+  it('o POST manual grava a ligação sem dado pessoal (nem nome, nem telefone)', async () => {
+    const res = await ligar(201, { proposta: 'P1', venda: '#0057' });
+    expect(res.status).toBe(200);
+    expect(ligacao(201)).toEqual({ proposta: 'P1', venda: '#0057', por: 'nilce', em: '2026-10-20T15:00:00.000Z', sig: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(JSON.stringify(ligacao(201))).not.toMatch(/Ana|Souza|3498888|98888/);
+    expect(JSON.stringify(res.body)).not.toMatch(/Ana|Souza|3498888|98888/);
+  });
+  it('soSeVazia: liga quando o card está vazio; se já tem proposta (ou venda) responde 409 e não troca nada; sem a marca, o POST manual troca como sempre', async () => {
+    const ok = await ligar(201, { proposta: 'P1', soSeVazia: true });
+    expect(ok.status).toBe(200);
+    expect(ligacao(201)).toMatchObject({ proposta: 'P1', venda: null });
+    const antes = JSON.stringify(ligacao(201));
+    const cheia = await ligar(201, { proposta: 'P6', soSeVazia: true });
+    expect(cheia.status).toBe(409);
+    expect(cheia.body.error).toMatch(/já tem ligação/);
+    expect(JSON.stringify(ligacao(201))).toBe(antes);
+    const mesma = await ligar(201, { proposta: 'P1', soSeVazia: true });
+    expect(mesma.status).toBe(409);
+    // a venda segue a mesma regra, só para o campo que está sendo ligado
+    expect((await ligar(201, { venda: '#0057', soSeVazia: true })).status).toBe(200);
+    expect((await ligar(201, { venda: '#0060', soSeVazia: true })).status).toBe(409);
+    expect(ligacao(201)).toMatchObject({ proposta: 'P1', venda: '#0057' });
+    // o botão manual não manda a marca e troca
+    expect((await ligar(201, { proposta: 'P6' })).status).toBe(200);
+    expect(ligacao(201)?.proposta).toBe('P6');
+  });
   it('uma proposta e uma venda só podem estar ligadas a UM card', async () => {
     expect((await ligar(201, { proposta: 'P1', venda: '#0057' })).status).toBe(200);
     const p = await ligar(206, { proposta: 'P1' });
@@ -883,10 +932,13 @@ describe('ligações do card com a proposta e a venda', () => {
     expect(donos).toHaveLength(1);
     expect([...h.linhas.keys()].some((k) => k.startsWith('cadastro_trava:'))).toBe(false);   // a trava foi solta
   });
-  it('o auto não passa por cima de uma proposta que o outro card já levou', async () => {
+  it('a proposta que o outro card já levou não é candidata; a venda #0057 continua só sugerida', async () => {
     await ligar(206, { proposta: 'P1' });
-    const res = await vinculos(201);          // P1 é de outro card: não é candidato; a venda #0057 ainda é única
-    expect(res.body).toMatchObject({ proposta: null, venda: '#0057', por: 'auto' });
+    const res = await vinculos(201);          // P1 é de outro card: não é candidata; a venda #0057 ainda é única, mas só sugerida
+    expect(res.body).toMatchObject({ proposta: null, venda: null });
+    expect(res.body.sugestoes.propostas.map((p: any) => p.codigo)).not.toContain('P1');
+    expect(res.body.sugestoes.vendas[0]).toMatchObject({ codigo: '#0057', sugerida: true });
+    expect(ligacao(201)).toBeUndefined();
   });
 });
 
@@ -1156,9 +1208,9 @@ describe('assinatura das ligações', () => {
     injeta(201, { proposta: 'P1' }, 'nenhuma');
     expect((await docs(201)).body.dossie).toBeNull();
     const res = await vinculos(201);
-    expect(res.body).toMatchObject({ proposta: 'P1', venda: '#0057', por: 'auto' });       // a chave não vale, então o auto regrava, já assinada
-    expect((h.linhas.get('venda_solar:201')!.value as { sig?: string }).sig).toMatch(/^[0-9a-f]{64}$/);
-    expect((await docs(201)).body.dossie.proposta).toBe('P1');
+    expect(res.body).toMatchObject({ proposta: null, venda: null });                        // a chave não vale e o GET não regrava nada
+    expect(h.linhas.get('venda_solar:201')!.value).not.toHaveProperty('sig');
+    expect((await docs(201)).body.dossie).toBeNull();
     const logs = JSON.stringify((console.error as unknown as { mock: { calls: unknown[][] } }).mock.calls);
     expect(logs).toContain('sig_invalida');
     expect(logs).not.toMatch(/Ana|Souza|3498888|P1/);
@@ -1196,22 +1248,30 @@ describe('assinatura das ligações', () => {
   });
 });
 
-describe('vínculo automático: só do mesmo consultor, com DDD, e um candidato', () => {
-  it('quem abriu o card não muda nada: o sócio abrindo um card de OUTRO consultor não liga sozinho (vira sugestão)', async () => {
+describe('sugestão por telefone (nunca liga): só do mesmo consultor, com DDD, e um candidato', () => {
+  it('quem abriu o card não muda nada: o sócio abrindo um card de OUTRO consultor recebe sugestão sem a marca "sugerida"', async () => {
     h.cards = h.cards.map((c) => (c.id === 207 ? { ...c, vendedor_nome: 'Giovanna' } : c));     // P5 e #0060 são da Nilce
     const res = await vinculos(207, THIAGO);
     expect(res.body).toMatchObject({ proposta: null, venda: null });
     expect(res.body.sugestoes.propostas.map((p: any) => [p.codigo, p.motivo])).toEqual([['P5', 'telefone']]);
     expect(res.body.sugestoes.vendas.map((v: any) => [v.codigo, v.motivo])).toEqual([['#0060', 'telefone']]);
+    expect(res.body.sugestoes.propostas[0].sugerida).toBeUndefined();
+    expect(res.body.sugestoes.vendas[0].sugerida).toBeUndefined();
     expect(ligacao(207)).toBeUndefined();
-    // o sócio abrindo o card de quem é o dono dos candidatos liga normalmente
+    // o sócio abrindo o card de quem é o dono dos candidatos vê a marca, mas também não grava nada
     const ok = await vinculos(201, THIAGO);
-    expect(ok.body).toMatchObject({ proposta: 'P1', venda: '#0057', por: 'auto' });
+    expect(ok.body).toMatchObject({ proposta: null, venda: null });
+    expect(ok.body.sugestoes.propostas[0]).toMatchObject({ codigo: 'P1', sugerida: true });
+    expect(ok.body.sugestoes.vendas[0]).toMatchObject({ codigo: '#0057', sugerida: true });
+    expect(ligacao(201)).toBeUndefined();
   });
-  it('só uma das pontas liga sozinha quando a outra é de outro consultor', async () => {
+  it('só uma das pontas vem como sugerida quando a outra é de outro consultor', async () => {
     h.propostas = h.propostas.map((p) => (p.codigo === 'P5' ? { ...p, consultor_nome: 'Giovanna' } : p));
     const res = await vinculos(207);              // a Nilce só enxerga o que é dela: P5 some das sugestões
-    expect(res.body).toMatchObject({ proposta: null, venda: '#0060', por: 'auto' });
+    expect(res.body).toMatchObject({ proposta: null, venda: null });
+    expect(res.body.sugestoes.propostas.map((p: any) => p.codigo)).not.toContain('P5');
+    expect(res.body.sugestoes.vendas[0]).toMatchObject({ codigo: '#0060', sugerida: true });
+    expect(ligacao(207)).toBeUndefined();
   });
   it('DDD diferente não casa; sem DDD de um dos lados só sugere, nunca liga sozinho', async () => {
     h.cards = h.cards.map((c) => (c.id === 201 ? { ...c, cliente_telefone: '(11) 98888-0001' } : c));
@@ -1231,11 +1291,18 @@ describe('vínculo automático: só do mesmo consultor, com DDD, e um candidato'
   it('o telefone da proposta também vem de dados.telefone (formatado), não só de telefoneDigitos', async () => {
     h.propostas = h.propostas.map((p) => (p.codigo === 'P5' ? { ...p, dados: { telefone: '(34) 99999-0003' } } : p));
     const res = await vinculos(207);
-    expect(res.body).toMatchObject({ proposta: 'P5', venda: '#0060', por: 'auto' });
+    expect(res.body).toMatchObject({ proposta: null, venda: null });
+    expect(res.body.sugestoes.propostas[0]).toMatchObject({ codigo: 'P5', motivo: 'telefone', sugerida: true });
+    expect(res.body.sugestoes.vendas[0]).toMatchObject({ codigo: '#0060', sugerida: true });
+    expect(ligacao(207)).toBeUndefined();
   });
   it('com +55 e sem o nono dígito no card ainda casa com DDD', async () => {
     h.cards = h.cards.map((c) => (c.id === 207 ? { ...c, cliente_telefone: '+55 34 9999-0003' } : c));
-    expect((await vinculos(207)).body).toMatchObject({ proposta: 'P5', venda: '#0060', por: 'auto' });
+    const res = await vinculos(207);
+    expect(res.body).toMatchObject({ proposta: null, venda: null });
+    expect(res.body.sugestoes.propostas[0]).toMatchObject({ codigo: 'P5', sugerida: true });
+    expect(res.body.sugestoes.vendas[0]).toMatchObject({ codigo: '#0060', sugerida: true });
+    expect(ligacao(207)).toBeUndefined();
   });
 });
 

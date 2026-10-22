@@ -1130,12 +1130,14 @@ describe('prévia', () => {
 
 describe('a ligação com o cartão não atrapalha os vínculos', () => {
   const ID_TRELLO = idFixo(50);
-  it('ligação criada só para guardar o cartão ainda deixa o vínculo automático por telefone ligar, levando o cartão junto', async () => {
+  it('ligação criada só para guardar o cartão não liga nada por telefone: P3 volta como sugerida e o cartão fica como estava', async () => {
     injeta(204, { por: 'trello', trello_card: ID_TRELLO });
     const res = await get('/vendas-solares/204/vinculos', GIOVANNA);
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ proposta: 'P3', por: 'auto' });
-    expect(ligacaoGravada(204)).toMatchObject({ proposta: 'P3', por: 'auto', trello_card: ID_TRELLO });
+    expect(res.body).toMatchObject({ proposta: null });
+    expect(res.body.sugestoes.propostas.map((p: any) => p.codigo)).toContain('P3');
+    expect(ligacaoGravada(204)).toMatchObject({ por: 'trello', trello_card: ID_TRELLO });
+    expect(ligacaoGravada(204)).not.toHaveProperty('proposta', 'P3');
     expect((await lerLigacao(204)).lig.trello_card).toBe(ID_TRELLO);
   });
   it('desligar de propósito (ligação de gente, nada ligado) continua sem religar sozinho', async () => {
