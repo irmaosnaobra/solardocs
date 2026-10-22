@@ -107,7 +107,7 @@ function semear(dona: 'duda' | 'helena', texto: string) {
   });
   (banco.tabelas.whatsapp_sessions ??= []).push({
     phone: CHAVE, tipo: 'ag5040', updated_at: AGORA.toISOString(),
-    lead_data: { dona, estado: 'viva', desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [] },
+    lead_data: { dona, estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [] },
   });
 }
 

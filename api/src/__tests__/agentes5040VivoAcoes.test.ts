@@ -97,7 +97,7 @@ function semearLead(opts: { texto?: string; momento?: string; posse?: Record<str
   (banco.tabelas.wa_mensagens ??= []).push(linhaLead(id, TEL, opts.momento ?? iso(2 * 60_000, base), { texto: opts.texto ?? FRASE_GASTO }));
   (banco.tabelas.whatsapp_sessions ??= []).push({
     phone: CHAVE, tipo: 'ag5040', updated_at: base.toISOString(),
-    lead_data: { dona: 'duda', estado: 'viva', desde: iso(10 * 60_000, base), ate_wa_id: null, respostas: 0, imagens: [], links: [], ...(opts.posse ?? {}) },
+    lead_data: { dona: 'duda', estado: 'viva', apresentada: true, desde: iso(10 * 60_000, base), ate_wa_id: null, respostas: 0, imagens: [], links: [], ...(opts.posse ?? {}) },
   });
   if (opts.card) (gerador.tabelas.agendamentos ??= []).push({
     id: 7, cliente_telefone: TEL, cliente_nome: 'Tadeu Souza', vendedor_nome: 'Nilce', status: 'agendado', created_by: 'lp_solar',
@@ -549,7 +549,7 @@ describe('volta honesta do ligar agora', () => {
     );
     (banco.tabelas.whatsapp_sessions ??= []).push({
       phone: CHAVE, tipo: 'ag5040', updated_at: AVISADO,
-      lead_data: { dona: 'duda', estado: 'viva', desde: iso(20 * 60_000), ate_wa_id: 11, respostas: 1, imagens: [], links: [], ligar: ligar(), ...(opts.posse ?? {}) },
+      lead_data: { dona: 'duda', estado: 'viva', apresentada: true, desde: iso(20 * 60_000), ate_wa_id: 11, respostas: 1, imagens: [], links: [], ligar: ligar(), ...(opts.posse ?? {}) },
     });
     if (opts.card !== null) (gerador.tabelas.agendamentos ??= []).push(cardLigar(opts.card ?? {}));
     alvo([hmacDe(CHAVE)!]);
@@ -1077,7 +1077,7 @@ describe('correção 9: erro de linha na rodada pula também as pendências', ()
       (banco.tabelas.whatsapp_sessions ??= []).push({
         phone: CHAVE, tipo: 'ag5040', updated_at: AVISADO,
         lead_data: {
-          dona: 'duda', estado: 'viva', desde: iso(20 * 60_000), ate_wa_id: 11, respostas: 1, imagens: [], links: [],
+          dona: 'duda', estado: 'viva', apresentada: true, desde: iso(20 * 60_000), ate_wa_id: 11, respostas: 1, imagens: [], links: [],
           ligar: { cardId: 99, avisado_em: AVISADO, dono: 'Giovanna', faixa: 'novo', criado: true, status_inicial: 'agendado' },
         },
       });
@@ -1086,7 +1086,7 @@ describe('correção 9: erro de linha na rodada pula também as pendências', ()
       (banco.tabelas.wa_mensagens ??= []).push(linhaLead(30, telDe(1), iso(2 * 60_000), { texto: 'Quero saber de energia solar' }));
       (banco.tabelas.whatsapp_sessions ??= []).push({
         phone: chaveDe(1), tipo: 'ag5040', updated_at: AGORA.toISOString(),
-        lead_data: { dona: 'duda', estado: 'viva', desde: iso(10 * 60_000), ate_wa_id: null, respostas: 0, imagens: [], links: [] },
+        lead_data: { dona: 'duda', estado: 'viva', apresentada: true, desde: iso(10 * 60_000), ate_wa_id: null, respostas: 0, imagens: [], links: [] },
       });
       banco.tabelas.system_state = [{ key: CHAVE_VIVO_ALVO, value: { kid: idChaveHmac(), hmacs: [hmacDe(CHAVE)!, hmacDe(chaveDe(1))!], modos: {}, atualizado_em: iso(3600_000) } }];
       h.vagas.mockResolvedValue([V1, V2]);

@@ -472,3 +472,40 @@ describe('trava: pedido de reescrita', () => {
     expect(r).toContain('Oi \u{1F600}');
   });
 });
+
+describe('trava: o aviso de IA na primeira mensagem (exigeAviso)', () => {
+  const exige = (persona: 'duda' | 'helena' | 'carla'): ParametrosTrava => ({ persona, completa: true, qualificado: true, exigeAviso: true });
+  const NOME = { duda: 'Duda', helena: 'Helena', carla: 'Carla' } as const;
+
+  for (const persona of ['duda', 'helena', 'carla'] as const) {
+    it(`${persona}: bolha com a frase passa; sem a frase é barrada com a frase no motivo`, () => {
+      const frase = `Aqui é a ${NOME[persona]}, do atendimento com IA da Irmãos na Obra.`;
+      expect(ok([`${frase} Em qual cidade você mora?`], exige(persona))).toEqual([]);
+      expect(ok([`Oi, Marcos! ${frase} Em qual cidade você mora?`], exige(persona))).toEqual([]);
+      const motivos = ok(['Oi! Em qual cidade você mora?'], exige(persona));
+      expect(motivos).toHaveLength(1);
+      expect(motivos[0]).toContain(frase);
+      expect(permiteReescrita(motivos)).toBe(true);
+    });
+  }
+
+  it('o nome é da própria agente: a frase da Helena não vale para a Duda, e "IA" sem nome não vale', () => {
+    expect(ok(['Aqui é a Helena, do atendimento com IA da Irmãos na Obra. Em qual cidade você mora?'], exige('duda')).length).toBe(1);
+    expect(ok(['Sou uma IA. Em qual cidade você mora?'], exige('duda')).length).toBe(1);
+  });
+
+  it('aceita o "IA" em maiúscula junto do nome, e não aceita o verbo "ia"', () => {
+    expect(ok(['Sou a Duda, da IA da Irmãos na Obra. Em qual cidade você mora?'], exige('duda'))).toEqual([]);
+    expect(ok(['Aqui é a Duda. Eu ia perguntar em qual cidade você mora.'], exige('duda')).length).toBe(1);
+  });
+
+  it('sem exigeAviso nada muda; calar (sem bolha) não precisa do aviso', () => {
+    expect(ok(['Oi! Em qual cidade você mora?'])).toEqual([]);
+    expect(validarFala(saida([], { acao: 'calar' }), conversaDoLead(), { ...exige('duda'), acoesSemFala: ['calar'] })).toEqual([]);
+  });
+
+  it('a frase cabe nos 160 com uma resposta curta', () => {
+    const t = 'Aqui é a Helena, do atendimento com IA da Irmãos na Obra. Anotei o posto em Araguari. Qual o consumo de energia?';
+    expect(t.length).toBeLessThanOrEqual(160);
+  });
+});

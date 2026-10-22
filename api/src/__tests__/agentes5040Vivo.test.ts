@@ -35,7 +35,7 @@ vi.mock('../services/agentes5040/agendaEnvio', () => ({
 }));
 
 import { iaFalsa, novoBanco, respostaIA, saidaJson, type BancoFalso } from './_agentes5040Fake';
-import { BOLHA_PASSAGEM_AGENDA, BOLHA_PASSAGEM_GENERICA, CHAVE_TRAVA, runVivoTick } from '../services/agentes5040/vivo';
+import { BOLHA_PASSAGEM_AGENDA, BOLHA_PASSAGEM_CURTA, BOLHA_PASSAGEM_GENERICA, CHAVE_TRAVA, runVivoTick } from '../services/agentes5040/vivo';
 import { CHAVE_VIVO_ALVO, DONAS_LIBERADAS_PARA_TODOS, zerarCacheInterruptores, type DonaViva } from '../services/agentes5040/interruptores';
 import { zerarCacheArmazem } from '../services/agentes5040/armazem';
 import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
@@ -67,7 +67,7 @@ function semearLead(i = 0, opts: { momento?: string; posse?: Record<string, unkn
   if (opts.posse !== null) {
     (banco.tabelas.whatsapp_sessions ??= []).push({
       phone: chave, tipo: 'ag5040',
-      lead_data: { dona: opts.dona ?? 'duda', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [], ...(opts.posse ?? {}) },
+      lead_data: { dona: opts.dona ?? 'duda', estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [], ...(opts.posse ?? {}) },
     });
   }
 }
@@ -227,7 +227,7 @@ describe('rodada viva: o caminho feliz', () => {
     const lid = '123456789012345';
     banco.tabelas.wa_lid_telefone = [{ lid, telefone: TEL, chave: CHAVE }];
     banco.tabelas.wa_mensagens = [linhaLead(10, lid, MOMENTO_LEAD)];
-    banco.tabelas.whatsapp_sessions = [{ phone: CHAVE, tipo: 'ag5040', lead_data: { dona: 'duda', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [] } }];
+    banco.tabelas.whatsapp_sessions = [{ phone: CHAVE, tipo: 'ag5040', lead_data: { dona: 'duda', estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [] } }];
     alvo([hmacDe(CHAVE)!]);
     await rodar();
     expect(h.enviar.mock.calls[0]![0].telefone).toBe(TEL);
@@ -685,5 +685,103 @@ describe('rodada viva: vez própria, trava com token e cota própria', () => {
     expect(r.parou).toBe('teto');
     expect(ia.chamadas).toHaveLength(0);
     expect(h.enviar).not.toHaveBeenCalled();
+  });
+});
+
+describe('rodada viva: o aviso de IA na primeira mensagem (22/10/2026)', () => {
+  const FRASE = 'Aqui é a Duda, do atendimento com IA da Irmãos na Obra.';
+  const COM_AVISO = `${FRASE} Qual é o valor da sua conta de luz?`;
+  const SEM_AVISO = 'Oi! Qual é o valor da sua conta de luz?';
+  const pedidoDe = (n: number): string => JSON.stringify(ia.chamadas[n]!.body);
+
+  it('lead não apresentado: o modelo recebe o aviso do sistema com a frase, e a bolha com o aviso sai e grava apresentada = true', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = responder([COM_AVISO]);
+    const r = await rodar();
+    expect(r.enviadas).toBe(1);
+    expect(pedidoDe(0)).toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
+    expect(pedidoDe(0)).toContain(FRASE);
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(COM_AVISO);
+    expect(posseDe()).toMatchObject({ apresentada: true, respostas: 1, ate_wa_id: 10 });
+  });
+
+  it('lead já apresentado: nenhum aviso vai ao modelo e a bolha sem frase passa', async () => {
+    semearLead(); alvo([hmacDe(CHAVE)!]);
+    ia = responder([SEM_AVISO]);
+    const r = await rodar();
+    expect(r.enviadas).toBe(1);
+    expect(pedidoDe(0)).not.toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(SEM_AVISO);
+  });
+
+  it('sem o aviso na 1ª tentativa: uma nova chance com o motivo reforçado; com o aviso na 2ª, sai', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = iaFalsa((_b, n) => respostaIA(saidaJson([n === 1 ? SEM_AVISO : COM_AVISO]), { cache_creation_input_tokens: 100 }));
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(2);
+    expect(pedidoDe(1)).toContain('COMEÇAR com');
+    expect(r.enviadas).toBe(1);
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(COM_AVISO);
+    expect(posseDe().apresentada).toBe(true);
+  });
+
+  it('sem o aviso nas duas tentativas: passa ao humano com a ficha, SEM bolha, e a posse segue não apresentada', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = responder([SEM_AVISO]);
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(2);
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(r.enviadas).toBe(0);
+    expect(posseDe()).toMatchObject({ estado: 'passou_humano' });
+    expect(posseDe().apresentada).toBe(false);
+  });
+
+  it('o aviso de outra pessoa não vale: "IA" sem o nome da agente é barrado', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = responder(['Sou da IA. Qual é o valor da sua conta de luz?']);
+    await rodar();
+    expect(h.enviar).not.toHaveBeenCalled();
+  });
+
+  it('texto fixo do sistema (passagem ao humano) para quem não foi apresentado ganha a frase na frente', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    gerador.tabelas.agendamentos = [{ id: 7, cliente_telefone: TEL, cliente_nome: 'Tadeu Souza', vendedor_nome: 'Diego Souza', status: 'agendado', created_by: 'lp_solar', created_at: iso(86_400_000), quando: '2026-10-22T13:00:00Z', cidade: 'Araguari', observacao: null }];
+    ia = responder([COM_AVISO], { acao: 'passar_helena' });
+    await rodar();
+    expect(h.enviar).toHaveBeenCalledTimes(1);
+    expect(h.enviar.mock.calls[0]![0].bolha.startsWith(`${FRASE} `)).toBe(true);
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(`${FRASE} ${BOLHA_PASSAGEM_CURTA}`);
+    expect(posseDe().apresentada).toBe(true);
+  });
+
+  it('abertura do quiz ENVIADA = apresentada: nenhum aviso ao modelo, e a posse grava apresentada', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    gerador.tabelas.agendamentos = [{ id: 7, cliente_telefone: TEL, cliente_nome: 'Tadeu Souza', vendedor_nome: 'Diego Souza', status: 'agendado', created_by: 'lp_solar', created_at: iso(86_400_000), quando: '2026-10-22T13:00:00Z', cidade: 'Araguari', observacao: null }];
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_agenda_sent:7:abertura:20261022T130000', value: { tipo: 'abertura', card_id: 7, estado: 'enviado' } });
+    ia = responder([SEM_AVISO]);
+    const r = await rodar();
+    expect(r.enviadas).toBe(1);
+    expect(pedidoDe(0)).not.toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(SEM_AVISO);
+    expect(posseDe().apresentada).toBe(true);
+  });
+
+  it('abertura só RESERVADA (estado diferente de enviado) não conta como apresentada', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    gerador.tabelas.agendamentos = [{ id: 7, cliente_telefone: TEL, cliente_nome: 'Tadeu Souza', vendedor_nome: 'Diego Souza', status: 'agendado', created_by: 'lp_solar', created_at: iso(86_400_000), quando: '2026-10-22T13:00:00Z', cidade: 'Araguari', observacao: null }];
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_agenda_sent:7:abertura:20261022T130000', value: { tipo: 'abertura', card_id: 7, estado: 'reservada' } });
+    ia = responder([COM_AVISO]);
+    await rodar();
+    expect(pedidoDe(0)).toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
+    expect(posseDe().apresentada).toBe(true);
+  });
+
+  it('dry: o aviso vale na sonda e nada é gravado na posse', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = responder([COM_AVISO]);
+    await rodar({ dry: true });
+    expect(pedidoDe(0)).toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
+    expect(posseDe().apresentada).toBe(false);
   });
 });

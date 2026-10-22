@@ -58,20 +58,20 @@ describe('abertura: as bolhas fixas (textosAgenda)', () => {
 
   it('ligacao, video e vistoria, COM nome, com o texto exato', () => {
     expect(textoDeAbertura('ligacao', 'Irineu de Almeida', quando, 'Giovanna Souza')).toBe(
-      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Já está marcado: *Giovanna* te liga *amanhã às 14h30*. É uma ligação curta para entender sua conta.');
+      'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Giovanna* te liga amanhã às 14h30. É uma ligação curta para entender sua conta.');
     expect(textoDeAbertura('video', 'Irineu', quando, 'Nilce')).toBe(
-      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Nilce* te chama por vídeo amanhã às 14h30, com o estudo na tela. Responda SIM para confirmar.');
+      'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Nilce* te chama por vídeo amanhã às 14h30. Responda SIM para confirmar.');
     expect(textoDeAbertura('vistoria', 'Irineu', quando, 'Diego')).toBe(
-      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Diego* vai aí amanhã às 14h30, visita técnica de uns 40 minutos. Responda SIM para confirmar.');
+      'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Diego* vai aí amanhã às 14h30, visita técnica. Responda SIM para confirmar.');
   });
 
-  it('SEM nome (vazio, só símbolo ou só espaço), começa com "Oi! Sou a Duda"', () => {
+  it('SEM nome (vazio, só símbolo ou só espaço), começa com "Oi! Aqui é a Duda"', () => {
     for (const nome of [null, undefined, '', '   ', '***', '123']) {
       expect(textoDeAbertura('ligacao', nome, quando, 'Giovanna')).toBe(
-        'Oi! Sou a Duda, da Irmãos na Obra. Já está marcado: *Giovanna* te liga *amanhã às 14h30*. É uma ligação curta para entender sua conta.');
+        'Oi! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Giovanna* te liga amanhã às 14h30. É uma ligação curta para entender sua conta.');
     }
-    expect(textoDeAbertura('video', '', quando, 'Nilce')!.startsWith('Oi! Sou a Duda, da Irmãos na Obra. Marcado: *Nilce* te chama por vídeo')).toBe(true);
-    expect(textoDeAbertura('vistoria', '', quando, 'Diego')!.startsWith('Oi! Sou a Duda, da Irmãos na Obra. Marcado: *Diego* vai aí')).toBe(true);
+    expect(textoDeAbertura('video', '', quando, 'Nilce')!.startsWith('Oi! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Nilce* te chama por vídeo')).toBe(true);
+    expect(textoDeAbertura('vistoria', '', quando, 'Diego')!.startsWith('Oi! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Diego* vai aí')).toBe(true);
   });
 
   it('o nome não leva formatação do WhatsApp (asterisco, sublinhado) para dentro da bolha', () => {
@@ -79,33 +79,33 @@ describe('abertura: as bolhas fixas (textosAgenda)', () => {
   });
 
   it('o horário é montado a partir do ISO: hoje, amanhã e dia da semana com data', () => {
-    expect(bolhaDeAbertura('ligacao', 'Ana', AMANHA_1430, 'Nilce', AGORA_TXT)).toContain('te liga *amanhã às 14h30*');
-    expect(bolhaDeAbertura('ligacao', 'Ana', '2026-10-21T19:00:00.000Z', 'Nilce', AGORA_TXT)).toContain('te liga *hoje às 16h*');
+    expect(bolhaDeAbertura('ligacao', 'Ana', AMANHA_1430, 'Nilce', AGORA_TXT)).toContain('te liga amanhã às 14h30');
+    expect(bolhaDeAbertura('ligacao', 'Ana', '2026-10-21T19:00:00.000Z', 'Nilce', AGORA_TXT)).toContain('te liga hoje às 16h');
     expect(bolhaDeAbertura('vistoria', 'Ana', QUINTA_23_1430, 'Nilce', AGORA_TXT)).toContain('vai aí sexta, 23/10 às 14h30,');
   });
 
   it('corte de tamanho: passou de 160 tira o nome; ainda passou, tira os asteriscos; ainda passou, é null', () => {
     const q = 'quinta, 23/10 às 14h30';
-    // 156 com nome de 6 letras e consultora de 8
+    // 154 com nome de 6 letras e consultora de 8
     const normal = textoDeAbertura('vistoria', 'Irineu', q, 'Giovanna')!;
-    expect(normal.length).toBe(156);
+    expect(normal.length).toBe(154);
     expect(normal.startsWith('Oi, Irineu!')).toBe(true);
-    // nome de 11 letras: 161 com nome, então sai sem nome (148), ainda com asteriscos
-    const semNome = textoDeAbertura('vistoria', 'Maximiliano', q, 'Giovanna')!;
-    expect(semNome.startsWith('Oi! Sou a Duda')).toBe(true);
+    // nome de 13 letras: 161 com nome, então sai sem nome (146), ainda com asteriscos
+    const semNome = textoDeAbertura('vistoria', 'Maximilianoxx', q, 'Giovanna')!;
+    expect(semNome.startsWith('Oi! Aqui é a Duda')).toBe(true);
     expect(semNome).toContain('*Giovanna*');
-    expect(semNome.length).toBe(148);
-    // consultora de 22 letras: sem nome e com asteriscos dá 162, sem asteriscos dá 160
-    const consultora22 = 'M' + 'a'.repeat(21);
+    expect(semNome.length).toBe(146);
+    // consultora de 24 letras: sem nome e com asteriscos dá 162, sem asteriscos dá 160
+    const consultora22 = 'M' + 'a'.repeat(23);
     const semAsteriscos = textoDeAbertura('vistoria', 'Irineu', q, consultora22)!;
     expect(semAsteriscos).not.toContain('*');
-    expect(semAsteriscos.startsWith('Oi! Sou a Duda')).toBe(true);
+    expect(semAsteriscos.startsWith('Oi! Aqui é a Duda')).toBe(true);
     expect(semAsteriscos.length).toBe(MAX_BOLHA_ABERTURA);
-    // consultora de 23 letras: nem assim cabe
-    expect(textoDeAbertura('vistoria', 'Irineu', q, 'M' + 'a'.repeat(22))).toBeNull();
+    // consultora de 25 letras: nem assim cabe
+    expect(textoDeAbertura('vistoria', 'Irineu', q, 'M' + 'a'.repeat(24))).toBeNull();
     // nunca passa de 160 em nenhum dos 3 caminhos
     for (const c of ['ligacao', 'video', 'vistoria']) {
-      const t = textoDeAbertura(c, 'Maximiliano', q, 'Giovanna');
+      const t = textoDeAbertura(c, 'Maximilianoxx', q, 'Giovanna');
       if (t) expect(t.length).toBeLessThanOrEqual(MAX_BOLHA_ABERTURA);
     }
   });
@@ -398,7 +398,7 @@ describe('abertura: quem não recebe', () => {
   });
 
   it('bolha que não cabe nos 160 (consultora de nome enorme) = nada reservado, o tick antigo cobre', async () => {
-    card(0, { vendedor_nome: 'M' + 'a'.repeat(30) }, 'vistoria'); noEscopo(0);
+    card(0, { vendedor_nome: 'M' + 'a'.repeat(40) }, 'vistoria'); noEscopo(0);
     const r = await rodar();
     expect(r.abertura).toMatchObject({ tentados: 0, abertos: 0, puladas: { bolha_nao_cabe: 1 } });
     expect(gerador.escritas.length).toBe(0);
@@ -440,7 +440,7 @@ describe('abertura: dry e limite por rodada', () => {
     expect(r.abertura!.abertos).toBe(0);
     expect(r.abertura!.sairia).toEqual([{
       card_id: 500,
-      bolha: 'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Giovanna* te chama por vídeo amanhã às 14h30, com o estudo na tela. Responda SIM para confirmar.',
+      bolha: 'Oi, Irineu! Aqui é a Duda, do atendimento com IA da Irmãos na Obra. *Giovanna* te chama por vídeo amanhã às 14h30. Responda SIM para confirmar.',
     }]);
     expect(JSON.stringify(r.abertura)).not.toContain(telDe(0));
     expect(cardNoBanco(0).boas_vindas_at).toBeNull();

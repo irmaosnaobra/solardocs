@@ -100,7 +100,8 @@ import {
 } from './turno';
 import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 import { ACAO_ESTACIONAR, type CardResumo, type ContextoLead, type Persona, type SaidaAgente } from './tipos';
-import { enviarResposta, type PecaEnvio, type ResultadoEnvio } from './vivoEnvio';
+import { enviarResposta, type PecaEnvio, type PedidoEnvio, type ResultadoEnvio } from './vivoEnvio';
+import { avisoDeApresentacao, comAvisoSeFaltar } from './avisoIA';
 import type { DecisaoPorteiro } from './porteiro';
 import { caminhoDaFicha } from '../agenda/solarRota';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
@@ -163,10 +164,14 @@ export const BOLHA_PASSAGEM_AGENDA = 'Pra acertar o horário, a consultora fala 
 /** As mesmas bolhas, no masculino: os consultores do eletroposto são o Thiago e o Diego (COPY PARA O REDATOR). */
 export const BOLHA_PASSAGEM_GENERICA_EP = 'Vou passar a conversa pro consultor. Já mandei tudo o que a gente falou, e ele te responde por aqui em breve.';
 export const BOLHA_PASSAGEM_AGENDA_EP = 'Pra acertar o horário, o consultor fala com você. Já mandei a conversa pra ele, e ele te chama por aqui em breve.';
+/** A passagem curta, para quem a agente ainda não se apresentou: cabe junto da frase do aviso de IA nos 160 (COPY PARA O REDATOR). */
+export const BOLHA_PASSAGEM_CURTA = 'Vou chamar a consultora, que te responde por aqui em breve.';
+export const BOLHA_PASSAGEM_CURTA_EP = 'Vou chamar o consultor, que te responde por aqui em breve.';
 const ACOES_DE_AGENDA: readonly string[] = ['marcar_horario', 'remarcar_horario'];
 /** As ações que a Duda executa de verdade na B1d-2c (o resto de ACOES_COM_FERRAMENTA segue virando ficha e passagem). */
 const ACOES_DA_DUDA_COM_AGENDA: readonly string[] = ['marcar_horario', 'ligar_agora', 'suporte_giovanna'];
-const bolhaDaPassagem = (acao?: string, dona?: string): string => {
+const bolhaDaPassagem = (acao?: string, dona?: string, apresentada = true): string => {
+  if (!apresentada) return dona === 'helena' ? BOLHA_PASSAGEM_CURTA_EP : BOLHA_PASSAGEM_CURTA;
   const agenda = !!acao && ACOES_DE_AGENDA.includes(acao);
   if (dona === 'helena') return agenda ? BOLHA_PASSAGEM_AGENDA_EP : BOLHA_PASSAGEM_GENERICA_EP;
   return agenda ? BOLHA_PASSAGEM_AGENDA : BOLHA_PASSAGEM_GENERICA;
@@ -558,6 +563,37 @@ async function carimboDeAberturaExiste(cardId: number): Promise<boolean | null> 
   } catch { return null; }
 }
 
+/**
+ * O carimbo de ABERTURA deste card está ENVIADO? A abertura do quiz já leva o aviso de IA, então abertura enviada = apresentada.
+ * true | false | null (a leitura falhou). Nunca lança.
+ */
+async function aberturaEnviada(cardId: number): Promise<boolean | null> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key, value')
+      .like('key', `ag5040_agenda_sent:${cardId}:abertura:%`).limit(10);
+    if (error) return null;
+    return (Array.isArray(data) ? data : []).some(l => (l as { value?: { estado?: unknown } | null }).value?.estado === 'enviado');
+  } catch { return null; }
+}
+
+/**
+ * O ÚNICO caminho de envio ao lead da rodada viva. A primeira mensagem de cada agente para um lead traz o aviso de IA
+ * (decisão do dono, 22/10/2026): enquanto lead_data.apresentada não é true, a bolha sem o aviso ganha a frase na frente (texto fixo
+ * do sistema, se couber nos 160) ou é RECUSADA ('bolha_invalida:sem_aviso_ia'); nunca sai bolha sem aviso na primeira mensagem.
+ * Saiu com o aviso: grava apresentada = true na posse (e no objeto em memória, para o resto da conversa).
+ */
+async function enviarAoLead(chave: string, posse: DadosPosse, pedido: PedidoEnvio, agora: Date): Promise<ResultadoEnvio> {
+  const ja = posse.apresentada === true;
+  const bolha = comAvisoSeFaltar(pedido.bolha, pedido.dona, ja);
+  if (bolha === null) return { ok: false, motivo: 'bolha_invalida', detalhe: 'sem_aviso_ia' };
+  const res = await enviarResposta({ ...pedido, bolha }, agora);
+  if (res.ok && !ja && !pedido.dry) {
+    posse.apresentada = true;
+    await atualizarPosse(chave, { apresentada: true });
+  }
+  return res;
+}
+
 type Seguir = 'seguir' | 'parar';
 
 async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir> {
@@ -697,6 +733,16 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       });
       return 'seguir';
     }
+    // O aviso de IA (22/10/2026): a agente se apresenta na PRIMEIRA mensagem dela a este lead. Abertura do quiz ENVIADA = apresentada
+    // (a bolha da abertura já leva o aviso): vale, e é gravada na posse, mesmo que nenhuma resposta saia agora (a Base lê a posse).
+    if (posse.apresentada !== true && dona === 'duda') {
+      const cs = cardSolarDoCtx(ctx0);
+      if (cs && await aberturaEnviada(cs.id) === true) {
+        posse.apresentada = true;
+        if (!dry) await atualizarPosse(chave, { apresentada: true });
+      }
+    }
+    const exigeAviso = posse.apresentada !== true;
     const primeiro = msgs.find(m => m.autor === 'lead');
     const anuncio = primeiro ? await anuncioDaMensagem(primeiro.id) : { ok: true, anuncio: null };
     let turnosAntes: TurnoGravado[];
@@ -737,8 +783,13 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       ...(dona === 'helena' ? { avisosDoSistema: avisosDaHelena() } : {}),
       ...(dona === 'carla' ? { avisosDoSistema: avisosDaCarla(posse, g.agoraEnvio()) } : {}),
     };
-    const pensar = (c: ContextoLead): Promise<ResultadoTurno> => pensarTurno({
-      persona: dona as Persona, ctx: c, novas: entrada, dadosAnteriores: dadosAnt, abertura: false, cliente: g.cliente, cacheMidia,
+    // Todo chamado ao modelo (inclusive a segunda chance de agenda, de peça e de bolha barrada) leva o aviso do sistema e a
+    // exigência da trava enquanto a agente não se apresentou: o aviso é somado AQUI, para nenhuma reconstrução de `avisosDoSistema` o perder.
+    const pensar = (c0: ContextoLead): Promise<ResultadoTurno> => pensarTurno({
+      persona: dona as Persona,
+      ctx: exigeAviso ? { ...c0, avisosDoSistema: [...(c0.avisosDoSistema ?? []), avisoDeApresentacao(dona as Persona)] } : c0,
+      ...(exigeAviso ? { exigeAviso: true } : {}),
+      novas: entrada, dadosAnteriores: dadosAnt, abertura: false, cliente: g.cliente, cacheMidia,
       ...(dona === 'carla' ? { depoimentosJaEnviados: posse.imagens.length } : {}),
     });
 
@@ -795,7 +846,8 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       // 9. o modelo não achou fala segura (trava): passa ao humano
       if (!pens.falou) {
         await registrar(false);
-        await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: pens.motivo });
+        // Sem o aviso de IA na 2ª tentativa (ou qualquer outra trava) com o lead ainda não apresentado: ficha ao humano, SEM bolha.
+        await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: exigeAviso ? false : true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: pens.motivo });
         return 'seguir';
       }
       const saida = pens.saida;
@@ -971,7 +1023,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       // O estado nao_incomodar é gravado ANTES da despedida: se algo falhar daqui em diante, a conversa já está calada
       // (lado seguro). Em troca, uma despedida recusada pelo envio NÃO é tentada de novo: a pessoa pediu para parar.
       if (naoIncomodar && !dry) await atualizarPosse(chave, { estado: 'nao_incomodar', ate_wa_id: L.id });
-      const res: ResultadoEnvio = await enviarResposta({
+      const res: ResultadoEnvio = await enviarAoLead(chave, posse, {
         dona, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, ...(peca && !naoIncomodar ? { peca } : {}), dry,
       }, g.agoraEnvio());
       // O silêncio vem DEPOIS da despedida (o enviarResposta barraria uma fala a quem já está no opt-out).
@@ -1037,7 +1089,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
           // Sem fala segura (a bolha do modelo não passou nas regras do envio): é a trava, passa ao humano com ficha e,
           // só se a ficha saiu, a bolha fixa.
           await registrar(false, 'bolha_invalida');
-          await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: `bolha_invalida:${res.detalhe ?? ''}` });
+          await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: res.detalhe !== 'sem_aviso_ia', card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: `bolha_invalida:${res.detalhe ?? ''}` });
           return 'seguir';
         default:                                   // pausa_humana, bloqueado, mudo, robo_do_outro_lado
           if (!dry) await atualizarPosse(chave, { ate_wa_id: L.id });
@@ -1133,7 +1185,7 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
   const prefixoDono = teste ? (ehTeste === null ? PREFIXO_ALVO_ILEGIVEL : PREFIXO_TESTE) : telCons ? '' : `${motivoDono} Encaminhe esta ficha ao consultor certo.`;
   const texto = textoDaFicha(pedido, card, prefixoDono);
 
-  if (dry) { dec({ resultado: 'passaria_ao_humano', ficha: 'ficharia', ...(p.bolha ? { sairia: [bolhaDaPassagem(p.acao, p.posse.dona)] } : {}) }); return; }
+  if (dry) { dec({ resultado: 'passaria_ao_humano', ficha: 'ficharia', ...(p.bolha ? { sairia: [bolhaDaPassagem(p.acao, p.posse.dona, p.posse.apresentada === true)] } : {}) }); return; }
 
   const adiar = (): void => { soma(r.puladas, 'ficha_adiada'); dec({ resultado: 'ficha_adiada', ficha: 'adiada' }); };
   if (!hl || linhaIoEmCooldown()) { adiar(); return; }
@@ -1165,9 +1217,9 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
 
   let patch: Partial<DadosPosse> = { estado: 'passou_humano', ate_wa_id: p.L.id };
   let enviadas = 0;
-  const bolhaFixa = bolhaDaPassagem(p.acao, p.posse.dona);
+  const bolhaFixa = bolhaDaPassagem(p.acao, p.posse.dona, p.posse.apresentada === true);
   if (p.bolha && p.tel) {
-    const res = await enviarResposta({
+    const res = await enviarAoLead(p.chave, p.posse, {
       dona: p.posse.dona as DonaViva, telefone: p.tel, waIdAlvo: p.L.id, momentoFalaLead: p.L.momment,
       bolha: bolhaFixa, dry: false,
     }, g.agoraEnvio());
@@ -1369,7 +1421,7 @@ async function acaoMarcar(A: ContextoAcao): Promise<Seguir> {
   const bolhaFinal = citaAHora(bolha, iso) ? bolha : (fixa ?? '');
   try {
     const res: ResultadoEnvio = bolhaFinal
-      ? await enviarResposta({ dona: 'duda', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha: bolhaFinal, dry: false }, agoraE)
+      ? await enviarAoLead(chave, posse, { dona: 'duda', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha: bolhaFinal, dry: false }, agoraE)
       : { ok: false, motivo: 'bolha_invalida', detalhe: 'sem_bolha' };
     if (res.ok) {
       if (criado) await marcarBoasVindasEnviada(cardId);
@@ -1517,7 +1569,7 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
     // O fichaTick não duplica: o card novo já tem a sua ficha.
     if (criado) await reservarChave(`ficha_card:${cardId}`, { estado: 'enviada', origem: 'ligar_agora' }, g.agora);
     const res: ResultadoEnvio = bolha
-      ? await enviarResposta({ dona: 'duda', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, agoraE)
+      ? await enviarAoLead(chave, posse, { dona: 'duda', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, agoraE)
       : { ok: false, motivo: 'bolha_invalida', detalhe: 'sem_bolha' };
     await atualizarPosse(chave, { ate_wa_id: L.id, ligar, ...(res.ok ? { respostas: posse.respostas + 1 } : {}) });
     await A.registrar(res.ok, res.ok ? undefined : `acao_recusada:${res.motivo}`);
@@ -1585,7 +1637,7 @@ async function acaoMarcarEp(A: ContextoAcao): Promise<Seguir> {
   try {
     const marcou: EpMarcou = { cardId: gr.id, em: agoraE.toISOString(), wa_id: L.id, dono: ep.dono };
     await atualizarPosse(chave, { ep_marcou: marcou });
-    const res: ResultadoEnvio = await enviarResposta({ dona: 'helena', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, agoraE);
+    const res: ResultadoEnvio = await enviarAoLead(chave, posse, { dona: 'helena', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, agoraE);
     if (res.ok) {
       await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1 });
       await A.registrar(true);
@@ -1636,7 +1688,7 @@ async function acaoPresenca(A: ContextoAcao): Promise<Seguir> {
   if (reserva === 'ja_existe') return calar('ja_respondida');
   if (reserva === 'erro') { await A.soltar(); soma(r.puladas, 'helena_presenca_reserva_falhou'); dec({ resultado: 'recusada', ...A.base2, motivo: 'reserva_falhou' }); return 'seguir'; }
 
-  const res: ResultadoEnvio = await enviarResposta({ dona: 'helena', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
+  const res: ResultadoEnvio = await enviarAoLead(chave, posse, { dona: 'helena', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
   if (res.ok) {
     await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1 });
     await A.registrar(true);
@@ -1718,7 +1770,7 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
   const { g, saida, ctx0, chave, tel, L, posse, hmac, dec } = A;
   const { r, dry } = g;
   const donaNome = NOME_DA_DONA[posse.dona] ?? 'agente';
-  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona);
+  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona, posse.apresentada === true);
   if (dry) { dec({ resultado: 'passaria_ao_humano', ...A.base2, ficha: 'ficharia', sairia: [bolha] }); return 'seguir'; }
 
   const { destino, prefixoDono } = await destinoDoSuporte(chave);
@@ -1752,7 +1804,7 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
   let parar: 'erro_linha' | 'espacamento' | null = null;
   const avisadoEm = g.agoraEnvio().toISOString();
   try {
-    const res = await enviarResposta({ dona: posse.dona as DonaViva, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
+    const res = await enviarAoLead(chave, posse, { dona: posse.dona as DonaViva, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
     await atualizarPosse(chave, {
       estado: 'passou_humano', ate_wa_id: L.id, ...(res.ok ? { respostas: posse.respostas + 1 } : {}),
       suporte: { avisado_em: avisadoEm, wa_id: L.id, resumo: String(saida.resumo ?? '').slice(0, 200) },

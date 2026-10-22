@@ -178,6 +178,8 @@ export interface EntradaTurno {
   retomada?: boolean;
   /** Carla: cards de depoimento que a posse já registra (lead_data.imagens.length). A trava vale o maior entre isto e a conversa. */
   depoimentosJaEnviados?: number;
+  /** A agente ainda não se apresentou a este lead: a trava exige o aviso de IA na bolha 1 (ver avisoIA.ts). */
+  exigeAviso?: boolean;
 }
 
 /** As únicas ações da retomada: voltar com 1 bolha (continuar) ou não voltar (calar). */
@@ -234,6 +236,7 @@ export async function pensarTurno(e: EntradaTurno): Promise<ResultadoTurno> {
       qualificado,
       valoresDaPessoa: valores,
       acoesSemFala: ACOES_SEM_FALA,
+      ...(e.exigeAviso === true ? { exigeAviso: true } : {}),
       agora: ctx.agora,
       prazosDaPessoa: prazosDaPessoaDe(textos, e.dadosAnteriores),
       ...(e.depoimentosJaEnviados !== undefined ? { depoimentosJaEnviados: e.depoimentosJaEnviados } : {}),

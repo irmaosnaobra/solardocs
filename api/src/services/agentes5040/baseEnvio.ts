@@ -212,6 +212,8 @@ export async function runBaseTick(opts: OpcoesBase = {}, deps?: DepsBase): Promi
       const base = lerBaseDaPosse(p.lead_data);
       const t1 = triagemDaPosse(base, agoraMs);
       if (!t1.ok) { nota('pulou', t1.motivo); continue; }
+      // O aviso de IA (22/10/2026): a retomada só sai para quem a agente já se apresentou (lead_data.apresentada).
+      if (p.lead_data.apresentada !== true) { nota('pulou', 'nao_apresentada'); continue; }
       if (!(await d.escopo(p.dona, p.chave))) { nota('pulou', 'fora_do_escopo'); continue; }
       if (r.avaliadas >= LIMITES_BASE.avaliacoesPorRodada) { r.cortou = true; break; }
       r.avaliadas++;

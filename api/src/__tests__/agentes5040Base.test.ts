@@ -281,7 +281,7 @@ type Over = Partial<DepsBase>;
 function posse(extra: Record<string, unknown> = {}, dona: 'duda' | 'helena' = 'duda', chave = CHAVE): PosseBase {
   return {
     chave, dona, updated_at: iso(5 * HORA),
-    lead_data: { dona, estado: 'viva', desde: iso(12 * HORA), ate_wa_id: 10, respostas: 1, imagens: [], links: [], ...extra },
+    lead_data: { dona, estado: 'viva', apresentada: true, desde: iso(12 * HORA), ate_wa_id: 10, respostas: 1, imagens: [], links: [], ...extra },
   };
 }
 const msg = (id: number, autor: 'lead' | 'robo' | 'equipe', atras: number, texto = 'oi'): MsgConversa => ({
@@ -466,6 +466,8 @@ describe('cada motivo de pular o alvo (nada é reservado, chamado nem enviado)',
   const robo = (atras: number, id = 11) => msg(id, 'robo', atras);
   type Caso = [string, Parameters<typeof mundo>[0], string];
   const casos: Caso[] = [
+    ['a agente ainda não se apresentou (aviso de IA, lead_data.apresentada falsa)', { posses: [posse({ apresentada: false })] }, 'nao_apresentada'],
+    ['lead_data sem a marca apresentada (posse antiga)', { posses: [{ ...posse(), lead_data: (({ apresentada: _a, ...resto }) => resto)(posse().lead_data) }] }, 'nao_apresentada'],
     ['duas retomadas já feitas (lead_data)', { posses: [posse({ base: { retomadas: 2 } })] }, 'duas_retomadas_feitas'],
     ['duas retomadas já carimbadas (o carimbo manda sobre a posse)', { carimbos: { retomadas: [{ n: 1, em: iso(30 * HORA) }, { n: 2, em: iso(8 * HORA) }] } }, 'duas_retomadas_feitas'],
     ['estacionado até o futuro', { posses: [posse({ base: { estacionado_ate: new Date(AGORA.getTime() + 2 * 86_400_000).toISOString() } })] }, 'estacionado'],
@@ -950,7 +952,7 @@ describe('a rodada com depsReais() sobre um banco falso', () => {
     );
     (banco.tabelas.whatsapp_sessions ??= []).push({
       phone: CHAVE, tipo: 'ag5040', updated_at: iso(6 * HORA - 10 * MIN),
-      lead_data: { dona: 'duda', estado: 'viva', desde: iso(8 * HORA), ate_wa_id: 10, respostas: 1, imagens: [], links: [], ...(extra.posse ?? {}) },
+      lead_data: { dona: 'duda', estado: 'viva', apresentada: true, desde: iso(8 * HORA), ate_wa_id: 10, respostas: 1, imagens: [], links: [], ...(extra.posse ?? {}) },
     });
     (banco.tabelas.system_state ??= []).push({ key: 'ag5040_sent:10:1', value: { estado: 'enviado' }, updated_at: iso(6 * HORA - 10 * MIN) });
   };

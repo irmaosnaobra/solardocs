@@ -131,7 +131,7 @@ function semear(opts: { texto?: string; momento?: string; posse?: Record<string,
   (banco.tabelas.wa_mensagens ??= []).push(linhaLead(10, TEL, opts.momento ?? MOMENTO_LEAD, opts.texto ?? 'Oi, vi o anúncio do eletroposto'));
   (banco.tabelas.whatsapp_sessions ??= []).push({
     phone: CHAVE, tipo: 'ag5040', updated_at: AGORA.toISOString(),
-    lead_data: { dona: 'helena', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [], ...(opts.posse ?? {}) },
+    lead_data: { dona: 'helena', estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [], ...(opts.posse ?? {}) },
   });
   const lista = opts.cards ?? (opts.card === null ? [] : [card(opts.card ?? {})]);
   (gerador.tabelas.agendamentos ??= []).push(...lista);
@@ -1090,7 +1090,7 @@ describe('a posse da Helena NÃO cala os robôs do eletroposto (o ep_respostas d
     (banco.tabelas.wa_mensagens ??= []).push(linhaLead(20, B, MOMENTO_LEAD, 'Preciso remarcar, não consigo nesse horário'));
     (banco.tabelas.whatsapp_sessions ??= []).push({
       phone: chaveDe(1), tipo: 'ag5040', updated_at: AGORA.toISOString(),
-      lead_data: { dona: 'helena', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [] },
+      lead_data: { dona: 'helena', estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: null, respostas: 0, imagens: [], links: [] },
     });
     h.vagas.mockResolvedValue([V1, V2, V3]);
 

@@ -131,7 +131,7 @@ describe('abertura com a fila real: o enfileirar respondeu erro', () => {
     const e = await enviarAgendaPendente(AGORA);
     expect(e).toMatchObject({ enviadas: 1, descartadas: 0 });
     expect(h.zapi).toHaveBeenCalledTimes(1);
-    expect(String(h.zapi.mock.calls[0]![1][0])).toMatch(/^Oi, Irineu! Sou a Duda/);
+    expect(String(h.zapi.mock.calls[0]![1][0])).toMatch(/^Oi, Irineu! Aqui é a Duda/);
     // e a rodada seguinte não abre de novo (o card está reservado e a conversa tem posse)
     const r2 = await rodar();
     expect(r2.abertura!.abertos).toBe(0);

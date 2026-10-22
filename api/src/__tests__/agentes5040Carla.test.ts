@@ -65,7 +65,7 @@ function semear(opts: { posse?: Record<string, unknown>; textoDoLead?: string; p
   banco.tabelas.whatsapp_sessions = [{
     phone: CHAVE, tipo: 'ag5040',
     lead_data: {
-      dona: 'carla', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: opts.primeiroToque ? null : 9,
+      dona: 'carla', estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: opts.primeiroToque ? null : 9,
       respostas: opts.primeiroToque ? 0 : 1, imagens: [], links: [], ...(opts.posse ?? {}),
     },
   }];
@@ -251,7 +251,7 @@ describe('Carla: depoimento (imagem)', () => {
   });
 
   it('o portão recusa a imagem acima do limite sozinho (planejarCarla), mesmo sem a trava', () => {
-    const posse: any = { dona: 'carla', estado: 'viva', desde: DESDE_POSSE, ate_wa_id: 9, respostas: 1, imagens: SLUGS.slice(0, MAX_IMAGENS_POR_CONVERSA), links: [], imagem_wa_id: 1 };
+    const posse: any = { dona: 'carla', estado: 'viva', apresentada: true, desde: DESDE_POSSE, ate_wa_id: 9, respostas: 1, imagens: SLUGS.slice(0, MAX_IMAGENS_POR_CONVERSA), links: [], imagem_wa_id: 1 };
     const base = conversaDoLead()[0]!;
     const msgs = [base, { ...base, id: 99, autor: 'robo' as const, from_me: true, texto: 'Oi' }, { ...base, id: 100 }];
     const r = planejarCarla({ saida: saidaDe(['Escolhi esse.'], { peca: { tipo: 'imagem', id: 'depoimento:lucas-rsc-solar' } }), posse, msgs, fala: { id: 100 }, textosDoLead: ['oi'] });
