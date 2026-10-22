@@ -121,6 +121,7 @@ export async function lerParceiro(userId: string): Promise<Linha | null> {
 
 export const ORIGENS_VALIDAS: readonly string[] = Object.freeze([
   'portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro',
+  'quiz_eletroposto',
 ]);
 
 export function origemValida(v: unknown): string {

@@ -32,6 +32,7 @@ export const PERGUNTAS: Record<string, string> = {
   'p-cap-local':   'E o local, você já tem?',
   'p-inv-valor':   'Quanto você pensa em investir?',
   'p-horario':     'Escolha o melhor horário',
+  'p-vsl':         'Assista antes de entrar na plataforma',
   'p-nome':        'Como podemos te chamar?',
   'p-cidade':      'Qual é a sua cidade?',
   'p-i-empresa':   'Qual é a sua empresa?',
@@ -60,7 +61,7 @@ export const PERGUNTAS: Record<string, string> = {
 /** O mesmo, curto, para o eixo do gráfico (cabe no celular). */
 export const CURTAS: Record<string, string> = {
   'p-porta': 'O que você é', 'p-cap-local': 'Tem local?', 'p-inv-valor': 'Quanto investe',
-  'p-horario': 'Horário', 'p-nome': 'Nome', 'p-cidade': 'Cidade',
+  'p-horario': 'Horário', 'p-vsl': 'Vídeo do parceiro', 'p-nome': 'Nome', 'p-cidade': 'Cidade',
   'p-i-empresa': 'Empresa', 'p-i-atuacao': 'O que faz hoje', 'p-i-exp': 'Já instalou?',
   'p-i-interesse': 'Como quer trabalhar', 'p-i-equipe': 'Equipe',
   'p-perfil': 'Perfil', 'p-ponto': 'Ponto e endereço', 'p-vagas': 'Vagas',
@@ -96,7 +97,7 @@ export const CAMINHOS: Caminho[] = [
   // A quarta porta (24/09/2026). Ela NÃO passa pela trilha do ponto: quem já
   // escolheu o equipamento não responde perfil, ponto, modelo nem decisor.
   { id: 'carregador',           nome: 'Compra de carregador',                 passos: ['p-porta', 'p-nome', 'p-cidade', 'p-car-potencia', 'p-car-qtd', 'p-car-uso', 'p-car-local', 'p-car-endereco', 'p-car-software', 'p-car-instala', 'p-car-prazo', 'p-whatsapp', 'p-horario'] },
-  { id: 'integrador',           nome: 'Integrador',                           passos: ['p-porta', 'p-nome', 'p-cidade', 'p-i-empresa', 'p-i-atuacao', 'p-i-exp', 'p-i-interesse', 'p-i-equipe', 'p-whatsapp'] },
+  { id: 'integrador',           nome: 'Integrador',                           passos: ['p-porta', 'p-nome', 'p-cidade', 'p-i-empresa', 'p-i-atuacao', 'p-i-exp', 'p-i-interesse', 'p-i-equipe', 'p-whatsapp', 'p-vsl'] },
 ];
 
 export const DESTINOS: Record<string, string> = {

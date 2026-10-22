@@ -410,7 +410,13 @@ describe('a tela de dia sem horário', () => {
 
 describe('a reunião não aparece como vídeo na tela', () => {
   it('nenhum texto da página fala em vídeo, chamada, link da reunião ou online', () => {
+    // A VSL do parceiro (22/10/2026) é o vídeo de apresentação da parceria NEXUS, não a
+    // reunião: o bloco dela (markup e script), a URL do arquivo e o seletor de CSS
+    // do <video> ficam fora da conta. O resto da página continua proibido de falar em vídeo.
     const semComentario = html
+      .replace(/<div class="passo" id="p-vsl">[\s\S]*?id="vsl-status"[^\n]*\n\s*<\/div>\n/, '')
+      .replace(/\/\/ ══ VSL DO PARCEIRO[\s\S]*?(?=\/\*\* O corpo do cadastro de arrendamento)/, '')
+      .split('\n').filter(l => !/^const VSL_PARCEIRO|^\s*\.vslCaixa video/.test(l)).join('\n')
       .replace(/<!--[\s\S]*?-->/g, '')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')

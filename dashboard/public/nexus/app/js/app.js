@@ -19,7 +19,7 @@
   var WA_PADRAO = '5534998165040';
   var TOKEN_KEY = 'solardoc_token';
   var USER_KEY = 'solardoc_user';
-  var ORIGENS = ['portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro'];
+  var ORIGENS = ['portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro', 'quiz_eletroposto'];
   var TZ = 'America/Sao_Paulo';
   var UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
   var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -662,6 +662,30 @@
   function ehCadastro() { return /^#\/?cadastro(\/|\?|$)/.test(location.hash); }
   function perfilCompleto() { return libera('basico'); }
   function novoCad() { return { passo: 1, nome: '', email: '', fone: '', senha: '', conf: '', aceito: false, cnpj: '', empresa: '', fila: [], vistos: {} }; }
+  /* O quiz do eletroposto (mesma origem) deixa nome, WhatsApp, empresa e CNPJ em localStorage['nx_prefill'] antes de mandar para #cadastro.
+     Lê uma vez e apaga; vale por 2 h; só enche o que está vazio; nunca com sessão aberta. Nada disso passa pela URL. */
+  function prefillDoQuiz(c) {
+    var p = null;
+    try {
+      var raw = localStorage.getItem('nx_prefill');
+      if (!raw) return c;
+      localStorage.removeItem('nx_prefill');   // apaga antes de tudo, inclusive com sessão aberta
+      if (getToken()) return c;
+      p = JSON.parse(raw);
+    } catch (e) { return c; }
+    if (!p || typeof p !== 'object' || !(Date.now() - Number(p.em) < 2 * 60 * 60 * 1000)) return c;
+    var nome = String(p.nome || '').trim().slice(0, 120);
+    var fone = dig(p.fone);
+    if (fone.length > 11 && fone.slice(0, 2) === '55') fone = fone.slice(2);
+    var cnpj = dig(p.cnpj);
+    var emp = String(p.empresa || '').trim().slice(0, 120);
+    if (!c.nome && nome) c.nome = nome;
+    if (!c.fone && (fone.length === 10 || fone.length === 11)) c.fone = fone;
+    if (!c.cnpj && cnpj.length === 14) c.cnpj = cnpj;
+    if (!c.empresa && emp) c.empresa = emp;
+    return c;
+  }
+  function novoCadComPrefill() { return prefillDoQuiz(novoCad()); }
   /* cadastro_passo: sem token ainda (passos 1 e 2) o evento espera na fila e sai logo depois do register. */
   function evPasso(n) {
     var c = S.cad;
@@ -2853,7 +2877,7 @@
   function abrirCadastro() {
     if (S.demo || (S.fase !== 'app' && S.fase !== 'entrada')) return;
     if (getToken()) { if (S.eu) aposSessaoCadastro(); else iniciarApp(); return; }
-    S.cad = novoCad(); irPasso(1);
+    S.cad = novoCadComPrefill(); irPasso(1);
   }
   function jaTemConta(email) {
     if (S.cad) { S.cad.senha = ''; S.cad.conf = ''; }
@@ -3052,7 +3076,7 @@
       copiar('https://' + URL_APP).then(function () { toast('Endereço copiado.'); }, function () { toast('Não foi possível copiar. Selecione o endereço e copie.', true); });
     },
     criarConta: function () {
-      S.msgEntrada = ''; S.emailPre = ''; S.cad = novoCad();
+      S.msgEntrada = ''; S.emailPre = ''; S.cad = novoCadComPrefill();
       try { history.replaceState(null, '', location.pathname + location.search + '#cadastro'); } catch (e) { /* ok */ }
       irPasso(1);
     },
@@ -3266,7 +3290,7 @@
     api('GET', NX + '/status', undefined, { semToken: true, quieto: true, timeout: 8000 }).then(function (r) {
       if (r.status === 503 || (r.ok && r.data && r.data.ligado === false)) { S.fase = 'embreve'; pintar(); return; }
       if (getToken()) iniciarApp();
-      else if (ehCadastro()) { S.cad = novoCad(); irPasso(1); }
+      else if (ehCadastro()) { S.cad = novoCadComPrefill(); irPasso(1); }
       else { S.fase = 'entrada'; pintar(); }
     });
   }

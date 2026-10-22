@@ -427,6 +427,30 @@
   .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
   .agMsg.err{background:rgba(244,63,94,.14);border:1px solid rgba(244,63,94,.45);color:#fda4af;display:block}
   .agMsg.info{background:rgba(57,255,20,.12);border:1px solid rgba(57,255,20,.4);color:var(--neon-b);display:block}
+  /* ===== VSL do parceiro (22/10/2026) =====
+     O integrador assiste ao vídeo no lugar da agenda (ver VSL_PARCEIRO no script).
+     A caixa é 9:16 e nunca passa de 72% da altura da tela: no celular o vídeo cabe
+     com o título, e no computador ele não vira um poste de 1280 px. */
+  #p-vsl{scroll-margin-top:84px}
+  .vslKick{color:var(--neon);font-size:14px;font-weight:800;letter-spacing:.02em;margin-bottom:8px}
+  .vslSub{color:var(--cream);font-size:16px;line-height:1.5;margin:0 0 18px}
+  .vslCaixa{position:relative;width:min(100%,calc(min(64vh,640px) * 9 / 16));aspect-ratio:9/16;
+    max-height:min(64vh,640px);margin:0 auto;border-radius:14px;background:#000;overflow:hidden}
+  .vslCaixa video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
+  .vslCaixa .vslPlay{position:absolute;inset:0;margin:auto;width:max-content;max-width:calc(100% - 24px);
+    height:64px;padding:0 26px;font-size:18px;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  .vslCaixa .vslPlay svg{width:22px;height:22px;fill:currentColor;flex:0 0 auto}
+  .vslCaixa .vslPlay:disabled{opacity:.8;cursor:default}
+  .vslAviso{position:absolute;left:10px;right:10px;bottom:56px;padding:11px 14px;border-radius:10px;
+    background:rgba(6,33,12,.94);border:1px solid rgba(57,255,20,.55);color:var(--neon);
+    font-size:16px;font-weight:800;text-align:center;pointer-events:none}
+  .vslLink{display:block;margin:14px auto 0;min-height:44px;padding:0 14px;background:none;border:0;
+    color:var(--cream);font-family:inherit;font-size:15px;font-weight:600;text-decoration:underline;cursor:pointer}
+  .vslLink:hover{color:var(--neon)}
+  .vslFalha{margin-top:16px;text-align:center}
+  .vslFalha p{color:var(--cream);font-size:15.5px;font-weight:700;line-height:1.45;margin:0 0 12px}
+  .vslFalha .btn{width:100%;min-height:56px;font-size:17px;font-weight:800}
+  .vslStatus{margin:16px 0 0;text-align:center;color:var(--neon);font-size:16px;font-weight:800}
 
   /* ===== o quadro grande (15/09/2026) =====
      A pergunta e a maior coisa do cartao, maior que qualquer rotulo da pagina: e ela
@@ -1274,6 +1298,26 @@
             <div class="pergunta">Escolha o melhor horário</div>
             <div class="slots" id="slots"></div>
           </div>
+        </div>
+
+        <!-- VSL do integrador (22/10/2026): entra NO LUGAR do horário. O cadastro dele já
+             está gravado; daqui o vídeo manda para /nexus/app#cadastro. O src só é posto
+             quando o passo abre (ver `prepararVsl`): quem não é integrador não baixa nada. -->
+        <div class="passo" id="p-vsl">
+          <div class="vslKick">Recebemos seus dados.</div>
+          <div class="pergunta">Assista antes de entrar na plataforma</div>
+          <p class="vslSub">São 4 minutos sobre como funciona a parceria NEXUS. No fim, o vídeo abre o seu cadastro no portal do parceiro.</p>
+          <div class="vslCaixa" id="vsl-caixa">
+            <video id="vsl-video" playsinline webkit-playsinline preload="none" controlslist="nodownload noplaybackrate" disablepictureinpicture></video>
+            <button type="button" class="btn vslPlay" id="vsl-play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>Assistir com som</span></button>
+            <div class="vslAviso" id="vsl-aviso" role="status" hidden></div>
+          </div>
+          <div class="vslFalha" id="vsl-falha" hidden>
+            <p>O vídeo não abriu aqui. Siga direto para o cadastro.</p>
+            <button type="button" class="btn" id="vsl-ir-erro">Ir para o cadastro</button>
+          </div>
+          <button type="button" class="vslLink" id="vsl-ir">Já quero me cadastrar</button>
+          <p class="vslStatus" id="vsl-status" role="status" hidden>Abrindo o portal do parceiro…</p>
         </div>
 
         <div class="passo" id="p-nome">
@@ -3569,6 +3613,9 @@ const PASSOS = [
   // WhatsApp, com o botão de concluir o cadastro.
   { id:'p-horario', quando:() => vaiParaAgenda() || !!agendaDoCadastro(),
                     ok:() => slotSel ? null : 'Escolha um horário na lista.' },
+  // 22/10/2026: o integrador, com o cadastro gravado, vê a VSL no lugar do horário
+  // (`vslDoCadastro`). Último passo dele; sem botão e sem Voltar (ver `pintarPasso`).
+  { id:'p-vsl', quando:() => vslDoCadastro(), ok:() => null },
 ];
 let passoAtual = 0;
 /** Qual passo a última pintura acendeu: é o que diferencia ENTRAR no passo de repintá-lo. */
@@ -3646,10 +3693,12 @@ function pintarPasso(){
   // tecla do telefone e a cada revisão da lista, e chamar aqui sem a guarda vira
   // laço de remontagem.
   if(atual.id === 'p-horario' && ultimoPassoPintado !== 'p-horario') prepararAgenda();
+  if(atual.id === 'p-vsl' && ultimoPassoPintado !== 'p-vsl') prepararVsl();
+  if(atual.id !== 'p-vsl' && ultimoPassoPintado === 'p-vsl') pausarVsl();
   ultimoPassoPintado = atual.id;
   document.getElementById('passo-conta').textContent = `Passo ${passoAtual+1} de ${vivos.length}`;
   document.getElementById('passo-barra').style.width = ((passoAtual+1) / vivos.length * 100) + '%';
-  document.getElementById('passo-voltar').hidden  = passoAtual === 0;
+  document.getElementById('passo-voltar').hidden  = passoAtual === 0 || atual.id === 'p-vsl';
   // UM BOTÃO SÓ. Ele vira "Confirmar agendamento" no último passo assim que o
   // WhatsApp está válido — antes disso ele ainda é "Continuar", porque ainda
   // falta uma resposta pra dar.
@@ -3674,6 +3723,10 @@ function pintarPasso(){
                   : fecha === 'agendar'    ? 'Confirmar agendamento →'
                   :                          'Continuar →';
   btn.dataset.acao = fecha;
+  // VSL: o cadastro já foi gravado, então não há o que continuar nem a que voltar.
+  // O botão e o Voltar somem; as saídas são as do próprio passo (vídeo, link e erro).
+  btn.closest('.passoNav').hidden = atual.id === 'p-vsl';
+  if(atual.id === 'p-vsl') btn.dataset.acao = 'vsl';
   // o aviso de erro é do passo que passou: some ao trocar de pergunta
   const m = document.getElementById('ag-msg');
   m.className = 'agMsg'; m.textContent = '';
@@ -3688,6 +3741,7 @@ function pintarPasso(){
 /** O clique do botão único: agenda, cadastra aqui mesmo ou avança um passo. */
 function passoAcao(){
   const acao = document.getElementById('ag-btn').dataset.acao;
+  if(acao === 'vsl') return;
   if(acao === 'agendar')    return agendar();
   if(acao === 'integrador') return cadastrarIntegrador();
   if(acao === 'investidor') return cadastrarInvestidor();
@@ -3821,6 +3875,15 @@ function corpoDoCurioso(r){
 // servidor em `etiqueta_card:<id>`). `status` segue 'agendado' e `created_by`
 // segue 'lp_eletroposto': é por eles que a régua da agenda reconhece o card.
 const REGRA_AGENDA_DESDE = '2026-10-13T03:00:00Z';
+// ORDEM DO DONO (22/10/2026): o parceiro (integrador) assiste a uma VSL e vai para o
+// cadastro do portal NEXUS (/nexus/app#cadastro) NO LUGAR de marcar reunião.
+// Investidor sem local e arrendamento seguem com a agenda. `ligada: false` devolve o
+// integrador para a agenda como era. `antesDoFim`: segundos antes do fim em que o
+// vídeo abre o cadastro. `aviso`: segundos de contagem antes disso.
+// `duracaoReserva`: duração usada se o navegador não informar a do vídeo.
+const VSL_PARCEIRO = { ligada: true, src: 'https://res.cloudinary.com/v755hoio/video/upload/v1792641243/solardoc/vsl-parceiro-nexus.mp4', capa: 'https://res.cloudinary.com/v755hoio/image/upload/f_auto,q_auto/v1792641246/solardoc/vsl-parceiro-nexus-capa.jpg', antesDoFim: 30, aviso: 5, duracaoReserva: 258 };
+/** O cadastro do integrador que esta visita gravou e a VSL abriu: `{ tel }`. */
+let vslFeita = null;
 
 /**
  * O que a regra decide para estas respostas, neste instante. Pura (o teste roda
@@ -3936,6 +3999,8 @@ const cadastroVale = caminho =>
  *  horário pela trilha do ponto. */
 function agendaDoCadastro(){
   const c = regraAgora().caminho;
+  // Com a VSL ligada o integrador não marca reunião: o horário não existe para ele.
+  if(c === 'integrador' && VSL_PARCEIRO.ligada) return '';
   return (c === 'cotista' || c === 'integrador') && cadastroVale(c) ? c : '';
 }
 /**
@@ -3953,6 +4018,154 @@ function abrirAgendaDoCadastro(caminho){
   passoAtual = i;
   pintarPasso();
   return true;
+}
+
+// ══ VSL DO PARCEIRO (22/10/2026) ═════════════════════════════════════════════
+// Cadastro do integrador gravado -> vídeo -> cadastro no portal. Nada aqui grava
+// no banco: o único POST é o do `cadastrarIntegrador`, que vem antes.
+/** O passo da VSL vale só para o integrador, com a chave ligada e o cadastro gravado. */
+function vslDoCadastro(){
+  return VSL_PARCEIRO.ligada && !!vslFeita && vslFeita.tel === telParaBanco() && soIntegrador();
+}
+/**
+ * O que o portal lê para não pedir tudo de novo. Quiz e portal moram em solardoc.app,
+ * então o localStorage é o mesmo. NADA disto vai na URL (o Pixel manda a URL para a
+ * Meta). `fone`: só DDD + número, sem o 55 (é o que o portal mostra e valida).
+ * `telParaBanco()` devolve sempre com o 55 na frente (com ele já digitado ou com o
+ * que ele acrescenta), então tirar os dois primeiros dígitos basta.
+ */
+function vslGravarPrefill(){
+  try{
+    const dig = x => String(x || '').replace(/\D/g, '');
+    const fone = dig(telParaBanco()).replace(/^55(?=\d{10,11}$)/, '');
+    localStorage.setItem('nx_prefill', JSON.stringify({
+      nome: val('f-nome'), fone, empresa: val('f-i-empresa'), cnpj: dig(val('f-i-cnpj')), em: Date.now(),
+    }));
+  }catch(e){}
+}
+/**
+ * Cadastro gravado: troca a tela de fim pela VSL. Devolve false se o passo não
+ * existir, e aí quem chamou segue o caminho de sempre.
+ */
+function abrirVslDoCadastro(){
+  vslFeita = { tel: telParaBanco() };
+  const i = passosVivos().findIndex(p => p.id === 'p-vsl');
+  if(i < 0){ vslFeita = null; return false; }
+  vslGravarPrefill();
+  document.getElementById('ag-btn').disabled = false;
+  passoAtual = i;
+  pintarPasso();
+  return true;
+}
+/** A URL do cadastro do portal. Só campanha: sem nome, telefone nem CNPJ. */
+function vslUrlPortal(){
+  const u = utmPrimeiroToque();
+  const lim = x => String(x || '').trim().slice(0, 120);
+  const q = [
+    ['o', 'quiz_eletroposto'], ['utm_source', 'quiz_eletroposto'], ['utm_medium', 'vsl'],
+    ['utm_campaign', lim(u.utm_campaign) || 'parceiro'],
+    ['utm_content', lim(u.utm_content)], ['utm_term', lim(u.utm_term)],
+  ].filter(par => par[1]).map(par => par[0] + '=' + encodeURIComponent(par[1])).join('&');
+  return '/nexus/app?' + q + '#cadastro';
+}
+const vslEstado = { amarrado: false, tocou: false, saiu: false, falhou: false, quartis: {}, timerFalha: 0 };
+const vslEl = id => document.getElementById(id);
+/** A duração que vale: a do vídeo, ou a reserva se o navegador ainda não sabe. */
+function vslDuracao(v){
+  return Number.isFinite(v.duration) && v.duration > 0 ? v.duration : VSL_PARCEIRO.duracaoReserva;
+}
+/** Entrou no passo: só agora o vídeo ganha endereço (preload="none" não baixa nada). */
+function prepararVsl(){
+  const v = vslEl('vsl-video');
+  if(!vslEstado.amarrado){ vslEstado.amarrado = true; amarrarVsl(v); }
+  if(!v.getAttribute('src')){ v.poster = VSL_PARCEIRO.capa; v.src = VSL_PARCEIRO.src; }
+  const p = vslEl('p-vsl'), r = p.getBoundingClientRect();
+  if(r.top < 0 || r.bottom > window.innerHeight) p.scrollIntoView({ block: 'start' });
+}
+function pausarVsl(){
+  clearTimeout(vslEstado.timerFalha);
+  try{ vslEl('vsl-video').pause(); }catch(e){}
+}
+function amarrarVsl(v){
+  vslEl('vsl-play').addEventListener('click', vslTocar);
+  vslEl('vsl-ir').addEventListener('click', () => vslIr('botao'));
+  vslEl('vsl-ir-erro').addEventListener('click', () => vslIr('erro'));
+  v.addEventListener('playing', () => {
+    clearTimeout(vslEstado.timerFalha);
+    if(vslEstado.saiu) return;
+    vslEl('vsl-play').hidden = true;
+    vslEl('vsl-falha').hidden = true;
+    vslEl('vsl-ir').hidden = false;
+    v.controls = true;
+    if(!vslEstado.tocou){ vslEstado.tocou = true; track('vsl_parceiro_play'); }
+  });
+  v.addEventListener('timeupdate', vslTick);
+  v.addEventListener('ended', () => vslIr('auto'));
+  v.addEventListener('error', vslFalha);
+  // Voltar do portal pelo botão do navegador pode trazer a página congelada no
+  // "Abrindo o portal…": sem isto seria um beco sem saída.
+  window.addEventListener('pageshow', e => {
+    if(!e.persisted || !vslEstado.saiu) return;
+    vslEstado.saiu = false;
+    vslEl('vsl-status').hidden = true;
+    vslEl('vsl-ir').hidden = false;
+    if(!vslEstado.tocou) vslEl('vsl-play').hidden = false;
+  });
+}
+/** O toque é o gesto que libera o som: o passo abre depois de um fetch, sem autoplay. */
+function vslTocar(){
+  const v = vslEl('vsl-video'), b = vslEl('vsl-play');
+  b.disabled = true;
+  b.querySelector('span').textContent = 'Carregando…';
+  clearTimeout(vslEstado.timerFalha);
+  vslEstado.timerFalha = setTimeout(vslFalha, 15000);
+  try{
+    const p = v.play();
+    if(p && p.catch) p.catch(() => { if(!vslEstado.tocou) vslFalha(); });
+  }catch(e){ vslFalha(); }
+}
+/** Quartis, contagem regressiva e a saída automática (`antesDoFim` s antes do fim). */
+function vslTick(){
+  if(vslEstado.saiu) return;
+  const v = vslEl('vsl-video'), d = vslDuracao(v), t = v.currentTime || 0;
+  [25, 50, 75].forEach(q => {
+    if(!vslEstado.quartis[q] && t >= d * q / 100){ vslEstado.quartis[q] = 1; track('vsl_parceiro_' + q); }
+  });
+  const falta = d - VSL_PARCEIRO.antesDoFim - t;
+  if(falta <= 0) return vslIr('auto');
+  const aviso = vslEl('vsl-aviso');
+  if(falta <= VSL_PARCEIRO.aviso){
+    aviso.textContent = 'Abrindo o seu cadastro em ' + Math.max(1, Math.ceil(falta));
+    aviso.hidden = false;
+  } else aviso.hidden = true;
+}
+/** O vídeo não abriu (erro, ou o play não virou `playing` em 8 s): sempre há saída. */
+function vslFalha(){
+  if(vslEstado.saiu) return;
+  clearTimeout(vslEstado.timerFalha);
+  vslEl('vsl-play').hidden = true;
+  vslEl('vsl-aviso').hidden = true;
+  vslEl('vsl-ir').hidden = true;
+  vslEl('vsl-falha').hidden = false;
+  if(!vslEstado.falhou){ vslEstado.falhou = true; lpFunil('vsl_parceiro', { acao: 'falha' }); }
+}
+/**
+ * Vai para o cadastro do portal, uma vez só. O evento sai por `lpFunil`, que usa
+ * fetch com keepalive (sobrevive à navegação); a espera de 350 ms é para o Pixel da
+ * Meta, que não tem essa garantia. `motivo`: auto, botao ou erro.
+ */
+function vslIr(motivo){
+  if(vslEstado.saiu) return;
+  vslEstado.saiu = true;
+  clearTimeout(vslEstado.timerFalha);
+  vslGravarPrefill();   // renova o prefill: quem volta do portal e vai de novo chega com os dados
+  const v = vslEl('vsl-video'), segundo = Math.round(v.currentTime || 0);
+  try{ v.pause(); }catch(e){}
+  ['vsl-aviso', 'vsl-play', 'vsl-falha', 'vsl-ir'].forEach(id => { vslEl(id).hidden = true; });
+  vslEl('vsl-status').hidden = false;
+  track('vsl_parceiro_cadastro');
+  lpFunil('vsl_parceiro', { acao: 'cadastro', motivo, segundo });
+  setTimeout(() => location.assign(vslUrlPortal()), 350);
 }
 /** O corpo do cadastro de arrendamento, lido da tela. É o mesmo nos dois momentos
  *  em que ele pode ser gravado: ao abrir o horário e no clique de confirmar. */
@@ -4351,6 +4564,8 @@ async function cadastrarIntegrador(){
     // REGRA DA AGENDA (13/10/2026): com o cadastro gravado, o parceiro escolhe o
     // horário em vez de ver a tela de fim. Antes da data, ou se o passo não abrir,
     // vale a tela de sempre.
+    // 22/10/2026: o integrador vê a VSL no lugar da agenda (VSL_PARCEIRO.ligada).
+    if(VSL_PARCEIRO.ligada && abrirVslDoCadastro()) return;
     if(regraAgora().caminho === 'integrador' && abrirAgendaDoCadastro('integrador')) return;
     document.getElementById('ok-int-txt').textContent =
       `Pronto, ${val('f-nome').split(/\s+/)[0]}. Seu perfil de integrador chegou na equipe.`;

@@ -194,7 +194,7 @@ var USINA_INT = { vender_creditos: 'Vender créditos', alugar: 'Alugar', outro: 
 var SOL_ST = { aberta: 'Aberta', em_andamento: 'Em andamento', concluida: 'Concluída', cancelada: 'Cancelada' };
 var SOL_COR = { aberta: 'az', em_andamento: 'av', concluida: 'ok', cancelada: '' };
 var SOL_TIPO = { conversa: 'Conversa com o comercial', engenharia: 'Engenharia', negociar_preco: 'Negociar preço', plataforma: 'Plataforma NEXUS' };
-var ORIGENS = { portal: 'Portal', solardoc: 'Menu do SolarDoc', solardoc_banner: 'Banner do SolarDoc', link_cadastro: 'Link de cadastro', partner_lp: 'Página /nexus/partner', convite_email: 'Convite por e-mail', convite_wpp: 'Convite por WhatsApp', anuncio: 'Anúncio' };
+var ORIGENS = { portal: 'Portal', solardoc: 'Menu do SolarDoc', solardoc_banner: 'Banner do SolarDoc', link_cadastro: 'Link de cadastro', partner_lp: 'Página /nexus/partner', convite_email: 'Convite por e-mail', convite_wpp: 'Convite por WhatsApp', anuncio: 'Anúncio', quiz_eletroposto: 'Quiz do eletroposto (vídeo)' };
 var CAPS = [
   ['cap_eletrica_bt', 'Elétrica de baixa tensão'], ['cap_eletrica_mt', 'Elétrica de média tensão'],
   ['cap_engenharia_art', 'Engenharia com ART'], ['cap_obra_civil', 'Obra civil'],

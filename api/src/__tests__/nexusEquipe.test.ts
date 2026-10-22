@@ -439,13 +439,13 @@ describe('GET /equipe/funil', () => {
   }
   const totais = (r: any) => Object.fromEntries(r.body.etapas.map((e: any) => [e.chave, e.total]));
 
-  it('conta as etapas, por origem e por UF (parceiros distintos; 8 origens sempre; vazios em baldes)', async () => {
+  it('conta as etapas, por origem e por UF (parceiros distintos; 9 origens sempre; vazios em baldes)', async () => {
     semear();
     const r = await funil();
     expect(r.status).toBe(200);
     expect(r.body.etapas.map((e: any) => e.rotulo)).toEqual(['Cadastros', 'Perfil completo', 'Primeira proposta', 'Conversa pedida', 'Conversa feita', 'Partner', 'Primeira compra (Pro)', 'Termo aceito', 'Master']);
     expect(totais(r)).toEqual({ cadastros: 5, perfil_completo: 4, primeira_proposta: 3, conversa_pedida: 1, conversa_feita: 1, partner: 2, primeira_compra: 2, termo_aceito: 2, master: 1 });
-    expect(r.body.por_origem.map((o: any) => o.origem)).toEqual(['portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro', 'sem_origem']);
+    expect(r.body.por_origem.map((o: any) => o.origem)).toEqual(['portal', 'solardoc', 'solardoc_banner', 'partner_lp', 'convite_email', 'convite_wpp', 'anuncio', 'link_cadastro', 'quiz_eletroposto', 'sem_origem']);
     const o = Object.fromEntries(r.body.por_origem.map((x: any) => [x.origem, x]));
     expect(o.portal).toEqual({ origem: 'portal', cadastros: 2, propostas: 1, compras: 0 });
     expect(o.solardoc).toEqual({ origem: 'solardoc', cadastros: 1, propostas: 1, compras: 1 });
@@ -469,11 +469,11 @@ describe('GET /equipe/funil', () => {
     expect((await funil('?desde=2026-02-31')).status).toBe(400);
   });
 
-  it('sem parceiros: tudo zero, 8 origens, nenhuma UF', async () => {
+  it('sem parceiros: tudo zero, 9 origens, nenhuma UF', async () => {
     const r = await funil();
     expect(r.status).toBe(200);
     expect(r.body.etapas.every((e: any) => e.total === 0)).toBe(true);
-    expect(r.body.por_origem).toHaveLength(8);
+    expect(r.body.por_origem).toHaveLength(9);
     expect(r.body.por_uf).toEqual([]);
   });
 
@@ -547,6 +547,7 @@ describe('/nexus/eu: adm e origem link_cadastro', () => {
     expect(r.status).toBe(200);
     expect(r.body.parceiro.origem).toBe('link_cadastro');
     expect(origemValida('link_cadastro')).toBe('link_cadastro');
+    expect(origemValida('quiz_eletroposto')).toBe('quiz_eletroposto');
     expect(origemValida('qualquer_coisa')).toBe('portal');
   });
 });
