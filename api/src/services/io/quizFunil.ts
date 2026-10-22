@@ -89,11 +89,16 @@ export interface Caminho { id: string; nome: string; passos: string[] }
  * direto para a seguinte, e por isso o painel lê "parou aqui", não "chegou".
  */
 export const CAMINHOS: Caminho[] = [
+  // 13/10/2026: o investidor sem local (do piso pra cima) escolhe o horário depois do
+  // cadastro, então `p-horario` fecha a trilha dele. 22/10/2026: no comércio o horário só
+  // existe para quem marca (ponto sob controle, ou NOTA 1 com capital); NOTA 1 sem capital e o
+  // curioso terminam no WhatsApp e seguem para o curso, sem ver o passo. O painel lê "parou
+  // aqui" pela última pergunta vista, então a lista abaixo não muda para eles.
   { id: 'inicio',               nome: 'Não escolheu uma porta',               passos: ['p-porta'] },
   { id: 'comercio',             nome: 'Dono de comércio',                     passos: ['p-porta', ...TRILHA_AGENDA] },
   { id: 'investidor',           nome: 'Investidor (não disse se tem local)',  passos: ['p-porta', 'p-cap-local'] },
   { id: 'investidor_local',     nome: 'Investidor com local',                 passos: ['p-porta', 'p-cap-local', ...TRILHA_AGENDA] },
-  { id: 'investidor_sem_local', nome: 'Investidor sem local',                 passos: ['p-porta', 'p-cap-local', 'p-inv-valor', 'p-nome', 'p-cidade', 'p-whatsapp'] },
+  { id: 'investidor_sem_local', nome: 'Investidor sem local',                 passos: ['p-porta', 'p-cap-local', 'p-inv-valor', 'p-nome', 'p-cidade', 'p-whatsapp', 'p-horario'] },
   // A quarta porta (24/09/2026). Ela NÃO passa pela trilha do ponto: quem já
   // escolheu o equipamento não responde perfil, ponto, modelo nem decisor.
   { id: 'carregador',           nome: 'Compra de carregador',                 passos: ['p-porta', 'p-nome', 'p-cidade', 'p-car-potencia', 'p-car-qtd', 'p-car-uso', 'p-car-local', 'p-car-endereco', 'p-car-software', 'p-car-instala', 'p-car-prazo', 'p-whatsapp', 'p-horario'] },

@@ -1132,7 +1132,7 @@ function pick(b){
   track('slot_escolhido');
 }
 function maskTel(i){
-  let v = i.value.replace(/\D/g,'').slice(0,11);
+  let v = i.value.replace(/\D/g,'').replace(/^(?:55|0)(?=\d{10,11}$)/, '').slice(0,11);
   if(v.length>6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
   else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
   i.value = v;

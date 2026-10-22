@@ -958,7 +958,7 @@ function enviar(e, lado){
   // SÓ O NOME (24/09/2026, ordem do Thiago): "as pessoas estão tendo que voltar".
   // Exigir sobrenome barrava o cadastro na ÚLTIMA tecla, depois de tudo preenchido.
   // Nome de uma palavra é o que a pessoa usa pra ser chamada, e é o que basta.
-  if (nome.length < 2) return erro(lado, 'Escreva o seu nome.');
+  if (nome.length < 3) return erro(lado, 'Escreva o seu nome, com pelo menos 3 letras.');
   if (telRaw.length < 10 || telRaw.length > 11)        return erro(lado, 'Informe um WhatsApp válido com DDD.');
   if (cidade.length < 2)                               return erro(lado, 'Informe a cidade e o estado.');
 
@@ -1103,7 +1103,7 @@ function esconderErro(lado){ document.getElementById('erro-' + lado).classList.r
   var el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', function(){
-    var d = el.value.replace(/\D/g,'').slice(0,11);
+    var d = el.value.replace(/\D/g,'').replace(/^(?:55|0)(?=\d{10,11}$)/, '').slice(0,11);
     el.value = d.length > 10 ? '(' + d.slice(0,2) + ') ' + d.slice(2,7) + '-' + d.slice(7)
              : d.length > 6  ? '(' + d.slice(0,2) + ') ' + d.slice(2,6) + '-' + d.slice(6)
              : d.length > 2  ? '(' + d.slice(0,2) + ') ' + d.slice(2)

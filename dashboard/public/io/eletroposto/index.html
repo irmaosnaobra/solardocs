@@ -2268,13 +2268,23 @@ function utmPrimeiroToque(){
 // que estava nesta página — a mesma que dava pra ler e apagar o banco inteiro.
 // O servidor valida telefone, consultor e horário antes de gravar: o que chega
 // daqui é pedido, não comando.
+// O erro leva `daApi` (veio desta chamada, e não de um bug depois dela) e o `status` quando
+// houve resposta. Quem decide se a pessoa precisa de recado da equipe lê os dois: queda de
+// rede e 5xx não têm status de recusa; o 409 é horário tomado e tem recuperação própria.
 async function agendarNaApi(body){
-  const r = await fetch(`${API}/io/eletroposto/agendar`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  });
+  let r;
+  try {
+    r = await fetch(`${API}/io/eletroposto/agendar`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+  } catch(e){ e.daApi = true; throw e; }
   const j = await r.json().catch(() => null);
-  if(!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http ' + r.status));
+  if(!r.ok || !j || !j.ok){
+    const e = new Error((j && j.error) || ('http ' + r.status));
+    e.daApi = true; e.status = r.status;
+    throw e;
+  }
   return j;
 }
 
@@ -3240,12 +3250,23 @@ async function montarSlots(){
   const ate  = partesBR(new Date(Date.now() + 21*86400000)).ymd;
   await carregarOcupados(hoje, ate);
 
+  // Já pediu o recado da equipe (lista vazia ou /agendar fora do ar): a remontagem não
+  // pode devolver a lista por cima do aviso.
+  if(semHorarioSalvo()){ mostrarSemHorarioSalvo(); return; }
   const dias = proximosDias();
   if(!dias.length){
     // Quem JÁ teve o cadastro gravado antes do passo da agenda (os três caminhos de
     // 13/10/2026) não precisa ir atrás de ninguém: está na lista e a equipe chama.
     const cadCaminho = regraAgora().caminho;
-    el.innerHTML = '<div class="agLoad">' + textoSemHorario(!!cadCaminho && cadastroVale(cadCaminho)) + '</div>';
+    const cadastrado = !!cadCaminho && cadastroVale(cadCaminho);
+    el.innerHTML = '<div class="agLoad">' + textoSemHorario(cadastrado) + '</div>';
+    // Comércio e carregador não tinham cadastro nenhum: só o /agendar gravava. Lista vazia
+    // com a pessoa NO passo do horário e o WhatsApp válido: grava e pede o recado. (A
+    // montagem também roda ao abrir a página e de 45 em 45 s: sem as guardas isto
+    // dispararia para quem nem começou.)
+    if(!cadastrado && noPassoDoHorario() && precisaSalvarSemHorario()){
+      salvarSemHorario('lista_vazia').then(ok => { if(ok) mostrarSemHorarioSalvo(); });
+    }
     // Soltar o quiz é escape de TELA MORTA, e só faz sentido antes de a pessoa
     // começar. Desde 30/09 o horário é o ÚLTIMO passo: aqui ela já respondeu tudo,
     // e abrir a página inteira jogaria o formulário preenchido fora. A mensagem
@@ -3297,7 +3318,9 @@ function pick(b){
   if(typeof mostrarContinuar === 'function') mostrarContinuar();
 }
 function maskTel(i){
-  let v = i.value.replace(/\D/g,'').slice(0,11);
+  // +55 / 0 da frente (preenchimento automático): sai ANTES do corte em 11, senão "+55 34 99816-5040"
+  // vira 5534998165 e os dois últimos dígitos se perdem. Mesma regra do quiz solar.
+  let v = i.value.replace(/\D/g,'').replace(/^(?:55|0)(?=\d{10,11}$)/, '').slice(0,11);
   if(v.length>6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
   else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
   i.value = v;
@@ -3463,7 +3486,10 @@ function onRelacao(){
 const val = id => document.getElementById(id).value.trim();
 const soDigitos = id => document.getElementById(id).value.replace(/\D/g,'');
 /** O WhatsApp está preenchido e com DDD? É o que libera o botão de confirmar. */
-const telefoneConfere = () => soDigitos('f-tel').length >= 10;
+/** Os dígitos do WhatsApp sem o 55 nem o 0 da frente (preenchimento automático põe "+55"). A MESMA
+ *  regra do `maskTel` e do quiz solar: com mais de 11 dígitos o 55 sai ANTES de qualquer corte. */
+const telDigitos = () => soDigitos('f-tel').replace(/^(?:55|0)(?=\d{10,11}$)/, '');
+const telefoneConfere = () => telDigitos().length >= 10 && telDigitos().length <= 11;
 /** Só quem tem ponto segue para a agenda. Investidor e integrador não agendam. */
 const soComercio = () => val('f-porta') === 'comercio';
 /** O integrador tem quiz próprio e termina cadastrado aqui mesmo (16/09/2026). */
@@ -3514,6 +3540,29 @@ const vaiParaAgenda = () => trilhaComercio() || soCarregador();
 /** Nome, cidade e WhatsApp são os passos que todas as trilhas dividem. */
 const quizAqui = () => vaiParaAgenda() || soIntegrador() || investidorSemLocal();
 
+// ── O COMÉRCIO SEM PONTO NÃO ESCOLHE HORÁRIO (22/10/2026) ────────────────────
+// A trilha do comércio inteira passava por `p-horario`, mas quem cai em NOTA 1 sem
+// capital (e o curioso que negocia o local) não marca nada: escolhia o horário,
+// apertava "Confirmar agendamento" e ia para o curso. Agora o passo só existe para
+// quem de fato marca (`destinoSemPonto`). Enquanto as respostas que decidem não
+// foram dadas, o passo conta como vivo: o "Passo N de M" muda uma vez, na hora em que
+// a resposta chega, igual ao passo de investir que some com o modelo 01.
+const nota1AgoraNoComercio = () => pontuar({
+  perfil: val('f-perfil'), rota: val('f-rota'), ponto: val('f-ponto'),
+  relacao: val('f-relacao'), invest: val('f-invest'), decisor: val('f-decisor'),
+}).nota === 1;
+function comercioDecidido(){
+  const ponto = val('f-ponto'), modelo = val('f-modelo');
+  if(!ponto || !modelo) return false;
+  if(ponto === 'definido' && !val('f-relacao')) return false;
+  return MODELO_SEM_CAPITAL.has(modelo) || !!val('f-valor');
+}
+/** 'reuniao', 'sem_horario' ou '' para as respostas de agora (sempre '' fora do comércio). */
+const destinoDoComercio = () => trilhaComercio() && comercioDecidido()
+  ? destinoSemPonto({ ponto: val('f-ponto'), modelo: val('f-modelo'), valor: val('f-valor'),
+                      nota1: nota1AgoraNoComercio() }, Date.now())
+  : '';
+
 const PASSOS = [
   { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das opções.' },
   // Pergunta de roteamento, só para quem marcou Investidor. Ela é a segunda tela
@@ -3525,7 +3574,7 @@ const PASSOS = [
   //    local, antes de nome e cidade. É ele que decide Investidor ou Curioso.
   { id:'p-inv-valor', quando: investidorSemLocal,
                       ok:() => val('f-inv-valor') ? null : 'Escolha quanto você pensa em investir.' },
-  { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 2 ? null : 'Escreva o seu nome.' },
+  { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 3 ? null : 'Escreva o seu nome completo.' },
   { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
   // ── Trilha do integrador. Vem depois de nome e cidade e antes do WhatsApp, pela
   //    mesma razão do resto do quiz: o telefone é o que mais trava, fica por último.
@@ -3611,7 +3660,7 @@ const PASSOS = [
   // terminam aqui, mas SÓ DEPOIS de o cadastro deles estar gravado
   // (`agendaDoCadastro`). Antes disso o último passo deles continua sendo o
   // WhatsApp, com o botão de concluir o cadastro.
-  { id:'p-horario', quando:() => vaiParaAgenda() || !!agendaDoCadastro(),
+  { id:'p-horario', quando:() => (vaiParaAgenda() && destinoDoComercio() !== 'sem_horario') || !!agendaDoCadastro(),
                     ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   // 22/10/2026: o integrador, com o cadastro gravado, vê a VSL no lugar do horário
   // (`vslDoCadastro`). Último passo dele; sem botão e sem Voltar (ver `pintarPasso`).
@@ -3719,8 +3768,10 @@ function pintarPasso(){
               : soIntegrador()       ? 'integrador'
               : investidorSemLocal() ? 'investidor'
               :                        'agendar';
+  // O comércio sem ponto termina no WhatsApp, sem horário (`destinoSemPonto`): ali o botão
+  // não agenda nada, ele conclui.
   btn.textContent = fecha === 'integrador' || fecha === 'investidor' ? 'Concluir meu cadastro →'
-                  : fecha === 'agendar'    ? 'Confirmar agendamento →'
+                  : fecha === 'agendar'    ? (atual.id === 'p-horario' ? 'Confirmar agendamento →' : 'Concluir →')
                   :                          'Continuar →';
   btn.dataset.acao = fecha;
   // VSL: o cadastro já foi gravado, então não há o que continuar nem a que voltar.
@@ -3818,6 +3869,11 @@ function onCarLocal(){
 
 /** Valores do investidor que ficam no CURIOSO: abaixo do piso ou "não sei". */
 const VALOR_CURIOSO = new Set(['menos_50', 'naosei']);
+/** Declarou R$ 50 mil ou mais? A ÚNICA régua do piso: o investidor sem local (`regraDaAgenda`)
+ *  e o NOTA 1 do comércio (`destinoSemPonto`) perguntam isto. No comércio o `f-valor` só tem
+ *  faixas de R$ 70 mil pra cima, então quem responde "quanto" já passa; quem não responde
+ *  (modelo 01, que não pergunta) fica de fora. */
+const valorNoPiso = v => !!v && !VALOR_CURIOSO.has(v);
 
 /** O que o investidor sem local grava. Pura (o teste roda sem página). */
 function corpoDoInvestidor(r){
@@ -3905,7 +3961,7 @@ function regraDaAgenda(r, agoraMs){
   if(r.porta === 'integrador') return { caminho: 'integrador', tipo: 'integrador' };
   if(r.porta === 'investidor' && r.capLocal !== 'meu'){
     // Sem local: o valor decide. Abaixo do piso ou "não sei" é Curioso, fica na lista.
-    if(!r.capLocal || !r.invValor || VALOR_CURIOSO.has(r.invValor)) return nada;
+    if(!r.capLocal || !valorNoPiso(r.invValor)) return nada;
     return { caminho: 'cotista', tipo: 'cotista' };
   }
   // Daqui pra baixo é a trilha do ponto: dono de comércio e investidor com local.
@@ -3920,6 +3976,25 @@ function regraDaAgenda(r, agoraMs){
     return { caminho: '', tipo: 'arrendamento' };
   if(r.porta === 'investidor') return { caminho: '', tipo: 'cotista' };
   return nada;
+}
+
+/**
+ * O QUE ACONTECE COM QUEM NÃO TEM PONTO SOB CONTROLE, na trilha do comércio (22/10/2026).
+ * Pura. `r`: { ponto, modelo, valor, nota1 } (`nota1` = `pontuar(...).nota === 1`).
+ *   'reuniao'     NOTA 1 com capital do piso pra cima: pela regra de 12/10 é investidor, e
+ *                 investidor cai na agenda. Marca com a etiqueta 'cotista', como o
+ *                 investidor sem local.
+ *   'sem_horario' NOTA 1 sem capital e o curioso que negocia o local: ninguém marca nada,
+ *                 então o horário nem aparece. Eles seguem para o curso e para a tela de
+ *                 curioso, que é o que sempre foi o fim deles.
+ *   ''            ponto sob controle: agenda como sempre.
+ * Antes de REGRA_AGENDA_DESDE ou com relógio ilegível ninguém marca reunião por aqui.
+ */
+function destinoSemPonto(r, agoraMs){
+  if(paraCuriosoDoComercio(r.ponto, r.modelo, r.valor)) return 'sem_horario';
+  if(!r.nota1) return '';
+  const ligada = agoraMs >= Date.parse(REGRA_AGENDA_DESDE);
+  return ligada && valorNoPiso(r.valor) ? 'reuniao' : 'sem_horario';
 }
 
 /**
@@ -4217,7 +4292,7 @@ async function cadastrarArrendamentoEAbrir(){
     console.error(e);
     cadastrandoArrend = false;
     btn.disabled = false; btn.textContent = rotulo;
-    return erro('Não consegui salvar agora — pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+    return erro('Não consegui salvar agora, pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
   }
   cadastrandoArrend = false;
   btn.disabled = false; btn.textContent = rotulo;
@@ -4329,6 +4404,10 @@ function passoProximo(){
     if(vivos[passoAtual + 1].id === 'p-horario'
        && regraAgora().caminho === 'arrendamento' && !cadastroVale('arrendamento')
        && vivos.slice(0, passoAtual + 1).every(p => !p.ok())) return cadastrarArrendamentoEAbrir();
+    // NOTA 1 com capital (22/10/2026): ficha e cadastro saem na passagem para o horário.
+    if(vivos[passoAtual + 1].id === 'p-horario' && destinoDoComercio() === 'reuniao'
+       && nota1GravadoPara !== telParaBanco()
+       && vivos.slice(0, passoAtual + 1).every(p => !p.ok())) return gravarNota1EAbrir();
     passoAtual++; pintarPasso(); return;
   }
   // ÚLTIMO PASSO COM RESPOSTA VÁLIDA e o botão ainda dizendo "Continuar": o rótulo
@@ -4431,7 +4510,7 @@ const SELECTS_EM_BOTAO = ['f-porta','f-cap-local','f-inv-valor','f-perfil','f-ro
                           // continua sendo a lista do sistema no celular, que é
                           // exatamente o que o bloco acima diz que foi consertado.
                           'f-i-atuacao','f-i-exp','f-i-interesse','f-i-equipe',
-                          'f-car-potencia','f-car-qtd','f-car-uso','f-car-software','f-car-instala','f-car-prazo'];
+                          'f-car-potencia','f-car-qtd','f-car-uso','f-car-local','f-car-software','f-car-instala','f-car-prazo'];
 function montarOpcoes(){
   SELECTS_EM_BOTAO.forEach(id => {
     const sel = document.getElementById(id);
@@ -4481,7 +4560,15 @@ function escolherOpcao(sel, valor){
 }
 // Enter avança, que é o que o dedo espera num campo de texto sozinho na tela.
 document.getElementById('ag-form').addEventListener('keydown', e => {
-  if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); passoProximo(); }
+  if(e.key === 'Enter' && e.target.tagName === 'INPUT'){
+    e.preventDefault();
+    // No ÚLTIMO passo com a resposta válida o Enter faz o que o botão faz (concluir o
+    // cadastro, agendar). Só repintar era um Enter morto. Botão desabilitado = já enviando.
+    const b = document.getElementById('ag-btn');
+    if(b.disabled) return;
+    if(b.dataset.acao && b.dataset.acao !== 'proximo') return passoAcao();
+    passoProximo();
+  }
 });
 
 /**
@@ -4526,8 +4613,7 @@ function erro(txt){
  * conta própria: duas cópias desta regra é como o 55 duplicado volta.
  */
 function telParaBanco(){
-  const bruto = document.getElementById('f-tel').value.replace(/\D/g,'');
-  return (bruto.length >= 12 && bruto.slice(0,2) === '55') ? bruto : '55' + bruto;
+  return '55' + telDigitos();
 }
 
 /**
@@ -4575,8 +4661,156 @@ async function cadastrarIntegrador(){
   } catch(e){
     console.error(e);
     btn.disabled = false; btn.textContent = rotulo;
-    erro('Não consegui salvar seu cadastro agora — pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+    erro('Não consegui salvar seu cadastro agora, pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
   }
+}
+
+/**
+ * A ficha da porta do carregador, lida da tela. Fora do `agendar()` desde 22/10/2026 para o
+ * mesmo texto servir à reunião e ao recado de quem não conseguiu marcar horário
+ * (`salvarSemHorario`). O teste do endereço (eletropostoCarregadorEndereco) roda este trecho.
+ */
+function fichaDoCarregador(cidade){
+  const q = id => (document.getElementById(id).selectedOptions[0] || {}).text || '—';
+  // Mesmo formato de rótulo das outras fichas: cada linha daqui vira uma linha da
+  // mensagem no WhatsApp da equipe (api/src/routes/ioEletroposto.ts).
+  // O endereço sai no MESMO formato da trilha do comércio, porque quem o lê é o
+  // mesmo `extrairEndereco()`: `rua, nº · bairro · cidade · CEP x`. Sem a linha
+  // `Endereço:` a ficha não entra nem no tick do estudo nem no Top 20 pontos —
+  // as duas consultas filtram por `ilike '%Endereço:%'`.
+  const carEnd = carregadorComLocal()
+    ? [`${val('f-car-rua')}, ${val('f-car-numero')}`, val('f-car-bairro'), cidade,
+       val('f-car-cep') ? `CEP ${val('f-car-cep')}` : ''].filter(Boolean).join(' · ')
+    : '';
+  const obsCar = [
+    'LP ELETROPOSTO · COMPRA DE CARREGADOR',
+    // `VENDA DE EQUIPAMENTO` é a CHAVE DO CARD, não um rótulo: o
+    // `montarCardCarregador` em api/src/routes/ioEletroposto.ts desenha o card
+    // desta porta atrás de `tem('VENDA DE EQUIPAMENTO')`. Tirá-la de quem pede
+    // projeto jogaria 55% da porta no card genérico — o dos seis traços que o
+    // commit de 24/09 veio consertar. Ela fica SEMPRE; a separação vem na linha
+    // de baixo, somada, nunca no lugar dela.
+    'VENDA DE EQUIPAMENTO',
+    // A SEPARAÇÃO REAL (28/09/2026). Marcador, e não texto para o card adivinhar:
+    // renomear um rótulo do select não pode apagar o destaque lá.
+    carregadorProjetoCompleto() ? 'PROJETO COMPLETO' : '',
+    `Potência: ${q('f-car-potencia')}`,
+    `Unidades: ${q('f-car-qtd')}`,
+    `Para onde vai: ${q('f-car-uso')}`,
+    // `Ponto:` com o vocabulário de `f-ponto`: é esta linha que o trigger
+    // `eletroposto_estruturar` lê para preencher `tem_ponto`, o primeiro critério
+    // de ordenação do Top 20 pontos.
+    `Ponto: ${q('f-car-local')}`,
+    carEnd ? `Endereço: ${carEnd}` : '',
+    `Software e app: ${q('f-car-software')}`,
+    `Instalação: ${q('f-car-instala')}`,
+    `Prazo: ${q('f-car-prazo')}`,
+    // Marcadores, e não texto para o card adivinhar: renomear um rótulo aqui não
+    // pode apagar o destaque lá. É o mesmo padrão do PONTO DISPONIVEL PARA
+    // INVESTIDOR, que já vive na ficha desde agosto.
+    val('f-car-instala') === 'voces_montam' ? 'COM OBRA' : '',
+    val('f-car-instala') === 'obra_minha_projeto_voces' ? 'PROJETO E ART' : '',
+  ].filter(Boolean).join('\n');
+  return obsCar;
+}
+
+/** O telefone cuja ficha NOTA 1 (e o cadastro de investidor) já foi gravada nesta visita. */
+let nota1GravadoPara = '';
+/**
+ * Grava a ficha NOTA 1 e, para quem declarou o piso, o cadastro de INVESTIDOR (lado capital,
+ * `automatico`: não avisa a equipe, quem avisa é a reunião). Lê tudo da tela, por isso serve
+ * à passagem para o horário e ao clique final. Idempotente por telefone: só marca como feito
+ * quando os dois POSTs voltaram ok, e então não repete. Devolve true se gravou tudo.
+ */
+async function gravarNota1DaTela(){
+  const telE164 = telParaBanco();
+  if(nota1GravadoPara === telE164) return true;
+  const nome = val('f-nome'), cidade = val('f-cidade');
+  const el = id => document.getElementById(id);
+  const txt = x => (x.selectedOptions[0] || {}).text || 'não informado';
+  const perfil = el('f-perfil'), rota = el('f-rota'), ponto = el('f-ponto'), relacao = el('f-relacao');
+  const invest = el('f-invest'), decisor = el('f-decisor'), vagas = el('f-vagas');
+  const modelo = el('f-modelo'), valor = el('f-valor');
+  const pagaCapital = !MODELO_SEM_CAPITAL.has(modelo.value);
+  const investTexto = pagaCapital ? txt(invest) : 'Não se aplica · modelo 01, a NEXUS investe 100%';
+  const q = pontuar({ perfil:perfil.value, rota:rota.value, ponto:ponto.value,
+                      relacao:relacao.value, invest:invest.value, decisor:decisor.value });
+  const envios = [fetch('/_api/io/eletroposto/nota1', {
+    method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+    body: JSON.stringify({
+
+      nome, telefone: telE164, cidade,
+      perfil: perfilTexto(perfil),
+      // O texto do ponto leva um sufixo quando a resposta SEGUINTE desmentiu a
+      // primeira. A aba Arrendamento do /gerador mostra este campo como "situação
+      // do ponto", e sem o sufixo a linha de quem só escolheu um local lê igualzinha
+      // à de quem tem a chave do lugar — na lista mais escassa da operação (1 ponto
+      // para 96 investidores). O slug do banco não muda: ep_slug_ponto casa por
+      // 'Já tenho o ponto definido%' e continua gravando 'definido'. Quem separa em
+      // coluna é ponto_relacao, que só existe depois da migration.
+      ponto: txt(ponto) + (SEM_CONTROLE.has(relacao.value) ? ' (mas o local ainda não é meu)' : ''),
+      invest: investTexto,
+      decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
+      pts: q.pts,
+      ...utmPrimeiroToque(),
+      ficha: [
+        `LP ELETROPOSTO · ${perfilTexto(perfil)}`,
+        `Modelo de interesse: ${txt(modelo)}`,
+        // Desde 10/09 o ponto é a porta da agenda, então toda NOTA 1 é falta de
+        // ponto próprio (o "pontuação baixa" de antes não acontece mais), e desde
+        // 15/09 os pontos daqui param em 8.
+        `NOTA 1 · ${q.pts}/11 pts (sem ponto próprio)`,
+        `Ponto: ${txt(ponto)}`,
+        // Só existe pra quem disse ter o ponto: é a resposta que o cortou, e sem
+        // ela a lista de arrendamento não sabe separar quem tem o local de quem
+        // só escolheu um. Mesmo rótulo do agendamento e do banco.
+        ...(ponto.value === 'definido' && relacao.value ? [`Local é seu: ${txt(relacao)}`] : []),
+        ...(PONTO_COM_VAGAS.has(ponto.value) ? [`Vagas disponíveis: ${txt(vagas)}`] : []),
+        `Como pretende investir: ${investTexto}`,
+        ...(pagaCapital ? [`Quanto pretende investir: ${txt(valor)}`] : []),
+        `Decisor: ${txt(decisor)}`,
+      ].join('\n'),
+    }),
+  })];
+  // O cadastro de INVESTIDOR, sem formulário. Chave sem valor não apaga nada no banco (a rota
+  // tira do objeto), então quem já tinha se cadastrado à mão não perde o que preencheu. O piso
+  // é o mesmo do investidor sem local (`valorNoPiso`).
+  if(pagaCapital && valorNoPiso(valor.value)){
+    envios.push(fetch('/_api/io/eletroposto/parceria', {
+      method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+      body: JSON.stringify({
+        lado: 'capital', nome, telefone: telE164, cidade,
+        capital_faixa: txt(valor), capital_origem: investTexto,
+        origem: 'lp_nota1', automatico: true,
+        ...utmPrimeiroToque(),
+      }),
+    }));
+  }
+  const res = await Promise.allSettled(envios);
+  const ok = res.every(r => r.status === 'fulfilled' && r.value && r.value.ok);
+  if(ok) nota1GravadoPara = telE164;
+  return ok;
+}
+/**
+ * Passagem do WhatsApp para o horário de quem tem NOTA 1 com capital: grava a ficha e o
+ * cadastro ANTES de abrir a lista, para quem desistir olhando os horários já estar nas
+ * listas. Não trava ninguém: demorou ou falhou, a lista abre do mesmo jeito (o clique de
+ * confirmar tenta de novo, e a reunião também grava a pessoa).
+ */
+let gravandoNota1 = false;
+async function gravarNota1EAbrir(){
+  if(gravandoNota1) return;
+  gravandoNota1 = true;
+  const btn = document.getElementById('ag-btn');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    await Promise.race([gravarNota1DaTela(), new Promise(r => setTimeout(r, 6000))]);
+  } catch(e){ console.error(e); }
+  gravandoNota1 = false;
+  btn.disabled = false;
+  const i = passosVivos().findIndex(p => p.id === 'p-horario');
+  if(i >= 0) passoAtual = i;
+  pintarPasso();
 }
 
 async function agendar(){
@@ -4614,10 +4848,9 @@ async function agendar(){
   //     a etiqueta CARREGADOR aparece sozinha no painel, que é a regra do dono
   //     ("público novo gera etiqueta nova e o dashboard atualiza sozinho").
   if(soCarregador()){
-    if(nome.length < 2) return erro('Escreva o seu nome.');
+    if(nome.length < 3) return erro('Escreva o seu nome completo.');
     if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
     if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
-    const q = id => (document.getElementById(id).selectedOptions[0] || {}).text || '—';
     // Última porta do endereço (28/09/2026): o passo já cobra, mas `agendar()` é
     // quem grava — e é ela que segura aba velha em memória e Enter fora do passo.
     if(!val('f-car-local')) return erro('Informe se você já tem o local.');
@@ -4627,45 +4860,7 @@ async function agendar(){
       if(val('f-car-bairro').length < 2) return erro('Informe o bairro do ponto.');
     }
     if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
-    // Mesmo formato de rótulo das outras fichas: cada linha daqui vira uma linha da
-    // mensagem no WhatsApp da equipe (api/src/routes/ioEletroposto.ts).
-    // O endereço sai no MESMO formato da trilha do comércio, porque quem o lê é o
-    // mesmo `extrairEndereco()`: `rua, nº · bairro · cidade · CEP x`. Sem a linha
-    // `Endereço:` a ficha não entra nem no tick do estudo nem no Top 20 pontos —
-    // as duas consultas filtram por `ilike '%Endereço:%'`.
-    const carEnd = carregadorComLocal()
-      ? [`${val('f-car-rua')}, ${val('f-car-numero')}`, val('f-car-bairro'), cidade,
-         val('f-car-cep') ? `CEP ${val('f-car-cep')}` : ''].filter(Boolean).join(' · ')
-      : '';
-    const obsCar = [
-      'LP ELETROPOSTO · COMPRA DE CARREGADOR',
-      // `VENDA DE EQUIPAMENTO` é a CHAVE DO CARD, não um rótulo: o
-      // `montarCardCarregador` em api/src/routes/ioEletroposto.ts desenha o card
-      // desta porta atrás de `tem('VENDA DE EQUIPAMENTO')`. Tirá-la de quem pede
-      // projeto jogaria 55% da porta no card genérico — o dos seis traços que o
-      // commit de 24/09 veio consertar. Ela fica SEMPRE; a separação vem na linha
-      // de baixo, somada, nunca no lugar dela.
-      'VENDA DE EQUIPAMENTO',
-      // A SEPARAÇÃO REAL (28/09/2026). Marcador, e não texto para o card adivinhar:
-      // renomear um rótulo do select não pode apagar o destaque lá.
-      carregadorProjetoCompleto() ? 'PROJETO COMPLETO' : '',
-      `Potência: ${q('f-car-potencia')}`,
-      `Unidades: ${q('f-car-qtd')}`,
-      `Para onde vai: ${q('f-car-uso')}`,
-      // `Ponto:` com o vocabulário de `f-ponto`: é esta linha que o trigger
-      // `eletroposto_estruturar` lê para preencher `tem_ponto`, o primeiro critério
-      // de ordenação do Top 20 pontos.
-      `Ponto: ${q('f-car-local')}`,
-      carEnd ? `Endereço: ${carEnd}` : '',
-      `Software e app: ${q('f-car-software')}`,
-      `Instalação: ${q('f-car-instala')}`,
-      `Prazo: ${q('f-car-prazo')}`,
-      // Marcadores, e não texto para o card adivinhar: renomear um rótulo aqui não
-      // pode apagar o destaque lá. É o mesmo padrão do PONTO DISPONIVEL PARA
-      // INVESTIDOR, que já vive na ficha desde agosto.
-      val('f-car-instala') === 'voces_montam' ? 'COM OBRA' : '',
-      val('f-car-instala') === 'obra_minha_projeto_voces' ? 'PROJETO E ART' : '',
-    ].filter(Boolean).join('\n');
+    const obsCar = fichaDoCarregador(cidade);
     pendente = { nome, tel: telE164, cidade, perfil: 'Compra de carregador',
                  obs: obsCar, temperatura: 'quente', origem: 'lp_eletroposto_carregador' };
     document.getElementById('ag-msg').className = 'agMsg';
@@ -4682,7 +4877,7 @@ async function agendar(){
   // ele); quem diz o tipo é a etiqueta, que o servidor grava a partir de `tipo`.
   const caminhoNovo = agendaDoCadastro();
   if(caminhoNovo){
-    if(nome.length < 2) return erro('Escreva o seu nome.');
+    if(nome.length < 3) return erro('Escreva o seu nome completo.');
     if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
     if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
     if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
@@ -4700,7 +4895,7 @@ async function agendar(){
 
   // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
   // vai agendar, então não faz sentido cobrar dele a escolha de um slot primeiro.
-  if(nome.length < 2)     return erro('Escreva o seu nome.');
+  if(nome.length < 3)     return erro('Escreva o seu nome completo.');
   if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
   if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
   if(!perfil.value)       return erro('Selecione seu perfil.');
@@ -4741,44 +4936,38 @@ async function agendar(){
   // no WhatsApp dele — até 01/08 nada disso era gravado, e quem não clicasse no botão
   // sumia sem deixar rastro. O envio é fire-and-forget: a tela do grupo não espera.
   if(q.nota === 1){
-    try {
-      fetch('/_api/io/eletroposto/nota1', {
-        method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
-        body: JSON.stringify({
-          nome, telefone: telE164, cidade,
-          perfil: perfilTexto(perfil),
-          // O texto do ponto leva um sufixo quando a resposta SEGUINTE desmentiu a
-          // primeira. A aba Arrendamento do /gerador mostra este campo como "situação
-          // do ponto", e sem o sufixo a linha de quem só escolheu um local lê igualzinha
-          // à de quem tem a chave do lugar — na lista mais escassa da operação (1 ponto
-          // para 96 investidores). O slug do banco não muda: ep_slug_ponto casa por
-          // 'Já tenho o ponto definido%' e continua gravando 'definido'. Quem separa em
-          // coluna é ponto_relacao, que só existe depois da migration.
-          ponto: txt(ponto) + (SEM_CONTROLE.has(relacao.value) ? ' (mas o local ainda não é meu)' : ''),
-          invest: investTexto,
-          decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
-          pts: q.pts,
-          ...utmPrimeiroToque(),
-          ficha: [
-            `LP ELETROPOSTO · ${perfilTexto(perfil)}`,
-            `Modelo de interesse: ${txt(modelo)}`,
-            // Desde 10/09 o ponto é a porta da agenda, então toda NOTA 1 é falta de
-            // ponto próprio (o "pontuação baixa" de antes não acontece mais), e desde
-            // 15/09 os pontos daqui param em 8.
-            `NOTA 1 · ${q.pts}/11 pts (sem ponto próprio)`,
-            `Ponto: ${txt(ponto)}`,
-            // Só existe pra quem disse ter o ponto: é a resposta que o cortou, e sem
-            // ela a lista de arrendamento não sabe separar quem tem o local de quem
-            // só escolheu um. Mesmo rótulo do agendamento e do banco.
-            ...(ponto.value === 'definido' && relacao.value ? [`Local é seu: ${txt(relacao)}`] : []),
-            ...(PONTO_COM_VAGAS.has(ponto.value) ? [`Vagas disponíveis: ${txt(vagas)}`] : []),
-            `Como pretende investir: ${investTexto}`,
-            ...(pagaCapital ? [`Quanto pretende investir: ${txt(valor)}`] : []),
-            `Decisor: ${txt(decisor)}`,
-          ].join('\n'),
-        }),
-      }).catch(()=>{});
-    } catch(_){}
+    // A ficha NOTA 1 e o cadastro de investidor saem por `gravarNota1DaTela` (idempotente
+    // por telefone): quem tem capital já foi gravado na passagem para o horário. Não espera:
+    // a aba pode trocar de página logo em seguida (keepalive), como sempre foi.
+    gravarNota1DaTela().catch(() => {});
+    const comReuniao = destinoDoComercio() === 'reuniao';
+    if(comReuniao){
+      // NOTA 1 com capital do piso pra cima é INVESTIDOR (regra de 12/10) e marca reunião
+      // com a etiqueta cotista, como o investidor sem local: mesma ficha, mesmo portão,
+      // mesma confirmação. Quem avisa a equipe é o /alerta da reunião (o /parceria vai
+      // com `automatico`).
+      if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
+      // A ficha é a do comércio (perfil, ponto, vagas, modelo, decisor): o aviso do tipo e o CRM
+      // leem esses rótulos, e a versão enxuta de "investidor sem local" perdia tudo isso. Sem a
+      // linha "NOTA 1": quem lê a nota é o trigger do banco, e esta pessoa marca reunião.
+      const obsN1 = [
+        `LP ELETROPOSTO · ${perfilTexto(perfil)}`,
+        `Ponto: ${txt(ponto)}`,
+        ...(ponto.value === 'definido' && relacao.value ? [`Local é seu: ${txt(relacao)}`] : []),
+        ...(PONTO_COM_VAGAS.has(ponto.value) ? [`Vagas disponíveis: ${txt(vagas)}`] : []),
+        `Modelo de interesse: ${txt(modelo)}`,
+        ...(PERFIL_SEM_FLUXO.has(perfil.value) ? [`Rota de passagem: ${txt(rota)}`] : []),
+        `Como pretende investir: ${investTexto}`,
+        ...(pagaCapital ? [`Quanto pretende investir: ${txt(valor)}`] : []),
+        `Decisor: ${txt(decisor)}`,
+      ].join('\n');
+      pendente = { nome, tel: telE164, cidade, perfil: 'Investidor',
+                   obs: obsN1,
+                   temperatura: 'quente', origem: 'lp_eletroposto', tipo: 'cotista', cartoes: 'cotista' };
+      document.getElementById('ag-msg').className = 'agMsg';
+      abrirConfirma();
+      return;
+    }
 
     // ── PRA ONDE VAI O NOTA 1 (15/09/2026 à noite, ordem do Thiago) ──
     //
@@ -4826,23 +5015,6 @@ async function agendar(){
         lado: curioso ? '' : (semCapital ? 'ponto' : 'capital'),
       }));
     } catch(_){}
-
-    // O cadastro de INVESTIDOR, sem formulário. keepalive porque a aba troca de página
-    // logo em seguida. Chave sem valor não apaga nada no banco (a rota tira do objeto),
-    // então quem já tinha se cadastrado à mão não perde o que preencheu.
-    if (!semCapital) {
-      try {
-        fetch('/_api/io/eletroposto/parceria', {
-          method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
-          body: JSON.stringify({
-            lado: 'capital', nome, telefone: telE164, cidade,
-            capital_faixa: txt(valor), capital_origem: investTexto,
-            origem: 'lp_nota1', automatico: true,
-            ...utmPrimeiroToque(),
-          }),
-        }).catch(()=>{});
-      } catch(_){}
-    }
 
     // Eventos separados por caminho, para o Pixel saber quem chegou ao curso por qual
     // motivo. Os nota1_parceria_* da tarde de 15/09 param de contar.
@@ -4895,7 +5067,7 @@ async function agendar(){
       } catch(e){
         console.error(e);
         btnA.disabled = false; btnA.textContent = rotuloA;
-        erro('Não consegui salvar agora — pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+        erro('Não consegui salvar agora, pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
         return;
       }
       if(!comAgenda){
@@ -5082,8 +5254,11 @@ async function gravarAgendamento(){
     // novo entra no rodízio — mas só pode cair em quem AINDA cabe neste horário,
     // senão os dois vão pro mesmo e o slot grava reunião sobreposta.
     const livres = donosLivres(slotSel);
-    const preferido = cliente.dono;
-    if(preferido && DONOS.includes(preferido) && !livres.includes(preferido)){
+    // O MESMO filtro do `prepararAgenda`: dono que não é do Thiago nem do Diego (a Nilce e a
+    // Giovanna atendem clientes antigos) não vira `vendedor_nome`, senão o servidor recusa com
+    // 400 "consultor invalido" e quem já foi cliente não consegue marcar. Entra no rodízio.
+    const preferido = cliente.dono && DONOS.includes(cliente.dono) ? cliente.dono : null;
+    if(preferido && !livres.includes(preferido)){
       // Cliente que já é do Thiago não pode ser jogado pro Diego só porque o horário
       // apertou — o dono é fixo; quem muda é o horário.
       slotSel = null; pendente = null;
@@ -5162,7 +5337,7 @@ async function gravarAgendamento(){
     // ela foi aberta antes de o dia sair da grade e ficou com a lista velha em
     // memória. Remontar a vitrine é o conserto — o texto genérico mandaria a
     // pessoa pro WhatsApp por um horário que ela mesma pode reescolher aqui.
-    if(String(e && e.message) === 'dia fechado'){
+    if(String(e && e.message) === 'dia fechado' || String(e && e.message) === 'horario indisponivel'){
       // Mesma regra das saídas de cima (30/09/2026): zera o slot que o servidor
       // recusou, senão o clique seguinte insiste no mesmo horário, e volta pro
       // passo da lista — em cima do `p-whatsapp` "aí em cima" não existe.
@@ -5173,9 +5348,136 @@ async function gravarAgendamento(){
       erro('Esse horário não está mais disponível. Atualizei os horários aí em cima, é só escolher outro.');
       return;
     }
+    // Rede caiu (sem status) ou o servidor deu 5xx no /agendar: a pessoa não pode sumir. 400 é a
+    // página mandando dado ruim e 409 é horário tomado (saiu acima): nenhum dos dois é rede nem
+    // servidor, e gravar "sem horário" esconderia o erro. Só o comércio e o carregador chegam
+    // aqui sem cadastro gravado.
+    if(e && e.daApi && (!e.status || e.status >= 500) && precisaSalvarSemHorario()){
+      return recuperarDoAgendarFalho(btn);
+    }
     erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
     btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
   }
+}
+
+// ══ NINGUÉM SOME POR FALTA DE HORÁRIO (22/10/2026) ═══════════════════════════
+// O comércio e o carregador só gravavam no /agendar. Lista de horários vazia ou /agendar
+// fora do ar deixava a pessoa digitar tudo e ir embora sem rastro. Os dois casos agora
+// passam por `salvarSemHorario`: grava a ficha (POST /nota1, que já existe) e pede UM recado
+// à equipe (`sem_horario: true`, com trava no servidor: um por telefone e teto por hora).
+const TEXTO_SEM_HORARIO_SALVO = 'Recebemos os seus dados. A equipe vai te chamar no WhatsApp para marcar o horário.';
+// Quando o recado NÃO saiu (teto do dia, balde de 10 minutos ocupado, linha pausada, resposta sem
+// `aviso`), prometer "a equipe vai te chamar" seria mentira: a pessoa chama a gente.
+const TEXTO_SEM_HORARIO_ZAP = 'Recebemos os seus dados. Para marcar agora, <a href="https://wa.me/5534998165040" data-source="eletroposto-sem-horario" target="_blank" rel="noopener">chame a gente no WhatsApp</a>.';
+/** O telefone cujo recado de "sem horário" já foi aceito pelo servidor nesta visita. */
+let semHorarioFeito = '';
+/** O `aviso` que o servidor devolveu na gravação ('enviado', 'ja_avisado', 'teto', 'falha', 'teste' ou ''). */
+let semHorarioAviso = '';
+/** Só estes dois avisos provam que a equipe sabe e vai chamar. */
+const equipeVaiChamar = () => semHorarioAviso === 'enviado' || semHorarioAviso === 'ja_avisado';
+let salvandoSemHorario = false;
+/** Vale só para quem termina sem cadastro gravado (comércio e carregador). */
+function precisaSalvarSemHorario(){
+  if(!(soCarregador() || trilhaComercio())) return false;
+  if(val('f-nome').length < 3 || !telefoneConfere()) return false;
+  const c = regraAgora().caminho;
+  return !(c && cadastroVale(c));
+}
+const semHorarioSalvo = () => !!semHorarioFeito && semHorarioFeito === telParaBanco();
+/** A ficha do que a pessoa respondeu: a do card, se já montada, ou a lida da tela. */
+function fichaParaSemHorario(){
+  if(pendente && pendente.obs) return pendente.obs;
+  if(soCarregador()) return fichaDoCarregador(val('f-cidade'));
+  const txtId = id => textoDe(id) || 'não informado';
+  const pontoDef = val('f-ponto') === 'definido';
+  const paga = !MODELO_SEM_CAPITAL.has(val('f-modelo'));
+  return [
+    `LP ELETROPOSTO · ${perfilTexto(document.getElementById('f-perfil'))}`,
+    `Ponto: ${txtId('f-ponto')}`,
+    pontoDef ? `Local é seu: ${txtId('f-relacao')}` : '',
+    PONTO_COM_VAGAS.has(val('f-ponto')) ? `Vagas disponíveis: ${txtId('f-vagas')}` : '',
+    `Modelo de interesse: ${txtId('f-modelo')}`,
+    paga ? `Como pretende investir: ${txtId('f-invest')}` : '',
+    paga ? `Quanto pretende investir: ${txtId('f-valor')}` : '',
+    `Decisor: ${txtId('f-decisor')}`,
+  ].filter(Boolean).join('\n');
+}
+/**
+ * Grava a pessoa e avisa a equipe. Devolve true só se o servidor devolveu o id da ficha
+ * (a rota responde ok mesmo com o banco fora, e aí o texto de "recebemos" seria mentira).
+ * Uma vez por telefone nesta visita; a trava de verdade mora no servidor.
+ */
+async function salvarSemHorario(motivo){
+  if(!precisaSalvarSemHorario()) return false;
+  if(semHorarioSalvo()) return true;
+  if(salvandoSemHorario) return false;
+  salvandoSemHorario = true;
+  try {
+    const carregador = soCarregador();
+    const corpo = {
+      nome: val('f-nome'), telefone: telParaBanco(), cidade: val('f-cidade'),
+      perfil: carregador ? 'Compra de carregador' : perfilTexto(document.getElementById('f-perfil')),
+      ponto: carregador ? textoDe('f-car-local') : textoDe('f-ponto'),
+      ficha: fichaParaSemHorario(),
+      sem_horario: true, motivo, caminho: carregador ? 'carregador' : 'comercio',
+      // A ficha NOTA 1 (comércio com capital) já foi gravada na passagem para o horário: o
+      // servidor só faz o recado, sem inserir outra linha.
+      ...(nota1GravadoPara === telParaBanco() ? { ja_gravado: true } : {}),
+      ...utmPrimeiroToque(),
+    };
+    const r = await fetch('/_api/io/eletroposto/nota1', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, keepalive: true,
+      body: JSON.stringify(corpo),
+    });
+    const j = await r.json().catch(() => null);
+    if(!r.ok || !j || !(j.id || (corpo.ja_gravado && j.ok))) return false;
+    semHorarioFeito = corpo.telefone;
+    semHorarioAviso = typeof j.aviso === 'string' ? j.aviso : '';
+    track('sem_horario_' + motivo);
+    return true;
+  } catch(e){
+    console.error(e);
+    return false;
+  } finally { salvandoSemHorario = false; }
+}
+/** O lugar da lista de horários vira o aviso de que a equipe chama. */
+function mostrarSemHorarioSalvo(){
+  const el = document.getElementById('slots');
+  el.innerHTML = '<div class="agLoad">' + (equipeVaiChamar() ? TEXTO_SEM_HORARIO_SALVO : TEXTO_SEM_HORARIO_ZAP) + '</div>';
+}
+/** A tela de reunião marcada, para quem já tem horário e a resposta do /agendar se perdeu. */
+function mostrarReuniaoJaMarcada(quandoIso, cartoes){
+  try{ window.quizFim('reuniao', 'recuperada'); }catch(e){}
+  const rot = rotuloSlot(quandoIso);
+  document.getElementById('ok-txt').textContent = `${rot.completo}, horário de Brasília`;
+  document.getElementById('ok-dia').textContent = rot.diaSemana;
+  aplicarCartoesDoOk(cartoes);
+  document.getElementById('ag-form').style.display = 'none';
+  document.getElementById('ag-ok').style.display = 'block';
+  paginaDepoisDeAgendar();
+  document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'start'});
+}
+/**
+ * O /agendar falhou por rede ou 500. A rede pode ter caído DEPOIS de o servidor gravar o
+ * card: antes de dizer que não deu, pergunta ao servidor (GET /cliente, `jaMarcado`). Já tem
+ * reunião futura: mostra a reunião marcada e não grava nem avisa nada. Senão grava a pessoa
+ * e pede o recado; se nem isso passar, fica a mensagem de sempre com o WhatsApp.
+ */
+async function recuperarDoAgendarFalho(btn){
+  const cartoes = pendente && pendente.cartoes;
+  const c = await consultarCliente(telParaBanco());
+  if(c.jaMarcado){
+    pendente = null;
+    return mostrarReuniaoJaMarcada(c.jaMarcado.quando, cartoes);
+  }
+  if(await salvarSemHorario('agendar_falhou')){
+    slotSel = null; pendente = null;
+    mostrarSemHorarioSalvo();
+    btn.disabled = true; btn.textContent = 'Dados recebidos';
+    return;
+  }
+  erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
+  btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
 }
 
 montarSlots();

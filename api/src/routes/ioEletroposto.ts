@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
 // Os eventos do funil vivem em pc_eventos, no projeto solardoc-pro.
 import { supabase as supabasePc } from '../utils/supabase';
-import { sendWhatsApp } from '../services/agents/zapiClient';
+import { sendWhatsApp, linhaEmCooldown } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
 import { logger } from '../utils/logger';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
@@ -411,16 +411,26 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
     ...utm(b),
   };
 
+  // `sem_horario: true` (22/10/2026): a LP não conseguiu mostrar ou gravar um horário para quem
+  // já respondeu o quiz do comércio ou do carregador. A ficha é gravada como sempre e, DEPOIS
+  // dela, sai UM recado à equipe, com a trava de `avisarSemHorario`. Sem a flag nada muda.
+  const semHorario = b.sem_horario === true;
+
+  // `ja_gravado: true` (junto de `sem_horario`): a LP já gravou a ficha NOTA 1 na passagem para
+  // o horário. Gravar de novo duplicaria a linha do funil; aqui só sai o recado.
+  const jaGravado = semHorario && b.ja_gravado === true;
   let id: number | null = null;
-  try {
-    const { data, error } = await supabaseGerador
-      .from('eletroposto_nota1').insert(lead).select('id').single();
-    if (error) throw error;
-    id = data?.id ?? null;
-  } catch (err) {
-    // Falhou a gravação: ainda assim seguimos pro convite. Um lead com o link na
-    // mão vale mais que um lead numa tabela — e o log guarda a ficha.
-    logger.error('io-eletroposto-nota1', `falha gravando ${telefone}`, err);
+  if (!jaGravado) {
+    try {
+      const { data, error } = await supabaseGerador
+        .from('eletroposto_nota1').insert(lead).select('id').single();
+      if (error) throw error;
+      id = data?.id ?? null;
+    } catch (err) {
+      // Falhou a gravação: ainda assim seguimos pro convite. Um lead com o link na
+      // mão vale mais que um lead numa tabela — e o log guarda a ficha.
+      logger.error('io-eletroposto-nota1', `falha gravando ${telefone}`, err);
+    }
   }
 
   // ── NENHUMA MENSAGEM SAI DAQUI (17/08/2026) ──
@@ -446,8 +456,187 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   //
   // A FICHA CONTINUA SENDO GRAVADA: ela é o funil (o /admin conta os recusados)
   // e é o estoque da aba Investidores. Sumiu a mensagem, não o dado.
-  res.json({ ok: true, id, convite: false });
+  let aviso: ResultadoSemHorario | undefined;
+  if (semHorario) {
+    try {
+      aviso = await avisarSemHorario(
+        telefone,
+        montarAvisoSemHorario(lead, { caminho: b.caminho, motivo: b.motivo }),
+        b.teste === true || ehNomeDeTeste(nome),
+      );
+      logger.info('io-eletroposto-nota1', `sem horario ${telefone}: ${aviso}`);
+    } catch (err) {
+      aviso = 'falha';
+      logger.error('io-eletroposto-nota1', `recado de sem horario falhou (${telefone})`, err);
+    }
+  }
+  // `aviso` só existe com `sem_horario`: a LP só diz "a equipe vai te chamar" se for
+  // 'enviado' ou 'ja_avisado'.
+  res.json({ ok: true, id, convite: false, ...(aviso ? { aviso } : {}) });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// O RECADO DE "SEM HORÁRIO" (22/10/2026), com a trava do chefe anti-ban.
+//
+// Quem responde o quiz do comércio ou do carregador e não consegue marcar (lista de horários
+// vazia, ou o /agendar fora do ar) é gravado pelo /nota1 e a equipe é avisada UMA vez. O
+// recado vai pela MESMA linha do atendimento humano, para 2 números salvos, a partir de um
+// endpoint público: a trava mora aqui, no servidor, porque trava no navegador (recarregar,
+// aba nova, curl em loop) não segura nada.
+//
+//   1. MARCA ANTES DE TUDO: `ep_sem_horario_aviso:<telefone>` em system_state. Já marcado,
+//      não manda. A marca vem antes da saída de `teste`, senão a sonda de teste não prova
+//      a trava (no /parceria o `teste` sai antes dela).
+//   2. LINHA EM COOLDOWN: a linha 'io' está pausada. Não manda, não gasta vaga, devolve a marca.
+//   3. ESPAÇAMENTO E TETO: 1 recado por balde de 10 minutos (2 mensagens, uma por número da
+//      EQUIPE) e no máximo 24 por dia. A vaga é uma linha `ep_sem_horario_slot:<AAAA-MM-DD HH:M>`
+//      (o HH:MM de Brasília cortado no 1º dígito do minuto), criada por INSERT. Antes dela se
+//      contam as vagas do dia; depois dela se conta a própria chave, e mais de uma linha
+//      (corrida, ou `key` sem unicidade) vale como sem vaga. Sem vaga, só grava (o lead já
+//      está na ficha) e devolve a marca do telefone.
+//   4. ENVIO QUE FALHA DEVOLVE A MARCA (nenhum dos dois números recebeu): a próxima tentativa
+//      pode avisar. A vaga não volta: é teto de envio tentado.
+//   5. FALHA DO PRÓPRIO system_state FECHA: não consegui marcar, não mando. O lead está na
+//      ficha; mensagem sem trava é pior que mensagem atrasada.
+//   6. O TEXTO TEM TAMANHO FECHADO: só campos conhecidos, saneados e cortados (ver
+//      `montarAvisoSemHorario`), no máximo 1400 caracteres. Nada de texto livre da internet.
+// ─────────────────────────────────────────────────────────────────────────────
+export const TETO_SEM_HORARIO_POR_DIA = 24;
+export const TAMANHO_MAX_AVISO_SEM_HORARIO = 1400;
+const PREFIXO_VAGA_SEM_HORARIO = 'ep_sem_horario_slot:';
+export const chaveAvisoSemHorario = (telefone: string): string => `ep_sem_horario_aviso:${telefone}`;
+/** O dia de Brasília, 'AAAA-MM-DD' (o servidor roda em UTC). */
+export const diaDeBrasilia = (d: Date = new Date()): string =>
+  d.toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 10);
+/** O balde de 10 minutos de Brasília: 'AAAA-MM-DD HH:M' (o HH:MM cortado no 1º dígito do minuto). */
+export const baldeDeBrasilia = (d: Date = new Date()): string =>
+  d.toLocaleString('sv-SE', { timeZone: 'America/Sao_Paulo' }).slice(0, 15);
+export const chaveVagaSemHorario = (balde: string): string => `${PREFIXO_VAGA_SEM_HORARIO}${balde}`;
+
+export type ResultadoSemHorario = 'enviado' | 'ja_avisado' | 'teste' | 'teto' | 'falha';
+
+const MOTIVO_SEM_HORARIO: Record<string, string> = {
+  lista_vazia: 'A lista de horários estava vazia.',
+  agendar_falhou: 'O agendamento não gravou (rede ou erro do servidor).',
+  outro: 'Outro.',
+};
+const CAMINHO_SEM_HORARIO: Record<string, string> = {
+  comercio: 'Dono de comércio', carregador: 'Compra de carregador', outro: 'Outro',
+};
+/** Lista fechada: valor fora dela (ou que nem é texto) vira 'outro'. */
+const daLista = (lista: Record<string, string>, v: unknown): string =>
+  typeof v === 'string' && Object.prototype.hasOwnProperty.call(lista, v) ? lista[v] : lista.outro;
+/** Campo de gente no recado: sem quebra de linha, sem formatação do WhatsApp, sem link, sem travessão, cortado. */
+function campoDoAviso(v: unknown, max: number): string {
+  const limpo = String(v ?? '')
+    .replace(/https?:\/\/\S*/gi, ' ')
+    .replace(/[\r\n\t*_~`]/g, ' ')
+    .replace(/[–—]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return Array.from(limpo).slice(0, max).join('').trim();
+}
+
+/**
+ * O recado. Tamanho fechado: nome (80), telefone, cidade (60), caminho e motivo de lista fechada.
+ * A ficha em texto livre NÃO entra (já está no CRM). Emoji só na primeira linha (regra do
+ * WhatsApp da casa), sem travessão. Puro, para o teste.
+ */
+export function montarAvisoSemHorario(
+  lead: { nome: unknown; telefone: unknown; cidade: unknown },
+  extra: { caminho?: unknown; motivo?: unknown },
+): string {
+  const tel = String(lead.telefone ?? '').replace(/\D/g, '').slice(0, 13);
+  const texto = [
+    '📋 *LEAD SEM HORÁRIO NA AGENDA*',
+    '_Respondeu o quiz, mas não conseguiu marcar. Chame no WhatsApp para marcar o horário._',
+    '',
+    `*Nome:* ${campoDoAviso(lead.nome, 80) || 'não informado'}`,
+    `*WhatsApp:* wa.me/${tel}`,
+    `*Cidade:* ${campoDoAviso(lead.cidade, 60) || 'não informada'}`,
+    `*Caminho:* ${daLista(CAMINHO_SEM_HORARIO, extra.caminho)}`,
+    `*Motivo:* ${daLista(MOTIVO_SEM_HORARIO, extra.motivo)}`,
+    '',
+    '_Ficha completa no CRM: solardoc.app/gerador_',
+  ].join('\n');
+  return texto.slice(0, TAMANHO_MAX_AVISO_SEM_HORARIO);
+}
+
+/**
+ * Marca o telefone. 'nova' = marcou agora (pode seguir); 'ja' = já estava marcado, ou a corrida
+ * foi perdida (23505): NÃO mande, a equipe já foi ou vai ser avisada; 'erro' = o system_state
+ * não respondeu: NÃO mande e NÃO prometa nada à pessoa.
+ */
+async function marcarSemHorario(telefone: string): Promise<'nova' | 'ja' | 'erro'> {
+  const key = chaveAvisoSemHorario(telefone);
+  try {
+    const { data, error } = await supabasePc.from('system_state').select('key').eq('key', key).maybeSingle();
+    if (error) throw error;
+    if (data) return 'ja';
+    const { error: erroInsert } = await supabasePc.from('system_state').insert({ key, value: new Date().toISOString() });
+    if (erroInsert) return (erroInsert as { code?: string }).code === '23505' ? 'ja' : 'erro';
+    return 'nova';
+  } catch (err) {
+    logger.error('io-eletroposto-nota1', `marcador de sem horario falhou (${key})`, err);
+    return 'erro';
+  }
+}
+
+async function desmarcarSemHorario(telefone: string): Promise<void> {
+  try {
+    await supabasePc.from('system_state').delete().eq('key', chaveAvisoSemHorario(telefone));
+  } catch (err) {
+    logger.error('io-eletroposto-nota1', `nao consegui devolver a marca de sem horario de ${telefone}`, err);
+  }
+}
+
+/**
+ * Pega a vaga do balde de 10 minutos. 'ok' = pode enviar; 'teto' = o dia já tem 24 recados, o
+ * balde já foi usado ou houve corrida; 'falha' = o system_state não respondeu (a trava fecha).
+ */
+async function pegarVagaSemHorario(agora: Date = new Date()): Promise<'ok' | 'teto' | 'falha'> {
+  const dia = diaDeBrasilia(agora);
+  const chave = chaveVagaSemHorario(baldeDeBrasilia(agora));
+  try {
+    const doDia = await supabasePc.from('system_state').select('key').like('key', `${PREFIXO_VAGA_SEM_HORARIO}${dia}%`);
+    if (doDia.error) throw doDia.error;
+    if ((doDia.data || []).length >= TETO_SEM_HORARIO_POR_DIA) return 'teto';
+    const { error } = await supabasePc.from('system_state').insert({ key: chave, value: agora.toISOString() });
+    // 23505 = o balde já tem dono. Qualquer outro erro também fecha: sem vaga, sem envio.
+    if (error) return (error as { code?: string }).code === '23505' ? 'teto' : 'falha';
+    // `key` pode não ser única neste banco: depois do insert, só uma linha com ESTA chave vale.
+    const propria = await supabasePc.from('system_state').select('key').eq('key', chave);
+    if (propria.error) throw propria.error;
+    return (propria.data || []).length > 1 ? 'teto' : 'ok';
+  } catch (err) {
+    logger.error('io-eletroposto-nota1', `vaga ${chave} falhou`, err);
+    return 'falha';
+  }
+}
+
+/** A ordem é a regra: marca, saída de teste, cooldown, vaga, envio, e a marca volta se nada saiu. */
+export async function avisarSemHorario(telefone: string, texto: string, teste: boolean): Promise<ResultadoSemHorario> {
+  const marca = await marcarSemHorario(telefone);
+  if (marca === 'ja') return 'ja_avisado';
+  if (marca === 'erro') return 'falha';
+  if (teste) return 'teste';
+  if (linhaEmCooldown('io')) {
+    await desmarcarSemHorario(telefone);
+    return 'falha';
+  }
+  const vaga = await pegarVagaSemHorario();
+  if (vaga !== 'ok') {
+    await desmarcarSemHorario(telefone);
+    return vaga === 'teto' ? 'teto' : 'falha';
+  }
+  const corte = texto.slice(0, TAMANHO_MAX_AVISO_SEM_HORARIO);
+  const envios = await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, corte, 'io')));
+  if (!envios.some(e => e.status === 'fulfilled')) {
+    await desmarcarSemHorario(telefone);
+    return 'falha';
+  }
+  return 'enviado';
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // A AGENDA DA LP, SEM CHAVE DE BANCO NO NAVEGADOR
@@ -556,6 +745,17 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+/**
+ * O dono que a LP pode usar como `vendedor_nome`: só os dois consultores do eletroposto.
+ * Cliente antigo da Nilce ou da Giovanna tem dono no CRM, mas elas não atendem eletroposto, e
+ * devolver o nome delas fazia o /agendar recusar com 400 "consultor invalido": a pessoa não
+ * conseguia marcar. Fora de DONOS_EP volta `null` e a LP cai no rodízio.
+ * (Era `dono && DONOS_EP.includes(dono) ? dono : dono`, que não filtrava nada: sobrou da
+ * refatoração do e205f236.)
+ */
+export const donoDoCliente = (dono: string | null): string | null =>
+  dono && DONOS_EP.includes(dono) ? dono : null;
+
 router.get('/cliente', async (req: Request, res: Response): Promise<void> => {
   const alvo = telKey(req.query.tel);
   if (!alvo) { res.json({ dono: null, jaMarcado: null }); return; }
@@ -585,7 +785,7 @@ router.get('/cliente', async (req: Request, res: Response): Promise<void> => {
 
     res.set('Cache-Control', 'no-store');
     res.json({
-      dono: dono && DONOS_EP.includes(dono) ? dono : dono,
+      dono: donoDoCliente(dono),
       jaMarcado: futura ? { quando: futura.quando } : null,
     });
   } catch (err) {

@@ -514,7 +514,7 @@ src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></n
 
     <form id="leadForm" class="form-row">
       <input type="text" name="nome" placeholder="Seu nome completo" autocomplete="name" required>
-      <input type="tel" name="whatsapp" placeholder="WhatsApp com DDD" autocomplete="tel" required maxlength="15">
+      <input type="tel" name="whatsapp" placeholder="WhatsApp com DDD" autocomplete="tel" required>
       <input type="email" name="email" placeholder="Seu e-mail" autocomplete="email" required>
       <select name="conta" required>
         <option value="" disabled selected>Sua conta de luz hoje</option>
@@ -582,7 +582,7 @@ src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></n
   // Mask whatsapp
   const wa = document.querySelector('input[name="whatsapp"]');
   wa.addEventListener('input', (e) => {
-    let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+    let v = e.target.value.replace(/\D/g, '').replace(/^(?:55|0)(?=\d{10,11}$)/, '').slice(0, 11);
     if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
     else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
     e.target.value = v;

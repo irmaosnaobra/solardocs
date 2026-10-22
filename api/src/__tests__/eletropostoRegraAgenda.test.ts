@@ -301,7 +301,8 @@ describe('a ordem na página: grava o cadastro, confere o ok e só então abre a
   });
 
   it('o passo do horário só abre para os caminhos novos com o cadastro gravado', () => {
-    expect(html).toContain("{ id:'p-horario', quando:() => vaiParaAgenda() || !!agendaDoCadastro(),");
+    // 22/10/2026: o comércio sem ponto (NOTA 1 sem capital, curioso) não vê o passo (destinoDoComercio)
+    expect(html).toContain("{ id:'p-horario', quando:() => (vaiParaAgenda() && destinoDoComercio() !== 'sem_horario') || !!agendaDoCadastro(),");
     const f = corpoDe('function agendaDoCadastro(){');
     expect(f).toContain("(c === 'cotista' || c === 'integrador') && cadastroVale(c)");
     expect(html).toContain('!!cadastroFeito && cadastroFeito.caminho === caminho && cadastroFeito.tel === telParaBanco()');
@@ -402,9 +403,238 @@ describe('a tela de dia sem horário', () => {
     const i = html.indexOf('async function montarSlots(){');
     const m = html.slice(i, html.indexOf('\n}\n', i));
     expect(m).toContain('const cadCaminho = regraAgora().caminho;');
-    expect(m).toContain('textoSemHorario(!!cadCaminho && cadastroVale(cadCaminho))');
+    expect(m).toContain('const cadastrado = !!cadCaminho && cadastroVale(cadCaminho);');
+    expect(m).toContain('textoSemHorario(cadastrado)');
     // antes da data a regra não devolve caminho: nenhum cadastro conta
     expect(quiz.regraDaAgenda({ porta: 'comercio', ponto: 'definido', relacao: 'inquilino', modelo: 'cedo_espaco' }, ANTES).caminho).toBe('');
+  });
+});
+
+
+// ── 22/10/2026: O COMÉRCIO SEM PONTO (NOTA 1) E O CURIOSO NÃO ESCOLHEM HORÁRIO ──────────────
+// Antes, a trilha do comércio inteira passava por `p-horario`: quem caía em NOTA 1 escolhia o
+// horário, apertava "Confirmar agendamento" e NÃO ganhava reunião (ia para o curso). Agora:
+//   NOTA 1 com capital do piso pra cima (investidor pela regra de 12/10) -> mantém o horário e
+//     MARCA reunião com a etiqueta 'cotista', como o investidor sem local;
+//   NOTA 1 sem capital e o curioso que negocia o local -> o horário nem aparece.
+// Este bloco é a atualização DELIBERADA do que era "toda a trilha do comércio vê o horário".
+const lpMaisPontuar = new Function(
+  fatia('const PESO_PERFIL = {', '// A rota de passagem só faz sentido')
+  + fatia('const MODELO_DINHEIRO_NOSSO', 'function onModelo(')
+  + fatia('// ══ OS QUATRO CAMINHOS DO QUIZ', '// ══ FIM DOS QUATRO CAMINHOS')
+  + '\nreturn { pontuar, destinoSemPonto, valorNoPiso, regraDaAgenda, paraCuriosoDoComercio };',
+)() as {
+  pontuar: (f: Record<string, string>) => { nota: number };
+  destinoSemPonto: (r: { ponto: string; modelo: string; valor: string; nota1: boolean }, agoraMs: number) => string;
+  valorNoPiso: (v: string) => boolean;
+  regraDaAgenda: (r: Respostas, agoraMs: number) => Decisao;
+  paraCuriosoDoComercio: (p: string, m: string, v: string) => boolean;
+};
+
+describe('NOTA 1 do comércio: reunião cotista com capital, sem horário sem ele', () => {
+  const D = lpMaisPontuar.destinoSemPonto;
+  const nota1 = (ponto: string, relacao = '') => lpMaisPontuar.pontuar({ ponto, relacao }).nota === 1;
+
+  it('o piso é UMA função: a do investidor sem local e a do comércio concordam em toda faixa', () => {
+    for (const v of opcoes('f-inv-valor')) {
+      const cotista = lpMaisPontuar.regraDaAgenda({ porta: 'investidor', capLocal: 'nao', invValor: v.value }, DEPOIS).caminho === 'cotista';
+      expect(lpMaisPontuar.valorNoPiso(v.value), v.value).toBe(cotista);
+    }
+    expect(lpMaisPontuar.valorNoPiso('')).toBe(false);
+    expect(html).toContain("if(!r.capLocal || !valorNoPiso(r.invValor)) return nada;");
+  });
+
+  it('as faixas do comércio (f-valor) começam em R$ 70 mil: todas passam do piso de R$ 50 mil', () => {
+    const faixas = opcoes('f-valor').map(o => o.value);
+    expect(faixas.length).toBeGreaterThan(0);
+    for (const v of faixas) expect(lpMaisPontuar.valorNoPiso(v), v).toBe(true);
+  });
+
+  it('NOTA 1 com capital em qualquer faixa: reunião (e nada antes de 13/10)', () => {
+    for (const ponto of ['sem_ideia', 'em_vista'])
+      for (const v of opcoes('f-valor')) {
+        expect(D({ ponto, modelo: 'meio_a_meio', valor: v.value, nota1: nota1(ponto) }, DEPOIS), `${ponto} ${v.value}`).toBe('reuniao');
+        expect(D({ ponto, modelo: 'meio_a_meio', valor: v.value, nota1: nota1(ponto) }, ANTES), `${ponto} ${v.value} antes`).toBe('sem_horario');
+      }
+    // o local que não é dele também é NOTA 1
+    expect(D({ ponto: 'definido', modelo: 'chave_na_mao', valor: '140', nota1: nota1('definido', 'nao_e_meu') }, DEPOIS)).toBe('reuniao');
+  });
+
+  it('NOTA 1 sem capital (modelo 01 não pergunta o valor) e abaixo do piso: sem horário', () => {
+    for (const ponto of ['sem_ideia', 'em_vista'])
+      for (const valor of ['', 'menos_50', 'naosei'])
+        expect(D({ ponto, modelo: 'cedo_espaco', valor, nota1: nota1(ponto) }, DEPOIS), `${ponto} "${valor}"`).toBe('sem_horario');
+  });
+
+  it('o curioso que negocia o local e quer que a gente invista tudo: sem horário', () => {
+    expect(lpMaisPontuar.paraCuriosoDoComercio('negociando', 'cedo_espaco', '')).toBe(true);
+    expect(D({ ponto: 'negociando', modelo: 'cedo_espaco', valor: '', nota1: nota1('negociando') }, DEPOIS)).toBe('sem_horario');
+    // negociando e pondo dinheiro vai para a agenda como sempre
+    expect(D({ ponto: 'negociando', modelo: 'chave_na_mao', valor: '140', nota1: nota1('negociando') }, DEPOIS)).toBe('');
+  });
+
+  it('ponto sob controle agenda como sempre, com qualquer modelo e valor', () => {
+    for (const relacao of ['proprietario', 'administro', 'represento', 'inquilino'])
+      for (const modelo of opcoes('f-modelo').map(o => o.value))
+        for (const valor of ['', ...opcoes('f-valor').map(o => o.value)])
+          expect(D({ ponto: 'definido', modelo, valor, nota1: nota1('definido', relacao) }, DEPOIS), `${relacao} ${modelo} ${valor}`).toBe('');
+  });
+
+  it('nenhuma combinação de respostas termina fora destes três destinos, e reunião só com NOTA 1 + valor do piso', () => {
+    let rodadas = 0;
+    for (const ponto of ['', ...opcoes('f-ponto').map(o => o.value)])
+      for (const relacao of ['', ...opcoes('f-relacao').map(o => o.value)])
+        for (const modelo of ['', ...opcoes('f-modelo').map(o => o.value)])
+          for (const valor of ['', ...opcoes('f-valor').map(o => o.value), 'menos_50', 'naosei'])
+            for (const agora of [ANTES, DEPOIS, NaN]) {
+              rodadas++;
+              const n1 = nota1(ponto, relacao);
+              const d = D({ ponto, modelo, valor, nota1: n1 }, agora);
+              const r = JSON.stringify({ ponto, relacao, modelo, valor, agora });
+              expect(['', 'reuniao', 'sem_horario'], r).toContain(d);
+              if (d === 'reuniao') {
+                expect(n1, r).toBe(true);
+                expect(lpMaisPontuar.valorNoPiso(valor), r).toBe(true);
+                expect(agora >= INICIO, r).toBe(true);
+              }
+              if (n1 && !lpMaisPontuar.valorNoPiso(valor)) expect(d, r).toBe('sem_horario');
+              if (!n1 && !lpMaisPontuar.paraCuriosoDoComercio(ponto, modelo, valor)) expect(d, r).toBe('');
+            }
+    expect(rodadas).toBeGreaterThan(2000);
+  });
+});
+
+describe('na página: o horário só existe para quem marca, e o fim de cada um é o certo', () => {
+  const corpoDe = (assinatura: string): string => {
+    const i = html.indexOf(assinatura);
+    if (i < 0) throw new Error(`função sumiu da LP: ${assinatura}`);
+    return html.slice(i, html.indexOf('\n}\n', i));
+  };
+  const ordem = (txt: string, ...trechos: string[]) => {
+    let de = -1;
+    for (const t of trechos) {
+      const i = txt.indexOf(t, de + 1);
+      expect(i, `"${t}" fora de ordem ou ausente`).toBeGreaterThan(de);
+      de = i;
+    }
+  };
+
+  it('o passo do horário sai da trilha de quem destinoDoComercio manda sem horário', () => {
+    expect(html).toContain("{ id:'p-horario', quando:() => (vaiParaAgenda() && destinoDoComercio() !== 'sem_horario') || !!agendaDoCadastro(),");
+    const f = corpoDe('function comercioDecidido(){');
+    // enquanto o ponto, o modelo (e o valor, quando o modelo pergunta) não foram respondidos, o passo conta como vivo
+    expect(f).toContain("if(!ponto || !modelo) return false;");
+    expect(f).toContain("if(ponto === 'definido' && !val('f-relacao')) return false;");
+    expect(f).toContain("return MODELO_SEM_CAPITAL.has(modelo) || !!val('f-valor');");
+    expect(html).toContain('const destinoDoComercio = () => trilhaComercio() && comercioDecidido()');
+  });
+
+  it('sem horário o botão do último passo (WhatsApp) diz "Concluir", e só o passo do horário diz "Confirmar agendamento"', () => {
+    const f = corpoDe('function pintarPasso(){');
+    expect(f).toContain("fecha === 'agendar'    ? (atual.id === 'p-horario' ? 'Confirmar agendamento →' : 'Concluir →')");
+    expect(html.match(/Confirmar agendamento →/g)!.length).toBeGreaterThan(0);
+  });
+
+  it('o agendar() chega no NOTA 1, no curioso e no arrendamento ANTES de exigir o horário, e NOTA 1 com capital marca cotista', () => {
+    const ag = corpoDe('async function agendar(){');
+    // o único `if(!slotSel)` fora do carregador e do caminho novo vem DEPOIS de NOTA 1, curioso e arrendamento
+    ordem(ag, 'if(q.nota === 1){', 'gravarNota1DaTela()', "const comReuniao = destinoDoComercio() === 'reuniao';", 'if(comReuniao){',
+      "if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');",
+      'const obsN1 = [', 'LP ELETROPOSTO · ${perfilTexto(perfil)}', 'Vagas disponíveis: ${txt(vagas)}', 'Modelo de interesse: ${txt(modelo)}', 'obs: obsN1,',
+      "tipo: 'cotista', cartoes: 'cotista'", 'abrirConfirma();', 'irProCurso(',
+      'if(paraCuriosoDoComercio(ponto.value, modelo.value, valor.value)){',
+      'if(paraArrendamento(ponto.value, relacao.value, modelo.value, valor.value)){',
+      "if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');", 'tipo: regraAgora().tipo');
+    // NOTA 1 com capital segue o MESMO portão de presença (e o mesmo /alerta) do investidor sem local
+    expect(ag.slice(ag.indexOf('if(comReuniao){'), ag.indexOf('irProCurso('))).toContain("temperatura: 'quente', origem: 'lp_eletroposto'");
+  });
+
+  it('o /parceria lado capital da NOTA 1 vai com automatico:true (o aviso é o /alerta da reunião) e só para quem passa do piso', () => {
+    const g = corpoDe('async function gravarNota1DaTela(){');
+    ordem(g, "fetch('/_api/io/eletroposto/nota1'", 'if(pagaCapital && valorNoPiso(valor.value)){', "fetch('/_api/io/eletroposto/parceria'",
+      "lado: 'capital'", "origem: 'lp_nota1', automatico: true,", 'nota1GravadoPara = telE164');
+    // ninguém mais grava o cadastro de capital dentro do agendar(): uma porta só, idempotente por telefone
+    expect(corpoDe('async function agendar(){')).not.toContain("fetch('/_api/io/eletroposto/parceria'");
+    expect(g).toContain("if(nota1GravadoPara === telE164) return true;");
+  });
+
+  it('a passagem para o horário grava a ficha e o cadastro ANTES de abrir a lista, sem travar quem demorar', () => {
+    const p = corpoDe('function passoProximo(){');
+    ordem(p, "vivos[passoAtual + 1].id === 'p-horario' && destinoDoComercio() === 'reuniao'", 'nota1GravadoPara !== telParaBanco()',
+      'return gravarNota1EAbrir();', 'passoAtual++; pintarPasso(); return;');
+    const a = corpoDe('async function gravarNota1EAbrir(){');
+    ordem(a, 'await Promise.race([gravarNota1DaTela(), new Promise(r => setTimeout(r, 6000))]);', "findIndex(p => p.id === 'p-horario')", 'pintarPasso();');
+  });
+
+  it('o Enter no último passo faz o que o botão faz, e botão desabilitado não dispara duas vezes', () => {
+    const i = html.indexOf("document.getElementById('ag-form').addEventListener('keydown'");
+    const k = html.slice(i, html.indexOf('\n});', i));
+    ordem(k, "if(b.disabled) return;", "b.dataset.acao !== 'proximo'", 'return passoAcao();', 'passoProximo();');
+  });
+
+  it('f-car-local é resposta em botão, e o endereço segue a resposta (onCarLocal repinta)', () => {
+    expect(html).toMatch(/const SELECTS_EM_BOTAO = \[[^\]]*'f-car-local'/);
+    expect(html).toContain('<select id="f-car-local" onchange="onCarLocal()">');
+    expect(corpoDe('function onCarLocal(){')).toContain('pintarPasso()');
+  });
+});
+
+describe('nome de lead: no mínimo 3 letras, igual às rotas (/agendar, /nota1, /parceria)', () => {
+  it('nenhuma validação do nome do lead aceita 2 letras, e o aviso é o do passo do nome', () => {
+    expect(html).not.toMatch(/nome\.length\s*<\s*2/);
+    expect(html).not.toMatch(/val\('f-nome'\)\.length\s*>=\s*2/);
+    expect(html).toContain("ok:() => val('f-nome').length >= 3 ? null : 'Escreva o seu nome completo.' }");
+    expect((html.match(/nome\.length < 3\)\s*return erro\('Escreva o seu nome completo\.'\)/g) || []).length).toBe(3);
+  });
+
+  it('as três rotas recusam abaixo de 3, que é o que a página agora cobra', () => {
+    expect((ROTA.match(/nome\.length < 3\)\s*\{ res\.status\(400\)\.json\(\{ error: 'nome invalido' \}\)/g) || []).length).toBe(3);
+  });
+});
+
+describe('telefone com +55 ou 0 na frente (preenchimento automático do celular)', () => {
+  const NL = String.fromCharCode(10);
+  const maskTel = new Function(fatia('function maskTel(i){', '// ViaCEP:') + 'return maskTel;')() as (i: { value: string }) => void;
+  const masc = (valor: string) => { const i = { value: valor }; maskTel(i); return i.value; };
+  const tela = new Function('campo',
+    'const document = { getElementById: () => ({ value: campo.value }) };' + NL
+    + fatia('const val = id =>', '/** Só quem tem ponto segue para a agenda')
+    + fatia('function telParaBanco(){', NL + '}' + NL) + NL + '}' + NL
+    + 'return { telefoneConfere, telParaBanco };',
+  ) as (c: { value: string }) => { telefoneConfere: () => boolean; telParaBanco: () => string };
+
+  it('"+55 34 99816-5040" e "034 99816-5040" viram o mesmo número que "34 99816-5040"', () => {
+    expect(masc('+55 34 99816-5040')).toBe('(34) 99816-5040');
+    expect(masc('+5534998165040')).toBe('(34) 99816-5040');
+    expect(masc('034 99816-5040')).toBe('(34) 99816-5040');
+    expect(masc('34 99816-5040')).toBe('(34) 99816-5040');
+    expect(masc('(34) 99816-5040')).toBe('(34) 99816-5040');
+  });
+
+  it('o DDD 55 (Santa Maria) não perde dígito, com ou sem o 55 do país na frente', () => {
+    expect(masc('(55) 99999-9999')).toBe('(55) 99999-9999');
+    expect(masc('55 99999-9999')).toBe('(55) 99999-9999');
+    expect(masc('+55 55 99999-9999')).toBe('(55) 99999-9999');
+  });
+
+  it('digitar devagar não quebra: cada passo da máscara continua parcial', () => {
+    expect(masc('3')).toBe('3');
+    expect(masc('34')).toBe('34');
+    expect(masc('349')).toBe('(34) 9');
+  });
+
+  it('fixo com +55 (10 dígitos) também fica sem o 55', () => {
+    expect(masc('+55 34 3333-4444').replace(/\D/g, '')).toBe('3433334444');
+  });
+
+  it('telParaBanco grava 55 + DDD + número UMA vez, mesmo com o campo não mascarado', () => {
+    for (const bruto of ['(34) 99816-5040', '+55 34 99816-5040', '034 99816-5040', '5534998165040', '34998165040']) {
+      const t = tela({ value: bruto });
+      expect(t.telParaBanco(), bruto).toBe('5534998165040');
+      expect(t.telefoneConfere(), bruto).toBe(true);
+    }
+    expect(tela({ value: '(34) 9981' }).telefoneConfere()).toBe(false);
+    expect(tela({ value: '' }).telefoneConfere()).toBe(false);
   });
 });
 
