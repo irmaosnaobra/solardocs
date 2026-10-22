@@ -52,6 +52,17 @@ vi.mock('../utils/supabase', () => ({
               return r;
             },
           }),
+          // Fase 2: a camada do /gerador lê as ligações e os registros por prefixo (aqui não há nenhum).
+          like: (_c: string, p: string) => {
+            const prefixo = p.replace(/%$/, '');
+            const chain: any = {
+              order: () => chain,
+              range: async () => (h.erroLeitura
+                ? { data: null, error: { code: 'XX000', message: 'VALOR-SECRETO-NO-ERRO' } }
+                : { data: [...h.linhas.entries()].filter(([k]) => k.startsWith(prefixo)).map(([k, l]) => ({ key: k, value: l.value })), error: null }),
+            };
+            return chain;
+          },
         }),
         upsert: async (l: { key: string; value: unknown }) => { h.linhas.set(l.key, { value: l.value, updated_at: stamp() }); return { error: null }; },
         insert: async (l: { key: string; value: unknown }) => {

@@ -701,19 +701,19 @@ export function sobreporCadastro(reg: RegistroGestao, cad: Cadastro | null): Reg
  * de leitura) isola SÓ aquela venda (`falhas`); falha geral (listar, bucket) devolve `indisponivel`. Nos dois casos a
  * ficha cai nos valores do `system_state` em vez de derrubar a grade.
  */
-export async function lerCadastros(ids: number[]): Promise<{
+export async function lerCadastros(ids: number[], linha: LinhaCadastro = 'eletroposto'): Promise<{
   mapa: Map<number, Cadastro>; falhas: Set<number>; indisponivel: boolean;
 }> {
   const mapa = new Map<number, Cadastro>();
   const falhas = new Set<number>();
   try {
-    const existentes = await listarIdsComPasta();
+    const existentes = await listarIdsComPasta(linha);
     const alvo = ids.filter((i) => existentes.has(i));
     let proximo = 0;
     const trabalhador = async (): Promise<void> => {
       while (proximo < alvo.length) {
         const id = alvo[proximo++];
-        try { mapa.set(id, await lerCadastro(id)); } catch (err) {
+        try { mapa.set(id, await lerCadastro(id, linha)); } catch (err) {
           falhas.add(id);
           console.error('[cadastro-venda] leitura de uma venda falhou', err instanceof ErroCadastro ? err.codigo : 'interno');
         }

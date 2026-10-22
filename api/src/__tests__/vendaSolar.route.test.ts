@@ -63,18 +63,19 @@ vi.mock('../utils/anthropicClient', () => ({
 function consulta(linhas: Array<Record<string, any>>, alias?: (r: Record<string, any>) => Record<string, any>, aoListar?: (porTelefone: boolean) => void) {
   const f: Record<string, unknown> = {};
   let sufixo = '';
-  let em: string[] | null = null;
+  let em: unknown[] | null = null;
+  let emCol = 'codigo';
   const resultado = () => {
     let l = linhas.filter((r) => Object.entries(f).every(([c, v]) => r[c] === v));
     if (sufixo) l = l.filter((r) => String(r.dados?.telefoneDigitos ?? '').endsWith(sufixo));
-    if (em) l = l.filter((r) => (em as string[]).includes(r.codigo));
+    if (em) l = l.filter((r) => (em as unknown[]).includes(r[emCol]));
     return alias ? l.map(alias) : l;
   };
   const b: any = {
     eq: (c: string, v: unknown) => { f[c] = v; return b; },
     like: (_c: string, p: string) => { sufixo = p.replace(/^%/, ''); return b; },
     order: () => b,
-    in: async (_c: string, arr: string[]) => { em = arr; return { data: resultado(), error: null }; },
+    in: async (c: string, arr: unknown[]) => { em = arr; emCol = c; return { data: resultado(), error: null }; },
     range: async () => { aoListar?.(!!sufixo); return { data: resultado(), error: null }; },
     maybeSingle: async () => ({ data: resultado()[0] ?? null, error: null }),
   };
@@ -143,6 +144,10 @@ vi.mock('../utils/supabase', () => ({
           },
           upload: async (p: string, corpo: Buffer) => { mapa.set(p, Buffer.from(corpo)); return { data: { path: p }, error: null }; },
           remove: async (ps: string[]) => { for (const p of ps) mapa.delete(p); return { data: [], error: null }; },
+          list: async (pasta: string, o?: { offset?: number }) => ({
+            data: (o?.offset ?? 0) > 0 ? [] : [...mapa.keys()].filter((k) => k.startsWith(`${pasta}/`) && !k.slice(pasta.length + 1).includes('/')).map((k) => ({ name: k.slice(pasta.length + 1) })),
+            error: null,
+          }),
           createSignedUploadUrl: async (p: string) => ({ data: { signedUrl: 'https://up.test/u?x=1', token: 'tok-1', path: p }, error: null }),
           createSignedUrl: async (p: string) => {
             if (dossie) { h.assinados.push(p); return { data: { signedUrl: `https://dossie.test/s${++h.sig}` }, error: null }; }
@@ -996,7 +1001,8 @@ describe('dossiê da proposta ligada, só leitura', () => {
     expect((await put('/clientes/vendasolar/201/cadastro', { campos: CAD })).status).toBe(200);
     const res = await get('/clientes/vendasolar/201/relatorio');
     expect(res.status).toBe(200);
-    expect(res.body.cabecalho).toMatchObject({ linha: 'vendasolar', codigo: '201', cliente: 'Ana Souza' });
+    // fase 2: o cabeçalho leva o #NNNN ligado ao card (sem venda ligada, o id do card)
+    expect(res.body.cabecalho).toMatchObject({ linha: 'vendasolar', codigo: '#0057', cliente: 'Ana Souza' });
     expect(res.body.secoes.map((x: any) => x.numero)).toEqual([1, 2, 3, 4, 5]);
     expect(valorRel(res.body, 'Estado')).toBe('MG');
     expect(valorRel(res.body, 'Nome da concessionária')).toBe('Cemig');
@@ -1498,6 +1504,61 @@ describe('fase 2: código do alocador (venda_origem, religar, guarda, sincronia 
     const ruim = await put('/clientes/vendasolar/201/cadastro', { campos: { email: 'sem arroba' } });
     expect(ruim.status).toBe(400);
     expect(ruim.body.erros.email).toBe('E-mail inválido.');
+  });
+});
+
+describe('fase 2: relatório com código do alocador', () => {
+  const registro = (codigo: string, cardId: number) => {
+    const x: RegistroCodigo = { codigo, card: cardId, por: 'nilce', em: '2026-10-20T10:00:00.000Z', origem: 'novo' };
+    h.linhas.set(`codigo_solar:${codigo.slice(1)}`, { updated_at: 'r', value: { ...x, sig: assinarRegistro(x) } });
+  };
+  const comEquipamento = () => {
+    h.csv = paraCsv([
+      venda('#0057', { 'NOME CLIENTE': 'Ana Souza', CONSULTOR: 'Nilce', CONTATO: '34988880001', 'QTD PLACA': '99', 'MODELO PLACA': 'Outra 777W' }),
+      venda('#0058', { 'NOME CLIENTE': 'Bruno Lima', CONSULTOR: 'Giovanna', CONTATO: '34977770002' }),
+    ]);
+    limparCacheClientes();
+  };
+  it('conflito (o Excel tem o número para OUTRO cliente): o equipamento não vem da linha do Excel; o cabeçalho leva o código', async () => {
+    comEquipamento();
+    injeta(204, { venda: '#0057', por: 'gerador' });
+    registro('#0057', 204);
+    const res = await get('/clientes/vendasolar/204/relatorio', GIOVANNA);
+    expect(res.status).toBe(200);
+    expect(res.body.cabecalho.codigo).toBe('#0057');
+    expect(JSON.stringify(res.body)).not.toMatch(/99 ×|Outra 777W/);
+  });
+  it('P2-3: registro apagado e ligação por gerador: o consultor da linha do Excel continua sem acesso ao card', async () => {
+    injeta(201, { venda: '#0058', por: 'gerador' });   // sem codigo_solar:0058 (a chave pública pode apagá-lo)
+    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(404);
+    expect((await get('/clientes/vendasolar/201/docs', NILCE)).status).toBe(200);
+  });
+  it('item 1: registro apagado e ligação por gerador: a sincronia do nome da homologação fica calada', async () => {
+    injeta(201, { venda: '#0057', por: 'gerador' });   // sem codigo_solar:0057
+    const a = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } });
+    expect(a.status).toBe(200);
+    expect(h.linhas.has('gestao_cliente:0057')).toBe(false);
+  });
+  it('item 1: ligar a proposta depois do número mantém por gerador; apagar o registro não abre o card nem grava o titular', async () => {
+    injeta(201, { venda: '#0058', por: 'gerador' });
+    registro('#0058', 201);
+    expect((await ligar(201, { proposta: 'P1' })).status).toBe(200);
+    expect(ligacao(201)).toMatchObject({ venda: '#0058', proposta: 'P1', por: 'gerador' });
+    h.linhas.delete('codigo_solar:0058');
+    expect((await get('/clientes/vendasolar/201/docs', GIOVANNA)).status).toBe(404);
+    const put1 = await put('/clientes/vendasolar/201/cadastro', { campos: { homologacao_mesmo: 'outra_pessoa', tuc_nome: 'Maria Souza' } }, THIAGO);
+    expect(put1.status).toBe(200);
+    expect(h.linhas.has('gestao_cliente:0058')).toBe(false);
+    const g = await get('/clientes/solar', THIAGO);
+    expect(g.body.linhas.find((l: { codigo: string }) => l.codigo === '#0058')).toMatchObject({ conflito: 'planilha' });
+  });
+  it('junta (mesmo cliente): o equipamento da linha do Excel completa o relatório', async () => {
+    comEquipamento();
+    injeta(201, { venda: '#0057', por: 'gerador' });
+    registro('#0057', 201);
+    const res = await get('/clientes/vendasolar/201/relatorio');
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(res.body)).toMatch(/Outra 777W/);
   });
 });
 

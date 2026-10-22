@@ -222,6 +222,8 @@ export async function gravarLigacao(card: number, lig: Ligacao): Promise<void> {
     { onConflict: 'key' },
   );
   if (error) throw new ErroHub(codigoDe(error));
+  // Toda gravação de ligação muda o que a grade do /gerador deriva (venda, proposta, cartão): o cache de 60 s cai junto.
+  invalidarCachesHub();
 }
 
 /** Os cards (que não `card`) que já usam essa proposta ou essa venda. */

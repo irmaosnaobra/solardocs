@@ -2,7 +2,9 @@ import crypto from 'crypto';
 import { Router, Request, Response, NextFunction } from 'express';
 import { exigeConsultor } from './geradorDossie';
 import { ehSocio, podeVer } from '../services/gerador/solarObras';
-import { vendaSolarDoDono, codigosSolar, acessoVendaSolar, ErroVendaSolar, type VendaSolarDoDono } from './geradorClientes';
+import {
+  vendaSolarDoDono, codigosSolar, acessoVendaSolar, ErroVendaSolar, equipamentoDoCardParaRelatorio, type VendaSolarDoDono,
+} from './geradorClientes';
 import { lerLigacao } from '../services/gerador/vendaSolarHub';
 import { diaDeBrasilia } from '../services/agenda/viradaDoDia';
 import { lerProposta, assinar, normalizarNome, ARQUIVOS_SOLAR } from '../services/gerador/dossieVenda';
@@ -676,17 +678,21 @@ export function mountClientesDocs(router: Router): void {
       const rotulo = (slot: string): string => CATALOGO[ctx.linha].find((x) => x.chave === slot)?.rotulo ?? slot;
 
       let dados: DadosHomologacao; let cliente = ctx.cliente;
+      // O cabeçalho da venda solar leva o `#NNNN` ligado (fase 2); sem venda ligada, o id do card como antes.
+      let codigoDoRelatorio = ctx.linha === 'solar' ? `#${ctx.codigo.padStart(4, '0')}` : ctx.codigo;
       if (ctx.linha === 'solar') {
         const s = ctx.solar as VendaSolarDoDono;
         dados = dadosSolarPlanilha(equipamentoDaPlanilha(s.cols, s.venda.celulas, s.reg));
       } else if (ctx.linha === 'vendasolar') {
-        // O cadastro do card vale para quem passou na posse do card. A venda da planilha LIGADA só entra (equipamento) para quem a
-        // enxerga na planilha: a posse da venda é a de sempre (sócio, ou o consultor efetivo dela), nunca acesso de sócio emprestado.
+        // O cadastro do card vale para quem passou na posse do card. O equipamento vem de `equipamentoDoCardParaRelatorio`: código de
+        // gente, a linha da planilha SÓ para quem a enxerga; código do alocador (fase 2), a linha que o /gerador monta (em conflito,
+        // nada da linha do Excel de outro cliente). Falha de leitura: o relatório sai sem equipamento.
         const id = Number(ctx.codigo);
         const cad = await lerCadastro(id, 'vendasolar').catch((e) => { logErro('cadastro indisponível no relatório', e); return null; });
         const { lig } = await lerLigacao(id);
-        const s = lig.venda ? await vendaSolarDoDono(ctx.nome, ctx.socio, lig.venda) : null;
-        dados = dadosVendaSolar(cad, s ? equipamentoDaPlanilha(s.cols, s.venda.celulas, s.reg) : null, ctx.cliente);
+        codigoDoRelatorio = lig.venda ?? ctx.codigo;
+        const equip = ctx.card ? await equipamentoDoCardParaRelatorio(ctx.nome, ctx.socio, ctx.card as CardVendido, lig) : null;
+        dados = dadosVendaSolar(cad, equip, ctx.cliente);
       } else {
         const card = ctx.card as CardVendido;
         const id = card.id;
@@ -739,7 +745,7 @@ export function mountClientesDocs(router: Router): void {
         }
       }
       res.json(montarRelatorio({
-        linha: ctx.linha, codigo: ctx.linha === 'solar' ? `#${ctx.codigo.padStart(4, '0')}` : ctx.codigo,
+        linha: ctx.linha, codigo: codigoDoRelatorio,
         cliente, emitidoEm: agora, dados, documentos,
       }));
     } catch (err) {

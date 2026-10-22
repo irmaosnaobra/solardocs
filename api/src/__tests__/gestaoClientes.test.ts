@@ -4,6 +4,7 @@ import {
   progressoDe, totais, houveConflito, aplicarGravacao, lerRegistro, aplicarSobrescritas, chaveGestao, codigoDaChave,
   numeroBR, mesclarOpcoes, LISTAS_DE_GENTE, type ColunaInterna, type RegistroGestao, type Coluna,
 } from '../services/gerador/gestaoClientes';
+import { celulaEhFixa, consultorEfetivo, COLUNAS_PESSOAIS, type Derivada } from '../services/gerador/gestaoClientes';
 import { lerPlanilha, montarObra, type ObraBruta } from '../services/gerador/solarObras';
 import { CABECALHO as CABECALHO_FIXTURE, planilhaPadrao } from './solarPlanilhaFixture';
 
@@ -505,5 +506,98 @@ describe('listas pré-definidas da ficha (14/10)', () => {
     expect(normalizarDaPlanilha(ac, 'R$ 1.156,22')).toBe(1156.22);
     expect(validarValor(ac, '330,00')).toEqual({ ok: true, valor: 330 });
     expect(validarValor(ac, 'abc')).toMatchObject({ ok: false });
+  });
+});
+
+// ── Fase 2: linhas do /gerador na grade ──────────────────────────────────────
+
+describe('fase 2: camadas da célula e linhas do /gerador', () => {
+  const reg = (campos: Record<string, string | number>): RegistroGestao =>
+    lerRegistro({ campos: Object.fromEntries(Object.entries(campos).map(([k, valor]) => [k, { valor, por: 'nilce', em: '2026-10-22T10:00:00.000Z' }])), alteracoes: [] });
+  const der = (o: Partial<Derivada> & { codigo: string; card: number }): Derivada =>
+    ({ modo: 'so_gerador', doAlocador: true, vivo: true, consultor: 'Nilce', valores: {}, ...o });
+
+  it('celulaDe: overlay do código > overlay do card > planilha preenchida > derivado > vazio; calculada nunca recebe derivado', () => {
+    const cidade = porChave(COLS, 'cidade');
+    expect(celulaDe(cidade, '', undefined, 'Araguari')).toEqual({ valor: 'Araguari', origem: 'gerador' });
+    expect(celulaDe(cidade, 'Uberaba', undefined, 'Araguari')).toEqual({ valor: 'Uberaba', origem: 'planilha' });
+    expect(celulaDe(cidade, '', undefined, 'Araguari', reg({ cidade: 'Do Card' }))).toMatchObject({ valor: 'Do Card', origem: 'sistema' });
+    expect(celulaDe(cidade, '', reg({ cidade: 'Do Codigo' }), 'Araguari', reg({ cidade: 'Do Card' }))).toMatchObject({ valor: 'Do Codigo', origem: 'sistema' });
+    // G-5: o digitado no card fica ABAIXO do Excel e só completa o vazio
+    expect(celulaDe(cidade, 'Uberaba', undefined, 'Araguari', reg({ cidade: 'Do Card' }))).toMatchObject({ valor: 'Uberaba', origem: 'planilha' });
+    expect(celulaDe(cidade, '', undefined, undefined)).toEqual({ valor: null, origem: 'planilha' });
+    expect(celulaDe(porChave(COLS, 'km_total'), '', undefined, '99')).toMatchObject({ origem: 'planilha' });
+  });
+
+  it('o formato que a linha do /gerador escreve passa intacto pela leitura da planilha (dinheiro, inteiro, data, lista)', () => {
+    expect(normalizarDaPlanilha(porChave(COLS, 'valor_venda'), '145000.00')).toBe(145000);
+    expect(normalizarDaPlanilha(porChave(COLS, 'valor_venda'), '1234.50')).toBe(1234.5);
+    expect(normalizarDaPlanilha(porChave(COLS, 'qtd_placa'), '18')).toBe(18);
+    expect(normalizarDaPlanilha(porChave(COLS, 'pot_placa'), '600')).toBe(600);
+    expect(normalizarDaPlanilha(porChave(COLS, 'cadastro_trello'), '2026-10-22')).toBe('2026-10-22');
+    expect(normalizarDaPlanilha(porChave(COLS, 'modelo_inversor'), 'SAJ 6K')).toBe('Saj 6K');
+    expect(normalizarDaPlanilha(porChave(COLS, 'modelo_voltagem_inversor'), 'Bi - 220')).toBe('Bi - 220');
+  });
+
+  it('celulaEhFixa: pessoal em linha do alocador em QUALQUER modo; consultor só em só-Gerador; lado Gerador do conflito, tudo; ligação antiga, nada', () => {
+    for (const k of COLUNAS_PESSOAIS) {
+      expect(celulaEhFixa(k, { modo: 'junta', doAlocador: true }, false)).toBe(true);
+      expect(celulaEhFixa(k, { modo: 'so_gerador', doAlocador: false }, false)).toBe(true);
+      expect(celulaEhFixa(k, { modo: 'junta', doAlocador: false }, false)).toBe(false);
+    }
+    expect(celulaEhFixa('consultor', { modo: 'so_gerador', doAlocador: true }, false)).toBe(true);
+    expect(celulaEhFixa('consultor', { modo: 'junta', doAlocador: true }, false)).toBe(false);
+    expect(celulaEhFixa('engenheiro', undefined, true)).toBe(true);
+    expect(celulaEhFixa('engenheiro', { modo: 'so_gerador', doAlocador: true }, false)).toBe(false);
+  });
+
+  it('consultorEfetivo: overlay > planilha > derivado', () => {
+    const v = GRADE.vendas[0];
+    expect(consultorEfetivo(COLS, v.celulas, undefined, 'Giovanna')).toBe('Nilce');
+    expect(consultorEfetivo(COLS, v.celulas, reg({ consultor: 'Diego' }), 'Giovanna')).toBe('Diego');
+    const vazia = v.celulas.map((c, i) => (i === COLS.find((x) => x.chave === 'consultor')!.indice ? '' : c));
+    expect(consultorEfetivo(COLS, vazia, undefined, 'Giovanna')).toBe('Giovanna');
+  });
+
+  it('montarLinhas: só-Gerador no fim por código; junta completa o vazio sem tocar no preenchido; conflito em duas linhas; venda desfeita fora dos totais', () => {
+    const derivadas = new Map<string, Derivada>([
+      ['#0057', der({ codigo: '#0057', card: 501, modo: 'junta', valores: { cidade: 'Outra', qtd_placa: '18', engenheiro: 'Guilherme' } })],
+      ['#0058', der({ codigo: '#0058', card: 502, modo: 'conflito', consultor: 'Nilce', valores: { cidade: 'Cidade Gerador' } })],
+      ['#0070', der({ codigo: '#0070', card: 503, valores: { cliente: 'Hermes', contato: '34999990001', engenheiro: 'Guilherme' }, avisoTelefone: 'Mesmo telefone da linha #0057 do Excel. Se for a mesma venda, use no Excel o número #0070.' })],
+      ['#0065', der({ codigo: '#0065', card: 504, vivo: false, valores: { cliente: 'Desfeito' } })],
+    ]);
+    const overlays = new Map([[503, reg({ engenheiro: 'Digitado' })]]);
+    const { linhas } = montarLinhas(GRADE, COLS, new Map(), 'diego', true, derivadas, overlays);
+    expect(linhas.map((l) => l.codigo)).toEqual(['#0057', '#0058', '#0059', '#0065', '#0070', '#0058@502']);
+    const l57 = linhas[0];
+    expect(l57.celulas.cidade).toMatchObject({ valor: 'Uberlandia', origem: 'planilha' });   // preenchido fica
+    expect(l57.celulas.qtd_placa).toMatchObject({ valor: 18, origem: 'gerador' });           // vazio completa
+    expect(l57.celulas.cidade.fixa).toBe(true);                                             // alocador em junta: pessoal só leitura
+    expect(l57.card).toBe(501);
+    const csv58 = linhas[1];
+    expect(csv58).toMatchObject({ conflito: 'planilha' });
+    expect(csv58.card).toBeUndefined();   // G-6: a linha do CSV não leva o card do cliente do /gerador
+    expect(csv58.celulas.cidade.valor).not.toBe('Cidade Gerador');
+    const g58 = linhas[5];
+    expect(g58).toMatchObject({ exibir: '#0058', so_gerador: true, conflito: 'gerador', somente_leitura: true, card: 502 });
+    expect(Object.values(g58.celulas).every((c) => c.fixa)).toBe(true);
+    const l70 = linhas[4];
+    expect(l70).toMatchObject({ so_gerador: true, card: 503, aviso_telefone: expect.stringMatching(/#0057/) });
+    expect(l70.celulas.cliente).toMatchObject({ valor: 'Hermes', origem: 'gerador', fixa: true });
+    expect(l70.celulas.consultor.fixa).toBe(true);
+    expect(l70.celulas.engenheiro).toMatchObject({ valor: 'Digitado', origem: 'sistema' });
+    expect(linhas[3]).toMatchObject({ venda_desfeita: true });
+    expect(totais(linhas).clientes).toBe(linhas.length - 2);   // sem a venda desfeita e sem o lado /gerador do conflito (G-7)
+    // G-4: card que saiu de fechou, ou dono de outro, não leva o card na linha junta
+    const morto = new Map(derivadas); morto.set('#0057', { ...derivadas.get('#0057')!, vivo: false });
+    expect(montarLinhas(GRADE, COLS, new Map(), 'diego', true, morto).linhas[0].card).toBeUndefined();
+    const deOutro = new Map(derivadas); deOutro.set('#0057', { ...derivadas.get('#0057')!, consultor: 'Giovanna' });
+    expect(montarLinhas(GRADE, COLS, new Map(), 'nilce', false, deOutro).linhas[0].card).toBeUndefined();
+    // consultor: não vê linha alheia nem coluna de sócio nas derivadas
+    const nilce = montarLinhas(GRADE, COLS, new Map(), 'nilce', false, new Map([...derivadas, ['#0071', der({ codigo: '#0071', card: 505, consultor: 'Giovanna' })]]));
+    expect(nilce.linhas.map((l) => l.codigo)).not.toContain('#0071');
+    expect(nilce.linhas.every((l) => !('valor_venda' in l.celulas))).toBe(true);
+    // sem derivadas: idêntico a antes
+    expect(montarLinhas(GRADE, COLS, new Map(), 'diego', true)).toEqual(montarLinhas(GRADE, COLS, new Map(), 'diego', true, undefined, undefined));
   });
 });

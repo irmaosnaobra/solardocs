@@ -2,7 +2,7 @@ import { Router, Request, Response, RequestHandler } from 'express';
 import { lerDocs, dossieDaVendaSolar, type Ctx } from './geradorClientesDocs';
 import { dependenciasDoAlocador } from './geradorVendaSolarCliente';
 import { alocarCodigoSolar, previaDoCodigoSolar, cartaoConfiavel, MSG_SEM_PLANILHA, type MotivoErroAlocador } from '../services/gerador/vendaSolarCodigo';
-import { codigoDoAlocadorDoCard } from '../services/gerador/vendaSolarRegistro';
+import { ehCodigoDoAlocador } from '../services/gerador/vendaSolarRegistro';
 import { ErroDocs, baixarObjeto } from '../services/gerador/docsClienteBanco';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
 import { lerCadastroVisto, type Cadastro } from '../services/gerador/cadastroVenda';
@@ -346,7 +346,7 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
         if (achado.por === 'numero' || (nDoGuardado && nDoGuardado !== p.codigoVenda)) {
           // O alocador acabou de dar o número neste pedido: vale o resultado dele, sem reler. Senão, registro válido deste card OU
           // presente com assinatura inválida conta como do alocador (na dúvida, a pessoa confirma).
-          if (alocouAgora || await codigoDoAlocadorDoCard(p.codigoVenda, g.id)) {
+          if (alocouAgora || await ehCodigoDoAlocador(p.lig, g.id)) {
             achado = { tipo: 'empate', candidatos: [achado.cartao], motivo: achado.por === 'numero' ? MOTIVO_NUMERO_DO_GERADOR : MOTIVO_GUARDADO_OUTRO_NUMERO };
           }
         }

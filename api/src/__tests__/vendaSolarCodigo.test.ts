@@ -245,6 +245,13 @@ describe('venda desfeita (vivo x morto)', () => {
     expect(h.linhas.get('codigo_solar:0063')!.value.card).toBe(304);
     expect(h.linhas.has('gestao_cliente:0063')).toBe(true);
   });
+  it('morto cuja linha só-Gerador tem algo digitado (overlay do CARD, fase 2): pula, nada é apagado', async () => {
+    registro(reg('#0063', 304));
+    h.linhas.set('gestao_gerador:304', { updated_at: 'g', value: { campos: { engenheiro: { valor: 'Fulano', por: 'x', em: 'x' } }, alteracoes: [] } });
+    expect(await alocarCodigoSolar(pedido(301), deps())).toMatchObject({ codigo: '#0064' });
+    expect(h.linhas.get('codigo_solar:0063')!.value.card).toBe(304);
+    expect(h.linhas.has('gestao_gerador:304')).toBe(true);
+  });
   it('morto com cartão no Trello, ou que não é o próximo: fica a lacuna', async () => {
     registro(reg('#0063', 304));
     h.cartoes.push({ id: idFixo(5), name: '#0063 - Card Desfeito - Uberaba MG' });

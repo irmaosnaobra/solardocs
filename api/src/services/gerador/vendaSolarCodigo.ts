@@ -36,7 +36,7 @@ import {
 } from './vendaSolarRegistro';
 import { comTrava, ErroCadastro } from './cadastroVendaBanco';
 import { lerTodosOsCartoes, lerRegistroTrello, codigoDoTitulo, criadoEmDoCartao } from './trelloVendaSolar';
-import { lerRegistroComVersao } from './gestaoClientesBanco';
+import { lerRegistroComVersao, lerRegistroDoGeradorComVersao } from './gestaoClientesBanco';
 import { podeVer } from './solarObras';
 import type { CredenciaisTrello } from './dossieVenda';
 import type { CardVendido } from './fichaEletroposto';
@@ -304,6 +304,9 @@ async function reaproveitarMorto(morto: RegistroCodigo, agora: string, noQuadro:
     if (fechou(card)) return 'nao';
     const { reg, versao } = await lerRegistroComVersao(morto.codigo);
     if (versao !== null && (Object.keys(reg.campos).length > 0 || reg.alteracoes.length > 0)) return 'nao';
+    // Fase 2 (S2): o que se digitou na linha só do /gerador mora na chave do CARD; preenchida, também fica a lacuna.
+    const doCard = await lerRegistroDoGeradorComVersao(morto.card);
+    if (doCard.versao !== null && (Object.keys(doCard.reg.campos).length > 0 || doCard.reg.alteracoes.length > 0)) return 'nao';
     const { lig, existe } = await lerLigacao(morto.card);
     const regTrello = await lerRegistroTrello(morto.card);
     if ([lig.trello_card, regTrello.card_id].some((id) => !!id && noQuadro.has(id))) return 'nao';

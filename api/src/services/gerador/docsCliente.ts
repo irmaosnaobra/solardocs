@@ -571,10 +571,12 @@ export interface EquipamentoSolar {
   qtdInversor: number | null; modeloInversor: string; estrutura: string;
 }
 
-export function equipamentoDaPlanilha(cols: ColunaInterna[], celulasBrutas: string[], reg: RegistroGestao): EquipamentoSolar {
+export function equipamentoDaPlanilha(
+  cols: ColunaInterna[], celulasBrutas: string[], reg: RegistroGestao, derivados?: Record<string, string>, regCard?: RegistroGestao,
+): EquipamentoSolar {
   const v = (k: string): Valor => {
     const c = cols.find((x) => x.chave === k);
-    return c ? celulaDe(c, celulasBrutas[c.indice] ?? '', reg).valor : null;
+    return c ? celulaDe(c, celulasBrutas[c.indice] ?? '', reg, derivados?.[k], regCard).valor : null;
   };
   const num = (k: string): number | null => { const x = v(k); return typeof x === 'number' && Number.isFinite(x) ? x : null; };
   return {

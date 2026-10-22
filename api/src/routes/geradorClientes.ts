@@ -6,11 +6,17 @@ import { ehSocio, podeVer, codigoCanonico } from '../services/gerador/solarObras
 import {
   lerGrade, montarCatalogo, montarLinhas, colunasPara, colunaPublica, totais, validarValor, celulaDe,
   progressoDe, houveConflito, aplicarGravacao, consultorEfetivo, nomeComparavel, GRUPOS, GRUPO_OUTROS,
-  type Grade, type ColunaInterna, type RegistroGestao, type Celula,
+  COLUNAS_PESSOAIS, celulaEhFixa, lerRegistro,
+  type Grade, type ColunaInterna, type RegistroGestao, type Celula, type Derivada,
 } from '../services/gerador/gestaoClientes';
-import { lerRegistros, lerRegistroComVersao, gravarRegistro, ErroGestao } from '../services/gerador/gestaoClientesBanco';
+import {
+  lerRegistros, lerRegistroComVersao, gravarRegistro, ErroGestao, lerRegistrosDoGerador, lerRegistroDoGeradorComVersao, gravarRegistroDoGerador,
+} from '../services/gerador/gestaoClientesBanco';
+import { paresDoGerador, derivarPares, derivadaDe, CHAVES_DERIVADAS, type ResumoCsv } from '../services/gerador/linhasGerador';
+import { equipamentoDaPlanilha, type EquipamentoSolar } from '../services/gerador/docsCliente';
 import { lerCardSolarVendido, lerLigacao, type VendaCsvParaVinculo } from '../services/gerador/vendaSolarHub';
-import { codigoDoAlocadorDoCard } from '../services/gerador/vendaSolarRegistro';
+import { codigoDoAlocadorDoCard, lerEstadoDoRegistro, ehCodigoDoAlocador } from '../services/gerador/vendaSolarRegistro';
+import { POR_GERADOR } from '../services/gerador/vendaSolarHub';
 import type { CardVendido } from '../services/gerador/fichaEletroposto';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,7 +214,9 @@ async function resumoDasVendas(dados: CacheGrade, semOverlayVale = false): Promi
  * linha com esse número de OUTRO cliente, o consultor dela leria o cadastro e os documentos deste. Ligação feita por gente, ou a
  * antiga `por: 'auto'`: confia, como sempre. Erro de banco sobe (`ErroHub`). Nunca lê cadastro nem compara nome.
  */
-export async function vendaLigadaVale(cardId: number, codigo: string): Promise<boolean> {
+export async function vendaLigadaVale(cardId: number, codigo: string, por?: string): Promise<boolean> {
+  // Ligação `por: 'gerador'` é do alocador mesmo sem o registro (a chave pública pode apagar `codigo_solar:*`).
+  if (por === POR_GERADOR) return false;
   // Registro presente com assinatura inválida também nega (na dúvida, o consultor da planilha não ganha o card).
   return !(await codigoDoAlocadorDoCard(codigo, cardId));
 }
@@ -225,7 +233,7 @@ export async function acessoVendaSolar(nome: string, socio: boolean, cardId: num
   if (!card) return null;
   if (socio || podeVer(nome, String(card.vendedor_nome ?? ''))) return card;
   const { lig } = await lerLigacao(cardId);
-  if (lig.venda && await vendaLigadaVale(cardId, lig.venda) && await vendaSolarDoDono(nome, false, lig.venda)) return card;
+  if (lig.venda && await vendaLigadaVale(cardId, lig.venda, lig.por) && await vendaSolarDoDono(nome, false, lig.venda)) return card;
   return null;
 }
 
@@ -277,13 +285,72 @@ function quem(req: Request): { nome: string; socio: boolean } {
 
 const MSG_PLANILHA = 'Não consegui ler a planilha agora. Tente de novo em instantes.';
 const MSG_BANCO = 'Não consegui ler os dados agora. Tente de novo em instantes.';
+const MSG_GRAVAR = 'Não consegui gravar agora. Tente de novo.';
+const MSG_PESSOAL = 'Esta informação vem do cadastro do card. Para mudar, edite no card da agenda.';
+const MSG_CONSULTOR_DO_CARD = 'O consultor vem do card da agenda. Para trocar, transfira o card.';
 
 function celulaPublica(c: Celula): Celula {
-  return c.origem === 'sistema' ? { valor: c.valor, origem: c.origem, por: c.por, em: c.em } : { valor: c.valor, origem: c.origem };
+  const base: Celula = c.origem === 'sistema' ? { valor: c.valor, origem: c.origem, por: c.por, em: c.em } : { valor: c.valor, origem: c.origem };
+  return c.fixa ? { ...base, fixa: true } : base;
 }
 
 function textoValor(v: unknown): string {
   return v === null || v === undefined ? 'vazio' : String(v);
+}
+
+/** O resumo de UMA linha do CSV para a classificação da camada do /gerador (com o overlay já aplicado). */
+function resumoDaLinha(cols: ColunaInterna[], venda: Grade['vendas'][number], reg: RegistroGestao | undefined, nome: string, socio: boolean): ResumoCsv {
+  const texto = (chave: string): string => {
+    const c = cols.find((x) => x.chave === chave);
+    if (!c) return '';
+    const v = celulaDe(c, venda.celulas[c.indice] ?? '', reg).valor;
+    return v === null || v === undefined ? '' : String(v);
+  };
+  const consultor = consultorEfetivo(cols, venda.celulas, reg);
+  // "Vazia" só quando TODAS as colunas pessoais e o equipamento estão vazios (senão é a linha de algum cliente: confere o nome).
+  const vazia = [...COLUNAS_PESSOAIS, ...COLUNAS_EQUIPAMENTO].every((k) => !texto(k).trim());
+  return { visivel: socio || podeVer(nome, consultor), cliente: texto('cliente'), homologacao: texto('homologacao'), telefone: texto('contato'), consultor, vazia };
+}
+const COLUNAS_EQUIPAMENTO = ['qtd_placa', 'modelo_placa', 'pot_placa', 'qtd_inversor', 'modelo_inversor', 'modelo_voltagem_inversor', 'obs', 'outro_equip'];
+
+/**
+ * O equipamento da venda ligada ao card, para o relatório da venda solar. Sem venda ligada: null. Código de gente (sem registro do
+ * alocador): como sempre, a linha da planilha SE quem pede a enxerga. Código do alocador (registro válido deste card OU presente com
+ * assinatura inválida): a linha que o /gerador monta; em `junta`, completando a do CSV; em conflito, SÓ o derivado (nada da linha do
+ * outro cliente). Qualquer falha de leitura: null (o relatório sai sem equipamento, nunca com o da planilha na dúvida).
+ */
+export async function equipamentoDoCardParaRelatorio(
+  nome: string, socio: boolean, card: CardVendido, lig: { venda: string | null; por?: string },
+): Promise<EquipamentoSolar | null> {
+  if (!lig.venda) return null;
+  let doAlocador: boolean;
+  try {
+    doAlocador = await ehCodigoDoAlocador(lig, card.id);
+  } catch (err) {
+    console.error('[clientes] registro do código indisponível no relatório', (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
+    return null;
+  }
+  if (!doAlocador) {
+    // Ligação feita por gente: como sempre (planilha fora do ar relança `ErroVendaSolar`).
+    const s = await vendaSolarDoDono(nome, socio, lig.venda);
+    return s ? equipamentoDaPlanilha(s.cols, s.venda.celulas, s.reg) : null;
+  }
+  try {
+    const { dados } = await grade(false);
+    const venda = dados.grade.vendas.find((v) => v.codigo === lig.venda);
+    const regCodigo = venda ? (await lerRegistroComVersao(lig.venda)).reg : undefined;
+    const csv = new Map<string, ResumoCsv>(venda ? [[venda.codigo, resumoDaLinha(dados.cols, venda, regCodigo, nome, socio)]] : []);
+    const d0 = await derivadaDe(lig.venda, { nome, socio, csv });
+    const d = d0 === 'pulado' ? null : d0;
+    if (!d || d.card !== card.id) return null;   // o par tem que ser DESTE card
+    const doCard = (await lerRegistroDoGeradorComVersao(d.card)).reg;
+    if (d.modo === 'junta' && venda) return equipamentoDaPlanilha(dados.cols, venda.celulas, regCodigo ?? lerRegistro(undefined), d.valores, doCard);
+    if (d.modo === 'so_gerador') return equipamentoDaPlanilha(dados.cols, [], lerRegistro(undefined), d.valores, doCard);
+    return equipamentoDaPlanilha(dados.cols, [], lerRegistro(undefined), d.valores);   // conflito: só o montado
+  } catch (err) {
+    console.error('[clientes] equipamento do relatório indisponível', err instanceof ErroGestao ? err.codigo : 'interno');
+    return null;
+  }
 }
 
 export function mountClientes(router: Router): void {
@@ -303,7 +370,29 @@ export function mountClientes(router: Router): void {
       res.status(502).json({ ok: false, error: MSG_BANCO });
       return;
     }
-    const { colunas, linhas } = montarLinhas(pl.dados.grade, pl.dados.cols, registros, nome, socio);
+    // Camada do /gerador (fase 2): falha NUNCA derruba a grade; vira `fonte.gerador: false` e a grade segue só com o CSV.
+    let derivadas: Map<string, Derivada> | undefined;
+    let overlays: Map<number, RegistroGestao> | undefined;
+    let pulados: Set<string> | undefined;
+    let fonteGerador = true;
+    let fonteCadastro = true;
+    try {
+      const csv = new Map<string, ResumoCsv>();
+      for (const v of pl.dados.grade.vendas) csv.set(v.codigo, resumoDaLinha(pl.dados.cols, v, registros.get(v.codigo), nome, socio));
+      const r = await derivarPares(await paresDoGerador(), { nome, socio, csv });
+      // O overlay do card vale na linha só do /gerador e em `junta` (S2); a leitura entra neste mesmo try (S7).
+      overlays = await lerRegistrosDoGerador([...r.derivadas.values()].filter((d) => d.modo !== 'conflito').map((d) => d.card));
+      derivadas = r.derivadas;
+      pulados = r.pulados;
+      fonteCadastro = r.cadastroOk;
+    } catch (err) {
+      console.error('[clientes] camada do gerador falhou', (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
+      fonteGerador = false;
+      fonteCadastro = false;
+      derivadas = undefined;
+      overlays = undefined;
+    }
+    const { colunas, linhas } = montarLinhas(pl.dados.grade, pl.dados.cols, registros, nome, socio, derivadas, overlays, pulados);
     const presentes = new Set(colunas.map((c) => c.grupo));
     res.json({
       ok: true,
@@ -311,7 +400,7 @@ export function mountClientes(router: Router): void {
       consultor: nome,
       em: agora,
       atualizadoEm: new Date(pl.dados.ts).toISOString(),
-      fonte: { planilha: pl.atual },
+      fonte: { planilha: pl.atual, gerador: fonteGerador, cadastro: fonteCadastro },
       catalogo: {
         grupos: [...GRUPOS, GRUPO_OUTROS].filter((g) => presentes.has(g)),
         colunas: colunas.map(colunaPublica),
@@ -319,6 +408,13 @@ export function mountClientes(router: Router): void {
       linhas: linhas.map((l) => ({
         codigo: l.codigo, cliente: l.cliente, consultor: l.consultor, progresso: l.progresso,
         celulas: Object.fromEntries(Object.entries(l.celulas).map(([k, c]) => [k, celulaPublica(c)])),
+        ...(l.so_gerador ? { so_gerador: true } : {}),
+        ...(l.card !== undefined ? { card: l.card } : {}),
+        ...(l.exibir ? { exibir: l.exibir } : {}),
+        ...(l.conflito ? { conflito: l.conflito } : {}),
+        ...(l.venda_desfeita ? { venda_desfeita: true } : {}),
+        ...(l.somente_leitura ? { somente_leitura: true } : {}),
+        ...(l.aviso_telefone ? { aviso_telefone: l.aviso_telefone } : {}),
       })),
       totais: totais(linhas),
     });
@@ -327,7 +423,7 @@ export function mountClientes(router: Router): void {
   // ── Gravar uma célula ──────────────────────────────────────────────────────
   router.post('/clientes/solar/campo', exigeConsultor, semCache, async (req: Request, res: Response) => {
     const { nome, socio } = quem(req);
-    const b = (req.body || {}) as { codigo?: unknown; coluna?: unknown; valor?: unknown; base_em?: unknown };
+    const b = (req.body || {}) as { codigo?: unknown; coluna?: unknown; valor?: unknown; base_em?: unknown; card?: unknown };
     const codigoRaw = String(b.codigo ?? '').trim();
     const colunaRaw = typeof b.coluna === 'string' ? b.coluna.trim() : '';
     const baseEm = typeof b.base_em === 'string' ? b.base_em : '';
@@ -343,6 +439,12 @@ export function mountClientes(router: Router): void {
       res.status(400).json({ ok: false, error: 'Valor longo demais.' });
       return;
     }
+    // G-9: a tela manda o `card` quando a edição vem de uma linha só do /gerador.
+    if (b.card !== undefined && !(typeof b.card === 'number' && Number.isInteger(b.card) && b.card > 0)) {
+      res.status(400).json({ ok: false, error: 'Pedido inválido.' });
+      return;
+    }
+    const cardPedido = b.card as number | undefined;
     const codigo = codigoCanonico(codigoRaw);
 
     let pl: { dados: CacheGrade; atual: boolean };
@@ -350,23 +452,64 @@ export function mountClientes(router: Router): void {
       res.status(502).json({ ok: false, error: MSG_PLANILHA });
       return;
     }
-    // 1º a POSSE da venda, antes de qualquer outra conferência: venda inexistente e venda de outro
-    // consultor respondem IGUAL (404, mesma mensagem), senão a ordem das recusas revelaria que o código existe.
+    const cols = pl.dados.cols;
+    // 1º a POSSE da linha, antes de qualquer outra conferência: inexistente e de outro consultor respondem IGUAL (404).
     const venda = pl.dados.grade.vendas.find((v) => v.codigo === codigo);
+    // A linha do /gerador deste código (lida no máximo uma vez, do cache de 60 s; nunca varre as ligações a cada célula).
+    // `pulado`: o par existe mas ficou de fora (cadastro do card não respondeu e era preciso conferir o nome).
+    let deriv: Derivada | null | 'pulado' | undefined;
+    let pulado = false;
+    const lerDeriv = async (reg: RegistroGestao | undefined): Promise<Derivada | null> => {
+      if (deriv === undefined) {
+        const csv = new Map<string, ResumoCsv>(venda ? [[codigo, resumoDaLinha(cols, venda, reg, nome, socio)]] : []);
+        deriv = await derivadaDe(codigo, { nome, socio, csv });
+      }
+      if (deriv === 'pulado') { pulado = true; return null; }
+      return deriv;
+    };
     let dono = false;
+    let regPosse: RegistroGestao | undefined;
     if (venda) {
       try {
         const { reg } = await lerRegistroComVersao(codigo);
-        dono = socio || podeVer(nome, consultorEfetivo(pl.dados.cols, venda.celulas, reg));
+        regPosse = reg;
+        dono = socio || podeVer(nome, consultorEfetivo(cols, venda.celulas, reg));
+        if (!dono) {
+          // S1: na linha `junta` a grade vê pelo MESMO consultor efetivo (com o do card); a posse aqui é a mesma.
+          try {
+            const d = await lerDeriv(reg);
+            if (d && d.modo === 'junta') dono = podeVer(nome, consultorEfetivo(cols, venda.celulas, reg, d.consultor));
+          } catch { /* sem a camada do /gerador vale a posse do CSV */ }
+        }
       } catch (err) {
         console.error('[clientes] leitura falhou', err instanceof ErroGestao ? err.codigo : 'interno');
-        res.status(500).json({ ok: false, error: 'Não consegui gravar agora. Tente de novo.' });
+        res.status(500).json({ ok: false, error: MSG_GRAVAR });
         return;
       }
+    } else {
+      let d: Derivada | null;
+      try { d = await lerDeriv(undefined); } catch (err) {
+        console.error('[clientes] linha do gerador indisponível', (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
+        res.status(503).json({ ok: false, error: MSG_GRAVAR });
+        return;
+      }
+      dono = !!d && d.modo === 'so_gerador' && (socio || podeVer(nome, d.consultor));
     }
-    if (!venda || !dono) { res.status(404).json({ ok: false, error: 'Venda não encontrada.' }); return; }
+    if (!dono) { res.status(404).json({ ok: false, error: 'Venda não encontrada.' }); return; }
+    // G-9: a tela editou a linha só do /gerador deste card; se o código entrou no CSV de outro jeito (ou é de outro card), a linha mudou.
+    if (cardPedido !== undefined) {
+      let d: Derivada | null;
+      try { d = await lerDeriv(regPosse); } catch {
+        res.status(503).json({ ok: false, error: MSG_GRAVAR });
+        return;
+      }
+      // Só confere para quem é dono do card (quem só vê a linha pelo CSV não descobre o card ligado testando valores).
+      const confere = !!d && d.card === cardPedido && (venda ? d.modo === 'junta' : d.modo === 'so_gerador')
+        && (socio || podeVer(nome, d.consultor));
+      if (!confere) { res.status(409).json({ ok: false, error: 'A linha mudou. Recarregue a página.' }); return; }
+    }
     // Coluna de sócio para consultor dá a MESMA resposta de coluna que não existe.
-    const col = pl.dados.cols.find((c) => c.chave === colunaRaw);
+    const col = cols.find((c) => c.chave === colunaRaw);
     if (!col || (!socio && col.quem_ve === 'socio')) {
       res.status(400).json({ ok: false, error: 'Coluna não encontrada.' });
       return;
@@ -375,27 +518,89 @@ export function mountClientes(router: Router): void {
       res.status(400).json({ ok: false, error: 'Esta coluna não pode ser editada.' });
       return;
     }
+    // Travas da fase 2, independentes da camada derivada (não abrem com o /gerador fora do ar):
+    // (a) coluna pessoal em linha só do /gerador, ou em linha do CSV cujo código tem registro do alocador (válido ou não).
+    if (COLUNAS_PESSOAIS.has(col.chave)) {
+      let travada = !venda;
+      if (!travada) {
+        try {
+          // Registro do alocador (válido ou não, de qualquer card) OU ligação `por: 'gerador'` com este código (registro apagado).
+          travada = (await lerEstadoDoRegistro(codigo)).estado !== 'ausente';
+          if (!travada) {
+            for (const p of (await paresDoGerador()).filter((x) => x.codigo === codigo)) {
+              if (await ehCodigoDoAlocador({ venda: p.codigo, por: p.por }, p.card)) { travada = true; break; }
+            }
+          }
+        } catch (err) {
+          console.error('[clientes] registro do código indisponível', (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
+          res.status(503).json({ ok: false, error: MSG_GRAVAR });
+          return;
+        }
+      }
+      if (travada) { res.status(400).json({ ok: false, error: MSG_PESSOAL }); return; }
+    }
+    // (b) consultor em linha só do /gerador, mesmo de sócio.
+    if (!venda && col.chave === 'consultor') { res.status(400).json({ ok: false, error: MSG_CONSULTOR_DO_CARD }); return; }
+
     // O consultor confere contra as opções que ELE recebe (escritas + as das vendas dele), nunca contra o catálogo inteiro:
     // senão "Marcos" digitado viraria a grafia de um engenheiro de venda alheia.
     let colValida: ColunaInterna = col;
     if (!socio && col.tipo === 'lista' && col.livre && col.chave !== 'consultor') {
       try {
         const regs = await lerRegistros(pl.dados.grade.vendas.map((x) => x.codigo));
-        const dele = montarLinhas(pl.dados.grade, pl.dados.cols, regs, nome, false).colunas.find((c) => c.chave === col.chave);
+        const dele = montarLinhas(pl.dados.grade, cols, regs, nome, false).colunas.find((c) => c.chave === col.chave);
         if (dele) colValida = dele;
       } catch (err) {
         console.error('[clientes] leitura falhou', err instanceof ErroGestao ? err.codigo : 'interno');
-        res.status(500).json({ ok: false, error: 'Não consegui gravar agora. Tente de novo.' });
+        res.status(500).json({ ok: false, error: MSG_GRAVAR });
         return;
       }
     }
     const v = validarValor(colValida, b.valor);
     if (!v.ok) { res.status(400).json({ ok: false, error: v.erro }); return; }
+    const colunas = colunasPara(cols, socio);
 
     try {
+      if (!venda) {
+        // Linha só do /gerador: o overlay mora na chave do CARD (S2), com a mesma conferência de versão.
+        const d = deriv as Derivada;   // só-Gerador: lida (e não pulada) na posse
+        for (let tentativa = 0; tentativa < TENTATIVAS_GRAVAR; tentativa++) {
+          const { reg, versao } = await lerRegistroDoGeradorComVersao(d.card);
+          const celDe = (c: ColunaInterna, r: RegistroGestao): Celula => {
+            const cel = celulaDe(c, '', undefined, d.valores[c.chave], r);
+            return celulaEhFixa(c.chave, d, false) ? { ...cel, fixa: true } : cel;
+          };
+          const antesCel = celDe(col, reg);
+          const outro = houveConflito(reg, col.chave, baseEm, nome);
+          if (outro) {
+            res.status(409).json({
+              ok: false, conflito: true, error: `${outro.por} alterou esta célula agora. Valor atual: ${textoValor(antesCel.valor)}`,
+              por: outro.por, em: outro.em, celula: celulaPublica(antesCel),
+            });
+            return;
+          }
+          const mesmo = v.valor === null ? !reg.campos[col.chave] : (antesCel.origem === 'sistema' && antesCel.valor === v.valor);
+          const agora = new Date().toISOString();
+          let novo = reg;
+          if (!mesmo) {
+            // A trilha nunca guarda o valor que veio do /gerador (cadastro, proposta): seria dado pessoal em `system_state`.
+            novo = aplicarGravacao(reg, col, v.valor, antesCel.origem === 'gerador' ? null : antesCel.valor, nome, agora);
+            if (!(await gravarRegistroDoGerador(d.card, novo, versao, agora))) continue;
+          }
+          const celulas: Record<string, Celula> = {};
+          for (const c of colunas) if (c.chave !== 'codigo') celulas[c.chave] = celDe(c, novo);
+          res.json({ ok: true, celula: celulaPublica(celulas[col.chave]), em: agora, progresso: progressoDe(colunas, celulas) });
+          return;
+        }
+        res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta venda agora. Tente de novo.' });
+        return;
+      }
+      // G-3: o card ligado a este código (dos pares em cache; nunca varre as ligações a cada célula), para o overlay da linha `junta`.
+      let parCard: number | null = null;
+      try { parCard = (await paresDoGerador()).find((p) => p.codigo === codigo)?.card ?? null; } catch { parCard = null; }
       for (let tentativa = 0; tentativa < TENTATIVAS_GRAVAR; tentativa++) {
         const { reg, versao } = await lerRegistroComVersao(codigo);
-        if (!(socio || podeVer(nome, consultorEfetivo(pl.dados.cols, venda.celulas, reg)))) {
+        if (!(socio || podeVer(nome, consultorEfetivo(cols, venda.celulas, reg, deriv && deriv !== 'pulado' && deriv.modo === 'junta' ? deriv.consultor : undefined)))) {
           res.status(404).json({ ok: false, error: 'Venda não encontrada.' });
           return;
         }
@@ -403,7 +608,17 @@ export function mountClientes(router: Router): void {
           res.status(403).json({ ok: false, error: 'Só sócio troca o consultor da venda.' });
           return;
         }
-        const antesCel = celulaDe(col, venda.celulas[col.indice] ?? '', reg);
+        const doCard = parCard !== null ? await lerRegistroDoGeradorComVersao(parCard) : null;
+        // A linha do /gerador só é lida em coluna que tem fonte derivada (S6) ou que tem algo digitado no card. Se falhar, a gravação
+        // segue como hoje, e o `progresso` não vai (a tela recalcula): um número que ignora o /gerador mentiria.
+        let d: Derivada | null | undefined = deriv === 'pulado' ? null : deriv;
+        if (deriv === undefined && (CHAVES_DERIVADAS.has(col.chave) || !!doCard?.reg.campos[col.chave])) {
+          try { d = await lerDeriv(reg); } catch { d = undefined; }
+        }
+        const junta = d && d.modo === 'junta' && doCard && d.card === parCard ? d : null;
+        const derivados = junta ? junta.valores : undefined;
+        const regCard = junta && doCard ? doCard.reg : undefined;
+        const antesCel = celulaDe(col, venda.celulas[col.indice] ?? '', reg, derivados?.[col.chave], regCard);
         const outro = houveConflito(reg, col.chave, baseEm, nome);
         if (outro) {
           res.status(409).json({
@@ -413,32 +628,41 @@ export function mountClientes(router: Router): void {
           });
           return;
         }
-        const colunas = colunasPara(pl.dados.cols, socio);
-        const celulasDepois = (reg2: RegistroGestao): Record<string, Celula> => {
+        const celulasDepois = (reg2: RegistroGestao, regCard2: RegistroGestao | undefined): Record<string, Celula> => {
           const m: Record<string, Celula> = {};
-          for (const c of colunas) if (c.chave !== 'codigo') m[c.chave] = celulaDe(c, venda.celulas[c.indice] ?? '', reg2);
+          for (const c of colunas) if (c.chave !== 'codigo') m[c.chave] = celulaDe(c, venda.celulas[c.indice] ?? '', reg2, derivados?.[c.chave], regCard2);
           return m;
         };
-        const mesmo = v.valor === null ? !reg.campos[col.chave] : (antesCel.origem === 'sistema' && antesCel.valor === v.valor);
+        // A trilha nunca guarda o valor que veio do /gerador (cadastro, proposta): seria dado pessoal em `system_state`.
+        const antes = antesCel.origem === 'gerador' ? null : antesCel.valor;
         const agora = new Date().toISOString();
         let novo = reg;
-        if (!mesmo) {
-          novo = aplicarGravacao(reg, col, v.valor, antesCel.valor, nome, agora);
-          if (!(await gravarRegistro(codigo, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
+        let novoCard = regCard;
+        if (v.valor === null && !reg.campos[col.chave] && regCard?.campos[col.chave] && antesCel.origem === 'sistema' && doCard && parCard !== null) {
+          // Apagar um valor que só existe no overlay do card apaga ali, com a mesma conferência de versão.
+          novoCard = aplicarGravacao(regCard, col, null, antes, nome, agora);
+          if (!(await gravarRegistroDoGerador(parCard, novoCard, doCard.versao, agora))) continue;
+        } else {
+          const mesmo = v.valor === null ? !reg.campos[col.chave] : (antesCel.origem === 'sistema' && antesCel.valor === v.valor);
+          if (!mesmo) {
+            novo = aplicarGravacao(reg, col, v.valor, antes, nome, agora);
+            if (!(await gravarRegistro(codigo, novo, versao, agora))) continue;   // perdeu a corrida: lê de novo
+          }
         }
-        const celulas = celulasDepois(novo);
+        const celulas = celulasDepois(novo, novoCard);
         res.json({
           ok: true,
           celula: celulaPublica(celulas[col.chave]),
           em: agora,
-          progresso: progressoDe(colunas, celulas),
+          // Sem a linha do /gerador lida (ou com o par pulado), o número mentiria: a tela recalcula.
+          ...(d !== undefined && !pulado ? { progresso: progressoDe(colunas, celulas) } : {}),
         });
         return;
       }
       res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta venda agora. Tente de novo.' });
     } catch (err) {
       console.error('[clientes] gravar falhou', err instanceof ErroGestao ? err.codigo : 'interno');
-      res.status(500).json({ ok: false, error: 'Não consegui gravar agora. Tente de novo.' });
+      res.status(500).json({ ok: false, error: MSG_GRAVAR });
     }
   });
 }

@@ -13,7 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import crypto from 'crypto';
 import { supabase } from '../../utils/supabase';
-import { ErroHub, segredoDoVinculo } from './vendaSolarHub';
+import { ErroHub, POR_GERADOR, segredoDoVinculo } from './vendaSolarHub';
 
 /** Uma série de códigos: como o código se escreve, onde o registro mora e qual trava serializa a numeração. */
 export interface SerieCodigo {
@@ -188,4 +188,16 @@ export async function inserirRegistro(r0: RegistroCodigo, serie: SerieCodigo = S
 export async function apagarRegistro(codigo: string, serie: SerieCodigo = SERIE_SOLAR): Promise<void> {
   const { error } = await supabase.from('system_state').delete().eq('key', chaveCodigoSolar(codigo, serie));
   if (error) throw new ErroHub(codigoDe(error));
+}
+
+/**
+ * O código ligado ao card é do alocador? Ligação `por: 'gerador'` (mesmo com o registro apagado: a chave pública escreve em
+ * `system_state`), registro válido deste card, ou registro presente com assinatura inválida. UM só critério para a guarda, a
+ * sincronia do nome, a trava das colunas pessoais, a rota do Trello e o relatório. Erro de leitura lança: quem chama dá 503 e
+ * nunca abre.
+ */
+export async function ehCodigoDoAlocador(lig: { venda: string | null; por?: string }, cardId: number): Promise<boolean> {
+  if (!lig.venda) return false;
+  if (lig.por === POR_GERADOR) return true;
+  return codigoDoAlocadorDoCard(lig.venda, cardId);
 }

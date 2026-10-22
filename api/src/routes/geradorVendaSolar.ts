@@ -12,7 +12,7 @@ import { lerRegistroDoCodigo } from '../services/gerador/vendaSolarRegistro';
 import { ErroDocs, lerPropostaResumo } from '../services/gerador/docsClienteBanco';
 import {
   ErroHub, TRAVA_VINCULOS, lerLigacao, lerTodasLigacoes, gravarLigacao, quemUsa, listarVendidasParaVinculo, compararTelefones, mesmoConsultor,
-  comCacheHub, invalidarCachesHub, segredoDoVinculo, propostaDoPapel, type ForcaTelefone,
+  comCacheHub, invalidarCachesHub, segredoDoVinculo, propostaDoPapel, POR_GERADOR, type ForcaTelefone,
   type CandidatoProposta, type CandidatoVenda, type Ligacao,
 } from '../services/gerador/vendaSolarHub';
 
@@ -241,10 +241,16 @@ export function mountVendaSolar(router: Router): void {
         if (venda && quemUsa(todas, g.id, 'venda', venda) !== null) {
           return { status: 409 as const, corpo: { ok: false, error: 'Esta venda da planilha já está ligada a outro card.' } };
         }
+        const vendaNova = querVenda ? venda : lig.venda;
+        // O número dado pelo alocador continua marcado como dele (`por: 'gerador'`) quando se liga só a proposta ou se religa o
+        // número: sem o marcador, apagar `codigo_solar:<N>` pela chave pública abriria o card ao consultor da linha #N do Excel.
+        // Registro fora do ar não derruba o Ligar (R5): vale o marcador que a ligação já tem.
+        const doAlocador = !!vendaNova && ((vendaNova === lig.venda && lig.por === POR_GERADOR)
+          || (await lerRegistroDoCodigo(vendaNova).catch(() => null))?.card === g.id);
         const novo: Ligacao = {
           proposta: querProposta ? proposta : lig.proposta,
-          venda: querVenda ? venda : lig.venda,
-          por: g.nome, em: new Date().toISOString(),
+          venda: vendaNova,
+          por: doAlocador ? POR_GERADOR : g.nome, em: new Date().toISOString(),
           // O cartão do Trello já ligado segue junto: religar a proposta não pode esquecê-lo.
           ...(lig.trello_card ? { trello_card: lig.trello_card } : {}),
         };

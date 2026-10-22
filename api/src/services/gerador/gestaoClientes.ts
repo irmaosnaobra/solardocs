@@ -42,9 +42,12 @@ export interface ColunaInterna extends Coluna { indice: number }
 
 export interface Celula {
   valor: Valor;
-  origem: 'planilha' | 'sistema';
+  /** `gerador` (fase 2): o valor vem do card, da proposta ou do cadastro (a linha que o /gerador monta), não da planilha. */
+  origem: 'planilha' | 'sistema' | 'gerador';
   por?: string;
   em?: string;
+  /** Só leitura nesta linha: o valor vem da fonte (o cadastro do card) e não se grava por cima. */
+  fixa?: true;
 }
 
 export interface CampoSistema { valor: Valor; por: string; em: string }
@@ -516,11 +519,48 @@ export function lerRegistro(value: unknown): RegistroGestao {
 
 // ── Mescla ───────────────────────────────────────────────────────────────────
 
-/** Valor do sistema (se houver) por cima do da planilha, campo a campo. */
-export function celulaDe(c: Coluna, bruto: string, reg: RegistroGestao | undefined): Celula {
+/**
+ * Valor do sistema (se houver) por cima do da planilha, campo a campo. Fase 2: `regCard` é o overlay da linha do /gerador
+ * (`gestao_gerador:<card>`), que fica ABAIXO da planilha e só completa o vazio (a grade e as Obras não discordam); `derivado` é o valor
+ * que o /gerador monta (card, proposta, cadastro). Ordem: digitado no código > planilha preenchida > digitado no card > montado >
+ * vazio. Coluna calculada nunca recebe overlay nem derivado.
+ */
+export function celulaDe(c: Coluna, bruto: string, reg: RegistroGestao | undefined, derivado?: string, regCard?: RegistroGestao): Celula {
   const s = !c.calculada ? reg?.campos[c.chave] : undefined;
   if (s) return { valor: s.valor, origem: 'sistema', por: s.por, em: s.em };
-  return { valor: normalizarDaPlanilha(c, bruto), origem: 'planilha' };
+  const daPlanilha = normalizarDaPlanilha(c, bruto);
+  if (!vazioV(daPlanilha) || c.calculada) return { valor: daPlanilha, origem: 'planilha' };
+  const doCard = regCard?.campos[c.chave];
+  if (doCard) return { valor: doCard.valor, origem: 'sistema', por: doCard.por, em: doCard.em };
+  if (!derivado) return { valor: daPlanilha, origem: 'planilha' };
+  const d = normalizarDaPlanilha(c, derivado);
+  return vazioV(d) ? { valor: daPlanilha, origem: 'planilha' } : { valor: d, origem: 'gerador' };
+}
+
+// ── Linhas do /gerador (fase 2) ──────────────────────────────────────────────
+
+/** Colunas com dado PESSOAL: na linha do alocador ou só do /gerador vêm do cadastro do card e são só leitura. */
+export const COLUNAS_PESSOAIS: ReadonlySet<string> = new Set(['cliente', 'homologacao', 'contato', 'endereco', 'cidade', 'uf']);
+/** `so_gerador`: o código não tem linha na planilha. `junta`: tem, e é o mesmo cliente. `conflito`: tem, e é outro cliente. */
+export type ModoGerador = 'so_gerador' | 'junta' | 'conflito';
+/**
+ * A linha que o /gerador monta para um código ligado a um card. `valores`: chave de coluna -> texto bruto no formato da planilha (só
+ * chaves com valor). Nomes e telefones usados para conferir identidade NUNCA entram aqui. `avisoTelefone`: só o texto pronto, com
+ * códigos de linhas do Excel.
+ */
+export interface Derivada {
+  codigo: string; card: number; modo: ModoGerador; doAlocador: boolean; vivo: boolean; consultor: string;
+  valores: Record<string, string>; avisoTelefone?: string;
+}
+
+/**
+ * A célula é só leitura? Lado Gerador de um conflito: toda coluna. Coluna pessoal em linha do alocador ou só do /gerador: em
+ * QUALQUER modo. Consultor em linha só do /gerador. O resto, não (as ligações antigas sem registro seguem editáveis).
+ */
+export function celulaEhFixa(chave: string, d: Pick<Derivada, 'modo' | 'doAlocador'> | undefined, ladoGerador: boolean): boolean {
+  if (ladoGerador) return true;
+  if (COLUNAS_PESSOAIS.has(chave) && d && (d.doAlocador || d.modo === 'so_gerador')) return true;
+  return chave === 'consultor' && d?.modo === 'so_gerador';
 }
 
 export const preenchida = (cel: Celula | undefined): boolean =>
@@ -546,14 +586,23 @@ export interface LinhaGestao {
   consultor: string;
   celulas: Record<string, Celula>;
   progresso: Progresso;
+  /** Fase 2 (linhas do /gerador). */
+  so_gerador?: true;
+  card?: number;
+  exibir?: string;
+  conflito?: 'planilha' | 'gerador';
+  venda_desfeita?: true;
+  somente_leitura?: true;
+  aviso_telefone?: string;
 }
 
-/** O consultor da venda: o do sistema (se um sócio trocou) ou o da planilha. */
-export function consultorEfetivo(cols: ColunaInterna[], celulasBrutas: string[], reg: RegistroGestao | undefined): string {
+/** O consultor da venda: o do sistema (se um sócio trocou), o da planilha, ou (fase 2) o do card ligado. */
+export function consultorEfetivo(cols: ColunaInterna[], celulasBrutas: string[], reg: RegistroGestao | undefined, derivado?: string): string {
   const s = reg?.campos.consultor;
   if (s && typeof s.valor === 'string' && s.valor) return s.valor;
   const c = cols.find((x) => x.chave === 'consultor');
-  return c ? String(celulasBrutas[c.indice] ?? '').trim() : '';
+  const daPlanilha = c ? String(celulasBrutas[c.indice] ?? '').trim() : '';
+  return daPlanilha || String(derivado ?? '').trim();
 }
 
 /** Linhas visíveis ao papel, com as células mescladas e o progresso. */
@@ -563,26 +612,77 @@ export function montarLinhas(
   registros: Map<string, RegistroGestao>,
   nome: string,
   socio: boolean,
+  derivadas?: ReadonlyMap<string, Derivada>,
+  overlaysDoGerador?: ReadonlyMap<number, RegistroGestao>,
+  /** Códigos cujo par ficou de fora (cadastro do card não respondeu): as colunas pessoais ficam só leitura, como o POST as trata. */
+  pulados?: ReadonlySet<string>,
 ): { colunas: ColunaInterna[]; linhas: LinhaGestao[] } {
   const colunas = colunasPara(todas, socio);
   const iCliente = todas.find((c) => c.chave === 'cliente')?.indice ?? -1;
   const linhas: LinhaGestao[] = [];
-  for (const v of grade.vendas) {
-    const reg = registros.get(v.codigo);
-    const cons = consultorEfetivo(todas, v.celulas, reg);
-    if (!(socio || podeVer(nome, cons))) continue;
-    const celulas: Record<string, Celula> = {};
+  const naPlanilha = new Set<string>();
+  const conflitos: Derivada[] = [];
+  const celulasDe = (bruto: (c: ColunaInterna) => string, reg: RegistroGestao | undefined, d: Derivada | undefined,
+    regCard: RegistroGestao | undefined, ladoGerador: boolean): Record<string, Celula> => {
+    const m: Record<string, Celula> = {};
     for (const c of colunas) {
       if (c.chave === 'codigo') continue;
-      celulas[c.chave] = celulaDe(c, v.celulas[c.indice] ?? '', reg);
+      const cel = celulaDe(c, bruto(c), reg, d?.valores[c.chave], regCard);
+      m[c.chave] = celulaEhFixa(c.chave, d, ladoGerador) ? { ...cel, fixa: true } : cel;
     }
+    return m;
+  };
+  const clienteDe = (celulas: Record<string, Celula>, alternativo: string): string => {
     const cli = celulas.cliente?.valor;
+    return typeof cli === 'string' ? cli : alternativo;
+  };
+  for (const v of grade.vendas) {
+    naPlanilha.add(v.codigo);
+    const reg = registros.get(v.codigo);
+    const d0 = derivadas?.get(v.codigo);
+    if (d0?.modo === 'conflito') conflitos.push(d0);
+    // Só em `junta` a linha do /gerador completa a do CSV; em conflito nada é juntado.
+    const d = d0?.modo === 'junta' ? d0 : undefined;
+    const cons = consultorEfetivo(todas, v.celulas, reg, d?.consultor);
+    if (!(socio || podeVer(nome, cons))) continue;
+    // A linha do alocador em `junta` trava as colunas pessoais mesmo sem juntar valor (a posse é a do código).
+    const dFixa = d ?? (d0 && d0.doAlocador ? d0 : undefined);
+    const celulas = celulasDe((c) => v.celulas[c.indice] ?? '', reg, d, d ? overlaysDoGerador?.get(d.card) : undefined, false);
+    if (dFixa && !d) for (const k of Object.keys(celulas)) if (celulaEhFixa(k, dFixa, false)) celulas[k] = { ...celulas[k], fixa: true };
+    if (pulados?.has(v.codigo)) for (const k of Object.keys(celulas)) if (COLUNAS_PESSOAIS.has(k)) celulas[k] = { ...celulas[k], fixa: true };
     linhas.push({
       codigo: v.codigo,
-      cliente: typeof cli === 'string' ? cli : (iCliente >= 0 ? String(v.celulas[iCliente] ?? '') : ''),
+      cliente: clienteDe(celulas, iCliente >= 0 ? String(v.celulas[iCliente] ?? '') : ''),
       consultor: cons,
       celulas,
       progresso: progressoDe(colunas, celulas),
+      // S4: a linha do alocador leva o card (documentos e relatório vão por ele), só com o card vivo e para quem é dono do card. Em
+      // conflito, a linha do CSV não leva o card do cliente do /gerador (a linha do lado /gerador leva o dela).
+      ...(d && d.doAlocador && d.vivo && (socio || podeVer(nome, d.consultor)) ? { card: d.card } : {}),
+      ...(d0?.modo === 'conflito' ? { conflito: 'planilha' as const } : {}),
+    });
+  }
+  // Linhas só do /gerador, pela ordem do código.
+  const soGerador = [...(derivadas?.values() ?? [])].filter((d) => d.modo === 'so_gerador' && !naPlanilha.has(d.codigo))
+    .sort((a, b) => (a.codigo < b.codigo ? -1 : a.codigo > b.codigo ? 1 : 0));
+  for (const d of soGerador) {
+    if (!(socio || podeVer(nome, d.consultor))) continue;
+    const celulas = celulasDe(() => '', undefined, d, overlaysDoGerador?.get(d.card), false);
+    linhas.push({
+      codigo: d.codigo, cliente: clienteDe(celulas, ''), consultor: d.consultor, celulas, progresso: progressoDe(colunas, celulas),
+      so_gerador: true, card: d.card,
+      ...(d.vivo ? {} : { venda_desfeita: true as const }),
+      ...(d.avisoTelefone ? { aviso_telefone: d.avisoTelefone } : {}),
+    });
+  }
+  // O lado /gerador de cada conflito: chave própria, tudo só leitura e sem overlay.
+  for (const d of conflitos) {
+    if (!(socio || podeVer(nome, d.consultor))) continue;
+    const celulas = celulasDe(() => '', undefined, d, undefined, true);
+    linhas.push({
+      codigo: `${d.codigo}@${d.card}`, exibir: d.codigo, cliente: clienteDe(celulas, ''), consultor: d.consultor, celulas,
+      progresso: progressoDe(colunas, celulas), so_gerador: true, card: d.card, conflito: 'gerador', somente_leitura: true,
+      ...(d.vivo ? {} : { venda_desfeita: true as const }),
     });
   }
   // Lista aberta (engenheiro, equipe, concessionária, estrutura, modelo...): o consultor recebe as opções ESCRITAS no
@@ -608,11 +708,12 @@ export function totais(linhas: LinhaGestao[]): { clientes: number; obrigatorias:
   let preenchidas = 0;
   let comPendencia = 0;
   for (const l of linhas) {
+    if (l.venda_desfeita || l.conflito === 'gerador') continue;   // venda desfeita e o lado /gerador de um conflito não contam
     obrigatorias += l.progresso.total;
     preenchidas += l.progresso.preenchidas;
     if (l.progresso.faltando > 0) comPendencia++;
   }
-  return { clientes: linhas.length, obrigatorias, preenchidas, faltando: obrigatorias - preenchidas, clientes_com_pendencia: comPendencia };
+  return { clientes: linhas.filter((l) => !l.venda_desfeita && l.conflito !== 'gerador').length, obrigatorias, preenchidas, faltando: obrigatorias - preenchidas, clientes_com_pendencia: comPendencia };
 }
 
 // ── Conflito e gravação ──────────────────────────────────────────────────────

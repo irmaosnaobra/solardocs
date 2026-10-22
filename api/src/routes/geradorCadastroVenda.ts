@@ -9,8 +9,8 @@ import {
   ehCampo, validarCampo, lerCadastroVisto, escreverCadastro, vistaDe, nomeDaHomologacao, type Cadastro, type Fonte, type VistaCadastro,
 } from '../services/gerador/cadastroVenda';
 import { sincronizarNomeHomologacao } from './geradorClientes';
-import { lerLigacao } from '../services/gerador/vendaSolarHub';
-import { codigoDoAlocadorDoCard } from '../services/gerador/vendaSolarRegistro';
+import { lerLigacao, invalidarCachesHub } from '../services/gerador/vendaSolarHub';
+import { ehCodigoDoAlocador } from '../services/gerador/vendaSolarRegistro';
 import { lerDocumentosDaVenda, SLOTS_LIDOS_SOLAR, type PessoasConhecidas } from '../services/gerador/cadastroVendaLeitura';
 import { lerRotulos } from '../services/gerador/docsRotulos';
 import { organizarDocs } from '../services/gerador/docsOrganizar';
@@ -119,7 +119,7 @@ async function sincronizarHomologacao(ctx: Ctx, mexeu: string[], depois: Cadastr
     // escrever aqui poria dado pessoal em `system_state` e, num conflito, o nome de um cliente na linha de outro. Se esta leitura
     // falhar, cai no `catch` (não sincroniza, avisa): nunca "na dúvida, grava".
     // Registro presente com assinatura inválida também cala (na dúvida, não escreve nome em `system_state`).
-    if (await codigoDoAlocadorDoCard(lig.venda, Number(ctx.codigo))) return undefined;
+    if (await ehCodigoDoAlocador(lig, Number(ctx.codigo))) return undefined;
     const r = await sincronizarNomeHomologacao(lig.venda, nome, antes ? nomeDaHomologacao(antes) : '', ctx.nome, ctx.socio);
     if (r === 'sem_coluna') return 'Salvo. Não achei a venda ligada, ou a coluna "Nome na homologação", na planilha.';
     if (r === 'sem_acesso') return 'Salvo. Você não tem acesso à venda ligada na planilha; o nome da homologação não foi copiado.';
@@ -223,6 +223,8 @@ export function mountCadastroVenda(router: Router): void {
           }
         }
         const r = await escreverCadastro(Number(ctx.codigo), limpos, ctx.nome, fonte as Fonte, new Date().toISOString(), linha);
+        // A grade do /gerador deriva colunas do cadastro da venda solar (cache de 60 s): cai junto.
+        if (linha === 'vendasolar') invalidarCachesHub();
         const vista = vistaDe(r.cad, linha);
         const avisos: string[] = [];
         if (!r.limpou) avisos.push('Salvo. A limpeza do registro antigo da ficha fica para a próxima gravação.');

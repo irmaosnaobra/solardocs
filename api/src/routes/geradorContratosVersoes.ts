@@ -62,7 +62,7 @@ async function posse(req: Request, res: Response): Promise<{ linha: LinhaContrat
       if (linha === 'vendasolar') {
         const { lig } = await lerLigacao(card);
         // Código dado pelo alocador a ESTE card: a via do consultor da planilha nunca concede (`vendaLigadaVale`).
-        ok = !!lig.venda && await vendaLigadaVale(card, lig.venda) && !!(await vendaSolarDoDono(nome, false, lig.venda));
+        ok = !!lig.venda && await vendaLigadaVale(card, lig.venda, lig.por) && !!(await vendaSolarDoDono(nome, false, lig.venda));
       }
     }
     if (!ok) {

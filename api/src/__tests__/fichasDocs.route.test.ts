@@ -133,6 +133,15 @@ vi.mock('../utils/supabase', () => ({
               return r;
             },
           }),
+          // Fase 2: as ligações e os registros do alocador são lidos por prefixo.
+          like: (_c: string, p: string) => {
+            const prefixo = p.replace(/%$/, '');
+            const chain: any = {
+              order: () => chain,
+              range: async () => ({ data: [...h.linhas.entries()].filter(([k]) => k.startsWith(prefixo)).map(([k, l]) => ({ key: k, value: l.value })), error: null }),
+            };
+            return chain;
+          },
         }),
         insert: async (l: { key: string; value: unknown }) => {
           if (h.linhas.has(l.key)) return { error: { code: '23505', message: 'dup' } };

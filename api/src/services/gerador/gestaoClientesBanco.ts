@@ -58,3 +58,50 @@ export async function gravarRegistro(
   if (error) throw new ErroGestao(codigoDe(error));
   return Array.isArray(data) && data.length > 0;
 }
+
+// ── Overlay da linha do /gerador (fase 2) ────────────────────────────────────
+// O que se digita numa linha que só existe no /gerador mora numa chave do CARD (`gestao_gerador:<card>`), nunca na do código: se o
+// Excel ganhar depois o #N de OUTRO cliente, a linha dele e as telas de Obras não herdam valores deste. Sem dado pessoal (as
+// colunas pessoais dessa linha são só leitura).
+export const PREFIXO_GESTAO_GERADOR = 'gestao_gerador:';
+export const chaveGestaoGerador = (card: number): string => `${PREFIXO_GESTAO_GERADOR}${card}`;
+
+/** Os overlays dos cards pedidos (card -> registro). `.in` em lotes. */
+export async function lerRegistrosDoGerador(cards: number[]): Promise<Map<number, RegistroGestao>> {
+  const mapa = new Map<number, RegistroGestao>();
+  const unicos = [...new Set(cards.filter((c) => Number.isInteger(c) && c > 0))];
+  for (let i = 0; i < unicos.length; i += POR_CONSULTA) {
+    const lote = unicos.slice(i, i + POR_CONSULTA);
+    const { data, error } = await supabase.from('system_state').select('key, value').in('key', lote.map(chaveGestaoGerador));
+    if (error) throw new ErroGestao(codigoDe(error));
+    for (const l of (data ?? []) as Array<{ key: string; value: unknown }>) {
+      const card = Number(String(l.key).slice(PREFIXO_GESTAO_GERADOR.length));
+      if (Number.isInteger(card) && card > 0) mapa.set(card, lerRegistro(l.value));
+    }
+  }
+  return mapa;
+}
+
+/** O overlay de UM card e a versão lida (para a gravação conferir que ninguém gravou no meio). */
+export async function lerRegistroDoGeradorComVersao(card: number): Promise<{ reg: RegistroGestao; versao: string | null }> {
+  const { data, error } = await supabase.from('system_state')
+    .select('key, value, updated_at').eq('key', chaveGestaoGerador(card)).maybeSingle();
+  if (error) throw new ErroGestao(codigoDe(error));
+  const l = data as { value?: unknown; updated_at?: string | null } | null;
+  return { reg: lerRegistro(l?.value), versao: l ? (l.updated_at ?? '') : null };
+}
+
+/** Grava o overlay do card com a mesma conferência de versão (compare-and-swap) de `gravarRegistro`. false = perdeu a corrida. */
+export async function gravarRegistroDoGerador(card: number, reg: RegistroGestao, versaoLida: string | null, agora: string): Promise<boolean> {
+  const chave = chaveGestaoGerador(card);
+  if (versaoLida === null) {
+    const { error } = await supabase.from('system_state').insert({ key: chave, value: reg, updated_at: agora });
+    if (!error) return true;
+    if (codigoDe(error) === '23505') return false;
+    throw new ErroGestao(codigoDe(error));
+  }
+  const alvo = supabase.from('system_state').update({ value: reg, updated_at: agora }).eq('key', chave);
+  const { data, error } = await (versaoLida === '' ? alvo.is('updated_at', null) : alvo.eq('updated_at', versaoLida)).select('key');
+  if (error) throw new ErroGestao(codigoDe(error));
+  return Array.isArray(data) && data.length > 0;
+}

@@ -1375,6 +1375,16 @@ describe('número do alocador (fase 2)', () => {
     expect(env.body.avisos.join(' ')).toMatch(/usa o número #0065, que já é de outra venda/);
   });
 
+  it('item 1: registro apagado e ligação por gerador: o cartão achado só pelo número vira empate (não é aceito sozinho)', async () => {
+    cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
+    injeta(201, { venda: '#0065', por: 'gerador' });   // sem codigo_solar:0065
+    t.quadro.cards.push(cartaoTrello(idFixo(65), '#0065 - Outro Cliente - Uberaba MG'));
+    const res = await trello(201, {});
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ precisa: 'escolher_cartao' });
+    expect(escritas()).toEqual([]);
+  });
+
   it('a prévia sem venda ligada não grava nada e o número é provisório', async () => {
     cadastro(201, { cidade: 'Uberaba', uf: 'MG' });
     const antes = new Map(h.linhas);
