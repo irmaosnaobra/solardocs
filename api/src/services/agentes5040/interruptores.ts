@@ -25,10 +25,11 @@ export type NomeInterruptor = typeof NOMES_INTERRUPTORES[number];
 export type DonaViva = 'duda' | 'helena' | 'carla';
 export const DONAS_VIVAS: readonly DonaViva[] = ['duda', 'helena', 'carla'];
 /**
- * Donas que podem atender TODOS os leads. Vazia de propósito: até as ações das agentes existirem, nenhuma
- * atende todos. Modo 'todos' gravado para dona fora desta lista vale como 'teste' (posse.ts) e o painel recusa gravá-lo.
+ * Donas que PODEM atender todos os leads (22/10/2026, campanhas no ar). Estar aqui só permite: quem liga de fato é
+ * o modo 'todos' de cada dona no ag5040_vivo_alvo (painel). Modo 'todos' gravado para dona fora desta lista vale
+ * como 'teste' (posse.ts) e o painel recusa gravá-lo.
  */
-export const DONAS_LIBERADAS_PARA_TODOS: readonly DonaViva[] = [];
+export const DONAS_LIBERADAS_PARA_TODOS: readonly DonaViva[] = ['duda', 'helena'];
 export const interruptorDaDona = (d: DonaViva): NomeInterruptor => `${d}_vivo` as NomeInterruptor;
 
 export const CHAVE_INTERRUPTORES = 'ag5040_interruptores';

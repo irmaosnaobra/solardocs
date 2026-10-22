@@ -33,6 +33,14 @@ import { mountEnsaio5040 } from '../routes/geradorEnsaio5040';
 import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
 import { zerarCacheArmazem, type TurnoGravado } from '../services/agentes5040/armazem';
 import { emParalelo, gravarNota, zerarCacheNotas } from '../services/agentes5040/notas';
+import { DONAS_LIBERADAS_PARA_TODOS, type DonaViva } from '../services/agentes5040/interruptores';
+// A lista de liberadas é de produção; estes testes provam a trava com a lista VAZIA e devolvem a lista no fim.
+const comListaVazia = async (f: () => Promise<void>): Promise<void> => {
+  const lista = DONAS_LIBERADAS_PARA_TODOS as DonaViva[];
+  const salvas = [...lista];
+  lista.length = 0;
+  try { await f(); } finally { lista.length = 0; lista.push(...salvas); }
+};
 
 const TELEFONE = '5511988880001';
 const CHAVE = '1188880001';
@@ -502,7 +510,7 @@ describe('controles do sócio: interruptores e comandos', () => {
       expect(estado('ag5040_vivo_alvo').modos).toEqual({ duda: 'teste' });
     });
 
-    it('PUT com modo todos para dona fora da lista de liberadas = 400, e nada é gravado; teste segue aceito', async () => {
+    it('PUT com modo todos para dona fora da lista de liberadas = 400, e nada é gravado; teste segue aceito', () => comListaVazia(async () => {
       await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001' });
       const antes = JSON.stringify(estado('ag5040_vivo_alvo'));
       for (const modos of [{ duda: 'todos' }, { carla: 'todos' }, { helena: 'teste', duda: 'todos' }]) {
@@ -513,9 +521,9 @@ describe('controles do sócio: interruptores e comandos', () => {
       expect(JSON.stringify(estado('ag5040_vivo_alvo'))).toBe(antes);
       const ok = await pedir('put', URL_ALVO, THIAGO, { modos: { duda: 'teste' } });
       expect(ok.status).toBe(200);
-    });
+    }));
 
-    it('apagar a lista nunca libera para todos: a agente segue sem atender ninguém, e o PUT de todos é recusado', async () => {
+    it('apagar a lista nunca libera para todos: a agente segue sem atender ninguém, e o PUT de todos é recusado', () => comListaVazia(async () => {
       await pedir('put', URL_ALVO, THIAGO, { telefone: '11988880001' });
       await pedir('put', URL_ALVO, THIAGO, { limpar: true });
       process.env.AGENTES5040_DUDA_VIVO = '1';
@@ -528,7 +536,7 @@ describe('controles do sócio: interruptores e comandos', () => {
       } finally {
         delete process.env.AGENTES5040_DUDA_VIVO;
       }
-    });
+    }));
 
     it('o número gravado casa com o leitor (agenteAtendeEste); o cache é zerado ao gravar', async () => {
       process.env.AGENTES5040_HELENA_VIVO = '1';
