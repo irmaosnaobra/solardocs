@@ -216,6 +216,8 @@ export interface RelatorioAbertura {
   tentados: number;
   /** Abertura entrou na fila de agenda. */
   abertos: number;
+  /** Card do quiz de quem já tem posse viva da Duda: a confirmação (tipo `confirma`) entrou na fila de agenda. */
+  confirmados?: number;
   puladas: Record<string, number>;
   /** Só no dry: o card e a bolha que sairiam. */
   sairia?: Array<{ card_id: number; bolha: string }>;
@@ -464,9 +466,19 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
       if (!(await agenteAtendeEste('duda', tel))) { soma(ab.puladas, 'fora_do_escopo'); continue; }
       // Qualquer posse (a da Duda inclusive) = a conversa já é de alguém. O card que a própria Duda grava em acaoMarcar também é
       // lp_solar e nasce com boas_vindas_at nulo: é a posse que o tira daqui (a confirmação dele sai pelo tipo `confirma`).
-      try {
-        if (await lerPosse(chave)) { soma(ab.puladas, 'com_posse'); continue; }
-      } catch { soma(ab.puladas, 'posse_ilegivel'); continue; }
+      let posseDoLead: DadosPosse | null;
+      try { posseDoLead = await lerPosse(chave); } catch { soma(ab.puladas, 'posse_ilegivel'); continue; }
+      if (posseDoLead) {
+        // Posse VIVA da própria Duda: o lead já conversa com ela e agora marcou pelo quiz. A abertura não vale (a conversa já começou),
+        // mas ele ficaria sem a confirmação do horário: sai a confirmação (tipo `confirma`) pela mesma fila. Outra dona, passou_humano,
+        // nao_incomodar ou encerrada = não mexe (o robô antigo e o humano seguem como hoje).
+        if (posseDoLead.dona === 'duda' && posseDoLead.estado === 'viva') {
+          if (ab.tentados >= LIMITES_ABERTURA.porRodada) { soma(ab.puladas, 'limite_por_rodada'); break; }
+          await confirmarCardDeQuemJaTemPosse(g, ab, { card, quandoIso: new Date(quandoMs).toISOString(), consultora, tel });
+          continue;
+        }
+        soma(ab.puladas, 'com_posse'); continue;
+      }
       // A bolha vem ANTES de qualquer escrita: a que não cabe nos 160 nem sem nome e sem asteriscos deixa o card para o tick antigo.
       const quandoIso = new Date(quandoMs).toISOString();
       const bolha = bolhaDeAbertura(caminho, card.cliente_nome, quandoIso, consultora, agora.toISOString());
@@ -542,6 +554,59 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
     logger.error(LOG, `abertura: erro interno (${codigoDe(e)})`);
     soma(ab.puladas, 'erro_interno');
   }
+}
+
+/**
+ * Card do quiz de quem JÁ tem posse viva da Duda (a abertura pula: a conversa já começou). Reserva o boas_vindas_at (o mesmo UPDATE ... IS NULL)
+ * e enfileira um `confirma` com o horário do card, pelo mesmo enfileirarAgenda. Só desfaz a reserva se a fila NÃO gravou; a posse nunca é
+ * tocada aqui. O card que a própria Duda gravou na conversa (marca "Origem: conversa com a Duda") ou que já tem confirma na fila ou
+ * carimbado não entra: a confirmação dele é a do acaoMarcar. Nunca lança.
+ */
+async function confirmarCardDeQuemJaTemPosse(
+  g: G, ab: RelatorioAbertura, p: { card: CardDaAbertura; quandoIso: string; consultora: string; tel: string },
+): Promise<void> {
+  const { card, quandoIso, consultora, tel } = p;
+  if (/Origem:\s*conversa com a Duda/i.test(String(card.observacao ?? ''))) { soma(ab.puladas, 'card_da_propria_duda'); return; }
+  const jaTem = await confirmaDoCardExiste(card.id);
+  if (jaTem !== false) { soma(ab.puladas, jaTem ? 'confirma_ja_existe' : 'confirma_incerta'); return; }
+  const bolha = bolhaDeConfirmacao('confirma', quandoIso, consultora, g.agora.toISOString());
+  if (!bolha) { soma(ab.puladas, 'bolha_nao_cabe'); return; }
+  ab.tentados++;
+  if (g.dry) { (ab.sairia ??= []).push({ card_id: card.id, bolha }); return; }
+  const em = g.agoraEnvio().toISOString();
+  const reserva = await reservarBoasVindas(card.id, em);
+  if (reserva === 'perdeu') { soma(ab.puladas, 'reserva_perdida'); return; }
+  if (reserva === 'erro') { await devolverBoasVindas(card.id, em); soma(ab.puladas, 'reserva_falhou'); return; }
+  let enf: Awaited<ReturnType<typeof enfileirarAgenda>>;
+  try {
+    enf = await enfileirarAgenda({ tipo: 'confirma', cardId: card.id, telefone: tel, quando: quandoIso, validoAte: quandoIso, consultora }, g.agoraEnvio());
+  } catch { enf = { ok: false, motivo: 'erro' }; }
+  if (enf.ok) { ab.confirmados = (ab.confirmados ?? 0) + 1; return; }
+  if (enf.motivo === 'ja_enviado') { soma(ab.puladas, 'confirma_ja_enviada'); return; }
+  if (enf.motivo === 'erro') {
+    // 'erro' não prova que a fila não gravou: relê. Item na fila, releitura que falha ou carimbo de pé = nada é desfeito.
+    const naFila = await itemNaFila(chaveFila(card.id, 'confirma', quandoIso));
+    if (naFila === true) { ab.confirmados = (ab.confirmados ?? 0) + 1; soma(ab.puladas, 'fila_gravou_e_respondeu_erro'); return; }
+    if (naFila === null) {
+      soma(ab.puladas, 'fila_incerta');
+      logger.error(LOG, `confirma do quiz: a fila respondeu erro e não deu para reler o item do card ${card.id}; a reserva fica`);
+      return;
+    }
+    if ((await confirmaDoCardExiste(card.id)) !== false) { soma(ab.puladas, 'fila_incerta'); return; }
+  }
+  await devolverBoasVindas(card.id, em);
+  soma(ab.puladas, `fila_recusou_${enf.motivo}`);
+  logger.error(LOG, `confirma do quiz: a fila não gravou o card ${card.id} (${enf.motivo}); a reserva foi desfeita`);
+}
+
+/** Há `confirma` deste card na fila ou carimbado (qualquer estado)? true | false | null (a leitura falhou). Nunca lança. */
+async function confirmaDoCardExiste(cardId: number): Promise<boolean | null> {
+  try {
+    // ag5040_agenda_fila:<id>:confirma:... e ag5040_agenda_sent:<id>:confirma:... num padrão só (o `_` do LIKE casa qualquer letra: aqui só casa as duas).
+    const { data, error } = await supabase.from('system_state').select('key').like('key', `ag5040_agenda_%:${cardId}:confirma:%`).limit(1);
+    if (error) return null;
+    return Array.isArray(data) && data.length > 0;
+  } catch { return null; }
 }
 
 /** O item da fila de agenda existe? true | false (releitura confirmou que não) | null (a releitura falhou). Nunca lança. */

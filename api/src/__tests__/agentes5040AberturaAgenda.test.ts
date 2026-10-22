@@ -34,7 +34,7 @@ vi.mock('../services/agentes5040/fichaEnvio', () => ({
 }));
 vi.mock('../services/agentes5040/agendaEnvio', () => ({
   enfileirarAgenda: (...a: unknown[]) => h.enfileirar(...a),
-  bolhaDeConfirmacao: () => null,
+  bolhaDeConfirmacao: () => 'Ficou marcado para amanhã às 14h30. A Giovanna te liga nesse horário.',
   chaveFila: (id: number, tipo: string, quando: string) => `ag5040_agenda_fila:${id}:${tipo}:${quando}`,
 }));
 
@@ -153,10 +153,10 @@ function card(i: number, extra: Record<string, unknown> = {}, caminho: 'ligacao'
 const cardNoBanco = (i: number) => gerador.tabelas.agendamentos!.find(c => c.id === 500 + i)!;
 const posseDe = (i: number) => (banco.tabelas.whatsapp_sessions ?? []).find(l => l.phone === chaveDe(i) && l.tipo === 'ag5040');
 
-function semearPosse(i: number, dona = 'duda') {
+function semearPosse(i: number, dona = 'duda', estado = 'viva') {
   (banco.tabelas.whatsapp_sessions ??= []).push({
     phone: chaveDe(i), tipo: 'ag5040',
-    lead_data: { dona, estado: 'viva', desde: iso(60 * MIN), ate_wa_id: 3, respostas: 1, imagens: [], links: [] },
+    lead_data: { dona, estado, desde: iso(60 * MIN), ate_wa_id: 3, respostas: 1, imagens: [], links: [] },
   });
 }
 
@@ -339,10 +339,11 @@ describe('abertura: a fila não gravou = reserva e posse desfeitas', () => {
 });
 
 describe('abertura: quem não recebe', () => {
-  it('card de um lead que JÁ tem posse (da Duda ou de outra dona) = pula, sem escrever nada', async () => {
-    card(0); card(1); semearPosse(0, 'duda'); semearPosse(1, 'helena'); noEscopo(0, 1);
+  it('card de um lead com posse de OUTRA dona, passou_humano ou nao_incomodar = pula, sem escrever nada', async () => {
+    card(0); card(1); card(2); semearPosse(0, 'helena'); semearPosse(1, 'duda', 'passou_humano'); semearPosse(2, 'duda', 'nao_incomodar');
+    noEscopo(0, 1, 2);
     const r = await rodar();
-    expect(r.abertura).toMatchObject({ vistos: 2, tentados: 0, abertos: 0, puladas: { com_posse: 2 } });
+    expect(r.abertura).toMatchObject({ vistos: 3, tentados: 0, abertos: 0, puladas: { com_posse: 3 } });
     expect(h.enfileirar).not.toHaveBeenCalled();
     expect(gerador.escritas.length).toBe(0);
     expect(cardNoBanco(0).boas_vindas_at).toBeNull();
@@ -406,8 +407,8 @@ describe('abertura: quem não recebe', () => {
     expect(h.enfileirar).not.toHaveBeenCalled();
   });
 
-  it('a conversa de um card que a própria Duda marcou (posse da Duda) recebe a confirmação, nunca a abertura', async () => {
-    card(0); semearPosse(0, 'duda'); noEscopo(0);
+  it('o card que a própria Duda marcou na conversa (posse da Duda, marca Origem) nunca recebe a abertura nem uma 2ª confirmação', async () => {
+    card(0, { observacao: 'LP SOLAR QUIZ · LIGAÇÃO\nOrigem: conversa com a Duda no WhatsApp' }); semearPosse(0, 'duda'); noEscopo(0);
     await rodar();
     expect(h.enfileirar).not.toHaveBeenCalled();
   });
@@ -495,5 +496,101 @@ describe('abertura: a Duda sabe tratar o SIM (persona)', () => {
       leadsMeta: null, cadastros: [], ehClienteSolarDoc: false, anuncio: null, qualificado: false, agora: AGORA.toISOString(),
     } as any);
     expect(f).toContain('Giovanna');
+  });
+});
+
+describe('confirma do quiz para quem já tem posse VIVA da própria Duda (22/10/2026)', () => {
+  const chaveConfirma = (id: number) => `ag5040_agenda_fila:${id}:confirma:x`;
+  const escritasPosse = () => banco.escritas.filter(e => e.tabela === 'whatsapp_sessions');
+
+  it('reserva o boas_vindas_at e enfileira um `confirma` (não a abertura) com o horário do card; a posse não é tocada', async () => {
+    card(0); semearPosse(0, 'duda'); noEscopo(0); medirOrdem();
+    const antes = JSON.stringify(posseDe(0)!.lead_data);
+    h.enfileirar.mockImplementationOnce(async (p: any) => {
+      h.ordem.push('fila'); h.visto = { cardReservado: cardNoBanco(0).boas_vindas_at ?? null, posse: true };
+      return { ok: true, chave: chaveConfirma(p.cardId) };
+    });
+    const r = await rodar();
+    expect(h.ordem).toEqual(['gerador:agendamentos:update', 'fila']);
+    expect(h.visto!.cardReservado).toBeTruthy();
+    expect(h.enfileirar).toHaveBeenCalledTimes(1);
+    expect(h.enfileirar.mock.calls[0]![0]).toEqual({ tipo: 'confirma', cardId: 500, telefone: telDe(0), quando: QUANDO, validoAte: QUANDO, consultora: 'Giovanna' });
+    expect(r.abertura).toMatchObject({ vistos: 1, tentados: 1, abertos: 0, confirmados: 1, puladas: {} });
+    expect(cardNoBanco(0).boas_vindas_at).toBeTruthy();
+    expect(escritasPosse()).toEqual([]);
+    expect(JSON.stringify(posseDe(0)!.lead_data)).toBe(antes);
+    expect(ia.chamadas).toHaveLength(0);
+    expect(h.enviar).not.toHaveBeenCalled();
+  });
+
+  it('a fila não gravou (recusa, ou erro com a releitura confirmando que o item não está lá): devolve só a reserva; a posse fica', async () => {
+    for (const motivo of ['bolha_invalida', 'erro'] as const) {
+      banco = novoBanco(); gerador = novoBanco(); h.principal = banco; h.gerador = gerador;
+      card(0); semearPosse(0, 'duda'); noEscopo(0);
+      h.enfileirar.mockResolvedValueOnce({ ok: false, motivo });
+      const r = await rodar();
+      expect(cardNoBanco(0).boas_vindas_at).toBeNull();
+      expect(posseDe(0)).toBeDefined();
+      expect(escritasPosse()).toEqual([]);
+      expect(r.abertura).toMatchObject({ tentados: 1, puladas: { [`fila_recusou_${motivo}`]: 1 } });
+      expect(r.abertura!.confirmados).toBeUndefined();
+    }
+  });
+
+  it('ja_enviado: a confirmação SAIU, nada é desfeito', async () => {
+    card(0); semearPosse(0, 'duda'); noEscopo(0);
+    h.enfileirar.mockResolvedValueOnce({ ok: false, motivo: 'ja_enviado' });
+    const r = await rodar();
+    expect(cardNoBanco(0).boas_vindas_at).toBeTruthy();
+    expect(r.abertura!.puladas).toEqual({ confirma_ja_enviada: 1 });
+  });
+
+  it('erro da fila, mas o item está lá (o upsert entrou e a resposta se perdeu): a reserva fica', async () => {
+    card(0); semearPosse(0, 'duda'); noEscopo(0);
+    h.enfileirar.mockImplementationOnce(async (p: any) => {
+      // o mock de chaveFila monta a chave com o ISO cru, o mesmo que a releitura usa
+      (banco.tabelas.system_state ??= []).push({ key: `ag5040_agenda_fila:${p.cardId}:confirma:${p.quando}`, value: {} });
+      return { ok: false, motivo: 'erro' };
+    });
+    const r = await rodar();
+    expect(cardNoBanco(0).boas_vindas_at).toBeTruthy();
+    expect(r.abertura).toMatchObject({ confirmados: 1, puladas: { fila_gravou_e_respondeu_erro: 1 } });
+  });
+
+  it('o card que a própria Duda gravou na conversa (Origem: conversa com a Duda) não entra: a confirmação dele é a do acaoMarcar', async () => {
+    card(0, { observacao: 'LP SOLAR QUIZ · LIGAÇÃO\nOrigem: conversa com a Duda no WhatsApp' }); semearPosse(0, 'duda'); noEscopo(0);
+    const r = await rodar();
+    expect(r.abertura!.puladas).toEqual({ card_da_propria_duda: 1 });
+    expect(h.enfileirar).not.toHaveBeenCalled();
+    expect(gerador.escritas.length).toBe(0);
+  });
+
+  it('já existe confirma deste card (na fila ou carimbada): não repete e não reserva', async () => {
+    card(0); card(1); semearPosse(0, 'duda'); semearPosse(1, 'duda'); noEscopo(0, 1);
+    (banco.tabelas.system_state ??= []).push(
+      { key: 'ag5040_agenda_fila:500:confirma:20261021T173000Z', value: {} },
+      { key: 'ag5040_agenda_sent:501:confirma:20261021T173000Z', value: { estado: 'enviado' } },
+    );
+    const r = await rodar();
+    expect(r.abertura!.puladas).toEqual({ confirma_ja_existe: 2 });
+    expect(h.enfileirar).not.toHaveBeenCalled();
+    expect(gerador.escritas.length).toBe(0);
+  });
+
+  it('dry: mostra a bolha que sairia e não escreve em lugar nenhum', async () => {
+    card(0); semearPosse(0, 'duda'); noEscopo(0);
+    const r = await rodar({ dry: true });
+    expect(r.abertura!.sairia).toEqual([{ card_id: 500, bolha: 'Ficou marcado para amanhã às 14h30. A Giovanna te liga nesse horário.' }]);
+    expect(h.enfileirar).not.toHaveBeenCalled();
+    expect(gerador.escritas.length).toBe(0);
+    expect(escritasPosse()).toEqual([]);
+  });
+
+  it('o máximo de 3 por rodada vale também para a confirmação', async () => {
+    for (const i of [0, 1, 2, 3]) { card(i); semearPosse(i, 'duda'); }
+    noEscopo(0, 1, 2, 3);
+    const r = await rodar();
+    expect(h.enfileirar).toHaveBeenCalledTimes(3);
+    expect(r.abertura).toMatchObject({ tentados: 3, confirmados: 3, puladas: { limite_por_rodada: 1 } });
   });
 });

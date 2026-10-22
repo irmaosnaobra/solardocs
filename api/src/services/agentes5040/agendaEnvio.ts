@@ -47,6 +47,8 @@ import { marcarBoasVindasEnviada } from './agendaSolar';
 import { horaBRT } from './relogio';
 import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
 import { camposDeHorario, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
+import { fraseDeApresentacao } from './avisoIA';
+import { atualizarPosse, lerPosse } from './posse';
 
 const LOG = 'agenda-envio-5040';
 
@@ -148,34 +150,49 @@ const texto = (v: unknown): string => String(v ?? '').trim();
 /**
  * A bolha FIXA do tipo, com as chaves preenchidas. null = campo faltando, bolha vazia, com travessão, com
  * separador de bolhas ou acima de 160 (quem chama descarta o item: um texto que nunca passa não pode travar a fila).
+ *
+ * `comAviso` (22/10/2026, aviso de IA): confirma, remarca e volta saem com "Aqui é a Duda, do atendimento com IA da Irmãos na Obra."
+ * na frente. Não cabe nos 160: tenta a versão curta do texto (sem o nome da consultora) e, por último, só a frase mais o horário
+ * ("Ficou marcado para {dia} às {hora}."). A abertura já traz o aviso e ignora este parâmetro.
  */
-export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda> | null | undefined, reforco = false): string | null {
+export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda> | null | undefined, reforco = false, comAviso = false): string | null {
   const c = campos ?? {};
   const dia = texto(c.dia), hora = texto(c.hora), consultora = texto(c.consultora);
   const opcao1 = texto(c.opcao1), opcao2 = texto(c.opcao2);
   let bolha: string;
+  // Do mais completo ao mais curto; sem aviso vale só o primeiro.
+  let degraus: string[];
   if ((tipo === 'confirma' || tipo === 'remarca') && reforco) {
     // Reenvio único depois de um erro 5xx/timeout: lembrete atrasado, o mesmo texto para os dois tipos.
     if (!dia || !hora || !consultora) return null;
     bolha = `Só reforçando: a sua ligação ficou para ${dia} às ${hora}, com a ${consultora}.`;
+    degraus = [bolha, `Só reforçando: a sua ligação ficou para ${dia} às ${hora}.`, `Ficou marcado para ${dia} às ${hora}.`];
   } else if (tipo === 'confirma') {
     if (!dia || !hora || !consultora) return null;
     bolha = `Ficou marcado para ${dia} às ${hora}. A ${consultora} te liga nesse horário.`;
+    degraus = [bolha, `Ficou marcado para ${dia} às ${hora}. Te ligamos nesse horário.`, `Ficou marcado para ${dia} às ${hora}.`];
   } else if (tipo === 'remarca') {
     if (!dia || !hora || !consultora) return null;
     bolha = `Pronto, mudei sua ligação para ${dia} às ${hora}. Quem liga é a ${consultora}.`;
+    degraus = [bolha, `Pronto, mudei sua ligação para ${dia} às ${hora}.`, `Ficou marcado para ${dia} às ${hora}.`];
   } else if (tipo === 'volta') {
     if (!opcao1 || !opcao2) return null;
     bolha = `Consigo deixar a ligação marcada pra você: ${opcao1} ou ${opcao2}. Qual fica melhor?`;
+    degraus = [bolha, `Posso ligar ${opcao1} ou ${opcao2}? Qual fica melhor?`];
   } else if (tipo === 'abertura') {
     // A abertura do card do quiz (textosAgenda.ts): ignora o reforço (o reenvio sai com o mesmo texto) e já se corta sozinha em 160.
     const t = textoDeAbertura(c.caminho, c.nome, texto(c.quando), consultora);
     if (!t) return null;
     bolha = t;
+    degraus = [bolha];
   } else return null;
-  if (TRAVESSAO.test(bolha) || bolha.includes('||')) return null;
-  if (bolha.length > LIMITES_AGENDA.maxCaracteresBolha) return null;
-  return bolha;
+  const serve = (b: string): boolean => !TRAVESSAO.test(b) && !b.includes('||') && b.length <= LIMITES_AGENDA.maxCaracteresBolha;
+  if (comAviso && tipo !== 'abertura') {
+    const frase = fraseDeApresentacao('duda');
+    for (const d of degraus) { const b = `${frase} ${d}`; if (serve(b)) return b; }
+    return null;
+  }
+  return serve(bolha) ? bolha : null;
 }
 
 /** Os campos do texto, montados AGORA (Brasília) a partir dos ISOs do item. */
@@ -419,8 +436,11 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
 
     // 3. a bolha fixa, com dia e hora montados AGORA. Uma vaga da volta que já passou também mata o item.
     if (tipo === 'volta' && (v.opcoes ?? []).some(o => !(Date.parse(String(o)) > t))) { await descartar(linha.key, cardId, tipo, 'vaga_passou'); continue; }
+    // O aviso de IA: ligado só depois de ler a posse (passo 9b), logo antes do envio. Os passos de conferência usam a bolha sem ele.
+    let comAviso = false;
+    let consultoraDoEnvio = String(v.consultora ?? '');
     const montar = (reforco: boolean, consultora: string = String(v.consultora ?? '')): string | null => montarBolhaAgenda(
-      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome }), reforco);
+      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome }), reforco, comAviso);
     if (!montar(v.reforco === true)) {
       logger.error(LOG, `bolha inválida (${tipo}), descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue;
     }
@@ -479,6 +499,7 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
         const nova = montar(reenvio || v.reforco === true, atual);
         if (!nova) { logger.error(LOG, `bolha inválida (${tipo}) com a consultora do card, descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue; }
         bolha = nova;
+        consultoraDoEnvio = atual;
       }
     }
 
@@ -515,6 +536,19 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
         res.mantidas += itens.length - itens.indexOf(linha); res.parou = 'tempo'; break;
       }
       if (!dry) { await TEMPOS_AGENDA.esperar(falta); t += falta; }
+    }
+
+    // 9b. o aviso de IA (22/10/2026): enquanto a posse não tem apresentada === true, confirma, remarca e volta saem com a frase na
+    //     frente. Posse ausente ou leitura que falha = com o aviso (o lado seguro). A abertura já traz o aviso.
+    if (tipo !== 'abertura') {
+      let apresentada = false;
+      try { apresentada = (await lerPosse(ck))?.apresentada === true; } catch { apresentada = false; }
+      comAviso = !apresentada;
+      if (comAviso) {
+        const comFrase = montar(reenvio || v.reforco === true, tipo === 'volta' ? undefined : consultoraDoEnvio);
+        if (!comFrase) { logger.error(LOG, `bolha inválida (${tipo}) com o aviso de IA, descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue; }
+        bolha = comFrase;
+      }
     }
 
     // dry: tudo conferido, nada reservado nem enviado
@@ -567,6 +601,8 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
       break;                     // linha com problema: não insiste com o resto na mesma chamada
     }
     errosDestinoSeguidos = 0;
+    // Saiu com o aviso: a posse passa a apresentada (a conversa seguinte não repete a frase). Nunca lança.
+    if (comAviso) { try { await atualizarPosse(ck, { apresentada: true }); } catch { /* o próximo envio leva o aviso de novo, sem dano */ } }
     try {
       await supabase.from('system_state').update({ value: { tipo, card_id: cardId, estado: 'enviado', ...(reenvio ? { reenvio: true } : {}) } }).eq('key', chaveReserva);
     } catch { /* idem */ }

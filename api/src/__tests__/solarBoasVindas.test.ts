@@ -446,11 +446,27 @@ describe('o backlog não vira rajada', () => {
       fichas = [reservaAntiga(7), reservaAntiga(8), reservaAntiga(9), reservaAntiga(10)];
       estado.set('ag5040_agenda_sent:8:abertura:20260820T170000Z', { estado: 'enviado' });   // a 8 saiu
       estado.set('ag5040_agenda_sent:70:abertura:20260820T170000Z', {});                     // a 70 não é a 7
-      estado.set('ag5040_agenda_sent:9:confirma:20260820T170000Z', {});                      // confirma não é abertura
+      estado.set('ag5040_agenda_sent:9:confirma:20260820T170000Z', {});                      // confirma sem estado enviado não salva
       await tick(); await tick();
       const a = await alarmes();
       expect(a).toHaveLength(1);
       expect(a[0][2]).toEqual({ ids: [7, 9, 10] });
+    });
+
+    it('a confirmação do card de quem já tem posse da Duda: enviada ou ainda na fila cala; reservado ou falhou acusa; o reenvio :re enviado cala', async () => {
+      const { logger } = await import('../utils/logger');
+      vi.mocked(logger.error).mockClear();
+      fichas = [reservaAntiga(51), reservaAntiga(52), reservaAntiga(53), reservaAntiga(54), reservaAntiga(55)];
+      estado.set('ag5040_agenda_sent:51:confirma:20260820T170000Z', { tipo: 'confirma', card_id: 51, estado: 'enviado' });
+      estado.set('ag5040_agenda_fila:52:confirma:20260820T170000Z', { tipo: 'confirma' });
+      estado.set('ag5040_agenda_sent:53:confirma:20260820T170000Z', { estado: 'reservado' });
+      estado.set('ag5040_agenda_sent:54:confirma:20260820T170000Z', { estado: 'falhou', reenviavel: true });
+      estado.set('ag5040_agenda_sent:54:confirma:20260820T170000Z:re', { estado: 'enviado', reenvio: true });
+      estado.set('ag5040_agenda_sent:550:confirma:20260820T170000Z', { estado: 'enviado' });   // a 550 não é a 55
+      await tick();
+      const a = await alarmes();
+      expect(a).toHaveLength(1);
+      expect(a[0][2]).toEqual({ ids: [53, 55] });
     });
   });
 
@@ -668,21 +684,31 @@ describe('Fase B: a Duda nova e as boas-vindas antigas', () => {
   });
 
   it('modo todos gravado, mas a Duda ainda fora da lista de liberadas: vale como teste e o antigo manda como hoje', async () => {
-    await alvo([X], { duda: 'todos' });
-    fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 2)];
-    const r = await tick();
-    expect(r.enviadas).toBe(1);
-    expect(enviadas.map(e => e.phone)).toEqual([Y]);   // só o X (alvo) espera a Duda nova
+    // A lista de liberadas é de produção (a Duda já está nela): este teste prova a regra com a lista VAZIA e devolve a lista no fim.
+    const { DONAS_LIBERADAS_PARA_TODOS } = await import('../services/agentes5040/posse');
+    const lista = DONAS_LIBERADAS_PARA_TODOS as string[];
+    const salvas = [...lista];
+    lista.length = 0;
+    try {
+      await alvo([X], { duda: 'todos' });
+      fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 2)];
+      const r = await tick();
+      expect(r.enviadas).toBe(1);
+      expect(enviadas.map(e => e.phone)).toEqual([Y]);   // só o X (alvo) espera a Duda nova
+    } finally { lista.length = 0; lista.push(...salvas); }
   });
 
   it('modo todos (Duda liberada): card novo do quiz de qualquer lead espera a Duda nova (15 min); depois disso o antigo manda', async () => {
     const { DONAS_LIBERADAS_PARA_TODOS } = await import('../services/agentes5040/posse');
-    (DONAS_LIBERADAS_PARA_TODOS as string[]).push('duda');
-    await alvo([], { duda: 'todos' });
-    fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 20)];
-    expect((await tick()).enviadas).toBe(1);
-    expect(enviadas.map(e => e.phone)).toEqual([Y]);
-    (DONAS_LIBERADAS_PARA_TODOS as string[]).length = 0;
+    const lista = DONAS_LIBERADAS_PARA_TODOS as string[];
+    const salvas = [...lista];
+    if (!lista.includes('duda')) lista.push('duda');
+    try {
+      await alvo([], { duda: 'todos' });
+      fichas = [cardQuiz(1, X, 2), cardQuiz(2, Y, 20)];
+      expect((await tick()).enviadas).toBe(1);
+      expect(enviadas.map(e => e.phone)).toEqual([Y]);
+    } finally { lista.length = 0; lista.push(...salvas); }
   });
 
   it('conversa que uma agente nova já segura (posse): o antigo não manda por cima, em idade nenhuma, e a ficha não é marcada', async () => {

@@ -730,7 +730,8 @@ async function conferirReservasSemEnvio(desde: string): Promise<void> {
         .sort((a: number, b: number) => a - b);
       // A ABERTURA do quiz (agentes5040, 21/10) reserva boas_vindas_at e entrega pela fila de agenda da Duda, que carimba
       // ag5040_agenda_sent:<id>:abertura:<iso>. Enviada = esse carimbo; ainda na fila = ag5040_agenda_fila:<id>:abertura:<iso>
-      // (a fila entrega de 2 em 2 min, mas segura em pausa humana ou linha caída). Nenhum dos dois é alarme; carimbo em 'reservado' ou 'falhou' é. Os prefixos ficam
+      // (a fila entrega de 2 em 2 min, mas segura em pausa humana ou linha caída). Nenhum dos dois é alarme; carimbo em 'reservado' ou 'falhou' é.
+      // O mesmo vale para a CONFIRMAÇÃO (tipo `confirma`) do card do quiz de quem já tem posse viva da Duda (22/10): ela reserva boas_vindas_at e sai pela mesma fila. Os prefixos ficam
       // escritos aqui de propósito: importar o agendaEnvio traria o envio da agente para dentro deste arquivo.
       if (semEnvio.length > 0) {
         try {
@@ -753,19 +754,19 @@ async function conferirReservasSemEnvio(desde: string): Promise<void> {
 }
 
 /**
- * Dos ids, os que têm a abertura do quiz ENVIADA (ag5040_agenda_sent com value.estado === 'enviado') ou ainda na fila
- * (ag5040_agenda_fila). Carimbo em 'reservado' (o envio pode ter morrido no meio) ou 'falhou' NÃO conta: esses o alarme acusa.
+ * Dos ids, os que têm a abertura do quiz (ou a confirmação do card de quem já tem posse da Duda) ENVIADA (ag5040_agenda_sent com
+ * value.estado === 'enviado') ou ainda na fila (ag5040_agenda_fila). Carimbo em 'reservado' (o envio pode ter morrido no meio) ou 'falhou' NÃO conta: esses o alarme acusa.
  * Erro de leitura LANÇA.
  */
 async function idsComAberturaNoEstado(ids: number[]): Promise<Set<number>> {
   const achados = new Set<number>();
   for (let i = 0; i < ids.length; i += 25) {
     const lote = ids.slice(i, i + 25);
-    const filtro = lote.flatMap((id) => [`key.like.ag5040_agenda_sent:${id}:abertura:%`, `key.like.ag5040_agenda_fila:${id}:abertura:%`]).join(',');
+    const filtro = lote.flatMap((id) => ['abertura', 'confirma'].flatMap((tipo) => [`key.like.ag5040_agenda_sent:${id}:${tipo}:%`, `key.like.ag5040_agenda_fila:${id}:${tipo}:%`])).join(',');
     const { data, error } = await supabase.from('system_state').select('key, value').or(filtro);
     if (error) throw error;
     for (const m of (data ?? []) as Array<{ key: string; value?: { estado?: string } | null }>) {
-      const achou = /^ag5040_agenda_(sent|fila):(\d+):abertura:/.exec(String(m.key));
+      const achou = /^ag5040_agenda_(sent|fila):(\d+):(?:abertura|confirma):/.exec(String(m.key));
       if (!achou) continue;
       if (achou[1] === 'sent' && m.value?.estado !== 'enviado') continue;
       achados.add(Number(achou[2]));

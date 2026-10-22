@@ -22,6 +22,10 @@ const h = vi.hoisted(() => ({
   falhaCard: false,
   aposEnvio: null as null | (() => void),
   boasVindas: [] as number[],
+  posse: { dona: 'duda', estado: 'viva', apresentada: true } as any,
+  posseErro: false,
+  posseAtualizacoes: [] as any[],
+  posseLeituras: [] as string[],
 }));
 
 function consulta(tabela: string) {
@@ -116,6 +120,12 @@ vi.mock('../services/agents/whatsapp/silenciar', async () => {
   };
 });
 
+// A posse (aviso de IA, 22/10): por padrão a Duda já se apresentou (apresentada: true), então os textos dos outros testes ficam como eram.
+vi.mock('../services/agentes5040/posse', () => ({
+  lerPosse: vi.fn(async (chave: string) => { h.posseLeituras.push(chave); if (h.posseErro) throw new Error('posse: XX000'); return h.posse; }),
+  atualizarPosse: vi.fn(async (_c: string, patch: any) => { h.posseAtualizacoes.push(patch); if (h.posse) h.posse = { ...h.posse, ...patch }; return true; }),
+}));
+
 vi.mock('../services/agentes5040/agendaSolar', () => ({
   marcarBoasVindasEnviada: vi.fn(async (id: number) => { h.boasVindas.push(id); return true; }),
 }));
@@ -158,6 +168,7 @@ beforeEach(() => {
   h.estado.clear(); h.cards.clear(); h.enviados.length = 0; h.falhas.length = 0; esperas.length = 0; h.leiturasFila = 0;
   h.cooldown = false; h.pode = { pode: true, motivo: 'sem-pausa' }; h.bloqueado = false; h.motivos = [];
   h.escondeCarimbo = false; h.falhaCard = false; h.aposEnvio = null; h.boasVindas.length = 0;
+  h.posse = { dona: 'duda', estado: 'viva', apresentada: true }; h.posseErro = false; h.posseAtualizacoes.length = 0; h.posseLeituras.length = 0;
   for (const id of [501, 502, 503, 504, 505, 506]) h.cards.set(id, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
   TEMPOS_AGENDA.esperar = async (ms: number) => { esperas.push(ms); };
   TEMPOS_AGENDA.sorteio = () => 0;   // determinístico: o sorteio de 0 a 35 s tem teste próprio
@@ -999,5 +1010,89 @@ describe('agendaEnvio: abertura descartada deixa o marcador solar_bv_dedup e o c
     expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
     expect(chamadas()).toBe(0);
     expect(dedup(501)).toEqual(['solar_bv_dedup:501']);
+  });
+});
+
+describe('agendaEnvio: o aviso de IA na confirmação, na remarcação e na volta (22/10/2026)', () => {
+  const FRASE = 'Aqui é a Duda, do atendimento com IA da Irmãos na Obra.';
+
+  it('posse ainda não apresentada: a confirma sai com a frase na frente (até 160); o 1º envio grava apresentada e os seguintes saem sem a frase', async () => {
+    h.posse = { dona: 'duda', estado: 'viva', apresentada: false };
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
+    for (const p of [pedido({ tipo: 'confirma', cardId: 501 }), pedido({ tipo: 'remarca', cardId: 502 })]) expect((await enfileirarAgenda(p, AGORA)).ok).toBe(true);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 2 });
+    expect(textos()[0]).toBe(`${FRASE} Ficou marcado para amanhã às 14h30. A Giovanna te liga nesse horário.`);
+    expect(textos()[0]!.length).toBeLessThanOrEqual(160);
+    // a posse virou apresentada no 1º envio: o 2º não repete a frase
+    expect(textos()[1]).toBe('Pronto, mudei sua ligação para amanhã às 14h30. Quem liga é a Giovanna.');
+    expect(h.posseAtualizacoes).toEqual([{ apresentada: true }]);
+    expect(h.posseLeituras[0]).toBe('3491360223');   // a chave da posse é a chaveContato do telefone do card
+  });
+
+  it('cada tipo leva a frase quando a posse não está apresentada (remarca e volta também)', async () => {
+    h.posse = { dona: 'duda', estado: 'viva', apresentada: false };
+    expect((await enfileirarAgenda(pedido({ tipo: 'remarca', cardId: 502 }), AGORA)).ok).toBe(true);
+    await enviarAgendaPendente(AGORA);
+    expect(textos()[0]).toBe(`${FRASE} Pronto, mudei sua ligação para amanhã às 14h30. Quem liga é a Giovanna.`);
+    h.posse = { dona: 'duda', estado: 'viva', apresentada: false };
+    h.estado.clear(); h.enviados.length = 0;
+    expect((await enfileirarAgenda(pedidoVolta({ cardId: 503 }), AGORA)).ok).toBe(true);
+    await enviarAgendaPendente(AGORA);
+    expect(textos()[0]).toBe(`${FRASE} Consigo deixar a ligação marcada pra você: hoje às 15h ou amanhã às 9h. Qual fica melhor?`);
+    expect(textos()[0]!.length).toBeLessThanOrEqual(160);
+  });
+
+  it('posse já apresentada: o texto fica como era e a posse não é tocada', async () => {
+    expect((await enfileirarAgenda(pedido(), AGORA)).ok).toBe(true);
+    await enviarAgendaPendente(AGORA);
+    expect(textos()).toEqual(['Ficou marcado para amanhã às 14h30. A Giovanna te liga nesse horário.']);
+    expect(h.posseAtualizacoes).toEqual([]);
+  });
+
+  it('erro ao ler a posse (e posse que não existe): sai COM o aviso, o lado seguro', async () => {
+    h.posseErro = true;
+    expect((await enfileirarAgenda(pedido(), AGORA)).ok).toBe(true);
+    await enviarAgendaPendente(AGORA);
+    expect(textos()[0]!.startsWith(FRASE)).toBe(true);
+    h.posseErro = false; h.posse = null; h.estado.clear(); h.enviados.length = 0;
+    expect((await enfileirarAgenda(pedido({ cardId: 502 }), AGORA)).ok).toBe(true);
+    await enviarAgendaPendente(AGORA);
+    expect(textos()[0]!.startsWith(FRASE)).toBe(true);
+  });
+
+  it('a abertura não muda (ela já traz o aviso) e não mexe na posse', async () => {
+    h.posse = { dona: 'duda', estado: 'viva', apresentada: false };
+    expect((await enfileirarAgenda(pedido({ tipo: 'abertura', caminho: 'ligacao', nome: 'Ana' }), AGORA)).ok).toBe(true);
+    await enviarAgendaPendente(AGORA);
+    expect(textos()[0]!.match(/atendimento com IA/g)).toHaveLength(1);
+    expect(h.posseAtualizacoes).toEqual([]);
+    expect(h.posseLeituras).toEqual([]);
+  });
+
+  it('envio que falha (5xx) não marca apresentada; o dry não lê nem grava a posse de volta', async () => {
+    h.posse = { dona: 'duda', estado: 'viva', apresentada: false };
+    expect((await enfileirarAgenda(pedido(), AGORA)).ok).toBe(true);
+    h.falhas.push(Object.assign(new Error('http_500'), { status: 500 }));
+    await enviarAgendaPendente(AGORA);
+    expect(h.posseAtualizacoes).toEqual([]);
+    expect(h.posse.apresentada).toBe(false);
+    h.estado.clear(); h.enviados.length = 0; h.falhas.length = 0;
+    expect((await enfileirarAgenda(pedido({ cardId: 502 }), AGORA)).ok).toBe(true);
+    expect(await enviarAgendaPendente(AGORA, { dry: true })).toMatchObject({ enviadas: 1 });
+    expect(chamadas()).toBe(1);
+    expect(h.posseAtualizacoes).toEqual([]);
+  });
+
+  it('não cabe em 160 com a frase: usa a versão curta (sem a consultora) e, se a volta tem datas longas, a curta da volta', () => {
+    const campos = { dia: 'quinta, 23/10', hora: '14h30', consultora: 'Wilhelmina-Alexandrina-Maximiliana-Bartolomeu' };
+    const longa = montarBolhaAgenda('confirma', campos, false, true);
+    expect(longa).toBe(`${FRASE} Ficou marcado para quinta, 23/10 às 14h30. Te ligamos nesse horário.`);
+    expect(montarBolhaAgenda('remarca', campos, false, true)).toBe(`${FRASE} Pronto, mudei sua ligação para quinta, 23/10 às 14h30.`);
+    expect(montarBolhaAgenda('confirma', campos, true, true)).toBe(`${FRASE} Só reforçando: a sua ligação ficou para quinta, 23/10 às 14h30.`);
+    const volta = montarBolhaAgenda('volta', { opcao1: 'segunda, 26/10 às 14h30', opcao2: 'terça, 27/10 às 14h30' }, false, true);
+    expect(volta).toBe(`${FRASE} Posso ligar segunda, 26/10 às 14h30 ou terça, 27/10 às 14h30? Qual fica melhor?`);
+    for (const b of [longa, volta]) expect(b!.length).toBeLessThanOrEqual(160);
+    // sem o aviso o texto cheio segue o mesmo de antes
+    expect(montarBolhaAgenda('confirma', { dia: 'hoje', hora: '9h', consultora: 'Ana' })).toBe('Ficou marcado para hoje às 9h. A Ana te liga nesse horário.');
   });
 });
