@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
+const aviso = vi.hoisted(() => ({ on: true }));
+vi.mock('../services/agentes5040/avisoIA', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/avisoIA')>()),
+  get AVISO_IA_NA_PRIMEIRA_MSG() { return aviso.on; },
+}));
+
 // A Base das agentes da 5040 (B4b): a retomada fria (baseEnvio.ts + baseRegras.ts). Em cima, as regras puras; no meio, a rodada
 // inteira com dependências falsas que anotam a ORDEM das chamadas (cada passo do parecer do chefe, cada motivo de pular, as 2
 // retomadas, o estacionado, a IA que decide não retomar, o lead que escreve no meio, o claim apagado na falha, o dry); e, no fim, a
@@ -1126,5 +1133,20 @@ describe('depsReais: formas das chaves', () => {
   it('AlvoBase e PosseBase são exportados para os testes e para a rota (tipos)', () => {
     const a: Partial<AlvoBase> = {};
     expect(a).toEqual({});
+  });
+});
+
+describe('chave do aviso de IA DESLIGADA (a de produção): a Base retoma sem a marca apresentada', () => {
+  beforeEach(() => { aviso.on = false; });
+  afterEach(() => { aviso.on = true; });
+
+  it('posse com apresentada falsa ou sem a marca é retomada normalmente (nada de nao_apresentada)', async () => {
+    for (const p of [posse({ apresentada: false }), { ...posse(), lead_data: (({ apresentada: _a, ...resto }) => resto)(posse().lead_data) }]) {
+      const w = mundo({ posses: [p] });
+      const r = await rodar(w);
+      expect(r.puladas.nao_apresentada).toBeUndefined();
+      expect(r.enviou).toBe(true);
+      expect(w.enviados).toHaveLength(1);
+    }
   });
 });

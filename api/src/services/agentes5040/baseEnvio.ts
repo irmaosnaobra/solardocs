@@ -55,6 +55,7 @@ import type { DonaViva } from './interruptores';
 import { agenteAtendeEste, atualizarPosse, lerPosse } from './posse';
 import { donasDaRodadaLigadas } from './posseLeitura';
 import { falhaDeInfra, juntarDados, pensarTurno } from './turno';
+import { AVISO_IA_NA_PRIMEIRA_MSG } from './avisoIA';
 import { lerTurnos } from './armazem';
 import { codigoDoErroDeEnvio, erroEhDoDestino, CHAVE_LINHA_ERROS, CHAVE_LINHA_PAUSA } from './vivoEnvio';
 import type { CardResumo, MsgConversa, Persona } from './tipos';
@@ -213,7 +214,7 @@ export async function runBaseTick(opts: OpcoesBase = {}, deps?: DepsBase): Promi
       const t1 = triagemDaPosse(base, agoraMs);
       if (!t1.ok) { nota('pulou', t1.motivo); continue; }
       // O aviso de IA (22/10/2026): a retomada só sai para quem a agente já se apresentou (lead_data.apresentada).
-      if (p.lead_data.apresentada !== true) { nota('pulou', 'nao_apresentada'); continue; }
+      if (AVISO_IA_NA_PRIMEIRA_MSG && p.lead_data.apresentada !== true) { nota('pulou', 'nao_apresentada'); continue; }
       if (!(await d.escopo(p.dona, p.chave))) { nota('pulou', 'fora_do_escopo'); continue; }
       if (r.avaliadas >= LIMITES_BASE.avaliacoesPorRodada) { r.cortou = true; break; }
       r.avaliadas++;

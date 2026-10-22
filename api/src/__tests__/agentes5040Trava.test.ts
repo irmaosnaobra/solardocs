@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
+const aviso = vi.hoisted(() => ({ on: true }));
+vi.mock('../services/agentes5040/avisoIA', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/avisoIA')>()),
+  get AVISO_IA_NA_PRIMEIRA_MSG() { return aviso.on; },
+}));
 import {
   validarFala, pedidoDeReescrita, permiteReescrita, estadoDaConversa,
   MOTIVO_HISTORICO_INCOMPLETO, MOTIVO_SEM_CONTEXTO, type ParametrosTrava,
@@ -507,5 +514,16 @@ describe('trava: o aviso de IA na primeira mensagem (exigeAviso)', () => {
   it('a frase cabe nos 160 com uma resposta curta', () => {
     const t = 'Aqui é a Helena, do atendimento com IA da Irmãos na Obra. Anotei o posto em Araguari. Qual o consumo de energia?';
     expect(t.length).toBeLessThanOrEqual(160);
+  });
+});
+
+describe('trava: chave do aviso de IA DESLIGADA (a de produção)', () => {
+  beforeEach(() => { aviso.on = false; });
+  afterEach(() => { aviso.on = true; });
+
+  it('exigeAviso é ignorado: a bolha sem a frase passa nas três agentes', () => {
+    for (const persona of ['duda', 'helena', 'carla'] as const) {
+      expect(ok(['Oi! Em qual cidade você mora?'], { persona, completa: true, qualificado: true, exigeAviso: true })).toEqual([]);
+    }
   });
 });

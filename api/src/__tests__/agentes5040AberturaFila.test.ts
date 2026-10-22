@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
+const aviso = vi.hoisted(() => ({ on: true }));
+vi.mock('../services/agentes5040/avisoIA', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/avisoIA')>()),
+  get AVISO_IA_NA_PRIMEIRA_MSG() { return aviso.on; },
+}));
+
 // A abertura do quiz com a fila de agenda REAL (enfileirarAgenda e enviarAgendaPendente de verdade, sem trocar a função por um falso).
 // Prova o desfazer com honestidade: a resposta do banco pode se perder DEPOIS de a gravação entrar, e aí a fila manda (nada é
 // desfeito e sai 1 abertura); a posse que não sai segura a reserva (para o alarme acusar); a posse relida decide o resto.

@@ -1,4 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
+const aviso = vi.hoisted(() => ({ on: true }));
+vi.mock('../services/agentes5040/avisoIA', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/avisoIA')>()),
+  get AVISO_IA_NA_PRIMEIRA_MSG() { return aviso.on; },
+}));
 
 // B1d-2a, o robô de agenda da Duda (agendaEnvio.ts). Banco e WhatsApp simulados na memória. Prova: o texto exato
 // de cada bolha fixa (<= 160), montado NA HORA DO ENVIO a partir do ISO do item; o card relido (mudou ou passou = descarta);
@@ -1094,5 +1101,21 @@ describe('agendaEnvio: o aviso de IA na confirmação, na remarcação e na volt
     for (const b of [longa, volta]) expect(b!.length).toBeLessThanOrEqual(160);
     // sem o aviso o texto cheio segue o mesmo de antes
     expect(montarBolhaAgenda('confirma', { dia: 'hoje', hora: '9h', consultora: 'Ana' })).toBe('Ficou marcado para hoje às 9h. A Ana te liga nesse horário.');
+  });
+});
+
+describe('agendaEnvio: chave do aviso de IA DESLIGADA (a de produção)', () => {
+  beforeEach(() => { aviso.on = false; });
+  afterEach(() => { aviso.on = true; });
+
+  it('posse não apresentada: confirma, remarca e volta saem SEM a frase, e a posse nem é lida nem gravada', async () => {
+    h.posse = { dona: 'duda', estado: 'viva', apresentada: false };
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
+    for (const p of [pedido({ tipo: 'confirma', cardId: 501 }), pedido({ tipo: 'remarca', cardId: 502 })]) expect((await enfileirarAgenda(p, AGORA)).ok).toBe(true);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 2 });
+    expect(textos()[0]).toBe('Ficou marcado para amanhã às 14h30. A Giovanna te liga nesse horário.');
+    expect(textos().join(' ')).not.toMatch(/atendimento com IA/);
+    expect(h.posseAtualizacoes).toEqual([]);
+    expect(h.posseLeituras).toEqual([]);
   });
 });

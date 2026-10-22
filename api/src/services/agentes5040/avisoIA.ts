@@ -7,6 +7,14 @@
 
 import type { Persona } from './tipos';
 
+/**
+ * A CHAVE ÚNICA do aviso de IA na primeira mensagem. FALSE desde 22/10/2026: o dono pôs "atendimento por IA" no nome do perfil da
+ * linha 5040, e o aviso fica na interface do WhatsApp. Com false: o modelo não recebe o aviso do sistema, a trava não exige a
+ * frase (exigeAviso), o vivo e o agendaEnvio não põem a frase na frente de texto nenhum, a abertura do quiz volta ao texto de antes
+ * e a retomada da Base não pula por 'nao_apresentada'. Com true: tudo isso volta (a posse guarda lead_data.apresentada).
+ */
+export const AVISO_IA_NA_PRIMEIRA_MSG = false;
+
 export const NOME_DA_AGENTE: Readonly<Record<Persona, string>> = { duda: 'Duda', helena: 'Helena', carla: 'Carla' };
 
 /** A frase padrão de apresentação. Texto final do redator. */

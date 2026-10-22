@@ -57,18 +57,14 @@ function contexto(extra: Partial<ContextoLead> = {}): ContextoLead {
 function motivosDoExemplo(def: PersonaDef, ex: ExemploPersona): string[] {
   const conv: MsgConversa[] = [];
   const erros: string[] = [];
-  let primeiraDaAgente = true;
   ex.turnos.forEach((t, i) => {
     if (t.quem === 'cliente') {
       const tipo = t.midia === 'foto' ? 'image' : t.midia === 'audio' ? 'audio' : t.midia === 'pdf' ? 'document' : 'texto';
       conv.push(msg('lead', t.midia === 'audio' ? null : t.texto, { tipo, ...(t.midia === 'audio' ? { transcricao: t.texto } : {}) }));
       return;
     }
-    // A PRIMEIRA fala da agente em cada exemplo traz o aviso de IA (a trava confere com exigeAviso).
-    const exige = primeiraDaAgente;
-    primeiraDaAgente = false;
     const motivos = validarFala(t.saida, conv, {
-      persona: def.persona, completa: true, qualificado: !!t.qualificado, ...(exige ? { exigeAviso: true } : {}),
+      persona: def.persona, completa: true, qualificado: !!t.qualificado,
       acoesSemFala: ACOES_SEM_FALA, agora: ex.agora ?? '2026-10-20T17:00:00.000Z',
     });
     if (motivos.length) erros.push(`${ex.titulo} #${i}: ${motivos.join('; ')} :: ${t.saida.bolhas.join(' / ')}`);

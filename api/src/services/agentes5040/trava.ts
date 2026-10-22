@@ -20,7 +20,7 @@ import { VALORES_PERMITIDOS_CARLA } from './conhecimento/solardoc';
 import { PERCENTUAIS_PUBLICOS_ELETROPOSTO, REAIS_PUBLICOS_ELETROPOSTO } from './conhecimento/eletroposto';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from './conhecimento/depoimentos';
 import { horarioComercial, type Instante } from './relogio';
-import { motivoSemAviso, temAvisoDeIA } from './avisoIA';
+import { AVISO_IA_NA_PRIMEIRA_MSG, motivoSemAviso, temAvisoDeIA } from './avisoIA';
 
 // ── parâmetros ───────────────────────────────────────────────────────────────
 
@@ -408,7 +408,7 @@ export function validarFala(s: SaidaAgente, conv: readonly MsgConversa[], p: Par
   if (s.sabe_contexto === false) return [MOTIVO_SEM_CONTEXTO];
   const est = estadoDaConversa(conv);
   const motivos = regrasGerais(s, est, p);
-  if (p.exigeAviso === true && s.bolhas.length > 0 && !temAvisoDeIA(s.bolhas[0], p.persona)) motivos.push(motivoSemAviso(p.persona));
+  if (AVISO_IA_NA_PRIMEIRA_MSG && p.exigeAviso === true && s.bolhas.length > 0 && !temAvisoDeIA(s.bolhas[0], p.persona)) motivos.push(motivoSemAviso(p.persona));
   // O texto da persona é a bolha 1 (o link e o código do Pix não são fala). O link entra à parte, para cupom e preço.
   const t = semAcento((s.peca?.tipo === 'link' || s.peca?.tipo === 'pix' ? s.bolhas.slice(0, 1) : s.bolhas).join('\n'));
   const link = textoDoLink(s);

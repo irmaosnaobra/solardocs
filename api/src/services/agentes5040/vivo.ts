@@ -101,7 +101,11 @@ import {
 import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 import { ACAO_ESTACIONAR, type CardResumo, type ContextoLead, type Persona, type SaidaAgente } from './tipos';
 import { enviarResposta, type PecaEnvio, type PedidoEnvio, type ResultadoEnvio } from './vivoEnvio';
-import { avisoDeApresentacao, comAvisoSeFaltar } from './avisoIA';
+import { AVISO_IA_NA_PRIMEIRA_MSG, avisoDeApresentacao, comAvisoSeFaltar } from './avisoIA';
+
+/** Este lead já foi apresentado, ou o aviso de IA está desligado (então ninguém precisa dele)? Lê a chave na hora da chamada. */
+const jaApresentada = (posse: Readonly<Record<string, unknown>> | null | undefined): boolean =>
+  !AVISO_IA_NA_PRIMEIRA_MSG || posse?.apresentada === true;
 import type { DecisaoPorteiro } from './porteiro';
 import { caminhoDaFicha } from '../agenda/solarRota';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
@@ -648,7 +652,7 @@ async function aberturaEnviada(cardId: number): Promise<boolean | null> {
  * Saiu com o aviso: grava apresentada = true na posse (e no objeto em memória, para o resto da conversa).
  */
 async function enviarAoLead(chave: string, posse: DadosPosse, pedido: PedidoEnvio, agora: Date): Promise<ResultadoEnvio> {
-  const ja = posse.apresentada === true;
+  const ja = jaApresentada(posse);
   const bolha = comAvisoSeFaltar(pedido.bolha, pedido.dona, ja);
   if (bolha === null) return { ok: false, motivo: 'bolha_invalida', detalhe: 'sem_aviso_ia' };
   const res = await enviarResposta({ ...pedido, bolha }, agora);
@@ -800,14 +804,14 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     }
     // O aviso de IA (22/10/2026): a agente se apresenta na PRIMEIRA mensagem dela a este lead. Abertura do quiz ENVIADA = apresentada
     // (a bolha da abertura já leva o aviso): vale, e é gravada na posse, mesmo que nenhuma resposta saia agora (a Base lê a posse).
-    if (posse.apresentada !== true && dona === 'duda') {
+    if (AVISO_IA_NA_PRIMEIRA_MSG && posse.apresentada !== true && dona === 'duda') {
       const cs = cardSolarDoCtx(ctx0);
       if (cs && await aberturaEnviada(cs.id) === true) {
         posse.apresentada = true;
         if (!dry) await atualizarPosse(chave, { apresentada: true });
       }
     }
-    const exigeAviso = posse.apresentada !== true;
+    const exigeAviso = !jaApresentada(posse);
     const primeiro = msgs.find(m => m.autor === 'lead');
     const anuncio = primeiro ? await anuncioDaMensagem(primeiro.id) : { ok: true, anuncio: null };
     let turnosAntes: TurnoGravado[];
@@ -1250,7 +1254,7 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
   const prefixoDono = teste ? (ehTeste === null ? PREFIXO_ALVO_ILEGIVEL : PREFIXO_TESTE) : telCons ? '' : `${motivoDono} Encaminhe esta ficha ao consultor certo.`;
   const texto = textoDaFicha(pedido, card, prefixoDono);
 
-  if (dry) { dec({ resultado: 'passaria_ao_humano', ficha: 'ficharia', ...(p.bolha ? { sairia: [bolhaDaPassagem(p.acao, p.posse.dona, p.posse.apresentada === true)] } : {}) }); return; }
+  if (dry) { dec({ resultado: 'passaria_ao_humano', ficha: 'ficharia', ...(p.bolha ? { sairia: [bolhaDaPassagem(p.acao, p.posse.dona, jaApresentada(p.posse))] } : {}) }); return; }
 
   const adiar = (): void => { soma(r.puladas, 'ficha_adiada'); dec({ resultado: 'ficha_adiada', ficha: 'adiada' }); };
   if (!hl || linhaIoEmCooldown()) { adiar(); return; }
@@ -1282,7 +1286,7 @@ async function passarAoHumano(g: G, p: PedidoHumano): Promise<void> {
 
   let patch: Partial<DadosPosse> = { estado: 'passou_humano', ate_wa_id: p.L.id };
   let enviadas = 0;
-  const bolhaFixa = bolhaDaPassagem(p.acao, p.posse.dona, p.posse.apresentada === true);
+  const bolhaFixa = bolhaDaPassagem(p.acao, p.posse.dona, jaApresentada(p.posse));
   if (p.bolha && p.tel) {
     const res = await enviarAoLead(p.chave, p.posse, {
       dona: p.posse.dona as DonaViva, telefone: p.tel, waIdAlvo: p.L.id, momentoFalaLead: p.L.momment,
@@ -1835,7 +1839,7 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
   const { g, saida, ctx0, chave, tel, L, posse, hmac, dec } = A;
   const { r, dry } = g;
   const donaNome = NOME_DA_DONA[posse.dona] ?? 'agente';
-  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona, posse.apresentada === true);
+  const bolha = saida.bolhas[0] || bolhaDaPassagem(undefined, posse.dona, jaApresentada(posse));
   if (dry) { dec({ resultado: 'passaria_ao_humano', ...A.base2, ficha: 'ficharia', sairia: [bolha] }); return 'seguir'; }
 
   const { destino, prefixoDono } = await destinoDoSuporte(chave);

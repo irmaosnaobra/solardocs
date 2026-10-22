@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
+const aviso = vi.hoisted(() => ({ on: true }));
+vi.mock('../services/agentes5040/avisoIA', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/avisoIA')>()),
+  get AVISO_IA_NA_PRIMEIRA_MSG() { return aviso.on; },
+}));
+
 // A ABERTURA do card do quiz solar (21/10/2026), pela fila de agenda da Duda. Duas metades:
 //  1. as bolhas fixas (textosAgenda.ts): os 3 caminhos, com e sem nome, e o corte dos 160 caracteres;
 //  2. a varredura da rodada viva (vivo.ts, abrirCardsDoQuiz): ordem bolha > reserva > posse > fila, o desfazer quando a fila não gravou,
@@ -592,5 +599,35 @@ describe('confirma do quiz para quem já tem posse VIVA da própria Duda (22/10/
     const r = await rodar();
     expect(h.enfileirar).toHaveBeenCalledTimes(3);
     expect(r.abertura).toMatchObject({ tentados: 3, confirmados: 3, puladas: { limite_por_rodada: 1 } });
+  });
+});
+
+describe('abertura: chave do aviso de IA DESLIGADA (a de produção): os textos de antes do aviso', () => {
+  beforeEach(() => { aviso.on = false; });
+  afterEach(() => { aviso.on = true; });
+  const quando = 'amanhã às 14h30';
+
+  it('ligacao, video e vistoria, com e sem nome, com o texto exato de antes', () => {
+    expect(textoDeAbertura('ligacao', 'Irineu de Almeida', quando, 'Giovanna Souza')).toBe(
+      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Já está marcado: *Giovanna* te liga *amanhã às 14h30*. É uma ligação curta para entender sua conta.');
+    expect(textoDeAbertura('video', 'Irineu', quando, 'Nilce')).toBe(
+      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Nilce* te chama por vídeo amanhã às 14h30, com o estudo na tela. Responda SIM para confirmar.');
+    expect(textoDeAbertura('vistoria', 'Irineu', quando, 'Diego')).toBe(
+      'Oi, Irineu! Sou a Duda, da Irmãos na Obra. Marcado: *Diego* vai aí amanhã às 14h30, visita técnica de uns 40 minutos. Responda SIM para confirmar.');
+    expect(textoDeAbertura('ligacao', '', quando, 'Giovanna')).toBe(
+      'Oi! Sou a Duda, da Irmãos na Obra. Já está marcado: *Giovanna* te liga *amanhã às 14h30*. É uma ligação curta para entender sua conta.');
+    for (const c of ['ligacao', 'video', 'vistoria']) expect(textoDeAbertura(c, 'Irineu', quando, 'Giovanna')).not.toMatch(/atendimento com IA/);
+  });
+
+  it('o corte de 160 de antes: tira o nome, depois os asteriscos, depois null', () => {
+    const q = 'quinta, 23/10 às 14h30';
+    expect(textoDeAbertura('vistoria', 'Irineu', q, 'Giovanna')!.length).toBe(156);
+    const semNome = textoDeAbertura('vistoria', 'Maximiliano', q, 'Giovanna')!;
+    expect(semNome.startsWith('Oi! Sou a Duda')).toBe(true);
+    expect(semNome.length).toBe(148);
+    const semAsteriscos = textoDeAbertura('vistoria', 'Irineu', q, 'M' + 'a'.repeat(21))!;
+    expect(semAsteriscos).not.toContain('*');
+    expect(semAsteriscos.length).toBe(MAX_BOLHA_ABERTURA);
+    expect(textoDeAbertura('vistoria', 'Irineu', q, 'M' + 'a'.repeat(22))).toBeNull();
   });
 });

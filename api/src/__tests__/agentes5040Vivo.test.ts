@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
+const aviso = vi.hoisted(() => ({ on: true }));
+vi.mock('../services/agentes5040/avisoIA', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/avisoIA')>()),
+  get AVISO_IA_NA_PRIMEIRA_MSG() { return aviso.on; },
+}));
+
 // A rodada viva (B1c-3). Banco falso em memória, IA falsa, e as duas saídas (vivoEnvio e fichaEnvio) trocadas por
 // mocks que contam chamadas: nada aqui alcança a rede.
 const h = vi.hoisted(() => ({
@@ -783,5 +790,38 @@ describe('rodada viva: o aviso de IA na primeira mensagem (22/10/2026)', () => {
     await rodar({ dry: true });
     expect(pedidoDe(0)).toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
     expect(posseDe().apresentada).toBe(false);
+  });
+});
+
+describe('rodada viva: chave do aviso de IA DESLIGADA (a de produção)', () => {
+  beforeEach(() => { aviso.on = false; });
+  afterEach(() => { aviso.on = true; });
+  const SEM_AVISO = 'Oi! Qual é o valor da sua conta de luz?';
+
+  it('lead não apresentado: o modelo NÃO recebe o aviso, a bolha sem frase sai como veio e a posse não ganha a marca', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = responder([SEM_AVISO]);
+    const r = await rodar();
+    expect(r.enviadas).toBe(1);
+    expect(ia.chamadas).toHaveLength(1);
+    expect(JSON.stringify(ia.chamadas[0]!.body)).not.toContain('AVISO DO SISTEMA: esta é a sua PRIMEIRA mensagem');
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(SEM_AVISO);
+    expect(posseDe().apresentada).toBe(false);
+  });
+
+  it('texto fixo da passagem ao humano sai inteiro, sem a frase', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    gerador.tabelas.agendamentos = [{ id: 7, cliente_telefone: TEL, cliente_nome: 'Tadeu Souza', vendedor_nome: 'Diego Souza', status: 'agendado', created_by: 'lp_solar', created_at: iso(86_400_000), quando: '2026-10-22T13:00:00Z', cidade: 'Araguari', observacao: null }];
+    ia = responder([SEM_AVISO], { acao: 'passar_helena' });
+    await rodar();
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(BOLHA_PASSAGEM_GENERICA);
+  });
+
+  it('sem aviso na bolha, a trava não barra e não há segunda chamada', async () => {
+    semearLead(0, { posse: { apresentada: false } }); alvo([hmacDe(CHAVE)!]);
+    ia = responder([SEM_AVISO]);
+    await rodar();
+    expect(ia.chamadas).toHaveLength(1);
+    expect(h.ficha).not.toHaveBeenCalled();
   });
 });

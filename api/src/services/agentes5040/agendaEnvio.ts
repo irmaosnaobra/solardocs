@@ -47,7 +47,7 @@ import { marcarBoasVindasEnviada } from './agendaSolar';
 import { horaBRT } from './relogio';
 import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
 import { camposDeHorario, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
-import { fraseDeApresentacao } from './avisoIA';
+import { AVISO_IA_NA_PRIMEIRA_MSG, fraseDeApresentacao } from './avisoIA';
 import { atualizarPosse, lerPosse } from './posse';
 
 const LOG = 'agenda-envio-5040';
@@ -187,7 +187,7 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
     degraus = [bolha];
   } else return null;
   const serve = (b: string): boolean => !TRAVESSAO.test(b) && !b.includes('||') && b.length <= LIMITES_AGENDA.maxCaracteresBolha;
-  if (comAviso && tipo !== 'abertura') {
+  if (AVISO_IA_NA_PRIMEIRA_MSG && comAviso && tipo !== 'abertura') {
     const frase = fraseDeApresentacao('duda');
     for (const d of degraus) { const b = `${frase} ${d}`; if (serve(b)) return b; }
     return null;
@@ -540,7 +540,7 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
 
     // 9b. o aviso de IA (22/10/2026): enquanto a posse não tem apresentada === true, confirma, remarca e volta saem com a frase na
     //     frente. Posse ausente ou leitura que falha = com o aviso (o lado seguro). A abertura já traz o aviso.
-    if (tipo !== 'abertura') {
+    if (AVISO_IA_NA_PRIMEIRA_MSG && tipo !== 'abertura') {
       let apresentada = false;
       try { apresentada = (await lerPosse(ck))?.apresentada === true; } catch { apresentada = false; }
       comAviso = !apresentada;

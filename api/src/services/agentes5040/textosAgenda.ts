@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Caminho } from '../agenda/solarRota';
+import { AVISO_IA_NA_PRIMEIRA_MSG, fraseDeApresentacao } from './avisoIA';
 import { horaPorExtenso } from './personas/comum';
 import { diaBRT, diaDaSemanaBRT, horaBRT } from './relogio';
 
@@ -81,10 +82,16 @@ export function textoDeAbertura(
   const monta = (comNome: boolean, a: string): string => {
     const oi = comNome && n ? `Oi, ${n}!` : 'Oi!';
     const quem = `${a}${c}${a}`;
-    const ap = `${oi} Aqui é a Duda, do atendimento com IA da Irmãos na Obra.`;
-    if (caminho === 'ligacao') return `${ap} ${quem} te liga ${q}. É uma ligação curta para entender sua conta.`;
-    if (caminho === 'video') return `${ap} ${quem} te chama por vídeo ${q}. Responda SIM para confirmar.`;
-    return `${ap} ${quem} vai aí ${q}, visita técnica. Responda SIM para confirmar.`;
+    if (AVISO_IA_NA_PRIMEIRA_MSG) {
+      const ap = `${oi} ${fraseDeApresentacao('duda')}`;
+      if (caminho === 'ligacao') return `${ap} ${quem} te liga ${q}. É uma ligação curta para entender sua conta.`;
+      if (caminho === 'video') return `${ap} ${quem} te chama por vídeo ${q}. Responda SIM para confirmar.`;
+      return `${ap} ${quem} vai aí ${q}, visita técnica. Responda SIM para confirmar.`;
+    }
+    const hora = `${a}${q}${a}`;
+    if (caminho === 'ligacao') return `${oi} Sou a Duda, da Irmãos na Obra. Já está marcado: ${quem} te liga ${hora}. É uma ligação curta para entender sua conta.`;
+    if (caminho === 'video') return `${oi} Sou a Duda, da Irmãos na Obra. Marcado: ${quem} te chama por vídeo ${q}, com o estudo na tela. Responda SIM para confirmar.`;
+    return `${oi} Sou a Duda, da Irmãos na Obra. Marcado: ${quem} vai aí ${q}, visita técnica de uns 40 minutos. Responda SIM para confirmar.`;
   };
   for (const [comNome, a] of [[true, '*'], [false, '*'], [false, '']] as Array<[boolean, string]>) {
     const t = monta(comNome, a);
