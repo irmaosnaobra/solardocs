@@ -7,8 +7,9 @@
 // e que `acharCidadeRaio` resolve: "Uberlândia-MG".
 //
 // REGRA QUE MANDA: nunca inventar. Só troca o texto quando o município foi
-// achado com segurança: UF digitada junto do nome, capital de estado, ou o DDD do
-// telefone confirmando a UF (nome único no país OU nome repetido desempatado).
+// achado com segurança: UF digitada junto do nome, capital de estado, cidade do raio
+// de atendimento (a região da casa, qualquer DDD), ou o DDD do telefone confirmando a
+// UF (nome único no país OU nome repetido desempatado).
 // Nome único no país SEM UF e sem DDD que bata NÃO basta: "Taguatinga" é do DF e
 // existe uma no TO, "Guará" é do DF e existe uma em SP, bairro ("Moema") vira
 // cidade de outro estado. Qualquer dúvida devolve o texto original, só limpo de
@@ -19,6 +20,7 @@
 import { resolverCidade } from './geoCidade';
 import { normalizarCidade, chaveMunicipio, semAcento, ehNomeDeEstado } from './cidadeParse';
 import municipios from '../../data/municipios.json';
+import { acharCidadeRaio } from '../agenda/solarRota';
 
 export type StatusCidadeCanonica = 'ok' | 'ddd' | 'mantida' | 'vazia';
 
@@ -174,6 +176,13 @@ export function cidadeCanonica(texto: unknown, telefone?: unknown): CidadeCanoni
     const soEstado = ehNomeDeEstado(original);
     if (soEstado && !CAPITAIS.has(valor)) return { valor: original, status: 'mantida' };
     if (normalizarCidade(original).uf !== null || CAPITAIS.has(valor)) return { valor, status: 'ok' };
+    // As 44 cidades do raio de atendimento (em volta de Uberlândia e Araguari) são a região da
+    // casa: quem escreve "Uberlândia" com telefone de SP ou GO ainda é de Uberlândia-MG. Só vale
+    // com nome e UF batendo com o município achado no IBGE.
+    const daCasa = acharCidadeRaio(r.municipio);
+    if (daCasa && daCasa.uf === r.uf && chaveMunicipio(daCasa.nome) === chaveMunicipio(r.municipio)) {
+      return { valor, status: 'ok' };
+    }
     // Sem UF: o DDD do telefone precisa apontar para a UF deste município. Sem telefone, ou com
     // telefone quebrado, não há como confirmar e o texto fica como veio.
     const ufsDoDdd = UF_DO_DDD[dddDoTelefone(telefone)] ?? [];

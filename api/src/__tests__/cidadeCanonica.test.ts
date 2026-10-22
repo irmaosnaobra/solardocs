@@ -19,9 +19,6 @@ describe('cidadeCanonica: com a UF digitada (vale sem telefone)', () => {
 
 describe('cidadeCanonica: sem UF, o DDD confirma (ou é capital)', () => {
   it.each([
-    ['uberlandia', '5534999990000', 'Uberlândia-MG'],
-    ['UberlÂndia', '34999990000', 'Uberlândia-MG'],
-    ['Uberlândia', '(34) 99999-0000', 'Uberlândia-MG'],
     ['Ji-Paraná', '5569999990000', 'Ji-Paraná-RO'],
     ['Campinas', '5519999990000', 'Campinas-SP'],
     ['Juazeiro', '5574999990000', 'Juazeiro-BA'],
@@ -32,14 +29,23 @@ describe('cidadeCanonica: sem UF, o DDD confirma (ou é capital)', () => {
     expect(cidadeCanonica('Brasília', '5534999990000')).toEqual({ valor: 'Brasília-DF', status: 'ok' });
     expect(cidadeCanonica('Brasilia')).toEqual({ valor: 'Brasília-DF', status: 'ok' });
   });
+  it.each([
+    ['uberlandia', '5534999990000', 'Uberlândia-MG'],
+    ['UberlÂndia', '34999990000', 'Uberlândia-MG'],
+    ['Uberlândia', '5511999990000', 'Uberlândia-MG'],
+    ['Uberlândia', undefined, 'Uberlândia-MG'],
+    ['Uberlândia', '5555319981650', 'Uberlândia-MG'],
+    ['Uberaba', '5562999990000', 'Uberaba-MG'],
+    ['Catalao', '5534999990000', 'Catalão-GO'],
+  ])('região da casa (raio de atendimento) passa com qualquer DDD: %s / %s → %s', (entrada, tel, saida) => {
+    expect(cidadeCanonica(entrada, tel)).toEqual({ valor: saida, status: 'ok' });
+  });
   it('UF digitada vale mesmo com DDD de outro estado', () => {
     expect(cidadeCanonica('Uberlândia-MG', '5511999990000')).toEqual({ valor: 'Uberlândia-MG', status: 'ok' });
     expect(cidadeCanonica('Goiania go', '5511999990000')).toEqual({ valor: 'Goiânia-GO', status: 'ok' });
   });
   it.each([
-    ['Uberlândia', '5511999990000'],
-    ['Uberlândia', undefined],
-    ['Uberlândia', '5555319981650'],
+    ['Vitoria da conquista', '5511999990000'],
     ['Taguatinga', '5561999990000'],
     ['Guará', '5561999990000'],
     ['Valparaiso', '5561999990000'],
