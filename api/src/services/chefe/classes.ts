@@ -367,6 +367,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   investidor_agente_abertura: robo('frio_p5', ['services/io/investidorAgente.ts'], {
     carimbos: [frio('inv_agente_sent:')], subprioridade: 2,
   }),
+  // A RETOMADA da Base das agentes da 5040 (B4b, 21/10/2026): a Duda ou a Helena voltando, uma vez por rodada de
+  // 10 min, em quem parou de responder (3 h calado, no máximo 2 por pessoa, janela de 9h às 20h, segunda a sábado).
+  // Uma bolha de até 160 caracteres escrita pela IA da dona, por sendFrio. Cala com humano na conversa.
+  base_retomada_5040: robo('frio_p5', ['services/agentes5040/baseEnvio.ts'], {
+    carimbos: [frio('ag5040_retomada:')], subprioridade: 2, maxBolhas: 1, maxCaracteres: 160, respeitaPausa: true,
+  }),
   bia_recuperacao: robo('frio_p5', ['services/agents/whatsapp/limpaproRecoveryService.ts'], {
     carimbos: [frio('limpapro_recovery:'), frio('limpapro_cupom_sent:'), frio('limpapro_fechamento_sent:'), frio('limpapro_grupo_sent:')],
     subprioridade: 3,

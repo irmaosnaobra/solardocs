@@ -38,8 +38,10 @@ export interface ParametrosTrava {
   /**
    * 'abertura': deixa passar a PRIMEIRA fala da agente quando ela ainda não falou nada na conversa
    * (abertura depois do cadastro). Sem isto valem "o lead ainda não escreveu" e "duas falas seguidas".
+   * 'retomada' (B4b, a Base): deixa passar a fala que vem depois de uma fala NOSSA sem o lead escrever, desde que o lead
+   * já tenha escrito alguma vez ("o lead ainda não escreveu" continua valendo). Só a retomada fria liga isto.
    */
-  permiteIniciativa?: 'abertura';
+  permiteIniciativa?: 'abertura' | 'retomada';
   /** Prazos que o lead disse (textos dele, ex.: "dois meses"): a Duda pode repetir o eco. */
   prazosDaPessoa?: readonly string[];
   /** Depoimentos já mandados segundo quem chama (vale o maior entre isto e o que a conversa mostra). */
@@ -245,9 +247,10 @@ function regrasGerais(s: SaidaAgente, est: EstadoConversa, p: ParametrosTrava): 
   // Duas falas seguidas: a última mensagem da conversa tem que ser do lead.
   // Exceção: iniciativa de ABERTURA (depois do cadastro) quando a agente ainda não falou nada.
   const abertura = p.permiteIniciativa === 'abertura' && est.falasNossas === 0;
+  const retomada = p.permiteIniciativa === 'retomada';
   if (!abertura) {
     if (est.falasDoLead === 0) m.push('o lead ainda não escreveu');
-    else if (!est.ultimaFoiDoLead) m.push('duas falas seguidas sem o lead escrever');
+    else if (!est.ultimaFoiDoLead && !retomada) m.push('duas falas seguidas sem o lead escrever');
   }
 
   return m;

@@ -1845,6 +1845,28 @@ router.get('/agentes-5040/agenda', async (req: Request, res: Response) => {
   }
 });
 
+// ── AGENTES 5040 · a Base (B4b): a retomada fria de quem parou de responder (baseEnvio.ts, robô base_retomada_5040).
+// Relógio PRÓPRIO de 10 em 10 minutos (vercel.json), fora da rodada viva e do /process-messages, UM envio por rodada, só 9h às 20h
+// (segunda a sábado). Sem a Duda nem a Helena ligadas, sai sem ler nada além do interruptor. A vez da rodada é um insert por
+// faixa de 10 minutos. ?dry=1 lista as posses avaliadas e o motivo de cada uma, sem reservar, sem chamar o modelo, sem enviar e
+// sem gravar nada. Protegida como as outras rotas de cron.
+router.get('/agentes-5040/base', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { runBaseTick } = await import('../services/agentes5040/baseEnvio');
+    const r = await runBaseTick({ dry: req.query.dry === '1' });
+    if (!r.dry && r.ligado) {
+      logger.info('cron', 'agentes-5040/base rodou', {
+        avaliadas: r.avaliadas, elegiveis: r.elegiveis, enviou: r.enviou, motivo: r.motivo, chamadas_ia: r.chamadasIA,
+      });
+    }
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/base falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
 // Replay de conversas passadas: ?desde=ISO&ate=ISO (padrão: os últimos 30 dias), &maxConversas=5&maxTurnos=8&dry=1.
 router.get('/agentes-5040/replay', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;

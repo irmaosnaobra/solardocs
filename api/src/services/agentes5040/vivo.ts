@@ -68,6 +68,7 @@ import {
   lerCardParaFicha, observacaoDoCardDaDuda, ofertaDeHorarios, primeiroNome, situacaoDoCard, type Oferta,
 } from './acoesVivo';
 import { avisosDaCarla, planejarCarla, type PlanoCarla } from './carlaVivo';
+import { juntarBase, lerBaseDaPosse, pareceOptOut, patchDoEstacionar, planejarEstacionar, type PlanoEstacionar } from './baseRegras';
 import { bolhaDeConfirmacao, chaveFila, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
 import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard } from './agendaSolar';
 import { gravarMidiaCache, gravarTurno, lerMidiaCache, lerTurnos, type TurnoGravado } from './armazem';
@@ -98,7 +99,7 @@ import {
   comTranscricoes, falhaDeInfra, juntarDados, montarGravado, pensarTurno, textosDoLead, valoresDaPessoaDe, type ResultadoTurno,
 } from './turno';
 import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
-import type { CardResumo, ContextoLead, Persona, SaidaAgente } from './tipos';
+import { ACAO_ESTACIONAR, type CardResumo, type ContextoLead, type Persona, type SaidaAgente } from './tipos';
 import { enviarResposta, type PecaEnvio, type ResultadoEnvio } from './vivoEnvio';
 import type { DecisaoPorteiro } from './porteiro';
 import { caminhoDaFicha } from '../agenda/solarRota';
@@ -585,6 +586,14 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     if (Number.isFinite(desde) && Date.parse(L.momment) < desde - LIMITES_VIVO.ancoraFolgaMs) { soma(r.puladas, 'fala_antes_da_posse'); return 'seguir'; }
   }
 
+  // 2b. O lead escreveu de novo com a posse estacionada (B4b): a conversa voltou. Zera o estacionado (vale a regra normal das 48 h
+  // e das 2 retomadas). Se ele pedir de novo para esperar, a ação estacionar grava outra data mais abaixo. O dry não grava.
+  const baseDaPosse = lerBaseDaPosse(posse as unknown as Record<string, unknown>);
+  if (baseDaPosse.estacionado_ate && Date.parse(baseDaPosse.estacionado_ate) > agoraMs && !dry) {
+    const atual = await lerPosse(chave).catch(() => null);
+    if (atual) await atualizarPosse(chave, { base: juntarBase(atual, { estacionado_ate: null, estacionado_motivo: null, ultima: false }) });
+  }
+
   // 3. QUALQUER mensagem nossa depois da fala do lead (robô antigo, humano no celular, a própria agente):
   // a agente não fala por cima. Só marca a fala como vista.
   if (iL < msgs.length - 1) {
@@ -792,6 +801,39 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       const saida = pens.saida;
       const base2 = { acao: saida.acao, n_bolhas: saida.bolhas.length, tamanho: saida.bolhas.reduce((n, b) => n + b.length, 0) };
 
+      // 9-pre. ESTACIONAR (B4b, só Duda e Helena): o PRÓPRIO lead disse que agora não dá, ou pediu para chamar numa data. Pedido de
+      // parar ("não quero", "para", "não me chama") NUNCA estaciona: uma nova chamada ao modelo com o aviso e, na segunda vez, o
+      // silêncio sem bolha (a pessoa pediu para parar e não pode ser retomada). Sem data dita, ou data torta, o prazo é o fixo de 30
+      // dias e a retomada do dia é a última (baseRegras.planejarEstacionar). O `base` é gravado ANTES da bolha, como o nao_incomodar:
+      // lado seguro (a bolha recusada pelo envio não desfaz o estacionado, que só reduz envio).
+      let planoE: PlanoEstacionar | null = null;
+      if (saida.acao === ACAO_ESTACIONAR && (dona === 'duda' || dona === 'helena')) {
+        const doBloco = new Set(entrada.map(m => m.id));
+        const midiasE = [...cacheMidia.values(), ...resultado.midiasNovas].filter(b => doBloco.has(b.msgId));
+        const textosE = textosDoLead(comTranscricoes(entrada, cacheMidia), midiasE);
+        if (pareceOptOut(textosE)) {
+          if (volta === 0) return tratar(await pensar({ ...ctx, avisosDoSistema: [...(ctx.avisosDoSistema ?? []), AVISO_PARAR] }), 1, ofertaDaVez);
+          if (!dry) {
+            await atualizarPosse(chave, { estado: 'nao_incomodar', ate_wa_id: L.id });
+            await silenciarContato(tel, 'opt_out', 'agentes5040-vivo');
+          }
+          await registrar(false, 'estacionar_com_pedido_de_parar');
+          dec({ resultado: dry ? 'silenciaria' : 'silenciado', ...base2, motivo: 'estacionar_com_pedido_de_parar' });
+          return 'seguir';
+        }
+        planoE = planejarEstacionar({ dados: saida.dados, textos: textosE, agora: g.agoraEnvio() });
+        if (!dry) {
+          const atual = await lerPosse(chave).catch(() => null);
+          const gravou = !!atual && await atualizarPosse(chave, { base: juntarBase(atual, patchDoEstacionar(planoE, g.agoraEnvio())) });
+          if (!gravou) {
+            await soltar();
+            soma(r.puladas, 'estacionar_nao_gravou');
+            dec({ resultado: 'recusada', ...base2, motivo: 'posse_nao_gravou' });
+            return 'seguir';
+          }
+        }
+      }
+
       // 9a. A Helena (B2): suporte, presença e marcar sem card são dela; o resto (passar_*, calar, fala comum) cai nas rotas de baixo
       if (dona === 'helena' && preparoH) {
         const AH: ContextoAcao = {
@@ -833,7 +875,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
         // que seja a ação que a IA devolveu: a prova, a releitura do card e a reserva por card vivem em acaoPresenca.
         if (!preparoH.semCard && !preparoH.presencaRespondida && (await funcoesEp()).confirmouMesmo([...textosDaFala])) return acaoPresenca(AH);
         const pedeComHorario = saida.acao === 'pedir_horarios' && (!preparoH.semCard || !!acharVagaEp(saida.dados.horario, ofertaH.vagas, ctx0.agora));
-        const vaiFalar = saida.acao === 'continuar' || saida.acao === 'nao_incomodar' || saida.acao === 'suporte_giovanna'
+        const vaiFalar = saida.acao === 'continuar' || saida.acao === 'nao_incomodar' || saida.acao === 'suporte_giovanna' || saida.acao === ACAO_ESTACIONAR
           || (saida.acao === 'pedir_horarios' && !pedeComHorario);
         if (vaiFalar) {
           // A bolha que a persona ainda escreve pelo roteiro antigo (pedir SIM, prometer lembrete, dizer "confirmado") não sai:
@@ -899,6 +941,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       let peca: PecaEnvio | undefined = saida.peca && (saida.peca.tipo === 'link' || saida.peca.tipo === 'pix') && segunda
         ? { tipo: saida.peca.tipo, texto: segunda } : undefined;
       const naoIncomodar = saida.acao === 'nao_incomodar';
+      if (planoE) peca = undefined;                // estacionar é só a bolha: nunca link, Pix nem imagem
 
       // A Carla (B3b): a peça sai do peca.id (carlaVivo), nunca do texto da 2ª bolha. Peça recusada pelo portão = uma nova
       // chamada ao modelo com o aviso; na segunda vez, humano com ficha (a bolha que anuncia a peça não sai sozinha).
@@ -1142,6 +1185,7 @@ const AVISO_HORARIO = 'AVISO DO SISTEMA: o horário que ele escolheu não pôde 
 const AVISO_HELENA_VIVA = 'AVISO DO SISTEMA: o pedido de confirmação da reunião e o lembrete saem de outro sistema, e valem por cima do roteiro. Você nunca pede SIM, nunca promete lembrete e nunca escreve "confirmado" (só na ação confirmar_presenca, quando ele respondeu SIM e o sistema liberar). Remarcar e cancelar não são com você.';
 const AVISO_HELENA_MARCAR = 'AVISO DO SISTEMA: ele ainda não tem reunião. Se escolher um horário da lista, use marcar_horario com dados horario igual ao texto da lista, e a sua bolha NÃO repete dia, hora nem consultor: diga só que a mensagem com os detalhes da reunião chega por aqui.';
 const AVISO_HORARIO_EP = 'AVISO DO SISTEMA: o horário que ele escolheu não pôde ser marcado (outra pessoa pegou antes, ou já não está livre). Diga isso numa frase curta e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';
+const AVISO_PARAR = 'AVISO DO SISTEMA: o cliente pediu para parar ou não quer mais contato. Isso NÃO é estacionar. Use a ação nao_incomodar com uma despedida curta, sem pergunta e sem gancho.';
 const AVISO_BOLHA_BARRADA = (motivo: string): string => `AVISO DO SISTEMA: a sua resposta foi barrada (${motivo}) e NÃO foi enviada. Reescreva sem pedir SIM, sem prometer lembrete e sem escrever "confirmado". Nesta resposta use a ação continuar.`;
 const AVISO_LIGAR_INDISPONIVEL = 'AVISO DO SISTEMA: a ligação imediata NÃO está disponível agora (não deu para avisar a consultora). Não use ligar_agora e não prometa ligação em instantes. Explique numa frase e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';
 const AVISO_FORA_DO_HORARIO = 'AVISO DO SISTEMA: o horário comercial acabou, então a ligação imediata NÃO está disponível. Não use ligar_agora. Diga que a consultora liga no próximo dia útil e ofereça dois dos horários livres abaixo, e nenhum outro. Nesta resposta use a ação continuar.';

@@ -5,7 +5,7 @@
 // horário que o sistema trouxe nos fatos. Nunca preço, parcela, economia em reais
 // nem prazo de instalação. O bloco SISTEMA_FIXO_DUDA vai em cache e nunca leva dado do lead.
 
-import type { ContextoLead, PersonaDef } from '../tipos';
+import { ACAO_ESTACIONAR, DADO_VOLTA_EM, type ContextoLead, type PersonaDef } from '../tipos';
 import { CIDADES_ATENDIDAS, textoConhecimentoSolar } from '../conhecimento/solar';
 import { BASE_DO_SOCIO, KWH_VISITA, QUEM } from '../../agenda/solarRota';
 
@@ -15,7 +15,7 @@ import {
   textoDosExemplos, type ExemploPersona,
 } from './comum';
 
-export const ACOES_DUDA = [...ACOES_COMUNS, 'ligar_agora', 'pedir_horarios', 'marcar_horario', 'passar_carla', 'passar_helena'] as const;
+export const ACOES_DUDA = [...ACOES_COMUNS, 'ligar_agora', 'pedir_horarios', 'marcar_horario', 'passar_carla', 'passar_helena', ACAO_ESTACIONAR] as const;
 
 const LIGAR_JA = 'Combinado. Já avisei a consultora e ela te liga em instantes. Se ela não puder agora, te volto aqui com um horário.';
 
@@ -154,7 +154,7 @@ LIGAR AGORA (só no horário comercial)
 LIGAÇÃO JÁ MARCADA
 - Se o card tem data, confirme a data e a hora como estão nos fatos e peça a foto da conta, para a consultora já chegar sabendo do caso. Não refaça perguntas que a ficha responde.
 - Se ele quer remarcar: ofereça dois horários livres dos fatos, ou pedir_horarios se não houver.
-- Se ele disser que agora não dá, não insista: anote em dados quando ele pensa em montar e deixe a porta aberta. Não prometa escrever de novo numa data.
+- Se ele disser que agora não dá, não insista: anote em dados quando ele pensa em montar, deixe a porta aberta e use a acao estacionar (veja AÇÕES). Não prometa escrever de novo numa data.
 
 A CONFIRMAÇÃO DO HORÁRIO (já enviada pelo sistema)
 - Quem fez o quiz e escolheu o horário na página recebe do sistema, em seu nome, uma primeira mensagem com a confirmação: quem atende, o dia e a hora (e, na visita e no vídeo, "Responda SIM para confirmar"). Se a última mensagem nossa na conversa for essa confirmação, você já se apresentou e o horário já foi dito.
@@ -183,10 +183,11 @@ AÇÕES (acao)
 - suporte_giovanna: reclamação, cobrança, problema de quem já é cliente, ou o que você não resolve.
 - passar_carla: ele aceitou falar do SolarDoc, o programa de propostas para integradores (bolhas vazias).
 - passar_helena: ele aceitou falar de eletroposto ou carregador de carro elétrico (bolhas vazias).
+- estacionar: só quando ELE mesmo diz que agora não dá ("agora não", "depois eu vejo", "mais pra frente") ou pede para você chamar numa data ("me chama em novembro", "depois do dia 10"). A bolha reconhece em uma frase, sem insistir e sem prometer que vai escrever. Se ele disse a data, ponha em dados ${DADO_VOLTA_EM} a data em DD/MM (ex.: 03/11), calculada a partir de "Agora em Brasília" dos fatos; se não disse data, NÃO ponha ${DADO_VOLTA_EM}. Nunca use estacionar com quem pediu para parar, sair da lista ou não ser chamado: isso é nao_incomodar.
 - nao_incomodar: pediu para parar. Uma frase curta e silêncio.
 - calar: não há o que dizer, ou você não sabe o contexto (bolhas vazias).
 
-DADOS (chaves sugeridas): cidade, consumo_kwh, conta (como ele disse), quando_montar, casa (própria ou alugada), aparelhos, perguntou_valor, horario, fora_da_area, assunto_novo, pendente_solar.
+DADOS (chaves sugeridas): cidade, consumo_kwh, conta (como ele disse), quando_montar, casa (própria ou alugada), aparelhos, perguntou_valor, horario, fora_da_area, assunto_novo, pendente_solar, ${DADO_VOLTA_EM}.
 
 ${regrasDaCasa('da Irmãos na Obra', 'Sou a IA da Irmãos na Obra, sim.', true)}
 

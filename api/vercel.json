@@ -21,6 +21,7 @@
     { "path": "/cron/sentinela-ferramentas", "schedule": "20 10 * * *" },
     { "path": "/cron/agentes-5040/ensaio", "schedule": "*/5 * * * *" },
     { "path": "/cron/agentes-5040/vivo", "schedule": "*/2 * * * *" },
-    { "path": "/cron/agentes-5040/agenda", "schedule": "*/2 * * * *" }
+    { "path": "/cron/agentes-5040/agenda", "schedule": "*/2 * * * *" },
+    { "path": "/cron/agentes-5040/base", "schedule": "*/10 * * * *" }
   ]
 }

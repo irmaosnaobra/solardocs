@@ -10,7 +10,10 @@
 //    anteriores que falam de conta e o total que a LEITURA da conta de luz (imagem ou PDF) mostrou,
 //    lido numa chamada à parte, sem a persona;
 //  · `prazosDaPessoa`: os prazos que o lead disse;
-//  · 'abertura' só quando o turno é a primeira mensagem nossa da conversa.
+//  · 'abertura' só quando o turno é a primeira mensagem nossa da conversa;
+//  · `retomada` (B4b, a Base) só quando a última mensagem da conversa é NOSSA e o lead calou: o modelo só pode devolver
+//    continuar (1 bolha) ou calar (= não retomar), a trava deixa passar a segunda fala seguida e o aviso desfaz, só ali,
+//    a regra "nunca cobra resposta" das personas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { MODELO_RESERVA, montarPedido, pensar, type ClienteIA, type Pensamento } from './ia';
@@ -171,8 +174,26 @@ export interface EntradaTurno {
   cliente: ClienteIA;
   /** Mídias já lidas (histórico e novas). Recebe o que for lido agora. */
   cacheMidia: CacheMidia;
+  /** Retomada fria da Base (B4b): ver o cabeçalho. Só a Duda e a Helena. Nunca junto com `abertura`. */
+  retomada?: boolean;
   /** Carla: cards de depoimento que a posse já registra (lead_data.imagens.length). A trava vale o maior entre isto e a conversa. */
   depoimentosJaEnviados?: number;
+}
+
+/** As únicas ações da retomada: voltar com 1 bolha (continuar) ou não voltar (calar). */
+export const ACOES_DA_RETOMADA: readonly string[] = ['continuar', 'calar'];
+
+/** O aviso do sistema da retomada (fatos da persona). Vale por cima do roteiro e da regra "nunca cobra resposta". */
+export function avisoDaRetomada(persona: Persona): string {
+  const helena = persona === 'helena'
+    ? ' Nunca peça SIM, nunca prometa lembrete e nunca escreva "confirmado".'
+    : '';
+  return 'AVISO DO SISTEMA (retomada): o cliente parou de responder há algumas horas e a última mensagem da conversa é nossa. '
+    + 'Esta é a ÚNICA situação em que você escreve duas falas seguidas, e isso vale por cima da regra de nunca cobrar resposta. '
+    + 'Se faz sentido voltar, escreva UMA bolha de até 160 caracteres que retome o último assunto em uma frase, sem pressão, '
+    + 'sem cobrar resposta, sem repetir pergunta que já foi feita, sem se apresentar de novo, sem link, sem Pix, sem imagem e sem horário novo. '
+    + 'Use a ação continuar. Se não faz sentido voltar (ele já se despediu, já disse que agora não, a conversa acabou, ou não dá para '
+    + 'retomar sem repetir o que já foi dito), devolva bolhas vazias e a ação calar. Nenhuma outra ação é permitida.' + helena;
 }
 
 export interface ResultadoTurno {
@@ -194,8 +215,14 @@ export async function pensarTurno(e: EntradaTurno): Promise<ResultadoTurno> {
   const valores = valoresDaPessoaDe(textos, e.dadosAnteriores, daConta);
   const qualificado = e.persona === 'helena' ? qualificacaoDe(textos, e.dadosAnteriores).completa : false;
 
-  const ctx: ContextoLead = { ...e.ctx, msgs, qualificado };
-  const def = personaDef(e.persona);
+  const retomada = e.retomada === true && !e.abertura;
+  const ctx: ContextoLead = {
+    ...e.ctx, msgs, qualificado,
+    ...(retomada ? { avisosDoSistema: [...(e.ctx.avisosDoSistema ?? []), avisoDaRetomada(e.persona)] } : {}),
+  };
+  const base = personaDef(e.persona);
+  // Retomada: o schema da saída só aceita continuar e calar (nenhuma ação que mexa em agenda, ficha ou posse).
+  const def = retomada ? { ...base, acoes: ACOES_DA_RETOMADA } : base;
   const pensamento = await pensar({
     persona: def,
     pedido: montarPedido(def, ctx),
@@ -210,7 +237,7 @@ export async function pensarTurno(e: EntradaTurno): Promise<ResultadoTurno> {
       agora: ctx.agora,
       prazosDaPessoa: prazosDaPessoaDe(textos, e.dadosAnteriores),
       ...(e.depoimentosJaEnviados !== undefined ? { depoimentosJaEnviados: e.depoimentosJaEnviados } : {}),
-      ...(e.abertura ? { permiteIniciativa: 'abertura' as const } : {}),
+      ...(e.abertura ? { permiteIniciativa: 'abertura' as const } : retomada ? { permiteIniciativa: 'retomada' as const } : {}),
     },
   });
   return { pensamento, qualificado, valoresDaPessoa: valores, midiasNovas };

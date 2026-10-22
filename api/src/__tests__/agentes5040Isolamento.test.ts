@@ -192,7 +192,7 @@ describe('isolamento do ensaio: nada do percurso alcança o envio', () => {
     }
   });
 
-  it('na pasta agentes5040/ só fichaEnvio.ts, vivoEnvio.ts e agendaEnvio.ts importam um módulo de envio (entrada, posse, vivo e o resto só chegam por eles)', () => {
+  it('na pasta agentes5040/ só fichaEnvio.ts, vivoEnvio.ts, agendaEnvio.ts e baseEnvio.ts importam um módulo de envio (entrada, posse, vivo e o resto só chegam por eles)', () => {
     const todos: string[] = [];
     const anda = (dir: string): void => {
       for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -202,7 +202,7 @@ describe('isolamento do ensaio: nada do percurso alcança o envio', () => {
     };
     anda(A5040);
     expect(todos.length).toBeGreaterThan(25);
-    const ENVIA = ['fichaEnvio', 'vivoEnvio', 'agendaEnvio'];
+    const ENVIA = ['fichaEnvio', 'vivoEnvio', 'agendaEnvio', 'baseEnvio'];
     expect(ENVIA.every(n => todos.map(nomeBase).includes(n))).toBe(true);
     const achados: string[] = [];
     for (const a of todos.filter(a => !ENVIA.includes(nomeBase(a)))) {
@@ -215,8 +215,8 @@ describe('isolamento do ensaio: nada do percurso alcança o envio', () => {
     expect(achados).toEqual([]);
   });
 
-  it('os três que enviam importam o zapiClient, e a partir do vivoEnvio.ts o andador acha o zapiClient (controle positivo)', () => {
-    for (const nome of ['fichaEnvio', 'vivoEnvio', 'agendaEnvio']) {
+  it('os quatro que enviam importam o zapiClient, e a partir do vivoEnvio.ts o andador acha o zapiClient (controle positivo)', () => {
+    for (const nome of ['fichaEnvio', 'vivoEnvio', 'agendaEnvio', 'baseEnvio']) {
       const arq = join(A5040, `${nome}.ts`);
       expect(existsSync(arq), nome).toBe(true);
       expect([...percurso([arq]).keys()].map(nomeBase), nome).toContain('zapiClient');

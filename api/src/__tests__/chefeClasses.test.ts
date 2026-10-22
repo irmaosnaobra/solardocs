@@ -118,11 +118,11 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     }
   });
 
-  it('frio respeita a pausa, mora na janela do frio, sai em 1 bolha de até 900 e nunca vira P1 pelo prazo', () => {
+  it('frio respeita a pausa, mora na janela do frio, sai em 1 bolha de até 900 (160 na retomada da Base) e nunca vira P1 pelo prazo', () => {
     for (const [nome, r] of robos) {
       if (r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4') continue;
       expect({ nome, pausa: r.respeitaPausa, janela: r.janela, bolhas: r.maxBolhas, chars: r.maxCaracteres, prazo: r.podeTerPrazo })
-        .toEqual({ nome, pausa: true, janela: 'frio', bolhas: 1, chars: 900, prazo: false });
+        .toEqual({ nome, pausa: true, janela: 'frio', bolhas: 1, chars: nome === 'base_retomada_5040' ? 160 : 900, prazo: false });
     }
   });
 

@@ -30,6 +30,14 @@ export interface MsgConversa {
   transcricao?: string | null;
 }
 
+/**
+ * Ação 'estacionar' (B4b, só Duda e Helena): o PRÓPRIO lead disse que agora não dá ou pediu para chamar numa data. A bolha
+ * reconhece sem insistir; com data dita o modelo põe a data em `dados.volta_em` (DD/MM), sem data não põe nada. Quem pede
+ * para parar NUNCA é estacionado (é nao_incomodar). O efeito (lead_data.base) é do vivo.ts, com a validação em baseRegras.ts.
+ */
+export const ACAO_ESTACIONAR = 'estacionar' as const;
+export const DADO_VOLTA_EM = 'volta_em' as const;
+
 export type TipoPeca = 'link' | 'pix' | 'imagem';
 export interface PecaSaida { tipo: TipoPeca; id: string }
 

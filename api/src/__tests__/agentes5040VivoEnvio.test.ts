@@ -184,7 +184,9 @@ describe('vivoEnvio: o caminho feliz', () => {
   });
 
   it('o prefixo ag5040_sent: não entra na lista da linha do HEAD (fica fora de BOT_SENT_PREFIXES)', () => {
-    expect(prefixosDaLinha().filter(p => p.startsWith('ag5040'))).toEqual(['ag5040_agenda_sent:']); // só o da agenda, que é agenda
+    // Só o da agenda (que é agenda) e o da retomada fria da Base (B4b, que é frio); o ag5040_sent: das respostas fica de fora.
+    expect(prefixosDaLinha().filter(p => p.startsWith('ag5040'))).toEqual(['ag5040_agenda_sent:', 'ag5040_retomada:']);
+    expect(prefixosDaLinha()).not.toContain('ag5040_sent:');
     for (const a of PREFIXOS_AGENDA) expect(prefixosDaLinha()).toContain(a);
   });
 });

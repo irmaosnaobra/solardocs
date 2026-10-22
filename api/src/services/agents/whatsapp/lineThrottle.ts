@@ -209,6 +209,11 @@ const BOT_SENT_PREFIXES = [
   // espaçamento, e também está em PREFIXOS_AGENDA (agenda: o frio não a soma). O `ag5040_sent:` das respostas
   // das agentes continua FORA desta lista, de propósito.
   'ag5040_agenda_sent:',
+  // [21/10] A retomada fria da Base das agentes (baseEnvio.ts): `ag5040_retomada:<hmac>:<n>`, um carimbo por
+  // mensagem (no máximo 2 por pessoa). É um toque que a pessoa não pediu, então pesa no orçamento FRIO e no
+  // espaçamento desde o primeiro dia, e fica FORA de PREFIXOS_AGENDA de propósito. O `ag5040_sent:` das respostas
+  // continua fora desta lista.
+  'ag5040_retomada:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
