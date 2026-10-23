@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { conflitosSolar, geracaoComoGarantia } from '../services/gerador/contratoSolar';
+import { CAMPOS_AGENTE } from '../services/gerador/contratoAgenteCampos';
 
 const HTML = join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador', 'index.html');
 
@@ -605,6 +606,58 @@ describe('contrato solar: um contrato só, sem promessa de geração, com pagame
     expect(reabrir({ 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' }).gr).toBeNull();
     expect(reabrir({ 'fs-c-pagto': 'À vista via Pix: R$ 45.000,00.' }, { 'fs-c-pagtxt': '' }).gr).toBeNull();
     expect(gerarSolar(1, { ...SOLAR, 'fs-c-pagto': 'Entrada de 30% e saldo em 12 parcelas' }).trava).toMatch(/só em texto/);
+  });
+});
+
+describe('contrato de sociedade (50/50 e cotas): versão "O básico" de 22/10/2026', () => {
+  const DADOS = { 'ctr-pag-dados': 'Pix CNPJ 00.000.000/0001-00, Banco Teste, ag. 0001, c/c 12345-6', 'ctr-soc-dados': 'Pix 111.444.777-35, Banco Teste' };
+  // Os casos que mais enchem o papel: interveniente, remuneração do local, cartão e dados de pagamento e da conta do sócio.
+  const CHEIOS: Cenario[] = [
+    { nome: '50/50 cheio (interveniente, remuneração do local, cartão, dados)', tipo: 'socio50', campos: { ...PF, ...SOC, ...DONO, 'ctr-soc-arrend': '5', ...DADOS }, extra: { pagModelo: 'cartao' } },
+    { nome: 'cotas cheio (captação, empresa, cartão, dados)', tipo: 'cotas', campos: { ...PJ, ...COTAS, ...DADOS }, extra: { pagModelo: 'cartao' } },
+  ];
+  const TODOS = [...CENARIOS.socio50, ...CENARIOS.cotas, ...CHEIOS];
+
+  it('cláusulas na ordem objeto, aporte, (captacao), local, operacao, resultado, prazo, dissolucao, gerais, com no máximo 8 itens cada', () => {
+    for (const c of TODOS) {
+      const r = gerar(c.tipo, c.campos, c.extra);
+      confereEstrutura(r, c.nome);
+      const ordem = ['objeto', 'aporte', ...(r.d.soc.captacao ? ['captacao'] : []), 'local', 'operacao', 'resultado', 'prazo', 'dissolucao', 'gerais'];
+      expect(r.modelo.map((x: any) => x.key), c.nome).toEqual(ordem);
+      for (const x of r.modelo) expect(x.itens.length, `${c.nome} / ${x.key}`).toBeLessThanOrEqual(8);
+    }
+    // Os dois lados da captação aparecem: o teste não passa por nunca ver a cláusula.
+    expect(gerar('cotas', { ...PF, ...COTAS }).d.soc.captacao).toBe(true);
+    expect(gerar('socio50', { ...PF, ...SOC }).d.soc.captacao).toBe(false);
+  });
+
+  // Teto de 4 folhas (regra 6, "sociedade 4"). O vm não tem layout e não mede folha: isto é uma aproximação pelo
+  // tamanho do papel. Medido no Edge em 22/10/2026 com o epPaginar do index.html: 1.530 a 1.717 palavras deram
+  // 4 folhas, a última entre 43% e 65% cheia; o texto anterior, com 3.190 palavras e 52 itens, dava 7.
+  // Até 1.900 palavras e 34 itens cabe em 4. Passou daqui, meça no navegador e encurte primeiro o local.acesso.
+  it('cabe em 4 folhas: no máximo 1.900 palavras no papel e 34 itens, em todos os casos', () => {
+    for (const c of TODOS) {
+      const r = gerar(c.tipo, c.campos, c.extra);
+      const palavras = textoDe(r).split(/\s+/).filter(Boolean).length;
+      const itens = r.modelo.reduce((a: number, x: any) => a + x.itens.length, 0);
+      expect(palavras, `${c.nome}: palavras`).toBeLessThanOrEqual(1900);
+      expect(itens, `${c.nome}: itens`).toBeLessThanOrEqual(34);
+    }
+  });
+
+  it('toda chave citada pelo CAMPOS_AGENTE (socio50 e cotas) e pelo CTR_IA_CAMPOS_SOC existe em algum cenário da sociedade', () => {
+    const existe: Record<string, Set<string>> = { socio50: new Set(), cotas: new Set() };
+    for (const c of TODOS) for (const k of chavesDe(gerar(c.tipo, c.campos, c.extra))) existe[c.tipo].add(k);
+    const faltam: string[] = [];
+    for (const campo of CAMPOS_AGENTE) {
+      for (const tipo of ['socio50', 'cotas'] as const) {
+        for (const k of (campo.itens || {})[tipo] || []) if (!existe[tipo].has(k)) faltam.push(`${campo.id} -> ${tipo}:${k}`);
+      }
+    }
+    const mapa = rodar('CTR_IA_CAMPOS_SOC') as Record<string, string>;
+    expect(Object.keys(mapa).length).toBeGreaterThan(10);
+    for (const k of Object.keys(mapa)) if (!existe.socio50.has(k) && !existe.cotas.has(k)) faltam.push(`CTR_IA_CAMPOS_SOC -> ${k}`);
+    expect(faltam).toEqual([]);
   });
 });
 

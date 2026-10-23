@@ -18,7 +18,7 @@ LINGUAGEM
 5. Sem travessão. Use ponto, vírgula ou dois-pontos. Toda frase começa com maiúscula.
 
 TAMANHO
-6. Cláusula com até 8 itens, item com até 3 frases. Teto por contrato, na letra padrão do gerador: termos 3,5 páginas, compra e venda de equipamento 4, solar 5 (até 6 com sinal, financiamento e bateria), obra 5 (até 7 no caso com fiador e cônjuge), arrendamento 6, sociedade 7. Para caber, corte repetição e juridiquês, nunca proteção.
+6. Cláusula com até 8 itens, item com até 3 frases. Teto por contrato, na letra padrão do gerador: termos 3,5 páginas, compra e venda de equipamento 4, solar 5 (até 6 com sinal, financiamento e bateria), obra 5 (até 7 no caso com fiador e cônjuge), arrendamento 6, sociedade 4. Para caber, corte repetição e juridiquês, nunca proteção.
 
 CONTEÚDO
 7. Justo para os dois lados. Multa, prazo ou consequência que vale para o cliente numa situação (atraso, descumprimento, desistência) tem a contrapartida para a empresa na mesma situação.
