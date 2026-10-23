@@ -59,6 +59,7 @@ export function textoConhecimentoSolarDoc(): string {
     'SOLARDOC (o que você pode afirmar):',
     `- Plano único: R$ ${PLANO_MENSAL.valor} por mês, cobrado na hora, garantia de ${PLANO_MENSAL.garantiaDias} dias, cancela quando quiser.`,
     `- Os ${DOCUMENTOS_SOLARDOC.length} documentos, todos com a marca do integrador: ${DOCUMENTOS_SOLARDOC.join(', ')}.`,
+    '- O carro-chefe é o orçamento de 1 página: investimento, economia por mês em reais e tempo de retorno numa folha só. Marca própria: a logo, a cor e o CNPJ do integrador em tudo, não a nossa.',
     '- Não existe cupom, nem desconto, nem Pix de R$ 19, nem plano anual.',
     `- Produtos avulsos (Kiwify, o acesso chega sozinho), só quando a conversa pede e depois que pagou: ${avulsos}.`,
     `- Promessa permitida só para quem fecha no mesmo dia, sem data: "${PROMESSA_PLANILHA_ELETROPOSTO}"`,
