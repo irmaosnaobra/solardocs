@@ -14,19 +14,13 @@ a{color:#1D4ED8;font-weight:600}
 </head>
 <body>
 <main>
-<p id="msg">Visual antigo de volta neste aparelho.</p>
-<a href="/gerador">Abrir o Gerador</a>
+<p id="msg">Abrindo o Gerador.</p>
+<a href="/gerador/">Abrir o Gerador</a>
 </main>
 <script>
-(function () {
-  try {
-    localStorage.setItem('gerador-visual', 'antigo');
-  } catch (e) {
-    document.getElementById('msg').textContent = 'Não consegui gravar neste navegador.';
-    return;
-  }
-  setTimeout(function () { location.replace('/gerador'); }, 1000);
-})();
+/* O visual antigo deixou de ser opção da pessoa em 23/10/2026: esta página só leva ao Gerador (visual novo).
+   Não grava nada. O link do cliente (?p=) e o PDF (pdf=1) não passam por aqui. */
+location.replace('/gerador/');
 </script>
 </body>
 </html>

@@ -33,9 +33,8 @@
   var ICONES = {
     mais: '<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"></path>',
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
-    /* Trilho recolhivel: setas duplas (recolher; recolhido o CSS espelha) e o relogio que volta, do "Visual antigo". */
+    /* Trilho recolhivel: setas duplas (recolher; recolhido o CSS espelha). */
     recolher: '<polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline>',
-    antigo: '<path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline><path d="M12 7v5l3 2"></path>',
     /* Menu do usuario: perfil, equipe (so socio) e a seta do botao. */
     perfil: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
     equipe: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
@@ -63,8 +62,8 @@
       { chave: 'perfil-equipe', rotulo: 'Perfis da equipe', icone: 'equipe', soSocio: true },
       { chave: 'sb-atualizar', rotulo: 'Atualizar' },
       { chave: 'sair', rotulo: 'Sair', icone: 'sair' },
-      /* Link simples (um <a>), nao dispara nada do app: a pagina grava a chave e volta ao /gerador. Sempre o ultimo item. */
-      { chave: 'visual-antigo', rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html' }
+      /* Botao de tema (claro/escuro): sempre o ultimo item. */
+      { tema: true }
     ],
     /* Telas, em ordem de prioridade: a primeira cuja secao esta visivel manda no titulo. */
     telas: [
@@ -287,7 +286,7 @@
     var lista = criar('div', null, 'io2-f-lista');
     MODELO.mais.forEach(function (it) {
       if (it.sep) { lista.appendChild(criar('div', null, 'io2-f-sep')); return; }
-      if (it.link) { lista.appendChild(botaoTema('io2-f-item io2-f-tema')); lista.appendChild(criarLink(it, 'io2-f-item io2-f-link')); return; }
+      if (it.tema) { lista.appendChild(botaoTema('io2-f-item io2-f-tema')); return; }
       var b = criar('button', null, 'io2-f-item');
       b.type = 'button';
       b.setAttribute('data-io2', it.chave);
@@ -314,7 +313,6 @@
         var peApp = document.querySelector('#app-sidebar .sb-foot');
         if (peApp) {
           var bt = botaoTema('io2-sb-tema'); peApp.appendChild(bt); criados.push(bt);
-          var lk = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link'); iconeLinkAntigo(lk); peApp.appendChild(lk); criados.push(lk);
         }
         /* Botao de recolher o trilho: primeiro filho do #app-sidebar (irmao do logo, que ja e um <button>). */
         var barraApp = document.getElementById('app-sidebar');
@@ -326,7 +324,7 @@
   }
   /* ---------------------------------------------------------------- menu do usuario */
   /* O nome na barra superior abre um menu: cabecalho (foto, nome, e-mail, papel) e Meu perfil, Perfis da equipe (so
-     socio), Tema, Visual antigo e Sair. Os dados do cabecalho (e-mail, papel, foto) vem do GET /gerador/perfil, que a
+     socio), Tema e Sair. Os dados do cabecalho (e-mail, papel, foto) vem do GET /gerador/perfil, que a
      propria casca chama (nos subapps tambem, onde nao ha perfil.js); a resposta fica em localStorage['gerador-perfil-v1']
      (so nome, e-mail, papel, WhatsApp e foto, e so vale para o mesmo consultor). Sem resposta, o menu mostra so o nome.
      A janela "Meu perfil" e do perfil.js: aqui so se pede para ela abrir (acionar). */
@@ -479,15 +477,13 @@
     eqp.hidden = true; eqp.setAttribute('data-io2-socio', '1');
     var tema = botaoTema('io2-um-item');
     tema.setAttribute('role', 'menuitem'); tema.tabIndex = -1;
-    var antigo = itemMenu('Visual antigo', ICONES.antigo, 'visual-antigo', 'a');
-    antigo.href = '/gerador/visual-antigo.html';
     var sair = itemMenu('Sair', ICONES.sair, 'sair');
     [perf, eqp].forEach(function (b) { m.appendChild(b); });
     var sep2 = criar('div', null, 'io2-um-sep'); sep2.setAttribute('role', 'separator'); m.appendChild(sep2);
-    m.appendChild(tema); m.appendChild(antigo);
+    m.appendChild(tema);
     var sep3 = criar('div', null, 'io2-um-sep'); sep3.setAttribute('role', 'separator'); m.appendChild(sep3);
     m.appendChild(sair);
-    itensMenu = [perf, eqp, tema, antigo, sair];
+    itensMenu = [perf, eqp, tema, sair];
     /* Escolher um item fecha o menu devolvendo o foco ao botao (a janela do perfil guarda o foco de quem a abriu). */
     [perf, eqp, sair].forEach(function (b) {
       b.addEventListener('click', function () { var k = b.getAttribute('data-io2'); fecharMenuUsuario(true); acionar(k); });
@@ -554,7 +550,7 @@
   }
   /* Tema escuro / claro (escolha de cada aparelho, localStorage['gerador-tema']). Um <button> que grava a escolha e recarrega:
      o app pinta algumas cores em JavaScript conforme o tema, entao a troca so vale na carga seguinte. Vive no pe do trilho
-     (antes do "Visual antigo") e na folha "Mais"; entra em `criados` e sai no desfazer(). Se o localStorage falhar, nao faz nada. */
+     (depois do Sair) e na folha "Mais"; entra em `criados` e sai no desfazer(). Se o localStorage falhar, nao faz nada. */
   var ICONE_LUA = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
   var ICONE_SOL = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>';
   function temaEscuroAgora() { return h.getAttribute('data-io2-tema') === 'escuro'; }
@@ -574,14 +570,6 @@
     b.appendChild(r);
     b.addEventListener('click', alternarTema);
     return b;
-  }
-  /* Item de navegacao que e so um endereco: <a href> de verdade (sem classe sb-item, que o Sair e o Atualizar usam como chave). */
-  function criarLink(it, cls) {
-    var a = criar('a', null, cls);
-    a.href = it.link;
-    a.setAttribute('data-io2', it.chave);
-    a.textContent = it.rotulo;
-    return a;
   }
   /* ---------------------------------------------------------------- trilho recolhivel */
   /* Dois estados do trilho (so de 861 px para cima): aberto (240 px) e recolhido (64 px, so icones). A classe io2-trilha no
@@ -644,11 +632,6 @@
     b.addEventListener('click', alternarTrilha);
     el.toggle = b;
     return b;
-  }
-  function iconeLinkAntigo(a) {
-    var s = svg(ICONES.antigo);
-    s.setAttribute('class', 'io2-sb-link-ic');
-    a.insertBefore(s, a.firstChild);
   }
   function trilhaBotao() {
     if (!el.toggle) return;
@@ -787,9 +770,6 @@
     sa.addEventListener('click', function () { acionar('sair'); });
     pe.appendChild(at); pe.appendChild(sa);
     pe.appendChild(botaoTema('io2-sb-tema'));
-    var lkSub = criarLink({ rotulo: 'Visual antigo', link: '/gerador/visual-antigo.html', chave: 'visual-antigo' }, 'io2-sb-link');
-    iconeLinkAntigo(lkSub);
-    pe.appendChild(lkSub);
     nav.appendChild(botaoTrilha());
     nav.appendChild(marca); nav.appendChild(lista); nav.appendChild(criar('div', null, 'sb-spacer')); nav.appendChild(pe);
     return nav;

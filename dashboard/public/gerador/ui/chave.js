@@ -1,9 +1,11 @@
 /* Chave do visual novo do /gerador. Sincrono, sem dependencia, no <head>.
-   O visual novo e o padrao. Quem tem localStorage['gerador-visual'] = 'antigo' fica no antigo, e em qualquer erro
-   o app volta ao antigo inteiro. Quando uma folha do novo falha, a aba fica no antigo por 10 minutos
-   (sessionStorage['gerador-visual-falhou'] guarda o horario da falha); depois disso o novo e tentado de novo.
-   No visual antigo, fora do link do cliente (?p=) e do PDF (pdf=1), o menu lateral ganha o link "Visual novo"
-   (/gerador/visual-novo.html), o caminho de volta. */
+   O visual novo e o padrao e a pessoa nao escolhe o antigo (desde 23/10/2026). O antigo so aparece em tres casos:
+   o link do cliente (?p=), o PDF (pdf=1) e a protecao automatica. Em qualquer erro o app volta ao antigo inteiro.
+   Quando uma folha do novo falha, a aba fica no antigo por 10 minutos (sessionStorage['gerador-visual-falhou']
+   guarda o horario da falha); depois disso o novo e tentado de novo. Nesse caso (fora do link do cliente e do PDF)
+   o menu lateral ganha o link "Visual novo" (/gerador/visual-novo.html), o caminho de volta.
+   localStorage['gerador-visual'] = 'antigo' (escolha antiga) e ignorada e apagada. A constante PADRAO e o freio de
+   emergencia do desenvolvedor: PADRAO = 'antigo' mais o bump do sw.js volta todo mundo ao visual antigo. */
 (function () {
   var h = document.documentElement;
   var VOLTA_ID = 'io2-voltar-novo';
@@ -76,12 +78,15 @@
       }
     }
     var PADRAO = 'novo';
-    var v = null;
-    try { v = localStorage.getItem('gerador-visual'); } catch (e) {}
-    if (!v) v = PADRAO;
     var q = location.search || '';
     var doCliente = /[?&]p=/.test(q) || /[?&]pdf=1(&|$)/.test(q);
-    /* Escolha gravada pelo antigo, ou uma folha do novo falhou ha menos de 10 minutos (veja falha() abaixo):
+    /* A escolha 'antigo' gravada antes de 23/10/2026 nao vale mais: e apagada e quem a tinha volta ao novo.
+       Link do cliente e PDF nao mexem no que esta gravado. */
+    if (!doCliente) {
+      try { if (localStorage.getItem('gerador-visual') === 'antigo') localStorage.removeItem('gerador-visual'); } catch (e) {}
+    }
+    var v = PADRAO;
+    /* PADRAO = 'antigo' (freio de emergencia), ou uma folha do novo falhou ha menos de 10 minutos (veja falha() abaixo):
        fica no visual antigo, com o link de volta no menu (nunca no link do cliente nem no PDF). */
     if (v !== 'novo' || marcaDeFalhaValida()) {
       if (!doCliente) agendarVoltar();
