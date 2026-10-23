@@ -14,7 +14,7 @@ import {
 } from './fichaEletroposto';
 
 const POR_CONSULTA = 100;   // 100 ids = URL curta, bem abaixo do corte de 1000 linhas do PostgREST
-const COLUNAS_CARD = 'id, cliente_nome, cliente_telefone, cidade, vendedor_nome, created_by, status, created_at';
+const COLUNAS_CARD = 'id, cliente_nome, cliente_telefone, cidade, vendedor_nome, created_by, status, created_at, quando';
 
 export class ErroFicha extends Error {
   constructor(public codigo: string) { super(`ficha-eletroposto: ${codigo}`); }

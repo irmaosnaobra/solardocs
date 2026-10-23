@@ -44,6 +44,8 @@ export interface CardVendido {
   created_by: string | null;
   status: string | null;
   created_at: string | null;
+  /** Data da reunião (ISO). Só desempata a ordem da série `#E`; opcional porque nem toda leitura a pede. */
+  quando?: string | null;
 }
 
 /** É venda de eletroposto: card `fechou` cuja origem (`created_by`) tem a palavra "eletroposto". */
@@ -59,7 +61,7 @@ export interface ColunaFicha extends Coluna {
   /** Texto curto que a tela mostra junto de uma coluna que não se edita aqui. */
   dica?: string;
 }
-type Fonte = 'campo' | 'card' | 'pos_venda';
+type Fonte = 'campo' | 'card' | 'pos_venda' | 'serie';
 interface DefFicha {
   col: ColunaFicha;
   fonte: Fonte;
@@ -106,6 +108,8 @@ const rotuloModelo = (p: PosVenda | null): Valor => (p && p.modelo ? (ROTULO_MOD
 const DEFS: DefFicha[] = [
   // Venda: tudo daqui é lido de outro lugar
   d('consultor', 'Consultor', 'texto', 'Venda', { fonte: 'card', semente: (c) => String(c.vendedor_nome ?? '') }),
+  // O número do cliente (`#E001`): só leitura, dado pelo servidor (a série `E`). Não é editável nem vem de Obras.
+  d('serie', 'Número do cliente', 'texto', 'Venda', { fonte: 'serie' }),
   d('modelo', 'Modelo da venda', 'texto', 'Venda', { fonte: 'pos_venda', doPosVenda: rotuloModelo }),
   d('valor', 'Valor da venda', 'dinheiro', 'Venda', { fonte: 'pos_venda', socio: true, doPosVenda: (p) => (p && typeof p.valor === 'number' ? p.valor : null) }),
   d('vendido_em', 'Vendido em', 'data', 'Venda', { fonte: 'pos_venda', doPosVenda: (p) => (p && p.vendido_em ? p.vendido_em : null) }),
@@ -197,7 +201,8 @@ export function lerPosVenda(value: unknown): PosVenda | null {
   };
 }
 
-function celulaDeDef(x: DefFicha, card: CardVendido, reg: RegistroGestao | undefined, pv: PosVenda | null): CelulaFicha {
+function celulaDeDef(x: DefFicha, card: CardVendido, reg: RegistroGestao | undefined, pv: PosVenda | null, serie?: string | null): CelulaFicha {
+  if (x.fonte === 'serie') return serie ? { valor: `#${serie}`, origem: 'sistema' } : { valor: null, origem: 'vazio' };
   if (x.fonte === 'pos_venda') {
     return { valor: x.doPosVenda ? x.doPosVenda(pv) : null, origem: 'pos_venda', dica: DICA_POS_VENDA };
   }
@@ -210,9 +215,9 @@ function celulaDeDef(x: DefFicha, card: CardVendido, reg: RegistroGestao | undef
   return { valor: null, origem: 'vazio' };
 }
 
-export function celulaFicha(chave: string, card: CardVendido, reg: RegistroGestao | undefined, pv: PosVenda | null): CelulaFicha | null {
+export function celulaFicha(chave: string, card: CardVendido, reg: RegistroGestao | undefined, pv: PosVenda | null, serie?: string | null): CelulaFicha | null {
   const x = POR_CHAVE.get(chave);
-  return x ? celulaDeDef(x, card, reg, pv) : null;
+  return x ? celulaDeDef(x, card, reg, pv, serie) : null;
 }
 
 const preenchidaF = (c: CelulaFicha | undefined): boolean => preenchida(c as never);
@@ -228,7 +233,11 @@ export function progressoFicha(colunas: ColunaFicha[], celulas: Record<string, C
   return { preenchidas, total, faltando: total - preenchidas };
 }
 
-export interface LinhaFicha extends Omit<LinhaGestao, 'celulas'> { celulas: Record<string, CelulaFicha> }
+export interface LinhaFicha extends Omit<LinhaGestao, 'celulas'> {
+  celulas: Record<string, CelulaFicha>;
+  /** O código da série `E` (`E001`), sem o `#`. Ausente enquanto o card não foi numerado. */
+  serie?: string;
+}
 
 /** Linhas visíveis ao papel. O consultor só recebe os cards dele. */
 export function montarFicha(
@@ -237,6 +246,7 @@ export function montarFicha(
   posVendas: Map<number, unknown>,
   nome: string,
   socio: boolean,
+  series?: Map<number, string>,
 ): { colunas: ColunaFicha[]; linhas: LinhaFicha[] } {
   const colunas = colunasFichaPara(socio);
   const defs = colunas.map((c) => POR_CHAVE.get(c.chave) as DefFicha);
@@ -247,9 +257,11 @@ export function montarFicha(
     const reg = fichas.get(card.id);
     const pv = lerPosVenda(posVendas.get(card.id));
     const celulas: Record<string, CelulaFicha> = {};
-    for (const x of defs) celulas[x.col.chave] = celulaDeDef(x, card, reg, pv);
+    const serie = series?.get(card.id);
+    for (const x of defs) celulas[x.col.chave] = celulaDeDef(x, card, reg, pv, serie);
     const cli = celulas.cliente?.valor;
     linhas.push({
+      ...(serie ? { serie } : {}),
       codigo: String(card.id),
       cliente: typeof cli === 'string' ? cli : String(card.cliente_nome ?? ''),
       consultor: String(card.vendedor_nome ?? ''),
@@ -307,6 +319,8 @@ export interface ObraEp {
   feitas: number;
   total: number;
   previsto: string | null;
+  /** O código da série `E` (`E001`), sem o `#`; ausente enquanto o card não foi numerado. */
+  serie?: string;
   atrasado: boolean;
   responsavel: string;
   obs: string;
@@ -332,7 +346,7 @@ export function progressoObra(p: PosVenda | null): { feitas: number; total: numb
   return { feitas: concluido ? total : Math.max(0, idx), total, falta_informar: !p || !modelo, concluido };
 }
 
-export function montarObra(card: CardVendido, pvBruto: unknown, hoje: string, socio = false): ObraEp {
+export function montarObra(card: CardVendido, pvBruto: unknown, hoje: string, socio = false, serie?: string): ObraEp {
   const p = lerPosVenda(pvBruto);
   const modelo = p ? p.modelo : '';
   const pr = progressoObra(p);
@@ -367,18 +381,19 @@ export function montarObra(card: CardVendido, pvBruto: unknown, hoje: string, so
     concluido: pr.concluido,
   };
   if (socio) obra.valor = p && typeof p.valor === 'number' ? p.valor : null;
+  if (serie) obra.serie = serie;
   return obra;
 }
 
 /** Obras que o papel vê: atrasadas primeiro, depois em andamento pela data prevista, concluídas por último. */
 export function montarObras(
-  cards: CardVendido[], posVendas: Map<number, unknown>, nome: string, socio: boolean, hoje: string,
+  cards: CardVendido[], posVendas: Map<number, unknown>, nome: string, socio: boolean, hoje: string, series?: Map<number, string>,
 ): ObraEp[] {
   const obras: ObraEp[] = [];
   for (const card of cards) {
     if (!ehCardVendidoEp(card)) continue;
     if (!(socio || podeVer(nome, String(card.vendedor_nome ?? '')))) continue;
-    obras.push(montarObra(card, posVendas.get(card.id), hoje, socio));
+    obras.push(montarObra(card, posVendas.get(card.id), hoje, socio, series?.get(card.id)));
   }
   const grupo = (o: ObraEp): number => (o.concluido ? 2 : o.atrasado ? 0 : 1);
   return obras.sort((a, b) =>

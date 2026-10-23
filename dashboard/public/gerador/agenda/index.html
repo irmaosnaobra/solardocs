@@ -2907,6 +2907,38 @@ function abrirVendaNoGerador() {
  *  toast que aponta o botao "Criar cliente na planilha"; rede, 502, 503 e 409 `tentarDeNovo` tentam de novo uma vez depois de 6 s; 400, 403,
  *  404 e outros 409 ficam calados. O toast tem uma vaga so e o do status acabou de sair: o do gancho espera ~2,8 s. */
 const CLIENTE_VENDA_FALHA = 'Não consegui criar o cliente na planilha agora. Abra o card vendido e use o botão Criar cliente na planilha.';
+/** Serie #E do eletroposto (etapa 4): pede ao servidor o codigo do card que acabou de ficar VENDIDO. Sem await de quem chama, sem aviso de erro:
+ *  se falhar, a passada de pendentes na lista de clientes numera. `keepalive` porque a Agenda pode navegar logo em seguida. O id do card segue
+ *  sendo a chave de tudo; o servidor revalida que o card e eletroposto e vendido. */
+async function garantirSerieEpDoCard(idAlvo) {
+  try {
+    if (idAlvo == null || idAlvo === '') return;
+    const rota = API_ESPERA + '/gerador/clientes/eletroposto/' + encodeURIComponent(String(idAlvo)) + '/serie';
+    const chamar = async () => {
+      const tk = tokenDaSessao();
+      if (!tk) return { status: 401 };
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const t = ctrl ? setTimeout(() => ctrl.abort(), 30000) : null;
+      try {
+        const r = await fetch(rota, {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' }, body: '{}',
+          keepalive: true, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
+        });
+        let j = null;
+        try { j = await r.json(); } catch (e) { j = null; }
+        return { status: r.status, json: j };
+      } catch (e) {
+        return { status: 0 };
+      } finally {
+        if (t) clearTimeout(t);
+      }
+    };
+    const refazer = (x) => x.status === 0 || x.status === 502 || x.status === 503 || (x.status === 409 && !!x.json && x.json.tentarDeNovo === true);
+    const r = await chamar();
+    if (refazer(r)) { await new Promise((ok) => setTimeout(ok, 6000)); await chamar(); }
+  } catch (e) { /* a lista de clientes numera */ }
+}
+
 async function garantirClienteDoCard(idAlvo) {
   const inicio = Date.now();
   const avisar = (txt) => {
@@ -3472,6 +3504,10 @@ async function atualizarStatus(novoStatus, extra) {
     // outros pedidos desta funcao: "Registrar o valor da venda" navega para o /gerador e nao pode deixar o gancho para tras. Sem await.
     if (novoStatus === 'fechou' && stDe !== 'fechou' && !cardEhEletroposto(detalheAtual)) {
       try { garantirClienteDoCard(idAlvo); } catch (e) { /* o botao Criar cliente na planilha cobre */ }
+    }
+    // Serie #E (etapa 4): so eletroposto, em todo VENDIDO gravado (o servidor e idempotente). NAO fica no `pvGuardar`: o "Depois" nao passa por ele. Sem await.
+    if (novoStatus === 'fechou' && cardEhEletroposto(detalheAtual)) {
+      try { garantirSerieEpDoCard(idAlvo); } catch (e) { /* a lista de clientes numera */ }
     }
     // A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA. Vai antes do
     // PATCH porque depois dele ela não existe mais em lugar nenhum. Falhar aqui

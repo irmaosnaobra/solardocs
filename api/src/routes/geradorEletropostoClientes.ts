@@ -19,6 +19,9 @@ import {
   lerCardsVendidos, lerCardVendido, lerFichas, lerPosVendas, lerFichaComVersao, gravarFicha,
   lerPosVendaComVersao, gravarPosVenda, ErroFicha,
 } from '../services/gerador/fichaEletropostoBanco';
+import {
+  serieComPassada, passadaDePendentes, lerSerieSemRisco, lerSerieEstrita, garantirSerieDoCard, ESPERA_DA_ROTA,
+} from '../services/gerador/eletropostoSerie';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FICHA DO CLIENTE e OBRAS do eletroposto no /gerador. Montadas dentro de /gerador.
@@ -27,6 +30,8 @@ import {
 //
 //   GET  /clientes/eletroposto         catálogo + linhas (cortados pelo PAPEL), mesmo formato do solar
 //   POST /clientes/eletroposto/campo   grava UMA célula da ficha ({codigo, coluna, valor, base_em})
+//   GET  /clientes/eletroposto/series  card -> `#E` dos clientes que o papel vê (só leitura, não numera)
+//   POST /clientes/eletroposto/:id/serie   dá (ou devolve) o `#E001` do card vendido; idempotente (o gancho do navegador)
 //   GET  /obras/eletroposto            as obras (card vendido + pós-venda), só equipe
 //   POST /obras/eletroposto            etapa, previsto, responsável e obs ({id, ..., base_em}), só equipe
 //
@@ -58,6 +63,7 @@ const TENTATIVAS_GRAVAR = 4;
 const MSG_BANCO = 'Não consegui ler os dados agora. Tente de novo em instantes.';
 const MSG_GRAVAR = 'Não consegui gravar agora. Tente de novo.';
 const MSG_NAO_ACHEI = 'Venda não encontrada.';
+const LIMITE_DA_ROTA = 100;   // quantos pendentes a rota POST numera de uma vez para chegar ao card pedido, na ordem
 
 function semCache(_req: Request, res: Response, next: NextFunction): void {
   res.set('Cache-Control', 'no-store');
@@ -96,19 +102,23 @@ export function mountClientesEletroposto(router: Router): void {
     let cards: CardVendido[];
     let linhas: LinhaFicha[];
     let colunas;
+    let series = new Map<number, string>();
     let cadastroIndisponivel = false;
     let falhasDoCadastro = new Set<number>();
     try {
       // Só os cards do papel: o registro de uma venda alheia nem é lido para o consultor.
-      cards = (await lerCardsVendidos()).filter((c) => dono(nome, socio, c));
+      const todos = await lerCardsVendidos();
+      cards = todos.filter((c) => dono(nome, socio, c));
       const ids = cards.map((c) => c.id);
-      const [fichas, posVendas, cads] = await Promise.all([lerFichas(ids), lerPosVendas(ids), lerCadastros(ids)]);
+      // A série `#E` numera os pendentes na ordem GLOBAL (por isso recebe `todos`, não os cards do papel). Nunca lança nem derruba a lista.
+      const [fichas, posVendas, cads, seriesLidas] = await Promise.all([lerFichas(ids), lerPosVendas(ids), lerCadastros(ids), serieComPassada(todos)]);
+      series = seriesLidas;
       cadastroIndisponivel = cads.indisponivel;
       falhasDoCadastro = cads.falhas;
       // O cadastro vai por cima do `system_state`, só para montar a resposta (nunca é gravado de volta).
       const vistas = new Map<number, RegistroGestao>(fichas);
       for (const [id, cad] of cads.mapa) vistas.set(id, sobreporCadastro(fichas.get(id) ?? lerRegistro(null), cad));
-      ({ colunas, linhas } = montarFicha(cards, vistas, posVendas, nome, socio));
+      ({ colunas, linhas } = montarFicha(cards, vistas, posVendas, nome, socio, series));
     } catch (err) {
       logErro('leitura falhou', err);
       res.status(502).json({ ok: false, error: MSG_BANCO });
@@ -126,10 +136,65 @@ export function mountClientesEletroposto(router: Router): void {
       catalogo: { grupos: gruposFichaPara(colunas), colunas },
       linhas: linhas.map((l) => ({
         codigo: l.codigo, cliente: l.cliente, consultor: l.consultor, progresso: l.progresso, celulas: l.celulas,
+        ...(l.serie ? { serie: l.serie } : {}),
         ...(falhasDoCadastro.has(Number(l.codigo)) ? { cadastro_indisponivel: true } : {}),
       })),
       totais: totais(linhas as unknown as LinhaGestao[]),
     });
+  });
+
+  // ── Série `#E`: só leitura (card -> código), cortada pelo PAPEL ────────────
+  router.get('/clientes/eletroposto/series', exigeConsultor, semCache, async (req: Request, res: Response) => {
+    const { nome, socio } = quem(req);
+    try {
+      const meus = new Set((await lerCardsVendidos()).filter((c) => dono(nome, socio, c)).map((c) => c.id));
+      const series: Record<string, string> = {};
+      for (const [id, cod] of await lerSerieEstrita()) if (meus.has(id)) series[String(id)] = cod;
+      res.json({ ok: true, series });
+    } catch (err) {
+      // Banco fora (ou sem segredo): 503, nunca 200 com mapa vazio, senão o navegador guarda o vazio como se fosse a resposta.
+      logErro('série: leitura falhou', err);
+      res.status(503).json({ ok: false, error: MSG_BANCO });
+    }
+  });
+
+  // ── Série `#E`: dar (ou devolver) o código do card vendido ─────────────────
+  // O gancho do navegador (CRM, Agenda, Histórico) chama aqui sem esperar. A posse é revalidada no servidor (`lerCardVendido`):
+  // card inexistente, alheio, de solar ou não vendido dão o MESMO 404. NÃO usa a rota pública `/pos-venda`.
+  router.post('/clientes/eletroposto/:id/serie', exigeConsultor, semCache, async (req: Request, res: Response) => {
+    const { nome, socio } = quem(req);
+    const idTxt = String(req.params.id ?? '');
+    if (!/^\d{1,12}$/.test(idTxt) || Number(idTxt) <= 0) { res.status(400).json({ ok: false, error: 'Pedido inválido.' }); return; }
+    const id = Number(idTxt);
+    let card: CardVendido | null;
+    try { card = await lerCardVendido(id); } catch (err) {
+      logErro('série: leitura do card falhou', err);
+      res.status(500).json({ ok: false, error: MSG_GRAVAR });
+      return;
+    }
+    if (!card || !dono(nome, socio, card)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
+    try {
+      // 1º a passada de pendentes, EM ORDEM: o gancho de uma venda antiga regravada não pode dar o E001 a um card mais novo antes da
+      // primeira leitura da lista. O card pedido é um dos pendentes, então a passada já o numera na posição certa.
+      const p = await passadaDePendentes(await lerCardsVendidos(), ESPERA_DA_ROTA, LIMITE_DA_ROTA);
+      const dele = p.series.get(id);
+      if (dele) { res.json({ ok: true, serie: dele, criou: p.criou.has(id) }); return; }
+      if (!p.completa) {
+        res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava numerando agora. Tente de novo.' });
+        return;
+      }
+      const r = await garantirSerieDoCard(id, nome);
+      if (r.ok) { res.json({ ok: true, serie: r.serie, criou: r.criou }); return; }
+      if (r.motivo === 'ocupado') {
+        res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava numerando agora. Tente de novo.' });
+        return;
+      }
+      logErro(`série: ${r.motivo}`, null);
+      res.status(r.motivo === 'sem_segredo' ? 503 : 500).json({ ok: false, error: MSG_GRAVAR });
+    } catch (err) {
+      logErro('série: gravar falhou', err);
+      res.status(500).json({ ok: false, error: MSG_GRAVAR });
+    }
   });
 
   // ── Ficha: gravar uma célula ───────────────────────────────────────────────
@@ -253,14 +318,14 @@ export function mountClientesEletroposto(router: Router): void {
     const agora = new Date().toISOString();
     try {
       const cards = (await lerCardsVendidos()).filter((c) => dono(nome, socio, c));
-      const posVendas = await lerPosVendas(cards.map((c) => c.id));
+      const [posVendas, series] = await Promise.all([lerPosVendas(cards.map((c) => c.id)), lerSerieSemRisco()]);
       res.json({
         ok: true,
         socio,
         consultor: nome,
         em: agora,
         modelos: MODELOS_OBRA,
-        obras: montarObras(cards, posVendas, nome, socio, diaDeBrasilia(agora)),
+        obras: montarObras(cards, posVendas, nome, socio, diaDeBrasilia(agora), series),
       });
     } catch (err) {
       logErro('obras: leitura falhou', err);
@@ -295,6 +360,7 @@ export function mountClientesEletroposto(router: Router): void {
       base.valor = v.valor;
     }
 
+    const serieDoCard = (await lerSerieSemRisco()).get(e.id);
     try {
       for (let tentativa = 0; tentativa < TENTATIVAS_GRAVAR; tentativa++) {
         const { valor: bruto, versao } = await lerPosVendaComVersao(e.id);
@@ -304,7 +370,7 @@ export function mountClientesEletroposto(router: Router): void {
             ok: false, conflito: true,
             error: 'Outra pessoa alterou esta obra agora. Confira e tente de novo.',
             por: atual!.por, em: atual!.em,
-            obra: montarObra(card, bruto, diaDeBrasilia(new Date()), socio),
+            obra: montarObra(card, bruto, diaDeBrasilia(new Date()), socio, serieDoCard),
           });
           return;
         }
@@ -320,7 +386,7 @@ export function mountClientesEletroposto(router: Router): void {
         const montado = montarPosVenda(entrada, atual, agora, hoje);
         if (!montado.ok) { res.status(400).json({ ok: false, error: montado.erro }); return; }
         if (!(await gravarPosVenda(e.id, montado.registro, versao, agora))) continue;   // perdeu a corrida: lê de novo
-        res.json({ ok: true, em: agora, obra: montarObra(card, montado.registro, hoje, socio) });
+        res.json({ ok: true, em: agora, obra: montarObra(card, montado.registro, hoje, socio, serieDoCard) });
         return;
       }
       res.status(409).json({ ok: false, conflito: true, tentarDeNovo: true, error: 'Outra pessoa estava gravando esta obra agora. Tente de novo.' });

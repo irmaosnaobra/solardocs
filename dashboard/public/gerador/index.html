@@ -11962,7 +11962,7 @@ function epoCartao(o) {
 // ── Modelo do negócio, valor e data da venda (14/10/2026) ───────────────────
 const epoSemModelo = o => !String(o.modelo == null ? '' : o.modelo).trim();
 const epoModeloDesligado = o => !(_epo.modelos || []).length && epoSemModelo(o);
-function epoSubTexto(o) { return [o.cidade, o.consultor, o.modelo_rotulo].filter(Boolean).join(' · '); }
+function epoSubTexto(o) { return [/^E\d{3,}$/.test(String(o.serie || '')) ? '#' + o.serie : '', o.cidade, o.consultor, o.modelo_rotulo].filter(Boolean).join(' · '); }
 function epoModeloOpcoes(o) {
   const lista = _epo.modelos || [], atual = epoSemModelo(o) ? '' : String(o.modelo);
   let h = atual ? '' : '<option value="" selected>Escolha o modelo</option>';
@@ -36100,7 +36100,9 @@ function crmAbrirDetalhe(key, agId) {
   document.getElementById('crm-det-nome').textContent = c.nome || '—';
   const etLbl = (CRM_ETAPAS[c.etapa] || {}).lbl || '';
   const etIc  = (CRM_ETAPAS[c.etapa] || {}).ic || '';
-  document.getElementById('crm-det-sub').textContent = etLbl ? `${etIc} ${etLbl}` : '';
+  document.getElementById('crm-det-sub').textContent = crmDetSubTexto(c, agRec);
+  // O #E do cliente vendido de eletroposto (etapa 4): so leitura. Se ainda nao esta na memoria, busca e repinta o subtitulo.
+  if (crmDetEhVendidoEp(agRec) && !epSerieTexto(agRec.id)) { try { epSeriesCarregar(true); } catch (e) {} }   // forcar: o mapa em memoria pode ser de antes do numero deste card
 
   // Telefone (display) + link clicável pra ligar
   const telEl = document.getElementById('crm-det-tel');
@@ -40190,6 +40192,7 @@ async function pvCarregar() {
   }
   E.carregando = false;
   pvRender();
+  try { epSeriesCarregar(true); } catch (e) {}   // o #E de cada cliente (so leitura); repinta no lugar, sem refazer a lista
   finCarregarResumo(meu);
   if (E.focarId) {
     // Espera a busca dos cards em negociacao: ela muda a altura do ranking, e rolar
@@ -40945,7 +40948,7 @@ function pvCardHtml(a, k) {
   return `<article class="pv-card ${k.cls}${E.focarId === id ? ' foco' : ''}" id="pv-card-${id}">
     <div class="pv-top" role="button" tabindex="0" aria-expanded="${aberto}" onclick="pvAlternar('${id}')"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();pvAlternar('${id}')}">
-      <div class="pv-l1"><span class="pv-nome">${escapeHtml(a.cliente_nome || 'Sem nome')}</span>${a.cidade ? `<span class="pv-cid">${escapeHtml(a.cidade)}</span>` : ''}</div>
+      <div class="pv-l1"><span class="pv-nome">${escapeHtml(a.cliente_nome || 'Sem nome')}</span><span class="pv-cid" data-ep-serie="${id}"${epSerieTexto(id) ? '' : ' style="display:none"'}>${escapeHtml(epSerieTexto(id))}</span>${a.cidade ? `<span class="pv-cid">${escapeHtml(a.cidade)}</span>` : ''}</div>
       ${corpo}
     </div>
     ${aberto && !E.falhouLeitura ? `<div class="pv-ed-wrap">${pvEdHtml(pfx)}</div><div class="fin-slot" data-fin-slot="${id}"></div>` : ''}
@@ -42267,6 +42270,11 @@ async function crmAtualizarStatus(novoStatus, extra) {
     // Gancho do VENDIDO (fase 2): só solar e só na TRANSIÇÃO. Venda antiga reeditada nunca gera cliente. Sem await: a Agenda nunca bloqueia.
     if (novoStatus === 'fechou' && stDeCrm !== 'fechou' && !crmEhEletroposto(ag)) {
       try { vendaSolarGarantirCliente(ag.id, 'status'); } catch (e) { /* o botão Criar cliente na planilha cobre */ }
+    }
+    // Gancho da serie #E (etapa 4): so eletroposto, em todo VENDIDO gravado (o servidor e idempotente: devolve o codigo que o card ja tem).
+    // Sem await e sem aviso: a Agenda nunca bloqueia, e a passada de pendentes da lista de clientes cobre a falha.
+    if (novoStatus === 'fechou' && crmEhEletroposto(ag)) {
+      try { epSerieGarantir(ag.id); } catch (e) { /* a lista de clientes numera */ }
     }
     if (extra) Object.assign(ag, extra);
     // O historico em memoria acompanha o que foi gravado (so no eletroposto): sem
@@ -44327,6 +44335,66 @@ async function vendaSolarGarantirCliente(cardId, origem) {
   }
 }
 
+// ── SERIE #E DOS CLIENTES DE ELETROPOSTO (etapa 4) ─────────────────────────────
+// O codigo (#E001) e um campo A MAIS, so de leitura: o id do card continua sendo a chave de tudo. Quem numera e o servidor
+// (POST /gerador/clientes/eletroposto/:id/serie, idempotente, e a passada de pendentes na lista de clientes). Aqui so se guarda e se mostra.
+var epSerieCache = {};          // id do card -> 'E001'
+var epSeriesPromessa = null;
+function epSerieTexto(id) { const s = epSerieCache[String(id)]; return s ? '#' + s : ''; }
+function epSerieGuardar(mapa) {
+  Object.keys(mapa || {}).forEach(k => { if (/^\d+$/.test(k) && /^E\d{3,}$/.test(String(mapa[k]))) { epSerieCache[k] = String(mapa[k]); } });
+}
+function epSerieRepintar() {
+  try {
+    document.querySelectorAll('[data-ep-serie]').forEach(el => {
+      const t = epSerieTexto(el.getAttribute('data-ep-serie'));
+      el.textContent = t; el.style.display = t ? '' : 'none';
+    });
+    const d = (typeof crmDetAtual !== 'undefined') ? crmDetAtual : null;
+    if (d && d.agRec && crmDetEhVendidoEp(d.agRec)) {
+      const sub = document.getElementById('crm-det-sub');
+      if (sub) sub.textContent = crmDetSubTexto(d.c, d.agRec);
+    }
+  } catch (e) {}
+}
+/** O card esta VENDIDO e e de eletroposto (a mesma regra do servidor: status fechou + created_by com a palavra). */
+function crmDetEhVendidoEp(ag) { return !!ag && String(ag.status || '') === 'fechou' && crmEhEletroposto(ag); }
+function crmDetSubTexto(c, agRec) {
+  const e = CRM_ETAPAS[c.etapa] || {};
+  const serie = crmDetEhVendidoEp(agRec) ? epSerieTexto(agRec.id) : '';
+  return [serie, e.lbl ? `${e.ic || ''} ${e.lbl}` : ''].filter(Boolean).join(' · ');
+}
+/** Le o mapa card -> #E dos clientes que o papel ve. `forcar` le de novo. Nunca lanca. */
+function epSeriesCarregar(forcar) {
+  if (!epSeriesPromessa || forcar) {
+    epSeriesPromessa = (async () => {
+      const r = await vdcFetch('/gerador/clientes/eletroposto/series', 'GET', undefined, 20000);
+      if (r.status === 200 && r.json && r.json.ok && r.json.series) epSerieGuardar(r.json.series);
+      else epSeriesPromessa = null;
+    })().catch(() => { epSeriesPromessa = null; });
+  }
+  return epSeriesPromessa.then(epSerieRepintar);
+}
+/** Gancho do VENDIDO: pede o #E do card. Sem toast e sem bloquear; se falhar, a passada de pendentes da lista de clientes cobre. */
+async function epSerieGarantir(cardId) {
+  try {
+    if (cardId == null || cardId === '') return;
+    const rota = '/gerador/clientes/eletroposto/' + encodeURIComponent(String(cardId)) + '/serie';
+    const refazer = (x) => x.status === 0 || x.status === 502 || x.status === 503 || (x.status === 409 && !!x.json && x.json.tentarDeNovo === true);
+    let r = await vdcFetch(rota, 'POST', {}, 30000, { keepalive: true });
+    if (refazer(r)) {
+      await new Promise((ok) => setTimeout(ok, 6000));
+      r = await vdcFetch(rota, 'POST', {}, 30000, { keepalive: true });
+    }
+    const j = r.json || {};
+    if (r.status === 200 && j.ok !== false && typeof j.serie === 'string') {
+      const um = {}; um[String(cardId)] = j.serie;
+      epSerieGuardar(um);
+      epSerieRepintar();
+    }
+  } catch (e) { /* a lista de clientes numera */ }
+}
+
 /** As fichas de agenda deste telefone.
  *
  *  FILTRA PELOS 8 ULTIMOS DIGITOS e SO DEPOIS confere a chave inteira em JS, e
@@ -44613,6 +44681,8 @@ async function confirmarVenda() {
       try {
         const lin = await supaGet(`agendamentos?id=eq.${cardEpVenda.id}&select=created_by`);
         if (lin && lin[0] && crmEhEletroposto(lin[0])) {
+          // Serie #E (etapa 4): o card certo e o `cardEpVenda` (conferido acima pelo created_by), nunca outro achado por telefone. Sem await.
+          try { epSerieGarantir(cardEpVenda.id); } catch (e) { /* a lista de clientes numera */ }
           // `por` nunca vai null (a API recusa com texto_invalido) e data futura no
           // modal e omitida (a API recusa com data_invalida): a venda entra com a data de hoje.
           const camposEp = { valor, por: consultor || pvPor() || '' };

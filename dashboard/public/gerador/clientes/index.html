@@ -729,6 +729,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     if (EP) {
       linhas = (j.linhas || []).map(function (l) {
         l.codigoApi = l.codigo; l.codigo = String(l.codigo);
+        // O número do cliente (#E001, etapa 4): só leitura, dado pelo servidor. A chave de tudo continua sendo o id do card (`codigo`).
+        l.exibir = /^E\d{3,}$/.test(String(l.serie || '')) ? '#' + l.serie : undefined;
         var ce = l.celulas = l.celulas || {};
         cols.forEach(function (c) { if (ce[c.chave] && ce[c.chave].origem === 'pos_venda') pvCol[c.chave] = 1; });
         cols.forEach(function (c) { if (!ce[c.chave]) ce[c.chave] = { valor: null, origem: 'vazio' }; });
@@ -758,7 +760,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     var q = semAcento($('busca').value).trim(), cons = $('fCons').value, pend = $('fPend').getAttribute('aria-checked') === 'true';
     return linhas.filter(function (l) {
       if (cons && l.consultor !== cons) return false;
-      if (q && semAcento(l.cliente).indexOf(q) < 0 && semAcento(l.codigo).indexOf(q) < 0 && semAcento(l.codigo.replace(/\D/g, '')).indexOf(q.replace(/\D/g, '') || '\u0000') < 0) return false;
+      if (q && semAcento(l.cliente).indexOf(q) < 0 && semAcento(l.codigo).indexOf(q) < 0 && semAcento(l.codigo.replace(/\D/g, '')).indexOf(q.replace(/\D/g, '') || '\u0000') < 0
+        && !(l.exibir && semAcento(l.exibir).replace(/^#/, '').indexOf(q.replace(/^#/, '')) >= 0)) return false;
       if (pend && (ignoraNaConta(l) || !(l.progresso.faltando > 0))) return false;
       return true;
     });
@@ -2144,6 +2147,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     return api('GET', caminhoDoc(l, '/relatorio'), null, true).then(function (x) {
       var j = x.json;
       if (x.status !== 200 || !j || j.ok === false) throw erro('servidor', { msg: x.status === 403 ? 'Você não tem permissão para emitir este relatório.' : msgServidor(x, 'Não consegui gerar o relatório agora. Tente de novo.') });
+      // Eletroposto numerado: o cabeçalho (tela, pacote e texto) mostra o #E; sem número, fica o id do card como sempre.
+      if (EP && l.exibir && j.cabecalho && typeof j.cabecalho === 'object') { j.cabecalho.codigo_id = j.cabecalho.codigo; j.cabecalho.codigo = l.exibir; }
       return j;
     });
   }
