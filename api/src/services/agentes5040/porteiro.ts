@@ -60,6 +60,8 @@ const BOTOES_POR_TRECHO: ReadonlyArray<{ trecho: string; produto: Produto }> = [
 export function produtoDoBotao(texto: string | null | undefined): Produto | null {
   const t = normalizarBotao(texto);
   if (!t) return null;
+  // Texto pronto do anúncio Solar da Meta e as variações dele (com ou sem saudação, acento ou pontuação).
+  if (/^((oi|ola)[\s!.,;:]*)?tenho interesse em energia solar\b/.test(t)) return 'solar';
   for (const b of BOTOES) if (t.startsWith(b.prefixo)) return b.produto;
   for (const b of BOTOES_POR_TRECHO) if (t.includes(b.trecho)) return b.produto;
   // O pedido de informação sobre o SolarDoc (a frase do anúncio, "Quero saber sobre a SolarDoc", e as variações) é

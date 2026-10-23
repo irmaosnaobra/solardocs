@@ -158,6 +158,41 @@ describe('porteiro: botões e origens', () => {
     expect(produtoDoBotao('Olá! Quero simular meu projeto de energia solar')).toBe('solar');
   });
 
+  it('a frase do anúncio de Solar vai para a Duda pelo texto, com ou sem anúncio sem produto', () => {
+    const frase = 'Olá! Tenho interesse em energia solar.';
+    expect(produtoDoBotao(frase)).toBe('solar');
+    for (const v of ['Ola, tenho interesse em energia solar', 'Olá tenho interesse em energia solar', 'Olá!Tenho interesse em energia solar',
+      'Tenho interesse em energia solar', 'Olá! Tenho interesse em energia solar!!', 'Olá! Tenho interesse em energia solar e no eletroposto']) {
+      expect(produtoDoBotao(v), v).toBe('solar');
+      expect(decidirDona(f({ primeiroTextoDoLead: v })), v).toMatchObject({ dona: 'duda', passo: 5 });
+    }
+    // Campanha "Venda" não tem palavra de produto, então o anúncio chega com produto null: o passo 4 não decide e o passo 5 (texto) resolve.
+    expect(decidirDona(f({ anuncio: { adId: '9', produto: null }, primeiroTextoDoLead: frase })))
+      .toMatchObject({ dona: 'duda', passo: 5 });
+    expect(decidirDona(f({ anuncio: null, primeiroTextoDoLead: frase }))).toMatchObject({ dona: 'duda', passo: 5 });
+    // Campanha "Solar - X1" (produto solar) continua decidindo no passo do anúncio.
+    expect(decidirDona(f({ anuncio: { adId: '9', produto: 'solar' }, primeiroTextoDoLead: frase })))
+      .toMatchObject({ dona: 'duda', passo: 4 });
+  });
+
+  it('a frase do anúncio não pega o que não é ela: negação e a frase padrão da Meta', () => {
+    expect(produtoDoBotao('Não tenho interesse em energia solar')).toBeNull();
+    expect(decidirDona(f({ primeiroTextoDoLead: 'Não tenho interesse em energia solar' }))).toMatchObject({ dona: null, passo: 7 });
+    // Frase padrão da Meta (B2C_TRIGGERS em whatsappAgentService.ts): serve a qualquer anúncio, não indica produto.
+    const padraoMeta = 'Olá! Tenho interesse e queria mais informações, por favor.';
+    expect(produtoDoBotao(padraoMeta)).toBeNull();
+    expect(decidirDona(f({ primeiroTextoDoLead: padraoMeta }))).toMatchObject({ dona: null, passo: 7 });
+  });
+
+  it('a frase do anúncio de Solar não passa na frente da pausa humana, da dona atual nem de outro robô', () => {
+    const frase = 'Olá! Tenho interesse em energia solar.';
+    for (const k of ['humanoNaConversa', 'naoIncomodar', 'bloqueado', 'mudo'] as const) {
+      expect(decidirDona(f({ [k]: true, primeiroTextoDoLead: frase })), k).toMatchObject({ dona: null, passo: 1 });
+    }
+    expect(decidirDona(f({ donaAtual: 'helena', primeiroTextoDoLead: frase }))).toMatchObject({ dona: 'helena', passo: 2 });
+    expect(decidirDona(f({ outroRoboAtivo: true, primeiroTextoDoLead: frase }))).toMatchObject({ dona: null, passo: 1, motivo: 'outro robô na conversa' });
+  });
+
   it('o que é ambíguo ou de quem já comprou não adivinha', () => {
     expect(produtoDoBotao('Comprei o Kit de Fechamento e preciso do acesso')).toBeNull();
     expect(produtoDoBotao('Oi, minha proposta expirou e eu gostaria de receber uma nova.')).toBeNull();
