@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { CARLA, EXEMPLOS_CARLA, LINKS_CARLA } from '../services/agentes5040/personas/carla';
-import { DUDA, EXEMPLOS_DUDA } from '../services/agentes5040/personas/duda';
+import { ACOES_DUDA_SEM_FALA, DUDA, EXEMPLOS_DUDA } from '../services/agentes5040/personas/duda';
 import { HELENA, EXEMPLOS_HELENA } from '../services/agentes5040/personas/helena';
 import { ACOES_SEM_FALA, semTelefone, type ExemploPersona } from '../services/agentes5040/personas/comum';
 import { validarFala } from '../services/agentes5040/trava';
@@ -65,7 +65,7 @@ function motivosDoExemplo(def: PersonaDef, ex: ExemploPersona): string[] {
     }
     const motivos = validarFala(t.saida, conv, {
       persona: def.persona, completa: true, qualificado: !!t.qualificado,
-      acoesSemFala: ACOES_SEM_FALA, agora: ex.agora ?? '2026-10-20T17:00:00.000Z',
+      acoesSemFala: [...ACOES_SEM_FALA, ...ACOES_DUDA_SEM_FALA], agora: ex.agora ?? '2026-10-20T17:00:00.000Z',
     });
     if (motivos.length) erros.push(`${ex.titulo} #${i}: ${motivos.join('; ')} :: ${t.saida.bolhas.join(' / ')}`);
     if (!def.acoes.includes(t.saida.acao)) erros.push(`${ex.titulo} #${i}: ação fora da lista (${t.saida.acao})`);
@@ -126,7 +126,7 @@ describe.each(CASOS)('persona $def.persona', ({ def, exemplos, arquivo, proibico
 
   it('todas as falas de agente dos exemplos passam na trava', () => {
     expect(exemplos.length).toBeGreaterThanOrEqual(4);
-    expect(exemplos.length).toBeLessThanOrEqual(6);
+    expect(exemplos.length).toBeLessThanOrEqual(9);
     const erros = exemplos.flatMap(ex => motivosDoExemplo(def, ex));
     expect(erros).toEqual([]);
   });

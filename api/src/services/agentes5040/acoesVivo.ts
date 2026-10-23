@@ -185,6 +185,51 @@ export async function desfazerCardSolar(cardId: number): Promise<boolean> {
   }
 }
 
+// ── orçamento por escrito e ficha da trava (pacote 2b) ───────────────────────
+
+/** A bolha FIXA depois da ficha do orçamento por escrito (a bolha do modelo nunca vai). Cabe nos 160 com o aviso de IA na frente. */
+export const BOLHA_ORCAMENTO_ESCRITO = 'Combinado. A consultora monta o seu orçamento por escrito e manda por aqui mesmo.';
+/** A 1ª linha da ficha: a consultora não liga, escreve. */
+export const TOPO_ORCAMENTO_ESCRITO = 'PEDIU ORÇAMENTO POR ESCRITO, NÃO LIGAR.';
+/** Com ligação já marcada no card (reunião futura), a ligação segue de pé e a consultora combina com ele. */
+export const TOPO_ORCAMENTO_COM_LIGACAO = 'PEDIU ORÇAMENTO POR ESCRITO. TEM LIGAÇÃO MARCADA: COMBINE COM ELE.';
+/** O topo certo da ficha: o card tem reunião futura? */
+export const topoDoOrcamentoEscrito = (quandoDoCard: string | null | undefined, agoraMs: number): string =>
+  Date.parse(String(quandoDoCard ?? '')) > agoraMs ? TOPO_ORCAMENTO_COM_LIGACAO : TOPO_ORCAMENTO_ESCRITO;
+
+const consumoEmTexto = (kwh: number | null): string => (kwh ? `~${kwh.toLocaleString('pt-BR')} kWh por mês` : '');
+
+/**
+ * Os dados que o lead já deu e que a ficha leva ao consultor: cidade, conta de luz (como ele disse) e consumo em kWh. Só entra o que
+ * existe. A cidade vem de `dados` primeiro e, depois, das fontes na ordem dada (card, lead do anúncio, cadastro).
+ */
+export function dadosDoLeadParaFicha(p: {
+  dados?: Readonly<Record<string, string>>; cidades?: ReadonlyArray<string | null | undefined>; kwh: number | null;
+}): Record<string, string> {
+  const limpa = (s: unknown, n: number): string => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const out: Record<string, string> = {};
+  const cidade = [p.dados?.cidade, ...(p.cidades ?? [])].map(c => limpa(c, 60)).find(Boolean);
+  if (cidade) out['Cidade'] = cidade;
+  const conta = limpa(p.dados?.conta, 60);
+  if (conta) out['Conta de luz'] = conta;
+  const consumo = consumoEmTexto(p.kwh);
+  if (consumo) out['Consumo'] = consumo;
+  return out;
+}
+
+/** As linhas que a ficha do orçamento por escrito leva (o título e o link da conversa vêm do fichaDeCampos). */
+export function linhasDoOrcamentoEscrito(p: { dados: Readonly<Record<string, string>>; temFoto: boolean; comLigacaoMarcada?: boolean }): string[] {
+  const d = p.dados;
+  return [
+    `Pedido: o cliente quer o orçamento por escrito, pelo WhatsApp, e ${p.comLigacaoMarcada ? 'tem ligação marcada' : 'não quer ligação'}`,
+    d['Cidade'] ? `Cidade: ${d['Cidade']}` : 'Cidade: não informada',
+    ...(d['Consumo'] ? [`Consumo: ${d['Consumo']}`] : []),
+    ...(d['Conta de luz'] ? [`Conta de luz: ${d['Conta de luz']}`] : []),
+    ...(!d['Consumo'] && !d['Conta de luz'] ? ['Valor da conta: não informado'] : []),
+    p.temFoto ? 'Mandou a foto da conta de luz na conversa' : 'Não mandou a foto da conta de luz',
+  ];
+}
+
 const COLUNAS_FICHA = 'id, vendedor_nome, quando, cliente_nome, cliente_telefone, cidade, observacao, created_by, created_at, status';
 
 /** O card como a ficha o lê (com o telefone, que só vai ao celular do consultor). null = não achou ou erro. */

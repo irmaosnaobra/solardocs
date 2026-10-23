@@ -37,6 +37,8 @@
 //        - 10 respostas na posse, 3ª falha de IA, trava sem fala segura, bolha inválida, ou fala que passou de
 //          15 min: passou_humano com ficha (sem bolha quando passou de 15 min); 'pediu_humano' (supressão do
 //          telefone): ficha, SEM bolha; 'erro_linha' PARA a rodada inteira.
+//   · Pausa humana (pacote 2b): depois da rajada e ANTES de qualquer regra ou modelo, a mesma checagem do vivoEnvio (podeFalarComLead,
+//     com o telefone resolvido). Em pausa: só marca ate_wa_id, nada de modelo nem de ficha (puladas.pausa_humana).
 //   · B1d-2c, SÓ a Duda: marcar_horario (card novo ou remarca o MESMO card; a bolha do turno confirma; recusa = fila de agenda),
 //     ligar_agora (ficha com reserva própria ANTES da bolha; ficha que não saiu desfaz o card e chama a IA de novo),
 //     suporte_giovanna (ficha à Giovanna) e, no fim de cada rodada, a volta honesta do ligar agora, o reenvio do suporte ao
@@ -63,12 +65,14 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { novoAnthropic } from '../../utils/anthropicClient';
 import { chaveContato, silenciarContato } from '../agents/whatsapp/silenciar';
+import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
 import {
-  acharVaga, alvoDaAgenda, bolhaLigarAgoraOk, cardSolarDe, citaAHora, desfazerCardSolar, destinoDaRecusa, horariosPorExtenso, kwhDoLead,
-  lerCardParaFicha, observacaoDoCardDaDuda, ofertaDeHorarios, primeiroNome, situacaoDoCard, type Oferta,
+  acharVaga, alvoDaAgenda, BOLHA_ORCAMENTO_ESCRITO, bolhaLigarAgoraOk, cardSolarDe, citaAHora, dadosDoLeadParaFicha, desfazerCardSolar,
+  destinoDaRecusa, horariosPorExtenso, kwhDoLead, lerCardParaFicha, linhasDoOrcamentoEscrito, observacaoDoCardDaDuda, ofertaDeHorarios,
+  primeiroNome, situacaoDoCard, topoDoOrcamentoEscrito, type Oferta,
 } from './acoesVivo';
 import { avisosDaCarla, planejarCarla, type PlanoCarla } from './carlaVivo';
-import { juntarBase, lerBaseDaPosse, pareceOptOut, patchDoEstacionar, planejarEstacionar, type PlanoEstacionar } from './baseRegras';
+import { juntarBase, lerBaseDaPosse, pareceOptOut, patchDoEstacionar, pedeParaPararDeReceber, planejarEstacionar, type PlanoEstacionar } from './baseRegras';
 import { bolhaDeConfirmacao, chaveFila, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
 import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard } from './agendaSolar';
 import { gravarMidiaCache, gravarTurno, lerMidiaCache, lerTurnos, type TurnoGravado } from './armazem';
@@ -123,9 +127,9 @@ export const LIMITES_VIVO = Object.freeze({
   maxConversas: 3,
   respostasPorPessoa: Object.freeze({ duda: 10, helena: 10, carla: 20 }) as Readonly<Record<DonaViva, number>>,
   falhasDeIAAteHumano: 3,
-  /** Volta honesta do "ligar agora": 5 min sem sinal da consultora; a bolha de agenda vale 30 min depois do aviso. */
-  voltaHonestaMs: 5 * 60_000,
-  voltaValidadeMs: 30 * 60_000,
+  /** Volta honesta do "ligar agora": 15 min sem sinal da consultora (com 5 min ela ofereceu horário a quem a consultora já tinha ligado); a bolha de agenda vale 40 min depois do aviso (15 de espera + 25 de folga para enfileirar). */
+  voltaHonestaMs: 15 * 60_000,
+  voltaValidadeMs: 40 * 60_000,
   /** Suporte: 10 min sem fala da Giovanna e a mesma ficha vai ao dono, uma vez. */
   suporteDonoMs: 10 * 60_000,
   /** Posses com pendência (volta ou suporte) olhadas por rodada, e até quando se olha (updated_at da posse). */
@@ -155,7 +159,7 @@ const PREFIXO_ALVO_ILEGIVEL = 'Não consegui conferir se este lead é de teste. 
 /** Ações do modelo que exigem uma ferramenta que a B1c ainda não tem (B1d): viram ficha ao consultor. */
 export const ACOES_COM_FERRAMENTA: readonly string[] = [
   'marcar_horario', 'remarcar_horario', 'ligar_agora', 'suporte_giovanna', 'confirmar_presenca',
-  'passar_carla', 'passar_duda', 'passar_helena',
+  'passar_carla', 'passar_duda', 'passar_helena', 'orcamento_escrito',
 ];
 
 /**
@@ -173,7 +177,7 @@ export const BOLHA_PASSAGEM_CURTA = 'Vou chamar a consultora, que te responde po
 export const BOLHA_PASSAGEM_CURTA_EP = 'Vou chamar o consultor, que te responde por aqui em breve.';
 const ACOES_DE_AGENDA: readonly string[] = ['marcar_horario', 'remarcar_horario'];
 /** As ações que a Duda executa de verdade na B1d-2c (o resto de ACOES_COM_FERRAMENTA segue virando ficha e passagem). */
-const ACOES_DA_DUDA_COM_AGENDA: readonly string[] = ['marcar_horario', 'ligar_agora', 'suporte_giovanna'];
+const ACOES_DA_DUDA_COM_AGENDA: readonly string[] = ['marcar_horario', 'ligar_agora', 'suporte_giovanna', 'orcamento_escrito'];
 const bolhaDaPassagem = (acao?: string, dona?: string, apresentada = true): string => {
   if (!apresentada) return dona === 'helena' ? BOLHA_PASSAGEM_CURTA_EP : BOLHA_PASSAGEM_CURTA;
   const agenda = !!acao && ACOES_DE_AGENDA.includes(acao);
@@ -716,6 +720,26 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     r.decisoes.push({ ...base, acao: null, motivo: null, n_bolhas: 0, tamanho: 0, ...d });
   };
 
+  // 3a. PAUSA HUMANA antes de qualquer regra e do modelo (pacote 2b): com humano na conversa a rodada chamava o modelo, caía na trava
+  // e mandava ao dono uma ficha vazia. É a MESMA checagem do vivoEnvio (podeFalarComLead, telefone resolvido); a do vivoEnvio segue
+  // como última guarda. Sem telefone resolvido não há o que conferir aqui: o passo 5 trata ('sem_telefone').
+  const tel = await telefoneParaEnviar(chave, L.id);
+  if (tel) {
+    const gate = await podeFalarComLead(tel);
+    if (!gate.pode) {
+      if (!dry) {
+        await atualizarPosse(chave, { ate_wa_id: L.id });
+        // Quem pede para parar durante a pausa não pode ficar sem registro: o opt-out é gravado mesmo sem modelo e sem envio.
+        if (pedeParaPararDeReceber(ultimoBlocoDoLead(msgs).map(m => String(m.texto ?? '').trim()).filter(Boolean))) {
+          await silenciarContato(tel, 'opt_out', 'agentes5040-vivo');
+        }
+      }
+      soma(r.puladas, 'pausa_humana');
+      dec({ resultado: 'recusada', motivo: 'pausa_humana' });
+      return 'seguir';
+    }
+  }
+
   // 3b. A HELENA (B2): as regras que vêm antes de tudo (limite de conversas, prazo, vez e IA). Cala e espera não gastam nada.
   // Espera passa dos 15 min = o robô da agenda não leu a tempo: cai no prazo abaixo, que passa ao humano com ficha.
   let preparoH: Extract<Veredicto, { tipo: 'seguir' }> | null = null;
@@ -736,9 +760,8 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     if (v.tipo === 'humano') {
       if (r.processadas >= LIMITES_VIVO.maxConversas) { soma(r.puladas, 'limite_de_conversas'); return 'seguir'; }
       r.processadas++;
-      const telH = await telefoneParaEnviar(chave, L.id);
       await passarAoHumano(g, {
-        chave, tel: telH, L, posse, hmac, motivo: 'helena_remarcar', bolha: true, acao: 'remarcar_horario', card: null, buscarCard: true,
+        chave, tel, L, posse, hmac, motivo: 'helena_remarcar', bolha: true, acao: 'remarcar_horario', card: null, buscarCard: true,
         nome: null, dec, detalhe: v.motivo,
       });
       return 'seguir';
@@ -747,8 +770,6 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
   }
 
   if (r.processadas >= LIMITES_VIVO.maxConversas) { soma(r.puladas, 'limite_de_conversas'); return 'seguir'; }
-
-  const tel = await telefoneParaEnviar(chave, L.id);
 
   // 4. fala vencida, ou limite de respostas: passa ao humano sem gastar modelo (e sem depender da vez)
   if (idade > LIMITES_VIVO.prazoFalaMs) {
@@ -916,7 +937,13 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       if (!pens.falou) {
         await registrar(false);
         // Sem o aviso de IA na 2ª tentativa (ou qualquer outra trava) com o lead ainda não apresentado: ficha ao humano, SEM bolha.
-        await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: exigeAviso ? false : true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: pens.motivo });
+        await passarAoHumano(g, { chave, tel, L, posse, hmac, motivo: 'trava', bolha: exigeAviso ? false : true, card: ctx0.card, buscarCard: false, nome: ctx0.nome, dec, detalhe: pens.motivo,
+          // A ficha da trava leva o que a posse e o contexto já têm (cidade, conta, kWh); sem isto chegava vazia ao consultor.
+          dados: dadosDoLeadParaFicha({
+            dados: dadosAnt, cidades: [ctx0.card?.cidade, ctx0.leadsMeta?.cidade, ...ctx0.cadastros.map(c => c.cidade)],
+            kwh: kwhDoLead(dadosAnt, resultado.valoresDaPessoa),
+          }),
+        });
         return 'seguir';
       }
       const saida = pens.saida;
@@ -1034,6 +1061,7 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
           },
         };
         if (saida.acao === 'suporte_giovanna') return acaoSuporte(A);
+        if (saida.acao === 'orcamento_escrito') return acaoOrcamentoEscrito(A);
         if (volta === 1) return A.humano(`ferramenta:${saida.acao}`, 'segunda_tentativa');
         return saida.acao === 'marcar_horario' ? acaoMarcar(A) : acaoLigarAgora(A);
       }
@@ -1214,7 +1242,8 @@ function textoDaFicha(p: PedidoHumano, card: CardResumo | null, destinoDono: str
     ...Object.entries(p.dados ?? {}).slice(0, 4).map(([k, v]) => `${k}: ${v}`),
   ];
   const linhas = fichaDeCampos(pseudo, extra).linhas.filter(l => !(semCard && l.startsWith('Conversa completa:')));
-  return textoDaMensagem(blocoSeguro(linhas), p.tel, destinoDono);
+  const topo = p.acao === 'orcamento_escrito' ? topoDoOrcamentoEscrito(card?.quando, Date.now()) : '';
+  return textoDaMensagem(blocoSeguro(linhas), p.tel, [topo, destinoDono].filter(Boolean).join(' '));
 }
 
 const chaveFichaDaFala = (h: string): string => `ficha_lead:${h}`;
@@ -1616,7 +1645,7 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
   }
   if (rf !== 'enviada') {
     // INCERTA (5xx, timeout) ou já avisada: a consultora pode ter a ficha. O card FICA, nada é negado ao cliente e nenhuma
-    // promessa nova sai: passa ao humano. Com ficha incerta a volta honesta cobre o silêncio (5 min depois, sem sinal).
+    // promessa nova sai: passa ao humano. Com ficha incerta a volta honesta cobre o silêncio (15 min depois, sem sinal).
     try {
       if (rf === 'incerta') await depoisDaFicha();
       await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id, ...(rf === 'incerta' ? { ligar } : {}) });
@@ -1652,6 +1681,76 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
     logger.error(LOG, `conversa ${L.id}: erro depois da ficha do ligar agora (${codigoDe(err)})`);
     soma(r.puladas, 'erro_depois_de_gravar');
     await atualizarPosse(chave, { ate_wa_id: L.id });
+  }
+  if (parar) { r.parou = parar; return 'parar'; }
+  return 'seguir';
+}
+
+/**
+ * orçamento por escrito (só a Duda). O cliente pediu o orçamento por mensagem e NÃO quer ligação: a ficha vai à consultora do solar
+ * (a MESMA escolha do ligar_agora: o dono do card remarcável, ou a da faixa de kWh) com "PEDIU ORÇAMENTO POR ESCRITO, NÃO LIGAR" no
+ * topo, e SÓ se a ficha saiu a bolha FIXA diz que a consultora manda o orçamento por aqui. A bolha do modelo nunca vai. Não cria card
+ * (criar dispararia boas-vindas e lembrete de ligação). O link da conversa só existe com card. Sem consultora definida (sem card e
+ * sem kWh) ou card de gente: passa ao humano pelo caminho de sempre. Ficha adiada: solta a vez e tenta na próxima rodada. Ficha
+ * incerta ou já avisada: passou_humano sem bolha. Nos finais com ficha a posse vai para passou_humano. A agenda nunca bloqueia: o card
+ * NÃO é silenciado (bom dia e toque de 5 min seguem); com reunião futura a ficha avisa a consultora para combinar com ele.
+ */
+async function acaoOrcamentoEscrito(A: ContextoAcao): Promise<Seguir> {
+  const { g, saida, ctx0, resultado, dadosAnt, chave, tel, L, posse, hmac, dec } = A;
+  const { r, dry } = g;
+  const cardSol = cardSolarDoCtx(ctx0);
+  const situacao = situacaoDoCard(cardSol);
+  if (situacao === 'bloqueado') return A.humano('ferramenta:orcamento_escrito', 'card_de_gente');
+  const dadosJuntos = { ...dadosAnt, ...saida.dados };
+  const kwh = kwhDoLead(dadosJuntos, resultado.valoresDaPessoa);
+  const alvo = A.oferta.alvo ?? alvoDaAgenda(cardSol, kwh);
+  if (!alvo) return A.humano('ferramenta:orcamento_escrito', 'sem_gasto');
+  const bolha = BOLHA_ORCAMENTO_ESCRITO;
+  if (dry) { dec({ resultado: 'passaria_orcamento_escrito', ...A.base2, ficha: 'ficharia', sairia: [bolha] }); return 'seguir'; }
+
+  const card = situacao === 'remarcavel' ? cardSolarDe(cardSol) : null;
+  const dados = dadosDoLeadParaFicha({
+    dados: dadosJuntos, cidades: [card?.cidade, ctx0.leadsMeta?.cidade, ...ctx0.cadastros.map(c => c.cidade)], kwh,
+  });
+  const nome = String(ctx0.nome ?? '').trim();
+  const cardFicha: CardDaFicha = card
+    ? cardDaFichaDe(card)
+    : { id: 0, vendedor_nome: null, quando: null, cliente_nome: nome || null, cidade: dados['Cidade'] ?? null, observacao: null, created_by: 'lp_solar' };
+  const temFoto = ctx0.msgs.some(m => m.autor === 'lead' && (m.tipo === 'image' || m.tipo === 'imagem'));
+  const { destino, prefixoDono } = await destinoDaFicha(alvo.dono, chave);
+  const linhas = fichaDeCampos(cardFicha, linhasDoOrcamentoEscrito({ dados, temFoto, comLigacaoMarcada: Date.parse(String(card?.quando ?? '')) > g.agoraEnvio().getTime() })).linhas.filter(l => !(!card && l.startsWith('Conversa completa:')));
+  const texto = textoDaMensagem(blocoSeguro(linhas), tel, [topoDoOrcamentoEscrito(card?.quando, g.agoraEnvio().getTime()), prefixoDono].filter(Boolean).join(' '));
+  const rf = await enviarFichaVivo(g, {
+    chave, acao: 'orcamento', cardId: card?.id ?? 0, n: String(L.id), reserva: `ag5040_orcamento:${hmac}:${L.id}`, destino, texto,
+  });
+  if (rf === 'adiada') {
+    await A.soltar();                      // nada saiu: a próxima rodada tenta de novo, dentro dos 15 min
+    soma(r.puladas, 'ficha_adiada');
+    dec({ resultado: 'ficha_adiada', ...A.base2, ficha: 'adiada' });
+    return 'seguir';
+  }
+  if (rf !== 'enviada') {
+    // Já avisada ou incerta: a consultora pode ter a ficha, e uma bolha prometeria o que não se confirmou. Sem bolha.
+    await A.registrar(false, 'ferramenta:orcamento_escrito');
+    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id });
+    dec({ resultado: 'passou_ao_humano', ...A.base2, ficha: rf === 'ja_avisada' ? 'lead_ja_avisado' : 'falhou' });
+    return 'seguir';
+  }
+  let parar: 'erro_linha' | 'espacamento' | null = null;
+  try {
+    const res = await enviarAoLead(chave, posse, { dona: 'duda', telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
+    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id, ...(res.ok ? { respostas: posse.respostas + 1 } : {}) });
+    await A.registrar(res.ok, res.ok ? undefined : `acao_recusada:${res.motivo}`);
+    if (res.ok) r.enviadas++;
+    else if (res.motivo === 'erro_linha' || res.motivo === 'espacamento') parar = res.motivo;
+    dec({
+      resultado: 'orcamento_escrito', ...A.base2, ficha: 'enviada', n_bolhas: res.ok ? 1 : 0, tamanho: res.ok ? bolha.length : 0,
+      ...(res.ok ? {} : { motivo: `bolha_recusada:${res.motivo}` }),
+    });
+  } catch (err) {
+    logger.error(LOG, `conversa ${L.id}: erro depois da ficha do orçamento por escrito (${codigoDe(err)})`);
+    soma(r.puladas, 'erro_depois_de_gravar');
+    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id });
   }
   if (parar) { r.parou = parar; return 'parar'; }
   return 'seguir';
@@ -1910,7 +2009,7 @@ const remarcadoDevida = (rem: RemarcadoPendente, agoraMs: number): boolean => {
 };
 
 /**
- * Esta posse tem pendência para tratar AGORA? Fora ficam as resolvidas e as que ainda esperam (volta antes dos 5 min, suporte
+ * Esta posse tem pendência para tratar AGORA? Fora ficam as resolvidas e as que ainda esperam (volta antes dos 15 min, suporte
  * antes dos 10, ficha "remarcado" dentro da espera crescente), para não ocuparem as vagas da rodada. A vencida (volta passada
  * da validade, horário do card que passou) FICA: um passo a resolve e libera a vaga.
  */
@@ -1995,7 +2094,7 @@ async function varrerPendencias(g: G): Promise<void> {
 }
 
 /**
- * Volta honesta do "ligar agora": 5 min depois do aviso, sem sinal da consultora, 1 bolha de agenda (duda_agenda_5040,
+ * Volta honesta do "ligar agora": 15 min depois do aviso, sem sinal da consultora, 1 bolha de agenda (duda_agenda_5040,
  * tipo volta) com dois horários, e a conversa passa ao humano. Sinal = fala dela ao lead (autor equipe, nunca a nossa
  * bolha de API), OU resposta dela à ficha no chat dela com a 5040, OU o status do card mudou. Leitura que falha = nada.
  * true = enfileirou (ou venceu a validade).

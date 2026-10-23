@@ -28,6 +28,8 @@ export interface MsgConversa {
   momment: string;
   /** Transcrição de áudio, quando houver. Campo à parte de `texto`. */
   transcricao?: string | null;
+  /** O nome do perfil do WhatsApp. SÓ nas falas do lead (nas nossas é o nome da linha ou da consultora) e só quando existe. */
+  sender_name?: string | null;
 }
 
 /**
@@ -142,6 +144,11 @@ export interface FatosPorteiro {
    * NOVA, então o porteiro devolve ninguém (passo 1).
    */
   outroRoboAtivo: boolean;
+  /**
+   * Tem reunião ou card de ELETROPOSTO ativo (o mesmo critério do recepcaoIo.temAgendaDeEletroposto: de 10 dias atrás a 60 pela frente,
+   * fora o cancelado). Quem cede é a Duda: o lead não ouve a Duda e a agenda do eletroposto ao mesmo tempo. Ausente = falso.
+   */
+  reuniaoEletroposto?: boolean;
 }
 
 /** Retrato da conversa que a trava usa. */

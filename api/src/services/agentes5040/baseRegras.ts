@@ -285,6 +285,36 @@ export function decidirBolhaDaRetomada(s: SaidaMinima): DecisaoDaBolha {
   return { tipo: 'texto', bolha: b };
 }
 
+// ── pedido EXPLÍCITO para parar de receber ───────────────────────────────────
+
+/**
+ * Só o pedido explícito de parar de receber mensagem (texto já em minúsculo e sem acento). Bem mais estreita que pareceOptOut, que serve
+ * ao estacionar e casa "não quero financiar" ou "meu cartão foi bloqueado": quem usa isto CALA o contato, então "não quero horário",
+ * "pode parar de ligar e me mandar mensagem" ou "não tenho interesse no momento" não podem casar.
+ */
+// Depois de "mandar" só vale o fim do texto, pontuação ou "mensagem/nada/isso...": "parar de me mandar ÁUDIO" é pedido de formato, não de parar.
+const FIM_DO_PEDIDO = String.raw`(?=\s*(?:$|[.!?,;]|\b(?:mensagem|mensagens|msg|nada|isso|essa|essas)\b))`;
+const RE_PARAR_DE_RECEBER = new RegExp([
+  String.raw`\b(?:par[ae]m?|parar) de (?:me )?mandar${FIM_DO_PEDIDO}`,
+  String.raw`\bnao (?:me )?mand(?:e|em|a) mais${FIM_DO_PEDIDO}`,
+  String.raw`\bnao quero mais receber\b`,
+  String.raw`\bsair da lista\b(?! de espera)`,
+  String.raw`\bme tir[ae] da lista\b(?! de espera)`,
+  String.raw`\bremov(?:e|er) meu numero\b`,
+  String.raw`\bme descadastr(?:ar|a|e)\b`,
+  String.raw`\bdescadastr(?:ar|e) meu (?:numero|contato|telefone)\b`,
+].join('|'));
+/** A mensagem INTEIRA é só uma destas palavras (a pontuação em volta não conta). */
+const RE_SO_A_PALAVRA = /^[^a-z0-9]*(?:stop|pare|parar|sair|descadastrar|descadastre|descadastra)[^a-z0-9]*$/;
+
+/** Algum destes textos é pedido explícito para parar de receber mensagem? */
+export function pedeParaPararDeReceber(textos: readonly string[]): boolean {
+  return textos.some(bruto => {
+    const t = semAcento(bruto).replace(/\s+/g, ' ').trim();
+    return !!t && (RE_SO_A_PALAVRA.test(t) || RE_PARAR_DE_RECEBER.test(t));
+  });
+}
+
 // ── estacionar ───────────────────────────────────────────────────────────────
 
 const P2 = (n: number): string => String(n).padStart(2, '0');

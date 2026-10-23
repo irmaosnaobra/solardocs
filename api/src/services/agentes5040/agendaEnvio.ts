@@ -177,8 +177,15 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
     degraus = [bolha, `Pronto, mudei sua ligação para ${dia} às ${hora}.`, `Ficou marcado para ${dia} às ${hora}.`];
   } else if (tipo === 'volta') {
     if (!opcao1 || !opcao2) return null;
-    bolha = `Consigo deixar a ligação marcada pra você: ${opcao1} ou ${opcao2}. Qual fica melhor?`;
-    degraus = [bolha, `Posso ligar ${opcao1} ou ${opcao2}? Qual fica melhor?`];
+    // Condicional: a volta sai 15 min depois do aviso e a consultora pode já ter ligado. Todos os degraus mantêm o "se".
+    const opcoes = juntarOpcoes(opcao1, opcao2);
+    bolha = `Se ${consultora ? `a ${consultora}` : 'a consultora'} ainda não conseguiu te ligar, deixo marcado: ${opcoes}. Qual fica melhor?`;
+    degraus = [
+      bolha,
+      `Se ela ainda não conseguiu te ligar, deixo marcado: ${opcoes}. Qual fica melhor?`,
+      `Se ela não ligou, deixo marcado: ${opcoes}. Qual prefere?`,
+      `Se não ligaram, deixo: ${opcoes}. Qual prefere?`,
+    ];
   } else if (tipo === 'abertura') {
     // A abertura do card do quiz (textosAgenda.ts): ignora o reforço (o reenvio sai com o mesmo texto) e já se corta sozinha em 160.
     const t = textoDeAbertura(c.caminho, c.nome, texto(c.quando), consultora);
@@ -192,7 +199,22 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
     for (const d of degraus) { const b = `${frase} ${d}`; if (serve(b)) return b; }
     return null;
   }
+  // A volta nunca é descartada por tamanho enquanto algum degrau couber (a agenda nunca bloqueia).
+  if (tipo === 'volta') return degraus.find(serve) ?? null;
   return serve(bolha) ? bolha : null;
+}
+
+/**
+ * As duas opções da volta em uma frase. Mesmo dia nas duas: o dia não se repete ("amanhã às 8h ou às 8h30"). Dias diferentes
+ * ou fora do formato "<dia> às <hora>": as duas por inteiro.
+ */
+export function juntarOpcoes(opcao1: string, opcao2: string): string {
+  const corte = (o: string): number => o.indexOf(' às ');
+  const i1 = corte(opcao1), i2 = corte(opcao2);
+  if (i1 > 0 && i2 > 0 && opcao1.slice(0, i1).toLowerCase() === opcao2.slice(0, i2).toLowerCase()) {
+    return `${opcao1} ou ${opcao2.slice(i2 + 1)}`;
+  }
+  return `${opcao1} ou ${opcao2}`;
 }
 
 /** Os campos do texto, montados AGORA (Brasília) a partir dos ISOs do item. */

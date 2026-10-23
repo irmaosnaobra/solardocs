@@ -19,6 +19,7 @@
 import { MODELO_RESERVA, montarPedido, pensar, type ClienteIA, type Pensamento } from './ia';
 import { prepararMidia, type BlocoMidia, type CacheMidia } from './midia';
 import { ACOES_SEM_FALA } from './personas/comum';
+import { ACOES_DUDA_SEM_FALA } from './personas/duda';
 import { personaDef } from './personas';
 import { semAcento, valoresEmReais } from './trava';
 import { diaBRT } from './relogio';
@@ -235,7 +236,7 @@ export async function pensarTurno(e: EntradaTurno): Promise<ResultadoTurno> {
       completa: ctx.completa,
       qualificado,
       valoresDaPessoa: valores,
-      acoesSemFala: ACOES_SEM_FALA,
+      acoesSemFala: [...ACOES_SEM_FALA, ...ACOES_DUDA_SEM_FALA],
       ...(e.exigeAviso === true ? { exigeAviso: true } : {}),
       agora: ctx.agora,
       prazosDaPessoa: prazosDaPessoaDe(textos, e.dadosAnteriores),

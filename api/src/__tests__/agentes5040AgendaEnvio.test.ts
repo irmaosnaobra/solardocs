@@ -163,7 +163,7 @@ const textos = (): string[] => h.enviados.map(e => e.partes[0]!);
 const pedido = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => ({
   tipo: 'confirma', cardId: 501, telefone: TEL, quando: QUANDO, validoAte: dep(2 * HORA), consultora: 'Giovanna', ...extra,
 });
-/** A volta honesta: quando = o aviso do "ligar agora" (6 min atrás), as duas vagas em ISO, validade de 30 min depois do aviso. */
+/** A volta honesta: quando = o aviso do "ligar agora" (6 min atrás), as duas vagas em ISO, validade de 40 min depois do aviso. */
 const pedidoVolta = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => ({
   tipo: 'volta', cardId: 503, telefone: TEL, quando: ant(6 * MIN), validoAte: dep(24 * MIN), consultora: 'Ana', opcoes: [VAGA1, VAGA2], ...extra,
 });
@@ -192,7 +192,7 @@ describe('agendaEnvio: as bolhas fixas', () => {
     const casos: Array<[PedidoAgenda, string]> = [
       [pedido({ tipo: 'confirma', cardId: 501, quando: sexta }), 'Ficou marcado para sexta, 23/10 às 14h30. A Giovanna te liga nesse horário.'],
       [pedido({ tipo: 'remarca', cardId: 502, quando: hoje16h, consultora: 'Nilce Souza' }), 'Pronto, mudei sua ligação para hoje às 16h. Quem liga é a Nilce.'],
-      [pedidoVolta({ cardId: 503 }), 'Consigo deixar a ligação marcada pra você: hoje às 15h ou amanhã às 9h. Qual fica melhor?'],
+      [pedidoVolta({ cardId: 503 }), 'Se a Ana ainda não conseguiu te ligar, deixo marcado: hoje às 15h ou amanhã às 9h. Qual fica melhor?'],
     ];
     for (const [p] of casos) expect((await enfileirarAgenda(p, AGORA)).ok).toBe(true);
     const r = await enviarAgendaPendente(AGORA);
@@ -646,7 +646,7 @@ describe('agendaEnvio: erro de envio e dado pessoal', () => {
     await enfileirarAgenda(pedidoVolta({ cardId: 503 }), AGORA);
     await enviarAgendaPendente(AGORA);
     await enviarAgendaPendente(new Date(AGORA.getTime() + 2 * MIN));
-    expect(textos()).toEqual(Array(2).fill('Consigo deixar a ligação marcada pra você: hoje às 15h ou amanhã às 9h. Qual fica melhor?'));
+    expect(textos()).toEqual(Array(2).fill('Se a Ana ainda não conseguiu te ligar, deixo marcado: hoje às 15h ou amanhã às 9h. Qual fica melhor?'));
   });
 
   it('erro 4xx (rejeitado): o carimbo fica, o item sai da fila e não há reenvio', async () => {
@@ -1045,7 +1045,7 @@ describe('agendaEnvio: o aviso de IA na confirmação, na remarcação e na volt
     h.estado.clear(); h.enviados.length = 0;
     expect((await enfileirarAgenda(pedidoVolta({ cardId: 503 }), AGORA)).ok).toBe(true);
     await enviarAgendaPendente(AGORA);
-    expect(textos()[0]).toBe(`${FRASE} Consigo deixar a ligação marcada pra você: hoje às 15h ou amanhã às 9h. Qual fica melhor?`);
+    expect(textos()[0]).toBe(`${FRASE} Se a Ana ainda não conseguiu te ligar, deixo marcado: hoje às 15h ou amanhã às 9h. Qual fica melhor?`);
     expect(textos()[0]!.length).toBeLessThanOrEqual(160);
   });
 
@@ -1096,9 +1096,15 @@ describe('agendaEnvio: o aviso de IA na confirmação, na remarcação e na volt
     expect(longa).toBe(`${FRASE} Ficou marcado para quinta, 23/10 às 14h30. Te ligamos nesse horário.`);
     expect(montarBolhaAgenda('remarca', campos, false, true)).toBe(`${FRASE} Pronto, mudei sua ligação para quinta, 23/10 às 14h30.`);
     expect(montarBolhaAgenda('confirma', campos, true, true)).toBe(`${FRASE} Só reforçando: a sua ligação ficou para quinta, 23/10 às 14h30.`);
-    const volta = montarBolhaAgenda('volta', { opcao1: 'segunda, 26/10 às 14h30', opcao2: 'terça, 27/10 às 14h30' }, false, true);
-    expect(volta).toBe(`${FRASE} Posso ligar segunda, 26/10 às 14h30 ou terça, 27/10 às 14h30? Qual fica melhor?`);
+    const volta = montarBolhaAgenda('volta', { consultora: 'Ana', opcao1: 'segunda, 26/10 às 14h30', opcao2: 'terça, 27/10 às 14h30' }, false, true);
+    // a versão cheia e a sem o nome estouram os 160 com a frase: cai para uma mais curta, que continua condicional
+    expect(volta).toBe(`${FRASE} Se ela não ligou, deixo marcado: segunda, 26/10 às 14h30 ou terça, 27/10 às 14h30. Qual prefere?`);
     for (const b of [longa, volta]) expect(b!.length).toBeLessThanOrEqual(160);
+    // pior caso da volta com a frase: consultora de nome longo e as duas opções em dias diferentes; cai no degrau curto e segue condicional
+    const pior = montarBolhaAgenda('volta', { consultora: 'Wilhelmina-Alexandrina-Maximiliana-Bartolomeu', opcao1: 'quinta, 23/10 às 14h30', opcao2: 'sexta, 24/10 às 14h45' }, false, true)!;
+    expect(pior.length).toBeLessThanOrEqual(160);
+    expect(pior).toMatch(/ Se /);
+    expect(pior).not.toMatch(/Posso ligar/);
     // sem o aviso o texto cheio segue o mesmo de antes
     expect(montarBolhaAgenda('confirma', { dia: 'hoje', hora: '9h', consultora: 'Ana' })).toBe('Ficou marcado para hoje às 9h. A Ana te liga nesse horário.');
   });

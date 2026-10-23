@@ -537,15 +537,15 @@ describe('ligar_agora', () => {
 });
 
 describe('volta honesta do ligar agora', () => {
-  const AVISADO = iso(6 * 60_000);
+  const AVISADO = iso(16 * 60_000);
   const ligar = (extra: Record<string, unknown> = {}) => ({ cardId: 99, avisado_em: AVISADO, dono: 'Giovanna', faixa: 'novo', criado: true, status_inicial: 'agendado', ...extra });
   const cardLigar = (extra: Record<string, unknown> = {}) => ({ id: 99, cliente_telefone: TEL, vendedor_nome: 'Giovanna', status: 'agendado', ...extra });
   /** Nossa bolha ("ela te liga em instantes") depois do aviso: sai da API, então NÃO é sinal da consultora. */
-  const bolhaNossa = { id: 11, instancia: 'inst-io', telefone: TEL, is_group: false, from_me: true, from_api: true, tipo: 'texto', texto: BOLHA_LIGAR, momment: iso(5 * 60_000 + 30_000) };
+  const bolhaNossa = { id: 11, instancia: 'inst-io', telefone: TEL, is_group: false, from_me: true, from_api: true, tipo: 'texto', texto: BOLHA_LIGAR, momment: iso(15 * 60_000 + 30_000) };
 
   function semearVolta(opts: { posse?: Record<string, unknown>; msgs?: any[]; card?: Record<string, unknown> | null } = {}) {
     (banco.tabelas.wa_mensagens ??= []).push(
-      linhaLead(10, TEL, iso(7 * 60_000), { texto: 'Pode ligar' }), bolhaNossa, ...(opts.msgs ?? []),
+      linhaLead(10, TEL, iso(17 * 60_000), { texto: 'Pode ligar' }), bolhaNossa, ...(opts.msgs ?? []),
     );
     (banco.tabelas.whatsapp_sessions ??= []).push({
       phone: CHAVE, tipo: 'ag5040', updated_at: AVISADO,
@@ -555,14 +555,14 @@ describe('volta honesta do ligar agora', () => {
     alvo([hmacDe(CHAVE)!]);
   }
 
-  it('5 min sem sinal (e com a nossa bolha de API depois do aviso): 1 volta na fila e a conversa passa ao humano; a rodada seguinte não repete', async () => {
+  it('15 min sem sinal (e com a nossa bolha de API depois do aviso): 1 volta na fila e a conversa passa ao humano; a rodada seguinte não repete', async () => {
     semearVolta();
     h.vagas.mockResolvedValue([V1, V2]);
     const r = await rodar();
     expect(h.fila).toHaveBeenCalledTimes(1);
     const p = h.fila.mock.calls[0]![0];
     expect(p).toMatchObject({
-      tipo: 'volta', cardId: 99, telefone: TEL, quando: AVISADO, validoAte: new Date(Date.parse(AVISADO) + 30 * 60_000).toISOString(),
+      tipo: 'volta', cardId: 99, telefone: TEL, quando: AVISADO, validoAte: new Date(Date.parse(AVISADO) + 40 * 60_000).toISOString(),
       consultora: 'Giovanna', opcoes: [V1, V2],
     });
     expect(p.campos).toBeUndefined();                                           // o texto ("amanhã às 9h30") é montado no envio
@@ -575,8 +575,8 @@ describe('volta honesta do ligar agora', () => {
     expect(h.fila).toHaveBeenCalledTimes(1);
   });
 
-  it('menos de 5 min: nada ainda', async () => {
-    semearVolta({ posse: { ligar: ligar({ avisado_em: iso(4 * 60_000) }) } });
+  it('menos de 15 min: nada ainda', async () => {
+    semearVolta({ posse: { ligar: ligar({ avisado_em: iso(14 * 60_000) }) } });
     await rodar();
     expect(h.fila).not.toHaveBeenCalled();
     expect(posseDe().estado).toBe('viva');
@@ -1046,9 +1046,9 @@ describe('pendenciaDevida: resolvidas e ainda-sem-vez saem antes do corte das 5 
     expect(pendenciaDevida(rem({ tentativas: 9, ultima_em: min(15) }), T)).toBe(true);
     expect(pendenciaDevida(rem({ em: min(60), resolvido_em: min(1) }), T)).toBe(false);
   });
-  it('volta (5 min) e suporte (10 min): antes da hora ou resolvidos saem; vencida fica para ser fechada', () => {
-    expect(pendenciaDevida({ ligar: { avisado_em: min(4) } } as any, T)).toBe(false);
-    expect(pendenciaDevida({ ligar: { avisado_em: min(5) } } as any, T)).toBe(true);
+  it('volta (15 min) e suporte (10 min): antes da hora ou resolvidos saem; vencida fica para ser fechada', () => {
+    expect(pendenciaDevida({ ligar: { avisado_em: min(14) } } as any, T)).toBe(false);
+    expect(pendenciaDevida({ ligar: { avisado_em: min(15) } } as any, T)).toBe(true);
     expect(pendenciaDevida({ ligar: { avisado_em: min(300) } } as any, T)).toBe(true);
     expect(pendenciaDevida({ ligar: { avisado_em: min(30), volta_em: min(1) } } as any, T)).toBe(false);
     expect(pendenciaDevida({ ligar: { avisado_em: min(30), resolvido_em: min(1) } } as any, T)).toBe(false);
@@ -1067,12 +1067,12 @@ describe('pendenciaDevida: resolvidas e ainda-sem-vez saem antes do corte das 5 
 
 describe('correção 9: erro de linha na rodada pula também as pendências', () => {
   it('com erro_linha numa conversa, a volta honesta pendente espera a próxima rodada; sem o erro ela roda', async () => {
-    const AVISADO = iso(6 * 60_000);
+    const AVISADO = iso(16 * 60_000);
     const montar = (): void => {
       recomecar();
       (banco.tabelas.wa_mensagens ??= []).push(
-        linhaLead(10, TEL, iso(7 * 60_000), { texto: 'Pode ligar' }),
-        { id: 11, instancia: 'inst-io', telefone: TEL, is_group: false, from_me: true, from_api: true, tipo: 'texto', texto: BOLHA_LIGAR, momment: iso(5 * 60_000 + 30_000) },
+        linhaLead(10, TEL, iso(17 * 60_000), { texto: 'Pode ligar' }),
+        { id: 11, instancia: 'inst-io', telefone: TEL, is_group: false, from_me: true, from_api: true, tipo: 'texto', texto: BOLHA_LIGAR, momment: iso(15 * 60_000 + 30_000) },
       );
       (banco.tabelas.whatsapp_sessions ??= []).push({
         phone: CHAVE, tipo: 'ag5040', updated_at: AVISADO,

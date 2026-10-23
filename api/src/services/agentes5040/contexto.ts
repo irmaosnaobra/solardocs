@@ -57,10 +57,66 @@ function codigoDoErro(e: unknown): string {
 export interface ConversaLida { msgs: MsgConversa[]; completa: boolean }
 
 function paraMsg(l: LinhaWa): MsgConversa {
-  return {
+  const m: MsgConversa = {
     id: l.id, from_me: !!l.from_me, from_api: l.from_api ?? null, autor: autorDe(l),
     texto: l.texto ?? null, tipo: l.tipo, media_url: l.media_url ?? null, momment: l.momment,
   };
+  // O nome do perfil só vale em fala do CONTATO: nas nossas o sender_name é o nome da linha ou da consultora.
+  if (m.autor === 'lead' && String(l.sender_name ?? '').trim()) m.sender_name = String(l.sender_name).trim();
+  return m;
+}
+
+// ── o nome do lead ───────────────────────────────────────────────────────────
+
+/** Palavras que marcam nome de empresa, loja ou página (comparadas sem acento, minúsculas, palavra inteira). */
+const PALAVRAS_DE_EMPRESA: ReadonlySet<string> = new Set([
+  'ltda', 'eireli', 'me', 'mei', 'solar', 'energia', 'engenharia', 'eletrica', 'construtora', 'comercial', 'loja', 'store', 'oficial',
+  'servicos', 'distribuidora', 'materiais', 'grupo', 'empresa', 'instalacoes',
+]);
+/** Tratamento que vem ANTES do nome ("Dona Maria", "Seu João", "Prof Ana"): a palavra escolhida é a seguinte. */
+const TITULOS_DE_TRATAMENTO: ReadonlySet<string> = new Set([
+  'dona', 'seu', 'sr', 'sra', 'dr', 'dra', 'prof', 'profa', 'professor', 'professora', 'pastor', 'pastora',
+]);
+/** Apelido, título ou palavra que não é nome de gente (a palavra escolhida não pode ser uma destas). */
+const APELIDOS: ReadonlySet<string> = new Set([
+  'eng', 'deus', 'jesus', 'cliente', 'amor', 'mae', 'pai', 'tio', 'tia', 'vo', 'irmao', 'irma',
+  'vovo', 'vova', 'familia', 'gratidao', 'gracas', 'eletricista',
+]);
+
+/**
+ * O primeiro nome do perfil do WhatsApp, só quando PARECE nome de gente; senão null. Se a 1ª palavra é tratamento (dona, seu, sr, dr,
+ * prof, pastor...), vale a 2ª, desde que passe no filtro. A palavra escolhida tem que ter só letras (acento vale), de 2 a 20, com pelo
+ * menos uma vogal, e não ser apelido ou título. Recusa dígito, emoji ou símbolo em qualquer parte e palavra de empresa em qualquer parte.
+ * Sai com a primeira letra maiúscula e o resto minúsculo.
+ */
+export function nomeDoPerfil(bruto: unknown): string | null {
+  const s = String(bruto ?? '').normalize('NFC').trim();
+  if (!s || !/^[\p{L}\p{M}\s.'’-]+$/u.test(s)) return null;      // dígito, emoji, símbolo, @, |, _ ... = recusa
+  const palavras = s.split(/\s+/);
+  const limpa = (p: string): string => semAcentoMin(p.replace(/[.'’-]/g, ''));
+  for (const p of palavras) if (PALAVRAS_DE_EMPRESA.has(limpa(p))) return null;
+  const escolhida = TITULOS_DE_TRATAMENTO.has(limpa(palavras[0]!)) ? palavras[1] : palavras[0];
+  if (!escolhida || !/^\p{L}{2,20}$/u.test(escolhida)) return null;
+  const chave = semAcentoMin(escolhida);
+  if (APELIDOS.has(chave) || TITULOS_DE_TRATAMENTO.has(chave) || !/[aeiou]/.test(chave)) return null;
+  return escolhida.charAt(0).toLocaleUpperCase('pt-BR') + escolhida.slice(1).toLocaleLowerCase('pt-BR');
+}
+
+/** Nome que serve: não vazio e diferente do "Cliente" que o sistema grava quando não sabe. */
+const nomeReal = (n: unknown): string | null => {
+  const t = String(n ?? '').trim();
+  return t && semAcentoMin(t) !== 'cliente' ? t : null;
+};
+
+/** O nome do perfil da fala mais recente do lead que tenha um nome que pareça de gente. */
+export function nomeDoPerfilNasMsgs(msgs: readonly MsgConversa[]): string | null {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]!;
+    if (m.autor !== 'lead') continue;
+    const n = nomeDoPerfil(m.sender_name);
+    if (n) return n;
+  }
+  return null;
 }
 
 /**
@@ -304,6 +360,39 @@ async function lerOutroRoboAtivo(chave: string, agoraMs: number): Promise<boolea
   return inv.data ? sessaoSeguraOutrosRobos((inv.data as { value?: unknown }).value, agoraMs) : false;
 }
 
+/** Janela da reunião de eletroposto: a MESMA do recepcaoIo.temAgendaDeEletroposto (10 dias para trás, 60 para a frente). */
+const REUNIAO_EP_ATRAS_MS = 10 * 24 * 3600_000;
+const REUNIAO_EP_ADIANTE_MS = 60 * 24 * 3600_000;
+/**
+ * Card de eletroposto em fim de linha: os robôs ep_* não falam com ele. É o DESTINO_FINAL de io/eletropostoReagendaAuto.ts (fechou,
+ * sem_interesse, cancelado, perdido, fechou_concorrente) mais vendido e arrendamento, os status finais do gerador. Copiado aqui porque
+ * importar aquele módulo puxaria o zapiClient para o caminho do porteiro (o contexto.ts não importa nada de envio). Status novo
+ * nasce ativo, como lá.
+ */
+const STATUS_EP_ENCERRADO: ReadonlySet<string> = new Set([
+  'fechou', 'sem_interesse', 'cancelado', 'perdido', 'fechou_concorrente', 'vendido', 'arrendamento',
+]);
+
+/**
+ * Este contato tem (ou teve, faz pouco) reunião ou card de eletroposto na agenda? Mesmo critério do recepcaoIo.ts
+ * (temAgendaDeEletroposto): created_by com "eletroposto", `quando` entre 10 dias atrás e 60 pela frente. Só conta o card em que o robô
+ * do eletroposto ainda fala: o de fim de linha (STATUS_EP_ENCERRADO) não conta, senão o lead ficaria sem ninguém. Diferença de propósito:
+ * o recepcaoIo falha aberto, e aqui, como em toda leitura do porteiro, o erro SOBE.
+ */
+async function lerReuniaoEletroposto(chave: string, agoraMs: number): Promise<boolean> {
+  const { data, error } = await supabaseGerador.from('agendamentos')
+    .select('id, cliente_telefone, created_by, status, quando')
+    .ilike('cliente_telefone', `%${caudaDaChave(chave)}`)
+    .gte('quando', new Date(agoraMs - REUNIAO_EP_ATRAS_MS).toISOString())
+    .lte('quando', new Date(agoraMs + REUNIAO_EP_ADIANTE_MS).toISOString())
+    .limit(20);
+  if (error) throw new ErroBanco(String(error.code ?? 'desconhecido'));
+  return ((data ?? []) as Array<{ cliente_telefone: string | null; created_by: string | null; status: string | null }>)
+    .some(r => mesmoContato(r.cliente_telefone, chave)
+      && String(r.created_by ?? '').toLowerCase().includes('eletroposto')
+      && !STATUS_EP_ENCERRADO.has(String(r.status ?? '').trim().toLowerCase()));
+}
+
 const FATOS_VAZIOS: FatosPorteiro = {
   leituraOk: false, humanoNaConversa: false, naoIncomodar: false, bloqueado: false, mudo: false,
   donaAtual: null, ehClienteSolarDoc: false, anuncio: null, primeiroTextoDoLead: null, origemCadastro: null,
@@ -329,9 +418,9 @@ export async function lerFatosPorteiro(
     if (!/^\d{10}$/.test(chave)) return { ...FATOS_VAZIOS };      // lid: sem telefone resolvido
     const agoraMs = opts.agora instanceof Date ? opts.agora.getTime() : (opts.agora ?? Date.now());
     const listas = opts.listas ?? await carregarListasDeBarragem();
-    const [pausaAtiva, card, lead, cadastros, cliente, outroRobo] = await Promise.all([
+    const [pausaAtiva, card, lead, cadastros, cliente, outroRobo, reuniaoEp] = await Promise.all([
       humanoAtivo(chave, agoraMs), lerCard(chave), lerLeadsMeta(chave), lerCadastros(chave), lerEhCliente(chave),
-      lerOutroRoboAtivo(chave, agoraMs),
+      lerOutroRoboAtivo(chave, agoraMs), lerReuniaoEletroposto(chave, agoraMs),
     ]);
     const janela = janelaPausaH() * 3600_000;
     // Fala recente da equipe SEMPRE conta como humano, mesmo com PAUSA_HUMANA_OFF=1 (o desligador é da tabela de pausas).
@@ -350,6 +439,7 @@ export async function lerFatosPorteiro(
       primeiroTextoDoLead: primeiro ? String(primeiro.texto) : null,
       origemCadastro: origemDe(card, lead, cadastros, agoraMs),
       outroRoboAtivo: outroRobo,
+      reuniaoEletroposto: reuniaoEp,
     };
   } catch (e) {
     console.error('[agentes5040] leitura dos fatos do porteiro falhou', codigoDoErro(e));
@@ -388,7 +478,9 @@ export async function montarContexto(
       completa = false;
     }
   }
-  const nome = card?.cliente_nome || leadsMeta?.nome || cadastros.find(c => c.nome)?.nome || null;
+  // Card, lead do anúncio e cadastro primeiro (o "Cliente" que o sistema grava sem nome não conta); sem nenhum, o nome do perfil do WhatsApp.
+  const nome = nomeReal(card?.cliente_nome) ?? nomeReal(leadsMeta?.nome) ?? nomeReal(cadastros.find(c => nomeReal(c.nome))?.nome)
+    ?? nomeDoPerfilNasMsgs(conversa.msgs) ?? null;
   return {
     chave, nome, msgs: conversa.msgs, completa, card, cardSolar, leadsMeta, cadastros,
     ehClienteSolarDoc: cliente, anuncio: opts.anuncio ?? null, qualificado: !!opts.qualificado, agora,

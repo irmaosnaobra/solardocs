@@ -100,20 +100,27 @@ export function decidirDona(f: FatosPorteiro): DecisaoPorteiro {
     // Virada: conversa que um robô antigo já abriu termina com ele. Só decide quando ainda não há dona.
     if (f.outroRoboAtivo) return { dona: null, passo: 1, motivo: 'outro robô na conversa' };
 
+    // Reunião ou card de eletroposto ativo: a Duda cede (a agenda do eletroposto já fala com o lead). Vale para os passos 4 a 6, que
+    // são os que escolhem a Duda; a Helena e a Carla seguem como antes, e uma posse que já é da Duda ficou no passo 2.
+    const cede = (d: DecisaoPorteiro): DecisaoPorteiro =>
+      d.dona === 'duda' && f.reuniaoEletroposto === true
+        ? { dona: null, passo: 1, motivo: 'reunião ou card de eletroposto ativo: a Duda cede' }
+        : d;
+
     // 3. cliente do SolarDoc
     if (f.ehClienteSolarDoc) return { dona: 'giovanna_suporte', passo: 3, motivo: 'cliente do SolarDoc: suporte' };
 
     // 4. anúncio
     const doAnuncio = f.anuncio?.produto ?? null;
-    if (doAnuncio) return { dona: PERSONA_DO_PRODUTO[doAnuncio], passo: 4, motivo: `anúncio de ${doAnuncio}` };
+    if (doAnuncio) return cede({ dona: PERSONA_DO_PRODUTO[doAnuncio], passo: 4, motivo: `anúncio de ${doAnuncio}` });
 
     // 5. botão
     const doBotao = produtoDoBotao(f.primeiroTextoDoLead);
-    if (doBotao) return { dona: PERSONA_DO_PRODUTO[doBotao], passo: 5, motivo: `texto de botão de ${doBotao}` };
+    if (doBotao) return cede({ dona: PERSONA_DO_PRODUTO[doBotao], passo: 5, motivo: `texto de botão de ${doBotao}` });
 
     // 6. cadastro / card
     const daOrigem = produtoDaOrigem(f.origemCadastro);
-    if (daOrigem) return { dona: PERSONA_DO_PRODUTO[daOrigem], passo: 6, motivo: `cadastro de ${daOrigem}` };
+    if (daOrigem) return cede({ dona: PERSONA_DO_PRODUTO[daOrigem], passo: 6, motivo: `cadastro de ${daOrigem}` });
 
     // 7. a pergunta
     return { dona: null, passo: 7, motivo: 'sem sinal do assunto: pergunta única', pergunta: PERGUNTA_DO_PORTEIRO };
