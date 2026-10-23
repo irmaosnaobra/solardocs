@@ -27,6 +27,8 @@ import {
 } from '../services/gerador/docsClienteBanco';
 import { ErroCadastro, comTrava } from '../services/gerador/cadastroVendaBanco';
 import { lerRotulos, gravarRotulos, rotuloManual, travaDaVenda, type Rotulos } from '../services/gerador/docsRotulos';
+import { lerEstadoDoRegistro, ehCodigoDoAlocador } from '../services/gerador/vendaSolarRegistro';
+import { paresDoGerador } from '../services/gerador/linhasGerador';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DOCUMENTOS e RELATÓRIO DE ENGENHARIA da ficha de clientes do /gerador (14/10/2026).
@@ -95,6 +97,7 @@ const substituiDe = (b: Record<string, unknown>): string | null => {
   return typeof b.substitui === 'string' && /^[0-9a-f-]{36}$/.test(b.substitui) ? b.substitui : null;
 };
 const MSG_LER = 'Não consegui ler os dados agora. Tente de novo em instantes.';
+const MSG_DO_GERADOR = 'Este cliente é do /gerador. Anexe pelo card.';
 const MSG_GRAVAR = 'Não consegui gravar agora. Tente de novo.';
 const TENTATIVAS = 4;
 const SEG_URL_DOCS = 300;        // 5 min
@@ -112,6 +115,35 @@ const quem = (req: Request): { nome: string; socio: boolean } => {
 
 const logErro = (que: string, err: unknown): void =>
   console.error(`[ficha-docs] ${que}`, err instanceof ErroDocs ? err.codigo : err instanceof ErroFicha ? err.codigo : (err as { codigo?: unknown } | null)?.codigo ?? 'interno');
+
+/**
+ * Escrita de documento (ou ligação de proposta) em `solar/<N>` quando o N é um código do ALOCADOR (fase 2): o cliente nasceu do card e os
+ * documentos moram em `vendasolar/<card>`. Se a tela perde o card (camada do Gerador fora, par pulado, venda desfeita), o anexo iria para
+ * `solar/<N>` e sumiria da ficha depois. Mesmo critério da trava das colunas pessoais: registro do alocador (válido ou não) OU ligação
+ * `por: 'gerador'` com o código. Devolve true depois de responder (400 ou 503). Eletroposto e `vendasolar` passam direto.
+ */
+async function recusaSolarDoAlocador(ctx: Ctx, res: Response): Promise<boolean> {
+  if (ctx.linha !== 'solar') return false;
+  try {
+    const cod = `#${ctx.codigo.padStart(4, '0')}`;
+    let doAlocador = (await lerEstadoDoRegistro(cod)).estado !== 'ausente';
+    if (!doAlocador) {
+      // Registro apagado, ligação ainda marcada como do Gerador. Sem a camada do Gerador só vale o registro (acima).
+      try {
+        for (const p of (await paresDoGerador()).filter((x) => x.codigo === cod)) {
+          if (await ehCodigoDoAlocador({ venda: p.codigo, por: p.por }, p.card)) { doAlocador = true; break; }
+        }
+      } catch { /* camada do Gerador fora: vale o registro */ }
+    }
+    if (!doAlocador) return false;
+    res.status(400).json({ ok: false, error: MSG_DO_GERADOR });
+    return true;
+  } catch (err) {
+    logErro('registro do código indisponível', err);
+    res.status(503).json({ ok: false, error: MSG_LER });
+    return true;
+  }
+}
 
 export interface Ctx {
   linha: Linha;
@@ -363,6 +395,7 @@ export function mountClientesDocs(router: Router): void {
   router.post('/clientes/:linha/:codigo/docs/upload-url', ...envio, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res);
     if (!ctx) return;
+    if (await recusaSolarDoAlocador(ctx, res)) return;
     const b = corpoDe(req);
     const item = b ? itemDoCatalogo(ctx.linha, b.slot) : null;
     if (!b || !item) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
@@ -398,6 +431,7 @@ export function mountClientesDocs(router: Router): void {
   router.post('/clientes/:linha/:codigo/docs', ...envio, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res);
     if (!ctx) return;
+    if (await recusaSolarDoAlocador(ctx, res)) return;
     const b = corpoDe(req);
     const item = b ? itemDoCatalogo(ctx.linha, b.slot) : null;
     if (!b || !item) { res.status(400).json({ ok: false, error: 'Item não encontrado.' }); return; }
@@ -513,6 +547,7 @@ export function mountClientesDocs(router: Router): void {
   router.patch('/clientes/:linha/:codigo/docs/:id', ...base, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res);
     if (!ctx) return;
+    if (await recusaSolarDoAlocador(ctx, res)) return;
     const id = String(req.params.id || '');
     if (!/^[0-9a-f-]{36}$/.test(id)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }
     if (!podeRemover(ctx)) { res.status(404).json({ ok: false, error: MSG_NAO_ACHEI }); return; }
@@ -628,6 +663,7 @@ export function mountClientesDocs(router: Router): void {
   router.post('/clientes/solar/:codigo/vincular-proposta', ...base, async (req: Request, res: Response) => {
     const ctx = await contexto(req, res, 'solar');
     if (!ctx) return;
+    if (await recusaSolarDoAlocador(ctx, res)) return;
     const b = corpoDe(req);
     const proposta = b && typeof b.proposta === 'string' ? b.proposta.trim() : '';
     if (!/^[A-Za-z0-9._-]{1,40}$/.test(proposta)) { res.status(400).json({ ok: false, error: MSG_PEDIDO }); return; }

@@ -10521,8 +10521,11 @@ window.addEventListener('DOMContentLoaded', carregarDeURL);
 // uma funcao numa que nao e dela, e ela deixaria de rodar no dia que alguem
 // mexesse naquele return.
 window.addEventListener('DOMContentLoaded', () => {
-  const tel = new URLSearchParams(location.search).get('venda_tel');
-  if (tel) vendaPorTelefone(tel);
+  const qs = new URLSearchParams(location.search);
+  const tel = qs.get('venda_tel');
+  // `venda_card`: o card da agenda de onde o consultor veio. So numero inteiro positivo; qualquer outra coisa e ignorada.
+  const cardLink = /^[1-9]\d{0,11}$/.test(String(qs.get('venda_card') || '')) ? String(qs.get('venda_card')) : '';
+  if (tel) vendaPorTelefone(tel, cardLink || null);
 });
 // Escreve a data do prazo padrão embaixo dos dois campos de validade assim que a
 // tela abre — o consultor precisa ver "vence sexta, 07/08, às 18h" sem clicar.
@@ -36329,7 +36332,8 @@ async function crmAbrirVendaDoCard() {
     showToast('Não achei a proposta ' + escolhida.codigo + ' no histórico.');
     return;
   }
-  abrirModalVenda(escolhida.codigo);
+  // O card do CRM e a escolha do consultor: o id segue para a confirmacao (so no solar).
+  abrirModalVenda(escolhida.codigo, ehEp ? null : (det.agRec && det.agRec.id));
 }
 
 /** Card bloqueado some com o grid e mostra o desbloqueio. Espelho da agenda. */
@@ -37121,7 +37125,7 @@ function vdcChamar(st, metodo, caminho, corpo, ms) {
 function vdcChamarVinc(st, metodo, corpo) {
   return vdcFetch('/gerador/vendas-solares/' + encodeURIComponent(String(st.id)) + '/vinculos', metodo, corpo, 20000);
 }
-async function vdcFetch(rota, metodo, corpo, ms) {
+async function vdcFetch(rota, metodo, corpo, ms, opc) {
   let tok = '', estourou = false, tt = 0;
   // A renovação do token entra no MESMO prazo da chamada: se ela travar, a tela (e a trava do Gerar) não ficam presas para sempre.
   try {
@@ -37137,6 +37141,8 @@ async function vdcFetch(rota, metodo, corpo, ms) {
     if (corpo !== undefined) h['Content-Type'] = 'application/json';
     const r = await fetch(APX_API + rota, {
       method: metodo, headers: h, body: corpo !== undefined ? JSON.stringify(corpo) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
+      // `keepalive`: só o gancho do VENDIDO usa. A Agenda navega para o formulário de venda logo depois, e sem isto a página aborta o pedido.
+      ...(opc && opc.keepalive ? { keepalive: true } : {}),
     });
     let j = null;
     try { j = await r.json(); } catch (e) { j = null; }
@@ -37166,12 +37172,14 @@ function vdcDetalhe(rec) {
   // O "Tentar de novo" do Pós-venda repinta o detalhe do MESMO card: com painel de conferência aberto, leitura ou anexo em andamento,
   // o bloco não é remontado (o que a pessoa conferiu e o envio em curso ficam).
   const ativo = vdcEst && vale && vdcEst.id === rec.id && vdcEst.cfg.linha === linha && vdcEst.no && vdcEst.no.sec.isConnected
-    && (!vdcEst.no.pn.hidden || (vdcEst.tre && (vdcEst.tre.ocupado || vdcEst.tre.fase)) || vdcEst.lendo ||vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || vdcEst.mesmoOcupado || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || !!vdcEst.pesEdit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
+    && (!vdcEst.no.pn.hidden || (vdcEst.tre && (vdcEst.tre.ocupado || vdcEst.tre.fase)) || vdcEst.lendo ||vdcEst.gravando || vdcEst.vincOcupado || vdcEst.ratGravando || vdcEst.emailGravando || (vdcEst.cli && vdcEst.cli.ocupado) || vdcEst.mesmoOcupado || Object.keys(vdcEst.sub).length > 0 || !!vdcEst.edit || !!vdcEst.pesEdit || Object.keys(vdcEst.lin).some(k => vdcEst.lin[k].ocupado));
   if (ativo) return;
   vdcEst = null;   // resposta que ainda estava voando de outro card fica velha
   if (!vale) { el.hidden = true; el.replaceChildren(); return; }
   const st = { id: rec.id, cfg: VDC_CFG[linha], cad: null, docs: null, carregando: true, erroCarga: '', msg: '', lendo: false, gravando: false, sub: {}, msgDoc: {}, resDoc: {}, linhas: [], no: null, listaAberta: false, edit: null, lin: {}, org: null, listaForcar: false, listaPendente: false, focoApos: '',
     vinc: null, vincErroCarga: '', vincOcupado: '', vincMsg: '', analise: null, rat: null, ratMsg: '', ratGravando: false,
+    // Fase 2: "Criar cliente na planilha" (portão de telefone) e o campo de e-mail. Nascem aqui, no literal comum, porque o card de eletroposto repinta com o mesmo `st`.
+    cli: { ocupado: '', confirmar: false, ocultas: 0, semPlanilha: false, texto: '', cands: [] }, email: null, sugEmail: '', emailGravando: false,
     pesEdit: null, pesForcar: false, avisoDocs: false,
     negociador: '', mesmoOcupado: '', mesmoMsg: null, aviso: '', tre: VDC_CFG[linha].trello ? vdcTrNovo() : null };
   vdcEst = st;
@@ -37197,12 +37205,15 @@ function vdcDetalhe(rec) {
   const vinc = st.cfg.ligacoes ? document.createElement('div') : null;
   const rat = st.cfg.rateio ? document.createElement('div') : null;
   if (rat) { rat.className = 'vdc-rat'; rat.setAttribute('data-vdc-rateio', '1'); }
+  // Solar: o e-mail do cliente fica entre a situação do cadastro e as ligações.
+  const email = st.cfg.papeis ? document.createElement('div') : null;
+  if (email) { email.className = 'vdc-email'; email.setAttribute('data-vdc-email-bloco', '1'); }
   // Solar: o card no Trello fica depois dos botões, num nó próprio (o painel de conferência da leitura não é dele).
   const tre = st.cfg.trello ? document.createElement('div') : null;
   if (tre) { tre.className = 'vdc-tre'; tre.setAttribute('data-vdc-trello', '1'); }
-  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, vinc, docs, lista, org, pes, rat, acoes, ...(tre ? [tre] : []), msg, pn, arqs); }
+  if (vinc) { vinc.className = 'vdc-vinc'; vinc.setAttribute('data-vdc-vinc', '1'); sec.append(h, topo, ...(email ? [email] : []), vinc, docs, lista, org, pes, rat, acoes, ...(tre ? [tre] : []), msg, pn, arqs); }
   else sec.append(h, topo, docs, lista, org, pes, acoes, msg, pn, arqs);
-  st.no = { sec, topo, vinc, rat, docs, lista, org, pes, acoes, tre, msg, pn, arqs, pnMsg: null, pnOk: null };
+  st.no = { sec, topo, vinc, email, rat, docs, lista, org, pes, acoes, tre, msg, pn, arqs, pnMsg: null, pnOk: null };
   // Os seletores de arquivo nascem no clique de Anexar (vdcInputDe): os itens vêm do catálogo do servidor, que chega depois.
   el.replaceChildren(sec);
   el.hidden = false;
@@ -37218,7 +37229,7 @@ function vdcCarregar(st) {
   Promise.all([vdcChamar(st, 'GET', '/cadastro'), vdcChamar(st, 'GET', '/docs')]).then(([c, d]) => {
     if (vdcEst !== st) return;      // abriu outro card no meio: a resposta não é dele
     st.carregando = false;
-    if (c.status === 200 && c.json && c.json.ok !== false && c.json.cadastro) { st.cad = c.json.cadastro; if (st.cfg.rateio) st.analise = vdcAnaliseDe(c.json); vdcGuardaExtras(st, c.json); }
+    if (c.status === 200 && c.json && c.json.ok !== false && c.json.cadastro) { st.cad = c.json.cadastro; if (st.cfg.rateio) st.analise = vdcAnaliseDe(c.json); st.sugEmail = ''; vdcGuardaExtras(st, c.json); }
     else st.erroCarga = vdcMsgErro(c, 'Não consegui ler o cadastro agora.');
     if (d.status === 200 && d.json && d.json.ok !== false) st.docs = vdcDocsDe(d.json);
     vdcPintar(st);
@@ -37232,6 +37243,8 @@ function vdcGuardaExtras(st, j) {
   if (!st.cfg.papeis || !j) return;
   if (typeof j.negociador === 'string') st.negociador = j.negociador.trim();
   st.aviso = typeof j.aviso === 'string' ? j.aviso.trim() : '';
+  // Só a leitura do cadastro traz `sugestoes`: a gravação do rateio ou do papel não leva, e não pode apagar a sugestão de e-mail.
+  if (j.sugestoes && typeof j.sugestoes === 'object') st.sugEmail = typeof j.sugestoes.email === 'string' ? j.sugestoes.email.trim() : '';
 }
 /** 'contratante' | 'outra_pessoa' | '' (não decidido). `chave`: homologacao_mesmo ou financiamento_mesmo. */
 const vdcDecisao = (cad, chave) => { const v = vdcV(cad, chave); return v === 'contratante' || v === 'outra_pessoa' ? v : ''; };
@@ -37355,6 +37368,7 @@ function vdcPintar(st) {
     b.addEventListener('click', () => vdcCarregar(st)); N.topo.appendChild(b);
   }
   if (N.vinc) vdcPintarVinc(st);
+  if (N.email) vdcPintarEmail(st);
   if (N.rat) vdcPintarRat(st);
   // anexos
   N.docs.replaceChildren();
@@ -37515,6 +37529,7 @@ function vdcVincDe(j) {
     sugProp: Array.isArray(sug.propostas) ? sug.propostas.filter(x => x && typeof x === 'object' && x.codigo != null && x.codigo !== '') : [],
     sugVenda: Array.isArray(sug.vendas) ? sug.vendas.filter(x => x && typeof x === 'object' && x.codigo != null && x.codigo !== '') : [],
     vendasFora: j.vendas_indisponivel === true,
+    vendaOrigem: typeof j.venda_origem === 'string' ? j.venda_origem : '',
   };
 }
 const vdcMsgVinc = (r) => {
@@ -37548,7 +37563,7 @@ function vdcCarregarVinc(st) {
 }
 /** Liga (valor = código) ou desliga (valor = null) UMA coisa por vez; manda só a chave que muda. Depois lê tudo de novo: o dossiê depende da proposta. */
 async function vdcLigar(st, tipo, valor) {
-  if (vdcEst !== st || st.vincOcupado) return;
+  if (vdcEst !== st || st.vincOcupado || (st.cli && st.cli.ocupado)) return;
   st.vincOcupado = tipo; st.vincMsg = '';
   vdcPintar(st);
   const corpo = {}; corpo[tipo] = valor;
@@ -37557,6 +37572,8 @@ async function vdcLigar(st, tipo, valor) {
   const j = r.json || {};
   const ok = r.status === 200 && j.ok !== false;
   if (ok) {
+    // Ligou (ou desligou) por gente: a pergunta do portão de telefone perde o sentido.
+    if (st.cli) { st.cli.confirmar = false; st.cli.cands = []; st.cli.ocultas = 0; st.cli.semPlanilha = false; }
     await Promise.all([vdcLerVinc(st), vdcRecarregarDocs(st)]);
     if (vdcEst !== st) return;
     showToast(valor == null ? (tipo === 'proposta' ? 'Proposta desligada.' : 'Venda desligada.') : (tipo === 'proposta' ? 'Proposta ligada.' : 'Venda ligada.'));
@@ -37567,12 +37584,15 @@ async function vdcLigar(st, tipo, valor) {
   }
   st.vincOcupado = '';
   vdcPintar(st);
+  // A prévia do Trello que estava aberta foi feita antes desta ligação: refaz, para o botão de enviar acompanhar.
+  if (ok && st.tre && st.tre.fase === 'previa') vdcTrPrevia(st);
 }
 const vdcDataCurta = (v) => { const s = String(v == null ? '' : v); const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? m[3] + '/' + m[2] + '/' + m[1] : s; };
 function vdcMotivoVinc(m) {
   const t = vdcNorm(m);
   if (t.indexOf('telefone') >= 0) return 'Mesmo telefone';
   if (t.indexOf('nome') >= 0) return 'Nome parecido';
+  if (t.indexOf('cartao') >= 0) return 'Número do cartão do Trello';
   return vdcRotuloLivre(m);
 }
 const vdcRotCodigo = (v) => { const s = String(v == null ? '' : v).trim(); return s ? (s.charAt(0) === '#' ? s : '#' + s) : ''; };
@@ -37599,12 +37619,13 @@ function vdcPintarVinc(st) {
     const lin = document.createElement('div'); lin.className = 'vdc-vinc-lin';
     const tx = document.createElement('span'); tx.className = 'vdc-vinc-tx';
     const k = document.createElement('b'); k.textContent = rotulo + ': ';
-    const val = document.createElement('span'); val.textContent = ligado ? vdcRotCodigo(ligado) : 'nenhuma';
+    const val = document.createElement('span');
+    val.textContent = ligado ? vdcRotCodigo(ligado) + (!ehProposta && v.vendaOrigem === 'gerador' ? ' (criada pelo Gerador)' : '') : 'nenhuma';
     tx.append(k, val);
     lin.appendChild(tx);
     if (ligado) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = st.vincOcupado === tipo ? 'Desligando…' : 'Desligar';
-      b.disabled = !!st.vincOcupado; b.setAttribute('data-vdc-acao', 'desligar-' + tipo); b.dataset.vdcFoco = 'des-' + tipo;
+      b.disabled = !!st.vincOcupado || !!st.cli.ocupado; b.setAttribute('data-vdc-acao', 'desligar-' + tipo); b.dataset.vdcFoco = 'des-' + tipo;
       b.setAttribute('aria-label', 'Desligar ' + rotulo.toLowerCase() + ' ' + vdcRotCodigo(ligado));
       b.addEventListener('click', () => vdcLigar(st, tipo, null));
       lin.appendChild(b);
@@ -37628,12 +37649,22 @@ function vdcPintarVinc(st) {
         c.appendChild(n);
         if (s.motivo) { const mt = document.createElement('span'); mt.className = 'vdc-tag'; mt.textContent = vdcMotivoVinc(s.motivo); c.appendChild(mt); }
         const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = st.vincOcupado === tipo ? 'Ligando…' : 'Ligar';
-        b.disabled = !!st.vincOcupado; b.setAttribute('data-vdc-acao', 'ligar-' + tipo); b.dataset.vdcFoco = 'lig-' + tipo + '-' + s.codigo;
+        b.disabled = !!st.vincOcupado || !!st.cli.ocupado; b.setAttribute('data-vdc-acao', 'ligar-' + tipo); b.dataset.vdcFoco = 'lig-' + tipo + '-' + s.codigo;
         b.setAttribute('aria-label', 'Ligar ' + rotulo.toLowerCase() + ' ' + vdcRotCodigo(s.codigo));
         b.addEventListener('click', () => vdcLigar(st, tipo, String(s.codigo)));
         it.append(c, b);
         box.appendChild(it);
       });
+      // Fase 2: o cliente do card vendido nasce na planilha de clientes. Sem `novo`, o servidor pergunta quando a venda pode já estar lá.
+      if (!ehProposta) {
+        const ax = document.createElement('div'); ax.className = 'vdc-acoes';
+        const bc = document.createElement('button'); bc.type = 'button'; bc.className = 'vdc-btn vdc-btn-mini vdc-btn-pri';
+        bc.textContent = st.cli.ocupado === 'criar' ? 'Criando…' : 'Criar cliente na planilha';
+        bc.disabled = !!st.vincOcupado || !!st.cli.ocupado; bc.setAttribute('data-vdc-acao', 'criar-cliente'); bc.dataset.vdcFoco = 'criar-cliente';
+        bc.addEventListener('click', () => vdcCriarCliente(st, false));
+        ax.appendChild(bc); box.appendChild(ax);
+        if (st.cli.confirmar) box.appendChild(vdcPainelCliente(st, sugs));
+      }
     }
     return box;
   };
@@ -37641,7 +37672,7 @@ function vdcPintarVinc(st) {
   V.appendChild(bloco('venda', 'Venda da planilha', v.venda, v.sugVenda, false));
   if ((v.proposta || v.venda) && (v.por || v.em)) {
     const p = document.createElement('p'); p.className = 'vdc-nota';
-    p.textContent = 'Ligado' + (v.por ? ' por ' + v.por : '') + (v.em ? ' em ' + vdcDataCurta(v.em) : '') + '.';
+    p.textContent = 'Ligado' + (v.por === 'gerador' ? ' pelo Gerador' : (v.por ? ' por ' + v.por : '')) + (v.em ? ' em ' + vdcDataCurta(v.em) : '') + '.';
     V.appendChild(p);
   }
   if (st.vincMsg) { const m = document.createElement('p'); m.className = 'vdc-msg'; m.setAttribute('role', 'alert'); m.setAttribute('data-vdc-vinc-msg', '1'); m.textContent = st.vincMsg; V.appendChild(m); }
@@ -37649,6 +37680,155 @@ function vdcPintarVinc(st) {
     const f = Array.from(V.querySelectorAll('[data-vdc-foco]')).find(x => x.dataset.vdcFoco === foco);
     if (f && !f.disabled) { try { f.focus({ preventScroll: true }); } catch (e) {} }
   }
+}
+
+// ── Solar: o cliente do card vendido na Planilha de clientes (fase 2, 22/10/2026) ──
+// "Criar cliente na planilha" chama POST .../cliente SEM `novo`: o servidor pergunta (409 `confirmar`) quando a venda pode já estar no Excel.
+// Telefone igual pode ser de outra pessoa da família: nada liga sozinho. "Criar novo mesmo assim" manda `novo: true`. Texto do servidor só por textContent.
+const VDC_CLI_CONFIRMAR = 'Esta venda pode já estar na planilha. Telefone igual pode ser de outra pessoa da família. Ligue a venda certa ou crie o cliente novo.';
+function vdcMsgCliente(r) {
+  const j = (r && r.json) || {};
+  if (r && r.status === 401) return 'Sua sessão terminou. Entre de novo no Gerador.';
+  if (r && r.status === 0) return 'Sem conexão. Tente de novo.';
+  if (j.precisa === 'credencial') return VDC_TR_SEM_CHAVE;
+  if (typeof j.error === 'string' && j.error) return j.error;
+  return 'Não consegui criar o cliente agora. Tente de novo.';
+}
+async function vdcCriarCliente(st, novo) {
+  if (vdcEst !== st || st.vincOcupado || st.cli.ocupado) return;
+  st.cli.ocupado = novo ? 'novo' : 'criar'; st.vincMsg = '';
+  vdcPintar(st);
+  const r = await vdcFetch('/gerador/vendas-solares/' + encodeURIComponent(String(st.id)) + '/cliente', 'POST', novo ? { novo: true } : {}, 60000);
+  if (vdcEst !== st) return;
+  const j = r.json || {};
+  let refazerPrevia = false;
+  if (r.status === 200 && j.ok !== false) {
+    st.cli.confirmar = false; st.cli.cands = []; st.cli.ocultas = 0; st.cli.semPlanilha = false; st.cli.texto = '';
+    const cod = j.codigo ? vdcRotCodigo(j.codigo) : '';
+    const partes = [];
+    if (typeof j.aviso === 'string' && j.aviso.trim()) partes.push(j.aviso.trim());
+    if (j.planilhaFora === true) partes.push('A planilha do Excel estava fora do ar. Confira o número no Excel.');
+    st.vincMsg = partes.join(' ');
+    await vdcLerVinc(st);
+    if (vdcEst !== st) return;
+    showToast(j.criou === true ? 'Cliente ' + cod + ' criado na planilha de clientes.' : 'Este card já tem o cliente ' + cod + '.');
+    refazerPrevia = true;
+  } else if (r.status === 409 && j.precisa === 'confirmar') {
+    st.cli.confirmar = true; st.cli.semPlanilha = j.semPlanilha === true;
+    st.cli.texto = typeof j.error === 'string' ? j.error : '';
+    st.cli.ocultas = Number(j.ocultas) || 0;
+    st.cli.cands = (Array.isArray(j.candidatos) ? j.candidatos : []).filter((x) => x && typeof x === 'object' && x.codigo != null && x.codigo !== '').slice(0, 10)
+      .map((x) => ({ codigo: String(x.codigo), cliente: typeof x.cliente === 'string' ? x.cliente : '', data: typeof x.data === 'string' ? x.data : '', motivo: typeof x.motivo === 'string' ? x.motivo : '' }));
+  } else {
+    st.vincMsg = vdcMsgCliente(r);
+  }
+  st.cli.ocupado = '';
+  vdcPintar(st);
+  if (refazerPrevia && st.tre && st.tre.fase === 'previa') vdcTrPrevia(st);
+}
+/** A pergunta do portão: as candidatas (cada uma com Ligar), a nota da família e o "Criar novo mesmo assim". */
+function vdcPainelCliente(st, sugs) {
+  const cli = st.cli;
+  const pn = document.createElement('div'); pn.setAttribute('data-vdc-cli-conf', '1');
+  const nota = document.createElement('p'); nota.className = 'vdc-nota'; nota.setAttribute('role', 'status');
+  nota.textContent = cli.semPlanilha && cli.texto ? cli.texto : VDC_CLI_CONFIRMAR;
+  pn.appendChild(nota);
+  // Compara pelo código com "#": o GET de ligações devolve "0064" e o /cliente devolve "#0064", e a mesma venda não pode aparecer duas vezes.
+  const jaMostradas = new Set(sugs.slice(0, 5).map((s) => vdcRotCodigo(s.codigo)));
+  cli.cands.filter((c) => !jaMostradas.has(vdcRotCodigo(c.codigo))).forEach((c) => {
+    const it = document.createElement('div'); it.className = 'vdc-vinc-sug'; it.setAttribute('data-vdc-sug', c.codigo);
+    const cx = document.createElement('div'); cx.className = 'vdc-vinc-c';
+    const n = document.createElement('span'); n.className = 'vdc-vinc-n';
+    n.textContent = [vdcRotCodigo(c.codigo), c.cliente, c.data ? vdcDataCurta(c.data) : ''].filter(Boolean).join(' · ');
+    cx.appendChild(n);
+    if (c.motivo) { const mt = document.createElement('span'); mt.className = 'vdc-tag'; mt.textContent = vdcMotivoVinc(c.motivo); cx.appendChild(mt); }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'vdc-btn vdc-btn-mini'; b.textContent = st.vincOcupado === 'venda' ? 'Ligando…' : 'Ligar';
+    b.disabled = !!st.vincOcupado || !!cli.ocupado; b.setAttribute('data-vdc-acao', 'ligar-venda'); b.dataset.vdcFoco = 'lig-venda-' + c.codigo;
+    b.setAttribute('aria-label', 'Ligar venda da planilha ' + vdcRotCodigo(c.codigo));
+    b.addEventListener('click', () => vdcLigar(st, 'venda', c.codigo));
+    it.append(cx, b);
+    pn.appendChild(it);
+  });
+  if (cli.ocultas > 0) {
+    const oc = document.createElement('p'); oc.className = 'vdc-nota'; oc.setAttribute('data-vdc-cli-ocultas', '1');
+    oc.textContent = 'Há também venda parecida na planilha de outra pessoa. Se for o mesmo cliente, avise um sócio.';
+    pn.appendChild(oc);
+  }
+  const ax = document.createElement('div'); ax.className = 'vdc-acoes';
+  const bn = document.createElement('button'); bn.type = 'button'; bn.className = 'vdc-btn vdc-btn-mini';
+  bn.textContent = cli.ocupado === 'novo' ? 'Criando…' : 'Criar novo mesmo assim';
+  bn.disabled = !!st.vincOcupado || !!cli.ocupado; bn.setAttribute('data-vdc-acao', 'criar-cliente-novo'); bn.dataset.vdcFoco = 'criar-cliente-novo';
+  bn.addEventListener('click', () => vdcCriarCliente(st, true));
+  ax.appendChild(bn); pn.appendChild(ax);
+  return pn;
+}
+
+// ── Solar: e-mail do cliente (fase 2) ──────────────────────────────────────
+// Grava só `email` pelo PUT parcial do cadastro (o mesmo do `vdcMesmo`). O e-mail do dossiê ou da proposta é só SUGESTÃO: preenche o campo, nunca grava sozinho.
+function vdcPintarEmail(st) {
+  const E = st.no.email; if (!E) return;
+  if (!st.cad) { E.replaceChildren(); st.email = null; return; }
+  if (!st.email) vdcMontarEmail(st);
+  vdcEmailSincroniza(st);
+}
+/** O campo nasce UMA vez (o que a pessoa digita não some quando o bloco repinta). */
+function vdcMontarEmail(st) {
+  const E = st.no.email; E.replaceChildren();
+  const em = st.email = { inp: null, erro: null, nota: null, salvar: null, sugerido: false };
+  const tit = document.createElement('p'); tit.className = 'vdc-sec-t'; tit.textContent = 'E-mail do cliente'; E.appendChild(tit);
+  const lb = document.createElement('label'); lb.className = 'vdc-rat-f';
+  const sp = document.createElement('span'); sp.className = 'vdc-rat-r'; sp.textContent = 'E-mail';
+  const inp = document.createElement('input'); inp.type = 'email'; inp.className = 'vdc-in'; inp.autocomplete = 'off'; inp.inputMode = 'email'; inp.maxLength = 120;
+  inp.setAttribute('data-vdc-email', '1');
+  inp.addEventListener('input', () => { inp.dataset.sujo = '1'; em.sugerido = false; em.nota.hidden = true; });
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); vdcEmailSalvar(st); } });
+  const er = document.createElement('span'); er.className = 'vdc-erro'; er.hidden = true; er.setAttribute('role', 'alert');
+  lb.append(sp, inp, er);
+  const nota = document.createElement('span'); nota.className = 'vdc-nota'; nota.hidden = true; nota.setAttribute('data-vdc-email-nota', '1');
+  const sv = document.createElement('button'); sv.type = 'button'; sv.className = 'vdc-btn vdc-btn-mini'; sv.textContent = 'Salvar e-mail'; sv.setAttribute('data-vdc-acao', 'email-salvar');
+  sv.addEventListener('click', () => vdcEmailSalvar(st));
+  const barra = document.createElement('div'); barra.className = 'vdc-acoes'; barra.appendChild(sv);
+  E.append(lb, nota, barra);
+  em.inp = inp; em.erro = er; em.nota = nota; em.salvar = sv;
+}
+function vdcEmailSincroniza(st) {
+  const em = st.email; if (!em || !st.cad) return;
+  if (em.inp.dataset.sujo !== '1') {
+    const atual = vdcV(st.cad, 'email');
+    if (atual) { em.inp.value = atual; em.sugerido = false; }
+    else if (st.sugEmail) { em.inp.value = st.sugEmail; em.sugerido = true; }
+    else { em.inp.value = ''; em.sugerido = false; }
+  }
+  em.nota.hidden = !em.sugerido;
+  em.nota.textContent = em.sugerido ? 'Veio da proposta. Confira e salve.' : '';
+  const ocupado = !!(st.emailGravando || st.gravando || st.lendo);
+  em.salvar.disabled = ocupado;
+  em.salvar.textContent = st.emailGravando ? 'Salvando…' : 'Salvar e-mail';
+}
+async function vdcEmailSalvar(st) {
+  const em = st.email;
+  if (vdcEst !== st || !em || st.emailGravando || st.gravando || st.lendo || !st.cad) return;
+  const v = em.inp.value.trim();
+  em.erro.hidden = true; em.erro.textContent = '';
+  if (v === vdcV(st.cad, 'email')) { showToast('Nada mudou no e-mail.'); return; }
+  st.emailGravando = true; vdcEmailSincroniza(st);
+  const r = await vdcChamar(st, 'PUT', '/cadastro', { campos: { email: v }, fonte: 'manual' });
+  if (vdcEst !== st) return;
+  st.emailGravando = false;
+  const j = r.json || {};
+  if (r.status === 400 && j.erros && typeof j.erros === 'object' && j.erros.email) {
+    em.erro.textContent = vdcMotivoTxt(j.erros.email); em.erro.hidden = false;
+    vdcEmailSincroniza(st); return;
+  }
+  if (r.status !== 200 || j.ok === false || !j.cadastro) {
+    em.erro.textContent = vdcMsgErro(r, 'Não consegui salvar o e-mail agora.'); em.erro.hidden = false;
+    vdcEmailSincroniza(st); return;
+  }
+  // A gravação não leva `sugestoes`: sem zerar, apagar o e-mail traria a sugestão da proposta de volta ao campo.
+  st.cad = j.cadastro; st.analise = vdcAnaliseDe(j); st.sugEmail = ''; vdcGuardaExtras(st, j);
+  delete em.inp.dataset.sujo;
+  vdcPintar(st);
+  showToast('E-mail salvo.');
 }
 
 // ── Solar: criar ou atualizar o card no Trello (20/10/2026) ─────────────────
@@ -37659,6 +37839,12 @@ const VDC_TR_SEM_CHAVE = 'O Trello ainda não está ligado no gerador.';
 const VDC_TR_PUBLICO = 'O quadro do Trello está público: os documentos não foram anexados. Deixe o quadro privado no Trello e tente de novo.';
 const VDC_TR_PUBLICO_PREVIA = 'O quadro do Trello está público: os documentos não serão anexados. Deixe o quadro privado no Trello e tente de novo.';
 const VDC_TR_PRAZO_PREVIA = 45000;
+const VDC_TR_PRECISA_CLIENTE = 'Esta venda ainda não tem cliente na planilha. Nada foi enviado. Use o botão Criar cliente na planilha, no bloco Ligações, ou ligue a venda certa. Depois envie de novo.';
+const VDC_TR_PRECISA_CLIENTE_SEM = 'Não consegui conferir a planilha do Excel agora. Nada foi enviado. Se esta venda já tem número lá, ligue a venda certa no bloco Ligações. Senão, use o botão Criar cliente na planilha.';
+/** A prévia diz "falta cliente" pelo campo estruturado `precisa: 'cliente'` (o texto dos avisos não é lido). */
+function vdcTrPedeCliente(p) {
+  return !!p && typeof p === 'object' && p.precisa === 'cliente';
+}
 const VDC_TR_PRAZO_ENVIO = 280000;   // o servidor sobe anexos por até 200 s; menos que isso a tela desistiria com o card ainda sendo gravado
 function vdcTrNovo() { return { fase: '', ocupado: '', previa: null, res: null, cands: null, msg: '', extras: [], cardId: '', novo: false, motivo: '', foco: '' }; }
 /** O motivo do empate vem do servidor em minúscula e sem ponto, ou já como frase. Devolve '' se não veio texto. */
@@ -37751,6 +37937,9 @@ async function vdcTrEnviar(st) {
   const cands = vdcTrCands(j.candidatos);
   if (r.status === 409 && j.precisa === 'escolher_cartao' && cands.length) {
     T.cands = cands; T.cardId = ''; T.novo = false; T.motivo = typeof j.motivo === 'string' ? j.motivo : ''; T.fase = 'escolha'; T.foco = 'pn';
+  } else if (r.status === 409 && j.precisa === 'cliente') {
+    // O envio não numera sozinho quando a venda pode já estar no Excel. Texto próprio: o `error` do servidor começa com "Atualize a página." e não serve aqui.
+    T.msg = j.semPlanilha === true ? VDC_TR_PRECISA_CLIENTE_SEM : VDC_TR_PRECISA_CLIENTE;
   } else if ((r.status === 200 || r.status === 207) && j.previa !== true && typeof j.ok === 'boolean') {
     T.res = j; T.previa = null; T.cands = null; T.cardId = ''; T.novo = false; T.fase = 'resultado'; T.foco = 'pn';
   } else {
@@ -37838,15 +38027,19 @@ function vdcTrPainelPrevia(st) {
   const cartao = p.cartao && typeof p.cartao === 'object' ? p.cartao : null;
   const cands = vdcTrCands(p.candidatos);
   const empate = !cartao && cands.length > 0;
+  const pedeCliente = vdcTrPedeCliente(p);
+  let blCard = null;   // o bloco "Card": os avisos da prévia entram nele nos três casos (card novo, existente e empate)
   if (cartao) {
     const nome = (typeof cartao.nome === 'string' && cartao.nome ? cartao.nome : 'Card') + (typeof cartao.lista === 'string' && cartao.lista ? ' · ' + cartao.lista : '');
     const u = vdcTrUrl(cartao.url);
-    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', nome), vdcTrEl('p', 'vdc-nota', 'Já existe no Trello: será atualizado.'), u ? vdcTrLink(u, 'Abrir no Trello') : null));
+    blCard = vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', nome), vdcTrEl('p', 'vdc-nota', 'Já existe no Trello: será atualizado.'), u ? vdcTrLink(u, 'Abrir no Trello') : null);
+    pn.appendChild(blCard);
   } else if (empate) {
     const mot = vdcTrMotivo(p.motivo_empate);
-    pn.appendChild(vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', mot || 'Mais de um card pode ser deste cliente. Escolha qual atualizar.'),
+    blCard = vdcTrBloco('Card', vdcTrEl('p', 'vdc-tre-v', mot || 'Mais de um card pode ser deste cliente. Escolha qual atualizar.'),
       mot ? vdcTrEl('p', 'vdc-nota', 'Escolha qual atualizar ou crie um card novo.') : null,
-      vdcTrListaCands(st, cands, vdcTrPrevia)));
+      vdcTrListaCands(st, cands, vdcTrPrevia));
+    pn.appendChild(blCard);
   } else {
     // Card novo. Sem venda ligada o título leva o PRÓXIMO número da sequência, ainda provisório: o servidor o reserva na criação.
     const prov = p.numero_provisorio === true && typeof p.titulo === 'string' && p.titulo;
@@ -37861,13 +38054,21 @@ function vdcTrPainelPrevia(st) {
       const u = vdcTrUrl(x.url);
       if (u) bl.appendChild(vdcTrLink(u, 'Abrir no Trello'));
     });
-    (Array.isArray(p.avisos) ? p.avisos : []).forEach((x) => {
-      const t = vdcTrMotivo(x);
-      if (t) { const av = vdcTrEl('p', 'vdc-lst-av', t); av.setAttribute('data-vdc-trello-aviso', '1'); bl.appendChild(av); }
-    });
+    blCard = bl;
     pn.appendChild(bl);
   }
-  if (typeof p.titulo === 'string' && p.titulo && !(p.numero_provisorio === true && !cartao && !empate)) pn.appendChild(vdcTrBloco('Título', vdcTrEl('p', 'vdc-tre-v', p.titulo)));
+  (Array.isArray(p.avisos) ? p.avisos : []).forEach((x) => {
+    const t = vdcTrMotivo(x);
+    if (t) { const av = vdcTrEl('p', 'vdc-lst-av', t); av.setAttribute('data-vdc-trello-aviso', '1'); blCard.appendChild(av); }
+  });
+  // Pede cliente: a orientação é desta tela (o aviso do servidor, acima, é só complemento).
+  if (pedeCliente) {
+    const av = vdcTrEl('p', 'vdc-lst-av', p.semPlanilha === true
+      ? 'Não consegui conferir a planilha do Excel. Se esta venda já tem número lá, ligue a venda certa no bloco Ligações. Senão, use o botão Criar cliente na planilha.'
+      : 'Antes de enviar, crie o cliente na planilha ou ligue a venda certa, no bloco Ligações.');
+    av.setAttribute('data-vdc-trello-pede-cliente', '1'); blCard.appendChild(av);
+  }
+  if (typeof p.titulo === 'string' && p.titulo && !(p.numero_provisorio === true && !cartao && !empate)) pn.appendChild(vdcTrBloco('Título', vdcTrEl('p', 'vdc-tre-v', p.titulo), p.numero_provisorio === true ? vdcTrEl('p', 'vdc-nota', 'O número do título é provisório e pode mudar na criação.') : null));
   if (typeof p.lista === 'string' && p.lista) pn.appendChild(vdcTrBloco('Lista', vdcTrEl('p', 'vdc-tre-v', p.lista)));
   if (!empate) {
     const e = p.etiquetas && typeof p.etiquetas === 'object' ? p.etiquetas : {};
@@ -37928,7 +38129,7 @@ function vdcTrPainelPrevia(st) {
   }
   const ac = vdcTrEl('div', 'vdc-acoes');
   if (!empate) {
-    const ok = vdcTrBotao('vdc-btn vdc-btn-pri', T.ocupado === 'envio' ? 'Enviando…' : (cartao ? 'Atualizar card' : 'Criar card'), 'trello-enviar', () => vdcTrEnviar(st), !!T.ocupado);
+    const ok = vdcTrBotao('vdc-btn vdc-btn-pri', T.ocupado === 'envio' ? 'Enviando…' : (cartao ? 'Atualizar card' : 'Criar card'), 'trello-enviar', () => vdcTrEnviar(st), !!T.ocupado || pedeCliente);
     ok.dataset.vdcFoco = 'enviar';
     ac.appendChild(ok);
   }
@@ -42063,6 +42264,10 @@ async function crmAtualizarStatus(novoStatus, extra) {
       }
     }
     ag.status = novoStatus;            // atualiza a linha em memória
+    // Gancho do VENDIDO (fase 2): só solar e só na TRANSIÇÃO. Venda antiga reeditada nunca gera cliente. Sem await: a Agenda nunca bloqueia.
+    if (novoStatus === 'fechou' && stDeCrm !== 'fechou' && !crmEhEletroposto(ag)) {
+      try { vendaSolarGarantirCliente(ag.id, 'status'); } catch (e) { /* o botão Criar cliente na planilha cobre */ }
+    }
     if (extra) Object.assign(ag, extra);
     // O historico em memoria acompanha o que foi gravado (so no eletroposto): sem
     // isto o proximo clique de status montaria a linha em cima do historico velho
@@ -44026,6 +44231,8 @@ function getConsultorAtual() {
 }
 
 let _vendaCodigo = null;
+// O card da agenda que o consultor escolheu ao abrir a confirmacao (o link `venda_card` da Agenda, ou o botao do card no CRM). Nulo no Historico.
+let _vendaCardId = null;
 
 // ── QUAL CARD A VENDA MARCA (02/10/2026) ──────────────────────────────────
 //
@@ -44068,13 +44275,56 @@ function vendaCardAlvo(fichas, vendidoEm) {
 }
 
 /** Liga ESSA proposta a ESSE card solar (o POST manual de vinculos). Regra do dono (22/10/2026): telefone NAO identifica cliente, entao
- *  so se chama quando o card nao foi escolhido por telefone entre varios. Nao trava a tela, nunca lanca e nao sobrescreve ligacao existente. */
+ *  so se chama quando o card nao foi escolhido por telefone entre varios (ou quando o consultor escolheu o card pelo link). Nao trava a tela,
+ *  nunca lanca e nao sobrescreve ligacao existente. */
 async function vendaLigarPropostaAoCard(cardId, codigoProposta) {
   try {
     if (!cardId || !codigoProposta || typeof vdcChamarVinc !== 'function') return;
     // soSeVazia: o servidor recusa (409) dentro da trava se o card ja tem proposta, sem corrida entre ler e gravar.
-    await vdcChamarVinc({ id: cardId }, 'POST', { proposta: String(codigoProposta), soSeVazia: true });
+    const corpo = { proposta: String(codigoProposta), soSeVazia: true };
+    const r = await vdcChamarVinc({ id: cardId }, 'POST', corpo);
+    // Outra gravacao do mesmo card estava na trava (por exemplo o gancho do VENDIDO da Agenda): tenta mais uma vez.
+    if (r && r.status === 409 && r.json && r.json.tentarDeNovo) {
+      await new Promise((ok) => setTimeout(ok, 1500));
+      await vdcChamarVinc({ id: cardId }, 'POST', corpo);
+    }
   } catch (e) { console.warn('a proposta nao foi ligada ao card', e); }
+}
+
+/** GANCHO DO VENDIDO (fase 2): o card solar que virou VENDIDO ganha o cliente `#NNNN` na Planilha de clientes.
+ *  Manda `novo: true` (o gancho SEMPRE numera, sem o portao de telefone) e `keepalive` (a Agenda pode navegar logo depois). Nunca lanca e
+ *  ninguem espera por ele. Falha de rede, de login ou de numeracao tenta mais uma vez depois de 6 s e, se falhar de novo, o toast aponta o
+ *  botao "Criar cliente na planilha". 400, 403, 404 e outros 409 ficam calados (404 e eletroposto ou card de outra pessoa).
+ *  O toast tem uma vaga so e o do status acabou de sair: o do gancho espera ~2,8 s para nao ser engolido. */
+const VENDA_CLI_FALHA = 'Não consegui criar o cliente na planilha agora. Abra o card vendido e use o botão Criar cliente na planilha.';
+async function vendaSolarGarantirCliente(cardId, origem) {
+  const inicio = Date.now();
+  const avisar = (txt) => {
+    try { setTimeout(() => { try { showToast(txt); } catch (e) {} }, Math.max(0, 2800 - (Date.now() - inicio))); } catch (e) {}
+  };
+  try {
+    if (cardId == null || cardId === '') return;
+    const rota = '/gerador/vendas-solares/' + encodeURIComponent(String(cardId)) + '/cliente';
+    const chamar = () => vdcFetch(rota, 'POST', { novo: true }, 60000, { keepalive: true });
+    const refazer = (x) => x.status === 0 || x.status === 502 || x.status === 503 || (x.status === 409 && !!x.json && x.json.tentarDeNovo === true);
+    let r = await chamar();
+    if (refazer(r)) {
+      await new Promise((ok) => setTimeout(ok, 6000));
+      r = await chamar();
+    }
+    const j = r.json || {};
+    if (r.status === 200 && j.ok !== false) {
+      const cod = j.codigo ? (String(j.codigo).charAt(0) === '#' ? String(j.codigo) : '#' + String(j.codigo)) : '';
+      const aviso = typeof j.aviso === 'string' && j.aviso.trim() !== '';
+      if (j.criou === true) avisar(aviso ? 'Cliente ' + cod + ' criado. Veja o aviso na planilha de clientes.' : 'Cliente ' + cod + ' criado na planilha de clientes.');
+      else if (aviso) avisar('Veja o aviso do cliente ' + cod + ' na planilha de clientes.');
+      return;
+    }
+    // Sem token, login vencido, erro de numeracao, ou a segunda tentativa tambem falhou: o botao cobre.
+    if (r.status === 401 || r.status === 500 || refazer(r)) avisar(VENDA_CLI_FALHA);
+  } catch (e) {
+    avisar(VENDA_CLI_FALHA);
+  }
 }
 
 /** As fichas de agenda deste telefone.
@@ -44134,7 +44384,7 @@ function vendaAvisarDobra(r) {
  *  nao vou ensinar ela — seria uma segunda copia da regra de "qual proposta e
  *  desse cliente". Entao a agenda manda o TELEFONE e quem resolve e esta tela, que
  *  e onde o dado mora. */
-async function vendaPorTelefone(tel) {
+async function vendaPorTelefone(tel, cardId) {
   const k = crmTelKey(tel);
   if (!k) { showToast('Telefone não reconhecido no link.'); return; }
   if (!historicoRows || !historicoRows.length) await abrirHistorico();
@@ -44147,13 +44397,15 @@ async function vendaPorTelefone(tel) {
   const ordena = (arr) => [...arr].sort((a, b) =>
     new Date(b.created_at || 0) - new Date(a.created_at || 0));
   const escolhida = ordena(doCli.filter(x => !x.vendido))[0] || ordena(doCli)[0];
-  abrirModalVenda(escolhida.codigo);
+  abrirModalVenda(escolhida.codigo, cardId);
 }
 
-function abrirModalVenda(codigo) {
+function abrirModalVenda(codigo, cardId) {
   const r = historicoRows.find(x => x.codigo === codigo);
   if (!r) return;
   _vendaCodigo = codigo;
+  // Sem o id do card (Historico, ou link antigo) vale a regra de sempre: so liga na transicao e com um unico card possivel.
+  _vendaCardId = (cardId != null && /^\d{1,12}$/.test(String(cardId))) ? String(cardId) : null;
 
   document.getElementById('venda-cliente').textContent = r.cliente_nome || '-';
   document.getElementById('venda-titulo').textContent = r.vendido ? '✏️ Editar venda' : '💰 Confirmar venda';
@@ -44190,6 +44442,7 @@ function fecharModalVenda() {
   if (typeof docsAtualizarDoEstado === 'function') docsAtualizarDoEstado();
   dossieFechar();
   _vendaCodigo = null;
+  _vendaCardId = null;
 }
 
 function dispararConfetes(valor) {
@@ -44256,6 +44509,7 @@ async function confirmarVenda() {
   const pagamento = document.getElementById('venda-pagamento').value || null;
   const obs = (document.getElementById('venda-obs').value || '').trim() || null;
   const consultor = getConsultorAtual();
+  const cardPedido = _vendaCardId;   // o card escolhido pelo consultor (link da Agenda ou botao do CRM), se houve
   const r = historicoRows.find(x => x.codigo === _vendaCodigo);
   const jaEraVendido = r && r.vendido;
 
@@ -44296,9 +44550,13 @@ async function confirmarVenda() {
       const telProp = (r && r.dados && (r.dados.telefoneDigitos || r.dados.telefone)) || '';
       const fichas = await vendaFichasDoTelefone(telProp);
       const possiveis = vendaCardsPossiveis(fichas, vendidoEm);
-      const alvo = possiveis[0] || null;
-      // So solar, e so quando ha UM card possivel: com varios, o alvo e escolhido por telefone e nao se liga nada.
-      const ligarAoCard = !!alvo && possiveis.length === 1 && !(r && (r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto')));
+      const ehEpProposta = !!r && (r.tipo === 'eletroposto' || (r.dados && r.dados.produto === 'eletroposto'));
+      // Card ESCOLHIDO pelo consultor (o id veio no link): nao e palpite por telefone, entao vale mesmo com varios cards do mesmo telefone.
+      // Se o id nao esta entre as fichas do telefone, ignora a escolha e vale a regra de sempre.
+      const escolhido = (!ehEpProposta && cardPedido) ? (fichas.find(a => String(a.id) === String(cardPedido) && a.status !== 'cancelado') || null) : null;
+      const alvo = escolhido || possiveis[0] || null;
+      // So solar. Sem escolha, so quando ha UM card possivel: com varios, o alvo e escolhido por telefone e nao se liga nada.
+      const ligarAoCard = !!alvo && !ehEpProposta && (!!escolhido || possiveis.length === 1);
       if (!alvo) {
         avisoCard = fichas.length
           ? ' · nenhum card desta venda (os que existem sao cancelados ou de outro ciclo)'
@@ -44307,6 +44565,14 @@ async function confirmarVenda() {
         // Sem ligar: o card ja estava vendido ANTES desta venda e foi achado so pelo telefone (familia usa o mesmo numero).
         avisoCard = ' · o card ja estava como vendido';
         cardEpVenda = alvo;
+        // Com o card escolhido pelo consultor a proposta vai para ELE (soSeVazia), mas so numa venda NOVA: "Editar venda" de uma proposta
+        // que ja era vendida nao liga nada (o card foi escolhido por telefone no historico). Sem escolha, o card foi achado so pelo
+        // telefone e nao liga. O numero e garantido aqui tambem, ENCADEADO na ligacao: o gancho da Agenda pode ter morrido com a navegacao
+        // ("Registrar o valor da venda") ou sem token, e o servidor responde `ja_ligada` calado se o card ja tem numero.
+        if (escolhido && !jaEraVendido) {
+          const ligou = vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
+          ligou.then(() => vendaSolarGarantirCliente(alvo.id, 'venda')).catch(() => {});
+        }
       } else {
         const antes = alvo.status;
         const ts = (() => { const d = new Date(); const p = n => String(n).padStart(2, '0');
@@ -44321,8 +44587,14 @@ async function confirmarVenda() {
         });
         avisoCard = ` · card ${alvo.id} saiu de ${antes.toUpperCase()} pra VENDIDO`;
         cardEpVenda = alvo;
+        // Varios cards do mesmo telefone e nenhum escolhido: nada liga e nada numera, o numero sai pelo botao do card.
+        if (!ligarAoCard && !ehEpProposta) avisoCard += ' · crie o cliente pelo botão no card';
         // So aqui: foi esta venda que fechou o card. UM card possivel, so solar, sem await.
-        if (ligarAoCard) vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
+        // Gancho do numero ENCADEADO: so comeca depois da ligacao da proposta terminar (com ou sem sucesso), para as duas gravacoes do mesmo card nao disputarem a trava.
+        if (ligarAoCard) {
+          const ligou = vendaLigarPropostaAoCard(alvo.id, _vendaCodigo);
+          ligou.then(() => vendaSolarGarantirCliente(alvo.id, 'venda')).catch(() => {});
+        }
       }
     } catch (e) {
       console.warn('o card nao foi marcado', e);
@@ -44358,7 +44630,7 @@ async function confirmarVenda() {
     // NAO fecha: a venda recem-confirmada e exatamente o momento de pedir os
     // documentos, com o cliente ainda na linha. Reabrir em modo vendido traz o
     // bloco do dossie; o confete passa por cima e some sozinho.
-    abrirModalVenda(_vendaCodigo);
+    abrirModalVenda(_vendaCodigo, cardPedido);
     if (!jaEraVendido) dispararConfetes(valor);
     showToast((jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`) + avisoCard);
     // Re-render stats

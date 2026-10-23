@@ -283,6 +283,7 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
       const avisosPrevia: string[] = [];
       const avisosDoNumero: string[] = [];
       let numeroProvisorio = false;
+      let precisaCliente: { semPlanilha: boolean } | null = null;   // prévia: o alocador perguntaria (confirmar); a tela não lê o texto do aviso
       // A planilha do Excel só confere o número: fora do ar, o número sai do registro e do quadro, e a resposta diz isso.
       let planilhaFora = false;
       const semVenda = !p.codigoVenda;
@@ -384,7 +385,10 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
           res.status(e.status).json(e.corpo);
           return;
         }
-        if (r.acao === 'confirmar') avisosPrevia.push(r.semPlanilha ? MSG_SEM_PLANILHA : 'Esta venda pode já estar na planilha. Resolva no bloco Ligações antes de enviar.');
+        if (r.acao === 'confirmar') {
+          precisaCliente = { semPlanilha: r.semPlanilha === true };
+          avisosPrevia.push(r.semPlanilha ? MSG_SEM_PLANILHA : 'Esta venda pode já estar na planilha. Resolva no bloco Ligações antes de enviar.');
+        }
         else {
           comCodigo(r.codigo);
           numeroProvisorio = r.provisorio;
@@ -431,7 +435,7 @@ export function mountVendaSolarTrello(router: Router, base: RequestHandler[], gu
         res.json({
           ok: true, previa: true, quadro_publico: publico, anexos_bloqueados: publico && faltamAnexos.length > 0,
           cartao: existente ? { existente: true, ...resumoCartao(quadro, existente), achado_por: achado.tipo === 'achou' ? achado.por : null } : null,
-          titulo, numero_provisorio: numeroProvisorio, ...(planilhaFora ? { planilhaFora: true } : {}), ...(parecidos.length ? { parecidos } : {}), ...(avisosPrevia.length ? { avisos: avisosPrevia } : {}), lista,
+          titulo, numero_provisorio: numeroProvisorio, ...(precisaCliente ? { precisa: 'cliente', ...(precisaCliente.semPlanilha ? { semPlanilha: true } : {}) } : {}), ...(planilhaFora ? { planilhaFora: true } : {}), ...(parecidos.length ? { parecidos } : {}), ...(avisosPrevia.length ? { avisos: avisosPrevia } : {}), lista,
           etiquetas: { aplicar: etiquetas.aplicar.map((e) => e.name), ja_tem: etiquetas.ja_tem, ausentes: etiquetas.ausentes, conflitos: etiquetas.conflitos },
           checklists: {
             BACKOFFICE: plano.BACKOFFICE, ENGENHARIA: plano.ENGENHARIA,

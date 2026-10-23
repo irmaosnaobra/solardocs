@@ -2895,7 +2895,63 @@ function abrirVendaNoGerador() {
   if (!detalheAtual) return;
   const tel = String(detalheAtual.cliente_telefone || '').replace(/\D/g, '');
   if (!tel) { showToast('Esse card nao tem telefone: registre a venda pelo Historico.'); return; }
-  location.href = '/gerador/?venda_tel=' + encodeURIComponent(tel);
+  // `venda_card`: o card de onde o consultor veio. A confirmacao de venda liga a proposta a ESSE card (escolha explicita, nao telefone).
+  const idCard = Number(detalheAtual.id);
+  const comCard = Number.isInteger(idCard) && idCard > 0 && !cardEhEletroposto(detalheAtual) ? '&venda_card=' + idCard : '';
+  location.href = '/gerador/?venda_tel=' + encodeURIComponent(tel) + comCard;
+}
+
+/** GANCHO DO VENDIDO (fase 2): o card solar que virou VENDIDO ganha o cliente `#NNNN` na Planilha de clientes.
+ *  Manda `novo: true` (sempre numera, sem o portao de telefone) e `keepalive`, porque "Registrar o valor da venda" navega para o /gerador logo
+ *  depois e a pagina abortaria o pedido. Nunca lanca e ninguem espera por ele: a Agenda nunca bloqueia. Sem token valido, 401 e 500 mostram o
+ *  toast que aponta o botao "Criar cliente na planilha"; rede, 502, 503 e 409 `tentarDeNovo` tentam de novo uma vez depois de 6 s; 400, 403,
+ *  404 e outros 409 ficam calados. O toast tem uma vaga so e o do status acabou de sair: o do gancho espera ~2,8 s. */
+const CLIENTE_VENDA_FALHA = 'Não consegui criar o cliente na planilha agora. Abra o card vendido e use o botão Criar cliente na planilha.';
+async function garantirClienteDoCard(idAlvo) {
+  const inicio = Date.now();
+  const avisar = (txt) => {
+    try { setTimeout(() => { try { showToast(txt); } catch (e) {} }, Math.max(0, 2800 - (Date.now() - inicio))); } catch (e) {}
+  };
+  try {
+    if (idAlvo == null || idAlvo === '') return;
+    const rota = API_ESPERA + '/gerador/vendas-solares/' + encodeURIComponent(String(idAlvo)) + '/cliente';
+    const chamar = async () => {
+      const tk = tokenDaSessao();
+      if (!tk) return { status: 401, json: null };
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const t = ctrl ? setTimeout(() => ctrl.abort(), 60000) : null;
+      try {
+        const r = await fetch(rota, {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' }, body: '{"novo":true}',
+          keepalive: true, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined,
+        });
+        let j = null;
+        try { j = await r.json(); } catch (e) { j = null; }
+        return { status: r.status, json: j };
+      } catch (e) {
+        return { status: 0, json: null };
+      } finally {
+        if (t) clearTimeout(t);
+      }
+    };
+    const refazer = (x) => x.status === 0 || x.status === 502 || x.status === 503 || (x.status === 409 && !!x.json && x.json.tentarDeNovo === true);
+    let r = await chamar();
+    if (refazer(r)) {
+      await new Promise((ok) => setTimeout(ok, 6000));
+      r = await chamar();
+    }
+    const j = r.json || {};
+    if (r.status === 200 && j.ok !== false) {
+      const cod = j.codigo ? (String(j.codigo).charAt(0) === '#' ? String(j.codigo) : '#' + String(j.codigo)) : '';
+      const aviso = typeof j.aviso === 'string' && j.aviso.trim() !== '';
+      if (j.criou === true) avisar(aviso ? 'Cliente ' + cod + ' criado. Veja o aviso na planilha de clientes.' : 'Cliente ' + cod + ' criado na planilha de clientes.');
+      else if (aviso) avisar('Veja o aviso do cliente ' + cod + ' na planilha de clientes.');
+      return;
+    }
+    if (r.status === 401 || r.status === 500 || refazer(r)) avisar(CLIENTE_VENDA_FALHA);
+  } catch (e) {
+    avisar(CLIENTE_VENDA_FALHA);
+  }
 }
 
 function fecharCaixaVenda() {
@@ -3412,6 +3468,11 @@ async function atualizarStatus(novoStatus, extra) {
   try {
     await supaPatch(`agendamentos?id=eq.${idAlvo}`,
       { status: novoStatus, historico: histSt, ...(extra || {}) });
+    // Gancho do VENDIDO (fase 2): so solar e so na TRANSICAO (venda antiga reeditada nunca gera cliente). Logo depois do PATCH, antes dos
+    // outros pedidos desta funcao: "Registrar o valor da venda" navega para o /gerador e nao pode deixar o gancho para tras. Sem await.
+    if (novoStatus === 'fechou' && stDe !== 'fechou' && !cardEhEletroposto(detalheAtual)) {
+      try { garantirClienteDoCard(idAlvo); } catch (e) { /* o botao Criar cliente na planilha cobre */ }
+    }
     // A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA. Vai antes do
     // PATCH porque depois dele ela não existe mais em lugar nenhum. Falhar aqui
     // degrada (o card mostra só o terminal), não quebra.
@@ -3513,6 +3574,13 @@ async function atualizarStatus(novoStatus, extra) {
       if (pvb) { pvb.hidden = true; pvb.innerHTML = ''; }
       pvAbrirCaixaVenda(detalheAtual, stDe);
     } else if (novoStatus === 'fechou') {
+      // Solar: troca o `detalheAtual` (de ANTES do PATCH) pelo da semana recarregada, como o ramo do eletroposto. Sem isto um 2o clique em
+      // VENDIDO ainda veria o status velho e dispararia o gancho do numero de novo.
+      const novoAgSolar = agendamentosCache.find(a => a.id === idAlvo);
+      if (novoAgSolar) {
+        detalheAtual = novoAgSolar;
+        try { document.getElementById('d-hist').innerHTML = textoComLinks(detalheAtual.historico || ''); marcarStatusAtualNosBotoes('fechou'); } catch (e) { /* so a aparencia */ }
+      }
       const bx = document.getElementById('d-venda');
       if (bx) {
         document.getElementById('modal-det').classList.add('show');

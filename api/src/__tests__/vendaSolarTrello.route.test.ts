@@ -521,6 +521,9 @@ describe('cartão novo', () => {
     expect(previa2.status).toBe(200);
     expect(previa2.body).toMatchObject({ titulo: 'Ana Souza - Uberaba MG' });
     expect(previa2.body.avisos.join(' ')).toMatch(/Não consegui conferir a planilha do Excel agora/);
+    // sinal estruturado: a tela não lê o texto do aviso
+    expect(previa2.body).toMatchObject({ precisa: 'cliente', semPlanilha: true });
+    expect(previa.body.precisa).toBeUndefined();
     const sem = await trello(201, { novo: true });
     expect(sem.status).toBe(409);
     expect(sem.body).toMatchObject({ precisa: 'cliente', semPlanilha: true, candidatos: [], ocultas: 0 });

@@ -510,6 +510,35 @@ describe('upload-url', () => {
 });
 
 // Teto por IP ANTES do login nos dois POSTs de anexo (as rotas são as de verdade; cada teste usa um IP próprio, via X-Forwarded-For).
+describe('código do alocador: escrita em solar/<N> recusada (documentos moram no card)', () => {
+  const MSG = 'Este cliente é do /gerador. Anexe pelo card.';
+  const registro = () => h.linhas.set('codigo_solar:0057', { value: { codigo: '#0057', card: 103, por: 'Teste', em: '2026-10-22T10:00:00.000Z', origem: 'novo', sig: 'assinatura-que-nao-confere' }, updated_at: '2026-10-22T10:00:00.000000+00:00' });
+  it('com registro do alocador para o N: upload-url, registrar, renomear e vincular proposta dão 400 com a mensagem; nada é gravado', async () => {
+    registro();
+    h.chamadas = [];
+    for (const [rota, corpo] of [
+      ['/clientes/solar/57/docs/upload-url', { slot: 'documento', mime: 'application/pdf', bytes: 5000 }],
+      ['/clientes/solar/57/docs', { slot: 'documento', caminho: caminhoDe('solar', '0057') }],
+      ['/clientes/solar/57/vincular-proposta', { proposta: 'IN-1' }],
+    ] as const) {
+      const x = await post(rota, corpo);
+      expect(x.status, rota).toBe(400);
+      expect(x.body).toMatchObject({ ok: false, error: MSG });
+    }
+    const p = await request(app).patch(`/gerador/clientes/solar/57/docs/${UUID}`).set('Authorization', NILCE).send({ rotulo: 'Novo nome' });
+    expect(p.status).toBe(400);
+    expect(p.body.error).toBe(MSG);
+    expect(h.chamadas.some((c) => c.op === 'createBucket')).toBe(false);
+    expect(valorDe('solar:0057')).toBeUndefined();
+  });
+  it('a posse vem antes: venda alheia continua 404 igual, e o N sem registro segue normal', async () => {
+    registro();
+    expect((await post('/clientes/solar/999/docs/upload-url', { slot: 'documento', mime: 'application/pdf', bytes: 5 })).status).toBe(404);
+    h.linhas.delete('codigo_solar:0057');
+    expect((await post('/clientes/solar/57/docs/upload-url', { slot: 'documento', mime: 'application/pdf', bytes: 5000 })).status).toBe(200);
+  });
+});
+
 describe('envio de anexos: teto por IP antes do login', () => {
   const UP = '/gerador/clientes/solar/57/docs/upload-url';
   const REG = '/gerador/clientes/solar/57/docs';

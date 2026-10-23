@@ -104,6 +104,10 @@ html.io2-casca .gc-bar,html.gc-embutida .gc-bar,html.io2-casca .gc-cab,html.gc-e
 .gl-it .nm{flex:1;min-width:0;font-weight:600;color:var(--gc-tit);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gl-selo{flex:none;padding:2px 9px;border-radius:999px;border:1px solid var(--gc-falta-bd);background-color:var(--gc-sf);background-image:linear-gradient(var(--gc-falta),var(--gc-falta));color:var(--gc-er);font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .gl-selo.ok{border-color:transparent;background-image:none;background-color:transparent;color:var(--gc-ok)}
+.gl-col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.gl-col .nm{flex:none;max-width:100%}
+.gl-tag{flex:none;padding:1px 8px;border-radius:999px;border:1px solid var(--gc-campo);background:var(--gc-sf3);color:var(--gc-tit);font-size:11px;font-weight:700;white-space:nowrap}
+.gl-tag.av{border-color:var(--gc-av);background:var(--gc-av-sf);color:var(--gc-av)}
 /* Eletroposto: o código é o id do card da agenda e pode ser comprido. */
 html.gc-ep .gl-it .cod{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gl-vazio{margin:0;padding:24px 16px;color:var(--gc-tx2);text-align:center}
@@ -461,6 +465,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     try { dm = fDM.format(new Date(cel.em)); } catch (e) {}
     return 'Preenchido por ' + (cel.por || 'alguém') + (dm ? ' em ' + dm : '');
   }
+  var MSG_DESFEITA = 'A venda deste card foi desfeita. Os documentos voltam quando o card voltar a Vendido.';
   var avisoTimer = null;
   function aviso(txt) {
     var a = $('aviso');
@@ -610,11 +615,13 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
 
   // Devolve { status, json } para QUALQUER resposta do servidor (o 409 e o 400 trazem o motivo no corpo).
   function pedir(metodo, caminho, corpo, tk) {
+    var base = API;
+    if (caminho.charAt(0) === '~') { base = '/_api/gerador/clientes'; caminho = '/' + caminho.slice(1); }   // '~vendasolar/1143/docs' -> '/_api/gerador/clientes/vendasolar/1143/docs'
     var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
     var tt = ctrl ? setTimeout(function () { ctrl.abort(); }, 20000) : null;
     var h = { 'Authorization': 'Bearer ' + tk };
     if (corpo) h['Content-Type'] = 'application/json';
-    return fetch(API + caminho, { method: metodo, headers: h, body: corpo ? JSON.stringify(corpo) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+    return fetch(base + caminho, { method: metodo, headers: h, body: corpo ? JSON.stringify(corpo) : undefined, cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
       .then(function (r) {
         if (tt) clearTimeout(tt);
         return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, json: j }; });
@@ -682,6 +689,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       }
       aplicarDados(x.json);
       $('faixa').hidden = true;
+      faixaDaFonte(x.json);   // DEPOIS de esconder a faixa: antes, o `hidden = true` apagava o aviso na mesma carga
       esqueleto(false);
       mostrarEstado(null);
       desenharTudo();
@@ -692,6 +700,14 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       if (D) { $('faixaTx').textContent = 'Não consegui ler a planilha agora'; $('faixa').hidden = false; }
       else mostrarEstado({ t: 'Não consegui ler a planilha agora', p: 'Tente de novo em instantes.', btn: 'Tentar de novo', fn: function () { carregar(); } });
     }).then(function () { carregando = false; });
+  }
+
+  // Solar: a camada dos clientes do Gerador falhou. A grade da planilha segue, e a faixa diz o que faltou.
+  function faixaDaFonte(j) {
+    if (EP || !j || !j.fonte) return;
+    var txt = j.fonte.gerador === false ? 'Não consegui ler os clientes do Gerador agora. Os que só existem lá não aparecem, e os documentos de alguns clientes podem faltar.'
+      : (j.fonte.cadastro === false ? 'Cadastro dos clientes do Gerador fora do ar agora. Alguns dados podem aparecer incompletos.' : '');
+    if (txt) { $('faixaTx').textContent = txt; $('faixa').hidden = false; }
   }
 
   function aplicarDados(j) {
@@ -743,7 +759,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     return linhas.filter(function (l) {
       if (cons && l.consultor !== cons) return false;
       if (q && semAcento(l.cliente).indexOf(q) < 0 && semAcento(l.codigo).indexOf(q) < 0 && semAcento(l.codigo.replace(/\D/g, '')).indexOf(q.replace(/\D/g, '') || '\u0000') < 0) return false;
-      if (pend && !(l.progresso.faltando > 0)) return false;
+      if (pend && (ignoraNaConta(l) || !(l.progresso.faltando > 0))) return false;
       return true;
     });
   }
@@ -756,9 +772,11 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     cols.forEach(function (c) { if (conta(c, l.celulas[c.chave])) { tot++; if (!vazioV(l.celulas[c.chave].valor)) ok++; } });
     l.progresso = { preenchidas: ok, total: tot, faltando: tot - ok };
   }
+  // Venda desfeita e o lado Gerador de um conflito aparecem na lista, mas não contam como "faltando".
+  function ignoraNaConta(l) { return !EP && !!l && (l.venda_desfeita === true || l.conflito === 'gerador'); }
   function atualizarContador() {
     var cel = 0, cli = 0;
-    visiveis.forEach(function (l) { if (l.progresso.faltando > 0) { cel += l.progresso.faltando; cli++; } });
+    visiveis.forEach(function (l) { if (!ignoraNaConta(l) && l.progresso.faltando > 0) { cel += l.progresso.faltando; cli++; } });
     var c = $('cont');
     c.textContent = '';
     c.appendChild(el('b', null, String(cel)));
@@ -770,8 +788,17 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     for (var i = 0; i < its.length; i++) if (its[i].dataset.c === codigo) return its[i];
     return null;
   }
+  // UM selo por linha, por prioridade: conflito, venda desfeita, só no /gerador.
+  function tagDaLinha(l) {
+    if (EP || !l) return null;
+    if (l.conflito) return { t: 'Conflito', av: true };
+    if (l.venda_desfeita) return { t: 'Venda desfeita', av: false };
+    if (l.so_gerador) return { t: 'Só no /gerador', av: false };
+    return null;
+  }
   function pintarSelo(btn, l) {
     var s = btn.querySelector('.gl-selo');
+    s.hidden = ignoraNaConta(l);   // venda desfeita e o lado Gerador de um conflito não mostram o selo de faltas
     s.className = 'gl-selo' + (l.progresso.faltando ? '' : ' ok');
     s.textContent = textoSelo(l.progresso);
     s.setAttribute('aria-label', l.progresso.faltando ? plural(l.progresso.faltando, 'campo faltando', 'campos faltando') : 'Ficha completa');
@@ -783,8 +810,15 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     box.textContent = '';
     visiveis.forEach(function (l) {
       var b = el('button', 'gl-it'); b.type = 'button'; b.dataset.c = l.codigo;
-      b.appendChild(el('span', 'cod', l.codigo));
-      b.appendChild(el('span', 'nm', l.cliente || 'Sem nome'));
+      b.appendChild(el('span', 'cod', l.exibir || l.codigo));
+      // O selo (Conflito, Venda desfeita, Só no /gerador) vai numa 2ª linha, sob o nome: ao lado dele o nome ficava com ~50 px numa coluna de 340 px.
+      var tg = tagDaLinha(l);
+      if (tg) {
+        var col = el('span', 'gl-col');
+        col.appendChild(el('span', 'nm', l.cliente || 'Sem nome'));
+        col.appendChild(el('span', 'gl-tag' + (tg.av ? ' av' : ''), tg.t));
+        b.appendChild(col);
+      } else b.appendChild(el('span', 'nm', l.cliente || 'Sem nome'));
       b.appendChild(el('span', 'gl-selo'));
       pintarSelo(b, l);
       if (l.codigo === detalhe) b.setAttribute('aria-current', 'true');
@@ -856,8 +890,9 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     var l = linhaPor[detalhe]; if (!l) return;
     var p = l.progresso, pct = p.total ? Math.round(100 * p.preenchidas / p.total) : 100;
     $('gdNome').textContent = l.cliente || 'Sem nome';
-    $('gdSub').textContent = l.codigo + (l.consultor && D.papel === 'socio' ? ' · ' + l.consultor : '') + (p.faltando ? ' · faltam ' + p.faltando : ' · completo');
-    $('gdProgTx').textContent = textoProgresso(p);
+    $('gdSub').textContent = (l.exibir || l.codigo) + (l.consultor && D.papel === 'socio' ? ' · ' + l.consultor : '') + (ignoraNaConta(l) ? '' : (p.faltando ? ' · faltam ' + p.faltando : ' · completo'));
+    $('gdProgTx').textContent = ignoraNaConta(l) ? '' : textoProgresso(p);
+    $('gdBarra').hidden = ignoraNaConta(l);
     $('gdBarra').className = 'gc-barra' + (p.faltando ? '' : ' cheio');
     $('gdBarra').firstChild.style.width = pct + '%';
   }
@@ -884,6 +919,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     }
     repintarCabecalho();
     if (cadastroFora(l)) { var avc = el('p', 'gd-aviso-cad', AVISO_CADASTRO); avc.setAttribute('role', 'status'); corpo.appendChild(avc); }
+    avisosDaLinha(corpo, l);
     grupos.forEach(function (g) {
       var lista = cols.filter(function (c) { return c.grupo === g && c.chave !== 'codigo'; });
       if (!lista.length) return;
@@ -896,9 +932,23 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       secoes.push({ cnt: cnt, cols: lista });
     });
     atualizarSecoes();
+    // Venda desfeita: os documentos voltam quando o card voltar a Vendido. Sem seção, sem leitura.
+    if (!EP && l.venda_desfeita) return;
     var raiz = el('div'); raiz.id = 'dcRaiz'; raiz.dataset.c = l.codigo; corpo.appendChild(raiz);
     pintarDocs(l.codigo);
     carregarDocs(l.codigo, false);
+  }
+  // Solar: o que a linha do Gerador (ou o conflito) precisa dizer no topo da ficha. Texto fixo, nada do servidor além do `aviso_telefone`.
+  function avisosDaLinha(corpo, l) {
+    if (EP) return;
+    var add = function (txt) { var p = el('p', 'gd-aviso-cad', txt); p.setAttribute('role', 'status'); corpo.appendChild(p); };
+    if (l.conflito === 'planilha') add('Este número está ligado a um card do Gerador que não parece ser do mesmo cliente. Nada foi juntado. Avise um sócio.');
+    else if (l.conflito === 'gerador') add('A planilha já tem este número para outro cliente. Estes dados são só leitura. Avise um sócio.');
+    if (l.venda_desfeita) add(MSG_DESFEITA);
+    if (l.so_gerador && !l.conflito) {
+      add('Este cliente foi criado pelo card da agenda e ainda não está na planilha de vendas. Os dados vêm do card, da proposta e do cadastro; o que você preencher aqui fica salvo. Se for lançar na planilha de vendas, use este mesmo número.');
+      if (typeof l.aviso_telefone === 'string' && l.aviso_telefone) add(l.aviso_telefone);
+    }
   }
 
   // Um campo da ficha: rótulo, controle do tipo certo e a linha de aviso. O código da venda e a coluna ficam PRESOS aqui:
@@ -918,6 +968,9 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     // Eletroposto: campo que vem de Obras (pos_venda) é só leitura, mesmo que a coluna diga que é editável.
     var pv = ehPv(c, cel0);
     var bloq = colBloqueada(l, c);   // cadastro do cliente fora do ar: só leitura nesta venda
+    // Solar: coluna que vem do cadastro do card (`fixa`) e toda a linha do lado Gerador de um conflito são só leitura. `fixa` fica FORA de
+    // `obrig` de propósito: o controle some, mas o campo vazio continua contando como falta.
+    var fixa = !EP && (!!(cel0 && cel0.fixa) || l.somente_leitura === true);
     var obrig = c.obrigatoria && c.editavel && !pv && !bloq;
     var atual = function () { var x = linhaPor[codigo]; return x ? x.celulas[chave] : cel0; };
 
@@ -926,8 +979,17 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       var cel = atual();
       if (bloq) return 'Só leitura: o cadastro está fora do ar';
       if (pv) return vazioV(cel.valor) ? 'Falta, edita em Obras' : 'Edita em Obras';
+      if (fixa) {
+        if (l.somente_leitura === true || l.conflito) return 'Só leitura. Avise um sócio.';
+        // O texto do card só vale para o que veio do Gerador (ou campo vazio em linha só no /gerador). Valor que veio do Excel não é do card.
+        if (cel.origem === 'gerador' || (l.so_gerador === true && vazioV(cel.valor))) {
+          return vazioV(cel.valor) ? 'Falta. Preencha no cadastro do card.' : 'Vem do cadastro do card. Para mudar, edite no card.';
+        }
+        return 'Vem da planilha de vendas. Só leitura aqui.';
+      }
       if (!c.editavel) return c.calculada ? 'Calculado na planilha' : '';
       if (EP && cel.origem === 'card') return 'Veio da agenda';
+      if (!EP && cel.origem === 'gerador') return 'Veio do Gerador';
       return dicaSistema(cel);
     };
     h.msg = function (txt, tipo) {
@@ -953,7 +1015,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
       if (pv && !h.msgTipo) dica.className = 'gd-dica' + (vazio ? ' err' : '');
     };
 
-    if (!c.editavel || pv || bloq) {
+    if (!c.editavel || pv || bloq || fixa) {
       v.classList.add('calc');
       if (pv) f.classList.add('pv');
       var ro = el('div', 'gd-ro'); ro.id = id; v.appendChild(ro);
@@ -1116,6 +1178,11 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   function gravar(codigo, c, texto, h) {
     var l = linhaPor[codigo]; if (!l) return;
     var antes = l.celulas[c.chave];
+    if (!EP && (l.somente_leitura === true || (antes && antes.fixa === true))) {   // o servidor também recusa; isto só evita o pedido
+      aviso(l.somente_leitura === true ? 'Estes dados são só leitura. Avise um sócio.' : 'Esta informação vem do cadastro do card. Para mudar, edite no card da agenda.');
+      if (h && detalhe === codigo) h.set(antes, true);
+      return;
+    }
     if (ehPv(c, antes)) {   // nunca grava campo de Obras daqui
       aviso('Este campo é editado em Obras.');
       if (h && detalhe === codigo) h.set(antes, true);
@@ -1132,7 +1199,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     if ((vazioV(novoV) && vazioV(antes.valor)) || novoV === antes.valor) { if (h && detalhe === codigo) h.set(antes, true); return; }
     // Apagar um valor que vem da planilha não faz nada no servidor (só se apaga o que foi preenchido aqui).
     if (vazioV(novoV) && antes.origem !== 'sistema') {
-      aviso(EP && antes.origem === 'card' ? 'Este valor vem da agenda. Para trocá-lo, escolha ou digite outro.' : 'Este valor vem da planilha. Para trocá-lo, escolha ou digite outro.');
+      aviso(EP && antes.origem === 'card' ? 'Este valor vem da agenda. Para trocá-lo, escolha ou digite outro.'
+        : (!EP && antes.origem === 'gerador' ? 'Este valor vem do Gerador. Para trocá-lo, escolha ou digite outro.' : 'Este valor vem da planilha. Para trocá-lo, escolha ou digite outro.'));
       if (h && detalhe === codigo) h.set(antes, true);
       return;
     }
@@ -1198,6 +1266,8 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   function enviar(l, c, texto, antes) {
     var chaveBase = l.codigo + '|' + c.chave;
     var corpo = { codigo: (EP && l.codigoApi != null) ? l.codigoApi : l.codigo, coluna: c.chave, valor: texto, base_em: baseEm[chaveBase] || (D && D.em) };
+    // Linha só do /gerador: o servidor confere que o código ainda é deste card (se o Excel ganhou o número de outro, a linha mudou).
+    if (!EP && l.so_gerador === true && l.somente_leitura !== true && l.card != null && isFinite(Number(l.card))) corpo.card = Number(l.card);
     // Fim desta gravação: devolve quantas ainda estão na fila para o mesmo campo. Com outra na fila, a tela não é tocada:
     // ela mostra a edição mais nova, que a próxima resposta confirma ou recusa.
     var terminou = function () { pend[chaveBase] = Math.max(0, (pend[chaveBase] || 1) - 1); return pend[chaveBase]; };
@@ -1224,6 +1294,17 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         if (hn && hn.ctl && detalhe === l.codigo && document.activeElement === hn.ctl && hn.ctl.tagName !== 'SELECT') forcarNorm = String(hn.ctl.value).trim() === String(texto == null ? '' : texto).trim();
         depoisDeMudar(l.codigo, c.chave, 'Salvo', 'ok', forcarNorm);
         avisarPaiCadastro(l, c);
+        return;
+      }
+      // 404 com `card` no pedido: a linha deixou de ser a do card (ou o card não é mais dele). Mesmo tratamento do "A linha mudou".
+      if ((x.status === 409 && !j.celula && typeof j.error === 'string' && j.error.indexOf('A linha mudou') === 0) || (x.status === 404 && corpo.card !== undefined)) {
+        // A linha do Gerador deixou de ser esta (o Excel ganhou o número, ou o card mudou). Mostra o texto, devolve o valor e recarrega a grade
+        // quando nenhuma outra gravação está na fila: `aplicarDados` zera as marcas de versão e a fila.
+        resto = terminou();
+        aviso(x.status === 404 ? 'A linha mudou. A lista foi atualizada.' : j.error);
+        if (resto === 0) voltar();
+        var fila = false; for (var kp in pend) { if (pend[kp] > 0) { fila = true; break; } }
+        if (!fila) carregar();
         return;
       }
       if (x.status === 409 && j.celula) {
@@ -1303,7 +1384,13 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     if (n < 1048576) return Math.round(n / 1024) + ' KB';
     return (n / 1048576).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' MB';
   }
-  function caminhoDoc(l, resto) { return '/' + encodeURIComponent(String((EP && l.codigoApi != null) ? l.codigoApi : l.codigo)) + resto; }
+  // Solar: a linha que tem o card (só do /gerador, ou do alocador em `junta`) usa os documentos DO CARD (`~vendasolar/<card>`); `pedir` troca o prefixo.
+  // Linha sem card (planilha, `junta` ligada por gente, conflito do lado planilha) segue por código.
+  function viaCard(l) { return !EP && !!l && l.card != null && !l.venda_desfeita; }
+  function caminhoDoc(l, resto) {
+    if (viaCard(l)) return '~vendasolar/' + encodeURIComponent(String(l.card)) + resto;
+    return '/' + encodeURIComponent(String((EP && l.codigoApi != null) ? l.codigoApi : l.codigo)) + resto;
+  }
   function ehLogin(e) { return !!(e && (e.tipo === 'login' || e.tipo === 'negado')); }
   function msgServidor(x, padrao) { return (x && x.json && typeof x.json.error === 'string' && x.json.error) || padrao; }
   function arquivosDe(d, chave) { return d.arquivos.filter(function (a) { return a.slot === chave; }); }
@@ -1317,7 +1404,9 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   function aplicarDocs(d, j) {
     d.slots = (Array.isArray(j.slots) ? j.slots : []).filter(function (s) { return s && typeof s.chave === 'string'; });
     d.arquivos = (Array.isArray(j.arquivos) ? j.arquivos : []).filter(function (a) { return a && a.id != null && typeof a.slot === 'string'; });
-    d.vinculo = (!EP && j.vinculo && typeof j.vinculo === 'object') ? j.vinculo : null;
+    // Linha por código: o vínculo com a proposta. Linha pelo card (`vendasolar`): o dossiê da proposta ligada ao card, só leitura.
+    d.vinculo = (!EP && j.vinculo && typeof j.vinculo === 'object') ? j.vinculo : ((!EP && j.dossie && typeof j.dossie === 'object') ? j.dossie : null);
+    d.dossieFora = !EP && (j.dossie_indisponivel === true || (!!j.dossie && j.dossie.indisponivel === true));
     d.pode = j.pode_remover === true;
     d.rotulosFora = j.rotulos_indisponivel === true;   // os nomes dos arquivos não carregaram: sem Renomear até a próxima leitura
   }
@@ -1745,7 +1834,10 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     var sec = el('section', 'gd-g'), gh = el('div', 'gd-gh'), cnt = el('span', 'cnt');
     gh.appendChild(el('h2', null, 'Documentos da venda')); gh.appendChild(cnt); sec.appendChild(gh);
     sec.id = 'dcVenda';
-    sec.appendChild(el('p', 'dc-nota', 'Só algumas vendas da planilha têm proposta marcada como vendida no sistema; anexe direto aqui o que faltar.'));
+    var doCard = viaCard(linhaPor[codigo]);
+    sec.appendChild(el('p', 'dc-nota', doCard
+      ? 'Dossiê da proposta ligada ao card da agenda. Só leitura aqui; a ligação se faz no card, no bloco Ligações.'
+      : 'Só algumas vendas da planilha têm proposta marcada como vendida no sistema; anexe direto aqui o que faltar.'));
     var box = el('div', 'dc-venda');
     if (d.estado !== 'ok') { box.appendChild(el('p', 'dc-vz', d.estado === 'erro' ? 'Sem leitura dos documentos agora.' : 'Carregando...')); sec.appendChild(box); return sec; }
     var vi = d.vinculo;
@@ -1761,6 +1853,9 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
         gr.appendChild(c);
       });
       if (arqs.length) box.appendChild(gr);
+    } else if (doCard) {
+      // Linha pelo card: sem botão Vincular (a ligação mora no card).
+      box.appendChild(el('p', 'dc-vz', d.dossieFora ? 'O dossiê da proposta está fora do ar agora. Tente de novo em instantes.' : 'Nenhuma proposta ligada ao card ainda.'));
     } else {
       var v = VINC[codigo] || (VINC[codigo] = {});
       if (!v.aberto) {
@@ -2075,6 +2170,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
   function gerarRelatorio() {
     var codigo = detalhe, l = codigo && linhaPor[codigo];
     if (!l || relOcupado) return;
+    if (!EP && l.venda_desfeita) { aviso(MSG_DESFEITA); return; }
     relOcupado = true;
     var btn = $('gdRel'); btn.setAttribute('aria-busy', 'true'); btn.disabled = true;
     buscarRelatorio(l).then(function (j) { return abrirRelatorio(j, l); }).catch(function (e) {
@@ -2097,7 +2193,7 @@ html.gc-ep .gd.sem-linhas .gd-top{display:none}
     pronto.then(function (falhas) {
       if (falhas) aviso(falhas === 1 ? 'Um arquivo não pôde ser mostrado e saiu como aviso no papel.' : falhas + ' arquivos não puderam ser mostrados e saíram como aviso no papel.');
       if (tituloAntes == null) tituloAntes = document.title;   // duas emissões seguidas sem afterprint no meio não podem guardar o título já trocado
-      document.title = 'Homologacao ' + l.codigo + (l.cliente ? ' ' + l.cliente : '');
+      document.title = 'Homologacao ' + (l.exibir || l.codigo) + (l.cliente ? ' ' + l.cliente : '');
       document.documentElement.classList.add('gc-imprimindo');
       window.print();
       /* Reserva para navegador que não dispara afterprint (Safari antigo no iPhone): a vista de impressão some sozinha em 2 min,
