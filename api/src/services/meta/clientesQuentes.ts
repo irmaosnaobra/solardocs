@@ -34,7 +34,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { enviarEventoMeta, normFone, type ProdutoMeta } from '../../utils/metaCapi';
+import { enviarEventoMeta, normFone, type ProdutoQuente as ProdutoMeta } from '../../utils/metaCapi';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { PLANILHA_CSV_URL, parseCSV } from '../insightsService';
 import {

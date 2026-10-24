@@ -52,6 +52,7 @@ import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
 import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/io/eletropostoTopPontos';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/solarBoasVindas';
+import { runSolardocQuizDesistenciaTick } from '../services/solardoc/desistenciaQuizTick';
 import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
 import { rodarInvestidorAgente, previaInvestidorAgente, definirChaveDesligar } from '../services/io/investidorAgente';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -431,6 +432,10 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['ficha_5040', () => runFichaConsultorTick()],            // agentes 5040 (A4): todo cliente agendado de solar e eletroposto gera a ficha no card e no celular do consultor dono; o MESMO interruptor faz os 5 avisos antigos saírem cedo (nasce desligada: interruptor `ficha`, ver interruptores.ts)
     ];
     const assentados = await Promise.allSettled(TAREFAS.map(([, roda]) => roda()));
+    // Quiz do SolarDoc (24/10/2026): quem deixou o WhatsApp e não comprou em 15 min vira aviso no grupo de vendas, e os
+    // avisos que esperaram o teto saem num cartão só (QUIZ_DESISTENCIA_OFF desliga). Roda DEPOIS dos outros ticks, sozinho,
+    // para não sair colado nos envios da linha 5040 que eles acabaram de fazer (a linha é a mesma).
+    const desistenciaSolardoc = await runSolardocQuizDesistenciaTick().catch((err) => ({ error: String(err) }));
     // A resposta é montada PELO NOME que está ao lado da chamada, não pela
     // posição. É o que impede isto de voltar uma terceira vez: tarefa nova
     // carrega a chave dela, e não existe mais uma segunda lista pra desalinhar.
@@ -441,6 +446,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
         ? r.value
         : { error: String((r as PromiseRejectedResult).reason) };
     });
+    resultados['solardoc_quiz_desistencia'] = desistenciaSolardoc;
     res.json({
       ok: true,
       pausa_humana: pausaHumanaResult,
@@ -574,8 +580,11 @@ router.get('/solar-agente', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
     const dry = req.query.dry === '1' || req.query.dry === 'true';
-    const [leads, agente] = await Promise.all([runSolarQuizLeadsTick({ dry }), runSolarAgenteQuizTick({ dry })]);
-    res.json({ ok: true, dry, leads, agente });
+    const [leads, agente, solardocDesistencia] = await Promise.all([
+      runSolarQuizLeadsTick({ dry }), runSolarAgenteQuizTick({ dry }),
+      dry ? runSolardocQuizDesistenciaTick({ dry }) : Promise.resolve(null),   // só a prévia: o tick de verdade roda no /process-messages
+    ]);
+    res.json({ ok: true, dry, leads, agente, solardocDesistencia });
   } catch (err: any) {
     logger.error('cron', 'solar-agente falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });

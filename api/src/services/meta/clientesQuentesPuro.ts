@@ -11,7 +11,7 @@
 // vale um terço, e assim por diante.
 
 import { normFone, normCidade, normUf, separarNome, semAcento, sha256 } from '../../utils/metaCapi';
-import type { ProdutoMeta } from '../../utils/metaCapi';
+import type { ProdutoQuente as ProdutoMeta } from '../../utils/metaCapi';
 import { TARIFA_KWH, RE_CAMPO_CONSUMO } from '../agenda/leadSolarFicha';
 
 /** Ticket do solar quando a planilha não responde: faixa típica de um sistema residencial. */

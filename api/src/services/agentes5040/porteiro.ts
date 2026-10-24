@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { chaveDaLinha, type LinhaWa, type MapaLid } from '../gerador/caixaWhatsapp';
-import { PERSONA_DO_PRODUTO, type Dona, type FatosPorteiro, type Produto } from './tipos';
+import { PERSONA_DO_PRODUTO, type Dona, type FatosPorteiro, type LeadMetaResumo, type Produto } from './tipos';
 import { ehGatilhoSolarDoc } from '../agents/whatsapp/gatilhoSolarDoc';
 
 export const PERGUNTA_DO_PORTEIRO = 'Você quer saber de energia solar, de eletroposto ou do SolarDoc?';
@@ -71,12 +71,23 @@ export function produtoDoBotao(texto: string | null | undefined): Produto | null
   return null;
 }
 
+/**
+ * Origem de um lead de `leads_meta`, na linguagem do porteiro. O quiz do SolarDoc (form_id 'quiz_solardoc', lead_id
+ * 'sdquiz_...') é SolarDoc: vai para a Carla, não para a Duda (solar). O 'quiz_' do quiz solar segue 'quiz'.
+ */
+export function origemDoLeadMeta(lead: Pick<LeadMetaResumo, 'lead_id' | 'form_id'>): string {
+  if (lead.form_id === 'quiz_solardoc' || String(lead.lead_id ?? '').startsWith('sdquiz_')) return 'quiz_solardoc';
+  return String(lead.lead_id ?? '').startsWith('quiz_') ? 'quiz' : 'lead-meta';
+}
+
 /** Produto de um created_by de card ou form_id de cadastro. Desconhecido = null (ninguém chuta). */
 export function produtoDaOrigem(origem: string | null | undefined): Produto | null {
   const o = semAcento(origem).trim();
   if (!o) return null;
   if (['lp_eletroposto', 'cadastro_eletroposto', 'manychat_eletroposto', 'agente_eletroposto'].includes(o)) return 'eletroposto';
   if (['lead-meta', 'lp_solar', 'quiz'].includes(o)) return 'solar';
+  // Quiz do SolarDoc (/diagnostico, 24/10/2026): quem deixou o WhatsApp lá e escreve na 5040 é da Carla.
+  if (o === 'quiz_solardoc') return 'solardoc';
   return null;
 }
 

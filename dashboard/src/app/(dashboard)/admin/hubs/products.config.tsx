@@ -81,6 +81,8 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: FunilSolarDocPanel },
       { key: 'membros',   label: 'Membros',          status: 'pronto',    Comp: MembrosPanel },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpVendaPanel },
+      // Quiz /diagnostico (24/10/2026): o mesmo painel do quiz solar, lendo /admin/solardoc/quiz-funil.
+      { key: 'quiz',      label: 'Quiz',              status: 'pronto',   Comp: () => <QuizEletropostoPanel produto="solardoc" /> },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solardoc" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
       // 'parcial' de proposito: o texto esta pronto e editavel, mas nenhuma linha le ele ainda.

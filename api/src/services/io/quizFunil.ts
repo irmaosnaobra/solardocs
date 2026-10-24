@@ -246,6 +246,88 @@ export const CONFIG_SOLAR: ConfigFunil = {
   marcaram: ['vistoria', 'video', 'ligacao'], ehVisita: ehVisitaDaLpSolar,
 };
 
+// ── O QUIZ DO SOLARDOC (/diagnostico, 24/10/2026) ─────────────────────────────
+// Mesma conta, outra configuração. Os ids são os da página (`PASSOS` do protótipo):
+// as 39 perguntas, a capa, o resultado (fica entre `followup` e `documentos`) e os
+// dois passos do portão. `pagamento` só aparece com CNPJ sim ou empregador, e por
+// isso o painel lê "parou aqui", não "chegou". Quem comprou não passa por agenda:
+// a coluna "reuniões" conta quem foi para o cartão ou para o Pix.
+export const MEDINDO_DESDE_SOLARDOC = '2026-10-24';
+export const PERGUNTAS_SOLARDOC: Record<string, string> = {
+  capa: 'Quanto a sua proposta solar está te custando?',
+  papel: 'Qual é o seu papel na venda de energia solar?',
+  empresa: 'Como se chama a sua empresa?',
+  cnpj: 'A sua empresa tem CNPJ?',
+  uf: 'Em que estado fica a sua empresa?',
+  cidade: 'Qual é a sua cidade?',
+  clientes: 'Para quem você mais vende?',
+  propostas_mes: 'Quantas propostas você faz por mês?',
+  vendas_mes: 'Quantas dessas viram venda por mês?',
+  ticket: 'Quanto vale, em média, um sistema que você vende?',
+  como_faz_hoje: 'Como você monta suas propostas hoje?',
+  gasto_ferramenta: 'Quanto você gasta por mês com ferramenta para fazer proposta?',
+  tempo_por_proposta: 'Quanto tempo leva para montar uma proposta completa?',
+  quando_monta: 'Quando você costuma montar as propostas?',
+  demora_envio: 'Depois da visita, em quanto tempo o cliente recebe a proposta?',
+  perdeu_venda: 'Você já perdeu venda para alguém que mandou a proposta antes?',
+  cliente_entende: 'Quando o cliente lê a sua proposta, ele entende quanto vai economizar?',
+  erro_proposta: 'Já saiu proposta com erro de valor, de nome ou de formatação?',
+  papelada: 'E a papelada depois do sim, como contrato, procuração e recibo?',
+  meta_vendas: 'Daqui a 6 meses, quantas vendas por mês você quer fechar?',
+  tempo_livre: 'Se você ganhasse tempo na semana, o que faria com ele?',
+  imagem: 'Como você quer que o cliente veja a sua empresa?',
+  fechar_primeira: 'O que ajudaria você a fechar já na primeira reunião?',
+  prioridade: 'Numa ferramenta de proposta, o que pesa mais para você?',
+  frase: 'Você se identifica com esta frase?',
+  tem_marca: 'A sua proposta sai com a sua logo e as cores da empresa?',
+  mostra_economia: 'Ela mostra a economia mês a mês e em quanto tempo o sistema se paga?',
+  economia_25: 'Ela mostra quanto o cliente economiza em 25 anos?',
+  financiamento: 'Ela mostra as parcelas do financiamento?',
+  usa_conta: 'Como os dados da conta de luz entram na proposta?',
+  contrato_pronto: 'Você leva o contrato pronto para assinar na primeira reunião?',
+  modelos: 'Você tem um modelo de proposta para cada tipo de cliente?',
+  followup: 'Depois de mandar a proposta, você chama o cliente de novo?',
+  resultado: 'Seu diagnóstico (resultado)',
+  documentos: 'Quais documentos você quer prontos desde o primeiro dia?',
+  modelo: 'Qual estilo de proposta combina com o seu cliente?',
+  logo: 'Você já tem a logo da empresa em arquivo?',
+  decisor: 'Quem decide a compra de uma ferramenta na sua empresa?',
+  objecao: 'O que poderia te impedir de começar hoje?',
+  pagamento: 'Como você prefere pagar?',
+  quando_comecar: 'Quando você quer mandar a primeira proposta pelo SolarDoc?',
+  nome: 'Seu plano está pronto. Como você se chama?',
+  whatsapp: 'Qual é o seu WhatsApp?',
+};
+export const CURTAS_SOLARDOC: Record<string, string> = {
+  capa: 'Capa', papel: 'Papel', empresa: 'Empresa', cnpj: 'CNPJ', uf: 'Estado', cidade: 'Cidade', clientes: 'Clientes',
+  propostas_mes: 'Propostas por mês', vendas_mes: 'Vendas por mês', ticket: 'Ticket', como_faz_hoje: 'Como faz hoje',
+  gasto_ferramenta: 'Gasto com ferramenta', tempo_por_proposta: 'Tempo por proposta', quando_monta: 'Quando monta',
+  demora_envio: 'Demora para enviar', perdeu_venda: 'Perdeu venda', cliente_entende: 'Cliente entende', erro_proposta: 'Erro na proposta',
+  papelada: 'Papelada', meta_vendas: 'Meta de vendas', tempo_livre: 'Tempo livre', imagem: 'Imagem da empresa',
+  fechar_primeira: 'Fechar na 1ª reunião', prioridade: 'Prioridade', frase: 'Frase', tem_marca: 'Tem marca', mostra_economia: 'Mostra economia',
+  economia_25: 'Economia em 25 anos', financiamento: 'Financiamento', usa_conta: 'Conta de luz', contrato_pronto: 'Contrato pronto',
+  modelos: 'Modelos', followup: 'Follow-up', resultado: 'Resultado', documentos: 'Documentos', modelo: 'Estilo', logo: 'Logo',
+  decisor: 'Quem decide', objecao: 'Objeção', pagamento: 'Pagamento', quando_comecar: 'Quando começar', nome: 'Nome', whatsapp: 'WhatsApp',
+};
+/** Um caminho só: a página não ramifica por perfil. */
+export const CAMINHOS_SOLARDOC: Caminho[] = [
+  { id: 'principal', nome: 'Diagnóstico da proposta', passos: Object.keys(PERGUNTAS_SOLARDOC) },
+];
+export const DESTINOS_SOLARDOC: Record<string, string> = {
+  cartao: 'Assinar com cartão', pix: 'Assinar no Pix', duvida: 'Tirar dúvida no WhatsApp',
+  equipe: 'Falar com a equipe', carla: 'Falar com a Carla (sem CNPJ ainda)', socio: 'Copiar resumo para quem decide',
+  plano: 'Deixou o WhatsApp e viu o plano',
+};
+/** A visita é a página do diagnóstico, não qualquer caminho que comece parecido. */
+export function ehVisitaDaLpSolardoc(url: string | null): boolean {
+  return /\/diagnostico(?:[/?#]|$)/.test(String(url || ''));
+}
+export const CONFIG_SOLARDOC: ConfigFunil = {
+  lp: 'solardoc', aceitaSemLp: false, medindoDesde: MEDINDO_DESDE_SOLARDOC,
+  perguntas: PERGUNTAS_SOLARDOC, curtas: CURTAS_SOLARDOC, caminhos: CAMINHOS_SOLARDOC,
+  marcaram: ['cartao', 'pix'], ehVisita: ehVisitaDaLpSolardoc,
+};
+
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
 const txt = (v: unknown): string => (typeof v === 'string' ? v : '');
 

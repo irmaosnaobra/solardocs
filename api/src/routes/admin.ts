@@ -20,6 +20,7 @@ import * as pc from '../services/io/pontoCertoFunil';
 import * as qf from '../services/io/quizFunil';
 import { buscarConjuntosMeta } from '../services/io/metaConjuntos';
 import { lerTudo, lerFunilQuizSolar } from '../services/io/painelQuizSolar';
+import { lerFunilQuizSolardoc } from '../services/solardoc/painelQuizSolardoc';
 import { novoAnthropic } from "../utils/anthropicClient";
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, PLACEHOLDERS, numerosVivos, resolverPlaceholders,
@@ -948,6 +949,19 @@ router.get('/solar/quiz-funil', async (req: Request, res: Response): Promise<voi
     // A leitura mora em services/io/painelQuizSolar.ts (o painel do Gerador usa
     // a mesma). O JSON daqui é fixado por adminSolarQuizFunil.test.ts.
     res.json(await lerFunilQuizSolar(periodo, conjunto));
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// O QUIZ DA /diagnostico, do SolarDoc (24/10/2026). A mesma conta do solar com a
+// configuração qf.CONFIG_SOLARDOC, lendo os eventos com lp = 'solardoc'. O JSON
+// tem a mesma forma do /solar/quiz-funil (o painel do dashboard lê as duas igual).
+router.get('/solardoc/quiz-funil', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const periodo = String(req.query.period || '7dias');
+    const conjunto = String(req.query.conjunto || '').trim() || null;
+    res.json(await lerFunilQuizSolardoc(periodo, conjunto));
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }

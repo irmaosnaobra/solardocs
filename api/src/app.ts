@@ -41,6 +41,7 @@ import ioIndicacoesRoutes from './routes/ioIndicacoes';
 import ioEletropostoRoutes from './routes/ioEletroposto';
 import eletropostoEstudoPublicoRoutes from './routes/eletropostoEstudoPublico';
 import ioSolarRoutes from './routes/ioSolar';
+import solardocQuizRoutes from './routes/solardocQuiz';
 import plugcashRoutes from './routes/plugcash';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
 
@@ -137,6 +138,8 @@ app.use('/io-indicacoes', ioIndicacoesRoutes);
 app.use('/io/eletroposto/estudo', eletropostoEstudoPublicoRoutes);
 app.use('/io/eletroposto', ioEletropostoRoutes);
 app.use('/io/solar', ioSolarRoutes);
+// Quiz do SolarDoc (/diagnostico): POST /solardoc/quiz, chamado pela página como /_api/solardoc/quiz.
+app.use('/solardoc', solardocQuizRoutes);
 // PlugCash — app de conteudo do eletroposto. Publico (catalogo/pagina de venda),
 // logado (JWT do proprio solardoc.app) e /admin, tudo no mesmo prefixo.
 app.use('/plugcash', plugcashRoutes);

@@ -26,7 +26,7 @@ import { hmacDe } from './hmac';
 import { ligado } from './interruptores';
 import type { ClienteIA } from './ia';
 import { ehMidia } from './midia';
-import { decidirDona } from './porteiro';
+import { decidirDona, origemDoLeadMeta } from './porteiro';
 import { lerCandidatas, MOTIVO_ANUNCIO, PRAZO_TOTAL_MS } from './ensaio';
 import { diaBRT } from './relogio';
 import {
@@ -177,7 +177,7 @@ const recente = (iso: string | null | undefined, ms: number): boolean => {
 /** Mesma regra do contexto.ts (card vence cadastro), com o instante do turno. */
 function origemDaEpoca(d: Cadastros, ms: number): string | null {
   if (d.card?.created_by && recente(d.card.created_at, ms)) return d.card.created_by;
-  if (d.leadsMeta && recente(d.leadsMeta.created_time, ms)) return String(d.leadsMeta.lead_id ?? '').startsWith('quiz_') ? 'quiz' : 'lead-meta';
+  if (d.leadsMeta && recente(d.leadsMeta.created_time, ms)) return origemDoLeadMeta(d.leadsMeta);
   const cad = d.cadastros.find(c => recente(c.created_at, ms));
   if (cad) return cad.origem === 'nota1' ? 'lp_eletroposto' : 'cadastro_eletroposto';
   return null;

@@ -390,6 +390,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/solarRespostas.ts': { robos: ['solar_respostas_aviso'], classeMaxima: 'aviso_interno_p2' },
   'services/nexus/avisoComercial.ts': { robos: ['nexus_aviso_comercial'], classeMaxima: 'aviso_interno_p2' },
   'services/pesquisaSatisfacao.ts': { robos: ['pesquisa_satisfacao'], classeMaxima: 'frio_p5' },
+  'services/solardoc/avisoGrupoSolardoc.ts': { robos: ['solardoc_aviso_grupo'], classeMaxima: 'aviso_interno_p2' },
   'services/vendaAviso.ts': { robos: ['venda_aviso'], classeMaxima: 'aviso_interno_p2' },
 });
 

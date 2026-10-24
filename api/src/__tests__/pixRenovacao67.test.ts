@@ -131,6 +131,9 @@ vi.mock('../services/agents/whatsapp/pausaHumana', () => ({ podeFalarComLead: vi
 vi.mock('../services/kitIntegradorService', () => ({ concederCursoPorAssinatura: vi.fn(async () => {}) }));
 
 vi.mock('../services/dunningService', () => ({ cancelStripeSubsForEmail: vi.fn(async () => 1) }));
+// Grupo de vendas do SolarDoc (24/10/2026): o aviso ao grupo é UM A MAIS; aqui só se confere QUANDO ele é pedido.
+const grupo = vi.hoisted(() => ({ avisarCompra: vi.fn(async (_c: unknown) => 'enviado') }));
+vi.mock('../services/solardoc/avisoGrupoSolardoc', async (orig) => ({ ...(await orig<typeof import('../services/solardoc/avisoGrupoSolardoc')>()), avisarCompra: grupo.avisarCompra }));
 
 import { sendHuman, sendWhatsApp } from '../services/agents/zapiClient';
 import {
@@ -188,6 +191,7 @@ beforeEach(() => {
   aoAtualizarUsers = null;
   (sendHuman as any).mockClear();
   (sendWhatsApp as any).mockClear();
+  grupo.avisarCompra.mockClear();
 });
 afterEach(() => { vi.useRealTimers(); });
 
@@ -614,5 +618,51 @@ describe('mesmo prefixo de E2E em momento diferente', () => {
     expect(await tryProcessPixComprovante(USER, IMG, TEL, 'io', '')).toBe(true);
     expect(thiago()).toHaveLength(0);
     expect(credito()).toBeUndefined();
+  });
+});
+
+describe('grupo de vendas do SolarDoc: um aviso a mais, o Thiago sempre recebe', () => {
+  it('compra liberada por comprovante: o Thiago recebe e o grupo também, uma vez, com id único e plano ativo', async () => {
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(thiago().length).toBeGreaterThan(0);
+    expect(grupo.avisarCompra).toHaveBeenCalledTimes(1);
+    const c = grupo.avisarCompra.mock.calls[0]![0] as Record<string, any>;
+    expect(c).toMatchObject({ canal: 'comprovante', planoAtivo: true, valor: 67, email: USER.email });
+    expect(c.id).toMatch(/^pix:[^:]+/);
+    expect(c.id).not.toMatch(/null|undefined/);
+  });
+  it('renovação (conta que já tinha vencimento): o Thiago recebe, o grupo não', async () => {
+    db.users[0] = { ...u(), plano: 'ilimitado', billing_status: 'active', plano_expira_em: '2026-10-25T00:00:00Z' };
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(thiago().length).toBeGreaterThan(0);
+    expect(grupo.avisarCompra).not.toHaveBeenCalled();
+  });
+  it('pagamento parcial (não liberou, plano não ativo): o Thiago recebe e o grupo não', async () => {
+    leitura = P27;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('free');
+    expect(thiago().some((c: any[]) => String(c[1]).includes('PARCIAL'))).toBe(true);
+    expect(grupo.avisarCompra).not.toHaveBeenCalled();
+  });
+  it('se o aviso ao grupo estourar, o Thiago já recebeu e a liberação segue', async () => {
+    grupo.avisarCompra.mockRejectedValueOnce(new Error('grupo fora'));
+    leitura = P67;
+    expect(await tryProcessPixComprovante(USER, IMG, TEL, 'io', '')).toBe(true);
+    expect(u().plano).toBe('ilimitado');
+    expect(thiago().length).toBeGreaterThan(0);
+  });
+});
+
+describe('grupo de vendas: id da venda nunca nulo', () => {
+  it('sem e2eKey e sem dedupKey o aviso ao grupo é pulado (nada de pix:undefined)', async () => {
+    const { avisarCompraNoGrupo } = await import('../services/agents/whatsapp/pixComprovanteService');
+    await avisarCompraNoGrupo({ id: 'u1', email: USER.email, plano_expira_em: null }, { valor: 67, dedupKey: '', e2eKey: null, modo: 'tabela', data: null } as any, TEL, 67);
+    expect(grupo.avisarCompra).not.toHaveBeenCalled();
+    await avisarCompraNoGrupo({ id: 'u1', email: USER.email, plano_expira_em: null }, { valor: 67, dedupKey: 'dk:abc', e2eKey: null, modo: 'tabela', data: null } as any, TEL, 67);
+    expect(grupo.avisarCompra).toHaveBeenCalledTimes(1);
+    expect((grupo.avisarCompra.mock.calls[0]![0] as any).id).toBe('pix:dk:abc');
   });
 });

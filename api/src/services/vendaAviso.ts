@@ -45,6 +45,15 @@ export type VendaAviso = {
   // linha de UTM crua de antes, sem falar de Meta.
   origem?: OrigemVenda | null;
   origemDetalhe?: string | null;
+  // GRUPO DE VENDAS DO SOLARDOC (24/10/2026, plano B1). Sem `planoAtivo` verdadeiro o grupo não recebe nada.
+  /** Id estável da venda (session.id da Stripe): é a chave do aviso único no grupo. */
+  sessionId?: string | null;
+  /** `lp_session` do metadata da sessão: casa a compra com o lead do quiz. */
+  lpSession?: string | null;
+  /** O metadata da sessão diz origem = quiz_solardoc. */
+  origemQuiz?: boolean;
+  /** A sessão foi paga (ou é teste grátis): o plano está ativo. */
+  planoAtivo?: boolean;
 };
 
 // DUAS opções, decisão do Thiago em 14/08: ou o e-mail nunca comprou (VENDA),
@@ -282,6 +291,15 @@ export async function avisarVendaAoDono(
     if (!claim) return 'duplicado';
   }
 
+  // O aviso INDIVIDUAL ao Thiago nunca é dispensado (decisão do dono, 24/10/2026): o do grupo de vendas é UM A MAIS e
+  // sai depois, isolado (nunca atrasa nem derruba o do Thiago).
+  const resultado = await avisarThiagoDaVenda(v);
+  await avisarGrupoDaVenda(saleId, v);
+  return resultado;
+}
+
+/** O aviso de sempre ao Thiago (WhatsApp, e e-mail se a linha cair). */
+async function avisarThiagoDaVenda(v: VendaAviso): Promise<'enviado' | 'email'> {
   const texto = textoAvisoVenda(v);
   try {
     await sendWhatsApp(DONO_PHONE, texto, 'solardoc');
@@ -298,6 +316,26 @@ export async function avisarVendaAoDono(
       `<p style="color:#64748b;font-size:13px;">Se este e-mail virou rotina, a linha B2B está caída — é ela que leva os avisos de venda.</p>`,
     ).catch((e) => logger.error('venda-aviso', 'e-mail de fallback também falhou', e));
     return 'email';
+  }
+}
+
+/**
+ * Grupo de vendas do SolarDoc (plano B1): um aviso a mais, só com plano ativo e só para venda nova. Recompra de quem já
+ * comprou (historico 'recorrente') fica só com o Thiago, que carrega o alerta de cobrança dupla. Cartão em teste grátis
+ * (`cobrouAgora` falso) sai como assinatura em teste, nunca como pagamento confirmado. Nunca lança.
+ */
+async function avisarGrupoDaVenda(saleId: string | null, v: VendaAviso): Promise<void> {
+  if (!v.planoAtivo || v.historico?.tipo === 'recorrente') return;
+  try {
+    const { avisarCompra, idDeVenda } = await import('./solardoc/avisoGrupoSolardoc');
+    const id = idDeVenda('', v.sessionId, saleId ? `sale:${saleId}` : null);
+    if (!id) { logger.error('venda-aviso', 'venda sem id único: aviso ao grupo de vendas pulado'); return; }
+    await avisarCompra({
+      id, canal: 'cartao', planoAtivo: true, emTeste: !v.cobrouAgora, valor: v.valor,
+      nome: v.nome, email: v.email, telefone: v.phone, lpSession: v.lpSession, origemQuiz: v.origemQuiz, utmSource: v.utmSource,
+    });
+  } catch (err) {
+    logger.error('venda-aviso', 'aviso ao grupo de vendas falhou (o do Thiago já saiu)', err);
   }
 }
 

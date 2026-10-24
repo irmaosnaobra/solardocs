@@ -281,6 +281,8 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // Portal do Parceiro NEXUS (20/10/2026, aval do chefe-antiban): cadastro, pedido de conversa e pedido de equipamento avisam o comercial. Nasce desligado (NEXUS_AVISO_LIGADO).
   nexus_aviso_comercial: robo('aviso_interno_p2', ['services/nexus/avisoComercial.ts'], { nasceDeEvento: true }),
   asaas_aviso: robo('aviso_interno_p2', ['services/asaas/asaasWebhookService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
+  // Grupo de vendas do SolarDoc na 5040 (24/10/2026, plano B1): desistência do quiz, sem vaga e compra, 1 bolha por evento no grupo novo (Thiago, Diego, Giovanna). Sai por sendToGroup na instância io; o grupo entra na lista de grupos internos (chefe/destinos.ts).
+  solardoc_aviso_grupo: robo('aviso_interno_p2', ['services/solardoc/avisoGrupoSolardoc.ts'], { nasceDeEvento: true }),
   // Alerta de 10 min antes da reunião: tem hora marcada, então vira P1 pelo
   // prazo. Agenda quando vai para a equipe; para lead vira frio e deixa de ser.
   ep_alerta_10min: robo('aviso_interno_p2', ['services/io/eletropostoAlerta10min.ts'], { urgente: true, podeTerPrazo: true, agenda: true }),

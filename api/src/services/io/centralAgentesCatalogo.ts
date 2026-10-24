@@ -498,7 +498,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: [
       'solardoc_boas_vindas', 'solardoc_compra', 'solardoc_ativacao', 'dunning_d0', 'dunning_d5',
       'dunning_lembrete', 'dunning_recuperado', 'pix_comprovante_cliente', 'pix_comprovante_dono',
-      'pix_vip_lembrete', 'trafego_confirmacao', 'recuperacao_checkout', 'venda_aviso', 'asaas_aviso',
+      'pix_vip_lembrete', 'trafego_confirmacao', 'recuperacao_checkout', 'venda_aviso', 'asaas_aviso', 'solardoc_aviso_grupo',
     ],
   }),
   e({

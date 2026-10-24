@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Diagnóstico da proposta solar | SolarDoc</title>
+<meta name="description" content="Responda perguntas de um toque e veja o seu Índice de Proposta, as horas por mês que vão para proposta e um plano de 7 dias. O diagnóstico é grátis.">
+<meta name="theme-color" content="#0F172A">
+<meta property="og:title" content="Quanto a sua proposta solar está te custando? | SolarDoc">
+<meta property="og:description" content="Diagnóstico grátis para integradores solares: Índice de Proposta, horas por mês e plano de 7 dias.">
+<meta property="og:image" content="https://solardoc.app/hero-orcamento.webp">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://solardoc.app/diagnostico">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- Meta Pixel do SolarDoc (824905216831401). PageView ao abrir; os demais eventos saem do script da página. -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '824905216831401');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
+<style>
+/* Marca SolarDoc, um visual só, escuro como a landing (Landing.module.css:35-60): fundo azul-marinho, faixas #1E293B, ação em degradê âmbar, laranja #F26513 no .App e nos rótulos, Nunito Sans */
+:root{--fundo:#0F172A;--tela:#0F172A;--cartao:#1E293B;--faixa:#1E293B;--sobre-faixa:#F1F5F9;--borda:rgba(255,255,255,.08);--borda-forte:rgba(255,255,255,.16);--texto:#F1F5F9;--mudo:#CBD5E1;--marca:#F26513;--acao:#F59E0B;--acao-claro:#FBBF24;--acao-hover:#D97706;--acao-grad:linear-gradient(135deg,#FBBF24,#F59E0B);--acao-borda:rgba(245,158,11,.35);--acao-sombra:rgba(245,158,11,.35);--sobre-acao:#0F172A;--acao-suave:rgba(245,158,11,.12);--tem:#34D399;--tem-fundo:rgba(52,211,153,.14);--falta:#F87171;--falta-fundo:rgba(248,113,113,.14);--barra:#94A3B8;--pilula-fundo:#2B2420;--desab-fundo:#334155;--desab-texto:#CBD5E1;--trilho:rgba(255,255,255,.1);--foco:#FBBF24;--moldura:#020617;--sombra:rgba(0,0,0,.55);--codigo:#1E293B;--logo-fundo:#FFFFFF;--papel:#FFFFFF;--sobre-papel:#0F172A;--papel-mudo:#475569;--papel-borda:#E2E8F0;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:'Nunito Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--foco);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.chip{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:99px;border:1.5px solid var(--borda-forte);color:var(--mudo);background:var(--tela);margin:0}
+.chip.sd{border-color:var(--acao);background:var(--acao-suave);color:var(--texto)}
+.topo{flex:none;padding:14px 18px 4px}
+.barra{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;height:5px}
+.seg{background:var(--trilho);border-radius:3px;overflow:hidden}
+.seg i{display:block;height:100%;background:var(--acao);width:var(--w,0%);transition:width .3s}
+.linha-topo{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:6px}
+.voltar{width:44px;height:44px;margin-left:-10px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center;cursor:pointer}
+.voltar svg{width:22px;height:22px;stroke:var(--texto);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.rotulo{font-size:.72rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--mudo)}
+.abertura{font-size:.82rem;color:var(--mudo);margin:0 0 2px}
+.corpo{flex:1;overflow-y:auto;padding:6px 20px 24px;outline:none}
+.coluna{max-width:34rem;margin:0 auto}
+.titulo{font-size:1.65rem;line-height:1.15;font-weight:800;margin:6px 0 8px;letter-spacing:-.01em;outline:none}
+.ajuda{color:var(--mudo);margin:0 0 12px}
+.destaque{font-size:1.15rem;font-weight:800;border-left:4px solid var(--acao);padding:4px 0 4px 12px;margin:12px 0}
+.ops{display:grid;gap:10px;margin-top:14px}
+.op{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:12px 16px;text-align:left;background:var(--cartao);border:2px solid var(--borda-forte);border-radius:14px;cursor:pointer;font-weight:700;font-size:1rem;line-height:1.25;transition:background .15s,border-color .15s}
+.op:hover{border-color:var(--acao)}
+.op .tx{min-width:0;flex:1;overflow-wrap:anywhere}
+.op .caixa{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--borda-forte);display:grid;place-items:center}
+.op.multi .caixa{border-radius:7px}
+.op .caixa svg{width:14px;height:14px;fill:none;stroke:var(--acao);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.op[aria-checked="true"]{background:var(--acao);border-color:var(--acao);color:var(--sobre-acao)}
+.op[aria-checked="true"] .caixa{background:var(--sobre-acao);border-color:var(--sobre-acao)}
+.op[aria-checked="true"] .caixa svg{opacity:1}
+.rodape{flex:none;padding:12px 20px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--borda);background:var(--tela)}
+.cta{display:flex;align-items:center;justify-content:center;width:100%;min-height:56px;padding:10px 16px;border:2px solid var(--acao);border-radius:14px;background:var(--acao);color:var(--sobre-acao);font-weight:800;font-size:1.05rem;line-height:1.2;cursor:pointer;text-align:center}
+.cta:hover{background:var(--acao-hover)}
+.cta:disabled{opacity:.38;cursor:not-allowed}
+.cta.vazio{background:transparent;border-color:var(--borda-forte);color:var(--texto)}
+.cta.vazio:hover{border-color:var(--acao);background:transparent}
+.cta+.cta,.cta+.pular{margin-top:10px}
+.pular{display:block;width:100%;min-height:44px;margin-top:8px;border:0;background:transparent;color:var(--mudo);text-decoration:underline;text-underline-offset:3px;font-weight:700;cursor:pointer}
+.campo{width:100%;min-height:56px;padding:0 16px;border:2px solid var(--borda-forte);border-radius:14px;background:var(--cartao);color:var(--texto);font:inherit;font-size:1.05rem;margin-top:8px}
+.campo:focus-visible{border-color:var(--acao);outline-offset:1px}
+.amostra{font-size:.8rem;color:var(--mudo);margin:8px 0 0}
+.marca{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.1rem}
+.marca svg{width:34px;height:34px}
+.marca .sol{fill:var(--acao)}
+.marca small{display:block;font-weight:600;font-size:.78rem;color:var(--mudo)}
+.prova{margin-top:18px;font-size:.92rem;color:var(--mudo);border-top:1px solid var(--borda);padding-top:12px}
+.grafico{margin:12px 0}
+.grafico svg{display:block;width:100%;height:auto}
+.sv-t{fill:var(--texto);font:700 12px 'Nunito Sans',system-ui,sans-serif}
+.sv-m{fill:var(--mudo);font:600 11px 'Nunito Sans',system-ui,sans-serif}
+.sv-trilho{fill:var(--trilho)}
+.sv-b{fill:var(--barra)}
+.sv-a{fill:var(--acao)}
+.sv-eixo{stroke:var(--borda-forte);stroke-width:1}
+.nota{font-size:.82rem;color:var(--mudo);margin:8px 0}
+.cartoes{display:grid;gap:10px;margin:14px 0}
+.cartao{border:1.5px solid var(--borda);border-radius:14px;padding:14px 16px;background:var(--cartao)}
+.cartao b{display:block;font-size:1.12rem;line-height:1.25;font-weight:800}
+.cartao p{margin:4px 0 0;color:var(--mudo);font-size:.92rem}
+.perfil{border:2px solid var(--acao);border-radius:14px;padding:12px 16px;margin:12px 0;background:var(--acao-suave)}
+.perfil b{font-size:1.1rem}
+.perfil p{margin:4px 0 0}
+.itens{list-style:none;margin:10px 0;padding:0;display:grid;gap:8px}
+.item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid var(--borda);border-radius:12px;background:var(--cartao)}
+.item .mk{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center}
+.item .mk svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.item.tem .mk{background:var(--tem-fundo);color:var(--tem)}
+.item.falta .mk{background:var(--falta-fundo);color:var(--falta)}
+.item .tx{min-width:0;flex:1;font-weight:700;overflow-wrap:anywhere}
+.item .tx small{display:block;font-weight:600;color:var(--mudo);margin-top:2px}
+.est{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-right:6px}
+.item.tem .est{color:var(--tem)}
+.item.falta .est{color:var(--falta)}
+.carrega{display:grid;gap:10px;margin-top:20px}
+.lc{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--cartao);border:1.5px solid var(--borda);opacity:.45;font-weight:600}
+.lc.on{opacity:1}
+.lc b{white-space:nowrap;font-weight:800}
+.spin{width:16px;height:16px;border:3px solid var(--trilho);border-top-color:var(--acao);border-radius:50%;animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+.fp{border:1.5px solid var(--borda-forte);border-radius:12px;overflow:hidden;background:var(--tela);margin:12px 0}
+.fp-faixa{background:var(--acao);color:var(--sobre-acao);padding:12px 14px}
+.fp-faixa b{display:block;font-size:1.05rem;overflow-wrap:anywhere}
+.fp-faixa span{font-size:.8rem;font-weight:700}
+.fp-corpo{padding:12px 14px;display:grid;gap:8px;font-size:.88rem}
+.fp-nums{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fp-nums div{border:1px solid var(--borda);border-radius:8px;padding:8px 10px}
+.fp-nums b{display:block;font-size:1rem}
+.dia{border:1.5px solid var(--borda);border-radius:14px;padding:14px 16px;background:var(--cartao)}
+.dia.prio{border-color:var(--acao);background:var(--acao-suave)}
+.dia .rotulo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dia h3{margin:4px 0;font-size:1.05rem}
+.dia p{margin:0;color:var(--mudo)}
+.dia.prio p{color:var(--texto)}
+.oferta{border:2px solid var(--acao);border-radius:16px;padding:18px;background:var(--cartao);margin:14px 0}
+.oferta .preco{font-size:1.5rem;font-weight:800;line-height:1.2}
+.checks{list-style:none;margin:12px 0;padding:0;display:grid;gap:6px}
+.checks li{display:flex;gap:8px}
+.checks li::before{content:"";flex:none;width:16px;height:16px;margin-top:4px;border-radius:50%;background:var(--acao)}
+details.faq{border:1.5px solid var(--borda);border-radius:12px;padding:0 14px;margin:8px 0;background:var(--cartao)}
+details.faq summary{min-height:48px;display:flex;align-items:center;font-weight:700;cursor:pointer}
+details.faq p{margin:0 0 12px;color:var(--mudo)}
+.folha{position:absolute;inset:0;display:flex;align-items:flex-end;background:var(--sombra);z-index:5}
+.folha[hidden],.rodape[hidden]{display:none}
+.folha-in{width:100%;max-height:92%;overflow-y:auto;background:var(--tela);border-radius:20px 20px 0 0;padding:18px 20px calc(20px + env(safe-area-inset-bottom,0px))}
+.folha-in h2{font-size:1.2rem;margin:10px 0 6px}
+.folha-in dt{font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--mudo);margin-top:12px}
+.folha-in dd{margin:2px 0 0;overflow-wrap:anywhere}
+.msg{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--cartao);border:1.5px solid var(--borda-forte);border-radius:12px;padding:10px 12px;font-size:.95rem;width:100%;min-height:96px;color:var(--texto);font-family:inherit}
+/* Acabamento depois da revisão visual */
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.corpo{scrollbar-width:thin}
+.op[aria-checked="true"]{background:var(--acao-suave);border-color:var(--acao);color:var(--texto)}
+.op[aria-checked="true"] .caixa{background:var(--acao);border-color:var(--acao)}
+.op .caixa svg{stroke:var(--sobre-acao)}
+.op.peq{min-height:44px;padding-block:8px}
+.campo:focus-visible{border-color:var(--acao);outline:3px solid var(--acao-suave);outline-offset:0}
+.sv-t{font:800 15px 'Nunito Sans',system-ui,sans-serif}
+.sv-m{font:700 14px 'Nunito Sans',system-ui,sans-serif}
+.anel{display:block;flex:none;width:132px;height:132px}
+.anel.peq{width:92px;height:92px}
+.anel-trilho{fill:none;stroke:var(--trilho);stroke-width:12}
+.anel-v{fill:none;stroke:var(--acao);stroke-width:12;stroke-linecap:round}
+.anel-n{fill:var(--texto);font:800 40px 'Nunito Sans',system-ui,sans-serif}
+.anel-d{fill:var(--mudo);font:700 13px 'Nunito Sans',system-ui,sans-serif}
+.res-topo{display:flex;align-items:center;gap:16px;margin:6px 0 4px}
+.res-topo>div{min-width:0}
+.res-topo .titulo{font-size:1.3rem;margin:0}
+.capa-prev{display:flex;align-items:center;gap:14px;border:1.5px solid var(--borda);border-radius:16px;padding:14px;background:var(--cartao);margin:18px 0 6px}
+.mini{flex:1;min-width:0;display:grid;gap:7px}
+.mini div{display:grid;gap:3px;font-size:.78rem;font-weight:700;color:var(--mudo)}
+.mini b{display:block;height:8px;border-radius:4px;background:var(--trilho);overflow:hidden}
+.mini b i{display:block;height:100%;width:var(--w,0%);background:var(--acao)}
+.cartao.num{display:flex;gap:14px;align-items:baseline}
+.cartao .big{flex:none;min-width:88px;font-size:1.75rem;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cartao.num>div{min-width:0}
+.seg8{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin:8px 0 4px}
+.seg8 i{display:block;height:10px;border-radius:5px;background:var(--tem)}
+.seg8 i.f{background:var(--falta)}
+.sub-l{font-weight:800;font-size:.92rem;margin:14px 0 6px}
+.item{align-items:center;min-height:44px;padding:8px 12px}
+.lc{opacity:1;color:var(--mudo);flex-wrap:wrap}
+.lc:not(.on){border-style:dashed}
+.lc.on{color:var(--texto)}
+.spin{display:inline-block;vertical-align:middle}
+.oferta .preco{font-size:2.75rem;line-height:1;margin:4px 0 12px}
+.oferta .preco small{font-size:1rem;font-weight:700;color:var(--mudo)}
+.checks li::before{content:none;display:none}
+.checks .ck{flex:none;width:20px;height:20px;margin-top:2px;border-radius:50%;background:var(--tem-fundo);display:grid;place-items:center}
+.checks .ck svg{width:12px;height:12px;fill:none;stroke:var(--tem);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.link-bt{display:block;width:100%;min-height:44px;margin-top:6px;border:0;background:transparent;color:var(--texto);text-decoration:underline;text-underline-offset:3px;font-weight:700;cursor:pointer}
+.cta+.link-bt{margin-top:10px}
+/* Versão 2: estado e cidade, carrosséis e material real da landing */
+.uf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.op.uf{min-height:52px;padding:8px 10px;flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
+.op.uf b{font-size:1.05rem;line-height:1.1}
+.op.uf small{font-weight:600;font-size:.72rem;line-height:1.2;color:var(--mudo);overflow-wrap:anywhere}
+.op.uf[aria-checked="true"] small{color:var(--texto)}
+.cid-lista{display:grid;gap:6px;margin-top:10px}
+.carr{margin:12px 0}
+.carr-trilho{position:relative;display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+.carr-trilho::-webkit-scrollbar{display:none}
+.carr-slide{flex:0 0 84%;margin:0;scroll-snap-align:center;min-width:0}
+.carr-slide:only-child{flex-basis:100%}
+.carr.quadrado .carr-slide{flex-basis:80%}
+.carr-slide img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--borda);background:var(--cartao)}
+.carr-slide figcaption{margin-top:8px;font-size:.86rem;color:var(--mudo)}
+.carr-slide figcaption b{display:block;color:var(--texto);font-size:.95rem}
+.carr-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px}
+.carr-bt{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--borda-forte);background:var(--tela);display:grid;place-items:center;cursor:pointer}
+.carr-bt svg{width:18px;height:18px;stroke:var(--texto);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.carr-bt.prox svg{transform:scaleX(-1)}
+.carr-pontos{display:flex;gap:6px;align-items:center}
+.carr-pontos i{display:block;width:7px;height:7px;border-radius:4px;background:var(--borda-forte);transition:width .2s}
+.carr-pontos i.on{width:18px;background:var(--acao)}
+.esteira{overflow:hidden;margin:12px 0 2px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.esteira-in{display:flex;gap:10px;width:max-content;animation:esteira 30s linear infinite}
+.esteira figure{margin:0;width:62px;text-align:center;font-size:.66rem;font-weight:700;color:var(--mudo)}
+.esteira img{display:block;width:62px;height:auto;border-radius:6px;border:1px solid var(--borda);background:var(--logo-fundo);margin-bottom:4px}
+@keyframes esteira{to{transform:translateX(-50%)}}
+.hero-img{display:block;width:100%;height:auto;margin:12px 0 4px}
+.item .ver-bt{flex:none;min-height:36px;padding:0 10px;border-radius:9px;border:1.5px solid var(--acao);background:transparent;color:var(--texto);font-weight:700;font-size:.8rem;cursor:pointer}
+.antes{display:grid;gap:10px;margin:10px 0 4px}
+.coluna-ad{border-radius:14px;padding:14px 16px}
+.coluna-ad.hoje{background:var(--falta-fundo)}
+.coluna-ad.sd{background:var(--tem-fundo)}
+.coluna-ad h4{margin:0 0 8px;font-size:.95rem}
+.coluna-ad ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.coluna-ad li{display:flex;gap:8px;font-size:.92rem}
+.coluna-ad li svg{flex:none;width:16px;height:16px;margin-top:3px;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.coluna-ad.hoje li svg{stroke:var(--falta)}
+.coluna-ad.sd li svg{stroke:var(--tem)}
+.passos3{list-style:none;margin:10px 0;padding:0;display:grid;gap:10px;counter-reset:p}
+.passos3 li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:start;counter-increment:p}
+.passos3 li::before{content:counter(p);width:32px;height:32px;border-radius:50%;background:var(--acao);color:var(--sobre-acao);display:grid;place-items:center;font-weight:800}
+.passos3 b{display:block}
+.passos3 span{color:var(--mudo);font-size:.92rem}
+.logos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.logos img{height:34px;width:auto;max-width:96px;object-fit:contain;border-radius:6px;background:var(--logo-fundo);padding:4px 6px;border:1px solid var(--borda)}
+.faixa-conc{background:var(--faixa);color:var(--sobre-faixa);border-radius:14px;padding:14px 16px;margin:16px 0}
+.faixa-conc p{margin:0 0 10px;font-weight:700}
+.faixa-conc .logos img{background:transparent;border:0;padding:0;height:24px;filter:brightness(0) invert(1)}
+.qf{margin:4px 0 10px;font-size:1.05rem}
+.fundadores{display:flex;gap:16px;margin:10px 0}
+.fundadores figure{margin:0;text-align:center;font-size:.8rem;color:var(--mudo)}
+.fundadores img{display:block;width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 6px;border:2px solid var(--acao)}
+.fundadores b{display:block;font-size:.9rem;color:var(--texto)}
+/* Consertos da prova no navegador */
+.uf-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.op.uf{min-height:48px;align-items:center}
+.op.uf b{font-size:1.1rem}
+.op.uf small{display:none}
+.op[aria-disabled="true"]{opacity:.45}
+.esteira-in{padding-right:10px}
+.carr-bt{width:44px;height:44px}
+.item .ver-bt{min-height:44px}
+details.faq summary{padding-block:12px;gap:12px;list-style:none}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary::after{content:"+";margin-left:auto;font-weight:800;font-size:1.25rem;line-height:1;color:var(--acao)}
+details.faq[open] summary::after{content:"\2212"}
+/* Logo do cliente em cada depoimento */
+.dep-cap{display:flex;align-items:center;gap:10px}
+.carr-slide .dep-cap img{flex:none;width:48px;height:48px;object-fit:contain;border-radius:10px;background:var(--logo-fundo);border:1px solid var(--borda);padding:5px}
+.dep-cap>span{min-width:0}
+/* Componentes da landing: botão em degradê com brilho, rótulo em pílula, título com fecho em degradê, faixas alternadas */
+.titulo{letter-spacing:-.02em}
+.grad{background:var(--acao-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.cta{background:var(--acao-grad);border:0;border-radius:16px;box-shadow:0 16px 44px var(--acao-sombra),inset 0 1px 0 rgba(255,255,255,.3);transition:transform .15s,box-shadow .15s}
+.cta:hover{background:var(--acao-grad);transform:translateY(-2px);box-shadow:0 24px 56px var(--acao-sombra)}
+.cta:disabled{transform:none;box-shadow:none}
+.bt.prim{background:var(--acao-grad);border:0;color:var(--sobre-acao)}
+.bt.prim:hover{background:var(--acao-grad)}
+.corpo .rotulo{display:inline-block;padding:5px 12px;border-radius:999px;background:var(--acao-suave);border:1px solid var(--acao-borda);color:var(--marca);letter-spacing:.16em}
+.linha-topo .rotulo{color:var(--marca)}
+.dia .rotulo{padding:0;background:none;border:0;border-radius:0}
+.marca-topo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.02rem;letter-spacing:-.015em;color:var(--texto);margin-bottom:10px}
+.marca-topo img{display:block;width:26px;height:26px;border-radius:7px}
+.marca-topo b{color:var(--marca);font-weight:800}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--marca);background:var(--acao-suave);border:1px solid var(--acao-borda);margin-top:4px}
+.eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--marca);animation:pulsa 1.6s ease-in-out infinite}
+@keyframes pulsa{50%{opacity:.35}}
+.cartao .big,.oferta .preco{background:var(--acao-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.oferta{border:2px solid var(--marca);background:var(--faixa);box-shadow:0 30px 60px var(--acao-suave)}
+.banda{margin:22px -20px;padding:20px;background:var(--faixa);border-block:1px solid var(--borda)}
+.fp{background:var(--papel);color:var(--sobre-papel);border-color:var(--papel-borda)}
+.fp-faixa{background:var(--sobre-papel);color:var(--papel);border-bottom:4px solid var(--acao-claro)}
+.fp-nums div{border-color:var(--papel-borda)}
+.fp .nota{color:var(--papel-mudo)}
+.fp .chip{background:var(--papel);color:var(--papel-mudo);border-color:var(--papel-borda)}
+.fp .sv-eixo{stroke:var(--papel-borda)}
+.rodape-marca{margin:26px 0 6px;padding-top:14px;border-top:1px solid var(--borda);font-size:.8rem;color:var(--mudo);text-align:center}
+.rodape-marca b{color:var(--texto)}
+.rodape-marca b span{color:var(--marca)}
+.folha-in{background:var(--faixa)}
+.campo::placeholder{color:var(--mudo);opacity:.75}
+/* Ajustes da checagem visual da marca */
+.corpo .rotulo{background:var(--pilula-fundo);border-radius:14px;letter-spacing:.12em;line-height:1.35}
+.eyebrow{background:var(--pilula-fundo);border-radius:14px;letter-spacing:.1em;line-height:1.35}
+.dia .rotulo{background:none;border-radius:0}
+.cartao.num{display:block}
+.cartao.num .big{display:block;margin-bottom:6px;min-width:0}
+.cta:disabled{opacity:1;background:var(--desab-fundo);color:var(--desab-texto);box-shadow:none}
+.carr.quadrado .carr-slide img{aspect-ratio:1/1}
+.carr:not(.quadrado) .carr-slide img{aspect-ratio:975/1550}
+/* Barra inteligente: uma barra só, em degradê, com o marco e a porcentagem ao lado */
+.barra{display:block;height:6px;border-radius:3px;background:var(--trilho);overflow:hidden}
+.barra i{display:block;height:100%;width:var(--w,0%);background:var(--acao-grad);border-radius:3px;transition:width .5s ease-out}
+.linha-topo{flex-wrap:wrap}
+.linha-topo .pct{margin-left:auto;font-size:.72rem;font-weight:800;letter-spacing:.02em;color:var(--acao-claro);white-space:nowrap}
+/* Página de verdade: a tela inteira no celular, uma coluna central de até 480 px no computador */
+html{-webkit-text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh;overflow:hidden}
+.app{position:relative;display:flex;flex-direction:column;width:100%;max-width:480px;height:100vh;height:100dvh;margin:0 auto;background:var(--tela);overflow:hidden}
+@media(min-width:520px){.app{box-shadow:0 0 0 1px var(--borda),0 24px 60px var(--sombra)}}
+.topo{padding-top:max(14px,env(safe-area-inset-top,0px))}
+.nota a{color:var(--texto);text-underline-offset:3px}
+.msg{font-size:.9rem}
+.folha-in .cta+.pular{margin-top:6px}
+/* O PNG da Enel tem 94% de margem transparente: sobe a altura e puxa a margem para a marca ficar do tamanho das outras */
+.faixa-conc .logos img[src$="/enel.png"]{height:64px;margin:-20px -18px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<h1 class="vh">Diagnóstico da proposta solar</h1>
+<div class="topo" id="topo"></div>
+<div class="corpo" id="corpo" tabindex="-1"><noscript><p class="ajuda" style="padding-top:24px">Para fazer o diagnóstico, ative o JavaScript do navegador.</p></noscript></div>
+<div class="rodape" id="rodape" hidden></div>
+<div class="folha" id="folha" hidden role="dialog" aria-modal="true" aria-labelledby="folha-t"><div class="folha-in" id="folha-in"></div></div>
+</div>
+<script id="calc-puro">
+'use strict';
+/* Dados e contas puras. Nenhum acesso ao DOM. */
+const o = (id, r, v, p) => ({ id, r, v, p });
+const pt = (id, r, p) => ({ id, r, p });
+const BLOCOS = ['Seu perfil', 'Seus desafios', 'Seus objetivos', 'Sua proposta hoje', 'Seu plano'];
+const Q = (n, id, bl, t, x) => Object.assign({ tipo: 'q', n, id, bl, t, kind: 'single', aj: '', ops: [] }, x);
+const ABRE4 = 'Responda pensando na proposta que você manda hoje.';
+
+const UFS = [['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'], ['BA', 'Bahia'], ['CE', 'Ceará'], ['DF', 'Distrito Federal'], ['ES', 'Espírito Santo'], ['GO', 'Goiás'], ['MA', 'Maranhão'], ['MT', 'Mato Grosso'], ['MS', 'Mato Grosso do Sul'], ['MG', 'Minas Gerais'], ['PA', 'Pará'], ['PB', 'Paraíba'], ['PR', 'Paraná'], ['PE', 'Pernambuco'], ['PI', 'Piauí'], ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'], ['RS', 'Rio Grande do Sul'], ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'], ['SP', 'São Paulo'], ['SE', 'Sergipe'], ['TO', 'Tocantins']];
+const PASSOS = [
+  { tipo: 'capa', bl: 0 },
+  Q(1, 'papel', 1, 'Qual é o seu papel na venda de energia solar?', { aj: 'Assim o diagnóstico usa a sua realidade.', ops: [o('dono', 'Sou dono de integradora'), o('vendedor', 'Sou vendedor ou representante'), o('engenheiro', 'Sou engenheiro ou projetista e vendo'), o('comecando', 'Estou começando no solar')] }),
+  Q(2, 'empresa', 1, 'Como se chama a sua empresa?', { kind: 'text', aj: 'Vamos montar uma prévia da sua proposta com esse nome.', ex: 'Sol do Cerrado Energia', pular: 'Ainda não tem nome? Pular' }),
+  Q(3, 'cnpj', 1, 'A sua empresa tem CNPJ?', { aj: 'O SolarDoc gera os documentos em nome da empresa.', ops: [o('sim', 'Sim'), o('empregador', 'Uso o CNPJ da empresa onde trabalho'), o('abrindo', 'Estou abrindo'), o('nao', 'Não tenho')] }),
+  Q(4, 'uf', 1, 'Em que estado fica a sua empresa?', { kind: 'uf', aj: 'Depois você escolhe a cidade.', ops: UFS.map(([id, nome]) => o(id, nome)) }),
+  Q(5, 'cidade', 1, 'Qual é a sua cidade?', { kind: 'city', aj: 'Toque na sua cidade. Se preferir, digite para achar.', ex: 'Digite para achar' }),
+  Q(5, 'clientes', 1, 'Para quem você mais vende?', { kind: 'multi', aj: 'Pode marcar mais de uma.', ops: [o('casas', 'Casas'), o('comercio', 'Comércio e empresas'), o('rural', 'Propriedades rurais'), o('investidor', 'Investidores e usinas')] }),
+  Q(6, 'propostas_mes', 1, 'Quantas propostas você faz por mês?', { aj: 'Conte todas, até as que não fecharam.', ops: [o('ate5', 'Até 5', 3), o('6a15', 'De 6 a 15', 10), o('16a30', 'De 16 a 30', 23), o('mais30', 'Mais de 30', 40)] }),
+  Q(7, 'vendas_mes', 1, 'Quantas dessas viram venda por mês?', { ops: [o('v0', 'Nenhuma ainda', 0), o('v1a2', '1 ou 2', 1.5), o('v3a5', 'De 3 a 5', 4), o('v6a10', 'De 6 a 10', 8), o('mais10', 'Mais de 10', 12)] }),
+  Q(8, 'ticket', 1, 'Quanto vale, em média, um sistema que você vende?', { ops: [o('ate15', 'Até R$ 15 mil', 12000), o('15a30', 'De R$ 15 mil a R$ 30 mil', 22000), o('30a60', 'De R$ 30 mil a R$ 60 mil', 45000), o('mais60', 'Mais de R$ 60 mil', 80000)] }),
+  { tipo: 'i1', bl: 1 },
+  Q(9, 'como_faz_hoje', 2, 'Como você monta suas propostas hoje?', { ops: [o('word', 'No Word ou no PowerPoint'), o('planilha', 'Numa planilha'), o('canva', 'No Canva'), o('plataforma', 'Numa plataforma ou CRM pago'), o('distribuidor', 'Na ferramenta do distribuidor'), o('whatsapp', 'Mando os valores direto no WhatsApp')] }),
+  Q(10, 'gasto_ferramenta', 2, 'Quanto você gasta por mês com ferramenta para fazer proposta?', { ops: [o('nada', 'Nada', 0), o('ate67', 'Até R$ 67', 0), o('g68a150', 'De R$ 68 a R$ 150', 68), o('g151a300', 'De R$ 151 a R$ 300', 151), o('mais300', 'Mais de R$ 300', 301)] }),
+  Q(11, 'tempo_por_proposta', 2, 'Quanto tempo leva para montar uma proposta completa?', { pil: 'Velocidade', ops: [o('t15', 'Até 15 minutos', 10, 10), o('t30', 'De 15 a 30 minutos', 22, 7), o('t60', 'De 30 minutos a 1 hora', 45, 4), o('t120', 'De 1 a 2 horas', 90, 2), o('tmais', 'Mais de 2 horas', 150, 0)] }),
+  Q(12, 'quando_monta', 2, 'Quando você costuma montar as propostas?', { pil: 'Velocidade', ops: [pt('expediente', 'No horário de trabalho', 3), pt('rua', 'No celular, entre uma visita e outra', 2), pt('sobra', 'Quando sobra tempo', 1), pt('noite', 'À noite ou no fim de semana', 0)] }),
+  Q(13, 'demora_envio', 2, 'Depois da visita, em quanto tempo o cliente recebe a proposta?', { pil: 'Velocidade', ops: [pt('nahora', 'Na hora, ainda na visita', 8), pt('mesmodia', 'No mesmo dia', 6), pt('d1a2', 'Em 1 ou 2 dias', 3), pt('d3', 'Em 3 dias ou mais', 0)] }),
+  { tipo: 'e1', bl: 2 },
+  Q(14, 'perdeu_venda', 2, 'Você já perdeu venda para alguém que mandou a proposta antes?', { ops: [o('varias', 'Sim, várias vezes'), o('algumas', 'Uma ou duas vezes'), o('naosei', 'Não sei dizer'), o('nunca', 'Nunca')] }),
+  Q(15, 'cliente_entende', 2, 'Quando o cliente lê a sua proposta, ele entende quanto vai economizar?', { pil: 'Clareza', ops: [pt('sozinho', 'Entende sozinho', 8), pt('explico', 'Entende depois que eu explico', 5), pt('confuso', 'Fica confuso com os números', 1), pt('preco', 'Ele só olha o preço', 0)] }),
+  Q(16, 'erro_proposta', 2, 'Já saiu proposta com erro de valor, de nome ou de formatação?', { pil: 'Imagem', ops: [pt('caro', 'Sim, e me custou caro', 0), pt('atempo', 'Sim, mas percebi a tempo', 3), pt('quase', 'Quase', 5), pt('nunca', 'Nunca', 8)] }),
+  Q(17, 'papelada', 2, 'E a papelada depois do sim, como contrato, procuração e recibo?', { pil: 'Papelada', ops: [pt('luta', 'Dá muito trabalho', 0), pt('viro', 'Dá trabalho, mas eu me viro', 5), pt('modelo', 'É tranquilo, tenho modelo pronto', 12), pt('outro', 'Outra pessoa cuida disso', 8)] }),
+  { tipo: 'i2', bl: 2 },
+  Q(18, 'meta_vendas', 3, 'Daqui a 6 meses, quantas vendas por mês você quer fechar?', { ops: [o('mesmas', 'As mesmas, com menos esforço'), o('dobro', 'O dobro de hoje'), o('triplo', 'O triplo ou mais'), o('primeiras', 'Quero fechar as primeiras')] }),
+  Q(19, 'tempo_livre', 3, 'Se você ganhasse tempo na semana, o que faria com ele?', { ops: [o('visitas', 'Faria mais visitas'), o('posvenda', 'Cuidaria de quem já comprou'), o('familia', 'Ficaria mais com a família'), o('cidade_nova', 'Abriria uma cidade nova')] }),
+  Q(20, 'imagem', 3, 'Como você quer que o cliente veja a sua empresa?', { ops: [o('profissional', 'A mais profissional da região'), o('rapida', 'A que responde mais rápido'), o('clara', 'A que explica tudo com clareza'), o('confiavel', 'A que entrega o que promete')] }),
+  Q(21, 'fechar_primeira', 3, 'O que ajudaria você a fechar já na primeira reunião?', { kind: 'multi', max: 3, aj: 'Marque até 3.', ops: [o('nahora', 'Proposta pronta na hora, no celular'), o('retorno', 'Gráfico de economia e retorno'), o('parcelas', 'Parcelas do financiamento na proposta'), o('bateria', 'Opção com bateria na mesma proposta'), o('contrato', 'Contrato pronto para assinar'), o('marca', 'Proposta com a minha marca')] }),
+  Q(22, 'prioridade', 3, 'Numa ferramenta de proposta, o que pesa mais para você?', { ops: [o('rapidez', 'Rapidez'), o('visual', 'Visual bonito'), o('conta', 'Conta certa'), o('preco', 'Preço justo'), o('suporte', 'Suporte no WhatsApp')] }),
+  Q(23, 'frase', 3, 'Você se identifica com esta frase?', { destaque: 'Eu perco venda por demora e por proposta que não convence.', ops: [o('muito', 'Muito'), o('pouco', 'Um pouco'), o('nao', 'Não')] }),
+  { tipo: 'i3', bl: 3 },
+  Q(24, 'tem_marca', 4, 'A sua proposta sai com a sua logo e as cores da empresa?', { pil: 'Imagem', ab: ABRE4, ops: [pt('sim', 'Sim', 9), pt('asvezes', 'Às vezes', 4), pt('nao', 'Não', 0)] }),
+  Q(25, 'mostra_economia', 4, 'Ela mostra a economia mês a mês e em quanto tempo o sistema se paga?', { pil: 'Clareza', ab: ABRE4, ops: [pt('sim', 'Sim, as duas coisas', 7), pt('so_total', 'Só o valor total', 3), pt('nao', 'Não', 0)] }),
+  Q(26, 'economia_25', 4, 'Ela mostra quanto o cliente economiza em 25 anos?', { pil: 'Clareza', ab: ABRE4, ops: [pt('sim', 'Sim', 5), pt('nao', 'Não', 0), pt('naosei', 'Não sei', 0)] }),
+  Q(27, 'financiamento', 4, 'Ela mostra as parcelas do financiamento?', { pil: 'Clareza', ab: ABRE4, ops: [pt('sim', 'Sim', 5), pt('aparte', 'Faço à parte', 2), pt('nao', 'Não', 0)] }),
+  { tipo: 'e2', bl: 4 },
+  Q(28, 'usa_conta', 4, 'Como os dados da conta de luz entram na proposta?', { pil: 'Velocidade', ab: ABRE4, ops: [pt('foto', 'Por foto ou leitura automática', 4), pt('digito', 'Eu digito tudo', 2), pt('nao', 'Não uso a conta', 0)] }),
+  Q(29, 'contrato_pronto', 4, 'Você leva o contrato pronto para assinar na primeira reunião?', { pil: 'Papelada', ab: ABRE4, ops: [pt('sim', 'Sim', 13), pt('depois', 'Só mando depois', 5), pt('nao', 'Não uso contrato', 0)] }),
+  Q(30, 'modelos', 4, 'Você tem um modelo de proposta para cada tipo de cliente?', { pil: 'Imagem', aj: 'Por exemplo: casa, comércio e banco.', ab: ABRE4, ops: [pt('sim', 'Sim', 8), pt('mesmo', 'Uso o mesmo para todos', 3), pt('nao', 'Não tenho modelo', 0)] }),
+  Q(31, 'followup', 4, 'Depois de mandar a proposta, você chama o cliente de novo?', { ab: ABRE4, ops: [o('rotina', 'Sim, tenho uma rotina'), o('lembro', 'Quando eu lembro'), o('nao', 'Não chamo')] }),
+  { tipo: 'load', bl: 0 },
+  { tipo: 'res', bl: 0 },
+  Q(32, 'documentos', 5, 'Quais documentos você quer prontos desde o primeiro dia?', { kind: 'multi', aj: 'Marque quantos quiser.', pre: ['proposta'], ops: [o('proposta', 'Proposta solar'), o('contrato', 'Contrato de compra e venda'), o('procuracao', 'Procuração'), o('recibo', 'Recibo'), o('banco', 'Proposta de banco'), o('servico', 'Contrato de prestação de serviço'), o('vendedor', 'Contrato de vendedor'), o('vistoria', 'Vistoria')] }),
+  Q(33, 'modelo', 5, 'Qual estilo de proposta combina com o seu cliente?', { ops: [o('direta', 'Direta, em poucas páginas'), o('completa', 'Completa, com economia de 25 anos e geração mês a mês'), o('ver', 'Quero ver os modelos antes')] }),
+  Q(34, 'logo', 5, 'Você já tem a logo da empresa em arquivo?', { ops: [o('sim', 'Sim'), o('achar', 'Tenho, mas preciso achar'), o('nao', 'Ainda não tenho')] }),
+  Q(35, 'decisor', 5, 'Quem decide a compra de uma ferramenta na sua empresa?', { ops: [o('eu', 'Eu'), o('socio', 'Eu e meu sócio'), o('chefe', 'Meu chefe')] }),
+  Q(36, 'objecao', 5, 'O que poderia te impedir de começar hoje?', { ops: [o('preco', 'O preço'), o('ja_uso', 'Já uso outra ferramenta'), o('aprender', 'Medo de perder tempo aprendendo'), o('validade', 'Dúvida se os documentos têm validade'), o('online', 'Receio de pagar pela internet'), o('nada', 'Nada, quero começar')] }),
+  Q(37, 'pagamento', 5, 'Como você prefere pagar?', { cond: (R) => R.cnpj === 'sim' || R.cnpj === 'empregador', ops: [o('cartao', 'Cartão de crédito'), o('pix', 'Pix')] }),
+  Q(38, 'quando_comecar', 5, 'Quando você quer mandar a primeira proposta pelo SolarDoc?', { ops: [o('hoje', 'Hoje'), o('semana', 'Esta semana'), o('mes', 'Este mês'), o('pesquisando', 'Só estou pesquisando')] }),
+  { tipo: 'g1', bl: 0 },
+  { tipo: 'g2', bl: 0 },
+  { tipo: 'plano', bl: 0 }
+];
+const POR_ID = {};
+let QN = 0;
+PASSOS.forEach((s, i) => { if (s.tipo === 'q') { s.n = ++QN; POR_ID[s.id] = s; } });
+const PILARES = [['Velocidade', ['tempo_por_proposta', 'demora_envio', 'usa_conta', 'quando_monta']], ['Clareza', ['cliente_entende', 'mostra_economia', 'economia_25', 'financiamento']], ['Imagem', ['tem_marca', 'erro_proposta', 'modelos']], ['Papelada', ['papelada', 'contrato_pronto']]];
+const TIPICO = 9, TOPO = 41; /* só propostas solares por usuário ativo, 30 dias até 23/10/2026 */
+
+/* Textos fixos das telas especiais (já com a revisão de texto da seção 11 da SPEC) */
+const TXT = {
+  capaTopo: 'Diagnóstico para integradores solares', capaTitulo: 'Quanto a sua proposta solar está te custando?', capaTituloHTML: 'Quanto a sua proposta solar <span class="grad">está te custando?</span>',
+  capaTexto: 'Responda perguntas de um toque. No fim, você vê o seu Índice de Proposta, as horas por mês que vão para proposta e um plano de 7 dias.',
+  capaDetalhe: 'Leva poucos minutos. O diagnóstico é grátis.', capaBotao: 'Fazer meu diagnóstico', capaProva: '3.370 propostas solares já saíram do SolarDoc.',
+  i1Alto: 'Você faz mais propostas que o típico do SolarDoc.', i1Baixo: 'Com poucas propostas, cada uma precisa convencer sozinha.', i1Meio: 'Você está perto de quem usa o SolarDoc.',
+  i1Texto: (n) => 'No SolarDoc, o integrador típico faz ' + TIPICO + ' propostas por mês. Os 10% que mais usam fazem ' + TOPO + ' ou mais. Você faz cerca de ' + n + ' propostas por mês.',
+  i1Nota: 'Números de quem usou o SolarDoc nos últimos 30 dias.',
+  e1Titulo: 'Anotado.', e1Texto: (t, d) => 'Você leva ' + t + ' por proposta. O cliente recebe a proposta ' + d + '. Isso entra no seu índice. Faltam 4 perguntas deste bloco.',
+  i2Titulo: 'Outros integradores já passaram por isso.',
+  i3Titulo: (e) => 'Veja como fica a proposta ' + e + '.', i3Texto: 'Com a sua logo, a sua cor e a conta do cliente lida por foto.',
+  e2Titulo: 'Metade da sua proposta conferida.', e2Texto: 'Faltam 4 perguntas para o seu diagnóstico.',
+  resRotulo: 'Seu diagnóstico', resTitulo: (n) => 'Seu Índice de Proposta é ' + n + ' de 100.', resPesa: (p) => 'O que mais pesa hoje é ' + p + '.',
+  rapido: 'Você já monta rápido. Veja os pontos de clareza e de papelada.',
+  resBotao: 'Montar meu plano de 7 dias', resNota: 'Conta feita com as suas respostas. Não é promessa de resultado.',
+  fecho: (k, r) => k === 0 ? 'Nenhum item falta na sua proposta.' : (k === 1 ? 'Falta 1 item. ' : 'Faltam ' + k + ' itens. ') + (r === 0 ? 'Ele fica com você.' : k === 1 ? 'O SolarDoc tem a função para ele.' : 'O SolarDoc tem a função para ' + r + ' deles.'),
+  g1Titulo: 'Seu plano está pronto. Como você se chama?', g1Ajuda: 'Para o plano sair no seu nome.',
+  g2Titulo: 'Qual é o seu WhatsApp?', g2Ajuda: 'Seu diagnóstico fica guardado junto com o seu número.',
+  g2Consent: 'Ao continuar, você concorda em receber contato da SolarDoc sobre este diagnóstico, conforme a Política de Privacidade.',
+  garantia: 'Garantia de 7 dias. Se não servir, você recebe o valor integral de volta pelo WhatsApp.', semFid: 'Sem fidelidade. Cancele quando quiser.',
+  ofertaGasto: (piso) => 'Hoje você gasta a partir de R$ ' + piso + ' por mês. No SolarDoc são R$ 67.', socio: 'Copiar resumo para quem decide',
+  heroLegenda: 'É isto que sai, no seu computador e no seu celular, com a sua marca.',
+  i2SubMao: 'Eles também faziam na mão. Contam o que mudou.', i2SubPlat: 'Eles também pagavam outra plataforma. Contam o que mudou.', i2SubOutros: 'Eles contam o que mudou na venda.',
+  i3Carr: 'É isso que sai quando você clica em gerar.', i3Nota: 'Folhas reais do SolarDoc, com os dados de um cliente de exemplo.',
+  adTitulo: 'A diferença entre perder e fechar a venda.', cfTitulo: 'Do cliente ao documento pronto em 3 passos.',
+  depTitulo: '11 integradores contam como é.', logosTitulo: 'As empresas dos depoimentos:',
+  concTitulo: 'Procuração pronta para levar às principais concessionárias do Brasil.',
+  qfTitulo: 'Software feito por quem vende solar.',
+  qfTexto: 'A gente é o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia solar. O SolarDoc nasceu de um problema nosso: a venda esfriava esperando papel. Montamos a ferramenta pra usar no nosso dia a dia. Depois abrimos pros outros integradores.'
+};
+const OFERTA_ITENS = ['Documentos ilimitados, sem teto no mês', 'Os 8 tipos de documento com a sua logo e a sua cor', 'Proposta solar completa pronta para enviar no WhatsApp', 'Procuração pronta para levar às principais concessionárias', 'Cadastro de clientes e de prestadores parceiros', 'Escaneia a conta de luz e preenche o cliente sozinho', 'Histórico salvo para sempre, acha qualquer contrato depois', 'Atualizações e recursos novos inclusos, sem pagar mais', 'Suporte no WhatsApp e no chat de dentro da plataforma'];
+const ARG1 = { rapidez: 'Proposta solar completa pronta para enviar no WhatsApp.', visual: 'Os 8 tipos de documento com a sua logo e a sua cor.', conta: 'Escaneia a conta de luz e preenche o cliente sozinho.', preco: 'Um preço só, R$ 67 por mês.', suporte: 'Suporte no WhatsApp e no chat de dentro da plataforma.' };
+/* Material real da landing (legendas literais, sem travessão). Na produção, os mesmos arquivos em caminho absoluto. */
+const FOLHAS = [
+  { src: 'tela/doc-proposta-a4-mobile.webp', t: 'Orçamento de 1 página', x: 'Investimento, economia mensal e tempo de retorno numa folha só, pronta pro WhatsApp.' },
+  { src: 'tela/doc-proposta-mobile.webp', t: 'Proposta comercial', x: 'Economia em 25 anos, conta antes e depois e geração mês a mês, na marca da empresa.' },
+  { src: 'tela/doc-contrato-mobile.webp', t: 'Contrato de compra e venda', x: 'Partes, equipamentos, prazos e garantias já escritos. Você só confere e envia.' },
+  { src: 'tela/doc-procuracao-mobile.webp', t: 'Procuração pra concessionária', x: 'Com UC, concessionária e os poderes certos, no padrão que passa de primeira.' },
+  { src: 'tela/doc-recibo-mobile.webp', t: 'Recibo de pagamento', x: 'Lança as parcelas e ele calcula sozinho o que o cliente já pagou e o que falta.' },
+  { src: 'tela/doc-banco-mobile.webp', t: 'Proposta pro banco financiar', x: 'No formato que a financeira pede: equipamento, mão de obra e valor total separados.' },
+  { src: 'tela/doc-vistoria-mobile.webp', t: 'Checklist de vistoria', x: 'A folha que vai pra obra: consumo, padrão, telhado, fotos e conclusão da visita.' }
+];
+/* Cartão real de cada depoimento e a logo que o próprio cliente usa nos documentos dele (a mesma da landing, L:175-238) */
+const CARDS = {
+  alessandro: { f: 'card-alessandro-forca-solar.jpg', n: 'Alessandro Goulart', e: 'Força Solar', c: 'Feliz/RS', l: 'forca-solar' },
+  antonio: { f: 'card-antonio-exxel-solar.jpg', n: 'Antônio Henrique', e: 'Exxel Solar', c: 'Xique-Xique/BA', l: 'exxel-solar' },
+  carlos: { f: 'card-carlos-vs-solar.jpg', n: 'Carlos Vinícius', e: 'VS Solar Energia Solar', c: 'Piripiri/PI', l: 'vs-solar' },
+  eduardo: { f: 'card-eduardo-eclipse-solar.jpg', n: 'Eduardo Boso', e: 'Eclipse Solar', c: 'Sarandi/PR', l: 'eclipse-solar' },
+  gedalih: { f: 'card-gedalih-energia-solar.jpg', n: '', e: 'Gedalih Energia Solar', c: 'Varginha/MG', l: 'gedalih-energia-solar' },
+  gsi: { f: 'card-gsi-energia-solar.jpg', n: '', e: 'GSI Energia Solar', c: 'Unaí/MG', l: 'gsi-solucoes' },
+  juliano: { f: 'card-juliano-grilo-energia.jpg', n: 'Juliano Grilo', e: 'Grilo Energia Solar', c: 'Artur Nogueira/SP', l: 'grilo-energia' },
+  lucas: { f: 'card-lucas-rsc-solar.jpg', n: 'Lucas Paulino', e: 'RSC Solar', c: 'Londrina/PR', l: 'rsc-solar' },
+  ronailson: { f: 'card-ronailson-alves-cardoso.jpg', n: 'Ronailson Klesley', e: 'Alves Cardoso Solar', c: 'Abreulândia/TO', l: 'alves-cardoso-solar' },
+  vanderlei: { f: 'card-vanderlei-american-energy.jpg', n: 'Vanderlei', e: 'American Energy Solar', c: 'Rondonópolis/MT', l: 'american-energy-solar' },
+  vicente: { f: 'card-vicente-vff-energia.jpg', n: 'Vicente', e: 'VFF Energia Solar', c: 'Campinas/SP', l: 'vff-energia-solar' }
+};
+const GRUPO_TOOL = { word: 'braco', planilha: 'braco', canva: 'braco', whatsapp: 'braco', plataforma: 'plataforma', distribuidor: 'distribuidor' };
+const CARD_GRUPO = { braco: ['alessandro', 'gedalih', 'carlos', 'ronailson'], plataforma: ['juliano', 'vanderlei', 'vicente', 'antonio', 'eduardo'], distribuidor: ['lucas', 'gsi'] };
+const cardsDe = (R) => CARD_GRUPO[GRUPO_TOOL[R.como_faz_hoje] || 'braco'];
+const cardsTodos = (R) => { const a = cardsDe(R); return a.concat(Object.keys(CARDS).filter((k) => !a.includes(k))); };
+const LOGOS = [['alves-cardoso-solar', 'Alves Cardoso Solar'], ['american-energy-solar', 'American Energy Solar'], ['eclipse-solar', 'Eclipse Solar'], ['exxel-solar', 'Exxel Solar'], ['forca-solar', 'Força Solar'], ['gedalih-energia-solar', 'Gedalih Energia Solar'], ['grilo-energia', 'Grilo Energia Solar'], ['gsi-solucoes', 'GSI Energia Solar'], ['rsc-solar', 'RSC Solar'], ['vff-energia-solar', 'VFF Energia Solar'], ['vs-solar', 'VS Solar']];
+const CONC = [['cemig.svg', 'CEMIG'], ['enel.png', 'Enel'], ['cpfl.png', 'CPFL'], ['equatorial.png', 'Equatorial'], ['energisa.png', 'Energisa'], ['light.png', 'Light']];
+const ESTEIRA = [['doc-proposta-a4', 'Orçamento'], ['doc-proposta', 'Proposta'], ['doc-contrato', 'Contrato'], ['doc-procuracao', 'Procuração'], ['doc-recibo', 'Recibo'], ['doc-servico', 'Serviço'], ['doc-banco', 'Banco'], ['doc-vistoria', 'Vistoria']];
+const AD = {
+  mao: ['O modelo quebra e desformata toda hora.', 'Procuração recusada e refeita.', 'Documento sem a cara da empresa.', 'Tempo perdido a cada contrato.', 'Cliente esfria esperando o PDF.'],
+  plataforma: ['Do sistema inteiro, você só abre o gerador de proposta.', 'O resto você configurou uma vez e não voltou.', 'O preço não cai porque você usa menos.', 'Migrar dá trabalho. Por isso você continua lá.'],
+  sd: ['Documento pronto em segundos.', 'Procuração pronta para levar à concessionária.', 'Tudo com a sua logo e a sua cor.', 'Você mesmo faz, sem depender de ninguém.', 'Manda no WhatsApp com o cliente quente.']
+};
+const PASSOS3 = [['Configure a sua marca', 'Sobe a logo, escolhe a cor da empresa e pronto. Uma vez só.'], ['Cadastre o cliente', 'Preenche os dados da venda ou escaneia a conta de luz. A plataforma puxa o cliente pra você.'], ['Gere e envie', 'Escolhe o documento, clica em gerar e manda pro WhatsApp do cliente em PDF.']];
+const FAQS = [
+  { q: 'Tem plano mais barato?', a: 'Não tem plano capado. É um preço só, R$ 67 por mês, com tudo liberado: documentos ilimitados, histórico permanente e todos os recursos. A gente cortou os planos menores justamente para ninguém entrar e descobrir que o que precisa está no plano de cima.' },
+  { q: 'O dono mesmo consegue usar?', a: 'Esse é exatamente o público para quem foi feito. Você não precisa de funcionário, advogado ou escritório: abre o app, cadastra o cliente, gera o documento e manda. Sai perfeito.' },
+  { q: 'Posso usar com a marca da minha empresa?', a: 'Sim. Você sobe a logo, define a cor da empresa e os documentos saem com a sua identidade visual. Você só preenche os dados, a formatação sai pronta.' },
+  { q: 'Os contratos têm validade jurídica?', a: 'Sim. Os modelos seguem cláusulas técnicas revisadas para o setor solar (geração, garantia, inadimplência, titularidade) e saem prontos para você assinar com o seu cliente, à mão ou na ferramenta de assinatura que você já usar.' },
+  { q: 'Funciona com qualquer concessionária?', a: 'Sim. As procurações são padronizadas para serem aceitas pelas principais concessionárias, como CEMIG, CPFL, Enel, Light, Energisa, Equatorial e outras.' },
+  { q: 'E se eu pagar e não gostar?', a: 'Você tem 7 dias de garantia: se não servir para você, devolvemos o valor integral, sem perguntas. É só chamar no WhatsApp dentro dos 7 dias.' },
+  { q: 'Posso cancelar depois?', a: 'Pode, a qualquer momento e sem multa, em Minha conta e depois Gerenciar assinatura. Você mesmo cancela, sem precisar pedir para ninguém, e não é cobrado no mês seguinte.' },
+  { q: 'Quando eu sou cobrado e quando libera?', a: 'A cobrança é na hora: você passa o cartão no checkout da Stripe e o acesso já é liberado. Na sequência você define a senha e entra na plataforma. Depois disso, renova uma vez por mês, no mesmo dia.' }
+];
+const FAQ_OBJ = { preco: 0, ja_uso: 5, aprender: 1, validade: 3, online: 7 };
+const ITENS = [
+  { q: 'tem_marca', ok: 'sim', rot: 'Sua logo e sua cor em tudo', selo: 'sd', img: ['tela/doc-proposta-a4-mobile.webp'], cap: 'Folha com o nome e a cor da empresa.' },
+  { q: 'mostra_economia', ok: 'sim', rot: 'Economia mês a mês e tempo de retorno', selo: 'sd', img: ['tela/doc-proposta-mobile.webp'], cap: 'Conta antes e depois, economia por mês e tempo de retorno.' },
+  { q: 'economia_25', ok: 'sim', rot: 'Economia em 25 anos', selo: 'sd', img: ['tela/doc-proposta-a4-mobile.webp'], cap: 'Economia em 25 anos, com o valor escrito na folha.' },
+  { q: 'financiamento', ok: 'sim', rot: 'Parcelas do financiamento', selo: 'sd', nota: 'As parcelas de 36 a 84 vezes entram na proposta, com a taxa que você define.' },
+  { q: 'usa_conta', ok: 'foto', rot: 'Conta de luz lida por foto', selo: 'sd', nota: 'Você tira a foto da conta. A plataforma puxa o cliente.' },
+  { q: 'contrato_pronto', ok: 'sim', rot: 'Contrato pronto na reunião', selo: 'sd', img: ['tela/doc-contrato-mobile.webp'], cap: 'Contrato com as partes e os equipamentos já preenchidos.' },
+  { q: 'modelos', ok: 'sim', rot: 'Modelo certo para cada cliente', selo: 'sd', img: ['tela/doc-proposta-a4-mobile.webp', 'tela/doc-proposta-mobile.webp', 'tela/doc-banco-mobile.webp'], cap: 'Orçamento de 1 página, proposta comercial e proposta de banco.' },
+  { q: 'followup', ok: 'rotina', rot: 'Chamar o cliente de novo depois da proposta', selo: 'voce' }
+];
+const PERFIS = [
+  { id: 'cedo', nome: 'Ainda não é a hora', frase: 'O SolarDoc gera documentos em nome de uma empresa com CNPJ. Seu diagnóstico fica de guia para quando você abrir a sua.', teste: (R) => R.cnpj === 'abrindo' || R.cnpj === 'nao' },
+  { id: 'grande', nome: 'Operação grande', frase: 'Com esse volume, cada minuto por proposta pesa no mês inteiro.', teste: (R) => R.propostas_mes === 'mais30' },
+  { id: 'caro', nome: 'Pagando caro pela proposta', frase: 'Você já gasta mais de R$ 67 por mês com ferramenta de proposta. O SolarDoc custa R$ 67.', teste: (R) => piso(R) >= 151 || (piso(R) >= 68 && R.como_faz_hoje === 'plataforma') },
+  { id: 'comecando', nome: 'Começando agora', frase: 'A proposta é a primeira impressão que o cliente tem de você. Ela precisa passar confiança.', teste: (R) => R.papel === 'comecando' || R.vendas_mes === 'v0' },
+  { id: 'braco', nome: 'Proposta no braço', frase: 'Você monta tudo na mão. Isso toma tempo. A proposta ainda precisa convencer sozinha.', teste: (R) => ['word', 'planilha', 'canva', 'whatsapp'].includes(R.como_faz_hoje) && minutos(R) >= 30 },
+  { id: 'crescer', nome: 'Pronto para crescer', frase: 'Sua proposta já está boa. O próximo passo é ganhar tempo para vender mais.', teste: (R) => indice(R) >= 75 },
+  { id: 'informa', nome: 'Proposta que informa', frase: 'Sua proposta traz as informações. Falta ela convencer o cliente sozinha.', teste: () => true }
+];
+const MSG = {
+  pix: (c) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.',
+  carla: (c) => 'Quero saber como usar o SolarDoc quando meu CNPJ sair. Meu código é ' + c + '.',
+  equipe: (c) => 'Quero saber do SolarDoc para uma operação com mais de 30 propostas por mês. Meu código é ' + c + '.',
+  duvida: (c) => 'Quero saber mais sobre o SolarDoc. Fiz o diagnóstico, meu código é ' + c + '.'
+};
+/* Formatação */
+const br = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
+const mil = (v) => br(v / 1000) + ' mil';
+const minTxt = (m) => { m = Math.round(m); if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return h + ' h' + (r ? ' ' + String(r).padStart(2, '0') : ''); };
+const frase = (r) => r.charAt(0).toLowerCase() + r.slice(1);
+const semDe = (r) => frase(r).replace(/^de /, '');
+const juntar = (a) => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' e ' + a[a.length - 1];
+const diasTxt = (d) => { const r = Math.round(d); if (r < 1) return 'menos de 1 dia'; const b = r + (r === 1 ? ' dia' : ' dias'); return (d < r - 0.001 ? 'quase ' : d > r + 0.001 ? 'mais de ' : 'cerca de ') + b; };
+
+/* Acesso às respostas */
+const opc = (id, v) => { const q = POR_ID[id]; return q ? q.ops.find((x) => x.id === v) : undefined; };
+const valor = (R, id) => { const x = opc(id, R[id]); return x ? x.v : undefined; };
+const rot = (R, id) => { const x = opc(id, R[id]); return x ? x.r : ''; };
+const pontos = (R, id) => { const x = opc(id, R[id]); return x && typeof x.p === 'number' ? x.p : 0; };
+const visivel = (s, R) => !s.cond || s.cond(R);
+const proximo = (i, R) => { let j = i + 1; while (j < PASSOS.length && !visivel(PASSOS[j], R)) j++; return j; };
+const qtdBloco = (b, R) => PASSOS.filter((s) => s.tipo === 'q' && s.bl === b && visivel(s, R)).length;
+const posBloco = (i, R) => PASSOS.filter((s, j) => j < i && s.tipo === 'q' && s.bl === PASSOS[i].bl && visivel(s, R)).length;
+/* Barra inteligente: rápida no começo e mais lenta no fim (curva r^0,65), sempre subindo, 100% só no plano */
+const CURVA = 0.65;
+function progresso(i, R) {
+  const s = PASSOS[i];
+  if (s.tipo === 'capa' || s.tipo === 'load') return null;
+  const vis = PASSOS.map((p, j) => j).filter((j) => visivel(PASSOS[j], R));
+  const r = Math.max(0, Math.min(1, vis.indexOf(i) / (vis.length - 1)));
+  return Math.pow(r, CURVA);
+}
+const marco = (d) => d >= 0.999 ? 'Pronto' : d >= 0.9 ? 'Última parte' : d >= 0.75 ? 'Falta pouco' : d >= 0.5 ? 'Mais da metade' : '';
+
+/* Contas */
+function pilares(R) { const r = {}; PILARES.forEach(([nome, ids]) => { r[nome] = ids.reduce((t, id) => t + pontos(R, id), 0); }); return r; }
+const indice = (R) => { const p = pilares(R); return p.Velocidade + p.Clareza + p.Imagem + p.Papelada; };
+function pilarFraco(R) { const p = pilares(R); let m = PILARES[0][0]; PILARES.forEach(([n]) => { if (p[n] < p[m]) m = n; }); return { nome: m, pts: p[m] }; }
+const N = (R) => valor(R, 'propostas_mes') || 0;
+const minutos = (R) => valor(R, 'tempo_por_proposta') || 0;
+const piso = (R) => valor(R, 'gasto_ferramenta') || 0;
+const ticket = (R) => valor(R, 'ticket') || 0;
+const horas = (R) => Math.round(N(R) * minutos(R) / 60 * 2) / 2;
+const taxa = (R) => N(R) > 0 ? Math.round(Math.min(1, (valor(R, 'vendas_mes') || 0) / N(R)) * 100) : 0;
+const economia = (R) => piso(R) > 67 ? piso(R) - 67 : 0;
+function faltam(R) { const lista = ITENS.map((it) => Object.assign({ tem: R[it.q] === it.ok }, it)); const k = lista.filter((x) => !x.tem).length; return { lista, k, r: k - (lista[7].tem ? 0 : 1) }; }
+const perfil = (R) => PERFIS.find((p) => p.teste(R));
+const emp = (R) => (R.empresa && R.empresa.trim()) || 'sua empresa';
+const daEmp = (R) => 'da ' + emp(R);
+function cartoes(R) {
+  const n = N(R), h = horas(R), L = [];
+  const lv = { visitas: 'mais visitas', posvenda: 'quem já comprou', familia: 'a família', cidade_nova: 'uma cidade nova' }[R.tempo_livre];
+  L.push({ n: br(h) + ' h', t: 'por mês montando proposta.', s: n + ' propostas de ' + semDe(rot(R, 'tempo_por_proposta')) + ' cada, pelas suas respostas. Em um ano, são cerca de ' + br(h * 12) + ' horas.' + (lv ? ' É tempo que poderia ir para ' + lv + '.' : '') });
+  L.push(R.vendas_mes === 'v0' ? { n: '0%', t: 'das propostas viraram venda até agora.', s: 'Na primeira venda, a proposta pesa muito.' } : { n: taxa(R) + '%', t: 'das suas propostas viram venda.', s: 'Cerca de ' + br(valor(R, 'vendas_mes') || 0) + ' de ' + n + ' por mês.' });
+  L.push({ n: 'R$ ' + mil(ticket(R)), t: 'é quanto vale cada venda sua.', s: 'O SolarDoc custa R$ 67 por mês.' });
+  if (piso(R) >= 68) L.push({ n: 'R$ ' + piso(R), t: 'ou mais por mês com ferramenta.', s: 'Frente aos R$ 67 do SolarDoc, a diferença é de pelo menos R$ ' + economia(R) + ' por mês.' });
+  if (R.perdeu_venda === 'varias' || R.perdeu_venda === 'algumas') L.push({ n: '', t: 'Você já perdeu venda para quem chegou antes.', s: 'Chegar antes depende de velocidade na proposta.' });
+  return L;
+}
+function botoes(R) {
+  const pf = perfil(R).id, b = [];
+  if (pf === 'cedo') b.push({ k: 'carla', rot: 'Falar com a Carla', prim: true });
+  else {
+    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix', rot: 'Assinar no Pix' };
+    const dois = R.pagamento === 'pix' ? [pix, cartao] : [cartao, pix];
+    dois[0].prim = true; b.push(dois[0], dois[1]);
+    if (R.propostas_mes === 'mais30') b.push({ k: 'equipe', rot: 'Falar com a equipe' });
+  }
+  b.push({ k: 'duvida', rot: 'Tirar uma dúvida no WhatsApp' });
+  if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
+  return b;
+}
+const DIA_PILAR = { Imagem: 1, Velocidade: 2, Clareza: 3, Papelada: 4 };
+const DIA_21 = { marca: 1, nahora: 5, retorno: 3, parcelas: 3, bateria: 3, contrato: 4 };
+function dias(R) {
+  const prio = new Set([DIA_PILAR[pilarFraco(R).nome]]);
+  (R.fechar_primeira || []).forEach((x) => prio.add(DIA_21[x]));
+  const docs = (R.documentos && R.documentos.length ? R.documentos : ['proposta']).map((id, i) => { const x = POR_ID.documentos.ops.find((y) => y.id === id); return i === 0 ? x.r : frase(x.r); });
+  const mod = R.modelo === 'direta' ? 'direto' : R.modelo === 'completa' ? 'completo' : '';
+  const base = [
+    ['Sua marca em tudo.', R.logo === 'nao' ? 'Comece com o nome e a cor. A logo entra quando ficar pronta.' : 'Suba a logo e escolha a cor. As suas propostas e documentos saem com a cara ' + daEmp(R) + '.'],
+    ['A primeira proposta com a conta lida por foto.', mod ? 'Tire a foto da conta de luz do cliente e use o modelo ' + mod + '.' : 'Tire a foto da conta de luz do cliente. Abra os 3 modelos e escolha o seu.'],
+    ['Economia, retorno e parcelas na mesma proposta.', 'Mostre a economia de 25 anos e as parcelas de 36 a 84 vezes.' + ((R.fechar_primeira || []).includes('bateria') ? ' Inclua a opção com bateria.' : '')],
+    ['Os documentos do sim.', juntar(docs) + ' prontos com os dados do cliente.'],
+    ['Sua proposta no celular.', 'O SolarDoc funciona no celular. Gere a proposta e mande pelo WhatsApp.'],
+    ['Chame de novo quem não respondeu.', 'Isso o SolarDoc não faz por você. Separe um tempo na agenda e mande a proposta de novo para quem sumiu.'],
+    ['Faça a conta.', 'Compare suas horas de proposta com as de antes. A garantia vale por 7 dias desde a compra. Se não valeu, peça o dinheiro de volta pelo WhatsApp.']
+  ];
+  return base.map((d, i) => ({ n: i + 1, t: d[0], x: d[1], prio: prio.has(i + 1) }));
+}
+function resumo(R) {
+  const f = faltam(R), pf = perfil(R);
+  return ['Diagnóstico de proposta ' + daEmp(R) + ' no SolarDoc.', 'Índice de Proposta: ' + indice(R) + ' de 100. Perfil: ' + pf.nome + '.', 'São cerca de ' + br(horas(R)) + ' h por mês montando proposta.', TXT.resPesa(pilarFraco(R).nome), TXT.fecho(f.k, f.r), 'Plano de 7 dias: ' + dias(R).map((d) => 'Dia ' + d.n + ', ' + d.t.replace(/\.$/, '')).join('; ') + '.', 'SolarDoc: R$ 67 por mês, garantia de 7 dias, sem fidelidade.'].join('\n');
+}
+</script>
+<script id="rastreio">
+(function () {
+'use strict';
+/* Rastreio do diagnóstico. Mesmas chaves de sessão da landing (useLpTracking.ts), para a venda voltar para esta página. */
+var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '/_api';
+var SK_SESSION = 'sd_lp_session', SK_VISIT = 'sd_dg_visit_sent', SK_UTMS = 'sd_lp_utms', SK_FBC = 'sd_lp_fbc', SK_FBP = 'sd_lp_fbp';
+var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { /* sem armazenamento: segue sem */ } return null; }
+function uuid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3) | 8).toString(16); });
+}
+var sid = ss(SK_SESSION);
+if (!sid) { sid = uuid(); ss(SK_SESSION, sid); }
+/* UTM do primeiro toque da sessão */
+var utm = {};
+(function () {
+  try {
+    var salvo = ss(SK_UTMS);
+    if (salvo) { var j = JSON.parse(salvo); if (j && typeof j === 'object') { utm = j; return; } }
+    var p = new URLSearchParams(location.search);
+    UTM_KEYS.forEach(function (k) { var v = p.get(k); if (v) utm[k] = v.slice(0, 200); });
+    if (Object.keys(utm).length) ss(SK_UTMS, JSON.stringify(utm));
+  } catch (e) { utm = {}; }
+})();
+function cookie(n) { var m = document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : ''; }
+function metaIds() {
+  var o = {};
+  try {
+    var fbc = cookie('_fbc'), fbp = cookie('_fbp');
+    var fbclid = new URLSearchParams(location.search).get('fbclid');
+    if (!fbc && fbclid) fbc = 'fb.1.' + Date.now() + '.' + fbclid.slice(0, 300);
+    if (fbc) { o.fbc = fbc; ss(SK_FBC, fbc); } else { var c = ss(SK_FBC); if (c) o.fbc = c; }
+    if (fbp) { o.fbp = fbp; ss(SK_FBP, fbp); } else { var p = ss(SK_FBP); if (p) o.fbp = p; }
+  } catch (e) { /* cookie indisponível */ }
+  return o;
+}
+function post(path, body) {
+  try { fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(function () {}); } catch (e) { /* o rastreio nunca derruba a página */ }
+}
+if (!ss(SK_VISIT)) {
+  var v = { session_id: sid, landing_url: location.href, referrer: document.referrer || null };
+  UTM_KEYS.forEach(function (k) { if (utm[k]) v[k] = utm[k]; });
+  post('/_t/v', v);
+  ss(SK_VISIT, '1');
+}
+var PL = Date.now(), SEQ = 0;
+function evento(tipo, dados) {
+  post('/_t/e', { session_id: sid, event_type: tipo, event_data: Object.assign({ lp: 'solardoc', caminho: 'principal', pl: PL, seq: ++SEQ }, dados || {}) });
+}
+function fb(tipo, nome, params, opcoes) {
+  try { if (!window.fbq) return; if (opcoes) window.fbq(tipo, nome, params || {}, opcoes); else window.fbq(tipo, nome, params || {}); } catch (e) { /* pixel bloqueado */ }
+}
+var ALFA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function codigoLocal() {
+  var b = new Uint8Array(4), s = '';
+  try { crypto.getRandomValues(b); } catch (e) { for (var i = 0; i < 4; i++) b[i] = Math.random() * 256; }
+  for (var k = 0; k < 4; k++) s += ALFA.charAt(b[k] % ALFA.length);
+  return 'SD-' + s;
+}
+/* Guarda a saída do checkout como src/lib/saidaCheckout.ts (só o caminho; 2 h de validade lá) */
+function marcarSaida(destino) {
+  if (!destino) return;
+  try { var u = new URL(destino, location.origin); sessionStorage.setItem('sd-saida-checkout', JSON.stringify({ destino: u.pathname + u.search, em: Date.now() })); } catch (e) { /* segue sem o resgate */ }
+}
+window.SDR = { api: API, sid: sid, utm: function () { return utm; }, meta: metaIds, evento: evento, fb: fb, novoId: function () { return 'sd_' + uuid(); }, codigoLocal: codigoLocal, marcarSaida: marcarSaida, utmKeys: UTM_KEYS };
+})();
+</script>
+<script id="diagnostico">
+(function () {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IC_OK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const IC_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const IC_VOLTA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+let R = {};
+const S = { i: 0, hist: [], timers: [], lock: false, opener: null, enviando: false, pagando: false, fimK: '' };
+const IDX = {};
+PASSOS.forEach((s, i) => { IDX[s.tipo === 'q' ? s.id : s.tipo] = i; });
+const lerLS = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* sem armazenamento: a página segue funcionando */ } };
+const norm = (v) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/* Gráfico de barras horizontais em SVG, na escala 0 a max */
+function barrasSVG(rows, max, desc) {
+  const T = 250, RH = 54, H = rows.length * RH;
+  let s = '<svg viewBox="0 0 320 ' + H + '" role="img" aria-label="' + esc(desc) + '">';
+  rows.forEach((r, k) => {
+    const y = k * RH, w = r.v > 0 ? Math.max(8, Math.round(T * Math.min(r.v, max) / max)) : 0;
+    s += '<text class="sv-m" x="0" y="' + (y + 15) + '">' + esc(r.rot) + '</text><rect class="sv-trilho" x="0" y="' + (y + 24) + '" width="' + T + '" height="20" rx="10"/>';
+    if (w) s += '<rect class="' + (r.cls || 'sv-b') + '" x="0" y="' + (y + 24) + '" width="' + w + '" height="20" rx="10"/>';
+    s += '<text class="sv-t" x="' + (T + 10) + '" y="' + (y + 40) + '">' + esc(r.txt) + '</text>';
+  });
+  return s + '</svg>';
+}
+function anelSVG(v, max, desc, cls) {
+  const c = 2 * Math.PI * 52, off = c * (1 - Math.max(0, Math.min(v, max)) / max);
+  return '<svg class="anel' + (cls ? ' ' + cls : '') + '" viewBox="0 0 140 140" role="img" aria-label="' + esc(desc) + '"><circle class="anel-trilho" cx="70" cy="70" r="52"/>' + (v > 0 ? '<circle class="anel-v" cx="70" cy="70" r="52" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 70 70)"/>' : '') + '<text class="anel-n" x="70" y="80" text-anchor="middle">' + v + '</text><text class="anel-d" x="70" y="101" text-anchor="middle">de ' + max + '</text></svg>';
+}
+/* Carrossel: rola com o dedo, tem setas e pontos, e anda sozinho até a pessoa tocar nele */
+const REDUZ = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ASSET = '/';
+const MARCA_TOPO = '<div class="marca-topo"><img src="' + ASSET + 'icon-192.png" alt="" width="26" height="26"><span>SolarDoc<b>.App</b></span></div>';
+function carrHTML(slides, rotulo, auto, cls) {
+  return '<div class="carr' + (cls ? ' ' + cls : '') + '" data-auto="' + (auto || 0) + '" role="region" aria-roledescription="carrossel" aria-label="' + esc(rotulo) + '"><div class="carr-trilho" tabindex="0">'
+    + slides.map((s, i) => '<figure class="carr-slide" aria-label="' + (i + 1) + ' de ' + slides.length + '"><img src="' + ASSET + s.src + '" alt="' + esc(s.alt) + '" loading="lazy" decoding="async">' + (s.cap ? '<figcaption>' + s.cap + '</figcaption>' : '') + '</figure>').join('') + '</div>'
+    + (slides.length > 1 ? '<div class="carr-nav"><button type="button" class="carr-bt" data-a="carr" data-d="-1" aria-label="Anterior">' + IC_VOLTA + '</button><div class="carr-pontos" aria-hidden="true">' + slides.map((_, i) => '<i' + (i ? '' : ' class="on"') + '></i>').join('') + '</div><button type="button" class="carr-bt prox" data-a="carr" data-d="1" aria-label="Próximo">' + IC_VOLTA + '</button></div>' : '') + '</div>';
+}
+function carrIdx(tr) { const sl = tr.children, c = tr.scrollLeft + tr.clientWidth / 2; let best = 0, bd = Infinity; for (let k = 0; k < sl.length; k++) { const d = Math.abs(sl[k].offsetLeft + sl[k].offsetWidth / 2 - c); if (d < bd) { bd = d; best = k; } } return best; }
+function carrIr(cr, k) { const tr = cr.querySelector('.carr-trilho'), sl = tr.children; if (!sl.length) return; const alvo = sl[(k + sl.length) % sl.length]; tr.scrollTo({ left: alvo.offsetLeft - (tr.clientWidth - alvo.offsetWidth) / 2, behavior: REDUZ ? 'auto' : 'smooth' }); }
+function initCarr(root) {
+  root.querySelectorAll('.carr').forEach((cr) => {
+    const tr = cr.querySelector('.carr-trilho'), dots = cr.querySelectorAll('.carr-pontos i');
+    const pinta = () => { const k = carrIdx(tr); dots.forEach((d, j) => d.classList.toggle('on', j === k)); };
+    tr.addEventListener('scroll', () => window.requestAnimationFrame(pinta), { passive: true });
+    const ms = Number(cr.getAttribute('data-auto'));
+    if (ms > 0 && !REDUZ && tr.children.length > 1) {
+      let parado = false;
+      ['pointerdown', 'touchstart', 'focusin', 'wheel'].forEach((ev) => cr.addEventListener(ev, () => { parado = true; }, { passive: true }));
+      S.timers.push(setInterval(() => { if (!parado && document.contains(tr)) carrIr(cr, carrIdx(tr) + 1); }, ms));
+    }
+  });
+}
+function esteiraHTML() {
+  const f = ESTEIRA.map(([a, n]) => '<figure><img src="' + ASSET + 'esteira/' + a + '.webp" alt="">' + n + '</figure>').join('');
+  return '<div class="esteira" role="img" aria-label="Documentos que saem do SolarDoc: ' + ESTEIRA.map((x) => x[1]).join(', ') + '"><div class="esteira-in" aria-hidden="true">' + f + f + '</div></div>';
+}
+function depSlide(k) {
+  const d = CARDS[k];
+  return { src: 'depoimentos/' + d.f, alt: 'Depoimento de ' + (d.n ? d.n + ', ' : '') + d.e + ', ' + d.c, cap: '<span class="dep-cap"><img src="' + ASSET + 'logos/' + d.l + '.webp" alt="Logo da ' + esc(d.e) + '" loading="lazy"><span><b>' + esc(d.n || d.e) + '</b>' + esc((d.n ? d.e + ', ' : '') + d.c) + '</span></span>' };
+}
+function antesDepois(R) {
+  const plat = R.como_faz_hoje === 'plataforma', dist = R.como_faz_hoje === 'distribuidor';
+  const onde = { word: 'no Word ou à mão', planilha: 'na planilha', canva: 'no Canva', whatsapp: 'direto no WhatsApp', distribuidor: 'na ferramenta do distribuidor' }[R.como_faz_hoje] || 'no Word ou à mão';
+  const hoje = plat ? AD.plataforma.slice() : dist ? [AD.mao[1], AD.mao[2], AD.mao[4]] : AD.mao.slice();
+  if (plat && piso(R) >= 68) hoje.unshift('Você paga a partir de R$ ' + piso(R) + ' por mês.');
+  const li = (t, ic) => '<li>' + ic + '<span>' + esc(t) + '</span></li>';
+  return '<p class="rotulo" style="margin-top:18px">' + TXT.adTitulo + '</p><div class="antes"><div class="coluna-ad hoje"><h4>' + (plat ? 'Na plataforma que você já paga' : 'Hoje, ' + onde) + '</h4><ul>' + hoje.map((t) => li(t, IC_X)).join('') + '</ul></div><div class="coluna-ad sd"><h4>Com o SolarDoc</h4><ul>' + AD.sd.map((t) => li(t, IC_OK)).join('') + '</ul></div></div>';
+}
+function itemHTML(it, nota) {
+  const falta = !it.tem, extra = nota === false ? '' : (nota || (falta && it.nota) || '');
+  return '<li class="item ' + (falta ? 'falta' : 'tem') + '"><span class="mk">' + (falta ? IC_X : IC_OK) + '</span><span class="tx"><span class="vh">' + (falta ? 'Falta: ' : 'Tem: ') + '</span>' + esc(it.rot) + (extra ? '<small>' + esc(extra) + '</small>' : '') + '</span>'
+    + (falta && it.img && nota !== false ? '<button type="button" class="ver-bt" data-a="ver" data-k="' + it.q + '">Ver como fica</button>' : '') + '</li>';
+}
+function opsHTML(s) {
+  const multi = s.kind === 'multi', cur = R[s.id];
+  return '<div class="ops" role="' + (multi ? 'group' : 'radiogroup') + '" aria-labelledby="tit">' + s.ops.map((x) => {
+    const on = multi ? (cur || []).includes(x.id) : cur === x.id;
+    return '<button type="button" class="op' + (multi ? ' multi' : '') + '" id="op-' + s.id + '-' + x.id + '" role="' + (multi ? 'checkbox' : 'radio') + '" aria-checked="' + on + '"' + (multi && s.max && !on && (cur || []).length >= s.max ? ' aria-disabled="true"' : '') + ' data-a="op" data-q="' + s.id + '" data-o="' + x.id + '"><span class="caixa">' + IC_OK + '</span><span class="tx">' + esc(x.r) + '</span></button>';
+  }).join('') + '</div>';
+}
+function mascara(v) {
+  const d = String(v).replace(/\D/g, '').replace(/^(?:55|0)(?=\d{10,11}$)/, '').slice(0, 11);
+  if (d.length < 3) return d.length ? '(' + d : '';
+  const r = d.slice(2), cut = d.length > 10 ? 5 : 4;
+  return '(' + d.slice(0, 2) + ') ' + r.slice(0, cut) + (r.length > cut ? '-' + r.slice(cut) : '');
+}
+function valido(s) {
+  if (s.tipo === 'q') {
+    if (s.kind === 'multi') return (R[s.id] || []).length > 0;
+    if (s.kind === 'text') return (R[s.id] || '').trim().length > 0;
+    if (s.kind === 'city') return !!R.cidade;
+    return !!R[s.id];
+  }
+  if (s.tipo === 'g1') return (R.nome || '').trim().length >= 2;
+  if (s.tipo === 'g2') return /^\d{10,11}$/.test(R.whats || '');
+  return true;
+}
+/* Municípios do IBGE: [nome, UF], a mesma lista do quiz do eletroposto */
+let MUN = null, MUN_ERRO = false, MUN_P = null;
+function carregarMun() {
+  if (MUN || MUN_ERRO) return Promise.resolve();
+  if (!MUN_P) MUN_P = fetch('/io/dados/municipios.json').then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }).then((j) => { MUN = j; }).catch(() => { MUN_ERRO = true; });
+  return MUN_P;
+}
+function listaCidades() {
+  const el = $('lista-cid'); if (!el) return;
+  if (MUN_ERRO) { el.innerHTML = '<p class="amostra">Não consegui carregar a lista de cidades. Digite o nome da sua cidade e toque em Continuar.</p>'; return; }
+  if (!MUN) { el.innerHTML = '<p class="amostra">Carregando as cidades.</p>'; return; }
+  const t = norm((($('campo-cidade') || { value: '' }).value || '').trim());
+  const l = MUN.filter((m) => m[1] === R.uf && (!t || norm(m[0]).includes(t)));
+  el.innerHTML = l.length ? l.map((m) => { const v = m[0] + '-' + m[1]; return '<button type="button" class="op peq" role="option" aria-selected="' + (R.cidade === v) + '" aria-checked="' + (R.cidade === v) + '" data-a="cid" data-o="' + esc(v) + '"><span class="caixa">' + IC_OK + '</span><span class="tx">' + esc(m[0]) + '</span></button>'; }).join('') : '<p class="amostra">Nenhuma cidade com esse nome no estado. Confira a grafia.</p>';
+}
+const CONT = { rod: { txt: 'Continuar', on: true } };
+
+/* Uma função por tipo de tela. Cada uma devolve html, rodapé e, se precisar, uma ação depois de desenhar */
+const VIEW = {
+  capa() {
+    let rays = ''; for (let a = 0; a < 360; a += 45) rays += '<rect class="sol" x="18.5" y="1" width="3" height="7" rx="1.5" transform="rotate(' + a + ' 20 20)"/>';
+    return { html: '<span class="eyebrow"><i aria-hidden="true"></i>' + TXT.capaTopo + '</span><h3 class="titulo" id="tit" style="margin-top:16px">' + TXT.capaTituloHTML + '</h3><p class="ajuda">' + TXT.capaTexto + '</p><img class="hero-img" src="' + ASSET + 'hero-orcamento.webp" alt="Orçamento do SolarDoc aberto no notebook e no celular" width="2800" height="1520"><p class="nota">' + TXT.heroLegenda + '</p><p class="ajuda"><b>' + TXT.capaDetalhe + '</b></p><p class="prova">' + TXT.capaProva + '</p>' + esteiraHTML(), rod: { txt: TXT.capaBotao, on: true } };
+  },
+  q(s) {
+    if (s.pre && R[s.id] === undefined) R[s.id] = s.pre.slice();
+    const cab = (s.ab ? '<p class="abertura">' + s.ab + '</p>' : '') + '<h3 class="titulo" id="tit">' + esc(s.t) + '</h3>' + (s.aj ? '<p class="ajuda">' + esc(s.aj) + '</p>' : '') + (s.destaque ? '<p class="destaque">' + esc(s.destaque) + '</p>' : '');
+    if (s.kind === 'single') return { html: cab + opsHTML(s) };
+    if (s.kind === 'multi') return { html: cab + opsHTML(s), rod: { txt: 'Continuar', on: valido(s) } };
+    if (s.kind === 'text') return { html: '<form data-form novalidate>' + cab + '<input class="campo" id="campo-empresa" name="empresa" type="text" autocomplete="organization" maxlength="60" placeholder="' + esc(s.ex) + '" value="' + esc(R.empresa || '') + '" aria-labelledby="tit"></form><button type="button" class="pular" data-a="pular">' + s.pular + '</button>', rod: { txt: 'Continuar', on: valido(s) } };
+    if (s.kind === 'uf') return { html: cab + '<div class="uf-grid" role="radiogroup" aria-labelledby="tit">' + s.ops.map((x) => '<button type="button" class="op uf" id="op-uf-' + x.id + '" role="radio" aria-label="' + x.id + ', ' + esc(x.r) + '" title="' + esc(x.r) + '" aria-checked="' + (R.uf === x.id) + '" data-a="op" data-q="uf" data-o="' + x.id + '"><b>' + x.id + '</b><small>' + esc(x.r) + '</small></button>').join('') + '</div>' };
+    const nomeUF = rot(R, 'uf');
+    const cabC = '<h3 class="titulo" id="tit">' + esc(s.t) + '</h3><p class="ajuda">' + (nomeUF ? 'Estado: ' + esc(nomeUF) + '. ' : '') + esc(s.aj) + '</p>';
+    return { html: '<form data-form novalidate>' + cabC + '<input class="campo" id="campo-cidade" name="cidade" type="search" autocomplete="off" placeholder="' + esc(s.ex) + '" aria-labelledby="tit"></form><div class="cid-lista" id="lista-cid" role="listbox" aria-label="Cidades do estado"></div>', rod: MUN_ERRO ? { txt: 'Continuar', on: valido(s) } : undefined, after() { listaCidades(); carregarMun().then(() => { if (PASSOS[S.i] !== s) return; if (MUN_ERRO && !$('btn-cont')) render(true); else listaCidades(); }); } };
+  },
+  i1() {
+    const n = N(R), tit = n >= 23 ? TXT.i1Alto : n <= 3 ? TXT.i1Baixo : TXT.i1Meio;
+    const rows = [{ rot: 'Você', v: n, txt: String(n), cls: 'sv-a' }, { rot: 'Típico no SolarDoc', v: TIPICO, txt: String(TIPICO) }, { rot: 'Os 10% que mais fazem', v: TOPO, txt: String(TOPO) }];
+    return { html: '<h3 class="titulo" id="tit">' + tit + '</h3><p class="ajuda">' + TXT.i1Texto(n) + '</p><div class="grafico">' + barrasSVG(rows, Math.max(n, TOPO), 'Propostas por mês: você ' + n + ', típico ' + TIPICO + ', os 10% que mais fazem ' + TOPO) + '</div><p class="nota">' + TXT.i1Nota + '</p>', rod: CONT.rod };
+  },
+  e1() {
+    return { html: '<h3 class="titulo" id="tit">' + TXT.e1Titulo + '</h3><p class="ajuda">' + esc(TXT.e1Texto(frase(rot(R, 'tempo_por_proposta')) || 'algum tempo', frase(rot(R, 'demora_envio')) || 'quando fica pronta')) + '</p>', rod: CONT.rod };
+  },
+  i2() {
+    const g = GRUPO_TOOL[R.como_faz_hoje] || 'braco', sub = g === 'distribuidor' ? TXT.i2SubOutros : g === 'plataforma' ? TXT.i2SubPlat : TXT.i2SubMao;
+    return { html: '<h3 class="titulo" id="tit">' + TXT.i2Titulo + '</h3><p class="ajuda">' + sub + '</p>' + carrHTML(cardsDe(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado'), rod: CONT.rod };
+  },
+  i3() {
+    const e = (R.empresa || '').trim() || 'Sua empresa';
+    let bars = ''; [118, 112, 104, 92, 80, 74, 80, 92, 101, 110, 114, 120].forEach((g, k) => { const hh = Math.round(g / 120 * 50); bars += '<rect class="sv-a" x="' + (k * 20 + 3) + '" y="' + (56 - hh) + '" width="14" height="' + hh + '" rx="2"/>'; });
+    return { html: '<h3 class="titulo" id="tit">' + esc(TXT.i3Titulo(daEmp(R))) + '</h3><div class="fp"><div class="fp-faixa"><b>' + esc(e) + '</b><span>Proposta comercial de energia solar</span></div><div class="fp-corpo"><div>' + esc(R.cidade || 'Sua cidade') + '. Cliente de exemplo.</div><div class="fp-nums"><div><small>Economia por mês</small><b>R$ 664</b></div><div><small>Retorno</small><b>4 anos e 5 meses</b></div><div><small>Economia em 25 anos</small><b>R$ 437.424</b></div><div><small>Conta depois</small><b>R$ 100</b></div></div><svg viewBox="0 0 240 60" role="img" aria-label="Geração de energia mês a mês, valores de exemplo"><line class="sv-eixo" x1="0" y1="57" x2="240" y2="57"/>' + bars + '</svg><div class="nota"><span class="chip">Valores de exemplo</span> Geração de energia mês a mês, de janeiro a dezembro.</div></div></div><p class="ajuda">' + TXT.i3Texto + '</p><p class="rotulo" style="margin-top:16px">' + TXT.i3Carr + '</p>' + carrHTML(FOLHAS.map((f) => ({ src: f.src, alt: f.t + ', folha real com dados de exemplo', cap: '<b>' + esc(f.t) + '</b>' + esc(f.x) })), 'Folhas reais do SolarDoc', 4500) + '<p class="nota">' + TXT.i3Nota + '</p>', rod: CONT.rod };
+  },
+  e2() {
+    return { html: '<h3 class="titulo" id="tit">' + TXT.e2Titulo + '</h3><ul class="itens">' + faltam(R).lista.slice(0, 4).map((it) => itemHTML(it, false)).join('') + '</ul><p class="ajuda">' + TXT.e2Texto + '</p>', rod: CONT.rod };
+  },
+  load() {
+    const f = faltam(R);
+    const L = [['Somando as horas que vão para proposta', br(horas(R)) + ' h por mês'], ['Comparando com quem usa o SolarDoc', 'Você ' + N(R) + ', típico ' + TIPICO], ['Conferindo o que falta na sua proposta', f.k + ' de 8 itens'], ['Calculando seu Índice de Proposta', indice(R) + ' de 100']];
+    return { html: '<h3 class="titulo" id="tit">Calculando o seu diagnóstico</h3><div class="carrega" aria-live="polite">' + L.map((l, k) => '<div class="lc" id="lc' + k + '"><span>' + l[0] + '</span><b id="lv' + k + '"></b></div>').join('') + '</div>', after() {
+      L.forEach((l, k) => {
+        S.timers.push(setTimeout(() => { const e = $('lc' + k); if (e) { e.classList.add('on'); $('lv' + k).innerHTML = '<span class="spin" aria-hidden="true"></span>'; } }, k * 1500));
+        S.timers.push(setTimeout(() => { const v = $('lv' + k); if (v) v.textContent = l[1]; }, k * 1500 + 1100));
+      });
+      S.timers.push(setTimeout(() => ir(IDX.res), 6300));
+    } };
+  },
+  res() {
+    const p = pilares(R), pf = perfil(R), fr = pilarFraco(R), f = faltam(R), h = horas(R);
+    const prows = PILARES.map(([n]) => ({ rot: n, v: p[n], txt: p[n] + '/25', cls: n === fr.nome ? 'sv-a' : 'sv-b' }));
+    let x = '<p class="rotulo">' + TXT.resRotulo + '</p><div class="res-topo">' + anelSVG(indice(R), 100, 'Índice de Proposta: ' + indice(R) + ' de 100') + '<div><h3 class="titulo" id="tit">' + TXT.resTitulo(indice(R)) + '</h3></div></div><div class="perfil"><b>' + esc(pf.nome) + '</b><p>' + esc(pf.frase) + '</p></div>';
+    if (R.frase === 'muito' || R.frase === 'pouco') x += '<p class="nota">Você disse que se identifica com a frase "' + esc(POR_ID.frase.destaque) + '"</p>';
+    x += '<p class="rotulo" style="margin-top:18px">Os 4 pilares, de 0 a 25</p><div class="grafico">' + barrasSVG(prows, 25, 'Pontos por pilar, de 0 a 25: ' + PILARES.map(([n]) => n + ' ' + p[n]).join(', ')) + '</div><p class="destaque">' + TXT.resPesa(fr.nome) + '</p>';
+    x += '<div class="cartoes">' + cartoes(R).map((c) => '<div class="cartao' + (c.n ? ' num' : '') + '">' + (c.n ? '<span class="big">' + esc(c.n) + '</span>' : '') + '<div><b>' + esc(c.t) + '</b><p>' + esc(c.s) + '</p></div></div>').join('') + '</div>';
+    if (minutos(R) <= 10) x += '<p class="ajuda">' + TXT.rapido + '</p>';
+    const fx = f.lista.filter((it) => !it.tem && it.selo === 'sd'), fv = f.lista.filter((it) => !it.tem && it.selo === 'voce'), tm = f.lista.filter((it) => it.tem);
+    x += '<p class="rotulo" style="margin-top:22px">O que falta na sua proposta</p><div class="seg8" role="img" aria-label="' + f.k + ' de 8 itens faltando">' + f.lista.slice().sort((a, b) => a.tem - b.tem).map((it) => '<i' + (it.tem ? '' : ' class="f"') + '></i>').join('') + '</div><p class="destaque">' + TXT.fecho(f.k, f.r) + '</p>';
+    if (fx.length) x += '<p class="sub-l">O SolarDoc tem a função para:</p><ul class="itens">' + fx.map((it) => itemHTML(it)).join('') + '</ul>';
+    if (fv.length) x += '<p class="sub-l">Fica com você:</p><ul class="itens">' + fv.map((it) => itemHTML(it, 'Isso o SolarDoc não faz por você.')).join('') + '</ul>';
+    if (tm.length) x += '<p class="sub-l">Você já tem:</p><ul class="itens">' + tm.map((it) => itemHTML(it)).join('') + '</ul>';
+    x += '<p class="nota">' + TXT.resNota + '</p>';
+    return { html: x, rod: { txt: TXT.resBotao, on: true } };
+  },
+  g1() {
+    return { html: '<form data-form novalidate><h3 class="titulo" id="tit">' + TXT.g1Titulo + '</h3><p class="ajuda">' + TXT.g1Ajuda + '</p><input class="campo" id="campo-nome" name="nome" type="text" autocomplete="given-name" maxlength="60" placeholder="Seu nome" value="' + esc(R.nome || '') + '" aria-labelledby="tit"></form>', rod: { txt: 'Continuar', on: valido(PASSOS[S.i]) } };
+  },
+  g2() {
+    return { html: '<form data-form novalidate><h3 class="titulo" id="tit">' + TXT.g2Titulo + '</h3><p class="ajuda">' + TXT.g2Ajuda + '</p><input class="campo" id="campo-whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(34) 99999-9999" value="' + esc(mascara(R.whats || '')) + '" aria-labelledby="tit"></form><p class="nota">' + esc(TXT.g2Consent).replace('Política de Privacidade', '<a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>') + '</p>', rod: { txt: 'Ver meu plano', on: valido(PASSOS[S.i]) } };
+  },
+  plano() {
+    const pf = perfil(R), bt = botoes(R), cedo = pf.id === 'cedo';
+    const meta = { mesmas: 'as mesmas vendas, com menos esforço', dobro: 'o dobro das vendas de hoje', triplo: 'o triplo ou mais', primeiras: 'as primeiras vendas' }[R.meta_vendas];
+    let x = '<h3 class="titulo" id="tit">' + esc(R.nome || 'Cliente') + ', este é o plano ' + esc(daEmp(R)) + '.</h3>';
+    x += '<div class="cartao"><b>Índice ' + indice(R) + ' de 100</b><p>Perfil: ' + esc(pf.nome) + '. Cerca de ' + br(horas(R)) + ' h por mês em proposta.</p></div>';
+    if (R.imagem || meta) x += '<p class="ajuda" style="margin-top:12px">' + (R.imagem ? 'Você quer que o cliente veja ' + esc('a ' + emp(R)) + ' como ' + esc(frase(rot(R, 'imagem'))) + '.' : '') + (meta ? ' Em 6 meses, você quer fechar ' + meta + '.' : '') + '</p>';
+    x += antesDepois(R);
+    x += '<p class="rotulo" style="margin-top:18px">Plano de 7 dias</p><div class="cartoes">' + dias(R).map((d) => '<div class="dia' + (d.prio ? ' prio' : '') + '"><div class="rotulo">Dia ' + d.n + (d.prio ? ' <span class="chip sd">Prioridade para você</span>' : '') + '</div><h3>' + esc(d.t) + '</h3><p>' + esc(d.x) + '</p></div>').join('') + '</div>';
+    x += '<img class="hero-img" src="' + ASSET + 'hero-orcamento.webp" alt="Orçamento do SolarDoc aberto no notebook e no celular" width="2800" height="1520" loading="lazy"><p class="nota">' + TXT.heroLegenda + '</p>';
+    x += '<div class="oferta"><p class="rotulo">SolarDoc</p><p class="preco">R$ 67<small> por mês</small></p>' + (R.prioridade ? '<p><b>' + esc(rot(R, 'prioridade')) + ':</b> ' + ARG1[R.prioridade] + '</p>' : '') + '<ul class="checks">' + OFERTA_ITENS.map((t) => '<li><span class="ck">' + IC_OK + '</span><span>' + esc(t) + '</span></li>').join('') + '</ul><p>' + TXT.garantia + '</p><p>' + TXT.semFid + '</p>' + (piso(R) >= 68 ? '<p><b>' + TXT.ofertaGasto(piso(R)) + '</b></p>' : '') + (cedo ? '<p class="nota">Sem CNPJ, o botão de compra não aparece. A Carla explica como usar o SolarDoc quando o seu sair.</p>' : '') + bt.map((b) => '<button type="button" class="' + (b.prim ? 'cta' : 'link-bt') + '" data-a="btn" data-k="' + b.k + '">' + esc(b.rot) + '</button>').join('') + '</div>';
+    x += '<div class="banda"><p class="rotulo">' + TXT.cfTitulo + '</p><ol class="passos3">' + PASSOS3.map(([t, d]) => '<li><div><b>' + esc(t) + '</b><span>' + esc(d) + '</span></div></li>').join('') + '</ol></div>';
+    x += '<p class="rotulo" style="margin-top:20px">' + TXT.depTitulo + '</p>' + carrHTML(cardsTodos(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
+    x += '<div class="faixa-conc"><p>' + TXT.concTitulo + '</p><div class="logos">' + CONC.map(([f, n]) => '<img src="' + ASSET + 'conc/' + f + '" alt="' + n + '" loading="lazy">').join('') + '</div></div>';
+    x += '<div class="banda"><p class="rotulo">Quem fez</p><h4 class="qf">' + TXT.qfTitulo + '</h4><div class="fundadores"><figure><img src="' + ASSET + 'founder-thiago.webp" alt="Thiago, sócio-fundador do SolarDoc" loading="lazy"><b>Thiago</b>Sócio-fundador</figure><figure><img src="' + ASSET + 'founder-diego.webp" alt="Diego, sócio-fundador do SolarDoc" loading="lazy"><b>Diego</b>Sócio-fundador</figure></div><p class="ajuda">' + TXT.qfTexto + '</p></div>';
+    const ordem = FAQS.map((q, i) => i), fi = FAQ_OBJ[R.objecao];
+    if (fi !== undefined) { ordem.splice(ordem.indexOf(fi), 1); ordem.unshift(fi); }
+    x += '<p class="rotulo" style="margin-top:20px">Perguntas frequentes</p>' + ordem.map((i) => '<details class="faq"><summary>' + esc(FAQS[i].q) + '</summary><p>' + esc(FAQS[i].a) + '</p></details>').join('');
+    x += '<p class="rodape-marca"><b>SolarDoc<span>.App</span></b> · Documentação solar com IA</p>';
+    const pri = bt.find((b) => b.prim);
+    return { html: x, rod: pri ? { txt: pri.rot, on: true, k: pri.k } : undefined };
+  }
+};
+
+/* Navegação e desenho da tela atual */
+function rotuloTopo(s) {
+  if (s.tipo === 'q') return BLOCOS[s.bl - 1] + ' · ' + (posBloco(S.i, R) + 1) + '/' + qtdBloco(s.bl, R);
+  if (s.tipo === 'load') return 'Seu diagnóstico';
+  if (s.tipo === 'res') return '';
+  return s.bl ? BLOCOS[s.bl - 1] : 'Seu plano';
+}
+function topoHTML(s) {
+  if (s.tipo === 'capa') return MARCA_TOPO;
+  const d = progresso(S.i, R);
+  let h = MARCA_TOPO, pct = '';
+  if (d !== null) {
+    const p = Math.round(d * 100), m = marco(d);
+    h += '<div class="barra" role="progressbar" aria-label="Progresso do diagnóstico" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p + '"><i style="--w:' + p + '%"></i></div>';
+    pct = '<span class="pct">' + (m ? m + ' · ' : '') + p + '%</span>';
+  }
+  const pode = S.hist.length > 0 && s.tipo !== 'load';
+  return h + '<div class="linha-topo">' + (pode ? '<button type="button" class="voltar" data-a="voltar" aria-label="Voltar">' + IC_VOLTA + '</button>' : '') + '<span class="rotulo">' + esc(rotuloTopo(s)) + '</span>' + pct + '</div>';
+}
+function render(semFoco) {
+  const s = PASSOS[S.i], c = $('corpo'), f = $('rodape');
+  S.timers.forEach(clearTimeout); S.timers = []; S.lock = false;
+  $('topo').innerHTML = topoHTML(s);
+  const v = VIEW[s.tipo](s);
+  c.innerHTML = '<div class="coluna">' + v.html + '</div>';
+  if (v.rod) { f.hidden = false; f.innerHTML = '<button type="button" class="cta" id="btn-cont" ' + (v.rod.k ? 'data-a="btn" data-k="' + v.rod.k + '"' : 'data-a="cont"') + (v.rod.on ? '' : ' disabled') + '>' + esc(v.rod.txt) + '</button>'; } else { f.hidden = true; f.innerHTML = ''; }
+  if (v.after) v.after();
+  initCarr(c);
+  c.scrollTop = 0;
+  const t = c.querySelector('.titulo');
+  if (t && !semFoco) { t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); }
+  acompanhar(s);
+  salvar();
+}
+function ir(j) { S.i = j; render(); }
+function avancar() {
+  const s = PASSOS[S.i], j = proximo(S.i, R), b = PASSOS[j] ? PASSOS[j].bl : 0;
+  registrarResp(s);
+  if (s.tipo === 'capa' && !E.fez.vc) { E.fez.vc = 1; fb('track', 'ViewContent', { content_name: 'diagnostico_solardoc' }); }
+  if (s.bl >= 1 && s.bl <= 4 && b !== s.bl && !E.blocos[s.bl]) { E.blocos[s.bl] = 1; fb('trackCustom', 'SD_Bloco' + s.bl, {}); }
+  S.hist.push(S.i);
+  ir(j);
+}
+function voltar() { const j = S.hist.pop(); if (j !== undefined) ir(j); }
+function continuar() {
+  if (!valido(PASSOS[S.i])) return;
+  if (PASSOS[S.i].tipo === 'g2') enviarLead(); else avancar();
+}
+function atualizaCont() { const b = $('btn-cont'); if (b) b.disabled = !valido(PASSOS[S.i]); }
+function escolher(qid, oid) {
+  const s = POR_ID[qid];
+  if (S.lock) return;
+  const marcar = (fn) => document.querySelectorAll('[data-q="' + qid + '"]').forEach((b) => b.setAttribute('aria-checked', String(fn(b.getAttribute('data-o')))));
+  if (s.kind === 'multi') {
+    const a = R[qid] || [], k = a.indexOf(oid);
+    if (k >= 0) a.splice(k, 1); else if (!s.max || a.length < s.max) a.push(oid); else return;
+    R[qid] = a; marcar((id) => a.includes(id));
+    if (s.max) document.querySelectorAll('[data-q="' + qid + '"]').forEach((b) => b.setAttribute('aria-disabled', String(!a.includes(b.getAttribute('data-o')) && a.length >= s.max)));
+    atualizaCont();
+    salvar();
+    return;
+  }
+  if (qid === 'uf' && R.cidade && !R.cidade.endsWith('-' + oid)) R.cidade = '';
+  R[qid] = oid; S.lock = true; marcar((id) => id === oid);
+  salvar();
+  S.timers.push(setTimeout(avancar, 250));
+}
+
+/* Folha de baixo: resumo para quem decide */
+function copiar(txt) {
+  const st = (m) => { const e = $('copia-st'); if (e) e.textContent = m; };
+  const falhou = () => { const ta = $('resumo-txt'); if (ta) { ta.focus(); ta.select(); } st('Não consegui copiar sozinho. O texto está selecionado: copie com o atalho do aparelho.'); };
+  try { navigator.clipboard.writeText(txt).then(() => st('Resumo copiado.'), falhou); } catch (e) { falhou(); }
+}
+function abrirFolha(k, op) {
+  S.opener = op || null;
+  $('folha-in').innerHTML = '<h2 id="folha-t">Resumo para quem decide</h2><p class="nota">Toque em copiar e cole numa conversa. Este é o texto que será copiado.</p><textarea class="msg" id="resumo-txt" readonly rows="10">' + esc(resumo(R)) + '</textarea><p class="nota" id="copia-st" role="status"></p><button type="button" class="cta" id="folha-copiar" data-a="copiar" style="margin-top:12px">Copiar resumo</button><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
+  $('folha').hidden = false;
+  $('folha-copiar').focus();
+  copiar(resumo(R));
+}
+function abrirVer(k, op) {
+  const it = ITENS.find((x) => x.q === k); if (!it || !it.img) return;
+  S.opener = op || null;
+  $('folha-in').innerHTML = '<span class="chip">Folha real, dados de exemplo</span><h2 id="folha-t">' + esc(it.rot) + '</h2><p class="nota">' + esc(it.cap) + '</p>' + carrHTML(it.img.map((src) => ({ src, alt: it.rot + ', folha real com dados de exemplo' })), it.rot, 0) + '<button type="button" class="cta" id="folha-fechar" data-a="fechar" style="margin-top:16px">Fechar</button>';
+  $('folha').hidden = false; initCarr($('folha-in')); $('folha-fechar').focus();
+}
+function fecharFolha() { $('folha').hidden = true; if (S.opener && document.contains(S.opener)) S.opener.focus(); }
+
+/* Rastreio por tela, pixel e persistência */
+const SDR = window.SDR;
+const fb = SDR.fb;
+/* Os nomes das telas que não são pergunta são os do CONFIG_SOLARDOC do painel. As pausas (i1, e1, i2, i3, e2), o carregamento e o plano não mandam quiz_passo: o painel não tem esses passos. */
+const PASSO_NOME = { capa: 'capa', res: 'resultado', g1: 'nome', g2: 'whatsapp' };
+const idPasso = (s) => (s.tipo === 'q' ? s.id : PASSO_NOME[s.tipo]);
+const chaveDe = (i) => { const s = PASSOS[i]; return s.tipo === 'q' ? s.id : s.tipo; };
+const LS_KEY = 'sd-diagnostico-v1', VALIDADE = 14 * 24 * 3600 * 1000;
+const WHATS = '5534998165040';
+let E = { codigo: '', eventId: '', sig: '', ok: false, blocos: {}, fez: {} };
+const vistos = new Set(), respVistas = new Set(), errosVistos = new Set();
+
+function posicao(s) { const v = PASSOS.filter((x) => visivel(x, R)); return { n: v.indexOf(s) + 1, de: v.length }; }
+function erro(passo, msg) {
+  const ch = passo + '|' + msg;
+  if (errosVistos.has(ch)) return;
+  errosVistos.add(ch);
+  SDR.evento('quiz_erro', { passo, msg: String(msg).slice(0, 140) });
+}
+/* Chegou na tela: é por aqui que o painel sabe onde a pessoa parou */
+function acompanhar(s) {
+  if (s.tipo === 'res' && !E.fez.diag) { E.fez.diag = 1; fb('trackCustom', 'SD_Diagnostico', { indice: indice(R), perfil: perfil(R).id }); }
+  const id = idPasso(s);
+  if (!id || vistos.has(id)) return;
+  vistos.add(id);
+  const p = posicao(s);
+  SDR.evento('quiz_passo', { passo: id, n: p.n, de: p.de });
+}
+/* Respondeu: só o id da opção (ou a lista de ids). Texto livre nunca vai. */
+function respDe(s) {
+  if (s.tipo === 'g1' || s.tipo === 'g2') return 'preenchido';
+  if (s.tipo !== 'q') return undefined;
+  if (s.id === 'empresa') return (R.empresa || '').trim() ? 'preenchido' : undefined;
+  if (s.id === 'cidade') return R.cidade ? 'preenchido' : undefined;
+  const v = R[s.id];
+  return v === undefined || v === '' || (Array.isArray(v) && !v.length) ? undefined : v;
+}
+function registrarResp(s) {
+  const id = idPasso(s), r = respDe(s);
+  if (!id || r === undefined) return;
+  const ch = id + '|' + JSON.stringify(r);
+  if (respVistas.has(ch)) return;
+  respVistas.add(ch);
+  const p = posicao(s);
+  SDR.evento('quiz_passo', { passo: id, n: p.n, de: p.de, resp: r });
+}
+
+function salvar() {
+  gravarLS(LS_KEY, JSON.stringify({ v: 1, t: Date.now(), i: chaveDe(S.i), hist: S.hist.map(chaveDe), R, E }));
+}
+function limparR(raw) {
+  const o = {};
+  if (!raw || typeof raw !== 'object') return o;
+  PASSOS.forEach((s) => {
+    if (s.tipo !== 'q') return;
+    const v = raw[s.id];
+    if (s.kind === 'text') { if (typeof v === 'string') o[s.id] = v.slice(0, 60); }
+    else if (s.kind === 'city') { if (typeof v === 'string' && /^.{1,100}-[A-Z]{2}$/.test(v)) o.cidade = v; }
+    else if (s.kind === 'multi') { if (Array.isArray(v)) o[s.id] = v.filter((x) => s.ops.some((y) => y.id === x)).slice(0, s.max || 99); }
+    else if (typeof v === 'string' && s.ops.some((y) => y.id === v)) o[s.id] = v;
+  });
+  if (typeof raw.nome === 'string') o.nome = raw.nome.slice(0, 60);
+  if (typeof raw.whats === 'string' && /^\d{0,11}$/.test(raw.whats)) o.whats = raw.whats;
+  return o;
+}
+function carregarEstado() {
+  const cru = lerLS(LS_KEY);
+  if (!cru) return;
+  try {
+    const d = JSON.parse(cru);
+    if (!d || d.v !== 1 || typeof d.t !== 'number' || Date.now() - d.t > VALIDADE || typeof d.i !== 'string' || !(d.i in IDX) || d.i === 'capa') return;
+    R = limparR(d.R);
+    const e = d.E && typeof d.E === 'object' ? d.E : {};
+    E = {
+      codigo: /^SD-[A-Z0-9]{4,6}$/.test(e.codigo || '') ? e.codigo : '', eventId: /^sd_[\w-]{8,60}$/.test(e.eventId || '') ? e.eventId : '',
+      sig: typeof e.sig === 'string' ? e.sig.slice(0, 4000) : '', ok: e.ok === true, blocos: e.blocos && typeof e.blocos === 'object' ? e.blocos : {}, fez: e.fez && typeof e.fez === 'object' ? e.fez : {}
+    };
+    S.hist = (Array.isArray(d.hist) ? d.hist : []).filter((k) => typeof k === 'string' && k in IDX).map((k) => IDX[k]);
+    S.i = IDX[d.i];
+    if (S.i === IDX.load) S.i = IDX.res;
+    if (S.i === IDX.plano && !E.codigo) S.i = IDX.g2;
+    if (!visivel(PASSOS[S.i], R)) S.i = proximo(S.i, R);
+  } catch (err) { /* estado ilegível: começa da capa */ }
+}
+
+/* Portão: manda o lead para a API. Se ela falhar, a pessoa vê o plano do mesmo jeito. */
+function respostasParaApi() {
+  const out = {};
+  PASSOS.forEach((s) => {
+    if (s.tipo !== 'q' || !visivel(s, R) || !s.ops.length || s.id === 'uf') return;
+    const v = R[s.id];
+    if (v === undefined || v === '' || (Array.isArray(v) && !v.length)) return;
+    out[s.id] = v;
+  });
+  return out;
+}
+async function chamar(caminho, corpo, ms) {
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const t = setTimeout(() => { if (ctl) ctl.abort(); }, ms);
+  try {
+    const r = await fetch(SDR.api + caminho, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo), signal: ctl ? ctl.signal : undefined });
+    let j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    return { ok: r.ok, status: r.status, json: j };
+  } finally { clearTimeout(t); }
+}
+async function enviarLead() {
+  if (S.enviando) return;
+  S.enviando = true;
+  const b = $('btn-cont');
+  if (b) { b.disabled = true; b.textContent = 'Montando o seu plano'; }
+  const resp = respostasParaApi();
+  const sig = JSON.stringify([resp, R.nome, R.whats, R.empresa, R.uf, R.cidade]);
+  if (!E.eventId) E.eventId = SDR.novoId();
+  if (!(E.ok && E.codigo && E.sig === sig)) {
+    let cod = '';
+    try {
+      const m = SDR.meta();
+      const r = await chamar('/solardoc/quiz', { nome: (R.nome || '').trim(), whatsapp: R.whats, empresa: (R.empresa || '').trim(), uf: R.uf || '', cidade: R.cidade || '', respostas: resp, utm: SDR.utm(), fbp: m.fbp || '', fbc: m.fbc || '', lp_session: SDR.sid, event_id: E.eventId, url: location.href }, 8000);
+      if (r.ok && r.json && r.json.ok && /^SD-[A-Z0-9]{4,6}$/.test(r.json.codigo || '')) cod = r.json.codigo;
+      else erro('whatsapp', 'api_' + r.status);
+    } catch (err) { erro('whatsapp', 'api_falhou'); }
+    E.ok = !!cod; E.codigo = cod || E.codigo || SDR.codigoLocal(); E.sig = sig;
+  }
+  /* Deixar o WhatsApp não é ir assinar: o destino 'plano' só vira cartao, pix etc. no toque do botão final */
+  S.fimK = 'plano';
+  SDR.evento('quiz_fim', { destino: 'plano' });
+  if (!E.fez.lead) { E.fez.lead = 1; fb('track', 'Lead', { content_name: 'diagnostico_solardoc' }, { eventID: E.eventId }); }
+  S.enviando = false;
+  avancar();
+}
+
+/* Botões do plano */
+async function assinarCartao() {
+  if (S.pagando) return;
+  S.pagando = true;
+  fb('track', 'InitiateCheckout', { content_name: 'vip', value: 67, currency: 'BRL' });
+  document.querySelectorAll('[data-a="btn"][data-k="cartao"]').forEach((b) => { b.disabled = true; b.textContent = 'Abrindo o pagamento'; });
+  const corpo = Object.assign({ plan: 'vip' }, SDR.utm(), { lp_session: SDR.sid }, SDR.meta(), { origem: 'quiz_solardoc' });
+  try {
+    const r = await chamar('/payments/public-checkout', corpo, 20000);
+    if (r.ok && r.json && r.json.url) {
+      SDR.marcarSaida(r.json.cancelUrl);
+      window.location.href = r.json.url;
+      return;
+    }
+    erro('plano', 'checkout_' + r.status);
+  } catch (err) { erro('plano', 'checkout_falhou'); }
+  const qs = new URLSearchParams({ mode: 'register', plano: 'vip' });
+  const u = SDR.utm();
+  SDR.utmKeys.forEach((k) => { if (u[k]) qs.set(k, u[k]); });
+  window.location.href = '/auth?' + qs.toString();
+}
+function acaoFinal(k, el) {
+  if (k !== S.fimK) { S.fimK = k; SDR.evento('quiz_fim', { destino: k }); }
+  if (k === 'cartao') { assinarCartao(); return; }
+  if (k === 'socio') { abrirFolha('socio', el); return; }
+  if (!E.codigo) E.codigo = SDR.codigoLocal();
+  const url = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(MSG[k](E.codigo));
+  const w = window.open(url, '_blank');
+  if (w) { try { w.opener = null; } catch (err) { /* sem acesso */ } } else window.location.href = url;
+}
+$('app').addEventListener('click', (e) => {
+  if (e.target === $('folha')) { fecharFolha(); return; }
+  const t = e.target.closest('[data-a]');
+  if (!t) return;
+  const a = t.getAttribute('data-a');
+  if (a === 'op') escolher(t.getAttribute('data-q'), t.getAttribute('data-o'));
+  else if (a === 'cont') continuar();
+  else if (a === 'voltar') voltar();
+  else if (a === 'pular') { R.empresa = ''; avancar(); }
+  else if (a === 'cid') { if (S.lock) return; R.cidade = t.getAttribute('data-o'); document.querySelectorAll('[data-a="cid"]').forEach((b) => b.setAttribute('aria-checked', String(b === t))); S.lock = true; S.timers.push(setTimeout(avancar, 250)); }
+  else if (a === 'ver') abrirVer(t.getAttribute('data-k'), t);
+  else if (a === 'carr') { const cr = t.closest('.carr'); carrIr(cr, carrIdx(cr.querySelector('.carr-trilho')) + Number(t.getAttribute('data-d'))); }
+  else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
+  else if (a === 'copiar') copiar(resumo(R));
+  else if (a === 'fechar') fecharFolha();
+});
+$('corpo').addEventListener('input', (e) => {
+  const id = e.target.id, v = e.target.value;
+  if (id === 'campo-empresa') R.empresa = v;
+  else if (id === 'campo-cidade') { if (MUN_ERRO) R.cidade = v.trim() ? v.trim() + '-' + (R.uf || '') : ''; listaCidades(); }
+  else if (id === 'campo-nome') R.nome = v;
+  else if (id === 'campo-whats') { e.target.value = mascara(v); R.whats = e.target.value.replace(/\D/g, ''); }
+  else return;
+  atualizaCont();
+  salvar();
+});
+$('corpo').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (PASSOS[S.i].kind === 'city' && !MUN_ERRO) { const ops = document.querySelectorAll('[data-a="cid"]'); if (ops.length === 1) { ops[0].click(); return; } }
+  continuar();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('folha').hidden) fecharFolha(); });
+carregarEstado();
+render(true);
+carregarMun();
+/* Voltou do checkout pelo botão do navegador: a página vem do cache com o botão travado */
+window.addEventListener('pageshow', (e) => { if (e.persisted) { S.pagando = false; S.enviando = false; render(true); } });
+})();
+</script>
+</body>
+</html>

@@ -27,6 +27,25 @@
 // que as duas dão a mesma chave.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** O grupo do cartão de agendamento da linha IO (o mesmo default de webhook.ts e sdrAgentService.ts). */
+export const GRUPO_AGENDAMENTO_IO = '120363424419098566-group';
+
+/**
+ * Lista explícita de grupos do time (24/10/2026): o do cartão de agendamento e o de vendas do SolarDoc
+ * (avisos de desistência, sem vaga e compra, plano B1). PURA: o núcleo do CHEFE não importa de fora da
+ * pasta, então as envs e a constante GRUPO_VENDAS_SOLARDOC (solardoc/grupoVendasId.ts) entram por parâmetro.
+ * Quem monta o Estado do CHEFE (extras.gruposInternos) lê ZAPI_IO_GROUP_ID, ZAPI_SOLARDOC_GRUPO_ID e a
+ * constante, e passa aqui. A fiação do CHEFE ainda precisa chamar esta função (hoje só os testes passam
+ * gruposInternos).
+ */
+export function gruposInternosDaCasa(env: { ZAPI_IO_GROUP_ID?: string; ZAPI_SOLARDOC_GRUPO_ID?: string; GRUPO_VENDAS_SOLARDOC?: string } = {}): string[] {
+  const lista = [
+    (env.ZAPI_IO_GROUP_ID || '').trim() || GRUPO_AGENDAMENTO_IO,
+    (env.ZAPI_SOLARDOC_GRUPO_ID || '').trim() || (env.GRUPO_VENDAS_SOLARDOC || '').trim(),
+  ].filter(Boolean);
+  return [...new Set(lista)];
+}
+
 /** Mesma regra de silenciar.ts:39-45. null = não é telefone de pessoa. */
 export function chaveDoContato(phone: string | null | undefined): string | null {
   const d = String(phone ?? '').replace(/\D/g, '');

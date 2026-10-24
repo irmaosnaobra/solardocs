@@ -614,8 +614,11 @@ export function destinoDeSaida(args: {
 // A pessoa escolhe o plano na LP e vai DIRETO pro Stripe (coleta email + cartão,
 // 7 dias grátis). Só depois de aprovar o cartão ela cria a conta no cadastro
 // (com o email do session_id). Sem free: quem não passa daqui não tem conta.
+/** Único valor de `origem` que o checkout público aceita no body. */
+export const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
+
 export async function createPublicCheckout(req: Request, res: Response): Promise<void> {
-  const { plan, cupom } = req.body as { plan: string; cupom?: string };
+  const { plan, cupom, origem } = req.body as { plan: string; cupom?: string; origem?: string };
   // Mesmos apelidos do createCheckout: 'vip' vem da LP, 'anual' volta da /quase-la.
   const planKey = plan === 'vip' ? 'ilimitado' : plan === 'anual' ? 'vip_anual' : plan;
   const planInfo = PLAN_MAP[planKey];
@@ -700,6 +703,9 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     // quem abandonou R$ 564) e o webhook, que libera as ferramentas por ele.
     const baseMeta = {
       plan: planInfo.plano, source: 'public_checkout', ...attribution,
+      // Quem veio do quiz /diagnostico (24/10/2026). Lista FECHADA: o corpo é público e o
+      // metadata é lido por vendaAviso/ledger, então valor livre não entra.
+      ...(origem === ORIGEM_QUIZ_SOLARDOC ? { origem } : {}),
       ...(ehAnual ? { oferta: 'vip_anual' } : {}),
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
     };
@@ -1249,6 +1255,11 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           utmContent: meta.utm_content ?? null,
           origem: cls.origem,
           origemDetalhe: cls.detalhe,
+          // Grupo de vendas do SolarDoc (plano B1): id da venda, sessão do quiz e plano ativo.
+          sessionId: session.id,
+          lpSession: meta.lp_session ?? null,
+          origemQuiz: meta.origem === ORIGEM_QUIZ_SOLARDOC,
+          planoAtivo: session.payment_status === 'paid' || session.payment_status === 'no_payment_required',
         }).catch((err) => console.error('[venda] aviso do dono falhou (venda intacta):', err));
 
         if (saleId) await sendPurchaseForSale(saleId);

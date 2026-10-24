@@ -48,7 +48,7 @@ const h = vi.hoisted(() => {
 vi.mock('../utils/supabase', () => ({ supabase: h.cliente }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: h.cliente }));
 
-import { decidirDona, produtoDoBotao, produtoDaOrigem, chaveResolvida, PERGUNTA_DO_PORTEIRO } from '../services/agentes5040/porteiro';
+import { decidirDona, produtoDoBotao, produtoDaOrigem, origemDoLeadMeta, chaveResolvida, PERGUNTA_DO_PORTEIRO } from '../services/agentes5040/porteiro';
 import { lerFatosPorteiro, lerConversa, type ListasDeBarragem } from '../services/agentes5040/contexto';
 import type { FatosPorteiro } from '../services/agentes5040/tipos';
 import { chaveContato } from '../services/agents/whatsapp/silenciar';
@@ -207,6 +207,18 @@ describe('porteiro: botões e origens', () => {
     expect(produtoDaOrigem('manychat')).toBeNull();
     expect(produtoDaOrigem('manual')).toBeNull();
     expect(produtoDaOrigem(null)).toBeNull();
+  });
+
+  it('lead do quiz do SolarDoc (leads_meta quiz_solardoc) é SolarDoc e cai na Carla', () => {
+    expect(produtoDaOrigem('quiz_solardoc')).toBe('solardoc');
+    expect(origemDoLeadMeta({ lead_id: 'sdquiz_3499998888', form_id: 'quiz_solardoc' })).toBe('quiz_solardoc');
+    expect(origemDoLeadMeta({ lead_id: 'sdquiz_3499998888', form_id: null })).toBe('quiz_solardoc');
+    expect(origemDoLeadMeta({ lead_id: 'x', form_id: 'quiz_solardoc' })).toBe('quiz_solardoc');
+    // os outros leads_meta seguem como estavam
+    expect(origemDoLeadMeta({ lead_id: 'quiz_123', form_id: 'quiz_solar' })).toBe('quiz');
+    expect(origemDoLeadMeta({ lead_id: '123', form_id: 'form_meta' })).toBe('lead-meta');
+    expect(decidirDona(f({ origemCadastro: origemDoLeadMeta({ lead_id: 'sdquiz_3499998888', form_id: 'quiz_solardoc' }) }))).toMatchObject({ dona: 'carla', passo: 6 });
+    expect(decidirDona(f({ origemCadastro: origemDoLeadMeta({ lead_id: '123', form_id: 'form_meta' }) }))).toMatchObject({ dona: 'duda', passo: 6 });
   });
 });
 

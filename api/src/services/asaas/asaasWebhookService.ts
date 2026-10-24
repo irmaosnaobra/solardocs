@@ -209,6 +209,9 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
   //
   // Só na ADESÃO. Renovação não vira linha nova — é a mesma regra do cartão
   // (uma venda, uma linha; a renovação é aviso, não venda nova).
+  // Nome e WhatsApp do cliente para o aviso do grupo de vendas (preenchidos abaixo, na adesão).
+  let nomeDoCliente: string | null = null;
+  let whatsDoCliente: string | null = null;
   if (primeiroPagamento) {
     try {
       const { upsertSale, sendPurchaseForSale } = await import('../salesLedger');
@@ -222,6 +225,8 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
         .eq('id', userId)
         .maybeSingle();
       const a = (attr ?? {}) as Record<string, string | null>;
+      nomeDoCliente = a.nome ?? null;
+      whatsDoCliente = a.whatsapp ?? null;
       const pago = Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor);
 
       const saleId = await upsertSale({
@@ -288,6 +293,26 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
     `Acesso até: ${vencComFolga.toLocaleDateString('pt-BR')}`,
     primeiroPagamento ? `Cartão na Stripe: ${canceladas} assinatura(s) cancelada(s)` : '',
   ].filter(Boolean).join('\n'));
+
+  // Grupo de vendas do SolarDoc (plano B1): UM A MAIS que o aviso acima (que nunca é dispensado), só na ADESÃO.
+  // Renovação segue só com o Thiago. Isolado: nunca derruba nem atrasa o aviso ao Thiago.
+  if (primeiroPagamento) {
+    try {
+      const { avisarCompra, idDeVenda } = await import('../solardoc/avisoGrupoSolardoc');
+      const id = idDeVenda('asaas:', linha.contract_id, linha.authorization_id, linha.subscription_id, b.payment?.id);
+      if (!id) {
+        logger.error('asaas-webhook', 'venda do Pix sem id único (contrato, autorização, assinatura e pagamento vazios): aviso ao grupo de vendas pulado');
+      } else {
+        await avisarCompra({
+          id, canal: 'asaas', planoAtivo: true,
+          valor: Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor),
+          nome: nomeDoCliente, email: linha.email, telefone: whatsDoCliente,
+        });
+      }
+    } catch (err) {
+      logger.error('asaas-webhook', 'aviso ao grupo de vendas falhou (o do Thiago já saiu)', err);
+    }
+  }
 }
 
 // ── venda de produto do PlugCash (link de pagamento) ─────────────────────────

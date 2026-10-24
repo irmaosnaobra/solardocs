@@ -274,7 +274,10 @@ export const PREFIXOS_AGENDA = [
 // Não entram no teto do frio (hora nem 24 h) nem em NENHUMA conta do transacional (hora ou dia): robô de agenda e boas-vindas
 // não podem ser segurados por resposta das agentes ("agenda nunca bloqueia"). Elas contam no 20/1 h e 120/24 h das agentes
 // e nos 60/450 de emergência, que moram no vivoEnvio.
-export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:'] as const;
+// `solardoc_aviso_sent:` (24/10/2026): o aviso ao grupo de vendas do SolarDoc (avisoGrupoSolardoc.ts), avulso ou em
+// cartão, cada envio físico. É a segunda parte do mesmo balde: entra no espaçamento da linha e na conta de "abaixo de
+// 40 na hora" do próprio módulo, e fica fora do teto do frio e do transacional.
+export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:'] as const;
 
 /** Janela do espaçamento contra o balde das respostas das agentes (env só para afrouxar/apertar sem deploy). */
 const espacamentoRespostaMs = (): number => Number(process.env.ESPACAMENTO_RESPOSTA_MS || 2 * 60 * 1000);

@@ -32,6 +32,7 @@ import { proximasVagas } from '../io/eletropostoVagas';
 import { vagasSolar } from './agendaSolarVagas';
 import { INV_SESSAO_PREFIX, sessaoSeguraOutrosRobos } from '../io/investidorAgentePosse';
 import { quandoPorExtenso } from './personas/comum';
+import { origemDoLeadMeta } from './porteiro';
 import type {
   AnuncioOrigem, CadastroEletroposto, CardResumo, ContextoLead, FatosPorteiro, LeadMetaResumo, MsgConversa, Persona,
 } from './tipos';
@@ -238,7 +239,7 @@ const recente = (iso: string | null | undefined, agoraMs: number): boolean => {
  */
 function origemDe(card: CardResumo | null, lead: LeadMetaResumo | null, cadastros: CadastroEletroposto[], agoraMs: number): string | null {
   if (card?.created_by && recente(card.created_at, agoraMs)) return card.created_by;
-  if (lead && recente(lead.created_time, agoraMs)) return String(lead.lead_id ?? '').startsWith('quiz_') ? 'quiz' : 'lead-meta';
+  if (lead && recente(lead.created_time, agoraMs)) return origemDoLeadMeta(lead);
   const cad = cadastros.find(c => recente(c.created_at, agoraMs));
   if (cad) return cad.origem === 'nota1' ? 'lp_eletroposto' : 'cadastro_eletroposto';
   return null;

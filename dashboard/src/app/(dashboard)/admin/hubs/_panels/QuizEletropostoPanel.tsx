@@ -40,9 +40,10 @@ const PERIODOS = [
   { k: 'hoje', label: 'Hoje' }, { k: 'ontem', label: 'Ontem' }, { k: '7dias', label: '7 dias' },
   { k: '30dias', label: '30 dias' }, { k: 'maximo', label: 'Desde 21/07' },
 ];
-// O mesmo painel serve o quiz do eletroposto e o do solar (07/10/2026); muda o
-// endereço da leitura, os destinos e algumas palavras.
-type Produto = 'eletroposto' | 'solar';
+// O mesmo painel serve o quiz do eletroposto, o do solar (07/10/2026) e o do
+// diagnóstico do SolarDoc (24/10/2026); muda o endereço da leitura, os destinos
+// e algumas palavras.
+type Produto = 'eletroposto' | 'solar' | 'solardoc';
 const DESTINOS_POR: Record<Produto, [string, string][]> = {
   eletroposto: [
     ['reuniao', 'Reunião marcada'], ['arrendamento', 'Arrendamento'], ['investidor', 'Investidores'],
@@ -53,8 +54,13 @@ const DESTINOS_POR: Record<Produto, [string, string][]> = {
     ['nao_confirmou', 'Não confirmou presença'], ['ja_marcado', 'Já tinha horário'], ['sem_vitrine', 'Sem horário'],
     ['parceiro', 'Integrador'],
   ],
+  // Deixou o WhatsApp e viu o plano ('plano') e os seis botões finais (api: DESTINOS_SOLARDOC)
+  solardoc: [
+    ['plano', 'Deixou o WhatsApp e viu o plano'], ['cartao', 'Assinar com cartão'], ['pix', 'Assinar no Pix'], ['duvida', 'Dúvida no WhatsApp'],
+    ['equipe', 'Falar com a equipe'], ['carla', 'Falar com a Carla (sem CNPJ)'], ['socio', 'Copiar resumo para quem decide'],
+  ],
 };
-const DESTINOS: [string, string][] = [...DESTINOS_POR.eletroposto, ...DESTINOS_POR.solar.filter(([k]) => k !== 'parceiro')];
+const DESTINOS: [string, string][] = [...DESTINOS_POR.eletroposto, ...DESTINOS_POR.solar.filter(([k]) => k !== 'parceiro'), ...DESTINOS_POR.solardoc];
 // Duas séries, as duas primeiras da paleta de referência (validadas juntas:
 // CVD ΔE 24.7, contraste ≥ 3:1 no fundo claro). O texto nunca usa a cor da série.
 const COR_SEGUIU = '#2a78d6';
@@ -263,8 +269,9 @@ function useEstreito(): boolean {
 // Reunião, cadastro e gasto valem para qualquer período (o utm_term é gravado
 // desde julho); "onde mais para" só existe a partir de 22/09.
 function ConjuntosCard({ f, conjunto, escolher, produto = 'eletroposto' }: { f: Funil; conjunto: string; escolher: (id: string) => void; produto?: Produto }) {
-  const solar = produto === 'solar';
-  const um = solar ? 'horário marcado' : 'reunião', muitos = solar ? 'horários marcados' : 'reuniões';
+  const solardoc = produto === 'solardoc';
+  const solar = produto !== 'eletroposto';   // solar e solardoc não têm investidor nem agenda de reunião
+  const um = solardoc ? 'ida para assinar' : solar ? 'horário marcado' : 'reunião', muitos = solardoc ? 'idas para assinar' : solar ? 'horários marcados' : 'reuniões';
   const linhas = f.por_conjunto;
   const estreito = useEstreito();
   // O nome inteiro fica na dica e na tabela; no eixo, o começo basta (os
@@ -319,8 +326,8 @@ function ConjuntosCard({ f, conjunto, escolher, produto = 'eletroposto' }: { f: 
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Conjunto</th><th>Gasto</th><th>Visitas</th><th>{solar ? 'Horários marcados' : 'Reuniões'}</th><th>Custo por {um}</th>
-              {!solar && <><th>Investidores</th><th>Custo por resultado</th></>}<th>{solar ? 'O que já aconteceu' : 'Reuniões que já aconteceram'}</th><th>Onde mais para no quiz</th><th></th>
+              <th>Conjunto</th><th>Gasto</th><th>Visitas</th><th>{muitos.charAt(0).toUpperCase() + muitos.slice(1)}</th><th>Custo por {um}</th>
+              {!solar && <><th>Investidores</th><th>Custo por resultado</th></>}{!solardoc && <th>{solar ? 'O que já aconteceu' : 'Reuniões que já aconteceram'}</th>}<th>Onde mais para no quiz</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -336,10 +343,10 @@ function ConjuntosCard({ f, conjunto, escolher, produto = 'eletroposto' }: { f: 
                 <td style={melhor && melhor.id === l.id ? { fontWeight: 700 } : undefined}>{reais(l.custo_reuniao)}</td>
                 {!solar && <><td>{l.investidores}</td>
                 <td>{reais(l.custo_resultado)}</td></>}
-                <td className={styles.mutedCell}>
+                {!solardoc && <td className={styles.mutedCell}>
                   {l.negocio + l.arrendamento + l.perdidas === 0 ? '—'
                     : solar ? `${l.negocio} orçamento · ${l.perdidas} perdidas` : `${l.negocio} negócio · ${l.arrendamento} arrend. · ${l.perdidas} perdidas`}
-                </td>
+                </td>}
                 <td className={styles.mutedCell}>{l.pior ? `${l.pior.pergunta} (${l.pior.pararam})` : '—'}</td>
                 <td>
                   {l.abriram_quiz > 0 && (
@@ -355,7 +362,9 @@ function ConjuntosCard({ f, conjunto, escolher, produto = 'eletroposto' }: { f: 
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '8px 0 0' }}>
         Gasto é o do período na Meta. O conjunto é o do primeiro clique da pessoa (a UTM da primeira visita).
-        {solar
+        {solardoc
+          ? <>Ida para assinar = tocou em Assinar com cartão ou em Assinar no Pix depois de ver o plano. O quiz do SolarDoc conta desde 24/10/2026.</>
+          : solar
           ? <>Orçamento = fez orçamento ou proposta apresentada; perdida = sem interesse, não atendeu, cancelou ou fechou com outro. O quiz solar conta desde 08/10/2026.</>
           : <>Custo por resultado = gasto ÷ (reuniões + investidores + pontos); a mesma pessoa pode contar em mais de uma coluna.
         Negócio = orçamento, proposta, chave na mão, meio a meio ou carregador; perdida = sem interesse, não atendeu, cancelou ou
@@ -403,7 +412,7 @@ export default function QuizEletropostoPanel({ produto = 'eletroposto' }: { prod
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '10px 0 0', maxWidth: 760 }}>
-        Quem abre o link de /io/{produto} vê só o quiz. Aqui aparece, pergunta por pergunta, quantos chegaram e quantos pararam ali.
+        Quem abre o link de {produto === 'solardoc' ? '/diagnostico' : `/io/${produto}`} vê só o quiz. Aqui aparece, pergunta por pergunta, quantos chegaram e quantos pararam ali.
         {f && <> As perguntas são contadas desde {dataBR(f.medindo_desde)}: antes disso a página não contava.</>}
       </p>
 
@@ -418,10 +427,12 @@ export default function QuizEletropostoPanel({ produto = 'eletroposto' }: { prod
               <div className={styles.cardLabel}>Abriram o quiz</div><div className={styles.cardValue}>{f.abriram}</div>
               <div className={styles.cardSub}>{pct(f.abriram, f.visitas)}% das visitas</div>
             </div>
-            <div className={styles.card}>
-              <div className={styles.cardLabel}>{produto === 'solar' ? 'Responderam a conta' : 'Escolheram uma porta'}</div><div className={styles.cardValue}>{f.escolheram_porta}</div>
-              <div className={styles.cardSub}>{pct(f.escolheram_porta, f.abriram)}% de quem abriu</div>
-            </div>
+            {produto !== 'solardoc' && (
+              <div className={styles.card}>
+                <div className={styles.cardLabel}>{produto === 'solar' ? 'Responderam a conta' : 'Escolheram uma porta'}</div><div className={styles.cardValue}>{f.escolheram_porta}</div>
+                <div className={styles.cardSub}>{pct(f.escolheram_porta, f.abriram)}% de quem abriu</div>
+              </div>
+            )}
             <div className={styles.card}>
               <div className={styles.cardLabel}>Terminaram</div><div className={styles.cardValue}>{f.terminaram}</div>
               <div className={styles.cardSub}>{pct(f.terminaram, f.abriram)}% de quem abriu</div>
@@ -466,7 +477,7 @@ export default function QuizEletropostoPanel({ produto = 'eletroposto' }: { prod
                   <div style={{ fontWeight: 700, marginBottom: 8 }}>Por campanha</div>
                   <div className={styles.tableWrap}>
                     <table className={styles.table}>
-                      <thead><tr><th>Campanha</th><th>Visitas</th><th>Abriram</th><th>Terminaram</th><th>{produto === 'solar' ? 'Horários marcados' : 'Reuniões'}</th></tr></thead>
+                      <thead><tr><th>Campanha</th><th>Visitas</th><th>Abriram</th><th>Terminaram</th><th>{produto === 'solardoc' ? 'Idas para assinar' : produto === 'solar' ? 'Horários marcados' : 'Reuniões'}</th></tr></thead>
                       <tbody>
                         {f.campanhas.map((c) => (
                           <tr key={c.campanha}>

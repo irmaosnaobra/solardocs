@@ -25,8 +25,14 @@ export const PIXEL_SOLAR = (process.env.META_PIXEL_SOLAR_ID || '').trim() || '44
 /** "Eletroposto": o das páginas /io/eletroposto e /io/eletroposto/parceria. */
 export const PIXEL_ELETROPOSTO = (process.env.META_PIXEL_ELETROPOSTO_ID || '').trim() || '26788759654130722';
 
-export type ProdutoMeta = 'solar' | 'eletroposto';
-export const pixelDoProduto = (p: ProdutoMeta): string => (p === 'eletroposto' ? PIXEL_ELETROPOSTO : PIXEL_SOLAR);
+/** "SolarDoc": o pixel da página /diagnostico (quiz do SaaS, 24/10/2026). O token é o mesmo dos outros dois. */
+export const PIXEL_SOLARDOC = (process.env.META_PIXEL_SOLARDOC_ID || '').trim() || '824905216831401';
+
+export type ProdutoMeta = 'solar' | 'eletroposto' | 'solardoc';
+/** Os dois produtos que têm público de clientes quentes e evento de venda (a SolarDoc não tem). */
+export type ProdutoQuente = Exclude<ProdutoMeta, 'solardoc'>;
+export const pixelDoProduto = (p: ProdutoMeta): string =>
+  p === 'eletroposto' ? PIXEL_ELETROPOSTO : p === 'solardoc' ? PIXEL_SOLARDOC : PIXEL_SOLAR;
 
 // O system user acessa os dois pixels (conferido em 09/10/2026 com envio de
 // teste). Lido na hora da chamada, nunca no import: teste troca o env.

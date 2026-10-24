@@ -627,6 +627,33 @@ async function comTravaDeCredito<T>(userId: string, fn: () => Promise<T>): Promi
   }
 }
 
+/**
+ * Grupo de vendas do SolarDoc (24/10/2026, plano B1): 1 aviso por compra liberada por comprovante, marcado como
+ * "ainda não confirmado pelo banco". Só quando LIBEROU (o plano está ativo) e só na primeira compra: conta que já
+ * tinha vencimento é renovação e fica só com o Thiago. O aviso individual ao Thiago (com o comprovante e a
+ * conferência) continua SEMPRE, porque é nele que o comprovante é encaminhado. Nunca lança.
+ */
+export async function avisarCompraNoGrupo(
+  user: { id: string; email: string; plano_expira_em?: string | null },
+  pag: PagamentoValidado, cleanPhone: string, valor: number,
+): Promise<void> {
+  try {
+    if (user.plano_expira_em) return;
+    const { avisarCompra, idDeVenda } = await import('../../solardoc/avisoGrupoSolardoc');
+    const id = idDeVenda('pix:', pag.e2eKey, pag.dedupKey);
+    if (!id) {
+      logger.error('pix-comprovante', 'comprovante sem id único (e2e e dedupKey vazios): aviso ao grupo de vendas pulado');
+      return;
+    }
+    await avisarCompra({
+      id, canal: 'comprovante', planoAtivo: true,
+      valor, email: user.email, telefone: cleanPhone,
+    });
+  } catch (err) {
+    logger.error('pix-comprovante', 'aviso ao grupo de vendas falhou (aviso ao Thiago já saiu)', err);
+  }
+}
+
 export async function aplicarPagamentoPix(a: {
   user: { id: string; email: string; plano_expira_em?: string | null; billing_status?: string | null };
   pag: PagamentoValidado;
@@ -729,6 +756,7 @@ export async function aplicarPagamentoPix(a: {
     await a.aposLiberar?.();
     await a.confirmar({ venc, total: pag.valor, alvo, entrada });
     await avisar(a.statusThiago({ venc, total: pag.valor }));
+    await avisarCompraNoGrupo(user, pag, cleanPhone, pag.valor);
     logger.info('pix-comprovante', `AUTO-liberado (${a.via}) ${user.email} ${brl(pag.valor)} vence ${venc.toISOString()}`);
     return aceito({ resultado: 'liberou', venc, total: pag.valor, restante: 0 });
   }
@@ -781,6 +809,7 @@ export async function aplicarPagamentoPix(a: {
     await a.aposLiberar?.();
     await a.confirmar({ venc, total, alvo, entrada: false });
     await avisar(a.statusThiago({ venc, total }));
+    await avisarCompraNoGrupo(user, pag, cleanPhone, total);
     if (emCentavos(total) > CENT_RENOVACAO + 100) {
       await avisar(`⚠️ Pagou R$ ${valorBr(total)}, acima de 67. Confere se sobrou valor a devolver ou se é pagamento de outro produto da Aioros.`);
     }
