@@ -116,6 +116,18 @@ export const META_CONVERSAO = 3;
 export const ROTEAMENTO_REGRA_INICIO = '2026-09-23T00:00:00.000Z';
 
 /**
+ * 24/10/2026, ordem do dono: SÓ A NILCE ATENDE SOLAR e todo lead NOVO vai para
+ * ela. Ficha criada daqui pra frente é julgada por esta regra (dono diferente da
+ * Nilce é acusado, salvo cliente que já tinha ficha com aquele dono: "dono
+ * anterior vence" não mudou). Ficha anterior continua julgada pela regra de
+ * 23/09 acima, então os cards antigos da Giovanna, do Thiago e do Diego NÃO
+ * viram enxurrada de alertas: o piso anda junto com a regra, como no outro.
+ * 24/10 00:00 em Brasília.
+ */
+export const SOLAR_SO_NILCE_INICIO = '2026-10-24T03:00:00.000Z';
+const ultimos8 = (t: unknown): string => String(t ?? '').replace(/\D/g, '').slice(-8);
+
+/**
  * O consumo que o lead respondeu, lido da observação da ficha, na unidade certa.
  *
  * A mesma pergunta cai no mesmo campo em DUAS unidades: kWh no formulário do Meta
@@ -390,10 +402,18 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     (async () => {
       try {
         const { data, error } = await supabaseGerador
-          .from('agendamentos').select('id, vendedor_nome, status, observacao, created_at')
+          .from('agendamentos').select('id, vendedor_nome, status, observacao, created_at, cliente_telefone')
           .in('created_by', SOLAR_ORIGENS).gte('created_at', desde30).limit(500);
         if (error) throw error;
         const fichas = data ?? [];
+        // Primeira ficha de cada telefone na janela: a partir de 24/10 só a ficha
+        // que abre o telefone é "lead novo"; a que vem depois é cliente voltando.
+        const primeira = new Map<string, string>();
+        for (const f of fichas) {
+          const k = ultimos8((f as any).cliente_telefone);
+          const c = String(f.created_at);
+          if (k && (!primeira.has(k) || c < primeira.get(k)!)) primeira.set(k, c);
+        }
         const foraDaRegra = fichas.filter(f => {
           // Ficha anterior à regra foi roteada pelo corte antigo e não violou
           // nada — ver ROTEAMENTO_REGRA_INICIO.
@@ -402,6 +422,14 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
           if (kwh === null) return false;                    // sem resposta não acusa ninguém
           const dono = String(f.vendedor_nome || '');
           if (!dono) return false;
+          if (String(f.created_at) >= SOLAR_SO_NILCE_INICIO) {
+            // Regra de 24/10: lead novo é da Nilce. Cliente que voltou (o telefone
+            // já tinha ficha antes desta) fica com o dono, então não é acusado.
+            // Limite conhecido: só enxerga os 30 dias da janela.
+            if (dono === 'Nilce') return false;
+            const k = ultimos8((f as any).cliente_telefone);
+            return !(k && (primeira.get(k) ?? '') < String(f.created_at));
+          }
           return kwh > KWH_CORTE_TIME
             ? !TIME_CONTA_ALTA.includes(dono)                // grande fora do time
             : !TIME_CONTA_BAIXA.includes(dono);              // pequeno gastando manhã de dono
@@ -678,7 +706,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       // Não é um robô que fala com ninguém: é a regra que decide QUEM fala. Está
       // aqui porque foi um roteamento errado em silêncio que custou 4 manhãs, e
       // esta é a tela onde se olha o que os automatismos estão fazendo.
-      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês entra no rodízio da conta alta, metade fica com a Nilce, um quarto com o Thiago e um quarto com o Diego (ordem do Thiago, 23/09/2026). Abaixo disso, e quando o lead não responde o consumo, é TODO da Nilce: a Giovanna saiu do rodízio de lead novo e só atende a carteira que já é dela. A agenda do Thiago e do Diego é disputada com o eletroposto, então cada horário que sai é caro, conta pequena não pode consumir um deles. Vale nas três entradas: formulário do Meta (responde em kWh), DM do Instagram e a LP (respondem em reais).`,
+      papel: `Desde 24/10/2026 TODO lead novo de solar é da Nilce, seja qual for a conta (ordem do dono): Giovanna, Thiago e Diego só ficam com o cliente que já é deles. Entre 23/09 e 24/10 valia o rodízio acima de ${KWH_CORTE_TIME} kWh/mês (metade Nilce, um quarto Thiago, um quarto Diego) e a Nilce levava o resto. A agenda do Thiago e do Diego é disputada com o eletroposto, então cada horário que sai é caro, conta pequena não pode consumir um deles. Vale nas três entradas: formulário do Meta (responde em kWh), DM do Instagram e a LP (respondem em reais).`,
       metricas: [
         { label: 'Leads de solar (30d)', valor: roteamento.leads },
         {
@@ -700,7 +728,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       alerta: (() => {
         const partes: string[] = [];
         if (roteamento.foraDaRegra > 0) {
-          partes.push(`${roteamento.foraDaRegra} ficha(s) com o consultor errado pra regra dos ${KWH_CORTE_TIME} kWh: ${roteamento.exemplos.join(' · ')}.`);
+          partes.push(`${roteamento.foraDaRegra} ficha(s) com o consultor errado pra regra do solar (desde 24/10 lead novo é só da Nilce; antes, corte de ${KWH_CORTE_TIME} kWh): ${roteamento.exemplos.join(' · ')}.`);
         }
         // A conversão só vira alerta com amostra que sustenta o número: 1 venda a
         // menos em 10 leads derruba 10 pontos, e alerta que oscila assim ninguém lê.

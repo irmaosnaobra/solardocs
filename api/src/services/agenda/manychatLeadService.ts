@@ -41,6 +41,7 @@ import {
   slotLivreConsultor,
   donoDoTelefone,
 } from './leadsMetaService';
+import { donoQueAindaAtendeSolar } from './solarRota';
 import {
   montarObservacaoSolar, organizarFicha, FieldItem,
   consumoTipico, TIME_CONTA_ALTA, FILA_CONTA_ALTA, KWH_CORTE_TIME,
@@ -110,6 +111,8 @@ function tempEletroposto(capital: string): 'quente' | 'morno' | 'frio' {
   return 'morno';                                  // até 150 mil
 }
 
+// 24/10/2026: só a Nilce atende solar. FILA_CONTA_ALTA tem uma posição só, então
+// as duas pontas abaixo (conta alta e conta baixa) caem na Nilce.
 // Roteamento por tamanho de conta (regra do Thiago, 23/09/2026: acima de 1.200
 // kWh/mês entra no rodízio da conta alta, 50% Nilce, 25% Thiago, 25% Diego;
 // abaixo é tudo da Nilce). Aqui o lead responde em REAIS ("R$ 800 a R$ 1.500"),
@@ -266,7 +269,7 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     // Dry-run tem que mostrar o roteamento DE VERDADE (é pra isso que ele
     // existe): lê o dono do telefone e o tamanho da conta, sem gravar nada. O
     // rodízio é espiado sem avançar o contador.
-    const donoTeste = naArea ? await donoDoTelefone(whatsapp) : null;
+    const donoTeste = naArea ? donoQueAindaAtendeSolar(await donoDoTelefone(whatsapp)) : null;
     const { data: stTeste } = await supabaseGerador
       .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
     return {
@@ -293,7 +296,8 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
   if (naArea) {
     // Cliente que JÁ tem dono fica com ele — nunca vira 2 consultores e não gasta
     // uma vez do rodízio. Só lead realmente novo gira o contador.
-    const dono = await donoDoTelefone(whatsapp);
+    // Dono anterior Giovanna vale como sem dono (24/10/2026): cai na Nilce.
+    const dono = donoQueAindaAtendeSolar(await donoDoTelefone(whatsapp));
     if (dono) {
       consultor = dono;
     } else if (!ehContaAltaReais(p.valor_conta || '')) {

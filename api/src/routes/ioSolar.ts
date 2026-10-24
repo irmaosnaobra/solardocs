@@ -338,9 +338,10 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
 // Leads do Gerador já enxerga o quiz e não precisou de migração no banco.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Telefone de quem recebe o aviso da ficha do quiz. A Giovanna entra aqui (e
- *  não no EQUIPE, que o alerta antigo manda para todos de uma vez). */
-const TEL_AVISO: Record<string, string> = { ...EQUIPE, giovanna: '34993396255' };
+/** Telefone de quem recebe o aviso da ficha do quiz. O EQUIPE daqui (o do solar,
+ *  não o de ioEletroposto.ts) já traz a Nilce, o Thiago e o Diego. A Giovanna
+ *  continua listada para o card antigo dela, mas não recebe mais lead novo. */
+export const TEL_AVISO: Record<string, string> = { ...EQUIPE, giovanna: '34993396255' };
 const DONOS_QUIZ = [...SOCIOS_VISITA, ...DONAS_LIGACAO] as string[];
 const FORM_QUIZ = 'quiz_solar';
 

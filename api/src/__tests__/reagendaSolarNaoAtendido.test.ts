@@ -159,7 +159,13 @@ const card = (over: any = {}) => ({
   ...over,
 });
 
+// 24/10/2026: o PADRÃO do código é NÃO trocar o card entre Giovanna e Nilce (só a
+// Nilce atende solar). A máquina da troca de 13/10 continua montada atrás de
+// SOLAR_NAO_ATENDEU_TROCA_ON=1, e a suíte inteira roda com ela ligada para seguir
+// cobrindo a mecânica (rampa, teto, carimbos, histórico). O que vale SEM a env
+// está no describe "o padrão desde 24/10/2026", mais abaixo, que a desliga.
 beforeEach(() => {
+  process.env.SOLAR_NAO_ATENDEU_TROCA_ON = '1';
   vermelhos = [card()];
   futura = [];
   state.clear(); updates.length = 0;
@@ -857,7 +863,58 @@ describe('o card esquecido do solar', () => {
 // O risco é trocar de mão o que NÃO foi marcado como falta: o card esquecido e o
 // card em negociação mantêm o dono, e o sócio também. E o outro lado: marcar a
 // ligação na agenda de quem ENTREGA, em cima de um horário que a parceira já tem.
-describe('o não atendeu passa pra outra (13/10/2026)', () => {
+// ── O PADRÃO DESDE 24/10/2026: NINGUÉM TROCA DE CONSULTORA ──────────────────
+// Sem env nenhuma, o NÃO ATENDEU da Nilce não volta mais para a Giovanna (nem o
+// da Giovanna para a Nilce). A remarcação na faixa :15/:45 continua igual.
+describe('o padrão desde 24/10/2026: o card não troca de consultora', () => {
+  beforeEach(() => { delete process.env.SOLAR_NAO_ATENDEU_TROCA_ON; delete process.env.SOLAR_NAO_ATENDEU_TROCA_OFF; });
+
+  it('donoDaVolta: Giovanna no NÃO ATENDEU vira Nilce; Nilce, Thiago e Diego ficam; fora do NÃO ATENDEU ninguém muda', async () => {
+    const { donoDaVolta } = await import('../services/agenda/reagendaSolarNaoAtendido');
+    expect(donoDaVolta('Giovanna', 'nao_atendeu')).toBe('Nilce');
+    expect(donoDaVolta(' Giovanna ', 'nao_atendeu')).toBe('Nilce');
+    for (const dono of ['Nilce', 'Thiago', 'Diego']) expect(donoDaVolta(dono, 'nao_atendeu')).toBe(dono);
+    for (const dono of ['Nilce', 'Giovanna', 'Thiago', 'Diego']) {
+      for (const status of ['agendado', 'fez_orcamento']) expect(donoDaVolta(dono, status)).toBe(dono);
+    }
+  });
+
+  it('Nilce marca NÃO ATENDEU: continua com a Nilce, agendada, outro dia, em :15 ou :45', async () => {
+    vermelhos = [card({ vendedor_nome: 'Nilce' })];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    const p = updates[0].patch;
+    expect(p).not.toHaveProperty('vendedor_nome');
+    expect(p.status).toBe('agendado');
+    expect(new Date(p.quando).getTime()).toBeGreaterThan(AGORA.getTime());
+    expect([15, 45]).toContain(new Date(p.quando).getUTCMinutes());
+    expect(p.historico).toContain('com o mesmo consultor');
+  });
+
+  it('Giovanna marca NÃO ATENDEU: o card é remarcado com a Nilce, na faixa :15/:45 dela', async () => {
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    const seco = await tick({ dry: true });
+    expect(seco.previa?.[0]).toMatchObject({ id: 1, dono: 'Nilce', veioDe: 'Giovanna' });
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    const p = updates[0].patch;
+    expect(p.vendedor_nome).toBe('Nilce');
+    expect(p.status).toBe('agendado');
+    expect(new Date(p.quando).getTime()).toBeGreaterThan(AGORA.getTime());
+    expect([15, 45]).toContain(new Date(p.quando).getUTCMinutes());
+  });
+
+  it('Thiago e Diego, como estão hoje: ficam com o mesmo consultor', async () => {
+    for (const dono of ['Thiago', 'Diego']) {
+      updates.length = 0;
+      vermelhos = [card({ vendedor_nome: dono })];
+      expect((await tick()).remarcados).toBe(1);
+      expect(updates[0].patch).not.toHaveProperty('vendedor_nome');
+    }
+  });
+});
+
+describe('o não atendeu passa pra outra (13/10/2026), com SOLAR_NAO_ATENDEU_TROCA_ON=1', () => {
   /** Minuto do horário em Brasília (o fuso é fixo, então bate com o UTC). */
   const minuto = (iso: string) => new Date(iso).getUTCMinutes();
   const diaUtil = (iso: string) => {
@@ -958,16 +1015,16 @@ describe('o não atendeu passa pra outra (13/10/2026)', () => {
     expect(updates[0].patch.historico).toContain('com o mesmo consultor');
   });
 
-  it('SOLAR_NAO_ATENDEU_TROCA_OFF=1: a Giovanna continua com o card', async () => {
-    process.env.SOLAR_NAO_ATENDEU_TROCA_OFF = '1';
-    try {
-      vermelhos = [card({ vendedor_nome: 'Giovanna' })];
-      expect((await tick()).remarcados).toBe(1);
-      expect(updates[0].patch).not.toHaveProperty('vendedor_nome');
-      expect(updates[0].patch.historico).toContain('com o mesmo consultor');
-    } finally {
-      delete process.env.SOLAR_NAO_ATENDEU_TROCA_OFF;
-    }
+  it('sem SOLAR_NAO_ATENDEU_TROCA_ON o NÃO ATENDEU da Giovanna vai para a Nilce, e o da Nilce fica com ela', async () => {
+    delete process.env.SOLAR_NAO_ATENDEU_TROCA_ON;
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.vendedor_nome).toBe('Nilce');
+    expect(updates[0].patch.status).toBe('agendado');
+    vermelhos = [card({ vendedor_nome: 'Nilce' })];
+    updates.length = 0;
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch).not.toHaveProperty('vendedor_nome');
   });
 
   it('a gravação exige o dono que foi LIDO: se alguém passou o card na mão, quem manda é a pessoa', async () => {
@@ -1357,20 +1414,23 @@ describe('depois do teto o card passa calado (13/10/2026)', () => {
     expect(updates).toHaveLength(0);
   });
 
-  it('SOLAR_NAO_ATENDEU_TROCA_OFF=1 com a Giovanna no teto: NÃO move (volta a valer o teto)', async () => {
-    const antes = process.env.SOLAR_NAO_ATENDEU_TROCA_OFF;
-    process.env.SOLAR_NAO_ATENDEU_TROCA_OFF = '1';
-    try {
-      vermelhos = [card({ vendedor_nome: 'Giovanna' })];
-      carimbo(1, { n: 5, nFala: 3 });
-      const r = await tick();
-      expect(r.remarcados).toBe(0);
-      expect(r.motivo).toBe('ninguem_na_vez');
-      expect(updates).toHaveLength(0);
-    } finally {
-      if (antes === undefined) delete process.env.SOLAR_NAO_ATENDEU_TROCA_OFF;
-      else process.env.SOLAR_NAO_ATENDEU_TROCA_OFF = antes;
-    }
+  it('sem SOLAR_NAO_ATENDEU_TROCA_ON, com a Nilce no teto: NÃO move (volta a valer o teto; ela não troca com a Giovanna)', async () => {
+    delete process.env.SOLAR_NAO_ATENDEU_TROCA_ON;
+    vermelhos = [card({ vendedor_nome: 'Nilce' })];
+    carimbo(1, { n: 5, nFala: 3 });
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('ninguem_na_vez');
+    expect(updates).toHaveLength(0);
+  });
+
+  it('sem SOLAR_NAO_ATENDEU_TROCA_ON, com a Giovanna no teto: MOVE pra Nilce, calado', async () => {
+    delete process.env.SOLAR_NAO_ATENDEU_TROCA_ON;
+    vermelhos = [card({ vendedor_nome: 'Giovanna' })];
+    carimbo(1, { n: 5, nFala: 3 });
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(updates[0].patch.vendedor_nome).toBe('Nilce');
   });
 
   // A troca calada não manda nada, então gasta a rampa dos calados. Os carimbos do

@@ -270,7 +270,7 @@ describe('recepção da linha IO', () => {
     expect(donoQuandoFalou).toBe(true);
   });
 
-  it('classificou solar: avisa a Giovanna, registra o lead e solta a conversa', async () => {
+  it('classificou solar: avisa a Nilce (desde 24/10/2026), registra o lead e solta a conversa', async () => {
     const { handleRecepcaoIo, recepcaoJaAtende } = await carregar();
 
     respostaIA = jsonIA('Bom dia! Aqui é a Duda.||O que você precisa?');
@@ -283,7 +283,7 @@ describe('recepção da linha IO', () => {
     await handleRecepcaoIo(LEAD, 'Vi uma propaganda de placa solar');
 
     expect(avisosInternos).toHaveLength(1);
-    expect(avisosInternos[0].phone).toBe('34993396255');           // Giovanna
+    expect(avisosInternos[0].phone).toBe('34991516846');           // Nilce
     expect(avisosInternos[0].texto).toContain('Energia solar');
     expect(avisosInternos[0].texto).toContain('Marcos');
 

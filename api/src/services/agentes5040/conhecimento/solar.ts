@@ -4,7 +4,7 @@
 // em reais nem prazo de instalação.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { BASE_DO_SOCIO, KWH_GIOVANNA, KWH_VISITA, QUEM } from '../../agenda/solarRota';
+import { DONA_SOLAR } from '../../agenda/solarRota';
 
 export const FRASES_PUBLICAS_SOLAR: readonly string[] = [
   '25 anos de garantia de geração',
@@ -32,7 +32,7 @@ export function textoConhecimentoSolar(): string {
     'ENERGIA SOLAR, IRMÃOS NA OBRA (só isto pode ser afirmado):',
     ...FRASES_PUBLICAS_SOLAR.map(f => `- ${f}`),
     `- Cidades: ${CIDADES_ATENDIDAS.join(', ')} e região.`,
-    `- Quem atende (regra de agenda/solarRota.ts): até ${KWH_GIOVANNA} kWh, ${QUEM.pequena}; de ${KWH_GIOVANNA} a ${KWH_VISITA.toLocaleString('pt-BR')} kWh, ${QUEM.media} (às vezes ${QUEM.pequena}); acima de ${KWH_VISITA.toLocaleString('pt-BR')} kWh, ${QUEM.visita} com visita (base em ${BASE_DO_SOCIO.Diego}) ou ${QUEM.grande} em reunião.`,
+    `- Quem atende (regra de agenda/solarRota.ts, desde 24/10/2026): ${DONA_SOLAR} atende todo cliente novo de energia solar, por ligação, em qualquer faixa de consumo.`,
     '- NUNCA diga preço, parcela, economia em reais nem prazo de instalação. Diga que o orçamento é grátis e que a consultora mostra os números.',
   ].join('\n');
 }

@@ -166,6 +166,51 @@ describe('quem está com o consultor errado', () => {
   });
 });
 
+// 24/10/2026: SÓ A NILCE ATENDE SOLAR. Ficha criada a partir de SOLAR_SO_NILCE_INICIO
+// é julgada pela regra nova (dono diferente da Nilce é acusado, menos cliente que
+// voltou). Ficha de 23/09 a 24/10 continua julgada pela regra antiga: os cards
+// antigos do Thiago, do Diego e da Giovanna NÃO viram enxurrada de alertas.
+describe('a regra de 24/10/2026: lead novo é só da Nilce', () => {
+  const NOVA = '2026-10-24T12:00:00.000Z';
+
+  it('lead novo com um sócio é acusado, seja a conta grande ou pequena', async () => {
+    fichas = [
+      ficha({ id: 901, vendedor_nome: 'Thiago', observacao: obs('1200 a 1600'), created_at: NOVA, cliente_telefone: '5534991110001' }),
+      ficha({ id: 902, vendedor_nome: 'Diego', observacao: obs('- 500'), created_at: NOVA, cliente_telefone: '5534991110002' }),
+      ficha({ id: 903, vendedor_nome: 'Giovanna', observacao: obs('700 a 900'), created_at: NOVA, cliente_telefone: '5534991110003' }),
+    ];
+    const c = await card();
+    expect(metrica(c, 'Fora da regra').valor).toBe(3);
+    expect(c.alerta).toContain('#901 → Thiago');
+  });
+
+  it('lead novo com a Nilce, de qualquer tamanho, está certo', async () => {
+    fichas = [
+      ficha({ id: 1, vendedor_nome: 'Nilce', observacao: obs('+ 1200'), created_at: NOVA, cliente_telefone: '5534991110004' }),
+      ficha({ id: 2, vendedor_nome: 'Nilce', observacao: obs('- 500'), created_at: NOVA, cliente_telefone: '5534991110005' }),
+    ];
+    expect(metrica(await card(), 'Fora da regra').valor).toBe(0);
+  });
+
+  it('cliente que voltou (o telefone já tinha ficha antes) fica com o dono e não é acusado', async () => {
+    fichas = [
+      ficha({ id: 10, vendedor_nome: 'Thiago', observacao: obs('+ 1200'), created_at: '2026-10-10T12:00:00.000Z', cliente_telefone: '5534991110006' }),
+      ficha({ id: 11, vendedor_nome: 'Thiago', observacao: obs('+ 1200'), created_at: NOVA, cliente_telefone: '55 34 99111-0006' }),
+    ];
+    expect(metrica(await card(), 'Fora da regra').valor).toBe(0);
+  });
+
+  it('ficha de 23/09 a 24/10 segue a regra antiga: sócio com conta grande não é acusado, sem enxurrada', async () => {
+    fichas = [
+      ficha({ id: 20, vendedor_nome: 'Thiago', observacao: obs('+ 1200'), created_at: '2026-10-20T12:00:00.000Z', cliente_telefone: '5534991110007' }),
+      ficha({ id: 21, vendedor_nome: 'Diego', observacao: obs('1200 a 1600'), created_at: '2026-10-23T23:00:00.000Z', cliente_telefone: '5534991110008' }),
+    ];
+    const c = await card();
+    expect(metrica(c, 'Fora da regra').valor).toBe(0);
+    expect(c.alerta).toBeUndefined();
+  });
+});
+
 describe('a meta de conversão', () => {
   const lote = (n: number, vendas: number) =>
     Array.from({ length: n }, (_, i) =>

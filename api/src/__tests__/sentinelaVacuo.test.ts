@@ -145,10 +145,10 @@ describe('runSentinelaVacuo', () => {
 
     const r = await runSentinelaVacuo();
 
-    // Solar é da Giovanna — o recado não pode cair sempre no Thiago.
+    // Solar é da Nilce desde 24/10/2026 — o recado não pode cair sempre no Thiago.
     expect(r.cobrancas).toBeGreaterThanOrEqual(1);
     expect(enviados).toHaveLength(1);
-    expect(enviados[0].phone).toBe('34993396255');
+    expect(enviados[0].phone).toBe('34991516846');   // Nilce
     expect(enviados[0].texto).toContain('esperando');
   });
 

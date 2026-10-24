@@ -54,12 +54,17 @@ export const PONTOS_CURIOSO = 40;
 /** Quem atende cada faixa. Todas as visitas são do Diego. */
 export const QUEM = { pequena: 'Giovanna', media: 'Nilce', visita: 'Diego', grande: 'Thiago' } as const;
 
-/** Quem atenderia pela conta, sem olhar pontuação: é quem a agente chama quando
- *  um curioso pede gente (o curioso não tem horário, mas tem dono). */
-export function donoDaFaixa(kwh: number | null): string {
-  if (kwh !== null && kwh > KWH_VISITA) return QUEM.grande;
-  if (kwh !== null && kwh > KWH_GIOVANNA) return QUEM.media;
-  return QUEM.pequena;
+/** SÓ A NILCE ATENDE SOLAR (ordem do dono, 24/10/2026): todo lead novo vai para
+ *  ela, por ligação, seja qual for a conta. Giovanna, Thiago e Diego continuam
+ *  existindo aqui só para o cliente que JÁ é deles (`decidirCaminho` com dono). */
+export const DONA_SOLAR = 'Nilce';
+
+/** Quem atende pela conta, sem olhar pontuação: é quem a agente chama quando
+ *  um curioso pede gente (o curioso não tem horário, mas tem dono). Desde
+ *  24/10/2026 é sempre a Nilce; o `kwh` fica na assinatura porque quem chama
+ *  já o tem em mãos. */
+export function donoDaFaixa(_kwh: number | null): string {
+  return DONA_SOLAR;
 }
 
 /** Quilômetros de ESTRADA contados de Uberlândia, a base do Diego, que faz
@@ -74,10 +79,22 @@ export const MARCA_QUIZ = 'LP SOLAR QUIZ';
 
 export const SOCIOS_VISITA = ['Thiago', 'Diego'] as const;
 export type Socio = typeof SOCIOS_VISITA[number];
-/** Carteira que não circula pelo repasse de 12h do banco (dono_fixo): cliente
- *  delas nunca vai pra sócio. Entre as DUAS ele circula desde 13/10/2026: quem
- *  marca NÃO ATENDEU entrega o card pra outra (`parceiraDaLigacao`). */
-export const DONAS_LIGACAO = ['Nilce', 'Giovanna'] as const;
+/** O dono anterior do telefone, no SOLAR (24/10/2026): a Giovanna não atende mais,
+ *  então o cliente dela vale como cliente novo (`null`, cai na Nilce). Thiago,
+ *  Diego e Nilce valem como sempre. Regra ÚNICA do quiz, do formulário do Meta e
+ *  do ManyChat. Só solar: o eletroposto não passa por aqui. */
+export function donoQueAindaAtendeSolar(dono: string | null | undefined): string | null {
+  const nome = String(dono ?? '').trim();
+  if (!nome || nome === 'Giovanna') return null;
+  return dono ?? null;
+}
+
+/** Quem atende solar por ligação: desde 24/10/2026, SÓ a Nilce. A carteira dela
+ *  não circula pelo repasse de 12h do banco (dono_fixo): cliente dela nunca vai
+ *  pra sócio. A Giovanna saiu: o cliente que ainda é dela é tratado como cliente
+ *  novo do quiz (cai na Nilce). De 13/10 a 24/10 as duas se entregavam o card
+ *  no NÃO ATENDEU (`parceiraDaLigacao`), e isso acabou. */
+export const DONAS_LIGACAO = ['Nilce'] as const;
 
 /** De onde cada sócio sai para a visita. */
 export const BASE_DO_SOCIO: Record<Socio, string> = { Diego: 'Uberlândia', Thiago: 'Araguari' };
@@ -316,7 +333,10 @@ export interface Decisao {
   treino?: boolean;
 }
 
-// ── O treino da Giovanna (09/10/2026) ───────────────────────────────────────
+// ── O treino da Giovanna (09/10/2026) — ENCERRADO em 24/10/2026 ─────────────
+// Desde 24/10/2026 só a Nilce atende solar e `caminhoPelasRespostas` não sorteia
+// mais. `vaiParaTreino`/`semTreino` ficam exportados (testes e `decidirEMontar`
+// ainda os conhecem), mas nenhuma decisão sai com `treino: true`.
 // Ordem do Thiago: "deixa a Giovanna com menos de 300 kWh e com 25% dos da
 // Nilce para ela ir treinando seu atendimento". O sorteio é fixo pelo telefone
 // (DDD + 8 últimos): a mesma pessoa cai sempre com a mesma consultora, mesmo
@@ -347,9 +367,45 @@ const kwhTxt = (n: number) => n.toLocaleString('pt-BR');
 /** A cidade está no raio da visita (estrada a partir de Uberlândia, a base do Diego)? */
 export const noRaioDaVisita = (c: CidadeRaio | null): boolean => !!c && c.kmUdi <= RAIO_VISITA_KM;
 
-/** O caminho e o dono pela pontuação, pela conta e pela cidade, sem olhar quem
- *  já é dono do telefone. */
-export function caminhoPelasRespostas(r: RespostasDoCaminho, chave?: string | null): Omit<Decisao, 'qualifica'> {
+/** O caminho e o dono do cliente NOVO, pela pontuação, pela conta e pela cidade,
+ *  sem olhar quem já é dono do telefone.
+ *
+ *  24/10/2026: só a Nilce atende solar. Todo lead acima do corte de curioso vai
+ *  para ela, por ligação, seja 250 ou 2.000 kWh. O kWh, a nota e a cidade
+ *  continuam calculados (a ficha e o evento LeadQuente usam), e a decisão guarda
+ *  em `grande`/`pontos`/`cidade` o que mostra se o lead qualificaria visita
+ *  (ver `qualificariaVisita`); isso é só informação para a Nilce. */
+export function caminhoPelasRespostas(r: RespostasDoCaminho, _chave?: string | null): Omit<Decisao, 'qualifica'> {
+  const kwh = kwhDaFaixa(r.conta);
+  const cidade = acharCidadeRaio(r.cidade);
+  const grande = kwh !== null && kwh > KWH_VISITA;
+  const pontuacao = pontuar(r as Partial<Record<CampoPeso, unknown>>);
+  const pontos = pontuacao.pontos;
+  const base = { kwh, grande, cidade, pontos, pontuacao };
+
+  if (pontos < PONTOS_CURIOSO) {
+    return { ...base, caminho: 'curioso', candidatos: [],
+      motivo: `${pontos} pontos, abaixo de ${PONTOS_CURIOSO}: vai para a lista de curiosos, sem agenda.` };
+  }
+  const info = qualificariaVisita(base)
+    ? ` Acima de ${kwhTxt(KWH_VISITA)} kWh, ${pontos} pontos e a ${cidade!.kmUdi} km de Uberlândia: qualificaria para visita do Diego.`
+    : '';
+  return { ...base, caminho: 'ligacao', candidatos: [DONA_SOLAR],
+    motivo: `Ligação da ${DONA_SOLAR}: ela atende todo o solar.${info}` };
+}
+
+/** O lead faria visita se a visita ainda fosse um caminho de entrada: conta
+ *  grande, nota acima do corte e dentro do raio. Só informação (24/10/2026). */
+export function qualificariaVisita(b: { grande: boolean; pontos: number; cidade: CidadeRaio | null }): boolean {
+  return b.grande && b.pontos > PONTOS_VISITA && noRaioDaVisita(b.cidade);
+}
+
+/** O roteamento ANTERIOR a 24/10/2026 (Giovanna até 300 kWh, Nilce até 1.000,
+ *  Thiago em vídeo ou Diego em visita acima). Sobrevive para uma coisa só: o
+ *  cliente que já é de um sócio continua com ele, e a ficha dele ainda precisa
+ *  saber se era video ou visita (`decidirCaminho`, regra do dono anterior). Sem
+ *  sorteio de treino: cliente com dono nunca entrou nele. */
+function caminhoLegadoPorTamanho(r: RespostasDoCaminho): Omit<Decisao, 'qualifica'> {
   const kwh = kwhDaFaixa(r.conta);
   const cidade = acharCidadeRaio(r.cidade);
   const grande = kwh !== null && kwh > KWH_VISITA;
@@ -372,10 +428,6 @@ export function caminhoPelasRespostas(r: RespostasDoCaminho, chave?: string | nu
       motivo: `Acima de ${kwhTxt(KWH_VISITA)} kWh, ${porque}: atendimento do Thiago sem visita.` };
   }
   if (kwh !== null && kwh > KWH_GIOVANNA) {
-    if (vaiParaTreino(chave)) {
-      return { ...base, caminho: 'ligacao', candidatos: [QUEM.pequena], treino: true,
-        motivo: `De ${kwhTxt(KWH_GIOVANNA)} a ${kwhTxt(KWH_VISITA)} kWh: ligação da Giovanna (1 em cada 4 da faixa da Nilce, para treino).` };
-    }
     return { ...base, caminho: 'ligacao', candidatos: [QUEM.media],
       motivo: `De ${kwhTxt(KWH_GIOVANNA)} a ${kwhTxt(KWH_VISITA)} kWh: ligação da Nilce.` };
   }
@@ -392,9 +444,17 @@ export function caminhoPelasRespostas(r: RespostasDoCaminho, chave?: string | nu
  * Thiago não faz visita (todas são do Diego). Curioso continua curioso.
  */
 export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null, chave?: string | null): Decisao {
-  // Cliente que já tem dono não entra no sorteio do treino: fica com o dono.
-  const base = caminhoPelasRespostas(r, dono ? null : chave);
-  if (base.caminho === 'curioso' || !dono || base.candidatos[0] === dono) return { ...base, qualifica: null };
+  // Cliente NOVO: sempre a Nilce (24/10/2026). A visita que ele faria vai só
+  // como informação em `qualifica`.
+  if (!donoQueAindaAtendeSolar(dono)) {
+    const nova = caminhoPelasRespostas(r, chave);
+    return { ...nova, qualifica: nova.caminho !== 'curioso' && qualificariaVisita(nova) ? 'vistoria' : null };
+  }
+  // (Dono que não faz mais solar, a Giovanna, já entrou no ramo acima: cliente novo.)
+  // Cliente que já tem dono fica com o dono, do jeito que o roteamento anterior
+  // o trataria (a regra "dono anterior vence" não mudou).
+  const base = caminhoLegadoPorTamanho(r);
+  if (base.caminho === 'curioso' || base.candidatos[0] === dono) return { ...base, qualifica: null };
   if (ehDonaLigacao(dono)) {
     return { ...base, caminho: 'ligacao', candidatos: [String(dono)],
       qualifica: base.caminho === 'ligacao' ? null : base.caminho,

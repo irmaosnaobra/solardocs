@@ -58,7 +58,10 @@
 // negociação. No esquecido ninguém marcou nada e a ligação pode ter acontecido,
 // então tirar o card de quem estava com ele seria inventar um fato. Sócio
 // (Thiago, Diego) e qualquer outro nome também mantêm o dono.
-// Desliga sem deploy: SOLAR_NAO_ATENDEU_TROCA_OFF=1 (volta ao mesmo consultor).
+// 24/10/2026: a TROCA ENTRE AS DUAS ACABOU. Só a Nilce atende solar: o card da
+// Nilce fica com ela, e o da Giovanna no NÃO ATENDEU é remarcado com a Nilce
+// (`donoDaVolta`, sem env). O texto acima conta o que valeu de 13/10 a 24/10. Só
+// SOLAR_NAO_ATENDEU_TROCA_ON=1 religa a troca antiga.
 //
 // O `nilceParaGiovanna.ts` (robô morto em 05/10/2026) não tem relação nenhuma com
 // esta troca: aquele movia lead de uma para a outra por conta própria, este só
@@ -119,7 +122,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
-import { caminhoDaFicha, GRADE_FOLLOWUP_LIGACAO, parceiraDaLigacao, temDuasFaixas } from './solarRota';
+import { caminhoDaFicha, DONA_SOLAR, GRADE_FOLLOWUP_LIGACAO, parceiraDaLigacao, temDuasFaixas } from './solarRota';
 import { jaVirou, alvoDoDegrau, ordenarPeloLugar } from './viradaDoDia';
 
 const TZ = 'America/Sao_Paulo';
@@ -163,22 +166,27 @@ const num = (nome: string, padrao: number): number => {
 };
 
 const desligado = (): boolean => (process.env.SOLAR_REAGENDA_OFF || '').trim() === '1';
-/** Desliga só a troca de consultora (13/10/2026); a remarcação segue. */
-const trocaDesligada = (): boolean => (process.env.SOLAR_NAO_ATENDEU_TROCA_OFF || '').trim() === '1';
+/** Religa a troca de consultora (13/10/2026). Desde 24/10/2026 o PADRÃO é NÃO
+ *  trocar: sem esta env o código nunca passa o card para a outra. Existe só para
+ *  o dono poder voltar atrás sem deploy e para os testes cobrirem a máquina da
+ *  troca, que continua montada. */
+const trocaLigada = (): boolean => (process.env.SOLAR_NAO_ATENDEU_TROCA_ON || '').trim() === '1';
 
 /**
- * Quem fica com o card nesta volta (13/10/2026). Devolve a parceira SÓ quando as
- * três valem juntas: o status LIDO é `nao_atendeu` (alguém apertou o botão), o
- * dono é Giovanna ou Nilce, e a troca não foi desligada. Em qualquer outro caso
- * o dono é mantido. O esquecido e a negociação mantêm porque neles ninguém
- * registrou falta: a ligação pode ter acontecido.
+ * Quem fica com o card nesta volta. Desde 24/10/2026, por padrão: só a Nilce
+ * atende solar, então o card da GIOVANNA que cai no NÃO ATENDEU é remarcado com a
+ * NILCE (na faixa :15/:45 dela), e o da Nilce fica com a Nilce (não volta mais
+ * para a Giovanna). Thiago e Diego, e qualquer outro nome, mantêm o dono. Só vale
+ * quando o status LIDO é `nao_atendeu`: o esquecido e a negociação mantêm, porque
+ * neles ninguém registrou falta. Não depende de env.
  *
- * Pura e lê o env na hora da chamada, como `desligado`.
+ * Com SOLAR_NAO_ATENDEU_TROCA_ON=1 volta a troca de 13/10 (Giovanna → Nilce e
+ * Nilce → Giovanna). Pura e lê o env na hora da chamada, como `desligado`.
  */
 export function donoDaVolta(dono: string, status: string): string {
-  if (trocaDesligada()) return dono;
   if (status !== 'nao_atendeu') return dono;
-  return parceiraDaLigacao(dono) ?? dono;
+  if (trocaLigada()) return parceiraDaLigacao(dono) ?? dono;
+  return String(dono ?? '').trim() === 'Giovanna' ? DONA_SOLAR : dono;
 }
 
 /** A rampa. Ver o comentário do cabeçalho: é o único freio de volume que existe

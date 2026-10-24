@@ -217,7 +217,7 @@ export const CAMINHOS_SOLAR: Caminho[] = [
   { id: 'respondendo', nome: 'Parou antes do WhatsApp', passos: BASE_SOLAR },
   { id: 'vistoria', nome: 'Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)', passos: [...BASE_SOLAR, 'endereco', 'horario'] },
   { id: 'video', nome: 'Atendimento do Thiago (acima de 1.000 kWh, sem visita)', passos: [...BASE_SOLAR, 'horario'] },
-  { id: 'ligacao', nome: 'Ligação (Nilce de 300 a 1.000 kWh, Giovanna até 300)', passos: [...BASE_SOLAR, 'horario'] },
+  { id: 'ligacao', nome: 'Ligação (a Nilce recebe todos os leads novos de solar)', passos: [...BASE_SOLAR, 'horario'] },
   { id: 'curioso', nome: 'Curioso (abaixo de 40 pontos, sem agenda)', passos: BASE_SOLAR },
 ];
 export const DESTINOS_SOLAR: Record<string, string> = {

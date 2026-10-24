@@ -177,10 +177,10 @@ describe('as peças puras das ações', () => {
     expect(kwhDoLead({ cidade: 'Uberaba' }, [])).toBeNull();
   });
 
-  it('consultora pela faixa de kWh: até 300 Giovanna, até 1.000 Nilce, acima Thiago; card remarcável manda o vendedor dele', () => {
-    expect(alvoDaAgenda(null, 267)).toEqual({ dono: 'Giovanna', faixa: 'novo', origem: 'gasto' });
+  it('consultora pela faixa de kWh: desde 24/10/2026 sempre a Nilce; card remarcável manda o vendedor dele', () => {
+    expect(alvoDaAgenda(null, 267)).toEqual({ dono: 'Nilce', faixa: 'novo', origem: 'gasto' });
     expect(alvoDaAgenda(null, 700)).toMatchObject({ dono: 'Nilce' });
-    expect(alvoDaAgenda(null, 1429)).toMatchObject({ dono: 'Thiago' });
+    expect(alvoDaAgenda(null, 1429)).toMatchObject({ dono: 'Nilce' });
     expect(alvoDaAgenda(null, null)).toBeNull();
     const card = { id: 7, status: 'agendado', quando: V3, vendedor_nome: 'Nilce', cliente_nome: 'T', cidade: null, observacao: null, created_by: 'lp_solar', created_at: null };
     expect(alvoDaAgenda(card, 267)).toEqual({ dono: 'Nilce', faixa: 'remarcacao', origem: 'card' });
@@ -243,15 +243,15 @@ describe('as peças puras novas (correções 3, 10 e 11)', () => {
 });
 
 describe('marcar_horario', () => {
-  it('sem card: a consultora vem da faixa de kWh do gasto (R$ 280 = Giovanna), o card nasce, a bolha do turno confirma e SÓ DEPOIS carimba as boas-vindas', async () => {
+  it('sem card: a consultora é a Nilce, qualquer que seja o gasto (R$ 280), o card nasce, a bolha do turno confirma e SÓ DEPOIS carimba as boas-vindas', async () => {
     semearLead(); alvo([hmacDe(CHAVE)!]);
     const r = await rodar();
     expect(h.vagas).toHaveBeenCalledTimes(1);
-    expect(h.vagas.mock.calls[0]![0]).toMatchObject({ dono: 'Giovanna', caminho: 'ligacao', faixa: 'novo' });
+    expect(h.vagas.mock.calls[0]![0]).toMatchObject({ dono: 'Nilce', caminho: 'ligacao', faixa: 'novo' });
     expect(ia.chamadas).toHaveLength(1);
     expect(pedidoDaChamada(0)).toContain(TXT1);                                // a lista foi aos fatos, por extenso
     expect(h.gravar).toHaveBeenCalledTimes(1);
-    expect(h.gravar.mock.calls[0]![0]).toMatchObject({ dono: 'Giovanna', quando: V1, tel: TEL });
+    expect(h.gravar.mock.calls[0]![0]).toMatchObject({ dono: 'Nilce', quando: V1, tel: TEL });
     expect(h.gravar.mock.calls[0]![0].observacao.split('\n')[0]).toBe('LP SOLAR QUIZ · LIGAÇÃO');
     expect(h.gravar.mock.calls[0]![1]).toEqual({ faixa: 'novo' });
     expect(h.remarcar).not.toHaveBeenCalled();
@@ -267,8 +267,8 @@ describe('marcar_horario', () => {
     expect(h.entregarFila).not.toHaveBeenCalled();                              // a fila tem rota e relógio próprios
   });
 
-  it('a faixa de kWh decide a consultora: R$ 700 = Nilce, R$ 1.500 = Thiago', async () => {
-    for (const [texto, dono] of [['Minha conta vem R$ 700 por mês', 'Nilce'], ['Minha conta vem R$ 1.500 por mês', 'Thiago']] as const) {
+  it('a faixa de kWh não decide mais a consultora: R$ 700 e R$ 1.500 são da Nilce', async () => {
+    for (const [texto, dono] of [['Minha conta vem R$ 700 por mês', 'Nilce'], ['Minha conta vem R$ 1.500 por mês', 'Nilce']] as const) {
       banco = novoBanco(); gerador = novoBanco(); h.principal = banco; h.gerador = gerador;
       h.vagas.mockClear(); h.gravar.mockClear();
       semearLead({ texto }); alvo([hmacDe(CHAVE)!]);
@@ -366,7 +366,7 @@ describe('marcar_horario', () => {
     expect(h.fila).toHaveBeenCalledTimes(1);
     const pedido = h.fila.mock.calls[0]![0];
     // O item leva o ISO do horário, nunca o texto pronto: "amanhã" e "9h30" são montados na hora do envio.
-    expect(pedido).toMatchObject({ tipo: 'confirma', cardId: 99, telefone: TEL, quando: V1, validoAte: V1, consultora: 'Giovanna' });
+    expect(pedido).toMatchObject({ tipo: 'confirma', cardId: 99, telefone: TEL, quando: V1, validoAte: V1, consultora: 'Nilce' });
     expect(pedido.reforco).toBeUndefined();
     expect(pedido.campos).toBeUndefined();
     expect(bolhaDeConfirmacao('confirma', V1, 'Giovanna', AGORA.toISOString())).toBe('Ficou marcado para amanhã às 9h30. A Giovanna te liga nesse horário.');
@@ -414,7 +414,7 @@ describe('marcar_horario', () => {
     await rodar();
     expect(h.remarcar).not.toHaveBeenCalled();
     expect(h.gravar).toHaveBeenCalledTimes(1);
-    expect(h.gravar.mock.calls[0]![0].dono).toBe('Giovanna');
+    expect(h.gravar.mock.calls[0]![0].dono).toBe('Nilce');
   });
 
   it('o dry mostra que marcaria e não escreve nada: sem card, sem ficha, sem envio, sem posse alterada', async () => {
@@ -439,10 +439,10 @@ describe('ligar_agora', () => {
     semearLead(); alvo([hmacDe(CHAVE)!]);
     const r = await rodar();
     expect(h.gravar).toHaveBeenCalledTimes(1);
-    expect(h.gravar.mock.calls[0]![0]).toMatchObject({ dono: 'Giovanna', quando: AGORA.toISOString() });
+    expect(h.gravar.mock.calls[0]![0]).toMatchObject({ dono: 'Nilce', quando: AGORA.toISOString() });
     expect(h.gravar.mock.calls[0]![1]).toEqual({ ligarAgora: true });
     expect(h.ficha).toHaveBeenCalledTimes(1);
-    expect(h.ficha.mock.calls[0]![0]).toBe('34993396255');
+    expect(h.ficha.mock.calls[0]![0]).toBe('34991516846');
     expect(String(h.ficha.mock.calls[0]![1])).toContain('LIGAR AGORA');
     expect(String(h.ficha.mock.calls[0]![1])).toContain(`wa.me/${TEL}`);
     expect(h.teto).toHaveBeenCalledTimes(1);
@@ -456,7 +456,7 @@ describe('ligar_agora', () => {
     expect(h.boasVindas).toHaveBeenCalledWith(99);                              // a ficha saiu: sem boas-vindas por cima
     expect(h.silenciar).not.toHaveBeenCalled();
     expect(posseDe()).toMatchObject({ estado: 'viva', ate_wa_id: 10, respostas: 1 });
-    expect(posseDe().ligar).toMatchObject({ cardId: 99, avisado_em: AGORA.toISOString(), dono: 'Giovanna', faixa: 'novo', criado: true });
+    expect(posseDe().ligar).toMatchObject({ cardId: 99, avisado_em: AGORA.toISOString(), dono: 'Nilce', faixa: 'novo', criado: true });
     expect(r.decisoes[0]).toMatchObject({ acao: 'ligar_agora', resultado: 'ligar_agora', ficha: 'enviada' });
   });
 
@@ -844,7 +844,7 @@ describe('correção 10: a bolha do turno cita a hora do card, senão sai o text
     semearLead(); alvo([hmacDe(CHAVE)!]);
     const r = await rodar();
     expect(h.enviar).toHaveBeenCalledTimes(1);
-    expect(h.enviar.mock.calls[0]![0].bolha).toBe('Ficou marcado para amanhã às 9h30. A Giovanna te liga nesse horário.');
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe('Ficou marcado para amanhã às 9h30. A Nilce te liga nesse horário.');
     expect(r.decisoes[0]).toMatchObject({ resultado: 'marcou', motivo: 'bolha_fixa' });
     expect(h.boasVindas).toHaveBeenCalledWith(99);
   });

@@ -427,7 +427,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['avisos', () => runAvisosTick()],                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
       ['vacuo', () => runSentinelaVacuo()],             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
       ['lembrete_followup', () => runLembreteFollowupTick()],       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
-      ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda no outro dia; card da Giovanna ou da Nilce vai pra OUTRA (SOLAR_NAO_ATENDEU_TROCA_OFF desfaz), o resto fica com o mesmo consultor. 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
+      ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda no outro dia; desde 24/10 o card da Giovanna vai pra Nilce e o da Nilce fica com ela (SOLAR_NAO_ATENDEU_TROCA_ON=1 religa a troca antiga entre as duas), o resto fica com o mesmo consultor. 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
       ['ficha_5040', () => runFichaConsultorTick()],            // agentes 5040 (A4): todo cliente agendado de solar e eletroposto gera a ficha no card e no celular do consultor dono; o MESMO interruptor faz os 5 avisos antigos saírem cedo (nasce desligada: interruptor `ficha`, ver interruptores.ts)
     ];
     const assentados = await Promise.allSettled(TAREFAS.map(([, roda]) => roda()));
@@ -1273,8 +1273,9 @@ router.get('/lembrete-followup', async (req: Request, res: Response) => {
 });
 
 // Solar: quem NÃO ATENDEU volta pra agenda no outro dia, sozinho; card da
-// Giovanna ou da Nilce vai pra OUTRA (SOLAR_NAO_ATENDEU_TROCA_OFF=1 desfaz), o
-// resto fica com o mesmo consultor. Não escreve pro cliente — quem avisa é a
+// Giovanna vai pra Nilce desde 24/10 e o da Nilce fica com ela
+// (SOLAR_NAO_ATENDEU_TROCA_ON=1 religa a troca antiga entre as duas), o resto
+// fica com o mesmo consultor. Não escreve pro cliente — quem avisa é a
 // régua das 7h do solarAgendaGiovanna, e este módulo só limpa os carimbos que a
 // calariam. 1 card por tick, rampa de 10 por dia, teto de 3 voltas do VERMELHO
 // por card (as voltas silenciosas do esquecido e da negociação não contam).

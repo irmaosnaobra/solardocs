@@ -33,7 +33,7 @@ export type FaixaSolar = 'novo' | 'remarcacao';
 const MIN_MS = 60_000;
 const DIA_MS = 86_400_000;
 
-/** Quem atende cada conta (o mesmo donoDaFaixa de solarRota.ts): até 300 kWh Giovanna, até 1.000 Nilce, acima Thiago. */
+/** Quem atende cada conta (o mesmo donoDaFaixa de solarRota.ts): desde 24/10/2026, sempre a Nilce. */
 export const consultoraDaFaixa = (kwh: number | null): string => donoDaFaixa(kwh);
 
 interface Bloco { ini: number; fim: number }

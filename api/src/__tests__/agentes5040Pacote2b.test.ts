@@ -175,7 +175,7 @@ describe('orcamento_escrito (Duda)', () => {
     (banco.tabelas.wa_mensagens ??= []).push(linhaLead(9, TEL, iso(3 * 60_000), { tipo: 'image', texto: null, media_url: 'https://x/y.jpg' }));
     await rodar();
     expect(h.ficha).toHaveBeenCalledTimes(1);
-    expect(h.ficha.mock.calls[0]![0]).toBe('34993396255');                       // Giovanna (267 kWh)
+    expect(h.ficha.mock.calls[0]![0]).toBe('34991516846');                       // Nilce (267 kWh: desde 24/10/2026 só ela atende solar)
     const texto = String(h.ficha.mock.calls[0]![1]);
     expect(texto).toContain(TOPO_ORCAMENTO_ESCRITO);
     expect(texto).toContain('Mandou a foto da conta de luz');

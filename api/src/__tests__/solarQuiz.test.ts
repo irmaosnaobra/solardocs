@@ -34,8 +34,13 @@ describe('a vitrine', () => {
     expect(dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
     expect(dias[0].horas).toHaveLength(18);   // 08:00 a 16:30 em :00 e :30 (09/10)
   });
-  it('visita em Catalão: uma chegada por manhã, com o Diego saindo de Uberlândia', () => {
+  it('lead novo de 2.000 kWh em Catalão: vitrine da Nilce, nada de visita do Diego (24/10/2026)', () => {
     const dec = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE });
+    expect(dec).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
+    expect(montarVitrine(dec, [], AGORA)[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
+  });
+  it('visita em Catalão (cliente que já é do Diego): uma chegada por manhã, com o Diego saindo de Uberlândia', () => {
+    const dec = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Diego');
     const dias = montarVitrine(dec, [], AGORA);
     expect(dias[0]).toEqual({ ymd: '2026-10-13', horas: [{ h: '09:30', dono: 'Diego' }] });   // sai 08:00, 80 min
   });
@@ -52,16 +57,24 @@ describe('a vitrine', () => {
     expect(cabe('vistoria', '2026-10-13', '10:30', 'Diego', dec, [], agora)).toBe(false);   // menos de 3h
     expect(cabe('vistoria', '2026-10-13', '13:30', 'Diego', dec, [], agora)).toBe(true);
   });
-  it('sem horário de visita, o Thiago atende; sem o Thiago, a Nilce liga', () => {
+  it('sem horário de visita, o Thiago atende; sem o Thiago, a Nilce liga (cliente que já é do Diego)', () => {
     const r = resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE });
     const diegoCheio: Ocupacao[] = [{ dono: 'Diego', ini: AGORA, fim: AGORA + 20 * 86_400_000 }];
-    const a = decidirEMontar(r, null, diegoCheio, AGORA);
+    const a = decidirEMontar(r, 'Diego', diegoCheio, AGORA);
     expect(a).toMatchObject({ semHorario: true, dec: { caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria' } });
     const sociosCheios: Ocupacao[] = ['Thiago', 'Diego'].map(dono => ({ dono, ini: AGORA, fim: AGORA + 20 * 86_400_000 }));
-    const b = decidirEMontar(r, null, sociosCheios, AGORA);
+    const b = decidirEMontar(r, 'Diego', sociosCheios, AGORA);
     expect(b.dec).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
     expect(b.dias[0].horas[0].dono).toBe('Nilce');
     expect(montarObservacao(r, b.dec, null, true)).toContain('SEM HORÁRIO DE VISITA DO DIEGO: marcar no atendimento');
+  });
+  it('lead novo: nunca desce a escada de reservas, a Nilce é a primeira e a única', () => {
+    const r = resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE });
+    const sociosCheios: Ocupacao[] = ['Thiago', 'Diego'].map(dono => ({ dono, ini: AGORA, fim: AGORA + 20 * 86_400_000 }));
+    const a = decidirEMontar(r, null, sociosCheios, AGORA);
+    expect(a).toMatchObject({ semHorario: false, dec: { caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' } });
+    // A visita que ele faria vai escrita na ficha, só como informação para a Nilce.
+    expect(montarObservacao(r, a.dec, null)).toContain('QUALIFICA PARA VISITA DO DIEGO');
   });
   it('curioso não ganha vitrine', () => {
     const r = resp({ conta: '2000_5000', cidade: 'Uberlândia', urgencia: 'pesquisando', decisor: 'outro', pagamento: 'naosei', imovel: 'alugado' });
@@ -70,9 +83,9 @@ describe('a vitrine', () => {
 });
 
 describe('a ficha', () => {
-  it('a primeira linha diz o caminho, leva a pontuação, e a agenda lê de volta o bloco certo', () => {
+  it('a primeira linha diz o caminho, leva a pontuação, e a agenda lê de volta o bloco certo (cliente do Diego)', () => {
     const r = resp({ conta: '2000_5000', cidade: 'Catalão-GO', ...QUENTE, decisor: 'junto' });
-    const dec = decidirCaminho(r);
+    const dec = decidirCaminho(r, 'Diego');
     const obs = montarObservacao(r, dec, { cep: '75701-000', rua: 'Rua A', numero: '55', bairro: 'Centro' });
     expect(obs.split('\n')[0]).toBe('LP SOLAR QUIZ · Comércio ou empresa · VISTORIA PRESENCIAL');
     expect(obs).toContain('Pontuação: 94/100 (prazo 35/35, decisor 14/20, pagamento 20/20, imóvel 15/15, orçamento 10/10)');
@@ -86,9 +99,9 @@ describe('a ficha', () => {
     expect((b.fim - b.ini) / 60000).toBe(80 + 60 + 80);
     expect(blocoDaFicha({ quando: q, vendedor_nome: 'Diego', created_by: 'lp_solar', cidade: 'Catalão-GO', observacao: obs })).toEqual(b);
   });
-  it('fora do raio fica escrito e o atendimento é do Thiago', () => {
+  it('fora do raio fica escrito e o atendimento é do Thiago (cliente do Thiago)', () => {
     const r = resp({ conta: '2000_5000', cidade: 'Patos de Minas', ...QUENTE });
-    const obs = montarObservacao(r, decidirCaminho(r), null);
+    const obs = montarObservacao(r, decidirCaminho(r, 'Thiago'), null);
     expect(obs.split('\n')[0]).toContain('ATENDIMENTO ONLINE');
     expect(obs).toContain('Cidade: Patos de Minas · FORA DO RAIO DE 150 KM');
   });
@@ -127,8 +140,8 @@ describe('outras fichas na agenda', () => {
 
 describe('o aviso no celular de quem atende', () => {
   const Q = '2026-10-13T09:30:00-03:00';
-  const ficha = (r: ReturnType<typeof resp>, extra: Record<string, unknown> = {}) => {
-    const dec = decidirCaminho(r);
+  const ficha = (r: ReturnType<typeof resp>, extra: Record<string, unknown> = {}, dono: string | null = null) => {
+    const dec = decidirCaminho(r, dono);
     const obs = montarObservacao(r, dec, { cep: '75701-000', rua: 'Rua A', numero: '55', bairro: 'Centro' });
     return { observacao: obs, quando: Q, vendedor_nome: dec.candidatos[0], cliente_nome: 'Roberto Lima', cliente_telefone: '5534999990000', ...extra };
   };
@@ -137,8 +150,8 @@ describe('o aviso no celular de quem atende', () => {
     expect([100, 90, 89, 60, 59, 0].map(emojiDaNota)).toEqual(['🟢', '🟢', '🟡', '🟡', '🔴', '🔴']);
   });
 
-  it('visita: nota no título, mapa, origem do anúncio e a nota explicada no fim, do menor peso ao maior', () => {
-    const t = avisoDaEquipe(ficha(resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE, decisor: 'junto' }), { utm_source: 'ig', utm_campaign: 'Solar - Quiz - Agenda' }));
+  it('visita (cliente do Diego): nota no título, mapa, origem do anúncio e a nota explicada no fim, do menor peso ao maior', () => {
+    const t = avisoDaEquipe(ficha(resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE, decisor: 'junto' }), { utm_source: 'ig', utm_campaign: 'Solar - Quiz - Agenda' }, 'Diego'));
     const l = t.split('\n');
     expect(l[0]).toBe('🟢 *NOTA 94 · NOVA VISITA, ENERGIA SOLAR*');
     expect(t).toContain('*Onde:* Comércio ou empresa');
@@ -175,7 +188,7 @@ describe('o aviso no celular de quem atende', () => {
   });
 });
 
-describe('o treino da Giovanna (09/10): 1 em cada 4 da faixa da Nilce', () => {
+describe('o treino da Giovanna (09/10) ACABOU em 24/10/2026: só a Nilce atende solar', () => {
   const chaves = Array.from({ length: 4000 }, (_, i) => `34${String(90000000 + i * 7919).slice(-8)}`);
   const treino = chaves.find(k => vaiParaTreino(k))!;
   const normal = chaves.find(k => !vaiParaTreino(k))!;
@@ -190,10 +203,11 @@ describe('o treino da Giovanna (09/10): 1 em cada 4 da faixa da Nilce', () => {
     expect(vaiParaTreino(null)).toBe(false);
   });
 
-  it('a vez de treino vai para a Giovanna; o resto continua com a Nilce', () => {
+  it('a vez que era de treino também vai para a Nilce: o sorteio não manda mais ninguém', () => {
     const t = decidirCaminho(media, null, treino);
-    expect(t).toMatchObject({ caminho: 'ligacao', candidatos: ['Giovanna'], treino: true });
-    expect(t.motivo).toContain('para treino');
+    expect(t).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(t.treino).toBeFalsy();
+    expect(t.motivo).not.toContain('treino');
     expect(decidirCaminho(media, null, normal).candidatos).toEqual(['Nilce']);
     expect(decidirCaminho(media).candidatos).toEqual(['Nilce']);
   });
@@ -205,24 +219,24 @@ describe('o treino da Giovanna (09/10): 1 em cada 4 da faixa da Nilce', () => {
     expect(d.motivo).not.toContain('treino');
   });
 
-  it('até 300 kWh continua todo da Giovanna; acima de 1.000 não entra no sorteio', () => {
+  it('até 300 kWh e acima de 1.000 também são da Nilce, com ou sem a vez de treino', () => {
     const pequena = resp({ conta: 'ate300', cidade: 'Uberaba', ...MORNO });
-    expect(decidirCaminho(pequena, null, normal).candidatos).toEqual(['Giovanna']);
-    expect(decidirCaminho(resp({ conta: '2000_5000', cidade: 'Uberaba', ...MORNO }), null, treino).candidatos).toEqual(['Thiago']);
+    expect(decidirCaminho(pequena, null, normal).candidatos).toEqual(['Nilce']);
+    expect(decidirCaminho(pequena, null, treino).candidatos).toEqual(['Nilce']);
+    expect(decidirCaminho(resp({ conta: '2000_5000', cidade: 'Uberaba', ...MORNO }), null, treino).candidatos).toEqual(['Nilce']);
   });
 
-  it('com horário logo, a vitrine é da Giovanna', () => {
+  it('com horário logo, a vitrine é da Nilce', () => {
     const r = decidirEMontar(media, null, [], AGORA, treino);
-    expect(r.dec.candidatos).toEqual(['Giovanna']);
-    expect(r.dias[0].horas.every(x => x.dono === 'Giovanna')).toBe(true);
+    expect(r.dec.candidatos).toEqual(['Nilce']);
+    expect(r.dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
     expect(r.semHorario).toBe(false);
   });
 
-  it('agenda dela cheia nos próximos dias: volta para a Nilce, sem marcar como "sem horário"', () => {
+  it('a agenda da Giovanna, cheia ou não, não muda nada para o lead novo', () => {
     const giovannaCheia: Ocupacao[] = [{ dono: 'Giovanna', ini: AGORA, fim: AGORA + 10 * 86_400_000 }];
     const r = decidirEMontar(media, null, giovannaCheia, AGORA, treino);
     expect(r.dec.candidatos).toEqual(['Nilce']);
-    expect(r.dec.motivo).toContain('A vez era da Giovanna treinar');
     expect(r.dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
     expect(r.semHorario).toBe(false);
   });

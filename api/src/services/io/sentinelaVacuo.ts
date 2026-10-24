@@ -55,11 +55,11 @@ const CONSULTOR: Record<string, { nome: string; phone: string }> = {
   giovanna: { nome: 'Giovanna', phone: '34993396255' },
 };
 
-/** Mesma tabela da recepção: solar é da Giovanna, eletroposto é dos dois donos,
+/** Mesma tabela da recepção: solar é da Nilce (desde 24/10/2026), eletroposto é dos dois donos,
  *  o resto é backoffice do Thiago. Duplicada aqui de propósito — a recepção não
  *  exporta, e fazer ela exportar arrastaria o módulo inteiro pra dentro do cron. */
 const DESTINO: Record<string, string[]> = {
-  solar:       ['giovanna'],
+  solar:       ['nilce'],
   eletroposto: ['thiago', 'diego'],
   solardoc:    ['thiago'],
   bike:        ['thiago'],

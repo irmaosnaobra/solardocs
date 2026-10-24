@@ -143,11 +143,11 @@ describe('aindaLivreSolar', () => {
 });
 
 describe('consultoraDaFaixa', () => {
-  it('é o donoDaFaixa de solarRota', () => {
-    expect(consultoraDaFaixa(200)).toBe('Giovanna');
+  it('é o donoDaFaixa de solarRota: desde 24/10/2026, sempre a Nilce', () => {
+    expect(consultoraDaFaixa(200)).toBe('Nilce');
     expect(consultoraDaFaixa(600)).toBe('Nilce');
-    expect(consultoraDaFaixa(1500)).toBe('Thiago');
-    expect(consultoraDaFaixa(null)).toBe('Giovanna');
+    expect(consultoraDaFaixa(1500)).toBe('Nilce');
+    expect(consultoraDaFaixa(null)).toBe('Nilce');
   });
 });
 

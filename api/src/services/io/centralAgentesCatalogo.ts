@@ -168,7 +168,7 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
   e({
     id: 'reagenda_solar', nome: 'Reagenda do solar', area: 'solar', canal: 'painel', linha: null,
     resumo: 'Quem não atendeu volta para a agenda no dia seguinte',
-    papel: 'Todo card do solar marcado como não atendeu volta sozinho para a agenda no dia seguinte. Card da Giovanna ou da Nilce passa para a outra consultora. SOLAR_NAO_ATENDEU_TROCA_OFF desfaz só a troca de consultora, e SOLAR_REAGENDA_OFF desliga o robô.',
+    papel: 'Todo card do solar marcado como não atendeu volta sozinho para a agenda no dia seguinte. Desde 24/10/2026 só a Nilce atende solar: o card da Nilce fica com ela e o da Giovanna passa para a Nilce (SOLAR_NAO_ATENDEU_TROCA_ON=1 religa a troca antiga entre as duas). SOLAR_REAGENDA_OFF desliga o robô.',
     regra: off1('SOLAR_REAGENDA_OFF'), fonte: 'services/agenda/reagendaSolarNaoAtendido.ts',
     robos: [],
   }),

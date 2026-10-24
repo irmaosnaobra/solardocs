@@ -84,21 +84,29 @@ describe('o caminho (regras de 08/10)', () => {
     expect(d.caminho).toBe('curioso');
     expect(d.candidatos).toEqual([]);
   });
-  it('acima de 1.000 kWh, acima de 90 pontos e até 150 km de Uberlândia: visita do Diego', () => {
-    expect(caminhoPelasRespostas({ conta: '1050_2000', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'vistoria', candidatos: ['Diego'] });
-    expect(caminhoPelasRespostas({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'vistoria', candidatos: ['Diego'] });
+  // 24/10/2026: só a Nilce atende solar. Os casos que eram do Diego (visita), do
+  // Thiago (vídeo) e da Giovanna (até 300) viraram todos ligação da Nilce.
+  it('acima de 1.000 kWh, acima de 90 pontos e até 150 km de Uberlândia: ligação da Nilce (a visita fica só como informação)', () => {
+    expect(caminhoPelasRespostas({ conta: '1050_2000', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(caminhoPelasRespostas({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
   });
-  it('acima de 1.000 kWh sem os 90 pontos: atendimento do Thiago, sem visita', () => {
-    expect(caminhoPelasRespostas({ conta: '2000_5000', cidade: 'Uberlândia', ...MORNO })).toMatchObject({ caminho: 'video', candidatos: ['Thiago'] });
+  it('acima de 1.000 kWh sem os 90 pontos: ligação da Nilce, sem informação de visita', () => {
+    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Uberlândia', ...MORNO })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
   });
-  it('acima de 1.000 kWh e 90 pontos, mas longe de Uberlândia: Thiago (Caldas Novas fica a 173 km do Diego)', () => {
-    expect(caminhoPelasRespostas({ conta: '2000_5000', cidade: 'Caldas Novas', ...QUENTE })).toMatchObject({ caminho: 'video', candidatos: ['Thiago'] });
-    expect(caminhoPelasRespostas({ conta: '2000_5000', cidade: 'Patos de Minas', ...QUENTE })).toMatchObject({ caminho: 'video', candidatos: ['Thiago'] });
+  it('acima de 1.000 kWh e 90 pontos, mas longe de Uberlândia: Nilce, sem informação de visita (Caldas Novas fica a 173 km)', () => {
+    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Caldas Novas', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
+    expect(decidirCaminho({ conta: '2000_5000', cidade: 'Patos de Minas', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
   });
-  it('de 300 a 1.000 kWh é ligação da Nilce; até 300, da Giovanna', () => {
+  it('de qualquer faixa de conta é ligação da Nilce, sem sorteio de treino', () => {
     expect(caminhoPelasRespostas({ conta: '300_600', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
     expect(caminhoPelasRespostas({ conta: '600_1050', cidade: 'Uberaba', ...MORNO })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
-    expect(caminhoPelasRespostas({ conta: 'ate300', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Giovanna'] });
+    expect(caminhoPelasRespostas({ conta: 'ate300', cidade: 'Uberlândia', ...QUENTE })).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'] });
+    for (let i = 0; i < 40; i++) {
+      const d = caminhoPelasRespostas({ conta: '300_600', cidade: 'Uberlândia', ...QUENTE }, `3499000${String(1000 + i)}`);
+      expect(d.candidatos).toEqual(['Nilce']);
+      expect(d.treino).toBeFalsy();
+    }
   });
 });
 
@@ -107,15 +115,19 @@ describe('quem atende quando o telefone já tem dono', () => {
     const d = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Nilce');
     expect(d).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });
   });
-  it('cliente do Thiago que qualifica visita: o Thiago atende e marca com o Diego', () => {
+  it('cliente do Thiago que qualifica visita: o Thiago atende e marca com o Diego (dono anterior vence, não mudou)', () => {
     const d = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Thiago');
     expect(d).toMatchObject({ caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria' });
   });
   it('curioso continua curioso mesmo com dono', () => {
     expect(decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...FRIO }, 'Diego').caminho).toBe('curioso');
   });
-  it('sem horário a visita desce para o Thiago e o Thiago para a Nilce', () => {
-    const v = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE });
+  it('cliente da Giovanna entra como cliente novo: cai na Nilce, que é a única dona da ligação', () => {
+    expect(decidirCaminho({ conta: 'ate300', cidade: 'Uberlândia', ...QUENTE }, 'Giovanna'))
+      .toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: null });
+  });
+  it('sem horário a visita desce para o Thiago e o Thiago para a Nilce (cliente que já é do Diego)', () => {
+    const v = decidirCaminho({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE }, 'Diego');
     const r1 = reservaDe(v)!;
     expect(r1).toMatchObject({ caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria' });
     expect(reservaDe(r1)).toMatchObject({ caminho: 'ligacao', candidatos: ['Nilce'], qualifica: 'vistoria' });

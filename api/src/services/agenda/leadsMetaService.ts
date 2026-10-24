@@ -10,7 +10,7 @@ import {
 } from './leadSolarFicha';
 import { proximoDaContaBaixa } from './filaContaBaixa';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
-import { ocupacaoDaFichaSolar, MARGEM_LEITURA_MS, GRADE_NOVO_LIGACAO } from './solarRota';
+import { ocupacaoDaFichaSolar, MARGEM_LEITURA_MS, GRADE_NOVO_LIGACAO, donoQueAindaAtendeSolar } from './solarRota';
 
 // Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -22,6 +22,10 @@ const TEL_CONSULTOR: Record<string, string> = {
 
 // Puxa leads dos formulários (Lead Ads) da página "Irmãos na Obra" no Meta,
 // roteia por tamanho de conta e cria um card na agenda pra cada lead.
+//
+// 24/10/2026: SÓ A NILCE ATENDE SOLAR. A FILA_CONTA_ALTA tem uma posição só
+// (Nilce), então o rodízio abaixo cai sempre nela e o contador gira em vão. O
+// texto que segue é o histórico de 23/09, quando o rodízio ainda tinha 3 nomes.
 //
 // 23/09/2026: a Nilce recebe TODOS. Lead acima de 1.200 kWh/mês entra no rodízio
 // da conta alta, que é 50% dela, 25% do Thiago e 25% do Diego; abaixo do corte
@@ -554,7 +558,9 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         if (naArea) {
           // Cliente que JÁ tem dono fica com ele — não vira duplicado sob outro
           // consultor e não gasta uma vez do rodízio. Só lead realmente novo gira.
-          const dono = await donoDoTelefone(whatsapp);
+          // Dono anterior Giovanna vale como sem dono (24/10/2026): cai na Nilce,
+          // como no quiz. Thiago, Diego e Nilce seguem valendo.
+          const dono = donoQueAindaAtendeSolar(await donoDoTelefone(whatsapp));
           const kwh = consumoTipico(consumoDaFicha(fields), 'kwh');
           if (dono) {
             consultor = dono;

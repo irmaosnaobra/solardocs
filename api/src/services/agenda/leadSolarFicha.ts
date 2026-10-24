@@ -127,10 +127,14 @@ export const CONTA_CORTE_REAIS = Math.round(KWH_CORTE_TIME * TARIFA_KWH);   // R
 // fila pra perguntar faria o alerta de "lead grande fora do time"
 // (centralAgentes.ts) contar a Nilce duas vezes.
 export const TIME_CONTA_ALTA = ['Thiago', 'Diego', 'Nilce'];
-// 4 posicoes: 2 Nilce (50%), 1 Thiago (25%), 1 Diego (25%). A Nilce entra
-// intercalada, nunca em bloco, dois leads grandes seguidos pra ela deixariam os
-// socios sem nenhum numa manha inteira de volume baixo.
-export const FILA_CONTA_ALTA = ['Thiago', 'Nilce', 'Diego', 'Nilce'];
+// 24/10/2026, ordem do dono: SO A NILCE ATENDE SOLAR. Lead novo de conta alta
+// tambem e' dela, entao a fila de cima tem uma posicao so (antes eram 4: Thiago,
+// Nilce, Diego, Nilce = 25/50/25 desde 23/09). O contador `rodizio_idx` continua
+// girando nas tres portas, so que modulo 1 cai sempre no mesmo nome. TIME_CONTA_ALTA
+// fica como estava: a auditoria da Central ainda julga com ele as fichas criadas
+// entre 23/09 e 24/10 (ver SOLAR_SO_NILCE_INICIO em centralAgentes.ts).
+// Estas listas sao so do solar: o eletroposto nao le nenhuma delas.
+export const FILA_CONTA_ALTA = ['Nilce'];
 
 // 17/08/2026: a conta baixa deixou de ser de uma pessoa só. A Giovanna entrou pra
 // aprender a atender. Quem SORTEIA é o proximoDaContaBaixa() (filaContaBaixa.ts);

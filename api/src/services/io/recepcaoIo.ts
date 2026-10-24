@@ -183,11 +183,11 @@ const CONSULTOR: Record<string, { nome: string; phone: string }> = {
   giovanna: { nome: 'Giovanna', phone: '34993396255' },
 };
 
-// Pra quem vai cada produto. Solar cai na Giovanna porque pré-atendimento é a
-// função dela; o resto vai pro Thiago, que é o default de backoffice. Eletroposto
-// vai pros dois donos do produto.
+// Pra quem vai cada produto. Solar cai na Nilce desde 24/10/2026 (ordem do dono:
+// só ela atende solar; antes era a Giovanna, do pré-atendimento); o resto vai pro
+// Thiago, que é o default de backoffice. Eletroposto vai pros dois donos do produto.
 const DESTINO: Record<Produto, string[]> = {
-  solar:       ['giovanna'],
+  solar:       ['nilce'],
   eletroposto: ['thiago', 'diego'],
   solardoc:    ['thiago'],
   bike:        ['thiago'],
