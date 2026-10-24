@@ -109,9 +109,9 @@ export async function enviarFichaAoConsultor(telefone: string, texto: string): P
 export async function tetoDaLinhaPermiteFicha(agora: Date): Promise<'ok' | 'teto' | 'erro'> {
   try {
     const { supabase } = await import('../../utils/supabase');
-    const { prefixosDaLinha, PREFIXOS_AGENDA } = await import('../agents/whatsapp/lineThrottle');
+    const { prefixosDaLinha, PREFIXOS_AGENDA, PREFIXOS_RESPOSTA_AGENTES } = await import('../agents/whatsapp/lineThrottle');
     const envio = await import('./vivoEnvio');
-    const prefixos = [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, envio.PREFIXO_CARIMBO, envio.PREFIXO_FICHA])];
+    const prefixos = [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, ...PREFIXOS_RESPOSTA_AGENTES])];
     const filtro = prefixos.map(p => `key.like.${p}%`).join(',');
     const contar = async (desde: Date, parar: number): Promise<number | null> => {
       let total = 0;

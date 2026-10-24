@@ -38,6 +38,10 @@ const UTMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_te
 const limpo = (v: unknown, max: number): string =>
   (typeof v === 'string' ? v : '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 
+/** Acesso de teste do dono: a página abre com utm_source=raio-x-teste. Nunca aviso, nunca Meta. */
+export const UTM_TESTE = 'raio-x-teste';
+export const ehUtmTeste = (utm: Record<string, string>): boolean => (utm.utm_source ?? '').toLowerCase() === UTM_TESTE;
+
 const utmDe = (b: Record<string, unknown>): Record<string, string> => {
   const fonte = (b.utm && typeof b.utm === 'object' && !Array.isArray(b.utm) ? b.utm : {}) as Record<string, unknown>;
   const out: Record<string, string> = {};
@@ -56,6 +60,8 @@ type Campo = { name: string; values: string[] };
 export function camposDoLeadSd(a: {
   codigo: string; resultado: ResultadoQuiz; resp: RespostasSd; empresa: string; uf: string;
   utm: Record<string, string>; fbp: string | null; fbc: string | null; lpSession: string;
+  /** Lead de acesso de teste (utm_source = raio-x-teste): grava teste=sim para o tick e o aviso de compra pularem. */
+  teste?: boolean;
 }): Campo[] {
   const f: Campo[] = [];
   const add = (name: string, v: string | null | undefined) => { if (v) f.push({ name, values: [v] }); };
@@ -78,6 +84,7 @@ export function camposDoLeadSd(a: {
   add('fbp', a.fbp);
   add('fbc', a.fbc);
   add('lp_session', a.lpSession);
+  if (a.teste) add('teste', 'sim');
   return f;
 }
 
@@ -129,19 +136,21 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   res.set('Cache-Control', 'no-store');
   const dry = String(req.query.dry || '') === '1';
   let gravou = false;
+  const utm = utmDe(b);
+  const teste = ehUtmTeste(utm);
   if (!dry) {
     gravou = await gravarLead(leadId, {
       form_id: FORM_ID, form_name: 'Quiz SolarDoc', nome, whatsapp: tel, cidade, fora_area: false,
       field_data: camposDoLeadSd({
-        codigo, resultado, resp, empresa, uf, utm: utmDe(b),
-        fbp: cookieMeta(b.fbp), fbc: cookieMeta(b.fbc), lpSession,
+        codigo, resultado, resp, empresa, uf, utm,
+        fbp: cookieMeta(b.fbp), fbc: cookieMeta(b.fbc), lpSession, teste,
       }),
     });
     // Lead pela API de Conversões, o gêmeo do que a página dispara no navegador. SÓ com o
     // event_id que a página mandou (sem ele o Meta contaria em dobro) e só depois de o
-    // banco gravar. Com await: a Vercel corta o que roda depois da resposta.
+    // banco gravar. Com await: a Vercel corta o que roda depois da resposta. Lead de teste (raio-x-teste): nunca vai ao Meta.
     const eventId = eventIdDe(b.event_id);
-    if (gravou && eventId) {
+    if (gravou && eventId && !teste) {
       await enviarQuizMeta({
         produto: 'solardoc', nome: 'Lead', origem: 'website', eventId,
         pessoa: { telefone: tel, nome, cidade, uf: uf || undefined },

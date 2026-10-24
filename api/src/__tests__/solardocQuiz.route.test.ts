@@ -172,6 +172,23 @@ describe('POST /solardoc/quiz', () => {
     expect(JSON.stringify(ev.dados)).not.toMatch(/Carlos|99816/);
   });
 
+  it('acesso de teste (utm_source = raio-x-teste): grava o lead com teste=sim no formato {name, values} e NÃO chama o CAPI', async () => {
+    const r = await request(app).post('/solardoc/quiz').send({ ...corpo, utm: { utm_source: 'raio-x-teste', utm_campaign: 'camp1' } });
+    expect(r.status).toBe(200);
+    expect(r.body.ok).toBe(true);
+    expect(h.ops).toHaveLength(1);
+    expect(h.ops[0].arg.field_data).toContainEqual({ name: 'teste', values: ['sim'] });
+    expect(campo(h.ops[0], 'utm_source')).toEqual(['raio-x-teste']);
+    expect(campo(h.ops[0], 'lp_session')).toEqual(['sd-abc_123']);
+    expect(h.enviar).not.toHaveBeenCalled();
+  });
+
+  it('lead de verdade (qualquer outra origem) não ganha o campo teste e segue para o CAPI', async () => {
+    await request(app).post('/solardoc/quiz').send(corpo);
+    expect(campo(h.ops[0], 'teste')).toBeUndefined();
+    expect(h.enviar).toHaveBeenCalledTimes(1);
+  });
+
   it('sem event_id válido o Meta não é chamado (contaria em dobro com o pixel do navegador)', async () => {
     await request(app).post('/solardoc/quiz').send({ ...corpo, event_id: undefined });
     await request(app).post('/solardoc/quiz').send({ ...corpo, event_id: 'a b' });

@@ -20,11 +20,22 @@
 //  - UM aviso avulso por vez: a vez é uma chave de 2 min tomada por update condicional
 //    ou insert (quiz_aviso_vez). Os demais ficam `pendente` e saem no cartão, que junta
 //    os pendentes numa bolha só, no máximo 1 a cada 10 min (descarregarPendentes).
+//  - COMPRA (Stripe, Asaas e comprovante) só reivindica o claim e fica `pendente`: quem envia
+//    ao grupo é o tick (descarregarPendentes), nunca o webhook. O aviso ao Thiago sai na hora.
 //  - Fica `pendente` também: linha pausada (ag5040_linha_pausa) ou em cooldown, trava de
-//    1 h depois de um 4xx do grupo, 12 avisos na hora, linha com 40 envios ou mais na hora.
+//    1 h depois de um 4xx do grupo, 12 avisos avulsos na hora (o cartão não tem esse teto),
+//    linha com 40 envios ou mais na hora (avulso e cartão), leitura de teto que falha, e o
+//    ESPAÇAMENTO contra o último envio da linha (25 s mais um sorteio de 0 a 35 s, sem sleep).
 //  - Cada envio físico (avulso e cartão) deixa o carimbo `solardoc_aviso_sent:` (balde das
 //    respostas das agentes, lineThrottle.ts), e a conta de "abaixo de 40 na hora" os soma.
-//  - O primeiro 4xx do grupo grava a trava `quiz_aviso_trava` por 1 h: nesse tempo só e-mail.
+//    O carimbo de um envio que falhou FICA: 5xx e timeout podem ter saído.
+//  - Erro de LINHA (classificarErroEnvio diferente de 'destino') conta em ag5040_linha_erros:
+//    2 seguidos gravam a pausa da linha (15 min) e um envio ok zera. Só o 4xx de DESTINO grava
+//    a trava `quiz_aviso_trava` por 1 h: nesse tempo só e-mail.
+//  - Claim parado em `novo` há mais de 10 min (a função caiu entre o insert e o `marcar`) vale
+//    como `pendente`: o texto vai junto no claim.
+//  - No cartão, só a primeira linha tem emoji (regra do WhatsApp). O e-mail do cliente nunca
+//    entra no texto.
 //  - Pendente com mais de 24 h não some calado: vira e-mail e `expirado`.
 //  - Lead de teste (utm_source = 'raio-x-teste') nunca gera aviso.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +45,8 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendOpsAlert } from '../../utils/mailer';
 import { sendToGroup, linhaEmCooldown } from '../agents/zapiClient';
-import { prefixosTotalDaLinha } from '../agents/whatsapp/lineThrottle';
+import { prefixosTotalDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
+import { classificarErroEnvio } from '../chefe/decidir';
 import { hmacDe } from '../agentes5040/hmac';
 import { chaveDoTelefone, codigoDoQuiz, leadIdDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
 import {
@@ -58,12 +70,22 @@ export const CHAVE_VEZ_AVULSA = 'quiz_aviso_vez';
 export const CHAVE_CARTAO_ULTIMO = 'quiz_aviso_cartao_ultimo';
 export const CHAVE_TRAVA_4XX = 'quiz_aviso_trava';
 const CHAVE_LINHA_PAUSA = 'ag5040_linha_pausa';
+/** Os mesmos contadores do vivoEnvio.ts e do agendaEnvio.ts: 2 erros de linha seguidos pausam a linha por 15 min. */
+const CHAVE_LINHA_ERROS = 'ag5040_linha_erros';
+const ERROS_PARA_PAUSAR = 2;
+const PAUSA_LINHA_MS = 15 * 60_000;
 const TETO_AVISOS_HORA = 12;
 const LINHA_MAX_HORA_PARA_AVISAR = 40;
 const VEZ_ESPERA_MS = 2 * 60_000;
 const CARTAO_ESPERA_MS = 10 * 60_000;
 const TRAVA_4XX_MS = 3600_000;
 const PENDENTE_VALIDADE_MS = 24 * 3600_000;
+/** Claim em `novo` há mais que isto (a função tem 300 s) foi abandonado: vale como pendente. */
+const NOVO_ABANDONADO_MS = 10 * 60_000;
+/** Espaçamento contra o último envio de QUALQUER robô da linha (o mesmo da agenda): 25 s mais um sorteio de 0 a 35 s. */
+const ESPACO_LINHA_MS = 25_000;
+const ESPACO_SORTEIO_MS = 35_000;
+export const TEMPOS_AVISO = { sorteio: (max: number): number => Math.floor(Math.random() * (max + 1)) };
 const UTM_TESTE = 'raio-x-teste';
 
 const dig = (s: unknown): string => String(s ?? '').replace(/\D/g, '');
@@ -106,8 +128,9 @@ export function campoDe(fieldData: unknown, nome: string): string {
   return String(v ?? '').trim();
 }
 
-/** Lead de teste: nunca gera aviso nem mensagem. */
-export const ehLeadDeTeste = (fieldData: unknown): boolean => campoDe(fieldData, 'utm_source').toLowerCase() === UTM_TESTE;
+/** Lead de teste (utm_source = raio-x-teste OU o campo teste = sim, gravado pela rota do quiz): nunca gera aviso nem mensagem. */
+export const ehLeadDeTeste = (fieldData: unknown): boolean =>
+  campoDe(fieldData, 'utm_source').toLowerCase() === UTM_TESTE || campoDe(fieldData, 'teste').toLowerCase() === 'sim';
 
 /** Os campos do aviso a partir da linha do `leads_meta` (field_data com ids de opção, nunca o texto). */
 export function camposDoLead(l: LeadQuizLinha): CamposAviso {
@@ -187,9 +210,10 @@ export type ResultadoAviso =
 const agoraIso = (): string => new Date().toISOString();
 const iso = (ms: number): string => new Date(ms).toISOString();
 
-async function reivindicar(chave: string, tipo: string): Promise<'ok' | 'duplicado' | 'erro'> {
+async function reivindicar(chave: string, tipo: string, texto: string): Promise<'ok' | 'duplicado' | 'erro'> {
   const em = agoraIso();
-  const { error } = await supabase.from('system_state').insert({ key: chave, value: { tipo, estado: 'novo', em }, updated_at: em });
+  // O texto vai no claim desde o início: se a função cair antes do `marcar`, o claim `novo` velho ainda pode sair (descarregarPendentes).
+  const { error } = await supabase.from('system_state').insert({ key: chave, value: { tipo, estado: 'novo', em, texto }, updated_at: em });
   if (!error) return 'ok';
   if ((error as { code?: string }).code === '23505') return 'duplicado';
   logger.error('solardoc-aviso', 'claim do aviso não gravou: nada será enviado', { tipo, erro: error.message });
@@ -200,6 +224,20 @@ async function marcar(chave: string, tipo: string, estado: string, extra: Record
   const em = agoraIso();
   const { error } = await supabase.from('system_state').update({ value: { tipo, estado, em, ...extra }, updated_at: em }).eq('key', chave);
   if (error) logger.warn('solardoc-aviso', 'marcar o estado do aviso falhou', { tipo, estado, erro: error.message });
+}
+
+/**
+ * Quem já comprou: grava o claim `quiz_aviso:<hmac>` com estado `comprou`, SEM envio, para o tick de desistência não consultar
+ * `sales` e `users` de novo a cada rodada. Já existir (23505) não é erro. Nunca lança.
+ */
+export async function marcarComprou(hmac: string): Promise<void> {
+  try {
+    const em = agoraIso();
+    const { error } = await supabase.from('system_state').insert({ key: `${PREFIXO_CLAIM_QUIZ}${hmac}`, value: { tipo: 'desistencia', estado: 'comprou', em }, updated_at: em });
+    if (error && (error as { code?: string }).code !== '23505') logger.warn('solardoc-aviso', 'marcar quem comprou falhou', { erro: error.message });
+  } catch (e) {
+    logger.warn('solardoc-aviso', 'marcar quem comprou falhou', { erro: String(e) });
+  }
 }
 
 /**
@@ -266,11 +304,14 @@ export function motivoDaParada(p: NonNullable<ParadaDoGrupo>): string {
 /** Avisos que saíram no grupo na última hora (cartão de pendentes conta como 1). */
 async function avisosDaUltimaHora(): Promise<number> {
   const desde = iso(Date.now() - 3600_000);
-  const [{ data }, { data: cartao }] = await Promise.all([
+  const [{ data, error }, { data: cartao, error: erroCartao }] = await Promise.all([
     supabase.from('system_state').select('value')
       .or(`key.like.${PREFIXO_CLAIM_QUIZ}%,key.like.${PREFIXO_CLAIM_COMPRA}%`).gte('updated_at', desde).limit(200),
     supabase.from('system_state').select('key').eq('key', CHAVE_CARTAO_ULTIMO).gte('updated_at', desde).limit(1),
   ]);
+  // Leitura que falha vale como "linha cheia" (quem chama trata o throw como "não cabe"): nunca como zero.
+  if (error) throw new Error(`ler avisos da hora: ${error.message}`);
+  if (erroCartao) throw new Error(`ler o cartão da hora: ${erroCartao.message}`);
   const enviados = ((data ?? []) as Array<{ value?: { estado?: string } }>).filter(r => r.value?.estado === 'enviado').length;
   return enviados + (cartao?.length ?? 0);
 }
@@ -279,20 +320,81 @@ async function avisosDaUltimaHora(): Promise<number> {
 async function enviosDaLinhaNaHora(): Promise<number> {
   const prefixos = [...new Set([...prefixosTotalDaLinha(), PREFIXO_CARIMBO_AVISO])];
   const filtro = prefixos.map(p => `key.like.${p}%`).join(',');
-  const { data } = await supabase.from('system_state').select('key').or(filtro).gte('updated_at', iso(Date.now() - 3600_000)).limit(LINHA_MAX_HORA_PARA_AVISAR + 1);
+  const { data, error } = await supabase.from('system_state').select('key').or(filtro).gte('updated_at', iso(Date.now() - 3600_000)).limit(LINHA_MAX_HORA_PARA_AVISAR + 1);
+  if (error) throw new Error(`ler envios da linha: ${error.message}`);
   return data?.length ?? 0;
 }
 
-/** Cabe mais um aviso agora? Leitura que falha vale como "não cabe" (vira pendente, nunca se perde). */
-async function cabeAgora(): Promise<boolean> {
+/**
+ * Cabe mais um aviso agora? Leitura que falha vale como "não cabe" (vira pendente, nunca se perde).
+ * Avulso: 12 por hora do módulo e 40 da linha. Cartão (`avulso: false`): só os 40 da linha (o cartão inteiro conta 1 no teto dos 12).
+ */
+async function cabeAgora(opts: { avulso: boolean } = { avulso: true }): Promise<boolean> {
   try {
-    if (await avisosDaUltimaHora() >= TETO_AVISOS_HORA) return false;
+    if (opts.avulso && await avisosDaUltimaHora() >= TETO_AVISOS_HORA) return false;
     if (await enviosDaLinhaNaHora() >= LINHA_MAX_HORA_PARA_AVISAR) return false;
     return true;
   } catch (e) {
     logger.warn('solardoc-aviso', 'conferir o teto falhou: aviso fica pendente', { erro: String(e) });
     return false;
   }
+}
+
+/**
+ * Espaçamento contra o último envio de QUALQUER robô da linha (chaves de prefixosTotalDaLinha() e PREFIXOS_AGENDA, com o
+ * carimbo do próprio módulo): faz menos de 25 s mais um sorteio de 0 a 35 s? Então o aviso fica pendente, SEM sleep. Leitura que
+ * falha, ou relógio do banco à frente do nosso, vale como "ainda não".
+ */
+async function linhaEspacada(): Promise<boolean> {
+  try {
+    const prefixos = [...new Set([...prefixosTotalDaLinha(), ...PREFIXOS_AGENDA, PREFIXO_CARIMBO_AVISO])];
+    const filtro = prefixos.map(p => `key.like.${p}%`).join(',');
+    const { data, error } = await supabase.from('system_state').select('updated_at').or(filtro)
+      .order('updated_at', { ascending: false }).limit(1);
+    if (error) { logger.warn('solardoc-aviso', 'ler o último envio da linha falhou: aviso fica pendente', { erro: error.message }); return false; }
+    const ultimo = Date.parse(String(((data ?? []) as Array<{ updated_at?: string }>)[0]?.updated_at ?? ''));
+    if (!Number.isFinite(ultimo)) return true;           // nenhum envio recente na linha
+    const passou = Date.now() - ultimo;
+    if (passou < 0) return false;                        // relógio do banco à frente: não espera, fica para a próxima rodada
+    return passou >= ESPACO_LINHA_MS + TEMPOS_AVISO.sorteio(ESPACO_SORTEIO_MS);
+  } catch (e) {
+    logger.warn('solardoc-aviso', 'conferir o espaçamento da linha falhou: aviso fica pendente', { erro: String(e) });
+    return false;
+  }
+}
+
+// ── erros de linha (os mesmos contadores do vivoEnvio.ts e do agendaEnvio.ts) ──
+
+async function lerErrosSeguidos(): Promise<number> {
+  const { data } = await supabase.from('system_state').select('value').eq('key', CHAVE_LINHA_ERROS).maybeSingle();
+  const n = Number((data as { value?: { n?: number } } | null)?.value?.n ?? 0);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+async function gravarErros(n: number, quando: Date): Promise<void> {
+  const { error } = await supabase.from('system_state').upsert(
+    { key: CHAVE_LINHA_ERROS, value: { n, em: quando.toISOString() }, updated_at: quando.toISOString() }, { onConflict: 'key' });
+  if (error) logger.warn('solardoc-aviso', 'não gravei o contador de erros da linha', { erro: error.message });
+}
+
+/** Envio ok: o contador de erros seguidos volta a zero (só escreve se havia algo a zerar). */
+async function zerarErros(quando: Date): Promise<void> {
+  try { if ((await lerErrosSeguidos()) > 0) await gravarErros(0, quando); } catch (e) { logger.warn('solardoc-aviso', 'não zerei o contador de erros da linha', { erro: String(e) }); }
+}
+
+/** Erro de linha: soma ao contador; no 2º seguido grava a pausa de 15 min da linha. */
+async function contarErroDeLinha(quando: Date): Promise<void> {
+  try {
+    const n = (await lerErrosSeguidos()) + 1;
+    await gravarErros(n, quando);
+    if (n >= ERROS_PARA_PAUSAR) {
+      const ate = new Date(quando.getTime() + PAUSA_LINHA_MS).toISOString();
+      const { error } = await supabase.from('system_state').upsert(
+        { key: CHAVE_LINHA_PAUSA, value: { ate, motivo: 'erros_seguidos', n }, updated_at: quando.toISOString() }, { onConflict: 'key' });
+      if (error) logger.error('solardoc-aviso', 'não gravei a pausa da linha', { erro: error.message });
+      else logger.error('solardoc-aviso', `linha pausada até ${ate} (${n} erros seguidos)`);
+    }
+  } catch (e) { logger.warn('solardoc-aviso', 'contagem de erro da linha falhou', { erro: String(e) }); }
 }
 
 const escapar = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -330,7 +432,11 @@ const status4xx = (e: unknown): string | null => {
   return m && m[1] !== '408' && m[1] !== '429' ? m[1]! : null;
 };
 
-/** O envio físico ao grupo: carimbo da linha antes, 4xx grava a trava de 1 h. */
+/**
+ * O envio físico ao grupo: carimbo da linha antes. Falhou: o carimbo FICA (5xx e timeout podem ter saído). Erro de linha
+ * (classificarErroEnvio diferente de 'destino') conta nos 2 seguidos que pausam a linha; só o 4xx de DESTINO grava a trava de 1 h.
+ * Envio ok zera a conta de erros.
+ */
 async function enviarAoGrupo(grupo: string, texto: string): Promise<{ ok: true } | { ok: false; erro: unknown }> {
   const carimbo = `${PREFIXO_CARIMBO_AVISO}${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
   const em = agoraIso();
@@ -338,23 +444,29 @@ async function enviarAoGrupo(grupo: string, texto: string): Promise<{ ok: true }
   if (erroCarimbo) logger.warn('solardoc-aviso', 'carimbo do envio não gravou (envia mesmo assim)', { erro: erroCarimbo.message });
   try {
     await sendToGroup(grupo, texto, 'io');
-    return { ok: true };
   } catch (erro) {
-    if (!erroCarimbo) await supabase.from('system_state').delete().eq('key', carimbo);
-    const st = status4xx(erro);
-    if (st) await gravarTrava(st);
+    if (classificarErroEnvio(erro) === 'destino') {
+      const st = status4xx(erro);
+      if (st) await gravarTrava(st);
+    } else {
+      await contarErroDeLinha(new Date());
+    }
     return { ok: false, erro };
   }
+  await zerarErros(new Date());
+  return { ok: true };
 }
 
 interface OpcoesEmitir {
   chave: string; tipo: string; texto: string;
   /** Desistência e sem vaga: na trava de 4xx e na pausa da linha não esperam 24 h, viram e-mail (resumo da rodada). Compra espera. */
   urgente?: boolean;
+  /** Compra: só reivindica o claim e fica pendente. Quem envia ao grupo é o tick (descarregarPendentes), nunca o webhook. */
+  soReivindicar?: boolean;
 }
 
 async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
-  const r = await reivindicar(o.chave, o.tipo);
+  const r = await reivindicar(o.chave, o.tipo, o.texto);
   if (r === 'duplicado') return 'duplicado';
   if (r === 'erro') return 'erro';
 
@@ -369,6 +481,7 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
     await marcar(o.chave, o.tipo, 'pendente', { texto: o.texto });
     return 'pendente';
   };
+  if (o.soReivindicar) return pendente();
   const parada = await paradaDoGrupo();
   if (parada && o.urgente && parada.tipo !== 'duvida') {
     await marcar(o.chave, o.tipo, 'email');
@@ -376,7 +489,8 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   }
   if (parada) return pendente();
   if (emCooldown()) return pendente();   // cooldown curto da memória: fica para a próxima rodada
-  if (!(await cabeAgora())) return pendente();
+  if (!(await cabeAgora({ avulso: true }))) return pendente();
+  if (!(await linhaEspacada())) return pendente();   // antes das chaves: o espaçamento que falha não gasta a vez de ninguém
   if (!(await tomarChave(CHAVE_VEZ_AVULSA, VEZ_ESPERA_MS))) return pendente();
 
   const env = await enviarAoGrupo(grupo, o.texto);
@@ -430,6 +544,7 @@ export interface CompraAviso {
   emTeste?: boolean;
   valor: number;
   nome?: string | null;
+  /** NUNCA entra no texto do grupo (só o nome; sem nome, o rótulo). Mantido por compatibilidade dos chamadores. */
   email?: string | null;
   telefone?: string | null;
   /** `lp_session` da sessão da Stripe, para casar com o lead do quiz. */
@@ -458,14 +573,15 @@ export async function avisarCompra(c: CompraAviso): Promise<ResultadoAviso> {
     const tel = normalizarTelefoneSd(c.telefone);
     const campos: CamposAviso = {
       ...doLead,
-      nome_completo: doLead.nome_completo || c.nome || c.email || '',
+      // Sem nome: nunca o e-mail do cliente no grupo. Na Stripe o rótulo diz de onde faltou; nos outros canais sai "nome não informado".
+      nome_completo: doLead.nome_completo || c.nome || (c.canal === 'cartao' ? 'Sem nome na Stripe' : ''),
       valor: c.valor,
       codigo: lead ? doLead.codigo : (c.origemQuiz && tel ? codigoDoQuiz(tel) : ''),
       doQuizSemCodigo: !lead && !!c.origemQuiz,
     };
     const modelo: ModeloAviso = c.canal === 'cartao' && c.emTeste ? 'compraCartaoTeste' : MODELO_DO_CANAL[c.canal];
     const texto = montarAviso(modelo, campos);
-    return await emitir({ chave: `${PREFIXO_CLAIM_COMPRA}${String(c.id).trim()}`, tipo: `compra_${c.canal}`, texto });
+    return await emitir({ chave: `${PREFIXO_CLAIM_COMPRA}${String(c.id).trim()}`, tipo: `compra_${c.canal}`, texto, soReivindicar: true });
   } catch (e) {
     logger.error('solardoc-aviso', 'aviso de compra falhou', { erro: String(e) });
     return 'erro';
@@ -475,6 +591,10 @@ export async function avisarCompra(c: CompraAviso): Promise<ResultadoAviso> {
 // ── pendentes: um cartão só, a cada 10 min ───────────────────────────────────
 
 const TETO_CARTAO_CHARS = 3500;
+
+/** Tira o emoji do começo do aviso (no cartão só a primeira linha leva emoji). */
+const SEM_EMOJI_NO_COMECO = /^(?:\p{Extended_Pictographic}\uFE0F?\u200D?)+\s*/u;
+export const semEmojiNoComeco = (t: string): string => t.replace(SEM_EMOJI_NO_COMECO, '');
 
 type LinhaPendente = { key: string; updated_at?: string; value?: { tipo?: string; estado?: string; texto?: string } };
 
@@ -487,12 +607,19 @@ export async function descarregarPendentes(
   opts: { emailAgora?: boolean } = {},
 ): Promise<{ enviados: number; expirados?: number; motivo?: string; porEmail?: string[]; parada?: ParadaDoGrupo }> {
   const emailAgora = opts.emailAgora !== false;
-  const { data, error } = await supabase.from('system_state').select('key, value, updated_at')
+  const consulta = (estado: string) => supabase.from('system_state').select('key, value, updated_at')
     .or(`key.like.${PREFIXO_CLAIM_QUIZ}%,key.like.${PREFIXO_CLAIM_COMPRA}%`)
-    .eq('value->>estado', 'pendente')
+    .eq('value->>estado', estado)
     .order('updated_at', { ascending: true }).limit(200);
+  const [{ data, error }, { data: dataNovo, error: erroNovo }] = await Promise.all([consulta('pendente'), consulta('novo')]);
   if (error) { logger.warn('solardoc-aviso', 'ler pendentes falhou', { erro: error.message }); return { enviados: 0, motivo: 'erro_leitura' }; }
-  const todos = ((data ?? []) as LinhaPendente[]).filter(r => r.value?.estado === 'pendente' && r.value.texto);
+  // Claim parado em `novo` há mais de 10 min (a função caiu entre o insert e o `marcar`) vale como pendente. Falha só nesta leitura não barra o resto.
+  if (erroNovo) logger.warn('solardoc-aviso', 'ler claims abandonados falhou', { erro: erroNovo.message });
+  const corteNovo = iso(Date.now() - NOVO_ABANDONADO_MS);
+  const abandonados = ((erroNovo ? [] : dataNovo ?? []) as LinhaPendente[]).filter(r => r.value?.estado === 'novo' && String(r.updated_at ?? '') < corteNovo);
+  const todos = ([...((data ?? []) as LinhaPendente[]), ...abandonados])
+    .filter(r => (r.value?.estado === 'pendente' || r.value?.estado === 'novo') && r.value.texto)
+    .sort((a, b) => (String(a.updated_at ?? '') < String(b.updated_at ?? '') ? -1 : 1));
 
   // 1) Vencidos (mais de 24 h): não somem calados.
   const corte = iso(Date.now() - PENDENTE_VALIDADE_MS);
@@ -526,6 +653,9 @@ export async function descarregarPendentes(
     return { enviados: 0, expirados, motivo: parada.tipo === 'trava' ? 'trava_4xx' : parada.tipo === 'pausa' ? 'linha_caida' : 'duvida', porEmail, parada };
   }
   if (emCooldown()) return { enviados: 0, expirados, motivo: 'linha_caida' };
+  // Os 40 por hora da linha valem para o cartão (os 12 avulsos por hora, não). Leitura que falha = linha cheia. Antes de qualquer chave.
+  if (!(await cabeAgora({ avulso: false }))) return { enviados: 0, expirados, motivo: 'linha_cheia' };
+  if (!(await linhaEspacada())) return { enviados: 0, expirados, motivo: 'linha_espacando' };
   if (!(await tomarChave(CHAVE_CARTAO_ULTIMO, CARTAO_ESPERA_MS))) return { enviados: 0, expirados, motivo: 'cartao_recente' };
   if (!(await tomarChave(CHAVE_VEZ_AVULSA, VEZ_ESPERA_MS))) {
     await devolverChave(CHAVE_CARTAO_ULTIMO);
@@ -535,12 +665,13 @@ export async function descarregarPendentes(
   const incluidos: LinhaPendente[] = [];
   let corpo = '';
   for (const p of pendentes) {
-    const parte = `${incluidos.length ? '\n\n' : ''}${p.value!.texto}`;
+    // Sozinho, o aviso sai como foi montado (com o emoji dele). Junto, só o cabeçalho do cartão leva emoji: o dos avisos cai fora.
+    const parte = `${incluidos.length ? '\n\n' : ''}${semEmojiNoComeco(p.value!.texto!)}`;
     if (incluidos.length && (corpo + parte).length > TETO_CARTAO_CHARS) break;
     corpo += parte;
     incluidos.push(p);
   }
-  const texto = incluidos.length === 1 ? corpo : `📋 ${incluidos.length} avisos que esperaram o teto da linha\n\n${corpo}`;
+  const texto = incluidos.length === 1 ? incluidos[0]!.value!.texto! : `📋 ${incluidos.length} avisos que esperaram o teto da linha\n\n${corpo}`;
   const env = await enviarAoGrupo(grupo, texto);
   if (!env.ok) {
     logger.error('solardoc-aviso', 'cartão de pendentes falhou', { erro: String(env.erro) });

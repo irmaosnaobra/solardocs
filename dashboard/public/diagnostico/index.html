@@ -16,8 +16,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<!-- Meta Pixel do SolarDoc (824905216831401). PageView ao abrir; os demais eventos saem do script da página. -->
+<!-- Acesso de teste do dono: utm_source=raio-x-teste no primeiro toque. Nesse caso a página NÃO carrega o pixel do Meta nem manda os
+     beacons /_t/v e /_t/e (o POST do quiz segue igual; o servidor grava teste=sim e não manda o CAPI). Esta é a ÚNICA função que decide,
+     lida pelos três pontos de rastreio (pixel aqui, post() e fb() no script "rastreio"). Lê o primeiro toque como o "rastreio" captura:
+     o valor guardado na sessão (sd_lp_utms), senão a URL de agora. -->
 <script>
+function ehTeste(){
+  try {
+    var salvo = sessionStorage.getItem('sd_lp_utms');
+    if (salvo) { var j = JSON.parse(salvo); if (j && typeof j === 'object') return String(j.utm_source || '').toLowerCase() === 'raio-x-teste'; }
+    return String(new URLSearchParams(location.search).get('utm_source') || '').toLowerCase() === 'raio-x-teste';
+  } catch (e) { return false; }
+}
+</script>
+<!-- Meta Pixel do SolarDoc (824905216831401). PageView ao abrir; os demais eventos saem do script da página. Fora no acesso de teste. -->
+<script>
+if (!ehTeste()) {
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
 n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
@@ -25,6 +39,7 @@ t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '824905216831401');
 fbq('track', 'PageView');
+}
 </script>
 <noscript><img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=824905216831401&ev=PageView&noscript=1"/></noscript>
 <style>
@@ -621,6 +636,7 @@ function metaIds() {
   return o;
 }
 function post(path, body) {
+  if (ehTeste()) return;   /* acesso de teste: nenhum beacon (/_t/v, /_t/e) */
   try { fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(function () {}); } catch (e) { /* o rastreio nunca derruba a página */ }
 }
 if (!ss(SK_VISIT)) {
@@ -634,7 +650,7 @@ function evento(tipo, dados) {
   post('/_t/e', { session_id: sid, event_type: tipo, event_data: Object.assign({ lp: 'solardoc', caminho: 'principal', pl: PL, seq: ++SEQ }, dados || {}) });
 }
 function fb(tipo, nome, params, opcoes) {
-  try { if (!window.fbq) return; if (opcoes) window.fbq(tipo, nome, params || {}, opcoes); else window.fbq(tipo, nome, params || {}); } catch (e) { /* pixel bloqueado */ }
+  try { if (ehTeste() || !window.fbq) return; if (opcoes) window.fbq(tipo, nome, params || {}, opcoes); else window.fbq(tipo, nome, params || {}); } catch (e) { /* pixel bloqueado */ }
 }
 var ALFA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function codigoLocal() {

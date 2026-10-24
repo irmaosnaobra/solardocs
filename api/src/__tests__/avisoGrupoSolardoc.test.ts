@@ -9,8 +9,12 @@ const valorDe = (r: Linha, col: string): unknown => {
   return r[col];
 };
 
+/** Gancho opt-in: devolve `error` num select. Padrão null (nada falha). `max` é o .limit() da consulta. */
+let falhaSelect: ((q: { tabela: string; or: string; max: number; ordenada: boolean }) => boolean) | null = null;
+
 function construtor(tabela: string) {
   const filtros: Array<(r: Linha) => boolean> = [];
+  let orExpr = '';
   let op: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   let valores: Linha = {};
   let max = 1000;
@@ -30,6 +34,7 @@ function construtor(tabela: string) {
     lte: (c: string, v: string) => { filtros.push(r => String(r[c]) <= v); return q; },
     lt: (c: string, v: string) => { filtros.push(r => String(r[c]) < v); return q; },
     or: (expr: string) => {
+      orExpr = expr;
       const pref = expr.split(',').map(p => p.replace(/^key\.like\./, '').replace(/%$/, ''));
       filtros.push(r => pref.some(p => String(r.key).startsWith(p)));
       return q;
@@ -41,6 +46,9 @@ function construtor(tabela: string) {
     maybeSingle: () => { unico = true; return q; },
     then: (res: (v: unknown) => unknown) => {
       let alvo = tabelas[tabela]!.filter(r => filtros.every(f => f(r)));
+      if (op === 'select' && falhaSelect?.({ tabela, or: orExpr, max, ordenada: ordem !== null })) {
+        return res({ data: null, error: { message: 'leitura falhou (teste)' } });
+      }
       if (op === 'insert') {
         if (tabela === 'system_state' && tabelas[tabela]!.some(r => r.key === valores.key)) return res({ data: null, error: DUP });
         tabelas[tabela]!.push({ ...valores });
@@ -84,10 +92,10 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: (...a: unknown[]) => (sendWhatsApp as any)(...a),
   linhaEmCooldown: () => emCooldown(),
 }));
-vi.mock('../services/agents/whatsapp/lineThrottle', () => ({ prefixosTotalDaLinha: () => ['linha_x:'] }));
+vi.mock('../services/agents/whatsapp/lineThrottle', () => ({ prefixosTotalDaLinha: () => ['linha_x:'], PREFIXOS_AGENDA: ['agenda_x:'] }));
 
 import {
-  avisarDesistencia, avisarSemVaga, avisarCompra, descarregarPendentes, grupoVendas, idDeVenda,
+  avisarDesistencia, avisarSemVaga, avisarCompra, descarregarPendentes, grupoVendas, idDeVenda, TEMPOS_AVISO,
   type LeadQuizLinha,
 } from '../services/solardoc/avisoGrupoSolardoc';
 import { montarAviso, MODELOS, telefoneComDdi, type ModeloAviso } from '../services/solardoc/avisoGrupoTextos';
@@ -115,15 +123,27 @@ const lead = (extra: Partial<LeadQuizLinha> = {}, campos: Array<{ name: string; 
 
 const claims = () => tabelas.system_state!.filter(r => /^(quiz_aviso|compra_aviso):/.test(r.key));
 const chave = (k: string) => tabelas.system_state!.find(r => r.key === k);
-/** Libera a vez de 2 min (como se tivessem passado 2 min). */
-const liberarVez = () => { tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'quiz_aviso_vez'); };
+/** Os carimbos dos envios do módulo ficam com 5 min (passou o espaçamento de 25 a 60 s da linha). */
+const envelhecerCarimbos = () => { for (const r of tabelas.system_state!) if (r.key.startsWith('solardoc_aviso_sent:')) r.updated_at = minAtras(5); };
+/** Libera a vez de 2 min (como se tivessem passado 2 min; o espaçamento contra o último envio também passou). */
+const liberarVez = () => { tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'quiz_aviso_vez'); envelhecerCarimbos(); };
 /** Libera também a chave do cartão (como se tivessem passado 10 min). */
 const liberarTudo = () => { liberarVez(); tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'quiz_aviso_cartao_ultimo'); };
+/** Compra: só reivindica o claim (pendente); quem envia é o cartão do tick. */
 const compra = (id: string, extra: Record<string, unknown> = {}) =>
   avisarCompra({ id, canal: 'cartao', planoAtivo: true, valor: 67, nome: `Cliente ${id}`, ...extra } as any);
+/** Um aviso AVULSO (desistência) de uma pessoa por id: é o que exercita a vez, o teto, o espaçamento e o envio físico. */
+const pessoas = new Map<string, string>();
+const telDe = (id: string): string => {
+  if (!pessoas.has(id)) pessoas.set(id, `55349${String(20000000 + pessoas.size)}`);
+  return pessoas.get(id)!;
+};
+const avulso = (id: string, extra: Partial<LeadQuizLinha> = {}) => avisarDesistencia(lead({ nome: `Cliente ${id}`, whatsapp: telDe(id), ...extra }));
+const textoDe = (k: string): string => String(chave(k)!.value.texto);
 
 beforeEach(() => {
   for (const k of Object.keys(tabelas)) tabelas[k] = [];
+  falhaSelect = null; pessoas.clear();
   sendToGroup.mockReset(); sendWhatsApp.mockClear(); sendOpsAlert.mockClear(); emCooldown.mockReset();
   sendToGroup.mockImplementation(async () => ({ messageId: 'm1' }));
   emCooldown.mockReturnValue(false);
@@ -215,13 +235,23 @@ describe('grupo e envio', () => {
     expect(sendToGroup).toHaveBeenCalledTimes(1);
     // 5xx não grava a trava de 1 h
     expect(chave('quiz_aviso_trava')).toBeUndefined();
-    // e o envio que falhou não deixa carimbo da linha
-    expect(tabelas.system_state!.some(r => r.key.startsWith('solardoc_aviso_sent:'))).toBe(false);
+    // e o carimbo do envio que falhou FICA (5xx e timeout podem ter saído)
+    expect(tabelas.system_state!.filter(r => r.key.startsWith('solardoc_aviso_sent:'))).toHaveLength(1);
   });
   it('lead de teste (raio-x-teste) nunca gera aviso', async () => {
     const t = lead({}, [{ name: 'utm_source', values: ['raio-x-teste'] }]);
     expect(await avisarDesistencia(t)).toBe('ignorado');
     expect(await avisarSemVaga(t)).toBe('ignorado');
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(claims()).toHaveLength(0);
+  });
+  it('lead de teste pelo campo teste=sim (sem utm) também nunca gera aviso, nem de compra', async () => {
+    const t = lead({}, [{ name: 'teste', values: ['sim'] }]);
+    expect(await avisarDesistencia(t)).toBe('ignorado');
+    expect(await avisarSemVaga(t)).toBe('ignorado');
+    tabelas.leads_meta!.push({ ...t, form_id: 'quiz_solardoc' });
+    expect(await compra('cs_teste', { telefone: '34999998888' })).toBe('ignorado');
+    expect(await compra('cs_teste2', { utmSource: 'raio-x-teste' })).toBe('ignorado');
     expect(sendToGroup).not.toHaveBeenCalled();
     expect(claims()).toHaveLength(0);
   });
@@ -245,15 +275,20 @@ describe('claim único', () => {
     expect(await avisarDesistencia(lead())).toBe('enviado');
     expect(sendToGroup).toHaveBeenCalledTimes(3);
   });
-  it('compra: um aviso por venda, não importa o canal', async () => {
+  it('compra: um aviso por venda, não importa o canal; o webhook só reivindica e o tick envia', async () => {
     const base = { id: 'cs_test_1', planoAtivo: true, valor: 67, nome: 'Carlos Andrade', telefone: '34999998888' };
-    expect(await avisarCompra({ ...base, canal: 'cartao' })).toBe('enviado');
+    expect(await avisarCompra({ ...base, canal: 'cartao' })).toBe('pendente');
     expect(await avisarCompra({ ...base, canal: 'comprovante' })).toBe('duplicado');
     expect(await avisarCompra({ ...base, canal: 'asaas' })).toBe('duplicado');
-    liberarVez();
-    expect(await avisarCompra({ ...base, id: 'asaas:abc', canal: 'asaas' })).toBe('enviado');
-    expect(sendToGroup).toHaveBeenCalledTimes(2);
+    expect(await avisarCompra({ ...base, id: 'asaas:abc', canal: 'asaas' })).toBe('pendente');
+    expect(sendToGroup).not.toHaveBeenCalled();
     expect(claims().map(c => c.key).sort()).toEqual(['compra_aviso:asaas:abc', 'compra_aviso:cs_test_1']);
+    expect(claims().every(c => c.value.estado === 'pendente')).toBe(true);
+    // o tick leva as duas num cartão só
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.pendentes).toBe(2);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(claims().every(c => c.value.estado === 'enviado_cartao')).toBe(true);
   });
 });
 
@@ -278,8 +313,8 @@ describe('compra', () => {
   });
   it('casa com o lead do quiz pelo telefone e traz empresa e código', async () => {
     tabelas.leads_meta!.push({ ...lead(), form_id: 'quiz_solardoc' });
-    expect(await compra('cs_2', { nome: 'Outro Nome', telefone: '(34) 99999-8888' })).toBe('enviado');
-    const t = sendToGroup.mock.calls[0]![1];
+    expect(await compra('cs_2', { nome: 'Outro Nome', telefone: '(34) 99999-8888' })).toBe('pendente');
+    const t = textoDe('compra_aviso:cs_2');
     expect(t).toContain('Quem: Carlos Andrade, Solar Andrade');
     expect(t).toContain('Origem: quiz, código SD-AB23');
     expect(t).toContain('Valor: R$ 67');
@@ -287,16 +322,31 @@ describe('compra', () => {
   });
   it('cartão em teste (emTeste) sai como assinatura em teste', async () => {
     await compra('cs_t', { emTeste: true });
-    const t = sendToGroup.mock.calls[0]![1];
+    const t = textoDe('compra_aviso:cs_t');
     expect(t).toContain('Assinatura em teste');
     expect(t).not.toMatch(/Pagamento confirmado/);
   });
   it('sem lead, a origem é "outra"; com origem quiz mas sem lead, calcula o código pelo telefone', async () => {
     await avisarCompra({ id: 'cs_3', canal: 'asaas', planoAtivo: true, valor: 67, nome: 'Maria', telefone: '11988887777' });
-    expect(sendToGroup.mock.calls[0]![1]).toContain('Origem: outra');
-    liberarVez();
+    expect(textoDe('compra_aviso:cs_3')).toContain('Origem: outra');
     await compra('cs_4', { nome: 'Maria', telefone: '11988887777', origemQuiz: true });
-    expect(sendToGroup.mock.calls[1]![1]).toMatch(/Origem: quiz, código SD-[A-Z2-9]{4}/);
+    expect(textoDe('compra_aviso:cs_4')).toMatch(/Origem: quiz, código SD-[A-Z2-9]{4}/);
+  });
+  it('sem nome: o e-mail do cliente NUNCA entra no texto do grupo (Stripe: "Sem nome na Stripe")', async () => {
+    await avisarCompra({ id: 'cs_6', canal: 'cartao', planoAtivo: true, valor: 67, email: 'segredo@cliente.com', telefone: '11988887777' });
+    await avisarCompra({ id: 'asaas:z1', canal: 'asaas', planoAtivo: true, valor: 67, email: 'segredo@cliente.com' });
+    await avisarCompra({ id: 'pix:z2', canal: 'comprovante', planoAtivo: true, valor: 67, email: 'segredo@cliente.com' });
+    expect(textoDe('compra_aviso:cs_6')).toContain('Quem: Sem nome na Stripe, sem empresa');
+    expect(textoDe('compra_aviso:asaas:z1')).toContain('Quem: nome não informado');
+    expect(textoDe('compra_aviso:pix:z2')).toContain('Quem: nome não informado');
+    expect(JSON.stringify(claims())).not.toContain('segredo@cliente.com');
+    expect(JSON.stringify(claims())).not.toContain('@');
+  });
+  it('o webhook nunca envia: com tudo livre a compra fica pendente e o grupo não recebe nada', async () => {
+    expect(await compra('cs_7')).toBe('pendente');
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso_vez')).toBeUndefined();
+    expect(chave('compra_aviso:cs_7')!.value.texto).toContain('Cliente cs_7');
   });
   it('compra sem grupo não manda e-mail e devolve sem_grupo', async () => {
     delete process.env.ZAPI_SOLARDOC_GRUPO_ID;
@@ -307,11 +357,12 @@ describe('compra', () => {
 
 describe('um aviso avulso por vez, o resto em cartão', () => {
   it('o segundo aviso colado fica pendente; o cartão sai depois e junta o que esperou', async () => {
-    expect(await compra('v1')).toBe('enviado');
+    expect(await avulso('v1')).toBe('enviado');
     expect(await compra('v2')).toBe('pendente');
-    expect(await compra('v3')).toBe('pendente');
+    expect(await avulso('v3')).toBe('pendente');
     expect(sendToGroup).toHaveBeenCalledTimes(1);
     // com a vez ainda ocupada, o cartão espera (e devolve a chave dele)
+    envelhecerCarimbos();
     expect((await descarregarPendentes()).motivo).toBe('vez_ocupada');
     liberarVez();
     const r = await descarregarPendentes();
@@ -324,14 +375,16 @@ describe('um aviso avulso por vez, o resto em cartão', () => {
     expect(claims().filter(c => c.value.estado === 'pendente')).toHaveLength(0);
     // outro cartão antes de 10 min: não sai
     liberarVez();
-    expect(await compra('v4')).toBe('enviado');
+    expect(await avulso('v4')).toBe('enviado');
     expect(await compra('v5')).toBe('pendente');
+    envelhecerCarimbos();
     expect((await descarregarPendentes()).motivo).toBe('cartao_recente');
   });
   it('o cartão também respeita a vez de 2 min e devolve a chave do cartão', async () => {
-    await compra('v1');
+    await avulso('v1');
     await compra('v2');
     tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'quiz_aviso_cartao_ultimo');
+    envelhecerCarimbos();
     expect((await descarregarPendentes()).motivo).toBe('vez_ocupada');
     expect(sendToGroup).toHaveBeenCalledTimes(1);
     // a chave do cartão foi devolvida: passados 2 min da vez, o cartão sai
@@ -339,30 +392,30 @@ describe('um aviso avulso por vez, o resto em cartão', () => {
     expect((await descarregarPendentes()).enviados).toBe(1);
   });
   it('teto de 12 por hora: o 13º aviso fica pendente mesmo com a vez livre', async () => {
-    for (let i = 0; i < 12; i++) { liberarVez(); expect(await compra(`t${i}`)).toBe('enviado'); }
+    for (let i = 0; i < 12; i++) { liberarVez(); expect(await avulso(`t${i}`)).toBe('enviado'); }
     liberarVez();
-    expect(await compra('t12')).toBe('pendente');
+    expect(await avulso('t12')).toBe('pendente');
     expect(sendToGroup).toHaveBeenCalledTimes(12);
   });
   it('linha com 40 envios na hora: o aviso espera', async () => {
-    for (let i = 0; i < 40; i++) tabelas.system_state!.push({ key: `linha_x:${i}`, value: {}, updated_at: agora() });
+    for (let i = 0; i < 40; i++) tabelas.system_state!.push({ key: `linha_x:${i}`, value: {}, updated_at: minAtras(5) });
     expect(await avisarDesistencia(lead())).toBe('pendente');
     expect(sendToGroup).not.toHaveBeenCalled();
   });
   it('cada envio físico deixa carimbo solardoc_aviso_sent:, e os carimbos entram na conta de 40 por hora', async () => {
-    expect(await compra('c1')).toBe('enviado');
+    expect(await avulso('c1')).toBe('enviado');
     expect(tabelas.system_state!.filter(r => r.key.startsWith('solardoc_aviso_sent:'))).toHaveLength(1);
     liberarVez();
-    await compra('c2');
-    await compra('c3');
+    await avulso('c2');
+    await avulso('c3');
     liberarVez();
     expect((await descarregarPendentes()).enviados).toBe(1);
     expect(tabelas.system_state!.filter(r => r.key.startsWith('solardoc_aviso_sent:'))).toHaveLength(3);
     // 38 envios próprios + 1 de outro robô = 39 (+ nada); com mais 1 chega a 40 e o próximo espera
     tabelas.system_state = tabelas.system_state!.filter(r => !r.key.startsWith('solardoc_aviso_sent:'));
-    for (let i = 0; i < 40; i++) tabelas.system_state!.push({ key: `solardoc_aviso_sent:x${i}`, value: {}, updated_at: agora() });
+    for (let i = 0; i < 40; i++) tabelas.system_state!.push({ key: `solardoc_aviso_sent:x${i}`, value: {}, updated_at: minAtras(5) });
     liberarVez();
-    expect(await compra('c9')).toBe('pendente');
+    expect(await avulso('c9')).toBe('pendente');
   });
 });
 
@@ -378,13 +431,13 @@ describe('linha pausada e trava do grupo', () => {
   });
   it('linhaEmCooldown("io") também segura o aviso e o cartão', async () => {
     emCooldown.mockReturnValue(true);
-    expect(await compra('p2')).toBe('pendente');
+    expect(await avulso('p2')).toBe('pendente');
     expect((await descarregarPendentes()).motivo).toBe('linha_caida');
     expect(sendToGroup).not.toHaveBeenCalled();
   });
   it('o primeiro 4xx grava a trava de 1 h: só e-mail nesse tempo, nada de nova tentativa no grupo', async () => {
     sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 400 — not a member'));
-    expect(await compra('q1')).toBe('falhou');
+    expect(await avulso('q1')).toBe('falhou');
     const trava = chave('quiz_aviso_trava');
     expect(trava).toBeDefined();
     expect(Date.parse(trava!.value.ate) - Date.now()).toBeGreaterThan(55 * 60_000);
@@ -400,11 +453,11 @@ describe('linha pausada e trava do grupo', () => {
   });
   it('429 e 408 não gravam a trava (pedem só espera)', async () => {
     sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 429 — slow down'));
-    expect(await compra('r1')).toBe('falhou');
+    expect(await avulso('r1')).toBe('falhou');
     expect(chave('quiz_aviso_trava')).toBeUndefined();
   });
   it('falha do cartão manda e-mail, devolve a vez e grava a trava no 4xx', async () => {
-    await compra('s1');
+    await avulso('s1');
     await compra('s2');
     liberarVez();
     sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 403 — nope'));
@@ -427,7 +480,7 @@ describe('desistência não espera 24 h: trava de 4xx e pausa da linha viram UM 
 
   it('o 4xx de verdade grava o status na trava', async () => {
     sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 400 — not a member'));
-    await compra('t0');
+    await avulso('t0');
     expect(chave('quiz_aviso_trava')!.value.status).toBe('400');
   });
   it('trava ativa: 1 e-mail na rodada, 0 envios ao grupo, itens marcados email; depois da trava, 0 envios para os mesmos itens', async () => {
@@ -509,7 +562,7 @@ describe('pendente com mais de 24 h não some calado', () => {
     expect(sendOpsAlert).toHaveBeenCalledTimes(1);
   });
   it('o tick esvazia os pendentes ANTES do QUIZ_DESISTENCIA_OFF', async () => {
-    await compra('d1');
+    await avulso('d1');
     await compra('d2');
     liberarVez();
     process.env.QUIZ_DESISTENCIA_OFF = '1';
@@ -520,7 +573,7 @@ describe('pendente com mais de 24 h não some calado', () => {
   });
   it('e antes do robô da Carla ligado', async () => {
     process.env.QUIZ_RECUPERACAO_LIGADA = '1';
-    await compra('e1');
+    await avulso('e1');
     await compra('e2');
     liberarVez();
     const r = await runSolardocQuizDesistenciaTick();
@@ -561,12 +614,31 @@ describe('tick de desistência', () => {
     tabelas.users!.push({ id: 'u1', whatsapp: '5521977776666', plano: 'ilimitado' });
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(1);
+    expect(r.tentativas).toBe(1);   // quem comprou não conta tentativa
     expect(sendToGroup.mock.calls[0]![1]).toContain('+55 (31) 95555-4444');
+    // quem comprou ganha o claim `comprou` (sem envio): a próxima rodada nem consulta sales e users
+    const comprou = claims().filter(c => c.value.estado === 'comprou');
+    expect(comprou).toHaveLength(3);
+    expect(comprou.every(c => /^quiz_aviso:[0-9a-f]{64}$/.test(c.key) && c.value.tipo === 'desistencia')).toBe(true);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    const r2 = await runSolardocQuizDesistenciaTick();
+    expect(r2.tentativas).toBe(0);
+    expect(claims().filter(c => c.value.estado === 'comprou')).toHaveLength(3);
   });
-  it('lead de teste não é avisado', async () => {
-    tabelas.leads_meta!.push(leadsMeta({ field_data: [{ name: 'utm_source', values: ['raio-x-teste'] }] }));
+  it('dry não grava o claim comprou', async () => {
+    tabelas.leads_meta!.push(leadsMeta({ lead_id: 'sdquiz_a', whatsapp: '5534999998888' }));
+    tabelas.sales!.push({ phone: '34999998888', attribution_session_id: null, created_at: agora() });
+    await runSolardocQuizDesistenciaTick({ dry: true });
+    expect(claims()).toHaveLength(0);
+  });
+  it('lead de teste não é avisado (pelo utm ou pelo campo teste=sim)', async () => {
+    tabelas.leads_meta!.push(
+      leadsMeta({ lead_id: 'sdquiz_t1', field_data: [{ name: 'utm_source', values: ['raio-x-teste'] }] }),
+      leadsMeta({ lead_id: 'sdquiz_t2', whatsapp: '5511988887777', field_data: [{ name: 'teste', values: ['sim'] }] }),
+    );
     expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
     expect(sendToGroup).not.toHaveBeenCalled();
+    expect(claims()).toHaveLength(0);
   });
   it('com o robô da Carla ligado o tick só descarrega pendentes (o robô avisa)', async () => {
     process.env.QUIZ_RECUPERACAO_LIGADA = '1';
@@ -630,6 +702,185 @@ describe('tick de desistência', () => {
     // segunda rodada: ninguém novo, nenhum e-mail
     await runSolardocQuizDesistenciaTick();
     expect(sendOpsAlert).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('B1.2: espaçamento, erro de linha, teto do cartão, claim velho, emoji', () => {
+  const erroLinha = () => chave('ag5040_linha_erros');
+  const pausa = () => chave('ag5040_linha_pausa');
+
+  it('espaçamento: o último envio da linha há 10 s deixa o aviso pendente (sem sleep e sem gastar a vez); há 2 min, envia', async () => {
+    tabelas.system_state!.push({ key: 'linha_x:1', value: {}, updated_at: new Date(Date.now() - 10_000).toISOString() });
+    const t0 = Date.now();
+    expect(await avulso('e1')).toBe('pendente');
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso_vez')).toBeUndefined();
+    tabelas.system_state!.find(r => r.key === 'linha_x:1')!.updated_at = new Date(Date.now() - 2 * 60_000).toISOString();
+    expect(await avulso('e2')).toBe('enviado');
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+  });
+  it('espaçamento: vale também para a agenda (PREFIXOS_AGENDA) e para o carimbo do próprio módulo', async () => {
+    tabelas.system_state!.push({ key: 'agenda_x:9', value: {}, updated_at: new Date(Date.now() - 10_000).toISOString() });
+    expect(await avulso('e3')).toBe('pendente');
+    tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'agenda_x:9');
+    expect(await avulso('e4')).toBe('enviado');            // o carimbo novo é do módulo
+    liberarVez(); tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'quiz_aviso_vez');
+    tabelas.system_state!.find(r => r.key.startsWith('solardoc_aviso_sent:'))!.updated_at = new Date(Date.now() - 10_000).toISOString();
+    expect(await avulso('e5')).toBe('pendente');
+  });
+  it('o sorteio de 0 a 35 s entra: com o sorteio no máximo, 40 s ainda é cedo; sem sorteio, passa', async () => {
+    tabelas.system_state!.push({ key: 'linha_x:1', value: {}, updated_at: new Date(Date.now() - 40_000).toISOString() });
+    const sorteio = vi.spyOn(TEMPOS_AVISO, 'sorteio').mockReturnValue(35_000);
+    expect(await avulso('e6')).toBe('pendente');
+    sorteio.mockReturnValue(0);
+    expect(await avulso('e7')).toBe('enviado');
+    sorteio.mockRestore();
+  });
+  it('espaçamento: leitura que falha vale como "ainda não" (pendente)', async () => {
+    falhaSelect = q => q.ordenada && q.max === 1 && q.or.includes('solardoc_aviso_sent:');
+    expect(await avulso('e8')).toBe('pendente');
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+  it('o cartão também espera o espaçamento e não gasta a chave dele', async () => {
+    await compra('g1');
+    tabelas.system_state!.push({ key: 'linha_x:1', value: {}, updated_at: new Date(Date.now() - 10_000).toISOString() });
+    expect((await descarregarPendentes()).motivo).toBe('linha_espacando');
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso_cartao_ultimo')).toBeUndefined();
+    expect(chave('quiz_aviso_vez')).toBeUndefined();
+    tabelas.system_state!.find(r => r.key === 'linha_x:1')!.updated_at = minAtras(2);
+    expect((await descarregarPendentes()).enviados).toBe(1);
+  });
+
+  it('erro de linha 2 vezes seguidas grava a pausa de 15 min; o 1º só conta', async () => {
+    sendToGroup.mockRejectedValue(new Error('[zapi:io] HTTP 503 — fora'));
+    expect(await avulso('f1')).toBe('falhou');
+    expect(erroLinha()!.value.n).toBe(1);
+    expect(pausa()).toBeUndefined();
+    liberarVez();
+    expect(await avulso('f2')).toBe('falhou');
+    expect(erroLinha()!.value.n).toBe(2);
+    expect(pausa()).toBeDefined();
+    const ate = Date.parse(pausa()!.value.ate) - Date.now();
+    expect(ate).toBeGreaterThan(14 * 60_000);
+    expect(ate).toBeLessThanOrEqual(15 * 60_000);
+    expect(chave('quiz_aviso_trava')).toBeUndefined();
+  });
+  it('timeout e instância fora também são erro de linha', async () => {
+    sendToGroup.mockRejectedValueOnce(new Error('timeout'));
+    await avulso('f3');
+    expect(erroLinha()!.value.n).toBe(1);
+  });
+  it('envio ok zera a conta de erros seguidos', async () => {
+    sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 500 — fora'));
+    expect(await avulso('f4')).toBe('falhou');
+    expect(erroLinha()!.value.n).toBe(1);
+    liberarVez();
+    expect(await avulso('f5')).toBe('enviado');
+    expect(erroLinha()!.value.n).toBe(0);
+    liberarVez();
+    sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 500 — fora'));
+    await avulso('f6');
+    expect(erroLinha()!.value.n).toBe(1);
+    expect(pausa()).toBeUndefined();
+  });
+  it('4xx de destino arma SÓ a trava de 1 h: não conta erro de linha nem pausa a linha', async () => {
+    sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 400 — not a member'));
+    expect(await avulso('h1')).toBe('falhou');
+    expect(chave('quiz_aviso_trava')).toBeDefined();
+    expect(erroLinha()).toBeUndefined();
+    expect(pausa()).toBeUndefined();
+  });
+  it('o carimbo de um envio que falhou fica (5xx e 4xx), e conta no espaçamento', async () => {
+    sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 502 — fora'));
+    await avulso('i1');
+    expect(tabelas.system_state!.filter(r => r.key.startsWith('solardoc_aviso_sent:'))).toHaveLength(1);
+    liberarVez();
+    sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 400 — nope'));
+    await avulso('i2');
+    expect(tabelas.system_state!.filter(r => r.key.startsWith('solardoc_aviso_sent:'))).toHaveLength(2);
+  });
+  it('o cartão que falha por erro de linha conta nos 2 seguidos; o ok zera', async () => {
+    await compra('j1');
+    sendToGroup.mockRejectedValueOnce(new Error('[zapi:io] HTTP 503 — fora'));
+    expect((await descarregarPendentes()).motivo).toBe('falhou');
+    expect(erroLinha()!.value.n).toBe(1);
+    expect(tabelas.system_state!.filter(r => r.key.startsWith('solardoc_aviso_sent:'))).toHaveLength(1);
+  });
+
+  it('o cartão não sai com a linha em 40 por hora (e não gasta a chave do cartão)', async () => {
+    await compra('k1'); await compra('k2');
+    for (let i = 0; i < 40; i++) tabelas.system_state!.push({ key: `linha_x:${i}`, value: {}, updated_at: minAtras(5) });
+    const r = await descarregarPendentes();
+    expect(r.motivo).toBe('linha_cheia');
+    expect(r.enviados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso_cartao_ultimo')).toBeUndefined();
+    expect(claims().every(c => c.value.estado === 'pendente')).toBe(true);
+  });
+  it('o cartão não sai com erro de leitura do teto da linha (conta como linha cheia)', async () => {
+    await compra('k3');
+    falhaSelect = q => q.max === 41;   // a leitura dos envios da linha na hora
+    const r = await descarregarPendentes();
+    expect(r.motivo).toBe('linha_cheia');
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave('quiz_aviso_cartao_ultimo')).toBeUndefined();
+    falhaSelect = null;
+    expect((await descarregarPendentes()).enviados).toBe(1);
+  });
+  it('o aviso avulso também fica pendente com erro de leitura do teto (dos 12 por hora ou da linha)', async () => {
+    falhaSelect = q => q.max === 41;
+    expect(await avulso('k4')).toBe('pendente');
+    liberarVez();
+    falhaSelect = q => q.max === 200 && !q.ordenada;   // os avisos da última hora
+    expect(await avulso('k5')).toBe('pendente');
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+  it('o teto de 12 avulsos por hora NÃO vale para o cartão', async () => {
+    for (let i = 0; i < 12; i++) tabelas.system_state!.push({ key: `quiz_aviso:enviado${i}`, value: { estado: 'enviado' }, updated_at: minAtras(10) });
+    await compra('k6');
+    expect((await descarregarPendentes()).enviados).toBe(1);
+  });
+
+  it('claim parado em `novo` há mais de 10 min vale como pendente e sai no cartão; o de 5 min não', async () => {
+    tabelas.system_state!.push(
+      { key: 'quiz_aviso:velho', value: { tipo: 'desistencia', estado: 'novo', texto: '🔔 Aviso velho' }, updated_at: minAtras(11) },
+      { key: 'quiz_aviso:fresco', value: { tipo: 'desistencia', estado: 'novo', texto: '🔔 Aviso fresco' }, updated_at: minAtras(5) },
+      { key: 'quiz_aviso:semtexto', value: { tipo: 'desistencia', estado: 'novo' }, updated_at: minAtras(30) },
+    );
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(1);
+    expect(sendToGroup.mock.calls[0]![1]).toBe('🔔 Aviso velho');
+    expect(chave('quiz_aviso:velho')!.value.estado).toBe('enviado_cartao');
+    expect(chave('quiz_aviso:fresco')!.value.estado).toBe('novo');
+    expect(chave('quiz_aviso:semtexto')!.value.estado).toBe('novo');
+  });
+  it('o claim novo já nasce com o texto', async () => {
+    let visto = '';
+    sendToGroup.mockImplementationOnce(async () => { visto = String(chave(claims()[0]!.key)?.value.texto); return { messageId: 'm' }; });
+    await avulso('l1');
+    expect(visto).toContain('Desistência no quiz');
+  });
+
+  it('o cartão tem emoji só na primeira linha: o dos avisos cai fora (todos os 6 modelos)', async () => {
+    const modelos = Object.keys(MODELOS) as ModeloAviso[];
+    modelos.forEach((m, i) => tabelas.system_state!.push({
+      key: `compra_aviso:em${i}`, value: { tipo: 'compra_cartao', estado: 'pendente', texto: montarAviso(m, { nome_completo: `Pessoa ${i}`, valor: 67 }) }, updated_at: minAtras(30 - i),
+    }));
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(modelos.length);
+    const linhas = String(sendToGroup.mock.calls[0]![1]).split('\n');
+    expect(linhas[0]).toMatch(/^📋 6 avisos/);
+    expect(linhas.slice(1).join('\n')).not.toMatch(/\p{Extended_Pictographic}/u);
+    for (let i = 0; i < modelos.length; i++) expect(linhas.join('\n')).toContain(`Pessoa ${i}`);
+    expect(linhas.join('\n')).toContain('Desistência no quiz');
+    expect(linhas.join('\n')).toContain('Compra no cartão (Stripe)');
+  });
+  it('um aviso só sai do jeito que foi montado (com o emoji dele)', async () => {
+    await compra('m1');
+    await descarregarPendentes();
+    expect(sendToGroup.mock.calls[0]![1]).toMatch(/^✅ Compra no cartão/);
   });
 });
 

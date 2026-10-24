@@ -322,7 +322,8 @@ async function avisarThiagoDaVenda(v: VendaAviso): Promise<'enviado' | 'email'> 
 /**
  * Grupo de vendas do SolarDoc (plano B1): um aviso a mais, só com plano ativo e só para venda nova. Recompra de quem já
  * comprou (historico 'recorrente') fica só com o Thiago, que carrega o alerta de cobrança dupla. Cartão em teste grátis
- * (`cobrouAgora` falso) sai como assinatura em teste, nunca como pagamento confirmado. Nunca lança.
+ * (`cobrouAgora` falso) sai como assinatura em teste, nunca como pagamento confirmado. O e-mail do cliente NÃO é passado: nunca vai
+ * no texto do grupo. A compra só reivindica o claim; quem envia ao grupo é o tick (`descarregarPendentes`). Nunca lança.
  */
 async function avisarGrupoDaVenda(saleId: string | null, v: VendaAviso): Promise<void> {
   if (!v.planoAtivo || v.historico?.tipo === 'recorrente') return;
@@ -332,7 +333,7 @@ async function avisarGrupoDaVenda(saleId: string | null, v: VendaAviso): Promise
     if (!id) { logger.error('venda-aviso', 'venda sem id único: aviso ao grupo de vendas pulado'); return; }
     await avisarCompra({
       id, canal: 'cartao', planoAtivo: true, emTeste: !v.cobrouAgora, valor: v.valor,
-      nome: v.nome, email: v.email, telefone: v.phone, lpSession: v.lpSession, origemQuiz: v.origemQuiz, utmSource: v.utmSource,
+      nome: v.nome, telefone: v.phone, lpSession: v.lpSession, origemQuiz: v.origemQuiz, utmSource: v.utmSource,
     });
   } catch (err) {
     logger.error('venda-aviso', 'aviso ao grupo de vendas falhou (o do Thiago já saiu)', err);

@@ -39,9 +39,9 @@ import { logger } from '../../utils/logger';
 import { sendHuman, linhaEmCooldown } from '../agents/zapiClient';
 import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
 import { chaveContato, estaBloqueado, motivosDaSupressao } from '../agents/whatsapp/silenciar';
-import { prefixosDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
+import { prefixosDaLinha, PREFIXOS_AGENDA, PREFIXOS_RESPOSTA_AGENTES } from '../agents/whatsapp/lineThrottle';
 import { hmacDe, idChaveHmac } from './hmac';
-import { codigoDoErroDeEnvio, erroEhDoDestino, CHAVE_LINHA_PAUSA, CHAVE_LINHA_ERROS, PREFIXO_FICHA, LIMITES as LIMITES_VIVO } from './vivoEnvio';
+import { codigoDoErroDeEnvio, erroEhDoDestino, CHAVE_LINHA_PAUSA, CHAVE_LINHA_ERROS, LIMITES as LIMITES_VIVO } from './vivoEnvio';
 import { erroProvaQueNaoSaiu } from './fichaEnvio';
 import { marcarBoasVindasEnviada } from './agendaSolar';
 import { horaBRT } from './relogio';
@@ -333,8 +333,8 @@ async function linhaCaida(agora: number): Promise<'sim' | 'nao' | 'erro'> {
   return Number.isFinite(ate) && ate > agora ? 'sim' : 'nao';
 }
 
-/** Tudo que a linha conta: o prefixosDaLinha() do HEAD, a agenda, as respostas das agentes e a ficha ao consultor (sem repetir). */
-const prefixosDeEnvioDaLinha = (): string[] => [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, PREFIXO_CARIMBO_AGENTES, PREFIXO_FICHA])];
+/** Tudo que a linha conta: o prefixosDaLinha() do HEAD, a agenda, o balde das respostas das agentes (ag5040_sent:, ficha_lead:, solardoc_aviso_sent:) (sem repetir). */
+const prefixosDeEnvioDaLinha = (): string[] => [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, ...PREFIXOS_RESPOSTA_AGENTES])];
 
 /** Quando saiu o último envio de QUALQUER robô da linha (no banco). null = não deu para ler. */
 async function ultimoEnvioEm(): Promise<number | null | 'nenhum'> {

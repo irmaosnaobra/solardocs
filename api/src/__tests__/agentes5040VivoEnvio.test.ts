@@ -128,7 +128,7 @@ vi.mock('../services/agents/whatsapp/roboDoOutroLado', () => ({
 }));
 
 import { enviarResposta, codigoDoErroDeEnvio, TEMPOS, CHAVE_LINHA_PAUSA, CHAVE_LINHA_ERROS, type PedidoEnvio } from '../services/agentes5040/vivoEnvio';
-import { prefixosDaLinha, PREFIXOS_AGENDA } from '../services/agents/whatsapp/lineThrottle';
+import { prefixosDaLinha, PREFIXOS_AGENDA, PREFIXOS_RESPOSTA_AGENTES } from '../services/agents/whatsapp/lineThrottle';
 import { sendHuman, sendImage } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 import { gerarPixCopiaECola } from '../utils/pixBrCode';
@@ -434,6 +434,16 @@ describe('vivoEnvio: os tetos', () => {
     h.estado.clear(); (sendHuman as any).mockClear();
     semear('limpapro_recovery:', 30, 20 * MIN);
     semear('ficha_lead:', 30, 20 * MIN);
+    expect(await enviarResposta(pedido(), AGORA)).toMatchObject({ ok: false, motivo: 'teto_linha', detalhe: 'hora:60' });
+    expect(chamadas()).toBe(0);
+  });
+
+  it('o carimbo do aviso ao grupo do SolarDoc (solardoc_aviso_sent:) pesa no teto de emergência da linha (59 passam, 60 barram)', async () => {
+    expect(PREFIXOS_RESPOSTA_AGENTES).toContain('solardoc_aviso_sent:');
+    semear('solardoc_aviso_sent:', 59, 20 * MIN);
+    expect((await enviarResposta(pedido(), AGORA)).ok).toBe(true);
+    h.estado.clear(); (sendHuman as any).mockClear();
+    semear('solardoc_aviso_sent:', 60, 20 * MIN);
     expect(await enviarResposta(pedido(), AGORA)).toMatchObject({ ok: false, motivo: 'teto_linha', detalhe: 'hora:60' });
     expect(chamadas()).toBe(0);
   });

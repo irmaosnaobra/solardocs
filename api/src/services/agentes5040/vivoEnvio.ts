@@ -44,7 +44,7 @@ import { sendHuman, sendImage, linhaEmCooldown } from '../agents/zapiClient';
 import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
 import { chaveContato, estaBloqueado, motivosDaSupressao } from '../agents/whatsapp/silenciar';
 import { pareceRoboDeles, temRoboAtendendo, marcarRoboDoOutroLado } from '../agents/whatsapp/roboDoOutroLado';
-import { prefixosDaLinha, PREFIXOS_AGENDA } from '../agents/whatsapp/lineThrottle';
+import { prefixosDaLinha, PREFIXOS_AGENDA, PREFIXOS_RESPOSTA_AGENTES } from '../agents/whatsapp/lineThrottle';
 import { classificarErroEnvio } from '../chefe/decidir';
 import { crc16 } from '../../utils/pixBrCode';
 
@@ -363,7 +363,7 @@ export async function enviarResposta(p: PedidoEnvio, agora: Date = new Date()): 
   // carimbos das agentes + as fichas), na mesma ordem de sempre. Confere contador + n <= limite, com n = 1 + tem peça
   // (a imagem também é 1 mensagem física). Nem a bolha cabe (contador >= limite) = recusa. A bolha cabe mas a peça
   // não, em qualquer um dos 4 = a peça cai e a bolha sai sozinha.
-  const prefixosLinha = [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, PREFIXO_CARIMBO, PREFIXO_FICHA])];
+  const prefixosLinha = [...new Set([...prefixosDaLinha(), ...PREFIXOS_AGENDA, ...PREFIXOS_RESPOSTA_AGENTES])];
   const tetos: Array<{ motivo: 'teto_agentes' | 'teto_linha'; prefixos: string[]; janelaMs: number; limite: number; nome: 'hora' | 'dia' }> = [
     { motivo: 'teto_agentes', prefixos: [PREFIXO_CARIMBO], janelaMs: HORA_MS, limite: LIMITES.tetoAgentesHora, nome: 'hora' },
     { motivo: 'teto_agentes', prefixos: [PREFIXO_CARIMBO], janelaMs: DIA_MS, limite: LIMITES.tetoAgentesDia, nome: 'dia' },

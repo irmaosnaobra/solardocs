@@ -468,8 +468,8 @@ describe('agendaEnvio: o que para o envio', () => {
     expect(esperas).toEqual([]);
   });
 
-  it('espaçamento vale contra QUALQUER envio da linha (agenda do eletroposto, Giovanna, aviso, ficha)', async () => {
-    for (const [prefixo, ms, esperado] of [['ep_agenda_sent:', 3_000, 22_000], ['solar_giovanna_sent:', 8_000, 17_000], ['aviso_sent:', 5_000, 20_000], ['ficha_lead:', 1_000, 24_000]] as const) {
+  it('espaçamento vale contra QUALQUER envio da linha (agenda do eletroposto, Giovanna, aviso, ficha, aviso ao grupo do SolarDoc)', async () => {
+    for (const [prefixo, ms, esperado] of [['ep_agenda_sent:', 3_000, 22_000], ['solar_giovanna_sent:', 8_000, 17_000], ['aviso_sent:', 5_000, 20_000], ['ficha_lead:', 1_000, 24_000], ['solardoc_aviso_sent:', 4_000, 21_000]] as const) {
       h.estado.clear(); esperas.length = 0;
       h.estado.set(`${prefixo}x:1`, { value: {}, updated_at: ant(ms) });
       await enfileirarAgenda(pedido(), AGORA);

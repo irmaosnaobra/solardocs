@@ -133,6 +133,8 @@ vi.mock('../services/kitIntegradorService', () => ({ concederCursoPorAssinatura:
 vi.mock('../services/dunningService', () => ({ cancelStripeSubsForEmail: vi.fn(async () => 1) }));
 // Grupo de vendas do SolarDoc (24/10/2026): o aviso ao grupo é UM A MAIS; aqui só se confere QUANDO ele é pedido.
 const grupo = vi.hoisted(() => ({ avisarCompra: vi.fn(async (_c: unknown) => 'enviado') }));
+const mailer = vi.hoisted(() => ({ sendOpsAlert: vi.fn(async (..._a: unknown[]) => undefined) }));
+vi.mock('../utils/mailer', async (orig) => ({ ...(await orig<typeof import('../utils/mailer')>()), sendOpsAlert: mailer.sendOpsAlert }));
 vi.mock('../services/solardoc/avisoGrupoSolardoc', async (orig) => ({ ...(await orig<typeof import('../services/solardoc/avisoGrupoSolardoc')>()), avisarCompra: grupo.avisarCompra }));
 
 import { sendHuman, sendWhatsApp } from '../services/agents/zapiClient';
@@ -629,9 +631,31 @@ describe('grupo de vendas do SolarDoc: um aviso a mais, o Thiago sempre recebe',
     expect(thiago().length).toBeGreaterThan(0);
     expect(grupo.avisarCompra).toHaveBeenCalledTimes(1);
     const c = grupo.avisarCompra.mock.calls[0]![0] as Record<string, any>;
-    expect(c).toMatchObject({ canal: 'comprovante', planoAtivo: true, valor: 67, email: USER.email });
+    expect(c).toMatchObject({ canal: 'comprovante', planoAtivo: true, valor: 67 });
+    expect(c.email).toBeUndefined();   // o e-mail do cliente nunca vai ao grupo
     expect(c.id).toMatch(/^pix:[^:]+/);
     expect(c.id).not.toMatch(/null|undefined/);
+  });
+  it('o alerta "acima de 67" sai ANTES do aviso ao grupo e não depende dele (o grupo lança e o alerta já saiu)', async () => {
+    const ordem: string[] = [];
+    (sendWhatsApp as any).mockImplementation(async (_t: string, txt: string) => { if (String(txt).includes('acima de 67')) ordem.push('alerta'); });
+    grupo.avisarCompra.mockImplementationOnce(async () => { ordem.push('grupo'); throw new Error('grupo fora'); });
+    leitura = P70;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(ordem).toEqual(['alerta', 'grupo']);
+    (sendWhatsApp as any).mockImplementation(async () => {});
+  });
+  it('o alerta "acima de 67" que falha no WhatsApp não é engolido: vai por e-mail e o aviso ao grupo segue', async () => {
+    mailer.sendOpsAlert.mockClear();
+    (sendWhatsApp as any).mockImplementation(async (_t: string, txt: string) => { if (String(txt).includes('acima de 67')) throw new Error('zapi fora'); });
+    leitura = P70;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(mailer.sendOpsAlert).toHaveBeenCalledTimes(1);
+    expect(String(mailer.sendOpsAlert.mock.calls[0]![1])).toContain('acima de 67');
+    expect(grupo.avisarCompra).toHaveBeenCalledTimes(1);
+    (sendWhatsApp as any).mockImplementation(async () => {});
   });
   it('renovação (conta que já tinha vencimento): o Thiago recebe, o grupo não', async () => {
     db.users[0] = { ...u(), plano: 'ilimitado', billing_status: 'active', plano_expira_em: '2026-10-25T00:00:00Z' };

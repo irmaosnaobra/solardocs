@@ -306,7 +306,7 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
         await avisarCompra({
           id, canal: 'asaas', planoAtivo: true,
           valor: Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor),
-          nome: nomeDoCliente, email: linha.email, telefone: whatsDoCliente,
+          nome: nomeDoCliente, telefone: whatsDoCliente,
         });
       }
     } catch (err) {

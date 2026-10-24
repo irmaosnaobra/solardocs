@@ -647,7 +647,7 @@ export async function avisarCompraNoGrupo(
     }
     await avisarCompra({
       id, canal: 'comprovante', planoAtivo: true,
-      valor, email: user.email, telefone: cleanPhone,
+      valor, telefone: cleanPhone,
     });
   } catch (err) {
     logger.error('pix-comprovante', 'aviso ao grupo de vendas falhou (aviso ao Thiago já saiu)', err);
@@ -809,10 +809,22 @@ export async function aplicarPagamentoPix(a: {
     await a.aposLiberar?.();
     await a.confirmar({ venc, total, alvo, entrada: false });
     await avisar(a.statusThiago({ venc, total }));
-    await avisarCompraNoGrupo(user, pag, cleanPhone, total);
+    // O alerta de "acima de 67" é do Thiago e vem ANTES do aviso ao grupo: não depende dele e, ao contrário do `avisar` (cujo
+    // .catch calado engole o erro), uma falha aqui fica no log e vai por e-mail. Nunca lança: o aviso ao grupo segue.
     if (emCentavos(total) > CENT_RENOVACAO + 100) {
-      await avisar(`⚠️ Pagou R$ ${valorBr(total)}, acima de 67. Confere se sobrou valor a devolver ou se é pagamento de outro produto da Aioros.`);
+      const alerta = `⚠️ Pagou R$ ${valorBr(total)}, acima de 67. Confere se sobrou valor a devolver ou se é pagamento de outro produto da Aioros.`;
+      try {
+        // Texto puro, direto: o comprovante já foi encaminhado no aviso de status acima, e o notificarThiago engole o erro do texto.
+        await sendWhatsApp(THIAGO_PHONE, `*Pix de ${user.email}* (${cleanPhone}): ${alerta}`, 'solardoc');
+      } catch (err) {
+        logger.error('pix-comprovante', `alerta de pagamento acima de 67 não chegou ao Thiago (${user.email})`, err);
+        try {
+          const { sendOpsAlert } = await import('../../../utils/mailer');
+          await sendOpsAlert('Pix acima de 67: o alerta ao Thiago falhou', `<p>${alerta}</p><p>Cliente: ${user.email}</p>`);
+        } catch (e2) { logger.error('pix-comprovante', 'e-mail do alerta acima de 67 também falhou', e2); }
+      }
     }
+    await avisarCompraNoGrupo(user, pag, cleanPhone, total);
     logger.info('pix-comprovante', `AUTO-liberado (${a.via}) ${user.email} total ${brl(total)} vence ${venc.toISOString()}`);
     return aceito({ resultado: 'liberou', venc, total, restante: 0 });
   }

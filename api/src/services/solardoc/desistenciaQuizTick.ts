@@ -38,7 +38,7 @@ import { hmacDe } from '../agentes5040/hmac';
 import { normalizarTelefoneSd, chaveDoTelefone } from './quizSolardoc';
 import { montarAviso } from './avisoGrupoTextos';
 import {
-  avisarDesistencia, camposDoLead, campoDe, descarregarPendentes, ehLeadDeTeste, emailResumoSemGrupo, emailResumoParada, paradaDoGrupo,
+  avisarDesistencia, camposDoLead, campoDe, descarregarPendentes, ehLeadDeTeste, emailResumoSemGrupo, emailResumoParada, marcarComprou, paradaDoGrupo,
   PREFIXO_CLAIM_QUIZ, type LeadQuizLinha, type ParadaDoGrupo,
 } from './avisoGrupoSolardoc';
 
@@ -150,8 +150,9 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
         const tel = normalizarTelefoneSd(l.whatsapp) as string;
         const chave = chaveDoTelefone(tel);
         const lp = campoDe(l.field_data, 'lp_session');
-        if ((lp && vendas.sessoes.has(lp)) || vendas.chaves.has(chave)) continue;
-        try { if (await temPlanoPago(chave)) continue; } catch (e) {
+        // Quem comprou ganha o claim `comprou` (sem envio e sem contar tentativa): a próxima rodada pula sem consultar `sales` e `users`.
+        if ((lp && vendas.sessoes.has(lp)) || vendas.chaves.has(chave)) { if (!opts.dry) await marcarComprou(h); continue; }
+        try { if (await temPlanoPago(chave)) { if (!opts.dry) await marcarComprou(h); continue; } } catch (e) {
           logger.warn('solardoc-aviso', 'conferir plano do lead falhou: pulado', { erro: String(e) });
           continue;
         }
