@@ -49,7 +49,7 @@ describe('terceiro balde: ag5040_sent: e ficha_lead:', () => {
       expect(prefixosDaLinha()).not.toContain(p);
       expect(prefixosTotalDaLinha()).toContain(p);
     }
-    expect(prefixosTotalDaLinha().length).toBe(prefixosDaLinha().length + 3);
+    expect(prefixosTotalDaLinha().length).toBe(prefixosDaLinha().length + 4);
     const { PREFIXOS_AGENDA } = await carregar();
     for (const p of PREFIXOS_RESPOSTA_AGENTES) expect([...PREFIXOS_AGENDA]).not.toContain(p);
   });

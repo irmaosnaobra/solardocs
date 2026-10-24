@@ -882,7 +882,7 @@ describe('anti-ban: o carimbo entra nos tetos de 60/hora e 450/24 h da linha', (
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const fonte = readFileSync(join(__dirname, '../services/agentes5040/vivoEnvio.ts'), 'utf8');
-    expect(fonte).toContain('PREFIXO_CARIMBO, ...PREFIXOS_RESPOSTA_AGENTES])]');
+    expect(fonte).toContain('...PREFIXOS_AGENDA, ...PREFIXOS_RESPOSTA_AGENTES])]');
     const { PREFIXOS_RESPOSTA_AGENTES } = await import('../services/agents/whatsapp/lineThrottle');
     expect([...PREFIXOS_RESPOSTA_AGENTES]).toContain('solar_quiz_env:');
   });
