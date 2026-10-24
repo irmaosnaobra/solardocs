@@ -140,6 +140,19 @@ export const funilEletropostoLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Quiz solar (24/10/2026): /quiz/agora e /quiz/agendar CRIAM card da Nilce. Por IP, 20 por hora (CGNAT de celular divide IP, então
+// não é 10), para ninguém encher a agenda com celulares aleatórios. Fora dos testes; a sonda com `teste:true` e o header de segredo
+// também fica fora (a rota devolve 401 para segredo errado, então o header não abre nada). QUIZ_CARD_MAX_HORA ajusta sem deploy.
+export const quizCardLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: Number(process.env.QUIZ_CARD_MAX_HORA || 20),
+  message: { ok: false, error: 'muitas tentativas' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => (process.env.NODE_ENV === 'test' && process.env.QUIZ_CARD_LIMITE_NO_TESTE !== '1')
+    || ((req.body as { teste?: unknown } | undefined)?.teste === true && !!req.headers['x-cron-secret']),
+});
+
 // Envio de anexos da venda (upload-url e registro): 400 a cada 15 min por PESSOA, depois do `exigeConsultor` (chave = e-mail
 // do consultor já validado; quem não tem login é barrado antes, pelo docsEnvioIpLimiter). Um lote de 100 fotos são ~200 pedidos, e o global não conta estes.
 // Roda DEPOIS do `exigeConsultor`, então o consultor sempre existe; quem não tem login nunca chega aqui (é o `docsEnvioIpLimiter`).

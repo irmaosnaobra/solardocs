@@ -1,8 +1,9 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
-import { gravarCardSolar } from '../services/agentes5040/agendaSolar';
+import { gravarCardSolar, type CardGravado } from '../services/agentes5040/agendaSolar';
 import { logger } from '../utils/logger';
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
@@ -14,11 +15,18 @@ import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { lerPaginado } from '../utils/lerPaginado';
 import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
-import { SOCIOS_VISITA, DONAS_LIGACAO, caminhoDaFicha, donoDaFaixa } from '../services/agenda/solarRota';
+import { SOCIOS_VISITA, DONAS_LIGACAO, DONA_SOLAR, PONTOS_CURIOSO, caminhoDaFicha, decidirCaminho } from '../services/agenda/solarRota';
 import {
-  limparRespostas, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
-  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, type Ocupacao, type Respostas, type FichaDoAviso,
+  limparRespostas, limparRespostasExtra, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
+  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, calcularDiagnostico, horarioAgoraAberto, quandoDoAgora,
+  type Ocupacao, type Respostas, type RespostasExtra, type FichaDoAviso, type Diagnostico,
 } from '../services/io/solarQuiz';
+import { EQUIPE, TEL_AVISO } from '../services/io/solarEquipe';
+import {
+  avisarAgora, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken,
+} from '../services/io/solarQuizAviso';
+import { quizCardLimiter } from '../middleware/rateLimiter';
+import { paginaFalei, TEXTOS_FALEI, horaBonita, type DadosDaFicha, type OndeSaiu } from '../services/io/solarQuizTextos';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -36,12 +44,9 @@ const router = Router();
 
 // Exportada porque o solarRespostas.ts precisa do número do dono (thiago) como
 // rede: quando a ficha não tem consultor com WhatsApp cadastrado, a resposta do
-// cliente ainda tem que cair na mão de alguém.
-export const EQUIPE: Record<string, string> = {
-  nilce: '34991516846',
-  thiago: '34991360223',
-  diego: '34991360172',
-};
+// cliente ainda tem que cair na mão de alguém. Os números moram em solarEquipe.ts
+// (24/10/2026), para os services do quiz não importarem esta rota.
+export { EQUIPE, TEL_AVISO };
 
 const JANELA_MS = 10 * 60 * 1000;
 const jaAvisado = new Set<number>();
@@ -338,17 +343,15 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
 // Leads do Gerador já enxerga o quiz e não precisou de migração no banco.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Telefone de quem recebe o aviso da ficha do quiz. O EQUIPE daqui (o do solar,
- *  não o de ioEletroposto.ts) já traz a Nilce, o Thiago e o Diego. A Giovanna
- *  continua listada para o card antigo dela, mas não recebe mais lead novo. */
-export const TEL_AVISO: Record<string, string> = { ...EQUIPE, giovanna: '34993396255' };
+// TEL_AVISO (solarEquipe.ts): o telefone de quem recebe o aviso da ficha do quiz. Traz a Nilce, o
+// Thiago e o Diego; a Giovanna continua listada para o card antigo dela, mas não recebe lead novo.
 const DONOS_QUIZ = [...SOCIOS_VISITA, ...DONAS_LIGACAO] as string[];
 const FORM_QUIZ = 'quiz_solar';
 
 /** De quem é este telefone, e se ele já tem horário de solar marcado. */
-async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMarcado: { quando: string; dono: string } | null }> {
+async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMarcado: { quando: string; dono: string } | null; agoraRecente: { id: number; quando: string } | null }> {
   const { data, error } = await supabaseGerador.from('agendamentos')
-    .select('vendedor_nome, cliente_telefone, quando, status, created_by')
+    .select('id, vendedor_nome, cliente_telefone, quando, status, created_by, created_at, observacao')
     .neq('status', 'cancelado')
     .ilike('cliente_telefone', `%${alvo.slice(-8)}`)
     .order('quando', { ascending: false }).limit(20);
@@ -369,6 +372,10 @@ async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMa
     // e levava "não consegui agendar" no clique.
     dono: nome && DONOS_QUIZ.includes(nome) ? nome : null,
     jaMarcado: futuro ? { quando: String(futuro.quando), dono: String(futuro.vendedor_nome || '') } : null,
+    // O clique "agora" repetido (duplo toque, página reaberta): o card de poucos minutos atrás vale, não nasce outro.
+    agoraRecente: futuro && /^LP SOLAR QUIZ · AGORA/i.test(String(futuro.observacao || ''))
+      && Date.now() - new Date(String(futuro.created_at)).getTime() < 30 * 60_000
+      ? { id: Number(futuro.id), quando: String(futuro.quando) } : null,
   };
 }
 
@@ -425,15 +432,23 @@ async function gravarLead(leadId: string, campos: Record<string, unknown>): Prom
   }
 }
 
-function lerEntrada(b: Record<string, unknown>): { nome: string; tel: string; alvo: string | null; resp: Respostas; erro?: string } {
+/** Celular com DDD → '55' + 11 dígitos (o 9 depois do DDD é obrigatório; fixo não passa). Tira o 55 ou o 0 da frente só
+ *  se sobrarem 10 ou 11 dígitos, para não comer o começo de um número que só parece ter prefixo. */
+export function normalizarCelular(raw: unknown): string | null {
+  const d = soDigitosSolar(raw).replace(/^(?:55|0)(?=\d{10,11}$)/, '');
+  return d.length === 11 && d[2] === '9' ? `55${d}` : null;
+}
+
+function lerEntrada(b: Record<string, unknown>): { nome: string; tel: string; alvo: string | null; resp: Respostas; extra: RespostasExtra; erro?: string } {
   const nome = String(b.nome || '').trim().replace(/\s+/g, ' ').slice(0, 120);
-  const tel = soDigitosSolar(b.tel);
+  const tel = normalizarCelular(b.tel) ?? '';
   const resp = limparRespostas(b.respostas);
+  const extra = limparRespostasExtra(b.respostas);
   const alvo = telKeySolar(tel);
-  if (nome.length < 3) return { nome, tel, alvo, resp, erro: 'nome invalido' };
-  if (tel.length < 12 || tel.length > 13 || !tel.startsWith('55') || !alvo) return { nome, tel, alvo, resp, erro: 'telefone invalido' };
-  if (!resp.conta) return { nome, tel, alvo, resp, erro: 'conta invalida' };
-  return { nome, tel, alvo, resp };
+  if (nome.length < 3) return { nome, tel, alvo, resp, extra, erro: 'nome invalido' };
+  if (!tel || !alvo) return { nome, tel, alvo, resp, extra, erro: 'telefone invalido' };
+  if (!resp.conta) return { nome, tel, alvo, resp, extra, erro: 'conta invalida' };
+  return { nome, tel, alvo, resp, extra };
 }
 
 const UTM = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
@@ -448,32 +463,72 @@ const utmDe = (b: Record<string, unknown>): Record<string, string> => {
 const camposComUtm = (campos: Array<{ name: string; values: string[] }>, b: Record<string, unknown>) =>
   [...campos, ...Object.entries(utmDe(b)).map(([name, v]) => ({ name, values: [v] }))];
 
+// ── Modo teste para a sonda (24/10/2026) ────────────────────────────────────
+// Com o header `x-cron-secret` igual a CRON_SECRET e `teste: true` no corpo, as rotas do quiz gravam com
+// created_by 'lp_solar_teste', NÃO mandam nenhuma mensagem e NÃO disparam a API de Conversões. O rascunho vai para
+// outro form_id e outro lead_id (qteste_...), que nenhum tick de envio lê. Para desfazer:
+// POST /quiz/teste/:id/cancelar, que só põe status 'cancelado' (o CRON_SECRET está exposto no repositório público e
+// ainda não foi girado: por isso nada de DELETE).
+const FORM_QUIZ_TESTE = 'quiz_solar_teste';
+const leadDoQuiz = (alvo: string, teste: boolean): string => `${teste ? 'qteste' : 'quiz'}_${alvo}`;
+
+function segredoConfere(req: Request): boolean {
+  const segredo = String(process.env.CRON_SECRET || '').trim();
+  const dado = String(req.headers['x-cron-secret'] || '').trim();
+  if (!segredo || !dado || segredo.length !== dado.length) return false;
+  return timingSafeEqual(Buffer.from(segredo), Buffer.from(dado));
+}
+/** true = teste autorizado; false = não é teste; null = pediu teste sem direito (já respondeu 401: pare). */
+function modoTeste(req: Request, b: Record<string, unknown>, res: Response): boolean | null {
+  if (b.teste !== true) return false;
+  if (!segredoConfere(req)) { res.status(401).json({ ok: false, error: 'nao autorizado' }); return null; }
+  return true;
+}
+
+/** Os campos do rascunho: as respostas, as novas, o diagnóstico, as UTMs e o que o abandono precisa para remontar a ficha. */
+function camposDoRascunho(e: ReturnType<typeof lerEntrada>, dec: Parameters<typeof camposDoLead>[1], semHorario: boolean, diag: Diagnostico | null, b: Record<string, unknown>) {
+  return camposComUtm([
+    ...camposDoLead(e.resp, dec, { semHorario, respostas: e.extra, diag }),
+    ...camposDeRecuperacao(e.resp, e.extra, Date.now()),
+  ], b);
+}
+
+const cidadeGravada = (e: ReturnType<typeof lerEntrada>, dec: { cidade: { nome: string; uf: string } | null }): string | null =>
+  dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel);
+
 router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
   const e = lerEntrada(b);
   if (e.erro) { res.status(400).json({ ok: false, error: e.erro }); return; }
+  const teste = modoTeste(req, b, res);
+  if (teste === null) return;
   res.set('Cache-Control', 'no-store');
+  const agoraMs = Date.now();
+  const diag = calcularDiagnostico(e.resp, e.extra);
   // Telefone FORA DO PADRÃO não ganha ficha nem vitrine, e não fica sabendo
   // (mesma regra do /agendar). A página mostra o "a gente te chama".
-  if (await estaBloqueado(e.tel)) { res.json({ ok: true, caminho: 'ligacao', dias: [], semVitrine: true }); return; }
+  if (await estaBloqueado(e.tel)) {
+    res.json({ ok: true, caminho: 'ligacao', dias: [], semVitrine: true, dono: DONA_SOLAR, curioso: false, horario_agora: false, diagnostico: diag });
+    return;
+  }
   try {
     const quem = await donoDoTelefone(e.alvo!);
-    const pessoas = [...new Set([...SOCIOS_VISITA, ...DONAS_LIGACAO, ...(quem.dono ? [quem.dono] : [])])];
-    const ocupacoes = await lerOcupacoes(pessoas);
+    // Só a Nilce atende solar: a agenda lida é a dela (e a vitrine tem a grade própria do quiz).
+    const ocupacoes = await lerOcupacoes([DONA_SOLAR]);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, Date.now(), e.alvo);
-    const leadId = `quiz_${e.alvo}`;
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agoraMs, e.alvo, { grade: 'quiz' });
+    const leadId = leadDoQuiz(e.alvo!, teste);
     // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
     const gravou = String(req.query.dry || '') !== '1' && await gravarLead(leadId, {
-      form_id: FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
-      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel),
-      // Curioso não tem horário, mas tem dono pela faixa de consumo (lista para depois).
-      field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b), consultor: dec.candidatos[0] ?? donoDaFaixa(dec.kwh), fora_area: false,
+      form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
+      cidade: cidadeGravada(e, dec),
+      // Curioso não tem "agora", mas escolhe horário com a Nilce, que é a dona de todo o solar.
+      field_data: camposDoRascunho(e, dec, semHorario, diag, b), consultor: DONA_SOLAR, fora_area: false,
     });
     // LeadQuente: nota alta que não é curioso. Só depois de o rascunho gravar, e
-    // nunca no ?dry=1. O eventId fixo por telefone faz o Meta descartar o reenvio de
+    // nunca no ?dry=1 nem no teste. O eventId fixo por telefone faz o Meta descartar o reenvio de
     // quem refaz o quiz. Não existe gêmeo no navegador, então o id nasce aqui.
-    if (gravou && dec.pontos >= 80 && dec.caminho !== 'curioso') {
+    if (!teste && gravou && dec.pontos >= 80 && dec.caminho !== 'curioso') {
       await enviarQuizMeta({
         produto: 'solar', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_${idDoTelefone(e.tel)}`,
         pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
@@ -484,7 +539,9 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     res.json({
       ok: true, lead_id: leadId, caminho: dec.caminho, motivo: dec.motivo, qualifica: dec.qualifica, semHorario,
       kwh: dec.kwh, cidade: dec.cidade ? { nome: dec.cidade.nome, uf: dec.cidade.uf } : null,
-      dono: quem.dono, jaMarcado: quem.jaMarcado, dias,
+      // 24/10/2026: quem atende é sempre a Nilce (antes era o dono anterior do telefone; a página antiga só lê jaMarcado.dono).
+      dono: DONA_SOLAR, jaMarcado: quem.jaMarcado, dias,
+      diagnostico: diag, horario_agora: horarioAgoraAberto(agoraMs), curioso: dec.caminho === 'curioso',
     });
   } catch (err) {
     logger.error('io-solar-quiz', 'falha montando o caminho', err);
@@ -495,10 +552,98 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
 // O aviso que vai para o celular de quem atende mora em solarQuiz.ts
 // (avisoDaEquipe), ao lado da ficha que ele lê.
 
-router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> => {
+// ═══════════════════════════════════════════════════════════════════════════
+// O ATENDIMENTO DIRETO, "AGORA" (24/10/2026)
+//
+// O cliente clica "falar com um especialista agora": nasce um card da Nilce no horário REAL da ligação (o próximo
+// múltiplo de 5 min com pelo menos 5 min de folga; o minuto ocupado empurra +5 min, porque o índice único
+// (vendedor, quando) recusa o repetido e a agenda nunca bloqueia). A confirmação que o cliente recebe ("te liga às X")
+// bate com o "em até 5 minutos" da tela. Dispara o Schedule pela API de Conversões com o MESMO event_id do navegador
+// e avisa a Nilce (solarQuizAviso.avisarAgora). Fora do horário ou para curioso: 409, e a página abre a vitrine.
+// ═══════════════════════════════════════════════════════════════════════════
+const MAX_ENCAIXES = 24;   // 2 horas de minutos ocupados, de 5 em 5
+
+router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
   const e = lerEntrada(b);
   if (e.erro) { res.status(400).json({ ok: false, error: e.erro }); return; }
+  const teste = modoTeste(req, b, res);
+  if (teste === null) return;
+  res.set('Cache-Control', 'no-store');
+  const agoraMs = Date.now();
+  if (!horarioAgoraAberto(agoraMs)) { res.status(409).json({ ok: false, error: 'fora_do_horario' }); return; }
+  const dec = decidirCaminho(e.resp, null, e.alvo);
+  if (dec.caminho === 'curioso') { res.status(409).json({ ok: false, error: 'curioso' }); return; }
+  if (await estaBloqueado(e.tel)) {
+    // Mesma regra do /agendar: quem está FORA DO PADRÃO não ganha ficha e não fica sabendo.
+    logger.info('io-solar-quiz', `${e.tel} esta FORA DO PADRAO: ficha nao criada`);
+    res.json({ ok: true, id: null, quando: new Date(quandoDoAgora(agoraMs)).toISOString(), dono: DONA_SOLAR });
+    return;
+  }
+  try {
+    const quem = await donoDoTelefone(e.alvo!);
+    if (quem.jaMarcado) {
+      if (quem.agoraRecente) { res.json({ ok: true, id: quem.agoraRecente.id, quando: quem.agoraRecente.quando, dono: DONA_SOLAR, repetido: true }); return; }
+      res.status(409).json({ ok: false, error: 'ja marcado', jaMarcado: quem.jaMarcado });
+      return;
+    }
+    const diag = calcularDiagnostico(e.resp, e.extra);
+    const observacao = montarObservacao(e.resp, dec, null, false, { respostas: e.extra, diag, agora: true });
+    const src = String(b.src || '').trim().toLowerCase();
+    let card: CardGravado | null = null;
+    let quandoMs = 0;
+    for (let encaixe = 0; encaixe < MAX_ENCAIXES && !card; encaixe++) {
+      quandoMs = quandoDoAgora(agoraMs, encaixe);
+      const gravado = await gravarCardSolar({
+        dono: DONA_SOLAR, quando: new Date(quandoMs).toISOString(), nome: e.nome, tel: e.tel, cidade: cidadeGravada(e, dec), observacao,
+        src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null, utm: utmDe(b), createdBy: teste ? 'lp_solar_teste' : 'lp_solar',
+      }, { ligarAgora: true });
+      if (gravado.status === 'ok') card = gravado.card;
+      else if (gravado.status === 'erro') throw gravado.erro;
+      // 'horario_tomado': o minuto estava ocupado, tenta +5 min.
+    }
+    if (!card) { res.status(503).json({ ok: false, error: 'sem horario' }); return; }
+    const quando = new Date(quandoMs).toISOString();
+    const leadId = leadDoQuiz(e.alvo!, teste);
+    await gravarLead(leadId, {
+      form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel, cidade: cidadeGravada(e, dec),
+      agendado_id: card.id, consultor: DONA_SOLAR, fora_area: false, field_data: camposDoRascunho(e, dec, false, diag, b),
+    });
+
+    if (!teste) {
+      // Schedule pelo pixel (a página) E pela API de Conversões, com o MESMO event_id. Sem event_id o Meta não junta os dois,
+      // então sem id não manda (página velha em cache).
+      const eventId = eventIdDe(b.event_id);
+      const capi = eventId ? enviarQuizMeta({
+        produto: 'solar', nome: 'Schedule', origem: 'website', eventId,
+        pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
+        navegador: navegadorDe(req, b), urlDaPagina: 'https://solardoc.app/io/solar',
+      }, 'io-solar-quiz') : Promise.resolve();
+      const utm = utmDe(b);
+      const ficha: DadosDaFicha = {
+        nome: e.nome, tel: e.tel, nota: dec.pontos, cidadeUf: cidadeGravada(e, dec) ?? '', resp: e.resp, extra: e.extra, diag, kwh: dec.kwh,
+        utmSource: utm.utm_source ?? null, utmCampaign: utm.utm_campaign ?? null,
+      };
+      // Esperado (a Vercel corta o que roda depois da resposta), com teto de 4 s como o aviso do /agendar.
+      const aviso = Promise.race([
+        avisarAgora({ cardId: card.id, lead: leadId, ficha, quandoMs }).catch(err => { logger.error('io-solar-quiz', 'aviso do agora falhou', err); }),
+        new Promise(resolve => setTimeout(resolve, 4000)),
+      ]);
+      await Promise.all([capi, aviso]);
+    }
+    res.json({ ok: true, id: card.id, quando, dono: DONA_SOLAR, ...(teste ? { teste: true } : {}) });
+  } catch (err) {
+    logger.error('io-solar-quiz', `falha gravando o agora de ${e.tel}`, err);
+    res.status(500).json({ ok: false, error: 'nao consegui gravar' });
+  }
+});
+
+router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response): Promise<void> => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const e = lerEntrada(b);
+  if (e.erro) { res.status(400).json({ ok: false, error: e.erro }); return; }
+  const teste = modoTeste(req, b, res);
+  if (teste === null) return;
   const ymd = String(b.ymd || '');
   const h = String(b.h || '');
   const dono = String(b.dono || '');
@@ -513,17 +658,22 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     // Já tem horário de solar marcado: não nasce a segunda ficha. A página avisa
     // no passo do horário; isto aqui é para a página velha ou o clique duplo.
     if (quem.jaMarcado) { res.status(409).json({ ok: false, error: 'ja marcado', jaMarcado: quem.jaMarcado }); return; }
-    const pessoas = [...new Set([...SOCIOS_VISITA, ...DONAS_LIGACAO, ...(quem.dono ? [quem.dono] : [])])];
-    const ocupacoes = await lerOcupacoes(pessoas);
+    const ocupacoes = await lerOcupacoes([DONA_SOLAR]);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
     const agora = Date.now();
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora, e.alvo);
-    // A mesma pergunta da vitrine, com a agenda lida agora: quem escolheu um
+    const { dec: dec0, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora, e.alvo, { grade: 'quiz' });
+    // O curioso também escolhe horário (24/10/2026): o card dele é uma ligação da Nilce, e a ficha diz que a nota é de curioso.
+    const dec = dec0.caminho === 'curioso'
+      ? { ...dec0, caminho: 'ligacao' as const, candidatos: [DONA_SOLAR],
+        motivo: `Curioso (${dec0.pontos} pontos, abaixo de ${PONTOS_CURIOSO}) que escolheu horário: ligação da ${DONA_SOLAR}.` }
+      : dec0;
+    // A mesma pergunta da vitrine (a grade nova do quiz), com a agenda lida agora: quem escolheu um
     // horário que outra pessoa tomou no meio do caminho recebe a vitrine nova.
-    if (!dec.candidatos.includes(dono) || !cabe(dec.caminho, ymd, h, dono, dec, ocupacoes, agora)) {
+    if (!dec.candidatos.includes(dono) || !cabe(dec.caminho, ymd, h, dono, dec, ocupacoes, agora, { grade: 'quiz' })) {
       res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias });
       return;
     }
+    const diag = calcularDiagnostico(e.resp, e.extra);
     const endereco = dec.caminho === 'vistoria' ? limparEndereco(b.endereco) : null;
     const quando = new Date(msDe(ymd, h)).toISOString();
     const src = String(b.src || '').trim().toLowerCase();
@@ -534,17 +684,24 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
       quando,
       nome: e.nome,
       tel: e.tel,
-      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel),
-      observacao: montarObservacao(e.resp, dec, endereco, semHorario),
+      cidade: cidadeGravada(e, dec),
+      observacao: montarObservacao(e.resp, dec, endereco, semHorario, { respostas: e.extra, diag }),
       src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null,
       utm: utmDe(b),
+      ...(teste ? { createdBy: 'lp_solar_teste' as const } : {}),
     });
     // 'horario_tomado' = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
     if (gravado.status === 'horario_tomado') { res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias }); return; }
     if (gravado.status === 'erro') throw gravado.erro;
     const data = gravado.card;
-    const leadId = `quiz_${e.alvo}`;
-    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b) });
+    const leadId = leadDoQuiz(e.alvo!, teste);
+    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoRascunho(e, dec, semHorario, diag, b) });
+
+    if (teste) {
+      // A sonda: nenhuma mensagem e nenhum Schedule.
+      res.json({ ok: true, id: data.id, caminho: dec.caminho, dono, quando, rotulo: ROTULO_CAMINHO[dec.caminho], teste: true });
+      return;
+    }
 
     // Schedule pela API de Conversões, o gêmeo do que a página dispara no navegador.
     // SÓ com o event_id que a página mandou: sem ele o Meta não junta os dois e a
@@ -578,6 +735,93 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     logger.error('io-solar-quiz', `falha gravando ${e.tel}`, err);
     res.status(500).json({ ok: false, error: 'nao consegui gravar' });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A SAÍDA DO QUIZ (24/10/2026)
+//
+// A página chama isto por navigator.sendBeacon no pagehide / visibilitychange, só depois de ter um WhatsApp válido e
+// sem horário marcado. SÓ grava uma marca (`solar_saiu:<lead>`): não envia nada, não cria card, não dispara Schedule.
+// Quem avisa a equipe é o tick (solarQuizAviso), de 5 a 10 min depois, se o cliente não voltar.
+//
+// O sendBeacon com string manda `text/plain`, que o parser JSON do Express ignora: a página manda um Blob
+// application/json E esta rota também lê corpo em texto e faz o parse (as duas coisas, para não depender de uma só).
+// ═══════════════════════════════════════════════════════════════════════════
+router.post('/quiz/saiu', express.text({ type: '*/*', limit: '20kb' }), async (req: Request, res: Response): Promise<void> => {
+  let b: Record<string, unknown> = {};
+  try {
+    const bruto: unknown = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (bruto && typeof bruto === 'object') b = bruto as Record<string, unknown>;
+  } catch { b = {}; }
+  const teste = modoTeste(req, b, res);
+  if (teste === null) return;
+  res.set('Cache-Control', 'no-store');
+  const tel = normalizarCelular(b.tel);
+  const alvo = tel ? telKeySolar(tel) : null;
+  if (!tel || !alvo) { res.status(400).json({ ok: false, error: 'telefone invalido' }); return; }
+  // A página manda 'whatsapp', 'resultado', 'horarios', 'fim' ou o id de um passo: 'whatsapp' é a tela do WhatsApp, 'horarios' é a escolha
+  // do horário, e todo o resto é a tela do diagnóstico.
+  const onde: OndeSaiu = b.onde === 'whatsapp' ? 'whatsapp' : b.onde === 'horarios' ? 'horarios' : 'diagnostico';
+  const gravou = await gravarSaida(leadDoQuiz(alvo, teste), onde);
+  res.json({ ok: true, marcou: gravou });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DESFAZER O TESTE (24/10/2026). Só põe status 'cancelado', e SÓ em card 'lp_solar_teste' com menos de 1 hora.
+// Nada de DELETE: o CRON_SECRET está exposto no repositório público e ainda não foi girado.
+// ═══════════════════════════════════════════════════════════════════════════
+router.post('/quiz/teste/:id/cancelar', async (req: Request, res: Response): Promise<void> => {
+  if (!segredoConfere(req)) { res.status(401).json({ ok: false, error: 'nao autorizado' }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ ok: false, error: 'id invalido' }); return; }
+  try {
+    const { data, error } = await supabaseGerador.from('agendamentos')
+      .update({ status: 'cancelado' })
+      .eq('id', id).eq('created_by', 'lp_solar_teste')
+      .gte('created_at', new Date(Date.now() - 3_600_000).toISOString())
+      .select('id');
+    if (error) throw error;
+    if (!data?.length) { res.status(404).json({ ok: false, error: 'nao e um card de teste recente' }); return; }
+    res.json({ ok: true, cancelado: id });
+  } catch (err) {
+    logger.error('io-solar-quiz', `cancelar o teste ${id} falhou`, err);
+    res.status(500).json({ ok: false, error: 'nao consegui cancelar' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// "FALEI COM O CLIENTE" (24/10/2026)
+//
+// O link do aviso (https://api.solardoc.app/io/solar/falei/<codigo>) abre uma PÁGINA com um botão. O GET nunca marca:
+// a prévia de link do WhatsApp abriria o endereço sozinha. Só o POST do botão marca o lead como atendido.
+// ═══════════════════════════════════════════════════════════════════════════
+function paginaSemCache(res: Response): void {
+  res.set({
+    'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow',
+    'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
+  });
+}
+
+router.get('/falei/:codigo', async (req: Request, res: Response): Promise<void> => {
+  paginaSemCache(res);
+  const codigo = String(req.params.codigo || '');
+  const nome = await nomeDoToken(codigo);
+  if (!nome) { res.status(404).send(paginaFalei({ titulo: TEXTOS_FALEI.invalido, frase: '' })); return; }
+  res.send(paginaFalei({ titulo: TEXTOS_FALEI.titulo(nome), frase: TEXTOS_FALEI.frase, acao: `/io/solar/falei/${encodeURIComponent(codigo)}` }));
+});
+
+router.post('/falei/:codigo', async (req: Request, res: Response): Promise<void> => {
+  paginaSemCache(res);
+  const codigo = String(req.params.codigo || '');
+  const r = await marcarFalei(codigo);
+  if (r.estado === 'invalido') { res.status(404).send(paginaFalei({ titulo: TEXTOS_FALEI.invalido, frase: '' })); return; }
+  if (r.estado === 'erro') {
+    const nome = (await nomeDoToken(codigo)) || 'o cliente';
+    res.status(500).send(paginaFalei({ titulo: TEXTOS_FALEI.erro, frase: TEXTOS_FALEI.titulo(nome), acao: `/io/solar/falei/${encodeURIComponent(codigo)}` }));
+    return;
+  }
+  const hora = horaBonita(r.em);
+  res.send(paginaFalei({ titulo: r.estado === 'marcado' ? TEXTOS_FALEI.marcado(r.nome, hora) : TEXTOS_FALEI.jaEstava(hora), frase: '' }));
 });
 
 export default router;

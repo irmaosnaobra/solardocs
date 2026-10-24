@@ -61,7 +61,7 @@ export function fichaCobre(card: CardParaFicha): boolean {
 }
 
 /** Grava a marca `aviso_antigo:<id>`. Melhor esforço: erro aqui nunca impede o aviso (zero aviso é pior que dois). */
-async function marcarAvisoAntigo(cardId: number | null | undefined): Promise<void> {
+export async function marcarAvisoAntigo(cardId: number | null | undefined): Promise<void> {
   const id = Number(cardId);
   if (!Number.isInteger(id) || id <= 0) return;
   try {

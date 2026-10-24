@@ -471,7 +471,19 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
       const tel = soDigitos(card.cliente_telefone);
       const chave = chaveContato(tel);
       if (!chave) { soma(ab.puladas, 'sem_chave'); continue; }
-      if (!(await agenteAtendeEste('duda', tel))) { soma(ab.puladas, 'fora_do_escopo'); continue; }
+      if (!(await agenteAtendeEste('duda', tel))) {
+        // A Duda não cobre este lead. Se a conversa é da Carla ou da Helena (posse viva, agente ligada e no escopo dela), o cliente
+        // marcou pelo quiz e também precisa da confirmação do horário (24/10/2026): a mesma `confirma` da fila, SEM assumirPosse.
+        let posseOutra: DadosPosse | null = null;
+        try { posseOutra = await lerPosse(chave); } catch { soma(ab.puladas, 'posse_ilegivel'); continue; }
+        const outra = posseOutra?.dona;
+        if (posseOutra && posseOutra.estado === 'viva' && (outra === 'carla' || outra === 'helena') && (await agenteAtendeEste(outra, tel))) {
+          if (ab.tentados >= LIMITES_ABERTURA.porRodada) { soma(ab.puladas, 'limite_por_rodada'); break; }
+          await confirmarCardDeQuemJaTemPosse(g, ab, { card, quandoIso: new Date(quandoMs).toISOString(), consultora, tel });
+          continue;
+        }
+        soma(ab.puladas, 'fora_do_escopo'); continue;
+      }
       // Qualquer posse (a da Duda inclusive) = a conversa já é de alguém. O card que a própria Duda grava em acaoMarcar também é
       // lp_solar e nasce com boas_vindas_at nulo: é a posse que o tira daqui (a confirmação dele sai pelo tipo `confirma`).
       let posseDoLead: DadosPosse | null;
@@ -480,7 +492,8 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
         // Posse VIVA da própria Duda: o lead já conversa com ela e agora marcou pelo quiz. A abertura não vale (a conversa já começou),
         // mas ele ficaria sem a confirmação do horário: sai a confirmação (tipo `confirma`) pela mesma fila. Outra dona, passou_humano,
         // nao_incomodar ou encerrada = não mexe (o robô antigo e o humano seguem como hoje).
-        if (posseDoLead.dona === 'duda' && posseDoLead.estado === 'viva') {
+        // Carla e Helena com posse VIVA também (24/10/2026): `nao_incomodar`, `passou_humano` e `encerrada` seguem pulando (com_posse).
+        if ((posseDoLead.dona === 'duda' || posseDoLead.dona === 'carla' || posseDoLead.dona === 'helena') && posseDoLead.estado === 'viva') {
           if (ab.tentados >= LIMITES_ABERTURA.porRodada) { soma(ab.puladas, 'limite_por_rodada'); break; }
           await confirmarCardDeQuemJaTemPosse(g, ab, { card, quandoIso: new Date(quandoMs).toISOString(), consultora, tel });
           continue;

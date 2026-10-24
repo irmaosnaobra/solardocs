@@ -36,6 +36,8 @@ export interface FichaSolar {
   /** Já validado por quem chama (a rota confere o formato); null = sem src. */
   src?: string | null;
   utm?: Record<string, string>;
+  /** Só a sonda do quiz (24/10/2026): 'lp_solar_teste' nasce com tudo carimbado e é cancelada logo depois. Padrão: 'lp_solar'. */
+  createdBy?: 'lp_solar' | 'lp_solar_teste';
 }
 
 /** Caminho da rota do quiz: nada é conferido aqui (a rota já leu a agenda na hora). */
@@ -113,12 +115,14 @@ export async function gravarCardSolar(
     cidade: f.cidade,
     status: 'agendado',
     observacao: comMarca(f.observacao).slice(0, 4000),
-    created_by: 'lp_solar',
+    created_by: f.createdBy === 'lp_solar_teste' ? 'lp_solar_teste' : 'lp_solar',
     ...(f.src ? { src: f.src } : {}),
     ...(f.utm ?? {}),
     // Da agente as boas-vindas nascem NULAS: quem carimba é marcarBoasVindasEnviada, depois que a confirmação saiu.
     ...(faixa ? { boas_vindas_at: null } : {}),
     ...(opts.ligarAgora ? { lembrete_5min_at: agoraIso, bomdia_at: agoraIso } : bomDiaJaDado ? { bomdia_at: agoraIso } : {}),
+    // A sonda não pode receber nada: as boas-vindas nascem carimbadas.
+    ...(f.createdBy === 'lp_solar_teste' ? { boas_vindas_at: agoraIso, lembrete_5min_at: agoraIso, bomdia_at: agoraIso } : {}),
   }).select(COLUNAS_DO_CARD).single();
   if (error) {
     // 23505 = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.

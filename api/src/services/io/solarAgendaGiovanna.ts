@@ -223,6 +223,8 @@ type Ficha = {
   created_by: string | null;
   bomdia_at: string | null;
   lembrete_5min_at: string | null;
+  observacao?: string | null;
+  created_at?: string | null;
 };
 
 export type ToquePrevisto = {
@@ -247,6 +249,42 @@ const zero = (motivo?: string): ResultadoSolarGiovanna => ({
   candidatos: 0, bom_dia: 0, cinco_min: 0, ja_responderam: 0, segurados_pelo_teto: 0, erros: 0,
 });
 
+/** O card do "agora" do quiz solar: a 1ª linha da observação é `LP SOLAR QUIZ · AGORA`. */
+const ehCardAgora = (f: Ficha): boolean => /^LP SOLAR QUIZ · AGORA/i.test(String(f.observacao ?? ''));
+const JANELA_AGORA_MS = 15 * 60_000;
+
+/** Os cards que NÃO levam o "oi" de 5 min por causa do quiz solar. Nunca lança; leitura falha = ninguém é tirado. */
+export async function semOiDoQuiz(fichas: Ficha[]): Promise<Set<number>> {
+  const fora = new Set<number>();
+  try {
+    const porChave = new Map<string, Ficha[]>();
+    for (const f of fichas) {
+      const quando = Date.parse(String(f.quando)), criado = Date.parse(String(f.created_at ?? ''));
+      if (ehCardAgora(f) && Number.isFinite(quando) && Number.isFinite(criado) && quando - criado < JANELA_AGORA_MS) { fora.add(f.id); continue; }
+      const k = telKey(f.cliente_telefone);
+      if (k) porChave.set(`solar_falei:quiz_${k}`, [...(porChave.get(`solar_falei:quiz_${k}`) ?? []), f]);
+    }
+    if (porChave.size) {
+      const { data, error } = await supabase.from('system_state').select('key, value, updated_at').in('key', [...porChave.keys()]);
+      if (error) throw error;
+      const agora = Date.now();
+      for (const r of (data ?? []) as Array<{ key: string; value?: { em?: string } | null; updated_at?: string }>) {
+        const em = Date.parse(String(r.value?.em ?? r.updated_at ?? ''));
+        // O "falei" só vale se foi gravado DEPOIS de o card nascer e há menos de 24 h: o de outro dia não corta o "oi" de hoje.
+        if (!Number.isFinite(em) || agora - em >= 24 * 3_600_000) continue;
+        for (const f of porChave.get(r.key) ?? []) {
+          const criado = Date.parse(String(f.created_at ?? ''));
+          if (Number.isFinite(criado) && em > criado) fora.add(f.id);
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('solar-giovanna', 'ler o falei do quiz falhou, o oi de 5 min segue como antes', { erro: String(err) });
+    return new Set<number>();
+  }
+  return fora;
+}
+
 /**
  * Um tick dos dois toques. `dry` decide tudo e não manda nada — é assim que se
  * confere a copy contra ficha real sem tocar em ninguém.
@@ -265,7 +303,7 @@ export async function runSolarAgendaGiovannaTick(
   // O fim do dia sai do próprio filtro em JS: um `lte` em ISO erraria a virada.
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, status, created_by, bomdia_at, lembrete_5min_at')
+    .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, status, created_by, bomdia_at, lembrete_5min_at, observacao, created_at')
     .in('vendedor_nome', DONAS)
     .eq('status', 'agendado')
     .gte('quando', new Date(agora - 15 * 60 * 1000).toISOString())
@@ -282,6 +320,7 @@ export async function runSolarAgendaGiovannaTick(
   // uma ficha de outra pessoa que escapasse da consulta sairia assinada errado.
   const fichas = ((data ?? []) as Ficha[]).filter(f =>
     !!f.quando && diaBRT(f.quando) === hojeBRT && !ehOrigemEletroposto(f.created_by)
+    && f.created_by !== 'lp_solar_teste'   // a sonda do quiz (24/10/2026) nunca recebe toque
     && DONAS.includes(String(f.vendedor_nome)));
 
   if (!fichas.length) return { ...zero('nada_hoje'), ...(dry ? { previa: [] } : {}) };
@@ -301,6 +340,11 @@ export async function runSolarAgendaGiovannaTick(
   const falou = precisamDoInbox.length ? await quemFalouDepoisDoBomDia(precisamDoInbox) : new Map<string, string>();
   /** Leitura do inbox falhou: nesta rodada ninguém recebe o toque de 5 min. */
   const cegoParaRespostas = falou === null;
+
+  // 24/10/2026 (quiz solar): o "oi" de 5 min NÃO sai para o card do "agora" criado menos de 15 min antes do horário (a Nilce já
+  // foi avisada e o cliente já recebeu a confirmação) nem para quem a Nilce já marcou como atendido (`solar_falei:<lead>`).
+  // Só tira mensagem: se a leitura falhar, segue como antes.
+  const semOi = await semOiDoQuiz(fichas.filter(naJanelaDos5));
 
   const previa: ToquePrevisto[] = [];
   let bomDia = 0, cincoMin = 0, jaResponderam = 0, segurados = 0, erros = 0, toques = 0;
@@ -350,6 +394,7 @@ export async function runSolarAgendaGiovannaTick(
       // seria a mesma que a pessoa acabou de responder. Não carimba nada: se o
       // lead falou, ele simplesmente não recebe este toque, hoje nem depois.
       if (cegoParaRespostas) continue;
+      if (semOi.has(f.id)) continue;
       const k = telKey(f.cliente_telefone);
       const ultimaDele = k ? falou!.get(k) : undefined;
       if (f.bomdia_at && ultimaDele && ultimaDele > String(f.bomdia_at)) {

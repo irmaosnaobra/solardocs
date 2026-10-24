@@ -85,7 +85,7 @@ describe('prefixos derivados = conta do lineThrottle.ts de hoje', () => {
   for (const desvio of [false, true]) {
     it(`divergência explícita (desvio ${desvio ? 'LIGADO' : 'desligado'}): o terceiro balde existe no lineThrottle e NÃO no espelho do chefe`, async () => {
       const head = await contaDoHead(desvio);
-      const balde = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:'];
+      const balde = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:'];
       // No lineThrottle: só no espaçamento (consulta de 2 min). Fora da linha, do frio e da agenda, da hora e do dia.
       expect(ordenado(head.balde)).toEqual(ordenado(balde));
       for (const p of balde) {

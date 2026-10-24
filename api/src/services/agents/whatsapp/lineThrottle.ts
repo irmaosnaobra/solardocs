@@ -277,7 +277,8 @@ export const PREFIXOS_AGENDA = [
 // `solardoc_aviso_sent:` (24/10/2026): o aviso ao grupo de vendas do SolarDoc (avisoGrupoSolardoc.ts), avulso ou em
 // cartão, cada envio físico. É a segunda parte do mesmo balde: entra no espaçamento da linha e na conta de "abaixo de
 // 40 na hora" do próprio módulo, e fica fora do teto do frio e do transacional.
-export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:'] as const;
+// 24/10/2026: os avisos do quiz solar à equipe (solarQuizAviso.ts) deixam `solar_quiz_env:` aqui, como a ficha ao consultor.
+export const PREFIXOS_RESPOSTA_AGENTES = ['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:'] as const;
 
 /** Janela do espaçamento contra o balde das respostas das agentes (env só para afrouxar/apertar sem deploy). */
 const espacamentoRespostaMs = (): number => Number(process.env.ESPACAMENTO_RESPOSTA_MS || 2 * 60 * 1000);

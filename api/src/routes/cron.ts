@@ -79,6 +79,7 @@ import { rodarSentinelaFerramentas, depsRodadaReais } from '../services/agentes5
 import { enviarAviso } from '../services/io/sentinelaEnvio';
 import { novoAnthropic } from '../utils/anthropicClient';
 import { runFichaConsultorTick } from '../services/agentes5040/fichaTick';
+import { runSolarQuizAvisosTick } from '../services/io/solarQuizAviso';
 import { executarComandoPendente, depsDoBanco, type MapaAcoes } from '../services/agentes5040/comandos';
 
 const router = Router();
@@ -392,6 +393,10 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // mandou mensagem em dobro (as duas filas reivindicam a vez antes de falar).
       ['solar_quiz_leads', () => runSolarQuizLeadsTick()],       // (SOLAR_BOASVINDAS_OFF desliga)
       ['solar_agente_quiz', () => runSolarAgenteQuizTick()],     // (SOLAR_AGENTE_OFF desliga)
+      // Quiz solar (24/10/2026): 2º aviso (5 min) e aviso ao Thiago (10 min) de quem clicou "agora" e ninguém tocou no link "falei",
+      // aviso de quem saiu sem marcar, lista das 07:00 e cartão agrupado. Só aqui, fora do /master (SOLAR_QUIZ_AVISOS_OFF=1 desliga;
+      // SOLAR_QUIZ_ESCALA_THIAGO=0 e SOLAR_QUIZ_FILA_MANHA=0 desligam as duas propostas).
+      ['solar_quiz_avisos', () => runSolarQuizAvisosTick()],
       ['solar_giovanna', () => runSolarAgendaGiovannaTick()],    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
       // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
       // master de hora em hora. Motivo: com a margem de 5 min entre envios elas mandariam

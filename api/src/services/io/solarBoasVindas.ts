@@ -819,6 +819,14 @@ const horaBRT = (ms: number): number =>
 
 export type ResultadoQuizLeads = { enviadas: number; erros: number; motivo?: string; previa?: Array<{ lead: string; tipo: string; bolhas: string[] }> };
 
+/** `solar_falei:<lead>` existe? Só `true` quando a leitura confirma; erro de leitura vale como "não" (segue como hoje). */
+async function nilceJaFalou(lead: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key').eq('key', `solar_falei:${lead}`).maybeSingle();
+    return !error && !!data;
+  } catch { return false; }
+}
+
 export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promise<ResultadoQuizLeads> {
   if (!opts.dry && desligado()) return { enviadas: 0, erros: 0, motivo: 'desligado' };
   const agora = Date.now();
@@ -848,6 +856,9 @@ export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promi
     // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não recebe esta mensagem por
     // cima. Por lead; não cede o tick inteiro. Sem carimbo: nada é gravado ao pular.
     if (await cedeAAgente(tel)) continue;
+    // 24/10/2026: a Nilce já falou com o cliente (tocou no "falei" do aviso)? Então a Duda não manda o "você não marcou".
+    // Leitura que falha = envia como antes. Não grava nada ao pular.
+    if (await nilceJaFalou(String(l.lead_id))) continue;
     const bolhas = bolhasNaoMarcouQuiz(l.nome, l.consultor, resumoDoLead(campos, l.cidade));
     const chave = `${SOLAR_BV_PREFIX}quiz_${l.lead_id}`;
 

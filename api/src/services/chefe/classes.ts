@@ -294,6 +294,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   sdr_io_aviso: robo('aviso_interno_p2', ['services/agents/sdr/sdrIoPolling.ts']),
   lembrete_followup: robo('aviso_interno_p2', ['services/io/lembreteFollowupService.ts']),
   sentinela_vacuo: robo('aviso_interno_p2', ['services/io/sentinelaVacuo.ts']),
+  // Quiz solar (24/10/2026): aviso à Nilce do cliente que clicou "agora" (T1) ou saiu sem marcar (T2), 1 bolha, com o link "falei".
+  solar_quiz_aviso: robo('aviso_interno_p2', ['services/io/solarQuizAviso.ts'], { nasceDeEvento: true, urgente: true }),
+  // 2º aviso à Nilce (5 min), aviso ao Thiago (10 min, SOLAR_QUIZ_ESCALA_THIAGO) e cartão agrupado (mais de 12 por hora).
+  solar_quiz_lembrete: robo('aviso_interno_p2', ['services/io/solarQuizAviso.ts']),
+  // A lista das 07:00 de quem saiu do quiz fora do horário: 1 mensagem com todos (SOLAR_QUIZ_FILA_MANHA).
+  solar_quiz_lista_manha: robo('aviso_interno_p2', ['services/io/solarQuizAviso.ts']),
   // Vencimentos das ferramentas pagas + resumo da Giovanna ao dono, 7h20 de Brasília, 1 bolha, só quando algo pede ação.
   sentinela_ferramentas: robo('aviso_interno_p2', ['services/io/sentinelaEnvio.ts']),
   placar_giovanna: robo('aviso_interno_p2', ['services/io/placarGiovanna.ts']),

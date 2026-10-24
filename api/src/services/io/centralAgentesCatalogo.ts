@@ -349,6 +349,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['sentinela_vacuo'],
   }),
   e({
+    id: 'solar_quiz_avisos', nome: 'Avisos do quiz solar', area: 'avisos', canal: 'whatsapp', linha: 'io',
+    resumo: 'Avisa a Nilce de quem pediu ligação agora ou saiu do quiz',
+    papel: 'Quem clica "falar com um especialista agora" vira um card da Nilce e um aviso com a ficha, a abertura sugerida e o link "falei com o cliente". Sem o toque no link, a Nilce recebe um segundo aviso em 5 minutos e o Thiago um em 10. Quem deixa o WhatsApp e sai sem marcar vira um aviso de abandono (fora do horário, uma lista única às 07:00). Mais de 12 avisos por hora para a mesma pessoa viram um cartão a cada 10 minutos. Não fala com cliente nenhum.',
+    regra: off1('SOLAR_QUIZ_AVISOS_OFF'), fonte: 'services/io/solarQuizAviso.ts',
+    robos: ['solar_quiz_aviso', 'solar_quiz_lembrete', 'solar_quiz_lista_manha'],
+  }),
+  e({
     id: 'sentinela_ferramentas', nome: 'Sentinela das ferramentas', area: 'avisos', canal: 'whatsapp', linha: 'io',
     resumo: 'Avisa o dono antes de ferramenta paga vencer ou zerar',
     papel: 'Toda manhã às 7h20 (Brasília) confere as ferramentas pagas (Meta, Z-API, Anthropic, OpenAI) e o calendário de vencimentos que o sócio mantém. Manda UMA mensagem ao dono só quando algo vence em até 7 dias (30 para domínio), já venceu ou falhou, e fica calada quando está tudo em dia. No mesmo aviso vai o resumo da Giovanna em dia útil. Não fala com cliente nenhum.',

@@ -44,7 +44,7 @@ const carregar = () => import('../services/agents/whatsapp/lineThrottle');
 describe('terceiro balde: ag5040_sent: e ficha_lead:', () => {
   it('a lista própria existe e NÃO está em prefixosDaLinha() (de onde saem os prefixos do frio)', async () => {
     const { PREFIXOS_RESPOSTA_AGENTES, prefixosDaLinha, prefixosTotalDaLinha } = await carregar();
-    expect([...PREFIXOS_RESPOSTA_AGENTES]).toEqual(['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:']);
+    expect([...PREFIXOS_RESPOSTA_AGENTES]).toEqual(['ag5040_sent:', 'ficha_lead:', 'solardoc_aviso_sent:', 'solar_quiz_env:']);
     for (const p of PREFIXOS_RESPOSTA_AGENTES) {
       expect(prefixosDaLinha()).not.toContain(p);
       expect(prefixosTotalDaLinha()).toContain(p);

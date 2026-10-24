@@ -79,6 +79,7 @@ vi.mock('../middleware/rateLimiter', () => ({
   funilEletropostoLimiter: (_q: unknown, _r: unknown, n: () => void) => n(),
   caixaIpLimiter: (_q: unknown, _r: unknown, n: () => void) => n(),
   caixaPessoaLimiter: (_q: unknown, _r: unknown, n: () => void) => n(),
+  quizCardLimiter: (_q: unknown, _r: unknown, n: () => void) => n(),
 }));
 
 import ioEletroposto from '../routes/ioEletroposto';

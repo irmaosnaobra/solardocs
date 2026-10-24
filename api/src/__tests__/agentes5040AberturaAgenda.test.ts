@@ -346,8 +346,8 @@ describe('abertura: a fila não gravou = reserva e posse desfeitas', () => {
 });
 
 describe('abertura: quem não recebe', () => {
-  it('card de um lead com posse de OUTRA dona, passou_humano ou nao_incomodar = pula, sem escrever nada', async () => {
-    card(0); card(1); card(2); semearPosse(0, 'helena'); semearPosse(1, 'duda', 'passou_humano'); semearPosse(2, 'duda', 'nao_incomodar');
+  it('card de um lead com posse ENCERRADA de outra dona, passou_humano ou nao_incomodar = pula, sem escrever nada', async () => {
+    card(0); card(1); card(2); semearPosse(0, 'helena', 'encerrada'); semearPosse(1, 'duda', 'passou_humano'); semearPosse(2, 'duda', 'nao_incomodar');
     noEscopo(0, 1, 2);
     const r = await rodar();
     expect(r.abertura).toMatchObject({ vistos: 3, tentados: 0, abertos: 0, puladas: { com_posse: 3 } });
@@ -503,6 +503,26 @@ describe('abertura: a Duda sabe tratar o SIM (persona)', () => {
       leadsMeta: null, cadastros: [], ehClienteSolarDoc: false, anuncio: null, qualificado: false, agora: AGORA.toISOString(),
     } as any);
     expect(f).toContain('Giovanna');
+  });
+});
+
+describe('confirma do quiz para quem tem posse VIVA da Carla ou da Helena (24/10/2026)', () => {
+  it.each(['carla', 'helena'])('posse viva da %s: sai a `confirma` pela fila, SEM assumir posse e sem tocar na dela', async (dona) => {
+    card(0); semearPosse(0, dona); noEscopo(0);
+    const antes = JSON.stringify(posseDe(0)!.lead_data);
+    h.enfileirar.mockImplementationOnce(async (p: any) => ({ ok: true, chave: `ag5040_agenda_fila:${p.cardId}:confirma:x` }));
+    const r = await rodar();
+    expect(h.enfileirar).toHaveBeenCalledTimes(1);
+    expect(h.enfileirar.mock.calls[0]![0]).toMatchObject({ tipo: 'confirma', cardId: 500, quando: QUANDO, validoAte: QUANDO });
+    expect(r.abertura).toMatchObject({ tentados: 1, confirmados: 1 });
+    expect(banco.escritas.filter(e => e.tabela === 'whatsapp_sessions')).toEqual([]);
+    expect(JSON.stringify(posseDe(0)!.lead_data)).toBe(antes);
+  });
+  it.each(['nao_incomodar', 'passou_humano', 'encerrada'])('posse da Carla em %s continua pulando', async (estado) => {
+    card(0); semearPosse(0, 'carla', estado); noEscopo(0);
+    const r = await rodar();
+    expect(h.enfileirar).not.toHaveBeenCalled();
+    expect(r.abertura!.puladas).toEqual({ com_posse: 1 });
   });
 });
 

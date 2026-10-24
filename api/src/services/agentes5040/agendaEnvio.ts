@@ -155,7 +155,7 @@ const texto = (v: unknown): string => String(v ?? '').trim();
  * na frente. Não cabe nos 160: tenta a versão curta do texto (sem o nome da consultora) e, por último, só a frase mais o horário
  * ("Ficou marcado para {dia} às {hora}."). A abertura já traz o aviso e ignora este parâmetro.
  */
-export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda> | null | undefined, reforco = false, comAviso = false): string | null {
+export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda> | null | undefined, reforco = false, comAviso = false, persona: 'duda' | 'carla' | 'helena' = 'duda'): string | null {
   const c = campos ?? {};
   const dia = texto(c.dia), hora = texto(c.hora), consultora = texto(c.consultora);
   const opcao1 = texto(c.opcao1), opcao2 = texto(c.opcao2);
@@ -195,7 +195,7 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
   } else return null;
   const serve = (b: string): boolean => !TRAVESSAO.test(b) && !b.includes('||') && b.length <= LIMITES_AGENDA.maxCaracteresBolha;
   if (AVISO_IA_NA_PRIMEIRA_MSG && comAviso && tipo !== 'abertura') {
-    const frase = fraseDeApresentacao('duda');
+    const frase = fraseDeApresentacao(persona);   // a dona da posse (Carla ou Helena num lead do quiz), não sempre a Duda
     for (const d of degraus) { const b = `${frase} ${d}`; if (serve(b)) return b; }
     return null;
   }
@@ -460,9 +460,10 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     if (tipo === 'volta' && (v.opcoes ?? []).some(o => !(Date.parse(String(o)) > t))) { await descartar(linha.key, cardId, tipo, 'vaga_passou'); continue; }
     // O aviso de IA: ligado só depois de ler a posse (passo 9b), logo antes do envio. Os passos de conferência usam a bolha sem ele.
     let comAviso = false;
+    let personaDoAviso: 'duda' | 'carla' | 'helena' = 'duda';
     let consultoraDoEnvio = String(v.consultora ?? '');
     const montar = (reforco: boolean, consultora: string = String(v.consultora ?? '')): string | null => montarBolhaAgenda(
-      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome }), reforco, comAviso);
+      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome }), reforco, comAviso, personaDoAviso);
     if (!montar(v.reforco === true)) {
       logger.error(LOG, `bolha inválida (${tipo}), descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue;
     }
@@ -564,7 +565,11 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     //     frente. Posse ausente ou leitura que falha = com o aviso (o lado seguro). A abertura já traz o aviso.
     if (AVISO_IA_NA_PRIMEIRA_MSG && tipo !== 'abertura') {
       let apresentada = false;
-      try { apresentada = (await lerPosse(ck))?.apresentada === true; } catch { apresentada = false; }
+      try {
+        const posseDoLead = await lerPosse(ck);
+        apresentada = posseDoLead?.apresentada === true;
+        if (posseDoLead?.dona === 'carla' || posseDoLead?.dona === 'helena') personaDoAviso = posseDoLead.dona;
+      } catch { apresentada = false; }
       comAviso = !apresentada;
       if (comAviso) {
         const comFrase = montar(reenvio || v.reforco === true, tipo === 'volta' ? undefined : consultoraDoEnvio);

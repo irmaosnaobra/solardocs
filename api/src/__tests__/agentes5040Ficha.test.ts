@@ -629,6 +629,28 @@ describe('runFichaConsultorTick', () => {
     expect(h.estado.has('ficha_card:1')).toBe(false);
   });
 
+  it('lead "agora" do quiz solar (24/10): o aviso novo SEMPRE sai, deixa aviso_antigo:<id>, e a ficha NÃO manda o 2º aviso desse card', async () => {
+    process.env.AGENTES5040_FICHA = '1';   // ficha LIGADA: antes disso o aviso novo calaria
+    h.agend.push(novoCard(1), novoCard(2, { cliente_telefone: '5534988881111', created_at: ATRAS(4) }));
+    const { avisarAgora } = await import('../services/io/solarQuizAviso');
+    const { limparRespostas, limparRespostasExtra } = await import('../services/io/solarQuiz');
+    const resp = limparRespostas({ conta: '600_1050', cidade: 'Uberlândia-MG', tipo: 'casa' });
+    const antes = h.enviados.length;
+    const a = await avisarAgora({
+      cardId: 1, lead: 'quiz_3491112222', quandoMs: AGORA.getTime() + 5 * 60_000,
+      ficha: { nome: 'Ana Souza', tel: '5534991112222', nota: 90, cidadeUf: 'Uberlândia-MG', resp, extra: limparRespostasExtra({}), diag: null, kwh: 786 },
+    }, AGORA.getTime());
+    expect(a.motivo).toBe('enviado');
+    expect(h.estado.has('aviso_antigo:1')).toBe(true);
+    expect(h.estado.has('aviso_agora:1')).toBe(true);
+    const r = await rodar();
+    expect(r.itens).toEqual([
+      { id: 1, resultado: 'aviso_antigo' },
+      expect.objectContaining({ id: 2, resultado: 'enviada' }),
+    ]);
+    expect(h.enviados.length - antes).toBe(2);   // o aviso novo da Nilce + a ficha do OUTRO card; nenhum 2º aviso do card 1
+  });
+
   it('a marca que nasce DEPOIS da leitura da rodada, antes de reservar, também segura o card', async () => {
     h.agend.push(novoCard(1));
     h.escondeReservas = true;   // a leitura em lote não vê; a conferência logo antes de reservar vê
