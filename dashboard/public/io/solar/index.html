@@ -4,143 +4,216 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Energia solar | Irmãos na Obra</title>
-<meta name="description" content="Responda em 1 minuto, veja o caminho certo para o seu projeto e escolha o horário da visita, da videochamada ou da ligação com a Irmãos na Obra.">
+<meta name="description" content="Responda em 1 minuto, veja o diagnóstico da sua conta de luz e fale com um especialista da Irmãos na Obra.">
 <link rel="icon" type="image/png" href="/io/img/logoio.png">
 <link rel="apple-touch-icon" href="/io/img/logoio.png">
 <meta name="theme-color" content="#0A1A33">
 <meta property="og:title" content="Veja quanto a sua conta pode cair | Irmãos na Obra Energia Solar">
-<meta property="og:description" content="Responda em 1 minuto e escolha o horário de falar com a gente.">
+<meta property="og:description" content="Responda em 1 minuto e veja o diagnóstico da sua conta de luz.">
 <meta property="og:image" content="https://solardoc.app/io/img/logoio.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://solardoc.app/io/solar">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <!--
-  QUIZ SOLAR (07/10/2026). O molde do quiz do eletroposto aplicado ao solar.
+  QUIZ SOLAR (24/10/2026). Reescrito sobre o protótipo aprovado.
 
-  A página PERGUNTA. Quem decide o caminho (vistoria, videochamada ou ligação),
-  quem atende e quais horários aparecem é o servidor (api/src/services/io/
-  solarQuiz.ts + solarRota.ts), no passo do WhatsApp. Por isso não existe aqui
-  cópia de grade, de corte de kWh nem de raio: a vitrine e a gravação são a mesma
-  conta e não têm como discordar.
+  A página PERGUNTA e MOSTRA. Todo número do diagnóstico (placas, kWp, área,
+  geração, economia, a conta depois) vem do servidor no passo do WhatsApp
+  (POST /io/solar/quiz, campo `diagnostico`). Não existe cálculo de preço aqui.
+  Também é do servidor: se está dentro do horário de atendimento direto
+  (`horario_agora`), se o lead é curioso (`curioso`), a vitrine de horários
+  (`dias`) e quem atende (`dono`). Grupo A volta com `conta_depois: null`, e aí a
+  página não promete conta menor, só a economia.
 
-  O que ficou no navegador é o que é da página: a ordem das perguntas (PASSOS),
-  o desenho, o portão de presença e o rastreio por pergunta (lp_events com
-  lp:'solar', o mesmo formato do eletroposto). O simulador antigo mora em
-  /io/solar/simulador.
+  Regras desta página: uma pergunta por tela; resposta única avança no toque, sem
+  botão e sem tela de Iniciar; a barra de progresso conta só os passos que vão
+  aparecer para este cliente; "CEMIG" só quando a cidade é de MG.
 
-  Regras herdadas do eletroposto que já custaram teste: uma pergunta por tela,
-  escolher não avança (avança o Continuar), o telefone vem antes do horário (é
-  ele que acha o dono do cliente), o horário é o último passo e só dois dias
-  aparecem na vitrine.
+  O botão "agora" chama POST /io/solar/quiz/agora. Qualquer resposta que não
+  seja 2xx (ou erro de rede) abre a vitrine, então a página pode ir ao ar antes
+  de a rota existir. Quem sai depois de dar o WhatsApp e sem marcar avisa o
+  servidor por sendBeacon (POST /io/solar/quiz/saiu), que só grava uma marca.
 -->
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  /* Fundo azul escuro, invertido (09/10/2026, pedido do Thiago): fundo marinho,
-     texto claro, e o dourado da marca nos destaques e no botão principal. */
   :root{
+    color-scheme:dark;
     --bg:#0A1A33; --bg-2:#0F2A52; --surface:#122E58; --surface-2:#173765;
     --linha:rgba(255,255,255,.14); --linha-forte:rgba(255,255,255,.26);
     --text:#EEF3FB; --mut:#B6C3DA; --soft:#8EA0C0;
     --gold:#E3AE45; --gold-2:#F0C163; --tinta:#0A1A33;
     --sel:rgba(227,174,69,.14); --ok:#5FD39A; --danger:#FFB59E;
+    --wa-bg:#0B141A;
   }
-  html,body{height:100%}
-  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:radial-gradient(1200px 700px at 50% -10%,var(--bg-2) 0%,var(--bg) 62%) fixed,var(--bg);-webkit-font-smoothing:antialiased;line-height:1.5}
-  button{font-family:inherit}
-  .app{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:0 16px env(safe-area-inset-bottom,0)}
-  .topo{width:100%;max-width:560px;display:flex;align-items:center;gap:11px;padding:18px 2px 14px}
-  .topo img{width:42px;height:42px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px rgba(227,174,69,.55),0 6px 16px rgba(0,0,0,.35)}
-  .topo .l1{font-weight:800;font-size:15px;color:#fff;line-height:1.1}
-  .topo .l2{font-size:9.5px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:2px}
-  .quadro{width:100%;max-width:560px;background:var(--surface);border:1px solid var(--linha);border-radius:22px;box-shadow:0 24px 60px -20px rgba(0,0,0,.55);overflow:hidden;display:flex;flex-direction:column}
-  .prog{height:4px;background:rgba(255,255,255,.1)}
-  .prog i{display:block;height:100%;width:0;background:var(--gold);transition:width .3s}
-  .corpo{padding:26px 22px 8px;display:flex;flex-direction:column;gap:14px;min-height:340px}
-  .hl{font-weight:800;font-size:clamp(28px,6.4vw,40px);line-height:1.06;letter-spacing:-.025em;color:#fff}
-  .hl em{font-style:normal;color:var(--gold)}
-  .q{font-weight:800;font-size:clamp(22px,5vw,27px);line-height:1.16;letter-spacing:-.015em;color:#fff}
-  .sub{font-size:15px;color:var(--mut)}
-  .ops{display:flex;flex-direction:column;gap:10px}
-  .op{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-weight:600;font-size:16px;color:var(--text);background:rgba(255,255,255,.04);border:1.5px solid var(--linha);border-radius:14px;padding:15px 16px;cursor:pointer;min-height:54px;transition:border-color .15s,background .15s}
-  .op:hover{border-color:var(--gold)}
-  .op .dot{width:19px;height:19px;border-radius:50%;border:2px solid var(--linha-forte);flex:none}
-  .op.sel{border-color:var(--gold);background:var(--sel);color:#fff}
-  .op.sel .dot{border-color:var(--gold);background:radial-gradient(circle,var(--gold) 0 4px,transparent 5px)}
-  .op:focus-visible,.cta:focus-visible,.dia:focus-visible,.hora:focus-visible,.inp:focus-visible,.link:focus-visible{outline:3px solid rgba(227,174,69,.6);outline-offset:2px}
-  .inp{width:100%;font:500 17px 'Inter',system-ui,sans-serif;color:#fff;background:rgba(255,255,255,.06);border:1.5px solid var(--linha-forte);border-radius:12px;padding:14px}
-  .inp::placeholder{color:var(--soft)}
-  .inp:focus{outline:none;border-color:var(--gold)}
-  .linha2{display:grid;grid-template-columns:1fr 110px;gap:10px}
-  .aviso{font-size:14px;line-height:1.45;border-radius:12px;padding:12px 14px;background:rgba(255,255,255,.07);color:#DCE5F4}
-  .aviso.erro{background:rgba(180,65,31,.22);color:var(--danger)}
-  .link{font-size:13.5px;color:var(--mut);text-align:center}
-  .link a,.link button{color:#fff;font-weight:700;background:none;border:0;text-decoration:underline;cursor:pointer;font-size:13.5px}
-  .rodape{padding:14px 22px 22px;display:flex;flex-direction:column;gap:6px}
-  .cta{width:100%;font-weight:800;font-size:17px;color:var(--tinta);background:var(--gold);border:0;border-radius:14px;padding:17px;min-height:56px;cursor:pointer;transition:background .15s}
-  .cta:hover{background:var(--gold-2)}
-  .cta:disabled{background:rgba(255,255,255,.14);color:rgba(255,255,255,.45);cursor:not-allowed}
-  .voltar{background:none;border:0;color:var(--mut);font-weight:600;font-size:14px;padding:8px;cursor:pointer}
-  .modo{display:inline-flex;align-self:flex-start;align-items:center;gap:8px;font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fff}
-  .modo i{width:8px;height:8px;border-radius:50%;background:var(--gold)}
-  .modo.vistoria i{background:#2fd08f}.modo.video i{background:#5aa2f0}.modo.ligacao i{background:#f2b52c}
-  .dias{display:flex;gap:10px}
-  .dia{flex:1;font-weight:700;font-size:15px;color:#fff;background:rgba(255,255,255,.04);border:1.5px solid var(--linha);border-radius:12px;padding:11px 6px;cursor:pointer;line-height:1.25}
-  .dia small{display:block;font-weight:500;color:var(--mut);font-size:12.5px}
-  .dia.sel{border-color:var(--gold);background:var(--sel)}
-  .horas{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-  .hora{font-weight:700;font-size:16px;color:#fff;background:rgba(255,255,255,.04);border:1.5px solid var(--linha);border-radius:12px;padding:13px 4px;cursor:pointer}
-  .hora:hover{border-color:var(--gold)}
-  .hora.sel{border-color:var(--gold);background:var(--gold);color:var(--tinta)}
-  .ok{width:58px;height:58px;border-radius:50%;background:rgba(95,211,154,.16);color:var(--ok);display:grid;place-items:center}
-  .passos{display:flex;flex-direction:column;gap:11px;font-size:15px;color:var(--text)}
-  .passos div{display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start}
-  .passos .n{width:24px;height:24px;border-radius:50%;background:var(--gold);color:var(--tinta);font-weight:800;font-size:12px;display:grid;place-items:center}
-  .passos b{color:#fff}
-  .ig{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1.5px solid var(--linha);border-radius:14px;padding:13px 15px;font-size:14.5px;color:var(--text)}
-  .ig a{font-weight:700;font-size:14px;background:var(--gold);color:var(--tinta);text-decoration:none;border-radius:10px;padding:10px 14px;white-space:nowrap}
-  .carregando{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:15px}
-  .carregando i{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.18);border-top-color:var(--gold);animation:gira .8s linear infinite}
-  @keyframes gira{to{transform:rotate(360deg)}}
-  .portao{position:fixed;inset:0;background:rgba(3,9,20,.72);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0 0 env(safe-area-inset-bottom,0)}
-  .portao[hidden]{display:none}
-  .portao .caixa{background:var(--surface-2);border:1px solid var(--linha);border-bottom:0;width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:24px 22px 26px;display:flex;flex-direction:column;gap:12px}
-  .portao .alt{font-weight:700;font-size:15px;color:#fff;background:transparent;border:1.5px solid var(--linha-forte);border-radius:14px;padding:15px;cursor:pointer}
-  .pe{width:100%;max-width:560px;text-align:center;font-size:12.5px;color:var(--soft);padding:18px 0 26px;display:flex;flex-direction:column;gap:6px}
-  .pe a{color:var(--mut)}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--text);background:radial-gradient(1200px 700px at 50% -10%,var(--bg-2) 0%,var(--bg) 62%) fixed,var(--bg);-webkit-font-smoothing:antialiased;line-height:1.5;min-height:100vh;overflow-x:clip}
+  button,input{font-family:inherit}
+  button{-webkit-tap-highlight-color:transparent}
+  :focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+  [tabindex="-1"]:focus{outline:none}
   [hidden]{display:none!important}
-  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+  .app{width:100%;max-width:480px;margin:0 auto;padding:0 0 env(safe-area-inset-bottom,0)}
+  .marca{display:flex;align-items:center;gap:11px;padding:16px 20px 6px}
+  .marca img{width:40px;height:40px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px rgba(227,174,69,.55),0 6px 16px rgba(0,0,0,.35)}
+  .marca .l1{font-weight:800;font-size:15px;color:#fff;line-height:1.1}
+  .marca .l2{font-size:9.5px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:2px}
+  .tela{min-height:calc(100vh - 140px);display:flex;flex-direction:column}
+  .pe{text-align:center;font-size:12.5px;color:var(--soft);padding:16px 20px 28px}
+  @media (min-width:520px){
+    .app{padding-top:18px}
+    .tela{background:var(--bg);border:1px solid var(--linha);border-radius:22px;box-shadow:0 24px 60px -20px rgba(0,0,0,.55);min-height:640px}
+  }
+
+  /* Barra de progresso inteligente */
+  .barra{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:14px 16px 12px;background:linear-gradient(var(--bg) 75%,transparent);border-radius:22px 22px 0 0}
+  .voltar{width:36px;height:36px;border-radius:10px;border:1px solid var(--linha);background:transparent;color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none}
+  .voltar.oculto{visibility:hidden}
+  .prog-wrap{flex:1;display:flex;flex-direction:column;gap:7px;min-width:0}
+  .prog-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .prog-rot{color:var(--soft)}
+  .prog-st{color:var(--gold-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .prog{position:relative;height:6px;border-radius:3px;background:var(--linha)}
+  .prog b{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2));transition:width .55s cubic-bezier(.2,.8,.2,1)}
+  .prog i{position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--bg);border:2px solid var(--linha-forte);transition:background .3s,border-color .3s}
+  .prog i.feito{border-color:var(--gold);background:var(--gold)}
+
+  .corpo{padding:6px 20px 28px;display:flex;flex-direction:column;gap:14px;flex:1;animation:entra .28s ease-out both}
+  @keyframes entra{from{opacity:.35;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .hl{font-size:30px;line-height:1.08;font-weight:800;letter-spacing:-.02em;margin:4px 0 0;text-wrap:balance}
+  .hl em{font-style:normal;color:var(--gold)}
+  .hl-sub{margin:-6px 0 4px;color:var(--mut);font-size:15px}
+  .q{font-size:21px;line-height:1.25;font-weight:700;margin:2px 0 0;text-wrap:balance}
+  .sub{margin:-6px 0 0;color:var(--mut);font-size:14px}
+  .dica{margin:0;padding:10px 12px;border-radius:12px;background:var(--sel);color:var(--gold-2);font-size:14px;font-weight:600;display:flex;gap:8px;align-items:flex-start}
+  .dica svg{flex:none;margin-top:2px}
+  .ops{display:flex;flex-direction:column;gap:10px;margin-top:2px}
+  .op{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:15px 16px;min-height:54px;border:1.5px solid var(--linha-forte);border-radius:14px;background:rgba(255,255,255,.03);color:var(--text);font-size:16px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
+  .op:hover{border-color:var(--gold)}
+  .op .bol{width:20px;height:20px;border-radius:50%;border:2px solid var(--linha-forte);flex:none}
+  .op.sel{border-color:var(--gold);background:var(--sel)}
+  .op.sel .bol{border-color:var(--gold);background:var(--gold);box-shadow:inset 0 0 0 4px var(--bg)}
+  .campo{width:100%;padding:15px 16px;border-radius:14px;border:1.5px solid var(--linha-forte);background:rgba(255,255,255,.04);color:var(--text);font-size:17px;font-weight:600;outline:none}
+  .campo:focus{border-color:var(--gold)}
+  .campo::placeholder{color:var(--soft);font-weight:500}
+  .sug{display:flex;flex-direction:column;gap:6px}
+  .sug button{text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--linha);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+  .sug button:hover{border-color:var(--gold)}
+  .btn{display:block;width:100%;padding:16px 18px;border-radius:14px;border:0;background:var(--gold);color:var(--tinta);font-size:17px;font-weight:800;cursor:pointer;line-height:1.25;text-align:center;text-decoration:none}
+  .btn:hover{background:var(--gold-2)}
+  .btn:disabled{background:rgba(255,255,255,.14);color:rgba(255,255,255,.55);cursor:not-allowed}
+  .btn.sec{background:transparent;color:var(--text);border:1.5px solid var(--linha-forte);font-weight:700;font-size:16px}
+  .btn.sec:hover{border-color:var(--gold)}
+  .link{background:none;border:0;color:var(--mut);text-decoration:underline;text-underline-offset:3px;font-size:15px;cursor:pointer;padding:6px;align-self:center}
+  .nota-int{font-size:13.5px;color:var(--mut);text-align:center}
+  .nota-int a{color:#fff;font-weight:700}
+  .erro{color:var(--danger);font-size:14px;margin:0}
+  .aviso{font-size:14px;line-height:1.45;border-radius:12px;padding:12px 14px;background:rgba(255,255,255,.07);color:#DCE5F4}
+  .mini{font-size:12px;color:var(--soft);margin:0}
+
+  /* Resultado */
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:2px 0 -6px}
+  .res-h{font-size:25px;line-height:1.15;font-weight:800;margin:0;letter-spacing:-.01em;text-wrap:balance}
+  .res-h em{font-style:normal;color:var(--gold)}
+  .hoje{padding:12px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--linha);display:flex;flex-direction:column;gap:6px}
+  .hoje .lin{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--mut)}
+  .hoje strong{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tit-sec{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin:6px 0 -4px}
+  .nums{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .num{padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--linha);min-width:0}
+  .num b{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
+  .num span{font-size:12px;color:var(--soft)}
+  .eco{padding:14px;border-radius:14px;background:var(--sel);border:1px solid rgba(227,174,69,.45);display:flex;flex-direction:column;gap:2px}
+  .eco .rot{font-size:13px;color:var(--gold-2);font-weight:700}
+  .eco b{color:var(--gold-2);font-size:28px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+  .eco span{font-size:14px;color:var(--mut)}
+  .obs{margin:0;font-size:14px;color:var(--mut)}
+  .pessoal{margin:0;font-size:15px;padding-left:12px;border-left:3px solid var(--gold)}
+  .lista{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .lista li{display:flex;gap:10px;font-size:15px;align-items:flex-start}
+  .lista svg{flex:none;margin-top:3px;color:var(--ok)}
+  .passos{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .passos li{padding:10px 12px;border-radius:12px;border:1px solid var(--linha);font-size:14px;display:flex;gap:8px;align-items:baseline}
+  .passos li b{color:var(--gold);font-variant-numeric:tabular-nums}
+  .faixa-obras{display:flex;align-items:center;gap:12px;margin:-4px 0 2px}
+  .fo-imgs{display:flex;flex:none}
+  .fo-imgs img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--bg);margin-left:-12px;display:block}
+  .fo-imgs img:first-child{margin-left:0}
+  .faixa-obras span{font-size:13px;color:var(--mut);font-weight:600;line-height:1.3}
+  .zoom{display:block;padding:0;border:0;background:none;cursor:zoom-in;width:100%;color:inherit;font:inherit}
+  .prova-mini{margin:0;display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:var(--surface);border:1px solid var(--linha)}
+  .prova-mini .zoom{width:auto;flex:none}
+  .prova-mini img{width:54px;height:72px;object-fit:cover;object-position:top;border-radius:8px;display:block}
+  .prova-mini q{display:block;font-size:15px;font-weight:600;quotes:"\201C" "\201D"}
+  .prova-mini figcaption span{display:block;font-size:12px;color:var(--soft);margin-top:2px}
+  .falas{display:flex;flex-direction:column;gap:8px}
+  .fala{margin:0;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--linha)}
+  .fala p{margin:0;font-size:15px}
+  .fala cite{display:block;margin-top:4px;font-style:normal;font-size:12px;color:var(--soft);font-weight:600}
+  .cta-fala{margin:2px 0 0;font-size:13px;color:var(--mut);text-align:center}
+  .cta-fala b{color:var(--text);font-weight:600}
+  .carrossel{margin:0 -20px}
+  .car-area{position:relative}
+  .car-trilho{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+  .car-trilho::-webkit-scrollbar{display:none}
+  .car-slide{margin:0;flex:0 0 100%;scroll-snap-align:center;padding:0 20px;box-sizing:border-box;min-width:0}
+  .car-slide img{width:100%;max-width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:14px;display:block}
+  .car-slide figcaption{font-size:13px;color:var(--soft);margin-top:6px}
+  .carrossel.prints .car-slide{text-align:center}
+  .carrossel.prints .zoom{display:flex;justify-content:center}
+  .carrossel.prints .car-slide img{aspect-ratio:auto;width:auto;max-width:100%;height:360px;object-fit:contain;background:var(--wa-bg);border:1px solid var(--linha)}
+  .car-seta{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:1px solid var(--linha-forte);background:rgba(10,26,51,.78);color:var(--text);display:grid;place-items:center;cursor:pointer}
+  .car-seta.ant{left:28px}
+  .car-seta.prox{right:28px}
+  .car-pontos{display:flex;justify-content:center;gap:6px;margin-top:10px}
+  .car-pontos i{width:6px;height:6px;border-radius:3px;background:var(--linha-forte);transition:background .2s,width .2s}
+  .car-pontos i.on{background:var(--gold);width:18px}
+  .luz{position:fixed;inset:0;z-index:50;background:rgba(5,12,26,.94);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));cursor:zoom-out}
+  .luz img{max-width:min(92vw,560px);max-height:86vh;border-radius:12px;object-fit:contain}
+  .luz-fechar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);width:44px;height:44px;border-radius:50%;border:1px solid var(--linha-forte);background:var(--bg);color:var(--text);font-size:24px;line-height:1;cursor:pointer}
+  .cta{margin-top:6px;padding:16px;border-radius:18px;background:var(--surface-2);border:1px solid var(--linha-forte);display:flex;flex-direction:column;gap:10px}
+  .quem{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--mut)}
+  .quem strong{color:var(--text)}
+  .av{width:42px;height:42px;border-radius:50%;background:var(--gold);color:var(--tinta);display:grid;place-items:center;font-weight:800;flex:none;font-size:17px}
+  .estim{font-size:12px;color:var(--soft);margin:0;text-align:center}
+
+  /* Telas finais */
+  .fim{padding:20px 20px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;flex:1;justify-content:center;animation:entra .28s ease-out both}
+  .fim .av{width:76px;height:76px;font-size:30px;position:relative}
+  .fim .av.pulsa::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid var(--gold);animation:pulso 1.8s ease-out infinite}
+  @keyframes pulso{from{transform:scale(.9);opacity:.9}to{transform:scale(1.3);opacity:0}}
+  .fim h2{font-size:23px;line-height:1.2;margin:0;font-weight:800;text-wrap:balance}
+  .fim p{margin:0;color:var(--mut)}
+  .fim .btn,.fim .ig{width:100%}
+  .caixa{padding:10px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--linha);font-size:14px}
+  .ok-ic{width:64px;height:64px;border-radius:50%;background:rgba(95,211,154,.14);color:var(--ok);display:grid;place-items:center}
+  .ig{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1.5px solid var(--linha);border-radius:14px;padding:13px 15px;font-size:14.5px;color:var(--text);text-align:left}
+  .ig a{font-weight:700;font-size:14px;background:var(--gold);color:var(--tinta);text-decoration:none;border-radius:10px;padding:10px 14px;white-space:nowrap}
+  .dia{font-size:14px;font-weight:700;color:var(--mut);margin:4px 0 -4px}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .slots button{padding:12px 0;border-radius:10px;border:1.5px solid var(--linha-forte);background:transparent;color:var(--text);font-weight:700;font-size:15px;cursor:pointer;font-variant-numeric:tabular-nums}
+  .slots button:hover{border-color:var(--gold);background:var(--sel)}
+  .slots button:disabled{opacity:.5;cursor:not-allowed}
+
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="topo">
-    <img src="/io/img/logoio.png" alt="" width="42" height="42" onerror="this.style.display='none'">
+  <header class="marca">
+    <img src="/io/img/logoio.png" alt="" width="40" height="40" onerror="this.style.display='none'">
     <div><div class="l1">Irmãos na Obra</div><div class="l2">Energia solar</div></div>
   </header>
 
-  <main class="quadro" aria-live="polite">
-    <div class="prog" aria-hidden="true"><i id="prog"></i></div>
-    <div class="corpo" id="corpo">
-      <noscript><p class="sub">Para continuar, ative o JavaScript ou fale com a gente pelo WhatsApp: (34) 99816-5040.</p></noscript>
-    </div>
-    <div class="rodape" id="rodape"></div>
+  <main class="tela" id="tela" aria-label="Diagnóstico solar">
+    <noscript><p class="sub" style="padding:20px">Para continuar, ative o JavaScript ou fale com a gente pelo WhatsApp: (34) 99816-5040.</p></noscript>
   </main>
 
-  <footer class="pe">
-    <span>Irmãos na Obra · Energia solar em Uberlândia e região</span>
-  </footer>
+  <footer class="pe">Irmãos na Obra · Energia solar em Uberlândia e região</footer>
 </div>
-
-<div class="portao" id="portao" hidden role="dialog" aria-modal="true" aria-labelledby="portao-q">
-  <div class="caixa">
-    <div class="q" id="portao-q"></div>
-    <div class="sub" id="portao-sub"></div>
-    <button class="cta" id="portao-sim" type="button">Sim, vou estar</button>
-    <button class="alt" id="portao-nao" type="button">Ainda não posso confirmar</button>
-  </div>
-</div>
+<div class="luz" id="luz" hidden><button type="button" class="luz-fechar" aria-label="Fechar">&times;</button></div>
 
 <script>
 // ===== Meta Pixel (Solar) =====
@@ -164,9 +237,12 @@ src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></n
 'use strict';
 const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '/_api';
 const WHATS_CENTRAL = '5534998165040';
+// Texto pronto que o porteiro da 5040 reconhece como Solar (porteiro.ts, produtoDoBotao).
+const WHATS_TEXTO = 'Oi! Acabei de preencher a simulação de energia solar.';
 const $ = id => document.getElementById(id);
-const corpo = $('corpo'), rodape = $('rodape'), portao = $('portao');
+const tela = $('tela');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const calmo = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 // ── Origem do lead: primeiro toque da sessão, como no eletroposto ─────────────
 const UTM_KEYS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
@@ -210,172 +286,439 @@ function lpFunil(tipo, dados){
   const corpoEv = Object.assign({ lp: 'solar', modo: 'quiz', caminho: caminhoAtual(), pl: PL, seq: ++SEQ }, dados || {});
   try { if (window.lpEvt) window.lpEvt(tipo, corpoEv); else (window.__lpFila = window.__lpFila || []).push([tipo, corpoEv]); } catch(e){}
 }
+// 'inicio' antes da conta, 'respondendo' até o servidor decidir, e o caminho que ele devolveu depois.
+function caminhoAtual(){ return srv && srv.caminho ? srv.caminho : (R.conta ? 'respondendo' : 'inicio'); }
+
+// ── Dados ─────────────────────────────────────────────────────────────────────
+// A 3ª coluna das contas é a MESMA do servidor (FAIXAS_CONTA em solarRota.ts), o meio da faixa, só para as dicas "cerca de R$ X por
+// ano" ANTES do diagnóstico (é a conta do próprio cliente, não preço de nada).
+const CONTAS = [['ate300','Até R$ 300',150],['300_600','R$ 300 a R$ 600',450],['600_1050','R$ 600 a R$ 1.050',825],['1050_2000','R$ 1.050 a R$ 2.000',1525],['2000_5000','R$ 2.000 a R$ 5.000',3500],['5000_mais','Mais de R$ 5.000',5001]];
+const CONTA_DEPOIS = 99; // valor fixo do dono; só usado na dica do prazo (o resultado vem do servidor)
+const BLOCO_CLIENTE = { imovel:'Seu imóvel', dor:'Sua conta hoje', desejo:'Seus planos', diag:'Seu diagnóstico' };
+const ORDEM_BLOCOS = ['imovel','dor','desejo','diag'];
+// Prova social real, a mesma da landing /io (fotos em /io/mosaico, prints em /io/img).
+const OBRAS = [['/io/mosaico/9.jpeg','Sistema de 4,4 kWp'],['/io/mosaico/4.jpeg','Obra rural'],['/io/mosaico/11.jpeg','8 painéis'],['/io/mosaico/3.jpeg','Painéis full black'],['/io/mosaico/6.jpeg','Comércio'],['/io/mosaico/1.jpeg',''],['/io/mosaico/2.jpeg',''],['/io/mosaico/5.jpeg',''],['/io/mosaico/10.jpeg','']];
+const PRINTS = [['/io/img/fedd3.jpg','Sueli, Uberlândia'],['/io/img/fedd4.jpg','Márcio'],['/io/img/fedd1.jpg','Denivan'],['/io/img/fedd6.jpg','Cléber'],['/io/img/fedd5.jpg','Huberth Rocha'],['/io/img/fedd7.jpg','Andrigo'],['/io/img/fedd2.jpg','Sebastião']];
+const FALAS = [['Nota 10 por tudo. 100% satisfeita.','Sueli, cliente em Uberlândia'],['Tenho verificado uma produção de energia muito satisfatória, dentro do nosso combinado.','Márcio, cliente'],['Profissionalismo e transparência com o serviço prestado, tudo dentro do combinado.','Cléber, cliente']];
 
 // ── Estado ────────────────────────────────────────────────────────────────────
-const R = {};                      // respostas
-let nome = '', tel = '', endereco = { cep:'', rua:'', numero:'', bairro:'' };
-let srv = null;                    // o que o servidor decidiu no passo do WhatsApp
-let idx = 0, diaSel = null, horaSel = null, fim = null, ocupado = false, avisoHorario = '';
+let R = {}, NOME = '', TEL = '';
+let hist = [], atual = 'tipo', fase = 'quiz';   // fase: quiz | resultado | horarios | fim
+let srv = null;                                  // o que o servidor devolveu no passo do WhatsApp
+let fimTipo = '', marcado = null, agoraInfo = null, avisoHorario = '';
+let ocupado = false, travado = false, cardMarcado = false, ultimoPct = 0, primeiraTela = true;
 
-const CONTAS = [
-  ['ate300','Até R$ 300'], ['300_600','R$ 300 a R$ 600'], ['600_1050','R$ 600 a R$ 1.050'],
-  ['1050_2000','R$ 1.050 a R$ 2.000'], ['2000_5000','R$ 2.000 a R$ 5.000'], ['5000_mais','Mais de R$ 5.000'],
+const val = x => typeof x === 'function' ? x() : x;
+const digitos = s => String(s || '').replace(/\D/g, '');
+const brl = v => 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR');
+const brlC = v => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const num = (v, d) => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: d || 0 });
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const casa = () => !R.tipo || R.tipo === 'casa';
+const rural = () => R.tipo === 'rural';
+const primeiroNome = () => { const n = (NOME || '').trim().split(/\s+/)[0] || ''; return n ? n.charAt(0).toUpperCase() + n.slice(1) : 'Cliente'; };
+const cidadeNome = () => (R.cidade || '').replace(/-[A-Z]{2}$/, '');
+// A campanha pega MG, GO e SP: só fala CEMIG quando a cidade é de Minas. O UF vem
+// do servidor (cidade.uf) ou do sufixo "-MG" da cidade escolhida; sem UF, fala genérico.
+const ufDaCidade = () => { if (srv && srv.cidade && srv.cidade.uf) return String(srv.cidade.uf).toUpperCase(); const m = (R.cidade || '').match(/-([A-Z]{2})$/); return m ? m[1] : ''; };
+const ehMG = () => ufDaCidade() === 'MG';
+const conc = () => ehMG() ? 'a CEMIG' : 'a companhia de energia';
+const concNa = () => ehMG() ? 'na CEMIG' : 'na companhia de energia';
+const contaMes = () => { const c = CONTAS.find(c => c[0] === R.conta); return c ? c[2] : 0; };
+
+// ── Passos ────────────────────────────────────────────────────────────────────
+// ops = [valor, texto na tela, texto curto]. Os valores são os que o servidor, a nota e a Duda leem.
+const P = [
+ { id:'tipo', b:'imovel', campo:'tipo', topo:true, q:'Onde você quer instalar energia solar?',
+   ops:[['casa','Na minha casa','casa'],['empresa','No meu comércio ou empresa','empresa'],['rural','Na fazenda, chácara ou sítio','rural']] },
+ { id:'conta', b:'imovel', campo:'conta', q:'Quanto vem a sua conta de luz por mês?', sub:'Pode ser a média dos últimos meses.',
+   ops:CONTAS.map(c => [c[0], c[1], c[1]]) },
+ { id:'cidade', b:'imovel', campo:'cidade', tipo:'cidade', q:'Em qual cidade fica o imóvel?',
+   dica:() => R.conta ? `Isso dá cerca de ${brl(contaMes() * 12)} por ano só de conta de luz.` : '' },
+ { id:'grupoa', b:'imovel', campo:'grupoa', q:'A sua conta tem a linha "Demanda contratada"?', sub:'Ela aparece na conta de quem é atendido em alta tensão.',
+   quando:() => R.tipo && R.tipo !== 'casa' && (R.conta === '2000_5000' || R.conta === '5000_mais'),
+   ops:[['sim','Sim, tem','sim'],['nao','Não tem','não'],['naosei','Não sei','não sabe']] },
+ { id:'telhado', b:'imovel', campo:'telhado', q:() => rural() ? 'Onde as placas vão ficar?' : 'Como é o telhado?',
+   dica:() => cidadeEhLista() ? `Boa notícia: ${cidadeNome()} tem sol forte o ano todo.` : '',
+   ops:() => { const solo = ['solo', rural() ? 'No chão, no terreno' : 'No chão, não tenho telhado livre', 'no chão'];
+     const t = [['ceramica','Telha de barro (cerâmica)','cerâmica'],['fibrocimento','Telha de fibrocimento','fibrocimento'],['metalico','Telha metálica','metálico'],['laje','Laje','laje']];
+     return rural() ? [solo, ...t] : [...t, solo]; } },
+ { id:'sombra', b:'imovel', campo:'sombra', q:() => R.telhado === 'solo' ? 'O local pega sol o dia todo?' : 'O telhado pega sol o dia todo?',
+   ops:[['sol','Sim, quase sem sombra','sol o dia todo'],['alguma','Tem alguma sombra (árvore, prédio, caixa d’água)','alguma sombra'],['naosei','Não sei dizer','sombra: não sabe']] },
+ { id:'imovel', b:'imovel', campo:'imovel', q:'O imóvel é seu?',
+   ops:[['proprio','Sim, é meu','próprio'],['alugado','É alugado','alugado'],['construcao','Está em construção','em construção']] },
+ { id:'aumento', b:'imovel', campo:'aumento', q:'Vai aumentar o consumo de energia nos próximos anos?',
+   ops:() => [['clima','Sim, ar-condicionado ou piscina','ar-condicionado ou piscina'],['carro','Sim, carro elétrico','carro elétrico'],['maquinas', rural() ? 'Sim, irrigação ou máquinas' : 'Sim, máquinas ou ampliação','máquinas, irrigação ou ampliação'],['nao','Não, deve ficar igual','não']] },
+ { id:'dor', b:'dor', campo:'dor', q:'O que mais pesa na sua conta de luz hoje?',
+   ops:() => casa()
+     ? [['sobe','Ela sobe todo ano','a conta sobe todo ano'],['bandeira','A bandeira vermelha vem de surpresa','bandeira vermelha de surpresa'],['evito','Evito ligar o ar-condicionado por causa dela','evita ligar o ar-condicionado'],['sobra','Sobra pouco para outras coisas','sobra pouco no mês']]
+     : [['sobe','Ela sobe todo ano','a conta sobe todo ano'],['bandeira','A bandeira vermelha vem de surpresa','bandeira vermelha de surpresa'],['margem','Ela come a margem do negócio','come a margem do negócio'],['planejar','Não consigo planejar esse custo','não consegue planejar o custo']] },
+ { id:'tempo', b:'dor', campo:'tempo', q:'Há quanto tempo você pensa em energia solar?',
+   ops:[['agora','Comecei a pensar agora','começou agora'],['meses','Há alguns meses','há alguns meses'],['ano','Há mais de 1 ano','há mais de 1 ano']] },
+ { id:'travou', b:'dor', campo:'travou', q:'O que te fez esperar até agora?',
+   quando:() => R.tempo && R.tempo !== 'agora',
+   dica:() => R.conta ? (R.tempo === 'ano' ? `Em 1 ano, foram cerca de ${brl(contaMes() * 12)} para ${conc()}.` : `Em 6 meses, são cerca de ${brl(contaMes() * 6)} para ${conc()}.`) : '',
+   ops:[['caro','Achei que era caro','achou caro'],['valia','Não sabia se valia a pena','não sabia se valia a pena'],['confianca','Não confiei nas empresas que vi','não confiou nas empresas'],['tempo','Faltou tempo para pesquisar','faltou tempo']] },
+ { id:'desejo', b:'desejo', campo:'desejo', q:'Se a conta caísse para quase nada, o que você faria com esse dinheiro?',
+   ops:() => casa()
+     ? [['contas','Pagar outras contas','pagar outras contas'],['guardar','Guardar ou investir','guardar ou investir'],['reformar','Reformar ou melhorar a casa','reformar a casa'],['conforto','Usar o ar-condicionado sem culpa','usar o ar sem culpa'],['viajar','Viajar com a família','viajar com a família']]
+     : [[rural() ? 'producao' : 'negocio', rural() ? 'Investir na produção' : 'Investir no negócio', rural() ? 'investir na produção' : 'investir no negócio'],['lucro','Aumentar o lucro','aumentar o lucro'],['guardar','Guardar ou investir','guardar ou investir'],['contas','Pagar outras contas','pagar outras contas']] },
+ { id:'criterio', b:'desejo', campo:'criterio', q:'O que é mais importante na hora de escolher a empresa?',
+   ops:[['parcela','Uma parcela que caiba no bolso','parcela que caiba no bolso'],['garantia','Garantia e segurança','garantia e segurança'],['rapidez','Instalar rápido','instalar rápido'],['regiao','Empresa da região, com obra para mostrar','empresa da região']] },
+ { id:'urgencia', b:'desejo', campo:'urgencia', q:'Quando você quer começar a economizar?',
+   // Sem a dica no Grupo A: a demanda contratada continua sendo cobrada, então "a conta cai" não vale.
+   dica:() => (R.conta && R.grupoa !== 'sim') ? `Cada mês sem energia solar são cerca de ${brl(Math.max(0, contaMes() - CONTA_DEPOIS))} que ficam com ${conc()}.` : '',
+   ops:[['ja','O quanto antes, este mês','o quanto antes'],['3meses','Nos próximos 3 meses','3 meses'],['pesquisando','Ainda estou pesquisando','pesquisando']] },
+ { id:'pagamento', b:'desejo', campo:'pagamento', q:'Como você prefere pagar?',
+   ops:[['vista','À vista','à vista'],['financiamento','Financiado, com a parcela no lugar da conta','financiamento'],['cartao','Cartão em até 21x','cartão 21x'],['naosei','Ainda não sei','não sabe']] },
+ { id:'decisor', b:'desejo', campo:'decisor', q:'Quem decide a compra?',
+   ops:[['eu','Eu decido','o próprio cliente'],['junto','Eu e mais alguém','decide junto'],['outro','Outra pessoa decide','outra pessoa']] },
+ { id:'concorrente', b:'desejo', campo:'concorrente', q:'Já pediu orçamento de energia solar?',
+   ops:[['sim','Sim, quero comparar','sim, quer comparar'],['nao','Não, este é o primeiro','não, é o primeiro']] },
+ { id:'nome', b:'diag', tipo:'nome', q:'Seu diagnóstico está pronto. Como você se chama?' },
+ { id:'whatsapp', b:'diag', tipo:'whatsapp', q:'Qual o seu WhatsApp?', sub:'Com DDD. É por ele que o especialista fala com você.' }
 ];
-const CIDADES_SUGERIDAS = ['Uberlândia','Araguari','Uberaba','Catalão','Ituiutaba','Patrocínio','Monte Carmelo','Itumbiara','Tupaciguara','Prata','Monte Alegre de Minas','Caldas Novas','Ipameri','Araporã','Centralina','Canápolis','Indianópolis','Nova Ponte','Santa Juliana','Estrela do Sul','Cascalho Rico','Romaria','Iraí de Minas','Coromandel'];
+const passo = id => P.find(p => p.id === id);
+const visiveis = () => P.filter(p => !p.quando || p.quando());
+function lbl(campo){ const p = passo(campo); if (!p || R[campo] == null) return ''; const o = (val(p.ops) || []).find(o => o[0] === R[campo]); return o ? (o[2] || o[1]) : ''; }
 
-const PASSOS = [
-  { id:'conta', campo:'conta', q:'Quanto vem a sua conta de luz por mês?', ops: CONTAS, topo:true },
-  { id:'tipo', campo:'tipo', q:'Onde vai ficar a energia solar?', ops:[['casa','Na minha casa'],['empresa','No meu comércio ou empresa'],['rural','Na fazenda, chácara ou agro']] },
-  { id:'cidade', tipo:'cidade', q:'Em qual cidade fica o imóvel?' },
-  { id:'imovel', campo:'imovel', q:'O imóvel é seu?', ops:[['proprio','Sim, é meu'],['alugado','É alugado'],['construcao','Está em construção']] },
-  { id:'urgencia', campo:'urgencia', q:'Quando você quer o sistema funcionando?', ops:[['ja','O quanto antes, este mês'],['3meses','Nos próximos 3 meses'],['pesquisando','Ainda estou pesquisando preços']] },
-  { id:'concorrente', campo:'concorrente', q:'Já fez orçamento com outra empresa?', ops:[['sim','Sim, quero comparar'],['nao','Não, este é o primeiro']] },
-  { id:'pagamento', campo:'pagamento', q:'Como pretende pagar?', ops:[['vista','À vista'],['financiamento','Financiamento'],['cartao','Cartão em até 21x'],['naosei','Ainda não sei']] },
-  { id:'decisor', campo:'decisor', q:'Quem decide a compra?', ops:[['eu','Eu decido'],['junto','Eu e mais alguém'],['outro','Outra pessoa']] },
-  { id:'grupoa', campo:'grupoa', q:'A sua conta tem a linha "Demanda contratada"?', sub:'Ela aparece na conta de quem é atendido em alta tensão.',
-    quando: () => R.tipo && R.tipo !== 'casa' && (R.conta === '2000_5000' || R.conta === '5000_mais'),
-    ops:[['sim','Sim, tem'],['nao','Não tem'],['naosei','Não sei']] },
-  { id:'nome', tipo:'nome', q:'Como podemos te chamar?' },
-  { id:'whatsapp', tipo:'whatsapp', q:'Qual é o seu WhatsApp?', sub:'É por ele que chega a confirmação.' },
-  { id:'endereco', tipo:'endereco', q:'Onde fica o imóvel?', sub:'É para lá que o consultor vai.', quando: () => srv && srv.caminho === 'vistoria' },
-  { id:'horario', tipo:'horario', quando: () => srv && srv.dias && srv.dias.length },
-];
-const vivos = () => PASSOS.filter(p => !p.quando || p.quando());
-function caminhoAtual(){ return srv ? srv.caminho : (R.conta ? 'respondendo' : 'inicio'); }
+// Só vai para o servidor o que o cliente respondeu e ainda vale: passo escondido
+// (travou sem tempo, grupoa sem empresa e conta alta) e valor que não está mais nas
+// opções (troca de casa para empresa) ficam de fora. Um grupoa velho faria o
+// servidor tratar uma casa como Grupo A.
+function respostasLimpas(){
+  const out = {};
+  visiveis().forEach(p => {
+    if (!p.campo || R[p.campo] == null || R[p.campo] === '') return;
+    if (p.ops && !(val(p.ops) || []).some(o => o[0] === R[p.campo])) return;
+    out[p.campo] = R[p.campo];
+  });
+  return out;
+}
 
-// Qualquer resposta que muda depois do WhatsApp invalida a decisão do servidor.
-function responder(campo, v){ if (R[campo] !== v){ R[campo] = v; srv = null; diaSel = null; horaSel = null; } }
+// ── Cidade: lista do IBGE servida como arquivo estático ───────────────────────
+let MUNI = null;   // [{s:'Uberlândia-MG', n:'uberlandia', nf:'uberlandia-mg', uf:'MG'}] ou [] se não carregou
+const UF_PRIO = { MG:0, GO:1, SP:2 };
+fetch('/io/solar/municipios.json').then(r => r.ok ? r.json() : []).then(l => {
+  MUNI = (Array.isArray(l) ? l : []).filter(s => typeof s === 'string').map(s => { const nome = s.replace(/-[A-Z]{2}$/, ''); return { s, n: norm(nome), nf: norm(s), uf: s.slice(-2) }; });
+  const ul = $('sug'), inp = $('inCidade'); if (ul && inp) ul.innerHTML = sugestoesHtml(inp.value);
+}).catch(() => { MUNI = []; });
+const cidadeEhLista = () => /-[A-Z]{2}$/.test(R.cidade || '') && !!MUNI && MUNI.some(m => m.s === R.cidade);
+function ordemUF(a, b){ return (UF_PRIO[a.uf] ?? 3) - (UF_PRIO[b.uf] ?? 3); }
+function acharCidades(t){
+  const q = norm(t); if (!q || !MUNI) return [];
+  const chave = q.indexOf('-') >= 0 ? 'nf' : 'n';
+  const comeca = MUNI.filter(m => m[chave].startsWith(q));
+  const palavra = MUNI.filter(m => !m[chave].startsWith(q) && m[chave].split(/[\s-]+/).some(w => w.startsWith(q)));
+  const contem = MUNI.filter(m => !m[chave].startsWith(q) && !m[chave].split(/[\s-]+/).some(w => w.startsWith(q)) && m[chave].includes(q));
+  return [...comeca.sort(ordemUF), ...palavra.sort(ordemUF), ...contem.sort(ordemUF)].slice(0, 6);
+}
+function sugestoesHtml(t){
+  if (!norm(t)) return '';
+  const ach = acharCidades(t);
+  if (!ach.length) return '<p class="mini">Não achou? Termine de digitar e toque em Continuar.</p>';
+  return ach.map(m => `<button type="button" data-sug="${esc(m.s)}">${esc(m.s)}</button>`).join('');
+}
+// Texto digitado que é exatamente um município vira "Município-UF"; senão fica como está.
+function cidadeFinal(t){
+  const q = norm(t);
+  if (MUNI && q){
+    const ex = MUNI.filter(m => m.nf === q || m.n === q).sort(ordemUF);
+    if (ex.length) return ex[0].s;
+  }
+  return t.trim();
+}
 
 // ── Validações ────────────────────────────────────────────────────────────────
-const digitos = s => String(s || '').replace(/\D/g, '');
-const telOk = () => { const d = digitos(tel); return d.length === 10 || d.length === 11; };
-const telBanco = () => { const d = digitos(tel); return d.length >= 12 && d.startsWith('55') ? d : '55' + d; };
-function respondido(p){
-  if (p.ops) return !!R[p.campo];
-  if (p.tipo === 'cidade') return (R.cidade || '').trim().length >= 3;
-  if (p.tipo === 'nome') return nome.trim().length >= 3;
-  if (p.tipo === 'whatsapp') return telOk();
-  if (p.tipo === 'endereco') return digitos(endereco.cep).length === 8 && endereco.rua.trim().length >= 3 && endereco.numero.trim().length >= 1;
-  if (p.tipo === 'horario') return diaSel !== null && !!horaSel;
-  return false;
+const telOk = () => { const d = digitos(TEL); return d.length === 11 && d[2] === '9'; };
+const telBanco = () => '55' + digitos(TEL);
+function mascaraTel(v){
+  const d = digitos(v).replace(/^(?:55|0)(?=\d{10,11}$)/, '').slice(0, 11);
+  if (!d.length) return '';
+  if (d.length <= 2) return '(' + d;
+  if (d.length <= 7) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+  return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
 }
-function mensagemDoErro(p){
-  if (p.ops) return 'Escolha uma das opções para continuar.';
-  if (p.tipo === 'cidade') return 'Digite o nome da cidade.';
-  if (p.tipo === 'nome') return 'Digite o seu nome.';
-  if (p.tipo === 'whatsapp') return 'Confira o número com DDD.';
-  if (p.tipo === 'endereco') return 'Preencha o CEP, a rua e o número.';
-  return 'Escolha o dia e o horário.';
+
+// ── Ícones ────────────────────────────────────────────────────────────────────
+const IC = {
+  voltar:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+  sol:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>',
+  ok:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  okG:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+};
+
+// ── Barra de progresso inteligente ────────────────────────────────────────────
+// Já nasce com 8%, anda rápido no começo e devagar no fim, conta só as perguntas
+// que vão aparecer para este cliente e troca o texto perto do fim.
+const curva = t => Math.round(8 + 92 * (1 - Math.pow(1 - t, 1.4)));
+function prog(){
+  const v = visiveis(), N = v.length, i = fase === 'quiz' ? Math.max(0, v.findIndex(p => p.id === atual)) : N;
+  const pct = curva(i / N), falta = fase === 'quiz' ? N - i : 0;
+  const marcos = ORDEM_BLOCOS.slice(1).map(b => { const j = v.findIndex(p => p.b === b); return { pos: curva(j / N), feito: i >= j }; });
+  return { pct, falta, marcos };
+}
+function barra(bloco, semVoltar){
+  const { pct, falta, marcos } = prog();
+  const st = fase !== 'quiz' ? 'Diagnóstico pronto' : falta === 1 ? 'Última pergunta' : falta <= 3 ? `Faltam ${falta}` : `${pct}% do diagnóstico`;
+  return `<div class="barra"><button class="voltar${semVoltar ? ' oculto' : ''}" data-acao="voltar" type="button" aria-label="Voltar">${IC.voltar}</button><div class="prog-wrap"><div class="prog-top"><span class="prog-rot">${BLOCO_CLIENTE[bloco]}</span><span class="prog-st">${st}</span></div><div class="prog" role="progressbar" aria-label="Progresso do diagnóstico" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><b data-pct="${pct}" style="width:${ultimoPct}%"></b>${marcos.map(m => `<i class="${m.feito ? 'feito' : ''}" style="left:${m.pos}%"></i>`).join('')}</div></div></div>`;
+}
+
+// ── Telas das perguntas ───────────────────────────────────────────────────────
+function telaPasso(p){
+  let h = barra(p.b, !hist.length) + '<div class="corpo">';
+  if (p.topo) h += '<h1 class="hl">Veja quanto a sua conta <em>pode cair</em></h1><p class="hl-sub">Leva 1 minuto. O diagnóstico sai na hora.</p>'
+    + `<div class="faixa-obras"><div class="fo-imgs">${OBRAS.slice(0, 4).map(o => `<img src="${o[0]}" alt="" width="44" height="44">`).join('')}</div><span>Obras de energia solar entregues pela Irmãos na Obra</span></div>`;
+  const inicioBloco = visiveis().find(x => x.b === p.b).id === p.id;
+  const d = (p.dica && val(p.dica)) || (inicioBloco ? ({ dor:'Pronto, já entendi o seu imóvel. Agora, sobre a sua conta.', desejo:'Falta pouco. Agora, sobre os seus planos.' }[p.b] || '') : '');
+  if (d) h += `<p class="dica">${IC.sol}<span>${esc(d)}</span></p>`;
+  if (inicioBloco && p.b === 'desejo') h += `<figure class="prova-mini"><button type="button" class="zoom" data-zoom="/io/img/fedd3.jpg" aria-label="Ver a mensagem da Sueli"><img src="/io/img/fedd3.jpg" alt="Mensagem da cliente Sueli no WhatsApp" width="54" height="72"></button><figcaption><q>Nota 10 por tudo. 100% satisfeita.</q><span>Sueli, cliente em Uberlândia</span></figcaption></figure>`;
+  h += `<h2 class="q">${esc(val(p.q))}</h2>`;
+  if (p.sub) h += `<p class="sub">${esc(val(p.sub))}</p>`;
+  if (p.tipo === 'cidade'){
+    h += `<input class="campo" id="inCidade" type="text" autocomplete="off" autocapitalize="words" placeholder="Digite a cidade" value="${esc(R.cidade || '')}" aria-label="Cidade"><div class="sug" id="sug">${sugestoesHtml(R.cidade || '')}</div><p class="erro" id="erro" hidden></p><button class="btn" data-acao="continuar" type="button">Continuar</button>`;
+  }else if (p.tipo === 'nome'){
+    h += `<input class="campo" id="inNome" type="text" autocomplete="given-name" placeholder="Seu nome" value="${esc(NOME)}" aria-label="Nome"><p class="erro" id="erro" hidden></p><button class="btn" data-acao="continuar" type="button">Continuar</button>`;
+  }else if (p.tipo === 'whatsapp'){
+    h += `<input class="campo" id="inTel" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="(34) 99999-9999" value="${esc(TEL)}" aria-label="WhatsApp"><p class="erro" id="erro" hidden></p><button class="btn" id="btnTel" data-acao="continuar" type="button">Ver meu diagnóstico</button>`;
+  }else{
+    h += '<div class="ops" role="radiogroup">' + val(p.ops).map(o => `<button class="op${R[p.campo] === o[0] ? ' sel' : ''}" role="radio" aria-checked="${R[p.campo] === o[0]}" data-op="${o[0]}" type="button"><span class="bol"></span><span>${esc(o[1])}</span></button>`).join('') + '</div>';
+  }
+  // Quem vende e instala energia solar não é o público desta página: a saída vai para o SolarDoc.
+  if (p.topo) h += '<p class="nota-int">Trabalha com energia solar? <a href="https://solardoc.app/" id="linkInt" rel="noopener">Conheça o SolarDoc</a></p>';
+  return h + '</div>';
+}
+
+// ── Resultado ─────────────────────────────────────────────────────────────────
+function telaResultado(){
+  const g = srv && srv.diagnostico ? srv.diagnostico : null;
+  const semDepois = !!g && (g.conta_depois == null);                 // Grupo A: a demanda continua sendo cobrada
+  const curioso = !!(srv && (srv.curioso === true || srv.caminho === 'curioso'));
+  const dentro = !!(srv && srv.horario_agora === true) && !curioso;
+  const dono = (srv && srv.dono) || 'Nilce';
+  const solo = R.telhado === 'solo';
+  const temEco = !!g && g.economia_mes != null && g.economia_ano != null;   // Grupo A: o servidor devolve economia null
+  const eco = temEco ? brl(g.economia_mes) : '', ecoAno = temEco ? brl(g.economia_ano) : '';
+  const linhaDor = ({
+    sobe: 'Você disse que a conta sobe todo ano. Com as placas, a maior parte da energia passa a ser sua, e o reajuste pesa só no que sobra.',
+    bandeira: 'Você disse que a bandeira vermelha vem de surpresa. Com as placas, ela pesa só no pouco que ainda vem da rede.',
+    evito: 'Você disse que evita ligar o ar-condicionado por causa da conta. Com o sistema certo, ligar o ar deixa de ser um susto no fim do mês.',
+    sobra: temEco ?`Você disse que sobra pouco para outras coisas. São cerca de ${eco} por mês que voltam para o seu bolso.` : 'Você disse que sobra pouco para outras coisas. Com as placas, parte desse dinheiro volta para o seu bolso.',
+    margem: temEco ?`Você disse que a energia come a margem do negócio. São cerca de ${eco} por mês que voltam para o caixa.` : 'Você disse que a energia come a margem do negócio. Com as placas, parte desse dinheiro volta para o caixa.',
+    planejar: 'Você disse que não consegue planejar esse custo. Com as placas, a maior parte dele fica previsível.'
+  })[R.dor] || '';
+  const linhaDesejo = temEco ? ({
+    reformar: `Com cerca de ${ecoAno} por ano, dá para tirar a reforma do papel.`,
+    contas: `São cerca de ${eco} por mês livres para as outras contas.`,
+    guardar: `Guardando ${eco} por mês, em 5 anos são cerca de ${brl(g.economia_ano * 5)}.`,
+    viajar: `São cerca de ${ecoAno} por ano para viajar com a família.`,
+    conforto: 'E dá para usar o ar-condicionado sem pensar na conta.',
+    negocio: `São cerca de ${ecoAno} por ano para investir no negócio.`,
+    producao: `São cerca de ${ecoAno} por ano para investir na produção.`,
+    lucro: `São cerca de ${ecoAno} por ano que viram lucro.`
+  })[R.desejo] || '' : ({
+    reformar: 'O especialista mostra quanto sobra para tirar a reforma do papel.',
+    contas: 'O especialista mostra quanto fica livre para as outras contas.',
+    guardar: 'O especialista mostra quanto dá para guardar por mês.',
+    viajar: 'O especialista mostra quanto sobra para viajar com a família.',
+    conforto: 'E dá para usar o ar-condicionado sem pensar na conta.',
+    negocio: 'O especialista mostra quanto sobra para investir no negócio.',
+    producao: 'O especialista mostra quanto sobra para investir na produção.',
+    lucro: 'O especialista mostra quanto vira lucro.'
+  })[R.desejo] || '';
+  const travouVis = visiveis().some(p => p.id === 'travou');
+  const linhaTravou = travouVis ? ({
+    caro: 'Você achou que era caro. No financiamento, a parcela pode ficar perto do valor da conta, e o especialista simula com você.',
+    valia: temEco ?`Vale a pena: são cerca de ${ecoAno} por ano que ficam com você.` : 'Vale a pena: o especialista mostra quanto volta para você por ano.',
+    confianca: 'Você não confiou nas empresas que viu. Por isso, antes de qualquer proposta, a gente mostra obras reais da sua região.',
+    tempo: 'O especialista resolve tudo com você em uma conversa rápida.'
+  })[R.travou] || '' : '';
+  const confia = travouVis && R.travou === 'confianca';
+  const seta = d => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d < 0 ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}"/></svg>`;
+  const carrossel = (tipo, rot, slides) => `<div class="carrossel ${tipo}" role="region" aria-roledescription="carrossel" aria-label="${rot}"><div class="car-area"><div class="car-trilho">${slides.join('')}</div><button class="car-seta ant" type="button" data-car-ir="-1" aria-label="Anterior">${seta(-1)}</button><button class="car-seta prox" type="button" data-car-ir="1" aria-label="Próxima">${seta(1)}</button></div><div class="car-pontos" aria-hidden="true">${slides.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div></div>`;
+  const social = `<p class="tit-sec">Obras entregues</p>
+    ${carrossel('obras', 'Obras entregues', OBRAS.map(o => `<figure class="car-slide"><button type="button" class="zoom" data-zoom="${o[0]}" aria-label="Ampliar foto"><img src="${o[0]}" loading="lazy" alt="Obra de energia solar entregue pela Irmãos na Obra${o[1] ? ', ' + o[1] : ''}"></button>${o[1] ? `<figcaption>${o[1]}</figcaption>` : ''}</figure>`))}
+    <p class="tit-sec">O que dizem os clientes</p>
+    <div class="falas">${FALAS.map(f => `<blockquote class="fala"><p>“${f[0]}”</p><cite>${f[1]}</cite></blockquote>`).join('')}</div>
+    ${carrossel('prints', 'Mensagens de clientes no WhatsApp', PRINTS.map(x => `<figure class="car-slide"><button type="button" class="zoom" data-zoom="${x[0]}" aria-label="Ver a mensagem de ${x[1]}"><img src="${x[0]}" loading="lazy" alt="Mensagem de ${x[1]} no WhatsApp"></button><figcaption>${x[1]}</figcaption></figure>`))}`;
+  let obsTelhado = '';
+  if (solo) obsTelhado = 'Placas no chão: o especialista define o melhor lugar no terreno.';
+  else if (R.sombra === 'alguma') obsTelhado = 'Tem alguma sombra: na avaliação, o especialista mede qual parte do telhado rende mais.';
+  else if (R.sombra === 'naosei') obsTelhado = 'O especialista confere a sombra do telhado na avaliação.';
+  else if (R.telhado) obsTelhado = `Telhado de ${lbl('telhado')} com sol o dia todo: ótimo para as placas.`;
+
+  const inicial = dono.charAt(0);
+  let cta;
+  if (dentro){
+    cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span><strong>${esc(dono)}</strong> está disponível agora para falar com você.</span></div><button class="btn" id="btnAgora" data-acao="agora" type="button">Quero falar com um especialista agora</button><button class="link" data-acao="horarios" type="button">Prefiro escolher um horário</button>`;
+  }else if (curioso){
+    cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>Converse com <strong>${esc(dono)}</strong>, especialista em energia solar.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
+  }else{
+    cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>${esc(dono)} atende de segunda a sexta, das 7h às 18h, e no sábado, das 7h ao meio-dia. Escolha o melhor horário.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
+  }
+
+  let manchete;
+  if (g && !semDepois) manchete = `${esc(primeiroNome())}, sua conta de luz pode cair para <em>${brlC(g.conta_depois)}</em>`;
+  else if (temEco) manchete = `${esc(primeiroNome())}, você pode economizar cerca de <em>${eco} por mês</em>`;
+  else if (g) manchete = `${esc(primeiroNome())}, o seu sistema solar está <em>calculado</em>`;
+  else manchete = `${esc(primeiroNome())}, o seu diagnóstico solar está pronto`;
+
+  let corpoDiag = '';
+  if (g){
+    corpoDiag = `<div class="hoje">
+      <div class="lin"><span>Hoje você paga</span><strong>${brl(g.conta_mes)} por mês</strong></div>
+      <div class="lin"><span>Por ano, para ${conc()}</span><strong>${brl(g.ano)}</strong></div>
+      <div class="lin"><span>Em 5 anos, sem contar reajustes</span><strong>${brl(g.cinco_anos)}</strong></div>
+      ${R.tempo === 'ano' ? `<div class="lin"><span>Desde que você pensa em solar</span><strong>mais de ${brl(g.ano)}</strong></div>` : R.tempo === 'meses' ? `<div class="lin"><span>Desde que você pensa em solar</span><strong>cerca de ${brl(g.ano / 2)}</strong></div>` : ''}
+    </div>
+    <p class="tit-sec">Sistema indicado${R.cidade ? ' para ' + esc(cidadeNome()) : ''}</p>
+    <div class="nums">
+      <div class="num"><b>${num(g.placas)}</b><span>placas solares</span></div>
+      <div class="num"><b>${num(g.kwp, 1)} kWp</b><span>de potência</span></div>
+      <div class="num"><b>${num(g.area_m2)} m²</b><span>${solo ? 'de terreno' : 'de telhado'}</span></div>
+      <div class="num"><b>${num(g.geracao_kwh_mes)} kWh</b><span>gerados por mês</span></div>
+    </div>
+    ${temEco
+      ? `<div class="eco"><span class="rot">Economia estimada</span><b>${eco} por mês</b><span>${ecoAno} por ano. ${semDepois ? 'O especialista confere a tarifa certa antes da proposta.' : `A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>`
+      : '<div class="eco"><span class="rot">Economia estimada</span><span>O especialista calcula a sua economia com a demanda contratada.</span></div>'}`;
+  }
+
+  return barra('diag', false) + `<div class="corpo">
+    <p class="eyebrow">Seu diagnóstico solar</p>
+    <h2 class="res-h">${manchete}</h2>
+    ${corpoDiag}
+    ${obsTelhado ? `<p class="obs">${esc(obsTelhado)}</p>` : ''}
+    ${linhaDor || linhaDesejo ? `<p class="pessoal">${esc([linhaDor, linhaDesejo].filter(Boolean).join(' '))}</p>` : ''}
+    ${linhaTravou ? `<p class="pessoal">${esc(linhaTravou)}</p>` : ''}
+    ${confia ? social : ''}
+    <p class="tit-sec">Como a Irmãos na Obra resolve</p>
+    ${R.criterio ? `<p class="obs">O mais importante para você: <strong>${esc(lbl('criterio'))}</strong>. O especialista começa a conversa por aí.</p>` : ''}
+    <ul class="lista">
+      <li>${IC.ok}<span>Projeto e aprovação ${concNa()}</span></li>
+      <li>${IC.ok}<span>Instalação completa</span></li>
+      <li>${IC.ok}<span>Acompanhamento da geração pelo celular</span></li>
+    </ul>
+    <p class="tit-sec">Como funciona</p>
+    <ol class="passos"><li><b>1</b>Conversa com o especialista</li><li><b>2</b>Estudo ou visita técnica</li><li><b>3</b>Proposta</li><li><b>4</b>Instalação</li></ol>
+    ${confia ? '' : social}
+    <div class="cta">${cta}<p class="cta-fala">“Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor.” <b>Denivan, cliente</b></p></div>
+    <p class="estim">Estimativa. O especialista confirma os números na avaliação.</p>
+  </div>`;
+}
+
+// ── Vitrine de horários ───────────────────────────────────────────────────────
+const DSEM = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const rotDia = ymd => { const d = new Date(ymd + 'T12:00:00-03:00'); return DSEM[d.getUTCDay()] + ', ' + ymd.slice(8, 10) + '/' + ymd.slice(5, 7); };
+const horaDe = x => (typeof x === 'string' ? { h: x } : x) || {};
+function telaHorarios(){
+  const dono = (srv && srv.dono) || 'Nilce';
+  const dias = (srv && Array.isArray(srv.dias)) ? srv.dias : [];
+  let h = barra('diag', false) + `<div class="corpo"><h2 class="q">Escolha o melhor horário</h2><p class="sub">Ligação de 15 minutos com ${esc(dono)}, pelo WhatsApp.</p>`;
+  if (avisoHorario) h += `<div class="aviso">${esc(avisoHorario)}</div>`;
+  dias.forEach((d, di) => {
+    h += `<p class="dia">${esc(rotDia(d.ymd))}</p><div class="slots">${(d.horas || []).map(x => { const o = horaDe(x); return `<button type="button" data-slot="${esc(o.h)}" data-di="${di}" data-dono="${esc(o.dono || '')}">${esc(o.h)}</button>`; }).join('')}</div>`;
+  });
+  return h + '<p class="erro" id="erro" hidden></p></div>';
+}
+
+// ── Telas finais ──────────────────────────────────────────────────────────────
+const IG = '<div class="ig"><span>Siga a gente e veja as obras</span><a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener" data-source="solar_fim">Seguir</a></div>';
+function horaBrasilia(iso){ try{ const d = new Date(iso); if (isNaN(d)) return ''; return d.toLocaleTimeString('pt-BR', { timeZone:'America/Sao_Paulo', hour:'2-digit', minute:'2-digit' }); }catch(e){ return ''; } }
+function telaFim(){
+  const dono = (agoraInfo && agoraInfo.dono) || (marcado && marcado.dono) || (srv && srv.dono) || 'Nilce';
+  if (fimTipo === 'agora'){
+    const hr = agoraInfo && agoraInfo.quando ? horaBrasilia(agoraInfo.quando) : '';
+    const link = 'https://wa.me/' + WHATS_CENTRAL + '?text=' + encodeURIComponent(WHATS_TEXTO);
+    return barra('diag', true) + `<div class="fim">
+      <span class="av pulsa">${esc(dono.charAt(0))}</span>
+      <h2>${esc(dono)} vai te chamar no WhatsApp em até 5 minutos</h2>
+      <p>${esc(dono)} já está com o seu diagnóstico. Fique de olho no celular.</p>
+      ${hr ? `<div class="caixa">Na agenda: hoje, ${esc(hr)} · Ligação com ${esc(dono)}</div>` : ''}
+      <a class="btn sec" href="${link}" target="_blank" rel="noopener" data-source="solar_agora">Chamar ${esc(dono)} no WhatsApp agora</a>
+    </div>`;
+  }
+  if (fimTipo === 'marcado' && marcado){
+    return barra('diag', true) + `<div class="fim">
+      <span class="ok-ic">${IC.okG}</span>
+      <h2>Marcado: ${esc(rotDia(marcado.ymd))} às ${esc(marcado.h)}</h2>
+      <p>${esc(marcado.dono || dono)} vai te chamar no WhatsApp nesse horário.</p>
+      <p>Se precisar trocar, é só responder a mensagem de confirmação.</p>
+      ${IG}
+    </div>`;
+  }
+  if (fimTipo === 'ja_marcado' && srv && srv.jaMarcado){
+    const d = new Date(srv.jaMarcado.quando);
+    const q = d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo', weekday:'long', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return `<div class="fim"><h2>Você já tem um horário marcado</h2><p>É ${esc(q)}${srv.jaMarcado.dono ? ', com ' + esc(srv.jaMarcado.dono) : ''}. Se precisar trocar, responda a mensagem de confirmação no WhatsApp.</p>${IG}</div>`;
+  }
+  if (fimTipo === 'parceiro'){
+    return `<div class="fim"><h2>Esta página é para quem vai instalar no próprio imóvel</h2><p>Para quem vende e instala energia solar, a gente tem o SolarDoc: proposta, contrato e vistoria no celular.</p><a class="btn" href="https://solardoc.app/">Conhecer o SolarDoc</a></div>`;
+  }
+  return `<div class="fim"><h2>Recebemos as suas respostas</h2><p>A gente te chama no WhatsApp para combinar o melhor horário.</p>${IG}<p class="mini">Dúvida? Fale com a gente: <a style="color:var(--mut)" href="https://wa.me/${WHATS_CENTRAL}" data-source="solar_fim">(34) 99816-5040</a></p></div>`;
 }
 
 // ── Desenho ───────────────────────────────────────────────────────────────────
-const SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
-const rotDia = ymd => { const d = new Date(ymd + 'T12:00:00-03:00'); return { s: SEMANA[d.getUTCDay()], n: ymd.slice(8,10) + '/' + ymd.slice(5,7) }; };
-const MODO = { vistoria:'Visita técnica no endereço', video:'Atendimento online', ligacao:'Ligação' };
-
 function render(){
-  portao.hidden = true;
-  if (fim) return renderFim();
-  const lista = vivos();
-  if (idx >= lista.length) idx = lista.length - 1;
-  const p = lista[idx];
-  $('prog').style.width = Math.round(idx / lista.length * 100) + '%';
-  if (!vistos.has(p.id)){ vistos.add(p.id); lpFunil('quiz_passo', { passo: p.id, n: idx + 1, de: lista.length }); }
-
-  let h = '';
-  if (p.topo) h += '<h1 class="hl">Veja quanto a sua conta <em>pode cair</em></h1>';
-  if (p.tipo === 'horario') h += desenhoHorario();
-  else {
-    h += '<h2 class="q">' + esc(p.q) + '</h2>';
-    if (p.sub) h += '<p class="sub">' + esc(p.sub) + '</p>';
-    if (p.ops) h += '<div class="ops" role="radiogroup">' + p.ops.map(([v,l]) =>
-      '<button type="button" role="radio" aria-checked="' + (R[p.campo] === v) + '" class="op' + (R[p.campo] === v ? ' sel' : '') + '" data-v="' + v + '"><span class="dot"></span>' + esc(l) + '</button>').join('') + '</div>';
-    if (p.tipo === 'cidade') h += '<input class="inp" id="in-cidade" list="dl-cid" placeholder="Ex.: Uberlândia" autocomplete="address-level2" value="' + esc(R.cidade || '') + '"><datalist id="dl-cid">' + CIDADES_SUGERIDAS.map(c => '<option value="' + c + '">').join('') + '</datalist>';
-    if (p.tipo === 'nome') h += '<input class="inp" id="in-nome" placeholder="Seu nome" autocomplete="name" value="' + esc(nome) + '">';
-    if (p.tipo === 'whatsapp') h += '<input class="inp" id="in-tel" inputmode="tel" autocomplete="tel-national" placeholder="(34) 9 9999-9999" value="' + esc(tel) + '">';
-    if (p.tipo === 'endereco') h += '<div class="linha2"><input class="inp" id="in-cep" inputmode="numeric" placeholder="CEP" value="' + esc(endereco.cep) + '"><input class="inp" id="in-num" placeholder="Nº" value="' + esc(endereco.numero) + '"></div>'
-      + '<input class="inp" id="in-rua" placeholder="Rua" autocomplete="address-line1" value="' + esc(endereco.rua) + '">'
-      + '<input class="inp" id="in-bairro" placeholder="Bairro" value="' + esc(endereco.bairro) + '">';
-    if (p.topo) h += '<p class="link">Trabalha com energia solar? <a href="https://solardoc.app/" id="link-int" rel="noopener">Conheça o SolarDoc</a></p>';
+  let h, idFunil, n, de;
+  const v = visiveis();
+  if (fase === 'quiz'){ const p = passo(atual); h = telaPasso(p); idFunil = p.id; n = v.findIndex(x => x.id === p.id) + 1; de = v.length; }
+  else if (fase === 'resultado'){ h = telaResultado(); idFunil = 'resultado'; n = v.length + 1; de = v.length + 1; }
+  else if (fase === 'horarios'){ h = telaHorarios(); idFunil = 'horarios'; n = v.length + 2; de = v.length + 2; }
+  else { h = telaFim(); }
+  tela.innerHTML = h;
+  const pb = tela.querySelector('.prog b');
+  if (pb){ const alvo = pb.dataset.pct; requestAnimationFrame(() => requestAnimationFrame(() => { pb.style.width = alvo + '%'; })); ultimoPct = +alvo; }
+  ligarCarrosseis();
+  if (idFunil && !vistos.has(idFunil)){ vistos.add(idFunil); lpFunil('quiz_passo', { passo: idFunil, n, de }); }
+  if (!primeiraTela){
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    const alvo = tela.querySelector('input.campo') || tela.querySelector('.q, .res-h, .fim h2');
+    if (alvo){ if (!/^(input)$/i.test(alvo.tagName)) alvo.tabIndex = -1; try{ alvo.focus({ preventScroll:true }); }catch(e){} }
   }
-  h += '<div id="erro" class="aviso erro" hidden></div>';
-  corpo.innerHTML = h;
-
-  const ultimo = p.tipo === 'horario';
-  const rot = ocupado ? (p.tipo === 'whatsapp' ? 'Buscando os horários...' : 'Marcando...')
-    : ultimo ? ({ vistoria:'Marcar visita', video:'Marcar atendimento', ligacao:'Marcar ligação' }[srv.caminho]) : 'Continuar';
-  rodape.innerHTML = '<button class="cta" id="btn" type="button"' + ((respondido(p) && !ocupado) ? '' : ' disabled') + '>' + rot + '</button>'
-    + (idx > 0 && !ocupado ? '<button class="voltar" id="voltar" type="button">Voltar</button>' : '');
-  ligar(p);
+  primeiraTela = false;
 }
 
-function desenhoHorario(){
-  const c = srv.caminho;
-  const titulo = c === 'vistoria' ? 'Escolha o dia da visita' : c === 'video' ? 'Escolha o horário do atendimento' : 'Escolha o horário da ligação';
-  let h = '<span class="modo ' + c + '"><i></i>' + MODO[c] + '</span><h2 class="q">' + titulo + '</h2>';
-  if (c === 'vistoria') h += '<p class="sub">A visita leva uns 40 minutos.' + (R.decisor === 'junto' ? ' Escolha um horário em que vocês dois possam estar.' : '') + '</p>';
-  else if (c === 'video') h += '<p class="sub">Uma chamada de vídeo pelo WhatsApp, com o estudo do seu projeto na tela.</p>';
-  else h += '<p class="sub">Uma ligação curta para entender a sua conta.' + (srv.qualifica ? ' Na ligação a gente marca a visita.' : '') + '</p>';
-  if (avisoHorario) h += '<div class="aviso">' + esc(avisoHorario) + '</div>';
-  h += '<div class="dias">' + srv.dias.map((d, i) => { const r = rotDia(d.ymd); return '<button type="button" class="dia' + (diaSel === i ? ' sel' : '') + '" data-dia="' + i + '">' + r.s + '<small>' + r.n + '</small></button>'; }).join('') + '</div>';
-  if (diaSel !== null && srv.dias[diaSel]) h += '<div class="horas">' + srv.dias[diaSel].horas.map(x => '<button type="button" class="hora' + (horaSel === x.h ? ' sel' : '') + '" data-h="' + x.h + '">' + x.h + '</button>').join('') + '</div>';
-  return h;
-}
-
-function ligar(p){
-  corpo.querySelectorAll('.op').forEach(b => b.onclick = () => { responder(p.campo, b.dataset.v); render(); rolarAteBotao(); });
-  const ic = $('in-cidade'); if (ic) ic.oninput = () => { responder('cidade', ic.value); habilitar(p); };
-  const inn = $('in-nome'); if (inn) inn.oninput = () => { nome = inn.value; habilitar(p); };
-  const it = $('in-tel'); if (it) it.oninput = () => {
-    let d = digitos(it.value).replace(/^55(?=\d{10,11}$)/, '').slice(0, 11), f = d;
-    if (d.length > 2) f = '(' + d.slice(0,2) + ') ' + d.slice(2);
-    if (d.length > 7) f = '(' + d.slice(0,2) + ') ' + d.slice(2, d.length - 4) + '-' + d.slice(-4);
-    it.value = f; if (tel !== f) { tel = f; srv = null; } habilitar(p);
-  };
-  const icep = $('in-cep');
-  if (icep){
-    const ler = () => { endereco.numero = $('in-num').value; endereco.rua = $('in-rua').value; endereco.bairro = $('in-bairro').value; habilitar(p); };
-    icep.oninput = () => { let d = digitos(icep.value).slice(0, 8); icep.value = d.length > 5 ? d.slice(0,5) + '-' + d.slice(5) : d; endereco.cep = icep.value; if (d.length === 8) buscaCep(d); habilitar(p); };
-    ['in-num','in-rua','in-bairro'].forEach(id => $(id).oninput = ler);
-  }
-  corpo.querySelectorAll('.dia').forEach(b => b.onclick = () => { diaSel = +b.dataset.dia; horaSel = null; render(); });
-  corpo.querySelectorAll('.hora').forEach(b => b.onclick = () => { horaSel = b.dataset.h; track('slot_escolhido'); render(); rolarAteBotao(); });
-  const li = $('link-int'); if (li) li.onclick = () => { track('quiz_integrador'); fimDoQuiz('parceiro'); };
-  $('btn').onclick = () => avancar(p);
-  const v = $('voltar'); if (v) v.onclick = () => { idx = Math.max(0, idx - 1); avisoHorario = ''; render(); };
-}
-function habilitar(p){ const b = $('btn'); if (b) b.disabled = !respondido(p) || ocupado; }
-function rolarAteBotao(){ const b = $('btn'); if (!b) return; const r = b.getBoundingClientRect(); if (r.bottom > window.innerHeight) b.scrollIntoView({ behavior:'smooth', block:'end' }); }
-function erro(p, msg){
+function erro(msg){
   const el = $('erro'); if (!el) return;
   el.textContent = msg; el.hidden = false;
-  const chave = p.id + '|' + msg; if (!errosVistos.has(chave)) { errosVistos.add(chave); lpFunil('quiz_erro', { passo: p.id, msg: msg.slice(0, 140) }); }
+  const id = fase === 'quiz' ? atual : fase;
+  const chave = id + '|' + msg; if (!errosVistos.has(chave)){ errosVistos.add(chave); lpFunil('quiz_erro', { passo: id, msg: msg.slice(0, 140) }); }
 }
 
-let seqCep = 0;
-async function buscaCep(cep){
-  const meu = ++seqCep;
-  try{
-    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 6000);
-    const r = await fetch('https://viacep.com.br/ws/' + cep + '/json/', { signal: ctl.signal }); clearTimeout(t);
-    const j = await r.json(); if (meu !== seqCep || !j || j.erro) return;
-    if (j.logradouro) { endereco.rua = j.logradouro; const el = $('in-rua'); if (el) el.value = j.logradouro; }
-    if (j.bairro) { endereco.bairro = j.bairro; const el = $('in-bairro'); if (el) el.value = j.bairro; }
-    const p = vivos()[idx]; if (p) habilitar(p);
-    const num = $('in-num'); if (num && !num.value) num.focus();
-  }catch(e){}
+// ── Fluxo das perguntas ───────────────────────────────────────────────────────
+function responder(campo, v){ if (R[campo] !== v){ R[campo] = v; srv = null; } }
+function proximo(id){ const v = visiveis(), i = v.findIndex(p => p.id === id); return v[i + 1] ? v[i + 1].id : null; }
+function avancar(){
+  track('quiz_' + atual);
+  const nx = proximo(atual); hist.push(atual);
+  if (nx) atual = nx; else { fase = 'resultado'; track('quiz_resultado'); }
+  render();
+}
+function voltar(){
+  if (fase === 'quiz'){ if (hist.length){ atual = hist.pop(); render(); } return; }
+  if (fase === 'resultado'){ fase = 'quiz'; atual = hist.pop(); render(); return; }
+  if (fase === 'horarios'){ avisoHorario = ''; fase = 'resultado'; render(); }
+}
+function continuar(){
+  const p = passo(atual);
+  if (p.tipo === 'cidade'){
+    const t = (R.cidade || '').trim();
+    if (t.length < 3) return erro('Digite o nome da cidade.');
+    R.cidade = cidadeFinal(t); return avancar();
+  }
+  if (p.tipo === 'nome'){
+    if (NOME.trim().length < 3) return erro('Digite o seu nome.');
+    return avancar();
+  }
+  if (p.tipo === 'whatsapp'){
+    if (!telOk()) return erro('Digite o celular com DDD, por exemplo (34) 99999-9999.');
+    return verDiagnostico();
+  }
 }
 
-async function avancar(p){
-  if (!respondido(p)) return erro(p, mensagemDoErro(p));
-  track('quiz_' + p.id);
-  if (p.tipo === 'whatsapp' && !srv) return buscarCaminho(p);
-  if (p.tipo === 'horario') return abrirPortao();
-  idx++; avisoHorario = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
+// ── Servidor ──────────────────────────────────────────────────────────────────
 function corpoBase(){
-  return Object.assign({ respostas: R, nome: nome.trim(), tel: telBanco(), src: SRC || undefined }, UTM, metaCookies());
+  return Object.assign({ respostas: respostasLimpas(), nome: NOME.trim(), tel: telBanco(), src: SRC || undefined }, UTM, metaCookies());
 }
 async function postar(caminho, corpoReq){
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
@@ -385,109 +728,162 @@ async function postar(caminho, corpoReq){
     return { status: r.status, j: j || {} };
   } finally { clearTimeout(t); }
 }
+const novoEventId = () => { try{ return 'agd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }catch(e){ return ''; } };
+function schedule(evId){
+  // O servidor manda o mesmo Schedule pela API de Conversões; o Meta junta os dois pelo event_id.
+  try { fbq('track', 'Schedule', { content_name: 'Ligacao Solar' }, evId ? { eventID: evId } : undefined); } catch(e){}
+}
+function botao(id, rot, desligado){ const b = $(id); if (!b) return; if (rot != null) b.textContent = rot; b.disabled = !!desligado; }
 
-async function buscarCaminho(p){
-  ocupado = true; render();
+// Passo do WhatsApp: o servidor grava o rascunho e devolve o diagnóstico. Sempre
+// chama de novo (voltar e avançar refaz a vitrine e o "agora").
+async function verDiagnostico(){
+  if (ocupado) return;
+  track('quiz_whatsapp');
+  ocupado = true; botao('btnTel', 'Montando o seu diagnóstico...', true);
   try{
     const { status, j } = await postar('/io/solar/quiz', corpoBase());
     ocupado = false;
-    if (status >= 400 || !j.ok){ render(); return erro(p, status === 400 ? 'Confira o nome e o WhatsApp.' : 'Não consegui ver os horários agora. Tente de novo em instantes.'); }
+    if (status >= 400 || !j.ok){ botao('btnTel', 'Ver meu diagnóstico', false); return erro(status === 400 ? 'Confira o nome e o WhatsApp.' : 'Não consegui montar o seu diagnóstico agora. Tente de novo em instantes.'); }
     srv = j; track('quiz_whatsapp_ok');
-    if (j.jaMarcado) return fimDoQuiz('ja_marcado');
-    if (j.caminho === 'curioso') return fimDoQuiz('curioso');
-    if (j.semVitrine || !j.dias || !j.dias.length) return fimDoQuiz('sem_vitrine');
-    diaSel = 0; horaSel = null; idx++; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (j.jaMarcado){ cardMarcado = true; return fimDoQuiz('ja_marcado'); }
+    if (j.semVitrine){ cardMarcado = true; return fimDoQuiz('sem_vitrine'); }
+    hist.push('whatsapp'); fase = 'resultado'; track('quiz_resultado'); render();
   }catch(e){
-    ocupado = false; render(); erro(p, 'Não consegui ver os horários agora. Tente de novo em instantes.');
+    ocupado = false; botao('btnTel', 'Ver meu diagnóstico', false);
+    erro('Não consegui montar o seu diagnóstico agora. Tente de novo em instantes.');
   }
 }
 
-function abrirPortao(){
-  if (srv.caminho === 'ligacao') return agendar();
-  $('portao-q').textContent = srv.caminho === 'vistoria' ? 'Você vai estar no endereço nesse horário?' : 'Você vai mesmo participar?';
-  $('portao-sub').textContent = srv.caminho === 'vistoria' ? 'O consultor sai da base só para essa visita.' : 'O horário fica reservado só para você.';
-  portao.hidden = false; track('portao_presenca');
-  $('portao-sim').focus();
-}
-$('portao-sim').onclick = () => { track('presenca_sim'); portao.hidden = true; agendar(); };
-$('portao-nao').onclick = () => { track('presenca_nao'); fimDoQuiz('nao_confirmou'); };
-
-let marcado = null;
-async function agendar(){
-  const p = vivos()[idx];
-  const dia = srv.dias[diaSel], hora = dia && dia.horas.find(x => x.h === horaSel);
-  if (!hora) return erro(p, mensagemDoErro(p));
-  ocupado = true; render();
-  // Um id por tentativa de marcar, gerado ANTES do POST: o servidor manda o mesmo
-  // Schedule pela API de Conversões e o Meta junta os dois pelo event_id.
-  let evId = '';
-  try{ evId = 'agd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }catch(e){}
+// Botão "agora": o card nasce no servidor. Qualquer resposta que não seja 2xx
+// (rota ainda inexistente, fora do horário, curioso) ou erro de rede abre a vitrine.
+async function agora(){
+  if (ocupado) return;
+  ocupado = true; botao('btnAgora', 'Chamando...', true);
+  const evId = novoEventId();
+  let ok = false, info = null;
   try{
-    const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd: dia.ymd, h: hora.h, dono: hora.dono, endereco }, evId ? { event_id: evId } : {}));
+    const { status, j } = await postar('/io/solar/quiz/agora', Object.assign(corpoBase(), evId ? { event_id: evId } : {}));
+    ok = status >= 200 && status < 300 && j.ok !== false; info = j;
+  }catch(e){ ok = false; }
+  ocupado = false;
+  if (!ok){ avisoHorario = 'Não deu para chamar agora. Escolha o melhor horário abaixo.'; return abrirHorarios(); }
+  schedule(evId); cardMarcado = true; agoraInfo = info;
+  fimDoQuiz('agora');
+}
+
+function abrirHorarios(){
+  const dias = srv && Array.isArray(srv.dias) ? srv.dias : [];
+  if (!dias.length) return fimDoQuiz('sem_vitrine');
+  fase = 'horarios'; render();
+}
+
+async function agendar(ymd, h, dono){
+  if (ocupado) return;
+  ocupado = true; tela.querySelectorAll('.slots button').forEach(b => { b.disabled = true; });
+  const evId = novoEventId();
+  try{
+    const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd, h, dono }, evId ? { event_id: evId } : {}));
     ocupado = false;
     if (status === 409 && j.error === 'horario tomado' && Array.isArray(j.dias)){
-      srv.dias = j.dias; srv.caminho = j.caminho || srv.caminho; diaSel = j.dias.length ? 0 : null; horaSel = null;
-      avisoHorario = 'Esse horário acabou de ser tomado. Escolha outro.';
+      srv.dias = j.dias; if (j.caminho) srv.caminho = j.caminho;
       if (!j.dias.length) return fimDoQuiz('sem_vitrine');
-      render(); return;
+      avisoHorario = 'Esse horário acabou de ser tomado. Escolha outro.'; return render();
     }
-    if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; return fimDoQuiz('ja_marcado'); }
-    if (status >= 400 || !j.ok){ render(); return erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.'); }
-    marcado = { ymd: dia.ymd, h: hora.h, dono: hora.dono, caminho: srv.caminho };
-    try { fbq('track', 'Schedule', { content_name: srv.caminho === 'vistoria' ? 'Vistoria Solar' : srv.caminho === 'video' ? 'Atendimento Solar' : 'Ligacao Solar' }, evId ? { eventID: evId } : undefined); } catch(e){}
-    fimDoQuiz(srv.caminho);
+    if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; cardMarcado = true; return fimDoQuiz('ja_marcado'); }
+    if (status >= 400 || !j.ok){ render(); return erro('Não consegui marcar agora. Tente de novo em instantes.'); }
+    marcado = { ymd, h, dono: dono || j.dono || (srv && srv.dono) || '' };
+    schedule(evId); cardMarcado = true;
+    fimDoQuiz('marcado');
   }catch(e){
-    ocupado = false; render(); erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.');
+    ocupado = false; render(); erro('Não consegui marcar agora. Tente de novo em instantes.');
   }
 }
 
-function fimDoQuiz(destino){
-  fim = destino;
-  if (!fimMandado){ fimMandado = true; lpFunil('quiz_fim', { destino: destino }); }
+function fimDoQuiz(tipo){
+  fase = 'fim'; fimTipo = tipo;
+  if (!fimMandado){ fimMandado = true; lpFunil('quiz_fim', { destino: tipo === 'marcado' ? 'ligacao' : tipo }); }
   render();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function renderFim(){
-  $('prog').style.width = '100%';
-  let h = '';
-  const ig = '<div class="ig"><span>Siga a gente e veja as obras</span><a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener" data-source="solar_fim">Seguir</a></div>';
-  if (fim === 'parceiro'){
-    h = '<h2 class="q">Isto aqui é para quem vai instalar no próprio imóvel</h2><p class="sub">Para quem vende e instala energia solar, a gente tem o SolarDoc: proposta, contrato e vistoria no celular.</p>';
-    rodape.innerHTML = '<a class="cta" style="text-align:center;text-decoration:none" href="https://solardoc.app/">Conhecer o SolarDoc</a>';
-    corpo.innerHTML = h; return;
-  }
-  // Curioso (abaixo de 40 pontos). Ordem do Thiago em 08/10: o WhatsApp não entra
-  // em contato, ele fica no cadastro como curioso e o fim do quiz é o convite para
-  // seguir o Instagram. Nada de prometer mensagem nem ligação.
-  if (fim === 'curioso'){
-    h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">Siga a gente no Instagram para ver as obras que a gente entrega e as novidades de energia solar.</p>';
-    rodape.innerHTML = '<a class="cta" style="display:block;text-align:center;text-decoration:none" href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener" data-source="solar_curioso">Seguir @irmaosnaobra__ no Instagram</a>';
-    corpo.innerHTML = h; return;
-  }
-  if (fim === 'ja_marcado' && srv && srv.jaMarcado){
-    const d = new Date(srv.jaMarcado.quando);
-    const q = d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo', weekday:'long', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-    h = '<h2 class="q">Você já tem um horário marcado</h2><p class="sub">É ' + esc(q) + (srv.jaMarcado.dono ? ', com ' + esc(srv.jaMarcado.dono) : '') + '. Se precisar trocar, responda a mensagem de confirmação no WhatsApp.</p>' + ig;
-  } else if (fim === 'nao_confirmou'){
-    h = '<h2 class="q">Sem problema</h2><p class="sub">Guardamos as suas respostas. Quando puder, a gente te chama no WhatsApp com novos horários.</p>' + ig;
-  } else if (fim === 'sem_vitrine'){
-    h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">A gente te chama no WhatsApp para combinar o melhor horário.</p>' + ig;
-  } else {
-    const r = rotDia(marcado.ymd);
-    const oque = { vistoria:'Visita técnica', video:'Atendimento online', ligacao:'Ligação' }[marcado.caminho];
-    h = '<div class="ok" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>'
-      + '<h2 class="q">Está marcado!</h2><p class="sub">' + oque + ' ' + r.s + ', ' + r.n + ', às ' + esc(marcado.h) + ', com ' + esc(marcado.dono) + '.</p>'
-      + '<div class="passos"><div><span class="n">1</span><span>Confirme pelo WhatsApp respondendo <b>SIM</b> na mensagem que vai chegar.</span></div>'
-      + '<div><span class="n">2</span><span>Mande uma <b>foto da conta de luz</b>' + (marcado.caminho === 'vistoria' ? ' e do padrão de entrada' : '') + ' na mesma conversa. Assim o estudo já chega com o número certo.</span></div>'
-      + (marcado.caminho === 'vistoria' ? '<div><span class="n">3</span><span>Na véspera a gente pede a <b>localização</b> do imóvel.</span></div>' : '')
-      + '</div>' + ig;
-  }
-  corpo.innerHTML = h;
-  rodape.innerHTML = '<p class="link">Dúvida? Fale com a gente no WhatsApp: <a href="https://wa.me/' + WHATS_CENTRAL + '" data-source="solar_fim">(34) 99816-5040</a></p>';
+// ── Saída sem marcar: só avisa o servidor, que grava uma marca ────────────────
+// Armado depois de o servidor ter o lead (resposta do passo do WhatsApp) e
+// desarmado quando há card (agora, marcação ou "já marcado").
+let ultimoSaiu = 0;
+function avisarSaida(motivo){
+  try{
+    if (!srv || cardMarcado || !telOk()) return;
+    const agoraMs = Date.now(); if (agoraMs - ultimoSaiu < 3000) return;
+    ultimoSaiu = agoraMs;
+    const corpoS = Object.assign(corpoBase(), { onde: fase === 'quiz' ? atual : fase, motivo });
+    if (navigator.sendBeacon) navigator.sendBeacon(API + '/io/solar/quiz/saiu', new Blob([JSON.stringify(corpoS)], { type:'application/json' }));
+  }catch(e){}
 }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') avisarSaida('hidden'); });
+window.addEventListener('pagehide', () => avisarSaida('pagehide'));
 
-window.__quizSolar = { render, get estado(){ return { R, nome, tel, srv, idx, fim, diaSel, horaSel }; } };
+// ── Carrossel: passa sozinho a cada 4 s, para quando a pessoa mexe ────────────
+let carTimers = [];
+function moverCar(c, dir){
+  const t = c.querySelector('.car-trilho'), n = t.children.length, w = Math.max(1, t.clientWidth);
+  let i = Math.round(t.scrollLeft / w) + dir; if (i >= n) i = 0; if (i < 0) i = n - 1;
+  t.scrollTo({ left: i * w, behavior: calmo() ? 'auto' : 'smooth' });
+}
+function ligarCarrosseis(){
+  carTimers.forEach(clearInterval); carTimers = [];
+  tela.querySelectorAll('.carrossel').forEach(c => {
+    const t = c.querySelector('.car-trilho'), pontos = [...c.querySelectorAll('.car-pontos i')];
+    t.addEventListener('scroll', () => { const i = Math.round(t.scrollLeft / Math.max(1, t.clientWidth)); pontos.forEach((p, j) => p.classList.toggle('on', j === i)); }, { passive:true });
+    const parar = () => { c.dataset.parado = '1'; };
+    t.addEventListener('pointerdown', parar, { passive:true });
+    t.addEventListener('touchstart', parar, { passive:true });
+    // Quem pede menos movimento (prefers-reduced-motion) não recebe o autoplay: só setas, bolinhas e rolagem.
+    if (!calmo()) carTimers.push(setInterval(() => { if (c.dataset.parado || !c.isConnected || document.hidden) return; moverCar(c, 1); }, 4000));
+  });
+}
+const luz = $('luz');
+function abrirLuz(src, alt){ const im = document.createElement('img'); im.src = src; im.alt = alt || ''; luz.appendChild(im); luz.hidden = false; }
+function fecharLuz(){ luz.hidden = true; luz.querySelectorAll('img').forEach(i => i.remove()); }
+luz.addEventListener('click', fecharLuz);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !luz.hidden) fecharLuz(); });
+
+// ── Eventos da tela ───────────────────────────────────────────────────────────
+tela.addEventListener('click', e => {
+  const ir = e.target.closest('[data-car-ir]');
+  if (ir){ const c = ir.closest('.carrossel'); c.dataset.parado = '1'; moverCar(c, +ir.dataset.carIr); return; }
+  const z = e.target.closest('[data-zoom]');
+  if (z){ const im = z.querySelector('img'); abrirLuz(z.dataset.zoom, im ? im.alt : ''); return; }
+  const li = e.target.closest('#linkInt');
+  if (li){ e.preventDefault(); track('quiz_integrador'); fimDoQuiz('parceiro'); return; }
+  const op = e.target.closest('[data-op]');
+  if (op){
+    if (travado || fase !== 'quiz') return;
+    const id = atual, p = passo(id);
+    responder(p.campo, op.dataset.op);
+    tela.querySelectorAll('[data-op]').forEach(b => { b.classList.toggle('sel', b === op); b.setAttribute('aria-checked', String(b === op)); });
+    travado = true;
+    setTimeout(() => { travado = false; if (atual === id && fase === 'quiz') avancar(); }, 230);
+    return;
+  }
+  const sg = e.target.closest('[data-sug]'); if (sg){ R.cidade = sg.dataset.sug; avancar(); return; }
+  const sl = e.target.closest('[data-slot]');
+  if (sl){ const d = srv.dias[+sl.dataset.di]; if (d) agendar(d.ymd, sl.dataset.slot, sl.dataset.dono || (srv.dono || '')); return; }
+  const a = e.target.closest('[data-acao]'); if (!a) return;
+  if (a.dataset.acao === 'voltar') return voltar();
+  if (a.dataset.acao === 'continuar') return continuar();
+  if (a.dataset.acao === 'agora') return agora();
+  if (a.dataset.acao === 'horarios'){ avisoHorario = ''; return abrirHorarios(); }
+});
+tela.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'inCidade'){ R.cidade = t.value; srv = null; $('sug').innerHTML = sugestoesHtml(t.value); }
+  else if (t.id === 'inNome'){ NOME = t.value; }
+  else if (t.id === 'inTel'){ t.value = mascaraTel(t.value); TEL = t.value; }
+  const er = $('erro'); if (er) er.hidden = true;
+});
+tela.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')){ e.preventDefault(); continuar(); } });
+
+window.__quizSolar = { render, get estado(){ return { R, NOME, TEL, srv, atual, fase, fimTipo, cardMarcado, hist }; } };
 render();
 })();
 </script>

@@ -27,18 +27,13 @@ describe('a normalização do 55 e do 0 mora antes do corte em 11 dígitos, em t
     it(rel, () => {
       const t = ler(rel);
       const i = t.indexOf(REGRA);
-      // o quiz solar escreve a regra sem o 0 (a original, 55 só): a ampliação vale nas outras
-      if (rel === 'io/solar/index.html') {
-        expect(t).toContain(".replace(/^55(?=\\d{10,11}$)/, '').slice(0, 11)");
-        return;
-      }
       expect(i, 'regra ausente').toBeGreaterThan(0);
       expect(t.slice(i + REGRA.length, i + REGRA.length + 20)).toMatch(/^\.slice\(0,\s*11\)/);
     });
   }
 
   it('nenhuma máscara das páginas de lead corta em 11 dígitos sem a regra antes', () => {
-    for (const rel of PAGINAS.filter(p => p !== 'io/solar/index.html')) {
+    for (const rel of PAGINAS) {
       const t = ler(rel);
       const cortes = [...t.matchAll(/replace\(\/\\D\/g,\s*''\)\.slice\(0,\s*11\)/g)];
       expect(cortes.length, `${rel}: corte em 11 sem a regra`).toBe(0);

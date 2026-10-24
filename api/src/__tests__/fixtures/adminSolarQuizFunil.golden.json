@@ -20,6 +20,14 @@
         "destinos": {},
         "passos": [
           {
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -42,105 +50,14 @@
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
+            "pergunta": "Onde você quer instalar energia solar?",
             "curta": "Onde",
             "chegaram": 1,
             "pararam": 1,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "vistoria",
-        "nome": "Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)",
-        "sessoes": 1,
-        "terminaram": 1,
-        "destinos": {
-          "vistoria": 1
-        },
-        "passos": [
-          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -149,17 +66,33 @@
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "cidade",
+            "pergunta": "Em qual cidade fica o imóvel?",
+            "curta": "Cidade",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -173,24 +106,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -205,129 +178,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "endereco",
-            "pergunta": "Onde fica o imóvel? (só visita)",
-            "curta": "Endereço",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "video",
-        "nome": "Atendimento do Thiago (acima de 1.000 kWh, sem visita)",
-        "sessoes": 0,
-        "terminaram": 0,
-        "destinos": {},
-        "passos": [
-          {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
+            "pergunta": "Já pediu orçamento de energia solar?",
             "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -335,16 +195,8 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -353,23 +205,23 @@
       },
       {
         "id": "ligacao",
-        "nome": "Ligação (a Nilce recebe todos os leads novos de solar)",
+        "nome": "Ligação da Nilce (ela recebe todos os leads novos de solar)",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -383,6 +235,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -391,24 +267,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -423,16 +339,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -440,16 +356,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "horario",
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
             "pergunta": "Escolha o horário",
-            "curta": "Horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -458,23 +382,23 @@
       },
       {
         "id": "curioso",
-        "nome": "Curioso (abaixo de 40 pontos, sem agenda)",
+        "nome": "Curioso (abaixo de 40 pontos, sem o botão \"agora\")",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -488,6 +412,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -496,24 +444,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -528,16 +516,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -545,8 +533,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
+            "pergunta": "Escolha o horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -578,7 +582,7 @@
         "terminaram": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -615,7 +619,7 @@
         "perdidas": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -667,6 +671,14 @@
         "destinos": {},
         "passos": [
           {
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -684,105 +696,14 @@
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
+            "pergunta": "Onde você quer instalar energia solar?",
             "curta": "Onde",
             "chegaram": 1,
             "pararam": 1,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "vistoria",
-        "nome": "Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)",
-        "sessoes": 1,
-        "terminaram": 1,
-        "destinos": {
-          "vistoria": 1
-        },
-        "passos": [
-          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -791,17 +712,33 @@
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "cidade",
+            "pergunta": "Em qual cidade fica o imóvel?",
+            "curta": "Cidade",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -815,24 +752,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -847,129 +824,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "endereco",
-            "pergunta": "Onde fica o imóvel? (só visita)",
-            "curta": "Endereço",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "video",
-        "nome": "Atendimento do Thiago (acima de 1.000 kWh, sem visita)",
-        "sessoes": 0,
-        "terminaram": 0,
-        "destinos": {},
-        "passos": [
-          {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
+            "pergunta": "Já pediu orçamento de energia solar?",
             "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -977,16 +841,8 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -995,23 +851,23 @@
       },
       {
         "id": "ligacao",
-        "nome": "Ligação (a Nilce recebe todos os leads novos de solar)",
+        "nome": "Ligação da Nilce (ela recebe todos os leads novos de solar)",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1025,6 +881,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -1033,24 +913,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -1065,16 +985,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -1082,16 +1002,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "horario",
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
             "pergunta": "Escolha o horário",
-            "curta": "Horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1100,23 +1028,23 @@
       },
       {
         "id": "curioso",
-        "nome": "Curioso (abaixo de 40 pontos, sem agenda)",
+        "nome": "Curioso (abaixo de 40 pontos, sem o botão \"agora\")",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1130,6 +1058,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -1138,24 +1090,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -1170,16 +1162,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -1187,8 +1179,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
+            "pergunta": "Escolha o horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1213,7 +1221,7 @@
         "terminaram": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -1250,7 +1258,7 @@
         "perdidas": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -1302,6 +1310,14 @@
         "destinos": {},
         "passos": [
           {
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -1324,105 +1340,14 @@
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
+            "pergunta": "Onde você quer instalar energia solar?",
             "curta": "Onde",
             "chegaram": 1,
             "pararam": 1,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "vistoria",
-        "nome": "Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)",
-        "sessoes": 1,
-        "terminaram": 1,
-        "destinos": {
-          "vistoria": 1
-        },
-        "passos": [
-          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -1431,17 +1356,33 @@
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "cidade",
+            "pergunta": "Em qual cidade fica o imóvel?",
+            "curta": "Cidade",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1455,24 +1396,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -1487,129 +1468,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "endereco",
-            "pergunta": "Onde fica o imóvel? (só visita)",
-            "curta": "Endereço",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "video",
-        "nome": "Atendimento do Thiago (acima de 1.000 kWh, sem visita)",
-        "sessoes": 0,
-        "terminaram": 0,
-        "destinos": {},
-        "passos": [
-          {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
+            "pergunta": "Já pediu orçamento de energia solar?",
             "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -1617,16 +1485,8 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1635,23 +1495,23 @@
       },
       {
         "id": "ligacao",
-        "nome": "Ligação (a Nilce recebe todos os leads novos de solar)",
+        "nome": "Ligação da Nilce (ela recebe todos os leads novos de solar)",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1665,6 +1525,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -1673,24 +1557,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -1705,16 +1629,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -1722,16 +1646,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "horario",
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
             "pergunta": "Escolha o horário",
-            "curta": "Horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1740,23 +1672,23 @@
       },
       {
         "id": "curioso",
-        "nome": "Curioso (abaixo de 40 pontos, sem agenda)",
+        "nome": "Curioso (abaixo de 40 pontos, sem o botão \"agora\")",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1770,6 +1702,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -1778,24 +1734,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -1810,16 +1806,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -1827,8 +1823,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
+            "pergunta": "Escolha o horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -1860,7 +1872,7 @@
         "terminaram": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -1897,7 +1909,7 @@
         "perdidas": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -1949,6 +1961,14 @@
         "destinos": {},
         "passos": [
           {
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -1971,105 +1991,14 @@
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
+            "pergunta": "Onde você quer instalar energia solar?",
             "curta": "Onde",
             "chegaram": 1,
             "pararam": 1,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "vistoria",
-        "nome": "Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)",
-        "sessoes": 1,
-        "terminaram": 1,
-        "destinos": {
-          "vistoria": 1
-        },
-        "passos": [
-          {
             "id": "conta",
             "pergunta": "Quanto vem a sua conta de luz por mês?",
             "curta": "Conta de luz",
@@ -2078,17 +2007,33 @@
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "cidade",
+            "pergunta": "Em qual cidade fica o imóvel?",
+            "curta": "Cidade",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2102,24 +2047,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -2134,129 +2119,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "nome",
-            "pergunta": "Como podemos te chamar?",
-            "curta": "Nome",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
-            "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "endereco",
-            "pergunta": "Onde fica o imóvel? (só visita)",
-            "curta": "Endereço",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
-            "chegaram": 1,
-            "pararam": 0,
-            "erros": []
-          }
-        ]
-      },
-      {
-        "id": "video",
-        "nome": "Atendimento do Thiago (acima de 1.000 kWh, sem visita)",
-        "sessoes": 0,
-        "terminaram": 0,
-        "destinos": {},
-        "passos": [
-          {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "cidade",
-            "pergunta": "Em qual cidade fica o imóvel?",
-            "curta": "Cidade",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "imovel",
-            "pergunta": "O imóvel é seu?",
-            "curta": "Imóvel é seu?",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
-            "curta": "Quando quer",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
+            "pergunta": "Já pediu orçamento de energia solar?",
             "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
-            "curta": "Pagamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "decisor",
-            "pergunta": "Quem decide a compra?",
-            "curta": "Quem decide",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -2264,16 +2136,8 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
-            "id": "horario",
-            "pergunta": "Escolha o horário",
-            "curta": "Horário",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2282,23 +2146,23 @@
       },
       {
         "id": "ligacao",
-        "nome": "Ligação (a Nilce recebe todos os leads novos de solar)",
+        "nome": "Ligação da Nilce (ela recebe todos os leads novos de solar)",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2312,6 +2176,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -2320,24 +2208,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -2352,16 +2280,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -2369,16 +2297,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "horario",
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
             "pergunta": "Escolha o horário",
-            "curta": "Horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2387,23 +2323,23 @@
       },
       {
         "id": "curioso",
-        "nome": "Curioso (abaixo de 40 pontos, sem agenda)",
+        "nome": "Curioso (abaixo de 40 pontos, sem o botão \"agora\")",
         "sessoes": 0,
         "terminaram": 0,
         "destinos": {},
         "passos": [
           {
-            "id": "conta",
-            "pergunta": "Quanto vem a sua conta de luz por mês?",
-            "curta": "Conta de luz",
+            "id": "tipo",
+            "pergunta": "Onde você quer instalar energia solar?",
+            "curta": "Onde",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "tipo",
-            "pergunta": "Onde vai ficar a energia solar?",
-            "curta": "Onde",
+            "id": "conta",
+            "pergunta": "Quanto vem a sua conta de luz por mês?",
+            "curta": "Conta de luz",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2417,6 +2353,30 @@
             "erros": []
           },
           {
+            "id": "grupoa",
+            "pergunta": "A conta tem \"Demanda contratada\"?",
+            "curta": "Alta tensão",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "telhado",
+            "pergunta": "Como é o telhado?",
+            "curta": "Telhado",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "sombra",
+            "pergunta": "O telhado pega sol o dia todo?",
+            "curta": "Sombra",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "imovel",
             "pergunta": "O imóvel é seu?",
             "curta": "Imóvel é seu?",
@@ -2425,24 +2385,64 @@
             "erros": []
           },
           {
+            "id": "aumento",
+            "pergunta": "Vai aumentar o consumo de energia nos próximos anos?",
+            "curta": "Consumo futuro",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "dor",
+            "pergunta": "O que mais pesa na sua conta de luz hoje?",
+            "curta": "O que pesa",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "tempo",
+            "pergunta": "Há quanto tempo você pensa em energia solar?",
+            "curta": "Há quanto tempo",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "travou",
+            "pergunta": "O que te fez esperar até agora?",
+            "curta": "O que travou",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "desejo",
+            "pergunta": "Se a conta caísse para quase nada, o que você faria com esse dinheiro?",
+            "curta": "O que faria",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "criterio",
+            "pergunta": "O que é mais importante na hora de escolher a empresa?",
+            "curta": "Mais importante",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
             "id": "urgencia",
-            "pergunta": "Quando você quer o sistema funcionando?",
+            "pergunta": "Quando você quer começar a economizar?",
             "curta": "Quando quer",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
-            "id": "concorrente",
-            "pergunta": "Já fez orçamento com outra empresa?",
-            "curta": "Já tem orçamento",
-            "chegaram": 0,
-            "pararam": 0,
-            "erros": []
-          },
-          {
             "id": "pagamento",
-            "pergunta": "Como pretende pagar?",
+            "pergunta": "Como você prefere pagar?",
             "curta": "Pagamento",
             "chegaram": 0,
             "pararam": 0,
@@ -2457,16 +2457,16 @@
             "erros": []
           },
           {
-            "id": "grupoa",
-            "pergunta": "A conta tem \"Demanda contratada\"?",
-            "curta": "Alta tensão",
+            "id": "concorrente",
+            "pergunta": "Já pediu orçamento de energia solar?",
+            "curta": "Já tem orçamento",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
           },
           {
             "id": "nome",
-            "pergunta": "Como podemos te chamar?",
+            "pergunta": "Seu diagnóstico está pronto. Como você se chama?",
             "curta": "Nome",
             "chegaram": 0,
             "pararam": 0,
@@ -2474,8 +2474,24 @@
           },
           {
             "id": "whatsapp",
-            "pergunta": "Qual é o seu WhatsApp?",
+            "pergunta": "Qual o seu WhatsApp?",
             "curta": "WhatsApp",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "resultado",
+            "pergunta": "Diagnóstico na tela",
+            "curta": "Viu o diagnóstico",
+            "chegaram": 0,
+            "pararam": 0,
+            "erros": []
+          },
+          {
+            "id": "horarios",
+            "pergunta": "Escolha o horário",
+            "curta": "Horários",
             "chegaram": 0,
             "pararam": 0,
             "erros": []
@@ -2507,7 +2523,7 @@
         "terminaram": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },
@@ -2544,7 +2560,7 @@
         "perdidas": 1,
         "pior": {
           "passo": "tipo",
-          "pergunta": "Onde vai ficar a energia solar?",
+          "pergunta": "Onde você quer instalar energia solar?",
           "pararam": 1
         }
       },

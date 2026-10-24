@@ -13,16 +13,19 @@ const idsDaPagina = [...html.matchAll(/\{ id:'([a-z]+)'/g)].map(m => m[1]);
 describe('o painel e a página do quiz solar falam dos mesmos passos', () => {
   it('cada passo da página tem pergunta no painel, na mesma ordem', () => {
     expect(idsDaPagina.length).toBeGreaterThan(10);
-    expect(idsDaPagina).toEqual(Object.keys(PERGUNTAS_SOLAR));
+    // 'resultado' e 'horarios' são telas da página que o funil também mede, mas não são perguntas do array de passos.
+    expect([...idsDaPagina, 'resultado', 'horarios']).toEqual(Object.keys(PERGUNTAS_SOLAR));
   });
   it('os caminhos usam só passos que existem', () => {
-    for (const c of CAMINHOS_SOLAR) for (const p of c.passos) expect(idsDaPagina).toContain(p);
+    for (const c of CAMINHOS_SOLAR) for (const p of c.passos) expect([...idsDaPagina, 'resultado', 'horarios']).toContain(p);
   });
   it('a página manda lp:solar e todo destino que ela grava tem nome no painel', () => {
     expect(html).toContain("lp: 'solar'");
     const destinos = [...html.matchAll(/fimDoQuiz\('([a-z_]+)'\)/g)].map(m => m[1]);
-    for (const d of destinos) expect(Object.keys(DESTINOS_SOLAR)).toContain(d);
-    for (const c of ['vistoria', 'video', 'ligacao']) expect(Object.keys(DESTINOS_SOLAR)).toContain(c);
+    // fimDoQuiz('marcado') grava destino 'ligacao' (a página traduz), então 'marcado' não é nome de destino.
+    for (const d of destinos.map(x => (x === 'marcado' ? 'ligacao' : x))) expect(Object.keys(DESTINOS_SOLAR)).toContain(d);
+    for (const c of ['agora', 'ligacao', 'ja_marcado', 'sem_vitrine', 'parceiro']) expect(Object.keys(DESTINOS_SOLAR)).toContain(c);
+    expect(CONFIG_SOLAR.marcaram).toContain('agora');
   });
   it('a página não carrega cópia da régua (quem decide é o servidor)', () => {
     expect(html).not.toMatch(/KWH_CORTE|KWH_VISITA|RAIO_VISITA|GRADE_SOCIOS|GRADE_NILCE/);
@@ -37,17 +40,26 @@ describe('a conta do funil com a configuração do solar', () => {
       ev('a', 'quiz_passo', { passo: 'conta', caminho: 'inicio' }, 1),
       ev('a', 'quiz_passo', { passo: 'tipo', caminho: 'respondendo' }, 2),
       ev('b', 'quiz_passo', { passo: 'conta', caminho: 'inicio' }, 1),
-      ev('b', 'quiz_passo', { passo: 'horario', caminho: 'vistoria' }, 2),
-      ev('b', 'quiz_fim', { destino: 'vistoria', caminho: 'vistoria' }, 3),
+      ev('b', 'quiz_passo', { passo: 'horarios', caminho: 'ligacao' }, 2),
+      ev('b', 'quiz_fim', { destino: 'ligacao', caminho: 'ligacao' }, 3),
       { session_id: 'c', event_type: 'quiz_passo', event_data: { lp: 'eletroposto', passo: 'p-porta', pl: 1, seq: 1 }, created_at: '2026-10-08T12:00:00Z' },
     ];
     const f = montarFunil(eventos, [{ session_id: 'b', landing_url: 'https://solardoc.app/io/solar?utm_campaign=x', utm_campaign: 'x' }], { config: CONFIG_SOLAR });
     expect(f.abriram).toBe(2);
     expect(f.terminaram).toBe(1);
-    expect(f.destinos).toEqual({ vistoria: 1 });
+    expect(f.destinos).toEqual({ ligacao: 1 });
     const resp = f.caminhos.find(c => c.id === 'respondendo')!;
     expect(resp.passos.find(p => p.id === 'tipo')!.pararam).toBe(1);
     expect(f.campanhas[0]).toMatchObject({ campanha: 'x', reunioes: 1 });
+  });
+  it('o clique "agora" também conta como horário marcado', () => {
+    const eventos: EventoQuiz[] = [
+      ev('d', 'quiz_passo', { passo: 'tipo', caminho: 'inicio' }, 1),
+      ev('d', 'quiz_fim', { destino: 'agora', caminho: 'ligacao' }, 2),
+    ];
+    const f = montarFunil(eventos, [{ session_id: 'd', landing_url: 'https://solardoc.app/io/solar?utm_campaign=y', utm_campaign: 'y' }], { config: CONFIG_SOLAR });
+    expect(f.destinos).toEqual({ agora: 1 });
+    expect(f.campanhas[0]).toMatchObject({ campanha: 'y', reunioes: 1 });
   });
   it('visita da LP é a /io/solar, não o simulador antigo', () => {
     expect(ehVisitaDaLpSolar('https://solardoc.app/io/solar')).toBe(true);

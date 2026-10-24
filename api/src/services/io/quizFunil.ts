@@ -190,40 +190,51 @@ export interface ConfigFunil {
 /** O quiz da /io/solar. Os ids são os do array PASSOS da página. */
 export const MEDINDO_DESDE_SOLAR = '2026-10-08';
 export const PERGUNTAS_SOLAR: Record<string, string> = {
+  tipo: 'Onde você quer instalar energia solar?',
   conta: 'Quanto vem a sua conta de luz por mês?',
-  tipo: 'Onde vai ficar a energia solar?',
   cidade: 'Em qual cidade fica o imóvel?',
-  imovel: 'O imóvel é seu?',
-  urgencia: 'Quando você quer o sistema funcionando?',
-  concorrente: 'Já fez orçamento com outra empresa?',
-  pagamento: 'Como pretende pagar?',
-  decisor: 'Quem decide a compra?',
   grupoa: 'A conta tem "Demanda contratada"?',
-  nome: 'Como podemos te chamar?',
-  whatsapp: 'Qual é o seu WhatsApp?',
-  endereco: 'Onde fica o imóvel? (só visita)',
-  horario: 'Escolha o horário',
+  telhado: 'Como é o telhado?',
+  sombra: 'O telhado pega sol o dia todo?',
+  imovel: 'O imóvel é seu?',
+  aumento: 'Vai aumentar o consumo de energia nos próximos anos?',
+  dor: 'O que mais pesa na sua conta de luz hoje?',
+  tempo: 'Há quanto tempo você pensa em energia solar?',
+  travou: 'O que te fez esperar até agora?',
+  desejo: 'Se a conta caísse para quase nada, o que você faria com esse dinheiro?',
+  criterio: 'O que é mais importante na hora de escolher a empresa?',
+  urgencia: 'Quando você quer começar a economizar?',
+  pagamento: 'Como você prefere pagar?',
+  decisor: 'Quem decide a compra?',
+  concorrente: 'Já pediu orçamento de energia solar?',
+  nome: 'Seu diagnóstico está pronto. Como você se chama?',
+  whatsapp: 'Qual o seu WhatsApp?',
+  resultado: 'Diagnóstico na tela',
+  horarios: 'Escolha o horário',
 };
 export const CURTAS_SOLAR: Record<string, string> = {
-  conta: 'Conta de luz', tipo: 'Onde', cidade: 'Cidade', imovel: 'Imóvel é seu?', urgencia: 'Quando quer',
-  concorrente: 'Já tem orçamento', pagamento: 'Pagamento', decisor: 'Quem decide', grupoa: 'Alta tensão',
-  nome: 'Nome', whatsapp: 'WhatsApp', endereco: 'Endereço', horario: 'Horário',
+  tipo: 'Onde', conta: 'Conta de luz', cidade: 'Cidade', grupoa: 'Alta tensão', telhado: 'Telhado', sombra: 'Sombra',
+  imovel: 'Imóvel é seu?', aumento: 'Consumo futuro', dor: 'O que pesa', tempo: 'Há quanto tempo', travou: 'O que travou',
+  desejo: 'O que faria', criterio: 'Mais importante', urgencia: 'Quando quer', pagamento: 'Pagamento', decisor: 'Quem decide',
+  concorrente: 'Já tem orçamento', nome: 'Nome', whatsapp: 'WhatsApp', resultado: 'Viu o diagnóstico', horarios: 'Horários',
 };
-const BASE_SOLAR = ['conta', 'tipo', 'cidade', 'imovel', 'urgencia', 'concorrente', 'pagamento', 'decisor', 'grupoa', 'nome', 'whatsapp'];
-/** O caminho da página é 'inicio' antes da conta, 'respondendo' até o servidor
- *  decidir no passo do WhatsApp, e o caminho decidido depois. */
+// Os ids saem da ordem da página (24/10/2026). `grupoa` e `travou` são condicionais: quem não vê a pergunta não passa por ela.
+const BASE_SOLAR = ['tipo', 'conta', 'cidade', 'grupoa', 'telhado', 'sombra', 'imovel', 'aumento', 'dor', 'tempo', 'travou', 'desejo',
+  'criterio', 'urgencia', 'pagamento', 'decisor', 'concorrente', 'nome', 'whatsapp'];
+const COM_RESULTADO = [...BASE_SOLAR, 'resultado', 'horarios'];
+/** O caminho da página é 'inicio' antes da conta (a 1ª pergunta agora é o tipo), 'respondendo' até o servidor decidir no passo
+ *  do WhatsApp, e o caminho decidido depois. Desde 24/10/2026 só existem ligação (Nilce) e curioso: visita e vídeo saíram do quiz. */
 export const CAMINHOS_SOLAR: Caminho[] = [
-  { id: 'inicio', nome: 'Não respondeu a conta', passos: ['conta'] },
+  { id: 'inicio', nome: 'Não respondeu a conta', passos: ['tipo', 'conta'] },
   { id: 'respondendo', nome: 'Parou antes do WhatsApp', passos: BASE_SOLAR },
-  { id: 'vistoria', nome: 'Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)', passos: [...BASE_SOLAR, 'endereco', 'horario'] },
-  { id: 'video', nome: 'Atendimento do Thiago (acima de 1.000 kWh, sem visita)', passos: [...BASE_SOLAR, 'horario'] },
-  { id: 'ligacao', nome: 'Ligação (a Nilce recebe todos os leads novos de solar)', passos: [...BASE_SOLAR, 'horario'] },
-  { id: 'curioso', nome: 'Curioso (abaixo de 40 pontos, sem agenda)', passos: BASE_SOLAR },
+  { id: 'ligacao', nome: 'Ligação da Nilce (ela recebe todos os leads novos de solar)', passos: COM_RESULTADO },
+  { id: 'curioso', nome: 'Curioso (abaixo de 40 pontos, sem o botão "agora")', passos: COM_RESULTADO },
 ];
 export const DESTINOS_SOLAR: Record<string, string> = {
-  vistoria: 'Visita marcada', video: 'Atendimento marcado', ligacao: 'Ligação marcada', curioso: 'Curioso (lista)',
-  nao_confirmou: 'Não confirmou presença', ja_marcado: 'Já tinha horário', sem_vitrine: 'Sem horário, a equipe chama',
-  parceiro: 'Integrador (SolarDoc)',
+  agora: 'Atendimento agora', ligacao: 'Ligação marcada', curioso: 'Curioso (lista)',
+  ja_marcado: 'Já tinha horário', sem_vitrine: 'Sem horário, a equipe chama', parceiro: 'Integrador (SolarDoc)',
+  // Do quiz anterior a 24/10/2026 (ficam para o histórico do painel).
+  vistoria: 'Visita marcada', video: 'Atendimento marcado', nao_confirmou: 'Não confirmou presença',
 };
 export function ehVisitaDaLpSolar(url: string | null): boolean {
   const u = String(url || '');
@@ -243,7 +254,7 @@ export const CONFIG_ELETROPOSTO: ConfigFunil = {
 export const CONFIG_SOLAR: ConfigFunil = {
   lp: 'solar', aceitaSemLp: false, medindoDesde: MEDINDO_DESDE_SOLAR,
   perguntas: PERGUNTAS_SOLAR, curtas: CURTAS_SOLAR, caminhos: CAMINHOS_SOLAR,
-  marcaram: ['vistoria', 'video', 'ligacao'], ehVisita: ehVisitaDaLpSolar,
+  marcaram: ['agora', 'ligacao', 'vistoria', 'video'], ehVisita: ehVisitaDaLpSolar,
 };
 
 // ── O QUIZ DO SOLARDOC (/diagnostico, 24/10/2026) ─────────────────────────────
