@@ -357,6 +357,12 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
 
   // ── P4 · frio de receita ───────────────────────────────────────────────────
   recuperacao_checkout: robo('frio_receita_p4', ['services/followupService.ts', 'services/agents/whatsapp/pixRecoveryAgentService.ts'], { linha: 'solardoc', subprioridade: 1 }),
+  // A Carla recuperando quem deixou o WhatsApp no quiz do SolarDoc e não comprou (24/10/2026, B2, aval do chefe-antiban): 1 bolha, sem link, pela
+  // linha 5040 (sendFrio), 1 por pessoa para sempre, 1 envio por rodada de 10 min, das 9h às 20h de segunda a sábado, na vaga do frio. Cala com
+  // humano na conversa, mudo e opt-out. Nasce LIGADO; QUIZ_RECUPERACAO_LIGADA=0 ou a chave quiz_rec_pausa no banco desligam.
+  quiz_recuperacao_5040: robo('frio_receita_p4', ['services/solardoc/recuperacaoCarla.ts'], {
+    carimbos: [frio('quiz_rec_sent:')], subprioridade: 4,
+  }),
   dunning_lembrete: robo('frio_receita_p4', ['services/dunningService.ts'], { linha: 'solardoc', subprioridade: 2 }),
   pix_vip_lembrete: robo('frio_receita_p4', ['services/agents/whatsapp/pixVipReminderService.ts'], { linha: 'solardoc', subprioridade: 3 }),
 

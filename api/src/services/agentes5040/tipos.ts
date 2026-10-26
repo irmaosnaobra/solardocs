@@ -66,6 +66,8 @@ export interface CardResumo {
   created_at: string | null;
 }
 
+import type { QuizContexto } from '../solardoc/quizContexto';
+
 export interface LeadMetaResumo {
   lead_id: string | null;
   form_id: string | null;
@@ -104,6 +106,8 @@ export interface ContextoLead {
    */
   cardSolar?: CardResumo | null;
   leadsMeta: LeadMetaResumo | null;
+  /** O diagnóstico que este telefone fez no quiz do SolarDoc (leads_meta quiz_solardoc). Ausente ou null = não fez. Só a Carla usa. */
+  quizSolardoc?: QuizContexto | null;
   cadastros: CadastroEletroposto[];
   ehClienteSolarDoc: boolean;
   anuncio: AnuncioOrigem | null;

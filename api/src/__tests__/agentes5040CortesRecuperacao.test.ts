@@ -98,7 +98,35 @@ describe('corte 1: recoverAbandonedCheckouts (opener da Giovanna)', () => {
     expect(h.emails).toHaveLength(1);
     expect(r.sent).toBe(1);
     expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
-    expect(leuPosseOuAlvo(lidos)).toBe(false);
+    // O corte das agentes (cedeAAgente) continua sem ler interruptor nem alvo. A ÚNICA leitura de posse é a da própria recuperação
+    // (24/10/2026, B2): posse viva da Carla, mesmo com o carla_vivo desligado, segura o WhatsApp do lead do quiz.
+    expect(lidos.some(l => l.includes('ag5040_vivo_alvo') || l.includes('ag5040_interruptores'))).toBe(false);
+    expect(lidos.filter(l => l === 'whatsapp_sessions.tipo=ag5040')).toHaveLength(1);
+  });
+
+  it('sessão do checkout que nasceu no quiz do SolarDoc (metadata.origem): 0 opener; o e-mail segue e o toque conta', async () => {
+    tudoDesligado(); abandono({ session_id: 'cs_quiz_1' });
+    banco.poe('system_state', { key: 'abandono_quiz:cs_quiz_1', value: { em: HORAS(2) }, updated_at: HORAS(2) });
+    const r = await recoverAbandonedCheckouts();
+    expect(h.openers).toHaveLength(0);
+    expect(h.emails).toHaveLength(1);
+    expect(r.sent).toBe(1);
+  });
+
+  it('sessão que NÃO é do quiz segue como hoje (a marca é de outra sessão)', async () => {
+    tudoDesligado(); abandono({ session_id: 'cs_normal' });
+    banco.poe('system_state', { key: 'abandono_quiz:cs_outra', value: { em: HORAS(2) }, updated_at: HORAS(2) });
+    await recoverAbandonedCheckouts();
+    expect(h.openers).toEqual([{ phone: X }]);
+  });
+
+  it('posse viva da Carla (robô do quiz) segura o WhatsApp mesmo com o carla_vivo DESLIGADO; sem e-mail, o toque não conta', async () => {
+    tudoDesligado(); abandono({ email: null });
+    semearPosse(X, 'carla');
+    const r = await recoverAbandonedCheckouts();
+    expect(h.openers).toHaveLength(0);
+    expect(r.sent).toBe(0);
+    expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
   });
 
   it('posse viva da Carla sobre o número: 0 opener; o e-mail segue e o toque conta', async () => {

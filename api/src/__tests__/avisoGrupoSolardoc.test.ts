@@ -39,6 +39,7 @@ function construtor(tabela: string) {
       filtros.push(r => pref.some(p => String(r.key).startsWith(p)));
       return q;
     },
+    like: (c: string, pat: string) => { const pre = pat.replace(/%$/, ''); filtros.push(r => String(r[c]).startsWith(pre)); return q; },
     contains: () => q,
     order: (col: string, o?: { ascending?: boolean }) => { ordem = { col, asc: o?.ascending !== false }; return q; },
     limit: (n: number) => { max = n; return q; },
@@ -91,6 +92,12 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendToGroup: (...a: [string, string, string?]) => sendToGroup(...a),
   sendWhatsApp: (...a: unknown[]) => (sendWhatsApp as any)(...a),
   linhaEmCooldown: () => emCooldown(),
+}));
+const av = vi.hoisted(() => ({ avaliar: vi.fn() }));
+// A avaliacao do robo tem os testes dela (quizRecuperacaoCarla.test.ts): aqui so importa o que o tick faz com o resultado.
+vi.mock('../services/solardoc/recuperacaoCarla', () => ({
+  avaliarLead: (...a: unknown[]) => av.avaliar(...a),
+  depsAvaliarReais: () => ({}),
 }));
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({ prefixosTotalDaLinha: () => ['linha_x:'], PREFIXOS_AGENDA: ['agenda_x:'] }));
 
@@ -149,7 +156,7 @@ beforeEach(() => {
   emCooldown.mockReturnValue(false);
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-teste';
   process.env.ZAPI_SOLARDOC_GRUPO_ID = GRUPO;
-  delete process.env.QUIZ_RECUPERACAO_LIGADA;
+  process.env.QUIZ_RECUPERACAO_LIGADA = '0';   // os testes antigos do B1 rodam com o robô DESLIGADO (o robô nasce ligado; os testes do B2 apagam esta env)
   delete process.env.QUIZ_DESISTENCIA_OFF;
   delete process.env.ZAPI_IO_GROUP_ID;
   delete process.env.IO_GRUPO_ELETROPOSTO_ID;
@@ -160,8 +167,8 @@ describe('textos dos avisos', () => {
   const todos = Object.keys(MODELOS) as ModeloAviso[];
   it('nenhum modelo sai com colchete sobrando, mesmo sem dado nenhum', () => {
     for (const m of todos) {
-      expect(montarAviso(m, {}, { carlaLigada: false })).not.toMatch(/\[|\]/);
-      expect(montarAviso(m, {}, { carlaLigada: true })).not.toMatch(/\[|\]/);
+      expect(montarAviso(m, {})).not.toMatch(/\[|\]/);
+      expect(montarAviso(m, { motivo_carla: 'A Carla está desligada agora.' })).not.toMatch(/\[|\]/);
       const cheio = montarAviso(m, { nome_completo: 'Carlos Andrade', empresa: 'Solar Andrade', cidade: 'Uberlândia-MG', telefone: '34999998888', indice: 37, perfil: 'Proposta no braço', propostas_mes: 'de 6 a 15', quando: 'esta semana', hora_carla: '10:15', valor: 67, codigo: 'SD-AB23' });
       expect(cheio).not.toMatch(/\[|\]|undefined|null|NaN/);
     }
@@ -171,10 +178,11 @@ describe('textos dos avisos', () => {
     expect(telefoneComDdi('5534999998888')).toBe('+55 (34) 99999-8888');
     expect(telefoneComDdi('123')).toBe('não informado');
   });
-  it('a linha da Carla muda com o robô desligado ou ligado', () => {
-    expect(montarAviso('desistencia', { hora_carla: '10:15' }, { carlaLigada: false })).toContain('A Carla ainda não chama quem vem do quiz.');
-    expect(montarAviso('desistencia', { hora_carla: '10:15' }, { carlaLigada: true })).toContain('A Carla falou às 10:15.');
-    expect(montarAviso('desistencia', {}, { carlaLigada: false })).not.toContain('falou às');
+  it('a linha da Carla: o motivo vale por cima da hora; sem nenhum dos dois não afirma que ela falou', () => {
+    expect(montarAviso('desistencia', { hora_carla: '10:15' })).toContain('A Carla falou às 10:15.');
+    expect(montarAviso('desistencia', { hora_carla: '10:15', motivo_carla: 'A Carla está desligada agora.' })).toContain('A Carla está desligada agora.');
+    expect(montarAviso('desistencia', { hora_carla: '10:15', motivo_carla: 'A Carla está desligada agora.' })).not.toContain('falou às');
+    expect(montarAviso('desistencia', {})).not.toContain('falou às');
   });
   it('origem: quiz com o código, ou outra', () => {
     expect(montarAviso('compraCartao', { codigo: 'SD-AB23', valor: 67 })).toContain('Origem: quiz, código SD-AB23');
@@ -571,13 +579,12 @@ describe('pendente com mais de 24 h não some calado', () => {
     expect(r.pendentes).toBe(1);
     expect(sendToGroup).toHaveBeenCalledTimes(2);
   });
-  it('e antes do robô da Carla ligado', async () => {
-    process.env.QUIZ_RECUPERACAO_LIGADA = '1';
+  it('e com o robô da Carla ligado (os pendentes saem do mesmo jeito)', async () => {
+    delete process.env.QUIZ_RECUPERACAO_LIGADA;
     await avulso('e1');
     await compra('e2');
     liberarVez();
     const r = await runSolardocQuizDesistenciaTick();
-    expect(r.motivo).toBe('robo_da_carla_avisa');
     expect(r.pendentes).toBe(1);
   });
 });
@@ -639,13 +646,6 @@ describe('tick de desistência', () => {
     expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
     expect(sendToGroup).not.toHaveBeenCalled();
     expect(claims()).toHaveLength(0);
-  });
-  it('com o robô da Carla ligado o tick só descarrega pendentes (o robô avisa)', async () => {
-    process.env.QUIZ_RECUPERACAO_LIGADA = '1';
-    tabelas.leads_meta!.push(leadsMeta());
-    const r = await runSolardocQuizDesistenciaTick();
-    expect(r.motivo).toBe('robo_da_carla_avisa');
-    expect(sendToGroup).not.toHaveBeenCalled();
   });
   it('dry não envia nem grava', async () => {
     tabelas.leads_meta!.push(leadsMeta());
@@ -892,5 +892,206 @@ describe('lista de grupos internos do CHEFE', () => {
     expect(ehDestinoInterno(GRUPO, [], { grupos: lista })).toBe(true);
     expect(ehDestinoInterno('120363111111111111-group', [], { grupos: lista })).toBe(false);
     expect(GRUPO_VENDAS_SOLARDOC).toBe('');
+  });
+});
+
+
+// ── B2 (24/10/2026): o tick decide POR LEAD quem avisa o quê ──────────────────
+describe('B2: o tick de desistência com o robô da Carla ligado', () => {
+  const leadQuiz = (extra: Partial<LeadQuizLinha> = {}) => ({ ...lead(), form_id: 'quiz_solardoc', ...extra });
+  const hmacDoLead = (tel: string) => hmacDe(chaveDoTelefone(normalizarTelefoneSd(tel)!))!;
+  const ligar = () => { delete process.env.QUIZ_RECUPERACAO_LIGADA; };
+  const naoChama = (motivo: string) => av.avaliar.mockResolvedValue({ ok: false, motivo });
+  const podeChamar = () => av.avaliar.mockResolvedValue({ ok: true, tel: '5534999998888', chave: '3499998888', hmac: 'x', codigo: 'SD-AB23' });
+  beforeEach(() => { ligar(); av.avaliar.mockReset(); });
+
+  it('a Carla ainda pode chamar: o tick NÃO avisa (o aviso sai pelo caminho do robô)', async () => {
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(0);
+    expect(r.deixadosAoRobo).toBe(1);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(claims()).toHaveLength(0);
+  });
+  it('a Carla não vai chamar: o tick avisa aos 15 min com a linha do motivo e a Giovanna como responsável', async () => {
+    naoChama('sem_cnpj');
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    const t = String(sendToGroup.mock.calls[0]![1]);
+    expect(t).toContain('A Carla não vai chamar: ainda sem CNPJ.');
+    expect(t).toContain('A responsável é a Giovanna.');
+    expect(t).not.toContain('falou às');
+  });
+  it('um motivo por caso: já falou, suprimido, antes da largada', async () => {
+    for (const [motivo, frase] of [['ja_falou', 'ele já falou com a linha'], ['suprimido', 'ele pediu para não receber mensagem'], ['antes_da_largada', 'o lead é de antes de ela começar']] as const) {
+      for (const k of Object.keys(tabelas)) tabelas[k] = [];
+      sendToGroup.mockClear(); liberarTudo();
+      naoChama(motivo);
+      tabelas.leads_meta!.push(leadQuiz());
+      await runSolardocQuizDesistenciaTick();
+      expect(String(sendToGroup.mock.calls[0]![1])).toContain(`A Carla não vai chamar: ${frase}.`);
+    }
+  });
+  it('leitura que falhou não é motivo: não avisa e não toma o claim', async () => {
+    naoChama('leitura_falhou');
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(0);
+    expect(claims()).toHaveLength(0);
+  });
+  it('robô desligado pela env: "A Carla está desligada agora." aos 15 min', async () => {
+    process.env.QUIZ_RECUPERACAO_LIGADA = '0';
+    tabelas.leads_meta!.push(leadQuiz());
+    await runSolardocQuizDesistenciaTick();
+    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla está desligada agora.');
+    expect(av.avaliar).not.toHaveBeenCalled();
+  });
+  it('robô pausado pela chave do banco: também "desligada agora"', async () => {
+    tabelas.system_state!.push({ key: 'quiz_rec_pausa', value: { motivo: 'dono' }, updated_at: agora() });
+    tabelas.leads_meta!.push(leadQuiz());
+    await runSolardocQuizDesistenciaTick();
+    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla está desligada agora.');
+  });
+  it('qualquer outro valor da env não desliga: o robô segue ligado e o tick deixa o lead com ele', async () => {
+    process.env.QUIZ_RECUPERACAO_LIGADA = '1';
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+  it('venceu em 48 h sem a Carla chamar: o tick avisa (lê até 50 h)', async () => {
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(49 * 60) }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla não chamou: passou de 48 horas sem vaga.');
+  });
+  it('mais de 50 h: nem lê', async () => {
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(51 * 60) }));
+    expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
+  });
+  it('a Carla chamou e o aviso dela não foi tomado em 5 min (o robô caiu): o tick assume, com a hora', async () => {
+    const h = hmacDoLead('5534999998888');
+    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(10) }, updated_at: minAtras(10) });
+    tabelas.leads_meta!.push(leadQuiz());
+    await runSolardocQuizDesistenciaTick();
+    expect(String(sendToGroup.mock.calls[0]![1])).toMatch(/A Carla falou às \d\d:\d\d\./);
+    expect(av.avaliar).not.toHaveBeenCalled();
+  });
+  it('a Carla chamou há pouco: o aviso é do robô, o tick espera', async () => {
+    const h = hmacDoLead('5534999998888');
+    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(1) }, updated_at: minAtras(1) });
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+  it('o aviso do robô ("A Carla falou às 14:00.") entra PENDENTE, sai uma vez só e o tick não avisa em dobro', async () => {
+    const l = leadQuiz();
+    expect(await avisarDesistencia(l, { horaCarla: '14:00', soReivindicar: true })).toBe('pendente');
+    expect(sendToGroup).not.toHaveBeenCalled();   // o robô nunca envia na mesma rodada
+    expect(claims()).toHaveLength(1);
+    envelhecerCarimbos();
+    tabelas.leads_meta!.push(l);
+    naoChama('sem_cnpj');   // mesmo que o tick achasse um motivo, o claim do robô vale: um aviso por lead
+    const r1 = await runSolardocQuizDesistenciaTick();
+    expect(r1.pendentes).toBe(1);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla falou às 14:00.');
+    expect(String(sendToGroup.mock.calls[0]![1])).not.toContain('não vai chamar');
+    liberarTudo();
+    const r2 = await runSolardocQuizDesistenciaTick();
+    expect(r2.avisados).toBe(0);
+    expect(r2.pendentes).toBe(0);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+  });
+  it('o aviso do robô e o do tick disputam o mesmo claim: quem chega depois recebe duplicado', async () => {
+    const l = leadQuiz();
+    expect(await avisarDesistencia(l, { motivoCarla: 'A Carla não vai chamar: ainda sem CNPJ.' })).toBe('enviado');
+    expect(await avisarDesistencia(l, { horaCarla: '14:00', soReivindicar: true })).toBe('duplicado');
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── pedidos de 24/10: aviso que já saiu não sai de novo, e o teto dos 12 só conta o que saiu ──
+describe('o claim parado em `novo` depois de um envio que deu certo', () => {
+  const velho = (k: string, estado: string, min = 11) => {
+    const r = chave(k)!;
+    r.value = { tipo: r.value.tipo, estado, texto: r.value.texto ?? 'texto do aviso' };   // o claim `novo` nasce com o texto
+    r.updated_at = minAtras(min);
+  };
+
+  it('envio ok e `marcar(enviado)` que falhou: 10 min depois NÃO reenvia (o carimbo leva a chave do aviso)', async () => {
+    expect(await avulso('r1')).toBe('enviado');
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    const k = claims()[0]!.key;
+    const carimbo = tabelas.system_state!.find(r => r.key.startsWith('solardoc_aviso_sent:'))!;
+    expect(carimbo.value.chaves).toEqual([k]);
+    velho(k, 'novo');                       // como se o marcar tivesse falhado
+    liberarTudo();
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(0);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(chave(k)!.value.estado).toBe('enviado');
+  });
+  it('sem o carimbo (a função caiu antes do envio) o `novo` velho ainda vira pendente e sai uma vez', async () => {
+    expect(await avulso('r2')).toBe('enviado');
+    const k = claims()[0]!.key;
+    tabelas.system_state = tabelas.system_state!.filter(r => !r.key.startsWith('solardoc_aviso_sent:'));
+    velho(k, 'novo');
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(1);
+    expect(sendToGroup).toHaveBeenCalledTimes(2);
+  });
+  it('cartão enviado e `marcar(enviado_cartao)` que falhou: o pendente não volta ao grupo', async () => {
+    await compra('c1');
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(1);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    velho('compra_aviso:c1', 'pendente', 1);
+    liberarTudo();
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(0);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(chave('compra_aviso:c1')!.value.estado).toBe('enviado_cartao');
+  });
+  it('e-mail do resumo da parada e `marcar(email)` que falhou: o `novo` velho não vai ao grupo depois', async () => {
+    tabelas.system_state!.push({ key: 'ag5040_linha_pausa', value: { ate: new Date(Date.now() + 10 * 60_000).toISOString() }, updated_at: agora() });
+    expect(await avulso('m1')).toBe('por_email');
+    const k = claims()[0]!.key;
+    expect(tabelas.system_state!.some(r => r.key === `solardoc_aviso_mail:${k}`)).toBe(true);
+    velho(k, 'novo');
+    tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'ag5040_linha_pausa');
+    liberarTudo();
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(chave(k)!.value.estado).toBe('email');
+  });
+});
+
+describe('o teto de 12 avulsos por hora só conta o que de fato saiu', () => {
+  const claimFalso = (i: number, estado: string) => tabelas.system_state!.push({
+    key: `quiz_aviso:${String(i).padStart(64, '0')}`, value: { tipo: 'desistencia', estado, texto: 'x' }, updated_at: agora(),
+  });
+
+  it('pendente, email e sem_grupo na última hora não gastam o teto', async () => {
+    const estados = ['pendente', 'email', 'sem_grupo', 'falhou', 'novo', 'comprou', 'enviado_cartao'];
+    for (let i = 0; i < 30; i++) claimFalso(i, estados[i % estados.length]!);
+    expect(await avulso('t1')).toBe('enviado');
+  });
+  it('mais de 200 claims que não saíram não escondem os 12 que saíram: o 13º fica pendente', async () => {
+    for (let i = 0; i < 210; i++) claimFalso(1000 + i, 'pendente');
+    for (let i = 0; i < 12; i++) claimFalso(i, 'enviado');
+    expect(await avulso('t2')).toBe('pendente');
+  });
+  it('12 `enviado` na hora enchem o teto', async () => {
+    for (let i = 0; i < 12; i++) claimFalso(i, 'enviado');
+    expect(await avulso('t3')).toBe('pendente');
+    expect(sendToGroup).not.toHaveBeenCalled();
   });
 });

@@ -19,14 +19,18 @@
 <!-- Acesso de teste do dono: utm_source=raio-x-teste no primeiro toque. Nesse caso a página NÃO carrega o pixel do Meta nem manda os
      beacons /_t/v e /_t/e (o POST do quiz segue igual; o servidor grava teste=sim e não manda o CAPI). Esta é a ÚNICA função que decide,
      lida pelos três pontos de rastreio (pixel aqui, post() e fb() no script "rastreio"). Lê o primeiro toque como o "rastreio" captura:
-     o valor guardado na sessão (sd_lp_utms), senão a URL de agora. -->
+     o valor guardado na sessão (sd_lp_utms) E a URL de agora: com raio-x-teste em qualquer um dos dois é teste, e erro no sessionStorage não muda isso. -->
 <script>
 function ehTeste(){
+  var TESTE = 'raio-x-teste';
+  /* Dois blocos separados: erro na leitura da URL nao muda o resultado da sessao, e erro do sessionStorage nao muda o da URL. */
+  var daUrl = false, guardado = false;
+  try { daUrl = String(new URLSearchParams(location.search).get('utm_source') || '').toLowerCase() === TESTE; } catch (e) { daUrl = false; }
   try {
     var salvo = sessionStorage.getItem('sd_lp_utms');
-    if (salvo) { var j = JSON.parse(salvo); if (j && typeof j === 'object') return String(j.utm_source || '').toLowerCase() === 'raio-x-teste'; }
-    return String(new URLSearchParams(location.search).get('utm_source') || '').toLowerCase() === 'raio-x-teste';
-  } catch (e) { return false; }
+    if (salvo) { var j = JSON.parse(salvo); guardado = !!j && typeof j === 'object' && String(j.utm_source || '').toLowerCase() === TESTE; }
+  } catch (e) { guardado = false; }
+  return daUrl || guardado;
 }
 </script>
 <!-- Meta Pixel do SolarDoc (824905216831401). PageView ao abrir; os demais eventos saem do script da página. Fora no acesso de teste. -->
@@ -420,7 +424,7 @@ const TXT = {
   resBotao: 'Montar meu plano de 7 dias', resNota: 'Conta feita com as suas respostas. Não é promessa de resultado.',
   fecho: (k, r) => k === 0 ? 'Nenhum item falta na sua proposta.' : (k === 1 ? 'Falta 1 item. ' : 'Faltam ' + k + ' itens. ') + (r === 0 ? 'Ele fica com você.' : k === 1 ? 'O SolarDoc tem a função para ele.' : 'O SolarDoc tem a função para ' + r + ' deles.'),
   g1Titulo: 'Seu plano está pronto. Como você se chama?', g1Ajuda: 'Para o plano sair no seu nome.',
-  g2Titulo: 'Qual é o seu WhatsApp?', g2Ajuda: 'Seu diagnóstico fica guardado junto com o seu número.',
+  g2Titulo: 'Qual é o seu WhatsApp?', g2Ajuda: 'Seu diagnóstico fica guardado junto com o seu número. A Carla, do SolarDoc, pode te chamar no WhatsApp para mostrar o plano.',
   g2Consent: 'Ao continuar, você concorda em receber contato da SolarDoc sobre este diagnóstico, conforme a Política de Privacidade.',
   garantia: 'Garantia de 7 dias. Se não servir, você recebe o valor integral de volta pelo WhatsApp.', semFid: 'Sem fidelidade. Cancele quando quiser.',
   ofertaGasto: (piso) => 'Hoje você gasta a partir de R$ ' + piso + ' por mês. No SolarDoc são R$ 67.', socio: 'Copiar resumo para quem decide',

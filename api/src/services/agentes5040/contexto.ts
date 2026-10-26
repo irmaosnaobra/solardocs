@@ -33,6 +33,7 @@ import { vagasSolar } from './agendaSolarVagas';
 import { INV_SESSAO_PREFIX, sessaoSeguraOutrosRobos } from '../io/investidorAgentePosse';
 import { quandoPorExtenso } from './personas/comum';
 import { origemDoLeadMeta } from './porteiro';
+import { contextoDoQuiz, FORM_ID_QUIZ_SOLARDOC, type QuizContexto } from '../solardoc/quizContexto';
 import type {
   AnuncioOrigem, CadastroEletroposto, CardResumo, ContextoLead, FatosPorteiro, LeadMetaResumo, MsgConversa, Persona,
 } from './tipos';
@@ -184,17 +185,24 @@ async function lerCard(chave: string): Promise<CardResumo | null> {
   return (await lerCards(chave))[0] ?? null;
 }
 
-async function lerLeadsMeta(chave: string): Promise<LeadMetaResumo | null> {
+async function lerLeadsMetaComQuiz(chave: string): Promise<{ lead: LeadMetaResumo | null; quiz: QuizContexto | null }> {
   const { data, error } = await supabaseGerador.from('leads_meta')
-    .select('lead_id, form_id, nome, cidade, created_time, whatsapp')
+    .select('lead_id, form_id, nome, cidade, created_time, whatsapp, field_data')
     .ilike('whatsapp', `%${caudaDaChave(chave)}`)
     .order('created_time', { ascending: false }).limit(20);
   if (error) throw new ErroBanco(String(error.code ?? 'desconhecido'));
-  const achado = ((data ?? []) as Array<LeadMetaResumo & { whatsapp: string | null }>)
-    .find(r => mesmoContato(r.whatsapp, chave));
-  if (!achado) return null;
-  const { whatsapp: _w, ...lead } = achado;
-  return lead;
+  const doContato = ((data ?? []) as Array<LeadMetaResumo & { whatsapp: string | null; field_data?: unknown }>)
+    .filter(r => mesmoContato(r.whatsapp, chave));
+  // O diagnóstico do quiz do SolarDoc (a linha mais nova do form quiz_solardoc deste telefone), só os campos combinados.
+  const quiz = contextoDoQuiz(doContato.find(r => r.form_id === FORM_ID_QUIZ_SOLARDOC));
+  const achado = doContato[0];
+  if (!achado) return { lead: null, quiz };
+  const { whatsapp: _w, field_data: _f, ...lead } = achado;
+  return { lead, quiz };
+}
+
+async function lerLeadsMeta(chave: string): Promise<LeadMetaResumo | null> {
+  return (await lerLeadsMetaComQuiz(chave)).lead;
 }
 
 async function lerCadastros(chave: string): Promise<CadastroEletroposto[]> {
@@ -462,6 +470,7 @@ export async function montarContexto(
   let card: CardResumo | null = null;
   let cardSolar: CardResumo | null = null;
   let leadsMeta: LeadMetaResumo | null = null;
+  let quizSolardoc: QuizContexto | null = null;
   let cadastros: CadastroEletroposto[] = [];
   let cliente = false;
   if (!/^\d{10}$/.test(chave)) {
@@ -469,9 +478,12 @@ export async function montarContexto(
   } else {
     try {
       let cards: CardResumo[];
-      [cards, leadsMeta, cadastros, cliente] = await Promise.all([
-        lerCards(chave), lerLeadsMeta(chave), lerCadastros(chave), lerEhCliente(chave),
+      let metaComQuiz: { lead: LeadMetaResumo | null; quiz: QuizContexto | null };
+      [cards, metaComQuiz, cadastros, cliente] = await Promise.all([
+        lerCards(chave), lerLeadsMetaComQuiz(chave), lerCadastros(chave), lerEhCliente(chave),
       ]);
+      leadsMeta = metaComQuiz.lead;
+      quizSolardoc = metaComQuiz.quiz;
       card = cards[0] ?? null;
       cardSolar = cardSolarDaLista(cards);
     } catch (e) {
@@ -483,7 +495,7 @@ export async function montarContexto(
   const nome = nomeReal(card?.cliente_nome) ?? nomeReal(leadsMeta?.nome) ?? nomeReal(cadastros.find(c => nomeReal(c.nome))?.nome)
     ?? nomeDoPerfilNasMsgs(conversa.msgs) ?? null;
   return {
-    chave, nome, msgs: conversa.msgs, completa, card, cardSolar, leadsMeta, cadastros,
+    chave, nome, msgs: conversa.msgs, completa, card, cardSolar, leadsMeta, quizSolardoc, cadastros,
     ehClienteSolarDoc: cliente, anuncio: opts.anuncio ?? null, qualificado: !!opts.qualificado, agora,
   };
 }

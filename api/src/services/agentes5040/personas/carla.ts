@@ -268,12 +268,34 @@ ${textoDosExemplos(EXEMPLOS_CARLA)}`;
 
 // Fatos do lead (mensagem do usuário, nunca no cache)
 
+/**
+ * O diagnóstico que este contato fez no quiz do SolarDoc (24/10/2026, B2): código, índice, perfil e as respostas que ela deve conhecer.
+ * Fica nos FATOS (por lead), nunca no bloco fixo em cache. Só os campos combinados, todos passando por textoLivre.
+ */
+export function fatosDoQuiz(ctx: ContextoLead): string[] {
+  const q = ctx.quizSolardoc;
+  if (!q) return [];
+  const campos: Array<[string, string]> = [
+    ['código', q.codigo], ['índice', q.indice ? `${q.indice} de 100` : ''], ['perfil', q.perfil], ['propostas por mês', q.propostas_mes],
+    ['como monta a proposta hoje', q.como_faz_hoje], ['tempo por proposta', q.tempo_por_proposta], ['cidade', q.cidade],
+    ['objeção', q.objecao], ['quando quer começar', q.quando_comecar],
+  ];
+  const partes = campos.filter(([, v]) => String(v ?? '').trim()).map(([k, v]) => `${k}: ${textoLivre(v, 60)}`);
+  if (!partes.length) return [];
+  return [
+    `Esta pessoa fez o diagnóstico do quiz do SolarDoc. Respostas dela: ${partes.join('; ')}.`,
+    'Não repita pergunta que o quiz já respondeu (propostas por mês, como monta a proposta, tempo por proposta, cidade, objeção, quando quer começar). Use a resposta dela, e só pergunte o que ficou faltando.',
+  ];
+}
+
 export function fatosCarla(ctx: ContextoLead): string {
   const l: string[] = [...fatosGerais(ctx), ...fatosOrigem(ctx)];
   if (ctx.card) l.push(...fatosCard(ctx, 'Consultor do card'));
   l.push(ctx.ehClienteSolarDoc
     ? 'Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).'
     : 'Conta no SolarDoc com este WhatsApp: não (não diga que liberou).');
+
+  l.push(...fatosDoQuiz(ctx));
 
   for (const a of ctx.avisosDoSistema ?? []) if (String(a ?? '').trim()) l.push(String(a).trim());
 

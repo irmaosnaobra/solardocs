@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // TEXTOS DOS AVISOS DO GRUPO DO SOLARDOC (24/10/2026). PURO: nada aqui lê banco,
-// relógio ou env (só o interruptor do robô da Carla, passado por parâmetro).
+// relógio ou env (o estado do robô da Carla chega pronto, na frase do motivo).
 //
 // Os cinco modelos são os de `POS` em prototipo/index.html (redator, 24/10). Os
 // campos entram entre colchetes e NENHUM pode sobrar vazio nem com o colchete
@@ -34,6 +34,8 @@ export interface CamposAviso {
   quando?: string | null;
   /** "HH:MM" de Brasília, quando a Carla já falou. */
   hora_carla?: string | null;
+  /** A frase inteira de por que a Carla não vai chamar (ver FRASE_DO_MOTIVO). Vale por cima da hora. */
+  motivo_carla?: string | null;
   valor?: number | string | null;
   /** Código SD-XXXX do quiz, ou vazio para "outra". */
   codigo?: string | null;
@@ -63,21 +65,20 @@ const preenchido = (v: unknown, reserva: string): string => {
 };
 
 /**
- * O robô da Carla está ligado? (QUIZ_RECUPERACAO_LIGADA=1.) Enquanto não estiver, o aviso de
- * desistência não pode afirmar que ela falou. Lida a cada chamada.
+ * A linha da Carla do aviso de desistência. Quem decide é o chamador (nada aqui lê banco nem env):
+ *  - `motivo` (a frase inteira, de FRASE_DO_MOTIVO): a Carla NÃO vai chamar ou não chamou ("A Carla está desligada agora.");
+ *  - `horaCarla`: ela já falou ("A Carla falou às 10:15.");
+ *  - nenhum dos dois: não afirma que ela falou.
  */
-export const carlaLigada = (): boolean => (process.env.QUIZ_RECUPERACAO_LIGADA || '').trim() === '1';
-
-/** A linha da Carla do aviso de desistência. */
-export function linhaDaCarla(horaCarla: string | null | undefined, ligada: boolean): string {
-  if (!ligada) return 'A Carla ainda não chama quem vem do quiz.';
+export function linhaDaCarla(horaCarla: string | null | undefined, motivo?: string | null): string {
+  const m = String(motivo ?? '').replace(/\s+/g, ' ').trim();
+  if (m) return m;
   const h = String(horaCarla ?? '').trim();
-  return h ? `A Carla falou às ${h}.` : 'A Carla já chamou.';
+  return h ? `A Carla falou às ${h}.` : 'A Carla não chamou este lead.';
 }
 
 /** Preenche um modelo. Nunca devolve colchete de campo nem campo vazio. */
-export function montarAviso(modelo: ModeloAviso, c: CamposAviso, opts: { carlaLigada?: boolean } = {}): string {
-  const ligada = opts.carlaLigada ?? carlaLigada();
+export function montarAviso(modelo: ModeloAviso, c: CamposAviso): string {
   const campos: Record<string, string> = {
     nome_completo: preenchido(c.nome_completo, 'nome não informado'),
     empresa: preenchido(c.empresa, 'sem empresa'),
@@ -87,7 +88,7 @@ export function montarAviso(modelo: ModeloAviso, c: CamposAviso, opts: { carlaLi
     perfil: preenchido(c.perfil, 'sem perfil'),
     propostas_mes: preenchido(c.propostas_mes, 'não informado'),
     quando: preenchido(c.quando, 'não informado'),
-    linha_carla: linhaDaCarla(c.hora_carla, ligada),
+    linha_carla: linhaDaCarla(c.hora_carla, c.motivo_carla),
     valor: valorEmReais(c.valor),
     origem: c.codigo && String(c.codigo).trim() ? `quiz, código ${String(c.codigo).trim()}` : c.doQuizSemCodigo ? 'quiz' : 'outra',
   };

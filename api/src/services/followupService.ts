@@ -4,7 +4,7 @@ import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, 
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
 import { pixAutomatico, pixPublicoAtivo } from '../utils/pixInfo';
 import { asaasHabilitado } from './asaas/asaasClient';
-import { cedeAAgente } from './agentes5040/posse';
+import { cedeAAgente, lerPosse } from './agentes5040/posse';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -440,7 +440,7 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
 
   const { data: rows } = await supabase
     .from('abandoned_checkouts')
-    .select('id, email, phone, nome, plano, recovery_attempts, recovery_sent_at, created_at')
+    .select('id, session_id, email, phone, nome, plano, recovery_attempts, recovery_sent_at, created_at')
     .eq('status', 'abandoned')
     .lte('created_at', graceCutoff)
     .gte('created_at', maxAgeCutoff)
@@ -481,6 +481,21 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
       if (k && t > (vendaEm.get(k) ?? 0)) vendaEm.set(k, t);
     });
   }
+
+  // Sessões do checkout que nasceram no quiz do SolarDoc (metadata.origem = 'quiz_solardoc'): o webhook de checkout.session.expired deixa a marca
+  // `abandono_quiz:<session_id>`. Essas pessoas são da Carla (robô do quiz): a Giovanna não manda WhatsApp por cima. O e-mail segue.
+  // Leitura que falha vale "é do quiz" (na dúvida, sem WhatsApp).
+  const sessoesDoQuiz = new Set<string>();
+  let leituraDoQuizFalhou = false;
+  const ids = Array.from(new Set(rows.map(r => String(r.session_id ?? '')).filter(Boolean)));
+  try {
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: ms, error: erroMs } = await supabase.from('system_state').select('key')
+        .in('key', ids.slice(i, i + 100).map(id => `abandono_quiz:${id}`));
+      if (erroMs) { leituraDoQuizFalhou = true; break; }
+      for (const m of (ms ?? []) as Array<{ key: string }>) sessoesDoQuiz.add(m.key.slice('abandono_quiz:'.length));
+    }
+  } catch { leituraDoQuizFalhou = true; }
 
   let sent = 0, recovered = 0, skipped = 0;
   for (const r of rows) {
@@ -526,7 +541,14 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     // AGENTES DA LINHA 5040 (Fase B): conversa que uma agente nova segura não recebe o opener da Giovanna por
     // cima. Só o WhatsApp é cortado (o e-mail segue, é outro canal). Sem e-mail, nada saiu: não conta o toque
     // (ele volta quando a posse acabar). Com tudo desligado o cedeAAgente devolve false sem ler posse nem alvo.
-    const agenteSegura = phone ? await cedeAAgente(phone) : false;
+    // Além do corte das agentes (que só vale com a dona ligada), a posse VIVA da Carla segura o WhatsApp mesmo com o carla_vivo desligado:
+    // o robô do quiz toma essa posse antes de falar. Posse ilegível = segura. Sessão do quiz = segura, sempre.
+    let carlaComAPosse = false;
+    if (phone) {
+      try { const p = await lerPosse(phone); carlaComAPosse = !!p && p.dona === 'carla' && p.estado === 'viva'; } catch { carlaComAPosse = true; }
+    }
+    const doQuiz = leituraDoQuizFalhou || sessoesDoQuiz.has(String(r.session_id ?? ''));
+    const agenteSegura = (phone ? await cedeAAgente(phone) : false) || carlaComAPosse || doQuiz;
     if (agenteSegura && !r.email) { skipped++; continue; }
 
     if (r.email) {

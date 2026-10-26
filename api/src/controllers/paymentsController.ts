@@ -1345,6 +1345,15 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         } catch (err) {
           console.error('abandoned_checkouts upsert falhou:', err);
         }
+        // A sessão nasceu no quiz do SolarDoc (metadata.origem): marca para a recuperação antiga não mandar WhatsApp (a Carla cuida dessa pessoa).
+        if (session.metadata?.origem === ORIGEM_QUIZ_SOLARDOC) {
+          try {
+            const em = new Date().toISOString();
+            await supabase.from('system_state').upsert({ key: `abandono_quiz:${session.id}`, value: { em }, updated_at: em }, { onConflict: 'key' });
+          } catch (err) {
+            console.error('marca abandono_quiz falhou:', err);
+          }
+        }
       }
     }
   }

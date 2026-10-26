@@ -309,6 +309,28 @@ export async function sendZAPI(phone: string, message: string, instance: ZapiIns
   await zapiPost('send-text', { phone: fmtPhone(phone), message }, 2, instance);
 }
 
+/**
+ * Esse número tem WhatsApp? (GET phone-exists, só consulta: nada é enviado.) 'sim' | 'nao' | 'erro'.
+ * Usada pelo robô do quiz do SolarDoc antes da 1ª mensagem. Qualquer erro, resposta estranha, timeout ou credencial
+ * ausente vale 'erro' (quem chama NÃO envia). Não mexe no cooldown da instância e nunca escreve o telefone no log.
+ */
+export async function numeroTemWhatsApp(phone: string, instance: ZapiInstance = 'io'): Promise<'sim' | 'nao' | 'erro'> {
+  try {
+    const { id, token, client } = getCreds(linhaFisica(instance));
+    if (!id || !token || !client) return 'erro';
+    const res = await fetch(`https://api.z-api.io/instances/${id}/token/${token}/phone-exists/${fmtPhone(phone)}`, {
+      method: 'GET', headers: { 'Client-Token': client }, signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return 'erro';
+    const j = await res.json().catch(() => null) as { exists?: unknown } | null;
+    if (j && j.exists === true) return 'sim';
+    if (j && j.exists === false) return 'nao';
+    return 'erro';
+  } catch {
+    return 'erro';
+  }
+}
+
 // Envia mensagem pra grupo Z-API. NÃO formata phone (já é ID de grupo no
 // formato "120363xxx-group" ou similar). A linha precisa ser membro do grupo.
 // Retorna messageId pra permitir delete posterior (usado em cards atualizáveis).

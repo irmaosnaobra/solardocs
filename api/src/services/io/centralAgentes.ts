@@ -20,6 +20,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { mapaDosInterruptores } from '../agentes5040/interruptores';
+import { pausaDoValor } from '../solardoc/recuperacaoCarlaEstado';
 import { tetosVigentesLinha } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
@@ -857,7 +858,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
 async function lerChavesDoBanco(): Promise<ChavesDoBanco> {
   try {
     const { data, error } = await supabase
-      .from('system_state').select('key, value').in('key', ['recepcao_io:ativa', 'inv_agente_off', 'inv_agente_disjuntor', 'ag5040_interruptores']);
+      .from('system_state').select('key, value').in('key', ['recepcao_io:ativa', 'inv_agente_off', 'inv_agente_disjuntor', 'ag5040_interruptores', 'quiz_rec_pausa']);
     if (error) throw error;
     const linhas = (data ?? []) as Array<{ key: string; value: unknown }>;
     const recepcao = linhas.find(r => r.key === 'recepcao_io:ativa')?.value as { ativa?: unknown } | null | undefined;
@@ -871,9 +872,12 @@ async function lerChavesDoBanco(): Promise<ChavesDoBanco> {
     const nomeInterruptores = 'ag5040_interruptores';
     const linhaInterruptores = linhas.find(r => r.key === nomeInterruptores);
     const interruptores = mapaDosInterruptores(linhaInterruptores?.value) ?? {};
-    return { recepcaoAtiva: recepcao?.ativa === true, helenaOff, helenaDisjuntor, interruptores };
+    // Pausa da Carla do quiz do SolarDoc (recuperacaoCarlaEstado.ts): a linha existe e não expirou.
+    const pausaQuiz = linhas.find(r => r.key === 'quiz_rec_pausa');
+    const quizRecPausa = pausaQuiz ? pausaDoValor(pausaQuiz.value, Date.now()) : false;
+    return { recepcaoAtiva: recepcao?.ativa === true, helenaOff, helenaDisjuntor, interruptores, quizRecPausa };
   } catch (err) {
     logger.error('central-agentes', 'ler chaves do banco falhou', err);
-    return { recepcaoAtiva: null, helenaOff: null, helenaDisjuntor: null, interruptores: null };
+    return { recepcaoAtiva: null, helenaOff: null, helenaDisjuntor: null, interruptores: null, quizRecPausa: null };
   }
 }

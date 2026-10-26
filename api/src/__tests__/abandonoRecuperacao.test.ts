@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Row = Record<string, any>;
-const db: Record<string, Row[]> = { abandoned_checkouts: [], users: [], sales: [] };
+const db: Record<string, Row[]> = { abandoned_checkouts: [], users: [], sales: [], system_state: [], whatsapp_sessions: [] };
 
 function query(table: string) {
   const filtros: Array<(r: Row) => boolean> = [];
@@ -43,6 +43,7 @@ function query(table: string) {
     gte: (c: string, v: any) => { filtros.push((r) => String(r[c]) >= String(v)); return q; },
     in: (c: string, vs: any[]) => { filtros.push((r) => vs.includes(r[c])); return q; },
     limit: () => q,
+    maybeSingle: () => { const { data, error } = executa(); return Promise.resolve({ data: data[0] ?? null, error }); },
     then: (resolve: (v: any) => void) => resolve(executa()),
   };
   return q;

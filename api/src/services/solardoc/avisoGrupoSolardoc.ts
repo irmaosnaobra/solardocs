@@ -306,7 +306,9 @@ async function avisosDaUltimaHora(): Promise<number> {
   const desde = iso(Date.now() - 3600_000);
   const [{ data, error }, { data: cartao, error: erroCartao }] = await Promise.all([
     supabase.from('system_state').select('value')
-      .or(`key.like.${PREFIXO_CLAIM_QUIZ}%,key.like.${PREFIXO_CLAIM_COMPRA}%`).gte('updated_at', desde).limit(200),
+      // Só os que de fato saíram avulsos (`enviado`). O filtro é no banco: pendente, email e sem_grupo na hora não gastam o teto nem escondem os enviados atrás do limite de 200.
+      // `enviado_cartao` não entra: o cartão inteiro conta 1, pela chave dele.
+      .or(`key.like.${PREFIXO_CLAIM_QUIZ}%,key.like.${PREFIXO_CLAIM_COMPRA}%`).eq('value->>estado', 'enviado').gte('updated_at', desde).limit(200),
     supabase.from('system_state').select('key').eq('key', CHAVE_CARTAO_ULTIMO).gte('updated_at', desde).limit(1),
   ]);
   // Leitura que falha vale como "linha cheia" (quem chama trata o throw como "não cabe"): nunca como zero.
@@ -397,6 +399,42 @@ async function contarErroDeLinha(quando: Date): Promise<void> {
   } catch (e) { logger.warn('solardoc-aviso', 'contagem de erro da linha falhou', { erro: String(e) }); }
 }
 
+const PREFIXO_MARCA_EMAIL = 'solardoc_aviso_mail:';
+
+/** Marca, ANTES de decidir "vai por e-mail", que este aviso não vai ao grupo. Insert; já existir não é erro. Nunca lança. */
+async function marcarMail(chave: string): Promise<void> {
+  try {
+    const em = agoraIso();
+    const { error } = await supabase.from('system_state').insert({ key: `${PREFIXO_MARCA_EMAIL}${chave}`, value: { em }, updated_at: em });
+    if (error && (error as { code?: string }).code !== '23505') logger.warn('solardoc-aviso', 'marca do e-mail não gravou', { erro: error.message });
+  } catch (e) { logger.warn('solardoc-aviso', 'marca do e-mail não gravou', { erro: String(e) }); }
+}
+
+/**
+ * Dos claims `novo` velhos e `pendente`: quais JÁ SAÍRAM no grupo (algum carimbo `solardoc_aviso_sent:` leva a chave do aviso) e quais já
+ * foram resolvidos por e-mail (marca `solardoc_aviso_mail:<chave>`). Esses não voltam ao grupo. Erro de leitura LANÇA (quem chama não envia nada).
+ */
+async function jaResolvidos(linhas: Array<{ key: string; updated_at?: string }>): Promise<{ saiu: Set<string>; mail: Set<string> }> {
+  const saiu = new Set<string>();
+  const mail = new Set<string>();
+  if (!linhas.length) return { saiu, mail };
+  const maisAntigo = linhas.reduce((m, r) => (String(r.updated_at ?? '') < m ? String(r.updated_at ?? '') : m), iso(Date.now()));
+  const desde = iso(Math.max(0, (Date.parse(maisAntigo) || Date.now()) - 3600_000));
+  const { data, error } = await supabase.from('system_state').select('value').like('key', `${PREFIXO_CARIMBO_AVISO}%`).gte('updated_at', desde).limit(2000);
+  if (error) throw new Error(`ler carimbos dos avisos: ${error.message}`);
+  for (const r of (data ?? []) as Array<{ value?: { chaves?: unknown } }>) {
+    if (Array.isArray(r.value?.chaves)) for (const k of r.value!.chaves as unknown[]) saiu.add(String(k));
+  }
+  const chaves = linhas.map(r => r.key);
+  for (let i = 0; i < chaves.length; i += 100) {
+    const { data: m, error: erroM } = await supabase.from('system_state').select('key')
+      .in('key', chaves.slice(i, i + 100).map(k => `${PREFIXO_MARCA_EMAIL}${k}`));
+    if (erroM) throw new Error(`ler marcas de e-mail: ${erroM.message}`);
+    for (const r of (m ?? []) as Array<{ key: string }>) mail.add(r.key.slice(PREFIXO_MARCA_EMAIL.length));
+  }
+  return { saiu, mail };
+}
+
 const escapar = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 async function emailOps(assunto: string, texto: string, motivo: string): Promise<void> {
@@ -437,10 +475,12 @@ const status4xx = (e: unknown): string | null => {
  * (classificarErroEnvio diferente de 'destino') conta nos 2 seguidos que pausam a linha; só o 4xx de DESTINO grava a trava de 1 h.
  * Envio ok zera a conta de erros.
  */
-async function enviarAoGrupo(grupo: string, texto: string): Promise<{ ok: true } | { ok: false; erro: unknown }> {
+async function enviarAoGrupo(grupo: string, texto: string, chaves: string[] = []): Promise<{ ok: true } | { ok: false; erro: unknown }> {
   const carimbo = `${PREFIXO_CARIMBO_AVISO}${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
   const em = agoraIso();
-  const { error: erroCarimbo } = await supabase.from('system_state').insert({ key: carimbo, value: { em }, updated_at: em });
+  // O carimbo leva as chaves dos avisos que vão neste envio: se o envio der certo e o `marcar(enviado)` falhar, o claim fica `novo`/`pendente`
+  // e a conferência de descarregarPendentes acha o carimbo e NÃO reenvia.
+  const { error: erroCarimbo } = await supabase.from('system_state').insert({ key: carimbo, value: { em, chaves }, updated_at: em });
   if (erroCarimbo) logger.warn('solardoc-aviso', 'carimbo do envio não gravou (envia mesmo assim)', { erro: erroCarimbo.message });
   try {
     await sendToGroup(grupo, texto, 'io');
@@ -484,6 +524,7 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   if (o.soReivindicar) return pendente();
   const parada = await paradaDoGrupo();
   if (parada && o.urgente && parada.tipo !== 'duvida') {
+    await marcarMail(o.chave);   // a marca vai ANTES: se o `marcar` falhar, o claim `novo` velho não vira pendente e não vai ao grupo depois do e-mail
     await marcar(o.chave, o.tipo, 'email');
     return 'por_email';
   }
@@ -493,7 +534,7 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   if (!(await linhaEspacada())) return pendente();   // antes das chaves: o espaçamento que falha não gasta a vez de ninguém
   if (!(await tomarChave(CHAVE_VEZ_AVULSA, VEZ_ESPERA_MS))) return pendente();
 
-  const env = await enviarAoGrupo(grupo, o.texto);
+  const env = await enviarAoGrupo(grupo, o.texto, [o.chave]);
   if (env.ok) {
     await marcar(o.chave, o.tipo, 'enviado');
     return 'enviado';
@@ -513,13 +554,20 @@ const hmacDoLead = (whatsapp: string | null | undefined): string | null => {
   return tel ? hmacDe(chaveDoTelefone(tel)) : null;
 };
 
-/** Desistência: o lead do quiz não comprou em 15 min. Uma vez por pessoa. `horaCarla` só quando a Carla já falou ("HH:MM", BRT). */
-export async function avisarDesistencia(lead: LeadQuizLinha, opts: { horaCarla?: string | null } = {}): Promise<ResultadoAviso> {
+/**
+ * Desistência: o lead do quiz não comprou em 15 min. Uma vez por pessoa (o claim é a trava de TODOS os caminhos: robô, tick, vencimento).
+ *  - `horaCarla` ("HH:MM", BRT): a Carla já falou.
+ *  - `motivoCarla` (a frase inteira, de FRASE_DO_MOTIVO): a Carla não vai chamar ou não chamou.
+ *  - `soReivindicar`: só toma o claim e deixa o aviso `pendente`; quem envia é o tick do B1 (descarregarPendentes), com o espaçamento dele.
+ */
+export async function avisarDesistencia(
+  lead: LeadQuizLinha, opts: { horaCarla?: string | null; motivoCarla?: string | null; soReivindicar?: boolean } = {},
+): Promise<ResultadoAviso> {
   if (ehLeadDeTeste(lead.field_data)) return 'ignorado';
   const h = hmacDoLead(lead.whatsapp);
   if (!h) { logger.warn('solardoc-aviso', 'desistência sem telefone ou sem segredo de HMAC: ignorada'); return 'ignorado'; }
-  const texto = montarAviso('desistencia', { ...camposDoLead(lead), hora_carla: opts.horaCarla ?? null });
-  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}`, tipo: 'desistencia', texto, urgente: true });
+  const texto = montarAviso('desistencia', { ...camposDoLead(lead), hora_carla: opts.horaCarla ?? null, motivo_carla: opts.motivoCarla ?? null });
+  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}`, tipo: 'desistencia', texto, urgente: true, soReivindicar: opts.soReivindicar });
 }
 
 /** Sem vaga para a Carla no dia. Uma vez por pessoa por dia (BRT). */
@@ -617,9 +665,23 @@ export async function descarregarPendentes(
   if (erroNovo) logger.warn('solardoc-aviso', 'ler claims abandonados falhou', { erro: erroNovo.message });
   const corteNovo = iso(Date.now() - NOVO_ABANDONADO_MS);
   const abandonados = ((erroNovo ? [] : dataNovo ?? []) as LinhaPendente[]).filter(r => r.value?.estado === 'novo' && String(r.updated_at ?? '') < corteNovo);
-  const todos = ([...((data ?? []) as LinhaPendente[]), ...abandonados])
+  const todosBrutos = ([...((data ?? []) as LinhaPendente[]), ...abandonados])
     .filter(r => (r.value?.estado === 'pendente' || r.value?.estado === 'novo') && r.value.texto)
     .sort((a, b) => (String(a.updated_at ?? '') < String(b.updated_at ?? '') ? -1 : 1));
+
+  // 0) O que JÁ saiu (envio ok e `marcar` que falhou) ou já foi resolvido por e-mail não volta ao grupo: só ganha a marca certa.
+  let todos = todosBrutos;
+  try {
+    const r = await jaResolvidos(todosBrutos);
+    for (const p of todosBrutos) {
+      if (r.saiu.has(p.key)) await marcar(p.key, p.value?.tipo ?? 'aviso', p.value?.estado === 'pendente' ? 'enviado_cartao' : 'enviado');
+      else if (r.mail.has(p.key)) await marcar(p.key, p.value?.tipo ?? 'aviso', 'email');
+    }
+    todos = todosBrutos.filter(p => !r.saiu.has(p.key) && !r.mail.has(p.key));
+  } catch (e) {
+    logger.warn('solardoc-aviso', 'conferir o que já saiu falhou: nada é enviado nesta rodada', { erro: String(e) });
+    return { enviados: 0, motivo: 'erro_leitura' };
+  }
 
   // 1) Vencidos (mais de 24 h): não somem calados.
   const corte = iso(Date.now() - PENDENTE_VALIDADE_MS);
@@ -646,7 +708,7 @@ export async function descarregarPendentes(
       const urgentes = pendentes.filter(p => p.value?.tipo === 'desistencia' || p.value?.tipo === 'sem_vaga');
       if (urgentes.length) {
         porEmail = urgentes.map(p => p.value!.texto!);
-        for (const p of urgentes) await marcar(p.key, p.value?.tipo ?? 'aviso', 'email');
+        for (const p of urgentes) { await marcarMail(p.key); await marcar(p.key, p.value?.tipo ?? 'aviso', 'email'); }
         if (emailAgora) await emailResumoParada(porEmail, parada);
       }
     }
@@ -672,7 +734,7 @@ export async function descarregarPendentes(
     incluidos.push(p);
   }
   const texto = incluidos.length === 1 ? incluidos[0]!.value!.texto! : `📋 ${incluidos.length} avisos que esperaram o teto da linha\n\n${corpo}`;
-  const env = await enviarAoGrupo(grupo, texto);
+  const env = await enviarAoGrupo(grupo, texto, incluidos.map(p => p.key));
   if (!env.ok) {
     logger.error('solardoc-aviso', 'cartão de pendentes falhou', { erro: String(env.erro) });
     await devolverChave(CHAVE_VEZ_AVULSA);

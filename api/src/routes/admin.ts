@@ -21,6 +21,8 @@ import * as qf from '../services/io/quizFunil';
 import { buscarConjuntosMeta } from '../services/io/metaConjuntos';
 import { lerTudo, lerFunilQuizSolar } from '../services/io/painelQuizSolar';
 import { lerFunilQuizSolardoc } from '../services/solardoc/painelQuizSolardoc';
+import { sondarRecuperacaoQuiz } from '../services/solardoc/recuperacaoCarla';
+import { vagasDoFrioLinha } from '../services/agents/whatsapp/lineThrottle';
 import { novoAnthropic } from "../utils/anthropicClient";
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, PLACEHOLDERS, numerosVivos, resolverPlaceholders,
@@ -962,6 +964,18 @@ router.get('/solardoc/quiz-funil', async (req: Request, res: Response): Promise<
     const periodo = String(req.query.period || '7dias');
     const conjunto = String(req.query.conjunto || '').trim() || null;
     res.json(await lerFunilQuizSolardoc(periodo, conjunto));
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// A SONDA do robô da Carla do quiz (24/10/2026, B2): cada lead candidato com o motivo (elegível, ou por que não), o estado do robô, a
+// largada, a janela e as vagas do frio do dia. SÓ LÊ: não chama o phone-exists, não toma vez, claim nem posse e nunca envia. O telefone
+// não sai daqui (só o hmac curto e o código do quiz).
+router.get('/solardoc/quiz-recuperacao', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await sondarRecuperacaoQuiz({ vagas: () => vagasDoFrioLinha() }));
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }

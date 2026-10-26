@@ -53,6 +53,7 @@ import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/i
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/solarBoasVindas';
 import { runSolardocQuizDesistenciaTick } from '../services/solardoc/desistenciaQuizTick';
+import { runQuizRecuperacaoTick } from '../services/solardoc/recuperacaoCarla';
 import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
 import { rodarInvestidorAgente, previaInvestidorAgente, definirChaveDesligar } from '../services/io/investidorAgente';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -441,6 +442,10 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // avisos que esperaram o teto saem num cartão só (QUIZ_DESISTENCIA_OFF desliga). Roda DEPOIS dos outros ticks, sozinho,
     // para não sair colado nos envios da linha 5040 que eles acabaram de fazer (a linha é a mesma).
     const desistenciaSolardoc = await runSolardocQuizDesistenciaTick().catch((err) => ({ error: String(err) }));
+    // A Carla recupera o lead do quiz (robô quiz_recuperacao_5040, 24/10/2026): roda DEPOIS do tick de desistência, de propósito. O aviso
+    // "A Carla falou às HH:MM" que ela deixa pendente só sai na rodada seguinte, com o espaçamento do B1, e nunca na mesma rodada do envio.
+    // A vez de 10 min é por insert (o pg_cron e o Actions chamam esta rota em paralelo) e sai no máximo 1 envio por rodada.
+    const recuperacaoCarla = await runQuizRecuperacaoTick().catch((err) => ({ error: String(err) }));
     // A resposta é montada PELO NOME que está ao lado da chamada, não pela
     // posição. É o que impede isto de voltar uma terceira vez: tarefa nova
     // carrega a chave dela, e não existe mais uma segunda lista pra desalinhar.
@@ -452,6 +457,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
         : { error: String((r as PromiseRejectedResult).reason) };
     });
     resultados['solardoc_quiz_desistencia'] = desistenciaSolardoc;
+    resultados['quiz_recuperacao_carla'] = recuperacaoCarla;
     res.json({
       ok: true,
       pausa_humana: pausaHumanaResult,

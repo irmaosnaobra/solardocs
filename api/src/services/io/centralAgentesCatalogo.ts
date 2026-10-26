@@ -62,7 +62,9 @@ export type RegraDaChave =
   | { tipo: 'liga'; env: string; valor: 'true' | '1'; trim?: boolean; minusculas?: boolean; exige?: readonly string[] }
   | { tipo: 'interruptor'; nome: 'ensaio' | 'replay' | 'ficha' | 'sentinela' }
   | { tipo: 'banco_recepcao' }
-  | { tipo: 'banco_helena' };
+  | { tipo: 'banco_helena' }
+  /** A Carla do quiz do SolarDoc: nasce LIGADA; a env QUIZ_RECUPERACAO_LIGADA='0' ou a chave quiz_rec_pausa no banco desligam. */
+  | { tipo: 'banco_quiz_rec' };
 
 export interface EntradaDoCatalogo {
   id: string;
@@ -509,6 +511,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     ],
   }),
   e({
+    id: 'quiz_recuperacao', nome: 'Carla, recuperação do quiz', area: 'solardoc', canal: 'whatsapp', linha: 'io',
+    resumo: 'Chama quem deixou o WhatsApp no quiz e não comprou',
+    papel: 'Chama, uma pessoa por vez, quem deixou o WhatsApp no diagnóstico do SolarDoc, tem CNPJ, nunca falou com a linha e não comprou em 15 minutos. Uma mensagem, sem link, para sempre uma por pessoa, das 9h às 20h de segunda a sábado, na vaga do envio frio da 5040. Só lead novo depois da largada. Nasce ligada: QUIZ_RECUPERACAO_LIGADA=0 ou a chave quiz_rec_pausa no banco desligam.',
+    regra: { tipo: 'banco_quiz_rec' }, fonte: 'services/solardoc/recuperacaoCarla.ts',
+    robos: ['quiz_recuperacao_5040'],
+  }),
+  e({
     id: 'email', nome: 'E-mails automáticos (SolarDoc)', area: 'solardoc', canal: 'email', linha: null,
     resumo: 'Checkout, CNPJ, cobrança e winback por e-mail',
     papel: 'Recuperação de checkout, follow-up de CNPJ, lembrete de inativo, cobrança (dunning D0 a D4) e winback D+7 e D+30. Sem chave: é e-mail e roda no cron mestre.',
@@ -531,6 +540,8 @@ export interface ChavesDoBanco {
   helenaDisjuntor?: boolean | null;
   /** `ag5040_interruptores`: o que está true/false. `null` = erro de leitura; ausente = não lida (vale desligado). */
   interruptores?: Partial<Record<'ensaio' | 'replay' | 'ficha' | 'sentinela', boolean>> | null;
+  /** `quiz_rec_pausa` pausada agora (a linha existe e não expirou). `null` = erro de leitura (o robô trata como desligado). Ausente = não lida. */
+  quizRecPausa?: boolean | null;
 }
 
 export interface EstadoCalculado {
@@ -557,6 +568,7 @@ export function chaveDaRegra(regra: RegraDaChave): string | undefined {
     case 'interruptor': return `AGENTES5040_${regra.nome.toUpperCase()} ou ag5040_interruptores`;
     case 'banco_recepcao': return 'recepcao_io:ativa';
     case 'banco_helena': return 'inv_agente_off';
+    case 'banco_quiz_rec': return 'QUIZ_RECUPERACAO_LIGADA ou quiz_rec_pausa';
   }
 }
 
@@ -614,6 +626,12 @@ export function estadoDaRegra(regra: RegraDaChave, env: NodeJS.ProcessEnv, banco
           ? 'Não consegui ler a chave no banco: o robô fica desligado nesse caso'
           : 'A chave recepcao_io:ativa no banco não está ligada',
       };
+    }
+    case 'banco_quiz_rec': {
+      if ((env.QUIZ_RECUPERACAO_LIGADA ?? '').trim() === '0') return { selo: 'desligado', chave, motivo: 'QUIZ_RECUPERACAO_LIGADA=0 está armada na Vercel' };
+      if (banco.quizRecPausa === true) return { selo: 'pausado', chave, motivo: 'Pausada pela chave quiz_rec_pausa no banco' };
+      if (banco.quizRecPausa === null) return { selo: 'pausado', chave, motivo: 'Não consegui ler a chave no banco: o robô trata como desligado nesse caso' };
+      return { selo: 'ligado', chave };
     }
     case 'banco_helena': {
       if ((env.INVESTIDOR_AGENTE_OFF ?? '').trim() === '1') {

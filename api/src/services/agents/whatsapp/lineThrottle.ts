@@ -217,6 +217,10 @@ const BOT_SENT_PREFIXES = [
   // espaçamento desde o primeiro dia, e fica FORA de PREFIXOS_AGENDA de propósito. O `ag5040_sent:` das respostas
   // continua fora desta lista.
   'ag5040_retomada:',
+  // [24/10] A Carla recuperando quem deixou o WhatsApp no quiz do SolarDoc (solardoc/recuperacaoCarla.ts): `quiz_rec_sent:<hmac do telefone>`,
+  // um carimbo por pessoa, para sempre (claim por insert). Toque que a pessoa não pediu: pesa no orçamento FRIO e no espaçamento desde o
+  // primeiro dia, e fica FORA de PREFIXOS_AGENDA de propósito.
+  'quiz_rec_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -345,6 +349,25 @@ export async function dentroDoTetoHorarioLinha(
   // B4c (sombra): só o frio que se identifica (`robo`) consulta a vaga da Base. Sem `robo`, nada além do que sempre houve.
   if (opts.robo && !opts.transacional && await vagaDaBaseSegura(opts.robo, tetoDia, n24)) return false;
   return true;
+}
+
+/**
+ * As vagas do ENVIO FRIO agora (só leitura, para a sonda do robô do quiz): teto e usadas na última hora e nas últimas 24 h, com a mesma conta
+ * de dentroDoTetoHorarioLinha (frio = prefixos da linha menos os de agenda; o teto do dia já desconta a reserva do transacional).
+ */
+export async function vagasDoFrioLinha(now: Date = new Date()): Promise<{ hora: { teto: number; usadas: number }; dia: { teto: number; usadas: number } }> {
+  const tetos = await tetosVigentesLinha(now);
+  const tetoDia = Math.max(1, tetos.dia - Math.min(RESERVA_TRANSACIONAL(), tetos.dia - 1));
+  const filtro = prefixosFrios().map(p => `key.like.${p}%`).join(',');
+  const contar = async (janelaMs: number, limite: number): Promise<number> => {
+    const { data } = await supabase.from('system_state').select('key').or(filtro)
+      .gte('updated_at', new Date(now.getTime() - janelaMs).toISOString()).limit(limite + 1);
+    return data?.length ?? 0;
+  };
+  return {
+    hora: { teto: tetos.hora, usadas: await contar(60 * 60 * 1000, tetos.hora) },
+    dia: { teto: tetoDia, usadas: await contar(24 * 60 * 60 * 1000, tetoDia) },
+  };
 }
 
 // ─── VAGA GUARDADA DA BASE (B4c, parecer do chefe de 21/10/2026) ─────────────
