@@ -3595,6 +3595,20 @@ html #leadsSection .leads-tabela thead th.nota-final{background:#B45309}
 .lead-caminho i{width:9px;height:9px;border-radius:3px;display:inline-block}
 .lead-caminho.vistoria i{background:#1baf7a}.lead-caminho.video i{background:#3987e5}.lead-caminho.ligacao i{background:#eda100}.lead-caminho.curioso i{background:#a78bfa}.lead-caminho.form i{background:#64748B}
 .lead-caminho small{font-weight:600;color:#fbbf24}
+/* Aba Quiz SolarDoc (26/10/2026). A base so tem layout: o texto herda a cor do tema (claro ou escuro, visual novo ou antigo) e o apagado
+   e opacity. As cores de verdade vem dos tokens do visual novo, so abaixo de html.io2. */
+.qsd-topo{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin:0 0 12px}
+.qsd-cont{border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:10px;padding:8px 14px;min-width:104px}
+.qsd-cont b{display:block;font-size:20px;line-height:1.2}
+.qsd-cont span{font-size:12px;opacity:.75}
+.qsd-sub{display:block;font-size:11px;font-weight:500;opacity:.75}
+.qsd-teste-tag{font-size:10.5px;font-weight:700;opacity:.75;border:1px solid color-mix(in srgb,currentColor 35%,transparent);border-radius:99px;padding:1px 7px;margin-left:6px}
+.qsd-nao{opacity:.75}
+.qsd-testes-btn{align-self:center;margin-left:0;font-size:12px;padding:5px 10px}
+html.io2 .qsd-cont{border-color:var(--n-bd);background:var(--n-sf2)}
+html.io2 .qsd-cont b{color:var(--n-tx)}
+html.io2 .qsd-cont span,html.io2 .qsd-sub,html.io2 .qsd-teste-tag,html.io2 .qsd-nao{color:var(--n-tx3);opacity:1}
+html.io2 .qsd-teste-tag{border-color:var(--n-bd2)}
 
 /* ===== Tela Tabelas ===== */
 .tbl-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -7894,6 +7908,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="leads-info" id="leads-info">
         Quiz da <strong>/io/solar</strong>, com pontuação de 0 a 100 pelas respostas: abaixo de <strong>40 pontos</strong> é <strong>curioso</strong> (lista para depois, sem agenda e sem WhatsApp: o fim do quiz convida a seguir o Instagram); até <strong>300 kWh</strong> liga a <strong>Giovanna</strong>; de 300 a 1.000, a <strong>Nilce</strong> (1 em cada 4 vai para a <strong>Giovanna</strong> treinar, se ela tiver horário em até 3 dias); acima de 1.000 kWh com mais de <strong>90 pontos</strong> e até 150 km de Uberlândia é <strong>visita do Diego</strong>; o resto acima de 1.000 é <strong>atendimento do Thiago</strong>. Formulário do Meta segue a regra antiga. Cliente que já tem consultor continua com ele.
       </div>
+      <div id="leads-sd-topo" style="display:none"></div>
       <div class="leads-barra">
         <span id="leads-conta"></span>
         <button class="btn-hist-csv" type="button" onclick="exportarLeadsCSV()">Baixar planilha (CSV)</button>
@@ -42803,6 +42818,9 @@ async function carregarCRM(forcar) {
     board.innerHTML = `<div class="historico-vazio" style="padding:40px">Erro ao carregar: ${escapeHtml(e.message || '')}</div>`;
     return;
   }
+  // O quiz do SolarDoc (lead_id sdquiz_) tem tela propria em Leads > Quiz SolarDoc: aqui ele viraria "cliente" de solar. O corte e
+  // no navegador e pelo lead_id: um filtro de form_id na URL derrubaria tambem as linhas sem form_id (DM e ManyChat).
+  leads = (leads || []).filter(r => !String((r && r.lead_id) || '').startsWith('sdquiz_'));
   // "Perdido" manual de leads sem ficha — tolerante a falha (não quebra o board).
   try { perdidos = await supaGet('crm_perdidos?select=key'); } catch (e) { perdidos = []; }
   crmPerdidos = new Set((perdidos || []).map(p => p.key));
@@ -43751,8 +43769,11 @@ let leadsMostrar = LEADS_PASSO;
 const LEADS_ABAS = [
   ['todos', 'Todos'], ['vistoria', 'Vistorias'], ['grandes', 'Projetos grandes'],
   ['ligacao', 'Ligações'], ['curioso', 'Curiosos'], ['nao_marcou', 'Não marcaram'], ['formulario', 'Formulário e DM'],
+  ['quiz_sd', 'Quiz SolarDoc'],
 ];
 const leadEhQuiz = r => r.form_id === 'quiz_solar' || String(r.lead_id || '').startsWith('quiz_');
+// Quiz do SolarDoc (/diagnostico): lead_id sdquiz_. Tem aba propria e fica FORA de todas as outras abas, dos contadores e do CSV delas.
+const leadEhQuizSd = r => String((r && r.lead_id) || '').startsWith('sdquiz_');
 function leadCaminho(r) {
   if (!leadEhQuiz(r)) return null;
   const c = leadCampo(r.field_data || [], 'caminho');
@@ -43769,6 +43790,8 @@ function leadGrande(r) {
   return /^\+|mais|acima|900a1200|1200|1\.?500/.test(consumo);
 }
 function leadNaAba(r, aba) {
+  if (leadEhQuizSd(r)) return aba === 'quiz_sd';
+  if (aba === 'quiz_sd') return false;
   if (aba === 'todos') return true;
   if (aba === 'formulario') return !leadEhQuiz(r);
   if (aba === 'grandes') return leadGrande(r);
@@ -43782,11 +43805,11 @@ function renderLeadsAbas() {
   const el = document.getElementById('leads-abas');
   if (!el) return;
   el.innerHTML = LEADS_ABAS.map(([k, rot]) => {
-    const n = leadsRowsCache.filter(r => leadNaAba(r, k)).length;
+    const n = leadsRowsCache.filter(r => leadNaAba(r, k) && !(k === 'quiz_sd' && quizSdEhTeste(r))).length;   // o contador do quiz ignora teste
     return `<button class="leads-aba${leadsAba === k ? ' on' : ''}" role="tab" aria-selected="${leadsAba === k}" onclick="leadsTrocarAba('${k}')">${rot}<span class="c">${n}</span></button>`;
   }).join('');
 }
-function leadsTrocarAba(k) { leadsAba = k; leadsMostrar = LEADS_PASSO; renderLeadsAbas(); renderLeadsTabela(); }
+function leadsTrocarAba(k) { leadsAba = k; leadsMostrar = LEADS_PASSO; renderLeadsAbas(); renderLeadsTabela(); if (k === 'quiz_sd') quizSdCarregarStatus(); }
 function leadsMostrarMais() { leadsMostrar += LEADS_PASSO; renderLeadsTabela(); }
 
 async function carregarLeads() {
@@ -43820,6 +43843,7 @@ async function carregarLeads() {
   leadsMostrar = LEADS_PASSO;
   renderLeadsAbas();
   renderLeadsTabela();
+  if (leadsAba === 'quiz_sd') quizSdCarregarStatus();   // so a aba Quiz SolarDoc chama a rota (a tela Leads aberta em outra aba nao)
 }
 
 function leadsMensagem(txt) {
@@ -43973,6 +43997,11 @@ function renderLeadsTabela() {
   const thead = document.getElementById('leads-thead');
   const tbody = document.getElementById('leads-tbody');
   if (!tbody || !thead) return;
+  const topoSd = document.getElementById('leads-sd-topo');
+  const infoSolar = document.getElementById('leads-info');
+  if (leadsAba === 'quiz_sd') { if (infoSolar) infoSolar.style.display = 'none'; renderQuizSdTabela(); return; }
+  if (infoSolar) infoSolar.style.display = '';
+  if (topoSd) { topoSd.style.display = 'none'; topoSd.innerHTML = ''; }
   const linhas = leadsRowsCache.filter(r => leadNaAba(r, leadsAba)).map(leadLinha);
   leadsLinhasAtuais = linhas;
   const cols = leadsColunas(linhas);
@@ -44012,6 +44041,7 @@ function renderLeadsTabela() {
 
 // A mesma planilha em CSV (a aba aberta, todas as colunas), para abrir no Excel.
 function exportarLeadsCSV() {
+  if (leadsAba === 'quiz_sd') { exportarQuizSdCSV(); return; }
   const linhas = leadsRowsCache.filter(r => leadNaAba(r, leadsAba)).map(leadLinha);
   if (!linhas.length) { showToast('Nenhum lead nesta aba'); return; }
   const cols = leadsColunas(linhas);
@@ -44031,6 +44061,218 @@ function exportarLeadsCSV() {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   showToast(`${linhas.length} lead${linhas.length === 1 ? '' : 's'} na planilha baixada`);
+}
+
+// ── ABA QUIZ SOLARDOC (26/10/2026) ─────────────────────────────────────────
+// Os leads do quiz /diagnostico (lead_id sdquiz_), um por um. Quem a Carla chamou, quem o time foi avisado e quem comprou vem do
+// servidor (GET /gerador/solardoc/quiz-status, com o token DA PESSOA, so leitura); o resto sai do proprio lead. Se a rota falhar,
+// essas tres colunas dizem "Não deu para conferir" e o resto da aba funciona. Essas linhas ficam fora de todas as outras abas.
+let quizSdStatus = null;          // null = nada pedido; 'carregando'; 'falhou'; ou a resposta { status: { lead_id: {...} } }
+let quizSdMostrarTestes = false;
+let quizSdSeq = 0;
+let quizSdStatusEm = 0;           // quando a ultima resposta boa chegou: vale por 60 s
+const QSD_VALIDADE_MS = 60000;
+const QSD_NAO_CONFERIU = 'Não deu para conferir';
+const QSD_FUSO = 'America/Sao_Paulo';
+
+// Pelo nome EXATO do campo (leadCampo casa por pedaco: "perfil" pegaria "Perfil nome").
+function quizSdCampo(r, nome) {
+  const fd = Array.isArray(r && r.field_data) ? r.field_data : [];
+  for (const f of fd) if (f && f.name === nome && f.values && f.values[0] != null) return String(f.values[0]).trim();
+  return '';
+}
+const quizSdEhTeste = r => quizSdCampo(r, 'teste').toLowerCase() === 'sim' || quizSdCampo(r, 'utm_source').toLowerCase() === 'raio-x-teste';
+
+// Dia e hora no relogio de Brasilia, qualquer que seja o fuso do computador.
+function quizSdDia(iso) { const t = Date.parse(iso); return isNaN(t) ? '' : new Date(t).toLocaleDateString('en-CA', { timeZone: QSD_FUSO }); }
+function quizSdHora(iso) { const t = Date.parse(iso); return isNaN(t) ? '' : new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: QSD_FUSO }); }
+function quizSdDiaMes(iso) { const t = Date.parse(iso); return isNaN(t) ? '' : new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: QSD_FUSO }); }
+function quizSdQuando(iso) { const d = quizSdDiaMes(iso); return d ? d + ' ' + quizSdHora(iso) : ''; }
+
+async function quizSdCarregarStatus() {
+  const sd = leadsRowsCache.filter(leadEhQuizSd);
+  if (!sd.length) { quizSdStatus = null; return; }
+  if (quizSdStatus === 'carregando') return;
+  // Resposta boa de menos de 60 s e reaproveitada. Falha nunca fica guardada: a proxima abertura da aba tenta de novo.
+  if (quizSdStatus && quizSdStatus !== 'falhou' && Date.now() - quizSdStatusEm < QSD_VALIDADE_MS) return;
+  const seq = ++quizSdSeq;
+  quizSdStatus = 'carregando';
+  if (leadsAba === 'quiz_sd') renderLeadsTabela();
+  let maisVelho = 0;
+  for (const r of sd) { const t = Date.parse(r.created_time); if (!isNaN(t)) maisVelho = Math.max(maisVelho, Date.now() - t); }
+  const dias = Math.min(180, Math.max(1, Math.ceil(maisVelho / 86400000) + 1));
+  let res = 'falhou';
+  try {
+    const j = await solApi('/gerador/solardoc/quiz-status?dias=' + dias);
+    if (j && j.status && typeof j.status === 'object') res = j;
+  } catch (e) { res = 'falhou'; }
+  if (seq !== quizSdSeq) return;
+  quizSdStatus = res;
+  if (res !== 'falhou') quizSdStatusEm = Date.now();
+  const sec = document.getElementById('leadsSection');
+  if (leadsAba === 'quiz_sd' && sec && sec.style.display !== 'none') renderLeadsTabela();
+}
+
+// O estado do lead no servidor: 'carregando', null (nao veio) ou o objeto { carla, aviso, comprou }.
+function quizSdStatusDe(r) {
+  if (quizSdStatus === 'carregando') return 'carregando';
+  if (!quizSdStatus || quizSdStatus === 'falhou' || !quizSdStatus.status) return null;
+  return quizSdStatus.status[r.lead_id] || null;
+}
+const QSD_CONFERINDO = { t: 'Conferindo agora', sub: '' };
+const QSD_SEM_LEITURA = { t: QSD_NAO_CONFERIU, sub: '' };
+
+function quizSdCarla(r) {
+  const st = quizSdStatusDe(r);
+  if (st === 'carregando') return QSD_CONFERINDO;
+  const c = st && st.carla;
+  if (!c || c.estado === 'nao_conferiu') return QSD_SEM_LEITURA;
+  if (c.estado === 'chamou') {
+    const hoje = quizSdDia(new Date().toISOString());
+    const dia = c.em && quizSdDia(c.em) !== hoje ? ' (' + quizSdDiaMes(c.em) + ')' : '';
+    return { t: 'Chamou' + (c.em ? ' às ' + quizSdHora(c.em) : '') + dia, sub: '' };
+  }
+  if (c.estado === 'sem_confirmacao') return { t: 'Sem confirmação', sub: '' };
+  if (c.estado === 'tentou') return { t: c.detalhe === 'nao_saiu' ? 'Tentou, a mensagem não saiu' : 'Tentou, sem confirmação', sub: '' };
+  return { t: 'Não chamou', sub: c.motivo || '' };
+}
+function quizSdAviso(r) {
+  const st = quizSdStatusDe(r);
+  if (st === 'carregando') return QSD_CONFERINDO;
+  const a = st ? st.aviso : undefined;
+  if (a === undefined || (a && a.nao_conferiu)) return QSD_SEM_LEITURA;
+  if (a === null) return { t: 'Não', sub: '', nao: true };
+  return { t: 'Avisado' + (a.em ? ' às ' + quizSdHora(a.em) : ''), sub: '' };
+}
+function quizSdCompra(r) {
+  const st = quizSdStatusDe(r);
+  if (st === 'carregando') return QSD_CONFERINDO;
+  const c = st ? st.comprou : undefined;
+  if (c === undefined || (c && c.nao_conferiu)) return QSD_SEM_LEITURA;
+  if (c === null) return { t: 'Não', sub: '', nao: true };
+  return { t: 'Sim' + (c.em ? ', em ' + quizSdDiaMes(c.em) : ''), sub: '' };
+}
+
+const QSD_COLS = [
+  { k: 'quando', rot: 'Quando' },
+  { k: 'nome', rot: 'Nome', fixa: true },
+  { k: 'cidade', rot: 'Cidade' },
+  { k: 'whatsapp', rot: 'WhatsApp' },
+  { k: 'indice', rot: 'Índice' },
+  { k: 'codigo', rot: 'Código' },
+  { k: 'carla', rot: 'Carla' },
+  { k: 'aviso', rot: 'Time avisado' },
+  { k: 'comprou', rot: 'Comprou' },
+];
+
+// Uma linha: para cada coluna, o HTML da tela (h) e o texto puro do CSV (t).
+function quizSdLinha(r) {
+  const sub = s => (s ? `<span class="qsd-sub">${escapeHtml(s)}</span>` : '');
+  const nome = String(r.nome || '').trim() || 'Sem nome';
+  const emp = quizSdCampo(r, 'Empresa');
+  const idx = quizSdCampo(r, 'Índice');
+  const perfil = quizSdCampo(r, 'Perfil nome');
+  const cod = quizSdCampo(r, 'Código');
+  const tag = quizSdEhTeste(r) ? '<span class="qsd-teste-tag">Teste</span>' : '';
+  const car = quizSdCarla(r), avi = quizSdAviso(r), com = quizSdCompra(r);
+  const cel = (c) => ({ h: `<span${c.nao ? ' class="qsd-nao"' : ''}>${escapeHtml(c.t)}</span>${sub(c.sub)}`, t: c.t + (c.sub ? ': ' + c.sub : '') });
+  return {
+    quando: { h: escapeHtml(quizSdQuando(r.created_time)), t: quizSdQuando(r.created_time) },
+    nome: { h: escapeHtml(nome) + tag + sub(emp), t: nome + (emp ? ' (' + emp + ')' : '') },
+    cidade: { h: escapeHtml(r.cidade || ''), t: r.cidade || '' },
+    whatsapp: {
+      h: r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${encodeURIComponent(r.whatsapp)}" target="_blank" rel="noopener">${escapeHtml(r.whatsapp)}</a>` : '',
+      t: r.whatsapp || '',
+    },
+    indice: { h: idx ? escapeHtml(idx + ' de 100') + sub(perfil) : '', t: idx ? idx + ' de 100' + (perfil ? ', ' + perfil : '') : '' },
+    codigo: { h: escapeHtml(cod), t: cod },
+    carla: cel(car),
+    aviso: cel(avi),
+    comprou: cel(com),
+  };
+}
+
+// Hoje, 7 dias, Carla chamou, Compraram: so lead de verdade (teste nao entra). Os dois ultimos dependem do servidor.
+function quizSdContadores(reais) {
+  const hoje = quizSdDia(new Date().toISOString());
+  const corte = Date.now() - 7 * 86400000;
+  let h = 0, s = 0, c = 0, p = 0;
+  const lido = !!quizSdStatus && quizSdStatus !== 'carregando' && quizSdStatus !== 'falhou';
+  for (const r of reais) {
+    if (quizSdDia(r.created_time) === hoje) h++;
+    const t = Date.parse(r.created_time);
+    if (!isNaN(t) && t >= corte) s++;
+    const st = lido ? quizSdStatusDe(r) : null;
+    if (st && st.carla && st.carla.estado === 'chamou') c++;
+    if (st && st.comprou && !st.comprou.nao_conferiu) p++;
+  }
+  const incerto = quizSdStatus === 'carregando' ? '...' : '?';
+  return [['Hoje', h], ['7 dias', s], ['Carla chamou', lido ? c : incerto], ['Compraram', lido ? p : incerto]];
+}
+
+function quizSdAlternarTestes() { quizSdMostrarTestes = !quizSdMostrarTestes; leadsMostrar = LEADS_PASSO; renderLeadsTabela(); }
+
+function renderQuizSdTabela() {
+  const thead = document.getElementById('leads-thead');
+  const tbody = document.getElementById('leads-tbody');
+  const topo = document.getElementById('leads-sd-topo');
+  if (!tbody || !thead) return;
+  const todos = leadsRowsCache.filter(r => leadNaAba(r, 'quiz_sd'));
+  const testes = todos.filter(quizSdEhTeste);
+  const reais = todos.filter(r => !quizSdEhTeste(r));
+  const lista = quizSdMostrarTestes ? todos : reais;
+  leadsLinhasAtuais = [];
+  if (topo) {
+    topo.style.display = '';
+    topo.innerHTML = '<div class="qsd-topo">'
+      + quizSdContadores(reais).map(([rot, n]) => `<div class="qsd-cont"><b>${escapeHtml(String(n))}</b><span>${escapeHtml(rot)}</span></div>`).join('')
+      + (testes.length ? `<button class="btn-hist-csv qsd-testes-btn" type="button" onclick="quizSdAlternarTestes()">${quizSdMostrarTestes ? 'Esconder' : 'Mostrar'} testes (${testes.length})</button>` : '')
+      + '</div>';
+  }
+  thead.innerHTML = '<tr>' + QSD_COLS.map(c => `<th${c.fixa ? ' class="fixa"' : ''}>${escapeHtml(c.rot)}</th>`).join('') + '</tr>';
+  const visiveis = lista.slice(0, leadsMostrar);
+  const resto = lista.length - visiveis.length;
+  const conta = document.getElementById('leads-conta');
+  if (conta) {
+    conta.textContent = `${lista.length} lead${lista.length === 1 ? '' : 's'} do quiz${resto > 0 ? ', mostrando ' + visiveis.length + ' de ' + lista.length : ''}.`
+      + (quizSdStatus === 'falhou' ? ' Não consegui conferir a Carla, o aviso ao time e a compra agora.' : '');
+  }
+  const mais = document.getElementById('leads-mais');
+  if (mais) {
+    mais.style.display = resto > 0 ? '' : 'none';
+    mais.textContent = resto > 0 ? `Mostrar mais ${Math.min(LEADS_PASSO, resto)} (restam ${resto})` : '';
+  }
+  if (!lista.length) {
+    const dica = testes.length && !quizSdMostrarTestes ? ` Há ${testes.length} teste${testes.length === 1 ? '' : 's'} escondido${testes.length === 1 ? '' : 's'}. Use o botão Mostrar testes.` : '';
+    tbody.innerHTML = `<tr><td colspan="${QSD_COLS.length}" class="historico-vazio">${escapeHtml('Nenhum lead do quiz ainda.' + dica)}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = visiveis.map(r => {
+    const L = quizSdLinha(r);
+    return '<tr>' + QSD_COLS.map(c => `<td${c.fixa ? ' class="fixa"' : ''}>${L[c.k].h}</td>`).join('') + '</tr>';
+  }).join('');
+}
+
+// A planilha da aba: as colunas da aba, os testes so quando estao a mostra.
+function exportarQuizSdCSV() {
+  const lista = leadsRowsCache.filter(r => leadNaAba(r, 'quiz_sd') && (quizSdMostrarTestes || !quizSdEhTeste(r)));
+  if (!lista.length) { showToast('Nenhum lead nesta aba'); return; }
+  const esc = v => {
+    const s = v == null ? '' : String(v);
+    return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const out = [QSD_COLS.map(c => esc(c.rot)).join(';')];
+  for (const r of lista) { const L = quizSdLinha(r); out.push(QSD_COLS.map(c => esc(L[c.k].t)).join(';')); }
+  const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `leads_quiz_solardoc_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`${lista.length} lead${lista.length === 1 ? '' : 's'} na planilha baixada`);
 }
 
 function verLeadDetalhe(detJson) {

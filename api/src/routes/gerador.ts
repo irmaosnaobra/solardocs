@@ -21,6 +21,7 @@ import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { buscarCartao } from '../services/gerador/dossieVenda';
 import { mountDossie, exigeConsultor } from './geradorDossie';
 import { mountSolar } from './geradorSolar';
+import { mountSolardocQuizStatus } from './geradorSolardocQuiz';
 import { mountEletropostoAtendimento } from './geradorEletropostoAtendimento';
 import { mountDashboard } from './geradorDashboard';
 import { mountCaixa } from './geradorCaixa';
@@ -1165,6 +1166,8 @@ mountDossie(router);
 // Pós-venda do solar (obras da Planilha Mestre, mapa, indicações). Todas as
 // rotas exigem consultor logado, e o que cada um vê é decidido no servidor.
 mountSolar(router);
+// Quiz do SolarDoc: onde está cada lead (Carla, aviso ao time, compra). Só leitura, mesmo login.
+mountSolardocQuizStatus(router);
 mountFinanceiro(router);
 // Gestão de clientes do solar: a Planilha Mestre como grade editável.
 mountClientes(router);
