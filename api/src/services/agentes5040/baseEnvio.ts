@@ -524,7 +524,7 @@ export function depsReais(opts: OpcoesBase = {}): DepsBase {
       return v === 'reservada' ? 'ok' : v === 'ja_existe' ? 'ja' : 'erro';
     },
     apagarClaim: (chave) => liberarChave(chave),
-    enviar: (telefone, bolha) => sendFrio(telefone, [bolha], 'io'),
+    enviar: async (telefone, bolha) => { await sendFrio(telefone, [bolha], 'io'); },
 
     async erroDeLinha(_err, agora) {
       try {

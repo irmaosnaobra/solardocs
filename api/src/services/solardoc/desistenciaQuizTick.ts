@@ -8,17 +8,22 @@
 // QUEM AVISA O QUÊ, decidido POR LEAD (B2). Um aviso por lead e só um caminho manda:
 //   - Robô da Carla DESLIGADO (env '0' ou chave quiz_rec_pausa; função estadoRecuperacaoCarla):
 //     o tick avisa aos 15 min com a linha "A Carla está desligada agora." Lê até 48 h, como no B1.
-//   - Robô LIGADO e a Carla ainda PODE chamar o lead (elegível, avaliarLead ok, até 48 h): o tick NÃO avisa.
-//     O aviso sai pelo caminho do robô ("A Carla falou às HH:MM", pendente, enviado por este tick no cartão),
-//     pelo "sem vaga" do fim do dia, ou por este tick quando o lead VENCE (48 h a 50 h, "A Carla não chamou: passou de 48 horas sem vaga.").
-//   - Robô LIGADO e a Carla NÃO vai chamar (sem CNPJ, antes da largada, já falou com a linha, suprimido, posse, pausa humana):
-//     o tick avisa aos 15 min com uma linha de motivo ("A Carla não vai chamar: ainda sem CNPJ.") e a responsável é a Giovanna.
+//   - O tick SEGURA o lead para o robô só enquanto TRÊS coisas valem juntas (B2.1, 26/10/2026): o robô está ligado, a linha está dentro da
+//     janela AGORA (9h às 20h, segunda a sábado) e o lead tem menos de 60 min. Segurado não gasta a conta das avaliações. O aviso sai pelo
+//     caminho do robô ("A Carla falou às HH:MM", pendente, enviado por este tick no cartão).
+//   - Fora disso o tick avisa JÁ, com uma linha de status: "A Carla chama no próximo horário da linha, de segunda a sábado, das 9h às 20h."
+//     (linha fechada), "A Carla ainda não teve vaga para chamar." (60 min sem ela, linha aberta), a linha de motivo ("A Carla não vai
+//     chamar: ainda sem CNPJ.", "A Carla está desligada agora.") ou o vencimento (48 h a 50 h, "A Carla não chamou: passou de 48 horas sem vaga.").
+//     Depois do aviso de status a Carla ainda pode mandar a mensagem dela (marca quiz_rec_ainda), mas NÃO sai um segundo aviso: o claim vale.
 //   - A Carla chamou (carimbo quiz_rec_sent) e o aviso dela não chegou a ser tomado por 5 min (o robô caiu depois do envio): este tick toma.
+//     Carimbo com estado 'nao_saiu' (o sendFrio calou: nada foi enviado) é avisado na hora, com o motivo, nunca com "falou às".
+//   - Antes de avisar, o tick RELÊ o carimbo do lead (a corrida com a rodada do robô): se a Carla acabou de chamar, o aviso é dela.
 //
 // LEITURA: do mais novo para o mais antigo, em páginas de 100, pulando quem já tem claim. Com o robô ligado, uma leitura à parte vai
 // primeiro nos que acabaram de vencer (48 h a 50 h): os novos, que vêm primeiro, não deixam o vencido sem aviso.
 //
-// LIMITE: 10 TENTATIVAS por rodada (toda chamada ao aviso conta), no máximo 12 leads avaliados com leitura por rodada, e o primeiro
+// LIMITE: 10 TENTATIVAS por rodada (toda chamada ao aviso conta), no máximo 12 leads avaliados com leitura por rodada (as conferências
+// sem banco e o lead segurado para o robô não gastam essa conta), e o primeiro
 // `falhou` encerra a rodada. Sem id de grupo, no máximo UM e-mail de resumo por rodada.
 //
 // Quem chama o relógio: o `/process-messages`, DEPOIS do allSettled dos outros ticks e ANTES do robô da Carla (routes/cron.ts): o aviso
@@ -29,17 +34,20 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { normalizarTelefoneSd, chaveDoTelefone } from './quizSolardoc';
+import { dentroDaJanelaDaBaseLinha } from '../agents/whatsapp/lineThrottle';
 import { montarAviso } from './avisoGrupoTextos';
 import {
   avisarDesistencia, camposDoLead, campoDe, descarregarPendentes, ehLeadDeTeste, emailResumoSemGrupo, emailResumoParada, marcarComprou,
   paradaDoGrupo, PREFIXO_CLAIM_QUIZ, type LeadQuizLinha, type ParadaDoGrupo,
 } from './avisoGrupoSolardoc';
 import { hmacDe } from '../agentes5040/hmac';
+import { lerPosse } from '../agentes5040/posse';
 import { comprouLead, temPlanoPago, vendasRecentes } from './compraQuizSolardoc';
 import { avaliarLead, depsAvaliarReais, type DepsAvaliar } from './recuperacaoCarla';
 import { estadoRecuperacaoCarla, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
-  ESPERA_MIN_MS, FRASE_DO_MOTIVO, JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS, PREFIXO_CARIMBO_REC, horaBRT,
+  ESPERA_MIN_MS, FRASE_DO_MOTIVO, FRASE_FORA_DA_JANELA, FRASE_SEM_VAGA_AINDA, JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS,
+  PREFIXO_AINDA_REC, PREFIXO_CARIMBO_REC, SEGURA_PARA_O_ROBO_MS, horaBRT, motivoSemBanco,
 } from './recuperacaoCarlaRegras';
 
 export { ESPERA_MIN_MS, JANELA_MAX_MS };
@@ -65,6 +73,35 @@ export { temPlanoPago, vendasRecentes };
 type CarimboRec = { key: string; updated_at?: string; value?: { estado?: string } };
 
 const COLUNAS = 'lead_id, nome, whatsapp, cidade, field_data, created_time';
+
+/** O que o carimbo `quiz_rec_sent` diz sobre o aviso: 'deixar' = é do robô (ele acabou de chamar); senão a hora ou o motivo. */
+function decidirPeloCarimbo(c: CarimboRec, agora: number): 'deixar' | { hora: string | null; motivo: string | null } {
+  // O robô calou (pausa humana) e nada saiu: ele não avisa, então o tick avisa na hora, com o motivo.
+  if (c.value?.estado === 'nao_saiu') return { hora: null, motivo: FRASE_DO_MOTIVO.nao_saiu };
+  // A Carla chamou. O aviso é do robô; só assume se ele não o tomou em 5 min (caiu depois do envio).
+  const quando = Date.parse(String(c.updated_at ?? ''));
+  if (!Number.isFinite(quando) || agora - quando < AVISO_DO_ROBO_ATRASADO_MS) return 'deixar';
+  if (c.value?.estado === 'incerto') return { hora: null, motivo: 'A Carla tentou chamar, mas não sei se a mensagem saiu.' };
+  return { hora: horaBRT(quando), motivo: null };
+}
+
+/** Relê o carimbo de UM lead (a rodada do robô pode ter chamado depois da leitura da página). 'erro' = não deu para ler: pula o lead. */
+async function lerCarimbo(h: string): Promise<CarimboRec | null | 'erro'> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key, updated_at, value').eq('key', `${PREFIXO_CARIMBO_REC}${h}`).maybeSingle();
+    if (error) return 'erro';
+    return (data as CarimboRec | null) ?? null;
+  } catch { return 'erro'; }
+}
+
+/** Marca "avisei o time, mas a Carla ainda pode chamar". Já existir (23505) vale. false = não gravou: o lead não é avisado nesta rodada. */
+async function marcarAindaChama(h: string): Promise<boolean> {
+  try {
+    const em = new Date().toISOString();
+    const { error } = await supabase.from('system_state').insert({ key: `${PREFIXO_AINDA_REC}${h}`, value: { em }, updated_at: em });
+    return !error || (error as { code?: string }).code === '23505';
+  } catch { return false; }
+}
 
 export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {}): Promise<ResultadoDesistencia> {
   const agora = Date.now();
@@ -109,6 +146,9 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
   // A compra já é conferida aqui, uma vez: a avaliação do robô não repete a consulta.
   const depsAvaliacao: DepsAvaliar = { ...depsAvaliarReais(), compra: async () => false };
 
+  // A janela da linha vale para a rodada inteira (9h às 20h, segunda a sábado, fora de feriado): é o que segura o lead para o robô.
+  const janelaAberta = dentroDaJanelaDaBaseLinha(new Date(agora));
+
   let avisados = 0;
   let tentativas = 0;
   let avaliados = 0;
@@ -149,37 +189,73 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
         continue;
       }
 
-      // Quem avisa este lead? (a decisão por lead do B2)
+      // Quem avisa este lead? (a decisão por lead do B2, regra de B2.1)
       let hora: string | null = null;
       let motivo: string | null = null;
+      let aindaChama = false;   // o aviso é de status e a Carla ainda pode chamar: grava a marca antes
+      let conferirPosse = false;   // o motivo é `posse`: confere de quem é antes de dizer "outra agente"
+      const criado = Date.parse(String(l.created_time ?? '')) || agora;
+      const idade = agora - criado;
       if (!estado.ligada) {
         motivo = FRASE_DO_MOTIVO.desligada;
       } else {
         const chamado = chamados.get(h);
         if (chamado) {
-          // A Carla chamou. O aviso é do robô; só assume se ele não o tomou em 5 min (caiu depois do envio).
-          const quando = Date.parse(String(chamado.updated_at ?? ''));
-          if (!Number.isFinite(quando) || agora - quando < AVISO_DO_ROBO_ATRASADO_MS) { deixados++; continue; }
-          if (chamado.value?.estado === 'incerto') motivo = 'A Carla tentou chamar, mas não sei se a mensagem saiu.';
-          else hora = horaBRT(quando);
+          const dec = decidirPeloCarimbo(chamado, agora);
+          if (dec === 'deixar') { deixados++; continue; }
+          ({ hora, motivo } = dec);
         } else {
-          if (avaliados >= AVALIACOES_POR_RODADA) continue;
-          avaliados++;
-          const av = await avaliarLead(l, { agoraMs: agora, largadaMs: largada, vendas }, depsAvaliacao);
-          if (!av.ok) {
-            // Teste, sem telefone e compra não geram aviso. O resto: a Carla não vai chamar, com o motivo.
-            if (av.motivo === 'teste' || av.motivo === 'sem_telefone' || av.motivo === 'comprou') continue;
-            // Leitura que falhou não é motivo: não toma o claim (o robô ainda pode chamar) e tenta de novo na próxima rodada.
-            if (av.motivo === 'leitura_falhou') {
-              if (agora - (Date.parse(String(l.created_time ?? '')) || agora) > JANELA_MAX_MS) motivo = FRASE_DO_MOTIVO.vencido;   // já venceu: avisa, a Carla não vai mais chamar
-              else continue;
-            } else
-            motivo = FRASE_DO_MOTIVO[av.motivo];
-          } else if (agora - (Date.parse(String(l.created_time ?? '')) || agora) > JANELA_MAX_MS) {
-            motivo = FRASE_DO_MOTIVO.vencido;
-          } else { deixados++; continue; }   // o robô ainda pode chamar: o aviso sai pelo caminho dele
+          // 1) o que não lê banco (sem CNPJ, antes da largada): avisa já e não gasta a conta
+          const semBanco = motivoSemBanco(l, largada);
+          if (semBanco) {
+            motivo = FRASE_DO_MOTIVO[semBanco];
+          } else if (janelaAberta && idade < SEGURA_PARA_O_ROBO_MS) {
+            // 2) segurado para o robô (ligado + janela aberta agora + menos de 60 min): não gasta a conta
+            deixados++; continue;
+          } else {
+            // 3) o resto gasta a conta de avaliações por rodada
+            if (avaliados >= AVALIACOES_POR_RODADA) continue;
+            avaliados++;
+            const av = await avaliarLead(l, { agoraMs: agora, largadaMs: largada, vendas }, depsAvaliacao);
+            if (!av.ok) {
+              // Teste, sem telefone e compra não geram aviso. O resto: a Carla não vai chamar, com o motivo.
+              if (av.motivo === 'teste' || av.motivo === 'sem_telefone' || av.motivo === 'comprou') continue;
+              // Leitura que falhou não é motivo: não toma o claim (o robô ainda pode chamar) e tenta de novo na próxima rodada.
+              if (av.motivo === 'leitura_falhou') {
+                if (idade > JANELA_MAX_MS) motivo = FRASE_DO_MOTIVO.vencido;   // já venceu: avisa, a Carla não vai mais chamar
+                else continue;
+              } else {
+                motivo = FRASE_DO_MOTIVO[av.motivo];
+                conferirPosse = av.motivo === 'posse';
+              }
+            } else if (idade > JANELA_MAX_MS) {
+              motivo = FRASE_DO_MOTIVO.vencido;
+            } else {
+              // A Carla ainda pode chamar e o tick não segura: avisa o time já, com a linha de status.
+              motivo = janelaAberta ? FRASE_SEM_VAGA_AINDA : FRASE_FORA_DA_JANELA;
+              aindaChama = true;
+            }
+          }
+          // Corrida com a rodada do robô: a leitura da página é anterior à avaliação. Relê o carimbo antes de avisar. Se a Carla acabou
+          // de chamar (o robô grava o carimbo ANTES de tomar a posse), o aviso é dela, nunca "outra agente" nem "chama no próximo horário".
+          const rec = await lerCarimbo(h);
+          if (rec === 'erro') continue;
+          if (rec) {
+            const dec = decidirPeloCarimbo(rec, agora);
+            if (dec === 'deixar') { deixados++; continue; }
+            ({ hora, motivo } = dec); aindaChama = false; conferirPosse = false;
+          }
+          // Posse não é sempre "outra agente": a própria Carla (conversa que ela abriu com o lead) é a Carla, e posse que sumiu entre a
+          // avaliação e agora é a rodada do robô que desistiu (sem aviso e sem claim; refaz na próxima rodada).
+          if (conferirPosse) {
+            let posse: Awaited<ReturnType<typeof lerPosse>>;
+            try { posse = await lerPosse(String(l.whatsapp)); } catch { continue; }
+            if (!posse) continue;
+            if (posse.dona === 'carla' && posse.estado === 'viva') motivo = FRASE_DO_MOTIVO.ja_falou;
+          }
         }
       }
+      if (aindaChama && !opts.dry && !(await marcarAindaChama(h))) continue;
 
       tentativas++;
       if (opts.dry) { previa.push({ lead: String(l.lead_id), texto: montarAviso('desistencia', { ...camposDoLead(l), hora_carla: hora, motivo_carla: motivo }) }); avisados++; continue; }

@@ -9,6 +9,12 @@
 export const ROBO_QUIZ_REC = 'quiz_recuperacao_5040';
 /** Carimbo frio: `quiz_rec_sent:<hmac do telefone>`. Um por pessoa, para sempre (claim por insert). */
 export const PREFIXO_CARIMBO_REC = 'quiz_rec_sent:';
+/**
+ * Marca do tick de desistência (B2.1): "avisei o time, mas a Carla ainda PODE chamar este lead" (linha fechada ou 1 h sem vaga).
+ * Só o lead com esta marca volta à fila do robô depois do claim `quiz_aviso:<hmac>`; sem ela (a Carla não vai chamar, comprou) ele fica fora
+ * e não gasta as avaliações da rodada. A marca é gravada ANTES do aviso, nunca depois.
+ */
+export const PREFIXO_AINDA_REC = 'quiz_rec_ainda:';
 /** A vez de 10 min do robô: fora de BOT_SENT_PREFIXES (não é envio). */
 export const PREFIXO_VEZ_REC = 'quiz_rec_vez:';
 /** Pausa pelo banco (mesma tabela e mesmo mecanismo de ag5040_linha_pausa). */
@@ -20,6 +26,8 @@ export const ESPERA_MIN_MS = 15 * 60_000;
 export const JANELA_MAX_MS = 48 * 3600_000;
 /** O tick do B1 lê até aqui quando o robô está ligado, para dar o aviso de "venceu" ao lead que acabou de vencer. */
 export const JANELA_LEITURA_COM_ROBO_MS = 50 * 3600_000;
+/** O tick só segura o lead para o robô enquanto ele tem menos que isto desde o `created_time` (e a janela da linha está aberta). */
+export const SEGURA_PARA_O_ROBO_MS = 60 * 60_000;
 
 export interface LeadRec {
   lead_id?: string | null;
@@ -52,7 +60,7 @@ export function valoresFd(fieldData: unknown, nome: string): string[] {
 /** Por que a Carla NÃO chama o lead. A frase de cada um é a linha do aviso de desistência ao grupo. */
 export type MotivoNaoChama =
   | 'desligada' | 'sem_cnpj' | 'antes_da_largada' | 'ja_falou' | 'suprimido' | 'humano_na_conversa'
-  | 'posse' | 'sem_whatsapp' | 'vencido' | 'sem_diagnostico' | 'leitura_falhou';
+  | 'posse' | 'sem_whatsapp' | 'vencido' | 'sem_diagnostico' | 'leitura_falhou' | 'mudo' | 'nao_saiu';
 
 export const FRASE_DO_MOTIVO: Record<MotivoNaoChama, string> = {
   desligada: 'A Carla está desligada agora.',
@@ -66,7 +74,13 @@ export const FRASE_DO_MOTIVO: Record<MotivoNaoChama, string> = {
   vencido: 'A Carla não chamou: passou de 48 horas sem vaga.',
   sem_diagnostico: 'A Carla não vai chamar: faltam dados do diagnóstico.',
   leitura_falhou: 'A Carla não vai chamar: não consegui conferir a conversa.',
+  mudo: 'A Carla não vai chamar: ele não respondeu aos últimos toques da linha.',
+  nao_saiu: 'A Carla não chamou: a mensagem não chegou a sair.',
 };
+
+/** Status do lead que a Carla ainda PODE chamar mas o tick já avisa (B2.1): fora da janela da linha e 60 min sem vaga. */
+export const FRASE_FORA_DA_JANELA = 'A Carla chama no próximo horário da linha, de segunda a sábado, das 9h às 20h.';
+export const FRASE_SEM_VAGA_AINDA = 'A Carla ainda não teve vaga para chamar.';
 
 // ── tempo ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +118,19 @@ export const ORDEM_INTENCAO: Record<string, number> = { hoje: 0, semana: 1, mes:
 export function semCnpj(fieldData: unknown): boolean {
   const c = campoFd(fieldData, 'cnpj');
   return c === '' || c === 'abrindo' || c === 'nao';
+}
+
+/**
+ * As conferências que NÃO leem banco: sem CNPJ e lead de antes da largada (o lead de teste e o telefone ilegível ficam com quem chama).
+ * O robô, o tick de desistência e a sonda usam a mesma, na mesma ordem.
+ */
+export function motivoSemBanco(
+  l: Pick<LeadRec, 'field_data' | 'created_time'>, largadaMs: number | null,
+): 'sem_cnpj' | 'antes_da_largada' | null {
+  if (semCnpj(l.field_data)) return 'sem_cnpj';
+  const criado = Date.parse(String(l.created_time ?? ''));
+  if (largadaMs === null || !Number.isFinite(criado) || criado < largadaMs) return 'antes_da_largada';
+  return null;
 }
 
 /** Intenção primeiro, e dentro dela o mais antigo para o mais novo. Não altera a lista de entrada. */

@@ -284,7 +284,9 @@ export async function sendFrio(
   parts: string[],
   instance: ZapiInstance = 'io',
   opts?: { transacional?: boolean },
-): Promise<void> {
+): Promise<boolean> {
+  // Devolve true só quando o envio foi feito (o sendHuman terminou sem lançar); false = a trava calou e NADA saiu.
+  // Quem grava "ela falou às HH:MM" depende disto (B2.1, 26/10/2026). Quem ignora o retorno segue como antes.
   // ── PAUSA HUMANA ──────────────────────────────────────────────────────────
   // A trava mora DENTRO do sendFrio, e não em cada chamador, porque esta função
   // é lead-only por construção: toque que a pessoa não pediu. Conferido um a um
@@ -299,10 +301,11 @@ export async function sendFrio(
     const d = await podeFalarComLead(phone);
     if (!d.pode) {
       await registrarBloqueio(phone, 'sendFrio');
-      return;
+      return false;
     }
   }
   await sendHuman(phone, parts, instance, { maxBolhas: 1, max: 900 });
+  return true;
 }
 
 export async function sendZAPI(phone: string, message: string, instance: ZapiInstance = 'solardoc'): Promise<void> {

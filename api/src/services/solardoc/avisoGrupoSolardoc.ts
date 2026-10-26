@@ -14,7 +14,7 @@
 //  - 1 bolha, sem mídia, sem janela de horário.
 //  - A VEZ do aviso é reivindicada por insert em system_state ANTES de qualquer envio:
 //      quiz_aviso:<hmac>                       desistência (uma por pessoa)
-//      quiz_aviso:<hmac>:semvaga:<dia BRT>     sem vaga (uma por pessoa por dia)
+//      quiz_aviso:<hmac>:semvaga               sem vaga (UMA por pessoa, para sempre; nunca se a desistência já saiu)
 //      compra_aviso:<id da venda>              compra (uma para Stripe, Asaas e comprovante)
 //    O valor guarda como a coisa saiu: enviado | pendente | sem_grupo | falhou | expirado.
 //  - UM aviso avulso por vez: a vez é uma chave de 2 min tomada por update condicional
@@ -548,7 +548,6 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
 
 // ── os três avisos ───────────────────────────────────────────────────────────
 
-const diaBRT = (ms = Date.now()): string => new Date(ms - 3 * 3600_000).toISOString().slice(0, 10);
 const hmacDoLead = (whatsapp: string | null | undefined): string | null => {
   const tel = normalizarTelefoneSd(whatsapp);
   return tel ? hmacDe(chaveDoTelefone(tel)) : null;
@@ -570,13 +569,13 @@ export async function avisarDesistencia(
   return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}`, tipo: 'desistencia', texto, urgente: true, soReivindicar: opts.soReivindicar });
 }
 
-/** Sem vaga para a Carla no dia. Uma vez por pessoa por dia (BRT). */
-export async function avisarSemVaga(lead: LeadQuizLinha, opts: { dia?: string } = {}): Promise<ResultadoAviso> {
+/** Sem vaga para a Carla. UMA vez por pessoa, para sempre (B2.1). Quem decide não chamar quando a desistência já saiu é o robô (lerFila). */
+export async function avisarSemVaga(lead: LeadQuizLinha): Promise<ResultadoAviso> {
   if (ehLeadDeTeste(lead.field_data)) return 'ignorado';
   const h = hmacDoLead(lead.whatsapp);
   if (!h) { logger.warn('solardoc-aviso', 'sem vaga sem telefone ou sem segredo de HMAC: ignorado'); return 'ignorado'; }
   const texto = montarAviso('semVaga', camposDoLead(lead));
-  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}:semvaga:${opts.dia ?? diaBRT()}`, tipo: 'sem_vaga', texto, urgente: true });
+  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}:semvaga`, tipo: 'sem_vaga', texto, urgente: true });
 }
 
 export type CanalCompra = 'cartao' | 'asaas' | 'comprovante';

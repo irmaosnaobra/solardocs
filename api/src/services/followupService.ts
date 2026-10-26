@@ -544,16 +544,31 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     // Além do corte das agentes (que só vale com a dona ligada), a posse VIVA da Carla segura o WhatsApp mesmo com o carla_vivo desligado:
     // o robô do quiz toma essa posse antes de falar. Posse ilegível = segura. Sessão do quiz = segura, sempre.
     let carlaComAPosse = false;
+    let posseIlegivel = false;
     if (phone) {
-      try { const p = await lerPosse(phone); carlaComAPosse = !!p && p.dona === 'carla' && p.estado === 'viva'; } catch { carlaComAPosse = true; }
+      try { const p = await lerPosse(phone); carlaComAPosse = !!p && p.dona === 'carla' && p.estado === 'viva'; } catch { carlaComAPosse = true; posseIlegivel = true; }
     }
-    const doQuiz = leituraDoQuizFalhou || sessoesDoQuiz.has(String(r.session_id ?? ''));
-    const agenteSegura = (phone ? await cedeAAgente(phone) : false) || carlaComAPosse || doQuiz;
+    const marcaDoQuiz = sessoesDoQuiz.has(String(r.session_id ?? ''));
+    const doQuiz = leituraDoQuizFalhou || marcaDoQuiz;
+    const cedeu = phone ? await cedeAAgente(phone) : false;
+    const agenteSegura = cedeu || carlaComAPosse || doQuiz;
+    // Corte REAL = a marca `abandono_quiz:` existe, a posse viva foi lida, ou a agente cedeu. Corte que veio só de ERRO de leitura
+    // (a marca ou a posse não leram) não é prova de nada: o WhatsApp não sai agora, mas o toque NÃO conta, para tentar de novo na próxima rodada.
+    const soPorErroDeLeitura = !!phone && agenteSegura && !(cedeu || marcaDoQuiz || (carlaComAPosse && !posseIlegivel));
     if (agenteSegura && !r.email) { skipped++; continue; }
 
     if (r.email) {
-      try { await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome }); }
-      catch (e) { console.error('abandon email falhou:', e); }
+      // O e-mail segue como sempre. Quando o toque vai ser REPETIDO (erro de leitura) ele sai uma vez só por toque: a marca
+      // `abandono_email:<id>:<n>` evita o mesmo e-mail a cada rodada do cron enquanto a leitura não volta.
+      const toque = (r.recovery_attempts ?? 0) + 1;
+      const jaSaiu = await emailDoToqueJaSaiu(String(r.id), toque);
+      // Marca que não lê (jaSaiu = 'erro'): no toque que vai se repetir, não arrisca o e-mail em dobro; no toque normal envia como sempre.
+      if (jaSaiu === 'nao' || (jaSaiu === 'erro' && !soPorErroDeLeitura)) {
+        try {
+          await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome });
+          if (soPorErroDeLeitura) await marcarEmailDoToque(String(r.id), toque);
+        } catch (e) { console.error('abandon email falhou:', e); }
+      }
     }
     // WhatsApp: GIOVANNA conversacional de recuperação — se apresenta, puxa papo e manda
     // o Pix no momento certo (não é blast fixo). O toque vem de recovery_attempts+1.
@@ -562,6 +577,8 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
       try { await enviarOpenerRecuperacao(phone, nome, (r.recovery_attempts ?? 0) + 1, { userId: u?.id ?? null }); }
       catch (e) { console.error('abandon giovanna opener falhou:', e); }
     }
+    // WhatsApp cortado só por erro de leitura: nada marcado, o toque volta na próxima rodada.
+    if (soPorErroDeLeitura) { skipped++; continue; }
 
     await supabase.from('abandoned_checkouts').update({
       recovery_attempts: (r.recovery_attempts ?? 0) + 1,
@@ -573,6 +590,21 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
   console.log(`[abandon] recuperação: ${sent} toques, ${recovered} recuperados, ${skipped} throttled`);
   if (sent > 0) await avisarPixSemLink();
   return { sent, recovered, skipped };
+}
+
+/** O e-mail deste toque do abandono já saiu numa rodada anterior (a que não contou o toque por erro de leitura)? */
+async function emailDoToqueJaSaiu(id: string, toque: number): Promise<'sim' | 'nao' | 'erro'> {
+  try {
+    const { data, error } = await supabase.from('system_state').select('key').eq('key', `abandono_email:${id}:${toque}`).maybeSingle();
+    if (error) return 'erro';
+    return data ? 'sim' : 'nao';
+  } catch { return 'erro'; }
+}
+async function marcarEmailDoToque(id: string, toque: number): Promise<void> {
+  try {
+    const em = new Date().toISOString();
+    await supabase.from('system_state').insert({ key: `abandono_email:${id}:${toque}`, value: { em }, updated_at: em });
+  } catch { /* sem a marca o e-mail pode repetir uma vez; o toque não conta de qualquer jeito */ }
 }
 
 // Cair no Pix manual não dá erro em lugar nenhum: o cliente recebe dados bancários,

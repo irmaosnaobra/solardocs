@@ -93,13 +93,22 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: (...a: unknown[]) => (sendWhatsApp as any)(...a),
   linhaEmCooldown: () => emCooldown(),
 }));
-const av = vi.hoisted(() => ({ avaliar: vi.fn() }));
+const av = vi.hoisted(() => ({
+  avaliar: vi.fn(),
+  /** A janela da linha (9h às 20h, seg a sáb) AGORA: o tick usa o relógio de verdade, então o teste a controla. */
+  janela: true,
+  /** lerPosse do tick (só o motivo `posse`). */
+  posse: vi.fn(),
+}));
 // A avaliacao do robo tem os testes dela (quizRecuperacaoCarla.test.ts): aqui so importa o que o tick faz com o resultado.
 vi.mock('../services/solardoc/recuperacaoCarla', () => ({
   avaliarLead: (...a: unknown[]) => av.avaliar(...a),
   depsAvaliarReais: () => ({}),
 }));
-vi.mock('../services/agents/whatsapp/lineThrottle', () => ({ prefixosTotalDaLinha: () => ['linha_x:'], PREFIXOS_AGENDA: ['agenda_x:'] }));
+vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
+  prefixosTotalDaLinha: () => ['linha_x:'], PREFIXOS_AGENDA: ['agenda_x:'], dentroDaJanelaDaBaseLinha: () => av.janela,
+}));
+vi.mock('../services/agentes5040/posse', () => ({ lerPosse: (...a: unknown[]) => av.posse(...a) }));
 
 import {
   avisarDesistencia, avisarSemVaga, avisarCompra, descarregarPendentes, grupoVendas, idDeVenda, TEMPOS_AVISO,
@@ -274,14 +283,14 @@ describe('claim único', () => {
     expect(claims()[0]!.key).toMatch(/^quiz_aviso:[0-9a-f]{64}$/);
     expect(JSON.stringify(claims())).not.toContain('99998888');
   });
-  it('sem vaga: uma vez por pessoa por dia, e não bloqueia a desistência', async () => {
-    expect(await avisarSemVaga(lead(), { dia: '2026-10-25' })).toBe('enviado');
-    expect(await avisarSemVaga(lead(), { dia: '2026-10-25' })).toBe('duplicado');
+  it('sem vaga: UMA vez por pessoa, para sempre (chave sem o dia), e não bloqueia a desistência', async () => {
+    expect(await avisarSemVaga(lead())).toBe('enviado');
+    expect(await avisarSemVaga(lead())).toBe('duplicado');
     liberarVez();
-    expect(await avisarSemVaga(lead(), { dia: '2026-10-26' })).toBe('enviado');
-    liberarVez();
+    expect(await avisarSemVaga(lead({ whatsapp: '34999998888' }))).toBe('duplicado');
+    expect(claims().map(c => c.key)).toEqual([expect.stringMatching(/^quiz_aviso:[0-9a-f]{64}:semvaga$/)]);
     expect(await avisarDesistencia(lead())).toBe('enviado');
-    expect(sendToGroup).toHaveBeenCalledTimes(3);
+    expect(sendToGroup).toHaveBeenCalledTimes(2);
   });
   it('compra: um aviso por venda, não importa o canal; o webhook só reivindica e o tick envia', async () => {
     const base = { id: 'cs_test_1', planoAtivo: true, valor: 67, nome: 'Carlos Andrade', telefone: '34999998888' };
@@ -898,45 +907,95 @@ describe('lista de grupos internos do CHEFE', () => {
 
 // ── B2 (24/10/2026): o tick decide POR LEAD quem avisa o quê ──────────────────
 describe('B2: o tick de desistência com o robô da Carla ligado', () => {
-  const leadQuiz = (extra: Partial<LeadQuizLinha> = {}) => ({ ...lead(), form_id: 'quiz_solardoc', ...extra });
+  // lead com CNPJ; `semCnpj` é o mesmo sem o campo
+  const leadQuiz = (extra: Partial<LeadQuizLinha> = {}) => ({ ...lead({}, [{ name: 'cnpj', values: ['sim'] }]), form_id: 'quiz_solardoc', ...extra });
+  const semCnpj = (extra: Partial<LeadQuizLinha> = {}) => ({ ...lead(), form_id: 'quiz_solardoc', ...extra });
   const hmacDoLead = (tel: string) => hmacDe(chaveDoTelefone(normalizarTelefoneSd(tel)!))!;
   const ligar = () => { delete process.env.QUIZ_RECUPERACAO_LIGADA; };
   const naoChama = (motivo: string) => av.avaliar.mockResolvedValue({ ok: false, motivo });
   const podeChamar = () => av.avaliar.mockResolvedValue({ ok: true, tel: '5534999998888', chave: '3499998888', hmac: 'x', codigo: 'SD-AB23' });
-  beforeEach(() => { ligar(); av.avaliar.mockReset(); });
+  /** A largada do robô: 3 dias atrás (a menos que o teste diga outra). */
+  const semearLargada = (minutosAtras = 3 * 24 * 60) => tabelas.system_state!.push({ key: 'quiz_rec_largada', value: { em: minAtras(minutosAtras) }, updated_at: agora() });
+  const textoEnviado = (): string => String(sendToGroup.mock.calls[0]![1]);
+  beforeEach(() => { ligar(); av.avaliar.mockReset(); av.posse.mockReset(); av.janela = true; semearLargada(); });
 
-  it('a Carla ainda pode chamar: o tick NÃO avisa (o aviso sai pelo caminho do robô)', async () => {
+  it('segura para o robô só com as TRÊS coisas juntas (ligado, janela aberta agora, menos de 60 min): o tick NÃO avisa e não gasta a conta', async () => {
     podeChamar();
     tabelas.leads_meta!.push(leadQuiz());
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(0);
     expect(r.deixadosAoRobo).toBe(1);
+    expect(av.avaliar).not.toHaveBeenCalled();
     expect(sendToGroup).not.toHaveBeenCalled();
     expect(claims()).toHaveLength(0);
   });
-  it('a Carla não vai chamar: o tick avisa aos 15 min com a linha do motivo e a Giovanna como responsável', async () => {
-    naoChama('sem_cnpj');
+  it('fora da janela da linha o tick avisa JÁ: "A Carla chama no próximo horário", com a Giovanna, e a Carla ainda pode chamar', async () => {
+    av.janela = false;
+    podeChamar();
     tabelas.leads_meta!.push(leadQuiz());
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(1);
-    const t = String(sendToGroup.mock.calls[0]![1]);
+    const t = textoEnviado();
+    expect(t).toContain('A Carla chama no próximo horário da linha, de segunda a sábado, das 9h às 20h.');
+    expect(t.endsWith('A responsável é a Giovanna.')).toBe(true);
+    expect(t).not.toMatch(/—|falou às/);
+    // a marca que deixa a Carla chamar mais tarde foi gravada ANTES do aviso
+    expect(chave(`quiz_rec_ainda:${hmacDoLead('5534999998888')}`)).toBeTruthy();
+    // e quando ela chamar, o aviso dela cai como duplicado: um aviso só por lead
+    expect(await avisarDesistencia(leadQuiz(), { horaCarla: '09:05', soReivindicar: true })).toBe('duplicado');
+    expect(claims()).toHaveLength(1);
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+  });
+  it('dentro da janela mas com 60 min sem a Carla: "A Carla ainda não teve vaga para chamar."', async () => {
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(61) }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    const t = textoEnviado();
+    expect(t).toContain('A Carla ainda não teve vaga para chamar.');
+    expect(t.endsWith('A responsável é a Giovanna.')).toBe(true);
+    expect(chave(`quiz_rec_ainda:${hmacDoLead('5534999998888')}`)).toBeTruthy();
+  });
+  it('59 min com a janela aberta ainda é do robô; a linha fecha no meio e o mesmo lead é avisado', async () => {
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(59) }));
+    expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
+    av.janela = false;
+    expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla chama no próximo horário');
+  });
+  it('a Carla não vai chamar (sem CNPJ): o tick avisa aos 15 min, mesmo com a janela aberta, com a linha do motivo e a Giovanna', async () => {
+    tabelas.leads_meta!.push(semCnpj());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    const t = textoEnviado();
     expect(t).toContain('A Carla não vai chamar: ainda sem CNPJ.');
     expect(t).toContain('A responsável é a Giovanna.');
     expect(t).not.toContain('falou às');
+    expect(av.avaliar).not.toHaveBeenCalled();   // conferência que não lê banco
+    expect(chave(`quiz_rec_ainda:${hmacDoLead('5534999998888')}`)).toBeUndefined();   // essa a Carla NÃO chama: sem marca
   });
-  it('um motivo por caso: já falou, suprimido, antes da largada', async () => {
-    for (const [motivo, frase] of [['ja_falou', 'ele já falou com a linha'], ['suprimido', 'ele pediu para não receber mensagem'], ['antes_da_largada', 'o lead é de antes de ela começar']] as const) {
+  it('um motivo por caso: já falou, suprimido (60 min ou mais), antes da largada (sem ler banco)', async () => {
+    for (const [motivo, frase] of [['ja_falou', 'ele já falou com a linha'], ['suprimido', 'ele pediu para não receber mensagem'], ['mudo', 'ele não respondeu aos últimos toques da linha']] as const) {
       for (const k of Object.keys(tabelas)) tabelas[k] = [];
+      semearLargada();
       sendToGroup.mockClear(); liberarTudo();
       naoChama(motivo);
-      tabelas.leads_meta!.push(leadQuiz());
+      tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
       await runSolardocQuizDesistenciaTick();
-      expect(String(sendToGroup.mock.calls[0]![1])).toContain(`A Carla não vai chamar: ${frase}.`);
+      expect(textoEnviado()).toContain(`A Carla não vai chamar: ${frase}.`);
     }
+    for (const k of Object.keys(tabelas)) tabelas[k] = [];
+    semearLargada(5);   // a Carla começou há 5 min: o lead de 20 min é de antes dela
+    sendToGroup.mockClear(); liberarTudo(); av.avaliar.mockClear();
+    tabelas.leads_meta!.push(leadQuiz());
+    await runSolardocQuizDesistenciaTick();
+    expect(textoEnviado()).toContain('A Carla não vai chamar: o lead é de antes de ela começar.');
+    expect(av.avaliar).not.toHaveBeenCalled();
   });
   it('leitura que falhou não é motivo: não avisa e não toma o claim', async () => {
     naoChama('leitura_falhou');
-    tabelas.leads_meta!.push(leadQuiz());
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(0);
     expect(claims()).toHaveLength(0);
@@ -945,14 +1004,14 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     process.env.QUIZ_RECUPERACAO_LIGADA = '0';
     tabelas.leads_meta!.push(leadQuiz());
     await runSolardocQuizDesistenciaTick();
-    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla está desligada agora.');
+    expect(textoEnviado()).toContain('A Carla está desligada agora.');
     expect(av.avaliar).not.toHaveBeenCalled();
   });
   it('robô pausado pela chave do banco: também "desligada agora"', async () => {
     tabelas.system_state!.push({ key: 'quiz_rec_pausa', value: { motivo: 'dono' }, updated_at: agora() });
     tabelas.leads_meta!.push(leadQuiz());
     await runSolardocQuizDesistenciaTick();
-    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla está desligada agora.');
+    expect(textoEnviado()).toContain('A Carla está desligada agora.');
   });
   it('qualquer outro valor da env não desliga: o robô segue ligado e o tick deixa o lead com ele', async () => {
     process.env.QUIZ_RECUPERACAO_LIGADA = '1';
@@ -967,7 +1026,7 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(49 * 60) }));
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(1);
-    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla não chamou: passou de 48 horas sem vaga.');
+    expect(textoEnviado()).toContain('A Carla não chamou: passou de 48 horas sem vaga.');
   });
   it('mais de 50 h: nem lê', async () => {
     podeChamar();
@@ -979,7 +1038,7 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(10) }, updated_at: minAtras(10) });
     tabelas.leads_meta!.push(leadQuiz());
     await runSolardocQuizDesistenciaTick();
-    expect(String(sendToGroup.mock.calls[0]![1])).toMatch(/A Carla falou às \d\d:\d\d\./);
+    expect(textoEnviado()).toMatch(/A Carla falou às \d\d:\d\d\./);
     expect(av.avaliar).not.toHaveBeenCalled();
   });
   it('a Carla chamou há pouco: o aviso é do robô, o tick espera', async () => {
@@ -990,6 +1049,15 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect(r.avisados).toBe(0);
     expect(sendToGroup).not.toHaveBeenCalled();
   });
+  it('o sendFrio calou (carimbo nao_saiu): o tick avisa NA HORA com o motivo e nunca com "falou às"', async () => {
+    const h = hmacDoLead('5534999998888');
+    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(1), estado: 'nao_saiu' }, updated_at: minAtras(1) });
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla não chamou: a mensagem não chegou a sair.');
+    expect(textoEnviado()).not.toContain('falou às');
+  });
   it('o aviso do robô ("A Carla falou às 14:00.") entra PENDENTE, sai uma vez só e o tick não avisa em dobro', async () => {
     const l = leadQuiz();
     expect(await avisarDesistencia(l, { horaCarla: '14:00', soReivindicar: true })).toBe('pendente');
@@ -997,12 +1065,12 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect(claims()).toHaveLength(1);
     envelhecerCarimbos();
     tabelas.leads_meta!.push(l);
-    naoChama('sem_cnpj');   // mesmo que o tick achasse um motivo, o claim do robô vale: um aviso por lead
+    naoChama('ja_falou');   // mesmo que o tick achasse um motivo, o claim do robô vale: um aviso por lead
     const r1 = await runSolardocQuizDesistenciaTick();
     expect(r1.pendentes).toBe(1);
     expect(sendToGroup).toHaveBeenCalledTimes(1);
-    expect(String(sendToGroup.mock.calls[0]![1])).toContain('A Carla falou às 14:00.');
-    expect(String(sendToGroup.mock.calls[0]![1])).not.toContain('não vai chamar');
+    expect(textoEnviado()).toContain('A Carla falou às 14:00.');
+    expect(textoEnviado()).not.toContain('não vai chamar');
     liberarTudo();
     const r2 = await runSolardocQuizDesistenciaTick();
     expect(r2.avisados).toBe(0);
@@ -1014,6 +1082,91 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect(await avisarDesistencia(l, { motivoCarla: 'A Carla não vai chamar: ainda sem CNPJ.' })).toBe('enviado');
     expect(await avisarDesistencia(l, { horaCarla: '14:00', soReivindicar: true })).toBe('duplicado');
     expect(sendToGroup).toHaveBeenCalledTimes(1);
+  });
+
+  describe('a conta de 12 avaliações por rodada', () => {
+    const tel = (i: number) => `55349${String(10000000 + i)}`;
+    it('12 leads novos segurados para o robô + 1 antigo sem CNPJ: o antigo é avisado na mesma rodada, sem gastar a conta', async () => {
+      podeChamar();
+      for (let i = 0; i < 12; i++) tabelas.leads_meta!.push(leadQuiz({ lead_id: `sdquiz_n${i}`, whatsapp: tel(i), nome: `Novo ${i}`, created_time: minAtras(16 + i) }));
+      tabelas.leads_meta!.push(semCnpj({ lead_id: 'sdquiz_velho', whatsapp: tel(99), nome: 'Antigo Sem Cnpj', created_time: minAtras(300) }));
+      const r = await runSolardocQuizDesistenciaTick();
+      expect(r.deixadosAoRobo).toBe(12);
+      expect(r.avisados).toBe(1);
+      expect(textoEnviado()).toContain('Antigo Sem Cnpj');
+      expect(textoEnviado()).toContain('A Carla não vai chamar: ainda sem CNPJ.');
+      expect(av.avaliar).not.toHaveBeenCalled();   // nem os segurados nem o sem CNPJ leem banco
+    });
+    it('quem precisa de leitura continua limitado a 12 por rodada', async () => {
+      naoChama('leitura_falhou');   // não avisa, então só a conta de 12 (e não as 10 tentativas) limita
+      for (let i = 0; i < 13; i++) tabelas.leads_meta!.push(leadQuiz({ lead_id: `sdquiz_o${i}`, whatsapp: tel(i), nome: `Velho ${i}`, created_time: minAtras(120 + i) }));
+      await runSolardocQuizDesistenciaTick();
+      expect(av.avaliar).toHaveBeenCalledTimes(12);
+    });
+  });
+
+  describe('corrida com a rodada do robô (o carimbo é relido antes de avisar)', () => {
+    const h = () => hmacDoLead('5534999998888');
+    it('a Carla chamou DEPOIS da leitura da página: o tick não avisa "outra agente", deixa para o caminho do robô', async () => {
+      // a avaliação vê a posse que o robô acabou de tomar; o carimbo dele já existe (o robô grava o carimbo ANTES da posse)
+      av.avaliar.mockImplementation(async () => {
+        tabelas.system_state!.push({ key: `quiz_rec_sent:${h()}`, value: { em: agora() }, updated_at: agora() });
+        return { ok: false, motivo: 'posse' };
+      });
+      tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
+      const r = await runSolardocQuizDesistenciaTick();
+      expect(r.avisados).toBe(0);
+      expect(r.deixadosAoRobo).toBe(1);
+      expect(sendToGroup).not.toHaveBeenCalled();
+      expect(claims()).toHaveLength(0);
+      expect(av.posse).not.toHaveBeenCalled();
+    });
+    it('o mesmo com a linha fechada: não escreve "chama no próximo horário" para quem a Carla acabou de chamar', async () => {
+      av.janela = false;
+      av.avaliar.mockImplementation(async () => {
+        tabelas.system_state!.push({ key: `quiz_rec_sent:${h()}`, value: { em: agora() }, updated_at: agora() });
+        return { ok: true, tel: '5534999998888', chave: '3499998888', hmac: 'x', codigo: 'SD-AB23' };
+      });
+      tabelas.leads_meta!.push(leadQuiz());
+      const r = await runSolardocQuizDesistenciaTick();
+      expect(r.avisados).toBe(0);
+      expect(sendToGroup).not.toHaveBeenCalled();
+      expect(claims()).toHaveLength(0);
+      expect(chave(`quiz_rec_ainda:${h()}`)).toBeUndefined();
+    });
+    it('carimbo de mais de 5 min achado na releitura: o aviso sai com a hora da Carla', async () => {
+      av.janela = false;
+      av.avaliar.mockImplementation(async () => {
+        tabelas.system_state!.push({ key: `quiz_rec_sent:${h()}`, value: { em: minAtras(9) }, updated_at: minAtras(9) });
+        return { ok: false, motivo: 'posse' };
+      });
+      tabelas.leads_meta!.push(leadQuiz());
+      await runSolardocQuizDesistenciaTick();
+      expect(textoEnviado()).toMatch(/A Carla falou às \d\d:\d\d\./);
+    });
+    it('posse da própria Carla (viva, sem carimbo) não é "outra agente"; posse de outra é; posse que sumiu não avisa', async () => {
+      naoChama('posse');
+      tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
+      av.posse.mockResolvedValue({ dona: 'carla', estado: 'viva' });
+      await runSolardocQuizDesistenciaTick();
+      expect(textoEnviado()).toContain('A Carla não vai chamar: ele já falou com a linha.');
+      expect(textoEnviado()).not.toContain('outra agente');
+
+      for (const k of Object.keys(tabelas)) tabelas[k] = [];
+      semearLargada(); sendToGroup.mockClear(); liberarTudo();
+      tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
+      av.posse.mockResolvedValue({ dona: 'duda', estado: 'viva' });
+      await runSolardocQuizDesistenciaTick();
+      expect(textoEnviado()).toContain('A Carla não vai chamar: outra agente já está com a conversa.');
+
+      for (const k of Object.keys(tabelas)) tabelas[k] = [];
+      semearLargada(); sendToGroup.mockClear(); liberarTudo();
+      tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
+      av.posse.mockResolvedValue(null);
+      const r = await runSolardocQuizDesistenciaTick();
+      expect(r.avisados).toBe(0);
+      expect(claims()).toHaveLength(0);
+    });
   });
 });
 

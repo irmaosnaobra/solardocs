@@ -17,7 +17,12 @@
 //   6. as travas de novo, o claim (quiz_rec_sent:<hmac>, para sempre), assumirPosse('carla'), releitura da conversa e da supressão
 //      (qualquer sinal novo: desfaz a posse e apaga o claim), sendFrio;
 //   7. o aviso de desistência ao grupo ("A Carla falou às HH:MM") entra PENDENTE; quem envia é o tick do B1, com o espaçamento dele.
-// Depois das 20h, nos dias em que a janela abriu, o lead elegível que ficou sem vaga ganha `avisarSemVaga` (uma vez por lead por dia).
+//      O sendFrio devolve false quando a trava de pausa humana calou: nada saiu, então o aviso "falou às" NÃO é gravado. O carimbo fica
+//      com estado 'nao_saiu' (trava de 1 por pessoa), a posse nova volta e o tick do B1 avisa com o motivo.
+// O claim de desistência (quiz_aviso:<hmac>) NÃO barra a Carla (B2.1): o tick avisa o time na hora quando a linha está fechada ou passou
+// 1 h sem vaga, e a Carla ainda pode chamar depois; o aviso dela cai como duplicado (um aviso por lead).
+// Depois das 20h, nos dias em que a janela abriu, o lead elegível que ficou sem vaga ganha `avisarSemVaga` (UMA vez por lead, para sempre,
+// e nunca se o time já recebeu a desistência dele).
 //
 // ERROS: o claim e a posse só voltam quando o erro PROVA que nada saiu (cooldown, credencial) ou o robô desistiu antes do envio.
 // Erro de DESTINO (número inválido): o claim fica (nunca tenta de novo), a posse volta e NÃO conta como erro da linha. Timeout e 5xx
@@ -33,7 +38,7 @@ import {
   dentroDaJanelaDaBaseLinha, dentroDoTetoHorarioLinha, respeitaEspacamentoLinha,
 } from '../agents/whatsapp/lineThrottle';
 import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
-import { motivosDaSupressao } from '../agents/whatsapp/silenciar';
+import { carregarMudos, motivosDaSupressao } from '../agents/whatsapp/silenciar';
 import { hmacDe } from '../agentes5040/hmac';
 import { lerConversa, type ConversaLida } from '../agentes5040/contexto';
 import { assumirPosse, desfazerPosseNova, lerPosse, chaveDaPosse, type ResultadoAssumir } from '../agentes5040/posse';
@@ -46,7 +51,7 @@ import { comprouLead, vendasRecentes, type VendasRecentes } from './compraQuizSo
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
   FRASE_DO_MOTIVO, ESPERA_MIN_MS, JANELA_MAX_MS, PREFIXO_CARIMBO_REC, PREFIXO_VEZ_REC, ROBO_QUIZ_REC,
-  campoFd, chaveVezRec, diaBRT, foraDoTempo, horaBRT, ordenarFila, semCnpj, textoDaCarla,
+  campoFd, chaveVezRec, diaBRT, foraDoTempo, horaBRT, motivoSemBanco, ordenarFila, semCnpj, textoDaCarla, PREFIXO_AINDA_REC,
   type LeadRec, type MotivoNaoChama,
 } from './recuperacaoCarlaRegras';
 
@@ -58,6 +63,8 @@ const SEM_VAGA_AVALIACOES = 15;
 const ERROS_PARA_PAUSAR = 2;
 const PAUSA_LINHA_MS = 15 * 60_000;
 const JANELA_FECHA_H = 20;
+/** O "sem vaga" é UMA vez por lead, para sempre: `quiz_aviso:<hmac>:semvaga`. */
+const SUFIXO_SEM_VAGA = ':semvaga';
 
 // ── a avaliação de um lead (a mesma para o robô, o tick do B1 e a sonda) ─────
 
@@ -76,6 +83,8 @@ export interface DepsAvaliar {
   mensagemComCodigo(codigo: string, desdeIso: string): Promise<boolean | 'erro'>;
   podeFalar(tel: string): Promise<'sim' | 'nao' | 'erro'>;
   supressao(tel: string): Promise<string[] | null>;
+  /** Quem já levou 3 toques da linha sem responder em 60 dias (wa_mudos, estrito). 'erro' = não deu para ler. */
+  mudo(tel: string): Promise<'sim' | 'nao' | 'erro'>;
 }
 
 export interface ContextoAvaliar { agoraMs: number; largadaMs: number | null; vendas: VendasRecentes }
@@ -118,7 +127,7 @@ export async function podeFalarAgora(tel: string, d: DepsAvaliar): Promise<'sim'
 
 /**
  * Tudo que dá para saber SEM falar com ninguém e sem o phone-exists: teste, telefone, CNPJ, largada, texto, compra, posse, já falou com a
- * linha, pausa humana e supressão (nesta ordem). O tempo (15 min a 48 h) é de quem chama.
+ * linha, pausa humana, supressão e mudo (nesta ordem). O tempo (15 min a 48 h) é de quem chama.
  */
 export async function avaliarLead(lead: LeadRec, c: ContextoAvaliar, d: DepsAvaliar): Promise<Avaliacao> {
   if (ehLeadDeTeste(lead.field_data)) return { ok: false, motivo: 'teste' };
@@ -126,9 +135,8 @@ export async function avaliarLead(lead: LeadRec, c: ContextoAvaliar, d: DepsAval
   const hmac = tel ? hmacDe(chaveDoTelefone(tel)) : null;
   const chave = tel ? chaveDaPosse(tel) : null;
   if (!tel || !hmac || !chave) return { ok: false, motivo: 'sem_telefone' };
-  if (semCnpj(lead.field_data)) return { ok: false, motivo: 'sem_cnpj' };
-  const criado = Date.parse(String(lead.created_time ?? ''));
-  if (c.largadaMs === null || !Number.isFinite(criado) || criado < c.largadaMs) return { ok: false, motivo: 'antes_da_largada' };
+  const semBanco = motivoSemBanco(lead, c.largadaMs);
+  if (semBanco) return { ok: false, motivo: semBanco };
   if (!textoDaCarla(lead).ok) return { ok: false, motivo: 'sem_diagnostico' };
   try {
     if (await d.compra(c.vendas, campoFd(lead.field_data, 'lp_session'), chaveDoTelefone(tel))) return { ok: false, motivo: 'comprou' };
@@ -140,10 +148,15 @@ export async function avaliarLead(lead: LeadRec, c: ContextoAvaliar, d: DepsAval
   if (falou !== 'nao') return { ok: false, motivo: falou };
   const pode = await podeFalarAgora(tel, d);
   if (pode !== 'sim') return { ok: false, motivo: pode };
+  const mudo = await d.mudo(tel);
+  if (mudo === 'erro') return { ok: false, motivo: 'leitura_falhou' };
+  if (mudo === 'sim') return { ok: false, motivo: 'mudo' };
   return { ok: true, tel, chave, hmac, codigo: campoFd(lead.field_data, 'Código') || codigoDoQuiz(tel) };
 }
 
 export function depsAvaliarReais(): DepsAvaliar {
+  // A lista de mudos é lida UMA vez por instância destas dependências (uma rodada) e só fica em memória quando a leitura dá certo.
+  let mudos: Promise<(telefone: string) => boolean> | null = null;
   return {
     compra: (vendas, lp, chave) => comprouLead(vendas, lp, chave),
     async posse(chave) {
@@ -166,6 +179,12 @@ export function depsAvaliarReais(): DepsAvaliar {
     },
     async supressao(tel) {
       try { return await motivosDaSupressao(tel); } catch { return null; }
+    },
+    async mudo(tel) {
+      try {
+        if (!mudos) mudos = carregarMudos(3, 60, { estrito: true });
+        return (await mudos)(tel) ? 'sim' : 'nao';
+      } catch { mudos = null; return 'erro'; }
     },
   };
 }
@@ -194,7 +213,8 @@ export interface DepsRec extends DepsAvaliar {
   assumirPosse(chave: string, em: string): Promise<ResultadoAssumir>;
   posseAindaNossa(chave: string, em: string): Promise<boolean>;
   desfazerPosse(chave: string, em: string): Promise<boolean>;
-  enviar(tel: string, texto: string): Promise<void>;
+  /** true = o envio foi feito. false (pausa humana calou, ou qualquer retorno que não prove envio) = nada saiu. Erro LANÇA. */
+  enviar(tel: string, texto: string): Promise<boolean>;
   erroDeLinha(agora: Date): Promise<void>;
   envioOk(agora: Date): Promise<void>;
   avisarSaiu(lead: LeadRec, hora: string): Promise<ResultadoAviso>;
@@ -238,18 +258,32 @@ async function travas(d: DepsRec, agora: Date, janelaJaConferida?: boolean): Pro
   return null;
 }
 
-/** Os leads do quiz que a Carla pode querer, na janela de tempo, já filtrados e sem quem tem claim. */
-async function lerFila(d: DepsRec, agora: Date, largadaMs: number): Promise<{ fila: LeadRec[]; total: number } | null> {
+/**
+ * Os leads do quiz que a Carla pode querer, na janela de tempo, já filtrados e sem quem ela já chamou (quiz_rec_sent). O claim de
+ * desistência (quiz_aviso) NÃO barra a Carla quando o tick avisou só que ela "chama no próximo horário" ou "ainda não teve vaga"
+ * (marca quiz_rec_ainda); o aviso por "ela não vai chamar" ou compra tira o lead da fila, para não gastar as avaliações da rodada (B2.1).
+ * No "sem vaga" qualquer aviso tira o lead.
+ */
+async function lerFila(d: DepsRec, agora: Date, largadaMs: number, opts: { semAvisados?: boolean } = {}): Promise<{ fila: LeadRec[]; total: number } | null> {
   const agoraMs = agora.getTime();
   const desde = Math.max(largadaMs, agoraMs - JANELA_MAX_MS);
   const lidos = await d.leads(new Date(desde).toISOString(), new Date(agoraMs - ESPERA_MIN_MS).toISOString());
   if (!lidos) return null;
   const candidatos = lidos.filter(l => !ehLeadDeTeste(l.field_data) && foraDoTempo(l, agoraMs) === null && !semCnpj(l.field_data) && !!hmacDoLeadRec(l));
   if (!candidatos.length) return { fila: [], total: lidos.length };
-  const chaves = candidatos.flatMap(l => { const h = hmacDoLeadRec(l) as string; return [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`]; });
+  const chaves = candidatos.flatMap(l => {
+    const h = hmacDoLeadRec(l) as string;
+    const base = [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`, `${PREFIXO_AINDA_REC}${h}`];
+    return opts.semAvisados ? [...base, `${PREFIXO_CLAIM_QUIZ}${h}${SUFIXO_SEM_VAGA}`] : base;
+  });
   const tem = await d.existentes(chaves);
   if (!tem) return null;
-  const livres = candidatos.filter(l => { const h = hmacDoLeadRec(l) as string; return !tem.has(`${PREFIXO_CARIMBO_REC}${h}`) && !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}`); });
+  const livres = candidatos.filter(l => {
+    const h = hmacDoLeadRec(l) as string;
+    if (tem.has(`${PREFIXO_CARIMBO_REC}${h}`)) return false;
+    if (opts.semAvisados) return !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}`) && !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}${SUFIXO_SEM_VAGA}`);
+    return !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}`) || tem.has(`${PREFIXO_AINDA_REC}${h}`);
+  });
   return { fila: ordenarFila(livres), total: lidos.length };
 }
 
@@ -355,9 +389,10 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       } catch { reler = 'leitura_falhou'; }
       if (reler) { await desfazer(); nota('abortou', `releitura_${reler}`); continue; }
 
-      // O sendFrio devolve calado quando há pausa humana: o aviso "falou às" só sai depois de um envio que de fato foi tentado e não falhou.
+      // O sendFrio devolve false (calado) quando há pausa humana: o aviso "falou às" só sai depois de um envio que de fato foi feito.
+      let saiu = false;
       try {
-        await d.enviar(av.tel, texto.texto);
+        saiu = await d.enviar(av.tel, texto.texto);
       } catch (err) {
         const cod = codigoDoErroDeEnvio(err);
         logger.error(LOG, `envio ${hmac8} falhou (${cod})`);
@@ -379,6 +414,13 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
         }
         break;
       }
+      if (!saiu) {
+        // Nada saiu. O carimbo FICA (1 por pessoa) mas marcado, para o tick não escrever "falou às"; a posse nova volta; o tick avisa com o motivo.
+        await d.desfazerPosse(av.chave, em);
+        await d.marcarClaim(chaveClaim, { em, estado: 'nao_saiu' });
+        nota('nao_enviou', 'envio_nao_saiu');
+        break;
+      }
       await d.envioOk(agoraEnvio);
       await d.avisarSaiu(lead, horaBRT(agoraEnvio.getTime()));
       r.enviou = true;
@@ -394,18 +436,15 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
 
 /**
  * Depois das 20h de um dia em que a janela abriu: o lead que a Carla poderia chamar e não recebeu ganha o "sem vaga hoje" no grupo,
- * uma vez por lead por dia (a chave leva o dia). Só vale lead gravado antes das 20h de hoje. Nunca envia ao lead.
+ * UMA vez por lead, para sempre (quiz_aviso:<hmac>:semvaga), e nunca se o time já recebeu a desistência dele (lerFila tira quem tem
+ * quiz_aviso). Só vale lead gravado antes das 20h de hoje. Nunca envia ao lead.
  */
 async function semVaga(d: DepsRec, agora: Date, largada: number, r: RelatorioRec): Promise<void> {
   try {
     const corte = Date.parse(`${diaBRT(agora.getTime())}T23:00:00.000Z`);   // 20h de Brasília de hoje
-    const lida = await lerFila(d, agora, largada);
+    const lida = await lerFila(d, agora, largada, { semAvisados: true });
     if (!lida || !lida.fila.length) return;
-    const dia = diaBRT(agora.getTime());
-    const noCorte = lida.fila.filter(l => (Date.parse(String(l.created_time ?? '')) || 0) < corte);
-    const jaAvisados = await d.existentes(noCorte.map(l => `${PREFIXO_CLAIM_QUIZ}${hmacDoLeadRec(l)}:semvaga:${dia}`));
-    if (!jaAvisados) return;
-    const novos = noCorte.filter(l => !jaAvisados.has(`${PREFIXO_CLAIM_QUIZ}${hmacDoLeadRec(l)}:semvaga:${dia}`));
+    const novos = lida.fila.filter(l => (Date.parse(String(l.created_time ?? '')) || 0) < corte);
     if (!novos.length) return;
     let vendas: VendasRecentes;
     try { vendas = await d.vendas(agora.getTime()); } catch { return; }
@@ -485,7 +524,7 @@ export function depsReais(): DepsRec {
       } catch { return false; }
     },
     desfazerPosse: (chave, em) => desfazerPosseNova(chave, 'carla', em),
-    enviar: (tel, texto) => sendFrio(tel, [texto], 'io'),
+    enviar: async (tel, texto) => (await sendFrio(tel, [texto], 'io')) === true,
     async erroDeLinha(agora) {
       try {
         const { data } = await supabase.from('system_state').select('value').eq('key', CHAVE_LINHA_ERROS).maybeSingle();
@@ -552,7 +591,7 @@ export async function sondarRecuperacaoQuiz(opts: { agora?: Date; vagas?: () => 
   if (!lidos) return relatorio;
   let vendas: VendasRecentes | null = null;
   try { vendas = await d.vendas(agoraMs); } catch { vendas = null; }
-  const tem = await d.existentes(lidos.flatMap(l => { const h = hmacDoLeadRec(l); return h ? [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`] : []; }));
+  const tem = await d.existentes(lidos.flatMap(l => { const h = hmacDoLeadRec(l); return h ? [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`, `${PREFIXO_AINDA_REC}${h}`] : []; }));
   let posicao = 0;
   let avaliados = 0;
   for (const lead of ordenarFila(lidos.filter(l => !ehLeadDeTeste(l.field_data)))) {
@@ -567,7 +606,7 @@ export async function sondarRecuperacaoQuiz(opts: { agora?: Date; vagas?: () => 
     relatorio.leads.push(linha);
     if (!h) { linha.motivo = 'sem_telefone'; continue; }
     if (tem?.has(`${PREFIXO_CARIMBO_REC}${h}`)) { linha.situacao = 'ja_chamado'; continue; }
-    if (tem?.has(`${PREFIXO_CLAIM_QUIZ}${h}`)) { linha.situacao = 'ja_avisado_ao_grupo'; continue; }
+    if (tem?.has(`${PREFIXO_CLAIM_QUIZ}${h}`) && !tem.has(`${PREFIXO_AINDA_REC}${h}`)) { linha.situacao = 'ja_avisado_ao_grupo'; continue; }
     const tempo = foraDoTempo(lead, agoraMs);
     if (tempo) { linha.motivo = tempo === 'cedo' ? 'menos_de_15_min' : 'vencido_48h'; continue; }
     if (!vendas || avaliados >= 40) { linha.motivo = vendas ? 'nao_avaliado_limite_da_sonda' : 'leitura_de_compras_falhou'; continue; }
@@ -575,6 +614,7 @@ export async function sondarRecuperacaoQuiz(opts: { agora?: Date; vagas?: () => 
     const av = await avaliarLead(lead, { agoraMs, largadaMs: largada, vendas }, d);
     if (!av.ok) { linha.motivo = av.motivo; continue; }
     linha.situacao = 'elegivel';
+    if (tem?.has(`${PREFIXO_CLAIM_QUIZ}${h}`)) linha.motivo = 'ja_avisado_ao_grupo';   // o time já foi avisado, mas a Carla ainda pode chamar (marca quiz_rec_ainda)
     linha.posicao = ++posicao;
   }
   return relatorio;

@@ -147,6 +147,76 @@ describe('corte 1: recoverAbandonedCheckouts (opener da Giovanna)', () => {
     expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
   });
 
+  // B2.1: o corte que veio de ERRO de leitura não é prova de nada. O WhatsApp não sai, mas o toque NÃO conta: volta na rodada seguinte.
+  describe('corte por erro de leitura (a marca abandono_quiz ou a posse não leram)', () => {
+    it('marca do quiz que não leu: 0 opener, o e-mail sai e o toque NÃO conta; na rodada seguinte o opener sai, o toque conta e o e-mail não repete', async () => {
+      tudoDesligado(); abandono({ session_id: 'cs_quiz_1' });
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      const r1 = await recoverAbandonedCheckouts();
+      expect(h.openers).toHaveLength(0);
+      expect(h.emails).toHaveLength(1);
+      expect(r1).toMatchObject({ sent: 0, skipped: 1 });
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
+      const r2 = await recoverAbandonedCheckouts();
+      expect(h.openers).toEqual([{ phone: X }]);
+      expect(r2.sent).toBe(1);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
+      expect(h.emails).toHaveLength(1);   // o mesmo toque não manda o mesmo e-mail duas vezes
+    });
+    it('posse que não leu: o mesmo (0 opener, toque não conta, e-mail uma vez); depois volta e conta', async () => {
+      tudoDesligado(); abandono();
+      banco.falhas['whatsapp_sessions.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      const r1 = await recoverAbandonedCheckouts();
+      expect(h.openers).toHaveLength(0);
+      expect(h.emails).toHaveLength(1);
+      expect(r1.sent).toBe(0);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
+      await recoverAbandonedCheckouts();
+      expect(h.openers).toEqual([{ phone: X }]);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
+      expect(h.emails).toHaveLength(1);
+    });
+    it('leitura que continua falhando: nenhuma rodada conta o toque nem repete o e-mail', async () => {
+      tudoDesligado(); abandono({ session_id: 'cs_quiz_1' });
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' } };
+      await recoverAbandonedCheckouts();
+      await recoverAbandonedCheckouts();
+      expect(h.openers).toHaveLength(0);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
+      expect(h.emails.length).toBeLessThanOrEqual(1);
+    });
+    it('corte REAL (a marca existe) segue contando o toque, como hoje', async () => {
+      tudoDesligado(); abandono({ session_id: 'cs_quiz_1' });
+      banco.poe('system_state', { key: 'abandono_quiz:cs_quiz_1', value: { em: HORAS(2) }, updated_at: HORAS(2) });
+      const r = await recoverAbandonedCheckouts();
+      expect(h.openers).toHaveLength(0);
+      expect(h.emails).toHaveLength(1);
+      expect(r.sent).toBe(1);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
+    });
+    it('posse viva LIDA (a Carla do robô) também é corte real: o toque conta', async () => {
+      tudoDesligado(); abandono();
+      semearPosse(X, 'carla');
+      const r = await recoverAbandonedCheckouts();
+      expect(h.openers).toHaveLength(0);
+      expect(r.sent).toBe(1);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
+    });
+    it('erro de leitura sem e-mail: nada sai e o toque não conta (como já era); sem telefone o erro não cortou nada e o toque conta', async () => {
+      tudoDesligado(); abandono({ session_id: 'cs_quiz_1', email: null });
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      const r1 = await recoverAbandonedCheckouts();
+      expect(r1).toMatchObject({ sent: 0, skipped: 1 });
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
+      banco.reset(); h.emails.length = 0; tudoDesligado(); abandono({ session_id: 'cs_quiz_1', phone: null });
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      const r2 = await recoverAbandonedCheckouts();
+      expect(h.emails).toHaveLength(1);
+      expect(r2.sent).toBe(1);
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
+    });
+  });
+
   it('contraste: o mesmo número SEM posse (interruptor ligado, alvo gravado) recebe o opener', async () => {
     interruptores({ carla: true }); semearAlvo([X]); abandono();
     await recoverAbandonedCheckouts();

@@ -7,6 +7,9 @@ const h = vi.hoisted(() => ({
   /** system_state.quiz_rec_pausa / quiz_rec_largada: undefined = linha inexistente; 'erro' = a leitura falha. */
   pausa: undefined as unknown,
   largada: undefined as unknown,
+  /** wa_mudos (rpc): as linhas { telefone } que o banco devolveria; 'erro' = a rpc falha. */
+  mudos: [] as Array<{ telefone: string }> | 'erro',
+  rpcs: [] as Array<{ nome: string; args: unknown }>,
 }));
 
 vi.mock('../utils/supabase', () => ({
@@ -23,13 +26,17 @@ vi.mock('../utils/supabase', () => ({
       }),
       insert: async () => ({ error: null }),
     }),
+    rpc: (nome: string, args: unknown) => {
+      h.rpcs.push({ nome, args });
+      return { range: async () => (h.mudos === 'erro' ? { data: null, error: { message: 'falhou' } } : { data: h.mudos, error: null }) };
+    },
   },
 }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => { throw new Error('sem banco'); } } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 import {
-  runQuizRecuperacaoTick, type DepsRec, type RelatorioRec,
+  runQuizRecuperacaoTick, depsAvaliarReais, avaliarLead, type DepsRec, type RelatorioRec,
 } from '../services/solardoc/recuperacaoCarla';
 import { estadoRecuperacaoCarla, envDesligaRecuperacao } from '../services/solardoc/recuperacaoCarlaEstado';
 import {
@@ -37,6 +44,7 @@ import {
 } from '../services/solardoc/recuperacaoCarlaRegras';
 import { hmacDe } from '../services/agentes5040/hmac';
 import { chaveDoTelefone, normalizarTelefoneSd } from '../services/solardoc/quizSolardoc';
+import { chaveContato } from '../services/agents/whatsapp/silenciar';
 
 // Quarta-feira, 21/10/2026, 14:00 em Brasília (17:00Z): dentro da janela.
 const AGORA = new Date('2026-10-21T17:00:00.000Z');
@@ -67,16 +75,19 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-teste';
   delete process.env.AGENTES5040_HMAC;
   delete process.env.QUIZ_RECUPERACAO_LIGADA;
-  h.pausa = undefined; h.largada = undefined;
+  h.pausa = undefined; h.largada = undefined; h.mudos = []; h.rpcs = [];
   seq = 0;
 });
 
 // ── dependências falsas ──────────────────────────────────────────────────────
 
-interface Espiao { chamadas: string[]; enviados: Array<{ tel: string; texto: string }>; avisos: Array<{ tipo: string; arg: string }>; claims: Set<string> }
+interface Espiao {
+  chamadas: string[]; enviados: Array<{ tel: string; texto: string }>; avisos: Array<{ tipo: string; arg: string }>; claims: Set<string>;
+  marcas: Array<{ chave: string; valor: Record<string, unknown> }>;
+}
 
 function falsas(leads: LeadRec[], over: Partial<DepsRec> = {}, esp?: Partial<Espiao>): { d: DepsRec; e: Espiao } {
-  const e: Espiao = { chamadas: [], enviados: [], avisos: [], claims: new Set(), ...esp };
+  const e: Espiao = { chamadas: [], enviados: [], avisos: [], claims: new Set(), marcas: [], ...esp };
   const reg = (n: string): void => { e.chamadas.push(n); };
   const d: DepsRec = {
     estado: async () => ({ ligada: true, motivo: 'ligada' }),
@@ -97,14 +108,15 @@ function falsas(leads: LeadRec[], over: Partial<DepsRec> = {}, esp?: Partial<Esp
     mensagemComCodigo: async () => false,
     podeFalar: async () => 'sim',
     supressao: async () => [],
+    mudo: async () => 'nao',
     telefoneExiste: async () => 'sim',
     claim: async (c) => { if (e.claims.has(c)) return 'ja'; e.claims.add(c); reg('claim'); return 'ok'; },
     apagarClaim: async (c) => { e.claims.delete(c); reg('apagarClaim'); },
-    marcarClaim: async () => { reg('marcarClaim'); },
+    marcarClaim: async (chave, valor) => { reg('marcarClaim'); e.marcas.push({ chave, valor }); },
     assumirPosse: async () => { reg('assumirPosse'); return 'assumida'; },
     posseAindaNossa: async () => true,
     desfazerPosse: async () => { reg('desfazerPosse'); return true; },
-    enviar: async (tel, texto) => { reg('enviar'); e.enviados.push({ tel, texto }); },
+    enviar: async (tel, texto) => { reg('enviar'); e.enviados.push({ tel, texto }); return true; },
     erroDeLinha: async () => { reg('erroDeLinha'); },
     envioOk: async () => { reg('envioOk'); },
     avisarSaiu: async (_l, hora) => { e.avisos.push({ tipo: 'saiu', arg: hora }); return 'pendente'; },
@@ -304,7 +316,7 @@ describe('quem entra e quem sai', () => {
     const { d: d2 } = falsas([lead({ created_time: min(30) })], { garantirLargada: async () => AGORA.getTime() });
     expect((await rodar(d2)).enviou).toBe(false);
   });
-  it('quem já tem claim (quiz_rec_sent ou quiz_aviso) não entra', async () => {
+  it('quem já tem o carimbo quiz_rec_sent não entra; o aviso quiz_aviso só tira da fila sem a marca quiz_rec_ainda (B2.1)', async () => {
     const a = lead();
     const h1 = hmacDe(chaveDoTelefone(normalizarTelefoneSd(a.whatsapp)!))!;
     const b = lead();
@@ -313,6 +325,16 @@ describe('quem entra e quem sai', () => {
     const r = await rodar(d);
     expect(r.candidatos).toBe(0);
     expect(e.enviados).toHaveLength(0);
+  });
+  it('o time foi avisado (linha fechada ou 1 h sem vaga): com a marca quiz_rec_ainda a Carla ainda chama, e o aviso dela cai como duplicado', async () => {
+    const l = lead();
+    const hm = hmacDe(chaveDoTelefone(normalizarTelefoneSd(l.whatsapp)!))!;
+    const { d, e } = falsas([l], {}, { claims: new Set([`quiz_aviso:${hm}`, `quiz_rec_ainda:${hm}`]) });
+    const r = await rodar(d);
+    expect(r.enviou).toBe(true);
+    expect(e.enviados).toHaveLength(1);
+    // o aviso do robô sempre pede o claim quiz_aviso:<hmac>; ele já existe, então não sai um segundo (ver avisoGrupoSolardoc.test.ts)
+    expect(e.avisos).toEqual([{ tipo: 'saiu', arg: '14:00' }]);
   });
   it('claim único: o claim que já existe (outra chamada ganhou) não envia de novo', async () => {
     const l = lead();
@@ -372,12 +394,40 @@ describe('antes do claim: compra, posse, já falou, supressão, phone-exists', (
     expect((await rodar(b.d)).puladas.leitura_falhou).toBe(1);
     expect(a.e.enviados.length + b.e.enviados.length).toBe(0);
   });
-  it('pausa humana, opt-out, mudo e qualquer registro de supressão calam; leitura que falha também', async () => {
+  it('pausa humana, opt-out e qualquer registro de supressão calam; leitura que falha também', async () => {
     expect((await rodar(falsas([lead()], { podeFalar: async () => 'nao' }).d)).puladas.humano_na_conversa).toBe(1);
     expect((await rodar(falsas([lead()], { podeFalar: async () => 'erro' }).d)).puladas.leitura_falhou).toBe(1);
     expect((await rodar(falsas([lead()], { supressao: async () => ['opt_out'] }).d)).puladas.suprimido).toBe(1);
     expect((await rodar(falsas([lead()], { supressao: async () => ['nunca_respondeu'] }).d)).puladas.suprimido).toBe(1);
     expect((await rodar(falsas([lead()], { supressao: async () => null }).d)).puladas.leitura_falhou).toBe(1);
+  });
+  it('mudo (wa_mudos de verdade, 3 toques em 60 dias, estrito): sai da fila com o motivo "mudo"; a lista é lida uma vez por rodada', async () => {
+    const mudo = lead();
+    const falante = lead();
+    h.mudos = [{ telefone: chaveContato(normalizarTelefoneSd(mudo.whatsapp)!)! }];
+    const reais = depsAvaliarReais();
+    const a = falsas([mudo, falante], { mudo: reais.mudo });
+    const ra = await rodar(a.d);
+    expect(ra.puladas.mudo).toBe(1);
+    expect(ra.decisoes[0]).toMatchObject({ resultado: 'pulou', motivo: 'mudo' });
+    expect(ra.enviou).toBe(true);   // o outro lead, que não é mudo, recebe
+    expect(a.e.enviados).toHaveLength(1);
+    expect(a.e.enviados[0]!.tel).toBe(falante.whatsapp);
+    expect(h.rpcs).toEqual([{ nome: 'wa_mudos', args: { min_toques: 3, dias: 60 } }]);
+    // rpc que falha: leitura_falhou, nunca "pode falar"
+    h.mudos = 'erro';
+    const b = falsas([lead()], { mudo: depsAvaliarReais().mudo });
+    const rb = await rodar(b.d);
+    expect(rb.puladas.leitura_falhou).toBe(1);
+    expect(b.e.enviados).toHaveLength(0);
+  });
+  it('avaliarLead devolve o motivo "mudo" com a frase para o grupo', async () => {
+    const l = lead();
+    h.mudos = [{ telefone: chaveContato(normalizarTelefoneSd(l.whatsapp)!)! }];
+    const { d } = falsas([l], { mudo: depsAvaliarReais().mudo });
+    const av = await avaliarLead(l, { agoraMs: AGORA.getTime(), largadaMs: AGORA.getTime() - 24 * 3600_000, vendas: { sessoes: new Set(), chaves: new Set() } }, d);
+    expect(av).toEqual({ ok: false, motivo: 'mudo' });
+    expect(FRASE_DO_MOTIVO.mudo).toBe('A Carla não vai chamar: ele não respondeu aos últimos toques da linha.');
   });
   it('phone-exists: sem WhatsApp não envia e o grupo é avisado; erro de consulta para a rodada', async () => {
     const a = falsas([lead()], { telefoneExiste: async () => 'nao' });
@@ -390,7 +440,7 @@ describe('antes do claim: compra, posse, já falou, supressão, phone-exists', (
     expect(b.e.enviados).toHaveLength(0);
     expect(b.e.avisos).toHaveLength(0);
   });
-  it('a ordem das conferências: compra antes de posse, posse antes de já falou, já falou antes de supressão, e phone-exists por último', async () => {
+  it('a ordem das conferências: compra antes de posse, posse antes de já falou, já falou antes de supressão, mudo depois, e phone-exists por último', async () => {
     const vistas: string[] = [];
     const { d } = falsas([lead()], {
       compra: async () => { vistas.push('compra'); return false; },
@@ -398,10 +448,11 @@ describe('antes do claim: compra, posse, já falou, supressão, phone-exists', (
       conversa: async () => { vistas.push('conversa'); return { msgs: [], completa: true }; },
       podeFalar: async () => { vistas.push('podeFalar'); return 'sim'; },
       supressao: async () => { vistas.push('supressao'); return []; },
+      mudo: async () => { vistas.push('mudo'); return 'nao'; },
       telefoneExiste: async () => { vistas.push('phone-exists'); return 'sim'; },
     });
     await rodar(d);
-    expect(vistas.slice(0, 6)).toEqual(['compra', 'posse', 'conversa', 'podeFalar', 'supressao', 'phone-exists']);
+    expect(vistas.slice(0, 7)).toEqual(['compra', 'posse', 'conversa', 'podeFalar', 'supressao', 'mudo', 'phone-exists']);
   });
 });
 
@@ -461,6 +512,34 @@ describe('antes de enviar: estado, posse e releitura', () => {
   });
 });
 
+describe('o sendFrio voltou sem enviar (pausa humana calou)', () => {
+  it('enviar devolve false: sem aviso "falou às", posse nova desfeita, carimbo FICA marcado nao_saiu e a rodada para', async () => {
+    const outro = lead();
+    const { d, e } = falsas([lead(), outro], { enviar: async () => false });
+    const r = await rodar(d);
+    expect(r.enviou).toBe(false);
+    expect(e.avisos).toHaveLength(0);
+    expect(e.chamadas).toContain('desfazerPosse');
+    expect(e.chamadas).not.toContain('envioOk');
+    expect(e.chamadas).not.toContain('apagarClaim');
+    expect(e.chamadas.filter(c => c === 'claim')).toHaveLength(1);   // parou: o 2º lead nem foi tentado
+    expect(e.claims.size).toBe(1);
+    expect(e.marcas).toHaveLength(1);
+    expect(e.marcas[0]!.chave).toMatch(/^quiz_rec_sent:/);
+    expect(e.marcas[0]!.valor).toMatchObject({ estado: 'nao_saiu' });
+    expect(r.decisoes[r.decisoes.length - 1]).toMatchObject({ resultado: 'nao_enviou', motivo: 'envio_nao_saiu' });
+  });
+  it('retorno que não prova envio (undefined) também vale "não saiu"; o caminho feliz segue igual', async () => {
+    const a = falsas([lead()], { enviar: (async () => undefined) as unknown as DepsRec['enviar'] });
+    expect((await rodar(a.d)).enviou).toBe(false);
+    expect(a.e.avisos).toHaveLength(0);
+    const b = falsas([lead()]);
+    expect((await rodar(b.d)).enviou).toBe(true);
+    expect(b.e.avisos).toEqual([{ tipo: 'saiu', arg: '14:00' }]);
+    expect(b.e.marcas).toHaveLength(0);
+  });
+});
+
 describe('erros de envio', () => {
   it('erro de DESTINO: o claim FICA, a posse volta e não conta como erro da linha', async () => {
     const { d, e } = falsas([lead()], { enviar: async () => { throw new Error('[zapi:io] HTTP 400 — {"error":"invalid phone"}'); } });
@@ -512,12 +591,21 @@ describe('sem vaga', () => {
     await runQuizRecuperacaoTick({ agora: NOITE }, d);
     expect(e.avisos).toHaveLength(0);
   });
-  it('quem já tem o "sem vaga" de hoje não ganha outro', async () => {
+  it('o "sem vaga" é UMA vez por lead, para sempre: quem já teve em qualquer dia não ganha outro', async () => {
     const l = antiga();
     const h1 = hmacDe(chaveDoTelefone(normalizarTelefoneSd(l.whatsapp)!))!;
-    const { d, e } = falsas([l], { janela: janelaSoAoMeioDia, garantirLargada: largada }, { claims: new Set([`quiz_aviso:${h1}:semvaga:2026-10-21`]) });
+    const { d, e } = falsas([l], { janela: janelaSoAoMeioDia, garantirLargada: largada }, { claims: new Set([`quiz_aviso:${h1}:semvaga`]) });
     await runQuizRecuperacaoTick({ agora: NOITE }, d);
     expect(e.avisos).toHaveLength(0);
+  });
+  it('se o time já recebeu a desistência do lead (aviso do tick), não sai "sem vaga"', async () => {
+    const l = antiga();
+    const h1 = hmacDe(chaveDoTelefone(normalizarTelefoneSd(l.whatsapp)!))!;
+    // mesmo com a marca quiz_rec_ainda (a Carla ainda pode chamar de manhã), o time já foi avisado: nada de segundo aviso
+    const { d, e } = falsas([l], { janela: janelaSoAoMeioDia, garantirLargada: largada }, { claims: new Set([`quiz_aviso:${h1}`, `quiz_rec_ainda:${h1}`]) });
+    const r = await runQuizRecuperacaoTick({ agora: NOITE }, d);
+    expect(e.avisos).toHaveLength(0);
+    expect(r.semVaga).toBe(0);
   });
   it('antes das 20h, ou em dia sem janela (domingo), não há "sem vaga"', async () => {
     const tarde = new Date('2026-10-21T21:00:00.000Z');   // 18h em Brasília
