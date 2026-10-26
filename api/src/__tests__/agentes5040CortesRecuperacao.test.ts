@@ -163,6 +163,24 @@ describe('corte 1: recoverAbandonedCheckouts (opener da Giovanna)', () => {
       expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(1);
       expect(h.emails).toHaveLength(1);   // o mesmo toque não manda o mesmo e-mail duas vezes
     });
+    it('insert da marca do e-mail que falha (devolve { error }): o e-mail NÃO sai nessa rodada; na seguinte, com a marca gravando, sai uma vez só', async () => {
+      tudoDesligado(); abandono({ session_id: 'cs_quiz_1' });
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      banco.falhas['system_state.insert'] = { erro: { message: 'insert falhou (teste)' } };
+      const r1 = await recoverAbandonedCheckouts();
+      expect(h.emails).toHaveLength(0);
+      expect(h.openers).toHaveLength(0);
+      expect(r1).toMatchObject({ sent: 0, skipped: 1 });
+      expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
+      delete banco.falhas['system_state.insert'];
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      await recoverAbandonedCheckouts();
+      expect(h.emails).toHaveLength(1);   // o e-mail daquele toque saiu na rodada seguinte
+      expect(banco.linhas('system_state').some(r => /^abandono_email:/.test(String(r.key)))).toBe(true);
+      banco.falhas['system_state.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
+      await recoverAbandonedCheckouts();
+      expect(h.emails).toHaveLength(1);   // e não repete
+    });
     it('posse que não leu: o mesmo (0 opener, toque não conta, e-mail uma vez); depois volta e conta', async () => {
       tudoDesligado(); abandono();
       banco.falhas['whatsapp_sessions.select'] = { erro: { message: 'falhou (teste)' }, uma: true };
@@ -183,7 +201,7 @@ describe('corte 1: recoverAbandonedCheckouts (opener da Giovanna)', () => {
       await recoverAbandonedCheckouts();
       expect(h.openers).toHaveLength(0);
       expect(banco.linhas('abandoned_checkouts')[0]!.recovery_attempts).toBe(0);
-      expect(h.emails.length).toBeLessThanOrEqual(1);
+      expect(h.emails).toHaveLength(0);   // a marca não lê: no toque que vai se repetir o e-mail não arrisca sair em dobro, então nenhuma rodada o manda
     });
     it('corte REAL (a marca existe) segue contando o toque, como hoje', async () => {
       tudoDesligado(); abandono({ session_id: 'cs_quiz_1' });

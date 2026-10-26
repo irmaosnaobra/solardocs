@@ -38,7 +38,7 @@ import {
   dentroDaJanelaDaBaseLinha, dentroDoTetoHorarioLinha, respeitaEspacamentoLinha,
 } from '../agents/whatsapp/lineThrottle';
 import { podeFalarComLead } from '../agents/whatsapp/pausaHumana';
-import { carregarMudos, motivosDaSupressao } from '../agents/whatsapp/silenciar';
+import { carregarMudos, motivosDaSupressao, TOQUES_ATE_DESISTIR } from '../agents/whatsapp/silenciar';
 import { hmacDe } from '../agentes5040/hmac';
 import { lerConversa, type ConversaLida } from '../agentes5040/contexto';
 import { assumirPosse, desfazerPosseNova, lerPosse, chaveDaPosse, type ResultadoAssumir } from '../agentes5040/posse';
@@ -182,7 +182,7 @@ export function depsAvaliarReais(): DepsAvaliar {
     },
     async mudo(tel) {
       try {
-        if (!mudos) mudos = carregarMudos(3, 60, { estrito: true });
+        if (!mudos) mudos = carregarMudos(Math.min(3, TOQUES_ATE_DESISTIR), 60, { estrito: true });
         return (await mudos)(tel) ? 'sim' : 'nao';
       } catch { mudos = null; return 'erro'; }
     },
@@ -421,6 +421,8 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
         nota('nao_enviou', 'envio_nao_saiu');
         break;
       }
+      // Envio provado: o carimbo ganha o estado 'enviado', que é o que deixa o tick escrever "A Carla falou às".
+      await d.marcarClaim(chaveClaim, { em, estado: 'enviado' });
       await d.envioOk(agoraEnvio);
       await d.avisarSaiu(lead, horaBRT(agoraEnvio.getTime()));
       r.enviou = true;
@@ -514,7 +516,11 @@ export function depsReais(): DepsRec {
     },
     apagarClaim: (chave) => liberarChave(chave),
     async marcarClaim(chave, valor) {
-      try { await supabase.from('system_state').update({ value: valor, updated_at: new Date().toISOString() }).eq('key', chave); } catch { /* o claim fica como está */ }
+      // O update devolve { error } sem lançar: conferir os dois (exceção e erro). O claim fica como está; o tick trata carimbo sem estado como "não saiu".
+      try {
+        const { error } = await supabase.from('system_state').update({ value: valor, updated_at: new Date().toISOString() }).eq('key', chave);
+        if (error) logger.error(LOG, `marcar o carimbo falhou (${String((error as { code?: string; message?: string }).code ?? (error as { message?: string }).message ?? 'erro').slice(0, 40)})`);
+      } catch (e) { logger.error(LOG, `marcar o carimbo falhou (${String((e as Error)?.message ?? e).slice(0, 40)})`); }
     },
     assumirPosse: (chave, em) => assumirPosse(chave, 'carla', null, em),
     async posseAindaNossa(chave, em) {

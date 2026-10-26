@@ -46,7 +46,7 @@ import { comprouLead, temPlanoPago, vendasRecentes } from './compraQuizSolardoc'
 import { avaliarLead, depsAvaliarReais, type DepsAvaliar } from './recuperacaoCarla';
 import { estadoRecuperacaoCarla, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
-  ESPERA_MIN_MS, FRASE_DO_MOTIVO, FRASE_FORA_DA_JANELA, FRASE_SEM_VAGA_AINDA, JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS,
+  ESPERA_MIN_MS, FRASE_DO_MOTIVO, FRASE_FORA_DA_JANELA, FRASE_NAO_CONFERIU, FRASE_NAO_CONFIRMOU_ENVIO, FRASE_SEM_VAGA_AINDA, JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS,
   PREFIXO_AINDA_REC, PREFIXO_CARIMBO_REC, SEGURA_PARA_O_ROBO_MS, horaBRT, motivoSemBanco,
 } from './recuperacaoCarlaRegras';
 
@@ -78,10 +78,13 @@ const COLUNAS = 'lead_id, nome, whatsapp, cidade, field_data, created_time';
 function decidirPeloCarimbo(c: CarimboRec, agora: number): 'deixar' | { hora: string | null; motivo: string | null } {
   // O robô calou (pausa humana) e nada saiu: ele não avisa, então o tick avisa na hora, com o motivo.
   if (c.value?.estado === 'nao_saiu') return { hora: null, motivo: FRASE_DO_MOTIVO.nao_saiu };
-  // A Carla chamou. O aviso é do robô; só assume se ele não o tomou em 5 min (caiu depois do envio).
+  // O carimbo existe: o robô reivindicou o lead. O aviso é dele; só assume se ele não o tomou em 5 min (caiu depois do envio).
   const quando = Date.parse(String(c.updated_at ?? ''));
   if (!Number.isFinite(quando) || agora - quando < AVISO_DO_ROBO_ATRASADO_MS) return 'deixar';
   if (c.value?.estado === 'incerto') return { hora: null, motivo: 'A Carla tentou chamar, mas não sei se a mensagem saiu.' };
+  // "Falou às" só com envio provado (B2.2): o estado 'enviado' tem que estar escrito. Carimbo sem estado (o robô caiu antes de gravar, ou a
+  // gravação do estado falhou) ou com estado desconhecido nunca vira "falou às" nem "não saiu": o aviso diz que não deu para confirmar.
+  if (c.value?.estado !== 'enviado') return { hora: null, motivo: FRASE_NAO_CONFIRMOU_ENVIO };
   return { hora: horaBRT(quando), motivo: null };
 }
 
@@ -220,10 +223,12 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
             if (!av.ok) {
               // Teste, sem telefone e compra não geram aviso. O resto: a Carla não vai chamar, com o motivo.
               if (av.motivo === 'teste' || av.motivo === 'sem_telefone' || av.motivo === 'comprou') continue;
-              // Leitura que falhou não é motivo: não toma o claim (o robô ainda pode chamar) e tenta de novo na próxima rodada.
+              // Leitura que falhou não é motivo: enquanto valem as 3 condições do segurar (robô ligado, janela aberta agora e menos de 60 min),
+              // não toma o claim e tenta de novo na próxima rodada. Depois disso vale o teto universal (B2.2): o time é avisado.
               if (av.motivo === 'leitura_falhou') {
                 if (idade > JANELA_MAX_MS) motivo = FRASE_DO_MOTIVO.vencido;   // já venceu: avisa, a Carla não vai mais chamar
-                else continue;
+                else if (janelaAberta && idade < SEGURA_PARA_O_ROBO_MS) { deixados++; continue; }
+                else motivo = FRASE_NAO_CONFERIU;
               } else {
                 motivo = FRASE_DO_MOTIVO[av.motivo];
                 conferirPosse = av.motivo === 'posse';
@@ -239,8 +244,12 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
           // Corrida com a rodada do robô: a leitura da página é anterior à avaliação. Relê o carimbo antes de avisar. Se a Carla acabou
           // de chamar (o robô grava o carimbo ANTES de tomar a posse), o aviso é dela, nunca "outra agente" nem "chama no próximo horário".
           const rec = await lerCarimbo(h);
-          if (rec === 'erro') continue;
-          if (rec) {
+          // Carimbo que não lê: segura só enquanto valem as 3 condições do segurar; depois avisa (teto universal, B2.2) com o motivo já decidido.
+          if (rec === 'erro') {
+            if (janelaAberta && idade < SEGURA_PARA_O_ROBO_MS) { deixados++; continue; }
+            if (aindaChama) motivo = FRASE_NAO_CONFERIU;   // sem ler o carimbo não dá para afirmar "ainda não teve vaga": a Carla pode ter acabado de chamar
+          }
+          else if (rec) {
             const dec = decidirPeloCarimbo(rec, agora);
             if (dec === 'deixar') { deixados++; continue; }
             ({ hora, motivo } = dec); aindaChama = false; conferirPosse = false;

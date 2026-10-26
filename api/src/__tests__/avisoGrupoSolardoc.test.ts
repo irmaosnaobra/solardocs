@@ -10,10 +10,11 @@ const valorDe = (r: Linha, col: string): unknown => {
 };
 
 /** Gancho opt-in: devolve `error` num select. Padrão null (nada falha). `max` é o .limit() da consulta. */
-let falhaSelect: ((q: { tabela: string; or: string; max: number; ordenada: boolean }) => boolean) | null = null;
+let falhaSelect: ((q: { tabela: string; or: string; max: number; ordenada: boolean; unico: boolean; eqs: unknown[] }) => boolean) | null = null;
 
 function construtor(tabela: string) {
   const filtros: Array<(r: Linha) => boolean> = [];
+  const eqs: unknown[] = [];
   let orExpr = '';
   let op: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select';
   let valores: Linha = {};
@@ -27,7 +28,7 @@ function construtor(tabela: string) {
     upsert: (v: Linha) => { op = 'upsert'; valores = v; return q; },
     update: (v: Linha) => { op = 'update'; valores = v; return q; },
     delete: () => { op = 'delete'; return q; },
-    eq: (c: string, v: unknown) => { filtros.push(r => valorDe(r, c) === v); return q; },
+    eq: (c: string, v: unknown) => { eqs.push(v); filtros.push(r => valorDe(r, c) === v); return q; },
     neq: (c: string, v: unknown) => { filtros.push(r => r[c] !== v); return q; },
     in: (c: string, vs: unknown[]) => { filtros.push(r => vs.includes(r[c])); return q; },
     gte: (c: string, v: string) => { filtros.push(r => String(r[c]) >= v); return q; },
@@ -47,7 +48,7 @@ function construtor(tabela: string) {
     maybeSingle: () => { unico = true; return q; },
     then: (res: (v: unknown) => unknown) => {
       let alvo = tabelas[tabela]!.filter(r => filtros.every(f => f(r)));
-      if (op === 'select' && falhaSelect?.({ tabela, or: orExpr, max, ordenada: ordem !== null })) {
+      if (op === 'select' && falhaSelect?.({ tabela, or: orExpr, max, ordenada: ordem !== null, unico, eqs })) {
         return res({ data: null, error: { message: 'leitura falhou (teste)' } });
       }
       if (op === 'insert') {
@@ -993,12 +994,42 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect(textoEnviado()).toContain('A Carla não vai chamar: o lead é de antes de ela começar.');
     expect(av.avaliar).not.toHaveBeenCalled();
   });
-  it('leitura que falhou não é motivo: não avisa e não toma o claim', async () => {
+  it('leitura que falhou (wa_mudos fora do ar) com a janela aberta e menos de 60 min: segura, não avisa e não toma o claim', async () => {
     naoChama('leitura_falhou');
-    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(59) }));
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(0);
+    expect(r.deixadosAoRobo).toBe(1);
     expect(claims()).toHaveLength(0);
+  });
+  it('teto universal: leitura que falha sempre, janela aberta, 60 min ou mais: avisa "não conseguiu conferir" e a Giovanna', async () => {
+    naoChama('leitura_falhou');
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(61) }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    const t = textoEnviado();
+    expect(t).toContain('A Carla não conseguiu conferir este contato agora.');
+    expect(t.endsWith('A responsável é a Giovanna.')).toBe(true);
+    expect(t).not.toContain('falou às');
+    expect(claims()).toHaveLength(1);
+  });
+  it('teto universal: com a janela FECHADA o aviso sai aos 15 min, mesmo com a leitura falhando', async () => {
+    av.janela = false;
+    naoChama('leitura_falhou');
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(16) }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla não conseguiu conferir este contato agora.');
+    expect(textoEnviado()).toContain('A responsável é a Giovanna.');
+  });
+  it('carimbo que não lê, lead de 90 min: avisa (teto universal) em vez de pular para sempre', async () => {
+    podeChamar();
+    // o robô ligado e o lead de 90 min: a avaliação passa e a releitura do carimbo (UM lead, maybeSingle) falha
+    falhaSelect = q => q.unico && q.eqs.some(v => String(v).startsWith('quiz_rec_sent:'));
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(90) }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla não conseguiu conferir este contato agora.');
   });
   it('robô desligado pela env: "A Carla está desligada agora." aos 15 min', async () => {
     process.env.QUIZ_RECUPERACAO_LIGADA = '0';
@@ -1035,7 +1066,7 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
   });
   it('a Carla chamou e o aviso dela não foi tomado em 5 min (o robô caiu): o tick assume, com a hora', async () => {
     const h = hmacDoLead('5534999998888');
-    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(10) }, updated_at: minAtras(10) });
+    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(10), estado: 'enviado' }, updated_at: minAtras(10) });
     tabelas.leads_meta!.push(leadQuiz());
     await runSolardocQuizDesistenciaTick();
     expect(textoEnviado()).toMatch(/A Carla falou às \d\d:\d\d\./);
@@ -1057,6 +1088,24 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect(r.avisados).toBe(1);
     expect(textoEnviado()).toContain('A Carla não chamou: a mensagem não chegou a sair.');
     expect(textoEnviado()).not.toContain('falou às');
+  });
+  it('carimbo SEM estado (a gravação do `enviado` falhou ou o robô caiu) depois de 5 min: nunca "falou às", avisa que não deu para confirmar o envio', async () => {
+    const h = hmacDoLead('5534999998888');
+    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(10) }, updated_at: minAtras(10) });
+    tabelas.leads_meta!.push(leadQuiz());
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla tentou chamar, mas não deu para confirmar se a mensagem saiu.');
+    expect(textoEnviado()).not.toContain('não chegou a sair');
+    expect(textoEnviado()).not.toContain('falou às');
+  });
+  it('carimbo com estado diferente de `enviado` (valor estranho): também nunca "falou às"', async () => {
+    const h = hmacDoLead('5534999998888');
+    tabelas.system_state!.push({ key: `quiz_rec_sent:${h}`, value: { em: minAtras(10), estado: 'qualquer' }, updated_at: minAtras(10) });
+    tabelas.leads_meta!.push(leadQuiz());
+    await runSolardocQuizDesistenciaTick();
+    expect(textoEnviado()).not.toContain('falou às');
+    expect(textoEnviado()).toContain('A Carla tentou chamar, mas não deu para confirmar se a mensagem saiu.');
   });
   it('o aviso do robô ("A Carla falou às 14:00.") entra PENDENTE, sai uma vez só e o tick não avisa em dobro', async () => {
     const l = leadQuiz();
@@ -1098,7 +1147,7 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
       expect(av.avaliar).not.toHaveBeenCalled();   // nem os segurados nem o sem CNPJ leem banco
     });
     it('quem precisa de leitura continua limitado a 12 por rodada', async () => {
-      naoChama('leitura_falhou');   // não avisa, então só a conta de 12 (e não as 10 tentativas) limita
+      naoChama('comprou');   // não avisa, então só a conta de 12 (e não as 10 tentativas) limita
       for (let i = 0; i < 13; i++) tabelas.leads_meta!.push(leadQuiz({ lead_id: `sdquiz_o${i}`, whatsapp: tel(i), nome: `Velho ${i}`, created_time: minAtras(120 + i) }));
       await runSolardocQuizDesistenciaTick();
       expect(av.avaliar).toHaveBeenCalledTimes(12);
@@ -1137,7 +1186,7 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     it('carimbo de mais de 5 min achado na releitura: o aviso sai com a hora da Carla', async () => {
       av.janela = false;
       av.avaliar.mockImplementation(async () => {
-        tabelas.system_state!.push({ key: `quiz_rec_sent:${h()}`, value: { em: minAtras(9) }, updated_at: minAtras(9) });
+        tabelas.system_state!.push({ key: `quiz_rec_sent:${h()}`, value: { em: minAtras(9), estado: 'enviado' }, updated_at: minAtras(9) });
         return { ok: false, motivo: 'posse' };
       });
       tabelas.leads_meta!.push(leadQuiz());

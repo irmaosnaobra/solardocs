@@ -81,6 +81,10 @@ export const FRASE_DO_MOTIVO: Record<MotivoNaoChama, string> = {
 /** Status do lead que a Carla ainda PODE chamar mas o tick já avisa (B2.1): fora da janela da linha e 60 min sem vaga. */
 export const FRASE_FORA_DA_JANELA = 'A Carla chama no próximo horário da linha, de segunda a sábado, das 9h às 20h.';
 export const FRASE_SEM_VAGA_AINDA = 'A Carla ainda não teve vaga para chamar.';
+/** Teto universal (B2.2): leitura que não volta. Depois dos 60 min (ou fora da janela) o time é avisado mesmo sem a Carla ter conferido. */
+/** Carimbo da Carla sem estado (ou com estado desconhecido) depois de 5 min: não dá para afirmar nem "falou às" nem "não saiu". */
+export const FRASE_NAO_CONFIRMOU_ENVIO = 'A Carla tentou chamar, mas não deu para confirmar se a mensagem saiu.';
+export const FRASE_NAO_CONFERIU = 'A Carla não conseguiu conferir este contato agora.';
 
 // ── tempo ────────────────────────────────────────────────────────────────────
 

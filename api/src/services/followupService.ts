@@ -564,10 +564,17 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
       const jaSaiu = await emailDoToqueJaSaiu(String(r.id), toque);
       // Marca que não lê (jaSaiu = 'erro'): no toque que vai se repetir, não arrisca o e-mail em dobro; no toque normal envia como sempre.
       if (jaSaiu === 'nao' || (jaSaiu === 'erro' && !soPorErroDeLeitura)) {
-        try {
-          await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome });
-          if (soPorErroDeLeitura) await marcarEmailDoToque(String(r.id), toque);
-        } catch (e) { console.error('abandon email falhou:', e); }
+        // No toque que vai se repetir a marca é gravada ANTES do envio: se o insert falhar, o e-mail NÃO sai nesta rodada (fica para a próxima).
+        const marcou = soPorErroDeLeitura ? await marcarEmailDoToque(String(r.id), toque) : true;
+        if (marcou) {
+          try {
+            await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome });
+          } catch (e) {
+            console.error('abandon email falhou:', e);
+            // O e-mail não saiu: a marca sai também, para a próxima rodada tentar de novo.
+            if (soPorErroDeLeitura) { try { await supabase.from('system_state').delete().eq('key', `abandono_email:${r.id}:${toque}`); } catch { /* a marca sobra: no pior caso o e-mail deste toque não repete */ } }
+          }
+        }
       }
     }
     // WhatsApp: GIOVANNA conversacional de recuperação — se apresenta, puxa papo e manda
@@ -600,11 +607,14 @@ async function emailDoToqueJaSaiu(id: string, toque: number): Promise<'sim' | 'n
     return data ? 'sim' : 'nao';
   } catch { return 'erro'; }
 }
-async function marcarEmailDoToque(id: string, toque: number): Promise<void> {
+/** Grava a marca do e-mail deste toque. false = não gravou (erro do insert ou exceção): o e-mail não sai nesta rodada, fica para a próxima. */
+async function marcarEmailDoToque(id: string, toque: number): Promise<boolean> {
   try {
     const em = new Date().toISOString();
-    await supabase.from('system_state').insert({ key: `abandono_email:${id}:${toque}`, value: { em }, updated_at: em });
-  } catch { /* sem a marca o e-mail pode repetir uma vez; o toque não conta de qualquer jeito */ }
+    const { error } = await supabase.from('system_state').insert({ key: `abandono_email:${id}:${toque}`, value: { em }, updated_at: em });
+    // Também vale false quando a marca já existe (23505): outra rodada já cuida do e-mail deste toque.
+    return !error;
+  } catch { return false; }
 }
 
 // Cair no Pix manual não dá erro em lugar nenhum: o cliente recebe dados bancários,

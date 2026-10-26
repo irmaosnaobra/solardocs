@@ -10,6 +10,9 @@ const h = vi.hoisted(() => ({
   /** wa_mudos (rpc): as linhas { telefone } que o banco devolveria; 'erro' = a rpc falha. */
   mudos: [] as Array<{ telefone: string }> | 'erro',
   rpcs: [] as Array<{ nome: string; args: unknown }>,
+  /** update de system_state: 'erro' = devolve { error } sem lançar (como o supabase-js); 'lanca' = lança. */
+  update: 'ok' as 'ok' | 'erro' | 'lanca',
+  updates: 0,
 }));
 
 vi.mock('../utils/supabase', () => ({
@@ -25,6 +28,13 @@ vi.mock('../utils/supabase', () => ({
         }),
       }),
       insert: async () => ({ error: null }),
+      update: () => ({
+        eq: async () => {
+          h.updates++;
+          if (h.update === 'lanca') throw new Error('rede caiu');
+          return h.update === 'erro' ? { error: { code: '57014', message: 'falhou' } } : { error: null };
+        },
+      }),
     }),
     rpc: (nome: string, args: unknown) => {
       h.rpcs.push({ nome, args });
@@ -35,8 +45,9 @@ vi.mock('../utils/supabase', () => ({
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => { throw new Error('sem banco'); } } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
+import { logger } from '../utils/logger';
 import {
-  runQuizRecuperacaoTick, depsAvaliarReais, avaliarLead, type DepsRec, type RelatorioRec,
+  runQuizRecuperacaoTick, depsAvaliarReais, depsReais, avaliarLead, type DepsRec, type RelatorioRec,
 } from '../services/solardoc/recuperacaoCarla';
 import { estadoRecuperacaoCarla, envDesligaRecuperacao } from '../services/solardoc/recuperacaoCarlaEstado';
 import {
@@ -75,7 +86,7 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-teste';
   delete process.env.AGENTES5040_HMAC;
   delete process.env.QUIZ_RECUPERACAO_LIGADA;
-  h.pausa = undefined; h.largada = undefined; h.mudos = []; h.rpcs = [];
+  h.pausa = undefined; h.largada = undefined; h.mudos = []; h.rpcs = []; h.update = 'ok'; h.updates = 0;
   seq = 0;
 });
 
@@ -512,6 +523,37 @@ describe('antes de enviar: estado, posse e releitura', () => {
   });
 });
 
+describe('o carimbo diz a verdade (B2.2)', () => {
+  it('envio provado: o carimbo ganha estado `enviado` antes do aviso', async () => {
+    const { d, e } = falsas([lead()]);
+    const r = await rodar(d);
+    expect(r.enviou).toBe(true);
+    expect(e.marcas).toHaveLength(1);
+    expect(e.marcas[0]!.chave).toMatch(/^quiz_rec_sent:/);
+    expect(e.marcas[0]!.valor).toMatchObject({ estado: 'enviado' });
+    expect(e.chamadas.indexOf('marcarClaim')).toBeLessThan(e.chamadas.indexOf('envioOk'));
+  });
+  it('marcarClaim real confere o { error } do update (não só a exceção): loga e não lança', async () => {
+    const d = depsReais();
+    vi.mocked(logger.error).mockClear();
+    h.update = 'erro';
+    await expect(d.marcarClaim('quiz_rec_sent:abc', { estado: 'nao_saiu' })).resolves.toBeUndefined();
+    expect(h.updates).toBe(1);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    h.update = 'lanca';
+    await expect(d.marcarClaim('quiz_rec_sent:abc', { estado: 'enviado' })).resolves.toBeUndefined();
+    expect(logger.error).toHaveBeenCalledTimes(2);
+    h.update = 'ok'; vi.mocked(logger.error).mockClear();
+    await d.marcarClaim('quiz_rec_sent:abc', { estado: 'enviado' });
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+  it('os mudos seguem a regra da casa: min_toques = min(3, TOQUES_ATE_DESISTIR)', async () => {
+    const { TOQUES_ATE_DESISTIR } = await import('../services/agents/whatsapp/silenciar');
+    await depsAvaliarReais().mudo('5534999990000');
+    expect(h.rpcs).toEqual([{ nome: 'wa_mudos', args: { min_toques: Math.min(3, TOQUES_ATE_DESISTIR), dias: 60 } }]);
+  });
+});
+
 describe('o sendFrio voltou sem enviar (pausa humana calou)', () => {
   it('enviar devolve false: sem aviso "falou às", posse nova desfeita, carimbo FICA marcado nao_saiu e a rodada para', async () => {
     const outro = lead();
@@ -536,7 +578,7 @@ describe('o sendFrio voltou sem enviar (pausa humana calou)', () => {
     const b = falsas([lead()]);
     expect((await rodar(b.d)).enviou).toBe(true);
     expect(b.e.avisos).toEqual([{ tipo: 'saiu', arg: '14:00' }]);
-    expect(b.e.marcas).toHaveLength(0);
+    expect(b.e.marcas).toEqual([expect.objectContaining({ valor: expect.objectContaining({ estado: 'enviado' }) })]);   // só o `enviado`, nunca nao_saiu
   });
 });
 
