@@ -639,6 +639,19 @@ export async function avisarCompraNoGrupo(
 ): Promise<void> {
   try {
     if (user.plano_expira_em) return;
+    // Purchase do pixel do quiz (27/10/2026): mesma condição do aviso ao grupo (liberou + primeira compra), então
+    // renovação e parcial não passam por aqui. Com await e teto interno de 8 s (a Vercel corta promessa solta);
+    // nunca lança, e o aviso ao grupo abaixo segue de qualquer jeito.
+    try {
+      const { dispararPurchasePixQuiz } = await import('../../solardoc/purchasePixQuiz');
+      const motivo = await dispararPurchasePixQuiz({
+        telefone: cleanPhone, email: user.email, valor,
+        chaveE2e: pag.e2eKey, dedupKey: pag.dedupKey, quando: new Date(),
+      });
+      logger.info('pix-comprovante', `Purchase do Pix no pixel do quiz: ${motivo}`);
+    } catch (err) {
+      logger.error('pix-comprovante', 'Purchase do Pix no pixel do quiz falhou (pagamento já liberado)', err);
+    }
     const { avisarCompra, idDeVenda } = await import('../../solardoc/avisoGrupoSolardoc');
     const id = idDeVenda('pix:', pag.e2eKey, pag.dedupKey);
     if (!id) {
@@ -824,6 +837,8 @@ export async function aplicarPagamentoPix(a: {
         } catch (e2) { logger.error('pix-comprovante', 'e-mail do alerta acima de 67 também falhou', e2); }
       }
     }
+    // Pós-corte (ex.: 27 + 40): o Purchase e o aviso saem uma vez, no comprovante que fechou a conta. O event_id vem da chave
+    // DESSE último comprovante (pag) e o value é o total acumulado (total), não o valor do último.
     await avisarCompraNoGrupo(user, pag, cleanPhone, total);
     logger.info('pix-comprovante', `AUTO-liberado (${a.via}) ${user.email} total ${brl(total)} vence ${venc.toISOString()}`);
     return aceito({ resultado: 'liberou', venc, total, restante: 0 });

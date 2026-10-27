@@ -135,6 +135,8 @@ vi.mock('../services/dunningService', () => ({ cancelStripeSubsForEmail: vi.fn(a
 const grupo = vi.hoisted(() => ({ avisarCompra: vi.fn(async (_c: unknown) => 'enviado') }));
 const mailer = vi.hoisted(() => ({ sendOpsAlert: vi.fn(async (..._a: unknown[]) => undefined) }));
 vi.mock('../utils/mailer', async (orig) => ({ ...(await orig<typeof import('../utils/mailer')>()), sendOpsAlert: mailer.sendOpsAlert }));
+const purchase = vi.hoisted(() => ({ disparar: vi.fn(async (_e: unknown) => 'enviado') }));
+vi.mock('../services/solardoc/purchasePixQuiz', () => ({ dispararPurchasePixQuiz: purchase.disparar }));
 vi.mock('../services/solardoc/avisoGrupoSolardoc', async (orig) => ({ ...(await orig<typeof import('../services/solardoc/avisoGrupoSolardoc')>()), avisarCompra: grupo.avisarCompra }));
 
 import { sendHuman, sendWhatsApp } from '../services/agents/zapiClient';
@@ -194,6 +196,7 @@ beforeEach(() => {
   (sendHuman as any).mockClear();
   (sendWhatsApp as any).mockClear();
   grupo.avisarCompra.mockClear();
+  purchase.disparar.mockClear();
 });
 afterEach(() => { vi.useRealTimers(); });
 
@@ -670,6 +673,31 @@ describe('grupo de vendas do SolarDoc: um aviso a mais, o Thiago sempre recebe',
     expect(u().plano).toBe('free');
     expect(thiago().some((c: any[]) => String(c[1]).includes('PARCIAL'))).toBe(true);
     expect(grupo.avisarCompra).not.toHaveBeenCalled();
+    expect(purchase.disparar).not.toHaveBeenCalled();
+  });
+  it('Purchase do pixel do quiz: 1ª compra liberada dispara 1 vez, com a chave E2E, o valor e o telefone', async () => {
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(purchase.disparar).toHaveBeenCalledTimes(1);
+    const e = purchase.disparar.mock.calls[0]![0] as any;
+    expect(e.chaveE2e).toMatch(/^pix_e2e:[A-Z0-9]{21}:67$/);
+    expect(e.valor).toBe(67);
+    expect(e.telefone).toBe(TEL);
+    expect(e.email).toBe(USER.email);
+  });
+  it('Purchase do pixel do quiz: renovação não dispara', async () => {
+    db.users[0] = { ...u(), plano: 'ilimitado', billing_status: 'active', plano_expira_em: '2026-10-25T00:00:00Z' };
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(purchase.disparar).not.toHaveBeenCalled();
+  });
+  it('Purchase do pixel do quiz: se o disparo estourar, a liberação e o aviso ao grupo seguem', async () => {
+    purchase.disparar.mockRejectedValueOnce(new Error('meta fora'));
+    leitura = P67;
+    expect(await tryProcessPixComprovante(USER, IMG, TEL, 'io', '')).toBe(true);
+    expect(u().plano).toBe('ilimitado');
+    expect(grupo.avisarCompra).toHaveBeenCalledTimes(1);
   });
   it('se o aviso ao grupo estourar, o Thiago já recebeu e a liberação segue', async () => {
     grupo.avisarCompra.mockRejectedValueOnce(new Error('grupo fora'));
