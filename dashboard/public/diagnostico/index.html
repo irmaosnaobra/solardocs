@@ -507,9 +507,7 @@ const PERFIS = [
   { id: 'informa', nome: 'Proposta que informa', frase: 'Sua proposta traz as informações. Falta ela convencer o cliente sozinha.', teste: () => true }
 ];
 const MSG = {
-  pix: (c) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.',
   carla: (c) => 'Quero saber como usar o SolarDoc quando meu CNPJ sair. Meu código é ' + c + '.',
-  equipe: (c) => 'Quero saber do SolarDoc para uma operação com mais de 30 propostas por mês. Meu código é ' + c + '.',
   duvida: (c) => 'Quero saber mais sobre o SolarDoc. Fiz o diagnóstico, meu código é ' + c + '.'
 };
 /* Formatação */
@@ -568,14 +566,11 @@ function cartoes(R) {
 }
 function botoes(R) {
   const pf = perfil(R).id, b = [];
-  if (pf === 'cedo') b.push({ k: 'carla', rot: 'Falar com a Carla', prim: true });
-  else {
-    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix', rot: 'Assinar no Pix' };
-    const dois = R.pagamento === 'pix' ? [pix, cartao] : [cartao, pix];
-    dois[0].prim = true; b.push(dois[0], dois[1]);
-    if (R.propostas_mes === 'mais30') b.push({ k: 'equipe', rot: 'Falar com a equipe' });
-  }
-  b.push({ k: 'duvida', rot: 'Tirar uma dúvida no WhatsApp' });
+  /* Com CNPJ só o cartão: quem não compra, a Carla chama no WhatsApp 15 min depois. Sem CNPJ a Carla é a única saída. */
+  if (pf === 'cedo') {
+    b.push({ k: 'carla', rot: 'Falar com a Carla', prim: true });
+    b.push({ k: 'duvida', rot: 'Tirar uma dúvida no WhatsApp' });
+  } else b.push({ k: 'cartao', rot: 'Assinar com cartão', prim: true });
   if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
   return b;
 }
