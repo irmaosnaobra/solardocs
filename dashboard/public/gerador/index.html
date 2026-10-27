@@ -3609,6 +3609,21 @@ html.io2 .qsd-cont{border-color:var(--n-bd);background:var(--n-sf2)}
 html.io2 .qsd-cont b{color:var(--n-tx)}
 html.io2 .qsd-cont span,html.io2 .qsd-sub,html.io2 .qsd-teste-tag,html.io2 .qsd-nao{color:var(--n-tx3);opacity:1}
 html.io2 .qsd-teste-tag{border-color:var(--n-bd2)}
+/* Follow-up da ligacao (27/10/2026): mesma regra, layout na base e cor so pelos tokens do visual novo. */
+.qsd-fu{min-width:150px}
+.qsd-fu-t{display:block;font-weight:600}
+.qsd-fu-hoje{display:block;font-weight:700}
+.qsd-fu-ult{display:block;font-size:11px;font-weight:500;opacity:.75}
+.qsd-fu-erro{display:block;font-size:12px;font-weight:600;margin-top:4px}
+.qsd-fu-bts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.qsd-btn{font:600 12px inherit;font-family:inherit;padding:4px 9px;border-radius:8px;border:1px solid color-mix(in srgb,currentColor 35%,transparent);background:transparent;color:inherit;cursor:pointer}
+.qsd-btn:disabled{opacity:.5;cursor:default}
+.qsd-ligar{margin-left:8px;font-weight:600;white-space:nowrap}
+html.io2 .qsd-btn{border-color:var(--n-bd2);background:var(--n-sf);color:var(--n-tx)}
+html.io2 .qsd-fu-hoje{color:var(--io-av-tx)}
+html.io2 .qsd-fu-erro{color:var(--io-er-tx)}
+html.io2 .qsd-fu-ult{color:var(--n-tx3);opacity:1}
+html.io2 .qsd-ligar{color:var(--io-azul-tx)}
 
 /* ===== Tela Tabelas ===== */
 .tbl-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -34115,6 +34130,33 @@ async function solApi(caminho, opcoes) {
   if (!r.ok || !j || j.ok === false) { const er = new Error('resposta ' + r.status); er.status = r.status; throw er; }
   return j;
 }
+// Mesma credencial e mesmo tratamento de erro do solApi, com tempo limite de 10 s (inclui a renovacao do token) e aceita POST.
+// Usada onde a demora nao pode travar a tela: o follow-up da aba Quiz SolarDoc e o aviso do Inicio.
+async function solApiLimite(caminho, opcoes) {
+  const o = opcoes || {};
+  const ctrl = new AbortController();
+  const estourou = () => { const er = new Error('tempo esgotado'); er.tempo = true; return er; };
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    await Promise.race([
+      Promise.resolve().then(authRenovarSePreciso).catch(() => {}),
+      new Promise(ok => ctrl.signal.addEventListener('abort', ok)),
+    ]);
+    if (ctrl.signal.aborted) throw estourou();
+    const tok = sessaoAtual && sessaoAtual.access_token;
+    if (!tok) { const er = new Error('sem sessão'); er.auth = true; throw er; }
+    const cab = { 'Authorization': 'Bearer ' + tok };
+    if (o.body) cab['Content-Type'] = 'application/json';
+    const r = await fetch(CTR_IA_API + caminho, { method: o.method || 'GET', headers: cab, body: o.body ? JSON.stringify(o.body) : undefined, signal: ctrl.signal });
+    if (r.status === 401 || r.status === 403) { const er = new Error('sem acesso ' + r.status); er.auth = true; throw er; }
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.ok === false) { const er = new Error('resposta ' + r.status); er.status = r.status; throw er; }
+    return j;
+  } catch (e) {
+    if (ctrl.signal.aborted && !(e && e.tempo)) throw estourou();
+    throw e;
+  } finally { clearTimeout(timer); }
+}
 const SOL_MSG_AUTH = 'Entre com a sua conta de consultor.';
 
 // Dia e mês no relógio de Brasília. Data pura (AAAA-MM-DD) só fatia; instante
@@ -34162,11 +34204,16 @@ var inSeq = 0;           // sobe a cada logout: resposta de antes não repovoa a
 var inLigado = false;
 function inFonteVazia() { return { dados: null, carregando: false, erro: null, em: 0, seq: 0, periodo: null }; }
 var inDados = { resumo: inFonteVazia(), negocio: inFonteVazia(), quentes: inFonteVazia() };
+// Quiz SolarDoc no Inicio (27/10/2026): "N para ligar hoje", so para a Giovanna e para quem ve tudo (socio).
+// Leitura PROPRIA, com tempo limite, fora de resumo/negocio/quentes: se falhar, o item some e o Inicio nao espera por ela.
+const QSD_RESPONSAVEL = 'giovanna';
+var inQsd = { dados: null, carregando: false, em: 0, seq: 0 };
 
 function inLimparMemoria() {
   inSeq++;
   inEstado.periodo = 'mes'; inEstado.produto = 'tudo';
   inDados.resumo = inFonteVazia(); inDados.negocio = inFonteVazia(); inDados.quentes = inFonteVazia();
+  inQsd = { dados: null, carregando: false, em: 0, seq: inQsd.seq + 1 };
   ['in-pede', 'in-agenda', 'in-periodo', 'in-stamp'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
   inPerGraf = []; inPerSig = '';
 }
@@ -34210,12 +34257,14 @@ function inAbrir() {
   });
   if (!inDados.quentes.carregando && inDados.quentes.erro && !inDados.quentes.dados) inDados.quentes.erro = null;
   inTalvezQuentes(true);
+  inTalvezQsd();
   inDesenhar();
 }
 
 function inAtualizar() {
   ['resumo', 'negocio'].forEach(k => { inDados[k].erro = null; inBuscar(k); });
   inDados.quentes.erro = null; inBuscar('quentes');
+  inQsd.em = 0; inTalvezQsd();
 }
 function inTrocarPeriodo(chave) {
   if (['mes', '30dias', '90dias'].indexOf(chave) < 0) return;
@@ -34243,7 +34292,7 @@ function inBuscar(fonte) {
   }).then(() => {
     if (gen !== inSeq) return;
     try {
-      if (fonte !== 'quentes') inTalvezQuentes(false);
+      if (fonte !== 'quentes') { inTalvezQuentes(false); inTalvezQsd(); }
       inDesenhar();
     } catch (er) { console.error(er); }
   });
@@ -34280,6 +34329,35 @@ function inQuentesContagem() {
   const n = f => base.filter(c => c.faixa === f).length;
   return { quentes: n('quente'), mornos: n('morno'), naoAbriram: n('naoabriu'), vencendo: base.filter(c => c.faixa === 'quente' && c.selo && c.selo.tipo === 'vence').length };
 }
+
+// O mesmo criterio dos quentes (inQuentesContagem): verTudo vem do resumo ou do negocio; senao vale o consultor logado.
+function inQsdPode() {
+  const verTudo = [inDados.resumo.dados, inDados.negocio.dados].some(x => x && x.verTudo === true);
+  if (verTudo) return true;
+  let eu = '';
+  try { eu = (crmConsultorLogado() || getConsultorAtual() || '').trim().toLowerCase(); } catch (e) { eu = ''; }
+  return eu === QSD_RESPONSAVEL;
+}
+function inQsdInvalidar() { inQsd.em = 0; }
+// Busca de novo so se passou 60 s (a falha tambem conta: nao fica tentando em loop).
+function inTalvezQsd() {
+  if (inQsd.carregando || inAuthNegada() || !inQsdPode()) return;
+  if (inQsd.em && Date.now() - inQsd.em <= IN_VALE_MS) return;
+  inQsdBuscar();
+}
+function inQsdBuscar() {
+  const gen = inSeq, meu = ++inQsd.seq;
+  inQsd.carregando = true;
+  solApiLimite('/gerador/solardoc/quiz-status?dias=180').then(j => {
+    const n = j && j.fila ? Number(j.fila.para_ligar_hoje) : NaN;
+    return isFinite(n) && n >= 0 ? { paraLigar: n, incompleta: j.fila.incompleta === true } : null;
+  }, () => null).then(dados => {
+    if (gen !== inSeq || meu !== inQsd.seq) return;
+    inQsd.dados = dados; inQsd.carregando = false; inQsd.em = Date.now();
+    try { inDesenhar(); } catch (er) { console.error(er); }
+  });
+}
+function inAbrirQuizSd() { leadsAba = 'quiz_sd'; leadsMostrar = LEADS_PASSO; navLeads(); }
 
 // O que o usuário tem de dado em cada produto. Sem dado ainda: os dois (o filtro não pisca).
 function inProdutosPresentes() {
@@ -34400,6 +34478,11 @@ function inMontarLinhas() {
   if (R.dados && pe.quizSemHorario) {
     const n = inN(pe.quizSemHorario.total);
     if (n > 0) L.push({ t: 'linha', d: 'quiz', n: String(n), frase: n === 1 ? 'Pessoa que fez o quiz e não marcou horário' : 'Pessoas que fizeram o quiz e não marcaram horário', det: 'Nos últimos 7 dias.' });
+  }
+  // 5b. Quiz SolarDoc para ligar hoje (leitura própria; só Giovanna e sócio; falhou ou zerou, não aparece)
+  if (solarOk && inQsd.dados && inQsdPode()) {
+    const n = inN(inQsd.dados.paraLigar);
+    if (n > 0) L.push({ t: 'linha', d: 'quiz_sd', n: String(n) + (inQsd.dados.incompleta ? '+' : ''), frase: 'Quiz SolarDoc para ligar hoje', det: 'Quem fez o quiz e saiu sem comprar. Abre a fila de ligação.' });
   }
   // 6. A receber (só sócio: a chave só existe para ele)
   if (solarOk && N.dados && N.dados.verDinheiro === true && N.dados.aReceber && !N.dados.aReceber.indisponivel && inN(N.dados.aReceber.valor) > 0) {
@@ -34925,6 +35008,7 @@ function inClique(ev) {
     else if (d === 'quentes') navQuemLigar();
     else if (d === 'obras' || d === 'areceber') navObrasSolar();
     else if (d === 'quiz') navLeads();
+    else if (d === 'quiz_sd') inAbrirQuizSd();
     else if (d === 'painel') navPainelSolar();
   }
 }
@@ -44074,6 +44158,9 @@ let quizSdStatusEm = 0;           // quando a ultima resposta boa chegou: vale p
 const QSD_VALIDADE_MS = 60000;
 const QSD_NAO_CONFERIU = 'Não deu para conferir';
 const QSD_FUSO = 'America/Sao_Paulo';
+const QSD_MAX_TENTATIVAS = 3;
+const quizSdLinhaEstado = new Map();   // lead_id -> 'salvando' | 'erro' (fica na memoria: um redesenho da tabela no meio do POST nao reabilita o botao)
+const quizSdSobre = new Map();         // lead_id -> { f, em }: follow-up gravado aqui e ainda nao confirmado por uma leitura que comecou depois
 
 // Pelo nome EXATO do campo (leadCampo casa por pedaco: "perfil" pegaria "Perfil nome").
 function quizSdCampo(r, nome) {
@@ -44096,6 +44183,7 @@ async function quizSdCarregarStatus() {
   // Resposta boa de menos de 60 s e reaproveitada. Falha nunca fica guardada: a proxima abertura da aba tenta de novo.
   if (quizSdStatus && quizSdStatus !== 'falhou' && Date.now() - quizSdStatusEm < QSD_VALIDADE_MS) return;
   const seq = ++quizSdSeq;
+  const inicio = Date.now();   // o que foi gravado antes disto ja esta na resposta que esta leitura trouxer
   quizSdStatus = 'carregando';
   if (leadsAba === 'quiz_sd') renderLeadsTabela();
   let maisVelho = 0;
@@ -44108,7 +44196,7 @@ async function quizSdCarregarStatus() {
   } catch (e) { res = 'falhou'; }
   if (seq !== quizSdSeq) return;
   quizSdStatus = res;
-  if (res !== 'falhou') quizSdStatusEm = Date.now();
+  if (res !== 'falhou') { quizSdStatusEm = Date.now(); quizSdSobre.forEach((v, k) => { if (v.em < inicio) quizSdSobre.delete(k); }); }
   const sec = document.getElementById('leadsSection');
   if (leadsAba === 'quiz_sd' && sec && sec.style.display !== 'none') renderLeadsTabela();
 }
@@ -44153,6 +44241,139 @@ function quizSdCompra(r) {
   return { t: 'Sim' + (c.em ? ', em ' + quizSdDiaMes(c.em) : ''), sub: '' };
 }
 
+// ── Follow-up da ligacao (27/10/2026) ──────────────────────────────────────
+// Quem terminou o quiz e saiu sem comprar entra numa fila de ligacao. O servidor devolve, por lead, followup { estado, tentativas,
+// proximo, devido, aberto, ultima }; POST /gerador/solardoc/quiz-followup grava a acao (falou, nao_atendeu, sem_interesse, desfazer).
+const QSD_ACAO_ROT = { falou: 'Falou', nao_atendeu: 'Não atendeu', sem_interesse: 'Sem interesse' };
+
+// O follow-up do lead: o que acabou de ser gravado aqui vale ate uma leitura nova confirmar; senao o que veio do servidor (null se nao veio).
+function quizSdFollowDe(r) {
+  const o = quizSdSobre.get(r.lead_id);
+  if (o) return o.f;
+  const st = quizSdStatusDe(r);
+  return st && st !== 'carregando' && st.followup && typeof st.followup === 'object' ? st.followup : null;
+}
+// "proximo" e uma data pura (AAAA-MM-DD): so fatia. Date.parse mostraria o dia anterior no relogio de Brasilia.
+function quizSdDataCurta(d) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[3] + '/' + m[2] : ''; }
+// tel:+55... com os digitos do lead (o 55 so entra se ainda nao estiver la).
+function quizSdTel(w) {
+  const d = String(w || '').replace(/\D/g, '');
+  if (!d) return '';
+  return '+' + (d.startsWith('55') && d.length >= 12 ? d : '55' + d);
+}
+
+function quizSdFollowup(r) {
+  const st = quizSdStatusDe(r);
+  if (st === 'carregando') return { h: escapeHtml(QSD_CONFERINDO.t), t: QSD_CONFERINDO.t };
+  const f = quizSdFollowDe(r);
+  // followup: null = o servidor nao leu o banco para este lead; followup ausente = API antiga.
+  if (!f) { const t = st && st.followup !== null ? '—' : QSD_NAO_CONFERIU; return { h: `<span class="qsd-nao">${escapeHtml(t)}</span>`, t }; }
+  const tent = Math.max(0, Number(f.tentativas) || 0);
+  const devido = !!f.devido, aberto = !!f.aberto;
+  const ROT = {
+    novo: devido ? 'Ligar hoje' : 'Novo',
+    nao_atendeu: 'Não atendeu (' + tent + ' de ' + QSD_MAX_TENTATIVAS + ')',
+    em_conversa: 'Em conversa',
+    sem_resposta: 'Sem resposta (' + QSD_MAX_TENTATIVAS + ' tentativas)',
+    sem_interesse: 'Sem interesse',
+    comprou: 'Comprou',
+  };
+  const rot = ROT[f.estado] || '—';
+  // Segunda linha so quando diz algo novo: "novo" devido ja se chama "Ligar hoje" no rotulo.
+  let l2 = '';
+  if (aberto) {
+    if (devido) l2 = f.estado === 'novo' ? '' : 'Ligar hoje';
+    else { const dm = quizSdDataCurta(f.proximo); if (dm) l2 = (f.estado === 'em_conversa' ? 'Retomar em ' : 'Ligar em ') + dm; }
+  }
+  const u = f.ultima && f.ultima.acao ? f.ultima : null;
+  let ult = '';
+  if (u) {
+    const outroDia = u.em && quizSdDia(u.em) !== quizSdDia(new Date().toISOString());
+    ult = (QSD_ACAO_ROT[u.acao] || String(u.acao)) + (outroDia ? ' em ' + quizSdDiaMes(u.em) : '') + (u.em ? ' às ' + quizSdHora(u.em) : '') + (u.por ? ', ' + u.por : '');
+  }
+  const id = escapeHtml(r.lead_id);
+  const ocupado = quizSdLinhaEstado.get(r.lead_id) === 'salvando';
+  const btn = (acao, rotulo) => `<button type="button" class="qsd-btn" data-lead="${id}" data-acao="${acao}" onclick="quizSdClicar(this)"${ocupado ? ' disabled' : ''}>${rotulo}</button>`;
+  const bts = [];
+  const comprou = f.estado === 'comprou';   // quem comprou nao tem botao nenhum
+  if (aberto && !comprou) bts.push(btn('falou', 'Falei'), btn('nao_atendeu', 'Não atendeu'), btn('sem_interesse', 'Sem interesse'));
+  if (u && !comprou) bts.push(btn('desfazer', 'Desfazer'));
+  const h = '<div class="qsd-fu">'
+    + `<span class="${devido && f.estado === 'novo' ? 'qsd-fu-hoje' : 'qsd-fu-t'}">${escapeHtml(rot)}</span>`
+    + (l2 ? `<span class="${devido ? 'qsd-fu-hoje' : 'qsd-fu-ult'}">${escapeHtml(l2)}</span>` : '')
+    + (ult ? `<span class="qsd-fu-ult">${escapeHtml(ult)}</span>` : '')
+    + (bts.length ? `<div class="qsd-fu-bts">${bts.join('')}</div>` : '')
+    + (quizSdLinhaEstado.get(r.lead_id) === 'erro' ? '<span class="qsd-fu-erro" role="alert">Não salvou. Tente de novo.</span>' : '')
+    + '</div>';
+  return { h, t: [rot, l2, ult].filter(Boolean).join('; ') };
+}
+
+// Guarda o follow-up que o servidor devolveu: no status em memoria, no contador (pelo que entrou ou saiu da fila de hoje) e invalida os caches de 60 s.
+function quizSdGravarFollowup(id, f) {
+  const antes = quizSdFollowDe({ lead_id: id });
+  const lido = quizSdStatus && typeof quizSdStatus === 'object' && quizSdStatus.status ? quizSdStatus.status[id] : null;
+  // Quem ja comprou continua "Comprou": a resposta do POST vem sempre com comprou:false e nao pode reabrir a fila.
+  if (lido && lido.comprou && !lido.comprou.nao_conferiu) f = Object.assign({}, f, { estado: 'comprou', aberto: false, devido: false, proximo: null });
+  const linha = leadsRowsCache.find(x => x.lead_id === id);
+  const teste = !!(linha && quizSdEhTeste(linha));   // teste nunca entra na conta do servidor: nao mexe no contador
+  const eraDevido = !!(antes && antes.devido), ficaDevido = !!f.devido;
+  quizSdSobre.set(id, { f, em: Date.now() });
+  if (quizSdStatus && typeof quizSdStatus === 'object' && quizSdStatus.status) {
+    const e = quizSdStatus.status[id] || (quizSdStatus.status[id] = {});
+    e.followup = f;
+    const fila = quizSdStatus.fila;
+    if (!teste && eraDevido !== ficaDevido && fila && typeof fila.para_ligar_hoje === 'number') fila.para_ligar_hoje = Math.max(0, fila.para_ligar_hoje + (ficaDevido ? 1 : -1));
+  }
+  quizSdStatusEm = 0;
+  if (typeof inQsdInvalidar === 'function') inQsdInvalidar();
+}
+
+async function quizSdClicar(btn) {
+  const id = btn && btn.dataset ? btn.dataset.lead : '', acao = btn && btn.dataset ? btn.dataset.acao : '';
+  if (!id || !acao || quizSdLinhaEstado.get(id) === 'salvando') return;
+  quizSdLinhaEstado.set(id, 'salvando');
+  quizSdRedesenharLinha(id);
+  let f = null;
+  try {
+    const j = await solApiLimite('/gerador/solardoc/quiz-followup', { method: 'POST', body: { lead_id: id, acao } });
+    if (j && j.followup && typeof j.followup === 'object') f = j.followup;
+  } catch (e) { f = null; }
+  if (!f) { quizSdLinhaEstado.set(id, 'erro'); quizSdRedesenharLinha(id); return; }
+  quizSdLinhaEstado.delete(id);
+  quizSdGravarFollowup(id, f);
+  quizSdRedesenharLinha(id);
+}
+
+// As celulas de uma linha, e o redesenho de uma linha so (a linha nao pula de lugar na hora do clique; a ordem nova vem no proximo desenho da aba).
+function quizSdCelulas(r) {
+  const L = quizSdLinha(r);
+  return QSD_COLS.map(c => `<td${c.fixa ? ' class="fixa"' : ''}>${L[c.k].h}</td>`).join('');
+}
+function quizSdRedesenharLinha(id) {
+  if (leadsAba !== 'quiz_sd') return;
+  const r = leadsRowsCache.find(x => x.lead_id === id);
+  const tbody = document.getElementById('leads-tbody');
+  if (r && tbody) {
+    const tr = Array.from(tbody.querySelectorAll('tr[data-qsd-lead]')).find(t => t.dataset.qsdLead === id);
+    if (tr) tr.innerHTML = quizSdCelulas(r);
+  }
+  quizSdRedesenharTopo();
+}
+function quizSdRedesenharTopo() {
+  const topo = document.getElementById('leads-sd-topo');
+  if (!topo || leadsAba !== 'quiz_sd') return;
+  const todos = leadsRowsCache.filter(r => leadNaAba(r, 'quiz_sd'));
+  topo.innerHTML = quizSdTopoHtml(todos.filter(r => !quizSdEhTeste(r)), todos.filter(quizSdEhTeste));
+}
+
+// Quem tem ligacao para hoje vem primeiro, do "proximo" mais antigo ao mais novo; o resto segue a ordem de antes (sort estavel).
+function quizSdOrdenar(lista) {
+  const devidos = [], resto = [];
+  lista.forEach(r => { const f = quizSdFollowDe(r); if (f && f.devido) devidos.push([r, String(f.proximo || '')]); else resto.push(r); });
+  devidos.sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+  return devidos.map(x => x[0]).concat(resto);
+}
+
 const QSD_COLS = [
   { k: 'quando', rot: 'Quando' },
   { k: 'nome', rot: 'Nome', fixa: true },
@@ -44163,6 +44384,7 @@ const QSD_COLS = [
   { k: 'carla', rot: 'Carla' },
   { k: 'aviso', rot: 'Time avisado' },
   { k: 'comprou', rot: 'Comprou' },
+  { k: 'followup', rot: 'Follow-up' },
 ];
 
 // Uma linha: para cada coluna, o HTML da tela (h) e o texto puro do CSV (t).
@@ -44181,7 +44403,8 @@ function quizSdLinha(r) {
     nome: { h: escapeHtml(nome) + tag + sub(emp), t: nome + (emp ? ' (' + emp + ')' : '') },
     cidade: { h: escapeHtml(r.cidade || ''), t: r.cidade || '' },
     whatsapp: {
-      h: r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${encodeURIComponent(r.whatsapp)}" target="_blank" rel="noopener">${escapeHtml(r.whatsapp)}</a>` : '',
+      h: r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${encodeURIComponent(r.whatsapp)}" target="_blank" rel="noopener">${escapeHtml(r.whatsapp)}</a>`
+        + (quizSdTel(r.whatsapp) ? `<a class="qsd-ligar" href="tel:${escapeHtml(quizSdTel(r.whatsapp))}">Ligar</a>` : '') : '',
       t: r.whatsapp || '',
     },
     indice: { h: idx ? escapeHtml(idx + ' de 100') + sub(perfil) : '', t: idx ? idx + ' de 100' + (perfil ? ', ' + perfil : '') : '' },
@@ -44189,6 +44412,7 @@ function quizSdLinha(r) {
     carla: cel(car),
     aviso: cel(avi),
     comprou: cel(com),
+    followup: quizSdFollowup(r),
   };
 }
 
@@ -44207,10 +44431,19 @@ function quizSdContadores(reais) {
     if (st && st.comprou && !st.comprou.nao_conferiu) p++;
   }
   const incerto = quizSdStatus === 'carregando' ? '...' : '?';
-  return [['Hoje', h], ['7 dias', s], ['Carla chamou', lido ? c : incerto], ['Compraram', lido ? p : incerto]];
+  const fl = lido ? quizSdStatus.fila : null;
+  const fila = fl && typeof fl.para_ligar_hoje === 'number' ? fl.para_ligar_hoje + (fl.incompleta ? '+' : '') : incerto;
+  return [['Para ligar hoje', fila], ['Hoje', h], ['7 dias', s], ['Carla chamou', lido ? c : incerto], ['Compraram', lido ? p : incerto]];
 }
 
 function quizSdAlternarTestes() { quizSdMostrarTestes = !quizSdMostrarTestes; leadsMostrar = LEADS_PASSO; renderLeadsTabela(); }
+
+function quizSdTopoHtml(reais, testes) {
+  return '<div class="qsd-topo">'
+    + quizSdContadores(reais).map(([rot, n]) => `<div class="qsd-cont"><b>${escapeHtml(String(n))}</b><span>${escapeHtml(rot)}</span></div>`).join('')
+    + (testes.length ? `<button class="btn-hist-csv qsd-testes-btn" type="button" onclick="quizSdAlternarTestes()">${quizSdMostrarTestes ? 'Esconder' : 'Mostrar'} testes (${testes.length})</button>` : '')
+    + '</div>';
+}
 
 function renderQuizSdTabela() {
   const thead = document.getElementById('leads-thead');
@@ -44220,15 +44453,9 @@ function renderQuizSdTabela() {
   const todos = leadsRowsCache.filter(r => leadNaAba(r, 'quiz_sd'));
   const testes = todos.filter(quizSdEhTeste);
   const reais = todos.filter(r => !quizSdEhTeste(r));
-  const lista = quizSdMostrarTestes ? todos : reais;
+  const lista = quizSdOrdenar(quizSdMostrarTestes ? todos : reais);
   leadsLinhasAtuais = [];
-  if (topo) {
-    topo.style.display = '';
-    topo.innerHTML = '<div class="qsd-topo">'
-      + quizSdContadores(reais).map(([rot, n]) => `<div class="qsd-cont"><b>${escapeHtml(String(n))}</b><span>${escapeHtml(rot)}</span></div>`).join('')
-      + (testes.length ? `<button class="btn-hist-csv qsd-testes-btn" type="button" onclick="quizSdAlternarTestes()">${quizSdMostrarTestes ? 'Esconder' : 'Mostrar'} testes (${testes.length})</button>` : '')
-      + '</div>';
-  }
+  if (topo) { topo.style.display = ''; topo.innerHTML = quizSdTopoHtml(reais, testes); }
   thead.innerHTML = '<tr>' + QSD_COLS.map(c => `<th${c.fixa ? ' class="fixa"' : ''}>${escapeHtml(c.rot)}</th>`).join('') + '</tr>';
   const visiveis = lista.slice(0, leadsMostrar);
   const resto = lista.length - visiveis.length;
@@ -44248,8 +44475,7 @@ function renderQuizSdTabela() {
     return;
   }
   tbody.innerHTML = visiveis.map(r => {
-    const L = quizSdLinha(r);
-    return '<tr>' + QSD_COLS.map(c => `<td${c.fixa ? ' class="fixa"' : ''}>${L[c.k].h}</td>`).join('') + '</tr>';
+    return `<tr data-qsd-lead="${escapeHtml(r.lead_id)}">` + quizSdCelulas(r) + '</tr>';
   }).join('');
 }
 
