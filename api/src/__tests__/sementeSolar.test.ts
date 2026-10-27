@@ -96,6 +96,15 @@ describe('semente — quem entra', () => {
     expect(await publico()).toHaveLength(0);
   });
 
+  // 27/10/2026: o card SAIU SEM MARCAR que o sistema cancelou (o cliente voltou e marcou) nunca pediu orçamento.
+  it('card SAIU SEM MARCAR cancelado não entra na semente; cancelado comum continua entrando', async () => {
+    fichas = [
+      ficha({ cliente_telefone: '5534991110021', status: 'cancelado', created_by: 'lp_solar', observacao: 'LP SOLAR QUIZ · SAIU SEM MARCAR · MUDO · LIGAÇÃO\nOnde: Casa' }),
+      ficha({ cliente_telefone: '5534991110022', status: 'cancelado', created_by: 'lp_solar', observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO' }),
+    ];
+    expect((await publico()).map(p => p.telefone)).toEqual(['5534991110022']);
+  });
+
   // A lista daqui é de EXCLUSÃO: origem nova de agendamento entra na semente por
   // padrão. Quem foi PROSPECTADO (lista fria trabalhada no /gerador/prospeccao) é
   // empresa e nunca pediu contato — ouvir "a gente conversou sobre energia solar"

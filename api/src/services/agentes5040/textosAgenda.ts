@@ -73,7 +73,7 @@ const nomeDaAbertura = (nome: string | null | undefined): string => {
  * asteriscos; ainda passou, ou faltou consultora, ou o caminho não existe: null (quem chama não enfileira).
  */
 export function textoDeAbertura(
-  caminho: string | null | undefined, nome: string | null | undefined, quando: string, consultora: string,
+  caminho: string | null | undefined, nome: string | null | undefined, quando: string, consultora: string, saiu = false,
 ): string | null {
   const c = primeiroNome(consultora).replace(/[*_~`|]/g, '');
   const q = String(quando ?? '').trim();
@@ -82,6 +82,11 @@ export function textoDeAbertura(
   const monta = (comNome: boolean, a: string): string => {
     const oi = comNome && n ? `Oi, ${n}!` : 'Oi!';
     const quem = `${a}${c}${a}`;
+    // 27/10/2026: o card de quem SAIU SEM MARCAR (o cliente não escolheu horário): a bolha não diz "já está marcado".
+    if (saiu) {
+      const ap = AVISO_IA_NA_PRIMEIRA_MSG ? fraseDeApresentacao('duda') : 'Sou a Duda, da Irmãos na Obra.';
+      return `${oi} ${ap} A ${quem} vai te ligar ${q} para explicar seu diagnóstico. Outro horário? É só responder.`;
+    }
     if (AVISO_IA_NA_PRIMEIRA_MSG) {
       const ap = `${oi} ${fraseDeApresentacao('duda')}`;
       if (caminho === 'ligacao') return `${ap} ${quem} te liga ${q}. É uma ligação curta para entender sua conta.`;
@@ -102,6 +107,6 @@ export function textoDeAbertura(
 
 /** A abertura montada a partir do ISO do horário do card (Brasília, relativo a `agoraIso`). */
 export const bolhaDeAbertura = (
-  caminho: string | null | undefined, nome: string | null | undefined, quandoIso: string, consultora: string, agoraIso: string,
+  caminho: string | null | undefined, nome: string | null | undefined, quandoIso: string, consultora: string, agoraIso: string, saiu = false,
 ): string | null => (diaCurto(quandoIso, agoraIso) && horaPorExtenso(quandoIso)
-  ? textoDeAbertura(caminho, nome, opcaoPorExtenso(quandoIso, agoraIso), consultora) : null);
+  ? textoDeAbertura(caminho, nome, opcaoPorExtenso(quandoIso, agoraIso), consultora, saiu) : null);

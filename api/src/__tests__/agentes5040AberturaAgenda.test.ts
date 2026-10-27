@@ -53,6 +53,7 @@ import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
 import { bolhaDeAbertura, textoDeAbertura, MAX_BOLHA_ABERTURA } from '../services/agentes5040/textosAgenda';
 import { SISTEMA_FIXO_DUDA, fatosDuda } from '../services/agentes5040/personas/duda';
 import { logger } from '../utils/logger';
+import { tirarMarcaSaiuDoCard, remarcarCardSolar } from '../services/agentes5040/agendaSolar';
 
 // ── 1. as bolhas fixas ───────────────────────────────────────────────────────
 
@@ -619,6 +620,47 @@ describe('confirma do quiz para quem já tem posse VIVA da própria Duda (22/10/
     const r = await rodar();
     expect(h.enfileirar).toHaveBeenCalledTimes(3);
     expect(r.abertura).toMatchObject({ tentados: 3, confirmados: 3, puladas: { limite_por_rodada: 1 } });
+  });
+});
+
+describe('sonda: card SAIU SEM MARCAR combinado pela Duda não recebe um 2º "Ficou marcado" da abertura (27/10/2026)', () => {
+  const SAIU = (extra: Record<string, unknown> = {}) => ({
+    observacao: 'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO\nConta de luz: R$ 600', ...extra,
+  });
+
+  it('SAIU que fala (boas_vindas_at nulo) com posse viva da Duda: antes e depois do acaoMarcar (mesmo horário), a lista do que sairia é VAZIA', async () => {
+    card(0, SAIU()); semearPosse(0, 'duda'); noEscopo(0);
+    const antes = await rodar({ dry: true });
+    expect(antes.abertura!.sairia ?? []).toEqual([]);                             // SAIU com posse: nenhuma "confirmação" de horário que ele nunca escolheu
+    expect(antes.abertura!.puladas).toEqual({ saiu_sem_abertura: 1 });
+    expect(await tirarMarcaSaiuDoCard(500)).toBe(true);                          // o que o acaoMarcar faz quando o cliente aceita o MESMO horário
+    expect(cardNoBanco(0).observacao.split('\n')[0]).toBe('LP SOLAR QUIZ · Casa · LIGAÇÃO');
+    expect(cardNoBanco(0).boas_vindas_at).toBeTruthy();                          // a Duda já confirmou na conversa
+    const depois = await rodar({ dry: true });
+    expect(depois.abertura!.sairia ?? []).toEqual([]);
+    expect(depois.abertura!.vistos).toBe(0);
+    expect(h.enfileirar).not.toHaveBeenCalled();
+  });
+
+  it('o mesmo, quando a Duda REMARCA o card SAIU: a lista continua vazia', async () => {
+    card(0, SAIU({ vendedor_nome: 'Nilce', quando: '2026-10-22T11:00:00.000Z' })); semearPosse(0, 'duda'); noEscopo(0);
+    expect(await remarcarCardSolar(500, '2026-10-22T11:15:00.000Z')).toBe('ok');
+    expect(cardNoBanco(0).boas_vindas_at).toBeTruthy();
+    expect(cardNoBanco(0).observacao.split('\n')[0]).toBe('LP SOLAR QUIZ · Casa · LIGAÇÃO');
+    const r = await rodar({ dry: true });
+    expect(r.abertura!.sairia ?? []).toEqual([]);
+  });
+
+  it('CONTROLE POSITIVO: card normal no mesmo estado (boas_vindas_at nulo, posse viva da Duda) dá 1 confirma', async () => {
+    card(0); semearPosse(0, 'duda'); noEscopo(0);
+    const r = await rodar({ dry: true });
+    expect(r.abertura!.sairia).toEqual([{ card_id: 500, bolha: 'Ficou marcado para amanhã às 14h30. A Giovanna te liga nesse horário.' }]);
+  });
+
+  it('boas_vindas_at que já existia não é trocado ao tirar a marca', async () => {
+    card(0, SAIU({ boas_vindas_at: '2026-10-20T14:00:00.000Z' }));
+    expect(await tirarMarcaSaiuDoCard(500)).toBe(true);
+    expect(cardNoBanco(0).boas_vindas_at).toBe('2026-10-20T14:00:00.000Z');
   });
 });
 

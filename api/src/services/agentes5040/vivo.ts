@@ -74,7 +74,7 @@ import {
 import { avisosDaCarla, planejarCarla, type PlanoCarla } from './carlaVivo';
 import { juntarBase, lerBaseDaPosse, pareceOptOut, patchDoEstacionar, pedeParaPararDeReceber, planejarEstacionar, type PlanoEstacionar } from './baseRegras';
 import { bolhaDeConfirmacao, chaveFila, enfileirarAgenda, type TipoAgenda } from './agendaEnvio';
-import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard } from './agendaSolar';
+import { devolverBoasVindas, gravarCardSolar, marcarBoasVindasEnviada, remarcarCardSolar, reservarBoasVindas, silenciarLembretesDoCard, tirarMarcaSaiuDoCard } from './agendaSolar';
 import { gravarMidiaCache, gravarTurno, lerMidiaCache, lerTurnos, type TurnoGravado } from './armazem';
 import { lerCards, lerConversa, montarContexto } from './contexto';
 import { clienteComCota, disjuntorAberto, liberarChave, reservarChave, type EstadoCota } from './cota';
@@ -111,7 +111,7 @@ import { AVISO_IA_NA_PRIMEIRA_MSG, avisoDeApresentacao, comAvisoSeFaltar } from 
 const jaApresentada = (posse: Readonly<Record<string, unknown>> | null | undefined): boolean =>
   !AVISO_IA_NA_PRIMEIRA_MSG || posse?.apresentada === true;
 import type { DecisaoPorteiro } from './porteiro';
-import { caminhoDaFicha } from '../agenda/solarRota';
+import { caminhoDaFicha, ehCardSaiu, semMarcaSaiu } from '../agenda/solarRota';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const LOG = 'vivo-5040';
@@ -471,6 +471,14 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
       const tel = soDigitos(card.cliente_telefone);
       const chave = chaveContato(tel);
       if (!chave) { soma(ab.puladas, 'sem_chave'); continue; }
+      // 27/10/2026: card de quem SAIU SEM MARCAR só recebe a abertura da Duda quando ela cobre o lead E a conversa não tem posse. Com posse
+      // (ou com a Carla e a Helena), o cliente não escolheu horário, então nenhuma "confirmação" sai: o card fica para o solarBoasVindas,
+      // que o fecha sem enviar depois dos 15 min.
+      if (ehCardSaiu(card.observacao)) {
+        let posseSaiu: DadosPosse | null;
+        try { posseSaiu = await lerPosse(chave); } catch { soma(ab.puladas, 'posse_ilegivel'); continue; }
+        if (posseSaiu || !(await agenteAtendeEste('duda', tel))) { soma(ab.puladas, 'saiu_sem_abertura'); continue; }
+      }
       if (!(await agenteAtendeEste('duda', tel))) {
         // A Duda não cobre este lead. Se a conversa é da Carla ou da Helena (posse viva, agente ligada e no escopo dela), o cliente
         // marcou pelo quiz e também precisa da confirmação do horário (24/10/2026): a mesma `confirma` da fila, SEM assumirPosse.
@@ -502,7 +510,7 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
       }
       // A bolha vem ANTES de qualquer escrita: a que não cabe nos 160 nem sem nome e sem asteriscos deixa o card para o tick antigo.
       const quandoIso = new Date(quandoMs).toISOString();
-      const bolha = bolhaDeAbertura(caminho, card.cliente_nome, quandoIso, consultora, agora.toISOString());
+      const bolha = bolhaDeAbertura(caminho, card.cliente_nome, quandoIso, consultora, agora.toISOString(), ehCardSaiu(card.observacao));
       if (!bolha) { soma(ab.puladas, 'bolha_nao_cabe'); continue; }
       ab.tentados++;
       if (dry) { (ab.sairia ??= []).push({ card_id: card.id, bolha }); continue; }
@@ -535,7 +543,7 @@ async function abrirCardsDoQuiz(g: G): Promise<void> {
       try {
         enf = await enfileirarAgenda({
           tipo: 'abertura', cardId: card.id, telefone: tel, quando: quandoIso, validoAte: quandoIso, consultora, caminho,
-          nome: primeiroNome(card.cliente_nome),
+          nome: primeiroNome(card.cliente_nome), ...(ehCardSaiu(card.observacao) ? { saiu: true } : {}),
         }, g.agoraEnvio());
       } catch { enf = { ok: false, motivo: 'erro' }; }
       if (enf.ok) { ab.abertos++; continue; }
@@ -1504,14 +1512,23 @@ async function acaoMarcar(A: ContextoAcao): Promise<Seguir> {
   let criado = false;
   let tipo: 'confirma' | 'remarca' = 'confirma';
   let quandoAntes: string | null = null;
+  let remarcou = false;
   if (situacao === 'remarcavel' && card) {
     cardId = card.id;
+    // 27/10/2026: card SAIU SEM MARCAR (o cliente nunca escolheu horário): a mensagem é sempre `confirma` ("Ficou marcado para..."), nunca
+    // `remarca` ("mudei sua ligação" fala de um horário que ele nunca soube), e o card perde a marca SAIU/MUDO.
+    const eraSaiu = ehCardSaiu(card.observacao);
     if (Date.parse(String(card.quando ?? '')) !== Date.parse(iso)) {
       const rr = await remarcarCardSolar(card.id, iso, { faixa: alvo.faixa });
       if (rr === 'horario_tomado' || rr === 'horario_fora_da_grade') return A.refazer(AVISO_HORARIO);
       if (rr !== 'ok') return A.humano('ferramenta:marcar_horario', `remarcar:${rr}`);
-      tipo = 'remarca';
+      remarcou = true;
+      if (!eraSaiu) tipo = 'remarca';
       quandoAntes = card.quando;
+    } else if (eraSaiu) {
+      // O MESMO horário do card: nada é remarcado, mas a marca SAIU sai do mesmo jeito (e bom dia e "oi" de 5 min voltam à régua do dia).
+      // Sem tirar a marca (e carimbar boas_vindas_at) a abertura da agenda ainda mandaria um 2º "Ficou marcado": passa ao humano, sem bolha.
+      if (!(await tirarMarcaSaiuDoCard(card.id))) return A.humano('ferramenta:marcar_horario', 'tirar_marca:erro');
     }
   } else {
     const gr = await gravarCardSolar({
@@ -1563,7 +1580,7 @@ async function acaoMarcar(A: ContextoAcao): Promise<Seguir> {
       }
       if (res.motivo === 'erro_linha' || res.motivo === 'espacamento') parar = res.motivo;
     }
-    if (tipo === 'remarca') {
+    if (remarcou) {
       const rf = await enviarFichaRemarcada(g, { chave, tel, cardId, quandoAntes, iso, reenvio: false });
       dec({ resultado: 'ficha_remarcado', ficha: rf === 'enviada' ? 'enviada' : rf === 'adiada' ? 'adiada' : rf === 'ja_avisada' ? 'lead_ja_avisado' : 'falhou' });
       // Saiu adiada (teto, cooldown) ou incerta: vira pendência na posse e a varredura da rodada tenta de novo.
@@ -1610,6 +1627,9 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
   if (situacao === 'remarcavel' && card) {
     cardId = card.id;
     cardFicha = cardDaFichaDe(card);
+    // 27/10/2026: card SAIU SEM MARCAR em "ligar agora": o TEXTO da ficha da consultora sai com a 1ª linha normal. A marca do card só sai
+    // DEPOIS que a ficha saiu (depoisDaFicha): ficha adiada ou já avisada deixa o card como estava.
+    if (ehCardSaiu(card.observacao)) cardFicha = { ...cardFicha, observacao: semMarcaSaiu(card.observacao) };
   } else {
     // Ligar agora não tem grade: o horário é "agora". A rota da LP não confere nada aqui (sem faixa).
     const gr = await gravarCardSolar({
@@ -1640,7 +1660,11 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
   /** Ficha que saiu (ou pode ter saído): o card não recebe boas-vindas nem lembrete de 5 min por cima do aviso. */
   const depoisDaFicha = async (): Promise<void> => {
     if (criado) await marcarBoasVindasEnviada(cardId);
-    else await silenciarLembretesDoCard(cardId);
+    else {
+      // Card SAIU: tira a marca (e carimba boas_vindas_at) ANTES de silenciar; o silenciar recarimba o bom dia e o "oi" que o tirar zerou.
+      if (card && ehCardSaiu(card.observacao)) await tirarMarcaSaiuDoCard(cardId);
+      await silenciarLembretesDoCard(cardId);
+    }
   };
 
   if (rf === 'adiada') {

@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'crypto';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
-import { gravarCardSolar, type CardGravado } from '../services/agentes5040/agendaSolar';
+import { gravarCardSolar, gravarCardAgora, cancelarCardsSaiuSemMarcar } from '../services/agentes5040/agendaSolar';
 import { logger } from '../utils/logger';
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
@@ -15,7 +15,7 @@ import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { lerPaginado } from '../utils/lerPaginado';
 import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
-import { SOCIOS_VISITA, DONAS_LIGACAO, DONA_SOLAR, PONTOS_CURIOSO, caminhoDaFicha, decidirCaminho } from '../services/agenda/solarRota';
+import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparRespostasExtra, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
   msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, calcularDiagnostico, horarioAgoraAberto, quandoDoAgora,
@@ -25,6 +25,7 @@ import { EQUIPE, TEL_AVISO } from '../services/io/solarEquipe';
 import {
   avisarAgora, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken,
 } from '../services/io/solarQuizAviso';
+import { soDigitosSolar, telKeySolar, donoDoTelefone } from '../services/io/solarTelefone';
 import { quizCardLimiter } from '../middleware/rateLimiter';
 import { paginaFalei, TEXTOS_FALEI, horaBonita, type DadosDaFicha, type OndeSaiu } from '../services/io/solarQuizTextos';
 
@@ -172,15 +173,6 @@ const DONOS_SOLAR = ['Nilce', 'Thiago', 'Diego'];
  *  rodízios discordando. Hoje a resposta é sempre 'Nilce'; a Giovanna fica na
  *  lista porque ainda tem ficha e a página precisa aceitá-la como dono válido. */
 const TIME_BAIXA = ['Nilce', 'Giovanna'];
-
-const soDigitosSolar = (s: unknown) => String(s ?? '').replace(/\D/g, '');
-
-/** DDD + 8 últimos. A MESMA chave do CRM — tolera o 9 e o 55. */
-function telKeySolar(raw: unknown): string | null {
-  const d = soDigitosSolar(raw).replace(/^55/, '');
-  if (d.length < 10) return null;
-  return d.slice(0, 2) + d.slice(-8);
-}
 
 router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   const de = String(req.query.de || '').slice(0, 30);
@@ -345,39 +337,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
 
 // TEL_AVISO (solarEquipe.ts): o telefone de quem recebe o aviso da ficha do quiz. Traz a Nilce, o
 // Thiago e o Diego; a Giovanna continua listada para o card antigo dela, mas não recebe lead novo.
-const DONOS_QUIZ = [...SOCIOS_VISITA, ...DONAS_LIGACAO] as string[];
 const FORM_QUIZ = 'quiz_solar';
-
-/** De quem é este telefone, e se ele já tem horário de solar marcado. */
-async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMarcado: { quando: string; dono: string } | null; agoraRecente: { id: number; quando: string } | null }> {
-  const { data, error } = await supabaseGerador.from('agendamentos')
-    .select('id, vendedor_nome, cliente_telefone, quando, status, created_by, created_at, observacao')
-    .neq('status', 'cancelado')
-    .ilike('cliente_telefone', `%${alvo.slice(-8)}`)
-    .order('quando', { ascending: false }).limit(20);
-  if (error) throw error;
-  const meus = ((data || []) as Array<Record<string, unknown>>).filter(a => telKeySolar(a.cliente_telefone) === alvo);
-  const nome = meus.map(a => String(a.vendedor_nome || '')).find(Boolean) || null;
-  const agora = Date.now();
-  // "Já marcado" é só horário que o CLIENTE escolheu (fichas desta LP). O card
-  // do formulário do Meta também nasce com horário, mas a pessoa nunca soube
-  // dele (as boas-vindas não falam de horário): dizer "você já tem horário" a
-  // quem veio pelos dois canais, que é o lead mais quente, seria barrar ele com
-  // uma confirmação que ele nunca recebeu. O dono continua valendo pelo `nome`.
-  const futuro = meus.find(a => a.status === 'agendado' && a.created_by === 'lp_solar'
-    && new Date(String(a.quando)).getTime() > agora);
-  return {
-    // Dono que não atende solar (nome fora da lista) não amarra o lead: cai na
-    // regra normal. É o furo do eletroposto, onde esse cliente via horário livre
-    // e levava "não consegui agendar" no clique.
-    dono: nome && DONOS_QUIZ.includes(nome) ? nome : null,
-    jaMarcado: futuro ? { quando: String(futuro.quando), dono: String(futuro.vendedor_nome || '') } : null,
-    // O clique "agora" repetido (duplo toque, página reaberta): o card de poucos minutos atrás vale, não nasce outro.
-    agoraRecente: futuro && /^LP SOLAR QUIZ · AGORA/i.test(String(futuro.observacao || ''))
-      && Date.now() - new Date(String(futuro.created_at)).getTime() < 30 * 60_000
-      ? { id: Number(futuro.id), quando: String(futuro.quando) } : null,
-  };
-}
 
 /** Tudo que ocupa a agenda destas pessoas nos próximos dias, já em bloco.
  *  `null` = não deu para ler, e aí a vitrine não abre (melhor que vender por
@@ -561,8 +521,6 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
 // bate com o "em até 5 minutos" da tela. Dispara o Schedule pela API de Conversões com o MESMO event_id do navegador
 // e avisa a Nilce (solarQuizAviso.avisarAgora). Fora do horário ou para curioso: 409, e a página abre a vitrine.
 // ═══════════════════════════════════════════════════════════════════════════
-const MAX_ENCAIXES = 24;   // 2 horas de minutos ocupados, de 5 em 5
-
 router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
   const e = lerEntrada(b);
@@ -580,6 +538,9 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
     res.json({ ok: true, id: null, quando: new Date(quandoDoAgora(agoraMs)).toISOString(), dono: DONA_SOLAR });
     return;
   }
+  // 27/10/2026: o cliente que tinha saído sem marcar e agora clicou "agora". O card SAIU SEM MARCAR dele (criado pelo tick) não conta como
+  // "ja marcado" (donoDoTelefone o ignora), e o card novo nasce pelo caminho de sempre: aviso T1, Schedule. SÓ depois que o card novo nasceu
+  // e o lead ficou ligado a ele, o SAIU é cancelado (abaixo). Se o card novo não nasce (409, 503, erro), o SAIU fica como está.
   try {
     const quem = await donoDoTelefone(e.alvo!);
     if (quem.jaMarcado) {
@@ -590,18 +551,15 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
     const diag = calcularDiagnostico(e.resp, e.extra);
     const observacao = montarObservacao(e.resp, dec, null, false, { respostas: e.extra, diag, agora: true });
     const src = String(b.src || '').trim().toLowerCase();
-    let card: CardGravado | null = null;
-    let quandoMs = 0;
-    for (let encaixe = 0; encaixe < MAX_ENCAIXES && !card; encaixe++) {
-      quandoMs = quandoDoAgora(agoraMs, encaixe);
-      const gravado = await gravarCardSolar({
-        dono: DONA_SOLAR, quando: new Date(quandoMs).toISOString(), nome: e.nome, tel: e.tel, cidade: cidadeGravada(e, dec), observacao,
-        src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null, utm: utmDe(b), createdBy: teste ? 'lp_solar_teste' : 'lp_solar',
-      }, { ligarAgora: true });
-      if (gravado.status === 'ok') card = gravado.card;
-      else if (gravado.status === 'erro') throw gravado.erro;
-      // 'horario_tomado': o minuto estava ocupado, tenta +5 min.
-    }
+    // O encaixe mora em agendaSolar.ts (27/10/2026), o mesmo laço do tick do "saiu sem marcar".
+    const resultado = await gravarCardAgora({
+      dono: DONA_SOLAR, nome: e.nome, tel: e.tel, cidade: cidadeGravada(e, dec), observacao,
+      src: /^[a-z0-9_-]{1,20}$/.test(src) ? src : null, utm: utmDe(b), createdBy: teste ? 'lp_solar_teste' : 'lp_solar',
+    }, agoraMs);
+    if (resultado.status === 'erro') throw resultado.erro;
+    // 'sem_horario': 24 minutos ocupados seguidos.
+    const card = resultado.status === 'ok' ? resultado.valor : null;
+    const quandoMs = resultado.status === 'ok' ? resultado.quandoMs : 0;
     if (!card) { res.status(503).json({ ok: false, error: 'sem horario' }); return; }
     const quando = new Date(quandoMs).toISOString();
     const leadId = leadDoQuiz(e.alvo!, teste);
@@ -609,6 +567,8 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
       form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel, cidade: cidadeGravada(e, dec),
       agendado_id: card.id, consultor: DONA_SOLAR, fora_area: false, field_data: camposDoRascunho(e, dec, false, diag, b),
     });
+    // Antes de qualquer resposta (a Vercel corta o que roda depois dela): o card SAIU SEM MARCAR deste telefone sai da agenda. A sonda não mexe em card real.
+    if (!teste) await cancelarCardsSaiuSemMarcar(e.alvo!, card.id);
 
     if (!teste) {
       // Schedule pelo pixel (a página) E pela API de Conversões, com o MESMO event_id. Sem event_id o Meta não junta os dois,
@@ -653,6 +613,10 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     res.json({ ok: true, id: null });
     return;
   }
+  // 27/10/2026: o cliente que tinha saído sem marcar e agora escolheu horário. O card SAIU SEM MARCAR dele (criado pelo tick) não conta como
+  // "ja marcado" (donoDoTelefone o ignora), e o card novo nasce pelo caminho de sempre: confirmação normal, Schedule, aviso à consultora.
+  // SÓ depois que o card novo nasceu e o lead ficou ligado a ele, o SAIU (futuro ou passado, de qualquer dono) é cancelado (abaixo).
+  // Se o card novo não nasce (409, 503, erro), nada é cancelado e o SAIU fica como está, com o agendado_id antigo.
   try {
     const quem = await donoDoTelefone(e.alvo!);
     // Já tem horário de solar marcado: não nasce a segunda ficha. A página avisa
@@ -696,6 +660,8 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     const data = gravado.card;
     const leadId = leadDoQuiz(e.alvo!, teste);
     await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoRascunho(e, dec, semHorario, diag, b) });
+    // Antes de qualquer resposta (a Vercel corta o que roda depois dela): o card SAIU SEM MARCAR deste telefone sai da agenda. A sonda não mexe em card real.
+    if (!teste) await cancelarCardsSaiuSemMarcar(e.alvo!, data.id);
 
     if (teste) {
       // A sonda: nenhuma mensagem e nenhum Schedule.

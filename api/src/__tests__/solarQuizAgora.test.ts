@@ -464,7 +464,7 @@ describe('o abandono (saiu sem marcar)', () => {
   const marcaDeSaida = (ms: number, onde: string) =>
     h.main.tabela('system_state').push({ key: CHAVES.saiu + LEAD, value: { em: new Date(ms).toISOString(), onde }, updated_at: new Date(ms).toISOString() });
 
-  it('sem marca de saída, avisa a Nilce 10 min depois da última atividade, UMA vez, sem criar card', async () => {
+  it('sem marca de saída, avisa a Nilce 10 min depois da última atividade, UMA vez; o card (mudo, sem Schedule) nasce na parte `cards` (27/10/2026)', async () => {
     semearLead(h.ger, LEAD, { atividade: SEXTA_14H });
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 8 * MIN });
     expect(h.enviados).toHaveLength(0);
@@ -475,7 +475,10 @@ describe('o abandono (saiu sem marcar)', () => {
     expect(t.split('\n')[0]).toBe('🟢 *NOTA 93 · SAIU SEM MARCAR · LIGAR AGORA*');
     expect(t.split('\n')[1]).toBe('Saiu no diagnóstico, sem clicar no especialista');
     expect(t).toContain('Falou com o cliente? Toque aqui:');
-    expect(h.ger.tabela('agendamentos')).toHaveLength(0);          // NÃO cria card
+    // Desde 27/10/2026 o lead que saiu sem marcar ganha card (sem a Duda ligada o card nasce MUDO); o aviso diz o horário dele.
+    expect(h.ger.tabela('agendamentos')).toHaveLength(1);
+    expect(String(h.ger.tabela('agendamentos')[0].observacao).split('\n')[0]).toBe('LP SOLAR QUIZ · SAIU SEM MARCAR · MUDO · LIGAÇÃO');
+    expect(t).toContain('(já está na sua agenda)');
     expect(h.capi).not.toHaveBeenCalled();                         // e não dispara Schedule
     expect(h.main.tabela('system_state').some((l: any) => l.key === CHAVES.abandono + LEAD)).toBe(true);
   });

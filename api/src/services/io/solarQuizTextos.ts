@@ -24,6 +24,19 @@ const BRT = 'America/Sao_Paulo';
 export const horaBonita = (ms: number): string =>
   new Date(ms).toLocaleTimeString('pt-BR', { timeZone: BRT, hour: '2-digit', minute: '2-digit' });
 
+const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+/** O horário do card em texto: "hoje, 14:35", "amanhã, 08:00" ou "seg 02/11, 08:00" (Brasília), contado a partir de `agoraMs`. */
+export function quandoDoCardTexto(quandoMs: number, agoraMs: number): string {
+  const ymd = (ms: number) => new Date(ms - 3 * 3_600_000).toISOString().slice(0, 10);
+  const hora = horaBonita(quandoMs);
+  if (ymd(quandoMs) === ymd(agoraMs)) return `hoje, ${hora}`;
+  if (ymd(quandoMs) === ymd(agoraMs + 86_400_000)) return `amanhã, ${hora}`;
+  const b = new Date(quandoMs - 3 * 3_600_000);
+  const dm = `${String(b.getUTCDate()).padStart(2, '0')}/${String(b.getUTCMonth() + 1).padStart(2, '0')}`;
+  return `${DIAS_CURTOS[b.getUTCDay()]} ${dm}, ${hora}`;
+}
+
 /** Primeiro nome com a inicial maiúscula. */
 export function primeiroNomeDe(nome: string): string {
   const n = String(nome ?? '').trim().split(/\s+/)[0] || '';
@@ -149,12 +162,12 @@ export function avisoAgora(d: DadosDaFicha, horaTexto: string, codigo: string): 
   ].join('\n');
 }
 
-/** T2. */
-export function avisoSaiuSemMarcar(d: DadosDaFicha, onde: OndeSaiu, horaTexto: string, codigo: string): string {
+/** T2. Com `cardQuandoMs` (27/10/2026) o aviso diz o horário do card que já está na agenda dela; sem ele, a hora do aviso, como antes. */
+export function avisoSaiuSemMarcar(d: DadosDaFicha, onde: OndeSaiu, horaTexto: string, codigo: string, cardQuandoMs?: number, agoraMs = Date.now()): string {
   return [
     `${emojiDaNota(d.nota)} *NOTA ${d.nota} · SAIU SEM MARCAR · LIGAR AGORA*`,
     ONDE_SAIU_LONGO[onde],
-    ...fichaDoAviso(d, `hoje, ${horaTexto}`),
+    ...fichaDoAviso(d, cardQuandoMs ? `${quandoDoCardTexto(cardQuandoMs, agoraMs)} (já está na sua agenda)` : `hoje, ${horaTexto}`),
     '',
     'Abertura sugerida:',
     aberturaSugerida(d),
@@ -163,14 +176,16 @@ export function avisoSaiuSemMarcar(d: DadosDaFicha, onde: OndeSaiu, horaTexto: s
   ].join('\n');
 }
 
-export interface ItemDaLista { nome: string; nota: number; cidadeUf: string; conta: string; onde: OndeSaiu; tel: string }
+/** `quando` = o horário do card dele na agenda (27/10/2026), se já existe. */
+export interface ItemDaLista { nome: string; nota: number; cidadeUf: string; conta: string; onde: OndeSaiu; tel: string; quando?: number }
 
 /** T3: uma mensagem com N clientes. */
-export function listaDas7(itens: readonly ItemDaLista[]): string {
+export function listaDas7(itens: readonly ItemDaLista[], agoraMs = Date.now()): string {
   const blocos = itens.map(i => [
     `Nome: ${i.nome}, nota ${i.nota}`,
     `Cidade: ${i.cidadeUf || NAO_RESPONDEU} · Conta: ${i.conta || NAO_RESPONDEU}`,
     `Saiu: ${ONDE_SAIU_CURTO[i.onde]}`,
+    ...(i.quando ? [`Na sua agenda: ${quandoDoCardTexto(i.quando, agoraMs)}`] : []),
     `WhatsApp: ${linkWa(i.tel)}`,
   ].join('\n'));
   return [`☀️ *BOM DIA · LIGAR HOJE · ${itens.length} FORA DO HORÁRIO*`, 'Estes clientes saíram do quiz fora do horário, sem marcar.', '', blocos.join('\n\n')].join('\n');

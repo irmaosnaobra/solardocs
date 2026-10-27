@@ -59,9 +59,10 @@ import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHum
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { telefoneBonito, quandoPorExtenso } from './eletropostoAgenda';
 import { cidadeParaTexto } from './cidadeCanonica';
-import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
+import { caminhoDaFicha, CHAVE_PRIMEIRO_CONTATO, ehCardSaiu, type Caminho } from '../agenda/solarRota';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
 import { agenteAtendeEste, cedeAAgente } from '../agentes5040/posse';
+import { rebaixarSaiuAMudo } from '../agentes5040/agendaSolar';
 import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
 
 export { SOLAR_BV_DEDUP_PREFIX };
@@ -504,6 +505,16 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     // de cadastro: não passa pela trava de "este telefone já recebeu". O próprio
     // quiz já não deixa nascer segunda ficha com horário futuro (`ja marcado`).
     const caminhoQuiz = ficha.created_by === 'lp_solar' ? caminhoDaFicha(ficha.observacao) : null;
+    // 27/10/2026: o card de quem SAIU SEM MARCAR nunca recebe a confirmação longa daqui ("te liguei às X, escolhido por você"): o cliente
+    // não escolheu horário. Quem fala com ele é só a abertura de 1 bolha da Duda (vivo.ts). Nos primeiros 15 min fica para ela; depois
+    // disso a abertura não saiu, e o card é REBAIXADO A MUDO (1ª linha e carimbos do dia), sem enviar nada (o chefe anti-ban não quer a
+    // confirmação longa em hipótese nenhuma). Se o rebaixamento falhar, o card segue na fila e a próxima rodada tenta de novo
+    // (a mesma varredura roda também no tick solar_quiz_avisos, que não depende de SOLAR_BOASVINDAS_OFF).
+    if (ficha.created_by === 'lp_solar' && ehCardSaiu(ficha.observacao)) {
+      candidatos--;
+      if (agora - Date.parse(String(ficha.created_at)) >= DUDA_NOVA_ESPERA_MS && !opts.dry) await rebaixarSaiuAMudo(ficha.id);
+      continue;
+    }
     // AGENTES DA LINHA 5040 (Fase B). Por LEAD, nunca pelo interruptor sozinho, e sem marcar a ficha:
     //  · conversa que uma agente nova já segura: o antigo não manda por cima, em nenhuma idade;
     //  · card do quiz no escopo da Duda nova, com menos de 15 min e sem boas-vindas: é ela quem abre.
@@ -869,9 +880,17 @@ export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promi
     }
     // Reivindica antes de enviar. Chave existente = já foi (ou outro tick está indo).
     const em = new Date().toISOString();
+    // 27/10/2026: o claim do 1º CONTATO (`solar_quiz_1o:<lead>`) vem ANTES do claim de cima. O card de quem saiu sem marcar, quando fala, ganha
+    // este mesmo claim (solarQuizAviso): quem ganha fala (o "não marcou" de 4 bolhas OU a abertura da Duda), nunca os dois. Já existe = o outro falou.
+    const chave1o = `${CHAVE_PRIMEIRO_CONTATO}${l.lead_id}`;
+    const { error: erro1o } = await supabase.from('system_state').insert({ key: chave1o, value: { tipo, em }, updated_at: em });
+    if (erro1o) continue;
     const { error: erroClaim } = await supabase.from('system_state').insert({ key: chave, value: { tipo, em }, updated_at: em });
-    if (erroClaim) continue;
-    const devolver = async () => { await supabase.from('system_state').delete().eq('key', chave).eq('updated_at', em); };
+    if (erroClaim) { await supabase.from('system_state').delete().eq('key', chave1o).eq('updated_at', em); continue; }
+    const devolver = async () => {
+      await supabase.from('system_state').delete().eq('key', chave).eq('updated_at', em);
+      await supabase.from('system_state').delete().eq('key', chave1o).eq('updated_at', em);
+    };
 
     if (await estaBloqueado(tel)) continue;   // fica carimbado: nunca recebe
     if (!(await podeFalarComLead(tel)).pode) { await registrarBloqueio(tel, 'solar-quiz-lead'); await devolver(); continue; }

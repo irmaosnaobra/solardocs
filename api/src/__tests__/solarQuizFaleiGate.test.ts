@@ -85,6 +85,41 @@ describe('10: a mensagem da Duda para quem não marcou', () => {
     expect(r.enviadas).toBe(1);
     vi.useRealTimers();
   });
+
+  // 27/10/2026 (B): o claim do 1º contato. O card de quem saiu sem marcar, quando fala, ganha `solar_quiz_1o:<lead>`; o "não marcou"
+  // de 4 bolhas ganha o MESMO claim antes de enviar. Quem ganha fala; os dois nunca saem juntos.
+  const chaves = (): string[] => h.main.tabela('system_state').map((l: any) => String(l.key));
+  it('o claim solar_quiz_1o já existe (a abertura da Duda tem o 1º contato): o "não marcou" NÃO sai e não deixa carimbo', async () => {
+    meioDia(); lead();
+    h.main.tabela('system_state').push({ key: 'solar_quiz_1o:quiz_3491112222', value: { em: new Date().toISOString() }, updated_at: new Date().toISOString() });
+    const r = await runSolarQuizLeadsTick();
+    expect(r.enviadas).toBe(0);
+    expect(h.enviadas).toHaveLength(0);
+    expect(chaves().filter(k => k.startsWith('solar_boasvindas_sent:'))).toHaveLength(0);
+    vi.useRealTimers();
+  });
+  it('sem o claim, o "não marcou" ganha o solar_quiz_1o (o card que fala cai para MUDO) e a rodada seguinte não repete', async () => {
+    meioDia(); lead();
+    const a = await runSolarQuizLeadsTick();
+    expect(a.enviadas).toBe(1);
+    expect(chaves()).toContain('solar_quiz_1o:quiz_3491112222');
+    expect(chaves()).toContain('solar_boasvindas_sent:quiz_quiz_3491112222');
+    const b = await runSolarQuizLeadsTick();
+    expect(b.enviadas).toBe(0);
+    vi.useRealTimers();
+  });
+  it('envio que falha devolve AS DUAS chaves, e a rodada seguinte tenta de novo', async () => {
+    meioDia(); lead();
+    const { sendHuman } = await import('../services/agents/zapiClient');
+    vi.mocked(sendHuman).mockRejectedValueOnce(new Error('z-api fora'));
+    const a = await runSolarQuizLeadsTick();
+    expect(a.enviadas).toBe(0);
+    expect(a.erros).toBe(1);
+    expect(chaves().filter(k => k === 'solar_quiz_1o:quiz_3491112222' || k.startsWith('solar_boasvindas_sent:'))).toHaveLength(0);
+    const b = await runSolarQuizLeadsTick();
+    expect(b.enviadas).toBe(1);
+    vi.useRealTimers();
+  });
 });
 
 describe('7b: o "falei" antigo NÃO corta o "oi" de 5 min', () => {

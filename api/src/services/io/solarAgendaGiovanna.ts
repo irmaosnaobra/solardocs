@@ -86,6 +86,7 @@ import { sendHuman } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { ehCardMudo } from '../agenda/solarRota';
 import { INSTANCE_ID_IO } from './solarRespostas';
 
 /** De quem são as carteiras. Corte por NOME, igual ao `ehSocio` do agendaFechada:
@@ -321,6 +322,7 @@ export async function runSolarAgendaGiovannaTick(
   const fichas = ((data ?? []) as Ficha[]).filter(f =>
     !!f.quando && diaBRT(f.quando) === hojeBRT && !ehOrigemEletroposto(f.created_by)
     && f.created_by !== 'lp_solar_teste'   // a sonda do quiz (24/10/2026) nunca recebe toque
+    && !ehCardMudo(f.observacao)   // card de quem saiu do quiz sem marcar e não pode ser abordado (27/10/2026): sem bom dia e sem "oi" de 5 min, mesmo se os carimbos forem zerados
     && DONAS.includes(String(f.vendedor_nome)));
 
   if (!fichas.length) return { ...zero('nada_hoje'), ...(dry ? { previa: [] } : {}) };

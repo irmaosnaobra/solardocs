@@ -18,8 +18,9 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { MARCA_QUIZ } from '../agenda/solarRota';
-import { ymdBRT } from '../io/solarQuiz';
+import { MARCA_QUIZ, MARCA_SAIU, ehCardSaiu, ehCardMudo, semMarcaSaiu } from '../agenda/solarRota';
+import { ymdBRT, quandoDoAgora } from '../io/solarQuiz';
+import { telKeySolar } from '../io/solarTelefone';
 import { aindaLivreSolar, vagasSolar, type FaixaSolar } from './agendaSolarVagas';
 
 export { vagasSolar, consultoraDaFaixa, aindaLivreSolar, type FaixaSolar } from './agendaSolarVagas';
@@ -45,10 +46,17 @@ export interface OpcoesGravarSolar {
   faixa?: undefined;
   /** Ver OpcoesGravarAgente.ligarAgora. */
   ligarAgora?: boolean;
+  /**
+   * Só o card de quem saiu do quiz sem marcar (27/10/2026, solarQuizAviso).
+   *  · 'mudo': nenhuma mensagem sai para o cliente. boas_vindas_at, bomdia_at e lembrete_5min_at nascem com agora.
+   *  · 'fala': a abertura da Duda é a única mensagem. boas_vindas_at nasce nulo (explícito) e, se o card é de hoje, o bom dia nasce carimbado.
+   */
+  modo?: 'mudo' | 'fala';
 }
 /** Caminho da AGENTE: o horário é conferido na hora (livre E dentro da grade da faixa) antes do insert. */
 export interface OpcoesGravarAgente {
   faixa: FaixaSolar;
+  modo?: undefined;
   /**
    * "Ela te liga agora": o card nasce com lembrete_5min_at e bomdia_at já preenchidos (agora), para o lembrete
    * de 5 min e o bom dia do solarAgendaGiovanna não saírem por cima do aviso.
@@ -120,7 +128,10 @@ export async function gravarCardSolar(
     ...(f.utm ?? {}),
     // Da agente as boas-vindas nascem NULAS: quem carimba é marcarBoasVindasEnviada, depois que a confirmação saiu.
     ...(faixa ? { boas_vindas_at: null } : {}),
-    ...(opts.ligarAgora ? { lembrete_5min_at: agoraIso, bomdia_at: agoraIso } : bomDiaJaDado ? { bomdia_at: agoraIso } : {}),
+    ...(opts.modo === 'mudo' ? { boas_vindas_at: agoraIso, lembrete_5min_at: agoraIso, bomdia_at: agoraIso }
+      : opts.ligarAgora ? { lembrete_5min_at: agoraIso, bomdia_at: agoraIso }
+      : (bomDiaJaDado || (opts.modo === 'fala' && ymdBRT(Date.parse(f.quando)) === ymdBRT(agoraMs))) ? { bomdia_at: agoraIso } : {}),
+    ...(opts.modo === 'fala' ? { boas_vindas_at: null } : {}),
     // A sonda não pode receber nada: as boas-vindas nascem carimbadas.
     ...(f.createdBy === 'lp_solar_teste' ? { boas_vindas_at: agoraIso, lembrete_5min_at: agoraIso, bomdia_at: agoraIso } : {}),
   }).select(COLUNAS_DO_CARD).single();
@@ -130,6 +141,149 @@ export async function gravarCardSolar(
     return { status: 'erro', erro: error };
   }
   return { status: 'ok', card: data as CardGravado };
+}
+
+/** 2 horas de minutos ocupados, de 5 em 5. */
+export const MAX_ENCAIXES = 24;
+
+export type ResultadoEncaixe<T> =
+  | { status: 'ok'; quandoMs: number; valor: T }
+  | { status: 'sem_horario' }
+  | { status: 'erro'; erro: unknown };
+
+/**
+ * O laço do encaixe do "agora" (era de routes/ioSolar.ts, /quiz/agora): tenta o próximo múltiplo de 5 min com 5 min de folga e,
+ * se o minuto estava ocupado (índice único (vendedor, quando) recusou, 'horario_tomado'), soma 5 min e tenta de novo, até
+ * MAX_ENCAIXES. `tentar` grava (card novo ou update do card existente) e diz o que aconteceu. Agenda nunca bloqueia: o minuto
+ * ocupado empurra, não barra.
+ */
+export async function encaixarAgora<T>(
+  agoraMs: number,
+  tentar: (quandoMs: number) => Promise<{ status: 'ok'; valor: T } | { status: 'horario_tomado' } | { status: 'erro'; erro: unknown }>,
+): Promise<ResultadoEncaixe<T>> {
+  for (let encaixe = 0; encaixe < MAX_ENCAIXES; encaixe++) {
+    const quandoMs = quandoDoAgora(agoraMs, encaixe);
+    const r = await tentar(quandoMs);
+    if (r.status === 'ok') return { status: 'ok', quandoMs, valor: r.valor };
+    if (r.status === 'erro') return { status: 'erro', erro: r.erro };
+  }
+  return { status: 'sem_horario' };
+}
+
+/** O card do "agora" (ligarAgora) no primeiro minuto livre: o /quiz/agora e o tick do "saiu sem marcar". */
+export function gravarCardAgora(
+  f: Omit<FichaSolar, 'quando'>, agoraMs: number, opts: { modo?: 'mudo' | 'fala' } = {},
+): Promise<ResultadoEncaixe<CardGravado>> {
+  return encaixarAgora<CardGravado>(agoraMs, async (quandoMs) => {
+    const g = await gravarCardSolar({ ...f, quando: new Date(quandoMs).toISOString() }, { ligarAgora: true, ...(opts.modo ? { modo: opts.modo } : {}) });
+    return g.status === 'ok' ? { status: 'ok', valor: g.card } : g;
+  });
+}
+
+/** Só o card SAIU SEM MARCAR criado há menos disto pode ser cancelado quando o cliente volta e marca. */
+const CANCELA_SAIU_ATE_MS = 48 * 3_600_000;
+
+/**
+ * O cliente voltou ao quiz, marcou (horário ou "agora") e o card NOVO já nasceu e o lead já aponta para ele: CANCELA todo card
+ * `SAIU SEM MARCAR` do mesmo telefone criado nas últimas 48 h, futuro ou passado, de qualquer dono, menos o `exceto` (o card novo).
+ * Devolve os ids cancelados. Só mexe em 'agendado' cuja 1ª linha ainda é SAIU SEM MARCAR (card que gente já tocou, ou que virou outro,
+ * não é cancelado) e só põe status 'cancelado' (nada de DELETE). Idempotente: rodar de novo não acha nada. Nunca lança (lista vazia se falhar).
+ */
+export async function cancelarCardsSaiuSemMarcar(alvo: string, exceto?: number): Promise<number[]> {
+  try {
+    const desde = new Date(Date.now() - CANCELA_SAIU_ATE_MS).toISOString();
+    const { data, error } = await supabaseGerador.from('agendamentos')
+      .select('id, cliente_telefone, observacao')
+      .eq('status', 'agendado').gte('created_at', desde)
+      .like('observacao', `${MARCA_SAIU}%`)
+      .ilike('cliente_telefone', `%${alvo.slice(-8)}`)
+      .limit(20);
+    if (error) throw error;
+    const ids = ((data ?? []) as Array<Record<string, any>>)
+      .filter(a => Number(a.id) !== exceto && telKeySolar(a.cliente_telefone) === alvo && ehCardSaiu(a.observacao)).map(a => Number(a.id));
+    if (!ids.length) return [];
+    const { data: feitos, error: erroUp } = await supabaseGerador.from('agendamentos')
+      .update({ status: 'cancelado' })
+      .in('id', ids).eq('status', 'agendado').like('observacao', `${MARCA_SAIU}%`)
+      .select('id');
+    if (erroUp) throw erroUp;
+    return ((feitos ?? []) as Array<Record<string, any>>).map(a => Number(a.id));
+  } catch (err) {
+    logger.error('agentes5040-agenda-solar', 'cancelar o card do saiu sem marcar falhou', err);
+    return [];
+  }
+}
+
+/**
+ * O card SAIU que deveria FALAR e cuja abertura da Duda não saiu (passou dos 15 min sem boas_vindas_at, ou a abertura foi descartada na fila)
+ * vira MUDO (chefe anti-ban): 1ª linha `${MARCA_SAIU} · MUDO · LIGAÇÃO` (o resto da observação fica igual) e boas_vindas_at, bomdia_at e
+ * lembrete_5min_at carimbados com agora, para a régua do dia também não falar com ele. Só pega card cuja 1ª linha é SAIU e ainda não é MUDO
+ * (card que já é MUDO, ou que o cliente marcou depois, não é tocado). true = rebaixou agora. Nunca lança.
+ */
+export async function rebaixarSaiuAMudo(cardId: number): Promise<boolean> {
+  try {
+    const { data: card, error: erroLeitura } = await supabaseGerador.from('agendamentos')
+      .select('id, observacao').eq('id', cardId).maybeSingle();
+    if (erroLeitura) throw erroLeitura;
+    if (!card || !ehCardSaiu(card.observacao) || ehCardMudo(card.observacao)) return false;
+    const linhas = String(card.observacao ?? '').split('\n');
+    // O tipo do imóvel não se perde: sai da 1ª linha (`... SAIU SEM MARCAR · <tipo> · LIGAÇÃO`) para a linha `Onde:`, como no card que nasce MUDO.
+    const tipo = linhas[0].split(' · ')[2] || 'Imóvel';
+    const agoraIso = new Date().toISOString();
+    try {
+      // Filtra pela MARCA, não pela observação inteira: quem mexeu no texto no meio do caminho não faz o rebaixamento falhar.
+      const { data, error } = await supabaseGerador.from('agendamentos')
+        .update({
+          observacao: [`${MARCA_SAIU} · MUDO · LIGAÇÃO`, `Onde: ${tipo}`, ...linhas.slice(1)].join('\n').slice(0, 4000),
+          boas_vindas_at: agoraIso, bomdia_at: agoraIso, lembrete_5min_at: agoraIso,
+        })
+        .eq('id', cardId)
+        .like('observacao', `${MARCA_SAIU}%`)
+        .not('observacao', 'like', `${MARCA_SAIU} · MUDO%`)
+        .select('id');
+      if (error) throw error;
+      return Array.isArray(data) && data.length > 0;
+    } catch (err) {
+      // Não rebaixou: ao menos o bom dia e o "oi" de 5 min do dia ficam carimbados. boas_vindas_at fica nulo (quem chamou tenta de novo).
+      logger.error('agentes5040-agenda-solar', `rebaixar o card ${cardId} (saiu sem marcar) a MUDO falhou`, err);
+      // Só enquanto o card ainda é SAIU: um card que a Duda acabou de desmarcar não pode ter o bom dia e o "oi" calados.
+      await supabaseGerador.from('agendamentos').update({ bomdia_at: agoraIso, lembrete_5min_at: agoraIso }).eq('id', cardId)
+        .like('observacao', `${MARCA_SAIU}%`).then(undefined, () => undefined);
+      return false;
+    }
+  } catch (err) {
+    logger.error('agentes5040-agenda-solar', `rebaixar o card ${cardId} (saiu sem marcar) a MUDO falhou`, err);
+    return false;
+  }
+}
+
+/**
+ * A Duda confirmou com o cliente o MESMO horário que o card SAIU SEM MARCAR já tinha (nada foi remarcado): o card deixa de ser SAIU (e MUDO), com a
+ * 1ª linha normal; lembrete_5min_at volta a nulo e bomdia_at segue a regra da remarcação (nulo, ou agora se o card é de hoje e são menos de 11h),
+ * para a régua da Giovanna falar no dia. boas_vindas_at não é tocado. true = trocou agora (card que não é SAIU: false). Nunca lança.
+ */
+export async function tirarMarcaSaiuDoCard(cardId: number): Promise<boolean> {
+  try {
+    const { data: card, error: erroLeitura } = await supabaseGerador.from('agendamentos')
+      .select('id, quando, observacao, boas_vindas_at').eq('id', cardId).maybeSingle();
+    if (erroLeitura) throw erroLeitura;
+    if (!card || !ehCardSaiu(card.observacao)) return false;
+    const agora = Date.now();
+    const hojeAntesDas11 = ymdBRT(Date.parse(String(card.quando ?? ''))) === ymdBRT(agora) && new Date(agora - 3 * 3_600_000).getUTCHours() < 11;
+    const { data, error } = await supabaseGerador.from('agendamentos')
+      .update({
+        observacao: semMarcaSaiu(card.observacao), lembrete_5min_at: null, bomdia_at: hojeAntesDas11 ? new Date(agora).toISOString() : null,
+        // A Duda já falou com o cliente (é ela quem chama esta função): sem carimbo, a abertura da agenda mandaria um 2º "Ficou marcado".
+        boas_vindas_at: card.boas_vindas_at ?? new Date(agora).toISOString(),
+      })
+      .eq('id', cardId).like('observacao', `${MARCA_SAIU}%`)
+      .select('id');
+    if (error) throw error;
+    return Array.isArray(data) && data.length > 0;
+  } catch (err) {
+    logger.error('agentes5040-agenda-solar', `tirar a marca SAIU do card ${cardId} falhou`, err);
+    return false;
+  }
 }
 
 /**
@@ -242,7 +396,7 @@ export async function remarcarCardSolar(
 ): Promise<ResultadoRemarcarSolar> {
   try {
     const { data: card, error: erroLeitura } = await supabaseGerador.from('agendamentos')
-      .select('id, quando, vendedor_nome, status, historico').eq('id', cardId).maybeSingle();
+      .select('id, quando, vendedor_nome, status, historico, observacao, boas_vindas_at').eq('id', cardId).maybeSingle();
     if (erroLeitura) throw erroLeitura;
     if (!card) return 'nao_achou';
     const lido = String(card.quando ?? '');
@@ -265,6 +419,10 @@ export async function remarcarCardSolar(
         bomdia_at: hojeAntesDas11 ? new Date(agora).toISOString() : null,
         lembrete_5min_at: null,
         historico: card.historico ? `${linha}\n\n${card.historico}` : linha,
+        // 27/10/2026: o card SAIU SEM MARCAR que o cliente combinou com a Duda deixa de ser SAIU (e MUDO): 1ª linha normal, no MESMO update.
+        // boas_vindas_at: quem já tem carimbo fica com ele; o que estava nulo (a abertura pulada) é carimbado agora, porque a Duda JÁ confirmou
+        // o horário com o cliente na conversa, e a abertura/confirmação da agenda (vivo.ts) não pode mandar um 2º "Ficou marcado".
+        ...(ehCardSaiu(card.observacao) ? { observacao: semMarcaSaiu(card.observacao), boas_vindas_at: card.boas_vindas_at ?? new Date(agora).toISOString() } : {}),
       })
       .eq('id', cardId)
       .eq('quando', lido)

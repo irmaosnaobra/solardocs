@@ -355,6 +355,22 @@ describe('de quem este robô NÃO fala', () => {
     expect(enviadas).toHaveLength(0);
   });
 
+  it('card MUDO do quiz (saiu sem marcar, 27/10/2026): sem bom dia e sem "oi" de 5 min, mesmo com os carimbos zerados; o card que FALA segue a régua', async () => {
+    const mudo = 'LP SOLAR QUIZ · SAIU SEM MARCAR · MUDO · LIGAÇÃO\nOnde: Casa';
+    const fala = 'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO';
+    fichas = [ficha({ id: 1, created_by: 'lp_solar', vendedor_nome: 'Nilce', observacao: mudo, quando: brt('2026-09-14', '10:15') })];
+    agoraBRT('07:00');
+    expect((await runSolarAgendaGiovannaTick()).candidatos).toBe(0);
+    agoraBRT('10:10');
+    expect((await runSolarAgendaGiovannaTick()).candidatos).toBe(0);
+    expect(enviadas).toHaveLength(0);
+    expect(updates).toHaveLength(0);
+    // O mesmo card com a 1ª linha normal (o cliente voltou e marcou) volta para a régua.
+    fichas = [ficha({ id: 1, created_by: 'lp_solar', vendedor_nome: 'Nilce', observacao: fala, quando: brt('2026-09-14', '10:15') })];
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.candidatos).toBe(1);
+  });
+
   it('carteira de quem não é dona não é assunto deste robô', async () => {
     fichas = [ficha({ vendedor_nome: 'Thiago' }), ficha({ id: 2, vendedor_nome: 'Diego' })];
     agoraBRT('07:00');

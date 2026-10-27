@@ -28,7 +28,7 @@ function igual(a: unknown, b: unknown): boolean {
 
 function comoLike(padrao: string, ignorarCaixa: boolean): RegExp {
   const re = padrao.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.');
-  return new RegExp(`^${re}$`, ignorarCaixa ? 'i' : '');
+  return new RegExp(`^${re}$`, ignorarCaixa ? 'is' : 's');
 }
 
 function valorDe(l: Linha, coluna: string): unknown {

@@ -29,6 +29,7 @@ const h = vi.hoisted(() => ({
   falhaCard: false,
   aposEnvio: null as null | (() => void),
   boasVindas: [] as number[],
+  rebaixados: [] as number[],
   posse: { dona: 'duda', estado: 'viva', apresentada: true } as any,
   posseErro: false,
   posseAtualizacoes: [] as any[],
@@ -135,6 +136,7 @@ vi.mock('../services/agentes5040/posse', () => ({
 
 vi.mock('../services/agentes5040/agendaSolar', () => ({
   marcarBoasVindasEnviada: vi.fn(async (id: number) => { h.boasVindas.push(id); return true; }),
+  rebaixarSaiuAMudo: vi.fn(async (id: number) => { h.rebaixados.push(id); return true; }),
 }));
 
 import {
@@ -174,7 +176,7 @@ beforeEach(() => {
   process.env.AGENTES5040_HMAC = 'segredo-de-teste';
   h.estado.clear(); h.cards.clear(); h.enviados.length = 0; h.falhas.length = 0; esperas.length = 0; h.leiturasFila = 0;
   h.cooldown = false; h.pode = { pode: true, motivo: 'sem-pausa' }; h.bloqueado = false; h.motivos = [];
-  h.escondeCarimbo = false; h.falhaCard = false; h.aposEnvio = null; h.boasVindas.length = 0;
+  h.escondeCarimbo = false; h.falhaCard = false; h.aposEnvio = null; h.boasVindas.length = 0; h.rebaixados.length = 0;
   h.posse = { dona: 'duda', estado: 'viva', apresentada: true }; h.posseErro = false; h.posseAtualizacoes.length = 0; h.posseLeituras.length = 0;
   for (const id of [501, 502, 503, 504, 505, 506]) h.cards.set(id, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
   TEMPOS_AGENDA.esperar = async (ms: number) => { esperas.push(ms); };
@@ -902,6 +904,23 @@ describe('agendaEnvio: abertura descartada deixa o marcador solar_bv_dedup e o c
       expect(carimbos(), status).toEqual([]);
       expect(dedup(501), status).toEqual(['solar_bv_dedup:501']);
     }
+  });
+
+  it('abertura do card SAIU SEM MARCAR descartada na fila REBAIXA o card a MUDO; a abertura normal e a que sai não rebaixam (27/10/2026)', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: 'cancelado', quando: QUANDO });
+    await enfileirarAgenda(ab({ saiu: true, consultora: 'Nilce' }), AGORA);
+    h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: '2026-10-23T13:00:00.000Z' });   // horário mudou: descarta
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(h.rebaixados).toEqual([501]);
+    h.estado.clear(); h.rebaixados.length = 0;
+    h.cards.set(502, { cliente_telefone: TEL, status: 'fez_orcamento', quando: QUANDO });
+    await enfileirarAgenda(ab({ cardId: 502 }), AGORA);                  // abertura normal descartada: nada de rebaixar
+    expect((await enviarAgendaPendente(AGORA)).descartadas).toBe(1);
+    h.cards.set(503, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
+    await enfileirarAgenda(ab({ cardId: 503, saiu: true, consultora: 'Nilce' }), AGORA);     // a abertura SAIU que SAI mantém o card falando
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    expect(h.rebaixados).toEqual([]);
+    expect((sendHuman as any).mock.calls.at(-1)[1][0]).toContain('vai te ligar');
   });
 
   it('o status vem relido com maiúscula e espaço também; status que recebe (agendado, em_atendimento, nao_atendeu) sai normalmente', async () => {

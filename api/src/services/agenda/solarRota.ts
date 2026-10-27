@@ -77,6 +77,31 @@ export const RAIO_VISITA_KM = 150;
  *  esse texto, e trocar o slug tiraria a ficha de todos eles. */
 export const MARCA_QUIZ = 'LP SOLAR QUIZ';
 
+/** O card do lead que deixou o WhatsApp e saiu do quiz sem marcar (27/10/2026): nasce pelo tick `solar_quiz_avisos`, não pelo clique do cliente.
+ *  A 1ª linha é `LP SOLAR QUIZ · SAIU SEM MARCAR · <tipo> · LIGAÇÃO` (fala) ou `... · MUDO · LIGAÇÃO`. MUDO não recebe bom dia nem "oi" de 5 min. */
+export const MARCA_SAIU = `${MARCA_QUIZ} · SAIU SEM MARCAR`;
+const primeiraLinhaDe = (obs: unknown): string => String(obs ?? '').split('\n')[0].toUpperCase();
+export const ehCardSaiu = (obs: unknown): boolean => primeiraLinhaDe(obs).startsWith(MARCA_SAIU);
+/** O claim da 1ª mensagem ao cliente que saiu sem marcar: `solar_quiz_1o:<lead>` (system_state). Quem ganha fala (a abertura do card OU o "não marcou" do tick antigo da Duda); o outro cala. */
+export const CHAVE_PRIMEIRO_CONTATO = 'solar_quiz_1o:';
+/**
+ * A observação do card SAIU SEM MARCAR com a 1ª linha NORMAL do quiz (`LP SOLAR QUIZ · <tipo> · LIGAÇÃO`), sem SAIU SEM MARCAR e sem MUDO; o resto da
+ * observação fica igual. O tipo vem da 1ª linha (card que fala) ou da linha `Onde:` (card MUDO). Não é card SAIU: devolve a observação como veio.
+ * O caminhoDaFicha continua lendo 'ligacao' (a linha não traz VISTORIA, ATENDIMENTO nem VIDEO).
+ */
+export function semMarcaSaiu(obs: unknown): string {
+  const texto = String(obs ?? '');
+  const linhas = texto.split('\n');
+  if (!primeiraLinhaDe(texto).startsWith(MARCA_SAIU)) return texto;
+  let tipo = linhas[0].split(' · ')[2] ?? '';
+  if (!tipo || tipo.toUpperCase() === 'MUDO' || tipo.toUpperCase().startsWith('LIGA')) {
+    const onde = linhas.slice(1).find(l => /^Onde:\s*/i.test(l));
+    tipo = onde ? onde.replace(/^Onde:\s*/i, '').trim() : 'Imóvel';
+  }
+  return [`${MARCA_QUIZ} · ${tipo || 'Imóvel'} · LIGAÇÃO`, ...linhas.slice(1)].join('\n');
+}
+export const ehCardMudo = (obs: unknown): boolean => primeiraLinhaDe(obs).startsWith(`${MARCA_SAIU} · MUDO`);
+
 export const SOCIOS_VISITA = ['Thiago', 'Diego'] as const;
 export type Socio = typeof SOCIOS_VISITA[number];
 /** O dono anterior do telefone, no SOLAR (24/10/2026): a Giovanna não atende mais,

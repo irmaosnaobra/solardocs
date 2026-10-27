@@ -35,6 +35,7 @@ import { logger } from '../../utils/logger';
 import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { carregarBloqueioProativo } from './ioSend';
+import { ehCardSaiu } from '../agenda/solarRota';
 
 export const SEMENTE_PREFIX = 'semente:';
 const ULTIMO_KEY = 'semente_ultimo';
@@ -138,7 +139,7 @@ export async function publicoSemente(): Promise<CandidatoSemente[]> {
   const agora = Date.now();
   const { data: fichas, error } = await supabaseGerador
     .from('agendamentos')
-    .select('cliente_nome, cliente_telefone, status, quando, created_at, created_by')
+    .select('cliente_nome, cliente_telefone, status, quando, created_at, created_by, observacao')
     .gte('created_at', new Date(agora - IDADE_MAXIMA_MS).toISOString())
     .order('created_at', { ascending: false })
     .limit(3000);
@@ -151,6 +152,9 @@ export async function publicoSemente(): Promise<CandidatoSemente[]> {
   for (const f of fichas ?? []) {
     const k = telKey(f.cliente_telefone);
     if (!k) continue;
+    // 27/10/2026: o card SAIU SEM MARCAR que o sistema cancelou quando o cliente voltou e marcou nunca pediu orçamento: não é a "ficha mais
+    // recente" nem conta como horário futuro, e não coloca o cliente na nutrição de quem "não fechou".
+    if (f.status === 'cancelado' && ehCardSaiu(f.observacao)) continue;
     if (!maisRecente.has(k)) maisRecente.set(k, f);
     if (f.quando && new Date(f.quando).getTime() > agora) temFuturo.add(k);
   }

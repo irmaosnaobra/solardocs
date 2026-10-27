@@ -138,6 +138,13 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
 }));
 
+// 27/10/2026: o card SAIU SEM MARCAR cuja abertura não saiu é rebaixado a MUDO (o banco de verdade tem o teste próprio em solarQuizSaiuCard).
+const rebaixo = vi.hoisted(() => ({ ids: [] as number[], falhar: false }));
+vi.mock('../services/agentes5040/agendaSolar', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/agendaSolar')>()),
+  rebaixarSaiuAMudo: vi.fn(async (id: number) => { rebaixo.ids.push(id); return !rebaixo.falhar; }),
+}));
+
 // Fase B1b: força o corte por posse (cedeAAgente) em telefones escolhidos; o resto segue o posse REAL.
 const cortes = vi.hoisted(() => ({ cede: new Set<string>() }));
 vi.mock('../services/agentes5040/posse', async (orig) => {
@@ -159,7 +166,7 @@ function ficha(over: Partial<any> = {}) {
 
 const envOriginal = { ...process.env };
 beforeEach(() => {
-  enviadas.length = 0; updates.length = 0; erroDoUpdate = null;
+  enviadas.length = 0; updates.length = 0; erroDoUpdate = null; rebaixo.ids.length = 0; rebaixo.falhar = false;
   carimbos.length = 0; tetoLivre = true; estado.clear();
   fichas = [ficha()];
   consultores = [{ nome: 'Nilce', whatsapp: '5534991516846' }, { nome: 'Diego', whatsapp: '5534991360172' }];
@@ -183,6 +190,34 @@ describe('quem recebe', () => {
     fichas = ['lp_solar', 'lead-meta', 'leads-meta', 'manychat']
       .map((o, i) => ficha({ id: i + 1, created_by: o, cliente_telefone: `553499111000${i}` }));
     expect((await tick()).enviadas).toBe(4);
+  });
+
+  it('card SAIU SEM MARCAR nunca recebe a confirmação longa: com menos de 15 min espera a Duda; com 16 min é fechado SEM enviar (27/10/2026)', async () => {
+    const saiu = 'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO\nConta de luz: R$ 600 a R$ 1.050';
+    fichas = [ficha({ observacao: saiu, created_at: minutosAtras(10) })];
+    expect((await tick()).enviadas).toBe(0);
+    expect(updates).toEqual([]);
+    expect(fichas[0].boas_vindas_at).toBeNull();
+    fichas = [ficha({ observacao: saiu, created_at: minutosAtras(16) })];
+    const r = await tick();
+    expect(r.enviadas).toBe(0);
+    expect(enviadas).toHaveLength(0);                                   // nenhuma bolha, em nenhuma idade
+    expect(rebaixo.ids).toEqual([1]);                                   // a abertura não saiu: o card é rebaixado a MUDO
+    expect(updates).toEqual([]);                                        // e nem precisou do marcarSemEnviar
+  });
+
+  it('rebaixamento que falha: o card NÃO é fechado sem enviar (nenhum marcarSemEnviar); fica na fila e a próxima rodada tenta de novo', async () => {
+    const saiu = 'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO';
+    fichas = [ficha({ observacao: saiu, created_at: minutosAtras(16) })];
+    rebaixo.falhar = true;
+    expect((await tick()).enviadas).toBe(0);
+    expect(rebaixo.ids).toEqual([1]);
+    expect(updates).toEqual([]);                                        // nem boas_vindas_at nem marcador de dedup
+    expect(fichas[0].boas_vindas_at).toBeNull();
+    expect(enviadas).toHaveLength(0);
+    rebaixo.falhar = false;
+    await tick();
+    expect(rebaixo.ids).toEqual([1, 1]);                                // tentou de novo na rodada seguinte
   });
 
   it('indicação NÃO entra: quem foi indicado não preencheu formulário nenhum', async () => {

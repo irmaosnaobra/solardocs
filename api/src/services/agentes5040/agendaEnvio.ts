@@ -43,7 +43,7 @@ import { prefixosDaLinha, PREFIXOS_AGENDA, PREFIXOS_RESPOSTA_AGENTES } from '../
 import { hmacDe, idChaveHmac } from './hmac';
 import { codigoDoErroDeEnvio, erroEhDoDestino, CHAVE_LINHA_PAUSA, CHAVE_LINHA_ERROS, LIMITES as LIMITES_VIVO } from './vivoEnvio';
 import { erroProvaQueNaoSaiu } from './fichaEnvio';
-import { marcarBoasVindasEnviada } from './agendaSolar';
+import { marcarBoasVindasEnviada, rebaixarSaiuAMudo } from './agendaSolar';
 import { horaBRT } from './relogio';
 import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
 import { camposDeHorario, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
@@ -68,6 +68,8 @@ export interface CamposAgenda {
   caminho?: string;
   nome?: string;
   quando?: string;
+  /** Só a abertura: o card é de quem SAIU SEM MARCAR (a bolha não diz "já está marcado"). */
+  saiu?: boolean;
 }
 
 export interface PedidoAgenda {
@@ -92,6 +94,8 @@ export interface PedidoAgenda {
   caminho?: string;
   /** Só a abertura: o primeiro nome do cliente. Vazio = a bolha sai sem nome. */
   nome?: string;
+  /** Só a abertura: o card é de quem SAIU SEM MARCAR (texto próprio, 27/10/2026). */
+  saiu?: boolean;
 }
 
 export const PREFIXO_FILA = 'ag5040_agenda_fila:';
@@ -188,7 +192,7 @@ export function montarBolhaAgenda(tipo: TipoAgenda, campos: Partial<CamposAgenda
     ];
   } else if (tipo === 'abertura') {
     // A abertura do card do quiz (textosAgenda.ts): ignora o reforço (o reenvio sai com o mesmo texto) e já se corta sozinha em 160.
-    const t = textoDeAbertura(c.caminho, c.nome, texto(c.quando), consultora);
+    const t = textoDeAbertura(c.caminho, c.nome, texto(c.quando), consultora, c.saiu === true);
     if (!t) return null;
     bolha = t;
     degraus = [bolha];
@@ -220,10 +224,10 @@ export function juntarOpcoes(opcao1: string, opcao2: string): string {
 /** Os campos do texto, montados AGORA (Brasília) a partir dos ISOs do item. */
 function camposNoEnvio(
   tipo: TipoAgenda, quando: string, consultora: string, opcoes: readonly string[] | undefined, agoraIso: string,
-  abertura?: { caminho?: string; nome?: string },
+  abertura?: { caminho?: string; nome?: string; saiu?: boolean },
 ): Partial<CamposAgenda> {
   if (tipo === 'abertura') {
-    return { consultora: primeiroNome(consultora), caminho: abertura?.caminho ?? '', nome: abertura?.nome ?? '', quando: opcaoPorExtenso(quando, agoraIso) };
+    return { consultora: primeiroNome(consultora), caminho: abertura?.caminho ?? '', nome: abertura?.nome ?? '', quando: opcaoPorExtenso(quando, agoraIso), saiu: abertura?.saiu === true };
   }
   if (tipo === 'volta') {
     return {
@@ -254,6 +258,7 @@ interface ItemDaFila {
   reforco?: boolean;
   caminho?: string;
   nome?: string;
+  saiu?: boolean;
   /** HMAC do telefone (chaveContato) e o id da chave que o gerou; null sem segredo. */
   tel_hmac: string | null;
   hmac_id: string | null;
@@ -281,7 +286,7 @@ export async function enfileirarAgenda(p: PedidoAgenda, agora: Date = new Date()
   const quando = new Date(Date.parse(p.quando)).toISOString();
   const consultora = primeiroNome(p.consultora);
   const nome = p.tipo === 'abertura' ? primeiroNome(p.nome) : '';
-  const abertura = p.tipo === 'abertura' ? { caminho: p.caminho, nome } : undefined;
+  const abertura = p.tipo === 'abertura' ? { caminho: p.caminho, nome, saiu: p.saiu === true } : undefined;
   if (!montarBolhaAgenda(p.tipo, camposNoEnvio(p.tipo, quando, consultora, opcoes, agora.toISOString(), abertura), p.reforco === true)) return { ok: false, motivo: 'bolha_invalida' };
   const chave = chaveFila(cardId, p.tipo, quando);
   try {
@@ -295,7 +300,7 @@ export async function enfileirarAgenda(p: PedidoAgenda, agora: Date = new Date()
       consultora,
       ...(opcoes ? { opcoes } : {}),
       ...(p.reforco === true ? { reforco: true } : {}),
-      ...(p.tipo === 'abertura' ? { caminho: String(p.caminho), ...(nome ? { nome } : {}) } : {}),
+      ...(p.tipo === 'abertura' ? { caminho: String(p.caminho), ...(nome ? { nome } : {}), ...(p.saiu === true ? { saiu: true } : {}) } : {}),
       tel_hmac: ck ? hmacDe(ck) : null, hmac_id: ck ? idChaveHmac() : null,
       valido_ate: new Date(Date.parse(p.validoAte)).toISOString(),
       em: agora.toISOString(),
@@ -431,8 +436,12 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
   };
   // Tira o item da fila por decisão (nada saiu). Abertura: antes, marca o card com solar_bv_dedup para o alarme de reservas sem envio calar.
   // Horário mudado é exceção: o card ficou sem confirmação nenhuma (a reserva e a posse seguram o robô antigo), então o alarme tem que acusar.
+  // 27/10/2026: abertura do card SAIU SEM MARCAR descartada (a bolha não saiu): o card vira MUDO, para nenhuma outra mensagem do dia sair para quem
+  // nunca escolheu horário. `itemSaiu` é lido do item da vez, no começo de cada volta do laço.
+  let itemSaiu = false;
   const descartar = async (chaveDaFila: string, cardId: number, tipo: TipoAgenda, motivo: string): Promise<void> => {
     if (tipo === 'abertura' && !dry && motivo !== 'horario_mudou') await marcarAberturaDescartada(cardId, motivo, new Date(t));
+    if (tipo === 'abertura' && itemSaiu && !dry && motivo !== 'card_sumiu' && motivo !== 'status_nao_recebe') await rebaixarSaiuAMudo(cardId);
     await tirarDaFila(chaveDaFila);
     res.descartadas++;
   };
@@ -442,6 +451,7 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     const v = (linha.value ?? {}) as Partial<ItemDaFila>;
     const cardId = Number(v.card_id);
     const tipo = v.tipo as TipoAgenda;
+    itemSaiu = v.saiu === true;
 
     // 1. item malformado: sai da fila. O prazo (valido_ate) NÃO descarta (agenda nunca bloqueia): só serve à pausa humana, adiante.
     const validoAte = Date.parse(String(v.valido_ate ?? ''));
@@ -463,7 +473,7 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     let personaDoAviso: 'duda' | 'carla' | 'helena' = 'duda';
     let consultoraDoEnvio = String(v.consultora ?? '');
     const montar = (reforco: boolean, consultora: string = String(v.consultora ?? '')): string | null => montarBolhaAgenda(
-      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome }), reforco, comAviso, personaDoAviso);
+      tipo, camposNoEnvio(tipo, String(v.quando), consultora, v.opcoes, new Date(t).toISOString(), { caminho: v.caminho, nome: v.nome, saiu: v.saiu === true }), reforco, comAviso, personaDoAviso);
     if (!montar(v.reforco === true)) {
       logger.error(LOG, `bolha inválida (${tipo}), descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue;
     }

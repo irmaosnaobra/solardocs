@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   entregarFila: vi.fn(),
   gravar: vi.fn(),
   remarcar: vi.fn(),
+  tirarMarca: vi.fn(),
   boasVindas: vi.fn(),
   vagas: vi.fn(),
   silenciar: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock('../services/agentes5040/agendaEnvio', async (orig) => ({
 vi.mock('../services/agentes5040/agendaSolar', () => ({
   gravarCardSolar: (...a: unknown[]) => h.gravar(...a),
   remarcarCardSolar: (...a: unknown[]) => h.remarcar(...a),
+  tirarMarcaSaiuDoCard: (...a: unknown[]) => h.tirarMarca(...a),
   marcarBoasVindasEnviada: (...a: unknown[]) => h.boasVindas(...a),
   silenciarLembretesDoCard: (...a: unknown[]) => h.silenciar(...a),
 }));
@@ -142,6 +144,7 @@ beforeEach(() => {
   h.boasVindas.mockReset().mockResolvedValue(true);
   h.silenciar.mockReset().mockResolvedValue(true);
   h.remarcar.mockReset().mockResolvedValue('ok');
+  h.tirarMarca.mockReset().mockResolvedValue(true);
   // O card que o gravarCardSolar "criaria": entra na agenda falsa para o resto do código enxergar.
   h.gravar.mockReset().mockImplementation(async (f: any) => {
     const card = { id: 99, vendedor_nome: f.dono, quando: f.quando, cliente_nome: f.nome, cliente_telefone: f.tel, cidade: f.cidade, observacao: f.observacao, created_by: 'lp_solar', created_at: AGORA.toISOString(), status: 'agendado', historico: null };
@@ -382,6 +385,45 @@ describe('marcar_horario', () => {
     expect(h.fila).toHaveBeenCalledTimes(1);
   });
 
+  // 27/10/2026: o card SAIU SEM MARCAR (o cliente nunca escolheu horário) combinado com a Duda: a mensagem é `confirma`, nunca `remarca`.
+  it('card SAIU SEM MARCAR remarcado pela Duda: a fila leva `confirma` (nunca "mudei sua ligação"), e a ficha "remarcado" à Nilce sai mesmo assim', async () => {
+    semearLead({ card: { observacao: 'LP SOLAR QUIZ · SAIU SEM MARCAR · MUDO · LIGAÇÃO\nOnde: Casa' } }); alvo([hmacDe(CHAVE)!]);
+    h.enviar.mockResolvedValue({ ok: false, motivo: 'linha_pausada' });
+    await rodar();
+    expect(h.remarcar).toHaveBeenCalledTimes(1);                         // o remarcarCardSolar tira a marca no mesmo update
+    expect(h.tirarMarca).not.toHaveBeenCalled();
+    expect(h.fila.mock.calls[0]![0]).toMatchObject({ tipo: 'confirma', cardId: 7, quando: V1, consultora: 'Nilce' });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('REMARCADO');
+  });
+
+  it('card SAIU SEM MARCAR no MESMO horário: nada é remarcado, a marca SAIU sai (tirarMarcaSaiuDoCard) e a mensagem é `confirma`', async () => {
+    semearLead({ card: { quando: V1, observacao: 'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO' } }); alvo([hmacDe(CHAVE)!]);
+    h.enviar.mockResolvedValue({ ok: false, motivo: 'linha_pausada' });
+    await rodar();
+    expect(h.remarcar).not.toHaveBeenCalled();
+    expect(h.tirarMarca).toHaveBeenCalledWith(7);
+    expect(h.fila.mock.calls[0]![0]).toMatchObject({ tipo: 'confirma', cardId: 7, quando: V1 });
+    expect(h.ficha).not.toHaveBeenCalled();                              // nada remarcado, nenhuma ficha "remarcado"
+  });
+
+  it('tirarMarcaSaiuDoCard falhando (mesmo horário): a Duda NÃO confirma por cima; passa ao humano, sem fila de confirma', async () => {
+    semearLead({ card: { quando: V1, observacao: 'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO' } }); alvo([hmacDe(CHAVE)!]);
+    h.tirarMarca.mockResolvedValue(false);
+    await rodar();
+    expect(h.tirarMarca).toHaveBeenCalledWith(7);
+    expect(h.enviar).toHaveBeenCalledTimes(1);
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(BOLHA_PASSAGEM_AGENDA);   // a passagem ao humano, não a confirmação do horário
+    expect(h.fila).not.toHaveBeenCalled();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+  });
+
+  it('card que NÃO é SAIU no mesmo horário não passa pela troca de marca', async () => {
+    semearLead({ card: { quando: V1 } }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.tirarMarca).not.toHaveBeenCalled();
+  });
+
   it('remarcação com bolha recusada: a fila leva o tipo remarca, e a ficha "remarcado" sai mesmo assim', async () => {
     semearLead({ card: {} }); alvo([hmacDe(CHAVE)!]);
     h.enviar.mockResolvedValue({ ok: false, motivo: 'linha_pausada' });
@@ -458,6 +500,50 @@ describe('ligar_agora', () => {
     expect(posseDe()).toMatchObject({ estado: 'viva', ate_wa_id: 10, respostas: 1 });
     expect(posseDe().ligar).toMatchObject({ cardId: 99, avisado_em: AGORA.toISOString(), dono: 'Nilce', faixa: 'novo', criado: true });
     expect(r.decisoes[0]).toMatchObject({ acao: 'ligar_agora', resultado: 'ligar_agora', ficha: 'enviada' });
+  });
+
+  it('card SAIU SEM MARCAR: o "ligar agora" tira a marca (e carimba boas_vindas_at); card normal não passa por isso', async () => {
+    semearLead({ card: { observacao: 'LP SOLAR QUIZ · SAIU SEM MARCAR · MUDO · LIGAÇÃO\nOnde: Casa' } }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.tirarMarca).toHaveBeenCalledWith(7);
+    expect(h.gravar).not.toHaveBeenCalled();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(String(h.ficha.mock.calls[0]![1])).not.toMatch(/SAIU SEM MARCAR|MUDO/);
+    expect(h.silenciar).toHaveBeenCalledWith(7);                                // depois da ficha, bom dia e "oi" saem do ar como sempre
+    h.tirarMarca.mockClear();
+    h.principal = novoBanco(); h.gerador = novoBanco(); gerador = h.gerador; banco = h.principal;
+    semearLead({ card: {} }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.tirarMarca).not.toHaveBeenCalled();
+  });
+
+  it('card SAIU + ligar agora: a marca só sai DEPOIS da ficha (ficha enviada: tirar antes de silenciar); ficha adiada ou já avisada deixa o card como estava', async () => {
+    const SAIU = 'LP SOLAR QUIZ · SAIU SEM MARCAR · MUDO · LIGAÇÃO\nOnde: Casa';
+    // ficha ENVIADA: tirarMarca roda e vem antes do silenciar (o silenciar recarimba o que o tirar zerou)
+    semearLead({ card: { observacao: SAIU } }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.tirarMarca).toHaveBeenCalledWith(7);
+    expect(h.silenciar).toHaveBeenCalledWith(7);
+    expect(h.tirarMarca.mock.invocationCallOrder[0]).toBeLessThan(h.silenciar.mock.invocationCallOrder[0]!);
+    // ficha ADIADA (provado que nada saiu): o card continua SAIU, nada é tocado
+    h.tirarMarca.mockClear(); h.silenciar.mockClear();
+    h.principal = novoBanco(); h.gerador = novoBanco(); gerador = h.gerador; banco = h.principal;
+    semearLead({ card: { observacao: SAIU } }); alvo([hmacDe(CHAVE)!]);
+    h.ficha.mockRejectedValue(new Error('linha em cooldown'));
+    ia = modelo([{ bolhas: [BOLHA_LIGAR], extra: { acao: 'ligar_agora' } }, { bolhas: [BOLHA_OUTRO], extra: { acao: 'continuar' } }]);
+    await rodar();
+    expect(h.tirarMarca).not.toHaveBeenCalled();
+    expect(h.silenciar).not.toHaveBeenCalled();
+    // ficha JÁ AVISADA (a reserva do dia existe): passa ao humano, o card continua SAIU
+    h.ficha.mockReset().mockResolvedValue(undefined);
+    h.principal = novoBanco(); h.gerador = novoBanco(); gerador = h.gerador; banco = h.principal;
+    semearLead({ card: { observacao: SAIU } }); alvo([hmacDe(CHAVE)!]);
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_ligar:7:2026-10-20', value: { estado: 'enviada' } });
+    ia = modelo([{ bolhas: [BOLHA_LIGAR], extra: { acao: 'ligar_agora' } }]);
+    const rj = await rodar();
+    expect(rj.decisoes[0]).toMatchObject({ resultado: 'passou_ao_humano', motivo: 'ligar_ficha_ja_avisada' });
+    expect(h.tirarMarca).not.toHaveBeenCalled();
+    expect(h.silenciar).not.toHaveBeenCalled();
   });
 
   it('card existente agendado: usa o card, não cria outro; não reserva ficha_card (o fichaTick já tratou o dele)', async () => {

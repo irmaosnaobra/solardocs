@@ -25,7 +25,7 @@ export class BancoFalso {
     let conflito: string | undefined;
 
     const like = (valor: unknown, padrao: string, ci: boolean) => {
-      const re = new RegExp('^' + padrao.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.') + '$', ci ? 'i' : '');
+      const re = new RegExp('^' + padrao.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.') + '$', ci ? 'is' : 's');
       return re.test(String(valor ?? ''));
     };
 
@@ -55,6 +55,12 @@ export class BancoFalso {
       }
       if (op === 'update') {
         const alvo = linhas.filter(casa);
+        // O índice único (vendedor, quando) também recusa o UPDATE que muda o horário para um ocupado (27/10/2026: mover o card).
+        const novo = payload as Linha | null;
+        if (nome === 'agendamentos' && novo?.quando && alvo.some(l => l.status !== 'cancelado' && linhas.some(x => x !== l && x.status !== 'cancelado'
+          && x.vendedor_nome === (novo.vendedor_nome ?? l.vendedor_nome) && x.quando === novo.quando))) {
+          return { data: null, error: { code: '23505', message: 'duplicate key (vendedor, quando)' } };
+        }
         for (const l of alvo) Object.assign(l, payload);
         return { data: alvo, error: null };
       }
@@ -83,6 +89,7 @@ export class BancoFalso {
       not: (c: string, o: string, v: string) => {
         if (o === 'in') { const lista = String(v).replace(/[()]/g, '').split(','); filtros.push(l => !lista.includes(String(l[c]))); }
         else if (o === 'is') filtros.push(l => !(v === null ? l[c] === null || l[c] === undefined : l[c] === v));
+        else if (o === 'like') filtros.push(l => !like(l[c], String(v), false));
         return q;
       },
       gte: (c: string, v: any) => { filtros.push(l => l[c] !== undefined && l[c] !== null && l[c] >= v); return q; },
