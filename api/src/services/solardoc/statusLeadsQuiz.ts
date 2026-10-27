@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ONDE ESTÁ CADA LEAD DO QUIZ DO SOLARDOC (26/10/2026). SÓ LEITURA.
+// ONDE ESTÁ CADA LEAD DO QUIZ DO SOLARDOC (26/10/2026). SÓ LEITURA. (A escrita do registro da ligação é do followupQuizSolardoc.)
 //
-// A tela "Quiz SolarDoc" do /gerador mostra, por lead: a Carla chamou? o time foi avisado? comprou? As respostas moram em dois bancos:
+// A tela "Quiz SolarDoc" do /gerador mostra, por lead: a Carla chamou? o time foi avisado? comprou? em que pé está a ligação? As respostas moram em dois bancos:
 //   - os leads: `leads_meta` no banco do GERADOR (form_id 'quiz_solardoc'; lead_id 'sdquiz_<DDD+8>');
 //   - o que a Carla e o aviso fizeram: `system_state` no banco PRINCIPAL, em chaves com o HMAC do telefone.
 // Os dois clientes têm o mesmo método `.from()` e nenhum tipo pega a troca, por isso o teste de estrutura lê este arquivo.
@@ -18,6 +18,7 @@ import { chavesComPlanoPago, vendasDesde, type VendasComData } from './compraQui
 import { estadoRecuperacaoCarla, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import { hmacDoLeadRec } from './recuperacaoCarla';
 import { PREFIXO_CARIMBO_REC, campoFd, semCnpj, type LeadRec } from './recuperacaoCarlaRegras';
+import { PREFIXO_FOLLOWUP, estadoDoFollowup, histDoValor, type FollowupDoLead } from './followupQuizSolardoc';
 
 export const DIAS_PADRAO = 60;
 export const DIAS_MAXIMO = 180;
@@ -38,7 +39,7 @@ export interface CarlaDoLead { estado: EstadoCarla; em: string | null; motivo: s
 export type NaoConferiu = { nao_conferiu: true };
 export type AvisoDoLead = { em: string | null; tipo: string } | NaoConferiu | null;
 export type CompraDoLead = { em: string | null } | NaoConferiu | null;
-export interface StatusDoLead { carla: CarlaDoLead; aviso: AvisoDoLead; comprou: CompraDoLead }
+export interface StatusDoLead { carla: CarlaDoLead; aviso: AvisoDoLead; comprou: CompraDoLead; followup: FollowupDoLead | null }
 
 export interface RespostaStatus {
   ok: true;
@@ -46,6 +47,9 @@ export interface RespostaStatus {
   carla_motivo: string;
   largada: string | null;
   truncado: boolean;
+  /** A fila de ligação: quantos leads (fora os de teste) estão com a ligação devida hoje. */
+  /** `incompleta`: alguma leitura do follow-up falhou (ou faltou hmac); esses leads vêm com `followup: null` e não entram na conta. */
+  fila: { para_ligar_hoje: number; incompleta: boolean };
   status: Record<string, StatusDoLead>;
 }
 
@@ -105,9 +109,9 @@ export function carlaDoLead(a: {
 }
 
 /** Estados da chave da desistência (`quiz_aviso:<hmac>`) em que o time recebeu o aviso, por grupo ou por e-mail. */
-export const AVISADO_NA_DESISTENCIA: readonly string[] = ['enviado', 'enviado_cartao', 'email', 'sem_grupo', 'falhou', 'expirado'];
-/** Na chave `:semvaga` só estes: lá 'sem_grupo' e 'email' não geram e-mail nenhum (o resumo por e-mail só roda no tick). */
-export const AVISADO_NO_SEM_VAGA: readonly string[] = ['enviado', 'enviado_cartao', 'falhou', 'expirado'];
+export const AVISADO_NA_DESISTENCIA: readonly string[] = ['enviado', 'enviado_cartao', 'email', 'sem_grupo', 'email_sem_grupo', 'falhou', 'expirado'];
+/** Na chave `:semvaga` só estes: lá 'sem_grupo' e 'email' não geram e-mail nenhum (o resumo por e-mail só roda no tick). 'email_sem_grupo' (27/10) é o aviso que o robô da Carla mandou por e-mail no fim da rodada. */
+export const AVISADO_NO_SEM_VAGA: readonly string[] = ['enviado', 'enviado_cartao', 'email_sem_grupo', 'falhou', 'expirado'];
 
 /**
  * O time foi avisado? A chave `quiz_aviso:<hmac>` nasce 'novo' e fica 'pendente' até o tick enviar, e a do comprador ('comprou')
@@ -192,7 +196,7 @@ export async function statusLeadsQuiz(opts: { dias?: unknown; agora?: Date } = {
 
   const hmacs = leads.map((l) => hmacDoLeadRec(l));
   const chavesPedidas = hmacs.flatMap((h) =>
-    h ? [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}${SUFIXO_SEM_VAGA}`] : []);
+    h ? [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}${SUFIXO_SEM_VAGA}`, `${PREFIXO_FOLLOWUP}${h}`] : []);
   const lidas = chavesPedidas.length ? await deps.chaves(chavesPedidas) : new Map<string, LinhaEstado>();
   const leituraOk = lidas !== null;
 
@@ -215,6 +219,8 @@ export async function statusLeadsQuiz(opts: { dias?: unknown; agora?: Date } = {
       carla: carlaDoLead({ lead, hmac: h, leituraOk, claim: carimbo, largadaMs }),
       aviso: avisoDoLead({ leituraOk, hmac: h, desistencia: avisoLinha, semVaga: semVagaLinha }),
       comprou: null,
+      // O follow-up é calculado depois das compras (precisa do `comprou` de cada lead). Leitura que falhou ou lead sem hmac = null, nunca um "novo" inventado.
+      followup: null,
     };
     if (ehLeadDeTeste(lead.field_data)) return;   // teste nunca compra: poupa a consulta
     const tel = normalizarTelefoneSd(lead.whatsapp);
@@ -243,12 +249,29 @@ export async function statusLeadsQuiz(opts: { dias?: unknown; agora?: Date } = {
   }
   for (const [id, c] of compras) if (status[id]) status[id].comprou = c;
 
+  // Follow-up de novo, agora com a compra: quem comprou fecha. "nao_conferiu" NÃO fecha (sem prova de compra, a ligação continua devida).
+  const testes = new Set<string>();
+  leads.forEach((lead, i) => {
+    const id = String(lead.lead_id ?? '').trim();
+    const st = status[id];
+    if (!id || !st) return;
+    if (ehLeadDeTeste(lead.field_data)) testes.add(id);
+    const h = hmacs[i];
+    if (!h || !leituraOk) { st.followup = null; return; }
+    const comprou = !!st.comprou && !('nao_conferiu' in st.comprou);
+    st.followup = estadoDoFollowup({ hist: histDoValor(lidas?.get(`${PREFIXO_FOLLOWUP}${h}`)?.value), criadoEm: lead.created_time, comprou, agora });
+  });
+  const paraLigarHoje = Object.entries(status).filter(([id, st]) => !testes.has(id) && st.followup?.devido).length;
+  // Lead de teste não entra na conta (nem na fila, nem em "incompleta").
+  const incompleta = Object.entries(status).some(([id, st]) => !testes.has(id) && st.followup === null);
+
   return {
     ok: true,
     carla_ligada: estado.ligada,
     carla_motivo: estado.motivo,
     largada: typeof largadaMs === 'number' ? new Date(largadaMs).toISOString() : null,
     truncado,
+    fila: { para_ligar_hoje: paraLigarHoje, incompleta },
     status,
   };
 }

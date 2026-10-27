@@ -45,6 +45,8 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => { throw new Error('sem banco'); } } }));
+const correio = vi.hoisted(() => ({ sendOpsAlert: vi.fn(async () => undefined) }));
+vi.mock('../utils/mailer', () => ({ sendOpsAlert: correio.sendOpsAlert }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../services/agentes5040/modoPix', async (orig) => {
   const real = await orig<typeof import('../services/agentes5040/modoPix')>();
@@ -704,5 +706,26 @@ describe('sem vaga', () => {
     const b = falsas([antiga()], { janela: () => false, garantirLargada: largada });
     await runQuizRecuperacaoTick({ agora: domingo }, b.d);
     expect(b.e.avisos).toHaveLength(0);
+  });
+});
+
+describe('fim da rodada: fecharRodada roda no finally (27/10)', () => {
+  const FORA = new Date('2026-10-21T12:00:00.000Z');
+  it('saída cedo (fora da janela, sem lead): fecharRodada é chamado UMA vez e, com o coletor vazio, nenhum e-mail sai', async () => {
+    correio.sendOpsAlert.mockClear();
+    const real = depsReais();
+    const espiao = vi.fn(() => real.fecharRodada!());
+    const { d } = falsas([], { janela: () => false, fecharRodada: espiao });
+    const r = await runQuizRecuperacaoTick({ agora: FORA }, d);
+    expect(r.motivo).toBe('fora_da_janela');
+    expect(espiao).toHaveBeenCalledTimes(1);
+    expect(correio.sendOpsAlert).not.toHaveBeenCalled();
+  });
+  it('rodada que falha por dentro também fecha, e fecharRodada que lança não derruba o resultado', async () => {
+    const { d } = falsas([], { estado: async () => { throw new Error('x'); }, fecharRodada: vi.fn(async () => { throw new Error('smtp'); }) });
+    const r = await runQuizRecuperacaoTick({ agora: FORA }, d);
+    expect(r.ok).toBe(false);
+    expect(r.motivo).toBe('a_rodada_falhou');
+    expect(d.fecharRodada).toHaveBeenCalledTimes(1);
   });
 });

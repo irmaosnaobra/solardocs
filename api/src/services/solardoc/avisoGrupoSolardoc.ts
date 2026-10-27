@@ -437,18 +437,21 @@ async function jaResolvidos(linhas: Array<{ key: string; updated_at?: string }>)
 
 const escapar = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-async function emailOps(assunto: string, texto: string, motivo: string): Promise<void> {
+/** true = o e-mail saiu; false = falhou (já logado). Nunca lança. */
+async function emailOps(assunto: string, texto: string, motivo: string): Promise<boolean> {
   try {
     await sendOpsAlert(assunto, `<p>${escapar(motivo)}</p><pre style="white-space:pre-wrap;font-family:inherit">${escapar(texto)}</pre>`);
+    return true;
   } catch (e) {
     logger.error('solardoc-aviso', 'e-mail de resgate também falhou', { erro: String(e) });
+    return false;
   }
 }
 
 /** UM e-mail de resumo com os avisos que não saíram por falta de id do grupo (a rodada inteira, nunca um por lead). */
-export async function emailResumoSemGrupo(textos: string[]): Promise<void> {
-  if (!textos.length) return;
-  await emailOps(
+export async function emailResumoSemGrupo(textos: string[]): Promise<boolean> {
+  if (!textos.length) return true;
+  return emailOps(
     `Avisos do SolarDoc sem grupo (${textos.length})`, textos.join('\n\n'),
     'O grupo de vendas do SolarDoc ainda não tem id (ZAPI_SOLARDOC_GRUPO_ID / GRUPO_VENDAS_SOLARDOC). Avisos que não saíram:',
   );
@@ -503,7 +506,13 @@ interface OpcoesEmitir {
   urgente?: boolean;
   /** Compra: só reivindica o claim e fica pendente. Quem envia ao grupo é o tick (descarregarPendentes), nunca o webhook. */
   soReivindicar?: boolean;
+  /** Opt-in do ROBÔ da Carla (27/10): sem id de grupo, o aviso marcado `sem_grupo` entra neste coletor da rodada e o robô manda UM e-mail no fim
+   *  (`fecharSemGrupo`). O tick não passa isto: ele manda o resumo dele. */
+  coletorSemGrupo?: ColetorSemGrupo;
 }
+
+/** Avisos de uma rodada do robô que ficaram `sem_grupo` e esperam o e-mail único do fim da rodada. */
+export type ColetorSemGrupo = Array<{ chave: string; tipo: string; texto: string }>;
 
 async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   const r = await reivindicar(o.chave, o.tipo, o.texto);
@@ -514,6 +523,7 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   if (!grupo) {
     await marcar(o.chave, o.tipo, 'sem_grupo');
     logger.warn('solardoc-aviso', `sem id do grupo de vendas: aviso de ${o.tipo} não enviado`);
+    o.coletorSemGrupo?.push({ chave: o.chave, tipo: o.tipo, texto: o.texto });
     return 'sem_grupo';
   }
   // Pendente: a linha ou o grupo não estão para envio, o teto da hora encheu ou outro aviso avulso tem a vez.
@@ -546,6 +556,23 @@ async function emitir(o: OpcoesEmitir): Promise<ResultadoAviso> {
   return 'falhou';
 }
 
+/**
+ * Fim da rodada do robô: UM e-mail com todos os avisos coletados (sem id de grupo). Se o e-mail saiu, cada claim vira `email_sem_grupo`
+ * (estado que nenhum código reabre ou reenvia: descarregarPendentes só olha `pendente`/`novo`); se falhou, viram `sem_grupo_falhou` (também sem reabrir nada,
+ * e fora das listas de "avisado" da tela: o time NÃO soube) e o erro já está no log.
+ * Esvazia o coletor. Nunca lança.
+ */
+export async function fecharSemGrupo(coletor: ColetorSemGrupo): Promise<void> {
+  if (!coletor.length) return;
+  const itens = coletor.splice(0, coletor.length);
+  try {
+    const saiu = await emailResumoSemGrupo(itens.map(i => i.texto));
+    for (const i of itens) await marcar(i.chave, i.tipo, saiu ? 'email_sem_grupo' : 'sem_grupo_falhou');
+  } catch (e) {
+    logger.error('solardoc-aviso', 'fechar os avisos sem grupo falhou', { erro: String(e) });
+  }
+}
+
 // ── os três avisos ───────────────────────────────────────────────────────────
 
 const hmacDoLead = (whatsapp: string | null | undefined): string | null => {
@@ -560,22 +587,22 @@ const hmacDoLead = (whatsapp: string | null | undefined): string | null => {
  *  - `soReivindicar`: só toma o claim e deixa o aviso `pendente`; quem envia é o tick do B1 (descarregarPendentes), com o espaçamento dele.
  */
 export async function avisarDesistencia(
-  lead: LeadQuizLinha, opts: { horaCarla?: string | null; motivoCarla?: string | null; soReivindicar?: boolean } = {},
+  lead: LeadQuizLinha, opts: { horaCarla?: string | null; motivoCarla?: string | null; soReivindicar?: boolean; coletorSemGrupo?: ColetorSemGrupo } = {},
 ): Promise<ResultadoAviso> {
   if (ehLeadDeTeste(lead.field_data)) return 'ignorado';
   const h = hmacDoLead(lead.whatsapp);
   if (!h) { logger.warn('solardoc-aviso', 'desistência sem telefone ou sem segredo de HMAC: ignorada'); return 'ignorado'; }
   const texto = montarAviso('desistencia', { ...camposDoLead(lead), hora_carla: opts.horaCarla ?? null, motivo_carla: opts.motivoCarla ?? null });
-  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}`, tipo: 'desistencia', texto, urgente: true, soReivindicar: opts.soReivindicar });
+  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}`, tipo: 'desistencia', texto, urgente: true, soReivindicar: opts.soReivindicar, coletorSemGrupo: opts.coletorSemGrupo });
 }
 
 /** Sem vaga para a Carla. UMA vez por pessoa, para sempre (B2.1). Quem decide não chamar quando a desistência já saiu é o robô (lerFila). */
-export async function avisarSemVaga(lead: LeadQuizLinha): Promise<ResultadoAviso> {
+export async function avisarSemVaga(lead: LeadQuizLinha, opts: { coletorSemGrupo?: ColetorSemGrupo } = {}): Promise<ResultadoAviso> {
   if (ehLeadDeTeste(lead.field_data)) return 'ignorado';
   const h = hmacDoLead(lead.whatsapp);
   if (!h) { logger.warn('solardoc-aviso', 'sem vaga sem telefone ou sem segredo de HMAC: ignorado'); return 'ignorado'; }
   const texto = montarAviso('semVaga', camposDoLead(lead));
-  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}:semvaga`, tipo: 'sem_vaga', texto, urgente: true });
+  return emitir({ chave: `${PREFIXO_CLAIM_QUIZ}${h}:semvaga`, tipo: 'sem_vaga', texto, urgente: true, coletorSemGrupo: opts.coletorSemGrupo });
 }
 
 export type CanalCompra = 'cartao' | 'asaas' | 'comprovante';

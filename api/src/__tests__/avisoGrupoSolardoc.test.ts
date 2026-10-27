@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── banco em memória: só o suficiente para system_state, leads_meta, sales e users ──
@@ -112,7 +114,7 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
 vi.mock('../services/agentes5040/posse', () => ({ lerPosse: (...a: unknown[]) => av.posse(...a) }));
 
 import {
-  avisarDesistencia, avisarSemVaga, avisarCompra, descarregarPendentes, grupoVendas, idDeVenda, TEMPOS_AVISO,
+  avisarDesistencia, avisarSemVaga, avisarCompra, descarregarPendentes, grupoVendas, idDeVenda, TEMPOS_AVISO, fecharSemGrupo, type ColetorSemGrupo,
   type LeadQuizLinha,
 } from '../services/solardoc/avisoGrupoSolardoc';
 import { montarAviso, MODELOS, telefoneComDdi, type ModeloAviso } from '../services/solardoc/avisoGrupoTextos';
@@ -1295,5 +1297,120 @@ describe('o teto de 12 avulsos por hora só conta o que de fato saiu', () => {
     for (let i = 0; i < 12; i++) claimFalso(i, 'enviado');
     expect(await avulso('t3')).toBe('pendente');
     expect(sendToGroup).not.toHaveBeenCalled();
+  });
+});
+
+describe('sem id de grupo: o ROBÔ da Carla manda UM e-mail por rodada (27/10), opt-in por coletor', () => {
+  const semGrupo = () => { delete process.env.ZAPI_SOLARDOC_GRUPO_ID; };
+  const emailsDe = () => sendOpsAlert.mock.calls.map(c => JSON.stringify(c));
+  const hmacDoId = (id: string) => hmacDe(chaveDoTelefone(normalizarTelefoneSd(telDe(id)) as string));
+
+  it('3 avisos do robô na rodada com o grupo vazio: 1 e-mail com os 3 textos e os claims viram email_sem_grupo', async () => {
+    semGrupo();
+    const col: ColetorSemGrupo = [];
+    expect(await avisarDesistencia(lead({ nome: 'Ana Robô', whatsapp: telDe('a') }), { soReivindicar: true, horaCarla: '10:15', coletorSemGrupo: col })).toBe('sem_grupo');
+    expect(await avisarDesistencia(lead({ nome: 'Bia Robô', whatsapp: telDe('b') }), { soReivindicar: true, motivoCarla: 'A Carla está desligada agora.', coletorSemGrupo: col })).toBe('sem_grupo');
+    expect(await avisarSemVaga(lead({ nome: 'Caio Sem Vaga', whatsapp: telDe('c') }), { coletorSemGrupo: col })).toBe('sem_grupo');
+    expect(sendOpsAlert).not.toHaveBeenCalled();   // durante a rodada nada sai
+    expect(col).toHaveLength(3);
+    expect(claims().map(c => c.value.estado)).toEqual(['sem_grupo', 'sem_grupo', 'sem_grupo']);
+    await fecharSemGrupo(col);
+    expect(sendOpsAlert).toHaveBeenCalledTimes(1);
+    for (const nome of ['Ana Robô', 'falou às 10:15', 'Bia Robô', 'Caio Sem Vaga']) expect(emailsDe()[0]).toContain(nome);
+    expect(claims().map(c => c.value.estado)).toEqual(['email_sem_grupo', 'email_sem_grupo', 'email_sem_grupo']);
+    expect(chave(`quiz_aviso:${hmacDoId('c')}:semvaga`)!.value).toMatchObject({ tipo: 'sem_vaga', estado: 'email_sem_grupo' });
+    expect(col).toHaveLength(0);
+    // repetir não reenvia: o claim existe (duplicado) e o coletor fica vazio
+    expect(await avisarDesistencia(lead({ nome: 'Ana Robô', whatsapp: telDe('a') }), { soReivindicar: true, coletorSemGrupo: col })).toBe('duplicado');
+    await fecharSemGrupo(col);
+    expect(sendOpsAlert).toHaveBeenCalledTimes(1);
+    expect(sendToGroup).not.toHaveBeenCalled();
+  });
+  it('rodada sem aviso sem grupo: nenhum e-mail', async () => {
+    await fecharSemGrupo([]);
+    expect(sendOpsAlert).not.toHaveBeenCalled();
+  });
+  it('e-mail que falha: os claims viram sem_grupo_falhou (e nada lança)', async () => {
+    semGrupo();
+    const col: ColetorSemGrupo = [];
+    await avisarDesistencia(lead({ whatsapp: telDe('h') }), { soReivindicar: true, coletorSemGrupo: col });
+    await avisarDesistencia(lead({ whatsapp: telDe('i') }), { soReivindicar: true, coletorSemGrupo: col });
+    sendOpsAlert.mockRejectedValueOnce(new Error('smtp fora'));
+    await expect(fecharSemGrupo(col)).resolves.toBeUndefined();
+    expect(sendOpsAlert).toHaveBeenCalledTimes(1);
+    expect(claims().map(c => c.value.estado)).toEqual(['sem_grupo_falhou', 'sem_grupo_falhou']);
+  });
+  it('sem_grupo_falhou também não reabre nem reenvia nada (cartão, tick e teto)', async () => {
+    semGrupo();
+    const col: ColetorSemGrupo = [];
+    await avisarDesistencia(lead({ nome: 'Ana Robô', whatsapp: telDe('a') }), { soReivindicar: true, coletorSemGrupo: col });
+    sendOpsAlert.mockRejectedValueOnce(new Error('smtp fora'));
+    await fecharSemGrupo(col);
+    expect(claims()[0]!.value.estado).toBe('sem_grupo_falhou');
+    process.env.ZAPI_SOLARDOC_GRUPO_ID = GRUPO;
+    liberarTudo();
+    expect((await descarregarPendentes()).enviados).toBe(0);
+    tabelas.leads_meta!.push({ ...lead({ nome: 'Ana Robô', whatsapp: telDe('a'), lead_id: 'sdquiz_ra', created_time: minAtras(30) }), form_id: 'quiz_solardoc' });
+    expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(sendOpsAlert).toHaveBeenCalledTimes(1);   // só a tentativa que falhou
+    expect(claims()[0]!.value.estado).toBe('sem_grupo_falhou');
+  });
+  it('sem coletor (caminho do tick) nenhum e-mail sai por aviso, em desistência e em sem vaga', async () => {
+    semGrupo();
+    expect(await avisarDesistencia(lead({ whatsapp: telDe('d') }))).toBe('sem_grupo');
+    expect(await avisarDesistencia(lead({ whatsapp: telDe('e') }), { soReivindicar: true })).toBe('sem_grupo');
+    expect(await avisarSemVaga(lead({ whatsapp: telDe('f') }))).toBe('sem_grupo');
+    expect(sendOpsAlert).not.toHaveBeenCalled();
+  });
+  it('com grupo, o coletor não muda nada: sai pelo grupo, sem e-mail e coletor vazio', async () => {
+    const col: ColetorSemGrupo = [];
+    expect(await avisarDesistencia(lead({ whatsapp: telDe('g') }), { coletorSemGrupo: col })).toBe('enviado');
+    expect(sendToGroup).toHaveBeenCalledTimes(1);
+    expect(col).toHaveLength(0);
+    expect(sendOpsAlert).not.toHaveBeenCalled();
+  });
+  it('o tick depois do robô: o lead do robô é duplicado, e o resumo do tick leva só os outros', async () => {
+    semGrupo();
+    const col: ColetorSemGrupo = [];
+    await avisarDesistencia(lead({ nome: 'Ana Robô', whatsapp: telDe('a') }), { soReivindicar: true, coletorSemGrupo: col });
+    await fecharSemGrupo(col);   // robô: 1 e-mail
+    tabelas.leads_meta!.push(
+      { ...lead({ nome: 'Ana Robô', whatsapp: telDe('a'), lead_id: 'sdquiz_ra', created_time: minAtras(30) }), form_id: 'quiz_solardoc' },
+      { ...lead({ nome: 'Dani Tick', whatsapp: telDe('d'), lead_id: 'sdquiz_rd', created_time: minAtras(30) }), form_id: 'quiz_solardoc' },
+    );
+    await runSolardocQuizDesistenciaTick();
+    expect(sendOpsAlert).toHaveBeenCalledTimes(2);
+    expect(emailsDe()[1]).toContain('Dani Tick');
+    expect(emailsDe()[1]).not.toContain('Ana Robô');
+  });
+  it('email_sem_grupo não reabre nada: o cartão dos pendentes não o pega e o tick o trata como já avisado', async () => {
+    semGrupo();
+    const col: ColetorSemGrupo = [];
+    await avisarDesistencia(lead({ nome: 'Ana Robô', whatsapp: telDe('a') }), { soReivindicar: true, coletorSemGrupo: col });
+    await fecharSemGrupo(col);
+    process.env.ZAPI_SOLARDOC_GRUPO_ID = GRUPO;   // o grupo passa a existir depois
+    liberarTudo();
+    const r = await descarregarPendentes();
+    expect(r.enviados).toBe(0);
+    tabelas.leads_meta!.push({ ...lead({ nome: 'Ana Robô', whatsapp: telDe('a'), lead_id: 'sdquiz_ra', created_time: minAtras(30) }), form_id: 'quiz_solardoc' });
+    expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
+    expect(sendToGroup).not.toHaveBeenCalled();
+    expect(claims()[0]!.value.estado).toBe('email_sem_grupo');
+  });
+  it('compra sem grupo nunca manda e-mail (não tem coletor)', async () => {
+    semGrupo();
+    expect(await compra('cs_robo')).toBe('sem_grupo');
+    expect(sendOpsAlert).not.toHaveBeenCalled();
+  });
+  it('a ligação: só as 3 deps do robô passam o coletor, e fecham a rodada; o tick e a compra não', () => {
+    const lerFonte = (arq: string) => readFileSync(join(__dirname, '..', 'services', 'solardoc', arq), 'utf8');
+    const robo = lerFonte('recuperacaoCarla.ts');
+    expect(robo.match(/coletorSemGrupo: semGrupo/g)).toHaveLength(3);
+    expect(robo).toContain('fecharRodada: () => fecharSemGrupo(semGrupo)');
+    expect(robo).toMatch(/finally \{[^}]*fecharRodada/);
+    expect(lerFonte('desistenciaQuizTick.ts')).not.toContain('coletorSemGrupo');
+    const aviso = lerFonte('avisoGrupoSolardoc.ts');
+    expect(aviso.slice(aviso.indexOf('export async function avisarCompra'))).not.toContain('coletorSemGrupo');
   });
 });

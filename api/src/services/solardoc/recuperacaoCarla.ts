@@ -47,7 +47,7 @@ import { CHAVE_LINHA_ERROS, CHAVE_LINHA_PAUSA, codigoDoErroDeEnvio, erroEhDoDest
 import { erroProvaQueNaoSaiu } from '../agentes5040/fichaEnvio';
 import { modoPix } from '../agentes5040/modoPix';
 import { chaveDoTelefone, codigoDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
-import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, PREFIXO_CLAIM_QUIZ, type ResultadoAviso } from './avisoGrupoSolardoc';
+import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, fecharSemGrupo, PREFIXO_CLAIM_QUIZ, type ColetorSemGrupo, type ResultadoAviso } from './avisoGrupoSolardoc';
 import { comprouLead, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
@@ -221,6 +221,8 @@ export interface DepsRec extends DepsAvaliar {
   avisarSaiu(lead: LeadRec, hora: string): Promise<ResultadoAviso>;
   avisarNaoChama(lead: LeadRec, frase: string): Promise<ResultadoAviso>;
   avisarSemVaga(lead: LeadRec): Promise<ResultadoAviso>;
+  /** Fim da rodada (sempre, mesmo se ela falhou): manda UM e-mail com os avisos que ficaram sem grupo. Opcional: os testes não precisam dele. */
+  fecharRodada?(): Promise<void>;
 }
 
 export interface DecisaoRec { hmac8: string; resultado: string; motivo: string | null }
@@ -436,6 +438,11 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
   } catch (e) {
     logger.error(LOG, `a rodada falhou (${String((e as Error)?.message ?? e).slice(0, 80)})`);
     return { ...r, ok: false, motivo: 'a_rodada_falhou' };
+  } finally {
+    // UM e-mail por rodada com os avisos sem grupo; nunca derruba a rodada.
+    // Limite conhecido: se a função estourar o `maxDuration` da Vercel, o `finally` não roda e os claims coletados ficam `sem_grupo` (sem e-mail).
+    // Para a rodada do robô (no máximo 8 avaliações e 1 envio) isso é raro; o `sem_grupo` continua contando como avisado só na desistência.
+    try { await d.fecharRodada?.(); } catch (e) { logger.error(LOG, `fechar a rodada falhou (${String((e as Error)?.message ?? e).slice(0, 80)})`); }
   }
 }
 
@@ -475,8 +482,11 @@ const colunas = 'lead_id, nome, whatsapp, cidade, field_data, created_time';
 
 export function depsReais(): DepsRec {
   const base = depsAvaliarReais();
+  // Os avisos desta rodada que ficarem sem id de grupo (opt-in do robô): saem em UM e-mail no fim (`fecharRodada`).
+  const semGrupo: ColetorSemGrupo = [];
   return {
     ...base,
+    fecharRodada: () => fecharSemGrupo(semGrupo),
     estado: () => estadoRecuperacaoCarla(),
     segredoOk: () => !!hmacDe('quiz-rec'),
     garantirLargada: (agora) => garantirLargada(agora),
@@ -557,9 +567,9 @@ export function depsReais(): DepsRec {
       } catch { /* o contador só pausa a linha */ }
     },
     // O aviso entra PENDENTE: quem envia ao grupo é o tick do B1, com o espaçamento dele (nunca na mesma rodada).
-    avisarSaiu: (lead, hora) => avisarDesistencia(lead, { horaCarla: hora, soReivindicar: true }),
-    avisarNaoChama: (lead, frase) => avisarDesistencia(lead, { motivoCarla: frase, soReivindicar: true }),
-    avisarSemVaga: (lead) => avisarSemVaga(lead),
+    avisarSaiu: (lead, hora) => avisarDesistencia(lead, { horaCarla: hora, soReivindicar: true, coletorSemGrupo: semGrupo }),
+    avisarNaoChama: (lead, frase) => avisarDesistencia(lead, { motivoCarla: frase, soReivindicar: true, coletorSemGrupo: semGrupo }),
+    avisarSemVaga: (lead) => avisarSemVaga(lead, { coletorSemGrupo: semGrupo }),
   };
 }
 

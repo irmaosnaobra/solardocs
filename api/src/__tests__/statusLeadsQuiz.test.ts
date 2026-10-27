@@ -30,6 +30,7 @@ import { hmacDe } from '../services/agentes5040/hmac';
 import { chaveDoTelefone, normalizarTelefoneSd } from '../services/solardoc/quizSolardoc';
 import { PREFIXO_CARIMBO_REC } from '../services/solardoc/recuperacaoCarlaRegras';
 import { PREFIXO_CLAIM_QUIZ } from '../services/solardoc/avisoGrupoSolardoc';
+import { PREFIXO_FOLLOWUP } from '../services/solardoc/followupQuizSolardoc';
 import type { LeadRec } from '../services/solardoc/recuperacaoCarlaRegras';
 
 const AGORA = new Date('2026-10-26T18:00:00.000Z');
@@ -104,13 +105,17 @@ describe('avisoDoLead e compraNoClaim', () => {
   const desist = (estado: string) => avisoDoLead({ leituraOk: true, hmac: 'h', desistencia: linha('k', { tipo: 'desistencia', estado, em: DEPOIS, texto: 'Maria' }), semVaga: undefined });
   const semVaga = (estado: string) => avisoDoLead({ leituraOk: true, hmac: 'h', desistencia: undefined, semVaga: linha('k', { tipo: 'sem_vaga', estado, em: DEPOIS, texto: 'Maria' }) });
   it('chave da desistência: enviado, enviado_cartao, email, sem_grupo, falhou e expirado contam (o e-mail sai sem regravar a chave)', () => {
-    for (const e of ['enviado', 'enviado_cartao', 'email', 'sem_grupo', 'falhou', 'expirado']) expect(desist(e)).toEqual({ em: DEPOIS, tipo: 'desistencia' });
+    for (const e of ['enviado', 'enviado_cartao', 'email', 'sem_grupo', 'email_sem_grupo', 'falhou', 'expirado']) expect(desist(e)).toEqual({ em: DEPOIS, tipo: 'desistencia' });
   });
   it('chave da desistência: novo, pendente e comprou não contam', () => {
     for (const e of ['novo', 'pendente', 'comprou']) expect(desist(e)).toBeNull();
   });
-  it('chave :semvaga: só enviado, enviado_cartao, falhou e expirado; sem_grupo e email não geram e-mail', () => {
-    for (const e of ['enviado', 'enviado_cartao', 'falhou', 'expirado']) expect(semVaga(e)).toEqual({ em: DEPOIS, tipo: 'sem_vaga' });
+  it('sem_grupo_falhou (o e-mail do robô também falhou) não conta como avisado em nenhuma das duas chaves', () => {
+    expect(desist('sem_grupo_falhou')).toBeNull();
+    expect(semVaga('sem_grupo_falhou')).toBeNull();
+  });
+  it('chave :semvaga: enviado, enviado_cartao, email_sem_grupo (e-mail do robô, 27/10), falhou e expirado; sem_grupo (passado) e email NÃO contam', () => {
+    for (const e of ['enviado', 'enviado_cartao', 'email_sem_grupo', 'falhou', 'expirado']) expect(semVaga(e)).toEqual({ em: DEPOIS, tipo: 'sem_vaga' });
     for (const e of ['sem_grupo', 'email', 'novo', 'pendente', 'comprou']) expect(semVaga(e)).toBeNull();
   });
   it('o texto do aviso (leva o nome) nunca sai', () => {
@@ -212,6 +217,72 @@ describe('statusLeadsQuiz sobre dependências falsas', () => {
     const texto = JSON.stringify(r);
     expect(texto).not.toMatch(/Maria/);
     expect(texto).not.toContain(String(chamou.whatsapp));
+  });
+
+  it('followup vem em cada lead e a fila só conta quem está devido (teste e comprador ficam de fora)', async () => {
+    const novo = lead({ created_time: '2026-10-26T15:00:00.000Z' });                                  // chegou há 3 h: devido
+    const recente = lead({ created_time: '2026-10-26T17:50:00.000Z' });                               // chegou há 10 min: ainda não
+    const adiado = lead({ created_time: '2026-10-26T14:00:00.000Z' });                                // não atendeu hoje: próximo = amanhã
+    const comprador = lead({ fd: { lp_session: 'lp-compra' } });
+    const teste = lead({ fd: { teste: 'sim' } });
+    const estado = new Map<string, LinhaEstado>([
+      [`${PREFIXO_FOLLOWUP}${hmacDoTel(adiado.whatsapp as string)}`, linha('k', { v: 1, hist: [{ acao: 'nao_atendeu', em: '2026-10-26T16:00:00.000Z', por: 'giovanna' }] })],
+      [`${PREFIXO_FOLLOWUP}${hmacDoTel(comprador.whatsapp as string)}`, linha('k', { v: 1, hist: [{ acao: 'falou', em: '2026-10-26T16:00:00.000Z', por: 'giovanna' }] })],
+    ]);
+    const d = deps({ leads: [novo, recente, adiado, comprador, teste], estado, vendas: { sessoes: { 'lp-compra': '2026-10-26T17:00:00.000Z' } } });
+    const r = await statusLeadsQuiz({ agora: AGORA }, d);
+    for (const l of [novo, recente, adiado, comprador, teste]) expect(r.status[l.lead_id as string].followup).toBeDefined();
+    expect(r.status[novo.lead_id as string].followup).toMatchObject({ estado: 'novo', proximo: '2026-10-26', devido: true, aberto: true, tentativas: 0, ultima: null });
+    expect(r.status[recente.lead_id as string].followup).toMatchObject({ estado: 'novo', devido: false });
+    expect(r.status[adiado.lead_id as string].followup).toMatchObject({ estado: 'nao_atendeu', tentativas: 1, proximo: '2026-10-27', devido: false });
+    expect(r.status[adiado.lead_id as string].followup?.ultima).toEqual({ acao: 'nao_atendeu', em: '2026-10-26T16:00:00.000Z', por: 'giovanna' });
+    expect(r.status[comprador.lead_id as string].followup).toMatchObject({ estado: 'comprou', aberto: false, devido: false, proximo: null });
+    expect(r.status[teste.lead_id as string].followup?.devido).toBe(true);   // o teste TEM follow-up devido, mas não entra na fila
+    expect(r.fila).toEqual({ para_ligar_hoje: 1, incompleta: false });
+  });
+
+  it('leitura do system_state que falha: followup nulo (nunca "novo"), lead fora da fila e fila.incompleta', async () => {
+    const a = lead({ created_time: '2026-10-26T15:00:00.000Z' }), b = lead({ created_time: '2026-10-26T15:00:00.000Z' });
+    const r = await statusLeadsQuiz({ agora: AGORA }, deps({ leads: [a, b], estado: null }));
+    expect(r.status[a.lead_id as string].followup).toBeNull();
+    expect(r.status[b.lead_id as string].followup).toBeNull();
+    expect(r.fila).toEqual({ para_ligar_hoje: 0, incompleta: true });
+  });
+
+  it('lead de teste com leitura falha não deixa a fila incompleta; o de verdade deixa', async () => {
+    const teste = lead({ fd: { teste: 'sim' } });
+    const so = await statusLeadsQuiz({ agora: AGORA }, deps({ leads: [teste], estado: null }));
+    expect(so.status[teste.lead_id as string].followup).toBeNull();
+    expect(so.fila).toEqual({ para_ligar_hoje: 0, incompleta: false });
+    const real = lead();
+    const com = await statusLeadsQuiz({ agora: AGORA }, deps({ leads: [teste, real], estado: null }));
+    expect(com.fila.incompleta).toBe(true);
+  });
+
+  it('lead sem hmac (sem segredo) também vem com followup nulo e a fila fica incompleta', async () => {
+    delete process.env.SUPABASE_SERVICE_KEY;
+    const l = lead();
+    const r = await statusLeadsQuiz({ agora: AGORA }, deps({ leads: [l] }));
+    expect(r.status[l.lead_id as string].followup).toBeNull();
+    expect(r.fila).toEqual({ para_ligar_hoje: 0, incompleta: true });
+  });
+
+  it('sem_interesse com a leitura OK continua fechado e fora da fila (e a fila não fica incompleta)', async () => {
+    const fechado = lead({ created_time: '2026-10-26T15:00:00.000Z' });
+    const estado = new Map<string, LinhaEstado>([
+      [`${PREFIXO_FOLLOWUP}${hmacDoTel(fechado.whatsapp as string)}`, linha('k', { v: 1, hist: [{ acao: 'sem_interesse', em: '2026-10-26T16:00:00.000Z', por: 'giovanna' }] })],
+    ]);
+    const r = await statusLeadsQuiz({ agora: AGORA }, deps({ leads: [fechado], estado }));
+    expect(r.status[fechado.lead_id as string].followup).toMatchObject({ estado: 'sem_interesse', aberto: false, devido: false, proximo: null });
+    expect(r.fila).toEqual({ para_ligar_hoje: 0, incompleta: false });
+  });
+
+  it('o follow-up lê a chave quiz_followup do hmac do telefone (pedida junto das outras)', async () => {
+    const l = lead();
+    const pedidas: string[][] = [];
+    const d = { ...deps({ leads: [l] }), chaves: async (c: string[]) => { pedidas.push(c); return new Map<string, LinhaEstado>(); } };
+    await statusLeadsQuiz({ agora: AGORA }, d);
+    expect(pedidas[0]).toContain(`quiz_followup:${hmacDoTel(l.whatsapp as string)}`);
   });
 
   it('leitura do system_state que falha: nao_conferiu na Carla e no aviso, nunca "não chamou"', async () => {
