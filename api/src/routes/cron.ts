@@ -63,7 +63,7 @@ import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
 import { runDunning } from '../services/dunningService';
-import { runDisputeWatch } from '../services/disputeWatcher';
+import { runDisputeWatch, preverDefesa } from '../services/disputeWatcher';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
@@ -105,6 +105,25 @@ function verifyCronSecret(req: Request, res: Response): boolean {
   }
   return true;
 }
+
+// Prévia da defesa automática de contestação: devolve { decisao, evidencia } de
+// QUALQUER disputa (aberta ou fechada). SÓ LÊ: não existe caminho de envio aqui,
+// quem chama disputes.update é o runDisputeWatch, dentro do /master.
+// Uso: GET /cron/dispute-preview?id=du_...
+router.get('/dispute-preview', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  const id = String(req.query.id ?? '').trim();
+  if (!/^du_[A-Za-z0-9]+$/.test(id)) {
+    res.status(400).json({ error: 'id da disputa inválido (du_...)' });
+    return;
+  }
+  try {
+    res.json(await preverDefesa(id));
+  } catch (err) {
+    logger.error('cron', 'dispute-preview falhou', err);
+    res.status(500).json({ error: 'Preview failed' });
+  }
+});
 
 // Roda todo dia — apaga documentos PRO com mais de 30 dias
 router.get('/cleanup-pro-docs', async (req: Request, res: Response) => {

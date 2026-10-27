@@ -128,7 +128,14 @@ class Consulta implements PromiseLike<any> {
   /** range(de, ate) do PostgREST: ambos inclusivos. */
   range(de: number, ate: number) { this.deslocamento = de; this.limite = ate - de + 1; return this; }
 
-  async maybeSingle() { const r = await this.executa(); return { ...r, data: Array.isArray(r.data) ? (r.data[0] ?? null) : r.data }; }
+  async maybeSingle() {
+    const r = await this.executa();
+    // Como o PostgREST: mais de uma linha sem .limit() é erro (PGRST116), não a primeira.
+    if (this.limite === Infinity && Array.isArray(r.data) && r.data.length > 1) {
+      return { data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' }, count: r.count };
+    }
+    return { ...r, data: Array.isArray(r.data) ? (r.data[0] ?? null) : r.data };
+  }
   async single() { const r = await this.maybeSingle(); return r.data ? r : { ...r, data: null, error: r.error ?? { message: 'sem linha', code: 'PGRST116' } }; }
 
   then<A = any, B = never>(ok?: ((v: any) => A | PromiseLike<A>) | null, ko?: ((e: any) => B | PromiseLike<B>) | null): PromiseLike<A | B> {
