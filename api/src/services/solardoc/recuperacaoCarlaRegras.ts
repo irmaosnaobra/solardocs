@@ -161,6 +161,9 @@ const FALTA_RESERVA = 'o acompanhamento depois da proposta';
 export const MODELO_CARLA =
   'Oi, [nome], aqui é a Carla, do SolarDoc. Olhei o diagnóstico da [empresa] e deu [indice] de 100, com [pilar] pesando mais. O que mais falta na sua proposta é [falta]. Quer ver como fica a proposta da [empresa] no SolarDoc?';
 
+/** A frase que entra no texto de quem prefere pagar no Pix. Fixa: sem link, sem código, sem valor. */
+export const FRASE_PIX_POR_AQUI = 'Dá para assinar no Pix por aqui mesmo.';
+
 /** Texto digitado pela pessoa que vai para dentro da mensagem: uma linha, sem emoji, sem travessão, sem link. null = não serve. */
 function textoDePessoa(bruto: string, max: number): string | null {
   const t = bruto
@@ -186,8 +189,10 @@ export type TextoCarla = { ok: true; texto: string } | { ok: false; motivo: Moti
 /**
  * A mensagem da Carla preenchida com o que a pessoa VIU na tela (índice, pilar e itens que faltam gravados no field_data,
  * nunca recalculados). Sem nome, sem índice ou sem pilar não há mensagem (nada de campo inventado). Sem empresa vale "sua empresa".
+ * `opcoes.pixPorAqui` (a pessoa marcou no quiz que prefere o Pix e há Pix disponível): entra uma frase fixa, sem link e sem valor,
+ * logo antes da pergunta final. Sem a opção o texto é o de sempre, byte a byte.
  */
-export function textoDaCarla(l: LeadRec): TextoCarla {
+export function textoDaCarla(l: LeadRec, opcoes?: { pixPorAqui?: boolean }): TextoCarla {
   const nome = primeiroNome(l.nome);
   const indice = campoFd(l.field_data, 'Índice');
   const pilar = textoDePessoa(campoFd(l.field_data, 'Pilar mais fraco'), 30)?.toLocaleLowerCase('pt-BR') ?? null;
@@ -195,7 +200,8 @@ export function textoDaCarla(l: LeadRec): TextoCarla {
   const empresa = textoDePessoa(campoFd(l.field_data, 'Empresa'), 60) ?? 'sua empresa';
   const falta = valoresFd(l.field_data, 'Faltam').map(q => FALTA_TEXTO[q]).find(Boolean) ?? FALTA_RESERVA;
   const campos: Record<string, string> = { nome, empresa, indice, pilar, falta };
-  const texto = MODELO_CARLA.replace(/\[([a-z_]+)\]/g, (m, k: string) => campos[k] ?? m);
+  const modelo = opcoes?.pixPorAqui ? MODELO_CARLA.replace(' Quer ver como fica', ` ${FRASE_PIX_POR_AQUI} Quer ver como fica`) : MODELO_CARLA;
+  const texto = modelo.replace(/\[([a-z_]+)\]/g, (m, k: string) => campos[k] ?? m);
   if (/\[|\]|https?:|www\./i.test(texto) || /[–—]/.test(texto)) return { ok: false, motivo: 'sem_diagnostico' };
   return { ok: true, texto };
 }

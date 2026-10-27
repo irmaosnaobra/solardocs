@@ -45,6 +45,7 @@ import { assumirPosse, desfazerPosseNova, lerPosse, chaveDaPosse, type Resultado
 import { chavesExistentes, liberarChave, reservarChave } from '../agentes5040/cota';
 import { CHAVE_LINHA_ERROS, CHAVE_LINHA_PAUSA, codigoDoErroDeEnvio, erroEhDoDestino } from '../agentes5040/vivoEnvio';
 import { erroProvaQueNaoSaiu } from '../agentes5040/fichaEnvio';
+import { modoPix } from '../agentes5040/modoPix';
 import { chaveDoTelefone, codigoDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
 import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, PREFIXO_CLAIM_QUIZ, type ResultadoAviso } from './avisoGrupoSolardoc';
 import { comprouLead, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
@@ -343,7 +344,9 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       // 5. antes do claim: compra, posse, já falou, pausa humana e supressão; depois o phone-exists
       const av = await avaliarLead(lead, ctx, d);
       if (!av.ok) { nota('pulou', av.motivo); continue; }
-      const texto = textoDaCarla(lead);
+      // Quem marcou no quiz que prefere pagar no Pix ouve que dá para assinar no Pix por aqui (só se há Pix disponível agora).
+      const pixPorAqui = campoFd(lead.field_data, 'pagamento') === 'pix' && modoPix() !== 'indisponivel';
+      const texto = textoDaCarla(lead, { pixPorAqui });
       if (!texto.ok) { nota('pulou', texto.motivo); continue; }
       const existe = await d.telefoneExiste(av.tel);
       if (existe === 'erro') { nota('parou', 'phone_exists_falhou'); break; }

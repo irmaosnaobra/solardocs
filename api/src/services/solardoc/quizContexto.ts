@@ -18,6 +18,8 @@ export interface QuizContexto {
   cidade: string;
   objecao: string;
   quando_comecar: string;
+  /** Como a pessoa disse que prefere pagar: 'Pix' ou 'cartão de crédito'. Vazio quando não respondeu. */
+  pagamento?: string;
 }
 
 const COMO_FAZ: Record<string, string> = {
@@ -31,6 +33,8 @@ const OBJECAO: Record<string, string> = {
   preco: 'o preço', ja_uso: 'já usa outra ferramenta', aprender: 'medo de perder tempo aprendendo',
   validade: 'dúvida se os documentos têm validade', online: 'receio de pagar pela internet', nada: 'nenhuma, quer começar',
 };
+
+const PAGAMENTO: Record<string, string> = { pix: 'Pix', cartao: 'cartão de crédito' };
 
 export interface LinhaQuiz { form_id?: string | null; cidade?: string | null; field_data?: unknown }
 
@@ -48,6 +52,7 @@ export function contextoDoQuiz(l: LinhaQuiz | null | undefined): QuizContexto | 
     cidade: String(l.cidade ?? '').trim(),
     objecao: OBJECAO[campoFd(fd, 'objecao')] ?? '',
     quando_comecar: ROTULO_QUANDO[campoFd(fd, 'quando_comecar')] ?? '',
+    pagamento: PAGAMENTO[campoFd(fd, 'pagamento')] || undefined,
   };
   return Object.values(q).some(Boolean) ? q : null;
 }

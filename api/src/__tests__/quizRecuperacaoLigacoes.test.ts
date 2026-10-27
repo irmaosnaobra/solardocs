@@ -81,6 +81,13 @@ describe('o contexto do quiz para a Carla', () => {
       expect(t).toContain(parte);
     }
   });
+  it('prefere pagar: Pix, cartão de crédito, e fora dos fatos quando a pessoa não respondeu', () => {
+    const com = (v: string) => fatosDoQuiz(ctx(contextoDoQuiz({ ...linha, field_data: [...linha.field_data, { name: 'pagamento', values: [v] }] }))).join(' ');
+    expect(com('pix')).toContain('prefere pagar: Pix');
+    expect(com('cartao')).toContain('prefere pagar: cartão de crédito');
+    expect(fatosDoQuiz(ctx(contextoDoQuiz(linha))).join(' ')).not.toContain('prefere pagar');
+    expect(contextoDoQuiz({ ...linha, field_data: [...linha.field_data, { name: 'pagamento', values: ['lixo'] }] })!.pagamento).toBeUndefined();
+  });
   it('junta a instrução de não repetir pergunta que o quiz já respondeu', () => {
     const f = fatosDoQuiz(ctx(contextoDoQuiz(linha)));
     expect(f.join(' ')).toMatch(/Não repita pergunta que o quiz já respondeu/);

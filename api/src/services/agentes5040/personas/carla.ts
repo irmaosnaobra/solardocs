@@ -278,7 +278,7 @@ export function fatosDoQuiz(ctx: ContextoLead): string[] {
   const campos: Array<[string, string]> = [
     ['código', q.codigo], ['índice', q.indice ? `${q.indice} de 100` : ''], ['perfil', q.perfil], ['propostas por mês', q.propostas_mes],
     ['como monta a proposta hoje', q.como_faz_hoje], ['tempo por proposta', q.tempo_por_proposta], ['cidade', q.cidade],
-    ['objeção', q.objecao], ['quando quer começar', q.quando_comecar],
+    ['objeção', q.objecao], ['quando quer começar', q.quando_comecar], ['prefere pagar', q.pagamento ?? ''],
   ];
   const partes = campos.filter(([, v]) => String(v ?? '').trim()).map(([k, v]) => `${k}: ${textoLivre(v, 60)}`);
   if (!partes.length) return [];

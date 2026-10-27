@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   /** update de system_state: 'erro' = devolve { error } sem lançar (como o supabase-js); 'lanca' = lança. */
   update: 'ok' as 'ok' | 'erro' | 'lanca',
   updates: 0,
+  /** Força o modoPix() do módulo neutro; undefined = o real. */
+  modoPix: undefined as 'link' | 'codigo' | 'indisponivel' | undefined,
 }));
 
 vi.mock('../utils/supabase', () => ({
@@ -44,6 +46,10 @@ vi.mock('../utils/supabase', () => ({
 }));
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => { throw new Error('sem banco'); } } }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock('../services/agentes5040/modoPix', async (orig) => {
+  const real = await orig<typeof import('../services/agentes5040/modoPix')>();
+  return { ...real, modoPix: () => h.modoPix ?? real.modoPix() };
+});
 
 import { logger } from '../utils/logger';
 import {
@@ -86,6 +92,7 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-teste';
   delete process.env.AGENTES5040_HMAC;
   delete process.env.QUIZ_RECUPERACAO_LIGADA;
+  h.modoPix = undefined;
   h.pausa = undefined; h.largada = undefined; h.mudos = []; h.rpcs = []; h.update = 'ok'; h.updates = 0;
   seq = 0;
 });
@@ -276,6 +283,45 @@ describe('as travas, nesta ordem', () => {
     expect(r.enviou).toBe(false);
     expect(r.puladas.teto_da_linha).toBe(1);
     expect(e.chamadas).not.toContain('claim');
+  });
+});
+
+describe('quem prefere pagar no Pix (pagamento do quiz)', () => {
+  const FRIO = 'Oi, Carlos, aqui é a Carla, do SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. Quer ver como fica a proposta da Solar Andrade no SolarDoc?';
+  const PIX = 'Oi, Carlos, aqui é a Carla, do SolarDoc. Olhei o diagnóstico da Solar Andrade e deu 37 de 100, com velocidade pesando mais. O que mais falta na sua proposta é a sua logo e a sua cor. Dá para assinar no Pix por aqui mesmo. Quer ver como fica a proposta da Solar Andrade no SolarDoc?';
+  const enviadoDe = async (l: LeadRec): Promise<string | undefined> => {
+    const { d, e } = falsas([l]);
+    const r = await rodar(d);
+    expect(r.enviou).toBe(true);
+    return e.enviados[0]?.texto;
+  };
+  it('pagamento pix com Pix disponível: a bolha que SAI traz a frase do Pix antes da pergunta final', async () => {
+    h.modoPix = 'codigo';
+    expect(await enviadoDe(lead({}, comCampo('pagamento', 'pix')))).toBe(PIX);
+  });
+  it('pagamento pix com o Pix só por link (checkout da Kiwify) também vale', async () => {
+    h.modoPix = 'link';
+    expect(await enviadoDe(lead({}, comCampo('pagamento', 'pix')))).toBe(PIX);
+  });
+  it('cartão, sem resposta e pix com Pix indisponível: a bolha que SAI é o texto frio de sempre, byte a byte', async () => {
+    expect(await enviadoDe(lead({}, comCampo('pagamento', 'cartao')))).toBe(FRIO);
+    expect(await enviadoDe(lead())).toBe(FRIO);
+    h.modoPix = 'indisponivel';
+    expect(await enviadoDe(lead({}, comCampo('pagamento', 'pix')))).toBe(FRIO);
+  });
+  it('a variante respeita as guardas: até 900 caracteres, uma linha, sem link, sem código Pix, sem valor, sem travessão', () => {
+    const t = textoDaCarla(lead({}, comCampo('pagamento', 'pix')), { pixPorAqui: true });
+    expect(t.ok).toBe(true);
+    if (!t.ok) return;
+    expect(t.texto).toBe(PIX);
+    expect(t.texto.length).toBeLessThanOrEqual(900);
+    expect(t.texto).not.toMatch(/\[|\]|undefined|null|https?:|www\.|[–—]|\n|000201|br\.gov\.bcb|R\$/);
+  });
+  it('a opção sozinha não muda nada sem o pedido: padrão e pixPorAqui:false dão o texto frio', () => {
+    for (const o of [undefined, {}, { pixPorAqui: false }]) {
+      const t = textoDaCarla(lead(), o);
+      expect(t.ok && t.texto).toBe(FRIO);
+    }
   });
 });
 

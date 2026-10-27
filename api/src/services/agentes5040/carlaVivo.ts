@@ -20,8 +20,7 @@
 // (teto, validação) deixa a bolha sair sozinha: isso vira `peca_pendente` na posse e um aviso no turno seguinte.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { gerarPixCopiaECola, crc16 } from '../../utils/pixBrCode';
-import { pixCheckoutUrl } from '../../utils/pixInfo';
+import { VALOR_PIX, TXID_PIX, pixValido, gerarCodigo, modoPix, type ModoPix } from './modoPix';
 import { registrarPixEnviado } from '../agents/whatsapp/pixSolicitado';
 import { registrarPromessa } from './planilhaBonus';
 import { CARDS_CARLA, LINKS_CARLA } from './personas/carla';
@@ -33,25 +32,14 @@ import type { PecaEnvio, ResultadoEnvio } from './vivoEnvio';
 
 /** Um número só para o limite de imagens: o mesmo que a trava e a persona usam (conhecimento/depoimentos.ts). */
 export const MAX_IMAGENS_POR_CONVERSA = MAX_DEPOIMENTOS_POR_CONVERSA;
-export const VALOR_PIX = 67;
-export const TXID_PIX = 'SOLARDOCVIP';
 const BASE_DEPOIMENTOS = 'https://solardoc.app/depoimentos/';
 /** Pendência de peça que caiu: vale por 6 h. */
 export const VALIDADE_PENDENCIA_MS = 6 * 3_600_000;
 
-export type ModoPix = 'link' | 'codigo' | 'indisponivel';
-
-/** A mesma regra do vivoEnvio para a peça pix (BR Code inteiro, ASCII imprimível, CRC certo). Mantenha as duas iguais. */
-const RE_PIX = /^000201[ -~]+6304[0-9A-F]{4}$/;
-export const pixValido = (c: string): boolean => RE_PIX.test(c) && crc16(c.slice(0, -4)) === c.slice(-4);
-
-const gerarCodigo = (): string => gerarPixCopiaECola({ valor: VALOR_PIX, txid: TXID_PIX });
-
-/** Qual Pix sai agora: o link da Kiwify (env https), o copia e cola válido, ou nenhum. */
-export function modoPix(): ModoPix {
-  if (/^https:\/\/[^\s]+$/i.test(pixCheckoutUrl())) return 'link';
-  try { return pixValido(gerarCodigo()) ? 'codigo' : 'indisponivel'; } catch { return 'indisponivel'; }
-}
+// modoPix, pixValido, VALOR_PIX, TXID_PIX e ModoPix moram em ./modoPix (módulo neutro, que o robô do quiz também usa).
+// Re-export: quem importa daqui segue igual.
+export { VALOR_PIX, TXID_PIX, pixValido, modoPix };
+export type { ModoPix };
 
 // Só pedido EXPLÍCITO de reenvio: ordem no imperativo ("manda o link", "reenvia", "manda de novo"), "não chegou/recebi",
 // "cadê o link/pix". "Vou mandar pro meu sócio" (infinitivo, sem o objeto) não casa. É heurística de palavras.
