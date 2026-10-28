@@ -10,6 +10,8 @@ import { RESPIRO_EDICAO } from './BannerEdicao';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
+import { useViaCep, type ViaCepAchado } from '@/hooks/useViaCep';
+import { comporEndereco, enderecoLegado, maskCep, temPartesDoEndereco } from '@/utils/enderecoCliente';
 import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen } from 'lucide-react';
 import styles from '../documentos.module.css';
 
@@ -77,6 +79,14 @@ const initialFields = {
   empresa_cnpj: '',
   cidade: '',
   uf: '',
+  // Endereço completo do cliente (opcional). As partes ficam aqui; `endereco` é o
+  // texto composto que a proposta imprime (ou o texto antigo do cadastro/da conta).
+  cep: '',
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  endereco: '',
   consumo_kwh: '',
   qtd_modulos: '',
   area_m2: '',
@@ -485,7 +495,14 @@ export default function PropostaSolarPage() {
       const { data } = await api.get('/documents/proposta-prefill', { params: { cliente_nome: nome } });
       const c = data?.cliente;
       if (c) {
-        if (Object.keys(c).length) setFields(f => ({ ...f, ...c }));
+        // O endereço é do cliente: o de quem estava na tela não pode sobrar no próximo.
+        // Limpa SEMPRE que a resposta chega, também quando o cadastro só tem o nome
+        // ({}): aí não há nada para aplicar por cima e o de antes ficaria.
+        setFields(f => ({ ...f, cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '', ...c }));
+        setCepBusca('');
+        ultimoCep.current = null;
+        ruaAntigaRef.current = false;
+        setRuaAntigaEstado(false);
         // Veio a quantidade da última proposta dele: é dado real, não sugestão.
         if (c.qtd_modulos) qtdModulosManual.current = true;
         // A metragem do telhado dele não muda de uma proposta pra outra.
@@ -620,6 +637,66 @@ export default function PropostaSolarPage() {
     setFields(f => ({ ...f, [k]: v }));
   }
 
+  // ── Endereço completo do cliente (opcional) ──
+  // Texto antigo (cadastro, conta de luz, proposta velha) aparece no campo Rua e fica
+  // como está até a pessoa mexer em alguma parte; aí ele vira a Rua e o texto composto
+  // passa a ser calculado no envio, com a Cidade/UF do momento.
+  const [enderecoAberto, setEnderecoAberto] = useState(false);
+  const [enderecoJaTeve, setEnderecoJaTeve] = useState(false);
+  const temEndereco = temPartesDoEndereco(fields) || fields.endereco.trim() !== '';
+  // Ajuste de estado durante o render (padrão do React): abre o grupo sozinho quando o
+  // rascunho, o ?doc= ou o cadastro trazem endereço, e não fecha mais se a pessoa apagar.
+  if (temEndereco && !enderecoJaTeve) setEnderecoJaTeve(true);
+  const enderecoVisivel = enderecoAberto || enderecoJaTeve;
+  const legado = enderecoLegado(fields);
+  const ruaExibida = legado ? fields.endereco : fields.logradouro;
+  // CEP digitado nesta sessão: só ele dispara a busca (rascunho e ?doc= não).
+  const [cepBusca, setCepBusca] = useState('');
+  // O que o último CEP escreveu: só isso pode ser trocado quando o CEP mudar.
+  const ultimoCep = useRef<ViaCepAchado | null>(null);
+
+  // A Rua veio de um texto antigo (cadastro ou conta de luz), que traz rua, número,
+  // complemento e bairro juntos. Enquanto ela não for editada, o CEP não mexe em Rua nem
+  // Bairro (duplicaria partes) e a tela pede conferência.
+  const [ruaAntiga, setRuaAntigaEstado] = useState(false);
+  const ruaAntigaRef = useRef(false);
+  function marcaRuaAntiga(v: boolean) { ruaAntigaRef.current = v; setRuaAntigaEstado(v); }
+  const avisoRuaAntiga = legado || ruaAntiga;
+
+  function setEnderecoParte(patch: Partial<Record<'cep' | 'logradouro' | 'numero' | 'complemento' | 'bairro', string>>) {
+    // Primeiro toque num texto antigo: ele vira a Rua e não se perde. Editar a Rua
+    // dispensa o aviso; mexer em outra parte mantém.
+    if (patch.logradouro !== undefined) marcaRuaAntiga(false);
+    else if (legado) marcaRuaAntiga(true);
+    setFields(f => {
+      const base = enderecoLegado(f) ? { ...f, logradouro: f.endereco } : f;
+      return { ...base, ...patch, endereco: '' };
+    });
+  }
+  function aoAcharCep(r: ViaCepAchado) {
+    const ant = ultimoCep.current;
+    setFields(f => {
+      const antiga = enderecoLegado(f) || ruaAntigaRef.current;
+      const base = enderecoLegado(f) ? { ...f, logradouro: f.endereco } : f;
+      // Vazio ou escrito pelo CEP anterior: troca pelo novo (mesmo que o novo venha sem
+      // rua ou bairro, aí limpa). O que a pessoa digitou fica.
+      const troca = (atual: string, anterior: string | undefined, novo: string) =>
+        !atual.trim() || (!!anterior && atual.trim() === anterior) ? novo : atual;
+      return {
+        ...base,
+        logradouro: antiga ? base.logradouro : troca(base.logradouro, ant?.logradouro, r.logradouro),
+        bairro: antiga ? base.bairro : troca(base.bairro, ant?.bairro, r.bairro),
+        endereco: '',
+      };
+    });
+    if (enderecoLegado(fields)) marcaRuaAntiga(true);
+    const novaCidadeUf = [r.cidade, r.uf].filter(Boolean).join(' - ');
+    const antCidadeUf = ant ? [ant.cidade, ant.uf].filter(Boolean).join(' - ') : '';
+    setCidadeUf(atual => (!atual.trim() || (antCidadeUf && atual.trim() === antCidadeUf)) && novaCidadeUf ? novaCidadeUf : atual);
+    ultimoCep.current = r;
+  }
+  const estadoCep = useViaCep(cepBusca, aoAcharCep);
+
   // Marca visual de campo faltante (item 3): borda vermelha + data-invalid pro
   // scrollIntoView achar o primeiro. Ao digitar, tira a marca daquele campo.
   function invalidProps(campo: string) {
@@ -644,6 +721,11 @@ export default function PropostaSolarPage() {
     setFaltando(new Set());
     setClienteNome('');
     setCidadeUf('');
+    setCepBusca('');
+    ultimoCep.current = null;
+    marcaRuaAntiga(false);
+    setEnderecoAberto(false);
+    setEnderecoJaTeve(false);
     // Documento novo: a sugestão de módulos volta a valer e nada está "tocado".
     qtdModulosManual.current = false;
     areaManual.current = false;
@@ -658,6 +740,7 @@ export default function PropostaSolarPage() {
       bateria_qtd: '', bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
       geracao_media_kwh: '', hsp: '', investimento: '', preco_avista: '',
       foto_telhado_b64: '', tipo_telhado: '', iluminacao_publica: '',
+      cep: '', logradouro: '', numero: '', complemento: '', bairro: '', endereco: '',
       // marca/garantias/pagamento ficam como estão (template do integrador).
     }));
     limparRascunho();
@@ -715,9 +798,12 @@ export default function PropostaSolarPage() {
     setGenerating(true);
     try {
       const { cidade, uf } = parseCidadeUf(cidadeUf);
+      // Endereço composto na hora, com a Cidade/UF que está na tela. Sem nada
+      // preenchido vai vazio, e a proposta não imprime a linha.
+      const endereco = comporEndereco(fields, cidade, uf);
       const payload: Record<string, unknown> = {
         tipo: 'propostaSolar',
-        fields: { ...fields, cidade, uf },
+        fields: { ...fields, cidade, uf, endereco },
         useTemplate: true,
         modeloNumero: modelo,
         cliente_nome_avulso: clienteNome.trim(),
@@ -1152,6 +1238,89 @@ export default function PropostaSolarPage() {
               )}
             </div>
           </div>
+
+          {/* Endereço completo do cliente: opcional, fechado até alguém pedir. Sem
+              nada preenchido, a proposta não imprime linha de endereço. */}
+          {!enderecoVisivel ? (
+            <button type="button" className={styles.linkDiscreto} onClick={() => setEnderecoAberto(true)}>
+              Adicionar endereço completo
+            </button>
+          ) : (
+            <div className={styles.enderecoGrupo}>
+              <h3 className={styles.enderecoTitulo}>Endereço do cliente (opcional)</h3>
+              <div className={styles.grid2}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="end-cep">CEP</label>
+                  <input
+                    id="end-cep"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    value={fields.cep}
+                    onChange={e => {
+                      const v = maskCep(e.target.value);
+                      setEnderecoParte({ cep: v });
+                      setCepBusca(v.replace(/\D/g, '').length === 8 ? v : '');
+                    }}
+                    placeholder="00000-000"
+                    className="input-field"
+                  />
+                  {estadoCep === 'buscando' && <span className={styles.enderecoDica}>Buscando o CEP…</span>}
+                  {estadoCep === 'nao-achou' && <span className={styles.enderecoDica}>Não achei esse CEP. Preencha à mão.</span>}
+                  {(estadoCep === 'ocioso' || estadoCep === 'achou') && <span className={styles.enderecoDica}>Digite o CEP para preencher rua, bairro e cidade.</span>}
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="end-numero">Número</label>
+                  <input
+                    id="end-numero"
+                    type="text"
+                    value={fields.numero}
+                    onChange={e => setEnderecoParte({ numero: e.target.value })}
+                    placeholder="Ex: 1200"
+                    className="input-field"
+                  />
+                </div>
+                <div className={styles.fieldFull}>
+                  <label className={styles.label} htmlFor="end-rua">Rua</label>
+                  <input
+                    id="end-rua"
+                    type="text"
+                    autoComplete="street-address"
+                    value={ruaExibida}
+                    onChange={e => setEnderecoParte({ logradouro: e.target.value })}
+                    placeholder="Ex: Rua das Palmeiras"
+                    className="input-field"
+                  />
+                  {avisoRuaAntiga && ruaExibida.trim() !== '' && (
+                    <span className={styles.enderecoDica}>Confira a rua: ela veio do cadastro ou da conta de luz.</span>
+                  )}
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="end-compl">Complemento</label>
+                  <input
+                    id="end-compl"
+                    type="text"
+                    value={fields.complemento}
+                    onChange={e => setEnderecoParte({ complemento: e.target.value })}
+                    placeholder="Ex: Apto 31"
+                    className="input-field"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="end-bairro">Bairro</label>
+                  <input
+                    id="end-bairro"
+                    type="text"
+                    value={fields.bairro}
+                    onChange={e => setEnderecoParte({ bairro: e.target.value })}
+                    placeholder="Ex: Jardim América"
+                    className="input-field"
+                  />
+                </div>
+              </div>
+              <span className={styles.enderecoDica}>A cidade e o estado saem do campo Cidade/UF acima.</span>
+            </div>
+          )}
         </div>
 
         {/* RODAPÉ — vendedor e CNPJ que saem no documento */}

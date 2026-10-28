@@ -22,6 +22,8 @@ interface Client {
   nome: string;
   tipo: 'PF' | 'PJ';
   cpf_cnpj?: string;
+  endereco?: string;
+  cep?: string;
   cidade?: string;
   uf?: string;
   concessionaria?: string;
@@ -185,6 +187,13 @@ export default function EscanearContaPage() {
         fields.taxa_minima = taxaMin.toFixed(2).replace('.', ',');
       }
       if (ilum > 0) fields.iluminacao_publica = ilum.toFixed(2).replace('.', ',');
+      // Endereço e CEP: vale o que a pessoa conferiu no cadastro; na falta dele, o que a
+      // IA leu da conta. O endereço vai como texto único: o formulário o mostra no campo
+      // Rua e só recompõe quando a pessoa mexer em alguma parte.
+      const endereco = String(created?.endereco || scan?.cliente?.endereco || '').trim();
+      const cepDig = String(created?.cep || scan?.cliente?.cep || '').replace(/\D/g, '').slice(0, 8);
+      if (endereco) fields.endereco = endereco;
+      if (cepDig.length === 8) fields.cep = `${cepDig.slice(0, 5)}-${cepDig.slice(5)}`;
 
       localStorage.setItem('proposta-solar-draft-v1', JSON.stringify({
         clienteNome: created?.nome || '',

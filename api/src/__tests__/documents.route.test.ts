@@ -412,4 +412,44 @@ describe('GET /documents/proposta-prefill', () => {
     expect(res.body.cliente).toMatchObject({ consumo_kwh: '500', cidade: 'Uberlândia', uf: 'MG' });
     expect(res.body.cliente.codigo).toBeUndefined();
   });
+
+  // Endereço completo da proposta (28/10/2026): as partes são do cliente, não do kit
+  // do vendedor. Se vazassem para o kit, a próxima proposta de OUTRO cliente nasceria
+  // com a rua do anterior.
+  it('o kit não traz o endereço do cliente, nem CEP, rua, número, complemento e bairro', async () => {
+    await mockFontes(
+      [{ cliente_nome: 'Ana', created_at: '2026-10-10T12:00:00Z', dados_json: {
+        marca_modulo: 'Canadian', endereco: 'Rua A, 10, Centro', cep: '38400-000', logradouro: 'Rua A',
+        numero: '10', complemento: 'Casa 2', bairro: 'Centro',
+      } }],
+      [],
+    );
+
+    const res = await request(app).get('/documents/proposta-prefill').set('Authorization', AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.kit.marca_modulo).toBe('Canadian');
+    for (const k of ['endereco', 'cep', 'logradouro', 'numero', 'complemento', 'bairro']) {
+      expect(res.body.kit[k]).toBeUndefined();
+    }
+  });
+
+  it('cliente com proposta volta com as partes do endereço', async () => {
+    await mockFontes(
+      [{ cliente_nome: 'Ana', created_at: '2026-10-10T12:00:00Z', dados_json: { logradouro: 'Rua A', numero: '10', cep: '38400-000' } }],
+      [],
+    );
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Ana' }).set('Authorization', AUTH);
+
+    expect(res.body.cliente).toMatchObject({ logradouro: 'Rua A', numero: '10', cep: '38400-000' });
+  });
+
+  it('cliente só do cadastro traz o CEP junto com o endereço', async () => {
+    await mockFontes([], [{ nome: 'Bia', cidade: 'Uberlândia', uf: 'MG', endereco: 'Rua B, 20', cep: '38400-100', tipo_telhado: null }]);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Bia' }).set('Authorization', AUTH);
+
+    expect(res.body.cliente).toEqual({ cidade: 'Uberlândia', uf: 'MG', endereco: 'Rua B, 20', cep: '38400-100' });
+  });
 });

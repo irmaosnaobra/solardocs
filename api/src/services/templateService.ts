@@ -2520,8 +2520,19 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 .qrbox{ width:54px; height:54px; background:#fff; border-radius:6px; padding:3px; flex-shrink:0; }
 .qrbox svg{ width:100%; height:100%; display:block; }
 .qr span{ font-size:9.5px; line-height:1.3; opacity:.7; }
+/* Com o endereco do cliente a ficha cresce (ate 4 linhas). A folha e' de 1 pagina e
+   fecha na conta: sem estes ajustes de espacamento, um endereco longo empurrava o
+   rodape para a 2a folha. So entram quando ha endereco; sem ele nada muda. */
+.com-end .head{ grid-template-columns:.9fr 1.1fr; }
+.com-end .ficha{ padding:14px 24px; gap:6px; }
+.com-end .ficha .rowf.end{ font-size:11px; line-height:1.3; }
+.com-end .ficha .rowf.end span:first-child{ flex-shrink:0; white-space:nowrap; }
+.com-end .ficha .rowf.end span:last-child{ min-width:0; overflow-wrap:anywhere; }
+.com-end .r{ padding:6px 14px; }
+.com-end .sec{ padding:10px 26px 3px; }
+.com-end .fin{ padding:10px 26px 5px; }
 </style></head><body>
-<div class="page">
+<div class="page${enderecoCli ? ' com-end' : ''}">
   <div class="head">
     <div class="brand">
       ${logo ? `<img src="${logo}" alt="${pEsc(displayNome)}"/>` : ''}
@@ -2531,7 +2542,7 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
       <div class="t">Proposta Comercial</div>
       <div class="rowf"><span>Data</span><span class="num">${hoje}</span></div>
       <div class="rowf"><span>Cliente</span><span>${pEsc(client.nome || '—')}</span></div>
-      ${enderecoCli ? `<div class="rowf"><span>Endereço</span><span>${pEsc(enderecoCli)}</span></div>` : ''}
+      ${enderecoCli ? `<div class="rowf end"><span>Endereço</span><span>${pEsc(enderecoCli)}</span></div>` : ''}
       <div class="valid">${pEsc(validade.curto.toUpperCase())}</div>
     </div>
   </div>
@@ -2621,6 +2632,9 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const tipoTelhado = str(f.tipo_telhado) === '___' ? (client.tipo_telhado || '') : String(f.tipo_telhado);
   const cidade = (str(f.cidade) === '___' ? (client.cidade || '') : String(f.cidade)).trim();
   const uf = (str(f.uf) === '___' ? (client.uf || 'SP') : String(f.uf)).trim().toUpperCase();
+  // Endereco completo do cliente (opcional): o form compoe "Rua, numero, complemento,
+  // bairro, cidade - UF, CEP". Vazio, a linha nao existe: nunca sai "___".
+  const enderecoCli = (str(f.endereco) === '___' ? (client.endereco || '') : String(f.endereco || client.endereco || '')).trim();
   const consumoKwh = parseBRL(f.consumo_kwh);
   const qtdModulos = parseInt(String(f.qtd_modulos || '0'), 10) || 0;
   const marcaModulo = String(f.marca_modulo || '');
@@ -3066,6 +3080,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .capa-selo { position: relative; z-index: 1; margin-top: 44px; font-size: 12px; letter-spacing: 4px; text-transform: uppercase; font-weight: 700; opacity: 0.85; }
 .capa-cliente { position: relative; z-index: 1; font-size: 46px; line-height: 1.08; font-weight: 800; letter-spacing: -1.4px; margin-top: 10px; }
 .capa-sub { position: relative; z-index: 1; font-size: 16px; opacity: 0.9; margin-top: 14px; max-width: 460px; line-height: 1.45; }
+.capa-endereco { font-size: 14px; margin-top: 10px; }
 .capa-numeros { position: relative; z-index: 1; display: flex; gap: 14px; margin-top: auto; padding-top: 40px; flex-wrap: wrap; }
 .capa-num { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22); border-radius: 12px; padding: 14px 18px; min-width: 150px; }
 .capa-num-v { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
@@ -3090,6 +3105,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .spec { padding: 14px 16px; background: #F9FAFB; border-radius: 8px; border-left: 3px solid var(--c1); }
 .spec-label { font-size: 10px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 .spec-value { font-size: 14px; font-weight: 700; margin-top: 4px; color: var(--c-text); }
+.spec-endereco { grid-column: 1 / -1; }
+.spec-endereco .spec-value { font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
 /* Investment */
 .invest-box { background: linear-gradient(135deg, var(--c3) 0%, white 100%); padding: 28px 24px; border-radius: 16px; border: 2px solid var(--c1); text-align: center; }
 .invest-label { color: var(--c-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
@@ -3254,6 +3271,7 @@ ${comCapa ? `
     <div class="capa-topo">${logoHtml}</div>
     <div class="capa-selo">Proposta comercial</div>
     <div class="capa-cliente">${pEsc(client.nome.trim())}</div>
+    ${enderecoCli ? `<p class="capa-sub capa-endereco">${pEsc(enderecoCli)}</p>` : ''}
     <p class="capa-sub">Projeto de energia solar dimensionado para o seu consumo — com o investimento, a economia e o retorno na frente, sem letra miúda.</p>
     <div class="capa-numeros">
       <div class="capa-num"><div class="capa-num-v">${pKwp(kwp)} kWp</div><div class="capa-num-l">Sistema</div></div>
@@ -3360,6 +3378,10 @@ ${comCapa ? `
         <div class="spec-label">Localização</div>
         <div class="spec-value">${pEsc(cidade) || '—'}/${uf}</div>
       </div>
+      ${enderecoCli ? `<div class="spec spec-endereco">
+        <div class="spec-label">Endereço</div>
+        <div class="spec-value">${pEsc(enderecoCli)}</div>
+      </div>` : ''}
       <div class="spec">
         <div class="spec-label">Consumo médio do cliente</div>
         <div class="spec-value">${consumoKwh > 0 ? pNum(consumoKwh) + ' kWh/mês' : '—'}</div>

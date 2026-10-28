@@ -1269,7 +1269,7 @@ export async function documentosPorCliente(req: Request, res: Response): Promise
 //  - clientes: nomes recentes com histórico de proposta (pro seletor).
 //  - cliente: a proposta mais recente de um cliente (por nome) → tudo dele volta.
 const CLIENTE_ONLY = new Set<string>([
-  'cliente_nome', 'codigo', 'cidade', 'uf', 'endereco', 'consumo_kwh', 'qtd_modulos', 'area_m2',
+  'cliente_nome', 'codigo', 'cidade', 'uf', 'endereco', 'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'consumo_kwh', 'qtd_modulos', 'area_m2',
   'geracao_media_kwh', 'geracao_media', 'hsp', 'tarifa_kwh', 'investimento', 'preco_avista',
   'entrada_valor', 'entrada_modo', 'entrada_dias', 'pag_custom', 'tipo_telhado', 'iluminacao_publica',
   'bateria_capacidade_kwh', 'bateria_potencia_kw', 'bateria_ciclos', 'bateria_marca', 'bateria_garantia', 'bateria_tem',
@@ -1305,6 +1305,7 @@ interface ClienteCadastro {
   cidade: string | null;
   uf: string | null;
   endereco: string | null;
+  cep?: string | null;
   tipo_telhado: string | null;
 }
 
@@ -1323,6 +1324,8 @@ function camposDoCadastro(c: ClienteCadastro): Record<string, unknown> {
   if (uf) out.uf = uf;
   const endereco = String(c.endereco || '').trim();
   if (endereco) out.endereco = endereco;
+  const cep = String(c.cep || '').trim();
+  if (cep) out.cep = cep;
   const telhado = TIPOS_TELHADO_PROPOSTA.find((t) => nomeComparavel(t) === nomeComparavel(c.tipo_telhado));
   if (telhado) out.tipo_telhado = telhado;
   return out;
@@ -1344,7 +1347,7 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
       .limit(50),
     supabase
       .from('clients')
-      .select('nome, cidade, uf, endereco, tipo_telhado, created_at')
+      .select('nome, cidade, uf, endereco, cep, tipo_telhado, created_at')
       .eq('user_id', req.userId)
       .order('created_at', { ascending: false })
       .limit(200),
