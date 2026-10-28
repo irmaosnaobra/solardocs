@@ -29,6 +29,11 @@ import { ApiError } from '../../utils/apiError';
 import { asaasFetch, asaasHabilitado, AsaasError } from './asaasClient';
 import { buscarCupomValido, aplicarCupom } from '../cuponsService';
 import { PLANOS } from '../../utils/planos';
+import {
+  limparAtribuicao, chavePixAutoQr, chavePixAutoAtrib, type AtribuicaoPixAuto,
+} from './pixAutoChaves';
+
+export type { AtribuicaoPixAuto } from './pixAutoChaves';
 
 // Preço e limite saem de utils/planos (mesma tabela que o resto do sistema usa).
 export const PLANOS_PIX = PLANOS;
@@ -50,6 +55,15 @@ export interface PixRecorrenteCriado {
   qrPayload: string | null;      // copia-e-cola do primeiro pagamento
   qrImagemBase64: string | null; // PNG em base64 (sem o prefixo data:)
   status: string;
+}
+
+async function gravarEstado(key: string, value: Record<string, unknown>, quando: string): Promise<void> {
+  try {
+    const { error } = await supabase.from('system_state').upsert({ key, value }, { onConflict: 'key' });
+    if (error) logger.error('asaas-pix', `system_state ${quando}: não gravou ${key.split(':')[0]}`, error);
+  } catch (err) {
+    logger.error('asaas-pix', `system_state ${quando}: gravar ${key.split(':')[0]} estourou`, err);
+  }
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -237,6 +251,10 @@ export async function criarPixRecorrente(args: {
   whatsapp?: string | null;
   planKey: string;
   cupom?: string | null;
+  /** Venda de quiz/anúncio: vai pro webhook pelo system_state (`pix_auto_atrib:<contract_id>`). */
+  atribuicao?: AtribuicaoPixAuto;
+  /** true = só Pix Automático: tenta a autorização mesmo com ASAAS_PIX_MODO=assinatura e, se ela falhar, devolve erro (502) em vez de cair pra assinatura. */
+  exigirAutomatico?: boolean;
 }): Promise<PixRecorrenteCriado> {
   if (!asaasHabilitado()) throw new ApiError(503, 'Pix recorrente ainda não está ligado');
 
@@ -254,7 +272,14 @@ export async function criarPixRecorrente(args: {
   const existente = args.userId
     ? await buscarAssinaturaAtiva(args.userId)
     : await buscarAssinaturaAtivaSemConta(args.email, args.cpfCnpj);
+  const atribuicao = limparAtribuicao(args.atribuicao);
   if (existente) {
+    // Contrato que já existia continua valendo; só garante a atribuição se ainda não houver (nunca sobrescreve).
+    if (atribuicao) {
+      const { error: eAtr } = await supabase.from('system_state')
+        .insert({ key: chavePixAutoAtrib(existente.contract_id), value: atribuicao });
+      if (eAtr && (eAtr as { code?: string }).code !== '23505') logger.error('asaas-pix', 'atribuição do contrato existente não gravou', eAtr);
+    }
     return {
       id: existente.id,
       modo: existente.modo as ModoPix,
@@ -285,8 +310,9 @@ export async function criarPixRecorrente(args: {
   let qrPayload: string | null = null;
   let qrImagem: string | null = null;
   let status = 'pendente';
+  let conciliationId: string | null = null;
 
-  if (modoCfg === 'automatico' || modoCfg === 'auto') {
+  if (modoCfg === 'automatico' || modoCfg === 'auto' || args.exigirAutomatico) {
     try {
       const auth = await criarAutorizacaoAutomatica({
         customerId, plano: info.plano, valor: info.valor, primeiroMes, contractId, nomePlano: info.nome,
@@ -296,7 +322,12 @@ export async function criarPixRecorrente(args: {
       qrPayload = auth.payload ?? null;
       qrImagem = auth.encodedImage ?? null;
       status = (auth.status || 'CREATED').toLowerCase() === 'active' ? 'ativo' : 'pendente';
+      conciliationId = auth.immediateQrCode?.conciliationIdentifier?.trim() || null;
     } catch (err) {
+      if (args.exigirAutomatico) {
+        logger.error('asaas-pix', `Pix Automático exigido e a autorização falhou (${(err as AsaasError)?.message})`, err);
+        throw new ApiError(502, 'O Pix automático não está disponível agora. Tente de novo em instantes.');
+      }
       // Conta inelegível, Pix Automático não liberado, banco do pagador fora —
       // qualquer um desses cai na assinatura Pix, que sempre funciona. Só não cai
       // quando o Thiago pediu explicitamente 'automatico'.
@@ -306,6 +337,7 @@ export async function criarPixRecorrente(args: {
   }
 
   if (modo === 'assinatura') {
+    if (args.exigirAutomatico) throw new ApiError(502, 'O Pix automático não está disponível agora. Tente de novo em instantes.');
     const { assinatura, qr } = await criarAssinaturaPix({
       customerId, valor: info.valor, primeiroMes, contractId, nomePlano: info.nome,
     });
@@ -335,6 +367,13 @@ export async function criarPixRecorrente(args: {
   // acha a quem creditar. Grita alto: é o pior estado possível deste fluxo.
   if (error) {
     logger.error('asaas-pix', `CONTRATO ${contractId} CRIADO NO ASAAS E NÃO GRAVADO (${args.email}) — pagamento ficará órfão`, error);
+  } else {
+    // A ligação que o Asaas NÃO manda no PAYMENT_RECEIVED do 1º mês: pixQrCodeId do pagamento
+    // é igual ao conciliationIdentifier do QR imediato (conferido em produção, 25/10/2026).
+    if (conciliationId) {
+      await gravarEstado(chavePixAutoQr(conciliationId), { contract_id: contractId, em: new Date().toISOString() }, 'criação');
+    }
+    if (atribuicao) await gravarEstado(chavePixAutoAtrib(contractId), atribuicao as Record<string, unknown>, 'criação');
   }
 
   return {
@@ -352,6 +391,8 @@ export interface LinhaPixRecorrente {
   plano: string; valor: number; primeiro_mes: number | null; cupom: string | null;
   status: string; qr_payload: string | null;
   ultimo_pagamento_em: string | null; proximo_vencimento: string | null;
+  /** só vem do SELECT do webhook (COLS de lá); '' = nunca pagou. */
+  ultimo_pagamento_id?: string | null;
 }
 
 const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento';

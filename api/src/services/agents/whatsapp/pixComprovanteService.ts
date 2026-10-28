@@ -467,7 +467,7 @@ async function notificarThiago(
 // Grava a trava do E2E (`pix_e2e:`). true = JÁ existia (o mesmo Pix voltou, de
 // outro telefone ou relido): quem chama NÃO libera. Sem ID de Pix legível não há
 // chave e a função devolve false (os ramos antigos seguem só com o dedupKey).
-async function e2eJaUsado(e2eKey: string | null, valor: number, userId: string): Promise<boolean> {
+export async function e2eJaUsado(e2eKey: string | null, valor: number, userId: string): Promise<boolean> {
   if (!e2eKey) return false;
   const { error } = await supabase.from('system_state')
     .insert({ key: e2eKey, value: { user_id: userId, valor, at: new Date().toISOString() } });
@@ -988,13 +988,13 @@ async function findAbandonoByPhone(cleanPhone: string) {
 
 // Pega a conta pelo email OU cria uma PENDENTE (sem senha) — o cliente ativa pelo
 // link "defina sua senha". Idempotente (email é UNIQUE; trata corrida 23505).
-type PixUser = {
+export type PixUser = {
   id: string; email: string; password_hash: string | null; reset_token: string | null;
   plano: string | null; billing_status: string | null; plano_expira_em: string | null;
 };
 const PIX_USER_COLS = 'id, email, password_hash, reset_token, plano, billing_status, plano_expira_em';
 
-type PixUserResult = PixUser & { criadaAgora: boolean };
+export type PixUserResult = PixUser & { criadaAgora: boolean };
 
 // Variantes BR do telefone (com/sem 55, com/sem o 9º dígito). Copiada de
 // `variantesBR` do whatsappAgentService de propósito: importar aquele arquivo
@@ -1030,7 +1030,7 @@ async function gravarWhatsappSeLivre(userId: string, atual: string | null | unde
   }
 }
 
-async function getOrCreatePixUser(
+export async function getOrCreatePixUser(
   email: string, nome: string | null, phone: string,
   opts: { whatsappSoSeLivre?: boolean } = {},
 ): Promise<PixUserResult | null> {

@@ -61,7 +61,7 @@ describe('a configuração do painel do SolarDoc', () => {
   it('lp, destinos e visita', () => {
     expect(CONFIG_SOLARDOC.lp).toBe('solardoc');
     expect(CONFIG_SOLARDOC.medindoDesde).toBe('2026-10-24');
-    expect(Object.keys(DESTINOS_SOLARDOC)).toEqual(['cartao', 'pix', 'duvida', 'equipe', 'carla', 'socio', 'plano']);
+    expect(Object.keys(DESTINOS_SOLARDOC)).toEqual(['cartao', 'pix', 'pix_auto', 'duvida', 'equipe', 'carla', 'socio', 'plano']);
     expect(CAMINHOS_SOLARDOC.map((c) => c.id)).toEqual(['principal']);
     expect(ehVisitaDaLpSolardoc('https://solardoc.app/diagnostico')).toBe(true);
     expect(ehVisitaDaLpSolardoc('https://solardoc.app/diagnostico?utm_term=1')).toBe(true);

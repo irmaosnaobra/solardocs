@@ -886,6 +886,36 @@ export async function sendMesPixAcessoEmail(opts: {
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// PIX AUTOMÁTICO ATIVO (conta criada pelo webhook do Asaas): a pessoa pagou pelo QR do
+// quiz e ainda não tem senha. Este e-mail é o ÚNICO canal do link de definir senha
+// (nunca WhatsApp, nunca a rota pública de status). Transacional: sem footer de unsub.
+export function textoPixAutomaticoAcesso(nome: string | null | undefined, link: string): string {
+  const primeiro = (nome || '').trim().split(/\s+/)[0];
+  const ola = primeiro ? `Oi, ${primeiro}.` : 'Oi.';
+  return `${ola} Sua assinatura do SolarDoc no Pix automático está ativa. Para entrar, crie sua senha neste link: ${link}. O link vale por 30 dias.`;
+}
+
+export async function sendPixAutomaticoAcessoEmail(opts: {
+  to: string;
+  nome?: string | null;
+  acessoUrl: string;
+}): Promise<void> {
+  const texto = textoPixAutomaticoAcesso(opts.nome, opts.acessoUrl);
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const html = `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;font-size:16px;line-height:1.7;">
+  <p style="margin:0;">${texto.split(opts.acessoUrl).map(esc).join(`<a href="${esc(opts.acessoUrl)}">${esc(opts.acessoUrl)}</a>`)}</p>
+</div>`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: 'Seu acesso ao SolarDoc está pronto',
+    html,
+    text: texto,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 // Recuperação de CHECKOUT ABANDONADO (público): a pessoa começou a assinatura mas
 // não concluiu (fechou a aba / cartão recusado e desistiu). Transacional-ish, tom
 // gentil + CTA pra retomar. Suporte direto no WhatsApp. Não joga erro (best-effort).

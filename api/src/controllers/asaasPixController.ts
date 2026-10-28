@@ -10,10 +10,10 @@ import { ApiError } from '../utils/apiError';
 import { asaasHabilitado } from '../services/asaas/asaasClient';
 import {
   criarPixRecorrente, buscarAssinaturaAtiva, buscarAssinaturaPorId,
-  cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX,
+  cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX, type AtribuicaoPixAuto,
 } from '../services/asaas/pixRecorrenteService';
 import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaasWebhookService';
-import { pixPublicoAtivo } from '../utils/pixInfo';
+import { pixPublicoAtivo, pixAutoQuizAtivo } from '../utils/pixInfo';
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -158,12 +158,41 @@ export async function asaasWebhookHandler(req: Request, res: Response): Promise<
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
+/** Única origem que a trava PIX_AUTO_QUIZ reconhece. Qualquer outro valor é ignorado. */
+const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
+
+/** Só texto, aparado e com teto. Qualquer outro tipo (número, objeto, lista) vira vazio. */
+function textoCurto(v: unknown, max: number): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const t = v.trim().slice(0, max);
+  return t || undefined;
+}
+
+/** Atribuição de venda vinda de LP/anúncio (quiz). Só campos conhecidos; sem nenhum, undefined. */
+function atribuicaoDoCorpo(b: Record<string, unknown>, origem: string | undefined): AtribuicaoPixAuto {
+  // rota 'publica' SEMPRE (com ou sem quiz): é o que impede o webhook de cancelar o cartão de quem só digitou o e-mail de um cliente.
+  const a: AtribuicaoPixAuto = { rota: 'publica' };
+  const poe = (k: keyof AtribuicaoPixAuto, v: string | undefined) => { if (v) a[k] = v; };
+  poe('origem', origem);
+  poe('whatsapp', soDigitos(textoCurto(b.whatsapp, 30) || '').slice(0, 20) || undefined);
+  poe('nome', textoCurto(b.nome, 120));
+  poe('lp_session', textoCurto(b.lp_session, 80));
+  for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbc', 'fbp'] as const) {
+    poe(k, textoCurto(b[k], 200));
+  }
+  return a;
+}
+
 // POST /payments/pix-recorrente/publico — sem login.
 export async function criarPixPublicoHandler(req: Request, res: Response): Promise<void> {
   try {
-    const { plan, email, nome, cpfCnpj, whatsapp, cupom } = (req.body ?? {}) as Record<string, string>;
+    const corpo = (req.body ?? {}) as Record<string, unknown>;
+    const { plan, email, nome, cpfCnpj, whatsapp, cupom } = corpo as Record<string, string>;
+    const origem = corpo.origem === ORIGEM_QUIZ_SOLARDOC ? ORIGEM_QUIZ_SOLARDOC : undefined;
+    const doQuiz = pixAutoQuizAtivo() && origem === ORIGEM_QUIZ_SOLARDOC;
 
-    if (!pixPublicoAtivo()) throw new ApiError(503, 'Pagamento por Pix sem conta ainda não está disponível');
+    // Abre com a trava geral OU com a do quiz (e só para chamada com origem do quiz).
+    if (!pixPublicoAtivo() && !doQuiz) throw new ApiError(503, 'Pagamento por Pix sem conta ainda não está disponível');
     if (!asaasHabilitado()) throw new ApiError(503, 'Pagamento por Pix recorrente ainda não está disponível');
     if (!PLANOS_PIX[plan]) throw new ApiError(400, 'Plano inválido');
 
@@ -179,6 +208,8 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
       .from('users').select('id, whatsapp').eq('email', mail).maybeSingle();
     const dono = (jaTem as { id: string; whatsapp: string | null } | null) ?? null;
 
+    const atribuicao = atribuicaoDoCorpo(corpo, origem);
+
     const criado = await criarPixRecorrente({
       userId: dono?.id ?? null,
       email: mail,
@@ -187,6 +218,9 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
       whatsapp: soDigitos(whatsapp) || dono?.whatsapp || null,
       planKey: plan,
       cupom,
+      atribuicao,
+      // Quiz: só Pix Automático. Se não der, erro claro, nunca cair em assinatura.
+      ...(origem ? { exigirAutomatico: true } : {}),
     });
 
     const fone = soDigitos(whatsapp);
@@ -196,8 +230,13 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
 
     logger.info('pix-publico', `contrato ${criado.contractId} para ${mail} (${criado.modo}, conta ${dono ? 'existente' : 'ainda não criada'})`);
 
+    // Contrato vivo reaproveitado já está autorizado: não há QR para pagar. A tela
+    // do quiz distingue por status === 'ativo' (qrPayload nulo) e confere `modo`.
+    const jaAtivo = Boolean(origem) && criado.status === 'ativo';
+
     res.json({
       ...criado,
+      ...(jaAtivo ? { qrPayload: null, qrImagemBase64: null } : {}),
       temConta: Boolean(dono),
       instrucao: criado.modo === 'automatico'
         ? `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${criado.cupom ? `, de R$ ${criado.valor}` : ''}.`
@@ -213,7 +252,7 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
 // desenha: e-mail, CPF e ids do Asaas não saem daqui.
 export async function statusPixPublicoHandler(req: Request, res: Response): Promise<void> {
   try {
-    if (!pixPublicoAtivo()) throw new ApiError(503, 'Indisponível');
+    if (!pixPublicoAtivo() && !pixAutoQuizAtivo()) throw new ApiError(503, 'Indisponível');
     const linha = await buscarAssinaturaPorId(String(req.params.id || ''));
     if (!linha) throw new ApiError(404, 'Contrato não encontrado');
 

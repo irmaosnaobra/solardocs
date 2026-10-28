@@ -122,6 +122,17 @@ export function pixPublicoAtivo(): boolean {
 }
 
 /**
+ * Trava PRÓPRIA do quiz do SolarDoc (/diagnostico, "Assinar no Pix automático").
+ * Abre só a rota pública de criar contrato para chamadas com origem
+ * 'quiz_solardoc' e o GET de status. NÃO é PIX_PUBLICO_ATIVO: não muda o
+ * cancel_url da Stripe nem liga a tela /pix-automatico para quem abandonou o
+ * checkout. Sem a variável, desligado.
+ */
+export function pixAutoQuizAtivo(): boolean {
+  return (process.env.PIX_AUTO_QUIZ || '').trim().toLowerCase() === 'true';
+}
+
+/**
  * A tela PÚBLICA de Pix do Asaas (`/pix-automatico`), quando ela está no ar.
  * Vazio = desligada, e aí ela não existe pra ninguém: a rota devolve 503.
  *

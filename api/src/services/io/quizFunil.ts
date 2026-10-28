@@ -325,7 +325,7 @@ export const CAMINHOS_SOLARDOC: Caminho[] = [
   { id: 'principal', nome: 'Diagnóstico da proposta', passos: Object.keys(PERGUNTAS_SOLARDOC) },
 ];
 export const DESTINOS_SOLARDOC: Record<string, string> = {
-  cartao: 'Assinar com cartão', pix: 'Assinar no Pix', duvida: 'Tirar dúvida no WhatsApp',
+  cartao: 'Assinar com cartão', pix: 'Assinar no Pix', pix_auto: 'Assinar no Pix automático', duvida: 'Tirar dúvida no WhatsApp',
   equipe: 'Falar com a equipe', carla: 'Falar com a Carla (sem CNPJ ainda)', socio: 'Copiar resumo para quem decide',
   plano: 'Deixou o WhatsApp e viu o plano',
 };
@@ -336,7 +336,7 @@ export function ehVisitaDaLpSolardoc(url: string | null): boolean {
 export const CONFIG_SOLARDOC: ConfigFunil = {
   lp: 'solardoc', aceitaSemLp: false, medindoDesde: MEDINDO_DESDE_SOLARDOC,
   perguntas: PERGUNTAS_SOLARDOC, curtas: CURTAS_SOLARDOC, caminhos: CAMINHOS_SOLARDOC,
-  marcaram: ['cartao', 'pix'], ehVisita: ehVisitaDaLpSolardoc,
+  marcaram: ['cartao', 'pix', 'pix_auto'], ehVisita: ehVisitaDaLpSolardoc,
 };
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);

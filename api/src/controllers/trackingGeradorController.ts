@@ -29,7 +29,7 @@ function detectDispositivo(ua: string): string {
   return 'desktop';
 }
 
-function clientIp(req: Request): string {
+export function clientIp(req: Request): string {
   // Vercel injeta X-Forwarded-For. Pega o primeiro IP da lista (cliente real).
   const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
   if (xff) return xff;

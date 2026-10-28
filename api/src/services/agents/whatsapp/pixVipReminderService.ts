@@ -66,6 +66,42 @@ export function montarPartes(nome: string | null, valor: number = VALOR_RENOVACA
   ];
 }
 
+const normEmail = (e: unknown): string => String(e ?? '').trim().toLowerCase();
+
+/**
+ * Quem tem Pix AUTOMÁTICO vivo (asaas_pix_assinaturas, modo 'automatico', status 'ativo' OU
+ * 'inadimplente') não recebe o lembrete de "copie o Pix e pague": 'ativo' é debitado pelo
+ * banco todo mês, e 'inadimplente' é o banco tentando de novo por 7 dias, então o lembrete faria
+ * a pessoa pagar em dobro. Contrato 'pendente' (nunca autorizou) continua recebendo.
+ * Casa por user_id OU por e-mail (contrato do quiz nasce sem conta), e-mail em minúsculas e sem
+ * espaços dos dois lados. Lido UMA vez por rodada. Se a leitura falhar devolve null e a rodada
+ * NÃO envia nada: na dúvida, calar é mais barato do que cobrar em dobro.
+ */
+async function contratosAutomaticosVivos(): Promise<{ ids: Set<string>; emails: Set<string> } | null> {
+  const ids = new Set<string>();
+  const emails = new Set<string>();
+  const PAGINA = 1000; // PostgREST corta em 1000 linhas
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error } = await supabase
+      .from('asaas_pix_assinaturas')
+      .select('user_id, email')
+      .eq('modo', 'automatico')
+      .in('status', ['ativo', 'inadimplente'])
+      .range(de, de + PAGINA - 1);
+    if (error) {
+      logger.error('pix-vip-reminder', 'leitura de contratos automáticos falhou — rodada sem envio', error);
+      return null;
+    }
+    for (const c of (data ?? []) as Array<{ user_id: string | null; email: string | null }>) {
+      if (c.user_id) ids.add(c.user_id);
+      const m = normEmail(c.email);
+      if (m) emails.add(m);
+    }
+    if ((data?.length ?? 0) < PAGINA) break;
+  }
+  return { ids, emails };
+}
+
 export async function runPixVipReminder(): Promise<{ enviados: number; pulados: number; erros: number }> {
   let enviados = 0, pulados = 0, erros = 0;
 
@@ -96,7 +132,15 @@ export async function runPixVipReminder(): Promise<{ enviados: number; pulados: 
   }
   if (!users?.length) return { enviados, pulados, erros };
 
+  const automaticos = await contratosAutomaticosVivos();
+  if (!automaticos) return { enviados, pulados, erros: 1 };
+
   for (const u of users) {
+    // Pix automático vivo (ativo ou inadimplente): o banco cobra sozinho, não manda código de renovação.
+    if (automaticos.ids.has(u.id) || automaticos.emails.has(normEmail(u.email))) {
+      pulados++; continue;
+    }
+
     // Cooldown: não reenviar dentro do mesmo ciclo mensal.
     if (u.pix_reminder_last_sent_at) {
       const desde = agora - new Date(u.pix_reminder_last_sent_at).getTime();

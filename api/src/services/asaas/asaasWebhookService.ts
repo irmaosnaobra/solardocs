@@ -14,6 +14,10 @@ import { logger } from '../../utils/logger';
 import { PLANOS_PIX, LinhaPixRecorrente } from './pixRecorrenteService';
 import { acharOfertaDoPagamento, clienteDoAsaas, logLink } from './asaasPlugcashLink';
 import { processarEventoPlugcash } from '../plugcashService';
+import { asaasFetch } from './asaasClient';
+import {
+  chavePixAutoQr, chavePixAutoAtrib, chavePixAutoPag, chaveAdesaoAsaas, type AtribuicaoPixAuto,
+} from './pixAutoChaves';
 
 const THIAGO_PHONE = '34991360223';
 
@@ -28,18 +32,29 @@ export interface AsaasWebhookBody {
   dateCreated?: string;
   payment?: {
     id?: string; customer?: string; subscription?: string; value?: number;
-    status?: string; billingType?: string; externalReference?: string;
+    status?: string; billingType?: string; externalReference?: string | null;
     dueDate?: string; paymentDate?: string;
     /** id do link de pagamento que gerou a cobrança — é assim que a venda de
      *  produto do PlugCash se identifica (campo conferido na API em 14/08/2026). */
     paymentLink?: string | null;
+    /** Liga o pagamento do 1º mês do Pix Automático ao QR imediato (= authorization.immediateQrCode.conciliationIdentifier). */
+    pixQrCodeId?: string | null;
+    /** id da transação Pix no Asaas; é por ele que se busca o E2E (GET /pix/transactions/{id}). */
+    pixTransaction?: string | null;
   } | null;
-  authorization?: { id?: string; status?: string; customerId?: string; contractId?: string } | null;
-  paymentInstruction?: { id?: string; status?: string; dueDate?: string } | null;
+  authorization?: {
+    id?: string; status?: string; customerId?: string; contractId?: string; subscriptionId?: string;
+    value?: number; originType?: string; startDate?: string; endToEndIdentifier?: string;
+    immediateQrCode?: { conciliationIdentifier?: string; expirationDate?: string } | null;
+  } | null;
+  paymentInstruction?: {
+    id?: string; status?: string; dueDate?: string; paymentId?: string;
+    authorization?: { id?: string } | null;
+  } | null;
   eligibility?: { status?: string; ineligibleReasons?: unknown } | null;
 }
 
-const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento';
+const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, ultimo_pagamento_id, proximo_vencimento';
 
 async function avisarThiago(texto: string): Promise<void> {
   try {
@@ -57,6 +72,9 @@ async function acharContrato(b: AsaasWebhookBody): Promise<LinhaPixRecorrente | 
   const p = b.payment ?? null;
   const a = b.authorization ?? null;
 
+  // (Pagamento do 1º mês do Pix Automático e débito mensal com instrução NÃO passam por aqui: o case de
+  // PAYMENT_* consulta pix_auto_pag e pix_auto_qr antes de chamar este resultado, para o QR vencer o
+  // fallback por customer.)
   if (a?.id) {
     const { data } = await supabase.from('asaas_pix_assinaturas').select(COLS).eq('authorization_id', a.id).maybeSingle();
     if (data) return data as LinhaPixRecorrente;
@@ -82,9 +100,50 @@ async function acharContrato(b: AsaasWebhookBody): Promise<LinhaPixRecorrente | 
   return null;
 }
 
+// ── system_state: ligações que o Asaas não manda no evento (banco principal, sem migration) ──
+
+async function lerEstado(key: string): Promise<Record<string, any> | null> {
+  const { data } = await supabase.from('system_state').select('value').eq('key', key).maybeSingle();
+  return (data as { value?: Record<string, any> | null } | null)?.value ?? null;
+}
+
+/** Claim só de inserção. 'existia' = 23505 (já feito); 'erro' = não gravou por outro motivo. */
+async function gravarSoSeNovo(key: string, value: Record<string, unknown>): Promise<'novo' | 'existia' | 'erro'> {
+  const { error } = await supabase.from('system_state').insert({ key, value });
+  if (!error) return 'novo';
+  if ((error as { code?: string }).code === '23505') return 'existia';
+  logger.error('asaas-webhook', `system_state: não gravei ${key.split(':')[0]}`, error);
+  return 'erro';
+}
+
+const soDigitos = (v: string | null | undefined) => String(v ?? '').replace(/\D/g, '');
+
+async function contratoPor(coluna: 'contract_id' | 'authorization_id', valor: string): Promise<LinhaPixRecorrente | null> {
+  const { data } = await supabase.from('asaas_pix_assinaturas').select(COLS).eq(coluna, valor).maybeSingle();
+  return (data as LinhaPixRecorrente | null) ?? null;
+}
+
+/** 1º pagamento do Pix Automático: pixQrCodeId do pagamento = conciliationIdentifier do QR imediato. */
+async function acharContratoPorQr(qrId: string): Promise<LinhaPixRecorrente | null> {
+  const st = await lerEstado(chavePixAutoQr(qrId));
+  return st?.contract_id ? contratoPor('contract_id', String(st.contract_id)) : null;
+}
+
+/** Débito mensal: a instrução (CREATED/SCHEDULED) guardou de qual autorização é o pagamento. */
+async function acharContratoPorInstrucao(paymentId: string): Promise<LinhaPixRecorrente | null> {
+  const st = await lerEstado(chavePixAutoPag(paymentId));
+  return st?.authorization_id ? contratoPor('authorization_id', String(st.authorization_id)) : null;
+}
+
 // ── pagamento confirmado → mês de acesso ─────────────────────────────────────
 
-async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente): Promise<void> {
+/**
+ * via: 'direto' = o contrato saiu de acharContrato; 'qr' = 1º mês do Pix Automático, ligado pelo
+ * pixQrCodeId; 'instrucao' = débito mensal, ligado pela instrução (sempre renovação).
+ */
+async function creditarPagamento(
+  b: AsaasWebhookBody, linha: LinhaPixRecorrente, via: 'direto' | 'qr' | 'instrucao' = 'direto',
+): Promise<void> {
   const pagamentoId = b.payment?.id;
   if (!pagamentoId) {
     logger.error('asaas-webhook', `evento de pagamento sem payment.id (${linha.contract_id})`, b);
@@ -109,7 +168,46 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
   }
 
   const info = PLANOS_PIX[linha.plano] ?? PLANOS_PIX.ilimitado;
-  const primeiroPagamento = linha.status === 'pendente';
+
+  // Só é CANDIDATO a adesão o pagamento do contrato 'pendente' ou o que chegou pelo QR imediato
+  // (`pix_auto_qr`, inclusive a busca retroativa do ACTIVATED). Qualquer outro caminho é renovação: o
+  // contrato real de 25/10 ficou 'ativo' com ultimo_pagamento_id vazio (quem creditou foi o comprovante), e
+  // olhar "nunca pagou" faria o débito do mês 2 virar adesão (venda, Purchase e aviso em dobro, cartão
+  // cancelado, 7 dias de folga). Entre os candidatos, quem decide é um claim só de inserção
+  // (`asaas_adesao:<contrato>`; 23505 = já feita), que também segura a corrida entre dois eventos.
+  // Claim que dá erro NÃO vira adesão: credita como renovação e grita no log.
+  let primeiroPagamento = false;
+  const candidataAAdesao = via === 'qr' || (via === 'direto' && linha.status === 'pendente');
+  if (candidataAAdesao) {
+    const r = await gravarSoSeNovo(chaveAdesaoAsaas(linha.contract_id), { payment_id: pagamentoId, em: new Date().toISOString() });
+    primeiroPagamento = r === 'novo';
+    if (r === 'erro') {
+      logger.error('asaas-webhook', `claim de adesão falhou (${linha.contract_id}, pagamento ${pagamentoId}): credita como renovação, sem efeitos de adesão`);
+    }
+  }
+  const atrib: AtribuicaoPixAuto | null = primeiroPagamento
+    ? ((await lerEstado(chavePixAutoAtrib(linha.contract_id))) as AtribuicaoPixAuto | null)
+    : null;
+  const valorPago = Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor);
+
+  // MESMO DINHEIRO PELO WHATSAPP: quem paga o QR também costuma mandar o comprovante, e o robô do
+  // comprovante creditaria de novo. O E2E (`pix_e2e:`) é a trava que os dois dividem. Falhou a busca:
+  // credita assim mesmo (melhor um mês em dobro, que o Thiago vê, do que cliente pago sem acesso).
+  let e2eKey: string | null = null;
+  if (primeiroPagamento && b.payment?.pixTransaction) {
+    try {
+      const t = await asaasFetch<{ endToEndIdentifier?: string }>(`/pix/transactions/${encodeURIComponent(b.payment.pixTransaction)}`);
+      const { chaveE2e } = await import('../agents/whatsapp/pixComprovanteService');
+      e2eKey = chaveE2e(t?.endToEndIdentifier, valorPago);
+      if (!e2eKey) logger.warn('asaas-webhook', `sem E2E legível para o pagamento ${pagamentoId} (${linha.contract_id}): credita sem a trava do comprovante`);
+    } catch (err) {
+      logger.error('asaas-webhook', `busca do E2E falhou (${pagamentoId}, ${linha.contract_id}): credita assim mesmo`, err);
+    }
+  }
+  if (e2eKey) {
+    const reservada = await lerEstado(e2eKey);
+    if (reservada) { await ligarSemCreditar(linha, b, reservada.user_id, e2eKey); return; }
+  }
 
   // Acha o dono. user_id é o caminho normal (a tela exige login); o e-mail é a
   // rede pra contrato criado antes de a conta existir.
@@ -127,11 +225,38 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
     billing_status = (u as { billing_status: string | null }).billing_status;
   }
 
+  // Conta nova (quiz): a pessoa pagou o QR antes de ter conta. Cria PENDENTE (sem senha) e o link de definir
+  // senha segue por E-MAIL depois do crédito: nunca por WhatsApp e nunca pela rota pública de status.
+  let tokenContaNova: string | null = null;
+  let emailDeAcessoFalhou = false;
+  if (!userId && primeiroPagamento) {
+    try {
+      const { getOrCreatePixUser } = await import('../agents/whatsapp/pixComprovanteService');
+      // whatsappSoSeLivre: nunca sobrescreve o WhatsApp de uma conta que já existe (corrida com outra criação).
+      const nova = await getOrCreatePixUser(linha.email, atrib?.nome ?? null, soDigitos(atrib?.whatsapp), { whatsappSoSeLivre: true });
+      if (nova) {
+        userId = nova.id;
+        if (nova.criadaAgora && nova.reset_token) tokenContaNova = nova.reset_token;
+      }
+    } catch (err) {
+      logger.error('asaas-webhook', `criar a conta pendente de ${linha.email} falhou`, err);
+    }
+  }
+
   if (!userId) {
     // Dinheiro entrou e não há conta pra creditar. Não some com isso.
     logger.error('asaas-webhook', `PAGAMENTO SEM CONTA: ${linha.email} pagou ${pagamentoId} e não achei usuário`, linha);
     await avisarThiago(`🚨 *Pix recorrente pago SEM CONTA*\n${linha.email} pagou R$ ${linha.valor} (${linha.contract_id}) e não existe usuário com esse e-mail. Cria a conta e libera na mão.`);
     return;
+  }
+
+  if (e2eKey) {
+    const { e2eJaUsado } = await import('../agents/whatsapp/pixComprovanteService');
+    if (await e2eJaUsado(e2eKey, valorPago, userId)) {
+      // Perdeu a corrida para o robô do comprovante: ele já creditou este Pix.
+      await ligarSemCreditar(linha, b, userId, e2eKey);
+      return;
+    }
   }
 
   // liberarAcessoPix empurra +1 mês e, no VIP, concede o curso (desde 30/jul o
@@ -162,11 +287,37 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
     updated_at: new Date().toISOString(),
   }).eq('id', linha.id);
 
+  if (tokenContaNova) {
+    emailDeAcessoFalhou = true;
+    try {
+      const { sendPixAutomaticoAcessoEmail } = await import('../../utils/mailer');
+      const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+      await sendPixAutomaticoAcessoEmail({
+        to: linha.email, nome: atrib?.nome ?? null,
+        acessoUrl: `${dashboardUrl}/auth?mode=redefinir&token=${tokenContaNova}`,
+      });
+      emailDeAcessoFalhou = false;
+    } catch (err) {
+      // Sem WhatsApp extra: a falha vai como linha do aviso único ao Thiago (o da adesão, logo abaixo).
+      logger.error('asaas-webhook', `e-mail de acesso não saiu para ${linha.email} (conta criada e mês creditado)`, err);
+    }
+  }
+
   // ANTI-COBRANÇA-DUPLA — só na adesão. Todos os chargebacks do SolarDoc vieram
   // de um e-mail com várias assinaturas vivas; somar um segundo provedor sem
   // encerrar o cartão repetiria o erro de outro jeito.
+  //
+  // EXCEÇÃO: contrato SEM user_id, ou criado pela rota PÚBLICA (pix_auto_atrib.rota = 'publica', que grava o
+  // user_id quando o e-mail digitado já tem conta). Nos dois, quem paga pode ter digitado o e-mail de outra
+  // pessoa e cancelaria o cartão dela: aqui não se cancela nada, e o cartão ativo vira linha do aviso único.
   let canceladas = 0;
-  if (primeiroPagamento) {
+  let cartaoAtivoSemDono = false;
+  const viaRotaPublica = atrib?.rota === 'publica';
+  const semDonoNoContrato = !linha.user_id;
+  const naoCancelar = semDonoNoContrato || viaRotaPublica;
+  if (primeiroPagamento && naoCancelar) {
+    cartaoAtivoSemDono = billing_status === 'active' || billing_status === 'trialing';
+  } else if (primeiroPagamento) {
     try {
       const { cancelStripeSubsForEmail } = await import('../dunningService');
       canceladas = await cancelStripeSubsForEmail(linha.email);
@@ -215,6 +366,7 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
   if (primeiroPagamento) {
     try {
       const { upsertSale, sendPurchaseForSale } = await import('../salesLedger');
+      const ehQuiz = atrib?.origem === 'quiz_solardoc';
       const { sendUtmifyOrder } = await import('../utmifyOrders');
 
       // Atribuição: quem assina no Pix já tem conta, então os UTMs da aquisição
@@ -225,9 +377,10 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
         .eq('id', userId)
         .maybeSingle();
       const a = (attr ?? {}) as Record<string, string | null>;
-      nomeDoCliente = a.nome ?? null;
-      whatsDoCliente = a.whatsapp ?? null;
-      const pago = Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor);
+      // A atribuição guardada na criação (quiz/anúncio) vale mais que o cadastro: a conta pode ter nascido agora.
+      nomeDoCliente = atrib?.nome ?? a.nome ?? null;
+      whatsDoCliente = atrib?.whatsapp ?? a.whatsapp ?? null;
+      const pago = valorPago;
 
       const saleId = await upsertSale({
         // Chave estável e única por contrato: reentrega do webhook cai no mesmo
@@ -235,25 +388,37 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
         checkout_session_id: `asaas:${linha.contract_id}`,
         subscription_id: linha.authorization_id || linha.subscription_id || null,
         email: linha.email,
-        nome: a.nome ?? null,
-        phone: a.whatsapp ?? null,
+        nome: nomeDoCliente,
+        phone: whatsDoCliente,
         plano: info.plano,
         produto: info.nome,
         valor: pago,
         status: 'paid',
         cupom: linha.cupom ?? null,
         comDesconto: !!linha.cupom,
-        utm_source: a.utm_source ?? null,
-        utm_medium: a.utm_medium ?? null,
-        utm_campaign: a.utm_campaign ?? null,
-        utm_content: a.utm_content ?? null,
-        utm_term: a.utm_term ?? null,
+        utm_source: atrib?.utm_source ?? a.utm_source ?? null,
+        utm_medium: atrib?.utm_medium ?? a.utm_medium ?? null,
+        utm_campaign: atrib?.utm_campaign ?? a.utm_campaign ?? null,
+        utm_content: atrib?.utm_content ?? a.utm_content ?? null,
+        utm_term: atrib?.utm_term ?? a.utm_term ?? null,
+        attribution_session_id: atrib?.lp_session ?? null,
+        fbc: atrib?.fbc ?? null,
+        fbp: atrib?.fbp ?? null,
         card_passed_at: new Date().toISOString(),
       });
 
       // Meta (CAPI). A própria função recusa recompra e venda de follow-up —
       // o pixel só conta venda nova, e essa regra vale igual pro Pix.
-      if (saleId) {
+      // Venda do quiz: o Purchase sai pelo pixel do quiz (mesmo caminho e mesma chave do comprovante, então o
+      // mesmo Pix pago pelos dois lados manda UM evento). Sem E2E, a chave é o contrato.
+      if (ehQuiz) {
+        const { dispararPurchasePixQuiz } = await import('../solardoc/purchasePixQuiz');
+        const motivo = await dispararPurchasePixQuiz({
+          telefone: whatsDoCliente ?? '', email: linha.email, nome: nomeDoCliente, valor: pago,
+          chaveE2e: e2eKey, dedupKey: `asaas:${linha.contract_id}`, quando: new Date(),
+        });
+        logger.info('asaas-webhook', `Purchase do Pix automático no pixel do quiz: ${motivo}`);
+      } else if (saleId) {
         await sendPurchaseForSale(saleId).catch((e) =>
           logger.error('asaas-webhook', `Purchase pro Meta falhou (acesso já liberado): ${linha.email}`, e));
       }
@@ -264,17 +429,17 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
         createdAt: new Date(),
         approvedDate: new Date(),
         email: linha.email,
-        name: a.nome ?? null,
-        phone: a.whatsapp ?? null,
+        name: nomeDoCliente,
+        phone: whatsDoCliente,
         productId: info.plano,
         productName: info.nome,
         priceInReais: pago,
         paymentMethod: 'pix',
-        utm_source: a.utm_source ?? null,
-        utm_medium: a.utm_medium ?? null,
-        utm_campaign: a.utm_campaign ?? null,
-        utm_content: a.utm_content ?? null,
-        utm_term: a.utm_term ?? null,
+        utm_source: atrib?.utm_source ?? a.utm_source ?? null,
+        utm_medium: atrib?.utm_medium ?? a.utm_medium ?? null,
+        utm_campaign: atrib?.utm_campaign ?? a.utm_campaign ?? null,
+        utm_content: atrib?.utm_content ?? a.utm_content ?? null,
+        utm_term: atrib?.utm_term ?? a.utm_term ?? null,
       });
     } catch (err) {
       // Nada aqui pode derrubar a liberação: o cliente já pagou e já tem acesso.
@@ -291,7 +456,14 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
     `Plano: ${info.nome} · R$ ${linha.valor}`,
     `Trilho: ${linha.modo === 'automatico' ? 'Pix Automático (debita sozinho)' : 'assinatura Pix (QR todo mês)'}`,
     `Acesso até: ${vencComFolga.toLocaleDateString('pt-BR')}`,
-    primeiroPagamento ? `Cartão na Stripe: ${canceladas} assinatura(s) cancelada(s)` : '',
+    primeiroPagamento && !naoCancelar ? `Cartão na Stripe: ${canceladas} assinatura(s) cancelada(s)` : '',
+    cartaoAtivoSemDono
+      ? (viaRotaPublica
+        ? '⚠️ Pix pela página pública com e-mail que tem cartão ativo na Stripe; conferir à mão (não cancelei).'
+        : '⚠️ E-mail já tinha cartão ativo na Stripe; conferir à mão (não cancelei: o contrato não tinha conta).')
+      : '',
+    tokenContaNova ? 'Conta criada agora pelo pagamento (sem senha).' : '',
+    emailDeAcessoFalhou ? '⚠️ O e-mail com o link de senha NÃO saiu. Reenvia o acesso na mão.' : '',
   ].filter(Boolean).join('\n'));
 
   // Grupo de vendas do SolarDoc (plano B1): UM A MAIS que o aviso acima (que nunca é dispensado), só na ADESÃO.
@@ -305,14 +477,31 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
       } else {
         await avisarCompra({
           id, canal: 'asaas', planoAtivo: true,
-          valor: Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor),
+          valor: valorPago,
           nome: nomeDoCliente, telefone: whatsDoCliente,
+          lpSession: atrib?.lp_session ?? null, origemQuiz: atrib?.origem === 'quiz_solardoc',
         });
       }
     } catch (err) {
       logger.error('asaas-webhook', 'aviso ao grupo de vendas falhou (o do Thiago já saiu)', err);
     }
   }
+}
+
+/** O mesmo Pix já foi creditado pelo robô do comprovante: só liga o contrato (status, último pagamento, user_id). */
+async function ligarSemCreditar(
+  linha: LinhaPixRecorrente, b: AsaasWebhookBody, userIdDaReserva: unknown, e2eKey: string,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    status: 'ativo',
+    ultimo_pagamento_em: new Date().toISOString(),
+    proximo_vencimento: b.payment?.dueDate ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  const uid = (typeof userIdDaReserva === 'string' && userIdDaReserva) || linha.user_id;
+  if (uid) patch.user_id = uid;
+  await supabase.from('asaas_pix_assinaturas').update(patch).eq('id', linha.id);
+  logger.info('asaas-webhook', `Pix ${b.payment?.id} de ${linha.email} já creditado pelo comprovante (${e2eKey.split(':')[0]}): contrato ligado, sem novo crédito`);
 }
 
 // ── venda de produto do PlugCash (link de pagamento) ─────────────────────────
@@ -394,6 +583,31 @@ async function tratarVendaPlugcash(
   return { tratado: true, motivo: `venda plugcash ${status} (${r.acao})` };
 }
 
+/**
+ * ACTIVATED com cobrança imediata: grava a ligação QR -> contrato (se a criação não gravou) e procura, nos
+ * eventos já recebidos, o pagamento do 1º mês que chegou sem ligação. Achando, credita agora.
+ * Idempotente: o claim do pagamento e o da adesão seguram reentrega e corrida com o PAYMENT_RECEIVED.
+ */
+async function conciliarPrimeiroPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente): Promise<void> {
+  const qrId = b.authorization?.immediateQrCode?.conciliationIdentifier?.trim();
+  if (!qrId) return;
+  await gravarSoSeNovo(chavePixAutoQr(qrId), { contract_id: linha.contract_id, em: new Date().toISOString() });
+  if (await lerEstado(chaveAdesaoAsaas(linha.contract_id))) return; // adesão já feita
+
+  const { data } = await supabase
+    .from('asaas_webhook_events')
+    .select('event_id, event, recebido_em, payload')
+    .in('event', ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'])
+    .eq('payload->payment->>pixQrCodeId', qrId)
+    .order('recebido_em', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const pagamento = (data as { payload?: AsaasWebhookBody } | null)?.payload;
+  if (!pagamento?.payment?.id) return;
+  logger.info('asaas-webhook', `ACTIVATED achou o pagamento ${pagamento.payment.id} que chegou antes (${linha.contract_id})`);
+  await creditarPagamento(pagamento, linha, 'qr');
+}
+
 // ── entrada única ────────────────────────────────────────────────────────────
 
 export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ tratado: boolean; motivo: string }> {
@@ -429,8 +643,16 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
     // um mês só. Escutar os dois é de propósito: se um se perder, o outro credita.
     case 'PAYMENT_CONFIRMED':
     case 'PAYMENT_RECEIVED': {
-      if (!linha) return { tratado: false, motivo: 'pagamento fora do trilho Pix recorrente' };
-      await creditarPagamento(b, linha);
+      // Ordem das chaves do pagamento: (1) instrução do débito mensal, que SEMPRE é renovação; (2) QR do
+      // 1º mês do Pix Automático, que chega com OUTRO customer e vence o fallback por customer;
+      // (3) as chaves de sempre (acharContrato).
+      let alvo: LinhaPixRecorrente | null = null;
+      let via: 'direto' | 'qr' | 'instrucao' = 'direto';
+      if (b.payment?.id) { alvo = await acharContratoPorInstrucao(b.payment.id); if (alvo) via = 'instrucao'; }
+      if (!alvo && b.payment?.pixQrCodeId) { alvo = await acharContratoPorQr(b.payment.pixQrCodeId); if (alvo) via = 'qr'; }
+      if (!alvo) alvo = linha;
+      if (!alvo) return { tratado: false, motivo: 'pagamento fora do trilho Pix recorrente' };
+      await creditarPagamento(b, alvo, via);
       return { tratado: true, motivo: 'pagamento creditado' };
     }
 
@@ -451,7 +673,23 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
         .update({ status: 'ativo', updated_at: new Date().toISOString() })
         .eq('id', linha.id);
       logger.info('asaas-webhook', `autorização ativa: ${linha.email} (${linha.contract_id})`);
+      // 1ª cobrança imediata: o PAYMENT_RECEIVED costuma chegar ANTES deste evento e sem ligação nenhuma.
+      if (b.authorization?.originType === 'IMMEDIATE_PAYMENT_AND_RECURRING_QR_CODE') {
+        await conciliarPrimeiroPagamento(b, linha);
+      }
       return { tratado: true, motivo: 'autorização ativa' };
+    }
+
+    // Débito mensal: o pagamento chega depois só com o id dele. Guarda de qual autorização é.
+    case 'PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED':
+    case 'PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED': {
+      const pagId = b.paymentInstruction?.paymentId;
+      const autId = b.paymentInstruction?.authorization?.id;
+      if (!pagId || !autId) return { tratado: false, motivo: 'instrução sem paymentId ou autorização' };
+      await supabase.from('system_state').upsert(
+        { key: chavePixAutoPag(pagId), value: { authorization_id: autId, em: new Date().toISOString() } },
+        { onConflict: 'key' });
+      return { tratado: true, motivo: 'instrução de débito registrada' };
     }
 
     case 'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED':
