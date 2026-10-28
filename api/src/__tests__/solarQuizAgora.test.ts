@@ -40,9 +40,10 @@ import {
 import { decidirCaminho } from '../services/agenda/solarRota';
 import { TEL_AVISO } from '../services/io/solarEquipe';
 import {
-  runSolarQuizAvisosTick, avisarAgora, marcarFalei, camposDeRecuperacao, CHAVES, type PedidoAvisoAgora,
+  runSolarQuizAvisosTick, avisarAgora, avisarAgendado, marcarFalei, camposDeRecuperacao, CHAVES, type PedidoAvisoAgora,
 } from '../services/io/solarQuizAviso';
-import { avisoAgora, aberturaSugerida, listaDas7, fichaDoAviso } from '../services/io/solarQuizTextos';
+import { avisoAgora, aberturaSugerida, listaDas7, fichaDoAviso, segundoAviso } from '../services/io/solarQuizTextos';
+import { confereRegraDoAviso, TITULO_DE_SECAO } from './_regraAvisoNilce';
 
 const app = express();
 app.set('trust proxy', true);
@@ -245,18 +246,32 @@ describe('os textos dos avisos', () => {
     nome: 'Ana Souza', tel: '5534991112222', nota: 93, cidadeUf: 'Uberlândia-MG', resp, extra: limparRespostasExtra(RESP_BOA),
     diag: calcularDiagnostico(resp, null), kwh: 786, ...extra,
   });
-  it('T1: 1ª linha com a nota, link do falei, sem travessão, emoji só na 1ª linha', () => {
+  it('T1: 1ª linha com nota, palavra e emoji; blocos com título; link do falei; a regra de escrita dos avisos', () => {
     const t = avisoAgora(dados(), '14:05', 'CODIGO123abc');
     const linhas = t.split('\n');
-    expect(linhas[0]).toBe('🟢 *NOTA 93 · LIGAR AGORA*');
-    expect(linhas[1]).toBe('Quando: hoje, 14:05');
-    expect(t).toContain('WhatsApp: https://wa.me/5534991112222');
+    expect(linhas[0]).toBe('🔥🔥 *NOTA 93 · MUITO QUENTE · LIGAR AGORA*');
+    expect(linhas.slice(1, 7)).toEqual(['', '*Ana Souza*', 'WhatsApp: https://wa.me/5534991112222', 'Cidade: Uberlândia-MG', 'Horário: hoje, 14:05', '']);
+    expect(linhas.filter(l => TITULO_DE_SECAO.test(l))).toEqual([
+      '🎯 *PERFIL*', '⚡ *CONTA DE LUZ*', '💡 *O QUE ELE QUER*', '💰 *COMO ELE COMPRA*', '📣 *ORIGEM*', '💬 *ABERTURA SUGERIDA*',
+    ]);
+    expect(t).toContain('*Nota 93 de 100*');
     expect(t).toContain('Falou com o cliente? Toque aqui: https://api.solardoc.app/io/solar/falei/CODIGO123abc');
-    expect(t).not.toMatch(/[—–]/);
-    expect(linhas.slice(1).join('\n')).not.toMatch(/\p{Extended_Pictographic}/u);
-    for (const l of linhas.filter(Boolean)) expect(l[0]).toBe(l[0].toUpperCase());
+    confereRegraDoAviso(t);
     expect(t).not.toContain('Qualifica visita técnica');
     expect(t).toContain('Pensa em solar: Há alguns meses · Travou: Achou caro');
+    // A abertura sugerida segue uma frase por linha, logo depois do título.
+    const i = linhas.indexOf('💬 *ABERTURA SUGERIDA*');
+    expect(linhas.slice(i + 1, i + 4)).toEqual(['Oi, Ana!', 'Aqui é a Nilce, da Irmãos na Obra.', 'Fiz a conta com as suas respostas.']);
+  });
+  it('a escala da nota no cabeçalho: 90 a 100 muito quente, 80 quente, 70 bom, 60 morno, abaixo de 60 frio', () => {
+    const cab = (nota: number) => avisoAgora(dados({ nota }), '14:05', 'C').split('\n')[0];
+    expect([100, 90, 89, 80, 79, 70, 69, 60, 59, 0].map(cab)).toEqual([
+      '🔥🔥 *NOTA 100 · MUITO QUENTE · LIGAR AGORA*', '🔥🔥 *NOTA 90 · MUITO QUENTE · LIGAR AGORA*',
+      '🔥 *NOTA 89 · QUENTE · LIGAR AGORA*', '🔥 *NOTA 80 · QUENTE · LIGAR AGORA*',
+      '🟢 *NOTA 79 · BOM · LIGAR AGORA*', '🟢 *NOTA 70 · BOM · LIGAR AGORA*',
+      '🟡 *NOTA 69 · MORNO · LIGAR AGORA*', '🟡 *NOTA 60 · MORNO · LIGAR AGORA*',
+      '🔴 *NOTA 59 · FRIO · LIGAR AGORA*', '🔴 *NOTA 0 · FRIO · LIGAR AGORA*',
+    ]);
   });
   it('T1: resposta que falta vira "Não respondeu"; "Travou" só aparece se a pergunta apareceu; acima de 1.000 kWh qualifica visita', () => {
     const t = avisoAgora(dados({ extra: limparRespostasExtra({ tempo: 'agora' }), kwh: 1500 }), '14:05', 'C');
@@ -281,6 +296,32 @@ describe('os textos dos avisos', () => {
     expect(t.split('\n')[0]).toBe('☀️ *BOM DIA · LIGAR HOJE · 2 FORA DO HORÁRIO*');
     expect(t).toContain('Saiu: No diagnóstico, sem clicar no especialista');
     expect(t).toContain('Saiu: Na tela do WhatsApp, antes de ver o diagnóstico');
+    // Cada cliente com o emoji da nota no cabeçalho e a cidade na linha de baixo; do de maior nota ao de menor (Ana 80, Beto 70).
+    expect(t).toContain('🔥 *Ana · NOTA 80*\nUberlândia-MG · Conta: R$ 600 a R$ 1.050\n');
+    expect(t).toContain('🟢 *Beto · NOTA 70*\nAraguari-MG · Conta: Até R$ 300\n');
+    confereRegraDoAviso(t, { lista: true });
+  });
+  it('T3: ordena da maior nota para a menor, e o empate fica na ordem que veio', () => {
+    const it1 = (nome: string, nota: number) => ({ nome, nota, cidadeUf: 'X-MG', conta: 'Até R$ 300', onde: 'diagnostico' as const, tel: '5534991112222' });
+    const t = listaDas7([it1('Baixa', 55), it1('Alta', 95), it1('Meio A', 75), it1('Meio B', 75)]);
+    const nomes = t.split('\n').filter(l => / · NOTA \d+\*$/.test(l)).map(l => l.replace(/^\S+ \*| · NOTA \d+\*$/g, ''));
+    expect(nomes).toEqual(['Alta', 'Meio A', 'Meio B', 'Baixa']);
+    expect(t).toContain('🔴 *Baixa · NOTA 55*');
+  });
+  it('T3: "Na sua agenda" aparece só quando o cliente já tem card', () => {
+    const t = listaDas7([{ nome: 'Ana', nota: 80, cidadeUf: 'X-MG', conta: 'Até R$ 300', onde: 'diagnostico', tel: '5534991112222', quando: brt('2026-10-26', '08:00') }], brt('2026-10-24', '07:00'));
+    expect(t).toContain('Na sua agenda: seg 26/10, 08:00');
+  });
+  it('T4: emoji da nota, nota no título, cidade em linha própria e o link', () => {
+    const t = segundoAviso({ nome: 'Ana Souza', nota: 85, cidadeUf: 'Uberlândia-MG', tel: '5534991112222' }, 'COD12345678');
+    expect(t.split('\n')).toEqual([
+      '⏰ 🔥 *ANA SOUZA ESPERANDO · NOTA 85 · LIGAR AGORA*',
+      'Faz 5 minutos que o aviso chegou e o link ainda não foi tocado.',
+      'Cidade: Uberlândia-MG',
+      'WhatsApp: https://wa.me/5534991112222',
+      'Já falou com Ana Souza? Toque aqui: https://api.solardoc.app/io/solar/falei/COD12345678',
+    ]);
+    confereRegraDoAviso(t);
   });
   it('o número da Nilce e o do Thiago existem (as chaves são minúsculas)', () => {
     expect(TEL_AVISO['nilce']).toBeTruthy();
@@ -406,7 +447,7 @@ describe('os lembretes de 5 e 10 minutos', () => {
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 6 * MIN });
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 7 * MIN });
     expect(paraNilce()).toHaveLength(1);
-    expect(paraNilce()[0].texto).toContain('ESPERANDO · LIGAR AGORA');
+    expect(paraNilce()[0].texto).toContain('ESPERANDO · NOTA 93 · LIGAR AGORA');
     expect(paraNilce()[0].texto).toContain(`/io/solar/falei/${codigoDoAviso()}`);
     expect(paraThiago()).toHaveLength(0);
   });
@@ -472,8 +513,9 @@ describe('o abandono (saiu sem marcar)', () => {
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 13 * MIN });
     expect(paraNilce()).toHaveLength(1);
     const t = paraNilce()[0].texto;
-    expect(t.split('\n')[0]).toBe('🟢 *NOTA 93 · SAIU SEM MARCAR · LIGAR AGORA*');
-    expect(t.split('\n')[1]).toBe('Saiu no diagnóstico, sem clicar no especialista');
+    expect(t.split('\n')[0]).toBe('🔥🔥 *NOTA 93 · MUITO QUENTE · SAIU SEM MARCAR · LIGAR AGORA*');
+    confereRegraDoAviso(t);
+    expect(t.split('\n')[1]).toBe('Saiu no diagnóstico, sem clicar no especialista.');
     expect(t).toContain('Falou com o cliente? Toque aqui:');
     // Desde 27/10/2026 o lead que saiu sem marcar ganha card (sem a Duda ligada o card nasce MUDO); o aviso diz o horário dele.
     expect(h.ger.tabela('agendamentos')).toHaveLength(1);
@@ -489,7 +531,7 @@ describe('o abandono (saiu sem marcar)', () => {
     expect(h.enviados).toHaveLength(0);
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 7 * MIN });
     expect(paraNilce()).toHaveLength(1);
-    expect(paraNilce()[0].texto.split('\n')[1]).toBe('Saiu na tela do WhatsApp, antes de ver o diagnóstico');
+    expect(paraNilce()[0].texto.split('\n')[1]).toBe('Saiu na tela do WhatsApp, antes de ver o diagnóstico.');
   });
   it('quem tem card, quem clicou "agora", quem já foi atendido e o curioso não são abandono', async () => {
     semearLead(h.ger, 'quiz_1', { atividade: SEXTA_14H, agendado: 5 });
@@ -505,7 +547,7 @@ describe('o abandono (saiu sem marcar)', () => {
     h.ger.tabela('leads_meta')[0].field_data.find((c: any) => c.name === 'Pontos').values = ['5'];
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 12 * MIN });
     expect(paraNilce()).toHaveLength(1);
-    expect(paraNilce()[0].texto.split('\n')[0]).toBe('🔴 *NOTA 5 · SAIU SEM MARCAR · LIGAR AGORA*');
+    expect(paraNilce()[0].texto.split('\n')[0]).toBe('🔴 *NOTA 5 · FRIO · SAIU SEM MARCAR · LIGAR AGORA*');
   });
   it('rascunho do quiz antigo (sem os códigos) é ignorado', async () => {
     h.ger.tabela('leads_meta').push({ lead_id: 'quiz_velho', nome: 'Velho', whatsapp: '5534991112222', cidade: 'X', agendado_id: null, form_id: 'quiz_solar',
@@ -527,7 +569,8 @@ describe('o abandono (saiu sem marcar)', () => {
     expect(h.enviados).toHaveLength(1);
     expect(h.enviados[0].numero).toBe(TEL_AVISO['nilce']);
     expect(h.enviados[0].texto.split('\n')[0]).toBe('☀️ *BOM DIA · LIGAR HOJE · 2 FORA DO HORÁRIO*');
-    expect(h.enviados[0].texto).toContain('Nome: Beto Lima, nota 93');
+    expect(h.enviados[0].texto).toContain('🔥🔥 *Beto Lima · NOTA 93*');
+    confereRegraDoAviso(h.enviados[0].texto, { lista: true });
     expect(h.main.tabela('system_state').filter((l: any) => l.key.startsWith(CHAVES.manha) && !l.key.startsWith(CHAVES.manhaLote))).toHaveLength(0);
   });
   it('SOLAR_QUIZ_FILA_MANHA=0: fora do horário o aviso simplesmente não sai (nem entra em fila)', async () => {
@@ -642,7 +685,7 @@ describe('POST /quiz/agendar', () => {
     expect(card).toMatchObject({ vendedor_nome: 'Nilce', created_by: 'lp_solar' });
     expect(h.capi.mock.calls.filter(c => c[0].nome === 'Schedule')).toHaveLength(1);
     expect(paraNilce()).toHaveLength(1);
-    expect(paraNilce()[0].texto).toContain('*Telhado:* Cerâmica');
+    expect(paraNilce()[0].texto).toContain('Telhado: Cerâmica');
   });
   it('horário que a vitrine nova não oferece (08:00 de domingo) é recusado com 409', async () => {
     const r = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: '2026-10-25', h: '08:00', dono: 'Nilce' }));
@@ -653,6 +696,92 @@ describe('POST /quiz/agendar', () => {
     const r = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: '2026-10-24', h: '07:00', dono: 'Nilce' }));
     expect(r.status).toBe(200);
     expect(h.ger.tabela('agendamentos')[0].quando).toBe(new Date(msDe('2026-10-24', '07:00')).toISOString());
+  });
+});
+
+// ── T7: o aviso de quem marcou um horário (27/10/2026) ──────────────────────
+describe('avisarAgendado (T7 sai pelo solarQuizAviso, nunca direto da rota)', () => {
+  const textoT7 = 'Texto do aviso do quiz';
+  const marcas = (): string[] => h.main.tabela('system_state').map((l: any) => l.key as string);
+  it('(a) envio ok: UMA bolha para a Nilce, carimbo solar_quiz_env:nilce:agendado:<lead> com o robô do aviso, e a marca aviso_antigo:<card> fica', async () => {
+    const r = await avisarAgendado('nilce', 88, LEAD, textoT7);
+    expect(r).toEqual({ enviado: true, motivo: 'enviado' });
+    expect(h.enviados).toEqual([{ numero: TEL_AVISO['nilce'], texto: textoT7 }]);
+    expect(marcas()).toContain(`${CHAVES.envio}nilce:agendado:${LEAD}`);
+    expect(h.main.tabela('system_state').find((l: any) => l.key === `${CHAVES.envio}nilce:agendado:${LEAD}`).value.robo).toBe('solar_quiz_aviso');
+    expect(marcas()).toContain('aviso_antigo:88');
+  });
+  it('(b) linha em cooldown: nada sai e nenhuma marca aviso_antigo fica para trás (o cartão do 5040 vira a reserva)', async () => {
+    h.cooldown = true;
+    const r = await avisarAgendado('nilce', 88, LEAD, textoT7);
+    expect(r).toEqual({ enviado: false, motivo: 'cooldown' });
+    expect(h.enviados).toHaveLength(0);
+    expect(marcas()).not.toContain('aviso_antigo:88');
+    expect(marcas().some(k => k.startsWith(CHAVES.envio))).toBe(false);
+  });
+  it('falha do envio (5xx, timeout): a marca FICA, como no fichaTick, e não sai carimbo', async () => {
+    h.falhar = true;
+    const r = await avisarAgendado('nilce', 88, LEAD, textoT7);
+    expect(r).toEqual({ enviado: false, motivo: 'falhou' });
+    expect(marcas()).toContain('aviso_antigo:88');
+    expect(marcas().some(k => k.startsWith(CHAVES.envio))).toBe(false);
+  });
+  it('a rota não envia por conta própria: sem sendWhatsApp para o T7 em ioSolar.ts depois de avisarAgendado', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const fonte = readFileSync(join(__dirname, '..', 'routes', 'ioSolar.ts'), 'utf8');
+    const trecho = fonte.slice(fonte.indexOf("router.post('/quiz/agendar'"), fonte.indexOf("router.post('/quiz/saiu'"));
+    expect(trecho).toContain('avisarAgendado(');
+    expect(trecho).not.toMatch(/sendWhatsApp|sendHuman|sendFrio/);
+  });
+});
+
+describe('POST /quiz/agendar manda o T7 à Nilce com a ficha do 5040 ligada ou não', () => {
+  const agendar = async () => {
+    const v = await request(app).post('/io/solar/quiz').send(corpo({}, RESP_BOA));
+    const dia = v.body.dias[0]; const hora = dia.horas[0];
+    h.enviados.length = 0;
+    return request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: dia.ymd, h: hora.h, dono: hora.dono }, RESP_BOA));
+  };
+  const ligada = async (valor: '0' | '1') => {
+    process.env.AGENTES5040_FICHA = valor; process.env.AGENTES5040_HMAC = 'segredo-de-teste';
+    const { zerarCacheInterruptores } = await import('../services/agentes5040/interruptores');
+    zerarCacheInterruptores();
+  };
+  afterEach(async () => {
+    process.env.AGENTES5040_FICHA = '0'; delete process.env.AGENTES5040_HMAC;
+    (await import('../services/agentes5040/interruptores')).zerarCacheInterruptores();
+  });
+
+  it('ficha LIGADA: sai o T7 (1 chamada ao sendWhatsApp, 1ª linha nova), aviso_antigo:<card> gravado e carimbo do envio', async () => {
+    await ligada('1');
+    const r = await agendar();
+    expect(r.status).toBe(200);
+    expect(r.body.substituido_pela_ficha).toBeUndefined();
+    expect(vi.mocked(sendWhatsApp)).toHaveBeenCalledTimes(1);
+    expect(paraNilce()).toHaveLength(1);
+    const t = paraNilce()[0].texto;
+    expect(t.split('\n')[0]).toBe('🔥🔥 *NOTA 100 · MUITO QUENTE · NOVA LIGAÇÃO*');
+    confereRegraDoAviso(t);
+    const id = h.ger.tabela('agendamentos')[0].id;
+    const chaves = h.main.tabela('system_state').map((l: any) => l.key as string);
+    expect(chaves).toContain(`aviso_antigo:${id}`);
+    expect(chaves).toContain(`${CHAVES.envio}nilce:agendado:${LEAD}`);
+  });
+  it('ficha DESLIGADA: o mesmo T7, uma bolha só', async () => {
+    await ligada('0');
+    const r = await agendar();
+    expect(r.status).toBe(200);
+    expect(paraNilce()).toHaveLength(1);
+    expect(paraNilce()[0].texto.split('\n')[0]).toBe('🔥🔥 *NOTA 100 · MUITO QUENTE · NOVA LIGAÇÃO*');
+  });
+  it('linha em cooldown: o cliente marca do mesmo jeito, nada sai e nenhuma marca aviso_antigo fica (o cartão do 5040 avisa)', async () => {
+    await ligada('1');
+    h.cooldown = true;
+    const r = await agendar();
+    expect(r.status).toBe(200);
+    expect(h.enviados).toHaveLength(0);
+    expect(h.main.tabela('system_state').some((l: any) => String(l.key).startsWith('aviso_antigo:'))).toBe(false);
   });
 });
 
@@ -880,7 +1009,7 @@ describe('onde saiu: o horário também tem texto próprio (T2 e T3)', () => {
     semearLead(h.ger, LEAD, { atividade: SEXTA_14H });
     h.main.tabela('system_state').push({ key: CHAVES.saiu + LEAD, value: { em: new Date(SEXTA_14H + MIN).toISOString(), onde: 'horarios' }, updated_at: new Date(SEXTA_14H + MIN).toISOString() });
     await runSolarQuizAvisosTick({ agora: SEXTA_14H + 7 * MIN });
-    expect(paraNilce()[0].texto.split('\n')[1]).toBe('Saiu na escolha do horário, sem marcar');
+    expect(paraNilce()[0].texto.split('\n')[1]).toBe('Saiu na escolha do horário, sem marcar.');
     expect(listaDas7([{ nome: 'Ana', nota: 80, cidadeUf: 'X-MG', conta: 'Até R$ 300', onde: 'horarios', tel: '5534991112222' }])).toContain('Saiu: Na escolha do horário, sem marcar');
   });
 });

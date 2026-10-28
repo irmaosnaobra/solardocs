@@ -36,7 +36,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp, linhaEmCooldown } from '../agents/zapiClient';
-import { marcarAvisoAntigo } from '../agentes5040/chaves';
+import { marcarAvisoAntigo, chaveAvisoAntigo } from '../agentes5040/chaves';
 import { agenteAtendeEste, lerPosse, chaveDaPosse } from '../agentes5040/posse';
 import { gravarCardAgora, gravarCardSolar, vagasSolar, rebaixarSaiuAMudo, type CardGravado } from '../agentes5040/agendaSolar';
 import { estaBloqueado } from '../agents/whatsapp/silenciar';
@@ -77,7 +77,7 @@ export const CHAVES = {
 /** Os robôs registrados em chefe/classes.ts para os envios deste arquivo. */
 export const ROBOS_QUIZ = { aviso: 'solar_quiz_aviso', lembrete: 'solar_quiz_lembrete', listaManha: 'solar_quiz_lista_manha' } as const;
 const ROBO_DO_TIPO: Record<string, string> = {
-  agora: ROBOS_QUIZ.aviso, abandono: ROBOS_QUIZ.aviso,
+  agora: ROBOS_QUIZ.aviso, abandono: ROBOS_QUIZ.aviso, agendado: ROBOS_QUIZ.aviso,
   lembrete5: ROBOS_QUIZ.lembrete, lembrete10: ROBOS_QUIZ.lembrete, cartao: ROBOS_QUIZ.lembrete,
   manha: ROBOS_QUIZ.listaManha,
 };
@@ -269,6 +269,22 @@ export async function avisarAgora(p: PedidoAvisoAgora, agora = Date.now()): Prom
   if (claim === 'ganhou') await marcarAvisoAntigo(p.cardId);
   await gravarChave(CHAVES.token + codigo, { lead: p.lead, nome: p.ficha.nome, em: agoraIso(agora) });
   const r = await enviarUm('nilce', avisoAgora(p.ficha, horaBonita(p.quandoMs), codigo), 'agora', p.lead);
+  return { enviado: r === 'enviado', motivo: r };
+}
+
+// ── o aviso de quem MARCOU um horário (T7, 27/10/2026) ──────────────────────
+/**
+ * T7. O cliente marcou um horário em /quiz/agendar: a Nilce recebe SEMPRE este aviso (com nota, palavra e as fichas), no lugar
+ * do cartão genérico do 5040. Mesmo molde do T1: grava `aviso_antigo:<card>` ANTES de enviar (o fichaTick pula o card, então
+ * é UMA mensagem só) e envia por `enviarUm`, que olha o cooldown da linha e deixa o carimbo `solar_quiz_env:nilce:agendado:<lead>`
+ * (conta nos 12 por hora e nos tetos da linha). A marca só é desfeita quando NADA saiu por falta de condição (cooldown da
+ * linha ou sem telefone): aí o fichaTick manda o cartão de reserva. Em falha de envio (5xx, timeout) a marca fica, como no
+ * fichaTick: o envio pode ter chegado. Este aviso NÃO obedece a `SOLAR_QUIZ_AVISOS_OFF` (a rota sempre mandou o T7; calar aqui deixaria o cliente marcar sem aviso nenhum quando a ficha está desligada).
+ */
+export async function avisarAgendado(pessoa: Pessoa, cardId: number, lead: string, texto: string): Promise<ResultadoAviso> {
+  await marcarAvisoAntigo(cardId);
+  const r = await enviarUm(pessoa, texto, 'agendado', lead);
+  if (r === 'cooldown' || r === 'sem_destino') await apagarChave(chaveAvisoAntigo(cardId));
   return { enviado: r === 'enviado', motivo: r };
 }
 

@@ -23,7 +23,7 @@ import {
 } from '../services/io/solarQuiz';
 import { EQUIPE, TEL_AVISO } from '../services/io/solarEquipe';
 import {
-  avisarAgora, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, reivindicar, lerChave, apagarChave,
+  avisarAgora, avisarAgendado, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, reivindicar, lerChave, apagarChave,
 } from '../services/io/solarQuizAviso';
 import { motivoDescarteSolar, cidadeUfDoDescarte, CHAVE_DESCARTADO, type MotivoDescarte } from '../services/io/solarDescarte';
 import { soDigitosSolar, telKeySolar, donoDoTelefone } from '../services/io/solarTelefone';
@@ -721,17 +721,15 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
 
     // Aviso no celular de QUEM ATENDE, com tudo (ordem de 08/10/2026: "cada um,
     // além de receber na agenda, recebe no celular com todos os detalhes").
+    // Desde 27/10/2026 a Nilce recebe SEMPRE este aviso (T7, com nota e blocos), com o interruptor da ficha ligado ou não: o
+    // cartão genérico do 5040 não leva a nota nem o emoji. Quem envia é solarQuizAviso.avisarAgendado: ele grava
+    // `aviso_antigo:<card>` (o cartão do 5040 pula o card, então é UMA mensagem só), passa pelo cooldown da linha e deixa o
+    // carimbo do envio. Esta rota não envia nada por conta própria.
     // Esperado (a Vercel corta o que roda depois da resposta), teto de 4 s.
-    // Com o interruptor `ficha` ligado o aviso ao dono sai pela ficha (tarefa ficha_5040) e a lista de alvos fica vazia.
-    // O card acabou de nascer como 'agendado' e created_by 'lp_solar'. O CAPI (acima) segue como sempre.
-    const alvos = (await fichaSubstituiAviso({ id: data.id, created_by: 'lp_solar', status: 'agendado' }))
-      ? []
-      : [TEL_AVISO[dono.toLowerCase()]].filter(Boolean);
-    const msg = avisoDaEquipe(data as FichaDoAviso);
+    // Hoje a grade do quiz só tem a Nilce. Se outro dono voltar, este aviso não sai e fica o cartão do 5040, que vai ao dono certo.
+    const donoEhNilce = String(dono || '').trim().toLowerCase() === 'nilce';
     await Promise.race([
-      Promise.allSettled(alvos.map(n => sendWhatsApp(n, msg, 'io'))).then(r => r.forEach((x, i) => {
-        if (x.status === 'rejected') logger.error('io-solar-quiz', `aviso falhou pra ${alvos[i]}`, x.reason);
-      })),
+      (donoEhNilce ? avisarAgendado('nilce', data.id, leadId, avisoDaEquipe(data as FichaDoAviso)) : Promise.resolve()).catch(err => logger.error('io-solar-quiz', `aviso ao dono falhou para o card ${data.id}`, err)),
       new Promise(resolve => setTimeout(resolve, 4000)),
     ]);
     await capi;

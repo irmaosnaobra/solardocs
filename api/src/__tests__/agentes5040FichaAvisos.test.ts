@@ -48,6 +48,7 @@ vi.mock('../utils/supabaseGerador', () => {
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: vi.fn(async (numero: string, texto: string) => { h.enviados.push({ numero, texto }); }),
+  linhaEmCooldown: vi.fn(() => false),
 }));
 vi.mock('../utils/metaCapi', async (orig) => ({ ...(await orig<typeof import('../utils/metaCapi')>()), enviarEventoMeta: h.capi }));
 vi.mock('../services/agents/whatsapp/silenciar', async (orig) => ({
@@ -63,7 +64,7 @@ vi.mock('../services/io/solarQuiz', async (orig) => {
     decidirEMontar: () => ({
       dec: {
         caminho: 'ligacao', motivo: 'x', kwh: 800, grande: false, cidade: { nome: 'Uberlândia', uf: 'MG' },
-        pontos: 90, pontuacao: { pontos: 90, partes: [] }, candidatos: ['Diego'], qualifica: null,
+        pontos: 90, pontuacao: { pontos: 90, partes: [] }, candidatos: ['Nilce'], qualifica: null,
       },
       dias: [], semHorario: false,
     }),
@@ -98,7 +99,7 @@ app.use('/gerador', caixa);
 
 let id = 5000;
 const card = (extra: Record<string, unknown> = {}) => ({
-  id, vendedor_nome: 'Diego', quando: '2026-10-21T17:30:00.000Z', cliente_nome: 'Camila Souza',
+  id, vendedor_nome: 'Nilce', quando: '2026-10-21T17:30:00.000Z', cliente_nome: 'Camila Souza',
   cliente_telefone: '5534991113333', cidade: 'Uberlândia', temperatura: 'quente', created_at: new Date().toISOString(),
   created_by: 'lp_eletroposto', status: 'agendado',
   observacao: 'LP ELETROPOSTO · Posto\nPonto: Tenho o local\nNOTA 3 · 9/11 pts', ...extra,
@@ -161,10 +162,10 @@ describe('ioSolar /alerta e o aviso do quiz ao dono', () => {
   const agendar = {
     nome: 'Ana Souza', tel: '5534991112222',
     respostas: { conta: '2000_5000', cidade: 'Uberlândia-MG', urgencia: 'ja', decisor: 'eu', pagamento: 'vista', imovel: 'proprio', tipo: 'empresa' },
-    ymd: '2026-10-21', h: '09:00', dono: 'Diego', event_id: 'agd_abc123xyz',
+    ymd: '2026-10-21', h: '09:00', dono: 'Nilce', event_id: 'agd_abc123xyz',
   };
   const quiz = () => {
-    h.single = { id: 77, vendedor_nome: 'Diego', quando: 'x', cliente_nome: 'Ana Souza', cliente_telefone: '5534991112222', observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO' };
+    h.single = { id: 77, vendedor_nome: 'Nilce', quando: 'x', cliente_nome: 'Ana Souza', cliente_telefone: '5534991112222', observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO' };
     return request(app).post('/io/solar/quiz/agendar').send(agendar);
   };
 
@@ -175,11 +176,12 @@ describe('ioSolar /alerta e o aviso do quiz ao dono', () => {
     expect(h.enviados).toHaveLength(1);
   });
 
-  it('quiz ligado: nenhum aviso antigo ao dono, e a API de Conversões (Schedule) segue como sempre', async () => {
+  it('quiz ligado (27/10/2026): a Nilce recebe o aviso do quiz (T7) do mesmo jeito, UM só, e o Schedule segue como sempre', async () => {
     const r = await quiz();
     expect(r.status).toBe(200);
     expect(r.body.ok).toBe(true);
-    expect(h.enviados).toEqual([]);
+    expect(h.enviados).toHaveLength(1);
+    expect(h.enviados[0].texto).toContain('Veio do quiz da /io/solar.');
     expect(h.capi.mock.calls.map(c => c[0]).some(e => e.nome === 'Schedule')).toBe(true);
   });
 });

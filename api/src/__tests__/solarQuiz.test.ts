@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   limparRespostas, montarVitrine, decidirEMontar, cabe, montarObservacao, camposDoLead, blocoDaFicha, msDe,
-  avisoDaEquipe, emojiDaNota,
+  avisoDaEquipe, emojiDaNota, palavraDaNota,
   type Ocupacao,
 } from '../services/io/solarQuiz';
+import { confereRegraDoAviso, TITULO_DE_SECAO } from './_regraAvisoNilce';
 import { decidirCaminho, caminhoDaFicha, ocupacaoDaFichaSolar, vaiParaTreino } from '../services/agenda/solarRota';
 
 // Segunda-feira, 12/10/2026, 07:00 de Brasília. (12/10 é feriado nacional:
@@ -146,45 +147,72 @@ describe('o aviso no celular de quem atende', () => {
     return { observacao: obs, quando: Q, vendedor_nome: dec.candidatos[0], cliente_nome: 'Roberto Lima', cliente_telefone: '5534999990000', ...extra };
   };
 
-  it('a faixa da nota no emoji: 90 a 100 verde, 60 a 89 amarelo, abaixo de 60 vermelho', () => {
-    expect([100, 90, 89, 60, 59, 0].map(emojiDaNota)).toEqual(['🟢', '🟢', '🟡', '🟡', '🔴', '🔴']);
+  it('a faixa da nota no emoji: 90 a 100 fogo duplo, 80 a 89 fogo, 70 a 79 verde, 60 a 69 amarelo, abaixo de 60 vermelho', () => {
+    expect([100, 90, 89, 80, 79, 70, 69, 60, 59, 0].map(emojiDaNota)).toEqual(['🔥🔥', '🔥🔥', '🔥', '🔥', '🟢', '🟢', '🟡', '🟡', '🔴', '🔴']);
+    expect([100, 90, 89, 80, 79, 70, 69, 60, 59, 0].map(palavraDaNota)).toEqual([
+      'MUITO QUENTE', 'MUITO QUENTE', 'QUENTE', 'QUENTE', 'BOM', 'BOM', 'MORNO', 'MORNO', 'FRIO', 'FRIO',
+    ]);
   });
 
-  it('visita (cliente do Diego): nota no título, mapa, origem do anúncio e a nota explicada no fim, do menor peso ao maior', () => {
+  it('visita (cliente do Diego): nota e palavra no título, blocos com emoji, mapa, origem do anúncio e a nota explicada no fim, do menor peso ao maior', () => {
     const t = avisoDaEquipe(ficha(resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE, decisor: 'junto' }), { utm_source: 'ig', utm_campaign: 'Solar - Quiz - Agenda' }, 'Diego'));
     const l = t.split('\n');
-    expect(l[0]).toBe('🟢 *NOTA 94 · NOVA VISITA, ENERGIA SOLAR*');
-    expect(t).toContain('*Onde:* Comércio ou empresa');
-    expect(t).toContain('*Cidade:* Catalão-GO · 108 km de Uberlândia pela estrada');
-    expect(t).toMatch(/\*Mapa:\* https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Rua%20A%2C%2055/);
-    expect(t).toContain('*Origem:* Instagram, campanha Solar - Quiz - Agenda');
-    expect(t).toContain('*Por que este caminho:*');
-    const bloco = l.slice(l.indexOf('*A NOTA, DO MENOR PESO AO MAIOR*') + 1, l.indexOf('*Nota: 94 de 100*'));
+    expect(l[0]).toBe('🔥🔥 *NOTA 94 · MUITO QUENTE · NOVA VISITA*');
+    expect(l[1]).toBe('Veio do quiz da /io/solar.');
+    expect(l.slice(3, 5)).toEqual(['*Roberto Lima*', 'WhatsApp: https://wa.me/5534999990000']);
+    expect(l.filter(x => TITULO_DE_SECAO.test(x))).toEqual(['📅 *O ATENDIMENTO*', '🎯 *PERFIL*', '⚡ *CONTA DE LUZ*', '📣 *ORIGEM*', '🧮 *COMO CHEGOU NA NOTA*']);
+    expect(t).toContain('Onde: Comércio ou empresa');
+    expect(t).toContain('Cidade: Catalão-GO · 108 km de Uberlândia pela estrada');
+    expect(t).toMatch(/Mapa: https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Rua%20A%2C%2055/);
+    expect(t).toContain('Com: Diego');
+    expect(l[l.indexOf('📣 *ORIGEM*') + 1]).toBe('Instagram, campanha Solar - Quiz - Agenda');
+    expect(t).toContain('Por que este caminho:');
+    expect(t).toContain('*Nota 94 de 100*');
+    const bloco = l.slice(l.indexOf('🧮 *COMO CHEGOU NA NOTA*') + 1, l.indexOf('*Soma: 94 de 100*'));
     expect(bloco.map(x => x.split(':')[0])).toEqual(['Já tem orçamento', 'Imóvel', 'Pagamento', 'Quem decide', 'Prazo']);
     expect(bloco[4]).toBe('Prazo: O quanto antes, este mês (35 de 35)');
     expect(bloco[3]).toMatch(/\(14 de 20\)$/);
-    // Regras da escrita: emoji só na primeira linha e nada de travessão.
-    for (const linha of l.slice(1)) expect(linha).not.toMatch(/\p{Extended_Pictographic}/u);
-    expect(t).not.toMatch(/[—–]/);
+    expect(l.slice(-2)).toEqual([
+      '_Logo em seguida a Duda manda a mensagem para o cliente com o seu nome e o horário, e responde o básico no 5040. O que for com você, ela te passa aqui._',
+      '_Veja no CRM: solardoc.app/gerador_',
+    ]);
+    // Regras da escrita: emoji só na 1ª linha e nos títulos de bloco, nada de travessão, toda linha com maiúscula.
+    confereRegraDoAviso(t);
   });
 
   it('ligação no meio da tabela: amarelo, sem mapa; sem UTM diz que veio sem anúncio', () => {
     const t = avisoDaEquipe(ficha(resp({ conta: '300_600', cidade: 'Uberaba', ...MORNO })));
-    expect(t.split('\n')[0]).toBe('🟡 *NOTA 68 · NOVA LIGAÇÃO, ENERGIA SOLAR*');
-    expect(t).not.toContain('*Mapa:*');
-    expect(t).toContain('*Origem:* sem anúncio (link direto)');
-    expect(t).toContain('*Nota: 68 de 100*');
+    expect(t.split('\n')[0]).toBe('🟡 *NOTA 68 · MORNO · NOVA LIGAÇÃO*');
+    expect(t).not.toContain('Mapa:');
+    expect(t).toContain('📣 *ORIGEM*\nSem anúncio (link direto)');
+    expect(t).toContain('*Soma: 68 de 100*');
+    confereRegraDoAviso(t);
   });
 
   it('abaixo de 60 é vermelho', () => {
     const r = resp({ conta: '300_600', cidade: 'Uberaba', urgencia: '3meses', decisor: 'junto', pagamento: 'naosei', imovel: 'construcao', concorrente: 'nao' });
-    expect(avisoDaEquipe(ficha(r)).split('\n')[0]).toMatch(/^🔴 \*NOTA \d+ · NOVA LIGAÇÃO/);
+    expect(avisoDaEquipe(ficha(r)).split('\n')[0]).toMatch(/^🔴 \*NOTA \d+ · FRIO · NOVA LIGAÇÃO\*$/);
+  });
+
+  it('a marca QUALIFICA PARA abre o bloco do atendimento; uma linha sem valor some, e o bloco vazio some com o título', () => {
+    const t = avisoDaEquipe({
+      observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO\nPontuação: 80/100 (prazo 35/35)\nQUALIFICA PARA VISITA TÉCNICA', quando: Q, vendedor_nome: 'Nilce', cliente_nome: 'Ana', cliente_telefone: '5534999990000',
+    });
+    const l = t.split('\n');
+    expect(l[l.indexOf('📅 *O ATENDIMENTO*') + 1]).toBe('*QUALIFICA PARA VISITA TÉCNICA*');
+    expect(t).not.toContain('Endereço:');
+    expect(t).not.toContain('Mapa:');
+    expect(t).not.toContain('CONTA DE LUZ');
+    expect(t).not.toContain('O QUE ELE QUER');
+    confereRegraDoAviso(t);
   });
 
   it('ficha antiga, sem a linha da pontuação, ainda sai, sem inventar nota', () => {
     const t = avisoDaEquipe({ observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO\nConta de luz: Até R$ 300', quando: Q, vendedor_nome: 'Giovanna', cliente_nome: 'Ana', cliente_telefone: '5534999990000' });
     expect(t.split('\n')[0]).toBe('☀️ *NOVA LIGAÇÃO, ENERGIA SOLAR*');
-    expect(t).not.toContain('A NOTA');
+    expect(t).not.toContain('PERFIL');
+    expect(t).not.toContain('COMO CHEGOU NA NOTA');
+    confereRegraDoAviso(t);
   });
 });
 

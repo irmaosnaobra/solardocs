@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // OS TEXTOS DOS AVISOS DO QUIZ SOLAR (redator, 24/10/2026). Arquivo PURO: monta texto, não lê banco e não envia.
 //
-// Regras de escrita da casa: toda linha começa com maiúscula, sem travessão, emoji só na 1ª linha, resposta que
-// faltar vira "Não respondeu". O telefone entra sempre com o 55 na frente.
+// Regras de escrita da casa: toda linha começa com maiúscula, sem travessão, resposta que faltar vira "Não respondeu".
+// O telefone entra sempre com o 55 na frente. Nestes avisos (T1, T2, T3, T4 e T7 da equipe) o emoji vale na 1ª linha e no
+// título de seção (`<emoji> *TÍTULO EM MAIÚSCULAS*`, sozinho na linha); linha de dado nunca leva emoji (27/10/2026).
 //
 //   T1  aviso "agora" para a Nilce (1 mensagem só)      T5  aviso de 10 min para o Thiago
 //   T1a abertura sugerida                               T6  cartão agrupado (mais de 12 por hora)
@@ -12,7 +13,7 @@
 
 import { rotuloDaFaixa, KWH_VISITA } from '../agenda/solarRota';
 import {
-  emojiDaNota, FONTE_DO_ANUNCIO, nomeEUfDaCidade, rotuloDaResposta, rotExtra, brl0, linhaDoDiagnostico,
+  emojiDaNota, palavraDaNota, FONTE_DO_ANUNCIO, nomeEUfDaCidade, rotuloDaResposta, rotExtra, brl0, linhaDoDiagnostico,
   type Respostas, type RespostasExtra, type Diagnostico,
 } from './solarQuiz';
 
@@ -118,72 +119,104 @@ export function aberturaSugerida(d: Pick<DadosDaFicha, 'nome' | 'cidadeUf' | 'di
   ].filter(Boolean).join('\n');
 }
 
-/** A ficha do T1, de "Quando:" até "Origem:". `quando` é o texto depois de "Quando: ". */
-export function fichaDoAviso(d: DadosDaFicha, quando: string): string[] {
+/** Um bloco com título (`🎯 *PERFIL*`). Sem nenhuma linha, o bloco some junto com o título. */
+export const secao = (emoji: string, titulo: string, linhas: ReadonlyArray<string | false | null | undefined>): string[] => {
+  const ok = linhas.filter((l): l is string => typeof l === 'string' && l !== '');
+  return ok.length ? [`${emoji} *${titulo}*`, ...ok] : [];
+};
+
+/** Junta blocos separados por uma linha em branco. */
+export const juntarSecoes = (blocos: ReadonlyArray<readonly string[]>): string[] =>
+  blocos.filter(b => b.length > 0).flatMap((b, i) => (i === 0 ? [...b] : ['', ...b]));
+
+const maiuscula = (t: string): string => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+
+/** A ficha comum do T1 e do T2: perfil, conta de luz, o que ele quer, como ele compra e a origem. */
+export function fichaDoAviso(d: DadosDaFicha): string[] {
   const { resp, extra } = d;
   const kwh = d.kwh ?? d.diag?.kwh_mes ?? null;
-  const L: string[] = [
-    `Quando: ${quando}`,
-    `Cliente: ${d.nome}`,
-    `WhatsApp: ${linkWa(d.tel)}`,
-    `Cidade: ${d.cidadeUf || NAO_RESPONDEU} · Tipo: ${o('tipo', resp.tipo)}`,
-    `Conta: ${rotuloDaFaixa(resp.conta) ?? NAO_RESPONDEU} · Consumo: cerca de ${kwh !== null ? kwh.toLocaleString('pt-BR') : '?'} kWh`,
-  ];
-  if (kwh !== null && kwh > KWH_VISITA) L.push('Qualifica visita técnica, acima de 1.000 kWh');
-  L.push(
-    `Telhado: ${x('telhado', extra.telhado)} · Sombra: ${x('sombra', extra.sombra)} · Imóvel: ${o('imovel', resp.imovel)}`,
-    `Vai aumentar o consumo: ${x('aumento', extra.aumento)}`,
-    `Dor: ${x('dor', extra.dor)}`,
-    // "Travou" só existe se a pergunta apareceu (tempo diferente de "agora").
-    `Pensa em solar: ${x('tempo', extra.tempo)}${extra.tempo && extra.tempo !== 'agora' ? ` · Travou: ${x('travou', extra.travou)}` : ''}`,
-    `Desejo: ${x('desejo', extra.desejo)}`,
-    `Mais importante na empresa: ${x('criterio', extra.criterio)}`,
-    `Prazo: ${o('urgencia', resp.urgencia)} · Paga: ${o('pagamento', resp.pagamento)}`,
-    `Decide: ${o('decisor', resp.decisor)} · Já tem orçamento: ${o('concorrente', resp.concorrente)}`,
-  );
-  if (d.diag) L.push(`Diagnóstico: ${linhaDoDiagnostico(d.diag)}`);
-  L.push(`Origem: ${origemDoAnuncio(d.utmSource, d.utmCampaign)}`);
-  return L;
+  return juntarSecoes([
+    secao('🎯', 'PERFIL', [
+      `*Nota ${d.nota} de 100*`,
+      `Tipo: ${o('tipo', resp.tipo)} · Imóvel: ${o('imovel', resp.imovel)}`,
+      `Telhado: ${x('telhado', extra.telhado)} · Sombra: ${x('sombra', extra.sombra)}`,
+    ]),
+    secao('⚡', 'CONTA DE LUZ', [
+      `Conta: ${rotuloDaFaixa(resp.conta) ?? NAO_RESPONDEU} · Consumo: cerca de ${kwh !== null ? kwh.toLocaleString('pt-BR') : '?'} kWh`,
+      kwh !== null && kwh > KWH_VISITA && '*Qualifica visita técnica, acima de 1.000 kWh*',
+      `Vai aumentar o consumo: ${x('aumento', extra.aumento)}`,
+      d.diag && `Diagnóstico: ${linhaDoDiagnostico(d.diag)}`,
+    ]),
+    secao('💡', 'O QUE ELE QUER', [
+      `Dor: ${x('dor', extra.dor)}`,
+      `Desejo: ${x('desejo', extra.desejo)}`,
+      // "Travou" só existe se a pergunta apareceu (tempo diferente de "agora").
+      `Pensa em solar: ${x('tempo', extra.tempo)}${extra.tempo && extra.tempo !== 'agora' ? ` · Travou: ${x('travou', extra.travou)}` : ''}`,
+      `Mais importante na empresa: ${x('criterio', extra.criterio)}`,
+    ]),
+    secao('💰', 'COMO ELE COMPRA', [
+      `Prazo: ${o('urgencia', resp.urgencia)} · Paga: ${o('pagamento', resp.pagamento)}`,
+      `Decide: ${o('decisor', resp.decisor)} · Já tem orçamento: ${o('concorrente', resp.concorrente)}`,
+    ]),
+    secao('📣', 'ORIGEM', [maiuscula(origemDoAnuncio(d.utmSource, d.utmCampaign))]),
+  ]);
 }
 
 export const linkFalei = (codigo: string, base = (process.env.API_URL || 'https://api.solardoc.app')): string =>
   `${base.replace(/\/+$/, '')}/io/solar/falei/${codigo}`;
 
+/** O fim do T1 e do T2: a abertura sugerida e o link do "falei". */
+const fimDoAviso = (d: DadosDaFicha, codigo: string): string[] => [
+  ...secao('💬', 'ABERTURA SUGERIDA', [aberturaSugerida(d)]),
+  '',
+  `Falou com o cliente? Toque aqui: ${linkFalei(codigo)}`,
+];
+
+/** O cabeçalho do cliente do T1 e do T2. */
+const quemLigar = (d: DadosDaFicha, horario: string): string[] => [
+  `*${maiuscula(d.nome)}*`,
+  `WhatsApp: ${linkWa(d.tel)}`,
+  `Cidade: ${d.cidadeUf || NAO_RESPONDEU}`,
+  `Horário: ${horario}`,
+];
+
 /** T1. `horaTexto` é a hora da ligação ("14:35"). */
 export function avisoAgora(d: DadosDaFicha, horaTexto: string, codigo: string): string {
   return [
-    `${emojiDaNota(d.nota)} *NOTA ${d.nota} · LIGAR AGORA*`,
-    ...fichaDoAviso(d, `hoje, ${horaTexto}`),
+    `${emojiDaNota(d.nota)} *NOTA ${d.nota} · ${palavraDaNota(d.nota)} · LIGAR AGORA*`,
     '',
-    'Abertura sugerida:',
-    aberturaSugerida(d),
+    ...quemLigar(d, `hoje, ${horaTexto}`),
     '',
-    `Falou com o cliente? Toque aqui: ${linkFalei(codigo)}`,
+    ...fichaDoAviso(d),
+    '',
+    ...fimDoAviso(d, codigo),
   ].join('\n');
 }
 
 /** T2. Com `cardQuandoMs` (27/10/2026) o aviso diz o horário do card que já está na agenda dela; sem ele, a hora do aviso, como antes. */
 export function avisoSaiuSemMarcar(d: DadosDaFicha, onde: OndeSaiu, horaTexto: string, codigo: string, cardQuandoMs?: number, agoraMs = Date.now()): string {
+  const longo = ONDE_SAIU_LONGO[onde];
   return [
-    `${emojiDaNota(d.nota)} *NOTA ${d.nota} · SAIU SEM MARCAR · LIGAR AGORA*`,
-    ONDE_SAIU_LONGO[onde],
-    ...fichaDoAviso(d, cardQuandoMs ? `${quandoDoCardTexto(cardQuandoMs, agoraMs)} (já está na sua agenda)` : `hoje, ${horaTexto}`),
+    `${emojiDaNota(d.nota)} *NOTA ${d.nota} · ${palavraDaNota(d.nota)} · SAIU SEM MARCAR · LIGAR AGORA*`,
+    longo.endsWith('.') ? longo : `${longo}.`,
     '',
-    'Abertura sugerida:',
-    aberturaSugerida(d),
+    ...quemLigar(d, cardQuandoMs ? `${quandoDoCardTexto(cardQuandoMs, agoraMs)} (já está na sua agenda)` : `hoje, ${horaTexto}`),
     '',
-    `Falou com o cliente? Toque aqui: ${linkFalei(codigo)}`,
+    ...fichaDoAviso(d),
+    '',
+    ...fimDoAviso(d, codigo),
   ].join('\n');
 }
 
 /** `quando` = o horário do card dele na agenda (27/10/2026), se já existe. */
 export interface ItemDaLista { nome: string; nota: number; cidadeUf: string; conta: string; onde: OndeSaiu; tel: string; quando?: number }
 
-/** T3: uma mensagem com N clientes. */
+/** T3: uma mensagem com N clientes, do de maior nota ao de menor (empate: a ordem que veio). */
 export function listaDas7(itens: readonly ItemDaLista[], agoraMs = Date.now()): string {
-  const blocos = itens.map(i => [
-    `Nome: ${i.nome}, nota ${i.nota}`,
-    `Cidade: ${i.cidadeUf || NAO_RESPONDEU} · Conta: ${i.conta || NAO_RESPONDEU}`,
+  const ordem = itens.map((i, pos) => ({ i, pos })).sort((a, b) => b.i.nota - a.i.nota || a.pos - b.pos).map(e => e.i);
+  const blocos = ordem.map(i => [
+    `${emojiDaNota(i.nota)} *${maiuscula(i.nome)} · NOTA ${i.nota}*`,
+    `${i.cidadeUf || NAO_RESPONDEU} · Conta: ${i.conta || NAO_RESPONDEU}`,
     `Saiu: ${ONDE_SAIU_CURTO[i.onde]}`,
     ...(i.quando ? [`Na sua agenda: ${quandoDoCardTexto(i.quando, agoraMs)}`] : []),
     `WhatsApp: ${linkWa(i.tel)}`,
@@ -196,9 +229,9 @@ export interface DadosCurtos { nome: string; nota: number; cidadeUf: string; tel
 /** T4. */
 export function segundoAviso(d: DadosCurtos, codigo: string): string {
   return [
-    `⏰ *${d.nome.toUpperCase()} ESPERANDO · LIGAR AGORA*`,
-    `Nota ${d.nota}, ${d.cidadeUf || NAO_RESPONDEU}.`,
+    `⏰ ${emojiDaNota(d.nota)} *${d.nome.toUpperCase()} ESPERANDO · NOTA ${d.nota} · LIGAR AGORA*`,
     'Faz 5 minutos que o aviso chegou e o link ainda não foi tocado.',
+    `Cidade: ${d.cidadeUf || NAO_RESPONDEU}`,
     `WhatsApp: ${linkWa(d.tel)}`,
     `Já falou com ${d.nome}? Toque aqui: ${linkFalei(codigo)}`,
   ].join('\n');

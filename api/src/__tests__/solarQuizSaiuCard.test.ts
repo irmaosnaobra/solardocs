@@ -133,7 +133,7 @@ describe('o card que FALA: todas as condições do chefe valem', () => {
     expect(paraNilce()).toHaveLength(1);
     const t = paraNilce()[0].texto;
     expect(t.split('\n')[0]).toContain('SAIU SEM MARCAR');
-    expect(t).toContain('Quando: hoje, 14:20 (já está na sua agenda)');
+    expect(t).toContain('Horário: hoje, 14:20 (já está na sua agenda)');
     expect(t).not.toMatch(/[—–]/);
   });
 
@@ -221,7 +221,7 @@ describe('o card MUDO: cada condição do A que falha', () => {
     expect(Date.parse(c.quando)).not.toBe(quandoDoAgora(agora));
     expect(c.observacao).toContain('Curioso (');
     // O aviso à Nilce continua (ordem do dono) e diz o horário do card.
-    expect(paraNilce()[0].texto).toContain('Quando: hoje, 15:00 (já está na sua agenda)');
+    expect(paraNilce()[0].texto).toContain('Horário: hoje, 15:00 (já está na sua agenda)');
   });
 
   it('o 2º lead na mesma vaga cai na vaga seguinte (índice único), e o minuto ocupado do "agora" empurra +5 min', async () => {
@@ -814,7 +814,7 @@ describe('os textos com o horário do card', () => {
     expect(quandoDoCardTexto(brt('2026-10-24', '08:00'), SEXTA_14H)).toBe('amanhã, 08:00');
     expect(quandoDoCardTexto(brt('2026-10-26', '08:00'), SEXTA_14H)).toBe('seg 26/10, 08:00');
     const hid = { nome: 'Ana', tel: TEL, nota: 80, cidadeUf: 'Uberlândia-MG', resp: limparRespostas(RESP_BOA), extra: limparRespostasExtra(RESP_BOA), diag: null, kwh: null };
-    expect(avisoSaiuSemMarcar(hid as never, 'diagnostico', '14:11', 'codigo12345')).toContain('Quando: hoje, 14:11');
+    expect(avisoSaiuSemMarcar(hid as never, 'diagnostico', '14:11', 'codigo12345')).toContain('Horário: hoje, 14:11');
   });
   it('as vagas do solar para o lead novo seguem a grade :00/:30 (a mesma que o tick usa)', async () => {
     const v = await vagasSolar({ dono: 'Nilce', caminho: 'ligacao', n: 3, agora: SEXTA_14H + 11 * MIN, faixa: 'novo' });

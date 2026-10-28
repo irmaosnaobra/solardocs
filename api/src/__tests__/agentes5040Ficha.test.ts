@@ -495,7 +495,8 @@ describe('chaves: um interruptor liga a ficha e cala os avisos antigos', () => {
     const conta = (s: string): number => (s.match(/fichaSubstituiAviso\(/g) ?? []).length;
     expect(conta(ler('services/agenda/leadsMetaService.ts'))).toBe(1);
     expect(conta(ler('services/agenda/manychatLeadService.ts'))).toBe(2);
-    expect(conta(ler('routes/ioSolar.ts'))).toBe(2);
+    // 27/10/2026: o /quiz/agendar deixou de consultar a chave (a Nilce recebe sempre o T7 por solarQuizAviso.avisarAgendado); sobra o /alerta.
+    expect(conta(ler('routes/ioSolar.ts'))).toBe(1);
     expect(conta(ler('routes/ioEletroposto.ts'))).toBe(1);
     // E nenhum deles importa o envio da ficha (só a chave, que não importa o zapiClient).
     for (const p of ['services/agenda/leadsMetaService.ts', 'services/agenda/manychatLeadService.ts', 'routes/ioSolar.ts', 'routes/ioEletroposto.ts']) {
