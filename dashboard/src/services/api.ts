@@ -34,7 +34,7 @@ api.interceptors.response.use(
       //
       // A lista espelha o PUBLIC_PATHS do proxy.ts pelo mesmo motivo: onde o
       // servidor deixa entrar sem sessão, o cliente não pode chutar pra fora.
-      const PUBLICAS = ['/lp/', '/p/', '/v/', '/orc/', '/assinar', '/quase-la', '/plugcash', '/kit', '/oferta', '/limpar-cache'];
+      const PUBLICAS = ['/lp/', '/p/', '/v/', '/m/', '/orc/', '/assinar', '/quase-la', '/plugcash', '/kit', '/oferta', '/limpar-cache'];
       const naPublica = typeof window !== 'undefined'
         && (window.location.pathname === '/'
             || PUBLICAS.some((r) => window.location.pathname.startsWith(r)));

@@ -34,6 +34,18 @@ async function launchWithRetry(opts: Parameters<typeof puppeteer.launch>[0]) {
   throw lastErr;
 }
 
+// Abre o Chromium do mesmo jeito que o generatePdf (mesma versão, mesmo retry).
+// Usado pelo relatório público de manutenção; o generatePdf não passa por aqui.
+export async function abrirNavegador() {
+  const execPath = await chromium.executablePath(CHROMIUM_URL);
+  return launchWithRetry({
+    args: chromium.args,
+    defaultViewport: (chromium as any).defaultViewport,
+    executablePath: execPath,
+    headless: true,
+  });
+}
+
 // Registro de falha de download. Fail-silent de propósito: o cliente já está
 // sem o PDF, não pode levar um segundo erro por causa do registro.
 async function registrarFalhaPdf(userId: string | undefined, docId: string, stage: string, detalhe?: string): Promise<void> {

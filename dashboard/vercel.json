@@ -8,7 +8,8 @@
     { "source": "/_api/:path*", "destination": "https://api.solardoc.app/:path*" },
     { "source": "/p/:id", "destination": "https://api.solardoc.app/p/:id" },
     { "source": "/orc/:codigo", "destination": "https://api.solardoc.app/orc/:codigo" },
-    { "source": "/v/:path*", "destination": "https://api.solardoc.app/v/:path*" }
+    { "source": "/v/:path*", "destination": "https://api.solardoc.app/v/:path*" },
+    { "source": "/m/:path*", "destination": "https://api.solardoc.app/m/:path*" }
   ],
   "headers": [
     {

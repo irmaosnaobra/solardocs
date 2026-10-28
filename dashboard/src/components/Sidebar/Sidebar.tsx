@@ -93,6 +93,7 @@ const topoItems: NavItem[] = [
 // com cadeado, e o clique cai na página de venda.
 const acessosItems: NavItem[] = [
   { href: '/vistoria',     icon: ClipboardCheck,  label: 'Vistoria Solar' },
+  { href: '/manutencao',  icon: Wrench,          label: 'Manutenção' },
   { href: '/precificacao', icon: Calculator,      label: 'Precificação',     produto: 'precificacao' },
   { href: '/inventario',   icon: Boxes,           label: 'Inventário',       produto: 'inventario' },
   // Off-grid NÃO leva `produto`: a tela é aberta de propósito (dimensionar e ver
