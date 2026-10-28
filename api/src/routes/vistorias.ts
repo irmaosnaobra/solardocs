@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { authMiddleware } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { calcularSelo, resumo, sanitizarStatus } from '../services/vistoria/avaliacao';
+import {
+  AssinMap, BUCKET as BUCKET_DOC, Extras, colunaAusente, lerExtras, urlsDasAssinaturas,
+} from '../services/vistoria/extras';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Vistoria de energia solar — checklist de campo com VÁRIAS fotos/arquivos por item.
@@ -105,6 +109,17 @@ async function getOwned(id: string, userId: string) {
     | null;
 }
 
+/** Lê as colunas novas; se o banco falhar por outro motivo que não coluna ausente, responde 500 e devolve null. */
+async function extrasOu500(res: Response, id: string): Promise<Extras | null> {
+  try {
+    return await lerExtras(id);
+  } catch (err) {
+    logger.error('vistorias', 'falha lendo status e assinaturas', err);
+    res.status(500).json({ error: 'Não consegui carregar os dados da vistoria. Tente de novo.' });
+    return null;
+  }
+}
+
 const fotosDe = (i: ItemVistoria): Foto[] => (Array.isArray(i.fotos) ? i.fotos : []);
 
 // ── POST /vistorias — cria a vistoria (opcionalmente grudada num cliente) ──────
@@ -175,6 +190,20 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
     return;
   }
 
+  // Selo de cada vistoria: leitura tolerante das colunas novas (sem a migration, todos null).
+  const seloPorId = new Map<string, string | null>();
+  try {
+    const { data: sts, error: stErr } = await supabase
+      .from('vistorias')
+      .select('id, status_itens')
+      .eq('user_id', req.userId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (!stErr) {
+      for (const r of (sts ?? []) as { id: string; status_itens: unknown }[]) seloPorId.set(r.id, calcularSelo(r.status_itens));
+    }
+  } catch { /* sem selo */ }
+
   const lista = (data ?? []).map((v: { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; localizacao: Localizacao | null; created_at: string }) => {
     const itens = Array.isArray(v.itens) ? v.itens : [];
     return {
@@ -185,6 +214,7 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
       total: itens.length,
       preenchidos: itens.filter((i) => fotosDe(i).length > 0).length,
       tem_local: !!v.localizacao,
+      selo: seloPorId.get(v.id) ?? null,
       created_at: v.created_at,
     };
   });
@@ -208,7 +238,7 @@ router.get('/clientes', authMiddleware, async (req: Request, res: Response): Pro
   const nomeEmpresa = new Map<string, string>((comps ?? []).map((c: { user_id: string; nome: string }) => [c.user_id, c.nome]));
   const grupos = new Map<string, { id: string; nome: string; docs: string[] }[]>();
   for (const cl of (clis ?? []) as { id: string; nome: string; user_id: string; documentos: { tipo: string }[] | null }[]) {
-    const emp = nomeEmpresa.get(cl.user_id) || '— Sem empresa —';
+    const emp = nomeEmpresa.get(cl.user_id) || 'Sem empresa';
     if (!grupos.has(emp)) grupos.set(emp, []);
     // docs = tipos distintos já arquivados (conta_luz / identidade)
     const docs = [...new Set((Array.isArray(cl.documentos) ? cl.documentos : []).map((d) => d.tipo))];
@@ -221,6 +251,8 @@ router.get('/clientes', authMiddleware, async (req: Request, res: Response): Pro
 });
 
 // ── GET /vistorias/:id — detalhe (com signed urls pra revisar no dashboard) ─────
+// Acrescenta status_itens, assinaturas e o resumo (selo, pendências, conclusão). As colunas
+// novas vêm de lerExtras: sem a migration, voltam vazias e extras_disponiveis=false.
 router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const v = await getOwned(String(req.params.id), req.userId);
   if (!v) {
@@ -228,7 +260,17 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
     return;
   }
   const itens = await withSignedUrls(Array.isArray(v.itens) ? v.itens : []);
-  res.json({ ...v, itens });
+  const extras = await extrasOu500(res, v.id);
+  if (!extras) return;
+  res.json({
+    ...v,
+    itens,
+    status_itens: extras.status_itens,
+    assinaturas: extras.assinaturas,
+    assinaturas_url: await urlsDasAssinaturas(extras.assinaturas),
+    resumo: resumo(itens, extras.status_itens),
+    extras_disponiveis: extras.disponivel,
+  });
 });
 
 // ── POST /vistorias/:id/foto — ADICIONA uma foto/arquivo ao item ───────────────
@@ -434,6 +476,236 @@ router.put('/:id/localizacao', authMiddleware, async (req: Request, res: Respons
   res.json({ ok: true, localizacao: local });
 });
 
+// ── PUT /vistorias/:id/status — grava o status dos itens técnicos ───────────────
+// O corpo traz o mapa COMPLETO vindo da tela. Chave fora dos 10 itens técnicos e valor
+// fora dos 4 status são descartados. Não passa pela RPC vistoria_patch_item (o corpo dela
+// não está versionado e pode sobrescrever `obs`): grava na coluna própria.
+const statusSchema = z.object({ status_itens: z.record(z.string(), z.unknown()) });
+
+router.put('/:id/status', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const parsed = statusSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Dados inválidos' });
+    return;
+  }
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  if (v.status === 'concluida') {
+    res.status(409).json({ error: 'Vistoria concluída. Reabra para editar.' });
+    return;
+  }
+  const extras = await extrasOu500(res, v.id);
+  if (!extras) return;
+  if (!extras.disponivel) {
+    res.status(503).json({ error: 'migracao_pendente' });
+    return;
+  }
+  const status_itens = sanitizarStatus(parsed.data.status_itens);
+  const { error } = await supabase
+    .from('vistorias')
+    .update({ status_itens, updated_at: new Date().toISOString() })
+    .eq('id', v.id)
+    .eq('user_id', req.userId);
+  if (error) {
+    if (colunaAusente(error)) {
+      res.status(503).json({ error: 'migracao_pendente' });
+      return;
+    }
+    logger.error('vistorias', 'falha gravando status', error);
+    res.status(500).json({ error: 'Não consegui salvar o status.' });
+    return;
+  }
+  const itens = Array.isArray(v.itens) ? v.itens : [];
+  res.json({ ok: true, status_itens, resumo: resumo(itens, status_itens) });
+});
+
+// ── Assinaturas (técnico e cliente) ─────────────────────────────────────────────
+const MAX_BYTES_ASSINATURA = 500_000;
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+const PNG_DATA_URL = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/;
+
+const assinSchema = z.object({
+  papel: z.enum(['tecnico', 'cliente']),
+  nome: z.string().trim().max(120).default(''),
+  registro: z.string().trim().max(60).optional(),
+  png: z.string().min(30),
+});
+
+router.post('/:id/assinatura', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const parsed = assinSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Dados da assinatura inválidos' });
+    return;
+  }
+  const { papel, nome, registro, png } = parsed.data;
+  if (papel === 'tecnico' && !nome) {
+    res.status(400).json({ error: 'Informe o nome do técnico.' });
+    return;
+  }
+  const m = PNG_DATA_URL.exec(png);
+  const buffer = m ? Buffer.from(m[1], 'base64') : null;
+  if (!buffer || buffer.length < 8 || !buffer.subarray(0, 4).equals(PNG_MAGIC)) {
+    res.status(400).json({ error: 'Assinatura inválida.' });
+    return;
+  }
+  if (buffer.length > MAX_BYTES_ASSINATURA) {
+    res.status(413).json({ error: 'Assinatura muito grande.' });
+    return;
+  }
+
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  if (v.status === 'concluida') {
+    res.status(409).json({ error: 'Vistoria concluída. Reabra para editar.' });
+    return;
+  }
+  const inicial = await extrasOu500(res, v.id);
+  if (!inicial) return;
+  if (!inicial.disponivel) {
+    res.status(503).json({ error: 'migracao_pendente' });
+    return;
+  }
+
+  const path = `vistorias/${req.userId}/${v.id}/assinatura-${papel}-${Date.now()}.png`;
+  const { error: upErr } = await supabase.storage.from(BUCKET_DOC).upload(path, buffer, { contentType: 'image/png', upsert: false });
+  if (upErr) {
+    logger.error('vistorias', 'upload da assinatura falhou', upErr);
+    res.status(502).json({ error: 'Não consegui salvar. Tente de novo.' });
+    return;
+  }
+
+  // Relê logo antes de gravar: duas assinaturas quase juntas (técnico e cliente) não se sobrescrevem.
+  let fresco: Extras;
+  try {
+    fresco = await lerExtras(v.id);
+  } catch (err) {
+    // Sem saber o que já está gravado, gravar por cima poderia apagar a outra assinatura.
+    supabase.storage.from(BUCKET_DOC).remove([path]).catch(() => {});
+    logger.error('vistorias', 'falha relendo assinaturas', err);
+    res.status(500).json({ error: 'Não consegui salvar. Tente de novo.' });
+    return;
+  }
+  if (!fresco.disponivel) {
+    supabase.storage.from(BUCKET_DOC).remove([path]).catch(() => {});
+    res.status(503).json({ error: 'migracao_pendente' });
+    return;
+  }
+  const assinaturas: AssinMap = { ...fresco.assinaturas };
+  const antiga = assinaturas[papel]?.path;
+  assinaturas[papel] = { path, nome, ...(papel === 'tecnico' ? { registro: registro ?? '' } : {}), ts: new Date().toISOString() };
+  const { error } = await supabase
+    .from('vistorias')
+    .update({ assinaturas, updated_at: new Date().toISOString() })
+    .eq('id', v.id)
+    .eq('user_id', req.userId);
+  if (error) {
+    supabase.storage.from(BUCKET_DOC).remove([path]).catch(() => {});
+    if (colunaAusente(error)) {
+      res.status(503).json({ error: 'migracao_pendente' });
+      return;
+    }
+    logger.error('vistorias', 'falha gravando assinatura', error);
+    res.status(500).json({ error: 'Subiu mas não consegui registrar. Tente de novo.' });
+    return;
+  }
+
+  // Corrida entre as duas assinaturas: se outra requisição gravou no meio, uma das duas pode ter
+  // sumido. Relê e, se faltar a nossa ou a do outro papel que já existia, junta e grava uma vez.
+  try {
+    const outro = papel === 'tecnico' ? 'cliente' : 'tecnico';
+    const depois = await lerExtras(v.id);
+    const junto: AssinMap = { ...depois.assinaturas };
+    let mudou = false;
+    if (junto[papel]?.path !== path) { junto[papel] = assinaturas[papel]; mudou = true; }
+    if (fresco.assinaturas[outro] && !junto[outro]) { junto[outro] = fresco.assinaturas[outro]; mudou = true; }
+    if (mudou) {
+      const { error: regravar } = await supabase.from('vistorias')
+        .update({ assinaturas: junto, updated_at: new Date().toISOString() })
+        .eq('id', v.id).eq('user_id', req.userId);
+      if (regravar) logger.error('vistorias', 'falha regravando assinaturas juntas', regravar);
+    }
+  } catch (err) {
+    logger.error('vistorias', 'falha conferindo assinaturas depois de gravar', err);
+  }
+
+  if (antiga) supabase.storage.from(BUCKET_DOC).remove([antiga]).catch(() => {});
+
+  const { data: signed } = await supabase.storage.from(BUCKET_DOC).createSignedUrl(path, 3600);
+  res.json({ ok: true, papel, path, url: signed?.signedUrl ?? null, nome, registro: assinaturas[papel]?.registro });
+});
+
+router.delete('/:id/assinatura', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const papel = z.enum(['tecnico', 'cliente']).safeParse(req.query.papel);
+  if (!papel.success) {
+    res.status(400).json({ error: 'Dados inválidos' });
+    return;
+  }
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  if (v.status === 'concluida') {
+    res.status(409).json({ error: 'Vistoria concluída. Reabra para editar.' });
+    return;
+  }
+  const extras = await extrasOu500(res, v.id);
+  if (!extras) return;
+  if (!extras.disponivel) {
+    res.status(503).json({ error: 'migracao_pendente' });
+    return;
+  }
+  const assinaturas: AssinMap = { ...extras.assinaturas };
+  const antiga = assinaturas[papel.data]?.path;
+  delete assinaturas[papel.data];
+  const { error } = await supabase
+    .from('vistorias')
+    .update({ assinaturas, updated_at: new Date().toISOString() })
+    .eq('id', v.id)
+    .eq('user_id', req.userId);
+  if (error) {
+    if (colunaAusente(error)) {
+      res.status(503).json({ error: 'migracao_pendente' });
+      return;
+    }
+    logger.error('vistorias', 'falha removendo assinatura', error);
+    res.status(500).json({ error: 'Não consegui remover.' });
+    return;
+  }
+  if (antiga) supabase.storage.from(BUCKET_DOC).remove([antiga]).catch(() => {});
+  res.json({ ok: true });
+});
+
+// ── POST /vistorias/:id/reabrir — volta uma vistoria concluída para em andamento ─
+router.post('/:id/reabrir', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  if (v.status !== 'concluida') {
+    res.status(409).json({ error: 'A vistoria não está concluída.' });
+    return;
+  }
+  const { error } = await supabase
+    .from('vistorias')
+    .update({ status: 'em_andamento', updated_at: new Date().toISOString() })
+    .eq('id', v.id)
+    .eq('user_id', req.userId);
+  if (error) {
+    logger.error('vistorias', 'falha reabrindo', error);
+    res.status(500).json({ error: 'Não consegui reabrir a vistoria.' });
+    return;
+  }
+  res.json({ ok: true, id: v.id, status: 'em_andamento' });
+});
+
 // ── POST /vistorias/:id/concluir — fecha a vistoria e devolve o id do relatório ─
 router.post('/:id/concluir', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const v = await getOwned(String(req.params.id), req.userId);
@@ -450,7 +722,10 @@ router.post('/:id/concluir', authMiddleware, async (req: Request, res: Response)
     res.status(500).json({ error: 'Não consegui concluir a vistoria.' });
     return;
   }
-  res.json({ ok: true, id: v.id });
+  // A vistoria já está concluída: se a leitura do status falhar, a resposta só vem sem selo.
+  let statusItens: Extras['status_itens'] = {};
+  try { statusItens = (await lerExtras(v.id)).status_itens; } catch (err) { logger.error('vistorias', 'falha lendo status ao concluir', err); }
+  res.json({ ok: true, id: v.id, resumo: resumo(Array.isArray(v.itens) ? v.itens : [], statusItens) });
 });
 
 // Troca cada caminho de foto por uma signed url temporária pra exibição.

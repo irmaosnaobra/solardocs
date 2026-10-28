@@ -9,6 +9,19 @@ const ALTURA = 190;
 // A assinatura é um documento: a tinta é escura sempre, porque o PNG vai para um relatório branco.
 const TINTA = '#0b1220';
 
+/** Textos opcionais: sem eles valem os da Manutenção, então nada muda para ela. */
+export interface TextosAssinatura {
+  nome?: string;
+  registro?: string;
+  registroPlaceholder?: string;
+  dica?: string;
+  limpar?: string;
+  salvar?: string;
+  salva?: string;
+  semDesenho?: string;
+  semNome?: string;
+}
+
 export interface AssinaturaProps {
   rotulo: string;
   /** Signed URL da assinatura já salva. */
@@ -19,10 +32,16 @@ export interface AssinaturaProps {
   aviso?: string;
   onSalvar: (pngBase64: string, nome: string, registro: string) => Promise<string | null>;
   onRemover: () => Promise<string | null>;
+  textos?: TextosAssinatura;
+  /** O nome é obrigatório para salvar. Padrão: sim. */
+  nomeObrigatorio?: boolean;
+  /** Em vez de desativar o botão Salvar, explica o que falta ao tocar nele. Padrão: não. */
+  avisarFalta?: boolean;
 }
 
 export default function Assinatura({
   rotulo, url, nomeInicial, registroInicial = '', comRegistro = false, aviso, onSalvar, onRemover,
+  textos, nomeObrigatorio = true, avisarFalta = false,
 }: AssinaturaProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +129,10 @@ export default function Assinatura({
 
   async function salvar() {
     const c = canvasRef.current;
+    if (avisarFalta) {
+      if (!c || !temTraco) { setErro(textos?.semDesenho ?? ''); return; }
+      if (nomeObrigatorio && !nome.trim()) { setErro(textos?.semNome ?? ''); return; }
+    }
     if (!c || !temTraco) return;
     setErro(''); setOcupado(true);
     const png = c.toDataURL('image/png').split(',')[1] || '';
@@ -136,7 +159,7 @@ export default function Assinatura({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="mnt-assinImg" src={url} alt={rotulo} />
           <p className="mnt-assinNome">
-            <Check size={16} strokeWidth={3} /> Assinatura salva{nome ? `: ${nome}` : ''}
+            <Check size={16} strokeWidth={3} /> {textos?.salva ? `${textos.salva.replace(/\.$/, '')}${nome ? `: ${nome}` : '.'}` : `Assinatura salva${nome ? `: ${nome}` : ''}`}
           </p>
           <button type="button" className="mnt-btn mnt-btnGhost" disabled={ocupado} onClick={refazer}>
             <RefreshCw size={17} /> Refazer assinatura
@@ -145,13 +168,13 @@ export default function Assinatura({
       ) : (
         <>
           <div className="mnt-field">
-            <label className="mnt-label">Nome de quem assina</label>
+            <label className="mnt-label">{textos?.nome ?? 'Nome de quem assina'}</label>
             <input className="mnt-input" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={120} />
           </div>
           {comRegistro && (
             <div className="mnt-field">
-              <label className="mnt-label">Registro (CREA, CFT ou CRT)</label>
-              <input className="mnt-input" value={registro} onChange={(e) => setRegistro(e.target.value)} maxLength={60} />
+              <label className="mnt-label">{textos?.registro ?? 'Registro (CREA, CFT ou CRT)'}</label>
+              <input className="mnt-input" value={registro} onChange={(e) => setRegistro(e.target.value)} maxLength={60} placeholder={textos?.registroPlaceholder} />
             </div>
           )}
           <div className="mnt-quadroWrap" ref={wrapRef}>
@@ -165,14 +188,14 @@ export default function Assinatura({
               onPointerUp={fim}
               onPointerCancel={fim}
             />
-            {!temTraco && <span className="mnt-quadroDica">Assine aqui com o dedo</span>}
+            {!temTraco && <span className="mnt-quadroDica">{textos?.dica ?? 'Assine aqui com o dedo'}</span>}
           </div>
           <div className="mnt-linha2">
             <button type="button" className="mnt-btn mnt-btnGhost" onClick={limpar} disabled={!temTraco || ocupado}>
-              <Eraser size={17} /> Limpar
+              <Eraser size={17} /> {textos?.limpar ?? 'Limpar'}
             </button>
-            <button type="button" className="mnt-btn mnt-btnPrimary" onClick={salvar} disabled={!temTraco || !nome.trim() || ocupado}>
-              <Check size={17} strokeWidth={2.6} /> {ocupado ? 'Salvando...' : 'Salvar assinatura'}
+            <button type="button" className="mnt-btn mnt-btnPrimary" onClick={salvar} disabled={avisarFalta ? ocupado : (!temTraco || !nome.trim() || ocupado)}>
+              <Check size={17} strokeWidth={2.6} /> {ocupado ? 'Salvando...' : (textos?.salvar ?? 'Salvar assinatura')}
             </button>
           </div>
         </>

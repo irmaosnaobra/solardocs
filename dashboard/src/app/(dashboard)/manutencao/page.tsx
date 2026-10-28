@@ -1,14 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, CalendarClock, ChevronRight, ClipboardList, PenLine, Plus, Type, UserPlus, Users, Wrench } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ClipboardList, Plus, Type, UserPlus, Users } from 'lucide-react';
 import api from '@/services/api';
 import ClientModal from '@/components/ClientModal/ClientModal';
 import { Aba, Abas } from '@/components/Escolha/Escolha';
-import { EstadoCarregando, EstadoErro, EstadoMigracao, SeloChip } from './Comum';
+import {
+  AgendaLateral, Cabecalho, DuasColunas, EstadoErroLista, EstadoVazio, Etiqueta, Indicadores, Pagina, PainelTabela,
+  useEsconderWhatsFab, estilos as e, type ColunaTabela, type Indicador, type ItemAgenda,
+} from '@/components/AreaTrabalho/AreaTrabalho';
+import { EstadoMigracao } from './Comum';
 import Editor from './Editor';
 import {
-  codigoVisivel, dataCurta, dataLonga, ehMigracaoPendente, logUso, msgErro, prazo,
+  SELOS, codigoVisivel, dataCurta, ehMigracaoPendente, logUso, msgErro, prazo,
   type ItemLista, type Proxima,
 } from './tipos';
 import './manutencao.css';
@@ -20,6 +24,8 @@ type Vista = { tipo: 'lista' } | { tipo: 'novo' } | { tipo: 'editor'; id: string
 export default function ManutencaoPage() {
   const [vista, setVista] = useState<Vista>({ tipo: 'lista' });
   const aberto = useRef(false);
+  // O botão flutuante do WhatsApp cobre campos e botões no celular: some nesta tela abaixo de 720 px.
+  useEsconderWhatsFab(true, true);
 
   useEffect(() => {
     if (!aberto.current) { aberto.current = true; logUso('aberto'); }
@@ -37,7 +43,57 @@ export default function ManutencaoPage() {
   return <Lista onNovo={() => setVista({ tipo: 'novo' })} onAbrir={(id) => setVista({ tipo: 'editor', id })} />;
 }
 
-// ── Lista ────────────────────────────────────────────────────────────────────
+// ── Lista: área de trabalho ───────────────────────────────────────────────────
+
+const situacaoDe = (it: ItemLista): 'andamento' | 'concluida' => (it.status === 'concluida' ? 'concluida' : 'andamento');
+const textoBuscaDe = (it: ItemLista): string => `${it.cliente_nome || 'Cliente sem nome'} ${codigoVisivel(it.codigo)}`;
+const idDe = (it: ItemLista): string => it.id;
+const rotuloAcaoDe = (it: ItemLista): string => (it.status === 'concluida' ? 'Abrir' : 'Continuar');
+
+/** Situação numa coluna só: em andamento, o selo da manutenção concluída, ou "Concluída" quando não há selo. */
+function Situacao({ it }: { it: ItemLista }) {
+  if (it.status !== 'concluida') return <Etiqueta tom="neutro">Em andamento</Etiqueta>;
+  if (!it.selo) return <Etiqueta tom="ok">Concluída</Etiqueta>;
+  return <Etiqueta tom={it.selo === 'conforme' ? 'ok' : it.selo === 'atencao' ? 'atencao' : 'erro'}>{SELOS[it.selo].titulo}</Etiqueta>;
+}
+
+const proximaDe = (it: ItemLista): string => (it.status === 'concluida' && it.proxima_visita ? dataCurta(it.proxima_visita) : 'Sem data');
+
+const COLUNAS: ColunaTabela<ItemLista>[] = [
+  {
+    titulo: 'Cliente',
+    render: (it) => (
+      <>
+        <span className={e.nome}>{it.cliente_nome || 'Cliente sem nome'}</span>
+        <span className={e.sub}>{codigoVisivel(it.codigo) || 'Sem código'}</span>
+      </>
+    ),
+  },
+  { titulo: 'Inspeção', largura: '104px', render: (it) => <span className={e.num}>{dataCurta(it.data_inspecao)}</span> },
+  { titulo: 'Situação', largura: '196px', render: (it) => <Situacao it={it} /> },
+  { titulo: 'Próxima visita', largura: '124px', render: (it) => <span className={e.num}>{proximaDe(it)}</span> },
+];
+
+const mobileDe = (it: ItemLista) => ({
+  titulo: it.cliente_nome || 'Cliente sem nome',
+  detalhe: `${codigoVisivel(it.codigo) || 'Sem código'}, ${dataCurta(it.data_inspecao)}${it.status === 'concluida' && it.proxima_visita ? `. Próxima visita: ${dataCurta(it.proxima_visita)}` : ''}`,
+  etiquetas: <Situacao it={it} />,
+});
+
+const DIA = 86_400_000;
+const diasDesde = (isoData: string): number => {
+  const t = Date.parse(`${isoData.slice(0, 10)}T12:00:00`);
+  return Number.isNaN(t) ? Infinity : (Date.now() - t) / DIA;
+};
+
+/** Filtro que cada indicador aplica à tabela. */
+function predicadoDoIndicador(kpi: string | null, diasPorId: Map<string, number>): ((it: ItemLista) => boolean) | null {
+  if (kpi === 'andamento') return (it) => it.status !== 'concluida';
+  if (kpi === 'recentes') return (it) => it.status === 'concluida' && diasDesde(it.data_inspecao) <= 30;
+  if (kpi === 'proximas') return (it) => { const d = diasPorId.get(it.id); return d !== undefined && d >= 0 && d <= 30; };
+  if (kpi === 'vencidas') return (it) => { const d = diasPorId.get(it.id); return d !== undefined && d < 0; };
+  return null;
+}
 
 function Lista({ onNovo, onAbrir }: { onNovo: () => void; onAbrir: (id: string) => void }) {
   const [itens, setItens] = useState<ItemLista[]>([]);
@@ -49,124 +105,99 @@ function Lista({ onNovo, onAbrir }: { onNovo: () => void; onAbrir: (id: string) 
     let vivo = true;
     Promise.all([
       api.get('/manutencoes/list'),
-      api.get('/manutencoes/proximas').catch((e) => { if (ehMigracaoPendente(e)) throw e; return { data: [] }; }),
+      api.get('/manutencoes/proximas').catch((er) => { if (ehMigracaoPendente(er)) throw er; return { data: [] }; }),
     ]).then(([l, p]) => {
       if (!vivo) return;
       setItens(Array.isArray(l.data) ? l.data : []);
       setProximas(Array.isArray(p.data) ? p.data : []);
       setFase('ok');
-    }).catch((e) => {
-      if (vivo) setFase(ehMigracaoPendente(e) ? 'migracao' : 'erro');
+    }).catch((er) => {
+      if (vivo) setFase(ehMigracaoPendente(er) ? 'migracao' : 'erro');
     });
     return () => { vivo = false; };
   }, [tentativa]);
 
-  const emAndamento = itens.filter((it) => it.status !== 'concluida');
-  const demais = itens.filter((it) => it.status === 'concluida');
-
-  const linhaRelatorio = (it: ItemLista) => (
-    <li key={it.id}>
-      <button type="button" className="mnt-linhaBtn" onClick={() => onAbrir(it.id)}>
-        <span className="mnt-linhaTxt">
-          <strong>{it.cliente_nome || 'Cliente sem nome'}</strong>
-          <span className="mnt-meta">{codigoVisivel(it.codigo)} · {dataCurta(it.data_inspecao)}</span>
-          <span className="mnt-chips">
-            {it.status === 'concluida' ? <SeloChip selo={it.selo} /> : null}
-            <span className={`mnt-st ${it.status === 'concluida' ? 'mnt-stOk' : ''}`}>
-              {it.status === 'concluida' ? 'Concluída' : 'Em andamento'}
-            </span>
-            {it.status === 'concluida' && it.proxima_visita && (
-              <span className="mnt-meta">Próxima: {dataLonga(it.proxima_visita)}</span>
-            )}
-          </span>
-        </span>
-        <ChevronRight size={18} />
-      </button>
-    </li>
+  // Em andamento primeiro; dentro de cada grupo a lista já chega do mais recente para o mais antigo.
+  const ordenada = useMemo(
+    () => [...itens].sort((a, b) =>
+      (a.status === 'concluida' ? 1 : 0) - (b.status === 'concluida' ? 1 : 0) || b.created_at.localeCompare(a.created_at)),
+    [itens],
   );
 
-  const cabecalho = (
-    <header className="mnt-hero">
-      <div>
-        <span className="mnt-badge"><Wrench size={15} strokeWidth={2.4} /> Manutenção</span>
-        <h1 className="mnt-titulo">Manutenção preventiva</h1>
-        <p className="mnt-sub">Faça a vistoria no local e entregue ao cliente um relatório pronto.</p>
-      </div>
-      {fase === 'ok' && (
-        <button type="button" className="mnt-btn mnt-btnPrimary mnt-btnAuto" onClick={onNovo}>
-          <Plus size={19} strokeWidth={2.6} /> Novo relatório
-        </button>
-      )}
-    </header>
-  );
+  const [kpi, setKpi] = useState<string | null>(null);
+  const diasPorId = useMemo(() => new Map(proximas.map((p) => [p.id, p.dias])), [proximas]);
 
-  if (fase === 'carregando') {
-    return <div className="mnt-page">{cabecalho}<EstadoCarregando /></div>;
-  }
-  if (fase === 'migracao') return <div className="mnt-page">{cabecalho}<EstadoMigracao /></div>;
-  if (fase === 'erro') {
-    return (
-      <div className="mnt-page">
-        {cabecalho}
-        <EstadoErro texto="Não consegui carregar os relatórios." onTentar={() => { setFase('carregando'); setTentativa((t) => t + 1); }} />
-      </div>
-    );
-  }
+  const indicadores = useMemo((): Indicador[] => [
+    { id: 'andamento', rotulo: 'Em andamento', valor: itens.filter((it) => it.status !== 'concluida').length },
+    { id: 'recentes', rotulo: 'Concluídas em 30 dias', valor: itens.filter((it) => it.status === 'concluida' && diasDesde(it.data_inspecao) <= 30).length },
+    { id: 'proximas', rotulo: 'Visitas nos próximos 30 dias', valor: proximas.filter((p) => p.dias >= 0 && p.dias <= 30).length },
+    { id: 'vencidas', rotulo: 'Visitas vencidas', valor: proximas.filter((p) => p.dias < 0).length, alerta: proximas.some((p) => p.dias < 0) },
+  ], [itens, proximas]);
+
+  const predicadoKpi = predicadoDoIndicador(kpi, diasPorId);
+  const rotuloKpi = kpi ? indicadores.find((i) => i.id === kpi)?.rotulo : undefined;
+
+  const agenda: ItemAgenda[] = useMemo(() => proximas.slice(0, 8).map((p) => ({
+    id: p.id,
+    data: p.proxima_visita,
+    titulo: p.cliente_nome || 'Cliente sem nome',
+    etiqueta: prazo(p.dias),
+    tom: p.dias < 0 ? 'erro' : p.dias <= 7 ? 'atencao' : 'neutro',
+  })), [proximas]);
+
+  const falha = fase === 'erro' || fase === 'migracao';
 
   return (
-    <div className="mnt-page">
-      {cabecalho}
+    <Pagina>
+      <Cabecalho
+        titulo="Manutenções"
+        apoio="Relatórios de manutenção preventiva e agenda das próximas visitas."
+        botao={{ texto: 'Novo relatório', icone: Plus, onClick: onNovo, desativado: fase === 'migracao' }}
+      />
 
-      {itens.length === 0 ? (
-        <div className="mnt-vazio">
-          <span className="mnt-estadoIcone"><ClipboardList size={30} /></span>
-          <h2 className="mnt-h2">Nenhum relatório ainda</h2>
-          <p>Quando você concluir a primeira manutenção, o relatório aparece aqui.</p>
-          <button type="button" className="mnt-btn mnt-btnPrimary mnt-btnAuto" onClick={onNovo}>
-            <Plus size={19} strokeWidth={2.6} /> Novo relatório
-          </button>
-        </div>
-      ) : (
-        <>
-          {emAndamento.length > 0 && (
-            <section className="mnt-card mnt-continuar" aria-labelledby="mnt-continuar-t">
-              <h2 className="mnt-h2" id="mnt-continuar-t"><PenLine size={18} /> Continuar de onde parou</h2>
-              <ul className="mnt-lista">{emAndamento.map(linhaRelatorio)}</ul>
-            </section>
-          )}
+      {fase === 'ok' && itens.length > 0 && <Indicadores itens={indicadores} ativo={kpi} onEscolher={setKpi} />}
 
-          <div className="mnt-listaGrid">
-            <section className="mnt-card mnt-proximas">
-              <h2 className="mnt-h2"><CalendarClock size={18} /> Próximas visitas</h2>
-              {proximas.length === 0 ? (
-                <p className="mnt-hint">Nenhuma visita agendada.</p>
-              ) : (
-                <ul className="mnt-lista">
-                  {proximas.slice(0, 5).map((p) => (
-                    <li key={p.id}>
-                      <button type="button" className="mnt-linhaBtn" onClick={() => onAbrir(p.id)}>
-                        <span className="mnt-linhaTxt">
-                          <strong>{p.cliente_nome || 'Cliente sem nome'}</strong>
-                          <span className={`mnt-prazo ${p.dias < 0 ? 'mnt-prazoVenc' : p.dias <= 7 ? 'mnt-prazoPerto' : ''}`}>{prazo(p.dias)}</span>
-                        </span>
-                        <ChevronRight size={18} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            {demais.length > 0 && (
-              <section className="mnt-card mnt-relatorios">
-                <h2 className="mnt-h2">{emAndamento.length > 0 ? 'Relatórios concluídos' : 'Relatórios'}</h2>
-                <ul className="mnt-lista">{demais.map(linhaRelatorio)}</ul>
-              </section>
+      <DuasColunas
+        principal={(
+          <PainelTabela
+            itens={ordenada}
+            getId={idDe}
+            colunas={COLUNAS}
+            textoBusca={textoBuscaDe}
+            situacao={situacaoDe}
+            onAbrir={(it) => onAbrir(it.id)}
+            rotuloAcao={rotuloAcaoDe}
+            mobile={mobileDe}
+            carregando={fase === 'carregando'}
+            placeholderBusca="Buscar por cliente ou código"
+            predicado={predicadoKpi}
+            rotuloPredicado={rotuloKpi}
+            onLimparPredicado={() => setKpi(null)}
+            erro={fase === 'erro'
+              ? <EstadoErroLista texto="Não consegui carregar os relatórios." onTentar={() => { setFase('carregando'); setTentativa((t) => t + 1); }} />
+              : fase === 'migracao'
+                ? <div className={e.vazio}><p className={e.vazioFrase}>A manutenção está sendo liberada. Volte em alguns minutos.</p></div>
+                : undefined}
+            vazio={(
+              <EstadoVazio
+                icone={ClipboardList}
+                frase="Nenhum relatório ainda. Quando você concluir a primeira manutenção, ela aparece aqui."
+                botao={{ texto: 'Novo relatório', icone: Plus, onClick: onNovo }}
+              />
             )}
-          </div>
-        </>
-      )}
-    </div>
+          />
+        )}
+        lateral={falha ? undefined : (
+          <AgendaLateral
+            titulo="Próximas visitas"
+            itens={agenda}
+            vazio="Nenhuma visita agendada."
+            onAbrir={onAbrir}
+            carregando={fase === 'carregando'}
+          />
+        )}
+      />
+    </Pagina>
   );
 }
 

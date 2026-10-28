@@ -121,3 +121,8 @@ CREATE INDEX IF NOT EXISTS idx_manutencoes_user_created ON manutencoes(user_id, 
 CREATE INDEX IF NOT EXISTS idx_manutencoes_user_proxima ON manutencoes(user_id, proxima_visita) WHERE status = 'concluida';
 -- RLS ligado e sem policy: só a service key do backend lê e escreve (a anon key não enxerga).
 ALTER TABLE manutencoes ENABLE ROW LEVEL SECURITY;
+
+-- Vistoria solar: avaliação dos itens técnicos e assinaturas (ver MIGRATION_vistoria_avaliacao.sql)
+ALTER TABLE vistorias ADD COLUMN IF NOT EXISTS status_itens JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE vistorias ADD COLUMN IF NOT EXISTS assinaturas JSONB NOT NULL DEFAULT '{}'::jsonb;
+NOTIFY pgrst, 'reload schema';

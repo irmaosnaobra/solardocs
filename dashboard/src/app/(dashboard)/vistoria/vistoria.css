@@ -141,3 +141,73 @@
 .vst-lbBtn { padding: 12px 22px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 700; }
 .vst-lbClose { background: #334155; color: #fff; }
 .vst-lbDel { background: #dc2626; color: #fff; }
+
+/* ── Avaliação dos itens, assinaturas e painel final ──
+   Cores só pelos tokens do app. Texto pequeno sobre tom usa o --ink-* escurecido em 25%. */
+.vst-page {
+  --vst-verde: color-mix(in srgb, var(--ink-green) 75%, #000);
+  --vst-ambar: color-mix(in srgb, var(--ink-amber) 75%, #000);
+  --vst-verm: color-mix(in srgb, var(--ink-red) 75%, #000);
+}
+
+.vst-status { margin-top: 12px; }
+.vst-statusTit { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.vst-statusGrade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 560px) { .vst-statusGrade { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.vst-sbtn {
+  min-height: 44px; padding: 8px 6px; border-radius: 10px; border: 1.5px solid; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 700; background: var(--color-surface); -webkit-tap-highlight-color: transparent;
+}
+.vst-sbtn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vst-sbtn-conforme { color: var(--vst-verde); border-color: color-mix(in srgb, var(--ink-green) 45%, var(--color-surface)); background: color-mix(in srgb, var(--ink-green) 7%, var(--color-surface)); }
+.vst-sbtn-atencao { color: var(--vst-ambar); border-color: color-mix(in srgb, var(--ink-amber) 45%, var(--color-surface)); background: color-mix(in srgb, var(--ink-amber) 7%, var(--color-surface)); }
+.vst-sbtn-nao_conforme { color: var(--vst-verm); border-color: color-mix(in srgb, var(--ink-red) 45%, var(--color-surface)); background: color-mix(in srgb, var(--ink-red) 7%, var(--color-surface)); }
+.vst-sbtn-na { color: var(--ink-slate); border-color: color-mix(in srgb, var(--ink-slate) 40%, var(--color-surface)); background: color-mix(in srgb, var(--ink-slate) 7%, var(--color-surface)); }
+.vst-sbtnOn { color: #fff; }
+.vst-sbtn-conforme.vst-sbtnOn { background: var(--ink-green); border-color: var(--ink-green); }
+.vst-sbtn-atencao.vst-sbtnOn { background: var(--ink-amber); border-color: var(--ink-amber); }
+.vst-sbtn-nao_conforme.vst-sbtnOn { background: var(--ink-red); border-color: var(--ink-red); }
+.vst-sbtn-na.vst-sbtnOn { background: var(--ink-slate); border-color: var(--ink-slate); }
+
+.vst-liberando { margin: 0 0 12px; font-size: 13px; color: var(--color-text-muted); }
+
+.vst-bloco { max-width: 560px; margin: 20px auto 0; }
+.vst-secTitulo { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: var(--color-text); }
+
+.vst-selo { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; padding: 12px 14px; border-radius: 10px; border: 1px solid; border-left-width: 5px; text-align: left; font-size: 14px; }
+.vst-selo strong { font-size: 15px; font-weight: 600; }
+.vst-selo-conforme { color: var(--vst-verde); border-color: color-mix(in srgb, var(--ink-green) 40%, var(--color-surface)); background: color-mix(in srgb, var(--ink-green) 7%, var(--color-surface)); }
+.vst-selo-atencao { color: var(--vst-ambar); border-color: color-mix(in srgb, var(--ink-amber) 45%, var(--color-surface)); background: color-mix(in srgb, var(--ink-amber) 8%, var(--color-surface)); }
+.vst-selo-nao_conforme { color: var(--vst-verm); border-color: color-mix(in srgb, var(--ink-red) 40%, var(--color-surface)); background: color-mix(in srgb, var(--ink-red) 7%, var(--color-surface)); }
+
+.vst-confirma { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--color-border-strong); border-radius: 10px; background: var(--color-surface-2); text-align: left; font-size: 14px; }
+.vst-confirma p { margin: 0 0 10px; }
+.vst-confirmaBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vst-confirmaBtns .vst-primaryBtn, .vst-confirmaBtns .vst-ghostBtn { min-height: 44px; padding: 10px 12px; font-size: 14px; }
+
+/* ── Rodada de correções: alvos de toque, contraste e atalhos ── */
+/* Remover foto: a área de toque é de 44 px; o desenho continua o círculo pequeno. */
+.vst-photoDel { top: 0; right: 0; width: 44px; height: 44px; border-radius: 0; background: transparent; align-items: flex-start; justify-content: flex-end; padding: 4px; }
+.vst-photoDel svg { box-sizing: content-box; width: 13px; height: 13px; padding: 4.5px; border-radius: 50%; background: rgba(15, 23, 42, .85); }
+.vst-addBtn { min-height: 44px; }
+
+/* Botões de status: texto sempre escuro (contraste), o tom fica na borda e no fundo leve. */
+.vst-sbtn { color: var(--color-text); }
+.vst-sbtn-na { color: var(--color-text); }
+.vst-sbtnOn { color: #fff; }
+
+/* Clientes recentes na gaveta Nova vistoria */
+.vst-recentes { margin-bottom: 14px; }
+.vst-recentesTit { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.vst-recentesLista { display: flex; flex-wrap: wrap; gap: 8px; }
+.vst-recente {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; max-width: 100%; padding: 0 14px; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 500; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vst-recente:hover { border-color: var(--color-text-muted); }
+.vst-recente.on { background: var(--color-surface-2); border-color: var(--color-text); font-weight: 600; }
+.vst-recente:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* Respiro no fim do editor, acima das faixas fixas do app. */
+.vst-page { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
