@@ -587,8 +587,8 @@ function cartoes(R) {
   if (R.perdeu_venda === 'varias' || R.perdeu_venda === 'algumas') L.push({ n: '', t: 'Você já perdeu venda para quem chegou antes.', s: 'Chegar antes depende de velocidade na proposta.' });
   return L;
 }
-/* Pix automático: escondido até o teste real do dono. Aparece com true aqui ou com ?pixauto=1 na URL (guardado na sessão, para valer nas outras telas). */
-const PIX_AUTO_PADRAO = false;
+/* Pix automático: ligado para todos desde 28/10, por ordem do dono. Com false aqui, só aparece com ?pixauto=1 na URL (guardado na sessão, para valer nas outras telas). Se falhar ao gerar, o painel oferece o Pix pelo WhatsApp, nunca só o cartão. */
+const PIX_AUTO_PADRAO = true;
 function pixAutoLigado() {
   if (PIX_AUTO_PADRAO) return true;
   try {
@@ -1244,8 +1244,9 @@ async function assinarCartao() {
 }
 /* Pix automático (atrás da trava pixAutoLigado): painel na folha de baixo, sem sair da página. Débito mensal autorizado no app do banco, pela Asaas. */
 const PIX = { gen: 0, iv: 0, busy: false, em: '', doc: '' };
-const PIX_OFF = 'O Pix automático não está disponível agora. Você pode assinar com cartão.';
-const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Assine com cartão ou use outro CPF ou CNPJ.';
+const PIX_OFF = 'Não deu para gerar o Pix automático agora. Toque abaixo e a gente manda o Pix pelo WhatsApp.';
+const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ, ou toque abaixo e a gente resolve pelo WhatsApp.';
+const PIX_WA_BT = '<button type="button" class="cta" data-a="btn" data-k="pix" style="margin-top:14px">Receber o Pix no WhatsApp</button>';
 const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
 /* Para a consulta e invalida qualquer resposta que ainda esteja a caminho */
 function pararPix() { PIX.gen++; if (PIX.iv) { clearInterval(PIX.iv); PIX.iv = 0; } PIX.busy = false; }
@@ -1283,8 +1284,8 @@ async function gerarPix() {
   PIX.busy = false;
   const j = r && r.json;
   if (r && r.status === 400) { pixMostrar(pixForm(PIX_CAMPOS)); return; }
-  if (!r || !r.ok || !j || j.modo !== 'automatico') { if (r) erro('plano', 'pix_auto_' + r.status); pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_OFF) + '</p>'); return; }
-  if (!j.qrPayload || j.status === 'ativo') { pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_JA) + '</p>' + pixForm('')); return; }
+  if (!r || !r.ok || !j || j.modo !== 'automatico') { if (r) erro('plano', 'pix_auto_' + r.status); pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_OFF) + '</p>' + PIX_WA_BT); return; }
+  if (!j.qrPayload || j.status === 'ativo') { pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_JA) + '</p>' + pixForm('') + PIX_WA_BT); return; }
   pixQr(j);
 }
 function pixQr(j) {
