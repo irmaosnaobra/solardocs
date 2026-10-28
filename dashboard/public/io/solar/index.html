@@ -178,6 +178,9 @@
   .quem strong{color:var(--text)}
   .av{width:42px;height:42px;border-radius:50%;background:var(--gold);color:var(--tinta);display:grid;place-items:center;font-weight:800;flex:none;font-size:17px}
   .estim{font-size:12px;color:var(--soft);margin:0;text-align:center}
+  .desc{margin-top:6px;padding:16px;border-radius:18px;background:var(--surface-2);border:1px solid var(--linha-forte);display:flex;flex-direction:column;gap:8px}
+  .desc h3{margin:0;font-size:18px;line-height:1.25;color:var(--text)}
+  .desc p{margin:0;font-size:14px;color:var(--mut)}
 
   /* Telas finais */
   .fim{padding:20px 20px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;flex:1;justify-content:center;animation:entra .28s ease-out both}
@@ -496,6 +499,10 @@ function telaResultado(){
   const curioso = !!(srv && (srv.curioso === true || srv.caminho === 'curioso'));
   const dentro = !!(srv && srv.horario_agora === true) && !curioso;
   const dono = (srv && srv.dono) || 'Nilce';
+  // Lead descartado pelo servidor (nota abaixo de 70 ou cidade fora das 114 da região): vê o diagnóstico, mas nenhum texto promete
+  // conversa, ligação ou especialista, e no lugar dos botões vem o fecho do motivo. Quem NÃO é descartado segue o caminho de sempre.
+  const desc = !!(srv && srv.descartado === true);
+  const semEsp = t => (desc && /especialista|conversa|avalia[cç]|liga[cç]/i.test(t || '')) ? '' : (t || '');
   const solo = R.telhado === 'solo';
   const temEco = !!g && g.economia_mes != null && g.economia_ano != null;   // Grupo A: o servidor devolve economia null
   const eco = temEco ? brl(g.economia_mes) : '', ecoAno = temEco ? brl(g.economia_ano) : '';
@@ -528,9 +535,9 @@ function telaResultado(){
   })[R.desejo] || '';
   const travouVis = visiveis().some(p => p.id === 'travou');
   const linhaTravou = travouVis ? ({
-    caro: 'Você achou que era caro. No financiamento, a parcela pode ficar perto do valor da conta, e o especialista simula com você.',
+    caro: desc ? 'Você achou que era caro. No financiamento, a parcela pode ficar perto do valor da conta.' : 'Você achou que era caro. No financiamento, a parcela pode ficar perto do valor da conta, e o especialista simula com você.',
     valia: temEco ?`Vale a pena: são cerca de ${ecoAno} por ano que ficam com você.` : 'Vale a pena: o especialista mostra quanto volta para você por ano.',
-    confianca: 'Você não confiou nas empresas que viu. Por isso, antes de qualquer proposta, a gente mostra obras reais da sua região.',
+    confianca: desc ? '' : 'Você não confiou nas empresas que viu. Por isso, antes de qualquer proposta, a gente mostra obras reais da sua região.',
     tempo: 'O especialista resolve tudo com você em uma conversa rápida.'
   })[R.travou] || '' : '';
   const confia = travouVis && R.travou === 'confianca';
@@ -557,6 +564,14 @@ function telaResultado(){
     cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>${esc(dono)} atende de segunda a sexta, das 7h às 18h, e no sábado, das 7h ao meio-dia. Escolha o melhor horário.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
   }
 
+  let fecho = '';
+  if (desc){
+    const cidadeUf = srv.cidade_uf ? String(srv.cidade_uf).trim() : '';
+    fecho = srv.motivo === 'regiao'
+      ? `<div class="desc" role="status"><h3>${cidadeUf ? 'Ainda não instalamos em ' + esc(cidadeUf) : 'Ainda não instalamos na sua cidade'}</h3><p>Atendemos até 200 km de Uberlândia-MG, e a sua cidade fica fora dessa região. O diagnóstico acima é uma estimativa e pode ajudar você a comparar com outras empresas.</p></div>`
+      : '<div class="desc" role="status"><h3>Volte quando decidir instalar</h3><p>Quando for a hora, refaça o diagnóstico aqui com a sua conta de luz atualizada. Os números mudam com o consumo e com a tarifa.</p></div>';
+  }
+
   let manchete;
   if (g && !semDepois) manchete = `${esc(primeiroNome())}, sua conta de luz pode cair para <em>${brlC(g.conta_depois)}</em>`;
   else if (temEco) manchete = `${esc(primeiroNome())}, você pode economizar cerca de <em>${eco} por mês</em>`;
@@ -578,7 +593,9 @@ function telaResultado(){
       <div class="num"><b>${num(g.area_m2)} m²</b><span>${solo ? 'de terreno' : 'de telhado'}</span></div>
       <div class="num"><b>${num(g.geracao_kwh_mes)} kWh</b><span>gerados por mês</span></div>
     </div>
-    ${temEco
+    ${desc
+      ? (temEco ? `<div class="eco"><span class="rot">Economia estimada</span><b>${eco} por mês</b><span>${ecoAno} por ano.${semDepois ? '' : ` A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>` : '')
+      : temEco
       ? `<div class="eco"><span class="rot">Economia estimada</span><b>${eco} por mês</b><span>${ecoAno} por ano. ${semDepois ? 'O especialista confere a tarifa certa antes da proposta.' : `A conta passa a ser de ${brlC(g.conta_depois)} por mês, só a taxa mínima e a iluminação pública.`}</span></div>`
       : '<div class="eco"><span class="rot">Economia estimada</span><span>O especialista calcula a sua economia com a demanda contratada.</span></div>'}`;
   }
@@ -587,22 +604,22 @@ function telaResultado(){
     <p class="eyebrow">Seu diagnóstico solar</p>
     <h2 class="res-h">${manchete}</h2>
     ${corpoDiag}
-    ${obsTelhado ? `<p class="obs">${esc(obsTelhado)}</p>` : ''}
-    ${linhaDor || linhaDesejo ? `<p class="pessoal">${esc([linhaDor, linhaDesejo].filter(Boolean).join(' '))}</p>` : ''}
-    ${linhaTravou ? `<p class="pessoal">${esc(linhaTravou)}</p>` : ''}
+    ${semEsp(obsTelhado) ? `<p class="obs">${esc(semEsp(obsTelhado))}</p>` : ''}
+    ${linhaDor || semEsp(linhaDesejo) ? `<p class="pessoal">${esc([linhaDor, semEsp(linhaDesejo)].filter(Boolean).join(' '))}</p>` : ''}
+    ${semEsp(linhaTravou) ? `<p class="pessoal">${esc(semEsp(linhaTravou))}</p>` : ''}
     ${confia ? social : ''}
     <p class="tit-sec">Como a Irmãos na Obra resolve</p>
-    ${R.criterio ? `<p class="obs">O mais importante para você: <strong>${esc(lbl('criterio'))}</strong>. O especialista começa a conversa por aí.</p>` : ''}
+    ${R.criterio && !desc ? `<p class="obs">O mais importante para você: <strong>${esc(lbl('criterio'))}</strong>. O especialista começa a conversa por aí.</p>` : ''}
     <ul class="lista">
       <li>${IC.ok}<span>Projeto e aprovação ${concNa()}</span></li>
       <li>${IC.ok}<span>Instalação completa</span></li>
       <li>${IC.ok}<span>Acompanhamento da geração pelo celular</span></li>
     </ul>
-    <p class="tit-sec">Como funciona</p>
-    <ol class="passos"><li><b>1</b>Conversa com o especialista</li><li><b>2</b>Estudo ou visita técnica</li><li><b>3</b>Proposta</li><li><b>4</b>Instalação</li></ol>
+    ${desc ? '' : `<p class="tit-sec">Como funciona</p>
+    <ol class="passos"><li><b>1</b>Conversa com o especialista</li><li><b>2</b>Estudo ou visita técnica</li><li><b>3</b>Proposta</li><li><b>4</b>Instalação</li></ol>`}
     ${confia ? '' : social}
-    <div class="cta">${cta}<p class="cta-fala">“Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor.” <b>Denivan, cliente</b></p></div>
-    <p class="estim">Estimativa. O especialista confirma os números na avaliação.</p>
+    ${desc ? fecho : `<div class="cta">${cta}<p class="cta-fala">“Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor.” <b>Denivan, cliente</b></p></div>
+    <p class="estim">Estimativa. O especialista confirma os números na avaliação.</p>`}
   </div>`;
 }
 
@@ -745,7 +762,10 @@ async function verDiagnostico(){
     const { status, j } = await postar('/io/solar/quiz', corpoBase());
     ocupado = false;
     if (status >= 400 || !j.ok){ botao('btnTel', 'Ver meu diagnóstico', false); return erro(status === 400 ? 'Confira o nome e o WhatsApp.' : 'Não consegui montar o seu diagnóstico agora. Tente de novo em instantes.'); }
-    srv = j; track('quiz_whatsapp_ok');
+    srv = j;
+    // Descartado: mostra o diagnóstico com o fecho, sem pixel e sem nada que prometa contato. Fica "sem card" de propósito: o aviso de saída também não vale.
+    if (j.descartado === true){ hist.push('whatsapp'); fase = 'resultado'; render(); return; }
+    track('quiz_whatsapp_ok');
     if (j.jaMarcado){ cardMarcado = true; return fimDoQuiz('ja_marcado'); }
     if (j.semVitrine){ cardMarcado = true; return fimDoQuiz('sem_vitrine'); }
     hist.push('whatsapp'); fase = 'resultado'; track('quiz_resultado'); render();
@@ -764,12 +784,19 @@ async function agora(){
   let ok = false, info = null;
   try{
     const { status, j } = await postar('/io/solar/quiz/agora', Object.assign(corpoBase(), evId ? { event_id: evId } : {}));
+    if (status === 409 && j.error === 'descartado'){ ocupado = false; return descartar(j.motivo); }
     ok = status >= 200 && status < 300 && j.ok !== false; info = j;
   }catch(e){ ok = false; }
   ocupado = false;
   if (!ok){ avisoHorario = 'Não deu para chamar agora. Escolha o melhor horário abaixo.'; return abrirHorarios(); }
   schedule(evId); cardMarcado = true; agoraInfo = info;
   fimDoQuiz('agora');
+}
+
+// O servidor recusou (409 descartado): a página estava velha. Sem pixel, sem vitrine, e a saída não avisa mais nada.
+function descartar(motivo){
+  srv = Object.assign(srv || {}, { descartado: true, motivo: motivo || 'nota', dias: [] });
+  fase = 'resultado'; render();
 }
 
 function abrirHorarios(){
@@ -785,13 +812,14 @@ async function agendar(ymd, h, dono){
   try{
     const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd, h, dono }, evId ? { event_id: evId } : {}));
     ocupado = false;
+    if (status === 409 && j.error === 'descartado') return descartar(j.motivo);
     if (status === 409 && j.error === 'horario tomado' && Array.isArray(j.dias)){
       srv.dias = j.dias; if (j.caminho) srv.caminho = j.caminho;
       if (!j.dias.length) return fimDoQuiz('sem_vitrine');
       avisoHorario = 'Esse horário acabou de ser tomado. Escolha outro.'; return render();
     }
     if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; cardMarcado = true; return fimDoQuiz('ja_marcado'); }
-    if (status >= 400 || !j.ok){ render(); return erro('Não consegui marcar agora. Tente de novo em instantes.'); }
+    if (status < 200 || status >= 300 || !j.ok){ render(); return erro('Não consegui marcar agora. Tente de novo em instantes.'); }
     marcado = { ymd, h, dono: dono || j.dono || (srv && srv.dono) || '' };
     schedule(evId); cardMarcado = true;
     fimDoQuiz('marcado');
@@ -812,7 +840,7 @@ function fimDoQuiz(tipo){
 let ultimoSaiu = 0;
 function avisarSaida(motivo){
   try{
-    if (!srv || cardMarcado || !telOk()) return;
+    if (!srv || srv.descartado === true || cardMarcado || !telOk()) return;
     const agoraMs = Date.now(); if (agoraMs - ultimoSaiu < 3000) return;
     ultimoSaiu = agoraMs;
     const corpoS = Object.assign(corpoBase(), { onde: fase === 'quiz' ? atual : fase, motivo });

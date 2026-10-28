@@ -1,0 +1,686 @@
+[
+ {
+  "ibge": 3170206,
+  "nome": "Uberlândia",
+  "uf": "MG",
+  "km": 0
+ },
+ {
+  "ibge": 3103504,
+  "nome": "Araguari",
+  "uf": "MG",
+  "km": 31.1
+ },
+ {
+  "ibge": 3130705,
+  "nome": "Indianópolis",
+  "uf": "MG",
+  "km": 40.1
+ },
+ {
+  "ibge": 3115003,
+  "nome": "Cascalho Rico",
+  "uf": "MG",
+  "km": 56.6
+ },
+ {
+  "ibge": 3169604,
+  "nome": "Tupaciguara",
+  "uf": "MG",
+  "km": 57.6
+ },
+ {
+  "ibge": 3124807,
+  "nome": "Estrela do Sul",
+  "uf": "MG",
+  "km": 64
+ },
+ {
+  "ibge": 3142809,
+  "nome": "Monte Alegre de Minas",
+  "uf": "MG",
+  "km": 64
+ },
+ {
+  "ibge": 5201207,
+  "nome": "Anhanguera",
+  "uf": "GO",
+  "km": 64.8
+ },
+ {
+  "ibge": 3145000,
+  "nome": "Nova Ponte",
+  "uf": "MG",
+  "km": 67.9
+ },
+ {
+  "ibge": 5206602,
+  "nome": "Cumari",
+  "uf": "GO",
+  "km": 73.4
+ },
+ {
+  "ibge": 3127909,
+  "nome": "Grupiara",
+  "uf": "MG",
+  "km": 73.4
+ },
+ {
+  "ibge": 3156403,
+  "nome": "Romaria",
+  "uf": "MG",
+  "km": 73.4
+ },
+ {
+  "ibge": 3152808,
+  "nome": "Prata",
+  "uf": "MG",
+  "km": 81.4
+ },
+ {
+  "ibge": 5221304,
+  "nome": "Três Ranchos",
+  "uf": "GO",
+  "km": 81.5
+ },
+ {
+  "ibge": 3171105,
+  "nome": "Veríssimo",
+  "uf": "MG",
+  "km": 83.7
+ },
+ {
+  "ibge": 3143104,
+  "nome": "Monte Carmelo",
+  "uf": "MG",
+  "km": 85
+ },
+ {
+  "ibge": 3131604,
+  "nome": "Iraí de Minas",
+  "uf": "MG",
+  "km": 85.9
+ },
+ {
+  "ibge": 5208509,
+  "nome": "Goiandira",
+  "uf": "GO",
+  "km": 88.8
+ },
+ {
+  "ibge": 3123502,
+  "nome": "Douradoquara",
+  "uf": "MG",
+  "km": 89
+ },
+ {
+  "ibge": 5215504,
+  "nome": "Ouvidor",
+  "uf": "GO",
+  "km": 89.3
+ },
+ {
+  "ibge": 3157708,
+  "nome": "Santa Juliana",
+  "uf": "MG",
+  "km": 89.6
+ },
+ {
+  "ibge": 5205109,
+  "nome": "Catalão",
+  "uf": "GO",
+  "km": 90.2
+ },
+ {
+  "ibge": 5205901,
+  "nome": "Corumbaíba",
+  "uf": "GO",
+  "km": 91.1
+ },
+ {
+  "ibge": 3149200,
+  "nome": "Pedrinópolis",
+  "uf": "MG",
+  "km": 92.5
+ },
+ {
+  "ibge": 5214804,
+  "nome": "Nova Aurora",
+  "uf": "GO",
+  "km": 95
+ },
+ {
+  "ibge": 3170107,
+  "nome": "Uberaba",
+  "uf": "MG",
+  "km": 99.1
+ },
+ {
+  "ibge": 3111408,
+  "nome": "Campo Florido",
+  "uf": "MG",
+  "km": 99.4
+ },
+ {
+  "ibge": 3111804,
+  "nome": "Canápolis",
+  "uf": "MG",
+  "km": 100.1
+ },
+ {
+  "ibge": 3115805,
+  "nome": "Centralina",
+  "uf": "MG",
+  "km": 104.2
+ },
+ {
+  "ibge": 3100104,
+  "nome": "Abadia dos Dourados",
+  "uf": "MG",
+  "km": 104.7
+ },
+ {
+  "ibge": 5200209,
+  "nome": "Água Limpa",
+  "uf": "GO",
+  "km": 106.2
+ },
+ {
+  "ibge": 3103751,
+  "nome": "Araporã",
+  "uf": "MG",
+  "km": 109.6
+ },
+ {
+  "ibge": 5212907,
+  "nome": "Marzagão",
+  "uf": "GO",
+  "km": 110.5
+ },
+ {
+  "ibge": 3117306,
+  "nome": "Conceição das Alagoas",
+  "uf": "MG",
+  "km": 112.1
+ },
+ {
+  "ibge": 3149804,
+  "nome": "Perdizes",
+  "uf": "MG",
+  "km": 113.3
+ },
+ {
+  "ibge": 5206909,
+  "nome": "Davinópolis",
+  "uf": "GO",
+  "km": 113.8
+ },
+ {
+  "ibge": 5211503,
+  "nome": "Itumbiara",
+  "uf": "GO",
+  "km": 113.9
+ },
+ {
+  "ibge": 5203906,
+  "nome": "Buriti Alegre",
+  "uf": "GO",
+  "km": 118.2
+ },
+ {
+  "ibge": 3150703,
+  "nome": "Pirajuba",
+  "uf": "MG",
+  "km": 119.4
+ },
+ {
+  "ibge": 3116902,
+  "nome": "Comendador Gomes",
+  "uf": "MG",
+  "km": 121.3
+ },
+ {
+  "ibge": 3119302,
+  "nome": "Coromandel",
+  "uf": "MG",
+  "km": 124
+ },
+ {
+  "ibge": 3134202,
+  "nome": "Ituiutaba",
+  "uf": "MG",
+  "km": 125.2
+ },
+ {
+  "ibge": 3100708,
+  "nome": "Água Comprida",
+  "uf": "MG",
+  "km": 128.4
+ },
+ {
+  "ibge": 3121258,
+  "nome": "Delta",
+  "uf": "MG",
+  "km": 128.4
+ },
+ {
+  "ibge": 5210109,
+  "nome": "Ipameri",
+  "uf": "GO",
+  "km": 133.2
+ },
+ {
+  "ibge": 3148103,
+  "nome": "Patrocínio",
+  "uf": "MG",
+  "km": 134.8
+ },
+ {
+  "ibge": 5204250,
+  "nome": "Cachoeira Dourada",
+  "uf": "GO",
+  "km": 135.2
+ },
+ {
+  "ibge": 5204508,
+  "nome": "Caldas Novas",
+  "uf": "GO",
+  "km": 135.2
+ },
+ {
+  "ibge": 3118205,
+  "nome": "Conquista",
+  "uf": "MG",
+  "km": 136.3
+ },
+ {
+  "ibge": 3156908,
+  "nome": "Sacramento",
+  "uf": "MG",
+  "km": 136.3
+ },
+ {
+  "ibge": 3109808,
+  "nome": "Cachoeira Dourada",
+  "uf": "MG",
+  "km": 136.8
+ },
+ {
+  "ibge": 3520103,
+  "nome": "Igarapava",
+  "uf": "SP",
+  "km": 137
+ },
+ {
+  "ibge": 5218789,
+  "nome": "Rio Quente",
+  "uf": "GO",
+  "km": 137.2
+ },
+ {
+  "ibge": 3112604,
+  "nome": "Capinópolis",
+  "uf": "MG",
+  "km": 138.7
+ },
+ {
+  "ibge": 3503000,
+  "nome": "Aramina",
+  "uf": "SP",
+  "km": 140.2
+ },
+ {
+  "ibge": 5216007,
+  "nome": "Panamá",
+  "uf": "GO",
+  "km": 140.2
+ },
+ {
+  "ibge": 3127107,
+  "nome": "Frutal",
+  "uf": "MG",
+  "km": 141.7
+ },
+ {
+  "ibge": 3529708,
+  "nome": "Miguelópolis",
+  "uf": "SP",
+  "km": 143
+ },
+ {
+  "ibge": 3151602,
+  "nome": "Planura",
+  "uf": "MG",
+  "km": 143.2
+ },
+ {
+  "ibge": 3111101,
+  "nome": "Campina Verde",
+  "uf": "MG",
+  "km": 144.9
+ },
+ {
+  "ibge": 3512100,
+  "nome": "Colômbia",
+  "uf": "SP",
+  "km": 146.9
+ },
+ {
+  "ibge": 5204805,
+  "nome": "Campo Alegre de Goiás",
+  "uf": "GO",
+  "km": 151.5
+ },
+ {
+  "ibge": 5209101,
+  "nome": "Goiatuba",
+  "uf": "GO",
+  "km": 152.8
+ },
+ {
+  "ibge": 3508207,
+  "nome": "Buritizal",
+  "uf": "SP",
+  "km": 153.9
+ },
+ {
+  "ibge": 3517406,
+  "nome": "Guaíra",
+  "uf": "SP",
+  "km": 156.3
+ },
+ {
+  "ibge": 3128907,
+  "nome": "Guimarânia",
+  "uf": "MG",
+  "km": 156.4
+ },
+ {
+  "ibge": 3543600,
+  "nome": "Rifaina",
+  "uf": "SP",
+  "km": 157.1
+ },
+ {
+  "ibge": 5213806,
+  "nome": "Morrinhos",
+  "uf": "GO",
+  "km": 157.9
+ },
+ {
+  "ibge": 3104007,
+  "nome": "Araxá",
+  "uf": "MG",
+  "km": 158.7
+ },
+ {
+  "ibge": 3133402,
+  "nome": "Itapagipe",
+  "uf": "MG",
+  "km": 159.9
+ },
+ {
+  "ibge": 5221809,
+  "nome": "Urutaí",
+  "uf": "GO",
+  "km": 161.3
+ },
+ {
+  "ibge": 3129103,
+  "nome": "Gurinhatã",
+  "uf": "MG",
+  "km": 162.4
+ },
+ {
+  "ibge": 3524105,
+  "nome": "Ituverava",
+  "uf": "SP",
+  "km": 166
+ },
+ {
+  "ibge": 3166808,
+  "nome": "Serra do Salitre",
+  "uf": "MG",
+  "km": 167.4
+ },
+ {
+  "ibge": 3120706,
+  "nome": "Cruzeiro da Fortaleza",
+  "uf": "MG",
+  "km": 169.2
+ },
+ {
+  "ibge": 3537008,
+  "nome": "Pedregulho",
+  "uf": "SP",
+  "km": 170.8
+ },
+ {
+  "ibge": 3525409,
+  "nome": "Jeriquara",
+  "uf": "SP",
+  "km": 171.1
+ },
+ {
+  "ibge": 3536604,
+  "nome": "Paulo de Faria",
+  "uf": "SP",
+  "km": 171.2
+ },
+ {
+  "ibge": 3521309,
+  "nome": "Ipuã",
+  "uf": "SP",
+  "km": 172.3
+ },
+ {
+  "ibge": 5203500,
+  "nome": "Bom Jesus de Goiás",
+  "uf": "GO",
+  "km": 172.8
+ },
+ {
+  "ibge": 3517703,
+  "nome": "Guará",
+  "uf": "SP",
+  "km": 175.1
+ },
+ {
+  "ibge": 3137106,
+  "nome": "Lagamar",
+  "uf": "MG",
+  "km": 175.2
+ },
+ {
+  "ibge": 5215801,
+  "nome": "Palmelo",
+  "uf": "GO",
+  "km": 177.3
+ },
+ {
+  "ibge": 3131406,
+  "nome": "Ipiaçu",
+  "uf": "MG",
+  "km": 177.4
+ },
+ {
+  "ibge": 3171006,
+  "nome": "Vazante",
+  "uf": "MG",
+  "km": 177.5
+ },
+ {
+  "ibge": 3128600,
+  "nome": "Guarda-Mor",
+  "uf": "MG",
+  "km": 177.9
+ },
+ {
+  "ibge": 5219209,
+  "nome": "Santa Cruz de Goiás",
+  "uf": "GO",
+  "km": 179.1
+ },
+ {
+  "ibge": 5217401,
+  "nome": "Pires do Rio",
+  "uf": "GO",
+  "km": 179.3
+ },
+ {
+  "ibge": 3127008,
+  "nome": "Fronteira",
+  "uf": "MG",
+  "km": 179.6
+ },
+ {
+  "ibge": 3534203,
+  "nome": "Orindiúva",
+  "uf": "SP",
+  "km": 180.6
+ },
+ {
+  "ibge": 5200506,
+  "nome": "Aloândia",
+  "uf": "GO",
+  "km": 182.9
+ },
+ {
+  "ibge": 3505500,
+  "nome": "Barretos",
+  "uf": "SP",
+  "km": 184.8
+ },
+ {
+  "ibge": 3519808,
+  "nome": "Icém",
+  "uf": "SP",
+  "km": 185.3
+ },
+ {
+  "ibge": 3543105,
+  "nome": "Ribeirão Corrente",
+  "uf": "SP",
+  "km": 186
+ },
+ {
+  "ibge": 5209937,
+  "nome": "Inaciolândia",
+  "uf": "GO",
+  "km": 186.7
+ },
+ {
+  "ibge": 3513207,
+  "nome": "Cristais Paulista",
+  "uf": "SP",
+  "km": 188.2
+ },
+ {
+  "ibge": 5212105,
+  "nome": "Joviânia",
+  "uf": "GO",
+  "km": 188.2
+ },
+ {
+  "ibge": 3168101,
+  "nome": "Tapira",
+  "uf": "MG",
+  "km": 188.4
+ },
+ {
+  "ibge": 3161304,
+  "nome": "São Francisco de Sales",
+  "uf": "MG",
+  "km": 189.1
+ },
+ {
+  "ibge": 3517901,
+  "nome": "Guaraci",
+  "uf": "SP",
+  "km": 189.3
+ },
+ {
+  "ibge": 3544202,
+  "nome": "Riolândia",
+  "uf": "SP",
+  "km": 189.8
+ },
+ {
+  "ibge": 3549409,
+  "nome": "São Joaquim da Barra",
+  "uf": "SP",
+  "km": 190.4
+ },
+ {
+  "ibge": 3148004,
+  "nome": "Patos de Minas",
+  "uf": "MG",
+  "km": 190.6
+ },
+ {
+  "ibge": 3129509,
+  "nome": "Ibiá",
+  "uf": "MG",
+  "km": 191.8
+ },
+ {
+  "ibge": 5209150,
+  "nome": "Gouvelândia",
+  "uf": "GO",
+  "km": 192.8
+ },
+ {
+  "ibge": 3159803,
+  "nome": "Santa Vitória",
+  "uf": "MG",
+  "km": 194.4
+ },
+ {
+  "ibge": 3116407,
+  "nome": "Claraval",
+  "uf": "MG",
+  "km": 195.2
+ },
+ {
+  "ibge": 5217104,
+  "nome": "Piracanjuba",
+  "uf": "GO",
+  "km": 195.7
+ },
+ {
+  "ibge": 5206305,
+  "nome": "Cristianópolis",
+  "uf": "GO",
+  "km": 196
+ },
+ {
+  "ibge": 3500907,
+  "nome": "Altair",
+  "uf": "SP",
+  "km": 196.9
+ },
+ {
+  "ibge": 3524204,
+  "nome": "Jaborandi",
+  "uf": "SP",
+  "km": 197.8
+ },
+ {
+  "ibge": 3137502,
+  "nome": "Lagoa Formosa",
+  "uf": "MG",
+  "km": 197.8
+ },
+ {
+  "ibge": 3549508,
+  "nome": "São José da Bela Vista",
+  "uf": "SP",
+  "km": 198.1
+ },
+ {
+  "ibge": 5217708,
+  "nome": "Pontalina",
+  "uf": "GO",
+  "km": 198.3
+ }
+]

@@ -561,11 +561,17 @@ describe('POST /quiz', () => {
     const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '2000_5000', tipo: 'empresa', grupoa: 'sim' }));
     expect(r.body.diagnostico.conta_depois).toBeNull();
   });
-  it('fora do horário o horario_agora é false; curioso é curioso e ainda recebe vitrine', async () => {
+  it('fora do horário o horario_agora é false e o lead ainda recebe vitrine', async () => {
     vi.setSystemTime(brt('2026-10-24', '12:30'));
-    const r = await request(app).post('/io/solar/quiz').send(corpo({}, RESP_CURIOSA));
-    expect(r.body).toMatchObject({ horario_agora: false, curioso: true, caminho: 'curioso' });
+    const r = await request(app).post('/io/solar/quiz').send(corpo({}, RESP_BOA));
+    expect(r.body).toMatchObject({ horario_agora: false, curioso: false, caminho: 'ligacao' });
     expect(r.body.dias.length).toBe(2);
+  });
+  // 27/10/2026: o curioso (nota abaixo de 70) não existe mais nas rotas: é DESCARTADO (ver solarDescarteRotas.test.ts).
+  it('nota baixa (antes "curioso") é descartada: sem vitrine, sem rascunho', async () => {
+    const r = await request(app).post('/io/solar/quiz').send(corpo({}, RESP_CURIOSA));
+    expect(r.body).toMatchObject({ horario_agora: false, curioso: false, caminho: 'descartado', descartado: true, motivo: 'nota', dias: [] });
+    expect(h.ger.tabela('leads_meta')).toHaveLength(0);
   });
   it('lead novo nunca vem como vistoria nem video', async () => {
     const r = await request(app).post('/io/solar/quiz').send(corpo({}, { ...RESP_BOA, conta: '5000_mais', cidade: 'Uberlândia-MG' }));
@@ -617,24 +623,23 @@ describe('POST /quiz/agora', () => {
     expect(h.ger.tabela('agendamentos')).toHaveLength(0);
     expect(h.enviados).toHaveLength(0);
   });
-  it('curioso não tem o "agora": 409', async () => {
+  it('nota baixa (antes "curioso") não tem o "agora": 409 descartado', async () => {
     const r = await request(app).post('/io/solar/quiz/agora').send(corpo({}, RESP_CURIOSA));
     expect(r.status).toBe(409);
-    expect(r.body.error).toBe('curioso');
+    expect(r.body).toMatchObject({ error: 'descartado', motivo: 'nota' });
     expect(h.ger.tabela('agendamentos')).toHaveLength(0);
   });
 });
 
 describe('POST /quiz/agendar', () => {
-  it('marca na vitrine nova, com o Schedule do mesmo event_id, e o curioso também marca', async () => {
-    const v = await request(app).post('/io/solar/quiz').send(corpo({}, RESP_CURIOSA));
+  it('marca na vitrine nova, com o Schedule do mesmo event_id (27/10: a nota baixa não marca mais, é descartada)', async () => {
+    const v = await request(app).post('/io/solar/quiz').send(corpo({}, RESP_BOA));
     const dia = v.body.dias[0]; const hora = dia.horas[0];
-    const r = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: dia.ymd, h: hora.h, dono: hora.dono }, RESP_CURIOSA));
+    const r = await request(app).post('/io/solar/quiz/agendar').send(corpo({ ymd: dia.ymd, h: hora.h, dono: hora.dono }, RESP_BOA));
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ ok: true, dono: 'Nilce' });
     const card = h.ger.tabela('agendamentos')[0];
     expect(card).toMatchObject({ vendedor_nome: 'Nilce', created_by: 'lp_solar' });
-    expect(card.observacao).toContain('Curioso');
     expect(h.capi.mock.calls.filter(c => c[0].nome === 'Schedule')).toHaveLength(1);
     expect(paraNilce()).toHaveLength(1);
     expect(paraNilce()[0].texto).toContain('*Telhado:* Cerâmica');

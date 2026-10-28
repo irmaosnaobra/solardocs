@@ -15,7 +15,7 @@ import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { lerPaginado } from '../utils/lerPaginado';
 import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
-import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho } from '../services/agenda/solarRota';
+import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho, pontuar, acharCidadeRaio, kwhDaFaixa } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparRespostasExtra, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
   msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, calcularDiagnostico, horarioAgoraAberto, quandoDoAgora,
@@ -23,8 +23,9 @@ import {
 } from '../services/io/solarQuiz';
 import { EQUIPE, TEL_AVISO } from '../services/io/solarEquipe';
 import {
-  avisarAgora, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken,
+  avisarAgora, camposDeRecuperacao, gravarSaida, marcarFalei, nomeDoToken, reivindicar, lerChave, apagarChave,
 } from '../services/io/solarQuizAviso';
+import { motivoDescarteSolar, cidadeUfDoDescarte, CHAVE_DESCARTADO, type MotivoDescarte } from '../services/io/solarDescarte';
 import { soDigitosSolar, telKeySolar, donoDoTelefone } from '../services/io/solarTelefone';
 import { quizCardLimiter } from '../middleware/rateLimiter';
 import { paginaFalei, TEXTOS_FALEI, horaBonita, type DadosDaFicha, type OndeSaiu } from '../services/io/solarQuizTextos';
@@ -456,6 +457,16 @@ function camposDoRascunho(e: ReturnType<typeof lerEntrada>, dec: Parameters<type
 const cidadeGravada = (e: ReturnType<typeof lerEntrada>, dec: { cidade: { nome: string; uf: string } | null }): string | null =>
   dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : cidadeParaGravar(e.resp.cidade, e.tel);
 
+/** DESCARTE (27/10/2026): nota abaixo de 70 ou cidade fora das 114 da região. Recalculado no servidor a partir das respostas, em
+ *  toda rota que cria algo: o que a página diz não vale. Cidade que não resolveu NUNCA descarta (ver solarDescarte.ts). */
+function descarteDoLead(e: ReturnType<typeof lerEntrada>): { motivo: MotivoDescarte; pontos: number; cidadeUf: string | null } | null {
+  const pontos = pontuar(e.resp).pontos;
+  const motivo = motivoDescarteSolar({ pontos, cidade: e.resp.cidade, telefone: e.tel });
+  return motivo ? { motivo, pontos, cidadeUf: cidadeUfDoDescarte(e.resp.cidade, e.tel) } : null;
+}
+/** O teste da sonda tem a chave dele: um teste nunca pode calar o "saiu" de um lead de verdade. */
+const chaveDescartado = (alvo: string, teste: boolean): string => `${CHAVE_DESCARTADO}${teste ? 'teste_' : ''}${alvo}`;
+
 router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
   const e = lerEntrada(b);
@@ -465,6 +476,28 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   res.set('Cache-Control', 'no-store');
   const agoraMs = Date.now();
   const diag = calcularDiagnostico(e.resp, e.extra);
+  // Descartado: nada é criado, nada é enviado, nada vai ao Meta, e o cliente NÃO fica sabendo de ligação nenhuma. Fica só uma marca em
+  // system_state (para a conta do funil e para o /quiz/saiu calar). Antes do bloqueio de telefone e da agenda: não gasta leitura à toa.
+  const dry = String(req.query.dry || '') === '1';
+  const descarte = descarteDoLead(e);
+  if (descarte) {
+    if (!dry) {
+      await reivindicar(chaveDescartado(e.alvo!, teste), {
+        motivo: descarte.motivo, pontos: descarte.pontos, cidade: descarte.cidadeUf ?? (e.resp.cidade || null),
+        src: String(b.src || '').trim().toLowerCase().slice(0, 20) || null,
+        ...utmDe(b), em: new Date(agoraMs).toISOString(),
+      });   // melhor esforço: reivindicar engole o erro (devolve 'erro'); repetição do mesmo telefone mantém a 1ª marca
+    }
+    const raio = acharCidadeRaio(e.resp.cidade);
+    res.json({
+      ok: true, caminho: 'descartado', descartado: true, motivo: descarte.motivo, qualifica: null, semHorario: true,
+      kwh: kwhDaFaixa(e.resp.conta), cidade: raio ? { nome: raio.nome, uf: raio.uf } : null, cidade_uf: descarte.cidadeUf,
+      dono: DONA_SOLAR, jaMarcado: null, dias: [], diagnostico: diag, horario_agora: false, curioso: false,
+    });
+    return;
+  }
+  // Quem passou limpa a marca de um descarte anterior (refez o quiz com outra resposta): senão o "saiu" dele ficaria calado para sempre.
+  if (!dry) await apagarChave(chaveDescartado(e.alvo!, teste));
   // Telefone FORA DO PADRÃO não ganha ficha nem vitrine, e não fica sabendo
   // (mesma regra do /agendar). A página mostra o "a gente te chama".
   if (await estaBloqueado(e.tel)) {
@@ -528,6 +561,9 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
   const teste = modoTeste(req, b, res);
   if (teste === null) return;
   res.set('Cache-Control', 'no-store');
+  // Descartado (nota < 70 ou fora da região): 409 ANTES de qualquer escrita. Nada de card, CAPI, aviso nem cancelarCardsSaiuSemMarcar.
+  const descarte = descarteDoLead(e);
+  if (descarte) { res.status(409).json({ ok: false, error: 'descartado', motivo: descarte.motivo }); return; }
   const agoraMs = Date.now();
   if (!horarioAgoraAberto(agoraMs)) { res.status(409).json({ ok: false, error: 'fora_do_horario' }); return; }
   const dec = decidirCaminho(e.resp, null, e.alvo);
@@ -604,6 +640,9 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
   if (e.erro) { res.status(400).json({ ok: false, error: e.erro }); return; }
   const teste = modoTeste(req, b, res);
   if (teste === null) return;
+  // Descartado (nota < 70 ou fora da região): 409 ANTES de qualquer escrita, inclusive antes do bloqueio de telefone (que responde 200).
+  const descarte = descarteDoLead(e);
+  if (descarte) { res.status(409).json({ ok: false, error: 'descartado', motivo: descarte.motivo }); return; }
   const ymd = String(b.ymd || '');
   const h = String(b.h || '');
   const dono = String(b.dono || '');
@@ -727,6 +766,9 @@ router.post('/quiz/saiu', express.text({ type: '*/*', limit: '20kb' }), async (r
   if (!tel || !alvo) { res.status(400).json({ ok: false, error: 'telefone invalido' }); return; }
   // A página manda 'whatsapp', 'resultado', 'horarios', 'fim' ou o id de um passo: 'whatsapp' é a tela do WhatsApp, 'horarios' é a escolha
   // do horário, e todo o resto é a tela do diagnóstico.
+  // Lead descartado não ganha marca de saída (o rascunho dele pode existir de uma tentativa anterior que passou). Leitura que falha = segue como sempre.
+  const marca = await lerChave(chaveDescartado(alvo, teste));
+  if (marca && marca !== 'erro') { res.json({ ok: true, marcou: false, descartado: true }); return; }
   const onde: OndeSaiu = b.onde === 'whatsapp' ? 'whatsapp' : b.onde === 'horarios' ? 'horarios' : 'diagnostico';
   const gravou = await gravarSaida(leadDoQuiz(alvo, teste), onde);
   res.json({ ok: true, marcou: gravou });
