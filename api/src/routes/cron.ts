@@ -125,7 +125,8 @@ router.get('/dispute-preview', async (req: Request, res: Response) => {
   }
 });
 
-// Roda todo dia — apaga documentos PRO com mais de 30 dias
+// DESLIGADO em 28/10/2026 (ordem do dono): documento de nenhum plano é mais apagado.
+// A rota continua respondendo 200 para quem ainda a chama, mas não faz mais nada.
 router.get('/cleanup-pro-docs', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -1591,7 +1592,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['reagenda-solar',              () => runReagendaSolarTick()], // solar: nao_atendeu volta pra agenda (rede de seguranca do tick de 2 min) // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
     ['insights-prewarm',             () => getInsights(true)],
-    ['cleanup-pro-docs',            () => cleanupProDocuments()],
+    // cleanup-pro-docs saiu do master em 28/10/2026: nenhum documento é mais apagado.
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
     // TICK QUE JÁ RODA NO /process-messages NÃO ENTRA AQUI. Regra da lista inteira,

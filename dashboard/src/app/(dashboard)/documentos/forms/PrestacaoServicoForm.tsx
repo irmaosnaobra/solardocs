@@ -7,6 +7,8 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
+import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
@@ -32,6 +34,18 @@ export default function PrestacaoServicoPage() {
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
 
+  // Modo edição (?doc=<id>): o mesmo formulário reabre o documento salvo e, ao gerar,
+  // atualiza o MESMO registro (mesmo link e mesmo número) sem gastar cota.
+  const ed = useEdicaoDocumento({
+    tipoApi: 'prestacaoServico',
+    slug: 'prestacao-servico',
+    aoCarregar: (d) => {
+      setTerceiroId(d.terceiro_id ?? '');
+      setClienteId(d.cliente_id ?? '');
+      setFields(f => mesclarCampos(f, d.dados_json));
+    },
+  });
+
   function setField(key: keyof typeof initialFields, value: string) {
     setFields(f => ({ ...f, [key]: value }));
   }
@@ -50,7 +64,7 @@ export default function PrestacaoServicoPage() {
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const data = await ed.enviar({
         tipo: 'prestacaoServico',
         terceiro_id: terceiroId,
         cliente_id: clienteId,
@@ -60,11 +74,15 @@ export default function PrestacaoServicoPage() {
       });
       setGenerated(data);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Erro ao gerar documento');
+      setError(erroDaApi(err, 'Erro ao gerar documento'));
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Abrindo um documento para editar: espera carregar, ou mostra por que não abriu.
+  if (ed.docParam && !ed.edicao) {
+    return <div className={styles.page}><EstadoCarga carregando={ed.carregando} erro={ed.erroCarga} onVoltar={ed.cancelar} /></div>;
   }
 
   if (generated) return (
@@ -80,24 +98,28 @@ export default function PrestacaoServicoPage() {
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
-        onNewGeneration={() => setGenerated(null)}
+        onNewGeneration={() => (ed.editando ? ed.novoDocumento() : setGenerated(null))}
       />
     </div>
   );
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${ed.editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>Prestação de Serviço</h1>
         <p className={styles.subtitle}>Contrato de montagem de sistema fotovoltaico</p>
       </div>
+
+      {ed.editando && (
+        <BannerEdicao rotulo="prestação de serviço" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
+      )}
 
       <form onSubmit={handleGenerate} className={styles.form}>
 
         {/* CONTRATADA */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>CONTRATADA (Terceiro)</h2>
-          <TerceiroSelector
+          {ed.travaCliente ? <ClienteTravado nome={ed.edicao?.cliente_nome ?? null} /> : <TerceiroSelector
             value={terceiroId}
             onChange={(id, t) => {
               setTerceiroId(id);
@@ -106,13 +128,13 @@ export default function PrestacaoServicoPage() {
                 ...(t.cidade && !f.foro_cidade ? { foro_cidade: t.cidade } : {}),
               }));
             }}
-          />
+          />}
         </div>
 
         {/* CLIENTE FINAL */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente Final</h2>
-          <ClientSelector
+          {ed.travaCliente ? <ClienteTravado nome={ed.edicao?.dados_json?.cliente_final_nome ? String(ed.edicao.dados_json.cliente_final_nome) : null} /> : <ClientSelector
             value={clienteId}
             onChange={(id, c) => {
               setClienteId(id);
@@ -122,7 +144,7 @@ export default function PrestacaoServicoPage() {
                 ...(c.cidade && !f.foro_cidade ? { foro_cidade: c.cidade } : {}),
               }));
             }}
-          />
+          />}
           <div className={styles.grid2} style={{ marginTop: 12 }}>
             <div className={styles.field}>
               <label className={styles.label}>Telefone do cliente</label>
@@ -255,7 +277,7 @@ export default function PrestacaoServicoPage() {
           className={`btn-primary ${styles.generateBtn}`}
           disabled={generating || !terceiroId || !clienteId}
         >
-          {generating ? 'Gerando...' : 'Gerar Prestação de Serviço'}
+          {generating ? (ed.editando ? 'Salvando...' : 'Gerando...') : (ed.editando ? 'Salvar alterações' : 'Gerar Prestação de Serviço')}
         </button>
       </form>
     </div>

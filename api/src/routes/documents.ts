@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { generateDocument, regenerateDocument, getDocumentForEdit, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill } from '../controllers/documentsController';
+import { generateDocument, regenerateDocument, getDocumentForEdit, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill, resumoDocumentos, documentosPorCliente } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -37,6 +37,10 @@ router.post('/:id/regenerate', authMiddleware, regenerateDocument);
 router.post('/save', authMiddleware, saveDocument);
 router.patch('/:id/file', authMiddleware, updateDocumentFile);
 router.get('/list', authMiddleware, listDocuments);
+// Indicadores do mês e pastas por cliente (agregados no servidor).
+router.get('/resumo', authMiddleware, resumoDocumentos);
+// Documentos, vistorias e manutenções de um cliente.
+router.get('/por-cliente', authMiddleware, documentosPorCliente);
 // Auto-preenchimento: kit do vendedor + histórico por cliente (reusa dados_json).
 router.get('/proposta-prefill', authMiddleware, propostaPrefill);
 // Reabre um doc salvo no formulário (botão "Editar" do /histórico).

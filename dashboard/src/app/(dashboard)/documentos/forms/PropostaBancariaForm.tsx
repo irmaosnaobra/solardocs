@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import ClientSelector from '@/components/ClientSelector/ClientSelector';
 import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
-import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
+import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
 
 interface Equipamento { item: string; quantidade: number; }
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
@@ -65,6 +66,23 @@ export default function PropostaBancariaPage() {
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
 
+  // Modo edição (?doc=<id>): o mesmo formulário reabre o documento salvo e, ao gerar,
+  // atualiza o MESMO registro (mesmo link e mesmo número) sem gastar cota.
+  const ed = useEdicaoDocumento({
+    tipoApi: 'propostaBanco',
+    slug: 'proposta-bancaria',
+    aoCarregar: (d) => {
+      setClienteId(d.cliente_id ?? '');
+      setFields(f => mesclarCampos(f, d.dados_json));
+      const eq = d.dados_json.lista_equipamentos;
+      if (Array.isArray(eq) && eq.length) {
+        setEquipamentos(eq.map((x: Record<string, unknown>) => ({
+          item: String(x?.item ?? ''), quantidade: Number(x?.quantidade) || 1,
+        })));
+      }
+    },
+  });
+
   const set = (k: keyof typeof initialFields, v: string) => setFields(f => ({ ...f, [k]: v }));
 
   function updateEquipamento(index: number, key: keyof Equipamento, value: string | number) {
@@ -90,7 +108,7 @@ export default function PropostaBancariaPage() {
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const data = await ed.enviar({
         tipo: 'propostaBanco',
         cliente_id: clienteId,
         fields: { ...fields, lista_equipamentos: equipamentos },
@@ -99,11 +117,15 @@ export default function PropostaBancariaPage() {
       });
       setGenerated(data);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || 'Erro ao gerar documento');
+      setError(erroDaApi(err, 'Erro ao gerar documento'));
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Abrindo um documento para editar: espera carregar, ou mostra por que não abriu.
+  if (ed.docParam && !ed.edicao) {
+    return <div className={styles.page}><EstadoCarga carregando={ed.carregando} erro={ed.erroCarga} onVoltar={ed.cancelar} /></div>;
   }
 
   if (generated) return (
@@ -118,22 +140,26 @@ export default function PropostaBancariaPage() {
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
-        onNewGeneration={() => setGenerated(null)}
+        onNewGeneration={() => (ed.editando ? ed.novoDocumento() : setGenerated(null))}
       />
     </div>
   );
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${ed.editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>Proposta de Banco</h1>
         <p className={styles.subtitle}>Duas folhas de formalização para o agente financeiro</p>
       </div>
 
+      {ed.editando && (
+        <BannerEdicao rotulo="proposta de banco" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
+      )}
+
       <form onSubmit={handleGenerate} className={styles.form}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente</h2>
-          <ClientSelector value={clienteId} onChange={(id, c) => {
+          {ed.travaCliente ? <ClienteTravado nome={ed.edicao?.cliente_nome ?? null} /> : <ClientSelector value={clienteId} onChange={(id, c) => {
             setClienteId(id);
             if (c) {
               setFields(f => ({
@@ -141,10 +167,10 @@ export default function PropostaBancariaPage() {
                 ...(c.concessionaria && !f.concessionaria ? { concessionaria: c.concessionaria } : {}),
               }));
             }
-          }} />
+          }} />}
           <div className={styles.field} style={{ marginTop: 12 }}>
             <label className={styles.label}>CPF / CNPJ do comprador</label>
-            <input type="text" value={fields.cpf_cnpj} onChange={e => set('cpf_cnpj', e.target.value)} placeholder="Vazio = usa o do cadastro do cliente" className="input-field" />
+            <input type="text" value={fields.cpf_cnpj} onChange={e => set('cpf_cnpj', e.target.value)} placeholder="Vazio = usa o do cadastro do cliente" className="input-field" readOnly={ed.travaCliente} />
             <p className={styles.avisoCampo} style={{ marginTop: 6 }}>
               <AlertTriangle size={15} />
               A folha 1 lista o CPF como exigência do banco. Sem ele aqui e sem ele no cadastro, sai uma linha pautada pra preencher à mão.
@@ -313,7 +339,7 @@ export default function PropostaBancariaPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? 'Gerando...' : 'Gerar Proposta de Banco'}
+          {generating ? (ed.editando ? 'Salvando...' : 'Gerando...') : (ed.editando ? 'Salvar alterações' : 'Gerar Proposta de Banco')}
         </button>
       </form>
     </div>

@@ -57,6 +57,15 @@ export interface Client {
   telefone?: string;
 }
 
+// Data "de hoje" que os modelos imprimem. Uma reedição de contrato, procuração ou recibo
+// reimprime a data da emissão original, não a do dia em que alguém corrigiu um typo.
+// É uma variável de módulo porque a geração é síncrona de ponta a ponta (sem await): ninguém
+// enxerga o valor de outra chamada. Sempre volta ao anterior no finally.
+let dataBaseAtual: Date | null = null;
+function agora(): Date {
+  return dataBaseAtual ?? new Date();
+}
+
 export function generateFromTemplate(
   type: string,
   company: Company,
@@ -65,6 +74,26 @@ export function generateFromTemplate(
   modelo: 1 | 2 | 3 = 1,
   // out opcional: propostaSolar preenche out.resumo com o texto pro WhatsApp
   // (mesmos números do PDF). Outros tipos ignoram — não afeta chamadas existentes.
+  out?: { resumo?: string },
+  // dataBase opcional: a data que vale como "hoje" nos modelos. Só o regenerate passa (data da
+  // emissão original). Não entra no dados_json. Sem ela, vale o dia da geração, como sempre.
+  dataBase?: Date
+): string {
+  const anterior = dataBaseAtual;
+  dataBaseAtual = dataBase && !Number.isNaN(dataBase.getTime()) ? dataBase : null;
+  try {
+    return gerarDoTemplate(type, company, client, fields, modelo, out);
+  } finally {
+    dataBaseAtual = anterior;
+  }
+}
+
+function gerarDoTemplate(
+  type: string,
+  company: Company,
+  client: Client,
+  fields: Record<string, unknown>,
+  modelo: 1 | 2 | 3,
   out?: { resumo?: string }
 ): string {
   switch (type) {
@@ -811,7 +840,7 @@ function procFolha(
   o: { titulo: string; sub: string; ref: string; corpo: string; cidade: string; hoje: string; legenda: string }
 ): string {
   const m = docMarca(company);
-  const hojeCurto = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const hojeCurto = agora().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   return `[[HTML]]<style>${PROC_CSS}</style><div class="pr${procDensidade(o.corpo)}">
 <div class="folha">
   <div class="wm"><img src="{{LOGO}}" alt=""></div>
@@ -1295,7 +1324,7 @@ function propostaBancoM1(
     .filter(x => x && x !== '___').join('  |  Tel. ');
   const cidadeEmpresa = [company.cidade, company.uf].filter(Boolean).join('/') || '___';
 
-  const hoje = new Date();
+  const hoje = agora();
   const emissaoCurta = hoje.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const emissaoExtenso = dateBR();
 
@@ -3453,7 +3482,7 @@ ${comCapa ? `
 // ════════════════════════════════════════════════════════════
 // Sem argumento = hoje (todos os contratos). A proposta passa a data de emissão
 // quando está sendo reeditada, pra não trocar o "30 de julho" que o cliente já viu.
-function dateBR(base: Date = new Date()): string {
+function dateBR(base: Date = agora()): string {
   return base.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 }
 

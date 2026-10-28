@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil, AlertTriangle } from 'lucide-react';
 import api from '@/services/api';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { RESPIRO_EDICAO } from './BannerEdicao';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
@@ -275,6 +277,11 @@ export default function PropostaSolarPage() {
   // Corrigindo uma proposta JÁ emitida: volta pro form com tudo preenchido e o
   // submit reemite o mesmo documento (mesmo link, mesmo número) em vez de criar outro.
   const [editando, setEditando] = useState(false);
+  // Editar não gasta cota, então em plano com limite o nome do cliente fica travado
+  // durante a edição (o servidor também recusa, com 409). Ilimitado e admin trocam.
+  const { user: usuarioLogado } = useDashboard();
+  const podeTrocarCliente = !!usuarioLogado && (usuarioLogado.is_admin === true || usuarioLogado.plano === 'ilimitado');
+  const travaNome = editando && !podeTrocarCliente;
   const [error, setError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [copyMsg, setCopyMsg] = useState('');
@@ -739,8 +746,8 @@ export default function PropostaSolarPage() {
       setMarcasInv(lerMarcas(MARCAS_INV_KEY));
       setMarcasBat(lerMarcas(MARCAS_BAT_KEY));
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
+      const error = err as { response?: { data?: { error?: string; message?: string } } };
+      setError(error.response?.data?.message || error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
     } finally {
       setGenerating(false);
     }
@@ -986,12 +993,12 @@ export default function PropostaSolarPage() {
   );
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>{editando ? 'Editar proposta' : 'Proposta Solar'}</h1>
         <p className={styles.subtitle}>
           {editando
-            ? 'Corrija o que estiver errado e atualize — a proposta é reemitida no mesmo link, com o mesmo número.'
+            ? 'Corrija o que estiver errado e atualize. A proposta é reemitida no mesmo link, com o mesmo número.'
             : 'Gera proposta comercial bonita pra cliente final — copia link, manda WhatsApp ou imprime'}
         </p>
       </div>
@@ -1005,11 +1012,10 @@ export default function PropostaSolarPage() {
         }}>
           <Pencil size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
           <span style={{ fontSize: 13, color: 'var(--color-text)', flex: 1, minWidth: 200 }}>
-            Editando a proposta {publicId ? <strong style={{ fontFamily: 'monospace' }}>{publicId}</strong> : 'atual'}.
-            O link já enviado passa a mostrar a versão corrigida — e não conta como proposta nova.
+            Editando proposta{clienteNome.trim() ? <> de <strong>{clienteNome.trim()}</strong></> : ''}. O link e o número continuam os mesmos.
           </span>
           <button type="button" onClick={cancelarEdicao} style={{ ...btn('ghost'), whiteSpace: 'nowrap' }}>
-            Voltar sem alterar
+            Cancelar edição
           </button>
         </div>
       )}
@@ -1110,8 +1116,14 @@ export default function PropostaSolarPage() {
                 placeholder="Ex: João da Silva"
                 className="input-field"
                 required
+                readOnly={travaNome}
                 {...invalidProps('clienteNome')}
               />
+              {travaNome && (
+                <span style={{ display: 'block', marginTop: 6, fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  Para outro cliente, gere um documento novo.
+                </span>
+              )}
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Cidade/UF *</label>

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/services/api';
 import ClientModal from '@/components/ClientModal/ClientModal';
+import { linkPastaCliente } from '@/utils/chaveCliente';
+import { useEsconderWhatsFab } from '@/components/AreaTrabalho/AreaTrabalho';
 import styles from './clientes.module.css';
 
 interface Client {
@@ -35,6 +37,8 @@ function fmtDate(iso?: string): string {
 }
 
 export default function ClientesPage() {
+  // No celular o botão flutuante do WhatsApp cobre os botões do cartão: some nesta tela (como na Vistoria).
+  useEsconderWhatsFab(true, true);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -46,6 +50,19 @@ export default function ClientesPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
+  // Quantos documentos cada cliente tem (uma chamada só, agregada no servidor).
+  // O documento sem cliente_id entra na conta do cliente de mesmo nome.
+  const [docsPorCliente, setDocsPorCliente] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    api.get('/documents/resumo').then(({ data }) => {
+      const mapa: Record<string, number> = {};
+      for (const p of (data?.pastas ?? []) as { cliente_id: string | null; total: number }[]) {
+        if (p.cliente_id) mapa[p.cliente_id] = p.total;
+      }
+      setDocsPorCliente(mapa);
+    }).catch(() => { /* sem a contagem a tela segue; o botão Documentos continua */ });
+  }, []);
 
   function toggleSort(k: SortKey) {
     if (sortKey === k) {
@@ -199,7 +216,7 @@ export default function ClientesPage() {
             <tbody>
               {pagedClients.map(client => (
                 <tr key={client.id}>
-                  <td className={styles.clientName}>{client.nome}</td>
+                  <td className={styles.clientName} title={client.nome}>{client.nome}</td>
                   <td>
                     <span className={`${styles.tipoBadge} ${client.tipo === 'PJ' ? styles.tipoPJ : styles.tipoPF}`}>
                       {client.tipo || 'PF'}
@@ -214,6 +231,9 @@ export default function ClientesPage() {
                       {/* Abre a proposta já com os dados deste cliente. */}
                       <Link href={`/documentos?tipo=proposta&cliente=${encodeURIComponent(client.nome)}`} className={styles.generateBtn}>
                         Proposta
+                      </Link>
+                      <Link href={linkPastaCliente(client.id, client.nome)} className={`${styles.editBtn} ${styles.docsBtn}`}>
+                        Documentos{(docsPorCliente[client.id] ?? 0) > 0 ? ` (${docsPorCliente[client.id]})` : ''}
                       </Link>
                       <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
                         Editar
@@ -248,12 +268,18 @@ export default function ClientesPage() {
                 <p className={styles.cardDetail}>{client.cidade}{client.uf ? `/${client.uf}` : ''}</p>
               )}
               {client.concessionaria && <p className={styles.cardDetail}>{client.concessionaria}</p>}
+              <p className={styles.cardDetail}>
+                {(docsPorCliente[client.id] ?? 0) === 1 ? '1 documento' : `${docsPorCliente[client.id] ?? 0} documentos`}
+              </p>
               <div className={styles.cardActions}>
                 <Link href={`/documentos?tipo=proposta&cliente=${encodeURIComponent(client.nome)}`} className={styles.generateBtn}>
                   Proposta
                 </Link>
                 <Link href="/documentos?tipo=proposta-bancaria" className={styles.generateBtn}>
                   Banco
+                </Link>
+                <Link href={linkPastaCliente(client.id, client.nome)} className={`${styles.editBtn} ${styles.docsBtn}`}>
+                  Documentos
                 </Link>
                 <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
                   Editar

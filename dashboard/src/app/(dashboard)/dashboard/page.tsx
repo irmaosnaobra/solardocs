@@ -80,24 +80,25 @@ function getLastSixMonths() {
   });
 }
 
-function buildMonthlyData(docs: Doc[]) {
-  const months = getLastSixMonths();
-  const counts: Record<string, number> = {};
-  months.forEach(m => { counts[m.key] = 0; });
-  docs.forEach(doc => {
-    const key = doc.created_at.slice(0, 7);
-    if (key in counts) counts[key]++;
-  });
-  return months.map(m => ({ mes: m.label, docs: counts[m.key] }));
+// Os números vêm do /documents/resumo (contagem de TODOS os documentos): a lista é paginada
+// e não serve de base para total, gráfico nem "no mês".
+function buildMonthlyData(porMes: Record<string, number>) {
+  return getLastSixMonths().map(m => ({ mes: m.label, docs: porMes[m.key] ?? 0 }));
 }
 
-function buildTipoData(docs: Doc[]) {
+function buildTipoData(porTipo: Record<string, number>) {
   const counts: Record<string, number> = {};
-  docs.forEach(doc => {
-    const label = TIPO_LABEL[doc.tipo] ?? doc.tipo;
-    counts[label] = (counts[label] ?? 0) + 1;
+  Object.entries(porTipo).forEach(([tipo, n]) => {
+    const label = TIPO_LABEL[tipo] ?? tipo;
+    counts[label] = (counts[label] ?? 0) + n;
   });
   return Object.entries(counts).map(([name, value]) => ({ name, value }));
+}
+
+interface ResumoDocs {
+  total: number;
+  porMes: Record<string, number>;
+  porTipo: Record<string, number>;
 }
 
 function StatCard({ icon: Icon, value, label, sub, href, barPercent, barDanger }: {
@@ -136,6 +137,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [resumo, setResumo] = useState<ResumoDocs>({ total: 0, porMes: {}, porTipo: {} });
   const [clientesCount, setClientesCount] = useState(0);
   const [terceirosCount, setTerceirosCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -148,12 +150,17 @@ export default function DashboardPage() {
       api.get('/auth/me'),
       api.get('/clients'),
       api.get('/terceiros'),
-      api.get('/documents/list'),
-    ]).then(([meRes, cliRes, tercRes, docsRes]) => {
+      api.get('/documents/list', { params: { limit: 10 } }), // só os recentes
+      api.get('/documents/resumo'),
+    ]).then(([meRes, cliRes, tercRes, docsRes, resumoRes]) => {
       if (meRes.status === 'fulfilled') setUser(meRes.value.data.user);
       if (cliRes.status === 'fulfilled') setClientesCount(cliRes.value.data.clients?.length ?? 0);
       if (tercRes.status === 'fulfilled') setTerceirosCount(tercRes.value.data.terceiros?.length ?? 0);
       if (docsRes.status === 'fulfilled') setDocs(docsRes.value.data.documents ?? []);
+      if (resumoRes.status === 'fulfilled') {
+        const r = resumoRes.value.data;
+        setResumo({ total: r?.indicadores?.total ?? 0, porMes: r?.por_mes ?? {}, porTipo: r?.por_tipo ?? {} });
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -173,11 +180,11 @@ export default function DashboardPage() {
   const isIlimitado  = user.plano === 'ilimitado' || user.limite_documentos >= 999999;
   const docPercent   = isIlimitado ? 0 : Math.min((user.documentos_usados / user.limite_documentos) * 100, 100);
   const docsRestantes = isIlimitado ? null : user.limite_documentos - user.documentos_usados;
-  const monthlyData  = buildMonthlyData(docs);
-  const tipoData     = buildTipoData(docs);
+  const monthlyData  = buildMonthlyData(resumo.porMes);
+  const tipoData     = buildTipoData(resumo.porTipo);
   const tipoMaisUsado = [...tipoData].sort((a, b) => b.value - a.value)[0];
   const thisMonthKey = new Date().toISOString().slice(0, 7);
-  const docsMes      = docs.filter(d => d.created_at.slice(0, 7) === thisMonthKey).length;
+  const docsMes      = resumo.porMes[thisMonthKey] ?? 0;
   const diasAtivo    = user.created_at
     ? Math.floor((Date.now() - new Date(user.created_at).getTime()) / 86_400_000)
     : 0;
@@ -198,7 +205,7 @@ export default function DashboardPage() {
 
       {/* STATS */}
       <div className={styles.statsGrid}>
-        <StatCard icon={FileText} value={docs.length} label="Documentos gerados" sub="Total histórico" />
+        <StatCard icon={FileText} value={resumo.total} label="Documentos gerados" sub="Total histórico" />
         <StatCard
           icon={CalendarDays}
           value={isIlimitado ? docsMes : `${docsMes} / ${user.limite_documentos}`}
@@ -226,7 +233,7 @@ export default function DashboardPage() {
       </div>
 
       {/* GRÁFICOS */}
-      {docs.length > 0 && (
+      {resumo.total > 0 && (
         <div className={styles.chartsRow}>
           <div className={styles.chartCard}>
             <h2 className={styles.chartTitle}>Documentos por mês</h2>

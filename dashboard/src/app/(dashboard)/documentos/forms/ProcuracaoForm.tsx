@@ -6,6 +6,8 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
+import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
@@ -22,6 +24,18 @@ export default function ProcuracaoPage() {
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
 
+  // Modo edição (?doc=<id>): o mesmo formulário reabre o documento salvo e, ao gerar,
+  // atualiza o MESMO registro (mesmo link e mesmo número) sem gastar cota.
+  const ed = useEdicaoDocumento({
+    tipoApi: 'procuracao',
+    slug: 'procuracao',
+    aoCarregar: (d) => {
+      setClienteId(d.cliente_id ?? '');
+      setModelo(d.modelo_numero);
+      setFields(f => mesclarCampos(f, d.dados_json));
+    },
+  });
+
   useEffect(() => {
     api.get('/company').then(({ data }) => {
       if (data.company?.cidade) setFields(f => ({ ...f, foro_cidade: f.foro_cidade || data.company.cidade }));
@@ -35,7 +49,7 @@ export default function ProcuracaoPage() {
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const data = await ed.enviar({
         tipo: 'procuracao',
         cliente_id: clienteId,
         fields,
@@ -44,11 +58,15 @@ export default function ProcuracaoPage() {
       });
       setGenerated(data);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || 'Erro ao gerar documento');
+      setError(erroDaApi(err, 'Erro ao gerar documento'));
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Abrindo um documento para editar: espera carregar, ou mostra por que não abriu.
+  if (ed.docParam && !ed.edicao) {
+    return <div className={styles.page}><EstadoCarga carregando={ed.carregando} erro={ed.erroCarga} onVoltar={ed.cancelar} /></div>;
   }
 
   if (generated) return (
@@ -63,22 +81,26 @@ export default function ProcuracaoPage() {
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
-        onNewGeneration={() => setGenerated(null)}
+        onNewGeneration={() => (ed.editando ? ed.novoDocumento() : setGenerated(null))}
       />
     </div>
   );
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${ed.editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>Procuração</h1>
         <p className={styles.subtitle}>Procuração para concessionária — assinada pelo cliente</p>
       </div>
 
+      {ed.editando && (
+        <BannerEdicao rotulo="procuração" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
+      )}
+
       <form onSubmit={handleGenerate} className={styles.form}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Outorgante (Cliente)</h2>
-          <ClientSelector value={clienteId} onChange={(id, c) => {
+          {ed.travaCliente ? <ClienteTravado nome={ed.edicao?.cliente_nome ?? null} /> : <ClientSelector value={clienteId} onChange={(id, c) => {
             setClienteId(id);
             if (c) {
               setFields(f => ({
@@ -87,7 +109,7 @@ export default function ProcuracaoPage() {
                 ...(c.cidade && !f.foro_cidade ? { foro_cidade: c.cidade } : {}),
               }));
             }
-          }} />
+          }} />}
         </div>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Modelo de Procuração</h2>
@@ -146,7 +168,7 @@ export default function ProcuracaoPage() {
         </div>
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? 'Gerando...' : 'Gerar Procuração'}
+          {generating ? (ed.editando ? 'Salvando...' : 'Gerando...') : (ed.editando ? 'Salvar alterações' : 'Gerar Procuração')}
         </button>
       </form>
     </div>

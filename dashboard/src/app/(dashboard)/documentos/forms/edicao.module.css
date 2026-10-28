@@ -1,0 +1,65 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 10px;
+}
+
+.bannerTexto {
+  flex: 1;
+  min-width: 220px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.travado {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.travadoNome {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.travadoAviso {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Respiro no fim do formulário em modo edição: o botão flutuante do WhatsApp não cobre o botão de salvar. */
+.respiro {
+  padding-bottom: 96px;
+}
+
+.estado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 720px) {
+  .respiro { padding-bottom: 120px; }
+
+  .banner :global(.btn-secondary) {
+    width: 100%;
+    min-height: 44px;
+  }
+}

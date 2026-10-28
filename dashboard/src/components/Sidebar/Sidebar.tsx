@@ -9,7 +9,7 @@ import {
   Banknote, ScrollText, FileSignature, Receipt,
   Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
   Boxes, Save, GraduationCap, Smartphone, BatteryCharging,
-  Send, LogOut, TrendingUp, LayoutGrid, Tags,
+  Send, LogOut, TrendingUp, LayoutGrid, Tags, FolderOpen,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -79,6 +79,8 @@ const baseAdminItems: NavItem[] = [
 // Mascote e Baixe o App foram pra topbar (ícones). Sidebar só com o Gerador.
 const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
+  // Todo documento gerado fica na nuvem para qualquer plano: sem cadeado e sem exigir empresa.
+  { href: '/historico',                icon: FolderOpen,  label: 'Meus documentos' },
 ];
 
 // ── O QUE SE USA ────────────────────────────────────────────────────────────
@@ -146,7 +148,7 @@ const contaItems: NavItem[] = [];
 const mobileContaItems: NavItem[] = [
   { href: '/minha-conta',       icon: User,       label: 'Minha Conta' },
   { href: '/empresa',           icon: Building2,  label: 'Empresa' },
-  { href: '/conta/documentos',  icon: Save,       label: 'Documentos Salvos' },
+  { href: '/historico',         icon: Save,       label: 'Documentos Salvos' },
   { href: '/baixe-app',         icon: Smartphone, label: 'Baixe o App' },
   { href: '/trafego', icon: TrendingUp, label: 'Tráfego Pago' },
 ];

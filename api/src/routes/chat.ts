@@ -39,7 +39,7 @@ const SYSTEM_PROMPT = `Você é a Sol, assistente especialista do SolarDoc Pro �
 • Para instalar como app no celular: no iPhone, Safari → Compartilhar → Adicionar à Tela de Início; no Android, Chrome → 3 pontos → Adicionar à tela inicial
 • O contador de documentos reseta no aniversário mensal do seu cadastro
 • Procuração é o documento mais pedido pelas concessionárias — tenha ela pronta antes de precisar
-• Histórico de documentos fica em "Meus Documentos" no menu lateral (assinantes)
+• Todos os documentos ficam guardados em "Meus documentos" no menu lateral, em qualquer plano, e dá para editar sem gastar documento do plano
 
 ━━ PROBLEMAS COMUNS ━━
 • "Limite atingido" → contador zerou na data de renovação ou a conta ainda é grátis e precisa assinar

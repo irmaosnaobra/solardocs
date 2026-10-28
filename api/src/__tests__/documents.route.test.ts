@@ -270,10 +270,32 @@ describe('POST /documents/:id/regenerate', () => {
     expect(res.status).toBe(404);
   });
 
-  it('recusa prestacaoServico (a geracao injeta o cliente final)', async () => {
-    mockSingle.mockResolvedValueOnce({ data: { ...docAvulso, tipo: 'prestacaoServico' } });
-    const res = await post();
-    expect(res.status).toBe(400);
+  // Até 28/10/2026 o regenerate recusava esse tipo porque o generate injeta o cliente
+  // final nos campos e reemitir sem repetir isso sairia com o contrato pela metade.
+  // A injeção virou uma função comum aos dois caminhos.
+  it('prestacaoServico reedita e injeta o cliente final, como na emissao', async () => {
+    const T_UUID = 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
+    mockSingle
+      .mockResolvedValueOnce({ data: { ...docAvulso, tipo: 'prestacaoServico', terceiro_id: T_UUID, cliente_id: CLIENT_UUID, cliente_nome: 'Montadora Sol' } })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: T_UUID, nome: 'Montadora Sol' } })                 // terceiro (a entidade)
+      .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Dona Maria', endereco: 'Rua A, 10', tipo_telhado: 'Cerâmico', padrao: 'Monofásico' } }); // cliente final
+
+    const res = await post(DOC_UUID, { fields: { valor_servico: '3.000,00', telefone_cliente: '8399999' }, cliente_nome_avulso: undefined });
+
+    expect(res.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields).toMatchObject({
+      valor_servico: '3.000,00',
+      cliente_final_nome: 'Dona Maria',
+      cliente_final_telefone: '8399999',
+      cliente_final_endereco_instalacao: 'Rua A, 10',
+      cliente_final_padrao: 'Monofásico',
+    });
+    // Não é proposta: nada de número nem de data de emissão dentro do dados_json de contrato.
+    expect(fields.codigo).toBeUndefined();
+    expect(fields.emitido_em).toBeUndefined();
   });
 
   it('retorna 401 sem token', async () => {
@@ -294,7 +316,8 @@ describe('GET /documents/:id/edit', () => {
         modelo_usado: 'modelo-2', content: '<html>proposta</html>',
         codigo_curto: '20260035', created_at: '2026-07-30T03:41:43.000Z',
       } })
-      .mockResolvedValueOnce({ data: { slug: 'aiorosgroup' } });
+      .mockResolvedValueOnce({ data: { slug: 'aiorosgroup' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } });
 
     const res = await request(app).get(`/documents/${DOC_UUID}/edit`).set('Authorization', AUTH);
 
@@ -302,6 +325,7 @@ describe('GET /documents/:id/edit', () => {
     expect(res.body.document).toMatchObject({
       doc_id: DOC_UUID, cliente_nome: 'Adelides', modelo_numero: 2,
       codigo: '202600010035', codigo_curto: '20260035', empresa_slug: 'aiorosgroup',
+      cliente_id: null, terceiro_id: null, pode_trocar_cliente: false,
     });
     expect(res.body.document.dados_json.investimento).toBe('20.000,00');
   });
@@ -319,19 +343,9 @@ describe('GET /documents/:id/edit', () => {
 });
 
 // ─── GET /documents/list ─────────────────────────────────────────────
+// A lista de verdade (sem bloqueio por plano, paginada, com filtros) tem o teste dela
+// em documentosNuvem.route.test.ts, com o banco falso. Aqui fica só o portão.
 describe('GET /documents/list', () => {
-  it('retorna historico: false para plano free', async () => {
-    // Controller retorna cedo quando plano = free (sem consultar documentos)
-    mockSingle.mockResolvedValueOnce({ data: { plano: 'free' } });
-
-    const res = await request(app)
-      .get('/documents/list')
-      .set('Authorization', AUTH);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ documents: [], historico: false });
-  });
-
   it('retorna 401 sem token', async () => {
     const res = await request(app).get('/documents/list');
     expect(res.status).toBe(401);

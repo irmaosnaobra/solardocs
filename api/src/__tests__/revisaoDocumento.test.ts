@@ -19,6 +19,7 @@ const acoes: string[] = [];
 let docSalvo: Record<string, unknown> | null = null;
 let updateRecebido: Record<string, unknown> | null = null;
 let uploadFalha: { message: string } | null = null;
+let dono: { plano: string; is_admin: boolean } | null = { plano: 'ilimitado', is_admin: false };
 const eventos: Array<Record<string, unknown>> = [];
 
 vi.mock('../utils/supabase', () => {
@@ -40,6 +41,9 @@ vi.mock('../utils/supabase', () => {
         return {
           select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { logo_base64: LOGO } }) }) }),
         } as never;
+      }
+      if (tabela === 'users') {
+        return { select: () => ({ eq: () => ({ single: async () => ({ data: dono }) }) }) } as never;
       }
       return {
         // So o feature_events interessa: o logger tambem grava por aqui.
@@ -84,6 +88,7 @@ beforeEach(() => {
   eventos.length = 0;
   updateRecebido = null;
   uploadFalha = null;
+  dono = { plano: 'ilimitado', is_admin: false };
   docSalvo = { id: 'doc-1', user_id: 'user-1', arquivo_url: 'user-1/doc-1-antigo.html', content: FOLHA, tipo: 'contratoSolar' };
 });
 
@@ -149,5 +154,75 @@ describe('arquivo não subiu — não grava metade', () => {
     expect(acoes).toContain('upload');
     expect(acoes).not.toContain('remove');  // o velho segue lá, servindo o link
     expect(updateRecebido).toBeNull();      // e a coluna não fica na frente dele
+  });
+});
+
+// Trava de cota (28/10/2026): revisar não gasta cota, então em plano com limite o nome do
+// cliente salvo tem que continuar aparecendo no texto revisado. Comparação exata pela chaveCliente.
+describe('trava de cota na revisão', () => {
+  const comNome = (nome: string) => FOLHA.replace('<p>', `<p>Contratante: ${nome}. `);
+
+  beforeEach(() => {
+    docSalvo = { ...docSalvo, cliente_nome: 'João da Silva', content: comNome('João da Silva') };
+    dono = { plano: 'pro', is_admin: false };
+  });
+
+  it('plano com limite: trocar o nome por outro cliente é 409 e nada é gravado', async () => {
+    const revisado = comNome('Maria Souza');
+    const r = await chamar({ content: revisado, html_content: arquivo(revisado) });
+
+    expect(r.code).toBe(409);
+    expect(r.corpo).toEqual({ error: 'cliente_diferente', message: 'Para outro cliente, gere um documento novo.' });
+    expect(acoes).toEqual([]);
+    expect(updateRecebido).toBeNull();
+  });
+
+  it('plano com limite: letra trocada no nome também é 409 (regra exata)', async () => {
+    const revisado = comNome('João da Silvo');
+    const r = await chamar({ content: revisado, html_content: arquivo(revisado) });
+    expect(r.code).toBe(409);
+  });
+
+  it('plano com limite: nome em outra caixa, sem acento, com tag no meio e entidade passa', async () => {
+    const revisado = FOLHA.replace('<p>', '<p>Contratante: <b>JOAO</b>&nbsp;DA   <i>silva</i>. ');
+    const r = await chamar({ content: revisado, html_content: arquivo(revisado) });
+    expect(r.code).toBe(200);
+  });
+
+  it('plano com limite: o nome só dentro de <style> não conta como impresso', async () => {
+    const revisado = FOLHA.replace('.ct{color:#000}', '.ct{color:#000} /* joao da silva */');
+    const r = await chamar({ content: revisado, html_content: arquivo(revisado) });
+    expect(r.code).toBe(409);
+  });
+
+  it('o <title> com o nome antigo não salva um corpo com outro nome (o DocumentPreview sempre manda o title)', async () => {
+    const revisado = comNome('Maria Souza');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>João da Silva</title></head><body>${revisado}</body></html>`;
+    const r = await chamar({ content: revisado, html_content: html });
+
+    expect(r.code).toBe(409);
+    expect(r.corpo.error).toBe('cliente_diferente');
+    expect(acoes).toEqual([]);
+    expect(updateRecebido).toBeNull();
+  });
+
+  it('o content também tem que trazer o nome: html com o nome e content com outro é 409', async () => {
+    const r = await chamar({ content: comNome('Maria Souza'), html_content: arquivo(comNome('João da Silva')) });
+    expect(r.code).toBe(409);
+    expect(updateRecebido).toBeNull();
+  });
+
+  it('com o nome certo no corpo o <title> não atrapalha', async () => {
+    const revisado = comNome('João da Silva');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Outro</title></head><body>${revisado}</body></html>`;
+    expect((await chamar({ content: revisado, html_content: html })).code).toBe(200);
+  });
+
+  it('ilimitado e admin trocam o nome', async () => {
+    const revisado = comNome('Maria Souza');
+    dono = { plano: 'ilimitado', is_admin: false };
+    expect((await chamar({ content: revisado, html_content: arquivo(revisado) })).code).toBe(200);
+    dono = { plano: 'free', is_admin: true };
+    expect((await chamar({ content: revisado, html_content: arquivo(revisado) })).code).toBe(200);
   });
 });

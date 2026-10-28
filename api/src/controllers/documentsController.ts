@@ -9,6 +9,8 @@ import { acessoOffGrid } from '../services/offgrid/acesso';
 import { injectPrint } from '../utils/printHtml';
 import { examinarRevisao, ehDesenhado } from '../services/documentos/saudeDocumento';
 import { logger } from '../utils/logger';
+import { chaveCliente } from '../utils/chaveCliente';
+import { tabelaAusente } from '../services/manutencao/armazenamento';
 
 const generateSchema = z.object({
   tipo: z.string().min(1),
@@ -33,6 +35,11 @@ const regenerateSchema = z.object({
   useTemplate: z.boolean().optional().default(true),
   modeloNumero: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().default(1),
   cliente_nome_avulso: z.string().min(2).optional(),
+  // Só vale para quem pode trocar de cliente (ilimitado e admin). Plano com limite que
+  // mande um id diferente do salvo recebe 409: editar não gasta cota, então não pode
+  // virar documento novo para outro cliente.
+  cliente_id: z.string().uuid().optional(),
+  terceiro_id: z.string().uuid().optional(),
 });
 
 const saveSchema = z.object({
@@ -44,6 +51,34 @@ const saveSchema = z.object({
   content: z.string().min(1),
   modelo_usado: z.string().optional(),
 });
+
+// Prestação de serviço: a entidade do documento é o terceiro (CONTRATADA) e o cliente
+// final entra nos campos. Fica numa função só porque o generate e o regenerate
+// precisam do MESMO resultado: até 28/10/2026 o regenerate recusava esse tipo porque
+// reemitir sem repetir a injeção sairia com o contrato pela metade.
+// Cliente que não existe mais (apagado do cadastro) devolve os campos como vieram: o
+// dados_json salvo já traz os cliente_final_* da emissão anterior.
+async function injetarClienteFinal(
+  userId: string | undefined,
+  clienteId: string,
+  fields: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { data: clienteFinal } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', clienteId)
+    .eq('user_id', userId)
+    .single();
+  if (!clienteFinal) return fields;
+  return {
+    ...fields,
+    cliente_final_nome: clienteFinal.nome,
+    cliente_final_telefone: (fields.telefone_cliente as string) || '',
+    cliente_final_endereco_instalacao: (fields.endereco_instalacao as string) || clienteFinal.endereco || '',
+    cliente_final_tipo_telhado: clienteFinal.tipo_telhado || '',
+    cliente_final_padrao: clienteFinal.padrao || '',
+  };
+}
 
 export async function generateDocument(req: Request, res: Response): Promise<void> {
   try {
@@ -123,23 +158,7 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     // For prestacaoServico: also fetch cliente final and inject into fields
     if (body.tipo === 'prestacaoServico' && body.cliente_id) {
-      const { data: clienteFinal } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', body.cliente_id)
-        .eq('user_id', req.userId)
-        .single();
-
-      if (clienteFinal) {
-        body.fields = {
-          ...body.fields,
-          cliente_final_nome: clienteFinal.nome,
-          cliente_final_telefone: (body.fields.telefone_cliente as string) || '',
-          cliente_final_endereco_instalacao: (body.fields.endereco_instalacao as string) || clienteFinal.endereco || '',
-          cliente_final_tipo_telhado: clienteFinal.tipo_telhado || '',
-          cliente_final_padrao: clienteFinal.padrao || '',
-        };
-      }
+      body.fields = await injetarClienteFinal(req.userId, body.cliente_id, body.fields);
     }
 
     let content: string;
@@ -366,13 +385,6 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
 
     if (!doc) throw new ApiError(404, 'Documento não encontrado');
 
-    // prestacaoServico injeta dados do cliente final na geração (ver generateDocument).
-    // Reemitir sem repetir essa injeção sairia com o contrato pela metade, então fica
-    // de fora até alguém precisar — os outros tipos são função pura dos fields.
-    if (doc.tipo === 'prestacaoServico') {
-      throw new ApiError(400, 'Esse tipo de documento ainda não pode ser reeditado. Gere um novo.');
-    }
-
     const { data: company } = await supabase
       .from('company')
       .select('*')
@@ -392,20 +404,39 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       throw new ApiError(402, 'Faça upgrade pra editar esse tipo de documento. O plano gratuito libera só o Gerador de Proposta.');
     }
 
+    // TRAVA DE COTA. Editar não gasta cota, então editar não pode virar documento novo
+    // para outro cliente. Plano com limite (tudo que não é ilimitado nem admin, e
+    // usuário que não se leu) não troca o cliente: nem o id, nem o nome do avulso.
+    // Ilimitado e admin trocam, porque pra eles não existe cota a proteger.
+    // No avulso compara o nome digitado. Com cadastro, compara o id e TAMBÉM o nome
+    // atual da linha do cliente contra o nome salvo no documento: renomear o cliente
+    // no cadastro e reeditar o documento antigo viraria documento novo sem cota (409).
+    const podeTrocarCliente = !!planUser && (planUser.is_admin === true || planUser.plano === 'ilimitado');
+    const clienteIdFinal = body.cliente_id ?? doc.cliente_id ?? null;
+    const terceiroIdFinal = body.terceiro_id ?? doc.terceiro_id ?? null;
+    const trocouId = clienteIdFinal !== (doc.cliente_id ?? null) || terceiroIdFinal !== (doc.terceiro_id ?? null);
+    const ehAvulso = !clienteIdFinal && !terceiroIdFinal;
+    const trocouNomeAvulso = ehAvulso
+      && chaveCliente(body.cliente_nome_avulso ?? doc.cliente_nome) !== chaveCliente(doc.cliente_nome);
+    if (!podeTrocarCliente && (trocouId || trocouNomeAvulso)) {
+      res.status(409).json({ error: 'cliente_diferente', message: 'Para outro cliente, gere um documento novo.' });
+      return;
+    }
+
     // A entidade vem da linha salva. Só o avulso (proposta/vistoria sem cadastro)
     // aceita nome novo — é lá que mora o typo no nome do cliente.
     let entity: Record<string, unknown>;
     let entityNome: string;
 
-    if (doc.terceiro_id) {
+    if (terceiroIdFinal) {
       const { data: terceiro } = await supabase
-        .from('terceiros').select('*').eq('id', doc.terceiro_id).eq('user_id', req.userId).single();
+        .from('terceiros').select('*').eq('id', terceiroIdFinal).eq('user_id', req.userId).single();
       if (!terceiro) throw new ApiError(404, 'Terceiro não encontrado');
       entity = terceiro;
       entityNome = terceiro.nome;
-    } else if (doc.cliente_id) {
+    } else if (clienteIdFinal) {
       const { data: client } = await supabase
-        .from('clients').select('*').eq('id', doc.cliente_id).eq('user_id', req.userId).single();
+        .from('clients').select('*').eq('id', clienteIdFinal).eq('user_id', req.userId).single();
       if (!client) throw new ApiError(404, 'Cliente não encontrado');
       entity = client;
       entityNome = client.nome;
@@ -415,16 +446,59 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       entity = { nome: entityNome };
     }
 
+    // Cliente renomeado no cadastro depois da emissão: em plano com limite a reedição não pode
+    // gravar o nome novo por cima (viraria documento novo de graça). Para o nome novo, documento novo.
+    if (!podeTrocarCliente && !ehAvulso && chaveCliente(doc.cliente_nome) && chaveCliente(entityNome) !== chaveCliente(doc.cliente_nome)) {
+      res.status(409).json({ error: 'cliente_diferente', message: 'Este cliente mudou de nome no cadastro. Para o novo nome, gere um documento novo.' });
+      return;
+    }
+
     // O número da proposta vive no dados_json (o generate injeta antes do template).
     // Reeditar não renumera: o cabeçalho e o link precisam bater com o que já foi enviado.
     const dadosAntigos = (doc.dados_json ?? {}) as Record<string, unknown>;
-    const fields: Record<string, unknown> = { ...body.fields };
+    let fields: Record<string, unknown> = { ...body.fields };
+    // Número e data de emissão são coisa de proposta. Os outros tipos (contrato,
+    // procuração, recibo...) guardam o dados_json exatamente como o formulário mandou.
+    const ehProposta = doc.tipo === 'propostaSolar' || doc.tipo === 'propostaOffGrid';
     // O número impresso é o SALVO, nunca o que vem do formulário. O estado do front
     // carrega o número de outra proposta (prefill por cliente, doc aberto do
     // histórico, rascunho), e com `!fields.codigo` reeditar imprimia esse número no
     // cabeçalho de um doc cujo link tem outro número.
-    delete fields.codigo;
-    if (dadosAntigos.codigo) fields.codigo = dadosAntigos.codigo;
+    if (ehProposta) {
+      delete fields.codigo;
+      if (dadosAntigos.codigo) fields.codigo = dadosAntigos.codigo;
+    }
+    // O nome impresso é o da entidade resolvida acima, nunca o que o formulário
+    // carrega em fields: senão o campo seria um jeito de contornar a trava de cota.
+    if ('cliente_nome' in fields) fields.cliente_nome = entityNome;
+    // Prestação de serviço: o cliente final entra nos campos, como na emissão. Em plano com
+    // limite valem SÓ os cliente_final_* do dados_json salvo (nome, telefone, endereço...): nem o
+    // corpo nem a linha atual do cadastro entram. Documento antigo sem eles cai na injeção normal.
+    // Ilimitado e admin refazem a injeção com o corpo e o cadastro.
+    if (doc.tipo === 'prestacaoServico') {
+      const salvos = Object.entries(dadosAntigos).filter(([k]) => k.startsWith('cliente_final_'));
+      if (!podeTrocarCliente && salvos.length > 0) {
+        for (const k of Object.keys(fields)) if (k.startsWith('cliente_final_')) delete fields[k];
+        for (const [k, v] of salvos) fields[k] = v;
+      } else if (clienteIdFinal) {
+        fields = await injetarClienteFinal(req.userId, clienteIdFinal, fields);
+      }
+    }
+    // Proposta de banco: o CPF/CNPJ do formulário ganha do cadastro na hora de imprimir
+    // (templateService). Em plano com limite vale o que estava salvo, senão trocar o CPF
+    // seria um jeito de emitir a proposta de outro comprador sem gastar cota.
+    if (doc.tipo === 'propostaBanco' && !podeTrocarCliente) {
+      if ('cpf_cnpj' in dadosAntigos) fields.cpf_cnpj = dadosAntigos.cpf_cnpj;
+      else delete fields.cpf_cnpj;
+    }
+    // Reedição de contrato, procuração, recibo etc. reimprime a data da emissão. O
+    // created_at de documents vem 3h adiantado (conhecido), por isso o -3h. A proposta
+    // segue a regra do emitido_em acima e não usa isto.
+    let dataBaseReedicao: Date | undefined;
+    if (!ehProposta) {
+      const d = new Date(new Date(doc.created_at).getTime() - 3 * 3600000);
+      if (!Number.isNaN(d.getTime())) dataBaseReedicao = d;
+    }
 
     // Corrigir uma proposta de dias atrás não pode renovar o prazo dela sozinho: o
     // cabeçalho e a validade ficam ancorados no dia da emissão (o cliente já viu
@@ -432,7 +506,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // e tudo volta a contar de hoje — melhor que entregar proposta nascendo vencida.
     const emitidoEm = new Date(doc.created_at);
     const venceEm = emitidoEm.getTime() + propostaDiasValidade(fields) * 86400000;
-    if (!Number.isNaN(emitidoEm.getTime()) && venceEm > Date.now()) {
+    if (ehProposta && !Number.isNaN(emitidoEm.getTime()) && venceEm > Date.now()) {
       fields.emitido_em = doc.created_at;
     } else {
       // O front devolve o dados_json inteiro, então o emitido_em antigo pode vir
@@ -444,7 +518,7 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     let content: string;
     let modeloUsado: string;
     if (body.useTemplate) {
-      content = generateFromTemplate(doc.tipo, company, entity as unknown as Client, fields, body.modeloNumero, tmplOut);
+      content = generateFromTemplate(doc.tipo, company, entity as unknown as Client, fields, body.modeloNumero, tmplOut, dataBaseReedicao);
       modeloUsado = `modelo-${body.modeloNumero}`;
     } else {
       content = await generateDocumentWithAI(doc.tipo, company, entity as unknown as Client, fields);
@@ -457,6 +531,11 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       cliente_nome: entityNome,
       modelo_usado: modeloUsado,
     };
+    // Só chega aqui com id diferente quem pode trocar de cliente (ver a trava acima).
+    if (trocouId) {
+      updates.cliente_id = clienteIdFinal;
+      updates.terceiro_id = terceiroIdFinal;
+    }
 
     // O /p/:id e o PDF leem o Storage PRIMEIRO (arquivo_url) e só caem no content
     // como fallback. Quem tem arquivo salvo precisa do arquivo trocado, senão o link
@@ -510,6 +589,24 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     logger.error('documents', 'regenerateDocument falhou', err);
     res.status(500).json({ error: 'Erro ao atualizar documento' });
   }
+}
+
+/** Texto visível de um HTML: sem head/title/style/script, sem tags e com as entidades comuns decodificadas. */
+export function htmlParaTexto(html: string): string {
+  return String(html)
+    .replace(/<head\b[\s\S]*?<\/head>/gi, ' ')
+    .replace(/<(title|style|script)\b[\s\S]*?<\/\1>/gi, ' ')
+    // tag de texto corrido não separa palavra (Jo<b>ão</b>); as demais separam
+    .replace(/<\/?(?:b|i|u|em|strong|span|font|a|mark|small|sup|sub)\b[^>]*>/gi, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&(?:#39|apos);/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_m, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_m, d) => String.fromCodePoint(parseInt(d, 10)));
 }
 
 // Deriva slug do nome da empresa: lowercase + sem acentos + alnum.
@@ -596,7 +693,7 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
 
     const { data: doc } = await supabase
       .from('documents')
-      .select('id, tipo, cliente_nome, dados_json, modelo_usado, content, codigo_curto, created_at')
+      .select('id, tipo, cliente_id, terceiro_id, cliente_nome, dados_json, modelo_usado, content, codigo_curto, created_at')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
@@ -605,13 +702,20 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
 
     const { data: company } = await supabase
       .from('company').select('slug').eq('user_id', req.userId).single();
+    // A tela trava o campo de cliente para plano com limite. A trava de verdade é a
+    // do regenerate (409); isto só deixa a tela dizer a mesma coisa antes do clique.
+    const { data: dono } = await supabase
+      .from('users').select('plano, is_admin').eq('id', req.userId).single();
 
     const dados = (doc.dados_json ?? {}) as Record<string, unknown>;
     res.json({
       document: {
         doc_id: doc.id,
         tipo: doc.tipo,
+        cliente_id: doc.cliente_id ?? null,
+        terceiro_id: doc.terceiro_id ?? null,
         cliente_nome: doc.cliente_nome,
+        pode_trocar_cliente: !!dono && (dono.is_admin === true || dono.plano === 'ilimitado'),
         dados_json: dados,
         // 'modelo-2' → 2. Sem isso a reedição cairia sempre no modelo padrão e
         // trocaria o layout da proposta que o cliente já tinha aberto. O 3 (Moderno
@@ -636,6 +740,10 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
 export async function saveDocument(req: Request, res: Response): Promise<void> {
   try {
     const body = saveSchema.parse(req.body);
+
+    // Salvar um documento pronto é emitir documento: gasta cota como o generate. Até
+    // 28/10/2026 esta rota gravava sem checar nem contar, e dava para emitir sem limite.
+    await checkLimit(req.userId);
 
     // Upload HTML to Supabase Storage if provided
     let arquivo_url: string | null = null;
@@ -669,10 +777,15 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
       .single();
 
     if (error) throw error;
+    await incrementUsed(req.userId);
     res.status(201).json({ document: data });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
+      return;
+    }
+    if (err instanceof ApiError) {
+      res.status(err.statusCode).json({ error: err.message });
       return;
     }
     logger.error('documents', 'saveDocument falhou', err);
@@ -696,7 +809,7 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
     // Verify ownership
     const { data: doc } = await supabase
       .from('documents')
-      .select('id, user_id, arquivo_url, content, tipo')
+      .select('id, user_id, arquivo_url, content, tipo, cliente_nome')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
@@ -737,6 +850,23 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
     }
     if (exame.reparos.length > 0) {
       logger.info('documents', `revisão do doc ${id} salva com reparo: ${exame.reparos.join(' | ')}`);
+    }
+
+    // TRAVA DE COTA (mesma do regenerate). Revisar o HTML não gasta cota, então em plano
+    // com limite o nome do cliente salvo tem que continuar aparecendo no texto revisado:
+    // senão a revisão viraria um documento novo para outra pessoa sem passar pela cota.
+    // Comparação exata pela chaveCliente (acento, maiúscula e espaço não contam; letra sim).
+    const { data: dono } = await supabase
+      .from('users').select('plano, is_admin').eq('id', req.userId).single();
+    const comLimite = !(dono && (dono.is_admin === true || dono.plano === 'ilimitado'));
+    const chaveSalva = chaveCliente(doc.cliente_nome);
+    // O HTML e o content são gravados (o link público lê um, o PDF lê o outro): os dois que vierem
+    // precisam trazer o nome. O <head> não conta: o DocumentPreview sempre manda o <title> com o
+    // nome salvo, e isso deixaria qualquer corpo passar.
+    const revisados = [exame.html, exame.content].filter((t): t is string => !!t);
+    if (comLimite && chaveSalva && revisados.some((t) => !chaveCliente(htmlParaTexto(t)).includes(chaveSalva))) {
+      res.status(409).json({ error: 'cliente_diferente', message: 'Para outro cliente, gere um documento novo.' });
+      return;
     }
 
     const updates: Record<string, unknown> = {};
@@ -816,6 +946,60 @@ export async function renderDocumentHtml(req: Request, res: Response): Promise<v
   }
 }
 
+// ── Meus documentos (todos os planos) ─────────────────────────────────────────
+// Até 28/10/2026 free e iniciante recebiam lista vazia e o pro só via 30 dias (e um
+// cron apagava o resto). Ordem do dono: todo documento fica na nuvem, editável, para
+// qualquer plano. Sem corte por plano; a lista é paginada e filtrada no servidor.
+const COLUNAS_LISTA = 'id, tipo, cliente_id, cliente_nome, codigo_curto, modelo_usado, arquivo_url, created_at';
+const COLUNAS_LEVES = 'id, tipo, cliente_id, cliente_nome, codigo_curto, created_at';
+const TIPOS_COM_LINK_PUBLICO = ['propostaSolar', 'propostaOffGrid'];
+const PAGINA_BANCO = 1000; // o PostgREST corta em 1000 linhas e ignora o .limit()
+const TETO_LEITURA = 20000;
+
+type LinhaLeve = {
+  id?: string; tipo?: string; cliente_id?: string | null; cliente_nome?: string | null;
+  codigo_curto?: string | null; created_at?: string; [k: string]: unknown;
+};
+
+/** Lê todas as páginas de 1000 linhas de uma consulta (com teto, para não varrer o banco sem fim). */
+async function lerTudo<T>(
+  pagina: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: { code?: string; message?: string } | null }>,
+): Promise<{ rows: T[]; error: { code?: string; message?: string } | null }> {
+  const rows: T[] = [];
+  for (let de = 0; de < TETO_LEITURA; de += PAGINA_BANCO) {
+    const { data, error } = await pagina(de, de + PAGINA_BANCO - 1);
+    if (error) return { rows, error };
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < PAGINA_BANCO) break;
+  }
+  return { rows, error: null };
+}
+
+function inteiroEntre(v: unknown, padrao: number, min: number, max: number): number {
+  const n = parseInt(String(v ?? ''), 10);
+  if (!Number.isFinite(n)) return padrao;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Tira o que quebra a sintaxe do .or() do PostgREST (vírgula, parênteses, curingas e aspas). */
+function limpaBusca(q: unknown): string {
+  return String(q ?? '').replace(/[,()*%"\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function dataLimite(v: unknown, fim: boolean): string | null {
+  const t = String(v ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return fim ? `${t}T23:59:59.999Z` : `${t}T00:00:00.000Z`;
+  if (/^\d{4}-\d{2}-\d{2}T/.test(t) && !Number.isNaN(new Date(t).getTime())) return t;
+  return null;
+}
+
+/** Documento da pasta: pelo id do cliente, ou sem id e com o mesmo nome (pela chave). */
+function pertenceAPasta(d: LinhaLeve, clienteId: string | null, chave: string | null): boolean {
+  if (clienteId && d.cliente_id === clienteId) return true;
+  if (chave && !d.cliente_id && chaveCliente(d.cliente_nome) === chave) return true;
+  return false;
+}
+
 export async function listDocuments(req: Request, res: Response): Promise<void> {
   try {
     const { data: user } = await supabase
@@ -826,48 +1010,255 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 
     if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
 
-    const isVip = user.is_admin || user.plano === 'ilimitado';
+    const tipos = String(req.query.tipo ?? '').split(',').map((t) => t.trim()).filter(Boolean).slice(0, 12);
+    const q = limpaBusca(req.query.q);
+    const de = dataLimite(req.query.de, false);
+    const ate = dataLimite(req.query.ate, true);
+    const clienteIdRaw = String(req.query.cliente_id ?? '').trim();
+    const clienteId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteIdRaw) ? clienteIdRaw : null;
+    const chave = chaveCliente(String(req.query.cliente_chave ?? '')) || null;
+    const limit = inteiroEntre(req.query.limit, 50, 1, 100);
+    const page = inteiroEntre(req.query.page, 1, 1, 100000);
 
-    // Iniciante e free (não-admin): sem histórico completo
-    if (!isVip && (user.plano === 'free' || user.plano === 'iniciante')) {
-      res.json({ documents: [], plano: user.plano, historico: false });
-      return;
+    // Os filtros que o banco sabe fazer sozinho.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filtros = (query: any) => {
+      let qy = query.eq('user_id', req.userId);
+      if (tipos.length === 1) qy = qy.eq('tipo', tipos[0]);
+      else if (tipos.length > 1) qy = qy.in('tipo', tipos);
+      if (q) qy = qy.or(`cliente_nome.ilike.%${q}%,codigo_curto.ilike.%${q}%`);
+      if (de) qy = qy.gte('created_at', de);
+      if (ate) qy = qy.lte('created_at', ate);
+      return qy;
+    };
+
+    let pagina: LinhaLeve[] = [];
+    let total = 0;
+
+    if (chave) {
+      // Pasta por nome: o ilike do banco não casa acento ("sao jose" não acha "São
+      // José"), então o banco devolve só as colunas leves e a chave é conferida aqui.
+      const { rows, error } = await lerTudo<LinhaLeve>((a, b) =>
+        filtros(supabase.from('documents').select(COLUNAS_LISTA)).order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b));
+      if (error) throw error;
+      const daPasta = rows.filter((d) => pertenceAPasta(d, clienteId, chave));
+      total = daPasta.length;
+      pagina = daPasta.slice((page - 1) * limit, page * limit);
+    } else {
+      let qy = filtros(supabase.from('documents').select(COLUNAS_LISTA, { count: 'exact' }));
+      if (clienteId) qy = qy.eq('cliente_id', clienteId);
+      const { data, error, count } = await qy
+        .order('created_at', { ascending: false }).order('id', { ascending: true })
+        .range((page - 1) * limit, page * limit - 1);
+      if (error) throw error;
+      pagina = (data ?? []) as LinhaLeve[];
+      total = count ?? pagina.length;
     }
 
-    const tipo = req.query.tipo as string | undefined;
-    let query = supabase
-      .from('documents')
-      .select('id, tipo, cliente_nome, modelo_usado, arquivo_url, created_at')
-      .eq('user_id', req.userId)
-      .order('created_at', { ascending: false });
+    const { data: empresa } = await supabase
+      .from('company').select('slug').eq('user_id', req.userId).maybeSingle();
+    const slug = (empresa as { slug?: string | null } | null)?.slug ?? null;
 
-    if (tipo) query = query.eq('tipo', tipo);
-
-    // PRO: últimos 30 dias (VIP e admin: tudo, sem cleanup)
-    if (!isVip && user.plano === 'pro') {
-      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      query = query.gte('created_at', cutoff);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    // Gerar signed URLs para download
-    const docs = await Promise.all((data ?? []).map(async (doc) => {
+    // Signed URL para baixar (a tela só precisa saber se o arquivo já existe).
+    const docs = await Promise.all(pagina.map(async (doc) => {
       let signed_url: string | null = null;
-      if (doc.arquivo_url) {
+      const arquivo = doc.arquivo_url as string | null | undefined;
+      if (arquivo) {
         const { data: signed } = await supabase.storage
           .from('documentos')
-          .createSignedUrl(doc.arquivo_url, 3600);
+          .createSignedUrl(arquivo, 3600);
         signed_url = signed?.signedUrl ?? null;
       }
-      return { ...doc, signed_url };
+      // O /p/ só abre proposta. Sem número curto cai no UUID, que a rota também aceita.
+      const linkPublico = doc.tipo && TIPOS_COM_LINK_PUBLICO.includes(doc.tipo)
+        ? (slug && doc.codigo_curto ? `/p/${slug}.${doc.codigo_curto}` : `/p/${doc.id}`)
+        : null;
+      // O PDF sai do arquivo guardado ou, na proposta, do próprio content (a proposta
+      // nasce como página completa). Contrato e afins sem arquivo ainda estão sendo
+      // arquivados pelo dashboard: a tela mostra "Processando...".
+      const pdfDisponivel = !!signed_url || (!!doc.tipo && TIPOS_COM_LINK_PUBLICO.includes(doc.tipo));
+      const { arquivo_url: _a, ...resto } = doc;
+      return { ...resto, signed_url, pdf_disponivel: pdfDisponivel, link_publico: linkPublico };
     }));
 
-    res.json({ documents: docs, plano: user.plano, historico: true });
+    res.json({
+      documents: docs, total, page, limit,
+      has_more: page * limit < total,
+      plano: user.plano, historico: true,
+    });
   } catch (err) {
     logger.error('documents', 'listDocuments falhou', err);
     res.status(500).json({ error: 'Erro ao listar documentos' });
+  }
+}
+
+// Início do mês corrente em Brasília, em ISO. documents.created_at vem 3h adiantado
+// (conhecido, não mexer): a virada do mês cai a poucas horas de diferença, tolerável
+// para um indicador.
+function inicioDoMes(): string {
+  const agora = new Date(Date.now() - 3 * 3600000);
+  return new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), 1, 3, 0, 0)).toISOString();
+}
+
+const TIPOS_PROPOSTA = ['propostaSolar', 'propostaOffGrid', 'proposta'];
+const TIPOS_CONTRATO_PROCURACAO = ['contratoSolar', 'contratoPJ', 'prestacaoServico', 'procuracao'];
+
+interface Pasta {
+  chave: string;
+  cliente_id: string | null;
+  nome: string;
+  total: number;
+  tipos: Record<string, number>;
+  ultimo: string | null;
+}
+
+// GET /documents/resumo — indicadores do mês e as pastas por cliente. Agrega no
+// servidor (e não em cima da página de 50 da lista) para o número ser o de TODOS os
+// documentos e para a tela de clientes contar sem uma chamada por cliente.
+export async function resumoDocumentos(req: Request, res: Response): Promise<void> {
+  try {
+    const [docsR, clientesR] = await Promise.all([
+      lerTudo<LinhaLeve>((a, b) =>
+        supabase.from('documents').select(COLUNAS_LEVES).eq('user_id', req.userId)
+          .order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b)),
+      lerTudo<{ id: string; nome: string | null }>((a, b) =>
+        supabase.from('clients').select('id, nome').eq('user_id', req.userId).order('id', { ascending: true }).range(a, b)),
+    ]);
+    if (docsR.error) throw docsR.error;
+    // Cadastro que falha não derruba o resumo: as pastas saem só pelo que os documentos dizem.
+    if (clientesR.error) logger.error('documents', 'resumo: ler o cadastro de clientes falhou', clientesR.error);
+
+    const docs = docsR.rows;
+    const clientes = clientesR.error ? [] : clientesR.rows;
+    const nomeDoCliente = new Map(clientes.map((c) => [c.id, String(c.nome ?? '').trim()]));
+    const idPorChave = new Map<string, string>();
+    for (const c of clientes) {
+      const k = chaveCliente(c.nome);
+      if (k && !idPorChave.has(k)) idPorChave.set(k, c.id);
+    }
+
+    // A pasta é por cliente_id; documento sem id entra na pasta do cliente cadastrado
+    // de mesmo nome (pela chave) ou, não havendo, numa pasta só de nome.
+    const pastas = new Map<string, Pasta>();
+    const abre = (k: string, nome: string, clienteId: string | null, chave: string): Pasta => {
+      let p = pastas.get(k);
+      if (!p) { p = { chave, cliente_id: clienteId, nome, total: 0, tipos: {}, ultimo: null }; pastas.set(k, p); }
+      return p;
+    };
+    // docs vem do mais novo para o mais velho: o primeiro nome visto é o mais recente.
+    for (const d of docs) {
+      const chaveDoc = chaveCliente(d.cliente_nome);
+      const id = d.cliente_id ?? (chaveDoc ? idPorChave.get(chaveDoc) ?? null : null);
+      const nomeDoc = String(d.cliente_nome ?? '').trim() || 'Sem nome';
+      const p = id
+        ? abre('id:' + id, nomeDoCliente.get(id) || nomeDoc, id, chaveCliente(nomeDoCliente.get(id)) || chaveDoc)
+        : abre('nome:' + (chaveDoc || 'sem-nome'), nomeDoc, null, chaveDoc);
+      p.total += 1;
+      const tipo = String(d.tipo ?? 'outro');
+      p.tipos[tipo] = (p.tipos[tipo] ?? 0) + 1;
+      if (d.created_at && (!p.ultimo || d.created_at > p.ultimo)) p.ultimo = d.created_at;
+    }
+
+    // Contagem de TODOS os documentos por mês (chave YYYY-MM, a mesma fatia do created_at
+    // que o painel inicial sempre usou) e por tipo. O painel inicial lê daqui: a lista é paginada.
+    const porMes: Record<string, number> = {};
+    const porTipo: Record<string, number> = {};
+    for (const d of docs) {
+      const mesDoc = String(d.created_at ?? '').slice(0, 7);
+      if (mesDoc) porMes[mesDoc] = (porMes[mesDoc] ?? 0) + 1;
+      const t = String(d.tipo ?? 'outro');
+      porTipo[t] = (porTipo[t] ?? 0) + 1;
+    }
+
+    const mes = inicioDoMes();
+    const doMes = docs.filter((d) => (d.created_at ?? '') >= mes);
+    const ordenadas = [...pastas.values()].sort((a, b) => (b.ultimo ?? '').localeCompare(a.ultimo ?? ''));
+
+    res.json({
+      indicadores: {
+        documentos_mes: doMes.length,
+        propostas_mes: doMes.filter((d) => TIPOS_PROPOSTA.includes(String(d.tipo))).length,
+        contratos_procuracoes_mes: doMes.filter((d) => TIPOS_CONTRATO_PROCURACAO.includes(String(d.tipo))).length,
+        clientes_com_documento: ordenadas.length,
+        total: docs.length,
+      },
+      por_mes: porMes,
+      por_tipo: porTipo,
+      pastas: ordenadas,
+    });
+  } catch (err) {
+    logger.error('documents', 'resumoDocumentos falhou', err);
+    res.status(500).json({ error: 'Erro ao carregar o resumo dos documentos' });
+  }
+}
+
+// GET /documents/por-cliente?cliente_id=&cliente_chave= — tudo que existe de um
+// cliente: documentos, vistorias e manutenções. Cada um entra pelo id do cliente ou,
+// sem id, pelo nome (chaveCliente). A tabela de manutenções pode não existir ainda
+// (migration pendente): vira lista vazia, não erro.
+export async function documentosPorCliente(req: Request, res: Response): Promise<void> {
+  try {
+    const idRaw = String(req.query.cliente_id ?? '').trim();
+    const clienteId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idRaw) ? idRaw : null;
+    let chave = chaveCliente(String(req.query.cliente_chave ?? '')) || null;
+    let nome: string | null = null;
+
+    if (!clienteId && !chave) { res.status(400).json({ error: 'Informe cliente_id ou cliente_chave' }); return; }
+
+    if (clienteId) {
+      const { data: cliente } = await supabase
+        .from('clients').select('id, nome').eq('id', clienteId).eq('user_id', req.userId).maybeSingle();
+      if (!cliente) { res.status(404).json({ error: 'Cliente não encontrado' }); return; }
+      nome = String((cliente as { nome?: string }).nome ?? '');
+      chave = chaveCliente(nome) || chave;
+    }
+
+    const docsR = await lerTudo<LinhaLeve>((a, b) =>
+      supabase.from('documents').select(COLUNAS_LEVES).eq('user_id', req.userId)
+        .order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b));
+    if (docsR.error) throw docsR.error;
+    const documentos = docsR.rows.filter((d) => pertenceAPasta(d, clienteId, chave));
+
+    // Vistorias e manutenções: as do id (consulta direta) e as sem id de mesmo nome.
+    async function dessaPasta(tabela: 'vistorias' | 'manutencoes', colunas: string): Promise<LinhaLeve[]> {
+      const lista: LinhaLeve[] = [];
+      if (clienteId) {
+        const r = await lerTudo<LinhaLeve>((a, b) =>
+          supabase.from(tabela).select(colunas).eq('user_id', req.userId).eq('cliente_id', clienteId)
+            .order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b) as unknown as PromiseLike<{ data: LinhaLeve[] | null; error: { code?: string; message?: string } | null }>);
+        if (r.error) throw r.error;
+        lista.push(...r.rows);
+      }
+      if (chave) {
+        const r = await lerTudo<LinhaLeve>((a, b) =>
+          supabase.from(tabela).select(colunas).eq('user_id', req.userId).is('cliente_id', null)
+            .order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b) as unknown as PromiseLike<{ data: LinhaLeve[] | null; error: { code?: string; message?: string } | null }>);
+        if (r.error) throw r.error;
+        lista.push(...r.rows.filter((v) => chaveCliente(v.cliente_nome) === chave));
+      }
+      return lista.sort((x, y) => String(y.created_at ?? '').localeCompare(String(x.created_at ?? '')));
+    }
+
+    let vistorias: LinhaLeve[] = [];
+    try {
+      vistorias = await dessaPasta('vistorias', 'id, codigo_curto, cliente_id, cliente_nome, status, created_at');
+    } catch (err) {
+      logger.error('documents', 'por-cliente: ler vistorias falhou', err);
+    }
+
+    let manutencoes: LinhaLeve[] = [];
+    try {
+      manutencoes = await dessaPasta('manutencoes', 'id, codigo, cliente_id, cliente_nome, status, selo, data_inspecao, created_at');
+    } catch (err) {
+      if (!tabelaAusente(err as { code?: string })) {
+        logger.error('documents', 'por-cliente: ler manutenções falhou', err);
+      }
+    }
+
+    res.json({ cliente: { id: clienteId, nome, chave }, documentos, vistorias, manutencoes });
+  } catch (err) {
+    logger.error('documents', 'documentosPorCliente falhou', err);
+    res.status(500).json({ error: 'Erro ao carregar a pasta do cliente' });
   }
 }
 
@@ -902,9 +1293,7 @@ function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, 
 /** Nome comparável: sem acento, sem diferença de maiúscula, com espaço único.
  *  "PAROQUIA DE SÃO JOSÉ" e "paroquia de sao jose" são o mesmo cliente. */
 function nomeComparavel(nome: string | null | undefined): string {
-  return String(nome || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase().replace(/\s+/g, ' ').trim();
+  return chaveCliente(nome);
 }
 
 // Mesma lista do formulário (TIPOS_TELHADO em PropostaSolarForm.tsx). Telhado do
@@ -999,28 +1388,11 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
   res.json({ kit, clientes: clientes.slice(0, 250), cliente });
 }
 
+// DESLIGADA em 28/10/2026, por ordem do dono: nenhum documento de nenhum plano é
+// apagado, nem a linha nem o arquivo do Storage. Esta função apagava os documentos do
+// plano pro com mais de 30 dias (e a lista só mostrava 30). Agora todo documento fica
+// para sempre. O nome e a rota /cron/cleanup-pro-docs continuam existindo para quem
+// ainda chama (um pinger externo receberia 404 e acusaria erro); só não fazem mais nada.
 export async function cleanupProDocuments(): Promise<void> {
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-  const { data: proUsers } = await supabase.from('users').select('id').eq('plano', 'pro');
-  const proIds = (proUsers ?? []).map(u => u.id);
-  if (!proIds.length) return;
-
-  const { data: oldDocs } = await supabase
-    .from('documents')
-    .select('id, arquivo_url, user_id')
-    .lt('created_at', cutoff)
-    .in('user_id', proIds);
-
-  if (!oldDocs?.length) return;
-
-  // Deletar arquivos do Storage
-  const paths = oldDocs.filter(d => d.arquivo_url).map(d => d.arquivo_url as string);
-  if (paths.length) await supabase.storage.from('documentos').remove(paths);
-
-  // Deletar registros do banco
-  const ids = oldDocs.map(d => d.id);
-  await supabase.from('documents').delete().in('id', ids);
-
-  logger.info('documents', `cleanup: ${ids.length} docs PRO removidos`);
+  logger.info('documents', 'cleanup-pro-docs desligado: documentos nao sao mais apagados');
 }

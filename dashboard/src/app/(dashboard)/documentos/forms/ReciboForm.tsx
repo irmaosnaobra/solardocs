@@ -7,6 +7,8 @@ import InfoHint from '@/components/InfoHint/InfoHint';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
+import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
@@ -44,6 +46,23 @@ export default function ReciboPage() {
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
 
+  // Modo edição (?doc=<id>): o mesmo formulário reabre o documento salvo e, ao gerar,
+  // atualiza o MESMO registro (mesmo link e mesmo número) sem gastar cota.
+  const ed = useEdicaoDocumento({
+    tipoApi: 'recibo',
+    slug: 'recibo',
+    aoCarregar: (d) => {
+      setClienteId(d.cliente_id ?? '');
+      setFields(f => mesclarCampos(f, d.dados_json));
+      const p = d.dados_json.pagamentos;
+      if (Array.isArray(p) && p.length) {
+        setPagamentos(p.map((x: Record<string, unknown>) => ({
+          forma: String(x?.forma ?? 'Pix'), data: String(x?.data ?? ''), valor: String(x?.valor ?? ''),
+        })));
+      }
+    },
+  });
+
   function setField(key: keyof typeof fields, value: string) {
     setFields(f => ({ ...f, [key]: value }));
   }
@@ -80,7 +99,7 @@ export default function ReciboPage() {
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const data = await ed.enviar({
         tipo: 'recibo',
         cliente_id: clienteId,
         fields: { ...fields, pagamentos },
@@ -89,11 +108,15 @@ export default function ReciboPage() {
       });
       setGenerated(data);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Erro ao gerar documento');
+      setError(erroDaApi(err, 'Erro ao gerar documento'));
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Abrindo um documento para editar: espera carregar, ou mostra por que não abriu.
+  if (ed.docParam && !ed.edicao) {
+    return <div className={styles.page}><EstadoCarga carregando={ed.carregando} erro={ed.erroCarga} onVoltar={ed.cancelar} /></div>;
   }
 
   if (generated) return (
@@ -108,22 +131,26 @@ export default function ReciboPage() {
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
-        onNewGeneration={() => setGenerated(null)}
+        onNewGeneration={() => (ed.editando ? ed.novoDocumento() : setGenerated(null))}
       />
     </div>
   );
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${ed.editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>Recibo de Pagamento</h1>
         <p className={styles.subtitle}>Comprovante de valores recebidos — calcula o saldo em aberto automaticamente</p>
       </div>
 
+      {ed.editando && (
+        <BannerEdicao rotulo="recibo" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
+      )}
+
       <form onSubmit={handleGenerate} className={styles.form}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Pagador (Cliente)</h2>
-          <ClientSelector value={clienteId} onChange={(id, c) => {
+          {ed.travaCliente ? <ClienteTravado nome={ed.edicao?.cliente_nome ?? null} /> : <ClientSelector value={clienteId} onChange={(id, c) => {
             setClienteId(id);
             if (c) {
               setFields(f => ({
@@ -132,7 +159,7 @@ export default function ReciboPage() {
                 ...(c.cidade && !f.foro_cidade ? { foro_cidade: c.cidade } : {}),
               }));
             }
-          }} />
+          }} />}
         </div>
 
         <div className={styles.section}>
@@ -267,7 +294,7 @@ export default function ReciboPage() {
 
         {error && <p className="error-message">{error}</p>}
         <button type="submit" className={`btn-primary ${styles.generateBtn}`} disabled={generating || !clienteId}>
-          {generating ? 'Gerando...' : 'Gerar Recibo'}
+          {generating ? (ed.editando ? 'Salvando...' : 'Gerando...') : (ed.editando ? 'Salvar alterações' : 'Gerar Recibo')}
         </button>
       </form>
     </div>

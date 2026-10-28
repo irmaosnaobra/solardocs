@@ -50,7 +50,7 @@ export default function TopBar({ userEmail, companyLogo }: TopBarProps) {
         <Link href="/baixe-app" className={styles.iconBtn} title="Baixe o App">
           <Smartphone size={18} />
         </Link>
-        <Link href="/conta/documentos" className={styles.iconBtn} title="Documentos salvos">
+        <Link href="/historico" className={styles.iconBtn} title="Documentos salvos">
           <FileText size={18} />
         </Link>
         <a href={WA_SUPORTE} target="_blank" rel="noopener noreferrer" className={styles.iconBtn} title="Ajuda / Suporte">

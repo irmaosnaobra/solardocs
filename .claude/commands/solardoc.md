@@ -59,7 +59,7 @@ Rotas:
 - `/admin` — users, analytics, meta-funnel, reset-monthly
 - `/chat` — Claude Haiku, agente "Sol", max 300 tokens
 - `/quiz` — event (salva no banco), funnel (retorna funil)
-- `/cron` — cleanup-pro-docs, monthly-reset (protegido por `CRON_SECRET`)
+- `/cron` — cleanup-pro-docs (desligado em 28/10/2026, nao apaga mais nada), monthly-reset (protegido por `CRON_SECRET`)
 - `/tracking` — page_visits, lp_events
 
 ## Variáveis de Ambiente da API
@@ -131,7 +131,7 @@ CRON_SECRET
 
 ## Crons (Vercel)
 
-- `0 3 * * *` → `/cron/cleanup-pro-docs` — apaga docs PRO >30 dias
+- `0 3 * * *` → `/cron/cleanup-pro-docs` — DESLIGADO em 28/10/2026: nenhum documento e apagado, de nenhum plano
 - `0 3 * * *` → `/cron/monthly-reset` — reseta contador mensal
 
 ---

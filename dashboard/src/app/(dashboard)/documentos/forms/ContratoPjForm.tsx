@@ -7,6 +7,8 @@ import InfoHint from '@/components/InfoHint/InfoHint';
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
+import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
 
@@ -25,6 +27,17 @@ export default function ContratoPJPage() {
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   const [error, setError] = useState('');
 
+  // Modo edição (?doc=<id>): o mesmo formulário reabre o documento salvo e, ao gerar,
+  // atualiza o MESMO registro (mesmo link e mesmo número) sem gastar cota.
+  const ed = useEdicaoDocumento({
+    tipoApi: 'contratoPJ',
+    slug: 'contrato-pj',
+    aoCarregar: (d) => {
+      setTerceiroId(d.terceiro_id ?? '');
+      setFields(f => mesclarCampos(f, d.dados_json));
+    },
+  });
+
   useEffect(() => {
     api.get('/company').then(({ data }) => {
       if (data.company?.cidade) setFields(f => ({ ...f, foro_cidade: f.foro_cidade || data.company.cidade }));
@@ -38,7 +51,7 @@ export default function ContratoPJPage() {
     setError('');
     setGenerating(true);
     try {
-      const { data } = await api.post('/documents/generate', {
+      const data = await ed.enviar({
         tipo: 'contratoPJ',
         terceiro_id: terceiroId,
         fields,
@@ -47,11 +60,15 @@ export default function ContratoPJPage() {
       });
       setGenerated(data);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Erro ao gerar documento');
+      setError(erroDaApi(err, 'Erro ao gerar documento'));
     } finally {
       setGenerating(false);
     }
+  }
+
+  // Abrindo um documento para editar: espera carregar, ou mostra por que não abriu.
+  if (ed.docParam && !ed.edicao) {
+    return <div className={styles.page}><EstadoCarga carregando={ed.carregando} erro={ed.erroCarga} onVoltar={ed.cancelar} /></div>;
   }
 
   if (generated) return (
@@ -67,28 +84,32 @@ export default function ContratoPJPage() {
         modeloUsado={generated.modelo_usado}
         docId={generated.doc_id}
         userPlano={user?.plano}
-        onNewGeneration={() => setGenerated(null)}
+        onNewGeneration={() => (ed.editando ? ed.novoDocumento() : setGenerated(null))}
       />
     </div>
   );
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${ed.editando ? RESPIRO_EDICAO : ''}`}>
       <div className={styles.header}>
         <h1 className={styles.title}>Contrato Vendedor</h1>
         <p className={styles.subtitle}>Representação comercial autônoma (PF ou PJ) — comissão por resultado + adiantamento quinzenal</p>
       </div>
 
+      {ed.editando && (
+        <BannerEdicao rotulo="contrato de vendedor" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
+      )}
+
       <form onSubmit={handleGenerate} className={styles.form}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Vendedor / Representante (Terceiro)</h2>
-          <TerceiroSelector value={terceiroId} onChange={(id, t) => {
+          {ed.travaCliente ? <ClienteTravado nome={ed.edicao?.cliente_nome ?? null} /> : <TerceiroSelector value={terceiroId} onChange={(id, t) => {
             setTerceiroId(id);
             if (t) setFields(f => ({
               ...f,
               ...(t.cidade && !f.foro_cidade ? { foro_cidade: t.cidade } : {}),
             }));
-          }} />
+          }} />}
         </div>
 
         <div className={styles.section}>
@@ -149,7 +170,7 @@ export default function ContratoPJPage() {
           className={`btn-primary ${styles.generateBtn}`}
           disabled={generating || !terceiroId}
         >
-          {generating ? 'Gerando...' : 'Gerar Contrato Vendedor'}
+          {generating ? (ed.editando ? 'Salvando...' : 'Gerando...') : (ed.editando ? 'Salvar alterações' : 'Gerar Contrato Vendedor')}
         </button>
       </form>
     </div>
