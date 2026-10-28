@@ -561,7 +561,15 @@ function telaResultado(){
   }else if (curioso){
     cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>Converse com <strong>${esc(dono)}</strong>, especialista em energia solar.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
   }else{
-    cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>${esc(dono)} atende de segunda a sexta, das 7h às 18h, e no sábado, das 7h ao meio-dia. Escolha o melhor horário.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
+    // Fora do horário: o primeiro horário livre que o servidor já mandou (srv.dias) vem pronto para confirmar em um toque.
+    // Sem horário (lista vazia ou fora do formato), o bloco fica como sempre foi.
+    const vaga = primeiraVaga();
+    if (vaga){
+      const donoV = vaga.dono || dono;
+      cta = `<div class="quem"><span class="av">${esc(donoV.charAt(0) || inicial)}</span><span>${esc(donoV)} pode te ligar ${esc(quandoTxt(vaga.ymd, vaga.h))}, pelo WhatsApp. A ligação dura 15 minutos.</span></div><button class="btn" id="btnSugerido" data-acao="sugerido" data-ymd="${esc(vaga.ymd)}" data-h="${esc(vaga.h)}" data-dono="${esc(vaga.dono || '')}" type="button">Confirmar esse horário</button><button class="link" data-acao="horarios" type="button">Escolher outro horário</button>`;
+    }else{
+      cta = `<div class="quem"><span class="av">${esc(inicial)}</span><span>${esc(dono)} atende de segunda a sexta, das 7h às 18h, e no sábado, das 7h ao meio-dia. Escolha o melhor horário.</span></div><button class="btn" data-acao="horarios" type="button">Escolher meu horário</button>`;
+    }
   }
 
   let fecho = '';
@@ -627,6 +635,31 @@ function telaResultado(){
 const DSEM = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 const rotDia = ymd => { const d = new Date(ymd + 'T12:00:00-03:00'); return DSEM[d.getUTCDay()] + ', ' + ymd.slice(8, 10) + '/' + ymd.slice(5, 7); };
 const horaDe = x => (typeof x === 'string' ? { h: x } : x) || {};
+// Primeiro horário livre da vitrine que o servidor mandou, ou null. Não faz chamada nenhuma: a vitrine já veio no passo do WhatsApp.
+// O servidor só aceita horário com 30 min de antecedência (grade 'quiz'). Quem ficou parado na tela não recebe sugestão vencida.
+function vagaVencida(ymd, h){
+  const t = new Date(ymd + 'T' + h + ':00-03:00').getTime();
+  return !isFinite(t) || t < Date.now() + 30 * 60000;
+}
+function primeiraVaga(){
+  const dias = (srv && Array.isArray(srv.dias)) ? srv.dias : [];
+  for (const d of dias){
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d.ymd || '')) continue;
+    for (const x of (d.horas || [])){
+      const o = horaDe(x);
+      if (/^\d{2}:\d{2}$/.test(o.h || '') && !vagaVencida(d.ymd, o.h)) return { ymd: d.ymd, h: o.h, dono: o.dono || '' };
+    }
+  }
+  return null;
+}
+// "hoje às 14:30", "amanhã às 08:00" ou "quinta, 30/10, às 08:00". Hoje e amanhã são os de Brasília, não os da máquina.
+function quandoTxt(ymd, h){
+  const ymdBr = ms => new Date(ms).toLocaleDateString('en-CA', { timeZone:'America/Sao_Paulo' });
+  const agoraMs = Date.now();
+  if (ymd === ymdBr(agoraMs)) return 'hoje às ' + h;
+  if (ymd === ymdBr(agoraMs + 24 * 3600 * 1000)) return 'amanhã às ' + h;
+  return rotDia(ymd).toLowerCase() + ', às ' + h;
+}
 function telaHorarios(){
   const dono = (srv && srv.dono) || 'Nilce';
   const dias = (srv && Array.isArray(srv.dias)) ? srv.dias : [];
@@ -805,9 +838,10 @@ function abrirHorarios(){
   fase = 'horarios'; render();
 }
 
-async function agendar(ymd, h, dono){
+// via: 'sugerido' (confirmou o horário que a página ofereceu) ou 'lista' (escolheu na vitrine). Vai junto no quiz_fim.
+async function agendar(ymd, h, dono, via){
   if (ocupado) return;
-  ocupado = true; tela.querySelectorAll('.slots button').forEach(b => { b.disabled = true; });
+  ocupado = true; tela.querySelectorAll('.slots button, #btnSugerido').forEach(b => { b.disabled = true; });
   const evId = novoEventId();
   try{
     const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd, h, dono }, evId ? { event_id: evId } : {}));
@@ -816,21 +850,28 @@ async function agendar(ymd, h, dono){
     if (status === 409 && j.error === 'horario tomado' && Array.isArray(j.dias)){
       srv.dias = j.dias; if (j.caminho) srv.caminho = j.caminho;
       if (!j.dias.length) return fimDoQuiz('sem_vitrine');
-      avisoHorario = 'Esse horário acabou de ser tomado. Escolha outro.'; return render();
+      avisoHorario = 'Esse horário acabou de ser ocupado. Escolha outro abaixo.'; fase = 'horarios'; return render();
     }
     if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; cardMarcado = true; return fimDoQuiz('ja_marcado'); }
-    if (status < 200 || status >= 300 || !j.ok){ render(); return erro('Não consegui marcar agora. Tente de novo em instantes.'); }
+    if (status < 200 || status >= 300 || !j.ok) return falhaAoMarcar();
     marcado = { ymd, h, dono: dono || j.dono || (srv && srv.dono) || '' };
     schedule(evId); cardMarcado = true;
-    fimDoQuiz('marcado');
+    fimDoQuiz('marcado', { via: via === 'sugerido' ? 'sugerido' : 'lista' });
   }catch(e){
-    ocupado = false; render(); erro('Não consegui marcar agora. Tente de novo em instantes.');
+    ocupado = false; falhaAoMarcar();
   }
 }
+// Na vitrine o erro aparece na própria tela. No resultado (horário sugerido) não há onde escrevê-lo, então abre a vitrine com o aviso.
+function falhaAoMarcar(){
+  const msg = 'Não consegui marcar agora. Tente de novo em instantes.';
+  if (fase === 'resultado' && srv && Array.isArray(srv.dias) && srv.dias.length){ avisoHorario = msg; fase = 'horarios'; return render(); }
+  render(); erro(msg);
+}
 
-function fimDoQuiz(tipo){
+function fimDoQuiz(tipo, extra){
   fase = 'fim'; fimTipo = tipo;
-  if (!fimMandado){ fimMandado = true; lpFunil('quiz_fim', { destino: tipo === 'marcado' ? 'ligacao' : tipo }); }
+  // destino continua 'ligacao' para quem marcou (é o que o painel conta como reunião); `via` diz por qual caminho.
+  if (!fimMandado){ fimMandado = true; lpFunil('quiz_fim', Object.assign({ destino: tipo === 'marcado' ? 'ligacao' : tipo }, extra || {})); }
   render();
 }
 
@@ -895,11 +936,13 @@ tela.addEventListener('click', e => {
   }
   const sg = e.target.closest('[data-sug]'); if (sg){ R.cidade = sg.dataset.sug; avancar(); return; }
   const sl = e.target.closest('[data-slot]');
-  if (sl){ const d = srv.dias[+sl.dataset.di]; if (d) agendar(d.ymd, sl.dataset.slot, sl.dataset.dono || (srv.dono || '')); return; }
+  if (sl){ const d = srv.dias[+sl.dataset.di]; if (d) agendar(d.ymd, sl.dataset.slot, sl.dataset.dono || (srv.dono || ''), 'lista'); return; }
   const a = e.target.closest('[data-acao]'); if (!a) return;
   if (a.dataset.acao === 'voltar') return voltar();
   if (a.dataset.acao === 'continuar') return continuar();
   if (a.dataset.acao === 'agora') return agora();
+  if (a.dataset.acao === 'sugerido' && vagaVencida(a.dataset.ymd, a.dataset.h)){ avisoHorario = ''; return abrirHorarios(); }
+  if (a.dataset.acao === 'sugerido') return agendar(a.dataset.ymd, a.dataset.h, a.dataset.dono || (srv && srv.dono) || '', 'sugerido');
   if (a.dataset.acao === 'horarios'){ avisoHorario = ''; return abrirHorarios(); }
 });
 tela.addEventListener('input', e => {
