@@ -529,7 +529,8 @@ const PERFIS = [
 ];
 const MSG = {
   carla: (c) => 'Quero saber como usar o SolarDoc quando meu CNPJ sair. Meu código é ' + c + '.',
-  duvida: (c) => 'Quero saber mais sobre o SolarDoc. Fiz o diagnóstico, meu código é ' + c + '.'
+  duvida: (c) => 'Quero saber mais sobre o SolarDoc. Fiz o diagnóstico, meu código é ' + c + '.',
+  pix: (c) => 'Quero saber como assinar o SolarDoc no Pix. Meu código é ' + c + '.'
 };
 /* Formatação */
 const br = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -597,14 +598,15 @@ function pixAutoLigado() {
 }
 function botoes(R) {
   const pf = perfil(R).id, b = [];
-  /* Com CNPJ o cartão (e o Pix automático, com a trava ligada): quem não compra, a Carla chama no WhatsApp 15 min depois. Sem CNPJ a Carla é a única saída. */
+  /* Com CNPJ o cartão. Quem marcou Pix vê antes o Pix pelo WhatsApp (a pessoa escreve primeiro e recebe o copia e cola), ou o Pix automático quando a trava estiver ligada. Quem não compra, a Carla chama no WhatsApp 15 min depois. Sem CNPJ a Carla é a única saída. */
   if (pf === 'cedo') {
     b.push({ k: 'carla', rot: 'Falar com a Carla', prim: true });
     b.push({ k: 'duvida', rot: 'Tirar uma dúvida no WhatsApp' });
   } else if (pixAutoLigado()) {
     const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Assinar no Pix automático' };
     if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
-  } else b.push({ k: 'cartao', rot: 'Assinar com cartão', prim: true });
+  } else if (R.pagamento === 'pix') b.push({ k: 'pix', rot: 'Assinar no Pix', prim: true }, { k: 'cartao', rot: 'Assinar com cartão' });
+  else b.push({ k: 'cartao', rot: 'Assinar com cartão', prim: true });
   if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
   return b;
 }
@@ -619,6 +621,10 @@ const PRIMEIRA_PROPOSTA = 'Cadastra o cliente e sai a sua 1ª proposta, com a lo
 const PASSOS_CARTAO = ['Você paga no cartão.', 'Na mesma hora, você volta para a tela de criar a sua senha.', 'Cria a senha e entra. ' + ACESSO_AVISOS, PRIMEIRA_PROPOSTA];
 const PASSOS_PIX = ['Você paga o 1º mês agora, no Pix.', 'Quando o 1º pagamento cai, a sua conta é criada.', 'O link para criar a senha chega no seu e-mail. Você cria a senha e entra.', PRIMEIRA_PROPOSTA];
 const NOTA_PIX = 'Nos meses seguintes, o banco debita sozinho. Para cancelar, é só pelo app do seu banco.';
+/* Pix pelo WhatsApp: o copia e cola vem na conversa e o comprovante libera o acesso (pixComprovanteService). */
+const ACESSO_PIX_WA = 'No Pix, você paga pelo código que recebe no WhatsApp, manda o comprovante e o seu e-mail na mesma conversa e o link para criar a senha chega ali mesmo.';
+const PASSOS_PIX_WA = ['Você toca em "Assinar no Pix" e o WhatsApp abre com a mensagem pronta. É só enviar.', 'A gente responde na conversa com o código Pix copia e cola de R$ 67.', 'Você paga e manda na mesma conversa a foto do comprovante e o seu e-mail.','Com o comprovante conferido, o acesso é liberado e o link para criar a senha chega ali mesmo.', PRIMEIRA_PROPOSTA];
+const NOTA_PIX_WA = 'Nos meses seguintes, a renovação também é no Pix, pelo mesmo WhatsApp. Sem fidelidade.';
 const LINHA_APP = 'Funciona no computador e no celular, e você instala na tela inicial do celular para abrir como um app.';
 const MICRO_COMPRA = 'R$ 67 por mês. Sem fidelidade, cancela quando quiser em "Minha conta".';
 const ELETROPOSTO = { t: 'Eletroposto, no mesmo login', x: 'Com o mesmo login, você entra no Portal do Parceiro NEXUS, de eletropostos, que é grátis. Lá você vende carregadores com a sua marca. Quem chega ao nível Partner Pro (depois da 1ª compra de carregador) e tem o selo de montagem aprovado recebe indicação de clientes e de obras de eletroposto da região, sem garantia de volume e sem exclusividade de território.' };
@@ -643,7 +649,7 @@ function receios(R, pix) {
     titulo: 'Antes do preço, o que você deve estar pensando',
     intro: 'Antes de falar de valor, deixa eu dizer o que ' + (em ? 'a ' + em : 'você') + ' deve estar pensando.',
     itens: [
-      { t: 'Parece que você tem medo de pagar e não receber.', a: ACESSO_CARTAO + ' ' + ACESSO_AVISOS + (pix ? ' ' + ACESSO_PIX : '') },
+      { t: 'Parece que você tem medo de pagar e não receber.', a: ACESSO_CARTAO + ' ' + ACESSO_AVISOS + (pix ? ' ' + (pix === 'wa' ? ACESSO_PIX_WA : ACESSO_PIX) : '') },
       { t: 'Parece que você acha que vai ser mais um sistema que some.', a: 'É justo pensar assim. Seus documentos ficam salvos no histórico, as atualizações estão incluídas e o suporte atende no WhatsApp e no chat da plataforma. E se deixar de fazer sentido, não tem fidelidade: você cancela em "Minha conta".' },
       { t: 'Parece que você tem receio de que dê trabalho para aprender.', a: 'Funciona no computador e no celular. Os documentos já saem com a logo e a cor da sua empresa. Se travar em qualquer ponto, o suporte está no WhatsApp e no chat.' },
       { t: 'Parece que você teme que não sirva para ' + (em ? 'a ' + em : 'o seu jeito de trabalhar') + '.', a: 'Não existe teste grátis. Existe a garantia: são 7 dias, e se não servir o valor volta inteiro, pedido pelo WhatsApp.' }
@@ -661,7 +667,7 @@ function fechamento(R) {
 /* Três perguntas novas da FAQ. Quem não tem CNPJ não vê compra, então fica sem a do acesso. */
 function faqsNovas(pix, cedo) {
   const L = [
-    { q: 'Vou receber o acesso mesmo?', a: 'Vai. ' + ACESSO_CARTAO + (pix ? ' ' + ACESSO_PIX : '') + ' ' + ACESSO_AVISOS + ' Se algo não chegar, chame o suporte no WhatsApp.' },
+    { q: 'Vou receber o acesso mesmo?', a: 'Vai. ' + ACESSO_CARTAO + (pix ? ' ' + (pix === 'wa' ? ACESSO_PIX_WA : ACESSO_PIX) : '') + ' ' + ACESSO_AVISOS + ' Se algo não chegar, chame o suporte no WhatsApp.' },
     { q: 'Tem app de celular?', a: 'Tem. A plataforma funciona no computador e no celular. No celular, você instala na tela inicial e abre como um app.' },
     { q: 'O que é o Portal do Parceiro NEXUS?', a: 'É a área de eletropostos da NEXUS, e o assinante entra com o mesmo login, sem pagar nada a mais. Lá você vende carregadores com a sua marca. Quem chega ao nível Partner Pro (depois da 1ª compra de carregador) e tem o selo de montagem aprovado recebe indicação de clientes e de obras de eletroposto da região. Não há garantia de volume nem exclusividade de território.' }
   ];
@@ -834,9 +840,10 @@ function depoisDePagar(pix, abrePix) {
   if (!pix) h += ol(PASSOS_CARTAO);
   else {
     const k = abrePix ? 'pix' : 'cartao';
-    h += '<div class="abas" role="tablist" aria-label="Forma de pagamento">' + [['cartao', 'No cartão'], ['pix', 'No Pix automático']].map(([id, r]) => '<button type="button" class="aba" role="tab" id="aba-' + id + '" aria-selected="' + (id === k) + '" aria-controls="pn-' + id + '" data-a="aba" data-k="' + id + '">' + r + '</button>').join('') + '</div>'
+    const wa = pix === 'wa';
+    h += '<div class="abas" role="tablist" aria-label="Forma de pagamento">' + [['cartao', 'No cartão'], ['pix', wa ? 'No Pix' : 'No Pix automático']].map(([id, r]) => '<button type="button" class="aba" role="tab" id="aba-' + id + '" aria-selected="' + (id === k) + '" aria-controls="pn-' + id + '" data-a="aba" data-k="' + id + '">' + r + '</button>').join('') + '</div>'
       + '<div id="pn-cartao" role="tabpanel" aria-labelledby="aba-cartao"' + (k === 'cartao' ? '' : ' hidden') + '>' + ol(PASSOS_CARTAO) + '</div>'
-      + '<div id="pn-pix" role="tabpanel" aria-labelledby="aba-pix"' + (k === 'pix' ? '' : ' hidden') + '>' + ol(PASSOS_PIX) + '<p class="nota">' + esc(NOTA_PIX) + '</p></div>';
+      + '<div id="pn-pix" role="tabpanel" aria-labelledby="aba-pix"' + (k === 'pix' ? '' : ' hidden') + '>' + ol(wa ? PASSOS_PIX_WA : PASSOS_PIX) + '<p class="nota">' + esc(wa ? NOTA_PIX_WA : NOTA_PIX) + '</p></div>';
   }
   return h + '<p class="ajuda" style="margin-top:12px">' + esc(LINHA_APP) + '</p>';
 }
@@ -965,7 +972,7 @@ const VIEW = {
     x += antesDepois(R);
     x += '<p class="rotulo" style="margin-top:18px">Plano de 7 dias</p><div class="cartoes">' + dias(R).map((d) => '<div class="dia' + (d.prio ? ' prio' : '') + '"><div class="rotulo">Dia ' + d.n + (d.prio ? ' <span class="chip sd">Prioridade para você</span>' : '') + '</div><h3>' + esc(d.t) + '</h3><p>' + esc(d.x) + '</p></div>').join('') + '</div>';
     x += '<img class="hero-img" src="' + ASSET + 'hero-orcamento.webp" alt="Orçamento do SolarDoc aberto no notebook e no celular" width="2800" height="1520" loading="lazy"><p class="nota">' + TXT.heroLegenda + '</p>';
-    const pix = pixAutoLigado(), rc = receios(R, pix);
+    const pix = pixAutoLigado() ? 'auto' : (R.pagamento === 'pix' && !cedo ? 'wa' : ''), rc = receios(R, pix);
     if (!cedo) x += '<p class="rotulo" style="margin-top:20px">' + esc(rc.titulo) + '</p><p class="ajuda" style="margin-top:10px">' + esc(rc.intro) + '</p>' + rc.itens.map((it) => '<div class="receio"><b>' + esc(it.t) + '</b><p>' + esc(it.a) + '</p></div>').join('');
     x += '<div class="oferta"><p class="rotulo">SolarDoc</p><p class="preco">R$ 67<small> por mês</small></p>' + (R.prioridade ? '<p><b>' + esc(rot(R, 'prioridade')) + ':</b> ' + ARG1[R.prioridade] + '</p>' : '') + '<ul class="checks">' + OFERTA_ITENS.map((t) => '<li><span class="ck">' + IC_OK + '</span><span>' + esc(t) + '</span></li>').join('') + '</ul>' + (cedo ? '' : depoisDePagar(pix, R.pagamento === 'pix')) + (cedo ? '<p>' + TXT.garantia + '</p><p>' + TXT.semFid + '</p>' : '') + (piso(R) >= 68 ? '<p><b>' + TXT.ofertaGasto(piso(R)) + '</b></p>' : '') + (cedo ? '<p class="nota">Sem CNPJ, o botão de compra não aparece. A Carla explica como usar o SolarDoc quando o seu sair.</p>' : '<p class="fecha"><b>' + esc(fechamento(R)[0]) + '</b></p><p class="fecha">' + esc(fechamento(R)[1]) + '</p>') + bt.map((b) => '<button type="button" class="' + (b.prim ? 'cta' : 'link-bt') + '" data-a="btn" data-k="' + b.k + '">' + esc(b.rot) + '</button>').join('') + (cedo ? '' : '<p class="nota micro">' + esc(MICRO_COMPRA) + '</p>') + '</div>';
     x += '<div class="banda"><p class="rotulo">' + esc(ELETROPOSTO.t) + '</p><p class="ajuda" style="margin-top:10px">' + esc(ELETROPOSTO.x) + '</p></div>';
