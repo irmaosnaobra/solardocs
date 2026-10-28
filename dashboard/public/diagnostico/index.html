@@ -178,7 +178,13 @@ details.faq p{margin:0 0 12px;color:var(--mudo)}
 .res-topo{display:flex;align-items:center;gap:16px;margin:6px 0 4px}
 .res-topo>div{min-width:0}
 .res-topo .titulo{font-size:1.3rem;margin:0}
-.capa-prev{display:flex;align-items:center;gap:14px;border:1.5px solid var(--borda);border-radius:16px;padding:14px;background:var(--cartao);margin:18px 0 6px}
+.pergunta{font-weight:800;font-size:1.05rem;line-height:1.3;margin:14px 0 0}
+.fecho-capa{margin:14px 0 0}
+/* 1ª tela compacta: a pergunta e as 4 opções têm que caber sem rolar em 390x700 */
+.cp .ajuda{margin-bottom:4px}
+.cp .pergunta{margin-top:10px}
+.cp .ops{gap:8px;margin-top:10px}
+.cp .op{min-height:52px;padding-block:8px}
 .mini{flex:1;min-width:0;display:grid;gap:7px}
 .mini div{display:grid;gap:3px;font-size:.78rem;font-weight:700;color:var(--mudo)}
 .mini b{display:block;height:8px;border-radius:4px;background:var(--trilho);overflow:hidden}
@@ -246,6 +252,22 @@ details.faq p{margin:0 0 12px;color:var(--mudo)}
 .passos3 li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:start;counter-increment:p}
 .passos3 li::before{content:counter(p);width:32px;height:32px;border-radius:50%;background:var(--acao);color:var(--sobre-acao);display:grid;place-items:center;font-weight:800}
 .passos3 b{display:block}
+.passos3.simples{gap:8px}
+.passos3.simples span{color:var(--texto);font-size:1rem}
+.passos3.simples li{grid-template-columns:28px minmax(0,1fr)}
+.passos3.simples li::before{width:28px;height:28px;font-size:.9rem}
+.confere{border:1.5px solid var(--borda);border-radius:14px;padding:14px 16px;background:var(--cartao);margin:12px 0}
+.confere b{display:block;font-size:1.12rem;line-height:1.25;font-weight:800}
+.confere p{margin:6px 0 0;overflow-wrap:anywhere}
+.confere p.fim{font-weight:800}
+.receio{border:1.5px solid var(--borda);border-radius:14px;padding:12px 16px;background:var(--cartao);margin:10px 0}
+.receio b{display:block;line-height:1.3;overflow-wrap:anywhere}
+.receio p{margin:6px 0 0;color:var(--mudo);font-size:.95rem;overflow-wrap:anywhere}
+.oferta .fecha{margin:12px 0 8px;overflow-wrap:anywhere}
+.oferta .micro{margin:10px 0 0;text-align:center}
+.abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0 4px}
+.aba{min-height:44px;padding:6px 8px;border:1.5px solid var(--borda-forte);border-radius:12px;background:var(--cartao);color:var(--texto);font:inherit;font-weight:700;font-size:.92rem;line-height:1.2;cursor:pointer}
+.aba[aria-selected="true"]{background:var(--acao-suave);border-color:var(--acao)}
 .passos3 span{color:var(--mudo);font-size:.92rem}
 .logos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
 .logos img{height:34px;width:auto;max-width:96px;object-fit:contain;border-radius:6px;background:var(--logo-fundo);padding:4px 6px;border:1px solid var(--borda)}
@@ -351,7 +373,6 @@ const ABRE4 = 'Responda pensando na proposta que você manda hoje.';
 
 const UFS = [['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'], ['BA', 'Bahia'], ['CE', 'Ceará'], ['DF', 'Distrito Federal'], ['ES', 'Espírito Santo'], ['GO', 'Goiás'], ['MA', 'Maranhão'], ['MT', 'Mato Grosso'], ['MS', 'Mato Grosso do Sul'], ['MG', 'Minas Gerais'], ['PA', 'Pará'], ['PB', 'Paraíba'], ['PR', 'Paraná'], ['PE', 'Pernambuco'], ['PI', 'Piauí'], ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'], ['RS', 'Rio Grande do Sul'], ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'], ['SP', 'São Paulo'], ['SE', 'Sergipe'], ['TO', 'Tocantins']];
 const PASSOS = [
-  { tipo: 'capa', bl: 0 },
   Q(1, 'papel', 1, 'Qual é o seu papel na venda de energia solar?', { aj: 'Assim o diagnóstico usa a sua realidade.', ops: [o('dono', 'Sou dono de integradora'), o('vendedor', 'Sou vendedor ou representante'), o('engenheiro', 'Sou engenheiro ou projetista e vendo'), o('comecando', 'Estou começando no solar')] }),
   Q(2, 'empresa', 1, 'Como se chama a sua empresa?', { kind: 'text', aj: 'Vamos montar uma prévia da sua proposta com esse nome.', ex: 'Sol do Cerrado Energia', pular: 'Ainda não tem nome? Pular' }),
   Q(3, 'cnpj', 1, 'A sua empresa tem CNPJ?', { aj: 'O SolarDoc gera os documentos em nome da empresa.', ops: [o('sim', 'Sim'), o('empregador', 'Uso o CNPJ da empresa onde trabalho'), o('abrindo', 'Estou abrindo'), o('nao', 'Não tenho')] }),
@@ -410,9 +431,9 @@ const TIPICO = 9, TOPO = 41; /* só propostas solares por usuário ativo, 30 dia
 
 /* Textos fixos das telas especiais (já com a revisão de texto da seção 11 da SPEC) */
 const TXT = {
-  capaTopo: 'Diagnóstico para integradores solares', capaTitulo: 'Quanto a sua proposta solar está te custando?', capaTituloHTML: 'Quanto a sua proposta solar <span class="grad">está te custando?</span>',
-  capaTexto: 'Responda perguntas de um toque. No fim, você vê o seu Índice de Proposta, as horas por mês que vão para proposta e um plano de 7 dias.',
-  capaDetalhe: 'Leva poucos minutos. O diagnóstico é grátis.', capaBotao: 'Fazer meu diagnóstico', capaProva: '3.370 propostas solares já saíram do SolarDoc.',
+  capaTopo: 'Para integrador de energia solar', capaTitulo: 'Quanto a sua proposta solar está te custando?', capaTituloHTML: 'Quanto a sua proposta solar <span class="grad">está te custando?</span>',
+  capaTexto: 'No fim, você vê o seu Índice de Proposta, as horas por mês que vão para proposta e um plano de 7 dias.',
+  capaRodape: 'Leva poucos minutos. O diagnóstico é grátis. 3.370 propostas solares já saíram do SolarDoc.',
   i1Alto: 'Você faz mais propostas que o típico do SolarDoc.', i1Baixo: 'Com poucas propostas, cada uma precisa convencer sozinha.', i1Meio: 'Você está perto de quem usa o SolarDoc.',
   i1Texto: (n) => 'No SolarDoc, o integrador típico faz ' + TIPICO + ' propostas por mês. Os 10% que mais usam fazem ' + TOPO + ' ou mais. Você faz cerca de ' + n + ' propostas por mês.',
   i1Nota: 'Números de quem usou o SolarDoc nos últimos 30 dias.',
@@ -470,7 +491,6 @@ const cardsDe = (R) => CARD_GRUPO[GRUPO_TOOL[R.como_faz_hoje] || 'braco'];
 const cardsTodos = (R) => { const a = cardsDe(R); return a.concat(Object.keys(CARDS).filter((k) => !a.includes(k))); };
 const LOGOS = [['alves-cardoso-solar', 'Alves Cardoso Solar'], ['american-energy-solar', 'American Energy Solar'], ['eclipse-solar', 'Eclipse Solar'], ['exxel-solar', 'Exxel Solar'], ['forca-solar', 'Força Solar'], ['gedalih-energia-solar', 'Gedalih Energia Solar'], ['grilo-energia', 'Grilo Energia Solar'], ['gsi-solucoes', 'GSI Energia Solar'], ['rsc-solar', 'RSC Solar'], ['vff-energia-solar', 'VFF Energia Solar'], ['vs-solar', 'VS Solar']];
 const CONC = [['cemig.svg', 'CEMIG'], ['enel.png', 'Enel'], ['cpfl.png', 'CPFL'], ['equatorial.png', 'Equatorial'], ['energisa.png', 'Energisa'], ['light.png', 'Light']];
-const ESTEIRA = [['doc-proposta-a4', 'Orçamento'], ['doc-proposta', 'Proposta'], ['doc-contrato', 'Contrato'], ['doc-procuracao', 'Procuração'], ['doc-recibo', 'Recibo'], ['doc-servico', 'Serviço'], ['doc-banco', 'Banco'], ['doc-vistoria', 'Vistoria']];
 const AD = {
   mao: ['O modelo quebra e desformata toda hora.', 'Procuração recusada e refeita.', 'Documento sem a cara da empresa.', 'Tempo perdido a cada contrato.', 'Cliente esfria esperando o PDF.'],
   plataforma: ['Do sistema inteiro, você só abre o gerador de proposta.', 'O resto você configurou uma vez e não voltou.', 'O preço não cai porque você usa menos.', 'Migrar dá trabalho. Por isso você continua lá.'],
@@ -533,7 +553,7 @@ const posBloco = (i, R) => PASSOS.filter((s, j) => j < i && s.tipo === 'q' && s.
 const CURVA = 0.65;
 function progresso(i, R) {
   const s = PASSOS[i];
-  if (s.tipo === 'capa' || s.tipo === 'load') return null;
+  if (s.tipo === 'load') return null;
   const vis = PASSOS.map((p, j) => j).filter((j) => visivel(PASSOS[j], R));
   const r = Math.max(0, Math.min(1, vis.indexOf(i) / (vis.length - 1)));
   return Math.pow(r, CURVA);
@@ -586,6 +606,65 @@ function botoes(R) {
   } else b.push({ k: 'cartao', rot: 'Assinar com cartão', prim: true });
   if (R.decisor === 'socio' || R.decisor === 'chefe') b.push({ k: 'socio', rot: TXT.socio });
   return b;
+}
+/* Tela final: blocos de confiança. Tudo aqui devolve texto puro, sem HTML. Campo que falta faz a linha sumir. */
+const nomeDe = (R) => (R.nome || '').trim();
+const empresaDe = (R) => (R.empresa || '').trim();
+const municipioDe = (R) => String(R.cidade || '').replace(/-[A-Z]{2}$/, '').trim();
+const ACESSO_CARTAO = 'No cartão, você volta na mesma hora para a tela de criar a senha e entra.';
+const ACESSO_AVISOS = 'O e-mail com o link de acesso também chega, e o WhatsApp também, se você deixou o número.';
+const ACESSO_PIX = 'No Pix automático, quando o 1º pagamento cai, a conta é criada e o link para criar a senha chega no seu e-mail.';
+const PRIMEIRA_PROPOSTA = 'Cadastra o cliente e sai a sua 1ª proposta, com a logo e a cor da empresa, pronta para mandar no WhatsApp.';
+const PASSOS_CARTAO = ['Você paga no cartão.', 'Na mesma hora, você volta para a tela de criar a sua senha.', 'Cria a senha e entra. ' + ACESSO_AVISOS, PRIMEIRA_PROPOSTA];
+const PASSOS_PIX = ['Você paga o 1º mês agora, no Pix.', 'Quando o 1º pagamento cai, a sua conta é criada.', 'O link para criar a senha chega no seu e-mail. Você cria a senha e entra.', PRIMEIRA_PROPOSTA];
+const NOTA_PIX = 'Nos meses seguintes, o banco debita sozinho. Para cancelar, é só pelo app do seu banco.';
+const LINHA_APP = 'Funciona no computador e no celular, e você instala na tela inicial do celular para abrir como um app.';
+const MICRO_COMPRA = 'R$ 67 por mês. Sem fidelidade, cancela quando quiser em "Minha conta".';
+const ELETROPOSTO = { t: 'Eletroposto, no mesmo login', x: 'Com o mesmo login, você entra no Portal do Parceiro NEXUS, de eletropostos, que é grátis. Lá você vende carregadores com a sua marca. Quem chega ao nível Partner Pro (depois da 1ª compra de carregador) e tem o selo de montagem aprovado recebe indicação de clientes e de obras de eletroposto da região, sem garantia de volume e sem exclusividade de território.' };
+/* Frase de cada objeção, escrita para encaixar em "Parece que o que mais te segura é ...". Opção sem frase (nada) faz a linha sumir. */
+const OBJ_FRASE = { preco: 'o preço', ja_uso: 'trocar a ferramenta que você já usa', aprender: 'o medo de perder tempo aprendendo', validade: 'a dúvida se os documentos têm validade', online: 'o receio de pagar pela internet' };
+/* Bloco "É isso mesmo?": o que a pessoa contou, de volta, com o rótulo da opção (nunca o id) */
+function confere(R) {
+  const nome = nomeDe(R), em = empresaDe(R), mun = municipioDe(R), pm = rot(R, 'propostas_mes'), tp = rot(R, 'tempo_por_proposta'), h = horas(R), ob = OBJ_FRASE[R.objecao];
+  const L = [nome ? 'Deixa eu ver se entendi, ' + nome + '.' : 'Deixa eu ver se entendi.'];
+  if (pm) L.push('Parece que ' + (em ? 'a ' + em + (mun ? ', em ' + mun + ',' : '') : 'você') + ' faz ' + frase(pm) + ' propostas por mês.');
+  if (tp) L.push('Parece que cada uma leva ' + frase(tp) + '.');
+  if (h > 0) L.push('Isso dá cerca de ' + br(h) + (h === 1 ? ' hora' : ' horas') + ' por mês só com proposta.');
+  L.push('Parece que o ponto mais fraco hoje é ' + pilarFraco(R).nome.toLowerCase() + '.');
+  if (ob) L.push('Parece que o que mais te segura é ' + ob + '.');
+  L.push('Seu Índice de Proposta ficou em ' + indice(R) + ' de 100.', 'Pelo que você me contou, é isso mesmo?');
+  return L;
+}
+/* "Antes do preço": 4 receios, cada um com a resposta. O 1º e a FAQ mudam com o Pix automático. */
+function receios(R, pix) {
+  const em = empresaDe(R);
+  return {
+    titulo: 'Antes do preço, o que você deve estar pensando',
+    intro: 'Antes de falar de valor, deixa eu dizer o que ' + (em ? 'a ' + em : 'você') + ' deve estar pensando.',
+    itens: [
+      { t: 'Parece que você tem medo de pagar e não receber.', a: ACESSO_CARTAO + ' ' + ACESSO_AVISOS + (pix ? ' ' + ACESSO_PIX : '') },
+      { t: 'Parece que você acha que vai ser mais um sistema que some.', a: 'É justo pensar assim. Seus documentos ficam salvos no histórico, as atualizações estão incluídas e o suporte atende no WhatsApp e no chat da plataforma. E se deixar de fazer sentido, não tem fidelidade: você cancela em "Minha conta".' },
+      { t: 'Parece que você tem receio de que dê trabalho para aprender.', a: 'Funciona no computador e no celular. Os documentos já saem com a logo e a cor da sua empresa. Se travar em qualquer ponto, o suporte está no WhatsApp e no chat.' },
+      { t: 'Parece que você teme que não sirva para ' + (em ? 'a ' + em : 'o seu jeito de trabalhar') + '.', a: 'Não existe teste grátis. Existe a garantia: são 7 dias, e se não servir o valor volta inteiro, pedido pelo WhatsApp.' }
+    ]
+  };
+}
+/* Pergunta de fechamento, logo acima dos botões de compra */
+function fechamento(R) {
+  const em = empresaDe(R), h = horas(R);
+  return [
+    em && h > 0 ? 'O que a ' + em + ' deixa de vender se mais um mês passar com ' + br(h) + (h === 1 ? ' hora' : ' horas') + ' indo para proposta?' : 'O que você deixa de vender se mais um mês passar com tantas horas indo para proposta?',
+    'Seria ruim para você começar agora, sabendo que em 7 dias o valor volta inteiro se não servir?'
+  ];
+}
+/* Três perguntas novas da FAQ. Quem não tem CNPJ não vê compra, então fica sem a do acesso. */
+function faqsNovas(pix, cedo) {
+  const L = [
+    { q: 'Vou receber o acesso mesmo?', a: 'Vai. ' + ACESSO_CARTAO + (pix ? ' ' + ACESSO_PIX : '') + ' ' + ACESSO_AVISOS + ' Se algo não chegar, chame o suporte no WhatsApp.' },
+    { q: 'Tem app de celular?', a: 'Tem. A plataforma funciona no computador e no celular. No celular, você instala na tela inicial e abre como um app.' },
+    { q: 'O que é o Portal do Parceiro NEXUS?', a: 'É a área de eletropostos da NEXUS, e o assinante entra com o mesmo login, sem pagar nada a mais. Lá você vende carregadores com a sua marca. Quem chega ao nível Partner Pro (depois da 1ª compra de carregador) e tem o selo de montagem aprovado recebe indicação de clientes e de obras de eletroposto da região. Não há garantia de volume nem exclusividade de território.' }
+  ];
+  return cedo ? L.slice(1) : L;
 }
 const DIA_PILAR = { Imagem: 1, Velocidade: 2, Clareza: 3, Papelada: 4 };
 const DIA_21 = { marca: 1, nahora: 5, retorno: 3, parcelas: 3, bateria: 3, contrato: 4 };
@@ -735,10 +814,6 @@ function initCarr(root) {
     }
   });
 }
-function esteiraHTML() {
-  const f = ESTEIRA.map(([a, n]) => '<figure><img src="' + ASSET + 'esteira/' + a + '.webp" alt="">' + n + '</figure>').join('');
-  return '<div class="esteira" role="img" aria-label="Documentos que saem do SolarDoc: ' + ESTEIRA.map((x) => x[1]).join(', ') + '"><div class="esteira-in" aria-hidden="true">' + f + f + '</div></div>';
-}
 function depSlide(k) {
   const d = CARDS[k];
   return { src: 'depoimentos/' + d.f, alt: 'Depoimento de ' + (d.n ? d.n + ', ' : '') + d.e + ', ' + d.c, cap: '<span class="dep-cap"><img src="' + ASSET + 'logos/' + d.l + '.webp" alt="Logo da ' + esc(d.e) + '" loading="lazy"><span><b>' + esc(d.n || d.e) + '</b>' + esc((d.n ? d.e + ', ' : '') + d.c) + '</span></span>' };
@@ -750,6 +825,19 @@ function antesDepois(R) {
   if (plat && piso(R) >= 68) hoje.unshift('Você paga a partir de R$ ' + piso(R) + ' por mês.');
   const li = (t, ic) => '<li>' + ic + '<span>' + esc(t) + '</span></li>';
   return '<p class="rotulo" style="margin-top:18px">' + TXT.adTitulo + '</p><div class="antes"><div class="coluna-ad hoje"><h4>' + (plat ? 'Na plataforma que você já paga' : 'Hoje, ' + onde) + '</h4><ul>' + hoje.map((t) => li(t, IC_X)).join('') + '</ul></div><div class="coluna-ad sd"><h4>Com o SolarDoc</h4><ul>' + AD.sd.map((t) => li(t, IC_OK)).join('') + '</ul></div></div>';
+}
+/* "O que acontece depois que você paga": passos do cartão e, com a trava ligada, do Pix automático em duas abas */
+function depoisDePagar(pix, abrePix) {
+  const ol = (a) => '<ol class="passos3 simples">' + a.map((t) => '<li><div><span>' + esc(t) + '</span></div></li>').join('') + '</ol>';
+  let h = '<p class="sub-l" style="margin-top:16px">O que acontece depois que você paga</p>';
+  if (!pix) h += ol(PASSOS_CARTAO);
+  else {
+    const k = abrePix ? 'pix' : 'cartao';
+    h += '<div class="abas" role="tablist" aria-label="Forma de pagamento">' + [['cartao', 'No cartão'], ['pix', 'No Pix automático']].map(([id, r]) => '<button type="button" class="aba" role="tab" id="aba-' + id + '" aria-selected="' + (id === k) + '" aria-controls="pn-' + id + '" data-a="aba" data-k="' + id + '">' + r + '</button>').join('') + '</div>'
+      + '<div id="pn-cartao" role="tabpanel" aria-labelledby="aba-cartao"' + (k === 'cartao' ? '' : ' hidden') + '>' + ol(PASSOS_CARTAO) + '</div>'
+      + '<div id="pn-pix" role="tabpanel" aria-labelledby="aba-pix"' + (k === 'pix' ? '' : ' hidden') + '>' + ol(PASSOS_PIX) + '<p class="nota">' + esc(NOTA_PIX) + '</p></div>';
+  }
+  return h + '<p class="ajuda" style="margin-top:12px">' + esc(LINHA_APP) + '</p>';
 }
 function itemHTML(it, nota) {
   const falta = !it.tem, extra = nota === false ? '' : (nota || (falta && it.nota) || '');
@@ -799,13 +887,11 @@ const CONT = { rod: { txt: 'Continuar', on: true } };
 
 /* Uma função por tipo de tela. Cada uma devolve html, rodapé e, se precisar, uma ação depois de desenhar */
 const VIEW = {
-  capa() {
-    let rays = ''; for (let a = 0; a < 360; a += 45) rays += '<rect class="sol" x="18.5" y="1" width="3" height="7" rx="1.5" transform="rotate(' + a + ' 20 20)"/>';
-    return { html: '<span class="eyebrow"><i aria-hidden="true"></i>' + TXT.capaTopo + '</span><h3 class="titulo" id="tit" style="margin-top:16px">' + TXT.capaTituloHTML + '</h3><p class="ajuda">' + TXT.capaTexto + '</p><img class="hero-img" src="' + ASSET + 'hero-orcamento.webp" alt="Orçamento do SolarDoc aberto no notebook e no celular" width="2800" height="1520"><p class="nota">' + TXT.heroLegenda + '</p><p class="ajuda"><b>' + TXT.capaDetalhe + '</b></p><p class="prova">' + TXT.capaProva + '</p>' + esteiraHTML(), rod: { txt: TXT.capaBotao, on: true } };
-  },
   q(s) {
     if (s.pre && R[s.id] === undefined) R[s.id] = s.pre.slice();
     const cab = (s.ab ? '<p class="abertura">' + s.ab + '</p>' : '') + '<h3 class="titulo" id="tit">' + esc(s.t) + '</h3>' + (s.aj ? '<p class="ajuda">' + esc(s.aj) + '</p>' : '') + (s.destaque ? '<p class="destaque">' + esc(s.destaque) + '</p>' : '');
+    /* Primeira tela do quiz (a capa saiu): chamada, título e apoio no topo, a pergunta logo abaixo e a linha de prova depois das opções. Sem foto, para a pergunta caber sem rolar no celular. */
+    if (s.id === 'papel') return { html: '<div class="cp"><span class="eyebrow"><i aria-hidden="true"></i>' + esc(TXT.capaTopo) + '</span><h3 class="titulo" id="tit" style="margin-top:12px">' + TXT.capaTituloHTML + '</h3><p class="ajuda">' + esc(TXT.capaTexto) + '</p><p class="pergunta" id="perg">' + esc(s.t) + '</p>' + opsHTML(s).replace('aria-labelledby="tit"', 'aria-labelledby="perg"') + '<p class="nota fecho-capa">' + esc(TXT.capaRodape) + '</p></div>' };
     if (s.kind === 'single') return { html: cab + opsHTML(s) };
     if (s.kind === 'multi') return { html: cab + opsHTML(s), rod: { txt: 'Continuar', on: valido(s) } };
     if (s.kind === 'text') return { html: '<form data-form novalidate>' + cab + '<input class="campo" id="campo-empresa" name="empresa" type="text" autocomplete="organization" maxlength="60" placeholder="' + esc(s.ex) + '" value="' + esc(R.empresa || '') + '" aria-labelledby="tit"></form><button type="button" class="pular" data-a="pular">' + s.pular + '</button>', rod: { txt: 'Continuar', on: valido(s) } };
@@ -872,18 +958,26 @@ const VIEW = {
     const meta = { mesmas: 'as mesmas vendas, com menos esforço', dobro: 'o dobro das vendas de hoje', triplo: 'o triplo ou mais', primeiras: 'as primeiras vendas' }[R.meta_vendas];
     let x = '<h3 class="titulo" id="tit">' + esc(R.nome || 'Cliente') + ', este é o plano ' + esc(daEmp(R)) + '.</h3>';
     x += '<div class="cartao"><b>Índice ' + indice(R) + ' de 100</b><p>Perfil: ' + esc(pf.nome) + '. Cerca de ' + br(horas(R)) + ' h por mês em proposta.</p></div>';
+    const cf = confere(R);
+    x += '<div class="confere"><b>É isso mesmo?</b>' + cf.map((l, k) => '<p' + (k === cf.length - 1 ? ' class="fim"' : '') + '>' + esc(l) + '</p>').join('') + '</div>';
     if (R.imagem || meta) x += '<p class="ajuda" style="margin-top:12px">' + (R.imagem ? 'Você quer que o cliente veja ' + esc('a ' + emp(R)) + ' como ' + esc(frase(rot(R, 'imagem'))) + '.' : '') + (meta ? ' Em 6 meses, você quer fechar ' + meta + '.' : '') + '</p>';
     x += antesDepois(R);
     x += '<p class="rotulo" style="margin-top:18px">Plano de 7 dias</p><div class="cartoes">' + dias(R).map((d) => '<div class="dia' + (d.prio ? ' prio' : '') + '"><div class="rotulo">Dia ' + d.n + (d.prio ? ' <span class="chip sd">Prioridade para você</span>' : '') + '</div><h3>' + esc(d.t) + '</h3><p>' + esc(d.x) + '</p></div>').join('') + '</div>';
     x += '<img class="hero-img" src="' + ASSET + 'hero-orcamento.webp" alt="Orçamento do SolarDoc aberto no notebook e no celular" width="2800" height="1520" loading="lazy"><p class="nota">' + TXT.heroLegenda + '</p>';
-    x += '<div class="oferta"><p class="rotulo">SolarDoc</p><p class="preco">R$ 67<small> por mês</small></p>' + (R.prioridade ? '<p><b>' + esc(rot(R, 'prioridade')) + ':</b> ' + ARG1[R.prioridade] + '</p>' : '') + '<ul class="checks">' + OFERTA_ITENS.map((t) => '<li><span class="ck">' + IC_OK + '</span><span>' + esc(t) + '</span></li>').join('') + '</ul><p>' + TXT.garantia + '</p><p>' + TXT.semFid + '</p>' + (piso(R) >= 68 ? '<p><b>' + TXT.ofertaGasto(piso(R)) + '</b></p>' : '') + (cedo ? '<p class="nota">Sem CNPJ, o botão de compra não aparece. A Carla explica como usar o SolarDoc quando o seu sair.</p>' : '') + bt.map((b) => '<button type="button" class="' + (b.prim ? 'cta' : 'link-bt') + '" data-a="btn" data-k="' + b.k + '">' + esc(b.rot) + '</button>').join('') + '</div>';
+    const pix = pixAutoLigado(), rc = receios(R, pix);
+    if (!cedo) x += '<p class="rotulo" style="margin-top:20px">' + esc(rc.titulo) + '</p><p class="ajuda" style="margin-top:10px">' + esc(rc.intro) + '</p>' + rc.itens.map((it) => '<div class="receio"><b>' + esc(it.t) + '</b><p>' + esc(it.a) + '</p></div>').join('');
+    x += '<div class="oferta"><p class="rotulo">SolarDoc</p><p class="preco">R$ 67<small> por mês</small></p>' + (R.prioridade ? '<p><b>' + esc(rot(R, 'prioridade')) + ':</b> ' + ARG1[R.prioridade] + '</p>' : '') + '<ul class="checks">' + OFERTA_ITENS.map((t) => '<li><span class="ck">' + IC_OK + '</span><span>' + esc(t) + '</span></li>').join('') + '</ul>' + (cedo ? '' : depoisDePagar(pix, R.pagamento === 'pix')) + (cedo ? '<p>' + TXT.garantia + '</p><p>' + TXT.semFid + '</p>' : '') + (piso(R) >= 68 ? '<p><b>' + TXT.ofertaGasto(piso(R)) + '</b></p>' : '') + (cedo ? '<p class="nota">Sem CNPJ, o botão de compra não aparece. A Carla explica como usar o SolarDoc quando o seu sair.</p>' : '<p class="fecha"><b>' + esc(fechamento(R)[0]) + '</b></p><p class="fecha">' + esc(fechamento(R)[1]) + '</p>') + bt.map((b) => '<button type="button" class="' + (b.prim ? 'cta' : 'link-bt') + '" data-a="btn" data-k="' + b.k + '">' + esc(b.rot) + '</button>').join('') + (cedo ? '' : '<p class="nota micro">' + esc(MICRO_COMPRA) + '</p>') + '</div>';
+    x += '<div class="banda"><p class="rotulo">' + esc(ELETROPOSTO.t) + '</p><p class="ajuda" style="margin-top:10px">' + esc(ELETROPOSTO.x) + '</p></div>';
     x += '<div class="banda"><p class="rotulo">' + TXT.cfTitulo + '</p><ol class="passos3">' + PASSOS3.map(([t, d]) => '<li><div><b>' + esc(t) + '</b><span>' + esc(d) + '</span></div></li>').join('') + '</ol></div>';
     x += '<p class="rotulo" style="margin-top:20px">' + TXT.depTitulo + '</p>' + carrHTML(cardsTodos(R).map(depSlide), 'Depoimentos de integradores', 5000, 'quadrado');
     x += '<div class="faixa-conc"><p>' + TXT.concTitulo + '</p><div class="logos">' + CONC.map(([f, n]) => '<img src="' + ASSET + 'conc/' + f + '" alt="' + n + '" loading="lazy">').join('') + '</div></div>';
     x += '<div class="banda"><p class="rotulo">Quem fez</p><h4 class="qf">' + TXT.qfTitulo + '</h4><div class="fundadores"><figure><img src="' + ASSET + 'founder-thiago.webp" alt="Thiago, sócio-fundador do SolarDoc" loading="lazy"><b>Thiago</b>Sócio-fundador</figure><figure><img src="' + ASSET + 'founder-diego.webp" alt="Diego, sócio-fundador do SolarDoc" loading="lazy"><b>Diego</b>Sócio-fundador</figure></div><p class="ajuda">' + TXT.qfTexto + '</p></div>';
-    const ordem = FAQS.map((q, i) => i), fi = FAQ_OBJ[R.objecao];
-    if (fi !== undefined) { ordem.splice(ordem.indexOf(fi), 1); ordem.unshift(fi); }
-    x += '<p class="rotulo" style="margin-top:20px">Perguntas frequentes</p>' + ordem.map((i) => '<details class="faq"><summary>' + esc(FAQS[i].q) + '</summary><p>' + esc(FAQS[i].a) + '</p></details>').join('');
+    /* A pergunta da objeção sobe ao topo e as 3 novas vêm logo depois dela */
+    const lista = FAQS.concat(faqsNovas(pix, cedo)), fi = FAQ_OBJ[R.objecao];
+    const novas = lista.map((q, i) => i).slice(FAQS.length), base = FAQS.map((q, i) => i);
+    if (fi !== undefined) base.splice(base.indexOf(fi), 1);
+    const seq = (fi !== undefined ? [fi] : []).concat(novas, base);
+    x += '<p class="rotulo" style="margin-top:20px">Perguntas frequentes</p>' + seq.map((i) => '<details class="faq"><summary>' + esc(lista[i].q) + '</summary><p>' + esc(lista[i].a) + '</p></details>').join('');
     x += '<p class="rodape-marca"><b>SolarDoc<span>.App</span></b> · Documentação solar com IA</p>';
     const pri = bt.find((b) => b.prim);
     return { html: x, rod: pri ? { txt: pri.rot, on: true, k: pri.k } : undefined };
@@ -898,7 +992,6 @@ function rotuloTopo(s) {
   return s.bl ? BLOCOS[s.bl - 1] : 'Seu plano';
 }
 function topoHTML(s) {
-  if (s.tipo === 'capa') return MARCA_TOPO;
   const d = progresso(S.i, R);
   let h = MARCA_TOPO, pct = '';
   if (d !== null) {
@@ -929,7 +1022,7 @@ function ir(j) { S.i = j; render(); }
 function avancar() {
   const s = PASSOS[S.i], j = proximo(S.i, R), b = PASSOS[j] ? PASSOS[j].bl : 0;
   registrarResp(s);
-  if (s.tipo === 'capa' && !E.fez.vc) { E.fez.vc = 1; fb('track', 'ViewContent', { content_name: 'diagnostico_solardoc' }); }
+  if (s.tipo === 'q' && s.id === 'papel' && !E.fez.vc) { E.fez.vc = 1; fb('track', 'ViewContent', { content_name: 'diagnostico_solardoc' }); }
   if (s.bl >= 1 && s.bl <= 4 && b !== s.bl && !E.blocos[s.bl]) { E.blocos[s.bl] = 1; fb('trackCustom', 'SD_Bloco' + s.bl, {}); }
   S.hist.push(S.i);
   ir(j);
@@ -986,7 +1079,7 @@ function fecharFolha() { pararPix(); $('folha').hidden = true; if (S.opener && d
 const SDR = window.SDR;
 const fb = SDR.fb;
 /* Os nomes das telas que não são pergunta são os do CONFIG_SOLARDOC do painel. As pausas (i1, e1, i2, i3, e2), o carregamento e o plano não mandam quiz_passo: o painel não tem esses passos. */
-const PASSO_NOME = { capa: 'capa', res: 'resultado', g1: 'nome', g2: 'whatsapp' };
+const PASSO_NOME = { res: 'resultado', g1: 'nome', g2: 'whatsapp' };
 const idPasso = (s) => (s.tipo === 'q' ? s.id : PASSO_NOME[s.tipo]);
 const chaveDe = (i) => { const s = PASSOS[i]; return s.tipo === 'q' ? s.id : s.tipo; };
 const LS_KEY = 'sd-diagnostico-v1', VALIDADE = 14 * 24 * 3600 * 1000;
@@ -1000,6 +1093,12 @@ function erro(passo, msg) {
   if (errosVistos.has(ch)) return;
   errosVistos.add(ch);
   SDR.evento('quiz_erro', { passo, msg: String(msg).slice(0, 140) });
+}
+/* A capa saiu da página, mas o passo 'capa' continua no painel: é ele que conta quem abriu. Sai uma vez, quando a página abre na 1ª pergunta (nunca ao voltar a um passo mais adiante, senão o painel acharia que a pessoa parou na capa). */
+function abriuPagina() {
+  if (vistos.has('capa') || S.i !== IDX.papel || S.hist.length) return;
+  vistos.add('capa');
+  SDR.evento('quiz_passo', { passo: 'capa', n: 0, de: posicao(PASSOS[S.i]).de });
 }
 /* Chegou na tela: é por aqui que o painel sabe onde a pessoa parou */
 function acompanhar(s) {
@@ -1052,7 +1151,7 @@ function carregarEstado() {
   if (!cru) return;
   try {
     const d = JSON.parse(cru);
-    if (!d || d.v !== 1 || typeof d.t !== 'number' || Date.now() - d.t > VALIDADE || typeof d.i !== 'string' || !(d.i in IDX) || d.i === 'capa') return;
+    if (!d || d.v !== 1 || typeof d.t !== 'number' || Date.now() - d.t > VALIDADE || typeof d.i !== 'string' || !(d.i in IDX) || d.i === 'capa') return; /* estado antigo, de quando a capa existia, recomeça no papel */
     R = limparR(d.R);
     const e = d.E && typeof d.E === 'object' ? d.E : {};
     E = {
@@ -1064,7 +1163,7 @@ function carregarEstado() {
     if (S.i === IDX.load) S.i = IDX.res;
     if (S.i === IDX.plano && !E.codigo) S.i = IDX.g2;
     if (!visivel(PASSOS[S.i], R)) S.i = proximo(S.i, R);
-  } catch (err) { /* estado ilegível: começa da capa */ }
+  } catch (err) { /* estado ilegível: começa na 1ª pergunta */ }
 }
 
 /* Portão: manda o lead para a API. Se ela falhar, a pessoa vê o plano do mesmo jeito. */
@@ -1233,6 +1332,7 @@ $('app').addEventListener('click', (e) => {
   else if (a === 'cid') { if (S.lock) return; R.cidade = t.getAttribute('data-o'); document.querySelectorAll('[data-a="cid"]').forEach((b) => b.setAttribute('aria-checked', String(b === t))); S.lock = true; S.timers.push(setTimeout(avancar, 250)); }
   else if (a === 'ver') abrirVer(t.getAttribute('data-k'), t);
   else if (a === 'carr') { const cr = t.closest('.carr'); carrIr(cr, carrIdx(cr.querySelector('.carr-trilho')) + Number(t.getAttribute('data-d'))); }
+  else if (a === 'aba') { const k = t.getAttribute('data-k'); ['cartao', 'pix'].forEach((x) => { const on = x === k, ab = $('aba-' + x), pn = $('pn-' + x); if (ab) ab.setAttribute('aria-selected', String(on)); if (pn) pn.hidden = !on; }); }
   else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
   else if (a === 'copiar') copiar(resumo(R));
   else if (a === 'pixcopiar') pixCopiar();
@@ -1258,6 +1358,7 @@ $('folha').addEventListener('input', (e) => { if (e.target.id === 'pix-doc') e.t
 window.addEventListener('pagehide', pararPix);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('folha').hidden) fecharFolha(); });
 carregarEstado();
+abriuPagina();
 render(true);
 carregarMun();
 /* Voltou do checkout pelo botão do navegador: a página vem do cache com o botão travado */
