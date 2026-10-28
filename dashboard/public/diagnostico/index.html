@@ -569,6 +569,7 @@ const minutos = (R) => valor(R, 'tempo_por_proposta') || 0;
 const piso = (R) => valor(R, 'gasto_ferramenta') || 0;
 const ticket = (R) => valor(R, 'ticket') || 0;
 const horas = (R) => Math.round(N(R) * minutos(R) / 60 * 2) / 2;
+const horasTxt = (h) => h < 1 ? Math.round(h * 60) + ' minutos' : br(h) + (h === 1 ? ' hora' : ' horas');
 const taxa = (R) => N(R) > 0 ? Math.round(Math.min(1, (valor(R, 'vendas_mes') || 0) / N(R)) * 100) : 0;
 const economia = (R) => piso(R) > 67 ? piso(R) - 67 : 0;
 function faltam(R) { const lista = ITENS.map((it) => Object.assign({ tem: R[it.q] === it.ok }, it)); const k = lista.filter((x) => !x.tem).length; return { lista, k, r: k - (lista[7].tem ? 0 : 1) }; }
@@ -629,7 +630,7 @@ function confere(R) {
   const L = [nome ? 'Deixa eu ver se entendi, ' + nome + '.' : 'Deixa eu ver se entendi.'];
   if (pm) L.push('Parece que ' + (em ? 'a ' + em + (mun ? ', em ' + mun + ',' : '') : 'você') + ' faz ' + frase(pm) + ' propostas por mês.');
   if (tp) L.push('Parece que cada uma leva ' + frase(tp) + '.');
-  if (h > 0) L.push('Isso dá cerca de ' + br(h) + (h === 1 ? ' hora' : ' horas') + ' por mês só com proposta.');
+  if (h > 0) L.push('Isso dá cerca de ' + horasTxt(h) + ' por mês só com proposta.');
   L.push('Parece que o ponto mais fraco hoje é ' + pilarFraco(R).nome.toLowerCase() + '.');
   if (ob) L.push('Parece que o que mais te segura é ' + ob + '.');
   L.push('Seu Índice de Proposta ficou em ' + indice(R) + ' de 100.', 'Pelo que você me contou, é isso mesmo?');
@@ -653,7 +654,7 @@ function receios(R, pix) {
 function fechamento(R) {
   const em = empresaDe(R), h = horas(R);
   return [
-    em && h > 0 ? 'O que a ' + em + ' deixa de vender se mais um mês passar com ' + br(h) + (h === 1 ? ' hora' : ' horas') + ' indo para proposta?' : 'O que você deixa de vender se mais um mês passar com tantas horas indo para proposta?',
+    em && h > 0 ? 'O que a ' + em + ' deixa de vender se mais um mês passar com ' + horasTxt(h) + ' indo para proposta?' : 'O que você deixa de vender se mais um mês passar com tantas horas indo para proposta?',
     'Seria ruim para você começar agora, sabendo que em 7 dias o valor volta inteiro se não servir?'
   ];
 }
