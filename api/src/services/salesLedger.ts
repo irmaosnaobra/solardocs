@@ -34,14 +34,13 @@ export interface SaleInput {
 // ─────────────────────────────────────────────────────────────────────────────
 // DE ONDE A VENDA CHEGOU
 //
-// Decisão do Thiago em 14/08/2026: o Meta só recebe VENDA NOVA. Venda que o
-// follow-up fechou (cupom da Giovanna, link de recuperação/dunning/winback)
-// aparece só aqui dentro e no aviso do WhatsApp — o pixel não pode aprender que
-// aquilo foi o anúncio, senão ele otimiza pro público que a gente já tinha.
+// A origem continua sendo classificada (anúncio, follow-up, direto) só para o
+// painel "De onde chegaram as vendas" e para o aviso do WhatsApp. Desde
+// 29/10/2026 ela NÃO decide mais o envio ao Meta: toda venda vai (ver
+// decisaoMeta). Até 14/08 o follow-up ficava de fora do pixel.
 //
 // O CUPOM manda mais que o fbc: quem clicou no anúncio, não comprou, e só fechou
-// depois que a Giovanna mandou o código, foi fechado pelo follow-up. Essa é a
-// venda que o Meta contava como dele.
+// depois que a Giovanna mandou o código, foi fechado pelo follow-up.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type OrigemVenda = 'anuncio' | 'followup' | 'direto';
@@ -111,25 +110,42 @@ export function classificarOrigem(s: {
   return { origem: 'direto', detalhe: campanha ? `campanha ${campanha}` : 'sem UTM' };
 }
 
-export type MotivoSkip = 'followup' | 'recompra';
+export type MotivoSkip = 'teste' | 'duplicada';
+/** Motivos que linhas ANTIGAS do banco ainda carregam (regra de 14/08/2026, extinta em 29/10/2026). */
+export type MotivoSkipAntigo = 'followup' | 'recompra';
+
+/** Janela em que o mesmo e-mail pagando de novo é cobrança repetida, não venda. */
+export const JANELA_DUPLICADA_MS = 24 * 60 * 60 * 1000;
+
+/** Teste do dono: a página abre com utm_source=raio-x-teste (também aceito em campaign/medium). */
+export const UTM_VENDA_TESTE = 'raio-x-teste';
+export function ehVendaDeTeste(s: {
+  utm_source?: string | null; utm_medium?: string | null; utm_campaign?: string | null;
+}): boolean {
+  return [s.utm_source, s.utm_medium, s.utm_campaign].some((v) => norm(v) === UTM_VENDA_TESTE);
+}
 
 /**
  * Esta venda vira Purchase no Meta?
  *
- * SIM só pra venda NOVA que não foi fechada pelo follow-up. `direto` (sem UTM
- * nenhuma) CONTINUA indo: é venda nova de verdade — o que ela não tem é rastro,
- * e cortar o pixel por falta de rastro apagaria metade da aquisição orgânica.
+ * SIM, sempre, exceto em dois casos (ordem do dono, 29/10/2026): venda de teste
+ * e cobrança repetida do mesmo e-mail em menos de 24 h. Follow-up e recompra
+ * agora vão: quem decide se o anúncio leva o crédito é a janela de atribuição
+ * do Meta, não a gente. `direto` (sem UTM) também vai.
  */
-export function decisaoMeta(args: { origem: OrigemVenda; clienteNovo: boolean }):
+export function decisaoMeta(args: { teste: boolean; duplicada: boolean }):
   { envia: boolean; motivo: MotivoSkip | null } {
-  if (args.origem === 'followup') return { envia: false, motivo: 'followup' };
-  if (!args.clienteNovo)          return { envia: false, motivo: 'recompra' };
+  if (args.teste)     return { envia: false, motivo: 'teste' };
+  if (args.duplicada) return { envia: false, motivo: 'duplicada' };
   return { envia: true, motivo: null };
 }
 
-export const TEXTO_MOTIVO: Record<MotivoSkip, string> = {
-  followup: 'fechada no follow-up',
-  recompra: 'este e-mail já tinha comprado',
+export const TEXTO_MOTIVO: Record<MotivoSkip | MotivoSkipAntigo, string> = {
+  teste:     'venda de teste',
+  duplicada: 'mesmo e-mail pagou de novo em menos de 24 h',
+  // linhas antigas do banco ainda têm estes motivos
+  followup:  'fechada no follow-up',
+  recompra:  'este e-mail já tinha comprado',
 };
 
 export const TEXTO_ORIGEM: Record<OrigemVenda, string> = {
@@ -196,56 +212,80 @@ export async function upsertSale(s: SaleInput): Promise<string | null> {
 }
 
 /**
- * Este e-mail já tinha comprado ANTES desta venda?
+ * Este e-mail teve OUTRA venda nas 24 horas ANTES desta?
  *
  * Compara por TEMPO, não por "existe outra linha": o cron pode reprocessar uma
  * venda velha depois de uma nova ter entrado, e sem a comparação a primeira
- * compra da pessoa viraria "recompra" retroativamente.
+ * cobrança viraria "duplicada" retroativamente. Só conta linha estritamente
+ * anterior e a menos de 24 h (exatamente 24 h já é venda nova). Linha que foi
+ * pulada por teste ou por duplicidade não conta: não foi venda de verdade.
  *
- * Falha de banco devolve `false` (= trata como cliente novo): perder um Purchase
+ * Falha de banco devolve `false` (= não é duplicada): perder um Purchase
  * legítimo é pior que mandar um a mais, e o erro fica no log.
  */
-async function temVendaAnterior(email: string, saleIdAtual: string): Promise<boolean> {
+async function temVendaNas24hAnteriores(email: string, saleIdAtual: string): Promise<boolean> {
   const { data: atual } = await supabase
     .from('sales').select('card_passed_at, created_at').eq('id', saleIdAtual).single();
   const t = (r: { card_passed_at?: string | null; created_at?: string | null } | null) =>
     new Date(r?.card_passed_at || r?.created_at || 0).getTime();
   const tAtual = t(atual);
+  if (!tAtual) return false;
 
   const { data, error } = await supabase
     .from('sales')
-    .select('id, card_passed_at, created_at')
+    .select('id, card_passed_at, created_at, meta_skip_motivo')
     .eq('email', email)
     .neq('id', saleIdAtual);
   if (error) {
-    logger.error('sales', 'não deu pra conferir compra anterior — tratando como cliente novo', error);
+    logger.error('sales', 'não deu pra conferir venda anterior do e-mail — tratando como venda nova', error);
     return false;
   }
-  return (data ?? []).some((r) => t(r) < tAtual);
+  return (data ?? []).some((r) => {
+    if (r.meta_skip_motivo === 'duplicada' || r.meta_skip_motivo === 'teste') return false;
+    const tr = t(r);
+    return !!tr && tr < tAtual && tAtual - tr < JANELA_DUPLICADA_MS;
+  });
+}
+
+// user agent e IP do navegador da LP, para o Meta casar a venda com a pessoa.
+// Opcional: qualquer falha devolve vazio e o Purchase sai sem eles.
+async function navegadorDaSessao(sessionId: string | null | undefined): Promise<{ userAgent?: string; ip?: string }> {
+  const sid = String(sessionId ?? '').trim();
+  if (!sid || !/^[\w.:-]{1,100}$/.test(sid)) return {};
+  try {
+    const { data } = await supabase.from('page_visits').select('user_agent, ip')
+      .eq('session_id', sid).order('created_at', { ascending: true }).limit(1);
+    const v = (data?.[0] ?? null) as { user_agent?: string | null; ip?: string | null } | null;
+    return { userAgent: v?.user_agent || undefined, ip: v?.ip || undefined };
+  } catch {
+    return {};
+  }
 }
 
 // Dispara o Purchase pro Meta com a MELHOR correspondência possível (email +
-// telefone + external_id + nome + fbc/fbp) e grava o status na linha. Idempotente
-// por event_id (= checkout_session_id): reenviar NÃO duplica (Meta faz dedup).
+// telefone + external_id + nome + fbc/fbp + ip/user agent da LP) e grava o status
+// na linha. Idempotente por event_id (= checkout_session_id): reenviar NÃO
+// duplica (Meta faz dedup).
 export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
   const { data: sale } = await supabase.from('sales').select('*').eq('id', saleId).single();
   if (!sale) return false;
 
-  // ── O PIXEL SÓ RECEBE VENDA NOVA (14/08/2026) ──────────────────────────────
-  // Duas portas se fecham aqui:
-  //   • follow-up  — cupom/link nosso: quem fechou foi a Giovanna, não o anúncio;
-  //   • recompra   — este e-mail JÁ tem linha no ledger (inclusive a pessoa que
-  //     tentou o checkout 3x, que era o caso do dedup de 30 dias que isto
-  //     substitui — agora sem janela: comprou uma vez, conta uma vez).
+  // ── TODA VENDA VAI AO META (29/10/2026) ────────────────────────────────────
+  // Ordem do dono: antes só chegavam 4 de ~28 vendas desde 01/09, porque o gate
+  // de 14/08 barrava follow-up (cupom/link da Giovanna) e recompra. Agora o
+  // follow-up e a recompra também viram Purchase; quem decide se o anúncio leva
+  // o crédito é a janela de atribuição do Meta. Só duas portas ficam fechadas:
+  //   • teste     — utm_source = raio-x-teste: é o dono testando;
+  //   • duplicada — o mesmo e-mail tem OUTRA venda nas 24 h anteriores: é
+  //     cobrança repetida (checkout tentado 3x), não venda.
+  // A renovação mensal continua fora: ela nem passa por aqui.
   //
   // O skip grava ESTADO TERMINAL (meta_response_ok = true + motivo). Sem isso o
   // reDrivePendingPurchases varreria a linha amanhã e mandaria pro Meta
   // justamente o que a gente decidiu não mandar.
-  const clienteNovo = sale.email ? !(await temVendaAnterior(sale.email, saleId)) : true;
-  // Linha antiga (anterior à migração) não tem `origem` gravada — reclassifica
-  // na hora pelo que ela guardou de UTM/fbc.
-  const origem: OrigemVenda = (sale.origem as OrigemVenda | null) ?? classificarOrigem(sale).origem;
-  const { envia, motivo } = decisaoMeta({ origem, clienteNovo });
+  const teste = ehVendaDeTeste(sale);
+  const duplicada = !teste && sale.email ? await temVendaNas24hAnteriores(sale.email, saleId) : false;
+  const { envia, motivo } = decisaoMeta({ teste, duplicada });
 
   if (!envia) {
     await supabase.from('sales').update({
@@ -262,6 +302,7 @@ export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
   const nome = (sale.nome || '').trim();
   const first = nome.split(/\s+/)[0] || undefined;
   const last  = nome.split(/\s+/).slice(1).join(' ') || undefined;
+  const nav = await navegadorDaSessao(sale.attribution_session_id);
 
   const res = await sendMetaEvent('Purchase', {
     eventId:    sale.checkout_session_id,
@@ -272,13 +313,19 @@ export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
     externalId: sale.email || sale.customer_id || undefined,
     fbc:        sale.fbc || undefined,
     fbp:        sale.fbp || undefined,
+    ip:         nav.ip,
+    userAgent:  nav.userAgent,
     eventTime:  sale.card_passed_at ? Math.floor(new Date(sale.card_passed_at).getTime() / 1000) : undefined,
     sourceUrl:  APP_URL,
     customData: { value: Number(sale.valor) || 0, currency: 'BRL', content_name: sale.produto },
   });
 
+  // meta_skip_motivo volta a null em QUALQUER tentativa de envio (ok ou não): a
+  // linha pulada pela regra antiga (followup/recompra) sai do estado "pulada" e,
+  // se o Meta recusar, cai na fila normal de pendentes do re-drive.
   await supabase.from('sales').update({
     meta_response_ok:      res.ok,
+    meta_skip_motivo:      null,
     meta_purchase_sent_at: new Date().toISOString(),
     meta_event_id:         sale.checkout_session_id,
     meta_attempts:         (sale.meta_attempts ?? 0) + 1,
@@ -289,9 +336,11 @@ export async function sendPurchaseForSale(saleId: string): Promise<boolean> {
 }
 
 // RE-DRIVE: reenvia Purchases que ainda não confirmaram entrega (falha de rede/
-// token, freeze serverless, ou backfill retroativo). O Meta REJEITA evento com
-// mais de 7 dias, então só tenta card_passed_at nos últimos 7 dias. Cap de 6
-// tentativas por venda pra não repetir infinitamente um evento que sempre falha.
+// token, freeze serverless, ou backfill retroativo) e as que a regra ANTIGA
+// pulou (meta_skip_motivo followup/recompra) — estas passam pela decisão nova.
+// O Meta REJEITA evento com mais de 7 dias, então só tenta card_passed_at nos
+// últimos 7 dias. Cap de 6 tentativas por venda pra não repetir infinitamente
+// um evento que sempre falha.
 export async function reDrivePendingPurchases(): Promise<{ tried: number; ok: number }> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: pend } = await supabase
@@ -301,9 +350,18 @@ export async function reDrivePendingPurchases(): Promise<{ tried: number; ok: nu
     .gte('card_passed_at', sevenDaysAgo)
     .lt('meta_attempts', 6)
     .limit(100);
-  if (!pend?.length) return { tried: 0, ok: 0 };
+  const { data: puladas } = await supabase
+    .from('sales')
+    .select('id')
+    .in('meta_skip_motivo', ['followup', 'recompra'])
+    .gte('card_passed_at', sevenDaysAgo)
+    // O .lt do PostgREST descarta NULL; linha pulada pode nunca ter tido tentativa gravada.
+    .or('meta_attempts.is.null,meta_attempts.lt.6')
+    .limit(100);
+  const ids = [...new Set([...(pend ?? []), ...(puladas ?? [])].map((p) => p.id as string))];
+  if (!ids.length) return { tried: 0, ok: 0 };
   let ok = 0;
-  for (const p of pend) { if (await sendPurchaseForSale(p.id)) ok++; }
-  logger.info('sales', `re-drive Purchase: ${ok}/${pend.length} confirmados`);
-  return { tried: pend.length, ok };
+  for (const id of ids) { if (await sendPurchaseForSale(id)) ok++; }
+  logger.info('sales', `re-drive Purchase: ${ok}/${ids.length} confirmados`);
+  return { tried: ids.length, ok };
 }

@@ -1199,13 +1199,13 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           fbc: meta.fbc ?? null,   // Fase 4 (LP) passa a popular
           fbp: meta.fbp ?? null,
           // Carimbo do follow-up: cupom só existe em link/código que a Giovanna
-          // mandou. É ele que tira esta venda do Purchase da Meta (ver o gate em
-          // salesLedger) e a deixa só no painel e no aviso do WhatsApp.
+          // mandou. Desde 29/10/2026 ele só classifica a origem (painel e aviso do
+          // WhatsApp): o Purchase vai ao Meta mesmo assim (ver o gate em salesLedger).
           cupom: codigoCupom ?? null,
           // `descontou` junto de propósito: o cupom DIGITADO no checkout só vira
           // código depois de um lookup na Stripe, e quando ele falha sobra só o
-          // desconto. Sem este par, uma venda de R$ 19 iria pro pixel como se
-          // fosse do anúncio.
+          // desconto. Sem este par, uma venda de R$ 19 seria classificada como
+          // se fosse do anúncio.
           comDesconto: descontou,
           card_passed_at: cardPassedAt,
         });
@@ -1224,6 +1224,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         const historico = await historicoDoCliente({
           email: email ?? null,
           checkoutSessionIdAtual: session.id,
+          vendaEm: cardPassedAt,
           subscriptionIdAtual: (session.subscription as string) ?? null,
           assinaturaViva: async (subId) => {
             const s = await stripe.subscriptions.retrieve(subId);
@@ -1231,8 +1232,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           },
         }).catch(() => null);
 
-        // Mesma classificação que o gate do Meta vai usar logo abaixo — uma
-        // função só, senão o aviso promete "contabilizada" numa venda pulada.
+        // Mesma classificação que vai pro painel; o gate do Meta usa a mesma
+        // decisaoMeta do aviso (teste e duplicada), uma função só.
         const cls = classificarOrigem({
           utm_source: meta.utm_source ?? null,
           utm_medium: meta.utm_medium ?? null,
@@ -1251,6 +1252,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           nome: cd?.name ?? null,
           phone: cd?.phone ? String(cd.phone).replace(/\D/g, '') : null,
           utmSource: meta.utm_source ?? null,
+          utmMedium: meta.utm_medium ?? null,
+          vendaEm: cardPassedAt,
           utmCampaign: meta.utm_campaign ?? null,
           utmContent: meta.utm_content ?? null,
           origem: cls.origem,

@@ -18,7 +18,7 @@ type Row = Record<string, any>;
 const H = vi.hoisted(() => {
   type R = Record<string, any>;
   const db: Record<string, R[]> = {
-    asaas_pix_assinaturas: [], asaas_webhook_events: [], users: [], system_state: [],
+    asaas_pix_assinaturas: [], asaas_webhook_events: [], users: [], system_state: [], sales: [{ id: 'sale-1' }],
   };
   const flags = { falhaClaimAdesao: { v: false } };
   const UNICA: Record<string, string> = { system_state: 'key', asaas_webhook_events: 'event_id', users: 'email' };
@@ -86,6 +86,8 @@ function query(table: string) {
     eq: (c: string, v: any) => { filtros.push((r) => String(H.caminho(r, c)) === String(v)); return q; },
     neq: (c: string, v: any) => { filtros.push((r) => String(r[c]) !== String(v)); return q; },
     in: (c: string, vs: any[]) => { filtros.push((r) => vs.includes(r[c])); return q; },
+    filter: (c: string, op: string, v: string) => { filtros.push((r) => op === 'gte' ? String(H.caminho(r, c)) >= String(v) : String(H.caminho(r, c)) === String(v)); return q; },
+    like: (c: string, p: string) => { const pre = p.replace('%', ''); filtros.push((r) => String(r[c]).startsWith(pre)); return q; },
     order: () => q,
     limit: (n: number) => { max = n; return q; },
     maybeSingle: async () => { const { data, error } = executa(); return { data: Array.isArray(data) ? data[0] ?? null : data, error }; },
@@ -143,9 +145,15 @@ vi.mock('../services/solardoc/avisoGrupoSolardoc', () => ({
     return p ? `${prefixo}${p}` : null;
   },
 }));
-vi.mock('../services/solardoc/purchasePixQuiz', () => ({
-  dispararPurchasePixQuiz: vi.fn(async (e: any) => { H.quiz.push(e); return 'enviado'; }),
-}));
+vi.mock('../services/solardoc/purchasePixQuiz', async () => {
+  const { createHash } = await import('crypto');
+  return {
+    dispararPurchasePixQuiz: vi.fn(async (e: any) => { H.quiz.push(e); return 'enviado'; }),
+    // Mesma fórmula do original (sem carregar o módulo, que puxa o resto do quiz).
+    idDoEventoPix: (chave: string) => 'pix_' + createHash('sha256').update(chave, 'utf8').digest('hex').slice(0, 32),
+    PREFIXO_CLAIM_PURCHASE_PIX: 'meta_purchase_pix:',
+  };
+});
 vi.mock('../utils/mailer', () => ({
   sendPixAutomaticoAcessoEmail: vi.fn(async (o: any) => { H.emails.push(o); }),
 }));
@@ -172,7 +180,7 @@ vi.mock('../services/asaas/asaasClient', () => ({
 
 import { processarWebhookAsaas } from '../services/asaas/asaasWebhookService';
 import { criarPixRecorrente } from '../services/asaas/pixRecorrenteService';
-import { dispararPurchasePixQuiz } from '../services/solardoc/purchasePixQuiz';
+import { dispararPurchasePixQuiz, idDoEventoPix } from '../services/solardoc/purchasePixQuiz';
 import { sendPurchaseForSale } from '../services/salesLedger';
 import { avisarCompra } from '../services/solardoc/avisoGrupoSolardoc';
 import { cancelStripeSubsForEmail } from '../services/dunningService';
@@ -230,6 +238,7 @@ beforeEach(() => {
   db.asaas_pix_assinaturas = [contrato()];
   db.asaas_webhook_events = [];
   db.system_state = [];
+  db.sales = [{ id: 'sale-1' }];
   db.users = [{ id: 'u1', email: 'cliente@teste.com', nome: 'Cliente', whatsapp: '34999990000', plano_expira_em: null, billing_status: 'free' }];
   H.emails.length = 0; H.whats.length = 0; H.vendas.length = 0; H.purchases.length = 0; H.quiz.length = 0;
   H.liberacoes.length = 0; H.chamadasAsaas.length = 0; H.bases.length = 0; H.falhaClaimAdesao.v = false;
@@ -407,6 +416,66 @@ describe('Pix Automático com cobrança imediata: o pagamento acha o contrato pe
     qrSalvo();
     await processarWebhookAsaas(recebido('ev-1'));
     expect(dispararPurchasePixQuiz).not.toHaveBeenCalled();
+    expect(sendPurchaseForSale).toHaveBeenCalledWith('sale-1');
+  });
+
+  // 29/10/2026: o comprovante do WhatsApp já creditou este usuário e mandou o Purchase pix_<hash>; a adesão não manda outro.
+  const E2E_COMPR = 'pix_e2e:E9999999999999999999999:67';
+  const comprovanteDe = (over: Row = {}) => ({
+    key: 'pix_comprov:5534999990000:67:2026-10-29',
+    value: { user_id: 'u1', valor: 67, e2e: E2E_COMPR, at: new Date().toISOString(), ...over },
+  });
+  // O registro do comprovante nasce antes do envio ao Meta; só vale se o claim do Purchase está 'enviado'.
+  const claimDoComprovante = (estado: string, chave: string = E2E_COMPR) =>
+    db.system_state.push({ key: `meta_purchase_pix:${idDoEventoPix(chave)}`, value: { estado, em: new Date().toISOString() } });
+  it('(6d) comprovante de R$ 67 do mesmo usuário nas últimas 48 h com Purchase ENVIADO: não manda de novo e marca a venda como duplicada', async () => {
+    qrSalvo();
+    db.system_state.push(comprovanteDe());
+    claimDoComprovante('enviado');
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(sendPurchaseForSale).not.toHaveBeenCalled();
+    expect(dispararPurchasePixQuiz).not.toHaveBeenCalled();
+    expect(db.sales[0]).toMatchObject({ meta_response_ok: true, meta_skip_motivo: 'duplicada' });
+  });
+  it('(6d2) comprovante sem E2E: o id vem da chave do próprio registro (dedupKey) e também vale', async () => {
+    qrSalvo();
+    const c = comprovanteDe({ e2e: null });
+    db.system_state.push(c);
+    claimDoComprovante('enviado', c.key);
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(sendPurchaseForSale).not.toHaveBeenCalled();
+    expect(db.sales[0]).toMatchObject({ meta_skip_motivo: 'duplicada' });
+  });
+  it('(6d3) comprovante cujo Purchase FALHOU (ou ficou novo, ou sem claim): a adesão manda, senão a venda fica sem Purchase', async () => {
+    for (const estado of ['falhou', 'novo', null]) {
+      vi.mocked(sendPurchaseForSale).mockClear();
+      db.system_state = [];
+      qrSalvo();
+      db.asaas_pix_assinaturas = [contrato()];
+      db.asaas_webhook_events = [];
+      db.system_state.push(comprovanteDe());
+      if (estado) claimDoComprovante(estado);
+      await processarWebhookAsaas(recebido(`ev-${estado}`));
+      expect(sendPurchaseForSale, String(estado)).toHaveBeenCalledWith('sale-1');
+    }
+  });
+  it('(6e) o mesmo vale no quiz', async () => {
+    qrSalvo(); atribQuiz();
+    db.system_state.push(comprovanteDe());
+    claimDoComprovante('enviado');
+    await processarWebhookAsaas(recebido('ev-1'));
+    expect(dispararPurchasePixQuiz).not.toHaveBeenCalled();
+    expect(db.sales[0]).toMatchObject({ meta_skip_motivo: 'duplicada' });
+  });
+  it('(6f) comprovante de 3 dias atrás, parcial de R$ 27 ou de outro usuário não conta: manda', async () => {
+    qrSalvo();
+    claimDoComprovante('enviado');
+    db.system_state.push(
+      comprovanteDe({ at: new Date(Date.now() - 72 * 3600_000).toISOString() }),
+      { ...comprovanteDe({ valor: 27 }), key: 'pix_comprov:x:27:1' },
+      { ...comprovanteDe({ user_id: 'u2' }), key: 'pix_comprov:y:67:1' },
+    );
+    await processarWebhookAsaas(recebido('ev-1'));
     expect(sendPurchaseForSale).toHaveBeenCalledWith('sale-1');
   });
 

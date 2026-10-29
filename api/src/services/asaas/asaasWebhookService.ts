@@ -116,6 +116,40 @@ async function gravarSoSeNovo(key: string, value: Record<string, unknown>): Prom
   return 'erro';
 }
 
+/**
+ * O comprovante do WhatsApp já creditou este mesmo usuário nas últimas 48 h E o Purchase dele FOI ao Meta?
+ * O claim `meta_purchase_pix:pix_<hash>` não guarda o usuário, mas o dedup do comprovante (`pix_comprov:...`, no
+ * system_state) guarda `user_id`, `valor`, `e2e` e `at`. Esse registro nasce ANTES do envio ao Meta, então existir não
+ * prova nada: o id do evento é refeito com a mesma chave que o comprovante usou (`e2e` e, sem ele, a chave do próprio
+ * registro, que é o dedupKey) e só vale se o claim estiver com `estado = 'enviado'`. Claim ausente, `novo`, `falhou`,
+ * timeout ou sem claim: a venda ficaria com zero Purchase, então devolve false e a adesão manda.
+ * Só conta comprovante de pelo menos R$ 67 (o que libera o mês e dispara o Purchase); parcial de R$ 27 não manda nada.
+ * Limites: dois parciais que somam 67 (27 + 40) não são vistos, e esse caso ainda pode dar Purchase em dobro. Falhou a
+ * leitura: false (melhor um a mais do que perder venda).
+ */
+async function comprovanteRecenteDoUsuario(userId: string | null | undefined): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const desdeIso = new Date(Date.now() - 48 * 3600_000).toISOString();
+    const { data } = await supabase.from('system_state').select('key, value')
+      .like('key', 'pix_comprov:%').eq('value->>user_id', userId)
+      .filter('value->>at', 'gte', desdeIso)
+      .order('value->>at', { ascending: false }).limit(20);
+    const { idDoEventoPix, PREFIXO_CLAIM_PURCHASE_PIX } = await import('../solardoc/purchasePixQuiz');
+    for (const r of (data ?? []) as Array<{ key?: string; value?: { valor?: number; e2e?: string | null } | null }>) {
+      if (!(Number(r.value?.valor) >= 67)) continue;
+      const chave = String(r.value?.e2e ?? '').trim() || String(r.key ?? '').trim();
+      if (!chave) continue;
+      const claim = await lerEstado(`${PREFIXO_CLAIM_PURCHASE_PIX}${idDoEventoPix(chave)}`);
+      if (claim?.estado === 'enviado') return true;
+    }
+    return false;
+  } catch (err) {
+    logger.warn('asaas-webhook', 'conferir comprovante recente do usuário falhou (segue e manda o Purchase)', { erro: String(err) });
+    return false;
+  }
+}
+
 const soDigitos = (v: string | null | undefined) => String(v ?? '').replace(/\D/g, '');
 
 async function contratoPor(coluna: 'contract_id' | 'authorization_id', valor: string): Promise<LinhaPixRecorrente | null> {
@@ -407,11 +441,22 @@ async function creditarPagamento(
         card_passed_at: new Date().toISOString(),
       });
 
-      // Meta (CAPI). A própria função recusa recompra e venda de follow-up —
-      // o pixel só conta venda nova, e essa regra vale igual pro Pix.
+      // Meta (CAPI). A própria função só recusa teste e cobrança repetida do mesmo
+      // e-mail em 24 h (toda venda vai ao Meta desde 29/10/2026), igual pro Pix.
       // Venda do quiz: o Purchase sai pelo pixel do quiz (mesmo caminho e mesma chave do comprovante, então o
       // mesmo Pix pago pelos dois lados manda UM evento). Sem E2E, a chave é o contrato.
-      if (ehQuiz) {
+      // Comprovante do WhatsApp do mesmo usuário nas últimas 48 h já mandou o Purchase (`pix_<hash>`, outro id que
+      // `asaas:<contrato>`, e sem o E2E aqui os dois não se reconhecem): marca a linha como `duplicada`, estado terminal.
+      const jaContado = await comprovanteRecenteDoUsuario(userId);
+      if (jaContado) {
+        logger.info('asaas-webhook', `Purchase do Pix automático não enviado (duplicada): o comprovante do WhatsApp já contou esta venda (${linha.contract_id})`);
+        if (saleId) {
+          await supabase.from('sales').update({
+            meta_response_ok: true, meta_skip_motivo: 'duplicada', meta_purchase_sent_at: new Date().toISOString(),
+            meta_event_id: `asaas:${linha.contract_id}`, updated_at: new Date().toISOString(),
+          }).eq('id', saleId);
+        }
+      } else if (ehQuiz) {
         const { dispararPurchasePixQuiz } = await import('../solardoc/purchasePixQuiz');
         const motivo = await dispararPurchasePixQuiz({
           telefone: whatsDoCliente ?? '', email: linha.email, nome: nomeDoCliente, valor: pago,

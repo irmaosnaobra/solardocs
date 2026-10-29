@@ -115,32 +115,76 @@ describe('aviso de venda no WhatsApp do dono', () => {
   });
 
   // ── DE ONDE CHEGOU + FOI PRO META (14/08/2026) ────────────────────────────
-  // A venda de follow-up saiu do pixel de propósito. Se o aviso não disser isso,
-  // ela some do gerenciador E do WhatsApp, e o Thiago fica sem saber que existiu.
-  it('venda de follow-up diz quem fechou e avisa que NÃO foi pro Meta', () => {
+  // Desde 29/10/2026 toda venda vai ao Meta; o aviso diz quem fechou e só avisa
+  // "NÃO enviada" para teste e cobrança repetida em 24 h.
+  it('venda de follow-up diz quem fechou e AGORA foi pro Meta', () => {
     const t = textoAvisoVenda(venda({
       origem: 'followup', origemDetalhe: 'cupom ACESSO19',
       historico: { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false },
     }));
     expect(t).toContain('*De onde chegou:* Follow-up · cupom ACESSO19');
-    expect(t).toContain('*Meta:* NÃO enviada — fechada no follow-up');
+    expect(t).toContain('*Meta:* enviada');
+    expect(t).not.toContain('NÃO enviada');
   });
 
-  it('venda de anúncio diz que foi contabilizada', () => {
+  it('venda de anúncio diz que foi enviada, sem prometer o crédito do anúncio', () => {
     const t = textoAvisoVenda(venda({
       origem: 'anuncio', origemDetalhe: 'campanha 120255606160730602',
       historico: { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false },
     }));
     expect(t).toContain('*De onde chegou:* Anúncio · campanha 120255606160730602');
-    expect(t).toContain('*Meta:* contabilizada');
+    expect(t).toContain('*Meta:* enviada');
+    expect(t).not.toContain('contabilizada');
   });
 
-  it('recompra de anúncio também fica fora do pixel — e o aviso diz o motivo', () => {
+  it('recompra de dias atrás também vai ao Meta', () => {
     const t = textoAvisoVenda(venda({
       origem: 'anuncio', origemDetalhe: 'campanha 123456789',
       historico: { tipo: 'recorrente', primeiraCompra: '2026-05-22T12:00:00Z', comprasAnteriores: 1, assinaturaAtiva: false },
     }));
-    expect(t).toContain('*Meta:* NÃO enviada — este e-mail já tinha comprado');
+    expect(t).toContain('*Meta:* enviada');
+    expect(t).not.toContain('NÃO enviada');
+  });
+
+  it('mesmo e-mail que pagou há menos de 24 h: o aviso diz que NÃO foi (cobrança repetida)', () => {
+    const t = textoAvisoVenda(venda({
+      origem: 'anuncio', origemDetalhe: 'campanha 123456789',
+      historico: { tipo: 'recorrente', primeiraCompra: diasAtras(0.05), ultimaCompra: diasAtras(0.05), comprasAnteriores: 1, assinaturaAtiva: true },
+    }));
+    expect(t).toContain('*Meta:* NÃO enviada — mesmo e-mail pagou de novo em menos de 24 h');
+  });
+
+  it('histórico: ultimaCompra ignora linha pulada por teste/duplicada e compra posterior a esta venda', async () => {
+    const venda0 = '2026-10-29T12:00:00.000Z';
+    sales.push(
+      { id: 'a', checkout_session_id: 'cs_a', email: 'h@example.com', status: 'paid', card_passed_at: '2026-10-29T11:00:00.000Z', meta_skip_motivo: 'teste' },
+      { id: 'b', checkout_session_id: 'cs_b', email: 'h@example.com', status: 'paid', card_passed_at: '2026-10-29T11:30:00.000Z', meta_skip_motivo: 'duplicada' },
+      { id: 'c', checkout_session_id: 'cs_c', email: 'h@example.com', status: 'paid', card_passed_at: '2026-10-28T08:00:00.000Z', meta_skip_motivo: null },
+      { id: 'd', checkout_session_id: 'cs_d', email: 'h@example.com', status: 'paid', card_passed_at: '2026-10-29T13:00:00.000Z', meta_skip_motivo: null },
+    );
+    const h = await historicoDoCliente({ email: 'h@example.com', checkoutSessionIdAtual: 'cs_atual', vendaEm: venda0 });
+    expect(h?.ultimaCompra).toBe('2026-10-28T08:00:00.000Z');
+  });
+
+  it('o aviso mede as 24 h a partir do horário da venda, não do relógio de agora', () => {
+    const t = textoAvisoVenda(venda({
+      origem: 'anuncio', origemDetalhe: 'campanha 1', vendaEm: '2026-10-29T12:00:00.000Z',
+      historico: { tipo: 'recorrente', primeiraCompra: '2026-10-29T11:00:00.000Z', ultimaCompra: '2026-10-29T11:00:00.000Z', comprasAnteriores: 1, assinaturaAtiva: false },
+    }));
+    expect(t).toContain('NÃO enviada — mesmo e-mail pagou de novo em menos de 24 h');
+  });
+
+  it('venda de teste (utm raio-x-teste) diz que NÃO foi pro Meta', () => {
+    const t = textoAvisoVenda(venda({
+      origem: 'direto', origemDetalhe: 'sem UTM', utmSource: 'raio-x-teste',
+      historico: { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false },
+    }));
+    expect(t).toContain('*Meta:* NÃO enviada — venda de teste');
+  });
+
+  it('sem histórico apurado o aviso não afirma que não é cobrança repetida', () => {
+    const t = textoAvisoVenda(venda({ origem: 'anuncio', origemDetalhe: 'campanha 1' }));
+    expect(t).toContain('não deu pra conferir');
   });
 
   it('reentrega da Stripe não avisa duas vezes', async () => {

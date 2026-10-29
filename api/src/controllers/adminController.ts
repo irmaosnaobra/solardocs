@@ -1121,10 +1121,10 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       }
     } catch { /* tabela pode não existir em ambiente antigo — ignora */ }
 
-    // DE ONDE CHEGARAM as vendas dos últimos 30 dias (14/08/2026). É aqui que a
-    // venda de follow-up aparece: ela saiu do Purchase da Meta de propósito, e
-    // sem esta contagem ela sumiria dos dois lugares. `no_meta` = quantas dessas
-    // o pixel de fato recebeu — a régua pra conferir o gerenciador.
+    // DE ONDE CHEGARAM as vendas dos últimos 30 dias (14/08/2026). Separa anúncio,
+    // follow-up e direto. Desde 29/10/2026 toda venda vai ao Meta (menos teste e
+    // cobrança repetida em 24 h). `no_meta` = quantas dessas o pixel de fato
+    // recebeu — a régua pra conferir o gerenciador.
     const vendasPorOrigem: BillingPayload['vendas_por_origem'] = {
       anuncio: 0, followup: 0, direto: 0, sem_classificacao: 0, no_meta: 0,
     };

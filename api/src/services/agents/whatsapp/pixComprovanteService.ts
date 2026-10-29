@@ -633,22 +633,49 @@ async function comTravaDeCredito<T>(userId: string, fn: () => Promise<T>): Promi
  * tinha vencimento é renovação e fica só com o Thiago. O aviso individual ao Thiago (com o comprovante e a
  * conferência) continua SEMPRE, porque é nele que o comprovante é encaminhado. Nunca lança.
  */
+/**
+ * Quem JÁ era cliente pagante antes deste Pix (29/10/2026): plano pago E (cartão ativo, em teste ou em atraso, ou com
+ * dunning aberto). O Pix dele é recuperação de cartão ou troca de forma de pagamento, ou seja, renovação, e não manda
+ * Purchase. Quem voltou depois de cancelar ('canceled', 'free' ou nulo) é recompra e manda.
+ * O plano pesa porque `billing_status = 'active'` é o DEFAULT da coluna: o cadastro do site não grava o campo e o D5 do
+ * dunning rebaixa para plano 'free' deixando 'active' (dunningService). Conta free com 'active' é venda nova, mesmo
+ * com past_due_since antigo (foi rebaixada e voltou). Recebe o estado de ANTES do crédito.
+ */
+export const STATUS_CLIENTE_PAGANTE = ['active', 'trialing', 'past_due', 'unpaid'];
+export const jaEraClientePagante = (
+  u: { plano?: string | null; billing_status?: string | null; past_due_since?: string | null } | null | undefined,
+): boolean => {
+  const plano = String(u?.plano ?? '').trim().toLowerCase();
+  if (!u || !plano || plano === 'free') return false;
+  return STATUS_CLIENTE_PAGANTE.includes(String(u.billing_status ?? '')) || !!u.past_due_since;
+};
+
 export async function avisarCompraNoGrupo(
-  user: { id: string; email: string; plano_expira_em?: string | null },
+  user: { id: string; email: string; plano?: string | null; plano_expira_em?: string | null; billing_status?: string | null; past_due_since?: string | null },
   pag: PagamentoValidado, cleanPhone: string, valor: number,
-): Promise<void> {
+): Promise<string | null> {
+  let purchase: string | null = null;
   try {
-    if (user.plano_expira_em) return;
-    // Purchase do pixel do quiz (27/10/2026): mesma condição do aviso ao grupo (liberou + primeira compra), então
+    if (user.plano_expira_em) return null;
+    // Purchase no pixel SolarDoc (27/10/2026; 29/10/2026: vale para TODO comprador de Pix, venha ou não do quiz; sem lead
+    // do quiz ele sai só com telefone e e-mail): mesma condição do aviso ao grupo (liberou + primeira compra), então
     // renovação e parcial não passam por aqui. Com await e teto interno de 8 s (a Vercel corta promessa solta);
     // nunca lança, e o aviso ao grupo abaixo segue de qualquer jeito.
+    // Cliente que já pagava antes (cartão em atraso que quitou no Pix, troca de forma de pagamento) é renovação: sem Purchase.
+    // O snapshot `user` é o de ANTES do crédito (os quatro chamadores leem a conta antes de aplicarPagamentoPix).
     try {
-      const { dispararPurchasePixQuiz } = await import('../../solardoc/purchasePixQuiz');
-      const motivo = await dispararPurchasePixQuiz({
-        telefone: cleanPhone, email: user.email, valor,
-        chaveE2e: pag.e2eKey, dedupKey: pag.dedupKey, quando: new Date(),
-      });
-      logger.info('pix-comprovante', `Purchase do Pix no pixel do quiz: ${motivo}`);
+      if (jaEraClientePagante(user)) {
+        purchase = 'ja_cliente';
+        logger.info('pix-comprovante', `Purchase do Pix no pixel SolarDoc: ja_cliente (${user.billing_status ?? 'sem status'}) — renovação, não manda`);
+      } else {
+        const { dispararPurchasePixQuiz } = await import('../../solardoc/purchasePixQuiz');
+        const motivo = await dispararPurchasePixQuiz({
+          telefone: cleanPhone, email: user.email, valor,
+          chaveE2e: pag.e2eKey, dedupKey: pag.dedupKey, quando: new Date(),
+        });
+        purchase = motivo;
+        logger.info('pix-comprovante', `Purchase do Pix no pixel SolarDoc: ${motivo}`);
+      }
     } catch (err) {
       logger.error('pix-comprovante', 'Purchase do Pix no pixel do quiz falhou (pagamento já liberado)', err);
     }
@@ -656,7 +683,7 @@ export async function avisarCompraNoGrupo(
     const id = idDeVenda('pix:', pag.e2eKey, pag.dedupKey);
     if (!id) {
       logger.error('pix-comprovante', 'comprovante sem id único (e2e e dedupKey vazios): aviso ao grupo de vendas pulado');
-      return;
+      return purchase;
     }
     await avisarCompra({
       id, canal: 'comprovante', planoAtivo: true,
@@ -665,10 +692,11 @@ export async function avisarCompraNoGrupo(
   } catch (err) {
     logger.error('pix-comprovante', 'aviso ao grupo de vendas falhou (aviso ao Thiago já saiu)', err);
   }
+  return purchase;
 }
 
 export async function aplicarPagamentoPix(a: {
-  user: { id: string; email: string; plano_expira_em?: string | null; billing_status?: string | null };
+  user: { id: string; email: string; plano?: string | null; plano_expira_em?: string | null; billing_status?: string | null; past_due_since?: string | null };
   pag: PagamentoValidado;
   cleanPhone: string;
   originInstance: ZapiInstance;
@@ -871,7 +899,7 @@ export async function tryProcessPixComprovante(
   // GATE: só cliente que NÃO é cartão ativo/trial é candidato a Pix.
   const { data: uRow } = await supabase
     .from('users')
-    .select('plano, billing_status, plano_expira_em, password_hash, reset_token')
+    .select('plano, billing_status, past_due_since, plano_expira_em, password_hash, reset_token')
     .eq('id', user.id)
     .single();
   if (ehCartaoAtivo(uRow)) return false;
@@ -914,7 +942,7 @@ export async function tryProcessPixComprovante(
   // ── AUTO-LIBERAÇÃO (ou parcial: soma no crédito e pede o resto) ──
   if (passou && AUTO_LIBERAR) {
     const r = await aplicarPagamentoPix({
-      user: { id: user.id, email: user.email, plano_expira_em: uRow?.plano_expira_em, billing_status: uRow?.billing_status },
+      user: { id: user.id, email: user.email, plano: uRow?.plano, plano_expira_em: uRow?.plano_expira_em, billing_status: uRow?.billing_status, past_due_since: uRow?.past_due_since },
       pag: { valor, dedupKey, e2eKey, txid: v0.txid, modo: v0.modo ?? 'tabela', data: c.data ?? null },
       cleanPhone, originInstance, comprovante: c, img, via: 'conhecido',
       confirmar: async ({ venc, entrada }) => {
@@ -990,9 +1018,9 @@ async function findAbandonoByPhone(cleanPhone: string) {
 // link "defina sua senha". Idempotente (email é UNIQUE; trata corrida 23505).
 export type PixUser = {
   id: string; email: string; password_hash: string | null; reset_token: string | null;
-  plano: string | null; billing_status: string | null; plano_expira_em: string | null;
+  plano: string | null; billing_status: string | null; plano_expira_em: string | null; past_due_since?: string | null;
 };
-const PIX_USER_COLS = 'id, email, password_hash, reset_token, plano, billing_status, plano_expira_em';
+const PIX_USER_COLS = 'id, email, password_hash, reset_token, plano, billing_status, plano_expira_em, past_due_since';
 
 export type PixUserResult = PixUser & { criadaAgora: boolean };
 

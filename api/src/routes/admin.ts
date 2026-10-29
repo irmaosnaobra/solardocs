@@ -1484,7 +1484,7 @@ router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> =
     const { email, meses } = req.body as { email?: string; meses?: number };
     if (!email) { res.status(400).json({ error: 'email obrigatório' }); return; }
     const n = Math.max(1, Math.min(12, Number(meses) || 1));
-    const { data: u } = await supabase.from('users').select('id, email, plano_expira_em, billing_status').ilike('email', String(email).trim()).maybeSingle();
+    const { data: u } = await supabase.from('users').select('id, email, whatsapp, plano, plano_expira_em, billing_status, past_due_since').ilike('email', String(email).trim()).maybeSingle();
     if (!u) { res.status(404).json({ error: 'Cliente não encontrado' }); return; }
     const agora = Date.now();
     const base = (u.plano_expira_em && new Date(u.plano_expira_em).getTime() > agora)
@@ -1503,7 +1503,35 @@ router.post('/pix-liberar', async (req: Request, res: Response): Promise<void> =
       const { cancelStripeSubsForEmail } = await import('../services/dunningService');
       subsCanceladas = await cancelStripeSubsForEmail(u.email);
     }
-    res.json({ ok: true, email: u.email, plano_expira_em: expira, meses: n, subs_canceladas: subsCanceladas });
+    // Purchase no Meta (29/10/2026, ordem do dono: toda venda nova vai). Só na PRIMEIRA compra (sem plano_expira_em
+    // antes): renovação não é venda nova. A chave do evento aqui é admin:<id>:<data>, outra que a do comprovante, então o
+    // dobro não se evita por claim: quem libera primeiro grava plano_expira_em e o segundo caminho já vê renovação, sem
+    // Purchase. Com await (a Vercel corta promessa solta) e sem nunca
+    // derrubar a liberação: ela já aconteceu.
+    let purchase: string | null = null;
+    if (!u.plano_expira_em) {
+      try {
+        const { dispararPurchasePixQuiz } = await import('../services/solardoc/purchasePixQuiz');
+        const { VALOR_RENOVACAO_PIX, jaEraClientePagante } = await import('../services/agents/whatsapp/pixComprovanteService');
+        const hoje = new Date(agora - 3 * 3600_000).toISOString().slice(0, 10); // AAAA-MM-DD em Brasília
+        // Quem já era cliente pagante ANTES (plano pago e billing_status active, trialing, past_due ou unpaid, ou
+        // past_due_since preenchido: lidos no select de antes do update) está quitando cartão em atraso ou trocando a forma de
+        // pagamento: é renovação, motivo 'ja_cliente', sem Purchase.
+        if (jaEraClientePagante(u)) {
+          purchase = 'ja_cliente';
+          console.log(`[admin] pix-liberar: ${u.email} já era cliente pagante (${u.billing_status ?? 'sem status'}): sem Purchase (ja_cliente)`);
+        } else {
+          purchase = await dispararPurchasePixQuiz({
+            telefone: String(u.whatsapp ?? '').replace(/\D/g, ''), email: u.email,
+            valor: VALOR_RENOVACAO_PIX * n, dedupKey: `admin:${u.id}:${hoje}`, quando: new Date(agora),
+          });
+        }
+      } catch (err) {
+        purchase = 'erro';
+        console.error('[admin] pix-liberar: Purchase no Meta falhou (liberação já feita):', err);
+      }
+    }
+    res.json({ ok: true, email: u.email, plano_expira_em: expira, meses: n, subs_canceladas: subsCanceladas, purchase });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao liberar Pix', message: String(err) });
   }

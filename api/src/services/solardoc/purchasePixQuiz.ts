@@ -1,7 +1,9 @@
-// Purchase do pixel do quiz SolarDoc quando a PRIMEIRA compra sai por Pix no WhatsApp (comprovante liberado).
+// Purchase do pixel SolarDoc quando a PRIMEIRA compra sai por Pix (comprovante liberado no WhatsApp ou liberação manual).
 // Antes só o cartão e o Asaas mandavam Purchase; o Pix por comprovante não mandava nada e o Meta não aprendia
-// quem comprou. Regras (as mesmas do envio feito à mão em 27/10/2026):
-//   - só lead do quiz (achado pelo telefone), nunca lead de teste;
+// quem comprou. Regras (as mesmas do envio feito à mão em 27/10/2026, ampliadas em 29/10/2026):
+//   - lead do quiz (achado pelo telefone): leva fbc, fbp e navegador da LP; lead de teste nunca manda;
+//   - comprador sem lead do quiz (29/10/2026, ordem do dono: toda venda nova vai ao Meta): manda mesmo assim, só com
+//     telefone, e-mail e nome da entrada, sem fbc/fbp, como system_generated;
 //   - renovação e pagamento parcial não chegam aqui (o gancho fica em avisarCompraNoGrupo, que já sai cedo nelas);
 //   - event_id determinístico a partir da chave do comprovante: o mesmo Pix reenviado gera o mesmo id;
 //   - claim só de inserção em system_state (banco principal): um Pix, um Purchase;
@@ -82,9 +84,9 @@ function withPrazo(p: Promise<ResultadoMeta>, ms: number): Promise<ResultadoMeta
 
 async function executar(e: EntradaPurchasePix, d: DepsPurchasePix): Promise<MotivoPurchasePix> {
   const inicio = Date.now();
-  const lead = await d.lerLead(e.telefone);
-  if (!lead) return 'nao_e_quiz';
-  if (ehLeadDeTeste(lead.field_data)) return 'teste';
+  // Sem telefone legível não há o que procurar no quiz. Sem lead, o Purchase sai mesmo assim (comprador que não veio do quiz).
+  const lead = /\d/.test(String(e.telefone ?? '')) ? await d.lerLead(e.telefone) : null;
+  if (lead && ehLeadDeTeste(lead.field_data)) return 'teste';
 
   const chave = String(e.chaveE2e ?? '').trim() || String(e.dedupKey ?? '').trim();
   if (!chave) return 'sem_id';
@@ -95,9 +97,9 @@ async function executar(e: EntradaPurchasePix, d: DepsPurchasePix): Promise<Moti
   if (c === 'duplicado') return 'duplicado';
   if (c === 'erro') return 'sem_claim';
 
-  const fd = lead.field_data;
+  const fd = lead?.field_data ?? [];
   const lpSession = campoDe(fd, 'lp_session');
-  let nav: NavegadorMeta = { fbc: cookieMeta(campoDe(fd, 'fbc')), fbp: cookieMeta(campoDe(fd, 'fbp')) };
+  let nav: NavegadorMeta = lead ? { fbc: cookieMeta(campoDe(fd, 'fbc')), fbp: cookieMeta(campoDe(fd, 'fbp')) } : {};
   if (lpSession) {
     try {
       const v = await d.navegador(lpSession);
@@ -109,12 +111,12 @@ async function executar(e: EntradaPurchasePix, d: DepsPurchasePix): Promise<Moti
   let ok = false;
   let erro: string | undefined;
   try {
-    // Sem user agent (lead sem lp_session ou sem linha em page_visits) o evento não prova navegador: system_generated.
+    // Sem user agent (sem lead, lead sem lp_session ou sem linha em page_visits) o evento não prova navegador: system_generated.
     const r = await withPrazo(d.enviar({
       produto: 'solardoc', nome: 'Purchase', origem: nav.userAgent ? 'website' : 'system_generated', eventId,
       eventTime: Math.floor(quandoMs / 1000),
       urlDaPagina: URL_PURCHASE_PIX_QUIZ,
-      pessoa: { telefone: e.telefone, email: e.email ?? undefined, nome: e.nome || lead.nome || undefined },
+      pessoa: { telefone: e.telefone, email: e.email ?? undefined, nome: e.nome || lead?.nome || undefined },
       navegador: nav,
       valor: e.valor,
       dados: { content_name: 'VIP' },

@@ -46,7 +46,7 @@ function deps(over: Partial<Record<keyof DepsPurchasePix, unknown>> = {}): { d: 
 }
 
 const ENTRADA = {
-  telefone: '5534991112222', email: 'leoimplant@gmail.com', nome: 'Leo', valor: 67,
+  telefone: '5534991112222', email: 'leo@example.com', nome: 'Leo', valor: 67,
   chaveE2e: CHAVE, dedupKey: 'pix_dedup:5534991112222:67:2026-10-27', quando: new Date('2026-10-27T14:30:00Z'),
 };
 
@@ -79,7 +79,7 @@ describe('dispararPurchasePixQuiz', () => {
     expect(ev.eventTime).toBe(Math.floor(Date.parse('2026-10-27T14:30:00Z') / 1000));
     expect(ev.valor).toBe(67);
     expect(ev.dados).toEqual({ content_name: 'VIP' });
-    expect(ev.pessoa).toMatchObject({ telefone: '5534991112222', email: 'leoimplant@gmail.com', nome: 'Leo' });
+    expect(ev.pessoa).toMatchObject({ telefone: '5534991112222', email: 'leo@example.com', nome: 'Leo' });
     expect(ev.navegador).toEqual({ fbc: FBC, fbp: FBP, userAgent: 'Mozilla/5.0 teste', ip: '203.0.113.9' });
     expect(d.claim).toHaveBeenCalledWith(`meta_purchase_pix:${ID_ESPERADO}`, expect.objectContaining({ estado: 'novo' }));
     expect(d.marcar).toHaveBeenCalledWith(`meta_purchase_pix:${ID_ESPERADO}`, expect.objectContaining({ estado: 'enviado', em: expect.any(String) }));
@@ -104,11 +104,30 @@ describe('dispararPurchasePixQuiz', () => {
     await dispararPurchasePixQuiz(ENTRADA, comUa.p);
     expect((comUa.d.enviar.mock.calls[0]![0] as any).origem).toBe('website');
   });
-  it('telefone que não é do quiz: não chama', async () => {
+  it('comprador sem lead do quiz (29/10/2026): manda mesmo assim, system_generated, sem fbc/fbp, com o mesmo claim', async () => {
     const { d, p } = deps({ lerLead: vi.fn(async () => null) });
-    expect(await dispararPurchasePixQuiz(ENTRADA, p)).toBe('nao_e_quiz');
+    expect(await dispararPurchasePixQuiz(ENTRADA, p)).toBe('enviado');
+    expect(d.enviar).toHaveBeenCalledTimes(1);
+    const ev = d.enviar.mock.calls[0]![0] as any;
+    expect(ev.origem).toBe('system_generated');
+    expect(ev.navegador).toEqual({});
+    expect(ev.eventId).toBe(ID_ESPERADO);
+    expect(ev.valor).toBe(67);
+    expect(ev.pessoa).toMatchObject({ telefone: ENTRADA.telefone, email: ENTRADA.email, nome: 'Leo' });
+    expect(d.navegador).not.toHaveBeenCalled();
+    expect(d.claim).toHaveBeenCalledWith(`meta_purchase_pix:${ID_ESPERADO}`, expect.objectContaining({ estado: 'novo' }));
+    expect(d.marcar).toHaveBeenCalledWith(`meta_purchase_pix:${ID_ESPERADO}`, expect.objectContaining({ estado: 'enviado' }));
+  });
+  it('sem lead e com claim já tomado (mesmo Pix pelos dois lados): não manda de novo', async () => {
+    const { d, p } = deps({ lerLead: vi.fn(async () => null), claim: vi.fn(async () => 'duplicado') });
+    expect(await dispararPurchasePixQuiz(ENTRADA, p)).toBe('duplicado');
     expect(d.enviar).not.toHaveBeenCalled();
-    expect(d.claim).not.toHaveBeenCalled();
+  });
+  it('sem telefone legível (liberação manual sem WhatsApp): nem procura o lead, manda só com o e-mail', async () => {
+    const { d, p } = deps();
+    expect(await dispararPurchasePixQuiz({ ...ENTRADA, telefone: '' }, p)).toBe('enviado');
+    expect(d.lerLead).not.toHaveBeenCalled();
+    expect((d.enviar.mock.calls[0]![0] as any).origem).toBe('system_generated');
   });
   it('lead de teste: não chama', async () => {
     const { d, p } = deps({ lerLead: vi.fn(async () => lead([{ name: 'teste', values: ['sim'] }])) });

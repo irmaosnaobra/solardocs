@@ -692,6 +692,71 @@ describe('grupo de vendas do SolarDoc: um aviso a mais, o Thiago sempre recebe',
     await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
     expect(purchase.disparar).not.toHaveBeenCalled();
   });
+  // 29/10/2026: quem já era cliente pagante ANTES do Pix (cartão em atraso, troca de forma de pagamento) é renovação.
+  it('Purchase: conta nova pelo comprovante (nasce free) manda', async () => {
+    db.users[0] = { ...u(), plano: 'free', billing_status: 'free', plano_expira_em: null };
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(purchase.disparar).toHaveBeenCalledTimes(1);
+  });
+  it('Purchase: cancelado que volta pelo Pix manda (recompra)', async () => {
+    db.users[0] = { ...u(), plano: 'free', billing_status: 'canceled', plano_expira_em: null };
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(purchase.disparar).toHaveBeenCalledTimes(1);
+  });
+  it('Purchase: past_due que quita no Pix NÃO manda (ja_cliente), mas libera e avisa o grupo', async () => {
+    db.users[0] = { ...u(), plano: 'pro', billing_status: 'past_due', past_due_since: '2026-10-20T00:00:00Z', plano_expira_em: null };
+    leitura = P67;
+    await tryProcessPixComprovante(USER, IMG, TEL, 'io', '');
+    expect(u().plano).toBe('ilimitado');
+    expect(purchase.disparar).not.toHaveBeenCalled();
+    expect(grupo.avisarCompra).toHaveBeenCalledTimes(1);
+  });
+  // Estado real de produção: billing_status 'active' é o DEFAULT da coluna, e o D5 do dunning rebaixa para plano free
+  // deixando 'active'. O plano decide: free nunca é cliente pagante.
+  const PAG = { valor: 67, dedupKey: 'dk:plano', e2eKey: null, modo: 'tabela', data: null } as any;
+  const chama = async (u: Record<string, unknown>) => {
+    const { avisarCompraNoGrupo } = await import('../services/agents/whatsapp/pixComprovanteService');
+    purchase.disparar.mockClear();
+    return avisarCompraNoGrupo({ id: 'u1', email: USER.email, plano_expira_em: null, ...u } as any, PAG, TEL, 67);
+  };
+  it('Purchase: plano free com billing active (default da coluna) e sem past_due MANDA', async () => {
+    expect(await chama({ plano: 'free', billing_status: 'active', past_due_since: null })).toBe('enviado');
+    expect(purchase.disparar).toHaveBeenCalledTimes(1);
+  });
+  it('Purchase: plano free com active e past_due_since antigo (foi rebaixado e voltou) MANDA', async () => {
+    expect(await chama({ plano: 'free', billing_status: 'active', past_due_since: '2026-09-01T00:00:00Z' })).toBe('enviado');
+    expect(purchase.disparar).toHaveBeenCalledTimes(1);
+  });
+  it('Purchase: plano vazio ou ausente não é cliente pagante: MANDA', async () => {
+    expect(await chama({ plano: null, billing_status: 'active' })).toBe('enviado');
+    expect(await chama({ billing_status: 'past_due' })).toBe('enviado');
+  });
+  it('Purchase: plano pago com past_due NÃO manda (ja_cliente)', async () => {
+    expect(await chama({ plano: 'pro', billing_status: 'past_due' })).toBe('ja_cliente');
+    expect(purchase.disparar).not.toHaveBeenCalled();
+  });
+  it('Purchase: plano pago com active e sem plano_expira_em (cartão) NÃO manda', async () => {
+    expect(await chama({ plano: 'ilimitado', billing_status: 'active' })).toBe('ja_cliente');
+    expect(purchase.disparar).not.toHaveBeenCalled();
+  });
+  it('Purchase: plano pago com past_due_since preenchido, mesmo com status limpo, NÃO manda', async () => {
+    expect(await chama({ plano: 'pro', billing_status: 'free', past_due_since: '2026-10-20T00:00:00Z' })).toBe('ja_cliente');
+    expect(purchase.disparar).not.toHaveBeenCalled();
+  });
+  it('Purchase: plano pago com trialing e unpaid NÃO manda; canceled e nulo mandam', async () => {
+    for (const st of ['trialing', 'unpaid']) {
+      expect(await chama({ plano: 'pro', billing_status: st })).toBe('ja_cliente');
+      expect(purchase.disparar).not.toHaveBeenCalled();
+    }
+    for (const st of ['canceled', null]) {
+      expect(await chama({ plano: 'pro', billing_status: st })).toBe('enviado');
+      expect(purchase.disparar).toHaveBeenCalledTimes(1);
+    }
+  });
   it('Purchase do pixel do quiz: se o disparo estourar, a liberação e o aviso ao grupo seguem', async () => {
     purchase.disparar.mockRejectedValueOnce(new Error('meta fora'));
     leitura = P67;

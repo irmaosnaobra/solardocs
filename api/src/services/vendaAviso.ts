@@ -23,7 +23,7 @@ import { sendWhatsApp } from './agents/zapiClient';
 import { sendOpsAlert } from '../utils/mailer';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
-import { decisaoMeta, OrigemVenda, TEXTO_MOTIVO, TEXTO_ORIGEM } from './salesLedger';
+import { decisaoMeta, ehVendaDeTeste, JANELA_DUPLICADA_MS, OrigemVenda, TEXTO_MOTIVO, TEXTO_ORIGEM } from './salesLedger';
 
 const DONO_PHONE = (process.env.VENDA_AVISO_PHONE || '34991360223').trim();
 
@@ -35,6 +35,9 @@ export type VendaAviso = {
   nome: string | null;
   phone: string | null;         // só dígitos
   utmSource?: string | null;
+  utmMedium?: string | null;
+  /** ISO do momento desta venda (card_passed_at): referência da janela de 24 h. Sem ele, usa o relógio de agora. */
+  vendaEm?: string | null;
   utmCampaign?: string | null;
   utmContent?: string | null;
   // ausente = quem chamou não conseguiu apurar (nenhuma linha é escrita);
@@ -63,6 +66,7 @@ export type VendaAviso = {
 export type HistoricoCliente = {
   tipo: 'novo' | 'recorrente';
   primeiraCompra: string | null;   // ISO da compra mais antiga deste e-mail
+  ultimaCompra?: string | null;    // ISO da compra mais recente ANTES desta, sem as puladas por teste/duplicada (base da regra de duplicada, 24 h)
   comprasAnteriores: number;
   assinaturaAtiva: boolean;        // a anterior continua cobrando?
 };
@@ -132,13 +136,17 @@ function linhaCliente(h: HistoricoCliente | null | undefined): string[] {
 }
 
 // ── DE ONDE CHEGOU + FOI PRO META? ──────────────────────────────────────────
-// As duas linhas que o Thiago pediu em 14/08: o pixel passou a receber só venda
-// NOVA, então o aviso precisa dizer, na hora, quem fechou a venda e se ela vai
-// (ou não) aparecer no gerenciador. Sem isto a venda de follow-up somia do Meta
-// e não reaparecia em lugar nenhum.
+// As duas linhas que o Thiago pediu em 14/08: quem fechou a venda e se ela vai
+// (ou não) aparecer no gerenciador. Desde 29/10/2026 TODA venda vai ao Meta
+// (follow-up e recompra também); só ficam de fora o teste e a cobrança repetida
+// do mesmo e-mail em menos de 24 h. Quem decide se o anúncio leva o crédito é a
+// janela de atribuição do Meta, então o aviso não promete "contabilizada no
+// anúncio": diz só que foi enviada.
 //
-// A decisão vem da MESMA função do gate (decisaoMeta) — se cada lado calculasse
-// a sua, o aviso diria "contabilizada" numa venda que o ledger pulou.
+// A decisão vem da MESMA função do gate (decisaoMeta, com o mesmo ehVendaDeTeste)
+// — se cada lado calculasse a sua, o aviso diria "enviada" numa venda que o
+// ledger pulou. O aviso sai ANTES do envio, então a duplicada é conferida pela
+// compra anterior do histórico (ultimaCompra); sem histórico, ele não afirma.
 function linhasOrigem(v: VendaAviso): string[] {
   const utmsCru = [v.utmSource, v.utmCampaign, v.utmContent].filter(Boolean).join(' · ');
   if (!v.origem) {
@@ -148,16 +156,17 @@ function linhasOrigem(v: VendaAviso): string[] {
   const de = [TEXTO_ORIGEM[v.origem], v.origemDetalhe, v.utmContent]
     .filter(Boolean).join(' · ');
 
-  // Sem histórico apurado não dá pra afirmar nada: o gate faz a própria leitura
-  // e pode achar uma compra anterior que o aviso não viu. Aí a linha diz que não
-  // deu pra conferir, em vez de prometer "contabilizada" e mentir.
-  const clienteNovo = v.historico ? v.historico.tipo === 'novo' : true;
-  const { envia, motivo } = decisaoMeta({ origem: v.origem, clienteNovo });
+  const teste = ehVendaDeTeste({ utm_source: v.utmSource, utm_medium: v.utmMedium, utm_campaign: v.utmCampaign });
+  const anterior = v.historico?.ultimaCompra ? new Date(v.historico.ultimaCompra).getTime() : NaN;
+  const tVenda = v.vendaEm ? new Date(v.vendaEm).getTime() : Date.now();
+  const duplicada = Number.isFinite(anterior) && Number.isFinite(tVenda)
+    && anterior < tVenda && tVenda - anterior < JANELA_DUPLICADA_MS;
+  const { envia, motivo } = decisaoMeta({ teste, duplicada });
   const meta = !envia
     ? `*Meta:* NÃO enviada — ${TEXTO_MOTIVO[motivo!]}`
     : v.historico
-      ? '*Meta:* contabilizada no anúncio'
-      : '*Meta:* _não deu pra conferir se foi contabilizada_';
+      ? '*Meta:* enviada (o Meta decide se o anúncio leva o crédito)'
+      : '*Meta:* _enviada, mas não deu pra conferir se é cobrança repetida_';
 
   return [`*De onde chegou:* ${de}`, meta];
 }
@@ -205,6 +214,8 @@ export async function historicoDoCliente(args: {
   email: string | null;
   checkoutSessionIdAtual: string;
   subscriptionIdAtual?: string | null;
+  /** ISO desta venda: `ultimaCompra` só olha compras ANTERIORES a este instante (como o ledger). Sem ele, vale tudo. */
+  vendaEm?: string | null;
   /** confirma na Stripe se a assinatura antiga está viva (opcional) */
   assinaturaViva?: (subscriptionId: string) => Promise<boolean>;
 }): Promise<HistoricoCliente | null> {
@@ -215,7 +226,7 @@ export async function historicoDoCliente(args: {
   try {
     const { data, error } = await supabase
       .from('sales')
-      .select('checkout_session_id, subscription_id, status, card_passed_at, created_at')
+      .select('checkout_session_id, subscription_id, status, card_passed_at, created_at, meta_skip_motivo')
       .eq('email', email);
     if (error) throw error;
     linhas = data ?? [];
@@ -236,6 +247,15 @@ export async function historicoDoCliente(args: {
 
   const quando = (r: Record<string, any>) => (r.card_passed_at || r.created_at) as string | null;
   const datas = anteriores.map(quando).filter((d): d is string => !!d).sort();
+  // Mesmo filtro e mesma referência de tempo do ledger (temVendaNas24hAnteriores): linha pulada por teste ou por
+  // duplicidade não foi venda de verdade, e só conta o que veio ANTES desta venda.
+  const tVenda = args.vendaEm ? new Date(args.vendaEm).getTime() : NaN;
+  const ultimaCompraReal = anteriores
+    .filter((r) => r.meta_skip_motivo !== 'teste' && r.meta_skip_motivo !== 'duplicada')
+    .map(quando)
+    .filter((d): d is string => !!d && (Number.isNaN(tVenda) || new Date(d).getTime() < tVenda))
+    .sort()
+    .pop() ?? null;
 
   // DA MAIS NOVA PRA MAIS VELHA antes de cortar em 3: o Postgres devolve sem
   // ordem, e quem tem 4 assinaturas antigas (já existe um caso, 3 subs no mesmo
@@ -260,6 +280,7 @@ export async function historicoDoCliente(args: {
   return {
     tipo: 'recorrente',
     primeiraCompra: datas[0] ?? null,
+    ultimaCompra: ultimaCompraReal,
     comprasAnteriores: anteriores.length,
     assinaturaAtiva: viva,
   };
