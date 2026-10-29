@@ -384,7 +384,7 @@ export function montarObservacao(resp: Respostas, dec: Decisao, end: Endereco | 
     const km = c.kmUdi;
     L.push(`Cidade: ${c.nome}-${c.uf}${km ? ` · ${km} km de Uberlândia pela estrada` : ''}`);
   } else if (resp.cidade) {
-    L.push(`Cidade: ${resp.cidade} · FORA DO RAIO DE ${RAIO_VISITA_KM} KM`);
+    L.push(`Cidade: ${resp.cidade} · sem visita presencial (fora do raio de ${RAIO_VISITA_KM} km), atende por ligação`);
   }
   const linha = (rotulo: string, campo: Campo, v: string | null) => { const t = rot(campo, v); if (t) L.push(`${rotulo}: ${t}`); };
   linha('Imóvel', 'imovel', resp.imovel);

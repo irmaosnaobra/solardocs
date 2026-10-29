@@ -4,7 +4,7 @@ import { join } from 'path';
 import { CARLA, EXEMPLOS_CARLA, LINKS_CARLA } from '../services/agentes5040/personas/carla';
 import { ACOES_DUDA_SEM_FALA, DUDA, EXEMPLOS_DUDA } from '../services/agentes5040/personas/duda';
 import { HELENA, EXEMPLOS_HELENA } from '../services/agentes5040/personas/helena';
-import { ACOES_SEM_FALA, semTelefone, type ExemploPersona } from '../services/agentes5040/personas/comum';
+import { ACOES_SEM_FALA, observacaoSemDiagnostico, semTelefone, type ExemploPersona } from '../services/agentes5040/personas/comum';
 import { validarFala } from '../services/agentes5040/trava';
 import { lerSaida, schemaSaidaAgente, type ContextoLead, type MsgConversa, type PersonaDef } from '../services/agentes5040/tipos';
 import { msg } from './_agentes5040Util';
@@ -126,7 +126,7 @@ describe.each(CASOS)('persona $def.persona', ({ def, exemplos, arquivo, proibico
 
   it('todas as falas de agente dos exemplos passam na trava', () => {
     expect(exemplos.length).toBeGreaterThanOrEqual(4);
-    expect(exemplos.length).toBeLessThanOrEqual(9);
+    expect(exemplos.length).toBeLessThanOrEqual(def.persona === 'duda' ? 11 : 9);
     const erros = exemplos.flatMap(ex => motivosDoExemplo(def, ex));
     expect(erros).toEqual([]);
   });
@@ -170,5 +170,84 @@ describe('fatos: horário, horários livres e qualificação', () => {
 
   it('semTelefone tira número de 8+ dígitos e deixa data e kWh', () => {
     expect(semTelefone('tel (34) 99876-5432, 700 kWh, dia 20/10/2026')).toBe('tel [número omitido], 700 kWh, dia 20/10/2026');
+  });
+});
+
+// A nota real do card do quiz solar (sem telefone), no formato de montarObservacao: uma linha por campo.
+const NOTA_QUIZ = [
+  'LP SOLAR QUIZ · SAIU SEM MARCAR · Casa · LIGAÇÃO',
+  'Conta de luz: Até R$ 300 (~143 kWh/mês)',
+  'Pontuação: 90/100 (prazo 35/35, decisor 14/20, pagamento 16/20, imóvel 15/15, orçamento 10/10)',
+  'Cidade: Capinópolis-MG · FORA DO RAIO DE 150 KM',
+  'Imóvel: Próprio',
+  'Quando quer: O quanto antes, este mês',
+  'Já tem orçamento: Sim, quer comparar',
+  'Pagamento: Financiamento',
+  'Decisor: Decide com mais alguém',
+  'Telhado: Metálico',
+  'Sombra: Sol o dia todo',
+  'Vai aumentar: Não',
+  'Dor: A conta sobe todo ano',
+  'Pensa em solar: Há mais de 1 ano',
+  'Travou: Achou caro',
+  'Desejo: Guardar ou investir',
+  'Mais importante: Garantia e segurança',
+  'Diagnóstico: 4 placas, 2,44 kWp, economia de cerca de R$ 51 por mês',
+  'Por que este caminho: Ligação da Nilce: ela atende todo o solar.',
+].join('\n');
+
+function comNota(observacao: string, created_by: string | null = 'lp_solar'): ContextoLead {
+  return contexto({ card: { ...contexto().card!, observacao, created_by } });
+}
+
+describe('card do quiz solar: o que a Duda lê', () => {
+  it('a nota tem mais de 500 caracteres (o caso real)', () => {
+    expect(NOTA_QUIZ.length).toBeGreaterThan(600);
+  });
+
+  it('Duda vê Travou, Desejo e Mais importante, e não vê o Diagnóstico nem a economia', () => {
+    const f = DUDA.fatos(comNota(NOTA_QUIZ));
+    for (const t of ['Travou: Achou caro', 'Desejo: Guardar ou investir', 'Mais importante: Garantia e segurança', 'Por que este caminho']) expect(f).toContain(t);
+    expect(f).not.toMatch(/Diagn[óo]stico/i);
+    expect(f).not.toMatch(/econom/i);
+    expect(f).not.toMatch(/placas|kWp/);
+  });
+
+  it('o corte do Diagnóstico vale também quando a nota já veio numa linha só e com a marca no começo', () => {
+    const umaLinha = NOTA_QUIZ.replace(/\n/g, ' ');
+    const cortada = observacaoSemDiagnostico(umaLinha);
+    expect(cortada).not.toMatch(/Diagn|econom|placas/);
+    expect(cortada).toContain('Mais importante: Garantia e segurança');
+    expect(cortada).toContain('Por que este caminho: Ligação da Nilce');
+    const f = DUDA.fatos(comNota(umaLinha, null));   // sem created_by: vale a marca na primeira linha
+    expect(f).toContain('Travou: Achou caro');
+    expect(f).not.toMatch(/econom/i);
+  });
+
+  it('o rótulo novo do raio chega à Duda e não diz que está fora da área', () => {
+    const nova = NOTA_QUIZ.replace('FORA DO RAIO DE 150 KM', 'sem visita presencial (fora do raio de 150 km), atende por ligação');
+    const f = DUDA.fatos(comNota(nova));
+    expect(f).toContain('sem visita presencial (fora do raio de 150 km), atende por ligação');
+    expect(f).toContain('Travou: Achou caro');
+  });
+
+  it('o fixture real passa pelo limite sem ser cortado', () => {
+    expect(DUDA.fatos(comNota(NOTA_QUIZ))).not.toContain('...');
+  });
+
+  it('Carla e Helena seguem cortando a nota em 500, mesmo em card do quiz', () => {
+    for (const def of [CARLA, HELENA]) {
+      const f = def.fatos(comNota(NOTA_QUIZ));
+      expect(f).not.toContain('Mais importante');
+      expect(f).toContain('...');
+    }
+    const longa = 'Cliente pediu retorno. ' + 'texto de nota comum. '.repeat(40);
+    for (const def of [CARLA, HELENA, DUDA]) {
+      const f = def.fatos(comNota(longa, 'admin'));
+      const linha = f.split('\n').find(l => l.startsWith('Observação do card'))!;
+      const nota = linha.slice(linha.indexOf('): ') + 3);
+      expect(nota.length).toBe(500 + 3);
+      expect(nota.endsWith('...')).toBe(true);
+    }
   });
 });

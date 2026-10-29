@@ -10,6 +10,7 @@
 
 import type { CadastroEletroposto, ContextoLead, PecaSaida, SaidaAgente } from '../tipos';
 import { diaBRT, diaDaSemanaBRT, horaBRT, horarioComercial } from '../relogio';
+import { MARCA_QUIZ } from '../../agenda/solarRota';
 
 // Ações
 
@@ -232,8 +233,24 @@ export function fatosOrigem(ctx: ContextoLead): string[] {
   return l;
 }
 
-/** O card da agenda, sem telefone. */
-export function fatosCard(ctx: ContextoLead, rotuloConsultor: string): string[] {
+/** A nota do card do quiz solar tem cerca de 720 caracteres; com 500 a Duda perdia "Travou", "Desejo" e "Mais importante". */
+export const LIMITE_OBS_QUIZ = 1200;
+
+/** Card do quiz solar: criado pela página (`lp_solar`) ou com a MARCA_QUIZ na primeira linha da nota. */
+export function ehCardDoQuiz(c: { observacao?: string | null; created_by?: string | null }): boolean {
+  if (c.created_by === 'lp_solar') return true;
+  return String(c.observacao ?? '').split('\n')[0].trim().toUpperCase().startsWith(MARCA_QUIZ);
+}
+
+/** Tira da nota a linha "Diagnóstico: ..." (traz placas, kWp e economia em reais, que a Duda não pode falar).
+ *  Corta por linha, antes de o textoLivre juntar tudo; se a nota já veio numa linha só, corta até o próximo "Rótulo:". */
+export function observacaoSemDiagnostico(obs: string): string {
+  const semLinha = obs.split(/\r?\n/).filter(linha => !/^\s*Diagn[óo]stico\s*:/i.test(linha)).join('\n');
+  return semLinha.replace(/Diagn[óo]stico\s*:[\s\S]*?(?=\s+[A-ZÀ-Ú][\p{L}]*(?: [\p{L}]+){0,3}:\s|$)/gu, '').trim();
+}
+
+/** O card da agenda, sem telefone. Com `quizCompleto` (só a Duda), a nota do card do quiz solar sai inteira, sem a linha do diagnóstico. */
+export function fatosCard(ctx: ContextoLead, rotuloConsultor: string, opcoes: { quizCompleto?: boolean } = {}): string[] {
   const c = ctx.card;
   if (!c) return ['Card na agenda: nenhum (sem reunião ou ligação marcada).'];
   const l: string[] = [];
@@ -242,7 +259,10 @@ export function fatosCard(ctx: ContextoLead, rotuloConsultor: string): string[] 
   l.push(quando ? `Marcado para: ${quando}.` : 'Marcado para: sem data no card.');
   l.push(c.vendedor_nome ? `${rotuloConsultor}: ${textoLivre(c.vendedor_nome, 40)}.` : `${rotuloConsultor}: ainda não definido.`);
   if (c.cidade) l.push(`Cidade no card: ${textoLivre(c.cidade, 60)}.`);
-  if (c.observacao) l.push(`Observação do card (o que a página ou a equipe gravou): ${textoLivre(c.observacao)}`);
+  if (c.observacao) {
+    const nota = opcoes.quizCompleto && ehCardDoQuiz(c) ? textoLivre(observacaoSemDiagnostico(c.observacao), LIMITE_OBS_QUIZ) : textoLivre(c.observacao);
+    l.push(`Observação do card (o que a página ou a equipe gravou): ${nota}`);
+  }
   return l;
 }
 

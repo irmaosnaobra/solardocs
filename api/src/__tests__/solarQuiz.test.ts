@@ -104,7 +104,8 @@ describe('a ficha', () => {
     const r = resp({ conta: '2000_5000', cidade: 'Patos de Minas', ...QUENTE });
     const obs = montarObservacao(r, decidirCaminho(r, 'Thiago'), null);
     expect(obs.split('\n')[0]).toContain('ATENDIMENTO ONLINE');
-    expect(obs).toContain('Cidade: Patos de Minas · FORA DO RAIO DE 150 KM');
+    expect(obs).toContain('Cidade: Patos de Minas · sem visita presencial (fora do raio de 150 km), atende por ligação');
+    expect(obs).not.toMatch(/FORA DO RAIO/);
   });
   it('os campos do lead têm os nomes que a tela Leads do Gerador procura, e os pontos', () => {
     const r = resp({ conta: '300_600', cidade: 'Uberlândia', ...MORNO });
