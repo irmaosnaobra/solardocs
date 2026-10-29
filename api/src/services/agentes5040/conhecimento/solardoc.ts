@@ -64,6 +64,7 @@ export function textoConhecimentoSolarDoc(): string {
     `- Produtos avulsos (Kiwify, o acesso chega sozinho), só quando a conversa pede e depois que pagou: ${avulsos}.`,
     `- Promessa permitida só para quem fecha no mesmo dia, sem data: "${PROMESSA_PLANILHA_ELETROPOSTO}"`,
     '- Pix: ofereça primeiro o link da Kiwify. Quem paga na chave e manda a foto do comprovante continua liberado pela foto.',
+    '- Cartão de crédito: aceito, pelo link de assinatura do site.',
     '- Reembolso é com a Giovanna (pessoa). Nunca diga que devolveu ou que vai devolver.',
   ].join('\n');
 }

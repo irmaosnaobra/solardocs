@@ -186,15 +186,24 @@ export interface EntradaTurno {
 /** As únicas ações da retomada: voltar com 1 bolha (continuar) ou não voltar (calar). */
 export const ACOES_DA_RETOMADA: readonly string[] = ['continuar', 'calar'];
 
+/** A primeira volta: a pergunta que convida um "não" (quem ainda quer responde que não e segue; quem largou fica livre para dizer). */
+const PERGUNTA_DA_VOLTA: Partial<Record<Persona, string>> = {
+  duda: 'Você deixou o projeto da energia solar de lado por enquanto?',
+  helena: 'Você deixou a ideia do eletroposto de lado por enquanto?',
+};
+
 /** O aviso do sistema da retomada (fatos da persona). Vale por cima do roteiro e da regra "nunca cobra resposta". */
 export function avisoDaRetomada(persona: Persona): string {
   const helena = persona === 'helena'
     ? ' Nunca peça SIM, nunca prometa lembrete e nunca escreva "confirmado".'
     : '';
+  const pergunta = PERGUNTA_DA_VOLTA[persona] ?? 'Você deixou isso de lado por enquanto?';
   return 'AVISO DO SISTEMA (retomada): o cliente parou de responder há algumas horas e a última mensagem da conversa é nossa. '
     + 'Esta é a ÚNICA situação em que você escreve duas falas seguidas, e isso vale por cima da regra de nunca cobrar resposta. '
-    + 'Se faz sentido voltar, escreva UMA bolha de até 160 caracteres que retome o último assunto em uma frase, sem pressão, '
+    + 'Se faz sentido voltar, escreva UMA bolha de até 160 caracteres, sem pressão, '
     + 'sem cobrar resposta, sem repetir pergunta que já foi feita, sem se apresentar de novo, sem link, sem Pix, sem imagem e sem horário novo. '
+    + `Na primeira volta, só a pergunta que convida um não, leve e sem culpa ("${pergunta}"): quem ainda quer responde que não e segue. `
+    + 'Se uma pergunta assim já está na conversa, não repita: retome o último assunto por um caminho mais fácil (um áudio, uma foto) ou cale. '
     + 'Use a ação continuar. Se não faz sentido voltar (ele já se despediu, já disse que agora não, a conversa acabou, ou não dá para '
     + 'retomar sem repetir o que já foi dito), devolva bolhas vazias e a ação calar. Nenhuma outra ação é permitida.' + helena;
 }
