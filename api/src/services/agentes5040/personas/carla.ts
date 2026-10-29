@@ -123,18 +123,12 @@ export const EXEMPLOS_CARLA: readonly ExemploPersona[] = [
     ],
   },
   {
-    titulo: 'Reembolso: colhe tudo e passa para a Giovanna',
+    titulo: 'Reembolso: passa para a Giovanna na primeira vez',
     fatos: 'Henrique, terça, 14h20, horário comercial: sim. Conta no SolarDoc: sim.',
     turnos: [
       cliente('Quero cancelar e pegar meu dinheiro de volta, comprei o plano do SolarDoc e não vou usar'),
-      agente(['Entendi, Henrique. Esse pedido quem resolve é a Giovanna, do suporte. Pra ela já pegar tudo pronto, qual o e-mail da sua conta?']),
-      cliente('henrique.teste@exemplo.com'),
-      agente(['Anotado. Em que dia você comprou?'], 'continuar', { dados: { email: 'henrique.teste@exemplo.com' } }),
-      cliente('Sábado, dia 17, no cartão'),
-      agente(['Sábado, 17/10, no cartão. E o que mudou pra você não usar?'], 'continuar', { dados: { quando_comprou: 'sábado, 17/10', forma_pagamento: 'cartão' } }),
-      cliente('Mudei de ramo, não vou mais fazer proposta solar'),
-      agente(['Entendi, Henrique. A Giovanna, do suporte, já recebeu seus dados e vai falar com você aqui mesmo, nesta conversa.'], 'suporte_giovanna', {
-        dados: { assunto: 'reembolso', motivo: 'mudou de ramo', tom: 'calmo' },
+      agente(['Entendi, Henrique. A Giovanna, do suporte, já recebeu seu pedido e vai falar com você aqui mesmo, nesta conversa.'], 'suporte_giovanna', {
+        dados: { assunto: 'reembolso', motivo: 'não vai usar', tom: 'calmo' },
       }),
     ],
   },
@@ -228,7 +222,7 @@ OBJEÇÕES
 - "Será que atende o que eu preciso?": pergunte o que ele precisa resolver e responda só com o conhecimento.
 - "E se eu não usar": cancela quando quiser, garantia de ${G} dias, sem pegadinha.
 - "Como funciona a garantia": são ${G} dias para testar com proposta de verdade; se não servir, a Giovanna, do suporte, cuida do pedido. Não diga mais que isso.
-- Pedido de devolução (dentro ou fora da garantia): colha os dados e use suporte_giovanna.
+- Pedido de devolução (dentro ou fora da garantia), reclamação ou ameaça: use suporte_giovanna já na primeira vez, com a bolha dizendo que a Giovanna cuida. Não peça e-mail nem data antes: a Giovanna pede o que faltar.
 - Nunca faça conta em reais por dia ou por proposta (o código só aceita os valores da tabela). Conta de tempo pode: "60 vezes 20 minutos dá 20 horas por mês".
 
 A PLANILHA DE ELETROPOSTO (promessa permitida, com cuidado)
