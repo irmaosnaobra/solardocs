@@ -1,5 +1,6 @@
 import { supabase } from '../../utils/supabase';
 import { sanitizarStatus, MapaStatus } from './avaliacao';
+import { Compras, comprasVazio, sanitizarCompras } from './compras';
 
 // Colunas novas da vistoria (status_itens e assinaturas). Elas só existem depois que o
 // dono roda MIGRATION_vistoria_avaliacao.sql, então NENHUM select antigo pode pedi-las:
@@ -48,6 +49,28 @@ export async function lerExtras(id: string): Promise<Extras> {
   }
   const d = (data ?? {}) as { status_itens?: unknown; assinaturas?: unknown };
   return { status_itens: sanitizarStatus(d.status_itens), assinaturas: assinaturasDe(d.assinaturas), disponivel: true };
+}
+
+export interface ComprasLidas {
+  compras: Compras;
+  disponivel: boolean;
+}
+
+/**
+ * Lê a lista de compras (coluna `compras`, criada por MIGRATION_vistoria_compras.sql). Fica separada do
+ * lerExtras de propósito: se a coluna nova entrasse no select dele e só ela faltasse, status e assinatura
+ * sumiriam junto (uma flag só). Aqui a flag é própria.
+ *
+ * Só "coluna não existe" vira disponivel=false. Qualquer outro erro LANÇA, para a rota de escrita não gravar
+ * por cima do que não conseguiu ler. A leitura é tolerante: '{}' (o padrão da coluna) é lista vazia e visível.
+ */
+export async function lerCompras(id: string): Promise<ComprasLidas> {
+  const { data, error } = await supabase.from('vistorias').select('compras').eq('id', id).maybeSingle();
+  if (error) {
+    if (colunaAusente(error)) return { compras: comprasVazio(), disponivel: false };
+    throw new Error(`falha lendo compras: ${error.message ?? error.code ?? 'erro'}`);
+  }
+  return { compras: sanitizarCompras((data as { compras?: unknown } | null)?.compras), disponivel: true };
 }
 
 /** Signed URLs de 1 hora das assinaturas, geradas na hora (nunca guardadas). */
