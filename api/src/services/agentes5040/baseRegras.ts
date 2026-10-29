@@ -326,7 +326,8 @@ export function pareceOptOut(textos: readonly string[]): boolean {
     if (!t) continue;
     if (/^(?:pa(?:ra|re)|chega|parar|stop|sair)[\s.!]*$/.test(t)) return true;
     if (/\bpa(?:ra|re)\s+de\s+(?:me\s+)?(?:mandar|enviar|chamar|escrever|ligar|falar|insistir|incomodar|perturbar)/.test(t)) return true;
-    if (/\bnao\s+(?:quero|tenho\s+interesse)\b/.test(t)) return true;
+    // "Não quero desistir / largar / deixar de lado" é resposta de quem AINDA quer (a volta pergunta se ele deixou de lado).
+    if (/\bnao\s+(?:quero(?!\s+(?:desistir|largar|deixar|abandonar|perder))|tenho\s+interesse)\b/.test(t)) return true;
     if (/\bnao\s+me\s+(?:chame|chama|mande|manda|envie|envia|procure|procura|escreva|escreve|ligue|liga|incomode|incomoda|perturbe|perturba|contate)\b/.test(t)) return true;
     if (/\bnao\s+(?:precisa|precisam)\s+(?:mais\s+)?(?:me\s+)?(?:chamar|mandar|enviar|escrever|ligar)\b/.test(t)) return true;
     if (/\bsa(?:i|ir|ia)\s+da\s+lista\b|\btir(?:a|e|ar)\s+(?:o\s+)?meu\s+(?:numero|contato|telefone)\b|\bremov\w+\s+(?:o\s+)?meu\s+(?:numero|contato|telefone)\b/.test(t)) return true;

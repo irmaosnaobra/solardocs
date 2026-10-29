@@ -186,7 +186,8 @@ describe('estacionar: a data e o prazo fixo', () => {
     for (const t of ['não quero', 'Não quero mais', 'para', 'Para de me mandar mensagem', 'não me chama mais', 'sai da lista', 'nunca mais', 'chega']) {
       expect(pareceOptOut([t]), t).toBe(true);
     }
-    for (const t of ['agora não', 'agora não dá', 'me chama em novembro', 'depois a gente conversa', 'para casa nova', 'preciso de um tempo']) {
+    for (const t of ['agora não', 'agora não dá', 'me chama em novembro', 'depois a gente conversa', 'para casa nova', 'preciso de um tempo',
+      'Sim, deixei de lado', 'Não, não quero desistir, só tô sem tempo agora', 'Não quero largar não, mais pra frente eu vejo', 'não quero deixar de lado']) {
       expect(pareceOptOut([t]), t).toBe(false);
     }
   });
