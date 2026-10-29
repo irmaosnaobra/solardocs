@@ -1,3 +1,4 @@
+-- Se for rodar, rode MIGRATION_vistoria_compras.sql: ela inclui estas duas colunas e mais a lista de compras.
 -- Vistoria solar: avaliação dos itens técnicos e assinaturas.
 -- Aplicar no Supabase antes de usar os botões de status e a assinatura na tela /vistoria.
 -- Só acrescenta duas colunas com padrão vazio. Vistoria antiga continua igual (sem selo).

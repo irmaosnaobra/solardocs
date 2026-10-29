@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS vistorias (
   cliente_nome  VARCHAR(255),
   codigo_curto  VARCHAR(12),           -- YYYYNNNN, escopo user-ano, pro link publico
   status        VARCHAR(20) NOT NULL DEFAULT 'em_andamento', -- em_andamento | concluida
-  itens         JSONB NOT NULL DEFAULT '[]'::jsonb,          -- [{key,label,foto_url,obs,ts}]
+  itens         JSONB NOT NULL DEFAULT '[]'::jsonb,          -- [{key,label,dica,obs,fotos:[{url,ts,tipo,nome?}]}]
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -125,4 +125,6 @@ ALTER TABLE manutencoes ENABLE ROW LEVEL SECURITY;
 -- Vistoria solar: avaliação dos itens técnicos e assinaturas (ver MIGRATION_vistoria_avaliacao.sql)
 ALTER TABLE vistorias ADD COLUMN IF NOT EXISTS status_itens JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE vistorias ADD COLUMN IF NOT EXISTS assinaturas JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE vistorias ADD COLUMN IF NOT EXISTS localizacao JSONB;
+ALTER TABLE vistorias ADD COLUMN IF NOT EXISTS compras JSONB NOT NULL DEFAULT '{}'::jsonb;
 NOTIFY pgrst, 'reload schema';
