@@ -21,6 +21,8 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
+.caixa:focus { outline: none; }
+
 .titulo {
   margin-bottom: 12px;
   font-size: 18px;

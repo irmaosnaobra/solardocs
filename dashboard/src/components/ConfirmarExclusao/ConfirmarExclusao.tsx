@@ -28,6 +28,7 @@ export default function ConfirmarExclusao(props: Props) {
 function Caixa({ titulo, resumo, avisos, onConfirmar, onFechar }: Props) {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
+  const caixaRef = useRef<HTMLDivElement>(null);
   const cancelarRef = useRef<HTMLButtonElement>(null);
   const excluirRef = useRef<HTMLButtonElement>(null);
   const ocupadoRef = useRef(false);
@@ -42,14 +43,17 @@ function Caixa({ titulo, resumo, avisos, onConfirmar, onFechar }: Props) {
     cancelarRef.current?.focus();
     const tecla = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !ocupadoRef.current) { fecharRef.current(); return; }
-      // Mantém o Tab dentro do modal: são só dois botões.
+      // Prende o Tab entre Cancelar e Excluir. Ocupado (botões desabilitados) o foco fica no próprio diálogo.
       if (e.key === 'Tab') {
-        const a = cancelarRef.current;
-        const b = excluirRef.current;
-        if (!a || !b || a.disabled || b.disabled) { e.preventDefault(); return; }
+        const botoes = [cancelarRef.current, excluirRef.current].filter((b): b is HTMLButtonElement => !!b && !b.disabled);
+        if (botoes.length === 0) { e.preventDefault(); caixaRef.current?.focus(); return; }
+        const primeiro = botoes[0];
+        const ultimo = botoes[botoes.length - 1];
         const ativo = document.activeElement;
-        if (e.shiftKey && ativo === a) { e.preventDefault(); b.focus(); }
-        else if (!e.shiftKey && ativo === b) { e.preventDefault(); a.focus(); }
+        const dentro = !!ativo && ativo !== caixaRef.current && !!caixaRef.current?.contains(ativo);
+        if (!dentro) { e.preventDefault(); (e.shiftKey ? ultimo : primeiro).focus(); }
+        else if (e.shiftKey && ativo === primeiro) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && ativo === ultimo) { e.preventDefault(); primeiro.focus(); }
       }
     };
     document.addEventListener('keydown', tecla);
@@ -59,9 +63,16 @@ function Caixa({ titulo, resumo, avisos, onConfirmar, onFechar }: Props) {
     };
   }, []);
 
+  // Depois de um erro, o foco volta ao Excluir para tentar de novo pelo teclado.
+  useEffect(() => {
+    if (erro && !ocupado) excluirRef.current?.focus();
+  }, [erro, ocupado]);
+
   async function confirmar() {
     if (ocupadoRef.current) return;
     ocupadoRef.current = true;
+    // Os botões vão desabilitar; sem isto o foco cairia no body e o Tab sairia do diálogo.
+    caixaRef.current?.focus();
     setOcupado(true);
     setErro('');
     try {
@@ -79,7 +90,7 @@ function Caixa({ titulo, resumo, avisos, onConfirmar, onFechar }: Props) {
       className={styles.fundo}
       onMouseDown={(e) => { if (e.target === e.currentTarget && !ocupadoRef.current) onFechar(); }}
     >
-      <div className={styles.caixa} role="alertdialog" aria-modal="true" aria-labelledby="confirmar-exclusao-titulo" aria-describedby="confirmar-exclusao-avisos">
+      <div ref={caixaRef} tabIndex={-1} className={styles.caixa} role="alertdialog" aria-modal="true" aria-labelledby="confirmar-exclusao-titulo" aria-describedby="confirmar-exclusao-avisos">
         <h2 id="confirmar-exclusao-titulo" className={styles.titulo}>{titulo}</h2>
         <div className={styles.resumo}>{resumo}</div>
         <ul id="confirmar-exclusao-avisos" className={styles.avisos}>

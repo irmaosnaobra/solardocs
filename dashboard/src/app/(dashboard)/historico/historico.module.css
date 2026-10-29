@@ -363,6 +363,8 @@
 .menu a:hover { background: var(--color-surface-2); }
 
 .soMobile { display: none; }
+/* `.menu button` e `.menu a` pesam mais que `.soMobile`: sem isto Abrir e Editar apareciam repetidos no computador. */
+.menu .soMobile { display: none; }
 
 .soLeitor {
   position: absolute;
