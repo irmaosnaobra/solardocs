@@ -23,6 +23,7 @@
     { "path": "/cron/agentes-5040/vivo", "schedule": "*/2 * * * *" },
     { "path": "/cron/agentes-5040/agenda", "schedule": "*/2 * * * *" },
     { "path": "/cron/agentes-5040/base", "schedule": "*/10 * * * *" },
-    { "path": "/cron/agentes-5040/qualidade", "schedule": "0,30 10 * * *" }
+    { "path": "/cron/agentes-5040/qualidade", "schedule": "0,30 10 * * *" },
+    { "path": "/cron/agentes-5040/melhoria", "schedule": "45 10 * * 1" }
   ]
 }

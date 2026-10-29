@@ -4,8 +4,10 @@ import { caixaIpLimiter, caixaPessoaLimiter } from '../middleware/rateLimiter';
 import { equipeAutorizada } from '../services/gerador/caixaWhatsapp';
 import { ehSocio } from '../services/gerador/solarObras';
 import {
-  ErroArmazem, lerQualidadesDoDia, lerResumoQualidade, listarConversas, lerTurnos, lerTurnosNosDias, type MsgGravada, type TurnoGravado,
+  ErroArmazem, lerMelhoria, lerQualidadesDoDia, lerResumoQualidade, listarConversas, listarSemanasMelhoria, lerTurnos, lerTurnosNosDias,
+  type MsgGravada, type TurnoGravado,
 } from '../services/agentes5040/armazem';
+import { ehSegunda, paraTela } from '../services/agentes5040/melhoria';
 import {
   ErroPerguntas, STATUS_PERGUNTA, idValido, ignorarPergunta, listarPerguntas, reabrirPergunta, responderPergunta, validarResposta,
   type StatusPergunta,
@@ -40,6 +42,7 @@ import {
 //   GET    /gerador/ensaio/placar                                  por agente; devolve `socio`
 //   POST   /gerador/ensaio/replay  {dias?, conversas?}             SÓ SÓCIO
 //   GET    /gerador/ensaio/qualidade?dia=AAAA-MM-DD                 a nota de cada conversa do dia + o resumo (hmac, nunca telefone)
+//   GET    /gerador/ensaio/melhoria?semana=AAAA-MM-DD               o relatório semanal de melhoria (a segunda-feira) ou o mais recente + as semanas que existem (hmac, nunca telefone)
 //   GET    /gerador/ensaio/perguntas?status=aberta|respondida|ignorada   a fila do que a agente não soube responder
 //   POST   /gerador/ensaio/perguntas/:id/responder {resposta}      SÓ SÓCIO: a resposta entra no conhecimento da agente do produto
 //   POST   /gerador/ensaio/perguntas/:id/ignorar                   SÓ SÓCIO
@@ -303,6 +306,18 @@ export function mountEnsaio5040(router: Router): void {
         .map((x): Record<string, unknown> => ({ ...x.nota, hmac: x.hmac }))
         .sort((a, b) => (ORDEM_QUALIDADE[String(a.qualidade)] ?? 3) - (ORDEM_QUALIDADE[String(b.qualidade)] ?? 3) || String(a.hmac).localeCompare(String(b.hmac)));
       res.json({ ok: true, dia, resumo, notas });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // ── MELHORIA: o relatório da semana (gravado pelo relógio de segunda, services/agentes5040/melhoria.ts). Só leitura ──
+  router.get('/ensaio/melhoria', ...base, async (req: Request, res: Response) => {
+    const pedida = um(req.query.semana);
+    if (pedida && (!DIA.test(pedida) || !ehSegunda(pedida))) { res.status(400).json({ ok: false, error: 'Semana inválida.' }); return; }
+    try {
+      const semanas = await listarSemanasMelhoria();
+      const semana = pedida || semanas[0] || '';
+      const relatorio = semana ? paraTela(await lerMelhoria<unknown>(semana)) : null;
+      res.json({ ok: true, semana: semana || null, semanas, relatorio });
     } catch (err) { falhou(res, err); }
   });
 

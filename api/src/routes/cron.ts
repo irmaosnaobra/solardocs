@@ -1936,6 +1936,39 @@ router.get('/agentes-5040/qualidade', async (req: Request, res: Response) => {
   }
 });
 
+// ── AGENTES 5040 · o relatório semanal de melhoria (melhoria.ts). Segunda 07:45 de Brasília (10:45 UTC), depois das duas
+// rodadas da nota diária: lê as notas dos 7 dias anteriores, aponta os problemas que mais se repetiram e propõe o texto novo
+// da regra (uma chamada à IA por agente com problema, no máximo 3). É SÓ RELATÓRIO: nada muda na agente. ?dry=1 só conta
+// (não chama a IA, não grava, não manda e-mail); ?semana=AAAA-MM-DD (uma segunda) refaz outra semana; ?forcar=1 refaz o que já
+// existe. Relatório novo (a semana não tinha antes) com itens vira UM e-mail ao dono (sendOpsAlert); completar um relatório com `falhou` ou refazer com forcar não manda de novo; falha no e-mail não derruba a rota. O e-mail só vai
+// em rota de cron porque a pasta agentes5040/ não importa cliente de envio. Interruptor `qualidade` desligado = não roda.
+router.get('/agentes-5040/melhoria', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { runMelhoriaTick, ASSUNTO_EMAIL, corpoDoEmail } = await import('../services/agentes5040/melhoria');
+    const semana = typeof req.query.semana === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.semana) ? req.query.semana : undefined;
+    const r = await runMelhoriaTick({ dry: req.query.dry === '1', semana, forcar: req.query.forcar === '1' });
+    if (!r.dry && r.ligado) {
+      logger.info('cron', 'agentes-5040/melhoria rodou', {
+        semana: r.semana, notas_lidas: r.notasLidas, com_problema: r.notasComProblema, chamadas_ia: r.chamadasIA, gravou: r.gravou,
+        itens: r.itens, poucos_dados: r.poucosDados, pulou: r.pulou, falhou: r.falhou.length,
+      });
+    }
+    if (!r.dry && r.novo && !r.poucosDados && r.itens > 0) {
+      try {
+        const { sendOpsAlert } = await import('../utils/mailer');
+        await sendOpsAlert(ASSUNTO_EMAIL, corpoDoEmail(r.semana, r.notasLidas, r.top3));
+      } catch (errMail) {
+        logger.warn('cron', 'agentes-5040/melhoria: e-mail não saiu', { erro: String((errMail as { message?: string })?.message ?? errMail).slice(0, 120) });
+      }
+    }
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/melhoria falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
 // Replay de conversas passadas: ?desde=ISO&ate=ISO (padrão: os últimos 30 dias), &maxConversas=5&maxTurnos=8&dry=1.
 router.get('/agentes-5040/replay', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;

@@ -312,7 +312,7 @@ export async function lerQualidadesDoDia<T>(dia: string): Promise<Array<{ hmac: 
   return out;
 }
 
-/** O resumo do dia é regravado a cada rodada: aqui (e só aqui) o upload sobrescreve. */
+/** O resumo do dia é regravado a cada rodada: aqui (e em gravarMelhoria, com `forcar`) o upload sobrescreve. */
 export async function gravarResumoQualidade(dia: string, resumo: object): Promise<void> {
   if (!diaValido(dia)) throw new ErroArmazem('qualidade_invalida');
   await garantirBucketEnsaio();
@@ -325,6 +325,38 @@ export async function lerResumoQualidade<T>(dia: string): Promise<T | null> {
   if (!diaValido(dia)) return null;
   await garantirBucketEnsaio();
   return baixarJson<T>(caminhoDoResumoQualidade(dia));
+}
+
+// ── relatório semanal de melhoria ────────────────────────────────────────────
+//
+//  · melhoria/<segunda>.json: o relatório da semana (a segunda-feira, AAAA-MM-DD, é o nome). Gravado sem sobrescrever na
+//    primeira vez; `forcar` e a conclusão de um relatório incompleto regravam (upsert:true). É SÓ relatório: nada daqui muda
+//    a agente.
+
+export const caminhoDaMelhoria = (semana: string): string => `melhoria/${semana}.json`;
+const RE_ARQUIVO_SEMANA = /^\d{4}-\d{2}-\d{2}\.json$/;
+
+export async function lerMelhoria<T>(semana: string): Promise<T | null> {
+  if (!diaValido(semana)) return null;
+  await garantirBucketEnsaio();
+  return baixarJson<T>(caminhoDaMelhoria(semana));
+}
+
+/** Grava o relatório. `sobrescrever` false: se já existe, devolve 'ja_existia' e não toca no arquivo. */
+export async function gravarMelhoria(semana: string, relatorio: object, sobrescrever: boolean): Promise<ResultadoGravacao> {
+  if (!diaValido(semana)) throw new ErroArmazem('melhoria_invalida');
+  await garantirBucketEnsaio();
+  if (!sobrescrever) return subir(caminhoDaMelhoria(semana), JSON.stringify(relatorio));
+  const { error } = await supabase.storage.from(BUCKET_ENSAIO)
+    .upload(caminhoDaMelhoria(semana), Buffer.from(JSON.stringify(relatorio), 'utf8'), { contentType: 'application/json', upsert: true });
+  if (error) throw new ErroArmazem('upload_falhou');
+  return 'gravado';
+}
+
+/** As segundas-feiras com relatório, da mais recente para a mais antiga. */
+export async function listarSemanasMelhoria(): Promise<string[]> {
+  await garantirBucketEnsaio();
+  return (await listarPasta('melhoria')).map(f => f.name).filter(n => RE_ARQUIVO_SEMANA.test(n)).map(n => n.slice(0, -5)).sort().reverse();
 }
 
 // ── cache de mídia ───────────────────────────────────────────────────────────
