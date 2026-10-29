@@ -183,7 +183,8 @@ describe('estacionar: a data e o prazo fixo', () => {
     for (const t of ['agora não', 'depois eu vejo', 'mais pra frente', 'tô sem tempo']) expect(leadDisseData([t]), t).toBe(false);
   });
   it('pedido de parar: "não quero", "para", "não me chama" (e só eles) NUNCA estacionam', () => {
-    for (const t of ['não quero', 'Não quero mais', 'para', 'Para de me mandar mensagem', 'não me chama mais', 'sai da lista', 'nunca mais', 'chega']) {
+    for (const t of ['não quero', 'Não quero mais', 'para', 'Para de me mandar mensagem', 'não me chama mais', 'sai da lista', 'nunca mais', 'chega',
+      'Não quero perder tempo com isso', 'Não quero, desisti']) {
       expect(pareceOptOut([t]), t).toBe(true);
     }
     for (const t of ['agora não', 'agora não dá', 'me chama em novembro', 'depois a gente conversa', 'para casa nova', 'preciso de um tempo',
