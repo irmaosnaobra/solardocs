@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
+import JSZip from 'jszip';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
 import { authMiddleware } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { calcularSelo, resumo, sanitizarStatus } from '../services/vistoria/avaliacao';
+import { LIMITES, sanitizarLinhas } from '../services/vistoria/compras';
 import {
-  AssinMap, BUCKET as BUCKET_DOC, Extras, colunaAusente, lerExtras, urlsDasAssinaturas,
+  AssinMap, BUCKET as BUCKET_DOC, ComprasLidas, Extras, colunaAusente, lerCompras, lerExtras, urlsDasAssinaturas,
 } from '../services/vistoria/extras';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,6 +118,22 @@ async function extrasOu500(res: Response, id: string): Promise<Extras | null> {
   } catch (err) {
     logger.error('vistorias', 'falha lendo status e assinaturas', err);
     res.status(500).json({ error: 'Não consegui carregar os dados da vistoria. Tente de novo.' });
+    return null;
+  }
+}
+
+/**
+ * Lê a lista de compras (coluna própria, flag própria). Só "coluna não existe" vira disponivel=false; outro erro
+ * de banco responde 500 e devolve null, para a escrita nunca gravar por cima do que não conseguiu ler.
+ * Roda sempre por último entre as leituras em `vistorias` (no GET /:id, depois de getOwned e de extrasOu500; no
+ * PUT /:id/compras, depois de getOwned) e só nessas duas rotas: o teste de rotas conta cada leitura.
+ */
+async function comprasOu500(res: Response, id: string): Promise<ComprasLidas | null> {
+  try {
+    return await lerCompras(id);
+  } catch (err) {
+    logger.error('vistorias', 'falha lendo compras', err);
+    res.status(500).json({ error: 'Não consegui carregar a lista de compras. Tente de novo.' });
     return null;
   }
 }
@@ -253,6 +271,8 @@ router.get('/clientes', authMiddleware, async (req: Request, res: Response): Pro
 // ── GET /vistorias/:id — detalhe (com signed urls pra revisar no dashboard) ─────
 // Acrescenta status_itens, assinaturas e o resumo (selo, pendências, conclusão). As colunas
 // novas vêm de lerExtras: sem a migration, voltam vazias e extras_disponiveis=false.
+// A lista de compras vem de lerCompras (3ª leitura, flag própria): sem a coluna, compras_disponivel=false
+// e a lista sai vazia, sem afetar status e assinaturas.
 router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const v = await getOwned(String(req.params.id), req.userId);
   if (!v) {
@@ -262,6 +282,8 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
   const itens = await withSignedUrls(Array.isArray(v.itens) ? v.itens : []);
   const extras = await extrasOu500(res, v.id);
   if (!extras) return;
+  const lida = await comprasOu500(res, v.id);
+  if (!lida) return;
   res.json({
     ...v,
     itens,
@@ -270,7 +292,36 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
     assinaturas_url: await urlsDasAssinaturas(extras.assinaturas),
     resumo: resumo(itens, extras.status_itens),
     extras_disponiveis: extras.disponivel,
+    compras: { publica: lida.compras.publica, linhas: lida.compras.linhas },
+    compras_disponivel: lida.disponivel,
   });
+});
+
+// ── GET /vistorias/:id/fotos.zip: TODOS os arquivos da vistoria, só para o dono ─
+// O ZIP público (/v/:id/fotos.zip) abre sem login para quem tem o link, por isso o documento pessoal (CNH ou
+// identidade) não deve sair nele (decisão de 29/10/2026). Este leva tudo, inclusive o documento: quem baixa está
+// logado e é o dono da vistoria. O dashboard baixa com o token, por blob. O corpo inclui a CNH do cliente, então
+// nada fica em cache.
+router.get('/:id/fotos.zip', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  try {
+    const conteudo = await montarZipDaVistoria(v.itens);
+    if (!conteudo) {
+      res.status(404).json({ error: 'Esta vistoria ainda não tem fotos.' });
+      return;
+    }
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="vistoria-${slugify(v.cliente_nome || 'solar')}.zip"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(conteudo);
+  } catch (err) {
+    logger.error('vistorias', 'falha gerando o ZIP das fotos', err);
+    res.status(500).json({ error: 'Não consegui gerar o ZIP. Tente de novo.' });
+  }
 });
 
 // ── POST /vistorias/:id/foto — ADICIONA uma foto/arquivo ao item ───────────────
@@ -522,6 +573,62 @@ router.put('/:id/status', authMiddleware, async (req: Request, res: Response): P
   res.json({ ok: true, status_itens, resumo: resumo(itens, status_itens) });
 });
 
+// ── PUT /vistorias/:id/compras: grava a lista de compras INTEIRA ────────────────
+// Modelada no PUT /:id/status: o corpo traz a lista completa vinda da tela, o último a gravar vence e
+// vistoria concluída é 409. Não passa pelas RPCs (vistoria_patch_item e companhia): grava na coluna própria.
+// Cada linha é saneada aqui (nome, quantidade, unidade, quem providencia); lista acima do limite é 400,
+// nunca corta calado. Idempotente: repetir o mesmo corpo dá o mesmo resultado, então o reenvio é seguro.
+const comprasSchema = z.object({ publica: z.boolean().optional(), linhas: z.array(z.unknown()).max(200) });
+
+router.put('/:id/compras', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const parsed = comprasSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Dados inválidos' });
+    return;
+  }
+  if (JSON.stringify(parsed.data.linhas).length > LIMITES.json) {
+    res.status(413).json({ error: 'Lista grande demais.' });
+    return;
+  }
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+  if (v.status === 'concluida') {
+    res.status(409).json({ error: 'Vistoria concluída. Reabra para editar.' });
+    return;
+  }
+  const lida = await comprasOu500(res, v.id);
+  if (!lida) return;
+  if (!lida.disponivel) {
+    res.status(503).json({ error: 'migracao_pendente' });
+    return;
+  }
+  const { linhas, descartadas } = sanitizarLinhas(parsed.data.linhas);
+  if (linhas.length > LIMITES.linhas) {
+    res.status(400).json({ error: `A lista aceita até ${LIMITES.linhas} itens.` });
+    return;
+  }
+  const publica = parsed.data.publica ?? lida.compras.publica;
+  const compras = { v: 1 as const, publica, linhas };
+  const { error } = await supabase
+    .from('vistorias')
+    .update({ compras, updated_at: new Date().toISOString() })
+    .eq('id', v.id)
+    .eq('user_id', req.userId);
+  if (error) {
+    if (colunaAusente(error)) {
+      res.status(503).json({ error: 'migracao_pendente' });
+      return;
+    }
+    logger.error('vistorias', 'falha gravando a lista de compras', error);
+    res.status(500).json({ error: 'Não consegui salvar a lista de compras.' });
+    return;
+  }
+  res.json({ ok: true, compras, descartadas });
+});
+
 // ── Assinaturas (técnico e cliente) ─────────────────────────────────────────────
 const MAX_BYTES_ASSINATURA = 500_000;
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
@@ -744,6 +851,60 @@ export async function withSignedUrls(
       return { ...i, fotos };
     }),
   );
+}
+
+/** Nome de arquivo seguro: sem acento, minúsculo, só a-z0-9 e hífen. */
+export function slugify(s: string): string {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
+}
+
+/**
+ * Montador do ZIP de fotos e arquivos da vistoria: a mesma montagem do ZIP público (/v/:id/fotos.zip), numa função
+ * só. A rota autenticada (GET /vistorias/:id/fotos.zip) chama com tudo; o ZIP público, que ainda tem a cópia inline
+ * em publicVistoria.ts, passa a chamar esta função pulando o documento (`pularItens: ['documento_pessoal']`).
+ * Cada arquivo é baixado do Storage e entra com nome organizado: `01-conta-de-luz-1.jpg`, `02-cnh-identidade-1.jpg`...
+ * A numeração é a POSIÇÃO do item no checklist, então pular um item (por chave) não renumera os outros. O ZIP sai
+ * sempre na ordem do checklist. Arquivo que não baixa fica de fora, sem derrubar o ZIP. Devolve null quando nenhum
+ * arquivo entrou (quem chama responde 404).
+ */
+export async function montarZipDaVistoria(
+  itens: unknown,
+  opcoes: { pularItens?: readonly string[] } = {},
+): Promise<Buffer | null> {
+  type ArquivoZip = { url?: unknown };
+  type ItemZip = { key?: unknown; label?: unknown; fotos?: unknown };
+  const pular = new Set(opcoes.pularItens ?? []);
+  const lista = (Array.isArray(itens) ? itens : []) as ItemZip[];
+
+  // Baixa tudo em paralelo; o Promise.all mantém a ordem, então o ZIP sai sempre na ordem do checklist.
+  const baixados = await Promise.all(
+    lista.flatMap((item, i) => {
+      if (typeof item?.key === 'string' && pular.has(item.key)) return [];
+      const arquivos = (Array.isArray(item?.fotos) ? item.fotos : []) as ArquivoZip[];
+      const ordem = String(i + 1).padStart(2, '0');
+      const base = slugify(typeof item?.label === 'string' ? item.label : '');
+      return arquivos.map(async (f, j) => {
+        if (typeof f?.url !== 'string') return null;
+        const { data: blob, error } = await supabase.storage.from(BUCKET).download(f.url);
+        if (error || !blob) return null;
+        const buf = Buffer.from(await blob.arrayBuffer());
+        const ext = (f.url.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        return { nome: `${ordem}-${base}-${j + 1}.${ext}`, buf };
+      });
+    }),
+  );
+
+  const zip = new JSZip();
+  let adicionados = 0;
+  for (const b of baixados) {
+    if (!b) continue;
+    zip.file(b.nome, b.buf);
+    adicionados++;
+  }
+  if (adicionados === 0) return null;
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
 }
 
 export default router;

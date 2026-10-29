@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import JSZip from 'jszip';
 
 // Rotas da Vistoria (autenticadas em /vistorias e públicas em /v) contra o banco falso e um bucket
 // em memória. Dados inventados, nada sai para a rede. Prova: status que descarta lixo, 409 em vistoria
 // concluída, 503 quando as colunas novas não existem, assinatura exigindo nome e PNG de verdade, reabrir,
-// GET com e sem colunas, relatório público com e sem selo e o PDF em 302.
+// GET com e sem colunas, a lista de compras (PUT, GET e a contagem de leituras), o ZIP autenticado com o
+// documento pessoal, relatório público com e sem selo e o PDF em 302.
 
 const h = vi.hoisted(() => ({
   objetos: new Map<string, Buffer>(),
@@ -14,6 +16,8 @@ const h = vi.hoisted(() => ({
   // Contagem de leituras (maybeSingle) em `vistorias` e gancho para simular outra requisição no meio.
   leituras: 0,
   aoLer: null as null | ((n: number) => void),
+  // Atraso (ms) por caminho no download do Storage: prova que a ordem do ZIP não depende de quem termina primeiro.
+  atrasoMs: new Map<string, number>(),
 }));
 
 vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -39,6 +43,13 @@ vi.mock('../utils/supabase', async () => {
         error: null,
       }),
       createSignedUrl: async (path: string) => ({ data: { signedUrl: `https://storage.test/${path}?token=abc` }, error: null }),
+      download: async (path: string) => {
+        const ms = h.atrasoMs.get(path);
+        if (ms) await new Promise((r) => setTimeout(r, ms));
+        const buf = h.objetos.get(path);
+        if (!buf) return { data: null, error: { message: 'Object not found' } };
+        return { data: { arrayBuffer: async () => new Uint8Array(buf).buffer }, error: null };
+      },
     }),
   };
   const from = (t: string) => {
@@ -66,7 +77,8 @@ vi.mock('../controllers/pdfController', () => ({
 }));
 
 import { banco } from './_bancoFalso';
-import vistoriasRoutes, { CHECKLIST_VISTORIA } from '../routes/vistorias';
+import { logger } from '../utils/logger';
+import vistoriasRoutes, { CHECKLIST_VISTORIA, montarZipDaVistoria, slugify } from '../routes/vistorias';
 import publicVistoriaRoutes from '../routes/publicVistoria';
 
 const app = express();
@@ -82,6 +94,7 @@ const PNG = 'data:image/png;base64,' + Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d
 const NAO_PNG = 'data:image/png;base64,' + Buffer.from('isto nao e um png de verdade').toString('base64');
 const COLUNA_AUSENTE = { code: '42703', message: 'column vistorias.status_itens does not exist' };
 const BANCO_FORA = { code: '57P01', message: 'terminating connection due to administrator command' };
+const COMPRAS_AUSENTE = { code: '42703', message: 'column vistorias.compras does not exist' };
 
 const get = (url: string, user = U1) => request(app).get(url).set('x-user', user);
 const post = (url: string, body: unknown = {}, user = U1) => request(app).post(url).set('x-user', user).send(body as object);
@@ -110,7 +123,7 @@ beforeEach(() => {
   h.objetos.clear();
   h.removidos.length = 0;
   h.navegador.abriu = 0; h.navegador.fechou = 0; h.navegador.html = ''; h.navegador.falha = false;
-  h.leituras = 0; h.aoLer = null;
+  h.leituras = 0; h.aoLer = null; h.atrasoMs.clear();
 });
 
 describe('PUT /:id/status', () => {
@@ -324,6 +337,340 @@ describe('GET', () => {
     const r = await get('/vistorias/list');
     expect(r.status).toBe(200);
     expect(r.body[0].selo).toBeNull();
+  });
+});
+
+// ── Lista de compras ───────────────────────────────────────────────────────────────────────────────
+
+// Linha de material com id válido (^[a-z0-9]{6,24}$). Só o que muda entra em `extra`.
+const material = (n: number, extra: Record<string, unknown> = {}) => ({
+  id: 'linha' + String(n).padStart(3, '0'), tipo: 'material', nome: `Material ${n}`, qtd: 1, un: 'un', quem: 'cliente', obs: '', ...extra,
+});
+
+describe('PUT /:id/compras', () => {
+  const url = `/vistorias/${ID}/compras`;
+  // Entrada suja: nome em minúscula, 3 casas, espaços repetidos, travessão, e uma linha com id curto demais.
+  const bruto = [
+    { id: 'm3k9x2ab', tipo: 'material', nome: 'caixa de medição', esp: 'Modelo aprovado pela distribuidora.', qtd: 2.345, un: 'un', quem: 'cliente', item: 'padrao', cid: 'caixa-medicao', obs: 'Do lado   da  garagem.', ts: '2026-10-29T14:03:11.000Z' },
+    { id: 'm3ka1c3h', tipo: 'obs', obs: 'Telha antiga ' + String.fromCharCode(0x2014) + ' pode ter amianto.', item: 'tipo_telha' },
+    { id: 'lixo', tipo: 'material', nome: 'Id curto demais' },
+  ];
+  const limpo = [
+    { id: 'm3k9x2ab', tipo: 'material', nome: 'Caixa de medição', esp: 'Modelo aprovado pela distribuidora.', qtd: 2.35, un: 'un', quem: 'cliente', item: 'padrao', cid: 'caixa-medicao', obs: 'Do lado da garagem.', ts: '2026-10-29T14:03:11.000Z' },
+    { id: 'm3ka1c3h', tipo: 'obs', obs: 'Telha antiga - pode ter amianto.', item: 'tipo_telha' },
+  ];
+
+  it('grava a lista saneada, devolve o que gravou e conta as linhas descartadas', async () => {
+    poeVistoria();
+    const r = await put(url, { linhas: bruto });
+    expect(r.status).toBe(200);
+    expect(r.body.ok).toBe(true);
+    expect(r.body.compras).toEqual({ v: 1, publica: true, linhas: limpo });
+    expect(r.body.descartadas).toBe(1);
+    expect(linha().compras).toEqual({ v: 1, publica: true, linhas: limpo });
+  });
+  it('publica omitido mantém o valor gravado; publica informado troca', async () => {
+    poeVistoria({ compras: { v: 1, publica: false, linhas: [] } });
+    const a = await put(url, { linhas: [material(1)] });
+    expect(a.status).toBe(200);
+    expect(a.body.compras.publica).toBe(false);
+    expect(linha().compras.publica).toBe(false);
+    const b = await put(url, { publica: true, linhas: [material(1)] });
+    expect(b.body.compras.publica).toBe(true);
+    expect(linha().compras.publica).toBe(true);
+  });
+  it('repetir o mesmo corpo dá o mesmo resultado; lista vazia limpa tudo', async () => {
+    poeVistoria();
+    expect((await put(url, { linhas: bruto })).status).toBe(200);
+    const antes = JSON.parse(JSON.stringify(linha().compras));
+    expect((await put(url, { linhas: bruto })).status).toBe(200);
+    expect(linha().compras).toEqual(antes);
+    expect((await put(url, { linhas: [] })).status).toBe(200);
+    expect(linha().compras).toEqual({ v: 1, publica: true, linhas: [] });
+  });
+  it('só a coluna da lista muda: status, assinaturas e itens ficam como estavam, e não passa por RPC', async () => {
+    poeVistoria({ status_itens: { padrao: 'atencao' } });
+    const itensAntes = JSON.stringify(linha().itens);
+    const r = await put(url, { linhas: [material(1)] });
+    expect(r.status).toBe(200);
+    expect(banco.escritas).toHaveLength(1);
+    expect(banco.escritas[0]).toMatchObject({ tabela: 'vistorias', op: 'update' });
+    expect(Object.keys(banco.escritas[0].payload).sort()).toEqual(['compras', 'updated_at']);
+    expect(linha().status_itens).toEqual({ padrao: 'atencao' });
+    expect(linha().assinaturas).toEqual({});
+    expect(JSON.stringify(linha().itens)).toBe(itensAntes);
+    expect(banco.rpcChamadas).toEqual([]);
+  });
+  it('corpo que não tem o formato é 400 e nada é gravado', async () => {
+    poeVistoria();
+    const corpos = [{ linhas: 'x' }, {}, { linhas: [], publica: 'sim' }, { linhas: Array.from({ length: 201 }, (_, i) => material(i)) }];
+    for (const corpo of corpos) {
+      const r = await put(url, corpo);
+      expect(r.status).toBe(400);
+      expect(r.body.error).toBe('Dados inválidos');
+    }
+    expect(banco.escritas).toHaveLength(0);
+    expect(linha().compras).toBeUndefined();
+  });
+  it('60 linhas passam; 61 válidas é 400 "A lista aceita até 60 itens." e nada é gravado; linha ruim não ocupa vaga', async () => {
+    poeVistoria();
+    const ok = await put(url, { linhas: Array.from({ length: 60 }, (_, i) => material(i)) });
+    expect(ok.status).toBe(200);
+    expect(ok.body.compras.linhas).toHaveLength(60);
+    expect(ok.body.descartadas).toBe(0);
+
+    banco.escritas.length = 0;
+    const antes = JSON.stringify(linha().compras);
+    const r = await put(url, { linhas: Array.from({ length: 61 }, (_, i) => material(i)) });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe('A lista aceita até 60 itens.');
+    expect(banco.escritas).toHaveLength(0);
+    expect(JSON.stringify(linha().compras)).toBe(antes);
+
+    const comLixo = await put(url, { linhas: [...Array.from({ length: 60 }, (_, i) => material(i)), { id: 'x', tipo: 'material', nome: 'Curto' }] });
+    expect(comLixo.status).toBe(200);
+    expect(comLixo.body.compras.linhas).toHaveLength(60);
+    expect(comLixo.body.descartadas).toBe(1);
+  });
+  it('corpo acima de 48.000 caracteres é 413, antes de ler o banco', async () => {
+    poeVistoria();
+    const r = await put(url, { linhas: [{ id: 'abcdef12', tipo: 'obs', obs: 'x'.repeat(50_000) }] });
+    expect(r.status).toBe(413);
+    expect(r.body.error).toBe('Lista grande demais.');
+    expect(h.leituras).toBe(0);
+    expect(banco.escritas).toHaveLength(0);
+  });
+  it('vistoria concluída é 409, não lê a lista e não grava', async () => {
+    poeVistoria({ status: 'concluida' });
+    const r = await put(url, { linhas: [material(1)] });
+    expect(r.status).toBe(409);
+    expect(r.body.error).toBe('Vistoria concluída. Reabra para editar.');
+    expect(h.leituras).toBe(1);
+    expect(banco.escritas).toHaveLength(0);
+    expect(linha().compras).toBeUndefined();
+  });
+  it('coluna ainda não existe é 503 migracao_pendente e não grava', async () => {
+    poeVistoria();
+    banco.falhas['vistorias.select'] = { erro: COMPRAS_AUSENTE, uma: true, pular: 1 };
+    const r = await put(url, { linhas: [material(1)] });
+    expect(r.status).toBe(503);
+    expect(r.body.error).toBe('migracao_pendente');
+    expect(h.leituras).toBe(2);
+    expect(banco.escritas).toHaveLength(0);
+  });
+  it('erro do banco que NÃO é coluna ausente responde 500, registra o erro e não grava', async () => {
+    poeVistoria({ compras: { v: 1, publica: true, linhas: [] } });
+    banco.falhas['vistorias.select'] = { erro: BANCO_FORA, uma: true, pular: 1 };
+    vi.mocked(logger.error).mockClear();
+    const r = await put(url, { linhas: [material(1)] });
+    expect(r.status).toBe(500);
+    expect(r.body.error).toBe('Não consegui carregar a lista de compras. Tente de novo.');
+    expect(logger.error).toHaveBeenCalledWith('vistorias', 'falha lendo compras', expect.any(Error));
+    expect(banco.escritas).toHaveLength(0);
+    expect(linha().compras).toEqual({ v: 1, publica: true, linhas: [] });
+  });
+  it('erro ao gravar: coluna ausente é 503, outro erro é 500, e a lista guardada não muda', async () => {
+    poeVistoria();
+    // O banco falso registra a escrita mesmo quando ela falha, então a prova é a linha guardada.
+    banco.falhas['vistorias.update'] = { erro: COMPRAS_AUSENTE, uma: true };
+    const a = await put(url, { linhas: [material(1)] });
+    expect(a.status).toBe(503);
+    expect(a.body.error).toBe('migracao_pendente');
+    banco.falhas['vistorias.update'] = { erro: BANCO_FORA, uma: true };
+    const b = await put(url, { linhas: [material(1)] });
+    expect(b.status).toBe(500);
+    expect(b.body.error).toBe('Não consegui salvar a lista de compras.');
+    expect(linha().compras).toBeUndefined();
+  });
+  it('vistoria de outro usuário é 404; sem login é 401', async () => {
+    poeVistoria();
+    const r = await put(url, { linhas: [material(1)] }, U2);
+    expect(r.status).toBe(404);
+    expect(r.body.error).toBe('Vistoria não encontrada.');
+    expect((await request(app).put(url).send({ linhas: [] })).status).toBe(401);
+    expect(banco.escritas).toHaveLength(0);
+    expect(linha().compras).toBeUndefined();
+  });
+});
+
+describe('GET /:id e a lista de compras', () => {
+  // Gravada com o nome em minúscula: o que a tela recebe é a leitura saneada, não o JSON cru da coluna.
+  const gravada = { v: 1, publica: false, linhas: [{ id: 'm3k9x2ab', tipo: 'material', nome: 'caixa de medição', qtd: 1, un: 'un', quem: 'cliente', obs: '' }] };
+  const lida = { publica: false, linhas: [{ id: 'm3k9x2ab', tipo: 'material', nome: 'Caixa de medição', qtd: 1, un: 'un', quem: 'cliente', obs: '' }] };
+
+  it('traz compras (lida e saneada) e compras_disponivel true, junto de status e assinaturas', async () => {
+    poeVistoria({ compras: gravada, status_itens: { padrao: 'atencao' } });
+    const r = await get(`/vistorias/${ID}`);
+    expect(r.status).toBe(200);
+    expect(r.body.compras).toEqual(lida);
+    expect(r.body.compras_disponivel).toBe(true);
+    expect(r.body.extras_disponiveis).toBe(true);
+    expect(r.body.status_itens).toEqual({ padrao: 'atencao' });
+    expect(h.leituras).toBe(3);
+  });
+  it('coluna no padrão {} é lista vazia e visível', async () => {
+    poeVistoria({ compras: {} });
+    const r = await get(`/vistorias/${ID}`);
+    expect(r.status).toBe(200);
+    expect(r.body.compras).toEqual({ publica: true, linhas: [] });
+    expect(r.body.compras_disponivel).toBe(true);
+  });
+  it('sem a coluna da lista responde 200 com a flag falsa, e status e assinaturas seguem ligados', async () => {
+    poeVistoria({ status_itens: { padrao: 'atencao' } });
+    banco.falhas['vistorias.select'] = { erro: COMPRAS_AUSENTE, uma: true, pular: 2 };
+    const r = await get(`/vistorias/${ID}`);
+    expect(r.status).toBe(200);
+    expect(r.body.compras_disponivel).toBe(false);
+    expect(r.body.compras).toEqual({ publica: true, linhas: [] });
+    expect(r.body.extras_disponiveis).toBe(true);
+    expect(r.body.status_itens).toEqual({ padrao: 'atencao' });
+    expect(r.body.resumo.selo).toBe('atencao');
+  });
+  it('erro do banco na leitura da lista é 500 com o texto da lista (não o dos status)', async () => {
+    poeVistoria();
+    banco.falhas['vistorias.select'] = { erro: BANCO_FORA, uma: true, pular: 2 };
+    const r = await get(`/vistorias/${ID}`);
+    expect(r.status).toBe(500);
+    expect(r.body.error).toBe('Não consegui carregar a lista de compras. Tente de novo.');
+  });
+  it('com a projeção de colunas ligada a resposta ainda traz a lista (prova que o select pediu a coluna)', async () => {
+    poeVistoria({ compras: gravada, status_itens: { padrao: 'atencao' } });
+    banco.projeta = true;
+    const r = await get(`/vistorias/${ID}`);
+    expect(r.status).toBe(200);
+    expect(r.body.compras).toEqual(lida);
+    expect(r.body.compras_disponivel).toBe(true);
+    expect(r.body.status_itens).toEqual({ padrao: 'atencao' });
+  });
+  it('só o GET /:id e o PUT /compras leem a lista: as outras rotas mantêm a contagem de leituras', async () => {
+    poeVistoria();
+    const leituras = async (rota: () => PromiseLike<{ status: number }>) => {
+      h.leituras = 0;
+      expect((await rota()).status).toBe(200);
+      return h.leituras;
+    };
+    expect(await leituras(() => put(`/vistorias/${ID}/localizacao`, { colado: '-22.1234,-45.6789' }))).toBe(1);
+    expect(await leituras(() => request(app).patch(`/vistorias/${ID}/item`).set('x-user', U1).send({ item_key: 'padrao', obs: 'ok' }))).toBe(1);
+    expect(await leituras(() => put(`/vistorias/${ID}/status`, { status_itens: {} }))).toBe(2);
+    expect(await leituras(() => post(`/vistorias/${ID}/concluir`))).toBe(2);
+    expect(await leituras(() => post(`/vistorias/${ID}/reabrir`))).toBe(1);
+    expect(await leituras(() => get(`/vistorias/${ID}`))).toBe(3);
+    expect(await leituras(() => put(`/vistorias/${ID}/compras`, { linhas: [] }))).toBe(2);
+  });
+});
+
+// ── ZIP autenticado: todos os arquivos, inclusive o documento pessoal ──────────────────────────────
+
+const BASE_ZIP = `vistorias/${U1}/${ID}`;
+// Itens que têm arquivo nesta vistoria de teste: nome no Storage, tipo e o conteúdo (texto inventado).
+const ARQUIVOS: Record<string, { nome: string; tipo: 'image' | 'file'; texto: string }[]> = {
+  conta_luz: [{ nome: 'conta_luz-1.jpg', tipo: 'image', texto: 'bytes da conta de luz' }],
+  documento_pessoal: [{ nome: 'documento_pessoal-1.jpg', tipo: 'image', texto: 'bytes do documento pessoal' }],
+  padrao: [
+    { nome: 'padrao-1.jpg', tipo: 'image', texto: 'bytes do padrao' },
+    { nome: 'padrao-2.pdf', tipo: 'file', texto: 'bytes do laudo' },
+  ],
+  telhado: [{ nome: 'telhado-1.jpg', tipo: 'image', texto: 'bytes do telhado' }],
+};
+// O que o ZIP completo tem de trazer, na ordem do checklist (a numeração é a posição do item).
+const NOMES_NO_ZIP = ['01-conta-de-luz-1.jpg', '02-cnh-identidade-1.jpg', '03-padrao-de-entrada-1.jpg', '03-padrao-de-entrada-2.pdf', '08-telhado-1.jpg'];
+
+/** Vistoria com 5 arquivos em 4 itens. Com `noStorage` falso, os arquivos existem só no banco (o Storage não os tem). */
+function semearArquivos(extra: Record<string, unknown> = {}, noStorage = true) {
+  const itens = CHECKLIST_VISTORIA.map((c) => ({
+    key: c.key, label: c.label, dica: c.dica, obs: '',
+    fotos: (ARQUIVOS[c.key] ?? []).map((a) => ({ url: `${BASE_ZIP}/${a.nome}`, ts: 't', tipo: a.tipo, ...(a.tipo === 'file' ? { nome: 'laudo.pdf' } : {}) })),
+  }));
+  if (noStorage) for (const lista of Object.values(ARQUIVOS)) for (const a of lista) h.objetos.set(`${BASE_ZIP}/${a.nome}`, Buffer.from(a.texto));
+  poeVistoria({ itens, ...extra });
+}
+
+// Resposta binária no supertest: junta os pedaços num Buffer em vez de tentar ler como texto.
+const comoBuffer = (res: any, cb: (err: Error | null, corpo: Buffer) => void): void => {
+  const partes: Buffer[] = [];
+  res.on('data', (p: Buffer) => partes.push(p));
+  res.on('end', () => cb(null, Buffer.concat(partes)));
+};
+const baixarZip = (url: string, user = U1) => request(app).get(url).set('x-user', user).buffer(true).parse(comoBuffer);
+
+describe('GET /:id/fotos.zip (todos os arquivos, só para o dono)', () => {
+  const url = `/vistorias/${ID}/fotos.zip`;
+
+  it('leva TODOS os arquivos, inclusive o documento pessoal, na ordem do checklist e sem cache', async () => {
+    semearArquivos();
+    const r = await baixarZip(url);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toContain('application/zip');
+    expect(r.headers['content-disposition']).toBe('attachment; filename="vistoria-maria-souza.zip"');
+    expect(r.headers['cache-control']).toBe('private, no-store');
+    const zip = await JSZip.loadAsync(r.body);
+    expect(Object.keys(zip.files)).toEqual(NOMES_NO_ZIP);
+    expect(await zip.file('02-cnh-identidade-1.jpg')!.async('string')).toBe('bytes do documento pessoal');
+    expect(await zip.file('03-padrao-de-entrada-2.pdf')!.async('string')).toBe('bytes do laudo');
+    expect(h.leituras).toBe(1);
+    expect(banco.escritas).toHaveLength(0);
+  });
+  it('a ordem do ZIP não depende de qual download termina primeiro', async () => {
+    semearArquivos();
+    h.atrasoMs.set(`${BASE_ZIP}/conta_luz-1.jpg`, 40);
+    h.atrasoMs.set(`${BASE_ZIP}/padrao-1.jpg`, 20);
+    const r = await baixarZip(url);
+    expect(r.status).toBe(200);
+    expect(Object.keys((await JSZip.loadAsync(r.body)).files)).toEqual(NOMES_NO_ZIP);
+  });
+  it('vistoria concluída também baixa tudo', async () => {
+    semearArquivos({ status: 'concluida' });
+    const r = await baixarZip(url);
+    expect(r.status).toBe(200);
+    expect(Object.keys((await JSZip.loadAsync(r.body)).files)).toEqual(NOMES_NO_ZIP);
+  });
+  it('arquivo que não está no Storage fica de fora, sem derrubar o ZIP', async () => {
+    semearArquivos({}, false);
+    h.objetos.set(`${BASE_ZIP}/padrao-1.jpg`, Buffer.from('so este existe'));
+    const r = await baixarZip(url);
+    expect(r.status).toBe(200);
+    expect(Object.keys((await JSZip.loadAsync(r.body)).files)).toEqual(['03-padrao-de-entrada-1.jpg']);
+  });
+  it('sem nenhum arquivo é 404 com a frase "Esta vistoria ainda não tem fotos."', async () => {
+    poeVistoria({ itens: CHECKLIST_VISTORIA.map((c) => ({ key: c.key, label: c.label, dica: c.dica, obs: '', fotos: [] })) });
+    const vazia = await get(url);
+    expect(vazia.status).toBe(404);
+    expect(vazia.body.error).toBe('Esta vistoria ainda não tem fotos.');
+    // Arquivos só no banco, nenhum no Storage: também não há o que entregar.
+    banco.reset();
+    semearArquivos({}, false);
+    const semStorage = await get(url);
+    expect(semStorage.status).toBe(404);
+    expect(semStorage.body.error).toBe('Esta vistoria ainda não tem fotos.');
+  });
+  it('sem login é 401; vistoria de outro usuário e vistoria inexistente são 404', async () => {
+    semearArquivos();
+    expect((await request(app).get(url)).status).toBe(401);
+    const outro = await get(url, U2);
+    expect(outro.status).toBe(404);
+    expect(outro.body.error).toBe('Vistoria não encontrada.');
+    expect(outro.headers['content-type']).not.toContain('zip');
+    expect((await get(`/vistorias/${ID_INEXISTENTE}/fotos.zip`)).status).toBe(404);
+  });
+});
+
+describe('montarZipDaVistoria e slugify', () => {
+  it('pularItens tira o documento sem renumerar os outros itens', async () => {
+    semearArquivos();
+    const buf = await montarZipDaVistoria(linha().itens, { pularItens: ['documento_pessoal'] });
+    expect(buf).not.toBeNull();
+    const zip = await JSZip.loadAsync(buf!);
+    expect(Object.keys(zip.files)).toEqual(NOMES_NO_ZIP.filter((n) => !n.startsWith('02-')));
+  });
+  it('tolera entrada que não é lista, item sem fotos e arquivo sem caminho: devolve null, não lança', async () => {
+    expect(await montarZipDaVistoria(null)).toBeNull();
+    expect(await montarZipDaVistoria({})).toBeNull();
+    expect(await montarZipDaVistoria([null, { key: 'x', label: 5, fotos: 'nao' }, { key: 'y', label: 'Y', fotos: [{ url: 7 }, null] }])).toBeNull();
+  });
+  it('slugify tira acento, caixa e símbolo', () => {
+    expect(slugify('CNH / Identidade')).toBe('cnh-identidade');
+    expect(slugify('Padrão de entrada')).toBe('padrao-de-entrada');
+    expect(slugify('')).toBe('item');
   });
 });
 
