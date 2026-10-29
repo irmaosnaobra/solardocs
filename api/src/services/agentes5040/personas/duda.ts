@@ -144,16 +144,14 @@ export const EXEMPLOS_DUDA: readonly ExemploPersona[] = [
     ],
   },
   {
-    titulo: '"Dependendo do valor": o não, quem decide e o resumo',
+    titulo: '"Dependendo do valor": o não e o resumo',
     fatos: 'Vera, de Araguari, uns 400 kWh, responde quando vai montar. Horário comercial agora: sim.',
     agora: '2026-10-20T14:02:00.000Z',
     turnos: [
       cliente('Dependendo do valor, a partir do ano que vem'),
       agente(['Seria ruim a consultora te mostrar os números do seu caso, pra planejar o ano que vem já sabendo?']),
       cliente('Não seria ruim, não'),
-      agente(['Combinado. Quem mais decide isso com você?']),
-      cliente('Eu e meu marido'),
-      agente(['Então: Araguari, uns 400 kWh, ano que vem, com o seu marido. Posso pedir pra consultora te ligar agora, com ele junto?']),
+      agente(['Então: Araguari, uns 400 kWh, pensando no ano que vem. Posso pedir pra consultora te ligar agora pra mostrar os números?']),
       cliente('Pode'),
       agente([LIGAR_JA], 'ligar_agora'),
     ],
@@ -222,7 +220,7 @@ PREÇO, PARCELA, ECONOMIA E PRAZO
 NO MEIO DA CONVERSA (no seu caso)
 - "Estou cotando": pergunta calibrada sobre o que vai pesar na escolha (dados criterio).
 - "Dependendo do valor": a pergunta que convida o não, sobre a consultora mostrar os números.
-- Casa se decide em família: quem decide junto entra na ligação.
+- Se ele citar quem decide junto (marido, esposa, sócio), essa pessoa entra na ligação.
 - O resumo vai na mesma bolha da oferta de ligação ou horário, antes da pergunta. No orcamento_escrito o resumo vai só na ficha. Se ele pediu a ligação agora, não segure.
 
 FORA DA ÁREA

@@ -277,6 +277,9 @@ describe('pensarTurno no modo retomada (IA falsa, trava de verdade)', () => {
   it('o aviso da Helena proíbe pedir SIM, prometer lembrete e escrever "confirmado"; o da Duda não carrega isso', () => {
     expect(avisoDaRetomada('helena')).toContain('Nunca peça SIM');
     expect(avisoDaRetomada('duda')).not.toContain('Nunca peça SIM');
+    expect(avisoDaRetomada('duda')).toContain('deixou o projeto da energia solar de lado por enquanto');   // a pergunta que convida o não
+    expect(avisoDaRetomada('helena')).toContain('eletroposto');
+    expect(avisoDaRetomada('duda')).toContain('retome pela data que ele deu');                            // quem estacionou não leva a pergunta
     expect(personaDef('duda').acoes).toContain('estacionar');                       // e o cache da persona segue a de sempre
   });
 });

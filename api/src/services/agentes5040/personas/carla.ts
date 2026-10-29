@@ -159,7 +159,7 @@ export const EXEMPLOS_CARLA: readonly ExemploPersona[] = [
       cliente('Talvez em outro momento, como estou começando agora não compensa ainda'),
       agente(['Pelo jeito, começando agora, cada gasto tem que virar venda logo. Quanto tempo leva cada proposta no Word?'], 'continuar', { dados: { objecao: 'começando, não compensa ainda' } }),
       cliente('Umas duas horas. E o valor é se realmente vai atender minhas necessidades'),
-      agente(['Duas horas por proposta pesa. O que ele precisa resolver pra valer a pena pra você?']),
+      agente(['Duas horas por proposta pesa. O que o SolarDoc precisa resolver pra valer a pena pra você?']),
       cliente('Quero mandar a proposta no mesmo dia da visita'),
       agente([`No SolarDoc ela sai na hora, do celular. Seria ruim testar na próxima visita, com a garantia de ${G} dias?`]),
       cliente('Não seria ruim. Quero pagar no cartão de crédito'),

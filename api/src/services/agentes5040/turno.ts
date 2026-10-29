@@ -204,6 +204,7 @@ export function avisoDaRetomada(persona: Persona): string {
     + 'sem cobrar resposta, sem repetir pergunta que já foi feita, sem se apresentar de novo, sem link, sem Pix, sem imagem e sem horário novo. '
     + `Na primeira volta, só a pergunta que convida um não, leve e sem culpa ("${pergunta}"): quem ainda quer responde que não e segue. `
     + 'Se uma pergunta assim já está na conversa, não repita: retome o último assunto por um caminho mais fácil (um áudio, uma foto) ou cale. '
+    + 'Se ele pediu para ser chamado nesta data, retome pela data que ele deu, sem essa pergunta. '
     + 'Use a ação continuar. Se não faz sentido voltar (ele já se despediu, já disse que agora não, a conversa acabou, ou não dá para '
     + 'retomar sem repetir o que já foi dito), devolva bolhas vazias e a ação calar. Nenhuma outra ação é permitida.' + helena;
 }
