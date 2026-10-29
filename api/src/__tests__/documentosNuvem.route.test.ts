@@ -179,6 +179,44 @@ describe('GET /documents/list', () => {
     expect(p3.body.documents.some((d: { id: string }) => idsP1.has(d.id))).toBe(false);
   });
 
+  it('offset: depois de excluir um da primeira página, o próximo lote não pula ninguém', async () => {
+    usuario('free');
+    for (let i = 0; i < 25; i++) banco.poe('documents', doc({ id: `d-${String(i).padStart(2, '0')}`, created_at: diasAtras(100 - i) }));
+    const ordem = (r: { body: { documents: Array<{ id: string }> } }) => r.body.documents.map((d) => d.id);
+
+    const p1 = await request(app).get('/documents/list').query({ limit: 20 }).set('Authorization', AUTH);
+    expect(p1.body.documents).toHaveLength(20);
+    expect(p1.body).toMatchObject({ total: 25, offset: 0, has_more: true });
+    const todos = ordem(p1);
+    // Exclui um da tela. O documento da posição 20 sobe para a 19.
+    banco.tabelas.documents = banco.linhas('documents').filter((d) => d.id !== todos[3]);
+
+    const prox = await request(app).get('/documents/list').query({ limit: 20, offset: 19 }).set('Authorization', AUTH);
+    expect(prox.body).toMatchObject({ total: 24, offset: 19, has_more: false });
+    expect(prox.body.documents).toHaveLength(5);
+    // Por página, o lote começaria na posição 20 e pularia o que subiu.
+    const porPagina = await request(app).get('/documents/list').query({ limit: 20, page: 2 }).set('Authorization', AUTH);
+    expect(porPagina.body.documents).toHaveLength(4);
+    expect(ordem(prox).slice(1)).toEqual(ordem(porPagina));
+  });
+
+  it('offset tem precedência sobre page; offset inválido é ignorado e vale page', async () => {
+    usuario('free');
+    for (let i = 0; i < 30; i++) banco.poe('documents', doc({ id: `e-${String(i).padStart(2, '0')}`, created_at: diasAtras(100 - i) }));
+    const ids = (r: { body: { documents: Array<{ id: string }> } }) => r.body.documents.map((d) => d.id);
+
+    const base = await request(app).get('/documents/list').query({ limit: 10 }).set('Authorization', AUTH);
+    const comOffset = await request(app).get('/documents/list').query({ limit: 10, page: 1, offset: 5 }).set('Authorization', AUTH);
+    expect(ids(comOffset)).toEqual(ids(await request(app).get('/documents/list').query({ limit: 10, offset: 5 }).set('Authorization', AUTH)));
+    expect(ids(comOffset)[0]).toBe(ids(base)[5]);
+
+    const p2 = await request(app).get('/documents/list').query({ limit: 10, page: 2 }).set('Authorization', AUTH);
+    for (const ruim of ['-1', 'abc', '1.5', '']) {
+      const r = await request(app).get('/documents/list').query({ limit: 10, page: 2, offset: ruim }).set('Authorization', AUTH);
+      expect(ids(r)).toEqual(ids(p2));
+    }
+  });
+
   it('limit passa de 100 vira 100', async () => {
     usuario('free');
     for (let i = 0; i < 130; i++) banco.poe('documents', doc());

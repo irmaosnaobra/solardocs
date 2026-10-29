@@ -191,7 +191,8 @@ class Consulta implements PromiseLike<any> {
     if (this.op === 'delete') {
       const alvo = new Set(filtra());
       banco.tabelas[this.tabela] = t.filter(r => !alvo.has(r));
-      return { data: null, error: null };
+      // delete().select() devolve as linhas apagadas, como o PostgREST.
+      return { data: this.devolve ? [...alvo].map(r => ({ ...r })) : null, error: null };
     }
 
     let rows = filtra();

@@ -376,13 +376,20 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     const { id } = req.params;
     const body = regenerateSchema.parse(req.body);
 
-    const { data: doc } = await supabase
+    const { data: doc, error: docErr } = await supabase
       .from('documents')
       .select('id, tipo, cliente_id, terceiro_id, cliente_nome, arquivo_url, dados_json, codigo_curto, created_at')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
 
+    // Falha do banco não é "documento excluído": o front sai do modo edição em 404, e a
+    // pessoa geraria um documento duplicado, gastando cota. Só ausência de linha vira 404.
+    if (docErr && !ausenciaDeLinha(docErr)) {
+      logger.error('documents', 'regenerate: leitura do documento falhou', docErr);
+      res.status(503).json({ error: MSG_ABRIR_FALHA });
+      return;
+    }
     if (!doc) throw new ApiError(404, 'Documento não encontrado');
 
     const { data: company } = await supabase
@@ -555,16 +562,29 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
       } else {
         updates.arquivo_url = fileName;
       }
-      await supabase.storage.from('documentos').remove([doc.arquivo_url]);
     }
+    // Arquivo que acabou de subir para esta edição (null se não subiu nada).
+    const arquivoNovo = typeof updates.arquivo_url === 'string' ? updates.arquivo_url : null;
 
-    const { error: updErr } = await supabase
-      .from('documents').update(updates).eq('id', id).eq('user_id', req.userId);
+    // .select('id') faz o update dizer quantas linhas acertou: a linha pode ter sido
+    // excluída (outra aba) entre a conferência do começo e agora, e update em zero
+    // linhas não dá erro nenhum.
+    const { data: atualizadas, error: updErr } = await supabase
+      .from('documents').update(updates).eq('id', id).eq('user_id', req.userId).select('id');
     if (updErr) {
       logger.error('documents', 'UPDATE documents falhou', updErr);
+      // A linha continua apontando para o arquivo antigo, que fica. O novo é que sobra.
+      if (arquivoNovo) await removerArquivoSilencioso(arquivoNovo, 'regenerate: update falhou');
       res.status(500).json({ error: 'Falha ao atualizar o documento', detail: updErr.message });
       return;
     }
+    if (!atualizadas || atualizadas.length === 0) {
+      if (arquivoNovo) await removerArquivoSilencioso(arquivoNovo, 'regenerate: documento excluído no meio');
+      res.status(404).json({ error: 'Esse arquivo foi excluído.' });
+      return;
+    }
+    // O antigo só sai depois que a linha já aponta para o novo (ou para o content).
+    if (doc.arquivo_url) await removerArquivoAntigo(req.userId, doc.arquivo_url, 'regenerate');
 
     res.json({
       content,
@@ -691,13 +711,19 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
   try {
     const { id } = req.params;
 
-    const { data: doc } = await supabase
+    const { data: doc, error: docErr } = await supabase
       .from('documents')
       .select('id, tipo, cliente_id, terceiro_id, cliente_nome, dados_json, modelo_usado, content, codigo_curto, created_at')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
 
+    // Só ausência de linha é 404: o front trata 404 como "excluído". Falha do banco é 503.
+    if (docErr && !ausenciaDeLinha(docErr)) {
+      logger.error('documents', 'edit: leitura do documento falhou', docErr);
+      res.status(503).json({ error: MSG_ABRIR_FALHA });
+      return;
+    }
     if (!doc) { res.status(404).json({ error: 'Documento não encontrado' }); return; }
 
     const { data: company } = await supabase
@@ -876,7 +902,8 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
       // SOBE O NOVO ANTES DE APAGAR O VELHO. Na ordem inversa — como era até
       // 17/09/2026 — um upload que falhasse deixava a linha apontando pra um
       // arquivo já removido: o /p/:id e o PDF respondiam "documento não
-      // disponível" pra um documento que existe e está pago.
+      // disponível" pra um documento que existe e está pago. Desde 29/10/2026 o
+      // velho só sai DEPOIS do update confirmado, pelo mesmo motivo.
       const fileName = `${req.userId}/${id}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
@@ -889,11 +916,27 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
         return;
       }
       updates.arquivo_url = fileName;
-      if (doc.arquivo_url) await supabase.storage.from('documentos').remove([doc.arquivo_url]);
     }
+    const arquivoNovo = typeof updates.arquivo_url === 'string' ? updates.arquivo_url : null;
 
     if (Object.keys(updates).length > 0) {
-      await supabase.from('documents').update(updates).eq('id', id).eq('user_id', req.userId);
+      const { data: atualizadas, error: updErr } = await supabase
+        .from('documents').update(updates).eq('id', id).eq('user_id', req.userId).select('id');
+      if (updErr) {
+        logger.error('documents', `update do doc ${id} falhou`, updErr);
+        // A linha continua no arquivo antigo, que fica. O que sobrou é o novo.
+        if (arquivoNovo) await removerArquivoSilencioso(arquivoNovo, 'revisão: update falhou');
+        res.status(503).json({ error: 'Não consegui salvar a revisão agora. Tente de novo em instantes.' });
+        return;
+      }
+      if (!atualizadas || atualizadas.length === 0) {
+        // Excluído entre a conferência e a gravação: o upload novo ficaria órfão.
+        if (arquivoNovo) await removerArquivoSilencioso(arquivoNovo, 'revisão: documento excluído no meio');
+        res.status(404).json({ error: 'Esse arquivo foi excluído.' });
+        return;
+      }
+      // O antigo só sai depois que a linha já aponta para o novo.
+      if (arquivoNovo && doc.arquivo_url) await removerArquivoAntigo(req.userId, doc.arquivo_url, 'revisão');
     }
 
     res.json({ ok: true, reparos: exame.reparos });
@@ -1018,7 +1061,15 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
     const clienteId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clienteIdRaw) ? clienteIdRaw : null;
     const chave = chaveCliente(String(req.query.cliente_chave ?? '')) || null;
     const limit = inteiroEntre(req.query.limit, 50, 1, 100);
-    const page = inteiroEntre(req.query.page, 1, 1, 100000);
+    const pageBruto = inteiroEntre(req.query.page, 1, 1, 100000);
+    // `offset` (inteiro >= 0) tem precedência sobre `page`. Quem exclui documentos no meio da
+    // lista pede o próximo lote por offset = quantos já tem na tela; por página, o lote pularia
+    // o documento que subiu de posição. Offset inválido é ignorado e vale `page`.
+    const offsetBruto = Number(req.query.offset);
+    const temOffset = req.query.offset !== undefined && String(req.query.offset).trim() !== ''
+      && Number.isInteger(offsetBruto) && offsetBruto >= 0 && offsetBruto <= 10_000_000;
+    const inicio = temOffset ? offsetBruto : (pageBruto - 1) * limit;
+    const page = temOffset ? Math.floor(inicio / limit) + 1 : pageBruto;
 
     // Os filtros que o banco sabe fazer sozinho.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1043,13 +1094,13 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
       if (error) throw error;
       const daPasta = rows.filter((d) => pertenceAPasta(d, clienteId, chave));
       total = daPasta.length;
-      pagina = daPasta.slice((page - 1) * limit, page * limit);
+      pagina = daPasta.slice(inicio, inicio + limit);
     } else {
       let qy = filtros(supabase.from('documents').select(COLUNAS_LISTA, { count: 'exact' }));
       if (clienteId) qy = qy.eq('cliente_id', clienteId);
       const { data, error, count } = await qy
         .order('created_at', { ascending: false }).order('id', { ascending: true })
-        .range((page - 1) * limit, page * limit - 1);
+        .range(inicio, inicio + limit - 1);
       if (error) throw error;
       pagina = (data ?? []) as LinhaLeve[];
       total = count ?? pagina.length;
@@ -1082,8 +1133,8 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
     }));
 
     res.json({
-      documents: docs, total, page, limit,
-      has_more: page * limit < total,
+      documents: docs, total, page, limit, offset: inicio,
+      has_more: inicio + pagina.length < total,
       plano: user.plano, historico: true,
     });
   } catch (err) {
@@ -1398,4 +1449,130 @@ export async function propostaPrefill(req: Request, res: Response): Promise<void
 // ainda chama (um pinger externo receberia 404 e acusaria erro); só não fazem mais nada.
 export async function cleanupProDocuments(): Promise<void> {
   logger.info('documents', 'cleanup-pro-docs desligado: documentos nao sao mais apagados');
+}
+
+const MSG_ABRIR_FALHA = 'Não consegui abrir agora. Tente de novo.';
+
+/** PGRST116 (nenhuma linha) e 22P02 (id que não é uuid) querem dizer "não existe", não "o banco falhou". */
+function ausenciaDeLinha(err: { code?: string }): boolean {
+  return err.code === 'PGRST116' || err.code === '22P02';
+}
+
+/**
+ * Remove o arquivo ANTIGO de um documento do usuário. Só mexe no que está na pasta dele
+ * (`<userId>/...`): um arquivo_url fora disso não é nosso para apagar. Falha só vai para o log.
+ */
+async function removerArquivoAntigo(userId: string, caminho: string, contexto: string): Promise<void> {
+  if (!caminho.startsWith(`${userId}/`)) {
+    logger.error('documents', `${contexto}: arquivo fora da pasta do usuário, não removi`, { caminho });
+    return;
+  }
+  await removerArquivoSilencioso(caminho, contexto);
+}
+
+/** Remove um arquivo do bucket sem derrubar a resposta: falha vai só para o log. */
+async function removerArquivoSilencioso(caminho: string, contexto: string): Promise<void> {
+  try {
+    const { error } = await supabase.storage.from('documentos').remove([caminho]);
+    if (error) logger.error('documents', `${contexto}: não consegui remover ${caminho}`, error);
+  } catch (err) {
+    logger.error('documents', `${contexto}: remoção de ${caminho} falhou`, err);
+  }
+}
+
+/**
+ * Antes de apagar uma proposta, o contador de numeração (documentos_numeracao) tem que
+ * ser pelo menos o número dela. A função reservar_codigo_curto parte de
+ * greatest(ultimo, maior número que ainda existe) + 1: sem linha no contador, apagar a
+ * proposta de maior número faria a próxima herdar o número dela, e o link que o cliente
+ * A recebeu abriria a proposta do cliente B. Devolve false se não conseguiu garantir.
+ */
+async function garantirContadorNumeracao(userId: string, ano: number, num: number): Promise<boolean> {
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const { data: atual, error } = await supabase
+      .from('documentos_numeracao').select('ultimo').eq('user_id', userId).eq('ano', ano).maybeSingle();
+    if (error) { logger.error('documents', 'excluir: leitura do contador falhou', error); return false; }
+
+    if (!atual) {
+      const { error: insErr } = await supabase
+        .from('documentos_numeracao').insert({ user_id: userId, ano, ultimo: num });
+      if (!insErr) return true;
+      // Outra requisição criou a linha no meio: relê e segue pelo caminho de cima.
+      if (insErr.code === '23505') continue;
+      logger.error('documents', 'excluir: criação do contador falhou', insErr);
+      return false;
+    }
+
+    if (Number(atual.ultimo) >= num) return true;
+    const { error: updErr } = await supabase
+      .from('documentos_numeracao')
+      .update({ ultimo: num, atualizado_em: new Date().toISOString() })
+      .eq('user_id', userId).eq('ano', ano).lt('ultimo', num);
+    if (updErr) { logger.error('documents', 'excluir: ajuste do contador falhou', updErr); return false; }
+    return true;
+  }
+  return false;
+}
+
+const MSG_EXCLUIR_FALHA = 'Não consegui excluir agora. Tente de novo.';
+
+// Exclui um documento do próprio usuário. NÃO mexe em users.documentos_usados: a cota
+// é um contador, e devolver cota ao apagar abriria a brecha do plano grátis (gera,
+// apaga, gera de novo). O arquivo do bucket sai por último e uma falha ali só vai para o log.
+export async function excluirDocumento(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    const { data: doc, error: selErr } = await supabase
+      .from('documents')
+      .select('id, user_id, tipo, codigo_curto, arquivo_url')
+      .eq('id', id)
+      .eq('user_id', req.userId)
+      .maybeSingle();
+    // 22P02: o id não é um uuid. Para quem chamou é o mesmo que não existir.
+    if (selErr && selErr.code !== '22P02') {
+      logger.error('documents', 'excluir: leitura do documento falhou', selErr);
+      res.status(500).json({ error: MSG_EXCLUIR_FALHA });
+      return;
+    }
+    if (selErr || !doc) {
+      res.status(404).json({ error: 'Arquivo não encontrado.' });
+      return;
+    }
+
+    const cod = /^(\d{4})(\d{4})$/.exec(String(doc.codigo_curto ?? ''));
+    if (cod) {
+      const ano = Number(cod[1]);
+      const num = Number(cod[2]);
+      // O contador só aceita ano de 2000 a 2999 (check da tabela).
+      if (ano >= 2000 && ano <= 2999 && !(await garantirContadorNumeracao(req.userId, ano, num))) {
+        res.status(500).json({ error: MSG_EXCLUIR_FALHA });
+        return;
+      }
+    }
+
+    const { data: apagadas, error: delErr } = await supabase
+      .from('documents').delete().eq('id', id).eq('user_id', req.userId).select('id');
+    if (delErr) {
+      if (delErr.code === '23503') {
+        res.status(409).json({ error: 'Esse arquivo está ligado a outro registro e não pode ser excluído.' });
+        return;
+      }
+      logger.error('documents', 'excluir: delete falhou', delErr);
+      res.status(500).json({ error: MSG_EXCLUIR_FALHA });
+      return;
+    }
+    if (!apagadas || apagadas.length === 0) {
+      res.status(404).json({ error: 'Arquivo não encontrado.' });
+      return;
+    }
+
+    if (doc.arquivo_url) await removerArquivoAntigo(req.userId, doc.arquivo_url, 'excluir');
+
+    logger.info('documents', `documento ${doc.id} (${doc.tipo}) excluído`);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('documents', 'excluirDocumento falhou', err);
+    res.status(500).json({ error: MSG_EXCLUIR_FALHA });
+  }
 }

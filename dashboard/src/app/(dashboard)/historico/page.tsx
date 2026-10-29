@@ -3,13 +3,15 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, MoreVertical, Plus, Search } from 'lucide-react';
+import { ChevronLeft, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
 import api from '@/services/api';
 import { prewarmPdf, shareOrDownloadPdf } from '@/services/downloadPdf';
 import { fmtDateBR } from '@/utils/brasilia';
 import { chaveCliente, linkPastaCliente } from '@/utils/chaveCliente';
-import { logDocumentos } from '../documentos/forms/useEdicaoDocumento';
+import { erroDaApi, logDocumentos } from '../documentos/forms/useEdicaoDocumento';
 import { useEsconderWhatsFab } from '@/components/AreaTrabalho/AreaTrabalho';
+import ConfirmarExclusao from '@/components/ConfirmarExclusao/ConfirmarExclusao';
+import { useDashboard } from '@/contexts/DashboardContext';
 import styles from './historico.module.css';
 
 interface Doc {
@@ -133,6 +135,7 @@ function HistoricoConteudo() {
   // No celular o botão flutuante do WhatsApp cobre as ações da linha: some nesta tela (como na Vistoria).
   useEsconderWhatsFab(true, true);
   const router = useRouter();
+  const { user } = useDashboard();
   const sp = useSearchParams();
   const pastaId = sp.get('cliente_id');
   const pastaChave = sp.get('cliente_chave');
@@ -147,7 +150,6 @@ function HistoricoConteudo() {
 
   const [docs, setDocs] = useState<Doc[]>([]);
   const [total, setTotal] = useState(0);
-  const [pagina, setPagina] = useState(1);
   const [carregando, setCarregando] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState('');
@@ -157,8 +159,13 @@ function HistoricoConteudo() {
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [menuAberto, setMenuAberto] = useState<string | null>(null);
+  const [alvoExcluir, setAlvoExcluir] = useState<Doc | null>(null);
 
   const pedido = useRef(0);
+  // Quantos documentos há na tela: o próximo lote é pedido por offset, não por página, porque excluir
+  // um documento faz os de baixo subirem e a página seguinte pularia um deles.
+  const qtdNaTela = useRef(0);
+  const tituloRef = useRef<HTMLHeadingElement>(null);
   const primeiroFiltro = useRef(true);
 
   // Busca com atraso: cada letra digitada não vira uma chamada.
@@ -192,12 +199,13 @@ function HistoricoConteudo() {
     setVista('lista'); setGrupo('todos'); setPeriodo('tudo'); setQ(''); setQAplicada('');
   }, [emPasta]);
 
-  const buscar = useCallback(async (pg: number, acrescentar: boolean) => {
+  const buscar = useCallback(async (acrescentar: boolean) => {
     const meu = ++pedido.current;
     if (acrescentar) setCarregandoMais(true); else setCarregando(true);
     setErro('');
     try {
-      const params: Record<string, string | number> = { page: pg, limit: POR_PAGINA };
+      const params: Record<string, string | number> = { limit: POR_PAGINA };
+      if (acrescentar) params.offset = qtdNaTela.current; else params.page = 1;
       const tipos = GRUPOS.find((g) => g.id === grupo)?.tipos;
       if (tipos) params.tipo = tipos;
       if (qAplicada) params.q = qAplicada;
@@ -209,7 +217,6 @@ function HistoricoConteudo() {
       if (meu !== pedido.current) return; // chegou uma resposta mais nova
       setDocs((antes) => (acrescentar ? [...antes, ...(data.documents ?? [])] : (data.documents ?? [])));
       setTotal(data.total ?? 0);
-      setPagina(pg);
     } catch {
       if (meu === pedido.current) setErro('Não consegui carregar os documentos. Tente de novo.');
     } finally {
@@ -217,7 +224,8 @@ function HistoricoConteudo() {
     }
   }, [grupo, qAplicada, periodo, pastaId, pastaChave]);
 
-  useEffect(() => { buscar(1, false); }, [buscar]);
+  useEffect(() => { buscar(false); }, [buscar]);
+  useEffect(() => { qtdNaTela.current = docs.length; }, [docs]);
 
   useEffect(() => {
     if (primeiroFiltro.current) { primeiroFiltro.current = false; return; }
@@ -279,6 +287,37 @@ function HistoricoConteudo() {
     logDocumentos('link_copiado', { tipo: doc.tipo });
   }
 
+  // Fecha o modal e devolve o foco ao "..." da linha; se a linha saiu da tela, ao título da lista.
+  function fecharExclusao(docId: string) {
+    setAlvoExcluir(null);
+    setTimeout(() => {
+      const botao = document.querySelector<HTMLElement>(`[data-doc-menu="${docId}"]`);
+      (botao ?? tituloRef.current)?.focus();
+    }, 60);
+  }
+
+  // Tira a linha da lista, acerta as contagens (a da pasta lê `total`) e avisa.
+  function tirarDaLista(doc: Doc, texto: string) {
+    fecharExclusao(doc.id);
+    setDocs((antes) => antes.filter((d) => d.id !== doc.id));
+    setTotal((t) => Math.max(0, t - 1));
+    api.get('/documents/resumo').then(({ data }) => setResumo(data)).catch(() => { /* os números se acertam na próxima visita */ });
+    mostraAviso(texto);
+  }
+
+  // Quem chama (o modal) mostra a mensagem do erro lançado aqui, dentro dele.
+  async function excluir(doc: Doc) {
+    try {
+      await api.delete(`/documents/${doc.id}`);
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 404) { tirarDaLista(doc, 'Esse arquivo já tinha sido excluído.'); return; }
+      throw new Error(erroDaApi(err, 'Não consegui excluir. Tente de novo.'));
+    }
+    logDocumentos('excluido', { tipo: doc.tipo });
+    tirarDaLista(doc, 'Arquivo excluído.');
+  }
+
   function abrirPasta(p: { cliente_id: string | null; nome: string }) {
     router.push(linkPastaCliente(p.cliente_id, p.nome));
   }
@@ -298,6 +337,8 @@ function HistoricoConteudo() {
     setVista(v);
   }
 
+  // Plano com limite (nem ilimitado nem admin): a cota não volta ao excluir, e o aviso diz isso.
+  const planoComLimite = !!user && !user.is_admin && user.plano !== 'ilimitado' && user.limite_documentos < 999999;
   const ind = resumo?.indicadores;
   const nenhumDocumento = !!ind && ind.total === 0;
   const vazioGeral = !carregando && !erro && total === 0 && !qAplicada && grupo === 'todos' && periodo === 'tudo' && !emPasta;
@@ -313,7 +354,7 @@ function HistoricoConteudo() {
     <div className={styles.page}>
       <header className={styles.cabecalho}>
         <div>
-          <h1 className={styles.titulo}>{emPasta ? nomePasta : 'Meus documentos'}</h1>
+          <h1 ref={tituloRef} tabIndex={-1} className={styles.titulo}>{emPasta ? nomePasta : 'Meus documentos'}</h1>
           <p className={styles.apoio}>
             {emPasta
               ? (carregando ? 'Carregando...' : contagemPasta)
@@ -389,7 +430,7 @@ function HistoricoConteudo() {
           ) : erro ? (
             <div className={styles.estado}>
               <p>{erro}</p>
-              <button type="button" className="btn-secondary" onClick={() => buscar(1, false)}>Tentar de novo</button>
+              <button type="button" className="btn-secondary" onClick={() => buscar(false)}>Tentar de novo</button>
             </div>
           ) : vazioGeral ? (
             <section className={styles.vazio} aria-label="O que você ganha ao gerar documentos">
@@ -439,6 +480,8 @@ function HistoricoConteudo() {
                       onAbrir={() => abrir(doc)}
                       onBaixar={() => baixar(doc)}
                       onLink={() => copiarLink(doc)}
+                      onExcluir={() => setAlvoExcluir(doc)}
+                      excluirTravado={carregandoMais}
                     />
                   ))}
                 </tbody>
@@ -446,7 +489,7 @@ function HistoricoConteudo() {
               {docs.length < total && (
                 <div className={styles.rodape}>
                   <span>{docs.length} de {total}</span>
-                  <button type="button" className="btn-secondary" disabled={carregandoMais} onClick={() => buscar(pagina + 1, true)}>
+                  <button type="button" className="btn-secondary" disabled={carregandoMais} onClick={() => buscar(true)}>
                     {carregandoMais ? 'Carregando...' : 'Carregar mais'}
                   </button>
                 </div>
@@ -464,6 +507,28 @@ function HistoricoConteudo() {
           <ListaCampo itens={porCliente?.manutencoes} carregando={!porCliente} vazio="Nenhuma manutenção deste cliente." tipo="manutencao" />
         </>
       )}
+
+      <ConfirmarExclusao
+        key={alvoExcluir?.id ?? 'nenhum'}
+        aberto={!!alvoExcluir}
+        titulo="Excluir este arquivo?"
+        resumo={alvoExcluir && (
+          <>
+            <strong className={styles.resumoTipo}>{rotuloTipo(alvoExcluir.tipo)}</strong>
+            <span className={styles.resumoLinha}>{alvoExcluir.cliente_nome || 'Sem nome'}</span>
+            <span className={styles.resumoLinha}>
+              {alvoExcluir.codigo_curto ? `${alvoExcluir.codigo_curto} · ` : ''}{fmtDateBR(alvoExcluir.created_at)}
+            </span>
+          </>
+        )}
+        avisos={[
+          'Ele sai dos seus arquivos e não dá para recuperar.',
+          ...(alvoExcluir?.link_publico ? ['O link que você mandou para o cliente para de abrir.'] : []),
+          ...(planoComLimite ? ['Ele continua contando no limite do seu plano.'] : []),
+        ]}
+        onConfirmar={() => (alvoExcluir ? excluir(alvoExcluir) : Promise.resolve())}
+        onFechar={() => { if (alvoExcluir) fecharExclusao(alvoExcluir.id); }}
+      />
     </div>
   );
 }
@@ -481,7 +546,7 @@ function IndicadorFaixa({ valor, rotulo, onClick }: { valor: number | undefined;
   );
 }
 
-function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBaixar, onLink }: {
+function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBaixar, onLink, onExcluir, excluirTravado }: {
   doc: Doc;
   semCliente: boolean;
   ocupado: boolean;
@@ -490,12 +555,15 @@ function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBai
   onAbrir: () => void;
   onBaixar: () => void;
   onLink: () => void;
+  onExcluir: () => void;
+  // Enquanto o "Carregar mais" busca, o lote vem com o offset antigo: excluir agora deixaria um documento de fora.
+  excluirTravado: boolean;
 }) {
   const editar = editarHref(doc);
   const pdf = doc.pdf_disponivel;
   // No computador só Abrir e Editar ficam à vista; o resto vai no menu "...". No celular o menu leva tudo.
+  // Todo documento tem menu nos dois tamanhos, porque o Excluir mora lá.
   const temExtras = pdf || !!doc.link_publico;
-  const temMenu = temExtras || !!editar;
   return (
     <tr className={styles.linha}>
       <td className={styles.tipo}>{rotuloTipo(doc.tipo)}</td>
@@ -515,28 +583,39 @@ function LinhaDoc({ doc, semCliente, ocupado, menuAberto, onMenu, onAbrir, onBai
           <span className={`${styles.slotEditar} ${styles.soDesktop}`}>
             {editar && <Link href={editar} className={styles.acao}>Editar</Link>}
           </span>
-          {temMenu ? (
-            <span className={`${styles.menuWrap} ${temExtras ? '' : styles.soMobile}`}>
-              <button
-                type="button"
-                className={styles.maisBtn}
-                aria-label="Mais ações do documento"
-                aria-haspopup="menu"
-                aria-expanded={menuAberto}
-                onClick={(e) => { e.stopPropagation(); onMenu(!menuAberto); }}
-              >
-                <MoreVertical size={18} />
-              </button>
-              {menuAberto && (
-                <span className={styles.menu} role="menu">
-                  {pdf && <button type="button" role="menuitem" className={styles.soMobile} onClick={onAbrir}>Abrir</button>}
-                  {editar && <Link href={editar} role="menuitem" className={styles.soMobile}>Editar</Link>}
-                  {doc.link_publico && <button type="button" role="menuitem" onClick={onLink}>Copiar link</button>}
-                  {pdf && <button type="button" role="menuitem" onClick={onBaixar} disabled={ocupado}>{ocupado ? 'Preparando...' : 'Baixar PDF'}</button>}
-                </span>
-              )}
-            </span>
-          ) : null}
+          <span className={styles.menuWrap}>
+            <button
+              type="button"
+              className={styles.maisBtn}
+              data-doc-menu={doc.id}
+              aria-label="Mais ações do documento"
+              aria-haspopup="menu"
+              aria-expanded={menuAberto}
+              onClick={(e) => { e.stopPropagation(); onMenu(!menuAberto); }}
+            >
+              <MoreVertical size={18} />
+            </button>
+            {menuAberto && (
+              <span className={styles.menu} role="menu">
+                {pdf && <button type="button" role="menuitem" className={styles.soMobile} onClick={onAbrir}>Abrir</button>}
+                {editar && <Link href={editar} role="menuitem" className={styles.soMobile}>Editar</Link>}
+                {doc.link_publico && <button type="button" role="menuitem" onClick={onLink}>Copiar link</button>}
+                {pdf && <button type="button" role="menuitem" onClick={onBaixar} disabled={ocupado}>{ocupado ? 'Preparando...' : 'Baixar PDF'}</button>}
+                {/* O divisor só aparece quando há algo visível antes dele (no computador, Abrir e Editar não estão no menu). */}
+                {(temExtras || !!editar) && <span role="separator" className={`${styles.divisor} ${temExtras ? '' : styles.soMobile}`} />}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.excluir}
+                  onClick={onExcluir}
+                  disabled={excluirTravado}
+                  title={excluirTravado ? 'Aguarde a lista terminar de carregar.' : undefined}
+                >
+                  <Trash2 size={16} aria-hidden="true" /> Excluir
+                </button>
+              </span>
+            )}
+          </span>
         </div>
       </td>
     </tr>

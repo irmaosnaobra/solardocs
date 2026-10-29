@@ -37,6 +37,22 @@ export function erroDaApi(err: unknown, padrao: string): string {
   return e.response?.data?.message || e.response?.data?.error || padrao;
 }
 
+/** Frase que o formulário mostra quando o documento aberto para editar foi excluído. */
+export const MSG_ARQUIVO_EXCLUIDO = 'Esse arquivo foi excluído. O que você preencher vira um documento novo.';
+
+/**
+ * O documento que estava em edição não existe mais (foi excluído em outra aba ou aparelho).
+ * A api responde 404 em dois pontos: 'Documento não encontrado' (conferência do começo) e
+ * 'Esse arquivo foi excluído.' (a linha sumiu no meio do salvamento). 404 de cliente ou
+ * terceiro não encontrado é outra coisa e não entra aqui.
+ */
+export function documentoSumiu(err: unknown): boolean {
+  const e = err as { response?: { status?: number; data?: { error?: string } } };
+  if (e.response?.status !== 404) return false;
+  const msg = e.response.data?.error;
+  return msg === 'Documento não encontrado' || msg === 'Esse arquivo foi excluído.';
+}
+
 /**
  * Copia do dados_json salvo só as chaves que o formulário conhece, com o tipo que ele
  * usa (texto continua texto). Chave que o formulário não tem (os cliente_final_* que o
@@ -68,6 +84,9 @@ export function useEdicaoDocumento({ tipoApi, slug, aoCarregar }: Opcoes) {
   const [edicao, setEdicao] = useState<DocEdicao | null>(null);
   const [carregando, setCarregando] = useState(!!docParam);
   const [erroCarga, setErroCarga] = useState('');
+  // Documento excluído: o formulário sai do modo edição e segue em branco, como documento novo.
+  const [descartado, setDescartado] = useState(false);
+  const [avisoExcluido, setAvisoExcluido] = useState('');
   const jaCarregou = useRef(false);
   const aoCarregarRef = useRef(aoCarregar);
   useEffect(() => { aoCarregarRef.current = aoCarregar; });
@@ -85,24 +104,45 @@ export function useEdicaoDocumento({ tipoApi, slug, aoCarregar }: Opcoes) {
       setEdicao(d);
       aoCarregarRef.current(d);
       logDocumentos('editar_aberto', { tipo: d.tipo });
-    }).catch(() => {
+    }).catch((err) => {
+      if (documentoSumiu(err)) {
+        setAvisoExcluido(MSG_ARQUIVO_EXCLUIDO);
+        setDescartado(true);
+        router.replace(`/documentos?tipo=${slug}`);
+        return;
+      }
+      // Falha passageira do servidor (503): a frase da api, sem dizer que o documento foi removido.
+      const status503 = (err as { response?: { status?: number } }).response?.status === 503;
+      if (status503) { setErroCarga(erroDaApi(err, 'Não consegui abrir agora. Tente de novo.')); return; }
       setErroCarga('Não consegui abrir esse documento para edição. Ele pode ter sido removido, ou é antigo e não guardou os dados do formulário.');
     }).finally(() => setCarregando(false));
-  }, [docParam, tipoApi]);
+  }, [docParam, tipoApi, router, slug]);
 
   /** Gera (documento novo, gasta cota) ou salva a edição (mesmo registro, sem cota). */
   async function enviar(payload: Record<string, unknown>) {
     if (edicao) {
-      const { data } = await api.post(`/documents/${edicao.doc_id}/regenerate`, payload);
-      logDocumentos('editar_salvo', { tipo: edicao.tipo });
-      return data;
+      try {
+        const { data } = await api.post(`/documents/${edicao.doc_id}/regenerate`, payload);
+        logDocumentos('editar_salvo', { tipo: edicao.tipo });
+        return data;
+      } catch (err) {
+        if (!documentoSumiu(err)) throw err;
+        // Excluído enquanto estava aberto: sai da edição, o próximo gerar é documento novo (com cota).
+        setEdicao(null);
+        setDescartado(true);
+        setAvisoExcluido(MSG_ARQUIVO_EXCLUIDO);
+        router.replace(`/documentos?tipo=${slug}`);
+        // A faixa acima tem a frase inteira; o erro do formulário fica curto.
+        throw Object.assign(new Error('Esse arquivo foi excluído.'), { response: { data: { message: 'Esse arquivo foi excluído.' } } });
+      }
     }
     const { data } = await api.post('/documents/generate', payload);
     return data;
   }
 
   return {
-    docParam,
+    docParam: descartado ? null : docParam,
+    avisoExcluido,
     edicao,
     editando: !!edicao,
     carregando,

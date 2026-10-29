@@ -14,6 +14,8 @@
   margin-bottom: 20px;
 }
 
+.titulo:focus { outline: none; }
+
 .titulo {
   font-size: 24px;
   font-weight: 700;
@@ -163,6 +165,16 @@
 .alterna button.alternaAtivo {
   background: var(--color-primary);
   color: #0F172A;
+}
+
+.resumoTipo {
+  display: block;
+  font-weight: 700;
+}
+
+.resumoLinha {
+  display: block;
+  color: var(--color-text-muted);
 }
 
 .aviso {
@@ -334,6 +346,19 @@
 }
 
 .menu > :first-child { border-top: none; }
+
+/* Excluir: separado dos demais por um divisor, em vermelho. */
+.divisor {
+  display: block;
+  height: 1px;
+  background: var(--color-border-strong);
+}
+
+.menu .excluir {
+  gap: 8px;
+  border-top: none;
+  color: var(--color-error);
+}
 .menu button:hover,
 .menu a:hover { background: var(--color-surface-2); }
 
@@ -513,7 +538,7 @@
   .alterna button { flex: 1; min-height: 44px; }
 
   .soMobile { display: initial; }
-  .menuWrap.soMobile { display: block; }
+  .divisor.soMobile { display: block; }
   .soDesktop { display: none; }
   .menuWrap { flex: 0 0 44px; }
   .maisBtn { width: 44px; height: 44px; }

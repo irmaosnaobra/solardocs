@@ -19,7 +19,14 @@ vi.mock('../utils/supabase', () => ({
       eq:     vi.fn().mockReturnThis(),
       single: mockSingle,
       insert: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
+      // update(...).eq(...).select('id') devolve a linha acertada (o controller confere que o doc ainda existe).
+      update: vi.fn(() => {
+        const q: Record<string, unknown> = {};
+        for (const m of ['eq', 'select', 'lt']) q[m] = () => q;
+        q.single = mockSingle;
+        q.then = (ok: (v: unknown) => unknown) => Promise.resolve({ data: [{ id: 'x' }], error: null }).then(ok);
+        return q;
+      }),
       upsert: vi.fn().mockResolvedValue({ error: null }),
       order:  vi.fn().mockReturnThis(),
       limit:  vi.fn().mockResolvedValue({ data: [], error: null }),

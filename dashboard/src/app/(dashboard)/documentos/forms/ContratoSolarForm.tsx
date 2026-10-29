@@ -7,7 +7,7 @@ import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
-import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO, AvisoExcluido } from './BannerEdicao';
 
 interface GeneratedDoc {
   content: string;
@@ -128,6 +128,7 @@ export default function ContratoSolarPage() {
         <p className={styles.subtitle}>Contrato de instalação de sistema fotovoltaico</p>
       </div>
 
+      <AvisoExcluido texto={ed.avisoExcluido} />
       {ed.editando && (
         <BannerEdicao rotulo="contrato solar" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
       )}

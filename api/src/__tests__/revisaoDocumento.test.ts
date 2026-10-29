@@ -33,7 +33,7 @@ vi.mock('../utils/supabase', () => {
           update: (linha: Record<string, unknown>) => {
             updateRecebido = linha;
             acoes.push('update');
-            return { eq: () => ({ eq: async () => ({ error: null }) }) };
+            return { eq: () => ({ eq: () => ({ select: async () => ({ data: [{ id: 'doc-1' }], error: null }) }) }) };
           },
         } as never;
       }
@@ -99,6 +99,9 @@ describe('revisão boa', () => {
 
     expect(r.code).toBe(200);
     expect(acoes.indexOf('upload')).toBeLessThan(acoes.indexOf('remove'));
+    // O antigo só sai depois do update que aponta para o novo.
+    expect(acoes.indexOf('update')).toBeGreaterThanOrEqual(0);
+    expect(acoes.indexOf('update')).toBeLessThan(acoes.indexOf('remove'));
     expect(updateRecebido!.content).toContain('(revisado)');
     expect(updateRecebido!.arquivo_url).toMatch(/^user-1\/doc-1-\d+\.html$/);
   });

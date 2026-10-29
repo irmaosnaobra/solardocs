@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { generateDocument, regenerateDocument, getDocumentForEdit, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill, resumoDocumentos, documentosPorCliente } from '../controllers/documentsController';
+import { generateDocument, regenerateDocument, getDocumentForEdit, saveDocument, updateDocumentFile, listDocuments, renderDocumentHtml, propostaPrefill, resumoDocumentos, documentosPorCliente, excluirDocumento } from '../controllers/documentsController';
 import { generatePdf } from '../controllers/pdfController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -45,6 +45,8 @@ router.get('/por-cliente', authMiddleware, documentosPorCliente);
 router.get('/proposta-prefill', authMiddleware, propostaPrefill);
 // Reabre um doc salvo no formulário (botão "Editar" do /histórico).
 router.get('/:id/edit', authMiddleware, getDocumentForEdit);
+// Exclui o documento (linha, contador de numeração preservado e arquivo). Não devolve cota.
+router.delete('/:id', authMiddleware, excluirDocumento);
 router.get('/:id/pdf', downloadAuth, generatePdf);
 router.get('/:id/html', downloadAuth, renderDocumentHtml);
 

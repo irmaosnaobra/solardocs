@@ -7,7 +7,7 @@ import DocumentPreview from '@/components/DocumentPreview/DocumentPreview';
 import { useDashboard } from '@/contexts/DashboardContext';
 import styles from '../documentos.module.css';
 import { useEdicaoDocumento, mesclarCampos, erroDaApi } from './useEdicaoDocumento';
-import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO } from './BannerEdicao';
+import { BannerEdicao, ClienteTravado, EstadoCarga, RESPIRO_EDICAO, AvisoExcluido } from './BannerEdicao';
 
 interface Equipamento { item: string; quantidade: number; }
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null }
@@ -152,6 +152,7 @@ export default function PropostaBancariaPage() {
         <p className={styles.subtitle}>Duas folhas de formalização para o agente financeiro</p>
       </div>
 
+      <AvisoExcluido texto={ed.avisoExcluido} />
       {ed.editando && (
         <BannerEdicao rotulo="proposta de banco" cliente={ed.edicao?.cliente_nome ?? null} onCancelar={ed.cancelar} />
       )}

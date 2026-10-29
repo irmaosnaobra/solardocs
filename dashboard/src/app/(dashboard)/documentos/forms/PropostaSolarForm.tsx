@@ -7,6 +7,7 @@ import { MessageCircle, Link as LinkIcon, Download, RotateCcw, ScanLine, Pencil,
 import api from '@/services/api';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { RESPIRO_EDICAO } from './BannerEdicao';
+import { documentoSumiu, MSG_ARQUIVO_EXCLUIDO } from './useEdicaoDocumento';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
@@ -478,10 +479,20 @@ export default function PropostaSolarPage() {
         resumo_whatsapp: null,
       });
       setEditando(true);
-    }).catch(() => {
+    }).catch((err) => {
+      if (documentoSumiu(err)) {
+        // Excluída em outra aba ou aparelho: o formulário segue em branco, como proposta nova.
+        setError(MSG_ARQUIVO_EXCLUIDO);
+        router.replace('/documentos?tipo=proposta');
+        return;
+      }
+      if ((err as { response?: { status?: number } }).response?.status === 503) {
+        setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Não consegui abrir agora. Tente de novo.');
+        return;
+      }
       setError('Não consegui abrir essa proposta pra edição. Ela pode ter sido removida, ou é antiga demais e não guardou os dados do formulário.');
     }).finally(() => setCarregandoDoc(false));
-  }, [docParam]);
+  }, [docParam, router]);
 
   // Carrega um cliente e preenche o que houver: tudo da última proposta dele ou, se ele
   // ainda não tem proposta, os dados do cadastro de Clientes (cidade, UF, endereço,
@@ -832,6 +843,15 @@ export default function PropostaSolarPage() {
       setMarcasInv(lerMarcas(MARCAS_INV_KEY));
       setMarcasBat(lerMarcas(MARCAS_BAT_KEY));
     } catch (err: unknown) {
+      if (editando && documentoSumiu(err)) {
+        // Excluída enquanto estava aberta: sai da edição, o próximo gerar é proposta nova (com cota).
+        setGenerated(null);
+        setEditando(false);
+        setPdfAsset(null);
+        setError(MSG_ARQUIVO_EXCLUIDO);
+        if (docParam) router.replace('/documentos?tipo=proposta');
+        return;
+      }
       const error = err as { response?: { data?: { error?: string; message?: string } } };
       setError(error.response?.data?.message || error.response?.data?.error || (editando ? 'Erro ao atualizar a proposta' : 'Erro ao gerar proposta'));
     } finally {

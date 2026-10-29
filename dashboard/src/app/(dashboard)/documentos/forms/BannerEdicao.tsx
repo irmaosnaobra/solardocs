@@ -23,6 +23,16 @@ export function BannerEdicao({ rotulo, cliente, onCancelar }: {
   );
 }
 
+/** Avisa que o documento aberto para editar foi excluído e que o formulário virou documento novo. */
+export function AvisoExcluido({ texto }: { texto: string }) {
+  if (!texto) return null;
+  return (
+    <div className={styles.banner} role="status">
+      <span className={styles.bannerTexto}>{texto}</span>
+    </div>
+  );
+}
+
 /** No lugar do seletor de cliente, para plano com limite em modo edição. */
 export function ClienteTravado({ nome }: { nome: string | null }) {
   return (
