@@ -316,6 +316,15 @@ html.io2{
 .en-sw-txt span{font-size:12.5px;color:var(--en-tx2);line-height:1.45}
 .en-tag.lig{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
 .en-tag.des{background:var(--en-sf3);border-color:var(--en-bd);color:var(--en-tx2)}
+.en-tag.q-boa{background:var(--en-ok-sf);border-color:var(--en-ok-bd);color:var(--en-ok)}
+.en-tag.q-com_problema{background:var(--en-av-sf);border-color:var(--en-av);color:var(--en-av)}
+.en-tag.q-critica{background:var(--en-er-sf);border-color:var(--en-er-bd);color:var(--en-er)}
+.en-det>summary .en-tag{margin-left:8px}
+.en-secao-cab{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.en-resumo-ag{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.en-trecho{font-style:italic;color:var(--en-tx2);overflow-wrap:anywhere}
+.en-resp textarea{width:100%;min-height:72px;padding:9px 11px;border:1px solid var(--en-campo);border-radius:10px;background:var(--en-bg);color:var(--en-tx);font-size:16px;resize:vertical}
+.en-resp-pe{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 .en-sw-vivo{flex-wrap:wrap}
 .en-sw-vivo .en-sw-txt{flex:1 1 200px}
 .en-sw-vivo .en-campo{flex:0 0 auto;min-width:180px}
@@ -337,6 +346,7 @@ html.io2{
   .en-linha-form .en-campo{flex:1 1 100%}
   .en-linha-form .en-btn{flex:1 1 100%}
   .en-form-pe .en-btn{flex:1 1 100%}
+  .en-resp-pe .en-btn,.en-secao-cab .en-btn{flex:1 1 100%}
   .en-entrada .en-btn{flex:1 1 100%}
   .en-sw{flex-direction:column;align-items:stretch}
   .en-sw-vivo .en-campo{min-width:0;flex:1 1 auto}
@@ -952,8 +962,12 @@ setInterval(carregar, 120000);
       Object.assign(el('div'), { id: 'en-status' }),
       Object.assign(el('div', 'en-placar'), { id: 'en-placar' }),
       Object.assign(el('div', 'en-socio'), { id: 'en-socio' }),
+      Object.assign(el('div'), { id: 'en-qual' }),
+      Object.assign(el('div'), { id: 'en-perg' }),
       Object.assign(el('div'), { id: 'en-corpo' })
     );
+    $('en-qual').appendChild(blocoQualidade());
+    $('en-perg').appendChild(blocoPerguntas());
     $('en-status').className = 'en-msg';
     est.montado = true;
   }
@@ -1004,6 +1018,8 @@ setInterval(carregar, 120000);
   function mostrarSocio(sim) {
     var c = $('en-socio');
     if (c) c.style.display = sim && est.socio ? 'flex' : 'none';
+    // A qualidade e as perguntas aparecem para toda a equipe, só na lista (com uma conversa aberta saem da frente).
+    ['en-qual', 'en-perg'].forEach(function (id) { var x = $(id); if (x) x.style.display = sim ? '' : 'none'; });
   }
 
   function blocoReplay() {
@@ -1112,7 +1128,9 @@ setInterval(carregar, 120000);
     ['ensaio', 'Ensaio ao vivo', 'Lê as mensagens novas de lead e grava o que a agente responderia. Nada é enviado ao cliente.'],
     ['replay', 'Replay', 'Libera o botão Rodar replay e o replay agendado.'],
     ['ficha', 'Ficha ao consultor', 'Manda o resumo do cliente agendado ao WhatsApp do consultor dono do card.'],
-    ['sentinela', 'Sentinela de vencimentos', 'Às 7h confere as ferramentas pagas e avisa o dono quando algo vence.']
+    ['sentinela', 'Sentinela de vencimentos', 'Às 7h confere as ferramentas pagas e avisa o dono quando algo vence.'],
+    ['qualidade', 'Nota diária das conversas', 'Todo dia às 7h lê as conversas de ontem e dá uma nota a cada uma. Nada é enviado ao cliente.'],
+    ['respostas_dono', 'Respostas do dono no conhecimento', 'As respostas dadas em Perguntas em aberto entram no conhecimento da agente do produto.']
   ];
   var SONDAS = [
     ['sonda_armazem', 'Testar armazenamento'],
@@ -1728,6 +1746,262 @@ setInterval(carregar, 120000);
     return f;
   }
 
+  // ── Qualidade: a nota de cada conversa do dia ──
+  // O relógio das 7h grava uma nota por conversa em qualidade/<dia>/<hmac>.json. Aqui só se lê. Conversa = HMAC, nunca telefone.
+  var DESFECHO = { marcou_reuniao: 'Marcou reunião', pagou: 'Pagou', passou_humano: 'Passou para uma pessoa', pediu_parar: 'Pediu para parar', sumiu: 'Sumiu', em_andamento: 'Em andamento', fora_do_escopo: 'Fora do escopo', sem_interacao: 'Sem interação' };
+  var QUALIDADE = { boa: 'Boa', com_problema: 'Com problema', critica: 'Crítica' };
+  var PROBLEMA = { passagem_incompleta: 'Passagem incompleta', fora_do_assunto: 'Fora do assunto', repetiu_pergunta: 'Repetiu pergunta', loop_nao_entendeu: 'Não entendeu e girou', alucinacao: 'Informação inventada', quebrou_regra: 'Quebrou regra', ficou_calada: 'Ficou calada', ignorou_pergunta: 'Ignorou pergunta', tom_errado: 'Tom errado', outro: 'Outro' };
+  var VALOR = { alto: 'Valor alto', medio: 'Valor médio', baixo: 'Valor baixo', nenhum: 'Sem valor' };
+  var PRODUTO = { solar: 'Solar', solardoc: 'SolarDoc', eletroposto: 'Eletroposto' };
+  var PERSONA_DO_PRODUTO = { solar: 'duda', solardoc: 'carla', eletroposto: 'helena' };
+  var qual = { carregado: false, minha: 0 };
+
+  /** Ontem em Brasília (AAAA-MM-DD): agora menos 3 horas dá a hora de parede, menos 24 horas dá ontem. */
+  function ontemBrasilia() { return new Date(Date.now() - 27 * 3600000).toISOString().slice(0, 10); }
+  function contar(o, k) { o[k] = (o[k] || 0) + 1; }
+  function textoContagem(rotulos, o) {
+    var partes = Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }).map(function (k) { return (rotulos[k] || k) + ' ' + o[k]; });
+    return partes.length ? partes.join(', ') : 'nenhum';
+  }
+
+  function blocoQualidade() {
+    var det = el('details', 'en-det');
+    det.id = 'en-qual-det';
+    add(det, el('summary', null, 'Qualidade das conversas'));
+    var corpo = el('div', 'en-det-corpo');
+    var campo = el('label', 'en-campo', 'Dia');
+    var inp = document.createElement('input');
+    inp.type = 'date'; inp.id = 'en-qual-dia'; inp.value = ontemBrasilia(); inp.max = ontemBrasilia();
+    inp.addEventListener('change', function () { if (inp.value) carregarQualidade(); });
+    campo.appendChild(inp);
+    var cab = el('div', 'en-secao-cab');
+    add(cab, campo, botao('Atualizar', '', function () { carregarQualidade(); }));
+    var m = el('div', 'en-msg'); m.id = 'en-qual-msg'; m.setAttribute('role', 'status');
+    add(corpo,
+      el('p', 'en-aviso', 'Todo dia às 7h o sistema lê as conversas em que a agente falou no dia anterior e dá uma nota a cada uma. Aqui você vê o resumo por agente e cada nota.'),
+      cab, m,
+      Object.assign(el('div', 'en-placar'), { id: 'en-qual-resumo' }),
+      Object.assign(el('div', 'en-turnos'), { id: 'en-qual-lista' }));
+    det.appendChild(corpo);
+    det.addEventListener('toggle', function () { if (det.open && !qual.carregado) carregarQualidade(); });
+    return det;
+  }
+
+  function carregarQualidade() {
+    var dia = $('en-qual-dia').value || ontemBrasilia();
+    var minha = ++qual.minha;
+    msg('en-qual-msg', '', 'Carregando as notas.');
+    api('GET', 'ensaio/qualidade?dia=' + encodeURIComponent(dia)).then(function (j) {
+      if (minha !== qual.minha) return;
+      qual.carregado = true;
+      msg('en-qual-msg', '', '');
+      pintarQualidade(j);
+    }).catch(function (e) {
+      if (minha !== qual.minha) return;
+      msg('en-qual-msg', 'erro', tratarErro(e));
+    });
+  }
+
+  function pintarQualidade(j) {
+    var notas = j.notas || [];
+    var resumo = $('en-qual-resumo'); resumo.textContent = '';
+    var lista = $('en-qual-lista'); lista.textContent = '';
+    if (!notas.length) {
+      lista.appendChild(el('div', 'en-vazio', 'Ainda não há notas para ' + diaCurto(j.dia) + '. O relógio roda às 7h do dia seguinte; se o dia já passou, nenhuma agente falou nele ou o relógio está desligado.'));
+      return;
+    }
+    var por = {};
+    notas.forEach(function (n) {
+      var a = por[n.agente] = por[n.agente] || { total: 0, des: {}, qua: {}, pro: {} };
+      a.total++; contar(a.des, n.desfecho); contar(a.qua, n.qualidade);
+      (n.problemas || []).forEach(function (p) { contar(a.pro, p.tipo); });
+    });
+    Object.keys(por).sort().forEach(function (ag) {
+      var a = por[ag];
+      var card = el('div', 'en-card');
+      add(card, el('div', 'en-card-nome', nomeAgente(ag)), el('div', 'en-card-prod', PROD[ag] || ''));
+      var num = el('div', 'en-card-num');
+      var t = el('div'); add(t, el('b', null, String(a.total)), el('span', null, a.total === 1 ? 'conversa' : 'conversas'));
+      add(num, t);
+      var det = el('div', 'en-resumo-ag');
+      add(det,
+        el('div', 'en-meta', 'Desfechos: ' + textoContagem(DESFECHO, a.des)),
+        el('div', 'en-meta', 'Qualidade: ' + textoContagem(QUALIDADE, a.qua)),
+        el('div', 'en-meta', 'Problemas: ' + textoContagem(PROBLEMA, a.pro)));
+      add(card, num, det);
+      resumo.appendChild(card);
+    });
+    notas.forEach(function (n) { lista.appendChild(pintarNotaQualidade(j.dia, n)); });
+  }
+
+  function pintarNotaQualidade(dia, n) {
+    var card = el('div', 'en-turno');
+    var cab = el('div', 'en-turno-cab');
+    add(cab,
+      el('b', null, nomeAgente(n.agente)),
+      el('span', 'en-tag', DESFECHO[n.desfecho] || n.desfecho),
+      el('span', 'en-tag q-' + n.qualidade, QUALIDADE[n.qualidade] || n.qualidade),
+      el('span', 'en-tag', VALOR[n.valor] || n.valor),
+      el('span', null, 'Conversa ' + String(n.hmac || '').slice(0, 6) + ' - ' + (n.turnos_da_agente_no_dia || 0) + (n.turnos_da_agente_no_dia === 1 ? ' fala da agente' : ' falas da agente')));
+    card.appendChild(cab);
+    card.appendChild(el('div', 'en-meta', n.resumo || ''));
+    if (n.intencao) card.appendChild(el('div', 'en-meta', 'O que o cliente quer: ' + n.intencao));
+    if (n.parou_depois_de) card.appendChild(el('div', 'en-meta', 'Parou depois de: ' + n.parou_depois_de));
+    if (n.problemas && n.problemas.length) {
+      var caixa = el('div', 'en-notas');
+      n.problemas.forEach(function (p) {
+        var li = el('div', 'en-nota errado');
+        var txt = el('div', 'txt');
+        add(txt, el('b', null, PROBLEMA[p.tipo] || p.tipo), el('span', null, p.explicacao ? ': ' + p.explicacao : ''));
+        if (p.trecho) txt.appendChild(el('div', 'en-trecho', '"' + p.trecho + '"'));
+        li.appendChild(txt);
+        caixa.appendChild(li);
+      });
+      card.appendChild(caixa);
+    }
+    if (n.perguntas_em_aberto && n.perguntas_em_aberto.length) {
+      card.appendChild(el('div', 'en-meta', 'Perguntas sem resposta: ' + n.perguntas_em_aberto.map(function (p) { return p.pergunta_curta; }).join('; ')));
+    }
+    // Se a conversa tem turnos gravados no ensaio nesse dia, abre o replay dela.
+    card.appendChild(botao('Ver a conversa', '', function () {
+      abrirConversa({ id: n.hmac, persona: n.agente, primeira_data: dia, ultima_data: dia });
+    }));
+    return card;
+  }
+
+  // ── Perguntas em aberto: o que a agente não soube responder ──
+  // O sócio responde aqui e a resposta entra no conhecimento da agente do produto em até 1 minuto.
+  // Valor em dinheiro, travessão e emoji o servidor recusa: preço fica no conhecimento fixo da agente.
+  function blocoPerguntas() {
+    var det = el('details', 'en-det');
+    det.id = 'en-perg-det';
+    var sum = el('summary', null, 'Perguntas em aberto');
+    var selo = el('span', 'en-tag', ''); selo.id = 'en-perg-selo'; selo.hidden = true;
+    sum.appendChild(selo);
+    det.appendChild(sum);
+    var corpo = el('div', 'en-det-corpo');
+    var m = el('div', 'en-msg'); m.id = 'en-perg-msg'; m.setAttribute('role', 'status');
+    add(corpo,
+      el('p', 'en-aviso', 'São perguntas de clientes que a agente não soube responder ou respondeu com rodeio. Quando o sócio responde, a agente do produto passa a usar a resposta, com as palavras dela. Não escreva preço nem valor em dinheiro.'),
+      botao('Atualizar', '', function () { carregarPerguntas(); }), m,
+      Object.assign(el('div', 'en-turnos'), { id: 'en-perg-lista' }));
+    det.appendChild(corpo);
+    det.addEventListener('toggle', function () { if (det.open) carregarPerguntas(); });
+    return det;
+  }
+
+  function contarAbertas() {
+    api('GET', 'ensaio/perguntas?status=aberta').then(function (j) { marcarSelo((j.perguntas || []).length); }).catch(function () {});
+  }
+  function marcarSelo(n) {
+    var s = $('en-perg-selo'); if (!s) return;
+    s.hidden = !n; s.textContent = n ? n + (n === 1 ? ' aberta' : ' abertas') : '';
+  }
+
+  function carregarPerguntas() {
+    msg('en-perg-msg', '', 'Carregando as perguntas.');
+    api('GET', 'ensaio/perguntas').then(function (j) {
+      msg('en-perg-msg', '', '');
+      pintarPerguntas(j);
+    }).catch(function (e) { msg('en-perg-msg', 'erro', tratarErro(e)); });
+  }
+
+  function pintarPerguntas(j) {
+    var lista = $('en-perg-lista'); lista.textContent = '';
+    var todas = j.perguntas || [];
+    var abertas = todas.filter(function (p) { return p.status === 'aberta'; });
+    var respondidas = todas.filter(function (p) { return p.status === 'respondida'; });
+    var ignoradas = todas.filter(function (p) { return p.status === 'ignorada'; });
+    marcarSelo(abertas.length);
+    lista.appendChild(el('div', 'en-rot', 'Abertas (' + abertas.length + ')'));
+    if (!abertas.length) lista.appendChild(el('div', 'en-vazio', 'Nenhuma pergunta em aberto. As novas chegam depois do relógio das 7h.'));
+    abertas.sort(function (a, b) { return b.vezes - a.vezes; }).forEach(function (p) { lista.appendChild(cartaoAberta(p, !!j.socio)); });
+    if (respondidas.length) {
+      lista.appendChild(el('div', 'en-rot', 'Respondidas (' + respondidas.length + ')'));
+      respondidas.forEach(function (p) { lista.appendChild(cartaoFechada(p, !!j.socio)); });
+    }
+    if (ignoradas.length) {
+      lista.appendChild(el('div', 'en-rot', 'Ignoradas (' + ignoradas.length + ')'));
+      ignoradas.forEach(function (p) { lista.appendChild(cartaoFechada(p, !!j.socio)); });
+    }
+  }
+
+  function cabecaPergunta(p) {
+    var cab = el('div', 'en-turno-cab');
+    add(cab, el('b', null, p.pergunta), el('span', 'en-tag ag', PRODUTO[p.produto] || p.produto), el('span', 'en-tag', 'Feita ' + p.vezes + (p.vezes === 1 ? ' vez' : ' vezes')));
+    return cab;
+  }
+
+  function cartaoAberta(p, socio) {
+    var card = el('div', 'en-turno');
+    card.appendChild(cabecaPergunta(p));
+    // O texto do cliente não fica na fila: quem quer ler a fala dele abre a conversa pelo HMAC.
+    var ex = (p.exemplos || [])[0];
+    if (ex) {
+      if (ex.como_respondeu) card.appendChild(el('div', 'en-meta', 'A agente respondeu: ' + ex.como_respondeu));
+      if (ex.hmac && ex.dia) {
+        card.appendChild(botao('Ver a conversa', '', function () {
+          abrirConversa({ id: ex.hmac, persona: PERSONA_DO_PRODUTO[p.produto] || 'ninguem', primeira_data: ex.dia, ultima_data: ex.dia });
+        }));
+      }
+    }
+    var m = el('div', 'en-msg'); m.setAttribute('role', 'status');
+    if (!socio) {
+      card.appendChild(el('p', 'en-aviso', 'Só sócio responde ou ignora.'));
+      return card;
+    }
+    var f = el('div', 'en-resp');
+    var ta = document.createElement('textarea');
+    ta.maxLength = 400; ta.rows = 3; ta.placeholder = 'Resposta que a agente deve usar (de 3 a 400 caracteres)';
+    ta.setAttribute('aria-label', 'Resposta para: ' + p.pergunta);
+    var cont = el('span', 'en-cont', '0/400');
+    ta.addEventListener('input', function () { cont.textContent = ta.value.length + '/400'; });
+    var responder = botao('Responder', 'prim');
+    var ignorar = botao('Ignorar', '');
+    function travar(sim) { responder.disabled = sim; ignorar.disabled = sim; }
+    responder.addEventListener('click', function () {
+      var texto = ta.value.trim();
+      if (texto.length < 3) { m.className = 'en-msg erro'; m.textContent = 'Escreva a resposta, com pelo menos 3 caracteres.'; return; }
+      travar(true); responder.textContent = 'Salvando';
+      api('POST', 'ensaio/perguntas/' + encodeURIComponent(p.id) + '/responder', { resposta: texto }).then(function () {
+        carregarPerguntas();
+      }).catch(function (e) {
+        m.className = 'en-msg erro'; m.textContent = textoDoErro(e);
+        travar(false); responder.textContent = 'Responder';
+      });
+    });
+    ignorar.addEventListener('click', function () {
+      if (!window.confirm('Ignorar esta pergunta? Ela sai da lista de abertas.')) return;
+      travar(true);
+      api('POST', 'ensaio/perguntas/' + encodeURIComponent(p.id) + '/ignorar').then(function () {
+        carregarPerguntas();
+      }).catch(function (e) { m.className = 'en-msg erro'; m.textContent = textoDoErro(e); travar(false); });
+    });
+    var pe = el('div', 'en-resp-pe'); add(pe, responder, ignorar, cont);
+    add(f, ta, pe, m);
+    card.appendChild(f);
+    return card;
+  }
+
+  function cartaoFechada(p, socio) {
+    var card = el('div', 'en-turno');
+    card.appendChild(cabecaPergunta(p));
+    if (p.status === 'respondida') card.appendChild(el('div', 'en-meta', 'Resposta: ' + (p.resposta || '')));
+    card.appendChild(el('div', 'en-meta', (p.status === 'respondida' ? 'Respondida' : 'Ignorada') + (p.respondida_por ? ' por ' + p.respondida_por : '') + (p.respondida_em ? ' em ' + quando(p.respondida_em) : '') + '.'));
+    if (socio) {
+      var m = el('div', 'en-msg'); m.setAttribute('role', 'status');
+      var b = botao('Reabrir', '', function () {
+        if (p.status === 'respondida' && !window.confirm('Reabrir tira esta resposta do conhecimento da agente. Continuar?')) return;
+        b.disabled = true;
+        api('POST', 'ensaio/perguntas/' + encodeURIComponent(p.id) + '/reabrir').then(function () {
+          carregarPerguntas();
+        }).catch(function (e) { b.disabled = false; m.className = 'en-msg erro'; m.textContent = textoDoErro(e); });
+      });
+      add(card, b, m);
+    }
+    return card;
+  }
+
   // ── entrada ──
   window.Ensaio = {
     /** Intervalo (ms) com que a tela confere se a sonda pedida já tem resultado. */
@@ -1740,6 +2014,7 @@ setInterval(carregar, 120000);
       est.filtros.persona = (preset && ROT[preset] && preset !== 'ninguem') ? preset : '';
       msg('en-status', '', '');
       listar();
+      contarAbertas();
       carregarPlacar().catch(function (e) { msg('en-status', 'erro', tratarErro(e)); });
     }
   };
