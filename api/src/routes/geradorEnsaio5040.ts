@@ -4,12 +4,17 @@ import { caixaIpLimiter, caixaPessoaLimiter } from '../middleware/rateLimiter';
 import { equipeAutorizada } from '../services/gerador/caixaWhatsapp';
 import { ehSocio } from '../services/gerador/solarObras';
 import {
-  ErroArmazem, listarConversas, lerTurnos, lerTurnosNosDias, type MsgGravada, type TurnoGravado,
+  ErroArmazem, lerQualidadesDoDia, lerResumoQualidade, listarConversas, lerTurnos, lerTurnosNosDias, type MsgGravada, type TurnoGravado,
 } from '../services/agentes5040/armazem';
+import {
+  ErroPerguntas, STATUS_PERGUNTA, idValido, ignorarPergunta, listarPerguntas, reabrirPergunta, responderPergunta, validarResposta,
+  type StatusPergunta,
+} from '../services/agentes5040/perguntas';
+import { janelaDoDiaBRT, ontemBRT } from '../services/agentes5040/relogio';
 import { runReplay } from '../services/agentes5040/replay';
 import { supabase } from '../utils/supabase';
 import {
-  CHAVE_INTERRUPTORES, CHAVE_VIVO_ALVO, DONAS_LIBERADAS_PARA_TODOS, DONAS_VIVAS, MAX_ALVOS, NOMES_INTERRUPTORES, alvoDoValor, zerarCacheInterruptores,
+  CHAVE_INTERRUPTORES, CHAVE_VIVO_ALVO, DONAS_LIBERADAS_PARA_TODOS, DONAS_VIVAS, MAX_ALVOS, NOMES_INTERRUPTORES, alvoDoValor, padraoDe, zerarCacheInterruptores,
   type DonaViva, type ModoVivo, type NomeInterruptor,
 } from '../services/agentes5040/interruptores';
 import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
@@ -34,7 +39,12 @@ import {
 //   DELETE /gerador/ensaio/nota?turno=<wa_id>&nota=<autor>-<ts>    só o autor
 //   GET    /gerador/ensaio/placar                                  por agente; devolve `socio`
 //   POST   /gerador/ensaio/replay  {dias?, conversas?}             SÓ SÓCIO
-//   GET/PUT /gerador/ensaio/interruptores                          SÓ SÓCIO: liga e desliga as peças (4 da Fase A + duda_vivo, helena_vivo, carla_vivo)
+//   GET    /gerador/ensaio/qualidade?dia=AAAA-MM-DD                 a nota de cada conversa do dia + o resumo (hmac, nunca telefone)
+//   GET    /gerador/ensaio/perguntas?status=aberta|respondida|ignorada   a fila do que a agente não soube responder
+//   POST   /gerador/ensaio/perguntas/:id/responder {resposta}      SÓ SÓCIO: a resposta entra no conhecimento da agente do produto
+//   POST   /gerador/ensaio/perguntas/:id/ignorar                   SÓ SÓCIO
+//   POST   /gerador/ensaio/perguntas/:id/reabrir                   SÓ SÓCIO: tira a resposta do conhecimento
+//   GET/PUT /gerador/ensaio/interruptores                          SÓ SÓCIO: liga e desliga as peças (4 da Fase A + duda_vivo, helena_vivo, carla_vivo + qualidade, respostas_dono)
 //   GET/PUT /gerador/ensaio/vivo-alvo                              SÓ SÓCIO: quem a rodada viva atende (até 3 números de teste, só o HMAC)
 //   GET/POST /gerador/ensaio/comando                               SÓ SÓCIO: pede uma sonda (só GRAVA o pedido;
 //                                                                  quem executa é o cron do ensaio, em até 5 min)
@@ -84,10 +94,11 @@ const soSocioCom = (frase: string) => (req: Request, res: Response, next: NextFu
 };
 const soSocio = soSocioCom('Só sócio roda o replay.');
 const soSocioControles = soSocioCom('Só sócio usa os controles.');
+const soSocioPerguntas = soSocioCom('Só sócio responde as perguntas.');
 
 function falhou(res: Response, err: unknown): void {
   // Só o código. A mensagem do driver pode trazer caminho, telefone ou texto.
-  const codigo = err instanceof ErroArmazem || err instanceof ErroNotas ? err.codigo : 'interno';
+  const codigo = err instanceof ErroArmazem || err instanceof ErroNotas || err instanceof ErroPerguntas ? err.codigo : 'interno';
   console.error('[ensaio5040] falhou', codigo);
   res.status(502).json({ ok: false, error: 'Não consegui ler o ensaio agora. Tente de novo em instantes.' });
 }
@@ -278,6 +289,67 @@ export function mountEnsaio5040(router: Router): void {
     return { value: data?.value ?? null, updated_at: data?.updated_at ?? null };
   }
 
+
+  // ── QUALIDADE: a nota de cada conversa do dia (gravada pelo relógio, services/agentes5040/qualidade.ts) ──
+  const ORDEM_QUALIDADE: Record<string, number> = { critica: 0, com_problema: 1, boa: 2 };
+
+  router.get('/ensaio/qualidade', ...base, async (req: Request, res: Response) => {
+    const pedido = um(req.query.dia);
+    const dia = pedido || ontemBRT(new Date());
+    if (!DIA.test(dia) || !janelaDoDiaBRT(dia)) { res.status(400).json({ ok: false, error: 'Data inválida.' }); return; }
+    try {
+      const [resumo, lidas] = await Promise.all([lerResumoQualidade<unknown>(dia), lerQualidadesDoDia<Record<string, unknown>>(dia)]);
+      const notas: Array<Record<string, unknown>> = lidas
+        .map((x): Record<string, unknown> => ({ ...x.nota, hmac: x.hmac }))
+        .sort((a, b) => (ORDEM_QUALIDADE[String(a.qualidade)] ?? 3) - (ORDEM_QUALIDADE[String(b.qualidade)] ?? 3) || String(a.hmac).localeCompare(String(b.hmac)));
+      res.json({ ok: true, dia, resumo, notas });
+    } catch (err) { falhou(res, err); }
+  });
+
+  // ── PERGUNTAS EM ABERTO: o que a agente não soube responder. O sócio responde; a resposta entra no conhecimento ──
+  router.get('/ensaio/perguntas', ...base, async (req: Request, res: Response) => {
+    const status = um(req.query.status).toLowerCase();
+    if (status && !(STATUS_PERGUNTA as readonly string[]).includes(status)) { res.status(400).json({ ok: false, error: 'Status inválido.' }); return; }
+    try {
+      const perguntas = await listarPerguntas(status ? (status as StatusPergunta) : undefined);
+      res.json({ ok: true, socio: ehSocio(String((req as any).consultor?.nome || '')), perguntas });
+    } catch (err) { falhou(res, err); }
+  });
+
+  const idDaRota = (req: Request, res: Response): string | null => {
+    const id = um(req.params.id);
+    if (!idValido(id)) { res.status(400).json({ ok: false, error: 'Pergunta inválida.' }); return null; }
+    return id;
+  };
+
+  const resultadoDaAcao = (res: Response, r: 'ok' | 'nao_achou' | 'estado_errado', frase409: string): void => {
+    if (r === 'nao_achou') { res.status(404).json({ ok: false, error: 'Não achei essa pergunta.' }); return; }
+    if (r === 'estado_errado') { res.status(409).json({ ok: false, error: frase409 }); return; }
+    res.json({ ok: true });
+  };
+
+  router.post('/ensaio/perguntas/:id/responder', ...base, soSocioPerguntas, async (req: Request, res: Response) => {
+    const id = idDaRota(req, res); if (!id) return;
+    const quem = eu(req);
+    if (!quem) { res.status(400).json({ ok: false, error: 'Conta sem nome.' }); return; }
+    const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const recusa = validarResposta(b.resposta);
+    if (recusa) { res.status(400).json({ ok: false, error: recusa }); return; }
+    try { resultadoDaAcao(res, await responderPergunta(id, String(b.resposta), quem, new Date()), 'Não deu para responder agora.'); } catch (err) { falhou(res, err); }
+  });
+
+  router.post('/ensaio/perguntas/:id/ignorar', ...base, soSocioPerguntas, async (req: Request, res: Response) => {
+    const id = idDaRota(req, res); if (!id) return;
+    const quem = eu(req);
+    if (!quem) { res.status(400).json({ ok: false, error: 'Conta sem nome.' }); return; }
+    try { resultadoDaAcao(res, await ignorarPergunta(id, quem, new Date()), 'Só dá para ignorar pergunta aberta. Reabra antes.'); } catch (err) { falhou(res, err); }
+  });
+
+  router.post('/ensaio/perguntas/:id/reabrir', ...base, soSocioPerguntas, async (req: Request, res: Response) => {
+    const id = idDaRota(req, res); if (!id) return;
+    try { resultadoDaAcao(res, await reabrirPergunta(id, new Date()), 'Essa pergunta já está aberta.'); } catch (err) { falhou(res, err); }
+  });
+
   const NOMES: readonly NomeInterruptor[] = NOMES_INTERRUPTORES;
 
   function mapaDoBanco(v: unknown): Partial<Record<NomeInterruptor, boolean>> {
@@ -307,7 +379,7 @@ export function mountEnsaio5040(router: Router): void {
     const out: Record<string, { banco: boolean | null; env: '1' | '0' | null; ligado: boolean }> = {};
     for (const n of NOMES) {
       const env = forcaDaEnv(n);
-      out[n] = { banco: banco[n] ?? null, env, ligado: env === '1' ? true : env === '0' ? false : banco[n] === true };
+      out[n] = { banco: banco[n] ?? null, env, ligado: env === '1' ? true : env === '0' ? false : (banco[n] ?? padraoDe(n)) };
     }
     return out;
   }

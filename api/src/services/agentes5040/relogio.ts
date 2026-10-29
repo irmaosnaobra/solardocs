@@ -54,3 +54,22 @@ export function carimboBR(iso: string): string {
   if (!b) return '';
   return `[${p2(b.getUTCDate())}/${p2(b.getUTCMonth() + 1)} ${p2(b.getUTCHours())}:${p2(b.getUTCMinutes())}] `;
 }
+
+/** O dia anterior ao de `d`, em Brasília (YYYY-MM-DD). Instante inválido devolve texto vazio. */
+export function ontemBRT(d: Instante): string {
+  const b = brt(d);
+  if (!b) return '';
+  return diaBRT(new Date(b.getTime() - 86_400_000 + TRES_HORAS_MS));
+}
+
+/**
+ * Os limites de um dia de Brasília como instantes ISO: `desde` é a meia-noite local (inclusive) e `ate` é um
+ * milissegundo antes da seguinte. Texto que não é AAAA-MM-DD devolve null.
+ */
+export function janelaDoDiaBRT(dia: string): { desde: string; ate: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dia ?? ''))) return null;
+  const inicio = Date.parse(`${dia}T00:00:00.000Z`);
+  if (!Number.isFinite(inicio) || diaBRT(inicio + TRES_HORAS_MS) !== dia) return null;
+  const desde = inicio + TRES_HORAS_MS;
+  return { desde: new Date(desde).toISOString(), ate: new Date(desde + 86_400_000 - 1).toISOString() };
+}

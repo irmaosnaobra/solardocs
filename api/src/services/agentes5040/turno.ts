@@ -23,6 +23,7 @@ import { ACOES_DUDA_SEM_FALA } from './personas/duda';
 import { personaDef } from './personas';
 import { semAcento, valoresEmReais } from './trava';
 import { diaBRT } from './relogio';
+import { blocoDeRespostasDoDono } from './perguntas';
 import type { DecisaoPorteiro } from './porteiro';
 import type { MsgGravada, TurnoGravado } from './armazem';
 import type { ContextoLead, MsgConversa, Persona } from './tipos';
@@ -236,8 +237,11 @@ export async function pensarTurno(e: EntradaTurno): Promise<ResultadoTurno> {
   const base = personaDef(e.persona);
   // Retomada: o schema da saída só aceita continuar e calar (nenhuma ação que mexa em agenda, ficha ou posse).
   const def = retomada ? { ...base, acoes: ACOES_DA_RETOMADA } : base;
+  // As respostas do dono a perguntas que a agente não soube (só as do produto dela). Falha de leitura = sem o bloco.
+  const sistemaExtra = await blocoDeRespostasDoDono(e.persona);
   const pensamento = await pensar({
     persona: def,
+    sistemaExtra,
     pedido: montarPedido(def, ctx),
     conv: msgs,
     midias,

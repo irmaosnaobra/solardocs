@@ -19,7 +19,7 @@ import { classificarFalhaIA, type ClienteIA } from './ia';
 import { diaBRT } from './relogio';
 
 /** 'dry' = a sonda (?dry=1): teto PRÓPRIO por dia, para uma sonda esquecida num loop não comer a cota do vivo nem a do replay. */
-export type TipoCota = 'vivo' | 'replay' | 'dry' | 'resposta';
+export type TipoCota = 'vivo' | 'replay' | 'dry' | 'resposta' | 'qualidade';
 
 export const CHAVE_DISJUNTOR = 'ag5040_disjuntor';
 export const DISJUNTOR_MINUTOS = 60;
@@ -27,6 +27,8 @@ export const TETO_PADRAO = 120;
 export const TETO_DRY_PADRAO = 10;
 /** Teto da rodada viva (tipo 'resposta'): AGENTES5040_TETO_RESPOSTA. Cota própria, separada da do ensaio sombra. */
 export const TETO_RESPOSTA_PADRAO = 300;
+/** Teto da nota diária das conversas (tipo 'qualidade'): AGENTES5040_TETO_QUALIDADE. Uma chamada por conversa. */
+export const TETO_QUALIDADE_PADRAO = 30;
 const DIAS_DA_FAXINA = 7;
 const PAGINA = 1000;
 const MAX_TENTATIVAS = 8;
@@ -34,10 +36,10 @@ const MAX_TENTATIVAS = 8;
 /** Teto do dia. Env inválida, zero ou negativa volta ao padrão (teto zero seria "desligado" calado). */
 export function tetoDe(tipo: TipoCota): number {
   const env = tipo === 'vivo' ? 'AGENTES5040_TETO_VIVO' : tipo === 'replay' ? 'AGENTES5040_TETO_REPLAY'
-    : tipo === 'resposta' ? 'AGENTES5040_TETO_RESPOSTA' : 'AGENTES5040_TETO_DRY';
+    : tipo === 'resposta' ? 'AGENTES5040_TETO_RESPOSTA' : tipo === 'qualidade' ? 'AGENTES5040_TETO_QUALIDADE' : 'AGENTES5040_TETO_DRY';
   const bruto = Number(String(process.env[env] ?? '').trim());
   return Number.isInteger(bruto) && bruto > 0 ? bruto
-    : tipo === 'dry' ? TETO_DRY_PADRAO : tipo === 'resposta' ? TETO_RESPOSTA_PADRAO : TETO_PADRAO;
+    : tipo === 'dry' ? TETO_DRY_PADRAO : tipo === 'resposta' ? TETO_RESPOSTA_PADRAO : tipo === 'qualidade' ? TETO_QUALIDADE_PADRAO : TETO_PADRAO;
 }
 
 const prefixoDaCota = (tipo: TipoCota, dia: string): string => `ag5040_ia:${tipo}:${dia}:`;

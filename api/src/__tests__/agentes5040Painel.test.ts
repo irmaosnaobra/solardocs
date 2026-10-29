@@ -406,6 +406,9 @@ describe('controles do sócio: interruptores e comandos', () => {
       duda_vivo: { banco: null, env: null, ligado: false },
       helena_vivo: { banco: null, env: null, ligado: false },
       carla_vivo: { banco: null, env: null, ligado: false },
+      // Nascem LIGADOS (PADRAO_LIGADO): sem env e sem chave no banco, o painel mostra ligado.
+      qualidade: { banco: null, env: null, ligado: true },
+      respostas_dono: { banco: null, env: null, ligado: true },
     });
     expect(JSON.stringify(res.body)).not.toContain('valor-secreto');
   });

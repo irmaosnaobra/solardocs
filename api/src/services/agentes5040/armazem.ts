@@ -271,6 +271,62 @@ export async function listarConversas(
   return saida.sort((a, b) => Date.parse(b.ultimo.momento) - Date.parse(a.ultimo.momento));
 }
 
+// ── nota de qualidade do dia ─────────────────────────────────────────────────
+//
+//  · qualidade/<dia>/<hmac>.json: a nota de UMA conversa naquele dia (upsert:false, "já existe" = já avaliada).
+//  · qualidade/<dia>/_resumo.json: o resumo do dia, REGRAVADO a cada rodada (único objeto com upsert:true).
+// O texto de lead só aparece como trecho curto dentro da nota; nunca em system_state, log ou rota sem login.
+
+export const caminhoDaQualidade = (dia: string, hmac: string): string => `qualidade/${dia}/${hmac}.json`;
+export const caminhoDoResumoQualidade = (dia: string): string => `qualidade/${dia}/_resumo.json`;
+
+/** Os HMAC que já têm nota neste dia (o `_resumo.json` e qualquer outro nome fora do formato ficam de fora). */
+export async function hmacsComQualidade(dia: string): Promise<Set<string>> {
+  if (!diaValido(dia)) return new Set();
+  await garantirBucketEnsaio();
+  const nomes = (await listarPasta(`qualidade/${dia}`)).map(f => f.name);
+  return new Set(nomes.filter(n => n.endsWith('.json')).map(n => n.slice(0, -5)).filter(hmacValido));
+}
+
+/** Grava a nota de uma conversa sem sobrescrever. */
+export async function gravarQualidade(dia: string, hmac: string, nota: object): Promise<ResultadoGravacao> {
+  if (!diaValido(dia) || !hmacValido(hmac)) throw new ErroArmazem('qualidade_invalida');
+  await garantirBucketEnsaio();
+  return subir(caminhoDaQualidade(dia, hmac), JSON.stringify(nota));
+}
+
+export async function lerQualidade<T>(dia: string, hmac: string): Promise<T | null> {
+  if (!diaValido(dia) || !hmacValido(hmac)) return null;
+  await garantirBucketEnsaio();
+  return baixarJson<T>(caminhoDaQualidade(dia, hmac));
+}
+
+/** Todas as notas do dia, em lotes de 5 downloads. Arquivo ilegível é ignorado. */
+export async function lerQualidadesDoDia<T>(dia: string): Promise<Array<{ hmac: string; nota: T }>> {
+  const hmacs = [...(await hmacsComQualidade(dia))].sort();
+  const out: Array<{ hmac: string; nota: T }> = [];
+  for (let i = 0; i < hmacs.length; i += 5) {
+    const lote = await Promise.all(hmacs.slice(i, i + 5).map(async h => ({ hmac: h, nota: await baixarJson<T>(caminhoDaQualidade(dia, h)) })));
+    for (const x of lote) if (x.nota) out.push({ hmac: x.hmac, nota: x.nota });
+  }
+  return out;
+}
+
+/** O resumo do dia é regravado a cada rodada: aqui (e só aqui) o upload sobrescreve. */
+export async function gravarResumoQualidade(dia: string, resumo: object): Promise<void> {
+  if (!diaValido(dia)) throw new ErroArmazem('qualidade_invalida');
+  await garantirBucketEnsaio();
+  const { error } = await supabase.storage.from(BUCKET_ENSAIO)
+    .upload(caminhoDoResumoQualidade(dia), Buffer.from(JSON.stringify(resumo), 'utf8'), { contentType: 'application/json', upsert: true });
+  if (error) throw new ErroArmazem('upload_falhou');
+}
+
+export async function lerResumoQualidade<T>(dia: string): Promise<T | null> {
+  if (!diaValido(dia)) return null;
+  await garantirBucketEnsaio();
+  return baixarJson<T>(caminhoDoResumoQualidade(dia));
+}
+
 // ── cache de mídia ───────────────────────────────────────────────────────────
 
 /** Só vale guardar o que foi lido de verdade (marcador "[audio]" não é leitura). */

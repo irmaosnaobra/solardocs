@@ -109,7 +109,7 @@ const vazio = (dry: boolean, extra: Partial<RelatorioEnsaio> = {}): RelatorioEns
 
 interface LinhaEntrada { id: number; telefone: string; is_group: boolean; tipo: string; momment: string }
 
-async function lerMapaLid(lids: string[]): Promise<MapaLid> {
+export async function lerMapaLid(lids: string[]): Promise<MapaLid> {
   const mapa: MapaLid = new Map();
   for (let i = 0; i < lids.length; i += 100) {
     const { data, error } = await supabase.from('wa_lid_telefone').select('lid, telefone, chave').in('lid', lids.slice(i, i + 100));

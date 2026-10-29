@@ -13,14 +13,24 @@
 //   2. senão, a chave system_state.ag5040_interruptores, um JSON
 //      { ensaio?, replay?, ficha?, sentinela?: boolean } sem dado pessoal.
 //      Só `true` liga. Lida com cache de 60 s.
-//   3. erro de leitura, chave ausente ou nome ausente na chave = DESLIGADO.
+//   3. erro de leitura, chave ausente ou nome ausente na chave = o padrão do nome: DESLIGADO, menos
+//      `qualidade` e `respostas_dono`, que nascem LIGADOS (PADRAO_LIGADO).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
 
 /** Lista única dos nomes: o tipo, o leitor do mapa e o painel (rota) saem daqui. */
-export const NOMES_INTERRUPTORES = ['ensaio', 'replay', 'ficha', 'sentinela', 'duda_vivo', 'helena_vivo', 'carla_vivo'] as const;
+export const NOMES_INTERRUPTORES = ['ensaio', 'replay', 'ficha', 'sentinela', 'duda_vivo', 'helena_vivo', 'carla_vivo', 'qualidade', 'respostas_dono'] as const;
 export type NomeInterruptor = typeof NOMES_INTERRUPTORES[number];
+
+/**
+ * Padrão por nome quando NEM a env NEM a chave do banco dizem nada. Todo nome fora desta lista nasce DESLIGADO.
+ * `qualidade` (a nota diária das conversas) e `respostas_dono` (as respostas do dono entram no conhecimento da
+ * agente) nascem LIGADOS: o botão do painel continua mandando, e ninguém precisa de env. Erro de LEITURA do banco
+ * também cai neste padrão, porque as duas peças só leem e escrevem notas e filas, nunca falam com o lead.
+ */
+export const PADRAO_LIGADO: Readonly<Partial<Record<NomeInterruptor, boolean>>> = Object.freeze({ qualidade: true, respostas_dono: true });
+export const padraoDe = (nome: NomeInterruptor): boolean => PADRAO_LIGADO[nome] === true;
 
 export type DonaViva = 'duda' | 'helena' | 'carla';
 export const DONAS_VIVAS: readonly DonaViva[] = ['duda', 'helena', 'carla'];
@@ -81,7 +91,7 @@ export async function ligado(nome: NomeInterruptor, opts: OpcoesInterruptor = {}
   if (porEnv === '0') return false;
 
   const agora = (opts.agora ?? Date.now)();
-  if (cache && agora - cache.em < CACHE_MS) return cache.mapa?.[nome] === true;
+  if (cache && agora - cache.em < CACHE_MS) return valorDe(cache.mapa, nome);
   if (!lendoMapa) {
     const g = geracao;
     const leitura: Promise<Mapa | null> = (async () => {
@@ -92,7 +102,13 @@ export async function ligado(nome: NomeInterruptor, opts: OpcoesInterruptor = {}
     })().finally(() => { if (lendoMapa === leitura) lendoMapa = null; });
     lendoMapa = leitura;
   }
-  return (await lendoMapa)?.[nome] === true;
+  return valorDe(await lendoMapa, nome);
+}
+
+/** O valor explícito da chave (boolean) ou, na falta dele, o padrão do nome. */
+function valorDe(mapa: Mapa | null | undefined, nome: NomeInterruptor): boolean {
+  const v = mapa?.[nome];
+  return typeof v === 'boolean' ? v : padraoDe(nome);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

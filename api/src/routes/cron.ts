@@ -1911,6 +1911,31 @@ router.get('/agentes-5040/base', async (req: Request, res: Response) => {
   }
 });
 
+// ── AGENTES 5040 · a nota diária de cada conversa (qualidade.ts). Roda às 07:00 e 07:30 de Brasília (10:00 e 10:30 UTC):
+// lê as conversas em que a agente falou ONTEM, chama a IA uma vez por conversa e grava a nota no bucket privado do ensaio.
+// A segunda rodada pega o que a primeira deixou por tempo ou por teto. ?dry=1 só lista as candidatas e quantas já têm nota
+// (não chama a IA, não grava). ?dia=AAAA-MM-DD reprocessa um dia; ?limite=N limita as conversas da rodada. Interruptor
+// `qualidade` desligado = responde ok sem fazer nada. Protegida como as outras rotas de cron.
+router.get('/agentes-5040/qualidade', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { runQualidadeTick } = await import('../services/agentes5040/qualidade');
+    const dia = typeof req.query.dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.dia) ? req.query.dia : undefined;
+    const n = parseInt(String(req.query.limite ?? ''), 10);
+    const r = await runQualidadeTick({ dry: req.query.dry === '1', dia, limite: Number.isInteger(n) && n > 0 ? n : undefined });
+    if (!r.dry && r.ligado) {
+      logger.info('cron', 'agentes-5040/qualidade rodou', {
+        dia: r.dia, candidatas: r.candidatas, ja_tinham_nota: r.jaTinhamNota, avaliadas: r.avaliadas, chamadas_ia: r.chamadasIA, parou: r.parou,
+        perguntas_criadas: r.perguntas.criadas, perguntas_somadas: r.perguntas.somadas,
+      });
+    }
+    res.status(r.ok ? 200 : 500).json(r);
+  } catch (err) {
+    logger.error('cron', 'agentes-5040/qualidade falhou', err);
+    res.status(500).json({ ok: false, error: 'falha' });
+  }
+});
+
 // Replay de conversas passadas: ?desde=ISO&ate=ISO (padrão: os últimos 30 dias), &maxConversas=5&maxTurnos=8&dry=1.
 router.get('/agentes-5040/replay', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;

@@ -6,7 +6,8 @@
 //    era o 4-6: não copiar). Falha do principal = erro, `refusal`, `max_tokens` ou
 //    saída fora do schema; nos quatro casos a mesma pergunta vai à reserva. Crédito
 //    zerado ou chave recusada NÃO vão à reserva (é a mesma conta; só gasta tempo).
-//  · O bloco fixo (persona + regras + conhecimento) vai em `system` com cache de 1 hora.
+//  · O bloco fixo (persona + regras + conhecimento) vai em `system` com cache de 1 hora. As respostas do dono
+//    (perguntas.ts) vão num SEGUNDO bloco de system, sem cache, que o turno resolve e passa em `sistemaExtra`.
 //    O que é do lead (fatos, conversa, mídia) vai SÓ na mensagem do usuário.
 //  · Saída por json_schema (nas duas chamadas). O campo `thinking` nunca é enviado.
 //  · Sem repetição automática do SDK e com tempo limite por chamada.
@@ -87,6 +88,12 @@ export interface ArgsPerguntar {
   /** Padrão: schema da persona (acao como enum). */
   schema?: Record<string, unknown>;
   cliente?: ClienteIA;
+  /**
+   * Bloco de system EXTRA (as respostas do dono, ver perguntas.ts), depois do bloco fixo e SEM cache_control: o
+   * bloco fixo continua com o mesmo prefixo e o cache de 1 hora não quebra. Quem resolve é o turno; este arquivo
+   * continua sem ler banco.
+   */
+  sistemaExtra?: string | null;
 }
 
 /** Blocos de conteúdo da mensagem do usuário: a mídia primeiro, o pedido por último. */
@@ -111,7 +118,8 @@ const textoDe = (r: any): string =>
 export async function perguntarAgente(args: ArgsPerguntar): Promise<RespostaIA> {
   const { persona } = args;
   const schema = args.schema ?? schemaSaidaAgente(persona.acoes);
-  const system = [{ type: 'text', text: persona.sistemaFixo, cache_control: { type: 'ephemeral', ttl: '1h' } }];
+  const system: Array<Record<string, unknown>> = [{ type: 'text', text: persona.sistemaFixo, cache_control: { type: 'ephemeral', ttl: '1h' } }];
+  if (args.sistemaExtra && args.sistemaExtra.trim()) system.push({ type: 'text', text: args.sistemaExtra });
   const messages = [{ role: 'user', content: conteudoDoUsuario(args.pedido, args.midias ?? []) }];
   const format = { type: 'json_schema', schema };
   const cliente: ClienteIA = args.cliente ?? (novoAnthropic() as unknown as ClienteIA);
@@ -199,6 +207,8 @@ export interface ArgsPensar {
   trava: ParametrosPensar;
   midias?: readonly BlocoMidia[];
   cliente?: ClienteIA;
+  /** Ver ArgsPerguntar.sistemaExtra. Vale nas duas chamadas (a primeira e a reescrita). */
+  sistemaExtra?: string | null;
 }
 
 /**
@@ -212,7 +222,7 @@ export async function pensar(args: ArgsPensar): Promise<Pensamento> {
   if (args.trava.completa !== true) {
     return { falou: false, motivo: MOTIVO_HISTORICO_INCOMPLETO, modelo: MODELO_PRINCIPAL, uso: usoZero() };
   }
-  const um = await perguntarAgente({ persona: args.persona, pedido: args.pedido, midias: args.midias, cliente: args.cliente });
+  const um = await perguntarAgente({ persona: args.persona, pedido: args.pedido, midias: args.midias, cliente: args.cliente, sistemaExtra: args.sistemaExtra });
   if (!um.saida) {
     return { falou: false, motivo: `a IA não respondeu (${um.causa ?? 'outro'})`, causa: um.causa, modelo: um.modelo, uso: um.uso };
   }
@@ -226,7 +236,7 @@ export async function pensar(args: ArgsPensar): Promise<Pensamento> {
   const dois = await perguntarAgente({
     persona: args.persona,
     pedido: pedidoDeReescrita(args.pedido, motivos, um.saida),
-    midias: args.midias, cliente: args.cliente,
+    midias: args.midias, cliente: args.cliente, sistemaExtra: args.sistemaExtra,
   });
   const uso = somar(um.uso, dois.uso);
   if (!dois.saida) {
