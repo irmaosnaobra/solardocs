@@ -1,7 +1,7 @@
 'use client';
 
 const WA_NUMBER = '5534998165040';
-const WA_MESSAGE = 'Olá! Estou usando o SolarDoc Pro e preciso de ajuda.';
+const WA_MESSAGE = 'Olá! Estou usando o SolarDoc e preciso de ajuda.';
 
 export default function WhatsAppFab() {
   const href = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(WA_MESSAGE)}`;

@@ -53,7 +53,7 @@ export function EstadoCarga({ carregando, erro, onVoltar }: {
   return (
     <div className={styles.estado}>
       <p>{erro}</p>
-      <button type="button" className="btn-secondary" onClick={onVoltar}>Voltar aos meus documentos</button>
+      <button type="button" className="btn-secondary" onClick={onVoltar}>Voltar aos arquivos</button>
     </div>
   );
 }

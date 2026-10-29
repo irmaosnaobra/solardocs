@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import api from '@/services/api';
+import Link from 'next/link';
 import styles from './TerceiroSelector.module.css';
 
 interface Terceiro {
@@ -178,6 +179,10 @@ export default function TerceiroSelector({ value, onChange }: TerceiroSelectorPr
               )}
             </div>
           )}
+          {/* O Terceiros saiu do menu: o cadastro continua a um clique daqui, em outra aba para não perder o formulário. */}
+          <Link href="/terceiros" target="_blank" rel="noopener noreferrer" className={styles.cadastrarLink}>
+            Cadastrar terceiro
+          </Link>
         </div>
       )}
     </div>

@@ -89,7 +89,7 @@ CRON_SECRET
 /(dashboard)/documentos/prestacao-servico
 /(dashboard)/documentos/contrato-pj
 /(dashboard)/planos
-/(dashboard)/historico — Meus Documentos (PRO+VIP)
+/(dashboard)/historico — Arquivos (todos os planos)
 /(dashboard)/funil — Funil de Conversão (VIP+Admin)
 /(dashboard)/dashboard — Analytics (VIP+Admin)
 /(dashboard)/admin — Painel Admin

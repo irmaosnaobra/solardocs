@@ -233,7 +233,7 @@ export default function ClientesPage() {
                         Proposta
                       </Link>
                       <Link href={linkPastaCliente(client.id, client.nome)} className={`${styles.editBtn} ${styles.docsBtn}`}>
-                        Documentos{(docsPorCliente[client.id] ?? 0) > 0 ? ` (${docsPorCliente[client.id]})` : ''}
+                        Arquivos{(docsPorCliente[client.id] ?? 0) > 0 ? ` (${docsPorCliente[client.id]})` : ''}
                       </Link>
                       <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
                         Editar
@@ -279,7 +279,7 @@ export default function ClientesPage() {
                   Banco
                 </Link>
                 <Link href={linkPastaCliente(client.id, client.nome)} className={`${styles.editBtn} ${styles.docsBtn}`}>
-                  Documentos
+                  Arquivos
                 </Link>
                 <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
                   Editar

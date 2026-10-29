@@ -508,7 +508,7 @@ em 1 minuto. Não chegou: confere Promoções e Spam, o remetente é
 equipe@solardoc.app.
 Cadastrar CNPJ: loga, clica em Empresa no menu, CNPJ + nome fantasia + cidade, o
 resto vem da Receita.
-Gerar contrato: menu lateral, escolhe o documento, cliente cadastrado, preenche
+Gerar contrato: menu lateral, Papelada, escolhe o documento, cliente cadastrado, preenche
 kWp/valor/prazo, gera.
 
 Outros bugs (não logo, não recebi reset, erro ao gerar, pagamento falhou): uma

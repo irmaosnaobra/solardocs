@@ -354,7 +354,7 @@ function HistoricoConteudo() {
     <div className={styles.page}>
       <header className={styles.cabecalho}>
         <div>
-          <h1 ref={tituloRef} tabIndex={-1} className={styles.titulo}>{emPasta ? nomePasta : 'Meus documentos'}</h1>
+          <h1 ref={tituloRef} tabIndex={-1} className={styles.titulo}>{emPasta ? nomePasta : 'Arquivos'}</h1>
           <p className={styles.apoio}>
             {emPasta
               ? (carregando ? 'Carregando...' : contagemPasta)
@@ -374,7 +374,7 @@ function HistoricoConteudo() {
 
       {emPasta && (
         <button type="button" className={styles.voltar} onClick={() => router.push('/historico')}>
-          <ChevronLeft size={16} /> Todos os documentos
+          <ChevronLeft size={16} /> Todos os arquivos
         </button>
       )}
 
@@ -424,7 +424,7 @@ function HistoricoConteudo() {
         <PastasLista pastas={pastasFiltradas} carregando={!resumo} onAbrir={abrirPasta} />
       ) : (
         <>
-          {emPasta && <h2 className={styles.secaoPrimeira}>Documentos</h2>}
+          {emPasta && <h2 className={styles.secaoPrimeira}>Arquivos</h2>}
           {carregando ? (
             <p className={styles.estado}>Carregando...</p>
           ) : erro ? (

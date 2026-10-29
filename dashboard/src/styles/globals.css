@@ -39,7 +39,10 @@
   --chrome-bg: #1B2129;
   --chrome-bg-2: #232B35;
   --chrome-border: #2E3742;
-  --chrome-text: #FFFFFF;
+  /* Texto do menu escuro, do mais claro ao mais apagado. Antes eram cores escritas à mão em cada regra. */
+  --chrome-text: #E8EAED;
+  --chrome-text-2: #C2C6CC;
+  --chrome-text-3: #9AA1AB;
   --chrome-text-dim: #7E8794;
   --rail-width: 60px;
   --topbar-height: 52px;

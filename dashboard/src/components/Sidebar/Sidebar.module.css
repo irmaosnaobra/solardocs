@@ -11,12 +11,9 @@
   left: 0;
   top: var(--topbar-height);
   z-index: 40;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;   /* quem rola é a lista (.nav); o rodapé fica preso embaixo */
   transition: transform 0.3s ease;
 }
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--chrome-border); border-radius: 4px; }
 
 /* No desktop a logo já está na topbar → esconde o cabeçalho da sidebar
    (logo grande + saudação) que estava ocupando espaço e cortando itens.
@@ -78,7 +75,11 @@
   gap: 3px;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--chrome-border) transparent;
 }
+.nav::-webkit-scrollbar { width: 4px; }
+.nav::-webkit-scrollbar-thumb { background: var(--chrome-border); border-radius: 4px; }
 
 .navSection {
   display: flex;
@@ -89,16 +90,73 @@
   margin-bottom: 2px;
 }
 
+/* ── Botões de ação do topo: Nova proposta e Ler conta de luz ── */
+.acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 4px 4px;
+}
+
+.acaoPrincipal,
+.acaoSecundaria {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s, filter 0.12s;
+}
+
+.acaoPrincipal {
+  height: 40px;
+  background: var(--color-primary);
+  border: none;
+  color: #1B2129;
+  font-weight: 600;
+}
+.acaoPrincipal:hover { filter: brightness(1.1); }
+
+.acaoSecundaria {
+  height: 36px;
+  background: transparent;
+  border: 1px solid var(--chrome-border);
+  color: var(--chrome-text);
+  font-weight: 500;
+}
+.acaoSecundaria:hover { background: var(--chrome-bg-2); }
+
+/* Rota atual: o principal ganha um anel; o secundário, o fundo do item ativo. */
+.acaoPrincipal.acaoAtiva { box-shadow: 0 0 0 2px var(--chrome-bg), 0 0 0 4px var(--color-primary); }
+.acaoSecundaria.acaoAtiva { background: var(--chrome-bg-2); border-color: var(--color-primary); }
+
+/* Sem empresa: cinza, sem link (mesma regra do item travado). */
+.acaoDesligada,
+.acaoDesligada:hover {
+  background: var(--chrome-bg-2);
+  border: 1px solid var(--chrome-border);
+  color: var(--chrome-text-3);
+  filter: none;
+  opacity: 0.8;
+  cursor: default;
+}
+
 /* ── Item de menu (linha com ícone + texto) ── */
 .navItem {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
   width: 100%;
-  padding: 11px 14px;
+  min-height: 36px;
+  padding: 8px 12px;
   border-radius: 8px;
-  font-size: 15px;
-  color: #E8EAED;            /* branco-suave de alto contraste no fundo escuro */
+  font-size: 14px;
+  color: var(--chrome-text);
   text-decoration: none;
   position: relative;
   transition: background 0.12s, color 0.12s;
@@ -119,7 +177,7 @@
   color: #fff;
 }
 
-/* Faixa laranja à esquerda no item ativo (igual SolarZ) */
+/* Faixa laranja à esquerda no item ativo */
 .navItemActive::before {
   content: '';
   position: absolute;
@@ -133,12 +191,14 @@
 .navItemLocked {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
   width: 100%;
-  padding: 11px 14px;
+  min-height: 36px;
+  padding: 8px 12px;
   border-radius: 8px;
-  font-size: 15px;
-  color: #C2C6CC;            /* claro o bastante pra ler, mas distinto do ativo */
+  font-size: 14px;
+  color: var(--chrome-text-2);   /* claro o bastante pra ler, mas distinto do ativo */
+  text-decoration: none;
   opacity: 0.8;
   user-select: none;
   background: transparent;
@@ -155,11 +215,78 @@
   background: var(--chrome-bg-2);
 }
 
+/* Foco de teclado em tudo que se clica no menu. */
+.navItem:focus-visible,
+.navItemLocked:focus-visible,
+.outrosBtn:focus-visible,
+.acaoPrincipal:focus-visible,
+.acaoSecundaria:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.navItem:focus-visible,
+.navItemLocked:focus-visible,
+.outrosBtn:focus-visible { outline-offset: -2px; }
+
 .navIcon {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex: 0 0 18px;
   color: currentColor;
+}
+
+/* Cadeado do "Para liberar": pequeno, à direita. */
+.lockRight {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--chrome-text-dim);
+}
+
+/* "Outros documentos": linha que abre e fecha no próprio menu, sem navegar. */
+.outrosBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--chrome-text-2);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.outrosBtn:hover { background: var(--chrome-bg-2); color: #fff; }
+
+/* Caixa de 18 px igual à dos ícones: seta, ícones e rótulos ficam na mesma coluna. */
+.iconeBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.outrosSeta {
+  transition: transform 0.15s;
+}
+.outrosSetaAberta { transform: rotate(90deg); }
+
+/* Os três documentos dobrados ficam recuados. */
+.subLista[hidden] { display: none; }
+
+.subLista {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
 }
 
 .navLabel {
@@ -223,25 +350,28 @@
 .tripleVip   { color: #f9a8d4; background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.45); }
 .tripleAdm   { color: #818cf8; background: rgba(99,102,241,0.15);  border-color: rgba(99,102,241,0.45); }
 
-/* ── Título da seção ── */
+/* ── Título de grupo ── */
 .navDivider {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 16px 11px 5px;
+  padding: 18px 12px 6px;
 }
 
 .navDividerLabel {
   font-size: 11px;
-  font-weight: 700;
-  color: #9AA1AB;            /* label de seção legível no fundo escuro */
+  font-weight: 600;
+  color: var(--chrome-text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .navDividerLabelAdmin {
   color: #FAC775;
 }
+
+/* A lista principal vem logo depois dos botões de ação. */
+.listaPrincipal { margin-top: 8px; }
 
 /* ── Badges (ADMIN / VIP / MENT) ── */
 .badgeAdmin,
@@ -352,7 +482,7 @@
     padding: 13px;
     background: var(--chrome-bg-2);
     border: 1px solid var(--chrome-border);
-    color: #E8EAED;            /* claro e legível no fundo escuro (feedback de contraste) */
+    color: var(--chrome-text);   /* claro e legível no fundo escuro (feedback de contraste) */
     border-radius: 8px;
     font-size: 15px;
     font-weight: 700;
@@ -439,23 +569,17 @@
     align-items: stretch;
     padding: 6px 8px 8px;
     gap: 1px;
-    overflow-y: scroll;
+    overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
   }
   .navSection { align-items: stretch; gap: 1px; }
 
-  .nav::-webkit-scrollbar { width: 4px; }
-  .nav::-webkit-scrollbar-thumb { background: var(--chrome-border); border-radius: 4px; }
-
   /* itens voltam a ser linha com ícone + label */
-  .navItem, .navItemLocked {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; height: auto; padding: 11px 12px;
-    border-radius: 8px; font-size: 14px; text-align: left;
-  }
+  /* Mesmo desenho do computador; só a altura mínima sobe para o dedo. */
+  .navItem, .navItemLocked, .outrosBtn { min-height: 40px; }
   .navLabel { display: block; flex: 1; min-width: 0; color: inherit; }
-  .navDivider { width: auto; height: auto; background: none; padding: 12px 12px 4px; margin: 0; }
+  .navDivider { width: auto; height: auto; background: none; margin: 0; }
   .navDividerLabel { display: block; }
   .navDividerLabelAdmin { display: block; }
   .countBadge, .badgeNovo, .tripleBadge, .externalIcon { display: inline-flex; }

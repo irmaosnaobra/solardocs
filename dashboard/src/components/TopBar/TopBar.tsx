@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, HelpCircle, User, Building2, LogOut, Smartphone, TrendingUp } from 'lucide-react';
+import { FolderOpen, HelpCircle, User, Building2, LogOut, Smartphone, TrendingUp } from 'lucide-react';
 import { removeToken } from '@/services/auth';
+import { logMenu } from '@/utils/logMenu';
 import styles from './TopBar.module.css';
 
 const WA_SUPORTE = 'https://wa.me/5534998165040?text=' + encodeURIComponent('Olá! Preciso de ajuda com o SolarDoc.');
@@ -44,14 +45,14 @@ export default function TopBar({ userEmail, companyLogo }: TopBarProps) {
       <div className={styles.spacer} />
 
       <div className={styles.actions}>
-        <Link href="/trafego" className={styles.iconBtn} title="Tráfego pago — domine sua região" style={{ color: '#10b981' }}>
+        <Link href="/trafego" className={styles.iconBtn} title="Tráfego pago: domine sua região" style={{ color: '#10b981' }} onClick={() => logMenu('trafego_pago', 'topbar')}>
           <TrendingUp size={18} />
         </Link>
-        <Link href="/baixe-app" className={styles.iconBtn} title="Baixe o App">
+        <Link href="/baixe-app" className={styles.iconBtn} title="Baixe o App" onClick={() => logMenu('baixe_app', 'topbar')}>
           <Smartphone size={18} />
         </Link>
-        <Link href="/historico" className={styles.iconBtn} title="Documentos salvos">
-          <FileText size={18} />
+        <Link href="/historico" className={styles.iconBtn} title="Arquivos" aria-label="Arquivos">
+          <FolderOpen size={18} />
         </Link>
         <a href={WA_SUPORTE} target="_blank" rel="noopener noreferrer" className={styles.iconBtn} title="Ajuda / Suporte">
           <HelpCircle size={18} />

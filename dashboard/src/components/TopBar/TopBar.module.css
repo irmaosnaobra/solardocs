@@ -39,7 +39,7 @@
 .iconBtn {
   background: none;
   border: none;
-  color: #E8EAED;            /* ícones claros/destacados na topbar escura */
+  color: var(--chrome-text);            /* ícones claros/destacados na topbar escura */
   cursor: pointer;
   display: grid;
   place-items: center;

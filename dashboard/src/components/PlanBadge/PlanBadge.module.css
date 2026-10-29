@@ -30,7 +30,8 @@
 
 .count {
   font-size: 12px;
-  color: var(--color-text-muted);
+  /* Sobre o menu escuro: --chrome-text-2 (#C2C6CC) dá 9,4:1 sobre --chrome-bg (#1B2129); o muted antigo ficava apagado. */
+  color: var(--chrome-text-2);
 }
 
 .progressBar {

@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import Cookies from 'js-cookie';
 import api from '@/services/api';
+import { guardarCacheAcessos, idDoToken, lerCacheAcessos } from '@/lib/acessosCache';
 
 /**
  * O que esta pessoa pode usar. Uma chamada só, cacheada no módulo — a Sidebar,
@@ -57,7 +59,7 @@ async function buscar(): Promise<AcessosState> {
   }
   try {
     const { data } = await api.get('/produtos/acessos');
-    return {
+    const estado: AcessosState = {
       carregando: false,
       produtos: new Set<string>(data.produtos || []),
       origem: data.origem || {},
@@ -67,6 +69,14 @@ async function buscar(): Promise<AcessosState> {
       email: data.email ?? null,
       bastidor: !!data.bastidor,
     };
+    // Só resposta boa do servidor (com a lista de produtos de verdade) vai para o cache; a falha, que tranca, nunca.
+    if (Array.isArray(data.produtos)) {
+      guardarCacheAcessos(idDoToken(Cookies.get('solardoc_token')), {
+        produtos: [...estado.produtos], origem: estado.origem, plano: estado.plano,
+        assinante: estado.assinante, isAdmin: estado.isAdmin, email: estado.email, bastidor: estado.bastidor,
+      });
+    }
+    return estado;
   } catch {
     // Servidor fora do ar tranca em vez de liberar: errar pro lado do cadeado
     // é recuperável com um F5; errar pro lado de abrir entrega produto de graça.
@@ -84,8 +94,27 @@ export function recarregarAcessos(): void {
   });
 }
 
-export function useAcessos(): AcessosState & { tem: (produto: string) => boolean } {
+/**
+ * Última resposta do servidor guardada neste aparelho. SÓ PARA DESENHAR O MENU: o que decide
+ * acesso (`carregando`, `tem`, `bastidor`) nunca vem daqui, porque localStorage se edita e
+ * quem foi estornado ainda o teria. Só a Sidebar lê, e só enquanto `carregando` for true.
+ */
+export interface PreviaAcessos {
+  bastidor: boolean;
+  produtos: Set<string>;
+}
+
+export function useAcessos(): AcessosState & { tem: (produto: string) => boolean; previa: PreviaAcessos | null } {
   const [estado, setEstado] = useState<AcessosState>(cache || INICIAL);
+  const [previa, setPrevia] = useState<PreviaAcessos | null>(null);
+
+  // Roda antes da pintura e depois da hidratação, então não diverge do HTML do servidor.
+  useLayoutEffect(() => {
+    if (cache) return;
+    const g = lerCacheAcessos(idDoToken(Cookies.get('solardoc_token')));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- precisa ser depois da hidratação
+    if (g) setPrevia({ bastidor: g.bastidor, produtos: new Set(g.produtos) });
+  }, []);
 
   useEffect(() => {
     ouvintes.add(setEstado);
@@ -97,5 +126,6 @@ export function useAcessos(): AcessosState & { tem: (produto: string) => boolean
     return () => { ouvintes.delete(setEstado); };
   }, []);
 
-  return { ...estado, tem: (produto: string) => estado.produtos.has(produto) };
+  // A prévia só existe enquanto o servidor não respondeu; depois dele, sempre null.
+  return { ...estado, tem: (produto: string) => estado.produtos.has(produto), previa: estado.carregando ? previa : null };
 }

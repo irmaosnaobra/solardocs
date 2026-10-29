@@ -281,7 +281,7 @@ export default function DashboardPage() {
       {/* HISTÓRICO */}
       {docs.length > 0 ? (
         <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Histórico de documentos</h2>
+          <h2 className={styles.sectionTitle}>Arquivos recentes</h2>
           <div className={styles.histTable}>
             <div className={styles.histHeader}>
               <span>Documento</span>

@@ -151,6 +151,16 @@
   color: var(--color-text-muted);
 }
 
+.cadastrarLink {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.cadastrarLink:hover { text-decoration: underline; }
+
 .noResults {
   padding: 14px;
   font-size: 13px;
