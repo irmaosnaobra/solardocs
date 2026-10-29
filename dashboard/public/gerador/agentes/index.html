@@ -323,6 +323,10 @@ html.io2{
 .en-secao-cab{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .en-resumo-ag{display:flex;flex-direction:column;gap:5px;margin-top:8px}
 .en-trecho{font-style:italic;color:var(--en-tx2);overflow-wrap:anywhere}
+.en-lado{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.en-regra{padding:9px 11px;border:1px solid var(--en-bd);border-radius:10px;background:var(--en-sf2);min-width:0}
+.en-regra.nova{border-color:var(--en-ok-bd);background:var(--en-ok-sf)}
+.en-regra-txt{font-size:12.5px;line-height:1.5;color:var(--en-tx);overflow-wrap:anywhere;white-space:pre-wrap}
 .en-resp textarea{width:100%;min-height:72px;padding:9px 11px;border:1px solid var(--en-campo);border-radius:10px;background:var(--en-bg);color:var(--en-tx);font-size:16px;resize:vertical}
 .en-resp-pe{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 .en-sw-vivo{flex-wrap:wrap}
@@ -342,6 +346,7 @@ html.io2{
   .en{padding:12px 10px 20px}
   .en-b,.en-calada{max-width:94%}
   .en-venc{grid-template-columns:1fr}
+  .en-lado{grid-template-columns:1fr}
   .en-placar{grid-template-columns:1fr}
   .en-linha-form .en-campo{flex:1 1 100%}
   .en-linha-form .en-btn{flex:1 1 100%}
@@ -964,10 +969,12 @@ setInterval(carregar, 120000);
       Object.assign(el('div', 'en-socio'), { id: 'en-socio' }),
       Object.assign(el('div'), { id: 'en-qual' }),
       Object.assign(el('div'), { id: 'en-perg' }),
+      Object.assign(el('div'), { id: 'en-melh' }),
       Object.assign(el('div'), { id: 'en-corpo' })
     );
     $('en-qual').appendChild(blocoQualidade());
     $('en-perg').appendChild(blocoPerguntas());
+    $('en-melh').appendChild(blocoMelhoria());
     $('en-status').className = 'en-msg';
     est.montado = true;
   }
@@ -1019,7 +1026,7 @@ setInterval(carregar, 120000);
     var c = $('en-socio');
     if (c) c.style.display = sim && est.socio ? 'flex' : 'none';
     // A qualidade e as perguntas aparecem para toda a equipe, só na lista (com uma conversa aberta saem da frente).
-    ['en-qual', 'en-perg'].forEach(function (id) { var x = $(id); if (x) x.style.display = sim ? '' : 'none'; });
+    ['en-qual', 'en-perg', 'en-melh'].forEach(function (id) { var x = $(id); if (x) x.style.display = sim ? '' : 'none'; });
   }
 
   function blocoReplay() {
@@ -2000,6 +2007,113 @@ setInterval(carregar, 120000);
       add(card, b, m);
     }
     return card;
+  }
+
+  // ── Melhorias da semana: o relatório de segunda-feira (só leitura) ──
+  // O relógio de segunda lê as notas dos 7 dias anteriores e propõe o texto novo de regra por agente. Nada entra sozinho na agente.
+  // Aqui só se lê (sem botão de aplicar). Conversa = HMAC, nunca telefone. Todo texto entra por textContent.
+  var melh = { carregado: false, minha: 0 };
+
+  function blocoMelhoria() {
+    var det = el('details', 'en-det');
+    det.id = 'en-melh-det';
+    add(det, el('summary', null, 'Melhorias da semana'));
+    var corpo = el('div', 'en-det-corpo');
+    var campo = el('label', 'en-campo', 'Semana');
+    var sel = document.createElement('select');
+    sel.id = 'en-melh-sel'; sel.disabled = true;
+    sel.addEventListener('change', function () { if (sel.value) carregarMelhoria(sel.value); });
+    campo.appendChild(sel);
+    var cab = el('div', 'en-secao-cab');
+    add(cab, campo, botao('Atualizar', '', function () { carregarMelhoria(sel.value || ''); }));
+    var m = el('div', 'en-msg'); m.id = 'en-melh-msg'; m.setAttribute('role', 'status');
+    add(corpo,
+      el('p', 'en-aviso', 'As sugestões não entram sozinhas. Cada uma passa pelos testes antes de virar regra.'),
+      cab, m,
+      Object.assign(el('div', 'en-turnos'), { id: 'en-melh-lista' }));
+    det.appendChild(corpo);
+    det.addEventListener('toggle', function () { if (det.open && !melh.carregado) carregarMelhoria(''); });
+    return det;
+  }
+
+  function carregarMelhoria(semana) {
+    var minha = ++melh.minha;
+    msg('en-melh-msg', '', 'Carregando o relatório.');
+    api('GET', 'ensaio/melhoria' + (semana ? '?semana=' + encodeURIComponent(semana) : '')).then(function (j) {
+      if (minha !== melh.minha) return;
+      melh.carregado = true;
+      msg('en-melh-msg', '', '');
+      pintarMelhoria(j);
+    }).catch(function (e) {
+      if (minha !== melh.minha) return;
+      msg('en-melh-msg', 'erro', tratarErro(e));
+    });
+  }
+
+  function pintarMelhoria(j) {
+    var sel = $('en-melh-sel'); sel.textContent = '';
+    var semanas = j.semanas || [];
+    semanas.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s; o.textContent = 'Segunda ' + diaCurto(s);
+      if (s === j.semana) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.disabled = !semanas.length;
+    var lista = $('en-melh-lista'); lista.textContent = '';
+    var r = j.relatorio;
+    if (!r) {
+      lista.appendChild(el('div', 'en-vazio', semanas.length ? 'Não há relatório para essa semana.' : 'Ainda não há relatório. Ele sai toda segunda-feira, depois das notas do fim de semana.'));
+      return;
+    }
+    var per = r.periodo ? ' (conversas de ' + diaCurto(r.periodo.de) + ' a ' + diaCurto(r.periodo.ate) + ')' : '';
+    lista.appendChild(el('div', 'en-meta', 'Notas lidas: ' + r.notas_lidas + ', com problema: ' + r.notas_com_problema + per + '.'));
+    if (r.poucos_dados) {
+      lista.appendChild(el('div', 'en-vazio', 'Poucos dados nesta semana: menos de 5 conversas com problema. A IA não foi chamada.'));
+    }
+    if (r.falhou && r.falhou.length) {
+      lista.appendChild(el('div', 'en-msg aviso', 'Sem sugestão para: ' + r.falhou.map(nomeAgente).join(', ') + '. Peça para refazer o relatório desta semana.'));
+    }
+    ['duda', 'carla', 'helena'].forEach(function (ag) {
+      var c = (r.por_agente || {})[ag] || {};
+      var itens = (r.itens_por_agente || {})[ag] || [];
+      if (!c.notas && !itens.length) return;
+      var card = el('div', 'en-card');
+      add(card, el('div', 'en-card-nome', nomeAgente(ag)), el('div', 'en-card-prod', PROD[ag] || ''));
+      card.appendChild(el('div', 'en-meta', (c.notas || 0) + ' conversas, ' + (c.com_problema || 0) + ' com problema, ' + (c.criticas || 0) + ' críticas. Problemas: ' + textoContagem(PROBLEMA, c.por_tipo || {}) + '.'));
+      if (!itens.length) card.appendChild(el('div', 'en-meta', c.com_problema ? 'Nenhuma sugestão de regra para esta agente.' : 'Sem problemas na semana.'));
+      itens.forEach(function (i) { card.appendChild(pintarItemMelhoria(ag, i)); });
+      lista.appendChild(card);
+    });
+  }
+
+  function pintarItemMelhoria(ag, i) {
+    var box = el('div', 'en-turno');
+    var cab = el('div', 'en-turno-cab');
+    add(cab, el('b', null, PROBLEMA[i.problema_tipo] || i.problema_tipo), el('span', 'en-tag', i.vezes + (i.vezes === 1 ? ' conversa' : ' conversas')), el('span', null, i.onde || ''));
+    box.appendChild(cab);
+    var lado = el('div', 'en-lado');
+    var atual = el('div', 'en-regra');
+    atual.appendChild(el('div', 'en-rot', 'Regra atual'));
+    atual.appendChild(el('div', 'en-regra-txt', i.regra_atual || (i.regra_atual_confere === false ? 'A IA citou um trecho que não bate com o texto atual. Confira o arquivo.' : 'Hoje não há regra para isso.')));
+    var nova = el('div', 'en-regra nova');
+    nova.appendChild(el('div', 'en-rot', 'Regra proposta'));
+    nova.appendChild(el('div', 'en-regra-txt', i.regra_proposta || ''));
+    add(lado, atual, nova);
+    box.appendChild(lado);
+    if (i.por_que) box.appendChild(el('div', 'en-meta', 'Por que: ' + i.por_que));
+    (i.exemplos || []).forEach(function (e) {
+      var linha = el('div', 'en-nota errado');
+      var txt = el('div', 'txt');
+      add(txt, el('b', null, diaCurto(e.dia) + ', conversa ' + String(e.hmac || '').slice(0, 6)));
+      if (e.trecho) txt.appendChild(el('div', 'en-trecho', '"' + e.trecho + '"'));
+      linha.appendChild(txt);
+      linha.appendChild(botao('Ver a conversa', '', function () {
+        abrirConversa({ id: e.hmac, persona: ag, primeira_data: e.dia, ultima_data: e.dia });
+      }));
+      box.appendChild(linha);
+    });
+    return box;
   }
 
   // ── entrada ──
