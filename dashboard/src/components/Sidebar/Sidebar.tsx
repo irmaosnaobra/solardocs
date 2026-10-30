@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  Settings, Zap, Lock, Plus, ScanLine, ChevronRight,
-  Building2, Users, User, Banknote, ScrollText, FileSignature, Receipt,
-  Wrench, Briefcase, ClipboardCheck, Sparkles, BarChart3, Calculator,
-  Boxes, GraduationCap, Smartphone, PlugZap,
-  Send, LogOut, TrendingUp, LayoutGrid, Tags, FolderOpen,
+  Settings, Lock, ChevronRight,
+  Building2, User, BarChart3, Smartphone,
+  Send, LogOut, TrendingUp, LayoutGrid, Tags,
   type LucideIcon,
 } from 'lucide-react';
 import { removeToken } from '@/services/auth';
@@ -18,6 +16,10 @@ import { produtoPorId } from '@/lib/produtos';
 import { logMenu, type EventoMenu } from '@/utils/logMenu';
 import PlanBadge from '../PlanBadge/PlanBadge';
 import Logo from '../Logo/Logo';
+import {
+  novaPropostaItem, lerContaItem, lojaItem, nexusItem, papeladaItems, outrosDocsItems,
+  hrefVendaDoProduto, organizarMenu,
+} from './itensMenu';
 import styles from './Sidebar.module.css';
 
 interface User {
@@ -63,12 +65,9 @@ interface NavItem {
 
 // ── Configuração do menu ─────────────────────────────────────────
 //
-// Ordem decidida em 29/10/2026 pelo uso medido em 30 dias: proposta 866 documentos;
-// Escanear conta 583 usos de 20 pessoas; Clientes 159 cadastros de 33 pessoas;
-// Contrato 51 de 16; Procuração 36 de 10; Recibo 28 de 6; Proposta de Banco 5 de 1;
-// Prestação de Serviço e Contrato Vendedor 8 em 90 dias; Terceiros 0 cadastros.
-// Por isso: proposta e conta de luz viram botões no topo, o que se usa todo dia vem
-// logo abaixo, e o que quase ninguém usa fica dobrado em "Outros documentos".
+// Os itens da tela (botões do topo, lista principal, papelada, "Para liberar") moram em
+// ./itensMenu.ts, que a tela de atalhos do celular (/inicio) também lê: os dois sempre
+// mostram os mesmos itens. Aqui ficam só os itens que são exclusivos do menu lateral.
 
 const baseAdminItems: NavItem[] = [
   { href: '/admin',              icon: Settings,   label: 'Painel SolarDoc' },
@@ -83,52 +82,7 @@ const baseAdminItems: NavItem[] = [
   // /admin/indicacoes-io seguem vivas (acesso por URL).
 ];
 
-// Os dois botões do topo. Sem empresa ficam cinza e sem link (o gerador exige CNPJ).
-// A conta de luz segue a mesma regra: a tela dela não checa empresa, mas o painel
-// manda quem não tem CNPJ para /empresa, e ela cria cliente, que também exige empresa.
-const novaPropostaItem: NavItem = { href: '/documentos?tipo=proposta', icon: Plus, label: 'Nova proposta', requireCompany: true };
-const lerContaItem: NavItem = { href: '/escanear-conta', icon: ScanLine, label: 'Ler conta de luz', requireCompany: true };
-
-// Lista principal, sem título, na ordem do uso. Item com `produto` travado sai daqui e
-// vai para "Para liberar" (ver `paraLiberar` no render).
-const principalItems: NavItem[] = [
-  { href: '/clientes',     icon: Users,           label: 'Clientes',         requireCompany: true },
-  // Todo documento gerado fica na nuvem para qualquer plano: sem cadeado e sem exigir empresa.
-  { href: '/historico',    icon: FolderOpen,      label: 'Arquivos' },
-  { href: '/vistoria',     icon: ClipboardCheck,  label: 'Vistoria' },
-  { href: '/precificacao', icon: Calculator,      label: 'Precificação',     produto: 'precificacao' },
-  // Off-grid NÃO leva `produto`: a tela é aberta de propósito (dimensionar e ver
-  // a autonomia é grátis) e o cadeado dela cai só sobre o preço, lá dentro.
-  { href: '/off-grid',     icon: PlugZap,         label: 'Kit Off-Grid' },
-  { href: '/inventario',   icon: Boxes,           label: 'Inventário',       produto: 'inventario' },
-  { href: '/manutencao',   icon: Wrench,          label: 'Manutenção' },
-  { href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit Fecha Vendas', produto: 'curso-fechamento' },
-  { href: '/lp/limpapro',           icon: Sparkles,      label: 'LimpaPro',         produto: 'curso-limpapro' },
-];
-
-// A loja fecha o grupo "Para liberar": é "ver todos os que faltam", não uma ferramenta.
-const lojaItem: NavItem = { href: '/produtos', icon: LayoutGrid, label: 'Ver todos os produtos' };
-
-// Portal do Parceiro NEXUS: página estática em /nexus/app, fora do Next. Só entra
-// no menu quando o portal responde ligado (ver useNexusPortal).
-const nexusItem: NavItem = {
-  href: '/nexus/app?o=solardoc', icon: Zap, label: 'Parceiro NEXUS', badge: 'Novo', paginaInteira: true,
-};
-
-// Papelada: telas navegáveis pra free, MAS o backend só deixa o free GERAR propostaSolar
-// (os outros tipos retornam 402 "faça upgrade"). O gate é no generate, não na navegação.
-const papeladaItems: NavItem[] = [
-  { href: '/documentos?tipo=contrato-solar', icon: FileSignature, label: 'Contrato Solar', requireCompany: true },
-  { href: '/documentos?tipo=procuracao',     icon: ScrollText,    label: 'Procuração',     requireCompany: true },
-  { href: '/documentos?tipo=recibo',         icon: Receipt,       label: 'Recibo',         requireCompany: true },
-];
-
-// Dobrados em "Outros documentos": 5 de 1 pessoa, e 8 em 90 dias.
-const outrosDocsItems: NavItem[] = [
-  { href: '/documentos?tipo=proposta-bancaria', icon: Banknote,  label: 'Proposta de Banco',    requireCompany: true },
-  { href: '/documentos?tipo=prestacao-servico', icon: Wrench,    label: 'Prestação de Serviço', requireCompany: true },
-  { href: '/documentos?tipo=contrato-pj',       icon: Briefcase, label: 'Contrato Vendedor',    requireCompany: true },
-];
+// Dobrados em "Outros documentos": 5 de 1 pessoa, e 8 em 90 dias. Os três itens estão em ./itensMenu.ts.
 const OUTROS_TIPOS = ['proposta-bancaria', 'prestacao-servico', 'contrato-pj'];
 const CHAVE_OUTROS = 'sd-menu-outros';
 
@@ -222,22 +176,14 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     router.push('/auth?mode=login');
   }
 
-  /**
-   * SEU / NÃO É SEU. `travado` responde se o item está atrás de cadeado de PRODUTO.
-   * Enquanto a resposta do servidor não chega, nada é considerado travado: piscar
-   * cadeado na cara de quem pagou vira chamado no suporte na hora.
-   */
-  const travado = (item: NavItem) =>
-    !!item.produto && bastidor && !acessosCarregando && !isAdmin && !tem(item.produto);
-
-  // Fora do lançamento restrito, o que é novo não aparece de jeito nenhum.
-  const visiveis = principalItems.filter((i) =>
-    bastidor || (i.href !== '/off-grid' && i.href !== '/lp/limpapro'));
-  // Sem pulo na carga: enquanto o servidor não respondeu, item de produto não aparece
-  // em lugar nenhum (nem na lista, nem em "Para liberar"). Admin vê tudo direto.
-  const aguardandoAcessos = acessosCarregando && !isAdmin;
-  const principal = visiveis.filter((i) => !i.produto || (!aguardandoAcessos && !travado(i)));
-  const paraLiberar = visiveis.filter(travado);
+  // SEU / NÃO É SEU. Quem entra na lista e quem entra em "Para liberar" é decidido em
+  // organizarMenu (./itensMenu.ts), a mesma função da /inicio: sem pulo na carga (item de
+  // produto não aparece em lugar nenhum até o servidor responder), fora do lançamento restrito
+  // o que é novo não aparece, e admin vê tudo direto. Kit Off-Grid e Inventário ficam SEMPRE
+  // em "Para liberar": link normal para quem tem o produto, cadeado para quem não tem.
+  const { principal, paraLiberar, mostrarLoja } = organizarMenu({
+    bastidor, carregando: acessosCarregando, isAdmin, tem,
+  });
 
   function ativo(item: NavItem): boolean {
     // Casa pathname E o ?tipo= (os itens de documento têm o mesmo /documentos e
@@ -295,18 +241,10 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     // Produto não comprado → vai pra mini LP, com cadeado à direita.
     if (lockedByProduto && prod) {
       return (
-        // O cadeado leva pra LP PUBLICA (/lp/<slug>), nao pra versao de dentro
-        // do app. E' uma pagina de venda so': a mesma que o anuncio abre, a
-        // mesma que o cliente ve. Duas portas pro mesmo produto davam duas
-        // ofertas pra manter em dia.
-        //
-        // EXCECAO: produto com pagina propria (Kit, LimpaPro). La' o /lp/
-        // redireciona pra fora, e sair do app perde o `?email=` que o
-        // `checkoutCom` gruda no checkout. Sem ele, quem digita outro e-mail na
-        // Kiwify vira usuario novo: paga, libera numa conta e entra na outra.
-        // Quem esta' logado fica dentro, no /produtos/<slug>, que e' o MESMO
-        // componente de pagina de venda, nada diverge.
-        <Link key={item.href} href={prod.lpPropria ? `/produtos/${prod.slug}` : `/lp/${prod.slug}`}
+        // O cadeado leva pra pagina de venda do produto. Quem decide se e' o
+        // /lp/<slug> ou o /produtos/<slug>, e por que, e' hrefVendaDoProduto
+        // (./itensMenu.ts): a /inicio usa a mesma regra.
+        <Link key={item.href} href={hrefVendaDoProduto(prod)}
               className={styles.navItemLocked} title={`${prod.nome}: ver o que tem dentro`}>
           <item.icon className={styles.navIcon} size={18} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
@@ -435,8 +373,10 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
           </div>
         </div>
 
-        {/* ── Para liberar: só o que a pessoa AINDA NÃO tem. Sem item travado o grupo
-            some; admin nunca trava; quem está fora do lançamento não vê nada. ── */}
+        {/* ── Para liberar: Kit Off-Grid e Inventário ficam SEMPRE aqui (link normal para quem
+            tem o produto ou é admin, cadeado para quem não tem), depois os outros travados. O
+            título aparece sempre que o grupo tem algum item; "Ver todos os produtos" só quando
+            falta algum produto (algum item do grupo está travado). ── */}
         {paraLiberar.length > 0 && (
           <>
             <div className={styles.navDivider}>
@@ -444,7 +384,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
             </div>
             <div className={styles.navSection}>
               {paraLiberar.map(renderItem)}
-              {renderItem(lojaItem)}
+              {mostrarLoja && renderItem(lojaItem)}
             </div>
           </>
         )}

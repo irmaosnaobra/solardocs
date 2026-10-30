@@ -1,77 +1,246 @@
-/* Tela de atalho (launcher) — fundo branco, botões laranja, fonte preta.
-   Mantém a identidade SolarDoc.App: logo (sol âmbar + doc) e wordmark, laranja
-   da marca (#F26513) nos botões. */
+/* Tela de atalho (launcher): fundo branco, vestida com a marca do assinante.
+   As cores chegam como variáveis na raiz (.ini-page), já validadas e com contraste conferido em
+   utils/corMarca.ts. Os valores abaixo são o padrão SolarDoc (laranja #F26513): é o que vale
+   sem empresa, sem cor ou com cor inválida. */
 .ini-page {
+  --ini-cor: #F26513;                       /* principal: faixa e blocos em destaque */
+  --ini-sobre: #111111;                     /* texto e ícone sobre a principal (>= 4,5:1) */
+  --ini-icone: #E0560A;                     /* ícone sobre o branco (>= 3:1) */
+  --ini-marca-texto: #B8400A;               /* iniciais sobre o branco (>= 4,5:1) */
+  --ini-circulo: rgba(242, 101, 19, 0.1);   /* círculo atrás do ícone */
+  --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra dos blocos em destaque */
+  --ini-titulo: #9D420C;                    /* título dos grupos (>= 4,5:1) */
+  --ini-anel: #9D420C;                      /* anel de foco (>= 3:1) */
+
   min-height: 100vh;
   min-height: 100dvh;
   background: #ffffff;
   color: #111111;
-  padding: 18px 16px calc(28px + env(safe-area-inset-bottom));
-  padding-top: calc(16px + env(safe-area-inset-top));
   display: flex;
   flex-direction: column;
 }
 
-/* Topo: wordmark SolarDoc + botão Plataforma */
-.ini-top { display: flex; align-items: center; justify-content: space-between; }
-.ini-brand { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: #111111; }
-.ini-solar { color: #F26513; }          /* identidade da marca */
-.ini-doc { color: #111111; }
-.ini-plataforma {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  font-size: 13px; font-weight: 800; text-decoration: none; color: #111111;
-  background: #F26513;
-  min-height: 42px;
-  padding: 10px 18px; border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(242, 101, 19, 0.30);
+/* Faixa do topo: a cor principal da empresa, até as bordas. Ela passa por baixo da barra do
+   navegador, que na /inicio vira a mesma cor (meta theme-color). */
+.ini-faixa {
+  background: var(--ini-cor);
+  color: var(--ini-sobre);
+  padding: calc(14px + env(safe-area-inset-top)) 16px 16px;
 }
-.ini-plataforma:active { background: #d4530f; }
+.ini-faixaInterna { display: flex; align-items: center; gap: 12px; }
 
-/* Hero: logo/avatar da empresa + nome */
-.ini-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 26px 0 22px; }
-/* Logo solta, sem quadrado/fundo. ~30% maior que antes. */
-.ini-avatar {
-  width: 110px; height: 110px;
+/* Logo da empresa num quadrado branco arredondado, ~44 px. */
+.ini-logo {
+  flex: none;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 4px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.ini-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.ini-logoSvg { width: 32px; height: 32px; }
+/* Sem logo: círculo com as iniciais da empresa. */
+.ini-iniciais {
+  flex: none;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--ini-marca-texto);
+  font-size: 16px; font-weight: 800; letter-spacing: 0.02em;
   display: flex; align-items: center; justify-content: center;
 }
-.ini-avatar img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.ini-logoSvg { width: 74px; height: 74px; }
-.ini-empresa { font-size: 22px; font-weight: 800; margin: 14px 0 0; letter-spacing: -0.01em; color: #111111; }
 
-/* Grade de atalhos: 3 colunas, botões laranja só com o nome */
+.ini-quem { flex: 1; min-width: 0; }
+.ini-empresa {
+  margin: 0;
+  font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em;
+  color: var(--ini-sobre);
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+/* A linha reserva a altura mesmo antes de a conta responder: a faixa não pula. */
+.ini-ola { margin: 2px 0 0; min-height: 1.35em; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ini-sobre); }
+
+.ini-plataforma {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  color: var(--ini-sobre);
+  font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.ini-plataforma:active { transform: scale(0.96); }
+
+/* Corpo: coluna estreita, centralizada nas telas maiores (raro aqui, pois o PC redireciona). */
+.ini-corpo {
+  flex: 1;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column;
+}
+.ini-corpo > main { padding-top: 16px; }
+@media (min-width: 520px) {
+  .ini-faixaInterna { max-width: 428px; margin: 0 auto; width: 100%; }
+}
+
+/* Os dois blocos em destaque (Nova proposta, Ler conta de luz): a cor principal, maiores. */
+.ini-destaques { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.ini-destaque {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 18px;
+  min-height: 124px;
+  padding: 16px;
+  border-radius: 22px;
+  text-decoration: none;
+  background: var(--ini-cor);
+  color: var(--ini-sobre);
+  box-shadow: 0 6px 18px var(--ini-sombra);
+  transition: transform 0.12s ease, filter 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.ini-destaque:active { transform: scale(0.96); filter: brightness(0.92); }
+.ini-destaqueLabel { font-size: 17px; font-weight: 800; line-height: 1.2; color: var(--ini-sobre); }
+
+/* Grade de atalhos: 3 colunas, cartões brancos com o ícone na cor da marca */
 .ini-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-top: 6px;
+  margin-top: 12px;
 }
+.ini-grid[hidden] { display: none; }
 .ini-tile {
+  position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;
   min-height: 108px;               /* cresce conforme o texto (labels de 2+ palavras usam mais linhas) */
-  padding: 12px 8px;
+  padding: 12px 6px;
   border-radius: 20px;
   text-decoration: none;
-  background: #F26513;
-  border: none;
-  box-shadow: 0 4px 14px rgba(242, 101, 19, 0.28);
-  transition: transform 0.12s ease, background 0.12s ease;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 10px rgba(17, 17, 17, 0.06);
+  transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.ini-tile:active { transform: scale(0.95); background: #d4530f; }
-/* Ícone pequeno preto acima do nome */
-.ini-tileIcon { display: flex; align-items: center; justify-content: center; color: #111111; }
-/* Fonte maior; quebra em várias linhas por palavra (nomes com 2+ palavras). */
-.ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: #111111; }
+.ini-tile:active { transform: scale(0.95); }
+/* Ícone na cor principal sobre um círculo da mesma cor a 10% */
+.ini-tileIcon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--ini-circulo);
+  color: var(--ini-icone);
+  display: flex; align-items: center; justify-content: center;
+}
+.ini-tileLabel { max-width: 100%; font-size: 14px; font-weight: 800; line-height: 1.25; color: #111111; overflow-wrap: break-word; }
+.ini-tileLock { position: absolute; top: 9px; right: 9px; color: #4b5563; }
+.ini-tileBadge {
+  position: absolute; top: 8px; right: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--ini-circulo);
+  color: var(--ini-marca-texto);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
+}
+
+/* Título dos grupos: na cor secundária (ou numa versão mais escura da principal) */
+.ini-grupo {
+  margin: 24px 2px 0;
+  font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ini-titulo);
+}
+
+/* "Mais documentos": abre e fecha */
+.ini-mais {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #111111;
+  font: inherit; font-size: 14px; font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ini-seta { flex: none; color: var(--ini-icone); transition: transform 0.15s ease; }
+.ini-setaAberta { transform: rotate(180deg); }
+
+/* "Ver todos os produtos" */
+.ini-loja {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 12px;
+  min-height: 48px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 14px; font-weight: 800; text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ini-loja svg { color: var(--ini-icone); }
+
+/* Anel de foco na cor secundária */
+.ini-page a:focus-visible,
+.ini-page button:focus-visible {
+  outline: 3px solid var(--ini-anel);
+  outline-offset: 2px;
+}
+
+/* Cartões de convite */
+.ini-cartao {
+  margin-top: 24px;
+  padding: 18px 16px;
+  border-radius: 20px;
+  background: #ffffff;
+}
+.ini-cartaoTitulo { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.3; color: #111111; }
+.ini-cartaoTexto { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: #4b5563; }
+/* Sem empresa: o convite ocupa o lugar dos blocos */
+.ini-cartaoCadastro { margin-top: 4px; border: 1.5px solid var(--ini-cor); box-shadow: 0 6px 18px var(--ini-sombra); }
+.ini-botao {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-top: 16px;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--ini-cor);
+  color: var(--ini-sobre);
+  font-size: 15px; font-weight: 800; text-decoration: none;
+}
+.ini-botao:active { filter: brightness(0.92); }
+/* Empresa sem logo ou sem cor: um convite discreto, abaixo dos blocos */
+.ini-cartaoMarca {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed #d1d5db;
+}
+.ini-cartaoMarca .ini-cartaoTitulo { font-size: 14px; }
+.ini-cartaoMarca .ini-cartaoTexto { margin-top: 3px; font-size: 13px; }
+.ini-cartaoLink {
+  flex: none;
+  display: inline-flex; align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--ini-titulo);
+  font-size: 14px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* Rodapé */
+.ini-rodape { margin-top: auto; padding-top: 28px; text-align: center; font-size: 11px; line-height: 1.4; color: #6b7280; }
 
 /* Loading */
 .ini-loading { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: #ffffff; }
 .ini-spin { width: 30px; height: 30px; border: 3px solid #f0e2d8; border-top-color: #F26513; border-radius: 50%; animation: ini-rot 0.8s linear infinite; }
 @keyframes ini-rot { to { transform: rotate(360deg); } }
-
-/* Telas maiores (raro aqui, pois PC redireciona): centraliza e limita largura */
-@media (min-width: 520px) {
-  .ini-grid, .ini-top, .ini-hero { max-width: 460px; margin-left: auto; margin-right: auto; width: 100%; }
-}
 
 /* Banner do Portal NEXUS: a tela é clara, o banner herda os tokens escuros da plataforma. */
 .ini-nexus {
@@ -83,4 +252,7 @@
   margin-top: 14px;
 }
 .ini-nexus > [role="region"] { margin-bottom: 0; }
-@media (min-width: 769px) { .ini-nexus { max-width: 460px; margin-left: auto; margin-right: auto; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ini-tile, .ini-destaque, .ini-seta, .ini-plataforma { transition: none; }
+}
