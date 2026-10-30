@@ -79,11 +79,8 @@ export const ITENS_MENU: ItemMenu[] = [
   { id: 'limpapro', grupo: 'principal', href: '/lp/limpapro', icon: Sparkles, label: 'LimpaPro', produto: 'curso-limpapro', soBastidor: true },
 
   // Sempre em "Para liberar", nesta ordem, antes dos outros travados. O Off-Grid leva `produto`
-  // desde 30/10/2026 só para ganhar o cadeado. Quem não tem o produto cai em /off-grid, a própria
-  // ferramenta (ver `hrefVendaDoProduto`): dimensionar é de graça lá dentro, o preço fica trancado
-  // e o botão "Liberar meu acesso" monta o checkout com o e-mail da conta. A página estática
-  // /dimensionamento não serve de destino: só tem links secos para a Kiwify e nenhum caminho de
-  // volta para a ferramenta.
+  // desde 30/10/2026 só para ganhar o cadeado. Quem não tem o produto cai na página de venda dele,
+  // igual aos outros travados (ver `hrefVendaDoProduto`).
   { id: 'off-grid', grupo: 'liberar', href: '/off-grid', icon: PlugZap, label: 'Kit Off-Grid', produto: 'offgrid', soBastidor: true },
   { id: 'inventario', grupo: 'liberar', href: '/inventario', icon: Boxes, label: 'Inventário', produto: 'inventario' },
 
@@ -121,21 +118,17 @@ export const nexusItem: ItemMenu = {
 /**
  * Para onde o cadeado de um produto leva. Sempre para onde ele vende, nunca para um beco.
  *
- * 1. Ferramenta aberta de propósito (`experimentar`, hoje só o Off-Grid): a própria ferramenta.
- *    Dimensionar e ver a autonomia é de graça, o preço fica trancado lá dentro (o servidor recusa
- *    o orçamento) e o botão "Liberar meu acesso" monta o checkout com o `?email=` da conta. A
- *    página de venda estática dele (/dimensionamento) só tem links secos para a Kiwify, sem o
- *    e-mail e sem caminho de volta para a ferramenta.
- * 2. Produto com página de venda própria (`lpPropria`): `/produtos/<slug>`. Hoje essa rota só
+ * 1. Produto com página de venda própria (`lpPropria`): `/produtos/<slug>`. Hoje essa rota só
  *    repassa para `/lp/<slug>`, que repassa para a página de venda estática do produto, fora do
- *    app. Nas estáticas de /calculadora e /inventario-empresarial os botões de compra são links
- *    fixos para a Kiwify, sem o `?email=` que o `checkoutCom` gruda: quem digita outro e-mail lá
- *    vira usuário novo, paga numa conta e entra na outra. Isso já era assim para esses produtos e
- *    não muda aqui.
- * 3. Sem página própria: a página de venda pública, `/lp/<slug>`, a mesma que o anúncio abre.
+ *    app (/dimensionamento, /calculadora e /inventario-empresarial). Nelas os botões de compra são
+ *    links fixos para a Kiwify, sem o `?email=` que o `checkoutCom` gruda: quem digita outro
+ *    e-mail lá vira usuário novo, paga numa conta e entra na outra. Isso já era assim para esses
+ *    produtos e vale para o Off-Grid também. No servidor de desenvolvimento essas páginas dão 404,
+ *    porque o dev do Next não serve o índice do diretório. No ar, conferido em 30/10/2026, as
+ *    três terminam em 200.
+ * 2. Sem página própria: a página de venda pública, `/lp/<slug>`, a mesma que o anúncio abre.
  */
-export function hrefVendaDoProduto(prod: Pick<ProdutoLoja, 'slug' | 'lpPropria' | 'experimentar'>): string {
-  if (prod.experimentar) return prod.experimentar.rota;
+export function hrefVendaDoProduto(prod: Pick<ProdutoLoja, 'slug' | 'lpPropria'>): string {
   return prod.lpPropria ? `/produtos/${prod.slug}` : `/lp/${prod.slug}`;
 }
 

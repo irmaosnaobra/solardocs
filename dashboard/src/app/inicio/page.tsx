@@ -327,9 +327,9 @@ export default function InicioPage() {
 }
 
 /**
- * Um atalho da grade. Produto que a pessoa ainda não tem: cadeado e link para onde o produto vende
- * (`hrefVendaDoProduto`, a mesma regra do menu lateral: a página de venda ou, no Off-Grid, a própria
- * ferramenta). Página estática (NEXUS): <a> comum, de página inteira.
+ * Um atalho da grade. Produto que a pessoa ainda não tem: cadeado e link para a página de venda do
+ * produto (`hrefVendaDoProduto`, a mesma regra do menu lateral). Página estática (NEXUS): <a>
+ * comum, de página inteira.
  */
 function Bloco({ item, travado }: { item: ItemMenu; travado: boolean }) {
   const prod = travado && item.produto ? produtoPorId(item.produto) : null;
