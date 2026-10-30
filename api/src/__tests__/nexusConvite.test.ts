@@ -361,23 +361,20 @@ describe('convite por e-mail: texto', () => {
     expect(primeiroNome(42)).toBe('');
   });
 
-  it('primeiroNome: pula um título no começo (Eng, Engº, Dr, Dra, Sr, Sra, Prof, Profª, com ou sem ponto, em qualquer caixa) e usa o nome que vem depois', () => {
-    const casos: Array<[string, string]> = [
-      ['Eng Flavio Peetz', 'Flavio'],
-      ['Eng. Flavio', 'Flavio'],
-      ['Dra. Maria Souza', 'Maria'],
-      ['Engº Flavio', 'Flavio'],
-      ['Dr. João Pedro', 'João'],
-      ['Profª Ana Lima', 'Ana'],
-      ['Prof Carlos', 'Carlos'],
-      ['Sr. Paulo', 'Paulo'],
-      ['Sra Helena', 'Helena'],
-      ['ENG FLAVIO', 'Flavio'],
-      ['eng.flavio', 'Flavio'],
+  it('primeiroNome: título no começo (Eng, Engº, Dr, Dra, Sr, Sra, Prof, Profª, com ou sem ponto, em qualquer caixa) NÃO é pulado: dá vazio, mesmo com nome depois', () => {
+    const casos = [
+      'Eng Flavio Peetz', 'Eng. Flavio', 'Dra. Maria Souza', 'Engº Flavio', 'Dr. João Pedro', 'Profª Ana Lima', 'Prof Carlos',
+      'Sr. Paulo', 'Sra Helena', 'ENG FLAVIO', 'eng.flavio',
     ];
-    for (const [entrada, esperado] of casos) expect(primeiroNome(entrada), entrada).toBe(esperado);
+    for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
     // Título sem nome depois, ou com sigla ou lixo depois dele: vazio, e o e-mail diz só "Olá."
     for (const entrada of ['Eng', 'Eng.', 'Dra.', 'Dr. MF', 'Eng 123']) expect(primeiroNome(entrada), entrada).toBe('');
+  });
+
+  it('primeiroNome: o token depois do título pode ser profissão ou empresa, e nunca vira saudação', () => {
+    // Era o furo da ideia de pular o título: "Eng Civil Flavio" saía "Olá, Civil." e "DR Solar" saía "Olá, Solar.".
+    const casos = ['Eng Civil Flavio', 'Eng. Eletricista Flavio', 'DR Solar', 'SR Energia Solar'];
+    for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
   });
 
   it('primeiroNome: token sem vogal (a, e, i, o, u, y, com ou sem acento) é sigla e dá vazio, sem passar a vez para o token seguinte', () => {
@@ -395,14 +392,14 @@ describe('convite por e-mail: texto', () => {
     expect(primeiroNome('Muniz Freire Solar')).toBe('Muniz');
   });
 
-  it('primeiroNome: o ordinal que o ponto separou do título ("Prof.ª", "Eng.º") sai junto com ele, e só do título', () => {
+  it('primeiroNome: título com o ordinal separado pelo ponto ("Prof.ª", "Eng.º") também dá vazio, e o ordinal depois de nome comum não muda o corte', () => {
     const casos: Array<[string, string]> = [
-      ['Prof.ª Ana', 'Ana'],
-      ['Dr.ª Maria', 'Maria'],
-      ['Sr.ª Maria', 'Maria'],
-      ['Eng.º Flavio', 'Flavio'],
-      ['Eng.ª Maria', 'Maria'],
-      ['Prof.º Carlos Lima', 'Carlos'],
+      ['Prof.ª Ana', ''],
+      ['Dr.ª Maria', ''],
+      ['Sr.ª Maria', ''],
+      ['Eng.º Flavio', ''],
+      ['Eng.ª Maria', ''],
+      ['Prof.º Carlos Lima', ''],
       // Ordinal depois de ponto que não segue título: o corte em ponto vale como antes e o ordinal fica para trás.
       ['Maria.ª Silva', 'Maria'],
     ];
@@ -411,31 +408,28 @@ describe('convite por e-mail: texto', () => {
     for (const entrada of ['Dr.ª', 'Prof.ª 123', 'M.ª']) expect(primeiroNome(entrada), entrada).toBe('');
   });
 
-  it('primeiroNome: Engª, Enga, Profº, Srta e o grau "°" no lugar do ordinal também são título', () => {
-    const casos: Array<[string, string]> = [
-      ['Engª Maria', 'Maria'],
-      ['Enga Maria', 'Maria'],
-      ['Enga. Maria', 'Maria'],
-      ['Profº Carlos', 'Carlos'],
-      ['Srta Maria', 'Maria'],
-      ['Srta. Maria', 'Maria'],
-      ['SRTA MARIA', 'Maria'],
-      ['Eng° Flavio', 'Flavio'],
-      ['Prof° Carlos', 'Carlos'],
+  it('primeiroNome: Engª, Enga, Profº, Srta e o grau "°" no lugar do ordinal também são título e dão vazio', () => {
+    // Sem a detecção da variante, "Engª Maria" sairia "Olá, Engª." e "Srta Maria" sairia "Olá, Srta.".
+    const casos = [
+      'Engª Maria', 'Enga Maria', 'Enga. Maria', 'Profº Carlos', 'Srta Maria', 'Srta. Maria', 'SRTA MARIA', 'Eng° Flavio', 'Prof° Carlos',
     ];
-    for (const [entrada, esperado] of casos) expect(primeiroNome(entrada), entrada).toBe(esperado);
+    for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
   });
 
-  it('primeiroNome: pula um título só, e título depois de título dá vazio (o segundo não é nome)', () => {
+  it('primeiroNome: título depois de título dá vazio (o primeiro token já é título, e o segundo nunca é saudado como nome)', () => {
     const casos = ['Profa. Dra. Maria', 'Prof. Dra. Ana', 'Dr. Prof. Ana', 'Eng Eng Flavio', 'Dr Engª Maria', 'Dr.ª Prof. Ana', 'Eng° Srta Maria'];
     for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
   });
 
-  it('a saudação do convite acompanha o primeiro nome: título pulado vira "Olá, Flavio."; sigla ou título sozinho vira só "Olá."', () => {
+  it('a saudação do convite acompanha o primeiro nome: título no começo, sigla ou título sozinho vira só "Olá."; nome comum vira "Olá, Ana."', () => {
     const casos: Array<[string, string]> = [
-      ['Eng Flavio Peetz', 'Olá, Flavio.'],
-      ['Eng. Flavio', 'Olá, Flavio.'],
-      ['Dra. Maria Souza', 'Olá, Maria.'],
+      ['Eng Flavio Peetz', 'Olá.'],
+      ['Eng. Flavio', 'Olá.'],
+      ['Dra. Maria Souza', 'Olá.'],
+      ['Eng Civil Flavio', 'Olá.'],
+      ['Eng. Eletricista Flavio', 'Olá.'],
+      ['DR Solar', 'Olá.'],
+      ['SR Energia Solar', 'Olá.'],
       ['Ana Paula', 'Olá, Ana.'],
       ['Eng', 'Olá.'],
       ['MF Solar', 'Olá.'],
@@ -443,7 +437,7 @@ describe('convite por e-mail: texto', () => {
       ['Vs', 'Olá.'],
       ['CM', 'Olá.'],
       ['Profa. Dra. Maria', 'Olá.'],
-      ['Prof.ª Ana', 'Olá, Ana.'],
+      ['Prof.ª Ana', 'Olá.'],
     ];
     for (const [nome, saudacao] of casos) {
       const html = htmlConvite(U1, nome);

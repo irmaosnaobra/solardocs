@@ -152,9 +152,10 @@ const apiUrl = () => process.env.API_URL || 'https://api.solardoc.app';
 export const urlDescadastro = (userId: string): string =>
   `${apiUrl()}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 
-/** Títulos que abrem um nome ("Eng Flavio Peetz", "Dra. Maria"): o nome de verdade é o token seguinte. Comparados pela chave de
- *  `chaveTitulo` (sem ponto, que o corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e
- *  "o"): "Engº" cai em "engo", "Engª" em "enga", "Profª" em "profa" e "Profº" e "Prof°" em "profo". */
+/** Títulos que abrem um nome ("Eng Flavio Peetz", "Dra. Maria"). Nome que abre com título não é saudado, nem pelo token seguinte,
+ *  que pode ser profissão ou empresa ("Eng Civil Flavio", "DR Solar"). Comparados pela chave de `chaveTitulo` (sem ponto, que o
+ *  corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e "o"): "Engº" cai em "engo", "Engª"
+ *  em "enga", "Profª" em "profa" e "Profº" e "Prof°" em "profo". */
 const TITULOS = ['eng', 'engo', 'enga', 'dr', 'dra', 'sr', 'sra', 'srta', 'prof', 'profa', 'profo'];
 const TITULOS_DE_NOME = new Set(TITULOS);
 
@@ -172,27 +173,21 @@ const chaveTitulo = (t: string): string =>
 
 const ehTitulo = (t: string): boolean => TITULOS_DE_NOME.has(chaveTitulo(t));
 
-/** Ordinal solto (º, ª ou °): o corte em ponto separa "Prof.ª" em "Prof" e "ª", e esse ordinal pertence ao título. */
-const ORDINAL_SOLTO = /^[\xba\xaa\xb0]$/;
-
 /**
  * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo, sigla): aí
  * o e-mail diz só "Olá." e nunca "Olá, 11999990000." nem "Olá, Vsp.". Corta no espaço, no ponto e no sublinhado ("ana.paula"
  * vira "Ana"). Título no começo (Eng, Engº, Engª, Dr, Dra, Sr, Sra, Srta, Prof, Profª, Profº, com ou sem ponto, com "°" no
- * lugar do "º", em qualquer caixa) é pulado, um só, e o ordinal que o ponto separou dele sai junto ("Prof.ª Ana" vira "Ana"):
- * "Eng Flavio Peetz" vira "Flavio". Título sem nome depois dá vazio, e título depois de título também ("Profa. Dra. Maria"),
- * porque o segundo seria saudado como nome. Token sem nenhuma vogal (a, e, i, o, u, y, com ou sem acento) é sigla, não nome:
- * "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez para o token seguinte. Nome todo em minúscula ou todo em
- * maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o resto minúsculo; nome já
- * misturado ("McDonald") fica como veio.
+ * lugar do "º", em qualquer caixa) dá vazio e NÃO é pulado: o token seguinte pode ser profissão ou empresa ("Eng Civil Flavio",
+ * "Eng. Eletricista Flavio", "DR Solar", "SR Energia Solar"), e chamar o cliente por isso é pior do que um "Olá." seco. Vale
+ * para "Eng Flavio Peetz" e para "Prof.ª Ana" (o ponto separa o ordinal, mas o primeiro token já é o título). Token sem nenhuma
+ * vogal (a, e, i, o, u, y, com ou sem acento) é sigla, não nome: "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez
+ * para o token seguinte. Nome todo em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago")
+ * ganha a inicial maiúscula e o resto minúsculo; nome já misturado ("McDonald") fica como veio.
  */
 export function primeiroNome(nome: unknown): string {
-  const tokens = String(nome ?? '').trim().split(/[\s._]+/);
-  let pula = 0;
-  if (ehTitulo(tokens[0] ?? '')) pula = ORDINAL_SOLTO.test(tokens[1] ?? '') ? 2 : 1;
-  const p = tokens[pula] ?? '';
+  const p = String(nome ?? '').trim().split(/[\s._]+/)[0] ?? '';
+  if (ehTitulo(p)) return '';
   if (!/^[\p{L}][\p{L}'’-]{1,29}$/u.test(p)) return '';
-  if (pula > 0 && ehTitulo(p)) return '';
   if (!/[aeiouy]/i.test(tiraAcento(p, 'NFD'))) return '';
   const resto = p === p.toLowerCase() || p === p.toUpperCase() ? p.slice(1).toLowerCase() : p.slice(1);
   return p.charAt(0).toUpperCase() + resto;
