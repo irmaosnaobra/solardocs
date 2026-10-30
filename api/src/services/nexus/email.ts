@@ -152,15 +152,29 @@ const apiUrl = () => process.env.API_URL || 'https://api.solardoc.app';
 export const urlDescadastro = (userId: string): string =>
   `${apiUrl()}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 
+/** Títulos que abrem um nome ("Eng Flavio Peetz", "Dra. Maria"): o nome de verdade é o token seguinte. Comparados sem ponto
+ *  (o corte em ponto já tira), sem acento e em minúscula; por isso "Engº" cai em "engo" e "Profª" em "profa". */
+const TITULOS_DE_NOME = new Set(['eng', 'engo', 'dr', 'dra', 'sr', 'sra', 'prof', 'profa']);
+
+/** Tira o acento. NFKD também leva "º" a "o" e "ª" a "a", e só o teste de título quer isso. O teste de vogal usa NFD, para
+ *  "Mª" não ganhar uma vogal que não é letra do nome. */
+const tiraAcento = (t: string, forma: 'NFD' | 'NFKD'): string => t.normalize(forma).replace(/[\u0300-\u036f]/g, '');
+
 /**
- * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo): aí o
- * e-mail diz só "Olá." e nunca "Olá, 11999990000." Corta no espaço, no ponto e no sublinhado ("ana.paula" vira "Ana"). Nome
- * todo em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o
- * resto minúsculo; nome já misturado ("McDonald") fica como veio.
+ * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo, sigla): aí
+ * o e-mail diz só "Olá." e nunca "Olá, 11999990000." nem "Olá, Vsp.". Corta no espaço, no ponto e no sublinhado ("ana.paula"
+ * vira "Ana"). Título no começo (Eng, Engº, Dr, Dra, Sr, Sra, Prof, Profª, com ou sem ponto, em qualquer caixa) é pulado, um
+ * só: "Eng Flavio Peetz" vira "Flavio", e título sem nome depois dá vazio. Token sem nenhuma vogal (a, e, i, o, u, y, com ou
+ * sem acento) é sigla, não nome: "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez para o token seguinte. Nome todo
+ * em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o resto
+ * minúsculo; nome já misturado ("McDonald") fica como veio.
  */
 export function primeiroNome(nome: unknown): string {
-  const p = String(nome ?? '').trim().split(/[\s._]+/)[0] ?? '';
+  const tokens = String(nome ?? '').trim().split(/[\s._]+/);
+  const comTitulo = TITULOS_DE_NOME.has(tiraAcento(tokens[0] ?? '', 'NFKD').toLowerCase());
+  const p = (comTitulo ? tokens[1] : tokens[0]) ?? '';
   if (!/^[\p{L}][\p{L}'’-]{1,29}$/u.test(p)) return '';
+  if (!/[aeiouy]/i.test(tiraAcento(p, 'NFD'))) return '';
   const resto = p === p.toLowerCase() || p === p.toUpperCase() ? p.slice(1).toLowerCase() : p.slice(1);
   return p.charAt(0).toUpperCase() + resto;
 }

@@ -361,6 +361,59 @@ describe('convite por e-mail: texto', () => {
     expect(primeiroNome(42)).toBe('');
   });
 
+  it('primeiroNome: pula um título no começo (Eng, Engº, Dr, Dra, Sr, Sra, Prof, Profª, com ou sem ponto, em qualquer caixa) e usa o nome que vem depois', () => {
+    const casos: Array<[string, string]> = [
+      ['Eng Flavio Peetz', 'Flavio'],
+      ['Eng. Flavio', 'Flavio'],
+      ['Dra. Maria Souza', 'Maria'],
+      ['Engº Flavio', 'Flavio'],
+      ['Dr. João Pedro', 'João'],
+      ['Profª Ana Lima', 'Ana'],
+      ['Prof Carlos', 'Carlos'],
+      ['Sr. Paulo', 'Paulo'],
+      ['Sra Helena', 'Helena'],
+      ['ENG FLAVIO', 'Flavio'],
+      ['eng.flavio', 'Flavio'],
+    ];
+    for (const [entrada, esperado] of casos) expect(primeiroNome(entrada), entrada).toBe(esperado);
+    // Título sem nome depois, ou com sigla ou lixo depois dele: vazio, e o e-mail diz só "Olá."
+    for (const entrada of ['Eng', 'Eng.', 'Dra.', 'Dr. MF', 'Eng 123']) expect(primeiroNome(entrada), entrada).toBe('');
+  });
+
+  it('primeiroNome: token sem vogal (a, e, i, o, u, y, com ou sem acento) é sigla e dá vazio, sem passar a vez para o token seguinte', () => {
+    // "Mª": o ordinal não vale como a vogal "a" (só o acento é tirado antes de contar as vogais).
+    for (const sigla of ['MF Solar', 'VSP Energia', 'Vs', 'CM', 'cm', 'Mª']) expect(primeiroNome(sigla), sigla).toBe('');
+    expect(primeiroNome('Ze')).toBe('Ze');
+    expect(primeiroNome('Zé')).toBe('Zé');
+    expect(primeiroNome('Yuri')).toBe('Yuri');
+    expect(primeiroNome('Ly')).toBe('Ly');
+  });
+
+  it('primeiroNome: nome comum segue como antes (primeiro token, inicial maiúscula, nada pulado)', () => {
+    expect(primeiroNome('Ana Paula')).toBe('Ana');
+    expect(primeiroNome('ANA PAULA')).toBe('Ana');
+    expect(primeiroNome('Muniz Freire Solar')).toBe('Muniz');
+  });
+
+  it('a saudação do convite acompanha o primeiro nome: título pulado vira "Olá, Flavio."; sigla ou título sozinho vira só "Olá."', () => {
+    const casos: Array<[string, string]> = [
+      ['Eng Flavio Peetz', 'Olá, Flavio.'],
+      ['Eng. Flavio', 'Olá, Flavio.'],
+      ['Dra. Maria Souza', 'Olá, Maria.'],
+      ['Ana Paula', 'Olá, Ana.'],
+      ['Eng', 'Olá.'],
+      ['MF Solar', 'Olá.'],
+      ['VSP Energia', 'Olá.'],
+      ['Vs', 'Olá.'],
+      ['CM', 'Olá.'],
+    ];
+    for (const [nome, saudacao] of casos) {
+      const html = htmlConvite(U1, nome);
+      expect(html, nome).toContain(`<p style="margin:0 0 14px;">${saudacao}</p>`);
+      if (saudacao === 'Olá.') expect(html, nome).not.toContain('Olá,');
+    }
+  });
+
   it('não fala de preço, prazo, "grátis" nem número no texto que a pessoa lê', () => {
     for (const nome of [undefined, 'Maria']) {
       const texto = textoVisivel(htmlConvite(U1, nome));
