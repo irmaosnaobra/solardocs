@@ -5,11 +5,13 @@ import {
 } from '../services/vistoria/htmlRelatorio';
 import { hashConteudoPdf, VERSAO_PDF, type ConteudoPdf } from '../services/vistoria/cachePdf';
 import { ITENS_COM_STATUS } from '../services/vistoria/avaliacao';
+import { comprasVazio, sanitizarCompras, type Compras, type LinhaCompra } from '../services/vistoria/compras';
+import { fraseNaLista, paragrafoNaLista } from '../services/vistoria/htmlCompras';
 import { paleta, type MarcaEmpresa } from '../services/relatorio/marca';
 
 // Relatório da vistoria (HTML da tela e do PDF, rodapé do PDF e hash do PDF) chamado direto, sem banco e sem rota.
-// Dados inventados. A lista de compras entra no lote seguinte, com os invariantes dela; aqui ficam marca, cadastro
-// do cliente, cobertura do selo, fotos inteiras com legenda numerada, documentos do titular e rodapé com página.
+// Dados inventados. Aqui ficam marca, cadastro do cliente, cobertura do selo, fotos inteiras com legenda numerada,
+// documentos do titular, rodapé com página e a lista de compras ("Materiais e providências", "Na lista:" e o hash).
 
 const ID = '11111111-1111-4111-8111-111111111111';
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
@@ -670,9 +672,406 @@ describe('texto hostil', () => {
   });
 });
 
+// ── Lista de compras: "Materiais e providências" ────────────────────────────
+
+const lc = (n: number, extra: Partial<LinhaCompra> = {}): LinhaCompra => ({
+  id: 'linha' + String(n).padStart(3, '0'), tipo: 'material', nome: `Material ${n}`, qtd: 1, un: 'un', quem: 'cliente', obs: '', ...extra,
+});
+const anotacao = (n: number, extra: Partial<LinhaCompra> = {}): LinhaCompra => ({
+  id: 'nota' + String(n).padStart(4, '0'), tipo: 'obs', obs: `Anotação ${n}.`, ...extra,
+});
+const lista = (linhas: LinhaCompra[], publica = true): Compras => ({ v: 1, publica, linhas });
+
+/**
+ * 7 materiais (1 serviço) e 2 anotações para a vistoria cheia: padrão e sombreamento não conformes; telhado, tipo de
+ * telha e estrutura em atenção; medidor conforme; cabeamento não se aplica.
+ */
+const LINHAS_CHEIA: LinhaCompra[] = [
+  lc(1, { nome: 'Caixa de medição', esp: 'Modelo aprovado pela distribuidora, com espaço para o medidor bidirecional.', item: 'padrao', obs: 'Caixa atual é antiga.' }),
+  lc(2, { nome: 'Cabo solar CC', esp: '1,5 kV CC, cobre estanhado, dupla isolação.', qtd: 120, un: 'm', quem: 'integrador', item: 'cabeamento', obs: 'Do telhado até o inversor.' }),
+  lc(3, { nome: 'Poda ou remoção de árvore', qtd: null, un: 'servico', quem: 'cliente', item: 'sombreamento' }),
+  lc(4, { nome: 'Selante e fita', qtd: null, un: 'pc', quem: 'a_definir', item: 'telhado' }),
+  lc(5, { nome: 'Telha de reposição', qtd: 12, quem: 'cliente', item: 'telhado' }),
+  lc(6, { nome: 'Haste de aterramento', quem: 'integrador', item: 'medidor' }),
+  lc(7, { nome: 'Eletroduto', qtd: 3, un: 'barra', quem: 'integrador' }),
+  anotacao(1, { obs: 'Telha de fibrocimento antiga, pode ter amianto. Não furar nem cortar.', item: 'tipo_telha' }),
+  anotacao(2, { obs: 'Cliente prefere instalar pela manhã.' }),
+];
+/** V1 com a lista visível. */
+const comLista = (): EntradaVistoria => ({ ...cheia(), compras: lista(LINHAS_CHEIA) });
+/** V6: 40 linhas (37 de material, 3 serviços entre elas, e 3 anotações) em dois grupos grandes. */
+const quarenta = (): EntradaVistoria => entrada({
+  status_itens: { padrao: 'nao_conforme', telhado: 'atencao' },
+  compras: lista([
+    ...Array.from({ length: 37 }, (_, i) => lc(i + 1, {
+      nome: `Material de teste número ${i + 1}`,
+      qtd: i % 13 === 0 ? null : (i % 5) + 1,
+      un: i % 13 === 0 ? 'servico' : 'un',
+      quem: i < 19 ? 'cliente' : 'integrador',
+      ...(i % 3 === 0 ? { item: i % 2 === 0 ? 'padrao' : 'telhado' } : {}),
+      ...(i % 4 === 0 ? { esp: 'Especificação de referência para a compra deste material.' } : {}),
+    })),
+    anotacao(1), anotacao(2, { item: 'tipo_telha' }), anotacao(3),
+  ]),
+});
+/** V8 com lista: o texto hostil passa pelo saneamento, como na rota. */
+const hostilComLista = (): EntradaVistoria => ({
+  ...hostil(),
+  compras: sanitizarCompras({
+    v: 1,
+    publica: true,
+    linhas: [
+      { id: 'xss00001', tipo: 'material', nome: SUJO, esp: SUJO, qtd: 2, un: 'un', quem: 'cliente', item: 'padrao', obs: SUJO },
+      { id: 'xss00002', tipo: 'obs', obs: SUJO, item: 'telhado' },
+    ],
+  }),
+});
+
+/** A seção da lista, de `<section ... id="compras">` até o fecho. */
+const secaoCompras = (h: string): string => {
+  const i = h.indexOf('<section class="sec" id="compras"');
+  return i < 0 ? '' : h.slice(i, h.indexOf('</section>', i) + '</section>'.length);
+};
+/** A linha da tabela de um material, de `<tr` até `</tr>`. */
+const linhaDe = (h: string, nome: string): string => {
+  const i = h.indexOf(`<b>${nome}</b>`);
+  return i < 0 ? '' : h.slice(h.lastIndexOf('<tr', i), h.indexOf('</tr>', i) + '</tr>'.length);
+};
+/** O cartão de pendência de um item, de `<div class="pen` até o cartão seguinte (ou o próximo título). */
+const cartao = (h: string, rotulo: string): string => {
+  const i = h.indexOf(`<b>${rotulo}</b><span class="chip p-`);
+  if (i < 0) return '';
+  const ini = h.lastIndexOf('<div class="pen ', i);
+  const proximo = h.indexOf('<div class="pen ', ini + 1);
+  return h.slice(ini, proximo < 0 ? h.indexOf('<h2', ini) : proximo).trim();
+};
+/** Os nomes da primeira coluna, na ordem em que aparecem. */
+const nomesNaTabela = (h: string): string[] => [...h.matchAll(/<td data-r="Item"><b>([^<]*)<\/b>/g)].map((m) => m[1]!);
+
+describe('lista de compras no relatório', () => {
+  it('a seção traz título, abertura, resumo, cabeçalho da tabela e o aviso de referência, na tela e no PDF', () => {
+    for (const modo of ['tela', 'pdf'] as const) {
+      const s = secaoCompras(html(comLista(), modo));
+      expect(s, modo).toContain('<section class="sec" id="compras" aria-labelledby="h-compras">');
+      expect(s, modo).toContain('<h2 class="sec" id="h-compras">Materiais e providências</h2>');
+      expect(s, modo).toContain('<p class="intro">Esta lista reúne o que precisa ser comprado ou resolvido para a instalação.</p>');
+      expect(s, modo).toContain('<p class="resumo-compras">6 materiais, 1 serviço e 2 observações.</p>');
+      expect(s, modo).toContain('<thead><tr><th>Item</th><th>Quantidade</th><th>Motivo</th></tr></thead>');
+      expect(s, modo).toContain('<p class="aviso-ref">As quantidades e as especificações são de referência. Confirme com o projeto e com a norma da distribuidora de energia antes de comprar.</p>');
+    }
+  });
+  it('a estrutura da seção é a mesma na tela e no PDF', () => {
+    const e = comLista();
+    expect(secaoCompras(html(e, 'tela'))).toBe(secaoCompras(html(e, 'pdf')));
+    expect(secaoCompras(html(e, 'tela'))).not.toBe('');
+  });
+  it('os grupos vêm na ordem cliente, empresa instaladora e a combinar, com a frase de apoio e a contagem', () => {
+    const s = secaoCompras(html(comLista()));
+    const ordem = [
+      '<h3>Por conta do cliente <span class="n">3 itens</span></h3><p class="apoio">O cliente providencia estes itens e serviços.</p>',
+      '<h3>Por conta da empresa instaladora <span class="n">3 itens</span></h3><p class="apoio">Estes itens e serviços ficam com a empresa instaladora.</p>',
+      '<h3>A combinar <span class="n">1 item</span></h3><p class="apoio">Ainda não foi definido quem providencia. Combinar antes do orçamento.</p>',
+    ].map((trecho) => s.indexOf(trecho));
+    expect(ordem.every((p) => p > 0)).toBe(true);
+    expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+    expect(s.match(/<table class="cmp">/g)).toHaveLength(3);
+  });
+  it('só aparecem os grupos que têm linha', () => {
+    const s = secaoCompras(html(entrada({ compras: lista([lc(1, { quem: 'integrador' }), anotacao(1)]) })));
+    expect(s).toContain('Por conta da empresa instaladora');
+    expect(s).not.toContain('Por conta do cliente');
+    expect(s).not.toContain('A combinar');
+  });
+  it('dentro do grupo: prazo alto, prazo médio e sem prazo; e a ordem gravada desempata', () => {
+    const e = entrada({
+      status_itens: { padrao: 'nao_conforme', telhado: 'atencao' },
+      compras: lista([
+        lc(1, { nome: 'Sem prazo um' }), lc(2, { nome: 'Média um', item: 'telhado' }), lc(3, { nome: 'Alta um', item: 'padrao' }),
+        lc(4, { nome: 'Sem prazo dois' }), lc(5, { nome: 'Alta dois', item: 'padrao' }), lc(6, { nome: 'Média dois', item: 'telhado' }),
+      ]),
+    });
+    expect(nomesNaTabela(html(e))).toEqual(['Alta um', 'Alta dois', 'Média um', 'Média dois', 'Sem prazo um', 'Sem prazo dois']);
+    expect(nomesNaTabela(html(comLista()))).toEqual([
+      'Caixa de medição', 'Poda ou remoção de árvore', 'Telha de reposição', 'Cabo solar CC', 'Haste de aterramento', 'Eletroduto', 'Selante e fita',
+    ]);
+  });
+  it('quantidade por extenso com espaço sem quebra, "A definir" e o chip de serviço', () => {
+    const h = html(comLista());
+    expect(h).toContain('<td class="q" data-r="Quantidade">1\u00A0unidade</td>');
+    expect(h).toContain('<td class="q" data-r="Quantidade">12\u00A0unidades</td>');
+    expect(h).toContain('<td class="q" data-r="Quantidade">120\u00A0metros</td>');
+    expect(h).toContain('<td class="q" data-r="Quantidade">3\u00A0barras</td>');
+    expect(h).toContain('<td class="q" data-r="Quantidade">A definir</td>');
+    expect(h).toContain('<td class="q" data-r="Quantidade"><span class="chip s-na">Serviço</span></td>');
+    expect(h).not.toContain('&nbsp;unidade');
+  });
+  it('quantidade com milhar e decimais usa o formato brasileiro', () => {
+    const h = html(entrada({ compras: lista([lc(1, { nome: 'Cabo', qtd: 1200.5, un: 'm' }), lc(2, { nome: 'Fita', qtd: 0.5, un: 'cj' })]) }));
+    expect(h).toContain('1.200,5\u00A0metros');
+    expect(h).toContain('0,5\u00A0conjuntos');
+  });
+  it('o prazo vem do status do item ligado: Antes de instalar só em Não conforme, Antes ou durante a instalação só em Atenção', () => {
+    const h = html(comLista());
+    const caixa = linhaDe(h, 'Caixa de medição');
+    expect(caixa).toMatch(/^<tr class="alta">/);
+    expect(caixa).toContain('<span class="chip p-alta">Antes de instalar</span>');
+    expect(caixa).not.toContain('chip p-media');
+    const telha = linhaDe(h, 'Telha de reposição');
+    expect(telha).toMatch(/^<tr class="media">/);
+    expect(telha).toContain('<span class="chip p-media">Antes ou durante a instalação</span>');
+    expect(telha).not.toContain('chip p-alta');
+    // item Conforme, Não se aplica e linha sem item: sem classe de cor e sem chip de prazo
+    for (const nome of ['Haste de aterramento', 'Cabo solar CC', 'Eletroduto']) {
+      const l = linhaDe(h, nome);
+      expect(l, nome).toMatch(/^<tr>/);
+      expect(l, nome).not.toMatch(/chip p-(alta|media)/);
+    }
+  });
+  it('sem item em Atenção nem Não conforme não há chip de prazo nem legenda', () => {
+    const h = html(entrada({ status_itens: conformes(10), compras: lista(LINHAS_CHEIA) }));
+    const s = secaoCompras(h);
+    expect(s).not.toMatch(/chip p-(alta|media)/);
+    expect(s).not.toContain('<p class="legenda-prazo">');
+    expect(s).not.toMatch(/<tr class="(alta|media)">/);
+    expect(s).toContain('Item da vistoria: Padrão de entrada');
+  });
+  it('a legenda dos prazos conta os itens e usa o singular', () => {
+    expect(secaoCompras(html(comLista()))).toContain(
+      '<p class="legenda-prazo"><span class="chip p-alta">Antes de instalar</span> 2 itens <span class="chip p-media">Antes ou durante a instalação</span> 2 itens</p>',
+    );
+    const soAlta = secaoCompras(html(entrada({ status_itens: { padrao: 'nao_conforme' }, compras: lista([lc(1, { item: 'padrao' }), lc(2)]) })));
+    expect(soAlta).toContain('<p class="legenda-prazo"><span class="chip p-alta">Antes de instalar</span> 1 item</p>');
+    expect(soAlta).not.toContain('class="chip p-media"');
+    const soMedia = secaoCompras(html(entrada({ status_itens: { telhado: 'atencao' }, compras: lista([lc(1, { item: 'telhado' }), lc(2, { item: 'telhado' })]) })));
+    expect(soMedia).toContain('<p class="legenda-prazo"><span class="chip p-media">Antes ou durante a instalação</span> 2 itens</p>');
+    expect(soMedia).not.toContain('class="chip p-alta"');
+  });
+  it('a célula do motivo traz o item da vistoria; sem item e sem prazo fica vazia', () => {
+    const h = html(comLista());
+    expect(linhaDe(h, 'Caixa de medição')).toContain('<span class="orig">Item da vistoria: Padrão de entrada</span>');
+    expect(linhaDe(h, 'Haste de aterramento')).toContain('<td data-r="Motivo"><span class="orig">Item da vistoria: Medidor / Relógio</span></td>');
+    expect(linhaDe(h, 'Eletroduto')).toContain('<td data-r="Motivo">&nbsp;</td>');
+  });
+  it('o rótulo do item vem do label da vistoria, com o rótulo padrão quando o item não está na vistoria', () => {
+    const h = html(entrada({
+      itens: [],
+      compras: lista([lc(1, { nome: 'Caixa', item: 'padrao' }), lc(2, { nome: 'Cópia da conta', item: 'conta_luz' }), anotacao(1, { item: 'documento_pessoal' })]),
+    }));
+    expect(h).toContain('Item da vistoria: Padrão de entrada');
+    expect(h).toContain('Item da vistoria: Conta de luz');
+    expect(h).toContain('<li><b>CNH / Identidade:</b> Anotação 1.</li>');
+    const rotulado = html(entrada({ itens: itens(), compras: lista([lc(1, { item: 'sombreamento' })]) }));
+    expect(rotulado).toContain('Item da vistoria: Sombreamento');
+  });
+  it('a especificação e a nota da linha ficam na célula do item, com o prefixo "Nota:"', () => {
+    const h = html(comLista());
+    const caixa = linhaDe(h, 'Caixa de medição');
+    expect(caixa).toContain('<span class="esp">Modelo aprovado pela distribuidora, com espaço para o medidor bidirecional.</span>');
+    expect(caixa).toContain('<span class="nota">Nota: Caixa atual é antiga.</span>');
+    const eletroduto = linhaDe(h, 'Eletroduto');
+    expect(eletroduto).not.toContain('class="esp"');
+    expect(eletroduto).not.toContain('class="nota"');
+  });
+  it('as anotações vêm depois das tabelas, com o rótulo do item em negrito quando há item', () => {
+    const s = secaoCompras(html(comLista()));
+    expect(s).toContain('<div class="notas-compras"><h3>Anotações</h3><ul>');
+    expect(s).toContain('<li><b>Tipo de telha:</b> Telha de fibrocimento antiga, pode ter amianto. Não furar nem cortar.</li>');
+    expect(s).toContain('<li>Cliente prefere instalar pela manhã.</li>');
+    expect(s.indexOf('class="notas-compras"')).toBeGreaterThan(s.lastIndexOf('</table>'));
+    expect(secaoCompras(html(entrada({ compras: lista([lc(1)]) })))).not.toContain('Anotações');
+  });
+  it('só anotações: sem tabela, sem grupos e sem legenda de prazo', () => {
+    const s = secaoCompras(html(entrada({ status_itens: { padrao: 'nao_conforme' }, compras: lista([anotacao(1, { item: 'padrao' }), anotacao(2)]) })));
+    expect(s).toContain('<p class="intro">Esta lista traz apenas anotações.</p>');
+    expect(s).not.toContain('Esta lista reúne');
+    expect(s).toContain('<p class="resumo-compras">2 observações.</p>');
+    expect(s).not.toContain('<table');
+    expect(s).not.toContain('grupo-compras');
+    expect(s).not.toContain('<p class="legenda-prazo">');
+    expect(s).toContain('<li><b>Padrão de entrada:</b> Anotação 1.</li>');
+  });
+  it('"Na lista:" aparece no cartão da pendência do item ligado, só com material', () => {
+    const h = html(comLista());
+    expect(cartao(h, 'Padrão de entrada')).toContain('<p class="nalista">Na lista: Caixa de medição.</p>');
+    expect(cartao(h, 'Sombreamento')).toContain('<p class="nalista">Na lista: Poda ou remoção de árvore.</p>');
+    expect(cartao(h, 'Telhado')).toContain('<p class="nalista">Na lista: Selante e fita e Telha de reposição.</p>');
+    // Tipo de telha só tem uma anotação ligada; Estrutura não tem nada: sem a linha
+    expect(cartao(h, 'Tipo de telha')).not.toContain('nalista');
+    expect(cartao(h, 'Estrutura apropriada')).not.toContain('nalista');
+    // item Conforme não tem cartão, então a Haste (ligada ao medidor) não vira "Na lista:"
+    expect(h).not.toContain('Na lista: Haste');
+    expect(h.match(/class="nalista"/g)).toHaveLength(3);
+  });
+  it('"Na lista:" vem depois da observação e das fotos do cartão', () => {
+    const e = entrada({
+      itens: itens({ padrao: [foto(), foto()] }, { padrao: 'Caixa enferrujada.' }),
+      status_itens: { padrao: 'nao_conforme' },
+      compras: lista([lc(1, { nome: 'Caixa de medição', item: 'padrao' })]),
+    });
+    expect(cartao(html(e), 'Padrão de entrada')).toMatch(/<p class="pobs">Caixa enferrujada\.<\/p><p class="pref"><a href="#i-padrao">Fotos 1 e 2<\/a><\/p><p class="nalista">Na lista: Caixa de medição\.<\/p><\/div>$/);
+  });
+  it('"Na lista:" mostra até 3 nomes; com mais de 3 mostra 2 e "mais N"', () => {
+    const nomes = (n: number) => Array.from({ length: n }, (_, i) => lc(i + 1, { nome: `Peça ${'ABCDEF'[i]}`, item: 'padrao' }));
+    const frase = (n: number) => /<p class="nalista">([^<]*)<\/p>/.exec(html(entrada({ status_itens: { padrao: 'nao_conforme' }, compras: lista(nomes(n)) })))?.[1];
+    expect(frase(1)).toBe('Na lista: Peça A.');
+    expect(frase(2)).toBe('Na lista: Peça A e Peça B.');
+    expect(frase(3)).toBe('Na lista: Peça A, Peça B e Peça C.');
+    expect(frase(4)).toBe('Na lista: Peça A, Peça B e mais 2.');
+    expect(frase(6)).toBe('Na lista: Peça A, Peça B e mais 4.');
+  });
+  it('fraseNaLista e paragrafoNaLista: sem nomes não há frase; o ponto final não se repete', () => {
+    expect(fraseNaLista([])).toBe('');
+    expect(fraseNaLista(['A'])).toBe('A');
+    expect(fraseNaLista(['A', 'B', 'C', 'D', 'E'])).toBe('A, B e mais 3');
+    expect(paragrafoNaLista(undefined)).toBe('');
+    expect(paragrafoNaLista([])).toBe('');
+    expect(paragrafoNaLista(['Fita.'])).toBe('<p class="nalista">Na lista: Fita.</p>');
+  });
+  it('o serviço também entra no "Na lista:" (a poda resolve o sombreamento)', () => {
+    const h = html(entrada({ status_itens: { sombreamento: 'nao_conforme' }, compras: lista([lc(1, { nome: 'Poda', qtd: null, un: 'servico', item: 'sombreamento' })]) }));
+    expect(cartao(h, 'Sombreamento')).toContain('Na lista: Poda.');
+  });
+  it('a lista nunca muda o selo, a conclusão nem cria pendência', () => {
+    const base = cheia();
+    const sem = html(base);
+    const com = html({ ...base, compras: lista(LINHAS_CHEIA) });
+    const trecho = (h: string, de: string, ate: string) => {
+      const i = h.indexOf(de);
+      return h.slice(i, h.indexOf(ate, i + de.length));
+    };
+    expect(trecho(com, '<div class="selo', '<p class="placar">')).toBe(trecho(sem, '<div class="selo', '<p class="placar">'));
+    expect(trecho(com, '<div class="selo', '<p class="placar">')).toContain('Adequar antes de instalar');
+    expect(com.match(/<div class="pen /g)).toHaveLength(sem.match(/<div class="pen /g)!.length);
+    const conclusao = trecho(com, '<p class="concl">', '</p>');
+    expect(conclusao).toBe(trecho(sem, '<p class="concl">', '</p>'));
+    expect(conclusao).toContain('Foram encontradas não conformidades');
+    expect(conclusao).not.toMatch(/lista|compra|material/i);
+  });
+  it('a ordem no documento: conclusão, próximos passos, lista, registro por item, documentos e assinaturas', () => {
+    for (const modo of ['tela', 'pdf'] as const) {
+      const h = html(comLista(), modo);
+      // Os títulos (h2), não as palavras soltas: na tela a navegação do topo também diz "Assinaturas".
+      const ordem = ['Conclusão', 'Próximos passos', 'Materiais e providências', 'Registro por item', 'Documentos do titular', 'Assinaturas']
+        .map((titulo) => h.indexOf(`<h2 class="sec"${titulo === 'Materiais e providências' ? ' id="h-compras"' : ''}>${titulo}</h2>`));
+      expect(ordem.every((p) => p > 0), modo).toBe(true);
+      expect([...ordem].sort((a, b) => a - b), modo).toEqual(ordem);
+    }
+  });
+  it('em andamento a lista aparece sem "Próximos passos"; sem nenhum status ela aparece antes do registro', () => {
+    const h = html({ ...andamento(), compras: lista(LINHAS_CHEIA) });
+    expect(h).toContain('id="compras"');
+    expect(h).not.toContain('Próximos passos');
+    expect(h.indexOf('<h2 class="sec">Conclusão</h2>')).toBeGreaterThan(0);
+    expect(h.indexOf('<h2 class="sec">Conclusão</h2>')).toBeLessThan(h.indexOf('id="compras"'));
+    expect(h.indexOf('id="compras"')).toBeLessThan(h.indexOf('Registro por item'));
+    const semStatus = html(entrada({ itens: itens({ padrao: [foto()] }), compras: lista([lc(1)]) }));
+    expect(semStatus).not.toContain('Resultado da vistoria');
+    expect(semStatus.indexOf('id="compras"')).toBeGreaterThan(0);
+    expect(semStatus.indexOf('id="compras"')).toBeLessThan(semStatus.indexOf('Registro por item'));
+  });
+  it('a navegação da tela ganha "Compras" entre Pendências e Fotos; o PDF não tem navegação', () => {
+    expect(html(comLista(), 'tela')).toContain('<span>Ir para:</span><a href="#pendencias">Pendências</a><a href="#compras">Compras</a><a href="#registro">Fotos</a><a href="#assinaturas">Assinaturas</a>');
+    expect(html(comLista(), 'pdf')).not.toContain('href="#compras"');
+    expect(html(entrada({ compras: lista([lc(1)]) }), 'tela')).toContain('<span>Ir para:</span><a href="#compras">Compras</a>');
+  });
+  it('o CSS da lista só vem com a lista: tabela com cabeçalho repetido, linhas inteiras e cartões no celular', () => {
+    const h = html(comLista());
+    expect(h).toContain('.cmp thead{display:table-header-group}');
+    expect(h).toContain('.cmp tr{break-inside:avoid;page-break-inside:avoid}');
+    expect(h).toContain('.notas-compras{margin-top:14px;break-inside:avoid;page-break-inside:avoid}');
+    expect(h).toContain('.grupo-compras h3{margin:0 0 4px;font-size:15px;break-after:avoid;page-break-after:avoid}');
+    expect(h).toContain('.pen .nalista{');
+    expect(h).toMatch(/@media \(max-width:640px\)\{[^}]*\.cmp thead\{display:none\}/);
+    expect(h).toContain('.cmp td::before{content:attr(data-r)');
+    expect(h).toContain('.cmp td[data-r="Motivo"]:not(:has(*)){display:none}'); // celular: motivo vazio some
+    // a abertura, o resumo e a legenda seguem junto do primeiro grupo, e a legenda não deixa uma contagem sozinha na linha
+    for (const classe of ['intro', 'resumo-compras', 'legenda-prazo']) {
+      expect(h, classe).toMatch(new RegExp(`\\.${classe}\\{[^}]*break-after:avoid;page-break-after:avoid`));
+    }
+    expect(h).toMatch(/\.legenda-prazo\{[^}]*text-wrap:balance/);
+    expect(h).not.toMatch(/#0F172A/);
+    // cada célula traz o rótulo que a tela estreita mostra
+    const celulas = secaoCompras(h).match(/<td[^>]*>/g) ?? [];
+    expect(celulas.length).toBeGreaterThan(0);
+    for (const c of celulas) expect(c).toContain('data-r="');
+    const sem = html(cheia());
+    expect(sem).not.toContain('.cmp');
+    expect(sem).not.toContain('.nalista');
+    expect(sem).not.toContain('.notas-compras');
+  });
+  it('sem lista visível a seção, a âncora, o "Na lista:" e o CSS da lista não existem, e o HTML é o mesmo de antes', () => {
+    const base = cheia();
+    const ocultas: [string, Compras | null | undefined][] = [
+      ['oculta', lista([lc(1, { item: 'padrao' }), anotacao(1)], false)],
+      ['vazia', lista([])],
+      ['padrão', comprasVazio()],
+      ['nula', null],
+      ['ausente', undefined],
+    ];
+    for (const modo of ['tela', 'pdf'] as const) {
+      const sem = html(base, modo);
+      expect(sem, modo).not.toContain('id="compras"');
+      expect(sem, modo).not.toContain('Materiais e providências');
+      expect(sem, modo).not.toContain('Na lista:');
+      expect(sem, modo).not.toContain('class="cmp"');
+      expect(sem, modo).not.toContain('.nalista');
+      expect(sem, modo).not.toContain('href="#compras"');
+      for (const [nome, compras] of ocultas) expect(html({ ...base, compras }, modo), `${nome}, ${modo}`).toBe(sem);
+    }
+  });
+  it('uma lista com linhas que não são linhas válidas não vira seção vazia', () => {
+    const quebrada = { v: 1, publica: true, linhas: [null, 7, 'x'] } as unknown as Compras;
+    const h = html({ ...cheia(), compras: quebrada });
+    expect(h).not.toContain('id="compras"');
+    expect(h).not.toContain('Materiais e providências');
+  });
+  it('texto hostil na lista sai escapado e limpo, na tela e no PDF', () => {
+    for (const modo of ['tela', 'pdf'] as const) {
+      const h = html(hostilComLista(), modo);
+      const s = secaoCompras(h);
+      expect(s, modo).not.toContain('<script>');
+      expect(s, modo).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+      expect(s, modo).toContain('&quot;aspas&quot;');
+      expect(s, modo).toContain('&#39;simples&#39;');
+      expect(s, modo).toContain('&amp; fim - -');
+      expect(h, modo).not.toContain('<script>');
+      expect(h, modo).not.toMatch(/<[a-z][^>]*='/i); // nenhum atributo com aspas simples
+      expect(h, modo).not.toMatch(TRAVESSAO);
+      expect(h, modo).not.toMatch(EMOJI);
+      expect(cartao(h, 'Padrão de entrada'), modo).toContain('Na lista: &lt;script&gt;alert(1)&lt;/script&gt;');
+    }
+  });
+  it('mesmo sem passar pelo saneamento, o modelo limpa emoji e travessão antes de escrever', () => {
+    const sujo = `Caixa \u{2014} grande \u{1F600} \u{2600} <b>forte</b>`;
+    const h = html(entrada({
+      status_itens: { padrao: 'nao_conforme' },
+      compras: lista([lc(1, { nome: sujo, esp: sujo, obs: sujo, item: 'padrao' }), anotacao(1, { obs: sujo })]),
+    }), 'pdf');
+    expect(h).not.toMatch(TRAVESSAO);
+    expect(h).not.toMatch(EMOJI);
+    expect(h).toMatch(/Caixa - grande\s+&lt;b&gt;forte&lt;\/b&gt;/);
+    expect(h).not.toContain('<b>forte</b>');
+  });
+  it('lista de 40 linhas: duas tabelas, três anotações, linhas inteiras e o cabeçalho em cada tabela', () => {
+    for (const modo of ['tela', 'pdf'] as const) {
+      const h = html(quarenta(), modo);
+      const s = secaoCompras(h);
+      expect(s.match(/<table class="cmp">/g), modo).toHaveLength(2);
+      expect(s.match(/<thead>/g), modo).toHaveLength(2);
+      expect(nomesNaTabela(s), modo).toHaveLength(37);
+      expect(s, modo).toContain('<p class="resumo-compras">34 materiais, 3 serviços e 3 observações.</p>');
+      expect(s, modo).toContain('Por conta do cliente <span class="n">19 itens</span>');
+      expect(s, modo).toContain('Por conta da empresa instaladora <span class="n">18 itens</span>');
+      expect(s.match(/<li>/g), modo).toHaveLength(3);
+      expect(h, modo).toContain('.cmp tr{break-inside:avoid;page-break-inside:avoid}');
+    }
+  });
+});
+
 describe('matriz de casos (tela e PDF)', () => {
   const casos: [string, () => EntradaVistoria][] = [
     ['cheia', cheia], ['mínima', minima], ['em andamento', andamento], ['conforme parcial', parcial], ['texto hostil', hostil],
+    ['cheia com lista', comLista], ['lista de 40 linhas', quarenta], ['texto hostil com lista', hostilComLista],
   ];
   for (const [nome, monta] of casos) {
     for (const modo of ['tela', 'pdf'] as const) {
@@ -755,13 +1154,73 @@ describe('hashConteudoPdf', () => {
     const t = (ts: string) => ({ tecnico: { path: 'a/b.png', nome: 'Bruno', registro: 'CFT 1', ts } });
     expect(h({ assinaturas: t('x') })).toBe(h({ assinaturas: t('y') }));
   });
+  it('lista de compras ausente, nula, oculta ou vazia dá o mesmo hash de "sem lista"', () => {
+    const linhas = [lc(1, { item: 'padrao' }), anotacao(1)];
+    expect(h({ compras: null })).toBe(h());
+    expect(h({ compras: undefined })).toBe(h());
+    expect(h({ compras: lista(linhas, false) })).toBe(h());
+    expect(h({ compras: lista([]) })).toBe(h());
+    expect(h({ compras: comprasVazio() })).toBe(h());
+    expect(h({ compras: lista(linhas) })).not.toBe(h());
+  });
+  it('lista de compras: a mesma lista dá o mesmo hash; id, ts e cid não entram', () => {
+    const base = [lc(1, { item: 'padrao', ts: '2026-10-29T14:03:11.000Z', cid: 'caixa-medicao' }), anotacao(1)];
+    const referencia = h({ compras: lista(base) });
+    const mudar = (extra: Partial<LinhaCompra>) => base.map((l, i) => (i === 0 ? { ...l, ...extra } : l));
+    expect(h({ compras: lista(base.map((l) => ({ ...l }))) })).toBe(referencia);
+    expect(h({ compras: lista(mudar({ ts: '2026-10-30T09:00:00.000Z' })) })).toBe(referencia);
+    expect(h({ compras: lista(mudar({ cid: 'outro-cid' })) })).toBe(referencia);
+    expect(h({ compras: lista(mudar({ id: 'outroid99' })) })).toBe(referencia);
+    expect(h({ compras: lista(mudar({ ts: undefined, cid: undefined })) })).toBe(referencia);
+  });
+  it('lista de compras: nome, especificação, quantidade, unidade, quem, item, nota, as linhas e a ordem mudam o hash', () => {
+    const base = [lc(1, { item: 'padrao', esp: 'Especificação' }), lc(2)];
+    const referencia = h({ compras: lista(base) });
+    const mudar = (extra: Partial<LinhaCompra>) => base.map((l, i) => (i === 0 ? { ...l, ...extra } : l));
+    const casos: [string, LinhaCompra[]][] = [
+      ['nome', mudar({ nome: 'Outro nome' })],
+      ['especificação', mudar({ esp: 'Outra' })],
+      ['sem especificação', mudar({ esp: undefined })],
+      ['quantidade', mudar({ qtd: 2 })],
+      ['quantidade a definir', mudar({ qtd: null })],
+      ['unidade', mudar({ un: 'm' })],
+      ['quem', mudar({ quem: 'integrador' })],
+      ['item', mudar({ item: 'telhado' })],
+      ['sem item', mudar({ item: undefined })],
+      ['nota', mudar({ obs: 'Nota nova.' })],
+      ['ordem', [base[1]!, base[0]!]],
+      ['linha a mais', [...base, anotacao(1)]],
+      ['linha a menos', [base[0]!]],
+    ];
+    const hashes = new Set<string>([referencia]);
+    for (const [campo, linhas] of casos) {
+      const outro = h({ compras: lista(linhas) });
+      expect(outro, campo).not.toBe(referencia);
+      hashes.add(outro);
+    }
+    expect(hashes.size).toBe(casos.length + 1);
+  });
+  it('o hash leva da lista só o que o relatório mostra, na ordem gravada', () => {
+    const vazio: ConteudoPdf = { itens: [], status_itens: {}, assinaturas: {}, cliente_nome: 'X', status: 'em_andamento', localizacao: null };
+    const compras = lista([lc(1, { esp: 'Esp', item: 'padrao', obs: 'N', ts: '2026-10-29T14:03:11.000Z', cid: 'caixa-medicao' }), anotacao(1)]);
+    const esperado = createHash('sha1')
+      .update(JSON.stringify([
+        [], [], [['tecnico', '', '', ''], ['cliente', '', '', '']], 'X', 'em_andamento', null, null, null,
+        [['material', 'Material 1', 'Esp', 1, 'un', 'cliente', 'padrao', 'N'], ['obs', '', '', null, '', '', '', 'Anotação 1.']],
+        VERSAO_PDF,
+      ]))
+      .digest('hex').slice(0, 16);
+    expect(hashConteudoPdf({ ...vazio, compras })).toBe(esperado);
+  });
   it('a versão do desenho do relatório entra no hash', () => {
     const vazio: ConteudoPdf = { itens: [], status_itens: {}, assinaturas: {}, cliente_nome: 'X', status: 'em_andamento', localizacao: null };
     const esperado = (versao: string) => createHash('sha1')
-      .update(JSON.stringify([[], [], [['tecnico', '', '', ''], ['cliente', '', '', '']], 'X', 'em_andamento', null, null, null, versao]))
+      .update(JSON.stringify([[], [], [['tecnico', '', '', ''], ['cliente', '', '', '']], 'X', 'em_andamento', null, null, null, null, versao]))
       .digest('hex').slice(0, 16);
     expect(hashConteudoPdf(vazio)).toBe(esperado(VERSAO_PDF));
     expect(hashConteudoPdf(vazio)).not.toBe(esperado('v0'));
     expect(VERSAO_PDF).toMatch(/^v\d+$/);
+    // v4 é a versão da lista de compras; uma mudança futura do desenho só sobe o número
+    expect(Number(VERSAO_PDF.slice(1))).toBeGreaterThanOrEqual(4);
   });
 });

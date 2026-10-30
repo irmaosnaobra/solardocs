@@ -1,12 +1,14 @@
 import { createHash } from 'crypto';
 import { hashMarca, type MarcaEmpresa } from '../relatorio/marca';
 import type { DadosCliente } from './clienteRelatorio';
+import { comprasVisiveis, type Compras } from './compras';
 
 // Nome do PDF guardado no bucket: relatorio-<sha1 de 16 caracteres>.pdf.
 // O hash sai do conteúdo CRU da vistoria, numa ordem fixa. NUNCA entra URL assinada (muda a cada abertura
 // e o cache nunca acertaria). Mudou foto, observação, status, assinatura, nome, situação, local, a marca
-// do integrador, o cadastro do cliente que o relatório mostra ou o desenho do relatório (VERSAO_PDF)? O nome
-// muda e o PDF é gerado de novo. Mudar só o `ts` de uma foto, o `created_at` ou a URL assinada não regera.
+// do integrador, o cadastro do cliente, a lista de compras que o relatório mostra ou o desenho do relatório
+// (VERSAO_PDF)? O nome muda e o PDF é gerado de novo. Mudar só o `ts` de uma foto, o `created_at`, a URL
+// assinada ou, na lista de compras, o `id`, o `ts` e o `cid` das linhas não regera.
 
 /**
  * SOBE esta versão sempre que mudar htmlRelatorio.ts (HTML ou CSS) ou os textos do relatório (avaliacao.ts):
@@ -15,8 +17,10 @@ import type { DadosCliente } from './clienteRelatorio';
  * v3: tema claro único com a marca do integrador, código do documento, cobertura do selo e placar, fotos inteiras
  *     com legenda numerada, documentos do titular (sem imagem do documento pessoal), próximos passos e rodapé
  *     com "Página X de Y".
+ * v4: lista de compras ("Materiais e providências", tabela por quem providencia, prazo pelo status do item) e a
+ *     linha "Na lista:" nos cartões de pendência.
  */
-export const VERSAO_PDF = 'v3';
+export const VERSAO_PDF = 'v4';
 
 interface FotoCrua { url?: unknown; tipo?: unknown; nome?: unknown }
 interface ItemCru { key?: unknown; obs?: unknown; fotos?: unknown }
@@ -32,6 +36,11 @@ export interface ConteudoPdf {
   marca?: MarcaEmpresa | null;
   /** Os 5 campos do cadastro que o relatório mostra. */
   cliente?: DadosCliente | null;
+  /**
+   * A lista de compras que o relatório mostra, já filtrada por comprasVisiveis (nula quando oculta, vazia ou sem a
+   * coluna). O hash filtra de novo: lista oculta ou vazia dá o mesmo hash de "sem lista".
+   */
+  compras?: Compras | null;
 }
 
 export function hashConteudoPdf(c: ConteudoPdf): string {
@@ -48,7 +57,12 @@ export function hashConteudoPdf(c: ConteudoPdf): string {
   const cliente = c.cliente
     ? [c.cliente.endereco, c.cliente.cep, c.cliente.cidade, c.cliente.uf, c.cliente.concessionaria]
     : null;
-  const bruto = JSON.stringify([itens, status_itens, assinaturas, c.cliente_nome ?? '', c.status ?? '', c.localizacao ?? null, marca, cliente, VERSAO_PDF]);
+  // Só o que a lista mostra, na ordem gravada. Fora do hash: id, ts e cid (não aparecem no relatório).
+  const visivel = c.compras ? comprasVisiveis(c.compras, true) : null;
+  const compras = visivel
+    ? visivel.linhas.map((l) => [l.tipo, l.nome ?? '', l.esp ?? '', l.qtd ?? null, l.un ?? '', l.quem ?? '', l.item ?? '', l.obs ?? ''])
+    : null;
+  const bruto = JSON.stringify([itens, status_itens, assinaturas, c.cliente_nome ?? '', c.status ?? '', c.localizacao ?? null, marca, cliente, compras, VERSAO_PDF]);
   return createHash('sha1').update(bruto).digest('hex').slice(0, 16);
 }
 

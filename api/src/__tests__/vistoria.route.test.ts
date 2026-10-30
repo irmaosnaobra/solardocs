@@ -8,7 +8,7 @@ import JSZip from 'jszip';
 // concluída, 503 quando as colunas novas não existem, assinatura exigindo nome e PNG de verdade, reabrir,
 // GET com e sem colunas, a lista de compras (PUT, GET e a contagem de leituras), o ZIP autenticado com o
 // documento pessoal, relatório público com e sem selo, com a marca do integrador e o cadastro do cliente, o
-// documento pessoal fora do link público e do ZIP público, o rodapé do PDF e o PDF em 302.
+// documento pessoal fora do link público e do ZIP público, o rodapé do PDF, a lista de compras no relatório e no nome do PDF, e o PDF em 302.
 
 const h = vi.hoisted(() => ({
   objetos: new Map<string, Buffer>(),
@@ -1102,5 +1102,185 @@ describe('documento pessoal (CNH ou identidade) fora do link público', () => {
     expect(tela.text).not.toContain('Baixar fotos e arquivos');
     expect(tela.text).not.toContain('documento_pessoal-1.jpg');
     expect(tela.text).toContain('Documento recebido. A imagem fica só com a empresa.');
+  });
+});
+
+// ── Relatório público do lote 5b: lista de compras ("Materiais e providências") ──────────────────────
+
+/** A lista como fica na coluna. Uma cópia nova a cada uso: os testes mexem nas linhas e o banco falso não copia. */
+const comprasGravada = () => JSON.parse(JSON.stringify({
+  v: 1,
+  publica: true,
+  linhas: [
+    { id: 'm3k9x2ab', tipo: 'material', nome: 'Caixa de medição', esp: 'Modelo aprovado pela distribuidora.', qtd: 1, un: 'un', quem: 'cliente', item: 'padrao', cid: 'caixa-medicao', obs: 'Caixa atual é antiga.', ts: '2026-10-29T14:03:11.000Z' },
+    { id: 'm3k9y7cd', tipo: 'material', nome: 'Cabo solar CC', qtd: 120, un: 'm', quem: 'integrador', item: 'cabeamento', obs: '' },
+    { id: 'm3ka1c3h', tipo: 'obs', obs: 'Telha antiga, pode ter amianto.', item: 'tipo_telha' },
+  ],
+}));
+const STATUS_COM_LISTA = { padrao: 'nao_conforme', cabeamento: 'conforme' };
+const poeComLista = (extra: Record<string, unknown> = {}) =>
+  poeVistoria({ status: 'concluida', status_itens: STATUS_COM_LISTA, compras: comprasGravada(), ...extra });
+
+describe('relatório público: lista de compras', () => {
+  it('a tela e o PDF mostram a lista gravada, com o prazo do item e o "Na lista:" da pendência', async () => {
+    poeComLista();
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('id="compras"');
+    expect(tela.text).toContain('Materiais e providências');
+    expect(tela.text).toContain('<b>Caixa de medição</b>');
+    expect(tela.text).toContain('class="chip p-alta">Antes de instalar<');
+    expect(tela.text).toContain('Item da vistoria: Padrão de entrada');
+    expect(tela.text).toContain('<p class="nalista">Na lista: Caixa de medição.</p>');
+    expect(tela.text).toContain('<li><b>Tipo de telha:</b> Telha antiga, pode ter amianto.</li>');
+    expect(tela.text).toContain('<a href="#compras">Compras</a>');
+    await pdfRota();
+    const pdf = h.navegador.html;
+    expect(pdf).toContain('id="compras"');
+    expect(pdf).toContain('<b>Cabo solar CC</b>');
+    expect(pdf).toContain('120\u00A0metros');
+    expect(pdf).toContain('<p class="nalista">Na lista: Caixa de medição.</p>');
+    expect(pdf).not.toContain('href="#compras"');
+    for (const texto of [tela.text, pdf]) {
+      expect(texto).not.toMatch(/[—–]/);
+      expect(texto).not.toMatch(EMOJI);
+    }
+  });
+  for (const [nome, compras] of [
+    ['oculta', { ...comprasGravada(), publica: false }],
+    ['vazia', { v: 1, publica: true, linhas: [] }],
+    ['no padrão {}', {}],
+  ] as const) {
+    it(`lista ${nome}: nenhuma seção na tela nem no PDF, e o PDF é o mesmo de uma vistoria sem lista`, async () => {
+      poeComLista({ compras });
+      const tela = await request(app).get(`/v/${ID}`);
+      expect(tela.status).toBe(200);
+      for (const trecho of ['id="compras"', 'Materiais e providências', 'Na lista:', 'class="cmp"', '.nalista', 'href="#compras"']) {
+        expect(tela.text, trecho).not.toContain(trecho);
+      }
+      const a = await pdfRota();
+      expect(a.status).toBe(302);
+      expect(h.navegador.html).not.toContain('id="compras"');
+      banco.reset();
+      h.objetos.clear();
+      poeVistoria({ status: 'concluida', status_itens: STATUS_COM_LISTA });
+      const semLista = await pdfRota();
+      expect(semLista.headers.location.split('?')[0]).toBe(a.headers.location.split('?')[0]);
+    });
+  }
+  it('sem a coluna da lista (3ª leitura): a tela e o PDF saem sem a seção, e o resto do relatório segue', async () => {
+    poeComLista();
+    banco.falhas['vistorias.select'] = { erro: COMPRAS_AUSENTE, uma: true, pular: 2 };
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).not.toContain('id="compras"');
+    expect(tela.text).toContain('Resultado da vistoria');
+    expect(tela.text).toContain('Adequar antes de instalar');
+    banco.falhas['vistorias.select'] = { erro: COMPRAS_AUSENTE, uma: true, pular: 2 };
+    expect((await pdfRota()).status).toBe(302);
+    expect(h.navegador.html).not.toContain('id="compras"');
+    expect(h.navegador.html).toContain('Resultado da vistoria');
+  });
+  it('erro do banco na leitura da lista: 500 na tela e no PDF, sem abrir o navegador e sem guardar PDF', async () => {
+    poeComLista();
+    const erro = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      banco.falhas['vistorias.select'] = { erro: BANCO_FORA, uma: true, pular: 2 };
+      const tela = await request(app).get(`/v/${ID}`);
+      expect(tela.status).toBe(500);
+      expect(tela.text).not.toContain('Materiais e providências');
+      banco.falhas['vistorias.select'] = { erro: BANCO_FORA, uma: true, pular: 2 };
+      const pdf = await pdfRota();
+      expect(pdf.status).toBe(500);
+      expect(pdf.text).toContain('Não consegui gerar o PDF. Tente de novo.');
+      expect(h.navegador.abriu).toBe(0);
+      expect(pdfsNoBucket()).toHaveLength(0);
+    } finally {
+      erro.mockRestore();
+    }
+  });
+  it('a lista é a terceira leitura em `vistorias` nas duas rotas públicas', async () => {
+    poeComLista();
+    h.leituras = 0;
+    expect((await request(app).get(`/v/${ID}`)).status).toBe(200);
+    expect(h.leituras).toBe(3);
+    h.leituras = 0;
+    expect((await pdfRota()).status).toBe(302);
+    expect(h.leituras).toBe(3);
+  });
+  it('com a projeção de colunas ligada as duas rotas ainda mostram a lista (o select pediu a coluna)', async () => {
+    poeComLista();
+    banco.projeta = true;
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('id="compras"');
+    expect((await pdfRota()).status).toBe(302);
+    expect(h.navegador.html).toContain('id="compras"');
+  });
+});
+
+describe('PDF: a lista de compras e o cache do arquivo', () => {
+  it('mudar só a quantidade, quem providencia, o item, a nota, o nome, a especificação ou a ordem gera um PDF novo e sobra um só', async () => {
+    poeComLista();
+    await pdfRota();
+    expect(h.navegador.abriu).toBe(1);
+    const muda = async (campo: string, edita: (linhas: any[]) => void) => {
+      const antes = h.navegador.abriu;
+      edita(linha().compras.linhas);
+      await pdfRota();
+      expect(h.navegador.abriu, campo).toBe(antes + 1);
+      expect(pdfsNoBucket(), campo).toHaveLength(1);
+    };
+    await muda('quantidade', (l) => { l[0].qtd = 2; });
+    await muda('quem', (l) => { l[0].quem = 'integrador'; });
+    await muda('item', (l) => { l[0].item = 'telhado'; });
+    await muda('nota', (l) => { l[0].obs = 'Outra nota.'; });
+    await muda('nome', (l) => { l[0].nome = 'Caixa de medição trifásica'; });
+    await muda('especificação', (l) => { l[0].esp = 'Outra especificação.'; });
+    await muda('ordem', (l) => { l.reverse(); });
+  });
+  it('mudar só o ts, o cid ou o id da linha não gera PDF novo', async () => {
+    poeComLista();
+    await pdfRota();
+    const primeira = () => linha().compras.linhas[0];
+    primeira().ts = '2026-10-30T10:00:00.000Z';
+    await pdfRota();
+    primeira().cid = 'outro-cid';
+    await pdfRota();
+    primeira().id = 'm3k9x2zz';
+    await pdfRota();
+    expect(h.navegador.abriu).toBe(1);
+    expect(pdfsNoBucket()).toHaveLength(1);
+  });
+  it('lista oculta não gera PDF novo: editar as linhas ocultas mantém o arquivo, que é o mesmo de uma vistoria sem lista', async () => {
+    poeComLista({ compras: { ...comprasGravada(), publica: false } });
+    const a = await pdfRota();
+    expect(h.navegador.abriu).toBe(1);
+    linha().compras.linhas[0].qtd = 9;
+    linha().compras.linhas[1].nome = 'Outro cabo';
+    const b = await pdfRota();
+    expect(h.navegador.abriu).toBe(1);
+    expect(b.headers.location.split('?')[0]).toBe(a.headers.location.split('?')[0]);
+    banco.reset();
+    h.objetos.clear();
+    poeVistoria({ status: 'concluida', status_itens: STATUS_COM_LISTA });
+    const semLista = await pdfRota();
+    expect(semLista.headers.location.split('?')[0]).toBe(a.headers.location.split('?')[0]);
+  });
+  it('esconder a lista (ou mostrá-la de novo) muda o conteúdo do PDF, então gera um arquivo novo', async () => {
+    poeComLista();
+    const visivel = await pdfRota();
+    linha().compras.publica = false;
+    const oculta = await pdfRota();
+    expect(h.navegador.abriu).toBe(2);
+    expect(oculta.headers.location.split('?')[0]).not.toBe(visivel.headers.location.split('?')[0]);
+    expect(h.navegador.html).not.toContain('id="compras"');
+    expect(pdfsNoBucket()).toHaveLength(1);
+    linha().compras.publica = true;
+    const outraVez = await pdfRota();
+    expect(h.navegador.abriu).toBe(3);
+    expect(outraVez.headers.location.split('?')[0]).toBe(visivel.headers.location.split('?')[0]);
+    expect(h.navegador.html).toContain('id="compras"');
+    expect(pdfsNoBucket()).toHaveLength(1);
   });
 });

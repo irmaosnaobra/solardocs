@@ -7,15 +7,18 @@ import { dividirJunto, numerarGrupos, refFotos } from '../relatorio/fotos';
 import { MOSTRAR_CONTATO_EMPRESA, logoSeguro, paleta, telefoneFormatado, type MarcaEmpresa } from '../relatorio/marca';
 import { opcoesPdfComRodape } from '../relatorio/pdf';
 import type { DadosCliente } from './clienteRelatorio';
+import { agruparParaRelatorio, comprasVisiveis, nomesPorItem, type Compras } from './compras';
+import { CSS_COMPRAS, paragrafoNaLista, secaoCompras } from './htmlCompras';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTML do relatório público da vistoria solar (/v/:id) e do PDF (/v/:id/pdf).
 // Uma função só monta os dois: modo 'tela' (celular e computador, com barra, links e navegação) e modo 'pdf'
 // (A4, sem barra, sem lazy-load, sem link de foto). Tema claro único, com a marca do integrador. Sem emoji
 // (o Chromium do servidor não tem fonte de emoji), sem fonte externa e sem script.
-// Este arquivo é PURO: só importa módulos puros (avaliacao, relatorio/base, fotos, marca, pdf) e o TIPO
-// DadosCliente. Nada de supabase nem logger aqui. Todo texto vindo do usuário passa por esc(), que também tira
-// emoji e troca travessão por hífen no que gente digitou.
+// A lista de compras ("Materiais e providências") vem de htmlCompras.ts e só entra quando está visível.
+// Este arquivo é PURO: só importa módulos puros (avaliacao, compras, htmlCompras, relatorio/base, fotos, marca,
+// pdf) e o TIPO DadosCliente. Nada de supabase nem logger aqui. Todo texto vindo do usuário passa por esc(), que
+// também tira emoji e troca travessão por hífen no que gente digitou.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type ModoRelatorio = 'tela' | 'pdf';
@@ -78,6 +81,11 @@ export interface EntradaVistoria {
   marca?: MarcaEmpresa | null;
   /** Endereço e concessionária do cadastro do cliente. */
   cliente?: DadosCliente | null;
+  /**
+   * Lista de compras que o relatório mostra. A rota manda a lista já filtrada por comprasVisiveis (nula quando está
+   * oculta, vazia ou sem a coluna). O template filtra de novo, então lista oculta ou vazia nunca vira seção.
+   */
+  compras?: Compras | null;
 }
 
 // ── CSS ─────────────────────────────────────────────────────────────────────
@@ -212,6 +220,9 @@ const CSS_PAGINA = '@page{size:A4;margin:14mm 16mm 18mm}';
 // ── Pedaços do HTML ─────────────────────────────────────────────────────────
 
 const aparar = (s: unknown): string => String(s ?? '').trim();
+
+/** Rótulo dos dois itens de documento, para a lista de compras quando a vistoria não traz o label deles. */
+const ROTULO_DOCUMENTOS: Record<string, string> = { conta_luz: 'Conta de luz', documento_pessoal: 'CNH / Identidade' };
 
 const chip = (s: StatusVistoria): string => `<span class="chip s-${s}">${esc(STATUS_RELATORIO[s])}</span>`;
 
@@ -369,7 +380,14 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
   const cob = cobertura(status);
   const concluida = e.status === 'concluida';
   const statusDe = (key: string): StatusVistoria | undefined => (ITENS_COM_STATUS.includes(key) ? status[key] : undefined);
-  const rotuloDe = (key: string): string => itens.find((i) => i.key === key)?.label || ROTULO_CHEIO[key] || key;
+  const rotuloDe = (key: string): string => itens.find((i) => i.key === key)?.label || ROTULO_CHEIO[key] || ROTULO_DOCUMENTOS[key] || key;
+
+  // Lista de compras: só entra visível (publica e com linhas). Sem ela a seção, a âncora, o "Na lista:" e o CSS somem,
+  // e o HTML sai igual ao de uma vistoria sem lista. O rótulo do item ligado é o label do item na própria vistoria.
+  const compras = e.compras ? comprasVisiveis(e.compras, true) : null;
+  const dadosCompras = compras ? agruparParaRelatorio(compras, status, rotuloDe) : null;
+  const comLista = !!dadosCompras && (dadosCompras.grupos.length > 0 || dadosCompras.notas.length > 0);
+  const nomesNaLista = compras && comLista ? nomesPorItem(compras) : {};
 
   // Documentos do titular ficam em seção própria; os demais são os itens técnicos, na ordem do checklist.
   const ehDocumento = (i: ItemAssinado): boolean => i.key === 'conta_luz' || i.key === 'documento_pessoal';
@@ -424,6 +442,7 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
   const temPendencias = !!r.selo;
   const ancoras = [
     temPendencias ? `<a href="#pendencias">Pendências</a>` : '',
+    comLista ? `<a href="#compras">Compras</a>` : '',
     visiveis.length ? `<a href="#registro">Fotos</a>` : '',
     tecnico || e.assinaturas?.cliente ? `<a href="#assinaturas">Assinaturas</a>` : '',
   ].filter(Boolean);
@@ -449,7 +468,8 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
         const nums = numeros.get(p.key) ?? [];
         const ref = refFotos(nums);
         const refHtml = ref ? `<p class="pref">${pdf ? esc(ref) : `<a href="#i-${esc(p.key)}">${esc(ref)}</a>`}</p>` : '';
-        return `<div class="pen ${p.prioridade}"><div class="hd"><b>${esc(p.label)}</b><span class="chip p-${p.prioridade}">${esc(pr.titulo)}</span></div><p>${esc(pr.frase)}</p>${obs ? `<p class="pobs">${esc(obs)}</p>` : ''}${refHtml}</div>`;
+        const naLista = comLista ? paragrafoNaLista(nomesNaLista[p.key]) : '';
+        return `<div class="pen ${p.prioridade}"><div class="hd"><b>${esc(p.label)}</b><span class="chip p-${p.prioridade}">${esc(pr.titulo)}</span></div><p>${esc(pr.frase)}</p>${obs ? `<p class="pobs">${esc(obs)}</p>` : ''}${refHtml}${naLista}</div>`;
       }).join('')
       : `<p class="vazio">${esc(SECOES.pendencias_vazio)}</p>`;
     const passos: readonly string[] = concluida ? proximosPassos(r.selo, cob) : [];
@@ -464,6 +484,9 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
   <p class="concl">${esc(r.conclusao)}</p>
   ${passos.length ? `<h2 class="sec">${esc(SECOES.proximos_passos)}</h2><ol class="passos">${passos.map((p) => `<li>${esc(p)}</li>`).join('')}</ol>` : ''}`;
   }
+
+  // ── Lista de compras (depois do resultado e antes do registro por item) ──
+  const secaoLista = comLista && dadosCompras ? secaoCompras(dadosCompras, modo) : '';
 
   // ── Registro por item, itens sem registro e documentos do titular ──
   const registro = visiveis.length
@@ -487,7 +510,7 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
 <meta property="og:title" content="${esc(titulo)}"/>
 <meta property="og:description" content="${esc(descricao)}"/>
 <meta property="og:type" content="article"/>
-<style>${CSS_BASE(pal)}${pdf ? CSS_IMPRESSAO : `@media print{${CSS_IMPRESSAO}}`}${CSS_PAGINA}</style>
+<style>${CSS_BASE(pal)}${comLista ? CSS_COMPRAS : ''}${pdf ? CSS_IMPRESSAO : `@media print{${CSS_IMPRESSAO}}`}${CSS_PAGINA}</style>
 </head><body>
 ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/v/${esc(e.id)}/pdf">${esc(SECOES.baixar_pdf)}</a></div>`}
 <main class="folha">
@@ -499,6 +522,7 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/v/$
   ${secaoIdentificacao(e, local, pdf)}
   ${concluida ? '' : `<div class="andamento" role="status">${esc(SECOES.andamento)}</div>`}
   ${resultado}
+  ${secaoLista}
   ${registro}
   ${vazio}
   ${blocoFaltando}

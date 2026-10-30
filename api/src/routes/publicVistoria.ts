@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
 import { abrirNavegador } from '../controllers/pdfController';
 import { montarZipDaVistoria, slugify, withSignedUrls } from './vistorias';
-import { Extras, lerExtras, urlsDasAssinaturas } from '../services/vistoria/extras';
+import { Extras, lerCompras, lerExtras, urlsDasAssinaturas } from '../services/vistoria/extras';
+import { comprasVisiveis, type Compras } from '../services/vistoria/compras';
 import { hashConteudoPdf, nomeDoPdf } from '../services/vistoria/cachePdf';
 import { DadosCliente, lerDadosCliente } from '../services/vistoria/clienteRelatorio';
 import {
@@ -30,14 +31,15 @@ function paginaErro(res: Response): void {
 }
 
 /**
- * Monta a entrada do relatório (fotos assinadas, status, assinaturas, marca do integrador e cadastro do cliente)
- * a partir da linha do banco. A marca e o cadastro são lidos por quem chama (a rota do PDF precisa deles antes,
- * para o hash) e nunca derrubam o relatório: sem eles, o relatório sai com a identidade padrão.
+ * Monta a entrada do relatório (fotos assinadas, status, assinaturas, lista de compras, marca do integrador e
+ * cadastro do cliente) a partir da linha do banco. A lista, a marca e o cadastro são lidos por quem chama (a rota
+ * do PDF precisa deles antes, para o hash). A lista chega já filtrada por comprasVisiveis, e é a MESMA que entra
+ * no hash. A marca e o cadastro nunca derrubam o relatório: sem eles, o relatório sai com a identidade padrão.
  */
 async function montarEntrada(
   v: { id: string; user_id?: string; cliente_id?: string | null; cliente_nome: string | null; status: string; itens: unknown; localizacao?: unknown; created_at: string },
   extras: Extras,
-  adicionais: { marca?: MarcaEmpresa | null; cliente?: DadosCliente | null } = {},
+  adicionais: { compras?: Compras | null; marca?: MarcaEmpresa | null; cliente?: DadosCliente | null } = {},
 ): Promise<EntradaVistoria> {
   const assinados = await withSignedUrls(Array.isArray(v.itens) ? v.itens : []);
   // O documento pessoal (CNH ou identidade) nunca sai em tela pública, PDF nem ZIP público: o relatório só precisa
@@ -60,6 +62,7 @@ async function montarEntrada(
       ...(t ? { tecnico: { url: urls.tecnico ?? null, nome: t.nome, registro: t.registro, ts: t.ts } } : {}),
       ...(c ? { cliente: { url: urls.cliente ?? null, nome: c.nome, ts: c.ts } } : {}),
     },
+    compras: adicionais.compras ?? null,
     marca: adicionais.marca ?? null,
     cliente: adicionais.cliente ?? null,
   };
@@ -86,9 +89,13 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
     // Colunas novas: sem a migration o relatório sai igual ao de antes (sem selo). Outro erro vira 500.
     const extras = await lerExtras(v.id);
+    // A lista de compras é lida DEPOIS dos extras (3ª leitura em `vistorias`). Sem a coluna, o relatório sai sem a
+    // seção; qualquer outro erro lança e cai no catch (500): nunca um relatório sem a lista por engano.
+    const lida = await lerCompras(v.id);
+    const compras = comprasVisiveis(lida.compras, lida.disponivel);
     // Marca e cadastro do cliente nunca lançam: sem eles o relatório sai com a identidade padrão.
     const [marca, cliente] = await Promise.all([lerMarca(v.user_id), lerDadosCliente(v.cliente_id, v.user_id)]);
-    const html = htmlVistoria(await montarEntrada(v, extras, { marca, cliente }), 'tela');
+    const html = htmlVistoria(await montarEntrada(v, extras, { compras, marca, cliente }), 'tela');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     // Sem cache: a marca e os dados editados aparecem no mesmo instante. Link só para quem recebeu: fora dos buscadores.
     res.setHeader('Cache-Control', 'private, no-store');
@@ -103,7 +110,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 // ── GET /v/:id/pdf — o mesmo relatório em PDF A4 ────────────────────────────────
 // O PDF vai para o bucket (resposta de função na Vercel passa de 4,5 MB com fotos) e a resposta é um
 // 302 para uma signed URL curta. O nome leva o hash do CONTEÚDO (fotos, observações, status, assinaturas,
-// nome, situação e local): mesma vistoria, mesmo arquivo, o Chromium só roda quando algo mudou.
+// nome, situação, local, lista de compras visível, marca e cadastro do cliente): mesma vistoria, mesmo arquivo,
+// o Chromium só roda quando algo mudou.
 router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
   let browser: Awaited<ReturnType<typeof abrirNavegador>> | undefined;
   try {
@@ -123,6 +131,10 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
     }
 
     const extras = await lerExtras(v.id);
+    // A lista vem DEPOIS dos extras (3ª leitura em `vistorias`) e dentro do try: erro que não seja coluna ausente
+    // vira 500, nunca um PDF (nem um PDF guardado) sem a lista por engano.
+    const lida = await lerCompras(v.id);
+    const compras = comprasVisiveis(lida.compras, lida.disponivel);
     // Lidas UMA vez, antes do hash: o que o relatório mostra é o que entra no nome do arquivo.
     const [marca, cliente] = await Promise.all([lerMarca(v.user_id), lerDadosCliente(v.cliente_id, v.user_id)]);
     const codigo = codigoVistoria(v.id);
@@ -133,6 +145,7 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
       cliente_nome: v.cliente_nome,
       status: v.status,
       localizacao: v.localizacao,
+      compras,
       marca,
       cliente,
     }));
@@ -143,7 +156,7 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
     const existe = (achados ?? []).some((a: { name?: string }) => a?.name === nome);
 
     if (!existe) {
-      const html = htmlVistoria(await montarEntrada(v, extras, { marca, cliente }), 'pdf');
+      const html = htmlVistoria(await montarEntrada(v, extras, { compras, marca, cliente }), 'pdf');
       browser = await abrirNavegador();
       const page = await browser.newPage();
       await page.setJavaScriptEnabled(false);
