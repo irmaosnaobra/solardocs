@@ -7,12 +7,13 @@ import JSZip from 'jszip';
 // em memória. Dados inventados, nada sai para a rede. Prova: status que descarta lixo, 409 em vistoria
 // concluída, 503 quando as colunas novas não existem, assinatura exigindo nome e PNG de verdade, reabrir,
 // GET com e sem colunas, a lista de compras (PUT, GET e a contagem de leituras), o ZIP autenticado com o
-// documento pessoal, relatório público com e sem selo e o PDF em 302.
+// documento pessoal, relatório público com e sem selo, com a marca do integrador e o cadastro do cliente, o
+// documento pessoal fora do link público e do ZIP público, o rodapé do PDF e o PDF em 302.
 
 const h = vi.hoisted(() => ({
   objetos: new Map<string, Buffer>(),
   removidos: [] as string[],
-  navegador: { abriu: 0, fechou: 0, html: '' as string, falha: false },
+  navegador: { abriu: 0, fechou: 0, html: '' as string, falha: false, opcoes: null as unknown },
   // Contagem de leituras (maybeSingle) em `vistorias` e gancho para simular outra requisição no meio.
   leituras: 0,
   aoLer: null as null | ((n: number) => void),
@@ -42,7 +43,10 @@ vi.mock('../utils/supabase', async () => {
           .filter((a) => !opts?.search || a.name.includes(opts.search)),
         error: null,
       }),
-      createSignedUrl: async (path: string) => ({ data: { signedUrl: `https://storage.test/${path}?token=abc` }, error: null }),
+      createSignedUrl: async (path: string, _validade?: number, opcoes?: { download?: string }) => ({
+        data: { signedUrl: `https://storage.test/${path}?token=abc${opcoes?.download ? `&download=${encodeURIComponent(opcoes.download)}` : ''}` },
+        error: null,
+      }),
       download: async (path: string) => {
         const ms = h.atrasoMs.get(path);
         if (ms) await new Promise((r) => setTimeout(r, ms));
@@ -69,7 +73,7 @@ vi.mock('../controllers/pdfController', () => ({
       newPage: async () => ({
         setJavaScriptEnabled: async () => {},
         setContent: async (html: string) => { h.navegador.html = html; if (h.navegador.falha) throw new Error('chromium caiu'); },
-        pdf: async () => new Uint8Array([37, 80, 68, 70]),
+        pdf: async (opcoes?: unknown) => { h.navegador.opcoes = opcoes; return new Uint8Array([37, 80, 68, 70]); },
       }),
       close: async () => { h.navegador.fechou++; },
     };
@@ -78,6 +82,7 @@ vi.mock('../controllers/pdfController', () => ({
 
 import { banco } from './_bancoFalso';
 import { logger } from '../utils/logger';
+import { urlPublica } from '../services/relatorio/base';
 import vistoriasRoutes, { CHECKLIST_VISTORIA, montarZipDaVistoria, slugify } from '../routes/vistorias';
 import publicVistoriaRoutes from '../routes/publicVistoria';
 
@@ -122,7 +127,7 @@ beforeEach(() => {
   banco.reset();
   h.objetos.clear();
   h.removidos.length = 0;
-  h.navegador.abriu = 0; h.navegador.fechou = 0; h.navegador.html = ''; h.navegador.falha = false;
+  h.navegador.abriu = 0; h.navegador.fechou = 0; h.navegador.html = ''; h.navegador.falha = false; h.navegador.opcoes = null;
   h.leituras = 0; h.aoLer = null; h.atrasoMs.clear();
 });
 
@@ -802,5 +807,300 @@ describe('PDF /v/:id/pdf', () => {
     expect(r.status).toBe(500);
     expect(r.text).toContain('Não consegui gerar o PDF. Tente de novo.');
     expect(h.navegador.fechou).toBe(1);
+  });
+});
+
+// ── Relatório público do lote 5a: marca, cadastro do cliente, cabeçalhos, rodapé do PDF e documento pessoal ──
+
+const CLI_ID = '22222222-2222-4222-8222-222222222222';
+const EMPRESA = {
+  user_id: U1, nome: 'Solar Teste Energia LTDA', nome_fantasia: 'Solar Teste', cnpj: '12345678000190',
+  logo_base64: PNG, cor_marca: '#0E6B5C', whatsapp: '31999990000', endereco: 'Rua dos Fundos, 10', cidade: 'Contagem',
+};
+const CLIENTE_DB = {
+  id: CLI_ID, user_id: U1, nome: 'Maria Souza', cpf_cnpj: '123.456.789-09', email: 'maria@exemplo.test',
+  telefone: '31988887777', telefone2: '3133334444', endereco: 'Rua das Flores, 100', cep: '30000-000',
+  cidade: 'Belo Horizonte', uf: 'MG', concessionaria: 'Distribuidora Regional',
+};
+const ENDERECO_CLIENTE = 'Rua das Flores, 100, Belo Horizonte/MG, CEP 30000-000';
+const DADOS_PRIVADOS = ['123.456.789-09', 'maria@exemplo.test', '31988887777', '3133334444'];
+const pdfRota = () => request(app).get(`/v/${ID}/pdf`).redirects(0);
+const pdfsNoBucket = () => [...h.objetos.keys()].filter((k) => k.includes('relatorio-'));
+const opcoesDoPdf = () => h.navegador.opcoes as {
+  format: string; printBackground: boolean; preferCSSPageSize: boolean; displayHeaderFooter: boolean; footerTemplate: string;
+};
+
+describe('relatório público: marca do integrador', () => {
+  it('mostra logo, nome, CNPJ formatado e o código do documento, na tela e no PDF', async () => {
+    poeVistoria();
+    banco.poe('company', EMPRESA);
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('<title>Vistoria: Maria Souza</title>');
+    expect(tela.text).toContain('<b>Solar Teste</b>');
+    expect(tela.text).toContain('<span>CNPJ 12.345.678/0001-90</span>');
+    expect(tela.text).toContain(`<img src="${PNG}" alt="Solar Teste"/>`);
+    expect(tela.text).toContain('<b>VT-11111111</b>');
+    await pdfRota();
+    expect(h.navegador.html).toContain('<b>Solar Teste</b>');
+    expect(h.navegador.html).toContain(`<img src="${PNG}" alt="Solar Teste"/>`);
+    expect(h.navegador.html).toContain('<span>CNPJ 12.345.678/0001-90</span>');
+  });
+  it('o contato da empresa (WhatsApp, endereço, cidade) não sai, mesmo preenchido no banco', async () => {
+    poeVistoria();
+    banco.poe('company', EMPRESA);
+    const tela = await request(app).get(`/v/${ID}`);
+    await pdfRota();
+    for (const texto of [tela.text, h.navegador.html]) {
+      expect(texto).not.toContain('WhatsApp');
+      expect(texto).not.toContain('31999990000');
+      expect(texto).not.toContain('99999-0000');
+      expect(texto).not.toContain('Rua dos Fundos');
+      expect(texto).not.toContain('Contagem');
+    }
+  });
+  it('sem empresa cadastrada (ou só de outro usuário) o relatório sai com a identidade padrão', async () => {
+    poeVistoria();
+    banco.poe('company', { ...EMPRESA, user_id: U2, nome_fantasia: 'Outra Empresa' });
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('<div class="marca"><div class="emp"><b>Vistoria de Energia Solar</b></div></div>');
+    expect(tela.text).not.toContain('Outra Empresa');
+    expect((await pdfRota()).status).toBe(302);
+    expect(h.navegador.html).not.toContain('Outra Empresa');
+  });
+  it('erro do banco ao ler a empresa não derruba o link: 200 na tela, 302 no PDF, e o erro vai para o log', async () => {
+    poeVistoria();
+    banco.poe('company', EMPRESA);
+    banco.falhas['company.select'] = { erro: BANCO_FORA };
+    vi.mocked(logger.error).mockClear();
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('<title>Vistoria: Maria Souza</title>');
+    expect(tela.text).not.toContain('Solar Teste');
+    expect((await pdfRota()).status).toBe(302);
+    expect(logger.error).toHaveBeenCalledWith('relatorio', 'falha lendo a marca da empresa', expect.anything());
+  });
+  it('marca editada aparece na tela no mesmo instante e gera um PDF novo; sem edição o PDF guardado vale', async () => {
+    poeVistoria();
+    banco.poe('company', EMPRESA);
+    const a = await pdfRota();
+    const b = await pdfRota();
+    expect(h.navegador.abriu).toBe(1);
+    expect(b.headers.location.split('?')[0]).toBe(a.headers.location.split('?')[0]);
+    banco.linhas('company')[0]!.nome_fantasia = 'Solar Nova';
+    const c = await pdfRota();
+    expect(h.navegador.abriu).toBe(2);
+    expect(h.navegador.html).toContain('<b>Solar Nova</b>');
+    expect(c.headers.location.split('?')[0]).not.toBe(a.headers.location.split('?')[0]);
+    expect(pdfsNoBucket()).toHaveLength(1);
+    expect((await request(app).get(`/v/${ID}`)).text).toContain('<b>Solar Nova</b>');
+  });
+  it('com a projeção de colunas ligada, as duas rotas ainda pedem o dono e o cadastro (user_id e cliente_id)', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('company', EMPRESA);
+    banco.poe('clients', CLIENTE_DB);
+    banco.projeta = true;
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('<b>Solar Teste</b>');
+    expect(tela.text).toContain(ENDERECO_CLIENTE);
+    expect((await pdfRota()).status).toBe(302);
+    expect(h.navegador.html).toContain('<b>Solar Teste</b>');
+    expect(h.navegador.html).toContain(ENDERECO_CLIENTE);
+  });
+});
+
+describe('relatório público: cadastro do cliente', () => {
+  it('mostra o endereço do cadastro e a concessionária, na tela e no PDF', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('clients', CLIENTE_DB);
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.text).toContain(`<dt>Endereço do cadastro</dt><dd>${ENDERECO_CLIENTE}</dd>`);
+    expect(tela.text).toContain('<dt>Concessionária</dt><dd>Distribuidora Regional</dd>');
+    await pdfRota();
+    expect(h.navegador.html).toContain(`<dt>Endereço do cadastro</dt><dd>${ENDERECO_CLIENTE}</dd>`);
+    expect(h.navegador.html).toContain('<dt>Concessionária</dt><dd>Distribuidora Regional</dd>');
+  });
+  it('CPF, e-mail e telefones do cadastro nunca aparecem', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('clients', CLIENTE_DB);
+    const tela = await request(app).get(`/v/${ID}`);
+    await pdfRota();
+    for (const texto of [tela.text, h.navegador.html]) for (const privado of DADOS_PRIVADOS) expect(texto).not.toContain(privado);
+  });
+  it('vistoria sem cliente_id ("só o nome") não consulta o cadastro', async () => {
+    poeVistoria();
+    banco.poe('clients', CLIENTE_DB);
+    // Se alguém ler `clients`, a falha é gasta e some do mapa: ela continuar lá prova que ninguém leu.
+    banco.falhas['clients.select'] = { erro: BANCO_FORA, uma: true };
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).not.toContain('Endereço do cadastro');
+    expect((await pdfRota()).status).toBe(302);
+    expect(banco.falhas['clients.select']).toBeDefined();
+    expect(banco.escritas).toHaveLength(0);
+  });
+  it('cliente de outro usuário nunca aparece', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('clients', { ...CLIENTE_DB, user_id: U2, endereco: 'Rua Secreta, 1' });
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).not.toContain('Rua Secreta');
+    expect(tela.text).not.toContain('Endereço do cadastro');
+  });
+  it('erro do banco no cadastro não derruba o relatório', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('clients', CLIENTE_DB);
+    banco.falhas['clients.select'] = { erro: BANCO_FORA };
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('<title>Vistoria: Maria Souza</title>');
+    expect(tela.text).not.toContain('Endereço do cadastro');
+    expect((await pdfRota()).status).toBe(302);
+  });
+  it('coluna nova ausente no cadastro: tenta de novo só com endereço e CEP', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('clients', CLIENTE_DB);
+    banco.falhas['clients.select'] = { erro: { code: '42703', message: 'column clients.concessionaria does not exist' }, uma: true };
+    banco.projeta = true;
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('<dt>Endereço do cadastro</dt><dd>Rua das Flores, 100, CEP 30000-000</dd>');
+    expect(tela.text).not.toContain('Concessionária');
+  });
+  it('mudar o endereço do cadastro gera um PDF novo; mudar um campo que o relatório não mostra, não', async () => {
+    poeVistoria({ cliente_id: CLI_ID });
+    banco.poe('clients', CLIENTE_DB);
+    await pdfRota();
+    await pdfRota();
+    expect(h.navegador.abriu).toBe(1);
+    banco.linhas('clients')[0]!.endereco = 'Avenida Nova, 9';
+    await pdfRota();
+    expect(h.navegador.abriu).toBe(2);
+    expect(h.navegador.html).toContain('Avenida Nova, 9');
+    banco.linhas('clients')[0]!.email = 'outro@exemplo.test';
+    await pdfRota();
+    expect(h.navegador.abriu).toBe(2);
+    expect(pdfsNoBucket()).toHaveLength(1);
+  });
+});
+
+describe('relatório público: cabeçalhos e prévia', () => {
+  it('a tela não guarda cache, sai fora dos buscadores e tem os metas da prévia', async () => {
+    poeVistoria();
+    const r = await request(app).get(`/v/${ID}`);
+    expect(r.status).toBe(200);
+    expect(r.headers['cache-control']).toBe('private, no-store');
+    expect(r.headers['x-robots-tag']).toContain('noindex');
+    expect(r.text).toContain('<meta name="robots" content="noindex,nofollow"/>');
+    expect(r.text).toContain('<meta property="og:title" content="Vistoria: Maria Souza"/>');
+    expect(r.text).toContain('<meta property="og:description" content="Relatório de vistoria de energia solar de Maria Souza."/>');
+    expect(r.text).toContain('<meta property="og:type" content="article"/>');
+  });
+  it('a descrição da prévia leva o nome da empresa quando há marca', async () => {
+    poeVistoria();
+    banco.poe('company', EMPRESA);
+    const r = await request(app).get(`/v/${ID}`);
+    expect(r.text).toContain('<meta property="og:description" content="Relatório de vistoria de energia solar de Maria Souza, por Solar Teste."/>');
+  });
+  it('a página de vistoria não encontrada também fica fora dos buscadores e em tema claro', async () => {
+    const r = await request(app).get(`/v/${ID_INEXISTENTE}`);
+    expect(r.status).toBe(404);
+    expect(r.text).toContain('<meta name="robots" content="noindex,nofollow"/>');
+    expect(r.text).not.toContain('#0F172A');
+  });
+  it('as assinaturas levam data e hora de Brasília, e o responsável técnico aparece no cabeçalho', async () => {
+    poeVistoria({
+      status: 'concluida',
+      assinaturas: {
+        tecnico: { path: `vistorias/${U1}/${ID}/assinatura-tecnico-1.png`, nome: 'Bruno Lima', registro: 'CFT 123', ts: '2026-10-27T17:32:00.000Z' },
+        cliente: { path: `vistorias/${U1}/${ID}/assinatura-cliente-1.png`, nome: 'Maria Souza', ts: '2026-10-27T17:40:00.000Z' },
+      },
+    });
+    const r = await request(app).get(`/v/${ID}`);
+    expect(r.text).toContain('Assinado em 27/10/2026 às 14:32');
+    expect(r.text).toContain('Assinado em 27/10/2026 às 14:40');
+    expect(r.text).toContain('<span>Responsável técnico: Bruno Lima, CFT 123</span>');
+  });
+});
+
+describe('PDF: rodapé de página e nome do arquivo', () => {
+  it('o rodapé traz empresa, código e cliente, com "Página X de Y", e o PDF sai em A4', async () => {
+    poeVistoria();
+    banco.poe('company', EMPRESA);
+    expect((await pdfRota()).status).toBe(302);
+    const o = opcoesDoPdf();
+    expect(o).toMatchObject({ format: 'A4', printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true });
+    expect(o.footerTemplate).toContain('Solar Teste · VT-11111111 · Maria Souza');
+    expect(o.footerTemplate).toContain('class="pageNumber"');
+    expect(o.footerTemplate).toContain('class="totalPages"');
+    expect(o.footerTemplate).toContain('font-size:10.5px');
+  });
+  it('sem empresa, o rodapé leva só o código e o cliente', async () => {
+    poeVistoria();
+    await pdfRota();
+    expect(opcoesDoPdf().footerTemplate).toContain('>VT-11111111 · Maria Souza</span>');
+  });
+  it('o nome do arquivo baixado é vistoria-<cliente>-<código>.pdf', async () => {
+    poeVistoria();
+    const r = await pdfRota();
+    expect(r.headers.location).toContain('download=vistoria-maria-souza-VT-11111111.pdf');
+    banco.reset();
+    poeVistoria({ cliente_nome: null });
+    const sem = await pdfRota();
+    expect(sem.headers.location).toContain('download=vistoria-solar-VT-11111111.pdf');
+  });
+  it('o HTML do PDF tem a versão online, a margem do @page e nada de tela', async () => {
+    poeVistoria({ status_itens: { padrao: 'conforme' } });
+    await pdfRota();
+    const html = h.navegador.html;
+    expect(html).toContain(`Versão online deste relatório: <a href="${urlPublica('v', ID)}">`);
+    expect(html).toContain('@page{size:A4;margin:14mm 16mm 18mm}');
+    expect(html).not.toContain('<footer class="rod">');
+    expect(html).not.toContain('Ir para:');
+  });
+});
+
+describe('documento pessoal (CNH ou identidade) fora do link público', () => {
+  it('a tela e o HTML do PDF não trazem imagem nem link do documento; a conta de luz continua', async () => {
+    semearArquivos({ status: 'concluida' });
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).not.toContain('documento_pessoal-1.jpg');
+    expect(tela.text).toContain('conta_luz-1.jpg');
+    expect(tela.text).toContain('Documento recebido. A imagem fica só com a empresa.');
+    expect(tela.text).toContain('Baixar fotos e arquivos (4)'); // conta de luz, 2 do padrão e telhado; o documento fica de fora
+    await pdfRota();
+    expect(h.navegador.html).not.toContain('documento_pessoal-1.jpg');
+    expect(h.navegador.html).toContain('conta_luz-1.jpg');
+    expect(h.navegador.html).toContain('Documento recebido. A imagem fica só com a empresa.');
+  });
+  it('o ZIP público não leva o documento pessoal; o ZIP do dono leva tudo', async () => {
+    semearArquivos();
+    const publico = await request(app).get(`/v/${ID}/fotos.zip`).buffer(true).parse(comoBuffer);
+    expect(publico.status).toBe(200);
+    const zip = await JSZip.loadAsync(publico.body);
+    expect(Object.keys(zip.files)).toEqual(NOMES_NO_ZIP.filter((n) => !n.startsWith('02-')));
+    for (const nome of Object.keys(zip.files)) expect(await zip.file(nome)!.async('string')).not.toContain('documento pessoal');
+    const dono = await baixarZip(`/vistorias/${ID}/fotos.zip`);
+    expect(Object.keys((await JSZip.loadAsync(dono.body)).files)).toEqual(NOMES_NO_ZIP);
+  });
+  it('vistoria só com o documento pessoal: ZIP público é 404 e a tela não oferece o botão', async () => {
+    poeVistoria({
+      itens: CHECKLIST_VISTORIA.map((c) => ({
+        key: c.key, label: c.label, dica: c.dica, obs: '',
+        fotos: c.key === 'documento_pessoal' ? [{ url: `${BASE_ZIP}/documento_pessoal-1.jpg`, ts: 't', tipo: 'image' }] : [],
+      })),
+    });
+    h.objetos.set(`${BASE_ZIP}/documento_pessoal-1.jpg`, Buffer.from('bytes do documento pessoal'));
+    const zip = await request(app).get(`/v/${ID}/fotos.zip`);
+    expect(zip.status).toBe(404);
+    expect(zip.text).toBe('Esta vistoria ainda não tem fotos.');
+    const tela = await request(app).get(`/v/${ID}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).not.toContain('Baixar fotos e arquivos');
+    expect(tela.text).not.toContain('documento_pessoal-1.jpg');
+    expect(tela.text).toContain('Documento recebido. A imagem fica só com a empresa.');
   });
 });

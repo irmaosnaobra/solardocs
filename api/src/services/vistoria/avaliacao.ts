@@ -74,6 +74,22 @@ export const SECOES = {
   assinatura_cliente: 'Assinatura do cliente',
   baixar_pdf: 'Baixar PDF',
   erro_pdf: 'Não consegui gerar o PDF. Tente de novo.',
+  // Textos novos do relatório (29/10/2026). As chaves de cima não mudam de valor.
+  titulo: 'Vistoria de Energia Solar',
+  identificacao: 'Identificação',
+  andamento: 'Vistoria em andamento. O resultado completo aparece quando o técnico concluir.',
+  faltam_avaliar: 'Faltam avaliar:',
+  proximos_passos: 'Próximos passos',
+  registro: 'Registro por item',
+  sem_registro: 'Sem registro:',
+  sem_nada: 'Nenhum registro ainda.',
+  documentos: 'Documentos do titular',
+  documentos_apoio: 'Documentos recebidos do titular da conta, para uso da engenharia.',
+  documento_sem_imagem: 'Documento recebido. A imagem fica só com a empresa.',
+  responsavel: 'Responsável técnico:',
+  versao_online: 'Versão online deste relatório:',
+  baixar_arquivos: 'Baixar fotos e arquivos',
+  ir_para: 'Ir para:',
 };
 
 /** Aceita qualquer coisa vinda da tela e devolve só chaves técnicas com valor válido. */
@@ -128,7 +144,8 @@ export function pendencias(statusItens: unknown, itens: ItemMin[] = []): Pendenc
   return [...out.filter((p) => p.prioridade === 'alta'), ...out.filter((p) => p.prioridade === 'media')];
 }
 
-function juntarLista(partes: string[]): string {
+/** "A", "A e B", "A, B e C". Lista vazia devolve ''. */
+export function juntarLista(partes: string[]): string {
   if (partes.length <= 1) return partes[0] ?? '';
   return partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1];
 }
@@ -176,4 +193,91 @@ export function resumo(itens: ItemMin[], statusItens: unknown): ResumoVistoria {
     itensComFoto: contarItensComFoto(itens),
     totalItens: Array.isArray(itens) ? itens.length : 0,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cobertura da avaliação, placar, frase explicativa por item e próximos passos.
+// Funções novas e puras: calcularSelo, pendencias, montarConclusao e resumo não mudam.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Cobertura {
+  /** Itens técnicos com qualquer status válido, inclusive 'na'. */
+  avaliados: number;
+  /** Sempre 10: os itens técnicos. */
+  total: number;
+  /** Chaves sem status, na ordem do checklist. */
+  faltam: string[];
+}
+
+export function cobertura(statusItens: unknown): Cobertura {
+  const m = sanitizarStatus(statusItens);
+  const faltam = ITENS_COM_STATUS.filter((k) => !m[k]);
+  return { avaliados: ITENS_COM_STATUS.length - faltam.length, total: ITENS_COM_STATUS.length, faltam };
+}
+
+/**
+ * "10 itens avaliados: 4 conformes, 3 com atenção, 2 não conformes e 1 não se aplica." Com menos de 10:
+ * "4 de 10 itens avaliados: 4 conformes." Só entram as partes com contagem maior que zero. Sem status: ''.
+ */
+export function frasePlacar(statusItens: unknown): string {
+  const m = sanitizarStatus(statusItens);
+  const valores = ITENS_COM_STATUS.map((k) => m[k]).filter((v): v is StatusVistoria => !!v);
+  const n = valores.length;
+  if (n === 0) return '';
+  const quantos = (s: StatusVistoria): number => valores.filter((v) => v === s).length;
+  const partes: string[] = [];
+  const conformes = quantos('conforme');
+  if (conformes) partes.push(`${conformes} ${conformes === 1 ? 'conforme' : 'conformes'}`);
+  const atencao = quantos('atencao');
+  if (atencao) partes.push(`${atencao} com atenção`);
+  const naoConformes = quantos('nao_conforme');
+  if (naoConformes) partes.push(`${naoConformes} ${naoConformes === 1 ? 'não conforme' : 'não conformes'}`);
+  const naoSeAplica = quantos('na');
+  if (naoSeAplica) partes.push(`${naoSeAplica} ${naoSeAplica === 1 ? 'não se aplica' : 'não se aplicam'}`);
+  const abertura = n === ITENS_COM_STATUS.length ? `${n} itens avaliados` : `${n} de ${ITENS_COM_STATUS.length} itens avaliados`;
+  return `${abertura}: ${juntarLista(partes)}.`;
+}
+
+/** Selo que substitui o "conforme" quando faltam itens a avaliar: nunca se imprime "Apto para instalar" sem os 10. */
+export const SELO_PARCIAL = {
+  titulo: 'Itens avaliados em ordem',
+  frase: 'Faltam itens a avaliar. O resultado completo depende deles.',
+};
+
+/** Uma frase por item, para quem lê o relatório sem conhecer a vistoria. */
+export const EXPLICA: Record<string, string> = {
+  conta_luz: 'Mostra o consumo e o titular da conta.',
+  documento_pessoal: 'Confirma quem é o titular da conta.',
+  padrao: 'A caixa e o poste por onde a energia da rua chega à casa.',
+  medidor: 'O relógio de luz, que mede o consumo e a energia injetada.',
+  disjuntor_padrao: 'A chave geral da casa.',
+  quadro_distribuicao: 'O quadro com as chaves de cada circuito da casa.',
+  inversores: 'Onde ficam o inversor e a chave de proteção do lado da rede.',
+  telhado: 'A cobertura onde os módulos serão instalados.',
+  tipo_telha: 'O tipo de telha define como os módulos serão presos.',
+  estrutura: 'Onde os módulos serão presos no telhado.',
+  cabeamento: 'Por onde os fios vão do telhado ao quadro.',
+  sombreamento: 'Árvores, prédios e caixas d’água que fazem sombra nos módulos.',
+};
+
+/** Próximos passos por selo. Só aparecem quando a vistoria está concluída. */
+export const PROXIMOS_PASSOS = {
+  nao_conforme: [
+    'Resolver os itens de prioridade alta antes da instalação.',
+    'Combinar com a empresa quem faz cada ajuste.',
+    'Avisar a empresa quando terminar, para conferir e marcar a instalação.',
+  ],
+  atencao: [
+    'Resolver os itens de prioridade média antes ou durante a instalação.',
+    'Combinar com a empresa quem faz cada ajuste.',
+  ],
+  conforme: ['Nenhum ajuste é necessário. A instalação pode ser marcada.'],
+  conforme_parcial: ['Concluir a avaliação dos itens que faltam antes de marcar a instalação.'],
+} as const;
+
+/** Lista de próximos passos do selo; 'conforme' com itens por avaliar usa a lista própria. Sem selo: lista vazia. */
+export function proximosPassos(selo: SeloVistoria | null, cob: Cobertura): readonly string[] {
+  if (!selo) return [];
+  if (selo === 'conforme') return cob.avaliados < cob.total ? PROXIMOS_PASSOS.conforme_parcial : PROXIMOS_PASSOS.conforme;
+  return PROXIMOS_PASSOS[selo];
 }

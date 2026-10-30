@@ -1,23 +1,19 @@
 import { Router, Request, Response } from 'express';
-import JSZip from 'jszip';
 import { supabase } from '../utils/supabase';
 import { abrirNavegador } from '../controllers/pdfController';
-import { withSignedUrls } from './vistorias';
+import { montarZipDaVistoria, slugify, withSignedUrls } from './vistorias';
 import { Extras, lerExtras, urlsDasAssinaturas } from '../services/vistoria/extras';
 import { hashConteudoPdf, nomeDoPdf } from '../services/vistoria/cachePdf';
+import { DadosCliente, lerDadosCliente } from '../services/vistoria/clienteRelatorio';
 import {
   EntradaVistoria, htmlVistoria, opcoesPdf, paginaErroPdf, paginaNaoEncontrada,
 } from '../services/vistoria/htmlRelatorio';
+import { codigoVistoria } from '../services/relatorio/base';
+import type { MarcaEmpresa } from '../services/relatorio/marca';
+import { lerMarca } from '../services/relatorio/marcaDb';
 
 const BUCKET = 'documentos';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Nome de arquivo seguro: sem acento, minúsculo, só a-z0-9 e hífen.
-function slugify(s: string): string {
-  return String(s || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /v/:id — relatório PÚBLICO da vistoria solar (sem auth).
@@ -33,12 +29,22 @@ function paginaErro(res: Response): void {
   res.status(404).type('text/html').send(paginaNaoEncontrada());
 }
 
-/** Monta a entrada do relatório (fotos assinadas, status e assinaturas) a partir da linha do banco. */
+/**
+ * Monta a entrada do relatório (fotos assinadas, status, assinaturas, marca do integrador e cadastro do cliente)
+ * a partir da linha do banco. A marca e o cadastro são lidos por quem chama (a rota do PDF precisa deles antes,
+ * para o hash) e nunca derrubam o relatório: sem eles, o relatório sai com a identidade padrão.
+ */
 async function montarEntrada(
-  v: { id: string; cliente_nome: string | null; status: string; itens: unknown; localizacao?: unknown; created_at: string },
+  v: { id: string; user_id?: string; cliente_id?: string | null; cliente_nome: string | null; status: string; itens: unknown; localizacao?: unknown; created_at: string },
   extras: Extras,
+  adicionais: { marca?: MarcaEmpresa | null; cliente?: DadosCliente | null } = {},
 ): Promise<EntradaVistoria> {
-  const itens = await withSignedUrls(Array.isArray(v.itens) ? v.itens : []);
+  const assinados = await withSignedUrls(Array.isArray(v.itens) ? v.itens : []);
+  // O documento pessoal (CNH ou identidade) nunca sai em tela pública, PDF nem ZIP público: o relatório só precisa
+  // saber QUANTAS mídias há. Nem o caminho nem a URL assinada seguem para o template.
+  const itens = assinados.map((i) => (i.key === 'documento_pessoal'
+    ? { ...i, fotos: i.fotos.map((f) => ({ ...f, url: '', signed: null })) }
+    : i));
   const urls = await urlsDasAssinaturas(extras.assinaturas);
   const t = extras.assinaturas.tecnico;
   const c = extras.assinaturas.cliente;
@@ -51,9 +57,11 @@ async function montarEntrada(
     itens,
     status_itens: extras.status_itens,
     assinaturas: {
-      ...(t ? { tecnico: { url: urls.tecnico ?? null, nome: t.nome, registro: t.registro } } : {}),
-      ...(c ? { cliente: { url: urls.cliente ?? null, nome: c.nome } } : {}),
+      ...(t ? { tecnico: { url: urls.tecnico ?? null, nome: t.nome, registro: t.registro, ts: t.ts } } : {}),
+      ...(c ? { cliente: { url: urls.cliente ?? null, nome: c.nome, ts: c.ts } } : {}),
     },
+    marca: adicionais.marca ?? null,
+    cliente: adicionais.cliente ?? null,
   };
 }
 
@@ -67,7 +75,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
     const { data: v } = await supabase
       .from('vistorias')
-      .select('id, cliente_nome, status, itens, localizacao, created_at')
+      .select('id, user_id, cliente_id, cliente_nome, status, itens, localizacao, created_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -78,9 +86,13 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
     // Colunas novas: sem a migration o relatório sai igual ao de antes (sem selo). Outro erro vira 500.
     const extras = await lerExtras(v.id);
-    const html = htmlVistoria(await montarEntrada(v, extras), 'tela');
+    // Marca e cadastro do cliente nunca lançam: sem eles o relatório sai com a identidade padrão.
+    const [marca, cliente] = await Promise.all([lerMarca(v.user_id), lerDadosCliente(v.cliente_id, v.user_id)]);
+    const html = htmlVistoria(await montarEntrada(v, extras, { marca, cliente }), 'tela');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=120');
+    // Sem cache: a marca e os dados editados aparecem no mesmo instante. Link só para quem recebeu: fora dos buscadores.
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
     res.send(html);
   } catch (err) {
     console.error('[public-vistoria] erro:', err);
@@ -102,7 +114,7 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
     }
     const { data: v } = await supabase
       .from('vistorias')
-      .select('id, user_id, cliente_nome, status, itens, localizacao, created_at')
+      .select('id, user_id, cliente_id, cliente_nome, status, itens, localizacao, created_at')
       .eq('id', id)
       .maybeSingle();
     if (!v) {
@@ -111,6 +123,9 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
     }
 
     const extras = await lerExtras(v.id);
+    // Lidas UMA vez, antes do hash: o que o relatório mostra é o que entra no nome do arquivo.
+    const [marca, cliente] = await Promise.all([lerMarca(v.user_id), lerDadosCliente(v.cliente_id, v.user_id)]);
+    const codigo = codigoVistoria(v.id);
     const nome = nomeDoPdf(hashConteudoPdf({
       itens: v.itens,
       status_itens: extras.status_itens,
@@ -118,6 +133,8 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
       cliente_nome: v.cliente_nome,
       status: v.status,
       localizacao: v.localizacao,
+      marca,
+      cliente,
     }));
     const prefixo = `vistorias/${v.user_id}/${v.id}`;
     const caminho = `${prefixo}/${nome}`;
@@ -126,12 +143,12 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
     const existe = (achados ?? []).some((a: { name?: string }) => a?.name === nome);
 
     if (!existe) {
-      const html = htmlVistoria(await montarEntrada(v, extras), 'pdf');
+      const html = htmlVistoria(await montarEntrada(v, extras, { marca, cliente }), 'pdf');
       browser = await abrirNavegador();
       const page = await browser.newPage();
       await page.setJavaScriptEnabled(false);
       await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60_000 });
-      const pdf = await page.pdf(opcoesPdf());
+      const pdf = await page.pdf(opcoesPdf({ marcaNome: marca?.nome, codigo, cliente: v.cliente_nome }));
       const { error: upErr } = await supabase.storage.from(BUCKET)
         .upload(caminho, Buffer.from(pdf), { contentType: 'application/pdf', upsert: true });
       if (upErr) throw new Error('upload do PDF falhou: ' + upErr.message);
@@ -144,7 +161,7 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
     }
 
     const { data: signed } = await supabase.storage.from(BUCKET)
-      .createSignedUrl(caminho, 600, { download: `vistoria-${slugify(v.cliente_nome || 'solar')}.pdf` });
+      .createSignedUrl(caminho, 600, { download: `vistoria-${slugify(v.cliente_nome || 'solar')}-${codigo}.pdf` });
     if (!signed?.signedUrl) throw new Error('não consegui assinar o PDF');
     res.setHeader('Cache-Control', 'private, no-store');
     res.redirect(302, signed.signedUrl);
@@ -162,6 +179,8 @@ router.get('/:id/pdf', async (req: Request, res: Response): Promise<void> => {
 // ── GET /v/:id/fotos.zip — baixa TODAS as fotos/arquivos num ZIP organizado ─────
 // Público (é o link que a engenharia recebe). Nomes prefixados pela ordem do item
 // (01-conta-de-luz-1.jpg …) pra chegar organizado e ordenável na engenharia.
+// O documento pessoal (CNH ou identidade) NÃO entra: o link abre sem login e a imagem fica só com a empresa,
+// que a baixa pela rota autenticada (GET /vistorias/:id/fotos.zip).
 router.get('/:id/fotos.zip', async (req: Request, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id || '');
@@ -180,35 +199,12 @@ router.get('/:id/fotos.zip', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    type Foto = { url: string; tipo: 'image' | 'file'; nome?: string };
-    type Item = { label: string; fotos?: Foto[] };
-    const itens = (Array.isArray(v.itens) ? v.itens : []) as Item[];
-
-    // Baixa cada arquivo do Storage e adiciona ao zip com nome organizado.
-    const zip = new JSZip();
-    let adicionados = 0;
-    await Promise.all(
-      itens.flatMap((item, i) => {
-        const fotos = Array.isArray(item.fotos) ? item.fotos : [];
-        const ordem = String(i + 1).padStart(2, '0');
-        const base = slugify(item.label);
-        return fotos.map(async (f, j) => {
-          const { data: blob, error } = await supabase.storage.from(BUCKET).download(f.url);
-          if (error || !blob) return;
-          const buf = Buffer.from(await blob.arrayBuffer());
-          const ext = (f.url.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-          zip.file(`${ordem}-${base}-${j + 1}.${ext}`, buf);
-          adicionados++;
-        });
-      }),
-    );
-
-    if (adicionados === 0) {
+    const content = await montarZipDaVistoria(v.itens, { pularItens: ['documento_pessoal'] });
+    if (!content) {
       res.status(404).type('text/plain').send('Esta vistoria ainda não tem fotos.');
       return;
     }
 
-    const content = await zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
     const fname = `vistoria-${slugify(v.cliente_nome || 'solar')}.zip`;
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
