@@ -562,66 +562,88 @@ describe('convite por e-mail: teste para o sócio', () => {
   const URL_PREVIA = '/gerador/nexus/equipe/convites/email/previa';
   const URL_ENVIAR = '/gerador/nexus/equipe/convites/email/enviar';
   const testar = (auth: Record<string, string> = equipeAuth) => request(app()).post(URL_TESTE).set(auth).send({});
+  /** Sócio com o login do SolarDoc (o do /nexus/adm): users.is_admin. SEM linha em `company`, para não entrar no público do convite. */
+  const semearAdmin = (id: string, email: string | null, nome: string | null) => banco.poe('users', { id, email, nome, is_admin: true });
 
-  it('manda UM e-mail só para quem está logado (login do Gerador), com o texto do lote e o primeiro nome dele', async () => {
-    const r = await testar();
-    expect(r.status).toBe(200);
-    expect(r.body).toEqual({ enviado_para: 't***o@irmaosnaobra.app' });
-    expect(saiu).toHaveLength(1);
-    const e = saiu[0]!;
-    expect(e.to).toBe('thiago@irmaosnaobra.app');
-    expect(e.subject).toBe('Conheça a NEXUS, a nossa distribuidora');
-    expect(e.html).toContain('Olá, Thiago.');
-    expect(e.html).toContain('Conhecer a NEXUS');
-    expect(e.html).toBe(htmlConvite(ID_CONVITE_TESTE, 'thiago')); // é o MESMO e-mail que o lote monta
-    expect(e.headers!['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
-    expect(enviadosZap).toHaveLength(0);
-  });
-
-  it('login do SolarDoc (o do /nexus/adm): vai para o e-mail da conta, com o primeiro nome do cadastro', async () => {
-    banco.poe('users', { id: U1, email: 'Maria.Dona@Exemplo.com', nome: 'Maria da Silva', is_admin: true });
+  it('login do SolarDoc (o do /nexus/adm): UM e-mail só para o e-mail da conta, o mesmo do lote, com o primeiro nome do cadastro', async () => {
+    semearAdmin(U1, 'Maria.Dona@Exemplo.com', 'Maria da Silva');
     const r = await testar(bearer(U1));
     expect(r.status).toBe(200);
     expect(r.body).toEqual({ enviado_para: 'm***a@exemplo.com' });
     expect(saiu).toHaveLength(1);
-    expect(saiu[0]!.to).toBe('maria.dona@exemplo.com');
-    expect(saiu[0]!.html).toContain('Olá, Maria.');
+    const e = saiu[0]!;
+    expect(e.to).toBe('maria.dona@exemplo.com');
+    expect(e.subject).toBe('Conheça a NEXUS, a nossa distribuidora');
+    expect(e.html).toContain('Olá, Maria.');
+    expect(e.html).toContain('Conhecer a NEXUS');
+    expect(e.html).toBe(htmlConvite(ID_CONVITE_TESTE, 'Maria da Silva')); // é o MESMO e-mail que o lote monta
+    expect(e.headers!['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+    expect(enviadosZap).toHaveLength(0);
     // o descadastro do teste NÃO é o da conta do sócio (descadastrar desliga e-mail e WhatsApp)
-    expect(saiu[0]!.html).toContain(`u=${ID_CONVITE_TESTE}`);
-    expect(saiu[0]!.html).not.toContain(U1);
-    expect(JSON.stringify(saiu[0]!.headers)).toContain(`u=${ID_CONVITE_TESTE}`);
-    expect(JSON.stringify(saiu[0]!.headers)).not.toContain(U1);
+    expect(e.html).toContain(`u=${ID_CONVITE_TESTE}`);
+    expect(e.html).not.toContain(U1);
+    expect(JSON.stringify(e.headers)).toContain(`u=${ID_CONVITE_TESTE}`);
+    expect(JSON.stringify(e.headers)).not.toContain(U1);
+  });
+
+  it('login do Gerador (<nome>@irmaosnaobra.app, domínio sem caixa de e-mail): 409 teste_so_no_adm, nada sai, nada é gravado e a vaga não é gasta', async () => {
+    process.env.SOLAR_SOCIOS = 'thiago,ana';
+    // Duas seguidas, com sócios diferentes: nenhuma vira 429, então o 409 não gastou o minuto de ninguém.
+    for (const auth of [equipeAuth, equipeAuth, naoSocioAuth]) {
+      const r = await testar(auth);
+      expect(r.status).toBe(409);
+      expect(r.body).toEqual({ erro: 'teste_so_no_adm' });
+    }
+    expect(saiu).toHaveLength(0);
+    expect(banco.escritas).toHaveLength(0);
+    expect(banco.linhas('system_state')).toHaveLength(0);
+  });
+
+  it('a saudação do teste é a que o lote dá à mesma conta: sem nome no cadastro vai só "Olá.", nunca o começo do e-mail', async () => {
+    semearAdmin(U1, 'contato@empresa.com', null);
+    semearAdmin(U2, 'vendas@empresa.com', '   ');
+    expect((await testar(bearer(U1))).status).toBe(200);
+    expect((await testar(bearer(U2))).status).toBe(200);
+    expect(saiu.map((e) => e.to)).toEqual(['contato@empresa.com', 'vendas@empresa.com']);
+    for (const e of saiu) {
+      expect(e.html).toContain('<p style="margin:0 0 14px;">Olá.</p>');
+      expect(e.html).not.toContain('Olá,');
+      expect(e.html).not.toMatch(/Contato|Vendas/);
+      expect(e.html).toBe(htmlConvite(ID_CONVITE_TESTE)); // sem nome, igual ao que o lote monta para conta sem nome
+    }
   });
 
   it('o destino NUNCA vem do corpo, da query nem de cabeçalho', async () => {
+    semearAdmin(U1, 'dono@exemplo.com', 'Dono');
     const r = await request(app())
       .post(`${URL_TESTE}?email=query@outro.com&to=query@outro.com`)
-      .set(equipeAuth)
+      .set(bearer(U1))
       .set('X-Email', 'cabecalho@outro.com').set('X-Forwarded-Email', 'cabecalho@outro.com').set('Reply-To', 'cabecalho@outro.com')
       .send({ email: 'corpo@outro.com', to: 'corpo@outro.com', destinatario: ['corpo@outro.com'], nome: 'Invasor' });
     expect(r.status).toBe(200);
     expect(saiu).toHaveLength(1);
-    expect(saiu[0]!.to).toBe('thiago@irmaosnaobra.app');
+    expect(saiu[0]!.to).toBe('dono@exemplo.com');
     expect(JSON.stringify(saiu[0])).not.toContain('outro.com');
     expect(saiu[0]!.html).not.toContain('Invasor');
     expect(JSON.stringify(r.body)).not.toContain('outro.com');
   });
 
   it('não toma trava, não grava nada, não marca ninguém como convidado e não mexe na prévia nem no lote', async () => {
+    semearAdmin(U1, 'dono@exemplo.com', 'Dono');
     semearConta(1); semearConta(2);
-    const antes = (await request(app()).get(URL_PREVIA).set(equipeAuth)).body;
+    const antes = (await request(app()).get(URL_PREVIA).set(bearer(U1))).body;
     expect(antes).toMatchObject({ total: 2, ja_enviados: 0, a_enviar: 2 });
 
-    const r = await testar();
+    const r = await testar(bearer(U1));
     expect(r.status).toBe(200);
     expect(banco.escritas).toHaveLength(0);
     expect(banco.linhas('system_state')).toHaveLength(0);
-    expect((await request(app()).get(URL_PREVIA).set(equipeAuth)).body).toEqual(antes);
+    expect((await request(app()).get(URL_PREVIA).set(bearer(U1))).body).toEqual(antes);
 
     // o teste não gastou nenhum convite: o lote ainda manda para as duas contas
-    const lote = await request(app()).post(URL_ENVIAR).set(equipeAuth).send({ confirmar: true });
+    const lote = await request(app()).post(URL_ENVIAR).set(bearer(U1)).send({ confirmar: true });
     expect(lote.body).toEqual({ enviados: 2, restantes: 0, falhas: 0, parou_por_erro: false });
-    expect(saiu.map((e) => e.to).sort()).toEqual(['conta1@exemplo.com', 'conta2@exemplo.com', 'thiago@irmaosnaobra.app']);
+    expect(saiu.map((e) => e.to).sort()).toEqual(['conta1@exemplo.com', 'conta2@exemplo.com', 'dono@exemplo.com']);
     expect(banco.linhas('system_state').map((s) => s.key).sort()).toEqual([`nexus_convite_email:${conta(1)}`, `nexus_convite_email:${conta(2)}`]);
   });
 
@@ -643,41 +665,44 @@ describe('convite por e-mail: teste para o sócio', () => {
   });
 
   it('1 teste por minuto por usuário: o segundo leva 429 {erro:"aguarde"} sem enviar, outro usuário passa, e passado 1 minuto libera', async () => {
-    process.env.SOLAR_SOCIOS = 'thiago,ana';
+    semearAdmin(U1, 'dono1@exemplo.com', 'Dono Um');
+    semearAdmin(U2, 'dono2@exemplo.com', 'Dono Dois');
     const agora = Date.now();
     const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora);
 
-    expect((await testar()).status).toBe(200);
+    expect((await testar(bearer(U1))).status).toBe(200);
     relogio.mockReturnValue(agora + 59_000);
-    const segundo = await testar();
+    const segundo = await testar(bearer(U1));
     expect(segundo.status).toBe(429);
     expect(segundo.body).toEqual({ erro: 'aguarde' });
     expect(segundo.headers['retry-after']).toBe('1');
     expect(saiu).toHaveLength(1);
 
-    expect((await testar(naoSocioAuth)).status).toBe(200); // Ana, sócia nesta env, tem a vaga dela
-    expect(saiu.map((e) => e.to)).toEqual(['thiago@irmaosnaobra.app', 'ana@irmaosnaobra.app']);
+    expect((await testar(bearer(U2))).status).toBe(200); // outro sócio, outro e-mail: a vaga dele é dele
+    expect(saiu.map((e) => e.to)).toEqual(['dono1@exemplo.com', 'dono2@exemplo.com']);
 
     relogio.mockReturnValue(agora + 61_000);
-    expect((await testar()).status).toBe(200);
+    expect((await testar(bearer(U1))).status).toBe(200);
     expect(saiu).toHaveLength(3);
   });
 
   it('dois cliques ao mesmo tempo mandam um e-mail só', async () => {
-    const [a, b] = await Promise.all([testar(), testar()]);
+    semearAdmin(U1, 'dono@exemplo.com', 'Dono');
+    const [a, b] = await Promise.all([testar(bearer(U1)), testar(bearer(U1))]);
     expect([a.status, b.status].sort()).toEqual([200, 429]);
     expect(saiu).toHaveLength(1);
   });
 
   it('a Resend falhando: 502 envio_falhou, nada gravado, e o sócio pode tentar de novo logo em seguida', async () => {
+    semearAdmin(U1, 'dono@exemplo.com', 'Dono');
     vi.mocked(enviador.enviar).mockRejectedValueOnce(new Error('Resend fora'));
-    const falhou = await testar();
+    const falhou = await testar(bearer(U1));
     expect(falhou.status).toBe(502);
     expect(falhou.body).toEqual({ erro: 'envio_falhou' });
     expect(banco.escritas).toHaveLength(0);
     expect(saiu).toHaveLength(0);
 
-    const de_novo = await testar();
+    const de_novo = await testar(bearer(U1));
     expect(de_novo.status).toBe(200);
     expect(saiu).toHaveLength(1);
   });

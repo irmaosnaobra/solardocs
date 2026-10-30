@@ -7,9 +7,10 @@
 //   2. Token do Gerador (Supabase Auth do Gerador): a regra do `exigeConsultor` (routes/geradorDossie.ts), chamada como
 //      está, sem cópia: e-mail @irmaosnaobra.app CONFIRMADO. Só chega aqui quando a assinatura do SolarDoc falhou.
 //
-// Preenche req.equipe = {email, nome, socio, gerirEquipe, via} e mantém req.consultor = {email, nome} (o código existente
-// lê criado_por dali). `socio` e `gerirEquipe` NUNCA saem do nome do e-mail no caminho do SolarDoc: lá só valem
-// is_admin ou o papel 'socio'. O papel 'admin' de nexus_equipe entra no ADM, mas não é sócio e não gere a equipe.
+// Preenche req.equipe = {email, nome, socio, gerirEquipe, via} (e, no SolarDoc, nomeCadastro = users.nome cru) e mantém
+// req.consultor = {email, nome} (o código existente lê criado_por dali). `socio` e `gerirEquipe` NUNCA saem do nome do
+// e-mail no caminho do SolarDoc: lá só valem is_admin ou o papel 'socio'. O papel 'admin' de nexus_equipe entra no ADM,
+// mas não é sócio e não gere a equipe.
 // Falha do banco nunca libera: vira 500.
 
 import { Request, Response, NextFunction } from 'express';
@@ -27,6 +28,9 @@ export interface EquipeNexus {
   socio: boolean;
   gerirEquipe: boolean;
   via: 'gerador' | 'solardoc';
+  /** users.nome CRU, só no caminho do SolarDoc (vazio quando a conta não tem nome). `nome` cai no começo do e-mail nesse caso, e a
+   *  saudação do convite de TESTE tem que ser a que o lote dá à mesma conta, que lê só users.nome. */
+  nomeCadastro?: string;
 }
 
 declare global {
@@ -79,9 +83,10 @@ export async function exigeEquipeNexus(req: Request, res: Response, next: NextFu
         res.status(403).json({ erro: 'sem_acesso_adm' });
         return;
       }
-      const nome = String(u.nome ?? '').trim() || email.split('@')[0] || email;
+      const nomeCadastro = String(u.nome ?? '').trim();
+      const nome = nomeCadastro || email.split('@')[0] || email;
       const socio = admin || papel === 'socio';
-      req.equipe = { email, nome, socio, gerirEquipe: socio, via: 'solardoc' };
+      req.equipe = { email, nome, socio, gerirEquipe: socio, via: 'solardoc', nomeCadastro };
       (req as unknown as { consultor?: { email: string; nome: string } }).consultor = { email, nome };
     } catch (e) {
       logger.error('nexus-equipe', 'não consegui conferir o acesso ao ADM', e);

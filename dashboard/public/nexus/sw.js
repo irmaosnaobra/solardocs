@@ -2,7 +2,7 @@
  * Escopo /nexus/ (registrado com scope explicito). Nao toca em /gerador nem no sw do /gerador.
  * Regra: rede primeiro para tudo. So navegacao (pagina) tem reserva: se a rede cair, mostra /nexus/offline.html.
  * Nada mais passa por aqui: /_api/, scripts, estilos, fontes e imagens seguem direto para a rede. Nao ha cache de dados. */
-var VERSAO = 'nexus-parceiro-v2';
+var VERSAO = 'nexus-parceiro-v3';
 var OFFLINE = '/nexus/offline.html';
 
 self.addEventListener('install', function (e) {

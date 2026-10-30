@@ -9,6 +9,8 @@
 //        -> {enviado_para}   UM e-mail de convite, o mesmo texto do lote, SÓ para o e-mail de quem está logado (lido de
 //           req.equipe, no servidor; corpo, query e cabeçalhos não escolhem o destino). Não toma trava, não marca ninguém
 //           como convidado, não entra na contagem nem no lote. 1 por minuto por usuário (429 {erro:'aguarde'}).
+//           SÓ com o login do SolarDoc (/nexus/adm): o login do Gerador é <nome>@irmaosnaobra.app, domínio sem caixa de e-mail
+//           (sem registro no DNS), e o teste sumiria calado. Esse login leva 409 {erro:'teste_so_no_adm'}, sem gastar a vaga.
 //
 // Público: contas do SolarDoc com company.cnpj preenchido (14 dígitos), SEM linha em nexus_parceiros, com e-mail válido.
 //   total             = contas desse público que NÃO pediram descadastro (email_opt_out)
@@ -180,8 +182,12 @@ export function mountNexusConvite(router: Router): void {
 
   // Teste: UM e-mail, só para quem está logado. Nada de trava, de marca de convidado, de leitura do público nem de lote.
   router.post('/nexus/equipe/convites/email/teste', ...equipe, rota('POST /nexus/equipe/convites/email/teste', async (req, res) => {
+    // Só o login do SolarDoc tem caixa de e-mail de verdade. O do Gerador é <nome>@irmaosnaobra.app (sem DNS): recusa ANTES de
+    // pedir a vaga, para o 409 não gastar o minuto. `!== 'solardoc'` (e não `=== 'gerador'`) também recusa um `via` ausente.
+    if (req.equipe?.via !== 'solardoc') { res.status(409).json({ erro: 'teste_so_no_adm' }); return; }
+
     // O destino vem do usuário autenticado (req.equipe, preenchido pelo exigeEquipeNexus). Corpo, query e cabeçalhos são ignorados.
-    const email = String(req.equipe?.email ?? '').trim();
+    const email = String(req.equipe.email ?? '').trim();
     if (!emailValido(email)) { res.status(409).json({ erro: 'sem_email' }); return; }
 
     const faltaMs = pedirVagaDeTeste(email);
@@ -191,7 +197,8 @@ export function mountNexusConvite(router: Router): void {
       return;
     }
     try {
-      await enviarConviteTeste(email, req.equipe?.nome);
+      // users.nome cru, igual ao que o lote lê: a saudação do teste é a mesma que a base recebe (sem o "nome" que cai no e-mail).
+      await enviarConviteTeste(email, req.equipe.nomeCadastro);
     } catch (e) {
       // Nada saiu: devolve a vaga para o sócio poder tentar de novo logo.
       ultimoTeste.delete(email);

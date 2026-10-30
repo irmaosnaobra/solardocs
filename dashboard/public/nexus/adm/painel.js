@@ -298,6 +298,9 @@ function estadoSemPermissao() {
 /* ── Convite por e-mail (só sócio dispara) ── */
 var LOTE = 40;
 var ROTULO_TESTE = 'Enviar um teste para mim';
+var AVISO_TESTE_SO_NO_ADM = 'O teste sai pelo /nexus/adm, com o login do SolarDoc.';
+// O botão de teste só existe no /nexus/adm (ADM): lá o login é o do SolarDoc, com caixa de e-mail de verdade. O login do
+// /gerador/parceiros é <nome>@irmaosnaobra.app, domínio sem caixa, e o servidor o recusa (409 teste_so_no_adm).
 // testando/retornoTeste: o teste tem estado próprio e nunca mexe no resultado do lote (retorno).
 var CV = { fase: 'carregando', previa: null, confirmando: false, enviando: false, incerto: false, semPermissao: false, retorno: null, testando: false, retornoTeste: null };
 var ICONE_CADEADO = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>';
@@ -317,14 +320,13 @@ function conviteHtml(fase) {
   }
   var rotuloBtn = 'Enviar próximo lote (' + LOTE + ')';
   if (fase === 'carregando') return h + '<p class="peq"><span class="spin"></span>Carregando a prévia do convite</p>';
+  var testeOff = ADM ? '<button type="button" class="btn ghost" disabled>' + esc(ROTULO_TESTE) + '</button>' : '';
   if (fase === 'desligada') {
-    return h + '<div class="acao-conv"><span class="trava">' + ICONE_CADEADO + 'Desligado</span><button type="button" class="btn" disabled>' + esc(rotuloBtn) + '</button>' +
-      '<button type="button" class="btn ghost" disabled>' + esc(ROTULO_TESTE) + '</button></div>' +
+    return h + '<div class="acao-conv"><span class="trava">' + ICONE_CADEADO + 'Desligado</span><button type="button" class="btn" disabled>' + esc(rotuloBtn) + '</button>' + testeOff + '</div>' +
       '<p class="peq" style="margin:10px 0 0">O convite só liga junto com o portal. Rode o <code>MIGRATION_nexus_portal.sql</code> inteiro e recarregue a página.</p>';
   }
   if (fase === 'travada') {
-    return h + '<div class="acao-conv"><span class="trava">' + ICONE_CADEADO + 'Só sócio dispara</span><button type="button" class="btn" disabled>' + esc(rotuloBtn) + '</button>' +
-      '<button type="button" class="btn ghost" disabled>' + esc(ROTULO_TESTE) + '</button></div>' +
+    return h + '<div class="acao-conv"><span class="trava">' + ICONE_CADEADO + 'Só sócio dispara</span><button type="button" class="btn" disabled>' + esc(rotuloBtn) + '</button>' + testeOff + '</div>' +
       '<p class="peq" style="margin:10px 0 0">Você pode olhar este bloco, mas só um sócio consegue enviar os convites.</p>';
   }
   if (fase === 'erro') {
@@ -337,11 +339,12 @@ function conviteHtml(fase) {
       '<div class="acao-conv"><button type="button" class="btn" data-cv="confirmar">Sim, enviar agora</button><button type="button" class="btn ghost" data-cv="cancelar">Cancelar</button></div>';
   } else {
     // O teste não depende de "sobrar convite" (semMais): serve para conferir o texto mesmo com o lote zerado. Só espera o lote que está saindo.
+    // Fora do ADM não há botão: só uma linha dizendo por onde o teste sai.
     h += '<div class="acao-conv"><button type="button" class="btn" data-cv="pedir"' + (CV.enviando || CV.incerto || semMais ? ' disabled' : '') + '>' +
       esc(CV.enviando ? 'Enviando…' : rotuloBtn) + '</button>' +
-      '<button type="button" class="btn ghost" data-cv="teste"' + (CV.enviando || CV.testando ? ' disabled' : '') + '>' +
-      esc(CV.testando ? 'Enviando o teste…' : ROTULO_TESTE) + '</button></div>' +
-      '<p class="peq" style="margin:8px 0 0">O teste vai só para o seu e-mail e não conta nos convites.</p>';
+      (ADM ? '<button type="button" class="btn ghost" data-cv="teste"' + (CV.enviando || CV.testando ? ' disabled' : '') + '>' +
+        esc(CV.testando ? 'Enviando o teste…' : ROTULO_TESTE) + '</button>' : '') + '</div>' +
+      '<p class="peq" style="margin:8px 0 0">' + esc(ADM ? 'O teste vai só para o seu e-mail e não conta nos convites.' : AVISO_TESTE_SO_NO_ADM) + '</p>';
     if (semMais && !CV.enviando) h += '<p class="peq" style="margin:10px 0 0">Não há convites restantes para enviar.</p>';
   }
   if (CV.enviando) h += '<p class="peq" style="margin:10px 0 0"><span class="spin"></span>Enviando os convites. Não feche a página.</p>';
@@ -415,10 +418,10 @@ function enviarLote() {
 }
 
 // Teste do convite: UM e-mail, o mesmo texto do lote, só para o e-mail de quem está logado (o servidor decide, nada vai no corpo).
-// Não gasta convite, não marca ninguém e a prévia continua igual. O servidor aceita 1 por minuto por usuário.
+// Não gasta convite, não marca ninguém e a prévia continua igual. O servidor aceita 1 por minuto por usuário. Só no /nexus/adm.
 function focarTeste() { var t = $('convite-box').querySelector('[data-cv="teste"]'); if (t) t.focus(); }
 function enviarTeste() {
-  if (CV.testando || CV.enviando) return;
+  if (!ADM || CV.testando || CV.enviando) return;
   CV.testando = true; CV.retornoTeste = null;
   desenharConvite();
   api('POST', '/convites/email/teste', {}, 30000).then(function (x) {
@@ -431,6 +434,8 @@ function enviarTeste() {
       CV.retornoTeste = { tipo: 'av', texto: 'Aguarde um minuto para pedir outro teste.' };
     } else if (x.status === 409 && x.json && x.json.erro === 'sem_email') {
       CV.retornoTeste = { tipo: 'er', texto: 'A sua conta não tem e-mail para receber o teste.' };
+    } else if (x.status === 409 && x.json && x.json.erro === 'teste_so_no_adm') {
+      CV.retornoTeste = { tipo: 'av', texto: AVISO_TESTE_SO_NO_ADM };
     } else {
       CV.retornoTeste = { tipo: 'er', texto: 'Não consegui enviar o teste. Tente de novo em instantes.' };
     }
