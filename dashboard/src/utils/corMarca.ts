@@ -63,7 +63,8 @@ export function contraste(a: string, b: string): number {
 
 /**
  * Escurece a cor (mistura com preto, mantendo o matiz) só o necessário para chegar a `minimo`:1
- * sobre `fundo`. Se já passa, devolve a própria cor. Pensada para fundo claro (o branco).
+ * sobre `fundo`. Se já passa, devolve a própria cor. Pensada para fundo claro (o branco ou o
+ * círculo da marca, que é o branco com um toque da cor).
  */
 export function escurecerAteContraste(cor: string, minimo: number, fundo: string = BRANCO): string {
   const base = validarCor(cor) ?? COR_PADRAO;
@@ -96,10 +97,21 @@ export function derivarSecundaria(principal: string): string {
   return rgbParaHex({ r: r * 0.65, g: g * 0.65, b: b * 0.65 });
 }
 
-/** `rgba(r, g, b, alfa)` de um `#rrggbb` válido (o círculo a 10% atrás do ícone). */
+/** `rgba(r, g, b, alfa)` de um `#rrggbb` válido (a sombra dos blocos em destaque). */
 export function comAlfa(hex: string, alfa: number): string {
   const { r, g, b } = hexParaRgb(validarCor(hex) ?? COR_PADRAO);
   return `rgba(${r}, ${g}, ${b}, ${alfa})`;
+}
+
+/**
+ * A cor a `parte` (0,1 = 10%) sobre o branco, já misturada em `#rrggbb`. É o que o olho vê quando
+ * a cor com transparência cai num fundo branco. Serve para MEDIR contraste contra esse fundo: o
+ * contraste só vale contra o pixel que vai para a tela, e um `rgba` deixa o navegador arredondar.
+ */
+export function sobreOBranco(hex: string, parte: number): string {
+  const { r, g, b } = hexParaRgb(validarCor(hex) ?? COR_PADRAO);
+  const m = (c: number) => 255 + (c - 255) * parte;
+  return rgbParaHex({ r: m(r), g: m(g), b: m(b) });
 }
 
 export interface PaletaMarca {
@@ -107,11 +119,20 @@ export interface PaletaMarca {
   principal: string;
   /** Texto e ícone SOBRE a principal (faixa do topo e blocos em destaque): pelo menos 4,5:1. */
   sobrePrincipal: string;
-  /** Ícone SOBRE o branco: a principal, escurecida até 3:1 se preciso. */
+  /**
+   * Ícone SOBRE o círculo: a principal, escurecida até 3:1 contra o próprio círculo. Medir contra o
+   * branco não basta, porque o círculo é mais escuro que ele (o laranja da SolarDoc dava 3,16:1 no
+   * branco e 2,83:1 em cima do círculo).
+   */
   icone: string;
   /** Texto SOBRE o branco na cor da marca (as iniciais da empresa): a principal, escurecida até 4,5:1. */
   textoSobreBranco: string;
-  /** Círculo atrás do ícone: a principal a 10%. */
+  /** Texto SOBRE o círculo (o selo "Novo"): a principal, escurecida até 4,5:1 contra o círculo. */
+  textoSobreCirculo: string;
+  /**
+   * Círculo atrás do ícone: a principal a 10% sobre o branco, já misturada em `#rrggbb` (a tela é
+   * branca por baixo). Sólido de propósito: o contraste do ícone é medido contra esta mesma cor.
+   */
   circulo: string;
   /** Sombra dos blocos em destaque: a principal a 28%. */
   sombra: string;
@@ -131,12 +152,14 @@ export function paletaDaMarca(corMarca: unknown, corSecundaria: unknown): Paleta
   const valida = validarCor(corMarca);
   const principal = valida ?? COR_PADRAO;
   const secundaria = validarCor(corSecundaria) ?? derivarSecundaria(principal);
+  const circulo = sobreOBranco(principal, 0.1);
   return {
     principal,
     sobrePrincipal: corDoTexto(principal),
-    icone: escurecerAteContraste(principal, 3),
+    icone: escurecerAteContraste(principal, 3, circulo),
     textoSobreBranco: escurecerAteContraste(principal, 4.5),
-    circulo: comAlfa(principal, 0.1),
+    textoSobreCirculo: escurecerAteContraste(principal, 4.5, circulo),
+    circulo,
     sombra: comAlfa(principal, 0.28),
     titulo: escurecerAteContraste(secundaria, 4.5),
     anel: escurecerAteContraste(secundaria, 3),

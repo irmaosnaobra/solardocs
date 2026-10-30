@@ -5,9 +5,10 @@
 .ini-page {
   --ini-cor: #F26513;                       /* principal: faixa e blocos em destaque */
   --ini-sobre: #111111;                     /* texto e ícone sobre a principal (>= 4,5:1) */
-  --ini-icone: #E0560A;                     /* ícone sobre o branco (>= 3:1) */
+  --ini-icone: #e86112;                     /* ícone sobre o círculo (>= 3:1 contra ele) */
   --ini-marca-texto: #B8400A;               /* iniciais sobre o branco (>= 4,5:1) */
-  --ini-circulo: rgba(242, 101, 19, 0.1);   /* círculo atrás do ícone */
+  --ini-selo-texto: #ba4e0f;                /* selo "Novo" sobre o círculo (>= 4,5:1 contra ele) */
+  --ini-circulo: #fef0e7;                   /* círculo atrás do ícone: a principal a 10% sobre o branco */
   --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra dos blocos em destaque */
   --ini-titulo: #9D420C;                    /* título dos grupos (>= 4,5:1) */
   --ini-anel: #9D420C;                      /* anel de foco (>= 3:1) */
@@ -29,18 +30,25 @@
 }
 .ini-faixaInterna { display: flex; align-items: center; gap: 12px; }
 
-/* Logo da empresa num quadrado branco arredondado, ~44 px. */
+/* Logo da empresa num quadrado branco arredondado de 44 px de altura. A logo quadrada ocupa 36 px e o
+   quadrado fica em 44 px. A larga (3 por 1, 4 por 1) abre o quadrado para os lados, até 88 px, porque
+   dentro de 36 px ela ficaria com uns 12 px de altura e não se lê. */
 .ini-logo {
   flex: none;
-  width: 44px; height: 44px;
+  min-width: 44px; max-width: 88px; height: 44px;
   border-radius: 12px;
   background: #ffffff;
   padding: 4px;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
-.ini-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.ini-logo img { display: block; width: auto; height: 36px; max-width: 80px; object-fit: contain; }
 .ini-logoSvg { width: 32px; height: 32px; }
+/* Celular de 320 px: a logo larga abre menos, para o nome da empresa não ficar com uns 50 px de largura. */
+@media (max-width: 340px) {
+  .ini-logo { max-width: 64px; }
+  .ini-logo img { max-width: 56px; }
+}
 /* Sem logo: círculo com as iniciais da empresa. */
 .ini-iniciais {
   flex: none;
@@ -139,13 +147,16 @@
 }
 .ini-tileLabel { max-width: 100%; font-size: 14px; font-weight: 800; line-height: 1.25; color: #111111; overflow-wrap: break-word; }
 .ini-tileLock { position: absolute; top: 9px; right: 9px; color: #4b5563; }
+/* O selo cavalga a borda de cima do bloco. Dentro do bloco ele cairia em cima do círculo do ícone
+   (que é centrado e tem 44 px, e o bloco tem de 88 a 134 px de largura); na borda ele fica acima do
+   círculo, que começa a uns 10 px do topo ou mais, em qualquer largura. */
 .ini-tileBadge {
-  position: absolute; top: 8px; right: 8px;
+  position: absolute; top: -8px; right: 8px;
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--ini-circulo);
-  color: var(--ini-marca-texto);
-  font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--ini-selo-texto);
+  font-size: 10px; font-weight: 800; line-height: 1.2; letter-spacing: 0.02em;
 }
 
 /* Título dos grupos: na cor secundária (ou numa versão mais escura da principal) */
@@ -193,6 +204,12 @@
 .ini-page button:focus-visible {
   outline: 3px solid var(--ini-anel);
   outline-offset: 2px;
+}
+/* Na faixa colorida o anel da secundária pode sumir: nada garante o contraste dela contra a principal
+   (deu 2,07:1 no laranja). Ali o anel usa a cor do texto da faixa, que passa de 4,5:1 sobre ela. */
+.ini-page .ini-faixa a:focus-visible,
+.ini-page .ini-faixa button:focus-visible {
+  outline-color: var(--ini-sobre);
 }
 
 /* Cartões de convite */
