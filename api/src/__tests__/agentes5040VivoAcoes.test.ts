@@ -727,7 +727,7 @@ describe('suporte_giovanna', () => {
   });
 
   it('ficha completa à Giovanna (reserva própria e ficha_lead) ANTES da bolha do turno; posse passou_humano com o aviso guardado', async () => {
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     const r = await rodar();
     expect(h.teto).toHaveBeenCalledTimes(1);
     expect(h.ficha).toHaveBeenCalledTimes(1);
@@ -746,7 +746,7 @@ describe('suporte_giovanna', () => {
   });
 
   it('10 min sem fala da Giovanna (a nossa bolha de API não conta): a MESMA ficha vai ao dono, uma vez só', async () => {
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     await rodar();
     h.ficha.mockClear(); h.teto.mockClear();
     const depois = new Date(AGORA.getTime() + 11 * 60_000);
@@ -764,7 +764,7 @@ describe('suporte_giovanna', () => {
   });
 
   it('suporte de quem depois pediu para parar: sem reenvio ao dono e o estado fica', async () => {
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     await rodar();
     h.ficha.mockClear();
     posseDe().estado = 'nao_incomodar';
@@ -776,7 +776,7 @@ describe('suporte_giovanna', () => {
   });
 
   it('a Giovanna falou (autor equipe depois do aviso): nenhum reenvio ao dono', async () => {
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     await rodar();
     h.ficha.mockClear();
     (banco.tabelas.wa_mensagens ??= []).push({ id: 14, instancia: 'inst-io', telefone: TEL, is_group: false, from_me: true, from_api: false, tipo: 'texto', texto: 'Oi, é a Giovanna', momment: iso(-5 * 60_000) });
@@ -788,7 +788,7 @@ describe('suporte_giovanna', () => {
   });
 
   it('teto de emergência cheio: a ficha não sai, nenhuma bolha promete a Giovanna e a vez é solta para a próxima rodada', async () => {
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     h.teto.mockResolvedValue('teto');
     const r = await rodar();
     expect(h.ficha).not.toHaveBeenCalled();
@@ -799,7 +799,7 @@ describe('suporte_giovanna', () => {
   });
 
   it('ficha incerta (timeout): sem bolha; passou_humano para não mandar duas', async () => {
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     h.ficha.mockRejectedValue(new Error('timeout'));
     await rodar();
     expect(h.enviar).not.toHaveBeenCalled();
@@ -954,13 +954,13 @@ describe('correção 10: a bolha do turno cita a hora do card, senão sai o text
 describe('correção 4: ficha_lead leva o id da fala (n = L.id)', () => {
   it('o 2º suporte do mesmo lead (outra fala) manda a ficha de novo, e não cai em ja_avisada', async () => {
     ia = modelo([{ bolhas: ['Entendi. Passei os seus dados para a Giovanna e ela fala com você por aqui mesmo.'], extra: { acao: 'suporte_giovanna', resumo: 'Cliente quer reembolso' } }]);
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     await rodar();
     expect(h.ficha).toHaveBeenCalledTimes(1);
     // o lead volta com outro pedido: posse viva de novo e uma fala nova
     const depois = new Date(AGORA.getTime() + 4 * 60_000);
     vi.setSystemTime(depois);
-    (banco.tabelas.wa_mensagens ??= []).push(linhaLead(20, TEL, new Date(depois.getTime() - 2 * 60_000).toISOString(), { texto: 'Ainda preciso do reembolso, é urgente' }));
+    (banco.tabelas.wa_mensagens ??= []).push(linhaLead(20, TEL, new Date(depois.getTime() - 2 * 60_000).toISOString(), { texto: 'Ainda preciso de ajuda com a conta, é urgente' }));
     Object.assign(posseDe(), { estado: 'viva', ate_wa_id: 10 });
     delete posseDe().suporte;
     await runVivoTick({ agora: depois, cliente: ia.cliente });
@@ -1217,7 +1217,7 @@ describe('correção 15: lead de número de teste só manda ficha ao celular do 
     // suporte (nunca à Giovanna)
     recomecar(); h.teste = teste;
     ia = modelo([{ bolhas: ['Entendi. Passei os seus dados para a Giovanna e ela fala com você por aqui mesmo.'], extra: { acao: 'suporte_giovanna', resumo: 'Cliente quer reembolso' } }]);
-    semearLead({ texto: 'Sou cliente e quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
     await rodar();
     expect(h.ficha.mock.calls[0]![0]).toBe(DONO);
     expect(String(h.ficha.mock.calls[0]![1])).toContain('SUPORTE');
@@ -1236,5 +1236,382 @@ describe('correção 15: lead de número de teste só manda ficha ao celular do 
     semearLead({ card: {} }); alvo([hmacDe(CHAVE)!]);
     await rodar();
     expect(h.ficha.mock.calls[0]![0]).toBe('34991516846');
+  });
+});
+
+// ── A passagem por regra (29/10/2026) e o plano B dos reenvios ao dono ───────────────────────────────────────────────
+
+const MODELO_FALA = 'Claro, me conta um pouco mais sobre a sua conta de luz.';
+const semModeloAqui = () => { ia = modelo([{ bolhas: [MODELO_FALA], extra: { acao: 'continuar' } }]); };
+const reservaSent = (msAtras: number) => (banco.tabelas.system_state ??= []).push({ key: 'ag5040_sent:5:1', value: { estado: 'enviado' }, updated_at: iso(msAtras) });
+
+describe('passagem por regra: antes do modelo', () => {
+  beforeEach(() => semModeloAqui());
+
+  it('reembolso: o modelo NÃO é chamado; a ficha à Giovanna sai ANTES da bolha FIXA; posse.regra e o resumo ficam gravados', async () => {
+    semearLead({ texto: 'Quero o meu dinheiro de volta, isso é um absurdo' }); alvo([hmacDe(CHAVE)!]);
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(0);
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(h.ficha.mock.calls[0]![0]).toBe('34993396255');
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('SUPORTE');
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('Regra dinheiro_de_volta: quero o meu dinheiro de volta');
+    expect(h.enviar).toHaveBeenCalledTimes(1);
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(BOLHA_PASSAGEM_GENERICA);
+    expect(h.ficha.mock.invocationCallOrder[0]!).toBeLessThan(h.enviar.mock.invocationCallOrder[0]!);
+    expect(chavesDoEstado()).toContain(`ag5040_suporte:${hmacDe(CHAVE)}:10`);
+    expect(posseDe()).toMatchObject({ estado: 'passou_humano', ate_wa_id: 10, respostas: 1 });
+    expect(posseDe().regra).toMatchObject({ motivo: 'dinheiro_de_volta', em: AGORA.toISOString() });
+    expect(posseDe().suporte).toMatchObject({ wa_id: 10, resumo: 'Regra dinheiro_de_volta: quero o meu dinheiro de volta' });
+    expect(r.decisoes[0]).toMatchObject({ acao: 'suporte_giovanna', resultado: 'passou_ao_humano', ficha: 'enviada' });
+  });
+
+  it('com a IA da FICHA ligada (FICHA_5040_IA_OFF desligado): a ficha usa o cliente, a regra grava o rastro e o modelo da agente NÃO é chamado', async () => {
+    delete process.env.FICHA_5040_IA_OFF;
+    semearLead({ texto: 'Quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(BOLHA_PASSAGEM_GENERICA);
+    expect(posseDe().regra).toMatchObject({ motivo: 'dinheiro_de_volta' });
+    // nenhuma chamada carrega o pedido da agente (a ficha pode ter chamado o cliente para o resumo dela)
+    for (let i = 0; i < ia.chamadas.length; i++) expect(pedidoDaChamada(i)).not.toContain('Escreva a próxima fala da agente');
+  });
+
+  it('ameaça jurídica: o mesmo caminho, motivo juridico', async () => {
+    semearLead({ texto: 'Vou no Procon amanhã' }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(ia.chamadas).toHaveLength(0);
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('Regra juridico: procon');
+    expect(posseDe().regra).toMatchObject({ motivo: 'juridico' });
+  });
+
+  it('espaçamento faltando (envio há 3 s): nada sai, a vez é solta, a posse não ganha regra e a rodada para', async () => {
+    semearLead({ texto: 'Quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    reservaSent(3_000);
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(0);
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(chavesDoEstado()).not.toContain('ag5040_vez_vivo:10');
+    expect(posseDe().regra).toBeUndefined();
+    expect(posseDe().estado).toBe('viva');
+    expect(r.parou).toBe('espacamento');
+    // 12 s depois a próxima rodada passa
+    const depois = new Date(AGORA.getTime() + 12_000);
+    vi.setSystemTime(depois);
+    await runVivoTick({ agora: depois, cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(h.enviar).toHaveBeenCalledTimes(1);
+  });
+
+  it('linha pausada (erros seguidos): nada sai e a vez é solta', async () => {
+    semearLead({ texto: 'Quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_linha_pausa', value: { ate: iso(-600_000) }, updated_at: iso(1000) });
+    await rodar();
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(chavesDoEstado()).not.toContain('ag5040_vez_vivo:10');
+    expect(posseDe().regra).toBeUndefined();
+  });
+
+  it('Duda pede uma pessoa em horário comercial: vira ligar_agora com a bolha fixa da consultora, sem modelo', async () => {
+    semearLead({ texto: 'Quero falar com um atendente', card: {} }); alvo([hmacDe(CHAVE)!]);
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(0);
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('LIGAR AGORA');
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(bolhaLigarAgoraOk('Nilce'));
+    expect(h.ficha.mock.invocationCallOrder[0]!).toBeLessThan(h.enviar.mock.invocationCallOrder[0]!);
+    expect(posseDe().regra).toMatchObject({ motivo: 'pessoa' });
+    expect(posseDe().ligar).toMatchObject({ cardId: 7, dono: 'Nilce' });
+    expect(r.decisoes[0]).toMatchObject({ acao: 'ligar_agora', resultado: 'ligar_agora', ficha: 'enviada' });
+  });
+
+  it('Duda pede uma pessoa FORA do horário (sábado): a regra não age e o modelo decide', async () => {
+    const SAB = new Date('2026-10-24T15:00:00.000Z');
+    vi.setSystemTime(SAB);
+    semearLead({ texto: 'Quero falar com um atendente', card: {}, base: SAB }); alvo([hmacDe(CHAVE)!]);
+    await runVivoTick({ agora: SAB, cliente: ia.cliente });
+    expect(ia.chamadas).toHaveLength(1);
+    expect(posseDe().regra).toBeUndefined();
+    expect(h.enviar.mock.calls[0]![0].bolha).toBe(MODELO_FALA);
+  });
+
+  it('Carla pede uma pessoa: a regra não age e o modelo decide', async () => {
+    process.env.AGENTES5040_CARLA_VIVO = '1';
+    semearLead({ texto: 'Quero falar com um atendente', posse: { dona: 'carla' } }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(ia.chamadas).toHaveLength(1);
+    expect(posseDe().regra).toBeUndefined();
+  });
+
+  it('sem consultora definida (sem card e sem gasto, então sem bolha fixa): o modelo decide', async () => {
+    semearLead({ texto: 'Quero falar com um atendente' }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(ia.chamadas).toHaveLength(1);
+    expect(posseDe().regra).toBeUndefined();
+  });
+
+  it('pedido de parar vem antes: "não quero mais, quero reembolso" segue para o modelo', async () => {
+    semearLead({ texto: 'Não quero mais, quero reembolso' }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(ia.chamadas).toHaveLength(1);
+    expect(posseDe().regra).toBeUndefined();
+  });
+
+  it('o dry mostra que passaria ao humano pela regra, sem modelo, ficha, envio nem posse alterada', async () => {
+    semearLead({ texto: 'Quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    const r = await rodar({ dry: true });
+    expect(ia.chamadas).toHaveLength(0);
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(posseDe().regra).toBeUndefined();
+    expect(r.decisoes[0]).toMatchObject({ acao: 'suporte_giovanna', resultado: 'passaria_ao_humano' });
+  });
+});
+
+describe('plano B do suporte: ficha incerta', () => {
+  const dep = (min: number) => new Date(AGORA.getTime() + min * 60_000);
+  beforeEach(() => { ia = modelo([{ bolhas: ['Entendi.'], extra: { acao: 'suporte_giovanna', resumo: 'Cliente com problema na conta' } }]); });
+
+  it('incerta grava posse.suporte com incerta:true; aos 10 min o dono recebe a ficha com a ressalva, UMA vez', async () => {
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
+    h.ficha.mockRejectedValue(new Error('timeout'));
+    await rodar();
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(posseDe()).toMatchObject({ estado: 'passou_humano' });
+    expect(posseDe().suporte).toMatchObject({ wa_id: 10, avisado_em: AGORA.toISOString(), incerta: true, resumo: 'Cliente com problema na conta' });
+    h.ficha.mockReset().mockResolvedValue(undefined);
+    vi.setSystemTime(dep(5));
+    await runVivoTick({ agora: dep(5), cliente: ia.cliente });
+    expect(h.ficha).not.toHaveBeenCalled();                                   // ainda não deu 10 min
+    vi.setSystemTime(dep(11));
+    const r = await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(h.ficha.mock.calls[0]![0]).toBe('34900000000');
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('pode não ter chegado');
+    expect(posseDe().suporte.dono_em).toBeTruthy();
+    expect(r.pendencias).toMatchObject({ reenvios: 1 });
+    vi.setSystemTime(dep(14));
+    await runVivoTick({ agora: dep(14), cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+  });
+
+  it('o texto do reenvio sem incerteza segue o de sempre (sem a ressalva)', async () => {
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
+    await rodar();
+    expect(posseDe().suporte.incerta).toBeUndefined();
+    h.ficha.mockClear();
+    vi.setSystemTime(dep(11));
+    await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    expect(String(h.ficha.mock.calls[0]![1])).not.toContain('pode não ter chegado');
+  });
+});
+
+describe('plano B do ligar agora: ficha incerta', () => {
+  const dep = (min: number) => new Date(AGORA.getTime() + min * 60_000);
+  async function ligarIncerto() {
+    ia = modelo([{ bolhas: [BOLHA_LIGAR], extra: { acao: 'ligar_agora', resumo: 'Quer ligação agora' } }]);
+    semearLead(); alvo([hmacDe(CHAVE)!]);
+    h.ficha.mockRejectedValue(new Error('timeout'));
+    await rodar();
+    h.ficha.mockReset().mockResolvedValue(undefined);
+  }
+
+  it('grava ligar.incerta (com wa_id e resumo); aos 10 min sem sinal o dono recebe UM reenvio "LIGAR AGORA", marca dono_em e não repete', async () => {
+    await ligarIncerto();
+    expect(posseDe().ligar).toMatchObject({ cardId: 99, incerta: true, wa_id: 10, resumo: 'Quer ligação agora' });
+    vi.setSystemTime(dep(9));
+    await runVivoTick({ agora: dep(9), cliente: ia.cliente });
+    expect(h.ficha).not.toHaveBeenCalled();
+    vi.setSystemTime(dep(11));
+    const r = await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(h.ficha.mock.calls[0]![0]).toBe('34900000000');
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('LIGAR AGORA (REENVIO)');
+    expect(String(h.ficha.mock.calls[0]![1])).not.toContain('Giovanna');
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('Quer ligação agora');
+    expect(chavesDoEstado()).toContain(`ag5040_ligar_dono:${hmacDe(CHAVE)}:10`);
+    expect(posseDe().ligar.dono_em).toBeTruthy();
+    expect(r.pendencias).toMatchObject({ reenvios: 1 });
+    vi.setSystemTime(dep(13));
+    await runVivoTick({ agora: dep(13), cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+  });
+
+  it('o dono_em do reenvio sobrevive à volta honesta (aos 16 min a posse ainda o tem e nada é reenviado)', async () => {
+    await ligarIncerto();
+    vi.setSystemTime(dep(11));
+    await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    vi.setSystemTime(dep(16));
+    await runVivoTick({ agora: dep(16), cliente: ia.cliente });
+    expect(posseDe().ligar.dono_em).toBeTruthy();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+  });
+
+  it('o status do card mudou: nenhum reenvio', async () => {
+    await ligarIncerto();
+    (gerador.tabelas.agendamentos ?? []).find(c => c.id === 99)!.status = 'em_negociacao';
+    vi.setSystemTime(dep(11));
+    await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect(posseDe().ligar.dono_em).toBeTruthy();
+  });
+
+  it('a consultora escreveu ao cliente (autor equipe): nenhum reenvio', async () => {
+    await ligarIncerto();
+    (banco.tabelas.wa_mensagens ??= []).push({ id: 14, instancia: 'inst-io', telefone: TEL, is_group: false, from_me: true, from_api: false, tipo: 'texto', texto: 'Oi, é a Nilce', momment: iso(-5 * 60_000) });
+    vi.setSystemTime(dep(11));
+    await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    expect(h.ficha).not.toHaveBeenCalled();
+  });
+
+  it('quem pediu para parar (nao_incomodar) ou conversa encerrada: nunca reenvia', async () => {
+    for (const estado of ['nao_incomodar', 'encerrada']) {
+      banco = novoBanco(); gerador = novoBanco(); h.principal = banco; h.gerador = gerador;
+      zerarCacheArmazem(); zerarCacheInterruptores();
+      vi.setSystemTime(AGORA);
+      await ligarIncerto();
+      posseDe().estado = estado;
+      vi.setSystemTime(dep(11));
+      await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+      expect(h.ficha, estado).not.toHaveBeenCalled();
+      expect(posseDe().estado).toBe(estado);
+    }
+  });
+
+  it('linha pausada: não reenvia e não grava dono_em; com a linha livre, reenvia', async () => {
+    await ligarIncerto();
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_linha_pausa', value: { ate: iso(-3_600_000, AGORA) }, updated_at: AGORA.toISOString() });
+    vi.setSystemTime(dep(11));
+    await runVivoTick({ agora: dep(11), cliente: ia.cliente });
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect(posseDe().ligar.dono_em).toBeUndefined();
+    banco.tabelas.system_state = banco.tabelas.system_state!.filter(l => l.key !== 'ag5040_linha_pausa');
+    vi.setSystemTime(dep(12));
+    await runVivoTick({ agora: dep(12), cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('reenvios ao dono: regras do chefe', () => {
+  /** Uma segunda conversa, já passada ao humano, com o aviso de suporte de 11 min atrás e a equipe calada. */
+  function segundoSuporte(i: number, waId: number) {
+    (banco.tabelas.wa_mensagens ??= []).push(linhaLead(waId, telDe(i), iso(30 * 60_000), { texto: 'Preciso de ajuda' }));
+    (banco.tabelas.whatsapp_sessions ??= []).push({
+      phone: chaveDe(i), tipo: 'ag5040', updated_at: AGORA.toISOString(),
+      lead_data: { dona: 'duda', estado: 'passou_humano', apresentada: true, desde: iso(60 * 60_000), ate_wa_id: waId, respostas: 1, imagens: [], links: [], suporte: { avisado_em: iso(11 * 60_000), wa_id: waId, resumo: 'Ajuda' } },
+    });
+  }
+  const dois = () => {
+    semearLead({ posse: { estado: 'passou_humano', ate_wa_id: 10, suporte: { avisado_em: iso(11 * 60_000), wa_id: 10, resumo: 'Ajuda' } }, momento: iso(30 * 60_000) });
+    segundoSuporte(1, 11);
+    alvo([hmacDe(CHAVE)!, hmacDe(chaveDe(1))!]);
+  };
+  const erros = () => (banco.tabelas.system_state ?? []).find(l => l.key === 'ag5040_linha_erros')?.value?.n;
+
+  it('2 pendências na mesma rodada: só 1 reenvio ao dono; o outro fica para a rodada seguinte', async () => {
+    dois();
+    const r = await rodar();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(r.pendencias).toMatchObject({ reenvios: 1 });
+    vi.setSystemTime(new Date(AGORA.getTime() + 60_000));
+    await runVivoTick({ agora: new Date(AGORA.getTime() + 60_000), cliente: ia.cliente });
+    expect(h.ficha).toHaveBeenCalledTimes(2);
+  });
+
+  it('erro (incerta) no 1º reenvio: o laço para, o outro não é tentado e o erro é contado em ag5040_linha_erros', async () => {
+    dois();
+    h.ficha.mockRejectedValue(new Error('timeout'));
+    await rodar();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(erros()).toBe(1);
+    const marcadas = (banco.tabelas.whatsapp_sessions ?? []).filter(l => l.lead_data.suporte?.dono_em);
+    expect(marcadas).toHaveLength(1);                                          // a incerta não é reenviada de novo
+  });
+
+  it('2 erros seguidos pausam a linha por 15 min (como os outros envios)', async () => {
+    dois();
+    h.ficha.mockRejectedValue(new Error('timeout'));
+    await rodar();
+    vi.setSystemTime(new Date(AGORA.getTime() + 60_000));
+    await runVivoTick({ agora: new Date(AGORA.getTime() + 60_000), cliente: ia.cliente });
+    expect(erros()).toBe(2);
+    expect((banco.tabelas.system_state ?? []).find(l => l.key === 'ag5040_linha_pausa')?.value?.ate).toBeTruthy();
+  });
+
+  it('linha pausada: o reenvio do suporte espera, sem gravar dono_em', async () => {
+    dois();
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_linha_pausa', value: { ate: iso(-3_600_000) }, updated_at: AGORA.toISOString() });
+    await rodar();
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect((banco.tabelas.whatsapp_sessions ?? []).filter(l => l.lead_data.suporte?.dono_em)).toHaveLength(0);
+  });
+});
+
+describe('revisão: rastro da regra e erros dos reenvios ao dono', () => {
+  function segundoSuporte(i: number, waId: number) {
+    (banco.tabelas.wa_mensagens ??= []).push(linhaLead(waId, telDe(i), iso(30 * 60_000), { texto: 'Preciso de ajuda' }));
+    (banco.tabelas.whatsapp_sessions ??= []).push({
+      phone: chaveDe(i), tipo: 'ag5040', updated_at: AGORA.toISOString(),
+      lead_data: { dona: 'duda', estado: 'passou_humano', apresentada: true, desde: iso(60 * 60_000), ate_wa_id: waId, respostas: 1, imagens: [], links: [], suporte: { avisado_em: iso(11 * 60_000), wa_id: waId, resumo: 'Ajuda' } },
+    });
+  }
+  const dois = () => {
+    semearLead({ posse: { estado: 'passou_humano', ate_wa_id: 10, suporte: { avisado_em: iso(11 * 60_000), wa_id: 10, resumo: 'Ajuda' } }, momento: iso(30 * 60_000) });
+    segundoSuporte(1, 11);
+    alvo([hmacDe(CHAVE)!, hmacDe(chaveDe(1))!]);
+  };
+  const linhaErros = () => (banco.tabelas.system_state ?? []).find(l => l.key === 'ag5040_linha_erros');
+
+  it('posse.regra NÃO é gravada se a ficha foi adiada (teto da linha): a vez é solta e a próxima rodada tenta', async () => {
+    semModeloAqui();
+    semearLead({ texto: 'Quero o reembolso' }); alvo([hmacDe(CHAVE)!]);
+    h.teto.mockResolvedValue('teto');
+    await rodar();
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect(posseDe().regra).toBeUndefined();
+    expect(posseDe().estado).toBe('viva');
+    h.teto.mockResolvedValue('ok');
+    vi.setSystemTime(new Date(AGORA.getTime() + 60_000));
+    await runVivoTick({ agora: new Date(AGORA.getTime() + 60_000), cliente: ia.cliente });
+    expect(posseDe().regra).toMatchObject({ motivo: 'dinheiro_de_volta' });
+  });
+
+  it('reenvio que saiu zera ag5040_linha_erros (como o vivoEnvio)', async () => {
+    dois();
+    (banco.tabelas.system_state ??= []).push({ key: 'ag5040_linha_erros', value: { n: 1, em: iso(60_000) }, updated_at: iso(60_000) });
+    await rodar();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(linhaErros()!.value.n).toBe(0);
+  });
+
+  it('erro do DESTINO (HTTP 400) no reenvio não conta para a pausa da linha, mas ainda encerra o laço', async () => {
+    dois();
+    h.ficha.mockRejectedValue(new Error('HTTP 400 numero invalido'));
+    await rodar();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(linhaErros()).toBeUndefined();
+    expect((banco.tabelas.whatsapp_sessions ?? []).filter(l => l.lead_data.suporte?.dono_em)).toHaveLength(1);
+  });
+
+  it('EXCEÇÃO dentro do reenvio encerra o laço da rodada (a 2ª pendência não é tentada)', async () => {
+    dois();
+    h.teto.mockRejectedValue(new Error('boom'));
+    await rodar();
+    expect(h.teto).toHaveBeenCalledTimes(1);
+    expect(h.ficha).not.toHaveBeenCalled();
+    expect((banco.tabelas.whatsapp_sessions ?? []).filter(l => l.lead_data.suporte?.dono_em)).toHaveLength(0);
+  });
+
+  it('exceção DEPOIS de a ficha do suporte sair (bolha lança): suporte gravado SEM incerta, porque o aviso chegou', async () => {
+    ia = modelo([{ bolhas: ['Entendi.'], extra: { acao: 'suporte_giovanna', resumo: 'Cliente com problema na conta' } }]);
+    semearLead({ texto: 'Sou cliente e preciso de ajuda com a minha conta' }); alvo([hmacDe(CHAVE)!]);
+    h.enviar.mockRejectedValue(new Error('boom'));
+    await rodar();
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(posseDe().estado).toBe('passou_humano');
+    expect(posseDe().suporte).toMatchObject({ wa_id: 10, avisado_em: AGORA.toISOString() });
+    expect(posseDe().suporte.incerta).toBeUndefined();
   });
 });

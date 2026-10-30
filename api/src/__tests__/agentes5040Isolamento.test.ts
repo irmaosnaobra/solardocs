@@ -10,7 +10,7 @@ const SRC = join(__dirname, '..');
 const A5040 = join(SRC, 'services', 'agentes5040');
 
 const RAIZES = [
-  'ensaio', 'replay', 'armazem', 'cota', 'ia', 'contexto', 'porteiro', 'turno', 'anuncioDoLead', 'interruptores',
+  'ensaio', 'replay', 'armazem', 'cota', 'ia', 'contexto', 'porteiro', 'turno', 'anuncioDoLead', 'interruptores', 'passagemPorRegra',
   join('personas', 'index'),
 ].map(n => join(A5040, `${n}.ts`));
 // A3 (painel): a rota existe e entra sempre. Se o arquivo sumir, o teste tem que falhar.

@@ -88,6 +88,8 @@ import {
   telefoneDoDono, tetoDaLinhaPermiteFicha,
 } from './fichaEnvio';
 import { hmacDe } from './hmac';
+import { contarErroDaLinha, espacamentoDoEnvio, linhaLivre, zerarErrosDaLinha } from './guardaDaLinha';
+import { motivoDePassagem } from './passagemPorRegra';
 import {
   PREFIXO_PRESENCA, acharVagaEp, aindaLivreEp, bolhaCardCriado, bolhaPresencaAnotada, bolhaSemDetalhe, cardResumoDe, consultorDoCardNovo,
   CONSULTORES_EP, fichaDoCardEp, funcoesEp, gravarCardSeNaoHouver, pendenciaEpDevida, provaDaPresenca, regrasDaHelena, situacaoDaConfirmacao,
@@ -896,13 +898,18 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     };
     // Todo chamado ao modelo (inclusive a segunda chance de agenda, de peça e de bolha barrada) leva o aviso do sistema e a
     // exigência da trava enquanto a agente não se apresentou: o aviso é somado AQUI, para nenhuma reconstrução de `avisosDoSistema` o perder.
-    const pensar = (c0: ContextoLead): Promise<ResultadoTurno> => pensarTurno({
-      persona: dona as Persona,
-      ctx: exigeAviso ? { ...c0, avisosDoSistema: [...(c0.avisosDoSistema ?? []), avisoDeApresentacao(dona as Persona)] } : c0,
-      ...(exigeAviso ? { exigeAviso: true } : {}),
-      novas: entrada, dadosAnteriores: dadosAnt, abertura: false, cliente: g.cliente, cacheMidia,
-      ...(dona === 'carla' ? { depoimentosJaEnviados: posse.imagens.length } : {}),
-    });
+    /** Quantas vezes o modelo DA AGENTE foi chamado neste turno (a ficha também usa o g.cliente, e essas chamadas não contam aqui). */
+    let chamadasDoPensar = 0;
+    const pensar = (c0: ContextoLead): Promise<ResultadoTurno> => {
+      chamadasDoPensar++;
+      return pensarTurno({
+        persona: dona as Persona,
+        ctx: exigeAviso ? { ...c0, avisosDoSistema: [...(c0.avisosDoSistema ?? []), avisoDeApresentacao(dona as Persona)] } : c0,
+        ...(exigeAviso ? { exigeAviso: true } : {}),
+        novas: entrada, dadosAnteriores: dadosAnt, abertura: false, cliente: g.cliente, cacheMidia,
+        ...(dona === 'carla' ? { depoimentosJaEnviados: posse.imagens.length } : {}),
+      });
+    };
 
     // 7. o modelo. `tratar` é o resto do turno; a ação de agenda que não deu certo chama o modelo de novo, UMA vez
     // (volta = 1), com um aviso do sistema e as vagas novas.
@@ -1218,6 +1225,60 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       }
     };
 
+    // 6b. A PASSAGEM POR REGRA (29/10/2026), antes do modelo: reembolso, ameaça jurídica e (só a Duda, em horário comercial) o pedido
+    // de falar com uma pessoa são decididos aqui, por código. Com motivo o modelo NÃO é chamado: a saída sintética segue pelo MESMO
+    // caminho de depois do modelo (releitura, ação, ficha antes da bolha, reservas, adiada e incerta). Sem motivo, ou com a regra
+    // sem condição de agir (Carla/Helena no pedido de pessoa, fora do horário, sem nome da consultora), o modelo decide como sempre.
+    const textosRegra = textosDoLead(comTranscricoes(entrada, cacheMidia));
+    const valoresRegra = dona === 'duda' ? valoresDaPessoaDe(textosDoLead(comTranscricoes(msgs, cacheMidia)), dadosAnt) : [];
+    let regra = motivoDePassagem(textosRegra.join(' '), dona as Persona, g.agoraEnvio());
+    let bolhaRegra = '';
+    if (regra?.motivo === 'pessoa') {
+      const alvoR = oferta.alvo ?? alvoDaAgenda(cardSolarDoCtx(ctx0), kwhDoLead(dadosAnt, valoresRegra));
+      const b = alvoR ? bolhaLigarAgoraOk(alvoR.dono) : null;
+      // Sem consultora definida ou sem bolha fixa que caiba com o aviso de IA: a ficha sairia e a bolha seria recusada.
+      if (!b || comAvisoSeFaltar(b, 'duda', jaApresentada(posse)) === null) regra = null; else bolhaRegra = b;
+    } else if (regra) {
+      bolhaRegra = bolhaDaPassagem(undefined, dona, jaApresentada(posse));
+    }
+    if (regra) {
+      if (!dry) {
+        // Condição do chefe anti-ban: a ficha sai ANTES da bolha, e a bolha é recusada se faltar espaço dos 10 s contra o último
+        // ag5040_sent. Faltando (ou sem ler), nada sai: solta a vez e a próxima rodada tenta, ainda dentro dos 15 min.
+        const esp = await espacamentoDoEnvio(g.agoraEnvio());
+        if (esp !== 'ok') {
+          await soltar();
+          r.parou = 'espacamento';
+          dec({ resultado: 'espacamento', motivo: `regra_${regra.motivo}:${esp}` });
+          return 'parar';
+        }
+        if (await linhaLivre(g.agoraEnvio()) !== 'sim') {
+          await soltar();
+          soma(r.puladas, 'regra_linha_pausada');
+          dec({ resultado: 'recusada', motivo: `regra_${regra.motivo}:linha_pausada` });
+          return 'seguir';
+        }
+      }
+      const saidaRegra: SaidaAgente = {
+        bolhas: [bolhaRegra], acao: regra.motivo === 'pessoa' ? 'ligar_agora' : 'suporte_giovanna', peca: null, dados: {},
+        resumo: `Regra ${regra.motivo}: ${regra.trecho}`, sabe_contexto: true,
+      };
+      const feitaPorRegra: ResultadoTurno = {
+        pensamento: { falou: true, saida: saidaRegra, modelo: `regra:${regra.motivo}`, stop_reason: null, uso: { entrada: 0, cache_criado: 0, cache_lido: 0, saida: 0 } },
+        qualificado: false, valoresDaPessoa: valoresRegra, midiasNovas: [],
+      };
+      const fim = await tratar(feitaPorRegra, 0, oferta);
+      // O rastro da regra na posse SÓ se a passagem aconteceu de fato: a ação marcou esta fala como atendida (ate_wa_id) e nenhuma
+      // chamada ao modelo da agente (`pensar`) entrou no meio. Ficha adiada, fala nova e prazo da rodada soltam a vez e deixam a posse como estava.
+      if (!dry && chamadasDoPensar === 0) {
+        const atual = await lerPosse(chave).catch(() => null);
+        if (atual && atual.ate_wa_id === L.id) {
+          await atualizarPosse(chave, { regra: { motivo: regra.motivo, em: g.agoraEnvio().toISOString() } });
+        }
+      }
+      return fim;
+    }
+
     return await tratar(await pensar(ctx), 0, oferta);
   } catch (err) {
     await soltar();
@@ -1398,6 +1459,8 @@ type ResultadoFicha = 'enviada' | 'adiada' | 'ja_avisada' | 'incerta';
  */
 async function enviarFichaVivo(g: G, p: {
   chave: string; acao: string; cardId: number; n: string; reserva: string; destino: string; texto: string;
+  /** Quem chama quer o erro de uma ficha que ficou incerta (o reenvio ao dono conta o erro da linha, menos o do destino). */
+  onErro?: (err: unknown) => void;
 }): Promise<ResultadoFicha> {
   const hl = hmacDe(`${p.chave}|${p.acao}|${p.cardId}|${p.n}`);
   if (!hl || linhaIoEmCooldown()) return 'adiada';
@@ -1415,6 +1478,7 @@ async function enviarFichaVivo(g: G, p: {
   } catch (err) {
     if (erroProvaQueNaoSaiu(err)) { await liberarChave(p.reserva); await liberarChave(chaveLead); return 'adiada'; }
     logger.error(LOG, `ficha ${p.acao} falhou (${codigoDe(err)}); pode ter saído`);
+    p.onErro?.(err);
     return 'incerta';
   }
   for (const k of [p.reserva, chaveLead]) {
@@ -1685,7 +1749,11 @@ async function acaoLigarAgora(A: ContextoAcao): Promise<Seguir> {
     // promessa nova sai: passa ao humano. Com ficha incerta a volta honesta cobre o silêncio (15 min depois, sem sinal).
     try {
       if (rf === 'incerta') await depoisDaFicha();
-      await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id, ...(rf === 'incerta' ? { ligar } : {}) });
+      // Plano B: `incerta` + o que o reenvio ao dono precisa (wa_id da fala, resumo). 10 min sem sinal da ligação e o dono recebe a ficha.
+      await atualizarPosse(chave, {
+        estado: 'passou_humano', ate_wa_id: L.id,
+        ...(rf === 'incerta' ? { ligar: { ...ligar, incerta: true, wa_id: L.id, resumo: String(saida.resumo ?? '').slice(0, 200) } } : {}),
+      });
       await A.registrar(false, `ligar_ficha_${rf}`);
     } catch (err) {
       logger.error(LOG, `conversa ${L.id}: erro depois da ficha incerta do ligar agora (${codigoDe(err)})`);
@@ -1999,20 +2067,25 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
     dec({ resultado: 'ficha_adiada', ...A.base2, ficha: 'adiada' });
     return 'seguir';
   }
+  const avisadoEm = g.agoraEnvio().toISOString();
+  /** O aviso que o reenvio ao dono lê (10 min sem fala da Giovanna). `incerta` = a ficha pode não ter chegado a ela. */
+  const suporteGravado = (incerta: boolean) => ({
+    avisado_em: avisadoEm, wa_id: L.id, resumo: String(saida.resumo ?? '').slice(0, 200), ...(incerta ? { incerta: true } : {}),
+  });
   if (rf !== 'enviada') {
-    // Já avisada ou incerta: a Giovanna pode ter a ficha, e uma 2ª bolha prometeria o que não se confirmou. Sem bolha.
+    // Já avisada ou incerta: a Giovanna pode ter a ficha, e uma 2ª bolha prometeria o que não se confirmou. Sem bolha. A ficha INCERTA
+    // grava também o aviso (plano B): se a equipe não falar em 10 min, o dono recebe a ficha com a ressalva de que pode não ter chegado.
     await A.registrar(false, 'ferramenta:suporte_giovanna');
-    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id });
+    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id, ...(rf === 'incerta' ? { suporte: suporteGravado(true) } : {}) });
     dec({ resultado: 'passou_ao_humano', ...A.base2, ficha: rf === 'ja_avisada' ? 'lead_ja_avisado' : 'falhou' });
     return 'seguir';
   }
   let parar: 'erro_linha' | 'espacamento' | null = null;
-  const avisadoEm = g.agoraEnvio().toISOString();
   try {
     const res = await enviarAoLead(chave, posse, { dona: posse.dona as DonaViva, telefone: tel, waIdAlvo: L.id, momentoFalaLead: L.momment, bolha, dry: false }, g.agoraEnvio());
     await atualizarPosse(chave, {
       estado: 'passou_humano', ate_wa_id: L.id, ...(res.ok ? { respostas: posse.respostas + 1 } : {}),
-      suporte: { avisado_em: avisadoEm, wa_id: L.id, resumo: String(saida.resumo ?? '').slice(0, 200) },
+      suporte: suporteGravado(false),
     });
     await A.registrar(res.ok, res.ok ? undefined : `acao_recusada:${res.motivo}`);
     if (res.ok) r.enviadas++;
@@ -2024,7 +2097,8 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
   } catch (err) {
     logger.error(LOG, `conversa ${L.id}: erro depois da ficha do suporte (${codigoDe(err)})`);
     soma(r.puladas, 'erro_depois_de_gravar');
-    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id });
+    // A ficha JÁ saiu (rf === 'enviada'): o aviso vai à posse sem `incerta` (o texto "pode não ter chegado" seria falso), e o reenvio ao dono cobre o silêncio.
+    await atualizarPosse(chave, { estado: 'passou_humano', ate_wa_id: L.id, suporte: suporteGravado(false) });
   }
   if (parar) { r.parou = parar; return 'parar'; }
   return 'seguir';
@@ -2033,6 +2107,22 @@ async function acaoSuporte(A: ContextoAcao): Promise<Seguir> {
 // ── pendências de tempo: a volta honesta e o reenvio do suporte ──────────────
 
 interface PosseComPendencia { chave: string; posse: DadosPosse }
+
+/** Reenvio ao dono: no máximo UM por rodada (suporte e ligar somados). `feito` vira true quando a ficha saiu ou ficou incerta. */
+interface PortaoDoDono { feito: boolean }
+/** `enviou` = a ficha saiu; `parar` = incerta ou erro, e o laço de pendências da rodada termina. */
+interface ResultadoReenvio { enviou: boolean; parar: boolean }
+const NADA: ResultadoReenvio = { enviou: false, parar: false };
+
+/** Exceção dentro de um reenvio ao dono encerra o laço de pendências da rodada (chefe anti-ban): nada de tentar o próximo às cegas. */
+async function reenvioAoDono(fazer: () => Promise<ResultadoReenvio>, gate: PortaoDoDono): Promise<ResultadoReenvio> {
+  try { return await fazer(); }
+  catch (err) {
+    logger.error(LOG, `reenvio ao dono falhou (${codigoDe(err)}); o laço de pendências para`);
+    gate.feito = true;
+    return { enviou: false, parar: true };
+  }
+}
 
 /** A pendência da ficha "remarcado" na posse (sem telefone). `ultima_em` = a última retentativa; sem ela, vale `em`. */
 interface RemarcadoPendente {
@@ -2051,10 +2141,12 @@ const remarcadoDevida = (rem: RemarcadoPendente, agoraMs: number): boolean => {
  * da validade, horário do card que passou) FICA: um passo a resolve e libera a vaga.
  */
 export function pendenciaDevida(posse: DadosPosse, agoraMs: number): boolean {
-  const lig = posse.ligar as { avisado_em?: string; volta_em?: string; resolvido_em?: string } | undefined;
+  const lig = posse.ligar as { avisado_em?: string; volta_em?: string; resolvido_em?: string; incerta?: boolean; dono_em?: string } | undefined;
   if (lig && !lig.volta_em && !lig.resolvido_em) {
     const t = Date.parse(String(lig.avisado_em ?? ''));
     if (Number.isFinite(t) && agoraMs - t >= LIMITES_VIVO.voltaHonestaMs) return true;
+    // Ficha do "ligar agora" INCERTA: aos 10 min, sem sinal da ligação, o dono recebe um reenvio (uma vez só).
+    if (lig.incerta === true && !lig.dono_em && Number.isFinite(t) && agoraMs - t >= LIMITES_VIVO.suporteDonoMs) return true;
   }
   const sup = posse.suporte as { avisado_em?: string; dono_em?: string; resolvido_em?: string } | undefined;
   if (sup && !sup.dono_em && !sup.resolvido_em) {
@@ -2109,15 +2201,24 @@ async function varrerPendencias(g: G): Promise<void> {
   const devidas = lista.filter(p => g.donas.includes(p.posse.dona) && pendenciaDevida(p.posse, g.agora.getTime()));
   if (!devidas.length) return;
   const cont = (r.pendencias ??= { voltas: 0, reenvios: 0, olhadas: 0 });
+  // No máximo UM reenvio ao dono por rodada (suporte e ligar somados); o primeiro incerta ou erro encerra o laço (chefe anti-ban).
+  const gate: PortaoDoDono = { feito: false };
   for (const p of devidas.slice(0, LIMITES_VIVO.pendenciasPorRodada)) {
     if (Date.now() - g.inicio > LIMITES_VIVO.prazoEnvioMs) { r.parou ??= 'prazo'; return; }
     cont.olhadas++;
     try {
       if (p.posse.ligar && !(p.posse.ligar as any).volta_em && !(p.posse.ligar as any).resolvido_em) {
+        if ((p.posse.ligar as any).incerta === true && !(p.posse.ligar as any).dono_em) {
+          const rl = await reenvioAoDono(() => reenvioLigar(g, p, gate), gate);
+          if (rl.enviou) cont.reenvios++;
+          if (rl.parar) return;
+        }
         if (await voltaHonesta(g, p)) cont.voltas++;
       }
       if (p.posse.suporte && !(p.posse.suporte as any).dono_em && !(p.posse.suporte as any).resolvido_em) {
-        if (await reenvioSuporte(g, p)) cont.reenvios++;
+        const rs = await reenvioAoDono(() => reenvioSuporte(g, p, gate), gate);
+        if (rs.enviou) cont.reenvios++;
+        if (rs.parar) return;
       }
       if (p.posse.remarcado && !(p.posse.remarcado as any).resolvido_em) {
         await retentarFichaRemarcada(g, p);
@@ -2128,6 +2229,40 @@ async function varrerPendencias(g: G): Promise<void> {
     }
   }
   void dry;
+}
+
+/**
+ * A ligação do "ligar agora" aconteceu? Sinal = status do card mudou, OU fala dela ao lead (autor equipe, nunca a nossa bolha de
+ * API), OU resposta dela à ficha no chat dela com a 5040. 'erro' = uma leitura falhou (não se faz nada); 'sem_card' = o card sumiu.
+ * É a MESMA régua da volta honesta e do reenvio ao dono.
+ */
+type SinalDaLigacao = { tipo: 'erro' } | { tipo: 'sem_card' } | { tipo: 'sinal'; telefone: string } | { tipo: 'sem_sinal'; telefone: string };
+async function sinalDaLigacao(
+  chave: string, lig: { cardId: number; dono: string; status_inicial?: string }, avisadoMs: number,
+): Promise<SinalDaLigacao> {
+  const { data: card, error } = await supabaseGerador.from('agendamentos').select('status, cliente_telefone').eq('id', Number(lig.cardId)).maybeSingle();
+  if (error) return { tipo: 'erro' };
+  if (!card) return { tipo: 'sem_card' };
+  const telefone = String((card as { cliente_telefone?: string | null }).cliente_telefone ?? '');
+  const statusAgora = String((card as { status?: string | null }).status ?? '').trim().toLowerCase();
+  let sinal = statusAgora !== String(lig.status_inicial ?? 'agendado').trim().toLowerCase();
+
+  if (!sinal) {
+    const conv = await lerConversa(chave);
+    if (!conv.completa) return { tipo: 'erro' };
+    sinal = equipeFalouDepois(conv.msgs, avisadoMs);
+  }
+  if (!sinal) {
+    const tc = await carregarTelefonesConsultores();
+    const telCons = telefoneDoConsultor(tc.ok ? tc.mapa : new Map(), lig.dono);
+    const chaveCons = telCons ? chaveContato(telCons) : null;
+    if (chaveCons) {
+      const dela = await lerConversa(chaveCons);
+      if (!dela.completa) return { tipo: 'erro' };
+      sinal = dela.msgs.some(m => m.autor === 'lead' && Date.parse(m.momment) > avisadoMs);   // ela escreveu para a 5040
+    }
+  }
+  return sinal ? { tipo: 'sinal', telefone } : { tipo: 'sem_sinal', telefone };
 }
 
 /**
@@ -2154,28 +2289,10 @@ async function voltaHonesta(g: G, p: PosseComPendencia): Promise<boolean> {
     await atualizarPosse(p.chave, { ligar: { ...lig, ...extra }, ...(estado ? { estado } : {}) });
   };
 
-  const { data: card, error } = await supabaseGerador.from('agendamentos').select('status, cliente_telefone').eq('id', cardId).maybeSingle();
-  if (error) return false;
-  if (!card) { if (!dry) await marcar({ resolvido_em: agora.toISOString() }); return false; }
-  const statusAgora = String((card as { status?: string | null }).status ?? '').trim().toLowerCase();
-  let sinal = statusAgora !== String(lig.status_inicial ?? 'agendado').trim().toLowerCase();
-
-  if (!sinal) {
-    const conv = await lerConversa(p.chave);
-    if (!conv.completa) return false;
-    sinal = equipeFalouDepois(conv.msgs, avisadoMs);
-  }
-  if (!sinal) {
-    const tc = await carregarTelefonesConsultores();
-    const telCons = telefoneDoConsultor(tc.ok ? tc.mapa : new Map(), lig.dono);
-    const chaveCons = telCons ? chaveContato(telCons) : null;
-    if (chaveCons) {
-      const dela = await lerConversa(chaveCons);
-      if (!dela.completa) return false;
-      sinal = dela.msgs.some(m => m.autor === 'lead' && Date.parse(m.momment) > avisadoMs);   // ela escreveu para a 5040
-    }
-  }
-  if (sinal) {
+  const sin = await sinalDaLigacao(p.chave, lig, avisadoMs);
+  if (sin.tipo === 'erro') return false;
+  if (sin.tipo === 'sem_card') { if (!dry) await marcar({ resolvido_em: agora.toISOString() }); return false; }
+  if (sin.tipo === 'sinal') {
     if (!dry) await marcar({ resolvido_em: agora.toISOString() });
     g.r.decisoes.push({ hmac8, wa_id: 0, dona: 'duda', acao: null, resultado: 'volta_dispensada', motivo: 'sinal da consultora', n_bolhas: 0, tamanho: 0 });
     return false;
@@ -2198,7 +2315,7 @@ async function voltaHonesta(g: G, p: PosseComPendencia): Promise<boolean> {
   if (dry) { g.r.decisoes.push({ ...vazio, resultado: 'volta_enfileiraria', motivo: null }); return false; }
   // O item guarda os ISOs (o aviso e as duas vagas); "amanhã às 9h" é montado na hora do envio, e a volta morre 2 h depois do aviso.
   const enf = await enfileirarAgenda({
-    tipo: 'volta', cardId, telefone: String((card as { cliente_telefone?: string | null }).cliente_telefone ?? ''), quando: new Date(avisadoMs).toISOString(),
+    tipo: 'volta', cardId, telefone: sin.telefone, quando: new Date(avisadoMs).toISOString(),
     validoAte: new Date(validoAte).toISOString(), consultora: primeiroNome(lig.dono), opcoes: [oferta.vagas[0]!, oferta.vagas[1]!],
   }, g.agoraEnvio());
   if (!enf.ok && enf.motivo === 'erro') return false;            // tenta de novo na próxima rodada
@@ -2254,30 +2371,33 @@ async function retentarFichaRemarcada(g: G, p: PosseComPendencia): Promise<boole
  * Suporte: 10 min depois do aviso, sem fala da Giovanna ao cliente, a mesma ficha vai ao dono, UMA vez (reserva
  * ag5040_suporte_dono:<hmac>:<waId>). Fala dela = autor equipe depois do aviso. true = a ficha saiu.
  */
-async function reenvioSuporte(g: G, p: PosseComPendencia): Promise<boolean> {
+async function reenvioSuporte(g: G, p: PosseComPendencia, gate: PortaoDoDono): Promise<ResultadoReenvio> {
   const { dry, agora } = g;
-  const sup = p.posse.suporte as { avisado_em: string; wa_id: number; resumo?: string };
+  const sup = p.posse.suporte as { avisado_em: string; wa_id: number; resumo?: string; incerta?: boolean };
   const avisadoMs = Date.parse(String(sup.avisado_em ?? ''));
   const waId = Number(sup.wa_id);
-  if (!Number.isFinite(avisadoMs) || !Number.isInteger(waId) || waId <= 0) return false;
-  if (agora.getTime() - avisadoMs < LIMITES_VIVO.suporteDonoMs) return false;
+  if (!Number.isFinite(avisadoMs) || !Number.isInteger(waId) || waId <= 0) return NADA;
+  if (agora.getTime() - avisadoMs < LIMITES_VIVO.suporteDonoMs) return NADA;
   const hmac = hmacDe(p.chave);
-  if (!hmac) return false;
+  if (!hmac) return NADA;
   const marcar = async (extra: Record<string, unknown>): Promise<void> => { await atualizarPosse(p.chave, { suporte: { ...sup, ...extra } }); };
   if (p.posse.estado === 'nao_incomodar' || p.posse.estado === 'encerrada') {
     if (!dry) await marcar({ resolvido_em: agora.toISOString() });
     g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_dispensado', motivo: p.posse.estado, n_bolhas: 0, tamanho: 0 });
-    return false;
+    return NADA;
   }
 
   const conv = await lerConversa(p.chave);
-  if (!conv.completa) return false;
+  if (!conv.completa) return NADA;
   if (equipeFalouDepois(conv.msgs, avisadoMs)) {
     if (!dry) await marcar({ resolvido_em: agora.toISOString() });
     g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_atendido', motivo: null, n_bolhas: 0, tamanho: 0 });
-    return false;
+    return NADA;
   }
-  if (dry) { g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_reenviaria', motivo: null, n_bolhas: 0, tamanho: 0 }); return false; }
+  if (dry) { g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_reenviaria', motivo: null, n_bolhas: 0, tamanho: 0 }); return NADA; }
+  // Regras do chefe: 1 reenvio ao dono por rodada, e linha pausada ou em cooldown deixa para depois (sem gravar nada).
+  if (gate.feito) return NADA;
+  if (await linhaLivre(g.agoraEnvio()) !== 'sim') return NADA;
   const tel = await telefoneParaEnviar(p.chave, waId);
   let card: CardResumo | null = null;
   try { card = (await lerCards(p.chave))[0] ?? null; } catch { card = null; }
@@ -2291,18 +2411,92 @@ async function reenvioSuporte(g: G, p: PosseComPendencia): Promise<boolean> {
   const linhas = fichaDeCampos(cardFicha, extras).linhas.filter(l => !(!card && l.startsWith('Conversa completa:')));
   const texto = textoDaMensagem(
     blocoSeguro(linhas), tel,
-    'REENVIO: a Giovanna ainda não falou com este cliente depois de 10 minutos. Atenda ou encaminhe.',
+    sup.incerta === true
+      ? 'REENVIO: o aviso à Giovanna pode não ter chegado, e ela ainda não falou com este cliente depois de 10 minutos. Atenda ou encaminhe.'
+      : 'REENVIO: a Giovanna ainda não falou com este cliente depois de 10 minutos. Atenda ou encaminhe.',
   );
+  let erroDoEnvio: unknown;
   const rf = await enviarFichaVivo(g, {
     chave: p.chave, acao: 'suporte_dono', cardId: card?.id ?? 0, n: String(waId), reserva: `ag5040_suporte_dono:${hmac}:${waId}`, destino: telefoneDoDono(), texto,
+    onErro: e => { erroDoEnvio = e; },
   });
+  if (rf !== 'adiada') gate.feito = true;                          // o portão fecha NA HORA: uma exceção daqui para baixo não abre um 2º reenvio
   g.r.decisoes.push({
     hmac8: hmac.slice(0, 8), wa_id: waId, dona: p.posse.dona, acao: null, resultado: 'suporte_reenviado_ao_dono', motivo: rf, n_bolhas: 0, tamanho: 0,
     ficha: rf === 'enviada' ? 'enviada' : rf === 'adiada' ? 'adiada' : rf === 'ja_avisada' ? 'lead_ja_avisado' : 'falhou',
   });
-  if (rf === 'adiada') return false;                                // nada saiu: tenta na próxima rodada
+  if (rf === 'adiada') return NADA;                                // nada saiu: tenta na próxima rodada
   await marcar({ dono_em: agora.toISOString(), dono: rf });
-  return rf === 'enviada';
+  if (rf === 'ja_avisada') return NADA;
+  if (rf === 'incerta') { await contarErroDaLinha(g.agoraEnvio(), erroDoEnvio); return { enviou: false, parar: true }; }
+  await zerarErrosDaLinha(g.agoraEnvio());                          // envio ok zera os erros seguidos, como o vivoEnvio
+  return { enviou: true, parar: false };
+}
+
+/**
+ * "Ligar agora" com ficha INCERTA (5xx, timeout): 10 min depois do aviso, se NENHUM sinal mostrar que a ligação aconteceu (status do
+ * card, fala da consultora ao lead, resposta dela à 5040), o dono recebe UM reenvio próprio ("LIGAR AGORA", não a Giovanna), com o
+ * conteúdo da ficha. Reserva ag5040_ligar_dono:<hmac>:<waId>; marca ligar.dono_em e nunca reenvia de novo, nem com a posse em
+ * nao_incomodar ou encerrada. Linha pausada ou em cooldown, ou o portão da rodada já usado, deixa para depois sem gravar nada.
+ */
+async function reenvioLigar(g: G, p: PosseComPendencia, gate: PortaoDoDono): Promise<ResultadoReenvio> {
+  const { dry, agora } = g;
+  const lig = p.posse.ligar as {
+    cardId: number; avisado_em: string; dono: string; status_inicial?: string; incerta?: boolean; dono_em?: string; wa_id?: number; resumo?: string;
+  };
+  const avisadoMs = Date.parse(String(lig.avisado_em ?? ''));
+  const cardId = Number(lig.cardId);
+  const waId = Number(lig.wa_id);
+  const hmac = hmacDe(p.chave);
+  if (!hmac || !Number.isFinite(avisadoMs) || !Number.isInteger(cardId) || cardId <= 0) return NADA;
+  if (agora.getTime() - avisadoMs < LIMITES_VIVO.suporteDonoMs) return NADA;
+  const reg = (resultado: string, motivo: string | null): void => {
+    g.r.decisoes.push({ hmac8: hmac.slice(0, 8), wa_id: Number.isFinite(waId) ? waId : 0, dona: 'duda', acao: null, resultado, motivo, n_bolhas: 0, tamanho: 0 });
+  };
+  /** Grava dono_em (nunca mais reenvia) e deixa a posse em memória igual, para a volta honesta da mesma passada não apagá-lo. */
+  const marcar = async (dono: string): Promise<void> => {
+    const novo = { ...lig, dono_em: agora.toISOString(), dono };
+    p.posse.ligar = novo;
+    await atualizarPosse(p.chave, { ligar: novo });
+  };
+  if (p.posse.estado === 'nao_incomodar' || p.posse.estado === 'encerrada') {
+    if (!dry) await marcar('dispensado');
+    reg('ligar_dono_dispensado', p.posse.estado);
+    return NADA;
+  }
+  if (!Number.isInteger(waId) || waId <= 0) { if (!dry) await marcar('malformada'); return NADA; }
+  const sin = await sinalDaLigacao(p.chave, lig, avisadoMs);
+  if (sin.tipo === 'erro') return NADA;                              // leitura falhou: tenta na próxima rodada
+  if (sin.tipo === 'sem_card' || sin.tipo === 'sinal') {
+    if (!dry) await marcar(sin.tipo);
+    reg('ligar_dono_dispensado', sin.tipo);
+    return NADA;
+  }
+  if (dry) { reg('ligar_dono_reenviaria', null); return NADA; }
+  if (gate.feito) return NADA;
+  if (await linhaLivre(g.agoraEnvio()) !== 'sim') return NADA;
+  const tel = await telefoneParaEnviar(p.chave, waId);
+  if (!tel) return NADA;
+  const cardFicha: CardDaFicha = (await lerCardParaFicha(cardId))
+    ?? { id: cardId, vendedor_nome: lig.dono, quando: null, cliente_nome: null, cidade: null, observacao: null, created_by: 'lp_solar' };
+  const extras = ['Pedido: o cliente aceitou receber a ligação AGORA e espera o telefone tocar', ...(lig.resumo ? [`Resumo: ${lig.resumo}`] : [])];
+  const texto = textoDaMensagem(
+    blocoSeguro(fichaDeCampos(cardFicha, extras).linhas), tel,
+    'LIGAR AGORA (REENVIO): o aviso à consultora pode não ter chegado, e nenhum sinal mostra que a ligação aconteceu depois de 10 minutos. Ligue para este cliente ou encaminhe.',
+  );
+  let erroDoEnvio: unknown;
+  const rf = await enviarFichaVivo(g, {
+    chave: p.chave, acao: 'ligar_dono', cardId, n: String(waId), reserva: `ag5040_ligar_dono:${hmac}:${waId}`, destino: telefoneDoDono(), texto,
+    onErro: e => { erroDoEnvio = e; },
+  });
+  reg('ligar_reenviado_ao_dono', rf);
+  if (rf === 'adiada') return NADA;                                 // nada saiu: tenta na próxima rodada
+  gate.feito = true;                                                // o portão fecha NA HORA, antes de gravar qualquer coisa
+  await marcar(rf);
+  if (rf === 'ja_avisada') return NADA;
+  if (rf === 'incerta') { await contarErroDaLinha(g.agoraEnvio(), erroDoEnvio); return { enviou: false, parar: true }; }
+  await zerarErrosDaLinha(g.agoraEnvio());
+  return { enviou: true, parar: false };
 }
 
 /**

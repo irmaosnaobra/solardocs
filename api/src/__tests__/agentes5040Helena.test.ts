@@ -606,6 +606,20 @@ describe('confirmar_presenca: só a bolha, com a prova, uma vez por card', () =>
     expect(banco.escritas.filter(e => e.tabela === 'system_state' && (e.chaves ?? []).some(k => k.startsWith('ep_'))).length).toBe(0);
   });
 
+  it('"Sim, mas vou no Procon" NÃO é confirmação de presença: a regra passa a conversa ao suporte (ficha), sem modelo e sem "confirmado"', async () => {
+    semear({ texto: 'Sim, mas vou no Procon', card: { presenca_confirmada_at: iso(MIN) } }); alvo([hmacDe(CHAVE)!]);
+    marcador(7, MOMENTO_LEAD);
+    ia = modelo([sim()]);
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(0);
+    expect(chavesDoEstado()).not.toContain(`${PREFIXO_PRESENCA}7`);
+    expect(h.ficha).toHaveBeenCalledTimes(1);
+    expect(String(h.ficha.mock.calls[0]![1])).toContain('Regra juridico');
+    expect(h.enviar.mock.calls.map(c => c[0].bolha).join(' ')).not.toContain('Confirmado');
+    expect(posseDe()).toMatchObject({ estado: 'passou_humano', regra: { motivo: 'juridico' } });
+    expect(r.decisoes[0]).toMatchObject({ acao: 'suporte_giovanna' });
+  });
+
   it('SEM confirmouMesmo ("Sim, mas quanto custa?"): a IA diz confirmar_presenca e a Helena fica quieta', async () => {
     semear({ texto: 'Sim, mas quanto custa?', card: { presenca_confirmada_at: iso(MIN) } }); alvo([hmacDe(CHAVE)!]);
     marcador(7, MOMENTO_LEAD);
