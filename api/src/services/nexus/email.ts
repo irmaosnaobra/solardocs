@@ -152,28 +152,47 @@ const apiUrl = () => process.env.API_URL || 'https://api.solardoc.app';
 export const urlDescadastro = (userId: string): string =>
   `${apiUrl()}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 
-/** Títulos que abrem um nome ("Eng Flavio Peetz", "Dra. Maria"): o nome de verdade é o token seguinte. Comparados sem ponto
- *  (o corte em ponto já tira), sem acento e em minúscula; por isso "Engº" cai em "engo" e "Profª" em "profa". */
-const TITULOS_DE_NOME = new Set(['eng', 'engo', 'dr', 'dra', 'sr', 'sra', 'prof', 'profa']);
+/** Títulos que abrem um nome ("Eng Flavio Peetz", "Dra. Maria"): o nome de verdade é o token seguinte. Comparados pela chave de
+ *  `chaveTitulo` (sem ponto, que o corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e
+ *  "o"): "Engº" cai em "engo", "Engª" em "enga", "Profª" em "profa" e "Profº" e "Prof°" em "profo". */
+const TITULOS = ['eng', 'engo', 'enga', 'dr', 'dra', 'sr', 'sra', 'srta', 'prof', 'profa', 'profo'];
+const TITULOS_DE_NOME = new Set(TITULOS);
+
+/** O maior título tem 5 letras, mais 1 de folga. Token maior que isso nunca é título e nem chega a ser normalizado: o NFKD de um
+ *  texto enorme é lento, e nome de gente não passa de poucas dezenas de letras. */
+const TAMANHO_MAX_TITULO = Math.max(...TITULOS.map((t) => t.length)) + 1;
 
 /** Tira o acento. NFKD também leva "º" a "o" e "ª" a "a", e só o teste de título quer isso. O teste de vogal usa NFD, para
  *  "Mª" não ganhar uma vogal que não é letra do nome. */
 const tiraAcento = (t: string, forma: 'NFD' | 'NFKD'): string => t.normalize(forma).replace(/[\u0300-\u036f]/g, '');
 
+/** Chave de comparação com a lista de títulos. O grau "°", que o teclado dá no lugar do "º", vale "o" (o NFKD não o leva a "o"). */
+const chaveTitulo = (t: string): string =>
+  t.length > TAMANHO_MAX_TITULO ? '' : tiraAcento(t, 'NFKD').replace(/\xb0/g, 'o').toLowerCase();
+
+const ehTitulo = (t: string): boolean => TITULOS_DE_NOME.has(chaveTitulo(t));
+
+/** Ordinal solto (º, ª ou °): o corte em ponto separa "Prof.ª" em "Prof" e "ª", e esse ordinal pertence ao título. */
+const ORDINAL_SOLTO = /^[\xba\xaa\xb0]$/;
+
 /**
  * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo, sigla): aí
  * o e-mail diz só "Olá." e nunca "Olá, 11999990000." nem "Olá, Vsp.". Corta no espaço, no ponto e no sublinhado ("ana.paula"
- * vira "Ana"). Título no começo (Eng, Engº, Dr, Dra, Sr, Sra, Prof, Profª, com ou sem ponto, em qualquer caixa) é pulado, um
- * só: "Eng Flavio Peetz" vira "Flavio", e título sem nome depois dá vazio. Token sem nenhuma vogal (a, e, i, o, u, y, com ou
- * sem acento) é sigla, não nome: "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez para o token seguinte. Nome todo
- * em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o resto
- * minúsculo; nome já misturado ("McDonald") fica como veio.
+ * vira "Ana"). Título no começo (Eng, Engº, Engª, Dr, Dra, Sr, Sra, Srta, Prof, Profª, Profº, com ou sem ponto, com "°" no
+ * lugar do "º", em qualquer caixa) é pulado, um só, e o ordinal que o ponto separou dele sai junto ("Prof.ª Ana" vira "Ana"):
+ * "Eng Flavio Peetz" vira "Flavio". Título sem nome depois dá vazio, e título depois de título também ("Profa. Dra. Maria"),
+ * porque o segundo seria saudado como nome. Token sem nenhuma vogal (a, e, i, o, u, y, com ou sem acento) é sigla, não nome:
+ * "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez para o token seguinte. Nome todo em minúscula ou todo em
+ * maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o resto minúsculo; nome já
+ * misturado ("McDonald") fica como veio.
  */
 export function primeiroNome(nome: unknown): string {
   const tokens = String(nome ?? '').trim().split(/[\s._]+/);
-  const comTitulo = TITULOS_DE_NOME.has(tiraAcento(tokens[0] ?? '', 'NFKD').toLowerCase());
-  const p = (comTitulo ? tokens[1] : tokens[0]) ?? '';
+  let pula = 0;
+  if (ehTitulo(tokens[0] ?? '')) pula = ORDINAL_SOLTO.test(tokens[1] ?? '') ? 2 : 1;
+  const p = tokens[pula] ?? '';
   if (!/^[\p{L}][\p{L}'’-]{1,29}$/u.test(p)) return '';
+  if (pula > 0 && ehTitulo(p)) return '';
   if (!/[aeiouy]/i.test(tiraAcento(p, 'NFD'))) return '';
   const resto = p === p.toLowerCase() || p === p.toUpperCase() ? p.slice(1).toLowerCase() : p.slice(1);
   return p.charAt(0).toUpperCase() + resto;

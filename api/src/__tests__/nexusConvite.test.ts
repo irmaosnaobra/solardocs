@@ -395,6 +395,42 @@ describe('convite por e-mail: texto', () => {
     expect(primeiroNome('Muniz Freire Solar')).toBe('Muniz');
   });
 
+  it('primeiroNome: o ordinal que o ponto separou do título ("Prof.ª", "Eng.º") sai junto com ele, e só do título', () => {
+    const casos: Array<[string, string]> = [
+      ['Prof.ª Ana', 'Ana'],
+      ['Dr.ª Maria', 'Maria'],
+      ['Sr.ª Maria', 'Maria'],
+      ['Eng.º Flavio', 'Flavio'],
+      ['Eng.ª Maria', 'Maria'],
+      ['Prof.º Carlos Lima', 'Carlos'],
+      // Ordinal depois de ponto que não segue título: o corte em ponto vale como antes e o ordinal fica para trás.
+      ['Maria.ª Silva', 'Maria'],
+    ];
+    for (const [entrada, esperado] of casos) expect(primeiroNome(entrada), entrada).toBe(esperado);
+    // Título e ordinal sem nome depois, ou ordinal solto no lugar do nome: vazio.
+    for (const entrada of ['Dr.ª', 'Prof.ª 123', 'M.ª']) expect(primeiroNome(entrada), entrada).toBe('');
+  });
+
+  it('primeiroNome: Engª, Enga, Profº, Srta e o grau "°" no lugar do ordinal também são título', () => {
+    const casos: Array<[string, string]> = [
+      ['Engª Maria', 'Maria'],
+      ['Enga Maria', 'Maria'],
+      ['Enga. Maria', 'Maria'],
+      ['Profº Carlos', 'Carlos'],
+      ['Srta Maria', 'Maria'],
+      ['Srta. Maria', 'Maria'],
+      ['SRTA MARIA', 'Maria'],
+      ['Eng° Flavio', 'Flavio'],
+      ['Prof° Carlos', 'Carlos'],
+    ];
+    for (const [entrada, esperado] of casos) expect(primeiroNome(entrada), entrada).toBe(esperado);
+  });
+
+  it('primeiroNome: pula um título só, e título depois de título dá vazio (o segundo não é nome)', () => {
+    const casos = ['Profa. Dra. Maria', 'Prof. Dra. Ana', 'Dr. Prof. Ana', 'Eng Eng Flavio', 'Dr Engª Maria', 'Dr.ª Prof. Ana', 'Eng° Srta Maria'];
+    for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
+  });
+
   it('a saudação do convite acompanha o primeiro nome: título pulado vira "Olá, Flavio."; sigla ou título sozinho vira só "Olá."', () => {
     const casos: Array<[string, string]> = [
       ['Eng Flavio Peetz', 'Olá, Flavio.'],
@@ -406,6 +442,8 @@ describe('convite por e-mail: texto', () => {
       ['VSP Energia', 'Olá.'],
       ['Vs', 'Olá.'],
       ['CM', 'Olá.'],
+      ['Profa. Dra. Maria', 'Olá.'],
+      ['Prof.ª Ana', 'Olá, Ana.'],
     ];
     for (const [nome, saudacao] of casos) {
       const html = htmlConvite(U1, nome);
