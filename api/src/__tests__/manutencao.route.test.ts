@@ -526,10 +526,10 @@ describe('público /m', () => {
     const r = await concluida();
     const a = await request(app).get(`/m/${r.id}/pdf`).redirects(0);
     const ms = new Date(linha(r.id).updated_at).getTime();
-    expect(a.headers.location).toContain(`/relatorio-v2-${ms}-`);
+    expect(a.headers.location).toMatch(new RegExp(`/relatorio-v\\d+-${ms}-`));
     const guardados = [...h.objetos.keys()].filter((p) => p.endsWith('.pdf'));
     expect(guardados).toHaveLength(1);
-    expect(guardados[0]).toMatch(new RegExp(`/relatorio-v2-${ms}-[0-9a-f]{8}\\.pdf$`));
+    expect(guardados[0]).toMatch(new RegExp(`/relatorio-v\\d+-${ms}-[0-9a-f]{8}\\.pdf$`));
     expect(guardados[0]!.endsWith('-00000000.pdf')).toBe(false);
   });
   it('PDF: trocar o nome da empresa gera outro arquivo, o velho sai do bucket e sem mexer de novo não regera', async () => {
@@ -573,7 +573,7 @@ describe('público /m', () => {
     expect(tela.text).not.toContain('Solar Teste Energia');
     const pdf = await request(app).get(`/m/${r.id}/pdf`).redirects(0);
     expect(pdf.status).toBe(302);
-    expect(pdf.headers.location).toMatch(/relatorio-v2-\d+-00000000\.pdf/);
+    expect(pdf.headers.location).toMatch(/relatorio-v\d+-\d+-00000000\.pdf/);
     expect(h.navegador.html).not.toContain('Solar Teste Energia');
   });
   it('assinatura do técnico com registro, data e hora; o cliente que não assinou aparece só com o nome', async () => {

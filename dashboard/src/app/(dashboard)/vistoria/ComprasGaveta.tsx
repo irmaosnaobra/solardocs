@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Gaveta, estilos as e } from '@/components/AreaTrabalho/AreaTrabalho';
 import { parseNumero } from '../manutencao/Campos';
@@ -8,13 +8,13 @@ import { CATALOGO, CATEGORIAS, OBSERVACOES_PRONTAS } from './catalogoCompras';
 import { TEXTOS_COMPRAS as T } from './comprasTextos';
 import {
   atualizarLinha, buscar, criarId, itemQueDispara, lerQtd, limparTexto, linhaDoCatalogo, linhaLivre, linhaNota,
-  sugerir, sugestoesDoItem, textoCliente, textoFornecedor,
+  loteDeSugeridas, sugerir, sugestoesDoItem, textoCliente, textoFornecedor,
 } from './comprasPuro';
 import {
   ABREV_UNIDADE, CHAVES_ITENS, LIMITES, QUEM, ROTULO_ITEM, ROTULO_QUEM, ROTULO_STATUS, ROTULO_UNIDADE, UNIDADES,
   type EntradaCatalogo, type LinhaCompra, type MapaStatus, type Quem, type Unidade,
 } from './comprasTipos';
-import { ControleQtd } from './Compras';
+import { ControleQtd, textoDaSituacao } from './Compras';
 import { preencher, type ResultadoAdicao, type SessaoCompras, type UsoCompras } from './useCompras';
 
 // A folha da lista de compras (seção 7.6 do plano): sugestões de um item, todas as sugestões, busca, material fora
@@ -135,10 +135,18 @@ function BarraAviso({ aviso }: { aviso: Aviso | null }) {
   );
 }
 
-/** "Pronto" (ou "Pronto, 3 na lista"): sempre à vista no pé da folha. */
-function Rodape({ total, aoFechar }: { total: number; aoFechar: () => void }) {
+/**
+ * "Pronto" (ou "Pronto, 3 na lista"): sempre à vista no pé da folha. Quando a lista NÃO está indo para o servidor (sem
+ * conexão, erro ao salvar ou vistoria concluída em outro aparelho) o pé também diz isso: a seção que traz o aviso e o
+ * ponto da pílula ficam atrás da folha no celular, e quem adiciona vários materiais não veria nada.
+ */
+function Rodape({ compras, aoFechar }: { compras: UsoCompras; aoFechar: () => void }) {
+  const total = compras.estado.linhas.length;
+  const situacao = compras.situacao;
+  const problema = situacao === 'sem_rede' || situacao === 'erro' || situacao === 'conflito';
   return (
     <div className="vst-cmpRodape">
+      {problema && <p className={`vst-cmpRodapeEstado vst-cmpEstado-${situacao}`} role="status">{textoDaSituacao(compras)}</p>}
       <button type="button" className={e.btnPrim} onClick={aoFechar}>
         {total > 0 ? preencher(T.prontoN, { n: total }) : T.pronto}
       </button>
@@ -250,15 +258,17 @@ function VistaItem({ ctx, item }: { ctx: Contexto; item: string }) {
   const visiveis = todas ? principais : principais.slice(0, 4);
   const escondidas = principais.length - visiveis.length;
   const pendentes = principais.filter((x) => !porCid.has(x.entrada.cid));
+  // O que "Adicionar as sugeridas" leva: as alternativas excludentes (telha ou laje) nunca entram, e a remoção de telhado
+  // com amianto também não (só por toque direto: a vistoria não sabe que a telha é de fibrocimento).
+  const lote = loteDeSugeridas(pendentes);
   const notas = OBSERVACOES_PRONTAS.filter((o) => o.itens.includes(item));
 
-  // As alternativas excludentes (telha ou laje) nunca entram no lote.
   function adicionarLote() {
     // Cada linha leva um instante distinto no id, para duas do mesmo lote nunca baterem no sorteio das letras.
     const agora = new Date();
     const base = agora.getTime();
     const iso = agora.toISOString();
-    const linhas = pendentes.map((x, i) => linhaDoCatalogo(x.entrada, { item, agora: iso, id: criarId(base + i) }));
+    const linhas = lote.map((x, i) => linhaDoCatalogo(x.entrada, { item, agora: iso, id: criarId(base + i) }));
     const ids = sessao.adicionarVarias(linhas);
     if (ids.length === 0) return;
     mostrar(ids.length === 1 ? T.loteUma : preencher(T.lote, { n: ids.length }), () => sessao.removerVarias(ids));
@@ -266,9 +276,9 @@ function VistaItem({ ctx, item }: { ctx: Contexto; item: string }) {
 
   return (
     <>
-      {pendentes.length > 0 && (
+      {lote.length > 0 && (
         <button type="button" className={`${e.btnPrim} vst-cmpLote`} onClick={adicionarLote}>
-          {preencher(T.adicionarSugeridas, { n: pendentes.length })}
+          {preencher(T.adicionarSugeridas, { n: lote.length })}
         </button>
       )}
       <BarraAviso aviso={aviso} />
@@ -315,7 +325,7 @@ function VistaItem({ ctx, item }: { ctx: Contexto; item: string }) {
       <button type="button" className={`${e.btnSec} vst-cmpBuscarBtn`} onClick={() => ctx.irPara({ vista: 'buscar' })}>
         <Search size={17} aria-hidden="true" /> {T.buscarBotao}
       </button>
-      <Rodape total={compras.estado.linhas.length} aoFechar={ctx.aoFechar} />
+      <Rodape compras={compras} aoFechar={ctx.aoFechar} />
     </>
   );
 }
@@ -398,7 +408,7 @@ function VistaTodas({ ctx }: { ctx: Contexto }) {
         </section>
       )}
 
-      <Rodape total={compras.estado.linhas.length} aoFechar={ctx.aoFechar} />
+      <Rodape compras={compras} aoFechar={ctx.aoFechar} />
     </>
   );
 }
@@ -447,7 +457,7 @@ function VistaBuscar({ ctx }: { ctx: Contexto }) {
           {preencher(T.adicionarLivre, { texto: termo })}
         </button>
       )}
-      <Rodape total={compras.estado.linhas.length} aoFechar={ctx.aoFechar} />
+      <Rodape compras={compras} aoFechar={ctx.aoFechar} />
     </>
   );
 }
@@ -576,7 +586,7 @@ function VistaEditar({
   const { aviso, mostrar } = useAviso();
   const linha = ctx.compras.estado.linhas.find((l) => l.id === id);
 
-  if (!linha) return <Rodape total={ctx.compras.estado.linhas.length} aoFechar={ctx.aoFechar} />;
+  if (!linha) return <Rodape compras={ctx.compras} aoFechar={ctx.aoFechar} />;
 
   const material = linha.tipo === 'material';
   const r = rascunho && rascunho.id === id ? rascunho.r : rascunhoDaLinha(linha);
@@ -715,7 +725,7 @@ function VistaObs({ ctx }: { ctx: Contexto }) {
         )}
       </section>
 
-      <Rodape total={compras.estado.linhas.length} aoFechar={ctx.aoFechar} />
+      <Rodape compras={compras} aoFechar={ctx.aoFechar} />
     </>
   );
 }
@@ -745,6 +755,7 @@ function VistaTexto({
   });
   const [aviso, setAviso] = useState('');
   const caixa = useRef<HTMLTextAreaElement>(null);
+  const haMaterial = estado.linhas.some((l) => l.tipo === 'material');
 
   const fornecedor = useMemo(() => textoFornecedor(estado, { clienteNome }), [estado, clienteNome]);
   const cliente = useMemo(
@@ -759,6 +770,20 @@ function VistaTexto({
     setAba(nova);
     setAviso('');
   }
+
+  // A caixa cresce até o texto caber inteiro, contando as linhas que a largura quebra (o `rows` só vê as quebras do
+  // texto, e no celular o fim do texto e o link do relatório ficavam escondidos). O teto de 60% da tela é do CSS.
+  const ajustarCaixa = useCallback(() => {
+    const el = caixa.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+  }, []);
+  useLayoutEffect(() => { ajustarCaixa(); }, [ajustarCaixa, atual.texto, atual.pode, aba]);
+  useEffect(() => {
+    window.addEventListener('resize', ajustarCaixa);
+    return () => window.removeEventListener('resize', ajustarCaixa);
+  }, [ajustarCaixa]);
 
   // A cópia roda DIRETO no toque, com o texto já pronto: o Safari do iPhone recusa a cópia depois de um await.
   function copiar() {
@@ -796,12 +821,14 @@ function VistaTexto({
           ref={caixa}
           className="vst-cmpCaixa"
           readOnly
-          rows={Math.min(14, Math.max(6, atual.texto.split('\n').length))}
+          rows={4}
           aria-label={aba === 'fornecedor' ? T.abaForn : T.abaCli}
           value={atual.texto}
         />
       ) : (
-        <p className="vst-cmpDica">{aba === 'fornecedor' ? T.dicaSemMaterial : T.semItemCliente}</p>
+        <p className="vst-cmpDica">
+          {aba === 'fornecedor' ? (haMaterial ? T.semItemFornecedor : T.dicaSemMaterial) : T.semItemCliente}
+        </p>
       )}
 
       {atual.fora && <p className="vst-cmpNotaTexto">{atual.fora}</p>}
@@ -827,7 +854,7 @@ function VistaTexto({
           atual.pode && <p className="vst-cmpNotaTexto">{T.listaLonga}</p>
         )}
       </div>
-      <Rodape total={estado.linhas.length} aoFechar={ctx.aoFechar} />
+      <Rodape compras={compras} aoFechar={ctx.aoFechar} />
     </>
   );
 }

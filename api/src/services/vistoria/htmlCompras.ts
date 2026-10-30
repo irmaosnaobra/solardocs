@@ -129,6 +129,9 @@ export function paragrafoNaLista(nomes: readonly string[] | undefined): string {
 // legenda não ficam sozinhos no pé da página: seguem junto do primeiro grupo (break-after). No celular a tabela
 // vira cartões: a faixa colorida passa da primeira célula para a borda do cartão, para os textos ficarem
 // alinhados, e a célula do motivo vazia (sem item e sem prazo) some em vez de mostrar só o rótulo.
+// No papel as colunas Quantidade e Motivo têm a MESMA largura em todos os grupos (o Item fica com o resto). É largura
+// preferida, não fixa: com uma fonte mais larga ou uma quantidade enorme a coluna cresce em vez de invadir a vizinha. A faixa
+// colorida é uma sombra interna (não uma borda), para a linha divisória começar no mesmo ponto em toda linha.
 export const CSS_COMPRAS = `
 .intro{margin:0 0 6px;max-width:74ch;break-after:avoid;page-break-after:avoid}
 .resumo-compras{margin:0 0 8px;font-weight:600;break-after:avoid;page-break-after:avoid}
@@ -140,13 +143,13 @@ export const CSS_COMPRAS = `
 .cmp{width:100%;border-collapse:collapse;font-size:13px}
 .cmp thead{display:table-header-group}
 .cmp th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;color:var(--mut);border-bottom:1.5px solid var(--bd);padding:5px 8px}
-.cmp th:nth-child(2){text-align:right}
+.cmp th:nth-child(2){text-align:right;width:128px}
+.cmp th:nth-child(3){width:250px}
 .cmp td{padding:7px 8px;border-bottom:1px solid var(--ln);vertical-align:top;overflow-wrap:anywhere}
 .cmp tr{break-inside:avoid;page-break-inside:avoid}
-.cmp td:first-child{border-left:4px solid transparent}
-.cmp tr.alta td:first-child{border-left-color:var(--sc-nao_conforme)}
-.cmp tr.media td:first-child{border-left-color:var(--sc-atencao)}
-.cmp td.q{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;width:1%}
+.cmp tr.alta td:first-child{box-shadow:inset 4px 0 0 var(--sc-nao_conforme)}
+.cmp tr.media td:first-child{box-shadow:inset 4px 0 0 var(--sc-atencao)}
+.cmp td.q{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
 .cmp .esp,.cmp .nota,.cmp .orig{display:block;font-size:12px;color:var(--mut)}
 .cmp .nota{color:var(--sub)}
 .cmp .orig{margin-top:3px}
@@ -159,7 +162,7 @@ export const CSS_COMPRAS = `
   .cmp,.cmp tbody,.cmp tr,.cmp td{display:block;width:100%}
   .cmp tr{border:1px solid var(--bd);border-radius:8px;margin:8px 0;padding:6px 8px}
   .cmp td{border:0;padding:3px 0}
-  .cmp td:first-child{border-left:0}
+  .cmp tr.alta td:first-child,.cmp tr.media td:first-child{box-shadow:none}
   .cmp tr.alta{border-left:4px solid var(--sc-nao_conforme)}
   .cmp tr.media{border-left:4px solid var(--sc-atencao)}
   .cmp td::before{content:attr(data-r);display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}

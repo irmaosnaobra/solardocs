@@ -520,6 +520,15 @@ export function sugestoesDoItem(
 }
 
 /**
+ * O que "Adicionar as sugeridas" leva de uma vez: as pendentes, SEM as entradas que trazem aviso de amianto (a remoção
+ * de telhado com amianto). A vistoria não sabe que o telhado é de fibrocimento só porque o tipo de telha está marcado
+ * Atenção ou Não conforme; esse serviço só entra por toque direto, uma entrada por vez, depois de o técnico conferir.
+ */
+export function loteDeSugeridas<T extends { entrada: EntradaCatalogo }>(pendentes: readonly T[]): T[] {
+  return pendentes.filter((x) => !x.entrada.aviso);
+}
+
+/**
  * O item que dispara a entrada neste momento: o do status mais grave (os Não conforme antes dos Atenção, e dentro
  * de cada bloco a ordem do checklist), o mesmo grupo em que a entrada aparece em sugerir. Serve para a linha criada
  * pela busca ou pelas categorias: o `item` só é preenchido quando algum item marcado dispara a entrada. Devolve

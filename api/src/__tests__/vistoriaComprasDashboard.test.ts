@@ -72,7 +72,7 @@ const TEXTOS = textos.TEXTOS_COMPRAS as Record<string, string>;
 const {
   limparTexto, lerQtd, criarId, normalizarLinha, prazoDe, formatarQtd, unidadePorExtenso, frasesResumo,
   linhaDoCatalogo, linhaLivre, linhaNota, adicionarLinha, removerLinha, restaurarLinha, atualizarLinha,
-  sugerir, contagemPorItem, sugestoesDoItem, itemQueDispara, buscar, primeiroNome, textoFornecedor, textoCliente,
+  sugerir, contagemPorItem, sugestoesDoItem, loteDeSugeridas, itemQueDispara, buscar, primeiroNome, textoFornecedor, textoCliente,
 } = puro;
 
 // ---------------------------------------------------------------------------------------------------------
@@ -614,8 +614,10 @@ describe('textos da tela', () => {
     for (const [chave, texto] of Object.entries(exatos)) expect(TEXTOS[chave], chave).toBe(texto);
     // As únicas chaves a mais são as formas que o plano não escreve por extenso.
     const extras = Object.keys(TEXTOS).filter((k) => !(k in exatos)).sort();
-    expect(extras).toEqual(['loteUma']);
+    expect(extras).toEqual(['loteUma', 'semItemFornecedor']);
     expect(TEXTOS.loteUma).toBe('1 sugestão adicionada.');
+    // Texto da aba do fornecedor quando a lista tem material, mas nenhum é para ele (só serviço ou item do cliente).
+    expect(TEXTOS.semItemFornecedor).toBe('Nenhum material desta lista é para o fornecedor.');
   });
 
   it('as frases que o comprasPuro escreve sozinho são as mesmas dos textos', () => {
@@ -1127,6 +1129,25 @@ describe('sugestoesDoItem', () => {
     expect(cidsDe(r.principais)).not.toContain('caixa-medicao');
     expect(cidsDe(r.principais)).not.toContain('haste-aterramento');
     expect(cidsDe(r.principais)).toContain('cabo-ramal-entrada');
+  });
+
+  it('o lote de "Adicionar as sugeridas" não leva a remoção de telhado com amianto (só por toque direto)', () => {
+    const r = sugestoesDoItem(CATALOGO, 'tipo_telha', { tipo_telha: 'atencao' }, [], []);
+    expect(cidsDe(r.principais)).toContain('remocao-telhado-amianto');
+    const lote = loteDeSugeridas(r.principais) as Sugerida[];
+    expect(cidsDe(lote)).not.toContain('remocao-telhado-amianto');
+    expect(lote).toHaveLength(r.principais.length - 1);
+    for (const x of lote) expect(x.entrada.aviso).toBeUndefined();
+    // a ordem das demais não muda e quem não tem aviso entra inteiro
+    expect(cidsDe(lote)).toEqual(cidsDe(r.principais).filter((c: string) => c !== 'remocao-telhado-amianto'));
+    // item sem entrada com aviso: o lote é a lista inteira; lista vazia dá lista vazia
+    const padrao = sugestoesDoItem(CATALOGO, 'padrao', { padrao: 'nao_conforme' }, [], []);
+    expect(loteDeSugeridas(padrao.principais)).toHaveLength(padrao.principais.length);
+    expect(loteDeSugeridas([])).toEqual([]);
+    // devolve lista nova: não mexe na que veio
+    const antes = [...r.principais];
+    loteDeSugeridas(r.principais);
+    expect(r.principais).toEqual(antes);
   });
 
   it('item que não está marcado Atenção nem Não conforme devolve tudo vazio', () => {

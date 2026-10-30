@@ -145,10 +145,24 @@ describe('cabeçalho e marca', () => {
     expect(h).not.toContain('Contagem');
   });
   it('responsável técnico vem da assinatura do técnico; sem assinatura, sem a linha', () => {
-    expect(html(entrada({ assinaturas: ASSINATURAS }))).toContain('<span>Responsável técnico: Bruno Lima, CFT 123</span>');
+    expect(html(entrada({ assinaturas: ASSINATURAS }))).toContain('<span>Responsável técnico: Bruno Lima, <span class="nw">CFT 123</span></span>');
     expect(html(entrada({ assinaturas: { cliente: ASSINATURAS.cliente } }))).not.toContain('Responsável técnico');
     expect(html(entrada())).not.toContain('Responsável técnico');
     expect(html(entrada({ assinaturas: { tecnico: { url: null, nome: 'Bruno Lima', ts: TS } } }))).toContain('Responsável técnico: Bruno Lima</span>');
+  });
+  it('o registro do responsável não quebra no meio do número: vai num pedaço nowrap, escapado, e registro enorme volta a quebrar', () => {
+    const com = (registro: string) => html(entrada({ assinaturas: { tecnico: { url: null, nome: 'Bruno Lima', registro, ts: TS } } }));
+    expect(com('CFT 123456789-0')).toContain('<span>Responsável técnico: Bruno Lima, <span class="nw">CFT 123456789-0</span></span>');
+    // o texto do técnico continua escapado dentro do pedaço
+    expect(com('CFT <b>1</b>')).toContain('<span class="nw">CFT &lt;b&gt;1&lt;/b&gt;</span>');
+    // acima de 28 caracteres o pedaço sairia da coluna: o registro segue como texto comum
+    const longo = 'CFT 123456789-0 CRT 987654321-0 e mais um registro longo';
+    expect(com(longo)).toContain(`Responsável técnico: Bruno Lima, ${longo}</span>`);
+    expect(com(longo)).not.toContain('class="nw"');
+    // o span interno não herda o `display:block` de `.ref span` (senão o número iria sempre para a linha de baixo)
+    const h = com('CFT 1');
+    expect(h).toContain('.ref span.nw{display:inline;white-space:nowrap;overflow-wrap:normal}');
+    expect(h.indexOf('.ref span.nw{')).toBeGreaterThan(h.indexOf('.ref span{display:block'));
   });
   it('tema claro único: nada do tema escuro antigo nem de prefers-color-scheme', () => {
     for (const modo of ['tela', 'pdf'] as const) {
@@ -372,11 +386,28 @@ describe('próximos passos', () => {
     expect(html(andamento())).not.toContain('Próximos passos');
     expect(html(entrada())).not.toContain('Próximos passos');
   });
-  it('a ordem no documento: resultado, pendências, conclusão, próximos passos, registro, documentos, assinaturas e versão online', () => {
+  it('a ordem no documento: versão online (no cabeçalho do PDF), resultado, pendências, conclusão, próximos passos, registro, documentos e assinaturas', () => {
     const h = html(cheia(), 'pdf');
-    const ordem = ['Resultado da vistoria', 'Pendências e prioridades', '>Conclusão<', 'Próximos passos', 'Registro por item', 'Documentos do titular', '>Assinaturas<', 'Versão online'].map((t) => h.indexOf(t));
+    const ordem = ['Versão online', 'Resultado da vistoria', 'Pendências e prioridades', '>Conclusão<', 'Próximos passos', 'Registro por item', 'Documentos do titular', '>Assinaturas<'].map((t) => h.indexOf(t));
     expect(ordem.every((p) => p > 0)).toBe(true);
     expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+  });
+  it('a linha da versão online fica logo abaixo da data e das contagens, uma vez só, e nunca é o último bloco do PDF (não nasce folha só com o link)', () => {
+    for (const e of [cheia(), andamento(), entrada(), parcial()]) {
+      const pdf = html(e, 'pdf');
+      expect(pdf.split('class="online"').length - 1).toBe(1);
+      expect(pdf).toMatch(/<div class="meta">[^]*?<\/div>\s*<p class="online">Versão online deste relatório: <a href="/);
+      // depois da linha vêm todas as seções; o fim do corpo (assinaturas, sem registro ou aviso) não traz o link
+      expect(pdf.indexOf('</main>') - pdf.indexOf('class="online"')).toBeGreaterThan(300);
+      expect(pdf.slice(pdf.indexOf('</div>', pdf.indexOf('class="online"')), pdf.indexOf('</main>'))).not.toContain('Versão online');
+    }
+    // a tela não tem a linha (tem o rodapé) e o filete que a separava do resto sumiu do CSS
+    expect(html(cheia(), 'tela')).not.toContain('class="online"');
+    expect(html(cheia(), 'pdf')).toContain('.online{margin:8px 0 0;font-size:12px;color:var(--mut);overflow-wrap:anywhere}');
+    expect(html(cheia(), 'pdf')).not.toMatch(/\.online\{[^}]*border-top/);
+  });
+  it('"Próximos passos" não parte entre duas páginas', () => {
+    expect(html(cheia(), 'pdf')).toMatch(/\.passos\{[^}]*break-inside:avoid;page-break-inside:avoid/);
   });
 });
 
@@ -593,6 +624,12 @@ describe('assinaturas', () => {
     expect(h).toContain('.ass .nm{');
     expect(h).toMatch(/\.ass \.nm\{[^}]*min-height:1\.4em/);
     expect(h).toMatch(/\.ass \.rg,\.ass \.dt\{[^}]*min-height:1\.2em/);
+  });
+  it('nome longo em uma coluna não desalinha a data da outra: as colunas esticam e o nome ocupa a sobra', () => {
+    const h = html(entrada({ assinaturas: ASSINATURAS }));
+    expect(h).toContain('.ass{display:flex;flex-direction:column}');
+    expect(h).toMatch(/\.ass \.area\{flex:none;height:96px;/);
+    expect(h).toMatch(/\.ass \.nm\{[^}]*min-height:1\.4em;flex:1 1 auto/);
   });
 });
 
@@ -978,6 +1015,16 @@ describe('lista de compras no relatório', () => {
     const h = html(comLista());
     expect(h).toContain('.cmp thead{display:table-header-group}');
     expect(h).toContain('.cmp tr{break-inside:avoid;page-break-inside:avoid}');
+    // colunas Quantidade e Motivo com a mesma largura preferida em todos os grupos (e sem `table-layout:fixed`, que não cresce
+    // com fonte larga); a faixa de prazo é sombra interna, não borda, para a linha divisória começar no mesmo ponto
+    expect(h).toContain('.cmp{width:100%;border-collapse:collapse;font-size:13px}');
+    expect(h).not.toContain('table-layout:fixed');
+    expect(h).toContain('.cmp th:nth-child(2){text-align:right;width:128px}');
+    expect(h).toContain('.cmp th:nth-child(3){width:250px}');
+    expect(h).toContain('.cmp tr.alta td:first-child{box-shadow:inset 4px 0 0 var(--sc-nao_conforme)}');
+    expect(h).toContain('.cmp tr.media td:first-child{box-shadow:inset 4px 0 0 var(--sc-atencao)}');
+    expect(h).not.toContain('border-left:4px solid transparent');
+    expect(h).toContain('.cmp tr.alta td:first-child,.cmp tr.media td:first-child{box-shadow:none}'); // celular: a faixa vai para o cartão
     expect(h).toContain('.notas-compras{margin-top:14px;break-inside:avoid;page-break-inside:avoid}');
     expect(h).toContain('.grupo-compras h3{margin:0 0 4px;font-size:15px;break-after:avoid;page-break-after:avoid}');
     expect(h).toContain('.pen .nalista{');

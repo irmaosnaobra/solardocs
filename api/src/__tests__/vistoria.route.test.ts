@@ -1021,7 +1021,7 @@ describe('relatório público: cabeçalhos e prévia', () => {
     const r = await request(app).get(`/v/${ID}`);
     expect(r.text).toContain('Assinado em 27/10/2026 às 14:32');
     expect(r.text).toContain('Assinado em 27/10/2026 às 14:40');
-    expect(r.text).toContain('<span>Responsável técnico: Bruno Lima, CFT 123</span>');
+    expect(r.text).toContain('<span>Responsável técnico: Bruno Lima, <span class="nw">CFT 123</span></span>');
   });
 });
 

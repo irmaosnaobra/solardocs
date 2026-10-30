@@ -52,7 +52,7 @@
 .vst-progressFill { height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); transition: width .3s ease; }
 
 /* Lista de itens — grid responsivo pra preencher a largura como as demais abas */
-.vst-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 8px; align-items: start; }
+.vst-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 14px; margin-top: 8px; align-items: start; }
 .vst-item {
   display: flex; gap: 14px; align-items: flex-start;
   background: var(--color-surface, #1e293b);
@@ -97,10 +97,10 @@
 .vst-wa {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; margin-top: 10px; padding: 14px; border-radius: 14px; text-decoration: none;
-  font-weight: 800; color: #fff; background: #25D366;
+  font-weight: 800; color: #fff; background: var(--ink-green);
 }
-.vst-toast { font-size: 13px; color: #34d399; margin-top: 8px; text-align: center; }
-.vst-err { color: #f87171; font-size: 14px; margin-top: 10px; text-align: center; }
+.vst-toast { font-size: 13px; color: color-mix(in srgb, var(--ink-green) 75%, #000); margin-top: 8px; text-align: center; }
+.vst-err { color: color-mix(in srgb, var(--ink-red) 75%, #000); font-size: 14px; margin-top: 10px; text-align: center; }
 
 /* Seletor de cliente: 3 modos */
 .vst-seg { display: flex; gap: 6px; margin-bottom: 12px; background: var(--color-bg, #0f172a); padding: 4px; border-radius: 12px; border: 1px solid var(--color-border, #334155); }
@@ -228,7 +228,7 @@
 }
 .vst-cmpPilula:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .vst-cmpPonto {
-  position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; box-sizing: content-box; border-radius: 50%;
+  position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; box-sizing: content-box; border-radius: 50%;
   background: var(--ink-amber); border: 2px solid var(--color-surface-2);
 }
 @media (max-width: 559px) { .vst-progressDica { display: none; } }
@@ -258,7 +258,7 @@
   color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong); -webkit-tap-highlight-color: transparent;
 }
 .vst-cmpSwitch:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.vst-cmpTrilho { position: relative; flex: 0 0 44px; width: 44px; height: 26px; border-radius: 999px; background: var(--color-border-strong); }
+.vst-cmpTrilho { position: relative; flex: 0 0 44px; width: 44px; height: 26px; border-radius: 999px; background: var(--color-text-dim); }
 .vst-cmpBola {
   position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%;
   background: var(--color-surface); border: 1px solid var(--color-border-strong);
@@ -292,10 +292,10 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
   font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--color-text);
 }
-.vst-cmpEsp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--color-text-muted); }
+.vst-cmpEsp { font-size: 13px; line-height: 1.4; color: var(--color-text-muted); overflow-wrap: anywhere; }
 .vst-cmpRotulos { font-size: 12px; color: var(--color-text-muted); }
 .vst-cmpMotivo { font-size: 12px; font-weight: 600; color: var(--vst-ambar); }
-.vst-cmpEtiqueta { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.vst-cmpEtiqueta { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
 .vst-cmpNota {
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
   font-size: 14px; line-height: 1.4; color: var(--color-text);
@@ -411,7 +411,7 @@
 }
 .vst-cmpCampoFalso {
   width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 12px; text-align: left; cursor: text;
-  font-family: inherit; font-size: 16px; color: var(--color-text-dim); background: var(--color-bg); border: 1px solid var(--color-border-strong);
+  font-family: inherit; font-size: 16px; color: color-mix(in srgb, var(--color-text-dim) 80%, var(--color-text)); background: var(--color-bg); border: 1px solid var(--color-border-strong);
 }
 
 /* Pé da folha: "Pronto" sempre à vista. O sticky conta a partir da área sem o padding do corpo da Gaveta (18 px),
@@ -421,6 +421,14 @@
   padding: 10px 18px calc(10px + env(safe-area-inset-bottom)); background: var(--color-surface); border-top: 1px solid var(--color-border);
 }
 .vst-cmpRodape button { width: 100%; min-height: 48px; }
+.vst-cmpRodapeEstado { margin: 0 0 8px; font-size: 13px; line-height: 1.4; }
+/* No computador a gaveta ocupa a altura toda e o corpo dela só cresce até o conteúdo: sem isto, numa folha curta o "Pronto"
+   ficava logo abaixo da lista, com um vazio embaixo. A altura é a da tela menos o topo da gaveta (61 px) e o respiro do corpo
+   (36 px); se a folha for mais longa, o min-height não pesa e nada muda. */
+@media (min-width: 720px) {
+  .vst-cmpFolha { min-height: calc(100dvh - 100px - env(safe-area-inset-bottom)); }
+  .vst-cmpRodape { margin-top: auto; }
+}
 
 /* Formulários */
 .vst-cmpForm { display: flex; flex-direction: column; gap: 6px; }
@@ -445,7 +453,7 @@
 /* Copiar para o WhatsApp */
 .vst-cmpSeg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .vst-cmpCaixa {
-  width: 100%; padding: 12px; border-radius: 12px; resize: none; font-family: inherit; font-size: 16px; line-height: 1.45;
+  width: 100%; min-height: 96px; max-height: 60vh; overflow-y: auto; padding: 12px; border-radius: 12px; resize: none; font-family: inherit; font-size: 16px; line-height: 1.45;
   color: var(--color-text); background: var(--color-surface-2); border: 1px solid var(--color-border-strong);
 }
 .vst-cmpNotaTexto { margin: 0; font-size: 13px; line-height: 1.4; color: var(--color-text-muted); }

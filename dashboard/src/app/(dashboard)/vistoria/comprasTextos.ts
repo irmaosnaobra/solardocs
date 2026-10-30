@@ -137,6 +137,7 @@ export const TEXTOS_COMPRAS = {
   faltaQtdN: 'Falta a quantidade em {n} item.',
   faltaQtdNPlural: 'Falta a quantidade em {n} itens.',
   semItemCliente: 'Não há item do cliente nesta lista.',
+  semItemFornecedor: 'Nenhum material desta lista é para o fornecedor.',
 
   // Painel final e aviso antes de concluir
   painelResumo: 'Lista de compras: {resumo}',

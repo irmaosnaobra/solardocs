@@ -119,6 +119,7 @@ p{text-wrap:pretty}
 .ref{text-align:right;font-size:12px;color:var(--mut);line-height:1.5;max-width:46%;font-variant-numeric:tabular-nums}
 .ref b{display:block;color:var(--c1);font-size:15px;letter-spacing:.06em}
 .ref span{display:block;overflow-wrap:anywhere}
+.ref span.nw{display:inline;white-space:nowrap;overflow-wrap:normal}
 .reg{height:3px;background:var(--c1);margin:14px 0 0}
 .reg2{height:2px;background:var(--ac);width:96px;margin:0 0 20px}
 .eyebrow{margin:0 0 2px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--c1)}
@@ -165,7 +166,7 @@ h3{break-after:avoid;page-break-after:avoid}
 .pen .pref a{color:var(--c1);font-weight:600}
 .vazio{margin:0;padding:11px 14px;border:1px dashed var(--bd);border-radius:8px;color:var(--mut);background:var(--card);font-size:14px}
 .concl{margin:0;padding:13px 16px;background:var(--c3);border-left:4px solid var(--c1);border-radius:0 8px 8px 0;font-size:15px;line-height:1.62;max-width:74ch;text-wrap:pretty;break-inside:avoid;page-break-inside:avoid}
-.passos{margin:0;padding-left:22px;font-size:14px;max-width:74ch}
+.passos{margin:0;padding-left:22px;font-size:14px;max-width:74ch;break-inside:avoid;page-break-inside:avoid}
 .passos li{margin:4px 0;padding-left:2px}
 .item{margin-top:20px;padding-top:16px;border-top:1px solid var(--ln)}
 h2.sec+.item,.apoio+.item{margin-top:0;padding-top:0;border-top:0}
@@ -187,12 +188,13 @@ h2.sec+.item,.apoio+.item{margin-top:0;padding-top:0;border-top:0}
 .faltando{margin-top:22px;padding:10px 14px;background:var(--na-bg);border:1px solid var(--na-bd);border-radius:8px;font-size:13px;color:var(--na-fg);break-inside:avoid;page-break-inside:avoid}
 .empty{margin-top:24px;padding:24px;text-align:center;color:var(--mut);background:var(--card);border-radius:10px}
 .assin{display:grid;grid-template-columns:1fr 1fr;gap:24px;break-inside:avoid;page-break-inside:avoid}
-.ass .area{height:96px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1.5px solid #8A94A3;background:#fff}
+.ass{display:flex;flex-direction:column}
+.ass .area{flex:none;height:96px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1.5px solid #8A94A3;background:#fff}
 .ass .area img{max-height:90px;max-width:100%;object-fit:contain}
-.ass .nm{margin:6px 0 0;font-weight:700;font-size:14px;text-align:center;min-height:1.4em;overflow-wrap:anywhere}
+.ass .nm{margin:6px 0 0;font-weight:700;font-size:14px;text-align:center;min-height:1.4em;flex:1 1 auto;overflow-wrap:anywhere}
 .ass .rg,.ass .dt{margin:0;font-size:12px;color:var(--mut);text-align:center;min-height:1.2em;font-variant-numeric:tabular-nums}
 .ass .cap{margin:3px 0 0;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);text-align:center}
-.online{margin:22px 0 0;padding-top:10px;border-top:1px solid var(--ln);font-size:12px;color:var(--mut);overflow-wrap:anywhere}
+.online{margin:8px 0 0;font-size:12px;color:var(--mut);overflow-wrap:anywhere}
 .rod{margin-top:28px;padding-top:11px;border-top:1px solid var(--ln);font-size:12px;color:var(--mut);text-align:center}
 @media (max-width:640px){
   :root{--hfoto:190px}
@@ -422,8 +424,11 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
   const url = urlPublica('v', e.id);
   const local = localDe(e.localizacao);
   const tecnico = e.assinaturas?.tecnico;
+  // "Nome, CFT 123456789-0": o registro vai num pedaço que não quebra (a quebra cai antes dele, nunca dentro do número).
+  // Registro muito longo volta a quebrar normalmente, para não estourar a coluna.
+  const registroTecnico = aparar(tecnico?.registro);
   const responsavel = tecnico && aparar(tecnico.nome)
-    ? [aparar(tecnico.nome), aparar(tecnico.registro)].filter(Boolean).join(', ')
+    ? esc(aparar(tecnico.nome)) + (registroTecnico ? `, ${registroTecnico.length <= 28 ? `<span class="nw">${esc(registroTecnico)}</span>` : esc(registroTecnico)}` : '')
     : '';
   const contato = MOSTRAR_CONTATO_EMPRESA ? marca?.contato : undefined;
   const linhasContato = contato
@@ -433,7 +438,7 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
   // ── Cabeçalho ──
   const cabecalho = `<header class="cab">
     <div class="marca">${logo ? `<img src="${esc(logo)}" alt="${esc(nomeMarca)}"/>` : ''}<div class="emp">${rotuloEmp ? `<b>${esc(rotuloEmp)}</b>` : ''}${cnpj ? `<span>CNPJ ${esc(cnpj)}</span>` : ''}${linhasContato.map((l) => `<span>${esc(l)}</span>`).join('')}</div></div>
-    <div class="ref"><b>${esc(codigo)}</b>${responsavel ? `<span>${esc(SECOES.responsavel)} ${esc(responsavel)}</span>` : ''}</div>
+    <div class="ref"><b>${esc(codigo)}</b>${responsavel ? `<span>${esc(SECOES.responsavel)} ${responsavel}</span>` : ''}</div>
   </header>
   <div class="reg"></div><div class="reg2"></div>`;
 
@@ -518,6 +523,7 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/v/$
   ${temMarca ? `<p class="eyebrow">${esc(SECOES.titulo)}</p>` : ''}
   <h1>${cliente ? esc(cliente) : 'Vistoria técnica'}</h1>
   <div class="meta">${dataMeta}<span>Fotos em ${r.itensComFoto} de ${itens.length} itens</span><span>${concluida ? 'Concluída' : 'Em andamento'}</span></div>
+  ${pdf ? `<p class="online">${esc(SECOES.versao_online)} <a href="${esc(url)}">${esc(url)}</a></p>` : ''}
   ${acoes}
   ${secaoIdentificacao(e, local, pdf)}
   ${concluida ? '' : `<div class="andamento" role="status">${esc(SECOES.andamento)}</div>`}
@@ -528,9 +534,7 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/v/$
   ${blocoFaltando}
   ${blocoDocs}
   ${secaoAssinaturas(e)}
-  ${pdf
-    ? `<p class="online">${esc(SECOES.versao_online)} <a href="${esc(url)}">${esc(url)}</a></p>`
-    : `<footer class="rod">Relatório gerado pela SolarDoc${data ? ` • ${esc(data)}` : ''}</footer>`}
+  ${pdf ? '' : `<footer class="rod">Relatório gerado pela SolarDoc${data ? ` • ${esc(data)}` : ''}</footer>`}
 </main>
 </body></html>`;
 }

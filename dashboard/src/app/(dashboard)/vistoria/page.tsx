@@ -1003,7 +1003,7 @@ export default function VistoriaPage() {
               >
                 <ShoppingCart size={15} aria-hidden="true" />
                 {preencher(TEXTOS_COMPRAS.pilula, { n: compras.estado.linhas.length })}
-                {(compras.situacao === 'sem_rede' || compras.situacao === 'erro') && <span className="vst-cmpPonto" aria-hidden="true" />}
+                {(compras.situacao === 'sem_rede' || compras.situacao === 'erro' || compras.situacao === 'conflito') && <span className="vst-cmpPonto" aria-hidden="true" />}
               </button>
             )}
           </div>

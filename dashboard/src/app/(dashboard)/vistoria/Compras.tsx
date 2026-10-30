@@ -32,6 +32,17 @@ function rotulosDe(l: LinhaCompra): string {
   return partes.join(' · ');
 }
 
+/**
+ * O texto do estado da gravação. A seção "Lista de compras" e o pé da folha usam este mesmo: no celular a folha cobre a
+ * seção, e quem adiciona vários materiais sem rede precisa ver o aviso dentro da folha.
+ */
+export function textoDaSituacao(c: Pick<UsoCompras, 'situacao' | 'mensagem'>): string {
+  if (c.situacao === 'salvo') return T.salvo;
+  if (c.situacao === 'salvando') return c.mensagem || T.salvando;
+  if (c.situacao === 'conflito') return c.mensagem || T.conflito;
+  return c.mensagem || (c.situacao === 'sem_rede' ? T.semRede : T.erroSalvar);
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Quantidade: "-", número, "+" (o número vira campo ao toque) ou "Informar quantidade"
 // ---------------------------------------------------------------------------------------------------------
@@ -55,12 +66,25 @@ export function ControleQtd({
   const [aviso, setAviso] = useState('');
   // Enter e a saída do campo chamam confirmar() quase juntas: só a primeira vale.
   const resolvido = useRef(false);
+  const campo = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!aviso) return;
     const t = setTimeout(() => setAviso(''), 4000);
     return () => clearTimeout(t);
   }, [aviso]);
+
+  // Ao abrir o campo o número de antes vem TODO selecionado: o que o técnico digita troca o número em vez de emendar nele
+  // (digitar 1.200 sobre "1" gravava 11200). O `autoFocus` do React deixa o cursor no fim e nada selecionado; por isso o foco
+  // e a seleção ficam aqui. O setSelectionRange cobre o teclado do iPhone, que nem sempre aceita o select().
+  useEffect(() => {
+    if (!editando) return;
+    const el = campo.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+    try { el.setSelectionRange(0, el.value.length); } catch { /* campo sem seleção: o select() acima já valeu */ }
+  }, [editando]);
 
   if (un === 'servico') return null;
 
@@ -103,11 +127,11 @@ export function ControleQtd({
       {editando ? (
         <div className="vst-cmpQtd">
           <input
+            ref={campo}
             className="vst-cmpQtdCampo"
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            autoFocus
             maxLength={10}
             aria-label={T.rotQtd}
             value={texto}
@@ -212,7 +236,7 @@ export default function Compras({
   statusItens: MapaStatus;
   abrirFolha: (a: Omit<AberturaFolha, 'seq'>) => void;
 }) {
-  const { estado, situacao, mensagem } = compras;
+  const { estado, situacao } = compras;
   const { linhas, publica } = estado;
   const { novaId, apagada, dispensadas } = sessao;
 
@@ -248,11 +272,7 @@ export default function Compras({
     compras.mudar((c) => ({ ...c, publica: !c.publica }));
   }
 
-  const textoEstado = situacao === 'salvo'
-    ? T.salvo
-    : situacao === 'salvando'
-      ? (mensagem || T.salvando)
-      : (mensagem || (situacao === 'sem_rede' ? T.semRede : T.erroSalvar));
+  const textoEstado = textoDaSituacao(compras);
 
   return (
     <section className="vst-cmp" aria-labelledby="vst-cmp-titulo">

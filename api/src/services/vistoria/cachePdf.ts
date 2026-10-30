@@ -19,8 +19,11 @@ import { comprasVisiveis, type Compras } from './compras';
  *     com "Página X de Y".
  * v4: lista de compras ("Materiais e providências", tabela por quem providencia, prazo pelo status do item) e a
  *     linha "Na lista:" nos cartões de pendência.
+ * v5: a linha "Versão online" sobe para a primeira folha (nunca mais sozinha numa última folha), o registro do
+ *     responsável não quebra no meio do número, "Próximos passos" não parte entre páginas, as colunas da tabela de
+ *     compras ficam iguais entre os grupos e as assinaturas alinham a data mesmo com nome longo.
  */
-export const VERSAO_PDF = 'v4';
+export const VERSAO_PDF = 'v5';
 
 interface FotoCrua { url?: unknown; tipo?: unknown; nome?: unknown }
 interface ItemCru { key?: unknown; obs?: unknown; fotos?: unknown }

@@ -26,8 +26,11 @@ export type ModoRelatorio = 'tela' | 'pdf';
  * versão no nome, então sem subir aqui o PDF antigo é reaproveitado para sempre.
  * v2: marca do integrador, pendências nomeadas na capa, inspeção compacta, atividades honestas, fotos inteiras com
  *     numeração e anexo fotográfico, assinaturas com data e rodapé com "Página X de Y".
+ * v3: a linha "Versão online" sobe para a primeira folha (nunca mais sozinha numa última folha), as assinaturas ficam
+ *     mais baixas e presas ao bloco anterior (nunca sozinhas antes do anexo), o grupo de até 4 fotos do anexo não parte,
+ *     o selo do resumo centraliza o texto e a data da assinatura alinha mesmo com nome longo.
  */
-export const VERSAO_PDF = 'v2';
+export const VERSAO_PDF = 'v3';
 
 const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu;
 
@@ -74,7 +77,7 @@ export interface EntradaRelatorio {
 type Paleta = ReturnType<typeof paleta>;
 
 // Escala em rem: a tela usa base de 15 px e a impressão 13,4 px. Nenhum texto fica abaixo de .8rem, que na
-// impressão dá 10,7 px (8 pt). Quebra de página: `.keep` (título do grupo e as 2 primeiras fotos) não parte;
+// impressão dá 10,7 px (8 pt). Quebra de página: `.keep` (título do grupo e até 4 fotos) não parte;
 // cartões, resumo, conclusão, assinaturas e a geração também não; h2 e h3 nunca terminam a página.
 
 const CSS_BASE = (p: Paleta) => `
@@ -104,6 +107,7 @@ h1{margin:0;font-size:1.65rem;line-height:1.2;color:var(--c1);letter-spacing:-.0
 .cli{margin:4px 0 0;font-size:1.05rem;color:var(--ink);font-weight:600;overflow-wrap:anywhere}
 .resumo{display:grid;grid-template-columns:1.6fr 1fr;gap:0;margin:20px 0 6px;border:1px solid var(--ln);border-radius:8px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
 .selo{padding:16px 18px;border-left:6px solid var(--sc);background:var(--sb);break-inside:avoid;page-break-inside:avoid}
+.resumo .selo{display:flex;flex-direction:column;justify-content:center}
 .selo .tt{margin:0 0 3px;font-size:1.25rem;font-weight:800;line-height:1.2;color:var(--st)}
 .selo .fr{margin:0;font-size:.92rem;color:var(--sub)}
 .selo.sc-conforme{--sc:#2E9E5B;--sb:#F1FAF4;--st:#14532D}
@@ -164,9 +168,10 @@ h3{margin:14px 0 8px;font-size:.95rem;color:var(--c1);break-after:avoid;page-bre
 .prox{margin:10px 0 0;font-size:.9rem;color:var(--mut)}
 .prox b{color:var(--c1)}
 .assin{display:grid;grid-template-columns:1fr 1fr;gap:28px;break-inside:avoid;page-break-inside:avoid}
-.ass .area{height:92px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1.5px solid #8A94A3}
+.ass{display:flex;flex-direction:column}
+.ass .area{flex:none;height:92px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1.5px solid #8A94A3}
 .ass .area img{max-height:86px;max-width:100%;object-fit:contain}
-.ass .nm{margin:6px 0 0;font-weight:700;font-size:.93rem;color:var(--ink);text-align:center;min-height:1.4em;overflow-wrap:anywhere}
+.ass .nm{margin:6px 0 0;font-weight:700;font-size:.93rem;color:var(--ink);text-align:center;min-height:1.4em;flex:1 1 auto;overflow-wrap:anywhere}
 .ass .nm.sem{font-weight:400;color:var(--mut)}
 .ass .rg,.ass .dt{margin:0;font-size:.8rem;color:var(--mut);text-align:center;min-height:1.5em;font-variant-numeric:tabular-nums}
 .ass .cap{margin:3px 0 0;font-size:.8rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);text-align:center}
@@ -175,7 +180,7 @@ h3{margin:14px 0 8px;font-size:.95rem;color:var(--c1);break-after:avoid;page-bre
 figure{margin:0;display:inline-flex;flex-direction:column;max-width:100%;break-inside:avoid;page-break-inside:avoid}
 figure img{height:var(--hfoto);width:auto;max-width:100%;object-fit:contain;background:#E9EDF2;display:block;border:1px solid var(--ln);border-radius:6px}
 figure figcaption{width:0;min-width:100%;font-size:.8rem;color:var(--mut);padding:3px 2px 0;font-variant-numeric:tabular-nums}
-.online{margin:22px 0 0;padding-top:10px;border-top:1px solid var(--ln);font-size:.8rem;color:var(--mut);overflow-wrap:anywhere}
+.online{margin:6px 0 0;font-size:.8rem;color:var(--mut);overflow-wrap:anywhere}
 .rod{margin-top:30px;padding-top:11px;border-top:1px solid var(--ln);font-size:.8rem;color:var(--mut);text-align:center}
 @media (max-width:640px){
   :root{--hfoto:170px}
@@ -200,6 +205,11 @@ h2{font-size:.98rem}
 .barra,.rod{display:none}
 .folha{max-width:none;margin:0;box-shadow:none;border-radius:0;padding:0}
 .anexo{break-before:page;page-break-before:always}
+#assinaturas{margin-top:12px;break-before:avoid;page-break-before:avoid}
+#assinaturas h2{margin-bottom:6px}
+.ass .area{height:60px}
+.ass .area img{max-height:54px}
+.ass .rg,.ass .dt{min-height:1.3em;line-height:1.3}
 a{color:inherit;text-decoration:none}
 `;
 
@@ -364,10 +374,16 @@ function secaoAssinaturas(e: EntradaRelatorio, d: Dados): string {
 
 const ORDEM_FOTOS: string[] = ['antes', 'depois', ...CHECKLIST.map((c) => c.key)];
 
+/**
+ * Quantas fotos do grupo ficam presas ao título. Com 56 mm de altura, até 4 fotos ocupam no máximo duas fileiras e cabem
+ * numa folha; assim o grupo comum nunca deixa o título numa folha e a última foto na seguinte (sem o título do grupo).
+ */
+const FOTOS_COM_O_TITULO = 4;
+
 /** Fotos que o relatório desenha: só as que têm URL assinada. A numeração e as referências usam esta mesma lista. */
 const fotosDoGrupo = (e: EntradaRelatorio, grupo: string) => (e.fotos?.[grupo] ?? []).filter((f) => f && f.url);
 
-/** Anexo fotográfico: depois das assinaturas, em página nova no PDF. Título do grupo e as 2 primeiras fotos ficam juntos. */
+/** Anexo fotográfico: depois das assinaturas, em página nova no PDF. Título do grupo e as 4 primeiras fotos ficam juntos. */
 function secaoAnexo(e: EntradaRelatorio, numeros: Map<string, number[]>, pdf: boolean): string {
   const grupos = ORDEM_FOTOS.map((g) => {
     const lista = fotosDoGrupo(e, g);
@@ -380,7 +396,7 @@ function secaoAnexo(e: EntradaRelatorio, numeros: Map<string, number[]>, pdf: bo
       const img = `<img src="${src}" alt="Foto ${n}: ${esc(label)}"/>`;
       return `<figure id="foto-${n}">${pdf ? img : `<a href="${src}" target="_blank" rel="noopener">${img}</a>`}<figcaption>Foto ${n}, ${esc(label)}</figcaption></figure>`;
     });
-    const { junto, resto } = dividirJunto(figuras, 2);
+    const { junto, resto } = dividirJunto(figuras, FOTOS_COM_O_TITULO);
     return `<div class="grp"><div class="keep"><h3>${esc(label)}</h3><div class="grade">${junto.join('')}</div></div>${resto.length ? `<div class="grade resto">${resto.join('')}</div>` : ''}</div>`;
   }).join('');
   return grupos ? `<section class="sec anexo" id="anexo"><h2>${esc(SECOES.anexo)}</h2>${grupos}</section>` : '';
@@ -446,6 +462,7 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/m/$
   ${temMarca ? `<p class="eyebrow">${esc(SECOES.titulo)}</p>` : ''}
   <h1>Relatório de manutenção preventiva</h1>
   ${cliente ? `<p class="cli">${esc(cliente)}</p>` : ''}
+  ${pdf ? `<p class="online">${esc(SECOES.versao_online)} <a href="${esc(url)}">${esc(url)}</a></p>` : ''}
 
   <div class="resumo">
     <div class="selo sc-${selo}"><p class="tt">${esc(SELOS[selo].titulo)}</p><p class="fr">${esc(SELOS[selo].frase)}</p></div>
@@ -470,9 +487,7 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/m/$
   ${secaoTexto(SECOES.observacoes_proxima, d.observacoes_proxima)}
   ${secaoAssinaturas(e, d)}
   ${secaoAnexo(e, numeros, pdf)}
-  ${pdf
-    ? `<p class="online">${esc(SECOES.versao_online)} <a href="${esc(url)}">${esc(url)}</a></p>`
-    : `<footer class="rod">${esc(SECOES.rodape)}</footer>`}
+  ${pdf ? '' : `<footer class="rod">${esc(SECOES.rodape)}</footer>`}
 </main>
 </body></html>`;
 }

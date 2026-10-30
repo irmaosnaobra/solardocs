@@ -428,12 +428,42 @@ describe('fotos', () => {
     expect(css(h)).toContain('.anexo{break-before:page;page-break-before:always}');
     expect(css(html(cheia()))).toMatch(/@media print\{[\s\S]*\.anexo\{break-before:page/);
   });
-  it('título do grupo e as 2 primeiras fotos ficam juntos; o resto vai numa grade à parte', () => {
+  it('no papel as assinaturas ficam mais baixas e presas ao bloco anterior, para nunca ocuparem sozinhas a folha antes do anexo', () => {
+    const regras = ['#assinaturas{margin-top:12px;break-before:avoid;page-break-before:avoid}', '#assinaturas h2{margin-bottom:6px}', '.ass .area{height:60px}', '.ass .area img{max-height:54px}', '.ass .rg,.ass .dt{min-height:1.3em;line-height:1.3}'];
+    const pdf = css(html(cheia(), 'pdf'));
+    for (const r of regras) expect(pdf, r).toContain(r);
+    // Na tela a folha de assinatura continua com a altura de sempre; as regras novas só valem dentro do @media print.
+    const tela = css(html(cheia()));
+    expect(tela).toContain('.ass .area{flex:none;height:92px;');
+    expect(tela).toContain('.ass .area img{max-height:86px;');
+    expect(tela).toMatch(/@media print\{[\s\S]*#assinaturas\{[^}]*break-before:avoid/);
+    expect(tela).toMatch(/@media print\{[\s\S]*\.ass \.area\{height:60px\}/);
+    expect(pdf).not.toMatch(/@media print/);
+  });
+  it('a data da assinatura alinha mesmo com nome longo: as duas colunas esticam e o nome ocupa a sobra', () => {
+    const c = css(html(cheia()));
+    expect(c).toContain('.ass{display:flex;flex-direction:column}');
+    expect(c).toMatch(/\.ass \.nm\{[^}]*min-height:1\.4em;flex:1 1 auto/);
+  });
+  it('o selo do resumo centraliza o texto quando o painel de números é mais alto que ele', () => {
+    expect(css(html(cheia()))).toContain('.resumo .selo{display:flex;flex-direction:column;justify-content:center}');
+  });
+  it('título do grupo e até 4 fotos ficam juntos; só do quinto em diante o resto vai numa grade à parte', () => {
     const h = html(cheia());
-    expect(h).toMatch(/<div class="grp"><div class="keep"><h3>Antes da limpeza<\/h3><div class="grade"><figure id="foto-1">[\s\S]*?<\/figure><figure id="foto-2">[\s\S]*?<\/figure><\/div><\/div><div class="grade resto"><figure id="foto-3">/);
+    // Grupo de 3 fotos (Antes da limpeza): as três ficam no mesmo bloco do título, sem grade à parte. Foi o que deixou a
+    // "Foto 6" sozinha no topo de uma folha, sem o título do grupo.
+    const antes = h.slice(h.indexOf('<h3>Antes da limpeza</h3>'), h.indexOf('<h3>Depois da limpeza</h3>'));
+    expect(antes).not.toContain('grade resto');
+    expect(contar(antes, '<figure')).toBe(3);
+    expect(h).toMatch(/<div class="grp"><div class="keep"><h3>Antes da limpeza<\/h3><div class="grade"><figure id="foto-1">[\s\S]*?<\/figure><figure id="foto-2">[\s\S]*?<\/figure><figure id="foto-3">[\s\S]*?<\/figure><\/div><\/div><\/div>/);
     const dois = h.slice(h.indexOf('<h3>Estrutura e fixação</h3>'), h.indexOf('<h3>Cabos e conectores</h3>'));
     expect(dois).not.toContain('grade resto');
     expect(contar(dois, '<figure')).toBe(2);
+    expect(h).not.toContain('class="grade resto"');
+  });
+  it('grupo com 6 fotos: as 4 primeiras ficam com o título e as 2 últimas seguem numa grade à parte', () => {
+    const h = html(monta(dadosBase(), { fotos: fotosDe({ antes: 6 }) }));
+    expect(h).toMatch(/<div class="grp"><div class="keep"><h3>Antes da limpeza<\/h3><div class="grade">(<figure id="foto-\d">[\s\S]*?<\/figure>){4}<\/div><\/div><div class="grade resto"><figure id="foto-5">[\s\S]*?<\/figure><figure id="foto-6">/);
   });
   it('foto sem URL assinada não aparece e não gera buraco na numeração', () => {
     const fotos = { cabos: [{ path: 'a.jpg', url: null }, foto(), foto()], dps: [foto()] };
@@ -545,16 +575,16 @@ describe('marca, datas e assinaturas', () => {
 // ── PDF, escala, metadados e nome do arquivo (R26, R27) ─────────────────────
 
 describe('PDF e metadados', () => {
-  it('a versão do desenho é v2', () => {
-    expect(VERSAO_PDF).toBe('v2');
+  it('a versão do desenho é v3', () => {
+    expect(VERSAO_PDF).toBe('v3');
   });
   it('o nome do arquivo leva a versão, o instante e 8 caracteres do hash da marca', () => {
     const n = nomeDoPdf(1793379714119, MARCA);
-    expect(n).toMatch(/^relatorio-v2-1793379714119-[0-9a-f]{8}\.pdf$/);
+    expect(n).toMatch(/^relatorio-v3-1793379714119-[0-9a-f]{8}\.pdf$/);
     expect(n).toContain(hashMarca(MARCA).slice(0, 8));
   });
   it('sem marca o hash é 00000000', () => {
-    expect(nomeDoPdf(10, null)).toBe('relatorio-v2-10-00000000.pdf');
+    expect(nomeDoPdf(10, null)).toBe('relatorio-v3-10-00000000.pdf');
   });
   it('trocar nome, logo, CNPJ ou cor da empresa, ou o instante, gera outro nome; o mesmo conteúdo, o mesmo nome', () => {
     const base = nomeDoPdf(10, MARCA);
@@ -635,7 +665,7 @@ describe('PDF e metadados', () => {
     }
   });
 
-  it('o PDF fecha com a versão online e sem rodapé de tela; a tela tem o rodapé e a barra', () => {
+  it('o PDF traz a versão online logo abaixo do cliente, na primeira folha, e sem rodapé de tela; a tela tem o rodapé e a barra', () => {
     const pdf = html(cheia(), 'pdf');
     expect(pdf).toContain(`<p class="online">Versão online deste relatório: <a href="https://solardoc.app/m/${ID}">https://solardoc.app/m/${ID}</a></p>`);
     expect(pdf).not.toContain('<footer');
@@ -645,6 +675,27 @@ describe('PDF e metadados', () => {
     expect(tela).toContain('<footer class="rod">Relatório de manutenção preventiva gerado pela SolarDoc.</footer>');
     expect(tela).toContain(`<a href="/m/${ID}/pdf">Baixar PDF</a>`);
     expect(tela).not.toContain('class="online"');
+  });
+  it('a versão online fica entre o cliente e o resumo, aparece uma vez só e nunca é o último bloco do corpo (não nasce folha só com o link)', () => {
+    for (const e of [cheia(), minima(), semTecnico(), clara(), hostil()]) {
+      const pdf = html(e, 'pdf');
+      expect(contar(pdf, 'class="online"')).toBe(1);
+      const i = pdf.indexOf('class="online"');
+      expect(i).toBeGreaterThan(pdf.indexOf('<h1>'));
+      expect(i).toBeLessThan(pdf.indexOf('class="resumo"'));
+      // Depois dele vêm o resumo, as seções e as assinaturas: nada de bloco só com a linha no fim do documento.
+      expect(pdf.indexOf('</main>') - i).toBeGreaterThan(1500);
+      expect(pdf.slice(pdf.lastIndexOf('</section>'), pdf.indexOf('</main>'))).not.toContain('online');
+    }
+    // Sem cliente, a linha vem logo depois do título.
+    const semCliente = html(monta(dadosBase(), {}, { cliente_nome: '' }), 'pdf');
+    expect(semCliente.indexOf('class="online"')).toBeGreaterThan(semCliente.indexOf('<h1>'));
+    expect(semCliente.indexOf('class="online"')).toBeLessThan(semCliente.indexOf('class="resumo"'));
+  });
+  it('a linha da versão online não leva filete nem margem de rodapé (é uma linha de cabeçalho)', () => {
+    const c = css(html(cheia(), 'pdf'));
+    expect(c).toContain('.online{margin:6px 0 0;font-size:.8rem;color:var(--mut);overflow-wrap:anywhere}');
+    expect(c).not.toMatch(/\.online\{[^}]*border-top/);
   });
   it('a versão online usa o endereço do painel quando ele está configurado', () => {
     process.env.DASHBOARD_URL = 'https://painel.exemplo.test/';
