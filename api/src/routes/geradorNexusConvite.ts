@@ -5,6 +5,10 @@
 //        -> {total, ja_enviados, a_enviar, excluidos_optout, ja_parceiros, sem_email, lote, amostra:[empresa,...até 5]}
 //   POST /nexus/equipe/convites/email/enviar   body {confirmar:true}
 //        -> {enviados, restantes, falhas, parou_por_erro}   (até 40 por chamada)
+//   POST /nexus/equipe/convites/email/teste    (corpo ignorado)
+//        -> {enviado_para}   UM e-mail de convite, o mesmo texto do lote, SÓ para o e-mail de quem está logado (lido de
+//           req.equipe, no servidor; corpo, query e cabeçalhos não escolhem o destino). Não toma trava, não marca ninguém
+//           como convidado, não entra na contagem nem no lote. 1 por minuto por usuário (429 {erro:'aguarde'}).
 //
 // Público: contas do SolarDoc com company.cnpj preenchido (14 dígitos), SEM linha em nexus_parceiros, com e-mail válido.
 //   total             = contas desse público que NÃO pediram descadastro (email_opt_out)
@@ -22,7 +26,7 @@ import { logger } from '../utils/logger';
 import { soDigitos } from '../utils/cnpj';
 import { exigeEquipeNexus } from '../services/nexus/equipeAuth';
 import { Linha } from '../services/nexus/repositorio';
-import { PREFIXO_TRAVA_CONVITE, enviarConvite, tomarTrava } from '../services/nexus/email';
+import { PREFIXO_TRAVA_CONVITE, enviarConvite, enviarConviteTeste, tomarTrava } from '../services/nexus/email';
 import { exigePortalLigado, lerTudo, lotes, ok, rota } from './geradorNexusBase';
 
 export const LOTE_CONVITE = 40;
@@ -41,6 +45,8 @@ interface Conta {
   user_id: string;
   email: string;
   empresa: string;
+  /** users.nome, só para a saudação "Olá, {primeiro nome}." do e-mail. Não entra em nenhuma regra do público. */
+  nome: string;
 }
 
 interface Publico {
@@ -77,7 +83,7 @@ async function lerPublico(): Promise<Publico> {
   const candidatas = [...porConta.keys()].filter((id) => !ehParceiro.has(id)).sort();
   const usuarios = new Map<string, Linha>();
   for (const lote of lotes(candidatas, 150)) {
-    const r = ok(await supabase.from('users').select('id, email, email_opt_out').in('id', lote), 'leitura dos usuários do convite');
+    const r = ok(await supabase.from('users').select('id, email, nome, email_opt_out').in('id', lote), 'leitura dos usuários do convite');
     for (const u of (r.data as Linha[] | null) ?? []) usuarios.set(String(u.id), u);
   }
 
@@ -89,12 +95,40 @@ async function lerPublico(): Promise<Publico> {
     out.total++;
     if (jaConvidado.has(id)) { out.ja_enviados++; continue; }
     const c = porConta.get(id)!;
-    out.pendentes.push({ user_id: id, email: String(u.email).trim(), empresa: String(c.nome_fantasia || c.nome || 'Empresa').slice(0, 80) });
+    out.pendentes.push({ user_id: id, email: String(u.email).trim(), empresa: String(c.nome_fantasia || c.nome || 'Empresa').slice(0, 80), nome: String(u.nome ?? '').trim() });
   }
   return out;
 }
 
 const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// ── Teste do convite para o sócio ────────────────────────────────────────────
+
+/** Um teste por minuto por usuário. Em memória basta: é o sócio conferindo o texto, não uma defesa. A chave é o e-mail do
+ *  login. O Map fica no módulo (não dentro de mountNexusConvite, que roda de novo a cada montagem do router). */
+const JANELA_TESTE_CONVITE_MS = 60_000;
+const ultimoTeste = new Map<string, number>();
+export function resetLimiteTesteConvite(): void { ultimoTeste.clear(); }
+
+/** Pede a vaga do teste: 0 = tomou; maior que 0 = quantos ms faltam. SÍNCRONO, sem await entre conferir e marcar: dois
+ *  cliques seguidos não mandam dois e-mails. */
+function pedirVagaDeTeste(chave: string): number {
+  const agora = Date.now();
+  for (const [k, t] of ultimoTeste) if (agora - t >= JANELA_TESTE_CONVITE_MS) ultimoTeste.delete(k);
+  const ultimo = ultimoTeste.get(chave);
+  if (ultimo !== undefined) return Math.max(1, JANELA_TESTE_CONVITE_MS - (agora - ultimo));
+  ultimoTeste.set(chave, agora);
+  return 0;
+}
+
+/** thiago@dominio.com vira t***o@dominio.com: o meio do nome da caixa fica escondido, o domínio aparece. */
+export function mascararEmail(email: string): string {
+  const i = email.lastIndexOf('@');
+  if (i < 1) return '***';
+  const caixa = email.slice(0, i);
+  const dominio = email.slice(i);
+  return caixa.length <= 2 ? `${caixa.charAt(0)}***${dominio}` : `${caixa.charAt(0)}***${caixa.charAt(caixa.length - 1)}${dominio}`;
+}
 
 export function mountNexusConvite(router: Router): void {
   const equipe = [exigeEquipeNexus, exigeSocio, exigePortalLigado];
@@ -130,7 +164,7 @@ export function mountNexusConvite(router: Router): void {
       if (trava === 'duplicada') { pulados++; continue; }
       if (trava === 'erro') { pararPorErro = true; break; }
       try {
-        await enviarConvite(conta.user_id, conta.email);
+        await enviarConvite(conta.user_id, conta.email, conta.nome);
         enviados++;
       } catch (e) {
         // A trava fica: não reenvia sozinho. Para o lote no primeiro erro (limite da Resend, domínio, chave).
@@ -142,5 +176,29 @@ export function mountNexusConvite(router: Router): void {
       if (intervalo > 0) await esperar(intervalo);
     }
     res.json({ enviados, restantes: Math.max(0, publico.pendentes.length - enviados - falhas - pulados), falhas, parou_por_erro: pararPorErro });
+  }));
+
+  // Teste: UM e-mail, só para quem está logado. Nada de trava, de marca de convidado, de leitura do público nem de lote.
+  router.post('/nexus/equipe/convites/email/teste', ...equipe, rota('POST /nexus/equipe/convites/email/teste', async (req, res) => {
+    // O destino vem do usuário autenticado (req.equipe, preenchido pelo exigeEquipeNexus). Corpo, query e cabeçalhos são ignorados.
+    const email = String(req.equipe?.email ?? '').trim();
+    if (!emailValido(email)) { res.status(409).json({ erro: 'sem_email' }); return; }
+
+    const faltaMs = pedirVagaDeTeste(email);
+    if (faltaMs > 0) {
+      res.setHeader('Retry-After', String(Math.ceil(faltaMs / 1000)));
+      res.status(429).json({ erro: 'aguarde' });
+      return;
+    }
+    try {
+      await enviarConviteTeste(email, req.equipe?.nome);
+    } catch (e) {
+      // Nada saiu: devolve a vaga para o sócio poder tentar de novo logo.
+      ultimoTeste.delete(email);
+      logger.error('nexus-convite', 'envio do teste do convite falhou', e);
+      res.status(502).json({ erro: 'envio_falhou' });
+      return;
+    }
+    res.json({ enviado_para: mascararEmail(email) });
   }));
 }

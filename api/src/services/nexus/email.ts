@@ -5,6 +5,8 @@
 //   - oportunidade: `nexus_email_op:<oportunidade_id>:<user_id>`, uma por oportunidade e parceiro; NEXUS_EMAIL_OPORTUNIDADE=0
 //     desliga (conferido ANTES de tomar a trava); nunca leva o contato do cliente final.
 //   - convite: `nexus_convite_email:<user_id>`, uma por conta, com o descadastro da casa (unsubToken + List-Unsubscribe).
+//     A trava é tomada pela ROTA (geradorNexusConvite), nunca por enviarConvite: enviarConvite só monta e manda, não grava nada.
+//     O TESTE para o sócio (enviarConviteTeste) usa essa mesma parte que só monta e manda: sem trava, sem marca, fora do lote.
 // Nenhuma das duas chaves começa com prefixo de BOT_SENT_PREFIXES do lineThrottle (esse é de WhatsApp).
 //
 // A Resend é criada DENTRO da função: o construtor lança sem RESEND_API_KEY e não pode derrubar o boot.
@@ -57,15 +59,23 @@ export async function tomarTrava(chave: string, valor: Record<string, unknown>):
   return 'erro';
 }
 
-function moldura(titulo: string, corpo: string, rodape: string): string {
-  return `<div style="background:${COR.cinza};padding:24px 12px;font-family:'Segoe UI',Arial,sans-serif;">
+/**
+ * Moldura comum dos e-mails do portal. `titulo` vazio = sem título (o convite abre direto na saudação).
+ * `previa` = texto de pré-visualização da caixa de entrada: vai ESCONDIDO e como PRIMEIRO texto do HTML, antes da faixa da
+ * marca; no fim do corpo o Gmail mostraria "NEXUS ELETROPOSTOS" no lugar dele.
+ */
+function moldura(titulo: string, corpo: string, rodape: string, previa = ''): string {
+  const pre = previa
+    ? `\n  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${escaparHtml(previa)}</div>`
+    : '';
+  const h1 = titulo ? `<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:${COR.fundo};">${titulo}</h1>\n      ` : '';
+  return `<div style="background:${COR.cinza};padding:24px 12px;font-family:'Segoe UI',Arial,sans-serif;">${pre}
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
     <div style="background:${COR.fundo};padding:20px 28px;">
       <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;letter-spacing:2px;">NEXUS ELETROPOSTOS</p>
     </div>
     <div style="padding:28px;color:${COR.texto};font-size:15px;line-height:1.7;">
-      <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:${COR.fundo};">${titulo}</h1>
-      ${corpo}
+      ${h1}${corpo}
     </div>
   </div>
   <p style="max-width:560px;margin:12px auto 0;color:${COR.suave};font-size:12px;line-height:1.6;text-align:center;">${rodape}</p>
@@ -126,39 +136,73 @@ export async function emailOportunidadeOferecida(o: Linha, parceiroUserId: strin
 
 // ── Convite às contas do SolarDoc com CNPJ ───────────────────────────────────
 
-export const ASSUNTO_CONVITE = 'Seu login do SolarDoc agora abre o Portal do Parceiro NEXUS';
-export const PREVIA_CONVITE = 'Venda ou instale carregadores rápidos NEXUS. Grátis para empresas.';
+// Texto do convite (30/10/2026): apresenta a NEXUS como distribuidora e chama para o Portal do Parceiro. Sem preço, prazo,
+// "grátis" nem número: o dono não prometeu nada disso. Mudou o texto? Mostre o TESTE (botão do /nexus/adm) ao dono antes do lote.
+export const ASSUNTO_CONVITE = 'Conheça a NEXUS, a nossa distribuidora';
+export const PREVIA_CONVITE = 'Procuramos parceiros que queiram entrar no mercado de carregadores. Veja o que temos.';
+const BOTAO_CONVITE = 'Conhecer a NEXUS';
+const ASSINATURA_CONVITE = 'Equipe SolarDoc';
+const ITENS_CONVITE = ['Carregadores', 'Mentoria', 'Suporte', 'Engenharia', 'Indicação de clientes', 'E muito mais'];
+
+/** Id que NÃO é de nenhuma conta, usado no descadastro do e-mail de TESTE: o descadastro da casa desliga e-mail E WhatsApp,
+ *  e o sócio que clica "Descadastrar" no próprio teste não pode cortar a si mesmo. */
+export const ID_CONVITE_TESTE = '00000000-0000-4000-8000-000000000000';
 
 const apiUrl = () => process.env.API_URL || 'https://api.solardoc.app';
 export const urlDescadastro = (userId: string): string =>
   `${apiUrl()}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 
-export function htmlConvite(userId: string): string {
-  const p = (t: string) => `<p style="margin:0 0 14px;">${t}</p>`;
-  const corpo =
-    // Texto de pré-visualização da caixa de entrada (escondido no corpo).
-    `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escaparHtml(PREVIA_CONVITE)}</div>` +
-    p('Olá!') +
-    p('Você já usa o SolarDoc para fazer propostas solares. Agora o mesmo login dá acesso ao Portal do Parceiro NEXUS Eletropostos.') +
-    p('O portal é grátis e só para empresas com CNPJ ativo.') +
-    p('Você pode entrar como Revenda, vendendo o carregador NEXUS aos seus clientes, com preço de parceiro negociado com o comercial. Ou como Montagem e Engenharia, executando as obras chave na mão na sua região. Ou os dois.') +
-    p('Cada proposta sai com &quot;NEXUS em parceria com&quot; e o logo da sua empresa.') +
-    p('Entre com o seu e-mail e senha do SolarDoc e comece pelo simulador em PDF.') +
-    botao(URL_CONVITE, 'Acessar o portal');
-  const rodape =
-    `Você recebe este e-mail porque tem uma conta com CNPJ no SolarDoc. ` +
-    `<a href="${escaparHtml(urlDescadastro(userId))}" style="color:${COR.suave};text-decoration:underline;">Descadastrar destes e-mails</a>.`;
-  return moldura('Portal do Parceiro NEXUS', corpo, rodape);
+/**
+ * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo): aí o
+ * e-mail diz só "Olá." e nunca "Olá, 11999990000." Corta no espaço, no ponto e no sublinhado ("ana.paula" vira "Ana"). Nome
+ * todo em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o
+ * resto minúsculo; nome já misturado ("McDonald") fica como veio.
+ */
+export function primeiroNome(nome: unknown): string {
+  const p = String(nome ?? '').trim().split(/[\s._]+/)[0] ?? '';
+  if (!/^[\p{L}][\p{L}'’-]{1,29}$/u.test(p)) return '';
+  const resto = p === p.toLowerCase() || p === p.toUpperCase() ? p.slice(1).toLowerCase() : p.slice(1);
+  return p.charAt(0).toUpperCase() + resto;
 }
 
-export async function enviarConvite(userId: string, email: string): Promise<void> {
+export function htmlConvite(userId: string, nome?: unknown): string {
+  const p = (t: string) => `<p style="margin:0 0 14px;">${t}</p>`;
+  const primeiro = primeiroNome(nome);
+  const lista =
+    `<ul style="margin:0 0 14px;padding-left:22px;">` +
+    ITENS_CONVITE.map((i) => `<li style="margin:0 0 4px;">${escaparHtml(i)}</li>`).join('') +
+    `</ul>`;
+  const corpo =
+    p(primeiro ? `Olá, ${escaparHtml(primeiro)}.` : 'Olá.') +
+    p('Você já usa o SolarDoc. Agora queremos apresentar a NEXUS, a nossa distribuidora.') +
+    p('Procuramos parceiros que queiram entrar no mercado de carregadores para veículos elétricos e ter equipamento de qualidade. Estamos formando a rede de parceiros da NEXUS e queremos a sua empresa nela.') +
+    `<p style="margin:0 0 6px;">Na NEXUS você tem:</p>` + lista +
+    p('Para conhecer, é só entrar no Portal do Parceiro NEXUS com o mesmo login do SolarDoc.') +
+    botao(URL_CONVITE, BOTAO_CONVITE) +
+    `<p style="margin:16px 0 0;">${escaparHtml(ASSINATURA_CONVITE)}</p>`;
+  const rodape =
+    `Você recebeu este e-mail porque tem uma conta no SolarDoc. ` +
+    `<a href="${escaparHtml(urlDescadastro(userId))}" style="color:${COR.suave};text-decoration:underline;">Descadastrar destes e-mails</a>.`;
+  return moldura('', corpo, rodape, PREVIA_CONVITE);
+}
+
+/** Só MONTA e MANDA. Não grava nada (a trava `nexus_convite_email:<user_id>` é tomada pela rota, antes de chamar esta função). */
+export async function enviarConvite(userId: string, email: string, nome?: unknown): Promise<void> {
   await enviador.enviar({
     to: email,
     subject: ASSUNTO_CONVITE,
-    html: htmlConvite(userId),
+    html: htmlConvite(userId, nome),
     headers: {
       'List-Unsubscribe': `<${urlDescadastro(userId)}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
   });
+}
+
+/**
+ * O MESMO e-mail do convite (assunto, texto, botão, cabeçalhos), para um sócio conferir antes de disparar o lote. Não toma
+ * trava, não marca ninguém como convidado, não passa pelo banco. O descadastro leva um id que não é de nenhuma conta.
+ */
+export async function enviarConviteTeste(email: string, nome?: unknown): Promise<void> {
+  await enviarConvite(ID_CONVITE_TESTE, email, nome);
 }

@@ -35,7 +35,8 @@ vi.mock('../services/agents/zapiClient', () => ({
 }));
 vi.mock('../utils/mailer', () => ({ sendOpsAlert: vi.fn(async () => undefined) }));
 
-import { ASSUNTO_CONVITE, ASSUNTO_OPORTUNIDADE, enviador, htmlConvite, htmlOportunidade } from '../services/nexus/email';
+import { ASSUNTO_CONVITE, ASSUNTO_OPORTUNIDADE, ID_CONVITE_TESTE, PREVIA_CONVITE, enviador, htmlConvite, htmlOportunidade, primeiroNome } from '../services/nexus/email';
+import { mascararEmail, resetLimiteTesteConvite } from '../routes/geradorNexusConvite';
 import { formatarBRT } from '../services/nexus/tempo';
 import { resetSondaPortal } from '../services/nexus/repositorio';
 
@@ -47,6 +48,7 @@ beforeEach(() => {
   banco.reset();
   banco.projeta = true;
   resetSondaPortal();
+  resetLimiteTesteConvite();
   saiu.length = 0;
   travaNoEnvio = [];
   enviadosZap.length = 0;
@@ -69,9 +71,9 @@ const conta = (n: number) => `00000000-0000-4000-b000-${String(n).padStart(12, '
 const cnpjDe = (n: number) => String(10_000_000_000_000 + n);
 
 /** Conta do SolarDoc com empresa e CNPJ de 14 dígitos. */
-function semearConta(n: number, extra: { email?: string | null; optOut?: boolean; cnpj?: string; nome?: string } = {}) {
+function semearConta(n: number, extra: { email?: string | null; optOut?: boolean; cnpj?: string; nome?: string; nomeUsuario?: string } = {}) {
   const id = conta(n);
-  banco.poe('users', { id, email: extra.email === undefined ? `conta${n}@exemplo.com` : extra.email, email_opt_out: extra.optOut ?? false });
+  banco.poe('users', { id, email: extra.email === undefined ? `conta${n}@exemplo.com` : extra.email, nome: extra.nomeUsuario ?? null, email_opt_out: extra.optOut ?? false });
   banco.poe('company', { id: `c${n}`, user_id: id, nome: extra.nome ?? `Empresa ${n} LTDA`, nome_fantasia: null, cnpj: extra.cnpj ?? cnpjDe(n) });
   return id;
 }
@@ -270,7 +272,7 @@ describe('e-mail ao parceiro quando recebe uma oportunidade', () => {
 
   it('o texto do e-mail segue as regras da casa: sem travessão, sem emoji', () => {
     const html = htmlOportunidade({ tipo: 'obra', cidade: 'Araguari', uf: 'MG', descricao: 'Obra', prazo_aceite: '2099-01-02T15:00:00Z' });
-    for (const t of [html, ASSUNTO_OPORTUNIDADE, htmlConvite(U1), ASSUNTO_CONVITE]) {
+    for (const t of [html, ASSUNTO_OPORTUNIDADE, htmlConvite(U1), htmlConvite(U1, 'Maria Souza'), ASSUNTO_CONVITE, PREVIA_CONVITE]) {
       expect(t).not.toMatch(/[—–]/);
       expect(t).not.toMatch(/\p{Extended_Pictographic}/u);
     }
@@ -284,6 +286,90 @@ describe('e-mail ao parceiro quando recebe uma oportunidade', () => {
 });
 
 // ── Convite por e-mail ───────────────────────────────────────────────────────
+
+/** O que a pessoa lê: tira as tags, e com elas os href e os estilos. */
+const textoVisivel = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+describe('convite por e-mail: texto', () => {
+  it('assunto, pré-cabeçalho, corpo, lista, botão, assinatura e rodapé seguem o plano, nesta ordem', () => {
+    const html = htmlConvite(U1, 'Maria Souza');
+    expect(ASSUNTO_CONVITE).toBe('Conheça a NEXUS, a nossa distribuidora');
+    expect(PREVIA_CONVITE).toBe('Procuramos parceiros que queiram entrar no mercado de carregadores. Veja o que temos.');
+    const texto = textoVisivel(html);
+    const ordem = [
+      PREVIA_CONVITE,
+      'NEXUS ELETROPOSTOS',
+      'Olá, Maria.',
+      'Você já usa o SolarDoc. Agora queremos apresentar a NEXUS, a nossa distribuidora.',
+      'Procuramos parceiros que queiram entrar no mercado de carregadores para veículos elétricos e ter equipamento de qualidade. Estamos formando a rede de parceiros da NEXUS e queremos a sua empresa nela.',
+      'Na NEXUS você tem:',
+      'Carregadores', 'Mentoria', 'Suporte', 'Engenharia', 'Indicação de clientes', 'E muito mais',
+      'Para conhecer, é só entrar no Portal do Parceiro NEXUS com o mesmo login do SolarDoc.',
+      'Conhecer a NEXUS',
+      'Equipe SolarDoc',
+      'Você recebeu este e-mail porque tem uma conta no SolarDoc.',
+      'Descadastrar destes e-mails',
+    ];
+    let pos = -1;
+    for (const trecho of ordem) {
+      const i = texto.indexOf(trecho, pos + 1);
+      expect(i, `fora de ordem ou ausente: ${trecho}`).toBeGreaterThan(pos);
+      pos = i;
+    }
+  });
+
+  it('a lista tem os 6 itens do plano, o botão aponta para o convite de hoje e o descadastro é o da casa', () => {
+    const html = htmlConvite(U1, 'Maria');
+    expect([...html.matchAll(/<li[^>]*>(.*?)<\/li>/g)].map((m) => m[1])).toEqual(
+      ['Carregadores', 'Mentoria', 'Suporte', 'Engenharia', 'Indicação de clientes', 'E muito mais']);
+    expect(html).toMatch(/<a href="https:\/\/solardoc\.app\/nexus\/app\?o=convite_email"[^>]*>Conhecer a NEXUS<\/a>/);
+    expect(html).toMatch(/<a href="[^"]*\/unsubscribe\?u=00000000-0000-4000-8000-000000000001&amp;t=[0-9a-f]{32}"[^>]*>Descadastrar destes e-mails<\/a>\./);
+    expect(html).not.toContain('<h1'); // o plano não tem título: o e-mail abre na saudação
+  });
+
+  it('o pré-cabeçalho vai escondido e é o PRIMEIRO texto do HTML (antes da faixa da marca)', () => {
+    const html = htmlConvite(U1);
+    expect(html).toMatch(/<div style="display:none[^"]*">Procuramos parceiros que queiram entrar no mercado de carregadores\. Veja o que temos\.<\/div>/);
+    expect(textoVisivel(html).startsWith(PREVIA_CONVITE)).toBe(true);
+    expect(html.indexOf(PREVIA_CONVITE)).toBeLessThan(html.indexOf('NEXUS ELETROPOSTOS'));
+  });
+
+  it('com nome: "Olá, Maria." (só o primeiro nome); sem nome ou com nome que não é de gente: só "Olá."', () => {
+    const com = htmlConvite(U1, 'Maria Souza');
+    expect(com).toContain('<p style="margin:0 0 14px;">Olá, Maria.</p>');
+    expect(com).not.toContain('Souza');
+    for (const sem of [undefined, null, '', '   ', '11999990000', 'joao@exemplo.com', '<script>alert(1)</script>', '<b>Zé</b>', 'X']) {
+      const html = htmlConvite(U1, sem);
+      expect(html, String(sem)).toContain('<p style="margin:0 0 14px;">Olá.</p>');
+      expect(html, String(sem)).not.toContain('Olá,');
+      expect(html, String(sem)).not.toMatch(/<script|<b>/);
+    }
+  });
+
+  it('primeiroNome: inicial maiúscula no nome todo minúsculo ou maiúsculo, corta em espaço, ponto e sublinhado, preserva nome misturado', () => {
+    expect(primeiroNome('thiago')).toBe('Thiago');
+    expect(primeiroNome('THIAGO SILVA')).toBe('Thiago');
+    expect(primeiroNome('joão pedro')).toBe('João');
+    expect(primeiroNome('  Maria da Silva ')).toBe('Maria');
+    expect(primeiroNome('ana.paula')).toBe('Ana');
+    expect(primeiroNome('maria_clara')).toBe('Maria');
+    expect(primeiroNome('McDonald Silva')).toBe('McDonald');
+    expect(primeiroNome("O'Neil")).toBe("O'Neil");
+    expect(primeiroNome('Ana-Maria Souza')).toBe('Ana-Maria');
+    expect(primeiroNome('conta1')).toBe('');
+    expect(primeiroNome(undefined)).toBe('');
+    expect(primeiroNome(42)).toBe('');
+  });
+
+  it('não fala de preço, prazo, "grátis" nem número no texto que a pessoa lê', () => {
+    for (const nome of [undefined, 'Maria']) {
+      const texto = textoVisivel(htmlConvite(U1, nome));
+      expect(texto).not.toMatch(/\d/);
+      expect(texto).not.toMatch(/gr[aá]tis|gratuit|R\$|reais|pre[cç]o|prazo|desconto|promo[cç]/i);
+    }
+    expect(`${ASSUNTO_CONVITE} ${PREVIA_CONVITE}`).not.toMatch(/\d|gr[aá]tis|pre[cç]o|prazo/i);
+  });
+});
 
 describe('convite por e-mail: prévia', () => {
   it('conta o público: elegíveis, já enviados, excluídos por descadastro, já parceiros e sem e-mail', async () => {
@@ -386,14 +472,29 @@ describe('convite por e-mail: envio', () => {
     semearConta(1);
     await enviar();
     const e = saiu[0]!;
-    expect(e.subject).toBe('Seu login do SolarDoc agora abre o Portal do Parceiro NEXUS');
-    expect(e.html).toContain('Venda ou instale carregadores rápidos NEXUS. Grátis para empresas.');
-    expect(e.html).toContain('Você já usa o SolarDoc para fazer propostas solares.');
-    expect(e.html).toContain('Acessar o portal');
+    expect(e.subject).toBe('Conheça a NEXUS, a nossa distribuidora');
+    expect(e.html).toContain('Procuramos parceiros que queiram entrar no mercado de carregadores. Veja o que temos.');
+    expect(e.html).toContain('Você já usa o SolarDoc. Agora queremos apresentar a NEXUS, a nossa distribuidora.');
+    expect(e.html).toContain('Conhecer a NEXUS');
     expect(e.html).toContain('https://solardoc.app/nexus/app?o=convite_email');
+    expect(e.html).toContain('Você recebeu este e-mail porque tem uma conta no SolarDoc.');
     expect(e.html).toMatch(/\/unsubscribe\?u=00000000-0000-4000-b000-000000000001&amp;t=[0-9a-f]{32}/);
     expect(e.headers!['List-Unsubscribe']).toMatch(/^<.*\/unsubscribe\?u=00000000-0000-4000-b000-000000000001&t=[0-9a-f]{32}>$/);
     expect(e.headers!['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+  });
+
+  it('o lote saúda pelo primeiro nome do cadastro; conta sem nome recebe só "Olá."', async () => {
+    semearConta(1, { nomeUsuario: 'joana pereira' });
+    semearConta(2);
+    semearConta(3, { nomeUsuario: 'conta3@exemplo.com' }); // nome que é e-mail não vira saudação
+    await enviar();
+    const html = (email: string) => saiu.find((e) => e.to === email)!.html;
+    expect(html('conta1@exemplo.com')).toContain('<p style="margin:0 0 14px;">Olá, Joana.</p>');
+    expect(html('conta1@exemplo.com')).not.toContain('Pereira');
+    for (const sem of ['conta2@exemplo.com', 'conta3@exemplo.com']) {
+      expect(html(sem)).toContain('<p style="margin:0 0 14px;">Olá.</p>');
+      expect(html(sem)).not.toContain('Olá,');
+    }
   });
 
   it('a TRAVA vem antes do envio: no instante do envio a chave nexus_convite_email:<user_id> já existe', async () => {
@@ -453,5 +554,147 @@ describe('convite por e-mail: envio', () => {
     semearConta(1);
     await enviar();
     expect(enviadosZap).toHaveLength(0);
+  });
+});
+
+describe('convite por e-mail: teste para o sócio', () => {
+  const URL_TESTE = '/gerador/nexus/equipe/convites/email/teste';
+  const URL_PREVIA = '/gerador/nexus/equipe/convites/email/previa';
+  const URL_ENVIAR = '/gerador/nexus/equipe/convites/email/enviar';
+  const testar = (auth: Record<string, string> = equipeAuth) => request(app()).post(URL_TESTE).set(auth).send({});
+
+  it('manda UM e-mail só para quem está logado (login do Gerador), com o texto do lote e o primeiro nome dele', async () => {
+    const r = await testar();
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ enviado_para: 't***o@irmaosnaobra.app' });
+    expect(saiu).toHaveLength(1);
+    const e = saiu[0]!;
+    expect(e.to).toBe('thiago@irmaosnaobra.app');
+    expect(e.subject).toBe('Conheça a NEXUS, a nossa distribuidora');
+    expect(e.html).toContain('Olá, Thiago.');
+    expect(e.html).toContain('Conhecer a NEXUS');
+    expect(e.html).toBe(htmlConvite(ID_CONVITE_TESTE, 'thiago')); // é o MESMO e-mail que o lote monta
+    expect(e.headers!['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+    expect(enviadosZap).toHaveLength(0);
+  });
+
+  it('login do SolarDoc (o do /nexus/adm): vai para o e-mail da conta, com o primeiro nome do cadastro', async () => {
+    banco.poe('users', { id: U1, email: 'Maria.Dona@Exemplo.com', nome: 'Maria da Silva', is_admin: true });
+    const r = await testar(bearer(U1));
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ enviado_para: 'm***a@exemplo.com' });
+    expect(saiu).toHaveLength(1);
+    expect(saiu[0]!.to).toBe('maria.dona@exemplo.com');
+    expect(saiu[0]!.html).toContain('Olá, Maria.');
+    // o descadastro do teste NÃO é o da conta do sócio (descadastrar desliga e-mail e WhatsApp)
+    expect(saiu[0]!.html).toContain(`u=${ID_CONVITE_TESTE}`);
+    expect(saiu[0]!.html).not.toContain(U1);
+    expect(JSON.stringify(saiu[0]!.headers)).toContain(`u=${ID_CONVITE_TESTE}`);
+    expect(JSON.stringify(saiu[0]!.headers)).not.toContain(U1);
+  });
+
+  it('o destino NUNCA vem do corpo, da query nem de cabeçalho', async () => {
+    const r = await request(app())
+      .post(`${URL_TESTE}?email=query@outro.com&to=query@outro.com`)
+      .set(equipeAuth)
+      .set('X-Email', 'cabecalho@outro.com').set('X-Forwarded-Email', 'cabecalho@outro.com').set('Reply-To', 'cabecalho@outro.com')
+      .send({ email: 'corpo@outro.com', to: 'corpo@outro.com', destinatario: ['corpo@outro.com'], nome: 'Invasor' });
+    expect(r.status).toBe(200);
+    expect(saiu).toHaveLength(1);
+    expect(saiu[0]!.to).toBe('thiago@irmaosnaobra.app');
+    expect(JSON.stringify(saiu[0])).not.toContain('outro.com');
+    expect(saiu[0]!.html).not.toContain('Invasor');
+    expect(JSON.stringify(r.body)).not.toContain('outro.com');
+  });
+
+  it('não toma trava, não grava nada, não marca ninguém como convidado e não mexe na prévia nem no lote', async () => {
+    semearConta(1); semearConta(2);
+    const antes = (await request(app()).get(URL_PREVIA).set(equipeAuth)).body;
+    expect(antes).toMatchObject({ total: 2, ja_enviados: 0, a_enviar: 2 });
+
+    const r = await testar();
+    expect(r.status).toBe(200);
+    expect(banco.escritas).toHaveLength(0);
+    expect(banco.linhas('system_state')).toHaveLength(0);
+    expect((await request(app()).get(URL_PREVIA).set(equipeAuth)).body).toEqual(antes);
+
+    // o teste não gastou nenhum convite: o lote ainda manda para as duas contas
+    const lote = await request(app()).post(URL_ENVIAR).set(equipeAuth).send({ confirmar: true });
+    expect(lote.body).toEqual({ enviados: 2, restantes: 0, falhas: 0, parou_por_erro: false });
+    expect(saiu.map((e) => e.to).sort()).toEqual(['conta1@exemplo.com', 'conta2@exemplo.com', 'thiago@irmaosnaobra.app']);
+    expect(banco.linhas('system_state').map((s) => s.key).sort()).toEqual([`nexus_convite_email:${conta(1)}`, `nexus_convite_email:${conta(2)}`]);
+  });
+
+  it('só sócio: consultora comum 403 so_socio, conta do SolarDoc fora da equipe 403, sem login 401, portal desligado 503, e nada sai', async () => {
+    const nao = await testar(naoSocioAuth);
+    expect(nao.status).toBe(403);
+    expect(nao.body.erro).toBe('so_socio');
+
+    banco.poe('users', { id: U2, email: 'qualquer@exemplo.com', nome: 'Qualquer', is_admin: false });
+    expect((await testar(bearer(U2))).status).toBe(403);
+    expect((await request(app()).post(URL_TESTE).send({})).status).toBe(401);
+    expect((await testar(bearer(U3))).status).toBe(401); // conta que não existe
+
+    banco.falhas['nexus_usinas.select'] = { erro: { code: '42P01', message: 'x' } };
+    const off = await testar();
+    expect(off.status).toBe(503);
+    expect(off.body.erro).toBe('portal_desligado');
+    expect(saiu).toHaveLength(0);
+  });
+
+  it('1 teste por minuto por usuário: o segundo leva 429 {erro:"aguarde"} sem enviar, outro usuário passa, e passado 1 minuto libera', async () => {
+    process.env.SOLAR_SOCIOS = 'thiago,ana';
+    const agora = Date.now();
+    const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora);
+
+    expect((await testar()).status).toBe(200);
+    relogio.mockReturnValue(agora + 59_000);
+    const segundo = await testar();
+    expect(segundo.status).toBe(429);
+    expect(segundo.body).toEqual({ erro: 'aguarde' });
+    expect(segundo.headers['retry-after']).toBe('1');
+    expect(saiu).toHaveLength(1);
+
+    expect((await testar(naoSocioAuth)).status).toBe(200); // Ana, sócia nesta env, tem a vaga dela
+    expect(saiu.map((e) => e.to)).toEqual(['thiago@irmaosnaobra.app', 'ana@irmaosnaobra.app']);
+
+    relogio.mockReturnValue(agora + 61_000);
+    expect((await testar()).status).toBe(200);
+    expect(saiu).toHaveLength(3);
+  });
+
+  it('dois cliques ao mesmo tempo mandam um e-mail só', async () => {
+    const [a, b] = await Promise.all([testar(), testar()]);
+    expect([a.status, b.status].sort()).toEqual([200, 429]);
+    expect(saiu).toHaveLength(1);
+  });
+
+  it('a Resend falhando: 502 envio_falhou, nada gravado, e o sócio pode tentar de novo logo em seguida', async () => {
+    vi.mocked(enviador.enviar).mockRejectedValueOnce(new Error('Resend fora'));
+    const falhou = await testar();
+    expect(falhou.status).toBe(502);
+    expect(falhou.body).toEqual({ erro: 'envio_falhou' });
+    expect(banco.escritas).toHaveLength(0);
+    expect(saiu).toHaveLength(0);
+
+    const de_novo = await testar();
+    expect(de_novo.status).toBe(200);
+    expect(saiu).toHaveLength(1);
+  });
+
+  it('conta sem e-mail: 409 sem_email e nada sai', async () => {
+    banco.poe('users', { id: U1, email: null, nome: 'Sem Email', is_admin: true });
+    const r = await testar(bearer(U1));
+    expect(r.status).toBe(409);
+    expect(r.body).toEqual({ erro: 'sem_email' });
+    expect(saiu).toHaveLength(0);
+  });
+
+  it('mascararEmail esconde o meio da caixa e mostra o domínio', () => {
+    expect(mascararEmail('thiago@irmaosnaobra.app')).toBe('t***o@irmaosnaobra.app');
+    expect(mascararEmail('ana@x.com')).toBe('a***a@x.com');
+    expect(mascararEmail('ab@x.com')).toBe('a***@x.com');
+    expect(mascararEmail('a@x.com')).toBe('a***@x.com');
+    expect(mascararEmail('semarroba')).toBe('***');
   });
 });
