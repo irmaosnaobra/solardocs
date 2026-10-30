@@ -1,17 +1,16 @@
 /* Tela de atalho (launcher): fundo branco, vestida com a marca do assinante.
    As cores chegam como variáveis na raiz (.ini-page), já validadas e com contraste conferido em
    utils/corMarca.ts. Os valores abaixo são o padrão SolarDoc (laranja #F26513): é o que vale
-   sem empresa, sem cor ou com cor inválida. */
+   sem empresa, sem cor ou com cor inválida, e são o que paletaDaMarca(null, null) calcula. */
 .ini-page {
-  --ini-cor: #F26513;                       /* principal: faixa e blocos em destaque */
+  --ini-cor: #F26513;                       /* principal: faixa e blocos */
   --ini-sobre: #111111;                     /* texto e ícone sobre a principal (>= 4,5:1) */
-  --ini-icone: #e86112;                     /* ícone sobre o círculo (>= 3:1 contra ele) */
-  --ini-marca-texto: #B8400A;               /* iniciais sobre o branco (>= 4,5:1) */
-  --ini-selo-texto: #ba4e0f;                /* selo "Novo" sobre o círculo (>= 4,5:1 contra ele) */
-  --ini-circulo: #fef0e7;                   /* círculo atrás do ícone: a principal a 10% sobre o branco */
-  --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra dos blocos em destaque */
-  --ini-titulo: #9D420C;                    /* título dos grupos (>= 4,5:1) */
-  --ini-anel: #9D420C;                      /* anel de foco (>= 3:1) */
+  --ini-pressionada: #d4530f;               /* fundo do bloco apertado */
+  --ini-icone: #F26513;                     /* seta e ícone da loja sobre o branco (>= 3:1) */
+  --ini-marca-texto: #c65310;               /* iniciais sobre o branco (>= 4,5:1) */
+  --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra dos blocos */
+  --ini-titulo: #9d420c;                    /* título dos grupos (>= 4,5:1) */
+  --ini-anel: #9d420c;                      /* anel de foco (>= 3:1) */
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -98,65 +97,52 @@
   .ini-faixaInterna { max-width: 428px; margin: 0 auto; width: 100%; }
 }
 
-/* Os dois blocos em destaque (Nova proposta, Ler conta de luz): a cor principal, maiores. */
-.ini-destaques { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.ini-destaque {
-  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 18px;
-  min-height: 124px;
-  padding: 16px;
-  border-radius: 22px;
-  text-decoration: none;
-  background: var(--ini-cor);
-  color: var(--ini-sobre);
-  box-shadow: 0 6px 18px var(--ini-sombra);
-  transition: transform 0.12s ease, filter 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.ini-destaque:active { transform: scale(0.96); filter: brightness(0.92); }
-.ini-destaqueLabel { font-size: 17px; font-weight: 800; line-height: 1.2; color: var(--ini-sobre); }
+/* Os dois blocos de cima (Nova proposta, Ler conta de luz) são o mesmo bloco da grade (.ini-tile),
+   só que em 2 colunas: ficam mais largos e não ganham estilo nenhum. A folga de baixo, de 12 px,
+   vence a margem de 6 px da grade que vem depois e dá o mesmo vão das linhas da grade. */
+.ini-destaques { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
 
-/* Grade de atalhos: 3 colunas, cartões brancos com o ícone na cor da marca */
+/* Grade de atalhos: 3 colunas, blocos cheios na cor da marca com o nome */
 .ini-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 6px;
 }
 .ini-grid[hidden] { display: none; }
+/* O bloco é o de sempre: cheio, na cor principal, com texto e ícone na cor de contraste. */
 .ini-tile {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;
   min-height: 108px;               /* cresce conforme o texto (labels de 2+ palavras usam mais linhas) */
-  padding: 12px 6px;
+  padding: 12px 8px;
   border-radius: 20px;
   text-decoration: none;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 10px rgba(17, 17, 17, 0.06);
-  transition: transform 0.12s ease;
+  background: var(--ini-cor);
+  border: none;
+  box-shadow: 0 4px 14px var(--ini-sombra);
+  transition: transform 0.12s ease, background 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.ini-tile:active { transform: scale(0.95); }
-/* Ícone na cor principal sobre um círculo da mesma cor a 10% */
-.ini-tileIcon {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: var(--ini-circulo);
-  color: var(--ini-icone);
-  display: flex; align-items: center; justify-content: center;
-}
-.ini-tileLabel { max-width: 100%; font-size: 14px; font-weight: 800; line-height: 1.25; color: #111111; overflow-wrap: break-word; }
-.ini-tileLock { position: absolute; top: 9px; right: 9px; color: #4b5563; }
-/* O selo cavalga a borda de cima do bloco. Dentro do bloco ele cairia em cima do círculo do ícone
-   (que é centrado e tem 44 px, e o bloco tem de 88 a 134 px de largura); na borda ele fica acima do
-   círculo, que começa a uns 10 px do topo ou mais, em qualquer largura. */
+.ini-tile:active { transform: scale(0.95); background: var(--ini-pressionada); }
+/* Ícone pequeno acima do nome, na cor de contraste */
+.ini-tileIcon { display: flex; align-items: center; justify-content: center; color: var(--ini-sobre); }
+/* Fonte maior; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Palavra nunca é cortada:
+   a coluna da grade cresce até caber a mais longa (Precificação, Manutenção). */
+.ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: var(--ini-sobre); }
+/* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
+.ini-semQuebra { white-space: nowrap; }
+/* Cadeado e selo "Novo" ficam dentro do bloco cheio, no canto de cima à direita, na cor de contraste
+   (>= 4,5:1 sobre a principal), sem sombra e sem filtro. Nenhum dos dois cobre o ícone: o cadeado fica
+   ao lado dele e o selo acima (o ícone começa a 19 px do topo ou mais, no bloco de 2 linhas). */
+.ini-tileLock { position: absolute; top: 9px; right: 9px; color: var(--ini-sobre); }
 .ini-tileBadge {
-  position: absolute; top: -8px; right: 8px;
-  padding: 2px 7px;
+  position: absolute; top: 5px; right: 8px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
   border-radius: 999px;
-  background: var(--ini-circulo);
-  color: var(--ini-selo-texto);
-  font-size: 10px; font-weight: 800; line-height: 1.2; letter-spacing: 0.02em;
+  color: var(--ini-sobre);
+  font-size: 10px; font-weight: 800; line-height: 1.1; letter-spacing: 0.02em;
 }
 
 /* Título dos grupos: na cor secundária (ou numa versão mais escura da principal) */
@@ -271,5 +257,5 @@
 .ini-nexus > [role="region"] { margin-bottom: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ini-tile, .ini-destaque, .ini-seta, .ini-plataforma { transition: none; }
+  .ini-tile, .ini-seta, .ini-plataforma { transition: none; }
 }

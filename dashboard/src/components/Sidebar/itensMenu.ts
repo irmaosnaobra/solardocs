@@ -26,14 +26,13 @@ import type { ProdutoLoja } from '@/lib/produtos';
  * Onde o item mora:
  * - `acao`: os dois botões do topo.
  * - `principal`: a lista sem título, na ordem do uso. Item com `produto` que a pessoa ainda não tem
- *   sai daqui e vai para "Para liberar".
- * - `liberar`: SEMPRE em "Para liberar". Quem tem o produto (ou é admin) vê o link normal; quem não
- *   tem vê o cadeado e cai onde o produto vende (ver `hrefVendaDoProduto`).
+ *   sai daqui e vai para "Para liberar". Item `fixoNoLiberar` também sai daqui, mas só com a loja
+ *   aberta (ver `organizarMenu`).
  * - `papelada`: contratos e recibos.
  * - `outros`: os documentos que quase ninguém usa, dobrados.
  * - `loja`: "Ver todos os produtos", que fecha o grupo "Para liberar".
  */
-export type GrupoMenu = 'acao' | 'principal' | 'liberar' | 'papelada' | 'outros' | 'loja';
+export type GrupoMenu = 'acao' | 'principal' | 'papelada' | 'outros' | 'loja';
 
 export interface ItemMenu {
   id: string;
@@ -51,6 +50,14 @@ export interface ItemMenu {
   produto?: string;
   /** Só aparece para quem está no lançamento restrito (`bastidor`); para a base, a novidade não existe. */
   soBastidor?: boolean;
+  /**
+   * Com a loja aberta para a conta (`bastidor`), o item fica SEMPRE em "Para liberar", na ordem em
+   * que aparece em ITENS_MENU e antes dos outros travados: link normal para quem tem o produto (ou é
+   * admin), cadeado para quem não tem. Com a loja fechada (inclusive quando `/produtos/acessos`
+   * falha) ele fica na lista principal, onde estava, sem cadeado, e "Para liberar" some se esvaziar.
+   * Só faz sentido junto de `produto`.
+   */
+  fixoNoLiberar?: boolean;
   /** Selo ao lado do nome (ex.: "Novo"). */
   badge?: string;
   /**
@@ -74,15 +81,15 @@ export const ITENS_MENU: ItemMenu[] = [
   { id: 'arquivos', grupo: 'principal', href: '/historico', icon: FolderOpen, label: 'Arquivos' },
   { id: 'vistoria', grupo: 'principal', href: '/vistoria', icon: ClipboardCheck, label: 'Vistoria' },
   { id: 'precificacao', grupo: 'principal', href: '/precificacao', icon: Calculator, label: 'Precificação', produto: 'precificacao' },
+  // Kit Off-Grid e Inventário: com a loja aberta ficam SEMPRE em "Para liberar", nesta ordem, antes
+  // dos outros travados. Com a loja fechada o Inventário fica aqui, na posição que tinha na lista
+  // de 29/10, e o Kit Off-Grid some (`soBastidor`). O Off-Grid leva `produto` só para ganhar o
+  // cadeado: quem não tem cai em /off-grid, a própria ferramenta (ver `hrefVendaDoProduto`).
+  { id: 'off-grid', grupo: 'principal', href: '/off-grid', icon: PlugZap, label: 'Kit Off-Grid', produto: 'offgrid', soBastidor: true, fixoNoLiberar: true },
+  { id: 'inventario', grupo: 'principal', href: '/inventario', icon: Boxes, label: 'Inventário', produto: 'inventario', fixoNoLiberar: true },
   { id: 'manutencao', grupo: 'principal', href: '/manutencao', icon: Wrench, label: 'Manutenção' },
   { id: 'kit-fecha-vendas', grupo: 'principal', href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit Fecha Vendas', produto: 'curso-fechamento' },
   { id: 'limpapro', grupo: 'principal', href: '/lp/limpapro', icon: Sparkles, label: 'LimpaPro', produto: 'curso-limpapro', soBastidor: true },
-
-  // Sempre em "Para liberar", nesta ordem, antes dos outros travados. O Off-Grid leva `produto`
-  // desde 30/10/2026 só para ganhar o cadeado. Quem não tem o produto cai na página de venda dele,
-  // igual aos outros travados (ver `hrefVendaDoProduto`).
-  { id: 'off-grid', grupo: 'liberar', href: '/off-grid', icon: PlugZap, label: 'Kit Off-Grid', produto: 'offgrid', soBastidor: true },
-  { id: 'inventario', grupo: 'liberar', href: '/inventario', icon: Boxes, label: 'Inventário', produto: 'inventario' },
 
   // A loja fecha o grupo "Para liberar": é "ver todos os que faltam", não uma ferramenta.
   { id: 'loja', grupo: 'loja', href: '/produtos', icon: LayoutGrid, label: 'Ver todos os produtos' },
@@ -104,7 +111,6 @@ const doGrupo = (g: GrupoMenu) => ITENS_MENU.filter((i) => i.grupo === g);
 export const novaPropostaItem = ITENS_MENU.find((i) => i.id === 'nova-proposta') as ItemMenu;
 export const lerContaItem = ITENS_MENU.find((i) => i.id === 'ler-conta') as ItemMenu;
 export const principalItems = doGrupo('principal');
-export const sempreParaLiberarItems = doGrupo('liberar');
 export const lojaItem = ITENS_MENU.find((i) => i.id === 'loja') as ItemMenu;
 export const papeladaItems = doGrupo('papelada');
 export const outrosDocsItems = doGrupo('outros');
@@ -118,22 +124,31 @@ export const nexusItem: ItemMenu = {
 /**
  * Para onde o cadeado de um produto leva. Sempre para onde ele vende, nunca para um beco.
  *
- * 1. Produto com página de venda própria (`lpPropria`): `/produtos/<slug>`. Hoje essa rota só
+ * 1. Ferramenta aberta de propósito (`experimentar`, hoje só o Kit Off-Grid): a própria ferramenta.
+ *    Dimensionar e ver a autonomia é de graça lá dentro, o preço fica trancado e o botão "Liberar
+ *    meu acesso" monta o checkout com o `?email=` da conta. A página de venda estática dele
+ *    (/dimensionamento) tem os links da Kiwify sem o `?email=`: quem paga lá com outro e-mail cria
+ *    uma conta duplicada.
+ * 2. Produto com página de venda própria (`lpPropria`): `/produtos/<slug>`. Hoje essa rota só
  *    repassa para `/lp/<slug>`, que repassa para a página de venda estática do produto, fora do
- *    app (/dimensionamento, /calculadora e /inventario-empresarial). Nelas os botões de compra são
- *    links fixos para a Kiwify, sem o `?email=` que o `checkoutCom` gruda: quem digita outro
- *    e-mail lá vira usuário novo, paga numa conta e entra na outra. Isso já era assim para esses
- *    produtos e vale para o Off-Grid também. No servidor de desenvolvimento essas páginas dão 404,
- *    porque o dev do Next não serve o índice do diretório. No ar, conferido em 30/10/2026, as
- *    três terminam em 200.
- * 2. Sem página própria: a página de venda pública, `/lp/<slug>`, a mesma que o anúncio abre.
+ *    app (/calculadora e /inventario-empresarial). Os botões de compra delas também são links
+ *    fixos para a Kiwify, sem o `?email=`; isso já era assim para esses produtos e não muda aqui.
+ *    No servidor de desenvolvimento essas páginas dão 404, porque o dev do Next não serve o índice
+ *    do diretório. No ar, conferido em 30/10/2026, terminam em 200.
+ * 3. Sem página própria: a página de venda pública, `/lp/<slug>`, a mesma que o anúncio abre.
  */
-export function hrefVendaDoProduto(prod: Pick<ProdutoLoja, 'slug' | 'lpPropria'>): string {
+export function hrefVendaDoProduto(prod: Pick<ProdutoLoja, 'slug' | 'lpPropria' | 'experimentar'>): string {
+  if (prod.experimentar) return prod.experimentar.rota;
   return prod.lpPropria ? `/produtos/${prod.slug}` : `/lp/${prod.slug}`;
 }
 
 export interface EntradaMenu {
-  /** Lançamento restrito: só quem está dentro vê o Off-Grid, o LimpaPro e os cadeados. */
+  /**
+   * Loja aberta para a conta. Aberta (o padrão em produção): o Off-Grid, o LimpaPro e os cadeados
+   * existem e Off-Grid e Inventário ficam sempre em "Para liberar". Fechada (inclusive quando
+   * `/produtos/acessos` falha): sem cadeado, sem Off-Grid e sem LimpaPro, e o Inventário volta para
+   * a lista principal.
+   */
   bastidor: boolean;
   /** O servidor ainda não respondeu (e não há prévia no cache). */
   carregando: boolean;
@@ -144,7 +159,7 @@ export interface EntradaMenu {
 export interface MenuOrganizado {
   /** A lista principal, sem título: o que a pessoa já pode usar. */
   principal: ItemMenu[];
-  /** O grupo "Para liberar", na ordem: os dois fixos, depois os outros travados. */
+  /** O grupo "Para liberar", na ordem: os fixos (só com a loja aberta), depois os outros travados. Vazio, o grupo some. */
   paraLiberar: ItemMenu[];
   /** "Ver todos os produtos" só aparece quando falta algum produto (algum item do grupo está travado). */
   mostrarLoja: boolean;
@@ -159,22 +174,30 @@ export interface MenuOrganizado {
  * SEU / NÃO É SEU: `travado` responde se o item está atrás de cadeado de PRODUTO. Enquanto a
  * resposta do servidor não chega, nada é considerado travado (piscar cadeado na cara de quem pagou
  * vira chamado no suporte na hora) e item com `produto` não aparece em lugar nenhum, nem na lista
- * nem em "Para liberar". Admin vê tudo direto na lista, sem cadeado; em "Para liberar" ele espera
- * como os outros (ver `fixos`). Fora do lançamento restrito, o que é novo não aparece e a
+ * nem em "Para liberar". Admin vê tudo direto na lista, sem cadeado; os itens `fixoNoLiberar` ele
+ * espera como os outros (ver `espera`). Fora do lançamento restrito, o que é novo não aparece e a
  * ferramenta que já era grátis segue sem cadeado.
+ *
+ * LOJA FECHADA (`bastidor` falso, inclusive quando o servidor falha): nenhum item é `fixoNoLiberar`
+ * nem travado, então o Inventário volta para a lista principal, na posição de sempre, sem cadeado, e
+ * "Para liberar" some se não sobrar item.
  */
 export function organizarMenu({ bastidor, carregando, isAdmin, tem }: EntradaMenu): MenuOrganizado {
   const travado = (item: ItemMenu) => !!item.produto && bastidor && !carregando && !isAdmin && !tem(item.produto);
   const aguardandoAcessos = carregando && !isAdmin;
   const visivel = (item: ItemMenu) => bastidor || !item.soBastidor;
+  // Com a loja aberta, os fixos saem da lista principal e abrem "Para liberar".
+  const fixo = (item: ItemMenu) => bastidor && !!item.fixoNoLiberar;
+  // Quem ainda não pode ser desenhado. Os fixos esperam o servidor MESMO para o admin: ele não tem
+  // cadeado, mas o Kit Off-Grid só existe para quem está no `bastidor`, e o Inventário só sabe se
+  // fica na lista ou em "Para liberar" depois da resposta. Desenhar já o Inventário o faria pular de
+  // lugar (ou o Kit entrar acima dele e empurrá-lo uma linha para baixo). Esperando, tudo aparece de
+  // uma vez.
+  const espera = (item: ItemMenu) => (!!item.produto && aguardandoAcessos) || (!!item.fixoNoLiberar && carregando);
 
   const daLista = principalItems.filter(visivel);
-  const principal = daLista.filter((i) => !i.produto || (!aguardandoAcessos && !travado(i)));
-  // Os dois fixos esperam o servidor MESMO para o admin. Ele não tem cadeado, mas o Kit Off-Grid só
-  // existe para quem está no `bastidor`, e isso só se sabe depois da resposta: desenhar já o
-  // Inventário faria o Kit entrar acima dele e empurrá-lo uma linha para baixo quando ela chegasse.
-  // Esperando, o grupo aparece inteiro de uma vez.
-  const fixos = sempreParaLiberarItems.filter((i) => visivel(i) && (!i.produto || !carregando));
-  const paraLiberar = [...fixos, ...daLista.filter(travado)];
+  const principal = daLista.filter((i) => !fixo(i) && !espera(i) && !travado(i));
+  const fixos = daLista.filter((i) => fixo(i) && !espera(i));
+  const paraLiberar = [...fixos, ...daLista.filter((i) => !fixo(i) && travado(i))];
   return { principal, paraLiberar, mostrarLoja: paraLiberar.some(travado), travado };
 }

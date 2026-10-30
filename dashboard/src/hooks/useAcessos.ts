@@ -95,9 +95,9 @@ export function recarregarAcessos(): void {
 }
 
 /**
- * Última resposta do servidor guardada neste aparelho. SÓ PARA DESENHAR O MENU: o que decide
- * acesso (`carregando`, `tem`, `bastidor`) nunca vem daqui, porque localStorage se edita e
- * quem foi estornado ainda o teria. Só a Sidebar lê, e só enquanto `carregando` for true.
+ * Última resposta do servidor guardada neste aparelho. SÓ PARA DESENHAR (o menu e a /inicio): o que decide
+ * acesso (`carregando`, `tem`, `bastidor`) nunca vem daqui, porque localStorage se edita e quem foi
+ * estornado ainda o teria. A Sidebar e a /inicio leem, só para desenhar e só enquanto `carregando` for true.
  */
 export interface PreviaAcessos {
   bastidor: boolean;

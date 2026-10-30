@@ -179,8 +179,9 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
   // SEU / NÃO É SEU. Quem entra na lista e quem entra em "Para liberar" é decidido em
   // organizarMenu (./itensMenu.ts), a mesma função da /inicio: sem pulo na carga (item de
   // produto não aparece em lugar nenhum até o servidor responder), fora do lançamento restrito
-  // o que é novo não aparece, e admin vê tudo direto. Kit Off-Grid e Inventário ficam SEMPRE
-  // em "Para liberar": link normal para quem tem o produto, cadeado para quem não tem.
+  // o que é novo não aparece, e admin vê tudo direto. Com a loja aberta, Kit Off-Grid e
+  // Inventário ficam SEMPRE em "Para liberar": link normal para quem tem o produto, cadeado
+  // para quem não tem. Com a loja fechada, o Inventário volta para a lista, sem cadeado.
   const { principal, paraLiberar, mostrarLoja } = organizarMenu({
     bastidor, carregando: acessosCarregando, isAdmin, tem,
   });
@@ -238,14 +239,19 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
       );
     }
 
-    // Produto não comprado → vai pra mini LP, com cadeado à direita.
+    // Produto não comprado: vai pra onde o produto vende, com cadeado à direita.
     if (lockedByProduto && prod) {
+      const destino = hrefVendaDoProduto(prod);
+      // Cadeado que leva para a própria ferramenta (hoje só o Kit Off-Grid): quem já está nela vê o
+      // item marcado como página atual, como veria sem o cadeado.
+      const naFerramenta = destino === item.href && active;
       return (
-        // O cadeado leva pra pagina de venda do produto. Quem decide se e' o
-        // /lp/<slug> ou o /produtos/<slug>, e por que, e' hrefVendaDoProduto
-        // (./itensMenu.ts): a /inicio usa a mesma regra.
-        <Link key={item.href} href={hrefVendaDoProduto(prod)}
-              className={styles.navItemLocked} title={`${prod.nome}: ver o que tem dentro`}>
+        // O cadeado leva pra onde o produto vende. Quem decide se e' o /lp/<slug>, o
+        // /produtos/<slug> ou, no Kit Off-Grid, a propria ferramenta, e por que, e'
+        // hrefVendaDoProduto (./itensMenu.ts): a /inicio usa a mesma regra.
+        <Link key={item.href} href={destino} aria-current={naFerramenta ? 'page' : undefined}
+              className={naFerramenta ? `${styles.navItemLocked} ${styles.navItemActive}` : styles.navItemLocked}
+              title={`${prod.nome}: ver o que tem dentro`}>
           <item.icon className={styles.navIcon} size={18} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
           <Lock className={styles.lockRight} size={13} strokeWidth={1.75} aria-label="Bloqueado" />
@@ -373,10 +379,11 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
           </div>
         </div>
 
-        {/* ── Para liberar: Kit Off-Grid e Inventário ficam SEMPRE aqui (link normal para quem
-            tem o produto ou é admin, cadeado para quem não tem), depois os outros travados. O
-            título aparece sempre que o grupo tem algum item; "Ver todos os produtos" só quando
-            falta algum produto (algum item do grupo está travado). ── */}
+        {/* ── Para liberar: com a loja aberta, Kit Off-Grid e Inventário ficam SEMPRE aqui (link
+            normal para quem tem o produto ou é admin, cadeado para quem não tem), depois os outros
+            travados. O título aparece sempre que o grupo tem algum item (com a loja fechada o grupo
+            some); "Ver todos os produtos" só quando falta algum produto (algum item do grupo está
+            travado). ── */}
         {paraLiberar.length > 0 && (
           <>
             <div className={styles.navDivider}>

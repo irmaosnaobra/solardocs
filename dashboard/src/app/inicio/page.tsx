@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, ChevronDown, LayoutGrid, Lock } from 'lucide-react';
@@ -66,6 +66,19 @@ function lerEmpresa(c: Record<string, unknown> | null | undefined): DadosEmpresa
   };
 }
 
+/**
+ * O nome do atalho, com a palavra que tem hífen (Off-Grid) inteira: se o nome quebra, quebra no
+ * espaço ("Kit" e "Off-Grid"), não no hífen ("Kit Off-" e "Grid"). O texto continua o mesmo.
+ */
+function rotulo(texto: string) {
+  return texto.split(' ').map((palavra, i) => (
+    <Fragment key={i}>
+      {i > 0 && ' '}
+      {palavra.includes('-') ? <span className="ini-semQuebra">{palavra}</span> : palavra}
+    </Fragment>
+  ));
+}
+
 function primeiroNome(nome: unknown): string | null {
   return texto(nome).split(/\s+/)[0] || null;
 }
@@ -87,10 +100,9 @@ function variaveis(p: PaletaMarca): CSSProperties {
   return {
     '--ini-cor': p.principal,
     '--ini-sobre': p.sobrePrincipal,
+    '--ini-pressionada': p.pressionada,
     '--ini-icone': p.icone,
     '--ini-marca-texto': p.textoSobreBranco,
-    '--ini-selo-texto': p.textoSobreCirculo,
-    '--ini-circulo': p.circulo,
     '--ini-sombra': p.sombra,
     '--ini-titulo': p.titulo,
     '--ini-anel': p.anel,
@@ -256,14 +268,8 @@ export default function InicioPage() {
 
         {temEmpresa ? (
           <main>
-            <div className="ini-destaques">
-              {[novaPropostaItem, lerContaItem].map((item) => (
-                <Link key={item.id} href={item.href} className="ini-destaque">
-                  <item.icon size={30} strokeWidth={2} aria-hidden="true" />
-                  <span className="ini-destaqueLabel">{item.label}</span>
-                </Link>
-              ))}
-            </div>
+            {/* O mesmo bloco da grade, em 2 colunas: só o tamanho os distingue */}
+            <div className="ini-destaques">{[novaPropostaItem, lerContaItem].map(bloco)}</div>
 
             <div className="ini-grid">
               {principal.map(bloco)}
@@ -327,16 +333,17 @@ export default function InicioPage() {
 }
 
 /**
- * Um atalho da grade. Produto que a pessoa ainda não tem: cadeado e link para a página de venda do
- * produto (`hrefVendaDoProduto`, a mesma regra do menu lateral). Página estática (NEXUS): <a>
- * comum, de página inteira.
+ * Um atalho da grade (e os dois de cima, em 2 colunas). Produto que a pessoa ainda não tem: cadeado e
+ * link para onde o produto vende (`hrefVendaDoProduto`, a mesma regra do menu lateral: a página de
+ * venda ou, no Kit Off-Grid, a própria ferramenta). Página estática (NEXUS): <a> comum, de página
+ * inteira.
  */
 function Bloco({ item, travado }: { item: ItemMenu; travado: boolean }) {
   const prod = travado && item.produto ? produtoPorId(item.produto) : null;
   const conteudo = (
     <>
       <span className="ini-tileIcon"><item.icon size={22} strokeWidth={2} aria-hidden="true" /></span>
-      <span className="ini-tileLabel">{item.label}</span>
+      <span className="ini-tileLabel">{rotulo(item.label)}</span>
       {prod && <Lock className="ini-tileLock" size={14} strokeWidth={2} aria-label="Bloqueado" />}
       {item.badge && <span className="ini-tileBadge">{item.badge}</span>}
     </>
