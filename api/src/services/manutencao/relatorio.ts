@@ -84,6 +84,14 @@ export const SECOES = {
   titulo: 'Manutenção preventiva',
   nao_concluido: 'Este relatório ainda não foi concluído.',
   aviso_sem_status: 'Marque o status de todos os itens para continuar.',
+  // Relatório público (lote 6): só chaves novas, as de cima não mudam de valor.
+  anexo: 'Anexo fotográfico',
+  atividades_concluidas: 'Atividades concluídas',
+  ficou_por_fazer_num: 'Ficou por fazer',
+  ficou_por_fazer: 'O que ficou por fazer nesta visita',
+  detalhe_nas_pendencias: 'Detalhe em Pendências e prioridades.',
+  sem_assinatura: 'Sem assinatura',
+  versao_online: 'Versão online deste relatório:',
 };
 
 export const TIPO_SISTEMA_LABEL: Record<TipoSistema, string> = {
@@ -325,19 +333,44 @@ function rotuloEmLista(label: string): string {
     .join(' ');
 }
 
-function juntarLista(partes: string[]): string {
+/** "A", "A e B", "A, B e C". Lista vazia devolve ''. */
+export function juntarLista(partes: string[]): string {
   if (partes.length <= 1) return partes[0] ?? '';
   return partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1];
+}
+
+/**
+ * Quantas atividades marcadas como feitas ficaram concluídas, parciais e não executadas. Só conta
+ * atividade com `feita === true`; o `status` decide em qual grupo ela cai (status ausente vale concluído,
+ * que é o padrão de uma atividade marcada).
+ */
+export function contagemAtividades(
+  dados: Partial<Dados>,
+): { concluidas: number; parciais: number; naoExecutadas: number } {
+  const lista = Array.isArray(dados?.atividades) ? dados.atividades : [];
+  let concluidas = 0;
+  let parciais = 0;
+  let naoExecutadas = 0;
+  for (const a of lista) {
+    if (a?.feita !== true) continue;
+    if (a.status === 'parcial') parciais++;
+    else if (a.status === 'nao_executado') naoExecutadas++;
+    else concluidas++;
+  }
+  return { concluidas, parciais, naoExecutadas };
 }
 
 /**
  * Texto da conclusão a partir do modelo do selo (arquivo de textos do redator).
  * Sem módulos a frase vira "no sistema {tipo} de {kWp}"; sem potência, some o "e {kWp}".
  * No selo "não conforme" a lista traz só os itens não conformes (os em atenção ficam fora).
+ * A abertura conta só as atividades concluídas; as parciais e as não executadas viram uma frase logo depois
+ * dela ("Ficou incompleta 1 atividade..."), e sem nenhuma concluída a abertura diz isso com todas as letras.
  */
 export function montarConclusao(dados: Partial<Dados>, selo: Selo, proximaVisita: string): string {
   const sis = dados.sistema;
-  const qtdAtiv = (dados.atividades ?? []).filter((a) => a?.feita === true).length;
+  const { concluidas: qtdAtiv, parciais, naoExecutadas } = contagemAtividades(dados);
+  const incompletas = parciais + naoExecutadas;
   const atividades = qtdAtiv === 1 ? 'atividade' : 'atividades';
   const tipo = sis?.tipo ?? '';
   const qtdMod = sis?.qtd_modulos ?? null;
@@ -353,26 +386,35 @@ export function montarConclusao(dados: Partial<Dados>, selo: Selo, proximaVisita
     sistema += ` de ${potTxt}`;
   }
 
-  const abertura = `Nesta visita ${qtdAtiv === 1 ? 'foi registrada' : 'foram registradas'} ${qtdAtiv} ${atividades} de manutenção preventiva ${sistema}.`;
+  // `sistema` já começa com "no sistema": a frase sem nenhuma concluída não repete o "no".
+  const abertura = qtdAtiv === 0
+    ? `Nesta visita nenhuma atividade de manutenção preventiva foi concluída ${sistema}.`
+    : `Nesta visita ${qtdAtiv === 1 ? 'foi registrada' : 'foram registradas'} ${qtdAtiv} ${atividades} de manutenção preventiva ${sistema}.`;
+  const incompleta = incompletas === 0
+    ? ''
+    : incompletas === 1
+      ? ' Ficou incompleta 1 atividade. Veja o motivo em Pendências e prioridades.'
+      : ` Ficaram incompletas ${incompletas} atividades. Veja o motivo em Pendências e prioridades.`;
+  const inicio = `${abertura}${incompleta}`;
   const proxima = dataPorExtenso(proximaVisita);
   const itens = dados.itens ?? [];
   const periodicidade = (PERIODICIDADE_LABEL[dados.periodicidade_meses ?? 6] ?? 'semestral').toLowerCase();
 
   if (selo === 'conforme') {
-    return `${abertura} Todos os itens inspecionados estavam conformes no momento da visita. A próxima visita está prevista para ${proxima}, com periodicidade ${periodicidade}.`;
+    return `${inicio} Todos os itens inspecionados estavam conformes no momento da visita. A próxima visita está prevista para ${proxima}, com periodicidade ${periodicidade}.`;
   }
   if (selo === 'atencao') {
     const pend = pendencias(itens).filter((p) => p.status === 'atencao');
     const lista = juntarLista(pend.map((p) => rotuloEmLista(p.label)));
     const um = pend.length === 1;
-    return `${abertura} Não há não conformidade registrada, mas ${lista} ${um ? 'pede' : 'pedem'} acompanhamento e ajuste. Recomendamos tratar ${um ? 'esse ponto antes que evolua, e reavaliá-lo' : 'esses pontos antes que evoluam, e reavaliá-los'} na próxima visita, prevista para ${proxima}.`;
+    return `${inicio} Não há não conformidade registrada, mas ${lista} ${um ? 'pede' : 'pedem'} acompanhamento e ajuste. Recomendamos tratar ${um ? 'esse ponto antes que evolua, e reavaliá-lo' : 'esses pontos antes que evoluam, e reavaliá-los'} na próxima visita, prevista para ${proxima}.`;
   }
   const nc = pendencias(itens).filter((p) => p.status === 'nao_conforme');
   const lista = juntarLista(nc.map((p) => rotuloEmLista(p.label)));
   if (nc.length === 1) {
-    return `${abertura} Foi encontrada não conformidade em ${lista}, que precisa de correção. Enquanto não for corrigida, pode comprometer a geração e a segurança do sistema. Recomendamos tratar a prioridade antes da próxima visita, prevista para ${proxima}.`;
+    return `${inicio} Foi encontrada não conformidade em ${lista}, que precisa de correção. Enquanto não for corrigida, pode comprometer a geração e a segurança do sistema. Recomendamos corrigir esse ponto o quanto antes e combinar uma conferência com a empresa. A próxima visita periódica segue prevista para ${proxima}.`;
   }
-  return `${abertura} Foram encontradas não conformidades em ${lista}, que precisam de correção. Enquanto não forem corrigidas, podem comprometer a geração e a segurança do sistema. Recomendamos tratar as prioridades antes da próxima visita, prevista para ${proxima}.`;
+  return `${inicio} Foram encontradas não conformidades em ${lista}, que precisam de correção. Enquanto não forem corrigidas, podem comprometer a geração e a segurança do sistema. Recomendamos corrigir esses pontos o quanto antes e combinar uma conferência com a empresa. A próxima visita periódica segue prevista para ${proxima}.`;
 }
 
 export interface Resumo {

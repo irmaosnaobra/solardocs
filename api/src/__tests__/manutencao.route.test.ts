@@ -471,7 +471,7 @@ describe('público /m', () => {
     const r = await concluida();
     const a = await request(app).get(`/m/${r.id}/pdf`).redirects(0);
     expect(a.status).toBe(302);
-    expect(a.headers.location).toMatch(new RegExp(`^https://storage.test/manutencoes/${U1}/${r.id}/relatorio-\\d+\\.pdf`));
+    expect(a.headers.location).toMatch(new RegExp(`^https://storage.test/manutencoes/${U1}/${r.id}/relatorio-v\\d+-\\d+-[0-9a-f]{8}\\.pdf`));
     expect(h.navegador.abriu).toBe(1);
     expect(h.navegador.fechou).toBe(1);
     expect(h.navegador.pdfOpcoes).toMatchObject({ format: 'A4', printBackground: true, preferCSSPageSize: true });
@@ -506,5 +506,109 @@ describe('público /m', () => {
     } finally {
       h.objetos.set = setOriginal;
     }
+  });
+  it('tela: marca do integrador, data de emissão e prévia do WhatsApp, sem o contato da empresa', async () => {
+    const r = await concluida();
+    banco.tabelas.company![0] = { ...banco.tabelas.company![0], whatsapp: '31999990000', endereco: 'Rua Secreta, 1' };
+    const t = (await request(app).get(`/m/${r.id}`)).text;
+    expect(t).toContain('<b>Solar Teste Energia</b>');
+    expect(t).toContain('<span>CNPJ 11.222.333/0001-81</span>');
+    expect(t).toMatch(/<span>Emitido em \d{2}\/\d{2}\/\d{4}<\/span>/);
+    expect(t).toContain('<meta property="og:title" content="Manutenção preventiva MP-');
+    expect(t).toContain('<meta property="og:description" content="Relatório de manutenção preventiva de Maria &lt;b&gt;Souza&lt;/b&gt;, por Solar Teste Energia."/>');
+    expect(t).toContain('<meta property="og:type" content="article"/>');
+    expect(t).not.toContain('31999990000');
+    expect(t).not.toContain('Rua Secreta');
+    expect(t).toContain('class="barra"');
+    expect(t).not.toContain('class="online"');
+  });
+  it('PDF: o nome leva a versão, o instante da última alteração e o hash da marca', async () => {
+    const r = await concluida();
+    const a = await request(app).get(`/m/${r.id}/pdf`).redirects(0);
+    const ms = new Date(linha(r.id).updated_at).getTime();
+    expect(a.headers.location).toContain(`/relatorio-v2-${ms}-`);
+    const guardados = [...h.objetos.keys()].filter((p) => p.endsWith('.pdf'));
+    expect(guardados).toHaveLength(1);
+    expect(guardados[0]).toMatch(new RegExp(`/relatorio-v2-${ms}-[0-9a-f]{8}\\.pdf$`));
+    expect(guardados[0]!.endsWith('-00000000.pdf')).toBe(false);
+  });
+  it('PDF: trocar o nome da empresa gera outro arquivo, o velho sai do bucket e sem mexer de novo não regera', async () => {
+    const r = await concluida();
+    await request(app).get(`/m/${r.id}/pdf`).redirects(0);
+    const antes = [...h.objetos.keys()].filter((p) => p.endsWith('.pdf'));
+    banco.tabelas.company![0] = { ...banco.tabelas.company![0], nome_fantasia: 'Solar Outro Nome' };
+    const b = await request(app).get(`/m/${r.id}/pdf`).redirects(0);
+    expect(b.status).toBe(302);
+    expect(h.navegador.abriu).toBe(2);
+    expect(h.navegador.html).toContain('Solar Outro Nome');
+    const depois = [...h.objetos.keys()].filter((p) => p.endsWith('.pdf'));
+    expect(depois).toHaveLength(1);
+    expect(depois[0]).not.toBe(antes[0]);
+    await request(app).get(`/m/${r.id}/pdf`).redirects(0);
+    expect(h.navegador.abriu).toBe(2);
+  });
+  it('PDF: o HTML vem em modo PDF e o rodapé leva a empresa, o código do relatório, o cliente e "Página"', async () => {
+    const r = await concluida();
+    banco.tabelas.company![0] = { ...banco.tabelas.company![0], whatsapp: '31999990000' };
+    await request(app).get(`/m/${r.id}/pdf`).redirects(0);
+    const doc = h.navegador.html;
+    expect(doc).not.toContain('class="barra"');
+    expect(doc).not.toContain('Baixar PDF');
+    expect(doc).not.toContain('<a href="https://storage.test');
+    expect(doc).not.toContain('31999990000');
+    expect(doc).toContain('class="online"');
+    expect(doc).toContain(`/m/${r.id}`);
+    const rodape = h.navegador.pdfOpcoes.footerTemplate as string;
+    expect(rodape).toMatch(/Solar Teste Energia · MP-\d{4}-001 · Maria &lt;b&gt;Souza&lt;\/b&gt;/);
+    expect(rodape).toContain('Página');
+    expect(rodape).toContain('class="pageNumber"');
+    expect(rodape).toContain('class="totalPages"');
+  });
+  it('erro ao ler a marca: a tela e o PDF saem sem a marca, sem virar 500', async () => {
+    const r = await concluida();
+    banco.falhas['company.select'] = { erro: { code: 'XX000', message: 'banco fora' } };
+    const tela = await request(app).get(`/m/${r.id}`);
+    expect(tela.status).toBe(200);
+    expect(tela.text).toContain('Relatório de manutenção preventiva');
+    expect(tela.text).not.toContain('Solar Teste Energia');
+    const pdf = await request(app).get(`/m/${r.id}/pdf`).redirects(0);
+    expect(pdf.status).toBe(302);
+    expect(pdf.headers.location).toMatch(/relatorio-v2-\d+-00000000\.pdf/);
+    expect(h.navegador.html).not.toContain('Solar Teste Energia');
+  });
+  it('assinatura do técnico com registro, data e hora; o cliente que não assinou aparece só com o nome', async () => {
+    const r = await criar(U1, { cliente_nome: 'Maria Souza' });
+    await put(`/manutencoes/${r.id}`, { dados: dadosCompletos(), data_inspecao: '2026-10-27' });
+    await post(`/manutencoes/${r.id}/assinatura`, { quem: 'tecnico', base64: png, nome: 'Bruno Lima', registro: 'CFT 123' });
+    await post(`/manutencoes/${r.id}/concluir`);
+    const t = (await request(app).get(`/m/${r.id}`)).text;
+    expect(t).toContain('<p class="nm">Bruno Lima</p><p class="rg">Registro: CFT 123</p>');
+    expect(t).toMatch(/<p class="dt">Assinado em \d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}<\/p>/);
+    expect(t).toContain('<p class="nm">Maria Souza</p><p class="rg"></p><p class="dt"></p>');
+    expect(t).not.toContain('Sem assinatura');
+  });
+  it('sem assinatura e sem responsável o bloco do técnico diz "Sem assinatura"', async () => {
+    banco.tabelas.company![0] = { ...banco.tabelas.company![0], tecnico2_nome: '', tecnico2_crt_cft: '', engenheiro_nome: '', engenheiro_crea: '' };
+    const r = await criar(U1, { cliente_nome: 'Maria Souza' });
+    await put(`/manutencoes/${r.id}`, { dados: dadosCompletos({ responsavel: { nome: '', registro: '' } }), data_inspecao: '2026-10-27' });
+    await post(`/manutencoes/${r.id}/concluir`);
+    const t = (await request(app).get(`/m/${r.id}`)).text;
+    expect(t).toContain('<p class="nm sem">Sem assinatura</p><p class="rg"></p><p class="dt"></p><p class="cap">Assinatura do técnico</p>');
+  });
+  it('atividade parcial: a conclusão avisa, as pendências explicam e a atividade sai de "realizadas"', async () => {
+    const r = await concluida({
+      atividades: [
+        { key: 'limpeza', feita: true, status: 'concluido', obs: '' },
+        { key: 'inspecao_visual', feita: true, status: 'concluido', obs: '' },
+        { key: 'reaperto', feita: true, status: 'parcial', obs: 'Faltou acesso ao quadro.' },
+      ],
+    });
+    const t = (await request(app).get(`/m/${r.id}`)).text;
+    expect(t).toContain('Ficou incompleta 1 atividade. Veja o motivo em Pendências e prioridades.');
+    expect(t).toContain('<h3>O que ficou por fazer nesta visita</h3>');
+    expect(t).toContain('Faltou acesso ao quadro.');
+    expect(t).toContain('<span>Atividades concluídas</span><b>2 de 3</b>');
+    expect(t).toContain('<span>Ficou por fazer</span><b>1</b>');
+    expect(t.slice(t.indexOf('<h2>Atividades realizadas</h2>'), t.indexOf('</section>', t.indexOf('<h2>Atividades realizadas</h2>')))).not.toContain('Reaperto de conexões');
   });
 });

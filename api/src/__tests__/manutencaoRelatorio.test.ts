@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  CHECKLIST, ATIVIDADES, Dados, calcularSelo, codigoLegivel, dadosPadrao, dataPorExtenso, diasEntre, faltamStatus,
-  hojeBRT, montarConclusao, montarResumo, normalizarDados, pendencias, proximoCodigo, somarMeses,
+  CHECKLIST, ATIVIDADES, Dados, calcularSelo, codigoLegivel, contagemAtividades, dadosPadrao, dataPorExtenso, diasEntre,
+  faltamStatus, hojeBRT, juntarLista, montarConclusao, montarResumo, normalizarDados, pendencias, proximoCodigo, somarMeses,
 } from '../services/manutencao/relatorio';
 
 // Regras do relatório de manutenção preventiva: tudo função pura, sem banco.
@@ -142,7 +142,8 @@ describe('montarConclusao', () => {
     const d = dadosBase({ itens: itens({ dps: 'nao_conforme' }) });
     const t = montarConclusao(d, 'nao_conforme', '2027-04-27');
     expect(t).toContain('Foi encontrada não conformidade em DPS, que precisa de correção. Enquanto não for corrigida, pode comprometer');
-    expect(t).toContain('tratar a prioridade antes');
+    expect(t).toContain('Recomendamos corrigir esse ponto o quanto antes e combinar uma conferência com a empresa.');
+    expect(t).toContain('A próxima visita periódica segue prevista para 27 de abril de 2027.');
   });
   it('lista de três usa vírgula e "e", e o quadro CC perde o complemento', () => {
     const d = dadosBase({ itens: itens({ modulos: 'atencao', stringbox: 'atencao', quadro_ca: 'atencao' }) });
@@ -180,5 +181,131 @@ describe('normalizarDados e resumo', () => {
     expect(r).toMatchObject({ selo: 'atencao', faltam_status: 0, proxima_visita: '2027-02-28' });
     expect(r.pendencias).toHaveLength(1);
     expect(r.conclusao_sugerida).toContain('28 de fevereiro de 2027');
+  });
+});
+
+// ── Atividades concluídas, parciais e não executadas (R20) ──────────────────
+
+type EstadoAtiv = 'concluido' | 'parcial' | 'nao_executado';
+/** Marca como feitas só as atividades do mapa, cada uma com o estado dado; as demais ficam sem marcar. */
+const atividadesDe = (mapa: Partial<Record<string, EstadoAtiv>>) =>
+  ATIVIDADES.map((a) => ({ key: a.key, feita: a.key in mapa, status: mapa[a.key] ?? ('concluido' as EstadoAtiv), obs: '' }));
+
+describe('contagemAtividades', () => {
+  it('conta só as atividades marcadas e deixa o status decidir o grupo', () => {
+    const d = dadosBase({
+      atividades: atividadesDe({ limpeza: 'concluido', inspecao_visual: 'concluido', reaperto: 'parcial', termografia: 'nao_executado', medicao_strings: 'nao_executado' }),
+    });
+    expect(contagemAtividades(d)).toEqual({ concluidas: 2, parciais: 1, naoExecutadas: 2 });
+  });
+  it('atividade desmarcada não conta, mesmo com status parcial ou não executado', () => {
+    const atividades = ATIVIDADES.map((a, i) => ({ key: a.key, feita: false, status: (i % 2 ? 'parcial' : 'nao_executado') as EstadoAtiv, obs: '' }));
+    expect(contagemAtividades(dadosBase({ atividades }))).toEqual({ concluidas: 0, parciais: 0, naoExecutadas: 0 });
+  });
+  it('sem lista de atividades tudo é zero', () => {
+    expect(contagemAtividades({})).toEqual({ concluidas: 0, parciais: 0, naoExecutadas: 0 });
+    expect(contagemAtividades({ atividades: undefined })).toEqual({ concluidas: 0, parciais: 0, naoExecutadas: 0 });
+  });
+  it('relatório novo: as duas atividades padrão estão concluídas', () => {
+    expect(contagemAtividades(dadosPadrao())).toEqual({ concluidas: 2, parciais: 0, naoExecutadas: 0 });
+  });
+  it('as oito marcadas, quatro delas incompletas', () => {
+    const d = dadosBase({
+      atividades: atividadesDe({
+        limpeza: 'concluido', inspecao_visual: 'concluido', medicao_strings: 'concluido', verificacao_inversor: 'concluido',
+        reaperto: 'parcial', teste_aterramento: 'parcial', termografia: 'nao_executado', verificacao_monitoramento: 'nao_executado',
+      }),
+    });
+    expect(contagemAtividades(d)).toEqual({ concluidas: 4, parciais: 2, naoExecutadas: 2 });
+  });
+});
+
+describe('juntarLista', () => {
+  it('vírgula e "e" no último', () => {
+    expect(juntarLista([])).toBe('');
+    expect(juntarLista(['A'])).toBe('A');
+    expect(juntarLista(['A', 'B'])).toBe('A e B');
+    expect(juntarLista(['A', 'B', 'C'])).toBe('A, B e C');
+  });
+});
+
+describe('montarConclusao com atividades incompletas', () => {
+  const SIS = 'no sistema residencial, de 20 módulos e 8,2 kWp';
+  const ASSIM = 'Veja o motivo em Pendências e prioridades.';
+  const comAtividades = (mapa: Partial<Record<string, EstadoAtiv>>, itensMapa: Parameters<typeof itens>[0] = {}) =>
+    dadosBase({ itens: itens(itensMapa), atividades: atividadesDe(mapa) });
+
+  it('a abertura conta só as concluídas', () => {
+    const d = comAtividades({ limpeza: 'concluido', inspecao_visual: 'concluido', reaperto: 'parcial', termografia: 'nao_executado' });
+    const t = montarConclusao(d, 'conforme', '2027-04-27');
+    expect(t.startsWith(`Nesta visita foram registradas 2 atividades de manutenção preventiva ${SIS}.`)).toBe(true);
+  });
+  it('uma incompleta usa o singular e manda ver as pendências, logo depois da abertura', () => {
+    const d = comAtividades({ limpeza: 'concluido', inspecao_visual: 'concluido', reaperto: 'parcial' });
+    expect(montarConclusao(d, 'conforme', '2027-04-27')).toBe(
+      `Nesta visita foram registradas 2 atividades de manutenção preventiva ${SIS}. Ficou incompleta 1 atividade. ${ASSIM} ` +
+      'Todos os itens inspecionados estavam conformes no momento da visita. A próxima visita está prevista para 27 de abril de 2027, com periodicidade semestral.',
+    );
+  });
+  it('várias incompletas usam o plural e somam parciais e não executadas', () => {
+    const d = comAtividades({ limpeza: 'concluido', reaperto: 'parcial', termografia: 'nao_executado', teste_aterramento: 'nao_executado' });
+    const t = montarConclusao(d, 'conforme', '2027-04-27');
+    expect(t).toContain(`Nesta visita foi registrada 1 atividade de manutenção preventiva ${SIS}. Ficaram incompletas 3 atividades. ${ASSIM} Todos os itens`);
+  });
+  it('sem nenhuma concluída a abertura diz isso, sem repetir o "no"', () => {
+    const d = comAtividades({ reaperto: 'parcial', termografia: 'nao_executado' });
+    const t = montarConclusao(d, 'conforme', '2027-04-27');
+    expect(t.startsWith(`Nesta visita nenhuma atividade de manutenção preventiva foi concluída ${SIS}. Ficaram incompletas 2 atividades. ${ASSIM} `)).toBe(true);
+    expect(t).not.toContain('no no sistema');
+    expect(t).not.toContain('foram registradas');
+  });
+  it('sem nenhuma atividade marcada vale a abertura sem concluídas, e não há frase de incompletas', () => {
+    const t = montarConclusao(comAtividades({}), 'conforme', '2027-04-27');
+    expect(t.startsWith(`Nesta visita nenhuma atividade de manutenção preventiva foi concluída ${SIS}. Todos os itens`)).toBe(true);
+    expect(t).not.toContain('incompleta');
+  });
+  it('sem incompletas a frase não aparece', () => {
+    const t = montarConclusao(comAtividades({ limpeza: 'concluido', inspecao_visual: 'concluido' }), 'conforme', '2027-04-27');
+    expect(t).not.toContain('incompleta');
+    expect(t).not.toContain(ASSIM);
+  });
+  it('a frase entra nos três selos', () => {
+    const mapa: Partial<Record<string, EstadoAtiv>> = { limpeza: 'concluido', reaperto: 'parcial' };
+    const frase = ' Ficou incompleta 1 atividade. ' + ASSIM;
+    expect(montarConclusao(comAtividades(mapa), 'conforme', '2027-04-27')).toContain(frase);
+    expect(montarConclusao(comAtividades(mapa, { dps: 'atencao' }), 'atencao', '2027-04-27')).toContain(frase + ' Não há não conformidade');
+    expect(montarConclusao(comAtividades(mapa, { dps: 'nao_conforme' }), 'nao_conforme', '2027-04-27')).toContain(frase + ' Foi encontrada');
+  });
+  it('não conforme no plural cita só os não conformes e fecha pedindo conferência com a empresa', () => {
+    const d = comAtividades({ limpeza: 'concluido', inspecao_visual: 'concluido' }, { cabos: 'nao_conforme', dps: 'nao_conforme', modulos: 'atencao' });
+    const t = montarConclusao(d, 'nao_conforme', '2027-01-27');
+    expect(t).toContain('Foram encontradas não conformidades em cabos e conectores e DPS, que precisam de correção.');
+    expect(t).toContain('Enquanto não forem corrigidas, podem comprometer a geração e a segurança do sistema.');
+    expect(t).toContain('Recomendamos corrigir esses pontos o quanto antes e combinar uma conferência com a empresa.');
+    expect(t.endsWith('A próxima visita periódica segue prevista para 27 de janeiro de 2027.')).toBe(true);
+    expect(t).not.toContain('tratar as prioridades');
+  });
+  it('os ramos conforme e atenção mantêm o texto de antes', () => {
+    const d = comAtividades({ limpeza: 'concluido', inspecao_visual: 'concluido' }, { dps: 'atencao' });
+    expect(montarConclusao(d, 'atencao', '2027-04-27')).toContain(
+      'Recomendamos tratar esse ponto antes que evolua, e reavaliá-lo na próxima visita, prevista para 27 de abril de 2027.',
+    );
+  });
+  it('nenhuma conclusão tem travessão nem emoji, em nenhuma combinação', () => {
+    const mapas: Partial<Record<string, EstadoAtiv>>[] = [
+      {}, { limpeza: 'concluido' }, { limpeza: 'concluido', reaperto: 'parcial' }, { reaperto: 'nao_executado', termografia: 'parcial' },
+    ];
+    const selos = [['conforme', {}], ['atencao', { dps: 'atencao' }], ['nao_conforme', { dps: 'nao_conforme' }], ['nao_conforme', { dps: 'nao_conforme', cabos: 'nao_conforme' }]] as const;
+    for (const mapa of mapas) {
+      for (const [selo, itensMapa] of selos) {
+        const t = montarConclusao(comAtividades(mapa, itensMapa), selo, '2027-04-27');
+        expect(t).not.toMatch(/[\u{2013}\u{2014}]/u);
+        expect(t).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+      }
+    }
+  });
+  it('montarResumo leva a mesma conclusão', () => {
+    const d = comAtividades({ limpeza: 'concluido', reaperto: 'parcial' });
+    expect(montarResumo(d, '2026-10-27').conclusao_sugerida).toContain('Ficou incompleta 1 atividade.');
   });
 });
