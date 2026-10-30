@@ -118,8 +118,11 @@ export default function InicioPage() {
   const [logoQuebrada, setLogoQuebrada] = useState(false);
   const [maisAberto, setMaisAberto] = useState(false);
 
-  // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo), como no menu lateral.
-  const { carregando: carregandoServidor, tem: temServidor, bastidor: bastidorServidor, previa } = useAcessos();
+  // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo), como no menu lateral. O admin vem
+  // das duas chamadas (/auth/me e /produtos/acessos): se uma falhar, a outra ainda o livra do cadeado.
+  const {
+    carregando: carregandoServidor, tem: temServidor, bastidor: bastidorServidor, isAdmin: adminServidor, previa,
+  } = useAcessos();
   const nexusLigado = useNexusPortal();
 
   // Só vale pra quem tem empresa cadastrada; sem CNPJ a tela mostra o convite pra cadastrar.
@@ -225,7 +228,7 @@ export default function InicioPage() {
   const bastidor = previa ? previa.bastidor : bastidorServidor;
   const tem = (produto: string) => (previa ? previa.produtos.has(produto) : temServidor(produto));
   const { principal, paraLiberar, mostrarLoja, travado: travadoNoMenu } = organizarMenu({
-    bastidor, carregando: acessosCarregando, isAdmin: !!pessoa?.admin, tem,
+    bastidor, carregando: acessosCarregando, isAdmin: !!pessoa?.admin || adminServidor, tem,
   });
   // Sem a ficha do produto no catálogo não há para onde levar o cadeado: fica o link normal.
   const travado = (item: ItemMenu) => travadoNoMenu(item) && !!item.produto && !!produtoPorId(item.produto);

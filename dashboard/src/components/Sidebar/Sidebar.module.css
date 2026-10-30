@@ -215,6 +215,14 @@
   background: var(--chrome-bg-2);
 }
 
+/* Cadeado que leva para a própria ferramenta (Kit Off-Grid) com a pessoa já nela: o item fica marcado como
+   página atual, igual ao ativo sem cadeado. Vem depois do hover, para valer também com o mouse em cima. */
+.navItemLocked.navItemActive {
+  background: var(--chrome-bg-2);
+  color: #fff;
+  opacity: 1;
+}
+
 /* Foco de teclado em tudo que se clica no menu. */
 .navItem:focus-visible,
 .navItemLocked:focus-visible,

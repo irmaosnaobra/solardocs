@@ -83,18 +83,21 @@
 }
 .ini-plataforma:active { transform: scale(0.96); }
 
-/* Corpo: coluna estreita, centralizada nas telas maiores (raro aqui, pois o PC redireciona). */
+/* Corpo: coluna estreita, centralizada nas telas maiores (raro aqui, pois o PC redireciona). Como na tela de
+   antes, até 519 px ela ocupa a largura toda (menos o padding de 16 px) e de 520 px em diante a grade fica com
+   460 px, centralizada. O max-width inclui o padding, por isso 492 (460 mais 32): os blocos têm o mesmo tamanho
+   de sempre em qualquer largura. */
 .ini-corpo {
   flex: 1;
   width: 100%;
-  max-width: 460px;
   margin: 0 auto;
   padding: 0 16px calc(28px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column;
 }
 .ini-corpo > main { padding-top: 16px; }
 @media (min-width: 520px) {
-  .ini-faixaInterna { max-width: 428px; margin: 0 auto; width: 100%; }
+  .ini-corpo { max-width: 492px; }
+  .ini-faixaInterna { max-width: 460px; margin: 0 auto; width: 100%; }
 }
 
 /* Os dois blocos de cima (Nova proposta, Ler conta de luz) são o mesmo bloco da grade (.ini-tile),
@@ -110,6 +113,14 @@
   margin-top: 6px;
 }
 .ini-grid[hidden] { display: none; }
+/* Celular estreito (até 350 px, o de 320 px à frente): com "1fr" cada coluna cresce até caber a palavra mais
+   longa dela (Precificação, Manutenção) e a soma passa da tela; a coluna da direita saía cortada (27 px na
+   loja fechada). Aqui as três colunas ficam iguais e a grade cabe. A fonte, o padding e o vão não mudam e a
+   palavra não quebra: as duas mais longas invadem o padding de 8 px e passam da borda do bloco por 1 a 2 px,
+   mas nada é cortado. Acima de 350 px a grade é a de sempre. */
+@media (max-width: 350px) {
+  .ini-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 /* O bloco é o de sempre: cheio, na cor principal, com texto e ícone na cor de contraste. */
 .ini-tile {
   position: relative;
@@ -127,8 +138,9 @@
 .ini-tile:active { transform: scale(0.95); background: var(--ini-pressionada); }
 /* Ícone pequeno acima do nome, na cor de contraste */
 .ini-tileIcon { display: flex; align-items: center; justify-content: center; color: var(--ini-sobre); }
-/* Fonte maior; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Palavra nunca é cortada:
-   a coluna da grade cresce até caber a mais longa (Precificação, Manutenção). */
+/* Fonte maior; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Uma palavra sozinha nunca
+   é quebrada nem cortada: acima de 350 px a coluna da grade cresce até caber a mais longa (Precificação,
+   Manutenção); até 350 px as colunas são iguais e a palavra longa invade o padding (ver .ini-grid). */
 .ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: var(--ini-sobre); }
 /* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
 .ini-semQuebra { white-space: nowrap; }
