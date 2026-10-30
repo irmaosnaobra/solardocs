@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ComponentProps } from 'react';
 import {
   ClipboardCheck, Camera, Paperclip, Check, X, RefreshCw, Share2, Copy, Plus, Trash2, FileText, Download,
-  MapPin, LocateFixed, UserPlus, Users, Type, CheckCircle2, RotateCcw, FileDown,
+  MapPin, LocateFixed, UserPlus, Users, Type, CheckCircle2, RotateCcw, FileDown, ShoppingCart,
 } from 'lucide-react';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
@@ -17,6 +17,13 @@ import './vistoria.css';
 import StatusItem from './StatusItem';
 import { criarGravadorStatus } from './gravadorStatus';
 import Assinaturas from './Assinaturas';
+import Compras from './Compras';
+import ComprasGaveta, { type AberturaFolha, type MudancaVista } from './ComprasGaveta';
+import SugestoesItem from './SugestoesItem';
+import { useCompras, useSessaoCompras, preencher } from './useCompras';
+import { CATALOGO } from './catalogoCompras';
+import { TEXTOS_COMPRAS } from './comprasTextos';
+import { contagemPorItem, frasesResumo } from './comprasPuro';
 import {
   ITENS_COM_STATUS, SELOS, TEXTOS, dataCurta, ehMigracaoPendente,
   type AssinaturasEstado, type ItemLista, type MapaStatus, type Resumo, type StatusKey,
@@ -58,6 +65,9 @@ interface DetalheApi {
   assinaturas_url?: { tecnico?: string; cliente?: string };
   resumo?: Resumo;
   extras_disponiveis?: boolean;
+  // Lista de compras (coluna própria): a seção só aparece com compras_disponivel === true.
+  compras?: { publica: boolean; linhas: unknown[] };
+  compras_disponivel?: boolean;
 }
 
 const MAX_DIM = 1568;
@@ -103,6 +113,45 @@ function apiError(err: unknown): string {
 }
 
 type Modo = 'nome' | 'cadastrado' | 'novo';
+
+// Mesmo nome que a API dá ao ZIP (vistoria-<cliente>.zip): o slug é o mesmo da rota.
+function slugArquivo(s: string): string {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'item';
+}
+
+// Baixa o blob por <a download>. Em iPhone instalado como app (standalone) o navegador ignora este download.
+function baixarBlob(blob: Blob, nome: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+// Com responseType blob, o corpo do erro também chega como blob: lê a mensagem da API de dentro dele.
+async function erroDoBlob(err: unknown): Promise<string> {
+  const dados = (err as { response?: { data?: unknown } })?.response?.data;
+  if (!(dados instanceof Blob)) return '';
+  try {
+    const j = JSON.parse(await dados.text()) as { error?: unknown };
+    return typeof j.error === 'string' ? j.error : '';
+  } catch {
+    return '';
+  }
+}
+
+/** "A, B e C"; com mais de três, "A, B, C e mais N". */
+function listaDeNomes(nomes: string[]): string {
+  if (nomes.length <= 1) return nomes.join('');
+  if (nomes.length <= 3) return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
+  return `${nomes.slice(0, 3).join(', ')} e mais ${nomes.length - 3}`;
+}
 
 /** O que uma gravação de status carrega: a vistoria e o mapa inteiro, como estavam quando o técnico tocou. */
 interface CargaStatus { id: string; mapa: MapaStatus }
@@ -180,6 +229,12 @@ export default function VistoriaPage() {
   // responde extras_disponiveis=false e a tela esconde os dois, funcionando como antes.
   const [statusItens, setStatusItens] = useState<MapaStatus>({});
   const [extrasOk, setExtrasOk] = useState(true);
+  // Lista de compras: o hook devolve um objeto novo a cada render, então só as funções estáveis dele entram em
+  // dependências (ver useCompras.ts).
+  const compras = useCompras();
+  const { carregar: carregarCompras, esperar: esperarCompras, limpar: limparCompras } = compras;
+  const [folha, setFolha] = useState<AberturaFolha | null>(null);
+  const [baixandoZip, setBaixandoZip] = useState(false);
   const [assinaturas, setAssinaturas] = useState<AssinaturasEstado>({});
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -217,6 +272,23 @@ export default function VistoriaPage() {
     enviar: (c) => acoesStatus.current.enviar(c),
     aoDescarregar: (c) => acoesStatus.current.aoFechar(c),
   }));
+  // Telemetria da lista: no máximo uma vez por vistoria e tipo (mesma ideia do statusLogadoDe).
+  const comprasLogado = useRef<Set<string>>(new Set());
+  const logCompras = useCallback((tipo: string) => {
+    const chave = `${vistoriaIdRef.current}:${tipo}`;
+    if (comprasLogado.current.has(chave)) return;
+    comprasLogado.current.add(chave);
+    logUso(tipo);
+  }, []);
+  const sessao = useSessaoCompras(compras.mudar, logCompras);
+  const { reiniciar: reiniciarSessao } = sessao;
+  const abrirFolha = useCallback((a: Omit<AberturaFolha, 'seq'>) => {
+    setFolha((f) => ({ ...a, seq: (f?.seq ?? 0) + 1 }));
+  }, []);
+  const mudarVistaFolha = useCallback((m: MudancaVista) => {
+    setFolha((f) => (f ? { ...f, vista: m.vista, item: m.item ?? f.item, id: m.id ?? f.id } : f));
+  }, []);
+  const fecharFolha = useCallback(() => setFolha(null), []);
   const [kpi, setKpi] = useState<string | null>(null);
 
   // O botão flutuante do WhatsApp cobre campos e botões no celular: some nesta tela abaixo de 720 px.
@@ -236,8 +308,9 @@ export default function VistoriaPage() {
   const abrir = useCallback(async (id: string) => {
     setErro(''); setAbrindo(true);
     try {
-      // Antes de trocar os refs do status, termina de gravar o que ficou da vistoria anterior.
+      // Antes de trocar os refs do status, termina de gravar o que ficou da vistoria anterior (e a lista dela).
       await gravador.esperar();
+      await esperarCompras();
       statusSujo.current = false;
       const r = await api.get(`/vistorias/${id}`);
       const d = r.data as DetalheApi;
@@ -256,6 +329,9 @@ export default function VistoriaPage() {
       statusRef.current = mapa;
       setStatusItens(mapa);
       setExtrasOk(d.extras_disponiveis !== false);
+      carregarCompras(d.id, d.compras, d.compras_disponivel);
+      reiniciarSessao();
+      setFolha(null);
       setAssinaturas(ass);
       setResumo(d.resumo || null);
       setVistoria({ id: d.id, cliente_id: d.cliente_id, cliente_nome: d.cliente_nome, status: d.status, localizacao: d.localizacao, itens });
@@ -267,7 +343,7 @@ export default function VistoriaPage() {
     } finally {
       setAbrindo(false);
     }
-  }, [gravador]);
+  }, [gravador, carregarCompras, esperarCompras, reiniciarSessao]);
 
   useEffect(() => {
     if (!opened.current) { opened.current = true; logUso('open'); }
@@ -522,6 +598,8 @@ export default function VistoriaPage() {
   async function concluir() {
     setErro('');
     if (!(await esperarStatus())) return;
+    // A lista segue na tela se não foi enviada: concluir sem ela mandaria o relatório sem os itens a providenciar.
+    if (compras.disponivel && !(await esperarCompras())) { setErro(TEXTOS_COMPRAS.erroConcluir); return; }
     try {
       const r = await api.post(`/vistorias/${vistoria!.id}/concluir`);
       setResumo((r.data?.resumo as Resumo) || null);
@@ -548,6 +626,10 @@ export default function VistoriaPage() {
     // Troca ainda no debounce não se perde: dispara agora. Os refs do status ficam como estão (a gravação lê
     // o id e o mapa quando roda) e são trocados quando a próxima vistoria abrir.
     void gravador.esperar();
+    void esperarCompras();
+    limparCompras();
+    reiniciarSessao();
+    setFolha(null);
     setKpi(null);
     setVistoria(null); setConcluida(false); setErro('');
     setStatusItens({}); setAssinaturas({}); setResumo(null); setExtrasOk(true); setConfirmandoReabrir(false);
@@ -567,7 +649,33 @@ export default function VistoriaPage() {
     logUso('link');
     navigator.clipboard?.writeText(reportUrl).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2000); }).catch(() => {});
   }
-  const waMsg = encodeURIComponent(`Relatório da vistoria${vistoria?.cliente_nome ? ' de ' + vistoria.cliente_nome : ''}, com as fotos:\n${reportUrl}`);
+  // Com a lista visível no relatório, a mensagem avisa o cliente de que ela está lá.
+  const listaNoRelatorio = compras.disponivel && compras.estado.publica && compras.estado.linhas.length > 0;
+  const waMsg = encodeURIComponent(
+    `Relatório da vistoria${vistoria?.cliente_nome ? ' de ' + vistoria.cliente_nome : ''}, ${listaNoRelatorio ? 'com as fotos e a lista do que providenciar' : 'com as fotos'}:\n${reportUrl}`,
+  );
+
+  // Baixar as fotos: pela rota do dono (leva TAMBÉM o documento pessoal, que o ZIP público não leva), com o token,
+  // por blob. O link direto não serve: ele iria sem o token.
+  async function baixarZip() {
+    if (!vistoria || baixandoZip) return;
+    logUso('zip');
+    setErro(''); setBaixandoZip(true);
+    try {
+      const r = await api.get(`/vistorias/${vistoria.id}/fotos.zip`, { responseType: 'blob', timeout: 120_000 });
+      const cabecalho = (r.headers as Record<string, unknown> | undefined)?.['content-disposition'];
+      const doServidor = typeof cabecalho === 'string' ? cabecalho.match(/filename="?([A-Za-z0-9._-]+\.zip)"?/i)?.[1] : undefined;
+      baixarBlob(r.data as Blob, doServidor || `vistoria-${slugArquivo(vistoria.cliente_nome || 'solar')}.zip`);
+    } catch (err) {
+      setErro((await erroDoBlob(err)) || 'Não consegui baixar as fotos. Tente de novo.');
+    } finally {
+      setBaixandoZip(false);
+    }
+  }
+
+  function irParaCompras() {
+    document.getElementById('vst-compras')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function baixarPdf() {
     logUso('pdf');
@@ -611,6 +719,35 @@ export default function VistoriaPage() {
     }
     return out;
   }, [lista, grupos]);
+
+  // Faixa por item da lista de compras: quantas sugestões cada item marcado dispara e quantas linhas já estão
+  // ligadas a ele. Uma conta só por render, não uma por item.
+  const sugestoesPorItem = useMemo(
+    () => (compras.disponivel ? contagemPorItem(CATALOGO, statusItens, compras.estado.linhas, sessao.dispensadas) : {}),
+    [compras.disponivel, compras.estado.linhas, statusItens, sessao.dispensadas],
+  );
+  const naListaPorItem = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const l of compras.estado.linhas) if (l.item) m[l.item] = (m[l.item] ?? 0) + 1;
+    return m;
+  }, [compras.estado.linhas]);
+
+  // A folha da lista fica DENTRO de .vst-page (as variáveis de cor --vst-* só existem lá) e nos dois retornos
+  // (editor e painel final). A `key` zera os rascunhos a cada vistoria.
+  const gavetaCompras = vistoria && compras.disponivel ? (
+    <ComprasGaveta
+      key={`compras-${vistoria.id}`}
+      abertura={folha}
+      aoMudarVista={mudarVistaFolha}
+      aoFechar={fecharFolha}
+      compras={compras}
+      sessao={sessao}
+      statusItens={statusItens}
+      clienteNome={vistoria.cliente_nome}
+      urlRelatorio={reportUrl}
+      aoLogar={logCompras}
+    />
+  ) : null;
 
   // ── Tela inicial ──
   if (!vistoria) {
@@ -783,6 +920,20 @@ export default function VistoriaPage() {
             </div>
           )}
 
+          {compras.disponivel && compras.estado.linhas.length > 0 && (
+            <>
+              <p className="vst-heroSub" style={{ marginTop: 14 }}>
+                {preencher(TEXTOS_COMPRAS.painelResumo, { resumo: frasesResumo(compras.estado.linhas) })}
+              </p>
+              {!compras.estado.publica && <p className="vst-heroSub">{TEXTOS_COMPRAS.painelPrivada}</p>}
+              {compras.estado.linhas.some((l) => l.tipo === 'material') && (
+                <button type="button" className="vst-ghostBtn" style={{ marginTop: 10 }} onClick={() => abrirFolha({ vista: 'texto' })}>
+                  {TEXTOS_COMPRAS.btnWhatsapp}
+                </button>
+              )}
+            </>
+          )}
+
           <div className="vst-linkBox">
             <input className="vst-input" readOnly value={reportUrl} aria-label="Link do relatório" onFocus={(ev) => ev.target.select()} />
             <button className="vst-copyBtn" onClick={copiar} aria-label="Copiar link"><Copy size={15} /></button>
@@ -791,7 +942,8 @@ export default function VistoriaPage() {
           <a className="vst-wa" href={`https://wa.me/?text=${waMsg}`} target="_blank" rel="noopener noreferrer" onClick={() => logUso('whatsapp')}><Share2 size={18} /> Enviar no WhatsApp</a>
           <a className="vst-primaryBtn" href={`${reportUrl}/pdf`} target="_blank" rel="noopener noreferrer" onClick={baixarPdf} style={{ marginTop: 10, textDecoration: 'none' }}><FileDown size={18} strokeWidth={2.4} /> {TEXTOS.baixarPdf}</a>
           {gerandoPdf && <p className="vst-toast" role="status">{TEXTOS.gerandoPdf}</p>}
-          <a className="vst-ghostBtn" href={`${reportUrl}/fotos.zip`} onClick={() => logUso('zip')} style={{ marginTop: 10 }}><Download size={16} /> Baixar todas as fotos</a>
+          <button type="button" className="vst-ghostBtn" onClick={() => void baixarZip()} disabled={baixandoZip} style={{ marginTop: 10 }}><Download size={16} /> Baixar todas as fotos</button>
+          {baixandoZip && <p className="vst-toast" role="status">Preparando as fotos. Aguarde um instante.</p>}
           <a className="vst-ghostBtn" href={reportUrl} target="_blank" rel="noopener noreferrer" style={{ marginTop: 10 }}>Abrir relatório</a>
 
           {confirmandoReabrir ? (
@@ -808,11 +960,16 @@ export default function VistoriaPage() {
           <button className="vst-ghostBtn" onClick={reset} style={{ marginTop: 10 }}><RefreshCw size={15} /> Voltar para a lista</button>
           {erro && <p className="vst-err" role="alert">{erro}</p>}
         </div>
+        {gavetaCompras}
       </div>
     );
   }
 
   // ── Tela do checklist ──
+  // Aviso (não bloqueia) antes de concluir: itens técnicos ainda sem status.
+  const semStatus = extrasOk
+    ? vistoria.itens.filter((i) => ITENS_COM_STATUS.includes(i.key) && !statusItens[i.key]).map((i) => i.label)
+    : [];
   return (
     <div className="vst-page">
       {lightbox && (
@@ -835,7 +992,21 @@ export default function VistoriaPage() {
       <div className="vst-progressWrap">
         <div className="vst-progressHead">
           <strong>{feitos}/{total} itens</strong>
-          <span>Câmera ou arquivo · várias por item</span>
+          <div className="vst-cmpPilulaGrupo">
+            <span className="vst-progressDica">Câmera ou arquivo · várias por item</span>
+            {compras.disponivel && (
+              <button
+                type="button"
+                className="vst-cmpPilula"
+                aria-label={preencher(TEXTOS_COMPRAS.pilulaAria, { n: compras.estado.linhas.length })}
+                onClick={irParaCompras}
+              >
+                <ShoppingCart size={15} aria-hidden="true" />
+                {preencher(TEXTOS_COMPRAS.pilula, { n: compras.estado.linhas.length })}
+                {(compras.situacao === 'sem_rede' || compras.situacao === 'erro') && <span className="vst-cmpPonto" aria-hidden="true" />}
+              </button>
+            )}
+          </div>
         </div>
         <div className="vst-progressBar"><div className="vst-progressFill" style={{ width: `${pct}%` }} /></div>
       </div>
@@ -948,12 +1119,27 @@ export default function VistoriaPage() {
                 <StatusItem itemKey={item.key} valor={statusItens[item.key]} onMudar={mudarStatus} />
               )}
 
+              {compras.disponivel && extrasOk && (statusItens[item.key] === 'atencao' || statusItens[item.key] === 'nao_conforme') && (
+                <SugestoesItem
+                  sugestoes={sugestoesPorItem[item.key] ?? 0}
+                  naLista={naListaPorItem[item.key] ?? 0}
+                  aoAbrir={() => abrirFolha({ vista: 'item', item: item.key })}
+                />
+              )}
+
               <textarea className="vst-obs" placeholder="Observação (opcional)" aria-label={`Observação: ${item.label}`} defaultValue={item.obs}
                 onChange={(ev) => salvarObs(item.key, ev.target.value)} style={{ marginTop: 10 }} />
             </div>
           );
         })}
       </div>
+
+      {compras.disponivel && (
+        <div className="vst-bloco" id="vst-compras">
+          <Compras compras={compras} sessao={sessao} statusItens={statusItens} abrirFolha={abrirFolha} />
+        </div>
+      )}
+      {compras.liberando && <p className="vst-liberando" role="status">{TEXTOS_COMPRAS.liberando}</p>}
 
       {extrasOk && (
         <div className="vst-bloco">
@@ -971,9 +1157,14 @@ export default function VistoriaPage() {
       {erro && <p className="vst-err" role="alert">{erro}</p>}
 
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560, marginInline: 'auto' }}>
+        {semStatus.length > 0 && (
+          <p className="vst-aviso" role="status">{preencher(TEXTOS_COMPRAS.avisoSemStatus, { lista: listaDeNomes(semStatus) })}</p>
+        )}
         <button className="vst-primaryBtn" onClick={concluir}><Check size={18} strokeWidth={2.4} /> Concluir e gerar link</button>
         <button className="vst-ghostBtn" onClick={reset}>Sair sem concluir</button>
       </div>
+
+      {gavetaCompras}
     </div>
   );
 }

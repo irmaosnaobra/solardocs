@@ -211,3 +211,246 @@
 
 /* Respiro no fim do editor, acima das faixas fixas do app. */
 .vst-page { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+
+/* ── Lista de compras ──
+   Só tokens do app (--color-*, --ink-*, --vst-*): nenhuma cor escrita à mão para fundo. Alvos de toque de 44 px,
+   linhas de 48 px, campos de texto com 16 px (abaixo disso o iPhone dá zoom ao focar). Sem animação que atrase o
+   toque, e nenhuma quando o aparelho pede menos movimento. */
+
+#vst-compras { scroll-margin-top: 96px; }
+
+/* Barra fixa de progresso: o botão "Compras n" divide a linha com o contador de itens. */
+.vst-cmpPilulaGrupo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vst-cmpPilula {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--color-text);
+  background: var(--color-surface-2); border: 1px solid var(--color-border-strong); -webkit-tap-highlight-color: transparent;
+}
+.vst-cmpPilula:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vst-cmpPonto {
+  position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; box-sizing: content-box; border-radius: 50%;
+  background: var(--ink-amber); border: 2px solid var(--color-surface-2);
+}
+@media (max-width: 559px) { .vst-progressDica { display: none; } }
+
+/* Faixa por item: "Sugestões de compra: n" */
+.vst-cmpFaixa {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin-top: 10px; padding: 0 14px;
+  border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; text-align: left;
+  color: var(--vst-ambar); background: color-mix(in srgb, var(--ink-amber) 8%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--ink-amber) 45%, var(--color-surface)); -webkit-tap-highlight-color: transparent;
+}
+.vst-cmpFaixaTxt { flex: 1; min-width: 0; }
+.vst-cmpFaixa:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* Aviso antes de concluir (não bloqueia) */
+.vst-aviso {
+  margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 14px; line-height: 1.4; color: var(--vst-ambar);
+  background: color-mix(in srgb, var(--ink-amber) 8%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--ink-amber) 45%, var(--color-surface));
+}
+
+/* Seção */
+.vst-cmpApoio { margin: 0 0 12px; font-size: 14px; line-height: 1.45; color: var(--color-text-muted); }
+.vst-cmpSwitch {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; padding: 0 14px;
+  border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 15px; font-weight: 600; text-align: left;
+  color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong); -webkit-tap-highlight-color: transparent;
+}
+.vst-cmpSwitch:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vst-cmpTrilho { position: relative; flex: 0 0 44px; width: 44px; height: 26px; border-radius: 999px; background: var(--color-border-strong); }
+.vst-cmpBola {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%;
+  background: var(--color-surface); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpSwitch[aria-checked='true'] .vst-cmpTrilho { background: var(--ink-green); }
+.vst-cmpSwitch[aria-checked='true'] .vst-cmpBola { transform: translateX(18px); }
+@media (prefers-reduced-motion: no-preference) {
+  .vst-cmpTrilho { transition: background-color .15s ease; }
+  .vst-cmpBola { transition: transform .15s ease; }
+  .vst-cmpLinha { transition: background-color .4s ease, border-color .4s ease; }
+}
+
+.vst-cmpEstado { margin: 8px 0 14px; font-size: 13px; line-height: 1.4; color: var(--color-text-muted); }
+.vst-cmpEstado-sem_rede, .vst-cmpEstado-conflito { color: var(--vst-ambar); font-weight: 600; }
+.vst-cmpEstado-erro { color: var(--vst-verm); font-weight: 600; }
+
+.vst-cmpSubtitulo { margin: 16px 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .01em; color: var(--color-text-muted); }
+.vst-cmpLista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.vst-cmpDica { margin: 8px 0 0; font-size: 13px; line-height: 1.4; color: var(--color-text-muted); }
+
+/* Linhas: da lista, das sugestões e do catálogo na folha */
+.vst-cmpLinha, .vst-cmpSugestao, .vst-cmpEntrada {
+  min-height: 48px; padding: 10px 12px; border-radius: 12px;
+  background: var(--color-surface); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpLinha { display: flex; flex-direction: column; gap: 8px; }
+.vst-cmpNova { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)); }
+.vst-cmpLinhaTopo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.vst-cmpTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 160px; }
+.vst-cmpNome {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+  font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--color-text);
+}
+.vst-cmpEsp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--color-text-muted); }
+.vst-cmpRotulos { font-size: 12px; color: var(--color-text-muted); }
+.vst-cmpMotivo { font-size: 12px; font-weight: 600; color: var(--vst-ambar); }
+.vst-cmpEtiqueta { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.vst-cmpNota {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+  font-size: 14px; line-height: 1.4; color: var(--color-text);
+}
+.vst-cmpBotoes { display: flex; flex: 0 0 auto; margin: -6px -8px 0 0; }
+.vst-cmpLinhaBase { display: flex; align-items: center; }
+
+.vst-cmpIcone {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; padding: 0;
+  border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--color-text); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.vst-cmpIcone:hover:not(:disabled) { background: var(--color-surface-2); }
+.vst-cmpIcone:disabled { opacity: .4; cursor: default; }
+.vst-cmpQtd .vst-cmpIcone { background: var(--color-surface-2); border-color: var(--color-border-strong); }
+.vst-cmpIcone:focus-visible, .vst-cmpNumero:focus-visible, .vst-cmpInformar:focus-visible, .vst-cmpLink:focus-visible,
+.vst-cmpOpcao:focus-visible, .vst-cmpNotaPronta:focus-visible, .vst-cmpCategoria:focus-visible, .vst-cmpLivreLinha:focus-visible,
+.vst-cmpCampoFalso:focus-visible, .vst-cmpPerigo:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* Quantidade */
+.vst-cmpQtdBloco { display: flex; flex-direction: column; gap: 4px; }
+.vst-cmpQtd { display: flex; align-items: center; gap: 6px; }
+.vst-cmpNumero {
+  min-width: 64px; height: 44px; padding: 0 10px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 16px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpQtdCampo {
+  width: 104px; height: 44px; padding: 0 10px; border-radius: 10px; font-family: inherit; font-size: 16px; font-weight: 700;
+  color: var(--color-text); background: var(--color-surface); border: 2px solid var(--color-primary);
+}
+.vst-cmpUn { font-size: 14px; font-weight: 600; color: var(--color-text-muted); }
+.vst-cmpQtdFalta { flex-wrap: wrap; gap: 6px 12px; }
+.vst-cmpInformar {
+  min-height: 44px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 700;
+  color: var(--color-text); background: color-mix(in srgb, var(--ink-amber) 10%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--ink-amber) 50%, var(--color-surface));
+}
+.vst-cmpFalta { font-size: 13px; font-weight: 600; color: var(--vst-ambar); }
+.vst-cmpAvisoQtd { margin: 0; font-size: 13px; color: var(--vst-verm); }
+.vst-cmpTag {
+  display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  color: var(--color-text-muted); background: var(--color-surface-2); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpAmianto {
+  margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 13px; line-height: 1.4; color: var(--vst-ambar);
+  background: color-mix(in srgb, var(--ink-amber) 10%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--ink-amber) 45%, var(--color-surface));
+}
+
+/* Sugeridos pelos itens marcados */
+.vst-cmpSugestao { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vst-cmpSugAcoes { display: flex; flex-direction: column; align-items: stretch; gap: 2px; flex: 0 0 auto; }
+.vst-cmpLink {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: transparent; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--color-text); text-decoration: underline; cursor: pointer;
+}
+.vst-cmpVerTodas { margin-top: 4px; }
+
+.vst-cmpVazio {
+  margin: 12px 0; padding: 16px 14px; border-radius: 12px; text-align: center;
+  background: var(--color-surface); border: 1px dashed var(--color-border-strong);
+}
+.vst-cmpVazio strong { display: block; font-size: 15px; color: var(--color-text); }
+.vst-cmpVazio p { margin: 4px 0 0; font-size: 14px; color: var(--color-text-muted); }
+
+/* "Linha apagada." com Desfazer: fica à vista na base da tela enquanto a seção está na tela */
+.vst-cmpDesfazer {
+  position: sticky; bottom: 12px; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 10px; padding: 4px 6px 4px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--color-text);
+  background: var(--color-surface-2); border: 1px solid var(--color-border-strong);
+}
+
+.vst-cmpAcoes { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.vst-cmpAcoes > button { width: 100%; min-height: 48px; }
+.vst-cmpAcoes .vst-ghostBtn { background: var(--color-surface); border-color: var(--color-border-strong); }
+.vst-cmpAcoes .vst-ghostBtn:disabled { opacity: .55; cursor: default; }
+
+/* Folha: campos e formulários herdam .vst-input com 16 px */
+.vst-cmpFolha { display: flex; flex-direction: column; gap: 10px; }
+.vst-cmpFolha .vst-input, .vst-cmpFolha .vst-select { min-height: 48px; font-size: 16px; }
+.vst-cmpFolha .vst-obs, .vst-cmpTextarea { min-height: 96px; padding: 10px 12px; border-radius: 12px; font-size: 16px; }
+.vst-cmpAviso {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: var(--color-text); background: var(--color-surface-2); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpAviso:empty { display: none; }
+.vst-cmpSecao { display: flex; flex-direction: column; gap: 0; }
+.vst-cmpSecao > .vst-cmpSubtitulo:first-child { margin-top: 6px; }
+.vst-cmpEntrada { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
+.vst-cmpEntradaAcao { display: flex; align-items: center; flex: 0 0 auto; margin-left: auto; }
+.vst-cmpNaListaTag { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 700; color: var(--vst-verde); }
+.vst-cmpLote, .vst-cmpBuscarBtn, .vst-cmpEnviar { width: 100%; min-height: 48px; }
+.vst-cmpMais { align-self: center; }
+.vst-cmpNotaPronta {
+  display: block; width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 14px; line-height: 1.4; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpNotaPronta:hover { border-color: var(--color-primary); }
+.vst-cmpCategorias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.vst-cmpCategorias .vst-cmpLista { margin-top: 8px; }
+.vst-cmpCategoria {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 0 14px; border-radius: 10px;
+  cursor: pointer; font-family: inherit; font-size: 14.5px; font-weight: 600; text-align: left; color: var(--color-text);
+  background: var(--color-surface); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpBusca { position: relative; display: flex; align-items: center; }
+.vst-cmpBusca svg { position: absolute; left: 12px; pointer-events: none; color: var(--color-text-muted); }
+.vst-cmpBusca .vst-input { padding-left: 38px; }
+.vst-cmpLivreLinha {
+  width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 10px; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 14.5px; font-weight: 700; color: var(--color-text);
+  background: var(--color-surface-2); border: 1px dashed var(--color-border-strong);
+}
+.vst-cmpCampoFalso {
+  width: 100%; min-height: 48px; padding: 10px 12px; border-radius: 12px; text-align: left; cursor: text;
+  font-family: inherit; font-size: 16px; color: var(--color-text-dim); background: var(--color-bg); border: 1px solid var(--color-border-strong);
+}
+
+/* Pé da folha: "Pronto" sempre à vista. O sticky conta a partir da área sem o padding do corpo da Gaveta (18 px),
+   por isso o deslocamento negativo: sem ele o pé para 18 px acima da borda e deixa a lista aparecer por baixo. */
+.vst-cmpRodape {
+  position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom)); z-index: 2; margin: 6px -18px calc(-18px - env(safe-area-inset-bottom));
+  padding: 10px 18px calc(10px + env(safe-area-inset-bottom)); background: var(--color-surface); border-top: 1px solid var(--color-border);
+}
+.vst-cmpRodape button { width: 100%; min-height: 48px; }
+
+/* Formulários */
+.vst-cmpForm { display: flex; flex-direction: column; gap: 6px; }
+.vst-cmpForm .vst-label { margin: 8px 0 2px; }
+.vst-cmpGrade { display: grid; gap: 8px; }
+.vst-cmpGrade3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vst-cmpOpcao {
+  min-height: 44px; padding: 8px 6px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600;
+  color: var(--color-text); background: var(--color-surface); border: 1.5px solid var(--color-border-strong);
+}
+.vst-cmpOpcaoAlta { min-height: 48px; }
+.vst-cmpOpcaoOn { color: var(--color-surface); background: var(--color-text); border-color: var(--color-text); }
+.vst-cmpBotoesForm { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.vst-cmpBotoesForm > * { width: 100%; min-height: 48px; }
+.vst-cmpPerigo {
+  display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-size: 14.5px; font-weight: 600; color: var(--vst-verm);
+  background: color-mix(in srgb, var(--ink-red) 6%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--ink-red) 45%, var(--color-surface));
+}
+
+/* Copiar para o WhatsApp */
+.vst-cmpSeg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vst-cmpCaixa {
+  width: 100%; padding: 12px; border-radius: 12px; resize: none; font-family: inherit; font-size: 16px; line-height: 1.45;
+  color: var(--color-text); background: var(--color-surface-2); border: 1px solid var(--color-border-strong);
+}
+.vst-cmpNotaTexto { margin: 0; font-size: 13px; line-height: 1.4; color: var(--color-text-muted); }
+.vst-cmpLinkZap { text-decoration: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vst-cmpPilula, .vst-cmpFaixa, .vst-cmpSwitch { transition: none; }
+}
