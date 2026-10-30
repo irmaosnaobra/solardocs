@@ -17,7 +17,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { TARIFA_KWH, consumoTipico } from '../agenda/leadSolarFicha';
-import { temDuasFaixas } from '../agenda/solarRota';
+import { temDuasFaixas, MARCA_ORIGEM_DUDA } from '../agenda/solarRota';
 import { consultoraDaFaixa, vagasSolar, type FaixaSolar } from './agendaSolarVagas';
 import { produtoDoCard, type CardDaFicha } from './ficha';
 import { quandoPorExtenso } from './personas/comum';
@@ -158,7 +158,7 @@ export function bolhaLigarAgoraOk(dono: string): string | null {
 
 /** A observação do card que a Duda cria. A 1ª linha é a marca do quiz (é por ela que o resto do sistema reconhece a ficha). */
 export function observacaoDoCardDaDuda(kwh: number | null): string {
-  return ['LP SOLAR QUIZ · LIGAÇÃO', 'Origem: conversa com a Duda no WhatsApp', ...(kwh ? [`Consumo: ~${kwh.toLocaleString('pt-BR')} kWh/mês`] : [])].join('\n');
+  return ['LP SOLAR QUIZ · LIGAÇÃO', MARCA_ORIGEM_DUDA, ...(kwh ? [`Consumo: ~${kwh.toLocaleString('pt-BR')} kWh/mês`] : [])].join('\n');
 }
 
 // ── o card, na escrita e na leitura ──────────────────────────────────────────

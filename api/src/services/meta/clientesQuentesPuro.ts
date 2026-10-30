@@ -42,6 +42,28 @@ export const PESO_ELETRO: Readonly<Record<string, number>> = {
   em_atendimento: 0.1,
 };
 
+/**
+ * O PESO BASE DO LEAD (29/10/2026). Pedido do dono: "aponte no meta todos os leads que virarem cards e meta entenda qual nosso publico e
+ * encontre". Todo card que nasceu de um canal de lead entra no PÚBLICO com um peso pequeno, mesmo no status que não tem peso (agendado,
+ * confirmado, nao_atendeu...): é isso que mostra ao Meta quem é o nosso público. SÓ o público: o peso base NUNCA gera ClienteQuente nem
+ * Purchase (candidatosDeEvento lê pesoDoStatus, que não mudou). O maior valor vence (juntar), então o base nunca rebaixa ninguém.
+ */
+export const PESO_BASE_SOLAR = 0.1;
+export const PESO_BASE_ELETRO = 0.05; // abaixo de em_atendimento (0,1)
+/** Os canais de lead. Lista fechada de propósito: cadastro_eletroposto (lote de 298), prosp_*, os testes e os cards criados por gente no /gerador ficam de fora. */
+export const ORIGENS_DE_LEAD: ReadonlySet<string> = new Set([
+  'lp_solar', 'lp_eletroposto', 'manychat', 'manychat_eletroposto', 'lead-meta', 'agente_eletroposto', 'indicacao',
+]);
+const STATUS_SEM_PESO_BASE: ReadonlySet<string> = new Set(['cancelado', 'sem_interesse']);
+
+/** O peso base do card, ou null. Só vale para status SEM peso próprio, origem de lead e card que não morreu. */
+export function pesoBaseDoCard(produto: ProdutoMeta, createdBy: unknown, status: unknown): number | null {
+  if (!ORIGENS_DE_LEAD.has(String(createdBy ?? '').trim().toLowerCase())) return null;
+  if (pesoDoStatus(produto, status) != null) return null;
+  if (STATUS_SEM_PESO_BASE.has(String(status ?? '').trim().toLowerCase())) return null;
+  return produto === 'eletroposto' ? PESO_BASE_ELETRO : PESO_BASE_SOLAR;
+}
+
 export const PESO_QUIZ_QUENTE = 0.25;
 export const PESO_CONSUMO_ALTO = 0.15;
 export const PESO_CAPITAL = 0.2;
@@ -246,7 +268,11 @@ export function listaSolar(a: { cards: AgCard[]; leads: LeadMeta[]; vendas: Vend
   for (const c of a.cards) {
     if (a.ehEletro(c.created_by)) continue;
     const peso = pesoDoStatus('solar', c.status);
-    if (peso == null) continue;
+    if (peso == null) {
+      const base = pesoBaseDoCard('solar', c.created_by, c.status);
+      if (base != null) juntar(L, { telefone: c.cliente_telefone, nome: c.cliente_nome, cidade: c.cidade, valor: base * T, motivo: 'card_de_lead' });
+      continue;
+    }
     juntar(L, { telefone: c.cliente_telefone, nome: c.cliente_nome, cidade: c.cidade, valor: peso * T, motivo: String(c.status) });
   }
   for (const l of a.leads) {
@@ -273,6 +299,10 @@ export function listaEletroposto(a: { cards: AgCard[]; parceria: Parceria[]; ehE
     const base = { telefone: c.cliente_telefone, nome: c.cliente_nome, cidade: c.cidade };
     const peso = pesoDoStatus('eletroposto', c.status);
     if (peso != null) juntar(L, { ...base, valor: peso * T, motivo: String(c.status) });
+    else {
+      const pb = pesoBaseDoCard('eletroposto', c.created_by, c.status);
+      if (pb != null) juntar(L, { ...base, valor: pb * T, motivo: 'card_de_lead' });
+    }
     if (Number(c.nota) === 3) juntar(L, { ...base, valor: PESO_NOTA_3 * T, motivo: 'nota_3' });
   }
   for (const p of a.parceria) {

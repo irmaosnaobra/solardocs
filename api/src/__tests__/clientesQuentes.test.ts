@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { sha256 } from '../utils/metaCapi';
 import {
   consumoKwh, valorCapital, lerPlanilha, listaSolar, listaEletroposto, juntar, linhaPublico,
-  lotesPublico, previa, TICKET_ELETRO, type Quente, type ListaQuentes,
+  lotesPublico, previa, TICKET_ELETRO, pesoBaseDoCard, PESO_BASE_SOLAR, PESO_BASE_ELETRO, ORIGENS_DE_LEAD, type Quente, type ListaQuentes,
 } from '../services/meta/clientesQuentesPuro';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 
@@ -90,7 +90,8 @@ describe('valor por status', () => {
     expect(valorDe(l, 4)!.valor).toBe(3500);
     expect(valorDe(l, 5)!.valor).toBe(3500);
     expect(valorDe(l, 6)!.valor).toBe(2000);
-    expect(valorDe(l, 7)).toBeUndefined();
+    // 29/10/2026: 'agendado' de um canal de lead entra no PÚBLICO com o peso base (0,1 do ticket); sem_interesse continua de fora.
+    expect(valorDe(l, 7)).toMatchObject({ valor: 1000, motivo: 'card_de_lead' });
     expect(valorDe(l, 8)).toBeUndefined();
   });
 
@@ -111,8 +112,9 @@ describe('valor por status', () => {
     expect(listaEletroposto({ cards, parceria: [], ehEletro: ehOrigemEletroposto }).size).toBe(1);
   });
 
-  it('status que só existe no eletroposto não pontua no solar', () => {
-    expect(solar([ag(1, 'chave_na_mao')]).size).toBe(0);
+  it('status que só existe no eletroposto não pontua no solar (só o peso base do lead)', () => {
+    expect(valorDe(solar([ag(1, 'chave_na_mao')]), 1)).toMatchObject({ valor: 1000, motivo: 'card_de_lead' });
+    expect(solar([ag(1, 'chave_na_mao', { created_by: 'cadastro_x' })]).size).toBe(0);
   });
 
   it('venda da planilha vale o próprio valor, ou o ticket se vier vazio', () => {
@@ -154,6 +156,49 @@ describe('valor por status', () => {
     expect(l.has('5534911110004')).toBe(false);
     expect(valorDe(l, 1)).toMatchObject({ valor: 15000, motivo: 'nota_3' });
     expect(valorDe(l, 2)).toBeUndefined();
+  });
+});
+
+// ── PESO BASE DO LEAD (29/10/2026): todo card de canal de lead entra no público ──
+describe('peso base do lead no público', () => {
+  const SEM_PESO = ['agendado', 'confirmado', 'nao_atendeu', 'remarcado', 'em_contato'];
+  it('card de lead sem peso próprio entra: solar 0,1 do ticket, eletroposto 0,05', () => {
+    for (const st of SEM_PESO) {
+      expect(valorDe(solar([ag(1, st)]), 1), `solar ${st}`).toMatchObject({ valor: 0.1 * T, motivo: 'card_de_lead' });
+      const l = listaEletroposto({ cards: [ag(1, st, { created_by: 'lp_eletroposto' })], parceria: [], ehEletro: ehOrigemEletroposto });
+      expect(valorDe(l, 1)!.valor, `eletro ${st}`).toBe(0.05 * TICKET_ELETRO);
+    }
+    expect(PESO_BASE_SOLAR).toBe(0.1);
+    expect(PESO_BASE_ELETRO).toBe(0.05);
+  });
+
+  it('as sete origens de lead entram; cadastro_eletroposto, prosp_*, teste e gente do /gerador não', () => {
+    expect([...ORIGENS_DE_LEAD].sort()).toEqual(['agente_eletroposto', 'indicacao', 'lead-meta', 'lp_eletroposto', 'lp_solar', 'manychat', 'manychat_eletroposto']);
+    for (const o of ['lp_solar', 'manychat', 'lead-meta', 'indicacao']) expect(solar([ag(1, 'agendado', { created_by: o })]).size, o).toBe(1);
+    for (const o of ['lp_eletroposto', 'manychat_eletroposto', 'agente_eletroposto']) {
+      expect(listaEletroposto({ cards: [ag(1, 'agendado', { created_by: o })], parceria: [], ehEletro: ehOrigemEletroposto }).size, o).toBe(1);
+    }
+    for (const o of ['cadastro_eletroposto', 'prosp_eletroposto', 'convite_investidor_eletroposto']) {
+      expect(listaEletroposto({ cards: [ag(1, 'agendado', { created_by: o })], parceria: [], ehEletro: ehOrigemEletroposto }).size, o).toBe(0);
+    }
+    for (const o of ['lp_solar_teste', 'Nilce', 'Thiago', null, '']) expect(solar([ag(1, 'agendado', { created_by: o })]).size, String(o)).toBe(0);
+  });
+
+  it('cancelado e sem_interesse ficam de fora; telefone inválido e nome de teste também', () => {
+    expect(solar([ag(1, 'cancelado'), ag(2, 'sem_interesse'), ag(3, ' Cancelado ')]).size).toBe(0);
+    expect(solar([ag(1, 'agendado', { cliente_telefone: '123' }), ag(2, 'agendado', { cliente_nome: 'Teste Interno' })]).size).toBe(0);
+  });
+
+  it('o peso base nunca rebaixa: o maior valor do telefone vence', () => {
+    const l = solar([ag(1, 'agendado', { cliente_telefone: '34999990001' }), ag(2, 'fez_orcamento', { cliente_telefone: '34999990001' })]);
+    expect(l.size).toBe(1);
+    expect([...l.values()][0]).toMatchObject({ valor: 3500, motivo: 'fez_orcamento' });
+  });
+
+  it('pesoBaseDoCard: status com peso próprio não usa o base', () => {
+    expect(pesoBaseDoCard('solar', 'lp_solar', 'fez_orcamento')).toBeNull();
+    expect(pesoBaseDoCard('eletroposto', 'lp_eletroposto', 'apalavrado')).toBeNull();
+    expect(pesoBaseDoCard('solar', 'lp_solar', 'agendado')).toBe(0.1);
   });
 });
 
@@ -403,6 +448,40 @@ describe('B. eventos ao avançar o card', () => {
     expect(r.eventos.enviados).toBe(40);
     expect(r.eventos.pendentes).toBe(5);
     expect(eventosEnviados()).toHaveLength(40);
+  });
+
+  it('o peso base do lead NUNCA vira evento: agendado de canal de lead entra no público e não manda ClienteQuente nem Purchase', async () => {
+    marcar();
+    tabelas.capi_conversoes_enviadas = [{ lead_id: 'ag_999', event_name: 'ClienteQuente' }];
+    tabelas.agendamentos = [
+      ag(1, 'agendado'), ag(2, 'confirmado', { created_by: 'lp_solar' }), ag(3, 'nao_atendeu', { created_by: 'manychat' }),
+      eletro(4, 'agendado', { created_by: 'lp_eletroposto' }), eletro(5, 'agendado', { created_by: 'cadastro_eletroposto' }),
+    ];
+    tabelas.leads_meta = []; tabelas.eletroposto_parceria = [];
+    const r = await run({ dry: true });
+    expect(r.eventos.aEnviar ?? 0).toBe(0);
+    expect(eventosEnviados()).toHaveLength(0);
+    const real = await run();
+    expect(real.eventos.enviados).toBe(0);
+    expect(eventosEnviados()).toHaveLength(0);
+    expect(dedup()).toHaveLength(0);
+  });
+
+  it('o público leva o card agendado de lead e deixa o cadastro_eletroposto de fora', async () => {
+    marcar();
+    tabelas.capi_conversoes_enviadas = [{ lead_id: 'ag_999', event_name: 'ClienteQuente' }];
+    tabelas.agendamentos = [
+      ...Array.from({ length: 25 }, (_, i) => ag(i + 1, 'agendado', { created_by: 'lp_solar' })),
+      ...Array.from({ length: 25 }, (_, i) => eletro(1000 + i, 'agendado', { created_by: 'lp_eletroposto' })),
+      ...Array.from({ length: 25 }, (_, i) => eletro(2000 + i, 'agendado', { created_by: 'cadastro_eletroposto' })),
+    ];
+    tabelas.leads_meta = []; tabelas.eletroposto_parceria = [];
+    const r = await run({ dry: true });
+    // 25 cards de lead + as 3 vendas da planilha de teste
+    expect(r.publico.solar!.pessoas).toBe(28);
+    expect(r.publico.eletroposto!.pessoas).toBe(25);
+    expect(r.previa!.solar!.porMotivo).toEqual({ card_de_lead: 25, venda_planilha: 3 });
+    expect(eventosEnviados()).toHaveLength(0);
   });
 
   it('card sem telefone válido ou de teste não vira evento', async () => {

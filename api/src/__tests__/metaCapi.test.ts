@@ -53,6 +53,21 @@ describe('userData', () => {
     expect(u).not.toHaveProperty('ct');
     expect(u).not.toHaveProperty('em');
   });
+  // 29/10/2026: o Schedule do card novo manda as duas formas do telefone (com e sem o 9) no `ph`.
+  it('ph aceita uma lista: o principal primeiro, os extras sem repetir; external_id é só do principal', () => {
+    const u = userData({ telefone: '5534991112222', telefonesExtras: ['553491112222', '5534991112222', '34 99111-2222', '123', null] });
+    expect(u.ph).toEqual([sha256('5534991112222'), sha256('553491112222')]);
+    expect(u.external_id).toEqual([sha256('5534991112222')]);
+  });
+  it('sem telefonesExtras o ph é o de sempre (as chamadas antigas não mudam)', () => {
+    expect(userData({ telefone: '34998165040' }).ph).toEqual([sha256('5534998165040')]);
+    expect(userData({ telefone: '34998165040', telefonesExtras: [] }).ph).toEqual([sha256('5534998165040')]);
+  });
+  it('só extras, sem telefone principal: ph existe, external_id não (não inventa identidade)', () => {
+    const u = userData({ telefonesExtras: ['34998165040'] });
+    expect(u.ph).toEqual([sha256('5534998165040')]);
+    expect(u).not.toHaveProperty('external_id');
+  });
   it('fbc, fbp, IP e navegador vão em texto puro', () => {
     const u = userData({ telefone: '34998165040' }, { fbc: 'fb.1.1700000000000.abc', fbp: 'fb.1.1700000000000.123', ip: '1.2.3.4', userAgent: 'UA' });
     expect(u.fbc).toBe('fb.1.1700000000000.abc');
@@ -106,6 +121,19 @@ describe('enviarEventoMeta', () => {
     expect(ev.event_id).toBe('quente_ag_12');
     expect(ev.custom_data).toEqual({ status: 'chave_na_mao', value: 1500.56, currency: 'BRL' });
     expect(chamadas[0].corpo).not.toHaveProperty('test_event_code');
+  });
+
+  it("origem 'chat' (conversa de WhatsApp) vai como action_source e leva as duas formas do telefone no ph", async () => {
+    await enviarEventoMeta({
+      produto: 'solar', nome: 'Schedule', origem: 'chat', eventId: 'card_ag_5', eventTime: 1761700000,
+      pessoa: { telefone: '5534991112222', telefonesExtras: ['553491112222'] },
+    });
+    const ev = chamadas[0].corpo.data[0];
+    expect(ev.action_source).toBe('chat');
+    expect(ev.event_time).toBe(1761700000);
+    expect(ev.event_id).toBe('card_ag_5');
+    expect(ev.user_data.ph).toHaveLength(2);
+    expect(ev).not.toHaveProperty('event_source_url');
   });
 
   it('META_TEST_EVENT_CODE manda pra aba de teste', async () => {

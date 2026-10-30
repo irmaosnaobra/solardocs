@@ -15,6 +15,8 @@ import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { lerPaginado } from '../utils/lerPaginado';
 import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
+import { registrarSchedulePagina } from '../services/meta/capiPagina';
+import { campoCapiDe } from '../services/meta/capiNavegador';
 import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho, pontuar, acharCidadeRaio, kwhDaFaixa } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparRespostasExtra, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
@@ -309,6 +311,9 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
       created_by: 'lp_solar',
     }).select('id').single();
     if (error) throw error;
+    // A página legada (simulador) dispara o fbq Schedule sem event_id, e esta rota nunca mandou nada ao Meta: a linha de dedup diz ao
+    // tick capi_card_novo que o navegador já contou este card (29/10/2026). Nunca lança, espera no máximo 800 ms.
+    await registrarSchedulePagina({ cardId: data?.id, telefone: tel, nome, semEventId: true }, 'io-solar-agendar');
     res.json({ ok: true, id: data?.id ?? null });
   } catch (err) {
     logger.error('io-solar-agendar', `falha gravando ${tel}`, err);
@@ -447,10 +452,14 @@ function modoTeste(req: Request, b: Record<string, unknown>, res: Response): boo
 }
 
 /** Os campos do rascunho: as respostas, as novas, o diagnóstico, as UTMs e o que o abandono precisa para remontar a ficha. */
-function camposDoRascunho(e: ReturnType<typeof lerEntrada>, dec: Parameters<typeof camposDoLead>[1], semHorario: boolean, diag: Diagnostico | null, b: Record<string, unknown>) {
+function camposDoRascunho(e: ReturnType<typeof lerEntrada>, dec: Parameters<typeof camposDoLead>[1], semHorario: boolean, diag: Diagnostico | null, b: Record<string, unknown>, req: Request) {
+  // `_capi` (29/10/2026): fbc, fbp, IP e navegador de quem respondeu, para o Schedule do servidor (tick capi_card_novo) sair como `website`
+  // quando o card nascer sem a página. Campo INTERNO: não aparece na ficha, no aviso, na tela Leads nem no prompt da Duda (capiNavegador.ts).
+  const capi = campoCapiDe(req, b);
   return camposComUtm([
     ...camposDoLead(e.resp, dec, { semHorario, respostas: e.extra, diag }),
     ...camposDeRecuperacao(e.resp, e.extra, Date.now()),
+    ...(capi ? [capi] : []),
   ], b);
 }
 
@@ -516,7 +525,7 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
       form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
       cidade: cidadeGravada(e, dec),
       // Curioso não tem "agora", mas escolhe horário com a Nilce, que é a dona de todo o solar.
-      field_data: camposDoRascunho(e, dec, semHorario, diag, b), consultor: DONA_SOLAR, fora_area: false,
+      field_data: camposDoRascunho(e, dec, semHorario, diag, b, req), consultor: DONA_SOLAR, fora_area: false,
     });
     // LeadQuente: nota alta que não é curioso. Só depois de o rascunho gravar, e
     // nunca no ?dry=1 nem no teste. O eventId fixo por telefone faz o Meta descartar o reenvio de
@@ -601,7 +610,7 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
     const leadId = leadDoQuiz(e.alvo!, teste);
     await gravarLead(leadId, {
       form_id: teste ? FORM_QUIZ_TESTE : FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel, cidade: cidadeGravada(e, dec),
-      agendado_id: card.id, consultor: DONA_SOLAR, fora_area: false, field_data: camposDoRascunho(e, dec, false, diag, b),
+      agendado_id: card.id, consultor: DONA_SOLAR, fora_area: false, field_data: camposDoRascunho(e, dec, false, diag, b, req),
     });
     // Antes de qualquer resposta (a Vercel corta o que roda depois dela): o card SAIU SEM MARCAR deste telefone sai da agenda. A sonda não mexe em card real.
     if (!teste) await cancelarCardsSaiuSemMarcar(e.alvo!, card.id);
@@ -610,6 +619,8 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
       // Schedule pelo pixel (a página) E pela API de Conversões, com o MESMO event_id. Sem event_id o Meta não junta os dois,
       // então sem id não manda (página velha em cache).
       const eventId = eventIdDe(b.event_id);
+      // O navegador já disparou o fbq: a linha de dedup sai SEMPRE, EM PARALELO com a API (começa já, é esperada junto), com teto de 800 ms.
+      const pagina = registrarSchedulePagina({ cardId: card.id, telefone: e.tel, nome: e.nome, semEventId: !eventId }, 'io-solar-quiz');
       const capi = eventId ? enviarQuizMeta({
         produto: 'solar', nome: 'Schedule', origem: 'website', eventId,
         pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
@@ -625,7 +636,7 @@ router.post('/quiz/agora', quizCardLimiter, async (req: Request, res: Response):
         avisarAgora({ cardId: card.id, lead: leadId, ficha, quandoMs }).catch(err => { logger.error('io-solar-quiz', 'aviso do agora falhou', err); }),
         new Promise(resolve => setTimeout(resolve, 4000)),
       ]);
-      await Promise.all([capi, aviso]);
+      await Promise.all([capi, pagina, aviso]);
     }
     res.json({ ok: true, id: card.id, quando, dono: DONA_SOLAR, ...(teste ? { teste: true } : {}) });
   } catch (err) {
@@ -698,7 +709,7 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     if (gravado.status === 'erro') throw gravado.erro;
     const data = gravado.card;
     const leadId = leadDoQuiz(e.alvo!, teste);
-    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoRascunho(e, dec, semHorario, diag, b) });
+    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoRascunho(e, dec, semHorario, diag, b, req) });
     // Antes de qualquer resposta (a Vercel corta o que roda depois dela): o card SAIU SEM MARCAR deste telefone sai da agenda. A sonda não mexe em card real.
     if (!teste) await cancelarCardsSaiuSemMarcar(e.alvo!, data.id);
 
@@ -713,6 +724,8 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
     // campanha, que otimiza em Schedule, contaria a marcação em dobro (página velha
     // em cache). Corre junto com o aviso do WhatsApp, e cada um tem o seu teto.
     const eventId = eventIdDe(b.event_id);
+    // Linha de dedup SEMPRE (o navegador já contou), EM PARALELO com a API e com teto de 800 ms: o tick capi_card_novo só manda o que a página não contou.
+    const pagina = registrarSchedulePagina({ cardId: data.id, telefone: e.tel, nome: e.nome, semEventId: !eventId }, 'io-solar-quiz');
     const capi = eventId ? enviarQuizMeta({
       produto: 'solar', nome: 'Schedule', origem: 'website', eventId,
       pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
@@ -732,7 +745,7 @@ router.post('/quiz/agendar', quizCardLimiter, async (req: Request, res: Response
       (donoEhNilce ? avisarAgendado('nilce', data.id, leadId, avisoDaEquipe(data as FichaDoAviso)) : Promise.resolve()).catch(err => logger.error('io-solar-quiz', `aviso ao dono falhou para o card ${data.id}`, err)),
       new Promise(resolve => setTimeout(resolve, 4000)),
     ]);
-    await capi;
+    await Promise.all([capi, pagina]);
     res.json({ ok: true, id: data.id, caminho: dec.caminho, dono, quando, rotulo: ROTULO_CAMINHO[dec.caminho] });
   } catch (err) {
     logger.error('io-solar-quiz', `falha gravando ${e.tel}`, err);

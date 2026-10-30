@@ -740,7 +740,8 @@ describe('a Duda combina horário com o card SAIU: ele perde a marca e a régua 
     expect(await remarcarCardSolar(70, new Date(brt('2026-10-26', '09:15')).toISOString())).toBe('ok');
     const c = cartoes()[0];
     expect(primeiraLinha(c)).toBe('LP SOLAR QUIZ · Casa · LIGAÇÃO');
-    expect(c.observacao.split('\n').slice(1).join('\n')).toBe('Onde: Casa\nConta de luz: x');
+    // 30/10/2026: a marca SAIU sai e entra a linha da Duda logo abaixo da 1ª (o tick capi_card_novo classifica o card como Duda); o resto fica igual.
+    expect(c.observacao.split('\n').slice(1).join('\n')).toBe('Origem: conversa com a Duda no WhatsApp\nOnde: Casa\nConta de luz: x');
     expect(ehCardSaiu(c.observacao)).toBe(false); expect(ehCardMudo(c.observacao)).toBe(false);
     expect(caminhoDaFicha(c.observacao)).toBe('ligacao');
     expect(c.boas_vindas_at).toBe(STAMP);                       // nunca zerado: a abertura não repete

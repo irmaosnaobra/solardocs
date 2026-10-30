@@ -43907,6 +43907,8 @@ async function carregarLeads() {
     leadsMensagem('Erro ao carregar leads.');
     return;
   }
+  // Campos internos (nome que comeca com "_", como o _capi) saem do cache logo na chegada: nao entram em tela, CSV nem copia.
+  (rows || []).forEach(r => { if (r && Array.isArray(r.field_data)) r.field_data = r.field_data.filter(f => !(f && String(f.name || '').trim().charAt(0) === '_')); });
   if (!rows || rows.length === 0) {
     leadsRowsCache = [];
     renderLeadsAbas();
@@ -44001,6 +44003,7 @@ let leadsLinhasAtuais = [];
 function leadColunaDoCampo(nome) {
   const n = String(nome || '').toLowerCase().trim();
   if (!n) return null;
+  if (n.charAt(0) === '_') return null;   // campo interno (ex.: _capi, com IP e navegador do lead para o Meta): nunca vira coluna nem entra no CSV
   if (['origem', 'caminho', 'pontos', 'qualifica', 'utm_medium'].includes(n)) return null;
   if (LEAD_PONTOS_DE[n]) return LEAD_PONTOS_DE[n];   // antes do resto: "pontos do pagamento" não é a resposta do pagamento
   if (n === 'utm_source') return 'fonte';

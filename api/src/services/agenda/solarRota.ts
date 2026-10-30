@@ -98,9 +98,20 @@ export function semMarcaSaiu(obs: unknown): string {
     const onde = linhas.slice(1).find(l => /^Onde:\s*/i.test(l));
     tipo = onde ? onde.replace(/^Onde:\s*/i, '').trim() : 'Imóvel';
   }
-  return [`${MARCA_QUIZ} · ${tipo || 'Imóvel'} · LIGAÇÃO`, ...linhas.slice(1)].join('\n');
+  // 30/10/2026: quem tira a marca SAIU é a Duda (remarcar_horario, ligar_agora, tirarMarcaSaiuDoCard). O card passa a levar a linha de origem
+  // dela logo abaixo da 1ª, para o tick capi_card_novo classificar como Duda (`chat`). O resto do texto fica igual; não duplica a linha.
+  const resto = linhas.slice(1);
+  const comOrigem = resto.some(l => ehCardDaDuda(l)) ? resto : [MARCA_ORIGEM_DUDA, ...resto];
+  return [`${MARCA_QUIZ} · ${tipo || 'Imóvel'} · LIGAÇÃO`, ...comOrigem].join('\n');
 }
 export const ehCardMudo = (obs: unknown): boolean => primeiraLinhaDe(obs).startsWith(`${MARCA_SAIU} · MUDO`);
+
+/** A linha da observação do card que a DUDA cria na conversa do WhatsApp (marcar_horario e ligar_agora, acoesVivo.observacaoDoCardDaDuda).
+ *  É por ela que o tick capi_card_novo manda o Schedule do card como `chat`. Uma constante só: o texto do card e o reconhecimento dele não se separam. */
+export const MARCA_ORIGEM_DUDA = 'Origem: conversa com a Duda no WhatsApp';
+/** Mesmo reconhecimento do vivo.ts (`/Origem:\s*conversa com a Duda/i`): o resto da frase não conta. */
+const RE_ORIGEM_DUDA = /Origem:\s*conversa com a Duda/i;
+export const ehCardDaDuda = (obs: unknown): boolean => RE_ORIGEM_DUDA.test(String(obs ?? ''));
 
 export const SOCIOS_VISITA = ['Thiago', 'Diego'] as const;
 export type Socio = typeof SOCIOS_VISITA[number];

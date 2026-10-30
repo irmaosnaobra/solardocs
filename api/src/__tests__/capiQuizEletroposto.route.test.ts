@@ -10,6 +10,8 @@ const h = vi.hoisted(() => ({
   enviar: vi.fn(),
   agendaErro: null as unknown,
   parceriaErro: null as unknown,
+  /** Linhas gravadas em capi_conversoes_enviadas (upsert). */
+  dedup: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock('../utils/metaCapi', async (orig) => ({ ...(await orig<typeof import('../utils/metaCapi')>()), enviarEventoMeta: h.enviar }));
@@ -37,7 +39,8 @@ vi.mock('../utils/supabaseGerador', () => {
             : (h.parceriaErro ? { data: null, error: h.parceriaErro } : { data: { id: 9, ...ultima }, error: null }));
         return (...a: unknown[]) => {
           if (k === 'insert' || k === 'update' || k === 'upsert') op = String(k);
-          if (k === 'upsert') ultima = a[0] as Record<string, unknown>;
+          if (k === 'upsert' && tabela === 'capi_conversoes_enviadas') h.dedup.push(a[0] as Record<string, unknown>);
+          else if (k === 'upsert') ultima = a[0] as Record<string, unknown>;
           return c;
         };
       },
@@ -72,7 +75,7 @@ const doTipo = (nome: string) => chamadas().filter(e => e.nome === nome);
 
 beforeEach(() => {
   h.enviar.mockReset().mockResolvedValue({ ok: true, status: 200 });
-  h.agendaErro = null; h.parceriaErro = null;
+  h.agendaErro = null; h.parceriaErro = null; h.dedup.length = 0;
   delete process.env.CAPI_QUIZ_OFF;
 });
 afterEach(() => { delete process.env.CAPI_QUIZ_OFF; });
@@ -206,5 +209,61 @@ describe('POST /parceria: LeadQuente de capital', () => {
     const r = await request(app).post('/io/eletroposto/parceria').send(corpo());
     expect(r.status).toBe(200);
     expect(r.body).toEqual({ ok: true });
+  });
+});
+
+// ── A linha de dedup do Schedule que a PÁGINA contou (29/10/2026) ──────────────
+describe('POST /agendar: linha de dedup do Schedule da página', () => {
+  const linha = () => h.dedup.find(l => l.event_name === 'Schedule');
+
+  it('grava ag_<id>, origem pagina e telefone_core8 preenchido, com o resultado da API', async () => {
+    const r = await request(app).post('/io/eletroposto/agendar').send(agendar());
+    expect(r.status).toBe(200);
+    expect(h.dedup).toHaveLength(1);
+    expect(linha()).toMatchObject({
+      lead_id: 'ag_55', event_name: 'Schedule', origem: 'pagina', telefone_core8: '91113333', meta_status: 0, cliente_nome: 'Carlos Lima',
+    });
+  });
+
+  it('SEM event_id (página velha em cache): nada vai ao Meta e a linha sai do mesmo jeito', async () => {
+    const r = await request(app).post('/io/eletroposto/agendar').send(agendar({ event_id: undefined }));
+    expect(r.status).toBe(200);
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(linha()).toMatchObject({ lead_id: 'ag_55', origem: 'pagina', meta_status: 0, meta_error: 'sem_event_id', telefone_core8: '91113333' });
+  });
+
+  it('API recusando: a linha sai do mesmo jeito (em paralelo, sem o resultado)', async () => {
+    h.enviar.mockResolvedValueOnce({ ok: false, status: 400, erro: 'recusado' });
+    await request(app).post('/io/eletroposto/agendar').send(agendar());
+    expect(linha()).toMatchObject({ lead_id: 'ag_55', origem: 'pagina', meta_status: 0 });
+  });
+
+  it('META_TEST_EVENT_CODE ligado: NENHUMA linha', async () => {
+    process.env.META_TEST_EVENT_CODE = 'TEST123';
+    try {
+      await request(app).post('/io/eletroposto/agendar').send(agendar());
+      expect(h.dedup).toHaveLength(0);
+    } finally { delete process.env.META_TEST_EVENT_CODE; }
+  });
+
+  it('CAPI_QUIZ_OFF=1: a linha sai (o navegador contou)', async () => {
+    process.env.CAPI_QUIZ_OFF = '1';
+    await request(app).post('/io/eletroposto/agendar').send(agendar());
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(linha()).toMatchObject({ lead_id: 'ag_55', origem: 'pagina' });
+  });
+
+  it('ficha de teste: não manda ao Meta e NÃO grava a linha de dedup', async () => {
+    const r = await request(app).post('/io/eletroposto/agendar').send(agendar({ cliente_nome: 'Teste Interno' }));
+    expect(r.status).toBe(200);
+    expect(doTipo('Schedule')).toHaveLength(0);
+    expect(h.dedup).toHaveLength(0);
+  });
+
+  it('falha ao gravar a ficha: nenhuma linha', async () => {
+    h.agendaErro = { message: 'banco' };
+    const r = await request(app).post('/io/eletroposto/agendar').send(agendar());
+    expect(r.status).toBe(500);
+    expect(h.dedup).toHaveLength(0);
   });
 });

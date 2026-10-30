@@ -77,6 +77,8 @@ export function normUf(s: unknown): string {
 
 export interface PessoaMeta {
   telefone?: unknown;
+  /** Outros telefones da MESMA pessoa (a variante com ou sem o 9, o do card). Entram no `ph`; o `external_id` sai só de `telefone`. */
+  telefonesExtras?: unknown[];
   nome?: unknown;
   email?: unknown;
   cidade?: unknown;
@@ -99,7 +101,15 @@ export interface NavegadorMeta {
 export function userData(p: PessoaMeta, nav: NavegadorMeta = {}): Record<string, unknown> {
   const u: Record<string, unknown> = {};
   const fone = normFone(p.telefone);
-  if (fone) { u.ph = [sha256(fone)]; u.external_id = [sha256(fone)]; }
+  // `ph` aceita uma lista: o telefone principal primeiro, depois os extras, sem repetir hash. O external_id é só do principal.
+  const phs = new Set<string>();
+  if (fone) phs.add(sha256(fone));
+  for (const extra of Array.isArray(p.telefonesExtras) ? p.telefonesExtras : []) {
+    const f = normFone(extra);
+    if (f) phs.add(sha256(f));
+  }
+  if (phs.size) u.ph = [...phs];
+  if (fone) u.external_id = [sha256(fone)];
   const email = String(p.email ?? '').trim().toLowerCase();
   if (email.includes('@')) u.em = [sha256(email)];
   const { fn, ln } = separarNome(p.nome);
@@ -132,8 +142,8 @@ export interface EventoMeta {
   eventId?: string;
   /** Unix em segundos. Padrão: agora. */
   eventTime?: number;
-  /** 'website' quando nasce da página; 'system_generated' quando nasce do CRM. */
-  origem: 'website' | 'system_generated';
+  /** 'website' quando nasce da página; 'system_generated' quando nasce do CRM; 'chat' quando nasce de conversa de WhatsApp. */
+  origem: 'website' | 'system_generated' | 'chat';
   urlDaPagina?: string;
   valor?: number;
   dados?: Record<string, unknown>;

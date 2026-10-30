@@ -10,7 +10,7 @@
 // ensinaria o Meta a procurar gente que não se cadastrou.
 
 import type { Request } from 'express';
-import { enviarEventoMeta, cookieMeta, sha256, normFone, type EventoMeta, type NavegadorMeta } from './metaCapi';
+import { enviarEventoMeta, cookieMeta, sha256, normFone, type EventoMeta, type NavegadorMeta, type ResultadoMeta } from './metaCapi';
 import { logger } from './logger';
 
 /** Teto de espera da rota pelo Meta. A chamada segue viva depois dele, mas a resposta ao lead não. */
@@ -45,19 +45,27 @@ export function navegadorDe(req: Request, b: Record<string, unknown>): Navegador
 /**
  * Manda o evento sem nunca lançar e sem passar de TETO_CAPI_MS. Chamar com await
  * antes de responder (a Vercel corta o que roda depois da resposta).
+ * Devolve o resultado para quem quiser registrar (a linha de dedup do Schedule da
+ * página, capiPagina.ts); quem só dá await continua funcionando. Sem resposta, o
+ * motivo vem em `erro`: 'desligado' (CAPI_QUIZ_OFF), 'timeout' (passou do teto) ou 'excecao'.
  */
-export async function enviarQuizMeta(ev: EventoMeta, onde: string): Promise<void> {
-  if (!capiQuizLigado()) return;
+export async function enviarQuizMeta(ev: EventoMeta, onde: string): Promise<ResultadoMeta> {
+  if (!capiQuizLigado()) return { ok: false, status: 0, erro: 'desligado' };
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const r = await Promise.race([
       enviarEventoMeta(ev),
       new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), TETO_CAPI_MS); }),
     ]);
-    if (r === null) logger.warn(onde, `Meta CAPI ${ev.nome}: passou de ${TETO_CAPI_MS} ms, a rota seguiu sem esperar`);
-    else if (!r.ok) logger.warn(onde, `Meta CAPI ${ev.nome} recusado: ${r.erro || r.status}`);
+    if (r === null) {
+      logger.warn(onde, `Meta CAPI ${ev.nome}: passou de ${TETO_CAPI_MS} ms, a rota seguiu sem esperar`);
+      return { ok: false, status: 0, erro: 'timeout' };
+    }
+    if (!r.ok) logger.warn(onde, `Meta CAPI ${ev.nome} recusado: ${r.erro || r.status}`);
+    return r;
   } catch (err) {
     logger.warn(onde, `Meta CAPI ${ev.nome} falhou: ${(err as Error)?.message || err}`);
+    return { ok: false, status: 0, erro: 'excecao' };
   } finally {
     if (timer) clearTimeout(timer);
   }

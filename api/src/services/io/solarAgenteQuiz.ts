@@ -38,6 +38,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { ehCampoInterno } from '../meta/capiNavegador';
 import { novoAnthropic } from '../../utils/anthropicClient';
 import { sendHuman, sendWhatsApp } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
@@ -274,10 +275,11 @@ async function telefonesDosConsultores(): Promise<Map<string, string>> {
   return mapa;
 }
 
-function respostasDoLead(campos: unknown): string[] {
+export function respostasDoLead(campos: unknown): string[] {
   const lista = Array.isArray(campos) ? campos as Array<{ name?: string; values?: string[] }> : [];
   const fora = new Set(['Origem', 'Caminho', 'Pontos', 'Qualifica', 'Sem horário', 'Raio']);
-  return lista.filter(c => c?.name && !fora.has(c.name) && !c.name.startsWith('utm_') && !c.name.startsWith('Pontos do') && c.values?.[0]).map(c => `${c.name}: ${c.values![0]}`);
+  // Campo que começa com "_" é INTERNO (o `_capi` guarda IP, navegador e cookies do Meta): nunca vai ao prompt do modelo.
+  return lista.filter(c => c?.name && !ehCampoInterno(c.name) && !fora.has(c.name) && !c.name.startsWith('utm_') && !c.name.startsWith('Pontos do') && c.values?.[0]).map(c => `${c.name}: ${c.values![0]}`);
 }
 
 export async function runSolarAgenteQuizTick(opts: { dry?: boolean } = {}): Promise<ResultadoAgente> {

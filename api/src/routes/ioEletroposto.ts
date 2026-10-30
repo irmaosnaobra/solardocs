@@ -21,6 +21,7 @@ import { lerPaginado } from '../utils/lerPaginado';
 import { geocodificarLote, ItemGeo } from '../services/io/eletropostoGeo';
 import { geoLimiter, funilEletropostoLimiter } from '../middleware/rateLimiter';
 import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, idDoTelefone } from '../utils/capiQuiz';
+import { registrarSchedulePagina } from '../services/meta/capiPagina';
 // O rodízio e o gravador do card saíram daqui para um serviço (10/10/2026): a
 // agente de investidores grava o mesmo card e não pode importar a rota.
 import { cidadeParaGravar } from '../services/io/cidadeCanonica';
@@ -916,6 +917,9 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
       // A etiqueta do tipo, em paralelo e antes da resposta (a Vercel corta o que
       // roda depois dela). Esta promessa nunca rejeita.
       etiquetarCardDaLp(gravado.id, b.tipo),
+      // Linha de dedup do Schedule (29/10/2026): o navegador disparou o fbq mesmo sem event_id. EM PARALELO com a API, teto de 800 ms.
+      // Ficha de teste não grava linha (30/10/2026).
+      registrarSchedulePagina({ cardId: gravado.id, telefone: tel, nome, semEventId: !eventId, teste }, 'io-eletroposto-agendar'),
       teste ? null : eventId ? enviarQuizMeta({
         produto: 'eletroposto', nome: 'Schedule', origem: 'website', eventId, pessoa, navegador,
         urlDaPagina: 'https://solardoc.app/io/eletroposto',

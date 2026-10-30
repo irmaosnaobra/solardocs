@@ -69,6 +69,7 @@ import { runWinback } from '../services/winbackService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
 import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoService';
 import { runClientesQuentes } from '../services/meta/clientesQuentes';
+import { runCapiCardNovo } from '../services/meta/capiCardNovo';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 import { supabaseGerador } from '../utils/supabaseGerador';
@@ -466,6 +467,9 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // "A Carla falou às HH:MM" que ela deixa pendente só sai na rodada seguinte, com o espaçamento do B1, e nunca na mesma rodada do envio.
     // A vez de 10 min é por insert (o pg_cron e o Actions chamam esta rota em paralelo) e sai no máximo 1 envio por rodada.
     const recuperacaoCarla = await runQuizRecuperacaoTick().catch((err) => ({ error: String(err) }));
+    // Schedule do SERVIDOR para o card do quiz que a página não contou (SAIU SEM MARCAR e card da Duda), 29/10/2026. Por último, DEPOIS de todo
+    // tick de WhatsApp: uma chamada lenta ao Graph (até 8 s de orçamento) nunca segura uma mensagem. Só aqui, fora do /master (CAPI_CARD_OFF=1 desliga).
+    const capiCardNovo = await runCapiCardNovo().catch((err) => ({ error: String(err) }));
     // A resposta é montada PELO NOME que está ao lado da chamada, não pela
     // posição. É o que impede isto de voltar uma terceira vez: tarefa nova
     // carrega a chave dela, e não existe mais uma segunda lista pra desalinhar.
@@ -478,6 +482,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     });
     resultados['solardoc_quiz_desistencia'] = desistenciaSolardoc;
     resultados['quiz_recuperacao_carla'] = recuperacaoCarla;
+    resultados['capi_card_novo'] = capiCardNovo;
     res.json({
       ok: true,
       pausa_humana: pausaHumanaResult,
@@ -1484,6 +1489,19 @@ router.get('/capi-lead-qualificado', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runCapiLeadQualificado({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'capi-lead-qualificado falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// Schedule de card novo → Meta (SAIU SEM MARCAR e card da Duda). O tick de verdade roda no fim do /process-messages.
+// Por padrão é PRÉVIA: lê tudo e não chama o Meta nem grava (nem a marca de corte). ?enviar=1 faz a rodada de verdade.
+router.get('/capi-card-novo', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = !(req.query.enviar === '1' || req.query.enviar === 'true');
+    res.json({ ok: true, dry, ...(await runCapiCardNovo({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'capi-card-novo falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
