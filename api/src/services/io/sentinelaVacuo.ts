@@ -39,6 +39,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
+import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
@@ -98,9 +99,10 @@ const JANELA_FIM_H    = Number(process.env.VACUO_FIM_H || 20);
 const desligada = (): boolean => (process.env.VACUO_OFF || '').trim() === '1';
 
 /**
- * Dá pra cobrar AGORA? O cron mestre roda de hora em hora, 24 horas por dia, e
- * "profissional" não combina com resumo de cobrança chegando 3h da manhã no
- * celular da Giovanna. A espera continua sendo medida o tempo todo; o que espera
+ * Dá pra cobrar AGORA? A sentinela é chamada pelo /io-broadcast-tick (a cada
+ * 5 min) e pelo /process-messages, 24 horas por dia, com represa de 20 min aqui
+ * dentro. E "profissional" não combina com resumo de cobrança chegando 3h da
+ * manhã no celular da Giovanna. A espera continua sendo medida o tempo todo; o que espera
  * o expediente é o RECADO.
  *
  * O modo seco ignora esta janela de propósito: conferir o que ela faria é uma
@@ -185,6 +187,123 @@ function produtoDe(
   return 'outro';
 }
 
+// ── Dono do card da agenda ───────────────────────────────────────────────────
+// Medido em 28 e 29/10/2026: 8 leads com card de eletroposto (7 da Giovanna)
+// escreveram pra linha, caíram como "Sem produto definido" e a cobrança foi só
+// pro Thiago (47 resumos em 3 dias). Quem é DONO DA REUNIÃO nunca foi cobrado.
+// Regra do dono: lead que tem reunião é cobrado ao consultor dono da reunião.
+
+/** Status fechados do card. Duplicado de `temReuniaoAtiva` (recepcaoIo.ts, que
+ *  não exporta e arrastaria o módulo inteiro pra dentro do cron). */
+const STATUS_MORTOS = new Set(['cancelado', 'sem_interesse', 'fechou_concorrente', 'fechou']);
+
+/** Janela do card: a mesma de `temAgendaDeEletroposto` (recepcaoIo.ts). */
+const CARD_DESDE_DIAS = 10;
+const CARD_ATE_DIAS = 60;
+const CARD_TIMEOUT_MS = 10_000;
+const CARD_LOTE = 5;
+
+const donoDoCardDesligado = (): boolean => (process.env.VACUO_DONO_DO_CARD_OFF || '').trim() === '1';
+
+export interface DonoDoCard { dono: string; createdBy: string }
+
+/** "Giovânna Silva" -> "giovanna", só se for consultor conhecido. */
+function chaveDoConsultor(nome: unknown): string | null {
+  const primeiro = String(nome ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().trim().split(/\s+/)[0] || '';
+  return primeiro && Object.prototype.hasOwnProperty.call(CONSULTOR, primeiro) ? primeiro : null;
+}
+
+/**
+ * Pra cada telefone parado, o consultor dono do card ATIVO dele na agenda
+ * (banco do Gerador). Chave do mapa: `chaveContato` (trata o 9º dígito).
+ *
+ * Nunca derruba a rodada: erro ou timeout vira aviso no log (com quantos
+ * telefones ficaram sem consulta) e devolve o que já tinha achado; o resto vale o
+ * destino de sempre. Consulta por telefone (últimos 8 dígitos) porque o
+ * PostgREST corta em 1000 linhas e puxar a tabela esconderia card calado.
+ * `VACUO_DONO_DO_CARD_OFF=1` desliga só esta busca, sem deploy.
+ */
+export async function buscarDonosDosCards(telefones: string[]): Promise<Map<string, DonoDoCard>> {
+  if (donoDoCardDesligado()) return new Map();
+  const alvos = new Map<string, string>();               // chaveContato -> últimos 8 dígitos
+  for (const t of telefones) {
+    const k = chaveContato(t);
+    const cauda = String(t).replace(/\D/g, '').slice(-8);
+    if (k && cauda.length === 8) alvos.set(k, cauda);
+  }
+  if (alvos.size === 0) return new Map();
+
+  const agora = Date.now();
+  const desde = new Date(agora - CARD_DESDE_DIAS * 86400_000).toISOString();
+  const ate = new Date(agora + CARD_ATE_DIAS * 86400_000).toISOString();
+
+  // Qual card vale: o de `quando` FUTURO mais próximo; sem futuro, o passado mais
+  // recente. (Reunião daqui a 3 dias pesa mais que a de ontem, que já aconteceu.)
+  const achados = new Map<string, DonoDoCard & { futuro: boolean; dist: number }>();
+  const consultados = new Set<string>();
+  let abortado = false;                                  // depois do erro/timeout, nada mais escreve
+  const trabalho = async (): Promise<void> => {
+    const lista = [...alvos.entries()];
+    for (let i = 0; i < lista.length && !abortado; i += CARD_LOTE) {
+      await Promise.all(lista.slice(i, i + CARD_LOTE).map(async ([k, cauda]) => {
+        const { data, error } = await supabaseGerador
+          .from('agendamentos')
+          .select('cliente_telefone, vendedor_nome, created_by, status, quando')
+          .like('cliente_telefone', `%${cauda}`)
+          .gte('quando', desde).lte('quando', ate)
+          .limit(50);
+        if (error) throw error;
+        if (abortado) return;
+        for (const r of (data ?? []) as Array<Record<string, unknown>>) {
+          if (chaveContato(String(r.cliente_telefone ?? '')) !== k) continue;   // casa de verdade, não só pela cauda
+          if (STATUS_MORTOS.has(String(r.status ?? ''))) continue;
+          const dono = chaveDoConsultor(r.vendedor_nome);
+          if (!dono) continue;                                                  // dono desconhecido: ignora o card
+          const quando = Date.parse(String(r.quando ?? ''));
+          if (!Number.isFinite(quando)) continue;
+          const futuro = quando >= agora;
+          const dist = Math.abs(quando - agora);
+          const atual = achados.get(k);
+          const melhor = !atual
+            || (futuro && !atual.futuro)
+            || (futuro === atual.futuro && dist < atual.dist);
+          if (melhor) achados.set(k, { dono, createdBy: String(r.created_by ?? ''), futuro, dist });
+        }
+        consultados.add(k);
+      }));
+    }
+  };
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      trabalho(),
+      new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error('timeout')), CARD_TIMEOUT_MS); }),
+    ]);
+  } catch (err) {
+    // Erro ou timeout num lote NÃO joga fora o que já foi achado: devolve os cards
+    // dos telefones consultados e deixa os demais no destino de sempre.
+    abortado = true;
+    logger.warn(
+      'sentinela-vacuo',
+      `dono do card: ${alvos.size - consultados.size} de ${alvos.size} telefone(s) ficaram sem consulta; eles seguem pelo destino do produto`,
+      err,
+    );
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  return new Map([...achados].map(([k, v]) => [k, { dono: v.dono, createdBy: v.createdBy }]));
+}
+
+/** Rótulo de produto e donos de uma conversa. Com card ativo, o dono da reunião
+ *  vem no lugar do destino do produto; o `sobe` do nível continua somando. */
+function resolverDonos(produto: string, nivel: Nivel, card?: DonoDoCard): { produto: string; donos: string[] } {
+  if (!card) return { produto, donos: [...new Set([...(DESTINO[produto] || ['thiago']), ...nivel.sobe])] };
+  const rotulo = produto === 'outro' && card.createdBy.toLowerCase().includes('eletroposto') ? 'eletroposto' : produto;
+  return { produto: rotulo, donos: [...new Set([card.dono, ...nivel.sobe])] };
+}
+
 export function montarResumo(dono: string, itens: ConversaParada[]): string {
   const nome = CONSULTOR[dono]?.nome || dono;
   // Mais recente primeiro: é quem ainda dá pra salvar. Quem está esperando há
@@ -251,13 +370,17 @@ export interface VacuoResult {
   motivo?: string;
   dry?: boolean;
   amostra?: Array<{ nome: string | null; horas: number; produto: string; nivel: number }>;
+  /** Só no dry: conversas esperando por dono resolvido (só números, sem telefone). */
+  porDono?: Record<string, number>;
 }
 
 /**
  * Uma varredura. É chamada de minuto em minuto pelo /cron/io-broadcast-tick e
  * represada em 20 minutos aqui dentro; `dry` mostra o que faria sem mandar nada.
  */
-export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<VacuoResult> {
+export async function runSentinelaVacuo(
+  opts: { dry?: boolean; esperar?: (ms: number) => Promise<void> } = {},
+): Promise<VacuoResult> {
   const dry = !!opts.dry;
   if (desligada()) return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'desligada' };
   if (!dry && !dentroDoExpediente()) {
@@ -421,16 +544,24 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
   }
   const jaCobrado = new Set<string>(linhasMarcador.map(r => r.key));
 
-  const porDono = new Map<string, ConversaParada[]>();
-  const paradas: ConversaParada[] = [];
-  for (const e of esperando) {
-    if (silenciado(e.tel)) continue;
-    const k = chaveContato(e.tel) || e.tel;
+  // Quem será cobrado agora. O dry olha TODAS as que esperam (inclusive as já
+  // cobradas) pra contar o `porDono`: assim a regra do dono do card dá pra provar
+  // no ar mesmo quando a rodada diria `todas_ja_cobradas`.
+  const vivas = esperando.filter(e => !silenciado(e.tel));
+  const aCobrar = new Map<typeof esperando[number], Nivel>();
+  for (const e of vivas) {
     // O nível mais alto que ele já alcançou e que ainda não foi cobrado.
     const nivel = [...NIVEIS].reverse().find(n => e.horas >= n.horas && !jaCobrado.has(chaveAviso(e.tel, n.n)));
-    if (!nivel) continue;
-    const produto = produtoDe(e.tel, sessoes, leads);
-    const donos = [...new Set([...(DESTINO[produto] || ['thiago']), ...nivel.sobe])];
+    if (nivel) aCobrar.set(e, nivel);
+  }
+  // Dono do card da agenda (banco do Gerador). Nunca aborta: erro vira mapa vazio.
+  const cards = await buscarDonosDosCards((dry ? vivas : [...aCobrar.keys()]).map(e => e.tel));
+
+  const porDono = new Map<string, ConversaParada[]>();
+  const paradas: ConversaParada[] = [];
+  for (const [e, nivel] of aCobrar) {
+    const k = chaveContato(e.tel) || e.tel;
+    const { produto, donos } = resolverDonos(produtoDe(e.tel, sessoes, leads), nivel, cards.get(k));
     const item: ConversaParada = {
       telefone: e.tel,
       nome: e.nome || leads.get(k)?.nome || null,
@@ -445,8 +576,23 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
     for (const d of donos) porDono.set(d, [...(porDono.get(d) || []), item]);
   }
 
+  // Só números por dono (sem telefone), com o nível que cada conversa JÁ alcançou.
+  const contagemPorDono = (): Record<string, number> => {
+    const c: Record<string, number> = {};
+    for (const e of vivas) {
+      const nivel = [...NIVEIS].reverse().find(n => e.horas >= n.horas);
+      if (!nivel) continue;
+      const k = chaveContato(e.tel) || e.tel;
+      for (const d of resolverDonos(produtoDe(e.tel, sessoes, leads), nivel, cards.get(k)).donos) c[d] = (c[d] || 0) + 1;
+    }
+    return c;
+  };
+
   if (paradas.length === 0) {
-    return { paradas: esperando.length, cobrancas: 0, avisados: [], motivo: 'todas_ja_cobradas', dry: dry || undefined };
+    return {
+      paradas: esperando.length, cobrancas: 0, avisados: [], motivo: 'todas_ja_cobradas', dry: dry || undefined,
+      ...(dry ? { porDono: contagemPorDono() } : {}),
+    };
   }
 
   if (dry) {
@@ -457,6 +603,7 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
       motivo: 'cobraria_agora',
       dry: true,
       amostra: paradas.slice(0, 10).map(p => ({ nome: p.nome, horas: Math.round(p.horasUteis * 10) / 10, produto: p.produto, nivel: p.nivel })),
+      porDono: contagemPorDono(),
     };
   }
 
@@ -484,28 +631,66 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
   // cima — não o teto da linha.
   let cobrancas = 0;
   const avisados: string[] = [];
-  for (const [dono, itens] of porDono) {
-    const alvo = CONSULTOR[dono]?.phone;
-    if (!alvo) continue;
-    const agoraIso = new Date().toISOString();
-    // CARIMBA TODOS OS NÍVEIS ATÉ O DELE, não só o dele. O seletor lá em cima pega
-    // o nível mais ALTO que a conversa alcançou e ainda não foi cobrado. Se só o 3
-    // fosse carimbado, a varredura seguinte acharia o 2 livre e cobraria A MESMA
-    // conversa de novo, e vinte minutos depois o 1.
-    //
-    // Não é hipótese: aconteceu em 18/09/2026, no primeiro dia em que ela rodou.
-    // As mesmas 19 conversas foram cobradas às 13:40, 14:00 e 14:22 — três recados
-    // idênticos pro Thiago e pro Diego em 42 minutos. Toda conversa que já nasce
-    // velha (e no primeiro dia eram todas) dispara os três níveis em rajada, que é
-    // o oposto de uma régua que sobe com o tempo.
-    //
-    // Cobrou no 3 significa que o 1 e o 2 não têm mais o que dizer.
-    const niveisACarimbar = (n: number): number[] => NIVEIS.filter(x => x.n <= n).map(x => x.n);
-    await Promise.all(itens.flatMap(i => niveisACarimbar(i.nivel).map(n =>
+  const agoraIso = new Date().toISOString();
+
+  // ESTADO PRIMEIRO, MENSAGEM DEPOIS: os marcadores de TODAS as cobranças da
+  // rodada são gravados antes do primeiro envio. Com a espera entre um dono e
+  // outro (abaixo), gravar dono a dono deixaria uma janela de minutos em que a
+  // rodada morre (função serverless) e as conversas do dono seguinte voltam a
+  // parecer nunca cobradas. Se a gravação falhar, a rodada não envia nada.
+  //
+  // CARIMBA TODOS OS NÍVEIS ATÉ O DELE, não só o dele. O seletor lá em cima pega
+  // o nível mais ALTO que a conversa alcançou e ainda não foi cobrado. Se só o 3
+  // fosse carimbado, a varredura seguinte acharia o 2 livre e cobraria A MESMA
+  // conversa de novo, e vinte minutos depois o 1.
+  //
+  // Não é hipótese: aconteceu em 18/09/2026, no primeiro dia em que ela rodou.
+  // As mesmas 19 conversas foram cobradas às 13:40, 14:00 e 14:22 — três recados
+  // idênticos pro Thiago e pro Diego em 42 minutos. Toda conversa que já nasce
+  // velha (e no primeiro dia eram todas) dispara os três níveis em rajada, que é
+  // o oposto de uma régua que sobe com o tempo.
+  //
+  // Cobrou no 3 significa que o 1 e o 2 não têm mais o que dizer.
+  const niveisACarimbar = (n: number): number[] => NIVEIS.filter(x => x.n <= n).map(x => x.n);
+  const aEnviar = [...porDono].filter(([dono]) => !!CONSULTOR[dono]?.phone);
+  const chavesACarimbar = new Set<string>();
+  for (const [, itens] of aEnviar) {
+    for (const i of itens) for (const n of niveisACarimbar(i.nivel)) chavesACarimbar.add(chaveAviso(i.telefone, n));
+  }
+  try {
+    const gravacoes = await Promise.all([...chavesACarimbar].map(key =>
       supabase.from('system_state').upsert(
-        { key: chaveAviso(i.telefone, n), value: agoraIso, updated_at: agoraIso },
+        { key, value: agoraIso, updated_at: agoraIso },
         { onConflict: 'key' },
-      ))));
+      )));
+    const falhou = gravacoes.find(g => g && (g as { error?: unknown }).error);
+    if (falhou) throw (falhou as { error: unknown }).error;
+  } catch (err) {
+    logger.error('sentinela-vacuo', 'falha gravando os marcadores de cobranca: nada foi enviado', err);
+    return { paradas: paradas.length, cobrancas: 0, avisados: [], motivo: 'erro_gravando_marcadores' };
+  }
+
+  // Espera entre um dono e o próximo (nada antes do primeiro): 25 s + sorteio de
+  // 0 a 20 s, pra os recados não saírem colados pela mesma linha. Injetável
+  // (`opts.esperar`) e zerável por env (`VACUO_ESPERA_DONOS_S`, `VACUO_SORTEIO_DONOS_S`).
+  // Teto de 60 s em cada env e de 150 s somados: a função morre em 300 s, e os
+  // marcadores já foram gravados, então dono que ficasse para depois perderia o nível.
+  const esperar = opts.esperar ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+  const segundos = (v: string | undefined, padrao: number): number => {
+    const n = Number(v ?? padrao);
+    return Number.isFinite(n) ? Math.min(Math.max(n, 0), 60) : padrao;
+  };
+  const baseS = segundos(process.env.VACUO_ESPERA_DONOS_S, 25);
+  const sorteioS = segundos(process.env.VACUO_SORTEIO_DONOS_S, 20);
+  let esperadoMs = 0;
+  let primeiro = true;
+  for (const [dono, itens] of aEnviar) {
+    const alvo = CONSULTOR[dono].phone;
+    if (!primeiro) {
+      const ms = Math.round((baseS + Math.random() * sorteioS) * 1000);
+      if (ms > 0 && esperadoMs + ms <= 150_000) { await esperar(ms); esperadoMs += ms; }
+    }
+    primeiro = false;
     try {
       await sendWhatsApp(alvo, montarResumo(dono, itens), 'io');
       cobrancas += itens.length;
