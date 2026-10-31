@@ -1154,9 +1154,8 @@ export default function VistoriaPage() {
         </div>
       )}
 
-      {erro && <p className="vst-err" role="alert">{erro}</p>}
-
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 560, marginInline: 'auto' }}>
+        {erro && <p className="vst-err" role="alert" style={{ marginTop: 0 }}>{erro}</p>}
         {semStatus.length > 0 && (
           <p className="vst-aviso" role="status">{preencher(TEXTOS_COMPRAS.avisoSemStatus, { lista: listaDeNomes(semStatus) })}</p>
         )}

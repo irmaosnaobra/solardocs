@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { codigoVistoria, cortar, dataBR, dataHoraAs, esc, horaBR, ucfirst, urlPublica } from '../services/relatorio/base';
+import { codigoVistoria, cortar, cortarNaPalavra, dataBR, dataHoraAs, esc, horaBR, ucfirst, urlPublica } from '../services/relatorio/base';
 import { MARGEM_PDF_MM, opcoesPdfComRodape } from '../services/relatorio/pdf';
 
 // Base compartilhada dos relatórios: texto, datas em horário de Brasília, links e rodapé do PDF.
@@ -68,6 +68,51 @@ describe('cortar', () => {
   it('não parte um caractere de dois códigos ao meio', () => {
     const carinha = '\u{1F600}';
     expect(cortar(`ab${carinha}cd`, 4)).toBe(`ab${carinha}…`);
+  });
+});
+
+describe('cortarNaPalavra', () => {
+  it('texto que cabe fica como está, e o do tamanho exato também', () => {
+    expect(cortarNaPalavra('Solar Energia', 20)).toBe('Solar Energia');
+    expect(cortarNaPalavra('1234567890', 10)).toBe('1234567890');
+    expect(cortarNaPalavra('  Solar  ', 20)).toBe('Solar');
+  });
+  it('recua até a última palavra inteira antes das reticências', () => {
+    expect(cortarNaPalavra('Luz do Vale Teste Energia Solar Ltda', 28)).toBe('Luz do Vale Teste Energia…');
+    expect(cortarNaPalavra('Maria Aparecida dos Santos Albuquerque de Oliveira Filho', 36)).toBe('Maria Aparecida dos Santos…');
+  });
+  it('o resultado nunca passa de n caracteres, reticências incluídas', () => {
+    for (const n of [8, 12, 20, 28, 36, 48, 64]) {
+      const r = cortarNaPalavra('Instalações Elétricas e Energia Solar do Vale do Aço Sociedade Limitada', n);
+      expect(Array.from(r).length, `n=${n}`).toBeLessThanOrEqual(n);
+      expect(r.endsWith('…'), `n=${n}`).toBe(true);
+    }
+  });
+  it('se a letra seguinte já é um espaço, o corte cai entre palavras e nada recua', () => {
+    // Com n = 12 cabem 11 letras ("Aa Bb Cc Dd") e a seguinte é o espaço antes de "Ee": a última palavra fica.
+    expect(cortarNaPalavra('Aa Bb Cc Dd Ee', 12)).toBe('Aa Bb Cc Dd…');
+    expect(cortarNaPalavra('Solar Energia Ltda', 14)).toBe('Solar Energia…');
+    expect(cortarNaPalavra('Solar Energia', 6)).toBe('Solar…');
+  });
+  it('palavra única e comprida, ou espaço logo no começo, é cortada reta como em cortar', () => {
+    expect(cortarNaPalavra('E'.repeat(60), 48)).toBe(`${'E'.repeat(47)}…`);
+    expect(cortarNaPalavra('Ab ' + 'C'.repeat(40), 20)).toBe(`Ab ${'C'.repeat(16)}…`);
+  });
+  it('vírgula, "&" e traço que sobram no fim do pedaço ficam de fora', () => {
+    expect(cortarNaPalavra('Silva, Souza & Cia de Energia Solar', 20)).toBe('Silva, Souza & Cia…');
+    expect(cortarNaPalavra('Silva Souza - Energia Solar Ltda', 19)).toBe('Silva Souza…');
+    expect(cortarNaPalavra('Solar & Energia Limitada', 9)).toBe('Solar…');
+  });
+  it('nulo e limite inválido devolvem vazio; limite 1 deixa só as reticências', () => {
+    expect(cortarNaPalavra(null, 10)).toBe('');
+    expect(cortarNaPalavra(undefined, 10)).toBe('');
+    expect(cortarNaPalavra('abc', 0)).toBe('');
+    expect(cortarNaPalavra('abc', NaN)).toBe('');
+    expect(cortarNaPalavra('abc def', 1)).toBe('…');
+  });
+  it('não parte um caractere de dois códigos ao meio', () => {
+    const carinha = '\u{1F600}';
+    expect(cortarNaPalavra(`ab${carinha}cd`, 4)).toBe(`ab${carinha}…`);
   });
 });
 

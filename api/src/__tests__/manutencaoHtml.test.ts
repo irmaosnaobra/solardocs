@@ -429,7 +429,7 @@ describe('fotos', () => {
     expect(css(html(cheia()))).toMatch(/@media print\{[\s\S]*\.anexo\{break-before:page/);
   });
   it('no papel as assinaturas ficam mais baixas e presas ao bloco anterior, para nunca ocuparem sozinhas a folha antes do anexo', () => {
-    const regras = ['#assinaturas{margin-top:12px;break-before:avoid;page-break-before:avoid}', '#assinaturas h2{margin-bottom:6px}', '.ass .area{height:60px}', '.ass .area img{max-height:54px}', '.ass .rg,.ass .dt{min-height:1.3em;line-height:1.3}'];
+    const regras = ['#assinaturas{margin-top:10px;break-before:avoid;page-break-before:avoid}', '#assinaturas h2{margin-bottom:6px}', '.ass .area{height:48px}', '.ass .area img{max-height:44px}', '.ass .nm{margin-top:4px}', '.ass .rg,.ass .dt{min-height:1.3em;line-height:1.3}', '.ass .cap{margin-top:2px}'];
     const pdf = css(html(cheia(), 'pdf'));
     for (const r of regras) expect(pdf, r).toContain(r);
     // Na tela a folha de assinatura continua com a altura de sempre; as regras novas só valem dentro do @media print.
@@ -437,8 +437,20 @@ describe('fotos', () => {
     expect(tela).toContain('.ass .area{flex:none;height:92px;');
     expect(tela).toContain('.ass .area img{max-height:86px;');
     expect(tela).toMatch(/@media print\{[\s\S]*#assinaturas\{[^}]*break-before:avoid/);
-    expect(tela).toMatch(/@media print\{[\s\S]*\.ass \.area\{height:60px\}/);
+    expect(tela).toMatch(/@media print\{[\s\S]*\.ass \.area\{height:48px\}/);
     expect(pdf).not.toMatch(/@media print/);
+  });
+  it('no papel as seções e os cartões ficam um pouco mais baixos, para o fim do relatório caber na folha anterior; na tela nada muda', () => {
+    const impressao = ['.sec{margin-top:20px}', '.lista{gap:6px}', '.it{padding:8px 12px}'];
+    const pdf = css(html(cheia(), 'pdf'));
+    for (const r of impressao) expect(pdf, r).toContain(r);
+    // as regras de impressão vêm DEPOIS das da tela, e valem no mesmo seletor
+    expect(pdf.indexOf('.sec{margin-top:20px}')).toBeGreaterThan(pdf.indexOf('.sec{margin-top:24px}'));
+    expect(pdf.indexOf('.it{padding:8px 12px}')).toBeGreaterThan(pdf.indexOf('padding:9px 13px'));
+    const tela = css(html(cheia()));
+    expect(tela).toContain('.sec{margin-top:24px}');
+    expect(tela).toContain('.lista{display:flex;flex-direction:column;gap:8px}');
+    expect(tela).toMatch(/@media print\{[\s\S]*\.sec\{margin-top:20px\}/);
   });
   it('a data da assinatura alinha mesmo com nome longo: as duas colunas esticam e o nome ocupa a sobra', () => {
     const c = css(html(cheia()));
@@ -575,16 +587,16 @@ describe('marca, datas e assinaturas', () => {
 // ── PDF, escala, metadados e nome do arquivo (R26, R27) ─────────────────────
 
 describe('PDF e metadados', () => {
-  it('a versão do desenho é v3', () => {
-    expect(VERSAO_PDF).toBe('v3');
+  it('a versão do desenho é v4', () => {
+    expect(VERSAO_PDF).toBe('v4');
   });
   it('o nome do arquivo leva a versão, o instante e 8 caracteres do hash da marca', () => {
     const n = nomeDoPdf(1793379714119, MARCA);
-    expect(n).toMatch(/^relatorio-v3-1793379714119-[0-9a-f]{8}\.pdf$/);
+    expect(n).toMatch(/^relatorio-v4-1793379714119-[0-9a-f]{8}\.pdf$/);
     expect(n).toContain(hashMarca(MARCA).slice(0, 8));
   });
   it('sem marca o hash é 00000000', () => {
-    expect(nomeDoPdf(10, null)).toBe('relatorio-v3-10-00000000.pdf');
+    expect(nomeDoPdf(10, null)).toBe('relatorio-v4-10-00000000.pdf');
   });
   it('trocar nome, logo, CNPJ ou cor da empresa, ou o instante, gera outro nome; o mesmo conteúdo, o mesmo nome', () => {
     const base = nomeDoPdf(10, MARCA);
@@ -608,11 +620,29 @@ describe('PDF e metadados', () => {
     expect(o.footerTemplate).toContain('font-size:10.5px');
     expect(o.footerTemplate).toContain('padding:0 16mm');
   });
-  it('sem empresa nem cliente só o código; nomes longos são cortados com reticências', () => {
+  it('sem empresa nem cliente só o código; só nome além de 48 (empresa) e 64 letras (cliente) é cortado, com reticências', () => {
     expect(opcoesPdf('MP2026001').footerTemplate).toContain('>MP-2026-001</span>');
     expect(opcoesPdf(null).footerTemplate).not.toContain('MP-');
-    const longo = opcoesPdf('MP2026001', { marcaNome: 'E'.repeat(40), cliente: 'C'.repeat(50) }).footerTemplate;
-    expect(longo).toContain(`${'E'.repeat(27)}… · MP-2026-001 · ${'C'.repeat(35)}…`);
+    const longo = opcoesPdf('MP2026001', { marcaNome: 'E'.repeat(60), cliente: 'C'.repeat(80) }).footerTemplate;
+    expect(longo).toContain(`${'E'.repeat(47)}… · MP-2026-001 · ${'C'.repeat(63)}…`);
+    const noLimite = opcoesPdf('MP2026001', { marcaNome: 'E'.repeat(48), cliente: 'C'.repeat(64) }).footerTemplate;
+    expect(noLimite).toContain(`${'E'.repeat(48)} · MP-2026-001 · ${'C'.repeat(64)}<`);
+  });
+  it('nomes comuns saem inteiros no rodapé, sem reticências, e o corte de nome muito longo é na última palavra', () => {
+    const f = opcoesPdf('MP2026001', { marcaNome: 'Luz do Vale Teste Energia Solar Ltda', cliente: 'Maria Aparecida dos Santos Albuquerque de Oliveira Filho' }).footerTemplate;
+    expect(f).toContain('>Luz do Vale Teste Energia Solar Ltda · MP-2026-001 · Maria Aparecida dos Santos Albuquerque de Oliveira Filho</span>');
+    expect(f).not.toContain('…');
+    const cortado = opcoesPdf('MP2026001', { cliente: 'Comércio de Materiais Elétricos e Fotovoltaicos Boa Vista da Serra Alta Sociedade Anônima' }).footerTemplate;
+    // Com 64 letras caberiam 63 ("... Boa Vista da Se"): o corte recua até a última palavra inteira, "da".
+    expect(cortado).toContain('· Comércio de Materiais Elétricos e Fotovoltaicos Boa Vista da…</span>');
+    expect(cortado).not.toContain('Serra');
+  });
+  it('o texto da esquerda quebra de linha em vez de ser cortado pelo CSS: 84% da largura e nada de nowrap, overflow ou reticências', () => {
+    const f = opcoesPdf('MP2026001', { marcaNome: 'Solar Teste Energia', cliente: 'Maria Souza' }).footerTemplate;
+    const esquerda = f.slice(f.indexOf('<span style="min-width:0'), f.indexOf('</span>'));
+    expect(esquerda).toContain('max-width:84%');
+    expect(esquerda).not.toMatch(/nowrap|overflow:hidden|text-overflow/);
+    expect(f).toContain('<span style="white-space:nowrap;">Página');
   });
   it('os textos do rodapé entram escapados, sem emoji e sem travessão', () => {
     const f = opcoesPdf('MP2026001', { marcaNome: 'A&B <x>', cliente: `Zé "Z" \u{2014} \u{1F600}` }).footerTemplate;

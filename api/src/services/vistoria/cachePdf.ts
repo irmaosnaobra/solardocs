@@ -22,8 +22,11 @@ import { comprasVisiveis, type Compras } from './compras';
  * v5: a linha "Versão online" sobe para a primeira folha (nunca mais sozinha numa última folha), o registro do
  *     responsável não quebra no meio do número, "Próximos passos" não parte entre páginas, as colunas da tabela de
  *     compras ficam iguais entre os grupos e as assinaturas alinham a data mesmo com nome longo.
+ * v6: o veredito (selo, placar, "Faltam avaliar" e "Próximo passo") sobe para antes das ações e da Identificação,
+ *     que desce para depois dos próximos passos, e o rodapé de página não corta mais o nome da empresa nem o do
+ *     cliente no meio da palavra (cabem 48 e 64 letras, com quebra de linha se faltar largura).
  */
-export const VERSAO_PDF = 'v5';
+export const VERSAO_PDF = 'v6';
 
 interface FotoCrua { url?: unknown; tipo?: unknown; nome?: unknown }
 interface ItemCru { key?: unknown; obs?: unknown; fotos?: unknown }

@@ -21,6 +21,8 @@
   max-width: 560px; /* formulário legível, centralizado (padrão escanear-conta) */
   box-shadow: var(--sombra-card);
 }
+/* O painel "Vistoria concluída" fica na mesma coluna centralizada (560 px) da lista, das assinaturas e do Concluir. */
+.vst-page > .vst-card { margin-left: auto; margin-right: auto; }
 .vst-label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--color-text-muted, #94a3b8); }
 .vst-select, .vst-input {
   width: 100%; padding: 12px 14px; border-radius: 12px;
@@ -288,8 +290,10 @@
 .vst-cmpNova { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)); }
 .vst-cmpLinhaTopo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .vst-cmpTexto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 160px; }
+/* O nome do material aparece inteiro, em quantas linhas precisar: cortado com reticências, o técnico não via o que
+   estava pondo na lista (só o "Editar linha" mostrava o resto). */
 .vst-cmpNome {
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+  overflow-wrap: anywhere;
   font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--color-text);
 }
 .vst-cmpEsp { font-size: 13px; line-height: 1.4; color: var(--color-text-muted); overflow-wrap: anywhere; }
@@ -386,6 +390,8 @@
 .vst-cmpSecao > .vst-cmpSubtitulo:first-child { margin-top: 6px; }
 .vst-cmpEntrada { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
 .vst-cmpEntradaAcao { display: flex; align-items: center; flex: 0 0 auto; margin-left: auto; }
+/* "Adicionar" com 44 px também no computador (o botão padrão da folha mede 42). */
+.vst-cmpEntradaAcao > button { min-height: 44px; }
 .vst-cmpNaListaTag { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 700; color: var(--vst-verde); }
 .vst-cmpLote, .vst-cmpBuscarBtn, .vst-cmpEnviar { width: 100%; min-height: 48px; }
 .vst-cmpMais { align-self: center; }
@@ -432,6 +438,9 @@
 
 /* Formulários */
 .vst-cmpForm { display: flex; flex-direction: column; gap: 6px; }
+/* Nome, especificação e nota: campo de texto que cresce com o conteúdo (a altura vem do script) e quebra a linha em
+   vez de cortar na borda. Uma linha só de altura quando o texto cabe. */
+.vst-cmpCampoTexto { display: block; resize: none; overflow: hidden; font-family: inherit; line-height: 1.35; }
 .vst-cmpForm .vst-label { margin: 8px 0 2px; }
 .vst-cmpGrade { display: grid; gap: 8px; }
 .vst-cmpGrade3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

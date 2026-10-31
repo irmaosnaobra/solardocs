@@ -2,7 +2,7 @@ import {
   EXPLICA, ITENS_COM_STATUS, MapaStatus, PRIORIDADE_LABEL, ROTULO_CHEIO, SECOES, SELOS, SELO_PARCIAL, STATUS_RELATORIO,
   StatusVistoria, cobertura, frasePlacar, juntarLista, proximosPassos, resumo, sanitizarStatus,
 } from './avaliacao';
-import { codigoVistoria, cortar, dataBR, dataHoraAs, esc as escaparHtml, horaBR, urlPublica } from '../relatorio/base';
+import { codigoVistoria, cortarNaPalavra, dataBR, dataHoraAs, esc as escaparHtml, horaBR, urlPublica } from '../relatorio/base';
 import { dividirJunto, numerarGrupos, refFotos } from '../relatorio/fotos';
 import { MOSTRAR_CONTATO_EMPRESA, logoSeguro, paleta, telefoneFormatado, type MarcaEmpresa } from '../relatorio/marca';
 import { opcoesPdfComRodape } from '../relatorio/pdf';
@@ -149,6 +149,8 @@ h3{break-after:avoid;page-break-after:avoid}
 .selo{padding:16px 18px;border-radius:10px;border-left:6px solid var(--sc);background:var(--sb);break-inside:avoid;page-break-inside:avoid}
 .selo .tt{margin:0 0 3px;font-size:20px;font-weight:800;line-height:1.25;color:var(--st)}
 .selo .fr{margin:0;font-size:14px;color:var(--sub)}
+.selo .fr.prox{margin-top:8px}
+.selo .prox b{color:var(--st)}
 .selo.sc-conforme{--sc:var(--sc-conforme);--sb:var(--sb-conforme);--st:var(--st-conforme)}
 .selo.sc-atencao{--sc:var(--sc-atencao);--sb:var(--sb-atencao);--st:var(--st-atencao)}
 .selo.sc-nao_conforme{--sc:var(--sc-nao_conforme);--sb:var(--sb-nao_conforme);--st:var(--st-nao_conforme)}
@@ -459,7 +461,11 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
   </div>`;
 
   // ── Resultado, pendências, conclusão e próximos passos ──
-  let resultado = '';
+  // O veredito (selo, placar e "Faltam avaliar") vem logo depois da data e do estado, antes das ações de arquivo e do
+  // endereço do cadastro: é a primeira coisa que o cliente quer saber, e no celular ele tem de caber na primeira tela.
+  // Concluída, o selo traz também o primeiro passo a dar. As ações e o "Ir para" ficam logo abaixo dele.
+  let resultadoTopo = '';
+  let resultadoCorpo = '';
   if (r.selo) {
     const parcial = r.selo === 'conforme' && cob.avaliados < cob.total;
     const s = parcial ? SELO_PARCIAL : SELOS[r.selo];
@@ -478,11 +484,13 @@ export function htmlVistoria(e: EntradaVistoria, modo: ModoRelatorio = 'tela'): 
       }).join('')
       : `<p class="vazio">${esc(SECOES.pendencias_vazio)}</p>`;
     const passos: readonly string[] = concluida ? proximosPassos(r.selo, cob) : [];
-    resultado = `
+    const primeiroPasso = passos.length ? `<p class="fr prox"><b>${esc(SECOES.proximo_passo)}</b> ${esc(passos[0])}</p>` : '';
+    resultadoTopo = `
   <h2 class="sec">${esc(SECOES.selo)}</h2>
-  <div class="selo sc-${parcial ? 'parcial' : r.selo}"><p class="tt">${esc(s.titulo)}</p><p class="fr">${esc(s.frase)}</p></div>
+  <div class="selo sc-${parcial ? 'parcial' : r.selo}"><p class="tt">${esc(s.titulo)}</p><p class="fr">${esc(s.frase)}</p>${primeiroPasso}</div>
   ${placar ? `<p class="placar">${esc(placar)}</p>` : ''}
-  ${faltam.length ? `<p class="faltam">${esc(SECOES.faltam_avaliar)} ${esc(juntarLista(faltam))}.</p>` : ''}
+  ${faltam.length ? `<p class="faltam">${esc(SECOES.faltam_avaliar)} ${esc(juntarLista(faltam))}.</p>` : ''}`;
+    resultadoCorpo = `
   <h2 class="sec" id="pendencias">${esc(SECOES.pendencias)}</h2>
   ${pend}
   <h2 class="sec">${esc(SECOES.conclusao)}</h2>
@@ -524,10 +532,10 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/v/$
   <h1>${cliente ? esc(cliente) : 'Vistoria técnica'}</h1>
   <div class="meta">${dataMeta}<span>Fotos em ${r.itensComFoto} de ${itens.length} itens</span><span>${concluida ? 'Concluída' : 'Em andamento'}</span></div>
   ${pdf ? `<p class="online">${esc(SECOES.versao_online)} <a href="${esc(url)}">${esc(url)}</a></p>` : ''}
-  ${acoes}
-  ${secaoIdentificacao(e, local, pdf)}
   ${concluida ? '' : `<div class="andamento" role="status">${esc(SECOES.andamento)}</div>`}
-  ${resultado}
+  ${resultadoTopo ? `${resultadoTopo}${acoes}` : acoes}
+  ${resultadoCorpo}
+  ${secaoIdentificacao(e, local, pdf)}
   ${secaoLista}
   ${registro}
   ${vazio}
@@ -544,7 +552,8 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/v/$
  * "Página X de Y". Os textos entram crus: quem escapa é o rodapé (opcoesPdfComRodape).
  */
 export function opcoesPdf(p: { marcaNome?: string | null; codigo: string; cliente?: string | null }) {
-  const esquerda = [cortar(limpo(p.marcaNome), 28), aparar(p.codigo), cortar(limpo(p.cliente), 36)].filter(Boolean).join(' · ');
+  // Cada nome é cortado na última palavra inteira, só se passar de 48 letras (empresa) ou 64 (cliente).
+  const esquerda = [cortarNaPalavra(limpo(p.marcaNome), 48), aparar(p.codigo), cortarNaPalavra(limpo(p.cliente), 64)].filter(Boolean).join(' · ');
   return opcoesPdfComRodape({ esquerda });
 }
 

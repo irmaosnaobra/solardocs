@@ -1582,3 +1582,67 @@ describe('textoCliente', () => {
     expect(r.texto).not.toMatch(PROIBIDO);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------
+// Acabamento da tela da lista (rodada 2): o que foi medido no navegador (390, 360 e 1440 px), travado no código
+// ---------------------------------------------------------------------------------------------------------
+
+describe('acabamento da tela da lista (rodada 2)', () => {
+  const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+  const css = lf(fonte('vistoria.css'));
+  const gaveta = lf(fonte('ComprasGaveta.tsx'));
+  const pagina = lf(fonte('page.tsx'));
+  /** A regra de CSS que começa exatamente por este seletor, no começo de uma linha. */
+  const regra = (seletor: string): string => {
+    const texto = '\n' + css;
+    const inicio = texto.indexOf('\n' + seletor + ' {');
+    return inicio < 0 ? '' : texto.slice(inicio + 1, texto.indexOf('}', inicio) + 1);
+  };
+
+  it('o nome do material aparece inteiro, em quantas linhas precisar: sem limite de linhas nem corte', () => {
+    const r = regra('.vst-cmpNome');
+    expect(r).toContain('overflow-wrap: anywhere');
+    expect(r).not.toMatch(/line-clamp|overflow: hidden|display: -webkit-box/);
+  });
+
+  it('o botão Adicionar da folha tem 44 px de altura também no computador', () => {
+    expect(regra('.vst-cmpEntradaAcao > button')).toContain('min-height: 44px');
+  });
+
+  it('o painel "Vistoria concluída" fica na mesma coluna centralizada de 560 px da lista', () => {
+    expect(regra('.vst-card')).toContain('max-width: 560px');
+    const r = regra('.vst-page > .vst-card');
+    expect(r).toContain('margin-left: auto');
+    expect(r).toContain('margin-right: auto');
+  });
+
+  it('o erro do Concluir sai dentro da coluna de 560 px, junto do aviso e do botão', () => {
+    const coluna = pagina.indexOf("maxWidth: 560, marginInline: 'auto' }}>\n        {erro && <p className=\"vst-err\"");
+    expect(coluna).toBeGreaterThan(0);
+    // o erro solto de antes, logo acima da coluna, não existe mais
+    expect(pagina).not.toMatch(/\{erro && <p className="vst-err" role="alert">\{erro\}<\/p>\}\n\n\s+<div style=\{\{ marginTop: 20/);
+  });
+
+  it('nome, especificação e nota são campos que crescem com o texto: o texto longo e o exemplo aparecem inteiros', () => {
+    for (const id of ['vst-cmp-nome', 'vst-cmp-esp', 'vst-cmp-nota']) {
+      expect(gaveta, id).toMatch(new RegExp('<CampoTexto[ \n]+id="' + id + '"'));
+      expect(gaveta, id).not.toMatch(new RegExp('<input[^>]*id="' + id + '"'));
+    }
+    const campo = gaveta.slice(gaveta.indexOf('function ajustarAltura'), gaveta.indexOf('function FormMaterial'));
+    expect(campo).toContain('<textarea');
+    expect(campo).toContain('rows={1}');
+    // mede de novo a cada mudança do texto, e o campo vazio mede o exemplo (placeholder)
+    expect(campo).toContain('useLayoutEffect');
+    expect(campo).toContain('campo.scrollHeight');
+    expect(campo).toContain('campo.value = placeholder');
+    // e a cada mudança de largura (aparelho girado): sem isso o texto de 390 px ficava cortado em 360 px
+    expect(campo).toContain('new ResizeObserver');
+    expect(campo).toContain('campo.clientWidth === largura');
+    expect(campo).toContain('observador.disconnect()');
+    // continua sendo texto de uma linha lógica: Enter não faz nada e quebra colada vira espaço
+    expect(campo).toContain("ev.key === 'Enter'");
+    expect(campo).toContain(String.raw`replace(/[\r\n]+/g, ' ')`);
+    expect(campo).toContain('maxLength={maxLength}');
+    expect(regra('.vst-cmpCampoTexto')).toMatch(/resize: none;[^}]*overflow: hidden/);
+  });
+});

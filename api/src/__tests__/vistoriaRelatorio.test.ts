@@ -362,6 +362,47 @@ describe('pendências', () => {
   });
 });
 
+describe('próximo passo dentro do selo', () => {
+  /** O quadro do selo inteiro (não tem div dentro dele). */
+  const quadro = (h: string) => { const i = h.indexOf('<div class="selo '); return i < 0 ? '' : h.slice(i, h.indexOf('</div>', i)); };
+
+  it('concluída: o primeiro passo da lista sai dentro do quadro, para cada selo', () => {
+    expect(quadro(html(cheia()))).toContain('<p class="fr prox"><b>Próximo passo.</b> Resolver os itens de prioridade alta antes da instalação.</p>');
+    expect(quadro(html(entrada({ status_itens: { padrao: 'atencao' } })))).toContain('<p class="fr prox"><b>Próximo passo.</b> Resolver os itens de prioridade média antes ou durante a instalação.</p>');
+    expect(quadro(html(entrada({ status_itens: conformes(10) })))).toContain('<p class="fr prox"><b>Próximo passo.</b> Nenhum ajuste é necessário. A instalação pode ser marcada.</p>');
+  });
+  it('conforme parcial: o passo é concluir a avaliação, e a frase do selo continua igual', () => {
+    const q = quadro(html(parcial()));
+    expect(q).toContain('class="selo sc-parcial"');
+    expect(q).toContain('<p class="fr">Faltam itens a avaliar. O resultado completo depende deles.</p>');
+    expect(q).toContain('<p class="fr prox"><b>Próximo passo.</b> Concluir a avaliação dos itens que faltam antes de marcar a instalação.</p>');
+  });
+  it('o PDF também traz o passo, e a lista "Próximos passos" segue completa no fim do resultado', () => {
+    const pdf = html(cheia(), 'pdf');
+    expect(quadro(pdf)).toContain('<b>Próximo passo.</b>');
+    expect(pdf).toContain('<li>Combinar com a empresa quem faz cada ajuste.</li>');
+    expect(pdf.split('Resolver os itens de prioridade alta antes da instalação.').length - 1).toBe(2);
+  });
+  it('em andamento e sem nenhum status não há "Próximo passo"', () => {
+    expect(html(andamento())).not.toContain('Próximo passo.');
+    expect(html(entrada())).not.toContain('Próximo passo.');
+    expect(html(minima())).not.toContain('Próximo passo.');
+  });
+  it('o rótulo leva a cor do selo e o parágrafo uma folga em cima, sem mexer na frase do selo', () => {
+    const h = html(cheia());
+    expect(h).toContain('.selo .fr{margin:0;font-size:14px;color:var(--sub)}');
+    expect(h).toContain('.selo .fr.prox{margin-top:8px}');
+    expect(h).toContain('.selo .prox b{color:var(--st)}');
+  });
+  it('sem travessão nem emoji', () => {
+    for (const modo of ['tela', 'pdf'] as const) {
+      const q = quadro(html(cheia(), modo));
+      expect(q).not.toMatch(TRAVESSAO);
+      expect(q).not.toMatch(EMOJI);
+    }
+  });
+});
+
 describe('próximos passos', () => {
   const passos = (h: string) => [...(/<ol class="passos">(.*?)<\/ol>/s.exec(h)?.[1] ?? '').matchAll(/<li>(.*?)<\/li>/g)].map((m) => m[1]);
 
@@ -386,11 +427,35 @@ describe('próximos passos', () => {
     expect(html(andamento())).not.toContain('Próximos passos');
     expect(html(entrada())).not.toContain('Próximos passos');
   });
-  it('a ordem no documento: versão online (no cabeçalho do PDF), resultado, pendências, conclusão, próximos passos, registro, documentos e assinaturas', () => {
+  it('a ordem no documento: versão online (no cabeçalho do PDF), resultado, pendências, conclusão, próximos passos, identificação, registro, documentos e assinaturas', () => {
     const h = html(cheia(), 'pdf');
-    const ordem = ['Versão online', 'Resultado da vistoria', 'Pendências e prioridades', '>Conclusão<', 'Próximos passos', 'Registro por item', 'Documentos do titular', '>Assinaturas<'].map((t) => h.indexOf(t));
+    const ordem = ['Versão online', 'Resultado da vistoria', 'Pendências e prioridades', '>Conclusão<', 'Próximos passos', '>Identificação<', 'Registro por item', 'Documentos do titular', '>Assinaturas<'].map((t) => h.indexOf(t));
     expect(ordem.every((p) => p > 0)).toBe(true);
     expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+  });
+  it('o veredito vem antes das ações, do endereço do cadastro e do local marcado, na tela e no PDF', () => {
+    for (const modo of ['tela', 'pdf'] as const) {
+      const h = html(cheia(), modo);
+      const selo = h.indexOf('<div class="selo ');
+      expect(selo, modo).toBeGreaterThan(0);
+      expect(selo, modo).toBeLessThan(h.indexOf('id="pendencias"'));
+      expect(selo, modo).toBeLessThan(h.indexOf('id="identificacao"'));
+      expect(h.indexOf('id="identificacao"'), modo).toBeGreaterThan(h.indexOf('<ol class="passos">'));
+    }
+    const tela = html(cheia(), 'tela');
+    // a barra fixa com "Baixar PDF" fica no topo; as ações e o "Ir para" descem para logo abaixo do selo e do placar
+    expect(tela.indexOf('class="barra"')).toBeLessThan(tela.indexOf('<div class="selo '));
+    expect(tela.indexOf('class="placar"')).toBeLessThan(tela.indexOf('<div class="acoes">'));
+    expect(tela.indexOf('<div class="acoes">')).toBeLessThan(tela.indexOf('id="pendencias"'));
+    expect(tela.indexOf('<div class="meta">')).toBeLessThan(tela.indexOf('<div class="selo '));
+  });
+  it('em andamento o aviso vem antes do resultado parcial; sem nenhum status não há veredito e as ações ficam logo depois da data', () => {
+    const emAndamento = html(andamento(), 'tela');
+    expect(emAndamento.indexOf('class="andamento"')).toBeLessThan(emAndamento.indexOf('<div class="selo '));
+    const semStatus = html(entrada({ cliente: CLIENTE, itens: itens({ padrao: [foto()] }) }), 'tela');
+    expect(semStatus).not.toContain('<div class="selo ');
+    expect(semStatus.indexOf('<div class="acoes">')).toBeGreaterThan(semStatus.indexOf('<div class="meta">'));
+    expect(semStatus.indexOf('<div class="acoes">')).toBeLessThan(semStatus.indexOf('id="identificacao"'));
   });
   it('a linha da versão online fica logo abaixo da data e das contagens, uma vez só, e nunca é o último bloco do PDF (não nasce folha só com o link)', () => {
     for (const e of [cheia(), andamento(), entrada(), parcial()]) {
@@ -665,10 +730,26 @@ describe('opcoesPdf (rodapé de página)', () => {
     expect(o.footerTemplate).toContain('font-size:10.5px');
     expect(o.footerTemplate).toContain('padding:0 16mm');
   });
-  it('sem empresa nem cliente, só o código; nome da empresa e do cliente são cortados com reticências', () => {
+  it('sem empresa nem cliente, só o código; só nome além de 48 (empresa) e 64 letras (cliente) é cortado, com reticências', () => {
     expect(opcoesPdf({ codigo: 'VT-11111111' }).footerTemplate).toContain('>VT-11111111</span>');
-    const longo = opcoesPdf({ marcaNome: 'E'.repeat(40), codigo: 'VT-11111111', cliente: 'C'.repeat(50) }).footerTemplate;
-    expect(longo).toContain(`${'E'.repeat(27)}… · VT-11111111 · ${'C'.repeat(35)}…`);
+    const longo = opcoesPdf({ marcaNome: 'E'.repeat(60), codigo: 'VT-11111111', cliente: 'C'.repeat(80) }).footerTemplate;
+    expect(longo).toContain(`${'E'.repeat(47)}… · VT-11111111 · ${'C'.repeat(63)}…`);
+    const noLimite = opcoesPdf({ marcaNome: 'E'.repeat(48), codigo: 'VT-11111111', cliente: 'C'.repeat(64) }).footerTemplate;
+    expect(noLimite).toContain(`${'E'.repeat(48)} · VT-11111111 · ${'C'.repeat(64)}<`);
+  });
+  it('nomes comuns saem inteiros no rodapé, sem reticências, e o corte de nome muito longo é na última palavra', () => {
+    const f = opcoesPdf({ marcaNome: 'Luz do Vale Teste Energia Solar Ltda', codigo: 'VT-11111111', cliente: 'Maria Aparecida dos Santos Albuquerque de Oliveira Filho' }).footerTemplate;
+    expect(f).toContain('>Luz do Vale Teste Energia Solar Ltda · VT-11111111 · Maria Aparecida dos Santos Albuquerque de Oliveira Filho</span>');
+    expect(f).not.toContain('…');
+    const cortado = opcoesPdf({ marcaNome: 'Instalações Elétricas e Energia Solar do Vale do Aço Sociedade Limitada', codigo: 'VT-11111111' }).footerTemplate;
+    expect(cortado).toContain('>Instalações Elétricas e Energia Solar do Vale… · VT-11111111</span>');
+  });
+  it('o texto da esquerda quebra de linha em vez de ser cortado pelo CSS: 84% da largura e nada de nowrap, overflow ou reticências', () => {
+    const f = opcoesPdf({ marcaNome: 'Solar Teste Energia', codigo: 'VT-11111111', cliente: 'Maria Souza' }).footerTemplate;
+    const esquerda = f.slice(f.indexOf('<span style="min-width:0'), f.indexOf('</span>'));
+    expect(esquerda).toContain('max-width:84%');
+    expect(esquerda).not.toMatch(/nowrap|overflow:hidden|text-overflow/);
+    expect(f).toContain('<span style="white-space:nowrap;">Página');
   });
   it('os textos entram escapados', () => {
     const f = opcoesPdf({ marcaNome: 'A&B <x>', codigo: 'VT-1', cliente: 'Zé "Z"' }).footerTemplate;

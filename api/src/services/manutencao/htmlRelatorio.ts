@@ -4,7 +4,7 @@ import {
   Atividade, Dados, Selo, calcularSelo, codigoLegivel, contagemAtividades, dataCurta, dataPorExtenso, formatarNumero,
   juntarLista, montarConclusao, normalizarDados, pendencias, somarMeses,
 } from './relatorio';
-import { cortar, dataBR, dataHoraAs, esc as escaparHtml, urlPublica } from '../relatorio/base';
+import { cortarNaPalavra, dataBR, dataHoraAs, esc as escaparHtml, urlPublica } from '../relatorio/base';
 import { dividirJunto, numerarGrupos, refFotos } from '../relatorio/fotos';
 import { MOSTRAR_CONTATO_EMPRESA, hashMarca, logoSeguro, paleta, telefoneFormatado, type MarcaEmpresa } from '../relatorio/marca';
 import { MARGEM_PDF_MM, opcoesPdfComRodape } from '../relatorio/pdf';
@@ -29,8 +29,11 @@ export type ModoRelatorio = 'tela' | 'pdf';
  * v3: a linha "Versão online" sobe para a primeira folha (nunca mais sozinha numa última folha), as assinaturas ficam
  *     mais baixas e presas ao bloco anterior (nunca sozinhas antes do anexo), o grupo de até 4 fotos do anexo não parte,
  *     o selo do resumo centraliza o texto e a data da assinatura alinha mesmo com nome longo.
+ * v4: no papel os cartões, as seções e o bloco de assinaturas ficam um pouco mais baixos (menos chance de a folha das
+ *     assinaturas ficar quase vazia antes do anexo) e o rodapé de página não corta mais o nome da empresa nem o do
+ *     cliente no meio da palavra (cabem 48 e 64 letras, com quebra de linha se faltar largura).
  */
-export const VERSAO_PDF = 'v3';
+export const VERSAO_PDF = 'v4';
 
 const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu;
 
@@ -204,12 +207,17 @@ html,body{background:#fff}
 h2{font-size:.98rem}
 .barra,.rod{display:none}
 .folha{max-width:none;margin:0;box-shadow:none;border-radius:0;padding:0}
+.sec{margin-top:20px}
+.lista{gap:6px}
+.it{padding:8px 12px}
 .anexo{break-before:page;page-break-before:always}
-#assinaturas{margin-top:12px;break-before:avoid;page-break-before:avoid}
+#assinaturas{margin-top:10px;break-before:avoid;page-break-before:avoid}
 #assinaturas h2{margin-bottom:6px}
-.ass .area{height:60px}
-.ass .area img{max-height:54px}
+.ass .area{height:48px}
+.ass .area img{max-height:44px}
+.ass .nm{margin-top:4px}
 .ass .rg,.ass .dt{min-height:1.3em;line-height:1.3}
+.ass .cap{margin-top:2px}
 a{color:inherit;text-decoration:none}
 `;
 
@@ -497,7 +505,8 @@ ${pdf ? '' : `<div class="barra"><span>${esc(SECOES.titulo)}</span><a href="/m/$
  * "Página X de Y". Os textos entram crus: quem escapa é o rodapé (opcoesPdfComRodape).
  */
 export function opcoesPdf(codigo: string | null, p: { marcaNome?: string | null; cliente?: string | null } = {}) {
-  const esquerda = [cortar(limpo(p.marcaNome), 28), aparar(codigoLegivel(codigo)), cortar(limpo(p.cliente), 36)].filter(Boolean).join(' · ');
+  // Cada nome é cortado na última palavra inteira, só se passar de 48 letras (empresa) ou 64 (cliente).
+  const esquerda = [cortarNaPalavra(limpo(p.marcaNome), 48), aparar(codigoLegivel(codigo)), cortarNaPalavra(limpo(p.cliente), 64)].filter(Boolean).join(' · ');
   return opcoesPdfComRodape({ esquerda });
 }
 

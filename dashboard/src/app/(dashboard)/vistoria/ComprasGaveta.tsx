@@ -478,19 +478,84 @@ function CampoItem({ id, valor, aoMudar }: { id: string; valor: string; aoMudar:
   );
 }
 
+/**
+ * Põe no campo a altura do texto: zera a altura, lê o conteúdo e soma a borda, que o scrollHeight não conta. Campo
+ * vazio mede o exemplo (placeholder) no lugar do texto, para ele aparecer inteiro: o valor volta a ser vazio antes de
+ * a tela pintar e nenhum evento é disparado. Fora da tela a medida vem zerada, e então a altura mínima do CSS segura
+ * o campo.
+ */
+function ajustarAltura(campo: HTMLTextAreaElement, placeholder: string) {
+  campo.style.height = 'auto';
+  const vazio = campo.value === '';
+  if (vazio) campo.value = placeholder;
+  const medida = campo.scrollHeight;
+  if (vazio) campo.value = '';
+  if (medida > 0) campo.style.height = `${medida + (campo.offsetHeight - campo.clientHeight)}px`;
+}
+
+/**
+ * Campo de texto de uma linha lógica (nome, especificação, nota) que mostra o texto inteiro: um `textarea` que cresce
+ * com o conteúdo. O `input` de uma linha só mostrava o que cabia na borda, e no celular o texto longo e o exemplo do
+ * campo vazio ficavam cortados. Não aceita quebra de linha: Enter não faz nada e texto colado com quebra troca
+ * a quebra por espaço (a lista guarda o texto numa linha só, como `limparTexto` faz ao gravar).
+ */
+function CampoTexto({
+  id, valor, aoMudar, maxLength, placeholder,
+}: {
+  id: string;
+  valor: string;
+  aoMudar: (v: string) => void;
+  maxLength: number;
+  placeholder: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  // Mede de novo a cada mudança do texto, antes de a tela pintar.
+  useLayoutEffect(() => {
+    if (ref.current) ajustarAltura(ref.current, placeholder);
+  }, [valor, placeholder]);
+  // E a cada mudança de largura (aparelho girado, janela redimensionada): o texto passa a quebrar em outros pontos, e
+  // a altura de antes cortaria a última linha. Só a largura conta (a altura muda por causa deste próprio ajuste), e a
+  // medida espera o quadro seguinte para não mexer no tamanho dentro da própria notificação do observador.
+  useEffect(() => {
+    const campo = ref.current;
+    if (!campo || typeof ResizeObserver === 'undefined') return;
+    let largura = campo.clientWidth;
+    let quadro = 0;
+    const observador = new ResizeObserver(() => {
+      if (campo.clientWidth === largura) return;
+      largura = campo.clientWidth;
+      cancelAnimationFrame(quadro);
+      quadro = requestAnimationFrame(() => ajustarAltura(campo, placeholder));
+    });
+    observador.observe(campo);
+    return () => {
+      cancelAnimationFrame(quadro);
+      observador.disconnect();
+    };
+  }, [placeholder]);
+  return (
+    <textarea
+      ref={ref} id={id} className="vst-input vst-cmpCampoTexto" rows={1} autoComplete="off" maxLength={maxLength}
+      placeholder={placeholder} value={valor}
+      onChange={(ev) => aoMudar(ev.target.value.replace(/[\r\n]+/g, ' '))}
+      onKeyDown={(ev) => { if (ev.key === 'Enter') ev.preventDefault(); }}
+    />
+  );
+}
+
 function FormMaterial({ r, aoMudar }: { r: Rascunho; aoMudar: (parcial: Partial<Rascunho>) => void }) {
   return (
     <div className="vst-cmpForm">
       <label className="vst-label" htmlFor="vst-cmp-nome">{T.rotNome}</label>
-      <input
-        id="vst-cmp-nome" className="vst-input" type="text" autoComplete="off" maxLength={LIMITES.nome}
-        placeholder={T.phNome} value={r.nome} onChange={(ev) => aoMudar({ nome: ev.target.value })}
+      <CampoTexto
+        id="vst-cmp-nome" maxLength={LIMITES.nome} placeholder={T.phNome}
+        valor={r.nome} aoMudar={(v) => aoMudar({ nome: v })}
       />
 
       <label className="vst-label" htmlFor="vst-cmp-esp">{T.rotEsp}</label>
-      <input
-        id="vst-cmp-esp" className="vst-input" type="text" autoComplete="off" maxLength={LIMITES.esp}
-        placeholder={T.phEsp} value={r.esp} onChange={(ev) => aoMudar({ esp: ev.target.value })}
+      <CampoTexto
+        id="vst-cmp-esp" maxLength={LIMITES.esp} placeholder={T.phEsp}
+        valor={r.esp} aoMudar={(v) => aoMudar({ esp: v })}
       />
 
       {r.un !== 'servico' && (
@@ -532,9 +597,9 @@ function FormMaterial({ r, aoMudar }: { r: Rascunho; aoMudar: (parcial: Partial<
       <CampoItem id="vst-cmp-item" valor={r.item} aoMudar={(v) => aoMudar({ item: v })} />
 
       <label className="vst-label" htmlFor="vst-cmp-nota">{T.rotNota}</label>
-      <input
-        id="vst-cmp-nota" className="vst-input" type="text" autoComplete="off" maxLength={LIMITES.obsLinha}
-        placeholder={T.phNota} value={r.obs} onChange={(ev) => aoMudar({ obs: ev.target.value })}
+      <CampoTexto
+        id="vst-cmp-nota" maxLength={LIMITES.obsLinha} placeholder={T.phNota}
+        valor={r.obs} aoMudar={(v) => aoMudar({ obs: v })}
       />
     </div>
   );

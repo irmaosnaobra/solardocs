@@ -80,6 +80,7 @@ export const SECOES = {
   andamento: 'Vistoria em andamento. O resultado completo aparece quando o técnico concluir.',
   faltam_avaliar: 'Faltam avaliar:',
   proximos_passos: 'Próximos passos',
+  proximo_passo: 'Próximo passo.',
   registro: 'Registro por item',
   sem_registro: 'Sem registro:',
   sem_nada: 'Nenhum registro ainda.',

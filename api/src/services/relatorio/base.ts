@@ -35,6 +35,33 @@ export function cortar(s: unknown, n: number): string {
   return letras.slice(0, limite - 1).join('').trimEnd() + RETICENCIAS;
 }
 
+/**
+ * Como `cortar`, mas recua até a última palavra inteira: "Maria Aparecida dos Santos Albuquerque", com limite 36,
+ * vira "Maria Aparecida dos Santos…" e não "Maria Aparecida dos Santos Albuquer…". O corte total nunca passa de `n`
+ * caracteres (reticências incluídas). Só recua se o último espaço estiver depois da metade do limite: uma palavra
+ * única e comprida, ou um espaço logo no começo, é cortada reta, como em `cortar`. Vírgula, "&" e traço que sobram
+ * no fim do pedaço ficam de fora. Nulo vira ''.
+ */
+export function cortarNaPalavra(s: unknown, n: number): string {
+  const t = String(s ?? '').trim();
+  if (!(n >= 1)) return '';
+  const limite = Math.floor(n);
+  const letras = Array.from(t);
+  if (letras.length <= limite) return t;
+  const corpo = letras.slice(0, limite - 1);
+  let pedaco = corpo;
+  // Se a próxima letra já é um espaço, o corte cai entre duas palavras e não há o que recuar.
+  if (!/\s/u.test(letras[limite - 1])) {
+    let ultimo = -1;
+    for (let i = corpo.length - 1; i >= 0; i--) {
+      if (/\s/u.test(corpo[i])) { ultimo = i; break; }
+    }
+    if (ultimo >= limite / 2) pedaco = corpo.slice(0, ultimo);
+  }
+  const texto = pedaco.join('').replace(/[\s,;:&-]+$/u, '');
+  return (texto || corpo.join('').trimEnd()) + RETICENCIAS;
+}
+
 // ── Datas em America/Sao_Paulo ──────────────────────────────────────────────
 
 const FUSO = 'America/Sao_Paulo';
