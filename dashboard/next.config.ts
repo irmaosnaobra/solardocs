@@ -39,6 +39,12 @@ const nextConfig: NextConfig = {
       // entrada apontando pra cá. Manda pra LP do curso, que é onde a pessoa
       // consegue comprar o que o e-mail prometeu — em vez de bater num 404.
       { source: '/oferta/vip-curso', destination: '/kit', permanent: false },
+      // Teste Quiz x LP (31/10/2026): o mesmo anúncio roda em dois conjuntos, e o
+      // do quiz acrescenta `&sd_dest=quiz` no link. Quem chega na raiz com esse
+      // parâmetro vai para o /diagnostico, levando junto a query inteira (fbclid,
+      // utm_*). Sem o parâmetro, ou com outro valor, a raiz fica como está.
+      // permanent: false = 307; o 308 ficaria em cache no navegador.
+      { source: '/', has: [{ type: 'query', key: 'sd_dest', value: 'quiz' }], destination: '/diagnostico', permanent: false },
     ];
   },
   async headers() {
