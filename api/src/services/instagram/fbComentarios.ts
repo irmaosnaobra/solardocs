@@ -148,11 +148,22 @@ async function postsParaVarrer(token: string): Promise<Alvo[]> {
 export function automacaoDoDestino(destino: string, autos: any[]): any | null | 'pular' {
   const alvo = chaveUrl(destino);
   if (!alvo) return null;                                  // fb.me, vazio: sem pista
-  for (const a of autos) {
-    const l = chaveUrl(a.link_url);
-    if (l && (alvo === l || alvo.startsWith(l) || l.startsWith(alvo))) return a;
+  // Igual ganha de prefixo; depois o prefixo mais específico. Antes valia a
+  // primeira que casasse: o destino solardoc.app casava com a simulação solar
+  // (solardoc.app/io/solar) só porque ela vinha antes no banco que a SolarDoc.
+  const ls = autos.map(a => ({ a, l: chaveUrl(a.link_url) })).filter(x => x.l);
+  const igual = ls.find(x => alvo === x.l);
+  if (igual) return igual.a;
+  let melhor: { a: any; l: string } | null = null;
+  for (const x of ls) {                                    // link da automação é prefixo do alvo: o mais longo
+    if (alvo.startsWith(x.l) && (!melhor || x.l.length > melhor.l.length)) melhor = x;
   }
-  return 'pular';                                          // produto sem automação (LimpaPro)
+  if (melhor) return melhor.a;
+  for (const x of ls) {                                    // alvo é prefixo do link da automação: o mais curto
+    if (x.l.startsWith(alvo) && (!melhor || x.l.length < melhor.l.length)) melhor = x;
+  }
+  if (melhor) return melhor.a;
+  return 'pular';                                        // produto sem automação (LimpaPro)
 }
 
 async function comentariosDoPost(postId: string, ehAnuncio: boolean, token: string): Promise<Comentario[]> {

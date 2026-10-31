@@ -32,3 +32,39 @@ describe('produto do anúncio manda no Facebook', () => {
     expect(automacaoDoDestino('https://m.me/irmaosnaobra', AUTOS)).toBeNull();
   });
 });
+
+describe('o destino mais específico ganha, não o primeiro da lista', () => {
+  const SIMULACAO = { id: 'simulacao', link_url: 'https://solardoc.app/io/solar' };
+  const SOLARDOC = { id: 'solardoc', link_url: 'https://solardoc.app' };
+
+  it('solardoc.app/ vai para a SolarDoc, em qualquer ordem', () => {
+    expect(automacaoDoDestino('https://solardoc.app/', [SIMULACAO, SOLARDOC])?.id).toBe('solardoc');
+    expect(automacaoDoDestino('https://solardoc.app/', [SOLARDOC, SIMULACAO])?.id).toBe('solardoc');
+  });
+
+  it('link igual ganha; entre iguais, a primeira da lista', () => {
+    const outra = { id: 'outra', link_url: 'https://solardoc.app/?utm_source=x' };
+    expect(automacaoDoDestino('https://solardoc.app/io/solar', [SOLARDOC, SIMULACAO])?.id).toBe('simulacao');
+    expect(automacaoDoDestino('https://solardoc.app', [outra, SOLARDOC])?.id).toBe('outra');
+  });
+
+  it('automação é prefixo do destino: o prefixo mais longo ganha', () => {
+    const longa = { id: 'longa', link_url: 'https://solardoc.app/io' };
+    const mais = { id: 'mais', link_url: 'https://solardoc.app/io/solar' };
+    const d = 'https://solardoc.app/io/solar/obrigado';
+    expect(automacaoDoDestino(d, [SOLARDOC, longa, mais])?.id).toBe('mais');
+    expect(automacaoDoDestino(d, [mais, longa, SOLARDOC])?.id).toBe('mais');
+  });
+
+  it('destino é prefixo da automação: o link mais curto ganha', () => {
+    const curta = { id: 'curta', link_url: 'https://solardoc.app/io/solar' };
+    const comprida = { id: 'comprida', link_url: 'https://solardoc.app/io/solar/extra' };
+    expect(automacaoDoDestino('https://solardoc.app/io', [comprida, curta])?.id).toBe('curta');
+    expect(automacaoDoDestino('https://solardoc.app/io', [curta, comprida])?.id).toBe('curta');
+  });
+
+  it('sem automação do produto devolve pular; destino vazio devolve null', () => {
+    expect(automacaoDoDestino('https://limpapro.solardoc.app/', [SIMULACAO, SOLARDOC])).toBe('pular');
+    expect(automacaoDoDestino('', [SIMULACAO, SOLARDOC])).toBeNull();
+  });
+});
