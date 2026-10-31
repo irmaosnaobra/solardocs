@@ -10,12 +10,17 @@ import api from '@/services/api';
  * (`garantirParceiro`: grava em nexus_parceiros, pode criar a company, consulta a Receita e avisa o
  * comercial). Chamada daqui, cadastraria toda a base que vê o banner e esvaziaria o público do convite.
  *
- * A sonda é a lista de oportunidades (`GET /gerador/nexus/oportunidades`), que só lê o contexto do
- * parceiro antes de qualquer escrita:
+ * A sonda é a lista de oportunidades (`GET /gerador/nexus/oportunidades`). Para quem NÃO é parceiro ela só
+ * lê (o contexto: parceiro e company) e responde 409, sem gravar nada; o custo é uma leitura da company e um
+ * 409 no console por visita. Para o parceiro Pro a rota roda inteira: devolve a lista e, por regra dela,
+ * marca como expirada a oferta com prazo vencido (um UPDATE em nexus_oportunidades, sem aviso a ninguém).
  *   409 `sem_parceiro`             conta sem parceiro  -> 'livre' (o banner pode aparecer)
  *   200 com JSON, ou 403           já é parceiro       -> 'parceiro' (o banner some)
  *     `etapa_bloqueada`
  *   qualquer outra resposta, ou erro de rede           -> 'livre' (melhor sobrar convite do que sumir)
+ *
+ * O banner depende desse 409, e nenhum teste da api o fixa ainda. Se a rota passar a responder 200 para
+ * conta sem parceiro, o banner some para todo mundo, sem erro nenhum.
  *
  * Uma chamada por usuário e por visita, guardada no módulo, sem nova tentativa. Quando a api ganhar uma
  * rota só de leitura para isso, basta trocar a URL e a leitura de `sondar`.

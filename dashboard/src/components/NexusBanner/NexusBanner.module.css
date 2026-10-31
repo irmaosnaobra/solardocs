@@ -2,9 +2,13 @@
  * Convite à NEXUS: cartão escuro de largura cheia. As cores são fixas de propósito: o banner é o mesmo no tema
  * escuro da plataforma e na tela clara do /inicio, que redefine os tokens do tema (.ini-nexus).
  *
- * Mobile primeiro: o que está fora dos @container é a versão curta (uma linha, um botão, até 96 px de altura).
+ * Mobile primeiro: o que está fora dos @container é a versão curta (uma frase, um botão, até 96 px de altura).
  * A completa entra quando o próprio banner tem 640 px ou mais (container query), então o celular, o /inicio e o
  * desktop com o menu lateral aberto escolhem a versão certa sem JavaScript e sem salto depois da carga.
+ *
+ * "Uma frase", não "uma linha": a frase, o botão de 44 px e o fechar só cabem juntos numa linha acima de uns
+ * 500 px de largura. Abaixo disso a frase quebra em 2 linhas (390 px) ou 3 (360 e 320 px), com 66 a 73 px de
+ * altura. Cortar o texto, encolher a fonte ou tirar o botão para forçar a linha única seria pior; vale o teto de 96 px.
  */
 .banner {
   --nx-fundo: #0b1b33;
@@ -29,7 +33,7 @@
   color: var(--nx-branco);
 }
 
-/* Versão curta (padrão): texto, botão e fechar numa linha só. */
+/* Versão curta (padrão): a frase à esquerda, o botão e o fechar à direita, na mesma faixa. */
 .miolo {
   display: flex;
   align-items: center;
@@ -52,6 +56,7 @@
   font-weight: 700;
   line-height: 1.3;
   overflow-wrap: anywhere;
+  text-wrap: balance;          /* quando quebra, as linhas ficam parelhas, sem "parceiros." sozinho; mesmo número de linhas */
 }
 
 .completo {
@@ -118,8 +123,10 @@
   display: none;
 }
 
-.botao:focus-visible,
-.fechar:focus-visible {
+/* O /inicio tem ".ini-page a:focus-visible" (0,2,1), que vence um seletor só de classe (0,2,0) e deixava o anel
+   quase invisível sobre o azul-noite. Com ".banner" na frente o seletor vai a 0,3,0 e o anel branco vale nas duas telas. */
+.banner .botao:focus-visible,
+.banner .fechar:focus-visible {
   outline: 2px solid var(--nx-branco);
   outline-offset: 2px;
 }
@@ -137,7 +144,7 @@
   transform: translateX(3px);
 }
 
-/* Banner estreito (celular de 360 px ou menos): aperta fonte e botão para a linha caber em até 96 px. */
+/* Banner estreito (celular de 360 px ou menos): aperta fonte e botão para a frase caber em até 96 px. */
 @container (max-width: 359px) {
   .miolo {
     gap: 8px;
