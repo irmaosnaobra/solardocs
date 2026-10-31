@@ -136,8 +136,9 @@
   border-radius: 20px;
   text-decoration: none;
   background: var(--ini-cor);
-  /* Sem borda, como sempre. Só a marca quase branca (menos de 1,5:1 sobre o branco) ganha 1 px de contorno,
-     para o bloco não sumir no fundo branco: a variável vem de variaveis() em page.tsx. */
+  /* Sem borda, como sempre. Só a marca quase branca (contraste sobre o branco abaixo de
+     CONTRASTE_MARCA_QUASE_BRANCA, em utils/corMarca.ts) ganha 1 px de contorno, para o bloco não sumir no fundo
+     branco: a variável vem de variaveis() em page.tsx. */
   border: var(--ini-borda, none);
   box-shadow: 0 4px 14px var(--ini-sombra);
   transition: transform 0.12s ease, background 0.12s ease;

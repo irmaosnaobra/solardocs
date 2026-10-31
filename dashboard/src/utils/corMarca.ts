@@ -106,12 +106,13 @@ export function comAlfa(hex: string, alfa: number): string {
 const APERTADA_PADRAO = '#d4530f';
 
 /**
- * Abaixo deste contraste com o branco a marca "some" no fundo da tela e o bloco ganha contorno. O corte é
- * baixo de propósito: só a marca quase branca entra (branco, cinza até #d3d3d3, amarelo vivo como #ffeb3b,
- * limão). O #ff6600 (2,9:1), o laranja padrão (3,2:1) e até o amarelo ouro #facc15 (1,53:1) ficam de fora
- * e nunca ganham borda.
+ * Abaixo deste contraste com o branco a marca "some" no fundo branco da tela e o bloco ganha contorno. O corte é
+ * baixo de propósito: só a marca quase branca entra, como o branco (1,0:1), o #fafafa (1,04:1), o cinza #eeeeee
+ * (1,16:1) e o amarelo pastel #fff176 (1,16:1). Ficam de fora e nunca ganham borda as cores que ainda se separam
+ * do branco sem ajuda: o amarelo vivo #ffeb3b (1,22:1), o #F5E663 (1,28:1), o amarelo ouro #facc15 (1,53:1), o
+ * #ff6600 (2,9:1) e o laranja padrão (3,2:1).
  */
-const CONTRASTE_MARCA_QUASE_BRANCA = 1.5;
+const CONTRASTE_MARCA_QUASE_BRANCA = 1.2;
 
 /**
  * Cor do bloco enquanto o dedo está nele: a principal um pouco mais escura, só se o texto continuar
@@ -147,8 +148,9 @@ export interface PaletaMarca {
   /** Anel de foco sobre o branco: a secundária, escurecida até 3:1. */
   anel: string;
   /**
-   * Contorno de 1 px do bloco, só para a marca quase branca (principal com menos de 1,5:1 sobre o branco):
-   * a principal escurecida até 3:1 sobre o branco. Null em todas as outras cores, que ficam sem borda.
+   * Contorno de 1 px do bloco, só para a marca quase branca (principal com contraste sobre o branco abaixo de
+   * CONTRASTE_MARCA_QUASE_BRANCA): a principal escurecida até 3:1 sobre o branco. Null em todas as outras
+   * cores, que ficam sem borda.
    */
   contorno: string | null;
   /** A principal veio da empresa (valida). Falso quando caiu no laranja padrão. */
