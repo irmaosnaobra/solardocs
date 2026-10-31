@@ -152,41 +152,82 @@ const apiUrl = () => process.env.API_URL || 'https://api.solardoc.app';
 export const urlDescadastro = (userId: string): string =>
   `${apiUrl()}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 
-/** Títulos que abrem um nome ("Eng Flavio Peetz", "Dra. Maria"). Nome que abre com título não é saudado, nem pelo token seguinte,
- *  que pode ser profissão ou empresa ("Eng Civil Flavio", "DR Solar"). Comparados pela chave de `chaveTitulo` (sem ponto, que o
- *  corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e "o"): "Engº" cai em "engo", "Engª"
- *  em "enga", "Profª" em "profa" e "Profº" e "Prof°" em "profo". */
-const TITULOS = ['eng', 'engo', 'enga', 'dr', 'dra', 'sr', 'sra', 'srta', 'prof', 'profa', 'profo'];
+/** Títulos, tratamentos e profissões que abrem um nome ("Eng Flavio Peetz", "Dra. Maria", "Dona Maria", "Seu José", "Arq. Ana",
+ *  "Téc. João", "Pe. João", "Me. Ana"). Nenhum deles é primeiro nome comum no Brasil. Nome que abre com um deles não é saudado, nem
+ *  pelo token seguinte, que pode ser profissão ou empresa ("Eng Civil Flavio", "DR Solar"). Comparados pela chave de `chaveDeLista`
+ *  (sem ponto, que o corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e "o"): "Engº" cai em
+ *  "engo", "Engª" em "enga", "Profª" em "profa", "Profº" e "Prof°" em "profo", "Téc" em "tec" e "Técnica" em "tecnica". */
+const TITULOS = [
+  'eng', 'engo', 'enga', 'engenheiro', 'engenheira',
+  'dr', 'dra', 'doutor', 'doutora',
+  'sr', 'sra', 'srta', 'seu', 'dona',
+  'prof', 'profa', 'profo', 'mestre', 'mestra',
+  'arq', 'arquiteto', 'arquiteta',
+  'tec', 'tecnico', 'tecnica',
+  'pe', 'me',
+];
 const TITULOS_DE_NOME = new Set(TITULOS);
 
-/** O maior título tem 5 letras, mais 1 de folga. Token maior que isso nunca é título e nem chega a ser normalizado: o NFKD de um
- *  texto enorme é lento, e nome de gente não passa de poucas dezenas de letras. */
-const TAMANHO_MAX_TITULO = Math.max(...TITULOS.map((t) => t.length)) + 1;
+/** Palavras de empresa que abrem um nome ("Solar Energia", "Grupo Sol", "ECO Energia", "LTDA"). Chamar o cliente por elas é pior do
+ *  que um "Olá." seco. Mesma chave dos títulos (sem acento, em minúscula), mas só o PRIMEIRO token conta, como no título: "Muniz
+ *  Freire Solar" segue dando Muniz. */
+const PALAVRAS_DE_EMPRESA = [
+  'solar', 'energia', 'energy', 'eletro', 'eletrica', 'eletrico', 'engenharia', 'grupo', 'comercial', 'comercio', 'contato',
+  'ltda', 'eco', 'power', 'servicos', 'sistemas', 'tecnologia', 'instalacoes', 'construtora', 'empresa', 'atendimento',
+  'financeiro', 'vendas', 'projetos', 'distribuidora',
+];
+const PALAVRAS_DE_EMPRESA_DO_NOME = new Set(PALAVRAS_DE_EMPRESA);
 
-/** Tira o acento. NFKD também leva "º" a "o" e "ª" a "a", e só o teste de título quer isso. O teste de vogal usa NFD, para
+/** A maior palavra das duas listas, mais 1 de folga. O limite sai das listas: palavra nova maior que as de hoje já entra com folga.
+ *  Token maior que isso nunca está nelas e nem chega a ser normalizado: o NFKD de um texto enorme é lento, e nome de gente não passa
+ *  de poucas dezenas de letras. */
+const TAMANHO_MAX_CHAVE = Math.max(...TITULOS.map((t) => t.length), ...PALAVRAS_DE_EMPRESA.map((t) => t.length)) + 1;
+
+/** Tira o acento. NFKD também leva "º" a "o" e "ª" a "a", e só o teste das listas quer isso. O teste de vogal usa NFD, para
  *  "Mª" não ganhar uma vogal que não é letra do nome. */
 const tiraAcento = (t: string, forma: 'NFD' | 'NFKD'): string => t.normalize(forma).replace(/[\u0300-\u036f]/g, '');
 
-/** Chave de comparação com a lista de títulos. O grau "°", que o teclado dá no lugar do "º", vale "o" (o NFKD não o leva a "o"). */
-const chaveTitulo = (t: string): string =>
-  t.length > TAMANHO_MAX_TITULO ? '' : tiraAcento(t, 'NFKD').replace(/\xb0/g, 'o').toLowerCase();
+/** Chave de comparação com as listas de títulos e de palavras de empresa. O grau "°", que o teclado dá no lugar do "º", vale "o"
+ *  (o NFKD não o leva a "o"). */
+const chaveDeLista = (t: string): string =>
+  t.length > TAMANHO_MAX_CHAVE ? '' : tiraAcento(t, 'NFKD').replace(/\xb0/g, 'o').toLowerCase();
 
-const ehTitulo = (t: string): boolean => TITULOS_DE_NOME.has(chaveTitulo(t));
+const ehTitulo = (t: string): boolean => TITULOS_DE_NOME.has(chaveDeLista(t));
+const ehPalavraDeEmpresa = (t: string): boolean => PALAVRAS_DE_EMPRESA_DO_NOME.has(chaveDeLista(t));
+
+/** O que sobra no começo de um nome colado ou importado: espaço de qualquer tipo e os invisíveis U+200B a U+200D (largura zero e
+ *  ligadores), U+2060 (junção de palavras) e U+FEFF (marca de ordem de bytes). Escritos por código, nunca o caractere em si. O
+ *  espaço vai junto para o corte não achar a sobra antes do nome e devolver um token vazio. */
+const SOBRA_DO_COMECO = /^[\s\u200B-\u200D\u2060\uFEFF]+/;
+
+/** Até onde o primeiro token é normalizado para NFC. O nome vai até 30 letras e, com cada letra acentuada em duas peças (NFD),
+ *  chega a 60. Acima disso nunca é nome, e nem vale o custo de normalizar. */
+const TAMANHO_MAX_TOKEN = 60;
 
 /**
- * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo, sigla): aí
- * o e-mail diz só "Olá." e nunca "Olá, 11999990000." nem "Olá, Vsp.". Corta no espaço, no ponto e no sublinhado ("ana.paula"
- * vira "Ana"). Título no começo (Eng, Engº, Engª, Dr, Dra, Sr, Sra, Srta, Prof, Profª, Profº, com ou sem ponto, com "°" no
- * lugar do "º", em qualquer caixa) dá vazio e NÃO é pulado: o token seguinte pode ser profissão ou empresa ("Eng Civil Flavio",
- * "Eng. Eletricista Flavio", "DR Solar", "SR Energia Solar"), e chamar o cliente por isso é pior do que um "Olá." seco. Vale
- * para "Eng Flavio Peetz" e para "Prof.ª Ana" (o ponto separa o ordinal, mas o primeiro token já é o título). Token sem nenhuma
- * vogal (a, e, i, o, u, y, com ou sem acento) é sigla, não nome: "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez
- * para o token seguinte. Nome todo em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago")
- * ganha a inicial maiúscula e o resto minúsculo; nome já misturado ("McDonald") fica como veio.
+ * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo, sigla,
+ * tratamento, profissão ou empresa): aí o e-mail diz só "Olá." e nunca "Olá, 11999990000." nem "Olá, Vsp.". Na dúvida, "Olá." seco:
+ * a pessoa nunca é chamada por algo que não é o primeiro nome dela.
+ *
+ * O primeiro token sai do primeiro corte no espaço, no ponto ou no sublinhado ("ana.paula" vira "Ana"). Antes do corte, o que sobra
+ * de invisível no começo (U+200B a U+200D, U+2060 e U+FEFF) é tirado, e depois dele o token vira NFC ("José" com o acento solto
+ * dá José). Token com mais de 60 caracteres dá vazio.
+ *
+ * Título, tratamento ou profissão no começo (Eng, Engenheiro, Dr, Doutor, Sr, Sra, Srta, Dona, Seu, Prof, Mestre, Arq, Arquiteto,
+ * Tec, Técnico, Pe, Me, Engº, Engª, Profª, Profº, com ou sem ponto, com "°" no lugar do "º", em qualquer caixa) dá vazio e NÃO é
+ * pulado: o token seguinte pode ser profissão ou empresa ("Eng Civil Flavio", "Eng. Eletricista Flavio", "DR Solar", "SR Energia
+ * Solar"), e chamar o cliente por isso é pior do que um "Olá." seco. Vale para "Eng Flavio Peetz" e para "Prof.ª Ana" (o ponto
+ * separa o ordinal, mas o primeiro token já é o título). Palavra de empresa como PRIMEIRO token (Solar, Energia, Grupo, Comercial,
+ * Contato, LTDA, Eco...) também dá vazio, e só ele conta: "Muniz Freire Solar" dá Muniz. Token sem nenhuma vogal (a, e, i, o, u, y,
+ * com ou sem acento) é sigla, não nome: "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez para o token seguinte. Nome
+ * todo em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o resto
+ * minúsculo; nome já misturado ("McDonald") fica como veio.
  */
 export function primeiroNome(nome: unknown): string {
-  const p = String(nome ?? '').trim().split(/[\s._]+/)[0] ?? '';
-  if (ehTitulo(p)) return '';
+  const corte = String(nome ?? '').replace(SOBRA_DO_COMECO, '').split(/[\s._]+/, 1)[0] ?? '';
+  if (corte.length > TAMANHO_MAX_TOKEN) return '';
+  const p = corte.normalize('NFC');
+  if (ehTitulo(p) || ehPalavraDeEmpresa(p)) return '';
   if (!/^[\p{L}][\p{L}'’-]{1,29}$/u.test(p)) return '';
   if (!/[aeiouy]/i.test(tiraAcento(p, 'NFD'))) return '';
   const resto = p === p.toLowerCase() || p === p.toUpperCase() ? p.slice(1).toLowerCase() : p.slice(1);

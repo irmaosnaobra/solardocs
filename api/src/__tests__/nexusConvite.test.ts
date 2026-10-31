@@ -421,6 +421,87 @@ describe('convite por e-mail: texto', () => {
     for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
   });
 
+  it('primeiroNome: tratamento e profissão no começo (Dona, Seu, Doutor, Engenheiro, Arq, Téc, Pe, Me, Mestre) contam como título e dão vazio', () => {
+    const casos = [
+      'Dona Maria', 'Seu José', 'Doutor Carlos', 'Engenheiro Flavio', 'Arq. Ana', 'Téc. João', 'Pe. João', 'Me. Ana', 'Mestre Silva',
+      // Feminino, por extenso, com e sem acento, em qualquer caixa e com o corte em ponto ou sublinhado
+      'Doutora Ana', 'Engenheira Paula', 'Arquiteto Lia', 'Arquiteta Lia', 'Técnico Paulo', 'Tecnico Paulo', 'Técnica Ana', 'Tecnica Ana',
+      'Mestra Ana', 'DONA MARIA', 'seu josé', 'ENGENHEIRO FLAVIO', 'TÉC. JOÃO', 'dona.maria', 'Seu_José',
+      // Título sozinho, ou com lixo depois dele
+      'Dona', 'Pe.', 'Me 123',
+    ];
+    for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
+    // A lista inteira, nas três caixas, sem e com ponto
+    const lista = ['dona', 'seu', 'doutor', 'doutora', 'engenheiro', 'engenheira', 'arq', 'arquiteto', 'arquiteta', 'tec', 'tecnico', 'tecnica', 'pe', 'me', 'mestre', 'mestra'];
+    for (const palavra of lista) {
+      const capitalizada = palavra.charAt(0).toUpperCase() + palavra.slice(1);
+      for (const forma of [palavra, capitalizada, palavra.toUpperCase()]) {
+        expect(primeiroNome(`${forma} Silva`), forma).toBe('');
+        expect(primeiroNome(`${forma}. Silva`), `${forma}.`).toBe('');
+      }
+    }
+  });
+
+  it('primeiroNome: palavra de empresa como PRIMEIRO token (Solar, Energia, Grupo, Comercial, Contato, LTDA, Eco, Eletro...) dá vazio', () => {
+    const casos = [
+      'Solar Energia', 'Energia Solar MG', 'Grupo Sol', 'Comercial Solar', 'Contato Solar', 'LTDA', 'ECO Energia', 'Eletro Silva',
+      // Com acento e em qualquer caixa
+      'Elétrica Silva', 'Elétrico Silva', 'Comércio Silva', 'Serviços Gerais', 'Instalações Silva', 'ELÉTRICA SILVA', 'solar', 'SOLAR ENERGIA',
+      // O corte em ponto e em sublinhado vale como em qualquer nome
+      'solar.energia', 'grupo_sol',
+    ];
+    for (const entrada of casos) expect(primeiroNome(entrada), entrada).toBe('');
+    // A lista inteira, nas três caixas
+    const lista = [
+      'solar', 'energia', 'energy', 'eletro', 'eletrica', 'eletrico', 'engenharia', 'grupo', 'comercial', 'comercio', 'contato', 'ltda', 'eco',
+      'power', 'servicos', 'sistemas', 'tecnologia', 'instalacoes', 'construtora', 'empresa', 'atendimento', 'financeiro', 'vendas', 'projetos',
+      'distribuidora',
+    ];
+    for (const palavra of lista) {
+      const capitalizada = palavra.charAt(0).toUpperCase() + palavra.slice(1);
+      for (const forma of [palavra, capitalizada, palavra.toUpperCase()]) expect(primeiroNome(`${forma} Silva`), forma).toBe('');
+    }
+  });
+
+  it('primeiroNome: nome que só lembra um título ou uma palavra de empresa segue dando o nome (palavra inteira, e só o primeiro token vale)', () => {
+    const casos: Array<[string, string]> = [
+      ['Muniz Freire Solar', 'Muniz'], ['Ana Paula', 'Ana'], ['Zé', 'Zé'], ['Yuri', 'Yuri'],
+      ['Doralice', 'Doralice'], ['Severino', 'Severino'], ['Mestrinho', 'Mestrinho'],
+      // Começa como uma palavra das listas, mas é outra
+      ['Pedro', 'Pedro'], ['Meire', 'Meire'], ['Donato', 'Donato'], ['Arquimedes', 'Arquimedes'], ['Solange', 'Solange'],
+      // Palavra das listas depois do primeiro token não muda nada
+      ['Ana Energia', 'Ana'], ['Silva Solar', 'Silva'], ['Maria Dona', 'Maria'], ['João Eng', 'João'],
+    ];
+    for (const [entrada, esperado] of casos) expect(primeiroNome(entrada), entrada).toBe(esperado);
+  });
+
+  it('primeiroNome: o acento solto (NFD) vira NFC e o nome sai inteiro; o invisível no começo é tirado antes de tudo', () => {
+    const nfd = 'Jose\u0301 Silva';
+    expect(nfd).not.toBe(nfd.normalize('NFC')); // a entrada é mesmo a forma decomposta, senão o teste não prova nada
+    expect(primeiroNome(nfd)).toBe('José');
+    expect(primeiroNome('JOSE\u0301 SILVA')).toBe('José');
+    expect(primeiroNome('joa\u0303o')).toBe('João');
+    // Título com o acento solto segue sendo título
+    expect(primeiroNome('Te\u0301c. Joa\u0303o')).toBe('');
+    // U+200B a U+200D, U+2060 e U+FEFF no começo: sozinhos, em série e misturados com espaço
+    const sobras = ['\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF', '\u200B\u200C\u200D\u2060\uFEFF', ' \u200B ', '\uFEFF \u200D\u2060'];
+    sobras.forEach((sobra, i) => {
+      const rotulo = `sobra ${i}`;
+      expect(primeiroNome(`${sobra}Maria`), rotulo).toBe('Maria');
+      expect(primeiroNome(`${sobra}Maria Souza`), rotulo).toBe('Maria');
+      expect(primeiroNome(`${sobra}Dona Maria`), rotulo).toBe(''); // a sobra sai ANTES do teste de título
+      expect(primeiroNome(`${sobra}Solar Energia`), rotulo).toBe('');
+      expect(primeiroNome(sobra), rotulo).toBe('');
+    });
+    // No meio do token o invisível continua sendo lixo: na dúvida, "Olá." seco
+    expect(primeiroNome('Ma\u200Bria')).toBe('');
+    // Token de até 60 caracteres é normalizado (30 letras com o acento solto = 60); com 61, vazio
+    const sessenta = 'e\u0301'.repeat(30);
+    expect(sessenta).toHaveLength(60);
+    expect(primeiroNome(sessenta)).toBe('\u00C9' + '\u00E9'.repeat(29));
+    expect(primeiroNome(`${sessenta}a`)).toBe('');
+  });
+
   it('a saudação do convite acompanha o primeiro nome: título no começo, sigla ou título sozinho vira só "Olá."; nome comum vira "Olá, Ana."', () => {
     const casos: Array<[string, string]> = [
       ['Eng Flavio Peetz', 'Olá.'],
@@ -443,6 +524,24 @@ describe('convite por e-mail: texto', () => {
       const html = htmlConvite(U1, nome);
       expect(html, nome).toContain(`<p style="margin:0 0 14px;">${saudacao}</p>`);
       if (saudacao === 'Olá.') expect(html, nome).not.toContain('Olá,');
+    }
+  });
+
+  it('a saudação do convite: "Dona Maria" sai só "Olá." e "José Silva" com o acento solto sai "Olá, José."', () => {
+    const dona = htmlConvite(U1, 'Dona Maria');
+    expect(dona).toContain('<p style="margin:0 0 14px;">Olá.</p>');
+    expect(dona).not.toContain('Olá,');
+    expect(dona).not.toMatch(/Dona|Maria/);
+    const nfd = 'Jose\u0301 Silva';
+    expect(nfd).not.toBe(nfd.normalize('NFC')); // a entrada é mesmo a forma decomposta
+    const jose = htmlConvite(U1, nfd);
+    expect(jose).toContain('<p style="margin:0 0 14px;">Olá, José.</p>');
+    expect(jose).not.toContain('Silva');
+    // Palavra de empresa no começo: o e-mail não chama a conta por ela
+    for (const nome of ['Solar Energia', 'Grupo Sol', 'LTDA', 'Eletro Silva']) {
+      const html = htmlConvite(U1, nome);
+      expect(html, nome).toContain('<p style="margin:0 0 14px;">Olá.</p>');
+      expect(html, nome).not.toContain('Olá,');
     }
   });
 
