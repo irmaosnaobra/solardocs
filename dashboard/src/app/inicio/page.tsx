@@ -106,6 +106,10 @@ function variaveis(p: PaletaMarca): CSSProperties {
     '--ini-sombra': p.sombra,
     '--ini-titulo': p.titulo,
     '--ini-anel': p.anel,
+    // Sem contorno, "none" e 0: o bloco fica sem borda, como sempre. Só a marca quase branca ganha 1 px, e o CSS
+    // desconta a mesma espessura do padding do bloco para ele não mudar de tamanho por dentro.
+    '--ini-borda': p.contorno ? `1px solid ${p.contorno}` : 'none',
+    '--ini-borda-w': p.contorno ? '1px' : '0px',
   } as CSSProperties;
 }
 

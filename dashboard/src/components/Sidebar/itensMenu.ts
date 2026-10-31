@@ -198,6 +198,11 @@ const ORDEM_PARA_LIBERAR: readonly string[] = ['off-grid', 'inventario', 'precif
  * nem travado, então o Inventário e o Kit Fecha Vendas voltam para a lista principal, nas posições
  * de sempre, sem cadeado, o Kit Off-Grid e o LimpaPro somem (`soBastidor`) e "Para liberar" some se
  * não sobrar item.
+ *
+ * QUEM É ADMIN: `isAdmin` chega pronto, e cada tela decide de onde ele vem. A /inicio soma as duas
+ * fontes, o `is_admin` do /auth/me e o do /produtos/acessos (se uma das duas chamadas falhar, a outra
+ * ainda livra o admin do cadeado). O menu lateral usa só o /auth/me (o `user` que o layout passa à
+ * Sidebar): o `useAcessos` dele fornece `tem`, `bastidor` e `carregando`, nunca o admin.
  */
 export function organizarMenu({ bastidor, carregando, isAdmin, tem }: EntradaMenu): MenuOrganizado {
   const travado = (item: ItemMenu) => !!item.produto && bastidor && !carregando && !isAdmin && !tem(item.produto);

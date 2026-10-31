@@ -11,6 +11,8 @@
   --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra dos blocos */
   --ini-titulo: #9d420c;                    /* título dos grupos (>= 4,5:1) */
   --ini-anel: #9d420c;                      /* anel de foco (>= 3:1) */
+  --ini-borda: none;                        /* contorno do bloco: só a marca quase branca ganha (ver paletaDaMarca) */
+  --ini-borda-w: 0px;                       /* espessura dele, descontada do padding do bloco */
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -105,13 +107,17 @@
    vence a margem de 6 px da grade que vem depois e dá o mesmo vão das linhas da grade. */
 .ini-destaques { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
 
-/* Grade de atalhos: blocos cheios na cor da marca com o nome, em colunas iguais. Com "minmax(0, 1fr)" a coluna
-   nunca cresce para caber a palavra mais longa: a grade ocupa sempre a largura do corpo e todas as grades
-   (a principal, Papelada, Mais documentos, Para liberar) ficam com as mesmas colunas, alinhadas de uma para a
-   outra. Com "1fr" a coluna crescia até caber Precificação ou Manutenção, cada grade de um jeito, e a soma
-   passava da tela. São três colunas de 341 px em diante: o bloco mede (largura da tela menos 56) / 3 px, e a
-   palavra mais longa, Manutenção (92,5 px na Nunito Sans 800 a 16 px), cabe dentro do bloco de 334 px em diante
-   e dentro do texto do bloco, sem invadir o padding de 8 px, de 382 px em diante, onde a grade é a de sempre. */
+/* Grade de atalhos: três colunas iguais em qualquer largura, blocos cheios na cor da marca com o nome. Com
+   "minmax(0, 1fr)" a coluna nunca cresce para caber a palavra mais longa: a grade ocupa sempre a largura do corpo
+   e todas as grades (a principal, Papelada, Mais documentos, Para liberar) ficam com as mesmas colunas,
+   alinhadas de uma para a outra. Com "1fr" a coluna crescia até caber Precificação ou Manutenção, cada grade de
+   um jeito, e a soma passava da tela (a 320 px, a coluna da direita saía cortada em uns 10 px).
+   O bloco mede (largura da tela menos 56) / 3 px. A palavra mais longa, Manutenção (92,5 px na Nunito Sans 800
+   a 16 px), cabe dentro do bloco de 334 px de tela em diante e dentro do texto do bloco, sem invadir o padding
+   de 8 px, de 382 px em diante, onde a grade é a de sempre. Abaixo de 334 px ela passa da borda do bloco: a
+   320 px, onde o bloco mede 88 px, Manutenção passa 2,3 px e Precificação (90,4 px) passa 1,2 px de cada lado,
+   para o vão ou a margem da tela. Fica assim de propósito: sem rolagem lateral, sem quebrar a palavra no meio
+   e sem diminuir a fonte, para o layout ser o de hoje. */
 .ini-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -119,22 +125,20 @@
   margin-top: 6px;
 }
 .ini-grid[hidden] { display: none; }
-/* Celular de 320 px (até 340 px, o mesmo corte do .ini-logo acima): com três colunas o bloco mede 88 px e a
-   palavra mais longa passaria da borda dele. Aqui são duas colunas; a fonte, o padding, o vão e a altura do
-   bloco não mudam e a palavra continua inteira, numa linha só. */
-@media (max-width: 340px) {
-  .ini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 /* O bloco é o de sempre: cheio, na cor principal, com texto e ícone na cor de contraste. */
 .ini-tile {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;
   min-height: 108px;               /* cresce conforme o texto (labels de 2+ palavras usam mais linhas) */
-  padding: 12px 8px;
+  /* 12 px em cima e embaixo, 8 px dos lados, menos a espessura do contorno (0 sem ele): o bloco da marca quase
+     branca fica do mesmo tamanho por dentro e o texto quebra onde sempre quebrou. */
+  padding: calc(12px - var(--ini-borda-w, 0px)) calc(8px - var(--ini-borda-w, 0px));
   border-radius: 20px;
   text-decoration: none;
   background: var(--ini-cor);
-  border: none;
+  /* Sem borda, como sempre. Só a marca quase branca (menos de 1,5:1 sobre o branco) ganha 1 px de contorno,
+     para o bloco não sumir no fundo branco: a variável vem de variaveis() em page.tsx. */
+  border: var(--ini-borda, none);
   box-shadow: 0 4px 14px var(--ini-sombra);
   transition: transform 0.12s ease, background 0.12s ease;
   -webkit-tap-highlight-color: transparent;
@@ -142,8 +146,9 @@
 .ini-tile:active { transform: scale(0.95); background: var(--ini-pressionada); }
 /* Ícone pequeno acima do nome, na cor de contraste */
 .ini-tileIcon { display: flex; align-items: center; justify-content: center; color: var(--ini-sobre); }
-/* Fonte maior; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Uma palavra sozinha nunca é
-   quebrada, cortada nem encolhida: a grade (ver .ini-grid) dá ao bloco largura para a mais longa inteira. */
+/* Fonte de 16 px em qualquer largura; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Uma palavra
+   sozinha nunca é quebrada no meio nem encolhida. Se ela for mais larga que o bloco (Precificação e Manutenção em
+   320 px, ver .ini-grid), passa da borda dele em 1 a 2 px, para o vão ou a margem da tela. */
 .ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: var(--ini-sobre); }
 /* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
 .ini-semQuebra { white-space: nowrap; }
