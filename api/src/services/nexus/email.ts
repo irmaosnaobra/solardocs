@@ -153,10 +153,12 @@ export const urlDescadastro = (userId: string): string =>
   `${apiUrl()}/unsubscribe?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
 
 /** Títulos, tratamentos e profissões que abrem um nome ("Eng Flavio Peetz", "Dra. Maria", "Dona Maria", "Seu José", "Arq. Ana",
- *  "Téc. João", "Pe. João", "Me. Ana"). Nenhum deles é primeiro nome comum no Brasil. Nome que abre com um deles não é saudado, nem
- *  pelo token seguinte, que pode ser profissão ou empresa ("Eng Civil Flavio", "DR Solar"). Comparados pela chave de `chaveDeLista`
- *  (sem ponto, que o corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e "o"): "Engº" cai em
- *  "engo", "Engª" em "enga", "Profª" em "profa", "Profº" e "Prof°" em "profo", "Téc" em "tec" e "Técnica" em "tecnica". */
+ *  "Téc. João", "Pe. João", "Me. Ana", "Professor Carlos", "Senhora Maria", "Padre João", "Eletricista Paulo"). Nenhum deles é primeiro
+ *  nome comum no Brasil: ficam de fora os que também são nome ou apelido (Teca, Teco, Irma, Bel, Cel, Dom, Pastor). Nome que abre com
+ *  um deles não é saudado, nem pelo token seguinte, que pode ser profissão ou empresa ("Eng Civil Flavio", "DR Solar"). Comparados pela
+ *  chave de `chaveDeLista` (sem ponto, que o corte em ponto já tira, sem acento, em minúscula, e com "º", "ª" e "°" valendo "o", "a" e
+ *  "o"): "Engº" cai em "engo", "Engª" em "enga", "Profª" em "profa", "Profº" e "Prof°" em "profo", "Téc" em "tec", "Técnica" em
+ *  "tecnica", "Arqª" em "arqa" e "Arqº" e "Arq°" em "arqo". */
 const TITULOS = [
   'eng', 'engo', 'enga', 'engenheiro', 'engenheira',
   'dr', 'dra', 'doutor', 'doutora',
@@ -165,16 +167,21 @@ const TITULOS = [
   'arq', 'arquiteto', 'arquiteta',
   'tec', 'tecnico', 'tecnica',
   'pe', 'me',
+  'professor', 'professora', 'senhor', 'senhora', 'senhorita', 'padre', 'arqa', 'arqo', 'eletricista',
 ];
 const TITULOS_DE_NOME = new Set(TITULOS);
 
 /** Palavras de empresa que abrem um nome ("Solar Energia", "Grupo Sol", "ECO Energia", "LTDA"). Chamar o cliente por elas é pior do
  *  que um "Olá." seco. Mesma chave dos títulos (sem acento, em minúscula), mas só o PRIMEIRO token conta, como no título: "Muniz
- *  Freire Solar" segue dando Muniz. */
+ *  Freire Solar" segue dando Muniz. Entram também as de cadastro de teste ou de caixa genérica ("Teste", "Cliente", "Usuário", "Admin",
+ *  "Suporte", "SAC"). Ficam de fora Sol e Luz, que são nome de gente. */
 const PALAVRAS_DE_EMPRESA = [
   'solar', 'energia', 'energy', 'eletro', 'eletrica', 'eletrico', 'engenharia', 'grupo', 'comercial', 'comercio', 'contato',
   'ltda', 'eco', 'power', 'servicos', 'sistemas', 'tecnologia', 'instalacoes', 'construtora', 'empresa', 'atendimento',
   'financeiro', 'vendas', 'projetos', 'distribuidora',
+  'sistema', 'servico', 'projeto', 'instalacao', 'eletricas', 'eletricos', 'solares', 'energias', 'solucoes', 'solucao', 'fotovoltaica',
+  'fotovoltaico', 'integradora', 'integrador', 'instaladora',
+  'teste', 'cliente', 'usuario', 'admin', 'adm', 'suporte', 'sac',
 ];
 const PALAVRAS_DE_EMPRESA_DO_NOME = new Set(PALAVRAS_DE_EMPRESA);
 
@@ -194,6 +201,7 @@ const chaveDeLista = (t: string): string =>
 
 const ehTitulo = (t: string): boolean => TITULOS_DE_NOME.has(chaveDeLista(t));
 const ehPalavraDeEmpresa = (t: string): boolean => PALAVRAS_DE_EMPRESA_DO_NOME.has(chaveDeLista(t));
+const ehTituloOuEmpresa = (t: string): boolean => ehTitulo(t) || ehPalavraDeEmpresa(t);
 
 /** O que sobra no começo de um nome colado ou importado: espaço de qualquer tipo e os invisíveis U+200B a U+200D (largura zero e
  *  ligadores), U+2060 (junção de palavras) e U+FEFF (marca de ordem de bytes). Escritos por código, nunca o caractere em si. O
@@ -201,8 +209,15 @@ const ehPalavraDeEmpresa = (t: string): boolean => PALAVRAS_DE_EMPRESA_DO_NOME.h
 const SOBRA_DO_COMECO = /^[\s\u200B-\u200D\u2060\uFEFF]+/;
 
 /** Até onde o primeiro token é normalizado para NFC. O nome vai até 30 letras e, com cada letra acentuada em duas peças (NFD),
- *  chega a 60. Acima disso nunca é nome, e nem vale o custo de normalizar. */
+ *  chega a 60. Acima disso nunca é nome, e nem vale o custo de normalizar. O limite vale para o texto CRU, antes do NFC: letra com
+ *  dois acentos empilhados (a, circunflexo e agudo) tem três peças e o NFC a junta em uma, então 90 peças podem virar 30 letras que a
+ *  regex do nome aceitaria. É este limite que barra esse token. */
 const TAMANHO_MAX_TOKEN = 60;
+
+/** Onde um token composto se parte para a segunda comparação com as listas de títulos e de palavras de empresa: o hífen e os dois
+ *  apóstrofos que a regex do nome aceita (o reto e o curvo, U+2019). "Solar-Energia", "Eco-Solar" e "Eng-Flavio" caem pelo pedaço de
+ *  antes ("Solar", "Eco", "Eng"). "Ana-Paula", "Jean-Pierre" e "D'Ávila" seguem, porque "Ana", "Jean" e "D" não estão em lista nenhuma. */
+const CORTE_COMPOSTO = /['\u{2019}-]/u;
 
 /**
  * Primeiro nome para a saudação do convite. Vazio quando o texto não parece nome de gente (e-mail, número, símbolo, sigla,
@@ -211,10 +226,11 @@ const TAMANHO_MAX_TOKEN = 60;
  *
  * O primeiro token sai do primeiro corte no espaço, no ponto ou no sublinhado ("ana.paula" vira "Ana"). Antes do corte, o que sobra
  * de invisível no começo (U+200B a U+200D, U+2060 e U+FEFF) é tirado, e depois dele o token vira NFC ("José" com o acento solto
- * dá José). Token com mais de 60 caracteres dá vazio.
+ * dá José). Token com mais de 60 caracteres dá vazio, contados no texto cru, antes do NFC.
  *
- * Título, tratamento ou profissão no começo (Eng, Engenheiro, Dr, Doutor, Sr, Sra, Srta, Dona, Seu, Prof, Mestre, Arq, Arquiteto,
- * Tec, Técnico, Pe, Me, Engº, Engª, Profª, Profº, com ou sem ponto, com "°" no lugar do "º", em qualquer caixa) dá vazio e NÃO é
+ * Título, tratamento ou profissão no começo (Eng, Engenheiro, Dr, Doutor, Sr, Sra, Srta, Senhor, Senhora, Senhorita, Dona, Seu, Prof,
+ * Professor, Professora, Mestre, Arq, Arquiteto, Eletricista, Padre, Tec, Técnico, Pe, Me, Engº, Engª, Profª, Profº, Arqª, Arqº, com
+ * ou sem ponto, com "°" no lugar do "º", em qualquer caixa) dá vazio e NÃO é
  * pulado: o token seguinte pode ser profissão ou empresa ("Eng Civil Flavio", "Eng. Eletricista Flavio", "DR Solar", "SR Energia
  * Solar"), e chamar o cliente por isso é pior do que um "Olá." seco. Vale para "Eng Flavio Peetz" e para "Prof.ª Ana" (o ponto
  * separa o ordinal, mas o primeiro token já é o título). Palavra de empresa como PRIMEIRO token (Solar, Energia, Grupo, Comercial,
@@ -222,12 +238,17 @@ const TAMANHO_MAX_TOKEN = 60;
  * com ou sem acento) é sigla, não nome: "MF", "Vs", "VSP" e "CM" dão vazio, e a sigla não passa a vez para o token seguinte. Nome
  * todo em minúscula ou todo em maiúscula (o do login do Gerador é o começo do e-mail: "thiago") ganha a inicial maiúscula e o resto
  * minúsculo; nome já misturado ("McDonald") fica como veio.
+ *
+ * Hífen e apóstrofo (o reto e o curvo): as duas listas também são comparadas com o pedaço do token antes do primeiro deles, então
+ * "Solar-Energia", "Eco-Solar Ltda" e "Eng-Flavio" dão vazio. Nome composto de verdade segue inteiro: "Ana-Paula" dá Ana-Paula,
+ * "Jean-Pierre" dá Jean-Pierre e "D'Ávila" dá D'Ávila, porque "Ana", "Jean" e "D" não estão em lista nenhuma.
  */
 export function primeiroNome(nome: unknown): string {
   const corte = String(nome ?? '').replace(SOBRA_DO_COMECO, '').split(/[\s._]+/, 1)[0] ?? '';
   if (corte.length > TAMANHO_MAX_TOKEN) return '';
   const p = corte.normalize('NFC');
-  if (ehTitulo(p) || ehPalavraDeEmpresa(p)) return '';
+  const antesDoComposto = p.split(CORTE_COMPOSTO, 1)[0] ?? '';
+  if (ehTituloOuEmpresa(p) || (antesDoComposto !== p && ehTituloOuEmpresa(antesDoComposto))) return '';
   if (!/^[\p{L}][\p{L}'’-]{1,29}$/u.test(p)) return '';
   if (!/[aeiouy]/i.test(tiraAcento(p, 'NFD'))) return '';
   const resto = p === p.toLowerCase() || p === p.toUpperCase() ? p.slice(1).toLowerCase() : p.slice(1);

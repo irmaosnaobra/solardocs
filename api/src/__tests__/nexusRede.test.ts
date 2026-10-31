@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import { banco } from './_bancoFalso';
-import { U1, U2, U3, app, bearer, equipeAuth, propostaOk, receita, semearParceiro } from './_nexusAjuda';
+import { U1, U2, U3, app, bearer, empresaDaConta, equipeAuth, propostaOk, receita, semearParceiro } from './_nexusAjuda';
 
 // A rede do Portal do Parceiro NEXUS (v2): oportunidades (só Pro, contato só depois do aceite, expira sozinha, cada
 // resposta avisa a equipe), usinas, e as rotas da EQUIPE (consultor): parceiros com Partner e Montagem aprovada,
@@ -85,6 +85,30 @@ describe('oportunidades do parceiro', () => {
     expect(r.status).toBe(403);
     expect(r.body).toEqual({ erro: 'etapa_bloqueada' });
     expect((await request(app()).post(`/gerador/nexus/oportunidades/${OP}/aceitar`).set(bearer(U1)).send({})).status).toBe(403);
+  });
+
+  it('conta autenticada sem linha em nexus_parceiros: 409 sem_parceiro e a leitura não grava nada (é o que a sonda do banner lê)', async () => {
+    // O banner da NEXUS decide se a conta é parceira por esta rota. A conta que existe e tem empresa no SolarDoc, mas nunca entrou no
+    // portal, tem de ouvir 409 sem_parceiro, e a leitura não pode criar a linha do parceiro nem gravar em tabela nenhuma: se gravasse,
+    // a própria sonda do banner faria de toda conta uma parceira.
+    empresaDaConta(U1);
+    semearOportunidade({ prazo_aceite: passado() }); // oferta vencida no nome da conta: ler a lista antes de olhar o parceiro gravaria a expiração
+    semearParceiro(U2, PRO); // outra conta é parceira Pro: a busca é pela conta de quem pergunta
+    expect(banco.linhas('nexus_parceiros').map((p) => p.user_id)).toEqual([U2]); // ponto de partida: o U1 não tem linha
+    const fotoDoBanco = () => JSON.stringify(
+      Object.entries(banco.tabelas).filter(([, linhas]) => linhas.length > 0).sort(([a], [b]) => (a < b ? -1 : 1)),
+    );
+    const antes = fotoDoBanco();
+
+    for (const vez of [1, 2]) { // a sonda repete a cada abertura: a segunda resposta é igual à primeira e também não grava
+      const r = await request(app()).get('/gerador/nexus/oportunidades').set(bearer(U1));
+      expect(r.status, `chamada ${vez}`).toBe(409);
+      expect(r.body, `chamada ${vez}`).toEqual({ erro: 'sem_parceiro' });
+    }
+    expect(banco.escritas).toEqual([]); // nenhum insert, update, upsert nem delete, em tabela nenhuma
+    expect(banco.rpcChamadas).toEqual([]); // nem função do banco, que também escreve
+    expect(fotoDoBanco()).toBe(antes); // company, nexus_parceiros e nexus_oportunidades exatamente como estavam
+    expect(banco.linhas('nexus_parceiros').map((p) => p.user_id)).toEqual([U2]); // a linha do U1 não nasceu
   });
 
   it('lista só as oferecidas a ele, sem rascunho, e o contato só aparece depois do aceite', async () => {
