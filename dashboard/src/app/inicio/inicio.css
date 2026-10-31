@@ -105,21 +105,25 @@
    vence a margem de 6 px da grade que vem depois e dá o mesmo vão das linhas da grade. */
 .ini-destaques { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
 
-/* Grade de atalhos: 3 colunas, blocos cheios na cor da marca com o nome */
+/* Grade de atalhos: blocos cheios na cor da marca com o nome, em colunas iguais. Com "minmax(0, 1fr)" a coluna
+   nunca cresce para caber a palavra mais longa: a grade ocupa sempre a largura do corpo e todas as grades
+   (a principal, Papelada, Mais documentos, Para liberar) ficam com as mesmas colunas, alinhadas de uma para a
+   outra. Com "1fr" a coluna crescia até caber Precificação ou Manutenção, cada grade de um jeito, e a soma
+   passava da tela. São três colunas de 341 px em diante: o bloco mede (largura da tela menos 56) / 3 px, e a
+   palavra mais longa, Manutenção (92,5 px na Nunito Sans 800 a 16 px), cabe dentro do bloco de 334 px em diante
+   e dentro do texto do bloco, sem invadir o padding de 8 px, de 382 px em diante, onde a grade é a de sempre. */
 .ini-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 6px;
 }
 .ini-grid[hidden] { display: none; }
-/* Celular estreito (até 350 px, o de 320 px à frente): com "1fr" cada coluna cresce até caber a palavra mais
-   longa dela (Precificação, Manutenção) e a soma passa da tela; a coluna da direita saía cortada (27 px na
-   loja fechada). Aqui as três colunas ficam iguais e a grade cabe. A fonte, o padding e o vão não mudam e a
-   palavra não quebra: as duas mais longas invadem o padding de 8 px e passam da borda do bloco por 1 a 2 px,
-   mas nada é cortado. Acima de 350 px a grade é a de sempre. */
-@media (max-width: 350px) {
-  .ini-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Celular de 320 px (até 340 px, o mesmo corte do .ini-logo acima): com três colunas o bloco mede 88 px e a
+   palavra mais longa passaria da borda dele. Aqui são duas colunas; a fonte, o padding, o vão e a altura do
+   bloco não mudam e a palavra continua inteira, numa linha só. */
+@media (max-width: 340px) {
+  .ini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* O bloco é o de sempre: cheio, na cor principal, com texto e ícone na cor de contraste. */
 .ini-tile {
@@ -138,9 +142,8 @@
 .ini-tile:active { transform: scale(0.95); background: var(--ini-pressionada); }
 /* Ícone pequeno acima do nome, na cor de contraste */
 .ini-tileIcon { display: flex; align-items: center; justify-content: center; color: var(--ini-sobre); }
-/* Fonte maior; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Uma palavra sozinha nunca
-   é quebrada nem cortada: acima de 350 px a coluna da grade cresce até caber a mais longa (Precificação,
-   Manutenção); até 350 px as colunas são iguais e a palavra longa invade o padding (ver .ini-grid). */
+/* Fonte maior; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Uma palavra sozinha nunca é
+   quebrada, cortada nem encolhida: a grade (ver .ini-grid) dá ao bloco largura para a mais longa inteira. */
 .ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: var(--ini-sobre); }
 /* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
 .ini-semQuebra { white-space: nowrap; }
