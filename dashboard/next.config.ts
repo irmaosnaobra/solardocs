@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
       // utm_*). Sem o parâmetro, ou com outro valor, a raiz fica como está.
       // permanent: false = 307; o 308 ficaria em cache no navegador.
       { source: '/', has: [{ type: 'query', key: 'sd_dest', value: 'quiz' }], destination: '/diagnostico', permanent: false },
+      // O caminho de volta: anúncio feito para o quiz rodando no conjunto da LP
+      // leva `&sd_dest=lp`, e o /diagnostico manda essa visita para a raiz.
+      { source: '/diagnostico', has: [{ type: 'query', key: 'sd_dest', value: 'lp' }], destination: '/', permanent: false },
     ];
   },
   async headers() {
