@@ -1,12 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { tokenMcpConfere } from '../utils/mcpToken';
 
 const router = Router();
 const BASE    = process.env.API_URL || 'https://api.solardoc.app';
-// SEM fallback hardcoded: se MCP_TOKEN não estiver no env, o token fica vazio e
-// NENHUMA requisição autentica (endpoint fica fechado por padrão, fail-closed).
-const TOKEN   = (process.env.MCP_TOKEN || '').trim();
-const codes   = new Map<string, number>();
+// O token vem SÓ de env, lido por utils/mcpToken.ts (sem fallback hardcoded; fail-closed).
 
 // ─── OAuth 2.0 Discovery ──────────────────────────────────────────
 router.get('/.well-known/oauth-authorization-server', (_req: Request, res: Response) => {
@@ -20,20 +18,16 @@ router.get('/.well-known/oauth-authorization-server', (_req: Request, res: Respo
   });
 });
 
-router.get('/oauth/authorize', (req: Request, res: Response) => {
-  const { redirect_uri, state } = req.query as Record<string, string>;
-  const code = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  codes.set(code, Date.now() + 300000);
-  const params = new URLSearchParams({ code, state: state || '' });
-  res.redirect(`${redirect_uri}?${params}`);
+// FECHADO em 03/11/2026: dava o MCP_TOKEN a qualquer um (código para qualquer pedido, redirect para qualquer
+// redirect_uri). Para religar, construir senha + PKCE + redirect_uri permitido.
+router.get('/oauth/authorize', (_req: Request, res: Response) => {
+  res.status(403).json({ error: 'oauth_desligado' });
 });
 
-router.post('/oauth/token', (req: Request, res: Response) => {
-  const { code } = req.body as Record<string, string>;
-  const exp = codes.get(code);
-  if (!exp || Date.now() > exp) { res.status(400).json({ error: 'invalid_grant' }); return; }
-  codes.delete(code);
-  res.json({ access_token: TOKEN, token_type: 'Bearer', expires_in: 31536000 });
+// FECHADO em 03/11/2026 (par do /oauth/authorize): nenhum código existe mais e o MCP_TOKEN nunca sai por aqui.
+// Para religar, construir senha + PKCE + redirect_uri permitido.
+router.post('/oauth/token', (_req: Request, res: Response) => {
+  res.status(400).json({ error: 'invalid_grant' });
 });
 
 const ZAPI_INSTANCE = process.env.ZAPI_INSTANCE_ID;
@@ -170,9 +164,9 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   const auth = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
   // Fail-closed: exige token presente E correto. Sem header (auth vazio) ou
-  // sem MCP_TOKEN configurado (TOKEN vazio) → 401. Antes, header ausente pulava
+  // sem MCP_TOKEN configurado (nem MCP_TOKEN_ANTERIOR, que só vale durante a troca) → 401. Antes, header ausente pulava
   // a checagem e abria o dump de usuários + envio de WhatsApp pra qualquer um.
-  if (!TOKEN || auth !== TOKEN) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (!tokenMcpConfere(auth)) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const { jsonrpc, id, method, params } = req.body as any;
 
   res.setHeader('Content-Type', 'application/json');
