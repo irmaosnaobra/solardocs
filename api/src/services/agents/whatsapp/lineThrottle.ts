@@ -225,6 +225,9 @@ const BOT_SENT_PREFIXES = [
   // um carimbo por toque de WhatsApp (claim por insert, gravado ANTES de enviar). Toque que a pessoa não pediu: pesa no orçamento FRIO e no
   // espaçamento, e fica FORA de PREFIXOS_AGENDA de propósito.
   'rec_checkout_sent:',
+  // [03/11] A Carla retomando quem tem conta e não paga (solardoc/retomadaUsuarios.ts): `usu_rec_sent:<hmac>`, um por pessoa para sempre
+  // (claim por insert). Frio desde o 1º dia, fora de PREFIXOS_AGENDA. As marcas `usu_rec_fora:` e as vezes `usu_rec_vez:` NÃO entram.
+  'usu_rec_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -372,6 +375,19 @@ export async function vagasDoFrioLinha(now: Date = new Date()): Promise<{ hora: 
     hora: { teto: tetos.hora, usadas: await contar(60 * 60 * 1000, tetos.hora) },
     dia: { teto: tetoDia, usadas: await contar(24 * 60 * 60 * 1000, tetoDia) },
   };
+}
+
+/**
+ * Carimbos da LINHA INTEIRA (prefixosDaLinha: frio e agenda, nunca ag5040_sent:) na última hora, no máximo `limite`.
+ * É a conta que a confirmação de ficha da agenda usa (io/eletropostoAgenda.ts, o `continue` da ficha atrasada). Diferente do contar() do
+ * teto, erro LANÇA: quem chama trata como "não envia". Só leitura. (03/11/2026, parecer do chefe-antiban: a retomada cede à agenda.)
+ */
+export async function carimbosDaLinhaNaHora(now: Date = new Date(), limite = 5): Promise<number> {
+  const filtro = prefixosDaLinha().map(p => `key.like.${p}%`).join(',');
+  const { data, error } = await supabase.from('system_state').select('key').or(filtro)
+    .gte('updated_at', new Date(now.getTime() - 60 * 60 * 1000).toISOString()).limit(limite);
+  if (error) throw new Error('carimbos_da_linha_na_hora');
+  return data?.length ?? 0;
 }
 
 // ─── VAGA GUARDADA DA BASE (B4c, parecer do chefe de 21/10/2026) ─────────────

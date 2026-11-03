@@ -53,6 +53,33 @@ export const VALORES_PERMITIDOS_CARLA: readonly number[] = [
 export const PROMESSA_PLANILHA_ELETROPOSTO =
   'Logo teremos a planilha de eletroposto, e quem fechar hoje terá acesso a ela.';
 
+/**
+ * O que NÃO vem no plano mensal: fica em "Para liberar" e é vendido à parte. Os rótulos do app. A retomada dos usuários (03/11/2026) cita
+ * esta lista; ela NÃO entra em textoConhecimentoSolarDoc() porque o teste proíbe o LimpaPro ali.
+ */
+export const PARA_LIBERAR: readonly string[] = ['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro'];
+
+/**
+ * As novidades que a Carla pode afirmar a quem voltou (texto do redator, 31/10/2026). Entram SÓ as que o orquestrador confirmou NO AR
+ * (página ao vivo, depois de um deploy READY) e marcou. Vazia = os fatos da retomada saem sem o bloco de novidades e a Carla fala só do
+ * que já está no conhecimento. Cada linha começa com maiúscula, sem preço, sem "menu", sem Pix e sem NEXUS (o Pix vai pelo modo).
+ */
+export const NOVIDADES_SOLARDOC: readonly string[] = [];
+
+/**
+ * O conhecimento EXTRA da retomada, impresso só nos fatos de quem recebeu a mensagem de retomada. As regras de preço, de IA, de urgência e
+ * da Giovanna não se repetem aqui: já estão no SISTEMA_FIXO_CARLA e na trava ("plataforma inteira por esse preço" reprova).
+ */
+export function textoRetomadaSolarDoc(): string[] {
+  const l: string[] = [];
+  if (NOVIDADES_SOLARDOC.length) {
+    l.push('NOVIDADES DA PLATAFORMA (só estas, uma por vez, sem inventar outra):');
+    for (const n of NOVIDADES_SOLARDOC) l.push(`- ${n}`);
+  }
+  l.push(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para liberar, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
+  return l;
+}
+
 export function textoConhecimentoSolarDoc(): string {
   const avulsos = AVULSOS.map(a => `${a.nome}: R$ ${a.preco}`).join('; ');
   return [

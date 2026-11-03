@@ -46,6 +46,9 @@ vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
   handleIncomingWhatsApp: vi.fn(),
   processMessageQueue:    vi.fn().mockResolvedValue({ processed: 0 }),
 }));
+// A retomada dos usuários pela Carla (03/11/2026): o tick vira um espião, para o teste provar que o /process-messages o chama e devolve o resultado.
+const retomada = vi.hoisted(() => ({ tick: vi.fn() }));
+vi.mock('../services/solardoc/retomadaUsuarios', () => ({ runRetomadaUsuariosTick: async (...a: unknown[]) => retomada.tick(...a) }));
 vi.mock('../services/agents/whatsapp/whatsappFollowupService', () => ({
   runWhatsappFollowup:    vi.fn().mockResolvedValue({ sent: 0, abandoned: 0 }),
   runInactiveEngagement:  vi.fn().mockResolvedValue({ sent: 0 }),
@@ -111,4 +114,55 @@ describe('GET /cron/process-messages', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
   });
+
+  it('chama a retomada dos usuários e devolve o resultado dela; as duas cadências velhas da Giovanna não rodam mais aqui', async () => {
+    retomada.tick.mockReset().mockResolvedValue({ ok: true, ligada: true, motivo: 'sem_texto', enviou: false });
+    const res = await request(app)
+      .get('/cron/process-messages')
+      .set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(res.status).toBe(200);
+    expect(retomada.tick).toHaveBeenCalledTimes(1);
+    expect(res.body.carla_retomada_usuarios).toEqual({ ok: true, ligada: true, motivo: 'sem_texto', enviou: false });
+    expect(res.body).not.toHaveProperty('carla_sem_cnpj');
+    expect(res.body).not.toHaveProperty('carla_inativo');
+  });
+
+  it('tick que estoura não derruba a rota: o erro vai no campo da retomada e o resto segue', async () => {
+    retomada.tick.mockReset().mockRejectedValue(new Error('banco caiu'));
+    const res = await request(app)
+      .get('/cron/process-messages')
+      .set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(String(res.body.carla_retomada_usuarios.error)).toContain('banco caiu');
+  });
+});
+
+// ─── as seis rotas cruas que mandavam WhatsApp saíram (03/11/2026) ────
+describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
+  const ROTAS = [
+    '/cron/followup-whatsapp', '/cron/inactive-engagement', '/cron/giovanna-test-followup', '/cron/carla-pergunta-cnpj',
+    '/cron/carla-sem-cnpj', '/cron/carla-inativo',
+  ];
+
+  it.each(ROTAS)('%s responde 410 com o segredo e diz por quê', async (rota) => {
+    const res = await request(app).get(rota).set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(res.status).toBe(410);
+    expect(res.body).toMatchObject({ ok: false, error: 'rota_desligada' });
+    expect(String(res.body.motivo).length).toBeGreaterThan(10);
+  });
+
+  it.each(ROTAS)('%s responde 401 sem o segredo (o segredo vem antes do 410)', async (rota) => {
+    expect((await request(app).get(rota)).status).toBe(401);
+    expect((await request(app).get(rota).set('Authorization', 'Bearer token-errado')).status).toBe(401);
+  });
+
+  it('o /master não executa mais as cadências carla-sem-cnpj e carla-inativo', async () => {
+    const res = await request(app).get('/cron/master').set('Authorization', `Bearer ${CRON_SECRET}`);
+    expect(res.status).toBe(200);
+    const nomes = (res.body.results as Array<{ task?: string; name?: string }>).map(r => r.task ?? r.name);
+    expect(nomes).not.toContain('carla-sem-cnpj');
+    expect(nomes).not.toContain('carla-inativo');
+    expect(nomes).toContain('curso-entrada-19');
+  }, 20_000);
 });

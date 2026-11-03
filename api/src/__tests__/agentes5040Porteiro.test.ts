@@ -99,6 +99,13 @@ describe('porteiro: os sete passos, nesta ordem', () => {
     expect(d).toMatchObject({ dona: 'helena', passo: 2 });
   });
 
+  it('passo 2 vale antes do 3: cliente COM conta e a Carla já é a dona (posse da retomada dos usuários) continua com a Carla', () => {
+    const d = decidirDona(f({ donaAtual: 'carla', ehClienteSolarDoc: true, origemCadastro: 'solardoc' }));
+    expect(d).toMatchObject({ dona: 'carla', passo: 2 });
+    // Sem a dona atual, o mesmo cliente vai para o suporte (passo 3): a retomada só vale com a posse.
+    expect(decidirDona(f({ donaAtual: null, ehClienteSolarDoc: true, origemCadastro: 'solardoc' }))).toMatchObject({ dona: 'giovanna_suporte', passo: 3 });
+  });
+
   it('passo 3: cliente do SolarDoc vai para o suporte, fora das três', () => {
     const d = decidirDona(f({ ehClienteSolarDoc: true, anuncio: { adId: '1', produto: 'solar' } }));
     expect(d).toMatchObject({ dona: 'giovanna_suporte', passo: 3 });

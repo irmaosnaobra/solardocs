@@ -415,6 +415,45 @@ describe('assumirNaEntrada: a Carla (B3b, SolarDoc)', () => {
   });
 });
 
+describe('assumirNaEntrada: a posse da retomada dos usuários (03/11/2026, D25: a porta NÃO muda)', () => {
+  const retomada = (ate: string | null) => semear('whatsapp_sessions', {
+    phone: CHAVE_X, tipo: 'ag5040',
+    lead_data: {
+      dona: 'carla', estado: 'viva', desde: '2026-11-04T12:00:00.000Z', ate_wa_id: null, respostas: 0, imagens: [], links: [],
+      origem: 'retomada_usuarios', ...(ate ? { retomada: { user_id: 'u1', ate } } : {}),
+    },
+  });
+  const futuro = () => new Date(Date.now() + 20 * 86_400_000).toISOString();
+
+  it('cliente COM conta e posse viva da retomada: a porta cede (true) pelo cedeAAgente, sem consultar o porteiro nem a conversa e sem gravar', async () => {
+    env({ CARLA: '1' }); alvo();
+    fatos({ ehClienteSolarDoc: true, origemCadastro: 'solardoc' });
+    retomada(futuro());
+    expect(await cedeAAgente(X)).toBe(true);
+    h.estado.chamadas = [];
+    expect(await assumirNaEntrada(X, { texto: 'oi, vi a mensagem de vocês' })).toBe(true);
+    expect(h.fns.lerConversa).not.toHaveBeenCalled();
+    expect(h.fns.lerFatosPorteiro).not.toHaveBeenCalled();
+    expect(inserts()).toBe(0);
+  });
+
+  it('posse da retomada VENCIDA: vale como se não existisse. A porta não cede, e o cliente com conta segue para a Giovanna (o porteiro manda ao passo 3)', async () => {
+    env({ CARLA: '1' }); alvo();
+    fatos({ ehClienteSolarDoc: true, origemCadastro: 'solardoc' });
+    retomada(new Date(Date.now() - 1000).toISOString());
+    expect(await cedeAAgente(X)).toBe(false);
+    expect(await assumirNaEntrada(X, { texto: 'oi' })).toBe(false);
+    expect(inserts()).toBe(0);
+  });
+
+  it('o `!fatos.ehClienteSolarDoc` da porta segue valendo só para posse NOVA: sem posse, cliente com conta nunca vira da Carla', async () => {
+    env({ CARLA: '1' }); alvo();
+    fatos({ ehClienteSolarDoc: true, origemCadastro: 'solardoc' });
+    expect(await assumirNaEntrada(X, { texto: 'oi', anuncio: AD })).toBe(false);
+    expect(posses()).toHaveLength(0);
+  });
+});
+
 describe('assumirNaEntrada: quem a porta NÃO assume nesta fase', () => {
   it('(f) só helena_vivo ligado e o porteiro decide a Duda: a Duda não atende este lead, false e nada gravado', async () => {
     env({ HELENA: '1' }); alvo(); fatos({ origemCadastro: 'lp_solar' });

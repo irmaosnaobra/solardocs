@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { CARLA, EXEMPLOS_CARLA, LINKS_CARLA } from '../services/agentes5040/personas/carla';
+import { CARLA, EXEMPLOS_CARLA, LINKS_CARLA, SISTEMA_FIXO_CARLA, fatosDaRetomada } from '../services/agentes5040/personas/carla';
+import { NOVIDADES_SOLARDOC, PARA_LIBERAR, PLANO_MENSAL, VALORES_PERMITIDOS_CARLA, textoRetomadaSolarDoc } from '../services/agentes5040/conhecimento/solardoc';
 import { ACOES_DUDA_SEM_FALA, DUDA, EXEMPLOS_DUDA } from '../services/agentes5040/personas/duda';
 import { HELENA, EXEMPLOS_HELENA } from '../services/agentes5040/personas/helena';
 import { ACOES_SEM_FALA, observacaoSemDiagnostico, semTelefone, type ExemploPersona } from '../services/agentes5040/personas/comum';
 import { validarFala } from '../services/agentes5040/trava';
-import { lerSaida, schemaSaidaAgente, type ContextoLead, type MsgConversa, type PersonaDef } from '../services/agentes5040/tipos';
+import { lerSaida, schemaSaidaAgente, type ContaRetomada, type ContextoLead, type MsgConversa, type PersonaDef } from '../services/agentes5040/tipos';
 import { msg } from './_agentes5040Util';
 
 const PASTA = join(__dirname, '..', 'services', 'agentes5040', 'personas');
@@ -249,5 +250,145 @@ describe('card do quiz solar: o que a Duda lê', () => {
       expect(nota.length).toBe(500 + 3);
       expect(nota.endsWith('...')).toBe(true);
     }
+  });
+});
+
+// ── a retomada dos usuários (03/11/2026): os fatos de quem tem conta e recebeu a mensagem da campanha ──
+
+const conta = (over: Partial<ContaRetomada> = {}): ContaRetomada => ({
+  user_id: 'u1', plano: 'free', segmento: 'gratis', grupo: 'nunca_pagou', criada_em: '2026-06-10T12:00:00.000Z', saiu_em: null, forma_antiga: null,
+  ultimo_documento_em: '2026-10-20T15:00:00.000Z', tem_cnpj: true, primeiro_nome: 'Ana', texto_enviado: 'Oi, Ana. Aqui é a Carla, da SolarDoc. Quer ver o que tem de novo?',
+  enviado_em: '2026-11-04T12:30:00.000Z', ...over,
+});
+const fatosRet = (c: ContaRetomada, modo: 'link' | 'codigo' | 'indisponivel' = 'codigo'): string => fatosDaRetomada(c, '2026-11-05T17:00:00.000Z', modo).join('\n');
+const pagou = (over: Partial<ContaRetomada> = {}) => conta({ segmento: 'ex_assinante', grupo: 'pagou', saiu_em: '2026-09-02T12:00:00.000Z', forma_antiga: 'cartao', ...over });
+const incerto = (over: Partial<ContaRetomada> = {}) => conta({ segmento: 'ex_assinante', grupo: 'incerto', saiu_em: '2026-08-01T12:00:00.000Z', forma_antiga: 'pix', ...over });
+
+describe('Carla na retomada: fatosDaRetomada', () => {
+  it('imprime a mensagem enviada, a situação da conta, o último documento, o CNPJ, o pagamento e o bloco do Para liberar', () => {
+    const f = fatosRet(conta());
+    expect(f).toContain('Esta pessoa já tem conta no SolarDoc e a conversa começou pela nossa mensagem de retomada (04/11/2026): "Oi, Ana. Aqui é a Carla, da SolarDoc. Quer ver o que tem de novo?".');
+    expect(f).toContain('Situação da conta: grátis desde 10/06/2026, nunca assinou. Plano ativo agora: não.');
+    expect(f).toContain('Último documento gerado: 20/10/2026.');
+    expect(f).toContain('Empresa com CNPJ cadastrado: sim.');
+    expect(f).toContain('Nunca diga que liberou: o acesso volta sozinho na conta dele depois que o pagamento é conferido.');
+    expect(f).toContain('Pagamento: nunca a peça assinatura. Cartão: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade.');
+    expect(f).toContain('Sem prazo, sem urgência, sem desconto e sem a promessa da planilha nesta conversa. Reembolso, cobrança, reclamação ou acesso: suporte_giovanna.');
+    expect(f).toContain(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para liberar, vendidos à parte: ${PARA_LIBERAR.join(', ')}. Assinar não libera nenhum deles.`);
+    for (const nome of ['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro']) expect(f).toContain(nome);
+  });
+
+  it('sem documento: "nenhum"; sem CNPJ: "não"; datas em DD/MM/AAAA de Brasília (a virada do dia vale a de lá)', () => {
+    const f = fatosRet(conta({ ultimo_documento_em: null, tem_cnpj: false, criada_em: '2026-06-10T01:00:00.000Z' }));
+    expect(f).toContain('Último documento gerado: nenhum.');
+    expect(f).toContain('Empresa com CNPJ cadastrado: não.');
+    expect(f).toContain('grátis desde 09/06/2026');
+  });
+
+  it('não leva telefone nem e-mail, mesmo que o texto enviado traga um número', () => {
+    const f = fatosRet(conta({ texto_enviado: 'Oi, Ana. Chama no 34 99876-5432 ou no ana@exemplo.com?' }));
+    expect(f.replace(/\D/g, '')).not.toContain('998765432');
+    expect(f).toContain('[número omitido]');
+  });
+
+  it('NÃO escreve "Conta no SolarDoc: sim" (essa frase libera "liberou" na regra do prompt)', () => {
+    for (const c of [conta(), pagou(), incerto()]) {
+      const f = fatosRet(c);
+      expect(f).not.toMatch(/Conta no SolarDoc/);
+      expect(f).not.toMatch(/\bsim\b.*liberou/);
+    }
+  });
+
+  it('pelo grupo (D29): "já foi assinante" só sai com `pagou`; o `incerto` diz "sem pagamento confirmado" e manda não dizer que assinou; o grátis diz que nunca assinou', () => {
+    expect(fatosRet(pagou())).toContain('Situação da conta: já foi assinante (no cartão) e saiu em 02/09/2026. Plano ativo agora: não.');
+    expect(fatosRet(pagou({ forma_antiga: 'pix' }))).toContain('já foi assinante (no Pix) e saiu em 02/09/2026.');
+    expect(fatosRet(pagou({ forma_antiga: null, saiu_em: null }))).toContain('Situação da conta: já foi assinante. Plano ativo agora: não.');
+    const i = fatosRet(incerto());
+    expect(i).toContain('Situação da conta: já teve plano, que acabou em 01/08/2026, sem pagamento confirmado no nosso registro');
+    expect(i).toContain('Não diga que ele assinou nem que pagou. Plano ativo agora: não.');
+    expect(i).not.toContain('já foi assinante');
+    expect(fatosRet(incerto({ saiu_em: null }))).toContain('já teve plano, sem pagamento confirmado');
+    for (const c of [conta(), conta({ segmento: 'gratis_ativo' }), conta({ segmento: 'gratis_cnpj' })]) {
+      expect(fatosRet(c)).not.toContain('já foi assinante');
+      expect(fatosRet(c)).toContain('nunca assinou');
+    }
+  });
+
+  it('pelo modo do Pix (D31): no código, o Pix por código, e a frase de renovar só com `pagou`; no link e no indisponível, "não ofereça" e nenhum pix_kiwify; o cartão sai por entrar_no_app nos três', () => {
+    const codigoGratis = fatosRet(conta(), 'codigo');
+    expect(codigoGratis).toContain('Pix: peça pix_kiwify; depois de pagar, basta a foto do comprovante aqui.');
+    expect(codigoGratis).not.toContain('Ele já pagou antes');
+    expect(fatosRet(pagou(), 'codigo')).toContain('Ele já pagou antes e pode renovar pelo Pix.');
+    expect(fatosRet(incerto(), 'codigo')).not.toContain('Ele já pagou antes');
+
+    const link = fatosRet(pagou(), 'link');
+    expect(link).toContain('Pix: não ofereça nesta conversa, porque o link do Pix não fica preso à conta dele.');
+    expect(link).not.toContain('pix_kiwify');
+    expect(link).not.toContain('Ele já pagou antes');
+    const indisponivel = fatosRet(pagou(), 'indisponivel');
+    expect(indisponivel).toContain('Pix: fora do ar agora, não ofereça.');
+    expect(indisponivel).not.toContain('pix_kiwify');
+    for (const modo of ['link', 'codigo', 'indisponivel'] as const) expect(fatosRet(conta(), modo), modo).toContain('Cartão: peça entrar_no_app');
+  });
+
+  it('nenhuma linha dos fatos e nenhuma da seção "QUEM JÁ TEM CONTA" leva a palavra "menu" (a trava barra em toda bolha)', () => {
+    for (const c of [conta(), pagou(), incerto()]) {
+      for (const modo of ['link', 'codigo', 'indisponivel'] as const) expect(fatosRet(c, modo), modo).not.toMatch(/\bmenu\b/i);
+    }
+    const secao = SISTEMA_FIXO_CARLA.slice(SISTEMA_FIXO_CARLA.indexOf('QUEM JÁ TEM CONTA'), SISTEMA_FIXO_CARLA.indexOf('DEPOIMENTOS (cards em imagem'));
+    expect(secao.length).toBeGreaterThan(300);
+    expect(secao).not.toMatch(/\bmenu\b/i);
+  });
+
+  it('sem novidade marcada no ar a Carla não é mandada mostrar novidade: fala só do que sabe; com novidades, o bloco entra e cada linha começa em maiúscula e não leva preço, menu, Pix nem NEXUS', () => {
+    const f = fatosRet(conta());
+    if (NOVIDADES_SOLARDOC.length === 0) {
+      expect(f).toContain('Se perguntar o que mudou, fale só do que está no seu conhecimento e não invente novidade.');
+      expect(f).not.toContain('NOVIDADES DA PLATAFORMA');
+      expect(f).not.toContain('Mostre uma novidade por vez');
+    } else {
+      expect(f).toContain('NOVIDADES DA PLATAFORMA (só estas, uma por vez, sem inventar outra):');
+      expect(f).toContain('Mostre uma novidade por vez');
+    }
+    expect(textoRetomadaSolarDoc().some(l => l.startsWith('Não vêm no plano'))).toBe(true);
+    for (const n of NOVIDADES_SOLARDOC) {
+      expect(n[0], n).toBe(n[0]!.toUpperCase());
+      expect(n).not.toMatch(/\bmenu\b|\bpix\b|nexus|[—–]|plataforma inteira|lista de compras/i);
+      expect(n).not.toMatch(/\p{Extended_Pictographic}/u);
+      expect(n.replace(/R\$\s*(\d+)/g, (_m, v) => (VALORES_PERMITIDOS_CARLA.includes(Number(v)) ? '' : 'FORA')), n).not.toContain('FORA');
+    }
+  });
+
+  it('o fatosCarla sem contaRetomada sai igual ao de hoje: a mesma frase da conta, com ou sem o campo, e o modoPix do ctx é ignorado', () => {
+    const base = contexto({ ehClienteSolarDoc: true });
+    const hoje = CARLA.fatos(base);
+    expect(hoje).toContain('Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).');
+    expect(CARLA.fatos({ ...base, contaRetomada: null })).toBe(hoje);
+    expect(CARLA.fatos({ ...base, contaRetomada: undefined, modoPix: 'link' })).toBe(hoje);
+    const naoCliente = contexto({ ehClienteSolarDoc: false });
+    expect(CARLA.fatos(naoCliente)).toContain('Conta no SolarDoc com este WhatsApp: não (não diga que liberou).');
+  });
+
+  it('com contaRetomada, os fatos da Carla trocam a frase da conta pela situação e levam o modo do Pix do ctx', () => {
+    const f = CARLA.fatos(contexto({ ehClienteSolarDoc: true, contaRetomada: pagou(), modoPix: 'link' }));
+    expect(f).not.toContain('Conta no SolarDoc com este WhatsApp');
+    expect(f).toContain('Situação da conta: já foi assinante (no cartão)');
+    expect(f).toContain('Pix: não ofereça nesta conversa');
+    // sem o modo no ctx a Carla não oferece Pix (o lado seguro)
+    expect(CARLA.fatos(contexto({ ehClienteSolarDoc: true, contaRetomada: pagou() }))).toContain('Pix: fora do ar agora, não ofereça.');
+  });
+
+  it('o SISTEMA_FIXO_CARLA tem a seção da conta, manda não usar a peça assinatura e lista entrar_no_app como peça só para quem já tem conta', () => {
+    expect(SISTEMA_FIXO_CARLA).toContain('QUEM JÁ TEM CONTA (os fatos trazem "Situação da conta")');
+    expect(SISTEMA_FIXO_CARLA).toContain('Nunca use a peça assinatura: ela cria outra conta e outra cobrança.');
+    expect(SISTEMA_FIXO_CARLA).toContain('peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade');
+    expect(SISTEMA_FIXO_CARLA).toContain(`nunca diga que R$ ${PLANO_MENSAL.valor} dá a plataforma inteira: o que fica em Para liberar é vendido à parte.`);
+    expect(SISTEMA_FIXO_CARLA).toContain('- entrar_no_app: https://solardoc.app/auth (só para quem já tem conta; os fatos dizem)');
+    expect(LINKS_CARLA.entrar_no_app).toBe('https://solardoc.app/auth');
+  });
+
+  it('os exemplos seguem dentro do limite e passando na trava (o exemplo da retomada só entra com o texto novo do redator, D30)', () => {
+    expect(EXEMPLOS_CARLA.length).toBeLessThanOrEqual(9);
+    expect(EXEMPLOS_CARLA.map(e => e.titulo).join(' ')).not.toMatch(/retomada/i);
   });
 });

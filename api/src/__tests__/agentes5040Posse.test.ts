@@ -50,7 +50,10 @@ vi.mock('../utils/supabase', () => ({ supabase: h.cliente }));
 import {
   CHAVE_INTERRUPTORES, CHAVE_VIVO_ALVO, alvoDoValor, lerAlvoVivo, ligado, zerarCacheInterruptores, CACHE_MS,
 } from '../services/agentes5040/interruptores';
-import { DONAS_LIBERADAS_PARA_TODOS, agenteAtendeEste, assumirPosse, atualizarPosse, cedeAAgente, lerPosse } from '../services/agentes5040/posse';
+import {
+  DONAS_LIBERADAS_PARA_TODOS, ORIGEM_RETOMADA_USUARIOS, RETOMADA_VALE_MS, agenteAtendeEste, assumirPosse, atualizarPosse, cedeAAgente, cedeARetomadaDaCarla,
+  ehPosseDaRetomada, lerPosse, retomadaVale,
+} from '../services/agentes5040/posse';
 import type { DonaViva } from '../services/agentes5040/interruptores';
 import { hmacDe, idChaveHmac } from '../services/agentes5040/hmac';
 
@@ -395,5 +398,149 @@ describe('lerPosse, assumirPosse e atualizarPosse', () => {
     expect(await lerPosse('123')).toBeNull();
     h.estado.falhar = [{ tabela: 'whatsapp_sessions', code: '57014' }];
     await expect(lerPosse(X)).rejects.toThrow('57014');
+  });
+});
+
+// ── a posse da RETOMADA dos usuários (03/11/2026) ────────────────────────────
+
+describe('assumirPosse com `extra` (a origem e os dados da retomada)', () => {
+  it('grava os campos extras no INSERT, e os campos de base sempre vencem', async () => {
+    const retomada = { user_id: 'u1', grupo: 'pagou', ate: '2026-12-04T12:00:00.000Z' };
+    expect(await assumirPosse(X, 'carla', null, '2026-11-04T12:00:00.000Z', {
+      origem: ORIGEM_RETOMADA_USUARIOS, retomada, dona: 'duda', estado: 'encerrada', respostas: 9, ate_wa_id: 77, links: ['x'],
+    })).toBe('assumida');
+    const p = await lerPosse(X);
+    expect(p).toMatchObject({
+      dona: 'carla', estado: 'viva', desde: '2026-11-04T12:00:00.000Z', ate_wa_id: null, respostas: 0, imagens: [], links: [],
+      origem: 'retomada_usuarios', retomada,
+    });
+  });
+
+  it('quem já chama assumirPosse sem o 5º parâmetro não muda: nenhum campo a mais na posse', async () => {
+    await assumirPosse(X, 'duda', 5);
+    const p = await lerPosse(X);
+    expect(Object.keys(p!).sort()).toEqual(['ate_wa_id', 'desde', 'dona', 'estado', 'imagens', 'links', 'respostas']);
+  });
+
+  it('a segunda posse (qualquer dona) continua devolvendo ja_tinha_dona, com ou sem extra', async () => {
+    expect(await assumirPosse(X, 'carla', null, undefined, { origem: ORIGEM_RETOMADA_USUARIOS })).toBe('assumida');
+    expect(await assumirPosse(X, 'carla', null, undefined, { origem: ORIGEM_RETOMADA_USUARIOS })).toBe('ja_tinha_dona');
+  });
+});
+
+describe('ehPosseDaRetomada e retomadaVale (puras)', () => {
+  const agoraMs = Date.parse('2026-11-10T12:00:00.000Z');
+  it('só a Carla com a origem da retomada', () => {
+    expect(ehPosseDaRetomada({ dona: 'carla', origem: 'retomada_usuarios' })).toBe(true);
+    expect(ehPosseDaRetomada({ dona: 'duda', origem: 'retomada_usuarios' })).toBe(false);
+    expect(ehPosseDaRetomada({ dona: 'carla' })).toBe(false);
+    expect(ehPosseDaRetomada({ dona: 'carla', origem: 'outra' })).toBe(false);
+  });
+
+  it('vale enquanto `retomada.ate` está no futuro; ausente, ilegível ou no passado não vale; 30 dias é o prazo', () => {
+    expect(retomadaVale({ retomada: { ate: '2026-11-10T12:00:01.000Z' } }, agoraMs)).toBe(true);
+    expect(retomadaVale({ retomada: { ate: '2026-11-10T12:00:00.000Z' } }, agoraMs)).toBe(false);
+    expect(retomadaVale({ retomada: { ate: 'lixo' } }, agoraMs)).toBe(false);
+    expect(retomadaVale({ retomada: {} }, agoraMs)).toBe(false);
+    expect(retomadaVale({}, agoraMs)).toBe(false);
+    expect(retomadaVale({ retomada: null }, agoraMs)).toBe(false);
+    expect(RETOMADA_VALE_MS).toBe(30 * 24 * 3_600_000);
+  });
+});
+
+describe('cedeARetomadaDaCarla (o corte da Giovanna para quem tem conta): tabela verdade', () => {
+  const futuro = () => new Date(Date.now() + 20 * 86_400_000).toISOString();
+  const retomada = (extra: Record<string, unknown> = {}) =>
+    posse({ dona: 'carla', origem: 'retomada_usuarios', retomada: { user_id: 'u1', ate: futuro() }, ...extra });
+
+  it('Carla atende o lead, posse dela com a origem, num estado que cede e valendo: cede', async () => {
+    env({ CARLA: '1' });
+    alvo(); retomada();
+    expect(await cedeARetomadaDaCarla(X)).toBe(true);
+    expect(await cedeARetomadaDaCarla('5534999998888')).toBe(true);          // qualquer formato do mesmo telefone
+  });
+
+  it('viva, passou_humano e nao_incomodar cedem; encerrada não', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    for (const [estado, esperado] of [['viva', true], ['passou_humano', true], ['nao_incomodar', true], ['encerrada', false]] as const) {
+      h.estado.tabelas.whatsapp_sessions = [];
+      retomada({ estado });
+      expect(await cedeARetomadaDaCarla(X), estado).toBe(esperado);
+    }
+  });
+
+  it('sem a origem da retomada, ou de outra dona: não cede (a Giovanna responde como hoje)', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    posse({ dona: 'carla' });
+    expect(await cedeARetomadaDaCarla(X)).toBe(false);
+    h.estado.tabelas.whatsapp_sessions = [];
+    retomada({ dona: 'duda' });
+    expect(await cedeARetomadaDaCarla(X)).toBe(false);
+  });
+
+  it('posse vencida ou sem prazo: não cede', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    retomada({ retomada: { user_id: 'u1', ate: new Date(Date.now() - 1000).toISOString() } });
+    expect(await cedeARetomadaDaCarla(X)).toBe(false);
+    h.estado.tabelas.whatsapp_sessions = [];
+    retomada({ retomada: { user_id: 'u1' } });
+    expect(await cedeARetomadaDaCarla(X)).toBe(false);
+  });
+
+  it('a Carla não atende este lead (desligada, ou lead fora do escopo): não cede, e a posse nem é lida', async () => {
+    alvo(); retomada();
+    env({ CARLA: '0' });
+    expect(await cedeARetomadaDaCarla(X)).toBe(false);
+    env({ CARLA: '1' });
+    zerarCacheInterruptores();
+    h.estado.chamadas = [];
+    expect(await cedeARetomadaDaCarla(Y)).toBe(false);
+    expect(leiturasDe('whatsapp_sessions')).toEqual([]);
+  });
+
+  it('sem posse: não cede. Telefone sem chave: não cede', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    expect(await cedeARetomadaDaCarla(X)).toBe(false);
+    expect(await cedeARetomadaDaCarla('123')).toBe(false);
+    expect(await cedeARetomadaDaCarla(null)).toBe(false);
+    expect(await cedeARetomadaDaCarla(undefined)).toBe(false);
+  });
+
+  it('erro ao ler a posse com a Carla atendendo: cede (cala nesta mensagem), com o código no log e nunca o telefone', async () => {
+    env({ CARLA: '1' });
+    alvo(); retomada();
+    h.estado.falhar = [{ tabela: 'whatsapp_sessions', op: 'select', code: '57014' }];
+    expect(await cedeARetomadaDaCarla(X)).toBe(true);
+    expect(JSON.stringify(erroConsole.mock.calls)).toContain('57014');
+    expect(JSON.stringify(erroConsole.mock.calls)).not.toContain('99999');
+  });
+});
+
+describe('cedeAAgente com a posse da retomada VENCIDA (D4)', () => {
+  const posseDaRetomada = (ate: string | undefined) =>
+    posse({ dona: 'carla', origem: 'retomada_usuarios', ...(ate ? { retomada: { user_id: 'u1', ate } } : {}) });
+
+  it('valendo, cede; vencida ou sem prazo, vale como se não existisse e os robôs antigos voltam', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    posseDaRetomada(new Date(Date.now() + 86_400_000).toISOString());
+    expect(await cedeAAgente(X)).toBe(true);
+    h.estado.tabelas.whatsapp_sessions = [];
+    posseDaRetomada(new Date(Date.now() - 1000).toISOString());
+    expect(await cedeAAgente(X)).toBe(false);
+    h.estado.tabelas.whatsapp_sessions = [];
+    posseDaRetomada(undefined);
+    expect(await cedeAAgente(X)).toBe(false);
+  });
+
+  it('a posse da Carla SEM a origem da retomada segue como hoje: cede, sem prazo nenhum', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    posse({ dona: 'carla' });
+    expect(await cedeAAgente(X)).toBe(true);
   });
 });

@@ -98,14 +98,18 @@ import {
 import type { ClienteIA } from './ia';
 import type { DonaViva } from './interruptores';
 import { ehMidia } from './midia';
-import { agenteAtendeEste, assumirPosse, atualizarPosse, desfazerPosseNova, lerPosse, type DadosPosse } from './posse';
+import {
+  RETOMADA_VALE_MS, agenteAtendeEste, assumirPosse, atualizarPosse, desfazerPosseNova, ehPosseDaRetomada, lerPosse, retomadaVale, type DadosPosse,
+} from './posse';
+import { modoPix } from './modoPix';
+import { lerContaDaRetomada } from '../solardoc/retomadaUsuariosConta';
 import { DONAS_NA_RODADA, donasDaRodadaLigadas } from './posseLeitura';
 import { diaBRT, horaBRT, horarioComercial } from './relogio';
 import {
   comTranscricoes, falhaDeInfra, juntarDados, montarGravado, pensarTurno, textosDoLead, valoresDaPessoaDe, type ResultadoTurno,
 } from './turno';
 import { bolhaDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
-import { ACAO_ESTACIONAR, type CardResumo, type ContextoLead, type Persona, type SaidaAgente } from './tipos';
+import { ACAO_ESTACIONAR, type CardResumo, type ContaRetomada, type ContextoLead, type Persona, type SaidaAgente } from './tipos';
 import { enviarResposta, type PecaEnvio, type PedidoEnvio, type ResultadoEnvio } from './vivoEnvio';
 import { AVISO_IA_NA_PRIMEIRA_MSG, avisoDeApresentacao, comAvisoSeFaltar } from './avisoIA';
 
@@ -718,6 +722,16 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     if (Number.isFinite(desde) && Date.parse(L.momment) < desde - LIMITES_VIVO.ancoraFolgaMs) { soma(r.puladas, 'fala_antes_da_posse'); return 'seguir'; }
   }
 
+  // 2a. A POSSE DA RETOMADA dos usuários (03/11/2026) vale 30 dias desde o envio, renovados a cada resposta da Carla. Vencida, a conversa volta
+  // para quem atendia (a Giovanna): a posse se encerra, SEM ler o banco, sem tomar a vez e sem passar ao humano com ficha da Carla. Fica antes
+  // do prazo da fala e do limite de respostas (passo 4), que mandariam a conversa ao humano.
+  const daRetomada = dona === 'carla' && ehPosseDaRetomada(posse);
+  if (daRetomada && !retomadaVale(posse, agoraMs)) {
+    if (!dry) await atualizarPosse(chave, { estado: 'encerrada', ate_wa_id: L.id });
+    soma(r.puladas, 'retomada_vencida');
+    return 'seguir';
+  }
+
   // 2b. O lead escreveu de novo com a posse estacionada (B4b): a conversa voltou. Zera o estacionado (vale a regra normal das 48 h
   // e das 2 retomadas). Se ele pedir de novo para esperar, a ação estacionar grava outra data mais abaixo. O dry não grava.
   const baseDaPosse = lerBaseDaPosse(posse as unknown as Record<string, unknown>);
@@ -825,11 +839,25 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     // 6. contexto
     const ctx0 = await montarContexto(chave, { msgs, completa: true }, { agora: agora.toISOString() });
     if (!ctx0.completa) { await soltar(); soma(r.puladas, 'contexto_incompleto'); return 'seguir'; }
+    // A RETOMADA dos usuários: a conta é relida a cada turno (só leitura). Conta ilegível = a Carla não fala e a vez é solta; quem voltou a
+    // assinar sai da retomada (a posse fecha) e o suporte é da Giovanna, que a fila já responde.
+    let contaRetomada: ContaRetomada | null = null;
+    if (daRetomada) {
+      try { contaRetomada = await lerContaDaRetomada(posse, chave, agora); } catch { contaRetomada = null; }
+      if (!contaRetomada) { await soltar(); soma(r.puladas, 'conta_ilegivel'); dec({ resultado: 'recusada', motivo: 'conta_ilegivel' }); return 'seguir'; }
+      if (contaRetomada.plano !== 'free') {
+        if (!dry) await atualizarPosse(chave, { estado: 'encerrada', ate_wa_id: L.id });
+        await soltar();
+        soma(r.puladas, 'retomada_voltou_a_assinar');
+        dec({ resultado: dry ? 'encerraria_a_posse' : 'posse_encerrada', motivo: 'voltou_a_assinar' });
+        return 'seguir';
+      }
+    }
     // A Carla não atende quem já tem conta (lerEhCliente, dentro do montarContexto): a posse dela fecha antes da IA e a
     // Giovanna atende pelo caminho de hoje (encerrada não cede, os robôs antigos voltam).
     // A fala dele NÃO pode sumir: ficha à Giovanna pelo caminho do suporte (reserva ag5040_suporte:<hmac>:<waId>; número de
     // teste vai ao dono), SEM bolha ao lead. Ficha adiada (cooldown, teto) = a posse fica viva e a próxima rodada tenta.
-    if (dona === 'carla' && ctx0.ehClienteSolarDoc) {
+    if (dona === 'carla' && ctx0.ehClienteSolarDoc && !daRetomada) {
       const rf = dry ? null : await fichaDoClienteComConta(g, { chave, tel, L, hmac, ctx0 });
       if (rf === 'adiada') {
         await soltar();
@@ -895,6 +923,8 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
       horariosLivres: horariosPorExtenso(dona === 'helena' ? ofertaH.vagas : oferta.vagas, ctx0.agora),
       ...(dona === 'helena' ? { avisosDoSistema: avisosDaHelena() } : {}),
       ...(dona === 'carla' ? { avisosDoSistema: avisosDaCarla(posse, g.agoraEnvio()) } : {}),
+      // A retomada: a situação da conta e o modo do Pix de agora (lido aqui, como o avisosDaCarla), para a persona continuar pura.
+      ...(contaRetomada ? { contaRetomada, modoPix: modoPix(), nome: ctx0.nome ?? contaRetomada.primeiro_nome } : {}),
     };
     // Todo chamado ao modelo (inclusive a segunda chance de agenda, de peça e de bolha barrada) leva o aviso do sistema e a
     // exigência da trava enquanto a agente não se apresentou: o aviso é somado AQUI, para nenhuma reconstrução de `avisosDoSistema` o perder.
@@ -1164,7 +1194,9 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
 
       if (res.ok) {
         if (!dry) {
-          if (!naoIncomodar) await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1, ...patchCarla });
+          // Cada resposta da Carla na retomada renova os 30 dias da posse.
+          const renova = daRetomada ? { retomada: { ...((posse.retomada as Record<string, unknown> | undefined) ?? {}), ate: new Date(g.agoraEnvio().getTime() + RETOMADA_VALE_MS).toISOString() } } : {};
+          if (!naoIncomodar) await atualizarPosse(chave, { ate_wa_id: L.id, respostas: posse.respostas + 1, ...patchCarla, ...renova });
           await registrar(true);
         }
         r.enviadas++;

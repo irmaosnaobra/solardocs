@@ -67,6 +67,7 @@ export interface CardResumo {
 }
 
 import type { QuizContexto } from '../solardoc/quizContexto';
+import type { ModoPix } from './modoPix';
 
 export interface LeadMetaResumo {
   lead_id: string | null;
@@ -90,6 +91,26 @@ export interface CadastroEletroposto {
 export interface AnuncioOrigem {
   adId: string | null;
   produto: Produto | null;
+}
+
+/**
+ * Quem tem conta no SolarDoc e recebeu a mensagem da RETOMADA da Carla (03/11/2026): o que ela precisa saber da conta para responder.
+ * Lido por solardoc/retomadaUsuariosConta.ts (só leitura) a cada turno; nunca leva telefone nem e-mail. O `grupo` decide se ela pode
+ * dizer que a pessoa "já foi assinante": só com `pagou`.
+ */
+export interface ContaRetomada {
+  user_id: string;
+  plano: string;
+  segmento: 'ex_assinante' | 'gratis_ativo' | 'gratis_cnpj' | 'gratis';
+  grupo: 'pagou' | 'nunca_pagou' | 'incerto';
+  criada_em: string | null;
+  saiu_em: string | null;
+  forma_antiga: 'cartao' | 'pix' | null;
+  ultimo_documento_em: string | null;
+  tem_cnpj: boolean;
+  primeiro_nome: string | null;
+  texto_enviado: string | null;
+  enviado_em: string | null;
 }
 
 /** Tudo o que a persona vê do lead. Montado por contexto.ts (só leitura). */
@@ -125,6 +146,10 @@ export interface ContextoLead {
    * está disponível". Entram nos fatos como estão. Ausente ou vazio = nenhum aviso (o caso de todo turno comum).
    */
   avisosDoSistema?: string[];
+  /** A conta de quem recebeu a retomada da Carla (posse com origem retomada_usuarios). Ausente ou null = não é retomada. Só a Carla usa. */
+  contaRetomada?: ContaRetomada | null;
+  /** Qual Pix sai agora, lido pelo vivo.ts só na retomada (a persona continua pura). Ausente vale 'indisponivel': a Carla não oferece Pix. */
+  modoPix?: ModoPix;
 }
 
 /** O que o porteiro precisa saber. `leituraOk=false` = ninguém responde. */

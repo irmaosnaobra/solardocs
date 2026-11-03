@@ -396,6 +396,53 @@ describe('trava: Carla', () => {
   });
 });
 
+describe('trava: Carla e a plataforma inteira pelo plano (03/11/2026)', () => {
+  const c = (bolhas: string[], p: Partial<ParametrosTrava> = {}) =>
+    validarFala(saida(bolhas), conversaDoLead(), { ...carla, ...p });
+  const MOTIVO = /plataforma inteira pelo plano/;
+
+  it('reprovam: preço ou plano na mesma frase que "plataforma inteira", "toda a plataforma" ou "plataforma completa"', () => {
+    for (const f of [
+      'Por R$ 67 você tem a plataforma inteira.', 'No plano vem toda a plataforma.', 'A assinatura dá a plataforma completa.',
+      'Você assina o plano e tem a plataforma toda.', 'Tem a plataforma inteira por 67 reais.', 'Com a mensalidade vem toda a plataforma.',
+    ]) {
+      expect(c([f]).join(), f).toMatch(MOTIVO);
+    }
+  });
+
+  it('passam: a mesma expressão sem preço nem plano na frase, e um texto comum', () => {
+    for (const f of [
+      'Toda a plataforma funciona no celular.', 'A plataforma inteira abre no navegador.', 'O plano é R$ 67 por mês.',
+      'Os documentos saem com a sua marca. Quer ver como ficou?',
+    ]) {
+      expect(c([f]).join(), f).not.toMatch(MOTIVO);
+    }
+  });
+
+  it('o que fica em Para liberar dito como à parte passa: a frase com preço e sem "plataforma inteira"', () => {
+    expect(c(['O Kit Off-Grid fica em Para liberar e é vendido à parte.'])).toEqual([]);
+  });
+
+  it('vale também depois de um ponto: só a frase que mistura as duas coisas reprova', () => {
+    expect(c(['A plataforma inteira é bonita. O plano é R$ 67.']).join()).not.toMatch(MOTIVO);
+    expect(c(['A plataforma é bonita. Por R$ 67 você tem toda a plataforma.']).join()).toMatch(MOTIVO);
+  });
+
+  it('é regra da Carla: a Duda e a Helena não são barradas por ela', () => {
+    expect(validarFala(saida(['Tem a plataforma inteira no plano.']), conversaDoLead(), duda).join()).not.toMatch(MOTIVO);
+  });
+});
+
+describe('trava: a palavra "menu" (D33) e a frase do cartão da retomada', () => {
+  const c = (bolhas: string[]) => validarFala(saida(bolhas), conversaDoLead(), carla);
+
+  it('a frase do cartão por dentro do app passa; a mesma com "no menu" reprova pelo motivo do menu', () => {
+    expect(c(['Para assinar no cartão, entre no app e toque em Fazer Upgrade.'])).toEqual([]);
+    expect(c(['Toque em Fazer Upgrade, no menu.']).join()).toMatch(/menu/);
+    expect(c(['Entre no app e toque em Fazer Upgrade no menu da esquerda.']).join()).toMatch(/menu/);
+  });
+});
+
 describe('trava: link só de domínio permitido', () => {
   const link = (url: string) => validarFala(saida(['Segue o link.', url], { peca: peca('link') }), conversaDoLead(), carla);
 

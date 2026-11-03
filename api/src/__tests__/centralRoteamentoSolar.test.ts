@@ -54,6 +54,9 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   tetosVigentesLinha: vi.fn(async () => ({ hora: 6, dia: 40 })),
 }));
 vi.mock('../services/agents/whatsapp/carlaThrottle', () => ({ MAX_CARLA_POR_HORA: 4 }));
+// O cartão da retomada dos usuários (03/11/2026) lê o painel dela; este arquivo audita outro cartão, então o painel vira um vazio
+// e o grafo de import da Central volta ao tamanho de antes (cada card() importa a Central do zero, com o limite de 5 s por teste).
+vi.mock('../services/solardoc/retomadaUsuariosPainel', () => ({ lerPainelRetomada: async () => null }));
 vi.mock('../services/agents/zapiClient', () => ({ solardocViaIo: () => false }));
 
 const obs = (consumo: string) => `[Lead Instagram]\nConsumo: ${consumo}\nImóvel: Proprio`;

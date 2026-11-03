@@ -64,7 +64,9 @@ export type RegraDaChave =
   | { tipo: 'banco_recepcao' }
   | { tipo: 'banco_helena' }
   /** A Carla do quiz do SolarDoc: nasce LIGADA; a env QUIZ_RECUPERACAO_LIGADA='0' ou a chave quiz_rec_pausa no banco desligam. */
-  | { tipo: 'banco_quiz_rec' };
+  | { tipo: 'banco_quiz_rec' }
+  /** A retomada da Carla (quem tem conta e não paga): nasce LIGADA; CARLA_RETOMADA_USUARIOS_OFF='1' ou a chave usu_rec_pausa no banco desligam. */
+  | { tipo: 'banco_retomada_usuarios' };
 
 export interface EntradaDoCatalogo {
   id: string;
@@ -458,9 +460,9 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['bia_recuperacao', 'bia_inbound'],
   }),
   e({
-    id: 'giovanna', nome: 'Giovanna, follow-up da plataforma', area: 'solardoc', canal: 'whatsapp', linha: 'solardoc',
-    resumo: 'Cadências para quem se cadastrou sem CNPJ ou sumiu',
-    papel: 'Duas cadências pra quem se cadastrou na plataforma: quem não preencheu CNPJ (3 toques em 30 dias) e quem sumiu (5 toques em 60 dias). Quando o cliente responde, é a mesma Giovanna que continua a conversa, e o dono recebe o aviso. Não tem chave própria: o freio é o teto de envios por hora.',
+    id: 'giovanna', nome: 'Giovanna, atendimento da plataforma', area: 'solardoc', canal: 'whatsapp', linha: 'solardoc',
+    resumo: 'Responde quem tem conta; as cadências saíram em 03/11',
+    papel: 'Responde no WhatsApp quem tem conta no SolarDoc, com as ferramentas de conta. As duas cadências de follow-up (sem CNPJ e inativo) saíram do cron em 03/11/2026: a retomada de quem não paga é da Carla. Quando a Carla tem a conversa da retomada, a Giovanna não responde por cima.',
     regra: { tipo: 'sempre' }, fonte: 'services/agents/whatsapp/carlaPlatformFollowupService.ts',
     robos: ['carla_sem_cnpj', 'carla_inativo', 'giovanna_reativa', 'carla_b2b_reativa', 'carla_cnpj_killer', 'whatsapp_followup', 'giovanna_aviso_dono'],
   }),
@@ -518,6 +520,13 @@ export const CATALOGO: readonly EntradaDoCatalogo[] = Object.freeze([
     robos: ['quiz_recuperacao_5040'],
   }),
   e({
+    id: 'retomada_usuarios', nome: 'Carla, retomada dos usuários', area: 'solardoc', canal: 'whatsapp', linha: 'io',
+    resumo: 'Chama quem tem conta e não paga, uma mensagem por pessoa',
+    papel: 'Chama, uma pessoa por vez, quem tem conta no SolarDoc e não paga hoje (grátis ou ex-assinante), com WhatsApp no cadastro. Uma mensagem só, sem link, para sempre uma por pessoa, das 9h às 20h de segunda a sábado, fora de feriado, na vaga do envio frio da 5040, no máximo 25 em 24 horas, e cede a vez à agenda quando a linha já tem 4 envios na hora. Quem responde é a Carla, com a situação da conta e as novidades. Nasce ligada: CARLA_RETOMADA_USUARIOS_OFF=1 ou a chave usu_rec_pausa no banco desligam.',
+    regra: { tipo: 'banco_retomada_usuarios' }, fonte: 'services/solardoc/retomadaUsuarios.ts',
+    robos: ['carla_retomada_usuarios'],
+  }),
+  e({
     id: 'email', nome: 'E-mails automáticos (SolarDoc)', area: 'solardoc', canal: 'email', linha: null,
     resumo: 'Checkout, CNPJ, cobrança e winback por e-mail',
     papel: 'Recuperação de checkout, follow-up de CNPJ, lembrete de inativo, cobrança (dunning D0 a D4) e winback D+7 e D+30. Sem chave: é e-mail e roda no cron mestre.',
@@ -542,6 +551,8 @@ export interface ChavesDoBanco {
   interruptores?: Partial<Record<'ensaio' | 'replay' | 'ficha' | 'sentinela', boolean>> | null;
   /** `quiz_rec_pausa` pausada agora (a linha existe e não expirou). `null` = erro de leitura (o robô trata como desligado). Ausente = não lida. */
   quizRecPausa?: boolean | null;
+  /** `usu_rec_pausa` pausada agora (a retomada da Carla). `null` = erro de leitura (o robô trata como desligado). Ausente = não lida. */
+  retomadaUsuariosPausa?: boolean | null;
 }
 
 export interface EstadoCalculado {
@@ -569,6 +580,7 @@ export function chaveDaRegra(regra: RegraDaChave): string | undefined {
     case 'banco_recepcao': return 'recepcao_io:ativa';
     case 'banco_helena': return 'inv_agente_off';
     case 'banco_quiz_rec': return 'QUIZ_RECUPERACAO_LIGADA ou quiz_rec_pausa';
+    case 'banco_retomada_usuarios': return 'CARLA_RETOMADA_USUARIOS_OFF ou usu_rec_pausa';
   }
 }
 
@@ -631,6 +643,12 @@ export function estadoDaRegra(regra: RegraDaChave, env: NodeJS.ProcessEnv, banco
       if ((env.QUIZ_RECUPERACAO_LIGADA ?? '').trim() === '0') return { selo: 'desligado', chave, motivo: 'QUIZ_RECUPERACAO_LIGADA=0 está armada na Vercel' };
       if (banco.quizRecPausa === true) return { selo: 'pausado', chave, motivo: 'Pausada pela chave quiz_rec_pausa no banco' };
       if (banco.quizRecPausa === null) return { selo: 'pausado', chave, motivo: 'Não consegui ler a chave no banco: o robô trata como desligado nesse caso' };
+      return { selo: 'ligado', chave };
+    }
+    case 'banco_retomada_usuarios': {
+      if ((env.CARLA_RETOMADA_USUARIOS_OFF ?? '').trim() === '1') return { selo: 'desligado', chave, motivo: 'CARLA_RETOMADA_USUARIOS_OFF=1 está armada na Vercel' };
+      if (banco.retomadaUsuariosPausa === true) return { selo: 'pausado', chave, motivo: 'Pausada pela chave usu_rec_pausa no banco' };
+      if (banco.retomadaUsuariosPausa === null) return { selo: 'pausado', chave, motivo: 'Não consegui ler a chave no banco: o robô trata como desligado nesse caso' };
       return { selo: 'ligado', chave };
     }
     case 'banco_helena': {

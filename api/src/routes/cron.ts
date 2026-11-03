@@ -3,9 +3,6 @@ import { cleanupProDocuments } from '../controllers/documentsController';
 import { runMonthlyReset } from '../services/planService';
 import { runFollowupCnpj, blastFollowupDay1, stampFollowupStarted, runNoContractsEmailReminder, runCheckoutAbandonRecovery, recoverOrphanCheckouts, runUpgradeNudge, recoverAbandonedCheckouts } from '../services/followupService';
 import { reDrivePendingPurchases } from '../services/salesLedger';
-import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
-import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
-import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
 import { dispararPesquisaSatisfacao, listarMelhoresClientes, textoPesquisa } from '../services/pesquisaSatisfacao';
 import { runLinhaSaudeMonitor } from '../services/agents/whatsapp/linhaSaudeMonitor';
 import { runCarlaRetomada } from '../services/agents/sdr/carlaRetomada';
@@ -54,6 +51,7 @@ import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '.
 import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/solarBoasVindas';
 import { runSolardocQuizDesistenciaTick } from '../services/solardoc/desistenciaQuizTick';
 import { runQuizRecuperacaoTick } from '../services/solardoc/recuperacaoCarla';
+import { runRetomadaUsuariosTick } from '../services/solardoc/retomadaUsuarios';
 import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
 import { rodarInvestidorAgente, previaInvestidorAgente, definirChaveDesligar } from '../services/io/investidorAgente';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -312,23 +310,24 @@ router.get('/followup-stamp', async (req: Request, res: Response) => {
   }
 });
 
-// Lembrete WhatsApp dia-1 (1x apenas, ~20-48h apos signup, sem reply nem opt-out)
-router.get('/followup-whatsapp', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runWhatsappFollowup();
-    res.json({ ok: true, ...result });
-  } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
-});
-
-// 10h Brasília — engajamento usuários inativos 3+ dias
-router.get('/inactive-engagement', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runInactiveEngagement();
-    res.json({ ok: true, ...result });
-  } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
-});
+// ROTAS CRUAS DESLIGADAS (03/11/2026). Mandavam WhatsApp em laço, fora do teto, da janela e da pausa humana, ou eram as duas cadências da
+// Giovanna que a retomada da Carla (carla_retomada_usuarios) substituiu. Respondem 410 DEPOIS do verifyCronSecret (sem o segredo seguem 401).
+// Os arquivos de serviço ficam no disco (testes dependem deles), mas sem chamador: nada aqui os executa. Nenhum agendador do repositório
+// (.github, api/vercel.json, cloudflare-worker, worker-prospeccao) chama estas rotas.
+const ROTAS_DESLIGADAS: Readonly<Record<string, string>> = {
+  '/followup-whatsapp': 'mandava WhatsApp em laço, fora do teto, da janela e da pausa humana',
+  '/inactive-engagement': 'mandava WhatsApp em laço, fora do teto, da janela e da pausa humana',
+  '/giovanna-test-followup': 'disparava a abertura da Giovanna sem teto, janela, espaçamento nem pausa',
+  '/carla-pergunta-cnpj': 'mandava 12 mensagens em 4 minutos, sem carimbo',
+  '/carla-sem-cnpj': 'cadência substituída pela retomada da Carla (carla_retomada_usuarios) em 03/11/2026',
+  '/carla-inativo': 'cadência substituída pela retomada da Carla (carla_retomada_usuarios) em 03/11/2026',
+};
+for (const [rota, motivo] of Object.entries(ROTAS_DESLIGADAS)) {
+  router.get(rota, (req: Request, res: Response) => {
+    if (!verifyCronSecret(req, res)) return;
+    res.status(410).json({ ok: false, error: 'rota_desligada', motivo });
+  });
+}
 
 // Processa a fila + polling Z-API da linha Irmaos na Obra
 // (Z-API webhook MD nao dispara consistentemente, polling eh fallback)
@@ -422,16 +421,12 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // SOLAR_QUIZ_ESCALA_THIAGO=0 e SOLAR_QUIZ_FILA_MANHA=0 desligam as duas propostas).
       ['solar_quiz_avisos', () => runSolarQuizAvisosTick()],
       ['solar_giovanna', () => runSolarAgendaGiovannaTick()],    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
-      // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
-      // master de hora em hora. Motivo: com a margem de 5 min entre envios elas mandariam
-      // 1 por ciclo — no master isso viraria 1/h, um quarto do que o teto (4/h) permite.
-      // No tick de 5 min a margem vira o RITMO e o teto volta a ser o limite: até 4/h,
-      // uma a cada 5 min, em vez das 4 em 37 segundos desta madrugada. As três já são
-      // idempotentes e gated (campanha/janela/teto/espaçamento) — rodar mais vezes não
-      // manda MAIS, manda melhor distribuído.
+      // [06/08] O curso19 drena AQUI também, não só no master de hora em hora. Motivo: com a margem de 5 min entre envios ele mandaria
+      // 1 por ciclo: no master isso viraria 1/h, um quarto do que o teto (4/h) permite. No tick de 5 min a margem vira o RITMO e o teto
+      // volta a ser o limite. Idempotente e gated (campanha/janela/teto/espaçamento): rodar mais vezes não manda MAIS, manda melhor distribuído.
+      // [03/11] As duas cadências da Giovanna (carla_sem_cnpj e carla_inativo) SAÍRAM daqui e do master: a retomada de quem não paga é da
+      // Carla (carla_retomada_usuarios, logo abaixo, depois do robô do quiz).
       ['curso19', () => runCursoEntradaBroadcast()],      // curso R$19: 3 toques (exige CAMPANHA_CURSO19_ON)
-      ['carla_sem_cnpj', () => runCarlaSemCnpjFollowup()],       // Giovanna: 3 toques em 30d
-      ['carla_inativo', () => runCarlaInativoFollowup()],       // Giovanna: 5 toques em 60d
       ['ep_alerta_10min', () => runEletropostoAlerta10minTick()], // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
       ['recepcao_paradas', () => entregarTriagensParadas()],       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (chave em system_state recepcao_io:ativa)
       ['recepcao_poll', () => pollRecepcaoIo()],                // recepção da linha IO: atende quem escreveu e não é de mais ninguém (o webhook não aguenta, ver recepcaoIoPoll.ts)
@@ -469,6 +464,10 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // "A Carla falou às HH:MM" que ela deixa pendente só sai na rodada seguinte, com o espaçamento do B1, e nunca na mesma rodada do envio.
     // A vez de 10 min é por insert (o pg_cron e o Actions chamam esta rota em paralelo) e sai no máximo 1 envio por rodada.
     const recuperacaoCarla = await runQuizRecuperacaoTick().catch((err) => ({ error: String(err) }));
+    // A Carla retoma quem tem conta e não paga (robô carla_retomada_usuarios, 03/11/2026): roda DEPOIS do robô do quiz, de propósito. Mesma
+    // vez de 10 min por insert (o pg_cron e o Actions chamam esta rota em paralelo) e no máximo 1 envio por rodada; o espaçamento da linha
+    // segura o segundo envio colado. Só aqui, fora do /master (CARLA_RETOMADA_USUARIOS_OFF=1 desliga).
+    const retomadaUsuarios = await runRetomadaUsuariosTick().catch((err) => ({ error: String(err) }));
     // Schedule do SERVIDOR para o card do quiz que a página não contou (SAIU SEM MARCAR e card da Duda), 29/10/2026. Por último, DEPOIS de todo
     // tick de WhatsApp: uma chamada lenta ao Graph (até 8 s de orçamento) nunca segura uma mensagem. Só aqui, fora do /master (CAPI_CARD_OFF=1 desliga).
     const capiCardNovo = await runCapiCardNovo().catch((err) => ({ error: String(err) }));
@@ -484,6 +483,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     });
     resultados['solardoc_quiz_desistencia'] = desistenciaSolardoc;
     resultados['quiz_recuperacao_carla'] = recuperacaoCarla;
+    resultados['carla_retomada_usuarios'] = retomadaUsuarios;
     resultados['capi_card_novo'] = capiCardNovo;
     res.json({
       ok: true,
@@ -1056,23 +1056,6 @@ router.get('/recup-test-opener', async (req: Request, res: Response) => {
   }
 });
 
-// TESTE gated — dispara o opener da Giovanna (follow-up) pra UM user_id, pelo
-// caminho real (salva sessão por user_id, incrementa count). Valida o loop
-// chama→contexto→vende num cliente antes da leva automática.
-// /cron/giovanna-test-followup?userId=<uuid>
-router.get('/giovanna-test-followup', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const userId = String(req.query.userId || '').trim();
-    if (!userId) { res.status(400).json({ error: 'userId obrigatorio' }); return; }
-    const r = await dispararOpenerTesteParaUser(userId);
-    res.json(r);
-  } catch (err: any) {
-    logger.error('cron', 'giovanna-test-followup falhou', err);
-    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
-  }
-});
-
 // Campanha de reconquista com a entrada de R$19 (curso + 30 dias de plataforma).
 // Público: FREE, inadimplente e quem cancelou. 3 toques; para quando ele responde.
 //
@@ -1177,30 +1160,6 @@ router.get('/confianca-whatsapp', async (req: Request, res: Response) => {
   }
 });
 
-// Carla — usuários da plataforma sem CNPJ. 3 toques em 30d (D+2, D+10, D+30).
-router.get('/carla-sem-cnpj', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runCarlaSemCnpjFollowup();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'carla-sem-cnpj falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
-// Carla — usuários com CNPJ inativos 3+ dias. 5 toques em 60d (3, 7, 14, 30, 60).
-router.get('/carla-inativo', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runCarlaInativoFollowup();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'carla-inativo falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
 // Roda a cada 3 dias por usuário — lembrete email para quem tem empresa mas
 // não gerou documento nos últimos 3 dias (até 1 ano após signup)
 router.get('/no-contracts-reminder', async (req: Request, res: Response) => {
@@ -1219,20 +1178,6 @@ router.get('/no-contracts-reminder', async (req: Request, res: Response) => {
 // vez. As funções fazem dedup interna (followup_email_last_sent_at,
 // contract_reminder_last_sent_at, followup_last_sent_at) então é seguro
 // disparar manualmente também.
-// One-shot manual: dispara a pergunta-pílula pros users sem CNPJ que ainda
-// não receberam. Cada user só recebe UMA vez. Disparar via curl quando
-// quiser — não agendado pra evitar spam.
-router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runCarlaCnpjKillerBroadcast();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'carla-pergunta-cnpj falhou', err);
-    res.status(500).json({ error: 'Cron failed', message: String(err) });
-  }
-});
-
 // Pinger de 5 em 5 min dos avisos e da sentinela do vácuo. O nome é de quando
 // esta rota processava a fila de disparos em massa do /admin; esse motor foi
 // apagado em 07/10/2026 (0 disparos em 30 dias). O nome ficou porque o
@@ -1596,11 +1541,11 @@ router.get('/master', async (req: Request, res: Response) => {
     // Reconquista com a entrada de R$19 (curso + 30 dias). NÃO dispara sozinha:
     // exige CAMPANHA_CURSO19_ON=true no Vercel — disparo em massa não pode começar
     // só porque um deploy subiu. Sem a variável, este tick é no-op barato.
-    // Divide o MESMO teto anti-ban (4/h) com as duas cadências da Carla abaixo.
+    // Divide o MESMO teto anti-ban da linha com o resto do frio.
     // Prévia sem enviar: GET /cron/curso-entrada-19?seco=1
     ['curso-entrada-19',            () => runCursoEntradaBroadcast()],    // 3 toques; para quando o lead responde
-    ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
-    ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
+    // [03/11/2026] As cadências carla-sem-cnpj e carla-inativo da Giovanna saíram do master: a retomada de quem não paga é da Carla
+    // (carla_retomada_usuarios, que roda só no /process-messages e por isso NÃO entra aqui).
     ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
     // Saúde da linha: o aviso que chega ANTES do bloqueio. Não manda mensagem
     // pra ninguém e não consulta IA, só lê números e avisa por e-mail quando a

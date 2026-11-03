@@ -10,11 +10,16 @@ import { join } from 'node:path';
 //      existe (robô apagado do código sai da tela);
 //   3. o selo copia a chave que o código do robô lê: valor errado não vira selo.
 
+const ret = vi.hoisted(() => ({ painel: null as unknown }));
+vi.mock('../services/solardoc/retomadaUsuariosPainel', () => ({
+  lerPainelRetomada: async () => { if (ret.painel instanceof Error) throw ret.painel; return ret.painel; },
+}));
+
 vi.mock('../utils/supabase', () => ({
   supabase: {
     from: () => {
       const q: any = {
-        select() { return q; }, or() { return q; }, eq() { return q; },
+        select() { return q; }, or() { return q; }, eq() { return q; }, in() { return q; },
         like() { return q; }, order() { return q; }, gte() { return q; },
         limit() { return Promise.resolve({ data: [], error: null }); },
         maybeSingle() { return Promise.resolve({ data: null, error: null }); },
@@ -265,9 +270,45 @@ describe('o selo copia a chave que o código do robô lê', () => {
   });
 });
 
+describe('a retomada dos usuários pela Carla (03/11/2026): a chave, o cartão e a Giovanna', () => {
+  it('nasce ligada; CARLA_RETOMADA_USUARIOS_OFF só desliga com o texto 1 (com trim) e "true" não desliga', () => {
+    expect(selo('retomada_usuarios', {})).toBe('ligado');
+    expect(selo('retomada_usuarios', { CARLA_RETOMADA_USUARIOS_OFF: '1' })).toBe('desligado');
+    expect(selo('retomada_usuarios', { CARLA_RETOMADA_USUARIOS_OFF: ' 1 ' })).toBe('desligado');
+    expect(selo('retomada_usuarios', { CARLA_RETOMADA_USUARIOS_OFF: 'true' })).toBe('ligado');
+    expect(selo('retomada_usuarios', { CARLA_RETOMADA_USUARIOS_OFF: '0' })).toBe('ligado');
+    const e = estadoDaRegra(porId('retomada_usuarios').regra, { CARLA_RETOMADA_USUARIOS_OFF: '1' } as NodeJS.ProcessEnv, SEM_BANCO);
+    expect(e.motivo).toBe('CARLA_RETOMADA_USUARIOS_OFF=1 está armada na Vercel');
+  });
+
+  it('a chave usu_rec_pausa no banco deixa Pausado; a leitura que falha também (o robô trata como desligado)', () => {
+    expect(selo('retomada_usuarios', {}, { ...SEM_BANCO, retomadaUsuariosPausa: false })).toBe('ligado');
+    expect(selo('retomada_usuarios', {}, { ...SEM_BANCO, retomadaUsuariosPausa: true })).toBe('pausado');
+    expect(selo('retomada_usuarios', {}, { ...SEM_BANCO, retomadaUsuariosPausa: null })).toBe('pausado');
+    expect(selo('retomada_usuarios', { CARLA_RETOMADA_USUARIOS_OFF: '1' }, { ...SEM_BANCO, retomadaUsuariosPausa: true })).toBe('desligado');
+    expect(estadoDaRegra(porId('retomada_usuarios').regra, {}, { ...SEM_BANCO, retomadaUsuariosPausa: true }).motivo).toBe('Pausada pela chave usu_rec_pausa no banco');
+    expect(estadoDaRegra(porId('retomada_usuarios').regra, {}, { ...SEM_BANCO, retomadaUsuariosPausa: null }).motivo).toMatch(/Não consegui ler a chave/);
+    expect(chaveDaRegra(porId('retomada_usuarios').regra)).toBe('CARLA_RETOMADA_USUARIOS_OFF ou usu_rec_pausa');
+  });
+
+  it('o cartão cobre o robô novo, fica na área SolarDoc, na linha io, e a Giovanna continua com o id e o papel de responder', () => {
+    const c = porId('retomada_usuarios');
+    expect(c.robos).toEqual(['carla_retomada_usuarios']);
+    expect(c).toMatchObject({ area: 'solardoc', canal: 'whatsapp', linha: 'io', fonte: 'services/solardoc/retomadaUsuarios.ts' });
+    expect(c.papel).toMatch(/no máximo 25 em 24 horas/);
+    expect(c.papel).toMatch(/cede a vez à agenda/);
+    const g = porId('giovanna');
+    expect(g.nome).toBe('Giovanna, atendimento da plataforma');
+    expect(g.papel).toMatch(/saíram do cron em 03\/11\/2026/);
+    expect(g.papel).toMatch(/a Giovanna não responde por cima/);
+    expect(g.robos).toContain('carla_sem_cnpj');            // os robôs ficam no registro: o arquivo ainda existe
+    expect(g.robos).toContain('carla_inativo');
+  });
+});
+
 describe('a resposta da Central', () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-14T15:00:00.000Z')); });
-  afterEach(() => { vi.useRealTimers(); vi.resetModules(); });
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-14T15:00:00.000Z')); ret.painel = null; });
+  afterEach(() => { vi.useRealTimers(); vi.resetModules(); delete process.env.CARLA_RETOMADA_USUARIOS_OFF; });
 
   it('traz todos os cartões, cada um com nome, o que faz, área, selo e chave só pelo nome', async () => {
     const { montarCentralAgentes } = await import('../services/io/centralAgentes');
@@ -297,4 +338,91 @@ describe('a resposta da Central', () => {
     // Telefone brasileiro escrito por extenso (10 ou 11 dígitos seguidos, com ou sem 55).
     expect(texto).not.toMatch(/(?<!\d)(55)?\d{10,11}(?!\d)/);
   }, 30_000);
+
+  // ── o cartão da retomada: o selo vem da chave, e o motivo de parada vem do painel (D26) ──
+  const PAINEL = {
+    estado: { ligada: true, motivo: 'ligada' }, pausa: null, enviadas_hoje: 4, enviadas_24h: 6, enviadas_7d: 20, enviadas_total: 31, ultima: '2026-10-14T14:00:00.000Z',
+    fila: 41, fila_lida_em: '2026-10-14T14:50:00.000Z', linha_na_hora: 1, linha_limite: 4, responderam: 8, pararam: 2, voltaram_a_assinar: 1,
+    inicio: '2026-10-14T12:00:00.000Z', parada: null,
+  };
+  const cartaoRet = async () => {
+    const { montarCentralAgentes } = await import('../services/io/centralAgentes');
+    const p = await montarCentralAgentes();
+    return { p, c: p.agentes.find(a => a.id === 'retomada_usuarios')! };
+  };
+
+  it('painel sem parada: Ligado, com as cinco métricas, o destaque nas duas certas, a fila e a última atividade', async () => {
+    ret.painel = PAINEL;
+    const { c } = await cartaoRet();
+    expect(c.selo).toBe('ligado');
+    expect(c.motivo).toBeUndefined();
+    expect(c.metricas.map(m => [m.label, m.valor])).toEqual([
+      ['Enviadas hoje', 4], ['Enviadas (total)', 31], ['Responderam', 8], ['Pediram para parar', 2], ['Voltaram a assinar', 1],
+    ]);
+    expect(c.metricas[0]!.sub).toBe('Teto de 25 em 24 h');
+    expect(c.destaque).toEqual([0, 2]);
+    expect(c.fila).toBe(41);
+    expect(c.ultima_atividade).toBe('2026-10-14T14:00:00.000Z');
+    expect(c.chave).toBe('CARLA_RETOMADA_USUARIOS_OFF ou usu_rec_pausa');
+  });
+
+  it('parada de estrutura (sem texto do redator) deixa o selo Pausado com o texto; parada de horário só explica e o selo segue Ligado', async () => {
+    ret.painel = { ...PAINEL, parada: { motivo: 'sem_texto', texto: 'Sem o texto do redator: não envia', bloqueio: true } };
+    let { c } = await cartaoRet();
+    expect(c.selo).toBe('pausado');
+    expect(c.motivo).toBe('Sem o texto do redator: não envia');
+    vi.resetModules();
+    ret.painel = { ...PAINEL, parada: { motivo: 'fora_da_janela', texto: 'Fora da janela: segunda a sábado, das 9h às 20h, fora de feriado', bloqueio: false } };
+    ({ c } = await cartaoRet());
+    expect(c.selo).toBe('ligado');
+    expect(c.motivo).toBe('Fora da janela: segunda a sábado, das 9h às 20h, fora de feriado');
+  });
+
+  it('painel que não deu para ler (null ou erro): Pausado, dizendo isso, e as métricas vão como "sem número"', async () => {
+    ret.painel = null;
+    let { c } = await cartaoRet();
+    expect(c.selo).toBe('pausado');
+    expect(c.motivo).toBe('Não consegui ler o estado da retomada');
+    expect(c.metricas.every(m => m.valor === null)).toBe(true);
+    expect(c.fila).toBeUndefined();
+    vi.resetModules();
+    ret.painel = new Error('banco caiu com 5534991110001');
+    ({ c } = await cartaoRet());
+    expect(c.selo).toBe('pausado');
+    expect(JSON.stringify(c)).not.toMatch(/5534991110001|banco caiu/);
+  });
+
+  it('a env que desliga vence o painel (Desligado), e a pausa de dois erros de linha acende o alerta no cartão', async () => {
+    process.env.CARLA_RETOMADA_USUARIOS_OFF = '1';
+    ret.painel = PAINEL;
+    let { c } = await cartaoRet();
+    expect(c.selo).toBe('desligado');
+    vi.resetModules();
+    delete process.env.CARLA_RETOMADA_USUARIOS_OFF;
+    ret.painel = { ...PAINEL, pausa: { em: '2026-10-14T14:30:00.000Z', motivo: 'dois_erros_de_linha', por: null, n: 2 } };
+    ({ c } = await cartaoRet());
+    expect(c.alerta).toBe('Pausada sozinha: dois erros de linha seguidos. Confira a linha antes de retomar.');
+    vi.resetModules();
+    ret.painel = { ...PAINEL, pausa: { em: '2026-10-14T14:30:00.000Z', motivo: 'painel', por: 'thiago', n: null } };
+    ({ c } = await cartaoRet());
+    expect(c.alerta).toBeUndefined();
+  });
+
+  it('os envios da retomada entram no total de 24 h e de 7 dias da Central', async () => {
+    ret.painel = PAINEL;
+    const { p } = await cartaoRet();
+    expect(p.resumo.enviados_24h).toBe(6);
+    expect(p.resumo.enviados_7d).toBe(20);
+    vi.resetModules();
+    ret.painel = null;
+    const { p: sem } = await cartaoRet();
+    expect(sem.resumo.enviados_24h).toBe(0);
+  });
+
+  it('a Giovanna deixou de listar as cadências como ativas: os dois toques dizem que foram desligadas em 03/11/2026', async () => {
+    ret.painel = PAINEL;
+    const { p } = await cartaoRet();
+    const g = p.agentes.find(a => a.id === 'giovanna')!;
+    expect(g.toques.map(t => t.quando)).toEqual(['Desligada em 03/11/2026', 'Desligada em 03/11/2026']);
+  });
 });

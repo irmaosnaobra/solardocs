@@ -26,7 +26,7 @@ import { registrarPromessa } from './planilhaBonus';
 import { CARDS_CARLA, LINKS_CARLA } from './personas/carla';
 import { MAX_DEPOIMENTOS_POR_CONVERSA } from './conhecimento/depoimentos';
 import { estadoDaConversa, semAcento } from './trava';
-import type { DadosPosse } from './posse';
+import { ehPosseDaRetomada, type DadosPosse } from './posse';
 import type { MsgConversa, SaidaAgente } from './tipos';
 import type { PecaEnvio, ResultadoEnvio } from './vivoEnvio';
 
@@ -68,7 +68,13 @@ const idDoModelo = (ref: string): string => (ref === 'pix' ? 'pix_kiwify' : ref)
 export function avisosDaCarla(posse: DadosPosse, agora: Date = new Date()): string[] {
   const out: string[] = [];
   const modo = modoPix();
-  if (modo === 'link') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o link do Pix pela Kiwify. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar.');
+  // A RETOMADA dos usuários (03/11/2026): quem já tem conta paga na conta que já existe. O aviso do Pix TROCA pelo do modo (não soma): o de hoje
+  // pede também o e-mail, que aqui não faz falta (a conta vem pelo telefone), e manda o cartão pelo link da assinatura, que a retomada recusa.
+  if (ehPosseDaRetomada(posse)) {
+    if (modo === 'link') out.push('AVISO DO SISTEMA, Pix: para quem já tem conta, o Pix por link não fica preso à conta dele. Não ofereça Pix agora; para o cartão, peça entrar_no_app.');
+    else if (modo === 'codigo') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o código Pix copia e cola na mensagem de baixo. Esta pessoa já tem conta neste WhatsApp: depois de pagar, basta a foto do comprovante aqui, e o acesso volta na conta dela. Nunca diga que liberou.');
+    else out.push('AVISO DO SISTEMA, Pix: o Pix NÃO está disponível agora. Não ofereça Pix nem use pix_kiwify; para o cartão, peça entrar_no_app.');
+  } else if (modo === 'link') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o link do Pix pela Kiwify. Na bolha 1 diga que o acesso abre sozinho quando o banco confirmar.');
   else if (modo === 'codigo') out.push('AVISO DO SISTEMA, Pix: ao pedir a peça pix_kiwify o sistema manda o código Pix copia e cola na mensagem de baixo. Na bolha 1 diga que o código vem abaixo e que, depois de pagar, ele manda aqui a foto do comprovante e o e-mail que usa no SolarDoc. Nunca diga que liberou.');
   else out.push('AVISO DO SISTEMA, Pix: o Pix NÃO está disponível agora. Não ofereça Pix nem use pix_kiwify; ofereça o cartão pelo link da assinatura.');
   if (posse.links.length) out.push(`AVISO DO SISTEMA: links que já saíram nesta conversa: ${posse.links.join(', ')}. Não mande o mesmo de novo, a não ser que ele peça.`);
@@ -110,9 +116,14 @@ const semEfeito: PlanoCarla['depois'] = async () => ({});
 export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
   const { saida, posse } = p;
   const bolha = String(saida.bolhas[0] ?? '');
+  // A RETOMADA dos usuários (03/11/2026): quem já tem conta. Cartão só por dentro do app (peça entrar_no_app), Pix só do jeito do aviso do modo.
+  // Nenhum aviso de recusa leva a palavra que a trava barra em toda bolha (D33).
+  const daRet = ehPosseDaRetomada(posse);
 
   // Promessa da planilha: é fala comum com a promessa dentro; registra depois que a bolha saiu.
   if (saida.acao === 'prometer_planilha') {
+    // A promessa da planilha é a única alavanca de "hoje", e a retomada não tem urgência (quem já tem conta, sem prazo).
+    if (daRet) return recusa('planilha_na_retomada', 'a promessa da planilha não vale nesta conversa (quem já tem conta, sem urgência).');
     if (saida.peca) return recusa('promessa_com_peca', 'a promessa da planilha não leva peça junto.');
     if (!/\bplanilha\b/.test(semAcento(bolha))) return recusa('promessa_sem_planilha', 'a bolha de prometer_planilha precisa dizer a promessa da planilha de eletroposto.');
     if (posse.planilha_prometida === true) return recusa('promessa_repetida', 'a promessa da planilha já foi feita nesta conversa.');
@@ -150,7 +161,16 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
     };
   };
 
-  if (id === 'assinatura' && peca.tipo === 'link') return linkDe(LINKS_CARLA.assinatura!, 'assinatura');
+  if (id === 'assinatura' && peca.tipo === 'link') {
+    // O link de assinatura abre o checkout público, que cria outra conta e outra cobrança para quem já tem conta.
+    if (daRet) return recusa('assinatura_com_conta', 'esta pessoa já tem conta: o link de assinatura cria outra conta e outra cobrança. No cartão, use a peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade. No Pix, siga o aviso do Pix desta conversa.');
+    return linkDe(LINKS_CARLA.assinatura!, 'assinatura');
+  }
+  // Entrar no app: o login da conta que já existe. Só na retomada.
+  if (id === 'entrar_no_app' && peca.tipo === 'link') {
+    if (!daRet) return recusa('entrar_sem_conta', 'o link de entrar no app é só para quem já tem conta.');
+    return linkDe(LINKS_CARLA.entrar_no_app!, 'entrar_no_app');
+  }
   if (id.startsWith('avulso:') && peca.tipo === 'link') {
     const url = LINKS_CARLA[id];
     return url ? linkDe(url, id) : recusa('avulso_desconhecido', `o produto avulso "${id.slice(0, 40)}" não existe.`);
@@ -159,7 +179,10 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
   // ── Pix ─────────────────────────────────────────────────────────────────────
   if (id === 'pix_kiwify' && (peca.tipo === 'link' || peca.tipo === 'pix')) {
     const modo = modoPix();
-    if (modo === 'link') return linkDe(LINKS_CARLA.pix_kiwify!, 'pix');
+    if (modo === 'link') {
+      if (daRet) return recusa('pix_link_com_conta', 'o Pix por link não fica preso à conta dele; no cartão use a peça entrar_no_app.');
+      return linkDe(LINKS_CARLA.pix_kiwify!, 'pix');
+    }
     if (modo === 'indisponivel') return recusa('pix_indisponivel', 'o Pix não está disponível agora.');
     if (posse.links.includes(`pix:${VALOR_PIX}`) && !pediuDeNovo(p.textosDoLead)) {
       return recusa('pix_repetido', 'o código Pix já foi enviado nesta conversa e ele não pediu de novo.');

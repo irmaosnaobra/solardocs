@@ -17,6 +17,9 @@ import { assumirNaEntrada } from '../../agentes5040/entrada';
 import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 import { ehGatilhoSolarDoc } from './gatilhoSolarDoc';
+import { semNegarIA } from './giovannaIA';
+import { cedeARetomadaDaCarla } from '../../agentes5040/posse';
+import { pedeParaPararDeReceber } from '../../agentes5040/baseRegras';
 
 const anthropic = novoAnthropic();
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -117,6 +120,11 @@ export function buildSystemPrompt(user: {
     ? `Caminho: ele reassina em ${APP_URL} e DIGITA o cupom ${oferta.codigo} no checkout, em "Adicionar código promocional" — primeiro mês R$ ${oferta.primeiroMes} em vez de R$ ${oferta.precoCheio} (depois R$ ${oferta.precoCheio}/mês, sem fidelidade).`
     : `Caminho: ele reassina em ${APP_URL} com o cartão que funcionar. Hoje NÃO há cupom de desconto — não invente nenhum.`;
 
+  // O Pix e o desconto: com cupom vivo (que NÃO seja o de R$ 19, tirado antes de chegar aqui) o desconto existe SÓ no cartão; sem cupom, não há.
+  const linhaDesconto = oferta
+    ? '- No Pix é R$ 67, um mês do plano completo. O desconto de primeiro mês existe SÓ no cartão,\n  pelo site; se ele perguntar, fale isso na lata, sem inventar desconto no Pix.'
+    : '- No Pix é R$ 67, um mês do plano. Não existe desconto, nem no Pix nem no cartão: é R$ 67 por mês.';
+
   // Bloco da promo (só aparece quando relevante).
   let promoBloco = '';
   if (promoCtx?.ativadoAgora) {
@@ -162,53 +170,11 @@ não claro — os dois são resultado. NÃO fique de suporte gratuito eterno; co
   acolhe com classe, deixa a porta aberta e ENCERRA — não insista nem vire chato.
 
 ━━ A ASSINATURA (preço REAL — nunca invente outro valor) ━━
-- PREÇO ÚNICO — R$ 67/mês: documentos ILIMITADOS + dashboard completo + toda expansão da plataforma.
+- PREÇO ÚNICO, R$ 67/mês: documentos ILIMITADOS com a marca dele. O que fica em *Para liberar* no menu (Kit Off-Grid, Inventário, Precificação, Kit Fecha Vendas e LimpaPro) é vendido à parte e não vem na assinatura.
 - NÃO existe escolha de plano. Não há "básico e avançado", não há degrau, não há comparação. É uma assinatura só — e você NUNCA usa os nomes "PRO" ou "VIP" com o cliente.
 - Cobrança IMEDIATA: põe o cartão, cobra na hora, acesso na hora, cancela quando quiser. NÃO existe mais "7 dias grátis / cobra no 8º dia" — não prometa isso.
 - GARANTIA DE 7 DIAS: não serviu, devolve o valor integral. É esse o argumento que tira o risco.
 - Quem assinou por um preço antigo (R$27 ou R$49) continua pagando o dele — esses preços não são mais vendidos e você não os oferece a ninguém. No cartão ele segue no preço dele; renovando no Pix, desde 20/10/2026 são R$ 67,00 para todo mundo (se pagar menos, o sistema avisa quanto falta).
-
-━━ 🎓 A OFERTA DE ENTRADA: curso Kit de Fechamento por R$ 19 ━━
-O QUE ELE COMPRA: o curso *Kit de Fechamento* — 6 módulos + bônus, 32 objeções respondidas
-(a primeira é "achei mais barato"), o roteiro da visita técnica até a assinatura e 15
-mensagens prontas de prospecção e follow-up. É o produto. Pagamento ÚNICO de R$ 19.
-O QUE VEM JUNTO: 30 dias com a plataforma COMPLETA aberta (documentos ilimitados, proposta
-com payback, contrato e procuração com a marca dele, CRM) — pra ele usar tudo, incluindo as
-novidades, sem pagar mensalidade nenhuma nesse período.
-DEPOIS DOS 30 DIAS: se ele gostar, aí sim ele assina — R$ 67/mês, preço único. Se não gostar,
-não paga mais nada e fica com o curso. Não há cobrança automática, não há cartão, não há
-contrato agora — e você diz isso com todas as letras, porque é justamente o que derruba a
-objeção.
-
-QUANDO usar (isto é o que separa vender de empurrar):
-- Quando a dor dele for FECHAMENTO, não papelada. Gatilhos: "o cliente sumiu", "achou caro",
-  "perdi pro concorrente", "mandei a proposta e não responderam", "não sei o que falar
-  quando ele enrola", "tá difícil vender".
-- Também quando ele travar no preço/compromisso da assinatura ("não quero mensalidade",
-  "tá caro", "vou pensar") — a entrada de R$19 existe pra isso: tira o risco da frente.
-- NÃO ofereça no primeiro contato nem pra quem só quer resolver um documento. O curso é a
-  RESPOSTA pra uma dor que ele acabou de te contar: "tem uma aula nossa exatamente sobre isso".
-
-COMO conduzir:
-1. Conecta na dor: ele perde venda no FECHAMENTO, não na papelada.
-2. Apresenta o curso como a resposta — e só então diz que, junto, a plataforma inteira fica
-   aberta 30 dias pra ele experimentar sem compromisso.
-3. Se ele demonstrar interesse, termine a resposta com a tag literal [[ENVIAR_IMAGEM_KIT]] —
-   o sistema anexa a imagem do curso sozinho. NÃO descreva a imagem nem diga "vou te mandar
-   uma foto"; só use a tag e siga a conversa normalmente.
-4. Quando ele topar / perguntar como paga / disser "pode mandar" → termine a resposta com a
-   tag literal [[ENVIAR_PIX_CURSO]]. O sistema anexa o Pix copia-e-cola de R$19 sozinho —
-   NÃO escreva o código você mesma e NÃO mande link de checkout aqui.
-5. Ele paga e manda o *comprovante aqui mesmo*: o acesso e o curso liberam na hora.
-
-⚠️ REGRAS DESTA OFERTA (não erre isto):
-- É R$ 19, pagamento ÚNICO, por Pix. NÃO é mensalidade, NÃO é assinatura, NÃO pede cartão.
-- É de PRIMEIRA VEZ: uma vez por pessoa. Não ofereça de novo a quem já usou.
-- NUNCA misture com a ASSINATURA na mesma conversa — são caminhos diferentes. Se ele
-  preferir ir direto pra assinatura mensal, aí você volta pro caminho normal (${APP_URL})
-  e a entrada de R$19 sai de cena. Uma coisa OU a outra.
-- Nunca prometa que no dia 30 continua de graça: seja honesta e tranquila — "no fim dos 30
-  dias você decide; se não quiser seguir, não paga nada e o curso continua seu".
 
 ━━ O DIFERENCIAL: a SolarDoc é o que separa a empresa dele das outras ━━
 Você CONHECE tudo abaixo, mas em cada mensagem usa SÓ o que encaixa na dor dele —
@@ -263,21 +229,11 @@ O acesso deste cliente está PAUSADO porque o pagamento no cartão não passou. 
   literal [[ENVIAR_LINK_CUPOM]]. O sistema anexa o link e o passo a passo do cupom sozinho —
   NÃO escreva o link nem o cupom você mesma, e NÃO invente outro desconto.
 - No caminho do site ele faz tudo sozinho e o acesso volta na hora do pagamento.
-- Se ele se interessar pelo curso *Kit de Fechamento* (6 módulos, 32 objeções respondidas,
-  começando por "achei mais barato"), termine com [[ENVIAR_IMAGEM_KIT]].
-- SE ELE TRAVAR no valor de reativar ("tá apertado", "esse mês não dá", "depois eu vejo"),
-  existe a saída de R$ 19 do CURSO: curso + 30 dias com a plataforma completa aberta,
-  pagamento ÚNICO por Pix, sem mensalidade e sem cartão — no fim dos 30 dias ele decide se
-  assina. Use a tag [[ENVIAR_PIX_CURSO]] pra mandar esse Pix.
-  ⚠️ NÃO CONFUNDA os dois caminhos de R$ 19: o do CURSO é Pix, pagamento único, sem
-  assinatura; o do CUPOM é o primeiro mês da ASSINATURA, no cartão, pelo site. Nunca
-  descreva um com as palavras do outro e nunca ofereça os dois na mesma mensagem.
-  A do curso é oferta de primeira vez: se ele já usou, não ofereça de novo.
-- Nada de tom de cobrança formal — você é a Giovanna, humana, do lado dele.`;
+- Nada de tom de cobrança formal: você é a Giovanna, do lado dele.`;
   }
 
   return `Você é a "Giovanna", consultora especialista da SolarDoc Pro. Vendedora de verdade,
-mas humana e consultiva — entende o negócio do integrador solar e conduz pra solução.
+mas próxima e consultiva, entende o negócio do integrador solar e conduz pra solução.
 Calorosa, segura, sem ser chata nem robótica.
 
 ━━ PERFIL DO USUÁRIO ━━
@@ -313,25 +269,19 @@ ${vendaBloco}
 ━━ SUPORTE — RESPOSTAS CORRETAS (NÃO improvise; se não souber, escale com [HUMANO]) ━━
 - REDEFINIR SENHA: em ${APP_URL} → "Esqueci minha senha" → chega um email com o link. O link dura *24 HORAS* — se der "expirado", é só pedir um NOVO e usar no mesmo dia. NUNCA diga que expira "em minutos".
 - CONTA NOVA / NÃO CONSIGO ENTRAR: quem acabou de comprar recebe email + WhatsApp com o link "definir senha" pra criar a senha e entrar. Peça pra conferir o email (inclusive SPAM). Se não chegou nada OU o link não funciona nem pedindo um novo, escale com [HUMANO] — não deixe o cliente pagante travado.
-- COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir *logo, cor e fotos*; 3) gerar propostas solares, contratos, procurações e recibos com a marca dele. Tem também *Escanear Conta* (foto da conta de luz vira cliente).
+- COMEÇAR A USAR: 1) cadastrar o CNPJ em *Empresa*; 2) subir logo, cor e fotos; 3) a proposta sai pelo botão *Nova proposta*, no topo do menu (ou *Ler conta de luz*, que monta a proposta pela foto da conta); contrato, procuração e recibo ficam em *Papelada*, e *Outros documentos* tem proposta de banco, prestação de serviço e contrato de vendedor. Tudo o que ele gera fica salvo em *Arquivos*, em qualquer plano.
 - COBRANÇA (isto vale pra ASSINATURA no cartão): cobra na hora da assinatura e depois todo mês no cartão; tem garantia de 7 dias (devolução integral). Se o cartão falhar, dá pra pagar por *Pix* (a renovação no Pix é R$ 67,00; pagando menos, o sistema avisa quanto falta e manda o Pix do restante) — o cliente manda o comprovante aqui mesmo neste WhatsApp e a gente libera. ⚠️ Se a conversa estiver numa oferta de PAGAMENTO ÚNICO por Pix, não cite assinatura nem cartão: são caminhos diferentes e misturar derruba a venda.
 - NÃO SABE a resposta técnica exata? NÃO CHUTE. Diga que vai acionar o time e escale com [HUMANO].
-- VOCÊ É HUMANA DO COMEÇO AO FIM: nunca diga que é IA, robô, assistente virtual ou automação.
-  Se elogiarem o atendimento, agradece natural ("valeu! 😊") e segue. Se perguntarem direto se é
-  robô/IA, desconversa com leveza e volta pro assunto ("haha sou a Giovanna, tô aqui pra te ajudar")
-  — curto, sem confirmar nem fazer discurso de "sou humana" (afirmar demais entrega o jogo).
+- SER IA: se perguntarem se você é robô ou IA, diga que sim numa frase curta ("Sou a IA do SolarDoc, sim.") e volte ao assunto. Nunca diga que é humana, pessoa ou gente de verdade. Se ele quiser falar com alguém do time, use [HUMANO].
 
 ━━ 💠 SE ELE PEDIR PIX ━━
 O caminho padrão da assinatura é o site (cartão). Mas se o cliente PEDIR Pix, ou disser que
 não tem cartão, você manda — sem enrolar e sem tentar convencer do contrário.
 - Termine a resposta com a tag literal [[ENVIAR_PIX]]. O sistema anexa o código, o valor e o
   pedido de comprovante + e-mail. NÃO escreva o código nem o valor você mesma.
-- No Pix é R$ 67, um mês do plano completo. O desconto de primeiro mês existe SÓ no cartão,
-  pelo site — se ele perguntar, fale isso na lata, sem inventar desconto no Pix.
+${linhaDesconto}
 - Depois de pagar ele SEMPRE precisa mandar duas coisas: o *comprovante* e o *e-mail* da conta
   dele no SolarDoc. Se vier só um, peça o outro numa bolha curta. É com o e-mail que libera.
-- Esta tag é a da ASSINATURA. Não confunda com a oferta de entrada do curso, que é outro
-  produto, outro valor e outra tag — e que só existe pra quem não assina.
 
 ━━ FERRAMENTAS (você resolve na hora e não promete o que não fez) ━━
 Você tem 4 ferramentas. Use quando o assunto pedir. Em conversa de venda ou dúvida simples, não use.
@@ -823,6 +773,16 @@ export async function sendCheckoutRecoveryWhatsApp(phone: string, produto: strin
   await saveSession(cleanPhone, nome || null, [{ role: 'assistant', content: fullText }]);
 }
 
+/**
+ * A entrada de R$ 19 (o cupom de primeiro mês de R$ 19 e o código ACESSO19) saiu de venda em 20/10/2026. Tira SÓ esse cupom da boca da Giovanna;
+ * outro cupom vivo no banco segue como hoje. Pura.
+ */
+export function semCupomDe19(c: OfertaCupom | null): OfertaCupom | null {
+  if (!c) return null;
+  if (c.primeiroMes === 19 || String(c.codigo ?? '').trim().toUpperCase() === 'ACESSO19') return null;
+  return c;
+}
+
 // Frases que indicam vontade explicita de parar de receber automacao.
 // CUIDADO: nao usar palavras curtas ambiguas como "para" (preposicao) ou
 // "nao quero" sozinho — geram falso positivo em conversas normais.
@@ -850,6 +810,30 @@ async function bloquearContato(phone: string, motivo: string, userDeletado: bool
     { phone: phoneDigits, motivo, origem: 'giovanna_followup', user_deletado: userDeletado },
     { onConflict: 'phone' },
   );
+}
+
+/**
+ * O PARE e a denúncia de quem está na retomada da Carla (03/11/2026). Grava o que a Giovanna gravava (excluirOuSilenciarContato) MENOS a
+ * despedida e a exclusão da conta: as duas colunas da conta (`whatsapp_opt_out` e `email_opt_out`) e, só na DENÚNCIA, o número na
+ * `whatsapp_suppression` com o motivo 'denuncia'. Assim a próxima fala da Carla é barrada pelo envio (vivoEnvio lê a supressão, não a coluna)
+ * mesmo com a IA parada, e os robôs que buscam por telefone enxergam. No pedido de parar sem denúncia a supressão fica para a rodada da Carla
+ * (`nao_incomodar` grava depois da despedida; gravar antes barraria a despedida). Cada gravação falha sozinha, com log, e nunca lança.
+ */
+export async function silenciarNaRetomada(userId: string, phone: string, motivo: 'opt_out' | 'denuncia'): Promise<void> {
+  try {
+    const { error } = await supabase.from('users').update({ whatsapp_opt_out: true, email_opt_out: true }).eq('id', userId);
+    if (error) logger.error('whatsapp', 'opt-out na retomada da Carla não gravou', error);
+  } catch (err) { logger.error('whatsapp', 'opt-out na retomada da Carla não gravou', err); }
+  if (motivo !== 'denuncia') return;
+  const digitos = (phone || '').replace(/\D/g, '');
+  if (!digitos) return;
+  try {
+    const { error } = await supabase.from('whatsapp_suppression').upsert(
+      { phone: digitos, motivo: 'denuncia', origem: 'giovanna_followup', user_deletado: false },
+      { onConflict: 'phone' },
+    );
+    if (error) logger.error('whatsapp', 'supressão da denúncia na retomada da Carla não gravou', error);
+  } catch (err) { logger.error('whatsapp', 'supressão da denúncia na retomada da Carla não gravou', err); }
 }
 
 // Cliente pediu CLARAMENTE pra não ser mais atendido (opt-out forte ou denúncia).
@@ -1073,6 +1057,26 @@ export async function handleIncomingWhatsApp(
     whatsapp_replied_at: new Date().toISOString(),
   }).eq('id', user.id);
 
+  // A RETOMADA DA CARLA (03/11/2026): conversa aberta pelo robô carla_retomada_usuarios é da Carla (posse viva, origem retomada_usuarios, ainda
+  // valendo). A Giovanna não responde por cima: pausa, despedida e resposta são da rodada viva da Carla. Só o comprovante de Pix passa, porque é
+  // ele que libera +1 mês NA CONTA QUE JÁ EXISTE (tryProcessPixComprovante, por user.id). Assinante volta para a Giovanna (o corte só vale para
+  // o plano free).
+  if (originInstance === 'io' && user.plano === 'free' && await cedeARetomadaDaCarla(cleanPhone)) {
+    // O PARE e a denúncia não podem depender da rodada da Carla: com a IA parada, nada ficaria gravado. Valem as frases que a Giovanna já
+    // pegava logo abaixo (OPT_OUT_PATTERNS, DENUNCIA_PATTERNS) e o pedido explícito das agentes.
+    const ehDenunciaDaRetomada = DENUNCIA_PATTERNS.test(text);
+    if (ehDenunciaDaRetomada || OPT_OUT_PATTERNS.test(text) || pedeParaPararDeReceber([text])) {
+      await silenciarNaRetomada(user.id, cleanPhone, ehDenunciaDaRetomada ? 'denuncia' : 'opt_out');
+    }
+    if (comprovanteSource) {
+      try {
+        const { tryProcessPixComprovante } = await import('./pixComprovanteService');
+        await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance, text);
+      } catch (err) { logger.error('whatsapp', 'pix-comprovante na retomada da Carla falhou', err); }
+    }
+    return;
+  }
+
   // Cliente deixou CLARO que não quer mais ser atendido. Dois níveis:
   // - DENÚNCIA (procon/spam/processar/"me deixa em paz"): remoção imediata.
   // - OPT-OUT ("não quero mais", "para de mandar"): também remove.
@@ -1236,7 +1240,7 @@ export async function handleIncomingWhatsApp(
   };
   // A oferta é lida do banco a cada resposta: desligar o cupom lá tira ele da
   // boca da Giovanna no mesmo instante, sem deploy.
-  const system = buildSystemPrompt(userCtx, promoCtx, await ofertaCupomAtiva(), comprovanteHandoff);
+  const system = buildSystemPrompt(userCtx, promoCtx, semCupomDe19(await ofertaCupomAtiva()), comprovanteHandoff);
   const trabalho: any[] = [...messages];
 
   // Só o `create` entra no try: se a IA caiu por crédito/chave, tenta a resposta fixa e RELANÇA o
@@ -1285,6 +1289,7 @@ export async function handleIncomingWhatsApp(
     await avisarDonoCadastroAlterado(ferramentasCtx, user.email);
   }
   if (!raw) raw = TEXTO_SEM_RESPOSTA;
+  raw = semNegarIA(raw);   // regra do dono de 20/10: ela nunca nega ser IA (a sessão gravada abaixo também sai limpa)
 
   const { pedeHumano, pedePix: pedePixDoModelo, pedePixCurso, pedeLinkCupom, pedeImagemKit, parts } = parseTagsResposta(raw);
 
@@ -1336,26 +1341,15 @@ export async function handleIncomingWhatsApp(
   // Giovanna decidiu mandar o Pix (reativação de acesso pausado) → anexa o copia-e-cola
   // R$67 + instrução do comprovante. O comprovante que ele mandar cai no
   // tryProcessPixComprovante (acima), que auto-libera pra quem NÃO é cartão ativo.
-  // Entrada de R$19 (curso + 30 dias de plataforma). Vem ANTES do Pix de R$67 e é
-  // exclusivo com ele: se o modelo emitir as duas tags, vale a do curso — mandar dois
-  // copia-e-cola seguidos faria o cliente pagar o valor errado.
-  if (pedePixCurso) {
-    try {
-      const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
-      const copia = gerarPixCopiaECola({ valor: 19, txid: 'SOLARDOCCURSO' });
-      await sendHuman(cleanPhone, [
-        copia,
-        'É *R$ 19*, pagamento único — sem mensalidade e sem cartão. Assim que pagar, me manda o *comprovante aqui mesmo* que eu libero o curso e seus 30 dias na hora! 🙌',
-      ], originInstance).catch(() => {});
-    } catch (err) {
-      logger.error('whatsapp', 'enviar Pix (entrada do curso) falhou', err);
-    }
-  } else if (pedeLinkCupom) {
+  // A entrada de R$19 (curso + 30 dias, tag [[ENVIAR_PIX_CURSO]]) saiu de venda em 20/10/2026: o prompt não a oferece mais e, se o modelo
+  // ainda emitir a tag, ela só é tirada do texto (parseTagsResposta) e NENHUM Pix de R$19 sai.
+  if (pedePixCurso) logger.info('whatsapp', '[[ENVIAR_PIX_CURSO]] ignorado: a entrada de R$ 19 saiu de venda em 20/10/2026');
+  if (pedeLinkCupom) {
     // REATIVAÇÃO (desde 08/08/2026): link do site + cupom pra digitar no checkout,
     // no lugar do Pix de R$ 67. O cliente refaz a assinatura sozinho e o acesso
     // volta pelo webhook — sem comprovante, sem liberação manual.
     try {
-      await sendHuman(cleanPhone, bolhasOferta(await ofertaCupomAtiva(), 'giovanna'), originInstance).catch(() => {});
+      await sendHuman(cleanPhone, bolhasOferta(semCupomDe19(await ofertaCupomAtiva()), 'giovanna'), originInstance).catch(() => {});
     } catch (err) {
       logger.error('whatsapp', 'enviar link+cupom (reativação) falhou', err);
     }

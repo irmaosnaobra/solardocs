@@ -90,6 +90,21 @@ describe('o relatório do process-messages é por nome, não por posição', () 
     expect(fonte).not.toMatch(/epReagendaResult\.status/);
   });
 
+  it('as duas cadências da Giovanna saíram da lista (03/11/2026) e a retomada dos usuários roda sozinha, depois do robô do quiz', () => {
+    const chaves = pares.map(p => p.chave);
+    expect(chaves).not.toContain('carla_sem_cnpj');
+    expect(chaves).not.toContain('carla_inativo');
+    expect(pares.map(p => p.fn)).not.toContain('runCarlaSemCnpjFollowup');
+    expect(pares.map(p => p.fn)).not.toContain('runCarlaInativoFollowup');
+    expect(fonte).not.toMatch(/runCarlaSemCnpjFollowup|runCarlaInativoFollowup|runWhatsappFollowup|runInactiveEngagement|dispararOpenerTesteParaUser|runCarlaCnpjKillerBroadcast/);
+    // A retomada não está dentro da lista: roda depois de todas e do robô do quiz (a mesma vez de 10 min, 1 envio por rodada).
+    expect(bloco).not.toContain('runRetomadaUsuariosTick');
+    expect(fonte).toContain("resultados['carla_retomada_usuarios'] = retomadaUsuarios;");
+    expect(fonte.indexOf('runRetomadaUsuariosTick()')).toBeGreaterThan(fonte.indexOf('runQuizRecuperacaoTick()'));
+    // E também não entra no /master (regra da lista: tick que já roda no /process-messages não entra lá).
+    expect(fonte.slice(fonte.indexOf('// ─── MASTER CRON'))).not.toContain('runRetomadaUsuariosTick');
+  });
+
   it('os módulos que tinham o resultado DESCARTADO estão na lista, com a chave deles', () => {
     // Os quatro últimos de 01/10, que não apareciam na resposta, e os três do
     // meio que não tinham nome nenhum.

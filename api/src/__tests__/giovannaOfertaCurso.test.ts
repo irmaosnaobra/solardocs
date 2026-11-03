@@ -10,17 +10,17 @@ vi.mock('../services/agents/whatsapp/promoGeradorActivation', () => ({
   detectAndActivatePromoCredits: vi.fn(),
 }));
 
-import { buildSystemPrompt } from '../services/agents/whatsapp/whatsappAgentService';
+import { buildSystemPrompt, semCupomDe19 } from '../services/agents/whatsapp/whatsappAgentService';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// A quem a Giovanna pode oferecer a entrada de R$19.
+// A ENTRADA DE R$19 SAIU DE VENDA EM 20/10/2026 (e do prompt da Giovanna em 03/11/2026).
 //
-// A entrada é curso + 30 dias de plataforma por pagamento único. Ela existe
-// pra converter quem NÃO paga. Se vazar pra assinante ativo, ele troca R$67
-// por mês por R$19 avulso — a oferta passa a canibalizar a própria receita.
+// Era o curso Kit de Fechamento por pagamento único mais 30 dias de plataforma. Decisão do dono de 20/10: saem o ACESSO19 e o Pix de R$ 19.
+// A Giovanna não pode mais oferecê-la a ninguém, nem como primeira oferta ao grátis nem como saída do inadimplente. O prompt é código, e
+// regressão em prompt não quebra build: este teste trava o comportamento. O envio do Pix de R$ 19 também saiu (giovannaAgenteLaco.test.ts).
 //
-// O gate é o `vendaBloco` por plano em buildSystemPrompt. Este teste trava
-// esse comportamento: prompt é código, e regressão em prompt não quebra build.
+// Também travados aqui: ela nunca nega ser IA (regra do dono de 20/10), o preço é único e o que fica em "Para liberar" é vendido à parte,
+// e o caminho de começar a usar é o do menu de hoje.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const base = { email: 'x@y.com', nome_empresa: 'ACME', tem_cnpj: true, nome: 'Joao' };
@@ -28,39 +28,36 @@ const base = { email: 'x@y.com', nome_empresa: 'ACME', tem_cnpj: true, nome: 'Jo
 const prompt = (over: Record<string, any> = {}) =>
   buildSystemPrompt({ ...base, plano: 'free', ...over } as any);
 
-describe('FREE — é o público da entrada de R$19', () => {
+describe('FREE: a entrada de R$19 não existe mais', () => {
   const p = prompt({ plano: 'free' });
 
-  it('recebe a oferta de R$19 com o curso como produto', () => {
-    expect(p).toMatch(/R\$ ?19/);
-    expect(p).toMatch(/Kit de Fechamento/i);
+  it('não recebe a oferta de R$19 nem o curso como produto', () => {
+    expect(p).not.toMatch(/R\$ ?19/);
+    expect(p).not.toMatch(/Kit de Fechamento por R\$/i);
+    expect(p).not.toMatch(/A OFERTA DE ENTRADA/);
   });
 
-  it('sabe mandar o Pix do curso e a imagem', () => {
-    expect(p).toContain('[[ENVIAR_PIX_CURSO]]');
-    expect(p).toContain('[[ENVIAR_IMAGEM_KIT]]');
+  it('não sabe mandar o Pix do curso nem a imagem do kit', () => {
+    expect(p).not.toContain('[[ENVIAR_PIX_CURSO]]');
+    expect(p).not.toContain('[[ENVIAR_IMAGEM_KIT]]');
   });
 
-  it('deixa explícito que é pagamento único, sem mensalidade e sem cartão', () => {
-    expect(p).toMatch(/pagamento ÚNICO/i);
-    expect(p).toMatch(/N[ÃA]O pede cart[ãa]o|n[ãa]o há cart[ãa]o|sem cart[ãa]o/i);
-    expect(p).toMatch(/N[ÃA]O é mensalidade|sem mensalidade/i);
+  it('não promete 30 dias de plataforma aberta nem desconto de primeiro mês', () => {
+    expect(p).not.toMatch(/30 dias/);
+    expect(p).not.toMatch(/desconto de primeiro mês/i);
   });
 
-  // PREÇO ÚNICO: antes ela dizia "aí sim escolhe PRO (R$27) ou VIP (R$67)".
-  // Não há mais escolha — no fim dos 30 dias ele assina o preço único ou não.
-  it('diz que a decisão de assinar fica pro fim dos 30 dias, num preço só', () => {
-    expect(p).toMatch(/30 dias/);
+  it('segue vendendo a assinatura de preço único e entrega o link do site', () => {
+    expect(p).toMatch(/SUA MISSÃO: CONVERTER ESTE FREE EM ASSINANTE/);
     expect(p).toMatch(/R\$ ?67\/m[êe]s/);
-    expect(p).not.toMatch(/escolhe PRO|PRO ou VIP|PRO \(R\$ ?27\)/);
+    expect(p).toContain(process.env.DASHBOARD_URL || 'https://solardoc.app');
   });
 
-  it('proíbe misturar com os 7 dias grátis na mesma conversa', () => {
-    expect(p).toMatch(/NUNCA misture com os "7 dias grátis"|Uma coisa OU a outra/i);
-  });
-
-  it('marca que é oferta de primeira vez', () => {
-    expect(p).toMatch(/PRIMEIRA VEZ|uma vez por pessoa/i);
+  it('o que fica em Para liberar é vendido à parte, e a assinatura não promete toda a plataforma', () => {
+    expect(p).toMatch(/Para liberar/);
+    for (const nome of ['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro']) expect(p, nome).toContain(nome);
+    expect(p).toMatch(/vendido à parte e não vem na assinatura/);
+    expect(p).not.toMatch(/toda expansão da plataforma/i);
   });
 });
 
@@ -86,7 +83,7 @@ describe('assinante ativo — a entrada NÃO pode aparecer', () => {
   });
 });
 
-describe('inadimplente — R$19 só como saída, nunca como primeira oferta', () => {
+describe('inadimplente: a reativação é o site com o link e o cupom que existir, sem R$19 do curso', () => {
   const p = prompt({ plano: 'pro', billing_status: 'past_due' });
 
   // Desde 08/08/2026 a reativação OFERECIDA é LINK + CUPOM (o cliente reassina
@@ -107,31 +104,30 @@ describe('inadimplente — R$19 só como saída, nunca como primeira oferta', ()
     expect(p).toMatch(/\*comprovante\* e o \*e-?mail\*/i);
   });
 
-  it('sem cupom vivo, não inventa desconto', () => {
+  it('sem cupom vivo, não inventa desconto: nem no Pix nem no cartão', () => {
     expect(p).toMatch(/N[ÃA]O h[áa] cupom de desconto — n[ãa]o invente nenhum/i);
+    expect(p).toMatch(/Não existe desconto, nem no Pix nem no cartão: é R\$ 67 por mês/);
+    expect(p).not.toMatch(/desconto de primeiro mês/i);
   });
 
-  it('com cupom vivo, manda digitar o código no checkout', () => {
+  it('com um cupom vivo que não é o de R$ 19, manda digitar o código no checkout e diz que o desconto é só no cartão', () => {
     const comCupom = buildSystemPrompt(
       { ...base, plano: 'pro', billing_status: 'past_due' } as any,
       undefined,
-      { codigo: 'ACESSO19', primeiroMes: 19, precoCheio: 67 },
+      { codigo: 'VOLTA10', primeiroMes: 57, precoCheio: 67 },
     );
-    expect(comCupom).toMatch(/digita.*ACESSO19|ACESSO19.*checkout/i);
-    expect(comCupom).toMatch(/primeiro m[êe]s R\$ ?19/i);
+    expect(comCupom).toMatch(/digita.*VOLTA10|VOLTA10.*checkout/i);
+    expect(comCupom).toMatch(/primeiro m[êe]s R\$ ?57/i);
+    expect(comCupom).toMatch(/desconto de primeiro mês existe SÓ no cartão/i);
+    expect(comCupom).not.toMatch(/Não existe desconto, nem no Pix nem no cartão/);
   });
 
-  it('os R$19 do curso aparecem condicionados a ele travar no valor', () => {
-    expect(p).toMatch(/SE ELE TRAVAR/i);
-    expect(p).toMatch(/R\$ ?19/);
-    expect(p).toContain('[[ENVIAR_PIX_CURSO]]');
-  });
-
-  // Dois R$19 convivem agora: o do CURSO (Pix, pagamento único) e o do CUPOM
-  // (primeiro mês da assinatura, no cartão). Trocar um pelo outro na conversa é
-  // vender a coisa errada — o prompt tem que dizer isso com todas as letras.
-  it('avisa explicitamente para não confundir os dois R$19', () => {
-    expect(p).toMatch(/N[ÃA]O CONFUNDA os dois caminhos de R\$ ?19/i);
+  it('a saída de R$19 do curso e o aviso de "dois R$19" saíram do dunning', () => {
+    expect(p).not.toMatch(/SE ELE TRAVAR/i);
+    expect(p).not.toMatch(/R\$ ?19/);
+    expect(p).not.toContain('[[ENVIAR_PIX_CURSO]]');
+    expect(p).not.toContain('[[ENVIAR_IMAGEM_KIT]]');
+    expect(p).not.toMatch(/N[ÃA]O CONFUNDA os dois caminhos/i);
   });
 
   it('suspenso recebe o mesmo tratamento de past_due', () => {
@@ -139,14 +135,42 @@ describe('inadimplente — R$19 só como saída, nunca como primeira oferta', ()
   });
 });
 
-describe('regras que não podem se perder', () => {
-  it('a Giovanna nunca se apresenta como IA', () => {
-    expect(prompt()).toMatch(/nunca diga que é IA/i);
+describe('semCupomDe19: tira SÓ o cupom da entrada de R$ 19', () => {
+  it('tira o cupom de primeiro mês de R$ 19, qualquer que seja o código', () => {
+    expect(semCupomDe19({ codigo: 'QUALQUER', primeiroMes: 19, precoCheio: 67 })).toBeNull();
   });
 
-  it('o curso é oferecido como resposta a uma dor, não como brinde', () => {
+  it('tira o ACESSO19 em qualquer caixa e com espaços, mesmo que o valor seja outro', () => {
+    for (const codigo of ['ACESSO19', 'acesso19', ' Acesso19 ']) {
+      expect(semCupomDe19({ codigo, primeiroMes: 30, precoCheio: 67 }), codigo).toBeNull();
+    }
+  });
+
+  it('mantém outro cupom vivo como está, e null continua null', () => {
+    const outro = { codigo: 'VOLTA10', primeiroMes: 57, precoCheio: 67 };
+    expect(semCupomDe19(outro)).toBe(outro);
+    expect(semCupomDe19(null)).toBeNull();
+  });
+});
+
+describe('regras que não podem se perder', () => {
+  it('a Giovanna nunca nega ser IA: diz que sim numa frase e volta ao assunto', () => {
+    for (const plano of ['free', 'pro', 'ilimitado']) {
+      const p = prompt({ plano });
+      expect(p, plano).toMatch(/Sou a IA do SolarDoc, sim\./);
+      expect(p, plano).toMatch(/Nunca diga que é humana, pessoa ou gente de verdade/);
+      expect(p, plano).not.toMatch(/HUMANA DO COMEÇO AO FIM/);
+      expect(p, plano).not.toMatch(/nunca diga que é IA/i);
+      expect(p, plano).not.toMatch(/mas humana e consultiva/);
+    }
+    expect(prompt({ plano: 'pro', billing_status: 'past_due' })).not.toMatch(/você é a Giovanna, humana/);
+  });
+
+  it('o menu de hoje: Nova proposta, Ler conta de luz, Papelada, Arquivos e Para liberar; nada de Escanear Conta', () => {
     const p = prompt({ plano: 'free' });
-    expect(p).toMatch(/N[ÃA]O ofereça no primeiro contato/i);
-    expect(p).toMatch(/RESPOSTA pra uma dor/i);
+    for (const trecho of ['Nova proposta', 'Ler conta de luz', 'Papelada', 'Arquivos', 'Para liberar', 'Outros documentos']) {
+      expect(p, trecho).toContain(trecho);
+    }
+    expect(p).not.toContain('Escanear Conta');
   });
 });

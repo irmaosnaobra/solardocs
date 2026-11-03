@@ -5,9 +5,11 @@
 // O bloco SISTEMA_FIXO_CARLA vai em cache e nunca leva dado do lead; o que é do lead
 // entra por fatosCarla(ctx), na mensagem do usuário.
 
-import type { ContextoLead, PersonaDef } from '../tipos';
+import type { ContaRetomada, ContextoLead, PersonaDef } from '../tipos';
+import type { ModoPix } from '../modoPix';
+import { diaBRT } from '../relogio';
 import {
-  AVULSOS, DOCUMENTOS_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc,
+  AVULSOS, DOCUMENTOS_SOLARDOC, NOVIDADES_SOLARDOC, PLANO_MENSAL, PROMESSA_PLANILHA_ELETROPOSTO, textoConhecimentoSolarDoc, textoRetomadaSolarDoc,
 } from '../conhecimento/solardoc';
 import { DEPOIMENTOS, MAX_DEPOIMENTOS_POR_CONVERSA, cardsParaLead } from '../conhecimento/depoimentos';
 import { estadoDaConversa } from '../trava';
@@ -40,6 +42,8 @@ export const ROTAS_AVULSOS: Readonly<Record<string, string>> = {
 export const LINKS_CARLA: Readonly<Record<string, string>> = {
   assinatura: `${BASE}/assinar`,
   pix_kiwify: PIX_LINK,
+  /** O login da conta que já existe: o cartão de quem volta é por dentro do app. Só vale na retomada dos usuários (carlaVivo recusa fora dela). */
+  entrar_no_app: `${BASE}/auth`,
   ...Object.fromEntries(AVULSOS.filter(a => ROTAS_AVULSOS[a.id]).map(a => [`avulso:${a.id}`, `${BASE}${ROTAS_AVULSOS[a.id]}`])),
 };
 
@@ -167,7 +171,8 @@ export const EXEMPLOS_CARLA: readonly ExemploPersona[] = [
 const listaCards = CARDS_CARLA
   .map(d => `- ${idDoCard(d.slug)}: ${d.nome}${d.empresa ? `, ${d.empresa}` : ''}, ${d.cidade}/${d.uf} (região ${d.regiao})`)
   .join('\n');
-const listaLinks = Object.entries(LINKS_CARLA).map(([id, url]) => `- ${id}: ${url}`).join('\n');
+const listaLinks = Object.entries(LINKS_CARLA)
+  .map(([id, url]) => `- ${id}: ${url}${id === 'entrar_no_app' ? ' (só para quem já tem conta; os fatos dizem)' : ''}`).join('\n');
 const valoresPermitidos = [V, ...AVULSOS.map(a => a.preco)].filter((v, i, a) => a.indexOf(v) === i).map(v => `R$ ${v}`).join(', ');
 const avulsosPorNome = AVULSOS.map(a => `${a.nome} (R$ ${a.preco}, peça avulso:${a.id})`).join('; ');
 
@@ -239,6 +244,12 @@ PIX
 - Se o aviso disser que o Pix não está disponível, não ofereça Pix: ofereça o cartão pelo link da assinatura.
 - Uma forma de pagamento por resposta: ou o link da assinatura, ou o Pix. Se ele já pagou na chave e mandou a foto do comprovante, use a acao comprovante_pix e diga só que recebeu e que o acesso chega no e-mail depois da conferência. Nunca diga que liberou.
 
+QUEM JÁ TEM CONTA (os fatos trazem "Situação da conta")
+- É a retomada: ele já conhece o SolarDoc. Responda ao que ele disse, sem se apresentar de novo e sem explicar o básico.
+- Nunca use a peça assinatura: ela cria outra conta e outra cobrança. Cartão é por dentro do app: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade. Pix só do jeito que o AVISO DO SISTEMA sobre o Pix manda nesta conversa.
+- Nunca diga que liberou, e nunca diga que R$ ${V} dá a plataforma inteira: o que fica em Para liberar é vendido à parte.
+- Só diga que ele assinou ou pagou quando a situação da conta disser isso.
+
 DEPOIMENTOS (cards em imagem; só estes existem)
 ${listaCards}
 - Escolha pelo perfil do lead: mesma cidade, senão mesmo estado, senão mesma região, senão o que sobrar. Os fatos trazem a ordem quando a cidade é conhecida.
@@ -298,12 +309,63 @@ export function fatosDoQuiz(ctx: ContextoLead): string[] {
   ];
 }
 
+/** DD/MM/AAAA de Brasília, ou '' quando o instante não é uma data. */
+function dataBR(iso: string | null | undefined): string {
+  const d = diaBRT(String(iso ?? ''));
+  return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '';
+}
+
+/**
+ * Os fatos de quem TEM conta e recebeu a mensagem de retomada da Carla (03/11/2026). Pura. Sem telefone e sem e-mail. NÃO escreve
+ * "Conta no SolarDoc: sim" (a regra de cima libera "liberou" com essa frase) e nenhuma linha leva a palavra "menu" (a trava barra em toda bolha).
+ * "Já foi assinante" só sai para o grupo `pagou`; o `incerto` diz que não há pagamento confirmado; o grátis diz que nunca assinou.
+ * O pagamento vai pelo modo do Pix de agora.
+ */
+export function fatosDaRetomada(c: ContaRetomada, _agora: string, modo: ModoPix): string[] {
+  const l: string[] = [];
+  const enviada = dataBR(c.enviado_em);
+  l.push(`Esta pessoa já tem conta no SolarDoc e a conversa começou pela nossa mensagem de retomada${enviada ? ` (${enviada})` : ''}${c.texto_enviado ? `: "${textoLivre(c.texto_enviado, 200)}"` : ''}.`);
+
+  const saiu = dataBR(c.saiu_em);
+  const desde = dataBR(c.criada_em);
+  if (c.grupo === 'pagou') {
+    const forma = c.forma_antiga === 'pix' ? ' (no Pix)' : c.forma_antiga === 'cartao' ? ' (no cartão)' : '';
+    l.push(`Situação da conta: já foi assinante${forma}${saiu ? ` e saiu em ${saiu}` : ''}. Plano ativo agora: não.`);
+  } else if (c.grupo === 'incerto') {
+    l.push(`Situação da conta: já teve plano${saiu ? `, que acabou em ${saiu}` : ''}, sem pagamento confirmado no nosso registro (pode ter sido só o teste, ou um acesso que veio com outra compra). Não diga que ele assinou nem que pagou. Plano ativo agora: não.`);
+  } else {
+    l.push(`Situação da conta: grátis${desde ? ` desde ${desde}` : ''}, nunca assinou. Plano ativo agora: não.`);
+  }
+  const doc = dataBR(c.ultimo_documento_em);
+  l.push(doc ? `Último documento gerado: ${doc}.` : 'Último documento gerado: nenhum.');
+  l.push(`Empresa com CNPJ cadastrado: ${c.tem_cnpj ? 'sim' : 'não'}.`);
+  l.push(NOVIDADES_SOLARDOC.length
+    ? 'Ele já conhece o SolarDoc: não se apresente de novo e responda ao que ele disse. Mostre uma novidade por vez, a que casa com o que ele faz.'
+    : 'Ele já conhece o SolarDoc: não se apresente de novo e responda ao que ele disse. Se perguntar o que mudou, fale só do que está no seu conhecimento e não invente novidade.');
+  l.push('Nunca diga que liberou: o acesso volta sozinho na conta dele depois que o pagamento é conferido.');
+  const pagamento = 'Pagamento: nunca a peça assinatura. Cartão: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade.';
+  if (modo === 'codigo') {
+    l.push(`${pagamento} Pix: peça pix_kiwify; depois de pagar, basta a foto do comprovante aqui.${c.grupo === 'pagou' ? ' Ele já pagou antes e pode renovar pelo Pix.' : ''}`);
+  } else if (modo === 'link') {
+    l.push(`${pagamento} Pix: não ofereça nesta conversa, porque o link do Pix não fica preso à conta dele.`);
+  } else {
+    l.push(`${pagamento} Pix: fora do ar agora, não ofereça.`);
+  }
+  l.push('Sem prazo, sem urgência, sem desconto e sem a promessa da planilha nesta conversa. Reembolso, cobrança, reclamação ou acesso: suporte_giovanna.');
+  l.push(...textoRetomadaSolarDoc());
+  return l;
+}
+
 export function fatosCarla(ctx: ContextoLead): string {
   const l: string[] = [...fatosGerais(ctx), ...fatosOrigem(ctx)];
   if (ctx.card) l.push(...fatosCard(ctx, 'Consultor do card'));
-  l.push(ctx.ehClienteSolarDoc
-    ? 'Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).'
-    : 'Conta no SolarDoc com este WhatsApp: não (não diga que liberou).');
+  // A retomada dos usuários (03/11/2026): a situação da conta no lugar da frase de hoje. Sem `contaRetomada` o texto de hoje fica igual.
+  if (ctx.contaRetomada) l.push(...fatosDaRetomada(ctx.contaRetomada, ctx.agora, ctx.modoPix ?? 'indisponivel'));
+  else {
+    l.push(ctx.ehClienteSolarDoc
+      ? 'Conta no SolarDoc com este WhatsApp: sim (o cadastro nasce depois do pagamento).'
+      : 'Conta no SolarDoc com este WhatsApp: não (não diga que liberou).');
+  }
 
   l.push(...fatosDoQuiz(ctx));
 

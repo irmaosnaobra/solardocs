@@ -21,6 +21,8 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { mapaDosInterruptores } from '../agentes5040/interruptores';
 import { pausaDoValor } from '../solardoc/recuperacaoCarlaEstado';
+import { lerPainelRetomada } from '../solardoc/retomadaUsuariosPainel';
+import { TETO_CAMPANHA_24H } from '../solardoc/retomadaUsuariosRegras';
 import { tetosVigentesLinha } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
@@ -506,6 +508,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const biaGrupoLigado = process.env.RECUP_GRUPO_ENABLED === 'true';
   const solarBoasVindasLigado = (process.env.SOLAR_BOASVINDAS_OFF || '').trim() !== '1';
   const ultimaDe = (...datas: Array<string | null>) => datas.filter(Boolean).sort().pop() ?? null;
+  // A retomada da Carla (03/11/2026): leitura só do painel dela. Cada campo que não deu para ler vai como null (a tela escreve um traço). Fora do
+  // `.or(like)` de cima, que corta em 1000 linhas.
+  const painelRet = await lerPainelRetomada(new Date()).catch(() => null);
 
   const dados: Record<string, DadosDoCartao> = {
     bia: {
@@ -545,9 +550,27 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       destaque: [0, 1],
       toques: [
-        { titulo: 'Sem CNPJ', quando: '3 toques ao longo de 30 dias', copy: 'Puxa a conclusão do cadastro pra liberar o documento.' },
-        { titulo: 'Inativo', quando: '5 toques ao longo de 60 dias', copy: 'Reaquece quem criou conta e nunca gerou documento.' },
+        { titulo: 'Sem CNPJ', quando: 'Desligada em 03/11/2026', copy: 'Puxa a conclusão do cadastro pra liberar o documento. Saiu do cron: a retomada de quem não paga é da Carla.' },
+        { titulo: 'Inativo', quando: 'Desligada em 03/11/2026', copy: 'Reaquece quem criou conta e nunca gerou documento. Saiu do cron: a retomada de quem não paga é da Carla.' },
       ],
+    },
+    retomada_usuarios: {
+      ultima_atividade: painelRet?.ultima ?? null,
+      ...(painelRet?.fila !== null && painelRet?.fila !== undefined ? { fila: painelRet.fila } : {}),
+      metricas: [
+        { label: 'Enviadas hoje', valor: painelRet?.enviadas_hoje ?? null, sub: `Teto de ${TETO_CAMPANHA_24H} em 24 h` },
+        { label: 'Enviadas (total)', valor: painelRet?.enviadas_total ?? null },
+        { label: 'Responderam', valor: painelRet?.responderam ?? null },
+        { label: 'Pediram para parar', valor: painelRet?.pararam ?? null },
+        { label: 'Voltaram a assinar', valor: painelRet?.voltaram_a_assinar ?? null },
+      ],
+      destaque: [0, 2],
+      toques: [
+        { titulo: 'Uma mensagem', quando: '1 por pessoa, para sempre', copy: 'A plataforma mudou, quer ver o que tem de novo? Sem link, uma bolha. Quem responde é a Carla.' },
+      ],
+      alerta: painelRet?.pausa?.motivo === 'dois_erros_de_linha'
+        ? 'Pausada sozinha: dois erros de linha seguidos. Confira a linha antes de retomar.'
+        : undefined,
     },
     curso19: {
       ultima_atividade: curso.ultima,
@@ -802,6 +825,16 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       selo = 'pausado';
       motivo = 'Disjuntor de opt-out armado: a fila de toques está travada';
     }
+    // A retomada da Carla (D26): ligada na chave, mas o robô só envia dentro de várias travas. Parada de ESTRUTURA (sem texto, Carla fora do
+    // modo todos, IA parada, linha pausada, sem data de início) vira Pausado com o motivo; parada de horário, de teto e de agenda só explica,
+    // e o selo segue Ligado. Painel que não leu: Pausado, dizendo isso.
+    if (c.id === 'retomada_usuarios' && selo === 'ligado') {
+      if (!painelRet) { selo = 'pausado'; motivo = 'Não consegui ler o estado da retomada'; }
+      else if (painelRet.parada) {
+        if (painelRet.parada.bloqueio) selo = 'pausado';
+        motivo = painelRet.parada.texto;
+      }
+    }
     return {
       id: c.id,
       nome: c.nome,
@@ -824,8 +857,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     };
   });
 
-  const enviados24 = bia1.h24 + bia2.h24 + bia3.h24 + bia4.h24 + followup.h24 + carla.h24 + ig.h24;
-  const enviados7 = bia1.d7 + bia2.d7 + bia3.d7 + bia4.d7 + followup.d7 + carla.d7 + ig.d7;
+  const enviados24 = bia1.h24 + bia2.h24 + bia3.h24 + bia4.h24 + followup.h24 + carla.h24 + ig.h24 + (painelRet?.enviadas_24h ?? 0);
+  const enviados7 = bia1.d7 + bia2.d7 + bia3.d7 + bia4.d7 + followup.d7 + carla.d7 + ig.d7 + (painelRet?.enviadas_7d ?? 0);
 
   return {
     gerado_em: new Date().toISOString(),
@@ -858,7 +891,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
 async function lerChavesDoBanco(): Promise<ChavesDoBanco> {
   try {
     const { data, error } = await supabase
-      .from('system_state').select('key, value').in('key', ['recepcao_io:ativa', 'inv_agente_off', 'inv_agente_disjuntor', 'ag5040_interruptores', 'quiz_rec_pausa']);
+      .from('system_state').select('key, value').in('key', ['recepcao_io:ativa', 'inv_agente_off', 'inv_agente_disjuntor', 'ag5040_interruptores', 'quiz_rec_pausa', 'usu_rec_pausa']);
     if (error) throw error;
     const linhas = (data ?? []) as Array<{ key: string; value: unknown }>;
     const recepcao = linhas.find(r => r.key === 'recepcao_io:ativa')?.value as { ativa?: unknown } | null | undefined;
@@ -875,9 +908,12 @@ async function lerChavesDoBanco(): Promise<ChavesDoBanco> {
     // Pausa da Carla do quiz do SolarDoc (recuperacaoCarlaEstado.ts): a linha existe e não expirou.
     const pausaQuiz = linhas.find(r => r.key === 'quiz_rec_pausa');
     const quizRecPausa = pausaQuiz ? pausaDoValor(pausaQuiz.value, Date.now()) : false;
-    return { recepcaoAtiva: recepcao?.ativa === true, helenaOff, helenaDisjuntor, interruptores, quizRecPausa };
+    // Pausa da retomada dos usuários (retomadaUsuariosEstado.ts): a mesma regra, outra chave.
+    const pausaRet = linhas.find(r => r.key === 'usu_rec_pausa');
+    const retomadaUsuariosPausa = pausaRet ? pausaDoValor(pausaRet.value, Date.now()) : false;
+    return { recepcaoAtiva: recepcao?.ativa === true, helenaOff, helenaDisjuntor, interruptores, quizRecPausa, retomadaUsuariosPausa };
   } catch (err) {
     logger.error('central-agentes', 'ler chaves do banco falhou', err);
-    return { recepcaoAtiva: null, helenaOff: null, helenaDisjuntor: null, interruptores: null, quizRecPausa: null };
+    return { recepcaoAtiva: null, helenaOff: null, helenaDisjuntor: null, interruptores: null, quizRecPausa: null, retomadaUsuariosPausa: null };
   }
 }

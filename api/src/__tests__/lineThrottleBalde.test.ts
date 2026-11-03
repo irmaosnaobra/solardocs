@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // 60/450 das agentes moram no vivoEnvio.
 
 type Row = { key: string; value?: unknown; updated_at: string };
-const db: { rows: Row[]; chamadas: number } = { rows: [], chamadas: 0 };
+const db: { rows: Row[]; chamadas: number; erro: boolean } = { rows: [], chamadas: 0, erro: false };
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -23,7 +23,10 @@ vi.mock('../utils/supabase', () => ({
         gte(_c: string, v: string) { filtros.push(r => r.updated_at >= v); return q; },
         eq(_c: string, v: string) { filtros.push(r => r.key === v); return q; },
         maybeSingle() { const r = db.rows.find(x => filtros.every(f => f(x))); return Promise.resolve({ data: r ? { value: r.value } : null, error: null }); },
-        limit(n: number) { return Promise.resolve({ data: db.rows.filter(r => filtros.every(f => f(r))).slice(0, n).map(r => ({ key: r.key })), error: null }); },
+        limit(n: number) {
+          if (db.erro) return Promise.resolve({ data: null, error: { message: 'banco caiu' } });
+          return Promise.resolve({ data: db.rows.filter(r => filtros.every(f => f(r))).slice(0, n).map(r => ({ key: r.key })), error: null });
+        },
       };
       return q;
     },
@@ -32,7 +35,7 @@ vi.mock('../utils/supabase', () => ({
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 const envOriginal = { ...process.env };
-beforeEach(() => { db.rows = []; db.chamadas = 0; vi.resetModules(); delete process.env.LINHA_RECONECTADA_EM; });
+beforeEach(() => { db.rows = []; db.chamadas = 0; db.erro = false; vi.resetModules(); delete process.env.LINHA_RECONECTADA_EM; });
 afterEach(() => { process.env = { ...envOriginal }; });
 
 const haMin = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
@@ -133,5 +136,66 @@ describe('terceiro balde: ag5040_sent: e ficha_lead:', () => {
     const { dentroDoTetoHorarioLinha } = await carregar();
     expect(await dentroDoTetoHorarioLinha()).toBe(true);
     expect(db.chamadas).toBe(3);
+  });
+});
+
+describe('a retomada dos usuários (03/11/2026): usu_rec_sent: pesa no frio, e a agenda tem a vez', () => {
+  it('usu_rec_sent: está nos prefixos da linha e é FRIO (fora de PREFIXOS_AGENDA); a marca e a vez não são prefixo de envio', async () => {
+    const { prefixosDaLinha, PREFIXOS_AGENDA } = await carregar();
+    expect(prefixosDaLinha()).toContain('usu_rec_sent:');
+    expect([...PREFIXOS_AGENDA]).not.toContain('usu_rec_sent:');
+    for (const p of ['usu_rec_fora:', 'usu_rec_vez:', 'usu_rec_pausa', 'usu_rec_largada', 'usu_rec_resumo']) {
+      expect(prefixosDaLinha().some(x => p.startsWith(x)), p).toBe(false);
+    }
+  });
+
+  it('o teto do frio e as vagas enxergam a retomada: 6 envios na hora fecham o teto de 6/h, 5 não; e a agenda não os soma', async () => {
+    const { dentroDoTetoHorarioLinha, vagasDoFrioLinha } = await carregar();
+    poe('usu_rec_sent:', 5, i => 5 + i * 8);
+    expect(await dentroDoTetoHorarioLinha()).toBe(true);
+    poe('usu_rec_sent:', 1, () => 50);
+    db.rows[db.rows.length - 1]!.key = 'usu_rec_sent:sexto';
+    expect(await dentroDoTetoHorarioLinha()).toBe(false);
+    expect((await vagasDoFrioLinha()).hora).toEqual({ teto: 6, usadas: 6 });
+    // a agenda de verdade não entra na conta do frio, e a retomada não entra na da agenda
+    db.rows = [];
+    poe('ep_agenda_sent:', 12, i => 5 + i * 3);
+    expect((await vagasDoFrioLinha()).hora.usadas).toBe(0);
+  });
+
+  it('as marcas usu_rec_fora: e as vezes usu_rec_vez: não contam no teto nem no espaçamento', async () => {
+    const { dentroDoTetoHorarioLinha, respeitaEspacamentoLinha } = await carregar();
+    poe('usu_rec_fora:', 40, i => 1 + i);
+    poe('usu_rec_vez:', 10, () => 1);
+    expect(await dentroDoTetoHorarioLinha()).toBe(true);
+    expect(await respeitaEspacamentoLinha()).toBe(true);
+    poe('usu_rec_sent:', 1, () => 3);
+    expect(await respeitaEspacamentoLinha()).toBe(false);          // o envio recente da retomada espera 10 a 15 min
+  });
+
+  it('carimbosDaLinhaNaHora conta agenda e frio juntos, na última hora, e nada de ag5040_sent: nem de mais de 1 h', async () => {
+    const { carimbosDaLinhaNaHora } = await carregar();
+    poe('ep_agenda_sent:', 2, i => 5 + i * 10);
+    poe('usu_rec_sent:', 1, () => 20);
+    poe('quiz_rec_sent:', 1, () => 30);
+    poe('ag5040_sent:', 5, () => 2);                // resposta de agente: fora da conta da linha
+    poe('ep_agenda_sent:velho', 1, () => 90);       // mais de 1 h
+    poe('usu_rec_fora:', 3, () => 1);               // marca: não é envio
+    expect(await carimbosDaLinhaNaHora()).toBe(4);
+  });
+
+  it('carimbosDaLinhaNaHora para no limite (padrão 5) e devolve o limite pedido', async () => {
+    const { carimbosDaLinhaNaHora } = await carregar();
+    poe('usu_rec_sent:', 9, i => 1 + i);
+    expect(await carimbosDaLinhaNaHora()).toBe(5);
+    expect(await carimbosDaLinhaNaHora(new Date(), 2)).toBe(2);
+  });
+
+  it('carimbosDaLinhaNaHora LANÇA quando a leitura falha (quem chama trata como "não envia"), ao contrário do contar() do teto', async () => {
+    const { carimbosDaLinhaNaHora, dentroDoTetoHorarioLinha } = await carregar();
+    db.erro = true;
+    await expect(carimbosDaLinhaNaHora()).rejects.toThrow('carimbos_da_linha_na_hora');
+    // o teto do frio, ao contrário, lê erro como zero (não muda nada do que já era)
+    expect(await dentroDoTetoHorarioLinha()).toBe(true);
   });
 });

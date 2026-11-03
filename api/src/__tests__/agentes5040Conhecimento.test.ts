@@ -10,7 +10,9 @@ const mp = vi.hoisted(() => ({
 vi.mock('../utils/mediaProcessor', () => mp);
 
 import { PRODUTOS } from '../services/produtos/catalogo';
-import { AVULSOS, PLANO_MENSAL, VALORES_PERMITIDOS_CARLA, textoConhecimentoSolarDoc } from '../services/agentes5040/conhecimento/solardoc';
+import {
+  AVULSOS, NOVIDADES_SOLARDOC, PARA_LIBERAR, PLANO_MENSAL, VALORES_PERMITIDOS_CARLA, textoConhecimentoSolarDoc, textoRetomadaSolarDoc,
+} from '../services/agentes5040/conhecimento/solardoc';
 import { FRASES_PUBLICAS_SOLAR, textoConhecimentoSolar } from '../services/agentes5040/conhecimento/solar';
 import {
   MODELOS_ELETROPOSTO, PAGAMENTO_ELETROPOSTO, VALORES_PUBLICOS_ELETROPOSTO, textoConhecimentoEletroposto,
@@ -41,6 +43,44 @@ describe('conhecimento: SolarDoc bate com o catálogo', () => {
     expect(t).toContain('R$ 67 por mês');
     expect(t).not.toMatch(/LimpaPro/i);
     expect(t).toMatch(/Não existe cupom/);
+  });
+});
+
+describe('conhecimento: a retomada dos usuários (novidades e Para liberar, 03/11/2026)', () => {
+  const valoresEmReais = (t: string): number[] => [...t.matchAll(/R\$\s*(\d+(?:[.,]\d+)?)/g)].map(m => Number(m[1]!.replace(',', '.')));
+
+  it('o Para liberar tem os 5 nomes do app, o LimpaPro inclusive (que o texto geral proíbe)', () => {
+    expect([...PARA_LIBERAR]).toEqual(['Kit Off-Grid', 'Inventário', 'Precificação', 'Kit Fecha Vendas', 'LimpaPro']);
+    expect(textoConhecimentoSolarDoc()).not.toMatch(/LimpaPro/i);          // o teste de sempre segue valendo
+  });
+
+  it('textoRetomadaSolarDoc diz que o Para liberar é vendido à parte e que assinar não libera nenhum deles, com o preço da constante', () => {
+    const linhas = textoRetomadaSolarDoc();
+    const para = linhas.find(l => l.startsWith('Não vêm no plano'))!;
+    expect(para).toBe(`Não vêm no plano de R$ ${PLANO_MENSAL.valor} e ficam em Para liberar, vendidos à parte: Kit Off-Grid, Inventário, Precificação, Kit Fecha Vendas, LimpaPro. Assinar não libera nenhum deles.`);
+    expect(linhas.join('\n')).not.toMatch(/\bmenu\b/i);
+  });
+
+  it('as novidades (só as marcadas no ar): sem valor fora da tabela, sem "plataforma inteira", sem lista de compras, sem travessão, sem emoji, sem menu, sem Pix e sem NEXUS', () => {
+    for (const n of NOVIDADES_SOLARDOC) {
+      expect(n[0], n).toBe(n[0]!.toUpperCase());
+      expect(n, n).not.toMatch(/plataforma inteira|lista de compras|[—–]|\bmenu\b|\bpix\b|nexus/i);
+      expect(n, n).not.toMatch(/\p{Extended_Pictographic}/u);
+      for (const v of valoresEmReais(n)) expect(VALORES_PERMITIDOS_CARLA, `${n} cita R$ ${v}`).toContain(v);
+    }
+    const bloco = textoRetomadaSolarDoc();
+    if (NOVIDADES_SOLARDOC.length) {
+      expect(bloco[0]).toBe('NOVIDADES DA PLATAFORMA (só estas, uma por vez, sem inventar outra):');
+      expect(bloco.slice(1, 1 + NOVIDADES_SOLARDOC.length)).toEqual(NOVIDADES_SOLARDOC.map(n => `- ${n}`));
+    } else {
+      expect(bloco.join('\n')).not.toContain('NOVIDADES DA PLATAFORMA');
+      expect(bloco).toHaveLength(1);
+    }
+  });
+
+  it('nenhuma linha do bloco da retomada diz que o preço dá a plataforma inteira (a regra mora no prompt e na trava)', () => {
+    expect(textoRetomadaSolarDoc().join('\n')).not.toMatch(/plataforma inteira/i);
+    for (const v of valoresEmReais(textoRetomadaSolarDoc().join('\n'))) expect(VALORES_PERMITIDOS_CARLA).toContain(v);
   });
 });
 

@@ -137,6 +137,30 @@ describe('laço de ferramentas', () => {
     expect(h.sendHuman.mock.calls[0]![1].join(' ')).not.toContain('ENVIAR_PIX');
   });
 
+  it('a entrada de R$ 19 saiu: [[ENVIAR_PIX_CURSO]] é tirada do texto e nenhum Pix de R$ 19 sai', async () => {
+    semearUsuario();
+    h.create.mockResolvedValueOnce(texto('Tem o curso, segue o Pix. [[ENVIAR_PIX_CURSO]]'));
+    await handleIncomingWhatsApp(PHONE, 'quero o curso', 'Joao', undefined, undefined, 'solardoc', fila());
+    expect(h.sendHuman).toHaveBeenCalledTimes(1);                       // só as bolhas
+    const enviado = h.sendHuman.mock.calls.flatMap(c => c[1] as string[]).join(' ');
+    expect(enviado).not.toContain('ENVIAR_PIX_CURSO');
+    expect(enviado).not.toContain('00020126PIXFALSO');                  // o copia e cola do gerarPixCopiaECola falso
+    expect(enviado).not.toMatch(/R\$ ?19/);
+  });
+
+  it('a Giovanna nunca nega ser IA: "não sou robô, sou a Giovanna" sai como a frase certa, e a sessão gravada sai limpa', async () => {
+    semearUsuario();
+    h.create.mockResolvedValueOnce(texto('Não sou robô, sou a Giovanna.||Como posso ajudar com a proposta?'));
+    await handleIncomingWhatsApp(PHONE, 'você é robô?', 'Joao', undefined, undefined, 'solardoc', fila());
+    const bolhas = h.sendHuman.mock.calls[0]![1] as string[];
+    expect(bolhas[0]).toBe('Sou a IA do SolarDoc, sim.');
+    expect(bolhas.join(' ')).not.toMatch(/não sou robô/i);
+    const sessao = banco.linhas('whatsapp_sessions').find(s => s.tipo === 'platform');
+    const gravada = (sessao?.messages as Array<{ role: string; content: string }>).filter(m => m.role === 'assistant').map(m => m.content).join(' ');
+    expect(gravada).toContain('Sou a IA do SolarDoc, sim.');
+    expect(gravada).not.toMatch(/não sou robô/i);
+  });
+
   it('alteração: o aviso ao dono sai uma vez, mesmo se o modelo cai depois, e o retry não avisa de novo', async () => {
     semearUsuario();
     const corpo = { campos: { cidade: 'Araguari' }, confirmado: true };

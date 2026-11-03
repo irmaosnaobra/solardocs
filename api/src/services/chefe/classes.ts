@@ -396,6 +396,10 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   }),
   // Hoje 2 bolhas e 2 contatos por tick (carlaRetomada.ts:54); aqui 1 bolha.
   carla_retomada: robo('frio_p5', ['services/agents/sdr/carlaRetomada.ts'], { carimbos: [frio('carla_retomada:')], subprioridade: 5 }),
+  // A Carla retomando quem tem conta e não paga (03/11/2026): 1 bolha de até 160 caracteres nas regras do texto (o registro do frio fica em
+  // 900), 1 por pessoa para sempre, 25 em 24 h, janela da Base e posse da Carla antes do envio. Cede à agenda dentro da hora.
+  carla_retomada_usuarios: robo('frio_p5', ['services/solardoc/retomadaUsuarios.ts'], { carimbos: [frio('usu_rec_sent:')], subprioridade: 5 }),
+  // Fora do cron desde 03/11/2026 (a retomada da Carla entrou no lugar); as rotas respondem 410. O arquivo fica: os testes dependem dele.
   carla_sem_cnpj: robo('frio_p5', ['services/agents/whatsapp/carlaPlatformFollowupService.ts'], { carimbos: [carlaSent], linha: 'solardoc', subprioridade: 5 }),
   carla_inativo: robo('frio_p5', ['services/agents/whatsapp/carlaPlatformFollowupService.ts'], { carimbos: [carlaSent], linha: 'solardoc', subprioridade: 5 }),
   curso19: robo('frio_p5', ['services/agents/whatsapp/cursoEntradaBroadcast.ts'], { carimbos: [carlaSent], linha: 'solardoc', subprioridade: 5 }),

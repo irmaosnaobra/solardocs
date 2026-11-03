@@ -41,6 +41,23 @@ const ESTADOS: readonly string[] = ['viva', 'passou_humano', 'nao_incomodar', 'e
 /** Estados em que a agente (ou o humano que ela chamou) segura a conversa e os robôs antigos calam. */
 const ESTADOS_QUE_CEDEM: readonly string[] = ['viva', 'passou_humano', 'nao_incomodar'];
 
+// ── a posse da RETOMADA dos usuários (03/11/2026) ────────────────────────────
+// A campanha solardoc/retomadaUsuarios.ts abre a conversa em nome da Carla com quem TEM conta e não paga. A posse leva
+// `origem: 'retomada_usuarios'` e `retomada: { user_id, segmento, grupo, variacao, primeiro_nome, texto, em, ate }`. Ficam aqui (e não em
+// solardoc/) porque este arquivo não pode importar de solardoc/ (cabeçalho). Sem essa origem, quem tem conta continua indo para a Giovanna.
+export const ORIGEM_RETOMADA_USUARIOS = 'retomada_usuarios';
+/** Quanto a posse da retomada vale desde o envio: 30 dias, renovados a cada resposta da Carla. Vencida, vale como se não existisse. */
+export const RETOMADA_VALE_MS = 30 * 24 * 3_600_000;
+
+export const ehPosseDaRetomada = (p: Readonly<Record<string, unknown>>): boolean =>
+  p.dona === 'carla' && p.origem === ORIGEM_RETOMADA_USUARIOS;
+
+/** A posse da retomada ainda vale? `retomada.ate` ausente, ilegível ou no passado = não. */
+export function retomadaVale(p: Readonly<Record<string, unknown>>, agoraMs: number): boolean {
+  const ate = Date.parse(String((p.retomada as { ate?: unknown } | null | undefined)?.ate ?? ''));
+  return Number.isFinite(ate) && ate > agoraMs;
+}
+
 /** Erro de banco com só o código (a mensagem do driver pode trazer telefone). */
 export class ErroPosse extends Error {
   constructor(readonly codigo: string) { super(`posse: ${codigo}`); this.name = 'ErroPosse'; }
@@ -110,15 +127,18 @@ export type ResultadoAssumir = 'assumida' | 'ja_tinha_dona' | 'erro';
 /**
  * Primeira posse, por INSERT. 23505 (chave única phone+tipo) = a conversa já tinha dona.
  * `desde` (ISO) é a âncora da posse: sem ele vale a hora de agora. A porta passa o momento da mensagem que abriu
- * a conversa (menos 60 s), para o poll atrasado ainda enxergar essa fala.
+ * a conversa (menos 60 s), para o poll atrasado ainda enxergar essa fala. `extra` (opcional) são campos a mais de lead_data.
  */
-export async function assumirPosse(telefoneOuChave: string, dona: DonaPosse, waId: number | null, desde?: string): Promise<ResultadoAssumir> {
+export async function assumirPosse(
+  telefoneOuChave: string, dona: DonaPosse, waId: number | null, desde?: string, extra?: Record<string, unknown>,
+): Promise<ResultadoAssumir> {
   const chave = chaveDaPosse(telefoneOuChave);
   if (!chave || !DONAS_POSSE.includes(dona)) return 'erro';
   try {
     const agora = new Date().toISOString();
     const ancora = desde && Number.isFinite(Date.parse(desde)) ? new Date(Date.parse(desde)).toISOString() : agora;
-    const lead_data: DadosPosse = { dona, estado: 'viva', desde: ancora, ate_wa_id: waId, respostas: 0, imagens: [], links: [] };
+    // `extra` (a retomada dos usuários) entra primeiro: os campos de base SEMPRE vencem, e quem já chama a função não muda.
+    const lead_data: DadosPosse = { ...(extra ?? {}), dona, estado: 'viva', desde: ancora, ate_wa_id: waId, respostas: 0, imagens: [], links: [] };
     const { error } = await supabase.from('whatsapp_sessions').insert({
       phone: chave, tipo: TIPO_POSSE, nome: null, messages: [], lead_data, updated_at: agora,
     });
@@ -220,8 +240,30 @@ export async function cedeAAgente(telefone: string | null | undefined): Promise<
       return true;
     }
     if (!posse || !ESTADOS_QUE_CEDEM.includes(posse.estado)) return false;
+    // A posse da retomada VENCIDA vale como se não existisse (uma `viva` sem resposta não cala a Giovanna do suporte para sempre).
+    if (ehPosseDaRetomada(posse) && !retomadaVale(posse, Date.now())) return false;
     if (posse.dona === 'humano') return true;
     return cobrem.includes(posse.dona);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Corte da Giovanna para quem TEM conta: esta conversa é da RETOMADA da Carla (03/11/2026)? true = a Giovanna não responde por cima.
+ * Vale quando a Carla atende ESTE lead, a posse é dela com a origem da retomada, está num estado que cede e ainda vale (30 dias).
+ * Erro ao ler a posse devolve true (o mesmo critério do cedeAAgente): só importa para conta grátis, porque o chamador só pergunta com
+ * `user.plano === 'free'`. Telefone sem chave e qualquer outra falha devolvem false. Nunca lança.
+ */
+export async function cedeARetomadaDaCarla(telefone: string | null | undefined): Promise<boolean> {
+  try {
+    if (!(await agenteAtendeEste('carla', telefone))) return false;
+    const chave = chaveDaPosse(telefone);
+    if (!chave) return false;
+    let p: DadosPosse | null;
+    try { p = await lerPosse(chave); }
+    catch (e) { console.error('[agentes5040] ler a posse falhou: a Giovanna cala nesta mensagem', codigoDe(e)); return true; }
+    return !!p && ehPosseDaRetomada(p) && ESTADOS_QUE_CEDEM.includes(p.estado) && retomadaVale(p, Date.now());
   } catch {
     return false;
   }

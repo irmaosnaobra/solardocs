@@ -39,6 +39,7 @@ import { mountPerfil } from './geradorPerfil';
 import { mountRedes } from './geradorRedes';
 import { mountSentinela } from './geradorSentinela';
 import { mountEnsaio5040 } from './geradorEnsaio5040';
+import { mountRetomadaUsuarios } from './geradorRetomadaUsuarios';
 import { mountBase5040 } from './geradorBase5040';
 import { aiLimiter } from '../middleware/rateLimiter';
 import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
@@ -1189,6 +1190,8 @@ mountRedes(router);
 mountSentinela(router);
 // Painel do ensaio das agentes da 5040: lê as respostas que elas dariam e recebe a nota da equipe (nada é enviado).
 mountEnsaio5040(router);
+// Painel da retomada dos usuários pela Carla (03/11/2026): estado, números, pausa e a fila do modo seco. Fora do ensaio de propósito (D34).
+mountRetomadaUsuarios(router);
 // Coluna Base do CRM: posses da Duda e da Helena que ainda não estão com o consultor (só leitura, nada é enviado).
 mountBase5040(router);
 

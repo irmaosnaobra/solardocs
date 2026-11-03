@@ -76,12 +76,12 @@ const DIA = /^\d{4}-\d{2}-\d{2}$/;
 const PERSONAS: readonly ChavePersona[] = ['carla', 'duda', 'helena', 'ninguem'];
 const PRODUTOS: Record<string, ChavePersona> = { solardoc: 'carla', solar: 'duda', eletroposto: 'helena' };
 
-function semCache(_req: Request, res: Response, next: NextFunction): void {
+export function semCache(_req: Request, res: Response, next: NextFunction): void {
   res.set('Cache-Control', 'no-store');
   next();
 }
 
-function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
+export function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
   const nome = String((req as any).consultor?.nome || '');
   if (!equipeAutorizada(nome, process.env.CAIXA_EQUIPE)) {
     res.status(403).json({ ok: false, error: 'Esta tela é só para a equipe.', precisa: 'equipe' });
@@ -90,7 +90,7 @@ function exigeEquipe(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-const soSocioCom = (frase: string) => (req: Request, res: Response, next: NextFunction): void => {
+export const soSocioCom = (frase: string) => (req: Request, res: Response, next: NextFunction): void => {
   const nome = String((req as any).consultor?.nome || '');
   if (!ehSocio(nome)) { res.status(403).json({ ok: false, error: frase, precisa: 'socio' }); return; }
   next();
@@ -99,7 +99,7 @@ const soSocio = soSocioCom('Só sócio roda o replay.');
 const soSocioControles = soSocioCom('Só sócio usa os controles.');
 const soSocioPerguntas = soSocioCom('Só sócio responde as perguntas.');
 
-function falhou(res: Response, err: unknown): void {
+export function falhou(res: Response, err: unknown): void {
   // Só o código. A mensagem do driver pode trazer caminho, telefone ou texto.
   const codigo = err instanceof ErroArmazem || err instanceof ErroNotas || err instanceof ErroPerguntas ? err.codigo : 'interno';
   console.error('[ensaio5040] falhou', codigo);
@@ -114,7 +114,7 @@ function lerDias(v: unknown): number {
   return Math.min(DIAS_MAX, Math.floor(n));
 }
 
-const eu = (req: Request): string | null => autorSeguro((req as any).consultor?.nome);
+export const eu = (req: Request): string | null => autorSeguro((req as any).consultor?.nome);
 
 const produtoDe = (persona: string | null, dona: string | null): string | null => {
   const p = persona ?? dona;
