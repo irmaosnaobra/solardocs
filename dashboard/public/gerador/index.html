@@ -19985,14 +19985,17 @@ const EP_MARCA = 'NEXUS Eletroposto';
 // A NEXUS Eletroposto tem CNPJ proprio desde 03/11/2026: K EMA EASY IMPORTAÇÕES LTDA.,
 // sede em Araguari/MG, socia unica e administradora Maria Carolina Mendes Marques.
 // Sao so' os dados da empresa; RG, nascimento e endereco da socia nao entram aqui.
-// Pix, conta e IE seguem vazios (nao vieram nos documentos) e NUNCA herdam os da AIOROS.
+// O Pix e' a chave CNPJ da K EMA (so' digitos). Conta bancaria e IE seguem vazias (nao vieram nos
+// documentos; a K EMA nao tem IE por enquanto) e NUNCA herdam as da AIOROS.
+// O CPF da socia NAO mora no codigo (repositorio publico): se o dono quiser CPF no papel, digita
+// no cadastro (campo socioCpf), que fica so' no aparelho.
 // Nao mexer em CNPJ_CERTO / RAZAO_CERTA / END_CERTO / CIDADE_CERTA: sao da AIOROS (solar).
 const NEXUS_RAZAO = 'K EMA EASY IMPORTAÇÕES LTDA.';
 const NEXUS_CNPJ = '03.945.372/0001-89';
 const NEXUS_END = 'Rua Antônio Camilo da Costa, 230, Bosque, CEP 38.446-069';
 const NEXUS_CIDADE = 'Araguari/MG';
 const NEXUS_SOCIO = 'Maria Carolina Mendes Marques';
-const NEXUS_SOCIO_CPF = '099.941.536-09';
+const NEXUS_PIX = '03945372000189';
 // Emitente padrao de todo documento do eletroposto (03/11/2026). A AIOROS segue no solar
 // e quando for escolhida no controle "Emitente" do documento.
 const EP_EMIT_PADRAO = 'nexus';
@@ -20127,10 +20130,10 @@ const EP_EMIT_DEF_EQUIPE = {
   tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
 function epEmitDef(id) {
   const base = id === 'nexus'
-    // NEXUS: K EMA EASY IMPORTAÇÕES LTDA. (03/11/2026). IE, Pix e conta vazios: nao vieram
-    // nos documentos e nunca herdam os da AIOROS. O telefone e o e-mail sao os da marca.
+    // NEXUS: K EMA EASY IMPORTAÇÕES LTDA. (03/11/2026). IE e conta vazias: nao vieram
+    // nos documentos e nunca herdam as da AIOROS. O Pix e' a chave CNPJ (NEXUS_PIX). O telefone e o e-mail sao os da marca.
     ? { nome: EP_MARCA, end: NEXUS_END, cidade: NEXUS_CIDADE, tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-        cnpj: NEXUS_CNPJ, razao: NEXUS_RAZAO, fantasia: EP_MARCA, ie: '', socio: NEXUS_SOCIO, socioCpf: NEXUS_SOCIO_CPF, pix: '', conta: '' }
+        cnpj: NEXUS_CNPJ, razao: NEXUS_RAZAO, fantasia: EP_MARCA, ie: '', socio: NEXUS_SOCIO, socioCpf: '', pix: NEXUS_PIX, conta: '' }
     : { nome: EP_MARCA, end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
         cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '', ie: '', socio: '', socioCpf: '', pix: '', conta: '' };
   return Object.assign(base, EP_EMIT_DEF_EQUIPE);
@@ -20172,10 +20175,11 @@ function epPerfisLer() {
  *  A marca impede de rodar de novo: o que o dono apagar depois fica apagado. Devolve true
  *  se mudou o objeto (quem chamou grava). */
 function epNexusMigrar(p) {
-  if (!p || !p.perfis || p.migNexusKema) return false;
+  if (!p || !p.perfis || (p.migNexusKema && p.migNexusCpf)) return false;
   if (!p.perfis.nexus || typeof p.perfis.nexus !== 'object') p.perfis.nexus = {};
   const n = p.perfis.nexus;
   const branco = v => !String(v == null ? '' : v).trim();
+  if (!p.migNexusKema) {
   if (!epSoDig(n.cnpj)) {
     // Razao e CNPJ sao um par: entram juntos, sempre (razao digitada sem CNPJ na NEXUS nunca
     // foi razao de verdade). Endereco, cidade, socio e CPF so' entram se estiverem em branco:
@@ -20184,13 +20188,22 @@ function epNexusMigrar(p) {
     if (branco(n.end)) n.end = NEXUS_END;
     if (branco(n.cidade)) n.cidade = NEXUS_CIDADE;
     if (branco(n.socio)) n.socio = NEXUS_SOCIO;
-    if (branco(n.socioCpf)) n.socioCpf = NEXUS_SOCIO_CPF;
   }
   // So' a grafia antiga vira a nova. Nome ou fantasia salvos em '' foram apagados pelo dono e ficam.
   ['nome', 'fantasia'].forEach(k => {
     if (typeof n[k] === 'string' && epNomeNorm(n[k]) === 'nexus eletropostos') n[k] = EP_MARCA;
   });
   p.migNexusKema = 1;
+  }
+  // Segunda migracao UNICA (03/11/2026, marca p.migNexusCpf): a primeira versao gravava o CPF da
+  // socia no perfil. O CPF saiu do codigo (repositorio publico), entao o aparelho que ja' gravou
+  // o CPF dela volta a ficar sem. O numero nao e' reescrito aqui, nem em hash: socio igual a
+  // NEXUS_SOCIO com socioCpf preenchido e' o CPF dela, e e' limpo. Depois da marca, o que o dono
+  // digitar no cadastro fica.
+  if (!p.migNexusCpf) {
+    if (!branco(n.socioCpf) && epNomeNorm(n.socio) === epNomeNorm(NEXUS_SOCIO)) n.socioCpf = '';
+    p.migNexusCpf = 1;
+  }
   return true;
 }
 /** Grava as duas chaves juntas: perfis e o espelho do aioros em `orc_emit_v1`. */
@@ -22120,11 +22133,11 @@ function recHTMLNovo(d) {
   const papel = { equip: 'Comprador', deposito: 'Investidor', aporte: 'Sócio participante' }[tipo];
   // Recibo de parcela é declaração de quem recebe: só a NEXUS assina.
   const assin = tipo === 'parcela'
-    ? `<div class="ep-rec-assin uma"><div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Recebedor</div></div>`
+    ? `<div class="ep-rec-assin uma"><div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>Recebedor</div></div>`
     : tipo === 'premio'
     ? `<div class="ep-rec-assin uma"><div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Recebedor (dono do local)</div></div>`
     : `<div class="ep-rec-assin">
-        <div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Recebedor</div>
+        <div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>Recebedor</div>
         <div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}${papel}</div>
       </div>`;
   return `<div class="ep-doc">
@@ -22239,7 +22252,7 @@ function recHTML(d) {
 
       <div class="ep-rec-local">${local ? e(local) + '.' : ''}</div>
       <div class="ep-rec-assin${av ? ' uma' : ''}">
-        <div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Recebedor</div>
+        <div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || RAZAO_CERTA)}</span>Recebedor</div>
         ${av ? '' : `<div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Contratante</div>`}
       </div>
 
@@ -26212,7 +26225,7 @@ function ctrFecho(d, iv, rotNossa, rotDeles) {
   // Cedente de fora no lugar da NEXUS: a assinatura da esquerda é dele.
   const assinNossa = d.arrCli && d.ced
     ? `<b>${vazio(d.ced.nome)}</b>${d.ced.doc ? `<span>CPF/CNPJ ${e(d.ced.doc)}</span>` : ''}${d.ced.rep ? e(d.ced.rep) + '<br>' : ''}${rotNossa}`
-    : `<b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}${rotNossa}`;
+    : `<b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${rotNossa}`;
   // Três assinantes (interveniente ou fiador sem cônjuge) ficam na mesma linha, em três colunas. Com dois, nada muda.
   const aIv = iv ? `<b>${e(iv.nome)}</b>${iv.doc ? `<span>CPF/CNPJ ${e(iv.doc)}</span>` : ''}${iv.rep ? e(iv.rep) + '<br>' : ''}INTERVENIENTE ANUENTE` : '';
   const aFi = av ? `<b>${vazio(av.nome)}</b>${av.doc ? `<span>CPF/CNPJ ${e(av.doc)}</span>` : ''}${av.rep ? e(av.rep) + '<br>' : ''}FIADOR` : '';
@@ -29211,7 +29224,7 @@ function bnkHTML(d) {
   const foot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Proposta de banco${d.cliente ? ' · ' + e(d.cliente) : ''}</span></span><span>Página ${n} de 2</span></div>`;
   const assina = () => `<div class="ep-bnk-assin">
       <div class="a"><span class="l"></span><b>${e((d.cliente || '').toUpperCase())}</b><span>${e(d.doc || '')}</span></div>
-      <div class="a"><span class="l"></span><b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''} — representante legal</span>` : ''}</div>
+      <div class="a"><span class="l"></span><b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span></div>
     </div>`;
   // Bairro tem linha PROPRIA no formulario do banco: concatenar aqui tambem
   // imprimia "Granville" duas vezes na mesma folha.
@@ -31957,7 +31970,7 @@ function solCtrFecho(d) {
       <p class="ep-ctr-p" style="margin-top:14px">Por estarem de acordo, as partes assinam este contrato à mão, em 2 (duas) vias iguais e com as 2 (duas) testemunhas abaixo, ou por meio eletrônico, na forma da {{i:gerais.eletronica}}.</p>
       <p class="ep-ctr-p">${d.foro ? e(d.foro) + ', ' : ''}${e(dataTxt)}.</p>
       <div class="ep-ctr-assin">
-        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>representada por ${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}CONTRATADA</div>
+        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>CONTRATADA</div>
         <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}CONTRATANTE</div>
       </div>
       <div class="ep-ctr-test">
@@ -32263,7 +32276,7 @@ function fsRecHTML(d) {
       </table>
       <div class="ep-rec-corpo" style="margin-top:12px">${quitacao}</div>
       <div class="ep-rec-local">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</div>
-      <div class="ep-rec-assin uma"><div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Recebedor</div></div>
+      <div class="ep-rec-assin uma"><div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>Recebedor</div></div>
       ${dadosBanco ? `<div class="sol-banco"><b>${e(emp.razao)}</b> · CNPJ ${e(emp.cnpj)}<br>${e(dadosBanco)}</div>` : ''}
       ${solRodape(titulo, cli.nome)}
     </div></div>`;
@@ -32555,7 +32568,7 @@ function fsBancoBlocos(d, modo) {
       <p class="ep-ctr-p" style="margin-top:${folha2 ? 6 : 12}px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
       <div class="ep-ctr-assin" style="margin-top:${folha2 ? 11 : 16}mm">
         <div class="a"><b>${pNomeUp ? e(pNomeUp) : '&nbsp;'}</b>${pDoc ? `<span>CPF/CNPJ ${e(pDoc)}</span>` : ''}${!fin && cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}${fin ? 'Titular do financiamento' : 'Comprador(a)'}</div>
-        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Representante legal</div>
+        <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>Empresa</div>
       </div>
     </div>`;
   const band = (d.kwp || d.ger)
@@ -32752,7 +32765,7 @@ function fsTermoHTML(d) {
         <p class="ep-ctr-p" style="margin-top:8px">Por estarem de acordo, as partes assinam este termo em 2 (duas) vias de igual teor.</p>
         <p class="ep-ctr-p">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
         <div class="ep-ctr-assin">
-          <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ', CPF ' + e(emp.socioCpf) : ''}</span>` : ''}Empresa</div>
+          <div class="a"><b>${e(emp.razao)}</b><span>CNPJ ${e(emp.cnpj)}</span>Empresa</div>
           <div class="a"><b>${cli.nome ? e(cli.nome.toUpperCase()) : '&nbsp;'}</b>${cli.doc ? `<span>CPF/CNPJ ${e(cli.doc)}</span>` : ''}${cli.pj && cli.rep ? `<span>representada por ${e(cli.rep)}</span>` : ''}Cliente</div>
         </div>
       </div>
