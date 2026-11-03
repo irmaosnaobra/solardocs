@@ -20,9 +20,6 @@ import { variantesDoTelefone } from './chaveTelefone';
 
 const ITENS_QUE_ABREM = ['curso-principal', 'premium'];
 
-/** Onde a área do aluno mora. Quem tem o produto vai para cá; a raiz do domínio é a página de venda. */
-export const LIMPAPRO_AREA_DE_MEMBROS = 'https://limpapro.solardoc.app/membros';
-
 async function achou(rotulo: string, busca: PromiseLike<{ data: unknown; error: { message?: string } | null }>): Promise<boolean> {
   try {
     const { data, error } = await busca;

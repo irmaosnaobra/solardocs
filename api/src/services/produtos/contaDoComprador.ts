@@ -20,6 +20,10 @@
  * de equipe, CNPJ de empresa com vários logins), não escolhe nenhuma: quem chama cria a conta pendente, como sempre, e
  * registra o conflito para o suporte. Na dúvida, não entrega a compra a quem pode não ser o comprador.
  *
+ * Só conta COM SENHA entra como candidata por documento ou telefone: a pendente de uma compra anterior (que
+ * grava o telefone do comprador) não prende a compra seguinte, que cria a pendente do e-mail digitado.
+ * Telefone de mentira (11999999999, sequência) nem é pesquisado: ver `telefoneServeDeChave`.
+ *
  * Leitura só. Erro de leitura de uma chave vira "essa chave não achou ninguém", nunca uma exceção: a compra
  * não pode deixar de ser processada porque uma tabela auxiliar piscou.
  */
@@ -75,10 +79,14 @@ export function documentoDoComprador(comprador: unknown): string | null {
   return null;
 }
 
-async function usuariosDoDocumento(documento: string | null | undefined): Promise<Set<string>> {
+/** Status de asaas_pix_assinaturas que provam que o documento é de quem tem a conta (checkout nunca pago não prova). */
+const STATUS_QUE_PROVAM = ['ativo', 'inadimplente', 'cancelado'];
+
+async function usuariosDoDocumento(documento: string | null | undefined): Promise<Map<string, LinhaConta>> {
   const d = documentoSoDigitos(documento);
   const ids = new Set<string>();
-  if (!d) return ids;
+  const contas = new Map<string, LinhaConta>();
+  if (!d) return contas;
   const formas = formasDoDocumento(d);
 
   // company.cnpj só tem CNPJ; asaas_pix_assinaturas.cpf_cnpj tem os dois.
@@ -88,7 +96,9 @@ async function usuariosDoDocumento(documento: string | null | undefined): Promis
 
   await Promise.all(fontes.map(async ([tabela, coluna]) => {
     try {
-      const { data, error } = await supabase.from(tabela).select('user_id').in(coluna, formas).limit(20);
+      let consulta = supabase.from(tabela).select('user_id').in(coluna, formas);
+      if (tabela === 'asaas_pix_assinaturas') consulta = consulta.in('status', STATUS_QUE_PROVAM);
+      const { data, error } = await consulta.limit(20);
       if (error) {
         console.warn(`[kit] busca de conta por documento em ${tabela}.${coluna} falhou (segue sem essa chave):`, error.message);
         return;
@@ -100,7 +110,22 @@ async function usuariosDoDocumento(documento: string | null | undefined): Promis
       console.warn(`[kit] busca de conta por documento em ${tabela}.${coluna} lançou (segue sem essa chave):`, err);
     }
   }));
-  return ids;
+  if (!ids.size) return contas;
+
+  // Conta pendente (sem senha, criada por uma compra anterior) nunca é candidata: ninguém entra nela.
+  try {
+    const { data, error } = await supabase.from('users').select('id, email, password_hash').in('id', [...ids]);
+    if (error) {
+      console.warn('[kit] leitura das contas do documento falhou (segue sem essa chave):', error.message);
+      return contas;
+    }
+    for (const r of (data ?? []) as LinhaConta[]) {
+      if (r.password_hash !== null && r.password_hash !== undefined) contas.set(String(r.id), r);
+    }
+  } catch (err) {
+    console.warn('[kit] leitura das contas do documento lançou (segue sem essa chave):', err);
+  }
+  return contas;
 }
 
 async function contasDoTelefone(telefone: string | null | undefined): Promise<LinhaConta[]> {
@@ -113,19 +138,11 @@ async function contasDoTelefone(telefone: string | null | undefined): Promise<Li
       console.warn('[kit] busca de conta por telefone falhou (segue sem essa chave):', error.message);
       return [];
     }
-    return (data ?? []) as LinhaConta[];
+    // Conta pendente (sem senha) não é candidata: o telefone dela veio de uma compra, não de um cadastro.
+    return ((data ?? []) as LinhaConta[]).filter((c) => c.password_hash !== null && c.password_hash !== undefined);
   } catch (err) {
     console.warn('[kit] busca de conta por telefone lançou (segue sem essa chave):', err);
     return [];
-  }
-}
-
-async function contaPorId(id: string): Promise<LinhaConta | null> {
-  try {
-    const { data } = await supabase.from('users').select('id, email, password_hash').eq('id', id).maybeSingle();
-    return (data as LinhaConta | null) ?? null;
-  } catch {
-    return null;
   }
 }
 
@@ -159,8 +176,10 @@ export async function acharContaDoComprador(opts: {
     contasDoTelefone(opts.telefone),
   ]);
   const porTelefone = new Set(contasTel.map((c) => c.id));
+  const linhas = new Map<string, LinhaConta>([...contasTel.map((c): [string, LinhaConta] => [c.id, c]), ...porDocumento]);
+  const idsDoc = new Set(porDocumento.keys());
 
-  const conjuntos = [porDocumento, porTelefone].filter((s) => s.size > 0);
+  const conjuntos = [idsDoc, porTelefone].filter((s) => s.size > 0);
   if (!conjuntos.length) return { tipo: 'nenhuma' };
 
   // Uma chave que acha MAIS DE UMA conta (CNPJ de empresa com vários logins, WhatsApp de equipe) é conflito,
@@ -169,7 +188,7 @@ export async function acharContaDoComprador(opts: {
   const comuns = ambiguo ? [] : [...conjuntos[0]].filter((id) => conjuntos.every((s) => s.has(id)));
   if (comuns.length === 1) {
     const id = comuns[0];
-    const linha = contasTel.find((c) => c.id === id) ?? await contaPorId(id);
+    const linha = linhas.get(id);
     if (!linha) return { tipo: 'nenhuma' };
     return {
       tipo: 'achou',
@@ -177,19 +196,19 @@ export async function acharContaDoComprador(opts: {
         userId: linha.id,
         email: linha.email || opts.email,
         temSenha: linha.password_hash !== null,
-        chave: porDocumento.size > 0 && porTelefone.size > 0 ? 'documento+telefone'
-          : porDocumento.size > 0 ? 'documento' : 'telefone',
+        chave: idsDoc.size > 0 && porTelefone.size > 0 ? 'documento+telefone'
+          : idsDoc.size > 0 ? 'documento' : 'telefone',
       },
     };
   }
 
   const motivo: ConflitoDeConta['motivo'] =
-    porDocumento.size > 1 && porTelefone.size > 1 ? 'documento_e_telefone_ambiguos'
-      : porDocumento.size > 1 ? 'documento_ambiguo'
+    idsDoc.size > 1 && porTelefone.size > 1 ? 'documento_e_telefone_ambiguos'
+      : idsDoc.size > 1 ? 'documento_ambiguo'
       : porTelefone.size > 1 ? 'telefone_ambiguo'
       : 'documento_e_telefone_divergem';
   return {
     tipo: 'conflito',
-    conflito: { motivo, porDocumento: [...porDocumento], porTelefone: [...porTelefone] },
+    conflito: { motivo, porDocumento: [...idsDoc], porTelefone: [...porTelefone] },
   };
 }

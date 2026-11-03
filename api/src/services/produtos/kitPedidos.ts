@@ -1,5 +1,5 @@
 /**
- * KIT FECHA VENDAS: "esta conta tem pedido pago?", respondido num lugar só.
+ * KIT FECHA VENDAS: "esta conta tem pedido pago?", respondido aqui para o menu (`acessos()`).
  *
  * Eram duas regras. O menu (`acessos()`) lia kit_pedidos só por user_id; o curso (`/kit/meu-acesso`) lia por
  * user_id OU e-mail da conta, com QUALQUER item pago. Quem comprou com o e-mail da conta e sem user_id gravado
@@ -8,6 +8,9 @@
  * Agora o menu usa a regra do curso: pedido PAGO achado pelo user_id OU pelo e-mail da conta, de qualquer item.
  * A regra só SOMA: quem já via o curso no menu continua vendo (todo pedido achado pelo user_id continua
  * achado). Não há filtro pelo item `kit` de propósito: apertar a regra é onde alguém perderia acesso.
+ *
+ * `acessoDoUsuario` (kitIntegradorService, /kit/meu-acesso) guarda a sua própria cópia da mesma regra (user_id ou
+ * e-mail, status paid, qualquer item). Mexeu numa, confira a outra.
  *
  * Este arquivo não importa `acessos` nem `kitIntegradorService` de propósito: os dois importam daqui, e
  * um ciclo entre eles deixaria o `require` do dist pela metade.

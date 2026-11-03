@@ -46,7 +46,7 @@ function evento(over: Partial<EventoKit> = {}): EventoKit {
     orderId: 'ORDER-1',
     email: EMAIL_DIGITADO,
     nome: 'Comprador Teste',
-    telefone: '+5534999990000',
+    telefone: '+5534991472583',
     documento: null,
     produto: 'Calculadora Solar',
     item: 'precificacao',
@@ -87,7 +87,7 @@ describe('os documentos de teste são válidos (senão nada abaixo prova coisa n
 
 describe('documentoDoComprador: o CPF/CNPJ no payload da Kiwify', () => {
   it('lê Customer.CPF (11 dígitos) como a Kiwify manda', () => {
-    expect(documentoDoComprador({ full_name: 'X', CPF: CPF, mobile: '+5534999990000' })).toBe(CPF);
+    expect(documentoDoComprador({ full_name: 'X', CPF: CPF, mobile: '+5534991472583' })).toBe(CPF);
     expect(documentoDoComprador({ CPF: CPF_MASCARA })).toBe(CPF);
   });
 
@@ -114,7 +114,7 @@ describe('documentoDoComprador: o CPF/CNPJ no payload da Kiwify', () => {
 
 describe('1) o e-mail continua sendo a primeira chave', () => {
   it('e-mail da conta: é essa conta, sem mexer em nada e sem alerta', async () => {
-    const c = conta({ email: EMAIL_DIGITADO, whatsapp: '34999990000' });
+    const c = conta({ email: EMAIL_DIGITADO, whatsapp: '34991472583' });
     const r = await processarEventoKit(evento());
 
     expect(r.userId).toBe(c.id);
@@ -128,7 +128,7 @@ describe('1) o e-mail continua sendo a primeira chave', () => {
 
   it('o e-mail ganha de um telefone que é de OUTRA conta', async () => {
     const dona = conta({ email: EMAIL_DIGITADO });
-    conta({ email: 'outra@x.com', whatsapp: '34999990000' });
+    conta({ email: 'outra@x.com', whatsapp: '34991472583' });
     const r = await processarEventoKit(evento());
 
     expect(r.userId).toBe(dona.id);
@@ -162,7 +162,7 @@ describe('2) CPF/CNPJ do comprador contra o que a conta guarda', () => {
 
   it('CPF: casa com quem assina por Pix recorrente (asaas_pix_assinaturas.cpf_cnpj)', async () => {
     const c = conta();
-    semear('asaas_pix_assinaturas', { user_id: c.id, email: EMAIL_DA_CONTA, cpf_cnpj: CPF_MASCARA });
+    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: c.id, email: EMAIL_DA_CONTA, cpf_cnpj: CPF_MASCARA });
 
     const r = await processarEventoKit(evento({ documento: CPF, telefone: null }));
     expect(r.userId).toBe(c.id);
@@ -195,8 +195,8 @@ describe('2) CPF/CNPJ do comprador contra o que a conta guarda', () => {
 
 describe('3) telefone do comprador contra users.whatsapp, pelas variantes de chave', () => {
   it('+55 (13 dígitos) do comprador casa com o 11 dígitos da conta', async () => {
-    const c = conta({ whatsapp: '34999990000' });
-    const r = await processarEventoKit(evento({ telefone: '+5534999990000' }));
+    const c = conta({ whatsapp: '34991472583' });
+    const r = await processarEventoKit(evento({ telefone: '+5534991472583' }));
 
     expect(r.userId).toBe(c.id);
     expect(r.contaCriada).toBe(false);
@@ -206,37 +206,37 @@ describe('3) telefone do comprador contra users.whatsapp, pelas variantes de cha
   });
 
   it('casa mesmo quando um lado perdeu o nono dígito', async () => {
-    const c = conta({ whatsapp: '553499990000' });             // 55 + DDD + 8 dígitos
-    const r = await processarEventoKit(evento({ telefone: '(34) 99999-0000' }));
+    const c = conta({ whatsapp: '553491472583' });             // 55 + DDD + 8 dígitos
+    const r = await processarEventoKit(evento({ telefone: '(34) 99147-2583' }));
     expect(r.userId).toBe(c.id);
   });
 
   it('casa quando a conta guarda o número com "+"', async () => {
-    const c = conta({ whatsapp: '+5534999990000' });
-    const r = await processarEventoKit(evento({ telefone: '34 99999 0000' }));
+    const c = conta({ whatsapp: '+5534991472583' });
+    const r = await processarEventoKit(evento({ telefone: '34 99147 2583' }));
     expect(r.userId).toBe(c.id);
   });
 
   it('telefone de outra pessoa (DDD ou final diferentes) não casa', async () => {
     conta({ whatsapp: '34988880000' });
-    conta({ email: 'outra@x.com', whatsapp: '11999990000' });
-    const r = await processarEventoKit(evento({ telefone: '+5534999990000' }));
+    conta({ email: 'outra@x.com', whatsapp: '11991472583' });
+    const r = await processarEventoKit(evento({ telefone: '+5534991472583' }));
     expect(r.contaCriada).toBe(true);
   });
 
   it('telefone curto ou lixo não procura nada', async () => {
-    conta({ whatsapp: '34999990000' });
+    conta({ whatsapp: '34991472583' });
     for (const telefone of ['12345', '', null, 'sem telefone']) {
       limpar('users', 'kit_pedidos', 'entitlements');
-      conta({ whatsapp: '34999990000' });
+      conta({ whatsapp: '34991472583' });
       const r = await processarEventoKit(evento({ telefone: telefone as any }));
       expect(r.contaCriada).toBe(true);
     }
   });
 
   it('DUAS contas no mesmo telefone: não escolhe nenhuma, cria a pendente e avisa o suporte', async () => {
-    const a = conta({ email: 'a@x.com', whatsapp: '34999990000' });
-    const b = conta({ email: 'b@x.com', whatsapp: '5534999990000' });
+    const a = conta({ email: 'a@x.com', whatsapp: '34991472583' });
+    const b = conta({ email: 'b@x.com', whatsapp: '5534991472583' });
 
     const r = await processarEventoKit(evento({ orderId: 'ORDER-DUAS' }));
 
@@ -254,7 +254,7 @@ describe('3) telefone do comprador contra users.whatsapp, pelas variantes de cha
 
 describe('documento e telefone juntos', () => {
   it('apontam para a MESMA conta: casa, e o log diz que foram as duas chaves', async () => {
-    const c = conta({ whatsapp: '34999990000' });
+    const c = conta({ whatsapp: '34991472583' });
     semear('company', { user_id: c.id, cnpj: CNPJ_MASCARA });
 
     const r = await processarEventoKit(evento({ documento: CNPJ }));
@@ -266,7 +266,7 @@ describe('documento e telefone juntos', () => {
   it('apontam para contas DIFERENTES: não escolhe nenhuma, cria a pendente e registra o conflito', async () => {
     const pelaEmpresa = conta({ email: 'dona.da.empresa@x.com' });
     semear('company', { user_id: pelaEmpresa.id, cnpj: CNPJ_MASCARA });
-    const pelaLinha = conta({ email: 'dono.do.celular@x.com', whatsapp: '34999990000' });
+    const pelaLinha = conta({ email: 'dono.do.celular@x.com', whatsapp: '34991472583' });
 
     const r = await processarEventoKit(evento({ orderId: 'ORDER-CONFLITO', documento: CNPJ }));
 
@@ -289,21 +289,21 @@ describe('documento e telefone juntos', () => {
   it('o documento inteiro e o telefone inteiro nunca vão para o log nem para o alerta', async () => {
     const pelaEmpresa = conta({ email: 'dona.da.empresa@x.com' });
     semear('company', { user_id: pelaEmpresa.id, cnpj: CNPJ_MASCARA });
-    conta({ email: 'dono.do.celular@x.com', whatsapp: '34999990000' });
+    conta({ email: 'dono.do.celular@x.com', whatsapp: '34991472583' });
 
-    await processarEventoKit(evento({ documento: CNPJ, telefone: '+5534999990000' }));
+    await processarEventoKit(evento({ documento: CNPJ, telefone: '+5534991472583' }));
 
     const tudo = logs(logWarn) + logs(logInfo) + alertas.map((a) => a.assunto + a.corpo).join('\n');
     expect(tudo).not.toContain(CNPJ);
     expect(tudo).not.toContain(CNPJ_MASCARA);
-    expect(tudo).not.toContain('5534999990000');
-    expect(tudo).not.toContain('34999990000');
+    expect(tudo).not.toContain('5534991472583');
+    expect(tudo).not.toContain('34991472583');
     expect(tudo).toContain('0181');                           // só o final do documento
   });
 
   it('o documento acha uma conta e o telefone acha essa e outra: o telefone é ambíguo, então conflito, não chute', async () => {
-    const c = conta({ email: 'a@x.com', whatsapp: '34999990000' });
-    conta({ email: 'b@x.com', whatsapp: '34999990000' });
+    const c = conta({ email: 'a@x.com', whatsapp: '34991472583' });
+    conta({ email: 'b@x.com', whatsapp: '34991472583' });
     semear('company', { user_id: c.id, cnpj: CNPJ_MASCARA });
 
     const r = await processarEventoKit(evento({ documento: CNPJ }));
@@ -315,10 +315,10 @@ describe('documento e telefone juntos', () => {
   });
 
   it('um CNPJ que aparece em duas contas é conflito mesmo que o telefone aponte para uma delas', async () => {
-    const a = conta({ email: 'a@x.com', whatsapp: '34999990000' });
+    const a = conta({ email: 'a@x.com', whatsapp: '34991472583' });
     const b = conta({ email: 'b@x.com', whatsapp: '11911112222' });
-    semear('asaas_pix_assinaturas', { user_id: a.id, cpf_cnpj: CNPJ });
-    semear('asaas_pix_assinaturas', { user_id: b.id, cpf_cnpj: CNPJ_MASCARA });
+    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: a.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: b.id, cpf_cnpj: CNPJ_MASCARA });
 
     const r = await processarEventoKit(evento({ documento: CNPJ }));
     expect(r.userId).not.toBe(a.id);
@@ -330,8 +330,8 @@ describe('documento e telefone juntos', () => {
   it('o mesmo CNPJ em duas contas, sem telefone que desempate: conflito, não chute', async () => {
     const a = conta({ email: 'a@x.com' });
     const b = conta({ email: 'b@x.com' });
-    semear('asaas_pix_assinaturas', { user_id: a.id, cpf_cnpj: CNPJ });
-    semear('asaas_pix_assinaturas', { user_id: b.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: a.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: b.id, cpf_cnpj: CNPJ });
 
     const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null }));
     expect(r.contaCriada).toBe(true);
@@ -349,7 +349,7 @@ describe('nada casa', () => {
     expect(db.users).toHaveLength(2);
     const nova = db.users.find((u) => u.email === EMAIL_DIGITADO)!;
     expect(nova.password_hash).toBeNull();
-    expect(nova.whatsapp).toBe('5534999990000');
+    expect(nova.whatsapp).toBe('5534991472583');
     expect(db.entitlements[0].user_id).toBe(nova.id);
     expect(alertas).toHaveLength(0);
     expect(logs(logInfo)).toContain('nenhuma conta casou');
@@ -358,7 +358,7 @@ describe('nada casa', () => {
   it('uma tabela de documento que quebra não derruba a compra: segue pelas outras chaves', async () => {
     falhas.tabelaQuebrada.add('asaas_pix_assinaturas');
     falhas.tabelaQuebrada.add('company');
-    const c = conta({ whatsapp: '34999990000' });
+    const c = conta({ whatsapp: '34991472583' });
 
     const r = await processarEventoKit(evento({ documento: CNPJ }));
     expect(r.userId).toBe(c.id);                              // o telefone resolveu
@@ -368,7 +368,7 @@ describe('nada casa', () => {
 
 describe('o que a conta achada recebe', () => {
   it('reentrega do mesmo pedido: a mesma conta, sem segunda concessão nem conta nova', async () => {
-    const c = conta({ whatsapp: '34999990000' });
+    const c = conta({ whatsapp: '34991472583' });
     await processarEventoKit(evento());
     const r2 = await processarEventoKit(evento());
 
@@ -378,7 +378,7 @@ describe('o que a conta achada recebe', () => {
   });
 
   it('o item `kit`: o pedido é amarrado à conta achada e o curso aparece para ela, mesmo com e-mail diferente', async () => {
-    const c = conta({ whatsapp: '34999990000' });
+    const c = conta({ whatsapp: '34991472583' });
     await processarEventoKit(evento({ item: 'kit', produto: 'Kit Fechamento - SolarDoc', valorCentavos: 2700 }));
 
     const pedido = db.kit_pedidos[0];
@@ -389,7 +389,7 @@ describe('o que a conta achada recebe', () => {
   });
 
   it('o e-mail de acesso sai para o endereço digitado na compra, e a conta existente não vira "nova"', async () => {
-    conta({ whatsapp: '34999990000' });
+    conta({ whatsapp: '34991472583' });
     await processarEventoKit(evento());
 
     expect(emailsFerramenta).toHaveLength(1);
@@ -398,7 +398,7 @@ describe('o que a conta achada recebe', () => {
   });
 
   it('compra que NÃO está paga não procura conta nem libera nada', async () => {
-    conta({ whatsapp: '34999990000' });
+    conta({ whatsapp: '34991472583' });
     const r = await processarEventoKit(evento({ status: 'waiting_payment' }));
 
     expect(r.acao).toBe('registrado');
@@ -407,7 +407,7 @@ describe('o que a conta achada recebe', () => {
   });
 
   it('assinante que compra com outro e-mail recebe a ferramenta na conta dele, sem mexer no plano', async () => {
-    const c = conta({ whatsapp: '34999990000', plano: 'ilimitado' });
+    const c = conta({ whatsapp: '34991472583', plano: 'ilimitado' });
     const r = await processarEventoKit(evento());
 
     expect(r.userId).toBe(c.id);
@@ -416,7 +416,7 @@ describe('o que a conta achada recebe', () => {
   });
 
   it('o mês avulso do Pix comprado com outro e-mail estende o plano da conta achada', async () => {
-    const c = conta({ whatsapp: '34999990000', plano: 'free' });
+    const c = conta({ whatsapp: '34991472583', plano: 'free' });
     const r = await processarEventoKit(evento({
       item: 'mes_pix', produto: 'SolarDoc - 1 mês', valorCentavos: 6700, orderId: 'ORDER-MES',
     }));
@@ -426,5 +426,69 @@ describe('o que a conta achada recebe', () => {
     expect(depois.plano).toBe('ilimitado');
     expect(depois.plano_expira_em).toBeTruthy();
     expect(db.users).toHaveLength(1);
+  });
+});
+
+describe('conta pendente nunca é candidata (compra errada do e-mail na 1a vez)', () => {
+  it('1a compra com e-mail errado cria a pendente com o telefone; a 2a, com o e-mail certo, cria outra pendente com link', async () => {
+    const r1 = await processarEventoKit(evento({ orderId: 'P-1', email: 'errado@gmail.com' }));
+    expect(r1.contaCriada).toBe(true);
+
+    const r2 = await processarEventoKit(evento({ orderId: 'P-2', email: 'certo@gmail.com' }));
+    expect(r2.contaCriada).toBe(true);
+    expect(r2.userId).not.toBe(r1.userId);
+    const segunda = db.users.find((u) => u.email === 'certo@gmail.com')!;
+    expect(segunda.password_hash).toBeNull();
+    expect(segunda.reset_token).toBeTruthy();
+    expect(alertas).toHaveLength(0);
+  });
+
+  it('pendente com o CNPJ em asaas_pix_assinaturas também não prende a compra', async () => {
+    const p = semear('users', { email: 'pendente@x.com', password_hash: null, plano: 'free', whatsapp: null });
+    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: p.id, cpf_cnpj: CNPJ });
+    const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null as any }));
+    expect(r.contaCriada).toBe(true);
+    expect(r.userId).not.toBe(p.id);
+  });
+
+  it('assinatura Pix nunca paga (pendente, recusado, expirado) não prova o documento', async () => {
+    for (const status of ['pendente', 'recusado', 'expirado']) {
+      limpar('users', 'kit_pedidos', 'entitlements', 'company', 'asaas_pix_assinaturas');
+      const c = conta({ whatsapp: null });
+      semear('asaas_pix_assinaturas', { status, user_id: c.id, cpf_cnpj: CNPJ });
+      const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null as any }));
+      expect(r.userId).not.toBe(c.id);
+    }
+  });
+});
+
+describe('telefone de mentira ou estrangeiro não serve de chave', () => {
+  it('11999999999, 3412345678 e 34988888888 na conta de alguém não entregam a compra de quem digita o mesmo', async () => {
+    for (const numero of ['11999999999', '34999999999', '3412345678', '34988888888', '34987654321']) {
+      limpar('users', 'kit_pedidos', 'entitlements', 'company', 'asaas_pix_assinaturas');
+      const c = conta({ whatsapp: numero });
+      const r = await processarEventoKit(evento({ telefone: numero }));
+      expect(r.contaCriada).toBe(true);
+      expect(r.userId).not.toBe(c.id);
+    }
+  });
+
+  it('+351 91234-5678 e +1 555 123 4567 não viram chave brasileira', async () => {
+    for (const [naConta, naCompra] of [['3512345678', '+351912345678'], ['1551234567', '+15551234567']]) {
+      limpar('users', 'kit_pedidos', 'entitlements', 'company', 'asaas_pix_assinaturas');
+      const c = conta({ whatsapp: naConta });
+      const r = await processarEventoKit(evento({ telefone: naCompra }));
+      expect(r.userId).not.toBe(c.id);
+    }
+  });
+
+  it('telefoneServeDeChave: aceita número real e recusa DDD inválido e sequência', async () => {
+    const { telefoneServeDeChave } = await import('../services/produtos/chaveTelefone');
+    expect(telefoneServeDeChave('+5534991472583')).toBe(true);
+    expect(telefoneServeDeChave('(11) 98877-6655')).toBe(true);
+    expect(telefoneServeDeChave('0991472583')).toBe(false);
+    expect(telefoneServeDeChave('1091472583')).toBe(false);
+    expect(telefoneServeDeChave('34912345678')).toBe(false);
+    expect(telefoneServeDeChave('34987654321')).toBe(false);
   });
 });

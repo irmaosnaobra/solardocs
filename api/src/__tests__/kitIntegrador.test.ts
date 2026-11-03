@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // o comportamento que mais importa num webhook que a Kiwify reentrega.
 
 type Row = Record<string, any>;
-const db: Record<string, Row[]> = { users: [], kit_pedidos: [], kit_progresso: [], entitlements: [] };
+const db: Record<string, Row[]> = { users: [], kit_pedidos: [], kit_progresso: [], entitlements: [], company: [], asaas_pix_assinaturas: [], limpapro_entitlements: [], limpapro_membros: [] };
 const emails = new Set<string>();
 
 function novoId(): string {
@@ -20,8 +20,8 @@ function query(table: string) {
   let pendente: Row | null = null;
   let onConflict = '';
 
-  // `?? []`: tabela que este arquivo não semeia (company, limpapro_*) lê vazia, como a de produção sem linha.
-  const linhas = () => (db[table] ?? []).filter((r) => filtros.every((f) => f(r)));
+  // Tabela desconhecida estoura (undefined.filter): nome errado no código de produção não passa calado.
+  const linhas = () => db[table].filter((r) => filtros.every((f) => f(r)));
 
   function executa(): { data: any; error: any } {
     if (modo === 'insert' || modo === 'upsert') {
@@ -136,7 +136,7 @@ function evento(over: Partial<EventoKit> = {}): EventoKit {
     orderId: 'ORDER-1',
     email: EMAIL,
     nome: 'Integrador Teste',
-    telefone: '(34) 99999-0000',
+    telefone: '(34) 99147-2583',
     produto: 'Kit de Fechamento do Integrador',
     item: 'kit',
     status: 'paid',
@@ -152,6 +152,10 @@ beforeEach(() => {
   db.kit_pedidos = [];
   db.kit_progresso = [];
   db.entitlements = [];
+  db.company = [];
+  db.asaas_pix_assinaturas = [];
+  db.limpapro_entitlements = [];
+  db.limpapro_membros = [];
   emails.clear();
   enviadosFerramenta.length = 0;
   enviados.length = 0;
@@ -213,7 +217,7 @@ describe('processarEventoKit — compra do kit', () => {
     expect(user.reset_token).toBeTruthy();      // é o link que vai no e-mail
     expect(user.plano).toBe('free');
     expect(user.limite_documentos).toBe(10);
-    expect(user.whatsapp).toBe('34999990000');  // normalizado
+    expect(user.whatsapp).toBe('34991472583');  // normalizado
     expect(user.utm_source).toBe('FB');
 
     expect(enviados).toHaveLength(1);

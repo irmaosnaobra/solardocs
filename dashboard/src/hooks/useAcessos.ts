@@ -41,6 +41,8 @@ let cache: AcessosState | null = null;
 let voando: Promise<AcessosState> | null = null;
 /** Quando o servidor foi perguntado pela última vez (busca inicial ou releitura). Base do intervalo mínimo. */
 let ultimaLeitura = 0;
+/** A última pergunta ao servidor teve resposta boa (lista de produtos de verdade)? Falha de rede não pode apagar o estado bom. */
+let ultimaFoiBoa = true;
 /** Quantas telas estão ouvindo; o ouvinte de foco é um só para todas. */
 let montados = 0;
 /** Intervalo mínimo entre duas perguntas ao servidor motivadas por a aba voltar ao foco. */
@@ -49,6 +51,7 @@ const ouvintes = new Set<(s: AcessosState) => void>();
 
 async function buscar(): Promise<AcessosState> {
   ultimaLeitura = Date.now();
+  ultimaFoiBoa = false;
   // SEM TOKEN, NEM PERGUNTA.
   //
   // A LP pública (/lp/<slug>) monta este hook pra saber se a pessoa já tem o
@@ -78,6 +81,7 @@ async function buscar(): Promise<AcessosState> {
     };
     // Só resposta boa do servidor (com a lista de produtos de verdade) vai para o cache; a falha, que tranca, nunca.
     if (Array.isArray(data.produtos)) {
+      ultimaFoiBoa = true;
       guardarCacheAcessos(idDoToken(Cookies.get('solardoc_token')), {
         produtos: [...estado.produtos], origem: estado.origem, plano: estado.plano,
         assinante: estado.assinante, isAdmin: estado.isAdmin, email: estado.email, bastidor: estado.bastidor,
@@ -91,11 +95,15 @@ async function buscar(): Promise<AcessosState> {
   }
 }
 
-/** Força releitura — usar depois de voltar do checkout. */
-export function recarregarAcessos(): void {
-  cache = null;
+/**
+ * Força releitura, para usar depois de voltar do checkout. Com `soSeBoa`, uma falha de rede (comum quando a aba
+ * do celular acorda) mantém o estado anterior em vez de trocá-lo pelo vazio.
+ */
+export function recarregarAcessos(soSeBoa = false): void {
+  if (!soSeBoa) cache = null;
   voando = null;
   buscar().then((s) => {
+    if (soSeBoa && !ultimaFoiBoa) return;
     cache = s;
     ouvintes.forEach((fn) => fn(s));
   });
@@ -111,7 +119,7 @@ function aoVoltarAoFoco(): void {
   if (document.visibilityState === 'hidden') return;
   if (!document.cookie.includes('solardoc_token=')) return;
   if (Date.now() - ultimaLeitura < INTERVALO_MIN_MS) return;
-  recarregarAcessos();
+  recarregarAcessos(true);
 }
 
 /**

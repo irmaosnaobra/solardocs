@@ -258,30 +258,30 @@ describe('LimpaPro destrava no SolarDoc', () => {
   });
 
   it('pelo telefone: o membro (13 dígitos, com 55) casa com o WhatsApp da conta (11 dígitos)', async () => {
-    const u = usuario({ whatsapp: '34999990000' });
-    semear('limpapro_membros', { email: 'comprou.com.outro@email.com', telefone: '5534999990000', ativo: true });
+    const u = usuario({ whatsapp: '34991472583' });
+    semear('limpapro_membros', { email: 'comprou.com.outro@email.com', telefone: '5534991472583', ativo: true });
     expect(await tem(u.id)).toBe(true);
   });
 
   it('pelo telefone, com as variantes: "+55", sem o nono dígito e com máscara', async () => {
-    for (const telefone of ['+5534999990000', '553499990000', '34999990000', '3499990000']) {
+    for (const telefone of ['+5534991472583', '553491472583', '34991472583', '3491472583']) {
       limpar('users', 'kit_pedidos', 'entitlements', 'limpapro_entitlements', 'limpapro_membros');
-      const u = usuario({ whatsapp: '(34) 99999-0000' });
+      const u = usuario({ whatsapp: '(34) 99147-2583' });
       semear('limpapro_membros', { email: 'x@y.com', telefone, ativo: true });
       expect(await tem(u.id), telefone).toBe(true);
     }
   });
 
   it('pelo telefone de outra pessoa, ou com o membro inativo, não abre', async () => {
-    const u = usuario({ whatsapp: '34999990000' });
+    const u = usuario({ whatsapp: '34991472583' });
     semear('limpapro_membros', { email: 'a@y.com', telefone: '5534988880000', ativo: true });   // outro número
-    semear('limpapro_membros', { email: 'b@y.com', telefone: '5534999990000', ativo: false });  // inativo
+    semear('limpapro_membros', { email: 'b@y.com', telefone: '5534991472583', ativo: false });  // inativo
     expect(await tem(u.id)).toBe(false);
   });
 
   it('conta sem WhatsApp cadastrado só olha o e-mail', async () => {
     const u = usuario({ whatsapp: null });
-    semear('limpapro_membros', { email: 'a@y.com', telefone: '5534999990000', ativo: true });
+    semear('limpapro_membros', { email: 'a@y.com', telefone: '5534991472583', ativo: true });
     expect(await tem(u.id)).toBe(false);
   });
 
