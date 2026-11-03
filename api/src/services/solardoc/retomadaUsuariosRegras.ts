@@ -40,6 +40,8 @@ export type GrupoTexto = typeof GRUPOS_TEXTO[number];
 export type Segmento = 'ex_assinante' | 'gratis_ativo' | 'gratis_cnpj' | 'gratis';
 
 export const TETO_CAMPANHA_24H = 25;
+/** A reserva do quiz (parecer do chefe-antiban, P4 antes de P5): a campanha para quando o frio da linha em 24 h chega ao teto frio menos isto (pico medido do quiz: 7 por dia). */
+export const RESERVA_DO_QUIZ_24H = 8;
 export const MAX_CARACTERES_RETOMADA = 160;
 export const AVALIACOES_POR_RODADA = 8;
 
@@ -461,6 +463,7 @@ export function marcaDoMotivo(
   if (motivo === 'mudo_pela_conversa' || motivo === 'sem_whatsapp') return {};
   if (motivo === 'humano_na_conversa') return ate(agoraMs + DIA);
   if (motivo === 'outro_robo') return ate(agoraMs + 3 * DIA);
+  if (motivo === 'reuniao_ativa') return ate(agoraMs + 7 * DIA);
   if (motivo === 'telefone_nao_casa_com_a_conta') return ate(agoraMs + 7 * DIA);
   return null;
 }
@@ -535,6 +538,7 @@ const PARADAS: Readonly<Record<string, { texto: string; bloqueio: boolean }>> = 
   leitura_falhou: { texto: 'Não consegui ler o estado da retomada', bloqueio: true },
   fora_da_janela: { texto: 'Fora da janela: segunda a sábado, das 9h às 20h, fora de feriado', bloqueio: false },
   teto_da_campanha: { texto: `Teto de ${TETO_CAMPANHA_24H} em 24 horas atingido`, bloqueio: false },
+  reserva_do_quiz: { texto: 'O frio da linha está perto do teto: a campanha deixa a vaga para o quiz', bloqueio: false },
   teto_da_linha: { texto: 'O envio frio da linha está cheio agora', bloqueio: false },
   cede_a_agenda: { texto: 'A agenda está usando a linha: o frio espera', bloqueio: false },
 });

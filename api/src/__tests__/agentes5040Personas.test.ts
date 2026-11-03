@@ -342,6 +342,18 @@ describe('Carla na retomada: fatosDaRetomada', () => {
     expect(secao).toContain('https://solardoc.app/?pagar=pix');
     expect(secao).not.toMatch(/pix_kiwify|Kiwify|copia e cola|foto do comprovante e o e-mail/i);
     expect(SISTEMA_FIXO_CARLA).not.toContain('pix_kiwify');
+    // O prompt fixo inteiro (inclui o conhecimento do SolarDoc): nada de Pix pela Kiwify, na chave ou por link de assinatura do site.
+    expect(SISTEMA_FIXO_CARLA).not.toMatch(/Kiwify[^.]*Pix|Pix[^.]*Kiwify|na chave|link de assinatura do site/i);
+  });
+
+  it('ex-assinante (pagou e incerto) não recebe entrar_no_app nos fatos: só o Pix automático; o grátis segue com o cartão pelo app', () => {
+    for (const c of [pagou(), incerto()]) {
+      const f = fatosRet(c);
+      expect(f).not.toMatch(/peça entrar_no_app/);
+      expect(f).toContain('Cartão pelo app não vale para esta conta: ofereça só o Pix automático (pix_automatico).');
+      expect(f).not.toMatch(/já assinou antes/);
+    }
+    expect(fatosRet(conta())).toContain('Cartão: peça entrar_no_app');
   });
 
   it('nenhuma linha dos fatos e nenhuma da seção "QUEM JÁ TEM CONTA" leva a palavra "menu" (a trava barra em toda bolha)', () => {

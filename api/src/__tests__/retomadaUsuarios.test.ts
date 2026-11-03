@@ -815,6 +815,22 @@ describe('rodada: o início (D35), a janela e as travas, em ordem', () => {
     }
   });
 
+  it('piso que não é data: a largada NÃO é gravada (o 1º tick depois do deploy não gasta a rede)', async () => {
+    const { d, e } = falsas(gente(1), { pisoInicioMs: () => NaN });
+    expect(await rodar(d)).toMatchObject({ motivo: 'sem_data_de_inicio', enviou: false });
+    expect(e.chamadas).not.toContain('garantirLargada');
+  });
+
+  it('a reserva do quiz: com o frio de 24 h a 8 do teto a campanha para (reserva_do_quiz) e não toma a vez; com folga, segue', async () => {
+    const cheio = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 22 } }) });
+    expect(await rodar(cheio.d)).toMatchObject({ motivo: 'reserva_do_quiz', enviou: false });
+    expect(cheio.e.chamadas).not.toContain('tomarVez');
+    const folga = falsas(gente(1), { vagasDoFrio: async () => ({ hora: { teto: 6, usadas: 0 }, dia: { teto: 30, usadas: 21 } }) });
+    expect((await rodar(folga.d)).motivo).not.toBe('reserva_do_quiz');
+    const sem = falsas(gente(1), { vagasDoFrio: async () => null });
+    expect(await rodar(sem.d)).toMatchObject({ motivo: 'leitura_do_teto_falhou', enviou: false });
+  });
+
   it('a largada que falha para a rodada (largada_falhou)', async () => {
     const { d } = falsas(gente(1), { garantirLargada: async () => { throw new Error('banco caiu'); } });
     expect(await rodar(d)).toMatchObject({ ok: false, motivo: 'largada_falhou' });
@@ -1045,6 +1061,11 @@ describe('rodada: as conferências por pessoa e as marcas', () => {
     expect(x.r.puladas).toEqual({ outro_robo: 1 }); esperaMarca(x.e, 'outro_robo', ISO(AGORA.getTime() + 3 * DIA));
     x = await rodaUma({ fatosPorteiro: async () => ({ ...FATOS_OK, ehClienteSolarDoc: false }) });
     expect(x.r.puladas).toEqual({ telefone_nao_casa_com_a_conta: 1 }); esperaMarca(x.e, 'telefone_nao_casa_com_a_conta', ISO(AGORA.getTime() + 7 * DIA));
+  });
+
+  it('reunião de eletroposto marcada: reuniao_ativa, marca de 7 dias, e a pessoa não entra na fila', async () => {
+    const x = await rodaUma({ fatosPorteiro: async () => ({ ...FATOS_OK, reuniaoEletroposto: true }) });
+    expect(x.r.puladas).toEqual({ reuniao_ativa: 1 }); esperaMarca(x.e, 'reuniao_ativa', ISO(AGORA.getTime() + 7 * DIA));
   });
 
   it('a Carla não atende esta pessoa: carla_nao_atende, sem marca', async () => {

@@ -157,7 +157,7 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
     // Ex-assinante: o Customer antigo da Stripe tem a assinatura cancelada, o Fazer Upgrade abre um checkout novo e a Stripe cria outro
     // Customer para quem já tem conta. Até o create-checkout reusar o Customer, esse grupo só tem o Pix automático.
     if ((posse.retomada as { segmento?: unknown } | null | undefined)?.segmento === 'ex_assinante') {
-      return recusa('entrar_ex_assinante', 'esta pessoa já assinou antes: o cartão pelo app abre outra cobrança. Ofereça só o Pix automático (peça pix_automatico) e siga o aviso do Pix desta conversa.');
+      return recusa('entrar_ex_assinante', 'nesta conta o cartão pelo app abre outra cobrança. Ofereça só o Pix automático (peça pix_automatico) e siga o aviso do Pix desta conversa.');
     }
     return linkDe(LINKS_CARLA.entrar_no_app!, 'entrar_no_app');
   }

@@ -90,8 +90,8 @@ export function textoConhecimentoSolarDoc(): string {
     '- Não existe cupom, nem desconto, nem Pix de R$ 19, nem plano anual.',
     `- Produtos avulsos (Kiwify, o acesso chega sozinho), só quando a conversa pede e depois que pagou: ${avulsos}.`,
     `- Promessa permitida só para quem fecha no mesmo dia, sem data: "${PROMESSA_PLANILHA_ELETROPOSTO}"`,
-    '- Pix: ofereça primeiro o link da Kiwify. Quem paga na chave e manda a foto do comprovante continua liberado pela foto.',
-    '- Cartão de crédito: aceito, pelo link de assinatura do site.',
+    '- Pix: só o Pix automático (peça pix_automatico), que cobra na conta da pessoa todo mês. Sem chave, sem código e sem comprovante.',
+    '- Cartão de crédito: aceito. Pelo link de assinatura só para quem não tem conta; quem já tem conta assina por dentro do app.',
     '- Reembolso é com a Giovanna (pessoa). Nunca diga que devolveu ou que vai devolver.',
   ].join('\n');
 }

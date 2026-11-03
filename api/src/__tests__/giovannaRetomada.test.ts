@@ -94,10 +94,10 @@ describe('conta grátis com a posse viva da retomada, na linha io: a Carla respo
     expect(supressoes()).toHaveLength(0);
   });
 
-  it('a mesma conta mandando a foto do comprovante: o leitor de comprovante NÃO é chamado (a Carla responde sozinha) e a Giovanna segue calada', async () => {
+  it('a mesma conta mandando a foto do comprovante: o leitor de comprovante É chamado (libera pela conta que já existe) e a Giovanna não conversa', async () => {
     semearConta(); semearRetomada();
     await chegou('paguei', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
-    expect(h.comprovante).not.toHaveBeenCalled();
+    expect(h.comprovante).toHaveBeenCalledTimes(1);
     calada();
   });
 });

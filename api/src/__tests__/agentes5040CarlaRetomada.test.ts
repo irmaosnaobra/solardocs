@@ -237,24 +237,25 @@ describe('retomada: a Carla atende quem tem conta quando a posse é da campanha'
     expect(chavesDoEstado().some(k => k.startsWith('ag5040_vez_vivo:'))).toBe(false);
   });
 
-  it('conta ilegível (não existe mais): a Carla não fala e a vez é solta', async () => {
+  it('conta que não existe mais: a Carla não fala, a vez é solta e a posse fecha (não fica 30 dias sem dono)', async () => {
     semearRetomada({ conta: null });
     ia = modelo([{ bolhas: ['Oi'] }]);
     const r = await rodar();
     expect(ia.chamadas).toHaveLength(0);
     expect(h.enviar).not.toHaveBeenCalled();
-    expect(r.puladas.conta_ilegivel).toBe(1);
-    expect(r.decisoes[0]).toMatchObject({ resultado: 'recusada', motivo: 'conta_ilegivel' });
+    expect(r.puladas.conta_inexistente).toBe(1);
+    expect(r.decisoes[0]).toMatchObject({ resultado: 'recusada', motivo: 'conta_inexistente' });
     expect(chavesDoEstado().some(k => k.startsWith('ag5040_vez_vivo:'))).toBe(false);
-    expect(posseDe().estado).toBe('viva');
+    expect(posseDe().estado).toBe('encerrada');
   });
 
-  it('conta com outro telefone (não casa com a conversa): ilegível, a Carla não fala', async () => {
+  it('conta com outro telefone (não casa com a conversa): a Carla não fala e a posse fecha', async () => {
     semearRetomada({ conta: { whatsapp: '5511999990000' } });
     ia = modelo([{ bolhas: ['Oi'] }]);
     const r = await rodar();
     expect(ia.chamadas).toHaveLength(0);
-    expect(r.puladas.conta_ilegivel).toBe(1);
+    expect(r.puladas.conta_inexistente).toBe(1);
+    expect(posseDe().estado).toBe('encerrada');
   });
 
   it('a resposta da Carla na retomada estende o `ate` da posse para 30 dias a partir do envio', async () => {

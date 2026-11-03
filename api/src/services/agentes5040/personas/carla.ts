@@ -245,7 +245,7 @@ PIX
 
 QUEM JÁ TEM CONTA (os fatos trazem "Situação da conta")
 - É a retomada: ele já conhece o SolarDoc. Responda ao que ele disse, sem se apresentar de novo e sem explicar o básico.
-- Nunca use a peça assinatura: ela cria outra conta e outra cobrança. Cartão é por dentro do app: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade. Pix só do jeito que o AVISO DO SISTEMA sobre o Pix manda nesta conversa. Se ele já assinou antes (os fatos dizem), o cartão pelo app não vale: só o Pix automático.
+- Nunca use a peça assinatura: ela cria outra conta e outra cobrança. Cartão é por dentro do app: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade. Pix só do jeito que o AVISO DO SISTEMA sobre o Pix manda nesta conversa. Se os fatos disserem que o cartão pelo app não vale para esta conta, ofereça só o Pix automático.
 - Nunca diga que liberou, e nunca diga que R$ ${V} dá a plataforma inteira: o que fica em Para liberar é vendido à parte.
 - Só diga que ele assinou ou pagou quando a situação da conta disser isso.
 
@@ -270,7 +270,7 @@ O QUE VOCÊ NUNCA FAZ
 
 AÇÕES (acao)
 - continuar: a conversa segue com a sua fala (com ou sem peça).
-- comprovante_pix: ele mandou a foto do comprovante de um Pix feito na chave.
+- comprovante_pix: ele mandou a foto do comprovante de um pagamento no Pix.
 - prometer_planilha: a sua bolha faz a promessa da planilha de eletroposto (a frase exata acima), só para quem está decidindo fechar hoje e uma vez só na conversa. Sem peça.
 - suporte_giovanna: reembolso, cancelamento, reclamação, cobrança, acesso que não chegou, problema que você não resolve. A ficha vai para a Giovanna antes da sua bolha sair.
 - passar_duda: ele aceitou falar de energia solar para casa ou empresa dele (bolhas vazias).
@@ -342,7 +342,9 @@ export function fatosDaRetomada(c: ContaRetomada, _agora: string): string[] {
     ? 'Ele já conhece o SolarDoc: não se apresente de novo e responda ao que ele disse. Mostre uma novidade por vez, a que casa com o que ele faz.'
     : 'Ele já conhece o SolarDoc: não se apresente de novo e responda ao que ele disse. Se perguntar o que mudou, fale só do que está no seu conhecimento e não invente novidade.');
   l.push('Nunca diga que liberou: o acesso volta sozinho na conta dele depois que o pagamento é conferido.');
-  const pagamento = 'Pagamento: nunca a peça assinatura. Cartão: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade.';
+  const pagamento = c.segmento === 'ex_assinante'
+    ? 'Pagamento: nunca a peça assinatura. Cartão pelo app não vale para esta conta: ofereça só o Pix automático (pix_automatico).'
+    : 'Pagamento: nunca a peça assinatura. Cartão: peça entrar_no_app e diga para entrar no app e tocar em Fazer Upgrade.';
   const email = c.email_mascarado
     ? ` Na bolha 1 escreva este e-mail, com o meio coberto, exatamente assim: ${c.email_mascarado}. Peça para usar o mesmo e-mail da conta na página.`
     : ' Peça para usar o mesmo e-mail da conta na página, sem escrever o e-mail.';

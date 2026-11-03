@@ -54,7 +54,7 @@ import type { FatosPorteiro } from '../agentes5040/tipos';
 import { primeiroNome } from '../nexus/email';
 import {
   ADIANTO_DO_DOCUMENTO_MS, AVALIACOES_POR_RODADA, CHAVE_RESUMO_RET, JANELA_DOC_ATIVO_MS, PREFIXO_CARIMBO_RET, PREFIXO_FORA_RET, PREFIXO_VEZ_RET,
-  ROBO_RETOMADA_USUARIOS, TELEFONE_DA_LINHA_5040, TETO_CAMPANHA_24H, chaveVezRet, chavesRepetidas, classificarUsuario, cnpjDe14, inicioEfetivoMs,
+  ROBO_RETOMADA_USUARIOS, TELEFONE_DA_LINHA_5040, RESERVA_DO_QUIZ_24H, TETO_CAMPANHA_24H, chaveVezRet, chavesRepetidas, classificarUsuario, cnpjDe14, inicioEfetivoMs,
   limiteCedeAAgenda, marcaDoMotivo, montarChavesDaCasa, motivoDaConversa, ordenarFila, pisoDoCodigoMs, telefoneDoUsuario, textoDaRetomada,
   textosVazios, type Classificacao, type ExtrasRet, type MarcaForaRet, type UsuarioRet, type VendaRet,
 } from './retomadaUsuariosRegras';
@@ -147,6 +147,8 @@ export async function avaliarPessoa(
   if (!fatos.leituraOk) return recusar('leitura_falhou', agoraMs);
   if (fatos.humanoNaConversa) return recusar('humano_na_conversa', agoraMs);
   if (fatos.outroRoboAtivo) return recusar('outro_robo', agoraMs);
+  // Reunião de eletroposto marcada: o "SIM" ou o "quero remarcar" dele é dos robôs da agenda, que não leem a posse da Carla. Duas respostas para uma mensagem.
+  if (fatos.reuniaoEletroposto) return recusar('reuniao_ativa', agoraMs);
   if (!fatos.ehClienteSolarDoc) return recusar('telefone_nao_casa_com_a_conta', agoraMs);
   if (!(await d.carlaAtende(item.tel))) return recusar('carla_nao_atende', agoraMs);
   const primeiro = d.primeiroNome(item.u.nome);
@@ -245,6 +247,11 @@ async function travas(d: DepsRet, agora: Date): Promise<string | null> {
   if (naHora >= d.limiteAgenda()) return 'cede_a_agenda';
   const teto = await d.tetoCampanha(agora);
   if (teto !== 'ok') return teto === 'cheio' ? 'teto_da_campanha' : 'leitura_do_teto_falhou';
+  // A reserva do quiz: o frio da linha inteira em 24 h (retomada, quiz, checkout) divide o mesmo teto; a campanha para antes do fim e deixa vaga ao quiz.
+  let vagas: Awaited<ReturnType<DepsRet['vagasDoFrio']>>;
+  try { vagas = await d.vagasDoFrio(); } catch { vagas = null; }
+  if (!vagas) return 'leitura_do_teto_falhou';
+  if (vagas.dia.usadas >= vagas.dia.teto - RESERVA_DO_QUIZ_24H) return 'reserva_do_quiz';
   return null;
 }
 
@@ -259,7 +266,9 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
     if (!d.segredoOk()) return { ...r, ok: false, motivo: 'sem_segredo_de_hmac' };
     if (textosVazios()) return { ...r, motivo: 'sem_texto' };
 
-    // 1. a largada: a 1ª rodada grava e conta criada depois dela fica fora
+    // 1. o piso primeiro: sem data de início nada sai e a largada NÃO é gravada (o 1º tick depois do deploy não gasta a rede "nunca no dia do deploy")
+    if (!Number.isFinite(d.pisoInicioMs())) return { ...r, motivo: 'sem_data_de_inicio' };
+    // a largada: a 1ª rodada grava e conta criada depois dela fica fora
     let largada: number;
     try { largada = await d.garantirLargada(agora); } catch (e) {
       logger.error(LOG, `largada falhou: ${String((e as Error)?.message ?? e).slice(0, 80)}`);

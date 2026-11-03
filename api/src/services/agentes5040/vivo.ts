@@ -842,8 +842,18 @@ async function processar(c: Candidata, posse: DadosPosse, g: G): Promise<Seguir>
     // assinar sai da retomada (a posse fecha) e o suporte é da Giovanna, que a fila já responde.
     let contaRetomada: ContaRetomada | null = null;
     if (daRetomada) {
-      try { contaRetomada = await lerContaDaRetomada(posse, chave, agora); } catch { contaRetomada = null; }
-      if (!contaRetomada) { await soltar(); soma(r.puladas, 'conta_ilegivel'); dec({ resultado: 'recusada', motivo: 'conta_ilegivel' }); return 'seguir'; }
+      let erroDaConta = '';
+      try { contaRetomada = await lerContaDaRetomada(posse, chave, agora); } catch (e) { contaRetomada = null; erroDaConta = e instanceof Error ? e.message : ''; }
+      if (!contaRetomada) {
+        // Erro passageiro (ler_a_conta, ler_a_situacao): só solta a vez e a próxima rodada tenta. Erro permanente (a conta não existe, não casa com o
+        // telefone ou a posse não tem user_id): a conversa não pode ficar até 30 dias sem dono, então a posse fecha e os robôs de sempre voltam.
+        const permanente = ['conta_nao_existe', 'conta_nao_casa', 'conta_sem_user_id'].includes(erroDaConta);
+        if (permanente && !dry) await atualizarPosse(chave, { estado: 'encerrada', ate_wa_id: L.id });
+        await soltar();
+        soma(r.puladas, permanente ? 'conta_inexistente' : 'conta_ilegivel');
+        dec({ resultado: 'recusada', motivo: permanente ? 'conta_inexistente' : 'conta_ilegivel' });
+        return 'seguir';
+      }
       if (contaRetomada.plano !== 'free') {
         if (!dry) await atualizarPosse(chave, { estado: 'encerrada', ate_wa_id: L.id });
         await soltar();

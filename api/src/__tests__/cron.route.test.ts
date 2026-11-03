@@ -163,6 +163,7 @@ describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
     const nomes = (res.body.results as Array<{ task?: string; name?: string }>).map(r => r.task ?? r.name);
     expect(nomes).not.toContain('carla-sem-cnpj');
     expect(nomes).not.toContain('carla-inativo');
-    expect(nomes).toContain('curso-entrada-19');
+    expect(nomes).not.toContain('curso-entrada-19');   // a oferta de R$ 19 saiu de venda (20/10) e a Giovanna não manda mais o Pix do curso
+    expect(nomes).toContain('pesquisa-satisfacao');
   }, 20_000);
 });

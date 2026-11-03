@@ -188,7 +188,7 @@ Os 3 pilares do diferencial:
 
 2) FECHA MAIS RÁPIDO E GERENCIA MELHOR
    - Proposta com simulação de economia, antes/depois da conta de luz e payback — pronta pra fechar na hora.
-   - CRM/funil de vendas pra não perder lead, precificação pra orçar certo, histórico de tudo que gerou.
+   - CRM/funil de vendas pra não perder lead, histórico de tudo que gerou.
    - Cada documento sai em minutos, não em horas — vira tempo pra vender mais.
 
 3) A PLATAFORMA AINDA TRAZ CLIENTE (o ecossistema, o teto)
@@ -1067,8 +1067,17 @@ export async function handleIncomingWhatsApp(
     if (ehDenunciaDaRetomada || OPT_OUT_PATTERNS.test(text) || pedeParaPararDeReceber([text])) {
       await silenciarNaRetomada(user.id, cleanPhone, ehDenunciaDaRetomada ? 'denuncia' : 'opt_out');
     }
-    // Comprovante: não passa aqui. Todo Pix é o automático (libera sozinho pelo banco) e a ação comprovante_pix da Carla leva a ficha ao humano;
-    // a confirmação do comprovante da Giovanna seria uma segunda fala por cima da Carla.
+    // Comprovante: ninguém mais trata o comprovante de quem está na retomada (a ação comprovante_pix da Carla vira só uma bolha, sem ficha). Quem paga
+    // pela chave ou por um copia e cola velho ficaria sem acesso e sem aviso. Então o leitor roda aqui, antes do return: libera pela conta que já existe,
+    // e só fala quando o comprovante é de verdade (se não for, devolve false e a Carla segue sozinha).
+    if (comprovanteSource) {
+      try {
+        const { tryProcessPixComprovante } = await import('./pixComprovanteService');
+        await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance, text);
+      } catch (err) {
+        logger.error('whatsapp', 'pix-comprovante da retomada falhou (a Carla segue)', err);
+      }
+    }
     return;
   }
 

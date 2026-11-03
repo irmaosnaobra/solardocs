@@ -241,7 +241,7 @@ export async function cedeAAgente(telefone: string | null | undefined): Promise<
     }
     if (!posse || !ESTADOS_QUE_CEDEM.includes(posse.estado)) return false;
     // A posse da retomada VENCIDA vale como se não existisse (uma `viva` sem resposta não cala a Giovanna do suporte para sempre).
-    if (ehPosseDaRetomada(posse) && !retomadaVale(posse, Date.now())) return false;
+    if (ehPosseDaRetomada(posse) && posse.estado === 'viva' && !retomadaVale(posse, Date.now())) return false;
     if (posse.dona === 'humano') return true;
     return cobrem.includes(posse.dona);
   } catch {
@@ -263,7 +263,7 @@ export async function cedeARetomadaDaCarla(telefone: string | null | undefined):
     let p: DadosPosse | null;
     try { p = await lerPosse(chave); }
     catch (e) { console.error('[agentes5040] ler a posse falhou: a Giovanna cala nesta mensagem', codigoDe(e)); return true; }
-    return !!p && ehPosseDaRetomada(p) && ESTADOS_QUE_CEDEM.includes(p.estado) && retomadaVale(p, Date.now());
+    return !!p && ehPosseDaRetomada(p) && ESTADOS_QUE_CEDEM.includes(p.estado) && (p.estado !== 'viva' || retomadaVale(p, Date.now()));
   } catch {
     return false;
   }

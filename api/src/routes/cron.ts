@@ -426,7 +426,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // volta a ser o limite. Idempotente e gated (campanha/janela/teto/espaçamento): rodar mais vezes não manda MAIS, manda melhor distribuído.
       // [03/11] As duas cadências da Giovanna (carla_sem_cnpj e carla_inativo) SAÍRAM daqui e do master: a retomada de quem não paga é da
       // Carla (carla_retomada_usuarios, logo abaixo, depois do robô do quiz).
-      ['curso19', () => runCursoEntradaBroadcast()],      // curso R$19: 3 toques (exige CAMPANHA_CURSO19_ON)
+      // [03/11] O curso19 SAIU: a oferta de R$ 19 saiu de venda em 20/10 e a Giovanna não manda mais o Pix do curso.
       ['ep_alerta_10min', () => runEletropostoAlerta10minTick()], // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
       ['recepcao_paradas', () => entregarTriagensParadas()],       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (chave em system_state recepcao_io:ativa)
       ['recepcao_poll', () => pollRecepcaoIo()],                // recepção da linha IO: atende quem escreveu e não é de mais ninguém (o webhook não aguenta, ver recepcaoIoPoll.ts)
@@ -1543,7 +1543,7 @@ router.get('/master', async (req: Request, res: Response) => {
     // só porque um deploy subiu. Sem a variável, este tick é no-op barato.
     // Divide o MESMO teto anti-ban da linha com o resto do frio.
     // Prévia sem enviar: GET /cron/curso-entrada-19?seco=1
-    ['curso-entrada-19',            () => runCursoEntradaBroadcast()],    // 3 toques; para quando o lead responde
+    // [03/11] O curso-entrada-19 SAIU do master (oferta de R$ 19 fora de venda desde 20/10; ligar CAMPANHA_CURSO19_ON não manda mais nada).
     // [03/11/2026] As cadências carla-sem-cnpj e carla-inativo da Giovanna saíram do master: a retomada de quem não paga é da Carla
     // (carla_retomada_usuarios, que roda só no /process-messages e por isso NÃO entra aqui).
     ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
