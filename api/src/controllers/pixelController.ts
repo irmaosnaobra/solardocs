@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import https from 'https';
+import { logger } from '../utils/logger';
 
-// Mapeamento de Funis (Tokens e IDs)
-const PIXEL_CONFIGS: Record<string, string> = {
-  '824905216831401': 'EAAKa1N3Sk1kBRLMt0C1vGgc0nrQjPLyCGBv1vD56nXL64A4COxB3XoGQgvgeKZAcfQ4t99wKtMLPiWF2iDZCP6fqZBc0w7vTZBXxkZBHnCt4C8wcl5C4esTpYKutwupZBUJBcmMEIJUuuD26MuYNY3yghlmeyF2BgdyFVJ9ZApwGC3c3ksbKEBvhyMwYLXhsS6YXgZDZD',
-  '446093469730871': 'EAAKa1N3Sk1kBRABfJeKMtxZBJ3IBMvnCCGZBVIWh44G78n0gqm1d3q4MNf6sukReWMOwqSSm8Hir20ZBKyCZAsySY7hwP9jm4ZAb5cm8rcidoK3UFZCq24g5xnycH7lzq3cBSqw3ObpLtYGjIBuEWM3x7RC36u3ZCM4lCi8RGnahU427nQZCXOEqqKhNlmW2fRoC4AZDZD'
-};
+// Pixels permitidos (só os ids). O token NUNCA fica no código: vem de process.env.META_SYSTEM_USER_TOKEN
+// na hora do envio (o system user acessa os dois pixels; é o mesmo token de utils/metaCapi.ts).
+const PIXELS_PERMITIDOS = new Set<string>(['824905216831401', '446093469730871']);
 
 const DEFAULT_PIXEL_ID = '446093469730871';
 
@@ -33,10 +32,16 @@ export async function executePixelEvent(params: {
     const { phone, city, score, event_name, fbc, fbp, event_source_url, pixel_id, ip, userAgent, value, currency, event_id } = params;
 
     const activePixelId = pixel_id || DEFAULT_PIXEL_ID;
-    const accessToken = PIXEL_CONFIGS[activePixelId];
 
-    if (!accessToken) {
+    if (!PIXELS_PERMITIDOS.has(activePixelId)) {
       throw new Error(`Configuração não encontrada para o Pixel: ${activePixelId}`);
+    }
+
+    // Mesma ordem de utils/metaCapi.ts: META_SYSTEM_USER_TOKEN e, na falta dele, META_PIXEL_TOKEN.
+    const accessToken = (process.env.META_SYSTEM_USER_TOKEN || process.env.META_PIXEL_TOKEN || '').trim();
+    if (!accessToken) {
+      logger.warn('pixel', `META_SYSTEM_USER_TOKEN/META_PIXEL_TOKEN ausentes: evento ${event_name || 'Lead'} do pixel ${activePixelId} não enviado`);
+      return { skipped: 'sem_token' };
     }
 
     const eventData = {
