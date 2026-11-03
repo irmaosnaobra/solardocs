@@ -17,7 +17,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { sendHuman, sleep } from '../zapiClient';
+import { sendHuman, sendFrio, sleep } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { ofertaCupomAtiva, bolhasOferta, resumoOfertaParaPrompt, LINK_ASSINATURA, OfertaCupom } from '../../../utils/ofertaCupom';
@@ -210,7 +210,7 @@ function jaMandouLink(messages: Msg[]): boolean {
 // mesmo fio dariam duas Giovannas com memórias diferentes na mesma conversa. O
 // opener é registrado como mensagem proativa da plataforma, igual ao dunning.
 export async function enviarOpenerRecuperacao(
-  phone: string, nome: string | null, touch: number, opts: { userId?: string | null } = {},
+  phone: string, nome: string | null, touch: number, opts: { userId?: string | null; frio?: boolean; aoEnviar?: () => Promise<void> } = {},
 ): Promise<boolean> {
   const phoneKey = phone.replace(/\D/g, '');
   try {
@@ -231,20 +231,94 @@ export async function enviarOpenerRecuperacao(
           ? `${oi}Voltei rapidinho: dá pra entrar pagando R$ ${oferta.primeiroMes} no primeiro mês. Te mando o caminho? [[ENVIAR_LINK]]`
           : `${oi}Voltei rapidinho pra te ajudar a garantir seu acesso. Te mando o caminho? [[ENVIAR_LINK]]`;
     }
-    const { enviado } = await enviarComMarcadores(phone, raw, oferta, false, nome);
-    if (opts.userId) {
-      if (enviado.length) {
-        await registrarMsgProativa({ userId: opts.userId, phone, content: enviado.join('\n'), nome });
+    // FRIO (recoverAbandonedCheckouts, atrás do portão anti-ban): UMA chamada de sendFrio com UMA bolha. false = nada saiu (pausa humana).
+    const { enviado, saiu } = opts.frio
+      ? await enviarToqueFrio(phone, raw, oferta, nome, opts.aoEnviar)
+      : { ...(await enviarComMarcadores(phone, raw, oferta, false, nome)), saiu: true };
+    if (!saiu) return false;
+    // No frio a mensagem JÁ SAIU: falha ao guardar o histórico não pode virar "não saiu" (o chamador desfaz o claim e repetiria o toque).
+    try {
+      if (opts.userId) {
+        if (enviado.length) {
+          await registrarMsgProativa({ userId: opts.userId, phone, content: enviado.join('\n'), nome });
+        }
+        return true;
       }
+      const novas: Msg[] = [...sess.messages, ...enviado.map(c => ({ role: 'assistant' as const, content: c }))];
+      await saveRecoverySession(phoneKey, novas, nome);
+      return true;
+    } catch (err) {
+      logger.error('pix-recovery', `opener enviado, mas o histórico não gravou pra ${phoneKey}`, err);
       return true;
     }
-    const novas: Msg[] = [...sess.messages, ...enviado.map(c => ({ role: 'assistant' as const, content: c }))];
-    await saveRecoverySession(phoneKey, novas, nome);
-    return true;
   } catch (err) {
+    // Frio: erro de transporte do envio sobe (o followupService mantém o claim). Qualquer outro erro é anterior ao envio: nada saiu.
+    if (opts.frio && (err as { transporte?: boolean } | null)?.transporte) throw err;
     logger.error('pix-recovery', `opener falhou pra ${phoneKey}`, err);
     return false;
   }
+}
+
+/**
+ * Envio do toque FRIO da recuperação de checkout (decisão do chefe-antiban, linha 5040).
+ * O texto inteiro (as bolhas da IA, mais o link e o cupom quando o toque manda o caminho) vira UMA string e sai
+ * numa chamada só de `sendFrio`, que o `emBolhas` mantém em 1 bolha. O único extra é o Pix, sozinho no fim,
+ * quando o toque o pede ([[ENVIAR_PIX]]): é uma segunda chamada, de uma bolha só; se ela calar, o texto já saiu.
+ * `saiu: false` = o sendFrio calou (pausa humana) e NADA foi enviado. Exceção com `transporte: true` = erro de envio (talvez saiu).
+ */
+async function enviarToqueFrio(
+  phone: string, raw: string, oferta: OfertaCupom | null, nome: string | null, aoEnviar?: () => Promise<void>,
+): Promise<{ enviado: string[]; saiu: boolean }> {
+  const pediuPix = /\[\[\s*ENVIAR_PIX\s*\]\]/i.test(raw);
+  const pediuLink = /\[\[\s*ENVIAR_LINK\s*\]\]/i.test(raw);
+  const encerrar = /\[\[\s*ENCERRAR\s*\]\]/i.test(raw);
+  const limpo = raw
+    .replace(/\[\[\s*ENVIAR_PIX\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENVIAR_LINK\s*\]\]/ig, '')
+    .replace(/\[\[\s*ENCERRAR\s*\]\]/ig, '')
+    .trim();
+
+  // Pix ganha do link (mesma regra do envio conversacional). Quem está saindo da conversa não recebe oferta.
+  const mandaLink = pediuLink && !pediuPix && !encerrar;
+  const mandaPix = pediuPix && !encerrar;
+  // O Pix é montado ANTES do 1º envio. No copia-e-cola manual o código (000201...) NUNCA vai junto de texto: as linhas de valor e de
+  // comprovante (pix.slice(1)) vão no fim do texto do 1º sendFrio, e o código sai SOZINHO no 2º. No checkout da Kiwify (link, sem
+  // código) o Pix inteiro vai no 2º envio.
+  const doCheckout = mandaPix ? bolhasPixCheckout() : [];
+  const pix = !mandaPix ? [] : doCheckout.length
+    ? doCheckout
+    : bolhasPix(gerarPixCopiaECola({ valor: PIX_VALOR, txid: 'SOLARDOCVIP' }), PIX_VALOR);
+  const codigoManual = mandaPix && !doCheckout.length ? pix[0]! : null;
+
+  let texto = porBarras(limpo).join(' ');
+  if (mandaLink) texto = [texto, ...bolhasOferta(oferta, TOQUE)].filter(Boolean).join('\n');
+  if (codigoManual) texto = [texto, ...pix.slice(1)].filter(Boolean).join('\n');
+  if (!texto) return { enviado: [], saiu: false };
+
+  // sendFrio: false = a trava de pausa humana calou, NADA saiu. Exceção = erro de envio (timeout, 5xx, número inválido): não dá para
+  // saber se a mensagem saiu, e quem chama mantém o claim marcado `falhou` (na dúvida, não repete). A exceção sobe marcada com `transporte`.
+  let saiu: boolean;
+  try { saiu = await sendFrio(phone, [texto], 'solardoc'); }
+  catch (err) { throw Object.assign(err instanceof Error ? err : new Error(String(err)), { transporte: true }); }
+  if (!saiu) return { enviado: [], saiu: false };
+  const enviado = [texto];
+  // O texto saiu: grava já (antes do Pix e do histórico) que o toque foi enviado. Melhor esforço.
+  if (aoEnviar) { try { await aoEnviar(); } catch { /* o claim fica sem a marca: no pior caso a retomada de claim velho decide */ } }
+
+  if (mandaPix) {
+    try {
+      await sleep(600);
+      const pixTexto = codigoManual ?? pix.join('\n');
+      if (await sendFrio(phone, [pixTexto], 'solardoc')) {
+        enviado.push(pixTexto);
+        // Pix manual: marca que existe um Pix pendente deste telefone (casa o comprovante depois).
+        if (codigoManual) await registrarPixEnviado(phone, PIX_VALOR, nome);
+      }
+    } catch (err) {
+      logger.error('pix-recovery', `pix do toque frio falhou pra ${phone.replace(/\D/g, '').slice(-4)}`, err);
+    }
+  }
+  return { enviado, saiu: true };
 }
 
 // ─── REPLY (chamado pelo inbound de número desconhecido) ─────────────────────

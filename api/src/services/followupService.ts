@@ -5,6 +5,7 @@ import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentServi
 import { pixAutomatico, pixPublicoAtivo } from '../utils/pixInfo';
 import { asaasHabilitado } from './asaas/asaasClient';
 import { cedeAAgente, lerPosse } from './agentes5040/posse';
+import { novaRodadaPortao, tomarToqueRecuperacao, soltarToqueRecuperacao, marcarToqueEnviado, marcarToqueFalhou, lerFalhasWhats, contarFalhaWhats, FALHAS_PARA_SO_EMAIL } from './recuperacaoCheckoutPortao';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -413,15 +414,18 @@ export async function recoverOrphanCheckouts(): Promise<{ sent: number; skipped:
 // ════════════════════════════════════════════════════════════════════
 // Alvo: abandoned_checkouts (status='abandoned') que o webhook gravou no
 // checkout.session.expired (a pessoa começou a assinar e não concluiu). Cadência:
-// até 3 toques, EMAIL sempre (backbone) + WhatsApp SÓ no 1º toque (anti-ban).
+// 6 toques. EMAIL nos 6 (backbone); WhatsApp SÓ nos 3 primeiros (ABANDON_WHATSAPP_ATE_TOQUE), cada um por
+// UMA chamada de sendFrio (1 bolha) atrás do portão anti-ban da linha 5040 (recuperacaoCheckoutPortao.ts):
+// janela diurna, teto, espaçamento, pausa humana, mudo, e um claim por INSERT (`rec_checkout_sent:<id>:<toque>`)
+// antes de enviar, que também barra duas rodadas simultâneas (o /cron/master tem dois relógios).
 // STOP-ON-RECOVER: se o email virou conta (users) OU venda (sales), marca
 // 'recovered' e para. Só age em quem deixou email/telefone. Idempotente/throttled.
 // Cadência conversacional de recuperação: minutos após o toque anterior (ou após o
 // abandono, pro T1) antes de disparar cada toque. Sequência de 6 toques em ~12 dias —
 // a Giovanna conversa em TODOS, cada um com um ângulo diferente (ver OBJETIVOS_OPENER).
-// Fácil de afrouxar/apertar: é só mexer nos números (Thiago pediu "sem medo de ban").
+// Fácil de afrouxar/apertar: é só mexer nos números.
 const ABANDON_INTERVALS_MIN = [
-  60,      // T1: ~1h após o abandono — se apresenta, "foi o cartão?"   (~dia 0)
+  15,      // T1: ~15 min após o abandono (era 60; liberado pelo chefe-antiban depois do portão) — se apresenta, "foi o cartão?"   (~dia 0)
   1440,    // T2: +1 dia  — manda o caminho (site + cupom)              (~dia 1)
   2880,    // T3: +2 dias — contorna hesitação                          (~dia 3)
   4320,    // T4: +3 dias — valor/uso real                              (~dia 6)
@@ -429,7 +433,9 @@ const ABANDON_INTERVALS_MIN = [
   5760,    // T6: +4 dias — despedida (o link fica de porta aberta)     (~dia 14)
 ];
 const ABANDON_MAX_TOUCHES = ABANDON_INTERVALS_MIN.length;
-const ABANDON_GRACE_MS    = 60 * 60 * 1000;            // 1h de carência (T1 só após isso)
+/** O WhatsApp da recuperação vai só até este toque (o e-mail segue nos 6). */
+export const ABANDON_WHATSAPP_ATE_TOQUE = 3;
+const ABANDON_GRACE_MS    = 15 * 60 * 1000;            // 15 min de carência (T1 só após isso; filtra direto na consulta, acompanha o 1º intervalo)
 const ABANDON_MAX_AGE_MS  = 18 * 24 * 60 * 60 * 1000;  // janela de 18d (cobre o T6 no ~dia 14 + folga)
 const ABANDON_RECOVER_URL = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim() + '/#planos';
 
@@ -445,6 +451,7 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     .lte('created_at', graceCutoff)
     .gte('created_at', maxAgeCutoff)
     .lt('recovery_attempts', ABANDON_MAX_TOUCHES)
+    .order('created_at', { ascending: true })   // os mais antigos primeiro: com 1 WhatsApp por rodada, ninguém fica para trás
     .limit(200);
   if (!rows?.length) return { sent: 0, recovered: 0, skipped: 0 };
 
@@ -498,6 +505,9 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
   } catch { leituraDoQuizFalhou = true; }
 
   let sent = 0, recovered = 0, skipped = 0;
+  // Portão do WhatsApp (uma instância por rodada) e a chave de "o sendFrio calou/falhou: a perna do WhatsApp para pelo resto da rodada".
+  const portao = novaRodadaPortao();
+  let zapParou = false;
   for (const r of rows) {
     const email = (r.email || '').toLowerCase();
     const u = email ? porEmail.get(email) : undefined;
@@ -557,42 +567,108 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     const soPorErroDeLeitura = !!phone && agenteSegura && !(cedeu || marcaDoQuiz || (carlaComAPosse && !posseIlegivel));
     if (agenteSegura && !r.email) { skipped++; continue; }
 
+    const toque = attempts + 1;
+
+    // PORTÃO ANTI-BAN DO WHATSAPP (chefe-antiban, linha 5040). WhatsApp só nos 3 primeiros toques e só se nenhuma agente segura o número.
+    //   corta  → a PESSOA não recebe WhatsApp (supressão/mudo): o e-mail segue e o toque avança, como no corte do quiz;
+    //   segura → fora da janela, teto, espaçamento, pausa humana, leitura falha: o e-mail sai UMA vez e o toque NÃO avança
+    //            (o WhatsApp tenta de novo no próximo tick; o e-mail do toque não repete, ver `abandono_email:`).
+    let queroWhats = !!phone && !agenteSegura && toque <= ABANDON_WHATSAPP_ATE_TOQUE;
+    let segurado = false;
+    let claimFeito = false;
+    let jaEnviadoAntes = false;   // o claim diz que o toque já saiu (ou falhou) antes: nada sai agora, só avança
+    if (queroWhats) {
+      // Número que já falhou FALHAS_PARA_SO_EMAIL vezes no envio só recebe e-mail daqui em diante (e não segura as outras pessoas).
+      const falhas = await lerFalhasWhats(String(r.id));
+      if (falhas === null) segurado = true;
+      else if (falhas >= FALHAS_PARA_SO_EMAIL) queroWhats = false;
+      else if (zapParou) segurado = true;
+      else {
+        const v = await portao.avaliar(phone!);
+        if (!v.ok && v.acao === 'corta') queroWhats = false;
+        else if (!v.ok) segurado = true;
+        else {
+          // Claim por INSERT ANTES de enviar: a chave é única, então a rodada que perder (o /cron/master tem dois relógios) não manda nada,
+          // nem o e-mail. Erro do insert segura o toque (na dúvida, não fala).
+          const claim = await tomarToqueRecuperacao(String(r.id), toque);
+          if (claim === 'ja') { skipped++; continue; }
+          // 'enviado' = o toque já saiu numa rodada que caiu antes de gravar o avanço: sem WhatsApp, só avança.
+          if (claim === 'enviado') { queroWhats = false; jaEnviadoAntes = true; }
+          else if (claim === 'erro') segurado = true;
+          else claimFeito = true;
+        }
+      }
+    }
+    const toqueVaiRepetir = soPorErroDeLeitura || segurado;
+    let marcaDoEmailFalhou = false;
+
     if (r.email) {
-      // O e-mail segue como sempre. Quando o toque vai ser REPETIDO (erro de leitura) ele sai uma vez só por toque: a marca
-      // `abandono_email:<id>:<n>` evita o mesmo e-mail a cada rodada do cron enquanto a leitura não volta.
-      const toque = (r.recovery_attempts ?? 0) + 1;
+      // O e-mail segue como sempre. A marca `abandono_email:<id>:<n>` é gravada ANTES do envio, em todo toque: o e-mail sai uma vez só por toque,
+      // mesmo quando o toque vai ser REPETIDO (WhatsApp segurado, erro de leitura) ou quando duas rodadas se cruzam.
       const jaSaiu = await emailDoToqueJaSaiu(String(r.id), toque);
       // Marca que não lê (jaSaiu = 'erro'): no toque que vai se repetir, não arrisca o e-mail em dobro; no toque normal envia como sempre.
-      if (jaSaiu === 'nao' || (jaSaiu === 'erro' && !soPorErroDeLeitura)) {
-        // No toque que vai se repetir a marca é gravada ANTES do envio: se o insert falhar, o e-mail NÃO sai nesta rodada (fica para a próxima).
-        const marcou = soPorErroDeLeitura ? await marcarEmailDoToque(String(r.id), toque) : true;
-        if (marcou) {
+      if (jaSaiu === 'nao' || (jaSaiu === 'erro' && !toqueVaiRepetir)) {
+        // Marca já existente (outra rodada cuida): o e-mail não sai. Falha do insert por outro motivo: o e-mail não sai e o toque NÃO avança.
+        const marcou = await marcarEmailDoToque(String(r.id), toque);
+        if (marcou === 'erro') marcaDoEmailFalhou = true;
+        else if (marcou === 'ok') {
           try {
             await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome });
           } catch (e) {
             console.error('abandon email falhou:', e);
             // O e-mail não saiu: a marca sai também, para a próxima rodada tentar de novo.
-            if (soPorErroDeLeitura) { try { await supabase.from('system_state').delete().eq('key', `abandono_email:${r.id}:${toque}`); } catch { /* a marca sobra: no pior caso o e-mail deste toque não repete */ } }
+            try { await supabase.from('system_state').delete().eq('key', `abandono_email:${r.id}:${toque}`); } catch { /* a marca sobra: no pior caso o e-mail deste toque não repete */ }
           }
         }
       }
     }
-    // WhatsApp: GIOVANNA conversacional de recuperação — se apresenta, puxa papo e manda
-    // o Pix no momento certo (não é blast fixo). O toque vem de recovery_attempts+1.
-    // "Sem medo de ban" (Thiago 25/jul/2026) → manda em TODO toque. Best-effort.
-    if (phone && !agenteSegura) {
-      try { await enviarOpenerRecuperacao(phone, nome, (r.recovery_attempts ?? 0) + 1, { userId: u?.id ?? null }); }
-      catch (e) { console.error('abandon giovanna opener falhou:', e); }
+    if (marcaDoEmailFalhou) {
+      if (claimFeito) await soltarToqueRecuperacao(String(r.id), toque);
+      skipped++; continue;
     }
-    // WhatsApp cortado só por erro de leitura: nada marcado, o toque volta na próxima rodada.
-    if (soPorErroDeLeitura) { skipped++; continue; }
+    // WhatsApp: GIOVANNA conversacional de recuperação, UMA chamada de sendFrio (1 bolha; o Pix, quando o toque manda, vai sozinho no fim).
+    // O claim já está feito. Se o envio não saiu (sendFrio calou por pausa humana, ou falhou), o claim é desfeito, o toque NÃO avança
+    // e a perna do WhatsApp para pelo resto da rodada.
+    if (queroWhats && claimFeito && !segurado) {
+      let saiu = false;
+      let lancou = false;
+      try {
+        // aoEnviar grava `enviado` no claim logo depois do 1º sendFrio que deu certo, antes do Pix e do histórico.
+        saiu = await enviarOpenerRecuperacao(phone!, nome, toque, {
+          userId: u?.id ?? null, frio: true, aoEnviar: () => marcarToqueEnviado(String(r.id), toque),
+        });
+      } catch (e) {
+        // O sendFrio LANÇOU (transporte, 5xx, 4xx do número): talvez saiu. O claim FICA, marcado `falhou` (nunca é retomado), o toque avança só
+        // com o e-mail, a falha é contada (com FALHAS_PARA_SO_EMAIL a pessoa só recebe e-mail) e a perna do WhatsApp para pela rodada.
+        lancou = true;
+        console.error('abandon giovanna opener falhou:', e);
+        await marcarToqueFalhou(String(r.id), toque);
+        await contarFalhaWhats(String(r.id));
+        zapParou = true;
+      }
+      if (saiu) portao.travarRodada('ja_enviou_na_rodada');
+      else if (!lancou) {
+        // sendFrio devolveu false (calou por regra, ou falha antes do envio): nada saiu, o claim é desfeito e o toque NÃO avança.
+        await soltarToqueRecuperacao(String(r.id), toque);
+        zapParou = true;
+        segurado = true;
+      }
+    }
+    // WhatsApp cortado só por erro de leitura, ou segurado pelo portão: nada marcado, o toque volta na próxima rodada.
+    if (soPorErroDeLeitura || segurado) { skipped++; continue; }
 
-    await supabase.from('abandoned_checkouts').update({
-      recovery_attempts: (r.recovery_attempts ?? 0) + 1,
+    const { error: erroAvanco } = await supabase.from('abandoned_checkouts').update({
+      recovery_attempts: toque,
       recovery_sent_at:  new Date().toISOString(),
       updated_at:        new Date().toISOString(),
     }).eq('id', r.id);
-    sent++;
+    if (erroAvanco) {
+      // O toque não avançou: o claim (`enviado`/`falhou`) e a marca do e-mail seguram a repetição, e a próxima rodada só grava o avanço.
+      console.error('abandon: gravar o avanço do toque falhou:', erroAvanco);
+      skipped++; continue;
+    }
+    // Claim `enviado` de rodada anterior: o avanço foi gravado agora, mas nada saiu agora.
+    if (!jaEnviadoAntes) sent++;
   }
   console.log(`[abandon] recuperação: ${sent} toques, ${recovered} recuperados, ${skipped} throttled`);
   if (sent > 0) await avisarPixSemLink();
@@ -607,14 +683,17 @@ async function emailDoToqueJaSaiu(id: string, toque: number): Promise<'sim' | 'n
     return data ? 'sim' : 'nao';
   } catch { return 'erro'; }
 }
-/** Grava a marca do e-mail deste toque. false = não gravou (erro do insert ou exceção): o e-mail não sai nesta rodada, fica para a próxima. */
-async function marcarEmailDoToque(id: string, toque: number): Promise<boolean> {
+/**
+ * Grava a marca do e-mail deste toque. 'ok' = gravou (pode enviar). 'ja' = a chave já existe (23505): outra rodada cuida do e-mail deste toque.
+ * 'erro' = qualquer outra falha (insert ou exceção): o e-mail não sai e o toque NÃO avança, fica para a próxima rodada.
+ */
+async function marcarEmailDoToque(id: string, toque: number): Promise<'ok' | 'ja' | 'erro'> {
   try {
     const em = new Date().toISOString();
     const { error } = await supabase.from('system_state').insert({ key: `abandono_email:${id}:${toque}`, value: { em }, updated_at: em });
-    // Também vale false quando a marca já existe (23505): outra rodada já cuida do e-mail deste toque.
-    return !error;
-  } catch { return false; }
+    if (!error) return 'ok';
+    return (error as { code?: string }).code === '23505' ? 'ja' : 'erro';
+  } catch { return 'erro'; }
 }
 
 // Cair no Pix manual não dá erro em lugar nenhum: o cliente recebe dados bancários,

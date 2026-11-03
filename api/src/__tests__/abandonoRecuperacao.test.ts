@@ -21,7 +21,7 @@ const db: Record<string, Row[]> = { abandoned_checkouts: [], users: [], sales: [
 function query(table: string) {
   const filtros: Array<(r: Row) => boolean> = [];
   let patch: Row | null = null;
-  let modo: 'select' | 'update' = 'select';
+  let modo: 'select' | 'update' | 'delete' = 'select';
 
   const linhas = () => db[table].filter((r) => filtros.every((f) => f(r)));
 
@@ -31,18 +31,26 @@ function query(table: string) {
       alvos.forEach((r) => Object.assign(r, patch));
       return { data: alvos, error: null };
     }
+    if (modo === 'delete') {
+      const alvos = new Set(linhas());
+      db[table] = db[table].filter((r) => !alvos.has(r));
+      return { data: null, error: null };
+    }
     return { data: linhas().map((r) => ({ ...r })), error: null };
   }
 
   const q: any = {
     select: () => q,
     update: (p: Row) => { modo = 'update'; patch = p; return q; },
+    insert: (row: Row) => { db[table].push({ ...row }); return Promise.resolve({ data: null, error: null }); },
+    delete: () => { modo = 'delete'; return q; },
     eq: (c: string, v: any) => { filtros.push((r) => String(r[c]) === String(v)); return q; },
     lt: (c: string, v: any) => { filtros.push((r) => Number(r[c] ?? 0) < Number(v)); return q; },
     lte: (c: string, v: any) => { filtros.push((r) => String(r[c]) <= String(v)); return q; },
     gte: (c: string, v: any) => { filtros.push((r) => String(r[c]) >= String(v)); return q; },
     in: (c: string, vs: any[]) => { filtros.push((r) => vs.includes(r[c])); return q; },
     limit: () => q,
+    order: () => q,
     maybeSingle: () => { const { data, error } = executa(); return Promise.resolve({ data: data[0] ?? null, error }); },
     then: (resolve: (v: any) => void) => resolve(executa()),
   };
@@ -68,6 +76,19 @@ vi.mock('../services/agents/whatsapp/pixRecoveryAgentService', () => ({
   }),
 }));
 
+// O portão anti-ban do WhatsApp (janela, teto, espaçamento, pausa, mudo, claim) tem teste próprio em recuperacaoCheckoutPortao.test.ts.
+// Aqui ele deixa passar: este arquivo trata da condição de PARADA da cadência.
+vi.mock('../services/recuperacaoCheckoutPortao', () => ({
+  novaRodadaPortao: () => ({ avaliar: async () => ({ ok: true }), travarRodada: () => undefined }),
+  tomarToqueRecuperacao: async () => 'ok',
+  soltarToqueRecuperacao: async () => undefined,
+  marcarToqueEnviado: async () => undefined,
+  marcarToqueFalhou: async () => undefined,
+  lerFalhasWhats: async () => 0,
+  contarFalhaWhats: async () => undefined,
+  FALHAS_PARA_SO_EMAIL: 2,
+}));
+
 import { recoverAbandonedCheckouts } from '../services/followupService';
 
 const HORAS = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
@@ -82,7 +103,7 @@ function abandono(over: Row = {}): Row {
 }
 
 beforeEach(() => {
-  db.abandoned_checkouts = []; db.users = []; db.sales = [];
+  db.abandoned_checkouts = []; db.users = []; db.sales = []; db.system_state = [];
   emails.length = 0; alertas.length = 0; openers.length = 0;
   process.env.SOLARDOC_PIX_CHECKOUT_URL = 'https://pay.kiwify.com.br/TESTE';
 });
@@ -183,7 +204,7 @@ describe('recoverAbandonedCheckouts — por onde a Giovanna fala', () => {
     expect(openers).toHaveLength(0);
   });
 
-  it('cadência respeita a carência de 1h', async () => {
+  it('cadência respeita a carência de 15 min', async () => {
     db.abandoned_checkouts.push(abandono({ created_at: HORAS(0.2) }));
     const r = await recoverAbandonedCheckouts();
     expect(r.sent).toBe(0);

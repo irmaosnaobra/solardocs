@@ -44,6 +44,18 @@ vi.mock('../services/agents/whatsapp/pixRecoveryAgentService', () => ({
   enviarOpenerRecuperacao: vi.fn(async (phone: string) => { h.openers.push({ phone }); return true; }),
 }));
 
+// O portão anti-ban do WhatsApp tem teste próprio (recuperacaoCheckoutPortao.test.ts); aqui deixa passar: o assunto é o corte das agentes.
+vi.mock('../services/recuperacaoCheckoutPortao', () => ({
+  novaRodadaPortao: () => ({ avaliar: async () => ({ ok: true }), travarRodada: () => undefined }),
+  tomarToqueRecuperacao: async () => 'ok',
+  soltarToqueRecuperacao: async () => undefined,
+  marcarToqueEnviado: async () => undefined,
+  marcarToqueFalhou: async () => undefined,
+  lerFalhasWhats: async () => 0,
+  contarFalhaWhats: async () => undefined,
+  FALHAS_PARA_SO_EMAIL: 2,
+}));
+
 import { banco, supabase } from './_bancoFalso';
 import { interruptores, semearAlvo, semearPosse } from './_agentes5040Cortes';
 import { zerarCacheInterruptores } from '../services/agentes5040/interruptores';

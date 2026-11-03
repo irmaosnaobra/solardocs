@@ -221,6 +221,10 @@ const BOT_SENT_PREFIXES = [
   // um carimbo por pessoa, para sempre (claim por insert). Toque que a pessoa não pediu: pesa no orçamento FRIO e no espaçamento desde o
   // primeiro dia, e fica FORA de PREFIXOS_AGENDA de propósito.
   'quiz_rec_sent:',
+  // [03/11] A recuperação de checkout abandonado (followupService.recoverAbandonedCheckouts, recuperacaoCheckoutPortao.ts): `rec_checkout_sent:<id>:<toque>`,
+  // um carimbo por toque de WhatsApp (claim por insert, gravado ANTES de enviar). Toque que a pessoa não pediu: pesa no orçamento FRIO e no
+  // espaçamento, e fica FORA de PREFIXOS_AGENDA de propósito.
+  'rec_checkout_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
