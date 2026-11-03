@@ -1,0 +1,228 @@
+/* Modal do Pix automático. Cores e estilo vêm do Landing.module.css (tema escuro, botão âmbar). */
+.fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(2, 6, 23, 0.78);
+  overflow-y: auto;
+}
+.painel {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100dvh - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: auto;
+  padding: 0;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-family: inherit;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+/* A rolagem fica aqui dentro; o × é irmão desta área e por isso nunca sai da vista. */
+.rolagem {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 26px 20px 22px;
+}
+.painel *,
+.painel *::before,
+.painel *::after { box-sizing: border-box; }
+.fechar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: #1e293b;
+  color: #cbd5e1;
+  font-size: 30px;
+  z-index: 1;
+  line-height: 1;
+  cursor: pointer;
+}
+.fechar:hover { background: #253347; color: #f1f5f9; }
+.fechar:focus-visible,
+.campo:focus-visible,
+.btnPrincipal:focus-visible,
+.btnSecundario:focus-visible,
+.link:focus-visible,
+.codigo:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
+.titulo {
+  margin: 0 40px 6px 0;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.sub {
+  margin: 0 0 14px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+.texto {
+  margin: 12px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+.rotulo {
+  display: block;
+  margin: 14px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+.campo {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin-top: 6px;
+  padding: 0 14px;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #f1f5f9;
+  font: inherit;
+  font-size: 16px; /* 16 px evita o zoom do iOS ao focar */
+}
+.campo:focus { border-color: #fbbf24; }
+.campo[aria-invalid='true'] { border-color: #f87171; }
+.dica {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+.erro {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #fca5a5;
+}
+.erro:empty { display: none; }
+.btnPrincipal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.35);
+}
+.btnPrincipal:disabled { opacity: 0.7; cursor: not-allowed; }
+.btnSecundario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 10px 16px;
+  border: 2px solid #fbbf24;
+  border-radius: 14px;
+  background: transparent;
+  color: #fbbf24;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 8px;
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.qr {
+  display: block;
+  width: 224px;
+  max-width: 72%;
+  height: auto;
+  margin: 14px auto;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff;
+}
+.codigo {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #f1f5f9;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.espera {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.travou {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background: #253347;
+}
+.travou p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f1f5f9;
+}
+
+@media (max-width: 420px) {
+  .painel { border-radius: 16px; }
+  .rolagem { padding: 24px 16px 18px; }
+  .titulo { font-size: 20px; }
+}

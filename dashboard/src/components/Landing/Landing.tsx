@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking, getCheckoutAttribution } from '@/hooks/useLpTracking';
 import api from '@/services/api';
 import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import { VSL } from './vsl';
+import PixAutomaticoModal from './PixAutomaticoModal';
 import styles from './Landing.module.css';
 
 declare global {
@@ -355,6 +356,28 @@ export default function Landing() {
   }
 
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Pix (modal, sem sair da LP; o automático é a 2ª opção dentro dele). `pixOrigem` é o botão que abriu
+  // (modulos, oferta, final ou url); null = fechado.
+  const [pixOrigem, setPixOrigem] = useState<string | null>(null);
+  const pixAutoAbriu = useRef(false);
+  const abrirPix = useCallback((origem: string) => {
+    // O InitiateCheckout (vip_pix_codigo) sai dentro do modal, quando a pessoa gera o código.
+    trackEvent('cta_click', { label: `pix_${origem}` });
+    setPixOrigem(origem);
+  }, [trackEvent]);
+  const fecharPix = useCallback(() => setPixOrigem(null), []);
+
+  // Link de recuperação: /?pagar=pix abre o modal ao carregar. As UTMs da URL
+  // entram na atribuição porque o useLpTracking já as guarda na sessão.
+  useEffect(() => {
+    if (pixAutoAbriu.current || typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('pagar') !== 'pix') return;
+    pixAutoAbriu.current = true;
+    // A URL só existe no cliente: ler no useState inicial quebraria a hidratação.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    abrirPix('url');
+  }, [abrirPix]);
 
   // VSL: `preload="none"` no player garante que quem rola a LP inteira sem
   // clicar não baixa um byte de vídeo — só a capa. Vídeo é o item mais caro da
@@ -1129,6 +1152,9 @@ export default function Landing() {
             <button onClick={() => goToCheckout('modulos')} className={styles.offerBtn} disabled={checkoutLoading}>
               {checkoutLoading ? 'Abrindo checkout...' : `Quero tudo isso — R$ ${PRICE}/mês`}
             </button>
+            <button type="button" onClick={() => abrirPix('modulos')} className={styles.pixSecBtn}>
+              Pagar no Pix
+            </button>
             <div className={styles.modsCtaFoot}>
               Acesso na hora · garantia de 7 dias · cancele quando quiser
             </div>
@@ -1366,6 +1392,9 @@ export default function Landing() {
                 disabled={checkoutLoading}
               >
                 {ctaLabel}
+              </button>
+              <button type="button" onClick={() => abrirPix('oferta')} className={styles.pixSecBtn}>
+                Pagar no Pix
               </button>
 
               <div className={styles.offerFoot}>
@@ -1611,6 +1640,9 @@ export default function Landing() {
             <button className={styles.finalCtaBtn} onClick={() => goToCheckout('final')} disabled={checkoutLoading}>
               {checkoutLoading ? 'Abrindo checkout...' : 'Assinar agora →'}
             </button>
+            <button type="button" onClick={() => abrirPix('final')} className={styles.pixSecBtn}>
+              Pagar no Pix
+            </button>
             <div className={styles.finalCtaFoot}>
               R$ {PRICE}/mês · acesso na hora · garantia de 7 dias · cancele quando quiser.
             </div>
@@ -1630,6 +1662,9 @@ export default function Landing() {
         </div>
       </footer>
 
+      {pixOrigem && (
+        <PixAutomaticoModal origem={pixOrigem} whatsappUrl={WHATSAPP} onFechar={fecharPix} />
+      )}
     </div>
   );
 }

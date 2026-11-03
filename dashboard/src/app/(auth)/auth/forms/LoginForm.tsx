@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
 import styles from './login.module.css';
@@ -11,7 +11,9 @@ type Platform = 'ios-chrome' | 'ios-safari' | 'android' | 'other' | null;
 
 export default function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+  // /auth?mode=login&email=... (vindo da tela de pagamento) já chega com o e-mail preenchido.
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');

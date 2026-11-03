@@ -3187,6 +3187,24 @@
   margin: 38px auto 0;
   text-align: center;
 }
+/* Botão secundário do Pix automático: contorno, menor que o do cartão (que segue o principal). */
+.pixSecBtn {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 12px auto 0;
+  padding: 13px 16px;
+  border: 1.5px solid rgba(251, 191, 36, 0.7);
+  border-radius: 12px;
+  background: transparent;
+  color: #fbbf24;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pixSecBtn:hover { background: rgba(251, 191, 36, 0.1); border-color: #fbbf24; }
 .modsCtaFoot {
   margin-top: 12px;
   font-size: 12.5px;
