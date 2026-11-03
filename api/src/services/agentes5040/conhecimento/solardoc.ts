@@ -64,7 +64,11 @@ export const PARA_LIBERAR: readonly string[] = ['Kit Off-Grid', 'Inventário', '
  * (página ao vivo, depois de um deploy READY) e marcou. Vazia = os fatos da retomada saem sem o bloco de novidades e a Carla fala só do
  * que já está no conhecimento. Cada linha começa com maiúscula, sem preço, sem "menu", sem Pix e sem NEXUS (o Pix vai pelo modo).
  */
-export const NOVIDADES_SOLARDOC: readonly string[] = [];
+export const NOVIDADES_SOLARDOC: readonly string[] = [
+  'Tela de atalhos no celular com a cor e a logo da sua empresa: Nova proposta e Ler conta de luz logo no topo, e os últimos documentos a um toque.',
+  'Tudo organizado pelo que mais se usa, e a pasta Arquivos guarda todos os documentos, agora com opção de excluir.',
+  'Manutenção preventiva: o registro das visitas de manutenção de cada cliente.',
+];
 
 /**
  * O conhecimento EXTRA da retomada, impresso só nos fatos de quem recebeu a mensagem de retomada. As regras de preço, de IA, de urgência e

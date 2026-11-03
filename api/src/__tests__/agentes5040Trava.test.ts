@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NOVIDADES_SOLARDOC } from '../services/agentes5040/conhecimento/solardoc';
 
 // A chave do aviso de IA (avisoIA.ts) vale false em produção; estes testes exercitam o modo LIGADO e desligam a chave onde provam o desligado.
 const aviso = vi.hoisted(() => ({ on: true }));
@@ -445,6 +446,11 @@ describe('trava: a palavra "menu" (D33) e a frase do cartão da retomada', () =>
     expect(c(['Para assinar no cartão, entre no app e toque em Fazer Upgrade.'])).toEqual([]);
     expect(c(['Toque em Fazer Upgrade, no menu.']).join()).toMatch(/menu/);
     expect(c(['Entre no app e toque em Fazer Upgrade no menu da esquerda.']).join()).toMatch(/menu/);
+  });
+
+  it('cada novidade marcada no ar, dita como bolha da Carla, passa na trava', () => {
+    expect(NOVIDADES_SOLARDOC.length).toBeGreaterThan(0);
+    for (const n of NOVIDADES_SOLARDOC) expect(c([n]), n).toEqual([]);
   });
 });
 
