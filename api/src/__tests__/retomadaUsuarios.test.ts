@@ -733,6 +733,7 @@ function falsas(usuarios: UsuarioRet[], over: Partial<DepsRet> = {}, extrasPor: 
     desfazerPosse: async () => { reg('desfazerPosse'); return true; },
     podeFalarAgora: async () => 'sim',
     supressao: async () => [],
+    contaAgora: async (id) => { const u = usuarios.find(x => x.id === id); return u ?? 'sumiu'; },
     enviar: async (tel, texto) => { reg('enviar'); e.enviados.push({ tel, texto }); return true; },
     erroDeLinha: async () => { reg('erroDeLinha'); },
     envioOk: async () => { reg('envioOk'); },
@@ -1173,6 +1174,10 @@ describe('rodada: claim, posse e releitura', () => {
     ['supressão apareceu', { supressao: async () => ['opt_out'] }],
     ['supressão ilegível', { supressao: async () => null }],
     ['posse deixou de ser nossa', { posseAindaNossa: async () => false }],
+    ['a conta pediu opt-out depois da leitura do público', { contaAgora: async () => ({ plano: 'free', billing_status: null, plano_expira_em: null, whatsapp_opt_out: true }) }],
+    ['a conta passou a pagar depois da leitura do público', { contaAgora: async () => ({ plano: 'ilimitado', billing_status: 'active', plano_expira_em: null, whatsapp_opt_out: false }) }],
+    ['a conta sumiu (o opt-out da Giovanna apaga a conta grátis)', { contaAgora: async () => 'sumiu' }],
+    ['a conta ficou ilegível', { contaAgora: async () => null }],
   ];
   it.each(releituras)('releitura antes do envio: %s desfaz a posse e o claim e não envia', async (_nome, over) => {
     const { d, e } = falsas(gente(1), over);
@@ -1183,6 +1188,22 @@ describe('rodada: claim, posse e releitura', () => {
     expect(e.chamadas).toContain('apagarClaim');
     expect(e.chamadas).not.toContain('enviar');
     expect(e.claims.size).toBe(0);
+  });
+
+  it.each([
+    ['opt-out', { plano: 'free', billing_status: null, plano_expira_em: null, whatsapp_opt_out: true }, 'releitura_opt_out'],
+    ['plano pago', { plano: 'ilimitado', billing_status: 'active', plano_expira_em: null, whatsapp_opt_out: false }, 'releitura_paga_hoje'],
+    ['Pix com prazo no futuro', { plano: 'free', billing_status: null, plano_expira_em: new Date(AGORA.getTime() + 86_400_000).toISOString(), whatsapp_opt_out: false }, 'releitura_paga_hoje'],
+  ] as const)('a conta muda entre a leitura do público e o envio (%s): nada sai, nenhum carimbo fica e o motivo vai em puladas', async (_n, conta, motivo) => {
+    const lidas: string[] = [];
+    const { d, e } = falsas(gente(1), { contaAgora: async (id) => { lidas.push(id); return { ...conta }; } });
+    const r = await rodar(d);
+    expect(lidas).toHaveLength(1);
+    expect(r.enviou).toBe(false);
+    expect(r.puladas[motivo]).toBe(1);
+    expect(e.enviados).toHaveLength(0);
+    expect(e.claims.size).toBe(0);
+    expect(e.chamadas).not.toContain('envioOk');
   });
 });
 

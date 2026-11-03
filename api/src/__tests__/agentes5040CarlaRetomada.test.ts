@@ -237,6 +237,16 @@ describe('retomada: a Carla atende quem tem conta quando a posse é da campanha'
     expect(chavesDoEstado().some(k => k.startsWith('ag5040_vez_vivo:'))).toBe(false);
   });
 
+  it('a imagem que o leitor de comprovante já tratou (ate_wa_id marcado no corte da Giovanna): a Carla não responde de novo a ela', async () => {
+    semearRetomada({ posse: { ate_wa_id: 10 } });
+    banco.tabelas.wa_mensagens = [nossa(8, iso(2 * DIA)), { ...lead(10, MOMENTO_LEAD, ''), tipo: 'image', media_url: 'https://x/c.jpg' }];
+    ia = modelo([{ bolhas: ['Recebi, a equipe confere.'] }]);
+    const r = await rodar();
+    expect(ia.chamadas).toHaveLength(0);
+    expect(h.enviar).not.toHaveBeenCalled();
+    expect(r.puladas.ja_atendida).toBe(1);
+  });
+
   it('conta que não existe mais: a Carla não fala, a vez é solta e a posse fecha (não fica 30 dias sem dono)', async () => {
     semearRetomada({ conta: null });
     ia = modelo([{ bolhas: ['Oi'] }]);

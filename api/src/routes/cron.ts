@@ -8,7 +8,6 @@ import { runLinhaSaudeMonitor } from '../services/agents/whatsapp/linhaSaudeMoni
 import { runCarlaRetomada } from '../services/agents/sdr/carlaRetomada';
 import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
-import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
 import { runConfiancaNutricao } from '../services/confiancaService';
 import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
@@ -310,8 +309,8 @@ router.get('/followup-stamp', async (req: Request, res: Response) => {
   }
 });
 
-// ROTAS CRUAS DESLIGADAS (03/11/2026). Mandavam WhatsApp em laço, fora do teto, da janela e da pausa humana, ou eram as duas cadências da
-// Giovanna que a retomada da Carla (carla_retomada_usuarios) substituiu. Respondem 410 DEPOIS do verifyCronSecret (sem o segredo seguem 401).
+// ROTAS CRUAS DESLIGADAS (03/11/2026). Mandavam WhatsApp em laço, fora do teto, da janela e da pausa humana, eram as duas cadências da
+// Giovanna que a retomada da Carla (carla_retomada_usuarios) substituiu, ou disparavam a oferta de R$ 19, que saiu de venda em 20/10. Respondem 410 DEPOIS do verifyCronSecret (sem o segredo seguem 401).
 // Os arquivos de serviço ficam no disco (testes dependem deles), mas sem chamador: nada aqui os executa. Nenhum agendador do repositório
 // (.github, api/vercel.json, cloudflare-worker, worker-prospeccao) chama estas rotas.
 const ROTAS_DESLIGADAS: Readonly<Record<string, string>> = {
@@ -321,6 +320,7 @@ const ROTAS_DESLIGADAS: Readonly<Record<string, string>> = {
   '/carla-pergunta-cnpj': 'mandava 12 mensagens em 4 minutos, sem carimbo',
   '/carla-sem-cnpj': 'cadência substituída pela retomada da Carla (carla_retomada_usuarios) em 03/11/2026',
   '/carla-inativo': 'cadência substituída pela retomada da Carla (carla_retomada_usuarios) em 03/11/2026',
+  '/curso-entrada-19': 'a oferta de R$ 19 (curso mais 30 dias) saiu de venda em 20/10/2026',
 };
 for (const [rota, motivo] of Object.entries(ROTAS_DESLIGADAS)) {
   router.get(rota, (req: Request, res: Response) => {
@@ -1056,26 +1056,6 @@ router.get('/recup-test-opener', async (req: Request, res: Response) => {
   }
 });
 
-// Campanha de reconquista com a entrada de R$19 (curso + 30 dias de plataforma).
-// Público: FREE, inadimplente e quem cancelou. 3 toques; para quando ele responde.
-//
-// `?seco=1` NÃO envia e NÃO grava — devolve a prévia das mensagens. É como se
-// revisa a campanha antes de ela tocar em alguém real. Use sempre antes de ligar.
-// `?limite=N` limita os envios deste tick (o teto anti-ban ainda manda em cima).
-router.get('/curso-entrada-19', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const seco = req.query.seco === '1' || req.query.seco === 'true';
-    const limiteRaw = Number(req.query.limite);
-    const limite = Number.isFinite(limiteRaw) && limiteRaw > 0 ? limiteRaw : undefined;
-    const result = await runCursoEntradaBroadcast({ seco, limite });
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'curso-entrada-19 falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
 // RETOMADA DO 1x1 DO SOLARDOC: a Carla volta em quem ficou sem desfecho.
 // O funil B2B nunca teve segundo toque, e quem reabria conversa era sempre o lead.
 //
@@ -1538,12 +1518,8 @@ router.get('/master', async (req: Request, res: Response) => {
     //   2026-06-30: ARRANQUE controlado — guard dentroDaJanelaDeEnvio só deixa
     //   disparar HOJE entre 18:30–20:00 BRT (≈4 pessoas no tick das 19h). A partir
     //   de 01/jul o guard expira sozinho e a cadência volta 24/7 (4/h, ~96/dia).
-    // Reconquista com a entrada de R$19 (curso + 30 dias). NÃO dispara sozinha:
-    // exige CAMPANHA_CURSO19_ON=true no Vercel — disparo em massa não pode começar
-    // só porque um deploy subiu. Sem a variável, este tick é no-op barato.
-    // Divide o MESMO teto anti-ban da linha com o resto do frio.
-    // Prévia sem enviar: GET /cron/curso-entrada-19?seco=1
-    // [03/11] O curso-entrada-19 SAIU do master (oferta de R$ 19 fora de venda desde 20/10; ligar CAMPANHA_CURSO19_ON não manda mais nada).
+    // [03/11/2026] A reconquista com a entrada de R$ 19 (curso-entrada-19) saiu do master e a rota crua /cron/curso-entrada-19 responde 410:
+    // a oferta está fora de venda desde 20/10. Nada no código chama mais o runCursoEntradaBroadcast, com ou sem CAMPANHA_CURSO19_ON.
     // [03/11/2026] As cadências carla-sem-cnpj e carla-inativo da Giovanna saíram do master: a retomada de quem não paga é da Carla
     // (carla_retomada_usuarios, que roda só no /process-messages e por isso NÃO entra aqui).
     ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1

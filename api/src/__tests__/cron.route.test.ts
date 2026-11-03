@@ -138,11 +138,11 @@ describe('GET /cron/process-messages', () => {
   });
 });
 
-// ─── as seis rotas cruas que mandavam WhatsApp saíram (03/11/2026) ────
+// ─── as sete rotas cruas que mandavam WhatsApp saíram (03/11/2026) ────
 describe('rotas desligadas: 410 com o segredo, 401 sem ele', () => {
   const ROTAS = [
     '/cron/followup-whatsapp', '/cron/inactive-engagement', '/cron/giovanna-test-followup', '/cron/carla-pergunta-cnpj',
-    '/cron/carla-sem-cnpj', '/cron/carla-inativo',
+    '/cron/carla-sem-cnpj', '/cron/carla-inativo', '/cron/curso-entrada-19',
   ];
 
   it.each(ROTAS)('%s responde 410 com o segredo e diz por quê', async (rota) => {

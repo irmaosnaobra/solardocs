@@ -102,6 +102,49 @@ describe('conta grátis com a posse viva da retomada, na linha io: a Carla respo
   });
 });
 
+describe('comprovante na retomada: uma resposta só (o leitor OU a Carla)', () => {
+  const msg = (id: number, tipo: string, texto: string | null = null) =>
+    ({ id, instancia: 'inst-io', telefone: X, is_group: false, from_me: false, from_api: null, tipo, texto, media_url: tipo === 'texto' ? null : 'https://x/c.jpg', momment: new Date(Date.now() - (20 - id) * 1000).toISOString() });
+  const posseAgora = () => banco.linhas('whatsapp_sessions').find(s => s.tipo === 'ag5040')!.lead_data as Record<string, unknown>;
+  let instanciaAntes: string | undefined;
+  beforeEach(() => { instanciaAntes = process.env.ZAPI_INSTANCE_ID_IO; process.env.ZAPI_INSTANCE_ID_IO = 'inst-io'; });
+  afterEach(() => { if (instanciaAntes === undefined) delete process.env.ZAPI_INSTANCE_ID_IO; else process.env.ZAPI_INSTANCE_ID_IO = instanciaAntes; });
+
+  it('o leitor tratou a imagem (true): ela fica marcada como atendida na posse e a Carla não responde a ela; a Giovanna segue calada', async () => {
+    semearConta(); semearRetomada();
+    banco.poe('wa_mensagens', msg(9, 'texto', 'segue'), msg(10, 'image'));
+    h.comprovante.mockResolvedValue(true);
+    await chegou('', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
+    expect(h.comprovante).toHaveBeenCalledTimes(1);
+    expect(posseAgora().ate_wa_id).toBe(10);
+    calada();
+  });
+
+  it('um texto que chegou depois da imagem não é engolido: marca só a imagem', async () => {
+    semearConta(); semearRetomada();
+    banco.poe('wa_mensagens', msg(10, 'image'), msg(11, 'texto', 'paguei agora'));
+    h.comprovante.mockResolvedValue(true);
+    await chegou('', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
+    expect(posseAgora().ate_wa_id).toBe(10);
+  });
+
+  it('o leitor não tratou (false): nada é marcado e a Carla segue respondendo como hoje', async () => {
+    semearConta(); semearRetomada();
+    banco.poe('wa_mensagens', msg(10, 'image'));
+    await chegou('', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
+    expect(h.comprovante).toHaveBeenCalledTimes(1);
+    expect(posseAgora().ate_wa_id).toBeNull();
+    calada();
+  });
+
+  it('a imagem ainda não está na wa_mensagens: não marca nada (a Carla responde, como antes)', async () => {
+    semearConta(); semearRetomada();
+    h.comprovante.mockResolvedValue(true);
+    await chegou('', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
+    expect(posseAgora().ate_wa_id).toBeNull();
+  });
+});
+
 describe('o PARE e a denúncia ficam gravados na conta, mesmo com a IA da Carla parada', () => {
   const frasesDeParar: Array<[string, boolean]> = [
     ['PARE', false], ['não quero mais receber', false], ['chega de mensagem', false],
@@ -149,6 +192,15 @@ describe('quando o corte NÃO vale, a Giovanna responde como hoje', () => {
       semearConta(); semearRetomada({ estado });
       await chegou('oi');
       calada();
+    }
+  });
+
+  it('posse em passou_humano ou nao_incomodar VENCIDA (30 dias passaram): a Giovanna responde', async () => {
+    for (const estado of ['passou_humano', 'nao_incomodar']) {
+      banco.reset(); h.create.mockClear(); h.sendHuman.mockClear(); semearAlvo([], { carla: 'todos' });
+      semearConta(); semearRetomada({ estado, ate: new Date(Date.now() - DIA).toISOString() });
+      await chegou('oi, esqueci minha senha');
+      expect(h.create, estado).toHaveBeenCalledTimes(1);
     }
   });
 

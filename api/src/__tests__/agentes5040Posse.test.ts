@@ -480,6 +480,19 @@ describe('cedeARetomadaDaCarla (o corte da Giovanna para quem tem conta): tabela
     expect(await cedeARetomadaDaCarla(X)).toBe(false);
   });
 
+  it('passou_humano e nao_incomodar com `ate` no passado não cedem; com `ate` no futuro, cedem (o prazo vale em todo estado)', async () => {
+    env({ CARLA: '1' });
+    alvo();
+    for (const estado of ['passou_humano', 'nao_incomodar'] as const) {
+      h.estado.tabelas.whatsapp_sessions = [];
+      retomada({ estado, retomada: { user_id: 'u1', ate: new Date(Date.now() - 1000).toISOString() } });
+      expect(await cedeARetomadaDaCarla(X), `${estado} vencida`).toBe(false);
+      h.estado.tabelas.whatsapp_sessions = [];
+      retomada({ estado, retomada: { user_id: 'u1', ate: futuro() } });
+      expect(await cedeARetomadaDaCarla(X), `${estado} valendo`).toBe(true);
+    }
+  });
+
   it('posse vencida ou sem prazo: não cede', async () => {
     env({ CARLA: '1' });
     alvo();

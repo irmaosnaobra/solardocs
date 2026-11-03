@@ -251,7 +251,8 @@ export async function cedeAAgente(telefone: string | null | undefined): Promise<
 
 /**
  * Corte da Giovanna para quem TEM conta: esta conversa é da RETOMADA da Carla (03/11/2026)? true = a Giovanna não responde por cima.
- * Vale quando a Carla atende ESTE lead, a posse é dela com a origem da retomada, está num estado que cede e ainda vale (30 dias).
+ * Vale quando a Carla atende ESTE lead, a posse é dela com a origem da retomada, está num estado que cede e ainda vale (30 dias), em
+ * qualquer estado: a posse vencida vale como se não existisse.
  * Erro ao ler a posse devolve true (o mesmo critério do cedeAAgente): só importa para conta grátis, porque o chamador só pergunta com
  * `user.plano === 'free'`. Telefone sem chave e qualquer outra falha devolvem false. Nunca lança.
  */
@@ -263,7 +264,8 @@ export async function cedeARetomadaDaCarla(telefone: string | null | undefined):
     let p: DadosPosse | null;
     try { p = await lerPosse(chave); }
     catch (e) { console.error('[agentes5040] ler a posse falhou: a Giovanna cala nesta mensagem', codigoDe(e)); return true; }
-    return !!p && ehPosseDaRetomada(p) && ESTADOS_QUE_CEDEM.includes(p.estado) && (p.estado !== 'viva' || retomadaVale(p, Date.now()));
+    // O prazo de 30 dias vale em TODO estado (D4): vencida em passou_humano ou nao_incomodar, a Giovanna volta a responder (a Carla não fala nesses estados).
+    return !!p && ehPosseDaRetomada(p) && ESTADOS_QUE_CEDEM.includes(p.estado) && retomadaVale(p, Date.now());
   } catch {
     return false;
   }

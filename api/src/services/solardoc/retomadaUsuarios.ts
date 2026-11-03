@@ -55,7 +55,7 @@ import { primeiroNome } from '../nexus/email';
 import {
   ADIANTO_DO_DOCUMENTO_MS, AVALIACOES_POR_RODADA, CHAVE_RESUMO_RET, JANELA_DOC_ATIVO_MS, PREFIXO_CARIMBO_RET, PREFIXO_FORA_RET, PREFIXO_VEZ_RET,
   ROBO_RETOMADA_USUARIOS, TELEFONE_DA_LINHA_5040, RESERVA_DO_QUIZ_24H, TETO_CAMPANHA_24H, chaveVezRet, chavesRepetidas, classificarUsuario, cnpjDe14, inicioEfetivoMs,
-  limiteCedeAAgenda, marcaDoMotivo, montarChavesDaCasa, motivoDaConversa, ordenarFila, pisoDoCodigoMs, telefoneDoUsuario, textoDaRetomada,
+  limiteCedeAAgenda, marcaDoMotivo, montarChavesDaCasa, motivoDaConversa, ordenarFila, pagaHoje, pisoDoCodigoMs, telefoneDoUsuario, textoDaRetomada,
   textosVazios, type Classificacao, type ExtrasRet, type MarcaForaRet, type UsuarioRet, type VendaRet,
 } from './retomadaUsuariosRegras';
 import {
@@ -162,6 +162,9 @@ export async function avaliarPessoa(
 
 // ── a rodada do robô ─────────────────────────────────────────────────────────
 
+/** Os campos da conta que a releitura antes do envio confere: os mesmos do opt-out e do pagaHoje da 1ª leitura. */
+export type ContaAgoraRet = Pick<UsuarioRet, 'plano' | 'billing_status' | 'plano_expira_em' | 'whatsapp_opt_out'>;
+
 export interface ResumoRet { em: string; fila: number; por_motivo: Record<string, number>; avaliados: number; enviou: boolean }
 
 export interface DepsRet extends DepsAvaliarRet {
@@ -198,6 +201,11 @@ export interface DepsRet extends DepsAvaliarRet {
   /** Pausa humana estrita, lida na hora. 'sim' = pode falar, 'nao' = tem gente na conversa, 'erro' = não deu para ler. */
   podeFalarAgora(tel: string): Promise<'sim' | 'nao' | 'erro'>;
   supressao(tel: string): Promise<string[] | null>;
+  /**
+   * A conta relida pelo id, logo antes do envio: o opt-out e o pagamento podem ter mudado depois da leitura do público. 'sumiu' = a conta
+   * não existe mais (o opt-out da Giovanna apaga a conta grátis). null = não deu para ler. Nunca lança.
+   */
+  contaAgora(userId: string): Promise<ContaAgoraRet | 'sumiu' | null>;
   /** true = o envio foi feito. false (a pausa humana calou, ou qualquer retorno que não prove envio) = nada saiu. Erro LANÇA. */
   enviar(tel: string, texto: string): Promise<boolean>;
   erroDeLinha(agora: Date): Promise<void>;
@@ -358,7 +366,8 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
       }
       const desfazer = async (): Promise<void> => { await d.desfazerPosse(item.chave, em); await d.apagarClaim(chaveClaim); };
 
-      // Releitura logo antes do envio: mensagem nova na conversa, gente da equipe, supressão ou posse que deixou de ser nossa? Aborta.
+      // Releitura logo antes do envio: mensagem nova na conversa, gente da equipe, supressão, conta que pediu para parar ou passou a pagar, ou
+      // posse que deixou de ser nossa? Aborta.
       let reler: string | null;
       try {
         const conv2 = await d.conversa(item.chave);
@@ -371,7 +380,14 @@ export async function runRetomadaUsuariosTick(opts: OpcoesRet = {}, deps?: DepsR
             const sup = await d.supressao(item.tel);
             if (sup === null) reler = 'leitura_falhou';
             else if (sup.length) reler = 'suprimido';
-            else reler = (await d.posseAindaNossa(item.chave, em)) ? null : 'posse_perdida';
+            else {
+              // A conta de novo: pediu para parar ou passou a pagar desde a leitura do público? Não envia.
+              const conta = await d.contaAgora(item.u.id);
+              if (conta === null) reler = 'leitura_falhou';
+              else if (conta === 'sumiu' || conta.whatsapp_opt_out === true) reler = 'opt_out';
+              else if (pagaHoje(conta, agoraEnvio.getTime())) reler = 'paga_hoje';
+              else reler = (await d.posseAindaNossa(item.chave, em)) ? null : 'posse_perdida';
+            }
           }
         }
       } catch { reler = 'leitura_falhou'; }
@@ -721,6 +737,13 @@ export function depsReais(): DepsRet {
     },
     async supressao(tel) {
       try { return await motivosDaSupressao(tel); } catch { return null; }
+    },
+    async contaAgora(userId) {
+      try {
+        const { data, error } = await supabase.from('users').select('plano, billing_status, plano_expira_em, whatsapp_opt_out').eq('id', userId).maybeSingle();
+        if (error) return null;
+        return data ? (data as ContaAgoraRet) : 'sumiu';
+      } catch { return null; }
     },
     enviar: async (tel, texto) => (await sendFrio(tel, [texto], 'io')) === true,
     async erroDeLinha(agora) {

@@ -18,7 +18,7 @@ import { lerRegulamento } from '../../chefe/regulamento';
 import { HandoffComprovante, blocoComprovanteGiovanna, lerHandoffComprovante, pixDoHandoffPodeSair, HANDOFF_FRESCO_MIN } from './comprovanteHandoff';
 import { ehGatilhoSolarDoc } from './gatilhoSolarDoc';
 import { semNegarIA } from './giovannaIA';
-import { cedeARetomadaDaCarla } from '../../agentes5040/posse';
+import { atualizarPosse, cedeARetomadaDaCarla, chaveDaPosse, ehPosseDaRetomada, lerPosse } from '../../agentes5040/posse';
 import { pedeParaPararDeReceber } from '../../agentes5040/baseRegras';
 
 const anthropic = novoAnthropic();
@@ -836,6 +836,36 @@ export async function silenciarNaRetomada(userId: string, phone: string, motivo:
   } catch (err) { logger.error('whatsapp', 'supressão da denúncia na retomada da Carla não gravou', err); }
 }
 
+/**
+ * O leitor de comprovante tratou a imagem (ou o PDF) de quem está na retomada da Carla: marca essa mensagem como atendida na posse
+ * (`ate_wa_id` = id dela em wa_mensagens), para a rodada viva da Carla não responder de novo à mesma imagem. Escolhe a última fala do
+ * lead do tipo imagem ou documento, nunca a última de qualquer tipo: um texto que chegou depois segue para a Carla. Conversa ilegível,
+ * imagem que ainda não chegou à wa_mensagens, posse que não é mais da retomada ou erro: não marca nada (a Carla responde, como antes).
+ * Nunca lança.
+ */
+export async function marcarComprovanteDaRetomadaAtendido(phone: string): Promise<boolean> {
+  try {
+    const chave = chaveDaPosse(phone);
+    if (!chave) return false;
+    const { lerConversa } = await import('../../agentes5040/contexto');
+    const conv = await lerConversa(chave);
+    if (!conv.completa) return false;
+    let alvo: number | null = null;
+    for (let i = conv.msgs.length - 1; i >= 0; i--) {
+      const m = conv.msgs[i]!;
+      if (m.autor === 'lead' && ['image', 'imagem', 'document'].includes(m.tipo)) { alvo = m.id; break; }
+    }
+    if (alvo === null) return false;
+    const p = await lerPosse(chave);
+    if (!p || !ehPosseDaRetomada(p)) return false;
+    if (p.ate_wa_id !== null && p.ate_wa_id >= alvo) return true;
+    return await atualizarPosse(chave, { ate_wa_id: alvo });
+  } catch (err) {
+    logger.error('whatsapp', 'marcar o comprovante da retomada como atendido falhou (a Carla pode responder)', err);
+    return false;
+  }
+}
+
 // Cliente pediu CLARAMENTE pra não ser mais atendido (opt-out forte ou denúncia).
 // Regra: FREE → DELETA o registro (FKs são CASCADE/SET NULL, o DELETE é limpo).
 // PRO/VIP → NUNCA deleta (está pagando!) — só silencia. Em AMBOS os casos grava
@@ -1069,11 +1099,14 @@ export async function handleIncomingWhatsApp(
     }
     // Comprovante: ninguém mais trata o comprovante de quem está na retomada (a ação comprovante_pix da Carla vira só uma bolha, sem ficha). Quem paga
     // pela chave ou por um copia e cola velho ficaria sem acesso e sem aviso. Então o leitor roda aqui, antes do return: libera pela conta que já existe,
-    // e só fala quando o comprovante é de verdade (se não for, devolve false e a Carla segue sozinha).
+    // e só fala quando o comprovante é de verdade (se não for, devolve false e a Carla segue sozinha). Tratou (true, inclusive quando o leitor fica
+    // calado de propósito): a imagem é marcada como atendida na posse e a rodada viva da Carla não responde de novo a ela.
     if (comprovanteSource) {
       try {
         const { tryProcessPixComprovante } = await import('./pixComprovanteService');
-        await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance, text);
+        if (await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance, text)) {
+          await marcarComprovanteDaRetomadaAtendido(cleanPhone);
+        }
       } catch (err) {
         logger.error('whatsapp', 'pix-comprovante da retomada falhou (a Carla segue)', err);
       }

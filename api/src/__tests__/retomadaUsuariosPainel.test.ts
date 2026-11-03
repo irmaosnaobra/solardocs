@@ -96,6 +96,38 @@ describe('lerPainelRetomada: os números', () => {
     expect(p.pararam).toBe(1);
   });
 
+  it('pararam soma as posses nao_incomodar e quem foi silenciado no corte da Giovanna (opt-out na conta), sem contar a mesma pessoa duas vezes', async () => {
+    const base = { dona: 'carla', desde: antes(DIA), respostas: 0, imagens: [], links: [], origem: 'retomada_usuarios' };
+    const posse = (lead: Record<string, unknown>, phone: string) => banco.poe('whatsapp_sessions', { phone, tipo: 'ag5040', lead_data: { ...base, ...lead } });
+    banco.poe('users',
+      { id: 'u1', plano: 'free', whatsapp_opt_out: true },      // pediu para parar na Carla e foi silenciado: uma pessoa só
+      { id: 'u2', plano: 'free', whatsapp_opt_out: true },      // silenciado no corte da Giovanna, posse ainda viva
+      { id: 'u3', plano: 'free', whatsapp_opt_out: false },     // nao_incomodar sem opt-out gravado
+      { id: 'u4', plano: 'free', whatsapp_opt_out: true },      // incerto e silenciado: também conta
+      { id: 'u5', plano: 'free', whatsapp_opt_out: false });    // seguiu na conversa
+    for (const [suf, est, uid] of [['a', 'enviado', 'u1'], ['b', 'enviado', 'u2'], ['c', 'enviado', 'u3'], ['d', 'incerto', 'u4'], ['e', 'enviado', 'u5']] as const) {
+      carimbo(suf, { estado: est, user_id: uid }, antes(HORA));
+    }
+    posse({ estado: 'nao_incomodar', ate_wa_id: 7, retomada: { user_id: 'u1' } }, '1111111111');
+    posse({ estado: 'viva', ate_wa_id: 8, retomada: { user_id: 'u2' } }, '2222222222');
+    posse({ estado: 'nao_incomodar', ate_wa_id: 9, retomada: { user_id: 'u3' } }, '3333333333');
+    posse({ estado: 'viva', ate_wa_id: 10, retomada: { user_id: 'u5' } }, '5555555555');
+    posse({ estado: 'nao_incomodar', ate_wa_id: 11 }, '6666666666');            // posse sem user_id: conta sozinha
+    const p = await lerPainelRetomada(AGORA);
+    expect(p.pararam).toBe(5);                                                   // u1, u2, u3, u4 e a posse sem user_id
+    expect(p.voltaram_a_assinar).toBe(0);
+  });
+
+  it('pararam sai null quando a leitura das contas falha (o silenciado não dá para contar), e o voltaram também', async () => {
+    banco.poe('users', { id: 'u1', plano: 'free', whatsapp_opt_out: true });
+    carimbo('a', { estado: 'enviado', user_id: 'u1' }, antes(HORA));
+    banco.poe('whatsapp_sessions', { phone: '1111111111', tipo: 'ag5040', lead_data: { dona: 'carla', estado: 'nao_incomodar', origem: 'retomada_usuarios', retomada: { user_id: 'u1' } } });
+    banco.falhas['users.select'] = { erro: { code: '57014', message: 'timeout' } };
+    const p = await lerPainelRetomada(AGORA);
+    expect(p.pararam).toBeNull();
+    expect(p.voltaram_a_assinar).toBeNull();
+  });
+
   it('a fila e a hora em que foi lida vêm do resumo; sem resumo, null', async () => {
     expect((await lerPainelRetomada(AGORA)).fila).toBeNull();
     banco.poe('system_state', { key: 'usu_rec_resumo', value: { em: antes(5 * 60_000), fila: 41, por_motivo: { paga_hoje: 9 } }, updated_at: antes(5 * 60_000) });

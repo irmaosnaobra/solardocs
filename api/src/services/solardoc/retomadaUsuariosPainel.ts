@@ -39,6 +39,10 @@ export interface PainelRetomada {
   linha_na_hora: number | null;
   linha_limite: number;
   responderam: number | null;
+  /**
+   * Pediram para parar: as posses nao_incomodar da retomada mais quem recebeu e foi silenciado no corte da Giovanna (silenciarNaRetomada grava
+   * whatsapp_opt_out na conta), cada pessoa uma vez só. null = não deu para ler as posses, os carimbos ou as contas.
+   */
   pararam: number | null;
   voltaram_a_assinar: number | null;
   /** O início efetivo (D35) em ISO. null = falta o piso ou a data. */
@@ -135,7 +139,7 @@ export async function lerPainelRetomada(agora: Date): Promise<PainelRetomada> {
       return ((data as { value?: { em?: unknown; fila?: unknown } } | null)?.value ?? null);
     }),
     tenta(() => carimbosDaLinhaNaHora(agora, 5)),
-    tenta(() => lerTudo<{ lead_data: { estado?: unknown; ate_wa_id?: unknown } | null }>((de, ate) =>
+    tenta(() => lerTudo<{ lead_data: { estado?: unknown; ate_wa_id?: unknown; retomada?: { user_id?: unknown } | null } | null }>((de, ate) =>
       supabase.from('whatsapp_sessions').select('lead_data').eq('tipo', 'ag5040').eq('lead_data->>origem', ORIGEM_RETOMADA_USUARIOS).order('phone', { ascending: true }).range(de, ate))),
   ]);
 
@@ -145,23 +149,43 @@ export async function lerPainelRetomada(agora: Date): Promise<PainelRetomada> {
   const contar = (ms: number): number | null => (saiu ? saiu.filter(c => agoraMs - c.emMs <= ms).length : null);
   const ultimaMs = saiu && saiu.length ? Math.max(...saiu.map(c => c.emMs)) : null;
 
-  // Voltaram a assinar: os user_id dos carimbos `enviado` cujo plano hoje não é free.
+  // Voltaram a assinar: os user_id dos carimbos `enviado` cujo plano hoje não é free. Na MESMA leitura das contas (enviado e incerto) sai
+  // quem foi silenciado depois do envio: o classificarUsuario tira o opt-out antes, então opt-out entre os carimbos é pedido feito depois.
   let voltaram: number | null = null;
+  let silenciados: Set<string> | null = null;
   if (carimbos) {
-    voltaram = await tenta(async () => {
-      const ids = [...new Set(carimbos.filter(c => c.estado === 'enviado').map(c => c.user_id))];
+    const lidas = await tenta(async () => {
+      const enviados = new Set(carimbos.filter(c => c.estado === 'enviado').map(c => c.user_id));
+      const ids = [...new Set(carimbos.filter(c => c.estado === 'enviado' || c.estado === 'incerto').map(c => c.user_id))];
       let n = 0;
+      const opt = new Set<string>();
       for (let i = 0; i < ids.length; i += 100) {
-        const { data, error } = await supabase.from('users').select('id, plano').in('id', ids.slice(i, i + 100));
+        const { data, error } = await supabase.from('users').select('id, plano, whatsapp_opt_out').in('id', ids.slice(i, i + 100));
         if (error) throw new Error('ler os planos');
-        n += ((data ?? []) as Array<{ plano?: string | null }>).filter(u => u.plano !== 'free').length;
+        for (const u of (data ?? []) as Array<{ id?: string; plano?: string | null; whatsapp_opt_out?: boolean | null }>) {
+          if (enviados.has(String(u.id)) && u.plano !== 'free') n++;
+          if (u.whatsapp_opt_out === true) opt.add(String(u.id));
+        }
       }
-      return n;
+      return { n, opt };
     });
+    if (lidas) { voltaram = lidas.n; silenciados = lidas.opt; }
   }
 
   const responderam = posses ? posses.filter(p => p.lead_data && (p.lead_data.ate_wa_id !== null && p.lead_data.ate_wa_id !== undefined || p.lead_data.estado !== 'viva')).length : null;
-  const pararam = posses ? posses.filter(p => p.lead_data?.estado === 'nao_incomodar').length : null;
+  // Pararam: a posse nao_incomodar conta pelo user_id da retomada (sem ele, conta sozinha) e se junta aos silenciados sem repetir ninguém.
+  let pararam: number | null = null;
+  if (posses && silenciados) {
+    const pessoas = new Set<string>(silenciados);
+    let semUsuario = 0;
+    for (const p of posses) {
+      if (p.lead_data?.estado !== 'nao_incomodar') continue;
+      const uid = p.lead_data.retomada?.user_id;
+      if (typeof uid === 'string' && uid) pessoas.add(uid);
+      else semUsuario++;
+    }
+    pararam = pessoas.size + semUsuario;
+  }
 
   const largada = await tenta(() => lerLargadaRet());
   const inicioMs = inicioEfetivoMs(largada ?? agoraMs, pisoDoCodigoMs());
