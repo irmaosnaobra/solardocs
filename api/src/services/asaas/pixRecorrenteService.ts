@@ -57,7 +57,7 @@ export interface PixRecorrenteCriado {
   status: string;
 }
 
-async function gravarEstado(key: string, value: Record<string, unknown>, quando: string): Promise<void> {
+export async function gravarEstado(key: string, value: Record<string, unknown>, quando: string): Promise<void> {
   try {
     const { error } = await supabase.from('system_state').upsert({ key, value }, { onConflict: 'key' });
     if (error) logger.error('asaas-pix', `system_state ${quando}: não gravou ${key.split(':')[0]}`, error);

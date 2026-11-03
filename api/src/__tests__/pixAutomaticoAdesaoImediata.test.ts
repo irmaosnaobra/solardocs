@@ -53,7 +53,7 @@ const { db } = H;
 function query(table: string) {
   const filtros: Array<(r: Row) => boolean> = [];
   let patch: Row | null = null;
-  let modo: 'select' | 'update' | 'insert' | 'upsert' = 'select';
+  let modo: 'select' | 'update' | 'insert' | 'upsert' | 'delete' = 'select';
   let pendente: Row | null = null;
   let max = Infinity;
   const linhas = () => db[table].filter((r) => filtros.every((f) => f(r))).slice(0, max);
@@ -70,6 +70,11 @@ function query(table: string) {
       if (i >= 0) db[table][i] = { ...db[table][i], ...pendente }; else db[table].push({ ...pendente });
       return { data: pendente, error: null };
     }
+    if (modo === 'delete') {
+      const alvos = linhas();
+      db[table] = db[table].filter((r) => !alvos.includes(r));
+      return { data: null, error: null };
+    }
     if (modo === 'update') {
       const alvos = linhas();
       alvos.forEach((r) => Object.assign(r, patch));
@@ -83,6 +88,7 @@ function query(table: string) {
     insert: (r: Row) => { modo = 'insert'; pendente = r; return q; },
     upsert: (r: Row) => { modo = 'upsert'; pendente = r; return q; },
     update: (p: Row) => { modo = 'update'; patch = p; return q; },
+    delete: () => { modo = 'delete'; return q; },
     eq: (c: string, v: any) => { filtros.push((r) => String(H.caminho(r, c)) === String(v)); return q; },
     neq: (c: string, v: any) => { filtros.push((r) => String(r[c]) !== String(v)); return q; },
     in: (c: string, vs: any[]) => { filtros.push((r) => vs.includes(r[c])); return q; },
@@ -184,7 +190,7 @@ import { dispararPurchasePixQuiz, idDoEventoPix } from '../services/solardoc/pur
 import { sendPurchaseForSale } from '../services/salesLedger';
 import { avisarCompra } from '../services/solardoc/avisoGrupoSolardoc';
 import { cancelStripeSubsForEmail } from '../services/dunningService';
-import { getOrCreatePixUser } from '../services/agents/whatsapp/pixComprovanteService';
+import { getOrCreatePixUser, liberarAcessoPix } from '../services/agents/whatsapp/pixComprovanteService';
 import { logger } from '../utils/logger';
 
 const CONTRATO = 'SD-VIP-auto1';
@@ -716,3 +722,270 @@ describe('criarPixRecorrente: grava a ligação e a atribuição', () => {
     expect(db.asaas_pix_assinaturas).toHaveLength(0);
   });
 });
+
+describe('Aviso ao Thiago: Pix Automático recusado x QR vencido', () => {
+  const evento = (tipo: string, auth: Row = {}): any => ({
+    id: `ev-${tipo}-${Math.random()}`, event: `PIX_AUTOMATIC_RECURRING_AUTHORIZATION_${tipo}`,
+    authorization: { id: 'auth-1', contractId: CONTRATO, ...auth },
+  });
+
+  it('REFUSED sem motivo (cancellationReason nulo ou vazio): texto de QR vencido, status segue recusado', async () => {
+    for (const cancellationReason of [null, undefined, '  ']) {
+      H.whats.length = 0;
+      db.asaas_pix_assinaturas = [contrato()];
+      const r = await processarWebhookAsaas(evento('REFUSED', { cancellationReason }));
+      expect(r.tratado).toBe(true);
+      expect(db.asaas_pix_assinaturas[0].status).toBe('recusado');
+      expect(H.whats).toHaveLength(1);
+      const linhas = H.whats[0].split('\n');
+      expect(linhas[0]).toBe('⏳ *Pix automático venceu sem pagamento*');
+      expect(linhas[1]).toContain('cliente@teste.com');
+      expect(linhas[1]).toContain('R$ 67');
+      expect(linhas[2]).toBe('A pessoa gerou o código e não pagou dentro de 1 hora.');
+      expect(linhas).toHaveLength(3);
+    }
+  });
+
+  it('REFUSED com motivo: texto de hoje', async () => {
+    const r = await processarWebhookAsaas(evento('REFUSED', { cancellationReason: 'USER_DECLINED' }));
+    expect(r.tratado).toBe(true);
+    expect(db.asaas_pix_assinaturas[0].status).toBe('recusado');
+    expect(H.whats[0]).toContain('⚠️ *Pix Automático recusado*');
+    expect(H.whats[0]).toContain('Não haverá mais débito automático');
+    expect(H.whats[0]).not.toContain('venceu sem pagamento');
+  });
+
+  it('CANCELLED e EXPIRED ficam com o texto de hoje, mesmo sem motivo', async () => {
+    await processarWebhookAsaas(evento('CANCELLED'));
+    expect(db.asaas_pix_assinaturas[0].status).toBe('cancelado');
+    expect(H.whats[0]).toContain('⚠️ *Pix Automático cancelado*');
+    H.whats.length = 0;
+    db.asaas_pix_assinaturas = [contrato()];
+    await processarWebhookAsaas(evento('EXPIRED'));
+    expect(db.asaas_pix_assinaturas[0].status).toBe('expirado');
+    expect(H.whats[0]).toContain('⚠️ *Pix Automático expirado*');
+    expect(H.whats[0]).not.toContain('venceu sem pagamento');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PIX AVULSO DO FUNIL (QR estático de R$ 67, sem CPF): o pagamento acha o checkout por payment.pixQrCodeId.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Pix avulso do funil: webhook', () => {
+  const ID = '11111111-2222-4333-8444-555555555555';
+  const QR_AV = 'QR-AVULSO-1';
+
+  const checkout = (over: Row = {}, atrib: Row = {}) => {
+    db.system_state.push({
+      key: `pix_avulso:${ID}`,
+      value: {
+        status: 'pendente', qrId: QR_AV, email: 'cliente@teste.com', whatsapp: '34999990000', nome: 'Maria da Silva',
+        origem: 'lp_solardoc', criado_em: 'x', expira_em: new Date(Date.now() + 3600_000).toISOString(),
+        atrib: {
+          rota: 'publica', origem: 'lp_solardoc', whatsapp: '34999990000', lp_session: 'sess-lp', utm_source: 'fb', utm_campaign: '123',
+          utm_term: '120000000001', fbc: 'fb.1.123.abc', fbp: 'fb.1.456.def', ...atrib,
+        },
+        ...over,
+      },
+    });
+    db.system_state.push({ key: `pix_avulso_qr:${QR_AV}`, value: { id: ID, em: 'x' } });
+  };
+  const pagamento = (evento: string, over: Row = {}, id = 'pay_av'): any => ({
+    id: `ev-${evento}-${id}-${Math.random()}`, event: evento,
+    payment: {
+      id, value: 67, status: 'RECEIVED', billingType: 'PIX', customer: 'cus_avulso', pixQrCodeId: QR_AV, pixTransaction: 'tx_av',
+      externalReference: `sdav:${ID}`, ...over,
+    },
+  });
+  const estado = () => db.system_state.find((s) => s.key === `pix_avulso:${ID}`)!.value;
+  // Conta que já tem senha não recebe link; os testes de 'sem senha' zeram isto.
+  beforeEach(() => { db.users[0].password_hash = 'hash'; });
+
+  it('CONFIRMED e depois RECEIVED do mesmo pagamento: libera 1 vez, 1 venda, 1 aviso; a tela vira pago', async () => {
+    checkout();
+    const r1 = await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    const r2 = await processarWebhookAsaas(pagamento('PAYMENT_RECEIVED'));
+    expect(r1).toEqual({ tratado: true, motivo: 'pagamento avulso creditado' });
+    expect(r2.tratado).toBe(true);
+    expect(H.liberacoes).toEqual(['u1']);
+    expect(H.vendas).toHaveLength(1);
+    expect(H.whats.filter((w) => w.includes('Nova assinatura no Pix (código)'))).toHaveLength(1);
+    expect(H.whats[0]).toContain('cliente@teste.com');
+    expect(estado()).toMatchObject({ status: 'pago', payment_id: 'pay_av' });
+    expect(estado().pago_em).toBeTruthy();
+    expect(avisarCompra).toHaveBeenCalledTimes(1);
+    // o contrato do automático nem foi tocado
+    expect(db.asaas_pix_assinaturas[0]).toMatchObject({ status: 'pendente', ultimo_pagamento_id: '' });
+  });
+
+  it('LP: a venda grava utm_term, sessão, fbc e fbp; o Purchase sai por sendPurchaseForSale (não pelo pixel do quiz)', async () => {
+    checkout();
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    expect(H.vendas[0]).toMatchObject({
+      checkout_session_id: `asaas_avulso:${ID}`, email: 'cliente@teste.com', phone: '34999990000', plano: 'ilimitado', valor: 67, status: 'paid',
+      utm_source: 'fb', utm_campaign: '123', utm_term: '120000000001', attribution_session_id: 'sess-lp', fbc: 'fb.1.123.abc', fbp: 'fb.1.456.def',
+    });
+    expect(H.vendas[0].produto).toContain('Pix por código');
+    expect(sendPurchaseForSale).toHaveBeenCalledTimes(1);
+    expect(dispararPurchasePixQuiz).not.toHaveBeenCalled();
+    expect(vi.mocked(avisarCompra).mock.calls[0][0]).toMatchObject({ canal: 'asaas', origemQuiz: false, lpSession: 'sess-lp' });
+  });
+
+  it('quiz: o Purchase sai pelo pixel do quiz (não por sendPurchaseForSale)', async () => {
+    checkout({ origem: 'quiz_solardoc' }, { origem: 'quiz_solardoc' });
+    await processarWebhookAsaas(pagamento('PAYMENT_RECEIVED'));
+    expect(dispararPurchasePixQuiz).toHaveBeenCalledTimes(1);
+    expect(sendPurchaseForSale).not.toHaveBeenCalled();
+    expect(vi.mocked(dispararPurchasePixQuiz).mock.calls[0][0]).toMatchObject({ valor: 67, email: 'cliente@teste.com', dedupKey: `asaas_avulso:${ID}` });
+    expect(H.vendas[0].utm_term).toBe('120000000001');
+    expect(vi.mocked(avisarCompra).mock.calls[0][0]).toMatchObject({ origemQuiz: true });
+  });
+
+  it('o mesmo Pix (E2E) em outro pagamento não credita de novo; a tela continua pago', async () => {
+    checkout();
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED', {}, 'pay_av'));
+    expect(H.liberacoes).toHaveLength(1);
+    expect(db.system_state.some((s) => String(s.key).startsWith('pix_e2e:'))).toBe(true);
+    // Outro payment.id com o mesmo E2E (o comprovante do WhatsApp, ou reemissão): barrado pela chave do E2E.
+    const r = await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED', {}, 'pay_av_outro'));
+    expect(r.motivo).toBe('pagamento avulso já creditado pelo comprovante');
+    expect(H.liberacoes).toHaveLength(1);
+    expect(H.vendas).toHaveLength(1);
+    expect(estado().status).toBe('pago');
+  });
+
+  it('comprovante do WhatsApp chegou ANTES: não credita, mas marca a tela como paga', async () => {
+    checkout();
+    db.system_state.push({ key: chaveE2eMock(), value: { user_id: 'u1', valor: 67, at: 'x' } });
+    const r = await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    expect(r.motivo).toBe('pagamento avulso já creditado pelo comprovante');
+    expect(H.liberacoes).toHaveLength(0);
+    expect(H.vendas).toHaveLength(0);
+    expect(estado()).toMatchObject({ status: 'pago', via: 'comprovante' });
+  });
+
+  it('pagamento sem pixQrCodeId mas com externalReference sdav:<uuid>: acha o checkout assim mesmo', async () => {
+    checkout();
+    const r = await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED', { pixQrCodeId: null }));
+    expect(r.motivo).toBe('pagamento avulso creditado');
+    expect(H.liberacoes).toEqual(['u1']);
+    expect(estado().status).toBe('pago');
+  });
+
+  it('valor menor que R$ 67: não libera, avisa o Thiago e grava valor_menor', async () => {
+    checkout();
+    const r = await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED', { value: 27 }));
+    expect(r.motivo).toBe('pagamento avulso com valor menor');
+    expect(H.liberacoes).toHaveLength(0);
+    expect(H.vendas).toHaveLength(0);
+    expect(estado().status).toBe('valor_menor');
+    expect(H.whats).toHaveLength(1);
+    expect(H.whats[0]).toContain('valor menor');
+    expect(H.whats[0]).toContain('27');
+  });
+
+  it('o pagador com o customer de um contrato antigo NÃO credita o contrato', async () => {
+    checkout();
+    db.asaas_pix_assinaturas = [contrato({ asaas_customer_id: 'cus_contrato', status: 'pendente' })];
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED', { customer: 'cus_contrato' }));
+    expect(db.asaas_pix_assinaturas[0]).toMatchObject({ status: 'pendente', ultimo_pagamento_id: '' });
+    expect(H.vendas.map((v) => v.checkout_session_id)).toEqual([`asaas_avulso:${ID}`]);
+    expect(estado().status).toBe('pago');
+  });
+
+  it('conta nova: cria pendente, o link de senha vai só por e-mail (texto avulso) e não vaza', async () => {
+    db.users = [];
+    checkout({ email: 'novo@teste.com' });
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    expect(H.liberacoes).toEqual(['u-novo']);
+    expect(H.emails).toHaveLength(1);
+    expect(H.emails[0]).toMatchObject({ to: 'novo@teste.com', avulso: true });
+    expect(H.emails[0].acessoUrl).toMatch(/\/auth\?mode=redefinir&token=TOKEN-SECRETO-123$/);
+    expect(H.whats[0]).toContain('Conta criada agora');
+    const resto = JSON.stringify([db.system_state, db.asaas_webhook_events, H.vendas, H.whats]);
+    expect(resto).not.toContain('TOKEN-SECRETO-123');
+  });
+
+  it('Pix com QR que não casa com nada: avisa o Thiago 1 vez só (CONFIRMED e RECEIVED)', async () => {
+    const solto = (evento: string) => pagamento(evento, { pixQrCodeId: 'QR-DESCONHECIDO', customer: 'cus_zzz', externalReference: null }, 'pay_solto');
+    const r1 = await processarWebhookAsaas(solto('PAYMENT_CONFIRMED'));
+    const r2 = await processarWebhookAsaas(solto('PAYMENT_RECEIVED'));
+    expect(r1.tratado).toBe(false);
+    expect(r2.tratado).toBe(false);
+    expect(H.whats).toHaveLength(1);
+    expect(H.whats[0]).toBe('⚠️ *Pix recebido sem dono*\nR$ 67 · pagamento pay_solto\nConfira no Asaas e libere na mão.');
+    expect(H.liberacoes).toHaveLength(0);
+  });
+
+  it('[1] externalReference sdav: com pixQrCodeId DIFERENTE do QR do checkout: sem dono, não credita', async () => {
+    checkout();
+    const p = (evento: string) => pagamento(evento, { pixQrCodeId: 'QR-OUTRO' });
+    const r1 = await processarWebhookAsaas(p('PAYMENT_CONFIRMED'));
+    await processarWebhookAsaas(p('PAYMENT_RECEIVED'));
+    expect(r1).toEqual({ tratado: false, motivo: 'QR do pagamento não é o do checkout avulso' });
+    expect(H.liberacoes).toHaveLength(0);
+    expect(H.vendas).toHaveLength(0);
+    expect(estado().status).toBe('pendente');
+    expect(H.whats).toHaveLength(1);
+    expect(H.whats[0]).toContain('Pix recebido sem dono');
+  });
+
+  it('[2] checkout não encontrado: avisa o Thiago 1 vez só (CONFIRMED e RECEIVED), pela chave pix_sem_dono', async () => {
+    const p = (evento: string) => pagamento(evento, { pixQrCodeId: null });
+    const r1 = await processarWebhookAsaas(p('PAYMENT_CONFIRMED'));
+    await processarWebhookAsaas(p('PAYMENT_RECEIVED'));
+    expect(r1.motivo).toBe('checkout avulso não encontrado');
+    expect(H.whats).toHaveLength(1);
+    expect(H.whats[0]).toContain('Pix recebido sem dono');
+    expect(db.system_state.some((s) => s.key === 'pix_sem_dono:pay_av')).toBe(true);
+  });
+
+  it('[3] erro antes de liberar solta o claim: o RECEIVED seguinte tenta de novo e credita 1 vez', async () => {
+    checkout();
+    vi.mocked(liberarAcessoPix).mockRejectedValueOnce(new Error('banco fora'));
+    await expect(processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'))).rejects.toThrow('banco fora');
+    expect(db.system_state.some((s) => s.key === 'pix_avulso_pag:pay_av')).toBe(false);
+    expect(db.system_state.some((s) => String(s.key).startsWith('pix_e2e:'))).toBe(false); // a reserva do E2E também foi solta
+    expect(H.liberacoes).toHaveLength(0);
+    const r = await processarWebhookAsaas(pagamento('PAYMENT_RECEIVED'));
+    expect(r.motivo).toBe('pagamento avulso creditado');
+    expect(H.liberacoes).toEqual(['u1']);
+    expect(H.vendas).toHaveLength(1);
+    expect(db.system_state.some((s) => s.key === 'pix_avulso_pag:pay_av')).toBe(true);
+    // e um terceiro evento do mesmo pagamento não credita de novo
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    expect(H.liberacoes).toHaveLength(1);
+  });
+
+  it('[5] conta que existe mas nunca definiu senha recebe o link por e-mail (só no avulso); com senha, não', async () => {
+    db.users[0].password_hash = null;
+    checkout();
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    expect(H.liberacoes).toEqual(['u1']);
+    expect(H.emails).toHaveLength(1);
+    expect(H.emails[0]).toMatchObject({ to: 'cliente@teste.com', avulso: true });
+    const token = db.users[0].reset_token;
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+    expect(H.emails[0].acessoUrl.endsWith(`/auth?mode=redefinir&token=${token}`)).toBe(true);
+    expect(H.whats[0]).toContain('Conta existente sem senha');
+    expect(JSON.stringify([db.system_state, db.asaas_webhook_events, H.vendas, H.whats])).not.toContain(token);
+  });
+
+  it('[5] conta com senha: nenhum e-mail de senha', async () => {
+    checkout();
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED'));
+    expect(H.liberacoes).toEqual(['u1']);
+    expect(H.emails).toHaveLength(0);
+    expect(db.users[0].reset_token).toBeUndefined();
+  });
+
+  it('sem pixQrCodeId (cartão, boleto) não dispara o aviso de Pix sem dono', async () => {
+    await processarWebhookAsaas(pagamento('PAYMENT_CONFIRMED', { pixQrCodeId: null, externalReference: null, billingType: 'CREDIT_CARD', customer: 'cus_zzz' }, 'pay_cartao'));
+    expect(H.whats).toHaveLength(0);
+  });
+});
+
+function chaveE2eMock(): string {
+  // Mesma chave que o mock de chaveE2e monta para o E2E_ID de R$ 67.
+  return `pix_e2e:${E2E_ID.slice(0, 21).toUpperCase()}:67`;
+}

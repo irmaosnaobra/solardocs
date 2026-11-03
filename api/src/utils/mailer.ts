@@ -889,9 +889,11 @@ export async function sendMesPixAcessoEmail(opts: {
 // PIX AUTOMÁTICO ATIVO (conta criada pelo webhook do Asaas): a pessoa pagou pelo QR do
 // quiz e ainda não tem senha. Este e-mail é o ÚNICO canal do link de definir senha
 // (nunca WhatsApp, nunca a rota pública de status). Transacional: sem footer de unsub.
-export function textoPixAutomaticoAcesso(nome: string | null | undefined, link: string): string {
+export function textoPixAutomaticoAcesso(nome: string | null | undefined, link: string, avulso = false): string {
   const primeiro = (nome || '').trim().split(/\s+/)[0];
   const ola = primeiro ? `Oi, ${primeiro}.` : 'Oi.';
+  // Pix avulso (código copia e cola): sem débito automático, o acesso é do mês pago.
+  if (avulso) return `${ola} Seu pagamento do SolarDoc no Pix foi confirmado e o acesso está liberado por 1 mês. Para entrar, crie sua senha neste link: ${link}. O link vale por 30 dias.`;
   return `${ola} Sua assinatura do SolarDoc no Pix automático está ativa. Para entrar, crie sua senha neste link: ${link}. O link vale por 30 dias.`;
 }
 
@@ -899,8 +901,10 @@ export async function sendPixAutomaticoAcessoEmail(opts: {
   to: string;
   nome?: string | null;
   acessoUrl: string;
+  /** Pix avulso (copia e cola): troca só o texto, o resto do e-mail é igual. */
+  avulso?: boolean;
 }): Promise<void> {
-  const texto = textoPixAutomaticoAcesso(opts.nome, opts.acessoUrl);
+  const texto = textoPixAutomaticoAcesso(opts.nome, opts.acessoUrl, opts.avulso === true);
   const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const html = `<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;font-size:16px;line-height:1.7;">
   <p style="margin:0;">${texto.split(opts.acessoUrl).map(esc).join(`<a href="${esc(opts.acessoUrl)}">${esc(opts.acessoUrl)}</a>`)}</p>

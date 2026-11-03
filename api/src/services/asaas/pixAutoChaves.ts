@@ -37,3 +37,15 @@ export const chavePixAutoPag = (paymentId: string) => `pix_auto_pag:${paymentId}
 /** Claim só de inserção: 23505 = a adesão deste contrato já foi feita. */
 export const chaveAdesaoAsaas = (contractKey: string) => `asaas_adesao:${contractKey}`;
 
+// Pix AVULSO do funil (QR estático, 1 por checkout, sem CPF). Todas no system_state do banco principal.
+/** uuid do checkout → { status, qrId, email, whatsapp, nome, origem, atrib, criado_em, expira_em }. */
+export const chavePixAvulso = (id: string) => `pix_avulso:${id}`;
+/** id do QR estático do Asaas → { id (uuid do checkout), em }. É a ligação do pagamento (payment.pixQrCodeId) com o checkout. */
+export const chavePixAvulsoQr = (qrId: string) => `pix_avulso_qr:${qrId}`;
+/** Claim só de inserção por pagamento: CONFIRMED e RECEIVED do mesmo payment.id creditam uma vez. */
+export const chavePixAvulsoPag = (paymentId: string) => `pix_avulso_pag:${paymentId}`;
+/** e-mail (minúsculo) → { id: uuid do último checkout avulso }. Reabrir o modal reaproveita o QR ainda válido. */
+export const chavePixAvulsoEmail = (email: string) => `pix_avulso_email:${email}`;
+/** Claim do aviso "Pix recebido sem dono": um aviso por pagamento. */
+export const chavePixSemDono = (paymentId: string) => `pix_sem_dono:${paymentId}`;
+

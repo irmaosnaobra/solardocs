@@ -13,7 +13,8 @@ import {
   cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX, type AtribuicaoPixAuto,
 } from '../services/asaas/pixRecorrenteService';
 import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaasWebhookService';
-import { pixPublicoAtivo, pixAutoQuizAtivo } from '../utils/pixInfo';
+import { pixPublicoAtivo, pixAutoQuizAtivo, pixAutoLpAtivo, pixAvulsoFunilAtivo } from '../utils/pixInfo';
+import { criarPixAvulso, statusPixAvulso } from '../services/asaas/pixAvulsoService';
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -158,8 +159,9 @@ export async function asaasWebhookHandler(req: Request, res: Response): Promise<
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
-/** Única origem que a trava PIX_AUTO_QUIZ reconhece. Qualquer outro valor é ignorado. */
+/** Origem do quiz (trava PIX_AUTO_QUIZ) e da LP (trava PIX_AUTO_LP). Qualquer outro valor é ignorado. */
 const ORIGEM_QUIZ_SOLARDOC = 'quiz_solardoc';
+const ORIGEM_LP_SOLARDOC = 'lp_solardoc';
 
 /** Só texto, aparado e com teto. Qualquer outro tipo (número, objeto, lista) vira vazio. */
 function textoCurto(v: unknown, max: number): string | undefined {
@@ -183,16 +185,25 @@ function atribuicaoDoCorpo(b: Record<string, unknown>, origem: string | undefine
   return a;
 }
 
+/** 10 ou 11 dígitos depois de tirar o 55 (DDD + número). */
+function whatsappValido(v: unknown): boolean {
+  let fone = soDigitos(typeof v === 'string' ? v : '');
+  if (fone.length > 11 && fone.startsWith('55')) fone = fone.slice(2);
+  return fone.length >= 10 && fone.length <= 11;
+}
+
 // POST /payments/pix-recorrente/publico — sem login.
 export async function criarPixPublicoHandler(req: Request, res: Response): Promise<void> {
   try {
     const corpo = (req.body ?? {}) as Record<string, unknown>;
     const { plan, email, nome, cpfCnpj, whatsapp, cupom } = corpo as Record<string, string>;
-    const origem = corpo.origem === ORIGEM_QUIZ_SOLARDOC ? ORIGEM_QUIZ_SOLARDOC : undefined;
-    const doQuiz = pixAutoQuizAtivo() && origem === ORIGEM_QUIZ_SOLARDOC;
+    const origem = corpo.origem === ORIGEM_QUIZ_SOLARDOC ? ORIGEM_QUIZ_SOLARDOC
+      : corpo.origem === ORIGEM_LP_SOLARDOC ? ORIGEM_LP_SOLARDOC : undefined;
+    const doFunil = (origem === ORIGEM_QUIZ_SOLARDOC && pixAutoQuizAtivo())
+      || (origem === ORIGEM_LP_SOLARDOC && pixAutoLpAtivo());
 
-    // Abre com a trava geral OU com a do quiz (e só para chamada com origem do quiz).
-    if (!pixPublicoAtivo() && !doQuiz) throw new ApiError(503, 'Pagamento por Pix sem conta ainda não está disponível');
+    // Abre com a trava geral OU com a do funil (e só para chamada com a origem daquele funil).
+    if (!pixPublicoAtivo() && !doFunil) throw new ApiError(503, 'Pagamento por Pix sem conta ainda não está disponível');
     if (!asaasHabilitado()) throw new ApiError(503, 'Pagamento por Pix recorrente ainda não está disponível');
     if (!PLANOS_PIX[plan]) throw new ApiError(400, 'Plano inválido');
 
@@ -200,6 +211,8 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
     if (!EMAIL_RE.test(mail)) throw new ApiError(400, 'Informe um e-mail válido');
     if (!docValido(cpfCnpj)) throw new ApiError(400, 'Informe um CPF ou CNPJ válido');
     if (!(nome || '').trim()) throw new ApiError(400, 'Informe seu nome');
+    // LP: o WhatsApp é a única forma de falar com quem gerou o código e não pagou.
+    if (origem === ORIGEM_LP_SOLARDOC && !whatsappValido(whatsapp)) throw new ApiError(400, 'Informe o seu WhatsApp');
 
     // Já existe conta com esse e-mail? Amarra o contrato nela. Sem isto, quem
     // tem conta mas não estava logado pagaria e cairia no alerta de
@@ -219,7 +232,7 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
       planKey: plan,
       cupom,
       atribuicao,
-      // Quiz: só Pix Automático. Se não der, erro claro, nunca cair em assinatura.
+      // Quiz e LP: só Pix Automático. Se não der, erro claro, nunca cair em assinatura.
       ...(origem ? { exigirAutomatico: true } : {}),
     });
 
@@ -252,7 +265,7 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
 // desenha: e-mail, CPF e ids do Asaas não saem daqui.
 export async function statusPixPublicoHandler(req: Request, res: Response): Promise<void> {
   try {
-    if (!pixPublicoAtivo() && !pixAutoQuizAtivo()) throw new ApiError(503, 'Indisponível');
+    if (!pixPublicoAtivo() && !pixAutoQuizAtivo() && !pixAutoLpAtivo()) throw new ApiError(503, 'Indisponível');
     const linha = await buscarAssinaturaPorId(String(req.params.id || ''));
     if (!linha) throw new ApiError(404, 'Contrato não encontrado');
 
@@ -270,5 +283,50 @@ export async function statusPixPublicoHandler(req: Request, res: Response): Prom
     });
   } catch (err) {
     responderErro(res, err, 'status-publico');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PIX AVULSO DO FUNIL — código copia e cola de R$ 67, sem CPF (quiz e LP do SolarDoc).
+// Atrás de PIX_AVULSO_FUNIL e só para origem quiz_solardoc ou lp_solardoc. Não toca em PIX_PUBLICO_ATIVO.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /payments/pix-avulso/publico — sem login.
+export async function criarPixAvulsoPublicoHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const corpo = (req.body ?? {}) as Record<string, unknown>;
+    const origem = corpo.origem === ORIGEM_QUIZ_SOLARDOC ? ORIGEM_QUIZ_SOLARDOC
+      : corpo.origem === ORIGEM_LP_SOLARDOC ? ORIGEM_LP_SOLARDOC : undefined;
+    if (!pixAvulsoFunilAtivo() || !origem) throw new ApiError(503, 'Pagamento por Pix ainda não está disponível');
+    if (!asaasHabilitado()) throw new ApiError(503, 'Pix indisponível agora');
+
+    const mail = (textoCurto(corpo.email, 200) || '').toLowerCase();
+    if (!EMAIL_RE.test(mail)) throw new ApiError(400, 'Informe um e-mail válido');
+    // LP exige WhatsApp; o quiz já tem o dele e aqui ele é opcional.
+    if (origem === ORIGEM_LP_SOLARDOC && !whatsappValido(corpo.whatsapp)) throw new ApiError(400, 'Informe o seu WhatsApp');
+
+    const atribuicao = atribuicaoDoCorpo(corpo, origem);
+    const criado = await criarPixAvulso({
+      email: mail,
+      whatsapp: soDigitos(textoCurto(corpo.whatsapp, 30) || '').slice(0, 20),
+      nome: textoCurto(corpo.nome, 120) || 'Cliente',
+      origem,
+      atribuicao,
+    });
+    res.json(criado);
+  } catch (err) {
+    responderErro(res, err, 'criar-pix-avulso');
+  }
+}
+
+// GET /payments/pix-avulso/publico/:id — a tela pergunta se já caiu. Só { status, valor }.
+export async function statusPixAvulsoPublicoHandler(req: Request, res: Response): Promise<void> {
+  try {
+    if (!pixAvulsoFunilAtivo()) throw new ApiError(503, 'Indisponível');
+    const r = await statusPixAvulso(String(req.params.id || ''));
+    if (!r) throw new ApiError(404, 'Pagamento não encontrado');
+    res.json(r);
+  } catch (err) {
+    responderErro(res, err, 'status-pix-avulso');
   }
 }

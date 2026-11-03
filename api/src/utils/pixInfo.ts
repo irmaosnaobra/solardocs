@@ -133,6 +133,25 @@ export function pixAutoQuizAtivo(): boolean {
 }
 
 /**
+ * Trava PRÓPRIA da LP do SolarDoc (solardoc.app/, "Assinar no Pix automático").
+ * Mesma ideia da do quiz: abre a rota pública de criar contrato só para chamadas
+ * com origem 'lp_solardoc' e o GET de status. NÃO é PIX_PUBLICO_ATIVO. Sem a
+ * variável, desligado.
+ */
+export function pixAutoLpAtivo(): boolean {
+  return (process.env.PIX_AUTO_LP || '').trim().toLowerCase() === 'true';
+}
+
+/**
+ * Trava do Pix AVULSO do funil (quiz e LP): QR estático de R$ 67, copia e cola, sem CPF.
+ * Abre só POST/GET /payments/pix-avulso/publico, e só para origem quiz_solardoc ou lp_solardoc.
+ * Sem a variável, desligado.
+ */
+export function pixAvulsoFunilAtivo(): boolean {
+  return (process.env.PIX_AVULSO_FUNIL || '').trim().toLowerCase() === 'true';
+}
+
+/**
  * A tela PÚBLICA de Pix do Asaas (`/pix-automatico`), quando ela está no ar.
  * Vazio = desligada, e aí ela não existe pra ninguém: a rota devolve 503.
  *

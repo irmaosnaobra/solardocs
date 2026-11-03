@@ -72,3 +72,49 @@ export async function pixPublicoRateLimit(
     pixPublicoLimiterMemoria(req, res, next);
   }
 }
+
+// ── Pix AVULSO do funil (código copia e cola) ────────────────────────────────
+// Balde PRÓPRIO, de 10 por hora por IP, separado do automático: quem fecha e reabre o modal ou cai do automático no
+// avulso não pode esgotar o teto do outro. (O serviço ainda devolve o mesmo QR ao mesmo e-mail enquanto ele vale.)
+const limitadorAvulso = temUpstash
+  ? new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(10, '1 h'),
+      prefix: 'rl:pixavulso',
+      analytics: false,
+    })
+  : null;
+
+export const pixAvulsoLimiterMemoria = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => 'pixavulso:' + ipKeyGenerator(clientIp(req) || 'sem-ip'),
+  message: { error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export async function pixAvulsoRateLimit(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (!limitadorAvulso) {
+    pixAvulsoLimiterMemoria(req, res, next);
+    return;
+  }
+  try {
+    const { success, reset } = await limitadorAvulso.limit(clientIp(req) || 'sem-ip');
+    if (!success) {
+      const esperaSegundos = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      res.setHeader('Retry-After', String(esperaSegundos));
+      res.status(429).json({
+        error: 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.',
+      });
+      return;
+    }
+    next();
+  } catch {
+    pixAvulsoLimiterMemoria(req, res, next);
+  }
+}

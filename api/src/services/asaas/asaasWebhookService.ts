@@ -17,7 +17,9 @@ import { processarEventoPlugcash } from '../plugcashService';
 import { asaasFetch } from './asaasClient';
 import {
   chavePixAutoQr, chavePixAutoAtrib, chavePixAutoPag, chaveAdesaoAsaas, type AtribuicaoPixAuto,
+  chavePixAvulso, chavePixAvulsoQr, chavePixAvulsoPag, chavePixSemDono,
 } from './pixAutoChaves';
+import { PIX_MES_VALOR } from '../../utils/pixInfo';
 
 const THIAGO_PHONE = '34991360223';
 
@@ -46,6 +48,8 @@ export interface AsaasWebhookBody {
     id?: string; status?: string; customerId?: string; contractId?: string; subscriptionId?: string;
     value?: number; originType?: string; startDate?: string; endToEndIdentifier?: string;
     immediateQrCode?: { conciliationIdentifier?: string; expirationDate?: string } | null;
+    /** Motivo da recusa/cancelamento. Nulo no REFUSED = o QR imediato venceu sem pagamento. */
+    cancellationReason?: string | null;
   } | null;
   paymentInstruction?: {
     id?: string; status?: string; dueDate?: string; paymentId?: string;
@@ -102,13 +106,13 @@ async function acharContrato(b: AsaasWebhookBody): Promise<LinhaPixRecorrente | 
 
 // ── system_state: ligações que o Asaas não manda no evento (banco principal, sem migration) ──
 
-async function lerEstado(key: string): Promise<Record<string, any> | null> {
+export async function lerEstado(key: string): Promise<Record<string, any> | null> {
   const { data } = await supabase.from('system_state').select('value').eq('key', key).maybeSingle();
   return (data as { value?: Record<string, any> | null } | null)?.value ?? null;
 }
 
 /** Claim só de inserção. 'existia' = 23505 (já feito); 'erro' = não gravou por outro motivo. */
-async function gravarSoSeNovo(key: string, value: Record<string, unknown>): Promise<'novo' | 'existia' | 'erro'> {
+export async function gravarSoSeNovo(key: string, value: Record<string, unknown>): Promise<'novo' | 'existia' | 'erro'> {
   const { error } = await supabase.from('system_state').insert({ key, value });
   if (!error) return 'novo';
   if ((error as { code?: string }).code === '23505') return 'existia';
@@ -653,6 +657,254 @@ async function conciliarPrimeiroPagamento(b: AsaasWebhookBody, linha: LinhaPixRe
   await creditarPagamento(pagamento, linha, 'qr');
 }
 
+// ── Pix AVULSO do funil (QR estático de R$ 67, sem CPF) ──────────────────────
+// O pagamento volta ligado ao checkout só por payment.pixQrCodeId (pix_avulso_qr:<qrId> -> uuid). Espelha o ramo de
+// adesão do Pix Automático (creditarPagamento), com três diferenças de propósito:
+//   - não existe contrato nem cartão a cancelar: a rota é pública, então nunca se cancela assinatura da Stripe;
+//   - acesso de 1 mês exato (liberarAcessoPix), SEM a folga GRACE_DIAS, que existe por causa do ciclo do débito;
+//   - o status da tela (pix_avulso:<uuid>) vira 'pago' em todo desfecho em que o dinheiro entrou.
+async function marcarAvulso(id: string, reg: Record<string, any>, extra: Record<string, unknown>): Promise<void> {
+  const { gravarEstado } = await import('./pixRecorrenteService');
+  await gravarEstado(chavePixAvulso(id), { ...reg, ...extra }, 'avulso');
+}
+
+/** Rede de segurança: Pix que não casou com dono nenhum não cai calado. Um aviso por pagamento (claim pix_sem_dono:<payment.id>). */
+async function avisarPixSemDono(b: AsaasWebhookBody): Promise<void> {
+  const pagamentoId = b.payment?.id;
+  if (!pagamentoId) return;
+  const c = await gravarSoSeNovo(chavePixSemDono(pagamentoId), { qr: b.payment?.pixQrCodeId ?? null, em: new Date().toISOString() });
+  if (c === 'existia') return;
+  await avisarThiago(`⚠️ *Pix recebido sem dono*\nR$ ${Number(b.payment?.value ?? 0)} · pagamento ${pagamentoId}\nConfira no Asaas e libere na mão.`);
+}
+
+async function creditarAvulso(b: AsaasWebhookBody, id: string, viaRef = false): Promise<{ tratado: boolean; motivo: string }> {
+  const pagamentoId = b.payment?.id;
+  if (!pagamentoId) return { tratado: false, motivo: 'pagamento avulso sem payment.id' };
+  const reg = await lerEstado(chavePixAvulso(id));
+  if (!reg) {
+    logger.error('asaas-webhook', `Pix avulso ${pagamentoId}: o QR aponta para o checkout ${id}, que não existe`);
+    await avisarPixSemDono(b);
+    return { tratado: false, motivo: 'checkout avulso não encontrado' };
+  }
+  // Casamento só pelo externalReference: se o pagamento traz um QR, ele tem que ser o do checkout. Senão é outro dinheiro.
+  if (viaRef && b.payment?.pixQrCodeId && b.payment.pixQrCodeId !== reg.qrId) {
+    logger.error('asaas-webhook', `Pix avulso ${pagamentoId}: externalReference aponta para o checkout ${id}, mas o QR do pagamento é outro`);
+    await avisarPixSemDono(b);
+    return { tratado: false, motivo: 'QR do pagamento não é o do checkout avulso' };
+  }
+
+  // CONFIRMED e RECEIVED são dois eventos do MESMO pagamento: quem reivindica primeiro credita.
+  const claim = await gravarSoSeNovo(chavePixAvulsoPag(pagamentoId), { avulso: id, em: new Date().toISOString() });
+  if (claim === 'existia') return { tratado: true, motivo: 'pagamento avulso já tratado' };
+  // Erro no claim NÃO lança: o event_id já foi gravado e a reentrega morreria como "repetido". Segue, com o E2E como 2ª trava.
+  if (claim === 'erro') logger.error('asaas-webhook', `claim do pagamento avulso ${pagamentoId} falhou: credita assim mesmo (E2E é a 2ª trava)`);
+
+  // Se algo lançar antes de o acesso ser liberado, solta o claim: o próximo evento (RECEIVED depois do CONFIRMED) tenta de novo.
+  const marca: { liberado: boolean; e2eKey: string | null } = { liberado: false, e2eKey: null };
+  try {
+    return await creditarAvulsoCorpo(b, id, reg, pagamentoId, marca);
+  } catch (err) {
+    if (!marca.liberado) {
+      // Solta também a reserva do E2E que ESTA chamada fez, senão o retry tomaria o próprio Pix por "já creditado".
+      const soltar = [marca.e2eKey, claim === 'novo' ? chavePixAvulsoPag(pagamentoId) : null].filter((k): k is string => !!k);
+      for (const k of soltar) {
+        try { await supabase.from('system_state').delete().eq('key', k); }
+        catch (e) { logger.error('asaas-webhook', `não consegui soltar a trava ${k.split(':')[0]} do pagamento avulso ${pagamentoId}`, e); }
+      }
+    }
+    throw err;
+  }
+}
+
+async function creditarAvulsoCorpo(
+  b: AsaasWebhookBody, id: string, reg: Record<string, any>, pagamentoId: string, marca: { liberado: boolean; e2eKey: string | null },
+): Promise<{ tratado: boolean; motivo: string }> {
+  const valorPago = Number(b.payment?.value ?? 0);
+  const email = String(reg.email ?? '').toLowerCase().trim();
+  const nome: string | null = (reg.nome as string) || null;
+  const whatsapp = soDigitos(reg.whatsapp);
+  const atrib = (reg.atrib ?? {}) as AtribuicaoPixAuto;
+  const origemQuiz = reg.origem === 'quiz_solardoc';
+
+  if (!(valorPago >= PIX_MES_VALOR)) {
+    await marcarAvulso(id, reg, { status: 'valor_menor', valor_pago: valorPago, payment_id: pagamentoId });
+    await avisarThiago(`⚠️ *Pix por código com valor menor*\n${email} · pagou R$ ${valorPago} de R$ ${PIX_MES_VALOR} · pagamento ${pagamentoId}\nO acesso NÃO foi liberado. Confira no Asaas e libere na mão.`);
+    return { tratado: true, motivo: 'pagamento avulso com valor menor' };
+  }
+
+  // Mesmo dinheiro pelo WhatsApp: se o comprovante deste Pix já creditou, não credita de novo (o E2E é a trava dos dois lados).
+  let e2eKey: string | null = null;
+  if (b.payment?.pixTransaction) {
+    try {
+      const t = await asaasFetch<{ endToEndIdentifier?: string }>(`/pix/transactions/${encodeURIComponent(b.payment.pixTransaction)}`);
+      const { chaveE2e } = await import('../agents/whatsapp/pixComprovanteService');
+      e2eKey = chaveE2e(t?.endToEndIdentifier, valorPago);
+      if (!e2eKey) logger.warn('asaas-webhook', `sem E2E legível para o pagamento avulso ${pagamentoId}: credita sem a trava do comprovante`);
+    } catch (err) {
+      logger.error('asaas-webhook', `busca do E2E falhou (avulso ${pagamentoId}): credita assim mesmo`, err);
+    }
+  }
+  const jaCreditadoPeloComprovante = async () => {
+    // A tela de quem pagou não pode ficar em "pendente" e depois "expirado".
+    await marcarAvulso(id, reg, { status: 'pago', pago_em: new Date().toISOString(), payment_id: pagamentoId, via: 'comprovante', valor_pago: valorPago });
+    logger.info('asaas-webhook', `Pix avulso ${pagamentoId} (${email}) já creditado pelo comprovante: sem novo crédito`);
+    return { tratado: true, motivo: 'pagamento avulso já creditado pelo comprovante' };
+  };
+  if (e2eKey && await lerEstado(e2eKey)) return jaCreditadoPeloComprovante();
+
+  // Dono: a conta do e-mail; sem conta, cria PENDENTE (sem senha) e o link de definir senha segue por E-MAIL.
+  let userId: string | null = null;
+  let plano_expira_em: string | null = null;
+  let billing_status: string | null = null;
+  const { data: u } = await supabase.from('users').select('id, plano_expira_em, billing_status, password_hash').eq('email', email).maybeSingle();
+  let contaSemSenha = false;
+  if (u) {
+    userId = (u as { id: string }).id;
+    plano_expira_em = (u as { plano_expira_em: string | null }).plano_expira_em;
+    billing_status = (u as { billing_status: string | null }).billing_status;
+    contaSemSenha = !(u as { password_hash?: string | null }).password_hash;
+  }
+  let tokenContaNova: string | null = null;
+  let emailDeAcessoFalhou = false;
+  // Conta que já existe mas nunca definiu senha (ex.: pendente de um Pix anterior) também precisa do link, só no avulso.
+  if (userId && contaSemSenha) {
+    try {
+      const token = (await import('crypto')).randomBytes(32).toString('hex');
+      const { error: errToken } = await supabase.from('users').update({
+        reset_token: token, reset_token_expires: new Date(Date.now() + 30 * 864e5).toISOString(),
+      }).eq('id', userId);
+      if (errToken) logger.error('asaas-webhook', `link de senha de ${email} não gravou (Pix avulso)`, errToken);
+      else tokenContaNova = token;
+    } catch (err) {
+      logger.error('asaas-webhook', `link de senha de ${email} falhou (Pix avulso)`, err);
+    }
+  }
+  if (!userId) {
+    try {
+      const { getOrCreatePixUser } = await import('../agents/whatsapp/pixComprovanteService');
+      const nova = await getOrCreatePixUser(email, nome, whatsapp, { whatsappSoSeLivre: true });
+      if (nova) {
+        userId = nova.id;
+        if (nova.criadaAgora && nova.reset_token) tokenContaNova = nova.reset_token;
+      }
+    } catch (err) {
+      logger.error('asaas-webhook', `criar a conta pendente de ${email} falhou (Pix avulso)`, err);
+    }
+  }
+  if (!userId) {
+    logger.error('asaas-webhook', `PAGAMENTO AVULSO SEM CONTA: ${email} pagou ${pagamentoId} e não achei usuário`);
+    await marcarAvulso(id, reg, { status: 'pago', sem_conta: true, pago_em: new Date().toISOString(), payment_id: pagamentoId, valor_pago: valorPago });
+    await avisarThiago(`🚨 *Pix por código pago SEM CONTA*\n${email} pagou R$ ${valorPago} (pagamento ${pagamentoId}) e não existe usuário com esse e-mail. Cria a conta e libera na mão.`);
+    return { tratado: true, motivo: 'pagamento avulso sem conta' };
+  }
+
+  if (e2eKey) {
+    const { e2eJaUsado } = await import('../agents/whatsapp/pixComprovanteService');
+    if (await e2eJaUsado(e2eKey, valorPago, userId)) return jaCreditadoPeloComprovante(); // perdeu a corrida para o comprovante
+    marca.e2eKey = e2eKey; // reserva feita por esta chamada: se o crédito falhar, ela é solta
+  }
+
+  const info = PLANOS_PIX.ilimitado;
+  const { liberarAcessoPix } = await import('../agents/whatsapp/pixComprovanteService');
+  const venc = await liberarAcessoPix(userId, plano_expira_em, info.plano, info.limite);
+  marca.liberado = true;
+
+  if (tokenContaNova) {
+    emailDeAcessoFalhou = true;
+    try {
+      const { sendPixAutomaticoAcessoEmail } = await import('../../utils/mailer');
+      const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+      await sendPixAutomaticoAcessoEmail({
+        to: email, nome, avulso: true,
+        acessoUrl: `${dashboardUrl}/auth?mode=redefinir&token=${tokenContaNova}`,
+      });
+      emailDeAcessoFalhou = false;
+    } catch (err) {
+      logger.error('asaas-webhook', `e-mail de acesso não saiu para ${email} (conta criada e mês creditado)`, err);
+    }
+  }
+  logger.info('asaas-webhook', `Pix avulso creditado: ${email} ${info.nome} até ${venc.toISOString().slice(0, 10)}`);
+
+  // Venda no ledger, Meta e UTMify (mesma razão do automático: venda fora do ledger é receita invisível).
+  // O ledger não tem coluna de meio nem de origem do funil: "Pix por código" vai no checkout_session_id e no produto.
+  try {
+    const { upsertSale, sendPurchaseForSale } = await import('../salesLedger');
+    const { sendUtmifyOrder } = await import('../utmifyOrders');
+    const saleId = await upsertSale({
+      checkout_session_id: `asaas_avulso:${id}`,
+      email, nome, phone: whatsapp || null,
+      plano: info.plano, produto: `${info.nome} (Pix por código)`,
+      valor: valorPago, status: 'paid',
+      utm_source: atrib.utm_source ?? null, utm_medium: atrib.utm_medium ?? null, utm_campaign: atrib.utm_campaign ?? null,
+      utm_content: atrib.utm_content ?? null, utm_term: atrib.utm_term ?? null,
+      attribution_session_id: atrib.lp_session ?? null, fbc: atrib.fbc ?? null, fbp: atrib.fbp ?? null,
+      card_passed_at: new Date().toISOString(),
+    });
+
+    const jaContado = await comprovanteRecenteDoUsuario(userId);
+    if (jaContado) {
+      logger.info('asaas-webhook', `Purchase do Pix avulso não enviado (duplicada): o comprovante do WhatsApp já contou esta venda (${id})`);
+      if (saleId) {
+        await supabase.from('sales').update({
+          meta_response_ok: true, meta_skip_motivo: 'duplicada', meta_purchase_sent_at: new Date().toISOString(),
+          meta_event_id: `asaas_avulso:${id}`, updated_at: new Date().toISOString(),
+        }).eq('id', saleId);
+      }
+    } else if (origemQuiz) {
+      const { dispararPurchasePixQuiz } = await import('../solardoc/purchasePixQuiz');
+      const motivo = await dispararPurchasePixQuiz({
+        telefone: whatsapp, email, nome, valor: valorPago,
+        chaveE2e: e2eKey, dedupKey: `asaas_avulso:${id}`, quando: new Date(),
+      });
+      logger.info('asaas-webhook', `Purchase do Pix avulso no pixel do quiz: ${motivo}`);
+    } else if (saleId) {
+      await sendPurchaseForSale(saleId).catch((e) =>
+        logger.error('asaas-webhook', `Purchase pro Meta falhou (Pix avulso, acesso já liberado): ${email}`, e));
+    }
+
+    await sendUtmifyOrder({
+      orderId: `asaas_avulso:${id}`, status: 'paid', createdAt: new Date(), approvedDate: new Date(),
+      email, name: nome, phone: whatsapp || null, productId: info.plano, productName: `${info.nome} (Pix por código)`,
+      priceInReais: valorPago, paymentMethod: 'pix',
+      utm_source: atrib.utm_source ?? null, utm_medium: atrib.utm_medium ?? null, utm_campaign: atrib.utm_campaign ?? null,
+      utm_content: atrib.utm_content ?? null, utm_term: atrib.utm_term ?? null,
+    });
+  } catch (err) {
+    logger.error('asaas-webhook', `venda do Pix avulso não foi registrada (acesso OK): ${email}`, err);
+    await avisarThiago(`⚠️ *Venda no Pix (código) não entrou no ledger*\n${email} · R$ ${valorPago}\nO acesso foi liberado normalmente, mas a venda pode não aparecer no Meta nem na UTMify.`);
+  }
+
+  await marcarAvulso(id, reg, { status: 'pago', pago_em: new Date().toISOString(), payment_id: pagamentoId, valor_pago: valorPago });
+
+  await avisarThiago([
+    '🟢 *Nova assinatura no Pix (código)*',
+    '',
+    `Cliente: ${email}`,
+    `Plano: ${info.nome} · R$ ${valorPago}`,
+    'Trilho: Pix por código (avulso, 1 mês, sem débito automático)',
+    `Origem: ${origemQuiz ? 'quiz' : 'LP'}`,
+    `Acesso até: ${venc.toLocaleDateString('pt-BR')}`,
+    (billing_status === 'active' || billing_status === 'trialing') ? '⚠️ E-mail com cartão ativo na Stripe; conferir à mão (não cancelei).' : '',
+    tokenContaNova ? (contaSemSenha ? 'Conta existente sem senha: link de senha enviado por e-mail.' : 'Conta criada agora pelo pagamento (sem senha).') : '',
+    emailDeAcessoFalhou ? '⚠️ O e-mail com o link de senha NÃO saiu. Reenvia o acesso na mão.' : '',
+  ].filter(Boolean).join('\n'));
+
+  try {
+    const { avisarCompra, idDeVenda } = await import('../solardoc/avisoGrupoSolardoc');
+    const vendaId = idDeVenda('asaas:', `avulso-${id}`, pagamentoId);
+    if (vendaId) {
+      await avisarCompra({
+        id: vendaId, canal: 'asaas', planoAtivo: true, valor: valorPago,
+        nome, telefone: whatsapp || null,
+        lpSession: atrib.lp_session ?? null, origemQuiz,
+      });
+    }
+  } catch (err) {
+    logger.error('asaas-webhook', 'aviso ao grupo de vendas falhou (Pix avulso; o do Thiago já saiu)', err);
+  }
+  return { tratado: true, motivo: 'pagamento avulso creditado' };
+}
+
 // ── entrada única ────────────────────────────────────────────────────────────
 
 export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ tratado: boolean; motivo: string }> {
@@ -688,6 +940,21 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
     // um mês só. Escutar os dois é de propósito: se um se perder, o outro credita.
     case 'PAYMENT_CONFIRMED':
     case 'PAYMENT_RECEIVED': {
+      // Pix AVULSO do funil primeiro de tudo: o acharContrato cai no customer, e o pagador de um QR estático
+      // pode ser o mesmo customer de um contrato antigo (o dinheiro do avulso creditaria o contrato errado).
+      // Liga pelo pixQrCodeId; a rede é o externalReference 'sdav:<uuid>' que mandamos ao criar o QR (o sandbox não pôde
+      // provar que o pagamento do QR estático traz o pixQrCodeId, então a ligação não fica pendurada num campo só).
+      {
+        let avulsoId: string | null = null;
+        let viaRef = false;
+        if (b.payment?.pixQrCodeId) {
+          const av = await lerEstado(chavePixAvulsoQr(b.payment.pixQrCodeId));
+          if (av?.id) avulsoId = String(av.id);
+        }
+        const ref = String(b.payment?.externalReference ?? '');
+        if (!avulsoId && ref.startsWith('sdav:') && /^[0-9a-f-]{36}$/i.test(ref.slice(5))) { avulsoId = ref.slice(5); viaRef = true; }
+        if (avulsoId) return await creditarAvulso(b, avulsoId, viaRef);
+      }
       // Ordem das chaves do pagamento: (1) instrução do débito mensal, que SEMPRE é renovação; (2) QR do
       // 1º mês do Pix Automático, que chega com OUTRO customer e vence o fallback por customer;
       // (3) as chaves de sempre (acharContrato).
@@ -696,7 +963,12 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
       if (b.payment?.id) { alvo = await acharContratoPorInstrucao(b.payment.id); if (alvo) via = 'instrucao'; }
       if (!alvo && b.payment?.pixQrCodeId) { alvo = await acharContratoPorQr(b.payment.pixQrCodeId); if (alvo) via = 'qr'; }
       if (!alvo) alvo = linha;
-      if (!alvo) return { tratado: false, motivo: 'pagamento fora do trilho Pix recorrente' };
+      if (!alvo) {
+        // Rede de segurança: Pix com QR que não casou com nada (nem avulso, nem pix_auto_qr, nem PlugCash, nem contrato)
+        // não pode cair calado. Um aviso por pagamento.
+        if (b.payment?.pixQrCodeId) await avisarPixSemDono(b);
+        return { tratado: false, motivo: 'pagamento fora do trilho Pix recorrente' };
+      }
       await creditarPagamento(b, alvo, via);
       return { tratado: true, motivo: 'pagamento creditado' };
     }
@@ -747,7 +1019,12 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
         .eq('id', linha.id);
       // O cliente cancelou no app do banco (ou o banco recusou) — ninguém mais
       // vai debitar. Sem este aviso a assinatura morre em silêncio.
-      await avisarThiago(`⚠️ *Pix Automático ${status}*\n${linha.email} · ${PLANOS_PIX[linha.plano]?.nome ?? linha.plano} · R$ ${linha.valor}\nNão haverá mais débito automático. Vale um toque pra reativar.`);
+      const resumo = `${linha.email} · ${PLANOS_PIX[linha.plano]?.nome ?? linha.plano} · R$ ${linha.valor}`;
+      // REFUSED sem motivo: o QR do 1º mês venceu sem pagamento (o webhook chega ~30 s depois do vencimento do QR).
+      const qrVenceu = status === 'recusado' && !String(b.authorization?.cancellationReason ?? '').trim();
+      await avisarThiago(qrVenceu
+        ? `⏳ *Pix automático venceu sem pagamento*\n${resumo}\nA pessoa gerou o código e não pagou dentro de 1 hora.`
+        : `⚠️ *Pix Automático ${status}*\n${resumo}\nNão haverá mais débito automático. Vale um toque pra reativar.`);
       return { tratado: true, motivo: `autorização ${status}` };
     }
 

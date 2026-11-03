@@ -2,10 +2,10 @@ import { Router } from 'express';
 import { createCheckout, createPublicCheckout, stripeWebhook, getCheckoutInfo, createBillingPortal, getCupomInfo, getPixCheckoutInfo, getPixUrl } from '../controllers/paymentsController';
 import {
   criarPixRecorrenteHandler, statusPixRecorrenteHandler, cancelarPixRecorrenteHandler, asaasWebhookHandler,
-  criarPixPublicoHandler, statusPixPublicoHandler,
+  criarPixPublicoHandler, statusPixPublicoHandler, criarPixAvulsoPublicoHandler, statusPixAvulsoPublicoHandler,
 } from '../controllers/asaasPixController';
 import { authMiddleware } from '../middleware/auth';
-import { pixPublicoRateLimit } from '../middleware/pixPublicoRateLimit';
+import { pixPublicoRateLimit, pixAvulsoRateLimit } from '../middleware/pixPublicoRateLimit';
 
 const router = Router();
 
@@ -30,6 +30,9 @@ router.post('/pix-recorrente/cancelar', authMiddleware, cancelarPixRecorrenteHan
 // dentro do handler — sem a variável, responde 503 e ninguém entra por aqui.
 router.post('/pix-recorrente/publico', pixPublicoRateLimit, criarPixPublicoHandler);
 router.get('/pix-recorrente/publico/:id', statusPixPublicoHandler);
+// Pix AVULSO do quiz e da LP (código copia e cola de R$ 67, sem CPF). Balde de rate limit próprio (10/h por IP); trava PIX_AVULSO_FUNIL no handler.
+router.post('/pix-avulso/publico', pixAvulsoRateLimit, criarPixAvulsoPublicoHandler);
+router.get('/pix-avulso/publico/:id', statusPixAvulsoPublicoHandler);
 router.post('/asaas/webhook', asaasWebhookHandler); // sem auth — validado pelo header asaas-access-token
 
 export default router;
