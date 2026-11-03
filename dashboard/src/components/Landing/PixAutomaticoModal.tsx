@@ -302,16 +302,16 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
                 )}
                 <p className={styles.espera} role="status">Esperando o pagamento.</p>
                 {travou && (
-                  <div className={styles.travou}>
-                    <p>Travou no app do banco? Chama a gente no WhatsApp que resolve na hora.</p>
+                  <div className={styles.ajudaCarla}>
+                    <p>Ficou alguma dúvida? A Carla responde agora no WhatsApp.</p>
                     <a
-                      className={styles.btnSecundario}
+                      className={styles.btnPrincipal}
                       href={zapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => registrarEvento('pix_whatsapp', { tela: 'lp', onde: 'travou' })}
+                      onClick={() => registrarEvento('pix_ajuda_whatsapp', { tela: 'lp', modo: 'automatico' })}
                     >
-                      Chamar no WhatsApp
+                      Falar com a Carla agora
                     </a>
                   </div>
                 )}

@@ -239,3 +239,20 @@
   .rolagem { padding: 24px 16px 18px; }
   .titulo { font-size: 20px; }
 }
+
+/* Ajuda em destaque: aparece aos 3 min sem pagamento e fica até pagar. */
+.ajudaCarla {
+  margin-top: 16px;
+  padding: 14px;
+  border: 2px solid #fbbf24;
+  border-radius: 14px;
+  background: #253347;
+}
+.ajudaCarla p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #f1f5f9;
+}
+.ajudaCarla .btnPrincipal { margin-top: 12px; }

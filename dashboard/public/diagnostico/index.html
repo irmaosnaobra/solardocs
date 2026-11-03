@@ -1344,7 +1344,7 @@ function pixTravou() {
     PIX.tm = 0;
     const lugar = $('pix-trava');
     if (gen !== PIX.gen || !lugar) return;
-    lugar.innerHTML = '<p class="ajuda" style="margin-top:14px">Travou no app do banco? Chama a gente no WhatsApp que resolve na hora.</p><button type="button" class="cta vazio" data-a="btn" data-k="pix">Chamar no WhatsApp</button>';
+    lugar.innerHTML = '<div style="margin-top:14px;padding:14px;border:2px solid var(--acao);border-radius:14px"><p class="ajuda" style="margin:0 0 10px;font-weight:700;color:var(--texto)">Ficou alguma dúvida? A Carla responde agora no WhatsApp.</p><button type="button" class="cta" data-a="pixajuda">Falar com a Carla agora</button></div>';
   }, 3 * 60 * 1000);
 }
 /* Pergunta a cada 5 s se o contrato ficou ativo, por até 60 min */
@@ -1371,15 +1371,19 @@ function pixCopiar() {
   const sel = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
   try { navigator.clipboard.writeText(ta.value).then(ok, sel); } catch (e) { sel(); }
 }
+/* Abre o wa.me da 5040 com a mensagem pronta MSG[k] (com o código do quiz). Só abre: quem chama decide o que registrar. */
+function abrirWhats(k) {
+  if (!E.codigo) E.codigo = SDR.codigoLocal();
+  const url = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(MSG[k](E.codigo));
+  const w = window.open(url, '_blank');
+  if (w) { try { w.opener = null; } catch (err) { /* sem acesso */ } } else window.location.href = url;
+}
 function acaoFinal(k, el) {
   if (k !== S.fimK) { S.fimK = k; SDR.evento('quiz_fim', { destino: k }); }
   if (k === 'cartao') { assinarCartao(); return; }
   if (k === 'pix_auto' && pixAutoLigado()) { abrirPixAuto(el); return; }
   if (k === 'socio') { abrirFolha('socio', el); return; }
-  if (!E.codigo) E.codigo = SDR.codigoLocal();
-  const url = 'https://wa.me/' + WHATS + '?text=' + encodeURIComponent(MSG[k](E.codigo));
-  const w = window.open(url, '_blank');
-  if (w) { try { w.opener = null; } catch (err) { /* sem acesso */ } } else window.location.href = url;
+  abrirWhats(k);
 }
 $('app').addEventListener('click', (e) => {
   if (e.target === $('folha')) { fecharFolha(); return; }
@@ -1397,6 +1401,7 @@ $('app').addEventListener('click', (e) => {
   else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
   else if (a === 'copiar') copiar(resumo(R));
   else if (a === 'pixcopiar') pixCopiar();
+  else if (a === 'pixajuda') { SDR.evento('pix_ajuda_whatsapp', { modo: 'automatico' }); abrirWhats('pix'); }
   else if (a === 'fechar') fecharFolha();
   else if (a === 'fecharmesmo') fecharFolhaJa();
   else if (a === 'voltarpix') voltarPix();
