@@ -251,6 +251,9 @@ describe('fontes que falham', () => {
     h.s.reunioes = [reuniao(501)];
     await tick();
     expect(h.s.estudos[0].status).toBe('parcial');
+    // O código grava pronto_em com o relógio real; o teste vive em AGORA (fixo). Sem fixar
+    // aqui, o teste só passava enquanto o relógio da máquina estava antes de AGORA + 1 min.
+    h.s.estudos[0].pronto_em = new Date(AGORA).toISOString();
 
     // Ainda recusando 11 minutos depois: não refaz, não gasta e não repete aviso.
     h.s.agora = AGORA + 11 * 60_000;

@@ -1,0 +1,120 @@
+#!/bin/sh
+# Pre-push: segredo e tipo, so no que esta SAINDO.
+#
+# POR QUE: varias sessoes publicam direto no main e o CI so grita DEPOIS do push.
+# Num repo publico o segredo ja vazou nesse instante; e um erro de tipo derruba o
+# build da Vercel. Este hook roda as duas conferencias antes de subir.
+#
+# - gitleaks: so o intervalo que vai subir (remoto..local), com a config do CI
+#   (.gitleaks.toml) e --redact. Nunca o historico todo, para ser rapido.
+# - tsc --noEmit em api/: so se o intervalo mexe em api/ E o disco e o que sobe
+#   (ref = HEAD e api/ sem mudanca nao commitada). Fora disso avisa e segue.
+#
+# Fail-open de proposito quando falta ferramenta: sem gitleaks ou sem
+# api/node_modules o hook AVISA e segue, como o pre-commit faz.
+#
+# Emergencia real: git push --no-verify (nativo do git).
+# Ativar num clone novo: git config core.hooksPath .githooks
+
+ZERO=0000000000000000000000000000000000000000
+raiz=$(git rev-parse --show-toplevel) || exit 0
+cd "$raiz" || exit 0
+
+tem_gitleaks=1
+if ! command -v gitleaks >/dev/null 2>&1; then
+  tem_gitleaks=0
+  echo "[pre-push] gitleaks nao encontrado no PATH, pulando a varredura de segredo."
+fi
+
+mexe_api=0
+falhou_segredo=0
+head_sha=$(git rev-parse HEAD 2>/dev/null)
+tsc_pulado=0
+
+# stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>, uma linha por ref.
+# Sem pipe de proposito: o while roda no shell principal e as variaveis valem depois.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
+  # Apagar ref nao leva commit nenhum.
+  [ "$local_sha" = "$ZERO" ] && continue
+
+  if [ "$remote_sha" = "$ZERO" ]; then
+    # Ref nova no remoto: compara com o main que o remoto ja tem.
+    if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+      intervalo="origin/main..$local_sha"
+    else
+      echo "[pre-push] origin/main nao existe aqui, pulando $local_ref."
+      continue
+    fi
+  elif git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    intervalo="$remote_sha..$local_sha"
+  else
+    # O remoto tem um commit que esta maquina nao conhece (push com
+    # --force-with-lease sem fetch): remote..local nao da pra montar.
+    echo "[pre-push] intervalo desconhecido: rode git fetch (usando origin/main..$local_ref)."
+    if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+      intervalo="origin/main..$local_sha"
+    else
+      echo "[pre-push] origin/main tambem nao existe aqui: pulando $local_ref sem bloquear."
+      continue
+    fi
+  fi
+
+  # Intervalo vazio: nada a conferir.
+  if ! git rev-list -n 1 "$intervalo" >/dev/null 2>&1; then
+    echo "[pre-push] intervalo desconhecido ($local_ref): rode git fetch. Pulando sem bloquear."
+    continue
+  fi
+  if [ -z "$(git rev-list -n 1 "$intervalo" 2>/dev/null)" ]; then
+    continue
+  fi
+
+  if [ "$tem_gitleaks" -eq 1 ]; then
+    gitleaks git -c .gitleaks.toml --log-opts="$intervalo" --redact --no-banner --exit-code 1 . </dev/null
+    if [ "$?" -ne 0 ]; then
+      falhou_segredo=1
+      echo "[pre-push] segredo achado em $local_ref ($intervalo)."
+    fi
+  fi
+
+  if [ -n "$(git diff --name-only "$intervalo" -- api/ 2>/dev/null)" ]; then
+    # O tsc mede o DISCO. So vale (e so bloqueia) quando o disco e o que sobe:
+    # o ref e o HEAD e api/ nao tem mudanca nao commitada (staged, nao staged ou
+    # arquivo novo). Senao, WIP quebrado de outra sessao barraria um commit bom.
+    if [ "$local_sha" = "$head_sha" ] && git diff --quiet HEAD -- api/ 2>/dev/null        && [ -z "$(git status --porcelain -- api/ 2>/dev/null)" ]; then
+      mexe_api=1
+    else
+      tsc_pulado=1
+    fi
+  fi
+done
+
+if [ "$falhou_segredo" -ne 0 ]; then
+  echo ""
+  echo "[pre-push] PUSH BLOQUEADO: o gitleaks achou segredo no que esta subindo."
+  echo "[pre-push] tire o valor do arquivo, gire a chave e refaca o commit."
+  echo "[pre-push] emergencia real: git push --no-verify (num repo publico, pense duas vezes)."
+  exit 1
+fi
+
+if [ "$tsc_pulado" -eq 1 ]; then
+  echo "[pre-push] tsc pulado: o disco nao e o que sobe."
+fi
+
+if [ "$mexe_api" -eq 1 ]; then
+  if [ ! -d api/node_modules ]; then
+    echo "[pre-push] api/node_modules nao existe, pulando o tsc (rode npm ci em api/)."
+  else
+    echo "[pre-push] api/ mudou: rodando tsc --noEmit..."
+    (cd api && npx tsc --noEmit </dev/null)
+    if [ "$?" -ne 0 ]; then
+      echo ""
+      echo "[pre-push] PUSH BLOQUEADO: o tsc da api esta vermelho (veja os erros acima)."
+      echo "[pre-push] push com tipo quebrado derruba o build da Vercel."
+      echo "[pre-push] emergencia real: git push --no-verify."
+      exit 1
+    fi
+  fi
+fi
+
+exit 0

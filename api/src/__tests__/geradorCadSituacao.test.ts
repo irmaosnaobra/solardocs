@@ -617,6 +617,6 @@ describe('cadRender: as cinco listas desenham tantas células quantos cabeçalho
     expect(D.tb.innerHTML).toContain('Nenhuma reunião neste período');
     // teto da leitura
     D.el('cad-per').value = 'tudo'; D.set('cadAgendaCheia', true); D.cadRender();
-    expect(D.el('cad-sit-resumo').textContent).toContain('teto de 1.000 reuniões');
+    expect(D.el('cad-sit-resumo').textContent).toContain('limite de 50.000 reuniões');
   });
 });

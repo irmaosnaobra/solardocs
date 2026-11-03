@@ -82,7 +82,7 @@ describe('quem está com o consultor errado', () => {
     // A resposta da Central é pública e AGREGADA: o card aponta a ficha pelo número
     // e nunca devolve o nome do cliente.
     expect(JSON.stringify(c)).not.toContain('Gerson');
-  });
+  }, 60_000);   // 1º teste paga o import dinâmico da Central: com a máquina carregada passa de 5 s
 
   // A Nilce NÃO serve mais de exemplo aqui: desde 10/09 ela está no time da conta
   // alta e desde 23/09 leva metade dos leads grandes. Quem sobra fora do time é a

@@ -22,15 +22,34 @@ paths = [
 [[rules]]
 id = "segredo-em-documentacao"
 description = "Valor de segredo escrito em texto puro dentro de doc/markdown"
-regex = '''(?i)(valor|value|secret|token|senha|password|key)\s*[:=]\s*`?["']?([A-Za-z0-9+/_\-]{24,})["']?`?'''
+# Palavra-chave + ate 2 palavras + ":" ou "=" + valor. Pega "Valor:", "valor novo:",
+# "token atual =", "MCP_TOKEN novo:" e "secret (girado):". A regra antiga so casava
+# "valor:" colado, e foi assim que o MCP_TOKEN ("valor novo:") passou.
+regex = '''(?i)(valor|value|secret|token|senha|password|key)(?:[ \t]+[\p{L}_\-]+){0,2}[ \t]*[:=][ \t]*`?["']?([A-Za-z0-9+/_\-]{24,})["']?`?'''
 secretGroup = 2
 path = '''\.(md|txt|mdx)$'''
   [rules.allowlist]
   regexes = [
     '''\$\{\{''',
     '''process\.env''',
-    '''(?i)(xxx|exemplo|example|placeholder|seu[-_]?token|cole[-_]?aqui|<.*>)''',
+    '''(?i)(xxx|exemplo|example|placeholder|seu[-_]?token|cole[-_]?aqui|substituir|<.*>)''',
     '''(?i)sk_test_|pk_test_|rk_test_|whsec_test''',
+  ]
+
+[[rules]]
+id = "segredo-de-cron-e-mcp-em-codigo"
+description = "Valor literal atribuido a CRON_SECRET, MCP_TOKEN, JWT_SECRET ou GITHUB_CRON_SECRET em codigo"
+# Atribuicao com valor literal entre aspas. Leitura de env pura (process.env.X, env.X) nao casa
+# porque nao tem aspas logo depois do = / :. De proposito NAO ha allowlist para process.env:
+# `process.env.X || 'literal'` e justamente o fallback hardcoded que vazou o segredo antes.
+regex = '''(?i)\b(?:CRON_SECRET|MCP_TOKEN|JWT_SECRET|GITHUB_CRON_SECRET)\b["']?[ \t]*(?:=|:|\|\|)[ \t]*["'`]([^"'`\s]{8,})["'`]'''
+secretGroup = 1
+path = '''\.(js|ts|mjs|sh|yml|yaml)$'''
+  [rules.allowlist]
+  regexTarget = "line"
+  regexes = [
+    '''(?i)(falso-|fake|exemplo|example|xxx|placeholder)''',
+    '''\$\{\{''',
   ]
 
 [[rules]]

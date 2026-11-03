@@ -96,18 +96,34 @@ Cada um destes já custou caro pelo menos uma vez.
   force push sobrescreve o remoto sem rede de segurança. `--force-with-lease`
   não é bloqueado e `git revert` resolve quase sempre.
 
-## Estado atual (11/09/2026)
+## Estado atual (03/11/2026)
 
 - Typecheck da `api`: **verde**, 0 erro. É o gate que bloqueia no CI.
-- Testes da `api` (medido em 07/10/2026): **1 vermelho fixo** de ~2.590
-  (`eletropostoEstudoTick`, "quando a chave volta..."). Com a máquina carregada
-  ainda falham por tempo o `beforeAll` do `pixSaidaCheckout` e o 1º teste do
-  `centralRoteamentoSolar`; rodando sozinhos, passam. O CI segue com
-  `continue-on-error` até o vermelho fixo fechar.
-- CI `Segurança`: **vermelho**, 4 achados do gitleaks no histórico. Está assim
-  em todo push desde 10/09.
-- `main` não tem branch protection. Há pre-commit de segredo em `.githooks/`
-  (precisa de `core.hooksPath` ligado no clone).
+- Testes da `api` (medido em 03/11/2026): **zero vermelho** em 367 arquivos e
+  11.010 testes. O `continue-on-error` do vitest saiu de
+  `.github/workflows/qualidade.yml`: teste vermelho agora derruba o CI. O que
+  falhava por tempo virou folga em `api/vitest.config.ts` (`testTimeout` 30 s,
+  `hookTimeout` 60 s). Tempo estourado não é bug: não afrouxe asserção para
+  "passar". Teste que cria data fixa (`AGORA`) e o código que grava com o
+  relógio real (`new Date()`) divergem com o passar dos dias: foi o caso do
+  `eletropostoEstudoTick`.
+- CI `Segurança`: os achados antigos do histórico estão no `.gitleaksignore` por
+  fingerprint, e as regras novas do `.gitleaks.toml` pegam "valor novo:" em
+  documentação e valor literal de `CRON_SECRET`, `MCP_TOKEN`, `JWT_SECRET` e
+  `GITHUB_CRON_SECRET` em código. `gitleaks git` no histórico todo dá 0 achado.
+  Achado novo é vazamento novo: não ponha no `.gitleaksignore` sem girar o segredo.
+  O comentário do `.gitleaksignore` diz o estado de cada segredo antigo.
+- **PENDENTE e visível:** o `CRON_SECRET` vazado no runbook ainda é aceito em
+  produção como `CRON_SECRET_ANTERIOR`, porque o pg_cron do `/process-messages`
+  usa ele. Vale até o dono autorizar o conector do Supabase. Depois disso,
+  apagar o `CRON_SECRET_ANTERIOR`.
+- Hook de **pre-push** em `.githooks/pre-push`: roda o gitleaks só no intervalo que
+  sobe (com `--redact`) e, se o intervalo mexe em `api/`, o `tsc --noEmit`. Recusa
+  o push se um dos dois falhar. Sem gitleaks ou sem `api/node_modules` ele avisa e
+  segue. O `tsc` confere o que está no disco. Emergência: `git push --no-verify`.
+  Vale com `core.hooksPath` ligado, igual ao pre-commit.
+- `main` não tem branch protection. Há pre-commit e pre-push em `.githooks/`
+  (precisam de `core.hooksPath` ligado no clone).
 - Hooks: 6 regras em `.claude/hookify.*.local.md`. Quatro bloqueiam (`git add -A`,
   `vercel --prod` sem alvo explícito, force push e `reset --hard`, `DROP` e
   `TRUNCATE`) e duas avisam (bump do `sw.js`; e envio pelo WhatsApp, Instagram
@@ -119,21 +135,27 @@ Cada um destes já custou caro pelo menos uma vez.
 
 ## Pendências
 
-1. Girar 3 segredos vivos, todos em texto puro neste repo público:
-   `CRON_SECRET` e `MCP_TOKEN` (no `SECURITY-RUNBOOK.md`, medidos vivos por probe
-   em 11/09/2026) e `JWT_SECRET` (no `SETUP_PROMPT.md`, nunca rotacionado, é forja
-   de sessão). O `SETUP_PROMPT.md` ainda tem um `.env` de exemplo com esse
-   `JWT_SECRET`, `DATABASE_URL` e chaves de API. Só depois de girar é que se
-   limpam os dois arquivos: inverter a ordem deixa os crons mortos.
-   Obs: a regra `segredo-em-documentacao` do `.gitleaks.toml` não pega o
-   `MCP_TOKEN` (escrito "valor novo:", e a regra só casa "valor:"). Ampliar.
-   Achado em 09/10/2026: `api/src/controllers/pixelController.ts` tem 2 tokens
-   do Meta escritos no código (`PIXEL_CONFIGS`, desde 17/04/2026). Nenhum é o
-   `META_SYSTEM_USER_TOKEN` que o envio de eventos e o público de clientes
-   quentes usam. Ordem: gerar token novo, pôr em env na Vercel, trocar o código
-   para ler do env, e só então revogar os dois.
-2. Fechar os 17 testes vermelhos e tirar o `continue-on-error` de
-   `.github/workflows/qualidade.yml`.
-3. Ligar branch protection no `main` exigindo `Qualidade` e `Segurança`. Só
-   depois do item 1, senão trava o próprio push.
+1. Segredos, estado em 03/11/2026:
+   - `CRON_SECRET`: girado em 03/11. O valor vazado no runbook ainda é aceito
+     em produção só como `CRON_SECRET_ANTERIOR`, porque o pg_cron do
+     `/process-messages` usa ele, até o dono autorizar o conector do Supabase.
+     Depois disso, apagar o `CRON_SECRET_ANTERIOR`. Esta pendência tem que
+     ficar visível: enquanto ela existir, o valor vazado ainda abre a rota.
+   - `JWT_SECRET`: o valor que estava no `SETUP_PROMPT.md` não é o de produção
+     (conferido em 03/11 comparando com a env da Vercel). O de produção nunca
+     vazou em arquivo.
+   - `MCP_TOKEN`: girado em 03/11, e o vazado dá 401. O OAuth do MCP foi fechado.
+   - `api/test-db.js`: a senha do banco escrita ali estava morta (em 03/11 deu
+     "password authentication failed"). O arquivo foi apagado.
+   - Tokens do Meta: saíram do código (`pixelController.ts`) e o dono precisa
+     revogá-los no Meta.
+   Os valores saíram do `SECURITY-RUNBOOK.md`, do `SETUP_PROMPT.md`, do
+   `cloudflare-worker/webhook.js` (agora lê `env.CRON_SECRET`) e do `setup.ts`
+   dos testes. Os valores antigos seguem no histórico do git.
+2. Fechar o backlog do eslint do `dashboard` (171 problemas em 11/09/2026) e
+   tirar o `continue-on-error` dele em `.github/workflows/qualidade.yml`.
+3. Ligar branch protection no `main` exigindo `Qualidade` e `Segurança`:
+   **continua aberta**. O pre-push já cobre o caso local, e a protection
+   forçaria PR para todas as sessões, que hoje publicam direto no `main`.
+   Decisão do dono.
 4. `dashboard/` e `widget/` não têm `.env.example`.

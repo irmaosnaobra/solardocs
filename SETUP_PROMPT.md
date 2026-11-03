@@ -17,7 +17,7 @@ ETAPA 1 — Criar o arquivo .env na pasta api/
 Crie o arquivo C:\Users\55349\Desktop\CLAUDE\api\.env com o seguinte conteúdo:
 
 DATABASE_URL=SUBSTITUIR_PELA_CONNECTION_STRING_DO_SUPABASE
-JWT_SECRET=solardoc_jwt_secret_2024_producao
+JWT_SECRET=<girado em 03/11/2026; o valor vive só na Vercel>
 OPENAI_API_KEY=SUBSTITUIR_PELA_CHAVE_OPENAI
 ANTHROPIC_API_KEY=SUBSTITUIR_PELA_CHAVE_ANTHROPIC
 PORT=3001

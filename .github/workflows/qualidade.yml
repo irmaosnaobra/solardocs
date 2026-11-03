@@ -31,15 +31,11 @@ jobs:
       - name: tsc --noEmit
         run: npx tsc --noEmit
 
-      # NÃO BLOQUEIA ainda. Baseline em 10/09/2026: 17 testes vermelhos em 5 arquivos
-      # (agendaSolarSocios, centralRoteamentoSolar, leadSolar700kwh, nilceParaGiovanna),
-      # todos em código que estava sendo mexido. Gate vermelho no dia 1 é gate que
-      # ninguém olha. Quando esses 17 fecharem, apagar o continue-on-error abaixo.
-      # Nota 11/09/2026: no HEAD limpo isso é 1222 passando / 0 asserção vermelha; os
-      # 17 eram de trabalho em curso. Dá pra revisar e tornar bloqueante quando calmar.
+      # BLOQUEIA desde 03/11/2026: a suíte inteira está verde (367 arquivos, 11.010
+      # testes), então vermelho aqui é regressão nova. Tempo estourado em máquina
+      # carregada tem folga em api/vitest.config.ts; não afrouxe asserção.
       - name: vitest
         run: npx vitest run
-        continue-on-error: true
 
   dashboard:
     name: dashboard — lint

@@ -1,24 +1,24 @@
 const SUPABASE_URL = 'https://qdpfwncyzuztibpujlbq.supabase.co';
 const API_BASE = 'https://api.solardoc.app';
-const CRON_SECRET = 'solardocs_master_cron_2024';
+// O segredo vem do binding do Worker (env.CRON_SECRET), nunca escrito aqui.
 
 export default {
   // Cron trigger discriminado por padrão:
   // - "*/20 * * * *" → io-cora-tick (CRM vigilante, vela horário comercial)
   // - "* * * * *"    → io-broadcast-tick (fila de disparos em massa)
-  async scheduled(event, _env, ctx) {
+  async scheduled(event, env, ctx) {
     const cron = event && event.cron;
     if (cron === '* * * * *') {
       ctx.waitUntil(
         fetch(`${API_BASE}/cron/io-broadcast-tick`, {
-          headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
+          headers: { 'Authorization': `Bearer ${env.CRON_SECRET}` }
         }).catch(() => {})
       );
     } else {
       // Default + "*/20 * * * *": Cora
       ctx.waitUntil(
         fetch(`${API_BASE}/cron/io-cora-tick`, {
-          headers: { 'Authorization': `Bearer ${CRON_SECRET}` }
+          headers: { 'Authorization': `Bearer ${env.CRON_SECRET}` }
         }).catch(() => {})
       );
     }
@@ -114,7 +114,7 @@ export default {
         // o fetch e cancelado quando o Worker retorna)
         ctx.waitUntil(
           fetch('https://api.solardoc.app/cron/process-messages', {
-            headers: { 'Authorization': 'Bearer solardocs_master_cron_2024' }
+            headers: { 'Authorization': `Bearer ${env.CRON_SECRET}` }
           }).catch(() => {})
         );
       }

@@ -40,7 +40,7 @@ GitHub envia vazio → 401 → Bia/SDR/dunning parados.
 - github.com/irmaosnaobra/solardocs → Settings → Secrets and variables →
   Actions → New repository secret.
 - Nome: `CRON_SECRET`
-- Valor: `b8684209dd6875c0868d056f6bc3ac174047486c39835d05`
+- Valor: `<girado em 03/11/2026; o valor vive só na Vercel>`
 
 ### 1. Revogar a service_role LEGADA do Supabase (fecha o vazamento do banco)
 A nova já está no ar; falta MATAR a legada que vazou no git.
@@ -64,7 +64,7 @@ A nova já está no ar; falta MATAR a legada que vazou no git.
 
 ### 5. Atualizar MCP_TOKEN no conector claude.ai
 - O MCP_TOKEN foi rotacionado no servidor → o conector Z-API no claude.ai
-  precisa do valor novo: `64b6c2534b65c3a8ad9400f6573407142853b233fd9a923c`
+  precisa do valor novo: `<girado em 03/11/2026; o valor vive só na Vercel>`
 
 ---
 

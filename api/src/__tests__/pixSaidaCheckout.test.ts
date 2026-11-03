@@ -32,9 +32,11 @@ vi.mock('../services/asaas/asaasClient', () => ({
 type DestinoDeSaida = typeof import('../controllers/paymentsController')['destinoDeSaida'];
 let destinoDeSaida: DestinoDeSaida;
 
+// O import carrega o controller inteiro (Stripe, Asaas, Supabase): com a máquina
+// carregada passa dos 10 s padrão do hook. 60 s só aqui, sem afrouxar o resto.
 beforeAll(async () => {
   ({ destinoDeSaida } = await import('../controllers/paymentsController'));
-});
+}, 60_000);
 
 const ORIGINAL = { ...process.env };
 beforeEach(() => {

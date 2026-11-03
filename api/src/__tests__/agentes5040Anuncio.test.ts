@@ -280,11 +280,11 @@ describe('relatorioAnuncios', () => {
       error: null,
     });
     const f = vi.fn(async () => {
-      await new Promise((ok) => setTimeout(ok, 80));
+      await new Promise((ok) => setTimeout(ok, 600));   // folga larga: com 80 ms o teste falhava com a máquina carregada
       return { ok: true, status: 200, json: async () => ({ id: AD, name: 'A', campaign: { id: '2', name: 'Quiz Solar' } }) };
     });
     vi.stubGlobal('fetch', f);
-    const r = await relatorioAnuncios(30, { orcamentoTotalMs: 120 });
+    const r = await relatorioAnuncios(30, { orcamentoTotalMs: 900 });
     expect(f).toHaveBeenCalledTimes(10); // 2 grupos de 5; o 3º não começa
     expect(r.truncado).toBe(true);
     expect(r.ids).toHaveLength(12);

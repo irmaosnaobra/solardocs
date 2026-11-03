@@ -70,7 +70,7 @@ vi.mock('../services/followupService', () => ({
 
 import app from '../app';
 
-const CRON_SECRET = 'solardocs_master_cron_2024';
+const CRON_SECRET = 'falso-cron-secret-de-teste-0000';
 
 // ─── GET /cron/master ────────────────────────────────────────────────
 describe('GET /cron/master', () => {

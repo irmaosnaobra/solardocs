@@ -64,3 +64,30 @@ dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:curl-auth-h
 dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:jwt:47
 b302c98c7de3ba18f98b30ff85881f2b545662af:api/test-db.js:generic-api-key:10
 b302c98c7de3ba18f98b30ff85881f2b545662af:api/test-db.js:generic-api-key:21
+
+# 03/11/2026: achados ANTIGOS do histórico que as regras novas do .gitleaks.toml
+# passaram a pegar (valor literal de CRON_SECRET, MCP_TOKEN e JWT_SECRET em código;
+# "valor novo:" em documentação). Situação de cada um, conferida em 03/11/2026:
+#   - CRON_SECRET: girado em 03/11. O valor vazado no runbook ainda é aceito em
+#     produção só como CRON_SECRET_ANTERIOR, porque o pg_cron do /process-messages
+#     usa ele, até o dono autorizar o conector do Supabase. Depois disso, apagar o
+#     CRON_SECRET_ANTERIOR. PENDENTE: enquanto não apagar, o valor vazado ainda abre
+#     a rota.
+#   - JWT_SECRET: o valor que estava no SETUP_PROMPT.md não é o de produção
+#     (conferido comparando com a env da Vercel). O de produção nunca vazou em arquivo.
+#   - MCP_TOKEN: girado em 03/11, e o vazado dá 401.
+#   - api/test-db.js: a senha do banco escrita ali estava morta (deu "password
+#     authentication failed"). O arquivo foi apagado do repositório.
+# O valor foi tirado dos arquivos atuais no mesmo dia. Qualquer achado NOVO continua
+# vermelho: estas linhas são por fingerprint (commit + arquivo + linha), não por regra.
+08fd1dcb6866476bc4e5fe2b73118f78c38fe271:api/src/controllers/unsubscribeController.ts:segredo-de-cron-e-mcp-em-codigo:5
+40838de3db1341c18a60033ee104950a9ab107b8:api/src/routes/mcp.ts:segredo-de-cron-e-mcp-em-codigo:6
+84e9ba9795f6426792d29fcccd6438826f4349d1:SETUP_PROMPT.md:segredo-em-documentacao:20
+84e9ba9795f6426792d29fcccd6438826f4349d1:SETUP_PROMPT.md:segredo-em-documentacao:21
+84e9ba9795f6426792d29fcccd6438826f4349d1:SETUP_PROMPT.md:segredo-em-documentacao:22
+852ea03ab48e9476d6720afad1af98b2273af8e0:SECURITY-RUNBOOK.md:segredo-em-documentacao:25
+852ea03ab48e9476d6720afad1af98b2273af8e0:SECURITY-RUNBOOK.md:segredo-em-documentacao:49
+b302c98c7de3ba18f98b30ff85881f2b545662af:api/src/utils/jwt.ts:segredo-de-cron-e-mcp-em-codigo:3
+dacadf4e1ed695c352caa9c3fd17e48faf5d6a14:api/src/routes/mcp.ts:segredo-de-cron-e-mcp-em-codigo:5
+dacadf4e1ed695c352caa9c3fd17e48faf5d6a14:api/src/routes/mcpOauth.ts:segredo-de-cron-e-mcp-em-codigo:8
+fa8ef30bd9c236a9ce9a63d2408560467b11be9e:cloudflare-worker/webhook.js:segredo-de-cron-e-mcp-em-codigo:3

@@ -20,7 +20,7 @@ jobs:
 
       # gitleaks — pega o padrão E a regra nossa de "segredo escrito em documentação",
       # que foi como o CRON_SECRET foi parar num arquivo público em 10/09/2026.
-      # Os 42 achados já rotacionados em 26/06 vivem no .gitleaksignore por fingerprint,
+      # Os achados antigos (rotacionados em 26/06 e 03/11) vivem no .gitleaksignore por fingerprint,
       # então QUALQUER achado aqui é vazamento novo.
       - name: gitleaks
         run: |
@@ -30,7 +30,7 @@ jobs:
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz" -o gitleaks.tar.gz
           echo "${SHA}  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
-          ./gitleaks git . -c .gitleaks.toml --redact --no-banner --exit-code 1
+          ./gitleaks git . -c .gitleaks.toml --gitleaks-ignore-path .gitleaksignore --redact --no-banner --exit-code 1
 
       # trufflehog — a diferença que importa: ele VERIFICA se a credencial ainda
       # está viva, em vez de só dizer que parece uma chave.

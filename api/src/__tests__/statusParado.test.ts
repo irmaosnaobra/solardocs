@@ -89,6 +89,11 @@ describe('a lista nao volta a ser copiada', () => {
     // so seria juntar perguntas diferentes, que e o erro oposto.
     const culpados = arquivos
       .filter(p => !p.endsWith(join('agenda', 'salaDeEspera.ts')))
+      // `STATUS_SEM_PESO_BASE` (Meta, 03/11/2026) e outra pergunta: "card morto, sem peso base
+      // no público". Hoje coincide com a lista da vaga, mas `perdido` e `fechou_concorrente`
+      // ficam de fora de propósito (mudar isso mexe no público do Meta). Se um dia a decisão
+      // for unificar, apague esta linha e importe de salaDeEspera.
+      .filter(p => !p.endsWith(join('meta', 'clientesQuentesPuro.ts')))
       .filter(p => /new Set\(\s*\[\s*'cancelado'\s*,\s*'sem_interesse'\s*\]\s*\)/.test(readFileSync(p, 'utf8')));
     expect(culpados.map(p => p.replace(RAIZ, 'src'))).toEqual([]);
   });
