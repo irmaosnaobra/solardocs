@@ -19609,7 +19609,9 @@ function orcEmitCampos() {
 // procuracao ainda nao carregou, e apagar o default ali seria acidente, nao escolha.
 // Engenheiro e técnico também (09/10/2026, pedido do dono): apagado fica apagado,
 // e outro nome digitado fica, em vez de o padrão da casa voltar sozinho.
-const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email', 'socio', 'socioCpf',
+// Pix e conta tambem (03/11/2026): com a conta da K EMA no padrao da NEXUS, conta apagada
+// voltava sozinha. Quem ja' tinha salvo o cartao recebe Pix e conta pela migracao migNexusConta.
+const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email', 'socio', 'socioCpf', 'pix', 'conta',
   'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
   'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 function epEmitValor(o, k, def) {
@@ -19996,6 +19998,9 @@ const NEXUS_END = 'Rua Antônio Camilo da Costa, 230, Bosque, CEP 38.446-069';
 const NEXUS_CIDADE = 'Araguari/MG';
 const NEXUS_SOCIO = 'Maria Carolina Mendes Marques';
 const NEXUS_PIX = '03945372000189';
+// Conta da K EMA no Santander (03/11/2026). O banco ainda mostra a razao antiga (K Ema Easy
+// Comercio De Roupas Ltda); o CNPJ e' o mesmo.
+const NEXUS_CONTA = 'Banco Santander (033) · Ag. 3521 · C/C 11.001237-4';
 // Emitente padrao de todo documento do eletroposto (03/11/2026). A AIOROS segue no solar
 // e quando for escolhida no controle "Emitente" do documento.
 const EP_EMIT_PADRAO = 'nexus';
@@ -20130,10 +20135,10 @@ const EP_EMIT_DEF_EQUIPE = {
   tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
 function epEmitDef(id) {
   const base = id === 'nexus'
-    // NEXUS: K EMA EASY IMPORTAÇÕES LTDA. (03/11/2026). IE e conta vazias: nao vieram
-    // nos documentos e nunca herdam as da AIOROS. O Pix e' a chave CNPJ (NEXUS_PIX). O telefone e o e-mail sao os da marca.
+    // NEXUS: K EMA EASY IMPORTAÇÕES LTDA. (03/11/2026). IE vazia (a K EMA ainda nao tem) e
+    // nunca herda a da AIOROS. O Pix e' a chave CNPJ (NEXUS_PIX) e a conta e' a do Santander (NEXUS_CONTA). O telefone e o e-mail sao os da marca.
     ? { nome: EP_MARCA, end: NEXUS_END, cidade: NEXUS_CIDADE, tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-        cnpj: NEXUS_CNPJ, razao: NEXUS_RAZAO, fantasia: EP_MARCA, ie: '', socio: NEXUS_SOCIO, socioCpf: '', pix: NEXUS_PIX, conta: '' }
+        cnpj: NEXUS_CNPJ, razao: NEXUS_RAZAO, fantasia: EP_MARCA, ie: '', socio: NEXUS_SOCIO, socioCpf: '', pix: NEXUS_PIX, conta: NEXUS_CONTA }
     : { nome: EP_MARCA, end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
         cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '', ie: '', socio: '', socioCpf: '', pix: '', conta: '' };
   return Object.assign(base, EP_EMIT_DEF_EQUIPE);
@@ -20175,7 +20180,7 @@ function epPerfisLer() {
  *  A marca impede de rodar de novo: o que o dono apagar depois fica apagado. Devolve true
  *  se mudou o objeto (quem chamou grava). */
 function epNexusMigrar(p) {
-  if (!p || !p.perfis || (p.migNexusKema && p.migNexusCpf)) return false;
+  if (!p || !p.perfis || (p.migNexusKema && p.migNexusCpf && p.migNexusConta)) return false;
   if (!p.perfis.nexus || typeof p.perfis.nexus !== 'object') p.perfis.nexus = {};
   const n = p.perfis.nexus;
   const branco = v => !String(v == null ? '' : v).trim();
@@ -20203,6 +20208,17 @@ function epNexusMigrar(p) {
   if (!p.migNexusCpf) {
     if (!branco(n.socioCpf) && epNomeNorm(n.socio) === epNomeNorm(NEXUS_SOCIO)) n.socioCpf = '';
     p.migNexusCpf = 1;
+  }
+  // Terceira migracao UNICA (03/11/2026, marca p.migNexusConta): a conta do Santander chegou
+  // depois, e Pix e conta passaram a ser apagaveis (EP_EMIT_APAGAVEIS). O perfil ja' gravado com
+  // Pix ou conta em branco recebe os da K EMA, so' se o CNPJ salvo for o da K EMA: Pix e conta da
+  // K EMA nunca vao ao lado de outro CNPJ. Depois da marca, o que o dono apagar fica apagado.
+  if (!p.migNexusConta) {
+    if (epSoDig(n.cnpj) === epSoDig(NEXUS_CNPJ)) {
+      if (branco(n.pix)) n.pix = NEXUS_PIX;
+      if (branco(n.conta)) n.conta = NEXUS_CONTA;
+    }
+    p.migNexusConta = 1;
   }
   return true;
 }
@@ -20262,6 +20278,13 @@ function epEmitEfetivo(sel) {
 function epEmitGet(id) {
   const ef = epEmitEfetivo(id);
   const out = epPerfilVisto(ef);
+  // Pix e conta da K EMA so' vao ao papel com o CNPJ da K EMA (03/11/2026). A trava mora aqui, no
+  // caminho do papel, e nao em epPerfilVisto: o cartao de edicao mostra o que esta salvo, e
+  // corrigir o CNPJ ali nao grava Pix e conta em branco sem querer.
+  if (ef === 'nexus' && epSoDig(out.cnpj) !== epSoDig(NEXUS_CNPJ)) {
+    if (epSoDig(out.pix) === epSoDig(NEXUS_PIX)) out.pix = '';
+    if ((out.conta || '').trim() === NEXUS_CONTA) out.conta = '';
+  }
   out.emitente = ef;
   return out;
 }
@@ -22128,7 +22151,7 @@ function recHTMLNovo(d) {
     ];
   }
   const pagaSaldo = (tipo === 'equip' || tipo === 'aporte' || tipo === 'parcela') && saldo > 0.005 && (d.pix || d.conta)
-    ? `<li><b>Para pagar o saldo.</b> ${d.pix ? `Pix: <b>${e(d.pix)}</b>` : ''}${d.pix && d.conta ? ' · ' : ''}${d.conta ? e(d.conta) : ''}${d.empresa && d.empresa.razao ? ` em nome de ${e(d.empresa.razao)}` : ''}.</li>` : '';
+    ? `<li><b>Para pagar o saldo.</b> ${d.pix ? `Pix: <b>${e(d.pix)}</b>` : ''}${d.pix && d.conta ? ' · ' : ''}${d.conta ? e(d.conta) : ''}${d.empresa && d.empresa.razao ? ` em nome de ${e(String(d.empresa.razao).replace(/\.\s*$/, ''))}` : ''}.</li>` : '';
   const fiscal = tipo === 'equip' ? '' : '<li><b>Documento fiscal.</b> Este recibo comprova o recebimento e não substitui documento fiscal, quando exigido.</li>';
   const papel = { equip: 'Comprador', deposito: 'Investidor', aporte: 'Sócio participante' }[tipo];
   // Recibo de parcela é declaração de quem recebe: só a NEXUS assina.
@@ -22245,7 +22268,7 @@ function recHTML(d) {
         <li><b>O que este valor cobre.</b> ${e(fimCap)}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
         <li><b>Desistência.</b> ${e(d.desist)}</li>
         <li><b>Exigência da concessionária.</b> Havendo exigência ou reprovação por causa não imputável ao contratante, as adequações e a reapresentação do projeto são feitas <b>sem custo adicional</b>.</li>`}
-        ${!d.avulso && d.saldo > 0 && (d.pix || d.conta) ? `<li><b>Para pagar o saldo.</b> ${d.pix ? `Pix: <b>${e(d.pix)}</b>` : ''}${d.pix && d.conta ? ' · ' : ''}${d.conta ? e(d.conta) : ''}${d.empresa && d.empresa.razao ? ` — em nome de ${e(d.empresa.razao)}` : ''}.</li>` : ''}
+        ${!d.avulso && d.saldo > 0 && (d.pix || d.conta) ? `<li><b>Para pagar o saldo.</b> ${d.pix ? `Pix: <b>${e(d.pix)}</b>` : ''}${d.pix && d.conta ? ' · ' : ''}${d.conta ? e(d.conta) : ''}${d.empresa && d.empresa.razao ? ` em nome de ${e(String(d.empresa.razao).replace(/\.\s*$/, ''))}` : ''}.</li>` : ''}
         <li><b>Documento fiscal.</b> Este recibo não substitui documento fiscal; a nota fiscal correspondente é emitida na forma da legislação.</li>
         ${d.obs ? `<li><b>Observações.</b> ${e(d.obs)}</li>` : ''}
       </ol>
