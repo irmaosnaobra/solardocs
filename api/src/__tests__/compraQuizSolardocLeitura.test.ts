@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   users: [] as Array<{ whatsapp: string }>,
   lotesIn: [] as number[],
   erroUsers: false,
+  corteSales: '',
 }));
 
 vi.mock('../utils/supabase', () => ({
@@ -16,7 +17,9 @@ vi.mock('../utils/supabase', () => ({
     from: (tabela: string) => {
       if (tabela === 'sales') {
         const q: any = {
-          select: () => q, gte: () => q, order: () => q,
+          select: () => q, order: () => q,
+          gte: (_c: string, iso: string) => { h.corteSales = iso; return q; },
+          limit: async () => ({ data: h.vendas.filter(v => v.created_at >= h.corteSales), error: null }),
           range: async (de: number, ate: number) => {
             h.faixas.push([de, ate]);
             if (h.erroNaPagina === h.faixas.length - 1) return { data: null, error: { message: 'falhou' } };
@@ -35,7 +38,7 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 
-import { vendasDesde, chavesComPlanoPago, PAGINA_VENDAS, PAGINAS_VENDAS_MAX } from '../services/solardoc/compraQuizSolardoc';
+import { vendasDesde, vendasRecentes, chavesComPlanoPago, PAGINA_VENDAS, PAGINAS_VENDAS_MAX } from '../services/solardoc/compraQuizSolardoc';
 
 const venda = (i: number) => ({ phone: `5534${String(90000000 + i)}`.slice(0, 13), attribution_session_id: `s${i}`, created_at: `2026-10-${String(20 + (i % 6)).padStart(2, '0')}T10:00:00.000Z` });
 
@@ -92,5 +95,21 @@ describe('chavesComPlanoPago', () => {
     expect(h.lotesIn).toEqual([]);
     h.erroUsers = true;
     await expect(chavesComPlanoPago(['3499990005'])).rejects.toThrow('ler users');
+  });
+});
+
+describe('vendasRecentes (o robô da Carla e o tick de desistência)', () => {
+  const HORA = 3600_000;
+  const agora = Date.parse('2026-11-05T15:00:00Z');
+  const vendaHa = (horas: number, i: number) => ({ phone: `5534${String(91000000 + i)}`, attribution_session_id: `lp${i}`, created_at: new Date(agora - horas * HORA).toISOString() });
+
+  it('alcança o teto de calendário de 120 h mais 1 h de folga: quem pagou no 1º dia não é chamado no 4º', async () => {
+    h.vendas = [vendaHa(96, 1), vendaHa(120, 2), vendaHa(120.5, 3), vendaHa(122, 4)];
+    const r = await vendasRecentes(agora);
+    expect(r.sessoes.has('lp1')).toBe(true);    // 4 dias atrás
+    expect(r.sessoes.has('lp2')).toBe(true);    // exatamente no teto
+    expect(r.sessoes.has('lp3')).toBe(true);    // na folga de 1 h
+    expect(r.sessoes.has('lp4')).toBe(false);   // além do teto mais a folga
+    expect(new Date(h.corteSales).getTime()).toBe(agora - 121 * HORA);
   });
 });

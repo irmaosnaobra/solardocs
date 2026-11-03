@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
   updates: 0,
   /** Força o modoPix() do módulo neutro; undefined = o real. */
   modoPix: undefined as 'link' | 'codigo' | 'indisponivel' | undefined,
+  /** from() do banco do Gerador: null = "sem banco" (lança); senão devolve a cadeia do teste. */
+  gerador: null as null | ((tabela: string) => unknown),
 }));
 
 vi.mock('../utils/supabase', () => ({
@@ -44,7 +46,7 @@ vi.mock('../utils/supabase', () => ({
     },
   },
 }));
-vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: () => { throw new Error('sem banco'); } } }));
+vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => { if (!h.gerador) throw new Error('sem banco'); return h.gerador(t); } } }));
 const correio = vi.hoisted(() => ({ sendOpsAlert: vi.fn(async () => undefined) }));
 vi.mock('../utils/mailer', () => ({ sendOpsAlert: correio.sendOpsAlert }));
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -59,8 +61,9 @@ import {
 } from '../services/solardoc/recuperacaoCarla';
 import { estadoRecuperacaoCarla, envDesligaRecuperacao } from '../services/solardoc/recuperacaoCarlaEstado';
 import {
-  ordenarFila, semCnpj, foraDoTempo, textoDaCarla, chaveVezRec, FRASE_DO_MOTIVO, type LeadRec,
+  ordenarFila, semCnpj, foraDoTempo, idadeUtilMs, textoDaCarla, chaveVezRec, FRASE_DO_MOTIVO, type LeadRec,
 } from '../services/solardoc/recuperacaoCarlaRegras';
+import { ehFeriadoBR } from '../utils/feriadosBR';
 import { hmacDe } from '../services/agentes5040/hmac';
 import { chaveDoTelefone, normalizarTelefoneSd } from '../services/solardoc/quizSolardoc';
 import { chaveContato } from '../services/agents/whatsapp/silenciar';
@@ -94,7 +97,7 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_KEY = 'chave-de-teste';
   delete process.env.AGENTES5040_HMAC;
   delete process.env.QUIZ_RECUPERACAO_LIGADA;
-  h.modoPix = undefined;
+  h.modoPix = undefined; h.gerador = null;
   h.pausa = undefined; h.largada = undefined; h.mudos = []; h.rpcs = []; h.update = 'ok'; h.updates = 0;
   seq = 0;
 });
@@ -177,6 +180,106 @@ describe('a fila e o tempo', () => {
     expect(foraDoTempo({ created_time: min(48 * 60) }, t)).toBeNull();
     expect(foraDoTempo({ created_time: min(48 * 60 + 1) }, t)).toBe('vencido');
     expect(foraDoTempo({ created_time: 'lixo' }, t)).toBe('cedo');
+  });
+  it('a idade útil não conta domingo nem feriado, em dias inteiros de Brasília; a noite dos dias úteis e o sábado contam', () => {
+    const h = 3600_000;
+    // terça 10/11/2026 10:00 BRT (13:00Z) até quinta 10:00 BRT: 48 h de relógio, 48 h úteis
+    expect(idadeUtilMs(Date.parse('2026-11-10T13:00:00Z'), Date.parse('2026-11-12T13:00:00Z'))).toBe(48 * h);
+    // sábado 07/11 10:00 BRT até segunda 09/11 10:00 BRT: o domingo inteiro sai (24 h)
+    expect(idadeUtilMs(Date.parse('2026-11-07T13:00:00Z'), Date.parse('2026-11-09T13:00:00Z'))).toBe(24 * h);
+    // o domingo vai de 00:00 a 24:00 de Brasília: sábado 23:00 BRT (02:00Z de domingo) até segunda 01:00 BRT conta 1 h + 1 h
+    expect(idadeUtilMs(Date.parse('2026-11-08T02:00:00Z'), Date.parse('2026-11-09T04:00:00Z'))).toBe(2 * h);
+    // domingo 01/11 06:45 BRT até terça 03/11 12:00 BRT (segunda 02/11 é Finados): só as 12 h de terça
+    expect(idadeUtilMs(Date.parse('2026-11-01T09:45:00Z'), Date.parse('2026-11-03T15:00:00Z'))).toBe(12 * h);
+    expect(idadeUtilMs(1000, 1000)).toBe(0);
+    expect(idadeUtilMs(2000, 1000)).toBe(0);
+  });
+  it('lead de domingo com a segunda feriado: dentro da janela na terça e na quarta, vencido na quinta', () => {
+    expect(ehFeriadoBR('2026-11-02')).toBe(true);
+    const criado = '2026-11-01T09:45:00.000Z';   // domingo 06:45 BRT
+    const em = (iso: string) => foraDoTempo({ created_time: criado }, Date.parse(iso));
+    expect(em('2026-11-03T03:00:00Z')).toBeNull();   // terça 00:00 BRT
+    expect(em('2026-11-03T15:00:00Z')).toBeNull();   // terça 12:00 BRT
+    expect(em('2026-11-04T23:00:00Z')).toBeNull();   // quarta 20:00 BRT, o fim da janela da linha: 44 h úteis (a conta começa na terça 00:00)
+    expect(em('2026-11-05T02:59:00Z')).toBeNull();   // quinta 23:59 de quarta em BRT: 47 h 59 min úteis
+    expect(em('2026-11-05T03:01:00Z')).toBe('vencido');   // quinta 00:01 BRT: passou de 48 h úteis
+    expect(em('2026-11-05T13:00:00Z')).toBe('vencido');   // quinta 10:00 BRT
+  });
+  it('lead de terça 10:00 BRT vence na quinta 10:00 BRT, como antes (nenhum domingo no meio)', () => {
+    const criado = '2026-11-10T13:00:00.000Z';
+    const em = (iso: string) => foraDoTempo({ created_time: criado }, Date.parse(iso));
+    expect(em('2026-11-12T13:00:00Z')).toBeNull();        // 48 h exatas
+    expect(em('2026-11-12T13:01:00Z')).toBe('vencido');   // 48 h e 1 min
+  });
+  it('domingo de Carnaval de 2027: o lead segue elegível na quarta-feira', () => {
+    expect(ehFeriadoBR('2027-02-08')).toBe(true);    // segunda de Carnaval
+    expect(ehFeriadoBR('2027-02-09')).toBe(true);    // terça de Carnaval
+    expect(ehFeriadoBR('2027-02-10')).toBe(false);   // quarta de Cinzas não é feriado nacional
+    const criado = '2027-02-07T12:00:00.000Z';   // domingo 09:00 BRT
+    const em = (iso: string) => foraDoTempo({ created_time: criado }, Date.parse(iso));
+    expect(em('2027-02-10T13:00:00Z')).toBeNull();        // quarta 10:00 BRT: 75 h de calendário, 10 h úteis
+    expect(em('2027-02-11T13:00:00Z')).toBeNull();        // quinta 10:00 BRT: 34 h úteis
+    expect(em('2027-02-12T03:01:00Z')).toBe('vencido');   // sexta 00:01 BRT: 48 h e 1 min úteis, 111 h de calendário (o teto não entra)
+  });
+  it('a rodada chama o lead de domingo na quarta, dentro da janela, e não o chama na quinta; a leitura vai até 120 h atrás', async () => {
+    const dom = lead({ created_time: '2026-11-01T09:45:00.000Z' });
+    const largada = Date.parse('2026-10-25T12:00:00Z');
+    // o falso de leitura OLHA o intervalo (desde e ate), como o banco: com o piso antigo de 48 h o lead de domingo nem seria devolvido na quarta
+    const leitura = (): { leads: DepsRec['leads']; args: Array<[string, string]> } => {
+      const args: Array<[string, string]> = [];
+      return {
+        args,
+        leads: async (desde, ate) => {
+          args.push([desde, ate]);
+          return [dom].filter(l => l.created_time! >= desde && l.created_time! <= ate);
+        },
+      };
+    };
+    const qua = leitura();
+    const agoraQua = new Date('2026-11-04T17:00:00Z');
+    const quarta = await rodar(falsas([dom], { garantirLargada: async () => largada, leads: qua.leads }).d, agoraQua);
+    expect(quarta.enviou).toBe(true);
+    expect(qua.args).toEqual([[new Date(agoraQua.getTime() - 120 * 3600_000).toISOString(), new Date(agoraQua.getTime() - 15 * 60_000).toISOString()]]);
+    const qui = leitura();
+    const quinta = await rodar(falsas([dom], { garantirLargada: async () => largada, leads: qui.leads }).d, new Date('2026-11-05T13:00:00Z'));
+    expect(quinta.enviou).toBe(false);
+    expect(quinta.candidatos).toBe(0);
+  });
+  it('a leitura real do banco pede do mais novo ao mais antigo (a janela larga nunca corta o lead fresco)', async () => {
+    const chamadas: Array<[string, unknown]> = [];
+    const cadeia: any = {
+      select: () => cadeia, eq: () => cadeia, gte: () => cadeia, lte: () => cadeia,
+      order: (col: string, o: unknown) => { chamadas.push([col, o]); return cadeia; },
+      limit: async () => ({ data: [], error: null }),
+    };
+    h.gerador = () => cadeia;
+    await depsReais().leads('2026-10-30T17:00:00.000Z', '2026-11-04T16:45:00.000Z');
+    expect(chamadas).toEqual([['created_time', { ascending: false }]]);
+  });
+  it('lead que reprova por motivo permanente (comprou) ganha a marca quiz_rec_pulou e não é mais avaliado nas rodadas seguintes', async () => {
+    const velho = lead({ created_time: min(26 * 60) });
+    const marcas: string[] = [];
+    const comprou = { garantirLargada: async () => AGORA.getTime() - 72 * 3600_000, compra: async () => true, marcarPulo: async (c: string) => { marcas.push(c); } };
+    const { d, e } = falsas([velho], comprou);
+    // o falso de existentes enxerga as marcas gravadas
+    d.existentes = async (chaves) => new Set(chaves.filter(c => e.claims.has(c) || marcas.includes(c)));
+    const r1 = await rodar(d);
+    expect(r1.avaliados).toBe(1);
+    expect(r1.puladas.comprou).toBe(1);
+    expect(marcas).toEqual([expect.stringMatching(/^quiz_rec_pulou:/)]);
+    const r2 = await rodar(d);
+    expect(r2.avaliados).toBe(0);
+    expect(r2.candidatos).toBe(0);
+    expect(e.enviados).toHaveLength(0);
+  });
+  it('motivo que pode mudar (posse de outra agente) NÃO ganha a marca: continua sendo reavaliado', async () => {
+    const velho = lead({ created_time: min(26 * 60) });
+    const marcas: string[] = [];
+    const { d, e } = falsas([velho], { garantirLargada: async () => AGORA.getTime() - 72 * 3600_000, posse: async () => 'ocupada', marcarPulo: async (c: string) => { marcas.push(c); } });
+    d.existentes = async (chaves) => new Set(chaves.filter(c => e.claims.has(c) || marcas.includes(c)));
+    expect((await rodar(d)).puladas.posse).toBe(1);
+    expect((await rodar(d)).avaliados).toBe(1);
+    expect(marcas).toEqual([]);
   });
   it('a vez de 10 min é uma chave por faixa', () => {
     expect(chaveVezRec(new Date('2026-10-21T17:00:00Z'))).toBe(chaveVezRec(new Date('2026-10-21T17:09:59Z')));

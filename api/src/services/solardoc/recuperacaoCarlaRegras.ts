@@ -15,6 +15,13 @@ export const PREFIXO_CARIMBO_REC = 'quiz_rec_sent:';
  * e não gasta as avaliações da rodada. A marca é gravada ANTES do aviso, nunca depois.
  */
 export const PREFIXO_AINDA_REC = 'quiz_rec_ainda:';
+/**
+ * Marca de "descartado": o lead reprovou na avaliação por motivo que NÃO volta atrás (comprou, já falou com a linha, pediu para não receber,
+ * mudo). O robô grava `quiz_rec_pulou:<hmac>` e a fila nunca mais o avalia, para ele não gastar as avaliações da rodada (a leitura é de 120 h).
+ * Só tira lead da fila: nunca faz ninguém receber mensagem. Motivo que pode mudar (posse, humano na conversa, leitura) segue reavaliado.
+ */
+export const PREFIXO_PULOU_REC = 'quiz_rec_pulou:';
+export const MOTIVOS_PERMANENTES_REC: ReadonlySet<string> = new Set(['comprou', 'ja_falou', 'suprimido', 'mudo']);
 /** A vez de 10 min do robô: fora de BOT_SENT_PREFIXES (não é envio). */
 export const PREFIXO_VEZ_REC = 'quiz_rec_vez:';
 /** Pausa pelo banco (mesma tabela e mesmo mecanismo de ag5040_linha_pausa). */
@@ -22,10 +29,18 @@ export const CHAVE_PAUSA_QUIZ_REC = 'quiz_rec_pausa';
 /** Hora da largada: o robô só considera lead gravado depois dela. */
 export const CHAVE_LARGADA_REC = 'quiz_rec_largada';
 
+import { ehFeriadoBR } from '../../utils/feriadosBR';
+
 export const ESPERA_MIN_MS = 15 * 60_000;
+/** A janela da Carla: 48 h de idade ÚTIL (sem domingo e feriado, ver `idadeUtilMs`). */
 export const JANELA_MAX_MS = 48 * 3600_000;
-/** O tick do B1 lê até aqui quando o robô está ligado, para dar o aviso de "venceu" ao lead que acabou de vencer. */
-export const JANELA_LEITURA_COM_ROBO_MS = 50 * 3600_000;
+/** Teto de calendário (03/11/2026): passou disto o lead está vencido, não importa a idade útil. */
+export const TETO_CALENDARIO_MS = 120 * 3600_000;
+/**
+ * O tick do B1 lê até aqui quando o robô está ligado, para dar o aviso de "venceu" ao lead que acabou de vencer: o teto de calendário
+ * mais 2 h de folga. É sempre maior que JANELA_MAX_MS (o tick lê de `JANELA_LEITURA_COM_ROBO_MS` atrás até `JANELA_MAX_MS` atrás).
+ */
+export const JANELA_LEITURA_COM_ROBO_MS = TETO_CALENDARIO_MS + 2 * 3600_000;
 /** O tick só segura o lead para o robô enquanto ele tem menos que isto desde o `created_time` (e a janela da linha está aberta). */
 export const SEGURA_PARA_O_ROBO_MS = 60 * 60_000;
 
@@ -93,11 +108,36 @@ export function idadeMs(l: Pick<LeadRec, 'created_time'>, agoraMs: number): numb
   return Number.isFinite(t) ? agoraMs - t : null;
 }
 
-/** 'cedo' = menos de 15 min; 'vencido' = mais de 48 h; null = dentro da janela. Hora ilegível vale 'cedo' (nunca envia). */
+const DIA_MS = 24 * 3600_000;
+const BRT_MS = 3 * 3600_000;   // Brasília é UTC-3 o ano todo (sem horário de verão desde 2019): o mesmo deslocamento do `diaBRT`
+
+/**
+ * Idade do lead em ms SEM contar domingo e feriado nacional. Os dias excluídos são dias INTEIROS de Brasília (00:00 a 24:00);
+ * a noite dos dias úteis (e o sábado) continua contando. `desde` e `agora` em ms (UTC). Idade negativa vale 0.
+ */
+export function idadeUtilMs(desde: number, agora: number): number {
+  if (!Number.isFinite(desde) || !Number.isFinite(agora) || agora <= desde) return 0;
+  let util = agora - desde;
+  // índice do dia de Brasília (dias desde 1970-01-01, já no fuso)
+  const primeiro = Math.floor((desde - BRT_MS) / DIA_MS);
+  const ultimo = Math.floor((agora - BRT_MS) / DIA_MS);
+  for (let dia = primeiro; dia <= ultimo; dia++) {
+    const data = new Date(dia * DIA_MS);
+    if (data.getUTCDay() !== 0 && !ehFeriadoBR(data.toISOString().slice(0, 10))) continue;
+    const ini = dia * DIA_MS + BRT_MS;   // 00:00 de Brasília, em UTC
+    util -= Math.max(0, Math.min(agora, ini + DIA_MS) - Math.max(desde, ini));
+  }
+  return util;
+}
+
+/**
+ * 'cedo' = menos de 15 min de calendário; 'vencido' = mais de 48 h de idade útil OU mais de 120 h de calendário; null = dentro da janela.
+ * Hora ilegível vale 'cedo' (nunca envia).
+ */
 export function foraDoTempo(l: Pick<LeadRec, 'created_time'>, agoraMs: number): 'cedo' | 'vencido' | null {
   const idade = idadeMs(l, agoraMs);
   if (idade === null || idade < ESPERA_MIN_MS) return 'cedo';
-  if (idade > JANELA_MAX_MS) return 'vencido';
+  if (idade > TETO_CALENDARIO_MS || idadeUtilMs(agoraMs - idade, agoraMs) > JANELA_MAX_MS) return 'vencido';
   return null;
 }
 

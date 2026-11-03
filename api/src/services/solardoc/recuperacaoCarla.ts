@@ -11,7 +11,7 @@
 //   0. estado (ligada?) e segredo de HMAC;  1. a largada;
 //   2. as travas, nesta ordem: janela 9h-20h BRT seg a sáb  >  ag5040_linha_pausa  >  teto do frio {robo}  >  espaçamento;
 //   3. a vez (insert quiz_rec_vez:<faixa de 10 min>);
-//   4. a fila: leads de leads_meta (form_id quiz_solardoc) gravados há 15 min ou mais e há 48 h ou menos, depois da largada, não de teste,
+//   4. a fila: leads de leads_meta (form_id quiz_solardoc) gravados há 15 min ou mais e há até 48 h de idade útil (sem domingo e feriado; teto de 120 h de calendário), depois da largada, não de teste,
 //      COM CNPJ, fora quem já tem claim (quiz_rec_sent ou quiz_aviso), ordenada por intenção e, dentro dela, do mais antigo ao mais novo;
 //   5. por lead, ANTES do claim (avaliarLead): compra > posse > já falou com a linha > pausa humana e supressão;  depois phone-exists;
 //   6. as travas de novo, o claim (quiz_rec_sent:<hmac>, para sempre), assumirPosse('carla'), releitura da conversa e da supressão
@@ -51,8 +51,8 @@ import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, fecharSemGrupo, PREFIX
 import { comprouLead, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
-  FRASE_DO_MOTIVO, ESPERA_MIN_MS, JANELA_MAX_MS, PREFIXO_CARIMBO_REC, PREFIXO_VEZ_REC, ROBO_QUIZ_REC,
-  campoFd, chaveVezRec, diaBRT, foraDoTempo, horaBRT, motivoSemBanco, ordenarFila, semCnpj, textoDaCarla, PREFIXO_AINDA_REC,
+  FRASE_DO_MOTIVO, ESPERA_MIN_MS, TETO_CALENDARIO_MS, PREFIXO_CARIMBO_REC, PREFIXO_VEZ_REC, ROBO_QUIZ_REC,
+  campoFd, chaveVezRec, MOTIVOS_PERMANENTES_REC, PREFIXO_PULOU_REC, diaBRT, foraDoTempo, horaBRT, motivoSemBanco, ordenarFila, semCnpj, textoDaCarla, PREFIXO_AINDA_REC,
   type LeadRec, type MotivoNaoChama,
 } from './recuperacaoCarlaRegras';
 
@@ -128,7 +128,7 @@ export async function podeFalarAgora(tel: string, d: DepsAvaliar): Promise<'sim'
 
 /**
  * Tudo que dá para saber SEM falar com ninguém e sem o phone-exists: teste, telefone, CNPJ, largada, texto, compra, posse, já falou com a
- * linha, pausa humana, supressão e mudo (nesta ordem). O tempo (15 min a 48 h) é de quem chama.
+ * linha, pausa humana, supressão e mudo (nesta ordem). O tempo (15 min a 48 h úteis, teto de 120 h) é de quem chama.
  */
 export async function avaliarLead(lead: LeadRec, c: ContextoAvaliar, d: DepsAvaliar): Promise<Avaliacao> {
   if (ehLeadDeTeste(lead.field_data)) return { ok: false, motivo: 'teste' };
@@ -211,6 +211,8 @@ export interface DepsRec extends DepsAvaliar {
   claim(chave: string, agora: Date): Promise<'ok' | 'ja' | 'erro'>;
   apagarClaim(chave: string): Promise<void>;
   marcarClaim(chave: string, valor: Record<string, unknown>): Promise<void>;
+  /** Grava a marca `quiz_rec_pulou:<hmac>` (lead descartado por motivo permanente). Opcional; erro é engolido: sem a marca o lead só é reavaliado. */
+  marcarPulo?(chave: string, motivo: string, agora: Date): Promise<void>;
   assumirPosse(chave: string, em: string): Promise<ResultadoAssumir>;
   posseAindaNossa(chave: string, em: string): Promise<boolean>;
   desfazerPosse(chave: string, em: string): Promise<boolean>;
@@ -269,21 +271,22 @@ async function travas(d: DepsRec, agora: Date, janelaJaConferida?: boolean): Pro
  */
 async function lerFila(d: DepsRec, agora: Date, largadaMs: number, opts: { semAvisados?: boolean } = {}): Promise<{ fila: LeadRec[]; total: number } | null> {
   const agoraMs = agora.getTime();
-  const desde = Math.max(largadaMs, agoraMs - JANELA_MAX_MS);
+  // Lê até o teto de calendário (120 h); quem vence pela idade útil (48 h sem domingo e feriado) o `foraDoTempo` tira logo abaixo.
+  const desde = Math.max(largadaMs, agoraMs - TETO_CALENDARIO_MS);
   const lidos = await d.leads(new Date(desde).toISOString(), new Date(agoraMs - ESPERA_MIN_MS).toISOString());
   if (!lidos) return null;
   const candidatos = lidos.filter(l => !ehLeadDeTeste(l.field_data) && foraDoTempo(l, agoraMs) === null && !semCnpj(l.field_data) && !!hmacDoLeadRec(l));
   if (!candidatos.length) return { fila: [], total: lidos.length };
   const chaves = candidatos.flatMap(l => {
     const h = hmacDoLeadRec(l) as string;
-    const base = [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`, `${PREFIXO_AINDA_REC}${h}`];
+    const base = [`${PREFIXO_CARIMBO_REC}${h}`, `${PREFIXO_CLAIM_QUIZ}${h}`, `${PREFIXO_AINDA_REC}${h}`, `${PREFIXO_PULOU_REC}${h}`];
     return opts.semAvisados ? [...base, `${PREFIXO_CLAIM_QUIZ}${h}${SUFIXO_SEM_VAGA}`] : base;
   });
   const tem = await d.existentes(chaves);
   if (!tem) return null;
   const livres = candidatos.filter(l => {
     const h = hmacDoLeadRec(l) as string;
-    if (tem.has(`${PREFIXO_CARIMBO_REC}${h}`)) return false;
+    if (tem.has(`${PREFIXO_CARIMBO_REC}${h}`) || tem.has(`${PREFIXO_PULOU_REC}${h}`)) return false;
     if (opts.semAvisados) return !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}`) && !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}${SUFIXO_SEM_VAGA}`);
     return !tem.has(`${PREFIXO_CLAIM_QUIZ}${h}`) || tem.has(`${PREFIXO_AINDA_REC}${h}`);
   });
@@ -345,7 +348,11 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
 
       // 5. antes do claim: compra, posse, já falou, pausa humana e supressão; depois o phone-exists
       const av = await avaliarLead(lead, ctx, d);
-      if (!av.ok) { nota('pulou', av.motivo); continue; }
+      if (!av.ok) {
+        nota('pulou', av.motivo);
+        if (MOTIVOS_PERMANENTES_REC.has(av.motivo)) { try { await d.marcarPulo?.(`${PREFIXO_PULOU_REC}${hmac}`, av.motivo, agora); } catch { /* sem a marca ele só é reavaliado */ } }
+        continue;
+      }
       // Quem marcou no quiz que prefere pagar no Pix ouve que dá para assinar no Pix por aqui (só se há Pix disponível agora).
       const pixPorAqui = campoFd(lead.field_data, 'pagamento') === 'pix' && modoPix() !== 'indisponivel';
       const texto = textoDaCarla(lead, { pixPorAqui });
@@ -513,7 +520,7 @@ export function depsReais(): DepsRec {
       try {
         const { data, error } = await supabaseGerador.from('leads_meta').select(colunas)
           .eq('form_id', 'quiz_solardoc').gte('created_time', desdeIso).lte('created_time', ateIso)
-          .order('created_time', { ascending: true }).limit(300);
+          .order('created_time', { ascending: false }).limit(300);   // do mais novo: a leitura larga (120 h) nunca corta o lead fresco; `ordenarFila` reordena
         if (error) return null;
         return (data ?? []) as LeadRec[];
       } catch { return null; }
@@ -528,6 +535,7 @@ export function depsReais(): DepsRec {
       return v === 'reservada' ? 'ok' : v === 'ja_existe' ? 'ja' : 'erro';
     },
     apagarClaim: (chave) => liberarChave(chave),
+    async marcarPulo(chave, motivo, agora) { await reservarChave(chave, { em: agora.toISOString(), motivo }, agora); },
     async marcarClaim(chave, valor) {
       // O update devolve { error } sem lançar: conferir os dois (exceção e erro). O claim fica como está; o tick trata carimbo sem estado como "não saiu".
       try {
@@ -606,7 +614,7 @@ export async function sondarRecuperacaoQuiz(opts: { agora?: Date; vagas?: () => 
     leads: [],
   };
   const agoraMs = agora.getTime();
-  const lidos = await d.leads(new Date(agoraMs - 50 * 3600_000).toISOString(), agora.toISOString());
+  const lidos = await d.leads(new Date(agoraMs - TETO_CALENDARIO_MS - 2 * 3600_000).toISOString(), agora.toISOString());
   if (!lidos) return relatorio;
   let vendas: VendasRecentes | null = null;
   try { vendas = await d.vendas(agoraMs); } catch { vendas = null; }

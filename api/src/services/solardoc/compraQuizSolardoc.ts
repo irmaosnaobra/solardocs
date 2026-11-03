@@ -10,7 +10,7 @@
 import { supabase } from '../../utils/supabase';
 import { chaveDoContato } from '../chefe/destinos';
 import { variantesDaChave } from '../gerador/caixaWhatsapp';
-import { JANELA_MAX_MS } from './recuperacaoCarlaRegras';
+import { TETO_CALENDARIO_MS } from './recuperacaoCarlaRegras';
 
 interface VendaLinha { phone?: string | null; attribution_session_id?: string | null }
 
@@ -20,7 +20,7 @@ export interface VendasRecentes { sessoes: Set<string>; chaves: Set<string> }
 export async function vendasRecentes(agora: number): Promise<VendasRecentes> {
   const sessoes = new Set<string>();
   const chaves = new Set<string>();
-  const desde = new Date(agora - JANELA_MAX_MS - 3600_000).toISOString();
+  const desde = new Date(agora - TETO_CALENDARIO_MS - 3600_000).toISOString();
   const { data, error } = await supabase.from('sales').select('phone, attribution_session_id').gte('created_at', desde).limit(2000);
   if (error) throw new Error(`ler vendas: ${error.message}`);
   for (const v of (data ?? []) as VendaLinha[]) {
@@ -48,7 +48,7 @@ export async function comprouLead(vendas: VendasRecentes, lp: string, chave: str
 
 // ── só leitura, para a tela do /gerador (26/10/2026) ─────────────────────────
 // As funções acima não mudam. Esta lê a MESMA tabela e as MESMAS duas chaves de casamento, mas com a data da venda e uma janela
-// que o chamador escolhe (a tela olha até 180 dias; o robô olha 48 h), para a tela poder escrever "Sim, em 26/10".
+// que o chamador escolhe (a tela olha até 180 dias; o robô e o tick olham até o teto de calendário de 120 h mais 1 h), para a tela poder escrever "Sim, em 26/10".
 
 export interface VendasComData { sessoes: Map<string, string>; chaves: Map<string, string>; truncada: boolean }
 

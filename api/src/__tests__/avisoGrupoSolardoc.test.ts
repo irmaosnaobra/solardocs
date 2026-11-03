@@ -1054,17 +1054,48 @@ describe('B2: o tick de desistência com o robô da Carla ligado', () => {
     expect(r.avisados).toBe(0);
     expect(sendToGroup).not.toHaveBeenCalled();
   });
-  it('venceu em 48 h sem a Carla chamar: o tick avisa (lê até 50 h)', async () => {
+  // O relógio fica fixo só no Date (não nos timers) e a largada é refeita alguns dias antes dele: a idade útil depende do dia da semana e do feriado,
+  // e os testes de vencimento com o relógio de verdade passariam ou falhariam conforme o dia em que rodam.
+  const fixarRelogio = (iso: string, largadaDias = 3) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(iso));
+    tabelas.system_state = tabelas.system_state!.filter(r => r.key !== 'quiz_rec_largada');
+    semearLargada(largadaDias * 24 * 60);
+  };
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('venceu em 48 h úteis sem a Carla chamar: o tick avisa (lê até 122 h de calendário)', async () => {
+    fixarRelogio('2026-10-22T17:00:00.000Z');   // quinta; 49 h antes é terça, sem domingo nem feriado no meio
     podeChamar();
     tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(49 * 60) }));
     const r = await runSolardocQuizDesistenciaTick();
     expect(r.avisados).toBe(1);
     expect(textoEnviado()).toContain('A Carla não chamou: passou de 48 horas sem vaga.');
   });
-  it('mais de 50 h: nem lê', async () => {
+  it('mais de 122 h de calendário (teto de 120 h mais 2 h): nem lê', async () => {
+    // era "mais de 50 h": a leitura de quem acabou de vencer agora vai até o teto de calendário, não até 50 h
+    fixarRelogio('2026-10-22T17:00:00.000Z');
     podeChamar();
-    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(51 * 60) }));
+    tabelas.leads_meta!.push(leadQuiz({ created_time: minAtras(123 * 60) }));
     expect((await runSolardocQuizDesistenciaTick()).avisados).toBe(0);
+  });
+  it('lead de domingo com a segunda feriado: na terça a Carla ainda pode chamar, então o aviso é "sem vaga", nunca "passou de 48 horas"', async () => {
+    fixarRelogio('2026-11-03T15:00:00.000Z', 10);   // terça 12:00 BRT; o lead tem 53 h de calendário e só 12 h úteis
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz({ created_time: '2026-11-01T09:45:00.000Z' }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla ainda não teve vaga para chamar.');
+    expect(textoEnviado()).not.toContain('passou de 48 horas');
+    expect(chave(`quiz_rec_ainda:${hmacDoLead('5534999998888')}`)).toBeTruthy();
+  });
+  it('o mesmo lead de domingo na quinta, com 48 h úteis vencidas: aí sim "passou de 48 horas"', async () => {
+    fixarRelogio('2026-11-05T13:00:00.000Z', 10);   // quinta 10:00 BRT: 57 h úteis, 98 h de calendário
+    podeChamar();
+    tabelas.leads_meta!.push(leadQuiz({ created_time: '2026-11-01T09:45:00.000Z' }));
+    const r = await runSolardocQuizDesistenciaTick();
+    expect(r.avisados).toBe(1);
+    expect(textoEnviado()).toContain('A Carla não chamou: passou de 48 horas sem vaga.');
   });
   it('a Carla chamou e o aviso dela não foi tomado em 5 min (o robô caiu): o tick assume, com a hora', async () => {
     const h = hmacDoLead('5534999998888');

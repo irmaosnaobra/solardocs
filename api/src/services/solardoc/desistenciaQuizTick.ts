@@ -13,14 +13,14 @@
 //     caminho do robô ("A Carla falou às HH:MM", pendente, enviado por este tick no cartão).
 //   - Fora disso o tick avisa JÁ, com uma linha de status: "A Carla chama no próximo horário da linha, de segunda a sábado, das 9h às 20h."
 //     (linha fechada), "A Carla ainda não teve vaga para chamar." (60 min sem ela, linha aberta), a linha de motivo ("A Carla não vai
-//     chamar: ainda sem CNPJ.", "A Carla está desligada agora.") ou o vencimento (48 h a 50 h, "A Carla não chamou: passou de 48 horas sem vaga.").
+//     chamar: ainda sem CNPJ.", "A Carla está desligada agora.") ou o vencimento (48 h úteis ou 120 h de calendário, "A Carla não chamou: passou de 48 horas sem vaga.").
 //     Depois do aviso de status a Carla ainda pode mandar a mensagem dela (marca quiz_rec_ainda), mas NÃO sai um segundo aviso: o claim vale.
 //   - A Carla chamou (carimbo quiz_rec_sent) e o aviso dela não chegou a ser tomado por 5 min (o robô caiu depois do envio): este tick toma.
 //     Carimbo com estado 'nao_saiu' (o sendFrio calou: nada foi enviado) é avisado na hora, com o motivo, nunca com "falou às".
 //   - Antes de avisar, o tick RELÊ o carimbo do lead (a corrida com a rodada do robô): se a Carla acabou de chamar, o aviso é dela.
 //
 // LEITURA: do mais novo para o mais antigo, em páginas de 100, pulando quem já tem claim. Com o robô ligado, uma leitura à parte vai
-// primeiro nos que acabaram de vencer (48 h a 50 h): os novos, que vêm primeiro, não deixam o vencido sem aviso.
+// primeiro na faixa de 48 h a 122 h de calendário, onde o lead pode ter acabado de vencer (48 h úteis ou teto de 120 h): os novos, que vêm primeiro, não deixam o vencido sem aviso.
 //
 // LIMITE: 10 TENTATIVAS por rodada (toda chamada ao aviso conta), no máximo 12 leads avaliados com leitura por rodada (as conferências
 // sem banco e o lead segurado para o robô não gastam essa conta), e o primeiro
@@ -47,7 +47,7 @@ import { avaliarLead, depsAvaliarReais, type DepsAvaliar } from './recuperacaoCa
 import { estadoRecuperacaoCarla, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
   ESPERA_MIN_MS, FRASE_DO_MOTIVO, FRASE_FORA_DA_JANELA, FRASE_NAO_CONFERIU, FRASE_NAO_CONFIRMOU_ENVIO, FRASE_SEM_VAGA_AINDA, JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS,
-  PREFIXO_AINDA_REC, PREFIXO_CARIMBO_REC, SEGURA_PARA_O_ROBO_MS, horaBRT, motivoSemBanco,
+  PREFIXO_AINDA_REC, PREFIXO_CARIMBO_REC, SEGURA_PARA_O_ROBO_MS, foraDoTempo, horaBRT, motivoSemBanco,
 } from './recuperacaoCarlaRegras';
 
 export { ESPERA_MIN_MS, JANELA_MAX_MS };
@@ -199,6 +199,8 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
       let conferirPosse = false;   // o motivo é `posse`: confere de quem é antes de dizer "outra agente"
       const criado = Date.parse(String(l.created_time ?? '')) || agora;
       const idade = agora - criado;
+      // Vencido pela MESMA regra da Carla (48 h de idade útil, sem domingo e feriado, ou 120 h de calendário): o aviso nunca diz "passou de 48 horas" com a Carla ainda podendo chamar.
+      const vencido = foraDoTempo(l, agora) === 'vencido';
       if (!estado.ligada) {
         motivo = FRASE_DO_MOTIVO.desligada;
       } else {
@@ -226,14 +228,14 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
               // Leitura que falhou não é motivo: enquanto valem as 3 condições do segurar (robô ligado, janela aberta agora e menos de 60 min),
               // não toma o claim e tenta de novo na próxima rodada. Depois disso vale o teto universal (B2.2): o time é avisado.
               if (av.motivo === 'leitura_falhou') {
-                if (idade > JANELA_MAX_MS) motivo = FRASE_DO_MOTIVO.vencido;   // já venceu: avisa, a Carla não vai mais chamar
+                if (vencido) motivo = FRASE_DO_MOTIVO.vencido;   // já venceu: avisa, a Carla não vai mais chamar
                 else if (janelaAberta && idade < SEGURA_PARA_O_ROBO_MS) { deixados++; continue; }
                 else motivo = FRASE_NAO_CONFERIU;
               } else {
                 motivo = FRASE_DO_MOTIVO[av.motivo];
                 conferirPosse = av.motivo === 'posse';
               }
-            } else if (idade > JANELA_MAX_MS) {
+            } else if (vencido) {
               motivo = FRASE_DO_MOTIVO.vencido;
             } else {
               // A Carla ainda pode chamar e o tick não segura: avisa o time já, com a linha de status.
@@ -288,11 +290,17 @@ export async function runSolardocQuizDesistenciaTick(opts: { dry?: boolean } = {
     return (data ?? []) as LeadQuizLinha[];
   };
 
-  // Robô ligado: primeiro os que acabaram de vencer (48 h a 50 h), do mais antigo ao mais novo.
+  // Robô ligado: primeiro a faixa de 48 h a 122 h de calendário (onde um lead pode ter acabado de vencer pela idade útil ou pelo teto de 120 h),
+  // do mais antigo ao mais novo, em páginas (o claim é filtrado depois da leitura: uma página só encheria de lead já avisado). O `processar`
+  // decide por lead: o que venceu recebe "passou de 48 horas"; o que a Carla ainda pode chamar recebe a linha de status.
   if (estado.ligada) {
-    const vencidos = await ler(JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS, 'antigo', 50);
-    if (vencidos === null) { await fecharEmail(); return { avisados, tentativas, pendentes, motivo: 'erro_leitura' }; }
-    if (vencidos.length) await processar(vencidos);
+    for (let pagina = 0; pagina < PAGINAS_MAX && !encerrar && tentativas < TENTATIVAS_POR_RODADA; pagina++) {
+      const vencidos = await ler(JANELA_LEITURA_COM_ROBO_MS, JANELA_MAX_MS, 'antigo', PAGINA, pagina * PAGINA);
+      if (vencidos === null) { await fecharEmail(); return { avisados, tentativas, pendentes, motivo: 'erro_leitura' }; }
+      if (!vencidos.length) break;
+      await processar(vencidos);
+      if (vencidos.length < PAGINA) break;
+    }
   }
   for (let pagina = 0; pagina < PAGINAS_MAX && !encerrar && tentativas < TENTATIVAS_POR_RODADA; pagina++) {
     // Do mais novo para o mais antigo (até 48 h).
