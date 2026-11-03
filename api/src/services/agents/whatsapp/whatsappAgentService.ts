@@ -1058,8 +1058,7 @@ export async function handleIncomingWhatsApp(
   }).eq('id', user.id);
 
   // A RETOMADA DA CARLA (03/11/2026): conversa aberta pelo robô carla_retomada_usuarios é da Carla (posse viva, origem retomada_usuarios, ainda
-  // valendo). A Giovanna não responde por cima: pausa, despedida e resposta são da rodada viva da Carla. Só o comprovante de Pix passa, porque é
-  // ele que libera +1 mês NA CONTA QUE JÁ EXISTE (tryProcessPixComprovante, por user.id). Assinante volta para a Giovanna (o corte só vale para
+  // valendo). A Giovanna não responde por cima: pausa, despedida e resposta são da rodada viva da Carla. Assinante volta para a Giovanna (o corte só vale para
   // o plano free).
   if (originInstance === 'io' && user.plano === 'free' && await cedeARetomadaDaCarla(cleanPhone)) {
     // O PARE e a denúncia não podem depender da rodada da Carla: com a IA parada, nada ficaria gravado. Valem as frases que a Giovanna já
@@ -1068,12 +1067,8 @@ export async function handleIncomingWhatsApp(
     if (ehDenunciaDaRetomada || OPT_OUT_PATTERNS.test(text) || pedeParaPararDeReceber([text])) {
       await silenciarNaRetomada(user.id, cleanPhone, ehDenunciaDaRetomada ? 'denuncia' : 'opt_out');
     }
-    if (comprovanteSource) {
-      try {
-        const { tryProcessPixComprovante } = await import('./pixComprovanteService');
-        await tryProcessPixComprovante(user, comprovanteSource, cleanPhone, originInstance, text);
-      } catch (err) { logger.error('whatsapp', 'pix-comprovante na retomada da Carla falhou', err); }
-    }
+    // Comprovante: não passa aqui. Todo Pix é o automático (libera sozinho pelo banco) e a ação comprovante_pix da Carla leva a ficha ao humano;
+    // a confirmação do comprovante da Giovanna seria uma segunda fala por cima da Carla.
     return;
   }
 

@@ -154,6 +154,11 @@ export function planejarCarla(p: PedidoPlano): PlanoCarla | RecusaCarla {
   // Entrar no app: o login da conta que já existe. Só na retomada.
   if (id === 'entrar_no_app' && peca.tipo === 'link') {
     if (!daRet) return recusa('entrar_sem_conta', 'o link de entrar no app é só para quem já tem conta.');
+    // Ex-assinante: o Customer antigo da Stripe tem a assinatura cancelada, o Fazer Upgrade abre um checkout novo e a Stripe cria outro
+    // Customer para quem já tem conta. Até o create-checkout reusar o Customer, esse grupo só tem o Pix automático.
+    if ((posse.retomada as { segmento?: unknown } | null | undefined)?.segmento === 'ex_assinante') {
+      return recusa('entrar_ex_assinante', 'esta pessoa já assinou antes: o cartão pelo app abre outra cobrança. Ofereça só o Pix automático (peça pix_automatico) e siga o aviso do Pix desta conversa.');
+    }
     return linkDe(LINKS_CARLA.entrar_no_app!, 'entrar_no_app');
   }
   if (id.startsWith('avulso:') && peca.tipo === 'link') {

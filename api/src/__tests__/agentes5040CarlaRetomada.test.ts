@@ -335,6 +335,13 @@ describe('planejarCarla na retomada e fora dela', () => {
     expect(repetido.motivo).toBe('link_repetido');
   });
 
+  it('ex-assinante: entrar_no_app é recusado (o cartão pelo app abre outra cobrança) e manda para o Pix automático; quem nunca assinou segue', () => {
+    const ex = recusado(plano(saida({ tipo: 'link', id: 'entrar_no_app' }), posseRet({ retomada: { segmento: 'ex_assinante', grupo: 'pagou' } })));
+    expect(ex.motivo).toBe('entrar_ex_assinante');
+    expect(ex.aviso).toContain('pix_automatico');
+    expect(plano(saida({ tipo: 'link', id: 'entrar_no_app' }), posseRet({ retomada: { segmento: 'gratis_ativo', grupo: 'nunca_pagou' } })).ok).toBe(true);
+  });
+
   it('FORA da retomada: entrar_no_app é recusado (é só para quem já tem conta), e assinatura, o Pix automático e a planilha seguem como hoje', () => {
     expect(recusado(plano(saida({ tipo: 'link', id: 'entrar_no_app' }), posseNormal())).motivo).toBe('entrar_sem_conta');
     expect(plano(saida({ tipo: 'link', id: 'assinatura' }), posseNormal()).ok).toBe(true);

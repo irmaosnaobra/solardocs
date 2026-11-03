@@ -12,9 +12,9 @@ export const FRASE_IA_GIOVANNA = 'Sou a IA do SolarDoc, sim.';
 // exclamação, interrogação, quebra de linha ou o separador de bolhas ||). A borda depois da palavra é uma busca à frente por letra ou número:
 // o \b do JavaScript não enxerga "ô" como letra, e "robô," nunca fecharia.
 const NEGA_IA = new RegExp(
-  String.raw`\bn[aã]o sou (?:uma |um )?(?:ia|rob[oô]|bot|intelig[eê]ncia artificial)(?![\p{L}\p{N}])[^.!?\n|]*[.!?]?`
+  String.raw`\bn[aã]o sou (?:uma |um )?(?:ia|rob[oô]|bot|intelig[eê]ncia artificial)(?![\p{L}\p{N}])[^.!?\n|\[]*[.!?]?`
   + '|'
-  + String.raw`\bsou (?:uma |um )?(?:pessoa|humana|humano|gente)(?: de verdade)?(?![\p{L}\p{N}])[^.!?\n|]*[.!?]?`,
+  + String.raw`\bsou (?:uma |um )?(?:(?:humana|humano)(?![\p{L}\p{N}])|(?:pessoa|gente)(?: de verdade)?(?=\s*(?:[.!?,;\n|\[]|$)))[^.!?\n|\[]*[.!?]?`,
   'giu',
 );
 

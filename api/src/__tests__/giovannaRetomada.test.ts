@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // O CORTE DA GIOVANNA NA RETOMADA DA CARLA (03/11/2026). Quem tem conta GRÁTIS e está numa conversa aberta pelo robô carla_retomada_usuarios
 // (posse viva da Carla, origem retomada_usuarios, ainda valendo) é respondido pela Carla: a Giovanna não chama o modelo, não envia nada e não
-// grava sessão. Só o comprovante de Pix passa (libera +1 mês na conta que já existe), e o PARE e a denúncia ficam gravados mesmo com a IA da
+// grava sessão. O comprovante de Pix não passa (a Carla responde), e o PARE e a denúncia ficam gravados mesmo com a IA da
 // Carla parada. Posse e interruptores são os REAIS sobre o banco em memória; Anthropic, Z-API e o leitor de comprovante são falsos.
 
 const h = vi.hoisted(() => ({
@@ -94,23 +94,10 @@ describe('conta grátis com a posse viva da retomada, na linha io: a Carla respo
     expect(supressoes()).toHaveLength(0);
   });
 
-  it('a mesma conta mandando a foto do comprovante: o leitor de comprovante é chamado com o user da conta', async () => {
+  it('a mesma conta mandando a foto do comprovante: o leitor de comprovante NÃO é chamado (a Carla responde sozinha) e a Giovanna segue calada', async () => {
     semearConta(); semearRetomada();
     await chegou('paguei', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
-    expect(h.comprovante).toHaveBeenCalledTimes(1);
-    const [user, fonte, telefone, linha] = h.comprovante.mock.calls[0]! as unknown as [Over, Over, string, string];
-    expect(user).toMatchObject({ id: 'u1', plano: 'free' });
-    expect(fonte).toMatchObject({ type: 'base64' });
-    expect(telefone).toBe(X);
-    expect(linha).toBe('io');
-    calada();
-  });
-
-  it('o comprovante que estoura não derruba o corte: erro logado e a Giovanna segue calada', async () => {
-    semearConta(); semearRetomada();
-    h.comprovante.mockRejectedValueOnce(new Error('leitor fora'));
-    await chegou('paguei', 'io', { url: 'https://x/c.jpg', type: 'image', mime: 'image/jpeg' });
-    expect(h.logErro).toHaveBeenCalledWith('whatsapp', 'pix-comprovante na retomada da Carla falhou', expect.any(Error));
+    expect(h.comprovante).not.toHaveBeenCalled();
     calada();
   });
 });

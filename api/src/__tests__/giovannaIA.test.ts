@@ -20,6 +20,12 @@ describe('semNegarIA: troca a negação pela frase certa', () => {
     }
   });
 
+  it('a tag [HUMANO] na mesma frase sobrevive, e "sou gente boa" não é negação', () => {
+    expect(semNegarIA('Não sou robô, vou chamar o time [HUMANO]')).toBe(`${FRASE_IA_GIOVANNA}[HUMANO]`);
+    expect(semNegarIA('Sou gente boa e te ajudo.')).toBe('Sou gente boa e te ajudo.');
+    expect(semNegarIA('Sou uma pessoa que gosta de solar.')).toBe('Sou uma pessoa que gosta de solar.');
+  });
+
   it('só a primeira vira a frase; as outras saem, e a frase não se repete', () => {
     const r = semNegarIA('Não sou robô. Sou uma pessoa de verdade. Posso te ajudar com a proposta?');
     expect(r.match(/Sou a IA do SolarDoc, sim\./g)).toHaveLength(1);

@@ -110,6 +110,11 @@ describe('trava: regras gerais, uma por regra', () => {
     expect(ok(['Posso pedir pra Nilce te ligar?'])).toEqual([]);
   });
 
+  it('e-mail com o meio coberto passa na bolha 1, mas não esconde endereço colado depois do domínio', () => {
+    expect(ok(['Usa o mesmo e-mail, jo***@gmail.com.'])).toEqual([]);
+    expect(ok(['Usa jo***@solardoc.app/assinar']).join()).toMatch(/site ou link/);
+  });
+
   it('negar ser IA reprova; dizer a verdade passa', () => {
     expect(ok(['Não sou um robô, sou gente.']).join()).toMatch(/negou ser IA/);
     expect(ok(['Sou uma pessoa da equipe.']).join()).toMatch(/negou ser IA/);
