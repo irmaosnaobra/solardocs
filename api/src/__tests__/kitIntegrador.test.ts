@@ -20,7 +20,8 @@ function query(table: string) {
   let pendente: Row | null = null;
   let onConflict = '';
 
-  const linhas = () => db[table].filter((r) => filtros.every((f) => f(r)));
+  // `?? []`: tabela que este arquivo não semeia (company, limpapro_*) lê vazia, como a de produção sem linha.
+  const linhas = () => (db[table] ?? []).filter((r) => filtros.every((f) => f(r)));
 
   function executa(): { data: any; error: any } {
     if (modo === 'insert' || modo === 'upsert') {
@@ -67,6 +68,10 @@ function query(table: string) {
     update: (p: Row) => { modo = 'update'; patch = p; return q; },
     delete: () => { modo = 'delete'; return q; },
     eq: (col: string, val: any) => { filtros.push((r) => String(r[col]) === String(val)); return q; },
+    // A busca de conta por telefone/documento e a leitura do acesso usam .in / .neq / .limit.
+    in: (col: string, vals: any[]) => { filtros.push((r) => vals.map(String).includes(String(r[col]))); return q; },
+    neq: (col: string, val: any) => { filtros.push((r) => String(r[col]) !== String(val)); return q; },
+    limit: () => q,
     // ISO em string compara lexicograficamente na ordem certa
     gt: (col: string, val: any) => { filtros.push((r) => r[col] != null && String(r[col]) > String(val)); return q; },
     order: () => q,

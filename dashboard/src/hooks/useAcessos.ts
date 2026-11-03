@@ -39,9 +39,16 @@ const INICIAL: AcessosState = {
 
 let cache: AcessosState | null = null;
 let voando: Promise<AcessosState> | null = null;
+/** Quando o servidor foi perguntado pela última vez (busca inicial ou releitura). Base do intervalo mínimo. */
+let ultimaLeitura = 0;
+/** Quantas telas estão ouvindo; o ouvinte de foco é um só para todas. */
+let montados = 0;
+/** Intervalo mínimo entre duas perguntas ao servidor motivadas por a aba voltar ao foco. */
+const INTERVALO_MIN_MS = 10_000;
 const ouvintes = new Set<(s: AcessosState) => void>();
 
 async function buscar(): Promise<AcessosState> {
+  ultimaLeitura = Date.now();
   // SEM TOKEN, NEM PERGUNTA.
   //
   // A LP pública (/lp/<slug>) monta este hook pra saber se a pessoa já tem o
@@ -95,6 +102,19 @@ export function recarregarAcessos(): void {
 }
 
 /**
+ * O cadeado solta sozinho: quem foi pagar numa aba e volta para esta recarrega os acessos, sem ninguém
+ * apertar F5. `visibilitychange` cobre trocar de aba, `focus` cobre voltar de outra janela. No máximo uma
+ * pergunta a cada 10 s (as duas costumam disparar juntas), e nada quando ainda não há sessão.
+ */
+function aoVoltarAoFoco(): void {
+  if (typeof document === 'undefined') return;
+  if (document.visibilityState === 'hidden') return;
+  if (!document.cookie.includes('solardoc_token=')) return;
+  if (Date.now() - ultimaLeitura < INTERVALO_MIN_MS) return;
+  recarregarAcessos();
+}
+
+/**
  * Última resposta do servidor guardada neste aparelho. SÓ PARA DESENHAR (o menu e a /inicio): o que decide
  * acesso (`carregando`, `tem`, `bastidor`) nunca vem daqui, porque localStorage se edita e quem foi
  * estornado ainda o teria. A Sidebar e a /inicio leem, só para desenhar e só enquanto `carregando` for true.
@@ -124,6 +144,21 @@ export function useAcessos(): AcessosState & { tem: (produto: string) => boolean
       voando.then((s) => { cache = s; setEstado(s); });
     }
     return () => { ouvintes.delete(setEstado); };
+  }, []);
+
+  useEffect(() => {
+    if (montados === 0) {
+      document.addEventListener('visibilitychange', aoVoltarAoFoco);
+      window.addEventListener('focus', aoVoltarAoFoco);
+    }
+    montados += 1;
+    return () => {
+      montados -= 1;
+      if (montados === 0) {
+        document.removeEventListener('visibilitychange', aoVoltarAoFoco);
+        window.removeEventListener('focus', aoVoltarAoFoco);
+      }
+    };
   }, []);
 
   // A prévia só existe enquanto o servidor não respondeu; depois dele, sempre null.

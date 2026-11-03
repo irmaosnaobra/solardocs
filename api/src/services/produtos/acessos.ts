@@ -12,10 +12,16 @@
  *                     quando o cara cancela, sem depender de ninguém lembrar
  *                     de apagar linha.
  *   3. admin        — vê tudo.
+ *
+ * Duas fontes que já existiam são LIDAS aqui, não duplicadas em entitlements: o Kit Fecha Vendas (kit_pedidos,
+ * regra em ./kitPedidos) e o LimpaPro (limpapro_entitlements e limpapro_membros, em
+ * ./limpapro). Compra feita com outro e-mail ou outro cadastro é resolvida no webhook (./contaDoComprador).
  */
 
 import { supabase } from '../../utils/supabase';
 import { PRODUTOS, produtosDaAssinatura } from './catalogo';
+import { pedidosPagosDaConta } from './kitPedidos';
+import { temCompraLimpapro } from './limpapro';
 
 /**
  * Ferramentas que JÁ FORAM GRÁTIS. Se a tabela de entitlements ainda não existe
@@ -43,11 +49,16 @@ const VAZIO: Acessos = {
 export async function acessos(userId: string | undefined): Promise<Acessos> {
   if (!userId) return { ...VAZIO, produtos: new Set(), origem: {} };
 
-  const [{ data: user }, entRes] = await Promise.all([
+  const [{ data: user }, entRes, contaRes] = await Promise.all([
     supabase.from('users').select('plano, is_admin, plano_expira_em').eq('id', userId).single(),
     supabase.from('entitlements').select('produto, origem, expira_em').eq('user_id', userId),
+    // E-mail e WhatsApp da conta (para achar a compra do Kit e a do LimpaPro) saem de uma consulta À PARTE da primeira, de propósito: se ela falhar (coluna que não existe
+    // numa migration atrasada), a conta continua existindo e só aquele pedaço fica de fora. Se estivessem no
+    // select de cima, o erro derrubaria `user` e toda conta voltaria como VAZIA.
+    supabase.from('users').select('email, whatsapp').eq('id', userId).maybeSingle(),
   ]);
   const ents = entRes.data;
+  const conta = (contaRes.data ?? null) as { email?: string | null; whatsapp?: string | null } | null;
   // Erro aqui é quase sempre "relation does not exist" — migration não aplicada.
   const semTabela = !!entRes.error;
   if (semTabela) {
@@ -92,20 +103,30 @@ export async function acessos(userId: string | undefined): Promise<Acessos> {
     }
   }
 
-  // O curso Kit Fecha Vendas continua com a fonte que ele já tinha (kit_pedidos):
-  // é lá que a isca de R$27 e a concessão por assinatura gravam, e é de lá que o
-  // funil do admin lê. Duplicar em entitlements criaria duas verdades pro mesmo
-  // acesso — então aqui a gente lê a verdade existente em vez de reescrevê-la.
-  if (!produtos.has('curso-fechamento')) {
-    const { data: pedido } = await supabase
-      .from('kit_pedidos')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'paid')
-      .limit(1)
-      .maybeSingle();
-    if (pedido) { produtos.add('curso-fechamento'); origem['curso-fechamento'] = 'compra'; }
+  // O curso Kit Fecha Vendas e o LimpaPro continuam com as fontes que já tinham: kit_pedidos (a isca de R$27 e
+  // a concessão por assinatura gravam lá, e o funil do admin lê de lá) e limpapro_entitlements/limpapro_membros
+  // (o webhook do outro projeto grava lá). Duplicar em entitlements criaria duas verdades pro mesmo acesso, então
+  // aqui a gente LÊ a verdade existente em vez de reescrevê-la. Lê-se em paralelo; erro de leitura é "não tem".
+  const [pedidosKit, comprouLimpapro] = await Promise.all([
+    produtos.has('curso-fechamento')
+      ? Promise.resolve([])
+      : pedidosPagosDaConta(userId, conta?.email).catch((err) => {
+        console.warn('[acessos] kit_pedidos não pôde ser lido, tratando como "não tem":', err);
+        return [];
+      }),
+    produtos.has('curso-limpapro')
+      ? Promise.resolve(false)
+      : temCompraLimpapro({ email: conta?.email, whatsapp: conta?.whatsapp }).catch(() => false),
+  ]);
+
+  // Kit Fecha Vendas: A MESMA regra do /kit/meu-acesso (ver kitPedidos.ts): pedido pago, de qualquer item,
+  // achado pelo user_id OU pelo e-mail da conta. Só soma em relação ao que o menu já fazia (user_id).
+  if (!produtos.has('curso-fechamento') && pedidosKit.length > 0) {
+    produtos.add('curso-fechamento');
+    origem['curso-fechamento'] = 'compra';
   }
+
+  if (comprouLimpapro) { produtos.add('curso-limpapro'); origem['curso-limpapro'] = 'compra'; }
 
   return { produtos, plano, assinante, isAdmin, origem };
 }

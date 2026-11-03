@@ -20,6 +20,8 @@ import { supabase } from '../utils/supabase';
 import { sendKitAcessoEmail, sendFerramentaAcessoEmail, sendMesPixAcessoEmail, sendOpsAlert } from '../utils/mailer';
 import { liberarOffGrid, OFFGRID_PRODUTO_REGEX, OFFGRID_ADDON_PRECO } from './offgrid/acesso';
 import { concederAcesso } from './produtos/acessos';
+import { acharContaDoComprador, type ConflitoDeConta } from './produtos/contaDoComprador';
+import { finalDoDocumento } from '../utils/documento';
 import { tentarBonusPosPagamento } from './agentes5040/planilhaBonus';
 
 /** Dias de VIP concedidos por quem leva o order bump. */
@@ -134,6 +136,11 @@ export type EventoKit = {
   email: string;
   nome: string | null;
   telefone: string | null;
+  /**
+   * CPF ou CNPJ do comprador (Customer.CPF / Customer.cnpj da Kiwify), só dígitos e já conferido. Serve para
+   * achar a conta certa quando o e-mail digitado no checkout não é o da conta (ver garantirConta).
+   */
+  documento?: string | null;
   produto: string;
   item: ItemKit;
   /** 'paid' | 'refunded' | 'waiting_payment' | … (já normalizado pelo webhook) */
@@ -283,12 +290,14 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     return { ok: true, acao: 'registrado', detalhe: `status ${evt.status}` };
   }
 
-  // 2) Conta: cria pendente (sem senha) ou vincula a existente.
-  const { userId, contaCriada, resetUrl, jaEraMembro } = await garantirConta({
+  // 2) Conta: vincula a existente (pelo e-mail, senão pelo CPF/CNPJ ou pelo telefone) ou cria pendente (sem senha).
+  const { userId, contaCriada, resetUrl, jaEraMembro, contaEmail } = await garantirConta({
     email,
     nome: evt.nome,
     telefone: evt.telefone,
+    documento: evt.documento ?? null,
     utm: evt.utm,
+    orderId: evt.orderId,
   });
 
   if (!userId) {
@@ -373,7 +382,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   //     completo COMPRADO, e por isso não passa por concederTrialVip.
   let acessoAte: Date | null = null;
   if (evt.item === 'entrada_30d' && !jaConcedeuNessePedido) {
-    acessoAte = await concederEntrada30Dias(userId, email);
+    acessoAte = await concederEntrada30Dias(userId, contaEmail);
     if (acessoAte) bumpAplicado = true;
   }
 
@@ -383,7 +392,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   //     de checkout nenhum, e a coluna alimenta a taxa de attach do kit no /admin.
   //     A idempotência não depende dela — quem carimba é `trial_vip_ate`, abaixo.
   if (evt.item === 'mes_pix' && !jaConcedeuNessePedido) {
-    acessoAte = await concederMesPago(userId, email, { comCurso: false, rotulo: 'mês avulso (Pix)' });
+    acessoAte = await concederMesPago(userId, contaEmail, { comCurso: false, rotulo: 'mês avulso (Pix)' });
   }
 
   // 4) E-mail de acesso — o gate é o CARIMBO, não "o pedido é novo". No Pix a
@@ -501,32 +510,50 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
 // Espelha o fluxo "100% cadastro" do webhook do Stripe (paymentsController):
 // conta criada com password_hash null + reset_token, e o cliente define a senha
 // pelo link. authController.register detecta password_hash null e ATIVA a conta.
+//
+// QUAL CONTA. A ordem de busca é o e-mail digitado na compra, o CPF/CNPJ e o telefone (a regra e o porquê
+// estão em produtos/contaDoComprador.ts). A conta nova e pendente só nasce quando NADA casa, ou quando as
+// chaves se contradizem (documento e telefone de contas diferentes, ou uma chave que acha duas contas):
+// nesse caso a compra não é entregue a ninguém no escuro, a conta pendente é criada como sempre foi e o
+// conflito vai para o suporte.
 async function garantirConta(opts: {
   email: string;
   nome: string | null;
   telefone: string | null;
+  documento?: string | null;
   utm: EventoKit['utm'];
-}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string; jaEraMembro: boolean }> {
+  orderId?: string | null;
+}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string; jaEraMembro: boolean; contaEmail: string }> {
   const { email } = opts;
+  const pedido = opts.orderId || '(sem pedido)';
 
-  const { data: existente } = await supabase
-    .from('users')
-    .select('id, password_hash')
-    .eq('email', email)
-    .maybeSingle();
+  const busca = await acharContaDoComprador({ email, telefone: opts.telefone, documento: opts.documento });
 
   // Já tem conta (é assinante, ou comprou o kit antes): não mexe em plano nem
   // em senha. Só devolve o link de login.
   // jaEraMembro olha password_hash, não "a conta existe": conta PENDENTE (sem
   // senha) é criada pelo próprio webhook, então usá-la como sinal marcaria
   // comprador novo como membro antigo quando o bump chega antes do kit.
-  if (existente?.id) {
+  if (busca.tipo === 'achou') {
+    const c = busca.conta;
+    // Por qual chave casou. Quando NÃO foi o e-mail, a compra caiu numa conta de e-mail diferente do digitado,
+    // e é este o rastro que o suporte precisa para explicar "paguei com outro e-mail e funcionou".
+    console.info(`[kit] conta do comprador achada por ${c.chave} · ${email} · pedido ${pedido} · conta ${c.userId}`);
     return {
-      userId: existente.id,
+      userId: c.userId,
       contaCriada: false,
       resetUrl: `${DASHBOARD_URL}/auth`,
-      jaEraMembro: existente.password_hash !== null,
+      jaEraMembro: c.temSenha,
+      contaEmail: c.email,
     };
+  }
+
+  if (busca.tipo === 'conflito') {
+    await registrarConflitoDeConta({
+      email, orderId: opts.orderId ?? null, telefone: opts.telefone, documento: opts.documento, conflito: busca.conflito,
+    });
+  } else {
+    console.info(`[kit] nenhuma conta casou por e-mail, documento ou telefone · ${email} · pedido ${pedido} · criando conta pendente`);
   }
 
   const token = crypto.randomBytes(32).toString('hex');
@@ -568,10 +595,10 @@ async function garantirConta(opts: {
     // 23505 = corrida (o /register criou a conta no meio do caminho). Busca de novo.
     if ((error as { code?: string }).code === '23505') {
       const { data: agora } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
-      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false };
+      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false, contaEmail: email };
     }
     console.error('[kit] criação de conta falhou:', error);
-    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false };
+    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false, contaEmail: email };
   }
 
   return {
@@ -579,7 +606,66 @@ async function garantirConta(opts: {
     contaCriada: true,
     resetUrl: `${DASHBOARD_URL}/auth?mode=redefinir&token=${token}`,
     jaEraMembro: false,
+    contaEmail: email,
   };
+}
+
+const MOTIVO_DO_CONFLITO: Record<ConflitoDeConta['motivo'], string> = {
+  documento_e_telefone_divergem: 'o CPF/CNPJ e o telefone do comprador apontam para contas DIFERENTES',
+  documento_e_telefone_ambiguos: 'o CPF/CNPJ e o telefone do comprador apontam, cada um, para mais de uma conta, e não fecham numa só',
+  documento_ambiguo: 'o CPF/CNPJ do comprador aparece em mais de uma conta',
+  telefone_ambiguo: 'o telefone do comprador aparece em mais de uma conta',
+};
+
+/**
+ * As chaves de busca se contradisseram: a compra NÃO é entregue a nenhuma das contas (a conta pendente nasce
+ * como sempre), e o suporte fica sabendo para ligar os pontos na mão. Log marcado, mais o alerta por e-mail que
+ * este arquivo já usa para tudo que a automação não resolve sozinha. O documento e o telefone nunca vão
+ * inteiros para o log nem para o alerta, só o final.
+ */
+async function registrarConflitoDeConta(a: {
+  email: string;
+  orderId: string | null;
+  telefone?: string | null;
+  documento?: string | null;
+  conflito: ConflitoDeConta;
+}): Promise<void> {
+  const { conflito } = a;
+  const motivo = MOTIVO_DO_CONFLITO[conflito.motivo];
+  const pedido = a.orderId || '(sem pedido)';
+  const doc = a.documento ? finalDoDocumento(a.documento) : '(sem documento)';
+  const tel = String(a.telefone ?? '').replace(/\D/g, '');
+  const telFinal = tel.length >= 4 ? `final ${tel.slice(-4)}` : '(sem telefone)';
+  console.warn(
+    `[kit] CONFLITO DE CONTA (${conflito.motivo}) · ${a.email} · pedido ${pedido} · documento ${doc}: ` +
+    `${conflito.porDocumento.length} conta(s) · telefone ${telFinal}: ${conflito.porTelefone.length} conta(s). ` +
+    `Conta pendente criada; o suporte decide.`,
+  );
+
+  try {
+    // Os e-mails das contas candidatas, para o suporte não ter que caçar por id. Se a leitura falhar, vai só o id.
+    const ids = [...new Set([...conflito.porDocumento, ...conflito.porTelefone])];
+    const emails = new Map<string, string>();
+    if (ids.length) {
+      const { data } = await supabase.from('users').select('id, email').in('id', ids);
+      for (const u of (data ?? []) as Array<{ id: string; email: string | null }>) emails.set(u.id, u.email || '(sem e-mail)');
+    }
+    // O e-mail e o pedido vêm do payload da Kiwify: entram no HTML do alerta já escapados.
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lista = (xs: string[]) => (xs.length
+      ? xs.map((id) => `<li>${esc(emails.get(id) ?? '(e-mail não lido)')} (conta ${esc(id)})</li>`).join('')
+      : '<li>nenhuma</li>');
+    sendOpsAlert(
+      'Kiwify: compra cujos dados apontam para contas diferentes',
+      `<p>O pedido <strong>${esc(pedido)}</strong> foi pago por <strong>${esc(a.email)}</strong>, que não tem conta, e ${motivo}.</p>
+       <p>Contas achadas pelo CPF/CNPJ (${doc}):</p><ul>${lista(conflito.porDocumento)}</ul>
+       <p>Contas achadas pelo telefone (${telFinal}):</p><ul>${lista(conflito.porTelefone)}</ul>
+       <p>Nenhuma delas foi escolhida: a conta pendente de ${esc(a.email)} foi criada e o acesso foi para ela, como sempre foi.
+       Se uma das contas acima é de quem comprou, mova o acesso na mão.</p>`,
+    ).catch(() => {});
+  } catch (err) {
+    console.error('[kit] alerta de conflito de conta falhou (a compra segue):', err);
+  }
 }
 
 // ── Trial VIP do bump ───────────────────────────────────────────────────────

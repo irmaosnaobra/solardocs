@@ -129,7 +129,10 @@ export const PRODUTOS: Produto[] = [
     regexNome: /limpa\s*pro/i,
     // Funil próprio, com membros casados por TELEFONE em limpapro_membros e
     // nomes de produto na Kiwify ainda não confirmados. Entra na loja pelo
-    // checkout dele; mexer no grant seria remexer num funil vivo.
+    // checkout dele; mexer no grant seria remexer num funil vivo. O ACESSO
+    // dentro do SolarDoc não é concedido aqui nem no webhook: o acessos() LÊ
+    // limpapro_entitlements e limpapro_membros (ver limpapro.ts), por e-mail
+    // da conta ou pelo WhatsApp dela.
     externo: true,
   },
 ];

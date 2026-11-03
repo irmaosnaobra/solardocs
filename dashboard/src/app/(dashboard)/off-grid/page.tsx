@@ -160,7 +160,27 @@ export default function OffGridPage() {
   const [precoAddon, setPrecoAddon] = useState(97);
   const [orcando, setOrcando] = useState(false);
 
+  // Soltar o cadeado sozinho: quem foi pagar noutra aba e volta para esta repete o orçamento (que é o que
+  // devolve 402 ou 200), no máximo a cada 10 s e só enquanto estiver trancado.
+  const [releitura, setReleitura] = useState(0);
+  useEffect(() => {
+    if (!trancado) return;
+    let ultima = Date.now();
+    const voltou = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - ultima < 10_000) return;
+      ultima = Date.now();
+      setReleitura((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', voltou);
+    window.addEventListener('focus', voltou);
+    return () => {
+      document.removeEventListener('visibilitychange', voltou);
+      window.removeEventListener('focus', voltou);
+    };
+  }, [trancado]);
+
   const chaveOrc = JSON.stringify({
+    rl: releitura,
     i: r.itens.map((x) => [x.id, x.qtd]), uf: e.uf, p: r.pesoTotal, cep: cep.replace(/\D/g, ''),
     m: e.margemPct, mo: e.maoDeObra, ex: e.extras, b: r.bancoNominal,
   });
@@ -1132,7 +1152,7 @@ export default function OffGridPage() {
                 Liberar meu acesso
               </a>
               <p className="og-hint" style={{ textAlign: 'center' }}>
-                Acesso vitalício. Depois de pagar, atualize esta página.
+                Acesso vitalício. Depois de pagar, volte para esta aba: o acesso entra sozinho.
               </p>
             </div>
           ) : (
