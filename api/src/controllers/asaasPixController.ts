@@ -15,6 +15,7 @@ import {
 import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaasWebhookService';
 import { pixPublicoAtivo, pixAutoQuizAtivo, pixAutoLpAtivo, pixAvulsoFunilAtivo } from '../utils/pixInfo';
 import { criarPixAvulso, statusPixAvulso } from '../services/asaas/pixAvulsoService';
+import { gravarMarcaPagamento } from '../services/solardoc/marcaPagamentoQuiz';
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -246,6 +247,17 @@ export async function criarPixPublicoHandler(req: Request, res: Response): Promi
     // Contrato vivo reaproveitado já está autorizado: não há QR para pagar. A tela
     // do quiz distingue por status === 'ativo' (qrPayload nulo) e confere `modo`.
     const jaAtivo = Boolean(origem) && criado.status === 'ativo';
+
+    // A marca de quem chegou no pagamento (quiz e LP): `quiz_pagto:<hmac>`. Só marca, não envia nada aqui; a rodada da Carla chama 5 min
+    // depois, se a pessoa não pagou. Contrato já ativo não tem o que recuperar. Falha na marca nunca derruba a resposta.
+    // Pix de teste (utm_source = raio-x-teste, o mesmo corte dos avisos do grupo) não gera marca: a Carla nunca chamaria um teste.
+    const ehTeste = String(atribuicao.utm_source ?? '').trim().toLowerCase() === 'raio-x-teste';
+    if (origem && !jaAtivo && !ehTeste) {
+      await gravarMarcaPagamento({
+        whatsapp: atribuicao.whatsapp ?? soDigitos(whatsapp), contratoId: criado.contractId, origem, email: mail,
+        nome: nome.trim(), utm_term: atribuicao.utm_term, lp_session: atribuicao.lp_session,
+      });
+    }
 
     res.json({
       ...criado,

@@ -48,12 +48,14 @@ import { erroProvaQueNaoSaiu } from '../agentes5040/fichaEnvio';
 import { modoPix } from '../agentes5040/modoPix';
 import { chaveDoTelefone, codigoDoQuiz, normalizarTelefoneSd } from './quizSolardoc';
 import { avisarDesistencia, avisarSemVaga, ehLeadDeTeste, fecharSemGrupo, PREFIXO_CLAIM_QUIZ, type ColetorSemGrupo, type ResultadoAviso } from './avisoGrupoSolardoc';
-import { comprouLead, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
+import { comprouLead, comprouPorEmail, vendasRecentes, type VendasRecentes } from './compraQuizSolardoc';
 import { estadoRecuperacaoCarla, garantirLargada, lerLargada, type EstadoRecuperacao } from './recuperacaoCarlaEstado';
 import {
   FRASE_DO_MOTIVO, ESPERA_MIN_MS, TETO_CALENDARIO_MS, PREFIXO_CARIMBO_REC, PREFIXO_VEZ_REC, ROBO_QUIZ_REC,
   campoFd, chaveVezRec, MOTIVOS_PERMANENTES_REC, PREFIXO_PULOU_REC, diaBRT, foraDoTempo, horaBRT, motivoSemBanco, ordenarFila, semCnpj, textoDaCarla, PREFIXO_AINDA_REC,
-  type LeadRec, type MotivoNaoChama,
+  PAGTO_ESPERA_MS, PAGTO_VALE_MS, PREFIXO_PAGTO, PREFIXO_PAGTO_EMAIL,
+  empresaDoQuiz, faseDoCodigo, linkDoPagamento, marcaDeLinha, montarTextoPagamento, nomeDoPagamento,
+  type LeadRec, type MarcaPagto, type MotivoNaoChama, type TextoPagto,
 } from './recuperacaoCarlaRegras';
 
 const LOG = 'quiz-rec';
@@ -88,7 +90,15 @@ export interface DepsAvaliar {
   mudo(tel: string): Promise<'sim' | 'nao' | 'erro'>;
 }
 
-export interface ContextoAvaliar { agoraMs: number; largadaMs: number | null; vendas: VendasRecentes }
+export interface ContextoAvaliar {
+  agoraMs: number; largadaMs: number | null; vendas: VendasRecentes;
+  /**
+   * Quem chegou na parte do pagamento (marca `quiz_pagto:`): a pessoa tentou pagar, então não vale "sem CNPJ", "antes da largada" nem a falta
+   * de diagnóstico do quiz. Todo o resto (compra, posse, já falou, pausa humana, supressão, mudo) continua valendo. O tick de desistência
+   * e a sonda nunca ligam isto.
+   */
+  viaPagamento?: boolean;
+}
 
 /** HMAC do telefone do lead (a chave do claim), ou null. */
 export function hmacDoLeadRec(lead: Pick<LeadRec, 'whatsapp'>): string | null {
@@ -136,9 +146,11 @@ export async function avaliarLead(lead: LeadRec, c: ContextoAvaliar, d: DepsAval
   const hmac = tel ? hmacDe(chaveDoTelefone(tel)) : null;
   const chave = tel ? chaveDaPosse(tel) : null;
   if (!tel || !hmac || !chave) return { ok: false, motivo: 'sem_telefone' };
-  const semBanco = motivoSemBanco(lead, c.largadaMs);
-  if (semBanco) return { ok: false, motivo: semBanco };
-  if (!textoDaCarla(lead).ok) return { ok: false, motivo: 'sem_diagnostico' };
+  if (!c.viaPagamento) {
+    const semBanco = motivoSemBanco(lead, c.largadaMs);
+    if (semBanco) return { ok: false, motivo: semBanco };
+    if (!textoDaCarla(lead).ok) return { ok: false, motivo: 'sem_diagnostico' };
+  }
   try {
     if (await d.compra(c.vendas, campoFd(lead.field_data, 'lp_session'), chaveDoTelefone(tel))) return { ok: false, motivo: 'comprou' };
   } catch { return { ok: false, motivo: 'leitura_falhou' }; }
@@ -213,6 +225,18 @@ export interface DepsRec extends DepsAvaliar {
   marcarClaim(chave: string, valor: Record<string, unknown>): Promise<void>;
   /** Grava a marca `quiz_rec_pulou:<hmac>` (lead descartado por motivo permanente). Opcional; erro é engolido: sem a marca o lead só é reavaliado. */
   marcarPulo?(chave: string, motivo: string, agora: Date): Promise<void>;
+  /** As marcas `quiz_pagto:` gravadas desde `desdeIso` (quem chegou na parte do pagamento). null = leitura falhou. Opcional: sem ela não há caminho de pagamento. */
+  marcasPagamento?(desdeIso: string): Promise<MarcaPagto[] | null>;
+  /** O contrato da marca (status, idade, código) e o WhatsApp da atribuição dele. null = leitura falhou; `contrato: null` = não existe. */
+  lerPagamento?(contratoId: string): Promise<DadosPagamento | null>;
+  /** Comprou, pelo e-mail? Erro LANÇA. */
+  compraPorEmail?(vendas: VendasRecentes, email: string): Promise<boolean>;
+  /** Manda o e-mail do Pix que ficou esperando. Erro LANÇA (quem chama solta o claim). */
+  enviarEmailPix?(para: string, link: string): Promise<void>;
+  /** Espera entre a 1ª mensagem e o código (2 a 5 s, como as respostas fazem). Opcional: os testes não esperam. */
+  esperar?(ms: number): Promise<void>;
+  /** Avisa o Thiago (e-mail de operação). Erro é engolido. Opcional. */
+  avisarThiago?(texto: string): Promise<void>;
   assumirPosse(chave: string, em: string): Promise<ResultadoAssumir>;
   posseAindaNossa(chave: string, em: string): Promise<boolean>;
   desfazerPosse(chave: string, em: string): Promise<boolean>;
@@ -225,6 +249,11 @@ export interface DepsRec extends DepsAvaliar {
   avisarSemVaga(lead: LeadRec): Promise<ResultadoAviso>;
   /** Fim da rodada (sempre, mesmo se ela falhou): manda UM e-mail com os avisos que ficaram sem grupo. Opcional: os testes não precisam dele. */
   fecharRodada?(): Promise<void>;
+}
+
+export interface DadosPagamento {
+  contrato: { status: string; created_at: string | null; qr_payload: string | null; ultimo_pagamento_em: string | null; ultimo_pagamento_id?: string | null; email: string | null } | null;
+  whatsapp: string | null;
 }
 
 export interface DecisaoRec { hmac8: string; resultado: string; motivo: string | null }
@@ -269,13 +298,15 @@ async function travas(d: DepsRec, agora: Date, janelaJaConferida?: boolean): Pro
  * (marca quiz_rec_ainda); o aviso por "ela não vai chamar" ou compra tira o lead da fila, para não gastar as avaliações da rodada (B2.1).
  * No "sem vaga" qualquer aviso tira o lead.
  */
-async function lerFila(d: DepsRec, agora: Date, largadaMs: number, opts: { semAvisados?: boolean } = {}): Promise<{ fila: LeadRec[]; total: number } | null> {
+async function lerFila(d: DepsRec, agora: Date, largadaMs: number, opts: { semAvisados?: boolean; excluir?: ReadonlySet<string> } = {}): Promise<{ fila: LeadRec[]; total: number } | null> {
   const agoraMs = agora.getTime();
   // Lê até o teto de calendário (120 h); quem vence pela idade útil (48 h sem domingo e feriado) o `foraDoTempo` tira logo abaixo.
   const desde = Math.max(largadaMs, agoraMs - TETO_CALENDARIO_MS);
   const lidos = await d.leads(new Date(desde).toISOString(), new Date(agoraMs - ESPERA_MIN_MS).toISOString());
   if (!lidos) return null;
-  const candidatos = lidos.filter(l => !ehLeadDeTeste(l.field_data) && foraDoTempo(l, agoraMs) === null && !semCnpj(l.field_data) && !!hmacDoLeadRec(l));
+  const candidatos = lidos.filter(l => !ehLeadDeTeste(l.field_data) && foraDoTempo(l, agoraMs) === null && !semCnpj(l.field_data) && !!hmacDoLeadRec(l)
+    // Quem tem a marca do pagamento é do caminho do pagamento (a rodada chama com o texto dele, pelo mesmo claim): a mensagem de 15 min não o atropela.
+    && !opts.excluir?.has(hmacDoLeadRec(l) as string));
   if (!candidatos.length) return { fila: [], total: lidos.length };
   const chaves = candidatos.flatMap(l => {
     const h = hmacDoLeadRec(l) as string;
@@ -292,6 +323,185 @@ async function lerFila(d: DepsRec, agora: Date, largadaMs: number, opts: { semAv
   });
   return { fila: ordenarFila(livres), total: lidos.length };
 }
+
+// ── o caminho do pagamento (03/11/2026) ──────────────────────────────────────
+
+/**
+ * Quantos leads do pagamento entram por rodada. Menos que as 8 avaliações de propósito: marca que não sai do lugar (humano na conversa, por
+ * exemplo) não pode tomar a rodada inteira e deixar a mensagem de 15 min sem vaga.
+ */
+const PAGTO_POR_RODADA = 4;
+/** E-mails do pagamento por rodada. */
+const EMAILS_POR_RODADA = 5;
+
+/** O contrato foi pago? `ativo` e `inadimplente` já pagaram alguma vez; `ultimo_pagamento_em` e `ultimo_pagamento_id` (o webhook grava este antes do `ativo`) também provam. */
+export function contratoPago(c: NonNullable<DadosPagamento['contrato']>): boolean {
+  return c.status === 'ativo' || c.status === 'inadimplente' || !!c.ultimo_pagamento_em || !!c.ultimo_pagamento_id;
+}
+
+/** Um item da fila do pagamento: o lead do quiz (só quem fez o quiz vai ao WhatsApp) e o que a marca trouxe. */
+interface ItemPagto { lead: LeadRec; marca: MarcaPagto; quiz: LeadRec; dados: DadosPagamento; utmTerm: string | null }
+interface ItemFila { lead: LeadRec; pagto?: ItemPagto }
+
+/** O que a rodada leu: TODAS as marcas vivas (120 h) e os leads do quiz por hmac. */
+interface PagtoRodada { marcas: MarcaPagto[]; doQuiz: Map<string, LeadRec> }
+
+/**
+ * Lê UMA vez por rodada as marcas `quiz_pagto:` e, havendo marca, os leads do quiz (dão nome, empresa e utm_term, e dizem quem fez o quiz).
+ * null = a leitura falhou: dentro da janela a rodada PARA (sem a marca, a mensagem de 15 min deixaria de pular quem está pagando).
+ * Sem as dependências do pagamento (testes antigos) não há marca nenhuma.
+ */
+async function carregarPagto(d: DepsRec, agora: Date): Promise<PagtoRodada | null> {
+  const vazioP: PagtoRodada = { marcas: [], doQuiz: new Map() };
+  if (!d.marcasPagamento || !d.lerPagamento) return vazioP;
+  const agoraMs = agora.getTime();
+  const lidas = await d.marcasPagamento(new Date(agoraMs - PAGTO_VALE_MS).toISOString());
+  if (!lidas) return null;
+  const marcas = lidas.filter(m => agoraMs - Date.parse(m.em) <= PAGTO_VALE_MS);
+  if (!marcas.length) return vazioP;
+  const leads = await d.leads(new Date(agoraMs - TETO_CALENDARIO_MS).toISOString(), agora.toISOString());
+  if (!leads) return null;
+  const doQuiz = new Map<string, LeadRec>();
+  for (const l of leads) { const h = hmacDoLeadRec(l); if (h && !doQuiz.has(h)) doQuiz.set(h, l); }
+  return { marcas, doQuiz };
+}
+
+/** O telefone da marca: o da atribuição do contrato ou o do lead do quiz, o que bater com o hmac da chave. null = não dá para chamar. */
+function telefoneDaMarca(m: MarcaPagto, dados: DadosPagamento | null, quiz: LeadRec | null): string | null {
+  for (const bruto of [dados?.whatsapp, quiz?.whatsapp]) {
+    const tel = normalizarTelefoneSd(bruto);
+    if (tel && hmacDe(chaveDoTelefone(tel)) === m.hmac) return tel;
+  }
+  return null;
+}
+
+/** O lead da marca: o do quiz, ou um montado só com o que a marca sabe (serve às conferências do e-mail da LP). */
+function leadDaMarca(m: MarcaPagto, quiz: LeadRec | null, tel: string): LeadRec {
+  return quiz ?? {
+    lead_id: `pagto_${m.contratoId}`, nome: m.nome, whatsapp: tel, cidade: null, created_time: m.em,
+    field_data: m.lp_session ? [{ name: 'lp_session', values: [m.lp_session] }] : [],
+  };
+}
+
+/** O `utm_term` da marca; sem ele, o do lead do quiz. */
+function utmTermDaMarca(m: MarcaPagto, quiz: LeadRec | null): string | null {
+  return m.utm_term ?? (quiz ? campoFd(quiz.field_data, 'utm_term') || null : null);
+}
+
+/** Comprou/pagou? Contrato pago, sessão da LP na venda ou e-mail com compra. Erro LANÇA (quem chama não envia). */
+async function pagouPelaMarca(d: DepsRec, m: MarcaPagto, dados: DadosPagamento, vendas: VendasRecentes): Promise<boolean> {
+  if (dados.contrato && contratoPago(dados.contrato)) return true;
+  if (m.lp_session && vendas.sessoes.has(m.lp_session)) return true;
+  const email = m.email ?? dados.contrato?.email ?? null;
+  if (email && d.compraPorEmail && await d.compraPorEmail(vendas, email)) return true;
+  return false;
+}
+
+/** Quem pagou ou reprovou por motivo permanente não volta: a chave `quiz_rec_pulou:` tira a marca da leitura das rodadas seguintes. */
+async function pularMarca(d: DepsRec, hmac: string, motivo: string, agora: Date): Promise<void> {
+  try { await d.marcarPulo?.(`${PREFIXO_PULOU_REC}${hmac}`, motivo, agora); } catch { /* sem a marca ele só é reavaliado */ }
+}
+
+/**
+ * Quem fez o quiz, chegou na parte do pagamento e ainda não foi chamado: as marcas de 5 min a 120 h, sem o claim `quiz_rec_sent:` nem o
+ * `quiz_rec_pulou:`, com o contrato lido, sem pagamento e com o código na fase certa (menos de 55 min = código; 65 min ou mais = link; no meio
+ * espera). A marca SÓ DA LP (sem lead do quiz) não vai ao WhatsApp: o wa.me da LP não leva código, e quem escreveu por um LID sem mapa passaria como
+ * "não falou". `hmacs` leva TODAS as marcas (até as de menos de 5 min): a mensagem de 15 min não atropela quem está pagando.
+ */
+async function lerFilaPagamento(d: DepsRec, agora: Date, p: PagtoRodada): Promise<{ itens: ItemPagto[]; hmacs: Set<string> }> {
+  const hmacs = new Set(p.marcas.map(m => m.hmac));
+  if (!d.lerPagamento) return { itens: [], hmacs };
+  const agoraMs = agora.getTime();
+  const prontas = p.marcas
+    .filter(m => p.doQuiz.has(m.hmac) && agoraMs - Date.parse(m.em) >= PAGTO_ESPERA_MS)
+    .sort((a, b) => Date.parse(b.em) - Date.parse(a.em));   // quem acabou de chegar primeiro: a marca parada não trava as novas
+  if (!prontas.length) return { itens: [], hmacs };
+  const tem = await d.existentes(prontas.flatMap(m => [`${PREFIXO_CARIMBO_REC}${m.hmac}`, `${PREFIXO_PULOU_REC}${m.hmac}`]));
+  if (!tem) return { itens: [], hmacs };
+  const itens: ItemPagto[] = [];
+  for (const m of prontas) {
+    if (itens.length >= PAGTO_POR_RODADA) break;
+    if (tem.has(`${PREFIXO_CARIMBO_REC}${m.hmac}`) || tem.has(`${PREFIXO_PULOU_REC}${m.hmac}`)) continue;
+    const dados = await d.lerPagamento(m.contratoId);
+    if (!dados) continue;   // leitura falhou: tenta na próxima rodada (a marca segue segurando a mensagem de 15 min)
+    if (!dados.contrato) { hmacs.delete(m.hmac); continue; }   // contrato sumiu: a marca não vale, a pessoa volta à fila de sempre
+    if (contratoPago(dados.contrato)) { await pularMarca(d, m.hmac, 'pagou', agora); continue; }   // pagou: não é relida a cada rodada
+    const quiz = p.doQuiz.get(m.hmac) as LeadRec;
+    const tel = telefoneDaMarca(m, dados, quiz);
+    if (!tel) { hmacs.delete(m.hmac); continue; }   // sem telefone que bata com o hmac: não dá para chamar por aqui
+    if (faseDoCodigo(dados.contrato, agoraMs) === 'espera') continue;   // entre 55 e 65 min o código está no fim: espera
+    itens.push({ lead: quiz, marca: m, quiz, dados, utmTerm: utmTermDaMarca(m, quiz) });
+  }
+  return { itens, hmacs };
+}
+
+/**
+ * O e-mail do Pix que ficou esperando, UM por contrato (claim `quiz_pagto_email:<contratoId>`). Fora da janela do WhatsApp vai para todas as marcas;
+ * dentro dela, só para a marca SÓ DA LP (que nunca vai ao WhatsApp). Antes do claim passa pelas mesmas conferências da mensagem (já falou com a
+ * linha, supressão, mudo, pausa humana, posse, teste, compra e contrato pago); depois do claim e antes de enviar, lê de novo se a pessoa pagou.
+ * Nunca lança.
+ */
+async function emailDoPagamento(d: DepsRec, agora: Date, r: RelatorioRec, p: PagtoRodada, foraDaJanela: boolean): Promise<void> {
+  try {
+    if (!d.lerPagamento || !d.enviarEmailPix) return;
+    const agoraMs = agora.getTime();
+    const prontas = p.marcas
+      .filter(m => m.email && agoraMs - Date.parse(m.em) >= PAGTO_ESPERA_MS && (foraDaJanela || !p.doQuiz.has(m.hmac)))
+      .sort((a, b) => Date.parse(a.em) - Date.parse(b.em));
+    if (!prontas.length) return;
+    const tem = await d.existentes(prontas.flatMap(m => [
+      `${PREFIXO_CARIMBO_REC}${m.hmac}`, `${PREFIXO_PULOU_REC}${m.hmac}`, `${PREFIXO_PAGTO_EMAIL}${m.contratoId}`,
+    ]));
+    if (!tem) return;
+    let vendas: VendasRecentes;
+    try { vendas = await d.vendas(agoraMs); } catch { return; }
+    let enviados = 0;
+    for (const m of prontas) {
+      if (enviados >= EMAILS_POR_RODADA) break;
+      // Já foi chamado pelo WhatsApp (claim), já saiu da fila (pulo) ou já recebeu o e-mail deste contrato: nada.
+      if (tem.has(`${PREFIXO_CARIMBO_REC}${m.hmac}`) || tem.has(`${PREFIXO_PULOU_REC}${m.hmac}`) || tem.has(`${PREFIXO_PAGTO_EMAIL}${m.contratoId}`)) continue;
+      const quiz = p.doQuiz.get(m.hmac) ?? null;
+      let utmTerm: string | null;
+      try {
+        const dados = await d.lerPagamento(m.contratoId);
+        if (!dados || !dados.contrato) continue;
+        if (contratoPago(dados.contrato)) { await pularMarca(d, m.hmac, 'pagou', agora); continue; }
+        const tel = telefoneDaMarca(m, dados, quiz);
+        if (!tel) continue;   // sem telefone não dá para conferir a conversa: na dúvida, ninguém é incomodado
+        if (await pagouPelaMarca(d, m, dados, vendas)) continue;
+        const av = await avaliarLead(leadDaMarca(m, quiz, tel), { agoraMs, largadaMs: null, vendas, viaPagamento: true }, d);
+        if (!av.ok) {
+          if (MOTIVOS_PERMANENTES_REC.has(av.motivo)) await pularMarca(d, m.hmac, av.motivo, agora);
+          continue;
+        }
+        utmTerm = utmTermDaMarca(m, quiz);
+      } catch { continue; }   // na dúvida sobre a compra ou a conversa, ninguém é incomodado
+      const chaveEmail = `${PREFIXO_PAGTO_EMAIL}${m.contratoId}`;
+      const claim = await d.claim(chaveEmail, agora);
+      if (claim !== 'ok') continue;
+      // Depois do claim e antes de enviar: pagou nesse meio tempo?
+      try {
+        const fresco = await d.lerPagamento(m.contratoId);
+        const vendas2 = await d.vendas(Date.now());
+        if (!fresco || !fresco.contrato || await pagouPelaMarca(d, m, fresco, vendas2)) { await d.apagarClaim(chaveEmail); continue; }
+      } catch { await d.apagarClaim(chaveEmail); continue; }
+      try {
+        await d.enviarEmailPix(m.email as string, linkDoPagamento(utmTerm, 'email'));
+        enviados++;
+        r.decisoes.push({ hmac8: m.hmac.slice(0, 8), resultado: 'email_pix', motivo: null });
+      } catch (e) {
+        await d.apagarClaim(chaveEmail);   // o e-mail não saiu: a próxima rodada tenta de novo
+        logger.error(LOG, `e-mail do Pix falhou (${String((e as Error)?.message ?? e).slice(0, 40)})`);
+        break;
+      }
+    }
+  } catch (e) {
+    logger.error(LOG, `e-mail do Pix: a leitura falhou (${String((e as Error)?.message ?? e).slice(0, 60)})`);
+  }
+}
+
+/** Telefone com a metade escondida para o aviso ao Thiago: "5534****0001". */
+const mascarar = (tel: string): string => `${tel.slice(0, 4)}****${tel.slice(-4)}`;
 
 export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRec): Promise<RelatorioRec> {
   const agora = opts.agora ?? new Date();
@@ -312,10 +522,19 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
 
     // Fora da janela: nada de envio. Depois das 20h, em dia que a janela abriu, o lead sem vaga ganha o aviso do grupo.
     const dentroDaJanela = d.janela(agora);
+    // As marcas do pagamento, lidas uma vez. Dentro da janela, leitura que falha PARA a rodada: sem a marca, a mensagem de 15 min deixaria de
+    // pular quem está pagando.
+    const pagtoR = await carregarPagto(d, agora);
+    if (dentroDaJanela && !pagtoR) return { ...r, ok: false, motivo: 'leitura_das_marcas_falhou' };
     if (!dentroDaJanela) {
+      // Quem gerou o Pix e não pagou ganha o e-mail (1 por contrato) enquanto a janela do WhatsApp está fechada.
+      if (pagtoR) await emailDoPagamento(d, agora, r, pagtoR, true);
       if (horaDeBRT(agora) >= JANELA_FECHA_H && d.janela(meioDiaBRT(agora))) await semVaga(d, agora, largada, r);
       return { ...r, motivo: 'fora_da_janela' };
     }
+
+    // A marca SÓ DA LP não vai ao WhatsApp (o wa.me da LP não leva código): recebe o e-mail, também dentro da janela.
+    await emailDoPagamento(d, agora, r, pagtoR as PagtoRodada, false);
 
     // 2. as travas, nesta ordem
     const barra = await travas(d, agora, true);
@@ -327,16 +546,19 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
     await d.limparVezes(agora);
 
     // 4. a fila
-    const lida = await lerFila(d, agora, largada);
+    // Quem chegou na parte do pagamento vai ao TOPO, antes do corte de avaliações da rodada; a mensagem de 15 min não o atropela.
+    const pagto = await lerFilaPagamento(d, agora, pagtoR as PagtoRodada);
+    const lida = await lerFila(d, agora, largada, { excluir: pagto.hmacs });
     if (!lida) return { ...r, ok: false, motivo: 'leitura_da_fila_falhou' };
-    r.candidatos = lida.fila.length;
-    if (!lida.fila.length) return r;
+    const itens: ItemFila[] = [...pagto.itens.map(p => ({ lead: p.lead, pagto: p })), ...lida.fila.map(l => ({ lead: l }))];
+    r.candidatos = itens.length;
+    if (!itens.length) return r;
 
     let vendas: VendasRecentes;
     try { vendas = await d.vendas(agora.getTime()); } catch { return { ...r, ok: false, motivo: 'erro_compras' }; }
     const ctx: ContextoAvaliar = { agoraMs: agora.getTime(), largadaMs: largada, vendas };
 
-    for (const lead of lida.fila) {
+    for (const { lead, pagto: pg } of itens) {
       if (r.avaliados >= AVALIACOES_POR_RODADA) { soma(r.puladas, 'limite_por_rodada'); break; }
       r.avaliados++;
       const hmac = hmacDoLeadRec(lead) as string;
@@ -347,21 +569,28 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       };
 
       // 5. antes do claim: compra, posse, já falou, pausa humana e supressão; depois o phone-exists
-      const av = await avaliarLead(lead, ctx, d);
+      const av = await avaliarLead(lead, pg ? { ...ctx, viaPagamento: true } : ctx, d);
       if (!av.ok) {
         nota('pulou', av.motivo);
         if (MOTIVOS_PERMANENTES_REC.has(av.motivo)) { try { await d.marcarPulo?.(`${PREFIXO_PULOU_REC}${hmac}`, av.motivo, agora); } catch { /* sem a marca ele só é reavaliado */ } }
         continue;
       }
       // Quem marcou no quiz que prefere pagar no Pix ouve que dá para assinar no Pix por aqui (só se há Pix disponível agora).
+      // Pagamento: contrato pago, sessão da LP na venda ou e-mail com compra tiram o lead antes de gastar o phone-exists.
+      if (pg) {
+        try {
+          if (await pagouPelaMarca(d, pg.marca, pg.dados, vendas)) { await pularMarca(d, hmac, 'comprou', agora); nota('pulou', 'comprou'); continue; }
+        } catch { nota('pulou', 'leitura_falhou'); continue; }
+      }
+      // O caminho do pagamento monta o texto DEPOIS do claim, com o contrato relido (a idade do código decide entre código e link).
       const pixPorAqui = campoFd(lead.field_data, 'pagamento') === 'pix' && modoPix() !== 'indisponivel';
-      const texto = textoDaCarla(lead, { pixPorAqui });
-      if (!texto.ok) { nota('pulou', texto.motivo); continue; }
+      const texto = pg ? null : textoDaCarla(lead, { pixPorAqui });
+      if (texto && !texto.ok) { nota('pulou', texto.motivo); continue; }
       const existe = await d.telefoneExiste(av.tel);
       if (existe === 'erro') { nota('parou', 'phone_exists_falhou'); break; }
       if (existe === 'nao') {
         // Sem WhatsApp: a Carla não chama nunca; o grupo é avisado (pendente, o tick do B1 envia).
-        await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
+        if (!pg || pg.quiz) await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
         nota('pulou', 'sem_whatsapp');
         continue;
       }
@@ -399,19 +628,48 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
           reler = pode === 'sim' ? ((await d.posseAindaNossa(av.chave, em)) ? null : 'posse_perdida') : pode;
         }
       } catch { reler = 'leitura_falhou'; }
+      // Pagamento: depois do claim e ANTES de enviar, lê de novo se a pessoa pagou (contrato, venda e e-mail) e fixa o texto pelo contrato de agora.
+      let textoPg: TextoPagto | null = null;
+      if (!reler && pg) {
+        try {
+          const fresco = await d.lerPagamento?.(pg.marca.contratoId);
+          if (!fresco || !fresco.contrato) reler = 'pagamento_falhou';
+          else {
+            const vendas2 = await d.vendas(agoraEnvio.getTime());
+            const lp = campoFd(lead.field_data, 'lp_session') || pg.marca.lp_session || '';
+            if (await pagouPelaMarca(d, pg.marca, fresco, vendas2) || await d.compra(vendas2, lp, chaveDoTelefone(av.tel))) reler = 'pagou';
+            else {
+              const c = fresco.contrato;
+              // Menos de 55 min = código; 65 min ou mais = link; no meio o código está no fim e a rodada espera (o claim volta).
+              const fase = faseDoCodigo(c, agoraEnvio.getTime());
+              if (fase === 'espera') reler = 'aguardando_codigo';
+              else {
+                textoPg = montarTextoPagamento({
+                  codigoVivo: fase === 'codigo',
+                  qrPayload: c.qr_payload,
+                  nome: nomeDoPagamento(pg.quiz.nome, pg.marca.nome),
+                  empresa: empresaDoQuiz(pg.quiz.field_data),
+                  utmTerm: pg.utmTerm,
+                  horaBrt: horaDeBRT(agoraEnvio),
+                });
+              }
+            }
+          }
+        } catch { reler = 'pagamento_falhou'; }
+      }
       if (reler) { await desfazer(); nota('abortou', `releitura_${reler}`); continue; }
 
       // O sendFrio devolve false (calado) quando há pausa humana: o aviso "falou às" só sai depois de um envio que de fato foi feito.
       let saiu = false;
       try {
-        saiu = await d.enviar(av.tel, texto.texto);
+        saiu = await d.enviar(av.tel, textoPg ? textoPg.texto : (texto as { texto: string }).texto);
       } catch (err) {
         const cod = codigoDoErroDeEnvio(err);
         logger.error(LOG, `envio ${hmac8} falhou (${cod})`);
         if (erroEhDoDestino(err)) {
           // Número ruim: o claim FICA (nunca tenta de novo), a posse volta, não conta como erro da linha.
           await d.desfazerPosse(av.chave, em);
-          await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
+          if (!pg || pg.quiz) await d.avisarNaoChama(lead, FRASE_DO_MOTIVO.sem_whatsapp);
           nota('envio_falhou', 'destino');
         } else if (erroProvaQueNaoSaiu(err)) {
           await desfazer();
@@ -421,7 +679,7 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
           // Timeout e 5xx podem ter saído: claim e posse ficam, o erro conta e o grupo recebe um aviso que não afirma nada.
           await d.erroDeLinha(agoraEnvio);
           await d.marcarClaim(chaveClaim, { em, estado: 'incerto' });
-          await d.avisarNaoChama(lead, 'A Carla tentou chamar, mas não sei se a mensagem saiu.');
+          if (!pg || pg.quiz) await d.avisarNaoChama(lead, 'A Carla tentou chamar, mas não sei se a mensagem saiu.');
           nota('envio_falhou', cod);
         }
         break;
@@ -436,7 +694,22 @@ export async function runQuizRecuperacaoTick(opts: OpcoesRec = {}, deps?: DepsRe
       // Envio provado: o carimbo ganha o estado 'enviado', que é o que deixa o tick escrever "A Carla falou às".
       await d.marcarClaim(chaveClaim, { em, estado: 'enviado' });
       await d.envioOk(agoraEnvio);
-      await d.avisarSaiu(lead, horaBRT(agoraEnvio.getTime()));
+      // O código do Pix vai sozinho, na mensagem seguinte, e só porque a primeira saiu. Se esta falhar a primeira já foi: o claim fica como 'enviado'.
+      if (textoPg?.segundo) {
+        let segundoSaiu = false;
+        try {
+          await d.esperar?.(2000 + Math.floor(Math.random() * 3000));   // 2 a 5 s, como as respostas
+          segundoSaiu = await d.enviar(av.tel, textoPg.segundo);
+        } catch (err) {
+          logger.error(LOG, `2ª mensagem (código) de ${hmac8} falhou (${codigoDoErroDeEnvio(err)})`);
+          // Erro que não é do destino conta na linha (regra 16); o do destino não.
+          if (!erroEhDoDestino(err)) await d.erroDeLinha(agoraEnvio);
+        }
+        if (!segundoSaiu) {
+          try { await d.avisarThiago?.(`A Carla mandou a 1ª mensagem do Pix a ${mascarar(av.tel)}, mas o código não saiu: a 1ª prometia o código.`); } catch { /* só avisa */ }
+        }
+      }
+      if (!pg || pg.quiz) await d.avisarSaiu(lead, horaBRT(agoraEnvio.getTime()));
       r.enviou = true;
       nota('enviada', null);
       break;
@@ -536,6 +809,39 @@ export function depsReais(): DepsRec {
     },
     apagarClaim: (chave) => liberarChave(chave),
     async marcarPulo(chave, motivo, agora) { await reservarChave(chave, { em: agora.toISOString(), motivo }, agora); },
+    async marcasPagamento(desdeIso) {
+      try {
+        const { data, error } = await supabase.from('system_state').select('key, value')
+          .like('key', `${PREFIXO_PAGTO}%`).gte('updated_at', desdeIso).order('updated_at', { ascending: false }).limit(300);
+        if (error) return null;
+        return ((data ?? []) as Array<{ key: string; value: unknown }>).flatMap(l => { const m = marcaDeLinha(l.key, l.value); return m ? [m] : []; });
+      } catch { return null; }
+    },
+    async lerPagamento(contratoId) {
+      try {
+        const { data, error } = await supabase.from('asaas_pix_assinaturas')
+          .select('status, created_at, qr_payload, ultimo_pagamento_em, ultimo_pagamento_id, email').eq('contract_id', contratoId).maybeSingle();
+        if (error) return null;
+        // O WhatsApp mora na atribuição do contrato (a marca só leva o hmac); a leitura dela que falhar vale "sem telefone".
+        let whatsapp: string | null = null;
+        try {
+          const { data: atr } = await supabase.from('system_state').select('value').eq('key', `pix_auto_atrib:${contratoId}`).maybeSingle();
+          const w = (atr as { value?: { whatsapp?: unknown } } | null)?.value?.whatsapp;
+          whatsapp = typeof w === 'string' && w.trim() ? w.trim() : null;
+        } catch { whatsapp = null; }
+        return { contrato: (data as DadosPagamento['contrato']) ?? null, whatsapp };
+      } catch { return null; }
+    },
+    compraPorEmail: (vendas, email) => comprouPorEmail(vendas, email),
+    esperar: (ms) => new Promise<void>(ok => setTimeout(ok, ms)),
+    async avisarThiago(texto) {
+      const { sendOpsAlert } = await import('../../utils/mailer');
+      await sendOpsAlert('Carla: o código do Pix não saiu', `<p>${texto}</p>`);
+    },
+    async enviarEmailPix(para, link) {
+      const { sendPixEsperandoEmail } = await import('../../utils/mailer');
+      await sendPixEsperandoEmail({ to: para, link });
+    },
     async marcarClaim(chave, valor) {
       // O update devolve { error } sem lançar: conferir os dois (exceção e erro). O claim fica como está; o tick trata carimbo sem estado como "não saiu".
       try {

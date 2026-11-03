@@ -12,23 +12,25 @@ import { chaveDoContato } from '../chefe/destinos';
 import { variantesDaChave } from '../gerador/caixaWhatsapp';
 import { TETO_CALENDARIO_MS } from './recuperacaoCarlaRegras';
 
-interface VendaLinha { phone?: string | null; attribution_session_id?: string | null }
+interface VendaLinha { phone?: string | null; attribution_session_id?: string | null; email?: string | null }
 
-export interface VendasRecentes { sessoes: Set<string>; chaves: Set<string> }
+export interface VendasRecentes { sessoes: Set<string>; chaves: Set<string>; /** e-mails (minúsculos) das vendas recentes; opcional para os falsos dos testes */ emails?: Set<string> }
 
 /** Quem comprou: sessões e chaves de telefone das vendas recentes do ledger. */
 export async function vendasRecentes(agora: number): Promise<VendasRecentes> {
   const sessoes = new Set<string>();
   const chaves = new Set<string>();
+  const emails = new Set<string>();
   const desde = new Date(agora - TETO_CALENDARIO_MS - 3600_000).toISOString();
-  const { data, error } = await supabase.from('sales').select('phone, attribution_session_id').gte('created_at', desde).limit(2000);
+  const { data, error } = await supabase.from('sales').select('phone, attribution_session_id, email').gte('created_at', desde).limit(2000);
   if (error) throw new Error(`ler vendas: ${error.message}`);
   for (const v of (data ?? []) as VendaLinha[]) {
     if (v.attribution_session_id) sessoes.add(String(v.attribution_session_id));
     const k = chaveDoContato(v.phone);
     if (k) chaves.add(k);
+    if (v.email) emails.add(String(v.email).toLowerCase().trim());
   }
-  return { sessoes, chaves };
+  return { sessoes, chaves, emails };
 }
 
 /** Já tem plano pago com este número? (cobre o Pix por comprovante.) Erro sobe: na dúvida, ninguém é avisado. */
@@ -38,6 +40,23 @@ export async function temPlanoPago(chave: string): Promise<boolean> {
   const { data, error } = await supabase.from('users').select('id').in('whatsapp', variantes).neq('plano', 'free').limit(1);
   if (error) throw new Error(`ler users: ${error.message}`);
   return (data ?? []).length > 0;
+}
+
+/** Já tem plano pago com este e-mail? (quem pagou o Pix sem conta e foi liberado pelo e-mail.) Erro sobe: na dúvida, ninguém é chamado. */
+export async function temPlanoPagoPorEmail(email: string): Promise<boolean> {
+  const alvo = email.toLowerCase().trim();
+  if (!alvo) return false;
+  const { data, error } = await supabase.from('users').select('id').eq('email', alvo).neq('plano', 'free').limit(1);
+  if (error) throw new Error(`ler users: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/** Comprou, pelo e-mail? Venda do ledger recente OU plano pago. Erro sobe. */
+export async function comprouPorEmail(vendas: VendasRecentes, email: string): Promise<boolean> {
+  const alvo = email.toLowerCase().trim();
+  if (!alvo) return false;
+  if (vendas.emails?.has(alvo)) return true;
+  return temPlanoPagoPorEmail(alvo);
 }
 
 /** O lead comprou? `lp` é o lp_session gravado; `chave` é DDD + 8 últimos. Erro sobe. */

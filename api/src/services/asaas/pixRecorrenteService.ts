@@ -269,9 +269,21 @@ export async function criarPixRecorrente(args: {
 
   // Já tem contrato vivo? Devolve o mesmo em vez de abrir um segundo — dois
   // contratos ativos no mesmo CPF é cobrança em dobro com outro nome.
-  const existente = args.userId
+  let existente = args.userId
     ? await buscarAssinaturaAtiva(args.userId)
     : await buscarAssinaturaAtivaSemConta(args.email, args.cpfCnpj);
+  // Contrato `pendente` automático velho (mais de 65 min): o QR dele já não paga. Devolvê-lo daria à pessoa um QR morto. Vira `expirado` e nasce um novo.
+  // Só o `pendente`: `ativo` e `inadimplente` seguem como sempre (pagou ou está pagando, nunca abre um segundo).
+  if (existente && contratoPendenteVencido(existente)) {
+    const { error: eExp } = await supabase.from('asaas_pix_assinaturas')
+      .update({ status: 'expirado', updated_at: new Date().toISOString() }).eq('id', existente.id).eq('status', 'pendente');
+    if (eExp) {
+      logger.error('asaas-pix', `contrato pendente velho ${existente.contract_id} não virou expirado: devolvido como está`, eExp);
+    } else {
+      logger.info('asaas-pix', `contrato pendente de mais de ${CONTRATO_PENDENTE_VALE_MS / 60_000} min (${existente.contract_id}) virou expirado: abrindo um novo`);
+      existente = null;
+    }
+  }
   const atribuicao = limparAtribuicao(args.atribuicao);
   if (existente) {
     // Contrato que já existia continua valendo; só garante a atribuição se ainda não houver (nunca sobrescreve).
@@ -393,9 +405,28 @@ export interface LinhaPixRecorrente {
   ultimo_pagamento_em: string | null; proximo_vencimento: string | null;
   /** só vem do SELECT do webhook (COLS de lá); '' = nunca pagou. */
   ultimo_pagamento_id?: string | null;
+  /** quando o contrato (e o código dele) nasceu: o código do Pix vale poucos minutos, ver CONTRATO_PENDENTE_VALE_MS. */
+  created_at?: string | null;
 }
 
-const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento';
+/**
+ * O QR do Pix Automático vale 3600 s (expirationSeconds). Só passando de 65 min (60 min de validade mais 5 de folga) o QR velho já não paga e o
+ * contrato pode ser trocado por um novo; antes disso ele é devolvido como sempre, senão haveria dois QRs pagáveis e cobrança em dobro
+ * (o webhook credita o QR velho pelo acharContratoPorQr).
+ */
+export const CONTRATO_PENDENTE_VALE_MS = 65 * 60_000;
+
+/**
+ * Contrato `pendente` do trilho AUTOMÁTICO criado há mais de 65 min (pelo `created_at`). O trilho `assinatura` nunca vence por idade (a cobrança
+ * dele segue pagável) e sem `created_at` legível não vence: nos dois casos o contrato é reaproveitado como antes.
+ */
+export function contratoPendenteVencido(l: Pick<LinhaPixRecorrente, 'status' | 'created_at' | 'modo'>, agoraMs: number = Date.now()): boolean {
+  if (l.status !== 'pendente' || l.modo !== 'automatico') return false;
+  const criado = Date.parse(String(l.created_at ?? ''));
+  return Number.isFinite(criado) && agoraMs - criado > CONTRATO_PENDENTE_VALE_MS;
+}
+
+const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento, created_at';
 
 // Mesma trava do `buscarAssinaturaAtiva`, para quem AINDA NAO TEM CONTA: o
 // caminho publico (abandono de checkout) chega sem userId, e sem isto cada

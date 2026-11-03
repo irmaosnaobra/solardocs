@@ -951,6 +951,43 @@ export async function sendAbandonedCartEmail(opts: { to: string; produto: string
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// Recuperação do Pix que ficou esperando (03/11/2026): a pessoa gerou o Pix automático no quiz ou na LP e não pagou, e a janela do WhatsApp
+// está fechada (noite, domingo, feriado). UM e-mail por contrato (claim quiz_pagto_email:<contratoId> em quem chama). Sem valor inventado:
+// os números e o texto são os aprovados. Joga erro se o Resend recusar (quem chama solta o claim e tenta na rodada seguinte).
+export async function sendPixEsperandoEmail(opts: { to: string; link: string }): Promise<void> {
+  const href = opts.link.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:28px 34px;">
+    <h1 style="margin:0;color:#0f172a;font-size:23px;font-weight:900;line-height:1.2;">Seu Pix do SolarDoc ficou esperando</h1>
+  </div>
+  <div style="padding:30px 34px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Oi, aqui é a Carla, do SolarDoc.</p>
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 16px;">Vi que você começou a assinar e o Pix não chegou a ser pago. Acontece, e dá para gerar outro em 1 minuto.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 16px;">Mais de 3.600 propostas solares já saíram pelo SolarDoc, e mais de 700 só no último mês.</p>
+    <p style="color:#94a3b8;font-size:15px;line-height:1.7;margin:0 0 24px;">O Pix é automático: R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco, sem falar com ninguém.</p>
+    <div style="text-align:center;margin:26px 0 8px;">
+      <a href="${href}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:17px 40px;border-radius:12px;text-decoration:none;">Gerar meu Pix</a>
+    </div>
+  </div>
+</div>`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: 'Seu Pix do SolarDoc ficou esperando',
+    html,
+    text: [
+      'Oi, aqui é a Carla, do SolarDoc.',
+      'Vi que você começou a assinar e o Pix não chegou a ser pago. Acontece, e dá para gerar outro em 1 minuto.',
+      'Mais de 3.600 propostas solares já saíram pelo SolarDoc, e mais de 700 só no último mês.',
+      'O Pix é automático: R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc. O banco debita sozinho e você cancela quando quiser pelo app do banco, sem falar com ninguém.',
+      `Gerar meu Pix: ${opts.link}`,
+    ].join('\n\n'),
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   try {
     console.log(`[Mailer] Tentando enviar reset para ${email}...`);

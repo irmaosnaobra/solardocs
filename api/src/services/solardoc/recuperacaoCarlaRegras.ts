@@ -153,6 +153,125 @@ export function chaveVezRec(agora: Date): string {
   return `${PREFIXO_VEZ_REC}${Math.floor(agora.getTime() / 600_000)}`;
 }
 
+// ── quem chegou na parte do pagamento (03/11/2026) ───────────────────────────
+// O `POST /payments/pix-recorrente/publico` (origem quiz_solardoc ou lp_solardoc) grava `quiz_pagto:<hmac>`. A rodada da Carla chama quem
+// gerou o Pix e não pagou, 5 min depois, pelo mesmo portão e pelo mesmo claim `quiz_rec_sent:<hmac>` da mensagem de 15 min.
+
+/** Marca do pagamento: fica FORA de BOT_SENT_PREFIXES (não é envio). A chave leva o MESMO hmac do claim `quiz_rec_sent:`. */
+export const PREFIXO_PAGTO = 'quiz_pagto:';
+/** Claim do e-mail fora da janela: 1 por contrato. */
+export const PREFIXO_PAGTO_EMAIL = 'quiz_pagto_email:';
+/** A marca só vale com 5 min ou mais (a pessoa pode estar pagando agora). */
+export const PAGTO_ESPERA_MS = 5 * 60_000;
+/** A marca vale por 120 h, como o teto de calendário da Carla. */
+export const PAGTO_VALE_MS = TETO_CALENDARIO_MS;
+/**
+ * O código do contrato `pendente` vale 60 min no banco (a troca do contrato só acontece com 65 min, ver pixRecorrenteService). A recuperação:
+ * menos de 55 min = textos A/B com o código; de 55 a 65 min = espera (nada sai nesta rodada); 65 min ou mais = texto C com o link, quando o
+ * QR velho já não paga e o link gera um novo de verdade. Contrato que não está `pendente` vai direto ao link.
+ */
+export const PAGTO_CODIGO_VIVO_MS = 55 * 60_000;
+export const PAGTO_CODIGO_VENCIDO_MS = 65 * 60_000;
+
+export type FaseDoCodigo = 'codigo' | 'espera' | 'link';
+
+/** Em que fase está o contrato. Sem `created_at` legível (ou `pendente` sem código para mandar antes dos 65 min) espera. */
+export function faseDoCodigo(c: { status: string; created_at: string | null; qr_payload: string | null }, agoraMs: number): FaseDoCodigo {
+  if (c.status !== 'pendente') return 'link';
+  const criado = Date.parse(String(c.created_at ?? ''));
+  if (!Number.isFinite(criado)) return 'espera';
+  const idade = agoraMs - criado;
+  if (idade >= PAGTO_CODIGO_VENCIDO_MS) return 'link';
+  // O código só vale como código se for um copia e cola de Pix de verdade (começa em 000201).
+  if (idade < PAGTO_CODIGO_VIVO_MS && String(c.qr_payload ?? '').startsWith('000201')) return 'codigo';
+  return 'espera';
+}
+
+export interface MarcaPagto {
+  hmac: string;
+  em: string;
+  contratoId: string;
+  origem: string;
+  email: string | null;
+  nome: string | null;
+  utm_term: string | null;
+  lp_session: string | null;
+}
+
+/** Lê o valor gravado em `quiz_pagto:<hmac>`. Valor torto = null. */
+export function marcaDeLinha(key: string, value: unknown): MarcaPagto | null {
+  if (!key.startsWith(PREFIXO_PAGTO) || !value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  const txt = (x: unknown): string | null => (typeof x === 'string' && x.trim() ? x.trim() : null);
+  const em = txt(v.em);
+  const contratoId = txt(v.contratoId);
+  const hmac = key.slice(PREFIXO_PAGTO.length);
+  if (!hmac || !em || !contratoId || !Number.isFinite(Date.parse(em))) return null;
+  return {
+    hmac, em, contratoId, origem: txt(v.origem) ?? '', email: txt(v.email), nome: txt(v.nome),
+    utm_term: txt(v.utm_term), lp_session: txt(v.lp_session),
+  };
+}
+
+// Os textos do redator, aprovados. Só os colchetes mudam.
+export const TEXTO_PAGTO_A =
+  'Oi, [nome], aqui é a Carla, do SolarDoc. Seu Pix da [empresa] ainda está valendo, e mais de 700 propostas saíram pelo app só no último mês. É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
+export const TEXTO_PAGTO_B1 =
+  'Oi, [nome], aqui é a Carla, do SolarDoc. Seu Pix ainda está valendo, e mais de 3.600 propostas solares já saíram pelo app. É o Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, dona do SolarDoc, e você cancela quando quiser pelo app do banco. Vou te mandar o código aqui embaixo, é só copiar e colar no Pix copia e cola do seu banco.';
+export const TEXTO_PAGTO_B2 = TEXTO_PAGTO_B1.replace('Oi, [nome], aqui é a Carla', 'Oi, aqui é a Carla');
+export const TEXTO_PAGTO_C1 =
+  '[saudacao], [nome], aqui é a Carla, do SolarDoc. O Pix que você gerou já venceu, mas é só abrir [link] e gerar outro, leva 1 minuto. É Pix automático de R$ 67 por mês, no nome da AIOROS GROUP, e você cancela quando quiser pelo app do banco. Mais de 700 propostas solares saíram pelo SolarDoc só no último mês.';
+export const TEXTO_PAGTO_C2 = TEXTO_PAGTO_C1.replace('[saudacao], [nome], aqui é a Carla', '[saudacao], aqui é a Carla');
+
+/** Link para gerar outro Pix. Sem `utm_term` vai sem ele. `meio` = whatsapp ou email. */
+export function linkDoPagamento(utmTerm: string | null | undefined, meio: 'whatsapp' | 'email'): string {
+  const base = `https://solardoc.app/?pagar=pix&utm_source=recuperacao&utm_medium=${meio}`;
+  const t = String(utmTerm ?? '').trim();
+  return t ? `${base}&utm_term=${encodeURIComponent(t)}` : base;
+}
+
+/** Primeiro nome para o texto do pagamento: "Cliente" (o nome que o sistema põe quando não há) e nome ilegível valem sem nome. */
+export function nomeDoPagamento(...candidatos: Array<string | null | undefined>): string | null {
+  for (const c of candidatos) {
+    const n = primeiroNome(c);
+    if (n && n.toLocaleLowerCase('pt-BR') !== 'cliente') return n;
+  }
+  return null;
+}
+
+export interface EntradaTextoPagto {
+  /** Fase `codigo` (menos de 55 min, com `qr_payload`): manda o código. Senão manda o link (fase `link`). */
+  codigoVivo: boolean;
+  qrPayload: string | null;
+  nome: string | null;
+  /** Empresa do lead do quiz, já limpa; null = a pessoa veio da LP (ou o lead do quiz não foi achado). */
+  empresa: string | null;
+  utmTerm: string | null;
+  /** Hora BRT (0 a 23) do envio: "Bom dia" só antes das 12h. */
+  horaBrt: number;
+}
+
+export interface TextoPagto { texto: string; segundo: string | null; tipo: 'A' | 'B1' | 'B2' | 'C1' | 'C2' }
+
+/** O texto de quem chegou no pagamento: A, B1 ou B2 com o código logo depois (2ª mensagem), ou C1 ou C2 com o link. */
+export function montarTextoPagamento(e: EntradaTextoPagto): TextoPagto {
+  if (e.codigoVivo && e.qrPayload && e.qrPayload.startsWith('000201')) {
+    if (e.nome && e.empresa) return { tipo: 'A', texto: TEXTO_PAGTO_A.replace('[nome]', () => e.nome as string).replace('[empresa]', () => e.empresa as string), segundo: e.qrPayload };
+    if (e.nome) return { tipo: 'B1', texto: TEXTO_PAGTO_B1.replace('[nome]', () => e.nome as string), segundo: e.qrPayload };
+    return { tipo: 'B2', texto: TEXTO_PAGTO_B2, segundo: e.qrPayload };
+  }
+  const saudacao = e.horaBrt < 12 ? 'Bom dia' : 'Oi';
+  const link = linkDoPagamento(e.utmTerm, 'whatsapp');
+  const base = e.nome ? TEXTO_PAGTO_C1.replace('[nome]', () => e.nome as string) : TEXTO_PAGTO_C2;
+  return { tipo: e.nome ? 'C1' : 'C2', texto: base.replace('[saudacao]', () => saudacao).replace('[link]', () => link), segundo: null };
+}
+
+/** Empresa do lead do quiz para o texto A (uma linha, sem emoji nem link), ou null. */
+export function empresaDoQuiz(fieldData: unknown): string | null {
+  const bruta = campoFd(fieldData, 'Empresa');
+  return bruta ? textoDePessoa(bruta, 60) : null;
+}
+
 // ── a fila ───────────────────────────────────────────────────────────────────
 
 /** Respostas de `quando_comecar` na ordem de intenção. Resposta ausente ou desconhecida vai por último. */
