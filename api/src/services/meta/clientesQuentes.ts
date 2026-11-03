@@ -39,9 +39,10 @@ import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { PLANILHA_CSV_URL, parseCSV } from '../insightsService';
 import {
   TICKET_ELETRO, TICKET_SOLAR_PADRAO, ehTeste, pesoDoStatus, lerPlanilha, listaSolar, listaEletroposto,
-  lotesPublico, previa,
+  lotesPublico, previa, valorDaVenda,
   type Quente, type AgCard, type LeadMeta, type Parceria, type VendaPlanilha, type ListaQuentes,
 } from './clientesQuentesPuro';
+import { lerFontesDeValor } from './clientesQuentesValor';
 
 const GRAPH = 'https://graph.facebook.com/v23.0';
 const CHAVE_DIA = 'clientes_quentes_publico';
@@ -50,6 +51,8 @@ const CHAVE_BASELINE = 'clientes_quentes_baseline';
 export const ORCAMENTO_MS = 120_000;
 export const TETO_EVENTOS = 40;
 export const MINIMO_PUBLICO = 20;
+/** Teto de tempo da leitura das fontes do valor real (ligações e propostas): estourou, o Purchase sai com o ticket. */
+export const TIMEOUT_FONTES_MS = 20_000;
 const PAGINA = 1000; // o PostgREST corta em 1000 linhas e ignora o .limit()
 
 export const NOME_PUBLICO: Record<ProdutoMeta, string> = {
@@ -78,6 +81,8 @@ export interface RelatorioQuentes {
     erros: Array<{ card?: string; erro: string }>;
     pulado?: 'desligado';
     aEnviar?: number;
+    /** Só no dry: o valor e a origem de cada Purchase do solar da rodada (nada foi enviado nem gravado). */
+    valoresDosPurchases?: Array<{ card: string; valor: number; origem: string }>;
   };
   publico: {
     solar?: RelatorioPublico; eletroposto?: RelatorioPublico;
@@ -105,7 +110,7 @@ async function lerTudo<T>(tabela: string, colunas: string, op: { like?: [string,
 }
 
 /** `ok` só quando a planilha veio e trouxe vendas: lista de solar sem as vendas é lista encolhida. */
-async function baixarPlanilha(): Promise<{ vendas: VendaPlanilha[]; ticket: number; ok: boolean }> {
+async function baixarPlanilha(): Promise<{ vendas: VendaPlanilha[]; ticket: number; teto?: number | null; ok: boolean }> {
   try {
     const res = await fetch(PLANILHA_CSV_URL, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -119,7 +124,7 @@ async function baixarPlanilha(): Promise<{ vendas: VendaPlanilha[]; ticket: numb
 }
 
 // ── B. Eventos ───────────────────────────────────────────────────────────────
-interface Candidato { ag: AgCard; produto: ProdutoMeta; status: string; evento: 'Purchase' | 'ClienteQuente'; valor: number; leadId: string; fone: string }
+interface Candidato { ag: AgCard; produto: ProdutoMeta; status: string; evento: 'Purchase' | 'ClienteQuente'; valor: number; leadId: string; fone: string; origemValor?: string }
 
 function candidatosDeEvento(cards: AgCard[], ticketSolar: number): Candidato[] {
   const out: Candidato[] = [];
@@ -140,6 +145,40 @@ function candidatosDeEvento(cards: AgCard[], ticketSolar: number): Candidato[] {
   return out;
 }
 
+/**
+ * O VALOR REAL DA VENDA (03/11/2026). O Purchase do solar vai com o valor da venda quando uma fonte casa sem ambiguidade
+ * (valorDaVenda, clientesQuentesPuro.ts); senão fica o ticket, como sempre. Só muda `valor` e `origemValor` dos Purchase do solar:
+ * quem recebe evento, o dedup e o event_time não mudam. Nunca lança.
+ */
+async function aplicarValorDaVenda(lote: Candidato[], cards: AgCard[], planilha: Awaited<ReturnType<typeof baixarPlanilha>>): Promise<void> {
+  const compras = lote.filter(c => c.evento === 'Purchase' && c.produto === 'solar');
+  if (!compras.length) return;
+  try {
+    // A leitura roda ANTES da conferência do ORCAMENTO_MS e não tem timeout próprio: sem este limite ela seguraria o master.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const vazio: Awaited<ReturnType<typeof lerFontesDeValor>> = { codigosDoCard: new Map(), valorDaProposta: new Map() };
+    const fontes = await Promise.race([
+      lerFontesDeValor(compras.map(c => c.ag.id)),
+      new Promise<typeof vazio>(resolve => {
+        timer = setTimeout(() => {
+          logger.warn('clientes-quentes', `fontes do valor da venda passaram de ${TIMEOUT_FONTES_MS / 1000} s, os Purchase saem com o ticket`);
+          resolve(vazio);
+        }, TIMEOUT_FONTES_MS);
+      }),
+    ]).finally(() => { if (timer) clearTimeout(timer); });
+    for (const c of compras) {
+      const r = valorDaVenda(c.ag, {
+        ticket: planilha.ticket, ehEletro: ehOrigemEletroposto, planilha,
+        codigosDoCard: fontes.codigosDoCard, valorDaProposta: fontes.valorDaProposta, cards,
+      });
+      c.valor = r.valor;
+      if (r.origem !== 'ticket') c.origemValor = r.origem;
+    }
+  } catch (e) {
+    logger.warn('clientes-quentes', 'valor real da venda falhou, o Purchase sai com o ticket', String((e as Error)?.message || e));
+  }
+}
+
 const linhaDedup = (c: Candidato, origem: string, extra: Record<string, unknown>) => ({
   lead_id: c.leadId,
   telefone_core8: c.fone.slice(-8),
@@ -150,8 +189,8 @@ const linhaDedup = (c: Candidato, origem: string, extra: Record<string, unknown>
   ...extra,
 });
 
-async function rodarEventos(cards: AgCard[], ticketSolar: number, dry: boolean, rel: RelatorioQuentes['eventos'], inicio: number): Promise<void> {
-  const cand = candidatosDeEvento(cards, ticketSolar);
+async function rodarEventos(cards: AgCard[], planilha: Awaited<ReturnType<typeof baixarPlanilha>>, dry: boolean, rel: RelatorioQuentes['eventos'], inicio: number): Promise<void> {
+  const cand = candidatosDeEvento(cards, planilha.ticket);
 
   // A linha de base termina com uma MARCA no system_state, gravada só depois de
   // TODAS as linhas. Antes a regra era "tabela vazia = primeira vez", e uma
@@ -190,7 +229,13 @@ async function rodarEventos(cards: AgCard[], ticketSolar: number, dry: boolean, 
 
   const novos = cand.filter(c => !ja.has(`${c.leadId}|${c.evento}`));
   const lote = novos.slice(0, TETO_EVENTOS);
-  if (dry) { rel.pendentes = novos.length - lote.length; rel.aEnviar = lote.length; return; }
+  await aplicarValorDaVenda(lote, cards, planilha);
+  if (dry) {
+    rel.pendentes = novos.length - lote.length; rel.aEnviar = lote.length;
+    const compras = lote.filter(c => c.evento === 'Purchase' && c.produto === 'solar');
+    if (compras.length) rel.valoresDosPurchases = compras.map(c => ({ card: c.leadId, valor: c.valor, origem: c.origemValor ?? 'ticket' }));
+    return;
+  }
 
   let feitos = 0;
   for (const c of lote) {
@@ -210,7 +255,7 @@ async function rodarEventos(cards: AgCard[], ticketSolar: number, dry: boolean, 
     rel.enviados++;
     // Dedup só quando o Meta aceitou: falha volta na próxima rodada.
     const { error } = await supabaseGerador.from('capi_conversoes_enviadas').insert(
-      linhaDedup(c, `quente:${c.produto}:${c.status}`, { meta_status: r.status, meta_received: r.recebidos ?? null }));
+      linhaDedup(c, `quente:${c.produto}:${c.status}${c.origemValor ? `:${c.origemValor}` : ''}`, { meta_status: r.status, meta_received: r.recebidos ?? null }));
     if (error && !/duplicate|unique/i.test(error.message)) {
       // O Meta já recebeu: sem o dedup este card sai de novo na próxima rodada (o event_id
       // estável deixa o Meta deduplicar, mas o dono precisa saber).
@@ -355,7 +400,7 @@ export async function runClientesQuentes(opts: { dry?: boolean; forcarPublico?: 
     // O público vem ANTES dos eventos: é o que roda uma vez por dia e o que mais
     // importa; os eventos têm teto de tempo e ficam com o que sobrar.
     if (publicoRoda) await rodarPublico(cards.dados, planilha, dry, rel);
-    if (eventosOn) await rodarEventos(cards.dados, planilha.ticket, dry, rel.eventos, inicio);
+    if (eventosOn) await rodarEventos(cards.dados, planilha, dry, rel.eventos, inicio);
   } catch (e) {
     logger.error('clientes-quentes', 'rodada falhou', e);
     rel.eventos.erros.push({ erro: String((e as Error)?.message || e) });

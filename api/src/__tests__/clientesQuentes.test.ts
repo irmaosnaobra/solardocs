@@ -5,7 +5,10 @@ import {
   lotesPublico, previa, TICKET_ELETRO, pesoBaseDoCard, PESO_BASE_SOLAR, PESO_BASE_ELETRO, ORIGENS_DE_LEAD, type Quente, type ListaQuentes,
 } from '../services/meta/clientesQuentesPuro';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
-import { PONTOS_QUIZ_BOM } from '../services/meta/clientesQuentesPuro';
+import {
+  PONTOS_QUIZ_BOM, valorDaVenda, nomesCompativeis, dataDaPlanilha, numeroDoCodigoSolar, JANELA_VENDA_RECENTE_DIAS,
+  pisoDoValor, DIVISOR_PISO_DO_TETO, DIVISOR_PISO_DO_TICKET, type FontesDeValor, type VendaPlanilha,
+} from '../services/meta/clientesQuentesPuro';
 import { NOTA_MINIMA_SOLAR } from '../services/io/solarDescarte';
 
 // O lead bom do Meta começa onde o quiz para de descartar: se um mudar sozinho, os dois se separam calados.
@@ -306,6 +309,9 @@ let metaEventoOk = true;
 let planilhaOk = true;
 let publicosExistentes: Array<{ id: string; name: string }> = [];
 let paginar = false;
+let fontesFalsas = { codigosDoCard: new Map<number, number[]>(), valorDaProposta: new Map<number, number>() };
+let fontesTravadas = false;
+vi.mock('../services/meta/clientesQuentesValor', () => ({ lerFontesDeValor: () => (fontesTravadas ? new Promise(() => {}) : Promise.resolve(fontesFalsas)) }));
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
@@ -377,6 +383,7 @@ beforeEach(() => {
   for (const k of Object.keys(tabelas)) delete tabelas[k];
   inserts.length = 0; upserts.length = 0; chamadas.length = 0; estado = {}; falhaUpsert = false; falhaInsert = false; semOrdem.length = 0;
   usersreplaceOk = true; metaEventoOk = true; planilhaOk = true; publicosExistentes = []; paginar = false;
+  fontesFalsas = { codigosDoCard: new Map(), valorDaProposta: new Map() }; fontesTravadas = false;
   process.env.META_SYSTEM_USER_TOKEN = 'tok_falso';
   delete process.env.CLIENTE_QUENTE_OFF; delete process.env.PUBLICO_QUENTE_OFF;
   vi.stubGlobal('fetch', vi.fn(fetchFalso));
@@ -835,5 +842,224 @@ describe('consumo do formulário do Meta', () => {
       leads: [lead({ lead_id: '56', whatsapp: '34912340001', field_data: fd({ Consumo: 'R$ 900' }) })],
     });
     expect(l.size).toBe(0);
+  });
+});
+
+
+// ── O valor real da venda no Purchase (03/11/2026) ───────────────────────────
+describe('valorDaVenda: o valor da venda, e na dúvida o ticket', () => {
+  const venda = (codigo: number | null, valor: number, over: Partial<VendaPlanilha> = {}): VendaPlanilha =>
+    ({ nome: 'Ana Souza', telefone: '34999990001', cidade: '', uf: '', valor, codigo, data: '2026-10-20', ...over });
+  const fontes = (over: Partial<FontesDeValor> = {}): FontesDeValor => ({
+    ticket: 10000, ehEletro: ehOrigemEletroposto, planilha: { ok: true, vendas: [], teto: 33000 },
+    codigosDoCard: new Map(), valorDaProposta: new Map(), cards: [], agora: Date.parse('2026-11-03T12:00:00Z'), ...over,
+  });
+  const card = (id = 5, over: Record<string, unknown> = {}) => ag(id, 'fechou', { cliente_nome: 'Ana Souza', cliente_telefone: '34999990001', ...over });
+  const ticket = { valor: 10000, origem: 'ticket' };
+
+  it('o mesmo código: o valor da linha da planilha', () => {
+    const f = fontes({ planilha: { ok: true, teto: 33000, vendas: [venda(65, 18500), venda(66, 9000)] }, codigosDoCard: new Map([[5, [65]]]) });
+    expect(valorDaVenda(card(5), f)).toEqual({ valor: 18500, origem: 'planilha_codigo' });
+  });
+  it('o código manda mesmo com outro card no mesmo telefone (pai e filho)', () => {
+    const vendas = [venda(65, 18500), venda(66, 9000, { nome: 'Cristiano' })];
+    const f = fontes({ planilha: { ok: true, teto: 33000, vendas }, codigosDoCard: new Map([[5, [65]], [6, [66]]]) });
+    expect(valorDaVenda(card(6, { cliente_nome: 'Cristiano Silva' }), f)).toEqual({ valor: 9000, origem: 'planilha_codigo' });
+  });
+  it('acima do teto vale o teto (planilha e proposta)', () => {
+    const f = fontes({ planilha: { ok: true, teto: 33000, vendas: [venda(65, 380000)] }, codigosDoCard: new Map([[5, [65]]]) });
+    expect(valorDaVenda(card(5), f)).toEqual({ valor: 33000, origem: 'planilha_codigo' });
+    expect(valorDaVenda(card(7), fontes({ valorDaProposta: new Map([[7, 90000]]) }))).toEqual({ valor: 33000, origem: 'proposta' });
+  });
+  it('sem planilha lida (nula, fora do ar ou sem teto) é ticket, mesmo com código e proposta', () => {
+    const extra = { codigosDoCard: new Map([[5, [65]]]), valorDaProposta: new Map([[5, 18000]]) };
+    expect(valorDaVenda(card(5), fontes({ ...extra, planilha: null }))).toEqual(ticket);
+    expect(valorDaVenda(card(5), fontes({ ...extra, planilha: { ok: false, vendas: [venda(65, 18500)], teto: 33000 } }))).toEqual(ticket);
+    expect(valorDaVenda(card(5), fontes({ ...extra, planilha: { ok: true, vendas: [venda(65, 18500)], teto: null } }))).toEqual(ticket);
+  });
+  it('eletroposto fica no ticket do eletroposto, com qualquer fonte', () => {
+    const c = eletro(5, 'fechou');
+    const f = fontes({ planilha: { ok: true, teto: 33000, vendas: [venda(65, 18500)] }, codigosDoCard: new Map([[5, [65]]]), valorDaProposta: new Map([[5, 18000]]) });
+    expect(valorDaVenda(c, f)).toEqual({ valor: TICKET_ELETRO, origem: 'ticket' });
+  });
+  it('sem código, sem proposta e sem telefone casado: ticket', () => {
+    expect(valorDaVenda(card(5), fontes())).toEqual(ticket);
+  });
+  it('dúvida no código: dois códigos no card, linha repetida na planilha, valor zero ou negativo: ticket', () => {
+    const v = (vendas: VendaPlanilha[], cod: number[]) => fontes({ planilha: { ok: true, teto: 33000, vendas }, codigosDoCard: new Map([[5, cod]]) });
+    expect(valorDaVenda(card(5), v([venda(65, 18500), venda(66, 9000)], [65, 66]))).toEqual(ticket);
+    expect(valorDaVenda(card(5), v([venda(65, 18500), venda(65, 9000)], [65]))).toEqual(ticket);
+    expect(valorDaVenda(card(5), v([venda(65, 0)], [65]))).toEqual(ticket);
+    expect(valorDaVenda(card(5), v([venda(65, -300)], [65]))).toEqual(ticket);
+  });
+  it('código ligado e ainda sem linha na planilha: cai na proposta, e sem ela fica no ticket (não vai pelo telefone)', () => {
+    const base = { planilha: { ok: true, teto: 33000, vendas: [venda(null, 7000)] }, codigosDoCard: new Map([[5, [65]]]), cards: [card(5)] };
+    expect(valorDaVenda(card(5), fontes({ ...base, valorDaProposta: new Map([[5, 21000]]) }))).toEqual({ valor: 21000, origem: 'proposta' });
+    expect(valorDaVenda(card(5), fontes(base))).toEqual(ticket);
+  });
+  it('o piso: valor digitado sem o milhar (145 por 145.000) ou 0,01 vira ticket nos três caminhos', () => {
+    expect(pisoDoValor(33000, 10000)).toBe(33000 / DIVISOR_PISO_DO_TETO); // 1100
+    expect(pisoDoValor(null, 10000)).toBe(10000 / DIVISOR_PISO_DO_TICKET); // 1000
+    expect(DIVISOR_PISO_DO_TETO).toBe(30);
+    expect(DIVISOR_PISO_DO_TICKET).toBe(10);
+    const porCodigo = (v: number) => valorDaVenda(card(5), fontes({ planilha: { ok: true, teto: 33000, vendas: [venda(65, v)] }, codigosDoCard: new Map([[5, [65]]]) }));
+    const porProposta = (v: number) => valorDaVenda(card(5), fontes({ valorDaProposta: new Map([[5, v]]) }));
+    const porTelefone = (v: number) => valorDaVenda(card(5), fontes({ planilha: { ok: true, teto: 33000, vendas: [venda(70, v)] }, cards: [card(5)] }));
+    for (const por of [porCodigo, porProposta, porTelefone]) {
+      expect(por(145)).toEqual(ticket);
+      expect(por(0.01)).toEqual(ticket);
+      expect(por(1099)).toEqual(ticket);
+      expect(por(1100).origem).not.toBe('ticket'); // logo no piso: vale
+      expect(por(1100).valor).toBe(1100);
+      expect(por(1200).valor).toBe(1200); // logo acima do piso
+    }
+  });
+  it('proposta com valor zero ou negativo: ticket', () => {
+    expect(valorDaVenda(card(5), fontes({ valorDaProposta: new Map([[5, 0]]) }))).toEqual(ticket);
+    expect(valorDaVenda(card(5), fontes({ valorDaProposta: new Map([[5, -10]]) }))).toEqual(ticket);
+  });
+
+  describe('pelo telefone (só com todas as travas)', () => {
+    const tel = (vendas: VendaPlanilha[], cards: any[] = [card(5)], over: Partial<FontesDeValor> = {}) =>
+      fontes({ planilha: { ok: true, teto: 33000, vendas }, cards, ...over });
+    it('uma venda recente, um card fechado e nome compatível: o valor', () => {
+      expect(valorDaVenda(card(5), tel([venda(70, 15000)]))).toEqual({ valor: 15000, origem: 'planilha_telefone' });
+    });
+    it('duas vendas no mesmo telefone: ticket', () => {
+      expect(valorDaVenda(card(5), tel([venda(70, 15000), venda(71, 8000)]))).toEqual(ticket);
+    });
+    it('dois cards fechados no mesmo telefone (família): ticket', () => {
+      const outro = ag(9, 'fechou', { cliente_nome: 'Ana Souza Filho', cliente_telefone: '34999990001' });
+      expect(valorDaVenda(card(5), tel([venda(70, 15000)], [card(5), outro]))).toEqual(ticket);
+    });
+    it('pai e filho no mesmo número: o nome do outro não escolhe valor', () => {
+      const pai = card(5, { cliente_nome: 'Hermantino Silva' });
+      expect(valorDaVenda(pai, tel([venda(70, 15000, { nome: 'Cristiano' })], [pai]))).toEqual(ticket);
+    });
+    it('venda antiga, sem data ou de outro card: ticket', () => {
+      expect(valorDaVenda(card(5), tel([venda(70, 15000, { data: '2026-05-01' })]))).toEqual(ticket);
+      expect(valorDaVenda(card(5), tel([venda(70, 15000, { data: null })]))).toEqual(ticket);
+      expect(valorDaVenda(card(5), tel([venda(70, 15000)], [card(5)], { codigosDoCard: new Map([[99, [70]]]) }))).toEqual(ticket);
+    });
+    it('o sufixo do nome impede o telefone: o pai não pega o valor do filho', () => {
+      const pai = card(5, { cliente_nome: 'Hermantino Silva' });
+      expect(valorDaVenda(pai, tel([venda(70, 15000, { nome: 'Hermantino Silva Filho' })], [pai]))).toEqual(ticket);
+    });
+    it('a janela de venda recente é de 60 dias', () => {
+      expect(JANELA_VENDA_RECENTE_DIAS).toBe(60);
+    });
+  });
+});
+
+describe('peças da leitura da planilha', () => {
+  it('o número do código e a data da venda', () => {
+    expect(numeroDoCodigoSolar('#0065')).toBe(65);
+    expect(numeroDoCodigoSolar('65')).toBe(65);
+    expect(numeroDoCodigoSolar('#E001')).toBeNull();
+    expect(dataDaPlanilha('25/10/2026')).toBe('2026-10-25');
+    expect(dataDaPlanilha('2026-10-25')).toBe('2026-10-25');
+    expect(dataDaPlanilha('31/02/2026')).toBeNull();
+    expect(dataDaPlanilha('')).toBeNull();
+  });
+  it('nomes compatíveis: igual, ou duas palavras em comum, sem partículas e com o mesmo sufixo', () => {
+    expect(nomesCompativeis('Ana Souza', 'ana souza')).toBe(true);
+    expect(nomesCompativeis('José da Silva', 'Jose Silva')).toBe(true); // a partícula não conta
+    expect(nomesCompativeis('Ana Maria Souza', 'Ana Souza')).toBe(true); // duas palavras em comum
+    expect(nomesCompativeis('Ana', 'Ana Souza')).toBe(false); // só o primeiro nome não basta
+    expect(nomesCompativeis('Ana Lima', 'Ana Souza')).toBe(false); // uma palavra só em comum
+    expect(nomesCompativeis('Cristiano', 'Hermantino Silva')).toBe(false);
+    expect(nomesCompativeis('', 'Ana Souza')).toBe(false);
+  });
+  it('o sufixo marca outra pessoa: Hermantino Silva x Hermantino Silva Filho é incompatível', () => {
+    expect(nomesCompativeis('Hermantino Silva', 'Hermantino Silva Filho')).toBe(false);
+    expect(nomesCompativeis('Hermantino Silva Filho', 'Hermantino Silva')).toBe(false);
+    expect(nomesCompativeis('Hermantino Silva Jr', 'Hermantino Silva Junior')).toBe(false);
+    expect(nomesCompativeis('Hermantino Silva Filho', 'hermantino silva filho')).toBe(true);
+    expect(nomesCompativeis('Cristiano Souza Neto', 'Cristiano Neto Souza Lima')).toBe(true);
+  });
+  it('lerPlanilha devolve código, data e o teto de 3× a mediana', () => {
+    const cab = ['J49', 'NOME CLIENTE', 'CONTATO', 'CIDADE', 'UF', 'VALOR DA VENDA', 'CADASTRO TRELLO'];
+    const l = (cod: string, valor: string, data: string) => [cod, 'Ana', '34999990001', 'Uberlândia', 'MG', valor, data];
+    const r = lerPlanilha([cab, l('#0065', 'R$ 10.000,00', '20/10/2026'), l('#66', 'R$ 10.000,00', ''), l('#67', 'R$ 380.000,00', '')]);
+    expect(r.vendas.map(v => [v.codigo, v.data])).toEqual([[65, '2026-10-20'], [66, null], [67, null]]);
+    expect(r.teto).toBe(30000);
+    expect(r.vendas[2].valor).toBe(30000);
+  });
+});
+
+describe('Purchase do solar com o valor real', () => {
+  const comPurchase = () => { base(0); marcar(); tabelas.capi_conversoes_enviadas = [{ lead_id: 'ag_999', event_name: 'ClienteQuente' }]; };
+  const venda = () => eventosEnviados().find(c => c.corpo.data[0].event_name === 'Purchase')!.corpo.data[0];
+
+  it('card ligado ao código da planilha: o valor da linha e a origem no dedup', async () => {
+    comPurchase();
+    tabelas.agendamentos = [ag(3, 'fechou')];
+    fontesFalsas.codigosDoCard.set(3, [2]); // a linha #2 da planilha vale R$ 13.010
+    const r = await run();
+    expect(r.eventos.enviados).toBe(1);
+    expect(venda().custom_data.value).toBe(13010);
+    expect(dedup()[0]).toMatchObject({ lead_id: 'ag_3', event_name: 'Purchase', valor: 13010, origem: 'quente:solar:fechou:planilha_codigo' });
+  });
+  it('proposta ligada: o valor da proposta', async () => {
+    comPurchase();
+    tabelas.agendamentos = [ag(3, 'fechou')];
+    fontesFalsas.valorDaProposta.set(3, 18200);
+    await run();
+    expect(venda().custom_data.value).toBe(18200);
+    expect(dedup()[0]).toMatchObject({ valor: 18200, origem: 'quente:solar:fechou:proposta' });
+  });
+  it('sem fonte: o ticket de sempre e a origem sem sufixo', async () => {
+    comPurchase();
+    tabelas.agendamentos = [ag(3, 'fechou')];
+    await run();
+    expect(venda().custom_data.value).toBe(10000);
+    expect(dedup()[0]).toMatchObject({ valor: 10000, origem: 'quente:solar:fechou' });
+  });
+  it('planilha fora do ar: ticket padrão, mesmo com código ligado', async () => {
+    comPurchase();
+    planilhaOk = false;
+    tabelas.agendamentos = [ag(3, 'fechou')];
+    fontesFalsas.codigosDoCard.set(3, [2]);
+    await run();
+    expect(venda().custom_data.value).toBe(20000);
+    expect(dedup()[0].origem).toBe('quente:solar:fechou');
+  });
+  it('leitura das fontes travada: passa de 20 s, loga uma linha e o Purchase sai com o ticket', async () => {
+    comPurchase();
+    tabelas.agendamentos = [ag(3, 'fechou')];
+    fontesTravadas = true;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const p = run();
+      for (let i = 0; i < 20; i++) await vi.advanceTimersByTimeAsync(2000);
+      const r = await p;
+      expect(r.eventos.enviados).toBe(1);
+      expect(venda().custom_data.value).toBe(10000);
+      expect(dedup()[0].origem).toBe('quente:solar:fechou');
+      const { logger } = await import('../utils/logger');
+      expect((logger.warn as any).mock.calls.filter((c: any[]) => /passaram de 20 s/.test(String(c[1])))).toHaveLength(1);
+    } finally { vi.useRealTimers(); }
+  });
+  it('dry: devolve o valor e a origem de cada Purchase do solar, sem enviar nem gravar', async () => {
+    comPurchase();
+    tabelas.agendamentos = [ag(3, 'fechou'), ag(4, 'fechou'), eletro(5, 'fechou'), ag(6, 'fez_orcamento')];
+    fontesFalsas.codigosDoCard.set(3, [2]);
+    const r = await run({ dry: true });
+    expect(r.eventos.valoresDosPurchases).toEqual([
+      { card: 'ag_3', valor: 13010, origem: 'planilha_codigo' },
+      { card: 'ag_4', valor: 10000, origem: 'ticket' },
+    ]);
+    expect(r.eventos.aEnviar).toBe(4);
+    expect(eventosEnviados()).toHaveLength(0);
+    expect(dedup()).toHaveLength(0);
+  });
+  it('eletroposto e ClienteQuente não mudam de valor', async () => {
+    comPurchase();
+    tabelas.agendamentos = [eletro(2, 'fechou'), ag(1, 'fez_orcamento')];
+    fontesFalsas.codigosDoCard.set(2, [2]); fontesFalsas.codigosDoCard.set(1, [2]);
+    await run();
+    const ev = Object.fromEntries(eventosEnviados().map(c => [c.corpo.data[0].event_id, c.corpo.data[0]]));
+    expect(ev.venda_ag_2.custom_data.value).toBe(TICKET_ELETRO);
+    expect(ev.quente_ag_1.custom_data.value).toBe(3500);
   });
 });

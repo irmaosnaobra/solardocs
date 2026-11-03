@@ -139,7 +139,25 @@ export function valorCapital(bruto: unknown): number | null {
 
 // ── Planilha Mestre ──────────────────────────────────────────────────────────
 
-export interface VendaPlanilha { nome: string; telefone: string; cidade: string; uf: string; valor: number }
+/** `codigo` é o número do `#NNNN` da coluna A e `data` a "Data da venda" (CADASTRO TRELLO) em AAAA-MM-DD: só o valorDaVenda os lê. */
+export interface VendaPlanilha { nome: string; telefone: string; cidade: string; uf: string; valor: number; codigo?: number | null; data?: string | null }
+
+/** "#0065", "0065" e "#65" viram 65. Só a série solar (dígitos); `#E001` e texto viram null. */
+export function numeroDoCodigoSolar(bruto: unknown): number | null {
+  const m = /^\s*#?\s*(\d+)(?!\d)/.exec(String(bruto ?? ''));
+  return m ? Number(m[1]) : null;
+}
+
+/** "25/10/2026" ou "2026-10-25" viram AAAA-MM-DD; o resto, null. */
+export function dataDaPlanilha(bruto: unknown): string | null {
+  const t = String(bruto ?? '').trim();
+  const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);
+  const [a, m, d] = br ? [br[3], br[2].padStart(2, '0'), br[1].padStart(2, '0')] : (/^(\d{4})-(\d{2})-(\d{2})/.exec(t) ?? []).slice(1);
+  if (!a) return null;
+  const iso = `${a}-${m}-${d}`;
+  const dt = new Date(`${iso}T00:00:00Z`);
+  return Number.isNaN(dt.getTime()) || dt.toISOString().slice(0, 10) !== iso ? null : iso;
+}
 
 /** "R$ 6.990,00" vira 6990. */
 export function valorBR(s: unknown): number {
@@ -152,12 +170,12 @@ export function valorBR(s: unknown): number {
  * célula A1 está quebrada hoje ("J49" no lugar de "CODIGO"), então linha de venda
  * é a que começa com "#<número>" na primeira coluna, não a que bate com A1.
  */
-export function lerPlanilha(linhas: string[][]): { vendas: VendaPlanilha[]; ticket: number } {
+export function lerPlanilha(linhas: string[][]): { vendas: VendaPlanilha[]; ticket: number; teto?: number | null } {
   const hIdx = linhas.slice(0, 5).findIndex(r => r.some(c => c.trim().toUpperCase() === 'NOME CLIENTE'));
   if (hIdx < 0) return { vendas: [], ticket: TICKET_SOLAR_PADRAO };
   const cab = linhas[hIdx].map(c => c.trim().toUpperCase());
   const i = (nome: string) => cab.indexOf(nome);
-  const [iNome, iFone, iCidade, iUf, iValor] = ['NOME CLIENTE', 'CONTATO', 'CIDADE', 'UF', 'VALOR DA VENDA'].map(i);
+  const [iNome, iFone, iCidade, iUf, iValor, iData] = ['NOME CLIENTE', 'CONTATO', 'CIDADE', 'UF', 'VALOR DA VENDA', 'CADASTRO TRELLO'].map(i);
   const cel = (r: string[], k: number) => (k >= 0 ? String(r[k] ?? '').trim() : '');
   const vendas: VendaPlanilha[] = [];
   for (const r of linhas.slice(hIdx + 1)) {
@@ -165,6 +183,7 @@ export function lerPlanilha(linhas: string[][]): { vendas: VendaPlanilha[]; tick
     vendas.push({
       nome: cel(r, iNome), telefone: cel(r, iFone), cidade: cel(r, iCidade),
       uf: cel(r, iUf), valor: valorBR(cel(r, iValor)),
+      codigo: numeroDoCodigoSolar(r[0]), data: dataDaPlanilha(cel(r, iData)),
     });
   }
   // Teto de 3× a mediana em cada venda. Uma venda de R$ 380 mil entre vendas de
@@ -172,17 +191,18 @@ export function lerPlanilha(linhas: string[][]): { vendas: VendaPlanilha[]; tick
   // ClienteQuente e Purchase do solar) e pesava como dezenas de clientes no
   // público com valor, ensinando o Meta a caçar um perfil que é exceção.
   const ordenados = vendas.map(v => v.valor).filter(v => v > 0).sort((a, b) => a - b);
+  let teto: number | null = null;
   if (ordenados.length) {
     const meio = Math.floor(ordenados.length / 2);
     const mediana = ordenados.length % 2 ? ordenados[meio] : (ordenados[meio - 1] + ordenados[meio]) / 2;
-    const teto = Math.round(mediana * TETO_VENDA_MEDIANAS);
+    teto = Math.round(mediana * TETO_VENDA_MEDIANAS);
     for (const v of vendas) if (v.valor > teto) v.valor = teto;
   }
   const comValor = vendas.filter(v => v.valor > 0);
   const ticket = comValor.length
     ? Math.round(comValor.reduce((a, v) => a + v.valor, 0) / comValor.length)
     : TICKET_SOLAR_PADRAO;
-  return { vendas, ticket };
+  return { vendas, ticket, teto };
 }
 
 /** Quantas medianas uma venda pode valer, no máximo (ver lerPlanilha). */
@@ -317,6 +337,120 @@ export function listaEletroposto(a: { cards: AgCard[]; parceria: Parceria[]; ehE
     }
   }
   return L;
+}
+
+// ── O valor real da venda (03/11/2026) ───────────────────────────────────────
+// Pedido do dono: "todos que virar venda, informa ao meta qual lead, assim vamos apurando os melhores". O Purchase ia com o ticket
+// médio da planilha; com o valor da venda o Meta aprende quem compra mais. Na dúvida, o ticket de hoje: valor errado ensina o
+// Meta errado, e o ticket é o que sempre foi.
+//
+// Ordem de confiança (a primeira que casa SEM ambiguidade vence):
+//   1. planilha, pelo MESMO código: o `#NNNN` da ligação assinada do card (`venda_solar:<card>`) tem uma única linha, com valor > 0;
+//   2. a proposta ligada ao card (`propostas.valor_vendido`, a que o consultor marcou como vendida): existe na hora do `fechou`,
+//      quando a linha da planilha costuma chegar atrasada;
+//   3. planilha, pelo TELEFONE: só quando o card não tem código, o telefone tem UMA venda na planilha e UM card fechado, a venda é
+//      recente, ninguém mais ligou aquele código e o nome é compatível. Família usa o mesmo número (o pai e o filho): telefone
+//      sozinho NUNCA escolhe valor.
+// Todo valor passa pelo MESMO teto do público (3× a mediana da planilha). Sem planilha lida não há teto, então não há valor.
+// Eletroposto fica no ticket: não há fonte de valor ligada ao card que a gente confie hoje.
+
+/** A venda da planilha só vale para o telefone se for dos últimos N dias (a do card que acabou de fechar). */
+export const JANELA_VENDA_RECENTE_DIAS = 60;
+
+export type OrigemDoValor = 'planilha_codigo' | 'proposta' | 'planilha_telefone' | 'ticket';
+
+export interface FontesDeValor {
+  /** O ticket do solar de hoje (média da planilha). O do eletroposto é TICKET_ELETRO. */
+  ticket: number;
+  ehEletro: (createdBy: unknown) => boolean;
+  /** A planilha lida. `ok` falso, ou sem `teto`, quer dizer que não há planilha para conferir: tudo vira ticket. */
+  planilha: { ok: boolean; vendas: readonly VendaPlanilha[]; teto?: number | null } | null;
+  /** card -> números `#NNNN` das ligações ASSINADAS (de todos os cards: serve também para saber quem já é dono de um código). */
+  codigosDoCard: ReadonlyMap<number, readonly number[]>;
+  /** card -> `valor_vendido` da proposta ligada (a proposta só ligada a este card, marcada como vendida). */
+  valorDaProposta: ReadonlyMap<number, number>;
+  /** Todos os cards, só para saber se o telefone tem mais de um card fechado. */
+  cards: readonly AgCard[];
+  agora?: number;
+}
+
+const PARTICULAS_DO_NOME: ReadonlySet<string> = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+/** O sufixo marca OUTRA pessoa da família: "Hermantino Silva Filho" não é o "Hermantino Silva". */
+const SUFIXOS_DO_NOME: ReadonlySet<string> = new Set(['filho', 'junior', 'jr', 'neto', 'sobrinho']);
+
+const palavrasDoNome = (n: unknown): string[] =>
+  semAcento(n).replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(p => p && !PARTICULAS_DO_NOME.has(p));
+
+/**
+ * Os dois nomes são da mesma pessoa? Nome igual (sem acento, sem partículas), OU pelo menos duas palavras em comum, e nos dois casos
+ * com o MESMO sufixo (filho, junior, jr, neto, sobrinho): quem tem sufixo que o outro não tem é outra pessoa. Primeiro nome sozinho
+ * não basta: na dúvida, ticket.
+ */
+export function nomesCompativeis(a: unknown, b: unknown): boolean {
+  const [pa, pb] = [palavrasDoNome(a), palavrasDoNome(b)];
+  if (!pa.length || !pb.length) return false;
+  const sufixos = (p: string[]) => [...new Set(p.filter(w => SUFIXOS_DO_NOME.has(w)))].sort().join(',');
+  if (sufixos(pa) !== sufixos(pb)) return false;
+  const [ua, ub] = [[...new Set(pa)], [...new Set(pb)]];
+  if (ua.length === ub.length && ua.every(w => ub.includes(w))) return true;
+  const comuns = ua.filter(w => !SUFIXOS_DO_NOME.has(w) && ub.includes(w));
+  return comuns.length >= 2;
+}
+
+/**
+ * O PISO DO VALOR. O campo "valor da venda" do /gerador é type="number": quem digita "145.000" grava 145, e o Meta receberia um
+ * Purchase de R$ 145. Valor abaixo de teto/30 (ou de ticket/10, se não há teto) é digitação errada: vale o ticket.
+ */
+export const DIVISOR_PISO_DO_TETO = 30;
+export const DIVISOR_PISO_DO_TICKET = 10;
+export const pisoDoValor = (teto: number | null | undefined, ticket: number): number =>
+  typeof teto === 'number' && Number.isFinite(teto) && teto > 0 ? teto / DIVISOR_PISO_DO_TETO : ticket / DIVISOR_PISO_DO_TICKET;
+
+const finitoPositivo = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0;
+
+export function valorDaVenda(card: AgCard, f: FontesDeValor): { valor: number; origem: OrigemDoValor } {
+  const eletro = f.ehEletro(card.created_by);
+  const doTicket = { valor: Math.round(eletro ? TICKET_ELETRO : f.ticket), origem: 'ticket' as const };
+  const pl = f.planilha;
+  const teto = pl?.teto;
+  if (eletro || !pl || !pl.ok || !finitoPositivo(teto)) return doTicket;
+  const piso = pisoDoValor(teto, f.ticket);
+  const aceita = (v: unknown): v is number => finitoPositivo(v) && v >= piso;
+  const limitado = (v: number) => ({ valor: Math.round(Math.min(v, teto)) });
+
+  // 1. o mesmo código
+  const codigos = [...new Set(f.codigosDoCard.get(card.id) ?? [])];
+  if (codigos.length > 1) return doTicket; // dois códigos para o mesmo card: dúvida
+  if (codigos.length === 1) {
+    const linhas = pl.vendas.filter(v => v.codigo === codigos[0]);
+    if (linhas.length > 1) return doTicket; // o código repetido na planilha: dúvida
+    if (linhas.length === 1) {
+      return aceita(linhas[0].valor) ? { ...limitado(linhas[0].valor), origem: 'planilha_codigo' } : doTicket;
+    }
+  }
+
+  // 2. a proposta ligada
+  const daProposta = f.valorDaProposta.get(card.id);
+  if (daProposta !== undefined) return aceita(daProposta) ? { ...limitado(daProposta), origem: 'proposta' } : doTicket;
+
+  // 3. o telefone, com todas as travas. Card que já tem código não cai aqui: a linha dele ainda não chegou à planilha.
+  if (codigos.length) return doTicket;
+  const fone = normFone(card.cliente_telefone);
+  if (!fone) return doTicket;
+  const vendasDoFone = pl.vendas.filter(v => normFone(v.telefone) === fone);
+  if (vendasDoFone.length !== 1) return doTicket;
+  const venda = vendasDoFone[0];
+  const donos = new Set<number>();
+  for (const lista of f.codigosDoCard.values()) for (const c of lista) donos.add(c);
+  if (venda.codigo == null || donos.has(venda.codigo)) return doTicket; // a linha é de outro card (ou não tem número)
+  const fechadosDoFone = f.cards.filter(c =>
+    !f.ehEletro(c.created_by) && String(c.status ?? '').trim().toLowerCase() === 'fechou' && normFone(c.cliente_telefone) === fone);
+  if (fechadosDoFone.length !== 1 || fechadosDoFone[0].id !== card.id) return doTicket; // o mesmo número em mais de um card
+  if (!venda.data) return doTicket;
+  const dias = ((f.agora ?? Date.now()) - Date.parse(`${venda.data}T12:00:00Z`)) / 86_400_000;
+  if (!(dias >= -2 && dias <= JANELA_VENDA_RECENTE_DIAS)) return doTicket;
+  if (!nomesCompativeis(venda.nome, card.cliente_nome)) return doTicket;
+  return aceita(venda.valor) ? { ...limitado(venda.valor), origem: 'planilha_telefone' } : doTicket;
 }
 
 // ── Payload do público ───────────────────────────────────────────────────────
