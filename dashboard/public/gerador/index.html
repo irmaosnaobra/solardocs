@@ -5386,13 +5386,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-avisos" class="eletro-subtab2" onclick="eletroSubaba('avisos')">Avisos</button>
     </div>
 
-    <!-- Emitente do documento (19/10/2026): um clique, POR DOCUMENTO. Nasce em AIOROS e volta
-         a AIOROS quando outro cliente e' carregado. So' aparece nas telas que emitem papel.
+    <!-- Emitente do documento (19/10/2026): um clique, POR DOCUMENTO. Nasce em NEXUS (padrao desde
+         03/11/2026) e volta a NEXUS quando outro cliente e' carregado. So' aparece nas telas que emitem papel.
          Botoes .eletro-subtab2: o mesmo desenho das reguas, nos dois visuais. -->
     <div class="ep-emit-bar" id="ep-emit-bar" style="display:none" role="group" aria-label="Emitente do documento">
       <span class="ep-emit-rot">Emitente</span>
-      <button type="button" class="eletro-subtab2 ativa" data-emit-sel="aioros" aria-pressed="true" onclick="epEmitEscolher('aioros')">AIOROS</button>
-      <button type="button" class="eletro-subtab2" data-emit-sel="nexus" aria-pressed="false" onclick="epEmitEscolher('nexus')">NEXUS</button>
+      <button type="button" class="eletro-subtab2" data-emit-sel="aioros" aria-pressed="false" onclick="epEmitEscolher('aioros')">AIOROS</button>
+      <button type="button" class="eletro-subtab2 ativa" data-emit-sel="nexus" aria-pressed="true" onclick="epEmitEscolher('nexus')">NEXUS</button>
       <span class="ep-emit-aviso" id="ep-emit-aviso" role="status" style="display:none"></span>
     </div>
 
@@ -5591,17 +5591,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="calc-card-title"><span class="dot"></span>Dados da empresa (emitente)</div>
         <div class="ep-emit-abas"></div>
         <div class="eletro-field"><label>Nome / marca</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-nome" placeholder="NEXUS Eletropostos" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-nome" placeholder="Nome da marca" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Endereço</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-end" placeholder="Rua, nº, bairro" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-end" placeholder="Endereço da sede" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Cidade / UF</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cidade" placeholder="Uberlândia/MG" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cidade" placeholder="Cidade/UF" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Telefone</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-tel" placeholder="(34) 99816-5040" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-tel" placeholder="(00) 00000-0000" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>E-mail</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="e-mail da empresa" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS GROUP LTDA" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="Razão social" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="opcional" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
@@ -5615,10 +5615,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Chave Pix para recebimento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-pix" placeholder="CNPJ, telefone, e-mail ou chave aleatória" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Banco / agência / conta</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Ex: Sicoob 756 · ag 4264 · cc 168882" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Banco, agência e conta" oninput="orcEmitSalvar()"></div></div>
         <div class="orc-note">Aparecem <b>só no recibo</b>, e só se preenchidos. Hoje o recibo anuncia o saldo a pagar e não diz para onde mandar — o cliente termina de ler pronto para pagar e precisa procurar o consultor.</div>
         <div class="orc-note">Empresa não assina sozinha. O contrato já <b>exige</b> o representante legal do cliente — a exigência vale para os dois lados, e a proposta de banco diz "assinada pelo seu representante legal" sobre uma linha que hoje não nomeia ninguém.</div>
-        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletropostos</b>, com a razão social e o CNPJ da <b>AIOROS GROUP LTDA</b> ao lado. Enquanto a aba <b>NEXUS</b> estiver sem razão social e CNPJ, ela assina pela AIOROS, porque banco, Pix e Receita conferem o nome contra o número. Com os dois preenchidos, a NEXUS assina com os dados dela quando escolhida no controle <b>Emitente</b> do topo. A equipe técnica (engenheiro e técnico) é a mesma nos dois perfis. Preencha uma vez: fica salvo.</div>
+        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletroposto</b>, com a razão social e o CNPJ dela (<b>K EMA EASY IMPORTAÇÕES LTDA.</b>), que é o emitente padrão. A <b>AIOROS GROUP LTDA</b> continua no solar e vale quando você escolhe AIOROS no controle <b>Emitente</b> do topo. Se a aba <b>NEXUS</b> ficar sem razão social ou sem CNPJ, o papel assina pela AIOROS, porque banco, Pix e Receita conferem o nome contra o número. A equipe técnica (engenheiro e técnico) é a mesma nos dois perfis. Preencha uma vez: fica salvo.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -5758,17 +5758,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="ep-emit-abas"></div>
         <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">É o <b>mesmo cadastro</b> da aba Orçamento — editar aqui muda lá, e o contrário também. Fica salvo no navegador. A razão social e o CNPJ saem impressos no orçamento porque é este documento que fala em nota fiscal: quem emite precisa estar escrito.</div>
         <div class="eletro-field"><label>Nome / marca <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('nome')">apagar</button></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-nome" placeholder="NEXUS Eletropostos" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-nome" placeholder="Nome da marca" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Razão social <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('razao')">apagar</button></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-razao" placeholder="quem emite a nota" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-razao" placeholder="Razão social" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="eletro-field"><label>CNPJ <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('cnpj')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cnpj" placeholder="00.000.000/0000-00" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Inscrição Estadual <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('ie')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-ie" placeholder="ISENTO, se for o caso" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Endereço <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('end')">apagar</button></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-end" placeholder="Rua, nº, bairro" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-end" placeholder="Endereço da sede" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Cidade / UF <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('cidade')">apagar</button></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cidade" placeholder="Uberlândia/MG" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cidade" placeholder="Cidade/UF" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="eletro-field"><label>Telefone <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('tel')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-tel" placeholder="(00) 00000-0000" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
         <div class="orc-note"><b>Inscrição Estadual</b> só aparece no papel se estiver preenchida. Em venda de equipamento ela conta: comprador contribuinte em outro estado muda a conta do ICMS. Escreva <b>ISENTO</b> quando for o caso — é diferente de deixar em branco. Todo campo aqui é editável e pode ser <b>apagado</b>: o que fica em branco some do papel e não volta sozinho.</div>
@@ -6935,7 +6935,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          Finame financia o EQUIPAMENTO, não a obra — é por isso que o valor sai
          partido em duas linhas, e é por isso que o split não tem default. -->
     <div id="eletro-pane-finame" style="display:none;">
-    <div class="pesquisa-info">Duas folhas em nome da <b>NEXUS</b>, assinadas pela razão social <b>AIOROS GROUP LTDA</b> com o CNPJ ao lado (o banco confere o nome contra o número), que o cliente leva ao banco dele para <b>liberar o crédito</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
+    <div class="pesquisa-info">Duas folhas que o cliente leva ao banco dele para <b>liberar o crédito</b>. Saem em nome da emitente escolhida no controle do topo, com a razão social e o CNPJ dela lado a lado (o banco confere o nome contra o número). O padrão é a <b>NEXUS</b>, que assina como <b>K EMA EASY IMPORTAÇÕES LTDA.</b>; se escolher AIOROS, assina a <b>AIOROS GROUP LTDA</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
     <div class="orc-wrap">
 
       <div class="ep-vend-host"></div>
@@ -10329,7 +10329,7 @@ let orcViewPayload = null;
 // "Gerador de Proposta Solar" e pintavam o azul do solar em cima da folha NEXUS.
 // Só troca na tela aberta pelo link; o <title> estático segue o do app.
 function epAbaNexus() {
-  document.title = 'Orçamento · NEXUS Eletropostos';
+  document.title = 'Orçamento · NEXUS Eletroposto';
   const tc = document.querySelector('meta[name="theme-color"]');
   if (tc) tc.setAttribute('content', '#0B1A2B');
   // o "Baixar em PDF" é azul do solar (#1E3A8A) na regra .orcview-pdf; no link de
@@ -10473,7 +10473,7 @@ function mostrarExpirado(d) {
     const logoEl = exp.querySelector('.logo-img');
     if (logoEl) {
       logoEl.src = '/gerador/nexus-logo-tela.png';
-      logoEl.alt = 'NEXUS Eletropostos';
+      logoEl.alt = 'NEXUS Eletroposto';
       logoEl.style.height = '40px';
       logoEl.style.width = 'auto';
       if (logoEl.parentElement) logoEl.parentElement.style.flexWrap = 'wrap';
@@ -10529,7 +10529,7 @@ function mostrarExpirado(d) {
     const msg = `${quem}${nomeCli} ${oQue} expirou — pode me enviar um atualizado?`;
     const link = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
 
-    document.getElementById('exp-consultor-nome').textContent = d.consultor || (ehEp ? 'NEXUS Eletropostos' : 'Irmãos na Obra');
+    document.getElementById('exp-consultor-nome').textContent = d.consultor || (ehEp ? 'NEXUS Eletroposto' : 'Irmãos na Obra');
     const telEl = document.getElementById('exp-consultor-tel');
     if (telEl) telEl.textContent = expTelBonito(numero);
     const cta = document.getElementById('exp-consultor-cta');
@@ -16661,7 +16661,7 @@ function nxCompletoDeck(d) {
   const din2 = v => 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
 
   const S = [];
-  const marca = `<div class="nx-marca"><img src="${NX_LOGO}" alt="NEXUS Eletropostos"></div>`;
+  const marca = `<div class="nx-marca"><img src="${NX_LOGO}" alt="NEXUS Eletroposto"></div>`;
   // O rodapé só sabe a contagem no fim, então a página entra com um marcador e
   // a numeração é costurada depois. Contar antes obrigaria a saber o número de
   // folhas duas vezes, e no dia em que uma sumisse a contagem mentiria.
@@ -17030,7 +17030,7 @@ function nxCompletoDeck(d) {
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>
   <div class="nx-corpo" style="justify-content:center">
-    <img class="nx-logo-g" src="${NX_LOGO}" alt="NEXUS Eletropostos">
+    <img class="nx-logo-g" src="${NX_LOGO}" alt="NEXUS Eletroposto">
     <div class="nx-tagline" style="text-align:center;margin:6px 0 18px">Energia que <b>move</b> o amanhã</div>
     <div class="nx-tit" style="text-align:center">O que falta<span class="g"> é a sua assinatura</span></div>
     <div class="nx-tres">
@@ -18312,9 +18312,9 @@ function eletroNovoProjeto() {
 // proposta de banco do cliente seguinte saíam com os dados do anterior.
 function epLimparCliente() {
   vdcBase.ele = null; vdcDiff.ele = null;
-  // O emitente e' escolha POR DOCUMENTO: outro cliente comeca no padrao (AIOROS).
+  // O emitente e' escolha POR DOCUMENTO: outro cliente comeca no padrao (NEXUS, EP_EMIT_PADRAO).
   // O perfil que os cartoes de cadastro editam nao e' do cliente e fica como esta.
-  try { EP_EMIT_SEL = 'aioros'; epEmitBarAtualizar(); } catch (e) {}
+  try { EP_EMIT_SEL = EP_EMIT_PADRAO; epEmitBarAtualizar(); } catch (e) {}
   eletroUltimoCampos().forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -19609,7 +19609,7 @@ function orcEmitCampos() {
 // procuracao ainda nao carregou, e apagar o default ali seria acidente, nao escolha.
 // Engenheiro e técnico também (09/10/2026, pedido do dono): apagado fica apagado,
 // e outro nome digitado fica, em vez de o padrão da casa voltar sozinho.
-const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email',
+const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email', 'socio', 'socioCpf',
   'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
   'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 function epEmitValor(o, k, def) {
@@ -19633,7 +19633,7 @@ function orcEmitCarregar() {
   // foi salvo. Razão social e CNPJ da AIOROS saem do Cartão CNPJ da empresa (dado
   // público, o mesmo que vai em toda nota fiscal): ficam de default pra nenhum
   // contrato sair sem a qualificação da parte só porque ninguém preencheu o
-  // cadastro neste aparelho. O perfil NEXUS nasce sem razao nem CNPJ de proposito.
+  // cadastro neste aparelho. O perfil NEXUS nasce com os dados da K EMA (03/11/2026).
   // Marca do eletroposto é NEXUS (09/2026) e o e-mail de contato saiu dos documentos.
   const o = epPerfilVisto(EP_EMIT_EDIT);
   orcEmitCampos().forEach(k => {
@@ -19981,15 +19981,32 @@ const CIDADE_ANTIGA = 'Araguari/MG';
 const RAZAO_ERRADAS = ['aioros holding ltda', 'aioros ltda', 'importadora araguari ltda'];
 const RAZAO_CERTA = 'AIOROS GROUP LTDA';
 const epSoDig = s => String(s || '').replace(/\D/g, '');
-const EP_MARCA = 'NEXUS Eletropostos';
+const EP_MARCA = 'NEXUS Eletroposto';
+// A NEXUS Eletroposto tem CNPJ proprio desde 03/11/2026: K EMA EASY IMPORTAÇÕES LTDA.,
+// sede em Araguari/MG, socia unica e administradora Maria Carolina Mendes Marques.
+// Sao so' os dados da empresa; RG, nascimento e endereco da socia nao entram aqui.
+// Pix, conta e IE seguem vazios (nao vieram nos documentos) e NUNCA herdam os da AIOROS.
+// Nao mexer em CNPJ_CERTO / RAZAO_CERTA / END_CERTO / CIDADE_CERTA: sao da AIOROS (solar).
+const NEXUS_RAZAO = 'K EMA EASY IMPORTAÇÕES LTDA.';
+const NEXUS_CNPJ = '03.945.372/0001-89';
+const NEXUS_END = 'Rua Antônio Camilo da Costa, 230, Bosque, CEP 38.446-069';
+const NEXUS_CIDADE = 'Araguari/MG';
+const NEXUS_SOCIO = 'Maria Carolina Mendes Marques';
+const NEXUS_SOCIO_CPF = '099.941.536-09';
+// Emitente padrao de todo documento do eletroposto (03/11/2026). A AIOROS segue no solar
+// e quando for escolhida no controle "Emitente" do documento.
+const EP_EMIT_PADRAO = 'nexus';
 // "Irmãos na Obra", "IRMAOS NA OBRA — Mobilidade Elétrica"...: com ou sem acento,
 // qualquer caixa. É o nome que a marca do eletroposto tinha antes da NEXUS.
 const epMarcaAntiga = s => /irmaos\s+na\s+obra/i.test(String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
-// ── TRANSIÇÃO NEXUS / AIOROS (decisão do dono, 15/09/2026) ──
-// A marca é NEXUS Eletropostos, mas a NEXUS ainda não tem CNPJ: quem existe
-// juridicamente é a AIOROS GROUP LTDA. Documento jurídico (contrato, procuração, recibo,
-// análise de crédito, proposta de banco) sai em nome da NEXUS, e tudo que é CNPJ
-// continua da AIOROS, com a razão social SEMPRE colada ao número. Banco, Receita e
+// ── NEXUS / AIOROS NO PAPEL (atualizado em 03/11/2026) ──
+// Desde 03/11/2026 a NEXUS Eletroposto tem CNPJ próprio (K EMA EASY IMPORTAÇÕES LTDA.) e é
+// o emitente padrão do eletroposto: contrato, procuração, recibo, análise de crédito e
+// proposta de banco saem com a razão social e o CNPJ dela. A AIOROS GROUP LTDA segue no
+// solar e quando é escolhida no controle "Emitente" do documento (recibo de dinheiro que
+// entrou na conta da AIOROS sai como AIOROS). Se a razão ou o CNPJ da NEXUS forem apagados
+// do cadastro, o papel cai na AIOROS e o aviso do controle diz isso.
+// Em qualquer emitente a razão social vai SEMPRE colada ao número. Banco, Receita e
 // o app do Pix conferem o nome contra o CNPJ: a marca sozinha ao lado do número é
 // identificação que não bate e trava financiamento. Nunca sai a fantasia que só
 // repete a razão social ("AIOROS GROUP LTDA" nos dois campos imprimiria o mesmo nome
@@ -20010,7 +20027,7 @@ function epParteFantasia(emp) {
   const fn = epNomeNorm(f);
   return (fn === epNomeNorm(emp.razao) || fn === epNomeNorm(epParteMarca(emp))) ? '' : f;
 }
-/** Qualificação da parte: "<b>NEXUS Eletropostos</b>, marca de AIOROS GROUP LTDA, inscrita
+/** Qualificação da parte: "<b>NEXUS Eletroposto</b>, marca de AIOROS GROUP LTDA, inscrita
  *  no CNPJ sob o nº ...". `vazio` é o do documento que chama: razão ou CNPJ em branco
  *  vira a lacuna dele, e nunca cai na marca. A fantasia vem depois do CNPJ para a
  *  razão social não se separar do número. */
@@ -20065,6 +20082,10 @@ function epEmitCorrigir(o) {
     o.razao = RAZAO_CERTA; mudou = true;
   }
   if (typeof o.nome === 'string' && epMarcaAntiga(o.nome)) { o.nome = EP_MARCA; mudou = true; }
+  // 03/11/2026: a marca ficou no singular. So' a troca exata da grafia antiga (caixa e espaco
+  // a mais ignorados); qualquer outro texto que o dono tenha digitado fica como esta.
+  if (typeof o.nome === 'string' && epNomeNorm(o.nome) === 'nexus eletropostos') { o.nome = EP_MARCA; mudou = true; }
+  if (typeof o.fantasia === 'string' && epNomeNorm(o.fantasia) === 'nexus eletropostos') { o.fantasia = EP_MARCA; mudou = true; }
   if (typeof o.fantasia === 'string' && epFantasiaAntiga(o.fantasia)) { o.fantasia = ''; mudou = true; }
   if (typeof o.email === 'string' && o.email.replace(/\s+/g, '').toLowerCase() === 'contato@irmaosnaobra.com.br') {
     o.email = ''; mudou = true;
@@ -20073,21 +20094,24 @@ function epEmitCorrigir(o) {
 }
 
 // ═══ EMITENTE COM DOIS PERFIS (AIOROS | NEXUS), 19/10/2026 ═══
-// A NEXUS e' hoje so' marca: quem assina e' a AIOROS GROUP LTDA. O perfil NEXUS
-// nasce SEM razao social e SEM CNPJ (nao se inventa); enquanto um dos dois faltar,
-// escolher NEXUS imprime o que sempre imprimiu (marca NEXUS, assina AIOROS). Com os
-// dois preenchidos, a NEXUS assina com os dados dela.
+// Desde 03/11/2026 a NEXUS tem CNPJ proprio e o perfil NEXUS nasce com os dados da
+// K EMA EASY IMPORTAÇÕES LTDA. (constantes NEXUS_*). Ela e' o emitente padrao do eletroposto
+// (EP_EMIT_PADRAO). Se alguem apagar a razao ou o CNPJ da NEXUS no cadastro, o papel cai na
+// AIOROS (marca NEXUS, assina AIOROS) e o controle avisa. A AIOROS continua escolhivel por
+// documento. Aparelho que ja' tinha o perfil NEXUS salvo em branco e' migrado UMA vez
+// (epNexusMigrar, marca migNexusKema); depois disso campo apagado fica apagado.
 // A equipe tecnica (eng* e tec*, procuradores) e' UMA so' para os dois perfis e mora
 // no perfil aioros, que e' o que o espelho orc_emit_v1 copia.
 // A escolha do emitente e' POR DOCUMENTO (EP_EMIT_SEL, em memoria, nunca grava): nasce
-// em AIOROS e volta a AIOROS em epLimparCliente. O que os cartoes de cadastro editam
+// no padrao (EP_EMIT_PADRAO) e volta a ele em epLimparCliente. Documento salvo antes de
+// 03/11/2026 sem a chave "emitente" reabre como AIOROS. O que os cartoes de cadastro editam
 // e' outra coisa (EP_EMIT_EDIT) e nao muda o que sai no papel.
 const EP_EMIT_EQUIPE = ['engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
                         'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 const epEmitEhEquipe = k => EP_EMIT_EQUIPE.indexOf(k) >= 0;
 const EP_EMIT_ROTULO = { aioros: 'AIOROS', nexus: 'NEXUS' };
-let EP_EMIT_SEL = 'aioros';
-let EP_EMIT_EDIT = 'aioros';
+let EP_EMIT_SEL = EP_EMIT_PADRAO;
+let EP_EMIT_EDIT = EP_EMIT_PADRAO;
 const epEmitIdOk = id => (id === 'aioros' || id === 'nexus') ? id : '';
 // Engenheiro e tecnico sao os MESMOS da procuracao solar da plataforma
 // (tabela `company`, empresa Aioros Group). RG do engenheiro e CRT do tecnico
@@ -20103,11 +20127,11 @@ const EP_EMIT_DEF_EQUIPE = {
   tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
 function epEmitDef(id) {
   const base = id === 'nexus'
-    // NEXUS: so' a marca e o contato publico. Razao, CNPJ, IE, endereco, cidade, socio,
-    // CPF do socio, Pix e conta vazios ate alguem cadastrar.
-    ? { nome: 'NEXUS Eletropostos', end: '', cidade: '', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-        cnpj: '', razao: '', fantasia: 'NEXUS Eletropostos', ie: '', socio: '', socioCpf: '', pix: '', conta: '' }
-    : { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
+    // NEXUS: K EMA EASY IMPORTAÇÕES LTDA. (03/11/2026). IE, Pix e conta vazios: nao vieram
+    // nos documentos e nunca herdam os da AIOROS. O telefone e o e-mail sao os da marca.
+    ? { nome: EP_MARCA, end: NEXUS_END, cidade: NEXUS_CIDADE, tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
+        cnpj: NEXUS_CNPJ, razao: NEXUS_RAZAO, fantasia: EP_MARCA, ie: '', socio: NEXUS_SOCIO, socioCpf: NEXUS_SOCIO_CPF, pix: '', conta: '' }
+    : { nome: EP_MARCA, end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
         cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '', ie: '', socio: '', socioCpf: '', pix: '', conta: '' };
   return Object.assign(base, EP_EMIT_DEF_EQUIPE);
 }
@@ -20127,6 +20151,7 @@ function epPerfisLer() {
   if (!p || p.v !== 1 || !p.perfis || typeof p.perfis !== 'object') {
     p = { v: 1, perfis: { aioros: epObjOu(v1) || {}, nexus: {} } };
     ['aioros', 'nexus'].forEach(id => { if (!p.perfis[id] || typeof p.perfis[id] !== 'object') p.perfis[id] = {}; });
+    epNexusMigrar(p);
     epPerfisGrava(p);
     return p;
   }
@@ -20135,7 +20160,38 @@ function epPerfisLer() {
     const velho = epObjOu(v1);
     if (velho) { p.perfis.aioros = velho; epPerfisGrava(p); }
   }
+  // Depois do espelho de proposito: gravar antes apagaria a divergencia que ele detecta.
+  if (epNexusMigrar(p)) epPerfisGrava(p);
   return p;
+}
+/** Migracao UNICA por aparelho do perfil NEXUS (03/11/2026, marca p.migNexusKema). Perfil
+ *  NEXUS salvo sem CNPJ (o cartao antigo gravava razao e CNPJ em branco) recebe os dados da
+ *  K EMA (razao e CNPJ sempre juntos); endereco, cidade, socio e CPF so' se estiverem em branco.
+ *  Com OUTRO CNPJ salvo, razao e CNPJ nao sao tocados. Nome ou fantasia na grafia antiga
+ *  ('NEXUS Eletropostos') viram a marca nova; salvos em branco, ficam em branco.
+ *  A marca impede de rodar de novo: o que o dono apagar depois fica apagado. Devolve true
+ *  se mudou o objeto (quem chamou grava). */
+function epNexusMigrar(p) {
+  if (!p || !p.perfis || p.migNexusKema) return false;
+  if (!p.perfis.nexus || typeof p.perfis.nexus !== 'object') p.perfis.nexus = {};
+  const n = p.perfis.nexus;
+  const branco = v => !String(v == null ? '' : v).trim();
+  if (!epSoDig(n.cnpj)) {
+    // Razao e CNPJ sao um par: entram juntos, sempre (razao digitada sem CNPJ na NEXUS nunca
+    // foi razao de verdade). Endereco, cidade, socio e CPF so' entram se estiverem em branco:
+    // o que o dono digitou e' dele.
+    n.razao = NEXUS_RAZAO; n.cnpj = NEXUS_CNPJ;
+    if (branco(n.end)) n.end = NEXUS_END;
+    if (branco(n.cidade)) n.cidade = NEXUS_CIDADE;
+    if (branco(n.socio)) n.socio = NEXUS_SOCIO;
+    if (branco(n.socioCpf)) n.socioCpf = NEXUS_SOCIO_CPF;
+  }
+  // So' a grafia antiga vira a nova. Nome ou fantasia salvos em '' foram apagados pelo dono e ficam.
+  ['nome', 'fantasia'].forEach(k => {
+    if (typeof n[k] === 'string' && epNomeNorm(n[k]) === 'nexus eletropostos') n[k] = EP_MARCA;
+  });
+  p.migNexusKema = 1;
+  return true;
 }
 /** Grava as duas chaves juntas: perfis e o espelho do aioros em `orc_emit_v1`. */
 function epPerfisGrava(p) {
@@ -20175,9 +20231,12 @@ function epPerfilGrava(id, campos) {
   Object.keys(campos).forEach(k => { (epEmitEhEquipe(k) ? p.perfis.aioros : p.perfis[id])[k] = campos[k]; });
   epPerfisGrava(p);
 }
-/** A NEXUS assina por conta propria so' com razao social E CNPJ cadastrados. */
+/** A NEXUS assina por conta propria so' com razao social E CNPJ no cadastro. Le o perfil
+ *  COM o padrao (epPerfilVisto): sem nada salvo, vale o da K EMA. Campo apagado de proposito
+ *  (salvo vazio) vence o padrao e a NEXUS cai na AIOROS. Sem recursao: epPerfilVisto nao
+ *  chama epNexusProprio. */
 function epNexusProprio() {
-  const n = epPerfilLido('nexus');
+  const n = epPerfilVisto('nexus');
   return !!(String(n.razao || '').trim() && String(n.cnpj || '').trim());
 }
 /** Quem assina de fato dado o que foi escolhido. */
@@ -20194,6 +20253,18 @@ function epEmitGet(id) {
   return out;
 }
 /** Texto do selo da pre-visualizacao: a razao que vai assinar. */
+// Emitente gravado no snapshot do papel (historico e Desfazer). Ate 03/11/2026 a NEXUS nao tinha
+// CNPJ e todo papel com emitente 'nexus' foi assinado de fato pela AIOROS; por isso a escolha
+// gravada sem a marca emitV (versao 2) NAO vale como 'nexus'. Daqui em diante grava-se quem
+// assinou de verdade (epEmitEfetivo) e a marca emitV: 2.
+const EP_EMIT_SNAP_V = 2;
+function epEmitSnapGrava() { return { emitente: epEmitEfetivo(), emitV: EP_EMIT_SNAP_V }; }
+function epEmitSnapLe(s) {
+  const id = epEmitIdOk(s && s.emitente);
+  if (!id) return 'aioros';                                   // sem emitente: papel antigo, assinado pela AIOROS
+  if (id === 'nexus' && !((s.emitV | 0) >= EP_EMIT_SNAP_V)) return 'aioros';   // 'nexus' sem a marca: assinou a AIOROS
+  return id;
+}
 function epEmitSeloTexto(id) {
   const sel = epEmitIdOk(id) || EP_EMIT_SEL;
   const ef = epEmitEfetivo(sel);
@@ -20202,13 +20273,14 @@ function epEmitSeloTexto(id) {
   return 'Emitente: ' + razao + ((sel === 'nexus' && ef === 'aioros') ? ' (marca NEXUS)' : '');
 }
 /** " · Emitente: <razao>" quando o emitente escolhido nao e' o padrao; vazio no padrao. */
-function epEmitSufixo() { return EP_EMIT_SEL !== 'aioros' ? ' · ' + epEmitSeloTexto() : ''; }
+function epEmitSufixo() { return (EP_EMIT_SEL !== EP_EMIT_PADRAO || epEmitEfetivo() !== EP_EMIT_SEL) ? ' · ' + epEmitSeloTexto() : ''; }
 /** Aviso curto para acoes que nao passam pela previa (link do cliente, WhatsApp). */
 function epEmitAvisoAcao() {
-  if (EP_EMIT_SEL === 'aioros') return;
+  // Calado so' no padrao que de fato assina. NEXUS sem razao ou CNPJ cai na AIOROS e avisa.
+  if (EP_EMIT_SEL === EP_EMIT_PADRAO && epEmitEfetivo() === EP_EMIT_SEL) return;
   try { showToast(epEmitSeloTexto()); } catch (e) {}
 }
-const EP_EMIT_AVISO_NEXUS ='A NEXUS ainda assina pela AIOROS. Cadastre a razão social e o CNPJ da NEXUS em Dados da empresa.';
+const EP_EMIT_AVISO_NEXUS = 'A NEXUS está sem razão social ou CNPJ no cadastro e vai assinar pela AIOROS. Preencha em Dados da empresa.';
 /** Controle "Emitente: AIOROS | NEXUS" e o aviso. */
 function epEmitBarAtualizar() {
   const bar = document.getElementById('ep-emit-bar');
@@ -20270,13 +20342,13 @@ const EP_FOOT_LOGO = '<img class="ep-foot-logo" src="/gerador/nexus-x.png" alt="
 const IO_FOOT_LOGO = '<img class="ep-foot-logo io" src="/gerador/logo.png" alt="">';
 // Bloco de marca enxuto, para documentos cujo titulo ja' e' o proprio conteudo.
 // O logo NEXUS ja' traz o nome escrito: nao leva texto ao lado.
-const EP_TOPO_MARCA = cls => `<div class="${cls}"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>`;
+const EP_TOPO_MARCA = cls => `<div class="${cls}"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>`;
 
 function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
   const rowsHTML = (rows || []).filter(r => r && r[1])
     .map(r => `<div class="rowf"><span>${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
   return `<div class="ep-topo">
-      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>
       <div class="ep-propbox">
         <div class="t">${titulo}</div>
         <div class="rowf"><span>Data</span><span class="v">${dataStr}</span></div>
@@ -20299,9 +20371,8 @@ function epPageFootHTML(doc, cliente, n, total, logo) {
 // Rodapé escuro: Vendedor | Empresa (mesmo bloco nos dois documentos).
 // modo (09/2026): o padrão é a VITRINE (Estudo de Viabilidade e documento de
 // venda) e mostra só a marca, a cidade e o telefone, sem CNPJ nem razão social.
-// 'juridico' (recibo) segue a transição NEXUS / AIOROS (15/09/2026): a NEXUS ainda
-// não tem CNPJ, então o Nome é a marca e, logo abaixo, vêm a razão social AIOROS LTDA
-// e o CNPJ dela, que é quem recebe de verdade, mais endereço e contato.
+// 'juridico' (recibo) imprime o Nome (a marca) e, logo abaixo, a razão social e o CNPJ do
+// emitente escolhido (a K EMA no padrão; a AIOROS quando escolhida), mais endereço e contato.
 // E-mail só sai se estiver preenchido no cadastro.
 function epFooterBlockHTML(vend, modo) {
   vend = vend || {};
@@ -20382,7 +20453,7 @@ function orcEpDocHTML(d) {
   return orc1HTML({
     tema: 'ep',
     logo: '/gerador/nexus-logo-papel.png',
-    marca: 'NEXUS Eletropostos',
+    marca: 'NEXUS Eletroposto',
     sub: '',
     titulo: (d.titulo || 'Proposta Comercial') + (d.num ? ' Nº ' + d.num : ''),
     data: dEmis.toLocaleDateString('pt-BR'),
@@ -20528,7 +20599,7 @@ function orcEquipDocHTML(d) {
   return orc1HTML({
     tema: 'ep',
     logo: '/gerador/nexus-logo-papel.png',
-    marca: 'NEXUS Eletropostos',
+    marca: 'NEXUS Eletroposto',
     sub: '',
     titulo: (d.titulo || 'Orçamento de Venda') + (d.num ? ' Nº ' + d.num : ''),
     data: dEmis.toLocaleDateString('pt-BR'),
@@ -20552,7 +20623,7 @@ function orcEquipDocHTML(d) {
     // Foto do carregador NEXUS (pedido do dono, 01/10/2026). Caminho absoluto:
     // o link publico renderiza este mesmo HTML fora da pasta do gerador.
     foto: '/gerador/equip-carregador.jpg',
-    fotoAlt: 'Carregador NEXUS Eletropostos',
+    fotoAlt: 'Carregador NEXUS Eletroposto',
     compTitulo: 'Equipamentos',
     compHTML: orc1EquipTabela(d),
     obs: d.obs || ORC_EQ_OBS_PADRAO,
@@ -21533,7 +21604,7 @@ function epBasicoImprimir() {
   const html = orc1HTML({
     tema: 'ep',
     logo: '/gerador/nexus-logo-papel.png',
-    marca: 'NEXUS Eletropostos',
+    marca: 'NEXUS Eletroposto',
     sub: '',
     titulo: 'Orçamento · Eletroposto',
     data: hoje.toLocaleDateString('pt-BR'),
@@ -22245,19 +22316,19 @@ function recImprimir() {
 // [chave, rótulo, dica]. A ordem é a de quem confere um papel: quem é, o número,
 // onde fica, como se fala com a empresa, quem assina, pra onde vai o dinheiro.
 const EP_VEND_CAMPOS = [
-  ['nome',     'Nome / marca',                 'NEXUS Eletropostos'],
+  ['nome',     'Nome / marca',                 'Nome da marca'],
   ['razao',    'Raz\u00e3o social',                 'vazio: o papel sai sem o nome'],
   ['fantasia', 'Nome fantasia',                'opcional'],
   ['cnpj',     'CNPJ',                         'vazio: o papel sai sem o CNPJ'],
   ['ie',       'Inscri\u00e7\u00e3o Estadual',           'ISENTO, se for o caso'],
-  ['end',      'Endere\u00e7o',                      'Rua, n\u00ba, bairro'],
-  ['cidade',   'Cidade / UF',                  'Uberl\u00e2ndia/MG'],
-  ['tel',      'Telefone',                     '(34) 99816-5040'],
+  ['end',      'Endere\u00e7o',                      'Endere\u00e7o da sede'],
+  ['cidade',   'Cidade / UF',                  'Cidade/UF'],
+  ['tel',      'Telefone',                     '(00) 00000-0000'],
   ['email',    'E-mail',                       'e-mail da empresa'],
   ['socio',    'S\u00f3cio administrador \u2014 nome',   'quem assina pela empresa'],
   ['socioCpf', 'S\u00f3cio administrador \u2014 CPF',    '000.000.000-00'],
   ['pix',      'Chave Pix para recebimento',   'CNPJ, telefone, e-mail ou chave'],
-  ['conta',    'Conta banc\u00e1ria',                'banco, ag\u00eancia e conta'],
+  ['conta',    'Conta banc\u00e1ria',                'Banco, ag\u00eancia e conta'],
 ];
 
 const EP_VEND_HTML = `
@@ -22299,10 +22370,10 @@ function epVendAviso(o) {
   const falta = [];
   if (!String((o && (o.razao || o.fantasia)) || '').trim()) falta.push('raz\u00e3o social');
   if (!String((o && o.cnpj) || '').trim()) falta.push('CNPJ');
-  // Perfil NEXUS sem razao e CNPJ nao deixa linha em branco: ele assina pela AIOROS.
+  // Perfil NEXUS sem razao ou CNPJ nao deixa linha em branco: o papel assina pela AIOROS.
   const txt = (EP_EMIT_EDIT === 'nexus')
     ? ((String((o && o.razao) || '').trim() && String((o && o.cnpj) || '').trim())
-        ? '' : 'A NEXUS ainda assina pela AIOROS. Preencha a raz\u00e3o social e o CNPJ da NEXUS aqui para ela assinar por conta pr\u00f3pria.')
+        ? '' : 'A NEXUS est\u00e1 sem raz\u00e3o social ou CNPJ no cadastro e vai assinar pela AIOROS. Preencha aqui a raz\u00e3o social e o CNPJ.')
     : falta.length
     ? `\u26a0\ufe0f Falta <b>${falta.join('</b> e <b>')}</b>. Contrato, Procura\u00e7\u00e3o e Proposta de banco saem com essa linha em branco.`
     : '';
@@ -25989,7 +26060,7 @@ function ctrQuadroCotas(d) {
     if (s.ja > 0) linhas.push([`<b>Sócios participantes do contrato e de adesões anteriores</b><span>${s.ja} cota(s) de ${p(s.cota)}</span>`, p(s.ja * s.cota), s.aporte > 0 ? money(s.ja * s.aporte) : lac]);
     if (s.livres > 0) linhas.push([`<b>Cotas ainda não subscritas</b><span>${s.livres} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.livres * s.cota), s.aporte > 0 ? money(s.livres * s.aporte) : lac]);
   } else if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, ${comoOutros}</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
-  linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
+  linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletroposto')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
   if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, 'a definir', money(s.falta)]);
   const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
   const totalTxt = totalAportes > 0 && (s.aporteNDef || s.aporteN > 0) ? money(totalAportes) : lac;
@@ -26080,7 +26151,7 @@ function ctrBlocosDoc(d, opts) {
 
   const blocos = [
     `<div class="ep-ctr-topo">
-        ${d.arrCli ? '' : '<div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>'}
+        ${d.arrCli ? '' : '<div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>'}
         <div class="ep-ctr-ident">${d.num ? (cab.numRot || 'Contrato') + ' nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">${cab.titulo}</div>
@@ -26613,7 +26684,7 @@ function ctrAgSnapTake() {
     campos.push({ id: el.id, v: ck ? null : el.value, ck: ck ? el.checked : null, t: el.dataset.tocado === undefined ? null : el.dataset.tocado, a: el.dataset.antes === undefined ? null : el.dataset.antes, va: el.dataset.vdcAuto === undefined ? null : el.dataset.vdcAuto });
   });
   const cp = x => JSON.parse(JSON.stringify(x));
-  return { campos, ctrPag: cp(ctrPag), ctrEsc: cp(ctrEsc), ctrOpc: cp(ctrOpc), ctrIa: cp(ctrIa), ctrHib: cp(ctrHib), emitente: EP_EMIT_SEL };
+  return { campos, ctrPag: cp(ctrPag), ctrEsc: cp(ctrEsc), ctrOpc: cp(ctrOpc), ctrIa: cp(ctrIa), ctrHib: cp(ctrHib), ...epEmitSnapGrava() };
 }
 function ctrAgSnapApply(s) {
   if (s.solar) { fsAgSnapApply(s); return; }
@@ -26628,7 +26699,7 @@ function ctrAgSnapApply(s) {
   // Os pedidos do contrato solar (Fechamento) ficam como estão: Desfazer do eletroposto não é deles.
   ctrIa = { pedidos: [...cp(s.ctrIa).pedidos.filter(p => !ctrIaEhSolar(p)), ...ctrIa.pedidos.filter(ctrIaEhSolar)] };
   ctrIaGeracao++;                  // resposta do híbrido que ainda vem a caminho é de antes do Desfazer
-  const emitVolta = epEmitIdOk(s.emitente) || 'aioros', emitMudou = emitVolta !== EP_EMIT_SEL;
+  const emitVolta = epEmitSnapLe(s), emitMudou = emitVolta !== EP_EMIT_SEL;
   EP_EMIT_SEL = emitVolta;
   try { epEmitBarAtualizar(); } catch (e) {}
   ctrTipoUi(); ctrEscRender(); ctrOpcRender(); ctrPctNota(); ctrDosRender();
@@ -27674,7 +27745,7 @@ function ctrHibHTML(pl, ds, cons) {
   const papeis = (chave, den) => tipos.map((t, i) => `${i ? 'para' : 'Para'} os fins da Parte ${CTR_HIB_ROM[i]}, ${den} <b>${e(N[t][chave])}</b>`).join('; ') + '.';
   const blocos = [
     `<div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>
         <div class="ep-ctr-ident">${dP.num ? 'Contrato nº <b>' + e(dP.num) + '</b> · ' : ''}${e(dataTxt)}${dP.cidade ? ' · ' + e(dP.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">${cab.titulo}</div>
@@ -28144,7 +28215,7 @@ function procHTML(d) {
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
       <div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>
         <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
 
@@ -28378,7 +28449,7 @@ function anuHTML(d) {
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
       <div class="ep-ctr-topo">
-        ${d.cess ? '' : '<div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>'}
+        ${d.cess ? '' : '<div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>'}
         <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">Termo de Anuência</div>
@@ -28500,7 +28571,7 @@ function visHTML(d) {
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
       <div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletroposto"></div>
         <div class="ep-ctr-ident">${d.num ? 'Nº ' + e(d.num) + ' · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">Relatório de Vistoria Técnica</div>
@@ -29638,8 +29709,8 @@ function orcSnapTake() {
     kit.push({ id: row.dataset.id, on: row.querySelector('input[type="checkbox"]').checked });
   });
   return {
-    // Id do emitente escolhido para este papel ('aioros' | 'nexus'); orcSnapApply o restaura.
-    emitente: EP_EMIT_SEL,
+    // Quem assinou este papel de fato ('aioros' | 'nexus') e a marca emitV: 2; orcSnapApply os restaura.
+    ...epEmitSnapGrava(),
     // Cliente (card) ligado a este contrato: a versão salva no servidor e o "Abrir" levam o card junto.
     ctrCard: ctrCardLigado ? { linha: ctrCardLigado.linha, codigo: ctrCardLigado.codigo, nome: ctrCardLigado.nome } : null,
     num: v('orc-num'), data: v('orc-data'), validade: v('orc-validade'), validadeModo: v('orc-validade-modo'),
@@ -29720,10 +29791,12 @@ function orcSnapTake() {
 function orcSnapApply(s, tipo) {
   if (!s) return;
   orcInit();   // garante o pane montado (grid do cartão etc.)
-  // Emitente do papel (AIOROS ou NEXUS): reabrir do historico devolve a escolha. Papel
-  // salvo antes do controle nao tem a chave e abre no padrao. Os campos espelhados do
-  // contrato (Pix, foro) voltam do proprio snapshot, entao nao se refaz o espelho aqui.
-  EP_EMIT_SEL = epEmitIdOk(s.emitente) || 'aioros';
+  // Emitente do papel (AIOROS ou NEXUS): reabrir do historico devolve quem assinou. Snapshot sem
+  // "emitente" abre como AIOROS (nao como o padrao NEXUS). "nexus" sem a marca emitV: 2 tambem abre
+  // como AIOROS, porque antes de 03/11/2026 a NEXUS nao tinha CNPJ e quem assinava era a AIOROS.
+  // Com a marca, vale o que esta salvo. Os campos espelhados do contrato (Pix, foro) voltam do
+  // proprio snapshot, entao nao se refaz o espelho aqui.
+  EP_EMIT_SEL = epEmitSnapLe(s);
   try { epEmitBarAtualizar(); } catch (e) {}
   vdcBase.ele = null; vdcDiff.ele = null;   // campos de uma versão salva: nada volta ao cadastro até alguém aplicar o cadastro de novo
   if (s.ctrCard) ctrCardSet('ele', s.ctrCard);   // papel de antes não traz o card: segue o que está ligado

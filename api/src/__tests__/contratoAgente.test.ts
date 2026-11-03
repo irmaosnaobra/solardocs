@@ -690,7 +690,7 @@ describe('o que vai ao modelo', () => {
     expect(r.achados).toHaveLength(6);
   });
   it('o prompt traz as duas famílias, a base da ligação nova, o estilo e o aviso de onde preencher o que não é campo', () => {
-    for (const trecho of ['CESSÃO / ARRENDAMENTO DE ÁREA', 'a NEXUS/AIOROS NÃO é parte', 'FORNECIMENTO E INSTALAÇÃO', 'REN ANEEL 1.000/2021, art. 67, IX', 'arts. 12 e 14',
+    for (const trecho of ['CESSÃO / ARRENDAMENTO DE ÁREA', 'o emitente (a NEXUS Eletroposto ou, se o ESTADO disser "aioros", a AIOROS) NÃO é parte', 'siga SEMPRE o que vem nele', 'CNPJ 03.945.372/0001-89', 'NUNCA a escreve como "marca de AIOROS"', 'NEXUS Eletroposto, marca de AIOROS GROUP LTDA", CNPJ 63.636.043/0001-88', 'FORNECIMENTO E INSTALAÇÃO', 'REN ANEEL 1.000/2021, art. 67, IX', 'arts. 12 e 14',
       '75 kW', 'MP 2.200-2, art. 10, § 2º', 'No modo REVISAR de uma cessão', 'Matrícula nº', 'Cartório de registro de imóveis', 'Inscrição do IPTU', 'O cedente é', 'VALOR E PERCENTUAL SÓ MUDAM PELO CAMPO']) {
       expect(SISTEMA_AGENTE, trecho).toContain(trecho);
     }

@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Apresentação · NEXUS Eletropostos</title>
+<title>Apresentação · NEXUS Eletroposto</title>
 <style>
   :root{
-    /* paleta da marca NEXUS Eletropostos: navy #0b1a2b + verde do X (destaque, número grande, botão); azul #0085ff só em elemento grande */
+    /* paleta da marca NEXUS Eletroposto: navy #0b1a2b + verde do X (destaque, número grande, botão); azul #0085ff só em elemento grande */
     --bg:#0b1a2b; --card:#10233a; --card2:#0d1e32; --borda:rgba(229,231,235,.08);
     --tx:#e5e7eb; --tx2:#8ca0b8; --lar:#39ff14; --verde:#39ff14;
   }
@@ -296,7 +296,7 @@ function chartSolar() {
   </svg>`;
 }
 
-const rodape = n => `<div class="rodape"><span><b>NEXUS ELETROPOSTOS</b> &nbsp;|&nbsp; Proposta Comercial · Atendemos todo o Brasil · ${ANO}</span><span class="num">${String(n).padStart(2, '0')}</span></div>`;
+const rodape = n => `<div class="rodape"><span><b>NEXUS ELETROPOSTO</b> &nbsp;|&nbsp; Proposta Comercial · Atendemos todo o Brasil · ${ANO}</span><span class="num">${String(n).padStart(2, '0')}</span></div>`;
 
 document.getElementById('deck').innerHTML = `
 <!-- 1 · CAPA -->
@@ -307,7 +307,7 @@ document.getElementById('deck').innerHTML = `
     <div class="sub rv">Instalamos eletropostos em todo o país. Você transforma a localização do seu negócio em receita recorrente.</div>
     ${t.cliente ? `<div class="capa-cliente rv">Preparado para <b>${t.cliente}</b>${t.cidade ? ` · <b>${t.cidade}</b>` : ''}</div>` : ''}
     <div class="quote rv">“Quem ocupa os melhores pontos primeiro, <span class="hl">domina a rota</span>.”</div>
-    <div class="capa-marcas rv"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos"><span class="sm">ENERGIA QUE MOVE O AMANHÃ</span></div>
+    <div class="capa-marcas rv"><img src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletroposto"><span class="sm">ENERGIA QUE MOVE O AMANHÃ</span></div>
   </div>
   <div class="capa-mapa rv"><img src="/gerador/nexus-mapa.jpg" alt="Cobertura nacional"><div class="capa-badge">COBERTURA NACIONAL</div></div>
 </div></div>${rodape(1)}</section>
@@ -605,7 +605,7 @@ ${rodape(15)}</section>
 
 <!-- 16 · ENCERRAMENTO -->
 <section class="sl fim"><div class="sl-corpo" style="align-items:center;text-align:center">
-  <img class="rv" src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletropostos" style="height:clamp(48px,6.5vw,88px);width:auto;margin-bottom:24px">
+  <img class="rv" src="/gerador/nexus-logo-tela.png" alt="NEXUS Eletroposto" style="height:clamp(48px,6.5vw,88px);width:auto;margin-bottom:24px">
   <div class="frase rv">Transformando <span class="hl">localização em patrimônio</span>, <span class="hlv">energia em receita</span> e visão em crescimento.</div>
   <div class="contato rv">
     ${t.autor ? `<b>${t.autor}</b><br>` : ''}${t.contato ? `${t.contato}<br>` : ''}
@@ -647,8 +647,8 @@ async function baixarPPTX() {
     const pptx = new PptxGenJS();
     pptx.defineLayout({ name: 'W169', width: 13.333, height: 7.5 });
     pptx.layout = 'W169';
-    pptx.author = t.autor || 'NEXUS Eletropostos';
-    pptx.title = 'Estudo Comercial · NEXUS Eletropostos';
+    pptx.author = t.autor || 'NEXUS Eletroposto';
+    pptx.title = 'Estudo Comercial · NEXUS Eletroposto';
 
     const RR = 0.06;
     const baseSlide = n => {
@@ -656,7 +656,7 @@ async function baixarPPTX() {
       s.background = { color: PAL.BG };
       s.addShape('line', { x: .5, y: 6.98, w: 12.33, h: 0, line: { color: PAL.LINHA, width: .75 } });
       s.addText([
-        { text: 'NEXUS ELETROPOSTOS', options: { bold: true, color: PAL.TX } },
+        { text: 'NEXUS ELETROPOSTO', options: { bold: true, color: PAL.TX } },
         { text: '   |   Proposta Comercial · Atendemos todo o Brasil · ' + ANO, options: { color: PAL.TX2 } },
       ], { x: .5, y: 7.06, w: 10, h: .3, fontSize: 9, fontFace: FF, charSpacing: 2 });
       s.addText(String(n).padStart(2, '0'), { x: 12.3, y: 7.06, w: .55, h: .3, fontSize: 10, bold: true, color: '6C819A', align: 'right', fontFace: FF });

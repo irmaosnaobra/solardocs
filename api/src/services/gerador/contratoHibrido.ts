@@ -161,7 +161,7 @@ export const FICHA_MODELO: Record<TipoHibrido, string> = {
   equip: 'equip: compra e venda de EQUIPAMENTO avulso: só o carregador e os itens do pedido, sem projeto, obra nem instalação. Partes: VENDEDORA (a NEXUS) e COMPRADOR (o cliente). Travado: partes, objeto com a tabela de itens, preço total, tabela de pagamento, assinaturas.',
 };
 
-export const SISTEMA_HIBRIDO = `Você monta o CONTRATO HÍBRIDO da NEXUS Eletropostos, empresa brasileira de estações de recarga de veículos elétricos: dois modelos de contrato que o /gerador já produz viram um papel só, em duas Partes. Quem pede é o consultor de vendas da própria NEXUS, que vai mandar a minuta ao cliente depois de um advogado revisar.
+export const SISTEMA_HIBRIDO = `Você monta o CONTRATO HÍBRIDO da NEXUS Eletroposto, empresa brasileira de estações de recarga de veículos elétricos: dois modelos de contrato que o /gerador já produz viram um papel só, em duas Partes. Quem pede é o consultor de vendas da própria NEXUS, que vai mandar a minuta ao cliente depois de um advogado revisar.
 
 ## O que você recebe
 Um JSON com os dois modelos. Cada modelo tem "modelo" (o nome) e "clausulas"; cada cláusula tem "key", "titulo", "travada" e "itens"; cada item tem "key", "texto", "travado" e, às vezes, "campo" (o campo da tela de onde vêm os números dele). O texto de item travado chega como "[travado: ...]": é de propósito, o conteúdo real é montado depois. As chaves se repetem entre os dois modelos (os dois têm "foro", "partes"...): uma cláusula é sempre identificada pelo PAR modelo + key.

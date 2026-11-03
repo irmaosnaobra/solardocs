@@ -36,20 +36,20 @@ function previewDoProduto(tipo: string, cliente: string, completo = false): Prev
   const paraQuem = cliente ? ` — proposta para ${cliente}` : '';
   if (completo) {
     return {
-      titulo: 'Seu eletroposto, em números · NEXUS Eletropostos',
+      titulo: 'Seu eletroposto, em números · NEXUS Eletroposto',
       descricao: `Quanto o seu ponto passa a render${paraQuem}, em quanto tempo o investimento volta e o que está incluído no valor.`,
       imagem: `${SITE}/gerador/nexus-og.png`,
       tema: '#0B1A2B',
-      siteName: 'NEXUS Eletropostos',
+      siteName: 'NEXUS Eletroposto',
     };
   }
   if (tipo === 'eletroposto') {
     return {
-      titulo: 'Orçamento de Eletroposto · NEXUS Eletropostos',
+      titulo: 'Orçamento de Eletroposto · NEXUS Eletroposto',
       descricao: `Orçamento do seu eletroposto${paraQuem}. Equipamento, projeto, instalação e homologação — chave na mão.`,
       imagem: `${SITE}/gerador/nexus-og.png`,
       tema: '#0B1A2B',
-      siteName: 'NEXUS Eletropostos',
+      siteName: 'NEXUS Eletroposto',
     };
   }
   return {

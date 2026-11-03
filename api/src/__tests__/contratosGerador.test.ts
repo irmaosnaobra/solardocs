@@ -396,7 +396,7 @@ describe('contratos do /gerador: Arrendamento com o cliente como cessionário n�
     const html = papel(r);
     expect(html).toContain('nexus-logo-papel.png');
     expect(html).toContain('nexus-x.png');
-    expect(html).toContain('NEXUS Eletropostos');
+    expect(html).toContain('alt="NEXUS Eletroposto"');
     expect(html).toContain('Cessão de Área · Eletroposto');
     expect(html).not.toContain('Recarga de veículos elétricos · Cliente Teste');
     expect(html).not.toContain('não é parte deste contrato');

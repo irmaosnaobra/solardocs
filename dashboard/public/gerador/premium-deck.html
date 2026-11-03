@@ -6,7 +6,7 @@
 <!-- Sem esta tag o celular desenha a página numa janela de 980 px e a escala
      abaixo calcula em cima de uma largura que não é a da tela. -->
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orçamento Premium · NEXUS Eletropostos</title>
+<title>Orçamento Premium · NEXUS Eletroposto</title>
 <script>
 /* O FORMATO E A ESCALA DA TELA.
    Janela com menos de 900 px é celular: a classe .movel no <html> troca a
@@ -162,7 +162,7 @@ const ART = '/nexus/img/';
 const LOGO = '/gerador/nexus-logo-tela.png';
 const SELO = '/gerador/logo.png';
 
-const marca = () => `<div class="marca"><img src="${LOGO}" alt="NEXUS Eletropostos"></div>`;
+const marca = () => `<div class="marca"><img src="${LOGO}" alt="NEXUS Eletroposto"></div>`;
 
 const rodape = (D, n, total) => `<div class="rodape">
   <span class="tag">Orçamento nº ${esc(D.numero)} · ${esc(D.cliente)}</span>
@@ -534,7 +534,7 @@ function montar(D) {
   add(13, `<section class="slide fecho">
   <div class="faixa"></div>
   <div class="wrap" style="justify-content:center">
-    <img class="logo-grande" src="${LOGO}" alt="NEXUS Eletropostos">
+    <img class="logo-grande" src="${LOGO}" alt="NEXUS Eletroposto">
     <div class="tagline-fecho">Energia que <b>move</b> o amanhã</div>
     <div class="titulo" style="margin-top:44px">O que falta<span class="g"> é a sua assinatura</span></div>
     <div class="regua"></div>

@@ -163,12 +163,13 @@ o perfil A e B do documento. Anúncio frio é o caminho caro, e é o segundo, n�
 
 ## 9. Quem assina
 
-Marketing e tudo que o parceiro vê é NEXUS. O instrumento jurídico do eletroposto
-(contrato de fornecimento, recibo, proposta de banco) sai em nome da **AIOROS GROUP
-LTDA, CNPJ 63.636.043/0001-88**, sede em Uberlândia/MG — é ela que os documentos da
-aba Eletroposto do `/gerador` emitem. Entre 29/09 e 30/09/2026 essa emitente foi a
-IMPORTADORA ARAGUARI LTDA; o dono desfez a troca em 30/09 e a AIOROS voltou, então
-agora é o mesmo CNPJ do Pix, do Asaas, da conta bancária e do SolarDoc.
+Marketing e tudo que o parceiro vê é NEXUS Eletroposto. Desde 03/11/2026 a NEXUS tem CNPJ
+próprio: o instrumento jurídico do eletroposto (contrato de fornecimento, recibo, proposta de
+banco) sai em nome da **K EMA EASY IMPORTAÇÕES LTDA., CNPJ 03.945.372/0001-89**, sede em
+Araguari/MG, nome fantasia **NEXUS Eletroposto**. É ela o emitente padrão dos documentos da aba
+Eletroposto do `/gerador`. A AIOROS GROUP LTDA (CNPJ 63.636.043/0001-88, Uberlândia/MG) segue
+no solar e emite o documento do eletroposto só quando é escolhida no controle "Emitente", por
+exemplo no recibo de dinheiro que entrou na conta dela.
 Ver a memória `gerador-eletroposto-marca-nexus`.
 
 Risco que cresce junto com o sucesso da rede: em 15/09 havia 4 ou mais pedidos anteriores com
