@@ -72,6 +72,7 @@ import { runClientesQuentes } from '../services/meta/clientesQuentes';
 import { runCapiCardNovo } from '../services/meta/capiCardNovo';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
+import { slotDoSegredo, deveAvisarSlot } from '../utils/cronSegredo';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { supabase } from '../utils/supabase';
@@ -93,14 +94,15 @@ function verifyCronSecret(req: Request, res: Response): boolean {
   const auth   = req.headers['authorization'] ?? '';
   const secret = auth.replace('Bearer ', '').trim();
 
-  // Secrets vêm SÓ de env (sem fallback hardcoded). Aceita o do Vercel OU o do
-  // GitHub Actions — ambos configuráveis. Sem secret no header → 401.
-  const cronSecret   = (process.env.CRON_SECRET || '').trim();
-  const githubSecret = (process.env.GITHUB_CRON_SECRET || '').trim();
-  const validVercel = cronSecret && secret === cronSecret;
-  const validGithub = githubSecret && secret === githubSecret;
+  // Secrets vêm SÓ de env (sem fallback hardcoded). Aceita o do Vercel, o do GitHub
+  // Actions OU o anterior (CRON_SECRET_ANTERIOR, só durante a troca). Sem secret no header → 401.
+  const slot = slotDoSegredo(secret);
+  if (slot === 'CRON_SECRET_ANTERIOR') {
+    const aviso = `cron-segredo slot=${slot} rota=${String(req.originalUrl || req.url || '').split('?')[0]} ua=${String(req.headers['user-agent'] || '').slice(0, 60)}`;
+    if (deveAvisarSlot(aviso)) logger.warn('cron', aviso);
+  }
 
-  if (!secret || (!validVercel && !validGithub)) {
+  if (!secret || !slot) {
     res.status(401).json({ error: 'Unauthorized' });
     return false;
   }

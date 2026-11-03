@@ -1,5 +1,5 @@
 import express, { Router, Request, Response } from 'express';
-import { timingSafeEqual } from 'crypto';
+import { slotDoSegredo } from '../utils/cronSegredo';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { fichaSubstituiAviso } from '../services/agentes5040/chaves';
@@ -439,11 +439,10 @@ const camposComUtm = (campos: Array<{ name: string; values: string[] }>, b: Reco
 const FORM_QUIZ_TESTE = 'quiz_solar_teste';
 const leadDoQuiz = (alvo: string, teste: boolean): string => `${teste ? 'qteste' : 'quiz'}_${alvo}`;
 
+// Só os slots CRON_SECRET e CRON_SECRET_ANTERIOR ligam o modo teste; o GITHUB_CRON_SECRET (do Actions) fica recusado aqui.
 function segredoConfere(req: Request): boolean {
-  const segredo = String(process.env.CRON_SECRET || '').trim();
-  const dado = String(req.headers['x-cron-secret'] || '').trim();
-  if (!segredo || !dado || segredo.length !== dado.length) return false;
-  return timingSafeEqual(Buffer.from(segredo), Buffer.from(dado));
+  const slot = slotDoSegredo(req.headers['x-cron-secret']);
+  return slot === 'CRON_SECRET' || slot === 'CRON_SECRET_ANTERIOR';
 }
 /** true = teste autorizado; false = não é teste; null = pediu teste sem direito (já respondeu 401: pare). */
 function modoTeste(req: Request, b: Record<string, unknown>, res: Response): boolean | null {

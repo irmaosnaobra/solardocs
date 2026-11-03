@@ -831,6 +831,22 @@ describe('modo teste da sonda', () => {
     expect(h.ger.tabela('agendamentos')).toHaveLength(0);
     expect(h.enviados).toHaveLength(0);
   });
+  it('o GITHUB_CRON_SECRET no x-cron-secret NÃO liga o modo teste (401); o CRON_SECRET_ANTERIOR liga', async () => {
+    const g = process.env.GITHUB_CRON_SECRET, v = process.env.CRON_SECRET_ANTERIOR;
+    process.env.GITHUB_CRON_SECRET = 'falso-github-secret-teste';
+    process.env.CRON_SECRET_ANTERIOR = 'falso-anterior-secret-teste';
+    try {
+      const gh = await request(app).post('/io/solar/quiz/agora').set('x-cron-secret', 'falso-github-secret-teste').send(corpo({ teste: true }));
+      expect(gh.status).toBe(401);
+      expect(h.ger.tabela('agendamentos')).toHaveLength(0);
+      const ant = await request(app).post('/io/solar/quiz/agora').set('x-cron-secret', 'falso-anterior-secret-teste').send(corpo({ teste: true }));
+      expect(ant.status).toBe(200);
+      expect(ant.body.teste).toBe(true);
+    } finally {
+      if (g === undefined) delete process.env.GITHUB_CRON_SECRET; else process.env.GITHUB_CRON_SECRET = g;
+      if (v === undefined) delete process.env.CRON_SECRET_ANTERIOR; else process.env.CRON_SECRET_ANTERIOR = v;
+    }
+  });
   it('com o header, /quiz, /agora, /agendar e /saiu gravam como lp_solar_teste e NÃO mandam mensagem nem CAPI', async () => {
     const q = await request(app).post('/io/solar/quiz').set('x-cron-secret', SEGREDO()).send(corpo({ teste: true }));
     expect(q.body.lead_id).toBe('qteste_3491112222');
