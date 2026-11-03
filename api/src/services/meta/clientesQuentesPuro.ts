@@ -70,6 +70,9 @@ export const PESO_CAPITAL = 0.2;
 export const PESO_NOTA_3 = 0.1;
 export const KWH_QUENTE = 900;
 export const PONTOS_QUIZ_QUENTE = 80;
+/** Lead bom do quiz (03/11/2026): nota de 70 para cima, o mesmo corte do descarte do quiz (abaixo de 70 nem vira card). */
+export const PESO_QUIZ_BOM = 0.15;
+export const PONTOS_QUIZ_BOM = 70;
 export const CAPITAL_MINIMO = 100000;
 
 export const pesoDoStatus = (produto: ProdutoMeta, status: unknown): number | null => {
@@ -280,8 +283,9 @@ export function listaSolar(a: { cards: AgCard[]; leads: LeadMeta[]; vendas: Vend
     const base = { telefone: l.whatsapp, nome: l.nome, cidade: l.cidade };
     if (String(l.lead_id ?? '').startsWith('quiz_')) {
       const pts = pontosDoLead(fd);
-      if (pts != null && pts >= PONTOS_QUIZ_QUENTE && campo(fd, 'Caminho').trim().toLowerCase() !== 'curioso') {
-        juntar(L, { ...base, valor: PESO_QUIZ_QUENTE * T, motivo: 'quiz_pontos_80' });
+      if (pts != null && pts >= PONTOS_QUIZ_BOM && campo(fd, 'Caminho').trim().toLowerCase() !== 'curioso') {
+        if (pts >= PONTOS_QUIZ_QUENTE) juntar(L, { ...base, valor: PESO_QUIZ_QUENTE * T, motivo: 'quiz_pontos_80' });
+        else juntar(L, { ...base, valor: PESO_QUIZ_BOM * T, motivo: 'quiz_pontos_70' });
       }
     }
     if (consumoEhAlto(campoConsumo(fd))) {

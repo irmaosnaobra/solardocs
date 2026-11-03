@@ -15,6 +15,7 @@ import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { lerPaginado } from '../utils/lerPaginado';
 import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
+import { PONTOS_QUIZ_BOM } from '../services/meta/clientesQuentesPuro';
 import { registrarSchedulePagina } from '../services/meta/capiPagina';
 import { campoCapiDe } from '../services/meta/capiNavegador';
 import { DONA_SOLAR, PONTOS_CURIOSO, MARCA_QUIZ, decidirCaminho, pontuar, acharCidadeRaio, kwhDaFaixa } from '../services/agenda/solarRota';
@@ -527,10 +528,10 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
       // Curioso não tem "agora", mas escolhe horário com a Nilce, que é a dona de todo o solar.
       field_data: camposDoRascunho(e, dec, semHorario, diag, b, req), consultor: DONA_SOLAR, fora_area: false,
     });
-    // LeadQuente: nota alta que não é curioso. Só depois de o rascunho gravar, e
+    // LeadQuente: nota de 70 para cima (o mesmo corte do descarte) que não é curioso. Só depois de o rascunho gravar, e
     // nunca no ?dry=1 nem no teste. O eventId fixo por telefone faz o Meta descartar o reenvio de
     // quem refaz o quiz. Não existe gêmeo no navegador, então o id nasce aqui.
-    if (!teste && gravou && dec.pontos >= 80 && dec.caminho !== 'curioso') {
+    if (!teste && gravou && dec.pontos >= PONTOS_QUIZ_BOM && dec.caminho !== 'curioso') {
       await enviarQuizMeta({
         produto: 'solar', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_${idDoTelefone(e.tel)}`,
         pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },

@@ -167,8 +167,20 @@ describe('POST /quiz: LeadQuente', () => {
     expect(chamadas()[0].eventId).toMatch(/^leadquente_[0-9a-f]{24}$/);
     expect(chamadas()[0].eventId).not.toContain('991112222');   // o telefone nunca vai em texto puro
   });
-  it('nota 79 não manda', async () => {
-    h.pontos = 79;
+  it('nota 72 (de 70 a 79) e não curioso: manda LeadQuente', async () => {
+    h.pontos = 72;
+    await request(app).post('/io/solar/quiz').send(base);
+    expect(chamadas()).toHaveLength(1);
+    expect(chamadas()[0]).toMatchObject({ nome: 'LeadQuente', dados: { nota: 72 } });
+  });
+  it('nota 69 não manda', async () => {
+    h.pontos = 69;
+    await request(app).post('/io/solar/quiz').send(base);
+    expect(h.enviar).not.toHaveBeenCalled();
+  });
+  it('curioso com nota 72 não manda', async () => {
+    h.pontos = 72;
+    h.caminho = 'curioso';
     await request(app).post('/io/solar/quiz').send(base);
     expect(h.enviar).not.toHaveBeenCalled();
   });

@@ -15,7 +15,7 @@ import type { FunilQuiz, EventoQuiz, LinhaConjunto, VisitaQuiz } from './quizFun
 import { ehVisitaDaLpSolar } from './quizFunil';
 import type { MetaAnuncio } from './metaConjuntos';
 
-/** Nota a partir da qual o lead é quente (a mesma do LeadQuente enviado à Meta). */
+/** Nota a partir da qual o painel chama o lead de quente (o rótulo QUENTE do quiz). O LeadQuente do Meta sai desde 70 (PONTOS_QUIZ_BOM). */
 export const NOTA_QUENTE = 80;
 /** Abaixo disto é curioso, mesmo que a porta diga outra coisa. */
 export const NOTA_CURIOSO = 40;

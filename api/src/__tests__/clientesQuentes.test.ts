@@ -5,6 +5,13 @@ import {
   lotesPublico, previa, TICKET_ELETRO, pesoBaseDoCard, PESO_BASE_SOLAR, PESO_BASE_ELETRO, ORIGENS_DE_LEAD, type Quente, type ListaQuentes,
 } from '../services/meta/clientesQuentesPuro';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
+import { PONTOS_QUIZ_BOM } from '../services/meta/clientesQuentesPuro';
+import { NOTA_MINIMA_SOLAR } from '../services/io/solarDescarte';
+
+// O lead bom do Meta começa onde o quiz para de descartar: se um mudar sozinho, os dois se separam calados.
+it('o corte do lead bom no Meta é o mesmo do descarte do quiz', () => {
+  expect(PONTOS_QUIZ_BOM).toBe(NOTA_MINIMA_SOLAR);
+});
 
 // Cada linha aqui vira instrução para o algoritmo do Meta caçar mais gente
 // parecida. O erro caro não é mandar de menos: é ensinar com cliente frio.
@@ -129,7 +136,7 @@ describe('valor por status', () => {
   it('lead do quiz com 80+ pontos e fora do "curioso" vale 0,25; consumo alto vale 0,15', () => {
     const quente = lead({ lead_id: 'quiz_34911112222', field_data: fd({ Pontos: '85', Caminho: 'pronto', Consumo: 'R$ 100 (~200 kWh)' }) });
     const curioso = lead({ lead_id: 'quiz_34922223333', whatsapp: '34922223333', field_data: fd({ Pontos: '95', Caminho: 'curioso' }) });
-    const baixo = lead({ lead_id: 'quiz_34933334444', whatsapp: '34933334444', field_data: fd({ Pontos: '79', Caminho: 'pronto' }) });
+    const baixo = lead({ lead_id: 'quiz_34933334444', whatsapp: '34933334444', field_data: fd({ Pontos: '69', Caminho: 'pronto' }) });
     const grande = lead({ lead_id: '99', whatsapp: '34944445555', field_data: fd({ Consumo: '900 a 1200' }) });
     const grandeConsuma = lead({ lead_id: '98', whatsapp: '34955556666', field_data: fd({ Consuma: '+ 1200' }) });
     const pequeno = lead({ lead_id: '97', whatsapp: '34966667777', field_data: fd({ Consumo: '- 500' }) });
@@ -140,6 +147,20 @@ describe('valor por status', () => {
     expect(l.get('5534944445555')).toMatchObject({ valor: 1500, motivo: 'consumo_900kwh' });
     expect(l.get('5534955556666')!.valor).toBe(1500);
     expect(l.has('5534966667777')).toBe(false);
+  });
+
+  it('lead do quiz com nota de 70 a 79 e fora do "curioso" vale 0,15 (quiz_pontos_70)', () => {
+    const bom = lead({ lead_id: 'quiz_34911112222', field_data: fd({ Pontos: '75', Caminho: 'pronto' }) });
+    const borda = lead({ lead_id: 'quiz_34922223333', whatsapp: '34922223333', field_data: fd({ Pontos: '70', Caminho: 'pronto' }) });
+    const abaixo = lead({ lead_id: 'quiz_34933334444', whatsapp: '34933334444', field_data: fd({ Pontos: '69', Caminho: 'pronto' }) });
+    const curioso = lead({ lead_id: 'quiz_34944445555', whatsapp: '34944445555', field_data: fd({ Pontos: '75', Caminho: 'curioso' }) });
+    const quente = lead({ lead_id: 'quiz_34955556666', whatsapp: '34955556666', field_data: fd({ Pontos: '85', Caminho: 'pronto' }) });
+    const l = solar([], [bom, borda, abaixo, curioso, quente]);
+    expect(l.get('5534911112222')).toMatchObject({ valor: 0.15 * T, motivo: 'quiz_pontos_70' });
+    expect(l.get('5534922223333')).toMatchObject({ valor: 0.15 * T, motivo: 'quiz_pontos_70' });
+    expect(l.has('5534933334444')).toBe(false);
+    expect(l.has('5534944445555')).toBe(false);
+    expect(l.get('5534955556666')).toMatchObject({ valor: 0.25 * T, motivo: 'quiz_pontos_80' });
   });
 
   it('eletroposto: capital >= R$ 100 mil vale 0,2 do capital; nota 3 vale 0,1 do ticket', () => {
