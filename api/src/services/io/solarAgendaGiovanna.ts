@@ -85,6 +85,8 @@ import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
+import { chaveContato } from '../agents/whatsapp/silenciar';
+import { lerConversa } from '../agentes5040/contexto';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { ehCardMudo } from '../agenda/solarRota';
 import { INSTANCE_ID_IO } from './solarRespostas';
@@ -214,6 +216,58 @@ async function quemFalouDepoisDoBomDia(comBomDia: Ficha[]): Promise<Map<string, 
   return ultima;
 }
 
+// ── a resposta da Duda saindo (03/11/2026) ──────────────────────────────────────
+/** O carimbo da resposta das agentes da 5040 a uma fala do lead (agendaEnvio.PREFIXO_CARIMBO_AGENTES; aqui literal para não puxar o robô da agenda). */
+const CARIMBO_RESPOSTA = 'ag5040_sent:';
+const RESPOSTA_FRESCA_MS = 5 * 60_000;
+const FALA_NOSSA_RECENTE_MS = 2 * 60_000;
+const FALA_DO_LEAD_RECENTE_MS = 10 * 60_000;
+const FALAS_DO_LEAD_LIDAS = 5;
+
+/**
+ * Uma resposta da Duda (ou de outra agente) a este contato está saindo AGORA? Então o bom dia e o "oi" esperam 1 tick, para não
+ * cair colados na resposta (o cliente leria duas mensagens quase juntas). Só ESPERA, nunca descarta e nunca grava nada.
+ * Verdadeiro se acontecer qualquer um destes:
+ *   - uma das últimas 5 falas do lead (dos últimos 10 min) tem o carimbo `ag5040_sent:<id>:1` reservado há menos de 5 min;
+ *   - o mesmo carimbo está `enviado` há menos de 5 min (o updated_at é o da reserva) e ainda não há fala nossa com momment >= o da fala
+ *     do lead (o webhook não trouxe a bolha para a wa_mensagens; compara dentro da própria tabela);
+ *   - uma fala nossa chegou há menos de 2 min.
+ * Leitura que falha (chave inválida, conversa incompleta, erro): falso, o toque sai como sempre.
+ */
+export async function respostaEmCurso(tel: string, agora: number = Date.now()): Promise<boolean> {
+  try {
+    const ck = chaveContato(tel);
+    if (!ck) return false;
+    const conversa = await lerConversa(ck);
+    if (!conversa.completa) return false;
+    const ms = (m: { momment: string }): number => Date.parse(m.momment);
+    if (conversa.msgs.some(m => m.from_me && Number.isFinite(ms(m)) && agora - ms(m) < FALA_NOSSA_RECENTE_MS)) return true;
+    const leads = conversa.msgs.filter(m => !m.from_me && Number.isFinite(ms(m)) && agora - ms(m) < FALA_DO_LEAD_RECENTE_MS).slice(-FALAS_DO_LEAD_LIDAS);
+    for (const m of leads) {
+      const { data, error } = await supabase.from('system_state').select('key, value, updated_at').eq('key', `${CARIMBO_RESPOSTA}${m.id}:1`).maybeSingle();
+      if (error) continue;
+      const r = data as { value?: { estado?: string; em?: string } | null; updated_at?: string } | null;
+      const estado = r?.value?.estado;
+      if (estado === 'reservado') {
+        const desde = Date.parse(String(r?.value?.em ?? r?.updated_at ?? ''));
+        if (Number.isFinite(desde) && agora - desde < RESPOSTA_FRESCA_MS) return true;
+      } else if (estado === 'enviado') {
+        const desde = Date.parse(String(r?.updated_at ?? ''));
+        if (Number.isFinite(desde) && agora - desde < RESPOSTA_FRESCA_MS && !conversa.msgs.some(x => x.from_me && ms(x) >= ms(m))) return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Minutos de Brasília até as 11h (a borda da janela do bom dia). Negativo = já passou. */
+const minutosAteFimDaManha = (agora: number): number => {
+  const d = new Date(agora - 3 * 3_600_000);
+  return MANHA.ate * 60 - (d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60);
+};
+
 type Ficha = {
   id: number;
   cliente_nome: string | null;
@@ -241,13 +295,15 @@ export type ResultadoSolarGiovanna = {
   /** Não receberam o toque de 5 min porque responderam o bom dia. */
   ja_responderam: number;
   segurados_pelo_teto: number;
+  /** Seguraram o toque por 1 tick porque a resposta da Duda ao lead estava saindo (respostaEmCurso). Nada é gravado. */
+  esperando_resposta: number;
   erros: number;
   previa?: ToquePrevisto[];
 };
 
 const zero = (motivo?: string): ResultadoSolarGiovanna => ({
   ok: true, ...(motivo ? { motivo } : {}),
-  candidatos: 0, bom_dia: 0, cinco_min: 0, ja_responderam: 0, segurados_pelo_teto: 0, erros: 0,
+  candidatos: 0, bom_dia: 0, cinco_min: 0, ja_responderam: 0, segurados_pelo_teto: 0, esperando_resposta: 0, erros: 0,
 });
 
 /** O card do "agora" do quiz solar: a 1ª linha da observação é `LP SOLAR QUIZ · AGORA`. */
@@ -349,7 +405,7 @@ export async function runSolarAgendaGiovannaTick(
   const semOi = await semOiDoQuiz(fichas.filter(naJanelaDos5));
 
   const previa: ToquePrevisto[] = [];
-  let bomDia = 0, cincoMin = 0, jaResponderam = 0, segurados = 0, erros = 0, toques = 0;
+  let bomDia = 0, cincoMin = 0, jaResponderam = 0, segurados = 0, esperando = 0, erros = 0, toques = 0;
 
   /** Manda a bolha, carimba o teto da linha e grava a flag na ficha. */
   const entregar = async (f: Ficha, toque: ToquePrevisto['toque'], tel: string, bolha: string, campo: string) => {
@@ -403,6 +459,9 @@ export async function runSolarAgendaGiovannaTick(
         jaResponderam++;
         continue;
       }
+      // A resposta da Duda a este lead está saindo: espera o próximo tick (só se ele ainda serve: o "oi" vale até 2 min depois da hora).
+      // Não grava nada e não conta como toque nem como segurado. Roda também no dry (só leitura), para a prévia não mostrar o toque segurado.
+      if (minutos >= 4 && await respostaEmCurso(tel, agora)) { esperando++; continue; }
       if (!dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: TETO_HORA, pisoDia: TETO_DIA }))) {
         segurados++;
         continue;
@@ -420,6 +479,8 @@ export async function runSolarAgendaGiovannaTick(
     // ── Bom dia das 7h ────────────────────────────────────────────────────────
     if (naJanelaDaManha && !f.bomdia_at && minutos >= MANHA_ANTECEDENCIA_MIN) {
       if (bomDia >= MANHA_POR_TICK) continue;
+      // Idem: com o próximo tick ainda servindo (>= 4 min para as 30 min mínimos de antecedência e 4 min antes das 11h), espera 1 tick.
+      if (minutos >= MANHA_ANTECEDENCIA_MIN + 4 && minutosAteFimDaManha(agora) >= 4 && await respostaEmCurso(tel, agora)) { esperando++; continue; }
       if (!dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: TETO_HORA_BOM_DIA, pisoDia: TETO_DIA }))) {
         segurados++;
         continue;
@@ -440,6 +501,9 @@ export async function runSolarAgendaGiovannaTick(
   if (jaResponderam) {
     logger.info('solar-giovanna', `${jaResponderam} não levaram o toque de 5 min: responderam o bom dia`);
   }
+  if (esperando) {
+    logger.info('solar-giovanna', `${esperando} toque(s) esperam 1 tick: a resposta da Duda ao lead está saindo`);
+  }
   if (bomDia || cincoMin) {
     logger.info('solar-giovanna', `${bomDia} bom dia e ${cincoMin} toque(s) de 5 min`);
   }
@@ -451,6 +515,7 @@ export async function runSolarAgendaGiovannaTick(
     cinco_min: cincoMin,
     ja_responderam: jaResponderam,
     segurados_pelo_teto: segurados,
+    esperando_resposta: esperando,
     erros,
     ...(dry ? { previa } : {}),
   };

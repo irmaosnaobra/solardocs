@@ -53,6 +53,43 @@ export function citaAHora(texto: string | null | undefined, iso: string): boolea
   return new RegExp(String.raw`(?<![\d:])(?:${partes.join('|')})(?!\d)`, 'i').test(t);
 }
 
+/** "14:30" (Brasília) do ISO, ou null se ilegível. */
+export function hhmmBRT(iso: string): string | null {
+  const h = horaBRT(iso);
+  const m = minutoBRT(iso);
+  if (h < 0 || m < 0) return null;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * TODAS as horas que o texto cita, normalizadas para HH:MM ("14h30", "14:30", "14h 30", "14h", "14 horas"; "9h" e "09h" dão 09:00).
+ * Número que não é hora de verdade (24h, 48h) também entra no conjunto: sobrando hora, quem decide trata como "não é só esta" e envia.
+ */
+export function horasCitadas(texto: string | null | undefined): Set<string> {
+  const achadas = new Set<string>();
+  const re = /(?<![\d:/])(\d{1,2})(?:\s?h\s?(\d{2})(?!\d)|:(\d{2})(?!\d)|\s?h(?![\s\d]?\d)|\s?horas?\b)/gi;
+  for (const m of String(texto ?? '').matchAll(re)) {
+    achadas.add(`${m[1]!.padStart(2, '0')}:${m[2] ?? m[3] ?? '00'}`);
+  }
+  // Número solto depois de "às", "as" ou "ou" ("14h ou às 15?"): também é hora. O erro aqui só pode SOBRAR hora,
+  // e sobrando hora quem decide envia (regra 0).
+  for (const m of String(texto ?? '').matchAll(/(?<![\p{L}\d])(?:[àa]s|ou)\s+(\d{1,2})(?![\d:h])/giu)) {
+    if (Number(m[1]) <= 23) achadas.add(`${m[1]!.padStart(2, '0')}:00`);
+  }
+  return achadas;
+}
+
+/**
+ * A fala cita UMA hora só, e é a do horário marcado (`iso`, Brasília)? "14h30 ou 15h?" cita duas e dá false: é oferta, não confirmação.
+ * Sem o horário legível, false.
+ */
+export function citaSoEstaHora(texto: string | null | undefined, iso: string): boolean {
+  const alvo = hhmmBRT(iso);
+  if (!alvo) return false;
+  const horas = horasCitadas(texto);
+  return horas.size === 1 && horas.has(alvo);
+}
+
 // ── a ABERTURA do card do quiz solar (21/10/2026): a confirmação do horário que o cliente escolheu na página ──
 
 /** O limite de uma bolha da agenda. */

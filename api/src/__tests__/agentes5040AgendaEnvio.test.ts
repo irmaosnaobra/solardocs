@@ -1250,14 +1250,16 @@ describe('agendaEnvio: abertura nao repete o que a Duda ja confirmou (ja_respond
 
   it('depois de uma abertura descartada por ja_respondido, o proximo item da fila no mesmo giro sai normalmente', async () => {
     cardNovo();
-    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, created_at: NASCEU });
+    // o confirma do card 502 e de OUTRA hora (15h): a fala "14h30" da conversa nao e a dele, entao ele sai (o 9c agora vale para os 4 tipos)
+    const OUTRA = '2026-10-22T18:00:00.000Z';
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: OUTRA, created_at: NASCEU });
     h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
     await enfileirarAgenda(ab({ validoAte: dep(2 * HORA) }), AGORA);
-    await enfileirarAgenda(pedido({ cardId: 502, validoAte: dep(3 * HORA) }), AGORA);   // confirma: nao passa pelo 9c
+    await enfileirarAgenda(pedido({ cardId: 502, quando: OUTRA, validoAte: dep(3 * HORA) }), AGORA);
     expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 1, mantidas: 0 });
     expect(chamadas()).toBe(1);
     expect(dedup().value).toMatchObject({ motivo: 'ja_respondido' });
-    expect(carimbos()).toEqual([chaveCarimboAgenda(502, 'confirma', QUANDO)]);
+    expect(carimbos()).toEqual([chaveCarimboAgenda(502, 'confirma', OUTRA)]);
     expect(fila()).toEqual([]);
   });
 
@@ -1285,14 +1287,251 @@ describe('agendaEnvio: abertura nao repete o que a Duda ja confirmou (ja_respond
     expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
   });
 
-  it('so a abertura le a conversa (confirma nao toca o lerConversa); o dry nao conta a abertura pulada como enviada', async () => {
+  it('a abertura e o confirma leem a conversa (o 9c vale para os 4 tipos); o dry nao conta a abertura pulada como enviada', async () => {
     cardNovo();
     await enfileirarAgenda(pedido({ cardId: 501 }), AGORA);
     expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
-    expect(h.conversaLida).toEqual([]);
+    expect(h.conversaLida).toHaveLength(1);
     h.estado.clear();
     h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
     await enfileirarAgenda(ab(), AGORA);
     expect(await enviarAgendaPendente(AGORA, { dry: true })).toMatchObject({ enviadas: 0 });
+  });
+});
+
+describe('agendaEnvio: o 9c vale para confirma, remarca e volta (03/11/2026)', () => {
+  const NASCEU = ant(3 * MIN);
+  const NOVA = '2026-10-23T13:00:00.000Z';                                  // sexta, 10h em Brasilia (a hora NOVA da remarca)
+  const msg = (id: number, from_me: boolean, texto: string, momment: string) => ({ id, from_me, from_api: null, autor: from_me ? 'duda' : 'lead', texto, tipo: 'text', media_url: null, momment });
+  const conversa = (...msgs: any[]): void => { h.conversa = { completa: true, msgs }; };
+  const cardConf = (): void => { h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, created_at: NASCEU }); };
+  const cardRem = (): void => { h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: NOVA, created_at: NASCEU }); };
+  const remarca = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => pedido({ tipo: 'remarca', cardId: 502, quando: NOVA, ...extra });
+  const dedup = (): any => h.estado.get('solar_bv_dedup:501');
+
+  describe('confirma', () => {
+    it('a corrida do quiz: o cliente escolheu e a Duda ja confirmou a hora depois da escolha: descarta, sem sendHuman, sem carimbo de agenda, e carimba as boas-vindas do card', async () => {
+      cardConf();
+      conversa(msg(10, false, 'pode ser as 14h30', ant(2 * MIN)), msg(11, true, 'Fechado, a Giovanna te liga amanha as 14h30!', ant(MIN)));
+      await enfileirarAgenda(pedido(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1, mantidas: 0 });
+      expect(chamadas()).toBe(0);
+      expect(fila()).toEqual([]);
+      expect(carimbos()).toEqual([]);
+      expect(h.boasVindas).toEqual([501]);
+      expect(h.rebaixados).toEqual([]);
+      expect(dedup()).toBeUndefined();                                   // solar_bv_dedup e so da abertura
+      expect(h.conversaLida).toHaveLength(1);
+    });
+
+    it('oferta com a hora ANTES da escolha do cliente nao conta: a confirma sai', async () => {
+      cardConf();
+      conversa(msg(9, true, 'Posso ligar amanha as 14h30?', ant(150_000)), msg(10, false, 'pode', ant(2 * MIN)));
+      await enfileirarAgenda(pedido(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+      expect(chamadas()).toBe(1);
+      expect(h.boasVindas).toEqual([501]);                               // o carimbo normal, depois de enviar
+    });
+
+    it('oferta com DUAS horas depois da ancora nao conta: a confirma sai', async () => {
+      cardConf();
+      conversa(msg(10, false, 'oi', ant(2 * MIN)), msg(11, true, 'Posso ligar 14h30 ou 15h?', ant(MIN)));
+      await enfileirarAgenda(pedido(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+      expect(chamadas()).toBe(1);
+    });
+
+    it('reforco: a bolha original ja esta na wa_mensagens depois da escolha: descarta o reforco', async () => {
+      cardConf();
+      conversa(msg(10, false, 'pode', ant(2 * MIN)), msg(11, true, 'Ficou marcado para amanha as 14h30. A Giovanna te liga nesse horario.', ant(MIN)));
+      await enfileirarAgenda(pedido({ reforco: true }), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+      expect(chamadas()).toBe(0);
+      expect(h.boasVindas).toEqual([501]);
+    });
+
+    it('em ilegivel: pula o 9c (nem le a conversa) e a confirma sai', async () => {
+      cardConf();
+      conversa(msg(10, false, 'pode', ant(2 * MIN)), msg(11, true, 'Fechado, amanha as 14h30!', ant(MIN)));
+      await enfileirarAgenda(pedido(), AGORA);
+      h.estado.get(chaveFila(501, 'confirma', QUANDO))!.value.em = 'lixo';
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+      expect(h.conversaLida).toEqual([]);
+    });
+
+    it('leitura da conversa que falha ou incompleta: a confirma sai como hoje', async () => {
+      cardConf();
+      h.conversaFalha = true;
+      await enfileirarAgenda(pedido(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+      h.estado.clear(); (sendHuman as any).mockClear(); h.conversaFalha = false;
+      h.conversa = { completa: false, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
+      await enfileirarAgenda(pedido(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    });
+
+    it('o dry descarta no relatorio mas nao carimba as boas-vindas nem mexe na fila', async () => {
+      cardConf();
+      conversa(msg(10, false, 'pode', ant(2 * MIN)), msg(11, true, 'Fechado, amanha as 14h30!', ant(MIN)));
+      await enfileirarAgenda(pedido(), AGORA);
+      expect(await enviarAgendaPendente(AGORA, { dry: true })).toMatchObject({ enviadas: 0, descartadas: 1 });
+      expect(h.boasVindas).toEqual([]);
+      expect(fila()).toHaveLength(1);
+    });
+  });
+
+  describe('remarca', () => {
+    it('a hora NOVA dita depois da escolha: descarta (sem carimbar boas-vindas, so a confirma faz isso)', async () => {
+      cardRem();
+      conversa(msg(10, false, 'melhor sexta de manha', ant(2 * MIN)), msg(11, true, 'Pronto, mudei sua ligacao para sexta as 10h.', ant(MIN)));
+      await enfileirarAgenda(remarca(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+      expect(chamadas()).toBe(0);
+      expect(h.boasVindas).toEqual([]);
+      expect(carimbos()).toEqual([]);
+    });
+
+    it('so a hora ANTIGA dita depois da ancora: a remarca sai', async () => {
+      cardRem();
+      conversa(msg(10, false, 'melhor sexta de manha', ant(2 * MIN)), msg(11, true, 'Ok, antes estava para as 14h30.', ant(MIN)));
+      await enfileirarAgenda(remarca(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+      expect(chamadas()).toBe(1);
+    });
+
+    it('oferta com a hora nova ANTES da escolha: a remarca sai', async () => {
+      cardRem();
+      conversa(msg(9, true, 'Sexta as 10h serve?', ant(150_000)), msg(10, false, 'serve', ant(2 * MIN)));
+      await enfileirarAgenda(remarca(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    });
+  });
+
+  describe('volta', () => {
+    it('uma fala nossa com AS DUAS opcoes depois da ancora: descarta', async () => {
+      conversa(msg(10, false, 'ninguem ligou', ant(8 * MIN)), msg(11, true, 'Se ela nao ligou, deixo marcado: hoje as 15h ou amanha as 9h. Qual prefere?', ant(MIN)));
+      await enfileirarAgenda(pedidoVolta(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+      expect(chamadas()).toBe(0);
+      expect(h.boasVindas).toEqual([]);
+    });
+
+    it('uma opcao so, ou as duas ditas ANTES da ancora: a volta sai', async () => {
+      conversa(msg(10, false, 'ninguem ligou', ant(8 * MIN)), msg(11, true, 'Pode ser hoje as 15h?', ant(MIN)));
+      await enfileirarAgenda(pedidoVolta(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+      h.estado.clear(); (sendHuman as any).mockClear();
+      conversa(msg(9, true, 'Hoje as 15h ou amanha as 9h?', ant(8 * MIN)), msg(10, false, 'ninguem ligou', ant(2 * MIN)));
+      await enfileirarAgenda(pedidoVolta(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    });
+
+    it('as duas opcoes na MESMA hora de dias diferentes nao decidem nada: a volta sai', async () => {
+      conversa(msg(10, false, 'ninguem ligou', ant(8 * MIN)), msg(11, true, 'Pode ser as 15h?', ant(MIN)));
+      await enfileirarAgenda(pedidoVolta({ opcoes: [VAGA1, '2026-10-22T18:00:00.000Z'] }), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    });
+
+    it('resposta da Duda reservada ha pouco ao ultimo recado do lead: a volta fica mantida neste giro', async () => {
+      conversa(msg(10, false, 'ninguem ligou ainda', ant(MIN)));
+      h.estado.set('ag5040_sent:10:1', { value: { estado: 'reservado', em: ant(5_000) }, updated_at: ant(5_000) });
+      await enfileirarAgenda(pedidoVolta(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 0, mantidas: 1 });
+      expect(chamadas()).toBe(0);
+      expect(fila()).toHaveLength(1);
+    });
+  });
+
+  describe('furo do webhook: carimbo `enviado` e a bolha ainda nao chegou na wa_mensagens', () => {
+    const enviado = (updated_at: string, estado = 'enviado'): void => {
+      h.estado.set('ag5040_sent:10:1', { value: { estado }, updated_at });   // o vivoEnvio sobrescreve o value com { estado } e mantem o updated_at da reserva
+    };
+    const prepara = async (extra: Partial<PedidoAgenda> = {}): Promise<void> => {
+      cardConf();
+      await enfileirarAgenda(pedido(extra), AGORA);
+    };
+
+    it('enviado ha 60 s e nenhuma fala nossa depois da fala do lead: a confirma fica mantida, e nada e gravado', async () => {
+      conversa(msg(10, false, 'oi', ant(MIN)));
+      enviado(ant(60_000));
+      await prepara();
+      const antes = JSON.stringify([...h.estado.entries()].sort());
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 0, mantidas: 1 });
+      expect(chamadas()).toBe(0);
+      expect(JSON.stringify([...h.estado.entries()].sort())).toBe(antes);
+      expect(h.boasVindas).toEqual([]);
+    });
+
+    it('vale para a abertura, a remarca e a volta tambem', async () => {
+      conversa(msg(10, false, 'oi', ant(MIN)));
+      enviado(ant(60_000));
+      h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, created_at: NASCEU });
+      cardRem();
+      await enfileirarAgenda(pedido({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu' }), AGORA);
+      await enfileirarAgenda(remarca(), AGORA);
+      await enfileirarAgenda(pedidoVolta(), AGORA);
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 0, mantidas: 3 });
+      expect(chamadas()).toBe(0);
+    });
+
+    it('enviado ha 6 min: o carimbo e velho, a confirma sai', async () => {
+      conversa(msg(10, false, 'oi', ant(8 * MIN)));
+      enviado(ant(6 * MIN));
+      await prepara();
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    });
+
+    it('enviado ha 60 s mas ja ha fala nossa depois da fala do lead (que nao cita a hora): a confirma sai', async () => {
+      conversa(msg(10, false, 'oi', ant(MIN)), msg(11, true, 'Oi! Ja te respondo.', ant(30_000)));
+      enviado(ant(60_000));
+      await prepara();
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    });
+
+    it('enviado ha 60 s mas o validoAte esta a menos de 10 min: a confirma sai', async () => {
+      conversa(msg(10, false, 'oi', ant(MIN)));
+      enviado(ant(60_000));
+      await prepara({ validoAte: dep(5 * MIN) });
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    });
+
+    it('carimbo falhou: nao segura, a confirma sai', async () => {
+      conversa(msg(10, false, 'oi', ant(MIN)));
+      enviado(ant(60_000), 'falhou');
+      await prepara();
+      expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    });
+  });
+});
+
+describe('agendaEnvio: a fala nossa so descarta dentro da janela da corrida (30 min antes do em)', () => {
+  const msg = (id: number, from_me: boolean, texto: string, momment: string) => ({ id, from_me, from_api: null, autor: from_me ? 'duda' : 'lead', texto, tipo: 'text', media_url: null, momment });
+  const H1445 = '2026-10-23T17:45:00.000Z';                                // sexta, 14h45 em Brasilia (remarcacao cai em :15 ou :45)
+
+  it('remarca para 14h45 com fala nossa "14h45" de 2 dias atras (outra remarcacao): sai', async () => {
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: H1445, created_at: ant(5 * 24 * HORA) });
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Pronto, mudei sua ligacao para quinta as 14h45.', ant(2 * 24 * HORA))] };
+    await enfileirarAgenda(pedido({ tipo: 'remarca', cardId: 502, quando: H1445 }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    expect(chamadas()).toBe(1);
+  });
+
+  it('remarca com fala nossa que cita a hora 3 min antes do em: descarta', async () => {
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: H1445, created_at: ant(5 * 24 * HORA) });
+    h.conversa = { completa: true, msgs: [msg(10, false, 'pode ser sexta 14h45?', ant(10 * MIN)), msg(11, true, 'Pronto, mudei sua ligacao para sexta as 14h45.', ant(3 * MIN))] };
+    await enfileirarAgenda(pedido({ tipo: 'remarca', cardId: 502, quando: H1445 }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(chamadas()).toBe(0);
+  });
+
+  it('confirma com fala nossa de 40 min antes do em: sai (fora da janela); de 25 min antes descarta', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, created_at: ant(2 * HORA) });
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, amanha as 14h30!', ant(40 * MIN))] };
+    await enfileirarAgenda(pedido(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    h.estado.clear(); (sendHuman as any).mockClear();
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, amanha as 14h30!', ant(25 * MIN))] };
+    await enfileirarAgenda(pedido(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
   });
 });

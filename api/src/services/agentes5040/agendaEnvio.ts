@@ -46,7 +46,7 @@ import { erroProvaQueNaoSaiu } from './fichaEnvio';
 import { marcarBoasVindasEnviada, rebaixarSaiuAMudo } from './agendaSolar';
 import { horaBRT } from './relogio';
 import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
-import { camposDeHorario, citaAHora, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
+import { camposDeHorario, citaAHora, citaSoEstaHora, hhmmBRT, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
 import { lerConversa } from './contexto';
 import { AVISO_IA_NA_PRIMEIRA_MSG, fraseDeApresentacao } from './avisoIA';
 import { atualizarPosse, lerPosse } from './posse';
@@ -134,6 +134,8 @@ export const LIMITES_AGENDA = Object.freeze({
   falasLidasParaReserva: 5,
   /** Abertura: a reserva da resposta só vale como "saindo agora" se tem menos que isto; mais velha é carimbo preso (a função morreu entre reservar e marcar) e não segura. */
   reservaFrescaMs: 5 * 60_000,
+  /** Confirma, remarca e volta: a fala nossa só conta para o descarte (9c, parte a) se for de até esta janela antes do `em` do item (a corrida real é de minutos; a fala de outro dia, na mesma HH:MM, não vale). */
+  janelaDaCorridaMs: 30 * 60_000,
 });
 
 /** Espera para completar o espaçamento (<= espacamentoMs + sorteioMs) e o sorteio dele. Os testes trocam os dois. */
@@ -449,6 +451,9 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
   const descartar = async (chaveDaFila: string, cardId: number, tipo: TipoAgenda, motivo: string): Promise<void> => {
     if (tipo === 'abertura' && !dry && motivo !== 'horario_mudou') await marcarAberturaDescartada(cardId, motivo, new Date(t));
     if (tipo === 'abertura' && itemSaiu && !dry && motivo !== 'card_sumiu' && motivo !== 'status_nao_recebe' && motivo !== 'ja_respondido') await rebaixarSaiuAMudo(cardId);
+    // confirma já dita por outro robô (9c): o card não pode ficar sem o carimbo das boas-vindas (o tick antigo mandaria por cima).
+    // Só o carimbo do card: NUNCA ag5040_agenda_sent: (conta em teto) e não rebaixa a MUDO.
+    if (tipo === 'confirma' && !dry && motivo === 'ja_respondido') await marcarBoasVindasEnviada(cardId);
     await tirarDaFila(chaveDaFila);
     res.descartadas++;
   };
@@ -595,31 +600,61 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
       }
     }
 
-    // 9c. só a abertura (03/11/2026): o cliente escreveu depois que o card nasceu e a Duda (ou outro robô) já confirmou o horário? Então a
-    //     abertura viraria a mesma bolha duas vezes (card 1712: 0,6 s de diferença). Leitura que falha, conversa incompleta ou card sem
-    //     created_at legível: segue e envia como sempre (nunca segura a fila).
-    if (tipo === 'abertura') {
-      const desdeMs = Date.parse(String(c.created_at ?? ''));
+    // 9c. os quatro tipos (03/11/2026): o cliente escreveu e a Duda (ou outro robô) já disse a hora? Então a bolha daqui viraria a mesma
+    //     bolha duas vezes (card 1712, abertura: 0,6 s de diferença; o quiz faz a mesma corrida com a confirma). Leitura que falha, conversa
+    //     incompleta ou âncora que não se determina: segue e envia como sempre (nunca segura a fila; na dúvida, manda).
+    //     A âncora A é o ponto a partir do qual uma fala nossa vale como resposta:
+    //       abertura: o created_at do card.
+    //       confirma e remarca: o maior entre o created_at e a última fala do LEAD até v.em (a escolha que gerou o item). `em` ilegível = sem âncora.
+    //       volta: o maior entre v.quando (o aviso) e a última fala do lead até v.em.
+    {
+      const emMs = Date.parse(String(v.em ?? ''));
+      const criadoMs = Date.parse(String(c.created_at ?? ''));
+      const msDe = (m: { momment: string }): number => Date.parse(m.momment);
       let conversa: { msgs: Array<{ id: number; from_me: boolean; texto: string | null; momment: string }>; completa: boolean } = { msgs: [], completa: false };
-      if (Number.isFinite(desdeMs)) { try { conversa = await lerConversa(ck); } catch { /* segue e envia */ } }
+      // abertura precisa do created_at; os outros precisam do `em`. Sem isso nem lê a conversa.
+      const podeLer = tipo === 'abertura' ? Number.isFinite(criadoMs) : Number.isFinite(emMs);
+      if (podeLer) { try { conversa = await lerConversa(ck); } catch { /* segue e envia */ } }
+      let ancora = Number.NaN;
       if (conversa.completa) {
-        const depois = conversa.msgs.filter(m => Date.parse(m.momment) > desdeMs);
-        // a) alguma fala NOSSA, depois do card, já cita a hora marcada
-        if (depois.some(m => m.from_me && citaAHora(m.texto, String(v.quando)))) {
-          await descartar(linha.key, cardId, tipo, 'ja_respondido'); continue;
+        if (tipo === 'abertura') ancora = criadoMs;
+        else {
+          const ultimaDoLead = Math.max(...conversa.msgs.filter(m => !m.from_me && msDe(m) <= emMs).map(msDe), Number.NEGATIVE_INFINITY);
+          const candidatos = [tipo === 'volta' ? quandoMs : criadoMs, ultimaDoLead].filter(Number.isFinite);
+          if (candidatos.length) ancora = Math.max(...candidatos);
         }
-        // b) a resposta da Duda a uma fala do lead está saindo agora (carimbo reservado): espera o próximo giro, e o passo 3 decide lá.
-        //    Só segura enquanto sobram mais de 10 min do validoAte e a reserva tem menos de 5 min (data = value.em, ou o updated_at da linha;
-        //    mais velha ou sem data legível é carimbo preso e segue o fluxo normal); carimbo falhou ou enviado não segura.
+      }
+      if (conversa.completa && Number.isFinite(ancora)) {
+        // a) alguma fala NOSSA, depois da âncora, já diz a hora: uma hora só e a do card (abertura, confirma, remarca), ou as DUAS opções (volta)
+        const hhmm = (tipo === 'volta' ? v.opcoes ?? [] : []).map(o => hhmmBRT(String(o)));
+        const citaAsDuas = (t2: string | null): boolean => tipo === 'volta' && (v.opcoes ?? []).length >= 2 && hhmm[0] !== null && hhmm[1] !== null
+          && hhmm[0] !== hhmm[1] && citaAHora(t2, String(v.opcoes![0])) && citaAHora(t2, String(v.opcoes![1]));   // mesma hora em dias diferentes: não dá para decidir, envia
+        const pisoDaFala = tipo === 'abertura' ? ancora : Math.max(ancora, emMs - LIMITES_AGENDA.janelaDaCorridaMs);
+        const jaDisse = conversa.msgs.some(m => m.from_me && msDe(m) > pisoDaFala
+          && (tipo === 'volta' ? citaAsDuas(m.texto) : citaSoEstaHora(m.texto, String(v.quando))));
+        if (jaDisse) { await descartar(linha.key, cardId, tipo, 'ja_respondido'); continue; }
+        // b) a resposta da Duda a uma fala do lead está saindo agora: espera o próximo giro, e os passos de cima decidem lá. Nada é gravado.
+        //    Só segura enquanto sobram mais de 10 min do validoAte. Lidas: as 5 últimas falas do lead depois da âncora (nos outros tipos a própria
+        //    fala-âncora entra: é a ela que a Duda está respondendo). Segura quando o carimbo dela:
+        //      está `reservado` há menos de 5 min (data = value.em, ou o updated_at da linha), ou
+        //      está `enviado` com updated_at de menos de 5 min E ainda não há fala nossa com momment >= o da fala do lead (o webhook não
+        //      trouxe a bolha para a wa_mensagens; compara dentro da própria tabela, nunca com o relógio do servidor).
+        //    Mais velho que 5 min é carimbo preso; `falhou` nunca segura.
         if (validoAte - t > LIMITES_AGENDA.esperaRespostaMs) {
           let respondendo = false;
-          for (const m of depois.filter(x => !x.from_me).slice(-LIMITES_AGENDA.falasLidasParaReserva)) {
+          const leads = conversa.msgs.filter(x => !x.from_me && (tipo === 'abertura' ? msDe(x) > ancora : msDe(x) >= ancora)).slice(-LIMITES_AGENDA.falasLidasParaReserva);
+          for (const m of leads) {
             const { data: rv, error: erroRv } = await supabase.from('system_state').select('key, value, updated_at').eq('key', `${PREFIXO_CARIMBO_AGENTES}${m.id}:1`).maybeSingle();
             if (erroRv) { logger.error(LOG, `leitura do carimbo da resposta falhou (${codigoDe(erroRv)})`); continue; }
             const lr = rv as { value?: { estado?: string; em?: string }; updated_at?: string } | null;
-            if (lr?.value?.estado !== 'reservado') continue;
-            const desde = Date.parse(String(lr.value.em ?? lr.updated_at ?? ''));
-            if (Number.isFinite(desde) && t - desde < LIMITES_AGENDA.reservaFrescaMs) { respondendo = true; break; }
+            const estado = lr?.value?.estado;
+            if (estado === 'reservado') {
+              const desde = Date.parse(String(lr!.value!.em ?? lr!.updated_at ?? ''));
+              if (Number.isFinite(desde) && t - desde < LIMITES_AGENDA.reservaFrescaMs) { respondendo = true; break; }
+            } else if (estado === 'enviado') {
+              const desde = Date.parse(String(lr!.updated_at ?? ''));
+              if (Number.isFinite(desde) && t - desde < LIMITES_AGENDA.reservaFrescaMs && !conversa.msgs.some(x => x.from_me && msDe(x) >= msDe(m))) { respondendo = true; break; }
+            }
           }
           if (respondendo) { res.mantidas++; continue; }
         }

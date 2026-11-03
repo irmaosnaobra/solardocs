@@ -69,9 +69,33 @@ vi.mock('../utils/supabase', () => ({
         };
         return q;
       }
-      return { upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } };
+      return {
+        upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; },
+        // respostaEmCurso: o carimbo da resposta da Duda (ag5040_sent:<id>:1)
+        select() {
+          const q: any = {
+            _k: '',
+            eq(_c: string, v: any) { q._k = String(v); return q; },
+            maybeSingle() { return Promise.resolve({ data: estadoSys.get(q._k) ?? null, error: null }); },
+          };
+          return q;
+        },
+      };
     },
   },
+}));
+// A conversa do contato (respostaEmCurso): o inbox acima nao tem .in/.range, entao o lerConversa e simulado inteiro.
+let conversa: { msgs: any[]; completa: boolean } = { msgs: [], completa: true };
+let conversaFalha: 'nao' | 'incompleta' | 'lanca' = 'nao';
+const conversaLida: string[] = [];
+const estadoSys = new Map<string, { value: any; updated_at: string }>();
+vi.mock('../services/agentes5040/contexto', () => ({
+  lerConversa: vi.fn(async (chave: string) => {
+    conversaLida.push(chave);
+    if (conversaFalha === 'lanca') throw new Error('boom');
+    if (conversaFalha === 'incompleta') return { msgs: [], completa: false };
+    return conversa;
+  }),
 }));
 // O módulo importa o id da instância daqui; o resto do solarRespostas não entra no teste.
 vi.mock('../services/io/solarRespostas', () => ({ INSTANCE_ID_IO: 'INSTANCIA_IO' }));
@@ -109,6 +133,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   fichas = []; enviadas.length = 0; updates.length = 0; carimbos.length = 0;
   inbox = []; inboxQuebrado = false;
+  conversa = { msgs: [], completa: true }; conversaFalha = 'nao'; conversaLida.length = 0; estadoSys.clear();
   tetoLivre = true;
   delete process.env.SOLAR_GIOVANNA_OFF;
 });
@@ -428,5 +453,133 @@ describe('travas', () => {
     agoraBRT('07:00');
     const r = await runSolarAgendaGiovannaTick({ dry: true });
     expect(r.previa).toHaveLength(1);
+  });
+});
+
+// 03/11/2026: o bom dia e o "oi" de 5 min ESPERAM 1 tick quando a resposta da Duda ao lead esta saindo (so espera: nada e gravado, nada e descartado).
+describe('a resposta da Duda saindo segura o toque por 1 tick (respostaEmCurso)', () => {
+  const ha = (seg: number): string => new Date(Date.now() - seg * 1000).toISOString();
+  const msg = (id: number, from_me: boolean, momment: string) => ({ id, from_me, texto: 'x', tipo: 'text', momment });
+  const reservado = (id: number, seg: number) => estadoSys.set(`ag5040_sent:${id}:1`, { value: { estado: 'reservado', em: ha(seg) }, updated_at: ha(seg) });
+  const enviado = (id: number, seg: number) => estadoSys.set(`ag5040_sent:${id}:1`, { value: { estado: 'enviado' }, updated_at: ha(seg) });
+  const nada = () => { expect(enviadas).toHaveLength(0); expect(updates).toEqual([]); expect(carimbos).toEqual([]); };
+
+  it('bom dia: carimbo reservado ha 10 s: segurado, sem carimbo, sem bomdia_at, sem toque contado; no tick seguinte (a Duda ja falou) sai', async () => {
+    fichas = [ficha()];
+    agoraBRT('07:00');
+    conversa = { completa: true, msgs: [msg(10, false, ha(60))] };
+    reservado(10, 10);
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r).toMatchObject({ bom_dia: 0, cinco_min: 0, esperando_resposta: 1, segurados_pelo_teto: 0, ja_responderam: 0, erros: 0 });
+    nada();
+    expect(conversaLida).toHaveLength(1);
+    // 07:03: a bolha da Duda ja esta na wa_mensagens ha 2 min 30 s, o carimbo virou `enviado`
+    agoraBRT('07:03');
+    conversa = { completa: true, msgs: [msg(10, false, ha(240)), msg(11, true, ha(150))] };
+    enviado(10, 180);
+    const r2 = await runSolarAgendaGiovannaTick();
+    expect(r2).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+    expect(enviadas).toHaveLength(1);
+    expect(updates).toEqual([{ id: 1, campo: 'bomdia_at' }]);
+  });
+
+  it('bom dia: fala nossa de 60 s atras segura; a de 3 min nao', async () => {
+    fichas = [ficha()];
+    agoraBRT('07:00');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 0, esperando_resposta: 1 });
+    nada();
+    conversa = { completa: true, msgs: [msg(11, true, ha(180))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+  });
+
+  it('bom dia: `enviado` ha 60 s sem fala nossa depois do lead segura; reservado velho (6 min), `falhou` ou lead de 11 min atras nao seguram', async () => {
+    fichas = [ficha()];
+    agoraBRT('07:00');
+    conversa = { completa: true, msgs: [msg(10, false, ha(90))] };
+    enviado(10, 60);
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 0, esperando_resposta: 1 });
+    nada();
+    reservado(10, 6 * 60);
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+    fichas = [ficha({ bomdia_at: null })]; enviadas.length = 0; updates.length = 0; carimbos.length = 0;
+    estadoSys.set('ag5040_sent:10:1', { value: { estado: 'falhou' }, updated_at: ha(60) });
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+    fichas = [ficha({ bomdia_at: null })]; enviadas.length = 0; updates.length = 0; carimbos.length = 0;
+    conversa = { completa: true, msgs: [msg(10, false, ha(11 * 60))] };
+    reservado(10, 10);
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+  });
+
+  it('bom dia: com minutos 33 (o proximo tick ja nao serve) ou a menos de 4 min das 11h, sai mesmo com a resposta saindo', async () => {
+    fichas = [ficha({ quando: brt('2026-09-14', '07:33') })];
+    agoraBRT('07:00');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+    // minutos 34 ainda espera
+    enviadas.length = 0; updates.length = 0; carimbos.length = 0;
+    fichas = [ficha({ quando: brt('2026-09-14', '07:34') })];
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 0, esperando_resposta: 1 });
+    nada();
+    // 10h57 (3 min para as 11h): sai; 10h55 (5 min): espera
+    fichas = [ficha({ quando: brt('2026-09-14', '14:00') })];
+    agoraBRT('10:57');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+    enviadas.length = 0; updates.length = 0; carimbos.length = 0;
+    fichas = [ficha({ quando: brt('2026-09-14', '14:00') })];
+    agoraBRT('10:55');
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 0, esperando_resposta: 1 });
+    nada();
+  });
+
+  it('"oi" de 5 min: com minutos 8 segura (sem lembrete_5min_at, sem carimbo, sem bloqueio); com minutos 3 sai', async () => {
+    fichas = [ficha({ quando: brt('2026-09-14', '10:15'), bomdia_at: brt('2026-09-14', '07:02') })];
+    agoraBRT('10:07');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ cinco_min: 0, esperando_resposta: 1, ja_responderam: 0, segurados_pelo_teto: 0 });
+    nada();
+    agoraBRT('10:12');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ cinco_min: 1, esperando_resposta: 0 });
+    expect(updates).toEqual([{ id: 1, campo: 'lembrete_5min_at' }]);
+  });
+
+  it('"oi" de 5 min: o descarte de quem respondeu o bom dia continua como estava (ja_responderam), sem ler a conversa', async () => {
+    fichas = [ficha({ quando: brt('2026-09-14', '10:15'), bomdia_at: brt('2026-09-14', '07:02') })];
+    inbox = [{ telefone: '5534998112208', momment: brt('2026-09-14', '07:20') }];
+    agoraBRT('10:07');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ cinco_min: 0, ja_responderam: 1, esperando_resposta: 0 });
+    expect(conversaLida).toEqual([]);
+  });
+
+  it('leitura que falha (lanca, incompleta ou telefone sem chave): o toque sai como hoje', async () => {
+    fichas = [ficha()];
+    agoraBRT('07:00');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    for (const modo of ['lanca', 'incompleta'] as const) {
+      conversaFalha = modo; enviadas.length = 0; updates.length = 0;
+      fichas = [ficha({ bomdia_at: null })];
+      expect(await runSolarAgendaGiovannaTick(), modo).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+      expect(conversaLida.length).toBeGreaterThan(0);
+    }
+    // telefone que a chaveContato recusa: nem le a conversa, o toque sai
+    conversaFalha = 'nao'; conversaLida.length = 0; enviadas.length = 0; updates.length = 0;
+    fichas = [ficha({ cliente_telefone: '12345', bomdia_at: null })];
+    expect(await runSolarAgendaGiovannaTick()).toMatchObject({ bom_dia: 1, esperando_resposta: 0 });
+    expect(conversaLida).toEqual([]);
+  });
+
+  it('o dry tambem espera: a previa nao mostra o toque segurado e nada e gravado', async () => {
+    fichas = [ficha()];
+    agoraBRT('07:00');
+    conversa = { completa: true, msgs: [msg(11, true, ha(60))] };
+    const r = await runSolarAgendaGiovannaTick({ dry: true });
+    expect(r.previa).toEqual([]);
+    expect(r.esperando_resposta).toBe(1);
+    nada();
+    conversa = { completa: true, msgs: [] };
+    expect((await runSolarAgendaGiovannaTick({ dry: true })).previa).toHaveLength(1);
   });
 });
