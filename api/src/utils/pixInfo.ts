@@ -146,6 +146,12 @@ export function pixAutoLpAtivo(): boolean {
  * Trava do Pix AVULSO do funil (quiz e LP): QR estático de R$ 67, copia e cola, sem CPF.
  * Abre só POST/GET /payments/pix-avulso/publico, e só para origem quiz_solardoc ou lp_solardoc.
  * Sem a variável, desligado.
+ *
+ * DESLIGADO desde 03/11/2026 por ordem do dono: "Todos os pix tem que ser o recorrente da
+ * asaas" e "Não coloque pix direto, vai atrapalhar a estrategia, ele tem que cobrar na conta
+ * da pessoa". A produção está com PIX_AVULSO_FUNIL=false e a tela só oferece o Pix
+ * automático. A rota fica dormente; o webhook do avulso continua de pé para algum QR que
+ * já tenha sido gerado antes do desligamento.
  */
 export function pixAvulsoFunilAtivo(): boolean {
   return (process.env.PIX_AVULSO_FUNIL || '').trim().toLowerCase() === 'true';
