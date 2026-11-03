@@ -31,7 +31,7 @@ import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { enviarEventoMeta, normFone, type ResultadoMeta } from '../../utils/metaCapi';
 import {
-  DEDUP_FONE_MS, ORCAMENTO_MS, MIN_RESTANTE_MS, TETO_LEITURA_MS, escolherCardsNovos, janelaDosCards, leadIdDoQuiz, montarEventoCardNovo, recusaDefinitiva,
+  DEDUP_FONE_MS, IDADE_MAX_RESGATE_MS, ORCAMENTO_MS, MIN_RESTANTE_MS, TETO_LEITURA_MS, escolherCardsNovos, janelaDosCards, leadIdDoQuiz, montarEventoCardNovo, recusaDefinitiva,
   core8DeCardsDaPagina, FORM_QUIZ_SOLAR, ORIGENS_ROBO, type CardCand, type Envio, type LeadQuiz,
 } from './capiCardNovoPuro';
 import { emModoTesteDoMeta } from './capiPagina';
@@ -46,6 +46,9 @@ const LIMITE_HISTORICO = 1000; // o PostgREST corta em 1000 linhas; vem do mais 
 export interface RelatorioCardNovo {
   pulado?: 'desligado';
   primeiraRodada?: boolean;
+  /** Modo resgate: o corte veio da chamada (ISO em corteResgate), não da marca do system_state. */
+  resgate?: boolean;
+  corteResgate?: string;
   candidatos: number;
   enviados: number;
   recusadosDefinitivos: number;
@@ -131,7 +134,8 @@ async function gravarDedup(e: Envio, r: ResultadoMeta, definitiva: boolean, rel:
   }
 }
 
-export async function runCapiCardNovo(opts: { dry?: boolean } = {}): Promise<RelatorioCardNovo> {
+/** `resgateDesdeMs`: modo resgate, só pela rota protegida (?resgate_desde=). Nenhum tick passa isto. */
+export async function runCapiCardNovo(opts: { dry?: boolean; resgateDesdeMs?: number } = {}): Promise<RelatorioCardNovo> {
   const inicio = Date.now();
   const dry = !!opts.dry;
   const rel = vazio();
@@ -139,21 +143,31 @@ export async function runCapiCardNovo(opts: { dry?: boolean } = {}): Promise<Rel
     if (desligado() && !dry) { rel.pulado = 'desligado'; return rel; }
 
     // 1) A marca de corte (system_state do banco PRINCIPAL, o mesmo padrão do clientes_quentes_baseline).
-    const { data: marca, error: erroMarca } = await lerCom(supabase.from('system_state').select('value').eq('key', CHAVE_DESDE).maybeSingle(), 'a marca');
-    if (erroMarca) { rel.erros.push({ erro: `ler a marca: ${erroMarca.message}` }); return rel; }
-    const desdeMs = Date.parse(String((marca?.value as { desde?: string } | null)?.desde ?? ''));
-    if (!Number.isFinite(desdeMs)) {
-      rel.primeiraRodada = true;
-      if (dry) return rel;
-      const agora = new Date(inicio).toISOString();
-      const { error } = await supabase.from('system_state').upsert({ key: CHAVE_DESDE, value: { desde: agora }, updated_at: agora }, { onConflict: 'key' });
-      if (error) { rel.erros.push({ erro: `gravar a marca: ${error.message}` }); return rel; }
-      logger.info('capi-card-novo', `marca ${CHAVE_DESDE} gravada (${agora}); cards anteriores nunca serao enviados`);
-      return rel;
+    // Modo resgate (só à mão): o corte vem de quem chamou, a marca não é lida nem gravada e a janela vai até quase 7 dias.
+    const resgate = typeof opts.resgateDesdeMs === 'number' && Number.isFinite(opts.resgateDesdeMs);
+    const idadeMaxMs = resgate ? IDADE_MAX_RESGATE_MS : undefined;
+    let desdeMs: number;
+    if (resgate) {
+      desdeMs = opts.resgateDesdeMs as number;
+      rel.resgate = true;
+      rel.corteResgate = new Date(desdeMs).toISOString();
+    } else {
+      const { data: marca, error: erroMarca } = await lerCom(supabase.from('system_state').select('value').eq('key', CHAVE_DESDE).maybeSingle(), 'a marca');
+      if (erroMarca) { rel.erros.push({ erro: `ler a marca: ${erroMarca.message}` }); return rel; }
+      desdeMs = Date.parse(String((marca?.value as { desde?: string } | null)?.desde ?? ''));
+      if (!Number.isFinite(desdeMs)) {
+        rel.primeiraRodada = true;
+        if (dry) return rel;
+        const agora = new Date(inicio).toISOString();
+        const { error } = await supabase.from('system_state').upsert({ key: CHAVE_DESDE, value: { desde: agora }, updated_at: agora }, { onConflict: 'key' });
+        if (error) { rel.erros.push({ erro: `gravar a marca: ${error.message}` }); return rel; }
+        logger.info('capi-card-novo', `marca ${CHAVE_DESDE} gravada (${agora}); cards anteriores nunca serao enviados`);
+        return rel;
+      }
     }
 
     // 2) Os candidatos, só pela data e pela origem; o resto da regra é do módulo puro.
-    const { deMs, ateMs } = janelaDosCards(inicio, desdeMs);
+    const { deMs, ateMs } = janelaDosCards(inicio, desdeMs, idadeMaxMs);
     if (ateMs <= deMs) return rel;
     // Em paralelo: os candidatos e o histórico de 30 dias (quem a página já contou antes do deploy da linha `pagina`).
     const [{ data: cardsBrutos, error: erroCards }, { data: historico, error: erroHist }] = await Promise.all([
@@ -179,7 +193,7 @@ export async function runCapiCardNovo(opts: { dry?: boolean } = {}): Promise<Rel
     if (dedup.erro) { rel.erros.push({ erro: `ler dedup: ${dedup.erro}` }); return rel; }
 
     const sel = escolherCardsNovos({
-      agoraMs: inicio, corteMs: desdeMs, cards, leads: lidos.leads,
+      agoraMs: inicio, corteMs: desdeMs, idadeMaxMs, cards, leads: lidos.leads,
       cardsComSchedule: dedup.cardsComSchedule, fonesComSchedule: dedup.fonesComSchedule,
       fonesDePaginaAntiga: core8DeCardsDaPagina((historico ?? []) as CardCand[]),
     });

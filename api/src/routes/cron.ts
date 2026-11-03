@@ -1495,11 +1495,19 @@ router.get('/capi-lead-qualificado', async (req: Request, res: Response) => {
 
 // Schedule de card novo → Meta (SAIU SEM MARCAR e card da Duda). O tick de verdade roda no fim do /process-messages.
 // Por padrão é PRÉVIA: lê tudo e não chama o Meta nem grava (nem a marca de corte). ?enviar=1 faz a rodada de verdade.
+// ?resgate_desde=<ISO>: modo resgate à mão (corte informado, sem tocar na marca, cards de até ~7 dias); data inválida = 400.
 router.get('/capi-card-novo', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
     const dry = !(req.query.enviar === '1' || req.query.enviar === 'true');
-    res.json({ ok: true, dry, ...(await runCapiCardNovo({ dry })) });
+    const bruto = req.query.resgate_desde;
+    let resgateDesdeMs: number | undefined;
+    if (bruto !== undefined) {
+      resgateDesdeMs = typeof bruto === 'string' ? Date.parse(bruto) : NaN;
+      if (!Number.isFinite(resgateDesdeMs)) { res.status(400).json({ error: 'resgate_desde invalido (use uma data ISO)' }); return; }
+      if (resgateDesdeMs > Date.now()) { res.status(400).json({ error: 'resgate_desde no futuro' }); return; }
+    }
+    res.json({ ok: true, dry, ...(await runCapiCardNovo({ dry, resgateDesdeMs })) });
   } catch (err: any) {
     logger.error('cron', 'capi-card-novo falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });

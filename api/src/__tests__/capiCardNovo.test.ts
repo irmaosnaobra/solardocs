@@ -59,7 +59,7 @@ vi.mock('../utils/supabase', () => ({
 import { sha256, userData, normFone } from '../utils/metaCapi';
 import {
   escolherCardsNovos, montarEventoCardNovo, origemDoEvento, variantesDoFone, leadIdDoQuiz, janelaDosCards, recusaDefinitiva,
-  core8DeCardsDaPagina, ORCAMENTO_MS, MIN_RESTANTE_MS, TETO_LEITURA_MS, TETO_ENVIOS, type CardCand, type LeadQuiz,
+  core8DeCardsDaPagina, IDADE_MAX_RESGATE_MS, ORCAMENTO_MS, MIN_RESTANTE_MS, TETO_LEITURA_MS, TETO_ENVIOS, type CardCand, type LeadQuiz,
 } from '../services/meta/capiCardNovoPuro';
 import { runCapiCardNovo, CHAVE_DESDE } from '../services/meta/capiCardNovo';
 import { CAMPO_CAPI, campoCapiDe, lerCapi, semCamposInternos, fbcAindaVale, ehCampoInterno } from '../services/meta/capiNavegador';
@@ -137,6 +137,30 @@ describe('quem recebe o Schedule do servidor', () => {
     expect(j.ateMs).toBe(NOW - 60 * 60_000);
     const antigo = card({ created_at: iso(NOW - 6 * D - H) });
     expect(escolher([antigo], [lead({ created_time: iso(NOW - 6 * D - 2 * H) })], { corteMs: NOW - 30 * D }).enviar).toHaveLength(0);
+  });
+
+  it('resgate: a janela vai até quase 7 dias; o padrão de 6 dias continua igual', () => {
+    const antigoMs = NOW - 6 * D - 20 * H;
+    const padrao = janelaDosCards(NOW, NOW - 30 * D);
+    const resgate = janelaDosCards(NOW, NOW - 30 * D, IDADE_MAX_RESGATE_MS);
+    expect(IDADE_MAX_RESGATE_MS).toBe(7 * D - 30 * 60_000);
+    expect(antigoMs >= resgate.deMs).toBe(true);
+    expect(antigoMs >= padrao.deMs).toBe(false);
+    expect(resgate.ateMs).toBe(NOW - 60 * 60_000);
+    // o corte informado ainda manda quando é mais novo que o piso de idade
+    expect(janelaDosCards(NOW, NOW - 2 * D, IDADE_MAX_RESGATE_MS).deMs).toBe(NOW - 2 * D);
+  });
+
+  it('resgate: card SAIU de 6d20h entra; o de 7d01h fica fora (antes_da_janela); sem idadeMaxMs o de 6d20h não entra', () => {
+    const quase7 = card({ created_at: iso(NOW - 6 * D - 20 * H) });
+    const passou7 = card({ created_at: iso(NOW - 7 * D - H) });
+    const opts = { corteMs: NOW - 30 * D };
+    const r = escolher([quase7, passou7], [lead()], { ...opts, idadeMaxMs: IDADE_MAX_RESGATE_MS });
+    expect(r.enviar.map(e => e.card.id)).toEqual([quase7.id]);
+    expect(r.ignorados).toMatchObject({ antes_da_janela: 1 });
+    const padrao = escolher([quase7, passou7], [lead()], opts);
+    expect(padrao.enviar).toHaveLength(0);
+    expect(padrao.ignorados).toMatchObject({ antes_da_janela: 2 });
   });
 
   it('cancelado, nome de teste e card da página sem marca (sem SAIU nem Duda) não entram', () => {
@@ -520,6 +544,28 @@ describe('tick capi_card_novo', () => {
     expect(r.aEnviar!.map(x => x.origem)).toEqual(['website', 'chat']);
     expect(h.enviar).not.toHaveBeenCalled();
     expect(h.gravados).toHaveLength(0);
+  });
+
+  it('resgate: não lê nem grava a marca, usa o corte informado e alcança card de 6d20h; dry não envia', async () => {
+    const velho = card({ created_at: iso(NOW - 6 * D - 20 * H) });
+    h.gerador.agendamentos = [velho] as any;
+    h.gerador.leads_meta = [lead()] as any;
+    h.gerador.capi_conversoes_enviadas = [];
+    h.erros['select:system_state'] = 'a marca nao pode ser lida no resgate';   // se o resgate lesse a marca, o erro apareceria
+    const corte = NOW - 8 * D;
+    const previa = await runCapiCardNovo({ dry: true, resgateDesdeMs: corte });
+    expect(previa).toMatchObject({ resgate: true, corteResgate: iso(corte), candidatos: 1 });
+    expect(previa.erros).toHaveLength(0);
+    expect(previa.aEnviar!.map(x => x.card)).toEqual([velho.id]);
+    expect(h.enviar).not.toHaveBeenCalled();
+    const r = await runCapiCardNovo({ resgateDesdeMs: corte });
+    expect(r.enviados).toBe(1);
+    expect(r.erros).toHaveLength(0);
+    expect(h.gravados.filter(g => g.tabela === 'system_state')).toHaveLength(0);
+    expect(dedupGravado()).toEqual([expect.objectContaining({ lead_id: `ag_${velho.id}`, origem: 'card_novo' })]);
+    // sem resgate o mesmo card (de 6d20h) nem é candidato
+    h.erros = {}; h.principal[CHAVE_DESDE] = { desde: iso(NOW - 30 * D) };
+    expect((await runCapiCardNovo({ dry: true })).candidatos).toBe(0);
   });
 
   it('o telefone nunca vai em texto puro nem no event_id nem no relatório', async () => {

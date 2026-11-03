@@ -25,8 +25,10 @@ import { lerCapi, navegadorDoCapi, URL_QUIZ_SOLAR, type DadosCapi } from './capi
 export const ORIGENS_ROBO: readonly string[] = ['lp_solar'];
 /** A pessoa pode voltar à página e marcar sozinha: o card SAIU 1716 foi cancelado quando o 1717 nasceu. Antes disto o card não é enviado. */
 export const ESPERA_MS = 60 * 60_000;
-/** O Meta recusa o LOTE inteiro se um evento tem mais de 7 dias. Cada evento sai sozinho e o card não passa de 6 dias. */
+/** O Meta recusa o LOTE inteiro se um evento tem mais de 7 dias. Cada evento sai sozinho e o card não passa de 6 dias (no modo resgate, IDADE_MAX_RESGATE_MS). */
 export const IDADE_MAX_MS = 6 * 86_400_000;
+/** Modo resgate (só à mão): o limite do Meta para event_time é 7 dias; 30 min de margem para a rodada não passar dele no meio do envio. */
+export const IDADE_MAX_RESGATE_MS = 7 * 86_400_000 - 30 * 60_000;
 /** Quem já teve um Schedule (de qualquer card, de qualquer origem) nos últimos 30 dias não recebe outro. */
 export const DEDUP_FONE_MS = 30 * 86_400_000;
 export const TETO_ENVIOS = 10;
@@ -111,8 +113,8 @@ export function core8DeCardsDaPagina(cards: CardCand[]): Set<string> {
 }
 
 /** Os cards que a leitura deve trazer, só pela data: [piso, teto]. O resto da regra mora em escolherCardsNovos. */
-export function janelaDosCards(agoraMs: number, corteMs: number): { deMs: number; ateMs: number } {
-  return { deMs: Math.max(corteMs, agoraMs - IDADE_MAX_MS), ateMs: agoraMs - ESPERA_MS };
+export function janelaDosCards(agoraMs: number, corteMs: number, idadeMaxMs: number = IDADE_MAX_MS): { deMs: number; ateMs: number } {
+  return { deMs: Math.max(corteMs, agoraMs - idadeMaxMs), ateMs: agoraMs - ESPERA_MS };
 }
 
 /**
@@ -132,10 +134,12 @@ export function escolherCardsNovos(a: {
   /** core8 de quem tem card `lp_solar` sem marca SAIU nem Duda nos últimos 30 dias (core8DeCardsDaPagina): a página já o contou. */
   fonesDePaginaAntiga?: ReadonlySet<string>;
   teto?: number;
+  /** Só o modo resgate passa isto (IDADE_MAX_RESGATE_MS); sem ele vale IDADE_MAX_MS. */
+  idadeMaxMs?: number;
 }): Selecao {
   const ig: Record<string, number> = {};
   const nao = (motivo: string) => { ig[motivo] = (ig[motivo] || 0) + 1; };
-  const { deMs, ateMs } = janelaDosCards(a.agoraMs, a.corteMs);
+  const { deMs, ateMs } = janelaDosCards(a.agoraMs, a.corteMs, a.idadeMaxMs);
   const teto = a.teto ?? TETO_ENVIOS;
   const fones = new Set(a.fonesComSchedule);
   const paginaAntiga = a.fonesDePaginaAntiga ?? new Set<string>();
