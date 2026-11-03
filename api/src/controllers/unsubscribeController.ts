@@ -1,17 +1,30 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
-import { JWT_SECRET } from '../utils/jwt';
+import { JWT_SECRET, jwtSecretAnterior } from '../utils/jwt';
 
+const hmacDe = (segredo: string, userId: string): string =>
+  crypto.createHmac('sha256', segredo).update(`unsub:${userId}`).digest('hex').slice(0, 32);
+
+// O link novo é sempre gerado com o JWT_SECRET.
 export function unsubToken(userId: string): string {
-  return crypto.createHmac('sha256', JWT_SECRET).update(`unsub:${userId}`).digest('hex').slice(0, 32);
+  return hmacDe(JWT_SECRET, userId);
 }
 
+const mesmoToken = (esperado: string, token: string): boolean =>
+  esperado.length === token.length && crypto.timingSafeEqual(Buffer.from(esperado), Buffer.from(token));
+
+// A conferência aceita o do segredo novo, o do anterior (JWT_SECRET_ANTERIOR) OU o DESCADASTRO_SEGREDO_ANTIGO:
+// e-mail vive mais que o JWT, e quando o JWT_SECRET_ANTERIOR sair o valor velho fica só no DESCADASTRO_SEGREDO_ANTIGO.
+// Lidos na hora da chamada; vazio = ignora.
 function verify(userId: string, token: string): boolean {
-  const expected = unsubToken(userId);
-  if (expected.length !== token.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+  if (mesmoToken(unsubToken(userId), token)) return true;
+  const antigos = [jwtSecretAnterior(), String(process.env.DESCADASTRO_SEGREDO_ANTIGO || '').trim()];
+  return antigos.some((s) => !!s && mesmoToken(hmacDe(s, userId), token));
 }
+
+/** Só para teste: a conferência do link de descadastro. */
+export const conferirDescadastro = verify;
 
 export async function handleUnsubscribe(req: Request, res: Response): Promise<void> {
   const userId = String(req.query.u || '').trim();

@@ -17,7 +17,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { JWT_SECRET } from '../../utils/jwt';
+import { segredosDeVerificacao } from '../../utils/jwt';
 import { ehSocio } from '../gerador/solarObras';
 import { exigeConsultor } from '../../routes/geradorDossie';
 import { normalizarEmail, papelAtivo } from './equipe';
@@ -45,12 +45,15 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** userId do JWT do SolarDoc se a ASSINATURA confere; 'invalido' se confere mas não é token de login; null se não confere. */
 function lerJwtDoSolarDoc(token: string): string | 'invalido' | null {
-  try {
-    const d = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as { userId?: unknown };
-    return typeof d?.userId === 'string' && UUID_RE.test(d.userId) ? d.userId : 'invalido';
-  } catch {
-    return null;
+  for (const segredo of segredosDeVerificacao()) {
+    try {
+      const d = jwt.verify(token, segredo, { algorithms: ['HS256'] }) as { userId?: unknown };
+      return typeof d?.userId === 'string' && UUID_RE.test(d.userId) ? d.userId : 'invalido';
+    } catch {
+      // assinatura não confere com este segredo: tenta o próximo
+    }
   }
+  return null;
 }
 
 const precisaLogin = (res: Response, frase: string): void => {
