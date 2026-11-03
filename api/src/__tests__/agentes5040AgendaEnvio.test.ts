@@ -17,7 +17,7 @@ type Linha = { value: any; updated_at: string };
 
 const h = vi.hoisted(() => ({
   estado: new Map<string, Linha>(),
-  cards: new Map<number, { cliente_telefone: string | null; status: string | null; quando: string | null; vendedor_nome?: string | null }>(),
+  cards: new Map<number, { cliente_telefone: string | null; status: string | null; quando: string | null; vendedor_nome?: string | null; created_at?: string | null }>(),
   leiturasFila: 0,
   enviados: [] as Array<{ tel: string; partes: string[]; inst: string; opts: any }>,
   falhas: [] as Array<Error | null>,
@@ -34,6 +34,9 @@ const h = vi.hoisted(() => ({
   posseErro: false,
   posseAtualizacoes: [] as any[],
   posseLeituras: [] as string[],
+  conversa: { msgs: [], completa: true } as { msgs: any[]; completa: boolean },
+  conversaFalha: false,
+  conversaLida: [] as string[],
 }));
 
 function consulta(tabela: string) {
@@ -134,6 +137,12 @@ vi.mock('../services/agentes5040/posse', () => ({
   atualizarPosse: vi.fn(async (_c: string, patch: any) => { h.posseAtualizacoes.push(patch); if (h.posse) h.posse = { ...h.posse, ...patch }; return true; }),
 }));
 
+// A conversa do contato (ja_respondido da abertura): o supabase simulado acima nao tem wa_mensagens nem .in/.range.
+vi.mock('../services/agentes5040/contexto', async (orig) => ({
+  ...(await orig<typeof import('../services/agentes5040/contexto')>()),
+  lerConversa: vi.fn(async (chave: string) => { h.conversaLida.push(chave); if (h.conversaFalha) return { msgs: [], completa: false }; return h.conversa; }),
+}));
+
 vi.mock('../services/agentes5040/agendaSolar', () => ({
   marcarBoasVindasEnviada: vi.fn(async (id: number) => { h.boasVindas.push(id); return true; }),
   rebaixarSaiuAMudo: vi.fn(async (id: number) => { h.rebaixados.push(id); return true; }),
@@ -178,6 +187,7 @@ beforeEach(() => {
   h.cooldown = false; h.pode = { pode: true, motivo: 'sem-pausa' }; h.bloqueado = false; h.motivos = [];
   h.escondeCarimbo = false; h.falhaCard = false; h.aposEnvio = null; h.boasVindas.length = 0; h.rebaixados.length = 0;
   h.posse = { dona: 'duda', estado: 'viva', apresentada: true }; h.posseErro = false; h.posseAtualizacoes.length = 0; h.posseLeituras.length = 0;
+  h.conversa = { msgs: [], completa: true }; h.conversaFalha = false; h.conversaLida.length = 0;
   for (const id of [501, 502, 503, 504, 505, 506]) h.cards.set(id, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
   TEMPOS_AGENDA.esperar = async (ms: number) => { esperas.push(ms); };
   TEMPOS_AGENDA.sorteio = () => 0;   // determinístico: o sorteio de 0 a 35 s tem teste próprio
@@ -1142,5 +1152,147 @@ describe('agendaEnvio: chave do aviso de IA DESLIGADA (a de produção)', () => 
     expect(textos().join(' ')).not.toMatch(/atendimento com IA/);
     expect(h.posseAtualizacoes).toEqual([]);
     expect(h.posseLeituras).toEqual([]);
+  });
+});
+
+describe('agendaEnvio: abertura nao repete o que a Duda ja confirmou (ja_respondido, 30/10/2026)', () => {
+  const ab = (extra: Partial<PedidoAgenda> = {}): PedidoAgenda => pedido({ tipo: 'abertura', caminho: 'ligacao', nome: 'Irineu', ...extra });
+  const NASCEU = ant(3 * MIN);
+  const msg = (id: number, from_me: boolean, texto: string, momment: string) => ({ id, from_me, from_api: null, autor: from_me ? 'duda' : 'lead', texto, tipo: 'text', media_url: null, momment });
+  const cardNovo = (extra: { status?: string } = {}): void => { h.cards.set(501, { cliente_telefone: TEL, status: extra.status ?? 'agendado', quando: QUANDO, created_at: NASCEU }); };
+  const dedup = (): any => h.estado.get('solar_bv_dedup:501');
+
+  it('resposta nossa depois do card que cita a hora: a abertura e descartada (solar_bv_dedup, ja_respondido), sem sendHuman e sem carimbo', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(10, false, 'oi', ant(2 * MIN)), msg(11, true, 'Fechado, a Nilce te liga amanha as 14h30!', ant(MIN))] };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1, mantidas: 0 });
+    expect(chamadas()).toBe(0);
+    expect(fila()).toEqual([]);
+    expect(carimbos()).toEqual([]);
+    expect(dedup().value).toMatchObject({ origem: 'abertura_descartada', motivo: 'ja_respondido' });
+    expect(h.conversaLida).toHaveLength(1);
+  });
+
+  it('resposta que NAO cita a hora, ou resposta anterior ao card: a abertura sai', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(9, true, 'Combinado, 14h30', ant(10 * MIN)), msg(10, false, 'oi', ant(2 * MIN)), msg(11, true, 'Oi! Ja te respondo.', ant(MIN))] };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    expect(chamadas()).toBe(1);
+    expect(dedup()).toBeUndefined();
+  });
+
+  it('so existe carimbo falhou da resposta da Duda: a abertura sai', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(10, false, 'oi', ant(2 * MIN))] };
+    h.estado.set('ag5040_sent:10:1', { value: { estado: 'falhou', erro: 'http_500' }, updated_at: ant(MIN) });
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    expect(chamadas()).toBe(1);
+  });
+
+  it('leitura da conversa que falha ou volta incompleta: a abertura sai como hoje (nao segura a fila)', async () => {
+    cardNovo();
+    h.conversaFalha = true;
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    expect(h.conversaLida).toHaveLength(1);
+    h.estado.clear(); (sendHuman as any).mockClear();
+    h.conversaFalha = false;
+    h.conversa = { completa: false, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0 });
+    expect(chamadas()).toBe(1);
+  });
+
+  it('card SAIU pulado por ja_respondido NAO vira MUDO (perderia o bom dia e o lembrete)', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
+    await enfileirarAgenda(ab({ saiu: true, consultora: 'Nilce' }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 1 });
+    expect(h.rebaixados).toEqual([]);
+    expect(dedup().value).toMatchObject({ motivo: 'ja_respondido' });
+  });
+
+  it('resposta da Duda RESERVADA com o lead tendo falado depois do card: a abertura e mantida neste giro (nao sai, nao descarta)', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(10, false, 'oi, pode ser as 14h30?', ant(MIN))] };
+    h.estado.set('ag5040_sent:10:1', { value: { dona: 'duda', wa_id: 10, em: ant(5_000), estado: 'reservado' }, updated_at: ant(5_000) });
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, descartadas: 0, mantidas: 1 });
+    expect(chamadas()).toBe(0);
+    expect(fila()).toEqual([chaveFila(501, 'abertura', QUANDO)]);
+    expect(dedup()).toBeUndefined();
+    expect(carimbos()).toEqual([]);
+  });
+
+  it('reservada mas o validoAte esta a menos de 10 min: a abertura sai; fala do lead sem carimbo reservado nao segura', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(10, false, 'oi', ant(MIN))] };
+    h.estado.set('ag5040_sent:10:1', { value: { estado: 'reservado' }, updated_at: ant(5_000) });
+    await enfileirarAgenda(ab({ validoAte: dep(5 * MIN) }), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    h.estado.clear(); (sendHuman as any).mockClear();
+    h.conversa = { completa: true, msgs: [msg(12, false, 'oi', ant(MIN))] };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+  });
+
+  it('card sem created_at: a abertura sai (nao le a conversa nem segura)', async () => {
+    h.cards.set(501, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO });
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 0, mantidas: 0 });
+    expect(chamadas()).toBe(1);
+    expect(dedup()).toBeUndefined();
+  });
+
+  it('depois de uma abertura descartada por ja_respondido, o proximo item da fila no mesmo giro sai normalmente', async () => {
+    cardNovo();
+    h.cards.set(502, { cliente_telefone: TEL, status: 'agendado', quando: QUANDO, created_at: NASCEU });
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
+    await enfileirarAgenda(ab({ validoAte: dep(2 * HORA) }), AGORA);
+    await enfileirarAgenda(pedido({ cardId: 502, validoAte: dep(3 * HORA) }), AGORA);   // confirma: nao passa pelo 9c
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, descartadas: 1, mantidas: 0 });
+    expect(chamadas()).toBe(1);
+    expect(dedup().value).toMatchObject({ motivo: 'ja_respondido' });
+    expect(carimbos()).toEqual([chaveCarimboAgenda(502, 'confirma', QUANDO)]);
+    expect(fila()).toEqual([]);
+  });
+
+  it('carimbo reservado com mais de 5 min (preso): a abertura NAO espera e sai; com menos de 5 min espera; sem data legivel sai', async () => {
+    cardNovo();
+    h.conversa = { completa: true, msgs: [msg(10, false, 'oi', ant(MIN))] };
+    h.estado.set('ag5040_sent:10:1', { value: { dona: 'duda', wa_id: 10, em: ant(6 * MIN), estado: 'reservado' }, updated_at: ant(6 * MIN) });
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    expect(chamadas()).toBe(1);
+    // reserva de 4 min: ainda esta saindo, segura
+    h.estado.clear(); (sendHuman as any).mockClear();
+    h.estado.set('ag5040_sent:10:1', { value: { estado: 'reservado', em: ant(4 * MIN) }, updated_at: ant(4 * MIN) });
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 0, mantidas: 1 });
+    // sem value.em, vale o updated_at da linha (velho = preso)
+    h.estado.clear(); (sendHuman as any).mockClear();
+    h.estado.set('ag5040_sent:10:1', { value: { estado: 'reservado' }, updated_at: ant(7 * MIN) });
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+    // sem nenhuma data legivel: fluxo normal
+    h.estado.clear(); (sendHuman as any).mockClear();
+    h.estado.set('ag5040_sent:10:1', { value: { estado: 'reservado' }, updated_at: 'lixo' });
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA)).toMatchObject({ enviadas: 1, mantidas: 0 });
+  });
+
+  it('so a abertura le a conversa (confirma nao toca o lerConversa); o dry nao conta a abertura pulada como enviada', async () => {
+    cardNovo();
+    await enfileirarAgenda(pedido({ cardId: 501 }), AGORA);
+    expect((await enviarAgendaPendente(AGORA)).enviadas).toBe(1);
+    expect(h.conversaLida).toEqual([]);
+    h.estado.clear();
+    h.conversa = { completa: true, msgs: [msg(11, true, 'Fechado, 14h30!', ant(MIN))] };
+    await enfileirarAgenda(ab(), AGORA);
+    expect(await enviarAgendaPendente(AGORA, { dry: true })).toMatchObject({ enviadas: 0 });
   });
 });

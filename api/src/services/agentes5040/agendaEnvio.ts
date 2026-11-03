@@ -46,7 +46,8 @@ import { erroProvaQueNaoSaiu } from './fichaEnvio';
 import { marcarBoasVindasEnviada, rebaixarSaiuAMudo } from './agendaSolar';
 import { horaBRT } from './relogio';
 import { STATUS_QUE_NAO_RECEBEM, SOLAR_BV_DEDUP_PREFIX } from '../agenda/solarStatus';
-import { camposDeHorario, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
+import { camposDeHorario, citaAHora, opcaoPorExtenso, primeiroNome, textoDeAbertura, CAMINHOS_ABERTURA } from './textosAgenda';
+import { lerConversa } from './contexto';
 import { AVISO_IA_NA_PRIMEIRA_MSG, fraseDeApresentacao } from './avisoIA';
 import { atualizarPosse, lerPosse } from './posse';
 
@@ -127,6 +128,12 @@ export const LIMITES_AGENDA = Object.freeze({
   entregaAte: 21,
   /** Validade da trava da rodada da fila. A rodada dura até ~orcamentoMs + envios (~3 min); abaixo dos 300 s da função. */
   travaMs: 240_000,
+  /** Abertura: a resposta da Duda saindo (carimbo reservado) segura a abertura por 1 giro, só enquanto sobram mais que isto do validoAte. */
+  esperaRespostaMs: 10 * 60_000,
+  /** Abertura: quantas falas do lead (as mais novas depois do card) têm o carimbo da resposta conferido. */
+  falasLidasParaReserva: 5,
+  /** Abertura: a reserva da resposta só vale como "saindo agora" se tem menos que isto; mais velha é carimbo preso (a função morreu entre reservar e marcar) e não segura. */
+  reservaFrescaMs: 5 * 60_000,
 });
 
 /** Espera para completar o espaçamento (<= espacamentoMs + sorteioMs) e o sorteio dele. Os testes trocam os dois. */
@@ -441,7 +448,7 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
   let itemSaiu = false;
   const descartar = async (chaveDaFila: string, cardId: number, tipo: TipoAgenda, motivo: string): Promise<void> => {
     if (tipo === 'abertura' && !dry && motivo !== 'horario_mudou') await marcarAberturaDescartada(cardId, motivo, new Date(t));
-    if (tipo === 'abertura' && itemSaiu && !dry && motivo !== 'card_sumiu' && motivo !== 'status_nao_recebe') await rebaixarSaiuAMudo(cardId);
+    if (tipo === 'abertura' && itemSaiu && !dry && motivo !== 'card_sumiu' && motivo !== 'status_nao_recebe' && motivo !== 'ja_respondido') await rebaixarSaiuAMudo(cardId);
     await tirarDaFila(chaveDaFila);
     res.descartadas++;
   };
@@ -503,9 +510,9 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
     if (!bolha) { logger.error(LOG, `bolha de reenvio inválida (${tipo}), descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue; }
 
     // 6. o telefone vem do card, nunca da fila. O card mudou (cancelado, outro horário, outro número)? Então o pedido morreu.
-    const { data: card, error: erroCard } = await supabaseGerador.from('agendamentos').select('id, cliente_telefone, status, quando, vendedor_nome').eq('id', cardId).maybeSingle();
+    const { data: card, error: erroCard } = await supabaseGerador.from('agendamentos').select('id, cliente_telefone, status, quando, vendedor_nome, created_at').eq('id', cardId).maybeSingle();
     if (erroCard) { logger.error(LOG, `leitura do card falhou (${codigoDe(erroCard)})`); res.mantidas++; continue; }
-    const c = card as { cliente_telefone?: string | null; status?: string | null; quando?: string | null; vendedor_nome?: string | null } | null;
+    const c = card as { cliente_telefone?: string | null; status?: string | null; quando?: string | null; vendedor_nome?: string | null; created_at?: string | null } | null;
     // O status é relido contra a MESMA lista do solarBoasVindas (agenda/solarStatus): quem já disse não, fechou, recebeu proposta ou
     // está apalavrado não recebe a abertura nem a confirmação. A volta (card do "ligar agora") só morre se o card foi cancelado.
     const statusDoCard = String(c?.status ?? '').trim().toLowerCase();
@@ -585,6 +592,37 @@ export async function enviarAgendaPendente(agora: Date = new Date(), opts: Opcoe
         const comFrase = montar(reenvio || v.reforco === true, tipo === 'volta' ? undefined : consultoraDoEnvio);
         if (!comFrase) { logger.error(LOG, `bolha inválida (${tipo}) com o aviso de IA, descartada`); await descartar(linha.key, cardId, tipo, 'bolha_invalida'); continue; }
         bolha = comFrase;
+      }
+    }
+
+    // 9c. só a abertura (03/11/2026): o cliente escreveu depois que o card nasceu e a Duda (ou outro robô) já confirmou o horário? Então a
+    //     abertura viraria a mesma bolha duas vezes (card 1712: 0,6 s de diferença). Leitura que falha, conversa incompleta ou card sem
+    //     created_at legível: segue e envia como sempre (nunca segura a fila).
+    if (tipo === 'abertura') {
+      const desdeMs = Date.parse(String(c.created_at ?? ''));
+      let conversa: { msgs: Array<{ id: number; from_me: boolean; texto: string | null; momment: string }>; completa: boolean } = { msgs: [], completa: false };
+      if (Number.isFinite(desdeMs)) { try { conversa = await lerConversa(ck); } catch { /* segue e envia */ } }
+      if (conversa.completa) {
+        const depois = conversa.msgs.filter(m => Date.parse(m.momment) > desdeMs);
+        // a) alguma fala NOSSA, depois do card, já cita a hora marcada
+        if (depois.some(m => m.from_me && citaAHora(m.texto, String(v.quando)))) {
+          await descartar(linha.key, cardId, tipo, 'ja_respondido'); continue;
+        }
+        // b) a resposta da Duda a uma fala do lead está saindo agora (carimbo reservado): espera o próximo giro, e o passo 3 decide lá.
+        //    Só segura enquanto sobram mais de 10 min do validoAte e a reserva tem menos de 5 min (data = value.em, ou o updated_at da linha;
+        //    mais velha ou sem data legível é carimbo preso e segue o fluxo normal); carimbo falhou ou enviado não segura.
+        if (validoAte - t > LIMITES_AGENDA.esperaRespostaMs) {
+          let respondendo = false;
+          for (const m of depois.filter(x => !x.from_me).slice(-LIMITES_AGENDA.falasLidasParaReserva)) {
+            const { data: rv, error: erroRv } = await supabase.from('system_state').select('key, value, updated_at').eq('key', `${PREFIXO_CARIMBO_AGENTES}${m.id}:1`).maybeSingle();
+            if (erroRv) { logger.error(LOG, `leitura do carimbo da resposta falhou (${codigoDe(erroRv)})`); continue; }
+            const lr = rv as { value?: { estado?: string; em?: string }; updated_at?: string } | null;
+            if (lr?.value?.estado !== 'reservado') continue;
+            const desde = Date.parse(String(lr.value.em ?? lr.updated_at ?? ''));
+            if (Number.isFinite(desde) && t - desde < LIMITES_AGENDA.reservaFrescaMs) { respondendo = true; break; }
+          }
+          if (respondendo) { res.mantidas++; continue; }
+        }
       }
     }
 
