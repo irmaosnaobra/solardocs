@@ -149,7 +149,7 @@ export default function InicioPage() {
   const [pessoa, setPessoa] = useState<Pessoa | null>(null);
   const [logoQuebrada, setLogoQuebrada] = useState(false);
   const [maisAberto, setMaisAberto] = useState(false);
-  const { itens: recentes, buscar: buscarRecentes } = useRecentes();
+  const { itens: recentes, pronto: recentesProntos, reserva: reservaRecentes, buscar: buscarRecentes } = useRecentes();
 
   // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo), como no menu lateral. O admin vem
   // das duas chamadas (/auth/me e /produtos/acessos): se uma falhar, a outra ainda o livra do cadeado.
@@ -311,8 +311,8 @@ export default function InicioPage() {
               {[novaPropostaItem, lerContaItem].map((item) => <Acao key={item.id} item={item} />)}
             </div>
 
-            {/* Os 3 últimos documentos: só aparece quando a lista chega e tem o que mostrar */}
-            <Recentes itens={recentes} />
+            {/* Os 3 últimos documentos: reserva o lugar enquanto a lista não chega e some se vier vazia */}
+            <Recentes itens={recentes} pronto={recentesProntos} reserva={reservaRecentes} />
 
             {/* Convite ao Portal do Parceiro NEXUS: só com o portal ligado, fechável por usuário */}
             {convite}

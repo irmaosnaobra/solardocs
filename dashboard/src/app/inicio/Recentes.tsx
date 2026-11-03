@@ -13,8 +13,23 @@ import { toBrasilia } from '@/utils/brasilia';
 
 // Recentes da tela de atalhos (/inicio): os 3 últimos documentos da conta.
 // Lê da MESMA rota que a tela Arquivos (/documents/list), sem filtro, pedindo só 3. O toque abre o
-// documento do mesmo jeito que o "Abrir" de Arquivos. A seção só existe quando há o que mostrar: durante a
-// carga, com a lista vazia ou se a chamada falhar, nada é desenhado e a tela segue sem ela.
+// documento do mesmo jeito que o "Abrir" de Arquivos. A lista costuma chegar depois da primeira pintura (a rota
+// faz vários passos no servidor), então, para a tela não saltar, a seção reserva o lugar com linhas de esqueleto
+// da mesma altura enquanto espera. Quanto reservar vem da última contagem guardada neste aparelho (localStorage,
+// opcional): quem nunca teve documento não reserva nada. Lista vazia ou falha: a seção some.
+
+const CHAVE_RESERVA = 'ini-recentes-n';
+
+function lerReserva(): number {
+  try {
+    const n = Number(window.localStorage.getItem(CHAVE_RESERVA));
+    return Number.isInteger(n) && n >= 1 && n <= 3 ? n : 0;
+  } catch { return 0; }
+}
+
+function guardarReserva(n: number) {
+  try { window.localStorage.setItem(CHAVE_RESERVA, String(n)); } catch { /* sem armazenamento: sem reserva */ }
+}
 
 /** Os mesmos nomes que a tela Arquivos usa (TIPO_LABEL em (dashboard)/historico/page.tsx). */
 const TIPO_LABEL: Record<string, string> = {
@@ -62,17 +77,18 @@ export interface Recente {
 
 /**
  * "hoje, 9:40", "ontem" ou "31/10" (com o ano de dois dígitos quando não é o ano de agora). O dia e a hora
- * são os de Brasília pelo mesmo ajuste que a tela Arquivos faz (toBrasilia), para as duas telas concordarem
- * sobre o dia do documento. Recebe o "agora" pronto: quem chama pega o relógio fora do render.
+ * são os de Brasília. documents.created_at vem 3h adiantado do banco (o backend compensa isso em
+ * documentsController e disputeDefesa) e toBrasilia tira só 3h, então aqui se tira mais 3h para chegar à hora
+ * real de Brasília. Recebe o "agora" pronto: quem chama pega o relógio fora do render.
  */
 export function dataCurta(iso: string | null | undefined, agora: number): string {
   if (!iso) return '';
-  const d = toBrasilia(iso);
+  const d = new Date(toBrasilia(iso).getTime() - 3 * 3600 * 1000);
   if (Number.isNaN(d.getTime())) return '';
   const hoje = new Date(agora - 3 * 3600 * 1000);
   const diaDe = (x: Date) => Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate());
   const dias = Math.round((diaDe(hoje) - diaDe(d)) / 86_400_000);
-  // Zero ou menos é "hoje": o relógio do documento pode estar um pouco adiantado.
+  // Zero ou menos é "hoje": só folga para um relógio um pouco adiantado.
   if (dias <= 0) return `hoje, ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
   if (dias === 1) return 'ontem';
   const dia = String(d.getUTCDate()).padStart(2, '0');
@@ -96,21 +112,26 @@ function paraRecente(doc: DocumentoDaLista, agora: number): Recente {
 
 /**
  * Os recentes e a função que os busca. A página chama `buscar` no mesmo efeito das outras chamadas (empresa e
- * conta), depois das checagens de PC e de login: assim a lista viaja junto e, na maioria das vezes, já chegou
- * quando a tela desenha. Estado só dentro do retorno da chamada.
+ * conta), depois das checagens de PC e de login. A lista pode chegar depois da primeira pintura: até lá,
+ * `pronto` é falso e `reserva` diz quantas linhas de esqueleto desenhar. Estado só dentro do retorno da chamada.
  */
 export function useRecentes() {
   const [itens, setItens] = useState<Recente[]>([]);
+  const [pronto, setPronto] = useState(false);
+  const [reserva] = useState(lerReserva);
   const buscar = useCallback(() => {
     api.get('/documents/list', { params: { limit: 3, page: 1 }, timeout: 12000 })
       .then(({ data }) => {
         const agora = Date.now();
         const lista: DocumentoDaLista[] = Array.isArray(data?.documents) ? data.documents : [];
-        setItens(lista.slice(0, 3).map((doc) => paraRecente(doc, agora)));
+        const recentes = lista.slice(0, 3).map((doc) => paraRecente(doc, agora));
+        guardarReserva(recentes.length);
+        setItens(recentes);
+        setPronto(true);
       })
-      .catch(() => { /* sem a lista a tela segue normal: a seção só entra quando há o que mostrar */ });
+      .catch(() => { setPronto(true); /* sem a lista a tela segue normal: a seção só entra quando há o que mostrar */ });
   }, []);
-  return { itens, buscar };
+  return { itens, pronto, reserva, buscar };
 }
 
 // Mesma regra de Arquivos: no iOS o PDF vai pela folha de compartilhar, porque abrir outra aba prende o app.
@@ -120,9 +141,32 @@ function ehIOS(): boolean {
   return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
 }
 
-export default function Recentes({ itens }: { itens: Recente[] }) {
+export default function Recentes({ itens, pronto, reserva }: { itens: Recente[]; pronto: boolean; reserva: number }) {
   const router = useRouter();
   const [ocupado, setOcupado] = useState<string | null>(null);
+
+  if (!pronto && reserva > 0) {
+    return (
+      <section className="ini-secao ini-secaoRecentes" aria-hidden="true">
+        <div className="ini-secaoTopo"><span className="ini-esqTopo" /></div>
+        <div className="ini-cartaoLista">
+          <ul className="ini-lista ini-linhas" role="presentation">
+            {Array.from({ length: reserva }, (_, i) => (
+              <li key={i}>
+                <div className="ini-linha ini-recente">
+                  <span className="ini-chip ini-osso" />
+                  <span className="ini-linhaTextos">
+                    <span className="ini-osso ini-ossoNome" />
+                    <span className="ini-osso ini-ossoApoio" />
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    );
+  }
 
   if (itens.length === 0) return null;
 

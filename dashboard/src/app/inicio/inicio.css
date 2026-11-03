@@ -207,6 +207,12 @@
 .ini-linhaMais { min-height: 60px; padding-top: 10px; padding-bottom: 10px; }
 /* Os recentes: um pouco mais altos, com o quadrado do tipo à esquerda. */
 .ini-recente { min-height: 64px; padding-top: 12px; padding-bottom: 12px; }
+/* Esqueleto dos Recentes: ocupa o lugar da lista até ela chegar, sem texto. */
+.ini-esqTopo { display: block; height: 44px; }
+.ini-osso { display: block; background: var(--ini-divisor); border-radius: 6px; }
+.ini-chip.ini-osso { border-radius: 11px; }
+.ini-ossoNome { width: 55%; height: 15px; }
+.ini-ossoApoio { width: 35%; height: 13px; }
 /* Enquanto o PDF abre, a seta dá lugar a um giro pequeno. */
 .ini-giro {
   flex: none;
@@ -374,6 +380,10 @@
   --sombra-card: none;
 }
 .ini-nexus > [role="region"] { margin: 20px 0 0; }
+/* Na referência o convite é um cartão liso, sem brilho, sem faixa lateral e sem contorno. */
+.ini-nexus > [role="region"] { background-image: none; box-shadow: none; border: 0; border-radius: 16px; }
+/* Alvo de toque de 44 px nos botões do convite (o do módulo tem 40). */
+.ini-nexus button { min-width: 44px; min-height: 44px; }
 
 @media (prefers-reduced-motion: reduce) {
   .ini-acao, .ini-ferramenta, .ini-seta, .ini-plataforma { transition: none; }
