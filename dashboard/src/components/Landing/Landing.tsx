@@ -357,12 +357,12 @@ export default function Landing() {
 
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  // Pix (modal, sem sair da LP; o automático é a 2ª opção dentro dele). `pixOrigem` é o botão que abriu
+  // Pix automático (modal, sem sair da LP). `pixOrigem` é o botão que abriu
   // (modulos, oferta, final ou url); null = fechado.
   const [pixOrigem, setPixOrigem] = useState<string | null>(null);
   const pixAutoAbriu = useRef(false);
   const abrirPix = useCallback((origem: string) => {
-    // O InitiateCheckout (vip_pix_codigo) sai dentro do modal, quando a pessoa gera o código.
+    // O InitiateCheckout (vip_pix_auto) sai dentro do modal, depois que o código chega.
     trackEvent('cta_click', { label: `pix_${origem}` });
     setPixOrigem(origem);
   }, [trackEvent]);

@@ -1,22 +1,19 @@
 'use client';
 
-// Pagar no Pix, sem sair da LP. Caminho principal: Pix comum de R$ 67 (QR + copia
-// e cola, sem CPF). Segunda opção: Pix automático (renova sozinho, pede CPF/CNPJ).
-// Mesma API, mesmos textos e mesma lógica do quiz (/diagnostico) e da tela
-// /pix-automatico: o POST cria a cobrança e devolve o QR; a tela pergunta a cada
-// 5 s se foi paga.
+// Assinar no Pix automático, sem sair da LP. Mesma API, mesmos textos e mesma
+// lógica do quiz (/diagnostico) e da tela /pix-automatico: o POST cria o
+// contrato e devolve o código; a tela pergunta a cada 5 s se ficou ativo.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/services/api';
 import { getCheckoutAttribution, registrarEvento } from '@/hooks/useLpTracking';
-import { digitosFone, docValido, foneValido, horaBrasilia, mascaraDoc, mascaraFone, soDigitos } from './pixDoc';
+import { digitosFone, docValido, foneValido, mascaraDoc, mascaraFone, soDigitos } from './pixDoc';
 import styles from './PixAutomaticoModal.module.css';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
-const PIX_OFF = 'Não deu para gerar o Pix automático agora. Toque abaixo e a gente manda o Pix pelo WhatsApp.';
-const PIX_COD_OFF = 'Não deu para gerar o código agora. Use o Pix automático abaixo, ou toque para receber o Pix pelo WhatsApp.';
-const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ, ou toque abaixo e a gente resolve pelo WhatsApp.';
+const PIX_OFF = 'Não deu para gerar o Pix automático agora. Tente de novo em instantes.';
+const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ.';
 const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
 const PIX_DOC_ERRO = 'Esse CPF ou CNPJ não confere. Confira os números.';
 const PIX_FONE_ERRO = 'Confira o WhatsApp com DDD.';
@@ -24,16 +21,12 @@ const MSG_WHATS = 'Oi! Vim pelo site da SolarDoc e quero assinar no Pix.';
 
 const ESPERA_TRAVOU_MS = 3 * 60 * 1000;
 const ESPERA_MAX_MS = 60 * 60 * 1000;
+const COPIADO_MS = 3000;
 
-type Modo = 'codigo' | 'automatico';
-
-// Os dois endpoints respondem com nomes diferentes; a tela trabalha com este formato.
 interface Cobranca {
-  modo: Modo;
   id: string;
   payload: string;
   imagem: string;
-  expiraEm: string | null;
   temConta: boolean;
 }
 
@@ -46,7 +39,6 @@ interface Props {
 type FbqWindow = Window & { fbq?: (...args: unknown[]) => void };
 
 export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Props) {
-  const [modo, setModo] = useState<Modo>('codigo');
   const [email, setEmail] = useState('');
   const [fone, setFone] = useState('');
   const [doc, setDoc] = useState('');
@@ -54,7 +46,6 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   const [erroFone, setErroFone] = useState('');
   const [erroDoc, setErroDoc] = useState('');
   const [erro, setErro] = useState('');
-  const [aviso, setAviso] = useState('');
   const [criando, setCriando] = useState(false);
   const [cobranca, setCobranca] = useState<Cobranca | null>(null);
   const [pagou, setPagou] = useState(false);
@@ -87,20 +78,15 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     };
   }, [origem]);
 
-  // Enquanto o pagamento não cai, pergunta a cada 5 s. Para no primeiro "pago"
-  // (Pix comum) ou "ativo" (automático).
+  // Enquanto o pagamento não cai, pergunta a cada 5 s. Para no primeiro "ativo".
   const consultar = useCallback(async (c: Cobranca) => {
     if (ocupado.current) return;
     ocupado.current = true;
     try {
-      const rota = c.modo === 'codigo' ? 'pix-avulso' : 'pix-recorrente';
-      const { data } = await api.get(`/payments/${rota}/publico/${encodeURIComponent(c.id)}`);
-      const st = data?.status ?? null;
-      if (st === (c.modo === 'codigo' ? 'pago' : 'ativo')) {
-        registrarEvento('pix_pago', { tela: 'lp', modo: c.modo, contrato: c.id });
+      const { data } = await api.get(`/payments/pix-recorrente/publico/${encodeURIComponent(c.id)}`);
+      if (data?.status === 'ativo') {
+        registrarEvento('pix_pago', { tela: 'lp', modo: 'automatico', contrato: c.id });
         setPagou(true);
-      } else if (c.modo === 'codigo' && st === 'expirado') {
-        setVencido(true);
       }
     } catch {
       // Sem rede agora: a próxima rodada tenta de novo.
@@ -165,13 +151,6 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     setErro('');
   }
 
-  function irParaAutomatico(mensagem: string) {
-    setModo('automatico');
-    setAviso(mensagem);
-    setErro('');
-    setErroDoc('');
-  }
-
   function fbq(nome: string) {
     const w = window as FbqWindow;
     if (w.fbq) w.fbq('track', 'InitiateCheckout', { content_name: nome, value: 67, currency: 'BRL' });
@@ -180,13 +159,12 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
   async function gerar(ev: React.FormEvent) {
     ev.preventDefault();
     if (criando) return;
-    const auto = modo === 'automatico';
     const em = email.trim().toLowerCase();
     const dd = soDigitos(doc);
     const fn = digitosFone(fone);
     const emOk = EMAIL_RE.test(em);
     const fnOk = foneValido(fn);
-    const ddOk = !auto || docValido(dd);
+    const ddOk = docValido(dd);
     setErroEmail(emOk ? '' : 'Confira o e-mail.');
     setErroFone(fnOk ? '' : PIX_FONE_ERRO);
     setErroDoc(ddOk ? '' : PIX_DOC_ERRO);
@@ -201,68 +179,38 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     }
 
     setCriando(true);
-    setAviso('');
     try {
-      if (auto) {
-        const { data } = await api.post('/payments/pix-recorrente/publico', {
-          plan: 'ilimitado',
-          nome: 'Cliente',
-          email: em,
-          cpfCnpj: dd,
-          whatsapp: '55' + fn,
-          origem: 'lp_solardoc',
-          ...getCheckoutAttribution(),
-        });
-        if (!data || data.modo !== 'automatico') {
-          registrarEvento('pix_falhou', { tela: 'lp', modo: 'automatico', motivo: 'modo_' + (data?.modo ?? 'vazio') });
-          setErro(PIX_OFF);
-          return;
-        }
-        if (!data.qrPayload || data.status === 'ativo' || !data.id) {
-          registrarEvento('pix_falhou', { tela: 'lp', modo: 'automatico', motivo: 'ja_existe' });
-          setErro(PIX_JA);
-          return;
-        }
-        setCobranca({
-          modo: 'automatico',
-          id: String(data.id),
-          payload: data.qrPayload,
-          imagem: data.qrImagemBase64 || '',
-          expiraEm: null,
-          temConta: Boolean(data.temConta),
-        });
-        registrarEvento('pix_gerou', { tela: 'lp', modo: 'automatico', contrato: data.id, temConta: data.temConta });
-        fbq('vip_pix_auto');
-      } else {
-        const { data } = await api.post('/payments/pix-avulso/publico', {
-          nome: 'Cliente',
-          email: em,
-          whatsapp: '55' + fn,
-          origem: 'lp_solardoc',
-          ...getCheckoutAttribution(),
-        });
-        if (!data?.payload || !data?.id) {
-          registrarEvento('pix_falhou', { tela: 'lp', modo: 'codigo', motivo: 'sem_codigo' });
-          irParaAutomatico(PIX_COD_OFF);
-          return;
-        }
-        setCobranca({
-          modo: 'codigo',
-          id: String(data.id),
-          payload: data.payload,
-          imagem: data.encodedImage || '',
-          expiraEm: data.expiraEm ?? null,
-          temConta: false,
-        });
-        registrarEvento('pix_gerou', { tela: 'lp', modo: 'codigo', contrato: data.id });
-        fbq('vip_pix_codigo');
+      const { data } = await api.post('/payments/pix-recorrente/publico', {
+        plan: 'ilimitado',
+        nome: 'Cliente',
+        email: em,
+        cpfCnpj: dd,
+        whatsapp: '55' + fn,
+        origem: 'lp_solardoc',
+        ...getCheckoutAttribution(),
+      });
+      if (!data || data.modo !== 'automatico') {
+        registrarEvento('pix_falhou', { tela: 'lp', motivo: 'modo_' + (data?.modo ?? 'vazio') });
+        setErro(PIX_OFF);
+        return;
       }
+      if (!data.qrPayload || data.status === 'ativo' || !data.id) {
+        registrarEvento('pix_falhou', { tela: 'lp', motivo: 'ja_existe' });
+        setErro(PIX_JA);
+        return;
+      }
+      setCobranca({
+        id: String(data.id),
+        payload: data.qrPayload,
+        imagem: data.qrImagemBase64 || '',
+        temConta: Boolean(data.temConta),
+      });
+      registrarEvento('pix_gerou', { tela: 'lp', modo: 'automatico', contrato: data.id, temConta: data.temConta });
+      fbq('vip_pix_auto'); // só depois de chegar o id: um 400 com nova tentativa não conta duas vezes
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { error?: string } } };
-      registrarEvento('pix_falhou', { tela: 'lp', modo, motivo: e?.response?.data?.error ?? 'erro-desconhecido' });
-      if (e?.response?.status === 400) { setErro(auto ? PIX_CAMPOS : 'Confira o e-mail e o WhatsApp.'); return; }
-      if (auto) setErro(PIX_OFF);
-      else irParaAutomatico(PIX_COD_OFF);
+      registrarEvento('pix_falhou', { tela: 'lp', motivo: e?.response?.data?.error ?? 'erro-desconhecido' });
+      setErro(e?.response?.status === 400 ? PIX_CAMPOS : PIX_OFF);
     } finally {
       setCriando(false);
     }
@@ -273,19 +221,16 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
     if (!texto) return;
     try {
       await navigator.clipboard.writeText(texto);
-      registrarEvento('pix_copiou', { tela: 'lp', modo: cobranca?.modo });
+      registrarEvento('pix_copiou', { tela: 'lp', modo: 'automatico' });
       setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
+      setTimeout(() => setCopiado(false), COPIADO_MS);
     } catch {
       (document.getElementById('pix-codigo') as HTMLTextAreaElement | null)?.select();
       setErro('Seu navegador bloqueou a cópia. Selecione o código e copie na mão.');
     }
   }
 
-  const imgOk = /^[A-Za-z0-9+/=]+$/.test(cobranca?.imagem || '') && Boolean(cobranca?.imagem);
-  const hora = horaBrasilia(cobranca?.expiraEm);
-  const auto = modo === 'automatico';
-  const aoClicarZap = (onde: string) => () => registrarEvento('pix_whatsapp', { tela: 'lp', onde });
+  const imgOk = Boolean(cobranca?.imagem) && /^[A-Za-z0-9+/=]+$/.test(cobranca?.imagem || '');
 
   return (
     <div className={styles.fundo}>
@@ -300,36 +245,24 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
           <span aria-hidden="true">×</span>
         </button>
         <div className={styles.rolagem}>
-
         {pagou ? (
-          cobranca?.modo === 'codigo' ? (
-            // A API não diz se o e-mail já tinha conta (para não revelar quem tem): texto neutro.
-            <>
-              <h2 id="pix-modal-titulo" className={styles.titulo}>Pagamento confirmado</h2>
-              <p className={styles.texto}>O link de acesso chegou no seu e-mail.</p>
-              <a className={styles.btnPrincipal} href={`/auth?mode=login&email=${encodeURIComponent(email.trim().toLowerCase())}`}>
-                Ir para o login
-              </a>
-            </>
-          ) : (
-            <>
-              <h2 id="pix-modal-titulo" className={styles.titulo}>Pagamento confirmado</h2>
-              <p className={styles.sub}>Sua assinatura por Pix está ativa.</p>
-              <p className={styles.texto}>
-                {cobranca?.temConta
-                  ? 'Sua conta já existe: é só entrar com o seu e-mail e a plataforma está liberada.'
-                  : 'Agora crie sua senha para entrar. Usamos o mesmo e-mail que você informou aqui.'}
-              </p>
-              <a
-                className={styles.btnPrincipal}
-                href={cobranca?.temConta
-                  ? '/auth?mode=login'
-                  : `/auth?mode=register&email=${encodeURIComponent(email.trim().toLowerCase())}`}
-              >
-                {cobranca?.temConta ? 'Entrar na plataforma' : 'Criar minha senha'}
-              </a>
-            </>
-          )
+          <>
+            <h2 id="pix-modal-titulo" className={styles.titulo}>Pagamento confirmado</h2>
+            <p className={styles.sub}>Sua assinatura por Pix está ativa.</p>
+            <p className={styles.texto}>
+              {cobranca?.temConta
+                ? 'Sua conta já existe: é só entrar com o seu e-mail e a plataforma está liberada.'
+                : 'Agora crie sua senha para entrar. Usamos o mesmo e-mail que você informou aqui.'}
+            </p>
+            <a
+              className={styles.btnPrincipal}
+              href={cobranca?.temConta
+                ? '/auth?mode=login'
+                : `/auth?mode=register&email=${encodeURIComponent(email.trim().toLowerCase())}`}
+            >
+              {cobranca?.temConta ? 'Entrar na plataforma' : 'Criar minha senha'}
+            </a>
+          </>
         ) : cobranca ? (
           <>
             <h2 id="pix-modal-titulo" className={styles.titulo}>Pague para ativar</h2>
@@ -342,40 +275,30 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
             ) : vencido ? (
               <>
                 <p className={styles.texto} role="status">O código venceu. Gere outro.</p>
-                <button type="button" className={styles.btnPrincipal} onClick={recomecar}>
-                  {cobranca.modo === 'codigo' ? 'Gerar outro código' : 'Gerar outro Pix'}
-                </button>
+                <button type="button" className={styles.btnPrincipal} onClick={recomecar}>Gerar outro Pix</button>
               </>
             ) : (
               <>
-                {imgOk && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    className={styles.qr}
-                    src={`data:image/png;base64,${cobranca.imagem}`}
-                    alt="QR Code do Pix"
-                  />
-                )}
+                <button type="button" className={styles.btnPrincipal} onClick={copiar}>
+                  {copiado ? 'Código copiado' : 'Copiar código Pix'}
+                </button>
+                <ol className={styles.passos}>
+                  <li>Toque em Copiar código Pix.</li>
+                  <li>No app do seu banco, escolha Pix copia e cola.</li>
+                  <li>Cole o código e autorize o Pix automático.</li>
+                </ol>
                 <label className={styles.rotulo} htmlFor="pix-codigo">Pix copia e cola</label>
                 <textarea id="pix-codigo" className={styles.codigo} readOnly rows={4} value={cobranca.payload} />
-                <button type="button" className={styles.btnPrincipal} onClick={copiar}>
-                  {copiado ? 'Código copiado' : 'Copiar código'}
-                </button>
-                {cobranca.modo === 'codigo' ? (
+                {imgOk && (
                   <>
-                    <p className={styles.texto}>
-                      Abra o app do seu banco e pague com o QR Code ou com o Pix copia e cola.
-                      {hora ? ` O código vale até ${hora}.` : ''}
-                    </p>
-                    <p className={styles.texto}>
-                      Antes de vencer o mês, a gente te manda o Pix do mês seguinte no WhatsApp.
-                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      className={styles.qr}
+                      src={`data:image/png;base64,${cobranca.imagem}`}
+                      alt="QR Code do Pix automático"
+                    />
+                    <p className={styles.legendaQr}>Ou leia o QR em outro aparelho</p>
                   </>
-                ) : (
-                  <p className={styles.texto}>
-                    Abra o app do seu banco e pague com o QR Code ou com o Pix copia e cola. O banco vai pedir para você
-                    autorizar o Pix automático de R$ 67 por mês.
-                  </p>
                 )}
                 <p className={styles.espera} role="status">Esperando o pagamento.</p>
                 {travou && (
@@ -386,36 +309,22 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
                       href={zapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={aoClicarZap('travou')}
+                      onClick={() => registrarEvento('pix_whatsapp', { tela: 'lp', onde: 'travou' })}
                     >
                       Chamar no WhatsApp
                     </a>
                   </div>
                 )}
-                <a
-                  className={styles.link}
-                  href={zapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={aoClicarZap('link_qr')}
-                >
-                  Prefiro receber o Pix pelo WhatsApp
-                </a>
               </>
             )}
             {erro && <p className={styles.erro} role="alert">{erro}</p>}
           </>
         ) : (
           <form onSubmit={gerar} noValidate>
-            <h2 id="pix-modal-titulo" className={styles.titulo}>
-              {auto ? 'Assinar no Pix automático' : 'Pagar no Pix'}
-            </h2>
+            <h2 id="pix-modal-titulo" className={styles.titulo}>Assinar no Pix automático</h2>
             <p className={styles.sub}>
-              {auto
-                ? 'R$ 67 por mês, debitado sozinho pelo seu banco. Você cancela quando quiser pelo app do banco.'
-                : 'R$ 67 pelo primeiro mês. Copie o código, pague no app do banco e o acesso libera na hora.'}
+              R$ 67 por mês, debitado sozinho pelo seu banco. Você cancela quando quiser pelo app do banco.
             </p>
-            {aviso && <p className={styles.erro} role="alert">{aviso}</p>}
 
             <label className={styles.rotulo} htmlFor="pix-email">Seu e-mail</label>
             <input
@@ -437,43 +346,21 @@ export default function PixAutomaticoModal({ origem, whatsappUrl, onFechar }: Pr
             <p id="pix-fone-dica" className={styles.dica}>Com DDD.</p>
             <p id="pix-fone-erro" className={styles.erro} role="alert">{erroFone}</p>
 
-            {auto && (
-              <>
-                <label className={styles.rotulo} htmlFor="pix-doc">CPF ou CNPJ de quem paga</label>
-                <input
-                  id="pix-doc" className={styles.campo} type="text" inputMode="numeric" autoComplete="off"
-                  placeholder="000.000.000-00" maxLength={18} value={doc}
-                  onChange={(e) => { setDoc(mascaraDoc(e.target.value)); setErroDoc(''); }}
-                  aria-describedby="pix-doc-dica pix-doc-erro" aria-invalid={erroDoc ? true : undefined}
-                />
-                <p id="pix-doc-dica" className={styles.dica}>O banco pede esse número para ligar o Pix automático.</p>
-                <p id="pix-doc-erro" className={styles.erro} role="alert">{erroDoc}</p>
-              </>
-            )}
+            <label className={styles.rotulo} htmlFor="pix-doc">CPF ou CNPJ de quem paga</label>
+            <input
+              id="pix-doc" className={styles.campo} type="text" inputMode="numeric" autoComplete="off"
+              placeholder="000.000.000-00" maxLength={18} value={doc}
+              onChange={(e) => { setDoc(mascaraDoc(e.target.value)); setErroDoc(''); }}
+              aria-describedby="pix-doc-dica pix-doc-erro" aria-invalid={erroDoc ? true : undefined}
+            />
+            <p id="pix-doc-dica" className={styles.dica}>O banco pede esse número para ligar o Pix automático.</p>
+            <p id="pix-doc-erro" className={styles.erro} role="alert">{erroDoc}</p>
 
             {erro && <p className={styles.erro} role="alert">{erro}</p>}
 
             <button type="submit" className={styles.btnPrincipal} disabled={criando}>
-              {criando ? 'Gerando o Pix' : auto ? 'Gerar o Pix' : 'Gerar o código Pix'}
+              {criando ? 'Gerando o Pix' : 'Gerar o Pix'}
             </button>
-            {!auto && (
-              <button
-                type="button"
-                className={styles.link}
-                onClick={() => { registrarEvento('pix_troca_auto', { tela: 'lp' }); irParaAutomatico(''); }}
-              >
-                Prefiro o Pix automático, que renova sozinho
-              </button>
-            )}
-            <a
-              className={styles.link}
-              href={zapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={aoClicarZap(auto ? 'link_auto' : 'link')}
-            >
-              Prefiro receber o Pix pelo WhatsApp
-            </a>
           </form>
         )}
         </div>

@@ -603,7 +603,7 @@ function botoes(R) {
     b.push({ k: 'carla', rot: 'Falar com a Carla', prim: true });
     b.push({ k: 'duvida', rot: 'Tirar uma dúvida no WhatsApp' });
   } else if (pixAutoLigado()) {
-    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_codigo', rot: 'Pagar no Pix' };
+    const cartao = { k: 'cartao', rot: 'Assinar com cartão' }, pix = { k: 'pix_auto', rot: 'Pagar no Pix' };
     if (R.pagamento === 'pix') { pix.prim = true; b.push(pix, cartao); } else { cartao.prim = true; b.push(cartao, pix); }
   } else if (R.pagamento === 'pix') b.push({ k: 'pix', rot: 'Assinar no Pix', prim: true }, { k: 'cartao', rot: 'Assinar com cartão' });
   else b.push({ k: 'cartao', rot: 'Assinar com cartão', prim: true });
@@ -616,11 +616,11 @@ const empresaDe = (R) => (R.empresa || '').trim();
 const municipioDe = (R) => String(R.cidade || '').replace(/-[A-Z]{2}$/, '').trim();
 const ACESSO_CARTAO = 'No cartão, você volta na mesma hora para a tela de criar a senha e entra.';
 const ACESSO_AVISOS = 'O e-mail com o link de acesso também chega, e o WhatsApp também, se você deixou o número.';
-const ACESSO_PIX = 'No Pix, quando o pagamento cai, a conta é criada e o link para criar a senha chega no seu e-mail.';
+const ACESSO_PIX = 'No Pix automático, quando o 1º pagamento cai, a conta é criada e o link para criar a senha chega no seu e-mail.';
 const PRIMEIRA_PROPOSTA = 'Cadastra o cliente e sai a sua 1ª proposta, com a logo e a cor da empresa, pronta para mandar no WhatsApp.';
 const PASSOS_CARTAO = ['Você paga no cartão.', 'Na mesma hora, você volta para a tela de criar a sua senha.', 'Cria a senha e entra. ' + ACESSO_AVISOS, PRIMEIRA_PROPOSTA];
 const PASSOS_PIX = ['Você paga o 1º mês agora, no Pix.', 'Quando o 1º pagamento cai, a sua conta é criada.', 'O link para criar a senha chega no seu e-mail. Você cria a senha e entra.', PRIMEIRA_PROPOSTA];
-const NOTA_PIX = 'Antes de vencer o mês, a gente te manda o Pix do mês seguinte no WhatsApp. Se preferir que o banco debite sozinho, escolha o Pix automático na hora de pagar.';
+const NOTA_PIX = 'Nos meses seguintes, o banco debita sozinho. Para cancelar, é só pelo app do seu banco.';
 /* Pix pelo WhatsApp: o copia e cola vem na conversa e o comprovante libera o acesso (pixComprovanteService). */
 const ACESSO_PIX_WA = 'No Pix, você paga pelo código que recebe no WhatsApp, manda o comprovante e o seu e-mail na mesma conversa e o link para criar a senha chega ali mesmo.';
 const PASSOS_PIX_WA = ['Você toca em "Assinar no Pix" e o WhatsApp abre com a mensagem pronta. É só enviar.', 'A gente responde na conversa com o código Pix copia e cola de R$ 67.', 'Você paga e manda na mesma conversa a foto do comprovante e o seu e-mail.','Com o comprovante conferido, o acesso é liberado e o link para criar a senha chega ali mesmo.', PRIMEIRA_PROPOSTA];
@@ -841,7 +841,7 @@ function depoisDePagar(pix, abrePix) {
   else {
     const k = abrePix ? 'pix' : 'cartao';
     const wa = pix === 'wa';
-    h += '<div class="abas" role="tablist" aria-label="Forma de pagamento">' + [['cartao', 'No cartão'], ['pix', 'No Pix']].map(([id, r]) => '<button type="button" class="aba" role="tab" id="aba-' + id + '" aria-selected="' + (id === k) + '" aria-controls="pn-' + id + '" data-a="aba" data-k="' + id + '">' + r + '</button>').join('') + '</div>'
+    h += '<div class="abas" role="tablist" aria-label="Forma de pagamento">' + [['cartao', 'No cartão'], ['pix', wa ? 'No Pix' : 'No Pix automático']].map(([id, r]) => '<button type="button" class="aba" role="tab" id="aba-' + id + '" aria-selected="' + (id === k) + '" aria-controls="pn-' + id + '" data-a="aba" data-k="' + id + '">' + r + '</button>').join('') + '</div>'
       + '<div id="pn-cartao" role="tabpanel" aria-labelledby="aba-cartao"' + (k === 'cartao' ? '' : ' hidden') + '>' + ol(PASSOS_CARTAO) + '</div>'
       + '<div id="pn-pix" role="tabpanel" aria-labelledby="aba-pix"' + (k === 'pix' ? '' : ' hidden') + '>' + ol(wa ? PASSOS_PIX_WA : PASSOS_PIX) + '<p class="nota">' + esc(wa ? NOTA_PIX_WA : NOTA_PIX) + '</p></div>';
   }
@@ -1262,9 +1262,8 @@ async function assinarCartao() {
 }
 /* Pix automático (atrás da trava pixAutoLigado): painel na folha de baixo, sem sair da página. Débito mensal autorizado no app do banco, pela Asaas. */
 const PIX = { gen: 0, iv: 0, tm: 0, busy: false, em: '', doc: '' };
-const PIX_OFF = 'Não deu para gerar o Pix automático agora. Toque abaixo e a gente manda o Pix pelo WhatsApp.';
-const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ, ou toque abaixo e a gente resolve pelo WhatsApp.';
-const PIX_WA_BT = '<button type="button" class="cta" data-a="btn" data-k="pix" style="margin-top:14px">Receber o Pix no WhatsApp</button>';
+const PIX_OFF = 'Não deu para gerar o Pix automático agora. Tente de novo em instantes.';
+const PIX_JA = 'Já existe uma assinatura no Pix para este CPF ou e-mail. Use outro CPF ou CNPJ.';
 const PIX_CAMPOS = 'Confira o e-mail e o CPF ou CNPJ.';
 const PIX_DOC_ERRO = 'Esse CPF ou CNPJ não confere. Confira os números.';
 /* Máscara do CPF (até 11 dígitos) e do CNPJ (14), e conferência dos dígitos verificadores */
@@ -1282,85 +1281,25 @@ function docValido(d) {
 }
 /* Para a consulta e invalida qualquer resposta que ainda esteja a caminho */
 function pararPix() { PIX.gen++; if (PIX.iv) { clearInterval(PIX.iv); PIX.iv = 0; } if (PIX.tm) { clearTimeout(PIX.tm); PIX.tm = 0; } PIX.busy = false; }
-function pixMostrar(html) { const c = $('pix-corpo'); if (c) { c.innerHTML = html; c.hidden = false; } const q = $('pix-sair'); if (q) q.remove(); }
+function pixMostrar(html) { const c = $('pix-corpo'); if (c) { c.innerHTML = html; c.hidden = false; } const q = $('pix-sair'); if (q) q.remove(); const i = $('pix-intro'); if (i) i.hidden = false; }
 function pixForm(msg) {
   const rot = 'class="ajuda" style="display:block;margin:14px 0 0;font-weight:700;color:var(--texto)"';
   return '<form id="pix-form" novalidate><label ' + rot + ' for="pix-email">Seu e-mail</label><input class="campo" id="pix-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" value="' + esc(PIX.em) + '">'
     + '<label ' + rot + ' for="pix-doc">CPF ou CNPJ de quem paga</label><input class="campo" id="pix-doc" name="cpfcnpj" type="text" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="000.000.000-00" aria-describedby="pix-doc-dica pix-doc-erro" value="' + esc(mascDoc(PIX.doc)) + '">'
     + '<p class="nota" id="pix-doc-dica">O banco pede esse número para ligar o Pix automático.</p><p class="nota" id="pix-doc-erro" role="alert"></p>'
-    + '<p class="nota" id="pix-erro" role="alert">' + esc(msg || '') + '</p><button type="submit" class="cta" id="pix-gerar">Gerar o Pix</button><button type="button" class="pular" data-a="btn" data-k="pix">Prefiro receber o Pix pelo WhatsApp</button></form>';
+    + '<p class="nota" id="pix-erro" role="alert">' + esc(msg || '') + '</p><button type="submit" class="cta" id="pix-gerar">Gerar o Pix</button></form>';
 }
-function abrirPixAuto(op, aviso) {
+function abrirPixAuto(op) {
   pararPix();
   S.opener = op || null;
-  $('folha-in').innerHTML = '<h2 id="folha-t">Assinar no Pix automático</h2>' + (aviso ? '<p class="ajuda" role="alert">' + esc(aviso) + '</p>' : '') + '<p class="ajuda">O primeiro mês, R$ 67, é pago agora. Nos meses seguintes o banco debita sozinho, e você cancela quando quiser no app do banco.</p><div id="pix-corpo">' + pixForm('') + '</div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
+  $('folha-in').innerHTML = '<h2 id="folha-t">Assinar no Pix automático</h2><p class="ajuda" id="pix-intro">R$ 67 por mês, debitado sozinho pelo seu banco. Você cancela quando quiser pelo app do banco.</p><div id="pix-corpo">' + pixForm('') + '</div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
   $('folha').hidden = false;
   $('pix-doc').focus();
 }
-/* Pix comum de R$ 67 (caminho principal): só o e-mail; o WhatsApp e o nome vêm do quiz. QR + copia e cola, e o acesso libera quando o pagamento cai. */
-const PIX_COD_OFF = 'Não deu para gerar o código agora. Use o Pix automático abaixo, ou toque para receber o Pix pelo WhatsApp.';
 const PIX_VENCEU = '<p class="ajuda" role="status" style="margin-top:14px">O código venceu. Gere outro.</p>';
 const PIX_PAGO = '<p class="ajuda" role="status" style="margin-top:14px"><b>Pronto.</b> Sua assinatura está ativa. Se for o seu primeiro acesso, o link para criar a senha chega no seu e-mail em alguns minutos.</p>';
-const PIX_PAGO_COD = '<p class="ajuda" role="status" style="margin-top:14px"><b>Pagamento confirmado.</b> O link de acesso chegou no seu e-mail.</p>';
-/* HH:MM em horário de Brasília a partir de um ISO; '' se não der para ler */
-function horaBrasilia(iso) {
-  try {
-    const d = new Date(iso);
-    if (!iso || isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
-  } catch (err) { return ''; }
-}
-function pixCodForm(msg) {
-  const rot = 'class="ajuda" style="display:block;margin:14px 0 0;font-weight:700;color:var(--texto)"';
-  return '<form id="pixc-form" novalidate><label ' + rot + ' for="pixc-email">Seu e-mail</label><input class="campo" id="pixc-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" aria-describedby="pixc-dica" value="' + esc(PIX.em) + '">'
-    + '<p class="nota" id="pixc-dica">O acesso chega nele.</p><p class="nota" id="pixc-erro" role="alert">' + esc(msg || '') + '</p>'
-    + '<button type="submit" class="cta" id="pixc-gerar">Gerar o código Pix</button>'
-    + '<button type="button" class="pular" data-a="pixauto">Prefiro o Pix automático, que renova sozinho</button>'
-    + '<button type="button" class="pular" data-a="btn" data-k="pix">Prefiro receber o Pix pelo WhatsApp</button></form>';
-}
-function abrirPixCodigo(op) {
-  pararPix();
-  S.opener = op || null;
-  $('folha-in').innerHTML = '<h2 id="folha-t">Pagar R$ 67 no Pix</h2><p class="ajuda">Copie o código, pague no app do banco e o acesso libera na hora.</p><div id="pix-corpo">' + pixCodForm('') + '</div><button type="button" class="pular" id="folha-fechar" data-a="fechar">Fechar</button>';
-  $('folha').hidden = false;
-  $('pixc-email').focus();
-}
 /* O WhatsApp do quiz fica em R.whats (só dígitos, DDD + número); a API quer com 55 */
 function whatsPix() { const d = String(R.whats || '').replace(/\D/g, ''); return d.length >= 10 ? '55' + d : ''; }
-async function gerarPixCodigo() {
-  if (PIX.busy) return;
-  const em = ($('pixc-email').value || '').trim().toLowerCase(), er = $('pixc-erro');
-  PIX.em = em;
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(em)) { if (er) er.textContent = 'Confira o e-mail.'; $('pixc-email').focus(); return; }
-  pararPix();
-  PIX.busy = true;
-  const gen = PIX.gen, bt = $('pixc-gerar');
-  if (er) er.textContent = '';
-  if (bt) { bt.disabled = true; bt.textContent = 'Gerando o código'; }
-  const corpo = Object.assign({ nome: (R.nome || '').trim() || 'Cliente', email: em, whatsapp: whatsPix(), origem: 'quiz_solardoc' }, SDR.utm(), { lp_session: SDR.sid }, SDR.meta());
-  let r = null;
-  try { r = await chamar('/payments/pix-avulso/publico', corpo, 20000); } catch (err) { erro('plano', 'pix_codigo_falhou'); }
-  if (gen !== PIX.gen) return;
-  PIX.busy = false;
-  const j = r && r.json;
-  if (r && r.status === 400) { erro('plano', 'pix_codigo_400'); pixMostrar(pixCodForm('Confira o e-mail.')); return; }
-  if (!r || !r.ok || !j || !j.payload || !j.id) { if (r) erro('plano', 'pix_codigo_' + r.status); abrirPixAuto(S.opener, PIX_COD_OFF); return; }
-  pixQrCodigo(j);
-}
-function pixQrCodigo(j) {
-  const img = /^[A-Za-z0-9+/=]+$/.test(j.encodedImage || '') ? '<img class="pix-qr" alt="QR Code do Pix" src="data:image/png;base64,' + esc(j.encodedImage) + '">' : '';
-  const hora = horaBrasilia(j.expiraEm);
-  pixMostrar(img + '<label class="ajuda" for="pix-codigo" style="display:block;margin:10px 0 0;font-weight:700;color:var(--texto)">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="4">' + esc(j.payload) + '</textarea>'
-    + '<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar" style="margin-top:10px">Copiar código</button>'
-    + '<p class="ajuda" style="margin-top:12px">Abra o app do seu banco e pague com o QR Code ou com o Pix copia e cola.' + (hora ? ' O código vale até ' + esc(hora) + '.' : '') + '</p>'
-    + '<p class="ajuda">Antes de vencer o mês, a gente te manda o Pix do mês seguinte no WhatsApp.</p>'
-    + '<p class="nota" id="pix-st" role="status">Esperando o pagamento.</p><div id="pix-trava"></div>'
-    + '<button type="button" class="pular" data-a="btn" data-k="pix">Prefiro receber o Pix pelo WhatsApp</button>');
-  SDR.evento('pix_gerou', { modo: 'codigo', contrato: j.id });
-  fb('track', 'InitiateCheckout', { content_name: 'vip_pix_codigo', value: 67, currency: 'BRL' });
-  pixEsperar(String(j.id), 'codigo');
-  pixTravou();
-}
 async function gerarPix() {
   if (PIX.busy) return;
   const em = ($('pix-email').value || '').trim().toLowerCase(), doc = ($('pix-doc').value || '').replace(/\D/g, '');
@@ -1382,17 +1321,20 @@ async function gerarPix() {
   PIX.busy = false;
   const j = r && r.json;
   if (r && r.status === 400) { pixMostrar(pixForm(PIX_CAMPOS)); return; }
-  if (!r || !r.ok || !j || j.modo !== 'automatico') { if (r) erro('plano', 'pix_auto_' + r.status); pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_OFF) + '</p>' + PIX_WA_BT); return; }
-  if (!j.qrPayload || j.status === 'ativo') { pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_JA) + '</p>' + pixForm('') + PIX_WA_BT); return; }
+  if (!r || !r.ok || !j || j.modo !== 'automatico') { if (r) erro('plano', 'pix_auto_' + r.status); pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_OFF) + '</p>' + pixForm('')); return; }
+  if (!j.qrPayload || j.status === 'ativo') { pixMostrar('<p class="ajuda" role="alert" style="margin-top:14px">' + esc(PIX_JA) + '</p>' + pixForm('')); return; }
   pixQr(j);
 }
 function pixQr(j) {
-  const img = /^[A-Za-z0-9+/=]+$/.test(j.qrImagemBase64 || '') ? '<img class="pix-qr" alt="QR Code do Pix automático" src="data:image/png;base64,' + esc(j.qrImagemBase64) + '">' : '';
-  pixMostrar(img + '<label class="ajuda" for="pix-codigo" style="display:block;margin:10px 0 0;font-weight:700;color:var(--texto)">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="4">' + esc(j.qrPayload) + '</textarea>'
-    + '<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar" style="margin-top:10px">Copiar código</button>'
-    + '<p class="ajuda" style="margin-top:12px">Abra o app do seu banco e pague com o QR Code ou com o Pix copia e cola. O banco vai pedir para você autorizar o Pix automático de R$ 67 por mês.</p><p class="nota" id="pix-st" role="status">Esperando o pagamento.</p><div id="pix-trava"></div>');
+  const img = /^[A-Za-z0-9+/=]+$/.test(j.qrImagemBase64 || '') ? '<img class="pix-qr" alt="QR Code do Pix automático" style="width:150px;margin:8px auto 4px" src="data:image/png;base64,' + esc(j.qrImagemBase64) + '"><p class="nota" style="text-align:center;margin-top:0">Ou leia o QR em outro aparelho</p>' : '';
+  pixMostrar('<button type="button" class="cta" id="pix-copiar" data-a="pixcopiar" style="margin-top:14px">Copiar código Pix</button>'
+    + '<p class="ajuda" style="margin:14px 0 4px">1. Toque em Copiar código Pix.</p><p class="ajuda" style="margin:0 0 4px">2. No app do seu banco, escolha Pix copia e cola.</p><p class="ajuda" style="margin:0 0 4px">3. Cole o código e autorize o Pix automático.</p>'
+    + '<label class="ajuda" for="pix-codigo" style="display:block;margin:12px 0 0;font-weight:700;color:var(--texto)">Pix copia e cola</label><textarea class="msg" id="pix-codigo" readonly rows="4">' + esc(j.qrPayload) + '</textarea>'
+    + img
+    + '<p class="nota" id="pix-st" role="status">Esperando o pagamento.</p><div id="pix-trava"></div>');
+  const intro = $('pix-intro'); if (intro) intro.hidden = true;
   SDR.evento('pix_gerou', { modo: 'automatico', contrato: j.id || null });
-  if (j.id) { fb('track', 'InitiateCheckout', { content_name: 'vip_pix_auto', value: 67, currency: 'BRL' }); pixEsperar(String(j.id), 'automatico'); }
+  if (j.id) { fb('track', 'InitiateCheckout', { content_name: 'vip_pix_auto', value: 67, currency: 'BRL' }); pixEsperar(String(j.id)); }
   pixTravou();
 }
 /* Passados 3 minutos sem pagar, oferece o WhatsApp (o polling segue). O bloco some quando o pagamento cai, porque o painel inteiro é trocado. */
@@ -1405,21 +1347,19 @@ function pixTravou() {
     lugar.innerHTML = '<p class="ajuda" style="margin-top:14px">Travou no app do banco? Chama a gente no WhatsApp que resolve na hora.</p><button type="button" class="cta vazio" data-a="btn" data-k="pix">Chamar no WhatsApp</button>';
   }, 3 * 60 * 1000);
 }
-/* Pergunta a cada 5 s se o contrato ficou ativo (automático) ou se o código foi pago (Pix comum), por até 60 min */
-function pixEsperar(id, modo) {
-  const cod = modo === 'codigo', rota = cod ? '/payments/pix-avulso/publico/' : '/payments/pix-recorrente/publico/';
+/* Pergunta a cada 5 s se o contrato ficou ativo, por até 60 min */
+function pixEsperar(id) {
   const gen = PIX.gen, fim = Date.now() + 60 * 60 * 1000;
   let ocupado = false;
   const iv = setInterval(async () => {
     if (gen !== PIX.gen || !document.contains($('pix-st'))) { clearInterval(iv); return; }
-    if (Date.now() >= fim) { pararPix(); pixMostrar(PIX_VENCEU + (cod ? pixCodForm('') : pixForm(''))); return; }
+    if (Date.now() >= fim) { pararPix(); pixMostrar(PIX_VENCEU + pixForm('')); return; }
     if (ocupado) return;
     ocupado = true;
     try {
-      const resp = await fetch(SDR.api + rota + encodeURIComponent(id));
+      const resp = await fetch(SDR.api + '/payments/pix-recorrente/publico/' + encodeURIComponent(id));
       const d = resp.ok ? await resp.json() : null;
-      if (gen === PIX.gen && d && d.status === (cod ? 'pago' : 'ativo')) { pararPix(); SDR.evento('pix_pago', { modo: cod ? 'codigo' : 'automatico', contrato: id }); pixMostrar(cod ? PIX_PAGO_COD + '<a class="cta" href="/auth?mode=login&amp;email=' + encodeURIComponent(PIX.em) + '" style="margin-top:14px;text-decoration:none">Ir para o login</a>' : PIX_PAGO); }
-      else if (cod && gen === PIX.gen && d && d.status === 'expirado') { pararPix(); pixMostrar(PIX_VENCEU + pixCodForm('')); }
+      if (gen === PIX.gen && d && d.status === 'ativo') { pararPix(); SDR.evento('pix_pago', { modo: 'automatico', contrato: id }); pixMostrar(PIX_PAGO); }
     } catch (err) { /* sem rede agora: tenta de novo em 5 s */ } finally { ocupado = false; }
   }, 5000);
   PIX.iv = iv;
@@ -1427,14 +1367,13 @@ function pixEsperar(id, modo) {
 function pixCopiar() {
   const ta = $('pix-codigo'), bt = $('pix-copiar');
   if (!ta) return;
-  const ok = () => { if (bt) bt.textContent = 'Copiado'; };
+  const ok = () => { SDR.evento('pix_copiou', { modo: 'automatico' }); if (bt) { bt.textContent = 'Código copiado'; setTimeout(() => { if (document.contains(bt)) bt.textContent = 'Copiar código Pix'; }, 3000); } };
   const sel = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) ok(); } catch (e) { /* o texto fica selecionado para copiar à mão */ } };
   try { navigator.clipboard.writeText(ta.value).then(ok, sel); } catch (e) { sel(); }
 }
 function acaoFinal(k, el) {
   if (k !== S.fimK) { S.fimK = k; SDR.evento('quiz_fim', { destino: k }); }
   if (k === 'cartao') { assinarCartao(); return; }
-  if (k === 'pix_codigo' && pixAutoLigado()) { abrirPixCodigo(el); return; }
   if (k === 'pix_auto' && pixAutoLigado()) { abrirPixAuto(el); return; }
   if (k === 'socio') { abrirFolha('socio', el); return; }
   if (!E.codigo) E.codigo = SDR.codigoLocal();
@@ -1458,7 +1397,6 @@ $('app').addEventListener('click', (e) => {
   else if (a === 'btn') acaoFinal(t.getAttribute('data-k'), t);
   else if (a === 'copiar') copiar(resumo(R));
   else if (a === 'pixcopiar') pixCopiar();
-  else if (a === 'pixauto') { if (S.fimK !== 'pix_auto') { S.fimK = 'pix_auto'; SDR.evento('quiz_fim', { destino: 'pix_auto' }); } abrirPixAuto(S.opener); }
   else if (a === 'fechar') fecharFolha();
   else if (a === 'fecharmesmo') fecharFolhaJa();
   else if (a === 'voltarpix') voltarPix();
@@ -1478,7 +1416,7 @@ $('corpo').addEventListener('submit', (e) => {
   if (PASSOS[S.i].kind === 'city' && !MUN_ERRO) { const ops = document.querySelectorAll('[data-a="cid"]'); if (ops.length === 1) { ops[0].click(); return; } }
   continuar();
 });
-$('folha').addEventListener('submit', (e) => { if (e.target.id === 'pix-form') { e.preventDefault(); gerarPix(); } else if (e.target.id === 'pixc-form') { e.preventDefault(); gerarPixCodigo(); } });
+$('folha').addEventListener('submit', (e) => { if (e.target.id === 'pix-form') { e.preventDefault(); gerarPix(); } });
 $('folha').addEventListener('input', (e) => { if (e.target.id === 'pix-doc') { e.target.value = mascDoc(e.target.value); const de = $('pix-doc-erro'); if (de) de.textContent = ''; } });
 window.addEventListener('pagehide', pararPix);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('folha').hidden) fecharFolha(); });

@@ -59,18 +59,3 @@ export function mascaraFone(v: string): string {
 export function foneValido(d: string): boolean {
   return /^\d{10,11}$/.test(d) && Number(d.slice(0, 2)) >= 11;
 }
-
-// HH:MM em horário de Brasília a partir de um ISO. Devolve '' se não der para ler,
-// para a tela omitir a frase em vez de mostrar "Invalid Date" ou "NaN".
-export function horaBrasilia(iso: unknown): string {
-  try {
-    if (typeof iso !== 'string' || !iso) return '';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-    }).format(d);
-  } catch {
-    return '';
-  }
-}
