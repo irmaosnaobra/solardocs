@@ -20,7 +20,7 @@ import { supabase } from '../utils/supabase';
 import { sendKitAcessoEmail, sendFerramentaAcessoEmail, sendMesPixAcessoEmail, sendOpsAlert } from '../utils/mailer';
 import { liberarOffGrid, OFFGRID_PRODUTO_REGEX, OFFGRID_ADDON_PRECO } from './offgrid/acesso';
 import { concederAcesso } from './produtos/acessos';
-import { acharContaDoComprador, type ConflitoDeConta } from './produtos/contaDoComprador';
+import { acharContaDoComprador, type ChaveDaConta, type ConflitoDeConta } from './produtos/contaDoComprador';
 import { finalDoDocumento } from '../utils/documento';
 import { tentarBonusPosPagamento } from './agentes5040/planilhaBonus';
 
@@ -291,7 +291,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   }
 
   // 2) Conta: vincula a existente (pelo e-mail, senão pelo CPF/CNPJ ou pelo telefone) ou cria pendente (sem senha).
-  const { userId, contaCriada, resetUrl, jaEraMembro, contaEmail } = await garantirConta({
+  const { userId, contaCriada, resetUrl, jaEraMembro, contaEmail, chave } = await garantirConta({
     email,
     nome: evt.nome,
     telefone: evt.telefone,
@@ -302,6 +302,17 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
 
   if (!userId) {
     return { ok: false, acao: 'registrado', detalhe: 'não consegui criar/achar a conta' };
+  }
+
+  // Conta achada SÓ pelo telefone: users.whatsapp é digitado sem confirmação, então é a chave mais fraca. A
+  // compra entra na conta, mas a operação confere (uma vez por pedido) se é mesmo de quem comprou.
+  if (chave === 'telefone' && !pedidoExistente) {
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    sendOpsAlert(
+      'Kiwify: compra entregue a uma conta achada só pelo telefone',
+      `<p>O pedido <strong>${esc(evt.orderId || '(sem pedido)')}</strong> foi pago por <strong>${esc(email)}</strong>, que não tem conta, e o acesso entrou na conta <strong>${esc(contaEmail)}</strong>, achada só pelo WhatsApp.</p>
+       <p>Se não for a mesma pessoa, mova o acesso na mão.</p>`,
+    ).catch(() => {});
   }
 
   // 3a) FERRAMENTA AVULSA: acesso vitalício, independente de plano. Não mexe em
@@ -382,7 +393,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   //     completo COMPRADO, e por isso não passa por concederTrialVip.
   let acessoAte: Date | null = null;
   if (evt.item === 'entrada_30d' && !jaConcedeuNessePedido) {
-    acessoAte = await concederEntrada30Dias(userId, contaEmail);
+    acessoAte = await concederEntrada30Dias(userId, contaEmail, chave);
     if (acessoAte) bumpAplicado = true;
   }
 
@@ -392,7 +403,7 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   //     de checkout nenhum, e a coluna alimenta a taxa de attach do kit no /admin.
   //     A idempotência não depende dela — quem carimba é `trial_vip_ate`, abaixo.
   if (evt.item === 'mes_pix' && !jaConcedeuNessePedido) {
-    acessoAte = await concederMesPago(userId, contaEmail, { comCurso: false, rotulo: 'mês avulso (Pix)' });
+    acessoAte = await concederMesPago(userId, contaEmail, { comCurso: false, rotulo: 'mês avulso (Pix)', chave });
   }
 
   // 4) E-mail de acesso — o gate é o CARIMBO, não "o pedido é novo". No Pix a
@@ -523,7 +534,7 @@ async function garantirConta(opts: {
   documento?: string | null;
   utm: EventoKit['utm'];
   orderId?: string | null;
-}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string; jaEraMembro: boolean; contaEmail: string }> {
+}): Promise<{ userId: string | null; contaCriada: boolean; resetUrl: string; jaEraMembro: boolean; contaEmail: string; chave: ChaveDaConta | null }> {
   const { email } = opts;
   const pedido = opts.orderId || '(sem pedido)';
 
@@ -545,10 +556,13 @@ async function garantirConta(opts: {
       resetUrl: `${DASHBOARD_URL}/auth`,
       jaEraMembro: c.temSenha,
       contaEmail: c.email,
+      chave: c.chave,
     };
   }
 
-  if (busca.tipo === 'conflito') {
+  if (busca.tipo === 'erro') {
+    console.warn(`[kit] leitura da conta por e-mail falhou · ${email} · pedido ${pedido} · segue o caminho antigo (cria a pendente ou relê pelo e-mail)`);
+  } else if (busca.tipo === 'conflito') {
     await registrarConflitoDeConta({
       email, orderId: opts.orderId ?? null, telefone: opts.telefone, documento: opts.documento, conflito: busca.conflito,
     });
@@ -595,10 +609,10 @@ async function garantirConta(opts: {
     // 23505 = corrida (o /register criou a conta no meio do caminho). Busca de novo.
     if ((error as { code?: string }).code === '23505') {
       const { data: agora } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
-      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false, contaEmail: email };
+      return { userId: agora?.id ?? null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false, contaEmail: email, chave: 'email' };
     }
     console.error('[kit] criação de conta falhou:', error);
-    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false, contaEmail: email };
+    return { userId: null, contaCriada: false, resetUrl: `${DASHBOARD_URL}/auth`, jaEraMembro: false, contaEmail: email, chave: null };
   }
 
   return {
@@ -607,6 +621,7 @@ async function garantirConta(opts: {
     resetUrl: `${DASHBOARD_URL}/auth?mode=redefinir&token=${token}`,
     jaEraMembro: false,
     contaEmail: email,
+    chave: null,
   };
 }
 
@@ -725,8 +740,8 @@ async function concederTrialVip(userId: string): Promise<ResultadoTrial> {
 const ENTRADA_30D_DIAS = 30;
 
 /** A entrada de R$19 é "curso + 30 dias de plataforma". */
-async function concederEntrada30Dias(userId: string, email: string): Promise<Date | null> {
-  return concederMesPago(userId, email, { comCurso: true, rotulo: 'entrada de 30 dias' });
+async function concederEntrada30Dias(userId: string, email: string, chave?: ChaveDaConta | null): Promise<Date | null> {
+  return concederMesPago(userId, email, { comCurso: true, rotulo: 'entrada de 30 dias', chave });
 }
 
 /**
@@ -738,7 +753,7 @@ async function concederEntrada30Dias(userId: string, email: string): Promise<Dat
 async function concederMesPago(
   userId: string,
   email: string,
-  opts: { comCurso: boolean; rotulo: string },
+  opts: { comCurso: boolean; rotulo: string; chave?: ChaveDaConta | null },
 ): Promise<Date | null> {
   const ate = new Date(Date.now() + ENTRADA_30D_DIAS * 86400_000);
 
@@ -795,7 +810,16 @@ async function concederMesPago(
   // assinatura por causa dela seria mexer num funil que ninguém pediu pra mexer.
   const trilhoDeRecuperacao = !opts.comCurso;
   if (trilhoDeRecuperacao && (statusAnterior === 'past_due' || statusAnterior === 'suspended')) {
-    try {
+    if (opts.chave && opts.chave !== 'email') {
+      // A conta foi achada por documento ou telefone, não pelo e-mail digitado: se o casamento estiver errado,
+      // cancelar o cartão cancelaria a assinatura de um estranho. Aqui só a operação decide.
+      console.warn(`[kit] dunning NÃO encerrado sozinho (conta achada por ${opts.chave}) · ${email}`);
+      sendOpsAlert(
+        'Pix em conta achada por documento/telefone, em dunning: cartão não foi cancelado',
+        `<p>${email} está em dunning e recebeu um mês pago no Pix, mas a conta foi achada por <strong>${opts.chave}</strong> e não pelo e-mail digitado na compra.</p>
+         <p>Confira se a compra é mesmo dessa pessoa; se for, cancele a assinatura de cartão dela na Stripe para não cobrar em dobro.</p>`,
+      ).catch(() => {});
+    } else try {
       const { cancelStripeSubsForEmail } = await import('./dunningService');
       const n = await cancelStripeSubsForEmail(email);
       await supabase.from('users')

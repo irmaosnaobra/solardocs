@@ -1,7 +1,7 @@
 // Supabase falso com estado em memória, para os testes de acesso e de compra.
 //
 // Não é um mock "sempre devolve null": guarda linhas de verdade e responde aos filtros que o código usa
-// (eq, neq, in, gt, limit, single, maybeSingle, insert, upsert, update, delete), respeita o UNIQUE de
+// (eq, neq, not, in, gt, limit, single, maybeSingle, insert, upsert, update, delete), respeita o UNIQUE de
 // users.email e o de kit_pedidos.order_id. Dá para simular uma coluna que não existe (migration atrasada) e
 // uma tabela que quebra (relation does not exist), que são os dois jeitos de uma leitura falhar em produção.
 //
@@ -16,6 +16,8 @@ export const falhas = {
   colunaAusente: new Set<string>(),
   /** tabelas que "não existem": qualquer consulta volta com erro 42P01. */
   tabelaQuebrada: new Set<string>(),
+  /** tabelas em que SÓ o select filtrado por e-mail (eq 'email') volta com erro: uma piscada de leitura. */
+  leituraPorEmailQuebrada: new Set<string>(),
 };
 
 let contador = 0;
@@ -30,6 +32,7 @@ export function limpar(...tabelas: string[]): void {
   emails.clear();
   falhas.colunaAusente.clear();
   falhas.tabelaQuebrada.clear();
+  falhas.leituraPorEmailQuebrada.clear();
 }
 
 /** Insere direto no estado (semente de teste), respeitando o e-mail único de users. */
@@ -49,12 +52,16 @@ function query(table: string) {
   let onConflict = '';
   let colunas = '';
   let teto = Infinity;
+  const colunasEq = new Set<string>();
 
   const linhas = () => (db[table] ?? []).filter((r) => filtros.every((f) => f(r)));
 
   function executa(): { data: any; error: any } {
     if (falhas.tabelaQuebrada.has(table)) {
       return { data: null, error: { code: '42P01', message: `relation "${table}" does not exist` } };
+    }
+    if (modo === 'select' && falhas.leituraPorEmailQuebrada.has(table) && colunasEq.has('email')) {
+      return { data: null, error: { code: '57014', message: `leitura de ${table} por e-mail piscou` } };
     }
     for (const c of falhas.colunaAusente) {
       if (modo === 'select' && new RegExp(`(^|[\\s,])${c}($|[\\s,])`).test(colunas)) {
@@ -103,9 +110,14 @@ function query(table: string) {
     },
     update: (p: Row) => { modo = 'update'; patch = p; return q; },
     delete: () => { modo = 'delete'; return q; },
-    eq: (col: string, val: any) => { filtros.push((r) => String(r[col]) === String(val)); return q; },
+    eq: (col: string, val: any) => { colunasEq.add(col); filtros.push((r) => String(r[col]) === String(val)); return q; },
     neq: (col: string, val: any) => { filtros.push((r) => String(r[col]) !== String(val)); return q; },
     in: (col: string, vals: any[]) => { filtros.push((r) => vals.map(String).includes(String(r[col]))); return q; },
+    not: (col: string, op: string, val: any) => {
+      if (op === 'is') filtros.push((r) => (val === null ? r[col] != null : r[col] !== val));
+      else if (op === 'eq') filtros.push((r) => String(r[col]) !== String(val));
+      return q;
+    },
     gt: (col: string, val: any) => { filtros.push((r) => r[col] != null && String(r[col]) > String(val)); return q; },
     limit: (n: number) => { teto = n; return q; },
     order: () => q,

@@ -161,19 +161,31 @@ export default function OffGridPage() {
   const [orcando, setOrcando] = useState(false);
 
   // Soltar o cadeado sozinho: quem foi pagar noutra aba e volta para esta repete o orçamento (que é o que
-  // devolve 402 ou 200), no máximo a cada 10 s e só enquanto estiver trancado.
+  // devolve 402 ou 200), no máximo a cada 10 s e só enquanto estiver trancado. O webhook da Kiwify chega alguns
+  // segundos depois do pagamento, então depois da volta repete a cada 15 s por até 2 minutos (para sozinho ao soltar).
   const [releitura, setReleitura] = useState(0);
   useEffect(() => {
     if (!trancado) return;
     let ultima = Date.now();
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const parar = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const reler = () => { ultima = Date.now(); setReleitura((n) => n + 1); };
     const voltou = () => {
-      if (document.visibilityState === 'hidden' || Date.now() - ultima < 10_000) return;
-      ultima = Date.now();
-      setReleitura((n) => n + 1);
+      if (document.visibilityState === 'hidden') { parar(); return; }
+      if (Date.now() - ultima < 10_000) return;
+      reler();
+      parar();
+      let vezes = 0;
+      timer = setInterval(() => {
+        vezes += 1;
+        if (vezes > 8 || document.visibilityState === 'hidden') { parar(); return; }
+        reler();
+      }, 15_000);
     };
     document.addEventListener('visibilitychange', voltou);
     window.addEventListener('focus', voltou);
     return () => {
+      parar();
       document.removeEventListener('visibilitychange', voltou);
       window.removeEventListener('focus', voltou);
     };

@@ -23,6 +23,8 @@ vi.mock('../utils/mailer', () => ({
   sendFerramentaAcessoEmail: vi.fn(async (o: any) => { emailsFerramenta.push(o); }),
   sendOpsAlert: vi.fn(async (assunto: string, corpo: string) => { alertas.push({ assunto, corpo }); }),
 }));
+const cancelarStripe = vi.hoisted(() => ({ fn: vi.fn(async (_e: string) => 1) }));
+vi.mock('../services/dunningService', () => ({ cancelStripeSubsForEmail: cancelarStripe.fn }));
 const bonusMock = vi.hoisted(() => ({ tentar: vi.fn(async (_a: any) => true) }));
 vi.mock('../services/agentes5040/planilhaBonus', () => ({ tentarBonusPosPagamento: bonusMock.tentar }));
 
@@ -162,7 +164,7 @@ describe('2) CPF/CNPJ do comprador contra o que a conta guarda', () => {
 
   it('CPF: casa com quem assina por Pix recorrente (asaas_pix_assinaturas.cpf_cnpj)', async () => {
     const c = conta();
-    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: c.id, email: EMAIL_DA_CONTA, cpf_cnpj: CPF_MASCARA });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_1', status: 'ativo', user_id: c.id, email: EMAIL_DA_CONTA, cpf_cnpj: CPF_MASCARA });
 
     const r = await processarEventoKit(evento({ documento: CPF, telefone: null }));
     expect(r.userId).toBe(c.id);
@@ -317,8 +319,8 @@ describe('documento e telefone juntos', () => {
   it('um CNPJ que aparece em duas contas é conflito mesmo que o telefone aponte para uma delas', async () => {
     const a = conta({ email: 'a@x.com', whatsapp: '34991472583' });
     const b = conta({ email: 'b@x.com', whatsapp: '11911112222' });
-    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: a.id, cpf_cnpj: CNPJ });
-    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: b.id, cpf_cnpj: CNPJ_MASCARA });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_1', status: 'ativo', user_id: a.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_1', status: 'ativo', user_id: b.id, cpf_cnpj: CNPJ_MASCARA });
 
     const r = await processarEventoKit(evento({ documento: CNPJ }));
     expect(r.userId).not.toBe(a.id);
@@ -330,8 +332,8 @@ describe('documento e telefone juntos', () => {
   it('o mesmo CNPJ em duas contas, sem telefone que desempate: conflito, não chute', async () => {
     const a = conta({ email: 'a@x.com' });
     const b = conta({ email: 'b@x.com' });
-    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: a.id, cpf_cnpj: CNPJ });
-    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: b.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_1', status: 'ativo', user_id: a.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_1', status: 'ativo', user_id: b.id, cpf_cnpj: CNPJ });
 
     const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null }));
     expect(r.contaCriada).toBe(true);
@@ -445,20 +447,116 @@ describe('conta pendente nunca é candidata (compra errada do e-mail na 1a vez)'
 
   it('pendente com o CNPJ em asaas_pix_assinaturas também não prende a compra', async () => {
     const p = semear('users', { email: 'pendente@x.com', password_hash: null, plano: 'free', whatsapp: null });
-    semear('asaas_pix_assinaturas', { status: 'ativo', user_id: p.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { ultimo_pagamento_id: 'pay_1', status: 'ativo', user_id: p.id, cpf_cnpj: CNPJ });
     const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null as any }));
     expect(r.contaCriada).toBe(true);
     expect(r.userId).not.toBe(p.id);
   });
 
-  it('assinatura Pix nunca paga (pendente, recusado, expirado) não prova o documento', async () => {
-    for (const status of ['pendente', 'recusado', 'expirado']) {
+  it('assinatura Pix nunca paga (pendente, recusado, expirado, cancelado sem pagamento) não prova o documento', async () => {
+    for (const status of ['pendente', 'recusado', 'expirado', 'cancelado']) {
       limpar('users', 'kit_pedidos', 'entitlements', 'company', 'asaas_pix_assinaturas');
       const c = conta({ whatsapp: null });
-      semear('asaas_pix_assinaturas', { status, user_id: c.id, cpf_cnpj: CNPJ });
+      semear('asaas_pix_assinaturas', { status, ultimo_pagamento_id: '', user_id: c.id, cpf_cnpj: CNPJ });
       const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null as any }));
       expect(r.userId).not.toBe(c.id);
     }
+  });
+});
+
+describe('assinatura Pix cancelada DEPOIS de paga continua provando o documento', () => {
+  it('cancelado com pagamento creditado casa', async () => {
+    const c = conta({ whatsapp: null });
+    semear('asaas_pix_assinaturas', { status: 'cancelado', ultimo_pagamento_id: 'pay_9', user_id: c.id, cpf_cnpj: CNPJ });
+    const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null as any }));
+    expect(r.userId).toBe(c.id);
+    expect(db.users).toHaveLength(1);
+  });
+});
+
+describe('leitura que falha nunca entrega a compra a outra conta', () => {
+  it('a leitura por e-mail piscou: nem documento nem telefone decidem, e a compra não vai para a conta do telefone', async () => {
+    const dona = conta({ email: EMAIL_DIGITADO, password_hash: 'hash', whatsapp: null });
+    const outra = conta({ email: 'outra.pessoa@x.com', whatsapp: '34991472583' });
+    falhas.leituraPorEmailQuebrada.add('users');
+
+    const r = await processarEventoKit(evento());
+
+    expect(r.userId).not.toBe(outra.id);
+    expect(db.entitlements.find((e) => e.user_id === outra.id)).toBeUndefined();
+    expect(db.entitlements.find((e) => e.user_id === dona.id)).toBeUndefined();
+    expect(logs(logWarn)).toContain('leitura da conta por e-mail falhou');
+  });
+});
+
+describe('limites de leitura não escondem a segunda conta', () => {
+  it('contas pendentes com o mesmo telefone não ocupam o teto: as duas reais aparecem e dá conflito', async () => {
+    for (let i = 0; i < 25; i++) semear('users', { email: `pend${i}@x.com`, password_hash: null, whatsapp: '34991472583' });
+    const a = conta({ email: 'real.a@x.com', whatsapp: '34991472583' });
+    const b = conta({ email: 'real.b@x.com', whatsapp: '5534991472583' });
+    const r = await processarEventoKit(evento({ orderId: 'ORDER-PEND' }));
+    expect(r.contaCriada).toBe(true);
+    expect(r.userId).not.toBe(a.id);
+    expect(r.userId).not.toBe(b.id);
+    expect(alertas).toHaveLength(1);
+  });
+
+  it('um usuário com muitas linhas de assinatura não esconde o segundo dono do mesmo CNPJ', async () => {
+    const a = conta({ email: 'a@x.com', whatsapp: null });
+    const b = conta({ email: 'b@x.com', whatsapp: null });
+    for (let i = 0; i < 30; i++) semear('asaas_pix_assinaturas', { status: 'ativo', ultimo_pagamento_id: `p${i}`, user_id: a.id, cpf_cnpj: CNPJ });
+    semear('asaas_pix_assinaturas', { status: 'ativo', ultimo_pagamento_id: 'pb', user_id: b.id, cpf_cnpj: CNPJ });
+    const r = await processarEventoKit(evento({ documento: CNPJ, telefone: null as any, orderId: 'ORDER-MUITAS' }));
+    expect(r.contaCriada).toBe(true);
+    expect(alertas).toHaveLength(1);
+  });
+});
+
+describe('fixo não casa com o celular de outra pessoa', () => {
+  it('comprador com fixo de 10 dígitos não cai na conta cujo celular é o mesmo número com 9 na frente', async () => {
+    conta({ whatsapp: '34934567012' });
+    const r = await processarEventoKit(evento({ telefone: '(34) 3456-7012' }));
+    expect(r.contaCriada).toBe(true);
+  });
+
+  it('variantesDoTelefone: fixo perde as variantes com 9; celular de 8 dígitos começando por 9 mantém as quatro', async () => {
+    const { variantesDoTelefone } = await import('../services/produtos/chaveTelefone');
+    const fixo = variantesDoTelefone('(34) 3456-7012');
+    expect(fixo).toContain('3434567012');
+    expect(fixo).not.toContain('34934567012');
+    expect(fixo).not.toContain('5534934567012');
+    const cel = variantesDoTelefone('(34) 9147-2583');
+    expect(cel).toContain('34991472583');
+    expect(cel).toContain('3491472583');
+  });
+});
+
+describe('conta achada por documento ou telefone: nada irreversível sozinho', () => {
+  it('Pix em dunning numa conta achada pelo telefone NÃO cancela o cartão; só alerta a operação', async () => {
+    cancelarStripe.fn.mockClear();
+    conta({ whatsapp: '34991472583', billing_status: 'past_due' });
+    const r = await processarEventoKit(evento({
+      item: 'mes_pix', produto: 'SolarDoc - 1 mês', valorCentavos: 6700, orderId: 'ORDER-DUN',
+    }));
+    expect(r.contaCriada).toBe(false);
+    expect(cancelarStripe.fn).not.toHaveBeenCalled();
+    expect(alertas.some((a) => a.assunto.includes('cartão não foi cancelado'))).toBe(true);
+  });
+
+  it('Pix em dunning numa conta achada pelo E-MAIL segue cancelando o cartão como sempre', async () => {
+    cancelarStripe.fn.mockClear();
+    conta({ email: EMAIL_DIGITADO, billing_status: 'past_due' });
+    await processarEventoKit(evento({
+      item: 'mes_pix', produto: 'SolarDoc - 1 mês', valorCentavos: 6700, orderId: 'ORDER-DUN-2',
+    }));
+    expect(cancelarStripe.fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('conta achada só pelo telefone gera um alerta de operação, uma vez por pedido', async () => {
+    conta({ whatsapp: '34991472583' });
+    await processarEventoKit(evento({ orderId: 'ORDER-SO-TEL' }));
+    await processarEventoKit(evento({ orderId: 'ORDER-SO-TEL' }));
+    expect(alertas.filter((a) => a.assunto.includes('achada só pelo telefone'))).toHaveLength(1);
   });
 });
 

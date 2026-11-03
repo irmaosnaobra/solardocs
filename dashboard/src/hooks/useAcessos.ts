@@ -41,17 +41,25 @@ let cache: AcessosState | null = null;
 let voando: Promise<AcessosState> | null = null;
 /** Quando o servidor foi perguntado pela última vez (busca inicial ou releitura). Base do intervalo mínimo. */
 let ultimaLeitura = 0;
-/** A última pergunta ao servidor teve resposta boa (lista de produtos de verdade)? Falha de rede não pode apagar o estado bom. */
-let ultimaFoiBoa = true;
+/** Numeração das perguntas ao servidor: resposta mais velha que a última já aplicada é descartada. */
+let ultimaPedida = 0;
+let ultimaAplicada = 0;
 /** Quantas telas estão ouvindo; o ouvinte de foco é um só para todas. */
 let montados = 0;
 /** Intervalo mínimo entre duas perguntas ao servidor motivadas por a aba voltar ao foco. */
 const INTERVALO_MIN_MS = 10_000;
+/**
+ * Depois de voltar ao foco, repete a leitura enquanto nada mudou: o webhook da Kiwify chega alguns segundos
+ * depois do pagamento (no Pix, mais ainda), e quem volta antes disso veria o cadeado até trocar de aba de novo.
+ */
+const REPETICAO_MS = 15_000;
+const REPETICOES_MAX = 8;
+let timerRepeticao: ReturnType<typeof setInterval> | null = null;
 const ouvintes = new Set<(s: AcessosState) => void>();
 
-async function buscar(): Promise<AcessosState> {
+/** `boa` = veio do servidor com a lista de produtos de verdade; falha de rede nunca pode apagar o estado bom. */
+async function buscar(): Promise<{ estado: AcessosState; boa: boolean }> {
   ultimaLeitura = Date.now();
-  ultimaFoiBoa = false;
   // SEM TOKEN, NEM PERGUNTA.
   //
   // A LP pública (/lp/<slug>) monta este hook pra saber se a pessoa já tem o
@@ -65,7 +73,7 @@ async function buscar(): Promise<AcessosState> {
   // sabe sem perguntar ao servidor. A checagem continua sendo do servidor pra
   // quem TEM token, que é onde ela decide alguma coisa.
   if (typeof window !== 'undefined' && !document.cookie.includes('solardoc_token=')) {
-    return { ...INICIAL, carregando: false, produtos: new Set(), origem: {} };
+    return { estado: { ...INICIAL, carregando: false, produtos: new Set(), origem: {} }, boa: false };
   }
   try {
     const { data } = await api.get('/produtos/acessos');
@@ -80,18 +88,18 @@ async function buscar(): Promise<AcessosState> {
       bastidor: !!data.bastidor,
     };
     // Só resposta boa do servidor (com a lista de produtos de verdade) vai para o cache; a falha, que tranca, nunca.
-    if (Array.isArray(data.produtos)) {
-      ultimaFoiBoa = true;
+    const boa = Array.isArray(data.produtos);
+    if (boa) {
       guardarCacheAcessos(idDoToken(Cookies.get('solardoc_token')), {
         produtos: [...estado.produtos], origem: estado.origem, plano: estado.plano,
         assinante: estado.assinante, isAdmin: estado.isAdmin, email: estado.email, bastidor: estado.bastidor,
       });
     }
-    return estado;
+    return { estado, boa };
   } catch {
     // Servidor fora do ar tranca em vez de liberar: errar pro lado do cadeado
     // é recuperável com um F5; errar pro lado de abrir entrega produto de graça.
-    return { ...INICIAL, carregando: false };
+    return { estado: { ...INICIAL, carregando: false }, boa: false };
   }
 }
 
@@ -100,13 +108,27 @@ async function buscar(): Promise<AcessosState> {
  * do celular acorda) mantém o estado anterior em vez de trocá-lo pelo vazio.
  */
 export function recarregarAcessos(soSeBoa = false): void {
+  void reler(soSeBoa);
+}
+
+/** Pergunta de novo ao servidor e aplica a resposta. Devolve true quando a lista de produtos mudou. */
+async function reler(soSeBoa: boolean): Promise<boolean> {
   if (!soSeBoa) cache = null;
   voando = null;
-  buscar().then((s) => {
-    if (soSeBoa && !ultimaFoiBoa) return;
-    cache = s;
-    ouvintes.forEach((fn) => fn(s));
-  });
+  const minha = ++ultimaPedida;
+  const antes = cache ? [...cache.produtos].sort().join('|') : '';
+  const { estado, boa } = await buscar();
+  // Resposta mais velha do que uma já aplicada (duas perguntas ao mesmo tempo): descarta.
+  if (minha < ultimaAplicada) return false;
+  if (soSeBoa && !boa) return false;
+  ultimaAplicada = minha;
+  cache = estado;
+  ouvintes.forEach((fn) => fn(estado));
+  return boa && [...estado.produtos].sort().join('|') !== antes;
+}
+
+function pararRepeticao(): void {
+  if (timerRepeticao) { clearInterval(timerRepeticao); timerRepeticao = null; }
 }
 
 /**
@@ -116,10 +138,19 @@ export function recarregarAcessos(soSeBoa = false): void {
  */
 function aoVoltarAoFoco(): void {
   if (typeof document === 'undefined') return;
-  if (document.visibilityState === 'hidden') return;
+  if (document.visibilityState === 'hidden') { pararRepeticao(); return; }
   if (!document.cookie.includes('solardoc_token=')) return;
   if (Date.now() - ultimaLeitura < INTERVALO_MIN_MS) return;
-  recarregarAcessos(true);
+  pararRepeticao();
+  void reler(true).then((mudou) => {
+    if (mudou) return;
+    let vezes = 0;
+    timerRepeticao = setInterval(() => {
+      vezes += 1;
+      if (vezes > REPETICOES_MAX || document.visibilityState === 'hidden') { pararRepeticao(); return; }
+      void reler(true).then((m) => { if (m) pararRepeticao(); });
+    }, REPETICAO_MS);
+  });
 }
 
 /**
@@ -148,7 +179,7 @@ export function useAcessos(): AcessosState & { tem: (produto: string) => boolean
     ouvintes.add(setEstado);
     if (cache) setEstado(cache);
     else {
-      voando = voando || buscar();
+      voando = voando || buscar().then((r) => r.estado);
       voando.then((s) => { cache = s; setEstado(s); });
     }
     return () => { ouvintes.delete(setEstado); };
@@ -163,6 +194,7 @@ export function useAcessos(): AcessosState & { tem: (produto: string) => boolean
     return () => {
       montados -= 1;
       if (montados === 0) {
+        pararRepeticao();
         document.removeEventListener('visibilitychange', aoVoltarAoFoco);
         window.removeEventListener('focus', aoVoltarAoFoco);
       }

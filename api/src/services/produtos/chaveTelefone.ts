@@ -41,7 +41,12 @@ export function variantesDoTelefone(telefone: string | null | undefined): string
   if (!telefoneServeDeChave(telefone)) return [];
   const chave = chaveDoContato(telefone);
   if (!chave) return [];
-  const base = variantesDaChave(chave);
+  let base = variantesDaChave(chave);
+  // Fixo (os 8 últimos começam de 2 a 5): a variante com o 9 na frente seria o CELULAR de outra pessoa
+  // (celular começa por 6 a 9 depois do 9), então o casamento por telefone não a procura.
+  if (/^[2-5]/.test(chave.slice(2))) {
+    base = base.filter((v) => (v.startsWith('55') && v.length >= 12 ? v.slice(2) : v).length !== 11);
+  }
   // Algumas linhas guardam o número com "+" na frente (+5534999990000).
   return [...base, ...base.filter((v) => v.startsWith('55')).map((v) => `+${v}`)];
 }

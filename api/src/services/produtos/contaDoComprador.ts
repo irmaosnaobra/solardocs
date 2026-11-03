@@ -57,7 +57,9 @@ export interface ConflitoDeConta {
 export type BuscaDeConta =
   | { tipo: 'achou'; conta: ContaAchada }
   | { tipo: 'conflito'; conflito: ConflitoDeConta }
-  | { tipo: 'nenhuma' };
+  | { tipo: 'nenhuma' }
+  /** A leitura por e-mail falhou: sem saber se a conta do e-mail existe, não se tenta documento nem telefone. */
+  | { tipo: 'erro' };
 
 type LinhaConta = { id: string; email: string | null; password_hash: string | null };
 
@@ -79,14 +81,20 @@ export function documentoDoComprador(comprador: unknown): string | null {
   return null;
 }
 
-/** Status de asaas_pix_assinaturas que provam que o documento é de quem tem a conta (checkout nunca pago não prova). */
-const STATUS_QUE_PROVAM = ['ativo', 'inadimplente', 'cancelado'];
+/**
+ * Teto de linhas lidas por documento. Um mesmo user_id pode ter várias linhas em asaas_pix_assinaturas, então o
+ * teto é folgado; se for batido, a leitura é incompleta e a chave vira conflito em vez de chute.
+ */
+const TETO_POR_DOCUMENTO = 200;
 
-async function usuariosDoDocumento(documento: string | null | undefined): Promise<Map<string, LinhaConta>> {
+async function usuariosDoDocumento(
+  documento: string | null | undefined,
+): Promise<{ contas: Map<string, LinhaConta>; truncado: boolean }> {
   const d = documentoSoDigitos(documento);
   const ids = new Set<string>();
   const contas = new Map<string, LinhaConta>();
-  if (!d) return contas;
+  let truncado = false;
+  if (!d) return { contas, truncado };
   const formas = formasDoDocumento(d);
 
   // company.cnpj só tem CNPJ; asaas_pix_assinaturas.cpf_cnpj tem os dois.
@@ -97,27 +105,31 @@ async function usuariosDoDocumento(documento: string | null | undefined): Promis
   await Promise.all(fontes.map(async ([tabela, coluna]) => {
     try {
       let consulta = supabase.from(tabela).select('user_id').in(coluna, formas);
-      if (tabela === 'asaas_pix_assinaturas') consulta = consulta.in('status', STATUS_QUE_PROVAM);
-      const { data, error } = await consulta.limit(20);
+      // Só prova o documento a assinatura em que um pagamento foi creditado: `ultimo_pagamento_id` só é
+      // preenchido assim (NOT NULL DEFAULT ''). O status não serve: 'cancelado' também cobre checkout nunca pago.
+      if (tabela === 'asaas_pix_assinaturas') consulta = consulta.neq('ultimo_pagamento_id', '');
+      const { data, error } = await consulta.limit(TETO_POR_DOCUMENTO);
       if (error) {
         console.warn(`[kit] busca de conta por documento em ${tabela}.${coluna} falhou (segue sem essa chave):`, error.message);
         return;
       }
-      for (const r of (data ?? []) as Array<{ user_id?: string | null }>) {
+      const linhas = (data ?? []) as Array<{ user_id?: string | null }>;
+      if (linhas.length >= TETO_POR_DOCUMENTO) truncado = true;
+      for (const r of linhas) {
         if (r.user_id) ids.add(String(r.user_id));
       }
     } catch (err) {
       console.warn(`[kit] busca de conta por documento em ${tabela}.${coluna} lançou (segue sem essa chave):`, err);
     }
   }));
-  if (!ids.size) return contas;
+  if (!ids.size) return { contas, truncado };
 
   // Conta pendente (sem senha, criada por uma compra anterior) nunca é candidata: ninguém entra nela.
   try {
     const { data, error } = await supabase.from('users').select('id, email, password_hash').in('id', [...ids]);
     if (error) {
       console.warn('[kit] leitura das contas do documento falhou (segue sem essa chave):', error.message);
-      return contas;
+      return { contas, truncado };
     }
     for (const r of (data ?? []) as LinhaConta[]) {
       if (r.password_hash !== null && r.password_hash !== undefined) contas.set(String(r.id), r);
@@ -125,7 +137,7 @@ async function usuariosDoDocumento(documento: string | null | undefined): Promis
   } catch (err) {
     console.warn('[kit] leitura das contas do documento lançou (segue sem essa chave):', err);
   }
-  return contas;
+  return { contas, truncado };
 }
 
 async function contasDoTelefone(telefone: string | null | undefined): Promise<LinhaConta[]> {
@@ -133,7 +145,9 @@ async function contasDoTelefone(telefone: string | null | undefined): Promise<Li
   if (!variantes.length) return [];
   try {
     const { data, error } = await supabase
-      .from('users').select('id, email, password_hash').in('whatsapp', variantes).limit(20);
+      .from('users').select('id, email, password_hash').in('whatsapp', variantes)
+      // A pendente (sem senha) não é candidata: filtrar na consulta evita que ela ocupe o teto e esconda a conta real.
+      .not('password_hash', 'is', null).limit(20);
     if (error) {
       console.warn('[kit] busca de conta por telefone falhou (segue sem essa chave):', error.message);
       return [];
@@ -156,8 +170,14 @@ export async function acharContaDoComprador(opts: {
   documento?: string | null;
 }): Promise<BuscaDeConta> {
   // 1) E-mail: a regra de sempre.
-  const { data: existente } = await supabase
+  const { data: existente, error: erroEmail } = await supabase
     .from('users').select('id, email, password_hash').eq('email', opts.email).maybeSingle();
+  if (erroEmail) {
+    // Sem saber se a conta do e-mail digitado existe, documento e telefone podem apontar para OUTRA conta e
+    // entregar a ela uma compra que é da primeira. Quem chama segue o caminho antigo (insert, 23505, releitura).
+    console.warn('[kit] leitura da conta por e-mail falhou (não tenta documento nem telefone):', erroEmail.message);
+    return { tipo: 'erro' };
+  }
   if (existente?.id) {
     return {
       tipo: 'achou',
@@ -171,7 +191,7 @@ export async function acharContaDoComprador(opts: {
   }
 
   // 2) Documento e 3) telefone.
-  const [porDocumento, contasTel] = await Promise.all([
+  const [{ contas: porDocumento, truncado }, contasTel] = await Promise.all([
     usuariosDoDocumento(opts.documento),
     contasDoTelefone(opts.telefone),
   ]);
@@ -184,7 +204,7 @@ export async function acharContaDoComprador(opts: {
 
   // Uma chave que acha MAIS DE UMA conta (CNPJ de empresa com vários logins, WhatsApp de equipe) é conflito,
   // mesmo que a outra chave aponte para uma delas: nunca se pega "a primeira linha".
-  const ambiguo = conjuntos.some((s) => s.size > 1);
+  const ambiguo = truncado || conjuntos.some((s) => s.size > 1);
   const comuns = ambiguo ? [] : [...conjuntos[0]].filter((id) => conjuntos.every((s) => s.has(id)));
   if (comuns.length === 1) {
     const id = comuns[0];
@@ -204,7 +224,7 @@ export async function acharContaDoComprador(opts: {
 
   const motivo: ConflitoDeConta['motivo'] =
     idsDoc.size > 1 && porTelefone.size > 1 ? 'documento_e_telefone_ambiguos'
-      : idsDoc.size > 1 ? 'documento_ambiguo'
+      : (idsDoc.size > 1 || truncado) ? 'documento_ambiguo'
       : porTelefone.size > 1 ? 'telefone_ambiguo'
       : 'documento_e_telefone_divergem';
   return {
