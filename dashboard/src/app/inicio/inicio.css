@@ -1,99 +1,116 @@
-/* Tela de atalho (launcher): fundo branco, vestida com a marca do assinante.
-   As cores chegam como variáveis na raiz (.ini-page), já validadas e com contraste conferido em
+/* Tela de atalho (launcher): fundo cinza claro, vestida com a marca do assinante.
+   O desenho segue a referência (Main.dc.html): medidas, raios, pesos e cinzas neutros vêm dela.
+   As cores da marca chegam como variáveis na raiz (.ini-page), já validadas e com contraste conferido em
    utils/corMarca.ts. Os valores abaixo são o padrão SolarDoc (laranja #F26513): é o que vale
    sem empresa, sem cor ou com cor inválida, e são o que paletaDaMarca(null, null) calcula. */
 .ini-page {
-  --ini-cor: #F26513;                       /* principal: faixa e blocos */
+  --ini-cor: #F26513;                       /* principal: faixa e cartões grandes */
   --ini-sobre: #111111;                     /* texto e ícone sobre a principal (>= 4,5:1) */
-  --ini-pressionada: #d4530f;               /* fundo do bloco apertado */
-  --ini-icone: #F26513;                     /* seta e ícone da loja sobre o branco (>= 3:1) */
-  --ini-marca-texto: #c65310;               /* iniciais sobre o branco (>= 4,5:1) */
-  --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra dos blocos */
-  --ini-titulo: #9d420c;                    /* título dos grupos (>= 4,5:1) */
-  --ini-anel: #9d420c;                      /* anel de foco (>= 3:1) */
-  --ini-borda: none;                        /* contorno do bloco: só a marca quase branca ganha (ver paletaDaMarca) */
-  --ini-borda-w: 0px;                       /* espessura dele, descontada do padding do bloco */
+  --ini-pressionada: #d4530f;               /* fundo do cartão apertado */
+  --ini-escura: #c65310;                    /* cor escura da marca sobre o BRANCO: ícones, iniciais, Liberar e Abrir (>= 4,5:1) */
+  --ini-escura-pagina: #ba4e0f;             /* a mesma, recalculada para o cinza da página: "Ver todos" (>= 4,5:1) */
+  --ini-tinta: rgba(242, 101, 19, 0.12);    /* a marca a 12%: fundo do quadrado dos ícones */
+  --ini-chip: rgba(255, 255, 255, 0.4);     /* quadrado translúcido dos cartões grandes */
+  --ini-sombra: rgba(242, 101, 19, 0.28);   /* sombra do cartão de cadastro */
+  --ini-titulo: #9d420c;                    /* link do cartão da marca (>= 4,5:1 sobre o branco) */
+  --ini-anel: #9d420c;                      /* anel de foco (>= 3:1 sobre o cinza da página) */
+  --ini-borda: none;                        /* contorno do cartão grande: só a marca quase branca ganha (ver paletaDaMarca) */
+  --ini-borda-w: 0px;                       /* espessura dele, descontada do padding do cartão */
+
+  /* Neutros da referência */
+  --ini-fundo: #F4F5F7;
+  --ini-texto: #1B2433;
+  --ini-cinza: #5B6472;                     /* títulos das seções, linhas de apoio e rodapé (>= 4,5:1 sobre o cinza e o branco) */
+  --ini-seta-cor: #8A93A0;                  /* setas das linhas (>= 3:1 sobre o branco) */
+  --ini-divisor: #EEF0F3;
+  --ini-contorno: #E3E7ED;
+  --ini-sombra-cartao: 0 1px 2px rgba(16, 24, 40, 0.06);
 
   min-height: 100vh;
   min-height: 100dvh;
-  background: #ffffff;
-  color: #111111;
+  background: var(--ini-fundo);
+  color: var(--ini-texto);
+  /* A referência não define altura de linha onde não precisa ("normal"); o body do app herda 1,6, que alongaria
+     títulos, selos e linhas de apoio em 1 a 3 px cada. Quem tem altura própria abaixo a mantém. */
+  line-height: normal;
   display: flex;
   flex-direction: column;
 }
 
-/* Faixa do topo: a cor principal da empresa, até as bordas. Ela passa por baixo da barra do
-   navegador, que na /inicio vira a mesma cor (meta theme-color). */
+/* Faixa do topo: a cor principal da empresa, até as bordas, com a quina de baixo arredondada. Ela passa por
+   baixo da barra do navegador, que na /inicio vira a mesma cor (meta theme-color). */
 .ini-faixa {
   background: var(--ini-cor);
   color: var(--ini-sobre);
-  padding: calc(14px + env(safe-area-inset-top)) 16px 16px;
+  padding: calc(22px + env(safe-area-inset-top)) 16px 22px;
+  border-radius: 0 0 24px 24px;
 }
 .ini-faixaInterna { display: flex; align-items: center; gap: 12px; }
 
-/* Logo da empresa num quadrado branco arredondado de 44 px de altura. A logo quadrada ocupa 36 px e o
-   quadrado fica em 44 px. A larga (3 por 1, 4 por 1) abre o quadrado para os lados, até 88 px, porque
-   dentro de 36 px ela ficaria com uns 12 px de altura e não se lê. */
+/* Logo da empresa num quadrado branco arredondado de 48 px de altura. A logo quadrada ocupa 40 px e o
+   quadrado fica em 48 por 48. A larga (3 por 1, 4 por 1) abre o quadrado para os lados, até 88 px, porque
+   dentro de 40 px ela ficaria com uns 13 px de altura e não se lê. */
 .ini-logo {
   flex: none;
-  min-width: 44px; max-width: 88px; height: 44px;
-  border-radius: 12px;
+  min-width: 48px; max-width: 88px; height: 48px;
+  border-radius: 14px;
   background: #ffffff;
   padding: 4px;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
-.ini-logo img { display: block; width: auto; height: 36px; max-width: 80px; object-fit: contain; }
-.ini-logoSvg { width: 32px; height: 32px; }
+.ini-logo img { display: block; width: auto; height: 40px; max-width: 80px; object-fit: contain; }
+.ini-logoSvg { width: 36px; height: 36px; }
 /* Celular de 320 px: a logo larga abre menos, para o nome da empresa não ficar com uns 50 px de largura. */
 @media (max-width: 340px) {
   .ini-logo { max-width: 64px; }
   .ini-logo img { max-width: 56px; }
 }
-/* Sem logo: círculo com as iniciais da empresa. */
+/* Sem logo: quadrado branco com as iniciais da empresa, na cor escura da marca. */
 .ini-iniciais {
   flex: none;
-  width: 44px; height: 44px;
-  border-radius: 50%;
+  width: 48px; height: 48px;
+  border-radius: 14px;
   background: #ffffff;
-  color: var(--ini-marca-texto);
-  font-size: 16px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--ini-escura);
+  font-size: 17px; font-weight: 800; letter-spacing: 0.02em;
   display: flex; align-items: center; justify-content: center;
 }
 
 .ini-quem { flex: 1; min-width: 0; }
+/* O nome quebra nos espaços e ocupa até 2 linhas. Só um nome sem nenhum espaço, mais largo que a coluna,
+   quebra no meio da palavra: é o último recurso para ele não invadir o botão Plataforma. */
 .ini-empresa {
   margin: 0;
-  font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em;
+  font-size: 17px; font-weight: 800; line-height: 1.2;
   color: var(--ini-sobre);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 /* A linha reserva a altura mesmo antes de a conta responder: a faixa não pula. */
-.ini-ola { margin: 2px 0 0; min-height: 1.35em; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ini-sobre); }
+.ini-ola { margin: 2px 0 0; min-height: 1.3em; font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--ini-sobre); }
 
 .ini-plataforma {
   flex: none;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: 42px;
-  padding: 0 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 44px;
+  padding: 0 14px;
   border: 1.5px solid currentColor;
-  border-radius: 999px;
+  border-radius: 12px;
   color: var(--ini-sobre);
-  font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap;
+  font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
 .ini-plataforma:active { transform: scale(0.96); }
 
-/* Corpo: coluna estreita, centralizada nas telas maiores (raro aqui, pois o PC redireciona). Como na tela de
-   antes, até 519 px ela ocupa a largura toda (menos o padding de 16 px) e de 520 px em diante a grade fica com
-   460 px, centralizada. O max-width inclui o padding, por isso 492 (460 mais 32): os blocos têm o mesmo tamanho
-   de sempre em qualquer largura. */
+/* Corpo: coluna estreita, centralizada nas telas maiores (raro aqui, pois o PC redireciona). Até 519 px ela ocupa a
+   largura toda (menos o padding de 16 px) e de 520 px em diante fica com 460 px, centralizada. O max-width inclui o
+   padding, por isso 492 (460 mais 32). */
 .ini-corpo {
   flex: 1;
   width: 100%;
   margin: 0 auto;
-  padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+  padding: 0 16px calc(24px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column;
 }
 .ini-corpo > main { padding-top: 16px; }
@@ -102,109 +119,186 @@
   .ini-faixaInterna { max-width: 460px; margin: 0 auto; width: 100%; }
 }
 
-/* Os dois blocos de cima (Nova proposta, Ler conta de luz) são o mesmo bloco da grade (.ini-tile),
-   só que em 2 colunas: ficam mais largos e não ganham estilo nenhum. A folga de baixo, de 12 px,
-   vence a margem de 6 px da grade que vem depois e dá o mesmo vão das linhas da grade. */
-.ini-destaques { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
+/* Listas: o <ul> entra só pela semântica, sem marcador e sem margem. */
+.ini-lista { list-style: none; margin: 0; padding: 0; }
 
-/* Grade de atalhos: três colunas iguais em qualquer largura, blocos cheios na cor da marca com o nome. Com
-   "minmax(0, 1fr)" a coluna nunca cresce para caber a palavra mais longa: a grade ocupa sempre a largura do corpo
-   e todas as grades (a principal, Papelada, Mais documentos, Para liberar) ficam com as mesmas colunas,
-   alinhadas de uma para a outra. Com "1fr" a coluna crescia até caber Precificação ou Manutenção, cada grade de
-   um jeito, e a soma passava da tela (a 320 px, a coluna da direita saía cortada em uns 10 px).
-   O bloco mede (largura da tela menos 56) / 3 px. A palavra mais longa, Manutenção (92,5 px na Nunito Sans 800
-   a 16 px), cabe dentro do bloco de 334 px de tela em diante e dentro do texto do bloco, sem invadir o padding
-   de 8 px, de 382 px em diante, onde a grade é a de sempre. Abaixo de 334 px ela passa da borda do bloco: a
-   320 px, onde o bloco mede 88 px, Manutenção passa 2,3 px e Precificação (90,4 px) passa 1,2 px de cada lado,
-   para o vão ou a margem da tela. Fica assim de propósito: sem rolagem lateral, sem quebrar a palavra no meio
-   e sem diminuir a fonte, para o layout ser o de hoje. */
-.ini-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 6px;
-}
-.ini-grid[hidden] { display: none; }
-/* O bloco é o de sempre: cheio, na cor principal, com texto e ícone na cor de contraste. */
-.ini-tile {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px;
-  min-height: 108px;               /* cresce conforme o texto (labels de 2+ palavras usam mais linhas) */
-  /* 12 px em cima e embaixo, 8 px dos lados, menos a espessura do contorno (0 sem ele): o bloco da marca quase
-     branca fica do mesmo tamanho por dentro e o texto quebra onde sempre quebrou. */
-  padding: calc(12px - var(--ini-borda-w, 0px)) calc(8px - var(--ini-borda-w, 0px));
-  border-radius: 20px;
-  text-decoration: none;
-  background: var(--ini-cor);
-  /* Sem borda, como sempre. Só a marca quase branca (contraste sobre o branco abaixo de
-     CONTRASTE_MARCA_QUASE_BRANCA, em utils/corMarca.ts) ganha 1 px de contorno, para o bloco não sumir no fundo
-     branco: a variável vem de variaveis() em page.tsx. */
+/* As duas ações principais: cartões grandes na cor da marca, lado a lado. */
+.ini-acoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ini-acao {
+  box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  min-height: 132px;
+  /* 16 px por dentro, menos a espessura do contorno (0 sem ele): o cartão da marca quase branca fica do mesmo
+     tamanho por dentro e o texto quebra onde sempre quebrou. */
+  padding: calc(16px - var(--ini-borda-w, 0px));
   border: var(--ini-borda, none);
-  box-shadow: 0 4px 14px var(--ini-sombra);
+  border-radius: 18px;
+  background: var(--ini-cor);
+  color: var(--ini-sobre);
+  text-decoration: none;
   transition: transform 0.12s ease, background 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.ini-tile:active { transform: scale(0.95); background: var(--ini-pressionada); }
-/* Ícone pequeno acima do nome, na cor de contraste */
-.ini-tileIcon { display: flex; align-items: center; justify-content: center; color: var(--ini-sobre); }
-/* Fonte de 16 px em qualquer largura; quebra em várias linhas só nos espaços (nomes com 2+ palavras). Uma palavra
-   sozinha nunca é quebrada no meio nem encolhida. Se ela for mais larga que o bloco (Precificação e Manutenção em
-   320 px, ver .ini-grid), passa da borda dele em 1 a 2 px, para o vão ou a margem da tela. */
-.ini-tileLabel { font-size: 16px; font-weight: 800; line-height: 1.25; color: var(--ini-sobre); }
-/* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
-.ini-semQuebra { white-space: nowrap; }
-/* Cadeado e selo "Novo" ficam dentro do bloco cheio, no canto de cima à direita, na cor de contraste
-   (>= 4,5:1 sobre a principal), sem sombra e sem filtro. Nenhum dos dois cobre o ícone: o cadeado fica
-   ao lado dele e o selo acima (o ícone começa a 19 px do topo ou mais, no bloco de 2 linhas). */
-.ini-tileLock { position: absolute; top: 9px; right: 9px; color: var(--ini-sobre); }
-.ini-tileBadge {
-  position: absolute; top: 5px; right: 8px;
-  padding: 0 5px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  color: var(--ini-sobre);
-  font-size: 10px; font-weight: 800; line-height: 1.1; letter-spacing: 0.02em;
+.ini-acao:active { transform: scale(0.97); background: var(--ini-pressionada); }
+.ini-acaoIcone {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: var(--ini-chip);
+  display: flex; align-items: center; justify-content: center;
+}
+.ini-acaoTextos { display: flex; flex-direction: column; gap: 3px; }
+.ini-acaoNome { font-size: 17px; font-weight: 800; line-height: 1.2; }
+.ini-acaoApoio { font-size: 13px; font-weight: 600; line-height: 1.35; }
+
+/* Cada seção: título em cinza neutro, em maiúsculas, e o conteúdo logo abaixo. */
+.ini-secao { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.ini-secaoRecentes { gap: 8px; }
+.ini-secaoTopo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ini-titulo {
+  margin: 0;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ini-cinza);
+}
+/* "Ver todos": a cor escura da marca recalculada para o cinza da página, com 44 px de altura de toque. */
+.ini-verTodos {
+  display: inline-flex; align-items: center;
+  min-height: 44px;
+  font-size: 14px; font-weight: 700;
+  color: var(--ini-escura-pagina);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Título dos grupos: na cor secundária (ou numa versão mais escura da principal) */
-.ini-grupo {
-  margin: 24px 2px 0;
-  font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--ini-titulo);
-}
-
-/* "Mais documentos": abre e fecha */
-.ini-mais {
-  width: 100%;
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin-top: 12px;
-  min-height: 48px;
-  padding: 0 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
+/* Cartão branco que guarda uma lista de linhas (Recentes e Papelada). O overflow esconde só o fundo da linha
+   apertada nas quinas; a sombra do cartão fica por fora. */
+.ini-cartaoLista {
   background: #ffffff;
-  color: #111111;
-  font: inherit; font-size: 14px; font-weight: 800;
-  text-align: left;
+  border-radius: 16px;
+  box-shadow: var(--ini-sombra-cartao);
+  overflow: hidden;
+}
+.ini-linhas > li + li { border-top: 1px solid var(--ini-divisor); }
+.ini-linhasMais { border-top: 1px solid var(--ini-divisor); }
+.ini-linhasMais[hidden] { display: none; }
+.ini-linha {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 14px;
+  display: flex; align-items: center; gap: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left; text-decoration: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.ini-seta { flex: none; color: var(--ini-icone); transition: transform 0.15s ease; }
+.ini-linha:active { background: var(--ini-fundo); }
+.ini-linhaIcone { flex: none; display: flex; color: var(--ini-escura); }
+.ini-linhaTextos { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ini-linhaNome { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
+.ini-linhaTextos > .ini-linhaNome { flex: none; }
+.ini-linhaApoio { font-size: 13px; font-weight: 400; color: var(--ini-cinza); overflow-wrap: break-word; }
+.ini-chevron { flex: none; color: var(--ini-seta-cor); }
+.ini-seta { transition: transform 0.15s ease; }
 .ini-setaAberta { transform: rotate(180deg); }
+/* A linha de "Mais documentos" tem duas linhas de texto quando fechada. */
+.ini-linhaMais { min-height: 60px; padding-top: 10px; padding-bottom: 10px; }
+/* Os recentes: um pouco mais altos, com o quadrado do tipo à esquerda. */
+.ini-recente { min-height: 64px; padding-top: 12px; padding-bottom: 12px; }
+/* Enquanto o PDF abre, a seta dá lugar a um giro pequeno. */
+.ini-giro {
+  flex: none;
+  width: 18px; height: 18px;
+  border: 2.5px solid var(--ini-divisor); border-top-color: var(--ini-escura);
+  border-radius: 50%;
+  animation: ini-rot 0.8s linear infinite;
+}
 
-/* "Ver todos os produtos" */
-.ini-loja {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  margin-top: 12px;
-  min-height: 48px;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
+/* Quadrado do ícone nas linhas dos Recentes e nos cartões do Para liberar: a marca a 12% e o ícone escuro. */
+.ini-chip {
+  flex: none;
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  background: var(--ini-tinta);
+  color: var(--ini-escura);
+  display: flex; align-items: center; justify-content: center;
+}
+/* Produto travado: o quadrado e o ícone ficam cinza. */
+.ini-chipCinza { background: #EEF0F3; color: #4A5361; }
+
+/* Ferramentas: grade de três colunas iguais em qualquer largura, blocos brancos com o nome. Com "minmax(0, 1fr)" a
+   coluna nunca cresce para caber a palavra mais longa: a grade ocupa sempre a largura do corpo. A palavra mais longa
+   (Manutenção, Precificação) pode passar 1 a 2 px do texto do bloco a 320 px, para dentro do padding, sem rolagem
+   lateral, sem quebrar no meio e sem esconder nada. */
+.ini-ferramentas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ini-ferramentas > li { display: flex; }
+.ini-ferramenta {
+  position: relative;
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px;
+  min-height: 100px;               /* cresce conforme o texto (nomes de 2 palavras usam mais linhas) */
+  padding: 14px 6px 12px;
+  text-align: center;
   background: #ffffff;
-  color: #111111;
-  font-size: 14px; font-weight: 800; text-decoration: none;
+  border-radius: 16px;
+  box-shadow: var(--ini-sombra-cartao);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.ini-loja svg { color: var(--ini-icone); }
+.ini-ferramenta:active { transform: scale(0.97); }
+.ini-ferramentaIcone {
+  width: 42px; height: 42px;
+  border-radius: 13px;
+  background: var(--ini-tinta);
+  color: var(--ini-escura);
+  display: flex; align-items: center; justify-content: center;
+}
+/* Quebra só nos espaços (nomes com 2+ palavras). Uma palavra sozinha nunca é quebrada no meio nem encolhida. */
+.ini-ferramentaNome { font-size: 14px; font-weight: 700; line-height: 1.25; overflow-wrap: normal; word-break: normal; hyphens: manual; }
+/* Palavra com hífen (Kit Off-Grid) quebra no espaço, não no hífen. */
+.ini-semQuebra { white-space: nowrap; }
+.ini-selo {
+  position: absolute; top: 8px; right: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #E6F0FB; color: #0B5BB5;
+  font-size: 11px; font-weight: 800;
+}
+
+/* Para liberar: vitrine que rola para o lado, de ponta a ponta da tela. Só ela rola: o corpo da página não. A folga
+   do fim vem da margem do último cartão, porque o padding do fim de um contêiner que rola nem sempre conta. */
+.ini-vitrine {
+  margin: 0 -16px; padding: 0 0 6px 16px;
+  display: flex; gap: 10px;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-padding-left: 16px;
+  scrollbar-width: none;
+}
+.ini-vitrine::-webkit-scrollbar { display: none; }
+.ini-vitrine > li { flex: 0 0 140px; display: flex; }
+.ini-vitrine > li:last-child { margin-right: 16px; }
+.ini-liberar {
+  position: relative;
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box;
+  min-height: 118px;
+  padding: 14px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
+  background: #ffffff;
+  border: 1px solid var(--ini-contorno);
+  border-radius: 16px;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ini-liberar:active { background: var(--ini-fundo); }
+.ini-liberarCadeado { position: absolute; top: 12px; right: 12px; color: var(--ini-cinza); }
+.ini-liberarTextos { display: flex; flex-direction: column; gap: 2px; }
+.ini-liberarNome { font-size: 14px; font-weight: 700; line-height: 1.25; }
+.ini-liberarAcao { font-size: 13px; font-weight: 700; color: var(--ini-escura); }
 
 /* Anel de foco na cor secundária */
 .ini-page a:focus-visible,
@@ -212,6 +306,10 @@
   outline: 3px solid var(--ini-anel);
   outline-offset: 2px;
 }
+/* Linhas e cartões dentro de um cartão que corta (ou de uma vitrine que rola) levam o anel para dentro, senão
+   a borda do contêiner o esconderia. */
+.ini-page .ini-linha:focus-visible { outline-offset: -3px; }
+.ini-page .ini-liberar:focus-visible { outline-offset: -4px; }
 /* Na faixa colorida o anel da secundária pode sumir: nada garante o contraste dela contra a principal
    (deu 2,07:1 no laranja). Ali o anel usa a cor do texto da faixa, que passa de 4,5:1 sobre ela. */
 .ini-page .ini-faixa a:focus-visible,
@@ -219,7 +317,7 @@
   outline-color: var(--ini-sobre);
 }
 
-/* Cartões de convite */
+/* Cartões de convite (cadastro e personalizar). */
 .ini-cartao {
   margin-top: 24px;
   padding: 18px 16px;
@@ -241,7 +339,7 @@
   font-size: 15px; font-weight: 800; text-decoration: none;
 }
 .ini-botao:active { filter: brightness(0.92); }
-/* Empresa sem logo ou sem cor: um convite discreto, abaixo dos blocos */
+/* Empresa sem logo ou sem cor: um convite discreto, no fim da tela, antes do rodapé */
 .ini-cartaoMarca {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 14px 16px;
@@ -259,24 +357,24 @@
 }
 
 /* Rodapé */
-.ini-rodape { margin-top: auto; padding-top: 28px; text-align: center; font-size: 11px; line-height: 1.4; color: #6b7280; }
+.ini-rodape { margin-top: auto; padding-top: 28px; text-align: center; font-size: 12px; font-weight: 600; color: var(--ini-cinza); }
 
 /* Loading */
-.ini-loading { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: #ffffff; }
+.ini-loading { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: #F4F5F7; }
 .ini-spin { width: 30px; height: 30px; border: 3px solid #f0e2d8; border-top-color: #F26513; border-radius: 50%; animation: ini-rot 0.8s linear infinite; }
 @keyframes ini-rot { to { transform: rotate(360deg); } }
 
-/* Banner do Portal NEXUS: a tela é clara, o banner herda os tokens escuros da plataforma. */
+/* Convite da NEXUS: a tela é clara, o banner herda os tokens escuros da plataforma. O espaço de 20 px em cima
+   fica no próprio banner (e não neste contêiner), para que sem convite não sobre um vão vazio. */
 .ini-nexus {
   --color-surface: #ffffff;
   --color-border: #e5e5e5;
   --color-text: #111111;
   --color-text-muted: #555555;
   --sombra-card: none;
-  margin-top: 14px;
 }
-.ini-nexus > [role="region"] { margin-bottom: 0; }
+.ini-nexus > [role="region"] { margin: 20px 0 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ini-tile, .ini-seta, .ini-plataforma { transition: none; }
+  .ini-acao, .ini-ferramenta, .ini-seta, .ini-plataforma { transition: none; }
 }

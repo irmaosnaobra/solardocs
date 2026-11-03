@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, ChevronDown, LayoutGrid, Lock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Files, Lock } from 'lucide-react';
 import { isAuthenticated } from '@/services/auth';
 import api from '@/services/api';
 import { useAcessos } from '@/hooks/useAcessos';
@@ -15,19 +15,31 @@ import {
   novaPropostaItem, lerContaItem, lojaItem, nexusItem, papeladaItems, outrosDocsItems,
   hrefVendaDoProduto, organizarMenu, type ItemMenu,
 } from '@/components/Sidebar/itensMenu';
-import { paletaDaMarca, type PaletaMarca } from '@/utils/corMarca';
+import { comAlfa, escurecerAteContraste, paletaDaMarca, type PaletaMarca } from '@/utils/corMarca';
+import Recentes, { useRecentes } from './Recentes';
 import './inicio.css';
 
-// ── Tela de atalho (launcher) — SÓ no celular ──────────────────────────────────
-// Abre quando o app abre (start_url do PWA). No PC redireciona pra plataforma
-// normal (comportamento inalterado). Mostra os MESMOS itens do menu lateral (as
-// definições moram em Sidebar/itensMenu.ts) e veste o app com a marca do assinante:
-// a cor e a logo que ele escolheu na tela Empresa. O menu lateral NÃO pega a cor.
+// Tela de atalho (launcher), SÓ no celular.
+// Abre quando o app abre (start_url do PWA). No PC redireciona pra plataforma normal
+// (comportamento inalterado). De cima para baixo: a faixa da marca, as duas ações principais, os Recentes,
+// o convite da NEXUS, as Ferramentas, a Papelada em lista, a vitrine do Para liberar e o rodapé. Os itens
+// são os MESMOS do menu lateral (as definições moram em Sidebar/itensMenu.ts) e a tela se veste com a marca
+// do assinante: a cor e a logo que ele escolheu na tela Empresa. O menu lateral NÃO pega a cor.
 // Dá pra intercalar: "Plataforma" entra no app; o botão de grade no topo do app
 // (mobileHeader) volta pra cá.
 
 // Entrada padrão da plataforma (o Gerador é o carro-chefe).
 const PLATAFORMA = '/documentos?tipo=proposta';
+
+// O cinza do fundo da tela. É o mesmo valor de --ini-fundo no inicio.css: aqui ele serve para recalcular a cor
+// dos textos que ficam direto sobre ele.
+const FUNDO_PAGINA = '#F4F5F7';
+
+// A linha de apoio dos dois cartões grandes.
+const APOIO_DA_ACAO: Record<string, string> = {
+  'nova-proposta': 'Monte e envie em minutos',
+  'ler-conta': 'Tire uma foto da conta',
+};
 
 interface DadosEmpresa {
   /** Tem CNPJ: o mesmo critério do layout do app (`hasCompany`). Sem CNPJ, o app é o da SolarDoc. */
@@ -79,11 +91,17 @@ function rotulo(texto: string) {
   ));
 }
 
+/** "A, B e C": os nomes dos documentos dobrados em "Mais documentos", lidos da própria lista do menu. */
+function listaPt(nomes: string[]): string {
+  if (nomes.length <= 1) return nomes.join('');
+  return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
+}
+
 function primeiroNome(nome: unknown): string | null {
   return texto(nome).split(/\s+/)[0] || null;
 }
 
-/** Duas letras para o círculo da empresa sem logo: "Sol Forte Energia" vira "SF"; "Sunlight" vira "SU". */
+/** Duas letras para o quadrado da empresa sem logo: "Sol Forte Energia" vira "SF"; "Sunlight" vira "SU". */
 function iniciais(nome: string): string {
   const letra = (p: string) => (p.match(/[0-9A-Za-zÀ-ɏ]/) || [''])[0];
   const palavras = nome.split(/\s+/).filter((p) => letra(p));
@@ -97,17 +115,27 @@ function iniciais(nome: string): string {
 
 /** Cada cor entra como variável CSS já validada (paletaDaMarca); o CSS só consome. */
 function variaveis(p: PaletaMarca): CSSProperties {
+  // O quadradinho translúcido dos cartões grandes clareia a cor da marca: um pouco mais forte quando o texto
+  // do cartão é escuro (marca clara), como na referência.
+  const textoClaro = p.sobrePrincipal === '#ffffff';
   return {
     '--ini-cor': p.principal,
     '--ini-sobre': p.sobrePrincipal,
     '--ini-pressionada': p.pressionada,
-    '--ini-icone': p.icone,
-    '--ini-marca-texto': p.textoSobreBranco,
+    // A cor escura da marca sobre o BRANCO (ícones, iniciais e a linha Liberar/Abrir dos cartões brancos).
+    '--ini-escura': p.textoSobreBranco,
+    // Para o texto que fica direto no cinza da página ("Ver todos"): recalculada contra o cinza, onde a de cima
+    // dá uns 4,1:1 em vez de 4,5:1.
+    '--ini-escura-pagina': escurecerAteContraste(p.principal, 4.5, FUNDO_PAGINA),
+    '--ini-tinta': comAlfa(p.principal, 0.12),
+    '--ini-chip': textoClaro ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.4)',
     '--ini-sombra': p.sombra,
     '--ini-titulo': p.titulo,
-    '--ini-anel': p.anel,
-    // Sem contorno, "none" e 0: o bloco fica sem borda, como sempre. Só a marca quase branca ganha 1 px, e o CSS
-    // desconta a mesma espessura do padding do bloco para ele não mudar de tamanho por dentro.
+    // O anel de foco usa a secundária já escurecida até 4,5:1 sobre o branco: sobre o cinza da página dá mais
+    // de 4:1, acima dos 3:1 que o anel pede.
+    '--ini-anel': p.titulo,
+    // Sem contorno, "none" e 0: o cartão fica sem borda, como sempre. Só a marca quase branca ganha 1 px, e o CSS
+    // desconta a mesma espessura do padding do cartão para ele não mudar de tamanho por dentro.
     '--ini-borda': p.contorno ? `1px solid ${p.contorno}` : 'none',
     '--ini-borda-w': p.contorno ? '1px' : '0px',
   } as CSSProperties;
@@ -121,6 +149,7 @@ export default function InicioPage() {
   const [pessoa, setPessoa] = useState<Pessoa | null>(null);
   const [logoQuebrada, setLogoQuebrada] = useState(false);
   const [maisAberto, setMaisAberto] = useState(false);
+  const { itens: recentes, buscar: buscarRecentes } = useRecentes();
 
   // Quem decide o cadeado é o servidor (uma chamada, cacheada no módulo), como no menu lateral. O admin vem
   // das duas chamadas (/auth/me e /produtos/acessos): se uma falhar, a outra ainda o livra do cadeado.
@@ -168,7 +197,8 @@ export default function InicioPage() {
     if (!isAuthenticated()) { router.replace('/auth?mode=login'); return; }
     carregar();
     carregarUsuario();
-  }, [router, carregar, carregarUsuario]);
+    buscarRecentes();
+  }, [router, carregar, carregarUsuario, buscarRecentes]);
 
   // Sem empresa (ou sem dados ainda) a tela é a da SolarDoc, no laranja de sempre.
   const paleta = useMemo(
@@ -244,7 +274,11 @@ export default function InicioPage() {
   // Sem logo ou sem cor, o convite discreto pra personalizar. Some quando as duas estão preenchidas.
   const faltaMarca = temEmpresa && (semLogo || !paleta.personalizada);
 
-  const bloco = (item: ItemMenu) => <Bloco key={item.id} item={item} travado={travado(item)} />;
+  // As Ferramentas: a lista principal do menu, mais o Parceiro NEXUS quando o portal está no ar.
+  const ferramentas = nexusLigado ? [...principal, nexusItem] : principal;
+
+  // O convite da NEXUS: o mesmo componente de antes, agora depois dos Recentes. Sem convite ele não ocupa lugar.
+  const convite = <div className="ini-nexus"><NexusBanner userId={pessoa?.id ?? null} /></div>;
 
   return (
     <div className="ini-page" style={variaveis(paleta)}>
@@ -265,52 +299,88 @@ export default function InicioPage() {
             <h1 className="ini-empresa">{nome}</h1>
             <p className="ini-ola">{saudacao}</p>
           </div>
-          <Link href={PLATAFORMA} className="ini-plataforma">Plataforma <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" /></Link>
+          <Link href={PLATAFORMA} className="ini-plataforma">Plataforma</Link>
         </div>
       </header>
 
       <div className="ini-corpo">
-        {/* Convite ao Portal do Parceiro NEXUS: só com o portal ligado, fechável por usuário */}
-        <div className="ini-nexus"><NexusBanner userId={pessoa?.id ?? null} /></div>
-
         {temEmpresa ? (
           <main>
-            {/* O mesmo bloco da grade, em 2 colunas: só o tamanho os distingue */}
-            <div className="ini-destaques">{[novaPropostaItem, lerContaItem].map(bloco)}</div>
-
-            <div className="ini-grid">
-              {principal.map(bloco)}
-              {nexusLigado && bloco(nexusItem)}
+            {/* As duas ações principais */}
+            <div className="ini-acoes">
+              {[novaPropostaItem, lerContaItem].map((item) => <Acao key={item.id} item={item} />)}
             </div>
 
-            <h2 className="ini-grupo">Papelada</h2>
-            <div className="ini-grid">{papeladaItems.map(bloco)}</div>
-            <button
-              type="button"
-              className="ini-mais"
-              aria-expanded={maisAberto}
-              aria-controls="ini-mais-docs"
-              onClick={() => setMaisAberto((aberto) => !aberto)}
-            >
-              <span>Mais documentos</span>
-              <ChevronDown size={18} strokeWidth={2.2} className={maisAberto ? 'ini-seta ini-setaAberta' : 'ini-seta'} aria-hidden="true" />
-            </button>
-            {/* Sempre no DOM (o aria-controls aponta para ele); fechado, fica hidden. */}
-            <div id="ini-mais-docs" className="ini-grid ini-gridMais" hidden={!maisAberto}>
-              {outrosDocsItems.map(bloco)}
-            </div>
+            {/* Os 3 últimos documentos: só aparece quando a lista chega e tem o que mostrar */}
+            <Recentes itens={recentes} />
+
+            {/* Convite ao Portal do Parceiro NEXUS: só com o portal ligado, fechável por usuário */}
+            {convite}
+
+            {ferramentas.length > 0 && (
+              <section className="ini-secao" aria-labelledby="ini-ferramentas-titulo">
+                <h2 id="ini-ferramentas-titulo" className="ini-titulo">Ferramentas</h2>
+                <ul className="ini-lista ini-ferramentas" role="list">
+                  {ferramentas.map((item) => <li key={item.id}><Ferramenta item={item} /></li>)}
+                </ul>
+              </section>
+            )}
+
+            <section className="ini-secao" aria-labelledby="ini-papelada-titulo">
+              <h2 id="ini-papelada-titulo" className="ini-titulo">Papelada</h2>
+              <div className="ini-cartaoLista">
+                <ul className="ini-lista ini-linhas" role="list">
+                  {papeladaItems.map((item) => <li key={item.id}><LinhaDeDocumento item={item} /></li>)}
+                  <li>
+                    <button
+                      type="button"
+                      className="ini-linha ini-linhaMais"
+                      aria-expanded={maisAberto}
+                      aria-controls="ini-mais-docs"
+                      onClick={() => setMaisAberto((aberto) => !aberto)}
+                    >
+                      <span className="ini-linhaIcone"><Files size={20} strokeWidth={2} aria-hidden="true" /></span>
+                      <span className="ini-linhaTextos">
+                        <span className="ini-linhaNome">Mais documentos</span>
+                        {!maisAberto && (
+                          <span className="ini-linhaApoio">{listaPt(outrosDocsItems.map((item) => item.label))}</span>
+                        )}
+                      </span>
+                      <ChevronDown
+                        className={maisAberto ? 'ini-chevron ini-seta ini-setaAberta' : 'ini-chevron ini-seta'}
+                        size={18}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </li>
+                </ul>
+                {/* Sempre no DOM (o aria-controls aponta para ele); fechado, fica hidden. */}
+                <ul id="ini-mais-docs" className="ini-lista ini-linhas ini-linhasMais" role="list" hidden={!maisAberto}>
+                  {outrosDocsItems.map((item) => <li key={item.id}><LinhaDeDocumento item={item} /></li>)}
+                </ul>
+              </div>
+            </section>
 
             {paraLiberar.length > 0 && (
-              <>
-                <h2 className="ini-grupo">Para liberar</h2>
-                <div className="ini-grid">{paraLiberar.map(bloco)}</div>
-                {mostrarLoja && (
-                  <Link href={lojaItem.href} className="ini-loja">
-                    <LayoutGrid size={18} strokeWidth={2} aria-hidden="true" />
-                    <span>{lojaItem.label}</span>
-                  </Link>
-                )}
-              </>
+              <section className="ini-secao" aria-labelledby="ini-liberar-titulo">
+                <div className="ini-secaoTopo">
+                  <h2 id="ini-liberar-titulo" className="ini-titulo">Para liberar</h2>
+                  {mostrarLoja && (
+                    <Link
+                      id="ini-liberar-ver"
+                      href={lojaItem.href}
+                      className="ini-verTodos"
+                      aria-labelledby="ini-liberar-ver ini-liberar-titulo"
+                    >
+                      Ver todos
+                    </Link>
+                  )}
+                </div>
+                <ul className="ini-lista ini-vitrine" role="list">
+                  {paraLiberar.map((item) => <li key={item.id}><CartaoDeProduto item={item} travado={travado(item)} /></li>)}
+                </ul>
+              </section>
             )}
 
             {faltaMarca && (
@@ -324,13 +394,16 @@ export default function InicioPage() {
             )}
           </main>
         ) : (
-          <main>
-            <section className="ini-cartao ini-cartaoCadastro" aria-labelledby="ini-cadastro-titulo">
-              <h2 id="ini-cadastro-titulo" className="ini-cartaoTitulo">Cadastre a sua empresa e o app fica com a sua cara</h2>
-              <p className="ini-cartaoTexto">A sua logo e a sua cor aqui, nas propostas e nos relatórios.</p>
-              <Link href="/empresa" className="ini-botao">Cadastrar empresa</Link>
-            </section>
-          </main>
+          <>
+            <main>
+              <section className="ini-cartao ini-cartaoCadastro" aria-labelledby="ini-cadastro-titulo">
+                <h2 id="ini-cadastro-titulo" className="ini-cartaoTitulo">Cadastre a sua empresa e o app fica com a sua cara</h2>
+                <p className="ini-cartaoTexto">A sua logo e a sua cor aqui, nas propostas e nos relatórios.</p>
+                <Link href="/empresa" className="ini-botao">Cadastrar empresa</Link>
+              </section>
+            </main>
+            {convite}
+          </>
         )}
 
         <footer className="ini-rodape">Feito com SolarDoc</footer>
@@ -339,31 +412,77 @@ export default function InicioPage() {
   );
 }
 
+/** Um dos dois cartões grandes do alto: na cor da marca, com o ícone num quadrado translúcido e a linha de apoio. */
+function Acao({ item }: { item: ItemMenu }) {
+  return (
+    <Link href={item.href} className="ini-acao">
+      <span className="ini-acaoIcone"><item.icon size={22} strokeWidth={2.2} aria-hidden="true" /></span>
+      <span className="ini-acaoTextos">
+        <span className="ini-acaoNome">{item.label}</span>
+        <span className="ini-acaoApoio">{APOIO_DA_ACAO[item.id]}</span>
+      </span>
+    </Link>
+  );
+}
+
 /**
- * Um atalho da grade (e os dois de cima, em 2 colunas). Produto que a pessoa ainda não tem: cadeado e
- * link para onde o produto vende (`hrefVendaDoProduto`, a mesma regra do menu lateral: a página de
- * venda ou, no Kit Off-Grid, a própria ferramenta). Página estática (NEXUS): <a> comum, de página
- * inteira.
+ * Um bloco da grade de Ferramentas. Aqui nunca há cadeado: o item de produto que a pessoa ainda não tem
+ * não está na lista principal (vai para "Para liberar"). Página estática (NEXUS): <a> comum, de página inteira.
  */
-function Bloco({ item, travado }: { item: ItemMenu; travado: boolean }) {
+function Ferramenta({ item }: { item: ItemMenu }) {
+  const conteudo = (
+    <>
+      <span className="ini-ferramentaIcone"><item.icon size={22} strokeWidth={2} aria-hidden="true" /></span>
+      <span className="ini-ferramentaNome">{rotulo(item.label)}</span>
+      {item.badge && <span className="ini-selo">{item.badge}</span>}
+    </>
+  );
+  if (item.paginaInteira) {
+    return <a href={item.href} className="ini-ferramenta">{conteudo}</a>;
+  }
+  return <Link href={item.href} className="ini-ferramenta">{conteudo}</Link>;
+}
+
+/** Uma linha da Papelada (e do "Mais documentos" aberto): ícone na cor escura da marca, nome e seta. */
+function LinhaDeDocumento({ item }: { item: ItemMenu }) {
+  return (
+    <Link href={item.href} className="ini-linha">
+      <span className="ini-linhaIcone"><item.icon size={20} strokeWidth={2} aria-hidden="true" /></span>
+      <span className="ini-linhaNome">{item.label}</span>
+      <ChevronRight className="ini-chevron" size={18} strokeWidth={2} aria-hidden="true" />
+    </Link>
+  );
+}
+
+/**
+ * Um cartão da vitrine do "Para liberar". Produto que a pessoa ainda não tem: cadeado, ícone cinza, a linha
+ * "Liberar" e link para onde o produto vende (`hrefVendaDoProduto`, a mesma regra do menu lateral: a página de
+ * venda ou, no Kit Off-Grid, a própria ferramenta). Item liberado (fixo que a pessoa já tem, ou admin): sem
+ * cadeado, ícone na cor da marca e a linha "Abrir", com o link normal.
+ */
+function CartaoDeProduto({ item, travado }: { item: ItemMenu; travado: boolean }) {
   const prod = travado && item.produto ? produtoPorId(item.produto) : null;
   const conteudo = (
     <>
-      <span className="ini-tileIcon"><item.icon size={22} strokeWidth={2} aria-hidden="true" /></span>
-      <span className="ini-tileLabel">{rotulo(item.label)}</span>
-      {prod && <Lock className="ini-tileLock" size={14} strokeWidth={2} aria-label="Bloqueado" />}
-      {item.badge && <span className="ini-tileBadge">{item.badge}</span>}
+      {prod && <Lock className="ini-liberarCadeado" size={16} strokeWidth={2} aria-label="Bloqueado" />}
+      <span className={prod ? 'ini-chip ini-chipCinza' : 'ini-chip'}>
+        <item.icon size={20} strokeWidth={2} aria-hidden="true" />
+      </span>
+      <span className="ini-liberarTextos">
+        <span className="ini-liberarNome">{rotulo(item.label)}</span>
+        <span className="ini-liberarAcao">{prod ? 'Liberar' : 'Abrir'}</span>
+      </span>
     </>
   );
   if (prod) {
     return (
-      <Link href={hrefVendaDoProduto(prod)} className="ini-tile" title={`${prod.nome}: ver o que tem dentro`}>
+      <Link href={hrefVendaDoProduto(prod)} className="ini-liberar" title={`${prod.nome}: ver o que tem dentro`}>
         {conteudo}
       </Link>
     );
   }
   if (item.paginaInteira) {
-    return <a href={item.href} className="ini-tile">{conteudo}</a>;
+    return <a href={item.href} className="ini-liberar">{conteudo}</a>;
   }
-  return <Link href={item.href} className="ini-tile">{conteudo}</Link>;
+  return <Link href={item.href} className="ini-liberar">{conteudo}</Link>;
 }
